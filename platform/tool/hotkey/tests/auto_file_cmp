@@ -1,0 +1,116 @@
+#!usr/bin/perl
+
+
+
+open STDOUT,">cmp_ret";
+
+open CONFIG,"config";
+@t=<CONFIG>;
+chomp($file0=$t[3]);
+chomp($file1=$t[5]);
+close CONFIG;
+
+
+	$end=7;
+	@rps=(6,4,2,1,0.6,0.3,0.1,0.05);
+	@top_hot=(10,50,100,200,500,1000);
+
+	foreach $top(@top_hot){
+	$now=0;	
+	print "Top $top :\n\n";
+	$sum_dismatch=0;
+	$sum_line=0;
+	$sum_dif_ref=0;
+	while($now<=$end){
+	
+    my $dismatch=0,$line=0,$dif_ref=0;
+	$fd0=$file0.$now."_config_0.log";
+	$fd1=$file1.$now."_config_0.log";
+	
+	if(!open FILE0,"$fd0"){
+			    die "can't open file:$fd0\n";
+			    }
+			     
+	if(!open FILE1,"$fd1"){
+			    die "can't open file:$fd1\n";
+		      }
+	
+	
+	while(defined($x[$line]=<FILE0>) && defined($y[$line]=<FILE1>) && $line<$top-1){
+		   
+				$line+=1;
+			
+	  }
+	
+	$line_y=$line+1;
+	
+	    @t= split(/\s+/,$y[$line_y-1]);
+	    $ref=$t[0];
+        while(defined($y[$line_y]=<FILE1>)){
+	      @t=split(/\s+/,$y[$line_y]);
+	    $line_y+=1;
+		$temp=$t[0];
+	      if($temp != $ref){
+	            last;
+	        }
+	    
+	    }
+	$line_y-=1;
+
+	foreach $i(0..$line){
+		$ok=0;
+		@xx=split(/\s+/,$x[$i]);
+		foreach $j(0..$line_y){
+			@yy=split(/\s+/,$y[$j]);
+
+			
+			if($xx[1] eq $yy[1]){
+				$dif_ref+=($xx[0]-$yy[0])*($xx[0]-$yy[0]);
+			$ok=1;
+			last;
+			}
+		}
+		if($ok==0){
+			$dismatch+=1;
+		} 
+	}
+
+    $line+=1;	
+	$sum_dif_ref+=$dif_ref;
+		
+	if ($line==$dismatch) {
+	} else {
+	
+	$dif_ref=$dif_ref*1.0/($line-$dismatch);
+	}
+
+	if($line != 0){
+	$missrate=$dismatch*100.0/$line;
+	}
+
+	$dif_ref=sqrt($dif_ref); 
+	  print "rps: $rps[$now]\n";
+	  print "$dismatch differences between $fd0 and $fd1.\n";
+	  print "dismatch: $missrate\%.\n";
+	  print "square difference in ref: $dif_ref\n\n";
+	$sum_dismatch+=$dismatch;
+	$sum_line+=$line;
+	$now+=1;
+	
+}	 	
+
+	}
+#	$num_of_file=($ARGV[1]-$ARGV[0]+1);
+#	if ($sum_line == $sum_dismatch) {
+#	} else {
+#   $sum_dif_ref=$sum_dif_ref*1.0/($sum_line-$sum_dismatch);
+#	}
+#	print "======================================\nSUMMARY:\n\n";
+#	print "Totally :  $num_of_file  files.\n";
+#	print "There are $sum_dismatch differences.\n";
+#	print "Hotkey dismatch percentage: $missrate\%.\n";
+#	print "Total square difference in ref: $sum_dif_ref\n";
+
+
+
+close STDOUT;

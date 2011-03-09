@@ -1,0 +1,24 @@
+#!/usr/bin/perl
+
+my $bin = "../../../../../build/sdf/protocol/replication/tests/t/fcnl_rtm_case";
+
+if (! -e $bin) {
+	system "cd ..; make; cd -; make";
+}
+
+if (! -e $bin) {
+    die "Make binary fcnl_rtm_case failed";
+}
+
+my @cases = `ls rtm_case`;
+
+my $failed = 0;
+foreach my $case (@cases) {
+    $failed += system "$bin rtm_case/$case";
+}
+
+if ($failed) {
+    die "Totally $failed cases have failed";
+} else {
+    print "Passed.\n";
+}

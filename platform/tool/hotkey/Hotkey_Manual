@@ -1,0 +1,144 @@
+Hotkey Manual for Schooner Memcached
+
+This manual would introduce memcli usage of hot key for customer, including:
+    1. Schooner Memcached supported hot key commands.
+    2. Detail usage of each command.
+    3. Snapshot viewer for history hot key.
+    4. Advanced usage of hot key for configuration.
+
+
+1. Schooner Memcached supported Hot key commands:
+    * schooner hotkey init
+    * schooner hotkey on/off
+    * stats hotkey
+    * stats hotclient
+    * schooner hotkey reset
+
+2. Detail usage of each command:
+
+* schooner hotkey init
+
+    schooner hotkey init [max_hot_keys, e.g., 300] [enable_ip_tracking] [enable_cmd_types]
+    
+    max_hot_keys is 10000, default is 300.
+        a) if enable_ip_tracking is on, keys are sensitive with client ip, and dumped keys
+        would combine with real ip, else client ip is treated as '0.0.0.0'.
+        b) if enable_cmd_types is on, get/update are treated separately, and dumped keys
+        are with UPDATE/GET head flag in snapshots, else get/update are merged as access
+        with ACCESS head flag in snapshots.
+    currently can only init once.
+    
+    Return OK if successful, or else return ERROR.
+
+* schooner hotkey on/off
+
+    By default, hotkey is off, you need turn on if you want to get hot key information.
+    hotkey can be enable/disable as you want.
+    
+    Return OK if successful, or else return ERROR.
+
+* stats hotkey
+    stats hotkey [ntop]
+    
+    Return ntop most hot key of Memcached.
+    ntop is the number to be shown, ntop <= max_hot_keys(10000).
+   
+    Result format:
+        HOTKEY_UPDATE|HOTKEY_GET|HOTKEY_ACCESS
+        ip ref-count key
+        ...
+        ip ref-count key
+        END
+
+        example:
+        Type command:
+            stats hotkey 2
+        Result:    
+            HOTKEY_UPDATE
+            127.0.0.1  42  U3Ronx4T2lrZBmRNxwqWOrajeORzae4YFZe1FL1pYfU26v6ujM
+            127.0.0.47 18  5m0iv4W9oajcGB7FnWONZ1QRVHRkzz7dIHfOHs1zDqFEXkgsw7
+            END 
+    
+     Return ERROR for unexpect input. 
+    
+* stats hotclient
+    stats hotclient [ntop]
+   
+    Return ntop most hot client of Memcached.
+    ntop is the number to be shown, and ntop <= max_hot_client(1024).
+   
+    Result format:
+        HOTCLIENT
+        refcount ip
+        ...
+        refcount ip
+        END
+
+        example:
+        Type command:
+            stats hotclient 2
+        Result:
+            HOTCLIENT
+            11994 127.10.13.1
+            1781 127.10.3.15
+            END
+
+     Return ERROR for unexpect input.  
+
+* schooner hotkey reset
+    
+    Reset hotkey in Memcached.
+    Return OK if successful, or else return ERROR.
+
+    
+3. Snapshot viewer for history hot key.
+    hotkey_viewer utility provides this feature supporting,
+    which is in /opt/schooner/memcached/bin.
+    
+    1). basic usage of hotkey_viewer
+    a) To viewer hot key in history:
+    perl hotkey_viewer
+    b) To viewer hot client in history:
+    perl hotkey_viewer --hotclient
+
+    2). advanced usage of hotkey_viewer
+    For advanced usage of hotkey_viewer, such as ntop, history, client_ip, operation:
+    ./hotkey_viewer [-hotclient] [-ntop NTOP] [-history NHOUR] [-ip IP] [-op OP] [-d] [-h]
+        by default:
+            NTOP=100
+            NHOUR=7d
+            IP=0(return all clients)
+            OP=update
+        a) hotclient is assential for determing to view hot key or hot client.
+        b) nhour should be h/d(hour/day) format, ex: 20h, 5d
+        c) ip should be address ip format with "xxx.xxx.xxxx.xxx", ex: 172.16.13.26
+        d) op should be update/get/access.
+        e) -d is for debug
+        f) if hotclient option is specified, then ntop hot client is counted,
+           else hot keys are counted. For hot client, ip and op have no meaning any more.
+
+        example:
+            To get hot clients in 5 hours:
+            ./hotkey_viewer -hotclient -ntop 100 -history 5h 
+
+            To get hot keys in 30 days with ip 172.16.13.26 and op is UPDATE
+            ./hotkey_viewer -ntop 200 -history 30d -ip 172.16.13.26 -op update
+
+
+4. Advanced usage of hot key for configuration
+    This part is expected for admin user of Memcached. Don't change any default configuration
+    unless you are sure that you are very familiar with these configuratin, else it may crash
+    Memcached product.
+
+    1) To start/stop/restart/status hotkey service:
+    sudo /sbin/service hotkey start/stop/restart/status
+    
+    If you want to modify hotkey service instead of default parameters, 
+    please refer to /user/bin/hotkey.pl script.
+
+    2) Snapshots are dumped in /opt/schooner/hotkey/ with 1 hour interval and save maximal
+    8G space for snapshots.
+ 
+    3) To view hotkey service log:
+      log are saved in /var/log/schooner/hotkey.log, 
+      and logrotate configure file is /etc/logrotate.d/hotkey_logrotate

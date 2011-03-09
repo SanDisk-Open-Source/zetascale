@@ -1,0 +1,136 @@
+#!/usr/bin/perl
+
+use Cache::Memcached;
+use Getopt::Long;
+
+use Time::HiRes qw(gettimeofday tv_interval);
+
+# hotkey tester for generate keys and verify these hotkey 
+# with intervals.
+
+$key_set_size=300;
+
+$value=-1;
+$expires=7200;
+
+$ip         = "127.0.0.1";
+$port       = 11211;
+$run_time   = 120;  # in seconds
+
+$maxtop     = "10000";
+$prop       = "/opt/schooner/memcached/config/memcached.properties";
+
+my @keys = ();
+
+sub gen_keys() {
+    if (@_ == 0) {
+        $maxLenth = 50;
+    } else {
+        ($maxLenth) = @_;
+    }
+
+    @a = (0..9,'a'..'z','A'..'Z');
+    $password = join '', map { $a[int rand @a] } 0..($maxLenth-1);
+}
+
+sub parse_args() {
+    GetOptions( "ip=s"      => \$ip,
+            "port=s"        => \$port,
+            "run_time=i"    => \$run_time,
+            "help"          => \$help
+            );
+
+    if (defined($help)) {
+        print " ./hotkey_image_test --ip --port --run_time\n";
+        exit;
+    }
+}
+
+sub init_key_count {
+    foreach(0..$key_set_size-1) {
+        $key[$_]=&gen_keys();
+        $key_count[$_]=0;
+    }
+}
+
+sub run_test() {
+    printf  "running test instance... expect ${run_time}s\n";
+    my $memcached=Cache::Memcached->new({
+                                        servers =>["$ip:$port"],
+                                        compress_threshold => 10_000
+                                        });
+    $begin      = [gettimeofday];
+    $expect_end = $begin + $run_time;
+
+    my $rand_num = 0;
+    my $updates = 0;
+    while(1) {
+        $rand_num = (++$rand_num) % $key_set_size;
+#        print "random=$rand_num\n";
+        $key_count[$rand_num] += 1;
+        $memcached->add($key[$rand_num],$rand_num,$expires);
+        ++$updates;
+        $diff = tv_interval $begin;
+        if ($diff > $run_time) {
+            print "updated=$updates\n";
+            &check_hotkeys();
+            exit;
+        } 
+     }
+}
+
+sub check_hotkeys {
+    $log = "/tmp/hotkey_test.log";
+    system "echo \"stats hotkey $key_set_size \" | nc $ip $port | tee $log";
+    $num = `wc -l $log`;
+    if ($num < $key_set_size / 10) { 
+        print "ERROR, lots of keys lost, check $log";
+    } else {
+        print "SUCCESS, keys saved in $log\n";
+    }
+}
+
+sub run() {
+    &init_key_count();
+    &run_test();
+    printf "done\n"; 
+}
+
+sub init_all_containers() {
+    system "echo \"schooner hotkey init $maxtop enable_ip_tracking enable_cmd_types\" | nc $ip $port";
+}
+
+sub enable_all_containers() {
+    system "echo \"schooner hotkey on\" | nc $ip $port";
+}
+
+sub read_ports_from_prop() {
+    open PROP, "< $prop" or die "can not find property file: $prop";
+    @prop_lines = <PROP>;
+    close PROP;
+    my  @ports = (); 
+    foreach (@prop_lines) {
+        if ("$_" =~ /TCP_PORT/) {
+            my @splits = split(/\s*=\s*/, $_);
+            $splits[1] =~ s/(^\s+|\s+$)//g;
+            push(@ports, $splits[1]);
+            print DEBUG "adding port [$splits[1]]\n";
+        }    
+    }
+    print DEBUG "ports: @ports\n" ;
+}
+
+sub init_hotkey() {
+   # &read_ports_from_prop(); 
+    &init_all_containers();
+    &enable_all_containers();
+}
+
+sub disable_hotkey() {
+     system "echo \"schooner hotkey off\" | nc $ip $port";
+}
+
+&parse_args();
+&init_hotkey();
+&run();
+&disable_hotkey();

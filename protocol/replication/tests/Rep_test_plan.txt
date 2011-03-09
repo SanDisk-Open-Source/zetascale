@@ -1,0 +1,263 @@
+I Environment:
+{{{
+Four nodes: 0, 1, 2, 3, 
+Replica count: 3
+}}}
+
+II Name:
+{{{
+1. "create shard" means create a shard on a node
+2. "put objects" means write objects which didn't exist before
+3. "set objects" means write objects which have been existed before
+4. "get objects" means read the value of objects
+5. "delete objects" means delete the objects
+6. "different value" means same size, different content or different size
+7. "home node" means this node as the master, RW state
+8. "replica node" means this node as an slave, R state
+}}}
+
+III Operation:
+{{{
+1. create shard on home node
+2. put objects on home node
+3. set objects on home node
+4. delete objects on home node 
+5. get objects from home node
+6. get objects from replica node
+7. crash home node
+8. crash replica node
+9. restart crashed node
+
+}}}
+
+IV Basic Replication test plan: 
+{{{
+1. Non crash node condition 
+1) get
+get no-exist objects from home node and replica node 
+
+2) put -> get  
+put objects to home node, get objects from home node and replica node, check value of them.
+
+3) put -> set -> get 
+put objects to home node, get objects from home node and replica node, set objects with different value, get objects from home node and replica node, check value of them. 
+
+4) delete 
+delete no-exist objects from home node
+
+5) put -> delete -> get
+put objects to home node, delete objects from home node, get objects from home node and replica node, check the value of them.
+
+6) put -> set -> delete -> get 
+put objects to home node, set objects to home node, delete objects to home node, get objects from home node and replica node
+
+7) put -> delete -> set -> get
+put objects to home node, delete obects to home node, set objects to home node , get objects from home node and replica node
+
+
+
+2. Just crash and retart replica node condition
+1) crash -> get
+crash replica node, get no-exist objects from home node and live replica node
+
+2) crash -> restart -> get
+
+3) put -> crash -> get
+
+4) put -> crash -> restart -> get
+
+5) put -> crash -> set -> get
+
+6) put -> crash -> set -> restart -> get
+
+7) put -> set -> crash -> get
+
+8) put -> set -> crash -> restart -> get
+
+9) crash -> delete
+
+10) crash -> restart -> delete
+
+11) put -> crash -> delete -> set -> get
+
+12) put -> crash -> delete -> restart -> set -> get
+
+13) put -> crash -> delete -> set -> restart -> get
+
+14) put -> crash -> set -> delete -> get
+
+15) put -> crash -> set -> restart -> delete -> get
+
+16) put -> crash -> set -> delete -> restart -> get
+
+ 
+
+3. Just crash and restart home node condition
+1) crash -> get
+crash home node, get no-exist objects from home node and live replica node
+
+2) crash -> restart -> get
+
+3) put -> crash -> get
+
+4) put -> crash -> restart -> get
+
+5) put -> crash -> set -> get
+
+6) put -> crash -> set -> restart -> get
+
+7) put -> set -> crash -> get
+
+8) put -> set -> crash -> restart -> get
+
+9) crash -> delete
+
+10) crash -> restart -> delete
+
+11) put -> crash -> delete -> set -> get
+
+12) put -> crash -> delete -> restart -> set -> get
+
+13) put -> crash -> delete -> set -> restart -> get
+
+14) put -> crash -> set -> delete -> get
+
+15) put -> crash -> set -> restart -> delete -> get
+
+16) put -> crash -> set -> delete -> restart -> get
+
+4. Mixed crash/restart replica node and home node condition
+1) put -> crash replica node -> get -> restart replica node -> set -> crash home node 
+
+2) add more .......
+
+3) add more later...
+
+5. Multiple shard testing
+Operates on multiple shard, including get/put/create/delete/crash, etc. 
+
+5.1) single crash, multiple shard testing (fcnl_sn_multi_shard_test.c)
+- 2 nodes, 0, 1
+- shard 101 (1, 0) 1 is home node
+- shard 100 (0, 1) 0 is home node
+- crash node 1 and restart, so both shard 0 and shard 1 should be recovered
+
+5.2) multiple crash, multiple shard testing (fcnl_sn_multi_crash_test.c_)
+- 4 nodes, 0, 1, 2, 3, 3 replicas
+- shard 100 (2, 3, 0) 2 is home node
+- shard 101 (3, 0, 1) 3 is home node
+- shard 102 (1, 2, 3) 1 is home node
+- create shards, write some objects and verify
+- delete some objects from node 2, 3
+- crash node 1, 2
+- restart node 1, 2
+- get objects from both home and replica nodes to verify recovery issues
+- crash node 1, 2, 3 and read objects from node 0
+
+
+6. Multiple failure testing
+5 replicas in total, at most 2 nodes dies at the same time.
+1) PUT -> CND -> GET
+put objects to home node, crash 2 nodes, and get from all left nodes to check values
+
+2) PUT -> DEL -> GET -> CND -> GET
+put objects to home node, crash 2 nodes, and get objects from the crashed nodes
+
+3) PUT -> CND -> RND -> GET
+put objects to home node, crash 2 nodes, restart the crashed node when the node is during local recovery, and get from all nodes and check values
+
+4) PUT -> CND -> RND -> GET
+put objects to home node, crash 2 nodes, restart the crashed nodes after they finish their local recovery, and get from all nodes and check values
+
+5) PUT -> CND -> GET -> RND -> CND -> GET -> RND ...
+put objects to home node, crash 2 nodes, get from all left 3 replica nodes, restart crashed one node, crash another node, get from alive nodes, restart crashed node, crash one node, get objects from alive nodes ... until all node have been crashed and restarted
+
+6) crash all nodes testing, to verify home node switch over (fcnl_sn_all_crash_test.c)
+- 4 nodes, 0, 1, 2, 3, 3 replicas, supernode on 0
+- shard 100 (2, 3, 0) 2 is home node
+- shard 101 (3, 0, 1) 3 is home node
+- shard 102 (1, 2, 3) 1 is home node
+- create shards, write some objects and verify
+- delete some objects from node 2, 3
+- crash node 1, 2, 3 and read objects from node 0
+- restart node 1, 2, 3 and read objects from them
+
+
+6) add more later...
+
+7. Unit test on replication test framework
+Unit test on test framework can be dividied into two aspects, the meta data and replicator testing, the former concentrates on meta data management, while the latter focuses on generating a mass of replication requests and verify the functionality of current replication module.
+
+1) basic shard meta get/put/delete testing (fcnl_rms_get_put_del_test.c)
+create shard meta: RTCSM
+put shard meta:    RTPSM
+get shard meta:    RTGSM
+delete shard meta: RTDSM
+
+RTCSM -> RTPSM -> RTGSM -> RTDSM
+RTCSM -> RTPSM -> RTDSM
+RTPSM -> RTDSM -> RTDSM
+RTCSM -> RTDSM -> RTCSM
+RTCSM -> RTDSM -> RTPSM
+
+2) ltime, seqno, lease, cursor normal testing
+Mock the APIs in real replication to check the internals of seqno and ltime
+issues. (Currently there is a case in rpc.c needed to be refactored by Drew)
+2.1) lease renew testing
+Verify lease renew for get shard meta. (fcnl_rms_get_lease_test.c)
+
+2.2) multiple put shard meta with the same shard meta (fcnl_rms_multi_put_test.c)
+
+2.3) cursor testing (fcnl_framework_cursor_test.c)
+- 5 node cluster, 3 num_replicas, super node on node 0
+- create shard on node 1 (home node)
+- write on node 1, key1
+- read on node 2
+- crash node 2
+- write on node 1, key2, key3
+- read on node 1, key2
+- delete on node 1 key3
+- restart node 2
+- get last seqno on node 2 (GLS)
+- GIC and GBC
+
+3) ltime, seqno, lease fault injection testing (fcnl_rms_fault_in_test.c)
+3.1) put meta data with illegle ltime non home node 
+3.2) put meta data with illegle seqno
+3.3) renew a lease less than current lease to shorten it
+
+4) failure over testing
+4.1) Simple switch over (fcnl_rms_crash_switch_over_test.c)
+- 3 node cluster, super node on node 0
+- put meta on node 1
+- crash node 1
+- put meta data on node 2 when the shard has no lease
+
+4.2) Get shard meta after home node crashed and restart 
+- 5 node cluster, 4 replicas
+- put meta on node 0
+- get meta from node 0 to verify
+- crash node 0
+- get meta from node 3
+- get meta from node 0
+- block a while and restart node 0
+- get meta from node 0 to verify shard meta persistence
+
+4.3) Multiple failure over testing (fcnl_rms_put_crash_expire_put_test.c)
+- 5 node cluster, 4 replicas
+- put and get shard meta on node 0
+- crash 0, 1 consecutively
+- get shard meta from node 3 and 0
+- restart node 0, 1 and get shard meta to verify shard meta persistence
+- put shard meta on node 1
+
+
+6.2 replication module testng
+All scenarios above will be drafted and tested here before shipping to system level. Of course, we can cover more details and do more comprehensive verification.
+
+}}}
+
+V. Stress Replication test plan: 
+
+Mixed all of operations list in III attach using more pthread and fth thread, different key length, different object size
+ 

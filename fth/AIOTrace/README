@@ -1,0 +1,20 @@
+1/4/2010
+
+This directory contains the source to a utility
+for post-processing an aio trace collected by
+memcached.
+
+To collect an AIO trace do the following:
+
+- recompile the trunk with AIO_TRACE defined
+in the topmost Makefile.defs.local file.
+- Before you do a run, create a directory called
+"AT" in the directory where you invoke memcached.
+This is the directory where the aio trace files are
+collected.
+- Make your run.
+- Rename the AT directory so it isn't clobbered the next
+time you do a run.
+
+To analyze an aio trace use the "aa" utility that is compiled
+in trunk/sdf/fth/AIOTrace.  Type "aa" by itself to get the usage.

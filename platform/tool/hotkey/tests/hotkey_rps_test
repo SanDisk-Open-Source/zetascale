@@ -1,0 +1,247 @@
+#!/usr/bin/perl
+
+use Cache::Memcached;
+use Time::HiRes qw(gettimeofday tv_interval);
+require "file_cmp_util.pl";
+
+# hotkey tester for generate keys and verify these hotkey 
+# with intervals.
+@items= ( "N_BUCKET_PER_SLAB", "MIN_WINNERS_PER_LIST",
+          "MIN_CANDIDATES_PER_LIST", "CANDIDATE_RATIO", 
+          "THRESHOLD");
+@configures = ([16, 16, 4, 25, 1], # default
+               [16, 16, 4, 25, 2],
+               [16, 16, 16, 25, 1],
+               [16, 16, 16, 25, 2], # just have a look
+               [16, 16, 32, 25, 1],
+               [16, 32, 4, 25, 1],   # larger winners
+               [16, 32, 16, 25, 1],  # this one?
+               [16, 32, 32, 25, 1],
+               [32, 16, 4, 25, 1],  # less slabs
+               [32, 16, 8, 25, 1],
+               [32, 16, 16, 25, 1],
+               [32, 16, 32, 25, 1], # just have a look
+               [64, 16, 8, 25, 1],  # less slabs
+               [64, 64, 32, 25, 1], # this one?
+               [64, 64, 8, 12, 1],  # less slabs
+              );
+
+
+@rps=(6,4,2,1,0.6,0.3,0.1,0.05);
+@ntop=(1,10,50,100,200,500,1000);
+$key_set_size=5000;
+$hotkey_ratio=0.2;
+$update_num=500000;
+$cur_snapshots=0;
+
+$value=-1;
+$expires=7200;
+
+$tps=38000.0;
+
+$ip="10.1.20.87";
+$port="33300";
+
+$DIR="/tmp/hotkey_rps_test";
+$DIFF=$DIR."/hotkey.diff";
+$diff = "/tmp/tmp.diff";
+
+open fp,"config";
+@t=split(/\s*=\s*/,<fp>);
+chomp($dir=$t[1]);
+close fp;
+$dir=".";
+
+sub usage {
+    print "usage:\n";
+    print "-s: total key set size\n";
+    print "-u: total update number\n";
+    print "-d: debug\n";
+    print "-h: help\n";
+    exit;
+}
+
+sub parse_args{
+    foreach $t(0..$#ARGV) {
+        if($ARGV[$t] eq '-s') {
+            $key_set_size=$ARGV[$t+1]-1;
+        }
+        elsif($ARGV[$t] eq '-u') {
+            $update_num=$ARGV[$t+1];
+        }
+        elsif($ARGV[$t] eq '-h') {
+            &usage();
+        }
+        elsif($ARGV[$t] eq '-d') {
+            $is_debug = 1;
+            open (DEBUG, ">&STDOUT");
+        }
+    }
+
+    printf DEBUG "params:\n";
+    printf DEBUG "key_set=$key_set_size, updates=$update_num\n";
+}
+
+
+# generate configure file
+sub gen_config() {
+    open FILE, ">$dir/hotkey.config" or die "create configure file failed";
+    $configure = $configures[$index];
+    for $i (0..$#items) {
+        print FILE "$items[$i] $configure->[$i]\n";
+    }
+    close FILE;
+    `cp $dir/hotkey.config config.$index`;
+}
+
+
+sub init_key_count {
+    foreach(0..$key_set_size-1) {
+        $key[$_]=&gen_keys();
+        $key_count[$_]=0;
+    }
+}
+
+
+sub run_test() {
+    my $memcached=Cache::Memcached->new({
+                                        servers =>["$ip:$port"],
+                                        compress_threshold => 10_000
+                                        });
+
+    my $count=0;
+    $begin=[gettimeofday];
+
+    while(1) {
+        $count += 1;
+        my $rand_num = rand();
+        if ( $rand_num <= $hotkey_ratio ) {
+            my $rand_int = int(rand($key_set_size));
+            $key_count[$rand_int]    += 1;
+            $memcached->add($key[$rand_int],$rand_int,$expires);
+
+        } else {
+            $rand_str =    &gen_keys(20);
+            $memcached->add($rand_str,$value,$expires);
+        }
+
+        if ($count%$update_num == 0) {
+            $file0="$DIR/hotkey_test_$cur_snapshots\_config_$index";
+            $file1="$DIR/hotkey_$cur_snapshots\_config_$index";
+            open (FILE,">$file0");
+            system " echo \"stats hotkey $key_set_size\" | nc $ip $port > $file1";
+            system " echo \"schooner hotkey reset \" ";
+            ++$cur_snapshots;
+            $dif=tv_interval $begin;
+            print DEBUG "sending $update_num requests use  $dif seconds.\n";
+            $count=0;
+            &check_hotkeys();
+            $begin=[gettimeofday];
+
+            close FILE;
+            return;
+        }
+    }
+}
+
+sub gen_keys() {
+    if (@_ == 0) {
+        $maxLenth = 50;
+    } else {
+        ($maxLenth) = @_;
+    }
+
+    @a = (0..9,'a'..'z','A'..'Z');
+    $password = join '', map { $a[int rand @a] } 0..($maxLenth-1);
+}
+
+sub check_hotkeys{
+    %ret=();
+
+    foreach(0..$key_set_size-1) {
+        $ret{$key[$_]}=$key_count[$_];
+    }
+
+    foreach $key (sort {$ret{$b} <=> $ret{$a}} keys %ret) {
+        print FILE "$ret{$key}    $key\n";
+    }
+}
+
+
+sub run() {
+
+    my $cmd;
+    system "rm -rf $DIR";
+    system "mkdir -p $DIR";
+
+    $config_num=0;
+
+    foreach $index(0..$config_num) {
+        &gen_config();
+        $cur_snapshots=0;
+        @mis=();
+        @variance=();
+        open fp,">rps_server_config_$index.log";
+        close fp;
+        foreach(@rps) {
+            $hotkey_ratio=$_*$key_set_size/$tps;
+            system "sh $dir/runmcd.sh >> \"rps_server_config_$index.log\" 2>&1 &";
+            sleep(5);
+            $cmd = "echo \"schooner hotkey init 10000";
+            $cmd .= "enable_ip_tracking enable_cmd_types\" | nc $ip $port";
+            system "$cmd";
+            $cmd = "echo \"schooner hotkey on\" | nc $ip $port";
+            system "$cmd";
+            
+            print DEBUG "rps: $_\n";
+            &init_key_count();
+            &run_test();
+            foreach $n(@ntop) {
+                print DEBUG "calc file pair <$file0, $file1> ntop=$n\n";
+                @t=cmp_pair_file_ntop($file0, $file1, $n, $diff);
+                push @mis, $t[0];
+                push @variance, $t[1];
+                `cat $diff >> $DIFF`;
+            }
+    
+            `echo "shutdown" | nc $ip $port`;
+            sleep(5);
+        }
+        open fp,">$DIR/mis_config$index";
+        print fp "rps";
+        foreach(@ntop) {
+            print fp "\tTOP$_";
+        }
+        print fp "\n";
+
+        foreach(@rps) {
+            print fp $_;
+            foreach(@ntop) {
+                $temp=shift @mis;
+                printf fp "\t%.2f\%",$temp;
+            }
+            print fp "\n";
+        }
+
+        open fp,">$DIR/variance_config$index";
+        print fp "rps";
+        foreach(@ntop) {
+            print fp "\tTOP$_";
+        }
+        print fp "\n";
+
+        foreach(@rps) {
+            print fp $_;
+            foreach(@ntop) {
+                $temp=shift @variance;
+                printf fp "\t%.2f",$temp;
+            }
+            print fp "\n";
+        }
+    }
+}
+
+
+&parse_args();
+&run();
+

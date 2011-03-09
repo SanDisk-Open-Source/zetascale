@@ -1,0 +1,74 @@
+Hot-key Reporter Tests for Schooner-Memcached
+
+1. checkout and compile hotkey follow README in hotkey.
+
+2. Test cases includes:
+	a. hotkey_test: basic test client for hotkey.
+		usage:
+			[hickey@d052 tests]$ perl hotkey_test -h
+			usage:
+			-s -p -u -m -d -h
+			-s: total key set size
+			-p: probablity hreshold, hotkey_ratio
+			-u: update number
+			-r: ratio of get/update
+			-m: max snapshots, 0 indicates uninfinite
+			-d: debug
+			-h: help
+		
+		output:
+			outputs are put in /tmp/hotkey_test
+	  		the ith results from mcd are stored in hotkey_i
+			the ith results calculated are stored in hotkey_test_i
+			diff results are stored in hotkey.diff
+
+
+	b. rps_hotkey_test: test client with different rps and different configuration
+		notice:
+			add CONFIG_TEST_SUPPORT to hotkey/Makefile:
+	 		CPPFLAGS += -DCONFIG_TEST_SUPPOR
+
+		[hickey@d052 tests]$ perl rps_hotkey_test -h
+		usage:
+		-s  -c -h
+		-s: total key set size
+		-u: total update number
+		-d: debug
+		-h: help
+
+		output:
+    	    outputs are put in /tmp/hotkey_rps_test/
+			the ith results from mcd of configuration j are stored in hotkey_i_config_j
+			at the same time results calculated are stored in hotkey_test_i_config_j
+			miss rate results are stored in mis_configj
+			variance results are stored in variance_configj 
+			and diff results are stored in hotkey.diff
+	  
+	c. hotkey_mcd_test: test for hotkey with different operation to mcd server
+		usage:
+			perl hotkey_mcd_test
+		
+		case 1: start mcd without hotkey function
+		case 2: get hotkey in the state "schooner hotkey off" 
+		case 3: get hotkey in the state "schooner hotkey on"
+		case 4: turn off "schooner hotkey" again
+		case 5: turn on ,turn off ,then turn on "schooner hotkey"
+		case 6: input a big number,or a negative number ,or a string to "stats hotkey"
+		
+	d. For case b and case c,  in the same directory we have a configure file "config" 
+	   states the location of mcd $dir, where we can start it by "sh $dir/runmcd.sh".
+	
+	e. file_cmp_util.pl: to compare results from mcd and results calculated
+	   sub function cmp_pair_file_ntop is called in hotkey_test and rps_hotkey_test
+	   given  2 filenames, ntop, and log file which compare results are stored, 
+	   function cmp_pair_file_ntop can get hotkey missrate and variance
+
+    f. static tests:
+	hotkey_test.t : basic static hotkey test
+	hotkey_test1.t: concentrate setting keys from a key set, then concentrate setting
+					random keys.Thus run several loops.
+	hotkey_test2.t: setting keys from a key set
+	hotkey_test3.t: setting keys all random
+   
+   results from mcd are stored in mcd_ret/mcd_ret1/mcd_ret2/mcd_ret3
+   results calculated are stored in calc_ret/calc_ret1/calc_ret2/calc_ret3

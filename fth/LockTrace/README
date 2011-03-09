@@ -1,0 +1,47 @@
+
+    HOW TO USE THE FTH LOCK TRACE FACILITY
+    --------------------------------------
+
+         Brian O'Krafka   10/27/08
+
+
+1) Add the following line to Makefile.defs.local, make clean, and recompile:
+    CPPFLAGS += -DFTH_INSTR_LOCK
+
+2) In the directory where you run the memcached server, create an empty directory called "LT".
+
+3) Run the memcached test.
+
+4) Rename the LT directory (so it is not overwritten during the next test).
+
+5) Run the lock analyzer utility "la" on the trace files:
+
+  usage: la <trace_file_directory> <executable> <n_skip_recs> [<n_dump_recs>] > <output_file>
+
+  <trace_file_directory>: directory containing lock trace files
+  <executable>: executable that generated the lock trace files
+  <n_skip_recs>: number of trace records to skip (to factor out transient memslap effects)
+  <n_dump_recs>: number of trace records to dump [optional]
+
+  Eg:
+
+      la /home/okrafka/src/trunk/src/trunk/apps/memcached/server/memcached-1.2.5-schooner/LT /home/okrafka/src/trunk/src/trunk/apps/memcached/server/memcached-1.2.5-schooner/build/memcached-fthread-sdf/memcached-fthread-sdf-lt_o 100000 100 > la.out
+
+NOTES:
+------
+
+- In fth/fthLock.h there is a #define called FTH_INSTR_LOCK_TRACE_LEN.
+  This macro sets the number of trace records that are buffered in
+  memory (per scheduler) before they get dumped to a file.  You may have
+  to adjust this macro so that you get a reasonable number of trace files
+  in the LT directory.  If you set it too small, you will have a huge number
+  of tiny files, and you will perturb application performance.  If you set it
+  too high, you may get no output in LT at all: this is because there is
+  currently no way to dump any lock trace records that are still in memory
+  when the test ends.
+
+- You will probably get the best results with locktrace running with multiqueue.
+  (add MULTIQ_SCHED=1 to Makefile.defs.local).  This is because MQ increases the
+  chance that a thread that stalls when calling fthLock will wake up on the
+  same scheduler (which is required by the lock trace facility to get consistent
+  rdtsc values).

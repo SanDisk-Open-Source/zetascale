@@ -1,0 +1,8 @@
+# $Id: 60-schooner.rules 2476 2008-07-29 16:11:45Z drew $ 
+
+# /etc/udev/rules.d entry.  Requires the GPL hooks for the kernel side of 
+# udev.
+ma
+
+KERNEL=="physmem", NAME="%k", OWNER="root", GROUP="kmem", MODE="0660"
+#KERNEL=="physmem[0-9]*", NAME="%k", OWNER="root", GROUP="kmem", MODE="0660"

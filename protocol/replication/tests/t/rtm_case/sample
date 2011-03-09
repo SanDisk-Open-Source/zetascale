@@ -1,0 +1,33 @@
+# [ltime] [op_id] shard create start [shard_id] <vnode:0>
+0 0 shard create start 1
+
+# [ltime] [op_id] shard create complete
+0 0 shard create complete
+
+# [ltime] [op_id] write start [shard_id] [vnode] [key] [data]
+0 1 write start 1 0 test test_data
+
+# [ltime] [op_id] write complete
+0 1 write complete
+
+# [ltime] [op_id] read start [shard_id] [vnode] [key]
+0 2 read start 1 0 test
+
+# [ltime] [op_id] read complete [data]/NOT_FOUND
+0 2 read complete test_data
+
+# [ltime] [op_id] delete start [shard_id] [vnode] [key]
+0 3 delete start 1 0 test
+
+# [ltime] [op_id] delete complete
+0 3 delete complete
+
+# [ltime] [op_id] shard delete start [shard_id] <vnode:0>
+0 4 shard delete start 1
+
+# [ltime] [op_id] shard delete complete
+0 4 shard delete complete
+
+# check succeed/failed
+check succeed
+

@@ -1,0 +1,63 @@
+Fix
+    * Guojing should free up send buffers in send_cleanup.
+    * Get rid of NTOH_COPY and HTON_COPY which call abort.
+    * It seems that node_alloc gets a fixed size storage for name.  This should
+      be fixed.
+    * Problems if broadcast socket is non-blocking.
+    * Fix race condition in SDF message when starting up
+    * May not work with more than two nodes
+    * Debug printing checksum and data
+    * Ensure that write error on socket causes node drop and proper recovery.
+    * Write bandwidth program.
+    * Write program to send data to many nodes
+
+
+TO DO
+-----
+[ ] valgind
+
+[ ] Test with many machines and many instances per machine.
+
+[ ] Randomize order of sending messages.
+    That is, do not always send to other nodes in order of rank.
+
+[ ] After select(), if more than one fd is readable, remember the
+    set of fds that were ready but are not being serviced this time.
+    On the next select(), service fds that were ready earlier, before
+    servicing fds that have just now become ready.  Rationale:
+    We do not want to favor the lower numbered fds.  To the extent
+    possible, it is desirable to handle requests, in order.
+
+[ ] free MSGQ when taking a message off of a queue.
+    Keep small pool of MSGQs, 32 elements with 32-bit bitmap.
+
+[ ] cleanup() function: close file descriptors; free memory.
+
+[ ] Run test using multilog, or perhaps emacs, 1 buffer per instance.
+
+[ ] Add @gdb annotations and convert them to gdb command file.
+
+[ ] Some messages contain binary data.  Use cat -v and/or hexdump()
+    to show that data, if needed.
+
+[ ] Dust off hex_dump().
+
+[ ] Dust off streval().
+
+--------------------------------------------------------------------------------
+
+# Generate "magic" numbers
+
+# MCC_MAGIC
+#
+perl -e 'printf("%08x\n", unpack("I4", "msgc"))'
+perl -e 'printf("#define MCC_MAGIC 0x%08x\n", unpack("I4", "msgc"))'
+echo msgc | od --read-bytes 4 -t x4
+
+# MCN_MAGIC
+perl -e 'printf("%08x\n", unpack("I4", "msgn"))'
+perl -e 'printf("#define MCN_MAGIC 0x%08x\n", unpack("I4", "msgn"))'
+echo msgn | od --read-bytes 4 -t x4
+
+--------------------------------------------------------------------------------
+

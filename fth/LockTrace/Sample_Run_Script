@@ -1,0 +1,11 @@
+#
+#
+#  usage: la <trace_file_directory> <executable> [<n_dump_recs>] > <output_file>
+#
+#  <trace_file_directory>: directory containing lock trace files
+#  <executable>: executable that generated the lock trace files
+#  <n_dump_recs>: number of trace records to dump [optional]
+#
+#
+
+la /home/okrafka/src/trunk/src/trunk/apps/memcached/server/memcached-1.2.5-schooner/LT /home/okrafka/src/trunk/src/trunk/apps/memcached/server/memcached-1.2.5-schooner/build/memcached-fthread-sdf/memcached-fthread-sdf-lt_o 1000

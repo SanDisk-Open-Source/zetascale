@@ -1,0 +1,2 @@
+This directory contains files that get built into a library that the
+SDF application (i.e. mySQL, memcached) need to link against.

@@ -1,0 +1,398 @@
+#!/usr/bin/perl
+
+# viewer for dumped snapshots
+use Getopt::Long;
+
+$dir    = "/opt/schooner/data/hotkey";
+# default value for ntop and history
+$ntop       = 100;
+$history    = "7d";
+$id         = 0;
+$ip         = 0;
+$name       = "";
+$op         = "access";
+
+$now            = 0;
+$end            = 0;
+$dump_size      = 0;
+$items_in_mem   = 0;
+$dump_threshold = 30*1000*500; # affect performance of search
+
+# usage of this script
+sub usage(){
+    print "Usage of viewer:\n";
+    print "hotkey_viewer [--hotclient] [--ntop n] [--history n] [--id id]\n";
+    print "              [-ip ip] [--op OP] [--log log] [-v|--version] [-d] [-h|help]\n";
+    print "\tntop:       top number to be shown, default is 100\n";
+    print "\thistory:    history for searching snapshots, default is 7d (7 days)\n";
+    print "\tid:         target container id, default would search all cotainers\n";
+    print "\tname:       target container name, default would search all cotainers\n";
+    print "\tip:         target client ip, default would search all clients\n";
+    print "\top:         target operation, default would search all operations\n";
+    print "\tlog:        output log, default is STDOUT\n";
+    print "\tversion:    show version\n";
+}
+
+
+sub show_version {
+    print "schooner hotkey viewer\n";
+    print "version 0.1\n";
+ }
+
+# parse args for viewer
+sub parse_args() {
+    GetOptions( "ntop=i"            => \$ntop,  
+                "history=s"         => \$history,
+                "hotclient"         => \$hotclient,
+                "debug"             => \$debug,
+                "help|h"            => \$help,
+                "id=i"              => \$id,
+                "name=s"            => \$name,
+                "ip=s"              => \$ip,
+                "op=s"              => \$op,
+                "log=s"             => \$log,
+                "v|version"         => \$version
+              );   
+
+    if (defined($debug)) {
+        open(DEBUG, ">&STDOUT");
+    }
+    if (defined($hotclient)) {
+        printf DEBUG "stats hot client\n";
+    }
+ 
+    if (defined($version)) {
+        &show_version();
+        exit;
+    }
+
+    if (defined($help)) {
+        &usage();
+        exit;
+    } 
+
+}
+
+
+my @snapshots; # to save the calculated snapshots
+
+# calculate the snapshots from history
+sub calc_snapshots() {
+    print DEBUG "history = $history\n";
+    my $time=substr($history, 0, length($history)-1);
+    my $unit=substr($history, length($history)-1, 1);
+    my $time_sec;    
+
+    if ($unit =~ m/d/i) {
+        $time_sec = $time * 24 * 3600;
+    } elsif ($unit =~ m/h/i) {
+        $time_sec = $time * 3600;
+    } elsif ($unit =~ m/m/i) {
+        $time_sec = $time * 60;
+    } elsif ($unit =~ m/s/i) {
+        $time_sec = $time;
+    }
+    printf DEBUG "history seconds= $time_sec\n"; 
+
+    my $local_time_sec    = time;
+    my @file_list;
+
+    # hotclient will choose files with snapshot_client_port_yyyymmdd_version,
+    # ex: /opt/schooner/hotkey/snapshot_client_11218_2009825_47
+    # hotkey will chose files with snapshot_key_port_yyyymmdd_version,
+    # ex: /opt/schooner/hotkey/snapshot_key_11218_2009825_47
+
+    if (defined($hotclient)) {
+        @file_list        = glob("$dir/*client*");
+    } else {
+        if ("$name" ne "") {
+            @file_list        = glob("$dir/*key*$name");
+        } elsif ($id == 0) {
+            @file_list        = glob("$dir/*key*");
+        } else {
+            @file_list        = glob("$dir/*key*$id*");
+        }
+    }
+
+    foreach (@file_list) {
+        my $file_time_sec     = (stat($_))[10];
+        my $diff_sec         = $local_time_sec - $file_time_sec;
+#        printf DEBUG "file=$_,". 
+#            "file_time=$file_time_sec, cur_time=$local_time_sec, diff=$diff_sec\n";
+
+        if ($diff_sec <= $time_sec) {
+            push(@snapshots, $_);
+            print DEBUG "adding snapshot: $_\n";
+        }
+    }
+
+    $end = @snapshots - 1;
+#    printf DEBUG "snapshots: @snapshots\n"
+}
+
+# dump file as access memory limitation OR
+# for recursive last action
+sub dump(){
+    $dump_file="dump_$dump_size";
+    open fp,">$dump_file" or die "can't open $dump_file.\n";
+    print DEBUG "result saved in $dump_file\n";
+
+    # sort by key increase
+    foreach $key (sort keys %ret) {
+        print fp "$ret{$key} $key\n";
+        print DEBUG "key=$key value=$ret{$key}\n";
+    }
+
+    %ret=();
+    close fp;
+    ++$dump_size;
+}
+
+sub hash_value_sort_decr() {
+    $ret{$b} <=> $ret{$a};
+}
+
+sub get_ret() {
+    printf DEBUG "getting result...\n";
+    if (defined($log)) {
+        open fp, ">$log" or die "cant not open $log";
+    } else {
+        open fp, ">&STDOUT" or die "cant not open STDOUT";
+    }
+
+    # sort by ref
+    foreach $key (sort hash_value_sort_decr(keys %ret)) {
+        # printf DEBUG "item=<$key, $ret{$key}>\n";
+        if ($key) {
+            printf fp "%-15d $key\n", $ret{$key};
+            --$ntop;
+            if($ntop == 0){
+                last;
+            }
+        }
+    }
+    close fp;
+    printf DEBUG "done\n";
+
+    if (defined($log)) {
+        print "result saved in $result\n";
+    }
+}
+
+# read file and updated to hashmap ret.
+sub read() {
+    open fp,"$file" or    die "can't open $file";
+    $line=<fp>;
+    if($line=~/$op/i || $op=~/access/i || $line=~/client/i) {
+        while ($line=<fp>){
+            if ($line =~/^END/) {
+                last;
+            }
+            @t=split(/\s+/,$line);
+
+            if (defined($hotclient)) {
+                $ret{$t[1]} += $t[0];
+                $items_in_mem = keys %ret;
+                if ($items_in_mem >= $dump_threshold) {
+                    printf DEBUG "hashmap items is $items, need dumps\n";
+                    &dump();
+                    $items_in_mem = 0;
+                }
+            } else {
+                if ($t[0] eq "$ip" || "0" eq "$ip") {
+                    $ret{$t[2]} += $t[1];
+                    $items_in_mem = keys %ret;
+                    if($items_in_mem >= $dump_threshold) {
+                        printf DEBUG "hashmap items is $items, need dumps\n";
+                        &dump();
+                        $items_in_mem = 0;
+                    }
+                }
+            }
+        }
+    }
+    close fp;
+}
+
+
+sub heapk(){
+    printf DEBUG "merging min-heap sorting...\n";
+    open fp, "dump_0" or die "can't open dump_0";
+    for (my $i=0;$i<$ntop;$i++) {
+        $line=<fp>;
+
+        @t=split(/\s+/,$line);
+        $key[$i]=$t[1];
+        $ref[$i]=$t[0];
+    }
+    &heapify();
+    printf DEBUG "heapify down\n";
+    while (chomp($line = <fp>)) {
+        @t=split(/\s+/,$line);
+#     print "$t[0] $t[1] $ref[0]\n";
+
+        if($t[0] > $ref[0]) {
+            printf DEBUG "heapdown ($line)\n";
+            $ref[0]=$t[0];
+            $key[0]=$t[1];
+            &heapdown(0);
+        }
+    }
+
+    printf DEBUG "heapdown all done\n";
+    %ret=();
+    for ($i=0; $i<$ntop; $i++) {
+        printf DEBUG "$i <$ref[$i] $key[$i]>\n";
+        $ret{$key[$i]} = $ref[$i];
+    }
+    &get_ret();
+    close fp;
+
+    return ;
+}
+
+sub heapify() {
+    $last = $#ref;
+    for ( my $i = int(($last-1)/2); $i >= 0; --$i ) {
+        &heapdown( $i );
+    }
+}
+
+sub heapdown() {
+    my ($index) = @_;
+    $last = $#ref;
+
+# Short-circuit if heap is now empty, or only one element
+# (if there is only one element in position 0, it
+# can't be out of order).
+    return if $last <= 0;
+
+    my $iv = $ref[$index];
+    my $ikey = $key[$index];
+    while ( $index < $last ) {
+        my $child = 2*$index + 1;
+        last if $child > $last;
+        my $cv = $ref[$child];
+        if ( $child < $last ) {
+            my $cv2 = $ref[$child+1];
+            if ( $cv2 < $cv ) {
+                $cv = $cv2;
+                ++$child;
+            }
+        }
+        last if $iv le $cv;
+        $key[$index] = $key[$child];
+        $ref[$index] = $ref[$child];
+        $index = $child;
+    }
+    $key[$index] = $ikey;
+    $ref[$index] = $iv;
+}
+
+# merge recursively
+$merge_trace_deep = 0;
+sub merge() {
+    printf DEBUG "merging snapshots... size=$dump_size\n";
+    system "rm -rf merge_trace_$merge_trace_deep";
+    system "mkdir merge_trace_$merge_trace_deep";
+    system "cp dump_* merge_trace_$merge_trace_deep";
+    ++$merge_trace_deep;
+
+    if($dump_size == 1) {
+        print DEBUG "done!\n";
+        return ;
+    }
+    for($i=0;$i<int($dump_size/2);++$i) {
+        $to_be_del = $dump_size-1-$i;
+        &merge_file($i,$to_be_del);
+        system "rm dump_$to_be_del -rf";
+#       system "cp dump_$to_be_del /tmp/dump_$to_be_del";
+    }
+    if($dump_size%2 == 1) {
+        $dump_size =($dump_size+1)/2;
+    } else {
+        $dump_size = $dump_size/2;
+    }
+
+    &merge();
+}
+
+sub merge_file() {
+    ($x,$y) = @_;
+    print DEBUG "merging dump_$x dump_$y\n";
+
+    open fp0,"dump_$x" or die "can't open dump_$x";
+    open fp1,"dump_$y" or die "can't open dump_$y";;
+    open temp,">temp" or die "can't open temp";
+
+    $line0=<fp0>;
+    $line1=<fp1>;
+    @xx=split(/\s+/,$line0);
+    @yy=split(/\s+/,$line1);
+
+    # merge in its original order!
+    # increase in this case
+    while(1) {
+        $z = $xx[1] cmp $yy[1];
+        if($z == -1) {
+            print temp "$xx[0] $xx[1]\n";
+            if(!($line0 = <fp0>)) {
+                print temp "$yy[0] $yy[1]\n";
+                last;
+            }
+            @xx=split(/\s+/,$line0);
+        } elsif($z == 1) {
+            print temp "$yy[0] $yy[1]\n";
+            if(!($line1 = <fp1>)) {
+                print temp "$xx[0] $xx[1]\n";
+                last;
+            }
+            @yy=split(/\s+/,$line1);
+        } else {
+            $xx[0] += $yy[0]; 
+            if(!($line1 = <fp1>)) {
+                print temp "$xx[0] $xx[1]\n";
+                last;
+            }
+            @yy=split(/\s+/,$line1);
+        }
+    }
+
+    while($line0=<fp0>) {
+        print temp $line0;
+    }
+    while($line1=<fp1>) {
+        print temp $line1;
+    }
+    close fp0;
+    close fp1;
+    close temp;
+    system "cp temp dump_$x";
+    print DEBUG "done!\n";
+}
+
+# run this script
+sub run_viewer(){
+    &parse_args();
+    &calc_snapshots();
+
+    while($now<=$end){
+        $file = $snapshots[$now]; 
+        &read();    
+        $now+=1;
+    }
+
+    if ($dump_size == 0) {
+        printf DEBUG "dump size is 0, no external sort needed\n";
+        &get_ret();
+    } else {
+        if ($items_in_mem > 0) {
+            &dump();
+        }
+        printf DEBUG "dump_size = $dump_size\n";
+        &merge();
+        &heapk();
+    }
+}
+
+&run_viewer();

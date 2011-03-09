@@ -1,0 +1,217 @@
+Contents
+========
+msg_cmpnode
+msg_exit
+msg_freenodes
+msg_getnodes
+msg_gettime
+msg_endtime
+msg_ialloc
+msg_idata
+msg_ifree
+msg_init
+msg_mynodeno
+msg_nodedrop
+msg_nodeknow
+msg_nodename
+msg_poll
+msg_salloc
+msg_send
+msg_setbcast
+msg_sfree
+msg_want
+msg_work
+
+
+msg_cmpnode
+===========
+Synopsis
+    int msg_cmpnode(nno_t n1, nno_t n2);
+Description
+    Given two node numbers, compare them and return -1, 0 or 1 depending on
+    whether n1 is less than, equal to or greater than n2.  The ordering used is
+    consistent and will return the same value on every node.
+
+
+msg_exit
+========
+Synopsis
+    void msg_exit(void);
+Description
+    Shut down the messaging system.
+
+
+msg_freenodes
+=============
+Synopsis
+    void msg_freenodes(msg_node_t *nodes);
+Description
+    Free the list of nodes that was returned by msg_getnodes.
+
+
+msg_getnodes
+============
+Synopsis
+    msg_node_t *msg_getnodes(nno_t nno, int *count);
+Description
+    Return a null terminated array of nodes.  If nno is 0, all nodes are
+    returned.  Otherwise only that node is returned.  If count is not NULL, the
+    number of nodes is placed in count.
+
+
+msg_gettime
+===========
+Synopsis
+    ntime_t msg_gettime(void);
+Description
+    Return the current time in nanoseconds.
+
+
+msg_endtime
+===========
+Synopsis
+    ntime_t msg_endtime(ntime_t ntime);
+Description
+    Given a time in nanoseconds, convert it to an endtime suitable for passing
+    to msg_poll.  If the time is 0, we convert to an endtime that has no limit.
+
+
+msg_ialloc
+==========
+Synopsis
+    msg_info_t *msg_ialloc(void);
+Description
+    Allocate a msg_info_t buffer.  The buffer is initialized to default values.
+    It will never return NULL.
+
+
+msg_idata
+=========
+Synopsis
+    void msg_idata(msg_info_t *info);
+Description
+    Return a copy of the data portion in a form that the user can free at
+    leisure.  Any association of the data with the info structure is removed.
+
+
+msg_ifree
+=========
+Synopsis
+    void msg_ifree(msg_info_t *info);
+Description
+    Free a info buffer that was previously allocated by msg_ialloc.
+
+
+msg_init
+========
+Synopsis
+    int msg_init(msg_init_t *init);
+Description
+    Initialize the messaging system.  This must be called before anything else.
+
+
+msg_mynodeno
+============
+Synopsis
+    int msg_mynodeno(void);
+Description
+    Return the node number of my node.
+
+
+msg_nodedrop
+============
+Synopsis
+    char *msg_nodedrop(nno_t nno);
+Description
+    Cause the given node to be dropped from the system.  Usually called after
+    an error is encountered.
+
+
+msg_nodeknow
+============
+Synopsis
+    char *msg_nodeknow(char *name);
+Description
+    Allow the message system to know about a specific node even if it not
+    within broadcast range.
+
+
+msg_nodename
+============
+Synopsis
+    char *msg_nodename(nno_t nno);
+Description
+    Given a node number, return the name of the node.  NULL is returned on
+    error.
+
+
+msg_poll
+========
+Synopsis
+    msg_info_t *msg_poll(ntime_t etime);
+Description
+    Return the next message waiting for us.  If none is available, we poll,
+    waiting for the next message to arrive.  etime determines that time at
+    which we give up waiting and return even if no message has arrived.  If
+    etime is -1, we never give up.  If etime is 0, we do not block.  If no
+    message has arrived, NULL is returned.
+
+
+msg_salloc
+==========
+Synopsis
+    msg_send_t *msg_salloc(void);
+Description
+    Allocate a msg_send_t buffer which may then be passed to msg_send.  The
+    buffer is initialized to default values.  It will never return NULL.
+
+
+msg_send
+========
+Synopsis
+    void msg_send(msg_send_t *send);
+Description
+    Send a message.  Parameters are described in the msg_send_t structure.
+
+
+msg_setbcast
+============
+Synopsis
+    void msg_setbcast(int mode);
+Description
+    Turn broadcasting on or off.
+
+
+msg_sfree
+=========
+Synopsis
+    void msg_sfree(msg_send_t *send);
+Description
+    Free a send buffer that was previously allocated by msg_salloc.
+
+
+msg_want
+========
+Synopsis
+    msg_info_t *msg_want(ntime_t etime, msg_info_t *want1, msg_info_t *want2);
+Description
+    Look for a message that has arrived that matches both want1 and want2.  If
+    want1 matches, it is taken off the message queue.  If want2 matches, it is
+    returned.  If want2 does not match, that message is tossed.  Either or both
+    want1 and want2 may be NULL implying they match all messages.  Note that if
+    the type in the want is set to MSG_EJOIN, it will also match MSG_EDROP.  If
+    it is set to MSG_EIADD, it will also match MSG_EIDEL.  etime determines the
+    time at which we give up waiting and return even if no message has arrived.
+    If etime is -1, we never give up.  If etime is 0, we do not block.  If no
+    message arrives in time, NULL is returned.
+
+
+msg_work
+========
+Synopsis
+    void msg_work(ntime_t etime);
+Description
+    Cause progress to be made until etime.  If etime is 0, we just take care of
+    some first set of tasks that need to be done and then we return.  Note that
+    msg_poll does not call msg_work unless there is nothing in its queue to
+    return.

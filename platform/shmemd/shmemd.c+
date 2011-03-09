@@ -1,0 +1,1981 @@
+/*
+ * File:   sdf/platform/shmemd.c
+ * Author: drew
+ *
+ * Created on January 24, 2008, 8:00 PM
+ *
+ * (c) Copyright 2008, Schooner Information Technology, Inc.
+ * http://www.schoonerinfotech.com/
+ *
+ * $Id: shmemd.c,v 1.9 2008/03/12 09:15:10 drew Exp $
+ */
+
+/**
+ * Shmemd handles shared memory initialization order issues and failure
+ * recovery of some crash consistent data structures.
+ *
+ * It does this by binding a connection-oriented unix domain socket to a
+ * well-known file name and listening for connections.  Clients bind (and in
+ * the future flock) a unique (via tmpnam(), etc) connection-oriented unix
+ * domain socket to handle incoming reconnections from a restarting shmemd
+ * and pass this information to shmemd on connect to its socket.  Shmemd
+ * responds by allocating a process structure in shared memory, passing back
+ * attachment information for segment 0, and returning the shared memory
+ * pointer.
+ *
+ * Clients usually handle their own allocations but may use the connection
+ * to request additional memory which makes new segment attachment a single-
+ * writer operation.
+ *
+ * Client processes have exclusive write privledges to their process structure
+ * (except for shmemd's intrusive data structures) until they terminate
+ * abnormally.
+ *
+ * XXX In the future each process structure will contain a list of kernel
+ * threads.  Each kernel thread structure will have an action field,
+ * currently scheduled user thread  and sleeping thread list associated with
+ * User thread structures wll list all locks held.
+ *
+ * When a client process connection close is detected, ownership passes to
+ * shmemd.  If the process was not detached cleanly and may have left shared
+ * structures in an inconsistent state the current shmemd implementation
+ * triggers a halt + restart.
+ *
+ * XXX In the future shmemd will set the process kernel and user thread
+ * structures to a recovering state and restarts each kernel thread with its
+ * own logic which completes pending actions, releases the locks held by all
+ * user threads, frees the user thread structures, and terminates.  When this
+ * process completes, all system-maintained crash-consistent data structures
+ * will back in a consistent state and locks are released.
+ *
+ * Currently, shmemd does not restart.
+ *
+ * XXX In the future, when shmemd terminates abnormally and restarts, it will
+ * read its state from memory, reconnect to all living child processes, begin
+ * the reaping process for terminated processes, and start accepting new
+ * connections.
+ */
+
+#include <sys/queue.h>
+#include <sys/un.h>
+
+#ifndef _GNU_SOURCE
+#define _GNU_SOURCE
+#endif
+#include <getopt.h>
+#include <limits.h>
+#include <stdio.h>
+
+/* Logging category */
+#define LOG_CAT PLAT_LOG_CAT_PLATFORM_SHMEMD
+
+#include "misc/misc.h"
+
+#include "platform/assert.h"
+#include "platform/closure.h"
+#include "platform/errno.h"
+#include "platform/logging.h"
+#include "platform/msg.h"
+#include "platform/platexits.h"
+#include "platform/select.h"
+#include "platform/shmem.h"
+#include "platform/shmem_ptrs.h"
+#include "platform/signal.h"
+#include "platform/socket.h"
+#include "platform/stdio.h"
+#include "platform/stdlib.h"
+#include "platform/string.h"
+#include "platform/thread.h"
+#include "platform/time.h"
+#include "platform/unistd.h"
+
+#include "private/process.h"
+#include "private/shmem_internal.h"
+#include "private/shmem_msgs.h"
+
+#undef max
+#define max(a, b) ((a) >= (b) ? (a) : b)
+
+/* Defaults */
+#define DEFAULT_INITIAL_SIZE (16 * 1024 * 1024)
+#define DEFAULT_INITIAL_GROW DEFAULT_INITIAL_SIZE
+#define DEFAULT_MAX_SIZE (DEFAULT_INITIAL_SIZE + 2 * DEFAULT_INITIAL_GROW)
+#define DEFAULT_KILL_INTERVAL 5
+
+#define LISTEN_QUEUE 100
+
+PLAT_LOG_SUBCAT_LOCAL(LOG_CAT_META, LOG_CAT, "meta");
+
+/** Do meta goo and log it for debugging */
+#define DO_META(meta)                                                          \
+    do {                                                                       \
+        plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT_META, "%s", #meta);          \
+        meta;                                                                  \
+    } while (0)
+
+/*
+ * Command line arguments
+ *     #define item(opt, desc, upper, parse, required)
+ * where
+ * opt is a 'C' string describing the option
+ * arg is a  description of the argument or its argument
+ * upper is an all-upper version of the option for enum definition
+ * parse is a lambda function to parse it (using config and optarg
+ * as provided to OPT_ITEMS())
+ * required is one of reqiured, no, or optional indicating whether
+ *     this option takes an argu,ent.
+ */
+#define OPT_ITEMS()                                                            \
+    item("socket", "path for unix domain socket to listen on", SOCKET,         \
+         parse_string_alloc(&config->socket_name, optarg,                      \
+                            sizeof (((struct sockaddr_un *)0)->sun_path) - 1), \
+         required)                                                             \
+    item("shm", "SYSV shared memory key to use for first segment", SHM,        \
+         parse_shm(config, optarg), required)                                  \
+    item("mmap", "pattern including %d specifiying ramdisk file paths", MMAP,  \
+         parse_mmap(config, optarg), required)                                 \
+    item("initial", "initial memory size", INITIAL,                            \
+         parse_size(&config->initial_size, optarg, NULL), required)            \
+    item("grow", "growth increment", GROW,                                     \
+         parse_size(&config->grow_size, optarg, NULL), required)               \
+    item("max", "maximum total size", MAX,                                     \
+         parse_size(&config->max_size, optarg, NULL), required)                \
+    item("kill", "kill interval", KILL,                                        \
+         parse_int(&config->kill_interval_secs, optarg, NULL), required)       \
+                                                                               \
+    /* Common args for all programs. */                                        \
+                                                                               \
+    item("log", "log category=log level", LOG,                                 \
+         plat_log_parse_arg(optarg), required)                                 \
+    item("seed", "seed PRNG", SEED,                                            \
+         seed_arg(), no)                                                       \
+    item("reseed", "reseed value from seed", RESEED,                           \
+         parse_reseed(optarg), required)                                       \
+    item("stop", "stop program to await debugger attachment", STOP,            \
+         stop_arg(), no)
+
+/**
+ * @defgroup shmemd Shmemd state
+ * @{
+ */
+
+/**
+ * Define shmmed state table.  item shall be defined as
+ *     item(upper, lower, prev_expr, enter_state, read_from_process, term_sig)
+ * where
+ *     upper is the capitalized name for enums
+ *     lower is the lower case name for function names or pretty-printing
+ *     prev_expr evaluates to true when a transition from prev is allowed
+ *     enter_state enters the given state
+ *     read_from_process handles read activity from the process
+ *     term_sig handles receipt of SIGTERM
+ */
+
+/*
+ * State            Event               Action          Next state
+ * initial                                              running
+ * idle             add process                         running
+ *                  SIGTERM                             done
+ *
+ * running          last normal process                 idle
+ *                  stop
+ *                  abnormal process stop               shutdown
+ *                  SIGTERM                             shutdown
+ *
+ * shutdown         last process stop                   done
+ * done
+ */
+#define SHMEMD_STATE_ITEMS(shmemd, process, prev)                              \
+    item(INITIAL, initial, (0) /* none allowed */, /* enter state */,          \
+         plat_assert(0) /* process EOF */, plat_assert(0) /* sigterm */)       \
+    item(IDLE, idle, (prev == SHMEMD_STATE_INITIAL ||                          \
+                      prev == SHMEMD_STATE_RUNNING), /* enter state */,        \
+         plat_assert(0) /* process EOF */,                                     \
+         shmemd_set_state(shmemd, SHMEMD_STATE_DONE) /* sigterm */)            \
+    item(RUNNING, running, (prev == SHMEMD_STATE_IDLE), /* enter state */,     \
+         shmemd_running_handle_read_from_process(shmemd, process),             \
+         shmemd_set_state(shmemd, SHMEMD_STATE_SHUTDOWN) /* sigterm */)        \
+    item(SHUTDOWN, shudown, (prev == SHMEMD_STATE_RUNNING),                    \
+         shmemd_enter_shutdown(shmemd),                                        \
+         shmemd_shutdown_handle_read_from_process(shmemd, process),            \
+         /* sigterm, we're already shutting down */)                           \
+    item(DONE, done, (prev == SHMEMD_STATE_INITIAL ||                          \
+                      prev == SHMEMD_STATE_IDLE ||                             \
+                      prev == SHMEMD_STATE_SHUTDOWN), /* enter state */,       \
+         /* process EOF */, /* sigterm */)
+
+/**
+ * @defgroup process Shmemd process state
+ * @{
+ */
+/**
+ * Define process state table.  item shall be defined as
+ *     item(upper, lower, prev_expr, enter_state, attach, detach, remote_eof,
+ *          shmemd_eof)
+ * where
+ *     upper is the capitalized name for enums
+ *     lower is the lower case name for function names or pretty-printing
+ *     prev_expr evaluates to true when a transition from prev is allowed
+ *     enter_state enters the given state
+ *     attach is the attach message handler
+ *     detach is the detach message handler
+ *     remote_eof is called on control
+ *     shmemd_eof is called on shmemd socket eof
+ *
+ * @param <IN> process Intended to be used where the associated struct
+ * shmemd_process * is required.  May be empty.
+ *
+ * @param <IN> prev Intended to be used to determine allowable state
+ * transitions.  May be empty.
+ */
+
+
+/*
+ * Per-process state with synchronous message processing.
+ *
+ * State            Message         Action              Next state
+ * initial                                              unattached
+ *
+ * unattached       Attach                              attached
+ *                  Remote EOF                          shutdown_clean
+ *                  Main EOF                            shutdown_clean
+ *
+ * attached         Remote EOF                          shutdown_dirty
+ *                  Main EOF                            shutdown_dirty
+ *                  Detach                              shutdown_clean
+ *
+ * shutdown_clean                   Clean shutdown      done
+ *
+ * shutdown_dirty                 Unclean shutdown    done
+ *
+ * done
+ */
+#define PROCESS_STATE_ITEMS(process, prev)                                     \
+    /* Initial state, before thread start */                                   \
+    item(INITIAL, initial, (0) /* none allowed */, plat_assert(0) /* enter */, \
+         NULL /* attach */, NULL /* detach */,                                 \
+         plat_assert(0) /* remote_eof */, plat_assert(0) /* shmemd_eof */)     \
+                                                                               \
+    /* accept() complete, waiting for shmem_msg_attach  */                     \
+    item(UNATTACHED, unattached, (prev == PROCESS_STATE_INITIAL),              \
+         /* enter_state */, process_unattached_handle_attach,                  \
+         process_handle_unexpected,                                            \
+         process_set_state(process, PROCESS_STATE_SHUTDOWN_CLEAN),             \
+         /* shmemd_eof */                                                      \
+         process_set_state(process, PROCESS_STATE_SHUTDOWN_CLEAN)              \
+         /* remote_eof */)                                                     \
+                                                                               \
+    /* Normal operation, waiting for shmem_msg_detach or eof  */               \
+    item(ATTACHED, attached, (prev == PROCESS_STATE_UNATTACHED),               \
+         /* enter_state */, process_handle_unexpected /* attach */,            \
+         process_attached_handle_detach,                                       \
+         process_set_state(process, PROCESS_STATE_SHUTDOWN_DIRTY),             \
+         /* shmemd_eof */                                                      \
+         process_set_state(process, PROCESS_STATE_SHUTDOWN_DIRTY)              \
+         /* remote_eof */)                                                     \
+                                                                               \
+    /* Clean shutdown */                                                       \
+    item(SHUTDOWN_CLEAN, shutdown_clean, (prev == PROCESS_STATE_UNATTACHED ||  \
+                                          prev == PROCESS_STATE_ATTACHED),     \
+         process_enter_shutdown_clean(process),                                \
+         NULL /* attach */, NULL /* detach */,                                 \
+         plat_assert(0) /* remote_eof */, plat_assert(0) /* shmemd_eof */)     \
+                                                                               \
+    /* Unclean shutdown */                                                     \
+    item(SHUTDOWN_DIRTY, shutdown_dirty, (prev == PROCESS_STATE_ATTACHED),     \
+         process_enter_shutdown_dirty(process),                                \
+         NULL /* attach */, NULL /* detach */,                                 \
+         plat_assert(0) /* remote_eof */, plat_assert(0) /* shmemd_eof */)     \
+                                                                               \
+    /* Event loop + thread have terminated or will do so immediately */        \
+    item(DONE, done, (prev == PROCESS_STATE_SHUTDOWN_CLEAN ||                  \
+                      prev == PROCESS_STATE_SHUTDOWN_DIRTY),                   \
+         process_enter_done(process),                                          \
+         NULL /* attach */, NULL /* detach */,                                 \
+         plat_assert(0) /* remote_eof */, plat_assert(0) /* shmemd_eof */)
+
+/** @} end defgroup process  */
+
+/** shmemd state machine state */
+enum shmemd_state {
+#define item(upper, lower, prev_expr, enter_state, process_eof, term_sig) \
+    SHMEMD_STATE_ ## upper,
+SHMEMD_STATE_ITEMS(/* shmemd */, /* process */, /* prev */)
+#undef item
+};
+
+struct shmmed_config;
+struct shmemd_process;
+
+/** Ends of the socket between signal handler and shmemd */
+enum shmemd_socket_ends {
+    SHMEMD_SOCKET_SHMEMD,
+    SHMEMD_SOCKET_SIGNAL
+};
+
+/**
+ * @brief Complete shared memory server context
+ *
+ * The shmemd logic is implemented as a single-threaded event loop, with
+ * the context owning a set of shmemd_process structures one per connected
+ * client process.
+ *
+ * The shmemd_process structures each have a thread which can block on
+ * pthread or fth mutexes, such as those protecting the shared memory
+ * allocator or which may be needed to perform crash recovery.  Their
+ * event loop runs out of the same thread, watching for EOF from client
+ * connections.  Its event loop is terminated by a SIGTERM.
+ *
+ * shmemd communicates with the shmemd_process structures by way of
+ * a socket which can trip its event loop.
+ *
+ * XXX shmemd must be a singleton as long as the signal handling code is
+ * included instead of being handled by a platform layer abstraction
+ */
+struct shmemd {
+    /**
+     * Current state, SHMEMD_STATE_INITIAL on construction and SHMEMD_STATE_DONE
+     * when event loop has terminated.
+     */
+    enum shmemd_state state;
+
+    /** Configuration owned by this, deallocate with shmemd_config_free() */
+    struct shmemd_config *config;
+
+    /* XXX this goes away when we have a real event loop abstraction */
+    /**
+     * Pipe for signal handling; data consists of integer signal number.  A
+     * pipe is used because a signal flag cannot be checked atomically with
+     * the drop into select() for an event loop.
+     */
+    int signal_to_shmemd[2];
+    /** Original sigterm handler */
+    struct sigaction sigterm_old_action;
+    /** sigterm_old_action is valid and should be undone on shmemd_free */
+    int sigterm_old_action_exists;
+
+    /** First in-core descriptor.  Constant after startup */
+    struct shmem_descriptor first_descriptor;
+
+    /** Unix domain socket for incoming connections. */
+    int listen_fd;
+
+    /** List of running processes.  Only manipulated in main thread */
+    LIST_HEAD(/* no struct name */, shmemd_process) process_list;
+
+    /** Exit status from platexits.h */
+    int exit_status;
+};
+
+/**
+ * @defgroup config Shmemd configuration
+ * @{
+ */
+
+/** Allocation mechanism */
+enum config_memory_mode {
+    /** Memory mode not yet specified */
+    MM_UNSPECIFIED,
+    /** Use SYSV shared memory for backing store allocation */
+    MM_SHM,
+    /** Use mmap for backing store allocation from device, file, etc. */
+    MM_MMAP
+};
+
+/** @brief Failure handling behavior */
+enum config_fail_mode {
+    /** Client or server failure causes system to stop */
+    FAIL_STOP
+};
+
+/** @brief Shmemd configuration initialized by argument parser */
+struct shmemd_config {
+    /* Bound unix domain socket for incoming connections (plat_free) */
+    char *socket_name;
+
+    /* Failure handling mode, currently only FAIL_STOP is supported */
+    enum config_fail_mode fail_mode;
+
+    /* Memory allocation mode, currently sysv shmem or malloc */
+    enum config_memory_mode memory_mode;
+
+    /* File system name of file/device backing store (pat_free) */
+    char *mmap_name;
+
+    /* Valid when memory_mode == MM_SHM */
+    int shm_key;
+
+    /* Initial size of shared memory pool in bytes */
+    int64_t initial_size;
+
+    /* Incremental growth size in bytes */
+    int64_t grow_size;
+
+    /* Maximum size */
+    int64_t max_size;
+
+    /* Interval between SIGTERM and SIGKILL */
+    int kill_interval_secs;
+};
+
+/** @} end defgroup config */
+
+/**
+ * @addtogroup process
+ * @{
+ */
+/** Ends of the socket between shmemd event loop and process handler */
+enum process_socket_ends {
+    PROCESS_SOCKET_SHMEMD,
+    PROCESS_SOCKET_PROCESS
+};
+
+/** shmemd_process state */
+enum process_state {
+#define item(upper, lower, prev_expr, enter_state, attach, detach, remote_eof, \
+             shmemd_eof)                                                       \
+    PROCESS_STATE_ ## upper,
+    PROCESS_STATE_ITEMS(/* process */, /* prev */)
+#undef item
+};
+
+/** reason shmemd process terminated */
+enum process_shutdown_type {
+    PROCESS_SHUTDOWN_RUNNING,
+    PROCESS_SHUTDOWN_CLEAN,
+    PROCESS_SHUTDOWN_DIRTY
+};
+
+/**
+ * process a single message
+ *
+ * XXX this might get replaced by a lambda function defined in the
+ * PROCESS_SATE_ITEMS macro.
+ */
+typedef void (*process_msg_fn_t)(struct shmemd_process *process,
+                                 struct plat_msg_header *msg,
+                                 plat_msg_free_t);
+
+/**
+ * @brief Context associated with a single client process connection
+ *
+ * @see struct shmemd
+ */
+struct shmemd_process {
+    /** Current state */
+    enum process_state state;
+
+    /** Parent */
+    struct shmemd *shmemd;
+
+    /**
+     * Socket for communication with parent used to provide select()able
+     * interface.  Semantics are close on EOF.  PROCESS owns its end during
+     * thread lifetime.
+     */
+    int shmemd_to_process[2];
+
+    /**
+     * Kernel thread associated with the process.  This is the most expedient
+     * way to allow blocking on acquiring shared memory mutexes on process
+     * structure acquisition and return structures to the free list.
+     */
+    /*
+     * XXX: A lock structure supporting an indirect to user-specified
+     * wakeup code (perhaps in shared memory with executable permisions)
+     * may be a reasonable alternative to the threading mess
+     */
+    plat_kthread_t thread;
+
+    /** True when the thread has been created */
+    int thread_created;
+
+
+    /** Socket connection to client process */
+    int remote_fd;
+
+    /** Connection sequence number */
+    u_int64_t seqno;
+
+    /** User class for recovery */
+    enum plat_shmem_user_class user_class;
+
+    /** Client process pid */
+    pid_t pid;
+
+    /** Canonical shared memory pointer for plat_process state */
+    plat_process_sp_t shared_process_ptr;
+
+    /** How this process was shutdown */
+    enum process_shutdown_type shutdown_type;
+
+    /** Handle shmem_attach_request */
+    process_msg_fn_t attach_fn;
+    /** Handle shmem_detach_request */
+    process_msg_fn_t detach_fn;
+
+    /** Eofs are handled separately */
+
+    /** List of client processes */
+    LIST_ENTRY(shmemd_process) process_list;
+};
+
+/** @} addtogroup process */
+/** @} endgroup shmemd */
+
+/**
+ * Static for signal handler aliasing
+ * shmemd->signal_to_shmemd[SHMEMD_SOCKET_SIGNAL]
+ *
+ * XXX goes away with real event loop + signal handlers
+ */
+static int signal_fd;
+
+static int parse_args(struct shmemd_config *config, int argc, char **argv);
+static int parse_mmap(struct shmemd_config *config, const char *value);
+static int parse_shm(struct shmemd_config *config, const char *value);
+static void usage();
+static void usage_one(const char *opt, const char *description, int required);
+static struct shmemd *shmemd_alloc(struct shmemd_config *config);
+static void shmemd_free(struct shmemd *shmemd);
+static int shmemd_event_loop(struct shmemd *shmemd);
+static void shmemd_enter_shutdown(struct shmemd *shmemd);
+static void shmemd_handle_read_from_signal(struct shmemd *shmemd);
+static void shmemd_handle_listen_ready(struct shmemd *shmemd);
+static void shmemd_handle_read_from_process(struct shmemd *shmemd,
+                                            struct shmemd_process *process);
+static void shmemd_running_handle_read_from_process(struct shmemd *shmemd,
+                                                    struct shmemd_process
+                                                    *process);
+static void shmemd_shutdown_handle_read_from_process(struct shmemd *shmemd,
+                                                     struct shmemd_process
+                                                     *process);
+static int shmemd_process_terminated(struct shmemd *shmemd,
+                                     struct shmemd_process *process);
+
+static void shmemd_set_state(struct shmemd *shmemd, enum shmemd_state next);
+static const char *shmemd_state_to_string(enum shmemd_state state);
+static struct shmemd_config *shmemd_config_alloc();
+static struct shmemd_config *shmemd_config_clone(struct shmemd_config *config);
+static void shmemd_config_free(struct shmemd_config *config);
+static struct shmemd_process *process_alloc(struct shmemd *shmemd, int fd);
+static void process_free(struct shmemd_process *process);
+static int process_shutdown(struct shmemd_process *process);
+static void *process_thread_main(void *self);
+static void process_handle_shmemd_read(struct shmemd_process *process);
+static void process_handle_remote_read(struct shmemd_process *process);
+static void process_handle_remote_eof(struct shmemd_process *process);
+static void process_unattached_handle_attach(struct shmemd_process *process,
+                                             struct plat_msg_header *msg,
+                                             plat_msg_free_t msg_free_closure);
+static void process_attached_handle_detach(struct shmemd_process *process,
+                                           struct plat_msg_header *msg,
+                                           plat_msg_free_t msg_free_closure);
+static void process_handle_unexpected(struct shmemd_process *process,
+                                      struct plat_msg_header *msg,
+                                      plat_msg_free_t msg_free_closure);
+static void process_enter_shutdown_clean(struct shmemd_process *process);
+static void process_enter_shutdown_dirty(struct shmemd_process *process);
+static void process_enter_done(struct shmemd_process *process);
+static void process_init_msg_header(struct shmemd_process *process,
+                                    struct plat_msg_header *header, int type,
+                                    u_int32_t len, u_int64_t response_seqno,
+                                    int status);
+static void process_kill(struct shmemd_process *process);
+static void process_set_state(struct shmemd_process *process,
+                              enum process_state next);
+static int process_signal(struct shmemd_process *process, int sig);
+static const char *process_state_to_string(enum process_state state);
+static plat_process_sp_t plat_process_alloc(pid_t pid,
+                                            const union shmem_socket_addr
+                                            *reconnect_addr);
+static void fds_zero(fd_set *set, int *nfds);
+static void fds_add(fd_set *set, int *nfds, int fd);
+static int fds_is_set(const fd_set *set, int fd);
+static int fd_close(int *fd);
+static int receive_only_eof(int fd);
+static void sleep_at_least(int secs);
+static void handle_signal(int signo);
+
+/**
+ * @brief The root of all evil
+ */
+int
+main(int argc, char **argv) {
+    struct shmemd *shmemd;
+    int ret;
+ 
+    struct shmemd_config *config = shmemd_config_alloc();
+
+    ret = parse_args(config, argc, argv);
+    if (!ret) {
+        shmemd = shmemd_alloc(config);
+        if (shmemd) {
+            ret = shmemd_event_loop(shmemd);
+            shmemd_free(shmemd);
+        } else {
+            ret = 1;
+        }
+    }
+
+    shmemd_config_free(config);
+
+    return (ret);
+}
+
+/**
+ * @brief Parse args
+ * @return 0 on sucess, exit code on failure
+ */
+static int
+parse_args(struct shmemd_config *config, int argc, char **argv) {
+    enum shemd_long_args {
+        SHMEMD_OPT_LAST_SHORT = CHAR_MAX,
+#define item(opt, arg, upper, parse, required) OPT_ ## upper,
+        OPT_ITEMS()
+#undef item
+    };
+
+    const struct option options[] = {
+#define item(opt, arg, upper, parse, required) \
+        { opt, required ## _argument, NULL, OPT_ ## upper },
+        OPT_ITEMS()
+#undef item
+        /* terminate with zero-filled option */
+        {} };
+
+    int ret = 0;
+    int c;
+
+    optind = 1;
+    while ((c = getopt_long(argc, argv, "", options, NULL)) != -1) {
+        switch (c) {
+#define item(opt, arg, upper, parse, required)                                 \
+        case OPT_ ## upper:                                                    \
+            if (parse) {                                                       \
+                ret = PLAT_EXIT_FAILED_OPERATOR;                               \
+            }                                                                  \
+            break;
+        OPT_ITEMS()
+#undef item
+        case '?':
+            ret = PLAT_EXIT_FAILED_OPERATOR;
+        }
+    }
+
+    if (ret) {
+        usage();
+    }
+
+    return (ret);
+}
+
+/**
+ * @brief parse --mmap argument
+ * @return 0 on success, -errno on failure.
+ */
+static int
+parse_mmap(struct shmemd_config *config, const char *value) {
+    int ret;
+
+    ret = parse_string_alloc(&config->mmap_name, value, PATH_MAX);
+    if (!ret) {
+        config->memory_mode = MM_MMAP;
+    }
+    return (ret);
+}
+
+/**
+ * @brief parse --shm argument
+ * @return 0 on success, -errno on failure
+ */
+static int
+parse_shm(struct shmemd_config *config, const char *value) {
+    int ret;
+
+    ret = parse_int(&config->shm_key, value, NULL);
+    if (!ret) {
+        config->memory_mode = MM_SHM;
+    }
+    return (ret);
+}
+
+/**
+ * @brief Print usage
+ */
+static void
+usage() {
+    fprintf(stderr, "usage:\n");
+#define item(opt, arg, upper, parse, required) \
+    usage_one(opt, arg, required ## _argument);
+    OPT_ITEMS()
+#undef item
+    plat_log_usage();
+}
+
+/**
+ * @brief Print usage for a single option
+ *
+ * Differentiates between description, required, and optional requirements.
+ */
+static void
+usage_one(const char *opt, const char *description, int required) {
+    const char *before;
+    const char *after;
+
+    switch (required) {
+    case required_argument:
+        before = "<";
+        after = ">";
+        break;
+    case optional_argument:
+        before = "[";
+        after = "]";
+        break;
+    case no_argument:
+        before = "";
+        after = "";
+        break;
+    default:
+        plat_assert(0);
+    }
+
+    fprintf(stderr, "\t--%s %s%s%s\n", opt,  before, description, after);
+}
+
+/**
+ * @addtogroup shmemd
+ * @{
+ */
+
+/**
+ * @brief Allocate shmemd context
+ * shmemd is not running until shmemd_event_loop is returned.
+ * @return structure on success, NULL on failure
+ */
+static struct shmemd *
+shmemd_alloc(struct shmemd_config *config) {
+    struct shmemd *ret = plat_calloc(1, sizeof (ret));
+    struct sigaction signal_action;
+    int failed = 0;
+
+    memset(&signal_action, 0, sizeof (signal_action));
+    signal_action.sa_handler = &handle_signal;
+
+    failed = !ret;
+
+    if (!failed) {
+        ret->state = SHMEMD_STATE_INITIAL;
+        ret->config = shmemd_config_clone(config);
+        ret->signal_to_shmemd[0] = -1;
+        ret->signal_to_shmemd[1] = -1;
+        ret->sigterm_old_action_exists = 0;
+        ret->listen_fd = -1;
+        LIST_INIT(&ret->process_list);
+        ret->exit_status = PLAT_EXIT_OK;
+
+        if (!ret->config) {
+            failed = 1;
+        }
+    }
+
+    /* XXX replace with real event loop handler */
+    if (!failed && plat_pipe(ret->signal_to_shmemd) == -1) {
+        plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_ERROR,
+                     "shmemd_alloc plat_pipe() failed: %d", plat_errno);
+        failed = 1;
+    }
+    if (!failed) {
+        signal_fd = ret->signal_to_shmemd[SHMEMD_SOCKET_SIGNAL];
+        if (plat_sigaction(SIGTERM, &signal_action,
+                           &ret->sigterm_old_action) == -1) {
+            plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_ERROR,
+                         "shmemd_alloc sigaction(SIGTERM) failed: %d",
+                         plat_errno);
+            failed = 1;
+        } else {
+            ret->sigterm_old_action_exists = 1;
+        }
+    }
+
+    if (!failed) {
+        ret->listen_fd = plat_socket(AF_UNIX, SOCK_STREAM, 0);
+        if (ret->listen_fd == -1) {
+            plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_ERROR,
+                         "shmemd_alloc plat_socket(AF_UNIX, SOCK_STREAM)"
+                         " failed: %d", plat_errno);
+            failed = 1;
+        }
+    }
+
+    if (!failed) {
+        struct sockaddr_un addr;
+        addr.sun_family = AF_UNIX;
+        plat_assert(strlen(ret->config->socket_name) + 1 <=
+                    sizeof (addr.sun_path));
+        strncpy(addr.sun_path, ret->config->socket_name,
+                sizeof (addr.sun_path));
+        if (plat_bind(ret->listen_fd, (struct sockaddr *)&addr,
+                      sizeof(addr) == -1)) {
+            plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_ERROR,
+                         "shmemd_alloc plat_bind(%*s) failed: %d",
+                         strnlen(addr.sun_path, sizeof(addr.sun_path)),
+                         addr.sun_path, plat_errno);
+            failed = 1;
+        }
+    }
+
+    if (!failed && plat_listen(ret->listen_fd, LISTEN_QUEUE) == -1) {
+        plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_ERROR,
+                     "shmemd_alloc plat_listen() failed: %d", plat_errno);
+        failed = 1;
+    }
+
+
+    if (failed) {
+        shmemd_free(ret);
+        ret = NULL;
+    }
+
+    return (ret);
+}
+
+/**
+ * @brief Free shmemd context
+ *
+ * Precondition: shmemd is in a non-running state which implies following
+ * creation but before shmemd_event_loop() has been run or after
+ * shmemd_event_loop() has terminated.  shmemd may be partially initialized
+ * from a failed call to shmemd_alloc().
+ */
+static void
+shmemd_free(struct shmemd *shmemd) {
+    if (shmemd) {
+        plat_assert(shmemd->state == SHMEMD_STATE_INITIAL ||
+                    shmemd->state == SHMEMD_STATE_DONE);
+        plat_assert(LIST_EMPTY(&shmemd->process_list));
+
+        if (shmemd->sigterm_old_action_exists) {
+            sigaction(SIGTERM, &shmemd->sigterm_old_action, NULL);
+        }
+        fd_close(&shmemd->signal_to_shmemd[0]);
+        fd_close(&shmemd->signal_to_shmemd[1]);
+
+        fd_close(&shmemd->listen_fd);
+
+        /*
+         * FIXME: Unlink/remove/etc. shared memory.
+         */
+        shmemd_config_free(shmemd->config);
+    }
+
+    plat_free(shmemd);
+}
+
+/**
+ * @brief Shmemd main event loop
+ *
+ */
+static int
+shmemd_event_loop(struct shmemd *shmemd) {
+    struct shmemd_process *process;
+    struct shmemd_process *process_next;
+    fd_set read_fds;
+    int status;
+    int nfds;
+
+    plat_assert(shmemd->state == SHMEMD_STATE_INITIAL);
+
+    shmemd_set_state(shmemd, SHMEMD_STATE_IDLE);
+
+    while (shmemd->state != SHMEMD_STATE_DONE) {
+        fds_zero(&read_fds, &nfds);
+        fds_add(&read_fds, &nfds,
+                shmemd->signal_to_shmemd[SHMEMD_SOCKET_SHMEMD]);
+        fds_add(&read_fds, &nfds, shmemd->listen_fd);
+        LIST_FOREACH(process, &shmemd->process_list, process_list) {
+            fds_add(&read_fds, &nfds,
+                    process->shmemd_to_process[PROCESS_SOCKET_SHMEMD]);
+        }
+
+        status = plat_select(nfds, &read_fds, NULL /* w */, NULL /* e */,
+                             NULL /* timeout */);
+
+        if (status > 0) {
+            if (fds_is_set(&read_fds,
+                           shmemd->signal_to_shmemd[SHMEMD_SOCKET_SHMEMD])) {
+                shmemd_handle_read_from_signal(shmemd);
+            }
+            if (fds_is_set(&read_fds, shmemd->listen_fd)) {
+                shmemd_handle_listen_ready(shmemd);
+            }
+            LIST_FOREACH_SAFE(process, &shmemd->process_list, process_list,
+                              process_next) {
+                if (fds_is_set(&read_fds, process->shmemd_to_process[
+                               PROCESS_SOCKET_SHMEMD])) {
+                    shmemd_handle_read_from_process(shmemd, process);
+                }
+            }
+        }
+    }
+
+    return (shmemd->exit_status);
+}
+
+/**
+ * @brief Enter shmemd shutdown state
+ *
+ * The shmemd shutdown state terminates each of the attached processes
+ */
+static void
+shmemd_enter_shutdown(struct shmemd *shmemd) {
+    int status;
+    struct shmemd_process *process;
+    struct shmemd_process *process_next;
+
+    plat_assert(shmemd->state == SHMEMD_STATE_SHUTDOWN);
+
+    LIST_FOREACH_SAFE(process, &shmemd->process_list, process_list,
+                      process_next) {
+        status = process_shutdown(process);
+        if (status && shmemd->exit_status < PLAT_EXIT_FAILED_RESTART_ALL) {
+            shmemd->exit_status = PLAT_EXIT_FAILED_RESTART_ALL;
+        }
+    }
+
+    if (LIST_EMPTY(&shmemd->process_list)) {
+        shmemd_set_state(shmemd, SHMEMD_STATE_DONE);
+    }
+}
+
+/**
+ * @brief Handle shmemd read from signal handler.
+ */
+static void
+shmemd_handle_read_from_signal(struct shmemd *shmemd) {
+    int status;
+    int signo;
+
+    /*
+     * XXX in the real event loop code we should leave all non-realtime
+     * signals masked until we've read and processed them.
+     */
+    do {
+        status = plat_read(shmemd->signal_to_shmemd[SHMEMD_SOCKET_SIGNAL],
+                           &signo, sizeof (signo));
+    } while (status == -1 && errno == EINTR);
+    plat_assert(status == sizeof (signo));
+    plat_assert(signo == SIGTERM);
+
+    switch (shmemd->state) {
+#define item(upper, lower, prev_expr, enter_state, process_eof, term_sig)      \
+    case SHMEMD_STATE_ ## upper:                                               \
+        term_sig;                                                              \
+        break;
+    SHMEMD_STATE_ITEMS(shmemd, /* process */, /* prev */)
+#undef item
+    default:
+        plat_assert(0);
+    }
+}
+
+/**
+ * @brief Handle shmemd incomming socket connection creation
+ *
+ * Create a shmemd_process structure attached to the accepted file
+ * descriptor.
+ *
+ * XXX The plat_process structure in shared memory is not currently 
+ * created until the attach.  It should be created by shmemd instead
+ * though, since that makes the restart and normal operational cases
+ * identical and means the shmemd attached process list is single writer.
+ */
+static void
+shmemd_handle_listen_ready(struct shmemd *shmemd) {
+    struct shmemd_process *shmemd_process = NULL;
+    struct sockaddr_un incoming;
+    socklen_t incoming_len;
+    int failed = 0;
+    int fd;
+
+    plat_assert(shmemd);
+
+    incoming_len = sizeof(incoming);
+    fd = plat_accept(shmemd->listen_fd, (struct sockaddr *)&incoming,
+                     &incoming_len);
+    if (fd == -1) {
+        plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_ERROR,
+                     "accept failed: %d", plat_errno);
+        failed = 1;
+    }
+
+    if (!failed) {
+        if (incoming.sun_family == AF_UNIX) {
+            plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+                         "accept from unix socket %s", incoming.sun_path);
+        } else {
+            plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+                         "accept with unknown address family %d",
+                         incoming.sun_family);
+        }
+        shmemd_process = process_alloc(shmemd, fd);
+        if (!shmemd_process) {
+            failed = 1;
+        }
+    }
+
+    if (!failed) {
+        LIST_INSERT_HEAD(&shmemd->process_list, shmemd_process, process_list);
+    } else {
+        fd_close(&fd);
+    }
+}
+
+/**
+ * @brief Handle shmemd read from process structure
+ * 
+ * The actual operation is driven by the state machine described entirely in
+ * #SHMEMD_STATE_ITEMS().
+ */
+static void
+shmemd_handle_read_from_process(struct shmemd *shmemd,
+                                struct shmemd_process *process) {
+    switch (shmemd->state) {
+#define item(upper, lower, prev_expr, enter_state, process_eof, term_sig)      \
+    case SHMEMD_STATE_ ## upper:                                               \
+        process_eof;                                                           \
+        break;
+    SHMEMD_STATE_ITEMS(shmemd, process, /* prev */)
+#undef item
+    /* No default so compiler can warn & -Werror  */
+    }
+}
+
+
+/**
+ * @brief Handle shmemd read from process structure in SHMEMD_STATE_RUNNING.
+ *
+ * Switches to other states are consistent with the state machine definition 
+ * given by #SHMEMD_STATE_ITEMS()
+ */
+static void
+shmemd_running_handle_read_from_process(struct shmemd *shmemd,
+                                        struct shmemd_process *process) {
+    int status;
+
+    plat_assert(shmemd->state == SHMEMD_STATE_RUNNING);
+    
+    status = shmemd_process_terminated(shmemd, process);
+    if (status) {
+        shmemd_set_state(shmemd, SHMEMD_STATE_SHUTDOWN);
+    } else if (LIST_EMPTY(&shmemd->process_list)) {
+        shmemd_set_state(shmemd, SHMEMD_STATE_IDLE);
+    }
+}
+
+
+/**
+ * @brief Handle shmemd read from process structure in SHMEMD_STATE_SHUTDOWN
+ *
+ * The current state machine implementation remains in SHMEMD_STATE_SHUTDOWN
+ * until all processes have terminated asynchronously.
+ */
+static void
+shmemd_shutdown_handle_read_from_process(struct shmemd *shmemd,
+                                         struct shmemd_process *process) {
+    shmemd_process_terminated(shmemd, process);
+    if (LIST_EMPTY(&shmemd->process_list)) {
+        shmemd_set_state(shmemd, SHMEMD_STATE_DONE);
+    }
+}
+
+/**
+ * @brief Called when shmemd detects a process termination.
+ */
+static int
+shmemd_process_terminated(struct shmemd *shmemd,
+                          struct shmemd_process *process) {
+    int ret;
+    int status;
+
+    status = receive_only_eof(process->shmemd_to_process[
+                              PROCESS_SOCKET_SHMEMD]);
+    plat_assert(!status);
+
+    switch (process->shutdown_type) {
+    case PROCESS_SHUTDOWN_CLEAN:
+        ret = 0;
+        break;
+    case PROCESS_SHUTDOWN_DIRTY:
+        switch (process->user_class) {
+            case PLAT_SHMEM_USER_READ_ONLY:
+            case PLAT_SHMEM_USER_ISOLATED:
+                ret = 0;
+                break;
+            case PLAT_SHMEM_USER_LOCAL_RECOVERY:
+                plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_WARN,
+                             "Process user class PLAT_SHMEM_LOCAL_RECOVERY"
+                             " disconnected abnormally");
+                ret = 0;
+                break;
+            case PLAT_SHMEM_USER_GLOBAL_RECOVERY:
+                plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_WARN,
+                             "Process user class PLAT_SHMEM_GLOBAL_RECOVERY"
+                             " disconnected abnormally");
+                if (shmemd->exit_status < PLAT_EXIT_FAILED_RESTART_ALL) {
+                    shmemd->exit_status = PLAT_EXIT_FAILED_RESTART_ALL;
+                }
+                ret = -1;
+            case PLAT_SHMEM_USER_SHMEMD:
+            case PLAT_SHMEM_USER_INVALID:
+                plat_assert(0);
+            /* No default so compiler can warn & -Werror  */
+            }
+        break;
+    case PROCESS_SHUTDOWN_RUNNING:
+        plat_assert(0);
+        ret = -1;
+    /* No default so compiler spew */
+    }
+
+    LIST_REMOVE(process, process_list);
+    process_free(process);
+
+    return (ret);
+}
+
+static void
+shmemd_set_state(struct shmemd *shmemd, enum shmemd_state next) {
+    enum shmemd_state prev = shmemd->state;
+    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+                 "Shmemd state %s->%s", shmemd_state_to_string(prev),
+                 shmemd_state_to_string(next));
+
+    switch (next) {
+#define item(upper, lower, prev_expr, enter_state, process_eof, term_sig)      \
+    case SHMEMD_STATE_ ## upper:                                               \
+        plat_assert(prev_expr);                                                \
+        shmemd->state = next;                                                  \
+        enter_state;                                                           \
+        break;
+    SHMEMD_STATE_ITEMS(shmemd, /* process */, prev /* prev */)
+#undef item
+    /* No default so compiler can warn & -Werror  */
+    }
+}
+
+static const char *
+shmemd_state_to_string(enum shmemd_state state) {
+    switch (state) {
+#define item(upper, lower, prev_expr, enter_state, process_eof, term_sig)      \
+    case SHMEMD_STATE_ ## upper:                                               \
+        return (#lower);
+    SHMEMD_STATE_ITEMS(/* shmemd */, /* process */, /* prev */)
+#undef item
+    /* No default so compiler can warn & -Werror  */
+    }
+    plat_assert(0);
+    return NULL;
+}
+
+/**
+ * @addtogroup config
+ * @{
+ */
+
+/**
+ * @brief Allocate config structure
+ */
+static struct shmemd_config *
+shmemd_config_alloc() {
+    struct shmemd_config *config = plat_calloc(1, sizeof (*config));
+
+    config->fail_mode = FAIL_STOP;
+    config->memory_mode = MM_UNSPECIFIED;
+    config->initial_size = DEFAULT_INITIAL_SIZE;
+    config->grow_size = DEFAULT_INITIAL_GROW;
+    config->max_size = DEFAULT_MAX_SIZE;
+    config->kill_interval_secs = DEFAULT_KILL_INTERVAL;
+
+    return (config);
+}
+
+/**
+ * @brief Deep copy config structure
+ */
+static struct shmemd_config *
+shmemd_config_clone(struct shmemd_config *config) {
+    struct shmemd_config *ret = plat_alloc(sizeof (*ret));
+    int failed = 0;
+
+    failed = !ret;
+    if (!failed && config->socket_name) {
+        ret->socket_name = plat_strdup(config->socket_name);
+        failed = !ret->socket_name;
+    }
+    if (!failed && config->mmap_name) {
+        ret->mmap_name = plat_strdup(config->mmap_name);
+        failed = !ret->socket_name;
+    }
+
+    if (failed) {
+        shmemd_config_free(ret);
+        ret = NULL;
+    }
+
+    return (ret);
+}
+
+/**
+ * @brief Free config structure 
+ */
+static void
+shmemd_config_free(struct shmemd_config *config) {
+    if (config) {
+        plat_free(config->socket_name);
+        plat_free(config->mmap_name);
+        plat_free(config);
+    }
+}
+
+/** @} end addtogroup  config */
+
+
+/** 
+ * @addtogroup process
+ * @{
+ */
+
+/**
+ * @brief Allocate process state structure
+ *
+ * The process state structure is allocated and thread main loop is 
+ * implicitly started. Shmemd level state must be handled by the
+ * caller.
+ *
+ * #process_free() may not be called until the process has entered
+ * PROCESS_STATE_DONE which will be signaled by a read EOF on the 
+ * ret->shmemd_to_process[PROCESS_SOCKET_SHMEMD] descriptor.  Prior
+ * to that state, shmemd shall only interact with this by way of that
+ * descriptor.
+ *
+ * @param shmemd <IN> parent, used to retrieve shmemd level state
+ * @param remote_fd <IN> socket connection to remote process
+ * @return A running (or starting) shmemd_process on success, NULL on
+ * failure with plat_errno set.
+ */
+static struct shmemd_process *
+process_alloc(struct shmemd *shmemd, int remote_fd) {
+    struct shmemd_process *ret;
+    int failed;
+
+    ret = plat_calloc(1, sizeof (*ret));
+    failed = !ret;
+
+    if (failed) {
+        plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_ERROR,
+                     "plat_calloc(1, %u) failed", sizeof(*ret));
+        plat_close(remote_fd);
+    } else {
+        ret->state = PROCESS_STATE_INITIAL;
+        ret->shmemd = shmemd;
+        ret->shmemd_to_process[0] = -1;
+        ret->shmemd_to_process[1] = -1;
+        ret->thread_created = 0;
+        ret->remote_fd = remote_fd;
+        ret->seqno = 0;
+        ret->user_class = PLAT_SHMEM_USER_INVALID;
+        ret->pid = -1;
+        ret->shared_process_ptr = plat_process_sp_null;
+
+        ret->shutdown_type = PROCESS_SHUTDOWN_RUNNING;
+
+        failed = plat_socketpair(AF_LOCAL, SOCK_STREAM, 0,
+                                 ret->shmemd_to_process);
+
+        if (failed) {
+            plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT,
+                         PLAT_LOG_LEVEL_WARN, "plat_socketpair() failed: %d",
+                         plat_errno);
+        }
+    }
+
+    if (!failed) {
+        failed = plat_kthread_create(&ret->thread, &process_thread_main, ret);
+        if (failed) {
+            plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_WARN,
+                         "plat_kthread_create() failed: %d", failed);
+        }
+    }
+
+    if (!failed) {
+        ret->thread_created = 1;
+    } else {
+        process_free(ret);
+        ret = NULL;
+    }
+
+    return (ret);
+}
+
+/**
+ * @brief Free shmemd_process
+ *
+ * @param process <IN> process being shutdown.  Must be in
+ * PROCESS_STATE_DONE which will be asynchronously entered when the shmmed
+ * end of its IPC socket is closed or PROCESS_STATE_INITIAL only from
+ * within #process_alloc()
+ */
+static void
+process_free(struct shmemd_process *process) {
+    if (process) {
+        plat_assert(process->state == PROCESS_STATE_DONE ||
+                    (process->state == PROCESS_STATE_INITIAL &&
+                     !process->thread_created));
+        plat_assert_imply(process->state == PROCESS_STATE_DONE,
+                          process->shutdown_type != PROCESS_SHUTDOWN_RUNNING);
+        if (process->thread_created) {
+            plat_kthread_join(process->thread, NULL);
+        }
+        fd_close(&process->shmemd_to_process[0]);
+        fd_close(&process->shmemd_to_process[1]);
+        signal_fd = -1;
+        /*
+         * This can happen during an abnormal shutdown.  A free is not
+         * possible because at least the process has a (writeable) handle
+         * on its process structure.
+         */
+        if (!plat_process_sp_is_null(process->shared_process_ptr)) {
+            plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_ERROR,
+                         "Process " PLAT_SP_FMT " pid %d structure"
+                         " still exists",
+                         PLAT_SP_FMT_ARG(process->shared_process_ptr),
+                         process->pid);
+        }
+        fd_close(&process->remote_fd);
+        plat_free(process);
+    }
+}
+
+/**
+ * @brief Shutdown #shmemd_process.  
+ *
+ * Asynchronously shuts down shmemd_process.  Can only be called from 
+ * shmemd layer code since that "owns" the PROCESS_SOCKET_SHMEMD end 
+ */
+static int
+process_shutdown(struct shmemd_process *process) {
+    int ret;
+
+    if (plat_shutdown(process->shmemd_to_process[PROCESS_SOCKET_SHMEMD],
+                      SHUT_WR) == -1) {
+        ret = -plat_errno;
+        plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_ERROR,
+                     "shmemd process_shutdown(pid=%d) failed: %d",
+                     process->pid, -ret);
+    } else {
+        ret = 0;
+    }
+
+    return (ret);
+}
+
+/**
+ * @brief #shmemd_process thread main function
+ *
+ * Runs until the process enters PROCESS_STATE_DONE which does not happen
+ * until the client process has been detached (cleanly or dirtyly)
+ * 
+ * @param process <IN> Process which must have PROCESS_STATE_INITIAL and
+ * be fully constructed.   
+ */
+static void *
+process_thread_main(void *self) {
+    struct shmemd_process *process = (struct shmemd_process *)self;
+    fd_set read_fds;
+    int status;
+    int nfds;
+
+    plat_assert(process->state == PROCESS_STATE_INITIAL);
+    plat_assert(process->shmemd_to_process[PROCESS_SOCKET_PROCESS] != -1);
+
+    process_set_state(process, PROCESS_STATE_UNATTACHED);
+
+    /* XXX: Replace this with a real select loop */
+    while (process->state != PROCESS_STATE_DONE) {
+        fds_zero(&read_fds, &nfds);
+        fds_add(&read_fds, &nfds, process->shmemd_to_process[
+                PROCESS_SOCKET_PROCESS]);
+        fds_add(&read_fds, &nfds, process->remote_fd);
+
+        status = plat_select(nfds, &read_fds, NULL /* w */, NULL /* e */,
+                             NULL /* timeout */);
+
+        if (status > 0) {
+            if (fds_is_set(&read_fds, process->shmemd_to_process[
+                           PROCESS_SOCKET_PROCESS])) {
+                process_handle_shmemd_read(process);
+            }
+            if (fds_is_set(&read_fds, process->remote_fd)) {
+                process_handle_remote_read(process);
+            }
+        }
+    }
+
+    return (NULL);
+}
+
+/**
+ * @brief Handle process read from shmemd
+ *
+ * The actual operation is driven by the state machine described entirely in
+ * #PROCESS_STATE_ITEMS().
+ */
+static void
+process_handle_shmemd_read(struct shmemd_process *process) {
+    int status;
+
+    status = receive_only_eof(process->shmemd_to_process[
+                              PROCESS_SOCKET_PROCESS]);
+    plat_assert(!status);
+    status = plat_shutdown(process->shmemd_to_process[PROCESS_SOCKET_PROCESS],
+                           SHUT_WR);
+    plat_assert(!status);
+
+    switch (process->state) {
+#define item(upper, lower, prev_expr, enter_state, attach, detach, remote_eof, \
+             shmemd_eof)                                                       \
+    case PROCESS_STATE_ ## upper:                                              \
+        shmemd_eof;                                                            \
+        break;
+    PROCESS_STATE_ITEMS(process, prev)
+#undef item
+    /* No default so compiler can warn & -Werror  */
+    }
+}
+
+/**
+ * @brief Handle proess incoming socket activity from client process socket
+ * 
+ * The actual operation is driven by the state machine described entirely in
+ * #PROCESS_STATE_ITEMS() by way of lambda functions and function pointers.
+ */
+static void
+process_handle_remote_read(struct shmemd_process *process) {
+    int status;
+    struct plat_msg_header *msg;
+    process_msg_fn_t msg_fn;
+    plat_msg_free_t msg_free_closure = PLAT_CLOSURE_INITIALIZER;
+
+    plat_assert(process->remote_fd != -1);
+
+    status = plat_recv_msg(process->remote_fd, &msg, &msg_free_closure);
+    if (status < 0 || !status) {
+        process_handle_remote_eof(process);
+    } else if (msg->version != SHMEM_MSG_VERSION) {
+        plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_ERROR,
+                     "unexpected message version %d",
+                     msg->version);
+        process_handle_unexpected(process, msg, msg_free_closure);
+    } else {
+        switch (msg->type) {
+        case SHMEM_ATTACH_REQUEST:
+            msg_fn = process->attach_fn;
+            break;
+        case SHMEM_DETACH_REQUEST:
+            msg_fn = process->detach_fn;
+            break;
+        default:
+            msg_fn = &process_handle_unexpected;
+        }
+        plat_assert(msg_fn);
+        (*msg_fn)(process, msg, msg_free_closure);
+    }
+}
+
+/**
+ * @brief Handle process incoming socket eof from client process socket
+ * 
+ * The actual operation is driven by the state machine described entirely in
+ * #PROCESS_STATE_ITEMS() by way of lambda functions.
+ */
+static void
+process_handle_remote_eof(struct shmemd_process *process) {
+    switch (process->state) {
+#define item(upper, lower, prev_expr, enter_state, attach, detach, remote_eof, \
+             shmemd_eof)                                                       \
+    case PROCESS_STATE_ ## upper:                                              \
+        remote_eof;                                                            \
+        break;
+    PROCESS_STATE_ITEMS(process, prev)
+#undef item
+    /* No default so compiler can warn & -Werror  */
+    }
+    plat_assert(0);
+}
+
+/**
+ * @brief Handle process shmem_msg_attach in the PROCESS_STATE_UNATTACHED
+ */
+static void
+process_unattached_handle_attach(struct shmemd_process *process,
+                                 struct plat_msg_header *msg,
+                                 plat_msg_free_t msg_free_closure) {
+    struct shmem_attach_response response;
+    enum process_state next_state;
+    int status;
+    struct shmemd *shmemd = process->shmemd;
+    struct shmem_attach_request *request =
+        (struct shmem_attach_request *)msg;
+    struct plat_process *local_process = NULL;
+    int failed = 0;
+
+    plat_assert(msg->type == SHMEM_ATTACH_REQUEST);
+    plat_assert(plat_process_sp_is_null(process->shared_process_ptr));
+    plat_assert(msg->version == SHMEM_MSG_VERSION);
+
+    memset(&response, 0, sizeof (response));
+
+    process->shared_process_ptr = plat_process_alloc(request->pid,
+                                                     &request->reconnect_addr);
+    if (plat_process_sp_is_null(process->shared_process_ptr)) {
+        plat_assert(plat_errno);
+        process_init_msg_header(process, &response.header,
+                                SHMEM_DETACH_RESPONSE, sizeof (response),
+                                msg->seqno, plat_errno);
+
+        response.process_ptr = plat_process_sp_null;
+        response.first_descriptor.type = SHMEM_TYPE_NULL;
+        response.first_descriptor.len = 0;
+        plat_assert(response.header.response_status != 0);
+
+        next_state = PROCESS_STATE_UNATTACHED;
+
+        /*
+         * FIXME: There should be a perror flavor of this which sends
+         * the message over the wire as a parameter.
+         */
+        plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_ERROR,
+                     "shmemd process_attach(pid=%d) failed: %d",
+                     request->pid, response.header.response_status);
+    } else {
+        plat_process_sp_rwref(&local_process, process->shared_process_ptr);
+        memset(&local_process, 0, sizeof (*local_process));
+        local_process->magic = PLAT_PROCESS_MAGIC;
+        local_process->pid = request->pid;
+        local_process->reconnect_addr = request->reconnect_addr;
+        plat_process_sp_rwrelease(&local_process);
+
+        process_init_msg_header(process, &response.header,
+                                SHMEM_DETACH_RESPONSE,
+                                sizeof (response), msg->seqno, 0);
+        response.process_ptr = process->shared_process_ptr;
+        response.first_descriptor = shmemd->first_descriptor;
+
+        next_state = PROCESS_STATE_ATTACHED;
+
+        plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+                     "shmemd process_attach(pid=%d) process "
+                     PLAT_SP_FMT, request->pid,
+                     PLAT_SP_FMT_ARG(process->shared_process_ptr));
+    }
+
+    status = plat_send_msg(process->remote_fd, &response.header);
+    if (status) {
+        failed = 1;
+        plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_ERROR,
+                     "shmemd process_attach(pid=%d) failed"
+                     " sending response: %d ", request->pid, status);
+
+        /*
+         * Message transport failure detection may not imply that
+         * the message won't be received and acted on.
+         */
+        if (next_state == PROCESS_STATE_ATTACHED) {
+            next_state = PROCESS_STATE_SHUTDOWN_DIRTY;
+        }
+    }
+
+    if (process->state != next_state) {
+        process_set_state(process, next_state);
+    }
+
+    plat_closure_apply(plat_msg_free, &msg_free_closure, msg);
+}
+
+/**
+ * @brief Handle shmemd_process shmem_msg_detach
+ *
+ * The detach message triggers normal shutdown
+ */
+static void
+process_attached_handle_detach(struct shmemd_process *process,
+                               struct plat_msg_header *msg,
+                               plat_msg_free_t msg_free_closure) {
+    int status;
+    struct shmem_detach_response response;
+
+    plat_assert(msg->type == SHMEM_DETACH_REQUEST);
+    plat_assert(msg->version == SHMEM_MSG_VERSION);
+    plat_assert(!plat_process_sp_is_null(process->shared_process_ptr));
+
+    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+                 "shmemd process_detach() pid=%d process=" PLAT_SP_FMT,
+                 process->pid, PLAT_SP_FMT_ARG(process->shared_process_ptr));
+
+    memset(&response, 0, sizeof (response));
+    process_init_msg_header(process, &response.header, SHMEM_DETACH_RESPONSE,
+                            sizeof (response), msg->seqno, 0);
+
+    status = plat_send_msg(process->remote_fd, &response.header);
+    if (status < 0) {
+        plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_WARN,
+                     "shmemd process_detach() pid=%d process=" PLAT_SP_FMT
+                     " failed sending response: %d", process->pid,
+                     PLAT_SP_FMT_ARG(process->shared_process_ptr), -status);
+    }
+
+
+    status = plat_close(process->remote_fd);
+    if (status == -1) {
+        plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_WARN,
+                     "shmemd process_detach() pid=%d process=" PLAT_SP_FMT
+                     " failed closing remote_fd: %d", process->pid,
+                     PLAT_SP_FMT_ARG(process->shared_process_ptr),
+                     -plat_errno);
+    }
+
+
+    process->remote_fd = -1;
+    process->pid = -1;
+    plat_process_sp_free(process->shared_process_ptr);
+    process->shared_process_ptr = plat_process_sp_null;
+
+    process_set_state(process, PROCESS_STATE_SHUTDOWN_CLEAN);
+
+    plat_closure_apply(plat_msg_free, &msg_free_closure, msg);
+}
+
+/**
+ * @brief Handle unexpected message
+ *
+ * Unexpected messages are logged and rejected with a generic response
+ */
+static void
+process_handle_unexpected(struct shmemd_process *process,
+                          struct plat_msg_header *msg,
+                          plat_msg_free_t msg_free_closure) {
+    int status;
+    struct plat_msg_header response;
+
+    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_WARN,
+                 "shmemd unexpected msg received from process %d type = %d",
+                 process->pid, msg->type);
+
+    memset(&response, 0, sizeof (response));
+    process_init_msg_header(process, &response, PLAT_MSG_TYPE_UNKNOWN,
+                            sizeof (response), msg->seqno, PLAT_EUNEXPECTEDMSG);
+
+    status = plat_send_msg(process->remote_fd, &response);
+    if (status < 0) {
+        plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_WARN,
+                     "shmemd process_detach() pid=%d process=" PLAT_SP_FMT
+                     " failed sending response: %d", process->pid,
+                     PLAT_SP_FMT_ARG(process->shared_process_ptr), -status);
+    }
+
+    plat_closure_apply(plat_msg_free, &msg_free_closure, msg);
+}
+
+static void
+process_enter_shutdown_clean(struct shmemd_process *process) {
+    fd_close(&process->remote_fd);
+    process->shutdown_type = PROCESS_SHUTDOWN_CLEAN;
+    process_set_state(process, PROCESS_STATE_DONE);
+}
+
+static void
+process_enter_shutdown_dirty(struct shmemd_process *process) {
+    /* XXX should become asynchronous, but we need timeouts */
+    process_kill(process);
+    fd_close(&process->remote_fd);
+    process->shutdown_type = PROCESS_SHUTDOWN_DIRTY;
+    process_set_state(process, PROCESS_STATE_DONE);
+}
+
+static void
+process_enter_done(struct shmemd_process *process) {
+    fd_close(&process->shmemd_to_process[PROCESS_SOCKET_PROCESS]);
+}
+
+/**
+ * @brief Initialize messsage header for first message or response
+ */
+static void
+process_init_msg_header(struct shmemd_process *process,
+                        struct plat_msg_header *header, int type,
+                        u_int32_t len, u_int64_t response_seqno,
+                        int response_status) {
+    struct timeval tv;
+
+    plat_gettimeofday(&tv, NULL);
+
+    memset(header, 0, sizeof (*header));
+    header->magic = PLAT_MSG_MAGIC;
+    header->type = type;
+    header->version = 0;
+    header->len = len;
+    header->seqno = process->seqno++;
+    header->time_stamp = tv.tv_sec * 1000000LL + tv.tv_usec;
+    header->response_to_seqno = response_seqno;
+    header->response_status = response_status;
+}
+
+/**
+ * @brief Kill the remote process
+ *
+ * The current implementation does a SIGTERM, SIGKILL sequence separated
+ * by --kill seconds iff the SIGTERM does not succeed.
+ *
+ * XXX This should be replaced by a suicide IPC message because that avoids
+ * problems stemming from pid reuse (Linux pids are 16 bit)
+ */
+static void
+process_kill(struct shmemd_process *process) {
+#ifdef notyet
+    struct shmemd *shmemd = process->shmemd;
+#endif
+    int done;
+
+    done = process->pid == -1;
+
+#ifdef notyet
+    if (!done) {
+        done = process_signal(process, SIGTERM);
+    }
+
+    if (!done) {
+        sleep_at_least(shmemd->config->kill_interval_secs);
+
+        done = process_signal(process, SIGTERM);
+    }
+#endif
+
+    if (!done) {
+        sleep_at_least(1);
+
+        done = process_signal(process, 0);
+        if (done != ESRCH) {
+            plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_ERROR,
+                         "Process " PLAT_SP_FMT " pid %d" " would not die",
+                         PLAT_SP_FMT_ARG(process->shared_process_ptr),
+                         (int)process->pid);
+        }
+    }
+
+    if (done) {
+        process->pid = -1;
+    }
+}
+
+/**
+ * @brief Set process state machine state
+ *
+ * State machine state implies all operational attributes of the
+ * process to events including remote process messages, remote process
+ * socket EOF, and shmemd control socket EOF.
+ */
+static void
+process_set_state(struct shmemd_process *process, enum process_state next) {
+    enum process_state prev = process->state;
+    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+                 "Process " PLAT_SP_FMT " state %s->%s",
+                 PLAT_SP_FMT_ARG(process->shared_process_ptr),
+                 process_state_to_string(prev),
+                 process_state_to_string(next));
+
+    switch (next) {
+#define item(upper, lower, prev_expr, enter_state, attach, detach, remote_eof, \
+             shmemd_eof)                                                       \
+    case PROCESS_STATE_ ## upper:                                              \
+        plat_assert(prev_expr);                                                \
+        enter_state;                                                           \
+        process->attach_fn = attach;                                           \
+        process->detach_fn = detach;                                           \
+        break;
+    PROCESS_STATE_ITEMS(process, prev)
+#undef item
+    /* No default so compiler can warn & -Werror  */
+    }
+}
+
+/**
+ * @brief Signal pid associated with process
+ */
+static int
+process_signal(struct shmemd_process *process, int sig) {
+    int status;
+
+    status = plat_kill(process->pid, sig) == -1 ? plat_errno : 0;
+
+    if (status != ESRCH) {
+        plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT,
+                     sig != SIGKILL ? PLAT_LOG_LEVEL_INFO : PLAT_LOG_LEVEL_WARN,
+                     "Sent signal %d to process " PLAT_SP_FMT " pid %d"
+                     " status %d", sig,
+                     PLAT_SP_FMT_ARG(process->shared_process_ptr),
+                     (int)process->pid, status);
+    }
+
+    return (-status);
+}
+
+/**
+ * @brief Convert enum process_state to string for debugging
+ */
+static const char *
+process_state_to_string(enum process_state state) {
+    switch (state) {
+#define item(upper, lower, prev_expr, enter_state, attach, detach, remote_eof, \
+             shmemd_eof)                                                       \
+    case PROCESS_STATE_ ## upper:                                              \
+        return (#lower);
+    PROCESS_STATE_ITEMS(/* process */, /* prev */)
+#undef item
+    /* No default so compiler can warn & -Werror  */
+    }
+    plat_assert(0);
+    return NULL;
+}
+
+/** @} end addtogroup process */
+/** @} end addtogroup shmemd */
+
+/**
+ * @brief Allocate & initialize plat_process in shared memory
+ */
+plat_process_sp_t
+plat_process_alloc(pid_t pid, const union shmem_socket_addr *reconnect_addr) {
+    struct plat_process *local = NULL;
+    plat_process_sp_t ret;
+
+    ret = plat_process_sp_alloc();
+    if (!plat_process_sp_is_null(ret)) {
+        plat_process_sp_rwref(&local, ret);
+        local->pid = pid;
+        local->reconnect_addr = *reconnect_addr;
+        local->magic = PLAT_PROCESS_MAGIC;
+        plat_process_sp_rwrelease(&local);
+    }
+
+    return (ret);
+}
+
+/**
+ * @brief Initialize fd_set and nfds for select
+ */
+static void
+fds_zero(fd_set *set, int *nfds) {
+    FD_ZERO(set);
+    *nfds = 0;
+}
+
+/**
+ * @brief Maintain fd_set & nfds for select
+ */
+static void
+fds_add(fd_set *set, int *nfds, int fd) {
+    if (fd != -1) {
+        FD_SET(fd, set);
+        if (fd >= *nfds) {
+            *nfds = fd + 1;
+        }
+    }
+}
+
+/**
+ * @brief Determine whether fd is set, safe for out-of-band FD -1
+ *
+ * @return non-zero when fd is set, 0 on unset or out-of-band
+ */
+static int
+fds_is_set(const fd_set *set, int fd) {
+    return ((fd < 0) ? 0 : FD_ISSET(fd, set));
+}
+
+/**
+ * @brief Idempotently close *fd, setting to -1
+ *
+ * @return 0 on success, -errno on failure
+ */
+static int
+fd_close(int *fd) {
+    int ret;
+
+    if (*fd != -1 && plat_close(*fd) == -1) {
+        ret = -plat_errno;
+    } else {
+        ret = 0;
+    }
+
+    return (ret);
+}
+
+/**
+ * @brief Verify fd is at eof
+ * @return 0 on success, -errno on failure
+ */
+static int
+receive_only_eof(int fd) {
+    int data;
+    int status;
+    int ret;
+
+    plat_assert(fd != -1);
+
+    do {
+        status = plat_read(fd, &data, sizeof(data));
+    } while (status == -1 && errno == EINTR);
+
+    if (status > 0) {
+        ret = -EILSEQ;
+    } else if (status == -1) {
+        ret = -plat_errno;
+    } else {
+        ret = 0;
+    }
+
+    return (ret);
+}
+
+/**
+ * @brief Sleep that's signal safe and does not use SIGALARM
+ *
+ * @param <IN> secs number of seconds to sleep
+ */
+static void
+sleep_at_least(int secs) {
+    int status;
+    struct timespec remain;
+
+    remain.tv_sec = secs;
+    remain.tv_nsec = 0;
+
+    do {
+        status = plat_nanosleep(&remain, &remain);
+        plat_assert(!status || plat_errno == EINTR);
+    } while (status == -1 && plat_errno == EINTR);
+}
+
+/**
+ * @brief Handle signal by writing to a pipe for process in the event loop
+ */
+static void
+handle_signal(int signo) {
+    int status;
+    if (signal_fd != -1) {
+        do {
+            status = plat_write(signal_fd, &signo, sizeof (signo));
+        } while (status == -1 && errno == EINTR);
+    }
+}

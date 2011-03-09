@@ -1,0 +1,7 @@
+This directory builds a library of routines that are used both by the
+SDF applications (mySQL, memcached) and the SDF internal threads
+(shememd, fth, ...).
+
+Be careful that nothing creeps into this libary that cannot be safely
+called from BOTH thread types.
+ft

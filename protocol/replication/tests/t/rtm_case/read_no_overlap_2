@@ -1,0 +1,11 @@
+0 0 shard create start 1
+0 0 shard create complete
+0 1 write start 1 0 test ncv
+0 1 write complete
+0 2 write start 1 0 test data
+0 3 read start 1 0 test
+0 3 read complete data
+0 4 read start 1 0 test
+0 4 read complete ncv
+0 2 write complete
+check failed

@@ -1,0 +1,119 @@
+#!/usr/bin/perl
+
+# stable test for hotkey as client
+
+use Cache::Memcached;
+use Time::HiRes qw(gettimeofday tv_interval);
+require "file_cmp_util.pl";
+
+$key_set_size   = 5000;
+$hotkey_ratio   = 0.2;
+$update_num     = 500000;
+$run_time       = 21000; # in seconds, expect to be 1h.
+$cur_snapshots  = 0;
+
+$value          = -1;
+$expires        = 7200;
+
+$ip="10.1.20.87";
+$port="51411";
+
+sub usage {
+    print "usage:\n";
+    print "-s: total key set size\n";
+    print "-u: total update number\n";
+    print "-t: run time for each test\n";
+    print "-d: debug\n";
+    print "-h: help\n";
+    exit;
+}
+
+sub parse_args{
+    foreach $t(0..$#ARGV) {
+        if($ARGV[$t] eq '-s') {
+            $key_set_size=$ARGV[$t+1]-1;
+        }
+        elsif($ARGV[$t] eq '-u') {
+            $update_num=$ARGV[$t+1];
+        } elsif($ARGV[$t] eq '-t') {
+            $run_time = $ARGV[$t+1];
+        } elsif($ARGV[$t] eq '-h') {
+            &usage();
+        } elsif($ARGV[$t] eq '-d') {
+            $is_debug = 1;
+            open (DEBUG, ">&STDOUT");
+        }
+    }
+}
+
+my %key = ();
+my %key_count = ();
+
+sub init_key_count {
+    foreach (0..$key_set_size-1) {
+        $key[$_]       = &gen_keys();
+        $key_count[$_] = 0;
+        print "init_key[$_]=$key[$_]\n";
+    }
+}
+
+
+sub run_test() {
+    printf DEBUG "running test instance... expect ${run_time}s\n";
+    my $memcached=Cache::Memcached->new({
+                                        servers =>["$ip:$port"],
+                                        compress_threshold => 10_000
+                                        });
+    my $count   = 0;
+    $begin      = [gettimeofday];
+
+    while (1) {
+        ++$count;
+        print "count=$count\n";
+        my $rand_num = rand();
+        if ( $rand_num <= $hotkey_ratio ) {
+            my $rand_int = int(rand($key_set_size));
+            $key_count[$rand_int]    += 1;
+            print "key[$rand_int]=$key[$rand_int]\n";
+            $memcached->add($key[$rand_int],$rand_int,$expires);
+        } else {
+            $rand_str =    &gen_keys(20);
+            print "key=$rand_str\n";
+            $memcached->add($rand_str,$value,$expires);
+        }
+
+        $diff = tv_interval $begin;
+        if ($diff > $run_time) {
+            close FILE;
+            return;
+        } elsif ($diff > 1200) {
+            system "echo \"stats hotkey \" | nc $ip $port";
+            system "echo \"schooner hotkey reset \"";
+        }
+    }
+}
+
+
+sub gen_keys() {
+    if (@_ == 0) {
+        $maxLenth = 50;
+    } else {
+        ($maxLenth) = @_;
+    }
+
+    @a = (0..9,'a'..'z','A'..'Z');
+    $password = join '', map { $a[int rand @a] } 0..($maxLenth-1);
+}
+
+
+sub run_staff() {
+    open fp, ">stable_test.log";
+    close fp;
+    &init_key_count();
+    &run_test();
+    `echo "shutdown" | nc $ip $port`;
+    printf DEBUG "done\n"; 
+}
+
+&parse_args();
+&run_staff();

@@ -1,0 +1,37 @@
+$Id: rtfw_notes.txt 5929 2009-01-07 16:51:05Z lzwei $
+
+This is a draft notes about replication test framework, in which we will give a brief introduction of how to implement replication test framework, as well as our progress. 
+1) test_framework.c
+Mainly consist of a group of test framework library function, including create/delete shard, read/write/delete object, crash/shutdown node, etc. All user requests in it will be encapsulated as sdf_msg_wrapper, sent to specified test node. Of course, start and complete entries will be inserted into test model in order to validate replicator.
+Until now, most functions has been implemented, except rtfw_block_until() and  node crash related ones.
+
+2) test_node.c
+A mock of home_thread.c, who will route request from test framework to test flash or replicator according to service type and destination node.  Meanwhile, if a user request completed, test_node will send a response wrapper to replication test framework.
+
+3) test_flash.c
+Test flash is a simulation of home_flash.c and real flash, who will parse received message wrapper and storage data into a simulated flash system. 
+
+4) test_model.c
+Test model is such a component that get start and complete entry from test framework, and validate whether replicator works correctly. Currently, it's only driven by read_complete by Haowei's verification algorithm. A couple of static test cases have been written to test it, it seems work well. 
+
+5) test_common.c
+A couple of common used functions.
+
+6) test_generator.c
+Test generator is used to generate a mass of pseudo random user requests to test framework dynamically. Now the first dynamic test case named fcnl_rtg_test is running well. 
+
+Test cases:
+1) static test
+    There are two static test cases fcnl_framework_sync_test.c and fcnl_framework_async_test.c under folder trunk/sdf/protocol/replication/tests.
+
+    About test model, there are some simple test cases in "t" folder, including  fcnl_rtm_test2.c  fcnl_rtm_test.c  fcnl_rtm_test_lzwei.c . You can run the corresponding binary file in the build folder. And also a test case executor: fcnl_rtm_case, which reads a text file including serial operations. If the case is accepted, a log line with [PASS] will be printed. Otherwise, a log line with [FAILED] will be printed. ([ABORTED] if there is a format error in test case file). There are some test cases in rtm_case folder, with "sample" file showed the format of test case files. You don't have to run this case one by one. Simply running "static_rtm_test" script in  "t" source folder will checked the cases one by one. 
+
+2) dynamic test
+Simply run the binary "fcnl_rtg_test" in the "t" build folder.
+
+How to run replication test framework:
+1) copy all files under tests to trunk/sdf/protocol/replication/tests, enable subdir "tests" in replication/Makefile.
+2) build tests folder, and we will get binary test cases under tests and tests/t.  
+3) run static/dynamic binaries. 
+
+

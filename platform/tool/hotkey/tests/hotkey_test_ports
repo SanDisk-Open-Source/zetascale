@@ -1,0 +1,304 @@
+#!/usr/bin/perl
+$|=1;
+
+# hotkey tester for generate keys and verify these hotkey 
+# with intervals.
+
+# main idea:
+# simulate client to send requests to server, then dump hot keys
+# with interval, at last compare the dumped snapshots with stated
+# keys in client, get the last diff file as last result.
+
+use strict;
+use Cache::Memcached;
+use Time::HiRes qw(gettimeofday tv_interval);
+require "file_cmp_util.pl";
+
+my $ip="10.1.20.88";
+my @ports=qw{  51411 51412 51413 51414
+               51415 51416 51417 51418 };
+my @ntop=qw{ 1 10 50 100 200 500 1000 };
+
+#my @ports=qw{  51415 };
+#my @ntop = qw { 100 };
+
+# default for config
+my $hotkey_set_size    = 10000;
+my $hotkey_ratio       = 0.2;
+my $max_snapshots      = 1;
+my $run_time           = 600;
+my $is_debug           = 0;
+
+# match with separate or access mode for testing
+my $HOTKEY_MODE    = 0;
+my $SEPARATE_MODE  = 1;
+my $ACCESS_MODE    = 0;
+
+# local variables 
+my $cur_snapshots    = 0;
+my $value            = -1;
+my $expires          = 7200;
+my $HOT_KEY_LEN      = 50;
+my $RND_KEY_LEN      = 20;
+
+sub usage {
+    print "usage:\n";
+    print "-k -r -s -t -d -h\n";
+    print "-k: hotkey set size\n";
+    print "-r: hotkey ratio to occur with al request keys\n";
+    print "-s: max snapshots, default is 1.\n";
+    print "    0 indicates uninfinite\n";
+    print "-t: running time in seconds\n";
+    print "-d: debug\n";
+    print "-h: help\n";
+    exit;
+}
+
+sub parse_args{
+    foreach my $t(0..$#ARGV){
+        if($ARGV[$t] eq '-k') {
+            $hotkey_set_size = $ARGV[$t+1];
+        }elsif($ARGV[$t] eq '-r') {
+            $hotkey_ratio = $ARGV[$t+1];
+        } elsif($ARGV[$t] eq '-s') {
+            $max_snapshots = $ARGV[$t+1];
+        } elsif($ARGV[$t] eq '-t') {
+            $run_time = $ARGV[$t+1];
+        } elsif($ARGV[$t] eq '-d') {
+            $is_debug = 1;
+            open (DEBUG, ">&STDOUT");
+        } elsif($ARGV[$t] eq '-h') {
+            &usage();
+        }
+    }
+}
+
+my @nhot_keys = ();
+my @nkey_upd  = ();
+my @nkey_get  = ();
+my @hot_keys  = ();
+
+sub init_test {
+    foreach (0..$hotkey_set_size-1) {
+        $hot_keys[$_]     = &gen_keys();
+        $nhot_keys[$_]    = 0;
+        $nkey_upd[$_]     = 0;
+        $nkey_get[$_]     = 0;
+    }
+}
+
+sub run_test() {
+    
+    my @memcacheds=();
+
+    # for all ports to stats hot key/client
+    foreach my $i(0..$#ports) {
+        $memcacheds[$i]=Cache::Memcached->new({
+                servers =>["$ip:$ports[$i]"],
+                compress_threshold => 10_000
+                });
+
+=pod
+        #expected to run with dyntnr_ctnr.pl to add and enable hotkey
+
+        my $cmd = "echo \"schooner hotkey init 10000 ";
+        $cmd .= "enable_ip_tracking enable_cmd_types\" | nc $ip $ports[$i]";
+        print "cmd=$cmd\n";
+        system "$cmd";
+        $cmd = "echo \"schooner hotkey on\" | nc $ip $ports[$i]";
+        print "cmd=$cmd\n";
+        system "$cmd";
+=cut        
+    }
+
+    my $begin=[gettimeofday];
+    my $rnd_request_ratio;
+    my $rnd_key_index;
+    my $cmd;
+    my $cur_snapshots = 0;
+    my @dumped_flag = ();
+    for my $flag_index (0..$max_snapshots-1) {
+         $dumped_flag[$flag_index] = 0;
+    }
+
+    while (1) {
+
+        # loop for all ports with the same server ip
+        foreach my $i (0..$#ports) {
+
+            $rnd_request_ratio = rand();
+            if ($rnd_request_ratio <= $hotkey_ratio) {
+                $rnd_key_index = int(rand($hotkey_set_size));
+
+                my $op_rnd = rand();
+                if (rand() < 0.2) { # get ratio
+
+                    ++$nkey_get[$i * $hotkey_set_size + $rnd_key_index];
+
+                    if (rand() < 0.5) {
+                        $memcacheds[$i]->get($hot_keys[$rnd_key_index]);
+                    } else {
+                        $memcacheds[$i]->get($hot_keys[$rnd_key_index],
+                                             $hot_keys[$rnd_key_index] + 1,
+                                             $hot_keys[$rnd_key_index] + 2,
+                                            );
+                        ++$nkey_get[$i * $hotkey_set_size + $rnd_key_index + 1];
+                        ++$nkey_get[$i * $hotkey_set_size + $rnd_key_index + 2];
+                    }
+                } else { # update ratio
+                    ++$nkey_upd[$i * $hotkey_set_size + $rnd_key_index];
+
+                    my $op = int(rand(4));
+                    if ($op == 0) {
+                        $memcacheds[$i]->add($hot_keys[$rnd_key_index], 
+                                             $rnd_key_index, $expires);
+                    } elsif ($op == 1) {
+                        $memcacheds[$i]->set($hot_keys[$rnd_key_index], 
+                                             $rnd_key_index, $expires);
+                    } elsif ($op == 2) {
+                        $memcacheds[$i]->replace($hot_keys[$rnd_key_index], 
+                                                  $rnd_key_index, $expires);
+                    } elsif ($op == 3) {
+                        $memcacheds[$i]->delete($hot_keys[$rnd_key_index], 
+                                                $rnd_key_index, $expires);
+                    }
+                }
+
+            } else { # non-hot-key requests 
+                my $rand_str =    &gen_keys(int(rand(1024)) + 1);
+                $memcacheds[$i]->add($rand_str, $value, $expires);
+            }
+
+        } # end of each port
+ 
+        my $diff = tv_interval $begin; # judge whether test duration is reached
+
+        my $flag_time = ($cur_snapshots + 1 ) * ($run_time / $max_snapshots);
+        if ($diff > $flag_time) {
+            print DEBUG "dump_flag=$dumped_flag[$cur_snapshots] for snapshot $cur_snapshots\n";
+            print DEBUG "diff=$diff, flag_time=$flag_time\n";
+         }
+
+        if ($dumped_flag[$cur_snapshots] == 0 &&
+            $diff >= $flag_time) {
+
+            print "dumping snapshots...\n";
+            foreach (@ports) {
+                $cmd = "echo \"stats hotkey\" | nc $ip $_";
+                $cmd .= " > hotkey_snapshots_$_$cur_snapshots";
+                `$cmd`;
+                system "echo \"schooner hotkey reset\" | nc $ip $_";
+            }
+            $dumped_flag[$cur_snapshots] = 1;
+            print "snapshots dumped for $cur_snapshots\n";
+            
+            ++$cur_snapshots;
+        }
+
+
+        if($diff >= $run_time) { # dump stander stats to hotkey_snapshot_$port
+            foreach my $p (0..$#ports) {
+                print "dumping port $ports[$p]\n";
+                my %stander = ();
+                my $offset = $p * $hotkey_set_size;
+                open (STANDER, ">hotkey_stander_$ports[$p]") or die "open stander failed";
+                foreach my $i  ($offset..$offset+$hotkey_set_size-1) {
+                    $nhot_keys[$i-$offset] = $nkey_upd[$i] + $nkey_get[$i];
+                    $stander{$hot_keys[$i-$offset]} = $nhot_keys[$i-$offset];
+                }
+
+                foreach my $key (sort {$stander{$b} <=> $stander{$a}} keys %stander) {
+                    print DEBUG "dumping stander <$stander{$key} $key>\n";
+                    printf STANDER "$stander{$key} $key\n";
+                }
+                close(STANDER);
+            }
+
+            print "time up for test, real duration=$diff, expected=$run_time\n";
+            last;
+        }
+
+    } #end of while
+   
+    &calculate_hot_keys();
+
+    if ($is_debug) {
+        close DEBUG;
+    }
+}
+
+sub gen_keys() {
+    my $maxLenth = 0;
+
+    if (@_ == 0) {
+        $maxLenth = $HOT_KEY_LEN;
+    } else {
+        ($maxLenth) = @_;
+    }
+
+    my @a = (0..9,'a'..'z','A'..'Z');
+    my $rnd_key = join '', map { $a[int rand @a] } 0..($maxLenth-1);
+}
+
+
+# merge all hotkey_snapshots_$port_$snapshot into one hotkey_$port
+# and then compare each port with stander stats
+sub calculate_hot_keys() {
+
+    foreach (@ports) { # collect snapshots for each port
+
+        print DEBUG "### calculate port $_\n";
+        my %key_pair = ();
+
+        for my $cur_snap (0..$max_snapshots-1) {
+            open (SNAPSHOT, "hotkey_snapshots_$_$cur_snap") or die
+                "can not find snapshot $cur_snap";
+            my $line = <SNAPSHOT>; # omit head
+            $line = <SNAPSHOT>;
+
+            while (my $next_line = <SNAPSHOT>) {
+                my @tmp =  split(/\s+/, $line);
+                $key_pair{$tmp[2]} += $tmp[1]; # ip, ref-cout, key
+                print DEBUG "\t debug parse snapshots <@tmp>\n";
+                $line = $next_line;
+            }
+            close (SNAPSHOT)
+        }
+
+        open (SNAPSHOT, ">hotkey_snapshot_$_") or die "disk full";
+        print SNAPSHOT "SNAPSHOTS_$_\n";
+        foreach my $key (sort {$key_pair{$b} <=> $key_pair{$a}} keys %key_pair) {
+            print SNAPSHOT "0.0.0.0 $key_pair{$key} $key\n";
+            print DEBUG "dumping hotkeys <$key_pair{$key} $key>\n";
+
+            for my $i (0..$hotkey_set_size-1) { #TODO
+            }
+        }
+        print SNAPSHOT "END\r\n";
+        close (SNAPSHOT);
+
+        print "hotkey_snapshot_$_ comparing ...\n";
+
+        my $miss_rate;
+        my $diff_ref;
+        foreach my $top (0..$#ntop-1) {
+            print "compare for ntop = $ntop[$top]\n";
+            ($miss_rate, $diff_ref) =
+                &cmp_pair_file_ntop("hotkey_stander_$_",
+                                    "hotkey_snapshot_$_", 
+                                    $ntop[$top],
+                                    "hotkey_diff_$_");
+
+            print "hotkey_snapshot_$_ compared done, saved in hotkey_diff_$_\n";
+            print DEBUG "miss_rate=$miss_rate, diff_ref=$diff_ref\n";
+            printf "result:\n\tmiss_rate=$miss_rate, diff_ref=$diff_ref\n";
+
+        }
+    }
+
+    print "DONE\r\n";
+}
+
+&parse_args();
+&init_test();
+&run_test();

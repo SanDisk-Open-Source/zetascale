@@ -1,0 +1,259 @@
+Schooner Hengtian Team added the following test files for FTH thread library. They are listed as following:
+1. fthCUnitTest 
+2. fth_c_1_test fth_c_2_test fth_c_3_test 
+3. fth_lock_test 
+4. fth_mbox_test 
+5. fth_lll_test 
+6. fth_mem_test 
+7. fth_mutex_test 
+8. fth_xlock_1_test fth_xlock_2_test fth_xlock_3_test fth_xlock_4_test fth_xlock_5_test
+9. fth_xmbox_1_test fth_xmbox_2_test fth_xmbox_3_test fth_xmbox_4_test
+
+fthCunitTest is for the unit test, others are for the module test.
+when you run these files, you should first move/copy them into the directory "trunk/sdf/fth/",
+and change some lines in "Makefile"
+"
+TESTS = fthTest fthMPTest fthSparseTest fthCUnitTest fth_c_1_test fth_c_2_test fth_c_3_test fth_lock_test fth_mbox_test fth_lll_test fth_mem_test fth_mutex_test fth_xlock_1_test fth_xlock_2_test fth_xlock_3_test fth_xlock_4_test fth_xlock_5_test fth_xmbox_1_test fth_xmbox_2_test fth_xmbox_3_test fth_xmbox_4_test
+LIB = libfth.a
+LIBS = ../platform/libplatform.a libfth.a  ../sdfappcommon/libsdfappcommon.a ../platform/libplatform.a -lpthread -lcunit
+"
+or you can simply replace the "Makefile" in "trunk/sdf/fth/" with the one in this directory.
+
+Here are some detailed instructions and test results for the overall tests:
+
+1. fthBase
+Test process:
+a. before fthInit() ,fthBase return value is null.
+b. after fthInit(), fthBase return value and sched isn't null.
+Result:passed
+
+2. fthWait/fthSpawn/fthResume
+Test process:
+a. spawn FTHNUM fth then test the eligibleQ.
+b. random select one of fth in eligibleQ,see the field of it.
+part-code:(source code in fth_c_2_test.c:151)
+{
+   ASSERT(save_fth_thread->state == 'W', "this is the wait fth. ", "this isn't the wait fth. ")
+   fthResume(save_fth_thread, 10);
+   QUESTION(save_fth_thread->state == 'W', "why the fthResume not change the state of the wait fth . ")
+}
+question:when fth 1 call fthWait, and another fth 2 call fthResume to put fth 1 into eligibleQ, then i test the state of fth 1 still is 'W' .
+Result:passed
+
+3. fthSelf
+Test process:
+a. the return value of fthSelf is equal to sched.
+b. search the eligibleQ's head and test the next run fth is this.
+Result:passed
+
+4. fthKill
+Test process:
+a. the value of fthBase()->kill before and after call this method.
+part-code:(source code in fth_c_1_test.c:230)
+{
+    fthStartScheduler(sched);
+    printf("Scheduler halted\n");
+
+    ASSERT(fthBase() != NULL, "base structure isn't null. ", "base structure is null. ")
+    ASSERT(fthBase()->kill == 1, "fth scheduler was killed. ", "one of fth has set the fthBase()->kill == 1, why fthBase()->kill still is 0. ")
+    printf("In this file,the failed count is %d. \n", failed_count);
+    return (failed_count);
+
+}
+Result:failed
+in one of fth ,i call the function fthKill(1), and test the value of fthBase()->kill int main function, but its value still 0,not change. 
+
+5.fthStartScheduler
+Test process:
+a. run many fths and dynamic end or spawn new fths ,select the content of lll (eligibleQ, freeWait ...) then test the sequence of fth in eligibleQ is equal   the real schedule sequence.
+b. see the return value of fthSelf,fthBase and the value of sched.
+Result:passed
+
+6. fthWait
+Test process:
+a. check the return value of fthWait and the content of eligibleQ.
+b. spawn a lot of fths and test "a" again.
+Result:passed
+
+7. fthYield
+Test process:
+a. spawn two fths and test the content of eligibleQ of global fth variable.
+b. spawn FTHNUM fths ,then test "a" again, specially the field of pthread_t
+Result:passed
+
+8. fthGetWaitEl/fthFreeWaitEl
+Test process:
+a. check the content of freeWait of global fth variable before and after call this method,when fthFreeWaitEl is called ,test again.
+b. the return value of fthGetWaitEl isn't null.
+c. call fthGetWaitEl/fthFreeWaitEl many times and test the content of freeWait again, the size of it is one.
+Result:passed
+
+9. LLL_NAME(_lll_init)
+Test process:
+a. check content of LLL_NAME_lll_t ,before and after call this method.
+Result:passed
+
+10. LLL_NAME(_lll_is_empty)
+Test process:
+a. check the return of this memthod and the LLL_NAME_lll_t queue, this method will be always to test the content of LLL_NAME_lll_t
+Result:passed
+
+11. LLL_NAME(_push)
+Test process:
+a. put a small number of element into queue, and the squence of content in queue is what you want.(put the element from the tail of queue)
+b. put elements into queue ,as many as you can, and the size of it is equal the number you want to put.
+Result:passed
+
+12. LLL_NAME(_unshift)
+Test process:
+a. put a small number of element into queue, and the squence of content in queue is what you want.(put the element from the head of queue)
+b. put elements into queue ,as many as you can, and the size of it is equal the number you want to put.
+Result:passed
+
+
+13. LLL_NAME(_pop)
+Test process:
+a. get a number of elements from queue, and the squence of get element is what you want.(get the element from the tail of queue)
+b. get elements into queue ,as many as you can, until the queue is empty.
+Result:passed
+
+
+14. LLL_NAME(_shift)
+Test process:
+a. get a number of elements from queue, and the squence of get element is what you want.(get the element from the head of queue)
+b. get elements into queue ,as many as you can, until the queue is empty.
+Result:passed
+
+15. LLL_NAME(_insert)
+Test process:
+a. set the second of argument is null, then check the content of queue after this function.
+b. set the second of arguemnt is the head of queue, then check the queue again.(the head and tail is right)
+c. set the second of argument is the tail of queue, then check the queue again.
+d. set the second of argument is random one(not head and tail) in queue, then check the queue again.
+Result:passed
+
+
+16. LLL_NAME(_remove)
+Test process:
+a. set the second of argument is null, then check the content of queue after this function has not change.
+b. set the second of arguemnt is the head of queue, then check the queue again.(the head and tail is right)
+c. set the second of argument is the tail of queue, then check the queue again.
+d. set the second of argument is random one(not head and tail) in queue, then check the queue again.
+Result:passed
+
+17. fthLockInit/fthLock/fthUnlock/fthTryLock
+Test process:
+a. check the field of global lock(fthLock_t type) after call the method fthLockInit
+b. many fths can concurrently get the read lock.
+c. if one fth get read lock ,other fth threads which want to get write lock must be wait for it release the read lock.
+d. if one fth get write lock, other fth threads which want to get read/write must be wait for it release the write lock.
+e. when test "b, c ,d "also check the two main queue(holdQ and waitQ).
+f. the sequence of want to get lock is equal to the real sequence of get the lock.
+Result:passed
+
+18. fthX.../X...
+Test process:
+a. when one pthread get the write cross lock ,other pthread/fth which want to get read/write cross lock have to wait for this pthread release write cross lock.
+b. when one pthread get the read cross lock ,other pthread/fth can get the read cross lock
+c. when one pthread get the read cross lock, other pthread/fth which want to get write cross lock have to wait for this pthread release read cross lock.
+
+part-code:(source code in fth_xlock_2_test.c:182)
+pthread 1(run first)
+{
+    printf("pthread %d want to get the read cross lock. \n", (uint64_t)arg);
+    XLock(&cross, 0);
+    printf("pthread %d get the read cross lock. \n", (uint64_t)arg);
+    for(index = 0; index < COUNT; index ++){
+       printf("pthread %d print %d \n", (uint64_t)arg, index);
+       pthread_yield();
+    }
+
+    XUnlock(&cross);
+    printf("pthread %d release the read cross lock. \n", (uint64_t)arg);
+}
+ 
+pthread 2
+{
+    /*
+    printf("pthread %d want to get the write cross lock. \n", (uint64_t)arg);
+    XLock(&cross, 1);
+    printf("pthread %d get the write cross lock. \n", (uint64_t)arg);
+    *
+    for (index = 1; index <= NUM_FTH; index ++) {
+        fthResume(fthSpawn(&fth_xlock_test, 4096), index);
+    }
+    /*
+    XUnlock(&cross);
+    printf("pthread %d release the write cross lock. \n", (uint64_t)arg)
+    */
+}
+
+fth n(pthread 2 spawn)
+{
+    printf("fth %d want to get the write cross lock. \n", arg);
+    fthXLock(&cross, 1);
+    printf("fth %d get the write cross lock. \n", arg);
+    for(index = 0; index < arg; index ++) {
+       printf("fth %d print %d\n", arg, index);
+    }
+    fthXUnlock(&cross);
+}
+question:
+fth n want to get the write cross lock, whether pthread 2 which spawn fth n, should get the write cross lock first or not ? 
+my test result is if the pthread 2 not write the annotation code ,when pthread 1 release the read cross lock ,fth n can not  get the 
+write cross lock, the program will hold, just like dead lock.
+
+part-code:(source code in fth_xlock_1_test.c:110)
+{
+    fthXLock(&cross, 1);
+    printf("fth %d get the write cross lock. \n", arg);
+    for(index = 0; index < arg; index ++) {
+       printf("fth %d print %d\n", arg, index);
+       //fthYield(1);
+    }
+    fthXUnlock(&cross);
+
+}
+
+I create two pthread(pthread1, pthread2), in pthread2 i spawn some fth threads, in this case ,when i call fthYield between fthXLock and fthXUnlock, the program will hold(see file fth_xlock_1_test.c), but when i spawn some fth threads from the main pthread(see file fth_xlock_5_test.c:109), this will not happen.i don't known whether this is my used fault.
+
+d. when one fth get the write cross lock ,other pthread/fth which want to get read/write cross lock have to wait for this pthread release write cross lock.
+e. when one fth get the read cross lock ,other pthread/fth can get the read cross lock.
+f. when one fth get the read cross lock, other pthread/fth which want to get write cross lock have to wait for this pthread release read cross lock.
+ 
+Result:passed
+
+19. fthMboxInit/fthMboxWait/fthMboxTry/fthMboxPost
+Test process:
+a. check the field of global mbox(fthMbox_t type) after call the method fthMboxInit.
+b. call fthMboxPost to post many datas into mbox, and check the mailQ of it.
+c. call fthMboxWait/fthMboxTry to get data from mbox(maybe empty mbox),and check the return value of it.
+Result:passed
+
+20. ptofMboxPost/ptofMboxWait/ptofMboxTry
+Test process:
+a. pthread call ptofMboxPost to post many data into xmbox, and check the return value from ptofMboxWait/ptofMboxTry.
+b. verify the sequence of post mail and get mail.1 pthread post ,N fth get; N pthread post , 1 fth get; N pthread post , M fth get.
+c. check the return value of ptofMboxWait/ptofMboxTry when pthread do not post any data into xmbox. 
+
+Result:passed
+
+21. ftopMboxPost/ftopMboxWait/ftopMboxTry
+Test process:
+a. fth call ftopMboxPost to post many data into xmbox, and check the return value from ftopMboxWait/ftopMboxTry.
+b. verify the sequence of post mail and get mail.1 fth post ,N pthread get; N fth post , 1 thread get; N fth post , M thread get.
+c. check the return value of ftopMboxWait/ftopMboxTry when fth do not post any data into xmbox. 
+Result:passed
+
+22. fthMemWait
+Test process:
+a. test the return value after call this method.(the argument of function is 0 and not 0)
+b. let one fth call this function many times, and let other fth set the wait mem data.
+Result:passed 
+
+23. fthMutexLock/fthMutexUnlock
+Test process:
+a. apawn many fths. if one fth get the mutex lock ,other fth which want to get the mutex lock have to wait until it release the lock.
+b. the sequence of fth want to get the mutex lock is equal to the fth get the mutex lock.
+Result:passed 
+

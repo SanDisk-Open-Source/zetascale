@@ -1,0 +1,8 @@
+/var/log/schooner/hotkey.log {
+	missingok
+	daily
+	rotate 5
+	size 5M
+	notifempty
+}
+

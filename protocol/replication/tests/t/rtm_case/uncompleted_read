@@ -1,0 +1,9 @@
+0 0 shard create start 1
+0 0 shard create complete
+0 1 write start 1 0 test test_data
+0 2 read start 1 0 test
+0 1 write complete
+0 3 read start 1 0 test
+0 4 read start 1 0 test
+0 4 read complete test_data
+check succeed

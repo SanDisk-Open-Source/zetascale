@@ -1,0 +1,638 @@
+README for sdf messaging - chaotic but tidbits here are helpful
+-----------------------------------------------------------
+Documentation example for funcs
+
+/**
+ * @brief Crash node synchronously from fthThread.
+ *
+ * This is a thin wrapper around #rtfw_crash_node_async which uses a
+ * #fthMbox_t to allow synchronous use.
+ *
+ * @param test_framework <IN> A running test framework.
+ * @param node <IN> Vnode to crash
+ * @return SDF_SUCCESS on success, otherwise on failure such as when the
+ * node was already in the process of crashing.
+ */
+
+
+
+Build Instructions
+
+# The default build is a standalone program for the testing of the message queues
+# and interprocess communciation You will have a bin sdf_msg in ../../build/sdf/sdfmsg/
+# ------------------------------------------------------------------
+# You can run the test on a single node by the following command
+# if you are in the build/sdf/sdfmsg/tests directory
+# > mpirun -np 2 ./sdf_msg
+# this starts 2 processes. The communication vehicle is shared memory 
+# The output is directed to the screen
+# you can also gain the plat_log output with the following
+# > mpirun -np 2 sdf_msg --log sdf/sdfmsg/tests/mpilog=trace
+# ------------------------------------------------------------------
+# mpirun -np 2 sdf_msg --log sdf/sdfmsg/tests/mpilog=trace
+
+
+When using shared memory communication you will need to increase the default 
+shared memory limit for messages when testing on a single node with 2 sdf 
+agents. The current OpenMPI default limit is 4096
+
+mpirun --mca btl_sm_eager_limit 16084 -np 2 sdf_msg
+
+Limitations
+
+* two node functionality only
+* receive buffer sizes are fixed at 64k for everything but consistency/responses which are 4k
+* 
+
+Helpful tips
+
+> shell$ ompi_info --param all all
+this will tell you what the default mca parameters are. We have an
+issue with the shared memory limit having a default of 4096. You must
+make it larger to simulate the operation of infinipath when on a
+single node.
+
+You can set it on the command line or with an env variable both cases
+are shown below
+
+OMPI_MCA_btl_sm_rndv_eager_limit=65536
+export OMPI_MCA_btl_sm_rndv_eager_limit
+
+or 
+
+> mpirun --mca btl_sm_rndv_eager_limit 65536 -np 2
+
+To turn psm debug messages on set the following in your environment
+
+PSM_TRACEMASK=0x1c3?
+
+BUILDING MPI
+Valgrind works for mpi 1.3. Need to configure this properly
+
+ $ ./configure --prefix=/opt/schooner/openmpi-1.3 CC=gcc CXX=g++ --enable-debug --enable-memchecker --with-psm=/usr/include --with-valgrind=/opt/schooner/valgrind-3.3.1/
+
+on the Lab machines RHEL 5 and building OpenMPI couldn't resolve the fortran test build. See config.log it says it cannot find gfortran.so.2 which is htere and in the path. I just bypassed it for now.
+ $ ./configure --prefix=/opt/schooner/openmpi-1.3 CC=gcc CXX=g++ --disable-mpi-f77 --enable-debug --enable-memchecker --with-psm=/usr/include --with-valgrind=/opt/schooner/valgrind-3.3.1/
+
+PATH=/opt/schooner/openmpi-1.3/bin:/usr/lib64/qt-3.3/bin:/usr/kerberos/bin:/usr/local/bin:/bin:/usr/bin
+LD_LIBRARY_PATH=/opt/schooner/openmpi-1.3/lib
+
+built the memcache server and copied it up to /home/tomr from /export/sdf_dev/schooner-trunk/trunk/build/apps/memcached/server/memcached-1.2.5-schooner/memcached-fthread-sdf
+
+Running memcache... start  memslap from here NOTE: default port is 11211
+/export/tomr/schooner-trunk/trunk/perf/memcache/sample_conf_dir
+with this
+/export/sdf_dev/schooner-trunk/ht_delivery/qa/memcached_test/benchmark_test/modified_memslap_v_1.1/clients/memslap_no_same_key --cfg_cmd=cmd --cfg_item=item --server=10.1.20.2:12345 --concurrency=128 --execute-number=8192
+
+/export/sdf_dev/schooner-trunk/ht_delivery/qa/memcached_test/benchmark_test/modified_memslap_v_1.1/clients/memslap_no_same_key memslap_no_same_key --cfg_cmd=cmd --cfg_item=item --server=10.1.20.2:12345 --concurrency=128 --execute-number=8192
+
+NOTE: running 2 individual processes with different arguments
+
+[tomr@lab17 ~]$ mpirun --mca btl sm,self,tcp --host lab17.schoonerinfotech.net -np 1 ./memcached-fthread-sdf -p 12345 -C crp -N1 -T4 -Y -L 7 --msg_mpi 2 --flash_msg --disable_fast_path --replicate 2 --recover 0 --property_file ~/memc_1718.properties --log sdf/sdfmsg=info --log sdf/cmc=trace  --plat/shmem/prefault --plat/shmem/file /hugepages/perf:8g : --host lab18.schoonerinfotech.net -np 1 ./memcached-fthread-sdf -p 12345 -C trm -N1 -T4 -Y -L 7 --msg_mpi 2 --flash_msg --disable_fast_path --replicate 2 --recover 0 --property_file ~/memc_1718.properties --log sdf/sdfmsg=info --log sdf/cmc=trace --plat/shmem/prefault --plat/shmem/file /hugepages/perf:8g
+
+--------- with hugepages
+mpirun --mca pml cm --host lab02.schoonerinfotech.net -np 1 ./memcached-fthread-sdf -p 12345 -C crp -N7 -T4 -Y -L 7 --msg_mpi 2 --flash_msg --disable_fast_path --replicate 2 --recover 0  --plat/shmem/prefault --plat/shmem/file /hugepages/perf:4g : --host lab03.schoonerinfotech.net -np 1 ./memcached-fthread-sdf -p 12345 -C trm -N7 -T4 -Y -L 7 --msg_mpi 2 --flash_msg --disable_fast_path --replicate 2 --recover 0  --plat/shmem/prefault --plat/shmem/file /hugepages/perf:4g
+
+--------- without hugepages
+mpirun --mca pml cm --host lab02.schoonerinfotech.net -np 1 ./memcached-fthread-sdf -p 12345 -C crp -N7 -T4 -Y -L 7 --msg_mpi 2 --flash_msg --disable_fast_path --replicate 2 --recover 0  : --host lab03.schoonerinfotech.net -np 1 ./memcached-fthread-sdf -p 12345 -C trm -N7 -T4 -Y -L 7 --msg_mpi 2 --flash_msg --disable_fast_path --replicate 2 --recover 0 
+
+------- old command lines with global mpi args DO NOT USE vvvvvvvvvvvvvvvvvvvv
+> mpirun -np 2 --mca pml cm --hostfile my_hostfile ./memcached-fthread-sdf -p 12345 -C foo -N1 -T1 --msg_mpi 2 --log sdf/sdfmsg=debug --replicate=2
+
+NOTE: this is the lastest as 12/23/08
+[tomr@lab02 ~]$ mpirun -np 2 --mca pml cm --hostfile my_hostfile ./memcached-fthread-sdf -p 12345 -C foo -N1 -T1 --msg_mpi 2 --flash_msg --disable_fast_path --recover 0 --replicate 2 --log sdf/sdfmsg=debug 2>&1 | tee crp
+------- old command lines with global mpi args DO NOT USE ^^^^^^^^^^^^^^^^^^^^
+
+[tomr@lab02 agent]$ mpirun -np 2 ./sdfagent --property_file=/export/sdf_dev/schooner-trunk/trunk/config/schooner-rep.properties --disable_fast_path --msg_mpi 2 --log sdf/sdfmsg=debug --log sdf/prot/flash=trace --log sdf/agent=trace --flash_msg --replicate 2
+
+1413  mpirun -np 3 --mca pml cm --hostfile ~/my_hostfile ./sdfagent --property_file=/export/sdf_dev/schooner-trunk/trunk/config/schooner-rep.properties --disable_fast_path --log sdf/sdfmsg=debug --log sdf/prot/replication=trace --log sdf/prot/flash=trace --log sdf/prot=debug --msg_mpi 2  --flash_msg --replicate 3 2>&1 | tee log
+
+
+Node to Node (Lab Machines)
+In early development we are testing muliple processes on single node machine. The vehicle will be shared memory in this case. Note the default OpenMPI SM limit above.
+
+NOTE: for hugepages x86 has defined them as 2mb/piece
+
+for example this config was more then the memory allowed
+[tomr@lab17 ~]$ cat /proc/sys/vm/nr_hugepages 
+15924
+
+[root@lab17 tomr]# ls /hugepages/
+perf
+[root@lab17 tomr]# rm /hugepages/perf 
+rm: remove regular file `/hugepages/perf'? y
+
+*removed this to start over
+
+[root@lab17 tomr]# mount
+/dev/mapper/VolGroup00-LogVol00 on / type ext3 (rw)
+proc on /proc type proc (rw)
+sysfs on /sys type sysfs (rw)
+devpts on /dev/pts type devpts (rw,gid=5,mode=620)
+/dev/sda1 on /boot type ext3 (rw)
+tmpfs on /dev/shm type tmpfs (rw)
+none on /proc/sys/fs/binfmt_misc type binfmt_misc (rw)
+sunrpc on /var/lib/nfs/rpc_pipefs type rpc_pipefs (rw)
+hugetlbfs on /hugepages type hugetlbfs (rw)
+hugetlbfs on /hugepages type hugetlbfs (rw)
+s001:/home/tomr on /home/tomr type nfs (rw,nosuid,addr=10.1.0.101)
+
+Now set this at a reasonable setting
+[root@lab17 tomr]# echo 4100 > /proc/sys/vm/nr_hugepages 
+[root@lab17 tomr]# cat /proc/sys/vm/nr_hugepages 
+4100
+
+---- using the preprocessor of sdf_msg_wrapper.c
+
+/opt/schooner/openmpi-1.3/bin/mpicc -E -std=gnu99 -fgnu89-inline  -pipe -g -Wall -Werror -fpic   -fno-builtin -include ../../build/sdf/sdfmsg/sdf_msg_wrapper.foot  -D_GNU_SOURCE -DMPI_BUILD -DFLASH_SIM_TYPE=5 -DPLAT_LOG_COMPILE_LEVEL=TRACE -I../../sdf/protocol/Tables/installed -I../../include -I../../sdf -I../../sdf/hoard/heaplayers -I../../sdf/hoard/heaplayers/util -I../../sdfclient -I../../3rdparty_inc -I/opt/schooner/CUnit-2.1-0/include -I/opt/schooner/dmalloc-5.5.2/include -I/opt/schooner/flex-2.5.35/include -I/opt/schooner/fuse/include -I/opt/schooner/valgrind-3.3.1/include -I../../sdf/utils -I/usr/include/python2.5 -DBLD_VERSION=5541 -Dsdf_use_agent -c -save-temps sdf_msg_wrapper.c
+
+
+OpenMPI has 3 high level PtoP Messaging Layers (PMLs)
+OB1, DR, CM - High performance 
+
+For the Lab Machines OpenMPI does not default to using the Infinipath PML so you must specify it directly
+
+> mpirun -np 2 --mca pml cm --hostfile my_hostfile ./sdf_msg --msg_mpi 2 --log sdf/sdfmsg
+
+> mpirun --mca mpi_show_handle_leaks 1 --mca mpi_show_mca_params 1 -np 2 valgrind ./fcnl_bigsize_fth_test1
+
+
+# OSU MPI Latency Test (Version 2.0)
+# Size          Latency (us) 
+0               2.55
+1               2.51
+2               2.52
+4               2.54
+8               2.51
+16              2.84
+32              2.91
+64              3.08
+128             3.25
+256             3.56
+384             3.98
+512             4.14
+1024            5.21
+2048            7.38
+4096            9.81
+8192            14.31
+16384           23.10
+32768           40.42
+65536           93.00
+131072          168.42
+262144          306.29
+524288          581.21
+1048576         1132.26
+2097152         2233.97
+4194304         4441.59
+
+Note: to reset MTRRs regs do the following ie: lab01
+
+/export/sdf_dev/infinipath/ipath_mtrr -v
+Comments
+    one InfiniPath HCA found
+    will delete 1 MTRR registers
+Original MTRR
+    reg00: base=0x00000000 (   0MB), size=2048MB: write-back, count=1
+    reg01: base=0x80000000 (2048MB), size=1024MB: write-back, count=1
+    reg02: base=0xc0000000 (3072MB), size= 256MB: write-back, count=1
+    reg03: base=0x100000000 (4096MB), size=4096MB: write-back, count=1
+    reg04: base=0x200000000 (8192MB), size=8192MB: write-back, count=1
+    reg05: base=0x400000000 (16384MB), size= 512MB: write-back, count=1
+    reg06: base=0x420000000 (16896MB), size= 256MB: write-back, count=1
+    reg07: base=0xcff80000 (3327MB), size= 512KB: uncachable, count=1
+Changes
+    # disabling reg07: no longer needed
+    echo 'disable=7' >/proc/mtrr
+[root@lab02 infinipath]# ./ipath_mtrr -w
+one InfiniPath HCA found
+will delete 1 MTRR registers
+please restart InfiniPath driver
+[root@lab02 infinipath]# cat /proc/mtrr
+reg00: base=0x00000000 (   0MB), size=2048MB: write-back, count=1
+reg01: base=0x80000000 (2048MB), size=1024MB: write-back, count=1
+reg02: base=0xc0000000 (3072MB), size= 256MB: write-back, count=1
+reg03: base=0x100000000 (4096MB), size=4096MB: write-back, count=1
+reg04: base=0x200000000 (8192MB), size=8192MB: write-back, count=1
+reg05: base=0x400000000 (16384MB), size= 512MB: write-back, count=1
+reg06: base=0x420000000 (16896MB), size= 256MB: write-back, count=1
+[root@lab02 infinipath]# /etc/init.d/infinipath restart
+Unloading infiniband modules: ib_sdp rdma_cm ib_cm iw_cm ib_addr ib_local_sa ib_umad ib_uverbs ib_ipath ib_sa ib_mad ib_core
+Loading InfiniPath core module                             [  OK  ]
+Loading module ib_uverbs                                   [  OK  ]
+Loading module ib_umad                                     [  OK  ]
+Loading module ib_sdp                                      [  OK  ]
+Mounting ipathfs                                           [  OK  ]
+[root@lab02 infinipath]# cat /proc/mtrr
+reg00: base=0x00000000 (   0MB), size=2048MB: write-back, count=1
+reg01: base=0x80000000 (2048MB), size=1024MB: write-back, count=1
+reg02: base=0xc0000000 (3072MB), size= 256MB: write-back, count=1
+reg03: base=0x100000000 (4096MB), size=4096MB: write-back, count=1
+reg04: base=0x200000000 (8192MB), size=8192MB: write-back, count=1
+reg05: base=0x400000000 (16384MB), size= 512MB: write-back, count=1
+reg06: base=0x420000000 (16896MB), size= 256MB: write-back, count=1
+reg07: base=0xda100000 (3489MB), size= 512KB: write-combining, count=1
+
+-------------------
+Overall Tests 
+
+* sdf_msg_protocol.c
+The tests suite are built mostly as a variation of the original sdf_msg_protocol.c 
+which is a dual node fth only exchange of fixed sized messages. There is one fth thread
+dedicated to sending a single CONSISTENCY message and then sleeping on an expected response. 
+This is designed to simulate the "action" node. This fth thread creates a queue pair, posts a 
+message to a queue, sleeps on an ack mailbox for the send buffer to be cleared, then sleeps
+on a response mailbox for the return message.
+
+There are also 2 worker fth threads. These simulate the "home" node and they wait on a queue
+for CONSISTENCY messages, when a message is received by the MPI msg thread they wake up and
+process the delivered buffer. This essentially does a memcpy and returns the buffer via a post
+to a RESPONSE queue it has created. Whoever is first inline on the queue gets the wakeup call 
+first.
+
+
+HT Tests 
+
+The test for the sdfmsg are conducted with a wrapper shell script and executes the tests in order
+
+These files build the overall test lib that the individual tests reference
+----------------------------
+  18531 Sep 30 14:00 fcnl_bigsize_fth_lib1.c
+   6928 Aug 13 13:39 fcnl_bigsize_lib1.c
+  21092 Sep 30 14:11 fcnl_consistency_lib1.c
+   6420 Sep 30 17:43 fcnl_flush_lib1.c
+   6692 Sep 30 11:57 fcnl_membership_lib1.c
+   6554 Aug 22 18:05 fcnl_metadata_lib1.c
+   6802 Aug 22 18:05 fcnl_mgnt_lib1.c
+  21675 Sep 30 11:57 fcnl_mixed_thread_lib1.c
+  20769 Sep 30 11:57 fcnl_mixed_thread_lib2.c
+   8982 Oct  1 12:45 fcnl_multinode_doubleside_lib1.c
+   8221 Oct  1 05:10 fcnl_multinode_doubleside_lib2.c
+   9288 Oct  1 05:12 fcnl_multinode_doubleside_lib3.c
+   9122 Oct  1 14:46 fcnl_multinode_doubleside_lib4.c
+   8304 Oct  1 04:38 fcnl_multinode_lib1.c
+   8024 Oct  1 04:41 fcnl_multinode_lib2.c
+   8305 Oct  1 04:44 fcnl_multinode_lib3.c
+   7463 Oct  1 04:49 fcnl_multinode_lib4.c
+   8105 Oct  1 04:55 fcnl_multinode_multiptl_lib1.c
+   8465 Oct  1 04:59 fcnl_multinode_multiptl_lib2.c
+   7932 Aug 22 18:05 fcnl_multi_protocol_lib1.c
+  11780 Oct  1 04:14 fcnl_multiptl_quantity_lib1.c
+   9711 Oct  1 04:10 fcnl_multiptl_sequential_lib1.c
+   9339 Oct  1 04:18 fcnl_multiptl_sequential_lib2.c
+   8692 Oct  1 04:20 fcnl_multiptl_sequential_lib3.c
+   8830 Oct  1 04:21 fcnl_multiptl_sequential_lib4.c
+  10485 Oct  1 04:34 fcnl_presstest_lib1.c
+  14799 Sep 30 17:35 fcnl_queue_order_fth_lib1.c
+  13278 Sep 30 17:42 fcnl_queue_order_fth_lib2.c
+   9924 Sep 30 17:52 fcnl_queue_order_pth_lib1.c
+  14077 Sep 30 17:47 fcnl_queue_order_pth_lib2.c
+   7519 Aug 22 18:05 fcnl_receive_queue_lib1.c
+   9735 Oct  1 04:12 fcnl_singleptl_sequential_lib1.c
+  10152 Oct  1 04:29 fcnl_singleptl_sequential_lib2.c
+  10467 Oct  1 04:32 fcnl_singleptl_sequential_lib3.c
+   6666 Aug 22 18:05 fcnl_replication_lib1.c
+   6999 Sep 30 14:04 fcnl_send_queue_lib1.c
+   7212 Aug 22 18:05 fcnl_simplexsr_lib1.c
+  11476 Sep 30 14:18 fcnl_single_protocol_lib1.c
+  10467 Oct  1 04:23 fcnl_singleptl_chkmsg_lib1.c
+   8746 Oct  1 04:26 fcnl_singleptl_chksize_lib1.c
+   6439 Sep 30 17:49 fcnl_system_lib1.c
+
+   5126 Aug 22 18:05 fcnl_bigsize_fth_test1.c
+   5114 Aug 22 18:05 fcnl_bigsize_test1.c
+   5152 Sep 30 11:57 fcnl_consistency_test1.c
+   5113 Aug 22 18:05 fcnl_flush_test1.c
+   5235 Aug 22 18:05 fcnl_membership_test1.c
+   5260 Aug 22 18:05 fcnl_metadata_test1.c
+   5298 Aug 22 18:05 fcnl_mgnt_test1.c
+   5331 Aug 22 18:05 fcnl_mixed_thread_test1.c
+   5418 Aug 22 18:05 fcnl_mixed_thread_test2.c
+   5135 Oct  1 12:46 fcnl_multinode_doubleside_test1.c
+   5134 Oct  1 12:47 fcnl_multinode_doubleside_test2.c
+   5139 Oct  1 12:47 fcnl_multinode_doubleside_test3.c
+   5078 Oct  1 12:48 fcnl_multinode_doubleside_test4.c
+   5190 Oct  1 05:54 fcnl_multinode_multiptl_test1.c
+   5165 Oct  1 05:55 fcnl_multinode_multiptl_test2.c
+   5137 Oct  1 05:50 fcnl_multinode_test1.c
+   5173 Oct  1 05:52 fcnl_multinode_test2.c
+   5147 Oct  1 05:53 fcnl_multinode_test3.c
+   5148 Oct  1 05:53 fcnl_multinode_test4.c
+   5040 Oct  1 05:33 fcnl_multi_protocol_test1.c
+   5056 Oct  1 05:44 fcnl_multiptl_quantity_test1.c
+   5039 Oct  1 05:42 fcnl_multiptl_sequential_test1.c
+   5084 Oct  1 05:45 fcnl_multiptl_sequential_test2.c
+   5065 Oct  1 05:45 fcnl_multiptl_sequential_test3.c
+   5070 Oct  1 05:46 fcnl_multiptl_sequential_test4.c
+   5061 Oct  1 05:50 fcnl_presstest_test1.c
+   5112 Aug 22 18:05 fcnl_queue_order_fth_test1.c
+   5114 Aug 22 18:05 fcnl_queue_order_fth_test2.c
+   5313 Aug 22 18:05 fcnl_queue_order_pth_test1.c
+   5700 Aug 22 18:05 fcnl_queue_order_pth_test2.c
+   5041 Aug 22 18:05 fcnl_receive_queue_test1.c
+   5129 Aug 22 18:05 fcnl_replication_test1.c
+   5105 Aug 22 18:05 fcnl_send_queue_test1.c
+   5108 Aug 22 18:05 fcnl_simplexsr_test1.c
+   4925 Oct  1 05:37 fcnl_single_protocol_test1.c
+   5009 Oct  1 05:47 fcnl_singleptl_chkmsg_test1.c
+   4989 Oct  1 05:48 fcnl_singleptl_chksize_test1.c
+   5016 Oct  1 05:43 fcnl_singleptl_sequential_test1.c
+   5015 Oct  1 05:49 fcnl_singleptl_sequential_test2.c
+   5017 Oct  1 05:50 fcnl_singleptl_sequential_test3.c
+   4796 Aug 22 18:05 fcnl_system_test1.c
+   3469 Sep 30 12:26 fcnl_test.h
+
+msg_test.h 
+Utilfuncs.c  
+Utilfuncs.h 
+pfm_throughput_lib1.c  
+slinkedlist.c
+slinkedlist.h 
+------------------
+1. multi-node test case list:
+A      fcnl_multinode_multiptl_test1.c
+A      fcnl_multinode_multiptl_lib1.c
+A      fcnl_multinode_test1.c
+A      fcnl_multinode_lib1.c
+A      fcnl_multinode_test3.c
+A      fcnl_multinode_lib3.c
+A      fcnl_multinode_multiptl_test2.c
+A      fcnl_multinode_multiptl_lib2.c
+A      fcnl_multinode_test2.c
+A      fcnl_multinode_lib2.c
+A      fcnl_multinode_test4.c
+A      fcnl_multinode_lib4.c
+
+2. single-node test case list:
+A      fcnl_singleptl_sequential_test2.c
+A      fcnl_singleptl_sequential_lib2.c
+A      fcnl_presstest_test1.c
+A      fcnl_presstest_lib1.c
+A      fcnl_singleptl_sequential_test3.c
+A      fcnl_singleptl_sequential_lib3.c
+M      fcnl_membership_lib1.c
+M      fcnl_queue_order_fth_lib1.c
+
+3. modify a few public files list:
+M      Utilfuncs.h
+M      Utilfuncs.c
+M      fcnl_test.h
+M      Makefile.bak
+
+4. resend test case list:
+fcnl_mixed_thread_test1.c
+fcnl_mixed_thread_lib1.c
+
+
+
+void * ConsistencyPthreadRoutine(void *arg);
+void * ManagementPthreadRoutine(void *arg);
+void * SystemPthreadRoutine(void *arg);
+void * MembershipPthreadRoutine(void *arg);
+void * FlushPthreadRoutine(void *arg);
+void * MetadataPthreadRoutine(void *arg);
+void * ReplicationPthreadRoutine(void *arg);
+void * OrderTestFthPthreadRoutine(void *arg);
+void * OrderTestPthreadRoutine(void *arg);
+void * BigSizePthreadRoutine(void *arg);
+void * ReceiveQueuePthreadRoutine(void *arg);
+void * SendQueuePthreadRoutine(void *arg);
+void * SimplexSendReceiveRoutine(void *arg);
+
+
+
+================================================================================
+fth Message mailboxes
+
+
+When a thread wants to initiate a message sequence it has choices on actions of the message
+flow. There are also different types of mechanisms depending on the thread type fth vs pthread 
+and on how it deals with these actions. So far we only have fth threads covered here.
+
+So every message will have a buffer created, when the buffer is posted 
+to the queue for a send the thread has to make some choices
+---> do I want to know if the buffer has been sent and do I need to have 
+it returned to me, am I waiting for a response, etc..
+
+The fth mechanism for this is the struct sdf_fth_mbx and the *abox.  The 
+fth thread, if it is waiting for a response will wait on the *rbox.
+
+The following will tell the msg  thread what to do.
+
+SACK_ONLY_FTH = fth thread will only wait on the specified sdf_fth_mbx.abox 
+                for the ack that the message has been sent. 
+                fth thread will not wait for a response and it expects the 
+                sent buffer to be freed also
+                You are telling the msg engine to post to the given abox after the 
+                message is sent with the buffer pointer and do nothing else.
+
+SACK_RESP_ONLY_FTH = fth thread will only wait on the specified sdf_fth_mbx.rbox 
+                     for the response message. fth thread will not wait for a msg 
+                     sent ack and it expects the sent buffer to be freed also
+
+SACK_BOTH_FTH = fth thread will wait on the specified sdf_fth_mbx.abox for the ack 
+                that the message has been sent. fth thread will wait for a response 
+                and it expects the sent buffer to be freed also
+
+SACK_BOTH_FTH_NOREL = same as SACK_BOTH_FTH except the buffer is not freed, useful 
+                      if the buffer is statically allocated.
+
+SACK_NONE_FTH = fth thread just posts the message and will not wait on anything, buffer is freed
+
+SACK_MODERN = this relates to new message wrappers
+
+================================================================================
+
+Initialization - 
+
+
+There are 3 choices to run the sdf/agent under. If you want multi-node or mpi you must supply
+the command line arg in the for the sdf/agent. If you are running the memcache server, it is only
+supporting single node at the moment. 
+
+1) Single node -- without mpi: > ./sdfagent or  ./memcached-fthread-sdf -C foo -T4 -N4
+2) Single node -- with mpi:    > mpirun -np 1 ./sdfagent --msg_mpi 2
+3) multi-node  -- with mpi:    > mpirun -np x ./sdfagent --msg_mpi 2, where x = num of desired processes
+
+Note that using  --msg_mpi 1 will start the messaging thread and a secondary system management pthread
+
+---------------
+There are essentially 3 calls to get the messaging going. 
+
+First call obtains the rank of the process and the total number of processes started if
+you are running under mpi. The arg mpi_init_flags will determine whether you are
+initializing unde mpi or not. The default is SDF_MSG_NO_MPI_INIT.
+
+sdf_msg_init_mpi(argc, argv, &sdf_msg_numprocs,	&success, mpi_init_flags);
+
+The next call will setup the messaging bins and internal queues if directed. It also creates
+two pthreads, messaging and the messaging managment thread. flag choices are
+SDF_MSG_RTF_DISABLE_MNGMT,  SDF_MSG_DISABLE_MSG, SDF_MSG_RTF_ENBLE_MNGMT
+
+sdf_msg_init(state->rank, &pnodeid, mpi_init_flags);
+
+The last call will release the messaging thread and start servicing the queues and the mpi bins
+flag choices are SDF_MSG_DISABLE_MSG
+
+sdf_msg_startmsg(state->rank, mpi_init_flags);
+
+------------------------------------------------------------------------
+
+int
+sdf_msg_init_mpi(int argc, char *argv[], uint32_t *sdf_msg_num_procs, SDF_boolean_t *success)
+
+get your node and process info from MPI, set global values
+get the number of processes started by mpi or else default to one - numprocs,
+get the node id this_node
+set the 
+
+    vnode_t this_node;         /* the rank or node number */
+    vnode_t active_nodes;      /* master list of nodes that have verified connections to "this_node" */
+    vnode_t sch_node_lst;      /* decimal numprocs - initialized MPI processes in the cluster upon mpirun */
+    vnode_t active_mask;       /* Master node bit mask of nodes that should be in the cluster  */
+    vnode_t active_bins;       /* number of individual active bins on a node with registered threads, queues */
+    vnode_t num_node_bins;     /* current number of created bins after mpi_msg init which will 
+                                * set it to SDF_PROTOCOL_COUNT, will be incremented with dynamic bin addition
+                                */
+----------------------------------------------------------------------------------------------
+int
+lock_processor(uint32_t firstcpu, uint32_t numcpus) 
+
+Used only for internal testing purposes. fth has its own locking builtin. We don't want to conflict
+
+----------------------------------------------------------------------------------------------
+1) create a queue
+
+struct sdf_queue_pair *q_pair = (sdf_create_queue_pair(source node, destination node,
+					 source protocol, destination protocol, enum sdf_queue_wait_type wait_type))
+
+Nodes are numbered from 0 - MAX_NUM_SCH_NODES (this is currently 4)
+
+These are the available protocols
+
+Total Bins 16
+SDF_DEBUG=0
+SDF_SYSTEM=1
+SDF_CONSISTENCY=2
+SDF_MANAGEMENT=3
+SDF_MEMBERSHIP=4
+SDF_FLSH=5
+SDF_METADATA=6
+SDF_REPLICATION=7
+SDF_REPLICATION_PEER=8
+SDF_REPLICATION_PEER_RESPONSE_TO_REPLICATION=9
+SDF_SHMEM=10
+SDF_RESPONSES=11
+SDF_3RDPARTY=12
+SDF_FINALACK=13
+GOODBYE=14
+SDF_UNEXPECT=15
+
+These are the available wait types
+
+SDF_WAIT_SEMAPHORE, SDF_WAIT_CONDVAR, SDF_WAIT_FTH
+----------------------------------------------------------------------------------------------
+fth messaging requires you create mailboxes and generally fill out this struct
+
+typedef struct sdf_fth_mbx {
+    /** @brief One of the #SDF_msg_SACK enum except in test code */
+    enum SDF_msg_SACK actlvl;        /* Modern to use aaction, raction, etc. */
+
+    /** @brief Time of send in ns since the epoch is posted on send */
+    fthMbox_t *abox;                 /* sending fth threads ack mailbox */
+
+    /** @brief The sdf_msg response to this */
+    fthMbox_t *rbox;                 /* response mailbox, NULL if not return reqd */
+
+    /** @brief What to do on ack when actlvl is MODERN or MODERN_REL */
+    struct sdf_msg_action *aaction;
+
+    /** @brief What to do on resp when actlvl is MODERN or MODERN_REL */
+    struct sdf_msg_action *raction;
+
+    /** @brief Release on send (valid when modern) */
+    int release_on_send;
+} sdf_fth_mbx_t;
+
+
+Then init your mailboxes
+
+fthMboxInit(&abox);
+fthMboxInit(&rbox);
+
+Then set an action level
+
+fthmbx.actlvl = SACK_BOTH_FTH_NOREL;
+
+    item(SACK_ONLY_FTH, = 1, SACK_HOW_FTH_MBOX_TIME, SACK_HOW_NONE, SACK_REL_YES, 0)
+    item(SACK_RESP_ONLY_FTH, /**/, SACK_HOW_NONE, SACK_HOW_FTH_MBOX_MSG, SACK_REL_YES, 0)
+    item(SACK_BOTH_FTH, /**/, SACK_HOW_FTH_MBOX_TIME, SACK_HOW_FTH_MBOX_MSG, SACK_REL_YES, 0)
+    item(SACK_BOTH_FTH_NOREL, /**/, SACK_HOW_FTH_MBOX_TIME, SACK_HOW_FTH_MBOX_MSG, SACK_REL_NO, 0)
+    item(SACK_NONE_FTH, /**/, SACK_HOW_NONE, SACK_HOW_NONE, SACK_REL_NO, 0) 
+    item(SACK_MODERN, /**/, SACK_HOW_NONE, SACK_HOW_NONE, SACK_REL_NO, 1)
+----------------------------------------------------------------------------------------------
+Then create a buffer for you to use, which prepends the header
+
+send_msg = (struct sdf_msg *) sdf_msg_alloc(TSZE);
+
+Next do a send
+
+ret = sdf_msg_send((struct sdf_msg *)send_msg, TSZE, mynode, myprotocol,
+                    dest node, dest_protocol, msg_type, &fthmbx, NULL);
+
+then wait on either an abox (acknowledge for send buffer release) or rbox (to get your response)
+
+msg = (sdf_msg_t *) fthMboxWait(&rbox);
+
+the last thing you must do is release the buffer back to the messaging bin pool
+
+
+ret = sdf_msg_free_buff(msg);
+
+You may also park yourself on a receive queue
+
+recv_msg = sdf_msg_receive(q_pair_CONSISTENCY->q_out, 0, B_TRUE);
+
+
+----------------------------------------------------------------------------------------------
+These are the MPI calls we are currently using for
+
+Initialization and process exit
+
+MPI_SUCCESS == MPI_Init(&argc, &argv);
+MPI_Comm_size(MPI_COMM_WORLD, &numprocs);
+MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+
+Misc 
+
+MPI_Finalize();
+MPI_Barrier(MPI_COMM_WORLD);
+
+Send and receives, blocking and non-blocking
+
+MPI_Irecv(b->r_buf[i], b->max_msgsize, MPI_BYTE, b->sdf_msg_snode, b->protocol_type,
+          MPI_COMM_WORLD, &b->mreqs[i]);
+MPI_Recv(recv_msg, acount, MPI_BYTE, MPI_ANY_SOURCE, mytag, MPI_COMM_WORLD, &stat);
+MPI_Send(mpay, len, MPI_BYTE, destnode, dtag, MPI_COMM_WORLD);
+MPI_Isend(&outm, 3, MPI_BYTE, pnodeid, cntllmsg, MPI_COMM_WORLD, &startreq);      
+
+non-blocking receive buffer checking and unexpected message polling
+
+MPI_Testsome(DBNUM, &node_bins[j].mreqs[0], &outcount, node_bins[j].indx, node_bins[j].rstat);
+MPI_Iprobe(MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD, &it1, &unx_stat);
+MPI_Get_count(&unx_stat, MPI_BYTE, &acount);
+MPI_Request_get_status(hmm, &flg, &st);
+
+-----------------------------------------------------------------------------------
+-----------------------------------------------------------------------------------
+-----------------------------------------------------------------------------------
+
+Here are the current tests 
+
+[tomr@lab02 agent]$ mpirun -np 1 ./sdfagent --property_file=/export/sdf_dev/schooner-trunk/trunk/config/schooner-rep.properties --disable_fast_path --msg_mpi 2 --log sdf/sdfmsg=debug --flash_msg
+
+--disable_fast_path /* this will */
+--replicate=2
+
+
+> example_sdfclient 0 FOO 100 INFO
+

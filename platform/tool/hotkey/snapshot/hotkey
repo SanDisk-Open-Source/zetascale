@@ -1,0 +1,93 @@
+#!/bin/bash
+#
+# Startup script for HOTKEY
+#
+# chkconfig: - 92 36
+# description: HOTKEY is a small daemon which is intended to run on \
+#              end user systems. It provides something like a \
+#              "network neighbourhood", but only relying on the TCP/IP \
+#              protocol stack, no smb or whatever.\
+#              The information about the hosts in your "neighbourhood" \
+#              is provided via TCP port 11211.
+# processname: hotkey
+# config: /etc/hotkeyrc
+
+# Source function library.
+. /etc/rc.d/init.d/functions
+
+# Source function library.
+if [ -f /etc/init.d/functions ] ; then
+  . /etc/init.d/functions
+elif [ -f /etc/rc.d/init.d/functions ] ; then
+  . /etc/rc.d/init.d/functions
+else
+  exit 0
+fi
+
+# Some definitions.
+hotkey=/usr/bin/hotkey.pl
+prog=hotkey
+
+OPTIONS="" #"-d"
+RETVAL=0
+
+start() {
+    echo -n $"Starting $prog: "
+    daemon $hotkey $OPTIONS
+    RETVAL=$?
+
+   echo
+    if [ $RETVAL = 0 ] ; then
+       touch /var/lock/subsys/hotkey
+    else
+       RETVAL=1
+    fi
+    return $RETVAL
+}
+
+stop() {
+	echo -n $"Stopping $prog: "
+	killproc $hotkey
+	RETVAL=$?
+	echo
+	if [ $RETVAL = 0 ] ; then
+           rm -f /var/lock/subsys/hotkey
+        else
+           RETVAL=1
+        fi
+
+    return $RETVAL
+}
+
+reload() {
+	echo -n $"Reloading $prog: "
+	killproc $hotkey -HUP
+	RETVAL=$?
+	echo
+}
+
+# See how we were called.
+case "$1" in
+  start)
+	start
+	;;
+  stop)
+	stop
+	;;
+  status)
+        status $hotkey
+	RETVAL=$?
+	;;
+  restart)
+	stop
+	start
+	;;
+  condrestart)
+        [ -f /var/lock/subsys/hotkey ] && restart
+        ;;
+  *)
+	echo $"Usage: $prog {start|stop|restart|status|condrestart}"
+	exit 1
+esac
+
+exit $RETVAL

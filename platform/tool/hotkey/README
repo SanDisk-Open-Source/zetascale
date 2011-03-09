@@ -1,0 +1,395 @@
+NOTES for HOTKEY
+	draft by hickey liu at 2009-08-05.
+
+This is a summarization for hotkey, including following aspects: 
+1. design of hotkey
+2. APIs of hotkey
+3. hotkey unit test
+4. snapshot & logrotate service setting
+5. viewer for history snapshots
+6. memcached code injection
+7. test cases for memcached with hotkey
+8. quick test on image box
+
+Next we would disscuss the detail for above points repectively.
+
+-------------------------
+1. design of hotkey
+-------------------------
+This sector disscuss the main idea of hotkey, and basic data structures as well
+as main workflow for better understand hotkey.
+
+	Main idea
+	All the memory is allocated during initization. Buckets are used to statistic
+	hot-keys, while the snapshorts are used to save the dumped keys from buckets
+	during a period. Winner lists is refence count sorted list that used to save 
+	the	winner keys from candidate list which is a LRU. Candidate lists are
+	designed to be LRU list for giving the chances for new arrived keys. When keys
+	in candicate list of each buckets exceeds the threshold, it will be promoted
+	winner list. When dumping keys from winner lists, one version is used for
+	current snapshort. The oldest vesion snapshort would be cleaned once all
+	versions are exhausted. 
+
+	Basic data structures
+	1. Bucket Entry in bucket list
+	Bucket Entry structure contains key pointer, reference counter, syndrome
+	and some other members.
+	2. Entry List of each Bucket
+	Entry List which is actually a LRU list contains Bucket Entry.
+	3. Slab
+	Several buckets will be mapped in one slab. Slab is original a memory
+	management unit, but now we set all memory allocation staticaly. So
+	Slab is just a superset of buckets.
+	4. Winner List
+	Winner list is slab owned, used for keeping the winner keys with higher
+	reference than threshold. This list is not LRU, it is ordering by ref
+	count.
+	5. Candidate list
+	It is a alias of "Entry list of each bucket". Candidate list are and LRU
+	list that owned to a bucket, used for keeping the keys that are not hot
+	enough.
+	6. Cycled N version snapshorts
+	Each snapshort is a set of keys and ref counts in Winner Lists.
+	N-snapshort buffers which flaged with version are saved in Memory, Once all
+	the snapshort buffers are exhausted, the oldest one will be flush into file
+	system and evicted. When user wants a report, we summarize all the versions
+	of snapshots and get the result.
+
+	Workflows
+	1. Initiazation
+	Basic data structures are initiazed.
+	2. lists updating when a key comes
+	a. Search key in victim list:
+	a.1. exist, update found item in victim list, then:
+	a.1.1  if refence count is over threshold, insert that item to winner
+	list with coping key.
+	a.1.2  else, adjust LRU list with removing item to head.
+	a.2. not exist, search key in winner list, then:
+	a.2.1  exist, update item with reference, and resrot winner list.
+	a.2.2  not exist, insert item to LRU head with removing the last item.
+	3. snapshort dumping
+	Fetching keys from winner lists in each slab.
+	4. sorting snapshorts
+	For all the snapshorts with valid version, buckets are merged into another
+	sorting snapshort.
+	The merged snapshort would be sorted again and return the client with
+	sorted list.
+
+
+-------------------------
+2. APIs of hotkey
+-------------------------
+Brief introduction of APIs in hotkey with how to use hotkey utilities.
+The locate of hotkey is trunk/sdf/platform/tool/hotkey.
+	1. calculate the memory size hotkey needs:
+	int calc_hotkey_memory(int maxtop, int nbuckets,
+						   int hotkey_mode)
+	hotkey_mode:
+	[client_separate|client_access][hotkey_separate|hotkey_access]
+	Four modes are supported: 0x00, 0x01, 0x10 and 0x11, and
+	high digit bit indicates client mode, 1 is separate and 0 is access;
+	low digit bit indicates hotkey mode, 1 is sperate and 0 is access.
+
+	2. init hotkey instance:
+	Reporter_t* hot_key_init(void *mm_ptr, 
+							 int mm_size, int nbuckets,
+							 int maxtop, int hotkey_mode);
+	hotkey_mode should keep the same as 1) in calcuate memory function.
+	reporter handle should saved and managed by caller.
+
+	3. update hotkey when accessed:
+	int hot_key_update(Reporter_t *preporter,
+					   char *key, int key_len,
+					   uint64_t hash, uint32_t bucket, 
+					   int command, uint32_t client_ip);
+
+	If client is access mode, keys are equal if only hash is same, else both hash
+	and client would be compare;
+	If hotkey is access mode, both get and update would match update handle, else
+	only matched operation would really execute update handle.
+
+	4. report hotkey when client requests for hotkey:
+	int hot_key_report(Reporter_t *preporter, 
+					   int ntop, char *rpbuf,
+					   int rpsize, int command, 
+					   uint32_t client_ip);
+	Reporter would not take consider client mode, all would be 
+	dumped with or without matched client_ip.
+	If hotkey mode is separate mode, only matched commands 
+	would be reported, else command would not be considered.
+
+	5. cleanup hotkey reporter:
+	int hot_key_cleanup(Reporter_t *preporter);
+	Free this reporter handle for recycling. 
+
+-------------------------
+3. hotkey unit test
+-------------------------
+Hotkey tests directory provides a basic test to test hotkey APIs in hotkey/tests.
+Make sure CPPFLAGS += -DFAKE_LOCK in hotkey/Makefile is uncommented.
+	ht_rpt_test binary test would create 4 instances, each is 0x00, 0x01, 0x10 and
+	0x11 mode for hotkey. The five APIs mentioned are called and the results are
+	dumped test_hotkey_loop_[loop]_rpt_[index] format.
+	loop is the loop sequence for tests, and index is varied from 0 to 6:
+		0 is the calculate standard log
+		1 is the 0x00 log
+		2 is the 0x01 get log
+		3 is the 0x01 upd log
+		4 is the 0x10 log
+		5 is the 0x11 get log
+		6 is the 0x11 upd log
+
+-------------------------
+4. snapshot & logrotate services setting
+-------------------------
+Snapshot service is used for dumping hotkey request result to snapshots for
+history analysis. The directory is hotkey/snapshot.
+	Steps for configure snapshot dumping tool:
+		1. make sure you have sudo permission if without root.
+		2. cp hotkey to /etc/init.d
+		3. cp hotkey.pl to /usr/bin/
+		4. start logrotate
+		/usr/sbin/logrotate logrotate hotkey_logrotate
+		5. start hotkey
+		[root@d052 bin]# /sbin/service hotkey start
+		For all scripts, snapshots are dumped:
+			/tmp/snapshot/snapshot_yyyymmdd_index,
+		and log is dumped: /tmp/hotkey.log
+
+	[root@d052 ~]# perl  /usr/bin/hotkey.pl -h
+	usage:
+	-a: ip address
+	-p: port
+	-i: inteval
+	-t: ntop
+	-s: snapshots versions to save
+	-l: log
+	-d: debug
+	-h: help
+
+	Parameters that may need change is -a -p -i -t -s -l, as these default are:
+	-a 127.0.0.1
+	-p 33300
+	-i 60
+	-t 100
+	-s 10
+	-l /tmp/hotkye.log
+	-d
+
+	These parameters are changed in OPTIONS in hotkey(/etc/init.d/hotkey)
+	In hotkey.pl(/usr/bin/hotkey.pl), $DIR is snapshot directory, currently is
+	/tmp/snapshot, needs to	be config out.
+
+-------------------------
+5. viewer for history snapshots
+-------------------------
+Viewer provides supporting of view history hotkeys of memcached. The location is
+hotkey/viewer.
+	Main idea:
+	We get file list that searched from user specified history time,
+	then check if each snapshot	of the same type of op of request, if not,
+	ignore this snapshot.
+	We collect items of request ip(if ip is specific collect all the items)
+	struct a hash, add up reference count if two items has the same key.
+	Sort and output results to a file.
+
+	Usage of viewer:
+	./hotkey_viewer [-hotclient] [-ntop NTOP] [-history NHOUR] [-ip IP] [-op OP] [-d] [-h]
+	by default:
+	NTOP=100
+	NHOUR=1h
+	IP=0(return all clients)
+	OP=update
+    if hotclient option is specified, then ntop hot client is counted. 
+    else hot keys are counted.
+
+    example:
+       stats  hot client in one year
+        ./hotkey_viewer -hotclient -ntop 100 -history 360d 
+       
+       stats hot key  in 30 days with ip  172.16.13.26 and op is UPDATE
+       ./hotkey_viewer -ntop 200 -history 30d -ip 172.16.13.26 -op update
+
+TESTING for viewer:
+    To test viewer works properly, run mcd, then run hotkey_test and diff comparation.
+    1. Set some keys to memcached (ex, perl hotkey_test -d -u 2000 -m 8 -c 0 -s 100 -p 1).
+    2. When mcd dumps enough snapshots, run viewer(ex, perl hotkey_viewer).
+    3  Once done, compare viewer_ret(where result of viewer script are stored) 
+       and calculated results of hotkey_test will automatically executed.
+    4. Compare result will be put in viewer.diff in current directory. 
+
+------------------------
+6. memcached code injection
+-------------------------
+How to fully use hotkey in memcached are dicussed here.
+	Proposal for what to do	
+	Our proposal is create two instance handles for each container, each is 0x00 
+	and 0x01, or 0x10 and 0x11 if client ip is need to statistic.
+	Currently, only one instances is created in memcached, which is 0x00, and how
+	to manage handles for container is either saved separately or add to container
+	strutures as its property.
+    
+-------------------------
+7. test cases for memcached with hotkey
+-------------------------
+Static/Dynamic tests are provided for hotkey integrated with memcached.
++++++++++++++++++++
+	+static
+	| hotkey/tests/hotkey_mcd_test
+	| static_test/t/hotkey_cluster_test.t
+	| static_test/t/hotkey_allkey_test.t
+	| static_test/t/hotkey_rnd_test.t
+	| static_test/t/hotkey_ratio_test.t
+	+client
+	| hotkey/tests/hotkey_test
+	+dynamic
+	| hotkey/tests/hotkey_rpt_test
+	+stable test
+    | hotkey/tests/hotkey_stable_test
+	+performance
+	| hotkey/perf/perf_hotkey.pl
++++++++++++++++++++
+	
+libraries needed for supporting tests:
+   Cache-Memcached-1.26.tar.gz
+   Time-modules-2006.0814
+
+
+   + static tests:
+		1. correctness behavior evaluation witch switches on/off 
+			-  --hot_key_stats=N not specified, "schooner hotkey on" 
+			report error.
+			-  --hot_key_stats=N specified, "stats hotkey ntop" /
+			"stats hotkey ntop" report error.
+			-  --hot_key_stats=N specified, "schooner hotkey on" ,
+			"stats hotkey ntop(ntop<0 || ntop>maxtop)" return error.
+			-  --hot_key_stats=N specified, "schooner hotkey on" ,
+			"stats hotkey" return maxtop hotkeys, and "stats hotkey ntop" 
+			return ntop hotkeys.
+			-  --hot_key_stats=N specified, "schooner hotkey on" and 
+			"schooner hotkey off", then
+			"stats hotkey ntop" /"stats hotkey ntop" report error.
+			-  --hot_key_stats=N specified, "schooner hotkey on" and 
+			"schooner hotkey off", then "schooner hotkey on",
+			"stats hotkey ntop" /"stats hotkey ntop" report hotkeys.
+
+		Usage:
+			./hotkey_mcd_test
+		Result:
+			tatic_test.log
+
+		2.  cluster by cluster mode requests for hotkey test
+
+		3. hotkey all in appeared mode
+
+		4. randomized appearence of hotkey test
+
+		5. hotkey with get/update ratio
+
+		2~5 are added to static_tests/t/ in memcached system tests.
+
+	+ comment test client for memcached	
+		[hickey@d052 tests]$ ./hotkey_test -h
+		usage:
+			-s -p -u -m -d -h
+			-s: total key set size
+			-p: probablity hreshold, hotkey_ratio
+			-u: update number
+			-r: ratio of get/update
+			-m: max snapshots, 0 indicates uninfinite
+			-d: debug
+			-c: compare needs
+			-h: help
+
+		Most comment combination used:
+		./hotkey_test -m 0 -c 0 -d: for endness request without file compare.
+		./hotkey_test -m 5 -d: 		for 5 snapshots with file compare.
+		./hotkey_test -m 1 -r 0.5 -p 0.01 -u 50000: for request limitation.
+
+	 + correctness evaluation for hotkey
+	 - large client requests with small part of hotkey 
+	 Construct a specific key set, in some probability we set a key from this
+	 key set to mcd, while in other time we just set a random key to  mcd.
+	 So we want to test miss rate and variance with different rps every hot key.
+
+	 We expected to get two results:
+		 miss rate: what percentage do we miss in ntop hot key
+		 Variance:  difference between mcd reference count and 
+			   		calculated reference count             
+
+		requests per second(rps):
+			- 100rps
+			- 5rps, 2rps, 1rps
+			- 0.5rps, 0.2rps, 0.1rps, 
+			- 0.05rps, 0.02rps, 0.01rps
+			- 0.0001rps
+			- 0.00001rps
+			- 0.000001rps
+		get range diff results.
+
+		- parameters adjustment for scenarios above:
+			- winners_per_slab
+			- candidates_per_bucket
+			- threshold
+		get range diff results.
+
+		Usage:
+		[hickey@d052 tests]$ ./hotkey_rps_test -h
+		usage:
+			-s  -u -d -h
+			-s: total key set size
+			-u: total update number
+			-d: debug
+			-h: help
+
+		Result:
+			result containers squarize, and diff ratio, which saved in:
+			/tmp/hotkey_rps_test/hotkey.diff
+		We have prepared paser script and Excel template for the final
+		result shown.
+
+    + stable test with maximal configure for long time running
+        to verfiy the stablility without data checking.
+         hotkey/tests/hotkey_stable_test
+
+	+ benchmark comparation for memcached with hotkey on/off
+		- memslab evaluation for tests with different paramters:
+		parameters for hotkey:
+			- winners_per_slab
+			- candidates_per_bucket
+			- threshold
+		scenarios for tests:
+			- store(set/replace/add)	
+			- incr/decr
+			- remove
+		get TPS for hotkey on/off for hotkey paramters
+	
+		Usage:
+		1. copy the related scripts to memslap.
+		2. Make sure the environment is setup:
+			property file, binary link and so on.
+		Result:
+			result are many logs in current directory, with memory exhausted 
+			situation and TPS.
+		We have prepared paser scripts and Excel template for the final 
+		result shown.
+
+-------------------------
+8. quick test on image box
+-------------------------
+    hotkey_image_test is provided in hotkey/tests for quick test on image box.
+    In order to get result quickly, modify /usr/bin/hotkey.pl:
+       
+       line12 $interval   = "1";          # with hour
+       -->
+       line12 $interval   = "0.005";      # with hour
+
+   that is changed interval form 1hour to 18seconds for test.
+
+   then run hotkey_image_test:
+        perl hotkey_image_test
+
+    Result woud be shown for successful or failure in 120seconds.
+    Remember to change interval back !!!
+
+
