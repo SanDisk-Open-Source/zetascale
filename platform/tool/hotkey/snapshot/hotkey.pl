@@ -17,10 +17,11 @@ my $capacity   = 8;        # with GB
 my $ip                  = "127.0.0.1";
 my $nctnr               = 8;
 
+my $MCD_HOME   = "/opt/schooner/membrain_@@VERSION@@";
 my $LOG        = "/var/log/schooner/hotkey.log";   # log location
-my $DIR        = "/opt/schooner/data/hotkey";      # snapshot location
-my $PROP       = "/opt/schooner/memcached/config/memcached.properties";
-my $schnc      = "/opt/schooner/bin/schnc";
+my $DIR        = $MCD_HOME."/data/hotkey";      # snapshot location
+my $PROP       = $MCD_HOME."/config/memcached.properties";
+my $schnc      = $MCD_HOME."/bin/schnc";
 my @ports               = ();
 my @ctnr_list           = ();
 my @last_ctnr_list      = ();
