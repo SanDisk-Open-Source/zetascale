@@ -9,7 +9,7 @@
  * log message in the codebase.  The structure contains one field for
  * each message parameter in the log message, along with other meta data
  * 
- * Generated On: 2011-12-22 16:58:43
+ * Generated On: 2012-02-18 13:47:04
  *------------------------------------------------------------------------*/
 
 #ifndef PLATFORM_FFDC_H
@@ -58916,6 +58916,28 @@ struct ffdc_log_struct_30657
 __inline__ void
 ffdc_log_func_30657(int lineno, int msgid, int catid, int level, const char* fmt,
     const char* arg1);
+
+/*---------------------------------------------------------------------------
+ * MsgID : 30658
+ * Msg   : "fth using up to %d cores"
+ *-------------------------------------------------------------------------*/
+struct ffdc_log_struct_30658
+{
+    int magic;
+    int msgid;
+    int catid;
+    int level;
+    unsigned long th_id;
+    unsigned long fth_id;
+    int lineno;
+    struct timeval timestamp;
+
+    int arg1;
+} __attribute__ ((aligned (64)));
+
+__inline__ void
+ffdc_log_func_30658(int lineno, int msgid, int catid, int level, const char* fmt,
+    int arg1);
 
 /*---------------------------------------------------------------------------
  * MsgID : 40000

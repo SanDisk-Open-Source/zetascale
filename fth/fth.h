@@ -124,8 +124,6 @@ struct fthCpuInfo {
     int numCPUs;                             // Total number of CPUs
 
     int schedToCPU[FTH_MAX_SCHEDS];          // Scheduler to CPU map
-    uint32_t CPUToSched[CPU_SETSIZE];        // CPU to scheduler bitmask map
-    uint32_t schedToPartners[FTH_MAX_SCHEDS];// Bit mask threads w/shared cache
 };
 
 // Global threading (scheduler) structure

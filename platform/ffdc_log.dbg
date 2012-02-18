@@ -1,6 +1,6 @@
-Skipping /root/membrain/server/apps/memcached/clients/libmemcached/libmemcached-0.12/tests/function.c
-Skipping /root/membrain/server/apps/memcached/clients/libmemcached/libmemcached-0.12/tests/test.c
-Skipping /root/membrain/server/apps/memcached/clients/libmemcached/libmemcached-0.12/tests/test.h
+Skipping /root/briano/try2/membrain-4.0/membrain/server/apps/memcached/clients/libmemcached/libmemcached-0.12/tests/function.c
+Skipping /root/briano/try2/membrain-4.0/membrain/server/apps/memcached/clients/libmemcached/libmemcached-0.12/tests/test.c
+Skipping /root/briano/try2/membrain-4.0/membrain/server/apps/memcached/clients/libmemcached/libmemcached-0.12/tests/test.h
 apps/memcached/server/memcached-1.2.5-schooner/checkpoint/mcd_aio.c:142:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG::20000:ENTERING
 apps/memcached/server/memcached-1.2.5-schooner/checkpoint/mcd_aio.c:146:mcd_log_msg:PLAT_LOG_LEVEL_ERROR::20001:failed to allocate memory
 apps/memcached/server/memcached-1.2.5-schooner/checkpoint/mcd_aio.c:155:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG::20002:allocated buf=%p, aligned buf=%p
@@ -668,8 +668,8 @@ apps/memcached/server/memcached-1.2.5-schooner/mcd_fth.c:5088:mcd_log_msg:PLAT_L
 apps/memcached/server/memcached-1.2.5-schooner/mcd_fth.c:5102:mcd_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20178:ENTERING, port=%d
 apps/memcached/server/memcached-1.2.5-schooner/mcd_fth.c:5108:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20180:SDFStopContainer() failed, status=%s
 apps/memcached/server/memcached-1.2.5-schooner/mcd_fth.c:5124:mcd_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20178:ENTERING, port=%d
-apps/memcached/server/memcached-1.2.5-schooner/mcd_fth.c:5213:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20000:ENTERING
-apps/memcached/server/memcached-1.2.5-schooner/mcd_fth.c:5243:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20181:Please link with the ET(Edge Triggering)-enabled libevent
+apps/memcached/server/memcached-1.2.5-schooner/mcd_fth.c:5218:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20000:ENTERING
+apps/memcached/server/memcached-1.2.5-schooner/mcd_fth.c:5248:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20181:Please link with the ET(Edge Triggering)-enabled libevent
 apps/memcached/server/memcached-1.2.5-schooner/mcd_fth_test.c:186:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG::20000:ENTERING
 apps/memcached/server/memcached-1.2.5-schooner/mcd_fth_test.c:215:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG::20000:ENTERING
 apps/memcached/server/memcached-1.2.5-schooner/mcd_fth_test.c:245:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG::20000:ENTERING
@@ -1929,17 +1929,16 @@ sdf/fth/archive/fth_xlock_4_test.c:122:plat_log_msg:PLAT_LOG_LEVEL_FATAL:PLAT_LO
 sdf/fth/archive/fth_xmbox_2_test.c:130:plat_log_msg:PLAT_LOG_LEVEL_FATAL:PLAT_LOG_CAT_PLATFORM_TEST_SHMEM:20073:shmem_attach(%s) failed: %s
 sdf/fth/archive/fth_xmbox_3_test.c:127:plat_log_msg:PLAT_LOG_LEVEL_FATAL:PLAT_LOG_CAT_PLATFORM_TEST_SHMEM:20073:shmem_attach(%s) failed: %s
 sdf/fth/archive/fth_xmbox_4_test.c:98:plat_log_msg:PLAT_LOG_LEVEL_FATAL:PLAT_LOG_CAT_PLATFORM_TEST_SHMEM:20073:shmem_attach(%s) failed: %s
-sdf/fth/fth.c:187:plat_log_msg:PLAT_LOG_LEVEL_WARN:PLAT_LOG_CAT_FTH:20869:Can't get CPU affinity: %s
-sdf/fth/fth.c:210:plat_log_msg:PLAT_LOG_LEVEL_WARN:PLAT_LOG_CAT_FTH:20870:%d CPUs available not all usable with FTH_MAX_SCHEDS %d
-sdf/fth/fth.c:236:plat_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_FTH:20871:fth using up to %d cores from set 0x%x
-sdf/fth/fth.c:314:plat_log_msg:PLAT_LOG_LEVEL_WARN:PLAT_LOG_CAT_FTH:20872:Failed to set scheduler %d affinity: %s
-sdf/fth/fth.c:321:plat_log_msg:PLAT_LOG_LEVEL_WARN:PLAT_LOG_CAT_FTH:20882:Failed to get scheduler %d affinity: %s
-sdf/fth/fth.c:326:plat_log_msg:PLAT_LOG_LEVEL_WARN:PLAT_LOG_CAT_FTH:20882:Failed to get scheduler %d affinity: %s
-sdf/fth/fth.c:332:plat_log_msg:PLAT_LOG_LEVEL_DIAGNOSTIC:PLAT_LOG_CAT_FTH:20873:fth scheduler %d affinity to core %d partners %x
-sdf/fth/fth.c:338:plat_log_msg:PLAT_LOG_LEVEL_WARN:PLAT_LOG_CAT_FTH:20874:Too few cores to set affinity on sched >= %d
-sdf/fth/fth.c:420:plat_log_msg:PLAT_LOG_LEVEL_FATAL:PLAT_LOG_CAT_FTH:20875:Trying to start scheduler %d >= FTH_MAX_SCHEDS
-sdf/fth/fth.c:904:plat_log_msg:PLAT_LOG_LEVEL_WARN:PLAT_LOG_CAT_FTH:20883:clock_gettime() went backwards by %3.1g seconds
-sdf/fth/fth.c:920:plat_log_msg:PLAT_LOG_LEVEL_WARN:PLAT_LOG_CAT_FTH:20884:tsc went backwards by %3.1g seconds
+sdf/fth/fth.c:184:plat_log_msg:PLAT_LOG_LEVEL_WARN:PLAT_LOG_CAT_FTH:20869:Can't get CPU affinity: %s
+sdf/fth/fth.c:205:plat_log_msg:PLAT_LOG_LEVEL_WARN:PLAT_LOG_CAT_FTH:20870:%d CPUs available not all usable with FTH_MAX_SCHEDS %d
+sdf/fth/fth.c:217:plat_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_FTH:30658:fth using up to %d cores
+sdf/fth/fth.c:294:plat_log_msg:PLAT_LOG_LEVEL_WARN:PLAT_LOG_CAT_FTH:20872:Failed to set scheduler %d affinity: %s
+sdf/fth/fth.c:301:plat_log_msg:PLAT_LOG_LEVEL_WARN:PLAT_LOG_CAT_FTH:20882:Failed to get scheduler %d affinity: %s
+sdf/fth/fth.c:306:plat_log_msg:PLAT_LOG_LEVEL_WARN:PLAT_LOG_CAT_FTH:20882:Failed to get scheduler %d affinity: %s
+sdf/fth/fth.c:312:plat_log_msg:PLAT_LOG_LEVEL_WARN:PLAT_LOG_CAT_FTH:20874:Too few cores to set affinity on sched >= %d
+sdf/fth/fth.c:394:plat_log_msg:PLAT_LOG_LEVEL_FATAL:PLAT_LOG_CAT_FTH:20875:Trying to start scheduler %d >= FTH_MAX_SCHEDS
+sdf/fth/fth.c:878:plat_log_msg:PLAT_LOG_LEVEL_WARN:PLAT_LOG_CAT_FTH:20883:clock_gettime() went backwards by %3.1g seconds
+sdf/fth/fth.c:894:plat_log_msg:PLAT_LOG_LEVEL_WARN:PLAT_LOG_CAT_FTH:20884:tsc went backwards by %3.1g seconds
 sdf/fth/fthCvTest.c:117:plat_log_msg:PLAT_LOG_LEVEL_FATAL:PLAT_LOG_CAT_PLATFORM_TEST_SHMEM:20073:shmem_attach(%s) failed: %s
 sdf/fth/fthGetTimeSpeed.c:195:plat_log_msg:PLAT_LOG_LEVEL_FATAL:LOG_CAT:20876:shmem init failure: %s
 sdf/fth/fthGetTimeSpeed.c:204:plat_log_msg:PLAT_LOG_LEVEL_FATAL:LOG_CAT:20877:shmem attach failure: %s
@@ -2038,9 +2037,9 @@ sdf/platform/event.c:541:plat_log_msg:PLAT_LOG_LEVEL_TRACE:event->logcat:20937:e
 sdf/platform/fd_dispatcher.c:276:plat_log_msg:PLAT_LOG_LEVEL_ERROR:LOG_CAT:20938:epoll(%d) failed: %d
 sdf/platform/fd_dispatcher.c:466:plat_log_msg:PLAT_LOG_LEVEL_TRACE:LOG_CAT:20939:polled nfds %d timeout %d ret %d
 sdf/platform/fd_dispatcher.c:664:plat_log_msg:PLAT_LOG_LEVEL_TRACE:LOG_CAT:20940:plat_fd_event %p state %s->%s
-Skipping /root/membrain/server/sdf/platform/ffdc_log.c
-Skipping /root/membrain/server/sdf/platform/ffdc_log.h
-Skipping /root/membrain/server/sdf/platform/ffdc_reader.c
+Skipping /root/briano/try2/membrain-4.0/membrain/server/sdf/platform/ffdc_log.c
+Skipping /root/briano/try2/membrain-4.0/membrain/server/sdf/platform/ffdc_log.h
+Skipping /root/briano/try2/membrain-4.0/membrain/server/sdf/platform/ffdc_reader.c
 sdf/platform/fork.c:132:plat_log_msg:PLAT_LOG_LEVEL_ERROR:LOG_CAT:20941:plat_fork_execve(filename = %s, args = %s) failed: %d
 sdf/platform/fork.c:138:plat_log_msg:PLAT_LOG_LEVEL_DEBUG:LOG_CAT:20942:plat_fork_execve(filename = %s, args = %s)
 sdf/platform/fth_scheduler.c:119:plat_log_msg:PLAT_LOG_LEVEL_DEBUG:LOG_CAT:20943:plat_fth_scheduler %p start called
@@ -2051,7 +2050,7 @@ sdf/platform/fth_scheduler.c:198:plat_log_msg:PLAT_LOG_LEVEL_DEBUG:LOG_CAT:20947
 sdf/platform/fth_scheduler.c:217:plat_log_msg:PLAT_LOG_LEVEL_DEBUG:LOG_CAT:20948:plat_fth_scheduler %p shutdown complete
 sdf/platform/fth_scheduler.c:259:plat_log_msg:PLAT_LOG_LEVEL_DEBUG:LOG_CAT:20949:plat_fth_scheduler %p shutdown called
 sdf/platform/logging.c:411:plat_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_PLATFORM_LOGGING:20950:log gettime function changed
-Skipping /root/membrain/server/sdf/platform/logging.h
+Skipping /root/briano/try2/membrain-4.0/membrain/server/sdf/platform/logging.h
 sdf/platform/memory_fault.c:106:plat_log_msg:PLAT_LOG_LEVEL_INFO:LOG_CAT:20951:Faulted %p len 0x%lx, %ld pages in %ld secs %ld usecs %.2g usecs per maj_flt %ld min_flt %ld
 sdf/platform/memory_size.c:41:plat_log_msg:PLAT_LOG_LEVEL_ERROR:LOG_CAT:20952:Couldn't find MemTotal in %s
 sdf/platform/memory_size.c:47:plat_log_msg:PLAT_LOG_LEVEL_ERROR:LOG_CAT:20953:Error reading %s: %s
@@ -3229,211 +3228,211 @@ sdf/protocol/replication/sdf_vips.c:203:plat_log_msg:PLAT_LOG_LEVEL_WARN:LOG_CAT
 sdf/protocol/replication/sdf_vips.c:217:plat_log_msg:PLAT_LOG_LEVEL_TRACE:LOG_CAT:80014:sdf_vip_group_get_node_rank for %d = %d\n
 sdf/protocol/replication/sdf_vips.c:226:plat_log_msg:PLAT_LOG_LEVEL_WARN:LOG_CAT:80015:sdf_vip_group_get_node_by_preference for %d(grp:%d) = %d\n
 sdf/protocol/replication/sdf_vips.c:231:plat_log_msg:PLAT_LOG_LEVEL_TRACE:LOG_CAT:80015:sdf_vip_group_get_node_by_preference for %d(grp:%d) = %d\n
-Skipping /root/membrain/server/sdf/protocol/replication/tests/checkpoint/fcnl_framework_state_machine_test.c
-Skipping /root/membrain/server/sdf/protocol/replication/tests/checkpoint/key_lock_test.c
-Skipping /root/membrain/server/sdf/protocol/replication/tests/checkpoint/test_common.h
-Skipping /root/membrain/server/sdf/protocol/replication/tests/checkpoint/test_config.h
-Skipping /root/membrain/server/sdf/protocol/replication/tests/checkpoint/test_framework.c
-Skipping /root/membrain/server/sdf/protocol/replication/tests/checkpoint/test_framework.h
-Skipping /root/membrain/server/sdf/protocol/replication/tests/checkpoint/test_node.c
-Skipping /root/membrain/server/sdf/protocol/replication/tests/checkpoint/test_node.h
-Skipping /root/membrain/server/sdf/protocol/replication/tests/fcnl_framework_async_get_put_stress.c
-Skipping /root/membrain/server/sdf/protocol/replication/tests/fcnl_framework_async_shard.c
-Skipping /root/membrain/server/sdf/protocol/replication/tests/fcnl_framework_async_test.c
-Skipping /root/membrain/server/sdf/protocol/replication/tests/fcnl_framework_cursor_test.c
-Skipping /root/membrain/server/sdf/protocol/replication/tests/fcnl_framework_home_node_test.c
-Skipping /root/membrain/server/sdf/protocol/replication/tests/fcnl_framework_msg_timeout_test.c
-Skipping /root/membrain/server/sdf/protocol/replication/tests/fcnl_framework_recover_test.c
-Skipping /root/membrain/server/sdf/protocol/replication/tests/fcnl_framework_replica_node_test.c
-Skipping /root/membrain/server/sdf/protocol/replication/tests/fcnl_framework_seqno_test.c
-Skipping /root/membrain/server/sdf/protocol/replication/tests/fcnl_framework_state_machine_test.c
-Skipping /root/membrain/server/sdf/protocol/replication/tests/fcnl_framework_sync_test.c
-Skipping /root/membrain/server/sdf/protocol/replication/tests/fcnl_msg_timeout_test.c
-Skipping /root/membrain/server/sdf/protocol/replication/tests/fcnl_rms_crash_switch_over_test.c
-Skipping /root/membrain/server/sdf/protocol/replication/tests/fcnl_rms_fault_in_test.c
-Skipping /root/membrain/server/sdf/protocol/replication/tests/fcnl_rms_get_lease_test.c
-Skipping /root/membrain/server/sdf/protocol/replication/tests/fcnl_rms_get_put_del_test.c
-Skipping /root/membrain/server/sdf/protocol/replication/tests/fcnl_rms_get_put_test.c
-Skipping /root/membrain/server/sdf/protocol/replication/tests/fcnl_rms_multi_put_test.c
-Skipping /root/membrain/server/sdf/protocol/replication/tests/fcnl_rms_put_crash_expire_put_test.c
-Skipping /root/membrain/server/sdf/protocol/replication/tests/fcnl_rms_put_crash_get_test.c
-Skipping /root/membrain/server/sdf/protocol/replication/tests/fcnl_rms_simple_test.c
-Skipping /root/membrain/server/sdf/protocol/replication/tests/fcnl_rtf_stress_test.c
-Skipping /root/membrain/server/sdf/protocol/replication/tests/fcnl_sn_all_crash_test.c
-Skipping /root/membrain/server/sdf/protocol/replication/tests/fcnl_sn_get_put_test.c
-Skipping /root/membrain/server/sdf/protocol/replication/tests/fcnl_sn_lock_test1.c
-Skipping /root/membrain/server/sdf/protocol/replication/tests/fcnl_sn_lock_test2.c
-Skipping /root/membrain/server/sdf/protocol/replication/tests/fcnl_sn_multi_crash_test.c
-Skipping /root/membrain/server/sdf/protocol/replication/tests/fcnl_sn_multi_shard_test2.c
-Skipping /root/membrain/server/sdf/protocol/replication/tests/fcnl_sn_multi_shard_test.c
-Skipping /root/membrain/server/sdf/protocol/replication/tests/fcnl_sn_null_test.c
-Skipping /root/membrain/server/sdf/protocol/replication/tests/fcnl_sn_ss_mc_test.c
-Skipping /root/membrain/server/sdf/protocol/replication/tests/key_lock_test.c
-Skipping /root/membrain/server/sdf/protocol/replication/tests/sdf_fth_mbox_test.c
-Skipping /root/membrain/server/sdf/protocol/replication/tests/t/fcnl_rtg_test.c
-Skipping /root/membrain/server/sdf/protocol/replication/tests/t/fcnl_rtm_case.c
-Skipping /root/membrain/server/sdf/protocol/replication/tests/t/fcnl_rtm_test2.c
-Skipping /root/membrain/server/sdf/protocol/replication/tests/t/fcnl_rtm_test.c
-Skipping /root/membrain/server/sdf/protocol/replication/tests/t/fcnl_rtm_test_lzwei.c
-Skipping /root/membrain/server/sdf/protocol/replication/tests/test_api.h
-Skipping /root/membrain/server/sdf/protocol/replication/tests/test_common.c
-Skipping /root/membrain/server/sdf/protocol/replication/tests/test_common.h
-Skipping /root/membrain/server/sdf/protocol/replication/tests/test_config.h
-Skipping /root/membrain/server/sdf/protocol/replication/tests/test_flash.c
-Skipping /root/membrain/server/sdf/protocol/replication/tests/test_flash.h
-Skipping /root/membrain/server/sdf/protocol/replication/tests/test_framework.c
-Skipping /root/membrain/server/sdf/protocol/replication/tests/test_framework.h
-Skipping /root/membrain/server/sdf/protocol/replication/tests/test_generator.c
-Skipping /root/membrain/server/sdf/protocol/replication/tests/test_generator.h
-Skipping /root/membrain/server/sdf/protocol/replication/tests/test.h
-Skipping /root/membrain/server/sdf/protocol/replication/tests/test_meta.h
-Skipping /root/membrain/server/sdf/protocol/replication/tests/test_model.c
-Skipping /root/membrain/server/sdf/protocol/replication/tests/test_model.h
-Skipping /root/membrain/server/sdf/protocol/replication/tests/test_node.c
-Skipping /root/membrain/server/sdf/protocol/replication/tests/test_node.h
-Skipping /root/membrain/server/sdf/protocol/replication/tests/tlmap3.c
-Skipping /root/membrain/server/sdf/protocol/replication/tests/tlmap3.h
+Skipping /root/briano/try2/membrain-4.0/membrain/server/sdf/protocol/replication/tests/checkpoint/fcnl_framework_state_machine_test.c
+Skipping /root/briano/try2/membrain-4.0/membrain/server/sdf/protocol/replication/tests/checkpoint/key_lock_test.c
+Skipping /root/briano/try2/membrain-4.0/membrain/server/sdf/protocol/replication/tests/checkpoint/test_common.h
+Skipping /root/briano/try2/membrain-4.0/membrain/server/sdf/protocol/replication/tests/checkpoint/test_config.h
+Skipping /root/briano/try2/membrain-4.0/membrain/server/sdf/protocol/replication/tests/checkpoint/test_framework.c
+Skipping /root/briano/try2/membrain-4.0/membrain/server/sdf/protocol/replication/tests/checkpoint/test_framework.h
+Skipping /root/briano/try2/membrain-4.0/membrain/server/sdf/protocol/replication/tests/checkpoint/test_node.c
+Skipping /root/briano/try2/membrain-4.0/membrain/server/sdf/protocol/replication/tests/checkpoint/test_node.h
+Skipping /root/briano/try2/membrain-4.0/membrain/server/sdf/protocol/replication/tests/fcnl_framework_async_get_put_stress.c
+Skipping /root/briano/try2/membrain-4.0/membrain/server/sdf/protocol/replication/tests/fcnl_framework_async_shard.c
+Skipping /root/briano/try2/membrain-4.0/membrain/server/sdf/protocol/replication/tests/fcnl_framework_async_test.c
+Skipping /root/briano/try2/membrain-4.0/membrain/server/sdf/protocol/replication/tests/fcnl_framework_cursor_test.c
+Skipping /root/briano/try2/membrain-4.0/membrain/server/sdf/protocol/replication/tests/fcnl_framework_home_node_test.c
+Skipping /root/briano/try2/membrain-4.0/membrain/server/sdf/protocol/replication/tests/fcnl_framework_msg_timeout_test.c
+Skipping /root/briano/try2/membrain-4.0/membrain/server/sdf/protocol/replication/tests/fcnl_framework_recover_test.c
+Skipping /root/briano/try2/membrain-4.0/membrain/server/sdf/protocol/replication/tests/fcnl_framework_replica_node_test.c
+Skipping /root/briano/try2/membrain-4.0/membrain/server/sdf/protocol/replication/tests/fcnl_framework_seqno_test.c
+Skipping /root/briano/try2/membrain-4.0/membrain/server/sdf/protocol/replication/tests/fcnl_framework_state_machine_test.c
+Skipping /root/briano/try2/membrain-4.0/membrain/server/sdf/protocol/replication/tests/fcnl_framework_sync_test.c
+Skipping /root/briano/try2/membrain-4.0/membrain/server/sdf/protocol/replication/tests/fcnl_msg_timeout_test.c
+Skipping /root/briano/try2/membrain-4.0/membrain/server/sdf/protocol/replication/tests/fcnl_rms_crash_switch_over_test.c
+Skipping /root/briano/try2/membrain-4.0/membrain/server/sdf/protocol/replication/tests/fcnl_rms_fault_in_test.c
+Skipping /root/briano/try2/membrain-4.0/membrain/server/sdf/protocol/replication/tests/fcnl_rms_get_lease_test.c
+Skipping /root/briano/try2/membrain-4.0/membrain/server/sdf/protocol/replication/tests/fcnl_rms_get_put_del_test.c
+Skipping /root/briano/try2/membrain-4.0/membrain/server/sdf/protocol/replication/tests/fcnl_rms_get_put_test.c
+Skipping /root/briano/try2/membrain-4.0/membrain/server/sdf/protocol/replication/tests/fcnl_rms_multi_put_test.c
+Skipping /root/briano/try2/membrain-4.0/membrain/server/sdf/protocol/replication/tests/fcnl_rms_put_crash_expire_put_test.c
+Skipping /root/briano/try2/membrain-4.0/membrain/server/sdf/protocol/replication/tests/fcnl_rms_put_crash_get_test.c
+Skipping /root/briano/try2/membrain-4.0/membrain/server/sdf/protocol/replication/tests/fcnl_rms_simple_test.c
+Skipping /root/briano/try2/membrain-4.0/membrain/server/sdf/protocol/replication/tests/fcnl_rtf_stress_test.c
+Skipping /root/briano/try2/membrain-4.0/membrain/server/sdf/protocol/replication/tests/fcnl_sn_all_crash_test.c
+Skipping /root/briano/try2/membrain-4.0/membrain/server/sdf/protocol/replication/tests/fcnl_sn_get_put_test.c
+Skipping /root/briano/try2/membrain-4.0/membrain/server/sdf/protocol/replication/tests/fcnl_sn_lock_test1.c
+Skipping /root/briano/try2/membrain-4.0/membrain/server/sdf/protocol/replication/tests/fcnl_sn_lock_test2.c
+Skipping /root/briano/try2/membrain-4.0/membrain/server/sdf/protocol/replication/tests/fcnl_sn_multi_crash_test.c
+Skipping /root/briano/try2/membrain-4.0/membrain/server/sdf/protocol/replication/tests/fcnl_sn_multi_shard_test2.c
+Skipping /root/briano/try2/membrain-4.0/membrain/server/sdf/protocol/replication/tests/fcnl_sn_multi_shard_test.c
+Skipping /root/briano/try2/membrain-4.0/membrain/server/sdf/protocol/replication/tests/fcnl_sn_null_test.c
+Skipping /root/briano/try2/membrain-4.0/membrain/server/sdf/protocol/replication/tests/fcnl_sn_ss_mc_test.c
+Skipping /root/briano/try2/membrain-4.0/membrain/server/sdf/protocol/replication/tests/key_lock_test.c
+Skipping /root/briano/try2/membrain-4.0/membrain/server/sdf/protocol/replication/tests/sdf_fth_mbox_test.c
+Skipping /root/briano/try2/membrain-4.0/membrain/server/sdf/protocol/replication/tests/t/fcnl_rtg_test.c
+Skipping /root/briano/try2/membrain-4.0/membrain/server/sdf/protocol/replication/tests/t/fcnl_rtm_case.c
+Skipping /root/briano/try2/membrain-4.0/membrain/server/sdf/protocol/replication/tests/t/fcnl_rtm_test2.c
+Skipping /root/briano/try2/membrain-4.0/membrain/server/sdf/protocol/replication/tests/t/fcnl_rtm_test.c
+Skipping /root/briano/try2/membrain-4.0/membrain/server/sdf/protocol/replication/tests/t/fcnl_rtm_test_lzwei.c
+Skipping /root/briano/try2/membrain-4.0/membrain/server/sdf/protocol/replication/tests/test_api.h
+Skipping /root/briano/try2/membrain-4.0/membrain/server/sdf/protocol/replication/tests/test_common.c
+Skipping /root/briano/try2/membrain-4.0/membrain/server/sdf/protocol/replication/tests/test_common.h
+Skipping /root/briano/try2/membrain-4.0/membrain/server/sdf/protocol/replication/tests/test_config.h
+Skipping /root/briano/try2/membrain-4.0/membrain/server/sdf/protocol/replication/tests/test_flash.c
+Skipping /root/briano/try2/membrain-4.0/membrain/server/sdf/protocol/replication/tests/test_flash.h
+Skipping /root/briano/try2/membrain-4.0/membrain/server/sdf/protocol/replication/tests/test_framework.c
+Skipping /root/briano/try2/membrain-4.0/membrain/server/sdf/protocol/replication/tests/test_framework.h
+Skipping /root/briano/try2/membrain-4.0/membrain/server/sdf/protocol/replication/tests/test_generator.c
+Skipping /root/briano/try2/membrain-4.0/membrain/server/sdf/protocol/replication/tests/test_generator.h
+Skipping /root/briano/try2/membrain-4.0/membrain/server/sdf/protocol/replication/tests/test.h
+Skipping /root/briano/try2/membrain-4.0/membrain/server/sdf/protocol/replication/tests/test_meta.h
+Skipping /root/briano/try2/membrain-4.0/membrain/server/sdf/protocol/replication/tests/test_model.c
+Skipping /root/briano/try2/membrain-4.0/membrain/server/sdf/protocol/replication/tests/test_model.h
+Skipping /root/briano/try2/membrain-4.0/membrain/server/sdf/protocol/replication/tests/test_node.c
+Skipping /root/briano/try2/membrain-4.0/membrain/server/sdf/protocol/replication/tests/test_node.h
+Skipping /root/briano/try2/membrain-4.0/membrain/server/sdf/protocol/replication/tests/tlmap3.c
+Skipping /root/briano/try2/membrain-4.0/membrain/server/sdf/protocol/replication/tests/tlmap3.h
 sdf/sdfappcommon/threadPoolTest.c:98:plat_log_msg:PLAT_LOG_LEVEL_FATAL:PLAT_LOG_CAT_PLATFORM_TEST_SHMEM:20073:shmem_attach(%s) failed: %s
 sdf/sdfappcommon/XListShmemTest.c:150:plat_log_msg:PLAT_LOG_LEVEL_FATAL:PLAT_LOG_CAT_PLATFORM_TEST_SHMEM:20073:shmem_attach(%s) failed: %s
 sdf/sdfappcommon/XListTest.c:141:plat_log_msg:PLAT_LOG_LEVEL_FATAL:PLAT_LOG_CAT_PLATFORM_TEST_SHMEM:20073:shmem_attach(%s) failed: %s
-Skipping /root/membrain/server/sdf/sdfmsg/old/sdf_msg_engine.c
-Skipping /root/membrain/server/sdf/sdfmsg/old/sdf_msg.h
-Skipping /root/membrain/server/sdf/sdfmsg/old/sdf_msg_hash.c
-Skipping /root/membrain/server/sdf/sdfmsg/old/sdf_msg_hash.h
-Skipping /root/membrain/server/sdf/sdfmsg/old/sdf_msg_hmap.c
-Skipping /root/membrain/server/sdf/sdfmsg/old/sdf_msg_hmap.h
-Skipping /root/membrain/server/sdf/sdfmsg/old/sdf_msg_mgmnt.c
-Skipping /root/membrain/server/sdf/sdfmsg/old/sdf_msg_mpi.c
-Skipping /root/membrain/server/sdf/sdfmsg/old/sdf_msg_mpi.h
-Skipping /root/membrain/server/sdf/sdfmsg/old/sdf_msg_queue.c
-Skipping /root/membrain/server/sdf/sdfmsg/old/sdf_msg_tester.c
-Skipping /root/membrain/server/sdf/sdfmsg/old/sdf_msg_types.h
-Skipping /root/membrain/server/sdf/sdfmsg/oldtests/bigsize_fth_test.c
-Skipping /root/membrain/server/sdf/sdfmsg/oldtests/bigsize_test.c
-Skipping /root/membrain/server/sdf/sdfmsg/oldtests/consistency_test.c
-Skipping /root/membrain/server/sdf/sdfmsg/oldtests/fcnl_bigsize_fth_lib1.c
-Skipping /root/membrain/server/sdf/sdfmsg/oldtests/fcnl_bigsize_fth_test1.c
-Skipping /root/membrain/server/sdf/sdfmsg/oldtests/fcnl_bigsize_lib1.c
-Skipping /root/membrain/server/sdf/sdfmsg/oldtests/fcnl_bigsize_test1.c
-Skipping /root/membrain/server/sdf/sdfmsg/oldtests/fcnl_consistency_lib1.c
-Skipping /root/membrain/server/sdf/sdfmsg/oldtests/fcnl_consistency_lib2.c
-Skipping /root/membrain/server/sdf/sdfmsg/oldtests/fcnl_consistency_test1.c
-Skipping /root/membrain/server/sdf/sdfmsg/oldtests/fcnl_consistency_test2.c
-Skipping /root/membrain/server/sdf/sdfmsg/oldtests/fcnl_flush_lib1.c
-Skipping /root/membrain/server/sdf/sdfmsg/oldtests/fcnl_flush_test1.c
-Skipping /root/membrain/server/sdf/sdfmsg/oldtests/fcnl_fth_mbx_lib1.c
-Skipping /root/membrain/server/sdf/sdfmsg/oldtests/fcnl_fth_mbx_test1.c
-Skipping /root/membrain/server/sdf/sdfmsg/oldtests/fcnl_membership_lib1.c
-Skipping /root/membrain/server/sdf/sdfmsg/oldtests/fcnl_membership_test1.c
-Skipping /root/membrain/server/sdf/sdfmsg/oldtests/fcnl_metadata_lib1.c
-Skipping /root/membrain/server/sdf/sdfmsg/oldtests/fcnl_metadata_test1.c
-Skipping /root/membrain/server/sdf/sdfmsg/oldtests/fcnl_mgnt_lib1.c
-Skipping /root/membrain/server/sdf/sdfmsg/oldtests/fcnl_mgnt_test1.c
-Skipping /root/membrain/server/sdf/sdfmsg/oldtests/fcnl_mixed_thread_lib1.c
-Skipping /root/membrain/server/sdf/sdfmsg/oldtests/fcnl_mixed_thread_lib2.c
-Skipping /root/membrain/server/sdf/sdfmsg/oldtests/fcnl_mixed_thread_test1.c
-Skipping /root/membrain/server/sdf/sdfmsg/oldtests/fcnl_mixed_thread_test2.c
-Skipping /root/membrain/server/sdf/sdfmsg/oldtests/fcnl_msg_pfm_lib1.c
-Skipping /root/membrain/server/sdf/sdfmsg/oldtests/fcnl_msg_pfm_test1.c
-Skipping /root/membrain/server/sdf/sdfmsg/oldtests/fcnl_multinode_doubleside_lib1.c
-Skipping /root/membrain/server/sdf/sdfmsg/oldtests/fcnl_multinode_doubleside_lib2.c
-Skipping /root/membrain/server/sdf/sdfmsg/oldtests/fcnl_multinode_doubleside_lib3.c
-Skipping /root/membrain/server/sdf/sdfmsg/oldtests/fcnl_multinode_doubleside_lib4.c
-Skipping /root/membrain/server/sdf/sdfmsg/oldtests/fcnl_multinode_doubleside_test1.c
-Skipping /root/membrain/server/sdf/sdfmsg/oldtests/fcnl_multinode_doubleside_test2.c
-Skipping /root/membrain/server/sdf/sdfmsg/oldtests/fcnl_multinode_doubleside_test3.c
-Skipping /root/membrain/server/sdf/sdfmsg/oldtests/fcnl_multinode_doubleside_test4.c
-Skipping /root/membrain/server/sdf/sdfmsg/oldtests/fcnl_multinode_lib1.c
-Skipping /root/membrain/server/sdf/sdfmsg/oldtests/fcnl_multinode_lib2.c
-Skipping /root/membrain/server/sdf/sdfmsg/oldtests/fcnl_multinode_lib3.c
-Skipping /root/membrain/server/sdf/sdfmsg/oldtests/fcnl_multinode_lib4.c
-Skipping /root/membrain/server/sdf/sdfmsg/oldtests/fcnl_multinode_multiptl_lib1.c
-Skipping /root/membrain/server/sdf/sdfmsg/oldtests/fcnl_multinode_multiptl_lib2.c
-Skipping /root/membrain/server/sdf/sdfmsg/oldtests/fcnl_multinode_multiptl_test1.c
-Skipping /root/membrain/server/sdf/sdfmsg/oldtests/fcnl_multinode_multiptl_test2.c
-Skipping /root/membrain/server/sdf/sdfmsg/oldtests/fcnl_multinode_test1.c
-Skipping /root/membrain/server/sdf/sdfmsg/oldtests/fcnl_multinode_test2.c
-Skipping /root/membrain/server/sdf/sdfmsg/oldtests/fcnl_multinode_test3.c
-Skipping /root/membrain/server/sdf/sdfmsg/oldtests/fcnl_multinode_test4.c
-Skipping /root/membrain/server/sdf/sdfmsg/oldtests/fcnl_multi_protocol_lib1.c
-Skipping /root/membrain/server/sdf/sdfmsg/oldtests/fcnl_multi_protocol_test1.c
-Skipping /root/membrain/server/sdf/sdfmsg/oldtests/fcnl_multiptl_quantity_lib1.c
-Skipping /root/membrain/server/sdf/sdfmsg/oldtests/fcnl_multiptl_quantity_test1.c
-Skipping /root/membrain/server/sdf/sdfmsg/oldtests/fcnl_multiptl_sequential_lib1.c
-Skipping /root/membrain/server/sdf/sdfmsg/oldtests/fcnl_multiptl_sequential_lib2.c
-Skipping /root/membrain/server/sdf/sdfmsg/oldtests/fcnl_multiptl_sequential_lib3.c
-Skipping /root/membrain/server/sdf/sdfmsg/oldtests/fcnl_multiptl_sequential_lib4.c
-Skipping /root/membrain/server/sdf/sdfmsg/oldtests/fcnl_multiptl_sequential_test1.c
-Skipping /root/membrain/server/sdf/sdfmsg/oldtests/fcnl_multiptl_sequential_test2.c
-Skipping /root/membrain/server/sdf/sdfmsg/oldtests/fcnl_multiptl_sequential_test3.c
-Skipping /root/membrain/server/sdf/sdfmsg/oldtests/fcnl_multiptl_sequential_test4.c
-Skipping /root/membrain/server/sdf/sdfmsg/oldtests/fcnl_presstest_lib1.c
-Skipping /root/membrain/server/sdf/sdfmsg/oldtests/fcnl_presstest_test1.c
-Skipping /root/membrain/server/sdf/sdfmsg/oldtests/fcnl_queue_order_fth_lib1.c
-Skipping /root/membrain/server/sdf/sdfmsg/oldtests/fcnl_queue_order_fth_lib2.c
-Skipping /root/membrain/server/sdf/sdfmsg/oldtests/fcnl_queue_order_fth_test1.c
-Skipping /root/membrain/server/sdf/sdfmsg/oldtests/fcnl_queue_order_fth_test2.c
-Skipping /root/membrain/server/sdf/sdfmsg/oldtests/fcnl_queue_order_pth_lib1.c
-Skipping /root/membrain/server/sdf/sdfmsg/oldtests/fcnl_queue_order_pth_lib2.c
-Skipping /root/membrain/server/sdf/sdfmsg/oldtests/fcnl_queue_order_pth_test1.c
-Skipping /root/membrain/server/sdf/sdfmsg/oldtests/fcnl_queue_order_pth_test2.c
-Skipping /root/membrain/server/sdf/sdfmsg/oldtests/fcnl_receive_queue_lib1.c
-Skipping /root/membrain/server/sdf/sdfmsg/oldtests/fcnl_receive_queue_test1.c
-Skipping /root/membrain/server/sdf/sdfmsg/oldtests/fcnl_replication_lib1.c
-Skipping /root/membrain/server/sdf/sdfmsg/oldtests/fcnl_replication_test1.c
-Skipping /root/membrain/server/sdf/sdfmsg/oldtests/fcnl_send_queue_lib1.c
-Skipping /root/membrain/server/sdf/sdfmsg/oldtests/fcnl_send_queue_test1.c
-Skipping /root/membrain/server/sdf/sdfmsg/oldtests/fcnl_simplexsr_lib1.c
-Skipping /root/membrain/server/sdf/sdfmsg/oldtests/fcnl_simplexsr_test1.c
-Skipping /root/membrain/server/sdf/sdfmsg/oldtests/fcnl_single_protocol_lib1.c
-Skipping /root/membrain/server/sdf/sdfmsg/oldtests/fcnl_single_protocol_test1.c
-Skipping /root/membrain/server/sdf/sdfmsg/oldtests/fcnl_singleptl_chkmsg_lib1.c
-Skipping /root/membrain/server/sdf/sdfmsg/oldtests/fcnl_singleptl_chkmsg_test1.c
-Skipping /root/membrain/server/sdf/sdfmsg/oldtests/fcnl_singleptl_chksize_lib1.c
-Skipping /root/membrain/server/sdf/sdfmsg/oldtests/fcnl_singleptl_chksize_test1.c
-Skipping /root/membrain/server/sdf/sdfmsg/oldtests/fcnl_singleptl_sequential_lib1.c
-Skipping /root/membrain/server/sdf/sdfmsg/oldtests/fcnl_singleptl_sequential_lib2.c
-Skipping /root/membrain/server/sdf/sdfmsg/oldtests/fcnl_singleptl_sequential_lib3.c
-Skipping /root/membrain/server/sdf/sdfmsg/oldtests/fcnl_singleptl_sequential_test1.c
-Skipping /root/membrain/server/sdf/sdfmsg/oldtests/fcnl_singleptl_sequential_test2.c
-Skipping /root/membrain/server/sdf/sdfmsg/oldtests/fcnl_singleptl_sequential_test3.c
-Skipping /root/membrain/server/sdf/sdfmsg/oldtests/fcnl_system_lib1.c
-Skipping /root/membrain/server/sdf/sdfmsg/oldtests/fcnl_system_test1.c
-Skipping /root/membrain/server/sdf/sdfmsg/oldtests/fcnl_test.h
-Skipping /root/membrain/server/sdf/sdfmsg/oldtests/fcnl_wrapper_fth_lib1.c
-Skipping /root/membrain/server/sdf/sdfmsg/oldtests/fcnl_wrapper_fth_test1.c
-Skipping /root/membrain/server/sdf/sdfmsg/oldtests/fcnl_wrapper_lib1.c
-Skipping /root/membrain/server/sdf/sdfmsg/oldtests/fcnl_wrapper_test1.c
-Skipping /root/membrain/server/sdf/sdfmsg/oldtests/flush_test.c
-Skipping /root/membrain/server/sdf/sdfmsg/oldtests/log.c
-Skipping /root/membrain/server/sdf/sdfmsg/oldtests/log.h
-Skipping /root/membrain/server/sdf/sdfmsg/oldtests/management_test.c
-Skipping /root/membrain/server/sdf/sdfmsg/oldtests/membership_test.c
-Skipping /root/membrain/server/sdf/sdfmsg/oldtests/metadata_test.c
-Skipping /root/membrain/server/sdf/sdfmsg/oldtests/msg_test.h
-Skipping /root/membrain/server/sdf/sdfmsg/oldtests/msg_test_main.c
-Skipping /root/membrain/server/sdf/sdfmsg/oldtests/perf_timecal_lib1.c
-Skipping /root/membrain/server/sdf/sdfmsg/oldtests/perf_timecal_test1.c
-Skipping /root/membrain/server/sdf/sdfmsg/oldtests/pfm_test.h
-Skipping /root/membrain/server/sdf/sdfmsg/oldtests/pfm_throughput_lib1.c
-Skipping /root/membrain/server/sdf/sdfmsg/oldtests/pfm_throughput_test1.c
-Skipping /root/membrain/server/sdf/sdfmsg/oldtests/queue_order_test_fth.c
-Skipping /root/membrain/server/sdf/sdfmsg/oldtests/queue_order_test_pthread.c
-Skipping /root/membrain/server/sdf/sdfmsg/oldtests/receive_queue_test.c
-Skipping /root/membrain/server/sdf/sdfmsg/oldtests/replication_test.c
-Skipping /root/membrain/server/sdf/sdfmsg/oldtests/sdf_msg_motor.c
-Skipping /root/membrain/server/sdf/sdfmsg/oldtests/sdf_msg_oob.c
-Skipping /root/membrain/server/sdf/sdfmsg/oldtests/sdf_msg_oob.h
-Skipping /root/membrain/server/sdf/sdfmsg/oldtests/sdf_msg_oob_mgmnt.c
-Skipping /root/membrain/server/sdf/sdfmsg/oldtests/sdf_msg_protocol.c
-Skipping /root/membrain/server/sdf/sdfmsg/oldtests/sdf_msg_pthread_example.c
-Skipping /root/membrain/server/sdf/sdfmsg/oldtests/send_queue_test.c
-Skipping /root/membrain/server/sdf/sdfmsg/oldtests/simplexsr_test.c
-Skipping /root/membrain/server/sdf/sdfmsg/oldtests/slinkedlist.c
-Skipping /root/membrain/server/sdf/sdfmsg/oldtests/slinkedlist.h
-Skipping /root/membrain/server/sdf/sdfmsg/oldtests/system_test.c
-Skipping /root/membrain/server/sdf/sdfmsg/oldtests/Utilfuncs.c
-Skipping /root/membrain/server/sdf/sdfmsg/oldtests/Utilfuncs.h
+Skipping /root/briano/try2/membrain-4.0/membrain/server/sdf/sdfmsg/old/sdf_msg_engine.c
+Skipping /root/briano/try2/membrain-4.0/membrain/server/sdf/sdfmsg/old/sdf_msg.h
+Skipping /root/briano/try2/membrain-4.0/membrain/server/sdf/sdfmsg/old/sdf_msg_hash.c
+Skipping /root/briano/try2/membrain-4.0/membrain/server/sdf/sdfmsg/old/sdf_msg_hash.h
+Skipping /root/briano/try2/membrain-4.0/membrain/server/sdf/sdfmsg/old/sdf_msg_hmap.c
+Skipping /root/briano/try2/membrain-4.0/membrain/server/sdf/sdfmsg/old/sdf_msg_hmap.h
+Skipping /root/briano/try2/membrain-4.0/membrain/server/sdf/sdfmsg/old/sdf_msg_mgmnt.c
+Skipping /root/briano/try2/membrain-4.0/membrain/server/sdf/sdfmsg/old/sdf_msg_mpi.c
+Skipping /root/briano/try2/membrain-4.0/membrain/server/sdf/sdfmsg/old/sdf_msg_mpi.h
+Skipping /root/briano/try2/membrain-4.0/membrain/server/sdf/sdfmsg/old/sdf_msg_queue.c
+Skipping /root/briano/try2/membrain-4.0/membrain/server/sdf/sdfmsg/old/sdf_msg_tester.c
+Skipping /root/briano/try2/membrain-4.0/membrain/server/sdf/sdfmsg/old/sdf_msg_types.h
+Skipping /root/briano/try2/membrain-4.0/membrain/server/sdf/sdfmsg/oldtests/bigsize_fth_test.c
+Skipping /root/briano/try2/membrain-4.0/membrain/server/sdf/sdfmsg/oldtests/bigsize_test.c
+Skipping /root/briano/try2/membrain-4.0/membrain/server/sdf/sdfmsg/oldtests/consistency_test.c
+Skipping /root/briano/try2/membrain-4.0/membrain/server/sdf/sdfmsg/oldtests/fcnl_bigsize_fth_lib1.c
+Skipping /root/briano/try2/membrain-4.0/membrain/server/sdf/sdfmsg/oldtests/fcnl_bigsize_fth_test1.c
+Skipping /root/briano/try2/membrain-4.0/membrain/server/sdf/sdfmsg/oldtests/fcnl_bigsize_lib1.c
+Skipping /root/briano/try2/membrain-4.0/membrain/server/sdf/sdfmsg/oldtests/fcnl_bigsize_test1.c
+Skipping /root/briano/try2/membrain-4.0/membrain/server/sdf/sdfmsg/oldtests/fcnl_consistency_lib1.c
+Skipping /root/briano/try2/membrain-4.0/membrain/server/sdf/sdfmsg/oldtests/fcnl_consistency_lib2.c
+Skipping /root/briano/try2/membrain-4.0/membrain/server/sdf/sdfmsg/oldtests/fcnl_consistency_test1.c
+Skipping /root/briano/try2/membrain-4.0/membrain/server/sdf/sdfmsg/oldtests/fcnl_consistency_test2.c
+Skipping /root/briano/try2/membrain-4.0/membrain/server/sdf/sdfmsg/oldtests/fcnl_flush_lib1.c
+Skipping /root/briano/try2/membrain-4.0/membrain/server/sdf/sdfmsg/oldtests/fcnl_flush_test1.c
+Skipping /root/briano/try2/membrain-4.0/membrain/server/sdf/sdfmsg/oldtests/fcnl_fth_mbx_lib1.c
+Skipping /root/briano/try2/membrain-4.0/membrain/server/sdf/sdfmsg/oldtests/fcnl_fth_mbx_test1.c
+Skipping /root/briano/try2/membrain-4.0/membrain/server/sdf/sdfmsg/oldtests/fcnl_membership_lib1.c
+Skipping /root/briano/try2/membrain-4.0/membrain/server/sdf/sdfmsg/oldtests/fcnl_membership_test1.c
+Skipping /root/briano/try2/membrain-4.0/membrain/server/sdf/sdfmsg/oldtests/fcnl_metadata_lib1.c
+Skipping /root/briano/try2/membrain-4.0/membrain/server/sdf/sdfmsg/oldtests/fcnl_metadata_test1.c
+Skipping /root/briano/try2/membrain-4.0/membrain/server/sdf/sdfmsg/oldtests/fcnl_mgnt_lib1.c
+Skipping /root/briano/try2/membrain-4.0/membrain/server/sdf/sdfmsg/oldtests/fcnl_mgnt_test1.c
+Skipping /root/briano/try2/membrain-4.0/membrain/server/sdf/sdfmsg/oldtests/fcnl_mixed_thread_lib1.c
+Skipping /root/briano/try2/membrain-4.0/membrain/server/sdf/sdfmsg/oldtests/fcnl_mixed_thread_lib2.c
+Skipping /root/briano/try2/membrain-4.0/membrain/server/sdf/sdfmsg/oldtests/fcnl_mixed_thread_test1.c
+Skipping /root/briano/try2/membrain-4.0/membrain/server/sdf/sdfmsg/oldtests/fcnl_mixed_thread_test2.c
+Skipping /root/briano/try2/membrain-4.0/membrain/server/sdf/sdfmsg/oldtests/fcnl_msg_pfm_lib1.c
+Skipping /root/briano/try2/membrain-4.0/membrain/server/sdf/sdfmsg/oldtests/fcnl_msg_pfm_test1.c
+Skipping /root/briano/try2/membrain-4.0/membrain/server/sdf/sdfmsg/oldtests/fcnl_multinode_doubleside_lib1.c
+Skipping /root/briano/try2/membrain-4.0/membrain/server/sdf/sdfmsg/oldtests/fcnl_multinode_doubleside_lib2.c
+Skipping /root/briano/try2/membrain-4.0/membrain/server/sdf/sdfmsg/oldtests/fcnl_multinode_doubleside_lib3.c
+Skipping /root/briano/try2/membrain-4.0/membrain/server/sdf/sdfmsg/oldtests/fcnl_multinode_doubleside_lib4.c
+Skipping /root/briano/try2/membrain-4.0/membrain/server/sdf/sdfmsg/oldtests/fcnl_multinode_doubleside_test1.c
+Skipping /root/briano/try2/membrain-4.0/membrain/server/sdf/sdfmsg/oldtests/fcnl_multinode_doubleside_test2.c
+Skipping /root/briano/try2/membrain-4.0/membrain/server/sdf/sdfmsg/oldtests/fcnl_multinode_doubleside_test3.c
+Skipping /root/briano/try2/membrain-4.0/membrain/server/sdf/sdfmsg/oldtests/fcnl_multinode_doubleside_test4.c
+Skipping /root/briano/try2/membrain-4.0/membrain/server/sdf/sdfmsg/oldtests/fcnl_multinode_lib1.c
+Skipping /root/briano/try2/membrain-4.0/membrain/server/sdf/sdfmsg/oldtests/fcnl_multinode_lib2.c
+Skipping /root/briano/try2/membrain-4.0/membrain/server/sdf/sdfmsg/oldtests/fcnl_multinode_lib3.c
+Skipping /root/briano/try2/membrain-4.0/membrain/server/sdf/sdfmsg/oldtests/fcnl_multinode_lib4.c
+Skipping /root/briano/try2/membrain-4.0/membrain/server/sdf/sdfmsg/oldtests/fcnl_multinode_multiptl_lib1.c
+Skipping /root/briano/try2/membrain-4.0/membrain/server/sdf/sdfmsg/oldtests/fcnl_multinode_multiptl_lib2.c
+Skipping /root/briano/try2/membrain-4.0/membrain/server/sdf/sdfmsg/oldtests/fcnl_multinode_multiptl_test1.c
+Skipping /root/briano/try2/membrain-4.0/membrain/server/sdf/sdfmsg/oldtests/fcnl_multinode_multiptl_test2.c
+Skipping /root/briano/try2/membrain-4.0/membrain/server/sdf/sdfmsg/oldtests/fcnl_multinode_test1.c
+Skipping /root/briano/try2/membrain-4.0/membrain/server/sdf/sdfmsg/oldtests/fcnl_multinode_test2.c
+Skipping /root/briano/try2/membrain-4.0/membrain/server/sdf/sdfmsg/oldtests/fcnl_multinode_test3.c
+Skipping /root/briano/try2/membrain-4.0/membrain/server/sdf/sdfmsg/oldtests/fcnl_multinode_test4.c
+Skipping /root/briano/try2/membrain-4.0/membrain/server/sdf/sdfmsg/oldtests/fcnl_multi_protocol_lib1.c
+Skipping /root/briano/try2/membrain-4.0/membrain/server/sdf/sdfmsg/oldtests/fcnl_multi_protocol_test1.c
+Skipping /root/briano/try2/membrain-4.0/membrain/server/sdf/sdfmsg/oldtests/fcnl_multiptl_quantity_lib1.c
+Skipping /root/briano/try2/membrain-4.0/membrain/server/sdf/sdfmsg/oldtests/fcnl_multiptl_quantity_test1.c
+Skipping /root/briano/try2/membrain-4.0/membrain/server/sdf/sdfmsg/oldtests/fcnl_multiptl_sequential_lib1.c
+Skipping /root/briano/try2/membrain-4.0/membrain/server/sdf/sdfmsg/oldtests/fcnl_multiptl_sequential_lib2.c
+Skipping /root/briano/try2/membrain-4.0/membrain/server/sdf/sdfmsg/oldtests/fcnl_multiptl_sequential_lib3.c
+Skipping /root/briano/try2/membrain-4.0/membrain/server/sdf/sdfmsg/oldtests/fcnl_multiptl_sequential_lib4.c
+Skipping /root/briano/try2/membrain-4.0/membrain/server/sdf/sdfmsg/oldtests/fcnl_multiptl_sequential_test1.c
+Skipping /root/briano/try2/membrain-4.0/membrain/server/sdf/sdfmsg/oldtests/fcnl_multiptl_sequential_test2.c
+Skipping /root/briano/try2/membrain-4.0/membrain/server/sdf/sdfmsg/oldtests/fcnl_multiptl_sequential_test3.c
+Skipping /root/briano/try2/membrain-4.0/membrain/server/sdf/sdfmsg/oldtests/fcnl_multiptl_sequential_test4.c
+Skipping /root/briano/try2/membrain-4.0/membrain/server/sdf/sdfmsg/oldtests/fcnl_presstest_lib1.c
+Skipping /root/briano/try2/membrain-4.0/membrain/server/sdf/sdfmsg/oldtests/fcnl_presstest_test1.c
+Skipping /root/briano/try2/membrain-4.0/membrain/server/sdf/sdfmsg/oldtests/fcnl_queue_order_fth_lib1.c
+Skipping /root/briano/try2/membrain-4.0/membrain/server/sdf/sdfmsg/oldtests/fcnl_queue_order_fth_lib2.c
+Skipping /root/briano/try2/membrain-4.0/membrain/server/sdf/sdfmsg/oldtests/fcnl_queue_order_fth_test1.c
+Skipping /root/briano/try2/membrain-4.0/membrain/server/sdf/sdfmsg/oldtests/fcnl_queue_order_fth_test2.c
+Skipping /root/briano/try2/membrain-4.0/membrain/server/sdf/sdfmsg/oldtests/fcnl_queue_order_pth_lib1.c
+Skipping /root/briano/try2/membrain-4.0/membrain/server/sdf/sdfmsg/oldtests/fcnl_queue_order_pth_lib2.c
+Skipping /root/briano/try2/membrain-4.0/membrain/server/sdf/sdfmsg/oldtests/fcnl_queue_order_pth_test1.c
+Skipping /root/briano/try2/membrain-4.0/membrain/server/sdf/sdfmsg/oldtests/fcnl_queue_order_pth_test2.c
+Skipping /root/briano/try2/membrain-4.0/membrain/server/sdf/sdfmsg/oldtests/fcnl_receive_queue_lib1.c
+Skipping /root/briano/try2/membrain-4.0/membrain/server/sdf/sdfmsg/oldtests/fcnl_receive_queue_test1.c
+Skipping /root/briano/try2/membrain-4.0/membrain/server/sdf/sdfmsg/oldtests/fcnl_replication_lib1.c
+Skipping /root/briano/try2/membrain-4.0/membrain/server/sdf/sdfmsg/oldtests/fcnl_replication_test1.c
+Skipping /root/briano/try2/membrain-4.0/membrain/server/sdf/sdfmsg/oldtests/fcnl_send_queue_lib1.c
+Skipping /root/briano/try2/membrain-4.0/membrain/server/sdf/sdfmsg/oldtests/fcnl_send_queue_test1.c
+Skipping /root/briano/try2/membrain-4.0/membrain/server/sdf/sdfmsg/oldtests/fcnl_simplexsr_lib1.c
+Skipping /root/briano/try2/membrain-4.0/membrain/server/sdf/sdfmsg/oldtests/fcnl_simplexsr_test1.c
+Skipping /root/briano/try2/membrain-4.0/membrain/server/sdf/sdfmsg/oldtests/fcnl_single_protocol_lib1.c
+Skipping /root/briano/try2/membrain-4.0/membrain/server/sdf/sdfmsg/oldtests/fcnl_single_protocol_test1.c
+Skipping /root/briano/try2/membrain-4.0/membrain/server/sdf/sdfmsg/oldtests/fcnl_singleptl_chkmsg_lib1.c
+Skipping /root/briano/try2/membrain-4.0/membrain/server/sdf/sdfmsg/oldtests/fcnl_singleptl_chkmsg_test1.c
+Skipping /root/briano/try2/membrain-4.0/membrain/server/sdf/sdfmsg/oldtests/fcnl_singleptl_chksize_lib1.c
+Skipping /root/briano/try2/membrain-4.0/membrain/server/sdf/sdfmsg/oldtests/fcnl_singleptl_chksize_test1.c
+Skipping /root/briano/try2/membrain-4.0/membrain/server/sdf/sdfmsg/oldtests/fcnl_singleptl_sequential_lib1.c
+Skipping /root/briano/try2/membrain-4.0/membrain/server/sdf/sdfmsg/oldtests/fcnl_singleptl_sequential_lib2.c
+Skipping /root/briano/try2/membrain-4.0/membrain/server/sdf/sdfmsg/oldtests/fcnl_singleptl_sequential_lib3.c
+Skipping /root/briano/try2/membrain-4.0/membrain/server/sdf/sdfmsg/oldtests/fcnl_singleptl_sequential_test1.c
+Skipping /root/briano/try2/membrain-4.0/membrain/server/sdf/sdfmsg/oldtests/fcnl_singleptl_sequential_test2.c
+Skipping /root/briano/try2/membrain-4.0/membrain/server/sdf/sdfmsg/oldtests/fcnl_singleptl_sequential_test3.c
+Skipping /root/briano/try2/membrain-4.0/membrain/server/sdf/sdfmsg/oldtests/fcnl_system_lib1.c
+Skipping /root/briano/try2/membrain-4.0/membrain/server/sdf/sdfmsg/oldtests/fcnl_system_test1.c
+Skipping /root/briano/try2/membrain-4.0/membrain/server/sdf/sdfmsg/oldtests/fcnl_test.h
+Skipping /root/briano/try2/membrain-4.0/membrain/server/sdf/sdfmsg/oldtests/fcnl_wrapper_fth_lib1.c
+Skipping /root/briano/try2/membrain-4.0/membrain/server/sdf/sdfmsg/oldtests/fcnl_wrapper_fth_test1.c
+Skipping /root/briano/try2/membrain-4.0/membrain/server/sdf/sdfmsg/oldtests/fcnl_wrapper_lib1.c
+Skipping /root/briano/try2/membrain-4.0/membrain/server/sdf/sdfmsg/oldtests/fcnl_wrapper_test1.c
+Skipping /root/briano/try2/membrain-4.0/membrain/server/sdf/sdfmsg/oldtests/flush_test.c
+Skipping /root/briano/try2/membrain-4.0/membrain/server/sdf/sdfmsg/oldtests/log.c
+Skipping /root/briano/try2/membrain-4.0/membrain/server/sdf/sdfmsg/oldtests/log.h
+Skipping /root/briano/try2/membrain-4.0/membrain/server/sdf/sdfmsg/oldtests/management_test.c
+Skipping /root/briano/try2/membrain-4.0/membrain/server/sdf/sdfmsg/oldtests/membership_test.c
+Skipping /root/briano/try2/membrain-4.0/membrain/server/sdf/sdfmsg/oldtests/metadata_test.c
+Skipping /root/briano/try2/membrain-4.0/membrain/server/sdf/sdfmsg/oldtests/msg_test.h
+Skipping /root/briano/try2/membrain-4.0/membrain/server/sdf/sdfmsg/oldtests/msg_test_main.c
+Skipping /root/briano/try2/membrain-4.0/membrain/server/sdf/sdfmsg/oldtests/perf_timecal_lib1.c
+Skipping /root/briano/try2/membrain-4.0/membrain/server/sdf/sdfmsg/oldtests/perf_timecal_test1.c
+Skipping /root/briano/try2/membrain-4.0/membrain/server/sdf/sdfmsg/oldtests/pfm_test.h
+Skipping /root/briano/try2/membrain-4.0/membrain/server/sdf/sdfmsg/oldtests/pfm_throughput_lib1.c
+Skipping /root/briano/try2/membrain-4.0/membrain/server/sdf/sdfmsg/oldtests/pfm_throughput_test1.c
+Skipping /root/briano/try2/membrain-4.0/membrain/server/sdf/sdfmsg/oldtests/queue_order_test_fth.c
+Skipping /root/briano/try2/membrain-4.0/membrain/server/sdf/sdfmsg/oldtests/queue_order_test_pthread.c
+Skipping /root/briano/try2/membrain-4.0/membrain/server/sdf/sdfmsg/oldtests/receive_queue_test.c
+Skipping /root/briano/try2/membrain-4.0/membrain/server/sdf/sdfmsg/oldtests/replication_test.c
+Skipping /root/briano/try2/membrain-4.0/membrain/server/sdf/sdfmsg/oldtests/sdf_msg_motor.c
+Skipping /root/briano/try2/membrain-4.0/membrain/server/sdf/sdfmsg/oldtests/sdf_msg_oob.c
+Skipping /root/briano/try2/membrain-4.0/membrain/server/sdf/sdfmsg/oldtests/sdf_msg_oob.h
+Skipping /root/briano/try2/membrain-4.0/membrain/server/sdf/sdfmsg/oldtests/sdf_msg_oob_mgmnt.c
+Skipping /root/briano/try2/membrain-4.0/membrain/server/sdf/sdfmsg/oldtests/sdf_msg_protocol.c
+Skipping /root/briano/try2/membrain-4.0/membrain/server/sdf/sdfmsg/oldtests/sdf_msg_pthread_example.c
+Skipping /root/briano/try2/membrain-4.0/membrain/server/sdf/sdfmsg/oldtests/send_queue_test.c
+Skipping /root/briano/try2/membrain-4.0/membrain/server/sdf/sdfmsg/oldtests/simplexsr_test.c
+Skipping /root/briano/try2/membrain-4.0/membrain/server/sdf/sdfmsg/oldtests/slinkedlist.c
+Skipping /root/briano/try2/membrain-4.0/membrain/server/sdf/sdfmsg/oldtests/slinkedlist.h
+Skipping /root/briano/try2/membrain-4.0/membrain/server/sdf/sdfmsg/oldtests/system_test.c
+Skipping /root/briano/try2/membrain-4.0/membrain/server/sdf/sdfmsg/oldtests/Utilfuncs.c
+Skipping /root/briano/try2/membrain-4.0/membrain/server/sdf/sdfmsg/oldtests/Utilfuncs.h
 sdf/sdfmsg/sdf_msg_action.c:85:plat_log_msg:PLAT_LOG_LEVEL_TRACE:LOG_CAT:21485:\nNode %d: what action-how %s mbox %p\n
 sdf/sdfmsg/sdf_msg_action.c:123:plat_log_msg:PLAT_LOG_LEVEL_TRACE:LOG_CAT:21485:\nNode %d: what action-how %s mbox %p\n
 sdf/sdfmsg/sdf_msg_new.c:444:sdf_logi::LOG_CAT:70029:sdfmsg version %d

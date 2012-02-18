@@ -53,7 +53,6 @@ typedef struct fthSched {
     struct fthTraceBuffer *traceBuffer;
 #endif
     uint32_t schedMask;                      // Mask for this scheduler
-    uint32_t partnerMask;                    // Mask of partner CPUs
     int schedNum;                            // Ordinal of scheduler thread
     int preferedSched;                       // Prefered scheduler
     int prevDispatchPrio;                    // Low/high prio of previous dispatch

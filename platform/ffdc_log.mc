@@ -2593,6 +2593,7 @@
 30655 Ran out of free log segments, shardID=%lu
 30656 failed to enable core dump for user %s
 30657 Setrlimit failed! Error: %s\n
+30658 fth using up to %d cores
 
 
 # hiney

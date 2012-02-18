@@ -161,9 +161,6 @@ fthInitCpuInfo(void)
     int status;
     int sched;
     int cpu;
-    int partnerCPU;
-    uint32_t partnerCPUs;
-    uint32_t printCPUs;
 
     plat_assert(fth);
 
@@ -190,13 +187,11 @@ fthInitCpuInfo(void)
         break;
     }
 
-    for (sched = 0, cpu = 0, printCPUs = 0; cpu < CPU_SETSIZE; ++cpu) {
+    for (sched = 0, cpu = 0; cpu < CPU_SETSIZE; ++cpu) {
         if (CPU_ISSET(cpu, &fth->cpuInfo.CPUs)) {
-            printCPUs |= 1 << cpu;
 
             if (sched < FTH_MAX_SCHEDS) {
                 fth->cpuInfo.schedToCPU[sched] = cpu;
-                fth->cpuInfo.CPUToSched[cpu] |= 1 << sched;
             }
 
             ++sched;
@@ -213,27 +208,13 @@ fthInitCpuInfo(void)
 
     fth->cpuInfo.numCPUs = sched;
 
-    for (sched = 0; sched < fth->cpuInfo.numCPUs; ++sched) {
-        cpu = fth->cpuInfo.schedToCPU[sched];
-        status = plat_get_cpu_cache_peers(&partnerCPUs, cpu);
-        plat_assert_always(!status);
-
-        for (partnerCPU = 0; partnerCPU < (sizeof (partnerCPUs) * CHAR_BIT);
-             ++partnerCPU) {
-
-            if (partnerCPUs & (1 << partnerCPU)) {
-                fth->cpuInfo.schedToPartners[sched] |= (1 << partnerCPU);
-            }
-        }
-    }
-
     for (; sched < FTH_MAX_SCHEDS; ++sched) {
         fth->cpuInfo.schedToCPU[sched] = FTH_CPU_INVALID;
     }
 
-    plat_log_msg(20871, PLAT_LOG_CAT_FTH,
-                 PLAT_LOG_LEVEL_INFO, "fth using up to %d cores from set 0x%x",
-                 fth->cpuInfo.numCPUs, printCPUs);
+    plat_log_msg(30658, PLAT_LOG_CAT_FTH,
+                 PLAT_LOG_LEVEL_INFO, "fth using up to %d cores",
+                 fth->cpuInfo.numCPUs);
 }
 
 static void
@@ -290,7 +271,6 @@ fthInitMultiQ(int numArgs, ...)
 /**
  * @brief Set affinity for calling scheduler
  *
- * Includes sched->partnerMask
  */
 static void
 fthSetAffinity(void)
@@ -324,12 +304,6 @@ fthSetAffinity(void)
                          PLAT_LOG_LEVEL_WARN,
                          "Failed to get scheduler %d affinity: %s",
                          sched->schedNum, plat_strerror(error));
-        } else {
-            sched->partnerMask = fth->cpuInfo.schedToPartners[sched->schedNum];
-            plat_log_msg(20873, PLAT_LOG_CAT_FTH,
-                         PLAT_LOG_LEVEL_DIAGNOSTIC,
-                         "fth scheduler %d affinity to core %d partners %x",
-                         sched->schedNum, cpu, sched->partnerMask);
         }
     } else if (sched->schedNum == fth->cpuInfo.numCPUs) {
         plat_log_msg(20874, PLAT_LOG_CAT_FTH,

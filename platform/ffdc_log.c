@@ -9,7 +9,7 @@
  * codebase. This file also contains the API to enable, disable, and
  * initialize FFDC.
  * 
- * Generated On: 2011-12-22 16:58:43
+ * Generated On: 2012-02-18 13:47:04
  *------------------------------------------------------------------------*/
 
 #define PLATFORM_INTERNAL 1
@@ -35230,6 +35230,19 @@ ffdc_log_func_30657(int lineno, int msgid, int catid, int level, const char* fmt
 {
     FFDC_START(30657, catid, level, lineno);
     FFDC_ADD_STR(arg1);
+    FFDC_END();
+}
+
+/*---------------------------------------------------------------------------
+ * MsgID : 30658
+ * Msg   : "fth using up to %d cores"
+ *-------------------------------------------------------------------------*/
+__inline__ void
+ffdc_log_func_30658(int lineno, int msgid, int catid, int level, const char* fmt,
+    int arg1)
+{
+    FFDC_START(30658, catid, level, lineno);
+    FFDC_ADD_NUM(arg1);
     FFDC_END();
 }
 
