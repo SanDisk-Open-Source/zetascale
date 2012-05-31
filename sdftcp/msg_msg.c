@@ -2610,9 +2610,11 @@ msg_setstate(int nno, int new)
 
     if (old != NS_ACTIVE && new == NS_ACTIVE) {
         sdf_logi(70066, "node n%d is live", node->rank);
+        fsync(2);
         live_call_all(1, node->rank);
     } else if (old == NS_ACTIVE && new != NS_ACTIVE) {
         sdf_logi(70067, "node n%d is dead", node->rank);
+        fsync(2);
         live_call_all(0, node->rank);
     }
 }

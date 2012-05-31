@@ -2904,6 +2904,18 @@
 70075 failed to add contact IP: %s
 70076 attempting to add duplicate contact IP: %s
 70077 path %s rn=%s if=%s lip=%s rip=%s nc=%d
+70078 Syncing data (SYNC_DATA set)
+70080 Flushing logs to %s
+70081 Syncing logs (DATA_SYNC set)
+70092 Flush log recovery: failed to allocate fbio
+70093 Flush log recovery: failed to allocate sector
+70094 Flush log recovery: write failed: blk=%ld err=%d
+70095 Flush log recovery: read failed: blk=%ld err=%d
+70096 Flush log recovery: LSN mismatch old=%ld new=%ld
+70097 Flush log recovery: patched %d log records for shard %lu
+70098 Flushing logs in place (LOG_FLUSH_IN_PLACE set)
+70100 Flush log recovery: cannot open sync log file %s flags=%x error=%d
+70101 Flush log recovery: log flush write failed seek=%ld errno=%d
 
 
 # mkrishnan

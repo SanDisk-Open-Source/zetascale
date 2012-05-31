@@ -9,7 +9,7 @@
  * codebase. This file also contains the API to enable, disable, and
  * initialize FFDC.
  * 
- * Generated On: 2012-02-18 13:47:04
+ * Generated On: 2012-05-28 18:39:58
  *------------------------------------------------------------------------*/
 
 #define PLATFORM_INTERNAL 1
@@ -39694,6 +39694,160 @@ ffdc_log_func_70077(int lineno, int msgid, int catid, int level, const char* fmt
     FFDC_ADD_STR(arg4);
     FFDC_ADD_STR(arg5);
     FFDC_ADD_NUM(arg6);
+    FFDC_END();
+}
+
+/*---------------------------------------------------------------------------
+ * MsgID : 70078
+ * Msg   : "Syncing data (SYNC_DATA set)"
+ *-------------------------------------------------------------------------*/
+__inline__ void
+ffdc_log_func_70078(int lineno, int msgid, int catid, int level, const char* fmt)
+{
+    FFDC_START(70078, catid, level, lineno);
+    FFDC_END();
+}
+
+/*---------------------------------------------------------------------------
+ * MsgID : 70080
+ * Msg   : "Flushing logs to %s"
+ *-------------------------------------------------------------------------*/
+__inline__ void
+ffdc_log_func_70080(int lineno, int msgid, int catid, int level, const char* fmt,
+    const char* arg1)
+{
+    FFDC_START(70080, catid, level, lineno);
+    FFDC_ADD_STR(arg1);
+    FFDC_END();
+}
+
+/*---------------------------------------------------------------------------
+ * MsgID : 70081
+ * Msg   : "Syncing logs (DATA_SYNC set)"
+ *-------------------------------------------------------------------------*/
+__inline__ void
+ffdc_log_func_70081(int lineno, int msgid, int catid, int level, const char* fmt)
+{
+    FFDC_START(70081, catid, level, lineno);
+    FFDC_END();
+}
+
+/*---------------------------------------------------------------------------
+ * MsgID : 70092
+ * Msg   : "Flush log recovery: failed to allocate fbio"
+ *-------------------------------------------------------------------------*/
+__inline__ void
+ffdc_log_func_70092(int lineno, int msgid, int catid, int level, const char* fmt)
+{
+    FFDC_START(70092, catid, level, lineno);
+    FFDC_END();
+}
+
+/*---------------------------------------------------------------------------
+ * MsgID : 70093
+ * Msg   : "Flush log recovery: failed to allocate sector"
+ *-------------------------------------------------------------------------*/
+__inline__ void
+ffdc_log_func_70093(int lineno, int msgid, int catid, int level, const char* fmt)
+{
+    FFDC_START(70093, catid, level, lineno);
+    FFDC_END();
+}
+
+/*---------------------------------------------------------------------------
+ * MsgID : 70094
+ * Msg   : "Flush log recovery: write failed: blk=%ld err=%d"
+ *-------------------------------------------------------------------------*/
+__inline__ void
+ffdc_log_func_70094(int lineno, int msgid, int catid, int level, const char* fmt,
+    long arg1, int arg2)
+{
+    FFDC_START(70094, catid, level, lineno);
+    FFDC_ADD_NUM(arg1);
+    FFDC_ADD_NUM(arg2);
+    FFDC_END();
+}
+
+/*---------------------------------------------------------------------------
+ * MsgID : 70095
+ * Msg   : "Flush log recovery: read failed: blk=%ld err=%d"
+ *-------------------------------------------------------------------------*/
+__inline__ void
+ffdc_log_func_70095(int lineno, int msgid, int catid, int level, const char* fmt,
+    long arg1, int arg2)
+{
+    FFDC_START(70095, catid, level, lineno);
+    FFDC_ADD_NUM(arg1);
+    FFDC_ADD_NUM(arg2);
+    FFDC_END();
+}
+
+/*---------------------------------------------------------------------------
+ * MsgID : 70096
+ * Msg   : "Flush log recovery: LSN mismatch old=%ld new=%ld"
+ *-------------------------------------------------------------------------*/
+__inline__ void
+ffdc_log_func_70096(int lineno, int msgid, int catid, int level, const char* fmt,
+    long arg1, long arg2)
+{
+    FFDC_START(70096, catid, level, lineno);
+    FFDC_ADD_NUM(arg1);
+    FFDC_ADD_NUM(arg2);
+    FFDC_END();
+}
+
+/*---------------------------------------------------------------------------
+ * MsgID : 70097
+ * Msg   : "Flush log recovery: patched %d log records for shard %lu"
+ *-------------------------------------------------------------------------*/
+__inline__ void
+ffdc_log_func_70097(int lineno, int msgid, int catid, int level, const char* fmt,
+    int arg1, long arg2)
+{
+    FFDC_START(70097, catid, level, lineno);
+    FFDC_ADD_NUM(arg1);
+    FFDC_ADD_NUM(arg2);
+    FFDC_END();
+}
+
+/*---------------------------------------------------------------------------
+ * MsgID : 70098
+ * Msg   : "Flushing logs in place (LOG_FLUSH_IN_PLACE set)"
+ *-------------------------------------------------------------------------*/
+__inline__ void
+ffdc_log_func_70098(int lineno, int msgid, int catid, int level, const char* fmt)
+{
+    FFDC_START(70098, catid, level, lineno);
+    FFDC_END();
+}
+
+/*---------------------------------------------------------------------------
+ * MsgID : 70100
+ * Msg   : "Flush log recovery: cannot open sync log file %s flags=%x 
+ *          error=%d"
+ *-------------------------------------------------------------------------*/
+__inline__ void
+ffdc_log_func_70100(int lineno, int msgid, int catid, int level, const char* fmt,
+    const char* arg1, int arg2, int arg3)
+{
+    FFDC_START(70100, catid, level, lineno);
+    FFDC_ADD_STR(arg1);
+    FFDC_ADD_NUM(arg2);
+    FFDC_ADD_NUM(arg3);
+    FFDC_END();
+}
+
+/*---------------------------------------------------------------------------
+ * MsgID : 70101
+ * Msg   : "Flush log recovery: log flush write failed seek=%ld errno=%d"
+ *-------------------------------------------------------------------------*/
+__inline__ void
+ffdc_log_func_70101(int lineno, int msgid, int catid, int level, const char* fmt,
+    long arg1, int arg2)
+{
+    FFDC_START(70101, catid, level, lineno);
+    FFDC_ADD_NUM(arg1);
+    FFDC_ADD_NUM(arg2);
     FFDC_END();
 }
 

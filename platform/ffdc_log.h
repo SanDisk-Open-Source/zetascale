@@ -9,7 +9,7 @@
  * log message in the codebase.  The structure contains one field for
  * each message parameter in the log message, along with other meta data
  * 
- * Generated On: 2012-02-18 13:47:04
+ * Generated On: 2012-05-28 18:39:58
  *------------------------------------------------------------------------*/
 
 #ifndef PLATFORM_FFDC_H
@@ -66103,6 +66103,273 @@ __inline__ void
 ffdc_log_func_70077(int lineno, int msgid, int catid, int level, const char* fmt,
     const char* arg1, const char* arg2, const char* arg3, const char* arg4, const char* arg5, 
     int arg6);
+
+/*---------------------------------------------------------------------------
+ * MsgID : 70078
+ * Msg   : "Syncing data (SYNC_DATA set)"
+ *-------------------------------------------------------------------------*/
+struct ffdc_log_struct_70078
+{
+    int magic;
+    int msgid;
+    int catid;
+    int level;
+    unsigned long th_id;
+    unsigned long fth_id;
+    int lineno;
+    struct timeval timestamp;
+
+
+} __attribute__ ((aligned (64)));
+
+__inline__ void
+ffdc_log_func_70078(int lineno, int msgid, int catid, int level, const char* fmt);
+
+/*---------------------------------------------------------------------------
+ * MsgID : 70080
+ * Msg   : "Flushing logs to %s"
+ *-------------------------------------------------------------------------*/
+struct ffdc_log_struct_70080
+{
+    int magic;
+    int msgid;
+    int catid;
+    int level;
+    unsigned long th_id;
+    unsigned long fth_id;
+    int lineno;
+    struct timeval timestamp;
+
+    char arg1[FFDC_MAX_STR_SIZE];
+} __attribute__ ((aligned (64)));
+
+__inline__ void
+ffdc_log_func_70080(int lineno, int msgid, int catid, int level, const char* fmt,
+    const char* arg1);
+
+/*---------------------------------------------------------------------------
+ * MsgID : 70081
+ * Msg   : "Syncing logs (DATA_SYNC set)"
+ *-------------------------------------------------------------------------*/
+struct ffdc_log_struct_70081
+{
+    int magic;
+    int msgid;
+    int catid;
+    int level;
+    unsigned long th_id;
+    unsigned long fth_id;
+    int lineno;
+    struct timeval timestamp;
+
+
+} __attribute__ ((aligned (64)));
+
+__inline__ void
+ffdc_log_func_70081(int lineno, int msgid, int catid, int level, const char* fmt);
+
+/*---------------------------------------------------------------------------
+ * MsgID : 70092
+ * Msg   : "Flush log recovery: failed to allocate fbio"
+ *-------------------------------------------------------------------------*/
+struct ffdc_log_struct_70092
+{
+    int magic;
+    int msgid;
+    int catid;
+    int level;
+    unsigned long th_id;
+    unsigned long fth_id;
+    int lineno;
+    struct timeval timestamp;
+
+
+} __attribute__ ((aligned (64)));
+
+__inline__ void
+ffdc_log_func_70092(int lineno, int msgid, int catid, int level, const char* fmt);
+
+/*---------------------------------------------------------------------------
+ * MsgID : 70093
+ * Msg   : "Flush log recovery: failed to allocate sector"
+ *-------------------------------------------------------------------------*/
+struct ffdc_log_struct_70093
+{
+    int magic;
+    int msgid;
+    int catid;
+    int level;
+    unsigned long th_id;
+    unsigned long fth_id;
+    int lineno;
+    struct timeval timestamp;
+
+
+} __attribute__ ((aligned (64)));
+
+__inline__ void
+ffdc_log_func_70093(int lineno, int msgid, int catid, int level, const char* fmt);
+
+/*---------------------------------------------------------------------------
+ * MsgID : 70094
+ * Msg   : "Flush log recovery: write failed: blk=%ld err=%d"
+ *-------------------------------------------------------------------------*/
+struct ffdc_log_struct_70094
+{
+    int magic;
+    int msgid;
+    int catid;
+    int level;
+    unsigned long th_id;
+    unsigned long fth_id;
+    int lineno;
+    struct timeval timestamp;
+
+    long arg1;
+    int arg2;
+} __attribute__ ((aligned (64)));
+
+__inline__ void
+ffdc_log_func_70094(int lineno, int msgid, int catid, int level, const char* fmt,
+    long arg1, int arg2);
+
+/*---------------------------------------------------------------------------
+ * MsgID : 70095
+ * Msg   : "Flush log recovery: read failed: blk=%ld err=%d"
+ *-------------------------------------------------------------------------*/
+struct ffdc_log_struct_70095
+{
+    int magic;
+    int msgid;
+    int catid;
+    int level;
+    unsigned long th_id;
+    unsigned long fth_id;
+    int lineno;
+    struct timeval timestamp;
+
+    long arg1;
+    int arg2;
+} __attribute__ ((aligned (64)));
+
+__inline__ void
+ffdc_log_func_70095(int lineno, int msgid, int catid, int level, const char* fmt,
+    long arg1, int arg2);
+
+/*---------------------------------------------------------------------------
+ * MsgID : 70096
+ * Msg   : "Flush log recovery: LSN mismatch old=%ld new=%ld"
+ *-------------------------------------------------------------------------*/
+struct ffdc_log_struct_70096
+{
+    int magic;
+    int msgid;
+    int catid;
+    int level;
+    unsigned long th_id;
+    unsigned long fth_id;
+    int lineno;
+    struct timeval timestamp;
+
+    long arg1;
+    long arg2;
+} __attribute__ ((aligned (64)));
+
+__inline__ void
+ffdc_log_func_70096(int lineno, int msgid, int catid, int level, const char* fmt,
+    long arg1, long arg2);
+
+/*---------------------------------------------------------------------------
+ * MsgID : 70097
+ * Msg   : "Flush log recovery: patched %d log records for shard %lu"
+ *-------------------------------------------------------------------------*/
+struct ffdc_log_struct_70097
+{
+    int magic;
+    int msgid;
+    int catid;
+    int level;
+    unsigned long th_id;
+    unsigned long fth_id;
+    int lineno;
+    struct timeval timestamp;
+
+    int arg1;
+    long arg2;
+} __attribute__ ((aligned (64)));
+
+__inline__ void
+ffdc_log_func_70097(int lineno, int msgid, int catid, int level, const char* fmt,
+    int arg1, long arg2);
+
+/*---------------------------------------------------------------------------
+ * MsgID : 70098
+ * Msg   : "Flushing logs in place (LOG_FLUSH_IN_PLACE set)"
+ *-------------------------------------------------------------------------*/
+struct ffdc_log_struct_70098
+{
+    int magic;
+    int msgid;
+    int catid;
+    int level;
+    unsigned long th_id;
+    unsigned long fth_id;
+    int lineno;
+    struct timeval timestamp;
+
+
+} __attribute__ ((aligned (64)));
+
+__inline__ void
+ffdc_log_func_70098(int lineno, int msgid, int catid, int level, const char* fmt);
+
+/*---------------------------------------------------------------------------
+ * MsgID : 70100
+ * Msg   : "Flush log recovery: cannot open sync log file %s flags=%x 
+ *          error=%d"
+ *-------------------------------------------------------------------------*/
+struct ffdc_log_struct_70100
+{
+    int magic;
+    int msgid;
+    int catid;
+    int level;
+    unsigned long th_id;
+    unsigned long fth_id;
+    int lineno;
+    struct timeval timestamp;
+
+    char arg1[FFDC_MAX_STR_SIZE];
+    int arg2;
+    int arg3;
+} __attribute__ ((aligned (64)));
+
+__inline__ void
+ffdc_log_func_70100(int lineno, int msgid, int catid, int level, const char* fmt,
+    const char* arg1, int arg2, int arg3);
+
+/*---------------------------------------------------------------------------
+ * MsgID : 70101
+ * Msg   : "Flush log recovery: log flush write failed seek=%ld errno=%d"
+ *-------------------------------------------------------------------------*/
+struct ffdc_log_struct_70101
+{
+    int magic;
+    int msgid;
+    int catid;
+    int level;
+    unsigned long th_id;
+    unsigned long fth_id;
+    int lineno;
+    struct timeval timestamp;
+
+    long arg1;
+    int arg2;
+} __attribute__ ((aligned (64)));
+
+__inline__ void
+ffdc_log_func_70101(int lineno, int msgid, int catid, int level, const char* fmt,
+    long arg1, int arg2);
 
 /*---------------------------------------------------------------------------
  * MsgID : 80000
