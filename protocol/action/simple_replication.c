@@ -124,6 +124,7 @@ static sdf_msg_t * rpc_load_msg(SDF_vnode_t node_from,
 int  (*sdf_start_simple)  (int) = NULL;
 void (*sdf_notify_simple) (uint64_t, int) = NULL;
 SDF_boolean_t (*sdf_is_node_started_first_time)() = NULL;
+SDF_boolean_t (*sdf_is_node_started_in_auth_mode)() = NULL;
 void (*sdf_simple_dead)   (int, int) = NULL;
 int (*sdf_remove_vip)   (sdf_vip_config_t *, int) = NULL;
 SDF_action_init_t *(*sdf_action_init_ptr)() = NULL;
@@ -564,6 +565,12 @@ void simple_replication_init(SDF_action_state_t *pas)
     }
 
     ps->ndistinct_ctnrs = 0;
+    plat_log_msg(160023, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION,PLAT_LOG_LEVEL_INFO,
+                            "Instance iteration local tag %d:%u", msg_sdf_myrank(), (unsigned int)time(NULL));
+    if( ( sdf_is_node_started_first_time() == SDF_TRUE ) || (sdf_is_node_started_in_auth_mode() == SDF_TRUE) ) {
+        plat_log_msg(160020, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION, PLAT_LOG_LEVEL_INFO,
+                         "Node becomes authoritative for persistent containers"); 
+    }
     for (nnode = 0; nnode < ps->nnodes; nnode++) {
         int j;
         pns = &(ps->node_state[nnode]);
@@ -616,9 +623,13 @@ void simple_replication_init(SDF_action_state_t *pas)
         }
 
         /* If started first time, set the persistent auth flag = 1*/
-        plat_log_msg(21181, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION, PLAT_LOG_LEVEL_INFO,
-              "IS NODE STARTED FIRST TIME: %d\n",sdf_is_node_started_first_time());
+        plat_log_msg(160021, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION, PLAT_LOG_LEVEL_INFO,
+              "IS NODE STARTED FIRST TIME: %d, Is node started in authoritative mode:%d\n",
+                                      sdf_is_node_started_first_time(),sdf_is_node_started_in_auth_mode() );
         if(sdf_is_node_started_first_time() == SDF_TRUE) {
+            pns->persistent_auth = 1;
+        }
+        if(sdf_is_node_started_in_auth_mode() == SDF_TRUE) {
             pns->persistent_auth = 1;
         }
 
@@ -875,7 +886,6 @@ void simple_replication_init(SDF_action_state_t *pas)
 		     "replicating_to_node = SDF_ILLEGAL_VNODE");
 	}
     }
-
     /* if Dynamic container is enabled, ignore the container section */
     sprintf( prop_name, "MEMCACHED_STATIC_CONTAINERS");
     if( getProperty_uLongInt(prop_name, 0) == 1 ) {
@@ -2321,6 +2331,7 @@ void simple_replicator_send_data_copy_completed() {
     }
     plat_log_msg(21247, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION,PLAT_LOG_LEVEL_INFO, "Sending RECOVERED command to STM\n");
     sdf_replicator_command_sync(sdf_shared_state.config.replicator,shardids[0], "RECOVERED", &output);
+    send_command_to_sb_handler("db_fail_check");
 #endif
 }
 
@@ -2637,6 +2648,8 @@ int simple_replicator_start_new_replica(SDF_action_init_t * pai, vnode_t master,
             if( pcs->flags & qr_persist  ) {
                 if( fail == 0 ) {
                     /* success. set my node */
+                    plat_log_msg(160024, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION, PLAT_LOG_LEVEL_INFO,
+                         "Node becomes authoritative for persistent containers %d",pcs->id);
                     ps->node_state[mynode].persistent_auth = 1; 
                 }
                 else {

@@ -54,6 +54,15 @@ struct SDF_config {
      * 
      */
     int system_recovery;
+    
+    /**
+     * @brief authoritative flag
+     *
+     * Tells SDF to start the instance as authoritative instance for persistent mode containers
+     * 
+     */
+    int auth_mode;
+
 
     /** @brief my node number (rank) */
     uint32_t my_node;

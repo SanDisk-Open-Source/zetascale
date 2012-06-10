@@ -141,6 +141,9 @@ struct plat_opts_config_sdf_agent {
     /** @brief system recovery type */
     int system_recovery;
 
+    /** @brief system started in authoritive mode or not*/
+    int auth_mode;
+
     /** @brief restart after a node goes down */
     int system_restart;
 
@@ -204,6 +207,9 @@ struct plat_opts_config_sdf_agent {
          PLAT_OPTS_ARG_OPTIONAL)                                               \
     item("reformat", "when you want to reformat the flash device(s)",          \
          REFORMAT, ({ config->system_recovery = SYS_FLASH_REFORMAT; 0; }),     \
+         PLAT_OPTS_ARG_NO)                                                     \
+    item("auth_mode", "when you want to start the instance in authoritative mode",          \
+         AUTHMODE, ({ config->auth_mode = 1; 0; }),     \
          PLAT_OPTS_ARG_NO)                                                     \
     item("restart", "for restarting after a node goes down",                   \
          RESTART, ({ config->system_restart = 1; 0; }),                        \

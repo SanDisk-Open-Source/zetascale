@@ -209,7 +209,7 @@ extern int partner_replica_port_by_cguid(qrep_state_t * ps, SDF_cguid_t cguid);
 extern SDF_cguid_t port_to_cguid(struct SDF_action_init * pai, int port);
 extern int node_is_alive(qrep_state_t * ps, int node);
 extern void update_data_copy_progress(struct shard * pshard, int percentage);
-
+extern SDF_boolean_t (*sdf_is_node_started_in_auth_mode)(void);
 extern SDF_boolean_t (*sdf_is_node_started_first_time)(void);
 extern int (*sdf_start_simple)(int);
 extern void (*sdf_notify_simple)(uint64_t, int);
