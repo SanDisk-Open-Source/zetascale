@@ -9,7 +9,7 @@
  * log message in the codebase.  The structure contains one field for
  * each message parameter in the log message, along with other meta data
  * 
- * Generated On: 2012-05-28 18:39:58
+ * Generated On: 2012-06-13 17:46:58
  *------------------------------------------------------------------------*/
 
 #ifndef PLATFORM_FFDC_H
@@ -66372,6 +66372,188 @@ ffdc_log_func_70101(int lineno, int msgid, int catid, int level, const char* fmt
     long arg1, int arg2);
 
 /*---------------------------------------------------------------------------
+ * MsgID : 70102
+ * Msg   : "Syncing logs (SYNC_DATA set)"
+ *-------------------------------------------------------------------------*/
+struct ffdc_log_struct_70102
+{
+    int magic;
+    int msgid;
+    int catid;
+    int level;
+    unsigned long th_id;
+    unsigned long fth_id;
+    int lineno;
+    struct timeval timestamp;
+
+
+} __attribute__ ((aligned (64)));
+
+__inline__ void
+ffdc_log_func_70102(int lineno, int msgid, int catid, int level, const char* fmt);
+
+/*---------------------------------------------------------------------------
+ * MsgID : 70103
+ * Msg   : "Flush log sync: failed to allocate fbio"
+ *-------------------------------------------------------------------------*/
+struct ffdc_log_struct_70103
+{
+    int magic;
+    int msgid;
+    int catid;
+    int level;
+    unsigned long th_id;
+    unsigned long fth_id;
+    int lineno;
+    struct timeval timestamp;
+
+
+} __attribute__ ((aligned (64)));
+
+__inline__ void
+ffdc_log_func_70103(int lineno, int msgid, int catid, int level, const char* fmt);
+
+/*---------------------------------------------------------------------------
+ * MsgID : 70104
+ * Msg   : "Flush log sync: write failed: blk=%ld err=%d"
+ *-------------------------------------------------------------------------*/
+struct ffdc_log_struct_70104
+{
+    int magic;
+    int msgid;
+    int catid;
+    int level;
+    unsigned long th_id;
+    unsigned long fth_id;
+    int lineno;
+    struct timeval timestamp;
+
+    long arg1;
+    int arg2;
+} __attribute__ ((aligned (64)));
+
+__inline__ void
+ffdc_log_func_70104(int lineno, int msgid, int catid, int level, const char* fmt,
+    long arg1, int arg2);
+
+/*---------------------------------------------------------------------------
+ * MsgID : 70105
+ * Msg   : "Flush log sync: read failed: blk=%ld err=%d"
+ *-------------------------------------------------------------------------*/
+struct ffdc_log_struct_70105
+{
+    int magic;
+    int msgid;
+    int catid;
+    int level;
+    unsigned long th_id;
+    unsigned long fth_id;
+    int lineno;
+    struct timeval timestamp;
+
+    long arg1;
+    int arg2;
+} __attribute__ ((aligned (64)));
+
+__inline__ void
+ffdc_log_func_70105(int lineno, int msgid, int catid, int level, const char* fmt,
+    long arg1, int arg2);
+
+/*---------------------------------------------------------------------------
+ * MsgID : 70106
+ * Msg   : "Flush log sync: failed to allocate sector"
+ *-------------------------------------------------------------------------*/
+struct ffdc_log_struct_70106
+{
+    int magic;
+    int msgid;
+    int catid;
+    int level;
+    unsigned long th_id;
+    unsigned long fth_id;
+    int lineno;
+    struct timeval timestamp;
+
+
+} __attribute__ ((aligned (64)));
+
+__inline__ void
+ffdc_log_func_70106(int lineno, int msgid, int catid, int level, const char* fmt);
+
+/*---------------------------------------------------------------------------
+ * MsgID : 70107
+ * Msg   : "Flush log sync: patched %d log records for shard %lu"
+ *-------------------------------------------------------------------------*/
+struct ffdc_log_struct_70107
+{
+    int magic;
+    int msgid;
+    int catid;
+    int level;
+    unsigned long th_id;
+    unsigned long fth_id;
+    int lineno;
+    struct timeval timestamp;
+
+    int arg1;
+    long arg2;
+} __attribute__ ((aligned (64)));
+
+__inline__ void
+ffdc_log_func_70107(int lineno, int msgid, int catid, int level, const char* fmt,
+    int arg1, long arg2);
+
+/*---------------------------------------------------------------------------
+ * MsgID : 70108
+ * Msg   : "Flush log sync: cannot open sync log file %s flags=%x error=%
+ *          d"
+ *-------------------------------------------------------------------------*/
+struct ffdc_log_struct_70108
+{
+    int magic;
+    int msgid;
+    int catid;
+    int level;
+    unsigned long th_id;
+    unsigned long fth_id;
+    int lineno;
+    struct timeval timestamp;
+
+    char arg1[FFDC_MAX_STR_SIZE];
+    int arg2;
+    int arg3;
+} __attribute__ ((aligned (64)));
+
+__inline__ void
+ffdc_log_func_70108(int lineno, int msgid, int catid, int level, const char* fmt,
+    const char* arg1, int arg2, int arg3);
+
+/*---------------------------------------------------------------------------
+ * MsgID : 70109
+ * Msg   : "Flush log sync: log flush write failed seek=%ld errno=%d 
+ *          size=%ld"
+ *-------------------------------------------------------------------------*/
+struct ffdc_log_struct_70109
+{
+    int magic;
+    int msgid;
+    int catid;
+    int level;
+    unsigned long th_id;
+    unsigned long fth_id;
+    int lineno;
+    struct timeval timestamp;
+
+    long arg1;
+    int arg2;
+    long arg3;
+} __attribute__ ((aligned (64)));
+
+__inline__ void
+ffdc_log_func_70109(int lineno, int msgid, int catid, int level, const char* fmt,
+    long arg1, int arg2, long arg3);
+
+/*---------------------------------------------------------------------------
  * MsgID : 80000
  * Msg   : "Adding source route to table %srtable for %s failed\n"
  *-------------------------------------------------------------------------*/
@@ -67909,6 +68091,117 @@ struct ffdc_log_struct_160019
 __inline__ void
 ffdc_log_func_160019(int lineno, int msgid, int catid, int level, const char* fmt,
     int arg1, long arg2);
+
+/*---------------------------------------------------------------------------
+ * MsgID : 160020
+ * Msg   : "Node becomes authoritative for persistent containers"
+ *-------------------------------------------------------------------------*/
+struct ffdc_log_struct_160020
+{
+    int magic;
+    int msgid;
+    int catid;
+    int level;
+    unsigned long th_id;
+    unsigned long fth_id;
+    int lineno;
+    struct timeval timestamp;
+
+
+} __attribute__ ((aligned (64)));
+
+__inline__ void
+ffdc_log_func_160020(int lineno, int msgid, int catid, int level, const char* fmt);
+
+/*---------------------------------------------------------------------------
+ * MsgID : 160021
+ * Msg   : "IS NODE STARTED FIRST TIME: %d, Is node started in 
+ *          authoritative mode:%d\n"
+ *-------------------------------------------------------------------------*/
+struct ffdc_log_struct_160021
+{
+    int magic;
+    int msgid;
+    int catid;
+    int level;
+    unsigned long th_id;
+    unsigned long fth_id;
+    int lineno;
+    struct timeval timestamp;
+
+    int arg1;
+    int arg2;
+} __attribute__ ((aligned (64)));
+
+__inline__ void
+ffdc_log_func_160021(int lineno, int msgid, int catid, int level, const char* fmt,
+    int arg1, int arg2);
+
+/*---------------------------------------------------------------------------
+ * MsgID : 160022
+ * Msg   : "container is peristent, but started in authoritative mode"
+ *-------------------------------------------------------------------------*/
+struct ffdc_log_struct_160022
+{
+    int magic;
+    int msgid;
+    int catid;
+    int level;
+    unsigned long th_id;
+    unsigned long fth_id;
+    int lineno;
+    struct timeval timestamp;
+
+
+} __attribute__ ((aligned (64)));
+
+__inline__ void
+ffdc_log_func_160022(int lineno, int msgid, int catid, int level, const char* fmt);
+
+/*---------------------------------------------------------------------------
+ * MsgID : 160023
+ * Msg   : "Instance iteration local tag %d:%u"
+ *-------------------------------------------------------------------------*/
+struct ffdc_log_struct_160023
+{
+    int magic;
+    int msgid;
+    int catid;
+    int level;
+    unsigned long th_id;
+    unsigned long fth_id;
+    int lineno;
+    struct timeval timestamp;
+
+    int arg1;
+    int arg2;
+} __attribute__ ((aligned (64)));
+
+__inline__ void
+ffdc_log_func_160023(int lineno, int msgid, int catid, int level, const char* fmt,
+    int arg1, int arg2);
+
+/*---------------------------------------------------------------------------
+ * MsgID : 160024
+ * Msg   : "Node becomes authoritative for persistent containers %d"
+ *-------------------------------------------------------------------------*/
+struct ffdc_log_struct_160024
+{
+    int magic;
+    int msgid;
+    int catid;
+    int level;
+    unsigned long th_id;
+    unsigned long fth_id;
+    int lineno;
+    struct timeval timestamp;
+
+    int arg1;
+} __attribute__ ((aligned (64)));
+
+__inline__ void
+ffdc_log_func_160024(int lineno, int msgid, int catid, int level, const char* fmt,
+    int arg1);
 
 __END_DECLS
 #endif /* PLATFORM_FFDC_H */

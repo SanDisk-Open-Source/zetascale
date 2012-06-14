@@ -2916,6 +2916,14 @@
 70098 Flushing logs in place (LOG_FLUSH_IN_PLACE set)
 70100 Flush log recovery: cannot open sync log file %s flags=%x error=%d
 70101 Flush log recovery: log flush write failed seek=%ld errno=%d
+70102 Syncing logs (SYNC_DATA set)
+70103 Flush log sync: failed to allocate fbio
+70104 Flush log sync: write failed: blk=%ld err=%d
+70105 Flush log sync: read failed: blk=%ld err=%d
+70106 Flush log sync: failed to allocate sector
+70107 Flush log sync: patched %d log records for shard %lu
+70108 Flush log sync: cannot open sync log file %s flags=%x error=%d
+70109 Flush log sync: log flush write failed seek=%ld errno=%d size=%ld
 
 
 # mkrishnan
@@ -3011,3 +3019,8 @@
 160017 detached %d update segments from shardID=%lu, free=%lu
 160018 allocated %d log segments to shardID=%lu, remaining=%lu
 160019 Segment count (%d) exceeded number of recovery update buffer segments (%lu)!
+160020 Node becomes authoritative for persistent containers
+160021 IS NODE STARTED FIRST TIME: %d, Is node started in authoritative mode:%d\n
+160022 container is peristent, but started in authoritative mode
+160023 Instance iteration local tag %d:%u
+160024 Node becomes authoritative for persistent containers %d

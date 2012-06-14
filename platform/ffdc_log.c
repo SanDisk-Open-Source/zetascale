@@ -9,7 +9,7 @@
  * codebase. This file also contains the API to enable, disable, and
  * initialize FFDC.
  * 
- * Generated On: 2012-05-28 18:39:58
+ * Generated On: 2012-06-13 17:46:58
  *------------------------------------------------------------------------*/
 
 #define PLATFORM_INTERNAL 1
@@ -39852,6 +39852,113 @@ ffdc_log_func_70101(int lineno, int msgid, int catid, int level, const char* fmt
 }
 
 /*---------------------------------------------------------------------------
+ * MsgID : 70102
+ * Msg   : "Syncing logs (SYNC_DATA set)"
+ *-------------------------------------------------------------------------*/
+__inline__ void
+ffdc_log_func_70102(int lineno, int msgid, int catid, int level, const char* fmt)
+{
+    FFDC_START(70102, catid, level, lineno);
+    FFDC_END();
+}
+
+/*---------------------------------------------------------------------------
+ * MsgID : 70103
+ * Msg   : "Flush log sync: failed to allocate fbio"
+ *-------------------------------------------------------------------------*/
+__inline__ void
+ffdc_log_func_70103(int lineno, int msgid, int catid, int level, const char* fmt)
+{
+    FFDC_START(70103, catid, level, lineno);
+    FFDC_END();
+}
+
+/*---------------------------------------------------------------------------
+ * MsgID : 70104
+ * Msg   : "Flush log sync: write failed: blk=%ld err=%d"
+ *-------------------------------------------------------------------------*/
+__inline__ void
+ffdc_log_func_70104(int lineno, int msgid, int catid, int level, const char* fmt,
+    long arg1, int arg2)
+{
+    FFDC_START(70104, catid, level, lineno);
+    FFDC_ADD_NUM(arg1);
+    FFDC_ADD_NUM(arg2);
+    FFDC_END();
+}
+
+/*---------------------------------------------------------------------------
+ * MsgID : 70105
+ * Msg   : "Flush log sync: read failed: blk=%ld err=%d"
+ *-------------------------------------------------------------------------*/
+__inline__ void
+ffdc_log_func_70105(int lineno, int msgid, int catid, int level, const char* fmt,
+    long arg1, int arg2)
+{
+    FFDC_START(70105, catid, level, lineno);
+    FFDC_ADD_NUM(arg1);
+    FFDC_ADD_NUM(arg2);
+    FFDC_END();
+}
+
+/*---------------------------------------------------------------------------
+ * MsgID : 70106
+ * Msg   : "Flush log sync: failed to allocate sector"
+ *-------------------------------------------------------------------------*/
+__inline__ void
+ffdc_log_func_70106(int lineno, int msgid, int catid, int level, const char* fmt)
+{
+    FFDC_START(70106, catid, level, lineno);
+    FFDC_END();
+}
+
+/*---------------------------------------------------------------------------
+ * MsgID : 70107
+ * Msg   : "Flush log sync: patched %d log records for shard %lu"
+ *-------------------------------------------------------------------------*/
+__inline__ void
+ffdc_log_func_70107(int lineno, int msgid, int catid, int level, const char* fmt,
+    int arg1, long arg2)
+{
+    FFDC_START(70107, catid, level, lineno);
+    FFDC_ADD_NUM(arg1);
+    FFDC_ADD_NUM(arg2);
+    FFDC_END();
+}
+
+/*---------------------------------------------------------------------------
+ * MsgID : 70108
+ * Msg   : "Flush log sync: cannot open sync log file %s flags=%x error=%
+ *          d"
+ *-------------------------------------------------------------------------*/
+__inline__ void
+ffdc_log_func_70108(int lineno, int msgid, int catid, int level, const char* fmt,
+    const char* arg1, int arg2, int arg3)
+{
+    FFDC_START(70108, catid, level, lineno);
+    FFDC_ADD_STR(arg1);
+    FFDC_ADD_NUM(arg2);
+    FFDC_ADD_NUM(arg3);
+    FFDC_END();
+}
+
+/*---------------------------------------------------------------------------
+ * MsgID : 70109
+ * Msg   : "Flush log sync: log flush write failed seek=%ld errno=%d 
+ *          size=%ld"
+ *-------------------------------------------------------------------------*/
+__inline__ void
+ffdc_log_func_70109(int lineno, int msgid, int catid, int level, const char* fmt,
+    long arg1, int arg2, long arg3)
+{
+    FFDC_START(70109, catid, level, lineno);
+    FFDC_ADD_NUM(arg1);
+    FFDC_ADD_NUM(arg2);
+    FFDC_ADD_NUM(arg3);
+    FFDC_END();
+}
+
+/*---------------------------------------------------------------------------
  * MsgID : 80000
  * Msg   : "Adding source route to table %srtable for %s failed\n"
  *-------------------------------------------------------------------------*/
@@ -40759,6 +40866,70 @@ ffdc_log_func_160019(int lineno, int msgid, int catid, int level, const char* fm
     FFDC_START(160019, catid, level, lineno);
     FFDC_ADD_NUM(arg1);
     FFDC_ADD_NUM(arg2);
+    FFDC_END();
+}
+
+/*---------------------------------------------------------------------------
+ * MsgID : 160020
+ * Msg   : "Node becomes authoritative for persistent containers"
+ *-------------------------------------------------------------------------*/
+__inline__ void
+ffdc_log_func_160020(int lineno, int msgid, int catid, int level, const char* fmt)
+{
+    FFDC_START(160020, catid, level, lineno);
+    FFDC_END();
+}
+
+/*---------------------------------------------------------------------------
+ * MsgID : 160021
+ * Msg   : "IS NODE STARTED FIRST TIME: %d, Is node started in 
+ *          authoritative mode:%d\n"
+ *-------------------------------------------------------------------------*/
+__inline__ void
+ffdc_log_func_160021(int lineno, int msgid, int catid, int level, const char* fmt,
+    int arg1, int arg2)
+{
+    FFDC_START(160021, catid, level, lineno);
+    FFDC_ADD_NUM(arg1);
+    FFDC_ADD_NUM(arg2);
+    FFDC_END();
+}
+
+/*---------------------------------------------------------------------------
+ * MsgID : 160022
+ * Msg   : "container is peristent, but started in authoritative mode"
+ *-------------------------------------------------------------------------*/
+__inline__ void
+ffdc_log_func_160022(int lineno, int msgid, int catid, int level, const char* fmt)
+{
+    FFDC_START(160022, catid, level, lineno);
+    FFDC_END();
+}
+
+/*---------------------------------------------------------------------------
+ * MsgID : 160023
+ * Msg   : "Instance iteration local tag %d:%u"
+ *-------------------------------------------------------------------------*/
+__inline__ void
+ffdc_log_func_160023(int lineno, int msgid, int catid, int level, const char* fmt,
+    int arg1, int arg2)
+{
+    FFDC_START(160023, catid, level, lineno);
+    FFDC_ADD_NUM(arg1);
+    FFDC_ADD_NUM(arg2);
+    FFDC_END();
+}
+
+/*---------------------------------------------------------------------------
+ * MsgID : 160024
+ * Msg   : "Node becomes authoritative for persistent containers %d"
+ *-------------------------------------------------------------------------*/
+__inline__ void
+ffdc_log_func_160024(int lineno, int msgid, int catid, int level, const char* fmt,
+    int arg1)
+{
+    FFDC_START(160024, catid, level, lineno);
+    FFDC_ADD_NUM(arg1);
     FFDC_END();
 }
 
