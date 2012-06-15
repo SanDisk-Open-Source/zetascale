@@ -56,7 +56,7 @@ LIBS = \
 SUBDIRS = \
 	#mem_debug
 
-TIMEOUT = --timeout 2
+TIMEOUT = --timeout 10
 TIMEOUT_VALGRIND = --timeout 5
 TESTRUNNER_VALGRIND = $(VALGRINDDIR)/bin/valgrind --error-exitcode=2 --leak-check=full --show-reachable=yes
 

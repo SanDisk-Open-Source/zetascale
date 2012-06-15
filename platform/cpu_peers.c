@@ -158,7 +158,7 @@ get_peers(const char *dirname, uint32_t *peers) {
         }
     }
 
-    if (!ret && sscanf(comma + 1, "%ux", peers) != 1) {
+    if (!ret && sscanf(comma + 1, "%x", peers) != 1) {
         plat_log_msg(20917, LOG_CAT, PLAT_LOG_LEVEL_ERROR,
                      "can't parse %s from %s/shard_cpu_map",
                      tmp, dirname);

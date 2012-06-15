@@ -108,7 +108,7 @@ USE_MPI = 1
 EXTRACLEAN = $(patsubst %.run,$(BUILD)%.shmem,$(TESTS) $(TESTS_BROKEN))
 
 SHMEM = $(abspath $(BUILD)$(patsubst %.run,%.shmem,$@)):128m
-TIMEOUT = --timeout 2
+TIMEOUT = --timeout 10
 TESTARGS = $(TIMEOUT)
 #Simplest possible run for least spew
 fcnl_framework_sync_test.run: TESTARGS = $(TIMEOUT) --iterations 100 --log sdf/prot/replication/test=info
