@@ -1256,6 +1256,32 @@ void SDFRepDataStructAddContainer( SDF_internal_ctxt_t *pai , SDF_container_prop
     }
 }
 
+void check_for_authoritativeness(qrep_state_t *rep_state) {
+    int mynode,i=0;
+    qrep_node_state_t *lnode;
+    fthWaitEl_t *wait;
+
+    mynode = msg_sdf_myrank();
+    /*Update the container in the local node*/
+    lnode = &(rep_state->node_state[mynode]);
+    wait = fthLock( &lnode->lock, 1, NULL);
+    for( i = 0; i < lnode->nctnrs_node; i++ ) {
+        if( lnode->cntrs[i].flags & qr_persist ) {
+            break;
+        }
+    }
+    if( i >= lnode->nctnrs_node ) {
+        fthUnlock(wait);
+        plat_log_msg(160025, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION, PLAT_LOG_LEVEL_INFO,
+                                                     "Node %d does not have any persistent container\n",mynode);
+        plat_log_msg(160026, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION, PLAT_LOG_LEVEL_INFO,
+                                                     "Node becomes authoritative for persistent containers\n");
+    }
+    else {
+        fthUnlock(wait);
+    }
+}
+
 void SDFRepDataStructDeleteContainer( SDF_internal_ctxt_t *pai , SDF_cguid_t cguid) {
     char prop_name[256];
     int mynode, peer_node_id=-1, num_cntrs=0, i,j;
@@ -1364,6 +1390,7 @@ void SDFRepDataStructDeleteContainer( SDF_internal_ctxt_t *pai , SDF_cguid_t cgu
         /* release the node lock */
         fthUnlock(wait);
     }
+    check_for_authoritativeness(rep_state);
 }
 
 int SDFNodeGroupGroupType( SDF_internal_ctxt_t *pai, int node_id ) {
