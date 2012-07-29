@@ -5,6 +5,40 @@
 #include "protocol/protocol_common.h"
 #include "protocol/action/action_internal_ctxt.h"
 #include "protocol/action/action_thread.h"
+#include "ssd/fifo/mcd_osd.h"
+
+static SDF_context_t SDF_Next_Context = SDF_RESERVED_CONTEXTS + 1;
+
+int SDFSimpleReplicationEnabled()
+{
+    return(SDFSimpleReplication);
+}
+
+SDF_status_t
+SDF_I_NewContext( void * pai, SDF_context_t * context )
+{
+    *context = __sync_fetch_and_add( &SDF_Next_Context, 1 );
+    return SDF_SUCCESS;
+}
+
+
+SDF_status_t
+SDF_I_Delete_Context( void * pai, SDF_context_t context )
+{
+    return SDF_SUCCESS;
+}
+
+SDF_status_t SDFAutoDelete(SDF_internal_ctxt_t *pai)
+{
+    mcd_osd_auto_delete(((SDF_action_init_t *) pai)->paio_ctxt);
+    return(SDF_SUCCESS);
+}
+
+SDF_status_t SDFGetContainers(SDF_internal_ctxt_t *pai, struct mcd_container **pcontainers, int *pn_containers)
+{
+    mcd_osd_get_containers(((SDF_action_init_t *) pai)->paio_ctxt, pcontainers, pn_containers);
+    return(SDF_SUCCESS);
+}
 
 SDF_status_t SDF_I_CreatePutBufferedObject(SDF_internal_ctxt_t *pai, SDF_cguid_t ctnr, const char *objkey, uint32_t keylen, SDF_size_t sze, void * pbuf_out)
 {

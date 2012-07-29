@@ -23,7 +23,7 @@ extern "C" {
 struct ssdaio_ctxt;
 
 extern void ssd_Init();
-extern struct flashDev *ssd_flashOpen(char *name, int flags);
+extern struct flashDev *ssd_flashOpen(char *name, flash_settings_t *flash_settings, int flags);
 extern void ssd_flashClose(struct flashDev *dev);
 extern struct shard *ssd_shardCreate(struct flashDev *dev, uint64_t shardID, 
        int flags, uint64_t quota, unsigned maxObjs);

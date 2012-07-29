@@ -5180,7 +5180,7 @@ lface_init(void)
         memcpy(lptr->haddr, ifreq.ifr_hwaddr.sa_data, IFHWADDRLEN);
         lptr++;
     }
-    free(ifc.ifc_buf);
+    plat_free(ifc.ifc_buf);
     close(fd);
 
     n = lptr - lbuf;
@@ -5209,7 +5209,7 @@ siocgifconf(int fd, ifconf_t *ifc)
         if (ifc->ifc_len < len)
             break;
         n *= 2;
-        free(ifc->ifc_buf);
+        plat_free(ifc->ifc_buf);
     }
     ifc->ifc_buf = m_realloc(ifc->ifc_buf, ifc->ifc_len, "msg_msg:ifc_buf");
 }

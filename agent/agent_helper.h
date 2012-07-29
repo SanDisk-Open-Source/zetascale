@@ -46,6 +46,16 @@ SDF_boolean_t init_protocol_engine(uint32_t rank, SDF_boolean_t usingFth);
 /** Report version of supported property file */
 extern int property_file_report_version(char **bufp, int *lenp);
 
+/**
+ * @brief  Main initialization routine for SDF
+ *
+ * @return status, SDF_TRUE on success
+ */
+
+struct sdf_agent_state;
+extern SDF_boolean_t sdf_init(struct sdf_agent_state *state, int argc, char *argv[]);
+extern SDF_boolean_t agent_engine_pre_init(struct sdf_agent_state *state, int argc, char *argv[]);
+extern SDF_boolean_t agent_engine_post_init(struct sdf_agent_state * state );
 
 #ifdef __cplusplus
 }

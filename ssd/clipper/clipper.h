@@ -189,7 +189,7 @@ typedef struct {
     uint32_t    magic;
 } ClipperFlashMeta_t;
 
-extern struct flashDev *clipper_flashOpen(char *name, int flags);
+extern struct flashDev *clipper_flashOpen(char *name, flash_settings_t *flash_settings, int flags);
 extern struct shard *clipper_shardCreate(struct flashDev *dev, uint64_t shardID, 
 	  int flags, uint64_t quota, unsigned maxObjs);
 extern int clipper_flashGet(struct ssdaio_ctxt *pctxt, struct shard *shard, 

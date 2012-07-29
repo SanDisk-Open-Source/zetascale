@@ -18,7 +18,7 @@
 extern "C" {
 #endif
 
-extern struct flashDev *default_flashOpen(char *name, int flags);
+extern struct flashDev *default_flashOpen(char *name, flash_settings_t *flash_settings, int flags);
 extern void default_flashClose(struct flashDev *dev);
 extern struct shard *default_shardCreate(struct flashDev *dev, uint64_t shardID, 
 	  int flags, uint64_t quota, unsigned maxObjs);

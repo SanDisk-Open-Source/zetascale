@@ -74,7 +74,7 @@ void show_dump();
 void
 add_cmd_to_key_state(uint8_t cmd, uint8_t code, key_state_t * key)
 {
-    cmd_item_t *item = malloc(sizeof(key_state_t));
+    cmd_item_t *item = plat_alloc(sizeof(key_state_t));
     item->cmd = cmd & (~MCD_TRACE_NOREPLY);
     item->cmd &= (~MCD_TRACE_MULTIKEY);
     item->no_reply = cmd & (MCD_TRACE_NOREPLY);
@@ -645,11 +645,11 @@ get_last_file(const char *file_base_name, char *file_name, int file)
 void
 init_files()
 {
-    file_names = malloc(sizeof(char *) * MAX_FILE_NUMBER);
+    file_names = plat_alloc(sizeof(char *) * MAX_FILE_NUMBER);
     memset(file_names, 0, MAX_FILE_NUMBER);
-    last_file_number = malloc(sizeof(int) * MAX_FILE_NUMBER);
+    last_file_number = plat_alloc(sizeof(int) * MAX_FILE_NUMBER);
     memset(last_file_number, 0, MAX_FILE_NUMBER);
-    last_file_index = malloc(sizeof(int) * MAX_FILE_NUMBER);
+    last_file_index = plat_alloc(sizeof(int) * MAX_FILE_NUMBER);
     memset(last_file_index, 0, MAX_FILE_NUMBER);
 }
 

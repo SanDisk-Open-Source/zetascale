@@ -37,7 +37,6 @@
 #include "ssd.h"
 #include "clipper/clipper.h"
 #include "fifo/fifo.h"
-#include "htf/htf.h"
 #include "utils/hash.h"
 #include "common/sdfstats.h"
 #include "../protocol/action/simple_replication.h"
@@ -58,8 +57,6 @@ void ssd_Init()
 	scheme = SSD_Clipper;
     } else if (strcmp(scheme_name, "Fifo") == 0) {
 	scheme = SSD_Fifo;
-    } else if (strcmp(scheme_name, "HTF") == 0) {
-	scheme = SSD_HTF;
     } else {
 	plat_log_msg(21722, PLAT_LOG_CAT_FLASH, PLAT_LOG_LEVEL_FATAL,
 		     "Invalid SSD scheme (%s)!", scheme_name);
@@ -123,14 +120,6 @@ void ssd_Init()
             psss->flashGetRetainedTombstoneGuarantee = fifo_flashGetRetainedTombstoneGuarantee;
             psss->flashRegisterSetRetainedTombstoneGuaranteeCallback = fifo_flashRegisterSetRetainedTombstoneGuaranteeCallback;
 	    break;
-        case SSD_HTF:
-	    /* these are dummies for now */
-	    psss->flashGet          = htf_flashGet;
-	    psss->flashPut          = htf_flashPut;
-	    psss->flashOpen         = htf_flashOpen;
-	    psss->shardCreate       = htf_shardCreate;
-	    psss->flashFreeBuf      = default_flashFreeBuf;
-	    break;
 	default:
 	    plat_log_msg(21723, PLAT_LOG_CAT_FLASH, PLAT_LOG_LEVEL_FATAL,
 			 "Invalid SSD scheme (%d)!", scheme);
@@ -159,9 +148,9 @@ objDesc_t *ssd_flashEnumerate(struct shard *shard, objDesc_t *prevObj, int *hash
     return((ssdState.flashEnumerate)(shard, prevObj, hashIndex, key));
 }
 
-struct flashDev *ssd_flashOpen(char *devName, int flags) 
+struct flashDev *ssd_flashOpen(char *devName, flash_settings_t *flash_settings, int flags) 
 {
-    return((ssdState.flashOpen)(devName, flags));
+    return((ssdState.flashOpen)(devName, flash_settings, flags));
 }
 
 struct shard *ssd_shardFind(struct flashDev *dev, uint64_t shardID) 

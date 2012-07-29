@@ -2,28 +2,7 @@
 
 TOP = ../..
 
-LIBS = libsdfagent.a \
-	../shared/libsdfshared.a \
-	../protocol/home/libsdfhome.a \
-	../protocol/action/libsdfaction.a \
-	../protocol/replication/libsdfreplication.a \
-	../ssd/libsdfssd.a \
-	../ssd/clipper/libclipper.a \
-	../protocol/action/libsdfaction.a \
-	../ssd/fifo/libfifo.a \
-	../ssd/htf/libhtf.a \
-	../ecc/libecc.a \
-	../sdfcc/libsdfcc.a \
-	../protocol/libsdfprotocol.a \
-	../sdfmsg/libsdfmsgqueue.a \
-        ../sdftcp/libsdfmtp.a \
-	../utils/libutils.a \
-	../applib/libapplib.a  \
-	../fth/libfth.a \
-        ../sdfappcommon/libsdfappcommon.a \
-	../misc/libmisc.a \
-	../platform/libplatform.a \
-	-lpthread -lrt -levent
+LIBS =
 
 # libsdfagent is linked against by client code and PROG sdfagent 
 LIB = libsdfagent.a

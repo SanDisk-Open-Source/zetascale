@@ -69,7 +69,9 @@
      */
 #define INCLUDE_TRACE_CODE
 
-extern int     totalScheds; // from fth.c
+//  for stats collection
+#define incr(x) __sync_fetch_and_add(&(x), 1)
+#define incrn(x, n) __sync_fetch_and_add(&(x), (n))
 
 extern HashMap meta_map; // from shared/cmc.c, used in action_stats()
 extern HashMap cguid_map; // from shared/cmc.c, used in action_stats()
@@ -486,6 +488,9 @@ void InitActionProtocolCommonState(SDF_action_state_t *pas, SDF_action_init_t *p
     init_protocol_tables(pas);
     pas->n_containers = 0;
     pas->ctnr_meta = plat_alloc(SDF_MAX_CONTAINERS*sizeof(SDF_cache_ctnr_metadata_t));
+    #ifdef MALLOC_TRACE
+        UTMallocTrace("ctnr_meta", SDF_TRUE, SDF_FALSE, SDF_FALSE, (void *) pas->ctnr_meta, SDF_MAX_CONTAINERS*sizeof(SDF_cache_ctnr_metadata_t));
+    #endif // MALLOC_TRACE
     if (pas->ctnr_meta == NULL) {
         plat_log_msg(21081, PLAT_LOG_CAT_SDF_PROT, PLAT_LOG_LEVEL_FATAL,
                      "plat_alloc failed!");
@@ -521,6 +526,9 @@ void InitActionProtocolCommonState(SDF_action_state_t *pas, SDF_action_init_t *p
     plat_log_msg(21083, PLAT_LOG_CAT_PRINT_ARGS, PLAT_LOG_LEVEL_INFO, "PROP: SDF_N_SYNC_CONTAINER_CURSORS=%d", n_sync_container_cursors);
 
     pas->gbc_mbx = plat_alloc(n_sync_container_threads*sizeof(fthMbox_t));
+    #ifdef MALLOC_TRACE
+        UTMallocTrace("gbc_mbx", SDF_TRUE, SDF_FALSE, SDF_FALSE, (void *) pas->gbc_mbx, n_sync_container_threads*sizeof(fthMbox_t));
+    #endif // MALLOC_TRACE
     if (pas->gbc_mbx == NULL) {
         plat_log_msg(21081, PLAT_LOG_CAT_SDF_PROT, PLAT_LOG_LEVEL_FATAL,
                      "plat_alloc failed!");
@@ -531,7 +539,13 @@ void InitActionProtocolCommonState(SDF_action_state_t *pas, SDF_action_init_t *p
     }
 
     pas->cursor_mbx_todo = plat_alloc(n_sync_container_threads*sizeof(fthMbox_t));
+    #ifdef MALLOC_TRACE
+        UTMallocTrace("cursor_mbx_todo", SDF_TRUE, SDF_FALSE, SDF_FALSE, (void *) pas->cursor_mbx_todo, n_sync_container_threads*sizeof(fthMbox_t));
+    #endif // MALLOC_TRACE
     pas->cursor_mbx_done = plat_alloc(n_sync_container_threads*sizeof(fthMbox_t));
+    #ifdef MALLOC_TRACE
+        UTMallocTrace("cursor_mbx_done", SDF_TRUE, SDF_FALSE, SDF_FALSE, (void *) pas->cursor_mbx_done, n_sync_container_threads*sizeof(fthMbox_t));
+    #endif // MALLOC_TRACE
     if (pas->cursor_mbx_todo == NULL) {
         plat_log_msg(21081, PLAT_LOG_CAT_SDF_PROT, PLAT_LOG_LEVEL_FATAL,
                      "plat_alloc failed!");
@@ -548,6 +562,9 @@ void InitActionProtocolCommonState(SDF_action_state_t *pas, SDF_action_init_t *p
     }
 
     pas->cursor_datas = plat_alloc(n_sync_container_cursors*sizeof(struct cursor_data));
+    #ifdef MALLOC_TRACE
+        UTMallocTrace("cursor_datas", SDF_TRUE, SDF_FALSE, SDF_FALSE, (void *) pas->cursor_datas, n_sync_container_threads*sizeof(struct cursor_data));
+    #endif // MALLOC_TRACE
     if (pas->cursor_datas == NULL) {
         plat_log_msg(21081, PLAT_LOG_CAT_SDF_PROT, PLAT_LOG_LEVEL_FATAL,
                      "plat_alloc failed!");
@@ -611,19 +628,19 @@ static void delete_from_flash(SDF_trans_state_t *ptrans)
 
     /* delete from flash */
 
-    (ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].msg_out_counts[HFDFF])++;
+    incr(ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].msg_out_counts[HFDFF]);
 
     #ifdef FAKE_FLASH
         ptrans->flash_retcode = FLASH_EOK;
     #else
         ptrans->metaData.dataLen = 0;
         ptrans->flash_retcode = flashPut_wrapper(ptrans, ptrans->meta->pshard, &ptrans->metaData, ptrans->pflash_key, NULL, FLASH_PUT_TEST_NONEXIST, SDF_FALSE /* skip for writeback */);
-        (ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].flash_retcode_counts[ptrans->flash_retcode])++;
+        incr(ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].flash_retcode_counts[ptrans->flash_retcode]);
 
         if (ptrans->flash_retcode == 0) {
-            (ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].msg_in_counts[FHDEC])++;
+            incr(ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].msg_in_counts[FHDEC]);
         } else {
-            (ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].msg_in_counts[FHDEF])++;
+            incr(ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].msg_in_counts[FHDEF]);
         }
 
         #ifdef INCLUDE_TRACE_CODE
@@ -640,7 +657,7 @@ static void delete_from_flash_no_replication(SDF_trans_state_t *ptrans)
 
     /* delete from flash with no replication */
 
-    (ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].msg_out_counts[HFDFF])++;
+    incr(ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].msg_out_counts[HFDFF]);
 
     #ifdef FAKE_FLASH
         ptrans->flash_retcode = FLASH_EOK;
@@ -649,12 +666,12 @@ static void delete_from_flash_no_replication(SDF_trans_state_t *ptrans)
 	(ptrans->metaData.keyLen)--; // adjust for extra NULL added by SDF
         ptrans->flash_retcode = flashPut(ptrans->meta->pshard, &ptrans->metaData, ptrans->pflash_key, NULL, FLASH_PUT_TEST_NONEXIST);
 	(ptrans->metaData.keyLen)++; // adjust for extra NULL added by SDF
-        (ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].flash_retcode_counts[ptrans->flash_retcode])++;
+        incr(ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].flash_retcode_counts[ptrans->flash_retcode]);
 
         if (ptrans->flash_retcode == 0) {
-            (ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].msg_in_counts[FHDEC])++;
+            incr(ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].msg_in_counts[FHDEC]);
         } else {
-            (ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].msg_in_counts[FHDEF])++;
+            incr(ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].msg_in_counts[FHDEF]);
         }
 
         #ifdef INCLUDE_TRACE_CODE
@@ -671,7 +688,7 @@ static void prefix_delete_from_flash_no_replication(SDF_trans_state_t *ptrans)
 
     /* prefix delete from flash with no replication */
 
-    (ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].msg_out_counts[HFPBD])++;
+    incr(ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].msg_out_counts[HFPBD]);
 
     #ifdef FAKE_FLASH
         ptrans->flash_retcode = FLASH_EOK;
@@ -680,12 +697,12 @@ static void prefix_delete_from_flash_no_replication(SDF_trans_state_t *ptrans)
 	(ptrans->metaData.keyLen)--; // adjust for extra NULL added by SDF
         ptrans->flash_retcode = flashPut(ptrans->meta->pshard, &ptrans->metaData, ptrans->pflash_key, NULL, FLASH_PUT_PREFIX_DELETE);
 	(ptrans->metaData.keyLen)++; // adjust for extra NULL added by SDF
-        (ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].flash_retcode_counts[ptrans->flash_retcode])++;
+        incr(ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].flash_retcode_counts[ptrans->flash_retcode]);
 
         if (ptrans->flash_retcode == 0) {
-            (ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].msg_in_counts[FHPBC])++;
+            incr(ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].msg_in_counts[FHPBC]);
         } else {
-            (ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].msg_in_counts[FHPBF])++;
+            incr(ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].msg_in_counts[FHPBF]);
         }
 
         #ifdef INCLUDE_TRACE_CODE
@@ -702,7 +719,7 @@ static void get_from_flash(SDF_trans_state_t *ptrans)
 
     /* get from flash */
 
-    (ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].msg_out_counts[HFGFF])++;
+    incr(ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].msg_out_counts[HFGFF]);
 
     #ifdef FAKE_FLASH
         ptrans->flash_retcode = FLASH_ENOENT;
@@ -710,16 +727,16 @@ static void get_from_flash(SDF_trans_state_t *ptrans)
         (ptrans->metaData.keyLen--); // adjust for extra NULL added by SDF
         ptrans->flash_retcode = flashGet(ptrans->meta->pshard, &ptrans->metaData, ptrans->pflash_key, &ptrans->pflash_data, FLASH_GET_NO_TEST);
         (ptrans->metaData.keyLen++); // adjust for extra NULL added by SDF
-        (ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].flash_retcode_counts[ptrans->flash_retcode])++;
+        incr(ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].flash_retcode_counts[ptrans->flash_retcode]);
 
         if (ptrans->flash_retcode == 0) {
 	    (ptrans->pts->nflash_bufs)++;
             #ifdef MALLOC_TRACE
                 UTMallocTrace("fastpath: flashGet", SDF_FALSE, SDF_FALSE, SDF_FALSE, (void *) ptrans->pflash_data, ptrans->metaData.dataLen);
             #endif // MALLOC_TRACE
-            (ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].msg_in_counts[FHDAT])++;
+            incr(ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].msg_in_counts[FHDAT]);
         } else {
-            (ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].msg_in_counts[FHGTF])++;
+            incr(ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].msg_in_counts[FHGTF]);
         }
 
         #ifdef INCLUDE_TRACE_CODE
@@ -736,18 +753,18 @@ static void put_to_flash(SDF_trans_state_t *ptrans)
 
     /* put to flash (object must already exist) */
 
-    (ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].msg_out_counts[HFPTF])++;
+    incr(ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].msg_out_counts[HFPTF]);
 
     #ifdef FAKE_FLASH
         ptrans->flash_retcode = FLASH_EOK;
     #else
         ptrans->flash_retcode = flashPut_wrapper(ptrans, ptrans->meta->pshard, &ptrans->metaData, ptrans->pflash_key, ptrans->pflash_data, FLASH_PUT_TEST_NONEXIST, SDF_TRUE /* skip for writeback */);
-        (ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].flash_retcode_counts[ptrans->flash_retcode])++;
+        incr(ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].flash_retcode_counts[ptrans->flash_retcode]);
 
         if (ptrans->flash_retcode == 0) {
-            (ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].msg_in_counts[FHPTC])++;
+            incr(ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].msg_in_counts[FHPTC]);
         } else {
-            (ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].msg_in_counts[FHPTF])++;
+            incr(ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].msg_in_counts[FHPTF]);
         }
 
         #ifdef INCLUDE_TRACE_CODE
@@ -764,18 +781,18 @@ static void set_to_flash(SDF_trans_state_t *ptrans, SDF_boolean_t skip_for_write
 
     /* create to flash (object may or may not already exist) */
 
-    (ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].msg_out_counts[HFSET])++;
+    incr(ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].msg_out_counts[HFSET]);
 
     #ifdef FAKE_FLASH
         ptrans->flash_retcode = FLASH_EOK;
     #else
         ptrans->flash_retcode = flashPut_wrapper(ptrans, ptrans->meta->pshard, &ptrans->metaData, ptrans->pflash_key, ptrans->pflash_data, FLASH_PUT_NO_TEST, skip_for_writeback /* skip for writeback */);
-        (ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].flash_retcode_counts[ptrans->flash_retcode])++;
+        incr(ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].flash_retcode_counts[ptrans->flash_retcode]);
 
         if (ptrans->flash_retcode == 0) {
-            (ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].msg_in_counts[FHSTC])++;
+            incr(ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].msg_in_counts[FHSTC]);
         } else {
-            (ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].msg_in_counts[FHSTF])++;
+            incr(ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].msg_in_counts[FHSTF]);
         }
 
         #ifdef INCLUDE_TRACE_CODE
@@ -792,18 +809,18 @@ static void create_put_to_flash(SDF_trans_state_t *ptrans)
 
     /* create to flash (object must NOT already exist) */
 
-    (ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].msg_out_counts[HFCIF])++;
+    incr(ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].msg_out_counts[HFCIF]);
 
     #ifdef FAKE_FLASH
         ptrans->flash_retcode = FLASH_EOK;
     #else
         ptrans->flash_retcode = flashPut_wrapper(ptrans, ptrans->meta->pshard, &ptrans->metaData, ptrans->pflash_key, ptrans->pflash_data, FLASH_PUT_TEST_EXIST, SDF_TRUE /* skip for writeback */);
-        (ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].flash_retcode_counts[ptrans->flash_retcode])++;
+        incr(ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].flash_retcode_counts[ptrans->flash_retcode]);
 
         if (ptrans->flash_retcode == 0) {
-            (ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].msg_in_counts[FHCRC])++;
+            incr(ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].msg_in_counts[FHCRC]);
         } else {
-            (ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].msg_in_counts[FHCRF])++;
+            incr(ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].msg_in_counts[FHCRF]);
         }
 
         #ifdef INCLUDE_TRACE_CODE
@@ -824,21 +841,18 @@ static void load_cache(SDF_trans_state_t *ptrans, uint64_t size, void *pdata, SD
                 UTMallocTrace("overwriteCacheObject", SDF_FALSE, SDF_TRUE, SDF_FALSE, (void *) ptrans->entry, ptrans->entry->obj_size);
             #endif // MALLOC_TRACE
 
-            ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].bytes_total_in_cache -= ptrans->entry->obj_size;
+            (void) incrn(ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].bytes_total_in_cache, -ptrans->entry->obj_size);
             if (ptrans->entry->state == CS_S) {
-                (ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].n_overwrites_s)++;
+                (void) incr(ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].n_overwrites_s);
             } else {
-                (ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].n_overwrites_m)++;
+                (void) incr(ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].n_overwrites_m);
             }
             ptrans->entry = SDFNewCacheOverwriteCacheObject(ptrans->pts->new_actiondir, ptrans->entry, size, (void *) ptrans);
         } else { // this is a new entry
             plat_assert(ptrans->entry->obj_size == 0);
             /* append an object buffer to the end of the current cache entry */
             ptrans->entry = SDFNewCacheCreateCacheObject(ptrans->pts->new_actiondir, ptrans->entry, size, (void *) ptrans);
-            (ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].n_new_entry)++;
-            #ifdef MALLOC_TRACE
-                UTMallocTrace("createCacheObject", SDF_FALSE, SDF_FALSE, SDF_FALSE, (void *) ptrans->entry, size);
-            #endif // MALLOC_TRACE
+            (void) incr(ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].n_new_entry);
             if (ptrans->entry->obj_size != size) {
                 if (fail_on_malloc_failure) {
                     ptrans->par->respStatus = SDF_FAILURE_MEMORY_ALLOC;
@@ -849,13 +863,13 @@ static void load_cache(SDF_trans_state_t *ptrans, uint64_t size, void *pdata, SD
         }
     } else if (ptrans->entry->obj_size == size) {
         if (ptrans->entry->state == CS_S) {
-            (ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].n_in_place_overwrites_s)++;
+            (void) incr(ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].n_in_place_overwrites_s);
         } else {
-            (ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].n_in_place_overwrites_m)++;
+            (void) incr(ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].n_in_place_overwrites_m);
         }
     }
     SDFNewCacheCopyIntoObject(ptrans->pts->new_actiondir, pdata, ptrans->entry, size);
-    ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].bytes_total_in_cache += size;
+    (void) incrn(ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].bytes_total_in_cache, size);
 }
 
 static void noop(SDF_trans_state_t *ptrans)
@@ -869,9 +883,9 @@ static void noop(SDF_trans_state_t *ptrans)
  */
 static void flsh_crpt_wb_m(SDF_trans_state_t *ptrans)
 {
-    (ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].msg_out_counts[AHCOP])++;
+    incr(ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].msg_out_counts[AHCOP]);
     ptrans->par->respStatus = SDF_OBJECT_EXISTS;
-    (ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].msg_in_counts[HACRF])++;
+    incr(ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].msg_in_counts[HACRF]);
 }
 
 static void flash_flush_wb(SDF_trans_state_t *ptrans)
@@ -879,13 +893,13 @@ static void flash_flush_wb(SDF_trans_state_t *ptrans)
     void                *pbuf;
     SDF_simple_key_t     simple_key;
 
-    (ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].msg_out_counts[AHFLD])++;
+    incr(ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].msg_out_counts[AHFLD]);
 
     // Get a temporary contiguous data buffer for performing the flash set.
 
     pbuf = get_app_buf(ptrans->pts->pappbufstate, ptrans->entry->obj_size);
     #ifdef MALLOC_TRACE
-        UTMallocTrace("pbuf_in", SDF_FALSE, SDF_FALSE, SDF_FALSE, (void *) pbuf, ptrans->entry->obj_size);
+        UTMallocTrace("flush_wb", SDF_FALSE, SDF_FALSE, SDF_FALSE, (void *) pbuf, ptrans->entry->obj_size);
     #endif // MALLOC_TRACE
 
     if (pbuf == NULL) {
@@ -910,19 +924,22 @@ static void flash_flush_wb(SDF_trans_state_t *ptrans)
 
     // free the data buffer
     free_app_buf(ptrans->pts->pappbufstate, pbuf);
+    #ifdef MALLOC_TRACE
+        UTMallocTrace("flush_wb", SDF_FALSE, SDF_TRUE, SDF_FALSE, pbuf, 0);
+    #endif // MALLOC_TRACE
 
     ptrans->par->respStatus = get_status(ptrans->flash_retcode);
     if (ptrans->par->respStatus != SDF_SUCCESS) {
-        (ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].msg_in_counts[HAFLF])++;
+        incr(ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].msg_in_counts[HAFLF]);
         return;
     }
 
     /* send a flush/inval request to my peer */
     flush_inval(ptrans);
     if (ptrans->par->respStatus != SDF_SUCCESS) {
-        (ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].msg_in_counts[HAFLF])++;
+        incr(ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].msg_in_counts[HAFLF]);
     } else {
-	(ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].msg_in_counts[HAFLC])++;
+	incr(ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].msg_in_counts[HAFLC]);
     }
 }
 
@@ -931,13 +948,13 @@ static void rem_flush(SDF_trans_state_t *ptrans)
     void                *pbuf;
     SDF_simple_key_t     simple_key;
 
-    (ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].msg_out_counts[AHFLD])++;
+    incr(ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].msg_out_counts[AHFLD]);
 
     // Get a temporary contiguous data buffer for performing the flash set.
 
     pbuf = get_app_buf(ptrans->pts->pappbufstate, ptrans->entry->obj_size);
     #ifdef MALLOC_TRACE
-        UTMallocTrace("pbuf_in", SDF_FALSE, SDF_FALSE, SDF_FALSE, (void *) pbuf, ptrans->entry->obj_size);
+        UTMallocTrace("rem_flush", SDF_FALSE, SDF_FALSE, SDF_FALSE, (void *) pbuf, ptrans->entry->obj_size);
     #endif // MALLOC_TRACE
 
     if (pbuf == NULL) {
@@ -962,12 +979,15 @@ static void rem_flush(SDF_trans_state_t *ptrans)
 
     // free the data buffer
     free_app_buf(ptrans->pts->pappbufstate, pbuf);
+    #ifdef MALLOC_TRACE
+        UTMallocTrace("rem_flush", SDF_FALSE, SDF_TRUE, SDF_FALSE, pbuf, 0);
+    #endif // MALLOC_TRACE
 
     ptrans->par->respStatus = get_status(ptrans->flash_retcode);
     if (ptrans->par->respStatus != SDF_SUCCESS) {
-        (ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].msg_in_counts[HAFLF])++;
+        incr(ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].msg_in_counts[HAFLF]);
     } else {
-	(ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].msg_in_counts[HAFLC])++;
+	incr(ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].msg_in_counts[HAFLC]);
     }
 }
 
@@ -977,7 +997,7 @@ static void flash_crtput_wt(SDF_trans_state_t *ptrans)
 
     existing_but_expired = SDF_FALSE;
 
-    (ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].msg_out_counts[AHCOP])++;
+    incr(ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].msg_out_counts[AHCOP]);
 
     ptrans->pflash_key          = ptrans->par->key.key;
     ptrans->metaData.keyLen     = ptrans->par->key.len;
@@ -1028,7 +1048,7 @@ static void flash_crtput_wt(SDF_trans_state_t *ptrans)
             plat_log_msg(21090, PLAT_LOG_CAT_SDF_PROT, PLAT_LOG_LEVEL_DIAGNOSTIC,
                          "Flash get to check expiry for a create-put (wt) failed! (flash return code = %d)", ptrans->flash_retcode);
             ptrans->par->respStatus = SDF_EXPIRY_GET_FAILED;
-            (ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].msg_in_counts[HACRF])++;
+            incr(ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].msg_in_counts[HACRF]);
             return;
         } else {
             /* get was successful, so check for expiry */
@@ -1076,13 +1096,13 @@ static void flash_crtput_wt(SDF_trans_state_t *ptrans)
 
     ptrans->par->respStatus = get_status(ptrans->flash_retcode);
     if (ptrans->par->respStatus != SDF_SUCCESS) {
-        (ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].msg_in_counts[HACRF])++;
+        incr(ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].msg_in_counts[HACRF]);
         return;
     }
-    (ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].msg_in_counts[HACRC])++;
+    incr(ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].msg_in_counts[HACRC]);
     load_cache(ptrans, ptrans->par->sze, ptrans->par->pbuf_out, SDF_FALSE);
-    ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].all_bytes_ever_created += ptrans->par->sze;
-    ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].all_objects_ever_created++;
+    (void) incrn(ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].all_bytes_ever_created, ptrans->par->sze);
+    (void) incr(ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].all_objects_ever_created);
 }
 
 /*  The object exists in cache, but we need to write-thru anyway
@@ -1091,7 +1111,7 @@ static void flash_crtput_wt(SDF_trans_state_t *ptrans)
  */
 static void flsh_crpt_wt_s(SDF_trans_state_t *ptrans)
 {
-    (ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].msg_out_counts[AHCOP])++;
+    incr(ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].msg_out_counts[AHCOP]);
 
     /* create-put to flash */
     ptrans->pflash_key          = ptrans->par->key.key;
@@ -1105,7 +1125,7 @@ static void flsh_crpt_wt_s(SDF_trans_state_t *ptrans)
 
     ptrans->par->respStatus = get_status(ptrans->flash_retcode);
     if (ptrans->par->respStatus != SDF_SUCCESS) {
-        (ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].msg_in_counts[HACRF])++;
+        incr(ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].msg_in_counts[HACRF]);
         return;
     }
 
@@ -1113,10 +1133,10 @@ static void flsh_crpt_wt_s(SDF_trans_state_t *ptrans)
      *  exists in the cache.  However, in eviction mode the object may not reside
      *  in flash and the create/put may succeed!
      */
-    (ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].msg_in_counts[HACRC])++;
+    incr(ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].msg_in_counts[HACRC]);
     load_cache(ptrans, ptrans->par->sze, ptrans->par->pbuf_out, SDF_FALSE);
-    ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].all_bytes_ever_created += ptrans->par->sze;
-    ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].all_objects_ever_created++;
+    (void) incrn(ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].all_bytes_ever_created, ptrans->par->sze);
+    (void) incr(ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].all_objects_ever_created);
 }
 
    /*  Object has state I, and we must check flash
@@ -1124,7 +1144,7 @@ static void flsh_crpt_wt_s(SDF_trans_state_t *ptrans)
     */
 static void flash_put_wt_i(SDF_trans_state_t *ptrans)
 {
-    (ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].msg_out_counts[AHPTA])++;
+    incr(ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].msg_out_counts[AHPTA]);
 
     ptrans->pflash_key          = ptrans->par->key.key;
     ptrans->metaData.keyLen     = ptrans->par->key.len;
@@ -1188,7 +1208,7 @@ static void flash_put_wt_i(SDF_trans_state_t *ptrans)
                     break;
             }
 
-            (ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].msg_in_counts[HAPAF])++;
+            incr(ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].msg_in_counts[HAPAF]);
             return;
 
         } else if (ptrans->flash_retcode != FLASH_EOK) {
@@ -1199,7 +1219,7 @@ static void flash_put_wt_i(SDF_trans_state_t *ptrans)
             plat_log_msg(21091, PLAT_LOG_CAT_SDF_PROT, PLAT_LOG_LEVEL_DIAGNOSTIC,
                          "Flash get to check expiry for a put (wt) failed! (flash return code = %d)", ptrans->flash_retcode);
             ptrans->par->respStatus = SDF_EXPIRY_GET_FAILED;
-            (ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].msg_in_counts[HAPAF])++;
+            incr(ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].msg_in_counts[HAPAF]);
             return;
         } else {
             /* get was successful, so check for expiry */
@@ -1233,7 +1253,7 @@ static void flash_put_wt_i(SDF_trans_state_t *ptrans)
                     ptrans->inval_object       = SDF_TRUE;
                 }
 
-                (ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].msg_in_counts[HAPAF])++;
+                incr(ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].msg_in_counts[HAPAF]);
                 return;
             }
         }
@@ -1249,12 +1269,12 @@ static void flash_put_wt_i(SDF_trans_state_t *ptrans)
 
     ptrans->par->respStatus = get_status(ptrans->flash_retcode);
     if (ptrans->par->respStatus != SDF_SUCCESS) {
-        (ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].msg_in_counts[HAPAF])++;
+        incr(ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].msg_in_counts[HAPAF]);
         return;
     }
-    (ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].msg_in_counts[HAPAC])++;
-    ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].all_bytes_ever_created += ptrans->par->sze;
-    ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].all_objects_ever_created++;
+    incr(ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].msg_in_counts[HAPAC]);
+    (void) incrn(ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].all_bytes_ever_created, ptrans->par->sze);
+    (void) incr(ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].all_objects_ever_created);
     load_cache(ptrans, ptrans->par->sze, ptrans->par->pbuf_out, SDF_FALSE);
 }
 
@@ -1262,7 +1282,7 @@ static void flash_put_wt_i(SDF_trans_state_t *ptrans)
     */
 static void flash_put_wt_s(SDF_trans_state_t *ptrans)
 {
-    (ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].msg_out_counts[AHPTA])++;
+    incr(ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].msg_out_counts[AHPTA]);
 
     /* put to flash */
 
@@ -1282,12 +1302,12 @@ static void flash_put_wt_s(SDF_trans_state_t *ptrans)
 
     ptrans->par->respStatus = get_status(ptrans->flash_retcode);
     if (ptrans->par->respStatus != SDF_SUCCESS) {
-        (ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].msg_in_counts[HAPAF])++;
+        incr(ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].msg_in_counts[HAPAF]);
         return;
     }
-    (ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].msg_in_counts[HAPAC])++;
-    ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].all_bytes_ever_created += ptrans->par->sze;
-    ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].all_objects_ever_created++;
+    incr(ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].msg_in_counts[HAPAC]);
+    (void) incrn(ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].all_bytes_ever_created, ptrans->par->sze);
+    (void) incr(ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].all_objects_ever_created);
     load_cache(ptrans, ptrans->par->sze, ptrans->par->pbuf_out, SDF_FALSE);
 }
 
@@ -1296,7 +1316,7 @@ static void flash_put_wt_s(SDF_trans_state_t *ptrans)
     */
 static void flash_set_wt_i(SDF_trans_state_t *ptrans)
 {
-    (ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].msg_out_counts[AHSOP])++;
+    incr(ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].msg_out_counts[AHSOP]);
 
     /* set to flash */
     ptrans->pflash_key          = ptrans->par->key.key;
@@ -1309,12 +1329,12 @@ static void flash_set_wt_i(SDF_trans_state_t *ptrans)
 
     ptrans->par->respStatus = get_status(ptrans->flash_retcode);
     if (ptrans->par->respStatus != SDF_SUCCESS) {
-        (ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].msg_in_counts[HASTF])++;
+        incr(ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].msg_in_counts[HASTF]);
         return;
     }
-    (ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].msg_in_counts[HASTC])++;
-    ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].all_bytes_ever_created += ptrans->par->sze;
-    ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].all_objects_ever_created++;
+    incr(ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].msg_in_counts[HASTC]);
+    (void) incrn(ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].all_bytes_ever_created, ptrans->par->sze);
+    (void) incr(ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].all_objects_ever_created);
 
     load_cache(ptrans, ptrans->par->sze, ptrans->par->pbuf_out, SDF_FALSE);
 }
@@ -1323,7 +1343,7 @@ static void flash_set_wt_i(SDF_trans_state_t *ptrans)
     */
 static void flash_set_wt_s(SDF_trans_state_t *ptrans)
 {
-    (ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].msg_out_counts[AHSOP])++;
+    incr(ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].msg_out_counts[AHSOP]);
 
     /* set to flash */
 
@@ -1341,12 +1361,12 @@ static void flash_set_wt_s(SDF_trans_state_t *ptrans)
          *  precise failure status will be returned.
          */
         ptrans->expired_or_flushed = SDF_FALSE;
-        (ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].msg_in_counts[HASTF])++;
+        incr(ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].msg_in_counts[HASTF]);
         return;
     }
-    (ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].msg_in_counts[HASTC])++;
-    ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].all_bytes_ever_created += ptrans->par->sze;
-    ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].all_objects_ever_created++;
+    incr(ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].msg_in_counts[HASTC]);
+    (void) incrn(ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].all_bytes_ever_created, ptrans->par->sze);
+    (void) incr(ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].all_objects_ever_created);
 
     load_cache(ptrans, ptrans->par->sze, ptrans->par->pbuf_out, SDF_FALSE);
 }
@@ -1361,7 +1381,7 @@ static void flash_rup_wb(SDF_trans_state_t *ptrans)
 
 static void flash_get(SDF_trans_state_t *ptrans)
 {
-    (ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].msg_out_counts[AHGTR])++;
+    incr(ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].msg_out_counts[AHGTR]);
 
     /* get from flash */
     ptrans->pflash_key          = ptrans->par->key.key;
@@ -1379,23 +1399,23 @@ static void flash_get(SDF_trans_state_t *ptrans)
 
     ptrans->par->respStatus = get_status(ptrans->flash_retcode);
     if (ptrans->par->respStatus != SDF_SUCCESS) {
-        (ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].msg_in_counts[HAGRF])++;
+        incr(ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].msg_in_counts[HAGRF]);
         return;
     } else {
         /* get was successful, so check for expiry */
         if (!check_expiry_flash(ptrans)) {
             /* object has NOT expired */
-            (ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].msg_in_counts[HAGRC])++;
+            incr(ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].msg_in_counts[HAGRC]);
         } else {
             /* object has expired, so delete it! */
-            (ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].msg_in_counts[FHGXP])++;
-            (ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].msg_in_counts[HAGRF])++;
+            incr(ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].msg_in_counts[FHGXP]);
+            incr(ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].msg_in_counts[HAGRF]);
 
             /* don't forget to free the buffer from flashGet */
             flashFreeBuf(ptrans->pflash_data);
 	    (ptrans->pts->nflash_bufs)--;
             #ifdef MALLOC_TRACE
-                UTMallocTrace("flash buf", FALSE, TRUE, FALSE, (void *) pdata, 0);
+                UTMallocTrace("flash buf", FALSE, TRUE, FALSE, (void *) ptrans->pflash_data, 0);
             #endif // MALLOC_TRACE
 
             /* delete the object (this doesn't require any I/O) */
@@ -1404,7 +1424,7 @@ static void flash_get(SDF_trans_state_t *ptrans)
             if ((ptrans->flash_retcode != FLASH_EOK) &&
                 (ptrans->flash_retcode != FLASH_ENOENT))
             {
-                (ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].msg_in_counts[FHGDF])++;
+                incr(ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].msg_in_counts[FHGDF]);
                 plat_log_msg(21092, PLAT_LOG_CAT_SDF_PROT, PLAT_LOG_LEVEL_ERROR,
                              "Flash delete for an expired get failed! (flash return code = %d)", ptrans->flash_retcode);
                 ptrans->par->respStatus = SDF_EXPIRY_DELETE_FAILED;
@@ -1435,7 +1455,7 @@ static void flash_get(SDF_trans_state_t *ptrans)
  */
 static void flash_del_i(SDF_trans_state_t *ptrans)
 {
-    (ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].msg_out_counts[AHDOB])++;
+    incr(ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].msg_out_counts[AHDOB]);
 
     /* delete from flash */
     ptrans->pflash_key          = ptrans->par->key.key;
@@ -1460,10 +1480,10 @@ static void flash_del_i(SDF_trans_state_t *ptrans)
 
         ptrans->par->respStatus = get_status(ptrans->flash_retcode);
         if (ptrans->par->respStatus != SDF_SUCCESS) {
-            (ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].msg_in_counts[HADEF])++;
+            incr(ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].msg_in_counts[HADEF]);
             return;
         }
-        (ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].msg_in_counts[HADEC])++;
+        incr(ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].msg_in_counts[HADEC]);
     } else {
 
         /* retrieve the object to check for expiry */
@@ -1514,7 +1534,7 @@ static void flash_del_i(SDF_trans_state_t *ptrans)
                     break;
             }
 
-            (ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].msg_in_counts[HADEF])++;
+            incr(ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].msg_in_counts[HADEF]);
 
         } else if (ptrans->flash_retcode != FLASH_EOK) {
 
@@ -1523,7 +1543,7 @@ static void flash_del_i(SDF_trans_state_t *ptrans)
             plat_log_msg(21093, PLAT_LOG_CAT_SDF_PROT, PLAT_LOG_LEVEL_DIAGNOSTIC,
                          "Flash get to check expiry for a delete failed! (flash return code = %d)", ptrans->flash_retcode);
             ptrans->par->respStatus = SDF_EXPIRY_GET_FAILED;
-            (ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].msg_in_counts[HADEF])++;
+            incr(ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].msg_in_counts[HADEF]);
             return;
         } else {
             /* get was successful, so check for expiry */
@@ -1556,7 +1576,7 @@ static void flash_del_i(SDF_trans_state_t *ptrans)
                 } else {
                     ptrans->par->respStatus = SDF_OBJECT_UNKNOWN;
                 }
-                (ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].msg_in_counts[HADEF])++;
+                incr(ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].msg_in_counts[HADEF]);
             } else {
 
                 /*  Object has NOT expired, so do the delete 
@@ -1565,10 +1585,10 @@ static void flash_del_i(SDF_trans_state_t *ptrans)
                 delete_from_flash(ptrans);
                 if (ptrans->flash_retcode == FLASH_EOK) {
                     ptrans->par->respStatus = SDF_SUCCESS;
-                    (ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].msg_in_counts[HADEC])++;
+                    incr(ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].msg_in_counts[HADEC]);
                 } else {
                     ptrans->par->respStatus = get_status(ptrans->flash_retcode);
-                    (ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].msg_in_counts[HADEF])++;
+                    incr(ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].msg_in_counts[HADEF]);
                     return;
                 }
             }
@@ -1585,7 +1605,7 @@ static void flash_del_i(SDF_trans_state_t *ptrans)
 /* delete from flash because the object has expired */
 static void flash_del_x(SDF_trans_state_t *ptrans)
 {
-    (ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].msg_out_counts[AHDOB])++;
+    incr(ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].msg_out_counts[AHDOB]);
 
     /* delete from flash */
     ptrans->pflash_key          = ptrans->par->key.key;
@@ -1607,11 +1627,11 @@ static void flash_del_x(SDF_trans_state_t *ptrans)
          */
         ptrans->expired_or_flushed = SDF_FALSE;
         ptrans->par->respStatus = SDF_EXPIRY_DELETE_FAILED;
-        (ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].msg_in_counts[HADEF])++;
+        incr(ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].msg_in_counts[HADEF]);
         return;
     }
 
-    (ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].msg_in_counts[HADEC])++;
+    incr(ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].msg_in_counts[HADEC]);
     ptrans->inval_object = SDF_TRUE;
 
     /*  Deletion from the cache will occur automatically
@@ -1627,7 +1647,7 @@ static void flash_del_x(SDF_trans_state_t *ptrans)
  */
 static void flash_del_s(SDF_trans_state_t *ptrans)
 {
-    (ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].msg_out_counts[AHDOB])++;
+    incr(ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].msg_out_counts[AHDOB]);
 
     /* delete from flash */
     ptrans->pflash_key          = ptrans->par->key.key;
@@ -1641,9 +1661,9 @@ static void flash_del_s(SDF_trans_state_t *ptrans)
         ptrans->par->respStatus = SDF_SUCCESS;
     }
     if (ptrans->par->respStatus != SDF_SUCCESS) {
-        (ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].msg_in_counts[HADEF])++;
+        incr(ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].msg_in_counts[HADEF]);
     } else {
-        (ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].msg_in_counts[HADEC])++;
+        incr(ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].msg_in_counts[HADEC]);
     }
 
     /*  Deletion from the cache will occur automatically
@@ -1657,7 +1677,7 @@ static void flash_del_s(SDF_trans_state_t *ptrans)
  */
 static void rem_del(SDF_trans_state_t *ptrans)
 {
-    (ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].msg_out_counts[AHDOB])++;
+    incr(ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].msg_out_counts[AHDOB]);
 
     /* delete from flash */
     ptrans->pflash_key          = ptrans->par->key.key;
@@ -1671,9 +1691,9 @@ static void rem_del(SDF_trans_state_t *ptrans)
         ptrans->par->respStatus = SDF_SUCCESS;
     }
     if (ptrans->par->respStatus != SDF_SUCCESS) {
-        (ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].msg_in_counts[HADEF])++;
+        incr(ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].msg_in_counts[HADEF]);
     } else {
-        (ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].msg_in_counts[HADEC])++;
+        incr(ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].msg_in_counts[HADEC]);
     }
 
     /*  Deletion from the cache will occur automatically
@@ -1704,7 +1724,7 @@ static void flush_all_local(SDF_trans_state_t *ptrans)
         ptrans->par->respStatus  = SDF_GET_METADATA_FAILED;
         return;
     }
-    (ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].appreq_counts[ptrans->par->reqtype])++;
+    incr(ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].appreq_counts[ptrans->par->reqtype]);
 
     /* serialize flush_all operations */
     wait = fthLock(&(ptrans->pts->phs->flush_all_lock), 1, NULL);
@@ -1756,7 +1776,7 @@ static void get_flush_time(SDF_trans_state_t *ptrans)
         ptrans->par->respStatus  = SDF_GET_METADATA_FAILED;
         return;
     }
-    (ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].appreq_counts[ptrans->par->reqtype])++;
+    incr(ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].appreq_counts[ptrans->par->reqtype]);
 
     invtime = ptrans->meta->meta.flush_time;
     ptrans->par->exptime = invtime;
@@ -2032,7 +2052,7 @@ static void sync_container(SDF_trans_state_t *ptrans)
         ptrans->par->respStatus  = SDF_GET_METADATA_FAILED;
         return;
     }
-    (ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].appreq_counts[ptrans->par->reqtype])++;
+    incr(ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].appreq_counts[ptrans->par->reqtype]);
 
     /* serialize sync_all/flush_all operations */
     wait = fthLock(&(ptrans->pts->phs->sync_ctnr_lock), 1, NULL);
@@ -2056,7 +2076,7 @@ static void flush_container(SDF_trans_state_t *ptrans)
         ptrans->par->respStatus  = SDF_GET_METADATA_FAILED;
         return;
     }
-    (ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].appreq_counts[ptrans->par->reqtype])++;
+    incr(ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].appreq_counts[ptrans->par->reqtype]);
 
     /*  We have to do this for writeback AND writethru containers
      *  because the container writeback mode can be changed
@@ -2080,7 +2100,7 @@ static void inval_container(SDF_trans_state_t *ptrans)
         ptrans->par->respStatus  = SDF_GET_METADATA_FAILED;
         return;
     }
-    (ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].appreq_counts[ptrans->par->reqtype])++;
+    incr(ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].appreq_counts[ptrans->par->reqtype]);
 
     ptrans->par->respStatus = flush_inval_wrapper(ptrans, ptrans->meta->pshard, SDF_FALSE /* flush_flag */, SDF_TRUE /* inval_flag */);
 }
@@ -2098,7 +2118,7 @@ static void flush_inval_container(SDF_trans_state_t *ptrans)
         ptrans->par->respStatus  = SDF_GET_METADATA_FAILED;
         return;
     }
-    (ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].appreq_counts[ptrans->par->reqtype])++;
+    incr(ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].appreq_counts[ptrans->par->reqtype]);
 
     ptrans->par->respStatus = flush_inval_wrapper(ptrans, ptrans->meta->pshard, SDF_TRUE /* flush_flag */, SDF_TRUE /* inval_flag */);
 }
@@ -2641,6 +2661,9 @@ void ActionProtocolAgentNew(SDF_action_init_t *pai, SDF_appreq_t *par)
                 SDF_protocol_msg_t  *pm_new;
                 pm = (SDF_protocol_msg_t *) ((char *) (ptrans->par->pbuf_out) - sizeof(SDF_protocol_msg_t));
                 pm_new = plat_malloc(sizeof(SDF_protocol_msg_t) + pm->data_size);
+                #ifdef MALLOC_TRACE
+                    UTMallocTrace("pending_msg", SDF_FALSE, SDF_FALSE, SDF_FALSE, (void *) pm_new, sizeof(SDF_protocol_msg_t) + pm->data_size);
+                #endif // MALLOC_TRACE
                 if (pm_new == NULL) {
                     plat_log_msg(30561, 
                                  PLAT_LOG_CAT_SDF_PROT, 
@@ -2680,7 +2703,7 @@ void ActionProtocolAgentNew(SDF_action_init_t *pai, SDF_appreq_t *par)
         }
     }
     if (ptrans->meta != NULL) {
-        (ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].sdf_status_counts[ptrans->par->respStatus])++;
+        incr(ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].sdf_status_counts[ptrans->par->respStatus]);
     }
 
     finish_up(ptrans);
@@ -2934,7 +2957,7 @@ static SDF_boolean_t process_object_operation(SDF_trans_state_t *ptrans, SDF_boo
         ptrans->par->respStatus = SDF_GET_METADATA_FAILED;
         return(SDF_FALSE);
     }
-    (ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].appreq_counts[ptrans->par->reqtype])++;
+    incr(ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].appreq_counts[ptrans->par->reqtype]);
 
     /* Let fast recovery know about deletes */
     if (SDFSimpleReplication &&
@@ -3020,8 +3043,8 @@ static SDF_boolean_t process_object_operation(SDF_trans_state_t *ptrans, SDF_boo
 
     if (ptrans->entry->state == CS_I) {
         /* cache entry has no valid contents, so free it */
-        ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].n_total_in_cache--;
-        ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].bytes_total_in_cache -= ptrans->entry->obj_size;
+        (void) incrn(ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].n_total_in_cache, -1);
+        (void) incrn(ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].bytes_total_in_cache, -ptrans->entry->obj_size);
         SDFNewCacheRemove(ptrans->pts->new_actiondir, ptrans->entry, SDF_FALSE /* wrbk_flag */, NULL /* wrbk_arg */);
     } else {
         SDFNewCacheTransientEntryCheck(ptrans->pbucket, ptrans->entry);
@@ -3106,7 +3129,7 @@ static void get_directory_entry(SDF_trans_state_t *ptrans, SDF_boolean_t lock_fl
     ptrans->entry = entry;
     if (ptrans->entry->state == CS_I) {
         /* this is a new directory entry */
-        ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].n_total_in_cache++;
+        (void) incr(ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].n_total_in_cache);
     }
 }
 
@@ -3195,6 +3218,9 @@ static void init_free_home_flash_map_entries(SDF_action_thrd_state_t *pts)
     // Initialize the array of free shard map entries
     pts->free_shard_map_entries = NULL;
     phfe = plat_alloc(SDF_MAX_CONTAINERS*sizeof(SDF_home_flash_entry_t));
+    #ifdef MALLOC_TRACE
+        UTMallocTrace("init_free_home_flash_map_entries", SDF_TRUE, SDF_FALSE, SDF_FALSE, (void *) phfe, SDF_MAX_CONTAINERS*sizeof(SDF_home_flash_entry_t));
+    #endif // MALLOC_TRACE
     for (i=0; i<SDF_MAX_CONTAINERS; i++) {
         phfe[i].next = pts->free_shard_map_entries;
         pts->free_shard_map_entries = &(phfe[i]);
@@ -3305,8 +3331,14 @@ static SDF_status_t setup_action_state(void *setup_arg, void **pflush_arg)
 
     ptrans = get_trans_state(pts_in);
     ptrans->pts = plat_alloc(sizeof(SDF_action_thrd_state_t));
+    #ifdef MALLOC_TRACE
+        UTMallocTrace("setup_action_state", SDF_FALSE, SDF_FALSE, SDF_FALSE, (void *) ptrans->pts, sizeof(SDF_action_thrd_state_t));
+    #endif // MALLOC_TRACE
     plat_assert(ptrans->pts);
     ptrans->par = plat_alloc(sizeof(*(ptrans->par)));
+    #ifdef MALLOC_TRACE
+        UTMallocTrace("setup_action_state", SDF_FALSE, SDF_FALSE, SDF_FALSE, (void *) ptrans->par, sizeof(*(ptrans->par)));
+    #endif // MALLOC_TRACE
     plat_assert(ptrans->par);
 
     InitActionAgentPerThreadState(pts_in->phs, ptrans->pts, pts_in->pai);
@@ -4477,7 +4509,7 @@ static int flashPut_wrapper(SDF_trans_state_t *ptrans, struct shard *pshard, str
             (flags != FLASH_PUT_NO_TEST) || 
             (!skip_for_writeback))
         {
-            (ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].n_writethrus)++;
+            (void) incr(ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].n_writethrus);
             (pmeta->keyLen)--; // adjust for extra NULL added by SDF
             ret = flashPut(pshard, pmeta, pkey, pdata, flags);
             (pmeta->keyLen)++; // adjust for extra NULL added by SDF
@@ -4948,7 +4980,7 @@ int do_put(SDF_async_put_request_t *pap, SDF_boolean_t unlock_slab)
             (pap->flash_flags != FLASH_PUT_NO_TEST) ||
             (!pap->skip_for_wrbk)) 
         {
-            (pap->pas->stats_new_per_sched[curSchedNum].ctnr_stats[pap->n_ctnr].n_writethrus)++;
+            (void) incr(pap->pas->stats_new_per_sched[curSchedNum].ctnr_stats[pap->n_ctnr].n_writethrus);
             (pap->flash_meta.keyLen)--; // adjust for extra NULL added by SDF
             ret = flashPut(pap->pshard, &(pap->flash_meta), pap->pkey_simple->key, pap->pdata, pap->flash_flags);
             (pap->flash_meta.keyLen)++; // adjust for extra NULL added by SDF
@@ -4997,7 +5029,7 @@ int do_put(SDF_async_put_request_t *pap, SDF_boolean_t unlock_slab)
                 (pap->flash_flags != FLASH_PUT_NO_TEST) ||
                 (!pap->skip_for_wrbk)) 
             {
-                (pap->pas->stats_new_per_sched[curSchedNum].ctnr_stats[pap->n_ctnr].n_writethrus)++;
+                (void) incr(pap->pas->stats_new_per_sched[curSchedNum].ctnr_stats[pap->n_ctnr].n_writethrus);
                 (pap->flash_meta.keyLen)--; // adjust for extra NULL added by SDF
                 ret = flashPut(pap->pshard, &(pap->flash_meta), pap->pkey_simple->key, pap->pdata, pap->flash_flags);
                 plat_log_msg(21128, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION, PLAT_LOG_LEVEL_DEBUG,
@@ -5133,7 +5165,7 @@ int do_put(SDF_async_put_request_t *pap, SDF_boolean_t unlock_slab)
                 (pap->flash_flags != FLASH_PUT_NO_TEST) ||
                 (!pap->skip_for_wrbk)) 
             {
-                (pap->pas->stats_new_per_sched[curSchedNum].ctnr_stats[pap->n_ctnr].n_writethrus)++;
+                (void) incr(pap->pas->stats_new_per_sched[curSchedNum].ctnr_stats[pap->n_ctnr].n_writethrus);
                 (pap->flash_meta.keyLen)--; // adjust for extra NULL added by SDF
                 ret = flashPut(pap->pshard, &(pap->flash_meta), pap->pkey_simple->key, pap->pdata, pap->flash_flags);
                 plat_log_msg(21131, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION, PLAT_LOG_LEVEL_DEBUG,
@@ -5315,7 +5347,7 @@ int do_writeback(SDF_async_put_request_t *pap)
      *  so just write to flash.
      */
 
-    (pap->pas->stats_new_per_sched[curSchedNum].ctnr_stats[pap->n_ctnr].n_writebacks)++;
+    (void) incr(pap->pas->stats_new_per_sched[curSchedNum].ctnr_stats[pap->n_ctnr].n_writebacks);
     (pap->flash_meta.keyLen)--; // adjust for extra NULL added by SDF
     ret = flashPut(pap->pshard, &(pap->flash_meta), pap->pkey_simple->key, pap->pdata, pap->flash_flags);
     (pap->flash_meta.keyLen)++; // adjust for extra NULL added by SDF
@@ -5338,7 +5370,7 @@ int do_flush(SDF_async_put_request_t *pap)
 
     /*  Flushes are NOT replicated, so just write to flash. */
 
-    (pap->pas->stats_new_per_sched[curSchedNum].ctnr_stats[pap->n_ctnr].n_flushes)++;
+    (void) incr(pap->pas->stats_new_per_sched[curSchedNum].ctnr_stats[pap->n_ctnr].n_flushes);
     (pap->flash_meta.keyLen)--; // adjust for extra NULL added by SDF
     ret = flashPut(pap->pshard, &(pap->flash_meta), pap->pkey_simple->key, pap->pdata, pap->flash_flags);
     (pap->flash_meta.keyLen)++; // adjust for extra NULL added by SDF

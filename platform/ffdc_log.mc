@@ -2996,6 +2996,11 @@
 
 
 # darryl
+150000 ENTERING, init_state=%d
+150001 pth_id=%d
+150002 writer fthread spawned, use context %p
+150003 object size doesn't match hash entry!!! klen=%d dlen=%u nbybes=%d syn=%lu hsyn=%hu ctime=%u
+150004 Mcd_aio_states[%d] = %p
 
 
 # root
@@ -3024,3 +3029,5 @@
 160022 container is peristent, but started in authoritative mode
 160023 Instance iteration local tag %d:%u
 160024 Node becomes authoritative for persistent containers %d
+160025 Node %d does not have any persistent container\n
+160026 Node becomes authoritative for persistent containers\n

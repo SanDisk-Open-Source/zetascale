@@ -168,7 +168,7 @@ typedef struct flashDev flashDev_t;
 typedef struct objDesc objDesc_t;
 typedef struct shard shard_t;
 
-struct flashDev *flashOpen(char *name, int flags);
+struct flashDev *flashOpen(char *name, flash_settings_t *flash_settings, int flags);
 void flashClose(struct flashDev *dev);
 struct shard *shardCreate(struct flashDev *dev, uint64_t shardID, int flags, uint64_t quota, unsigned maxObjs);
 struct shard *shardOpen(struct flashDev *dev, uint64_t shardID);
@@ -209,8 +209,8 @@ int flashSequenceScan(struct shard *shard, uint64_t *id1, uint64_t *id2,
 	ssd_flashPut(pai->paio_ctxt, shard, metaData, key, data, flags) 
     #define flashEnumerate(shard, prevObj, hashIndex, key) \
 	ssd_flashEnumerate(shard, prevObj, hashIndex, key) 
-    #define flashOpen(devName, flags) \
-	ssd_flashOpen(devName, flags) 
+    #define flashOpen(devName, settings, flags) \
+	ssd_flashOpen(devName, settings, flags) 
     #define shardFind(dev, shardID) \
 	ssd_shardFind(dev, shardID) 
     #define shardCreate(dev, shardID, flags, quota, maxObjs) \

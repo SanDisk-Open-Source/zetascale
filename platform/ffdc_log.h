@@ -9,7 +9,7 @@
  * log message in the codebase.  The structure contains one field for
  * each message parameter in the log message, along with other meta data
  * 
- * Generated On: 2012-06-13 17:46:58
+ * Generated On: 2012-07-29 09:35:57
  *------------------------------------------------------------------------*/
 
 #ifndef PLATFORM_FFDC_H
@@ -67612,6 +67612,124 @@ ffdc_log_func_110007(int lineno, int msgid, int catid, int level, const char* fm
     int arg1);
 
 /*---------------------------------------------------------------------------
+ * MsgID : 150000
+ * Msg   : "ENTERING, init_state=%d"
+ *-------------------------------------------------------------------------*/
+struct ffdc_log_struct_150000
+{
+    int magic;
+    int msgid;
+    int catid;
+    int level;
+    unsigned long th_id;
+    unsigned long fth_id;
+    int lineno;
+    struct timeval timestamp;
+
+    int arg1;
+} __attribute__ ((aligned (64)));
+
+__inline__ void
+ffdc_log_func_150000(int lineno, int msgid, int catid, int level, const char* fmt,
+    int arg1);
+
+/*---------------------------------------------------------------------------
+ * MsgID : 150001
+ * Msg   : "pth_id=%d"
+ *-------------------------------------------------------------------------*/
+struct ffdc_log_struct_150001
+{
+    int magic;
+    int msgid;
+    int catid;
+    int level;
+    unsigned long th_id;
+    unsigned long fth_id;
+    int lineno;
+    struct timeval timestamp;
+
+    int arg1;
+} __attribute__ ((aligned (64)));
+
+__inline__ void
+ffdc_log_func_150001(int lineno, int msgid, int catid, int level, const char* fmt,
+    int arg1);
+
+/*---------------------------------------------------------------------------
+ * MsgID : 150002
+ * Msg   : "writer fthread spawned, use context %p"
+ *-------------------------------------------------------------------------*/
+struct ffdc_log_struct_150002
+{
+    int magic;
+    int msgid;
+    int catid;
+    int level;
+    unsigned long th_id;
+    unsigned long fth_id;
+    int lineno;
+    struct timeval timestamp;
+
+    long arg1;
+} __attribute__ ((aligned (64)));
+
+__inline__ void
+ffdc_log_func_150002(int lineno, int msgid, int catid, int level, const char* fmt,
+    void* arg1);
+
+/*---------------------------------------------------------------------------
+ * MsgID : 150003
+ * Msg   : "object size doesn't match hash entry!!! klen=%d dlen=%u 
+ *          nbybes=%d syn=%lu hsyn=%hu ctime=%u"
+ *-------------------------------------------------------------------------*/
+struct ffdc_log_struct_150003
+{
+    int magic;
+    int msgid;
+    int catid;
+    int level;
+    unsigned long th_id;
+    unsigned long fth_id;
+    int lineno;
+    struct timeval timestamp;
+
+    int arg1;
+    int arg2;
+    int arg3;
+    long arg4;
+    short arg5;
+    int arg6;
+} __attribute__ ((aligned (64)));
+
+__inline__ void
+ffdc_log_func_150003(int lineno, int msgid, int catid, int level, const char* fmt,
+    int arg1, int arg2, int arg3, long arg4, short arg5, 
+    int arg6);
+
+/*---------------------------------------------------------------------------
+ * MsgID : 150004
+ * Msg   : "Mcd_aio_states[%d] = %p"
+ *-------------------------------------------------------------------------*/
+struct ffdc_log_struct_150004
+{
+    int magic;
+    int msgid;
+    int catid;
+    int level;
+    unsigned long th_id;
+    unsigned long fth_id;
+    int lineno;
+    struct timeval timestamp;
+
+    int arg1;
+    long arg2;
+} __attribute__ ((aligned (64)));
+
+__inline__ void
+ffdc_log_func_150004(int lineno, int msgid, int catid, int level, const char* fmt,
+    int arg1, void* arg2);
+
+/*---------------------------------------------------------------------------
  * MsgID : 160000
  * Msg   : "failed to get events; errno=%d (%s)"
  *-------------------------------------------------------------------------*/
@@ -68202,6 +68320,49 @@ struct ffdc_log_struct_160024
 __inline__ void
 ffdc_log_func_160024(int lineno, int msgid, int catid, int level, const char* fmt,
     int arg1);
+
+/*---------------------------------------------------------------------------
+ * MsgID : 160025
+ * Msg   : "Node %d does not have any persistent container\n"
+ *-------------------------------------------------------------------------*/
+struct ffdc_log_struct_160025
+{
+    int magic;
+    int msgid;
+    int catid;
+    int level;
+    unsigned long th_id;
+    unsigned long fth_id;
+    int lineno;
+    struct timeval timestamp;
+
+    int arg1;
+} __attribute__ ((aligned (64)));
+
+__inline__ void
+ffdc_log_func_160025(int lineno, int msgid, int catid, int level, const char* fmt,
+    int arg1);
+
+/*---------------------------------------------------------------------------
+ * MsgID : 160026
+ * Msg   : "Node becomes authoritative for persistent containers\n"
+ *-------------------------------------------------------------------------*/
+struct ffdc_log_struct_160026
+{
+    int magic;
+    int msgid;
+    int catid;
+    int level;
+    unsigned long th_id;
+    unsigned long fth_id;
+    int lineno;
+    struct timeval timestamp;
+
+
+} __attribute__ ((aligned (64)));
+
+__inline__ void
+ffdc_log_func_160026(int lineno, int msgid, int catid, int level, const char* fmt);
 
 __END_DECLS
 #endif /* PLATFORM_FFDC_H */

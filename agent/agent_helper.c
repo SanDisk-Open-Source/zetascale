@@ -38,10 +38,8 @@
 #include "shared/init_sdf.h"
 #include "shared/sdf_sm_msg.h"
 #include "shared/name_service.h"
-#include "sdfappcommon/XMbox.h"
 #include "fth/fth.h"
 #include "fth/fthMbox.h"
-#include "fth/fthThread.h"
 #include "sdfmsg/sdf_fth_mbx.h"
 #include "sdftcp/msg_map.h"
 #include "flash/flash.h"
@@ -146,7 +144,7 @@ init_flash(struct sdf_agent_state *state)
     for(ii=0; ii < state->config.numFlashDevs; ii++) {
         if (plat_asprintf(&device_name, "%s%d", state->config.flashDevName, ii) > 0) {            
             state->flash_dev[ii] = (flashDev_t *)NULL;
-            state->flash_dev[ii] = flashOpen(device_name, flash_flags);
+            state->flash_dev[ii] = flashOpen(device_name, &state->flash_settings, flash_flags);
             plat_assert(state->flash_dev[ii]);
             plat_free(device_name);
         }
@@ -160,13 +158,13 @@ init_flash(struct sdf_agent_state *state)
     if (strstr(state->config.flashDevName, "%")) {
         if (plat_asprintf(&device_name, state->config.flashDevName,
                           (int)state->rank) > 0) {
-            state->flash_dev = flashOpen(device_name, flash_flags);
+            state->flash_dev = flashOpen(device_name, &state->flash_settings, flash_flags);
             plat_assert(state->flash_dev);
             plat_free(device_name);
         }
     } else {
         if (plat_asprintf(&device_name, "%s%d", state->config.flashDevName, 0) > 0) {
-                state->flash_dev = flashOpen(device_name, flash_flags);
+                state->flash_dev = flashOpen(device_name, &state->flash_settings, flash_flags);
                 plat_assert(state->flash_dev);
                 plat_free(device_name);
             }
@@ -479,7 +477,7 @@ agent_config_set_properties(struct plat_opts_config_sdf_agent *config)
  * 
  * @return status, SDF_TRUE on success
  */
-SDF_boolean_t
+static SDF_boolean_t
 agent_engine_pre_init_internal(struct sdf_agent_state *state,
                                int argc, char *argv[]) {
     int numScheds;
@@ -525,6 +523,20 @@ agent_engine_pre_init_internal(struct sdf_agent_state *state,
     return SDF_TRUE;
 }
 
+/**
+ * @brief  Main initialization routine for SDF
+ *
+ * @return status, SDF_TRUE on success
+ */
+SDF_boolean_t 
+sdf_init(struct sdf_agent_state *state, int argc, char *argv[])
+{
+    if (agent_engine_pre_init(state, argc, argv)) {
+        return(agent_engine_post_init(state));
+    } else {
+        return(SDF_FALSE); // failure
+    }
+}
 
 /**
  * @brief Pre-initialization of SDF agent engine (pthread safe)
@@ -535,8 +547,7 @@ agent_engine_pre_init_internal(struct sdf_agent_state *state,
  * 
  * @return status, SDF_TRUE on success
  */
-SDF_boolean_t
-agent_engine_pre_init(struct sdf_agent_state *state, int argc, char *argv[])
+SDF_boolean_t agent_engine_pre_init(struct sdf_agent_state *state, int argc, char *argv[])
 {
     SDF_boolean_t  success = SDF_TRUE;
     const char    *sdf_mode_string;
@@ -630,8 +641,7 @@ live_back(int live, int rank, void *arg)
  *  
  * @return status, SDF_TRUE on success
  */
-SDF_boolean_t
-agent_engine_post_init(struct sdf_agent_state * state )
+SDF_boolean_t agent_engine_post_init(struct sdf_agent_state * state )
 {
     SDF_boolean_t success = SDF_TRUE;
     
@@ -652,7 +662,7 @@ agent_engine_post_init(struct sdf_agent_state * state )
      * Initialize the flash subsystem.
      */
     if (success) {
-        success = init_flash(state);
+        success = init_flash(state );
         plat_log_msg(20852, LOG_CAT, 
                      success ?  LOG_LEV : PLAT_LOG_LEVEL_INFO,
                      "init_flash  = %u", success);

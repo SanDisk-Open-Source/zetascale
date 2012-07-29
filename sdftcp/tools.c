@@ -355,7 +355,7 @@ realloc_q(void *ptr, size_t size)
     void *new;
 
     if (!size) {
-        free(ptr);
+        plat_free(ptr);
         return NULL;
     }
 

@@ -162,7 +162,7 @@ interrupt()
     /*restore the sig mask */
     sigprocmask(SIG_UNBLOCK, &mask, NULL);
     /*free the files */
-    free(files);
+    plat_free(files);
     /*do exit */
     plat__exit(PLAT_EXIT_OK);
 }
@@ -241,7 +241,7 @@ main(int argc, char **argv)
         //buffer=malloc(SHME_MAX_SIZE*sizeof(char));
         /*open all files here */
         int i = 0;
-        files = malloc(sizeof(struct file_dump) * MAX_FILE_NUMBER);
+        files = plat_alloc(sizeof(struct file_dump) * MAX_FILE_NUMBER);
         for (i = 0; i < MAX_FILE_NUMBER; i++) {
             sprintf(files[i].file_name, "%s/%d", LOG_DIR, i);
             files[i].fp = fopen(files[i].file_name, "wb+");

@@ -24,9 +24,9 @@
 #include "ssd/ssd_local.h"
 #include "ssd/ssd_aio.h"
 #include "ssd/ssd_aio_local.h"
-#include "fifo.h"
 #include "utils/hash.h"
 #include "common/sdftypes.h"
+#include "fifo.h"
 
 
 #undef  flashOpen
@@ -46,6 +46,8 @@
 #undef  flashGetByCursor
 #undef  flashGetRetainedTombstoneGuarantee
 #undef  flashRegisterSetRetainedTombstoneGuaranteeCallback
+
+flash_settings_t flash_settings;
 
 /*
  * fifo specific operations
@@ -71,7 +73,7 @@ ssd_fifo_ops_t      Ssd_fifo_ops = {
 };
 
 
-struct flashDev * fifo_flashOpen( char * devName, int flags ) 
+struct flashDev * fifo_flashOpen( char * devName, flash_settings_t *flash_settings_in, int flags ) 
 {
     int                 i;
     int                 rc;
@@ -82,6 +84,9 @@ struct flashDev * fifo_flashOpen( char * devName, int flags )
                   PLAT_LOG_LEVEL_INFO,
                   "ENTERING, devName=%s", devName );
     
+    /*  Global settings for aio and flash subsystems */
+    flash_settings = *flash_settings_in;
+
     pdev = plat_alloc( sizeof(struct flashDev) );
     if ( NULL == pdev ) {
 	plat_log_msg(21692, PLAT_LOG_CAT_FLASH, 
@@ -132,7 +137,7 @@ struct flashDev * fifo_flashOpen( char * devName, int flags )
         plat_abort();
     }
         
-    Ssd_fifo_ops.flashOpen( devName, flags );
+    Ssd_fifo_ops.flashOpen( devName, flash_settings_in, flags );
 
     return pdev;
 }

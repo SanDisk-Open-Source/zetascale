@@ -28,6 +28,7 @@ PLATFORM_SRCS = \
 	mprobe.c \
 	msg.c \
 	prng.c \
+        alloc.c \
 	shmem_alloc.c \
 	shmem.c \
 	shmem_debug.c \

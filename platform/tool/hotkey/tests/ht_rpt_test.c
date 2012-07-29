@@ -104,18 +104,18 @@ static void threadTest(uint64_t arg) {
 
     int mm_size1, mm_size2, mm_size3, mm_size4;
     mm_size1 = calc_hotkey_memory(maxtop, nbuckets, 0x00);
-    void *buf1          = malloc(mm_size1);
+    void *buf1          = plat_alloc(mm_size1);
 
     mm_size2 = calc_hotkey_memory(maxtop, nbuckets, 0x01);
-    void *buf2          = malloc(mm_size2);
+    void *buf2          = plat_alloc(mm_size2);
 
     mm_size3 = calc_hotkey_memory(maxtop, nbuckets, 0x02);
-    void *buf3          = malloc(mm_size3);
+    void *buf3          = plat_alloc(mm_size3);
 
     mm_size4 = calc_hotkey_memory(maxtop, nbuckets, 0x03);
-    void *buf4          = malloc(mm_size4);
+    void *buf4          = plat_alloc(mm_size4);
 
-    char *recv          = malloc(300*top);
+    char *recv          = plat_alloc(300*top);
 
     /* Four reporters */
     Reporter_t *rpt[4];
@@ -132,7 +132,7 @@ static void threadTest(uint64_t arg) {
     char fname[nsize][50];
     time_t begin, end;
 
-    int *at = (int *)malloc(KEY_NUM * sizeof(int));
+    int *at = (int *) plat_alloc(KEY_NUM * sizeof(int));
 
     for (l = 0; l < loops; l++) {
 
@@ -256,12 +256,12 @@ static void threadTest(uint64_t arg) {
         hot_key_cleanup(rpt[3]);
     }
 
-    free(at);
-    free(buf1);
-    free(buf2);
-    free(buf3);
-    free(buf4);
-    free(recv);
+    plat_free(at);
+    plat_free(buf1);
+    plat_free(buf2);
+    plat_free(buf3);
+    plat_free(buf4);
+    plat_free(recv);
 
     done = 1;
 }

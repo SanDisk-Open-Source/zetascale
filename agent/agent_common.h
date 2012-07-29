@@ -36,6 +36,7 @@ struct sdf_agent_state {
     SDF_async_puts_init_t AsyncPutsInitState;
     struct sdf_replicator_config ReplicationInitState;
     struct SDF_config ContainerInitState;
+    flash_settings_t  flash_settings;
     uint32_t flash_dev_count;
 #ifdef MULTIPLE_FLASH_DEV_ENABLED
     struct flashDev *flash_dev[MAX_FLASH_DEVS];

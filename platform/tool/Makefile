@@ -11,8 +11,6 @@ LIBS = \
 	../../fth/libfth.a \
 	../libplatform.a \
 	../../fth/libfth.a \
-	../../sdfappcommon/libsdfappcommon.a \
-	../../fth/libfth.a \
 	../../utils/libutils.a \
 	-lrt -lpthread
 

@@ -614,7 +614,7 @@ cr_vip_meta_alloc() {
     failed = !plat_calloc_struct(&ret);
     if (!failed) {
         len = cr_persistent_vip_meta_len(0);
-        ret->persistent = (struct cr_persistent_vip_meta *)calloc(1,  len);
+        ret->persistent = (struct cr_persistent_vip_meta *)plat_calloc(1,  len);
         failed = !ret->persistent;
     }
 

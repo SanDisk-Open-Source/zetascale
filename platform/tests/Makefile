@@ -48,7 +48,6 @@ LIBS = \
 	../../fth/libfth.a \
 	../../ecc/libecc.a \
 	../../fth/libfth.a \
-	../../sdfappcommon/libsdfappcommon.a \
 	../../fth/libfth.a \
 	../../utils/libutils.a \
 	-laio -lrt -lpthread

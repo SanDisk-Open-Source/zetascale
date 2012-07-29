@@ -59,13 +59,13 @@ void threadTest(uint64_t arg) {
     struct _key keys[NCANDIDATES];
     struct _key big_key, small_key;
 
-    char *recv = (char *)malloc(300*top);
+    char *recv = (char *) plat_alloc(300*top);
     if (recv == NULL) {
         perror("failed to alloc");
     }
 
     mm_size = calc_hotkey_memory(maxtop, nbuckets, 0);
-    buf     = malloc(mm_size);
+    buf     = plat_alloc(mm_size);
     Reporter_t *rpt;
 
     for (int i = 0; i < NCANDIDATES; i++) {
@@ -174,7 +174,7 @@ void threadTest(uint64_t arg) {
     hot_key_reset(rpt);
     hot_key_cleanup(rpt);
 
-    free(recv);
+    plat_free(recv);
 
     printf("failed = %d\n", nfailed);
     done = 1;

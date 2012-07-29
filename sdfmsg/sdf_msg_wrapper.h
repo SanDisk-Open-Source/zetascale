@@ -76,12 +76,12 @@ struct sdf_msg_wrapper {
     union {
         struct {
             struct sdf_msg *ptr;
-            sdf_msg_wrapper_free_local_t free;
+            sdf_msg_wrapper_free_local_t mfree;
         } local;
 
         struct {
             sdf_msg_sp_t ptr;
-            sdf_msg_wrapper_free_shared_t free;
+            sdf_msg_wrapper_free_shared_t mfree;
         } shared;
     } ptr;
 

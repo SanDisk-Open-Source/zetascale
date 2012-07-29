@@ -12,7 +12,6 @@ SUBDIRS := \
 	agent		\
 	shared		\
 	utils		\
-	sdfappcommon	\
 	applib		\
         sdftcp          \
         ssd

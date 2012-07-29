@@ -15,13 +15,13 @@
 
 
 #include "sdf_msg.h"
-#include "sdfappcommon/XList.h"
+// #include "sdfappcommon/XList.h"
 #include "fth/fth.h"
 #include "fth/fthMbox.h"
-#include "fth/fthXMbox.h"
+// #include "fth/fthXMbox.h"
 #include "platform/closure.h"
-#include "applib/XMbox.h"
-#include "sdfappcommon/XMbox.h"
+// #include "applib/XMbox.h"
+// #include "sdfappcommon/XMbox.h"
 
 /*
  * The default number of bins is static and initialized according to

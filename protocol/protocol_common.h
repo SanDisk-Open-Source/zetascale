@@ -13,6 +13,7 @@
 #ifndef _PROTOCOL_COMMON_H
 #define _PROTOCOL_COMMON_H
 
+#include "fth/fth.h"
 #include "common/sdftypes.h"
 #include "replication/meta_types.h"
 #include "shared/sdf_sm_msg.h"

@@ -22,7 +22,7 @@
 #include "platform/timer_dispatcher.h"
 #include "platform/time.h"
 
-#include "fth/fthLock.h"
+#include "fth/fth.h"
 
 /* Placate cstyle */
 #undef TIMERCMP_LESS

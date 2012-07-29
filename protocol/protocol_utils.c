@@ -23,7 +23,7 @@
 #include <stdio.h>
 #include <string.h>
 
-#include "fth/fthLock.h"
+#include "fth/fth.h"
 #include "platform/stdlib.h"
 #include "platform/logging.h"
 #include "platform/platform.h"

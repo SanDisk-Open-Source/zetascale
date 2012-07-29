@@ -18,7 +18,7 @@
 #include "platform/stdlib.h"
 #include "platform/logging.h"
 #include "common/sdftypes.h"
-#include "fth/fthLock.h"
+#include "fth/fth.h"
 #include "init_sdf.h"
 #include "object.h"
 #include "container.h"

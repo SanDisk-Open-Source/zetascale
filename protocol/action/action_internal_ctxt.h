@@ -17,6 +17,7 @@
 #include "fth/fth.h"
 #include "protocol/replication/sdf_vips.h"
 #include "protocol/action/simple_replication.h"
+#include "shared/container_meta.h"
 
 #ifndef _ACTION_INTERNAL_CTXT_H
 #define _ACTION_INTERNAL_CTXT_H

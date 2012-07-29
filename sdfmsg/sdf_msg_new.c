@@ -127,7 +127,7 @@ typedef struct sendq {
     int               stag;             /* Source service */
     int               dtag;             /* Destination service */
     int               rank;             /* Destination node */
-    int               free;             /* Release message once sent */
+    int               mfree;            /* Release message once sent */
     char             *data;             /* Data */
     uint32_t          len;              /* Length */
     ntime_t           timeout;          /* Timeout time */
@@ -664,7 +664,7 @@ node_line_me(char *line)
         if (!item)
             return 0;
         s = node_name_me(item);
-        free(item);
+        plat_free(item);
         if (s)
             return 1;
     }
@@ -1755,7 +1755,7 @@ sdf_msg_send(sdf_msg_t *msg, uint32_t len, vnode_t drank, service_t dserv,
     sendq->dtag = dserv;
     sendq->data = (void *)msg;
     sendq->len  = sizeof(sdf_msg_t) + len;
-    sendq->free = !sfm ? 0 : sfm->release_on_send;
+    sendq->mfree = !sfm ? 0 : sfm->release_on_send;
 
     msg->cur_ver   = VER_SDFMSG;
     msg->sup_ver   = VER_SDFMSG;
@@ -1796,7 +1796,7 @@ sdf_msg_send(sdf_msg_t *msg, uint32_t len, vnode_t drank, service_t dserv,
             int s = (sendq->ract || sendq->rbox) ? 0 : -1;
             sdf_logi(70037, "sdf_msg_send to dead node: %d", drank);
             fail_op_sendq(sendq, SDF_NODE_DEAD);
-            if (sendq->free)
+            if (sendq->mfree)
                 plat_free(sendq->data);
             sendq_free(sendq);
             return s;
@@ -2787,7 +2787,7 @@ sendq_send(sendq_t *sendq)
     msend->sge[0].iov_base = sendq->data;
     msend->sge[0].iov_len = sendq->len;
 
-    if (sendq->free) {
+    if (sendq->mfree) {
         atomic_dec(Stat.live_no_msg_bufs);
         msend->data = sendq->data;
     }
@@ -2994,7 +2994,7 @@ sendq_listdel(sendq_t *sendq, int freed)
     while (sendq) {
         sendq_t *next = sendq->next;
 
-        if (freed && sendq->free)
+        if (freed && sendq->mfree)
             plat_free(sendq->data);
         m_free(sendq);
         sendq = next;

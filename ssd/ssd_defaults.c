@@ -120,7 +120,7 @@ objDesc_t *default_flashEnumerate(struct shard *shard, objDesc_t *prevObj, int *
  *
  * @return flash device structure pointer
  */
-struct flashDev *default_flashOpen(char *devName, int flags) 
+struct flashDev *default_flashOpen(char *devName, flash_settings_t *flash_settings, int flags) 
 {
     plat_log_msg(21727, PLAT_LOG_CAT_FLASH, PLAT_LOG_LEVEL_FATAL,
 		 "flashOpen is not yet implemented!");

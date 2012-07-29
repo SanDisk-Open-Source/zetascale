@@ -1,20 +1,16 @@
 # $Id$
 
 TOP = ../..
-PROG = $(TESTS) $(TESTS_BROKEN)
-LIB_SRCS = \
-	XLock.c \
-	XMbox.c \
-	simpleWait.c \
-	fthFlashAccess.c \
+PROG =
+LIB_SRCS =
 
-TESTS = XLockTest ftopMboxTest ptofMboxTest 
+TESTS =
 
-TESTS_BROKEN = simpleWaitTest
+TESTS_BROKEN =
 
-LIB = libapplib.a
+LIB =
 
-LIBS = libapplib.a ../fth/libfth.a ../fth/libfth.a ../sdfappcommon/libsdfappcommon.a  ../platform/libplatform.a ../utils/libutils.a -lpthread -lrt
+LIBS =
 
 include $(TOP)/Makefile.pre
 

@@ -19,14 +19,12 @@ LIBS =  \
     $(LIB)                                           \
     ../libhotkey.a                                   \
     ../../../../shared/libsdfshared.a                \
-    ../../../../sdfappcommon/libsdfappcommon.a       \
+    ../../../../platform/libplatform.a               \
     ../../../../utils/libutils.a                     \
     ../../../../sdfmsg/libsdfmsgqueue.a              \
     ../../../../sdftcp/libsdfmtp.a                   \
     ../../../../misc/libmisc.a                       \
-    ../../../../applib/libapplib.a                   \
     ../../../../fth/libfth.a                         \
-    ../../../../platform/libplatform.a               \
     -lpthread -lrt
 
 include $(TOP)/Makefile.inc

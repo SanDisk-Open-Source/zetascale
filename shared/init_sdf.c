@@ -22,7 +22,7 @@
 #include "name_service.h"
 #include "init_sdf.h"
 #include "cmc.h"
-#include "../../apps/memcached/server/memcached-1.2.5-schooner/container_meta_blob.h"
+#include "ssd/fifo/container_meta_blob.h"
 
 #include "private.h"
 

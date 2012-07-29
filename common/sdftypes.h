@@ -27,6 +27,15 @@ extern "C" {
 #endif
 
 #define ISEMPTY(s) (s == NULL || *s == '\0')
+#define HAVE_STDBOOL_H 1
+
+/* Get a consistent bool type */
+#if HAVE_STDBOOL_H
+# include <stdbool.h>
+#else
+  typedef enum {false = 0, true = 1} bool;
+#endif
+
 
 enum {
     SDF_ILLEGAL_VNODE = UINT32_MAX,
@@ -52,6 +61,11 @@ typedef struct {
 } SDF_simple_key_t;
 
 #define CMC_PATH "/sdf/CMC"
+
+/*
+ * maximum number of containers supported by one instance of SDF
+ */
+#define MCD_MAX_NUM_CNTRS       128
 
 // Not 0 so that we can differentiate uninitialized
 #define CMC_CGUID 1
@@ -162,6 +176,11 @@ typedef enum sdf_cluster_grp_type {
 typedef struct {
     unsigned long long id;
 } SDF_tx_id;
+
+#include "platform/aio_wc.h"
+#include "platform/aio_libaio.h"
+#include "platform/aio_error_control.h"
+#include "platform/aio_error_bdb.h"
 
 // typedef unsigned SDF_command_status_t;
 // typedef unsigned long long SDF_completion_t;
@@ -352,6 +371,66 @@ sdf_status_to_string(SDF_status_t status) {
         return ("Invalid");
     }
 }
+
+/*  Settings for SDF initialization
+ */
+
+struct mcd_container;
+
+typedef struct flashsettings {
+
+    char aio_base[PATH_MAX + 1];
+    int aio_create;
+    bool aio_error_injection;
+    int aio_first_file;
+    int aio_num_files;
+    int aio_queue_len;
+    int aio_sub_files;
+    int aio_sync_enabled;
+    uint64_t aio_total_size;
+    bool aio_wc;
+    struct paio_wc_config aio_wc_config;
+    struct paio_libaio_config aio_libaio_config;
+    struct paio_error_bdb_config aio_error_bdb_config;
+    int bypass_aio_check;
+    int chksum_data;
+    int chksum_metadata;
+    int enable_fifo;
+    int evict_to_free;
+    int fake_miss_rate;
+    int ips_per_cntr;
+    int max_aio_errors;
+    int max_num_prefixes;
+    int mq_ssd_balance;
+    bool multi_fifo_writers;
+    int no_direct_io;
+    int num_cores;
+    int num_sdf_threads;
+    char prefix_del_delimiter;
+    int rec_log_segsize;
+    float rec_log_size_factor;
+    int rec_log_verify;
+    int rec_upd_bufsize;
+    int rec_upd_max_chunks;
+    int rec_upd_segsize;
+    int rec_upd_verify;
+    int rec_upd_yield;
+    int sb_data_copies;
+    int sdf_persistence;
+    int static_containers;
+    int (*check_delete_in_future)(void *data);
+    void (*convert_object_data)(void *data);
+    uint64_t (*get_cas_id)(void *data);
+    int is_node_independent;
+    SDF_status_t (*prefix_delete_callback)(char *key, int key_len, struct mcd_container *cntr );
+    int (*delete_container_callback)( void * pai,  struct mcd_container * container );
+
+    uint32_t   num_sched;
+    uint32_t   num_fthreads;
+    int (*cntr_update_callback)( struct mcd_container * container, int version );
+    time_t    *pcurrent_time;
+
+} flash_settings_t;
 
 #ifdef NDEBUG
 #define sdf_status_assert_eq(got, expected)

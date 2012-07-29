@@ -40,20 +40,8 @@
 #include "platform/logging.h"
 #include "platform/platform.h"
 
-#include "fthSchedType.h"
 #include "fth.h"
-#include "fthWaitEl.h"
-#include "fthSparseLock.h"
-#include "fthThread.h"
-#include "fthSched.h"
-#include "fthTrace.h"
 
-XLIST_IMPL(allThreads, fthThread, nextAll);
-XLIST_IMPL(XResume, fthThread, resumeNext);
-
-#include "sdfappcommon/XList.h"
-#include "sdfappcommon/XMbox.h"
-#include "sdfappcommon/XResume.h"
 #include "platform/assert.h"
 #include "platform/shmem_global.h"
 
@@ -62,71 +50,22 @@ XLIST_IMPL(XResume, fthThread, resumeNext);
 #define  pf(...)       printf(__VA_ARGS__); fflush(NULL)
 #define array_size(a)  (sizeof(a) / sizeof((a)[0]))
 
-
-typedef struct
-{
-   uint64_t  pad[8];
-} fth_line_t;
-
 /*
  *  These variables are largely read-only.  They are initialized here in an
  *  attempt to make them contiguous in memory.
  */
 
 fth_t *                   fth             = NULL;
+__thread int              totalScheds     = 1;  // this is never changed
+__thread int              curSchedNum     = 0;  // this is never changed
+
+uint64_t                  fthReverses     = 0;
 uint64_t                  fthFloatMax     = 0;
-static ptofThreadPtrs_t   ptofResumePtrs  = { 0, 0 };
-void *volatile            floatingThread  = NULL;
-int                       totalScheds     = 0;
-static int                floatingTicker  = 1;
-int                       schedNum        = 0;
-volatile int              currOpenSched   = 0;
-static pthread_once_t     pthreadOnce     = PTHREAD_ONCE_INIT;
+uint64_t                  fthFloatStats[FTH_MAX_SCHEDS];
 
-/*
- *  These variables are used to schedule the floating thread, and will ping
- *  between caches.
- */
+uint64_t fthTscTicksPerMicro = 3000; // this is an initial guess
 
-static fth_line_t       pad1;
-static int              previousFloating;
-static int              nextFloating;
-void * volatile         floatingQueue;
-static fth_line_t       pad2;
-uint64_t                fthFloatStats[FTH_MAX_SCHEDS];
-static fth_line_t       pad3;
-
-/*
- *  These variables are thread-specific.
- */
-
-static __thread fthSched_t *  sched = NULL;
-__thread int                  curSchedNum = -1;
-
-// Convenient thread-local pointers to "this" scheduler's
-// queues. The idea is to minimize sharing access to the
-// global fth structure to the extent possible.
-
-static __thread fthThreadQ_lll_t *  myEligibleQ;
-static __thread fthThreadQ_lll_t *  myLowPrioQ;
-static __thread fthThreadQ_lll_t *  myMutexQ;
-static __thread fthThreadQ_lll_t *  mySleepQ;
-
-#ifdef FTH_TIME_STATS
-static __thread uint64_t  threadSuspendTimeStamp;
-static __thread uint64_t  threadResumeTimeStamp;
-static __thread uint64_t  dispatchTimeStamp;
-uint64_t  fthReverses;
-#endif
-
-static uint64_t uniqueId = 1;   // Unique id for each fthread
-
-uint64_t fthTscTicksPerMicroInitial = 3000;  // 3 GHZ is a good guess to start
-/*
- * XXX: drew 2009-09-03 I have no clue where this is being referenced
- * externally otherwise I'd just leave it at zero.
- */
-__thread uint64_t fthTscTicksPerMicro = 3000;
+__thread fthThread_t *selfFthread = NULL;
 
 struct fthConfig fthConfig = {
     .idleMode = FTH_IDLE_SPIN,
@@ -151,166 +90,48 @@ fthUthreadGetter(void)
     return thread ? thread->local : NULL;
 }
 
-/**
- * @brief Initialize CPU info fields
- */
-
-static void
-fthInitCpuInfo(void)
+void fthInitMultiQ(int numArgs, ...)
 {
-    int status;
-    int sched;
-    int cpu;
+    uint64_t tscBefore;
+    uint64_t tscAfter;
+    uint64_t endNs;
+    uint64_t nowNs;
+    struct timespec nowTs;
 
+    fth = plat_alloc(sizeof(fth_t));
     plat_assert(fth);
+    fth->allHead             = NULL;
+    fth->allTail             = NULL;
+    fth->nthrds              = 0;
 
-    memset(&fth->cpuInfo, 0, sizeof (fth->cpuInfo));
+    /*  These are used to gate fthread starting until at least one
+     *  scheduler starts.
+     */
+    pthread_mutex_init(&(fth->sched_mutex), NULL);
+    pthread_cond_init(&(fth->sched_condvar), NULL);
+    fth->sched_started       = 0;
+    fth->sched_thrds_waiting = 0;
 
-    memset(&pad1, 0, sizeof(pad1));  // keep gcc happy.
-    memset(&pad2, 0, sizeof(pad2));
-    memset(&pad3, 0, sizeof(pad3));
+    /*  These are used to synchronize the "killing" of fthreads
+     *  and schedulers.
+     */
+    fth->kill = 0;
+    pthread_mutex_init(&(fth->kill_mutex), NULL);
+    pthread_cond_init(&(fth->kill_condvar), NULL);
 
-    switch (fth->config.affinityMode) {
-    case FTH_AFFINITY_PER_THREAD:
-        fth->cpuInfo.CPUs = fth->config.affinityCores;
-        break;
+    tscBefore = rdtsc();
+    clock_gettime(CLOCK_REALTIME, &nowTs);
+    nowNs = (uint64_t)nowTs.tv_sec * PLAT_BILLION + nowTs.tv_nsec;
+    endNs = nowNs + (uint64_t)FTH_TIME_CALIBRATION_MICROS * PLAT_THOUSAND;
+    do {
+        clock_gettime(CLOCK_REALTIME, &nowTs);
+        nowNs = (uint64_t)nowTs.tv_sec * PLAT_BILLION + nowTs.tv_nsec;
+    } while (nowNs < endNs);
+    tscAfter = rdtsc();
 
-    case FTH_AFFINITY_DEFAULT:
-        status = sched_getaffinity(0, sizeof(cpu_set_t), &fth->cpuInfo.CPUs);
+    fthTscTicksPerMicro = (tscAfter - tscBefore) / FTH_TIME_CALIBRATION_MICROS;
 
-        if (status == -1) {
-            plat_log_msg(20869, PLAT_LOG_CAT_FTH,
-                         PLAT_LOG_LEVEL_WARN, "Can't get CPU affinity: %s",
-                         plat_strerror(errno));
-        }
-
-        break;
-    }
-
-    for (sched = 0, cpu = 0; cpu < CPU_SETSIZE; ++cpu) {
-        if (CPU_ISSET(cpu, &fth->cpuInfo.CPUs)) {
-
-            if (sched < FTH_MAX_SCHEDS) {
-                fth->cpuInfo.schedToCPU[sched] = cpu;
-            }
-
-            ++sched;
-        }
-    }
-
-    if (sched > FTH_MAX_SCHEDS) {
-        plat_log_msg(20870, PLAT_LOG_CAT_FTH,
-                     PLAT_LOG_LEVEL_WARN,
-                     "%d CPUs available not all usable with FTH_MAX_SCHEDS %d",
-                     sched, FTH_MAX_SCHEDS);
-        sched = FTH_MAX_SCHEDS;
-    }
-
-    fth->cpuInfo.numCPUs = sched;
-
-    for (; sched < FTH_MAX_SCHEDS; ++sched) {
-        fth->cpuInfo.schedToCPU[sched] = FTH_CPU_INVALID;
-    }
-
-    plat_log_msg(30658, PLAT_LOG_CAT_FTH,
-                 PLAT_LOG_LEVEL_INFO, "fth using up to %d cores",
-                 fth->cpuInfo.numCPUs);
-}
-
-static void
-initSchedQs(int totalScheds)
-{
-    int schedNum;
-
-    for(schedNum = 0; schedNum < totalScheds; schedNum++) {
-        fthThreadQ_lll_init(&fth->eligibleQ[schedNum]);
-        fthFloatMax = totalScheds - 1;
-    }
-}
-
-int nextOpenSched(long stackSize)
-{
-    plat_assert_always(totalScheds > 0);
-
-    if (totalScheds == 1) {
-        return 0;
-    }
-
-    int ret = currOpenSched % fth->totalScheds;
-
-    currOpenSched++;
-    return ret;
-}
-
-void
-fthInitMultiQ(int numArgs, ...)
-{
-    int inTotalScheds = 1;
-    va_list argp;
-    va_start(argp, numArgs);
-
-    if (numArgs > 0) {
-        inTotalScheds = va_arg(argp, int);
-    }
-    va_end(argp);
-
-    plat_assert_always(inTotalScheds <= FTH_MAX_SCHEDS && inTotalScheds > 0);
-
-    /*
-     *  CA: unfortunately  fthPthreadInit  has to be a (void) routine so we
-     *  use an ugly global to pass the totalScheds info.
-     *  The assert catches multiple fthInits.
-      */
-
-    if (__sync_lock_test_and_set(&totalScheds, inTotalScheds) == 0) {
-        // Let pthread make the overall init happen exactly once
-        pthread_once(&pthreadOnce, &fthPthreadInit);
-    }
-}
-
-/**
- * @brief Set affinity for calling scheduler
- *
- */
-static void
-fthSetAffinity(void)
-{
-    int cpu;
-    cpu_set_t cpuSet;
-    cpu_set_t got;
-    int error;
-
-    cpu = fth->cpuInfo.schedToCPU[sched->schedNum];
-
-    if (cpu != FTH_CPU_INVALID) {
-        CPU_ZERO(&cpuSet);
-        CPU_SET(cpu, &cpuSet);
-
-        /* XXX: drew 2009-12-08 This should be pthread_setaffinity_np */
-        if (sched_setaffinity(0, sizeof(cpu_set_t), &cpuSet) != 0) {
-            plat_log_msg(20872, PLAT_LOG_CAT_FTH,
-                         PLAT_LOG_LEVEL_WARN,
-                         "Failed to set scheduler %d affinity: %s",
-                         sched->schedNum, plat_strerror(errno));
-        } else if ((error = pthread_getaffinity_np(pthread_self(),
-                                                   sizeof(cpu_set_t), &got)) !=
-                   0) {
-            plat_log_msg(20882, PLAT_LOG_CAT_FTH,
-                         PLAT_LOG_LEVEL_WARN,
-                         "Failed to get scheduler %d affinity: %s",
-                         sched->schedNum, plat_strerror(error));
-        } else if (memcmp(&cpuSet, &got, sizeof (got))) {
-            plat_log_msg(20882, PLAT_LOG_CAT_FTH,
-                         PLAT_LOG_LEVEL_WARN,
-                         "Failed to get scheduler %d affinity: %s",
-                         sched->schedNum, plat_strerror(error));
-        }
-    } else if (sched->schedNum == fth->cpuInfo.numCPUs) {
-        plat_log_msg(20874, PLAT_LOG_CAT_FTH,
-                     PLAT_LOG_LEVEL_WARN,
-                     "Too few cores to set affinity on sched >= %d",
-                     fth->cpuInfo.numCPUs);
-    }
+    plat_attr_uthread_getter_set(&fthUthreadGetter);
 }
 
 /**
@@ -323,138 +144,25 @@ fthSetAffinity(void)
  */
 void fthSchedulerPthread(int prio)
 {
-    struct sched_param sp;
-    int rc;
-    fthWaitEl_t *waitEl;
+    /* start any fthreads that were waiting for a scheduler to start */
 
-    plat_assert(fth != NULL);
-
-    // Schedulers have a stack
-    sched = FTH_MALLOC(sizeof(fthSched_t));
-
-    // Put initial values into the time adjuster
-    //
-    // Must happen before any additional allocations because the 
-    // time values are being referenced by logging functions and
-    // will show up in valgrind as uninitialized.
-    sched->prevTimeTsc = rdtsc();
-    sched->prevTsc = sched->prevTimeTsc;
-    clock_gettime(CLOCK_REALTIME, &sched->prevTimeSpec);
-
-    sched->dispatch.stackSize = FTH_STACK_ALIGN(4096);
-    sched->dispatch.stack = plat_alloc_stack(sched->dispatch.stackSize);
-    char *end = (char *) sched->dispatch.stack + sched->dispatch.stackSize;
-    sched->dispatch.stackId =
-         VALGRIND_STACK_REGISTER(sched->dispatch.stack, end);
-    plat_assert_always(sched->dispatch.stack);
-    sched->dispatch.startRoutine = &fthScheduler;
-    sched->dispatch.sched = NULL;                    // No scheduler yet
-
-    // Leave space for sched structure and round down to 16 byte alignment
-    // for x86_64.
-
-    end  = (char *) sched->dispatch.stack;
-    end += sched->dispatch.stackSize - sizeof (fthSched_t);
-    end  = (char *) ((uintptr_t) end & ~0xf);
-
-    // Make space for "return" address since entry is by jmp not call
-    // thus ensuring the correct offset from the required alignment for
-    // GCC's alignment preservation.  Otherwise printf("%g") will segfault.
-    end -= sizeof (void *);
-
-    // Make return address NULL so GDB stack back traces terminate
-    *(void **)end = NULL;
-
-    // Hack the longjmp buffer
-    sched->dispatch.pc = (uint64_t) NULL;
-    sched->dispatch.rsp = (uint64_t)end;
-    sched->dispatch.arg = (uint64_t) sched;  // Self pointer is arg
-
-#ifdef FTH_TIME_STATS
-    sched->totalThreadRunTime = 0;
-    sched->schedulerIdleTime = 0;
-    sched->schedulerDispatchTime = 0;
-    sched->schedulerLowPrioDispatchTime = 0;
-    sched->schedulerNumDispatches = 1;       // Avoid divide by zero
-    sched->schedulerNumLowPrioDispatches = 1; // Avoid divide by zero
-#endif
-
-    if (prio != 0) {
-        // Set the scheduling policies
-        sp.sched_priority = prio;
-        rc = sched_setscheduler(0, SCHED_RR, &sp);
+    pthread_mutex_lock(&(fth->sched_mutex));
+    if (!fth->sched_started) {
+	fth->sched_started = 1;
+	pthread_cond_broadcast(&(fth->sched_condvar));
     }
+    pthread_mutex_unlock(&(fth->sched_mutex));
 
-    sched->schedNum = __sync_fetch_and_add(&schedNum, 1);
-    curSchedNum = sched->schedNum;
-    if (curSchedNum >= FTH_MAX_SCHEDS) {
-        plat_log_msg(20875, PLAT_LOG_CAT_FTH,
-                     PLAT_LOG_LEVEL_FATAL,
-                     "Trying to start scheduler %d >= FTH_MAX_SCHEDS",
-                     curSchedNum);
-        plat_abort();
+    pthread_mutex_lock(&(fth->kill_mutex));
+    while (1) {
+	if (fth->kill) {
+	    (fth->kill)--;
+	    break;
+	} else {
+	    pthread_cond_wait(&(fth->kill_condvar), &(fth->kill_mutex));
+	}
     }
-
-    sched->prevDispatchPrio = 1;
-    sched->schedMask = 1 << sched->schedNum;
-
-    // XXX: drew 2009-02-11 The documentation has no mention that affinity
-    // is handled on a per-thread basis.  The kernel implementation does a
-    // find_process_by_pid(); which I'd guess translates into a kernel
-    // thread.
-
-    fthSetAffinity();
-    fth->scheds[sched->schedNum] = sched;
-
-    // Init the wait element lists
-    sched->freeWaitCount = 0;
-    sched->freeSparseCount = 0;
-    fthWaitQ_lll_init(&sched->freeWait);
-    fthSparseQ_lll_init(&sched->freeSparse);
-
-#ifdef FTH_INSTR_LOCK
-    /* per-scheduler state for lock tracing facility */
-    sched->locktrace_data =
-         (fthLockTraceData_t *) plat_alloc(sizeof(fthLockTraceData_t));
-    sched->locktrace_data->f              = NULL;
-    sched->locktrace_data->schedNum       = sched->schedNum;
-    sched->locktrace_data->n_trace_recs   = 0;
-    sched->locktrace_data->n_lock_trace   = 0;
-#endif
-
-#ifdef AIO_TRACE
-    /* per-scheduler state for lock tracing facility */
-    sched->aiotrace_data =
-         (aio_trace_sched_state_t *) plat_alloc(sizeof(aio_trace_sched_state_t));
-    sched->aiotrace_data->f              = NULL;
-    sched->aiotrace_data->schedNum       = sched->schedNum;
-    sched->aiotrace_data->n_trace_recs   = 0;
-    sched->aiotrace_data->n_aio_trace    = 0;
-#endif // AIO_TRACE
-
-    myEligibleQ = &fth->eligibleQ[sched->schedNum];
-#ifdef multi_low
-    myLowPrioQ =  &fth->lowPrioQ[sched->schedNum];
-#else
-    myLowPrioQ =  &fth->lowPrioQ;
-#endif
-    myMutexQ   =  &fth->mutexQ;
-    mySleepQ   =  &fth->sleepQ;
-
-    fthTscTicksPerMicro = fthTscTicksPerMicroInitial;
-
-    fthScheduler((uint64_t) sched);
-
-    VALGRIND_STACK_DEREGISTER(sched->dispatch.stackId);
-    plat_free_stack(sched->dispatch.stack);
-    sched->dispatch.stack = NULL;
-
-    while ((waitEl = fthWaitQ_shift_nospin(&sched->freeWait))) {
-        FTH_FREE(waitEl, sizeof (fthWaitEl_t));
-    }
-
-    FTH_FREE(sched, sizeof (fthSched_t));
-    sched = NULL;
+    pthread_mutex_unlock(&(fth->kill_mutex));
 }
 
 /**
@@ -462,124 +170,26 @@ void fthSchedulerPthread(int prio)
  */
 void fthKill(int kill)
 {
-    fth_t *fth = fthBase();
-    fth->kill = kill;
-    asm volatile("mfence");
-}
+    fthThread_t  *fthrd;
+    fthThread_t  *fthrd_self;
+    fthThread_t  *fthrd_next;
 
-/**
- * @brief Init FTH structure - Pthread ensures that this gets called just once
- *
- * FIXME: drew 2008-04-22
- *
- * 1.  This assumes a single heavy weight process is receiving ptof mail boxes.
- *     The correct fix is to hang the the mailbox structure off plat_process
- *     and associate ptof XMbox with specific target processes.
- *
- * 2.  This assumes fail-stop behavior since we combine shared memory
- *     allocation with initialization.
- */
-void fthPthreadInit(void)
-{
-    uint64_t existing;
-    ptofMboxPtrs_t *ptofMboxPtr;
-
-
-    uint64_t tscBefore;
-    uint64_t tscAfter;
-    uint64_t endNs;
-    uint64_t nowNs;
-    struct timespec nowTs;
-
-    // XXX There needs to be a complementary shutdown function so that
-    // programmatic leak detection does not break
-
-    // General allocation and init
-    fth = FTH_MALLOC(sizeof(fth_t));
-    memset(fth, 0, sizeof (*fth));
-    fth->config = fthConfig;
-    fthInitCpuInfo();
-    fth->totalScheds = totalScheds;
-
-    /*
-     *  CA: Each scheduler has its own queue.
-     *  We preemptively init all the queues for each of
-     *  totalScheds schedulers now to avoid
-     *  races later
-     */
-
-    initSchedQs(totalScheds);
-#ifdef multi_low
-    for (int i = 0; i < array_size(fth->lowPrioQ); i++) {
-        fthThreadQ_lll_init(&fth->lowPrioQ[i]);
+    pthread_mutex_lock(&(fth->kill_mutex));
+    // kill all fthreads (other than myself!)
+    fthrd_self = fthSelf();
+    for (fthrd = fth->allHead; fthrd != NULL; fthrd = fthrd_next) {
+        fthrd_next = fthrd->next;
+	if (fthrd != fthrd_self) {
+	    pthread_cancel(fthrd->pthread);
+	    plat_free(fthrd);
+	}
     }
-#else
-    fthThreadQ_lll_init(&fth->lowPrioQ);
-#endif
-
-    fth->memQCount = 0;                      // No mem queues to check yet
-
-    for (int i = 0; i < FTH_MEMQ_MAX; i++) {
-        fth->memTest[i] = NULL;
-        fth->memQ[i] = NULL;
+    // kill scheduler pthreads
+    // xxxzzz should I just do a broadcast here?
+    for (;fth->kill > 0; (fth->kill)--) {
+	pthread_cond_signal(&(fth->kill_condvar));
     }
-
-    fthThreadQ_lll_init(&fth->mutexQ);
-    fthThreadQ_lll_init(&fth->sleepQ);
-
-    // Init the global free element lists
-    fthWaitQ_lll_init(&fth->freeWait);
-    fth->waitEls = NULL;
-    fthSparseQ_lll_init(&fth->freeSparse);
-
-    fth->allHead = NULL;
-    fth->allTail = NULL;
-
-    FTH_SPIN_INIT(&fth->sleepSpin);
-    FTH_SPIN_INIT(&fth->allQSpin);
-
-    fth->kill = 0;
-
-    // Allocate the PTOF global pointer area completely before assigning
-    ptofMboxPtrs_sp_t ptofMboxShmem = ptofMboxPtrs_sp_alloc();
-    plat_assert(!ptofMboxPtrs_sp_is_null(ptofMboxShmem));
-    fth->ptofMboxPtr = NULL;
-    ptofMboxPtr = ptofMboxPtrs_sp_rwref(&fth->ptofMboxPtr, ptofMboxShmem);
-    // Init the head and tail
-    ptofMboxPtr->headShmem = XMboxEl_sp_null;
-    ptofMboxPtr->tailShmem = XMboxEl_sp_null;
-
-    existing = shmem_global_set(SHMEM_GLOBAL_PTOF_MBOX_PTRS,
-                                ptofMboxShmem.base.int_base);
-    plat_assert(!existing);
-    fth->ptofMboxPtr = ptofMboxPtr;
-
-    // We do not use the shmem version for now because we have no shmem-based
-    // fthThread ptrs
-    ptofResumePtrs.head = NULL;
-    ptofResumePtrs.tail = NULL;
-
-    tscBefore = rdtsc();
-    clock_gettime(CLOCK_REALTIME, &nowTs);
-    nowNs = (uint64_t)nowTs.tv_sec * PLAT_BILLION + nowTs.tv_nsec;
-    endNs = nowNs + (uint64_t)FTH_TIME_CALIBRATION_MICROS * PLAT_THOUSAND;
-    do {
-        clock_gettime(CLOCK_REALTIME, &nowTs);
-        nowNs = (uint64_t)nowTs.tv_sec * PLAT_BILLION + nowTs.tv_nsec;
-    } while (nowNs < endNs);
-    tscAfter = rdtsc();
-
-    fthTscTicksPerMicroInitial = (tscAfter - tscBefore) /
-        FTH_TIME_CALIBRATION_MICROS;
-
-    plat_attr_uthread_getter_set(&fthUthreadGetter);
-}
-
-static void fthPthreadDestroy() __attribute__((destructor));
-
-static void fthPthreadDestroy() {
-    FTH_FREE(fth, sizeof (*fth));
-    fth = NULL;
+    pthread_mutex_unlock(&(fth->kill_mutex));
 }
 
 /**
@@ -587,15 +197,8 @@ static void fthPthreadDestroy() {
  */
 inline fthThread_t *fthSelf(void)
 {
-    fthSched_t *my_sched;
-
-    my_sched = sched;
-
-    if (my_sched == NULL) {
-        return NULL;                         // If not an FTH thread...
-    }
-
-    return my_sched->dispatch.thread;         // Saved here
+    // get my fthread value from the fth mapping table 
+    return selfFthread;
 }
 
 /**
@@ -604,69 +207,44 @@ inline fthThread_t *fthSelf(void)
 
 void * fthId(void)
 {
-   return fthSelf();
+   return (void *) fthSelf();
 }
 
 /*
  * Return an unique id.
  */
-uint64_t
-fth_uid(void)
+uint64_t fth_uid(void)
 {
-    if (sched == NULL)
-        return 0;
-    return sched->dispatch.thread->id;
+    return (selfFthread->id);
 }
 
-/**
- * @brief return a non-zero ID to use when setting locks.  This is for debug
- *        and recovery.
- */
-inline uint64_t fthLockID(void)
+static void *pthread_func_wrapper(void *arg)
 {
-    if (sched != NULL) {
-        return (uint64_t) sched->dispatch.thread;    // Saved here
+    uint64_t       rv;
+    fthThread_t   *fthrd = (fthThread_t *) arg;
+
+    selfFthread = fthrd;
+
+    /* wait until at least one scheduler is running */
+
+    pthread_mutex_lock(&(fth->sched_mutex));
+    while (1) {
+	if (fth->sched_started) {
+	    break;
+	} else {
+	    (fth->sched_thrds_waiting)++;
+	    pthread_cond_wait(&(fth->sched_condvar), &(fth->sched_mutex));
+	    (fth->sched_thrds_waiting)--;
+	}
     }
+    pthread_mutex_unlock(&(fth->sched_mutex));
 
-    return getpid();                        // Just use the process ID
-}
+    rv = fthWait();
 
-/**
- * @brief return fth structure pointer
- */
-inline fth_t *fthBase(void)
-{
-    return fth;
-}
+    // call fthread function
+    fthrd->startfn(rv);
 
-/**
- * @brief return fth resume pointer
- */
-inline struct ptofThreadPtrs *fthResumePtrs(void)
-{
-    return &ptofResumePtrs;
-}
-
-/*
- * @brief Dummy routine that starts every thread
- */
-void fthDummy(fthThread_t *thread)
-{
-    // This is where the thread is actually entered after the stack switch junk
-#ifdef FTH_TIME_STATS
-    threadResumeTimeStamp = rdtsc();
-#endif
-
-    thread->state = 'R';
-    thread->dispatch.startRoutine(thread->dispatch.arg);
-
-    thread->state = 'K';                     // This thread is dead
-    VALGRIND_STACK_DEREGISTER(thread->dispatch.stackId);
-
-#ifdef FTH_TIME_STATS
-    threadSuspendTimeStamp = rdtsc();
-#endif
-    fthToScheduler(thread, 0);               // Give up the CPU forever
+    pthread_exit(NULL);
 }
 
 /**
@@ -678,65 +256,92 @@ void fthDummy(fthThread_t *thread)
  */
 fthThread_t *fthSpawn(void (*startRoutine)(uint64_t), long minStackSize)
 {
-    char *end;
-    // Allocate the basic structures for the thread
-    fthThread_t *thread = FTH_MALLOC(sizeof(fthThread_t));
-    thread->dispatch.stackSize = FTH_STACK_ALIGN(minStackSize);
-    thread->dispatch.stack = plat_alloc_stack(thread->dispatch.stackSize);
-    end = (char *) thread->dispatch.stack + thread->dispatch.stackSize;
-    thread->dispatch.stackId =
-        VALGRIND_STACK_REGISTER(thread->dispatch.stack, end);
-    plat_assert_always(thread->dispatch.stack);
-    thread->dispatch.startRoutine = startRoutine;
-    thread->state = 'N';                     // Virgin thread
-    thread->dispatch.sched = NULL;           // No scheduler yet
-    thread->schedNum = nextOpenSched(minStackSize);
-    thread->waitElCount = 0;
-    thread->spin = 0;
-    thread->dispatchable = 0;
-    thread->yieldCount = 0;
-    thread->defaultYield = 0;
-    thread->nextAll = NULL;
-    thread->dispatch.floating = 0;
+    int                    rc;
+    fthThread_t           *fthrd;
+    pthread_t              pthrd;
+    pthread_attr_t         attr;
 
-    allThreads_xlist_enqueue(&fth->allHead, &fth->allTail, thread);
+    cpu_set_t              mask;
+    int i;
 
-    // XXX: Thread struct isn't actually stored on the stack, so why make
-    // space for it?
+    for (i = 0; i < 32; ++i) {
+	CPU_SET(i, &mask);
+    }
+    sched_setaffinity(0, sizeof(mask), &mask);
 
-    // Leave space for thread structure and round down to 16 byte alignment
-    // for x86_64.
-    end  = (char *) thread->dispatch.stack;
-    end += thread->dispatch.stackSize - sizeof (fthThread_t);
-    end  = (char *) ((uintptr_t) end & ~0xf);
+    fthrd = NULL;
 
-    // Make space for "return" address since entry is by jmp not call
-    // thus ensuring the correct offset from the required alignment for
-    // GCC's alignment preservation.  Otherwise printf("%g") will segfault.
-    end -= sizeof (void *);
+    fthrd = plat_alloc(sizeof(fthThread_t));
+    plat_assert(fthrd);
+    pthread_mutex_init(&(fthrd->mutex), NULL);
+    pthread_mutex_lock(&(fthrd->mutex));
+    pthread_attr_init(&attr);
+    pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_JOINABLE);
+    rc = pthread_create(&pthrd, &attr, pthread_func_wrapper, (void *) fthrd);
+    if (rc == 0) {
+        fthrd->id         = fth->nthrds;
+	fthrd->is_waiting = 0;
+	fthrd->do_resume  = 0;
+	fthrd->pthread    = pthrd;
+	fthrd->startfn    = startRoutine;
+	fthrd->next       = NULL;
+	fthrd->prev       = NULL;
 
-    // Make return address NULL so GDB stack back traces terminate
-    *(void **)end = NULL;
+	/*  Used for Drew's screwy fthread-local state stuff in
+	 *  platform/attr.[ch].
+	 */
+	fthrd->local      = plat_attr_uthread_alloc();
 
-    // Hack the longjump buffer
-    thread->dispatch.pc = (uint64_t) &fthDummy;
-    thread->dispatch.rsp = (uint64_t)end;
-    thread->local = plat_attr_uthread_alloc();
-    plat_assert_always(thread->local);
-    thread->id = __sync_fetch_and_add(&uniqueId, 1);
+	pthread_cond_init(&(fthrd->condvar), NULL);
 
-    return thread;
+	if (fth->allHead == NULL) {
+	    fth->allHead = fthrd;
+	    fth->allTail = fthrd;
+	} else {
+	    fthrd->next = fth->allHead;
+	    fth->allHead->prev = fthrd;
+	    fth->allHead = fthrd;
+	}
+	(fth->nthrds)++;
+	pthread_mutex_unlock(&(fthrd->mutex));
+    } else {
+	pthread_mutex_unlock(&(fthrd->mutex));
+	plat_free(fthrd);
+    }
+    pthread_attr_destroy(&attr);
+    return fthrd;
 }
 
 fthThread_t *fthMakeFloating(fthThread_t *thread)
 {
-   fthThread_t *old;
-
-   plat_assert_always(floatingThread == NULL);
-   thread->dispatch.floating = -1;
-   old = atomic_xchgp(&floatingThread, thread);
-   plat_assert_always(old == NULL);
+   // purposefully empty
    return thread;
+}
+
+/**
+ * @brief Give up processor, go undispatchable.
+ *
+ * @return Value specified by caller to fthResume.
+ */
+uint64_t fthWait(void)
+{
+    fthThread_t *thread = fthSelf();
+    uint64_t     rv;
+
+    pthread_mutex_lock(&(thread->mutex));
+    while (1) {
+	if (thread->do_resume) {
+	    break;
+	} else {
+	    thread->is_waiting = 1;
+	    pthread_cond_wait(&(thread->condvar), &(thread->mutex));
+	}
+    }
+    rv = thread->rv_wait;
+    thread->is_waiting = 0;
+    thread->do_resume= 0;
+    pthread_mutex_unlock(&(thread->mutex));
+    return rv;
 }
 
 /**
@@ -749,32 +354,13 @@ fthThread_t *fthMakeFloating(fthThread_t *thread)
  */
 static __inline__ void fthResumeInternal(fthThread_t *thread, uint64_t rv)
 {
-    FTH_SPIN_LOCK(&thread->spin);
-    plat_assert(thread->dispatchable == 0);
-    // Check the state and atomically change it to make sure that the thread
-    // is never put on the XResume queue twice.  CDS logic is needed because
-    // XResume cannot do a spin lock.
-    char threadState;
-
-    do {
-        threadState = thread->state;
-        plat_assert(threadState == 'R' || threadState == 'W'
-                    || threadState == 'N');
-    } while (!__sync_bool_compare_and_swap(&thread->state, threadState, 'd'));
-
-    thread->dispatch.arg = rv;               // Save as return parameter
-
-    if (thread->dispatch.floating) {
-       plat_assert_always(thread == floatingThread);
-       plat_assert_always(floatingQueue == NULL);
-       floatingQueue = thread;
-    } else {
-        fthThreadQ_push(&fth->eligibleQ[thread->schedNum], thread);
+    pthread_mutex_lock(&(thread->mutex));
+    thread->rv_wait   = rv;
+    thread->do_resume = 1;
+    if (thread->is_waiting) {
+	pthread_cond_signal(&(thread->condvar));
     }
-
-    thread->dispatchable = 1;                // Mark as on dispatch queue
-    thread->state = 'D';                     // Now dispatchable
-    FTH_SPIN_UNLOCK(&thread->spin);
+    pthread_mutex_unlock(&(thread->mutex));
 }
 
 /**
@@ -791,557 +377,18 @@ fthResume(fthThread_t *thread, uint64_t rv)
     fthResumeInternal(thread, rv);
 }
 
-void
-fthPrintSwitchStats(void)
-{
-    /*  print the thread dispatch and switch stats for all fthreads */
-    fthThread_t *curTh = fth->allHead;
-    int totalDispatches = 0;
-    int totalSwitches  =  0;
-
-    while (curTh) {
-        totalDispatches += curTh->dispatchCount;
-        totalSwitches += curTh->switchCount;
-        curTh = curTh->nextAll;
-    }
-
-    printf("\nTotal Dispatches = %d , Total Scheduler Switches = %d \n",
-           totalDispatches, totalSwitches);
-    return;
-}
-
-static inline void fthRun(fthThread_t *cur, uint64_t idleStartTimeStamp)
-{
-    //
-    // New thread to run - switch
-    //
-
-    FTH_SPIN_LOCK(&cur->spin);
-    cur->dispatchable = 0;           // No longer on the eligible queue
-    sched->dispatch.thread = cur;    // Use this for the current thread
-    cur->dispatch.sched = sched;     // Remember your mama
-
-    if (cur->schedNum != schedNum) {
-        cur->switchCount++;
-    }
-
-    FTH_SPIN_UNLOCK(&cur->spin);
-
-#ifdef FTH_TIME_STATS
-    if (dispatchTimeStamp < idleStartTimeStamp) {
-        __sync_fetch_and_add(&fthReverses, 1);
-    }
-
-    if (idleStartTimeStamp && dispatchTimeStamp > idleStartTimeStamp) {
-        sched->schedulerIdleTime += dispatchTimeStamp - idleStartTimeStamp;
-    }
-
-    if (sched->prevDispatchPrio) {
-        sched->schedulerNumDispatches++;
-    } else {
-        sched->schedulerNumLowPrioDispatches++;
-    }
-#endif
-
-    asm __volatile__("mfence":::"memory"); // Make sure all is seen
-    fthDispatch(cur);                // Never return
-    asm __volatile__("":::"memory");
-
-    //
-    // We should never get here
-    //
-}
-
-static void fthAdjustClock(uint64_t now)
-{
-    // Time to adjust the tsc ticks per nanosecond
-    struct timespec nowSpec;
-    int64_t elapsedMicro;
-    long status;
-
-    status = clock_gettime(CLOCK_REALTIME, &nowSpec);
-    plat_assert(!status);
-
-    /* timeval and timespec are signed */
-    elapsedMicro =
-        (nowSpec.tv_nsec - sched->prevTimeSpec.tv_nsec) / PLAT_THOUSAND +
-        (int64_t)(nowSpec.tv_sec - sched->prevTimeSpec.tv_sec) * PLAT_MILLION;
-
-    if (nowSpec.tv_sec <= sched->prevTimeSpec.tv_sec ||
-        (nowSpec.tv_sec == sched->prevTimeSpec.tv_sec &&
-         nowSpec.tv_nsec <= sched->prevTimeSpec.tv_nsec)) {
-
-        if (!sched->backwardsGettimeWarned) {
-            plat_log_msg(20883, PLAT_LOG_CAT_FTH,
-                         PLAT_LOG_LEVEL_WARN,
-                         "clock_gettime() went backwards by %3.1g seconds",
-                         (double)elapsedMicro / (double)PLAT_MILLION);
-            sched->backwardsGettimeWarned = 1;
-        }
-
-        return;
-    }
-
-    sched->backwardsGettimeWarned = 0;
-
-    // Take the average of this value and the current guess so time doesn't jump
-    if ( now <= sched->prevTimeTsc ) {
-        if (!sched->backwardsTscWarned) {
-            plat_log_msg(20884, PLAT_LOG_CAT_FTH,
-                         PLAT_LOG_LEVEL_WARN,
-                         "tsc went backwards by %3.1g seconds",
-                         (double)(sched->prevTimeTsc - now) /
-                         (double)fthTscTicksPerMicro);
-            sched->backwardsTscWarned = 1;
-        }
-        return;
-    }
-
-    sched->backwardsTscWarned = 0;
-    fthTscTicksPerMicro += (now - sched->prevTimeTsc) / elapsedMicro;
-    fthTscTicksPerMicro /= 2;
-
-    // Save the new values for next time
-    plat_assert(now >= sched->prevTimeTsc);
-    sched->prevTimeTsc = now;
-    sched->prevTimeSpec.tv_sec = nowSpec.tv_sec;
-    sched->prevTimeSpec.tv_nsec = nowSpec.tv_nsec;
-}
-
-static void fthProcessQueues(void)
-{
-    fthThread_t *cur;
-
-    // Process the memory queue
-
-    for (int qNum = 0; qNum < fth->memQCount; qNum++) {
-        uint64_t rv;
-
-        if (fth->memTest[qNum] != NULL && (rv = *(fth->memTest[qNum])) != 0) {
-            cur = fth->memQ[qNum];
-            fth->memTest[qNum] = NULL;
-            cur->dispatch.arg = rv;
-
-            if (cur->dispatch.floating) {
-                    plat_assert_always(cur == floatingThread);
-                plat_assert_always(floatingQueue == NULL);
-                floatingQueue = cur;
-            } else {
-                fthThreadQ_push(&fth->eligibleQ[0], cur);
-            }
-        }
-    }
-
-    // Process the mutex queue
-
-    if (fth->mutexQ.head != NULL) {
-        fthThreadQ_spinLock(&fth->mutexQ);
-        cur = fthThreadQ_head(&fth->mutexQ);
-
-        while (PLAT_UNLIKELY(cur != NULL)) {
-           if (pthread_mutex_trylock(cur->mutexWait) != 0) {
-               fthThread_t *dispatchable = cur;
-               cur = fthThreadQ_next(cur);
-               fthThreadQ_remove_nospin(&fth->mutexQ, dispatchable);
-
-               if (dispatchable->dispatch.floating) {
-                   plat_assert_always(dispatchable == floatingThread);
-                   plat_assert_always(floatingQueue == NULL);
-                   floatingQueue = dispatchable;
-               } else {
-                   fthThreadQ_push(&fth->eligibleQ[dispatchable->schedNum],
-                                   dispatchable);
-               }
-           } else {                  // Not yet
-               cur = fthThreadQ_next(cur);
-           }
-        }
-
-        fthThreadQ_spinUnlock(&fth->mutexQ); // Done walking the queue
-    }
-
-    if (fth->sleepQ.head != NULL && FTH_SPIN_TRY(&fth->sleepSpin)) {
-        fthThread_t *st = fth->sleepQ.head;
-        uint64_t now = rdtsc(); // Refresh for accuracy
-
-        while (st != NULL && st->sleep < now) {
-            st = fthThreadQ_shift_precheck(&fth->sleepQ); // Must be the head
-            fthResumeInternal(st, 0);
-            st = fth->sleepQ.head;
-        }
-
-        FTH_SPIN_UNLOCK(&fth->sleepSpin);
-    }
-
-    //
-    // Check the PtofMbox global chain for new mail.
-    // Mail always is pushed on this chain and then dequeued by the scheduler.
-    // This approach avoids a bunch of cross-thread race conditions.
-
-    while (1) {
-        XMboxEl_sp_t elShmem =
-            XMboxEl_xlist_dequeue(&fth->ptofMboxPtr->headShmem,
-                                  &fth->ptofMboxPtr->tailShmem);
-
-        if (PLAT_LIKELY(XMboxEl_sp_is_null(elShmem))) {
-            break;                // Done for now
-        }
-
-        // Something chained off head - post the head
-        XMboxEl_t *el = XMboxEl_sp_rwref(&el, elShmem);
-        ptofMbox_t *mb = ptofMbox_sp_rwref(&mb, el->ptofMboxShmem);
-
-        // Must lock the mailbox to avoid a race where we enqueue just
-        // as a waiter arrives
-
-        FTH_SPIN_LOCK(&mb->spin);
-        fthThread_t *mbWaiter = fthThreadQ_shift_precheck(&mb->threadQ);
-
-        if (mbWaiter == NULL) {   // If no thread waiting
-            // Just queue up the mail
-            XMboxEl_xlist_enqueue(&mb->mailHeadShmem, &mb->mailTailShmem,
-                                  elShmem);
-        } else {                  // Start the top waiting thread
-            fthResumeInternal(mbWaiter, el->mailShmem.base.int_base);
-            // Release the old reference and the XMbox element
-            XMboxEl_sp_rwrelease(&el); // Release the old one
-            XMboxEl_sp_free(elShmem);
-        }
-
-        (void) __sync_fetch_and_add(&mb->pending, -1); // Decrement pending count
-        FTH_SPIN_UNLOCK(&mb->spin);
-
-        asm __volatile__("mfence":::"memory"); // Make sure all is seen
-        ptofMbox_sp_rwrelease(&mb); // Done with reference
-    }
-
-    //
-    // Check the PtoF dispatch queue.  Threads get placed on this queue
-    // when they are waiting for an asynchronous event or when a
-    // PThread needs to post the thread.  This avoids a bunch of
-    // cross-thread race conditions.
-
-    while (1) {
-        fthThread_t *thread =
-            XResume_xlist_dequeue(&ptofResumePtrs.head,
-                                  &ptofResumePtrs.tail);
-
-        if (PLAT_LIKELY(thread == NULL)) {
-            break;
-        }
-
-        // This is like resume but the arg is already in thread->arg
-        FTH_SPIN_LOCK(&thread->spin);
-        plat_assert(thread->dispatchable == 0);
-        plat_assert(thread->state == 'd');
-
-        if (thread->dispatch.floating) {
-            plat_assert_always(thread == floatingThread);
-            plat_assert_always(floatingQueue == NULL);
-            floatingQueue = thread;
-        } else {
-            fthThreadQ_push(&fth->eligibleQ[thread->schedNum], thread);
-        }
-
-        thread->dispatchable = 1; // Mark as on dispatch queue
-        thread->state = 'D';      // Now dispatchable
-        FTH_SPIN_UNLOCK(&thread->spin);
-    }
-}
-
-static inline void fthKilled(fthThread_t *cur)
-{
-    // Clean up storage
-    plat_free_stack(cur->dispatch.stack);
-    plat_attr_uthread_free(cur->local);
-    FTH_SPIN_LOCK(&fth->allQSpin);   // Protect the allQ for deletes
-    fthThread_t *prev = fth->allHead; // Prime the pump
-
-    // Find the previous
-    if (fth->allHead == cur) {       // It is the head
-        prev = NULL;
-    } else {
-        while (prev->nextAll != cur) {
-            prev = prev->nextAll;
-        }
-    }
-
-    // Replace the tail with the prev. This is a NOP if cur is not the tail
-    __sync_bool_compare_and_swap(&fth->allTail, cur, prev);
-
-    // Now swap out the head or previous next pointer.  This is delayed until
-    // after the tail is changed in case (a) cur was the tail and (b) a new
-    // one got chained on just before we swapped out the cur.
-    if (prev == NULL) {
-        __sync_bool_compare_and_swap(&fth->allHead, cur, cur->nextAll);
-    } else {
-        prev->nextAll = cur->nextAll; // Splice it out
-    }
-
-    FTH_SPIN_UNLOCK(&fth->allQSpin);
-    FTH_FREE(cur, sizeof(fthThread_t));
-}
-
-/*
- *  Look for a low-priority thread to schedule.
- */
-
-static fthThread_t *fthProcessLowPrio(void)
-{
-    fthThread_t *cur;
-
-    while (1) {
-        cur = myLowPrioQ->head;
-
-        if (PLAT_UNLIKELY(cur == NULL)) {
-            break;
-        }
-
-        // Make sure that the thread isn't just about to be suspended
-        if (PLAT_UNLIKELY(cur->dispatch.sched != NULL)) {
-            ;
-        } else if (PLAT_UNLIKELY(cur->yieldCount != 0)) {
-            cur->yieldCount--;
-        } else {
-            cur = fthThreadQ_shift_precheck(myLowPrioQ);
-            sched->prevDispatchPrio = 0;
-            break;
-        }
-
-        // move the head to the back of the queue
-        cur = fthThreadQ_shift_precheck(myLowPrioQ);
-        fthThreadQ_push(myLowPrioQ, cur); // Push back
-#ifdef FTH_TIME_STATS
-        // Remember all but the last time around loop
-        dispatchTimeStamp = rdtsc();
-#endif
-    }
-
-    return cur;
-}
-
-/**
- * @brief Scheduler main
+/** 
+ * @brief - Cross-thread (but not cross-process) safe resume for fth thread
  *
- */
-
-void fthScheduler(uint64_t arg)
-{
-    int schedNum;
-    fthSched_t *sched;
-
-    sched = (fthSched_t *) arg;  // Type cheat for parameter passing
-    schedNum = sched->schedNum;
-
-#ifdef FTH_TIME_STATS
-    threadSuspendTimeStamp = rdtsc();      // Init
-#endif
-
-    asm __volatile__("":::"memory");       // Things could have changed
-    fthSaveSchedulerContext(sched);        // Save this point for fthToScheduler
-    asm __volatile__("mfence":::"memory"); // Things could have changed
-
-    // This is like Bill Murray in "Ground Hog Day": the scheduler finds itself
-    // here every time it wakes up.
-
-#ifdef FTH_TIME_STATS
-    uint64_t idleStartTimeStamp;           // Idle start (0 for not idle)
-    uint64_t schedStartTimeStamp;          // Loop start
-
-    idleStartTimeStamp = 0;
-    dispatchTimeStamp = schedStartTimeStamp = rdtsc();
-
-    if (sched->prevDispatchPrio) {
-        sched->schedulerDispatchTime += schedStartTimeStamp -
-            threadSuspendTimeStamp;
-    } else {
-        sched->schedulerLowPrioDispatchTime += schedStartTimeStamp -
-            threadSuspendTimeStamp;
-    }
-#endif
-
-    fthThread_t *cur = sched->dispatch.thread;
-    sched->dispatch.thread = NULL;
-
-    if (PLAT_LIKELY(cur != NULL)) {          // If just finished dispatch
-        plat_assert(cur->dispatch.floating || cur->dispatch.sched == sched);
-        cur->dispatch.sched = NULL;          // No longer running
-
-        if (PLAT_UNLIKELY(cur->state == 'K')) { // if killed
-            fthKilled(cur);
-        }
-    }
-
-    /*
-     *  This is the start of the main scheduler loop.  The loop continues until
-     *  a thread is dispatched.  Once a thread finishes its time slice, the
-     *  scheduler is re-entered above.
-     */
-
-    cur = NULL; /* no thread to dispatch yet */
-
-    while (1) {
-#ifdef FTH_TIME_STATS
-        dispatchTimeStamp = rdtsc();
-#endif
-        uint64_t now = rdtsc(); // Refresh for accuracy
-        plat_assert(now >= sched->prevTsc);
-        sched->prevTsc = now;
-
-        if (PLAT_UNLIKELY(now > sched->prevTimeTsc + 10LL * PLAT_BILLION)) {
-            fthAdjustClock(now);
-        }
-
-
-        if (curSchedNum == POLLER_SCHED) {
-            fthProcessQueues();
-        }
-
-        // Check for doing a dispatch of a floating (global) thread.
-
-        if (previousFloating != schedNum && floatingQueue != NULL) {
-            cur = atomic_xchgp(&floatingQueue, NULL);
-
-            if (cur == NULL) {
-                ;
-            } else if (cur->dispatch.sched != NULL) {
-                floatingQueue = cur;
-                cur = NULL;
-            } else {
-                plat_assert_always(cur == floatingThread);
-                plat_assert_always(floatingQueue == NULL);
-                previousFloating = schedNum;
-                nextFloating = schedNum + 1;
-
-                if (nextFloating > fthFloatMax) {
-                    nextFloating = 0;
-                }
-
-                fthFloatStats[schedNum]++;
-            }
-        }
-
-        if (fthFloatMax == 0) {
-            if (floatingTicker & 1) {
-                previousFloating = -1;
-                nextFloating = 0;
-            } else {
-                previousFloating = 0;
-                nextFloating = -1;
-            }
-
-            floatingTicker++;
-        }
-
-        // Check for an eligible thread
-
-        while (cur == NULL) {
-            cur = myEligibleQ->head;
-
-            if (PLAT_UNLIKELY(cur == NULL)) {
-                break;
-            }
-
-            // Make sure that the thread isn't just about to be suspended
-            if (PLAT_UNLIKELY(cur->dispatch.sched != NULL)) {
-                ;
-            } else if (PLAT_UNLIKELY(cur->yieldCount != 0)) {
-                cur->yieldCount--;
-            } else {
-                cur = fthThreadQ_shift_precheck(myEligibleQ);
-                sched->prevDispatchPrio = 1;
-                break;
-            }
-
-            // move the head to the back of the queue
-            cur = fthThreadQ_shift_precheck(myEligibleQ);
-            fthThreadQ_push(myEligibleQ, cur); // Push back
-            cur = NULL;
-#ifdef FTH_TIME_STATS
-            dispatchTimeStamp = rdtsc();
-#endif
-        }
-
-#ifdef FTH_TIME_STATS
-        if (PLAT_UNLIKELY(cur == NULL && !idleStartTimeStamp)) {
-            idleStartTimeStamp = schedStartTimeStamp;
-        }
-#endif
-
-#ifdef multi_low
-        if (PLAT_UNLIKELY(cur == NULL)) {
-            cur = fthProcessLowPrio();
-        }
-#else
-        if (PLAT_UNLIKELY(cur == NULL) && schedNum == LOW_PRIO_SCHED) {
-            cur = fthProcessLowPrio();
-        }
-#endif
-
-        /*
-         *  If a thread was found, run it!
-         */
-
-        if (PLAT_LIKELY(cur != NULL)) {
-            fthRun(cur, idleStartTimeStamp);
-            /* fthRun does not return */
-        }
-
-        /*
-         *  Shut down this scheduler thread entirely if that's been requested.
-         */
-
-        if (fth->kill && __sync_fetch_and_sub(&fth->kill, 1) > 0) {
-            plat_shmem_pthread_done();
-            return;
-        }
-
-        // Release malloc waiters in case we have free memory now
-        while (1) {
-            fthThread_t *thread = fthThreadQ_shift(&fth->mallocWaitThreads);
-
-            if (thread == NULL) {
-                break;
-            }
-
-            fthResumeInternal(thread, 0); // Restart
-        }
-    }
-}
-
-/**
- * @brief Give up processor, go undispatchable.
- *
- * @return Value specified by caller to fthResume.
- */
-uint64_t fthWait(void)
-{
-    fthThread_t *thread = fthSelf();
-    // The thread could be taken off of whatever wait Q that it is currently on
-    // (i.e., mbox wait) and put on the dispatch Q at this point.  So, the
-    // state may have been changed from 'R' to 'd' or even 'D'.  Or maybe the
-    // caller has set a special state.  Either way, we only replace the 'R'
-    // state.
-
-    (void) __sync_bool_compare_and_swap(&thread->state, 'R', 'W');
-
-#ifdef FTH_TIME_STATS
-    threadSuspendTimeStamp = rdtsc();
-    thread->runTime += threadSuspendTimeStamp - threadResumeTimeStamp;
-    sched->totalThreadRunTime += threadSuspendTimeStamp - threadResumeTimeStamp;
-#endif
-    sched->prevDispatchPrio = 1;             // High prio if waiting
-    fthToScheduler(thread, 0);                  // Go away
-    thread->state = 'R';                     // Running again
-
-#ifdef FTH_TIME_STATS
-    threadResumeTimeStamp = rdtsc();
-    sched->schedulerDispatchTime += threadResumeTimeStamp - dispatchTimeStamp;
-#endif
-
-    return thread->dispatch.arg;
-}
-
+ * @param <IN> thread pointer
+ * @param <IN> argument to pass to thread (return val from fthWait call)
+ */     
+            
+void XResume(struct fthThread *thread, uint64_t arg)
+{           
+    fthResumeInternal(thread, arg);
+}       
+    
 /**
  * @brief Give up processor but remain dispatchable
  *
@@ -1352,150 +399,7 @@ uint64_t fthWait(void)
  */
 void fthYield(int count)
 {
-    fthThread_t *thread = fthSelf();
-
-#ifdef FTH_TIME_STATS
-    threadSuspendTimeStamp = rdtsc();
-    thread->runTime += threadSuspendTimeStamp - threadResumeTimeStamp;
-    sched->totalThreadRunTime += threadSuspendTimeStamp - threadResumeTimeStamp;
-#endif
-
-    FTH_SPIN_LOCK(&thread->spin);
-    plat_assert(thread->dispatchable == 0);
-
-    if (count >= 0) {
-        sched->prevDispatchPrio = 1;
-        thread->yieldCount = count;
-
-        if (! thread->dispatch.floating) {
-            fthThreadQ_push(&fth->eligibleQ[thread->schedNum], thread);
-        }
-    } else {
-        sched->prevDispatchPrio = 0;
-        thread->yieldCount = -1 - count;
-
-        if (! thread->dispatch.floating) {
-#ifdef multi_low
-           fthThreadQ_push(&fth->lowPrioQ[thread->schedNum], thread);
-#else
-           fthThreadQ_push(&fth->lowPrioQ, thread);
-#endif
-        }
-    }
-
-    thread->dispatchable = 1;                // Mark as dispatchable
-    FTH_SPIN_UNLOCK(&thread->spin);
-
-    fthToScheduler(thread, 1);               // Go away
-    thread->state = 'R';                     // Running again
-
-#ifdef FTH_TIME_STATS
-    threadResumeTimeStamp = rdtsc();
-
-    if (count >= 0) {
-        sched->schedulerDispatchTime +=
-            threadResumeTimeStamp - dispatchTimeStamp;
-    } else {
-        sched->schedulerLowPrioDispatchTime +=
-            threadResumeTimeStamp - dispatchTimeStamp;
-    }
-#endif
-}
-
-/**
- * @brief Wait element allocation.
- *
- * @return free wait element which caller must return with call to fthFreeWaitEl
- */
-fthWaitEl_t *fthGetWaitEl(void)
-{
-    fthWaitEl_t *rv = NULL;
-
-    if (sched != NULL) {
-        rv = fthWaitQ_shift_nospin(&sched->freeWait);
-    }
-
-    if (rv != NULL) {                        // Check whether we got one
-        sched->freeWaitCount--;
-    } else {
-        rv = fthWaitQ_shift_precheck(&fth->freeWait); // Try the global queue
-    }
-
-    if (rv == NULL) {                     // Check whether we got one
-        rv = FTH_MALLOC(sizeof(fthWaitEl_t)); // Allocate a new one
-        /*
-         * Nearly all of the Schooner code will ultimately die when
-         * malloc fails, so we don't need to special case it here.
-         */
-        plat_assert(rv); 
-
-        rv->pool = 1;                    // This is a pool element
-        rv->list = fth->waitEls;
-        fth->waitEls = rv;
-    }
-
-    fthWaitQ_el_init(rv);                    // Init the linked list element
-    rv->thread = (void *) fthLockID();       // Remember the thread or PID
-    rv->caller = (void *) __builtin_return_address(1);
-    return rv;
-}
-
-/**
- * @brief Wait element release
- *
- * @param waitEl <IN> Wait element previously returned by fthGetWaitEl
- */
-void fthFreeWaitEl(fthWaitEl_t *waitEl)
-{
-    plat_assert(waitEl->pool == 1);
-    waitEl->caller = NULL;
-
-    if (sched != NULL && sched->freeWaitCount < SCHED_MAX_FREE_WAIT) {
-        fthWaitQ_push_nospin(&sched->freeWait, waitEl);
-        sched->freeWaitCount++;
-    } else {                                 // Put onto global free list
-        fthWaitQ_push(&fth->freeWait, waitEl);
-    }
-}
-
-/**
- * @brief Sparse lock (not table) allocation.
- *
- * @return free lock element which caller must return with call to fth
- */
-fthSparseLock_t *fthGetSparseLock(void)
-{
-    fthSparseLock_t *rv = fthSparseQ_shift_nospin(&sched->freeSparse);
-
-    if (rv != NULL) {                        // Check whether we got one
-        sched->freeSparseCount--;
-    } else {
-        rv = fthSparseQ_shift(&fth->freeSparse); // Try the global queue
-    }
-
-    if (rv == NULL) {                        // Check whether we got one
-        rv = FTH_MALLOC(sizeof(fthSparseLock_t)); // Allocate
-    }
-
-    fthSparseQ_el_init(rv);
-    fthLockInit(&rv->lock);                  // Init the embedded FTH lock
-    rv->useCount = 0;
-    return rv;
-}
-
-/**
- * @brief sparse lock release
- *
- * @param sl <IN> sparse lock previously returned by fthGetSparseLock
- */
-void fthFreeSparseLock(fthSparseLock_t *sl)
-{
-    if (sched->freeSparseCount < SCHED_MAX_FREE_SPARSE) {
-        fthSparseQ_push_nospin(&sched->freeSparse, sl);
-        sched->freeSparseCount++;
-    } else {
-        fthSparseQ_push(&fth->freeSparse, sl);
-    }
+    pthread_yield();
 }
 
 /**
@@ -1506,117 +410,7 @@ void fthFreeSparseLock(fthSparseLock_t *sl)
 
 void fthNanoSleep(uint64_t nanoSecs)
 {
-    fthThread_t *self = fthSelf();
-
-    self->sleep = (nanoSecs * fthTscTicksPerMicro / PLAT_THOUSAND) + rdtsc();
-
-    // Insert into the sleep Q at the appropriate place
-    FTH_SPIN_LOCK(&fth->sleepSpin);
-    fthThread_t *st = fth->sleepQ.head;
-    fthThread_t *prevST = NULL;
-
-    while (st != NULL && st->sleep < self->sleep) {
-        prevST = st;
-        st = st->threadQ.next;
-    }
-
-    fthThreadQ_insert_nospin(&fth->sleepQ, prevST, self);
-    FTH_SPIN_UNLOCK(&fth->sleepSpin);
-    fthWait();
-}
-
-/**
- * @brief get an estimate of the current time of day
- *
- * Fills in timeval structure just like gettimeofday.  For the timezone info
- * just call gettimeofday itself since this doesn't change.
- *
- * @param tv <IN> system timeval
- *
- */
-void fthGetTimeOfDay(struct timeval *tv)
-{
-    if (sched) {
-        tv->tv_usec  = sched->prevTimeSpec.tv_nsec / PLAT_THOUSAND;
-        tv->tv_usec += (rdtsc() - sched->prevTimeTsc) / fthTscTicksPerMicro;
-        tv->tv_sec   = sched->prevTimeSpec.tv_sec;
-
-        if (tv->tv_usec >= PLAT_MILLION) {
-            tv->tv_sec  += tv->tv_usec / PLAT_MILLION;
-            tv->tv_usec %= PLAT_MILLION;
-        }
-    } else {
-        struct timespec nowSpec;
-        clock_gettime(CLOCK_REALTIME, &nowSpec);
-        tv->tv_sec = nowSpec.tv_sec;
-        tv->tv_usec = nowSpec.tv_nsec / PLAT_THOUSAND;
-    }
-}
-
-static int64_t fthMonotonicUsecsSinceEpoch = 0;
-
-void
-fthGetTimeMonotonic(struct timeval *tv)
-{
-    struct timeval now_tv;
-    int64_t now_usec;
-    int64_t try_usec;
-    int64_t old_usec;
-
-    fthGetTimeOfDay(&now_tv);
-    old_usec = now_usec = now_tv.tv_usec + (int64_t) now_tv.tv_sec * PLAT_MILLION;
-    do {
-        try_usec = old_usec;
-        old_usec = __sync_val_compare_and_swap(&fthMonotonicUsecsSinceEpoch,
-                                               try_usec, now_usec);
-    } while (old_usec != try_usec && old_usec < now_usec);
-
-    if (old_usec > now_usec) {
-        now_usec = old_usec;
-    }
-
-    tv->tv_sec = now_usec / PLAT_MILLION;
-    tv->tv_usec = now_usec % PLAT_MILLION;
-}
-
-/**
- * @brief get an estimate of the current time in seconds
- *
- * Returns just the time in seconds like time
- *
- */
-uint64_t fthTime(void)
-{
-    uint64_t usec;
-    uint64_t sec;
-
-    usec  = sched->prevTimeSpec.tv_nsec / PLAT_THOUSAND;
-    usec += (rdtsc() - sched->prevTimeTsc) / fthTscTicksPerMicro;
-    sec   = sched->prevTimeSpec.tv_sec;
-
-    if (usec >= PLAT_MILLION) {
-        sec += (int) usec / PLAT_MILLION;
-    }
-
-    return sec;
-}
-
-/**
- * @brief get total run time for this thread
- *
- * @param thread <IN> thread pointer or null (self)
- *
- * @return - thread run time as of last wait (does not include current time
- *           quanta)
- *
- */
-uint64_t fthThreadRunTime(fthThread_t *thread)
-{
-    if (thread == NULL) {
-        thread = fthSelf();
-    }
-
-    return thread->runTime / fthTscTicksPerMicro;
+    usleep(nanoSecs/1000);
 }
 
 /**
@@ -1626,15 +420,7 @@ uint64_t fthThreadRunTime(fthThread_t *thread)
  */
 uint64_t fthGetTotalThreadRunTime(void)
 {
-    uint64_t fthTotalThreadRunTime = 0;
-
-    for (int i = 0; i < FTH_MAX_SCHEDS; i++) {
-        if (fth->scheds[i] != NULL) {
-            fthTotalThreadRunTime += fth->scheds[i]->totalThreadRunTime;
-        }
-    }
-
-    return fthTotalThreadRunTime / fthTscTicksPerMicro;
+    return 0;
 }
 
 /**
@@ -1644,15 +430,7 @@ uint64_t fthGetTotalThreadRunTime(void)
  */
 uint64_t fthGetSchedulerDispatchTime(void)
 {
-    uint64_t fthSchedulerDispatchTime = 0;
-
-    for (int i = 0; i < FTH_MAX_SCHEDS; i++) {
-        if (fth->scheds[i] != NULL) {
-            fthSchedulerDispatchTime += fth->scheds[i]->schedulerDispatchTime;
-        }
-    }
-
-    return fthSchedulerDispatchTime / fthTscTicksPerMicro;
+    return 0;
 }
 
 /**
@@ -1663,16 +441,7 @@ uint64_t fthGetSchedulerDispatchTime(void)
  */
 uint64_t fthGetSchedulerLowPrioDispatchTime(void)
 {
-    uint64_t fthSchedulerLowPrioDispatchTime = 0;
-
-    for (int i = 0; i < FTH_MAX_SCHEDS; i++) {
-        if (fth->scheds[i] != NULL) {
-            fthSchedulerLowPrioDispatchTime +=
-                fth->scheds[i]->schedulerLowPrioDispatchTime;
-        }
-    }
-
-    return fthSchedulerLowPrioDispatchTime / fthTscTicksPerMicro;
+    return 0;
 }
 
 /**
@@ -1683,15 +452,7 @@ uint64_t fthGetSchedulerLowPrioDispatchTime(void)
 
 uint64_t fthGetSchedulerNumDispatches(void)
 {
-    uint64_t fthSchedulerNumDispatches = 0;
-
-    for (int i = 0; i < FTH_MAX_SCHEDS; i++) {
-        if (fth->scheds[i] != NULL) {
-            fthSchedulerNumDispatches += fth->scheds[i]->schedulerNumDispatches;
-        }
-    }
-
-    return max(fthSchedulerNumDispatches, 1);
+    return 0;
 }
 
 /**
@@ -1701,16 +462,7 @@ uint64_t fthGetSchedulerNumDispatches(void)
  */
 uint64_t fthGetSchedulerNumLowPrioDispatches(void)
 {
-    uint64_t fthSchedulerNumLowPrioDispatches = 0;
-
-    for (int i = 0; i < FTH_MAX_SCHEDS; i++) {
-        if (fth->scheds[i] != NULL) {
-            fthSchedulerNumLowPrioDispatches +=
-                fth->scheds[i]->schedulerNumLowPrioDispatches;
-        }
-    }
-
-    return fthSchedulerNumLowPrioDispatches;
+    return 0;
 }
 
 /**
@@ -1721,8 +473,7 @@ uint64_t fthGetSchedulerNumLowPrioDispatches(void)
  */
 uint64_t fthGetSchedulerAvgDispatchNanosec(void)
 {
-    return fthGetSchedulerDispatchTime() * PLAT_THOUSAND /
-               fthGetSchedulerNumDispatches() / fthTscTicksPerMicro;
+    return 0;
 }
 
 /**
@@ -1732,15 +483,7 @@ uint64_t fthGetSchedulerAvgDispatchNanosec(void)
  */
 uint64_t fthGetSchedulerIdleTime(void)
 {
-    uint64_t fthSchedulerIdleTime = 0;
-
-    for (int i = 0; i < FTH_MAX_SCHEDS; i++) {
-        if (fth->scheds[i] != NULL) {
-            fthSchedulerIdleTime += fth->scheds[i]->schedulerIdleTime;
-        }
-    }
-
-    return fthSchedulerIdleTime / fthTscTicksPerMicro;
+    return 0;
 }
 
 /**
@@ -1750,10 +493,7 @@ uint64_t fthGetSchedulerIdleTime(void)
  */
 uint64_t fthGetVoluntarySwitchCount(void)
 {
-    struct rusage usage;
-
-    getrusage(RUSAGE_SELF, &usage);
-    return usage.ru_nvcsw;
+    return 0;
 }
 
 /**
@@ -1763,10 +503,7 @@ uint64_t fthGetVoluntarySwitchCount(void)
  */
 uint64_t fthGetInvoluntarySwitchCount(void)
 {
-    struct rusage usage;
-
-    getrusage(RUSAGE_SELF, &usage);
-    return usage.ru_nivcsw;
+    return 0;
 }
 
 /**
@@ -1779,76 +516,11 @@ uint64_t fthGetTscTicksPerMicro(void)
     return fthTscTicksPerMicro;
 }
 
-long fthGetDefaultStackSize(void)
-{
-    // 3 * 4096 proves to be insufficient for vfprintf in some cases.
-    return 4096 * 5;
-}
-
-#ifdef FTH_INSTR_LOCK
-
 /**
- * @brief Get a pointer to the per-scheduler lock tracing data structure
- *
- * @return Pointer to lock trace data for this scheduler
+ * @brief return fth structure pointer
  */
-fthLockTraceData_t *fthGetLockTraceData(void)
+inline fth_t *fthBase(void)
 {
-    if (sched == NULL) {
-        return NULL;
-    }
-
-    return sched->locktrace_data;
+    return fth;
 }
 
-#endif
-
-#ifdef AIO_TRACE
-
-/**
- * @brief Get a pointer to the per-scheduler AIO tracing data structure
- *
- * @return Pointer to AIO trace data for this scheduler
- */
-aio_trace_sched_state_t *fthGetAIOTraceData(void)
-{
-    if (sched == NULL) {
-        return NULL;
-    }
-
-    return sched->aiotrace_data;
-}
-
-/**
- * @brief Record an AIO trace record.
- *
- * @param patd - pointer to the AIO trace data structure.
- */
-void fthLogAIOTraceRec(aio_trace_sched_state_t *patd, aio_trace_rec_t *ptr)
-{
-    char        fname[100];
-
-    if (patd->f == NULL) {
-	(void) sprintf(fname, "AT/at_%d", patd->schedNum);
-	if ((patd->f = fopen(fname, "w")) == NULL) {
-	    (void) fprintf(stderr, "ERROR: Could not open AIO trace file '%s'", fname);
-	    return;
-	}
-    }
-
-    memcpy((void *) &patd->aio_trace[patd->n_aio_trace], (void *) ptr, sizeof(aio_trace_rec_t));
-    (patd->n_aio_trace)++;
-    (patd->n_trace_recs)++;
-    if (patd->n_aio_trace == FTH_AIO_TRACE_LEN) {
-	if (fwrite((const void *) patd->aio_trace, sizeof(aio_trace_rec_t), patd->n_aio_trace, patd->f) != patd->n_aio_trace) {
-	    (void) fprintf(stderr, "ERROR: Problem writing to AIO trace file %d", patd->schedNum);
-	}
-	patd->n_aio_trace = 0;
-    }
-
-    if (fflush(patd->f) != 0) {
-        (void) fprintf(stderr, "ERROR: Could not flush aio trace dump file %d", patd->schedNum);
-    }
-}
-
-#endif // AIO_TRACE

@@ -19,10 +19,7 @@ LIBS =  \
         ../../protocol/libsdfprotocol.a \
         ../../sdfmsg/libsdfmsgqueue.a \
         ../../utils/libutils.a \
-        ../../applib/libapplib.a  \
         ../../fth/libfth.a \
-        ../../fth/libfth.a \
-        ../../sdfappcommon/libsdfappcommon.a \
         ../../misc/libmisc.a \
         ../../platform/libplatform.a \
         -lpthread -lrt

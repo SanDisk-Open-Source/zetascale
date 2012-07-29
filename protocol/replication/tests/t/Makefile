@@ -29,26 +29,23 @@ LIBS = \
         ../../../../agent/libsdfagent.a \
         ../../../../shared/libsdfshared.a \
         ../../../../protocol/action/libsdfaction.a \
+        ../../../../ssd/fifo/libfifo.a \
         ../../../../protocol/replication/libsdfreplication.a \
         ../../../../protocol/home/libsdfhome.a \
         ../../../../protocol/libsdfprotocol.a \
         ../../../../ssd/libsdfssd.a \
         ../../../../ssd/clipper/libclipper.a \
         ../../../../protocol/action/libsdfaction.a \
-        ../../../../ssd/fifo/libfifo.a \
-        ../../../../ssd/htf/libhtf.a \
         ../../../../utils/libutils.a \
         ../../../../fth/libfth.a \
         ../../../../sdfmsg/libsdfmsgqueue.a \
 	../../../../sdftcp/libsdfmtp.a \
-        ../../../../applib/libapplib.a \
         ../../../../ecc/libecc.a \
         ../../../../misc/libmisc.a \
         ../../../../platform/libplatform.a \
         ../../../../fth/libfth.a \
-        ../../../../sdfappcommon/libsdfappcommon.a \
 	$(TOP)/sdf/platform/libplatform.a \
-        -lpthread -lrt -lcunit -levent
+        -lpthread -lm -lrt -lcunit -levent -laio
 
 TESTARGS = --timeout 5
 fcnl_rtg_test.run: TESTARGS  = --log sdf/prot/replication/test=info --timeout 5

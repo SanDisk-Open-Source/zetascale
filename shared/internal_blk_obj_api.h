@@ -4,6 +4,10 @@
  *   
  **************************************************************************/
 
+extern int SDFSimpleReplicationEnabled();
+extern SDF_status_t SDFAutoDelete(SDF_internal_ctxt_t *pai);
+extern SDF_status_t SDFGetContainers(SDF_internal_ctxt_t *pai, struct mcd_container **pcontainers, int *pn_containers);
+
 /**
  *  @brief Get a container statistic.
  *

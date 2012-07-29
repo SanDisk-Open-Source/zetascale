@@ -42,7 +42,7 @@ wl_init(void)
 void
 wl_free(wlock_t *l)
 {
-    free(l);
+    plat_free(l);
 }
 
 
@@ -68,5 +68,5 @@ rwl_init(void)
 void
 rwl_free(rwlock_t *l)
 {
-    free(l);
+    plat_free(l);
 }

@@ -124,6 +124,9 @@ static void lock_trace(char *fmt, ...);
 #endif
 /*================================================================*/
 
+//  for stats collection
+#define incr(x) __sync_fetch_and_add(&(x), 1)
+
 /*================================================================*/
    /*  Predeclarations */
 
@@ -333,7 +336,7 @@ static uint64_t clipperInit(Clipper_t *pc, shard_t *pshard, uint64_t size, uint6
     /*  Open a flash device (but don't create any shards yet).
      *
      */
-struct flashDev *clipper_flashOpen(char *devName, int flags) 
+struct flashDev *clipper_flashOpen(char *devName, flash_settings_t *flash_settings, int flags) 
 {
     int                i, rc;
     struct flashDev   *pdev;
@@ -476,7 +479,7 @@ int clipper_flashGet(ssdaio_ctxt_t *pctxt, struct shard *shard,
 
     pc = shard->scheme.pclipper;
 
-    (shard->stats[curSchedNum].numGetOps)++;
+    incr(shard->stats[curSchedNum].numGetOps);
 
     /* flags don't affect anything for ClipperGet */
 
@@ -641,9 +644,9 @@ int clipper_flashPut(ssdaio_ctxt_t *pctxt, struct shard *shard, struct objMetaDa
     pc = shard->scheme.pclipper;
 
     if (data == NULL) {
-	(shard->stats[curSchedNum].numDeleteOps)++;
+	incr(shard->stats[curSchedNum].numDeleteOps);
     } else {
-	(shard->stats[curSchedNum].numPutOps)++;
+	incr(shard->stats[curSchedNum].numPutOps);
     }
 
     #ifdef CHECK_SIZE
@@ -1023,7 +1026,7 @@ static int get_object_entries(Clipper_t *pc, ClipperSlab_t *pslab, uint64_t synd
 
 		/* do the eviction */
 
-		(pc->pshard->stats[curSchedNum].numEvictions)++;
+		incr(pc->pshard->stats[curSchedNum].numEvictions);
 		(pc->pshard->numObjects)--;
 
 		rc = free_object_entries(pc, pslab, metaData, key, ice, 0 /* don't put on free list */, 0, 0);

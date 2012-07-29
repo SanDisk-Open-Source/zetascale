@@ -64,7 +64,6 @@ typedef struct SDF_action_thrd_state {
     uint32_t                curtag;
     uint32_t                n_trans_in_flight;
     SDF_tag_t               max_tag;
-    ptofMbox_sp_t           mbox_buf_handshake;
     SDF_action_stats_t      stats;
     struct SDF_action_thrd_state *next;
 

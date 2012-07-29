@@ -74,7 +74,7 @@ main(int argc, char **argv)
     char              *line;
     char               saccess[128];
     long long          ptr;
-    int                size, size_alloc;
+    uint64_t           size, size_alloc;
     PTR_DATA          *ppd, *ppd_alloc;
     NAME_DATA         *pnd, *pnd_alloc, *pnd_debug;
     char              *s, *name;
@@ -104,7 +104,7 @@ main(int argc, char **argv)
         if ((LineNum % dump_interval) == 0) {
 	    dump_name_data(pld->fout, &(pld->name_map));
 	}
-        if (sscanf(line, "%s %llx %d", saccess, &ptr, &size) != 3) {
+        if (sscanf(line, "%s %llx %lld", saccess, &ptr, &size) != 3) {
 	    continue;
 	}
 	if (strcmp(saccess, "Lalloc") == 0) {
@@ -174,7 +174,7 @@ main(int argc, char **argv)
 	}
 	#ifdef DEBUG
 	    if (found_it) {
-		(void) fprintf(stderr, "INFO BEFORE: pnd_alloc: %p, pnd_alloc->used_bytes: %lld, size_alloc: %d\n", pnd_alloc, pnd_alloc->used_bytes, size_alloc);
+		(void) fprintf(stderr, "INFO BEFORE: pnd_alloc: %p, pnd_alloc->used_bytes: %lld, size_alloc: %"PRIu64"\n", pnd_alloc, pnd_alloc->used_bytes, size_alloc);
 		if (FreeInc[atype] && (pnd_alloc->used_bytes != size_alloc)) {
 		    LineWarning("pnd_alloc->used_bytes != size_alloc!");
 		}

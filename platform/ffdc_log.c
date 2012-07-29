@@ -9,7 +9,7 @@
  * codebase. This file also contains the API to enable, disable, and
  * initialize FFDC.
  * 
- * Generated On: 2012-06-13 17:46:58
+ * Generated On: 2012-07-29 09:35:57
  *------------------------------------------------------------------------*/
 
 #define PLATFORM_INTERNAL 1
@@ -40569,6 +40569,79 @@ ffdc_log_func_110007(int lineno, int msgid, int catid, int level, const char* fm
 }
 
 /*---------------------------------------------------------------------------
+ * MsgID : 150000
+ * Msg   : "ENTERING, init_state=%d"
+ *-------------------------------------------------------------------------*/
+__inline__ void
+ffdc_log_func_150000(int lineno, int msgid, int catid, int level, const char* fmt,
+    int arg1)
+{
+    FFDC_START(150000, catid, level, lineno);
+    FFDC_ADD_NUM(arg1);
+    FFDC_END();
+}
+
+/*---------------------------------------------------------------------------
+ * MsgID : 150001
+ * Msg   : "pth_id=%d"
+ *-------------------------------------------------------------------------*/
+__inline__ void
+ffdc_log_func_150001(int lineno, int msgid, int catid, int level, const char* fmt,
+    int arg1)
+{
+    FFDC_START(150001, catid, level, lineno);
+    FFDC_ADD_NUM(arg1);
+    FFDC_END();
+}
+
+/*---------------------------------------------------------------------------
+ * MsgID : 150002
+ * Msg   : "writer fthread spawned, use context %p"
+ *-------------------------------------------------------------------------*/
+__inline__ void
+ffdc_log_func_150002(int lineno, int msgid, int catid, int level, const char* fmt,
+    void* arg1)
+{
+    FFDC_START(150002, catid, level, lineno);
+    FFDC_ADD_PTR(arg1);
+    FFDC_END();
+}
+
+/*---------------------------------------------------------------------------
+ * MsgID : 150003
+ * Msg   : "object size doesn't match hash entry!!! klen=%d dlen=%u 
+ *          nbybes=%d syn=%lu hsyn=%hu ctime=%u"
+ *-------------------------------------------------------------------------*/
+__inline__ void
+ffdc_log_func_150003(int lineno, int msgid, int catid, int level, const char* fmt,
+    int arg1, int arg2, int arg3, long arg4, short arg5, 
+    int arg6)
+{
+    FFDC_START(150003, catid, level, lineno);
+    FFDC_ADD_NUM(arg1);
+    FFDC_ADD_NUM(arg2);
+    FFDC_ADD_NUM(arg3);
+    FFDC_ADD_NUM(arg4);
+    FFDC_ADD_NUM(arg5);
+    FFDC_ADD_NUM(arg6);
+    FFDC_END();
+}
+
+/*---------------------------------------------------------------------------
+ * MsgID : 150004
+ * Msg   : "Mcd_aio_states[%d] = %p"
+ *-------------------------------------------------------------------------*/
+__inline__ void
+ffdc_log_func_150004(int lineno, int msgid, int catid, int level, const char* fmt,
+    int arg1, void* arg2)
+{
+    FFDC_START(150004, catid, level, lineno);
+    FFDC_ADD_NUM(arg1);
+    FFDC_ADD_PTR(arg2);
+    FFDC_END();
+}
+
+/*---------------------------------------------------------------------------
  * MsgID : 160000
  * Msg   : "failed to get events; errno=%d (%s)"
  *-------------------------------------------------------------------------*/
@@ -40930,6 +41003,30 @@ ffdc_log_func_160024(int lineno, int msgid, int catid, int level, const char* fm
 {
     FFDC_START(160024, catid, level, lineno);
     FFDC_ADD_NUM(arg1);
+    FFDC_END();
+}
+
+/*---------------------------------------------------------------------------
+ * MsgID : 160025
+ * Msg   : "Node %d does not have any persistent container\n"
+ *-------------------------------------------------------------------------*/
+__inline__ void
+ffdc_log_func_160025(int lineno, int msgid, int catid, int level, const char* fmt,
+    int arg1)
+{
+    FFDC_START(160025, catid, level, lineno);
+    FFDC_ADD_NUM(arg1);
+    FFDC_END();
+}
+
+/*---------------------------------------------------------------------------
+ * MsgID : 160026
+ * Msg   : "Node becomes authoritative for persistent containers\n"
+ *-------------------------------------------------------------------------*/
+__inline__ void
+ffdc_log_func_160026(int lineno, int msgid, int catid, int level, const char* fmt)
+{
+    FFDC_START(160026, catid, level, lineno);
     FFDC_END();
 }
 

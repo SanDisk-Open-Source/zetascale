@@ -171,7 +171,8 @@ rt_init(void)
 
    rt_log_area.rt_index  = 0;
    rt_log_area.rt_limit  = rt_size;
-   rt_log_area.rt_buffer = malloc(buffer_size);
+   // rt_log_area.rt_buffer = malloc(buffer_size);
+   rt_log_area.rt_buffer = plat_alloc(buffer_size);
    rt_log_area.rt_thread = pthread_self();
 
    memset(rt_log_area.rt_buffer, 0, buffer_size);

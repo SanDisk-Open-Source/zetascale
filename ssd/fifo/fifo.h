@@ -19,7 +19,7 @@ extern "C" {
 
 typedef struct ssd_fifo_ops {
 
-    struct flashDev   * (*flashOpen)( char * devName, int flags );
+    struct flashDev   * (*flashOpen)( char * devName, flash_settings_t *flash_settings, int flags );
 
     struct shard      * (*shardCreate)( struct flashDev * dev, 
                                         uint64_t shardID,
@@ -76,7 +76,7 @@ typedef struct ssd_fifo_ops {
 extern ssd_fifo_ops_t   Ssd_fifo_ops;
 
 
-extern struct flashDev *fifo_flashOpen(char *name, int flags);
+extern struct flashDev *fifo_flashOpen(char *name, flash_settings_t *flash_settings, int flags);
 extern struct shard *fifo_shardCreate(struct flashDev *dev, uint64_t shardID, 
 	  int flags, uint64_t quota, unsigned maxObjs);
 extern struct shard *fifo_shardOpen(struct flashDev *dev, uint64_t shardID );

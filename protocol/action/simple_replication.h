@@ -14,6 +14,7 @@
 #define _SIMPLE_REPLICATION_H
 
 #include "common/sdftypes.h"
+#include "common/sdf_properties.h"
 #include "fth/fthMbox.h"
 #include  "protocol/action/tlmap4.h"
 
@@ -231,6 +232,10 @@ extern int (*sdf_mcd_get_cname_by_cguid)( SDF_cguid_t, char *);
 extern int (*sdf_mcd_is_container_running)(int);
 extern int (*sdf_mcd_is_container_running_byname)(char *);
 extern int (*sdf_mcd_processing_container_commands)(void);
+
+extern void SDFRepDataStructAddContainer( SDF_internal_ctxt_t *pai , SDF_container_props_t properties, SDF_cguid_t cguid);
+
+
 #ifdef	__cplusplus
 }
 #endif

@@ -1,28 +1,14 @@
 # $Id$
 
 TOP = ../..
-PROG = threadPoolTest
-LIB_SRCS = \
-	XMbox.c \
-	XResume.c \
-	threadPool.c
+PROG =
+LIB_SRCS =
 
 #TESTS = XListTest XListShmemTest
 
-LIB = libsdfappcommon.a
+LIB =
 
-LIBS =  libsdfappcommon.a \
-	../sdfmsg/libsdfmsgqueue.a \
-	../sdftcp/libsdfmtp.a \
-	../fth/libfth.a \
-	../ssd/libsdfssd.a \
-	../protocol/action/libsdfaction.a \
-	../ssd/fifo/libfifo.a \
-	../ssd/libsdfssd.a \
-	../applib/libapplib.a \
-	libsdfappcommon.a \
-	../platform/libplatform.a \
-	../utils/libutils.a -lpthread -lrt
+LIBS =
 
 USE_MPI = 1
 

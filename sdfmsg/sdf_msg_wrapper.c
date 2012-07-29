@@ -62,7 +62,7 @@ sdf_msg_wrapper_local_alloc(struct sdf_msg *local,
     ret = plat_alloc(sizeof (*ret));
     if (ret) {
         ret->ptr.local.ptr = local;
-        ret->ptr.local.free = local_free;
+        ret->ptr.local.mfree = local_free;
         ret->ptr_type = SMW_LOCAL;
 
         ret->len = PLAT_OFFSET_OF(struct sdf_msg, msg_payload) + local->msg_len;
@@ -91,7 +91,7 @@ sdf_msg_wrapper_shared_alloc(sdf_msg_sp_t shared,
     ret = plat_alloc(sizeof (*ret));
     if (ret) {
         ret->ptr.shared.ptr = shared;
-        ret->ptr.shared.free = shared_free;
+        ret->ptr.shared.mfree = shared_free;
         ret->ptr_type = SMW_SHARED;
 
         sdf_msg_sp_var_rref(&msg, shared, sizeof (*msg));
@@ -223,7 +223,7 @@ sdf_msg_wrapper_copy(struct sdf_msg_wrapper *wrapper,
 
         /* FIXME: This should move into shared memory */
         ret->ptr_type = SMW_LOCAL;
-        ret->ptr.local.free = local_free;
+        ret->ptr.local.mfree = local_free;
         ret->ptr.local.ptr = sdf_msg_alloc(wrapper->len -
                                            sizeof (struct sdf_msg));
         ret->len = wrapper->len;
@@ -595,12 +595,12 @@ sdf_msg_wrapper_ref_count_dec(struct sdf_msg_wrapper *sdf_msg_wrapper) {
         switch (sdf_msg_wrapper->ptr_type) {
         case SMW_SHARED:
             plat_closure_apply(sdf_msg_wrapper_free_shared,
-                               &sdf_msg_wrapper->ptr.shared.free,
+                               &sdf_msg_wrapper->ptr.shared.mfree,
                                sdf_msg_wrapper->ptr.shared.ptr);
             break;
         case SMW_LOCAL:
             plat_closure_apply(sdf_msg_wrapper_free_local,
-                               &sdf_msg_wrapper->ptr.local.free,
+                               &sdf_msg_wrapper->ptr.local.mfree,
                                sdf_msg_wrapper->ptr.local.ptr);
             break;
         }

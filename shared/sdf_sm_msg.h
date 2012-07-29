@@ -19,7 +19,6 @@ extern "C" {
 
 #include "container_props.h"
 #include "container.h"
-#include "sdfappcommon/XMbox.h"
 
 #define MAXCONTAINERPATHSIZE 256 // TODO defined somewhere else too
 
@@ -344,7 +343,6 @@ typedef struct arq {
     SDF_vnode_t            vnode;
     SDF_size_t             destLen;
     SDF_container_type_t   ctnr_type;
-    ptofMbox_sp_t          mbox_buf_handshake;
     SDF_boolean_t          internal_request;
     fthThread_t           *internal_thread;
     SDF_tag_t              tag;

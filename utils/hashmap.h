@@ -18,7 +18,7 @@ extern "C" {
 #endif
 
 #include "common/sdftypes.h"
-#include "fth/fthLock.h"
+#include "fth/fth.h"
 #include "fth/fthSpinLock.h"
 #include <pthread.h>
 

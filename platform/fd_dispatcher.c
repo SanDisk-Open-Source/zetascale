@@ -39,7 +39,7 @@
 #include "platform/stdlib.h"
 #include "platform/time.h"
 
-#include "fth/fthLock.h"
+#include "fth/fth.h"
 
 PLAT_LOG_SUBCAT_LOCAL(LOG_CAT, PLAT_LOG_CAT_PLATFORM, "fd_dispatcher");
 

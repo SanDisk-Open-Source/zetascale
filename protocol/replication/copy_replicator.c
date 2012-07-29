@@ -11,6 +11,11 @@
  * $Id: copy_replicator.c 15015 2010-11-10 23:09:06Z briano $
  */
 
+// suppress bogus warning when compiling with gcc 4.3
+#if (__GNUC__ == 4 && __GNUC_MINOR__ == 3)
+#pragma GCC diagnostic ignored "-Warray-bounds"
+#endif 
+
 /**
  * Data path and recovery for replication.  Container meta-data such as
  * current home node, lease length, and replica authoritative or stale state
@@ -7012,7 +7017,7 @@ cr_replica_do_recovery(struct cr_replica *replica) {
             replica->get_iteration_cursors_resume_data_len =
                 sizeof (replica->get_iteration_cursors->resume_cursor);
             replica->get_iteration_cursors_resume_data =
-                malloc(replica->get_iteration_cursors_resume_data_len);
+                plat_alloc(replica->get_iteration_cursors_resume_data_len);
             plat_assert_always(replica->get_iteration_cursors_resume_data);
             memcpy(replica->get_iteration_cursors_resume_data,
                    &replica->get_iteration_cursors->resume_cursor,

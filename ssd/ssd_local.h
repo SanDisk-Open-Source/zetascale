@@ -38,7 +38,6 @@ typedef enum {
     SSD_Legacy=0,
     SSD_Clipper,
     SSD_Fifo,
-    SSD_HTF,
 } ssdScheme;
 
 typedef struct flashShardStats {
@@ -94,7 +93,7 @@ typedef struct ssdState {
 
     /* function pointers for flash interface routines */
 
-    struct flashDev *(*flashOpen)(char *name, int flags);
+    struct flashDev *(*flashOpen)(char *name, flash_settings_t *flash_settings, int flags);
     void (*flashClose)(struct flashDev *dev);
     struct shard *(*shardCreate)(struct flashDev *dev, uint64_t shardID, 
               int flags, uint64_t quota, unsigned maxObjs);

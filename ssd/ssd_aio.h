@@ -76,19 +76,21 @@ extern "C" {
 
     typedef struct ssdaio_ctxt ssdaio_ctxt_t;
 
+    struct osd_state;
+
     typedef struct ssd_aio_ops {
 
         int                 (*aio_init)( void * state, char * dname );
 
-        void              * (*aio_init_context)( int category );
+        struct osd_state  * (*aio_init_context)( int category );
 
-        int                 (*aio_free_context)( void * context,
+        int                 (*aio_free_context)( struct osd_state * context,
                                                  int category );
 
-        int                 (*aio_blk_write)( void * context, char * buf,
+        int                 (*aio_blk_write)( struct osd_state * context, char * buf,
                                               uint64_t offset, int nbytes );
 
-        int                 (*aio_blk_read)( void * context, char * buf,
+        int                 (*aio_blk_read)( struct osd_state * context, char * buf,
                                              uint64_t offset, int nbytes );
     } ssd_aio_ops_t;
 

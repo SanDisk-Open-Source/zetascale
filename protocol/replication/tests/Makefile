@@ -83,23 +83,20 @@ LIBS_SDF = \
         ../../../ssd/clipper/libclipper.a \
         ../../../protocol/action/libsdfaction.a \
         ../../../ssd/fifo/libfifo.a \
-        ../../../ssd/htf/libhtf.a \
         ../../../utils/libutils.a \
         ../../../fth/libfth.a \
-        ../../../sdfappcommon/libsdfappcommon.a \
         ../../../misc/libmisc.a \
         ../../../platform/libplatform.a \
         ../../../sdfmsg/libsdfmsgqueue.a \
         ../../../sdftcp/libsdfmtp.a \
         ../../../protocol/replication/libsdfreplication.a \
-        ../../../applib/libapplib.a \
         ../../../ecc/libecc.a
 
 LIBS = \
         libreplica.a \
 	$(LIBS_SDF) \
 	$(LIBS_SDF) \
-        -lpthread -lrt -lcunit -levent
+        -lpthread -lm -lrt -lcunit -levent -laio
 
 SUBDIRS = t
 

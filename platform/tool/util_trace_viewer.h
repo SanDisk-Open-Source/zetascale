@@ -45,7 +45,7 @@
                             " importable format\n"\
 
 #define SAFE_FREE(a) if(a){\
-                          free(a);\
+                          plat_free(a);\
                           a=0;\
                      }
 /*
@@ -312,7 +312,7 @@ type *get_##name##_state(type *array[],ktype k)\
         end=key;\
         key=key->next;\
     }\
-    key=malloc(sizeof(type));\
+    key=plat_alloc(sizeof(type));\
     memset(key,0,sizeof(type));\
     key->k=k;\
     key->next=NULL;\

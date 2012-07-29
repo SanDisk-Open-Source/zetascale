@@ -12,8 +12,7 @@ LIB = libsdfssd.a
 
 SUBDIRS = \
 	clipper \
-	fifo \
-	htf
+	fifo
 
 include $(TOP)/Makefile.inc
 

@@ -15,13 +15,7 @@ LIB_SRCS = \
 	open_container_mgr.c \
 	shard_compute.c
 
-LIBS = \
-	../utils/libutils.a \
-	../platform/libplatform.a \
-	../../sdf/sdfmsg/libsdfmsgqueue.a \
-        ../../sdftcp/libsdfmtp.a \
-	../applib/libapplib.a \
-	-lpthread -lrt
+LIBS =
 
 #SUBDIRS = tests
 

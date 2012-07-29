@@ -1,32 +1,17 @@
-LIBS = ../misc/libmisc.a ../platform/libplatform.a libfth.a  ../sdfappcommon/libsdfappcommon.a ../applib/libapplib.a ../platform/libplatform.a libfth.a ../utils/libutils.a -lpthread -lrt
+LIBS = ../misc/libmisc.a ../platform/libplatform.a libfth.a  ../applib/libapplib.a ../platform/libplatform.a libfth.a ../utils/libutils.a -lpthread -lrt
 
 TOP   = ../..
-TESTS = fthIdleTest fthTest fthSparseTest fthSignalTest fthCvTest \
-	fthMonotonicTest
+TESTS =
 TESTS_BROKEN = fthMPTest
-PROG  = $(TESTS) $(TESTS_BROKEN) fthSpeed fthGetTimeSpeed
+PROG  = 
 
 LIB_SRCS = \
 	fth.c \
-	fthIdleControl.c \
 	fthLock.c \
-	fthMem.c \
-	fthMutex.c \
-	fthCv.c \
 	fthMbox.c \
-	fthOpt.c \
         fthSem.c \
-	fthSignal.c \
-	fthSocket.c \
-	fthSparseLock.c \
-	fthStructQ.c \
-	fthThreadQ.c \
-	fthWaitQ.c \
-	fthXLock.c \
-	fthXMbox.c \
-	fthTrace.c \
-	fthRcu.c \
-	fthThread.S
+        fthOpt.c \
+	fthSignal.c
 
 LIB = libfth.a
 

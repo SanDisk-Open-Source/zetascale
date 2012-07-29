@@ -77,12 +77,12 @@ void threadTest(uint64_t arg) {
     int mm_size[4];
     void* buf[4];
     Reporter_t *rpt[4];
-    char *recv          = malloc(300*top);
-    char *cmp_recv      = malloc(300*top);
+    char *recv          = plat_alloc(300*top);
+    char *cmp_recv      = plat_alloc(300*top);
     
     for (int i = 0; i < 4; i++) {
         mm_size[i]   = calc_hotkey_memory(maxtop, nbuckets, i);
-        buf[i] = malloc(mm_size[i]);
+        buf[i] = plat_alloc(mm_size[i]);
         rpt[i] = hot_key_init(buf[i], mm_size[i], nbuckets, maxtop, i);
     }
 
@@ -223,8 +223,8 @@ void threadTest(uint64_t arg) {
     printf("handle 0x03: client\n%s", recv);
     hot_key_reset(rpt[3]);
 
-    free(recv);
-    free(cmp_recv);
+    plat_free(recv);
+    plat_free(cmp_recv);
 
     printf("nfailed = %d\n", nfailed);
     done = 1;

@@ -843,6 +843,7 @@ SDF_status_t delete_container_internal(SDF_internal_ctxt_t *pai, const char *pat
                 plat_log_msg(21546, LOG_CAT, LOG_ERR,
                         "%s - failed to remove metadata", path);
                 log_level = LOG_ERR;
+		plat_assert(0);
             } else {
                 plat_log_msg(21547, LOG_CAT, LOG_DBG,
                         "%s - remove metadata succeeded", path);
@@ -856,6 +857,7 @@ SDF_status_t delete_container_internal(SDF_internal_ctxt_t *pai, const char *pat
 		    status = lock_status;
 		    log_level = LOG_ERR;		    
 		}
+		plat_assert(0);
             } else {
                 plat_log_msg(21549, LOG_CAT, LOG_DBG,
                         "%s - unlock metadata succeeded", path);
@@ -870,6 +872,7 @@ SDF_status_t delete_container_internal(SDF_internal_ctxt_t *pai, const char *pat
                 plat_log_msg(21550, LOG_CAT, LOG_ERR,
                         "%s - failed to remove cguid map", path);
                 log_level = LOG_ERR;
+		plat_assert(0);
             } else {
                 plat_log_msg(21551, LOG_CAT, LOG_DBG,
                         "%s - remove cguid map succeeded", path);

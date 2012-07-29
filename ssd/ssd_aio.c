@@ -35,6 +35,9 @@ ssd_aio_ops_t   Ssd_aio_ops = {
     .aio_blk_read       = NULL,
 };
 
+//  for stats collection
+#define incr(x) __sync_fetch_and_add(&(x), 1)
+#define incrn(x, n) __sync_fetch_and_add(&(x), (n))
 
 int ssdaio_init( ssdaio_state_t * psas, char * devName )
 {
@@ -89,9 +92,9 @@ int ssdaio_read_flash( struct flashDev * pdev, ssdaio_ctxt_t * pctxt,
         plat_abort();
     }
 
-    (pdev->stats[curSchedNum].flashOpCount)++;
-    (pdev->stats[curSchedNum].flashReadOpCount)++;
-    pdev->stats[curSchedNum].flashBytesTransferred += size;
+    incr(pdev->stats[curSchedNum].flashOpCount);
+    incr(pdev->stats[curSchedNum].flashReadOpCount);
+    incrn(pdev->stats[curSchedNum].flashBytesTransferred, size);
 
     return Ssd_aio_ops.aio_blk_read( (void *)pctxt, pbuf, offset, (int)size );
 }
@@ -108,8 +111,8 @@ int ssdaio_write_flash( struct flashDev * pdev, ssdaio_ctxt_t * pctxt,
         plat_abort();
     }
 
-    (pdev->stats[curSchedNum].flashOpCount)++;
-    pdev->stats[curSchedNum].flashBytesTransferred += size;
+    incr(pdev->stats[curSchedNum].flashOpCount);
+    incrn(pdev->stats[curSchedNum].flashBytesTransferred, size);
 
     return Ssd_aio_ops.aio_blk_write( (void *)pctxt, pbuf, offset, (int)size );
 }

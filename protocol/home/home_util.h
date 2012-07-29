@@ -2,6 +2,7 @@
 #define HOME_UTIL_H 1
 
 #include "platform/defs.h"
+#include "fth/fth.h"
 
 #include "common/sdftypes.h"
 #include "protocol/protocol_common.h"

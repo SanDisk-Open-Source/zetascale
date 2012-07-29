@@ -87,7 +87,7 @@ static void fastcc_init_alloc(SDFNewCache_t *pc)
     pc->mem_used    = 0;
 
     #ifdef MALLOC_TRACE
-        UTMallocTrace("SDFNewCacheInit", TRUE, FALSE, FALSE, (void *) pc->mem_start, size);
+        UTMallocTrace("SDFNewCacheInit", TRUE, FALSE, FALSE, (void *) pc->pmem_start, pc->size_limit);
     #endif // MALLOC_TRACE
     if (pc->pmem_start == NULL) {
         plat_log_msg(21142, PLAT_LOG_CAT_SDF_PROT, PLAT_LOG_LEVEL_FATAL,
@@ -98,6 +98,9 @@ static void fastcc_init_alloc(SDFNewCache_t *pc)
 
 static void fastcc_destroy_alloc(SDFNewCache_t *pc)
 {
+    #ifdef MALLOC_TRACE
+        UTMallocTrace("SDFNewCacheInit", FALSE, TRUE, FALSE, (void *) pc->pmem_start, 0);
+    #endif // MALLOC_TRACE
     plat_free(pc->pmem_start);
 }
 
@@ -1185,6 +1188,9 @@ SDF_status_t SDFNewCacheFlushCache(SDFNewCache_t *pc,
      */
 
     slab_flags = (char *) plat_alloc(pc->nslabs);
+    #ifdef MALLOC_TRACE
+        UTMallocTrace("slab_flags", SDF_FALSE, SDF_FALSE, SDF_FALSE, (void *) slab_flags, pc->nslabs);
+    #endif // MALLOC_TRACE
     if (slab_flags) {
 	memset((void *) slab_flags, 0, pc->nslabs);
     }
@@ -1277,6 +1283,9 @@ SDF_status_t SDFNewCacheFlushCache(SDFNewCache_t *pc,
 	     */
 	    flush_progress_fn(pc, flush_arg, 100);
 	    if (slab_flags) {
+                #ifdef MALLOC_TRACE
+                    UTMallocTrace("slab_flags", SDF_FALSE, SDF_TRUE, SDF_FALSE, (void *) slab_flags, 0);
+                #endif // MALLOC_TRACE
 		plat_free(slab_flags);
 	    }
 	    *pdirty_found = dirty_found;
@@ -1287,6 +1296,9 @@ SDF_status_t SDFNewCacheFlushCache(SDFNewCache_t *pc,
 	    /*  There is nothing to flush! */
 	    flush_progress_fn(pc, flush_arg, 100);
 	    if (slab_flags) {
+                #ifdef MALLOC_TRACE
+                    UTMallocTrace("slab_flags", SDF_FALSE, SDF_TRUE, SDF_FALSE, (void *) slab_flags, 0);
+                #endif // MALLOC_TRACE
 		plat_free(slab_flags);
 	    }
 	    *pdirty_found = dirty_found;
@@ -1430,6 +1442,9 @@ SDF_status_t SDFNewCacheFlushCache(SDFNewCache_t *pc,
     flush_progress_fn(pc, flush_arg, 100);
 
     if (slab_flags) {
+	#ifdef MALLOC_TRACE
+	    UTMallocTrace("slab_flags", SDF_FALSE, SDF_TRUE, SDF_FALSE, (void *) slab_flags, 0);
+	#endif // MALLOC_TRACE
         plat_free(slab_flags);
     }
 
@@ -1723,6 +1738,9 @@ static void process_pending_remote_requests(SDFNewCache_t *pc, SDFNewCacheSlab_t
 	    /*  Don't forget to free the message!
 	     */
 	    plat_free(preq->pm);
+	    #ifdef MALLOC_TRACE
+	        UTMallocTrace("pending_msg", SDF_FALSE, SDF_TRUE, SDF_FALSE, (void *) preq->pm, 0);
+	    #endif // MALLOC_TRACE
 	    break;
 
 	default:
@@ -2173,6 +2191,9 @@ static void init_transient_entry(SDFNewCacheSlab_t *ps)
         npages++;
     }
     pnext_page = plat_alloc(npages*ps->pc->page_size);
+    #ifdef MALLOC_TRACE
+        UTMallocTrace("transient_entry", SDF_FALSE, SDF_FALSE, SDF_FALSE, (void *) pnext_page, npages*ps->pc->page_size);
+    #endif // MALLOC_TRACE
     if (!pnext_page) {
 	plat_log_msg(30577, 
 	             PLAT_LOG_CAT_SDF_CC, 

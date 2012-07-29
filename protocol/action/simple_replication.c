@@ -20,6 +20,7 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
+#include <netdb.h>
 
 #include "sdfmsg/sdf_msg_types.h"
 
@@ -66,8 +67,9 @@
 #ifndef HAVE_CONFIG_H
 #define HAVE_CONFIG_H 1
 #endif
-#include "../../apps/memcached/server/memcached-1.2.5-schooner/mcd_rep.h"
-#include "../../apps/memcached/server/memcached-1.2.5-schooner/memcached.h"
+#include "ssd/fifo/mcd_rep.h"
+#include "ssd/fifo/mcd_osd.h"
+// #include "../../apps/memcached/server/memcached-1.2.5-schooner/memcached.h"
 
 int SDFSimpleReplication = 0; // non-zero if simple replication is on
 struct sdf_vip_config *vip_grp_config = NULL;
@@ -147,7 +149,6 @@ int (*sdf_mcd_processing_container_commands)(void);
 int (*simple_replication_flash_put) (struct ssdaio_ctxt *, struct shard *, struct objMetaData *, char *, char *, int) = NULL;
 ssdaio_ctxt_t * (*simple_replication_init_ctxt) (int) = NULL;
 struct shard *(*simple_replication_shard_find) (struct flashDev *, uint64_t);
-void (*simple_replication_set_cas_id_high_watermark)(void *, void *) = NULL;
 
 extern int sdf_msg_myrank();
 extern struct sdf_vip_group_group *
@@ -3142,9 +3143,7 @@ static void sync_container_thread(uint64_t arg) {
          */
 
         /* Update the cas ID */
-        if (simple_replication_set_cas_id_high_watermark) {
-            simple_replication_set_cas_id_high_watermark((void *)pshard, data);
-        }
+	osd_set_shard_cas_id_if_higher(pshard, data);
 
         plat_assert(key_len <= SDF_SIMPLE_KEY_SIZE);
         memcpy(&lock_key.key, key, key_len);
@@ -3660,9 +3659,7 @@ static void sync_container_thread_new(uint64_t arg)
 	    meta.dataLen = data_len;
 	    
 	    /* Update the cas ID */
-	    if (simple_replication_set_cas_id_high_watermark) {
-		simple_replication_set_cas_id_high_watermark((void *)pshard, data);
-	    }
+	    osd_set_shard_cas_id_if_higher(pshard, data);
 
 	    rc = simple_replication_flash_put(paio_ctxt, pshard, &meta, key, data, FLASH_PUT_TEST_EXIST);
 
