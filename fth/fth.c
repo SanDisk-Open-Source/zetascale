@@ -267,7 +267,7 @@ fthThread_t *fthSpawn(void (*startRoutine)(uint64_t), long minStackSize)
     for (i = 0; i < 32; ++i) {
 	CPU_SET(i, &mask);
     }
-    sched_setaffinity(0, sizeof(mask), &mask);
+    // sched_setaffinity(0, sizeof(mask), &mask);
 
     fthrd = NULL;
 

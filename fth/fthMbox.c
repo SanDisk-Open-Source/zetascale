@@ -21,16 +21,25 @@
 #include "fthMbox.h"
 #include "platform/platform.h"
 
+
 //  Number of mail links to allocate in a batch for a thread
 #define N_ALLOC_MAIL_LINKS   1024
 
+//  Number of mail link pools
+#define N_MBOX_LINK_POOLS    1000
+
 typedef struct mailLink {
+    uint32_t           link_pool;
     uint64_t           mail;
+    fthThread_t       *fthrd;
     struct mailLink   *next;
+    struct mailLink   *prev;
 } mailLink_t;
 
-static __thread mailLink_t *freeMailLinks = NULL;
-static __thread uint32_t    nMailLinks = 0;
+static mailLink_t         *freeMailLinks[N_MBOX_LINK_POOLS];
+static uint32_t            nMailLinks[N_MBOX_LINK_POOLS];
+static pthread_spinlock_t  freeMailLinkLocks[N_MBOX_LINK_POOLS];
+static uint64_t            nCurMailLinkPool = 0;
 
 // Counts number of spurious pthread_cond_wait "wakeups"
 static __thread uint64_t nExtraCondWaits = 0;
@@ -38,34 +47,77 @@ static __thread uint64_t nExtraCondWaits = 0;
 static mailLink_t *get_link()
 {
     int          i;
+    uint64_t     npool;
     mailLink_t  *link;
 
-    if (freeMailLinks == NULL) {
+    npool  = __sync_fetch_and_add(&nCurMailLinkPool, 1);
+    npool %= N_MBOX_LINK_POOLS;
+    pthread_spin_lock(&(freeMailLinkLocks[npool]));
+
+    if (freeMailLinks[npool] == NULL) {
         // allocate some new mail links
         link = plat_alloc(N_ALLOC_MAIL_LINKS*sizeof(mailLink_t));
-	nMailLinks += N_ALLOC_MAIL_LINKS;
+	nMailLinks[npool] += N_ALLOC_MAIL_LINKS;
+	if (nMailLinks[npool] > 1000000) {
+	    fprintf(stderr, "================ thread %d allocated over 1000000 new links!\n", fthSelf()->id);
+	}
 	for (i=0; i<N_ALLOC_MAIL_LINKS; i++) {
-	    link->next = freeMailLinks;
-	    freeMailLinks = link;
+	    link->next = freeMailLinks[npool];
+	    link->link_pool = npool;
+	    freeMailLinks[npool] = link;
 	    link++;
 	}
     }
-    link = freeMailLinks;
-    freeMailLinks = link->next;
+    link = freeMailLinks[npool];
+    freeMailLinks[npool] = link->next;
+    pthread_spin_unlock(&(freeMailLinkLocks[npool]));
     return(link);
 }
 
 static void free_link(mailLink_t *link)
 {
-    link->next = freeMailLinks;
-    freeMailLinks = link;
+    uint32_t     npool;
+
+    npool = link->link_pool;
+    pthread_spin_lock(&(freeMailLinkLocks[npool]));
+    link->next = freeMailLinks[npool];
+    freeMailLinks[npool] = link;
+    pthread_spin_unlock(&(freeMailLinkLocks[npool]));
 }
+
+/**
+ * @brief Init mailbox subsystem
+ */
+void fthMboxMasterInit()
+{
+    int  i;
+
+    for (i=0; i<N_MBOX_LINK_POOLS; i++) {
+        freeMailLinks[i] = NULL;
+	nMailLinks[i]    = 0;
+	pthread_spin_init(&(freeMailLinkLocks[i]), PTHREAD_PROCESS_PRIVATE);
+    }
+    nCurMailLinkPool = 0;
+}
+
+//  Used to ensure that link pool is initialized once at beginning
+static uint64_t   firstFlag = 0;
+static int32_t    dummyFirstFlag = 0;
 
 /**
  * @brief Init mailbox
  */
 void fthMboxInit(fthMbox_t *mb) 
 {
+    if (!dummyFirstFlag) {
+	uint64_t   flag;
+	dummyFirstFlag = 1;
+	flag = __sync_fetch_and_or(&firstFlag, 1);
+	if (!flag) {
+	  fthMboxMasterInit();
+	}
+    }
+
     pthread_mutex_init(&(mb->mutex), NULL);
     pthread_cond_init(&(mb->mail_present_cv), NULL);
     mb->mail           = NULL;
@@ -171,11 +223,8 @@ void fthMboxPost(fthMbox_t *mb, uint64_t mail)
     mb->mail   = link;
     (mb->nmails)++;
 
-    if (mb->nwaiters > 0) {
-        pthread_cond_signal(&(mb->mail_present_cv));
-    }
-
     pthread_mutex_unlock(&(mb->mutex));
+    pthread_cond_signal(&(mb->mail_present_cv));
 }
 
 /**

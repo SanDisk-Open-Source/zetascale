@@ -9,7 +9,7 @@
  * log message in the codebase.  The structure contains one field for
  * each message parameter in the log message, along with other meta data
  * 
- * Generated On: 2012-07-29 09:35:57
+ * Generated On: 2012-08-21 13:28:03
  *------------------------------------------------------------------------*/
 
 #ifndef PLATFORM_FFDC_H
@@ -68363,6 +68363,27 @@ struct ffdc_log_struct_160026
 
 __inline__ void
 ffdc_log_func_160026(int lineno, int msgid, int catid, int level, const char* fmt);
+
+/*---------------------------------------------------------------------------
+ * MsgID : 160027
+ * Msg   : "pwrite failed!"
+ *-------------------------------------------------------------------------*/
+struct ffdc_log_struct_160027
+{
+    int magic;
+    int msgid;
+    int catid;
+    int level;
+    unsigned long th_id;
+    unsigned long fth_id;
+    int lineno;
+    struct timeval timestamp;
+
+
+} __attribute__ ((aligned (64)));
+
+__inline__ void
+ffdc_log_func_160027(int lineno, int msgid, int catid, int level, const char* fmt);
 
 __END_DECLS
 #endif /* PLATFORM_FFDC_H */

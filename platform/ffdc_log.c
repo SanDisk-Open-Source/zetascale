@@ -9,7 +9,7 @@
  * codebase. This file also contains the API to enable, disable, and
  * initialize FFDC.
  * 
- * Generated On: 2012-07-29 09:35:57
+ * Generated On: 2012-08-21 13:28:03
  *------------------------------------------------------------------------*/
 
 #define PLATFORM_INTERNAL 1
@@ -41027,6 +41027,17 @@ __inline__ void
 ffdc_log_func_160026(int lineno, int msgid, int catid, int level, const char* fmt)
 {
     FFDC_START(160026, catid, level, lineno);
+    FFDC_END();
+}
+
+/*---------------------------------------------------------------------------
+ * MsgID : 160027
+ * Msg   : "pwrite failed!"
+ *-------------------------------------------------------------------------*/
+__inline__ void
+ffdc_log_func_160027(int lineno, int msgid, int catid, int level, const char* fmt)
+{
+    FFDC_START(160027, catid, level, lineno);
     FFDC_END();
 }
 

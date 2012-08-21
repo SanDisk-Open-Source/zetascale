@@ -3031,3 +3031,4 @@
 160024 Node becomes authoritative for persistent containers %d
 160025 Node %d does not have any persistent container\n
 160026 Node becomes authoritative for persistent containers\n
+160027 pwrite failed!

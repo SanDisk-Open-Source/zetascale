@@ -203,8 +203,12 @@ mcd_fth_aio_blk_read( osd_state_t * context, char * buf, uint64_t offset, int nb
             }
         }
 
-        io_prep_pread( &acb->iocb, aio_fd, buf + submitted, aio_nbytes,
-                       aio_offset );
+	if (pread(aio_fd, buf+submitted, aio_nbytes, aio_offset) != aio_nbytes) {
+            mcd_log_msg(160027, PLAT_LOG_LEVEL_ERROR, "pwrite failed!");
+	    plat_exit(1);
+	}
+
+        // io_prep_pread( &acb->iocb, aio_fd, buf + submitted, aio_nbytes, aio_offset );
 
         acb->bytes = aio_nbytes;
         acb->type = MCD_AIO_READ;
@@ -228,6 +232,8 @@ mcd_fth_aio_blk_read( osd_state_t * context, char * buf, uint64_t offset, int nb
             break;
         }
     } while ( 1 );
+
+    return FLASH_EOK;   /* SUCCESS */
 
     aio_state->aio_pending = pending;
     aio_state->aio_error = 0;
@@ -402,8 +408,12 @@ mcd_fth_aio_blk_write( osd_state_t * context, char * buf, uint64_t offset,
             }
         }
 
-        io_prep_pwrite( &acb->iocb, aio_fd, buf + submitted, aio_nbytes,
-                        aio_offset );
+	if (pwrite(aio_fd, buf+submitted, aio_nbytes, aio_offset) != aio_nbytes) {
+            mcd_log_msg(160027, PLAT_LOG_LEVEL_ERROR, "pwrite failed!");
+	    plat_exit(1);
+	}
+
+        // io_prep_pwrite( &acb->iocb, aio_fd, buf + submitted, aio_nbytes, aio_offset );
 
         acb->bytes = aio_nbytes;
         acb->type = MCD_AIO_WRITE;
@@ -423,6 +433,8 @@ mcd_fth_aio_blk_write( osd_state_t * context, char * buf, uint64_t offset,
             break;
         }
     } while ( 1 );
+
+    return FLASH_EOK;   /* SUCCESS */
 
     aio_state->aio_pending = pending;
     aio_state->aio_error = 0;
