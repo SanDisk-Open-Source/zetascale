@@ -77,16 +77,7 @@ extern SDF_status_t SDFActionChangeContainerWritebackMode(SDF_internal_ctxt_t *p
 #include "sdfmsg/sdf_msg_types.h"
 #include "protocol/protocol_common.h"
 #include "protocol/replication/meta.h"
-
-/*
- * XXX: drew 2009-12-07 HAVE_CONFIG_H is needed to avoid memcached.h
- * redefinitions of things from <stdint>; although the right fix is to
- * eliminate this back-door mess.
- */
-#ifndef HAVE_CONFIG_H
-#define HAVE_CONFIG_H 1
-#endif
-#include "../../apps/memcached/server/memcached-1.2.5-schooner/memcached.h"
+#include "ssd/fifo/mcd_ipf.h"
 
 #include "internal_blk_obj_api.h"
 

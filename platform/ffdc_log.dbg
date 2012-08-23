@@ -576,122 +576,6 @@ apps/memcached/server/memcached-1.2.5-schooner/mcd_fth_test.c:1253:mcd_log_msg:P
 apps/memcached/server/memcached-1.2.5-schooner/mcd_fth_test.c:1304:mcd_log_msg:PLAT_LOG_LEVEL_ERROR::20192:agent_engine_init() failed, rc=%d
 apps/memcached/server/memcached-1.2.5-schooner/mcd_fth_test.c:1307:mcd_log_msg:PLAT_LOG_LEVEL_INFO::20193:agent_engine_init() succeeded
 apps/memcached/server/memcached-1.2.5-schooner/mcd_fth_test.c:1312:mcd_log_msg:PLAT_LOG_LEVEL_ERROR::20194:home_flash_start() failed, rc=%d
-apps/memcached/server/memcached-1.2.5-schooner/mcd_ipf.c:228:plat_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_PROT:20195:Configuring single vip %s ruletable:%d subnet type:%d
-apps/memcached/server/memcached-1.2.5-schooner/mcd_ipf.c:274:plat_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_PROT:20196:Configure IP:%s on interface %s failed\n
-apps/memcached/server/memcached-1.2.5-schooner/mcd_ipf.c:286:plat_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_PROT:20197:Adding source route table %d for %s failed\n
-apps/memcached/server/memcached-1.2.5-schooner/mcd_ipf.c:294:plat_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_PROT:20197:Adding source route table %d for %s failed\n
-apps/memcached/server/memcached-1.2.5-schooner/mcd_ipf.c:302:plat_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_PROT:80000:Adding source route to table %srtable for %s failed\n
-apps/memcached/server/memcached-1.2.5-schooner/mcd_ipf.c:310:plat_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_PROT:20198:VIP %s not part of interface subnet. Add local route %s/%d
-apps/memcached/server/memcached-1.2.5-schooner/mcd_ipf.c:316:plat_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_PROT:80002:Add local route %s/%d for %s to %srtable
-apps/memcached/server/memcached-1.2.5-schooner/mcd_ipf.c:328:plat_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_PROT:20199:Adding Route %s/%d to table %d on %s for src %s failed \n
-apps/memcached/server/memcached-1.2.5-schooner/mcd_ipf.c:337:plat_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_PROT:20200:Adding default Route via %s on %s  to table %d failed \n
-apps/memcached/server/memcached-1.2.5-schooner/mcd_ipf.c:363:plat_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_PROT:20201:+++++++++\nconfigvip: numvips:%d numpfws:%d\n
-apps/memcached/server/memcached-1.2.5-schooner/mcd_ipf.c:364:plat_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_PROT:20202:VIP configure start: number of vips:%d\n
-apps/memcached/server/memcached-1.2.5-schooner/mcd_ipf.c:387:plat_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_PROT:20203:VIPS for thread %d  start: %d  num vips: %d\n
-apps/memcached/server/memcached-1.2.5-schooner/mcd_ipf.c:396:plat_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_PROT:20204:VIP config done\n
-apps/memcached/server/memcached-1.2.5-schooner/mcd_ipf.c:406:plat_log_msg:PLAT_LOG_LEVEL_FATAL:PLAT_LOG_CAT_SDF_PROT:20205:NULL ROUTE TABLE ID:%d ip:%s BUG?\n
-apps/memcached/server/memcached-1.2.5-schooner/mcd_ipf.c:440:plat_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_PROT:20206:Deleting single vip %s ruletable:%d type:%d
-apps/memcached/server/memcached-1.2.5-schooner/mcd_ipf.c:453:plat_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_PROT:20207:Deleting vip(%s) failed
-apps/memcached/server/memcached-1.2.5-schooner/mcd_ipf.c:473:plat_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_PROT:20205:NULL ROUTE TABLE ID:%d ip:%s BUG?\n
-apps/memcached/server/memcached-1.2.5-schooner/mcd_ipf.c:500:plat_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_PROT:20208:++++++++++\nDelete VIPs: num_vips:%d
-apps/memcached/server/memcached-1.2.5-schooner/mcd_ipf.c:523:plat_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_PROT:20203:VIPS for thread %d  start: %d  num vips: %d\n
-apps/memcached/server/memcached-1.2.5-schooner/mcd_ipf.c:532:plat_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_PROT:20209:VIP delete done\n
-apps/memcached/server/memcached-1.2.5-schooner/mcd_ipf.c:624:plat_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_PROT:20210:Getting IF Parameters for iface  %s Failed\n
-apps/memcached/server/memcached-1.2.5-schooner/mcd_ipf.c:632:plat_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_PROT:20211:Unable to parse IP Address(%s) from %s\n
-apps/memcached/server/memcached-1.2.5-schooner/mcd_ipf.c:642:plat_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_PROT:20212:Unable to parse Mask(%s) from %s\n
-apps/memcached/server/memcached-1.2.5-schooner/mcd_ipf.c:652:plat_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_PROT:20213:Unable to parse GW(%s) from %s\n
-apps/memcached/server/memcached-1.2.5-schooner/mcd_ipf.c:661:plat_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_PROT:20214:Interface %s parameters(ip:%s mask:%s gw:%s)
-apps/memcached/server/memcached-1.2.5-schooner/mcd_ipf.c:678:plat_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_PROT:20215:Getting vip subnet type for %s mask:%s ifname:%s type:%d
-apps/memcached/server/memcached-1.2.5-schooner/mcd_ipf.c:687:plat_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_PROT:20216:Entry found for %s on the vip entry %s
-apps/memcached/server/memcached-1.2.5-schooner/mcd_ipf.c:693:plat_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_PROT:20217:VIP subnet type not found on the given list for %s
-apps/memcached/server/memcached-1.2.5-schooner/mcd_ipf.c:707:plat_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_PROT:20218:Remove local route if no other VIP in same subnet(ip: %s mask:%s iface:%s)
-apps/memcached/server/memcached-1.2.5-schooner/mcd_ipf.c:710:plat_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_PROT:20219:VIP Type for %s is not QREP_VIP_SUBNET_TYPE_OWN. Just return\n
-apps/memcached/server/memcached-1.2.5-schooner/mcd_ipf.c:725:plat_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_PROT:20220:Found other vip %s in same subnet. Just return
-apps/memcached/server/memcached-1.2.5-schooner/mcd_ipf.c:732:plat_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_PROT:20221:No VIP exists in same subnet(ip: %s mask:%s iface:%s)just remove local route
-apps/memcached/server/memcached-1.2.5-schooner/mcd_ipf.c:752:plat_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_PROT:20222:Failed to remove localroute(%s)\n
-apps/memcached/server/memcached-1.2.5-schooner/mcd_ipf.c:760:plat_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_PROT:20222:Failed to remove localroute(%s)\n
-apps/memcached/server/memcached-1.2.5-schooner/mcd_ipf.c:769:plat_log_msg:PLAT_LOG_LEVEL_FATAL:PLAT_LOG_CAT_SDF_PROT:20223:ERROR:Unable to find whether vip %s in interface %s subnet. Just return YES
-apps/memcached/server/memcached-1.2.5-schooner/mcd_ipf.c:778:plat_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_PROT:20224:Vip: %s mask:%s not part of iface:%s subnet
-apps/memcached/server/memcached-1.2.5-schooner/mcd_ipf.c:788:plat_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_PROT:20225:Set VIP type num vips %d
-apps/memcached/server/memcached-1.2.5-schooner/mcd_ipf.c:795:plat_log_msg:PLAT_LOG_LEVEL_FATAL:PLAT_LOG_CAT_SDF_PROT:20226:ERROR:Unable to find IP params for interface %s. Just set mask to 255.255.0.0
-apps/memcached/server/memcached-1.2.5-schooner/mcd_ipf.c:800:plat_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_PROT:20227:Mask Field for %s is empty. Adding interface's mask(%s)
-apps/memcached/server/memcached-1.2.5-schooner/mcd_ipf.c:808:plat_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_PROT:20228:VIP subnet type found from old list for %s is set to %d
-apps/memcached/server/memcached-1.2.5-schooner/mcd_ipf.c:819:plat_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_PROT:20229:VIP subnet type found from current list for %s and is set to %d
-apps/memcached/server/memcached-1.2.5-schooner/mcd_ipf.c:826:plat_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_PROT:20230:VIP subnet type found from iface subnet for %s and vip subtype set to %d
-apps/memcached/server/memcached-1.2.5-schooner/mcd_ipf.c:831:plat_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_PROT:20231:VIP subnet type can not be found from iface subnet for %s. subtyp set to %d
-apps/memcached/server/memcached-1.2.5-schooner/mcd_ipf.c:842:plat_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_PROT:20232:VIP %s Mask %s GW %s subnet type %d iface %s
-apps/memcached/server/memcached-1.2.5-schooner/mcd_ipf.c:857:plat_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_PROT:20233:=============\nCONFIGURE VIP REQUEST: NUM VIPS %d Group:%d\n
-apps/memcached/server/memcached-1.2.5-schooner/mcd_ipf.c:867:plat_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_PROT:20234:Adding Dynamic VIP %s to group %d
-apps/memcached/server/memcached-1.2.5-schooner/mcd_ipf.c:984:plat_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_PROT:20235:==========\nDelete All VIPs from group %d
-apps/memcached/server/memcached-1.2.5-schooner/mcd_ipf.c:1006:plat_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_PROT:20236:===========\nTrying to Delete Dynamic VIP %s from group %d
-apps/memcached/server/memcached-1.2.5-schooner/mcd_ipf.c:1012:plat_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_PROT:20237:Entry found Deleting Dynamic VIP %s from group %d
-apps/memcached/server/memcached-1.2.5-schooner/mcd_ipf.c:1022:plat_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_PROT:20238:This is last entry. Do not need to adjust list
-apps/memcached/server/memcached-1.2.5-schooner/mcd_ipf.c:1032:plat_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_PROT:20239:Entry NOT found for VIP %s from group %d. BUG?
-apps/memcached/server/memcached-1.2.5-schooner/mcd_ipf.c:1043:plat_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_PROT:20240:Number of VIPs in group %d is 0. So delete current entry
-apps/memcached/server/memcached-1.2.5-schooner/mcd_ipf.c:1071:plat_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_PROT:20241:Remove all VIPS
-apps/memcached/server/memcached-1.2.5-schooner/mcd_ipf.c:1111:plat_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_PROT:20242:IPF Checklist
-apps/memcached/server/memcached-1.2.5-schooner/mcd_ipf.c:1373:plat_log_msg:PLAT_LOG_LEVEL_FATAL:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20243:The vip address is not valid!
-apps/memcached/server/memcached-1.2.5-schooner/mcd_ipf.c:1455:plat_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20244:IPF NOTIFY: Entering...
-apps/memcached/server/memcached-1.2.5-schooner/mcd_ipf.c:1462:plat_log_msg:PLAT_LOG_LEVEL_FATAL:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20245:The read-only replication mode is not supported
-apps/memcached/server/memcached-1.2.5-schooner/mcd_ipf.c:1472:plat_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20246:STM: SDF_REPLICATOR_ACCESS_RW: Vgrp:%d mygrp:%d mynode:%d\n
-apps/memcached/server/memcached-1.2.5-schooner/mcd_ipf.c:1476:plat_log_msg:PLAT_LOG_LEVEL_FATAL:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20247:Faile node:%d(grp:%d) not in my group:%d, ignore failure\n
-apps/memcached/server/memcached-1.2.5-schooner/mcd_ipf.c:1484:plat_log_msg:PLAT_LOG_LEVEL_FATAL:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20248:Current node %d is already active. Ignore failure\n
-apps/memcached/server/memcached-1.2.5-schooner/mcd_ipf.c:1489:plat_log_msg:PLAT_LOG_LEVEL_FATAL:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20249:Node is already handling 1 VIP group. ignore vipgroup:%d \n
-apps/memcached/server/memcached-1.2.5-schooner/mcd_ipf.c:1498:plat_log_msg:PLAT_LOG_LEVEL_TRACE:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20250:New Lease for VIP Group: %d just ignore\n
-apps/memcached/server/memcached-1.2.5-schooner/mcd_ipf.c:1505:plat_log_msg:PLAT_LOG_LEVEL_TRACE:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20251:Ignoring the RW notification for :%d\n
-apps/memcached/server/memcached-1.2.5-schooner/mcd_ipf.c:1512:plat_log_msg:PLAT_LOG_LEVEL_FATAL:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20252:Current node %d is already handling %d VIP groups. Ignore failure\n
-apps/memcached/server/memcached-1.2.5-schooner/mcd_ipf.c:1522:plat_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20253:STM: Vgrp:%d configured at node:%d
-apps/memcached/server/memcached-1.2.5-schooner/mcd_ipf.c:1558:plat_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:160025:Node %d does not have any persistent container\n
-apps/memcached/server/memcached-1.2.5-schooner/mcd_ipf.c:1560:plat_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:160026:Node becomes authoritative for persistent containers\n
-apps/memcached/server/memcached-1.2.5-schooner/mcd_ipf.c:1579:plat_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20254:No persistent containers exist. Enabling this node for authority for future persistent recovery\n
-apps/memcached/server/memcached-1.2.5-schooner/mcd_ipf.c:1602:plat_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20255:Simultaneous Start!!. Send recovery event to %d
-apps/memcached/server/memcached-1.2.5-schooner/mcd_ipf.c:1615:plat_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20256:Recovery Already completed. Ignore this VipGroup access for recovery\n
-apps/memcached/server/memcached-1.2.5-schooner/mcd_ipf.c:1655:plat_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20257:STM: SDF_REPLICATOR_ACCESS_NONE: Vgrp:%d mynode:%d\n
-apps/memcached/server/memcached-1.2.5-schooner/mcd_ipf.c:1663:plat_log_msg:PLAT_LOG_LEVEL_FATAL:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20258:Current node %d is not in mirrored cluster, BUG!\n
-apps/memcached/server/memcached-1.2.5-schooner/mcd_ipf.c:1667:plat_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20259:Virtual IP group %d removed from node %d\n
-apps/memcached/server/memcached-1.2.5-schooner/mcd_ipf.c:1676:plat_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20260:VIP Group %d Not in my list. Ignore\n
-apps/memcached/server/memcached-1.2.5-schooner/mcd_ipf.c:1708:plat_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20261:Applying call back completion\n
-apps/memcached/server/memcached-1.2.5-schooner/mcd_ipf.c:1866:plat_log_msg:PLAT_LOG_LEVEL_FATAL:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20262:The replicator doesn't exist
-apps/memcached/server/memcached-1.2.5-schooner/mcd_ipf.c:2177:plat_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_PROT:20263:Skipping start simple\n
-apps/memcached/server/memcached-1.2.5-schooner/mcd_ipf.c:2431:plat_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_PROT:80019:Got signal %d, exiting
-apps/memcached/server/memcached-1.2.5-schooner/mcd_ipf.c:2452:plat_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_PROT:20264:Cmd:%s
-apps/memcached/server/memcached-1.2.5-schooner/mcd_ipf.c:2480:plat_log_msg:PLAT_LOG_LEVEL_FATAL:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20265:Invalid Node(vipgrp) :%d specified command:%d\n
-apps/memcached/server/memcached-1.2.5-schooner/mcd_ipf.c:2485:plat_log_msg:PLAT_LOG_LEVEL_FATAL:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20266:The Node %d is already active\n
-apps/memcached/server/memcached-1.2.5-schooner/mcd_ipf.c:2500:plat_log_msg:PLAT_LOG_LEVEL_FATAL:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20265:Invalid Node(vipgrp) :%d specified command:%d\n
-apps/memcached/server/memcached-1.2.5-schooner/mcd_ipf.c:2508:plat_log_msg:PLAT_LOG_LEVEL_FATAL:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20247:Faile node:%d(grp:%d) not in my group:%d, ignore failure\n
-apps/memcached/server/memcached-1.2.5-schooner/mcd_ipf.c:2517:plat_log_msg:PLAT_LOG_LEVEL_FATAL:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20248:Current node %d is already active. Ignore failure\n
-apps/memcached/server/memcached-1.2.5-schooner/mcd_ipf.c:2525:plat_log_msg:PLAT_LOG_LEVEL_FATAL:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20252:Current node %d is already handling %d VIP groups. Ignore failure\n
-apps/memcached/server/memcached-1.2.5-schooner/mcd_ipf.c:2540:plat_log_msg:PLAT_LOG_LEVEL_FATAL:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20265:Invalid Node(vipgrp) :%d specified command:%d\n
-apps/memcached/server/memcached-1.2.5-schooner/mcd_ipf.c:2598:plat_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20267:NODE IS VIRTUAL  NUM_PFWS:%d \n
-apps/memcached/server/memcached-1.2.5-schooner/mcd_ipf.c:2636:plat_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20268:container add rport: %d vport:%d node:%d\n
-apps/memcached/server/memcached-1.2.5-schooner/mcd_ipf.c:2639:plat_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20269:The current node is not virtual. Ignore
-apps/memcached/server/memcached-1.2.5-schooner/mcd_ipf.c:2673:plat_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20269:The current node is not virtual. Ignore
-apps/memcached/server/memcached-1.2.5-schooner/mcd_ipf.c:2685:plat_log_msg:PLAT_LOG_LEVEL_FATAL:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20270:Invalid rule table id %d\n
-apps/memcached/server/memcached-1.2.5-schooner/mcd_ipf.c:2712:plat_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_PROT:20271:Add VIP:%s mask:%s gw:%s iface:%s node:%s
-apps/memcached/server/memcached-1.2.5-schooner/mcd_ipf.c:2718:plat_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_PROT:20272:Current node is not in Mirrored Mode
-apps/memcached/server/memcached-1.2.5-schooner/mcd_ipf.c:2732:plat_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_PROT:20273:Unable to find node ID for %s
-apps/memcached/server/memcached-1.2.5-schooner/mcd_ipf.c:2747:plat_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_PROT:20274:The node %s(%d) not in local mirror group
-apps/memcached/server/memcached-1.2.5-schooner/mcd_ipf.c:2760:plat_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_PROT:20275:The VIP %s on %s already exists
-apps/memcached/server/memcached-1.2.5-schooner/mcd_ipf.c:2769:plat_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_PROT:20276:Maximum allowed number of VIPs(%d) already configured
-apps/memcached/server/memcached-1.2.5-schooner/mcd_ipf.c:2790:plat_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_PROT:20277:The Current node servicing %s. Adding VIP %s on %s
-apps/memcached/server/memcached-1.2.5-schooner/mcd_ipf.c:2813:plat_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_PROT:20278:Delete VIP:%s iface:%s node:%s
-apps/memcached/server/memcached-1.2.5-schooner/mcd_ipf.c:2838:plat_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_PROT:20273:Unable to find node ID for %s
-apps/memcached/server/memcached-1.2.5-schooner/mcd_ipf.c:2853:plat_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_PROT:20274:The node %s(%d) not in local mirror group
-apps/memcached/server/memcached-1.2.5-schooner/mcd_ipf.c:2873:plat_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_PROT:20279:The VIP %s on %s does not exist
-apps/memcached/server/memcached-1.2.5-schooner/mcd_ipf.c:2892:plat_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_PROT:20280:The Current node servicing %s. Removing VIP %s from %s
-apps/memcached/server/memcached-1.2.5-schooner/mcd_ipf.c:2929:plat_log_msg:PLAT_LOG_LEVEL_FATAL:PLAT_LOG_CAT_SDF_PROT:20281:Invalid VIP group\n
-apps/memcached/server/memcached-1.2.5-schooner/mcd_ipf.c:2943:plat_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_PROT:20282:Current Node not servicing vipgroup:%d\n
-apps/memcached/server/memcached-1.2.5-schooner/mcd_ipf.c:2983:plat_log_msg:PLAT_LOG_LEVEL_FATAL:PLAT_LOG_CAT_SDF_PROT:20283:NULL ROUTE TABLE ID:%d\n
-apps/memcached/server/memcached-1.2.5-schooner/mcd_ipf.c:3001:plat_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_PROT:20284:VIPGROUP:REMOVAL My Node(%d) is virtual node\n
-apps/memcached/server/memcached-1.2.5-schooner/mcd_ipf.c:3007:plat_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_PROT:20285:This is a Weird case that should never happen: vnode:%d rnode:%d\n
-apps/memcached/server/memcached-1.2.5-schooner/mcd_ipf.c:3026:plat_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_PROT:20286:VIP Group is Real Node's group. vnode:%d rnode:%d\n
-apps/memcached/server/memcached-1.2.5-schooner/mcd_ipf.c:3045:plat_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_PROT:20287:My Node:%d is not virtual node. Just DO Nothing on virtual node recovery\n
-apps/memcached/server/memcached-1.2.5-schooner/mcd_ipf.c:3079:plat_log_msg:PLAT_LOG_LEVEL_FATAL:PLAT_LOG_CAT_SDF_PROT:20281:Invalid VIP group\n
-apps/memcached/server/memcached-1.2.5-schooner/mcd_ipf.c:3089:plat_log_msg:PLAT_LOG_LEVEL_FATAL:PLAT_LOG_CAT_SDF_PROT:20288:The node already srvs:%d grps\n
-apps/memcached/server/memcached-1.2.5-schooner/mcd_ipf.c:3169:plat_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_PROT:20289:VIPGrp Config: My Node(%d) is virtual node\n
-apps/memcached/server/memcached-1.2.5-schooner/mcd_ipf.c:3177:plat_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_PROT:20290:VIP Group is My own Vip Group. Virtual Node startup vnode:%d rnode:%d\n
-apps/memcached/server/memcached-1.2.5-schooner/mcd_ipf.c:3197:plat_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_PROT:20286:VIP Group is Real Node's group. vnode:%d rnode:%d\n
-apps/memcached/server/memcached-1.2.5-schooner/mcd_ipf.c:3216:plat_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_PROT:20291:My Node:%d is not virtual node. Just DO Nothing\n
 apps/memcached/server/memcached-1.2.5-schooner/mcd_license.c:66:mcd_log_msg:PLAT_LOG_LEVEL_INFO::30641:Could not open license status file at '%s'.\n
 apps/memcached/server/memcached-1.2.5-schooner/mcd_license.c:76:mcd_log_msg:PLAT_LOG_LEVEL_INFO::30648:Could not close license status file at '%s'.\n
 apps/memcached/server/memcached-1.2.5-schooner/mcd_license.c:99:mcd_log_msg:PLAT_LOG_LEVEL_FATAL::30642:Could not open license file at '%s'.\nContact Schooner support at www.schoonerinfotech.com to procure a license.\n
@@ -864,217 +748,217 @@ apps/memcached/server/memcached-1.2.5-schooner/mcd_version.c:253:mcd_log_msg:PLA
 apps/memcached/server/memcached-1.2.5-schooner/mcd_version.c:256:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20666:fgets failed!
 apps/memcached/server/memcached-1.2.5-schooner/mcd_version.c:261:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20667:Could not parse version line!
 apps/memcached/server/memcached-1.2.5-schooner/mcd_version.c:269:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20668:pclose during version check failed!
-apps/memcached/server/memcached-1.2.5-schooner/membrain.c:558:plat_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED_TRACE:20669:Error %d on release_data for key '%s'
-apps/memcached/server/memcached-1.2.5-schooner/membrain.c:586:plat_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED_TRACE:20670:Error %d on delete context for key '%s'
-apps/memcached/server/memcached-1.2.5-schooner/membrain.c:815:plat_log_msg:PLAT_LOG_LEVEL_TRACE_LOW:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20671:Adding msghdr, msgused=%d, iovused=%d
-apps/memcached/server/memcached-1.2.5-schooner/membrain.c:841:plat_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED_TRACE:20672:malloc()
-apps/memcached/server/memcached-1.2.5-schooner/membrain.c:966:plat_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED_TRACE:20673:calloc()
-apps/memcached/server/memcached-1.2.5-schooner/membrain.c:990:plat_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED_TRACE:20672:malloc()
-apps/memcached/server/memcached-1.2.5-schooner/membrain.c:1009:plat_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED_TRACE:20672:malloc()
-apps/memcached/server/memcached-1.2.5-schooner/membrain.c:1105:mcd_log_msg:PLAT_LOG_LEVEL_WARN:PLAT_LOG_CAT_SDF_APP_MEMCACHED_TRACE:20674:getpeername failed, ret=%d errno=%d
-apps/memcached/server/memcached-1.2.5-schooner/membrain.c:1192:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED_TRACE:20675:homeless connection encountered, port=%d
-apps/memcached/server/memcached-1.2.5-schooner/membrain.c:1251:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED_TRACE:20676:homeless conn encountered, port=%d
-apps/memcached/server/memcached-1.2.5-schooner/membrain.c:1282:plat_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20677:c=%p port=%d container=%ld
-apps/memcached/server/memcached-1.2.5-schooner/membrain.c:1298:plat_log_msg:PLAT_LOG_LEVEL_TRACE:PLAT_LOG_CAT_SDF_APP_MEMCACHED_TRACE:20678:<%d server listening
-apps/memcached/server/memcached-1.2.5-schooner/membrain.c:1304:plat_log_msg:PLAT_LOG_LEVEL_TRACE:PLAT_LOG_CAT_SDF_APP_MEMCACHED_TRACE:20679:<%d server listening (udp), port %d
-apps/memcached/server/memcached-1.2.5-schooner/membrain.c:1310:plat_log_msg:PLAT_LOG_LEVEL_TRACE:PLAT_LOG_CAT_SDF_APP_MEMCACHED_TRACE:20680:<%d new client connection, port %d
-apps/memcached/server/memcached-1.2.5-schooner/membrain.c:1327:plat_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED_TRACE:20681:event_add, errno=%d c=%p fd=%d %lu
-apps/memcached/server/memcached-1.2.5-schooner/membrain.c:1407:plat_log_msg:PLAT_LOG_LEVEL_TRACE:PLAT_LOG_CAT_SDF_APP_MEMCACHED_TRACE:20682:<%d connection closed.
-apps/memcached/server/memcached-1.2.5-schooner/membrain.c:1538:plat_log_msg:PLAT_LOG_LEVEL_TRACE_LOW:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20683:Adding iov, len=%d
-apps/memcached/server/memcached-1.2.5-schooner/membrain.c:1585:plat_log_msg:PLAT_LOG_LEVEL_TRACE_LOW:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20684:Added iov, msgused=%d, msgbytes=%d, iovused=%d
-apps/memcached/server/memcached-1.2.5-schooner/membrain.c:1638:plat_log_msg:PLAT_LOG_LEVEL_TRACE:PLAT_LOG_CAT_SDF_APP_MEMCACHED_TRACE:20685:>%d NOREPLY %s
-apps/memcached/server/memcached-1.2.5-schooner/membrain.c:1646:plat_log_msg:PLAT_LOG_LEVEL_TRACE:PLAT_LOG_CAT_SDF_APP_MEMCACHED_TRACE:20686:>%d %s
-apps/memcached/server/memcached-1.2.5-schooner/membrain.c:1748:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED_TRACE:20687:req cleanup failed, status=%s
-apps/memcached/server/memcached-1.2.5-schooner/membrain.c:1776:plat_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20188:this should never happen
-apps/memcached/server/memcached-1.2.5-schooner/membrain.c:1944:plat_log_msg:PLAT_LOG_LEVEL_FATAL:PLAT_LOG_CAT_SDF_PROT:20688:No VIP group group for:%d\n
-apps/memcached/server/memcached-1.2.5-schooner/membrain.c:1947:plat_log_msg:PLAT_LOG_LEVEL_FATAL:PLAT_LOG_CAT_SDF_PROT:20689:Printing Vip Group Group:%d
-apps/memcached/server/memcached-1.2.5-schooner/membrain.c:1955:plat_log_msg:PLAT_LOG_LEVEL_FATAL:PLAT_LOG_CAT_SDF_PROT:20690:No VIP group group for vid:%d\n
-apps/memcached/server/memcached-1.2.5-schooner/membrain.c:1958:plat_log_msg:PLAT_LOG_LEVEL_FATAL:PLAT_LOG_CAT_SDF_PROT:20689:Printing Vip Group Group:%d
-apps/memcached/server/memcached-1.2.5-schooner/membrain.c:1965:plat_log_msg:PLAT_LOG_LEVEL_FATAL:PLAT_LOG_CAT_SDF_PROT:20691:No VIP group for vid:%d\n
-apps/memcached/server/memcached-1.2.5-schooner/membrain.c:1975:plat_log_msg:PLAT_LOG_LEVEL_FATAL:PLAT_LOG_CAT_SDF_PROT:20692:VID Array:%s\n
-apps/memcached/server/memcached-1.2.5-schooner/membrain.c:1981:plat_log_msg:PLAT_LOG_LEVEL_FATAL:PLAT_LOG_CAT_SDF_PROT:20691:No VIP group for vid:%d\n
-apps/memcached/server/memcached-1.2.5-schooner/membrain.c:1989:plat_log_msg:PLAT_LOG_LEVEL_FATAL:PLAT_LOG_CAT_SDF_PROT:20693:pref list:%s\n
-apps/memcached/server/memcached-1.2.5-schooner/membrain.c:2675:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_PROT:20694:/proc/stat opened, fd=%d
-apps/memcached/server/memcached-1.2.5-schooner/membrain.c:2686:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_PROT:20695:failed to read from proc, rc=%d errno=%d
-apps/memcached/server/memcached-1.2.5-schooner/membrain.c:2714:plat_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20100:ENTERING, c=%p
-apps/memcached/server/memcached-1.2.5-schooner/membrain.c:2893:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20696:stats output len=%lu left=%lu
-apps/memcached/server/memcached-1.2.5-schooner/membrain.c:2897:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20697:stats output too long, truncated
-apps/memcached/server/memcached-1.2.5-schooner/membrain.c:3056:plat_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20698:binary tracing on
-apps/memcached/server/memcached-1.2.5-schooner/membrain.c:3065:plat_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20699:binary tracing off
-apps/memcached/server/memcached-1.2.5-schooner/membrain.c:3111:plat_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20700:token=%s
-apps/memcached/server/memcached-1.2.5-schooner/membrain.c:3127:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20701:failed to alloc hot_key memory, size=%d
-apps/memcached/server/memcached-1.2.5-schooner/membrain.c:3136:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20702:failed to initiaize hot key support.
-apps/memcached/server/memcached-1.2.5-schooner/membrain.c:3145:mcd_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20703:hot key support inited, size=%d nbuckets=%d hotkeys=%d flag=%d
-apps/memcached/server/memcached-1.2.5-schooner/membrain.c:3161:mcd_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20704:hot key stats on
-apps/memcached/server/memcached-1.2.5-schooner/membrain.c:3168:mcd_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20705:hot key stats off
-apps/memcached/server/memcached-1.2.5-schooner/membrain.c:3178:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20706:failed to reset hot key stats, rc=%d
-apps/memcached/server/memcached-1.2.5-schooner/membrain.c:3201:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_APP_MEMCACHED:50026:ENTERNING
-apps/memcached/server/memcached-1.2.5-schooner/membrain.c:3221:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED:50027:failed to initialize prefix-based deleter for container %s
-apps/memcached/server/memcached-1.2.5-schooner/membrain.c:3234:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED:50028:failed to persist prefix-based deletion for container %s
-apps/memcached/server/memcached-1.2.5-schooner/membrain.c:3250:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED:50028:failed to persist prefix-based deletion for container %s
-apps/memcached/server/memcached-1.2.5-schooner/membrain.c:3396:plat_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20707:latency stats on
-apps/memcached/server/memcached-1.2.5-schooner/membrain.c:3404:plat_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20708:latency stats off
-apps/memcached/server/memcached-1.2.5-schooner/membrain.c:3472:plat_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20709:log level set, %s
-apps/memcached/server/memcached-1.2.5-schooner/membrain.c:3568:plat_log_msg:PLAT_LOG_LEVEL_TRACE:PLAT_LOG_CAT_SDF_APP_MEMCACHED_TRACE:20710:>%d END
-apps/memcached/server/memcached-1.2.5-schooner/membrain.c:3813:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_APP_MEMCACHED_TRACE:50029:ENTERING, exptime=%lu
-apps/memcached/server/memcached-1.2.5-schooner/membrain.c:3841:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED_TRACE:20687:req cleanup failed, status=%s
-apps/memcached/server/memcached-1.2.5-schooner/membrain.c:4105:plat_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED_TRACE:20711:Number of tokens < 3 : %d ignoring\n
-apps/memcached/server/memcached-1.2.5-schooner/membrain.c:4116:plat_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED_TRACE:20711:Number of tokens < 3 : %d ignoring\n
-apps/memcached/server/memcached-1.2.5-schooner/membrain.c:4596:plat_log_msg:PLAT_LOG_LEVEL_TRACE:PLAT_LOG_CAT_SDF_APP_MEMCACHED_TRACE:20712:<%d %s
-apps/memcached/server/memcached-1.2.5-schooner/membrain.c:4726:plat_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20713:Received shutdown command
-apps/memcached/server/memcached-1.2.5-schooner/membrain.c:4817:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED:50023:failed to dup cname %s
-apps/memcached/server/memcached-1.2.5-schooner/membrain.c:4830:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED:50024:unknown version number %d
-apps/memcached/server/memcached-1.2.5-schooner/membrain.c:4914:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED:50030:failed to get SDF properties, status=%s
-apps/memcached/server/memcached-1.2.5-schooner/membrain.c:4940:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED:50001:failed to parse container ip, j=%d
-apps/memcached/server/memcached-1.2.5-schooner/membrain.c:4983:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED:50030:failed to get SDF properties, status=%s
-apps/memcached/server/memcached-1.2.5-schooner/membrain.c:5009:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED:50001:failed to parse container ip, j=%d
-apps/memcached/server/memcached-1.2.5-schooner/membrain.c:5109:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED:50001:failed to parse container ip, j=%d
-apps/memcached/server/memcached-1.2.5-schooner/membrain.c:5140:mcd_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20714:starting container, port=%d
-apps/memcached/server/memcached-1.2.5-schooner/membrain.c:5165:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20715:failed to start container, status=%s
-apps/memcached/server/memcached-1.2.5-schooner/membrain.c:5173:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20716:failed to set container state, rc=%d
-apps/memcached/server/memcached-1.2.5-schooner/membrain.c:5180:mcd_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20717:container started, port=%d
-apps/memcached/server/memcached-1.2.5-schooner/membrain.c:5202:mcd_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_APP_MEMCACHED:50002:ref_count reduced, port=%d ref=%d
-apps/memcached/server/memcached-1.2.5-schooner/membrain.c:5221:mcd_log_msg:0 == closed ? PLAT_LOG_LEVEL_WARN : PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20722:%d tcp conn closed, port=%d
-apps/memcached/server/memcached-1.2.5-schooner/membrain.c:5230:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_APP_MEMCACHED:50002:ref_count reduced, port=%d ref=%d
-apps/memcached/server/memcached-1.2.5-schooner/membrain.c:5243:mcd_log_msg:0 == closed ? PLAT_LOG_LEVEL_WARN : PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20723:%d udp conn closed, port=%d
-apps/memcached/server/memcached-1.2.5-schooner/membrain.c:5251:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20724:failed to cleanup hot_key reporter
-apps/memcached/server/memcached-1.2.5-schooner/membrain.c:5260:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED:50031:failed to cleanup prefix deleter
-apps/memcached/server/memcached-1.2.5-schooner/membrain.c:5280:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20721:failed to delete container, status=%s
-apps/memcached/server/memcached-1.2.5-schooner/membrain.c:5297:mcd_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20725:deleting container, port=%d
-apps/memcached/server/memcached-1.2.5-schooner/membrain.c:5348:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20129:failed to listen on TCP port %d
-apps/memcached/server/memcached-1.2.5-schooner/membrain.c:5357:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20130:failed to listen on UDP port %d
-apps/memcached/server/memcached-1.2.5-schooner/membrain.c:5399:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20000:ENTERING
-apps/memcached/server/memcached-1.2.5-schooner/membrain.c:5564:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_APP_MEMCACHED:50003:IPADDR_ANY detected
-apps/memcached/server/memcached-1.2.5-schooner/membrain.c:5572:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_APP_MEMCACHED:50004:got ip_addr %s
-apps/memcached/server/memcached-1.2.5-schooner/membrain.c:5655:mcd_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_APP_MEMCACHED:50005:tcp_port=%d udp_port=%d capacity=%ldMB eviction=%d persistent=%d id=%lu cname=%s num_ips=%d ips=%s
-apps/memcached/server/memcached-1.2.5-schooner/membrain.c:5664:mcd_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20727:This node is VIRTUAL\n
-apps/memcached/server/memcached-1.2.5-schooner/membrain.c:5767:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED:50030:failed to get SDF properties, status=%s
-apps/memcached/server/memcached-1.2.5-schooner/membrain.c:5817:mcd_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20728:formatting container, port=%d
-apps/memcached/server/memcached-1.2.5-schooner/membrain.c:5841:mcd_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20728:formatting container, port=%d
-apps/memcached/server/memcached-1.2.5-schooner/membrain.c:5876:mcd_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_APP_MEMCACHED:50006:formatting container, name=%s
-apps/memcached/server/memcached-1.2.5-schooner/membrain.c:6077:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20729:defunct container encountered, tcp_port=%d
-apps/memcached/server/memcached-1.2.5-schooner/membrain.c:6098:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20730:failed to start the container, rc=%d
-apps/memcached/server/memcached-1.2.5-schooner/membrain.c:6116:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20731:failed to stop the container, rc=%d
-apps/memcached/server/memcached-1.2.5-schooner/membrain.c:6124:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20732:invalid prev_state %d
-apps/memcached/server/memcached-1.2.5-schooner/membrain.c:6134:mcd_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_APP_MEMCACHED:160020:Node becomes authoritative for persistent containers
-apps/memcached/server/memcached-1.2.5-schooner/membrain.c:6141:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20733:failed to start persistent recovery, rc=%d
-apps/memcached/server/memcached-1.2.5-schooner/membrain.c:6159:mcd_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_APP_MEMCACHED:30589:changing container to writeback, port=%d
-apps/memcached/server/memcached-1.2.5-schooner/membrain.c:6164:mcd_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_APP_MEMCACHED:30590:changing container to writethru, port=%d
-apps/memcached/server/memcached-1.2.5-schooner/membrain.c:6214:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20000:ENTERING
-apps/memcached/server/memcached-1.2.5-schooner/membrain.c:6251:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_APP_MEMCACHED:50003:IPADDR_ANY detected
-apps/memcached/server/memcached-1.2.5-schooner/membrain.c:6255:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_APP_MEMCACHED:50004:got ip_addr %s
-apps/memcached/server/memcached-1.2.5-schooner/membrain.c:6314:mcd_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_APP_MEMCACHED:50032:SASL enabled for container %s
-apps/memcached/server/memcached-1.2.5-schooner/membrain.c:6319:mcd_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_APP_MEMCACHED:50033:SASL disabled for container %s
-apps/memcached/server/memcached-1.2.5-schooner/membrain.c:6454:mcd_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_APP_MEMCACHED:50009:ip %s added to container %s
-apps/memcached/server/memcached-1.2.5-schooner/membrain.c:6475:mcd_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_APP_MEMCACHED:50010:ip %s removed from container %s
-apps/memcached/server/memcached-1.2.5-schooner/membrain.c:6620:mcd_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20727:This node is VIRTUAL\n
-apps/memcached/server/memcached-1.2.5-schooner/membrain.c:6892:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20000:ENTERING
-apps/memcached/server/memcached-1.2.5-schooner/membrain.c:7002:mcd_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20734:received shutdown command, exiting
-apps/memcached/server/memcached-1.2.5-schooner/membrain.c:7058:plat_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_APP_MEMCACHED:10001:Enabled FFDC logging through admin port
-apps/memcached/server/memcached-1.2.5-schooner/membrain.c:7067:plat_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_APP_MEMCACHED:10002:Disabled FFDC logging through admin port
-apps/memcached/server/memcached-1.2.5-schooner/membrain.c:7123:plat_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_APP_MEMCACHED:10013:Flush throttle set to %d%% through admin port
-apps/memcached/server/memcached-1.2.5-schooner/membrain.c:7141:plat_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_APP_MEMCACHED:10014:Modified data threshold set to %d%% through admin port
-apps/memcached/server/memcached-1.2.5-schooner/membrain.c:7174:plat_log_msg:PLAT_LOG_LEVEL_WARN:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20735:read buffer not empty
-apps/memcached/server/memcached-1.2.5-schooner/membrain.c:7210:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED:50011:failed to retrieve UDP request dst IP, port=%d
-apps/memcached/server/memcached-1.2.5-schooner/membrain.c:7243:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED:50012:homeless UDP request received, port=%d ip=%s
-apps/memcached/server/memcached-1.2.5-schooner/membrain.c:7360:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED:100009:Invalid magic:  %x
-apps/memcached/server/memcached-1.2.5-schooner/membrain.c:7477:plat_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED_TRACE:20736:Couldn't realloc input buffer
-apps/memcached/server/memcached-1.2.5-schooner/membrain.c:7547:plat_log_msg:PLAT_LOG_LEVEL_TRACE:PLAT_LOG_CAT_SDF_APP_MEMCACHED_TRACE:20737:listen, errno=%d
-apps/memcached/server/memcached-1.2.5-schooner/membrain.c:7556:plat_log_msg:PLAT_LOG_LEVEL_TRACE:PLAT_LOG_CAT_SDF_APP_MEMCACHED_TRACE:20737:listen, errno=%d
-apps/memcached/server/memcached-1.2.5-schooner/membrain.c:7592:plat_log_msg:PLAT_LOG_LEVEL_TRACE_LOW:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20100:ENTERING, c=%p
-apps/memcached/server/memcached-1.2.5-schooner/membrain.c:7604:plat_log_msg:PLAT_LOG_LEVEL_TRACE_LOW:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20738:c=%p, msgcurr=%d, msgused=%d
-apps/memcached/server/memcached-1.2.5-schooner/membrain.c:7622:plat_log_msg:PLAT_LOG_LEVEL_TRACE_LOW:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20739:c=%p, res=%d
-apps/memcached/server/memcached-1.2.5-schooner/membrain.c:7648:plat_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED_TRACE:20740:Couldn't update event
-apps/memcached/server/memcached-1.2.5-schooner/membrain.c:7661:plat_log_msg:PLAT_LOG_LEVEL_DIAGNOSTIC:PLAT_LOG_CAT_SDF_APP_MEMCACHED_TRACE:20741:Failed to write, and not due to blocking; errno=%d, sfd=%d
-apps/memcached/server/memcached-1.2.5-schooner/membrain.c:7701:plat_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED_TRACE:20742:Too many open connections
-apps/memcached/server/memcached-1.2.5-schooner/membrain.c:7708:plat_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED_TRACE:20743:accept(), errno=%d
-apps/memcached/server/memcached-1.2.5-schooner/membrain.c:7719:plat_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED_TRACE:20744:setting O_NONBLOCK, errno=%d
-apps/memcached/server/memcached-1.2.5-schooner/membrain.c:7737:mcd_log_msg:PLAT_LOG_LEVEL_WARN:PLAT_LOG_CAT_SDF_APP_MEMCACHED_TRACE:20745:too many connections, count=%lu
-apps/memcached/server/memcached-1.2.5-schooner/membrain.c:7756:plat_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED_TRACE:20740:Couldn't update event
-apps/memcached/server/memcached-1.2.5-schooner/membrain.c:7861:plat_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED_TRACE:20740:Couldn't update event
-apps/memcached/server/memcached-1.2.5-schooner/membrain.c:7873:plat_log_msg:PLAT_LOG_LEVEL_DIAGNOSTIC:PLAT_LOG_CAT_SDF_APP_MEMCACHED_TRACE:20746:Failed to read, and not due to blocking
-apps/memcached/server/memcached-1.2.5-schooner/membrain.c:7910:plat_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED_TRACE:20740:Couldn't update event
-apps/memcached/server/memcached-1.2.5-schooner/membrain.c:7922:plat_log_msg:PLAT_LOG_LEVEL_DIAGNOSTIC:PLAT_LOG_CAT_SDF_APP_MEMCACHED_TRACE:20746:Failed to read, and not due to blocking
-apps/memcached/server/memcached-1.2.5-schooner/membrain.c:7937:plat_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED_TRACE:20747:Couldn't build response
-apps/memcached/server/memcached-1.2.5-schooner/membrain.c:7949:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED_TRACE:100011:Failed to build UDP headers
-apps/memcached/server/memcached-1.2.5-schooner/membrain.c:7961:plat_log_msg:PLAT_LOG_LEVEL_TRACE_LOW:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20748:Transmit complete, c=%p, state=%d
-apps/memcached/server/memcached-1.2.5-schooner/membrain.c:7970:plat_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_APP_MEMCACHED_TRACE:20749:Mwrite complete, c=%p, req_cleanup=%d
-apps/memcached/server/memcached-1.2.5-schooner/membrain.c:7993:plat_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20750:Write complete, c=%p, req_cleanup=%d
-apps/memcached/server/memcached-1.2.5-schooner/membrain.c:8002:plat_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20751:Unexpected state %d, sdf=%d, c=%p
-apps/memcached/server/memcached-1.2.5-schooner/membrain.c:8012:plat_log_msg:PLAT_LOG_LEVEL_TRACE_LOW:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20752:Transmit incomplete, c=%p
-apps/memcached/server/memcached-1.2.5-schooner/membrain.c:8019:plat_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20753:Transmit hard error, c=%p
-apps/memcached/server/memcached-1.2.5-schooner/membrain.c:8026:plat_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20754:Transmit soft error, c=%p
-apps/memcached/server/memcached-1.2.5-schooner/membrain.c:8040:plat_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20755:cleanup failed, c=%p, status=%s
-apps/memcached/server/memcached-1.2.5-schooner/membrain.c:8078:plat_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED_TRACE:20756:Catastrophic: event fd doesn't match conn fd!
-apps/memcached/server/memcached-1.2.5-schooner/membrain.c:8097:plat_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED_TRACE:20757:socket(), errno=%d
-apps/memcached/server/memcached-1.2.5-schooner/membrain.c:8107:plat_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED_TRACE:20744:setting O_NONBLOCK, errno=%d
-apps/memcached/server/memcached-1.2.5-schooner/membrain.c:8131:plat_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED_TRACE:20166:getsockopt(SO_SNDBUF), errno=%d
-apps/memcached/server/memcached-1.2.5-schooner/membrain.c:8154:plat_log_msg:PLAT_LOG_LEVEL_TRACE:PLAT_LOG_CAT_SDF_APP_MEMCACHED_TRACE:20758:<%d send buffer was %d, now %d
-apps/memcached/server/memcached-1.2.5-schooner/membrain.c:8170:plat_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20759:getsockopt(SO_RCVBUF), errno=%d
-apps/memcached/server/memcached-1.2.5-schooner/membrain.c:8194:plat_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20760:socket %d rcvbuf size was %d, now %d
-apps/memcached/server/memcached-1.2.5-schooner/membrain.c:8250:plat_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED_TRACE:20761:any bind(): error=%d
-apps/memcached/server/memcached-1.2.5-schooner/membrain.c:8278:plat_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED_TRACE:20762:any listen(): error=%d
-apps/memcached/server/memcached-1.2.5-schooner/membrain.c:8292:plat_log_msg:PLAT_LOG_LEVEL_FATAL:PLAT_LOG_CAT_SDF_APP_MEMCACHED_TRACE:20763:failed to create listening connection (any)
-apps/memcached/server/memcached-1.2.5-schooner/membrain.c:8352:plat_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED_TRACE:20764:getaddrinfo(): %s
-apps/memcached/server/memcached-1.2.5-schooner/membrain.c:8357:plat_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED_TRACE:20765:getaddrinfo(): error=%d
-apps/memcached/server/memcached-1.2.5-schooner/membrain.c:8386:plat_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED_TRACE:20766:bind(): error=%d
-apps/memcached/server/memcached-1.2.5-schooner/membrain.c:8400:plat_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED_TRACE:20767:listen(): error=%d
-apps/memcached/server/memcached-1.2.5-schooner/membrain.c:8427:plat_log_msg:PLAT_LOG_LEVEL_FATAL:PLAT_LOG_CAT_SDF_APP_MEMCACHED_TRACE:20768:failed to create listening connection
-apps/memcached/server/memcached-1.2.5-schooner/membrain.c:8473:mcd_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_APP_MEMCACHED_TRACE:50013:TCP listening socket found for port %d ref=%d
-apps/memcached/server/memcached-1.2.5-schooner/membrain.c:8485:mcd_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_APP_MEMCACHED_TRACE:50014:UDP listening socket found for port %d ref=%d
-apps/memcached/server/memcached-1.2.5-schooner/membrain.c:8518:plat_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED_TRACE:20764:getaddrinfo(): %s
-apps/memcached/server/memcached-1.2.5-schooner/membrain.c:8523:plat_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED_TRACE:20765:getaddrinfo(): error=%d
-apps/memcached/server/memcached-1.2.5-schooner/membrain.c:8559:plat_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED_TRACE:20766:bind(): error=%d
-apps/memcached/server/memcached-1.2.5-schooner/membrain.c:8575:plat_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED_TRACE:20767:listen(): error=%d
-apps/memcached/server/memcached-1.2.5-schooner/membrain.c:8607:plat_log_msg:PLAT_LOG_LEVEL_FATAL:PLAT_LOG_CAT_SDF_APP_MEMCACHED_TRACE:20768:failed to create listening connection
-apps/memcached/server/memcached-1.2.5-schooner/membrain.c:8680:plat_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_APP_MEMCACHED_TRACE:20769:MULTI_INSTANCE_MCD is Set
-apps/memcached/server/memcached-1.2.5-schooner/membrain.c:8699:plat_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_APP_MEMCACHED_TRACE:20770:NODE[%d].GROUP_ID = %d\n
-apps/memcached/server/memcached-1.2.5-schooner/membrain.c:8704:plat_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_APP_MEMCACHED_TRACE:20771:SDF_CLUSTER_GROUP[%d].TYPE = %s\n
-apps/memcached/server/memcached-1.2.5-schooner/membrain.c:8717:plat_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_APP_MEMCACHED_TRACE:20772:second npde = %d\n
-apps/memcached/server/memcached-1.2.5-schooner/membrain.c:8892:plat_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED_TRACE:20773:Could not open the pid file %s for writing
-apps/memcached/server/memcached-1.2.5-schooner/membrain.c:8900:plat_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED_TRACE:20774:Could not close the pid file %s.
-apps/memcached/server/memcached-1.2.5-schooner/membrain.c:8913:plat_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED_TRACE:20775:Could not remove the pid file %s.
-apps/memcached/server/memcached-1.2.5-schooner/membrain.c:8923:plat_log_msg:PLAT_LOG_LEVEL_FATAL:PLAT_LOG_CAT_SDF_APP_MEMCACHED_TRACE:20776:SIGINT handled.
-apps/memcached/server/memcached-1.2.5-schooner/membrain.c:8929:plat_log_msg:PLAT_LOG_LEVEL_FATAL:PLAT_LOG_CAT_SDF_APP_MEMCACHED_TRACE:20777:SIGPWR handled.
-apps/memcached/server/memcached-1.2.5-schooner/membrain.c:8994:plat_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED_TRACE:20778:Failed to set large pages: %s
-apps/memcached/server/memcached-1.2.5-schooner/membrain.c:8997:plat_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED_TRACE:20779:Will use default page size
-apps/memcached/server/memcached-1.2.5-schooner/membrain.c:9006:plat_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED_TRACE:20780:Failed to get supported pagesizes: %s
-apps/memcached/server/memcached-1.2.5-schooner/membrain.c:9009:plat_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED_TRACE:20779:Will use default page size
-apps/memcached/server/memcached-1.2.5-schooner/membrain.c:9808:plat_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20781:Executable: %s, Version: %s, Build: %d
-apps/memcached/server/memcached-1.2.5-schooner/membrain.c:9815:plat_log_msg:PLAT_LOG_LEVEL_WARN:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20782:no container name specified, use default 'Schooner'
-apps/memcached/server/memcached-1.2.5-schooner/membrain.c:9843:plat_log_msg:PLAT_LOG_LEVEL_FATAL:PLAT_LOG_CAT_SDF_APP_MEMCACHED_TRACE:20783:failed to ensure corefile creation
-apps/memcached/server/memcached-1.2.5-schooner/membrain.c:9857:plat_log_msg:PLAT_LOG_LEVEL_FATAL:PLAT_LOG_CAT_SDF_APP_MEMCACHED_TRACE:20784:failed to getrlimit number of files
-apps/memcached/server/memcached-1.2.5-schooner/membrain.c:9870:plat_log_msg:PLAT_LOG_LEVEL_FATAL:PLAT_LOG_CAT_SDF_APP_MEMCACHED_TRACE:20785:failed to set rlimit for open files (%d - %d). Try running as root or requesting smaller maxconns value.
-apps/memcached/server/memcached-1.2.5-schooner/membrain.c:9884:plat_log_msg:PLAT_LOG_LEVEL_FATAL:PLAT_LOG_CAT_SDF_APP_MEMCACHED_TRACE:20786:failed to daemon() in order to daemonize
-apps/memcached/server/memcached-1.2.5-schooner/membrain.c:9898:plat_log_msg:PLAT_LOG_LEVEL_WARN:PLAT_LOG_CAT_SDF_APP_MEMCACHED_TRACE:20787:warning: -k invalid, mlockall() failed: %s
-apps/memcached/server/memcached-1.2.5-schooner/membrain.c:9905:plat_log_msg:PLAT_LOG_LEVEL_WARN:PLAT_LOG_CAT_SDF_APP_MEMCACHED_TRACE:20788:warning: -k invalid, mlockall() not supported on this platform.  proceeding without.
-apps/memcached/server/memcached-1.2.5-schooner/membrain.c:9915:plat_log_msg:PLAT_LOG_LEVEL_FATAL:PLAT_LOG_CAT_SDF_APP_MEMCACHED_TRACE:20789:can't run as root without the -u switch
-apps/memcached/server/memcached-1.2.5-schooner/membrain.c:9922:plat_log_msg:PLAT_LOG_LEVEL_FATAL:PLAT_LOG_CAT_SDF_APP_MEMCACHED_TRACE:20790:can't find the user %s to switch to
-apps/memcached/server/memcached-1.2.5-schooner/membrain.c:9929:plat_log_msg:PLAT_LOG_LEVEL_FATAL:PLAT_LOG_CAT_SDF_APP_MEMCACHED_TRACE:20791:failed to assume identity of user %s
-apps/memcached/server/memcached-1.2.5-schooner/membrain.c:9940:plat_log_msg:PLAT_LOG_LEVEL_WARN:PLAT_LOG_CAT_SDF_APP_MEMCACHED_TRACE:30656:failed to enable core dump for user %s
-apps/memcached/server/memcached-1.2.5-schooner/membrain.c:9952:plat_log_msg:PLAT_LOG_LEVEL_WARN:PLAT_LOG_CAT_SDF_APP_MEMCACHED_TRACE:30657:Setrlimit failed! Error: %s\n
-apps/memcached/server/memcached-1.2.5-schooner/membrain.c:9971:plat_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_PRINT_ARGS:20792:Passing option '%s' to agent_engine_init
-apps/memcached/server/memcached-1.2.5-schooner/membrain.c:9979:plat_log_msg:PLAT_LOG_LEVEL_FATAL:PLAT_LOG_CAT_SDF_APP_MEMCACHED_TRACE:20793:Cannot load properties file %s
-apps/memcached/server/memcached-1.2.5-schooner/membrain.c:9991:mcd_log_msg:PLAT_LOG_LEVEL_FATAL:PLAT_LOG_CAT_SDF_APP_MEMCACHED_TRACE:50034:System is not a valid Schooner platform
-apps/memcached/server/memcached-1.2.5-schooner/membrain.c:9996:mcd_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_APP_MEMCACHED_TRACE:50035:Schooner platform check passed
-apps/memcached/server/memcached-1.2.5-schooner/membrain.c:10007:mcd_log_msg:PLAT_LOG_LEVEL_FATAL:PLAT_LOG_CAT_SDF_APP_MEMCACHED_TRACE:50036:invalid delimiter %c, please specify a value between ' ' and '~'
-apps/memcached/server/memcached-1.2.5-schooner/membrain.c:10012:mcd_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_APP_MEMCACHED_TRACE:50037:prefix-based deletion delimiter set to %c
-apps/memcached/server/memcached-1.2.5-schooner/membrain.c:10028:plat_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20794:total flash size is %lu
-apps/memcached/server/memcached-1.2.5-schooner/membrain.c:10038:plat_log_msg:PLAT_LOG_LEVEL_FATAL:PLAT_LOG_CAT_SDF_APP_MEMCACHED_TRACE:20796:Cannot set property SDF_FTHREAD_SCHEDULERS=%s
-apps/memcached/server/memcached-1.2.5-schooner/membrain.c:10080:plat_log_msg:PLAT_LOG_LEVEL_FATAL:PLAT_LOG_CAT_SDF_APP_MEMCACHED_TRACE:20797:Cannot find peer node info in prop file
-apps/memcached/server/memcached-1.2.5-schooner/membrain.c:10093:plat_log_msg:PLAT_LOG_LEVEL_FATAL:PLAT_LOG_CAT_SDF_APP_MEMCACHED_TRACE:20798:%s not found
-apps/memcached/server/memcached-1.2.5-schooner/membrain.c:10112:plat_log_msg:PLAT_LOG_LEVEL_FATAL:PLAT_LOG_CAT_SDF_APP_MEMCACHED_TRACE:30630:Version Mismatch with the peer %s
-apps/memcached/server/memcached-1.2.5-schooner/membrain.c:10119:plat_log_msg:PLAT_LOG_LEVEL_WARN:PLAT_LOG_CAT_SDF_APP_MEMCACHED_TRACE:20800:Version check failed. Peer may be down
-apps/memcached/server/memcached-1.2.5-schooner/membrain.c:10124:plat_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_APP_MEMCACHED_TRACE:20801:Version check failed. Peer Node not reachable 
-apps/memcached/server/memcached-1.2.5-schooner/membrain.c:10130:plat_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_APP_MEMCACHED_TRACE:20802:Peer version check SUCCESS
-apps/memcached/server/memcached-1.2.5-schooner/membrain.c:10154:plat_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED_TRACE:20803:failed to ignore SIGPIPE; sigaction, errno=%d
-apps/memcached/server/memcached-1.2.5-schooner/membrain.c:10204:mcd_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_APP_MEMCACHED_TRACE:20804:start in independent clone mode
-apps/memcached/server/memcached-1.2.5-schooner/membrain.c:10210:mcd_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_APP_MEMCACHED_TRACE:20805:running in independent mode
-apps/memcached/server/memcached-1.2.5-schooner/membrain.c:10213:mcd_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_APP_MEMCACHED_TRACE:20806:running in replicated mode
-apps/memcached/server/memcached-1.2.5-schooner/membrain.c:10417:plat_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_APP_MEMCACHED_TRACE:20807:Node %d is Virtual
-apps/memcached/server/memcached-1.2.5-schooner/membrain.c:10425:plat_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_APP_MEMCACHED_TRACE:20808:Node %d is Virtual. Changing Port from %d to %d
-apps/memcached/server/memcached-1.2.5-schooner/membrain.c:10437:plat_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_APP_MEMCACHED_TRACE:20809:Node %d is Virtual. VIP is not null Changing Port from %d to %d
-apps/memcached/server/memcached-1.2.5-schooner/membrain.c:10473:mcd_log_msg:PLAT_LOG_LEVEL_WARN:PLAT_LOG_CAT_SDF_APP_MEMCACHED_TRACE:20810:no container specified in the property file\n
+apps/memcached/server/memcached-1.2.5-schooner/membrain.c:561:plat_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED_TRACE:20669:Error %d on release_data for key '%s'
+apps/memcached/server/memcached-1.2.5-schooner/membrain.c:589:plat_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED_TRACE:20670:Error %d on delete context for key '%s'
+apps/memcached/server/memcached-1.2.5-schooner/membrain.c:818:plat_log_msg:PLAT_LOG_LEVEL_TRACE_LOW:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20671:Adding msghdr, msgused=%d, iovused=%d
+apps/memcached/server/memcached-1.2.5-schooner/membrain.c:844:plat_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED_TRACE:20672:malloc()
+apps/memcached/server/memcached-1.2.5-schooner/membrain.c:969:plat_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED_TRACE:20673:calloc()
+apps/memcached/server/memcached-1.2.5-schooner/membrain.c:993:plat_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED_TRACE:20672:malloc()
+apps/memcached/server/memcached-1.2.5-schooner/membrain.c:1012:plat_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED_TRACE:20672:malloc()
+apps/memcached/server/memcached-1.2.5-schooner/membrain.c:1108:mcd_log_msg:PLAT_LOG_LEVEL_WARN:PLAT_LOG_CAT_SDF_APP_MEMCACHED_TRACE:20674:getpeername failed, ret=%d errno=%d
+apps/memcached/server/memcached-1.2.5-schooner/membrain.c:1195:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED_TRACE:20675:homeless connection encountered, port=%d
+apps/memcached/server/memcached-1.2.5-schooner/membrain.c:1254:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED_TRACE:20676:homeless conn encountered, port=%d
+apps/memcached/server/memcached-1.2.5-schooner/membrain.c:1285:plat_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20677:c=%p port=%d container=%ld
+apps/memcached/server/memcached-1.2.5-schooner/membrain.c:1301:plat_log_msg:PLAT_LOG_LEVEL_TRACE:PLAT_LOG_CAT_SDF_APP_MEMCACHED_TRACE:20678:<%d server listening
+apps/memcached/server/memcached-1.2.5-schooner/membrain.c:1307:plat_log_msg:PLAT_LOG_LEVEL_TRACE:PLAT_LOG_CAT_SDF_APP_MEMCACHED_TRACE:20679:<%d server listening (udp), port %d
+apps/memcached/server/memcached-1.2.5-schooner/membrain.c:1313:plat_log_msg:PLAT_LOG_LEVEL_TRACE:PLAT_LOG_CAT_SDF_APP_MEMCACHED_TRACE:20680:<%d new client connection, port %d
+apps/memcached/server/memcached-1.2.5-schooner/membrain.c:1330:plat_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED_TRACE:20681:event_add, errno=%d c=%p fd=%d %lu
+apps/memcached/server/memcached-1.2.5-schooner/membrain.c:1410:plat_log_msg:PLAT_LOG_LEVEL_TRACE:PLAT_LOG_CAT_SDF_APP_MEMCACHED_TRACE:20682:<%d connection closed.
+apps/memcached/server/memcached-1.2.5-schooner/membrain.c:1541:plat_log_msg:PLAT_LOG_LEVEL_TRACE_LOW:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20683:Adding iov, len=%d
+apps/memcached/server/memcached-1.2.5-schooner/membrain.c:1588:plat_log_msg:PLAT_LOG_LEVEL_TRACE_LOW:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20684:Added iov, msgused=%d, msgbytes=%d, iovused=%d
+apps/memcached/server/memcached-1.2.5-schooner/membrain.c:1641:plat_log_msg:PLAT_LOG_LEVEL_TRACE:PLAT_LOG_CAT_SDF_APP_MEMCACHED_TRACE:20685:>%d NOREPLY %s
+apps/memcached/server/memcached-1.2.5-schooner/membrain.c:1649:plat_log_msg:PLAT_LOG_LEVEL_TRACE:PLAT_LOG_CAT_SDF_APP_MEMCACHED_TRACE:20686:>%d %s
+apps/memcached/server/memcached-1.2.5-schooner/membrain.c:1751:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED_TRACE:20687:req cleanup failed, status=%s
+apps/memcached/server/memcached-1.2.5-schooner/membrain.c:1779:plat_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20188:this should never happen
+apps/memcached/server/memcached-1.2.5-schooner/membrain.c:1947:plat_log_msg:PLAT_LOG_LEVEL_FATAL:PLAT_LOG_CAT_SDF_PROT:20688:No VIP group group for:%d\n
+apps/memcached/server/memcached-1.2.5-schooner/membrain.c:1950:plat_log_msg:PLAT_LOG_LEVEL_FATAL:PLAT_LOG_CAT_SDF_PROT:20689:Printing Vip Group Group:%d
+apps/memcached/server/memcached-1.2.5-schooner/membrain.c:1958:plat_log_msg:PLAT_LOG_LEVEL_FATAL:PLAT_LOG_CAT_SDF_PROT:20690:No VIP group group for vid:%d\n
+apps/memcached/server/memcached-1.2.5-schooner/membrain.c:1961:plat_log_msg:PLAT_LOG_LEVEL_FATAL:PLAT_LOG_CAT_SDF_PROT:20689:Printing Vip Group Group:%d
+apps/memcached/server/memcached-1.2.5-schooner/membrain.c:1968:plat_log_msg:PLAT_LOG_LEVEL_FATAL:PLAT_LOG_CAT_SDF_PROT:20691:No VIP group for vid:%d\n
+apps/memcached/server/memcached-1.2.5-schooner/membrain.c:1978:plat_log_msg:PLAT_LOG_LEVEL_FATAL:PLAT_LOG_CAT_SDF_PROT:20692:VID Array:%s\n
+apps/memcached/server/memcached-1.2.5-schooner/membrain.c:1984:plat_log_msg:PLAT_LOG_LEVEL_FATAL:PLAT_LOG_CAT_SDF_PROT:20691:No VIP group for vid:%d\n
+apps/memcached/server/memcached-1.2.5-schooner/membrain.c:1992:plat_log_msg:PLAT_LOG_LEVEL_FATAL:PLAT_LOG_CAT_SDF_PROT:20693:pref list:%s\n
+apps/memcached/server/memcached-1.2.5-schooner/membrain.c:2678:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_PROT:20694:/proc/stat opened, fd=%d
+apps/memcached/server/memcached-1.2.5-schooner/membrain.c:2689:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_PROT:20695:failed to read from proc, rc=%d errno=%d
+apps/memcached/server/memcached-1.2.5-schooner/membrain.c:2717:plat_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20100:ENTERING, c=%p
+apps/memcached/server/memcached-1.2.5-schooner/membrain.c:2896:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20696:stats output len=%lu left=%lu
+apps/memcached/server/memcached-1.2.5-schooner/membrain.c:2900:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20697:stats output too long, truncated
+apps/memcached/server/memcached-1.2.5-schooner/membrain.c:3059:plat_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20698:binary tracing on
+apps/memcached/server/memcached-1.2.5-schooner/membrain.c:3068:plat_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20699:binary tracing off
+apps/memcached/server/memcached-1.2.5-schooner/membrain.c:3114:plat_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20700:token=%s
+apps/memcached/server/memcached-1.2.5-schooner/membrain.c:3130:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20701:failed to alloc hot_key memory, size=%d
+apps/memcached/server/memcached-1.2.5-schooner/membrain.c:3139:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20702:failed to initiaize hot key support.
+apps/memcached/server/memcached-1.2.5-schooner/membrain.c:3148:mcd_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20703:hot key support inited, size=%d nbuckets=%d hotkeys=%d flag=%d
+apps/memcached/server/memcached-1.2.5-schooner/membrain.c:3164:mcd_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20704:hot key stats on
+apps/memcached/server/memcached-1.2.5-schooner/membrain.c:3171:mcd_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20705:hot key stats off
+apps/memcached/server/memcached-1.2.5-schooner/membrain.c:3181:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20706:failed to reset hot key stats, rc=%d
+apps/memcached/server/memcached-1.2.5-schooner/membrain.c:3204:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_APP_MEMCACHED:50026:ENTERNING
+apps/memcached/server/memcached-1.2.5-schooner/membrain.c:3224:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED:50027:failed to initialize prefix-based deleter for container %s
+apps/memcached/server/memcached-1.2.5-schooner/membrain.c:3237:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED:50028:failed to persist prefix-based deletion for container %s
+apps/memcached/server/memcached-1.2.5-schooner/membrain.c:3253:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED:50028:failed to persist prefix-based deletion for container %s
+apps/memcached/server/memcached-1.2.5-schooner/membrain.c:3399:plat_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20707:latency stats on
+apps/memcached/server/memcached-1.2.5-schooner/membrain.c:3407:plat_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20708:latency stats off
+apps/memcached/server/memcached-1.2.5-schooner/membrain.c:3475:plat_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20709:log level set, %s
+apps/memcached/server/memcached-1.2.5-schooner/membrain.c:3571:plat_log_msg:PLAT_LOG_LEVEL_TRACE:PLAT_LOG_CAT_SDF_APP_MEMCACHED_TRACE:20710:>%d END
+apps/memcached/server/memcached-1.2.5-schooner/membrain.c:3816:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_APP_MEMCACHED_TRACE:50029:ENTERING, exptime=%lu
+apps/memcached/server/memcached-1.2.5-schooner/membrain.c:3844:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED_TRACE:20687:req cleanup failed, status=%s
+apps/memcached/server/memcached-1.2.5-schooner/membrain.c:4108:plat_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED_TRACE:20711:Number of tokens < 3 : %d ignoring\n
+apps/memcached/server/memcached-1.2.5-schooner/membrain.c:4119:plat_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED_TRACE:20711:Number of tokens < 3 : %d ignoring\n
+apps/memcached/server/memcached-1.2.5-schooner/membrain.c:4603:plat_log_msg:PLAT_LOG_LEVEL_TRACE:PLAT_LOG_CAT_SDF_APP_MEMCACHED_TRACE:20712:<%d %s
+apps/memcached/server/memcached-1.2.5-schooner/membrain.c:4733:plat_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20713:Received shutdown command
+apps/memcached/server/memcached-1.2.5-schooner/membrain.c:4824:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED:50023:failed to dup cname %s
+apps/memcached/server/memcached-1.2.5-schooner/membrain.c:4837:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED:50024:unknown version number %d
+apps/memcached/server/memcached-1.2.5-schooner/membrain.c:4921:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED:50030:failed to get SDF properties, status=%s
+apps/memcached/server/memcached-1.2.5-schooner/membrain.c:4947:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED:50001:failed to parse container ip, j=%d
+apps/memcached/server/memcached-1.2.5-schooner/membrain.c:4990:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED:50030:failed to get SDF properties, status=%s
+apps/memcached/server/memcached-1.2.5-schooner/membrain.c:5016:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED:50001:failed to parse container ip, j=%d
+apps/memcached/server/memcached-1.2.5-schooner/membrain.c:5116:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED:50001:failed to parse container ip, j=%d
+apps/memcached/server/memcached-1.2.5-schooner/membrain.c:5147:mcd_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20714:starting container, port=%d
+apps/memcached/server/memcached-1.2.5-schooner/membrain.c:5172:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20715:failed to start container, status=%s
+apps/memcached/server/memcached-1.2.5-schooner/membrain.c:5180:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20716:failed to set container state, rc=%d
+apps/memcached/server/memcached-1.2.5-schooner/membrain.c:5187:mcd_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20717:container started, port=%d
+apps/memcached/server/memcached-1.2.5-schooner/membrain.c:5209:mcd_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_APP_MEMCACHED:50002:ref_count reduced, port=%d ref=%d
+apps/memcached/server/memcached-1.2.5-schooner/membrain.c:5228:mcd_log_msg:0 == closed ? PLAT_LOG_LEVEL_WARN : PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20722:%d tcp conn closed, port=%d
+apps/memcached/server/memcached-1.2.5-schooner/membrain.c:5237:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_APP_MEMCACHED:50002:ref_count reduced, port=%d ref=%d
+apps/memcached/server/memcached-1.2.5-schooner/membrain.c:5250:mcd_log_msg:0 == closed ? PLAT_LOG_LEVEL_WARN : PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20723:%d udp conn closed, port=%d
+apps/memcached/server/memcached-1.2.5-schooner/membrain.c:5258:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20724:failed to cleanup hot_key reporter
+apps/memcached/server/memcached-1.2.5-schooner/membrain.c:5267:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED:50031:failed to cleanup prefix deleter
+apps/memcached/server/memcached-1.2.5-schooner/membrain.c:5287:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20721:failed to delete container, status=%s
+apps/memcached/server/memcached-1.2.5-schooner/membrain.c:5304:mcd_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20725:deleting container, port=%d
+apps/memcached/server/memcached-1.2.5-schooner/membrain.c:5355:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20129:failed to listen on TCP port %d
+apps/memcached/server/memcached-1.2.5-schooner/membrain.c:5364:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20130:failed to listen on UDP port %d
+apps/memcached/server/memcached-1.2.5-schooner/membrain.c:5406:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20000:ENTERING
+apps/memcached/server/memcached-1.2.5-schooner/membrain.c:5571:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_APP_MEMCACHED:50003:IPADDR_ANY detected
+apps/memcached/server/memcached-1.2.5-schooner/membrain.c:5579:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_APP_MEMCACHED:50004:got ip_addr %s
+apps/memcached/server/memcached-1.2.5-schooner/membrain.c:5662:mcd_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_APP_MEMCACHED:50005:tcp_port=%d udp_port=%d capacity=%ldMB eviction=%d persistent=%d id=%lu cname=%s num_ips=%d ips=%s
+apps/memcached/server/memcached-1.2.5-schooner/membrain.c:5671:mcd_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20727:This node is VIRTUAL\n
+apps/memcached/server/memcached-1.2.5-schooner/membrain.c:5774:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED:50030:failed to get SDF properties, status=%s
+apps/memcached/server/memcached-1.2.5-schooner/membrain.c:5824:mcd_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20728:formatting container, port=%d
+apps/memcached/server/memcached-1.2.5-schooner/membrain.c:5848:mcd_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20728:formatting container, port=%d
+apps/memcached/server/memcached-1.2.5-schooner/membrain.c:5883:mcd_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_APP_MEMCACHED:50006:formatting container, name=%s
+apps/memcached/server/memcached-1.2.5-schooner/membrain.c:6084:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20729:defunct container encountered, tcp_port=%d
+apps/memcached/server/memcached-1.2.5-schooner/membrain.c:6105:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20730:failed to start the container, rc=%d
+apps/memcached/server/memcached-1.2.5-schooner/membrain.c:6123:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20731:failed to stop the container, rc=%d
+apps/memcached/server/memcached-1.2.5-schooner/membrain.c:6131:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20732:invalid prev_state %d
+apps/memcached/server/memcached-1.2.5-schooner/membrain.c:6141:mcd_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_APP_MEMCACHED:160020:Node becomes authoritative for persistent containers
+apps/memcached/server/memcached-1.2.5-schooner/membrain.c:6148:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20733:failed to start persistent recovery, rc=%d
+apps/memcached/server/memcached-1.2.5-schooner/membrain.c:6166:mcd_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_APP_MEMCACHED:30589:changing container to writeback, port=%d
+apps/memcached/server/memcached-1.2.5-schooner/membrain.c:6171:mcd_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_APP_MEMCACHED:30590:changing container to writethru, port=%d
+apps/memcached/server/memcached-1.2.5-schooner/membrain.c:6221:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20000:ENTERING
+apps/memcached/server/memcached-1.2.5-schooner/membrain.c:6258:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_APP_MEMCACHED:50003:IPADDR_ANY detected
+apps/memcached/server/memcached-1.2.5-schooner/membrain.c:6262:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_APP_MEMCACHED:50004:got ip_addr %s
+apps/memcached/server/memcached-1.2.5-schooner/membrain.c:6321:mcd_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_APP_MEMCACHED:50032:SASL enabled for container %s
+apps/memcached/server/memcached-1.2.5-schooner/membrain.c:6326:mcd_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_APP_MEMCACHED:50033:SASL disabled for container %s
+apps/memcached/server/memcached-1.2.5-schooner/membrain.c:6461:mcd_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_APP_MEMCACHED:50009:ip %s added to container %s
+apps/memcached/server/memcached-1.2.5-schooner/membrain.c:6482:mcd_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_APP_MEMCACHED:50010:ip %s removed from container %s
+apps/memcached/server/memcached-1.2.5-schooner/membrain.c:6627:mcd_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20727:This node is VIRTUAL\n
+apps/memcached/server/memcached-1.2.5-schooner/membrain.c:6899:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20000:ENTERING
+apps/memcached/server/memcached-1.2.5-schooner/membrain.c:7009:mcd_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20734:received shutdown command, exiting
+apps/memcached/server/memcached-1.2.5-schooner/membrain.c:7065:plat_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_APP_MEMCACHED:10001:Enabled FFDC logging through admin port
+apps/memcached/server/memcached-1.2.5-schooner/membrain.c:7074:plat_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_APP_MEMCACHED:10002:Disabled FFDC logging through admin port
+apps/memcached/server/memcached-1.2.5-schooner/membrain.c:7130:plat_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_APP_MEMCACHED:10013:Flush throttle set to %d%% through admin port
+apps/memcached/server/memcached-1.2.5-schooner/membrain.c:7148:plat_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_APP_MEMCACHED:10014:Modified data threshold set to %d%% through admin port
+apps/memcached/server/memcached-1.2.5-schooner/membrain.c:7181:plat_log_msg:PLAT_LOG_LEVEL_WARN:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20735:read buffer not empty
+apps/memcached/server/memcached-1.2.5-schooner/membrain.c:7217:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED:50011:failed to retrieve UDP request dst IP, port=%d
+apps/memcached/server/memcached-1.2.5-schooner/membrain.c:7250:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED:50012:homeless UDP request received, port=%d ip=%s
+apps/memcached/server/memcached-1.2.5-schooner/membrain.c:7367:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED:100009:Invalid magic:  %x
+apps/memcached/server/memcached-1.2.5-schooner/membrain.c:7484:plat_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED_TRACE:20736:Couldn't realloc input buffer
+apps/memcached/server/memcached-1.2.5-schooner/membrain.c:7554:plat_log_msg:PLAT_LOG_LEVEL_TRACE:PLAT_LOG_CAT_SDF_APP_MEMCACHED_TRACE:20737:listen, errno=%d
+apps/memcached/server/memcached-1.2.5-schooner/membrain.c:7563:plat_log_msg:PLAT_LOG_LEVEL_TRACE:PLAT_LOG_CAT_SDF_APP_MEMCACHED_TRACE:20737:listen, errno=%d
+apps/memcached/server/memcached-1.2.5-schooner/membrain.c:7599:plat_log_msg:PLAT_LOG_LEVEL_TRACE_LOW:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20100:ENTERING, c=%p
+apps/memcached/server/memcached-1.2.5-schooner/membrain.c:7611:plat_log_msg:PLAT_LOG_LEVEL_TRACE_LOW:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20738:c=%p, msgcurr=%d, msgused=%d
+apps/memcached/server/memcached-1.2.5-schooner/membrain.c:7629:plat_log_msg:PLAT_LOG_LEVEL_TRACE_LOW:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20739:c=%p, res=%d
+apps/memcached/server/memcached-1.2.5-schooner/membrain.c:7655:plat_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED_TRACE:20740:Couldn't update event
+apps/memcached/server/memcached-1.2.5-schooner/membrain.c:7668:plat_log_msg:PLAT_LOG_LEVEL_DIAGNOSTIC:PLAT_LOG_CAT_SDF_APP_MEMCACHED_TRACE:20741:Failed to write, and not due to blocking; errno=%d, sfd=%d
+apps/memcached/server/memcached-1.2.5-schooner/membrain.c:7708:plat_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED_TRACE:20742:Too many open connections
+apps/memcached/server/memcached-1.2.5-schooner/membrain.c:7715:plat_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED_TRACE:20743:accept(), errno=%d
+apps/memcached/server/memcached-1.2.5-schooner/membrain.c:7726:plat_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED_TRACE:20744:setting O_NONBLOCK, errno=%d
+apps/memcached/server/memcached-1.2.5-schooner/membrain.c:7744:mcd_log_msg:PLAT_LOG_LEVEL_WARN:PLAT_LOG_CAT_SDF_APP_MEMCACHED_TRACE:20745:too many connections, count=%lu
+apps/memcached/server/memcached-1.2.5-schooner/membrain.c:7763:plat_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED_TRACE:20740:Couldn't update event
+apps/memcached/server/memcached-1.2.5-schooner/membrain.c:7868:plat_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED_TRACE:20740:Couldn't update event
+apps/memcached/server/memcached-1.2.5-schooner/membrain.c:7880:plat_log_msg:PLAT_LOG_LEVEL_DIAGNOSTIC:PLAT_LOG_CAT_SDF_APP_MEMCACHED_TRACE:20746:Failed to read, and not due to blocking
+apps/memcached/server/memcached-1.2.5-schooner/membrain.c:7917:plat_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED_TRACE:20740:Couldn't update event
+apps/memcached/server/memcached-1.2.5-schooner/membrain.c:7929:plat_log_msg:PLAT_LOG_LEVEL_DIAGNOSTIC:PLAT_LOG_CAT_SDF_APP_MEMCACHED_TRACE:20746:Failed to read, and not due to blocking
+apps/memcached/server/memcached-1.2.5-schooner/membrain.c:7944:plat_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED_TRACE:20747:Couldn't build response
+apps/memcached/server/memcached-1.2.5-schooner/membrain.c:7956:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED_TRACE:100011:Failed to build UDP headers
+apps/memcached/server/memcached-1.2.5-schooner/membrain.c:7968:plat_log_msg:PLAT_LOG_LEVEL_TRACE_LOW:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20748:Transmit complete, c=%p, state=%d
+apps/memcached/server/memcached-1.2.5-schooner/membrain.c:7977:plat_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_APP_MEMCACHED_TRACE:20749:Mwrite complete, c=%p, req_cleanup=%d
+apps/memcached/server/memcached-1.2.5-schooner/membrain.c:8000:plat_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20750:Write complete, c=%p, req_cleanup=%d
+apps/memcached/server/memcached-1.2.5-schooner/membrain.c:8009:plat_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20751:Unexpected state %d, sdf=%d, c=%p
+apps/memcached/server/memcached-1.2.5-schooner/membrain.c:8019:plat_log_msg:PLAT_LOG_LEVEL_TRACE_LOW:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20752:Transmit incomplete, c=%p
+apps/memcached/server/memcached-1.2.5-schooner/membrain.c:8026:plat_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20753:Transmit hard error, c=%p
+apps/memcached/server/memcached-1.2.5-schooner/membrain.c:8033:plat_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20754:Transmit soft error, c=%p
+apps/memcached/server/memcached-1.2.5-schooner/membrain.c:8047:plat_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20755:cleanup failed, c=%p, status=%s
+apps/memcached/server/memcached-1.2.5-schooner/membrain.c:8085:plat_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED_TRACE:20756:Catastrophic: event fd doesn't match conn fd!
+apps/memcached/server/memcached-1.2.5-schooner/membrain.c:8104:plat_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED_TRACE:20757:socket(), errno=%d
+apps/memcached/server/memcached-1.2.5-schooner/membrain.c:8114:plat_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED_TRACE:20744:setting O_NONBLOCK, errno=%d
+apps/memcached/server/memcached-1.2.5-schooner/membrain.c:8138:plat_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED_TRACE:20166:getsockopt(SO_SNDBUF), errno=%d
+apps/memcached/server/memcached-1.2.5-schooner/membrain.c:8161:plat_log_msg:PLAT_LOG_LEVEL_TRACE:PLAT_LOG_CAT_SDF_APP_MEMCACHED_TRACE:20758:<%d send buffer was %d, now %d
+apps/memcached/server/memcached-1.2.5-schooner/membrain.c:8177:plat_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20759:getsockopt(SO_RCVBUF), errno=%d
+apps/memcached/server/memcached-1.2.5-schooner/membrain.c:8201:plat_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20760:socket %d rcvbuf size was %d, now %d
+apps/memcached/server/memcached-1.2.5-schooner/membrain.c:8257:plat_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED_TRACE:20761:any bind(): error=%d
+apps/memcached/server/memcached-1.2.5-schooner/membrain.c:8285:plat_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED_TRACE:20762:any listen(): error=%d
+apps/memcached/server/memcached-1.2.5-schooner/membrain.c:8299:plat_log_msg:PLAT_LOG_LEVEL_FATAL:PLAT_LOG_CAT_SDF_APP_MEMCACHED_TRACE:20763:failed to create listening connection (any)
+apps/memcached/server/memcached-1.2.5-schooner/membrain.c:8359:plat_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED_TRACE:20764:getaddrinfo(): %s
+apps/memcached/server/memcached-1.2.5-schooner/membrain.c:8364:plat_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED_TRACE:20765:getaddrinfo(): error=%d
+apps/memcached/server/memcached-1.2.5-schooner/membrain.c:8393:plat_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED_TRACE:20766:bind(): error=%d
+apps/memcached/server/memcached-1.2.5-schooner/membrain.c:8407:plat_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED_TRACE:20767:listen(): error=%d
+apps/memcached/server/memcached-1.2.5-schooner/membrain.c:8434:plat_log_msg:PLAT_LOG_LEVEL_FATAL:PLAT_LOG_CAT_SDF_APP_MEMCACHED_TRACE:20768:failed to create listening connection
+apps/memcached/server/memcached-1.2.5-schooner/membrain.c:8480:mcd_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_APP_MEMCACHED_TRACE:50013:TCP listening socket found for port %d ref=%d
+apps/memcached/server/memcached-1.2.5-schooner/membrain.c:8492:mcd_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_APP_MEMCACHED_TRACE:50014:UDP listening socket found for port %d ref=%d
+apps/memcached/server/memcached-1.2.5-schooner/membrain.c:8525:plat_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED_TRACE:20764:getaddrinfo(): %s
+apps/memcached/server/memcached-1.2.5-schooner/membrain.c:8530:plat_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED_TRACE:20765:getaddrinfo(): error=%d
+apps/memcached/server/memcached-1.2.5-schooner/membrain.c:8566:plat_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED_TRACE:20766:bind(): error=%d
+apps/memcached/server/memcached-1.2.5-schooner/membrain.c:8582:plat_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED_TRACE:20767:listen(): error=%d
+apps/memcached/server/memcached-1.2.5-schooner/membrain.c:8614:plat_log_msg:PLAT_LOG_LEVEL_FATAL:PLAT_LOG_CAT_SDF_APP_MEMCACHED_TRACE:20768:failed to create listening connection
+apps/memcached/server/memcached-1.2.5-schooner/membrain.c:8687:plat_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_APP_MEMCACHED_TRACE:20769:MULTI_INSTANCE_MCD is Set
+apps/memcached/server/memcached-1.2.5-schooner/membrain.c:8706:plat_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_APP_MEMCACHED_TRACE:20770:NODE[%d].GROUP_ID = %d\n
+apps/memcached/server/memcached-1.2.5-schooner/membrain.c:8711:plat_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_APP_MEMCACHED_TRACE:20771:SDF_CLUSTER_GROUP[%d].TYPE = %s\n
+apps/memcached/server/memcached-1.2.5-schooner/membrain.c:8724:plat_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_APP_MEMCACHED_TRACE:20772:second npde = %d\n
+apps/memcached/server/memcached-1.2.5-schooner/membrain.c:8899:plat_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED_TRACE:20773:Could not open the pid file %s for writing
+apps/memcached/server/memcached-1.2.5-schooner/membrain.c:8907:plat_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED_TRACE:20774:Could not close the pid file %s.
+apps/memcached/server/memcached-1.2.5-schooner/membrain.c:8920:plat_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED_TRACE:20775:Could not remove the pid file %s.
+apps/memcached/server/memcached-1.2.5-schooner/membrain.c:8930:plat_log_msg:PLAT_LOG_LEVEL_FATAL:PLAT_LOG_CAT_SDF_APP_MEMCACHED_TRACE:20776:SIGINT handled.
+apps/memcached/server/memcached-1.2.5-schooner/membrain.c:8936:plat_log_msg:PLAT_LOG_LEVEL_FATAL:PLAT_LOG_CAT_SDF_APP_MEMCACHED_TRACE:20777:SIGPWR handled.
+apps/memcached/server/memcached-1.2.5-schooner/membrain.c:9001:plat_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED_TRACE:20778:Failed to set large pages: %s
+apps/memcached/server/memcached-1.2.5-schooner/membrain.c:9004:plat_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED_TRACE:20779:Will use default page size
+apps/memcached/server/memcached-1.2.5-schooner/membrain.c:9013:plat_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED_TRACE:20780:Failed to get supported pagesizes: %s
+apps/memcached/server/memcached-1.2.5-schooner/membrain.c:9016:plat_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED_TRACE:20779:Will use default page size
+apps/memcached/server/memcached-1.2.5-schooner/membrain.c:9815:plat_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20781:Executable: %s, Version: %s, Build: %d
+apps/memcached/server/memcached-1.2.5-schooner/membrain.c:9822:plat_log_msg:PLAT_LOG_LEVEL_WARN:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20782:no container name specified, use default 'Schooner'
+apps/memcached/server/memcached-1.2.5-schooner/membrain.c:9850:plat_log_msg:PLAT_LOG_LEVEL_FATAL:PLAT_LOG_CAT_SDF_APP_MEMCACHED_TRACE:20783:failed to ensure corefile creation
+apps/memcached/server/memcached-1.2.5-schooner/membrain.c:9864:plat_log_msg:PLAT_LOG_LEVEL_FATAL:PLAT_LOG_CAT_SDF_APP_MEMCACHED_TRACE:20784:failed to getrlimit number of files
+apps/memcached/server/memcached-1.2.5-schooner/membrain.c:9877:plat_log_msg:PLAT_LOG_LEVEL_FATAL:PLAT_LOG_CAT_SDF_APP_MEMCACHED_TRACE:20785:failed to set rlimit for open files (%d - %d). Try running as root or requesting smaller maxconns value.
+apps/memcached/server/memcached-1.2.5-schooner/membrain.c:9891:plat_log_msg:PLAT_LOG_LEVEL_FATAL:PLAT_LOG_CAT_SDF_APP_MEMCACHED_TRACE:20786:failed to daemon() in order to daemonize
+apps/memcached/server/memcached-1.2.5-schooner/membrain.c:9905:plat_log_msg:PLAT_LOG_LEVEL_WARN:PLAT_LOG_CAT_SDF_APP_MEMCACHED_TRACE:20787:warning: -k invalid, mlockall() failed: %s
+apps/memcached/server/memcached-1.2.5-schooner/membrain.c:9912:plat_log_msg:PLAT_LOG_LEVEL_WARN:PLAT_LOG_CAT_SDF_APP_MEMCACHED_TRACE:20788:warning: -k invalid, mlockall() not supported on this platform.  proceeding without.
+apps/memcached/server/memcached-1.2.5-schooner/membrain.c:9922:plat_log_msg:PLAT_LOG_LEVEL_FATAL:PLAT_LOG_CAT_SDF_APP_MEMCACHED_TRACE:20789:can't run as root without the -u switch
+apps/memcached/server/memcached-1.2.5-schooner/membrain.c:9929:plat_log_msg:PLAT_LOG_LEVEL_FATAL:PLAT_LOG_CAT_SDF_APP_MEMCACHED_TRACE:20790:can't find the user %s to switch to
+apps/memcached/server/memcached-1.2.5-schooner/membrain.c:9936:plat_log_msg:PLAT_LOG_LEVEL_FATAL:PLAT_LOG_CAT_SDF_APP_MEMCACHED_TRACE:20791:failed to assume identity of user %s
+apps/memcached/server/memcached-1.2.5-schooner/membrain.c:9947:plat_log_msg:PLAT_LOG_LEVEL_WARN:PLAT_LOG_CAT_SDF_APP_MEMCACHED_TRACE:30656:failed to enable core dump for user %s
+apps/memcached/server/memcached-1.2.5-schooner/membrain.c:9959:plat_log_msg:PLAT_LOG_LEVEL_WARN:PLAT_LOG_CAT_SDF_APP_MEMCACHED_TRACE:30657:Setrlimit failed! Error: %s\n
+apps/memcached/server/memcached-1.2.5-schooner/membrain.c:9978:plat_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_PRINT_ARGS:20792:Passing option '%s' to agent_engine_init
+apps/memcached/server/memcached-1.2.5-schooner/membrain.c:9986:plat_log_msg:PLAT_LOG_LEVEL_FATAL:PLAT_LOG_CAT_SDF_APP_MEMCACHED_TRACE:20793:Cannot load properties file %s
+apps/memcached/server/memcached-1.2.5-schooner/membrain.c:9998:mcd_log_msg:PLAT_LOG_LEVEL_FATAL:PLAT_LOG_CAT_SDF_APP_MEMCACHED_TRACE:50034:System is not a valid Schooner platform
+apps/memcached/server/memcached-1.2.5-schooner/membrain.c:10003:mcd_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_APP_MEMCACHED_TRACE:50035:Schooner platform check passed
+apps/memcached/server/memcached-1.2.5-schooner/membrain.c:10014:mcd_log_msg:PLAT_LOG_LEVEL_FATAL:PLAT_LOG_CAT_SDF_APP_MEMCACHED_TRACE:50036:invalid delimiter %c, please specify a value between ' ' and '~'
+apps/memcached/server/memcached-1.2.5-schooner/membrain.c:10019:mcd_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_APP_MEMCACHED_TRACE:50037:prefix-based deletion delimiter set to %c
+apps/memcached/server/memcached-1.2.5-schooner/membrain.c:10035:plat_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20794:total flash size is %lu
+apps/memcached/server/memcached-1.2.5-schooner/membrain.c:10045:plat_log_msg:PLAT_LOG_LEVEL_FATAL:PLAT_LOG_CAT_SDF_APP_MEMCACHED_TRACE:20796:Cannot set property SDF_FTHREAD_SCHEDULERS=%s
+apps/memcached/server/memcached-1.2.5-schooner/membrain.c:10087:plat_log_msg:PLAT_LOG_LEVEL_FATAL:PLAT_LOG_CAT_SDF_APP_MEMCACHED_TRACE:20797:Cannot find peer node info in prop file
+apps/memcached/server/memcached-1.2.5-schooner/membrain.c:10100:plat_log_msg:PLAT_LOG_LEVEL_FATAL:PLAT_LOG_CAT_SDF_APP_MEMCACHED_TRACE:20798:%s not found
+apps/memcached/server/memcached-1.2.5-schooner/membrain.c:10119:plat_log_msg:PLAT_LOG_LEVEL_FATAL:PLAT_LOG_CAT_SDF_APP_MEMCACHED_TRACE:30630:Version Mismatch with the peer %s
+apps/memcached/server/memcached-1.2.5-schooner/membrain.c:10126:plat_log_msg:PLAT_LOG_LEVEL_WARN:PLAT_LOG_CAT_SDF_APP_MEMCACHED_TRACE:20800:Version check failed. Peer may be down
+apps/memcached/server/memcached-1.2.5-schooner/membrain.c:10131:plat_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_APP_MEMCACHED_TRACE:20801:Version check failed. Peer Node not reachable 
+apps/memcached/server/memcached-1.2.5-schooner/membrain.c:10137:plat_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_APP_MEMCACHED_TRACE:20802:Peer version check SUCCESS
+apps/memcached/server/memcached-1.2.5-schooner/membrain.c:10161:plat_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED_TRACE:20803:failed to ignore SIGPIPE; sigaction, errno=%d
+apps/memcached/server/memcached-1.2.5-schooner/membrain.c:10211:mcd_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_APP_MEMCACHED_TRACE:20804:start in independent clone mode
+apps/memcached/server/memcached-1.2.5-schooner/membrain.c:10217:mcd_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_APP_MEMCACHED_TRACE:20805:running in independent mode
+apps/memcached/server/memcached-1.2.5-schooner/membrain.c:10220:mcd_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_APP_MEMCACHED_TRACE:20806:running in replicated mode
+apps/memcached/server/memcached-1.2.5-schooner/membrain.c:10424:plat_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_APP_MEMCACHED_TRACE:20807:Node %d is Virtual
+apps/memcached/server/memcached-1.2.5-schooner/membrain.c:10432:plat_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_APP_MEMCACHED_TRACE:20808:Node %d is Virtual. Changing Port from %d to %d
+apps/memcached/server/memcached-1.2.5-schooner/membrain.c:10444:plat_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_APP_MEMCACHED_TRACE:20809:Node %d is Virtual. VIP is not null Changing Port from %d to %d
+apps/memcached/server/memcached-1.2.5-schooner/membrain.c:10480:mcd_log_msg:PLAT_LOG_LEVEL_WARN:PLAT_LOG_CAT_SDF_APP_MEMCACHED_TRACE:20810:no container specified in the property file\n
 apps/memcached/server/memcached-1.2.5-schooner/sasl_defs.c:19:mcd_log_msg:PLAT_LOG_LEVEL_FATAL::50082:Error initializing sasl
 apps/memcached/server/memcached-1.2.5-schooner/sasl_defs.c:24:mcd_log_msg:PLAT_LOG_LEVEL_INFO::50083:Initialized SASL
 apps/memcached/server/memcached-1.2.5-schooner/test_ipf.c:381:plat_log_msg:PLAT_LOG_LEVEL_FATAL:PLAT_LOG_CAT_SDF_PROT:20812:No Vip group group for vid:%d\n
@@ -1290,9 +1174,6 @@ sdf/platform/event.c:541:plat_log_msg:PLAT_LOG_LEVEL_TRACE:event->logcat:20937:e
 sdf/platform/fd_dispatcher.c:276:plat_log_msg:PLAT_LOG_LEVEL_ERROR:LOG_CAT:20938:epoll(%d) failed: %d
 sdf/platform/fd_dispatcher.c:466:plat_log_msg:PLAT_LOG_LEVEL_TRACE:LOG_CAT:20939:polled nfds %d timeout %d ret %d
 sdf/platform/fd_dispatcher.c:664:plat_log_msg:PLAT_LOG_LEVEL_TRACE:LOG_CAT:20940:plat_fd_event %p state %s->%s
-Skipping /opt/schooner/src/membrain/server/sdf/platform/ffdc_log.c
-Skipping /opt/schooner/src/membrain/server/sdf/platform/ffdc_log.h
-Skipping /opt/schooner/src/membrain/server/sdf/platform/ffdc_reader.c
 sdf/platform/fork.c:132:plat_log_msg:PLAT_LOG_LEVEL_ERROR:LOG_CAT:20941:plat_fork_execve(filename = %s, args = %s) failed: %d
 sdf/platform/fork.c:138:plat_log_msg:PLAT_LOG_LEVEL_DEBUG:LOG_CAT:20942:plat_fork_execve(filename = %s, args = %s)
 sdf/platform/fth_scheduler.c:119:plat_log_msg:PLAT_LOG_LEVEL_DEBUG:LOG_CAT:20943:plat_fth_scheduler %p start called
@@ -2862,98 +2743,98 @@ sdf/shared/cmc.c:1752:plat_log_msg:status == SDF_TRUE ? LOG_DBG:LOG_ERR:LOG_CAT:
 sdf/shared/cmc.c:1768:plat_log_msg:LOG_ERR:LOG_CAT:21519:Failed to allocate memory for hash key
 sdf/shared/cmc.c:1783:plat_log_msg:LOG_ERR:LOG_CAT:21520:Failed to replace meta hash entry
 sdf/shared/cmc.c:1793:plat_log_msg:status == SDF_TRUE ? LOG_DBG:LOG_ERR:LOG_CAT:21523:Status: %s
-sdf/shared/container.c:154:plat_log_msg:PLAT_LOG_LEVEL_FATAL:PLAT_LOG_CAT_SDF_SHARED:20866:Not enough shared memory, plat_shmem_alloc() failed.
-sdf/shared/container.c:195:plat_log_msg:PLAT_LOG_LEVEL_FATAL:PLAT_LOG_CAT_SDF_SHARED:20866:Not enough shared memory, plat_shmem_alloc() failed.
-sdf/shared/container.c:334:plat_log_msg:LOG_DBG:LOG_CAT:21524:Shared Memory Stats:\n Initial: allocated_bytes=%"PRIu64", allocated_count=%"PRIu64", used_bytes=%"PRIu64"
-sdf/shared/container.c:336:plat_log_msg:LOG_DBG:LOG_CAT:21525:\n Ending : allocated_bytes=%"PRIu64", allocated_count=%"PRIu64", used_bytes=%"PRIu64"
-sdf/shared/container.c:339:plat_log_msg:LOG_DBG:LOG_CAT:21526:\n Diff   : allocated_bytes=%"PRIu64", allocated_count=%"PRIu64", used_bytes=%"PRIu64"\n
-sdf/shared/container.c:369:plat_log_msg:LOG_DBG:LOG_CAT:20819:%s
-sdf/shared/container.c:373:plat_log_msg:LOG_ERR:LOG_CAT:30572:Writeback caching can only be enabled for eviction mode containers
-sdf/shared/container.c:379:plat_log_msg:LOG_ERR:LOG_CAT:30572:Writeback caching can only be enabled for eviction mode containers
-sdf/shared/container.c:386:plat_log_msg:LOG_ERR:LOG_CAT:30575:Cannot enable writeback caching for container '%s' because writeback caching is disabled.
-sdf/shared/container.c:475:plat_log_msg:LOG_INFO:LOG_CAT:21527:Container: %s - Multi Devs: %d
-sdf/shared/container.c:478:plat_log_msg:LOG_INFO:LOG_CAT:21528:Container: %s - Single Dev
-sdf/shared/container.c:481:plat_log_msg:LOG_INFO:LOG_CAT:21529:Container: %s - Num Shards: %d
-sdf/shared/container.c:484:plat_log_msg:LOG_INFO:LOG_CAT:21530:Container: %s - Num Objs: %d
-sdf/shared/container.c:487:plat_log_msg:LOG_INFO:LOG_CAT:21531:Container: %s - DEBUG_MULTI_SHARD_INDEX: %d
-sdf/shared/container.c:499:plat_log_msg:LOG_ERR:LOG_CAT:21532:failed to lock %s
-sdf/shared/container.c:505:plat_log_msg:LOG_ERR:LOG_CAT:21533:failed to unlock %s
-sdf/shared/container.c:527:plat_log_msg:LOG_ERR:LOG_CAT:21534:failed to map cguid: %s
-sdf/shared/container.c:531:plat_log_msg:LOG_ERR:LOG_CAT:21532:failed to lock %s
-sdf/shared/container.c:543:plat_log_msg:LOG_ERR:LOG_CAT:21533:failed to unlock %s
-sdf/shared/container.c:546:plat_log_msg:LOG_ERR:LOG_CAT:21535:cname=%s, build_shard failed
-sdf/shared/container.c:549:plat_log_msg:LOG_ERR:LOG_CAT:21536:cname=%s, createParentContainer() failed
-sdf/shared/container.c:555:plat_log_msg:LOG_ERR:LOG_CAT:21537:cname=%s, build_meta failed
-sdf/shared/container.c:558:plat_log_msg:LOG_ERR:LOG_CAT:21535:cname=%s, build_shard failed
-sdf/shared/container.c:562:plat_log_msg:LOG_DBG:LOG_CAT:21511:%s - %s
-sdf/shared/container.c:565:plat_log_msg:LOG_ERR:LOG_CAT:21538:cname=%s, function returned status = %u
-sdf/shared/container.c:647:plat_log_msg:LOG_ERR:LOG_CAT:21539:name_service_put_meta failed for cguid %"PRIu64"
-sdf/shared/container.c:668:plat_log_msg:LOG_ERR:LOG_CAT:30572:Writeback caching can only be enabled for eviction mode containers
-sdf/shared/container.c:679:plat_log_msg:LOG_ERR:LOG_CAT:21539:name_service_put_meta failed for cguid %"PRIu64"
-sdf/shared/container.c:733:plat_log_msg:LOG_ERR:LOG_CAT:21539:name_service_put_meta failed for cguid %"PRIu64"
-sdf/shared/container.c:758:plat_log_msg:LOG_DBG:LOG_CAT:20819:%s
-sdf/shared/container.c:801:plat_log_msg:LOG_ERR:LOG_CAT:21540:%s - failed to flush and invalidate container
-sdf/shared/container.c:805:plat_log_msg:LOG_DBG:LOG_CAT:21541:%s - flush and invalidate container succeed
-sdf/shared/container.c:820:plat_log_msg:LOG_ERR:LOG_CAT:21542:%s - failed to delete action thread container state
-sdf/shared/container.c:824:plat_log_msg:LOG_DBG:LOG_CAT:21543:%s - action thread delete container state succeeded
-sdf/shared/container.c:833:plat_log_msg:LOG_ERR:LOG_CAT:21544:%s - failed to delete container shards
-sdf/shared/container.c:837:plat_log_msg:LOG_DBG:LOG_CAT:21545:%s - delete container shards succeeded
-sdf/shared/container.c:844:plat_log_msg:LOG_ERR:LOG_CAT:21546:%s - failed to remove metadata
-sdf/shared/container.c:849:plat_log_msg:LOG_DBG:LOG_CAT:21547:%s - remove metadata succeeded
-sdf/shared/container.c:855:plat_log_msg:LOG_ERR:LOG_CAT:21548:%s - failed to unlock metadata
-sdf/shared/container.c:863:plat_log_msg:LOG_DBG:LOG_CAT:21549:%s - unlock metadata succeeded
-sdf/shared/container.c:873:plat_log_msg:LOG_ERR:LOG_CAT:21550:%s - failed to remove cguid map
-sdf/shared/container.c:878:plat_log_msg:LOG_DBG:LOG_CAT:21551:%s - remove cguid map succeeded
-sdf/shared/container.c:883:plat_log_msg:log_level:LOG_CAT:21511:%s - %s
-sdf/shared/container.c:902:plat_log_msg:LOG_DBG:LOG_CAT:20819:%s
-sdf/shared/container.c:919:plat_log_msg:LOG_ERR:LOG_CAT:21552:Delete pending for %s
-sdf/shared/container.c:950:plat_log_msg:LOG_DBG:LOG_CAT:21553:set cid %d (%d) to cguid %d\n
-sdf/shared/container.c:967:plat_log_msg:LOG_ERR:LOG_CAT:21554:SDFActionOpenContainer failed for container %s
-sdf/shared/container.c:971:plat_log_msg:LOG_DBG:LOG_CAT:21555:Opened %s
-sdf/shared/container.c:974:plat_log_msg:LOG_ERR:LOG_CAT:21556:Failed to find %s
-sdf/shared/container.c:978:plat_log_msg:log_level:LOG_CAT:21511:%s - %s
-sdf/shared/container.c:1045:plat_log_msg:LOG_ERR:LOG_CAT:21540:%s - failed to flush and invalidate container
-sdf/shared/container.c:1049:plat_log_msg:LOG_DBG:LOG_CAT:21541:%s - flush and invalidate container succeed
-sdf/shared/container.c:1056:plat_log_msg:LOG_ERR:LOG_CAT:21544:%s - failed to delete container shards
-sdf/shared/container.c:1060:plat_log_msg:LOG_DBG:LOG_CAT:21545:%s - delete container shards succeeded
-sdf/shared/container.c:1067:plat_log_msg:LOG_ERR:LOG_CAT:21546:%s - failed to remove metadata
-sdf/shared/container.c:1071:plat_log_msg:LOG_DBG:LOG_CAT:21547:%s - remove metadata succeeded
-sdf/shared/container.c:1077:plat_log_msg:LOG_ERR:LOG_CAT:21548:%s - failed to unlock metadata
-sdf/shared/container.c:1084:plat_log_msg:LOG_DBG:LOG_CAT:21549:%s - unlock metadata succeeded
-sdf/shared/container.c:1091:plat_log_msg:LOG_ERR:LOG_CAT:21550:%s - failed to remove cguid map
-sdf/shared/container.c:1095:plat_log_msg:LOG_DBG:LOG_CAT:21551:%s - remove cguid map succeeded
-sdf/shared/container.c:1101:plat_log_msg:log_level:LOG_CAT:20819:%s
-sdf/shared/container.c:1185:plat_log_msg:LOG_DBG:LOG_CAT:21557:Enumerate: %s - %u
-sdf/shared/container.c:1209:plat_log_msg:log_level:LOG_CAT:20819:%s
-sdf/shared/container.c:1219:plat_log_msg:LOG_DBG:LOG_CAT:20819:%s
-sdf/shared/container.c:1229:plat_log_msg:LOG_DBG:LOG_CAT:20819:%s
-sdf/shared/container.c:1293:plat_log_msg:log_level:LOG_CAT:20819:%s
-sdf/shared/container.c:1319:plat_log_msg:log_level:LOG_CAT:20819:%s
-sdf/shared/container.c:1334:plat_log_msg:LOG_ERR:LOG_CAT:21558:FAILURE: SDFCreateContainer - build meta
-sdf/shared/container.c:1345:plat_log_msg:LOG_DBG:LOG_CAT:21559:create_put_meta: %s - %lu
-sdf/shared/container.c:1349:plat_log_msg:LOG_ERR:LOG_CAT:21560:FAILURE: create_put_meta - create %s
-sdf/shared/container.c:1352:plat_log_msg:LOG_DBG:LOG_CAT:21561:SUCCESS: create_put_meta - put %s
-sdf/shared/container.c:1376:plat_log_msg:LOG_DBG:LOG_CAT:21562:create_put_meta: %d\n
-sdf/shared/container.c:1394:plat_log_msg:LOG_DBG:LOG_CAT:21563:Container parent descriptor [blockSize=%u, container_type=%u, dir=%s, cguid=%lu, name=%s, num_open_descr=%u, ptr_open_descr=TODO]\n
-sdf/shared/container.c:1412:plat_log_msg:LOG_DBG:LOG_CAT:21564:Container descriptor [mode=%u, ptr_next=TODO, ptr_parent=TODO, ptr_void=TODO]
-sdf/shared/container.c:1601:plat_log_msg:PLAT_LOG_LEVEL_TRACE:LOG_CAT_SHARD:21565:create shard %lu on node %u
-sdf/shared/container.c:1613:plat_log_msg:LOG_ERR:LOG_CAT_SHARD:21566:create shard %lu on node %u failed to send message
-sdf/shared/container.c:1634:plat_log_msg:LOG_ERR:LOG_CAT_SHARD:21567:create shard %lu on node %u received error %s
-sdf/shared/container.c:1642:plat_log_msg:PLAT_LOG_LEVEL_TRACE:LOG_CAT_SHARD:21568:create shard %lu on node %u succeeded
-sdf/shared/container.c:1646:plat_log_msg:PLAT_LOG_LEVEL_ERROR:LOG_CAT_SHARD:21569:create shard %lu on node %u failed
-sdf/shared/container.c:1711:plat_log_msg:PLAT_LOG_LEVEL_TRACE:LOG_CAT_SHARD:21570:delete shard %lu on node %u
-sdf/shared/container.c:1723:plat_log_msg:LOG_ERR:LOG_CAT_SHARD:21571:delete shard %lu on node %u failed to send message
-sdf/shared/container.c:1744:plat_log_msg:LOG_ERR:LOG_CAT_SHARD:21572:delete shard %lu on node %u received error %s
-sdf/shared/container.c:1752:plat_log_msg:PLAT_LOG_LEVEL_TRACE:LOG_CAT_SHARD:21573:delete shard %lu on node %u succeeded
-sdf/shared/container.c:1756:plat_log_msg:PLAT_LOG_LEVEL_ERROR:LOG_CAT_SHARD:21574:delete shard %lu on node %u failed
-sdf/shared/container.c:1821:plat_log_msg:LOG_INFO:LOG_CAT_SHARD:21575:STMDBG: Create META shard id:%lx  metasguid:%lx CGUID:%lu\n
-sdf/shared/container.c:1826:plat_log_msg:LOG_INFO:LOG_CAT_SHARD:21576:STMDBG: Sh. Create id:%lx metasguid:%lx CGUID:%lu FAILED\n
-sdf/shared/container.c:1862:plat_log_msg:LOG_DBG:LOG_CAT:20819:%s
-sdf/shared/container.c:1953:plat_log_msg:PLAT_LOG_LEVEL_TRACE:PLAT_LOG_CAT_SDF_SHARED:21577:build_shard container_type.type %d num_objs %d num_replicas %d
-sdf/shared/container.c:2059:plat_log_msg:LOG_DBG:LOG_CAT_SHARD:21578:FAILURE: SDFCreateContainer - %d shard
-sdf/shared/container.c:2062:plat_log_msg:LOG_DBG:LOG_CAT:21579:%s - %lu
-sdf/shared/container.c:2098:plat_log_msg:LOG_DBG:LOG_CAT_SHARD:21580:generate_cguid: %llu
-sdf/shared/container.c:2129:plat_log_msg:LOG_DBG:LOG_CAT_SHARD:21581:generated shardids 0x%lx (+ %u reserved) for  cguid %lu
+sdf/shared/container.c:145:plat_log_msg:PLAT_LOG_LEVEL_FATAL:PLAT_LOG_CAT_SDF_SHARED:20866:Not enough shared memory, plat_shmem_alloc() failed.
+sdf/shared/container.c:186:plat_log_msg:PLAT_LOG_LEVEL_FATAL:PLAT_LOG_CAT_SDF_SHARED:20866:Not enough shared memory, plat_shmem_alloc() failed.
+sdf/shared/container.c:325:plat_log_msg:LOG_DBG:LOG_CAT:21524:Shared Memory Stats:\n Initial: allocated_bytes=%"PRIu64", allocated_count=%"PRIu64", used_bytes=%"PRIu64"
+sdf/shared/container.c:327:plat_log_msg:LOG_DBG:LOG_CAT:21525:\n Ending : allocated_bytes=%"PRIu64", allocated_count=%"PRIu64", used_bytes=%"PRIu64"
+sdf/shared/container.c:330:plat_log_msg:LOG_DBG:LOG_CAT:21526:\n Diff   : allocated_bytes=%"PRIu64", allocated_count=%"PRIu64", used_bytes=%"PRIu64"\n
+sdf/shared/container.c:360:plat_log_msg:LOG_DBG:LOG_CAT:20819:%s
+sdf/shared/container.c:364:plat_log_msg:LOG_ERR:LOG_CAT:30572:Writeback caching can only be enabled for eviction mode containers
+sdf/shared/container.c:370:plat_log_msg:LOG_ERR:LOG_CAT:30572:Writeback caching can only be enabled for eviction mode containers
+sdf/shared/container.c:377:plat_log_msg:LOG_ERR:LOG_CAT:30575:Cannot enable writeback caching for container '%s' because writeback caching is disabled.
+sdf/shared/container.c:466:plat_log_msg:LOG_INFO:LOG_CAT:21527:Container: %s - Multi Devs: %d
+sdf/shared/container.c:469:plat_log_msg:LOG_INFO:LOG_CAT:21528:Container: %s - Single Dev
+sdf/shared/container.c:472:plat_log_msg:LOG_INFO:LOG_CAT:21529:Container: %s - Num Shards: %d
+sdf/shared/container.c:475:plat_log_msg:LOG_INFO:LOG_CAT:21530:Container: %s - Num Objs: %d
+sdf/shared/container.c:478:plat_log_msg:LOG_INFO:LOG_CAT:21531:Container: %s - DEBUG_MULTI_SHARD_INDEX: %d
+sdf/shared/container.c:490:plat_log_msg:LOG_ERR:LOG_CAT:21532:failed to lock %s
+sdf/shared/container.c:496:plat_log_msg:LOG_ERR:LOG_CAT:21533:failed to unlock %s
+sdf/shared/container.c:518:plat_log_msg:LOG_ERR:LOG_CAT:21534:failed to map cguid: %s
+sdf/shared/container.c:522:plat_log_msg:LOG_ERR:LOG_CAT:21532:failed to lock %s
+sdf/shared/container.c:534:plat_log_msg:LOG_ERR:LOG_CAT:21533:failed to unlock %s
+sdf/shared/container.c:537:plat_log_msg:LOG_ERR:LOG_CAT:21535:cname=%s, build_shard failed
+sdf/shared/container.c:540:plat_log_msg:LOG_ERR:LOG_CAT:21536:cname=%s, createParentContainer() failed
+sdf/shared/container.c:546:plat_log_msg:LOG_ERR:LOG_CAT:21537:cname=%s, build_meta failed
+sdf/shared/container.c:549:plat_log_msg:LOG_ERR:LOG_CAT:21535:cname=%s, build_shard failed
+sdf/shared/container.c:553:plat_log_msg:LOG_DBG:LOG_CAT:21511:%s - %s
+sdf/shared/container.c:556:plat_log_msg:LOG_ERR:LOG_CAT:21538:cname=%s, function returned status = %u
+sdf/shared/container.c:638:plat_log_msg:LOG_ERR:LOG_CAT:21539:name_service_put_meta failed for cguid %"PRIu64"
+sdf/shared/container.c:659:plat_log_msg:LOG_ERR:LOG_CAT:30572:Writeback caching can only be enabled for eviction mode containers
+sdf/shared/container.c:670:plat_log_msg:LOG_ERR:LOG_CAT:21539:name_service_put_meta failed for cguid %"PRIu64"
+sdf/shared/container.c:724:plat_log_msg:LOG_ERR:LOG_CAT:21539:name_service_put_meta failed for cguid %"PRIu64"
+sdf/shared/container.c:749:plat_log_msg:LOG_DBG:LOG_CAT:20819:%s
+sdf/shared/container.c:792:plat_log_msg:LOG_ERR:LOG_CAT:21540:%s - failed to flush and invalidate container
+sdf/shared/container.c:796:plat_log_msg:LOG_DBG:LOG_CAT:21541:%s - flush and invalidate container succeed
+sdf/shared/container.c:811:plat_log_msg:LOG_ERR:LOG_CAT:21542:%s - failed to delete action thread container state
+sdf/shared/container.c:815:plat_log_msg:LOG_DBG:LOG_CAT:21543:%s - action thread delete container state succeeded
+sdf/shared/container.c:824:plat_log_msg:LOG_ERR:LOG_CAT:21544:%s - failed to delete container shards
+sdf/shared/container.c:828:plat_log_msg:LOG_DBG:LOG_CAT:21545:%s - delete container shards succeeded
+sdf/shared/container.c:835:plat_log_msg:LOG_ERR:LOG_CAT:21546:%s - failed to remove metadata
+sdf/shared/container.c:840:plat_log_msg:LOG_DBG:LOG_CAT:21547:%s - remove metadata succeeded
+sdf/shared/container.c:846:plat_log_msg:LOG_ERR:LOG_CAT:21548:%s - failed to unlock metadata
+sdf/shared/container.c:854:plat_log_msg:LOG_DBG:LOG_CAT:21549:%s - unlock metadata succeeded
+sdf/shared/container.c:864:plat_log_msg:LOG_ERR:LOG_CAT:21550:%s - failed to remove cguid map
+sdf/shared/container.c:869:plat_log_msg:LOG_DBG:LOG_CAT:21551:%s - remove cguid map succeeded
+sdf/shared/container.c:874:plat_log_msg:log_level:LOG_CAT:21511:%s - %s
+sdf/shared/container.c:893:plat_log_msg:LOG_DBG:LOG_CAT:20819:%s
+sdf/shared/container.c:910:plat_log_msg:LOG_ERR:LOG_CAT:21552:Delete pending for %s
+sdf/shared/container.c:941:plat_log_msg:LOG_DBG:LOG_CAT:21553:set cid %d (%d) to cguid %d\n
+sdf/shared/container.c:958:plat_log_msg:LOG_ERR:LOG_CAT:21554:SDFActionOpenContainer failed for container %s
+sdf/shared/container.c:962:plat_log_msg:LOG_DBG:LOG_CAT:21555:Opened %s
+sdf/shared/container.c:965:plat_log_msg:LOG_ERR:LOG_CAT:21556:Failed to find %s
+sdf/shared/container.c:969:plat_log_msg:log_level:LOG_CAT:21511:%s - %s
+sdf/shared/container.c:1036:plat_log_msg:LOG_ERR:LOG_CAT:21540:%s - failed to flush and invalidate container
+sdf/shared/container.c:1040:plat_log_msg:LOG_DBG:LOG_CAT:21541:%s - flush and invalidate container succeed
+sdf/shared/container.c:1047:plat_log_msg:LOG_ERR:LOG_CAT:21544:%s - failed to delete container shards
+sdf/shared/container.c:1051:plat_log_msg:LOG_DBG:LOG_CAT:21545:%s - delete container shards succeeded
+sdf/shared/container.c:1058:plat_log_msg:LOG_ERR:LOG_CAT:21546:%s - failed to remove metadata
+sdf/shared/container.c:1062:plat_log_msg:LOG_DBG:LOG_CAT:21547:%s - remove metadata succeeded
+sdf/shared/container.c:1068:plat_log_msg:LOG_ERR:LOG_CAT:21548:%s - failed to unlock metadata
+sdf/shared/container.c:1075:plat_log_msg:LOG_DBG:LOG_CAT:21549:%s - unlock metadata succeeded
+sdf/shared/container.c:1082:plat_log_msg:LOG_ERR:LOG_CAT:21550:%s - failed to remove cguid map
+sdf/shared/container.c:1086:plat_log_msg:LOG_DBG:LOG_CAT:21551:%s - remove cguid map succeeded
+sdf/shared/container.c:1092:plat_log_msg:log_level:LOG_CAT:20819:%s
+sdf/shared/container.c:1176:plat_log_msg:LOG_DBG:LOG_CAT:21557:Enumerate: %s - %u
+sdf/shared/container.c:1200:plat_log_msg:log_level:LOG_CAT:20819:%s
+sdf/shared/container.c:1210:plat_log_msg:LOG_DBG:LOG_CAT:20819:%s
+sdf/shared/container.c:1220:plat_log_msg:LOG_DBG:LOG_CAT:20819:%s
+sdf/shared/container.c:1284:plat_log_msg:log_level:LOG_CAT:20819:%s
+sdf/shared/container.c:1310:plat_log_msg:log_level:LOG_CAT:20819:%s
+sdf/shared/container.c:1325:plat_log_msg:LOG_ERR:LOG_CAT:21558:FAILURE: SDFCreateContainer - build meta
+sdf/shared/container.c:1336:plat_log_msg:LOG_DBG:LOG_CAT:21559:create_put_meta: %s - %lu
+sdf/shared/container.c:1340:plat_log_msg:LOG_ERR:LOG_CAT:21560:FAILURE: create_put_meta - create %s
+sdf/shared/container.c:1343:plat_log_msg:LOG_DBG:LOG_CAT:21561:SUCCESS: create_put_meta - put %s
+sdf/shared/container.c:1367:plat_log_msg:LOG_DBG:LOG_CAT:21562:create_put_meta: %d\n
+sdf/shared/container.c:1385:plat_log_msg:LOG_DBG:LOG_CAT:21563:Container parent descriptor [blockSize=%u, container_type=%u, dir=%s, cguid=%lu, name=%s, num_open_descr=%u, ptr_open_descr=TODO]\n
+sdf/shared/container.c:1403:plat_log_msg:LOG_DBG:LOG_CAT:21564:Container descriptor [mode=%u, ptr_next=TODO, ptr_parent=TODO, ptr_void=TODO]
+sdf/shared/container.c:1592:plat_log_msg:PLAT_LOG_LEVEL_TRACE:LOG_CAT_SHARD:21565:create shard %lu on node %u
+sdf/shared/container.c:1604:plat_log_msg:LOG_ERR:LOG_CAT_SHARD:21566:create shard %lu on node %u failed to send message
+sdf/shared/container.c:1625:plat_log_msg:LOG_ERR:LOG_CAT_SHARD:21567:create shard %lu on node %u received error %s
+sdf/shared/container.c:1633:plat_log_msg:PLAT_LOG_LEVEL_TRACE:LOG_CAT_SHARD:21568:create shard %lu on node %u succeeded
+sdf/shared/container.c:1637:plat_log_msg:PLAT_LOG_LEVEL_ERROR:LOG_CAT_SHARD:21569:create shard %lu on node %u failed
+sdf/shared/container.c:1702:plat_log_msg:PLAT_LOG_LEVEL_TRACE:LOG_CAT_SHARD:21570:delete shard %lu on node %u
+sdf/shared/container.c:1714:plat_log_msg:LOG_ERR:LOG_CAT_SHARD:21571:delete shard %lu on node %u failed to send message
+sdf/shared/container.c:1735:plat_log_msg:LOG_ERR:LOG_CAT_SHARD:21572:delete shard %lu on node %u received error %s
+sdf/shared/container.c:1743:plat_log_msg:PLAT_LOG_LEVEL_TRACE:LOG_CAT_SHARD:21573:delete shard %lu on node %u succeeded
+sdf/shared/container.c:1747:plat_log_msg:PLAT_LOG_LEVEL_ERROR:LOG_CAT_SHARD:21574:delete shard %lu on node %u failed
+sdf/shared/container.c:1812:plat_log_msg:LOG_INFO:LOG_CAT_SHARD:21575:STMDBG: Create META shard id:%lx  metasguid:%lx CGUID:%lu\n
+sdf/shared/container.c:1817:plat_log_msg:LOG_INFO:LOG_CAT_SHARD:21576:STMDBG: Sh. Create id:%lx metasguid:%lx CGUID:%lu FAILED\n
+sdf/shared/container.c:1853:plat_log_msg:LOG_DBG:LOG_CAT:20819:%s
+sdf/shared/container.c:1944:plat_log_msg:PLAT_LOG_LEVEL_TRACE:PLAT_LOG_CAT_SDF_SHARED:21577:build_shard container_type.type %d num_objs %d num_replicas %d
+sdf/shared/container.c:2050:plat_log_msg:LOG_DBG:LOG_CAT_SHARD:21578:FAILURE: SDFCreateContainer - %d shard
+sdf/shared/container.c:2053:plat_log_msg:LOG_DBG:LOG_CAT:21579:%s - %lu
+sdf/shared/container.c:2089:plat_log_msg:LOG_DBG:LOG_CAT_SHARD:21580:generate_cguid: %llu
+sdf/shared/container.c:2120:plat_log_msg:LOG_DBG:LOG_CAT_SHARD:21581:generated shardids 0x%lx (+ %u reserved) for  cguid %lu
 sdf/shared/container_meta.c:62:plat_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_SHARED:21582:FAILED: container name exceeds max
 sdf/shared/container_meta.c:67:plat_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_SHARED:21583:metadata created for %s
 sdf/shared/container_meta.c:71:plat_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_SHARED:21584:could not allocate memory
@@ -3239,6 +3120,133 @@ sdf/ssd/fifo/mcd_bak.c:254:mcd_bak_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_APP
 sdf/ssd/fifo/mcd_bak.c:295:mcd_bak_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_APP_MEMCACHED_BACKUP:20065:ENTERING, shardID=%lu
 sdf/ssd/fifo/mcd_bak.c:338:mcd_bak_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_APP_MEMCACHED_BACKUP:40119:container (%s) backup: %lu of %lu allocated segments, empty=%lu, error=%lu, total=%lu; objects=%lu, blks=%lu; deleted=%lu, blks=%lu; expired=%lu, blks=%lu; flushed=%lu, blks=%lu; error_obj=%lu, error_blks=%lu
 sdf/ssd/fifo/mcd_bak.c:362:mcd_bak_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_APP_MEMCACHED_BACKUP:20065:ENTERING, shardID=%lu
+sdf/ssd/fifo/mcd_ipf.c:237:plat_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_PROT:20195:Configuring single vip %s ruletable:%d subnet type:%d
+sdf/ssd/fifo/mcd_ipf.c:283:plat_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_PROT:20196:Configure IP:%s on interface %s failed\n
+sdf/ssd/fifo/mcd_ipf.c:295:plat_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_PROT:20197:Adding source route table %d for %s failed\n
+sdf/ssd/fifo/mcd_ipf.c:303:plat_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_PROT:20197:Adding source route table %d for %s failed\n
+sdf/ssd/fifo/mcd_ipf.c:311:plat_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_PROT:80000:Adding source route to table %srtable for %s failed\n
+sdf/ssd/fifo/mcd_ipf.c:319:plat_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_PROT:20198:VIP %s not part of interface subnet. Add local route %s/%d
+sdf/ssd/fifo/mcd_ipf.c:325:plat_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_PROT:80002:Add local route %s/%d for %s to %srtable
+sdf/ssd/fifo/mcd_ipf.c:337:plat_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_PROT:20199:Adding Route %s/%d to table %d on %s for src %s failed \n
+sdf/ssd/fifo/mcd_ipf.c:346:plat_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_PROT:20200:Adding default Route via %s on %s  to table %d failed \n
+sdf/ssd/fifo/mcd_ipf.c:372:plat_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_PROT:20201:+++++++++\nconfigvip: numvips:%d numpfws:%d\n
+sdf/ssd/fifo/mcd_ipf.c:373:plat_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_PROT:20202:VIP configure start: number of vips:%d\n
+sdf/ssd/fifo/mcd_ipf.c:396:plat_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_PROT:20203:VIPS for thread %d  start: %d  num vips: %d\n
+sdf/ssd/fifo/mcd_ipf.c:405:plat_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_PROT:20204:VIP config done\n
+sdf/ssd/fifo/mcd_ipf.c:415:plat_log_msg:PLAT_LOG_LEVEL_FATAL:PLAT_LOG_CAT_SDF_PROT:20205:NULL ROUTE TABLE ID:%d ip:%s BUG?\n
+sdf/ssd/fifo/mcd_ipf.c:449:plat_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_PROT:20206:Deleting single vip %s ruletable:%d type:%d
+sdf/ssd/fifo/mcd_ipf.c:462:plat_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_PROT:20207:Deleting vip(%s) failed
+sdf/ssd/fifo/mcd_ipf.c:482:plat_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_PROT:20205:NULL ROUTE TABLE ID:%d ip:%s BUG?\n
+sdf/ssd/fifo/mcd_ipf.c:509:plat_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_PROT:20208:++++++++++\nDelete VIPs: num_vips:%d
+sdf/ssd/fifo/mcd_ipf.c:532:plat_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_PROT:20203:VIPS for thread %d  start: %d  num vips: %d\n
+sdf/ssd/fifo/mcd_ipf.c:541:plat_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_PROT:20209:VIP delete done\n
+sdf/ssd/fifo/mcd_ipf.c:633:plat_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_PROT:20210:Getting IF Parameters for iface  %s Failed\n
+sdf/ssd/fifo/mcd_ipf.c:641:plat_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_PROT:20211:Unable to parse IP Address(%s) from %s\n
+sdf/ssd/fifo/mcd_ipf.c:651:plat_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_PROT:20212:Unable to parse Mask(%s) from %s\n
+sdf/ssd/fifo/mcd_ipf.c:661:plat_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_PROT:20213:Unable to parse GW(%s) from %s\n
+sdf/ssd/fifo/mcd_ipf.c:670:plat_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_PROT:20214:Interface %s parameters(ip:%s mask:%s gw:%s)
+sdf/ssd/fifo/mcd_ipf.c:687:plat_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_PROT:20215:Getting vip subnet type for %s mask:%s ifname:%s type:%d
+sdf/ssd/fifo/mcd_ipf.c:696:plat_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_PROT:20216:Entry found for %s on the vip entry %s
+sdf/ssd/fifo/mcd_ipf.c:702:plat_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_PROT:20217:VIP subnet type not found on the given list for %s
+sdf/ssd/fifo/mcd_ipf.c:716:plat_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_PROT:20218:Remove local route if no other VIP in same subnet(ip: %s mask:%s iface:%s)
+sdf/ssd/fifo/mcd_ipf.c:719:plat_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_PROT:20219:VIP Type for %s is not QREP_VIP_SUBNET_TYPE_OWN. Just return\n
+sdf/ssd/fifo/mcd_ipf.c:734:plat_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_PROT:20220:Found other vip %s in same subnet. Just return
+sdf/ssd/fifo/mcd_ipf.c:741:plat_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_PROT:20221:No VIP exists in same subnet(ip: %s mask:%s iface:%s)just remove local route
+sdf/ssd/fifo/mcd_ipf.c:761:plat_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_PROT:20222:Failed to remove localroute(%s)\n
+sdf/ssd/fifo/mcd_ipf.c:769:plat_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_PROT:20222:Failed to remove localroute(%s)\n
+sdf/ssd/fifo/mcd_ipf.c:778:plat_log_msg:PLAT_LOG_LEVEL_FATAL:PLAT_LOG_CAT_SDF_PROT:20223:ERROR:Unable to find whether vip %s in interface %s subnet. Just return YES
+sdf/ssd/fifo/mcd_ipf.c:787:plat_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_PROT:20224:Vip: %s mask:%s not part of iface:%s subnet
+sdf/ssd/fifo/mcd_ipf.c:797:plat_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_PROT:20225:Set VIP type num vips %d
+sdf/ssd/fifo/mcd_ipf.c:804:plat_log_msg:PLAT_LOG_LEVEL_FATAL:PLAT_LOG_CAT_SDF_PROT:20226:ERROR:Unable to find IP params for interface %s. Just set mask to 255.255.0.0
+sdf/ssd/fifo/mcd_ipf.c:809:plat_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_PROT:20227:Mask Field for %s is empty. Adding interface's mask(%s)
+sdf/ssd/fifo/mcd_ipf.c:817:plat_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_PROT:20228:VIP subnet type found from old list for %s is set to %d
+sdf/ssd/fifo/mcd_ipf.c:828:plat_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_PROT:20229:VIP subnet type found from current list for %s and is set to %d
+sdf/ssd/fifo/mcd_ipf.c:835:plat_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_PROT:20230:VIP subnet type found from iface subnet for %s and vip subtype set to %d
+sdf/ssd/fifo/mcd_ipf.c:840:plat_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_PROT:20231:VIP subnet type can not be found from iface subnet for %s. subtyp set to %d
+sdf/ssd/fifo/mcd_ipf.c:851:plat_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_PROT:20232:VIP %s Mask %s GW %s subnet type %d iface %s
+sdf/ssd/fifo/mcd_ipf.c:866:plat_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_PROT:20233:=============\nCONFIGURE VIP REQUEST: NUM VIPS %d Group:%d\n
+sdf/ssd/fifo/mcd_ipf.c:876:plat_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_PROT:20234:Adding Dynamic VIP %s to group %d
+sdf/ssd/fifo/mcd_ipf.c:993:plat_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_PROT:20235:==========\nDelete All VIPs from group %d
+sdf/ssd/fifo/mcd_ipf.c:1015:plat_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_PROT:20236:===========\nTrying to Delete Dynamic VIP %s from group %d
+sdf/ssd/fifo/mcd_ipf.c:1021:plat_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_PROT:20237:Entry found Deleting Dynamic VIP %s from group %d
+sdf/ssd/fifo/mcd_ipf.c:1031:plat_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_PROT:20238:This is last entry. Do not need to adjust list
+sdf/ssd/fifo/mcd_ipf.c:1041:plat_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_PROT:20239:Entry NOT found for VIP %s from group %d. BUG?
+sdf/ssd/fifo/mcd_ipf.c:1052:plat_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_PROT:20240:Number of VIPs in group %d is 0. So delete current entry
+sdf/ssd/fifo/mcd_ipf.c:1080:plat_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_PROT:20241:Remove all VIPS
+sdf/ssd/fifo/mcd_ipf.c:1120:plat_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_PROT:20242:IPF Checklist
+sdf/ssd/fifo/mcd_ipf.c:1382:plat_log_msg:PLAT_LOG_LEVEL_FATAL:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20243:The vip address is not valid!
+sdf/ssd/fifo/mcd_ipf.c:1464:plat_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20244:IPF NOTIFY: Entering...
+sdf/ssd/fifo/mcd_ipf.c:1471:plat_log_msg:PLAT_LOG_LEVEL_FATAL:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20245:The read-only replication mode is not supported
+sdf/ssd/fifo/mcd_ipf.c:1481:plat_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20246:STM: SDF_REPLICATOR_ACCESS_RW: Vgrp:%d mygrp:%d mynode:%d\n
+sdf/ssd/fifo/mcd_ipf.c:1485:plat_log_msg:PLAT_LOG_LEVEL_FATAL:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20247:Faile node:%d(grp:%d) not in my group:%d, ignore failure\n
+sdf/ssd/fifo/mcd_ipf.c:1493:plat_log_msg:PLAT_LOG_LEVEL_FATAL:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20248:Current node %d is already active. Ignore failure\n
+sdf/ssd/fifo/mcd_ipf.c:1498:plat_log_msg:PLAT_LOG_LEVEL_FATAL:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20249:Node is already handling 1 VIP group. ignore vipgroup:%d \n
+sdf/ssd/fifo/mcd_ipf.c:1507:plat_log_msg:PLAT_LOG_LEVEL_TRACE:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20250:New Lease for VIP Group: %d just ignore\n
+sdf/ssd/fifo/mcd_ipf.c:1514:plat_log_msg:PLAT_LOG_LEVEL_TRACE:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20251:Ignoring the RW notification for :%d\n
+sdf/ssd/fifo/mcd_ipf.c:1521:plat_log_msg:PLAT_LOG_LEVEL_FATAL:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20252:Current node %d is already handling %d VIP groups. Ignore failure\n
+sdf/ssd/fifo/mcd_ipf.c:1531:plat_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20253:STM: Vgrp:%d configured at node:%d
+sdf/ssd/fifo/mcd_ipf.c:1567:plat_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:160025:Node %d does not have any persistent container\n
+sdf/ssd/fifo/mcd_ipf.c:1569:plat_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:160026:Node becomes authoritative for persistent containers\n
+sdf/ssd/fifo/mcd_ipf.c:1588:plat_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20254:No persistent containers exist. Enabling this node for authority for future persistent recovery\n
+sdf/ssd/fifo/mcd_ipf.c:1611:plat_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20255:Simultaneous Start!!. Send recovery event to %d
+sdf/ssd/fifo/mcd_ipf.c:1624:plat_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20256:Recovery Already completed. Ignore this VipGroup access for recovery\n
+sdf/ssd/fifo/mcd_ipf.c:1664:plat_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20257:STM: SDF_REPLICATOR_ACCESS_NONE: Vgrp:%d mynode:%d\n
+sdf/ssd/fifo/mcd_ipf.c:1672:plat_log_msg:PLAT_LOG_LEVEL_FATAL:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20258:Current node %d is not in mirrored cluster, BUG!\n
+sdf/ssd/fifo/mcd_ipf.c:1676:plat_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20259:Virtual IP group %d removed from node %d\n
+sdf/ssd/fifo/mcd_ipf.c:1685:plat_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20260:VIP Group %d Not in my list. Ignore\n
+sdf/ssd/fifo/mcd_ipf.c:1717:plat_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20261:Applying call back completion\n
+sdf/ssd/fifo/mcd_ipf.c:1875:plat_log_msg:PLAT_LOG_LEVEL_FATAL:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20262:The replicator doesn't exist
+sdf/ssd/fifo/mcd_ipf.c:2186:plat_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_PROT:20263:Skipping start simple\n
+sdf/ssd/fifo/mcd_ipf.c:2440:plat_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_PROT:80019:Got signal %d, exiting
+sdf/ssd/fifo/mcd_ipf.c:2461:plat_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_PROT:20264:Cmd:%s
+sdf/ssd/fifo/mcd_ipf.c:2488:plat_log_msg:PLAT_LOG_LEVEL_FATAL:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20265:Invalid Node(vipgrp) :%d specified command:%d\n
+sdf/ssd/fifo/mcd_ipf.c:2493:plat_log_msg:PLAT_LOG_LEVEL_FATAL:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20266:The Node %d is already active\n
+sdf/ssd/fifo/mcd_ipf.c:2508:plat_log_msg:PLAT_LOG_LEVEL_FATAL:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20265:Invalid Node(vipgrp) :%d specified command:%d\n
+sdf/ssd/fifo/mcd_ipf.c:2516:plat_log_msg:PLAT_LOG_LEVEL_FATAL:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20247:Faile node:%d(grp:%d) not in my group:%d, ignore failure\n
+sdf/ssd/fifo/mcd_ipf.c:2525:plat_log_msg:PLAT_LOG_LEVEL_FATAL:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20248:Current node %d is already active. Ignore failure\n
+sdf/ssd/fifo/mcd_ipf.c:2533:plat_log_msg:PLAT_LOG_LEVEL_FATAL:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20252:Current node %d is already handling %d VIP groups. Ignore failure\n
+sdf/ssd/fifo/mcd_ipf.c:2548:plat_log_msg:PLAT_LOG_LEVEL_FATAL:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20265:Invalid Node(vipgrp) :%d specified command:%d\n
+sdf/ssd/fifo/mcd_ipf.c:2606:plat_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20267:NODE IS VIRTUAL  NUM_PFWS:%d \n
+sdf/ssd/fifo/mcd_ipf.c:2644:plat_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20268:container add rport: %d vport:%d node:%d\n
+sdf/ssd/fifo/mcd_ipf.c:2647:plat_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20269:The current node is not virtual. Ignore
+sdf/ssd/fifo/mcd_ipf.c:2681:plat_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20269:The current node is not virtual. Ignore
+sdf/ssd/fifo/mcd_ipf.c:2693:plat_log_msg:PLAT_LOG_LEVEL_FATAL:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20270:Invalid rule table id %d\n
+sdf/ssd/fifo/mcd_ipf.c:2720:plat_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_PROT:20271:Add VIP:%s mask:%s gw:%s iface:%s node:%s
+sdf/ssd/fifo/mcd_ipf.c:2726:plat_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_PROT:20272:Current node is not in Mirrored Mode
+sdf/ssd/fifo/mcd_ipf.c:2740:plat_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_PROT:20273:Unable to find node ID for %s
+sdf/ssd/fifo/mcd_ipf.c:2755:plat_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_PROT:20274:The node %s(%d) not in local mirror group
+sdf/ssd/fifo/mcd_ipf.c:2768:plat_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_PROT:20275:The VIP %s on %s already exists
+sdf/ssd/fifo/mcd_ipf.c:2777:plat_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_PROT:20276:Maximum allowed number of VIPs(%d) already configured
+sdf/ssd/fifo/mcd_ipf.c:2798:plat_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_PROT:20277:The Current node servicing %s. Adding VIP %s on %s
+sdf/ssd/fifo/mcd_ipf.c:2821:plat_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_PROT:20278:Delete VIP:%s iface:%s node:%s
+sdf/ssd/fifo/mcd_ipf.c:2846:plat_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_PROT:20273:Unable to find node ID for %s
+sdf/ssd/fifo/mcd_ipf.c:2861:plat_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_PROT:20274:The node %s(%d) not in local mirror group
+sdf/ssd/fifo/mcd_ipf.c:2881:plat_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_PROT:20279:The VIP %s on %s does not exist
+sdf/ssd/fifo/mcd_ipf.c:2900:plat_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_PROT:20280:The Current node servicing %s. Removing VIP %s from %s
+sdf/ssd/fifo/mcd_ipf.c:2937:plat_log_msg:PLAT_LOG_LEVEL_FATAL:PLAT_LOG_CAT_SDF_PROT:20281:Invalid VIP group\n
+sdf/ssd/fifo/mcd_ipf.c:2951:plat_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_PROT:20282:Current Node not servicing vipgroup:%d\n
+sdf/ssd/fifo/mcd_ipf.c:2991:plat_log_msg:PLAT_LOG_LEVEL_FATAL:PLAT_LOG_CAT_SDF_PROT:20283:NULL ROUTE TABLE ID:%d\n
+sdf/ssd/fifo/mcd_ipf.c:3009:plat_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_PROT:20284:VIPGROUP:REMOVAL My Node(%d) is virtual node\n
+sdf/ssd/fifo/mcd_ipf.c:3015:plat_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_PROT:20285:This is a Weird case that should never happen: vnode:%d rnode:%d\n
+sdf/ssd/fifo/mcd_ipf.c:3034:plat_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_PROT:20286:VIP Group is Real Node's group. vnode:%d rnode:%d\n
+sdf/ssd/fifo/mcd_ipf.c:3053:plat_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_PROT:20287:My Node:%d is not virtual node. Just DO Nothing on virtual node recovery\n
+sdf/ssd/fifo/mcd_ipf.c:3087:plat_log_msg:PLAT_LOG_LEVEL_FATAL:PLAT_LOG_CAT_SDF_PROT:20281:Invalid VIP group\n
+sdf/ssd/fifo/mcd_ipf.c:3097:plat_log_msg:PLAT_LOG_LEVEL_FATAL:PLAT_LOG_CAT_SDF_PROT:20288:The node already srvs:%d grps\n
+sdf/ssd/fifo/mcd_ipf.c:3177:plat_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_PROT:20289:VIPGrp Config: My Node(%d) is virtual node\n
+sdf/ssd/fifo/mcd_ipf.c:3185:plat_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_PROT:20290:VIP Group is My own Vip Group. Virtual Node startup vnode:%d rnode:%d\n
+sdf/ssd/fifo/mcd_ipf.c:3205:plat_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_PROT:20286:VIP Group is Real Node's group. vnode:%d rnode:%d\n
+sdf/ssd/fifo/mcd_ipf.c:3224:plat_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_PROT:20291:My Node:%d is not virtual node. Just DO Nothing\n
+sdf/ssd/fifo/mcd_ipf.c:3265:plat_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED_TRACE:20757:socket(), errno=%d
+sdf/ssd/fifo/mcd_ipf.c:3275:plat_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED_TRACE:20744:setting O_NONBLOCK, errno=%d
+sdf/ssd/fifo/mcd_ipf.c:3296:plat_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED_TRACE:20166:getsockopt(SO_SNDBUF), errno=%d
+sdf/ssd/fifo/mcd_ipf.c:3319:plat_log_msg:PLAT_LOG_LEVEL_TRACE:PLAT_LOG_CAT_SDF_APP_MEMCACHED_TRACE:20758:<%d send buffer was %d, now %d
+sdf/ssd/fifo/mcd_ipf.c:3335:plat_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20759:getsockopt(SO_RCVBUF), errno=%d
+sdf/ssd/fifo/mcd_ipf.c:3359:plat_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20760:socket %d rcvbuf size was %d, now %d
+sdf/ssd/fifo/mcd_ipf.c:3411:plat_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED_TRACE:20764:getaddrinfo(): %s
+sdf/ssd/fifo/mcd_ipf.c:3416:plat_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED_TRACE:20765:getaddrinfo(): error=%d
+sdf/ssd/fifo/mcd_ipf.c:3445:plat_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED_TRACE:20766:bind(): error=%d
+sdf/ssd/fifo/mcd_ipf.c:3459:plat_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED_TRACE:20767:listen(): error=%d
+sdf/ssd/fifo/mcd_ipf.c:3486:plat_log_msg:PLAT_LOG_LEVEL_FATAL:PLAT_LOG_CAT_SDF_APP_MEMCACHED_TRACE:20768:failed to create listening connection
 sdf/ssd/fifo/mcd_osd.c:213:mcd_log_msg:PLAT_LOG_LEVEL_INFO::150001:pth_id=%d
 sdf/ssd/fifo/mcd_osd.c:274:plat_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_AGENT:20292:FLASH ERROR: code is %u
 sdf/ssd/fifo/mcd_osd.c:357:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_AGENT:50038:buf=%p aligned=%p offset=%hu

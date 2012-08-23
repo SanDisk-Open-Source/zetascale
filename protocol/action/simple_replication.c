@@ -64,9 +64,9 @@
  * redefinitions of things from <stdint>; although the right fix is to
  * eliminate this back-door mess.
  */
-#ifndef HAVE_CONFIG_H
-#define HAVE_CONFIG_H 1
-#endif
+//#ifndef HAVE_CONFIG_H
+//#define HAVE_CONFIG_H 1
+//#endif
 #include "ssd/fifo/mcd_rep.h"
 #include "ssd/fifo/mcd_osd.h"
 // #include "../../apps/memcached/server/memcached-1.2.5-schooner/memcached.h"

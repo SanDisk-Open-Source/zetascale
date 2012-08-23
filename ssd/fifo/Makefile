@@ -13,6 +13,7 @@ LIB_SRCS = \
 	mcd_sync.c \
 	mcd_hash.c \
  	mcd_osd.c \
+ 	mcd_ipf.c \
 	recovery.c 
 
 LIB = libfifo.a

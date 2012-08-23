@@ -9,7 +9,7 @@
  * log message in the codebase.  The structure contains one field for
  * each message parameter in the log message, along with other meta data
  * 
- * Generated On: 2012-08-21 13:28:03
+ * Generated On: 2012-08-23 10:24:47
  *------------------------------------------------------------------------*/
 
 #ifndef PLATFORM_FFDC_H
