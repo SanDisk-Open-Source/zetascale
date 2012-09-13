@@ -7,4 +7,6 @@ LIB_SRCS = \
 
 LIBS =
 
+#SUBDIRS = tests
+
 include $(TOP)/Makefile.inc

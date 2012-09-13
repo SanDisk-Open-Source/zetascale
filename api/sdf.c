@@ -1277,7 +1277,7 @@ SDF_status_t SDFNextEnumeratedObject(
 
 SDF_status_t SDFGetStats(
 	struct SDF_thread_state *sdf_thread_state,
-	SDF_stats_t              stats
+	SDF_stats_t             *stats
 	)
 {
     //  no-op in this simple implementation
