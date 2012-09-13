@@ -14,7 +14,11 @@
 #define _SIMPLE_REPLICATION_H
 
 #include "common/sdftypes.h"
+#ifdef SDFAPI
+#include "api/sdf.h"
+#else
 #include "common/sdf_properties.h"
+#endif /* SDFAPI */
 #include "fth/fthMbox.h"
 #include  "protocol/action/tlmap4.h"
 

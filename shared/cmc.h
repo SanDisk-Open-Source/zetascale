@@ -285,15 +285,33 @@ cmc_delete_object_container(SDF_internal_ctxt_t *pai, const char *path);
  * @param container <OUT> pointer to the client-accessible container handle.
  * @return SDF_CONTAINER (pointer to server-accessible container handle).
  */
+#ifdef SDFAPI
+SDF_status_t 
+cmc_open_object_container(
+	SDF_thread_state_t  *sdf_thread_state,
+	SDF_cguid_t	     cguid,
+	SDF_container_mode_t mode
+	);
+#else
 SDF_CONTAINER
 cmc_open_object_container(SDF_internal_ctxt_t *pai, const char *path, 
 			  SDF_container_mode_t mode, SDFContainer *container);
+#endif /* SDFAPI */
+
+#ifdef SDFAPI
+SDF_status_t
+cmc_close_object_container(SDF_internal_ctxt_t *pai, SDF_cguid_t cguid);
+#else
+SDF_status_t
+cmc_close_object_container(SDF_internal_ctxt_t *pai, SDFContainer container);
+#endif
+
 
 /**
  * @brief Flush and invalidate a container's objects.
  *
  * @param pai <IN> Action agent context.
- * @param path <IN> Container name.
+  @param path <IN> Container name.
  * @return SDF_status.
  */
 SDF_status_t
@@ -379,6 +397,15 @@ cmc_get_for_write_buffered_object(SDF_internal_ctxt_t *pai, SDFContainer contain
  */
 SDF_status_t
 cmc_remove_object(SDF_internal_ctxt_t *pai, SDFContainer container, const char *objkey);
+
+/*
+** Temporary
+*/
+SDF_CONTAINER
+cmc_open_object_container_path(SDF_internal_ctxt_t *pai, const char *path, 
+			      SDF_container_mode_t mode, SDFContainer *container);
+SDF_status_t
+cmc_close_object_container_path(SDF_internal_ctxt_t *pai, SDFContainer container);
 
 __END_DECLS
 

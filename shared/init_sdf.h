@@ -17,7 +17,11 @@
 /* XXX: service_t should come from sdftypes.h instead */
 #include "sdfmsg/sdf_msg.h"
 #include "protocol/replication/replicator.h"
+#ifdef SDFAPI
+#include "api/sdf.h"
+#else
 #include "common/sdf_properties.h"
+#endif /* SDFAPI */
 
 struct SDF_action_init;
 

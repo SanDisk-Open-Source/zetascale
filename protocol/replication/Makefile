@@ -16,6 +16,6 @@ LIB_SRCS = \
 	sdf_vips.c \
 	rpc.c
 
-SUBDIRS = tests
+#SUBDIRS = tests
 
 include $(TOP)/Makefile.inc

@@ -20,7 +20,11 @@
 #include "protocol/action/async_puts.h"
 #include "agent/agent_common.h"
 #include "utils/properties.h"
+#ifdef SDFAPI
+#include "api/sdf.h"
+#else
 #include "common/sdf_properties.h"
+#endif /* SDFAPI */
 #include "shared/shard_meta.h"
 #endif
 

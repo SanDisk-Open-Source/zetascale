@@ -3001,6 +3001,23 @@
 150002 writer fthread spawned, use context %p
 150003 object size doesn't match hash entry!!! klen=%d dlen=%u nbybes=%d syn=%lu hsyn=%hu ctime=%u
 150004 Mcd_aio_states[%d] = %p
+150005 mcd_osd_container_generation: %d\n
+150006 mcd_osd_container_generation: ENTER\n
+150007 SDFGetContainerProps: %p - %lu - %p
+150008 SDFGetContainerProps: 2
+150009 SDFGetContainerProps: 3
+150010 SDFGetContainerProps: 4
+150011 SDFGetContainerProps: status=%s
+150012 mcd_osd_container_generation: pai=%p, cguid=%lu\n
+150013 SDFGetContainerProps: eviction=%s
+150014 SERVER_ERROR failed to obtain SDF properties
+150015 MCD_FTH_SDF_INIT
+150016 XSDFGetContainerProps: %p - %lu - %p
+150017 XSDFGetContainerProps: status=%s
+150018 XSDFGetForReadBufferedObjectWithExpiry
+150019 SDFGenerateCguid: %llu
+150020 Invalid cguid - %s
+150021 %lu - %s
 
 
 # root

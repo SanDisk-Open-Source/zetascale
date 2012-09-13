@@ -17,7 +17,11 @@
 #ifndef _SHARD_META_H
 #define _SHARD_META_H
 
+#ifdef SDFAPI
+#include "api/sdf.h"
+#else
 #include "common/sdf_properties.h"
+#endif /* SDFAPI */
 #include "common/sdftypes.h"
 
 enum SDF_shard_type {

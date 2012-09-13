@@ -56,7 +56,11 @@
 #include "sdftcp/msg_map.h"
 #include <inttypes.h>
 #include "shared/container.h"
+#ifdef SDFAPI
+#include "api/sdf.h"
+#else
 #include "common/sdf_properties.h"
+#endif /* SDFAPI */
 #include "recovery.h"
 
 /*

@@ -26,7 +26,11 @@
 #include "platform/defs.h"
 
 #include "common/sdftypes.h"
+#ifdef SDFAPI
+#include "api/sdf.h"
+#else
 #include "common/sdf_properties.h"
+#endif
 
 /* For SDF_REPLICATION_MAX_REPLICAS */
 #include "protocol/replication/meta_types.h"

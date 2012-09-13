@@ -34,11 +34,19 @@ SDF_status_t SDFAutoDelete(SDF_internal_ctxt_t *pai)
     return(SDF_SUCCESS);
 }
 
+#ifndef SDFAPI
 SDF_status_t SDFGetContainers(SDF_internal_ctxt_t *pai, struct mcd_container **pcontainers, int *pn_containers)
 {
     mcd_osd_get_containers(((SDF_action_init_t *) pai)->paio_ctxt, pcontainers, pn_containers);
     return(SDF_SUCCESS);
 }
+#else
+SDF_status_t SDFGetContainersPtrs(SDF_internal_ctxt_t *pai, struct mcd_container **pcontainers, int *pn_containers)
+{
+    mcd_osd_get_containers(((SDF_action_init_t *) pai)->paio_ctxt, pcontainers, pn_containers);
+    return(SDF_SUCCESS);
+}
+#endif /* SDFAPI */
 
 SDF_status_t SDF_I_CreatePutBufferedObject(SDF_internal_ctxt_t *pai, SDF_cguid_t ctnr, const char *objkey, uint32_t keylen, SDF_size_t sze, void * pbuf_out)
 {

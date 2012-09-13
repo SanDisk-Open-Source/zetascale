@@ -76,6 +76,7 @@ LIB_SRCS = \
 LIBS_SDF = \
         ../../../agent/libsdfagent.a \
         ../../../shared/libsdfshared.a \
+        ../../../api/libsdf.a \
         ../../../protocol/action/libsdfaction.a \
         ../../../protocol/home/libsdfhome.a \
         ../../../protocol/libsdfprotocol.a \

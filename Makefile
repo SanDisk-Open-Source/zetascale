@@ -10,6 +10,7 @@ SUBDIRS := \
 	sdfmsg		\
 	fth		\
 	agent		\
+	api		\
 	shared		\
 	utils		\
 	applib		\

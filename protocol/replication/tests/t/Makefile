@@ -28,6 +28,7 @@ LIBS = \
 	../libreplica.a \
         ../../../../agent/libsdfagent.a \
         ../../../../shared/libsdfshared.a \
+        ../../../../api/libsdf.a \
         ../../../../protocol/action/libsdfaction.a \
         ../../../../ssd/fifo/libfifo.a \
         ../../../../protocol/replication/libsdfreplication.a \

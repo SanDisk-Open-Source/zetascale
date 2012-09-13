@@ -1493,10 +1493,12 @@ worker(void *arg)
     int        n = task - V.tasks;
 
     msg_affinity(n);
+#ifndef SDFAPI
     while (task->run) {
         poll_prepare(task);
         poll_execute(task, -1);
     }
+#endif /* SDFAPI */
     return NULL;
 }
 

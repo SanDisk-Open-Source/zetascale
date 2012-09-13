@@ -19,7 +19,11 @@
 /**
  * Encapsulate the replication layer meta-data
  */
+#ifdef SDFAPI
+#include "api/sdf.h"
+#else
 #include "common/sdf_properties.h"
+#endif
 
 /**
  * @brief Return whether shard guids must be allocated for meta data

@@ -6,7 +6,11 @@
 
 extern int SDFSimpleReplicationEnabled();
 extern SDF_status_t SDFAutoDelete(SDF_internal_ctxt_t *pai);
+#ifndef SDFAPI
 extern SDF_status_t SDFGetContainers(SDF_internal_ctxt_t *pai, struct mcd_container **pcontainers, int *pn_containers);
+#else
+extern SDF_status_t SDFGetContainersPtrs(SDF_internal_ctxt_t *pai, struct mcd_container **pcontainers, int *pn_containers);
+#endif /* SDFAPI */
 
 /**
  *  @brief Get a container statistic.

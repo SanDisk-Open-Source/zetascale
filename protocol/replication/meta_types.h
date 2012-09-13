@@ -22,8 +22,11 @@
  * This defines the meta-data interface between the replication code
  * and action/home/flash modules.
  */
-
+#ifdef SDFAPI
+#include "api/sdf.h"
+#else
 #include "common/sdf_properties.h"
+#endif /* SDFAPI */
 
 enum {
     /**

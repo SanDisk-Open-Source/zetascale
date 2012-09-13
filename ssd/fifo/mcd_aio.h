@@ -20,7 +20,7 @@
 /*
  * By default, we synchronize data to flash.
  */
-#define SYNC_DATA 0
+#define SYNC_DATA 1
 
 
 /*

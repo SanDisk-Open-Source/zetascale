@@ -28,7 +28,11 @@
 #include "fth/fth.h"
 
 #include "common/sdftypes.h"
+#ifdef SDFAPI
+#include "api/sdf.h"
+#else
 #include "common/sdf_properties.h"
+#endif /* SDFAPI */
 
 struct replicator_key_lock_container;
 struct replicator_key_lock;

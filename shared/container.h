@@ -21,7 +21,11 @@ extern "C" {
 #include <stdint.h>
 #include "platform/shmem.h"
 #include "common/sdftypes.h"
+#ifdef SDFAPI
+#include "api/sdf.h"
+#else
 #include "common/sdf_properties.h"
+#endif /* SDFAPI */
 #include "common/sdfstats.h"
 #include "flash/flash.h"
 #include "utils/sdfkey.h"
@@ -95,6 +99,7 @@ enum {
     NODE_MULTIPLIER = (1<<20) //easier to read logged values in hex
 };
 
+#ifndef SDFAPI
 struct _SDF_container_parent;
 PLAT_SP(_SDF_container_parent_sp, struct _SDF_container_parent);
 
@@ -117,7 +122,7 @@ PLAT_SP_VAR_OPAQUE(SDFCacheObj_sp, void);
 struct _SDF_container_parent {
     SDF_vnode_t node;
     SDF_cguid_t cguid;
-    int64_t container_id;
+    uint64_t container_id;
     uint32_t num_shards;
     unsigned container_type: 4; // allows 16 container types
     unsigned blockSize;
@@ -139,7 +144,7 @@ struct _SDF_container {
     SDF_container_mode_t mode;
     SDF_vnode_t node; // Copied from parent for convenience
     SDF_cguid_t cguid; // Copied from parent for convenience
-    int64_t container_id;
+    uint64_t container_id;
     uint32_t num_shards; // Copied from parent for convenience
     unsigned blockSize;
     SDF_object_info_t **info;
@@ -180,6 +185,7 @@ __inline__ int cacheObjectPtrEqual(SDF_CACHE_OBJ o1, SDF_CACHE_OBJ o2);
 #define cacheObjectNull SDFCacheObj_sp_null
 
 #define descrChangesNull DescrChangesPtr_sp_null
+#endif /* SDFAPI */
 // ===================================================================
 
 SDF_CONTAINER internal_clientToServerContainer(SDFContainer clientContainer);
@@ -188,6 +194,7 @@ SDFContainer internal_serverToClientContainer(SDF_CONTAINER serverContainer);
 // ===================================================================
 void print_sm_stats(struct plat_shmem_alloc_stats init, struct plat_shmem_alloc_stats end);
 
+#ifndef SDFAPI
 /**
  * @brief Create a container.
  *
@@ -208,6 +215,7 @@ SDFCreateContainer(SDF_internal_ctxt_t *pai, const char *path, SDF_container_pro
  */
 SDF_status_t
 SDFDeleteContainer(SDF_internal_ctxt_t *pai, const char *path);
+#endif /* SDFAPI */
 
 /**
  * @brief Delete a container (by cguid).
@@ -228,6 +236,7 @@ SDFDeleteContainerByCguid(SDF_internal_ctxt_t *pai, SDF_cguid_t cguid);
 SDF_status_t
 SDFChangeContainerWritebackMode(SDF_internal_ctxt_t *pai, SDF_cguid_t cguid, SDF_boolean_t enable_writeback);
 
+#ifndef SDFAPI
 /**
  * @brief Start accepting accesses to a container (by cguid).
  *
@@ -255,6 +264,17 @@ SDFStopContainer(SDF_internal_ctxt_t *pai, SDF_cguid_t cguid);
  */
 SDF_status_t
 SDFGetContainerProps(SDF_internal_ctxt_t *pai, SDF_cguid_t cguid, SDF_container_props_t *pprops) ;
+
+/**
+ * @brief Set container properties by cguid.
+ *
+ * @param cguid  <IN> container global identifier
+ * @param pprops <IN> pointer to structure into which to copy properties
+ * @return SDF_SUCCESS on success
+ */
+SDF_status_t
+SDFSetContainerProps(SDF_internal_ctxt_t *pai, SDF_cguid_t cguid, SDF_container_props_t *pprops) ;
+#endif /* SDFAPI */
 
 /**
  * @brief Copy a container from source to destination.
@@ -325,6 +345,7 @@ SDFImportContainer(SDF_internal_ctxt_t *pai, const char *sdfPath, FILE *srcFile)
 
 // ===================================================================
 
+#ifndef SDFAPI
 /**
  * @brief Open a container.
  *
@@ -345,6 +366,7 @@ SDFOpenContainer(SDF_internal_ctxt_t *pai, const char *path, SDF_container_mode_
  * @return SDF_SUCCESS on success
  */
 SDF_status_t SDFCloseContainer(SDF_internal_ctxt_t *pai, SDF_CONTAINER container);
+#endif /* SDFAPI */
 
 int
 validateContainerType(SDF_internal_ctxt_t *pai, SDF_CONTAINER container, SDF_container_type_t type);

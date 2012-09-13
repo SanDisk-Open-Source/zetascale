@@ -20,7 +20,11 @@ extern "C" {
 // #define _SDF_PROCSESING_INLINE
 #include "common/sdftypes.h"
 #include "common/sdfstats.h"
+#ifdef SDFAPI
+#include "api/sdf.h"
+#else
 #include "common/sdf_properties.h"
+#endif /* SDFAPI */
 
 /**
  * @brief Create an object container.
@@ -119,6 +123,7 @@ SDFCompleteObjectIteration(SDF_context_t ctxt, SDFContainer container);
 SDF_status_t
 SDFContainerExists(const char *path);
 
+#ifndef SDFAPI
 /**
  * @brief Get container statistics.
  *
@@ -129,6 +134,7 @@ SDFContainerExists(const char *path);
  */
 SDF_status_t
 SDFGetContainerStats(SDFContainer container, int key, uint64_t *stat);
+#endif /* SDFAPI */
 
 #ifdef __cplusplus
 }

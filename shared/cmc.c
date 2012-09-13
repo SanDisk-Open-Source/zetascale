@@ -29,6 +29,12 @@
 #include "private.h"
 #include "cmc.h"
 
+#ifdef SDFAPI
+#include <netinet/in.h>
+#include "ssd/fifo/mcd_osd_internal.h"
+extern mcd_container_t Mcd_containers[MCD_MAX_NUM_CNTRS];
+#endif /* SDFAPI */
+
 extern SDF_cmc_t *theCMC; // Global CMC object
 extern struct SDF_shared_state sdf_shared_state;
 
@@ -177,7 +183,11 @@ TL_HashMap_get(HashMap globalMap, const char *key) {
 
 // Internal interfaces forward declarations
 SDF_status_t
+#ifdef SDFAPI
+cmc_close_object_container(SDF_thread_state_t *sdf_thread_state, SDF_cguid_t cguid);
+#else
 cmc_close_object_container(SDF_internal_ctxt_t *pai, SDFContainer container);
+#endif
 
 SDF_status_t
 cmc_get_for_read_pinned_object(SDF_internal_ctxt_t *pai,  SDFContainer container, const char *objkey,
@@ -247,7 +257,11 @@ cmc_destroy(SDF_internal_ctxt_t *pai, SDF_cmc_t *cmc) {
 
     if (cmc != NULL) {
         // plat_free(cmc->cmc_path);
+#ifdef SDFAPI
+        cmc_close_object_container_path(pai, cmc->c);
+#else
         cmc_close_object_container(pai, cmc->c);
+#endif /* SDFAPI */
         plat_free(cmc);
 
 	if (cmc_type == CMC_HASHMAP) {
@@ -280,6 +294,7 @@ cmc_initialize(SDF_internal_ctxt_t *pai, const char *cmc_path) {
     SDF_container_props_t p;
     int log_level = LOG_ERR;
 
+fprintf(stderr, "cmc_initialize: %s\n", cmc_path);
     plat_log_msg(21498, LOG_CAT, LOG_DBG, "Node: %d", init_get_my_node_id());
 
     if (ISEMPTY(cmc_path)) {
@@ -318,7 +333,11 @@ cmc_initialize(SDF_internal_ctxt_t *pai, const char *cmc_path) {
 	    p.container_id.size = 1024; // kB
 	#endif
 	if ((status = cmc_create_object_container(pai, cmc_path, p)) == SDF_SUCCESS) {
+#ifdef SDFAPI
+	    c = cmc_open_object_container_path(pai, cmc_path, SDF_READ_WRITE_MODE, &container);
+#else
 	    c = cmc_open_object_container(pai, cmc_path, SDF_READ_WRITE_MODE, &container);
+#endif /* SDFAPI */
 	    if (isContainerNull(c)) {
 		status = SDF_FAILURE_CONTAINER_OPEN;
 	    } else {
@@ -331,7 +350,6 @@ cmc_initialize(SDF_internal_ctxt_t *pai, const char *cmc_path) {
             plat_log_msg(21500, LOG_CAT, LOG_DBG, 
                          "\nNode : Failed status = %d...\n", status);
         }
-
     }
 
     fthLockInit(&cguid_lock);
@@ -389,6 +407,7 @@ cmc_recover(SDF_internal_ctxt_t *pai, const char *cmc_path) {
     SDF_container_meta_t *meta = NULL;
     struct SDF_shared_state *state = &sdf_shared_state;
 
+fprintf(stderr, "cmc_recover\n");
     plat_log_msg(21498, LOG_CAT, LOG_DBG, "Node: %d", init_get_my_node_id());
 
     if (ISEMPTY(cmc_path)) {
@@ -430,7 +449,11 @@ cmc_recover(SDF_internal_ctxt_t *pai, const char *cmc_path) {
 	meta = container_meta_create(cmc_path, p, CMC_CGUID, generate_shard_ids(CMC_HOME, CMC_CGUID, 1));
 	init_cmc(meta);
         theCMC->initialized = SDF_TRUE;
+#ifdef SDFAPI
+	c = cmc_open_object_container_path(pai, cmc_path, SDF_READ_WRITE_MODE, &container);
+#else
 	c = cmc_open_object_container(pai, cmc_path, SDF_READ_WRITE_MODE, &container);
+#endif /* SDFAPI */
 	if (isContainerNull(c)) {
 	    status = SDF_FAILURE_CONTAINER_OPEN;
 	} else {
@@ -1292,6 +1315,9 @@ cmc_create_object_container(SDF_internal_ctxt_t *pai, const char *cname,
 
     SDF_status_t status = SDF_FAILURE;
     int log_level = LOG_ERR;
+#ifdef SDFAPI
+    SDF_cguid_t cguid;
+#endif /* SDFAPI */
 
     plat_log_msg(20819, PLAT_LOG_CAT_SDF_CLIENT, LOG_DBG, "%s", cname);
 
@@ -1301,7 +1327,11 @@ cmc_create_object_container(SDF_internal_ctxt_t *pai, const char *cname,
 		     SDF_Status_Strings[status]);		 
     } else {
         properties.container_type.type = SDF_OBJECT_CONTAINER;
+#ifdef SDFAPI
+        if ((status = SDFCreateContainer(pai, cname, properties, 0, &cguid)) == SDF_SUCCESS) {
+#else
         if ((status = SDFCreateContainer(pai, cname, properties, 0)) == SDF_SUCCESS) {
+#endif /* SDFAPI */
 	    log_level = LOG_DBG;
 	}
 	plat_log_msg(21511, LOG_CAT, log_level, "%s - %s", 
@@ -1324,7 +1354,11 @@ cmc_delete_object_container(SDF_internal_ctxt_t *pai, const char *cname) {
 	plat_log_msg(30543, LOG_CAT, log_level, "NULL container name - %s", 
 		     SDF_Status_Strings[status]);		 
     } else {
+#ifdef SDFAPI
+        if ((status = SDFDeleteContainerPath(pai, cname)) == SDF_SUCCESS) {
+#else
         if ((status = SDFDeleteContainer(pai, cname)) == SDF_SUCCESS) {
+#endif
 	    log_level = LOG_DBG;
 	}
 	plat_log_msg(21511, LOG_CAT, log_level, "%s - %s", 
@@ -1334,6 +1368,59 @@ cmc_delete_object_container(SDF_internal_ctxt_t *pai, const char *cname) {
     return (status);
 }
 
+#ifdef SDFAPI
+SDF_status_t 
+cmc_open_object_container(SDF_thread_state_t 	*sdf_thread_state, 
+			  SDF_cguid_t	 	 cguid,
+                          SDF_container_mode_t 	 mode
+			 ) {
+    SDF_status_t 	 status			= SDF_FAILURE;
+    int 		 log_level 		= LOG_ERR;
+    SDF_internal_ctxt_t	*pai 			= (SDF_internal_ctxt_t *) sdf_thread_state;
+
+    plat_log_msg(21630, PLAT_LOG_CAT_SDF_CLIENT, LOG_DBG, "%lu", cguid);
+
+    if (SDF_NULL_CGUID <= cguid) {
+        status = SDF_INVALID_PARAMETER;
+        plat_log_msg(150020, LOG_CAT, log_level, "Invalid cguid - %s",
+                     SDF_Status_Strings[status]);
+    } else {
+        if ((status = SDFOpenContainer(pai, cguid, mode)) == SDF_SUCCESS) {
+            log_level = LOG_DBG;
+        }
+        plat_log_msg(150021, LOG_CAT, log_level, "%lu - %s",
+                     cguid, SDF_Status_Strings[status]);
+    }
+
+    return (status);
+}
+
+SDF_CONTAINER
+cmc_open_object_container_path(SDF_internal_ctxt_t *pai, const char *path,
+                              SDF_container_mode_t mode, SDFContainer *c) {
+
+    SDF_CONTAINER container = containerNull;
+    SDF_status_t status;
+    int log_level = LOG_ERR;
+
+    plat_log_msg(20819, PLAT_LOG_CAT_SDF_CLIENT, LOG_DBG, "%s", path);
+
+    if (NULL == path) {
+        status = SDF_FAILURE_GENERIC;
+        plat_log_msg(30544, LOG_CAT, log_level, "NULL path - %s",
+                     SDF_Status_Strings[status]);
+    } else {
+        if ((status = SDFOpenContainerPath(pai, path, mode, &container)) == SDF_SUCCESS) {
+            *c = internal_serverToClientContainer(container);
+            log_level = LOG_DBG;
+        }
+        plat_log_msg(21511, LOG_CAT, log_level, "%s - %s",
+                     path, SDF_Status_Strings[status]);
+    }
+
+    return (container);
+}
+#else
 SDF_CONTAINER
 cmc_open_object_container(SDF_internal_ctxt_t *pai, const char *path, 
 			  SDF_container_mode_t mode, SDFContainer *c) {
@@ -1359,6 +1446,7 @@ cmc_open_object_container(SDF_internal_ctxt_t *pai, const char *path,
 
     return (container);
 }
+#endif /* SDFAPI */
 
 SDF_status_t
 cmc_flush_inval_object_container(SDF_internal_ctxt_t *pai, const char *path) {
@@ -1402,6 +1490,51 @@ cmc_inval_object_container(SDF_internal_ctxt_t *pai, const char *path) {
     return (status);
 }
 
+#ifdef SDFAPI
+SDF_status_t
+cmc_close_object_container(
+	SDF_thread_state_t *sdf_thread_state,
+	SDF_cguid_t	    cguid
+	)
+{
+    SDF_status_t 	 status 	= SDF_FAILURE;
+    int 		 log_level 	= LOG_ERR;
+    SDF_internal_ctxt_t	*pai 		= (SDF_internal_ctxt_t *) sdf_thread_state;
+
+    plat_log_msg(21517, PLAT_LOG_CAT_SDF_CLIENT, LOG_DBG, "entry");
+
+    if (SDF_NULL_CGUID <= cguid) {
+	status = SDF_INVALID_PARAMETER;
+    	plat_log_msg(20819, LOG_CAT, log_level, "%s", SDF_Status_Strings[status]);		 
+    } else if ((status = SDFCloseContainer(pai, cguid)) == SDF_SUCCESS) {
+	log_level = LOG_DBG;
+    }
+
+    plat_log_msg(20819, LOG_CAT, log_level, "%s", SDF_Status_Strings[status]);		 
+
+    return (status);
+}
+
+SDF_status_t
+cmc_close_object_container_path(SDF_internal_ctxt_t *pai, SDFContainer c) {
+
+    SDF_status_t status = SDF_FAILURE;
+    SDF_CONTAINER container = internal_clientToServerContainer(c);
+    int log_level = LOG_ERR;
+
+    plat_log_msg(21517, PLAT_LOG_CAT_SDF_CLIENT, LOG_DBG, "entry");
+
+    if ((!cmc_object_container_arg_check1(container, &status)) &&
+        ((status = SDFCloseContainerPath(pai, container)) == SDF_SUCCESS)) {
+        log_level = LOG_DBG;
+    }
+
+    plat_log_msg(20819, LOG_CAT, log_level, "%s", SDF_Status_Strings[status]);
+
+    return (status);
+}
+
+#else
 SDF_status_t
 cmc_close_object_container(SDF_internal_ctxt_t *pai, SDFContainer c) {
 
@@ -1411,15 +1544,16 @@ cmc_close_object_container(SDF_internal_ctxt_t *pai, SDFContainer c) {
 
     plat_log_msg(21517, PLAT_LOG_CAT_SDF_CLIENT, LOG_DBG, "entry");
 
-    if (!cmc_object_container_arg_check1(container, &status)) {
-    } else if ((status = SDFCloseContainer(pai, container)) == SDF_SUCCESS) {
-	log_level = LOG_DBG;
+    if ((!cmc_object_container_arg_check1(container, &status)) &&
+	((status = SDFCloseContainer(pai, container)) == SDF_SUCCESS)) {
+        log_level = LOG_DBG;
     }
 
-    plat_log_msg(20819, LOG_CAT, log_level, "%s", SDF_Status_Strings[status]);		 
+    plat_log_msg(20819, LOG_CAT, log_level, "%s", SDF_Status_Strings[status]);
 
     return (status);
 }
+#endif /* SDFAPI */
 
 SDF_status_t
 cmc_create_put_buffered_object(SDF_internal_ctxt_t *pai, SDFContainer c,

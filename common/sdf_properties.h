@@ -25,7 +25,10 @@ extern "C" {
 #endif
 
 #include <inttypes.h>
+#include <stdint.h>
 #include "sdftypes.h"
+
+#define CONTAINER_NAME_MAXLEN 64
 
 typedef enum {
     SDF_OBJECT_CONTAINER, SDF_BLOCK_CONTAINER,
@@ -40,88 +43,11 @@ typedef enum {
     SDF_READ_WRITE_MODE
 } SDF_container_mode_t;
 
-typedef enum {
-    SDF_LOCAL_STORAGE,
-    SDF_GLOBAL_STORAGE,
-} SDF_storage_hierarchy_t;
-
-typedef enum {
-    SDF_DEVICE_PLACEMENT,
-    SDF_NODE_PLACEMENT,
-    SDF_RACK_PLACEMENT,
-    SDF_DATA_CENTER_PLACEMENT,
-} SDF_placement_t;
-
-typedef enum {
-    SDF_NO_COMPRESSION,
-    SDF_LZ_COMPRESSION,
-} SDF_compression_t;
-
-typedef enum {
-    SDF_NO_ENCRYPTION,
-    SDF_3DES_COMPRESSION,
-    SDF_AES_COMPRESSION,
-} SDF_encryption_t;
-
-typedef enum {
-    SDF_DISK_MIGRATION,
-    SDF_TAPE_MIGRATION,
-    SDF_SERVER_MIGRATION,
-    SDF_DATA_CENTER_MIGRATION,
-} SDF_migration_t;
-
-typedef enum {
-    SDF_SYNCHRONOUS_FLUSH,
-    SDF_ASYNCHRONOUS_FLUSH,
-} SDF_flush_t;
-
-typedef enum {
-    SDF_VOLATILE_TRANSACTION,
-    SDF_NONVOLATILE_TRANSACTION,
-} SDF_transaction_t;
-
-/** Container's user access permissions */
-typedef enum {
-    SDF_USER_ACCESS,
-    SDF_GROUP_ACCESS,
-    SDF_GLOBAL__ACCESS,
-} SDF_access_control_t;
-
-/** Container's RW permissions */
-typedef enum {
-    SDF_READ_PERMISSIONS,
-    SDF_WRITE_PERMISSIONS,
-    SDF_READ_WRITE_PERMISSIONS,
-} SDF_access_permissions_t;
-
-/** Access patterns to data in container */
-typedef enum {
-    SDF_SEQUENTIAL_ACCESS,
-    SDF_RANDOM_ACCESS,
-    SDF_READ_ONLY_ACCESS,
-    SDF_READ_MOSTLY_ACCESS,
-    SDF_READ_WRITE_ACCESS,
-    SDF_WRITE_MOSTLY_ACCESS,
-    SDF_APPEND_ONLY_ACCESS,
-} SDF_access_pattern_t;
-
-/** Granularity of conflict detection, if enabled */
-typedef enum {
-    SDF_ENTITY_CONFLICT,
-    SDF_SUBENTITY_CONFLICT,
-} SDF_conflict_t;
-
-typedef enum {
-    SDF_ALL_DEBUG,
-    SDF_FUNCTION_DEBUG,
-    SDF_THREAD_DEBUG,
-} SDF_debug_level_t;
-
 typedef struct {
     uint32_t owner;
     uint64_t size;    // In KB
     uint32_t num_objs;
-    int64_t  container_id;
+    uint64_t  container_id;
 } SDF_container_id_props_t;
 
 /** Container type */
@@ -132,12 +58,24 @@ typedef struct {
     SDF_boolean_t async_writes;
 } SDF_container_type_props_t;
 
-/** Storage hierarcy */
-typedef struct {
-    SDF_storage_hierarchy_t level;
-    SDF_placement_t distribution;
-} SDF_storage_hierarchy_props_t;
+typedef enum {
+    SDF_FULL_DURABILITY = 0,
+    SDF_RELAXED_DURABILITY,
+    SDF_NO_DURABILITY
+} SDF_durability_level_t;
 
+typedef struct {
+    /** properties specific to block containers */
+    unsigned blockSize;
+} SDF_block_container_props_t;
+
+typedef struct {
+    /** properties specific to object containers */
+} SDF_object_container_props_t;
+
+typedef struct {
+    /** properties specific to log containers */
+} SDF_log_container_props_t;
 
 /* 
  * item(upper, lower)
@@ -275,49 +213,10 @@ typedef struct {
      */
     uint32_t num_meta_replicas;
 
-#if 0
-    /*
-     * XXX: drew 2008-11-14 I have no idea what these are.  An enum should
-     * probably be used for different shard placement schemes.
-     */
-    uint32_t shard_placement;
-    uint32_t size;
-#endif
-
     SDF_boolean_t synchronous;
 
 
 } SDF_replication_props_t;
-
-/** Quota */
-typedef struct {
-    SDF_boolean_t enabled;
-    uint32_t size;
-} SDF_quota_props_t;
-
-/** Compression */
-typedef struct {
-    SDF_boolean_t enabled;
-    SDF_compression_t type;
-    uint32_t size;
-} SDF_compression_props_t;
-
-/** Encryption */
-typedef struct {
-    SDF_boolean_t enabled;
-    SDF_encryption_t type;
-} SDF_encryption_props_t;
-
-/** Data migration */
-typedef struct {
-    SDF_boolean_t enabled;
-    SDF_migration_t policy;
-} SDF_migration_props_t;
-
-/** Flush */
-typedef struct {
-    SDF_flush_t type;
-} SDF_flush_props_t;
 
 /** Cache */
 typedef struct {
@@ -330,107 +229,87 @@ typedef struct {
     uint32_t max_size;
 } SDF_cache_props_t;
 
-/** Transaction management */
-typedef struct {
-    SDF_boolean_t enabled;
-    SDF_transaction_t type;
-    uint32_t log;
-} SDF_transaction_props_t;
-
-/** Access control */
-typedef struct {
-    SDF_boolean_t enabled;
-    SDF_access_control_t type;
-    SDF_access_permissions_t permissions;
-} SDF_access_control_props_t;
-
-/** Access hints */
-typedef struct {
-    SDF_access_pattern_t pattern;
-    uint32_t size;
-} SDF_access_hints_props_t;
-
-/** Conflict detection */
-typedef struct {
-    SDF_boolean_t enabled;
-    SDF_conflict_t boundary;
-} SDF_conflict_props_t;
-
-/** Attributes */
-typedef struct {
-    uint32_t last_update;
-    uint32_t extended_attributes;
-    SDF_boolean_t inherit_properties;
-} SDF_attributes_props_t;
-
-/** Debug */
-typedef struct {
-    SDF_boolean_t enabled;
-    SDF_debug_level_t level;
-    SDF_boolean_t log_enabled;
-} SDF_debug_props_t;
-
-
 /** Shard */
 typedef struct {
     SDF_boolean_t enabled;
     uint32_t num_shards;
 } SDF_shard_props_t;
 
-typedef struct {
-    /** properties specific to block containers */
-    unsigned blockSize;
-} SDF_block_container_props_t;
-typedef struct {
-    /** properties specific to object containers */
-} SDF_object_container_props_t;
-typedef struct {
-    /** properties specific to log containers */
-} SDF_log_container_props_t;
-
 /** Structure for container properties */
 typedef struct {
-#if 0
-    /**
-     * @brief Properties have been changed from default
-     *
-     * This is mostly a kludge so most tests can be applied to mulitple
-     * configurations (ex: replicated vs. not replicated) while ones which
-     * depend on specifics can have them.
-     *
-     * A scheme where each field provided a default or non-default
-     * value would be better.
-     */
-    SDF_boolean_t not_default;
-#endif
 
+    // container configuration	
     int master_vnode;  // node that is the master for replication
 
-    SDF_container_id_props_t container_id;
-    SDF_container_type_props_t container_type;
-    SDF_storage_hierarchy_props_t hierarchy;
-    SDF_replication_props_t replication;
-    SDF_quota_props_t quota;
-    SDF_compression_props_t compression;
-    SDF_encryption_props_t encryption;
-    SDF_migration_props_t migration;
-    SDF_flush_props_t flush;
-    SDF_cache_props_t cache;
-    SDF_transaction_props_t transaction;
-    SDF_access_control_props_t access_control;
-    SDF_access_hints_props_t access_hints;
-    SDF_conflict_props_t conflict;
-    SDF_attributes_props_t attributes;
-    SDF_debug_props_t debug;
-    SDF_shard_props_t shard;
-
+    SDF_container_id_props_t    container_id;
+    SDF_cguid_t                 cguid;
+//    char                        cname[CONTAINER_NAME_MAXLEN];
+    SDF_container_type_props_t  container_type;
+    SDF_replication_props_t     replication;
+    SDF_cache_props_t           cache;
+    SDF_shard_props_t           shard;
+    uint32_t                    fifo_mode;
+    SDF_durability_level_t      durability_level;
+#if 0
+    char                        cname[CONTAINER_NAME_MAXLEN];
+    char                        cluster_name[64];
+    int                         sync_backup;
+    int                         sync_updates;
+    uint32_t                    sync_msec;
+    uint64_t                    size_quota;
+    uint32_t                    obj_quota;
+#endif
     union {
         SDF_block_container_props_t        block_props;
         SDF_object_container_props_t       object_props;
         SDF_log_container_props_t          log_props;
     } specific;
 
+#if 0
+    uint32_t                    generation;
+    uint32_t                    ref_count;
+
+    // container stats
+    struct stats              * stats;
+    struct bucket_stats       * bucket_stats;
+    int                         hot_key_stats;
+    int                         max_hot_keys;
+    void                      * hot_key_reporter;
+
+    // misc ptrs
+    SDFContainer              * sdf_container;
+#endif
+
+    // Mcd index
+    int				mcd_index;
+
 } SDF_container_props_t;
+
+/** Legacy structure for container properties */
+typedef struct {
+
+    int master_vnode;  // node that is the master for replication
+
+    SDF_container_id_props_t container_id;
+    SDF_container_type_props_t container_type;
+    char hierarchy[8];
+    SDF_replication_props_t replication;
+    char quota[8];
+    char compression[12];
+    char encryption[8];
+    char migration[8];
+    char flush[4];
+    SDF_cache_props_t cache;
+    char transaction[12];
+    char access_control[12];
+    char access_hints[8];
+    char conflict[8];
+    char attributes[12];
+    char debug[12];
+    SDF_shard_props_t shard;
+    uint32_t blockSize;
+
+} SDF_container_props_v1_t;
 
 
 #ifdef	__cplusplus

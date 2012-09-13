@@ -13,7 +13,11 @@
 #ifndef __AGENT_COMMON_H__
 #define	__AGENT_COMMON_H__
 
+#ifdef SDFAPI
+#include "api/sdf.h"
+#else
 #include "common/sdf_properties.h"
+#endif /* SDFAPI */
 #include "fth/fthOpt.h"
 #include "agent_config.h"
 

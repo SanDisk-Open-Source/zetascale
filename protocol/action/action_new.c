@@ -59,6 +59,9 @@
 #include "protocol/protocol_alloc.h"
 #include "utils/properties.h"
 #include <inttypes.h>
+#ifdef SDFAPI
+#include "api/sdf.h"
+#endif
 
 #include "appbuf_pool.h"
 #include "async_puts.h"

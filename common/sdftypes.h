@@ -101,6 +101,9 @@ typedef void SDF_internal_ctxt_t;
 typedef int32_t SDF_vnode_t;
 typedef uint32_t SDF_cacheid_t;
 typedef uint32_t SDF_meta_t;
+#ifdef SDFAPI
+typedef void SDF_thread_state_t;
+#endif /* SDFAPI */
 
 /** @brief Out-of-band values for sequence numbers */
 enum {
@@ -386,8 +389,8 @@ typedef struct flashsettings {
     int aio_num_files;
     int aio_queue_len;
     int aio_sub_files;
-    int aio_sync_enabled;
     uint64_t aio_total_size;
+    int aio_sync_enabled;
     bool aio_wc;
     struct paio_wc_config aio_wc_config;
     struct paio_libaio_config aio_libaio_config;
@@ -407,12 +410,12 @@ typedef struct flashsettings {
     int num_cores;
     int num_sdf_threads;
     char prefix_del_delimiter;
-    int rec_log_segsize;
     float rec_log_size_factor;
     int rec_log_verify;
+    int rec_log_segsize;
+    int rec_upd_segsize;
     int rec_upd_bufsize;
     int rec_upd_max_chunks;
-    int rec_upd_segsize;
     int rec_upd_verify;
     int rec_upd_yield;
     int sb_data_copies;

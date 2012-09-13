@@ -22,7 +22,11 @@
 #include "ssd/ssd_local.h"
 #include "ssd/fifo/mcd_osd_internal.h"
 #include "ssd/fifo/mcd_aio.h"
+#ifdef SDFAPI
+#include "api/sdf.h"
+#else
 #include "common/sdf_properties.h"
+#endif /* SDFAPI */
 
 #define mcd_log_msg(id, args...)        plat_log_msg( id, PLAT_LOG_CAT_SDF_APP_MEMCACHED, ##args )
 #define mcd_dbg_msg(...)                plat_log_msg( PLAT_LOG_ID_INITIAL, PLAT_LOG_CAT_SDF_APP_MEMCACHED, __VA_ARGS__ )
@@ -525,6 +529,7 @@ extern char *mcd_osd_container_cluster_name(mcd_container_t *container);
 extern int mcd_osd_container_udp_port(mcd_container_t  *container);
 extern int mcd_osd_container_cas_num_nodes(mcd_container_t *container);
 extern SDF_cguid_t mcd_osd_container_cguid(mcd_container_t  *container);
+extern mcd_container_t *mcd_osd_container_from_cguid(SDF_cguid_t cguid);
 extern SDFContainer mcd_osd_container_sdf_container(mcd_container_t  *container);
 extern void *mcd_osd_container_shard(mcd_container_t  *container);
 extern struct in_addr *mcd_osd_container_ip_addrs(mcd_container_t  *container);
@@ -566,6 +571,7 @@ extern uint64_t mcd_osd_container_cas_id(mcd_container_t  *container);
 extern uint64_t mcd_osd_container_incr_cas_id( mcd_container_t  *container, uint64_t amount);
 extern int mcd_osd_container_prev_state(mcd_container_t  *container);
 extern void mcd_osd_get_containers(struct ssdaio_ctxt *osd_state, mcd_container_t  **containers, int *pn_containers);
+extern void mcd_osd_get_containers_cguids(struct ssdaio_ctxt *osd_state, SDF_cguid_t *cguid, uint32_t *n_cguids);
 extern void mcd_osd_set_shard_cas_id_if_higher( mcd_container_t  *container, void * data );
 extern void osd_set_shard_cas_id_if_higher( struct shard *shard, void * data );
 extern void mcd_osd_set_container_state(mcd_container_t *container, int state);

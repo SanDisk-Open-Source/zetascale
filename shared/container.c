@@ -36,7 +36,9 @@
 extern int SDFSimpleReplication; // non-zero if simple replication is on
 
 // from protocol/protocol_utils.c
+#ifndef SDFAPI
 extern char *UTStartDebugger(char *s);
+#endif /* SDFAPI */
 
 #ifdef STATE_MACHINE_SUPPORT
 // from protocol/action/simple_replication.c
@@ -104,17 +106,17 @@ SDF_status_t delete_container_internal(SDF_internal_ctxt_t *pai, const char *pat
 SDF_container_meta_t *
 build_meta(const char *path, SDF_container_props_t props, SDF_cguid_t cguid, SDF_shardid_t shard);
 
-static SDF_shardid_t
+SDF_shardid_t
 build_shard(struct SDF_shared_state *state, SDF_internal_ctxt_t *pai,
             const char *path, int num_objs,  uint32_t in_shard_count, 
             SDF_container_props_t props,  SDF_cguid_t cguid,
             enum build_shard_type build_shard_type, const char *cname);
 
-static SDF_status_t
+SDF_status_t
 create_put_meta(SDF_internal_ctxt_t *pai, const char *path, SDF_container_meta_t *meta, 
 		SDF_cguid_t cguid);
 
-static SDF_cguid_t
+SDF_cguid_t
 generate_cguid(SDF_internal_ctxt_t *pai, const char *path, uint32_t node, int64_t cntr_id);
 
 uint64_t
@@ -330,6 +332,7 @@ print_sm_stats(struct plat_shmem_alloc_stats init, struct plat_shmem_alloc_stats
                  end.allocated_count - init.allocated_count, end.used_bytes - init.used_bytes);
 }
 
+#ifndef SDFAPI
 /*
  * Create a container:
  *
@@ -576,6 +579,7 @@ SDFCreateContainer(SDF_internal_ctxt_t *pai, const char *path, SDF_container_pro
     SDFEndSerializeContainerOp(pai);
     return (status);
 }
+#endif /* SDFAPI */
 
 SDF_status_t
 SDFDeleteContainerByCguid(SDF_internal_ctxt_t *pai, SDF_cguid_t cguid) 
@@ -604,6 +608,7 @@ SDFDeleteContainerByCguid(SDF_internal_ctxt_t *pai, SDF_cguid_t cguid)
     return(status);
 }
 
+#ifndef SDFAPI
 SDF_status_t
 SDFStartContainer(SDF_internal_ctxt_t *pai, SDF_cguid_t cguid) 
 {
@@ -642,6 +647,7 @@ SDFStartContainer(SDF_internal_ctxt_t *pai, SDF_cguid_t cguid)
     SDFEndSerializeContainerOp(pai);
     return(status);
 }
+#endif /* SDFAPI */
 
   /*  Note: a container must be stopped (and all accesses to it must be quiesced)
    *  before this function is called!
@@ -676,15 +682,34 @@ SDFChangeContainerWritebackMode(SDF_internal_ctxt_t *pai, SDF_cguid_t cguid, SDF
     return(status);
 }
 
+#ifndef SDFAPI
 SDF_status_t
 SDFGetContainerProps(SDF_internal_ctxt_t *pai, SDF_cguid_t cguid, SDF_container_props_t *pprops) 
 {
     SDF_status_t             status = SDF_SUCCESS;
     SDF_container_meta_t     meta;
 
+    plat_log_msg(150007, LOG_CAT, LOG_INFO, "SDFGetContainerProps: %p - %lu - %p", pai, cguid, pprops);
     SDFStartSerializeContainerOp(pai);
     if ((status = name_service_get_meta(pai, cguid, &meta)) == SDF_SUCCESS) {
         *pprops = meta.properties;
+    }
+    SDFEndSerializeContainerOp(pai);
+    plat_log_msg(150011, LOG_CAT, LOG_INFO, "SDFGetContainerProps: status=%s", (status==SDF_SUCCESS) ? "SUCCESS":"FAIL");
+
+    return(status);
+}
+
+SDF_status_t
+SDFSetContainerProps(SDF_internal_ctxt_t *pai, SDF_cguid_t cguid, SDF_container_props_t *pprops)
+{
+    SDF_status_t             status = SDF_SUCCESS;
+    SDF_container_meta_t     meta;
+
+    SDFStartSerializeContainerOp(pai);
+    if ((status = name_service_get_meta(pai, cguid, &meta)) == SDF_SUCCESS) {
+        meta.properties = *pprops;
+    	status = name_service_put_meta(pai, cguid, &meta);
     }
     SDFEndSerializeContainerOp(pai);
 
@@ -734,6 +759,7 @@ SDFDeleteContainer(SDF_internal_ctxt_t *pai, const char *path)
 {
     return(delete_container_internal(pai, path, SDF_TRUE /* serialize */));
 }
+#endif /* SDFAPI */
 
 SDF_status_t delete_container_internal(SDF_internal_ctxt_t *pai, const char *path, SDF_boolean_t serialize) 
 {
@@ -879,6 +905,7 @@ SDF_status_t delete_container_internal(SDF_internal_ctxt_t *pai, const char *pat
     return (status);
 }
 
+#ifndef SDFAPI
 SDF_status_t
 SDFOpenContainer(SDF_internal_ctxt_t *pai, const char *path, SDF_container_mode_t mode,
 		 SDF_CONTAINER *container) 
@@ -1094,6 +1121,7 @@ SDFCloseContainer(SDF_internal_ctxt_t *pai, SDF_CONTAINER container)
     SDFEndSerializeContainerOp(pai);
     return (status);
 }
+#endif /* SDFAPI */
 
 SDF_status_t
 SDFCopyContainer(SDF_internal_ctxt_t *pai, const char *srcPath, const char *destPath) {
@@ -2056,7 +2084,7 @@ build_shard(struct SDF_shared_state *state, SDF_internal_ctxt_t *pai,
 }
 
 
-static SDF_cguid_t
+SDF_cguid_t
 generate_cguid(SDF_internal_ctxt_t *pai, const char *path, uint32_t node, int64_t cntr_id64) 
 {
     SDF_cguid_t cguid;
