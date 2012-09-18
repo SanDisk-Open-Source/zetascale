@@ -294,7 +294,6 @@ cmc_initialize(SDF_internal_ctxt_t *pai, const char *cmc_path) {
     SDF_container_props_t p;
     int log_level = LOG_ERR;
 
-fprintf(stderr, "cmc_initialize: %s\n", cmc_path);
     plat_log_msg(21498, LOG_CAT, LOG_DBG, "Node: %d", init_get_my_node_id());
 
     if (ISEMPTY(cmc_path)) {
@@ -332,10 +331,11 @@ fprintf(stderr, "cmc_initialize: %s\n", cmc_path);
 	#ifdef ENABLE_MULTIPLE_FLASH_SUBSYSTEMS
 	    p.container_id.size = 1024; // kB
 	#endif
-	if ((status = cmc_create_object_container(pai, cmc_path, p)) == SDF_SUCCESS) {
 #ifdef SDFAPI
+	if ((status = cmc_create_object_container(pai, cmc_path, &p)) == SDF_SUCCESS) {
 	    c = cmc_open_object_container_path(pai, cmc_path, SDF_READ_WRITE_MODE, &container);
 #else
+	if ((status = cmc_create_object_container(pai, cmc_path, p)) == SDF_SUCCESS) {
 	    c = cmc_open_object_container(pai, cmc_path, SDF_READ_WRITE_MODE, &container);
 #endif /* SDFAPI */
 	    if (isContainerNull(c)) {
@@ -1310,11 +1310,17 @@ cmc_remove_cguid_map(SDF_internal_ctxt_t *pai, SDF_cmc_t *cmc, const char *cname
 // Internal interfaces
 
 SDF_status_t
+#ifdef SDFAPI
 cmc_create_object_container(SDF_internal_ctxt_t *pai, const char *cname, 
-			    SDF_container_props_t properties) {
+			    SDF_container_props_t *properties) {
+#else
+cmc_create_object_container(SDF_internal_ctxt_t *pai, const char *cname, 
+			    SDF_container_props_t *properties) {
+#endif /* SDFAPI */
 
     SDF_status_t status = SDF_FAILURE;
     int log_level = LOG_ERR;
+
 #ifdef SDFAPI
     SDF_cguid_t cguid;
 #endif /* SDFAPI */
@@ -1326,10 +1332,11 @@ cmc_create_object_container(SDF_internal_ctxt_t *pai, const char *cname,
 	plat_log_msg(30543, LOG_CAT, log_level, "NULL container name - %s", 
 		     SDF_Status_Strings[status]);		 
     } else {
-        properties.container_type.type = SDF_OBJECT_CONTAINER;
 #ifdef SDFAPI
-        if ((status = SDFCreateContainer(pai, cname, properties, 0, &cguid)) == SDF_SUCCESS) {
+        properties->container_type.type = SDF_OBJECT_CONTAINER;
+        if ((status = SDFCreateContainer(pai, cname, properties, &cguid)) == SDF_SUCCESS) {
 #else
+        properties.container_type.type = SDF_OBJECT_CONTAINER;
         if ((status = SDFCreateContainer(pai, cname, properties, 0)) == SDF_SUCCESS) {
 #endif /* SDFAPI */
 	    log_level = LOG_DBG;

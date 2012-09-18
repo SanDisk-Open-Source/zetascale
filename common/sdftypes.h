@@ -411,6 +411,7 @@ typedef struct flashsettings {
     int num_sdf_threads;
     char prefix_del_delimiter;
     float rec_log_size_factor;
+    int sdf_log_level;
     int rec_log_verify;
     int rec_log_segsize;
     int rec_upd_segsize;

@@ -1641,7 +1641,7 @@ ipf_notify
         if (address == 0) {
             break;
         }
-
+#ifdef SDFREPLICATION
         if (settings.vips[i].tcp_port != 0) {
             ipf_remember(address, mask, if_id, -1, expiration); /* for tcp */
 
@@ -1657,6 +1657,7 @@ ipf_notify
                 mcd_vip_server_socket(&settings.vips[i], PORT_TYPE_UDP);
             }
         }
+#endif /* SDFREPLICATION */
 #endif
         break;
 
@@ -1751,7 +1752,7 @@ ipf_notify_simple(uint64_t cguid, int active)
         address = ipf_get_host(settings.vips[i].address);
         mask    = settings.vips[i].mask;
         if_id   = settings.vips[i].if_id;
-
+#ifdef SDFREPLICATION
         if (address != 0) {
             if (settings.vips[i].tcp_port != 0) {
                 ipf_remember(address, mask, if_id, -1, expiration);
@@ -1769,6 +1770,7 @@ ipf_notify_simple(uint64_t cguid, int active)
                 }
            }
         }
+#endif /* SDFREPLICATION */
     } else {
         address = ipf_get_host(settings.vips[i].address);
 
@@ -2065,17 +2067,23 @@ ipf_set_active(int bind_any)
     sdf_is_node_started_first_time = ipf_is_node_started_first_time;
     sdf_is_node_started_in_auth_mode = ipf_is_node_started_in_auth_mode;
 #   ifndef IPF_TEST
+#ifdef SDFREPLICATION
     sdf_mcd_format_container_internal = mcd_format_container_internal;
+#endif /* SDFREPLICATION */
     sdf_mcd_start_container_internal  = mcd_start_container_internal;
     sdf_mcd_stop_container_internal   = mcd_stop_container_internal;
+#ifdef SDFREPLICATION
     sdf_mcd_format_container_byname_internal = mcd_format_container_byname_internal;
+#endif /* SDFREPLICATION */
     sdf_mcd_start_container_byname_internal  = mcd_start_container_byname_internal;
     sdf_mcd_stop_container_byname_internal   = mcd_stop_container_byname_internal;
+#ifdef SDFREPLICATION
     sdf_mcd_get_tcp_port_by_cguid     = mcd_get_tcp_port_by_cguid;
     sdf_mcd_get_cname_by_cguid        = mcd_get_cname_by_cguid;
     sdf_mcd_is_container_running      = mcd_is_container_running;
     sdf_mcd_is_container_running_byname = mcd_is_container_running_byname;
     sdf_mcd_processing_container_commands = mcd_processing_container_cmds;
+#endif /* SDFREPLICATION */
     sdf_action_init_ptr = get_action_init_state;
     fthLockInit(&rule_table_lock);
 #   endif
@@ -2612,7 +2620,9 @@ void ipf_handle_vip_manage_laptop(int add, int intra_node_vip_group_id) {
     rnode = my_node_id - 1;
     num_pfws = ps->node_state[my_node_id].nctnrs_node;
     for( i = 0; i < num_pfws; i++ ) {
+#ifdef SDFREPLICATION 
         mcd_get_tcp_port_by_cguid(ps->node_state[vnode].cntrs[i].cguid, &vport);
+#endif /* SDFREPLICATION */
         rport = vport - 1000;
         pfw_entries[i].vport = vport;
         pfw_entries[i].rport = rport;

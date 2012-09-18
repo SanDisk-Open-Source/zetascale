@@ -9,7 +9,7 @@
  * codebase. This file also contains the API to enable, disable, and
  * initialize FFDC.
  * 
- * Generated On: 2012-08-23 10:24:47
+ * Generated On: 2012-09-17 18:41:00
  *------------------------------------------------------------------------*/
 
 #define PLATFORM_INTERNAL 1
@@ -40638,6 +40638,257 @@ ffdc_log_func_150004(int lineno, int msgid, int catid, int level, const char* fm
     FFDC_START(150004, catid, level, lineno);
     FFDC_ADD_NUM(arg1);
     FFDC_ADD_PTR(arg2);
+    FFDC_END();
+}
+
+/*---------------------------------------------------------------------------
+ * MsgID : 150005
+ * Msg   : "mcd_osd_container_generation: %d\n"
+ *-------------------------------------------------------------------------*/
+__inline__ void
+ffdc_log_func_150005(int lineno, int msgid, int catid, int level, const char* fmt,
+    int arg1)
+{
+    FFDC_START(150005, catid, level, lineno);
+    FFDC_ADD_NUM(arg1);
+    FFDC_END();
+}
+
+/*---------------------------------------------------------------------------
+ * MsgID : 150006
+ * Msg   : "mcd_osd_container_generation: ENTER\n"
+ *-------------------------------------------------------------------------*/
+__inline__ void
+ffdc_log_func_150006(int lineno, int msgid, int catid, int level, const char* fmt)
+{
+    FFDC_START(150006, catid, level, lineno);
+    FFDC_END();
+}
+
+/*---------------------------------------------------------------------------
+ * MsgID : 150007
+ * Msg   : "SDFGetContainerProps: %p - %lu - %p"
+ *-------------------------------------------------------------------------*/
+__inline__ void
+ffdc_log_func_150007(int lineno, int msgid, int catid, int level, const char* fmt,
+    void* arg1, long arg2, void* arg3)
+{
+    FFDC_START(150007, catid, level, lineno);
+    FFDC_ADD_PTR(arg1);
+    FFDC_ADD_NUM(arg2);
+    FFDC_ADD_PTR(arg3);
+    FFDC_END();
+}
+
+/*---------------------------------------------------------------------------
+ * MsgID : 150008
+ * Msg   : "SDFGetContainerProps: 2"
+ *-------------------------------------------------------------------------*/
+__inline__ void
+ffdc_log_func_150008(int lineno, int msgid, int catid, int level, const char* fmt)
+{
+    FFDC_START(150008, catid, level, lineno);
+    FFDC_END();
+}
+
+/*---------------------------------------------------------------------------
+ * MsgID : 150009
+ * Msg   : "SDFGetContainerProps: 3"
+ *-------------------------------------------------------------------------*/
+__inline__ void
+ffdc_log_func_150009(int lineno, int msgid, int catid, int level, const char* fmt)
+{
+    FFDC_START(150009, catid, level, lineno);
+    FFDC_END();
+}
+
+/*---------------------------------------------------------------------------
+ * MsgID : 150010
+ * Msg   : "SDFGetContainerProps: 4"
+ *-------------------------------------------------------------------------*/
+__inline__ void
+ffdc_log_func_150010(int lineno, int msgid, int catid, int level, const char* fmt)
+{
+    FFDC_START(150010, catid, level, lineno);
+    FFDC_END();
+}
+
+/*---------------------------------------------------------------------------
+ * MsgID : 150011
+ * Msg   : "SDFGetContainerProps: status=%s"
+ *-------------------------------------------------------------------------*/
+__inline__ void
+ffdc_log_func_150011(int lineno, int msgid, int catid, int level, const char* fmt,
+    const char* arg1)
+{
+    FFDC_START(150011, catid, level, lineno);
+    FFDC_ADD_STR(arg1);
+    FFDC_END();
+}
+
+/*---------------------------------------------------------------------------
+ * MsgID : 150012
+ * Msg   : "mcd_osd_container_generation: pai=%p, cguid=%lu\n"
+ *-------------------------------------------------------------------------*/
+__inline__ void
+ffdc_log_func_150012(int lineno, int msgid, int catid, int level, const char* fmt,
+    void* arg1, long arg2)
+{
+    FFDC_START(150012, catid, level, lineno);
+    FFDC_ADD_PTR(arg1);
+    FFDC_ADD_NUM(arg2);
+    FFDC_END();
+}
+
+/*---------------------------------------------------------------------------
+ * MsgID : 150013
+ * Msg   : "SDFGetContainerProps: eviction=%s"
+ *-------------------------------------------------------------------------*/
+__inline__ void
+ffdc_log_func_150013(int lineno, int msgid, int catid, int level, const char* fmt,
+    const char* arg1)
+{
+    FFDC_START(150013, catid, level, lineno);
+    FFDC_ADD_STR(arg1);
+    FFDC_END();
+}
+
+/*---------------------------------------------------------------------------
+ * MsgID : 150014
+ * Msg   : "SERVER_ERROR failed to obtain SDF properties"
+ *-------------------------------------------------------------------------*/
+__inline__ void
+ffdc_log_func_150014(int lineno, int msgid, int catid, int level, const char* fmt)
+{
+    FFDC_START(150014, catid, level, lineno);
+    FFDC_END();
+}
+
+/*---------------------------------------------------------------------------
+ * MsgID : 150015
+ * Msg   : "MCD_FTH_SDF_INIT"
+ *-------------------------------------------------------------------------*/
+__inline__ void
+ffdc_log_func_150015(int lineno, int msgid, int catid, int level, const char* fmt)
+{
+    FFDC_START(150015, catid, level, lineno);
+    FFDC_END();
+}
+
+/*---------------------------------------------------------------------------
+ * MsgID : 150016
+ * Msg   : "XSDFGetContainerProps: %p - %lu - %p"
+ *-------------------------------------------------------------------------*/
+__inline__ void
+ffdc_log_func_150016(int lineno, int msgid, int catid, int level, const char* fmt,
+    void* arg1, long arg2, void* arg3)
+{
+    FFDC_START(150016, catid, level, lineno);
+    FFDC_ADD_PTR(arg1);
+    FFDC_ADD_NUM(arg2);
+    FFDC_ADD_PTR(arg3);
+    FFDC_END();
+}
+
+/*---------------------------------------------------------------------------
+ * MsgID : 150017
+ * Msg   : "XSDFGetContainerProps: status=%s"
+ *-------------------------------------------------------------------------*/
+__inline__ void
+ffdc_log_func_150017(int lineno, int msgid, int catid, int level, const char* fmt,
+    const char* arg1)
+{
+    FFDC_START(150017, catid, level, lineno);
+    FFDC_ADD_STR(arg1);
+    FFDC_END();
+}
+
+/*---------------------------------------------------------------------------
+ * MsgID : 150018
+ * Msg   : "XSDFGetForReadBufferedObjectWithExpiry"
+ *-------------------------------------------------------------------------*/
+__inline__ void
+ffdc_log_func_150018(int lineno, int msgid, int catid, int level, const char* fmt)
+{
+    FFDC_START(150018, catid, level, lineno);
+    FFDC_END();
+}
+
+/*---------------------------------------------------------------------------
+ * MsgID : 150019
+ * Msg   : "SDFGenerateCguid: %llu"
+ *-------------------------------------------------------------------------*/
+__inline__ void
+ffdc_log_func_150019(int lineno, int msgid, int catid, int level, const char* fmt,
+    long long arg1)
+{
+    FFDC_START(150019, catid, level, lineno);
+    FFDC_ADD_NUM(arg1);
+    FFDC_END();
+}
+
+/*---------------------------------------------------------------------------
+ * MsgID : 150020
+ * Msg   : "Invalid cguid - %s"
+ *-------------------------------------------------------------------------*/
+__inline__ void
+ffdc_log_func_150020(int lineno, int msgid, int catid, int level, const char* fmt,
+    const char* arg1)
+{
+    FFDC_START(150020, catid, level, lineno);
+    FFDC_ADD_STR(arg1);
+    FFDC_END();
+}
+
+/*---------------------------------------------------------------------------
+ * MsgID : 150021
+ * Msg   : "%lu - %s"
+ *-------------------------------------------------------------------------*/
+__inline__ void
+ffdc_log_func_150021(int lineno, int msgid, int catid, int level, const char* fmt,
+    long arg1, const char* arg2)
+{
+    FFDC_START(150021, catid, level, lineno);
+    FFDC_ADD_NUM(arg1);
+    FFDC_ADD_STR(arg2);
+    FFDC_END();
+}
+
+/*---------------------------------------------------------------------------
+ * MsgID : 150022
+ * Msg   : "scheduler startup process created"
+ *-------------------------------------------------------------------------*/
+__inline__ void
+ffdc_log_func_150022(int lineno, int msgid, int catid, int level, const char* fmt)
+{
+    FFDC_START(150022, catid, level, lineno);
+    FFDC_END();
+}
+
+/*---------------------------------------------------------------------------
+ * MsgID : 150023
+ * Msg   : "SDFCreateContainer failed for container %s because 128 
+ *          containers have already been created."
+ *-------------------------------------------------------------------------*/
+__inline__ void
+ffdc_log_func_150023(int lineno, int msgid, int catid, int level, const char* fmt,
+    const char* arg1)
+{
+    FFDC_START(150023, catid, level, lineno);
+    FFDC_ADD_STR(arg1);
+    FFDC_END();
+}
+
+/*---------------------------------------------------------------------------
+ * MsgID : 150024
+ * Msg   : "NULL - %s"
+ *-------------------------------------------------------------------------*/
+__inline__ void
+ffdc_log_func_150024(int lineno, int msgid, int catid, int level, const char* fmt,
+    const char* arg1)
+{
+    FFDC_START(150024, catid, level, lineno);
+    FFDC_ADD_STR(arg1);
     FFDC_END();
 }
 

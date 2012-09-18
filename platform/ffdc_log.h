@@ -9,7 +9,7 @@
  * log message in the codebase.  The structure contains one field for
  * each message parameter in the log message, along with other meta data
  * 
- * Generated On: 2012-08-23 10:24:47
+ * Generated On: 2012-09-17 18:41:00
  *------------------------------------------------------------------------*/
 
 #ifndef PLATFORM_FFDC_H
@@ -67728,6 +67728,445 @@ struct ffdc_log_struct_150004
 __inline__ void
 ffdc_log_func_150004(int lineno, int msgid, int catid, int level, const char* fmt,
     int arg1, void* arg2);
+
+/*---------------------------------------------------------------------------
+ * MsgID : 150005
+ * Msg   : "mcd_osd_container_generation: %d\n"
+ *-------------------------------------------------------------------------*/
+struct ffdc_log_struct_150005
+{
+    int magic;
+    int msgid;
+    int catid;
+    int level;
+    unsigned long th_id;
+    unsigned long fth_id;
+    int lineno;
+    struct timeval timestamp;
+
+    int arg1;
+} __attribute__ ((aligned (64)));
+
+__inline__ void
+ffdc_log_func_150005(int lineno, int msgid, int catid, int level, const char* fmt,
+    int arg1);
+
+/*---------------------------------------------------------------------------
+ * MsgID : 150006
+ * Msg   : "mcd_osd_container_generation: ENTER\n"
+ *-------------------------------------------------------------------------*/
+struct ffdc_log_struct_150006
+{
+    int magic;
+    int msgid;
+    int catid;
+    int level;
+    unsigned long th_id;
+    unsigned long fth_id;
+    int lineno;
+    struct timeval timestamp;
+
+
+} __attribute__ ((aligned (64)));
+
+__inline__ void
+ffdc_log_func_150006(int lineno, int msgid, int catid, int level, const char* fmt);
+
+/*---------------------------------------------------------------------------
+ * MsgID : 150007
+ * Msg   : "SDFGetContainerProps: %p - %lu - %p"
+ *-------------------------------------------------------------------------*/
+struct ffdc_log_struct_150007
+{
+    int magic;
+    int msgid;
+    int catid;
+    int level;
+    unsigned long th_id;
+    unsigned long fth_id;
+    int lineno;
+    struct timeval timestamp;
+
+    long arg1;
+    long arg2;
+    long arg3;
+} __attribute__ ((aligned (64)));
+
+__inline__ void
+ffdc_log_func_150007(int lineno, int msgid, int catid, int level, const char* fmt,
+    void* arg1, long arg2, void* arg3);
+
+/*---------------------------------------------------------------------------
+ * MsgID : 150008
+ * Msg   : "SDFGetContainerProps: 2"
+ *-------------------------------------------------------------------------*/
+struct ffdc_log_struct_150008
+{
+    int magic;
+    int msgid;
+    int catid;
+    int level;
+    unsigned long th_id;
+    unsigned long fth_id;
+    int lineno;
+    struct timeval timestamp;
+
+
+} __attribute__ ((aligned (64)));
+
+__inline__ void
+ffdc_log_func_150008(int lineno, int msgid, int catid, int level, const char* fmt);
+
+/*---------------------------------------------------------------------------
+ * MsgID : 150009
+ * Msg   : "SDFGetContainerProps: 3"
+ *-------------------------------------------------------------------------*/
+struct ffdc_log_struct_150009
+{
+    int magic;
+    int msgid;
+    int catid;
+    int level;
+    unsigned long th_id;
+    unsigned long fth_id;
+    int lineno;
+    struct timeval timestamp;
+
+
+} __attribute__ ((aligned (64)));
+
+__inline__ void
+ffdc_log_func_150009(int lineno, int msgid, int catid, int level, const char* fmt);
+
+/*---------------------------------------------------------------------------
+ * MsgID : 150010
+ * Msg   : "SDFGetContainerProps: 4"
+ *-------------------------------------------------------------------------*/
+struct ffdc_log_struct_150010
+{
+    int magic;
+    int msgid;
+    int catid;
+    int level;
+    unsigned long th_id;
+    unsigned long fth_id;
+    int lineno;
+    struct timeval timestamp;
+
+
+} __attribute__ ((aligned (64)));
+
+__inline__ void
+ffdc_log_func_150010(int lineno, int msgid, int catid, int level, const char* fmt);
+
+/*---------------------------------------------------------------------------
+ * MsgID : 150011
+ * Msg   : "SDFGetContainerProps: status=%s"
+ *-------------------------------------------------------------------------*/
+struct ffdc_log_struct_150011
+{
+    int magic;
+    int msgid;
+    int catid;
+    int level;
+    unsigned long th_id;
+    unsigned long fth_id;
+    int lineno;
+    struct timeval timestamp;
+
+    char arg1[FFDC_MAX_STR_SIZE];
+} __attribute__ ((aligned (64)));
+
+__inline__ void
+ffdc_log_func_150011(int lineno, int msgid, int catid, int level, const char* fmt,
+    const char* arg1);
+
+/*---------------------------------------------------------------------------
+ * MsgID : 150012
+ * Msg   : "mcd_osd_container_generation: pai=%p, cguid=%lu\n"
+ *-------------------------------------------------------------------------*/
+struct ffdc_log_struct_150012
+{
+    int magic;
+    int msgid;
+    int catid;
+    int level;
+    unsigned long th_id;
+    unsigned long fth_id;
+    int lineno;
+    struct timeval timestamp;
+
+    long arg1;
+    long arg2;
+} __attribute__ ((aligned (64)));
+
+__inline__ void
+ffdc_log_func_150012(int lineno, int msgid, int catid, int level, const char* fmt,
+    void* arg1, long arg2);
+
+/*---------------------------------------------------------------------------
+ * MsgID : 150013
+ * Msg   : "SDFGetContainerProps: eviction=%s"
+ *-------------------------------------------------------------------------*/
+struct ffdc_log_struct_150013
+{
+    int magic;
+    int msgid;
+    int catid;
+    int level;
+    unsigned long th_id;
+    unsigned long fth_id;
+    int lineno;
+    struct timeval timestamp;
+
+    char arg1[FFDC_MAX_STR_SIZE];
+} __attribute__ ((aligned (64)));
+
+__inline__ void
+ffdc_log_func_150013(int lineno, int msgid, int catid, int level, const char* fmt,
+    const char* arg1);
+
+/*---------------------------------------------------------------------------
+ * MsgID : 150014
+ * Msg   : "SERVER_ERROR failed to obtain SDF properties"
+ *-------------------------------------------------------------------------*/
+struct ffdc_log_struct_150014
+{
+    int magic;
+    int msgid;
+    int catid;
+    int level;
+    unsigned long th_id;
+    unsigned long fth_id;
+    int lineno;
+    struct timeval timestamp;
+
+
+} __attribute__ ((aligned (64)));
+
+__inline__ void
+ffdc_log_func_150014(int lineno, int msgid, int catid, int level, const char* fmt);
+
+/*---------------------------------------------------------------------------
+ * MsgID : 150015
+ * Msg   : "MCD_FTH_SDF_INIT"
+ *-------------------------------------------------------------------------*/
+struct ffdc_log_struct_150015
+{
+    int magic;
+    int msgid;
+    int catid;
+    int level;
+    unsigned long th_id;
+    unsigned long fth_id;
+    int lineno;
+    struct timeval timestamp;
+
+
+} __attribute__ ((aligned (64)));
+
+__inline__ void
+ffdc_log_func_150015(int lineno, int msgid, int catid, int level, const char* fmt);
+
+/*---------------------------------------------------------------------------
+ * MsgID : 150016
+ * Msg   : "XSDFGetContainerProps: %p - %lu - %p"
+ *-------------------------------------------------------------------------*/
+struct ffdc_log_struct_150016
+{
+    int magic;
+    int msgid;
+    int catid;
+    int level;
+    unsigned long th_id;
+    unsigned long fth_id;
+    int lineno;
+    struct timeval timestamp;
+
+    long arg1;
+    long arg2;
+    long arg3;
+} __attribute__ ((aligned (64)));
+
+__inline__ void
+ffdc_log_func_150016(int lineno, int msgid, int catid, int level, const char* fmt,
+    void* arg1, long arg2, void* arg3);
+
+/*---------------------------------------------------------------------------
+ * MsgID : 150017
+ * Msg   : "XSDFGetContainerProps: status=%s"
+ *-------------------------------------------------------------------------*/
+struct ffdc_log_struct_150017
+{
+    int magic;
+    int msgid;
+    int catid;
+    int level;
+    unsigned long th_id;
+    unsigned long fth_id;
+    int lineno;
+    struct timeval timestamp;
+
+    char arg1[FFDC_MAX_STR_SIZE];
+} __attribute__ ((aligned (64)));
+
+__inline__ void
+ffdc_log_func_150017(int lineno, int msgid, int catid, int level, const char* fmt,
+    const char* arg1);
+
+/*---------------------------------------------------------------------------
+ * MsgID : 150018
+ * Msg   : "XSDFGetForReadBufferedObjectWithExpiry"
+ *-------------------------------------------------------------------------*/
+struct ffdc_log_struct_150018
+{
+    int magic;
+    int msgid;
+    int catid;
+    int level;
+    unsigned long th_id;
+    unsigned long fth_id;
+    int lineno;
+    struct timeval timestamp;
+
+
+} __attribute__ ((aligned (64)));
+
+__inline__ void
+ffdc_log_func_150018(int lineno, int msgid, int catid, int level, const char* fmt);
+
+/*---------------------------------------------------------------------------
+ * MsgID : 150019
+ * Msg   : "SDFGenerateCguid: %llu"
+ *-------------------------------------------------------------------------*/
+struct ffdc_log_struct_150019
+{
+    int magic;
+    int msgid;
+    int catid;
+    int level;
+    unsigned long th_id;
+    unsigned long fth_id;
+    int lineno;
+    struct timeval timestamp;
+
+    long long arg1;
+} __attribute__ ((aligned (64)));
+
+__inline__ void
+ffdc_log_func_150019(int lineno, int msgid, int catid, int level, const char* fmt,
+    long long arg1);
+
+/*---------------------------------------------------------------------------
+ * MsgID : 150020
+ * Msg   : "Invalid cguid - %s"
+ *-------------------------------------------------------------------------*/
+struct ffdc_log_struct_150020
+{
+    int magic;
+    int msgid;
+    int catid;
+    int level;
+    unsigned long th_id;
+    unsigned long fth_id;
+    int lineno;
+    struct timeval timestamp;
+
+    char arg1[FFDC_MAX_STR_SIZE];
+} __attribute__ ((aligned (64)));
+
+__inline__ void
+ffdc_log_func_150020(int lineno, int msgid, int catid, int level, const char* fmt,
+    const char* arg1);
+
+/*---------------------------------------------------------------------------
+ * MsgID : 150021
+ * Msg   : "%lu - %s"
+ *-------------------------------------------------------------------------*/
+struct ffdc_log_struct_150021
+{
+    int magic;
+    int msgid;
+    int catid;
+    int level;
+    unsigned long th_id;
+    unsigned long fth_id;
+    int lineno;
+    struct timeval timestamp;
+
+    long arg1;
+    char arg2[FFDC_MAX_STR_SIZE];
+} __attribute__ ((aligned (64)));
+
+__inline__ void
+ffdc_log_func_150021(int lineno, int msgid, int catid, int level, const char* fmt,
+    long arg1, const char* arg2);
+
+/*---------------------------------------------------------------------------
+ * MsgID : 150022
+ * Msg   : "scheduler startup process created"
+ *-------------------------------------------------------------------------*/
+struct ffdc_log_struct_150022
+{
+    int magic;
+    int msgid;
+    int catid;
+    int level;
+    unsigned long th_id;
+    unsigned long fth_id;
+    int lineno;
+    struct timeval timestamp;
+
+
+} __attribute__ ((aligned (64)));
+
+__inline__ void
+ffdc_log_func_150022(int lineno, int msgid, int catid, int level, const char* fmt);
+
+/*---------------------------------------------------------------------------
+ * MsgID : 150023
+ * Msg   : "SDFCreateContainer failed for container %s because 128 
+ *          containers have already been created."
+ *-------------------------------------------------------------------------*/
+struct ffdc_log_struct_150023
+{
+    int magic;
+    int msgid;
+    int catid;
+    int level;
+    unsigned long th_id;
+    unsigned long fth_id;
+    int lineno;
+    struct timeval timestamp;
+
+    char arg1[FFDC_MAX_STR_SIZE];
+} __attribute__ ((aligned (64)));
+
+__inline__ void
+ffdc_log_func_150023(int lineno, int msgid, int catid, int level, const char* fmt,
+    const char* arg1);
+
+/*---------------------------------------------------------------------------
+ * MsgID : 150024
+ * Msg   : "NULL - %s"
+ *-------------------------------------------------------------------------*/
+struct ffdc_log_struct_150024
+{
+    int magic;
+    int msgid;
+    int catid;
+    int level;
+    unsigned long th_id;
+    unsigned long fth_id;
+    int lineno;
+    struct timeval timestamp;
+
+    char arg1[FFDC_MAX_STR_SIZE];
+} __attribute__ ((aligned (64)));
+
+__inline__ void
+ffdc_log_func_150024(int lineno, int msgid, int catid, int level, const char* fmt,
+    const char* arg1);
 
 /*---------------------------------------------------------------------------
  * MsgID : 160000

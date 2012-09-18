@@ -843,9 +843,15 @@ mcd_fth_open_container( void * pai, SDF_context_t ctxt,
 
 
 SDF_status_t
+#ifdef SDFAPI
+mcd_fth_create_open_container( void * pai, SDF_context_t ctxt,
+                               char * cname, SDF_container_props_t *props,
+                               SDF_CONTAINER * ctnr )
+#else
 mcd_fth_create_open_container( void * pai, SDF_context_t ctxt,
                                char * cname, SDF_container_props_t props,
                                SDF_CONTAINER * ctnr )
+#endif /* SDFAPI */
 {
     SDF_status_t        status = SDF_FAILURE;
     SDF_cguid_t		cguid;
@@ -861,7 +867,6 @@ mcd_fth_create_open_container( void * pai, SDF_context_t ctxt,
     status = SDFCreateContainer( (SDF_internal_ctxt_t *)pai,
                                  cname,                         // cntr path
                                  props,
-				 props.container_id.container_id,
 				 &cguid);
 #else
     status = SDFCreateContainer( (SDF_internal_ctxt_t *)pai,
@@ -980,7 +985,11 @@ static int mcd_fth_do_try_container_internal( void * pai, int index,
         status = mcd_fth_create_open_container( pai,
                                                 0,      // ctxt
                                                 cname,
+#ifdef SDFAPI
+						prop,
+#else
                                                 properties,
+#endif /* SDFAPI */
                                                 &container );
         if ( SDF_SUCCESS != status && SDF_CONTAINER_EXISTS != status ) {
             mcd_log_msg( 20119, PLAT_LOG_LEVEL_ERROR,
@@ -5512,6 +5521,7 @@ int mcd_osd_init( void )
     fthLockInit( &Mcd_aio_ctxt_lock );
 
     fthMboxInit( &Mcd_fth_admin_mbox );
+
     return mcd_osd_slab_init();
 }
 

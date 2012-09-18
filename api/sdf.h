@@ -535,8 +535,7 @@ struct SDF_thread_state *SDFInitPerThreadState(
 SDF_status_t SDFCreateContainer(
 	SDF_thread_state_t	*sdf_thread_state, 
 	const char 		*cname, 
-	SDF_container_props_t 	 properties, 
-	uint64_t		 cid,
+	SDF_container_props_t 	*properties, 
 	SDF_cguid_t		*cguid 
 	);
 
@@ -685,6 +684,28 @@ SDF_status_t SDFGetForReadBufferedObject(
 	SDF_time_t               *expiry_time
 	);
 
+SDF_status_t SDFFreeBuffer(
+                   struct SDF_thread_state  *sdf_thread_state,
+		   char                     *data
+               );
+
+SDF_status_t SDFGetBuffer(
+                   struct SDF_thread_state  *sdf_thread_state,
+		   char                     **data,
+		   uint64_t                   datalen
+               );
+
+SDF_status_t SDFCreateBufferedObject(
+                   struct SDF_thread_state  *sdf_thread_state,
+		   SDF_cguid_t          cguid,
+		   char                *key,
+		   uint32_t             keylen,
+		   char                *data,
+		   uint64_t             datalen,
+		   SDF_time_t           current_time,
+		   SDF_time_t           expiry_time
+	       );
+
 /**
  *  @brief Copy back an entire object, creating it if necessary.  Set an expiry time.
  *
@@ -714,8 +735,8 @@ SDF_status_t SDFSetBufferedObject(
 	SDF_cguid_t               cguid,
 	char                     *key,
 	uint32_t                  keylen,
-	uint64_t                  datalen,
 	char                     *data,
+	uint64_t                  datalen,
 	SDF_time_t                current_time,
 	SDF_time_t                expiry_time
 	);
@@ -748,8 +769,8 @@ SDF_status_t SDFPutBufferedObject(
 	SDF_cguid_t               cguid,
 	char                     *key,
 	uint32_t                  keylen,
-	uint64_t                  datalen,
 	char                     *data,
+	uint64_t                  datalen,
 	SDF_time_t                current_time,
 	SDF_time_t                expiry_time
 	);
@@ -860,6 +881,11 @@ SDF_status_t SDFNextEnumeratedObject(
 	char                    **data,
 	uint64_t                *datalen
 	);
+
+SDF_status_t SDFFinishEnumeration(
+                   struct SDF_thread_state *sdf_thread_state,
+		   SDF_cguid_t              cguid
+	       );
 
 /**
  * @brief Get SDF statistics

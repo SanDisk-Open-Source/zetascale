@@ -353,6 +353,7 @@ init_action_home(struct sdf_agent_state *state)
 void
 agent_config_set_defaults(struct plat_opts_config_sdf_agent *config)
 {
+    char *s;
     memset(config, 0, sizeof (config));
     plat_shmem_config_init(&config->shmem);
 #ifdef SIMPLE_REPLICATION
@@ -366,9 +367,22 @@ agent_config_set_defaults(struct plat_opts_config_sdf_agent *config)
       basename to create names like /dev/flash0 /dev/flash1 etc.
     */
     strncpy(config->flashDevName, "/dev/flash", sizeof(config->flashDevName));
-    strncpy(config->propertyFileName, 
-            "/opt/schooner/config/schooner-med.properties",
-            sizeof(config->propertyFileName));
+
+    #ifdef SDFAPI
+	if ((s = getenv("FDF_PROPERTY_FILE"))) {
+	    strncpy(config->propertyFileName, 
+		    s, 
+		    sizeof(config->propertyFileName));
+	} else {
+	    strncpy(config->propertyFileName, 
+		    "/home/briano/config/really_simple.prop",
+		    sizeof(config->propertyFileName));
+	}
+    #else // SDFAPI
+	strncpy(config->propertyFileName, 
+		"/opt/schooner/config/schooner-med.properties",
+		sizeof(config->propertyFileName));
+    #endif // SDFAPI
 
     config->system_recovery = SYS_FLASH_RECOVERY;
 
@@ -443,6 +457,13 @@ agent_config_set_properties(struct plat_opts_config_sdf_agent *config)
         config->replication_lease_secs = 
             getProperty_Int("SDF_REPLICATION_LEASE_SECS", 5);
     }
+
+    #ifdef SDFAPI
+	config->system_recovery = getProperty_Int("SDF_REFORMAT", 0);
+	if (config->system_recovery) {
+	    config->system_recovery = 0;
+	}
+    #endif // SDFAPI
 
     plat_log_msg(20841, PLAT_LOG_CAT_PRINT_ARGS, PLAT_LOG_LEVEL_DEBUG, "PROP: SDF_CLUSTER_NUMBER_NODES=%u",
                  config->nnodes);
