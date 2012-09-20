@@ -345,10 +345,10 @@ struct SDF_thread_state * SDFInitPerThreadState(
 	struct SDF_state *sdf_state
 	)
 {
-    struct SDF_thread_state *pts_out;
-    SDF_action_init_t       *pai;
-    SDF_action_init_t       *pai_new;
-    SDF_action_thrd_state_t *pts;
+    struct SDF_thread_state *pts_out	= NULL;
+    SDF_action_init_t       *pai	= NULL;
+    SDF_action_init_t       *pai_new	= NULL;
+    SDF_action_thrd_state_t *pts	= NULL;
 
     struct sdf_agent_state    *state = &agent_state;
 
