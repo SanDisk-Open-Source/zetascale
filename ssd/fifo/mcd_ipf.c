@@ -2603,7 +2603,7 @@ int get_rule_table_id() {
 void ipf_handle_vip_manage_laptop(int add, int intra_node_vip_group_id) {
     struct sdf_agent_state *mcd_state;
     qrep_state_t *ps;
-    int my_node_id, vport, rport, vnode, rnode, i,num_pfws = 0;
+    int my_node_id, vport = 0, rport = 0, vnode, rnode, i,num_pfws = 0;
     ipf_pfw_entry_t pfw_entries[NUM_PFW_ENTRIES];
 
     mcd_state = &(Mcd_agent_state);
