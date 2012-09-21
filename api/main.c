@@ -2,7 +2,6 @@
 #include <assert.h>
 #include <unistd.h>
 #include "sdf.h"
-#include <common/sdf_properties.h>
 
 static struct SDF_state *sdf_state;
 static struct SDF_thread_state *_sdf_thrd_state;
