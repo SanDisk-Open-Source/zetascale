@@ -1,0 +1,14 @@
+TOP = ..
+
+PROG = fdf_static_test
+
+TESTS = $(PROG)
+
+LIBS_SDF = $(TOP)/lib/*.a \
+        -lpthread -lrt -lnsl -lutil -lm -laio -levent
+
+LIBS = $(LIBS_FTH) $(LIBS_SDF) $(LIBS_SDF) 
+
+fdf_static_test.run: TESTARGS = .
+all: 
+	cc -Wall fdf_static_test.c $(LIBS_SDF) -I$(TOP)/include -o $(PROG)
