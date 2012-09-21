@@ -1,0 +1,35 @@
+# $Id: Makefile 9983 2009-11-02 18:25:23Z gxu $
+
+TOP = ..
+LIB_SRCS = $(TOP)/libsrc/sdf.c 
+
+PROG = sdftest
+
+SRCS = main.c 
+
+LIBS = 	\
+    $(TOP)/lib/libsdfshared.a \
+    $(TOP)/lib/libsdf.a \
+    $(TOP)/lib/libsdfagent.a \
+        $(TOP)/lib/libsdfaction.a \
+    $(TOP)/lib/libsdfreplication.a \
+        $(TOP)/lib/libsdfhome.a \
+    $(TOP)/lib/libsdfprotocol.a \
+    $(TOP)/lib/libsdfssd.a \
+    $(TOP)/lib/libclipper.a \
+    $(TOP)/lib/libfifo.a \
+    $(TOP)/lib/libsdfssd.a \
+    $(TOP)/lib/libecc.a \
+    $(TOP)/lib/libutils.a \
+    $(TOP)/lib/libsdfmsgqueue.a \
+    $(TOP)/lib/libsdfmtp.a \
+    $(TOP)/lib/libhotkey.a \
+    $(TOP)/lib/libmisc.a \
+    $(TOP)/lib/libfth.a \
+    $(TOP)/lib/libplatform.a \
+        -lpthread -lrt -lnsl -lutil -lm -laio -levent	
+
+all:
+	$(CC) $(SRCS) -I$(TOP)/include  -o $(PROG) $(LIBS)
+	
+
