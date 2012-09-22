@@ -204,7 +204,7 @@ mcd_fth_aio_blk_read( osd_state_t * context, char * buf, uint64_t offset, int nb
         }
 
 	if (pread(aio_fd, buf+submitted, aio_nbytes, aio_offset) != aio_nbytes) {
-            mcd_log_msg(160027, PLAT_LOG_LEVEL_ERROR, "pwrite failed!");
+            mcd_log_msg(150025, PLAT_LOG_LEVEL_ERROR, "pread failed!");
 	    plat_exit(1);
 	}
 

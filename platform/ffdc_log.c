@@ -9,7 +9,7 @@
  * codebase. This file also contains the API to enable, disable, and
  * initialize FFDC.
  * 
- * Generated On: 2012-09-17 18:41:00
+ * Generated On: 2012-09-21 17:26:24
  *------------------------------------------------------------------------*/
 
 #define PLATFORM_INTERNAL 1
@@ -40889,6 +40889,17 @@ ffdc_log_func_150024(int lineno, int msgid, int catid, int level, const char* fm
 {
     FFDC_START(150024, catid, level, lineno);
     FFDC_ADD_STR(arg1);
+    FFDC_END();
+}
+
+/*---------------------------------------------------------------------------
+ * MsgID : 150025
+ * Msg   : "pread failed!"
+ *-------------------------------------------------------------------------*/
+__inline__ void
+ffdc_log_func_150025(int lineno, int msgid, int catid, int level, const char* fmt)
+{
+    FFDC_START(150025, catid, level, lineno);
     FFDC_END();
 }
 

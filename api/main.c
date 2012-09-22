@@ -64,6 +64,47 @@ SDF_status_t sdf_create_container (
     return(ret);
 }
 
+SDF_status_t sdf_open_container(
+        SDF_cguid_t cguid
+        )
+{
+    SDF_status_t ret;
+
+    ret = SDFOpenContainer (
+                       _sdf_thrd_state,
+                       cguid,
+                       SDF_READ_WRITE_MODE
+                   );
+
+    return(ret);
+}
+
+SDF_status_t sdf_close_container(
+        SDF_cguid_t              cguid
+        )
+{
+    SDF_status_t ret;
+
+    ret = SDFCloseContainer (
+                       _sdf_thrd_state,
+                       cguid
+                   );
+
+    return(ret);
+}
+
+SDF_status_t sdf_delete_container(
+        SDF_cguid_t              cguid
+        )
+{
+
+	return (SDFDeleteContainer(
+			           _sdf_thrd_state, 
+        			   cguid
+        			  ));
+}
+
+
 SDF_status_t sdf_get (
 	       SDF_cguid_t               cguid,
 	       char                     *key,
@@ -238,28 +279,31 @@ SDF_status_t sdf_delete (
     return(ret);
 }
 
-int main()
+int main(int argc, char *argv[])
 {
     SDF_cguid_t  cguid;
     char        *data;
     uint64_t     datalen;
+    char 	*cname = argv[1];
 
     if (SDFInit(&sdf_state, 0, NULL) != SDF_SUCCESS) {
 	fprintf(stderr, "SDF initialization failed!\n");
 	plat_assert(0);
     }
-    fprintf(stderr, "SDF was initialized successfully!\n");
+    fprintf(stderr, "<<<sdftest: SDF was initialized successfully!\n");
 
     _sdf_thrd_state    = SDFInitPerThreadState(sdf_state);
 
-    // sleep(100);
-
-    plat_assert(sdf_create_container("foobar1", &cguid) == SDF_SUCCESS);
+    plat_assert(sdf_create_container(cname, &cguid) == SDF_SUCCESS);
 
     plat_assert(sdf_create(cguid, "key1", 5, "key1_data", 10) == SDF_SUCCESS);
     plat_assert(sdf_get(cguid, "key1", 5, &data, &datalen) == SDF_SUCCESS);
 
-    fprintf(stderr, "sdf_get: data=%s, datalen=%ld\n", data, datalen);
+    fprintf(stderr, "<<<sdftest: sdf_get: data=%s, datalen=%ld\n", data, datalen);
+
+    plat_assert(sdf_delete_container(cguid) == SDF_SUCCESS);
+
+    fprintf(stderr, "<<<sdftest: complete\n");
 
     return(0);
 }

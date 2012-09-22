@@ -9,7 +9,7 @@
  * log message in the codebase.  The structure contains one field for
  * each message parameter in the log message, along with other meta data
  * 
- * Generated On: 2012-09-17 18:41:00
+ * Generated On: 2012-09-21 17:26:24
  *------------------------------------------------------------------------*/
 
 #ifndef PLATFORM_FFDC_H
@@ -68167,6 +68167,27 @@ struct ffdc_log_struct_150024
 __inline__ void
 ffdc_log_func_150024(int lineno, int msgid, int catid, int level, const char* fmt,
     const char* arg1);
+
+/*---------------------------------------------------------------------------
+ * MsgID : 150025
+ * Msg   : "pread failed!"
+ *-------------------------------------------------------------------------*/
+struct ffdc_log_struct_150025
+{
+    int magic;
+    int msgid;
+    int catid;
+    int level;
+    unsigned long th_id;
+    unsigned long fth_id;
+    int lineno;
+    struct timeval timestamp;
+
+
+} __attribute__ ((aligned (64)));
+
+__inline__ void
+ffdc_log_func_150025(int lineno, int msgid, int catid, int level, const char* fmt);
 
 /*---------------------------------------------------------------------------
  * MsgID : 160000
