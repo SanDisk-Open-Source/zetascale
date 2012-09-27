@@ -32,6 +32,7 @@
 #include "protocol/protocol_common.h"
 #include "protocol/action/action_internal_ctxt.h"
 #include "shared/object.h"
+#include "shared/open_container_mgr.h"
 
 #include "fth/fth.h"
 #include "ssd/ssd_local.h"
@@ -53,6 +54,17 @@
 #include "shared/private.h"
 #ifdef SDFAPI
 #include "api/sdf.h"
+#include "api/sdf_internal.h"
+#include "shared/name_service.h"
+extern
+SDF_cguid_t generate_cguid(
+        SDF_internal_ctxt_t     *pai,
+        const char              *path,
+        uint32_t                 node,
+        int64_t                  cntr_id
+        );
+extern uint32_t
+init_get_my_node_id();
 #endif
 
 /*
@@ -95,6 +107,11 @@ extern struct shard * container_to_shard( SDF_internal_ctxt_t *pai, local_SDF_CO
 extern void SDFClusterStatus(SDF_action_init_t *pai, uint32_t *mynode_id, uint32_t *cluster_size);
 // from mcd_rep.c
 extern uint64_t rep_seqno_get(struct shard * shard);
+
+#ifdef SDFAPI
+// from sdf.c
+extern ctnr_map_t CtnrMap[MCD_MAX_NUM_CNTRS];
+#endif /* SDFAPI */
 
 /*
  * reserved blocks
@@ -804,6 +821,9 @@ mcd_fth_open_container( void * pai, SDF_context_t ctxt,
                         SDF_CONTAINER * ctnr )
 {
     SDF_status_t           status = SDF_FAILURE;
+#ifdef SDFAPI
+    SDF_cguid_t	cguid = SDF_NULL_CGUID;
+#endif /* SDFAPI */
 
     mcd_log_msg( 20000, PLAT_LOG_LEVEL_DEBUG, "ENTERING" );
 
@@ -813,10 +833,13 @@ mcd_fth_open_container( void * pai, SDF_context_t ctxt,
     uint64_t old_ctxt = ((SDF_action_init_t *)pai)->ctxt;
     ((SDF_action_init_t *)pai)->ctxt = ctxt;
 #ifdef SDFAPI
-    status = SDFOpenContainerPath( (SDF_internal_ctxt_t *)pai,
-                               cname,                   // cntr path
-                               SDF_READ_WRITE_MODE,     // mode
-                               ctnr );
+    if (SDF_SUCCESS != name_service_get_cguid(pai, cname, &cguid)) {
+        status = SDF_CONTAINER_UNKNOWN;
+    } else {
+    	status = SDFOpenContainer( (SDF_internal_ctxt_t *)pai,
+                               	    cguid,                   // container guid
+                                    SDF_READ_WRITE_MODE);    // mode
+    }
 #else
     status = SDFOpenContainer( (SDF_internal_ctxt_t *)pai,
                                cname,                   // cntr path
@@ -842,19 +865,19 @@ mcd_fth_open_container( void * pai, SDF_context_t ctxt,
 }
 
 
-SDF_status_t
 #ifdef SDFAPI
+SDF_status_t
 mcd_fth_create_open_container( void * pai, SDF_context_t ctxt,
                                char * cname, SDF_container_props_t *props,
-                               SDF_CONTAINER * ctnr )
+                               SDF_cguid_t * cguid)  
 #else
+SDF_status_t
 mcd_fth_create_open_container( void * pai, SDF_context_t ctxt,
-                               char * cname, SDF_container_props_t props,
+                               char * cname, SDF_container_props_t *props,
                                SDF_CONTAINER * ctnr )
 #endif /* SDFAPI */
 {
     SDF_status_t        status = SDF_FAILURE;
-    SDF_cguid_t		cguid;
 
     mcd_log_msg( 20000, PLAT_LOG_LEVEL_DEBUG, "ENTERING" );
 
@@ -867,7 +890,7 @@ mcd_fth_create_open_container( void * pai, SDF_context_t ctxt,
     status = SDFCreateContainer( (SDF_internal_ctxt_t *)pai,
                                  cname,                         // cntr path
                                  props,
-				 &cguid);
+				 cguid);
 #else
     status = SDFCreateContainer( (SDF_internal_ctxt_t *)pai,
                                  cname,                         // cntr path
@@ -883,10 +906,9 @@ mcd_fth_create_open_container( void * pai, SDF_context_t ctxt,
     }
     else {
 #ifdef SDFAPI
-        status = SDFOpenContainerPath( (SDF_internal_ctxt_t *)pai,
-                                   cname,                       // cntr path
-                                   SDF_READ_WRITE_MODE,         // mode
-                                   ctnr );
+        status = SDFOpenContainer( (SDF_internal_ctxt_t *)pai,
+                                   *cguid,                      // cntr cguid
+                                   SDF_READ_WRITE_MODE);        // mode
 #else
         status = SDFOpenContainer( (SDF_internal_ctxt_t *)pai,
                                    cname,                       // cntr path
@@ -900,7 +922,7 @@ mcd_fth_create_open_container( void * pai, SDF_context_t ctxt,
 
             SDF_status_t del_rc;
 #ifdef SDFAPI
-            del_rc = SDFDeleteContainerPath( (SDF_internal_ctxt_t *)pai, cname );
+            del_rc = SDFDeleteContainer( (SDF_internal_ctxt_t *)pai, *cguid );
 #else
             del_rc = SDFDeleteContainer( (SDF_internal_ctxt_t *)pai, cname );
 #endif /* SDFAPI */
@@ -944,6 +966,9 @@ static int mcd_fth_do_try_container_internal( void * pai, int index,
     char                        cname[MCD_CNTR_NAME_MAXLEN];
     mcd_cntr_ips_t            * cntr_ips = cntr_props->cntr_ips;
     void *                      pfx_deleter = NULL;
+#ifdef SDFAPI
+    SDF_cguid_t                 cguid = SDF_NULL_CGUID;
+#endif /* SDFAPI */
 
     if ( flash_settings.ips_per_cntr ) {
         strncpy( cname, cntr_name, MCD_CNTR_NAME_MAXLEN );
@@ -982,15 +1007,19 @@ static int mcd_fth_do_try_container_internal( void * pai, int index,
         }
     }
     else {
+#ifdef SDFAPI
         status = mcd_fth_create_open_container( pai,
                                                 0,      // ctxt
                                                 cname,
-#ifdef SDFAPI
 						prop,
+						&cguid);
 #else
+        status = mcd_fth_create_open_container( pai,
+                                                0,      // ctxt
+                                                cname,
                                                 properties,
-#endif /* SDFAPI */
                                                 &container );
+#endif /* SDFAPI */
         if ( SDF_SUCCESS != status && SDF_CONTAINER_EXISTS != status ) {
             mcd_log_msg( 20119, PLAT_LOG_LEVEL_ERROR,
                          "failed to create and open container %s, status=%s",
@@ -1004,6 +1033,12 @@ static int mcd_fth_do_try_container_internal( void * pai, int index,
         rc = 1;
     }
     else {
+#ifdef SDFAPI
+	int map_index = get_ctnr_from_cname(cname);
+	if (map_index >= 0) {
+	    container = CtnrMap[map_index].sdf_container;
+	}
+#endif /* SDFAPI */
         local_SDF_CONTAINER lc = getLocalContainer(&lc, container);
         SDF_time_t time;
 
@@ -1069,7 +1104,11 @@ static int mcd_fth_do_try_container_internal( void * pai, int index,
         Mcd_containers[index].size_quota   = properties.container_id.size;
         Mcd_containers[index].obj_quota    = properties.container_id.num_objs;
 
+#ifdef SDFAPI
         Mcd_containers[index].cguid        = lc->cguid;
+#else
+        Mcd_containers[index].cguid        = cguid;
+#endif /* SDAPI */
         Mcd_containers[index].sdf_container = internal_serverToClientContainer( container );
 
         Mcd_containers[index].shard = (void *)container_to_shard( pai, lc );
@@ -1159,6 +1198,7 @@ static int mcd_fth_try_container( void * pai, int index, int system_recovery, in
     mcd_container_t           * mcd_cntr;
     mcd_container_t           * container = NULL;
     mcd_cntr_props_t            cntr_props;
+
 
     if ( 0 == tcp_port ) {
         return 0;
@@ -1288,6 +1328,29 @@ static int mcd_fth_try_container( void * pai, int index, int system_recovery, in
 // from mcd_rec.c
 extern int recovery_reclaim_space( void );
 
+static SDF_status_t update_container_map(char *cname, SDF_cguid_t cguid) {
+    int 	 i;
+    SDF_status_t status = SDF_FAILURE;
+
+    for (i=1; i<MCD_MAX_NUM_CNTRS; i++) {
+        if (CtnrMap[i].cguid == 0) {
+            // this is an unused map entry
+            CtnrMap[i].cname = plat_alloc(strlen(cname)+1);
+            if (CtnrMap[i].cname == NULL) {
+                status = SDF_FAILURE_MEMORY_ALLOC;
+		break;
+            }
+            strcpy(CtnrMap[i].cname, cname);
+            CtnrMap[i].cguid         = cguid;
+            CtnrMap[i].sdf_container = containerNull;
+            status = SDF_SUCCESS;
+            break;
+        }
+    }
+
+    return(status);
+}
+
 SDF_status_t mcd_fth_container_init( void * pai, int system_recovery, int tcp_ports[MCD_MAX_NUM_CNTRS], int udp_ports[MCD_MAX_NUM_CNTRS], char *ctnr_name )
 {
     int                         i;
@@ -1330,6 +1393,13 @@ SDF_status_t mcd_fth_container_init( void * pai, int system_recovery, int tcp_po
         mcd_osd_shard_get_properties( i + 1, &Mcd_fth_saved_props[i] );
         if ( 0 == flash_settings.static_containers &&
              SYS_FLASH_REFORMAT != system_recovery ) {
+	    if ( Mcd_fth_saved_props[i].tcp_port != 0 ) {
+		char *cname = Mcd_fth_saved_props[i].cname;
+                SDF_cguid_t cguid;
+		if (SDF_SUCCESS == name_service_get_cguid(pai, cname, &cguid)) {
+		    update_container_map(cname, cguid);
+		}
+	    }
             tcp_ports[i] = Mcd_fth_saved_props[i].tcp_port;
             udp_ports[i] = Mcd_fth_saved_props[i].udp_port;
         }

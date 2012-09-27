@@ -150,15 +150,9 @@ static struct sdf_agent_state agent_state;
 static sem_t Mcd_fsched_sem;
 static sem_t Mcd_initer_sem;
 
-typedef struct ctnr_map {
-    char           *cname;
-    SDF_cguid_t     cguid;
-    SDF_CONTAINER   sdf_container;
-} ctnr_map_t;
+ctnr_map_t CtnrMap[MCD_MAX_NUM_CNTRS];
 
-static ctnr_map_t CtnrMap[MCD_MAX_NUM_CNTRS];
-
-static int get_ctnr_from_cguid(SDF_cguid_t cguid)
+int get_ctnr_from_cguid(SDF_cguid_t cguid)
 {
     int i;
     int i_ctnr = -1;
@@ -172,6 +166,19 @@ static int get_ctnr_from_cguid(SDF_cguid_t cguid)
     return(i_ctnr);
 }
 
+int get_ctnr_from_cname(char *cname)
+{
+    int i;
+    int i_ctnr = -1;
+
+    for (i=0; i<MCD_MAX_NUM_CNTRS; i++) {
+	if ((NULL != CtnrMap[i].cname) && (0 == strcmp(CtnrMap[i].cname, cname))) {
+            i_ctnr = i;
+            break;
+        }
+    }
+    return(i_ctnr);
+}
 
 #define MCD_FTH_STACKSIZE       81920
 
@@ -181,14 +188,6 @@ static void mcd_fth_initer(uint64_t arg)
      *  Final SDF Initialization
      */
     struct sdf_agent_state    *state = (struct sdf_agent_state *) arg;
-    int                        i;
-
-    //  Initialize the container map
-    for (i=0; i<MCD_MAX_NUM_CNTRS; i++) {
-        CtnrMap[i].cname         = NULL;
-        CtnrMap[i].cguid         = 0;
-	CtnrMap[i].sdf_container = containerNull;
-    }
 
     if ( SDF_TRUE != agent_engine_post_init( state ) ) {
         mcd_log_msg( 20147, PLAT_LOG_LEVEL_FATAL,
@@ -695,7 +694,6 @@ SDF_status_t SDFOpenContainer(
 	SDF_container_mode_t 	 mode
 	) 
 {               
-                    
     SDF_status_t status = SDF_SUCCESS;
     local_SDF_CONTAINER lc = NULL;
     SDF_CONTAINER_PARENT parent;
@@ -710,13 +708,17 @@ SDF_status_t SDFOpenContainer(
 
     SDFStartSerializeContainerOp(pai);
 
-    i_ctnr = get_ctnr_from_cguid(cguid);
+    if (CMC_CGUID != cguid) {
+    	
+	i_ctnr = get_ctnr_from_cguid(cguid);
 
-    if (i_ctnr == -1) {
-	fprintf(stderr, "SDFOpenContainer: NULL mcd_container\n");
-        status = SDF_INVALID_PARAMETER;
+    	if (i_ctnr == -1) {
+        	status = SDF_INVALID_PARAMETER;
+    	} else {
+		path = CtnrMap[i_ctnr].cname;
+    	}
     } else {
-	path = CtnrMap[i_ctnr].cname;
+	path = CMC_PATH;
     }
              
     if (ISEMPTY(path)) { 
@@ -731,7 +733,6 @@ SDF_status_t SDFOpenContainer(
             // Need a different error?
             status = SDF_CONTAINER_UNKNOWN;
             plat_log_msg(21552, LOG_CAT,LOG_ERR, "Delete pending for %s", path);
-
         } 
         releaseLocalContainerParent(&lparent);
     }
@@ -740,6 +741,10 @@ SDF_status_t SDFOpenContainer(
 
         // Ok to open
         container = openParentContainer(pai, path);
+
+        if (isContainerNull(container)) {
+	    fprintf(stderr, "SDFOpenContainer: failed to open parent container for %s\n", path);
+	}
 
 	CtnrMap[i_ctnr].sdf_container = container;
 
@@ -1018,6 +1023,8 @@ SDF_status_t SDFCloseContainer(
         }
     }
 
+    CtnrMap[i_ctnr].sdf_container = containerNull;
+
     plat_log_msg(20819, LOG_CAT, log_level, "%s", SDF_Status_Strings[status]);
 
     SDFEndSerializeContainerOp(pai);
@@ -1172,6 +1179,7 @@ SDF_status_t SDFDeleteContainer(
 	    status = delete_container_internal(pai, path, SDF_TRUE /* serialize */);
 	}
     }
+
     plat_free(CtnrMap[i_ctnr].cname);
     CtnrMap[i_ctnr].cguid         = 0;
     CtnrMap[i_ctnr].sdf_container = containerNull;
@@ -1224,6 +1232,7 @@ SDF_status_t SDFStartContainer(
             /* Clean up additional action node state for the container.
              */
             status = SDFActionStartContainer(pai, &meta);
+
         } else {
             plat_log_msg(21539, LOG_CAT, LOG_ERR,
                          "name_service_put_meta failed for cguid %"PRIu64"", cguid);
@@ -1232,6 +1241,7 @@ SDF_status_t SDFStartContainer(
 
 
     SDFEndSerializeContainerOp(pai);
+
     return(status);
 }
 

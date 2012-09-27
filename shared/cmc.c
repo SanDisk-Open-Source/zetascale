@@ -32,7 +32,9 @@
 #ifdef SDFAPI
 #include <netinet/in.h>
 #include "ssd/fifo/mcd_osd_internal.h"
+#include "api/sdf_internal.h"
 extern mcd_container_t Mcd_containers[MCD_MAX_NUM_CNTRS];
+extern ctnr_map_t CtnrMap[MCD_MAX_NUM_CNTRS];
 #endif /* SDFAPI */
 
 extern SDF_cmc_t *theCMC; // Global CMC object
@@ -227,6 +229,16 @@ cmc_create(SDF_internal_ctxt_t *pai, const char *cmc_path) {
 
     SDF_cmc_t *cmc = NULL;
 
+#ifdef SDFAPI
+    //  Initialize the container map
+    int i;
+    for (i=0; i<MCD_MAX_NUM_CNTRS; i++) {
+        CtnrMap[i].cname         = NULL;
+        CtnrMap[i].cguid         = 0;
+        CtnrMap[i].sdf_container = containerNull;
+    }
+#endif /* SDFAPI */
+
     // Init the first TL meta map
     int buckets = getProperty_Int("SDF_CMC_BUCKETS", 100000);
     plat_log_msg(21492, PLAT_LOG_CAT_PRINT_ARGS, PLAT_LOG_LEVEL_DEBUG, 
@@ -258,7 +270,8 @@ cmc_destroy(SDF_internal_ctxt_t *pai, SDF_cmc_t *cmc) {
     if (cmc != NULL) {
         // plat_free(cmc->cmc_path);
 #ifdef SDFAPI
-        cmc_close_object_container_path(pai, cmc->c);
+	SDF_cguid_t cguid = CMC_CGUID;
+        cmc_close_object_container(pai, cguid);
 #else
         cmc_close_object_container(pai, cmc->c);
 #endif /* SDFAPI */
@@ -289,8 +302,10 @@ SDF_cmc_t *
 cmc_initialize(SDF_internal_ctxt_t *pai, const char *cmc_path) {
 
     SDF_status_t status = SDF_FAILURE;
+#ifndef SDFAPI
     SDF_CONTAINER c;
     SDFContainer container = 0;
+#endif /* SDFAPI */
     SDF_container_props_t p;
     int log_level = LOG_ERR;
 
@@ -333,11 +348,17 @@ cmc_initialize(SDF_internal_ctxt_t *pai, const char *cmc_path) {
 	#endif
 #ifdef SDFAPI
 	if ((status = cmc_create_object_container(pai, cmc_path, &p)) == SDF_SUCCESS) {
-	    c = cmc_open_object_container_path(pai, cmc_path, SDF_READ_WRITE_MODE, &container);
+            SDF_cguid_t cguid = CMC_CGUID;
+            status = cmc_open_object_container(pai, cguid, SDF_READ_WRITE_MODE);
+            if (SDF_SUCCESS == status) {
+                // Fill in the rest of the CMC (meta has been filled in create container)
+                memcpy(&theCMC->cmc_path, cmc_path, strlen(cmc_path));
+                theCMC->c = internal_serverToClientContainer(CtnrMap[0].sdf_container);
+                log_level = LOG_DBG;
+            }
 #else
 	if ((status = cmc_create_object_container(pai, cmc_path, p)) == SDF_SUCCESS) {
 	    c = cmc_open_object_container(pai, cmc_path, SDF_READ_WRITE_MODE, &container);
-#endif /* SDFAPI */
 	    if (isContainerNull(c)) {
 		status = SDF_FAILURE_CONTAINER_OPEN;
 	    } else {
@@ -346,6 +367,7 @@ cmc_initialize(SDF_internal_ctxt_t *pai, const char *cmc_path) {
 		theCMC->c = container;
 		log_level = LOG_DBG;
 	    }
+#endif /* SDFAPI */
         } else {
             plat_log_msg(21500, LOG_CAT, LOG_DBG, 
                          "\nNode : Failed status = %d...\n", status);
@@ -400,8 +422,10 @@ extern uint64_t generate_shard_ids(uint32_t node, SDF_cguid_t cguid, uint32_t co
 SDF_cmc_t *
 cmc_recover(SDF_internal_ctxt_t *pai, const char *cmc_path) {
     SDF_status_t status = SDF_FAILURE;
+#ifndef SDFAPI
     SDF_CONTAINER c;
     SDFContainer container = 0;
+#endif /* SDFAPI */
     SDF_container_props_t p;
     int log_level = LOG_ERR;
     SDF_container_meta_t *meta = NULL;
@@ -450,10 +474,16 @@ fprintf(stderr, "cmc_recover\n");
 	init_cmc(meta);
         theCMC->initialized = SDF_TRUE;
 #ifdef SDFAPI
-	c = cmc_open_object_container_path(pai, cmc_path, SDF_READ_WRITE_MODE, &container);
+        SDF_cguid_t cguid = CMC_CGUID;
+        status = cmc_open_object_container(pai, cguid, SDF_READ_WRITE_MODE);
+        if (SDF_SUCCESS == status) {
+            memcpy(&theCMC->cmc_path, cmc_path, strlen(cmc_path));
+            theCMC->c = internal_serverToClientContainer(CtnrMap[0].sdf_container);
+            log_level = LOG_DBG;
+            status = SDF_SUCCESS;
+        }
 #else
 	c = cmc_open_object_container(pai, cmc_path, SDF_READ_WRITE_MODE, &container);
-#endif /* SDFAPI */
 	if (isContainerNull(c)) {
 	    status = SDF_FAILURE_CONTAINER_OPEN;
 	} else {
@@ -462,6 +492,7 @@ fprintf(stderr, "cmc_recover\n");
 	    log_level = LOG_DBG;
 	    status = SDF_SUCCESS;
 	}
+#endif /* SDFAPI */
     }
 
     // Recovery hack - we must rebuild the CMC from metadata kept in shard...
@@ -1377,13 +1408,12 @@ cmc_delete_object_container(SDF_internal_ctxt_t *pai, const char *cname) {
 
 #ifdef SDFAPI
 SDF_status_t 
-cmc_open_object_container(SDF_thread_state_t 	*sdf_thread_state, 
+cmc_open_object_container(SDF_internal_ctxt_t 	*pai, 
 			  SDF_cguid_t	 	 cguid,
                           SDF_container_mode_t 	 mode
 			 ) {
     SDF_status_t 	 status			= SDF_FAILURE;
     int 		 log_level 		= LOG_ERR;
-    SDF_internal_ctxt_t	*pai 			= (SDF_internal_ctxt_t *) sdf_thread_state;
 
     plat_log_msg(21630, PLAT_LOG_CAT_SDF_CLIENT, LOG_DBG, "%lu", cguid);
 
@@ -1500,13 +1530,12 @@ cmc_inval_object_container(SDF_internal_ctxt_t *pai, const char *path) {
 #ifdef SDFAPI
 SDF_status_t
 cmc_close_object_container(
-	SDF_thread_state_t *sdf_thread_state,
+	SDF_internal_ctxt_t *pai,
 	SDF_cguid_t	    cguid
 	)
 {
     SDF_status_t 	 status 	= SDF_FAILURE;
     int 		 log_level 	= LOG_ERR;
-    SDF_internal_ctxt_t	*pai 		= (SDF_internal_ctxt_t *) sdf_thread_state;
 
     plat_log_msg(21517, PLAT_LOG_CAT_SDF_CLIENT, LOG_DBG, "entry");
 

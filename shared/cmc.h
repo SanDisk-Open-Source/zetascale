@@ -292,7 +292,7 @@ cmc_delete_object_container(SDF_internal_ctxt_t *pai, const char *path);
 #ifdef SDFAPI
 SDF_status_t 
 cmc_open_object_container(
-	SDF_thread_state_t  *sdf_thread_state,
+	SDF_internal_ctxt_t *pai,
 	SDF_cguid_t	     cguid,
 	SDF_container_mode_t mode
 	);

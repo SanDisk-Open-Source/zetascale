@@ -184,7 +184,7 @@ SDF_status_t
 name_service_create_cguid_map(SDF_internal_ctxt_t *pai, const char *cname, SDF_cguid_t cguid);
 
 /**
- * @brief Get the container name associated with a cguid.
+ * @brief Get the cguid associated with a container name.
  *
  * @param cname <IN> Container name.
  * @return SDF status.
