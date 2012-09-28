@@ -700,7 +700,7 @@ SDF_status_t SDFOpenContainer(
     local_SDF_CONTAINER_PARENT lparent = NULL;
     int log_level = LOG_ERR;
     char *path = NULL;
-    int  i_ctnr;
+    int  i_ctnr = -1;
     SDF_CONTAINER container = containerNull;
     SDF_internal_ctxt_t     *pai = (SDF_internal_ctxt_t *) sdf_thread_state;
                         
