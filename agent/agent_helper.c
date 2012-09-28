@@ -458,13 +458,13 @@ agent_config_set_properties(struct plat_opts_config_sdf_agent *config)
             getProperty_Int("SDF_REPLICATION_LEASE_SECS", 5);
     }
 
-    #ifdef SDFAPI
+    #ifdef SDFAPIREFORMAT
     if (1 == getProperty_Int("SDF_REFORMAT", 0)) {  	// Default to recover
         config->system_recovery = SYS_FLASH_REFORMAT;
     } else {
 	config->system_recovery = SYS_FLASH_RECOVERY;
     }
-    #endif // SDFAPI
+    #endif // SDFAPIREFORMAT
 
     plat_log_msg(20841, PLAT_LOG_CAT_PRINT_ARGS, PLAT_LOG_LEVEL_DEBUG, "PROP: SDF_CLUSTER_NUMBER_NODES=%u",
                  config->nnodes);
