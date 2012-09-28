@@ -718,6 +718,7 @@ SDF_status_t SDFOpenContainer(
 		path = CtnrMap[i_ctnr].cname;
     	}
     } else {
+	i_ctnr = 0;
 	path = CMC_PATH;
     }
              
