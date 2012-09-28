@@ -1,0 +1,5 @@
+add_subdirectory(action)
+add_subdirectory(home)
+add_subdirectory(replication)
+add_definitions(-fno-builtin)
+add_library(sdfprotocol init_protocol.c protocol_common.c protocol_utils.c)
