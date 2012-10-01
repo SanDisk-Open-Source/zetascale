@@ -1,4 +1,4 @@
-add_library(misc parse_int.c 
+add_library(misc OBJECT parse_int.c 
 	parse_reseed.c 
 	parse_string.c 
 	parse_string_alloc.c 

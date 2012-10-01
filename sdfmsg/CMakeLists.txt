@@ -1,4 +1,4 @@
-add_library(sdfmsgqueue sdf_fth_mbx.c 
+add_library(sdfmsg OBJECT sdf_fth_mbx.c 
         sdf_msg_new.c 
         sdf_msg_sync.c 
 	sdf_msg_shmem.c 

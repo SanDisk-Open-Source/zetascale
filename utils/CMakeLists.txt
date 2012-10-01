@@ -1,4 +1,4 @@
-add_library(utils linkedlist.c 
+add_library(utils OBJECT linkedlist.c 
 	hash.c 
 	hashmap.c 
 	properties.c 

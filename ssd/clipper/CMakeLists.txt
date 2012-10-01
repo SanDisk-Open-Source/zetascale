@@ -1,1 +1,1 @@
-add_library(clipper clipper_aio.c clipper.c)
+add_library(clipper OBJECT clipper_aio.c clipper.c)

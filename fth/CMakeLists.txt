@@ -1,5 +1,5 @@
 add_definitions(-fno-builtin-printf)
-add_library(fth fth.c 
+add_library(fth OBJECT fth.c 
 	fthLock.c 
 	fthMbox.c 
         fthSem.c 

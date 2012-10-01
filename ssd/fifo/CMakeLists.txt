@@ -1,4 +1,4 @@
-add_library(fifo 	fifo.c 
+add_library(fifo OBJECT fifo.c 
 	mcd_aio.c 
 	mcd_bak.c 
 	mcd_pfx.c 

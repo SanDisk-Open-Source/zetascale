@@ -1,4 +1,4 @@
-add_library(sdfmtp msg_int.c 
+add_library(sdftcp OBJECT msg_int.c 
 	msg_map.c 
 	msg_msg.c 
 	locks.c 

@@ -1,4 +1,4 @@
-add_library(platform aio_api.c 
+ADD_LIBRARY(platform OBJECT aio_api.c 
 	aio_libaio.c 
 	aio_error_bdb.c 
 	aio_error_control.c 
@@ -33,9 +33,9 @@ add_library(platform aio_api.c
 	string.c 
 	timer_dispatcher.c 
 	tmp_path.c
-  util_trace.c
-  assert.c 
-  epoll.c 
+  	util_trace.c
+  	assert.c 
+	epoll.c 
 	fcntl.c 
 	fd.c 
 	file.c 
@@ -52,5 +52,3 @@ add_library(platform aio_api.c
 	time.c
         )
 add_subdirectory(tool/hotkey)
-# add_executable(ffdc_reader ffdc_reader.c)
-# target_link_libraries(ffdc_reader pthread)
