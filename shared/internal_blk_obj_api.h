@@ -3,6 +3,8 @@
  *   General Function Declarations (Non-blocking)
  *   
  **************************************************************************/
+#ifndef INTERNAL_BLK_OBJ_API_H
+#define INTERNAL_BLK_OBJ_API_H
 
 extern int SDFSimpleReplicationEnabled();
 extern SDF_status_t SDFAutoDelete(SDF_internal_ctxt_t *pai);
@@ -4461,4 +4463,4 @@ extern SDF_status_t SDF_I_GetForWriteBufferedBlockWithExpiry(SDF_internal_ctxt_t
 extern SDF_status_t SDF_I_RemoveBlockWithExpiry(SDF_internal_ctxt_t *pai, SDF_cguid_t ctnr, uint64_t blknum, SDF_time_t curtime);
 
 
-
+#endif
