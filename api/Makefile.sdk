@@ -1,19 +1,19 @@
 # $Id: Makefile 9983 2009-11-02 18:25:23Z gxu $
 
 TOP = ..
-LIB_SRCS = $(TOP)/libsrc/sdf.c 
-
 PROG = sdftest
-
 SRCS = main.c 
-
+CFLAGS = -D_GNU_SOURCE -DMPI_BUILD -DFLASH_SIM_TYPE=5 \
+-DPLAT_LOG_COMPILE_LEVEL=DEVEL -DENABLE_MULTIPLE_FLASH_SUBSYSTEMS \
+-DBLD_VERSION=857 -DSDFAPI -DSDFAPIREFORMAT -DSIMPLE_REPLICATION \
+-DVIPGROUP_SUPPORT -DENABLE_MULTIPLE_FLASH_SUBSYSTEMS 
 LIBS = 	\
     $(TOP)/lib/libsdfshared.a \
     $(TOP)/lib/libsdf.a \
     $(TOP)/lib/libsdfagent.a \
-        $(TOP)/lib/libsdfaction.a \
+    $(TOP)/lib/libsdfaction.a \
     $(TOP)/lib/libsdfreplication.a \
-        $(TOP)/lib/libsdfhome.a \
+    $(TOP)/lib/libsdfhome.a \
     $(TOP)/lib/libsdfprotocol.a \
     $(TOP)/lib/libsdfssd.a \
     $(TOP)/lib/libclipper.a \
@@ -30,6 +30,5 @@ LIBS = 	\
         -lpthread -lrt -lnsl -lutil -lm -laio -levent	
 
 all:
-	$(CC) $(SRCS) -I$(TOP)/include  -o $(PROG) $(LIBS)
-	
+	$(CC) $(CFLAGS) $(SRCS) $(LIBS) -I$(TOP)/include -o $(PROG)	
 
