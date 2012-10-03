@@ -25,6 +25,14 @@ typedef struct SDF_state {
 
 } SDF_state_t;
 
+typedef struct SDF_iterator {
+    uint64_t          addr;
+    uint64_t          prev_seq;
+    uint64_t          curr_seq;
+    struct shard     *shard;
+    SDF_cguid_t       cguid;
+} SDF_iterator_t;
+
 #if 0
 typedef struct SDF_thread_state {
     SDF_state_t           *sdf_state;

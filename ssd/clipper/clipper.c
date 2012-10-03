@@ -447,6 +447,7 @@ struct shard *clipper_shardCreate(struct flashDev *dev, uint64_t shardID, int fl
     ps->next = dev->shardList;
     dev->shardList = ps;
 
+fprintf(stderr, "%x clipper_shardCreate shard=%p\n", pthread_self(), ps);
     ps->scheme.pclipper = pc;
 
     Unlock(dev->lock, w);

@@ -18,6 +18,14 @@ extern "C" {
 #include <stdio.h>
 #include <stdint.h>
 #include <inttypes.h>
+#include <stdint.h>
+
+//  use this to adjust include files to be usable for compiling applications
+// #define SDF_APP
+
+#ifdef SDF_APP
+#define SDFAPI
+#endif
 
 #include "common/sdftypes.h"
 #include "common/sdfstats.h"
@@ -99,6 +107,7 @@ SDFStatusToString(SDF_status_t status) {
 
 struct SDF_state;
 struct SDF_thread_state;
+struct SDF_iterator;
 
 #if 0
 typedef uint64_t SDF_cguid_t;
@@ -156,6 +165,8 @@ typedef enum {
 typedef enum {
     SDF_N_ACCESS_TYPES = 10
 } SDF_access_types_t;
+
+#ifndef SDF_APP
 
 struct _SDF_container_parent;
 PLAT_SP(_SDF_container_parent_sp, struct _SDF_container_parent);
@@ -240,6 +251,8 @@ __inline__ void releaseLocalCacheObject(local_SDF_CACHE_OBJ *lo, size_t size);
 __inline__ int isCacheObjectNull(SDF_CACHE_OBJ o);
 __inline__ int cacheObjectPtrEqual(SDF_CACHE_OBJ o1, SDF_CACHE_OBJ o2);
 #define cacheObjectNull SDFCacheObj_sp_null
+
+#endif // SDF_APP
 
 #define descrChangesNull DescrChangesPtr_sp_null
 
@@ -533,8 +546,8 @@ struct SDF_thread_state *SDFInitPerThreadState(
  * @return SDF_SUCCESS on success
  */
 SDF_status_t SDFCreateContainer(
-	SDF_thread_state_t	*sdf_thread_state, 
-	const char 		*cname, 
+	struct SDF_thread_state	*sdf_thread_state, 
+	char 		        *cname, 
 	SDF_container_props_t 	*properties, 
 	SDF_cguid_t		*cguid 
 	);
@@ -547,7 +560,7 @@ SDF_status_t SDFCreateContainer(
  * @return SDF_SUCCESS on success
  */
 SDF_status_t SDFOpenContainer(
-	SDF_thread_state_t 	*sdf_thread_state,
+	struct SDF_thread_state	*sdf_thread_state,
 	SDF_cguid_t		 cguid,
 	SDF_container_mode_t 	 mode
 	);
@@ -559,7 +572,7 @@ SDF_status_t SDFOpenContainer(
  * @return SDF_SUCCESS on success
  */
 SDF_status_t SDFCloseContainer(
-	SDF_thread_state_t 	*sdf_thread_state,
+	struct SDF_thread_state *sdf_thread_state,
 	SDF_cguid_t		 cguid
 	);
 
@@ -570,7 +583,7 @@ SDF_status_t SDFCloseContainer(
  * @return SDF_SUCCESS on success
  */
 SDF_status_t SDFDeleteContainer(
-	SDF_thread_state_t 	*sdf_thread_state,
+	struct SDF_thread_state *sdf_thread_state,
 	SDF_cguid_t		 cguid
 	);
 
@@ -581,7 +594,7 @@ SDF_status_t SDFDeleteContainer(
  * @return SDF_SUCCESS on success
  */
 SDF_status_t SDFStartContainer(
-	SDF_thread_state_t 	*sdf_thread_state, 
+	struct SDF_thread_state *sdf_thread_state, 
 	SDF_cguid_t 		 cguid
 	);
  
@@ -592,7 +605,7 @@ SDF_status_t SDFStartContainer(
  * @return SDF_SUCCESS on success
  */
 SDF_status_t SDFStopContainer(
-	SDF_thread_state_t 	*sdf_thread_state,
+	struct SDF_thread_state *sdf_thread_state,
 	SDF_cguid_t cguid
 	);
 
@@ -604,7 +617,7 @@ SDF_status_t SDFStopContainer(
  * @return SDF_SUCCESS on success
  */
 SDF_status_t SDFGetContainerProps(
-        SDF_thread_state_t      *sdf_thread_state,
+        struct SDF_thread_state *sdf_thread_state,
         SDF_cguid_t              cguid,
         SDF_container_props_t   *pprops
         );
@@ -617,7 +630,7 @@ SDF_status_t SDFGetContainerProps(
  * @return SDF_SUCCESS on success
  */
 SDF_status_t SDFSetContainerProps(
-        SDF_thread_state_t      *sdf_thread_state,
+        struct SDF_thread_state *sdf_thread_state,
         SDF_cguid_t              cguid,
         SDF_container_props_t   *pprops
         );
@@ -630,7 +643,7 @@ SDF_status_t SDFSetContainerProps(
  * @return SDF_SUCCESS on success
  */
 SDF_status_t SDFGetContainers(
-	SDF_thread_state_t	*sdf_thread_state,
+	struct SDF_thread_state	*sdf_thread_state,
 	SDF_cguid_t             *cguids,
 	uint32_t                *n_cguids
 	);
@@ -837,7 +850,7 @@ SDF_status_t SDFFlushObject(
  * @return cguid on SUCCESS
  */
 SDF_cguid_t SDFGenerateCguid(
-        SDF_thread_state_t *sdf_thread_state,
+        struct SDF_thread_state *sdf_thread_state,
         int64_t             cntr_id64
         );
 
@@ -860,7 +873,8 @@ SDF_status_t SDFFlushCache(
  */
 SDF_status_t SDFEnumerateContainerObjects(
 	struct SDF_thread_state *sdf_thread_state,
-	SDF_cguid_t              cguid
+	SDF_cguid_t              cguid,
+	struct SDF_iterator    **iterator
 	);
 
 /**
@@ -875,7 +889,7 @@ SDF_status_t SDFEnumerateContainerObjects(
  */
 SDF_status_t SDFNextEnumeratedObject(
 	struct SDF_thread_state *sdf_thread_state,
-	SDF_cguid_t              cguid,
+	struct SDF_iterator     *iterator,
 	char                    **key,
 	uint32_t                *keylen,
 	char                    **data,
@@ -884,7 +898,7 @@ SDF_status_t SDFNextEnumeratedObject(
 
 SDF_status_t SDFFinishEnumeration(
                    struct SDF_thread_state *sdf_thread_state,
-		   SDF_cguid_t              cguid
+		   struct SDF_iterator     *iterator
 	       );
 
 /**
@@ -908,7 +922,7 @@ SDF_status_t SDFGetStats(
 SDF_status_t SDFGetContainerStats(
 	struct SDF_thread_state   *sdf_thread_state,
 	SDF_cguid_t                cguid,
-	SDF_container_stats_t      stats
+	SDF_container_stats_t     *stats
 	);
 
 /**
@@ -948,26 +962,29 @@ SDF_status_t SDFFreeBuffer(
 	char                     *data
 	);
 
+#ifndef SDF_APP
 /*
 ** Temporary for internal compatibility
 */
 SDF_status_t
 SDFOpenContainerPath(
-	SDF_thread_state_t 	*sdf_thread_state,
+	struct SDF_thread_state 	*sdf_thread_state,
 	const char *path, 
 	SDF_container_mode_t mode, 
 	SDF_CONTAINER *container
 	);
 
 SDF_status_t SDFCloseContainerPath(
-	SDF_thread_state_t 	*sdf_thread_state,
+	struct SDF_thread_state 	*sdf_thread_state,
 	SDF_CONTAINER 		 container
 	);
 
 SDF_status_t SDFDeleteContainerPath(
-	SDF_thread_state_t 	*sdf_thread_state,
+	struct SDF_thread_state 	*sdf_thread_state,
 	const char 		*path
 	);
+#endif // SDF_APP
+
 #endif /* SDFAPI */
 
 #ifdef __cplusplus

@@ -139,6 +139,7 @@ struct shard *default_shardFind(struct flashDev *dev, uint64_t shardID)
     while ((shard != NULL) && (shard->shardID != shardID)) {
         shard = shard->next;
     }
+
     return (shard);
 }
 

@@ -9,7 +9,7 @@
  * codebase. This file also contains the API to enable, disable, and
  * initialize FFDC.
  * 
- * Generated On: 2012-09-27 14:45:59
+ * Generated On: 2012-10-03 13:43:31
  *------------------------------------------------------------------------*/
 
 #define PLATFORM_INTERNAL 1
@@ -35247,6 +35247,44 @@ ffdc_log_func_30658(int lineno, int msgid, int catid, int level, const char* fmt
 }
 
 /*---------------------------------------------------------------------------
+ * MsgID : 30660
+ * Msg   : "failed to initialize the aio context (rc=%d '%s')"
+ *-------------------------------------------------------------------------*/
+__inline__ void
+ffdc_log_func_30660(int lineno, int msgid, int catid, int level, const char* fmt,
+    int arg1, const char* arg2)
+{
+    FFDC_START(30660, catid, level, lineno);
+    FFDC_ADD_NUM(arg1);
+    FFDC_ADD_STR(arg2);
+    FFDC_END();
+}
+
+/*---------------------------------------------------------------------------
+ * MsgID : 30664
+ * Msg   : "container backup sync failed for enum, status=%s"
+ *-------------------------------------------------------------------------*/
+__inline__ void
+ffdc_log_func_30664(int lineno, int msgid, int catid, int level, const char* fmt,
+    const char* arg1)
+{
+    FFDC_START(30664, catid, level, lineno);
+    FFDC_ADD_STR(arg1);
+    FFDC_END();
+}
+
+/*---------------------------------------------------------------------------
+ * MsgID : 30665
+ * Msg   : "process_raw_get_command_enum() failed"
+ *-------------------------------------------------------------------------*/
+__inline__ void
+ffdc_log_func_30665(int lineno, int msgid, int catid, int level, const char* fmt)
+{
+    FFDC_START(30665, catid, level, lineno);
+    FFDC_END();
+}
+
+/*---------------------------------------------------------------------------
  * MsgID : 40000
  * Msg   : "container (%d) skipped expired objects=%lu, blocks=%lu"
  *-------------------------------------------------------------------------*/
@@ -40900,6 +40938,19 @@ __inline__ void
 ffdc_log_func_150025(int lineno, int msgid, int catid, int level, const char* fmt)
 {
     FFDC_START(150025, catid, level, lineno);
+    FFDC_END();
+}
+
+/*---------------------------------------------------------------------------
+ * MsgID : 150026
+ * Msg   : "Failed to find shard for %s"
+ *-------------------------------------------------------------------------*/
+__inline__ void
+ffdc_log_func_150026(int lineno, int msgid, int catid, int level, const char* fmt,
+    const char* arg1)
+{
+    FFDC_START(150026, catid, level, lineno);
+    FFDC_ADD_STR(arg1);
     FFDC_END();
 }
 

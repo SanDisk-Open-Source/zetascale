@@ -5591,7 +5591,6 @@ int mcd_osd_init( void )
     fthLockInit( &Mcd_aio_ctxt_lock );
 
     fthMboxInit( &Mcd_fth_admin_mbox );
-
     return mcd_osd_slab_init();
 }
 
@@ -6826,7 +6825,7 @@ SDF_status_t mcd_fth_container_start( void * context,
     mcd_log_msg( 20178, PLAT_LOG_LEVEL_INFO,
                  "ENTERING, port=%d", mcd_osd_container_tcp_port(container) );
 
-    status = SDFStartContainer(pai, mcd_osd_container_cguid(container));
+    status = SDFStartContainer((struct SDF_thread_state *) pai, mcd_osd_container_cguid(container));
     if ( SDF_SUCCESS != status ) {
         mcd_log_msg( 20179, PLAT_LOG_LEVEL_ERROR,
                      "SDFStartContainer() failed, status=%s",
@@ -6846,7 +6845,7 @@ SDF_status_t mcd_fth_container_stop( void * context,
     mcd_log_msg( 20178, PLAT_LOG_LEVEL_INFO,
                  "ENTERING, port=%d", mcd_osd_container_tcp_port(container));
 
-    status = SDFStopContainer(pai, mcd_osd_container_cguid(container));
+    status = SDFStopContainer((struct SDF_thread_state *) pai, mcd_osd_container_cguid(container));
     if ( SDF_SUCCESS != status ) {
         mcd_log_msg( 20180, PLAT_LOG_LEVEL_ERROR,
                      "SDFStopContainer() failed, status=%s",
@@ -7739,7 +7738,7 @@ repeat:
             }
 
             // honor the flush_all time -- backup option?
-            if ( meta->create_time <= flush_time &&
+            if ( meta->create_time < flush_time &&
                  expTime >= flush_time ) {
                 map_offset = tmp_offset + 1;
                 mcd_bak_msg( 40003, PLAT_LOG_LEVEL_TRACE,
@@ -7776,7 +7775,6 @@ repeat:
     if ( next_addr < shard->blk_allocated && !multiKey ) {
         goto repeat;
     }
-
     return SDF_OBJECT_UNKNOWN;
 }
 
@@ -8469,5 +8467,122 @@ int mcd_fth_free_aio_ctxt( osd_state_t * osd_state, int category )
     mcd_osd_free_state(osd_state);
 
     return 0;   /* SUCCESS */
+}
+
+/********************************************************
+ *
+ *  IMPORTANT NOTE: the definition of object_data_t MUST
+ *  be identical to that in the memcached/command.h file!!!!
+ *
+ ********************************************************/
+
+#ifdef SDFAPI
+typedef struct {
+    uint8_t         version;        /* nonvolatile version number */
+    uint8_t         internal_flags; /* internal flags */
+    uint16_t        reserved;       /* alignment */
+    uint32_t        client_flags;   /* opaque flags from client */
+    uint64_t        cas_id;         /* the CAS identifier */
+} object_data_t;
+#endif
+
+  /*
+   *   Enumerate the next object for this container.
+   *   Very similar to process_raw_get_command().
+   */
+SDF_status_t process_raw_get_command_enum( 
+                                           mcd_osd_shard_t  *shard,
+					   osd_state_t      *osd_state,
+					   uint64_t          addr, 
+					   uint64_t          prev_seq,
+					   uint64_t          curr_seq, 
+					   int               num_sessions, 
+					   int               session_id,
+					   int               max_objs,
+					   char            **key_out,
+					   uint32_t         *keylen_out,
+					   char            **data_out,
+					   uint64_t         *datalen_out,
+					   uint64_t         *addr_out
+				       )
+{
+
+    SDF_status_t                status;
+    uint64_t                    next_addr = addr;
+    uint64_t                    curr_addr;
+    uint64_t                    real_len = 0;
+    char                       *raw_data = NULL;
+    mcd_osd_meta_t             *meta;
+    object_data_t              *obj_data;
+    char                       *key     = NULL;
+    uint32_t                    keylen  = 0;
+    char                       *data    = NULL;
+    uint64_t                    datalen = 0;
+
+    while ( session_id !=
+            ( ( next_addr / Mcd_osd_segment_blks ) % num_sessions ) ) {
+        next_addr = next_addr - ( next_addr % Mcd_osd_segment_blks )
+            + Mcd_osd_segment_blks;
+    }
+
+    for ( int r = 0; r < max_objs; r++ ) {
+
+        if ( r > 0 ) {
+	    // xxxzzz TODO: support multikey enum gets!
+	    mcd_log_msg( 30665, PLAT_LOG_LEVEL_FATAL,
+			 "process_raw_get_command_enum() failed" );
+	    plat_assert_always( 0 == 1 );
+        }
+
+        status = mcd_osd_raw_get( osd_state,
+				  shard,
+				  0, // expTime
+				  0, // flushTime
+				  0, // multiKey
+	                          (void **)&raw_data, &real_len,
+                                  next_addr, &curr_addr, prev_seq, curr_seq,
+                                  num_sessions );
+
+        if ( SDF_SUCCESS == status ) {
+
+            // get metadata pointers
+            meta     = (mcd_osd_meta_t *) raw_data;
+            obj_data = (object_data_t *)
+                (raw_data + sizeof(mcd_osd_meta_t) + meta->key_len);
+
+	    keylen = meta->key_len;
+	    key = (char *) plat_alloc(keylen);
+	    if (key == NULL) {
+	        status = SDF_FAILURE_MEMORY_ALLOC;
+		break;
+	    }
+            memcpy( key, raw_data + sizeof(mcd_osd_meta_t), meta->key_len );
+	    datalen = real_len - sizeof(mcd_osd_meta_t) - meta->key_len; // - sizeof(object_data_t);
+	    data = (char *) plat_alloc(datalen);
+	    if (data == NULL) {
+	        plat_free(key);
+	        status = SDF_FAILURE_MEMORY_ALLOC;
+		break;
+	    }
+            memcpy( data, raw_data + sizeof(mcd_osd_meta_t) + meta->key_len /* + sizeof(object_data_t)*/, datalen);
+
+            continue;
+        }
+        else if ( SDF_OBJECT_DELETED == status ) {
+	    // purposefully empty
+        }
+        else if ( SDF_OBJECT_UNKNOWN != status ) {
+	    // purposefully empty
+        }
+
+        break;  // SDF_OBJECT_UNKNOWN == status
+    }
+
+    *keylen_out  = keylen;
+    *key_out     = key;
+    *datalen_out = datalen;
+    *data_out    = data;
+    *addr_out    = curr_addr + 1;
+    return(status);
 }
 

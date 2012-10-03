@@ -1728,6 +1728,8 @@ recovery_init( void )
             (Mcd_rec_log_segment_size / MEGABYTE);   // divided by segment MB
         seg_buf_size = ( (seg_count * Mcd_rec_log_segment_size) +
                          Mcd_osd_blk_size );
+	fprintf(stderr, "\n\nrecovery_init-A: Mcd_aio_total_size = %lu, Mcd_rec_log_segment_size = %lu, seg_count = %d, seg_buf_size = %d\n\n",
+		 Mcd_aio_total_size, Mcd_rec_log_segment_size, seg_count, seg_buf_size);
 
         data_buf = plat_alloc_large( seg_buf_size );
         if ( data_buf == NULL ) {
@@ -1767,6 +1769,11 @@ recovery_init( void )
         seg_count    = Mcd_rec_update_bufsize / Mcd_rec_update_segment_size;
         seg_buf_size = ( (seg_count * Mcd_rec_update_segment_size) +
                          Mcd_osd_blk_size );
+	fprintf(stderr, "\n\nrecovery_init-B: Mcd_aio_total_size = %lu, Mcd_rec_log_segment_size = %lu, Mcd_osd_blk_size = %lu, seg_count = %d, seg_buf_size = %d\n\n", \
+		 		      Mcd_aio_total_size, \
+				      Mcd_rec_log_segment_size, \
+				      Mcd_osd_blk_size, \
+			              seg_count, seg_buf_size);
 
         data_buf = plat_alloc_large( seg_buf_size );
         if ( data_buf == NULL ) {
@@ -2430,7 +2437,7 @@ show_buf(unsigned char *buf, char *msg)
 }
 #endif
 
-
+#ifdef FLOG
 /*
  * Allocate the fbio buffers.
  */
@@ -2642,7 +2649,7 @@ flog_init(mcd_osd_shard_t *shard, void *context)
     flog_recover(shard, context);
     flog_prepare(shard);
 }
-
+#endif /* FLOG */
 
 void
 shard_recovery_stats( mcd_osd_shard_t * shard, char ** ppos, int * lenp )
@@ -2699,7 +2706,9 @@ shard_recover( mcd_osd_shard_t * shard )
                  pshard->rec_log_blks * MCD_REC_LOG_BLK_RECS );
 
     // initialize log flushing
+#ifdef FLOG
     flog_init(shard, context);
+#endif /* FLOG */
 
     // get aligned buffer
     buf = (char *)( ( (uint64_t)context->osd_buf + Mcd_osd_blk_size - 1 ) &
@@ -6443,7 +6452,6 @@ log_write_internal( mcd_osd_shard_t * shard, mcd_logrec_object_t * data )
         mcd_rlg_msg( 20544, MCD_REC_LOG_LVL_DEBUG,
                      "<<<< sync: shardID=%lu, logbuf=%d, blks=%u",
                      shard->id, logbuf->id, logbuf->sync_blks );
-
         fthSemUp( logbuf->write_sem, 1 );
         fthSemDown( &sync_sem, 1 );
 
@@ -6795,7 +6803,6 @@ log_writer_thread( uint64_t arg )
         // get pointer to next logbuf
         logbuf = &log->logbufs[ (log->write_buffer_seqno /
                                  MCD_REC_LOGBUF_SLOTS) % MCD_REC_NUM_LOGBUFS ];
-
         /* #flush_fill exclusive lock on synced buffer will be released here */
         if ( sync_sem ) {
             // signal thread waiting for sync to complete

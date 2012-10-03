@@ -1952,8 +1952,8 @@ build_shard(struct SDF_shared_state *state, SDF_internal_ctxt_t *pai,
      * Calculate the per shard quota (container size in KB / shard count)
      */
     shard_meta.quota = props.container_id.size * 1024 / shard_count;	
-    
     shard_meta.replication_props = props.replication;
+
 #ifdef STATE_MACHINE_SUPPORT
     shard_meta.first_node = msg_sdf_myrank();
     shard_meta.inter_node_vip_group_group_id = SDFGetClusterGroupGroupId(pai,cguid);

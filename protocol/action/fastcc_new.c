@@ -1178,22 +1178,17 @@ SDF_status_t SDFNewCacheFlushCache(SDFNewCache_t *pc,
     uint32_t             nflushed;
     SDFNewCacheEntry_t  *pce = NULL;
     SDFNewCacheSlab_t   *ps;
-    char                *slab_flags;
     SDF_boolean_t        dirty_found;
     SDF_boolean_t        objects_found;
+    char                 slab_flags[100000];
 
     /*  Only do one bucket per slab at a time.
      *  Processing all of a slab's buckets at once
      *  would lock it out for a long time.
      */
 
-    slab_flags = (char *) plat_alloc(pc->nslabs);
-    #ifdef MALLOC_TRACE
-        UTMallocTrace("slab_flags", SDF_FALSE, SDF_FALSE, SDF_FALSE, (void *) slab_flags, pc->nslabs);
-    #endif // MALLOC_TRACE
-    if (slab_flags) {
-	memset((void *) slab_flags, 0, pc->nslabs);
-    }
+    plat_assert(pc->nslabs <= 100000);
+    memset((void *) slab_flags, 0, pc->nslabs);
     nb            = 0;
     dirty_found   = SDF_FALSE;
     objects_found = SDF_FALSE;
@@ -1232,9 +1227,7 @@ SDF_status_t SDFNewCacheFlushCache(SDFNewCache_t *pc,
 		 *  Set the slab flag so we skip this slab
 		 *  from now on.
 		 */
-		if (slab_flags) {
-		    slab_flags[nslab] = 1;
-		}
+		slab_flags[nslab] = 1;
 	    } else {
 	        /*  Invalidations are fast, so do the whole slab here.
 		 */
@@ -1267,9 +1260,7 @@ SDF_status_t SDFNewCacheFlushCache(SDFNewCache_t *pc,
 		 *  Set the slab flag so we skip this slab
 		 *  from now on.
 		 */
-		if (slab_flags) {
-		    slab_flags[nslab] = 1;
-		}
+		slab_flags[nslab] = 1;
 	    }
 	}
 	SDFNewUnlockBucket(pc, &(pc->buckets[i_lock]));
@@ -1282,12 +1273,6 @@ SDF_status_t SDFNewCacheFlushCache(SDFNewCache_t *pc,
 	     *  were found.
 	     */
 	    flush_progress_fn(pc, flush_arg, 100);
-	    if (slab_flags) {
-                #ifdef MALLOC_TRACE
-                    UTMallocTrace("slab_flags", SDF_FALSE, SDF_TRUE, SDF_FALSE, (void *) slab_flags, 0);
-                #endif // MALLOC_TRACE
-		plat_free(slab_flags);
-	    }
 	    *pdirty_found = dirty_found;
 	    return(SDF_SUCCESS);
 	}
@@ -1295,12 +1280,6 @@ SDF_status_t SDFNewCacheFlushCache(SDFNewCache_t *pc,
 	if (!dirty_found) {
 	    /*  There is nothing to flush! */
 	    flush_progress_fn(pc, flush_arg, 100);
-	    if (slab_flags) {
-                #ifdef MALLOC_TRACE
-                    UTMallocTrace("slab_flags", SDF_FALSE, SDF_TRUE, SDF_FALSE, (void *) slab_flags, 0);
-                #endif // MALLOC_TRACE
-		plat_free(slab_flags);
-	    }
 	    *pdirty_found = dirty_found;
 	    return(SDF_SUCCESS);
 	}
@@ -1312,7 +1291,7 @@ SDF_status_t SDFNewCacheFlushCache(SDFNewCache_t *pc,
     for (j=0; j<pc->buckets_per_slab; j++) {
 	for (nslab=0; nslab<pc->nslabs; nslab++) {
 
-	    if (slab_flags && slab_flags[nslab]) {
+	    if (slab_flags[nslab]) {
 		/*  There are no modified objects in this slab.
 		 */
 		continue;
@@ -1346,9 +1325,7 @@ SDF_status_t SDFNewCacheFlushCache(SDFNewCache_t *pc,
 		     *  Set the a slab flag so we skip this slab
 		     *  from now on.
 		     */
-		    if (slab_flags) {
-			slab_flags[nslab] = 1;
-		    }
+		    slab_flags[nslab] = 1;
 		    CacheUnlock(ps->lock, ps->lock_wait);
 
 		    /* free the token */
@@ -1365,9 +1342,7 @@ SDF_status_t SDFNewCacheFlushCache(SDFNewCache_t *pc,
 		     *  Set the a slab flag so we skip this slab
 		     *  from now on.
 		     */
-		    if (slab_flags) {
-			slab_flags[nslab] = 1;
-		    }
+		    slab_flags[nslab] = 1;
 		    CacheUnlock(ps->lock, ps->lock_wait);
 
 		    /* free the token */
@@ -1440,13 +1415,6 @@ SDF_status_t SDFNewCacheFlushCache(SDFNewCache_t *pc,
 	}
     }
     flush_progress_fn(pc, flush_arg, 100);
-
-    if (slab_flags) {
-	#ifdef MALLOC_TRACE
-	    UTMallocTrace("slab_flags", SDF_FALSE, SDF_TRUE, SDF_FALSE, (void *) slab_flags, 0);
-	#endif // MALLOC_TRACE
-        plat_free(slab_flags);
-    }
 
     *pdirty_found = dirty_found;
     return(SDF_SUCCESS);

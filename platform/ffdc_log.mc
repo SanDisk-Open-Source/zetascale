@@ -2594,6 +2594,9 @@
 30656 failed to enable core dump for user %s
 30657 Setrlimit failed! Error: %s\n
 30658 fth using up to %d cores
+30660 failed to initialize the aio context (rc=%d '%s')
+30664 container backup sync failed for enum, status=%s
+30665 process_raw_get_command_enum() failed
 
 
 # hiney
@@ -3022,6 +3025,7 @@
 150023 SDFCreateContainer failed for container %s because 128 containers have already been created.
 150024 NULL - %s
 150025 pread failed!
+150026 Failed to find shard for %s
 
 
 # root

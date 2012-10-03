@@ -30,7 +30,8 @@ LIBS = \
 	$(TOP)/sdf/misc/libmisc.a \
 	$(TOP)/sdf/fth/libfth.a \
 	$(TOP)/sdf/platform/libplatform.a \
-        -lpthread -lrt -lnsl -lutil -lm -laio -levent
+	$(TOP)/../3rd-party/libevent-1.4.3-et/lib/libevent.a \
+        -lpthread -lrt -lnsl -lutil -lm -laio -lsasl2
 
 
 include $(TOP)/Makefile.inc

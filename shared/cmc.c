@@ -186,7 +186,7 @@ TL_HashMap_get(HashMap globalMap, const char *key) {
 // Internal interfaces forward declarations
 SDF_status_t
 #ifdef SDFAPI
-cmc_close_object_container(SDF_thread_state_t *sdf_thread_state, SDF_cguid_t cguid);
+cmc_close_object_container(SDF_internal_ctxt_t *pai, SDF_cguid_t cguid);
 #else
 cmc_close_object_container(SDF_internal_ctxt_t *pai, SDFContainer container);
 #endif
@@ -1341,17 +1341,11 @@ cmc_remove_cguid_map(SDF_internal_ctxt_t *pai, SDF_cmc_t *cmc, const char *cname
 // Internal interfaces
 
 SDF_status_t
-#ifdef SDFAPI
 cmc_create_object_container(SDF_internal_ctxt_t *pai, const char *cname, 
 			    SDF_container_props_t *properties) {
-#else
-cmc_create_object_container(SDF_internal_ctxt_t *pai, const char *cname, 
-			    SDF_container_props_t *properties) {
-#endif /* SDFAPI */
 
     SDF_status_t status = SDF_FAILURE;
     int log_level = LOG_ERR;
-
 #ifdef SDFAPI
     SDF_cguid_t cguid;
 #endif /* SDFAPI */
@@ -1363,11 +1357,10 @@ cmc_create_object_container(SDF_internal_ctxt_t *pai, const char *cname,
 	plat_log_msg(30543, LOG_CAT, log_level, "NULL container name - %s", 
 		     SDF_Status_Strings[status]);		 
     } else {
-#ifdef SDFAPI
         properties->container_type.type = SDF_OBJECT_CONTAINER;
-        if ((status = SDFCreateContainer(pai, cname, properties, &cguid)) == SDF_SUCCESS) {
+#ifdef SDFAPI
+        if ((status = SDFCreateContainer(pai, (char *) cname, properties, &cguid)) == SDF_SUCCESS) {
 #else
-        properties.container_type.type = SDF_OBJECT_CONTAINER;
         if ((status = SDFCreateContainer(pai, cname, properties, 0)) == SDF_SUCCESS) {
 #endif /* SDFAPI */
 	    log_level = LOG_DBG;

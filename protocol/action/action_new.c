@@ -6318,7 +6318,7 @@ static void heap_stress_test(SDF_trans_state_t *ptrans)
 
     (void) SDFSetAutoflush(ptrans->pai, 0, 1000);
 
-    plat_assert(SDFGetContainerProps(ptrans->pai, ptrans->par->ctnr, &props) == SDF_SUCCESS);
+    plat_assert(SDFGetContainerProps((struct SDF_thread_state *) ptrans->pai, ptrans->par->ctnr, &props) == SDF_SUCCESS);
 
     for (niters = 1; niters <= 100000; niters++) {
 

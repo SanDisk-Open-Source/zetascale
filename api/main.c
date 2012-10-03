@@ -5,6 +5,7 @@
 
 static struct SDF_state *sdf_state;
 static struct SDF_thread_state *_sdf_thrd_state;
+static struct SDF_iterator *_sdf_iterator;
 
 SDF_status_t sdf_create_container (
 		   char                    *cname,
@@ -26,7 +27,7 @@ SDF_status_t sdf_create_container (
 
     props.container_id.num_objs = 1000000; // is this enforced? xxxzzz
     // props.container_id.container_id = xxxzzz; // only used for replication?
-     props.container_id.size = 1024; // unused?
+    props.container_id.size = 1024*1024 ; // unused?
     // props.container_id.owner = xxxzzz; // ????
 
     props.replication.num_replicas = 1;
@@ -63,47 +64,6 @@ SDF_status_t sdf_create_container (
 
     return(ret);
 }
-
-SDF_status_t sdf_open_container(
-        SDF_cguid_t cguid
-        )
-{
-    SDF_status_t ret;
-
-    ret = SDFOpenContainer (
-                       _sdf_thrd_state,
-                       cguid,
-                       SDF_READ_WRITE_MODE
-                   );
-
-    return(ret);
-}
-
-SDF_status_t sdf_close_container(
-        SDF_cguid_t              cguid
-        )
-{
-    SDF_status_t ret;
-
-    ret = SDFCloseContainer (
-                       _sdf_thrd_state,
-                       cguid
-                   );
-
-    return(ret);
-}
-
-SDF_status_t sdf_delete_container(
-        SDF_cguid_t              cguid
-        )
-{
-
-	return (SDFDeleteContainer(
-			           _sdf_thrd_state, 
-        			   cguid
-        			  ));
-}
-
 
 SDF_status_t sdf_get (
 	       SDF_cguid_t               cguid,
@@ -153,7 +113,8 @@ SDF_status_t sdf_enumerate (
 
     ret = SDFEnumerateContainerObjects (
 			_sdf_thrd_state, 
-			cguid
+			cguid,
+			&_sdf_iterator 
 		);
     return(ret);
 }
@@ -170,7 +131,7 @@ SDF_status_t sdf_next_enumeration (
 
     ret = SDFNextEnumeratedObject (
 			_sdf_thrd_state, 
-			cguid,
+			_sdf_iterator,
 			key,
 			keylen,
 			data,
@@ -187,7 +148,7 @@ SDF_status_t sdf_finish_enumeration (
 
     ret = SDFFinishEnumeration(
 			_sdf_thrd_state, 
-			cguid
+			_sdf_iterator
 		);
     return(ret);
 }
@@ -279,31 +240,56 @@ SDF_status_t sdf_delete (
     return(ret);
 }
 
-int main(int argc, char *argv[])
+int main()
 {
     SDF_cguid_t  cguid;
     char        *data;
     uint64_t     datalen;
-    char 	*cname = argv[1];
+    char        *key;
+    uint32_t     keylen;
 
     if (SDFInit(&sdf_state, 0, NULL) != SDF_SUCCESS) {
 	fprintf(stderr, "SDF initialization failed!\n");
 	plat_assert(0);
     }
-    fprintf(stderr, "<<<sdftest: SDF was initialized successfully!\n");
+    fprintf(stderr, "SDF was initialized successfully!\n");
 
     _sdf_thrd_state    = SDFInitPerThreadState(sdf_state);
 
-    plat_assert(sdf_create_container(cname, &cguid) == SDF_SUCCESS);
+    // sleep(100);
+    fprintf(stderr, "sdf_before_create_container\n");
 
+    plat_assert(sdf_create_container("foobar1", &cguid) == SDF_SUCCESS);
+
+    fprintf(stderr, "sdf_before_set %d\n", cguid);
     plat_assert(sdf_create(cguid, "key1", 5, "key1_data", 10) == SDF_SUCCESS);
+    plat_assert(sdf_create(cguid, "key2", 5, "key2_data", 10) == SDF_SUCCESS);
+    plat_assert(sdf_create(cguid, "key3", 5, "key3_data", 10) == SDF_SUCCESS);
+    plat_assert(sdf_create(cguid, "key4", 5, "key4_data", 10) == SDF_SUCCESS);
+    plat_assert(sdf_create(cguid, "key5", 5, "key5_data", 10) == SDF_SUCCESS);
+
+    plat_assert(sdf_create(cguid, "keyr6", 5, "key1_data", 10) == SDF_SUCCESS);
+    plat_assert(sdf_create(cguid, "key7", 5, "key2_data", 10) == SDF_SUCCESS);
+    plat_assert(sdf_create(cguid, "key8", 5, "key3_data", 10) == SDF_SUCCESS);
+    plat_assert(sdf_create(cguid, "key9", 5, "key4_data", 10) == SDF_SUCCESS);
+    plat_assert(sdf_create(cguid, "key10", 5, "key5_data", 10) == SDF_SUCCESS);
+
+
+//    plat_assert(sdf_create_container("foobar2", &cguid) == SDF_SUCCESS);
+
     plat_assert(sdf_get(cguid, "key1", 5, &data, &datalen) == SDF_SUCCESS);
+    fprintf(stderr, "sdf_get: data=%s, datalen=%ld\n", data, datalen);
 
-    fprintf(stderr, "<<<sdftest: sdf_get: data=%s, datalen=%ld\n", data, datalen);
+    fprintf(stderr, ".............before enumeration\n");
+    plat_assert(sdf_enumerate(cguid) == SDF_SUCCESS);
 
-    plat_assert(sdf_delete_container(cguid) == SDF_SUCCESS);
+    fprintf(stderr, ".............before enumeration1\n");
+    while (sdf_next_enumeration(cguid, &key, &keylen, &data, &datalen) == SDF_SUCCESS) {
+	fprintf(stderr, "sdf_enum: key=%s, keylen=%d, data=%s, datalen=%ld\n", key, keylen, data, datalen);
+    }
 
-    fprintf(stderr, "<<<sdftest: complete\n");
+    plat_assert(sdf_finish_enumeration(cguid) == SDF_SUCCESS);
 
+    fprintf(stderr, ".............done\n");
     return(0);
 }

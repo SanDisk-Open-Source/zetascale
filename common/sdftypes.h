@@ -18,12 +18,20 @@ extern "C" {
 #endif
 
 #include <inttypes.h>
+#include <stdint.h>
 #include <limits.h>
 
+#ifdef SDF_APP
+# define UINT32_MAX		(4294967295U)
+# define UINT64_MAX		(18446744073709551615ULL)
+#endif // SDF_APP
+
+#ifndef SDF_APP
 /* For sdf_status_assert_fail */
 #ifndef NDEBUG 
 #include "platform/logging.h"
 #include "platform/stdlib.h"
+#endif
 #endif
 
 #define ISEMPTY(s) (s == NULL || *s == '\0')
@@ -65,7 +73,7 @@ typedef struct {
 /*
  * maximum number of containers supported by one instance of SDF
  */
-#define MCD_MAX_NUM_CNTRS       128
+#define MCD_MAX_NUM_CNTRS       129
 
 // Not 0 so that we can differentiate uninitialized
 #define CMC_CGUID 1
@@ -101,9 +109,6 @@ typedef void SDF_internal_ctxt_t;
 typedef int32_t SDF_vnode_t;
 typedef uint32_t SDF_cacheid_t;
 typedef uint32_t SDF_meta_t;
-#ifdef SDFAPI
-typedef void SDF_thread_state_t;
-#endif /* SDFAPI */
 
 /** @brief Out-of-band values for sequence numbers */
 enum {
@@ -180,10 +185,12 @@ typedef struct {
     unsigned long long id;
 } SDF_tx_id;
 
+#ifndef SDF_APP
 #include "platform/aio_wc.h"
 #include "platform/aio_libaio.h"
 #include "platform/aio_error_control.h"
 #include "platform/aio_error_bdb.h"
+#endif
 
 // typedef unsigned SDF_command_status_t;
 // typedef unsigned long long SDF_completion_t;
@@ -380,6 +387,7 @@ sdf_status_to_string(SDF_status_t status) {
 
 struct mcd_container;
 
+#ifndef SDF_APP
 typedef struct flashsettings {
 
     char aio_base[PATH_MAX + 1];
@@ -411,7 +419,6 @@ typedef struct flashsettings {
     int num_sdf_threads;
     char prefix_del_delimiter;
     float rec_log_size_factor;
-    int sdf_log_level;
     int rec_log_verify;
     int rec_log_segsize;
     int rec_upd_segsize;
@@ -433,9 +440,12 @@ typedef struct flashsettings {
     uint32_t   num_fthreads;
     int (*cntr_update_callback)( struct mcd_container * container, int version );
     time_t    *pcurrent_time;
+    int        sdf_log_level;
 
 } flash_settings_t;
+#endif // SDF_APP
 
+#ifndef SDF_APP
 #ifdef NDEBUG
 #define sdf_status_assert_eq(got, expected)
 #else /* def NDEBUG */
@@ -466,6 +476,7 @@ sdf_status_assert_fail(SDF_status_t got_arg, SDF_status_t expected_arg,
         plat_abort();
 }
 #endif /* else def NDEBUG */
+#endif // SDF_APP
 
 typedef struct {
     uint32_t       opid;
@@ -498,10 +509,12 @@ typedef struct {
 
 typedef int stringLen_t;
 
+#ifndef SDF_APP
 typedef struct string {
     stringLen_t len;
     unsigned char chars[];
 } string_t;
+#endif // SDF_APP
 
 typedef enum {
     SDF_UNSORTED, SDF_SORT_ASCENDING, SDF_SORT_DESCENDING,

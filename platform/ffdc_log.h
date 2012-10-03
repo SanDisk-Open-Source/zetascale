@@ -9,7 +9,7 @@
  * log message in the codebase.  The structure contains one field for
  * each message parameter in the log message, along with other meta data
  * 
- * Generated On: 2012-09-27 14:45:59
+ * Generated On: 2012-10-03 13:43:31
  *------------------------------------------------------------------------*/
 
 #ifndef PLATFORM_FFDC_H
@@ -58940,6 +58940,72 @@ ffdc_log_func_30658(int lineno, int msgid, int catid, int level, const char* fmt
     int arg1);
 
 /*---------------------------------------------------------------------------
+ * MsgID : 30660
+ * Msg   : "failed to initialize the aio context (rc=%d '%s')"
+ *-------------------------------------------------------------------------*/
+struct ffdc_log_struct_30660
+{
+    int magic;
+    int msgid;
+    int catid;
+    int level;
+    unsigned long th_id;
+    unsigned long fth_id;
+    int lineno;
+    struct timeval timestamp;
+
+    int arg1;
+    char arg2[FFDC_MAX_STR_SIZE];
+} __attribute__ ((aligned (64)));
+
+__inline__ void
+ffdc_log_func_30660(int lineno, int msgid, int catid, int level, const char* fmt,
+    int arg1, const char* arg2);
+
+/*---------------------------------------------------------------------------
+ * MsgID : 30664
+ * Msg   : "container backup sync failed for enum, status=%s"
+ *-------------------------------------------------------------------------*/
+struct ffdc_log_struct_30664
+{
+    int magic;
+    int msgid;
+    int catid;
+    int level;
+    unsigned long th_id;
+    unsigned long fth_id;
+    int lineno;
+    struct timeval timestamp;
+
+    char arg1[FFDC_MAX_STR_SIZE];
+} __attribute__ ((aligned (64)));
+
+__inline__ void
+ffdc_log_func_30664(int lineno, int msgid, int catid, int level, const char* fmt,
+    const char* arg1);
+
+/*---------------------------------------------------------------------------
+ * MsgID : 30665
+ * Msg   : "process_raw_get_command_enum() failed"
+ *-------------------------------------------------------------------------*/
+struct ffdc_log_struct_30665
+{
+    int magic;
+    int msgid;
+    int catid;
+    int level;
+    unsigned long th_id;
+    unsigned long fth_id;
+    int lineno;
+    struct timeval timestamp;
+
+
+} __attribute__ ((aligned (64)));
+
+__inline__ void
+ffdc_log_func_30665(int lineno, int msgid, int catid, int level, const char* fmt);
+
+/*---------------------------------------------------------------------------
  * MsgID : 40000
  * Msg   : "container (%d) skipped expired objects=%lu, blocks=%lu"
  *-------------------------------------------------------------------------*/
@@ -68188,6 +68254,28 @@ struct ffdc_log_struct_150025
 
 __inline__ void
 ffdc_log_func_150025(int lineno, int msgid, int catid, int level, const char* fmt);
+
+/*---------------------------------------------------------------------------
+ * MsgID : 150026
+ * Msg   : "Failed to find shard for %s"
+ *-------------------------------------------------------------------------*/
+struct ffdc_log_struct_150026
+{
+    int magic;
+    int msgid;
+    int catid;
+    int level;
+    unsigned long th_id;
+    unsigned long fth_id;
+    int lineno;
+    struct timeval timestamp;
+
+    char arg1[FFDC_MAX_STR_SIZE];
+} __attribute__ ((aligned (64)));
+
+__inline__ void
+ffdc_log_func_150026(int lineno, int msgid, int catid, int level, const char* fmt,
+    const char* arg1);
 
 /*---------------------------------------------------------------------------
  * MsgID : 160000

@@ -17,6 +17,7 @@
 #include <linux/fs.h>
 #include <sys/sysmacros.h>
 #include <sys/types.h>
+#include <sys/stat.h>
 #include <dirent.h>
 #include "common/sdftypes.h"
 #include "platform/assert.h"
@@ -1087,6 +1088,7 @@ aio_state_t *mcd_aio_init_state()
 
 int mcd_aio_init( void * state, char * dname )
 {
+    int                         rc;
     int                         fbase = 0;
     int                         open_flags;
     char                      * first;
@@ -1141,10 +1143,10 @@ int mcd_aio_init( void * state, char * dname )
      * returned by get_aio_context
      */
     if ((!paio_enabled &&
-         0 != io_queue_init(flash_settings.aio_queue_len, &Mcd_aio_ctxt.io_ctxt)) ||
+         0 != (rc=io_queue_init(flash_settings.aio_queue_len, &Mcd_aio_ctxt.io_ctxt))) ||
         (paio_enabled && SDF_SUCCESS != mcd_aio_paio_init())) {
-        mcd_log_msg(20052, PLAT_LOG_LEVEL_FATAL,
-                     "failed to initialize the aio context" );
+        mcd_log_msg(30660, PLAT_LOG_LEVEL_FATAL,
+                     "failed to initialize the aio context (rc=%d '%s')", rc, plat_strerror(-rc));
     /*
      * XXX: drew 2010-03-23 This is bad because it will create
      * a core dump.  Errors should propagate to the caller which

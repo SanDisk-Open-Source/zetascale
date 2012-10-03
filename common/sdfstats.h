@@ -22,7 +22,7 @@
 #define FIRST_STAT_TYPE_PER_DUMMY     200
 
 // Enumeration for stats keys
-const enum {
+typedef enum {
     // Monolithic stats
     FLASH_FTH_SCHEDULER_IDLE_TIME = FIRST_STAT_TYPE_MONOLITHIC,
     FLASH_FTH_SCHEDULER_DISPATCH_TIME,
@@ -108,7 +108,7 @@ const enum {
 
 
 // Define the types of stats
-const enum {
+typedef enum {
     FLASH_STAT_MONLITHIC,
     FLASH_STAT_PER_DEV ,
     FLASH_STAT_PER_SHARD

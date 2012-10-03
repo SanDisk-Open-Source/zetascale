@@ -264,11 +264,7 @@ cmc_remove_cguid_map(SDF_internal_ctxt_t *pai, SDF_cmc_t *cmc, const char *cname
  * @return SDF status.
  */
 SDF_status_t
-#ifdef SDFAPI 
 cmc_create_object_container(SDF_internal_ctxt_t *pai, const char *path, SDF_container_props_t *p);
-#else
-cmc_create_object_container(SDF_internal_ctxt_t *pai, const char *path, SDF_container_props_t p);
-#endif /* SDFAPI */
 
 /**
  * @brief Delete an object container

@@ -46,6 +46,16 @@
 #define sys_realloc realloc
 #define sys_free free
 
+extern void *bwo_calloc(size_t nmemb, size_t size);
+extern void *bwo_malloc(size_t size);
+extern void bwo_free(void *ptr);
+extern void *bwo_realloc(void *ptr, size_t size);
+
+// #define sys_malloc bwo_malloc
+// #define sys_calloc bwo_calloc
+// #define sys_realloc bwo_realloc
+// #define sys_free bwo_free
+
 /* XXX: flash has fields called free; the protocol lex code #defines malloc */
 #ifdef notyet
 PLAT_WRAP_CPP_POISON(malloc calloc realloc free)

@@ -17,12 +17,14 @@
 #include "protocol/replication/replicator_adapter.h"
 #include "ssd/fifo/mcd_ipf.h"
 #include "ssd/fifo/mcd_osd.h"
+#include "ssd/fifo/mcd_bak.h"
 #include "shared/init_sdf.h"
 #include "shared/private.h"
 #include "shared/open_container_mgr.h"
 #include "shared/container_meta.h"
 #include "shared/name_service.h"
 #include "shared/shard_compute.h"
+#include "shared/internal_blk_obj_api.h"
 #include "agent/agent_common.h"
 #include "agent/agent_helper.h"
 
@@ -68,6 +70,17 @@ SDF_shardid_t build_shard(
 	const char 		*cname
 	);
 
+extern
+struct shard *
+container_to_shard( 
+	SDF_internal_ctxt_t * pai, 
+	local_SDF_CONTAINER lc );
+
+extern
+void
+shard_recover_phase2( 
+	mcd_osd_shard_t * shard );
+
 extern 
 SDF_status_t create_put_meta(
 	SDF_internal_ctxt_t 	*pai, 
@@ -112,7 +125,7 @@ static int sdf_check_delete_in_future(void *data)
 
 static void load_settings(flash_settings_t *osd_settings)
 {
-    (void) strcpy(osd_settings->aio_base, getProperty_String("AIO_BASE_FILENAME", "/mnt/ssd/schooner%d")); // base filename of flash files
+    (void) strcpy(osd_settings->aio_base, getProperty_String("AIO_BASE_FILENAME", "/schooner/backup/schooner%d")); // base filename of flash files
     osd_settings->aio_create          = 1;// use O_CREAT
     osd_settings->aio_total_size      = getProperty_Int("AIO_FLASH_SIZE_TOTAL", 0); // this flash size counts!
     osd_settings->aio_sync_enabled    = getProperty_Int("AIO_SYNC_ENABLED", 0); // AIO_SYNC_ENABLED
@@ -300,6 +313,7 @@ SDF_status_t SDFInit(
     mcd_aio_register_ops();
     mcd_osd_register_ops();
 
+
     //  Initialize a crap-load of settings
     load_settings(&(agent_state.flash_settings));
 
@@ -309,6 +323,9 @@ SDF_status_t SDFInit(
     if (!agent_engine_pre_init(&agent_state, argc, argv)) {
         return(SDF_FAILURE); 
     }
+
+    //  Initialize a crap-load of settings
+    //load_settings(&(agent_state.flash_settings));
 
     // spawn initer thread (like mcd_fth_initer)
     fthResume( fthSpawn( &mcd_fth_initer, MCD_FTH_STACKSIZE ),
@@ -329,7 +346,7 @@ SDF_status_t SDFInit(
 		     "pthread_create() failed, rc=%d", rc );
 	return rc;
     }
-    mcd_log_msg( 150022, PLAT_LOG_LEVEL_DEBUG, "scheduler startup process created");
+    mcd_log_msg(150022, PLAT_LOG_LEVEL_DEBUG, "scheduler startup process created");
 
     // Wait until mcd_fth_initer is done
     do {
@@ -344,10 +361,10 @@ struct SDF_thread_state * SDFInitPerThreadState(
 	struct SDF_state *sdf_state
 	)
 {
-    struct SDF_thread_state *pts_out	= NULL;
-    SDF_action_init_t       *pai	= NULL;
-    SDF_action_init_t       *pai_new	= NULL;
-    SDF_action_thrd_state_t *pts	= NULL;
+    struct SDF_thread_state *pts_out;
+    SDF_action_init_t       *pai;
+    SDF_action_init_t       *pai_new;
+    SDF_action_thrd_state_t *pts;
 
     struct sdf_agent_state    *state = &agent_state;
 
@@ -378,7 +395,7 @@ struct SDF_thread_state * SDFInitPerThreadState(
 
 #ifdef SDFAPI      
 SDF_status_t SDFGetContainerProps(
-	SDF_thread_state_t 	*sdf_thread_state, 
+	struct SDF_thread_state	*sdf_thread_state, 
 	SDF_cguid_t 		 cguid, 
 	SDF_container_props_t 	*pprops
 	)
@@ -397,7 +414,7 @@ SDF_status_t SDFGetContainerProps(
 }
     
 SDF_status_t SDFSetContainerProps(
-	SDF_thread_state_t 	*sdf_thread_state, 
+	struct SDF_thread_state	*sdf_thread_state, 
 	SDF_cguid_t 	 	 cguid,
 	SDF_container_props_t 	*pprops
 	)
@@ -421,8 +438,8 @@ SDF_status_t SDFSetContainerProps(
 static uint64_t cid_counter = 0;
 
 SDF_status_t SDFCreateContainer(
-	SDF_thread_state_t 	*sdf_thread_state, 
-	const char 		*cname,
+	struct SDF_thread_state	*sdf_thread_state, 
+	char 		        *cname,
 	SDF_container_props_t 	*properties, 
 	SDF_cguid_t 		*cguid 
 	)
@@ -613,7 +630,6 @@ SDF_status_t SDFCreateContainer(
         #endif
        status = SDF_CONTAINER_EXISTS;
     } else {
-        
 	SDF_container_props_t 	 properties2 = *properties;
         if ((shardid = build_shard(state, pai, cname, num_objs,
                                    in_shard_count, properties2, *cguid,
@@ -689,20 +705,25 @@ SDF_status_t SDFCreateContainer(
 }
 
 SDF_status_t SDFOpenContainer(
-	SDF_thread_state_t 	*sdf_thread_state, 
+	struct SDF_thread_state	*sdf_thread_state, 
 	SDF_cguid_t 	 	 cguid,
 	SDF_container_mode_t 	 mode
 	) 
 {               
-    SDF_status_t status = SDF_SUCCESS;
-    local_SDF_CONTAINER lc = NULL;
-    SDF_CONTAINER_PARENT parent;
-    local_SDF_CONTAINER_PARENT lparent = NULL;
-    int log_level = LOG_ERR;
-    char *path = NULL;
-    int  i_ctnr = -1;
-    SDF_CONTAINER container = containerNull;
-    SDF_internal_ctxt_t     *pai = (SDF_internal_ctxt_t *) sdf_thread_state;
+    SDF_status_t 		status 		= SDF_SUCCESS;
+    local_SDF_CONTAINER 	lc 		= NULL;
+    SDF_CONTAINER_PARENT 	parent;
+    local_SDF_CONTAINER_PARENT 	lparent 	= NULL;
+    int 			log_level 	= LOG_ERR;
+    char 			*path 		= NULL;
+    int  			i_ctnr 		= -1;
+    SDF_CONTAINER 		container 	= containerNull;
+    SDF_internal_ctxt_t     	*pai 		= (SDF_internal_ctxt_t *) sdf_thread_state;
+#ifdef SDFAPIONLY
+    mcd_container_t 		cntr;
+    mcd_osd_shard_t 		*mcd_shard	= NULL;
+    struct shard		*shard		= NULL;
+#endif /* SDFAPIONLY */
                         
     plat_log_msg(21630, LOG_CAT, LOG_INFO, "%lu", cguid);
 
@@ -789,6 +810,18 @@ SDF_status_t SDFOpenContainer(
                 plat_log_msg(21554, LOG_CAT,LOG_ERR, "SDFActionOpenContainer failed for container %s", path);
             }
 
+#ifdef SDFAPIONLY
+	     shard = container_to_shard(pai, lc);
+	     if (NULL != shard) {
+	         mcd_shard = (mcd_osd_shard_t *)shard;
+	         mcd_shard->cntr = &cntr;
+		 fprintf(stderr, "SDFOpenContainer: shard_recover_phase2\n");
+	    	 shard_recover_phase2( mcd_shard );
+	     } else {
+            	 plat_log_msg(150026, LOG_CAT,LOG_ERR, "Failed to find shard for %s", path);
+	     }
+#endif /* SDFAPIONLY */
+
             releaseLocalContainer(&lc);
             plat_log_msg(21555, LOG_CAT, LOG_DBG, "Opened %s", path);
         } else {
@@ -811,7 +844,7 @@ SDF_status_t SDFOpenContainer(
 ** Temporary for internal compatibility
 */
 SDF_status_t SDFOpenContainerPath(
-	SDF_thread_state_t 	*sdf_thread_state, 
+	struct SDF_thread_state 	*sdf_thread_state, 
 	const char 		*path, 
 	SDF_container_mode_t 	 mode,
         SDF_CONTAINER 		*container
@@ -897,7 +930,7 @@ SDF_status_t SDFOpenContainerPath(
 }
 
 SDF_status_t SDFCloseContainer(
-        SDF_thread_state_t      *sdf_thread_state,
+        struct SDF_thread_state      *sdf_thread_state,
 	SDF_cguid_t  		 cguid
 	)
 {
@@ -919,6 +952,7 @@ SDF_status_t SDFCloseContainer(
 
     if (i_ctnr == -1) {
         status = SDF_INVALID_PARAMETER;
+	goto out;
     } else {
 	container = CtnrMap[i_ctnr].sdf_container;
     }
@@ -1026,6 +1060,7 @@ SDF_status_t SDFCloseContainer(
 
     CtnrMap[i_ctnr].sdf_container = containerNull;
 
+out:
     plat_log_msg(20819, LOG_CAT, log_level, "%s", SDF_Status_Strings[status]);
 
     SDFEndSerializeContainerOp(pai);
@@ -1036,7 +1071,7 @@ SDF_status_t SDFCloseContainer(
 ** Temporary
 */
 SDF_status_t SDFCloseContainerPath(
-        SDF_thread_state_t      *sdf_thread_state,
+        struct SDF_thread_state      *sdf_thread_state,
 	SDF_CONTAINER 		container
 	)
 {
@@ -1159,7 +1194,7 @@ SDF_status_t SDFCloseContainerPath(
 }
 
 SDF_status_t SDFDeleteContainer(
-	SDF_thread_state_t	*sdf_thread_state,
+	struct SDF_thread_state	*sdf_thread_state,
 	SDF_cguid_t		 cguid
 	)
 {  
@@ -1192,7 +1227,7 @@ SDF_status_t SDFDeleteContainer(
 ** Temporary
 */
 SDF_status_t SDFDeleteContainerPath(
-	SDF_thread_state_t	*sdf_thread_state,
+	struct SDF_thread_state	*sdf_thread_state,
 	const char 		*path
 	)
 {  
@@ -1202,7 +1237,7 @@ SDF_status_t SDFDeleteContainerPath(
 }
 
 SDF_status_t SDFStartContainer(
-	SDF_thread_state_t *sdf_thread_state, 
+	struct SDF_thread_state *sdf_thread_state, 
 	SDF_cguid_t cguid
 	)
 {
@@ -1226,6 +1261,7 @@ SDF_status_t SDFStartContainer(
             #else
                 flash_dev = state->config.flash_dev;
             #endif
+
             shard = shardFind(flash_dev, meta.shard);
 
             shardStart(shard);
@@ -1240,14 +1276,13 @@ SDF_status_t SDFStartContainer(
         }
     }
 
-
     SDFEndSerializeContainerOp(pai);
 
     return(status);
 }
 
 SDF_status_t SDFStopContainer(
-	SDF_thread_state_t *sdf_thread_state, 
+	struct SDF_thread_state *sdf_thread_state, 
 	SDF_cguid_t cguid
 	)
 {
@@ -1288,7 +1323,7 @@ SDF_status_t SDFStopContainer(
 }
 
 SDF_status_t SDFGetContainers(
-	SDF_thread_state_t	*sdf_thread_state,
+	struct SDF_thread_state	*sdf_thread_state,
 	SDF_cguid_t             *cguids,
 	uint32_t                *n_cguids
 	)
@@ -1405,6 +1440,31 @@ SDF_status_t SDFCreateBufferedObject(
     SDF_status_t        status;
 
     pac = (SDF_action_init_t *) sdf_thread_state;
+
+#if 1
+    struct SDF_shared_state    *state = &sdf_shared_state;
+    flashDev_t                 *flash_dev;
+    struct SDF_iterator        *iterator;
+    SDF_container_meta_t meta;
+    if ((status = name_service_get_meta(pac, cguid, &meta)) != SDF_SUCCESS) {
+        fprintf(stderr, "SDFCreateBufferedObject: failed to get meta for cguid: %lu\n", cguid);
+        return SDF_FAILURE; // xxxzzz TODO: better return code?
+    }
+
+    iterator = plat_alloc(sizeof(SDF_iterator_t));
+    if (iterator == NULL) {
+        return(SDF_FAILURE_MEMORY_ALLOC);
+    }
+    iterator->cguid = cguid;
+
+    #ifdef MULTIPLE_FLASH_DEV_ENABLED
+        flash_dev = get_flashdev_from_shardid(state->config.flash_dev,
+                                              meta.shard, state->config.flash_dev_count);
+    #else
+        flash_dev = state->config.flash_dev;
+    #endif
+    iterator->shard = shardFind(flash_dev, meta.shard);
+#endif
 
     ar.reqtype = APCOE;
     ar.curtime = current_time;
@@ -1567,7 +1627,7 @@ SDF_status_t SDFFlushObject(
 }
 
 SDF_cguid_t SDFGenerateCguid(
-	SDF_thread_state_t *sdf_thread_state, 
+	struct SDF_thread_state *sdf_thread_state, 
 	int64_t 	    cntr_id64
 	)
 {
@@ -1611,35 +1671,247 @@ SDF_status_t SDFFlushCache(
     return(SDF_SUCCESS);
 }
 
+static SDF_status_t backup_container_prepare( 
+                                  void * shard, int full_backup,
+                                  uint32_t client_version,
+                                  uint32_t * server_version )
+{
+    int                         rc;
+    SDF_status_t                status = SDF_SUCCESS;
+
+    rc = mcd_osd_shard_backup_prepare( (struct shard *)shard, full_backup,
+                                       client_version, server_version );
+
+    switch ( rc ) {
+    case FLASH_EINVAL:
+        status = SDF_FLASH_EINVAL;
+        break;
+    case FLASH_EBUSY:
+        status = SDF_FLASH_EBUSY;
+        break;
+    case FLASH_EPERM:
+        status = SDF_FLASH_EPERM;
+        break;
+    case FLASH_EINCONS:
+        status = SDF_FLASH_EINCONS;
+        break;
+    }
+
+    return status;
+}
+
+
+static SDF_status_t backup_container( 
+                          void * shard, int full_backup,
+                          int cancel, int complete, uint32_t client_version,
+                          uint32_t * server_version, uint64_t * prev_seqno,
+                          uint64_t * backup_seqno, time_t * backup_time )
+{
+    int                         rc;
+    SDF_status_t                status = SDF_SUCCESS;
+
+    rc = mcd_osd_shard_backup( (struct shard *)shard, full_backup, cancel,
+                               complete, client_version, server_version,
+                               prev_seqno, backup_seqno, backup_time );
+
+    switch ( rc ) {
+    case FLASH_EINVAL:
+        status = SDF_FLASH_EINVAL;
+        break;
+    case FLASH_EBUSY:
+        status = SDF_FLASH_EBUSY;
+        break;
+    case FLASH_EPERM:
+        status = SDF_FLASH_EPERM;
+        break;
+    case FLASH_EINCONS:
+        status = SDF_FLASH_EINCONS;
+        break;
+    }
+
+    return status;
+}
+
+
 SDF_status_t SDFEnumerateContainerObjects(
-	struct SDF_thread_state *sdf_thread_state,
-	SDF_cguid_t              cguid
+	struct SDF_thread_state  *sdf_thread_state,
+	SDF_cguid_t               cguid,
+	struct SDF_iterator     **iterator_out
 	)
 {
-    // xxxzzz finish this!
-    return(SDF_SUCCESS);
+    SDF_action_init_t          *pai = (SDF_action_init_t *) sdf_thread_state;
+    SDF_status_t                status;
+    time_t                      backup_time;
+    uint64_t                    prev_seqno;
+    uint64_t                    curr_seqno;
+    uint32_t                    version;
+    SDF_container_meta_t        meta;
+    struct SDF_shared_state    *state = &sdf_shared_state;
+    flashDev_t                 *flash_dev;
+    struct SDF_iterator        *iterator;
+
+    if ((status = name_service_get_meta(pai, cguid, &meta)) != SDF_SUCCESS) {
+        fprintf(stderr, "sdf_enumerate: failed to get meta for cguid: %lu\n", cguid);
+	return SDF_FAILURE; // xxxzzz TODO: better return code?
+    }
+
+    *iterator_out = NULL;
+    iterator = plat_alloc(sizeof(SDF_iterator_t));
+    if (iterator == NULL) {
+        return(SDF_FAILURE_MEMORY_ALLOC);
+    }
+    iterator->cguid = cguid;
+
+    #ifdef MULTIPLE_FLASH_DEV_ENABLED
+	flash_dev = get_flashdev_from_shardid(state->config.flash_dev,
+					      meta.shard, state->config.flash_dev_count);
+    #else
+	flash_dev = state->config.flash_dev;
+    #endif
+    iterator->shard = shardFind(flash_dev, meta.shard);
+#if 0
+    fprintf(stderr, "SDFEnumerateContainerObjects: iterator->shard->shardID: %lu\n", iterator->shard->shardID);
+    fprintf(stderr, "SDFEnumerateContainerObjects: iterator->shard->quota: %lu\n", iterator->shard->quota);
+    fprintf(stderr, "SDFEnumerateContainerObjects: iterator->shard->numObjects: %lu\n", iterator->shard->numObjects);
+#endif
+
+    status = backup_container_prepare( iterator->shard,
+					  1, // full
+					  MCD_BAK_BACKUP_PROTOCOL_VERSION, // client version
+					  &version );
+    if ( SDF_SUCCESS != status ) {
+	goto backup_result;
+    }
+
+    // must sync data in writeback cache mode
+    if (meta.properties.cache.writethru == SDF_FALSE) {
+
+	status = SDF_I_FlushContainer(pai, cguid);
+
+	if (status == SDF_SUCCESS) {
+	    status = SDF_I_SyncContainer(pai, cguid);
+	}
+
+	if ( SDF_SUCCESS != status ) {
+	    plat_log_msg(30664,
+			  PLAT_LOG_CAT_SDF_APP_MEMCACHED_BACKUP,
+			  PLAT_LOG_LEVEL_ERROR,
+			  "container backup sync failed for enum, status=%s",
+			  SDF_Status_Strings[status]);
+	    // backup has been semi-started, must be cancelled
+	    status = backup_container( iterator->shard,
+					  1, // full
+					  1, // cancel
+					  0, // complete
+					  MCD_BAK_BACKUP_PROTOCOL_VERSION,
+					  &version,
+					  &prev_seqno,
+					  &curr_seqno,
+					  &backup_time );
+	    plat_assert( SDF_SUCCESS == status );
+	    plat_free(iterator);
+	    return SDF_FAILURE; // xxxzzz TODO: better return code?
+	}
+    }
+
+    // start the backup
+    status = backup_container( iterator->shard,
+				       1, // full
+				       0, // cancel
+				       0, // complete
+                                       MCD_BAK_BACKUP_PROTOCOL_VERSION,
+                                       &version,
+                                       &prev_seqno,
+                                       &curr_seqno,
+                                       &backup_time );
+
+ backup_result:
+
+    if ( SDF_SUCCESS == status ) {
+        iterator->addr     = 0;
+        iterator->prev_seq = prev_seqno;
+        iterator->curr_seq = curr_seqno;
+		*iterator_out = iterator;
+    } else {
+	plat_free(iterator);
+    }
+
+    return(status);
 }
+
+SDF_status_t SDFFinishEnumeration(
+                   struct SDF_thread_state *sdf_thread_state,
+		   struct SDF_iterator     *iterator
+	       )
+{
+    SDF_status_t                status;
+    time_t                      backup_time;
+    uint64_t                    prev_seqno;
+    uint64_t                    curr_seqno;
+    uint32_t                    version;
+
+    // stop the backup
+    status = backup_container( iterator->shard,
+                                       1, // full
+                                       0, // cancel
+                                       1, // complete
+                                       MCD_BAK_BACKUP_PROTOCOL_VERSION,  // client version
+                                       &version,
+                                       &prev_seqno,
+                                       &curr_seqno,
+                                       &backup_time );
+
+    return(status);
+}
+
+  /*   From mcd_osd.c:
+   *   Enumerate the next object for this container.
+   *   Very similar to process_raw_get_command().
+   */
+extern SDF_status_t process_raw_get_command_enum( 
+                                           mcd_osd_shard_t  *shard,
+					   osd_state_t      *osd_state,
+					   uint64_t          addr, 
+					   uint64_t          prev_seq,
+					   uint64_t          curr_seq, 
+					   int               num_sessions, 
+					   int               session_id,
+					   int               max_objs,
+					   char            **key_out,
+					   uint32_t         *keylen_out,
+					   char            **data_out,
+					   uint64_t         *datalen_out,
+					   uint64_t         *addr_out
+				       );
 
 SDF_status_t SDFNextEnumeratedObject(
 	struct SDF_thread_state *sdf_thread_state,
-	SDF_cguid_t              cguid,
+	struct SDF_iterator     *iterator,
 	char                    **key,
 	uint32_t                *keylen,
 	char                    **data,
 	uint64_t                *datalen
 	)
 {
-    // xxxzzz finish this!
-    return(SDF_SUCCESS);
-}
+    SDF_status_t             ret;
+    SDF_action_init_t       *pai = (SDF_action_init_t *) sdf_thread_state;
 
-SDF_status_t SDFFinishEnumeration(
-                   struct SDF_thread_state *sdf_thread_state,
-		   SDF_cguid_t              cguid
-	       )
-{
-    // xxxzzz finish this!
-    return(SDF_SUCCESS);
+    ret = process_raw_get_command_enum(
+				     (mcd_osd_shard_t *) iterator->shard,
+				     (osd_state_t *) pai->paio_ctxt,
+				     iterator->addr,
+				     iterator->prev_seq,
+				     iterator->curr_seq,
+				     1, // num_sessions 
+				     0, // session_id
+				     1, // max_objs
+				     key,
+				     keylen,
+				     data,
+				     datalen,
+				     &(iterator->addr)
+                                );
+    return(ret);
 }
 
 SDF_status_t SDFGetStats(
@@ -1654,7 +1926,7 @@ SDF_status_t SDFGetStats(
 SDF_status_t SDFGetContainerStats(
 	struct SDF_thread_state   *sdf_thread_state,
 	SDF_cguid_t                cguid,
-	SDF_container_stats_t      stats
+	SDF_container_stats_t     *stats
 	)
 {
     //  no-op in this simple implementation
