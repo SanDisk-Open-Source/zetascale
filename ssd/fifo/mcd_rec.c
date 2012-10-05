@@ -1728,8 +1728,6 @@ recovery_init( void )
             (Mcd_rec_log_segment_size / MEGABYTE);   // divided by segment MB
         seg_buf_size = ( (seg_count * Mcd_rec_log_segment_size) +
                          Mcd_osd_blk_size );
-	fprintf(stderr, "\n\nrecovery_init-A: Mcd_aio_total_size = %lu, Mcd_rec_log_segment_size = %lu, seg_count = %d, seg_buf_size = %d\n\n",
-		 Mcd_aio_total_size, Mcd_rec_log_segment_size, seg_count, seg_buf_size);
 
         data_buf = plat_alloc_large( seg_buf_size );
         if ( data_buf == NULL ) {
@@ -1769,11 +1767,6 @@ recovery_init( void )
         seg_count    = Mcd_rec_update_bufsize / Mcd_rec_update_segment_size;
         seg_buf_size = ( (seg_count * Mcd_rec_update_segment_size) +
                          Mcd_osd_blk_size );
-	fprintf(stderr, "\n\nrecovery_init-B: Mcd_aio_total_size = %lu, Mcd_rec_log_segment_size = %lu, Mcd_osd_blk_size = %lu, seg_count = %d, seg_buf_size = %d\n\n", \
-		 		      Mcd_aio_total_size, \
-				      Mcd_rec_log_segment_size, \
-				      Mcd_osd_blk_size, \
-			              seg_count, seg_buf_size);
 
         data_buf = plat_alloc_large( seg_buf_size );
         if ( data_buf == NULL ) {

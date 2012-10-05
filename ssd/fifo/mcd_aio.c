@@ -1088,7 +1088,7 @@ aio_state_t *mcd_aio_init_state()
 
 int mcd_aio_init( void * state, char * dname )
 {
-    int                         rc;
+    int                         rc = -1;
     int                         fbase = 0;
     int                         open_flags;
     char                      * first;

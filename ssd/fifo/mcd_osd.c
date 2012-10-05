@@ -8507,7 +8507,7 @@ SDF_status_t process_raw_get_command_enum(
 				       )
 {
 
-    SDF_status_t                status;
+    SDF_status_t                status = SDF_FAILURE;
     uint64_t                    next_addr = addr;
     uint64_t                    curr_addr;
     uint64_t                    real_len = 0;
