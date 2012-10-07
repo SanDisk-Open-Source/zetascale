@@ -9,6 +9,7 @@ static struct SDF_iterator *_sdf_iterator;
 
 SDF_status_t sdf_create_container (
 		   char                    *cname,
+		   uint64_t		    csize,
 		   SDF_cguid_t             *cguid
 	       )
 {
@@ -27,7 +28,8 @@ SDF_status_t sdf_create_container (
 
     props.container_id.num_objs = 1000000; // is this enforced? xxxzzz
     // props.container_id.container_id = xxxzzz; // only used for replication?
-    props.container_id.size = 1024*1024 ; // unused?
+    props.container_id.size = csize; // unused?
+fprintf(stderr, "container size = %lu\n", props.container_id.size);
     // props.container_id.owner = xxxzzz; // ????
 
     props.replication.num_replicas = 1;
@@ -240,13 +242,44 @@ SDF_status_t sdf_delete (
     return(ret);
 }
 
-int main()
+SDF_status_t sdf_close_container (
+               SDF_cguid_t               cguid
+           )
+{
+    SDF_status_t  ret;
+
+    ret = SDFCloseContainer (
+                        _sdf_thrd_state,
+                        cguid
+                );
+    return(ret);
+}
+
+SDF_status_t sdf_delete_container (
+               SDF_cguid_t               cguid
+           )
+{
+    SDF_status_t  ret;
+
+    ret = SDFDeleteContainer (
+                        _sdf_thrd_state,
+                        cguid
+                );
+    return(ret);
+}
+
+int main(int argc, char *argv[])
 {
     SDF_cguid_t  cguid;
     char        *data;
     uint64_t     datalen;
     char        *key;
     uint32_t     keylen;
+    uint64_t	 csize = 1024 * 1024;
+
+    if (argc == 2) {
+	csize = atol(argv[1]) * 1024 * 1024;
+    }
 
     if (SDFInit(&sdf_state, 0, NULL) != SDF_SUCCESS) {
 	fprintf(stderr, "SDF initialization failed!\n");
@@ -259,7 +292,7 @@ int main()
     // sleep(100);
     fprintf(stderr, "sdf_before_create_container\n");
 
-    plat_assert(sdf_create_container("foobar1", &cguid) == SDF_SUCCESS);
+    plat_assert(sdf_create_container("foobar1", csize, &cguid) == SDF_SUCCESS);
 
     fprintf(stderr, "sdf_before_set %d\n", cguid);
     plat_assert(sdf_create(cguid, "key1", 5, "key1_data", 10) == SDF_SUCCESS);
@@ -275,7 +308,7 @@ int main()
     plat_assert(sdf_create(cguid, "key10", 5, "key5_data", 10) == SDF_SUCCESS);
 
 
-//    plat_assert(sdf_create_container("foobar2", &cguid) == SDF_SUCCESS);
+//    plat_assert(sdf_create_container("foobar2", csize, &cguid) == SDF_SUCCESS);
 
     plat_assert(sdf_get(cguid, "key1", 5, &data, &datalen) == SDF_SUCCESS);
     fprintf(stderr, "sdf_get: data=%s, datalen=%ld\n", data, datalen);
@@ -289,6 +322,9 @@ int main()
     }
 
     plat_assert(sdf_finish_enumeration(cguid) == SDF_SUCCESS);
+
+    plat_assert(sdf_close_container(cguid) == SDF_SUCCESS);
+    plat_assert(sdf_delete_container(cguid) == SDF_SUCCESS);
 
     fprintf(stderr, ".............done\n");
     return(0);
