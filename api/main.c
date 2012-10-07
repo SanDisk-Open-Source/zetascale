@@ -6,6 +6,7 @@
 static struct SDF_state *sdf_state;
 static struct SDF_thread_state *_sdf_thrd_state;
 static struct SDF_iterator *_sdf_iterator;
+static uint64_t id = 0;
 
 SDF_status_t sdf_create_container (
 		   char                    *cname,
@@ -16,29 +17,42 @@ SDF_status_t sdf_create_container (
     SDF_status_t            ret;
     SDF_container_props_t   props;
 
-    props.durability_level = SDF_FULL_DURABILITY;
-    props.fifo_mode = SDF_FALSE; // xxxzzz
+    // Update container id
+    ++id;
 
-    props.container_type.type = SDF_OBJECT_CONTAINER;
-    props.container_type.caching_container = SDF_TRUE;
-    props.container_type.persistence = SDF_TRUE;
-    props.container_type.async_writes = SDF_FALSE;
+    props.container_id.owner			= 0;
+    props.container_id.size 			= csize;
+    props.container_id.container_id 		= id;
+    props.container_id.owner			= 0;
+    props.container_id.num_objs 		= 1000000; 
 
-    props.cache.writethru = SDF_TRUE;
+    props.cguid					= SDF_NULL_CGUID;
 
-    props.container_id.num_objs = 1000000; // is this enforced? xxxzzz
-    // props.container_id.container_id = xxxzzz; // only used for replication?
-    props.container_id.size = csize; // unused?
-fprintf(stderr, "container size = %lu\n", props.container_id.size);
-    // props.container_id.owner = xxxzzz; // ????
+    props.container_type.type 			= SDF_OBJECT_CONTAINER;
+    props.container_type.persistence 		= SDF_TRUE;
+    props.container_type.caching_container 	= SDF_TRUE;
+    props.container_type.async_writes 		= SDF_FALSE;
 
-    props.replication.num_replicas = 1;
-    props.replication.num_meta_replicas = 0;
-    props.replication.type = SDF_REPLICATION_NONE;
-    props.replication.enabled = 0;
-    props.replication.synchronous = 1;
+    props.replication.enabled 			= 0;
+    props.replication.type 			= SDF_REPLICATION_NONE;
+    props.replication.num_replicas 		= 1;
+    props.replication.num_meta_replicas 	= 0;
+    props.replication.synchronous 		= 1;
 
-    props.shard.num_shards = 1;
+    props.cache.not_cacheable 			= SDF_FALSE;
+    props.cache.shared 				= SDF_FALSE;
+    props.cache.coherent 			= SDF_FALSE;
+    props.cache.enabled 			= SDF_TRUE;
+    props.cache.writethru 			= SDF_TRUE;
+    props.cache.size				= 0;
+    props.cache.max_size			= 0;
+
+    props.shard.enabled 			= SDF_TRUE;
+    props.shard.num_shards 			= 1;
+
+    props.fifo_mode 				= SDF_FALSE; 
+
+    props.durability_level 			= SDF_FULL_DURABILITY;
 
     ret = SDFCreateContainer (
 			_sdf_thrd_state, 
@@ -323,8 +337,8 @@ int main(int argc, char *argv[])
 
     plat_assert(sdf_finish_enumeration(cguid) == SDF_SUCCESS);
 
-    plat_assert(sdf_close_container(cguid) == SDF_SUCCESS);
-    plat_assert(sdf_delete_container(cguid) == SDF_SUCCESS);
+    //plat_assert(sdf_close_container(cguid) == SDF_SUCCESS);
+    //plat_assert(sdf_delete_container(cguid) == SDF_SUCCESS);
 
     fprintf(stderr, ".............done\n");
     return(0);
