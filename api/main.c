@@ -308,7 +308,7 @@ int main(int argc, char *argv[])
 
     plat_assert(sdf_create_container("foobar1", csize, &cguid) == SDF_SUCCESS);
 
-    fprintf(stderr, "sdf_before_set %d\n", cguid);
+    fprintf(stderr, "sdf_before_set %lu\n", cguid);
     plat_assert(sdf_create(cguid, "key1", 5, "key1_data", 10) == SDF_SUCCESS);
     plat_assert(sdf_create(cguid, "key2", 5, "key2_data", 10) == SDF_SUCCESS);
     plat_assert(sdf_create(cguid, "key3", 5, "key3_data", 10) == SDF_SUCCESS);
@@ -337,8 +337,8 @@ int main(int argc, char *argv[])
 
     plat_assert(sdf_finish_enumeration(cguid) == SDF_SUCCESS);
 
-    //plat_assert(sdf_close_container(cguid) == SDF_SUCCESS);
-    //plat_assert(sdf_delete_container(cguid) == SDF_SUCCESS);
+    plat_assert(sdf_close_container(cguid) == SDF_SUCCESS);
+    plat_assert(sdf_delete_container(cguid) == SDF_SUCCESS);
 
     fprintf(stderr, ".............done\n");
     return(0);
