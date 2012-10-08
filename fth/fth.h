@@ -177,6 +177,7 @@ inline fth_t *fthBase(void);
 inline fthThread_t *fthSelf(void);
 
 fthThread_t *fthSpawn(void (*startRoutine)(uint64_t), long minStackSize);
+fthThread_t *fthSpawnPthread();
 void fthResume(fthThread_t *thread, uint64_t rv);
 void XResume(struct fthThread *thread, uint64_t arg);
 uint64_t fthWait(void);

@@ -126,14 +126,14 @@ static int sdf_check_delete_in_future(void *data)
 static void load_settings(flash_settings_t *osd_settings)
 {
     (void) strcpy(osd_settings->aio_base, getProperty_String("AIO_BASE_FILENAME", "/schooner/backup/schooner%d")); // base filename of flash files
-    osd_settings->aio_create          = 1;// use O_CREAT
+    osd_settings->aio_create          = 1;// use O_CREAT - membrain sets this to 0
     osd_settings->aio_total_size      = getProperty_Int("AIO_FLASH_SIZE_TOTAL", 0); // this flash size counts!
     osd_settings->aio_sync_enabled    = getProperty_Int("AIO_SYNC_ENABLED", 0); // AIO_SYNC_ENABLED
     osd_settings->rec_log_verify      = 0;
     osd_settings->enable_fifo         = 1;
     osd_settings->bypass_aio_check    = 0;
-    osd_settings->chksum_data         = 1;
-    osd_settings->chksum_metadata     = 1;
+    osd_settings->chksum_data         = 1; // membrain sets this to 0
+    osd_settings->chksum_metadata     = 1; // membrain sets this to 0
     osd_settings->sb_data_copies      = 0; // use default
     osd_settings->multi_fifo_writers  = getProperty_Int("SDF_MULTI_FIFO_WRITERS", 1);
     osd_settings->aio_wc              = false;
@@ -148,7 +148,7 @@ static void load_settings(flash_settings_t *osd_settings)
     osd_settings->sdf_log_level    = getProperty_Int("SDF_LOG_LEVEL", 4); 
     osd_settings->aio_num_files    = getProperty_Int("AIO_NUM_FILES", 1); // "-Z"
     osd_settings->aio_sub_files    = 0; // what are these? ignore?
-    osd_settings->aio_first_file   = 0; // "-z" index of first file!
+    osd_settings->aio_first_file   = 0; // "-z" index of first file! - membrain sets this to -1
     osd_settings->mq_ssd_balance   = 0;  // what does this do?
     osd_settings->no_direct_io     = 0; // do NOT use O_DIRECT
     osd_settings->sdf_persistence  = 0; // "-V" force containers to be persistent!
@@ -368,6 +368,8 @@ struct SDF_thread_state * SDFInitPerThreadState(
 
     struct sdf_agent_state    *state = &agent_state;
 
+    fthSpawnPthread();
+
     pai = &state->ActionInitState;
 
     pai_new = (SDF_action_init_t *) plat_alloc( sizeof(SDF_action_init_t) );
@@ -444,21 +446,21 @@ SDF_status_t SDFCreateContainer(
 	SDF_cguid_t 		*cguid 
 	)
 {
-    uint64_t  cid;
-    struct SDF_shared_state *state = &sdf_shared_state;
-    SDF_status_t status = SDF_FAILURE;
-    SDF_shardid_t shardid = SDF_SHARDID_INVALID;
-    SDF_container_meta_t *meta = NULL;
-    SDF_CONTAINER_PARENT parent = containerParentNull;
-    local_SDF_CONTAINER_PARENT lparent = NULL;
-    SDF_boolean_t isCMC;
-    uint32_t in_shard_count=0;
-    SDF_vnode_t home_node;
-    uint32_t num_objs = 0;
-    const char *writeback_enabled_string;
-    SDF_internal_ctxt_t     *pai = (SDF_internal_ctxt_t *) sdf_thread_state;
+    uint64_t  				 cid				= 0;
+    struct SDF_shared_state 		*state 				= &sdf_shared_state;
+    SDF_status_t 			 status 			= SDF_FAILURE;
+    SDF_shardid_t 			 shardid 			= SDF_SHARDID_INVALID;
+    SDF_container_meta_t 		*meta 				= NULL;
+    SDF_CONTAINER_PARENT 		 parent 			= containerParentNull;
+    local_SDF_CONTAINER_PARENT 		 lparent 			= NULL;
+    SDF_boolean_t 			 isCMC				= SDF_FALSE;
+    uint32_t 				 in_shard_count			= 0;
+    SDF_vnode_t 			 home_node			= 0;
+    uint32_t 				 num_objs 			= 0;
+    const char 				*writeback_enabled_string	= NULL;
+    SDF_internal_ctxt_t			*pai 				= (SDF_internal_ctxt_t *) sdf_thread_state;
 
-    plat_log_msg(20819, LOG_CAT, LOG_DBG, "%s", cname);
+    plat_log_msg(20819, LOG_CAT, LOG_INFO, "%s", cname);
 
     if ((!properties->container_type.caching_container) && (!properties->cache.writethru)) {
         plat_log_msg(30572, LOG_CAT, LOG_ERR,
@@ -523,7 +525,7 @@ SDF_status_t SDFCreateContainer(
      *  Save the cguid in a useful place so that the replication code in
      *  mcd_ipf.c can find it.
      */
-
+#if 0
     if (cmc_settings != NULL) {
         struct settings *settings = cmc_settings;
         int  i;
@@ -535,6 +537,7 @@ SDF_status_t SDFCreateContainer(
             }
         }
     }
+#endif
 
     num_objs = properties->container_id.num_objs;
 
@@ -679,7 +682,8 @@ SDF_status_t SDFCreateContainer(
 
     plat_log_msg(21511, LOG_CAT, LOG_DBG, "%s - %s", cname, SDF_Status_Strings[status]);
 
-    if (status != SDF_SUCCESS && status != SDF_CONTAINER_EXISTS) {
+    if (status == SDF_SUCCESS) {
+    } else if (status != SDF_SUCCESS && status != SDF_CONTAINER_EXISTS) {
         plat_log_msg(21538, LOG_CAT, LOG_ERR, "cname=%s, function returned status = %u", cname, status);
         name_service_remove_meta(pai, cname);
 #if 0
@@ -700,7 +704,15 @@ SDF_status_t SDFCreateContainer(
 */
 #endif
 
+    if (SDF_SUCCESS == status) {
+    	for (int index=0; index<MCD_MAX_NUM_CNTRS; index++) {
+            if (Mcd_containers[index].shard == NULL) {
+                 Mcd_containers[index].cguid = *cguid;
+             }
+         }
+    }
     SDFEndSerializeContainerOp(pai);
+    plat_log_msg(21511, LOG_CAT, LOG_INFO, "%s - %s", cname, SDF_Status_Strings[status]);
     return (status);
 }
 
@@ -710,6 +722,7 @@ SDF_status_t SDFOpenContainer(
 	SDF_container_mode_t 	 mode
 	) 
 {               
+    int				index		= -1;
     SDF_status_t 		status 		= SDF_SUCCESS;
     local_SDF_CONTAINER 	lc 		= NULL;
     SDF_CONTAINER_PARENT 	parent;
@@ -720,7 +733,7 @@ SDF_status_t SDFOpenContainer(
     SDF_CONTAINER 		container 	= containerNull;
     SDF_internal_ctxt_t     	*pai 		= (SDF_internal_ctxt_t *) sdf_thread_state;
 #ifdef SDFAPIONLY
-    mcd_container_t 		cntr;
+    //mcd_container_t 		cntr;
     mcd_osd_shard_t 		*mcd_shard	= NULL;
     struct shard		*shard		= NULL;
 #endif /* SDFAPIONLY */
@@ -738,9 +751,17 @@ SDF_status_t SDFOpenContainer(
     	} else {
 		path = CtnrMap[i_ctnr].cname;
     	}
+
     } else {
 	i_ctnr = 0;
 	path = CMC_PATH;
+    }
+
+    // Find the Mcd_containers index for this cguid
+    for (index=0; index<MCD_MAX_NUM_CNTRS; index++) {
+        if (Mcd_containers[index].cguid == cguid) {
+            break;
+        }
     }
              
     if (ISEMPTY(path)) { 
@@ -774,8 +795,8 @@ SDF_status_t SDFOpenContainer(
             lc = getLocalContainer(&lc, container);
             lc->mode = mode; // (container)->mode = mode;
             _sdf_print_container_descriptor(container);
-            log_level = LOG_DBG;
-
+            log_level = LOG_INFO;
+#if 0
             if (cmc_settings != NULL) {
                  struct settings *settings = cmc_settings;
                  int  i;
@@ -794,7 +815,7 @@ SDF_status_t SDFOpenContainer(
                      }
                  }
             }
-
+#endif
             // FIXME: This is where the call to shardOpen goes.
             #define MAX_SHARDIDS 32 // Not sure what max is today
             SDF_shardid_t shardids[MAX_SHARDIDS];
@@ -811,14 +832,16 @@ SDF_status_t SDFOpenContainer(
             }
 
 #ifdef SDFAPIONLY
-	     shard = container_to_shard(pai, lc);
-	     if (NULL != shard) {
-	         mcd_shard = (mcd_osd_shard_t *)shard;
-	         mcd_shard->cntr = &cntr;
-		 fprintf(stderr, "SDFOpenContainer: shard_recover_phase2\n");
-	    	 shard_recover_phase2( mcd_shard );
-	     } else {
-            	 plat_log_msg(150026, LOG_CAT,LOG_ERR, "Failed to find shard for %s", path);
+    	    if (CMC_CGUID != cguid) {
+	    	shard = container_to_shard(pai, lc);
+	     	if (NULL != shard) {
+	       	    mcd_shard = (mcd_osd_shard_t *)shard;
+	            mcd_shard->cntr = &Mcd_containers[index];
+		    fprintf(stderr, "SDFOpenContainer: shard_recover_phase2\n");
+	    	    shard_recover_phase2( mcd_shard );
+	     	} else {
+            	    plat_log_msg(150026, LOG_CAT,LOG_ERR, "Failed to find shard for %s", path);
+		}
 	     }
 #endif /* SDFAPIONLY */
 
@@ -837,6 +860,7 @@ SDF_status_t SDFOpenContainer(
     }
 
     SDFEndSerializeContainerOp(pai);
+
     return (status);
 }
 
@@ -931,7 +955,7 @@ SDF_status_t SDFOpenContainerPath(
 
 SDF_status_t SDFCloseContainer(
         struct SDF_thread_state      *sdf_thread_state,
-	SDF_cguid_t  		 cguid
+	SDF_cguid_t  		      cguid
 	)
 {
     SDF_status_t status = SDF_FAILURE;
@@ -981,7 +1005,7 @@ SDF_status_t SDFCloseContainer(
 
         if (closeParentContainer(container)) {
             status = SDF_SUCCESS;
-            log_level = LOG_DBG;
+            log_level = LOG_INFO;
         }
 
         // FIXME: This is where shardClose call goes.
@@ -1064,6 +1088,7 @@ out:
     plat_log_msg(20819, LOG_CAT, log_level, "%s", SDF_Status_Strings[status]);
 
     SDFEndSerializeContainerOp(pai);
+
     return (status);
 }
 
@@ -1189,7 +1214,9 @@ SDF_status_t SDFCloseContainerPath(
     }
 
     plat_log_msg(20819, LOG_CAT, log_level, "%s", SDF_Status_Strings[status]);
+
     SDFEndSerializeContainerOp(pai);
+
     return (status);
 }
 
@@ -1202,6 +1229,8 @@ SDF_status_t SDFDeleteContainer(
     char *path = NULL;
     int  i_ctnr;
     SDF_internal_ctxt_t *pai = (SDF_internal_ctxt_t *) sdf_thread_state;
+
+    plat_log_msg(21630, LOG_CAT, LOG_INFO, "%lu", cguid);
 
     i_ctnr = get_ctnr_from_cguid(cguid);
 
@@ -1219,6 +1248,8 @@ SDF_status_t SDFDeleteContainer(
     plat_free(CtnrMap[i_ctnr].cname);
     CtnrMap[i_ctnr].cguid         = 0;
     CtnrMap[i_ctnr].sdf_container = containerNull;
+
+    plat_log_msg(20819, LOG_CAT, LOG_INFO, "%s", SDF_Status_Strings[status]);
 
     return status;
 }
@@ -1247,6 +1278,8 @@ SDF_status_t SDFStartContainer(
     struct SDF_shared_state *state = &sdf_shared_state;
     flashDev_t              *flash_dev;
     SDF_internal_ctxt_t     *pai = (SDF_internal_ctxt_t *) sdf_thread_state;
+
+    plat_log_msg(21630, LOG_CAT, LOG_INFO, "%lu", cguid);
 
     SDFStartSerializeContainerOp(pai);
 
@@ -1278,6 +1311,8 @@ SDF_status_t SDFStartContainer(
 
     SDFEndSerializeContainerOp(pai);
 
+    plat_log_msg(20819, LOG_CAT, LOG_INFO, "%s", SDF_Status_Strings[status]);
+
     return(status);
 }
 
@@ -1293,7 +1328,10 @@ SDF_status_t SDFStopContainer(
     flashDev_t              *flash_dev;
     SDF_internal_ctxt_t     *pai = (SDF_internal_ctxt_t *) sdf_thread_state;
 
+    plat_log_msg(21630, LOG_CAT, LOG_INFO, "%lu", cguid);
+
     SDFStartSerializeContainerOp(pai);
+
     if ((status = name_service_get_meta(pai, cguid, &meta)) == SDF_SUCCESS) {
 
         meta.stopflag = SDF_TRUE;
@@ -1319,6 +1357,9 @@ SDF_status_t SDFStopContainer(
     }
 
     SDFEndSerializeContainerOp(pai);
+
+    plat_log_msg(20819, LOG_CAT, LOG_INFO, "%s", SDF_Status_Strings[status]);
+
     return(status);
 }
 
@@ -2166,14 +2207,6 @@ int mcd_is_container_running( int tcp_port )
 
     return -ENOENT;
 }
-
-
-    /******************************************************
-     *
-     *  End of callback functions for simple_replication.
-     *
-     ******************************************************/
-
 
 #endif /* SDFAPI */
 

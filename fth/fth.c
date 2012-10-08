@@ -247,6 +247,55 @@ static void *pthread_func_wrapper(void *arg)
     pthread_exit(NULL);
 }
 
+fthThread_t *fthSpawnPthread()
+{
+    fthThread_t           *fthrd;
+
+    cpu_set_t              mask;
+    int i;
+
+    for (i = 0; i < 32; ++i) {
+	CPU_SET(i, &mask);
+    }
+    // sched_setaffinity(0, sizeof(mask), &mask);
+
+    fthrd = NULL;
+
+    fthrd = plat_alloc(sizeof(fthThread_t));
+    plat_assert(fthrd);
+    pthread_mutex_init(&(fthrd->mutex), NULL);
+    pthread_mutex_lock(&(fthrd->mutex));
+    fthrd->id         = fth->nthrds;
+	fthrd->is_waiting = 0;
+	fthrd->do_resume  = 0;
+	fthrd->pthread    = pthread_self();
+	fthrd->startfn    = NULL;
+	fthrd->next       = NULL;
+	fthrd->prev       = NULL;
+
+	/*  Used for Drew's screwy fthread-local state stuff in
+	 *  platform/attr.[ch].
+	 */
+	fthrd->local      = plat_attr_uthread_alloc();
+
+	pthread_cond_init(&(fthrd->condvar), NULL);
+
+	if (fth->allHead == NULL) {
+	    fth->allHead = fthrd;
+	    fth->allTail = fthrd;
+	} else {
+	    fthrd->next = fth->allHead;
+	    fth->allHead->prev = fthrd;
+	    fth->allHead = fthrd;
+	}
+	(fth->nthrds)++;
+	pthread_mutex_unlock(&(fthrd->mutex));
+
+    selfFthread = fthrd;
+
+    return fthrd;
+}
+
 /**
  * @brief Spawn a new thread.  Thread is not dispatchable until resumed.
  *
