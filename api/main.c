@@ -315,11 +315,11 @@ int main(int argc, char *argv[])
     plat_assert(sdf_create(cguid, "key4", 5, "key4_data", 10) == SDF_SUCCESS);
     plat_assert(sdf_create(cguid, "key5", 5, "key5_data", 10) == SDF_SUCCESS);
 
-    plat_assert(sdf_create(cguid, "keyr6", 5, "key1_data", 10) == SDF_SUCCESS);
-    plat_assert(sdf_create(cguid, "key7", 5, "key2_data", 10) == SDF_SUCCESS);
-    plat_assert(sdf_create(cguid, "key8", 5, "key3_data", 10) == SDF_SUCCESS);
-    plat_assert(sdf_create(cguid, "key9", 5, "key4_data", 10) == SDF_SUCCESS);
-    plat_assert(sdf_create(cguid, "key10", 5, "key5_data", 10) == SDF_SUCCESS);
+    plat_assert(sdf_create(cguid, "key6", 5, "key6_data", 10) == SDF_SUCCESS);
+    plat_assert(sdf_create(cguid, "key7", 5, "key7_data", 10) == SDF_SUCCESS);
+    plat_assert(sdf_create(cguid, "key8", 5, "key8_data", 10) == SDF_SUCCESS);
+    plat_assert(sdf_create(cguid, "key9", 5, "key9_data", 10) == SDF_SUCCESS);
+    plat_assert(sdf_create(cguid, "key10", 6, "key10_data", 11) == SDF_SUCCESS);
 
 
 //    plat_assert(sdf_create_container("foobar2", csize, &cguid) == SDF_SUCCESS);
