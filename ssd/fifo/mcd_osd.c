@@ -3249,8 +3249,8 @@ mcd_osd_slab_shard_init( mcd_osd_shard_t * shard, uint64_t shard_id,
     shard->addr_table = (uint32_t *)
         plat_alloc_large( shard->total_blks * sizeof(uint32_t) );
     if ( NULL == shard->addr_table ) {
-        mcd_log_msg( 20301, PLAT_LOG_LEVEL_ERROR,
-                     "failed to allocate hash table" );
+        mcd_log_msg( 150029, PLAT_LOG_LEVEL_ERROR,
+                     "failed to allocate hash table: %lu", shard->total_blks * sizeof(uint32_t) );
         return FLASH_ENOMEM;
     }
     memset( (void *)shard->addr_table, 0,
@@ -3537,8 +3537,8 @@ static int mcd_osd_slab_init()
             * Mcd_osd_segment_blks;
     }
     Mcd_osd_free_seg_curr = i;
-    mcd_log_msg( 20354, PLAT_LOG_LEVEL_INFO,
-                 "segment free list set up, totally %d segments", i );
+    mcd_log_msg( 150028, PLAT_LOG_LEVEL_INFO,
+                 "segment free list set up, %d segments, %lu bytes/segment", i, Mcd_osd_segment_size );
 
 #ifdef  USING_SDF_SHIM
     mcd_osd_slab_shard_init( &Mcd_osd_slab_shard,
@@ -5703,7 +5703,8 @@ mcd_osd_shard_create( struct flashDev * dev, uint64_t shard_id,
      * allocate segments for the shard and initialize the address table
      */
     if ( quota > ((uint64_t)Mcd_osd_free_seg_curr) * Mcd_osd_segment_size ) {
-        mcd_log_msg( 20381, PLAT_LOG_LEVEL_ERROR, "not enough space" );
+        mcd_log_msg( 150027, PLAT_LOG_LEVEL_ERROR, "not enough space: quota=%lu - free_seg=%lu - seg_size=%lu",
+		     quota, (uint64_t)Mcd_osd_free_seg_curr, Mcd_osd_segment_size );
         return NULL;
     }
 
@@ -6449,8 +6450,9 @@ mcd_osd_shard_delete( struct shard * lshard )
     mcd_log_msg( 20065, PLAT_LOG_LEVEL_DEBUG,
                 "ENTERING, shardID=%lu", shard->id );
 
-    if (shard->flush_fd > 0)
+    if (shard->flush_fd > 0) {
         close(shard->flush_fd);
+    }
 
     // remove shard and its properties from superblock
     // including non-persistent shards' properties
@@ -8583,6 +8585,7 @@ SDF_status_t process_raw_get_command_enum(
     *datalen_out = datalen;
     *data_out    = data;
     *addr_out    = curr_addr + 1;
+
     return(status);
 }
 

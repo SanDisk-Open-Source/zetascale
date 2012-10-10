@@ -12,6 +12,8 @@
 
 #include <stdio.h>
 #include <signal.h>
+#include <string.h>
+#include <errno.h>
 #include <aio.h>
 #include <libaio.h>
 #include <linux/fs.h>
@@ -205,7 +207,8 @@ mcd_fth_aio_blk_read( osd_state_t * context, char * buf, uint64_t offset, int nb
         }
 
 	if (pread(aio_fd, buf+submitted, aio_nbytes, aio_offset) != aio_nbytes) {
-            mcd_log_msg(150025, PLAT_LOG_LEVEL_ERROR, "pread failed!");
+            mcd_log_msg(150031, PLAT_LOG_LEVEL_ERROR, "pread failed - %s",
+			plat_strerror(errno));
 	    plat_exit(1);
 	}
 

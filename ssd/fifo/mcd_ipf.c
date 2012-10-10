@@ -2122,7 +2122,6 @@ ipf_set_active(int bind_any)
          */
 
         ipf_set_signals(ipf_signal_handler);
-#endif
 
         if (settings.start_vips) {
             for (int i = 0; i < MCD_MAX_NUM_CNTRS; i++) {
@@ -2151,6 +2150,7 @@ ipf_set_active(int bind_any)
                 }
             }
         }
+#endif
 
         return;
     }
