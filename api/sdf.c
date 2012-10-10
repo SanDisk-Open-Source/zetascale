@@ -36,6 +36,7 @@
 #define LOG_WARN PLAT_LOG_LEVEL_WARN
 #define LOG_FATAL PLAT_LOG_LEVEL_FATAL
 
+time_t current_time = 0;
 /*
 ** Externals
 */
@@ -125,7 +126,8 @@ static int sdf_check_delete_in_future(void *data)
 
 static void load_settings(flash_settings_t *osd_settings)
 {
-    (void) strcpy(osd_settings->aio_base, getProperty_String("AIO_BASE_FILENAME", "/schooner/backup/schooner%d")); // base filename of flash files
+    (void) strcpy(osd_settings->aio_base, getProperty_String("AIO_BASE_FILENAME", "/schooner/data/schooner%d")); // base filename of flash files
+//    (void) strcpy(osd_settings->aio_base, getProperty_String("AIO_BASE_FILENAME", "/schooner/backup/schooner%d")); // base filename of flash files
     osd_settings->aio_create          = 1;// use O_CREAT - membrain sets this to 0
     osd_settings->aio_total_size      = getProperty_Int("AIO_FLASH_SIZE_TOTAL", 0); // this flash size counts!
     osd_settings->aio_sync_enabled    = getProperty_Int("AIO_SYNC_ENABLED", 0); // AIO_SYNC_ENABLED
@@ -154,6 +156,7 @@ static void load_settings(flash_settings_t *osd_settings)
     osd_settings->sdf_persistence  = 0; // "-V" force containers to be persistent!
     osd_settings->max_aio_errors   = getProperty_Int("MEMCACHED_MAX_AIO_ERRORS", 1000 );
     osd_settings->check_delete_in_future = sdf_check_delete_in_future;
+	osd_settings->pcurrent_time = &current_time;
 }
 
 /*
@@ -1441,10 +1444,9 @@ SDF_status_t SDFGetForReadBufferedObject(
     }
     *datalen = ar.destLen;
 
-    if (expiry_time == NULL) {
-        return(SDF_BAD_PEXPTIME_POINTER);
-    }
-    *expiry_time     = ar.exptime;
+    if (expiry_time) {
+    	*expiry_time     = ar.exptime;
+	}
 
     return(ar.respStatus);
 }
