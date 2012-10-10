@@ -355,6 +355,7 @@ agent_config_set_defaults(struct plat_opts_config_sdf_agent *config)
 {
     char *s;
     memset(config, 0, sizeof (config));
+
     plat_shmem_config_init(&config->shmem);
 #ifdef SIMPLE_REPLICATION
     config->replication_type = SDFMyGroupGroupTypeFromConfig();
@@ -591,6 +592,10 @@ SDF_boolean_t agent_engine_pre_init(struct sdf_agent_state *state, int argc, cha
                      success ? LOG_LEV : PLAT_LOG_LEVEL_INFO,
                      "set properties SUCCESS = %u", success);
     }
+
+#ifdef SDFAPI
+    (void ) strcpy(state->flash_settings.aio_base, getProperty_String("AIO_BASE_FILENAME", "/schooner/backup/schooner%d"));
+#endif /* SDFAPI */
 
     if (success && !state->config.log_less) {
         set_debug_flags();
