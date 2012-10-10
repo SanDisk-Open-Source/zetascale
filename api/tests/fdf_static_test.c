@@ -41,7 +41,7 @@ static struct SDF_state 	*sdf_state;
 static int container_test(struct SDF_thread_state *_sdf_thread_state)
 {
     char				*cname = "/cache_container";
-    SDF_container_props_t		 p;
+    SDF_container_props_t		 props;
     SDF_cguid_t				 cguid = SDF_NULL_CGUID;
     char				*key = "object1";
     int					 keylen = strlen(key);
@@ -51,18 +51,41 @@ static int container_test(struct SDF_thread_state *_sdf_thread_state)
     uint64_t 				 buflen = 0;
     SDF_time_t    			 expiry;
 
-    p.container_id.size 		= 1024; /* KB */
-    p.durability_level 			= SDF_FULL_DURABILITY;
-    p.fifo_mode 			= SDF_FALSE; 
-    p.container_type.type 		= SDF_OBJECT_CONTAINER;
-    p.container_type.caching_container 	= SDF_TRUE;
-    p.container_type.persistence 	= SDF_TRUE;
-    p.container_type.async_writes 	= SDF_FALSE;
-    p.cache.writethru 			= SDF_TRUE;
-    p.container_id.num_objs 		= 10000; 
-    p.shard.num_shards 			= 1;
+    props.container_id.owner                    = 0;
+    props.container_id.size                     = 1024 * 1024;
+    props.container_id.container_id             = 1;
+    props.container_id.owner                    = 0;
+    props.container_id.num_objs                 = 1000000;
 
-    if (SDF_SUCCESS == SDFCreateContainer(_sdf_thread_state, cname, &p, &cguid)) {
+    props.cguid                                 = SDF_NULL_CGUID;
+
+    props.container_type.type                   = SDF_OBJECT_CONTAINER;
+    props.container_type.persistence            = SDF_TRUE;
+    props.container_type.caching_container      = SDF_TRUE;
+    props.container_type.async_writes           = SDF_FALSE;
+
+    props.replication.enabled                   = 0;
+    props.replication.type                      = SDF_REPLICATION_NONE;
+    props.replication.num_replicas              = 1;
+    props.replication.num_meta_replicas         = 0;
+    props.replication.synchronous               = 1;
+
+    props.cache.not_cacheable                   = SDF_FALSE;
+    props.cache.shared                          = SDF_FALSE;
+    props.cache.coherent                        = SDF_FALSE;
+    props.cache.enabled                         = SDF_TRUE;
+    props.cache.writethru                       = SDF_TRUE;
+    props.cache.size                            = 0;
+    props.cache.max_size                        = 0;
+
+    props.shard.enabled                         = SDF_TRUE;
+    props.shard.num_shards                      = 1;
+
+    props.fifo_mode                             = SDF_FALSE;
+
+    props.durability_level                      = SDF_FULL_DURABILITY;
+
+    if (SDF_SUCCESS == SDFCreateContainer(_sdf_thread_state, cname, &props, &cguid)) {
 	fprintf(stderr, "Created container %s\n", cname);
     } else {
 	fprintf(stderr, "Error creating container %s\n", cname);
@@ -96,14 +119,14 @@ static int container_test(struct SDF_thread_state *_sdf_thread_state)
 	fprintf(stderr, "Error getting object %s.\n", key);
         return (-1);
     }
-
+#if 0
     if (SDF_SUCCESS == (SDFStopContainer(_sdf_thread_state, cguid))) {
 	fprintf(stderr, "Stopped container %s.\n", cname);
     } else {
 	fprintf(stderr, "Error stoping container %s.\n", cname);
         return (-1);
     }
-
+#endif
     if (SDF_SUCCESS == (SDFCloseContainer(_sdf_thread_state, cguid))) {
 	fprintf(stderr, "Closed container %s.\n", cname);
     } else {
