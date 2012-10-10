@@ -1424,7 +1424,7 @@ cmc_open_object_container(SDF_internal_ctxt_t 	*pai,
 
     return (status);
 }
-
+#ifdef notdef
 SDF_CONTAINER
 cmc_open_object_container_path(SDF_internal_ctxt_t *pai, const char *path,
                               SDF_container_mode_t mode, SDFContainer *c) {
@@ -1450,6 +1450,7 @@ cmc_open_object_container_path(SDF_internal_ctxt_t *pai, const char *path,
 
     return (container);
 }
+#endif
 #else
 SDF_CONTAINER
 cmc_open_object_container(SDF_internal_ctxt_t *pai, const char *path, 
@@ -1543,7 +1544,7 @@ cmc_close_object_container(
 
     return (status);
 }
-
+#ifdef notdef
 SDF_status_t
 cmc_close_object_container_path(SDF_internal_ctxt_t *pai, SDFContainer c) {
 
@@ -1562,7 +1563,7 @@ cmc_close_object_container_path(SDF_internal_ctxt_t *pai, SDFContainer c) {
 
     return (status);
 }
-
+#endif
 #else
 SDF_status_t
 cmc_close_object_container(SDF_internal_ctxt_t *pai, SDFContainer c) {
