@@ -37,6 +37,7 @@
 #define LOG_FATAL PLAT_LOG_LEVEL_FATAL
 
 time_t current_time = 0;
+
 /*
 ** Externals
 */
@@ -156,7 +157,10 @@ static void load_settings(flash_settings_t *osd_settings)
     osd_settings->sdf_persistence  = 0; // "-V" force containers to be persistent!
     osd_settings->max_aio_errors   = getProperty_Int("MEMCACHED_MAX_AIO_ERRORS", 1000 );
     osd_settings->check_delete_in_future = sdf_check_delete_in_future;
-	osd_settings->pcurrent_time = &current_time;
+    osd_settings->pcurrent_time	    = &current_time;
+    osd_settings->is_node_independent = 1;
+    osd_settings->ips_per_cntr	    = 1;
+    osd_settings->rec_log_size_factor = 0;
 }
 
 /*
@@ -210,6 +214,8 @@ static void mcd_fth_initer(uint64_t arg)
                      "agent_engine_post_init() failed" );
         plat_assert_always( 0 == 1 );
     }
+
+    mcd_fth_start_osd_writers();
 
     /*
      * signal the parent thread
@@ -308,8 +314,12 @@ SDF_status_t SDFInit(
     pthread_t           run_sched_pthread;
     pthread_attr_t      attr;
     uint64_t            num_sched;
+    struct timeval 	timer;
 
     sem_init( &Mcd_initer_sem, 0, 0 );
+
+    gettimeofday( &timer, NULL );
+    current_time = timer.tv_sec;
 
     *sdf_state = (struct SDF_state *) &agent_state;
 
@@ -326,9 +336,6 @@ SDF_status_t SDFInit(
     if (!agent_engine_pre_init(&agent_state, argc, argv)) {
         return(SDF_FAILURE); 
     }
-
-    //  Initialize a crap-load of settings
-    //load_settings(&(agent_state.flash_settings));
 
     // spawn initer thread (like mcd_fth_initer)
     fthResume( fthSpawn( &mcd_fth_initer, MCD_FTH_STACKSIZE ),
@@ -867,95 +874,6 @@ SDF_status_t SDFOpenContainer(
     return (status);
 }
 
-/*
-** Temporary for internal compatibility
-*/
-SDF_status_t SDFOpenContainerPath(
-	struct SDF_thread_state 	*sdf_thread_state, 
-	const char 		*path, 
-	SDF_container_mode_t 	 mode,
-        SDF_CONTAINER 		*container
-	) 
-{
-    SDF_status_t status = SDF_SUCCESS;
-    local_SDF_CONTAINER lc = NULL;
-    SDF_CONTAINER_PARENT parent;
-    local_SDF_CONTAINER_PARENT lparent = NULL;
-    int log_level = LOG_ERR;
-    SDF_internal_ctxt_t     *pai = (SDF_internal_ctxt_t *) sdf_thread_state;
-
-    SDFStartSerializeContainerOp(pai);
-
-    if (ISEMPTY(path)) {
-        status = SDF_INVALID_PARAMETER;
-
-    } else if (NULL == container) {
-        status = SDF_FAILURE_CONTAINER_GENERIC;
-
-    } else if (!isContainerParentNull(parent = isParentContainerOpened(path))) {
-
-        // Test for pending delete
-        lparent = getLocalContainerParent(&lparent, parent);
-        if (lparent->delete_pending == SDF_TRUE) {
-            // Need a different error?
-            status = SDF_CONTAINER_UNKNOWN;
-        }
-        releaseLocalContainerParent(&lparent);
-    }
-
-    if (status == SDF_SUCCESS) {
-
-        // Ok to open
-        *container = openParentContainer(pai, path);
-
-        if (!isContainerNull(*container)) {
-            lc = getLocalContainer(&lc, *container);
-            lc->mode = mode; // (*container)->mode = mode;
-            _sdf_print_container_descriptor(*container);
-            log_level = LOG_DBG;
-            if (cmc_settings != NULL) {
-                 struct settings *settings = cmc_settings;
-                 int  i;
-
-                 for (i = 0;
-                      i < sizeof(settings->vips) / sizeof(settings->vips[0]);
-                      i++)
-                 {
-                     if (lc->container_id == settings->vips[i].container_id) {
-                         settings->vips[i].cguid = lc->cguid;
-
-                         plat_log_msg(21553, LOG_CAT, LOG_DBG, "set cid %d (%d) to cguid %d\n",
-                         (int) settings->vips[i].container_id,
-                         (int) i,
-                         (int) lc->cguid);
-                     }
-                 }
-            }
-
-            // FIXME: This is where the call to shardOpen goes.
-            #define MAX_SHARDIDS 32 // Not sure what max is today
-            SDF_shardid_t shardids[MAX_SHARDIDS];
-            uint32_t shard_count;
-            get_container_shards(pai, lc->cguid, shardids, MAX_SHARDIDS, &shard_count);
-            for (int i = 0; i < shard_count; i++) {
-                struct SDF_shared_state *state = &sdf_shared_state;
-                shardOpen(state->config.flash_dev, shardids[i]);
-            }
-
-            status = SDFActionOpenContainer(pai, lc->cguid);
-            if (status != SDF_SUCCESS) {
-            }
-
-            releaseLocalContainer(&lc);
-        } else {
-            status = SDF_CONTAINER_UNKNOWN;
-        }
-    }
-
-    SDFEndSerializeContainerOp(pai);
-    return (status);
-}
-
 SDF_status_t SDFCloseContainer(
         struct SDF_thread_state      *sdf_thread_state,
 	SDF_cguid_t  		      cguid
@@ -1095,134 +1013,6 @@ out:
     return (status);
 }
 
-/*
-** Temporary
-*/
-SDF_status_t SDFCloseContainerPath(
-        struct SDF_thread_state      *sdf_thread_state,
-	SDF_CONTAINER 		container
-	)
-{
-    SDF_status_t status = SDF_FAILURE;
-    SDF_cguid_t  cguid;
-    unsigned     n_descriptors;
-    SDF_internal_ctxt_t     *pai = (SDF_internal_ctxt_t *) sdf_thread_state;
-
-    SDF_status_t lock_status = SDF_SUCCESS;
-    int log_level = LOG_ERR;
-    int ok_to_delete = 0;
-
-    plat_log_msg(LOG_ID, LOG_CAT, LOG_DBG, " ");
-
-    SDFStartSerializeContainerOp(pai);
-
-    if (isContainerNull(container)) {
-        status = SDF_FAILURE_CONTAINER_GENERIC;
-    } else {
-
-        // Delete the container if there are no outstanding opens and a delete is pending
-        local_SDF_CONTAINER lcontainer = getLocalContainer(&lcontainer, container);
-        SDF_CONTAINER_PARENT parent = lcontainer->parent;
-        local_SDF_CONTAINER_PARENT lparent = getLocalContainerParent(&lparent, parent);
-        char path[MAX_OBJECT_ID_SIZE] = "";
-
-        if (lparent->name) {
-            memcpy(&path, lparent->name, strlen(lparent->name));
-        }
-
-        if (lparent->num_open_descriptors == 1 && lparent->delete_pending == SDF_TRUE) {
-            ok_to_delete = 1;
-        }
-        // copy these from lparent before I nuke it!
-        n_descriptors = lparent->num_open_descriptors;
-        cguid         = lparent->cguid;
-        releaseLocalContainerParent(&lparent);
-
-        if (closeParentContainer(container)) {
-            status = SDF_SUCCESS;
-            log_level = LOG_DBG;
-        }
-
-        // FIXME: This is where shardClose call goes.
-        if (n_descriptors == 1) {
-            #define MAX_SHARDIDS 32 // Not sure what max is today
-            SDF_shardid_t shardids[MAX_SHARDIDS];
-            uint32_t shard_count;
-            get_container_shards(pai, cguid, shardids, MAX_SHARDIDS, &shard_count);
-            for (int i = 0; i < shard_count; i++) {
-                //shardClose(shardids[i]);
-            }
-        }
-
-        if (status == SDF_SUCCESS && ok_to_delete) {
-
-            if ((status = name_service_lock_meta(pai, path)) == SDF_SUCCESS) {
-
-                // Flush and invalidate all of the container's cached objects
-                if ((status = name_service_inval_object_container(pai, path)) != SDF_SUCCESS) {
-                    plat_log_msg(21540, LOG_CAT, LOG_ERR,
-                                 "%s - failed to flush and invalidate container", path);
-                    log_level = LOG_ERR;
-                } else {
-                    plat_log_msg(21541, LOG_CAT, LOG_DBG,
-                                 "%s - flush and invalidate container succeed", path);
-                }
-
-                // Remove the container shards
-                if (status == SDF_SUCCESS &&
-                    (status = name_service_delete_shards(pai, path)) != SDF_SUCCESS) {
-                    plat_log_msg(21544, LOG_CAT, LOG_ERR,
-                                 "%s - failed to delete container shards", path);
-                    log_level = LOG_ERR;
-                } else {
-                    plat_log_msg(21545, LOG_CAT, LOG_DBG,
-                                 "%s - delete container shards succeeded", path);
-                }
-                // Remove the container metadata
-                if (status == SDF_SUCCESS &&
-                    (status = name_service_remove_meta(pai, path)) != SDF_SUCCESS) {
-                    plat_log_msg(21546, LOG_CAT, LOG_ERR,
-                                 "%s - failed to remove metadata", path);
-                    log_level = LOG_ERR;
-                } else {
-                    plat_log_msg(21547, LOG_CAT, LOG_DBG,
-                                 "%s - remove metadata succeeded", path);
-                }
-
-                // Unlock the metadata - only return lock error status if no other errors
-                if ((lock_status == name_service_unlock_meta(pai, path)) != SDF_SUCCESS) {
-                    plat_log_msg(21548, LOG_CAT, LOG_ERR,
-                                 "%s - failed to unlock metadata", path);
-                    if (status == SDF_SUCCESS) {
-                        status = lock_status;
-                        log_level = LOG_ERR;
-                    }
-                } else {
-                    plat_log_msg(21549, LOG_CAT, LOG_DBG,
-                                 "%s - unlock metadata succeeded", path);
-                }
-
-                // Remove the container guid map
-                if (status == SDF_SUCCESS &&
-                    name_service_remove_cguid_map(pai, path) != SDF_SUCCESS) {
-                    plat_log_msg(21550, LOG_CAT, LOG_ERR,
-                                 "%s - failed to remove cguid map", path);
-                    log_level = LOG_ERR;
-                } else {
-                    plat_log_msg(21551, LOG_CAT, LOG_DBG,
-                                 "%s - remove cguid map succeeded", path);
-                }
-            }
-        }
-    }
-
-    plat_log_msg(20819, LOG_CAT, log_level, "%s", SDF_Status_Strings[status]);
-
-    SDFEndSerializeContainerOp(pai);
-
-    return (status);
-}
-
 SDF_status_t SDFDeleteContainer(
 	struct SDF_thread_state	*sdf_thread_state,
 	SDF_cguid_t		 cguid
@@ -1255,19 +1045,6 @@ SDF_status_t SDFDeleteContainer(
     plat_log_msg(20819, LOG_CAT, LOG_INFO, "%s", SDF_Status_Strings[status]);
 
     return status;
-}
-
-/*
-** Temporary
-*/
-SDF_status_t SDFDeleteContainerPath(
-	struct SDF_thread_state	*sdf_thread_state,
-	const char 		*path
-	)
-{  
-    SDF_internal_ctxt_t *pai = (SDF_internal_ctxt_t *) sdf_thread_state;
-
-    return(delete_container_internal(pai, path, SDF_TRUE /* serialize */));
 }
 
 SDF_status_t SDFStartContainer(
@@ -1338,6 +1115,7 @@ SDF_status_t SDFStopContainer(
     if ((status = name_service_get_meta(pai, cguid, &meta)) == SDF_SUCCESS) {
 
         meta.stopflag = SDF_TRUE;
+
         if ((status = name_service_put_meta(pai, cguid, &meta)) == SDF_SUCCESS) {
 
             #ifdef MULTIPLE_FLASH_DEV_ENABLED
@@ -2169,7 +1947,6 @@ int mcd_format_container_internal( void * pai, int tcp_port )
     #ifdef notdef
     mcd_log_msg(20728, PLAT_LOG_LEVEL_INFO, "formatting container, port=%d",
                  tcp_port );
-
     if ( settings.ips_per_cntr ) {
         plat_abort();
     }

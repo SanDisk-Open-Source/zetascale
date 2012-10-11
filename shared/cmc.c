@@ -1376,6 +1376,7 @@ SDF_status_t
 cmc_delete_object_container(SDF_internal_ctxt_t *pai, const char *cname) {
 
     SDF_status_t status = SDF_FAILURE;
+#ifdef notdef
     int log_level = LOG_ERR;
 
     plat_log_msg(20819, PLAT_LOG_CAT_SDF_CLIENT, LOG_DBG, "%s", cname);
@@ -1395,7 +1396,7 @@ cmc_delete_object_container(SDF_internal_ctxt_t *pai, const char *cname) {
 	plat_log_msg(21511, LOG_CAT, log_level, "%s - %s", 
 		     cname, SDF_Status_Strings[status]);		 
     }
-
+#endif /* notdef */
     return (status);
 }
 
