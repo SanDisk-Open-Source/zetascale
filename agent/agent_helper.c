@@ -593,9 +593,9 @@ SDF_boolean_t agent_engine_pre_init(struct sdf_agent_state *state, int argc, cha
                      "set properties SUCCESS = %u", success);
     }
 
-#ifdef SDFAPI
+#ifdef SDFAPIONLY
     (void ) strcpy(state->flash_settings.aio_base, getProperty_String("AIO_BASE_FILENAME", "/schooner/backup/schooner%d"));
-#endif /* SDFAPI */
+#endif /* SDFAPIONLY */
 
     if (success && !state->config.log_less) {
         set_debug_flags();
