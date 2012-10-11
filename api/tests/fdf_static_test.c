@@ -11,6 +11,7 @@
 #include <stdio.h> 
 #include <inttypes.h>
 #include <string.h> 
+#include <unistd.h> 
 #include "common/sdftypes.h"
 #include "fth/fth.h"
 #include "utils/properties.h"
@@ -40,7 +41,7 @@ static struct SDF_state 	*sdf_state;
 // ====================================================================================================================
 static int container_test(struct SDF_thread_state *_sdf_thread_state)
 {
-    char				*cname = "/cache_container";
+    char				*cname = "test_container";
     SDF_container_props_t		 props;
     SDF_cguid_t				 cguid = SDF_NULL_CGUID;
     char				*key = "object1";
@@ -114,7 +115,7 @@ static int container_test(struct SDF_thread_state *_sdf_thread_state)
     }
 
     if (SDF_SUCCESS == (SDFGetForReadBufferedObject(_sdf_thread_state, cguid, key, keylen, &buf, &buflen, 0, &expiry))) {
-	fprintf(stderr, "Get object %s, value = %s\n", key, buf);
+	fprintf(stderr, "Get object %s, value = %s, len = %lu\n", key, buf, buflen);
     } else {
 	fprintf(stderr, "Error getting object %s.\n", key);
         return (-1);
@@ -160,5 +161,7 @@ main(int argc, char *argv[])
     _sdf_thread_state    = SDFInitPerThreadState(sdf_state);
 
     container_test(_sdf_thread_state);
+
+    fprintf(stderr, "DONE\n");
 }
 

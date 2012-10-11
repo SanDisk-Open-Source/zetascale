@@ -67,7 +67,6 @@
  */
 #define align(p, n) ((void *) (((uint64_t)(p)+(n)-1) & ~((n)-1)))
 
-
 /*
  * Flushed to disk with every write.
  */
@@ -181,12 +180,12 @@ static fthLock_t                Mcd_rec_log_segment_lock;
 static mcd_rec_aio_ctxt_t     * Mcd_rec_free_aio_ctxt_list   = NULL;
 static fthLock_t                Mcd_rec_free_aio_ctxt_lock;
 static fthMbox_t                Mcd_rec_updater_mbox;
+static fthMbox_t                Mcd_rec_log_writer_mbox;
 
 static int                      Mcd_rec_updater_threads      = 0;
 static int                      Mcd_rec_log_writer_threads   = 0;
 
 static int                      Mcd_rec_chicken              = 1;
-static fthMbox_t                Mcd_rec_updater_mbox;
 
 // FIXME: hack alert
 static int                      Mcd_rec_first_shard_recovered = 0;
@@ -1807,6 +1806,9 @@ recovery_init( void )
         fthResume( fthSpawn( &updater_thread_chicken, 81920 ),(uint64_t)NULL );
     }
 
+    // Init log writer mbox - used to sync thread start and processing
+    fthMboxInit( &Mcd_rec_log_writer_mbox );
+
     return 0;
 }
 
@@ -2930,7 +2932,7 @@ shard_recover_phase2( mcd_osd_shard_t * shard )
     int                         i, rc;
     uint64_t                    recovered_objs = 0;
     void                      * context =
-        mcd_fth_init_aio_ctxt( SSD_AIO_CTXT_MCD_REC_RCVR );
+    mcd_fth_init_aio_ctxt( SSD_AIO_CTXT_MCD_REC_RCVR );
     mcd_rec_update_t            update_mail;
     fthMbox_t                   updated_mbox;
 
@@ -6279,8 +6281,10 @@ log_init_phase2( void * context, mcd_osd_shard_t * shard )
         }
     }
 
-    // start log writer thread
+    // start log writer thread and wait unti it is ready
     fthResume( fthSpawn( &log_writer_thread, 40960 ), (uint64_t)shard );
+    fthMboxWait( &Mcd_rec_log_writer_mbox );
+
 
     mcd_rlg_msg( 20541, PLAT_LOG_LEVEL_INFO,
                  "log initialized, shardID=%lu, "
@@ -6786,6 +6790,9 @@ log_writer_thread( uint64_t arg )
     // show that the log writer has been started
     log->started = 1;
     sync_sem     = NULL;
+
+    // signal that we are running
+    fthMboxPost( &Mcd_rec_log_writer_mbox, 1 );
 
     // -------------------------------------
     // wait for signal to write a log buffer

@@ -5,6 +5,8 @@ LIB = libsdf.a
 LIB_SRCS = \
 	sdf.c 
 
+SUBDIRS = tests
+
 PROG = sdftest
 
 SRCS = \
