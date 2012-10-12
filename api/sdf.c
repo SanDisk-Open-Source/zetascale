@@ -1262,7 +1262,7 @@ SDF_status_t SDFCreateBufferedObject(
 
     pac = (SDF_action_init_t *) sdf_thread_state;
 
-#if 1
+#if 0
     struct SDF_shared_state    *state = &sdf_shared_state;
     flashDev_t                 *flash_dev;
     struct SDF_iterator        *iterator;
@@ -1671,6 +1671,8 @@ SDF_status_t SDFFinishEnumeration(
     uint64_t                    curr_seqno;
     uint32_t                    version;
 
+	plat_assert(iterator);
+
     // stop the backup
     status = backup_container( iterator->shard,
                                        1, // full
@@ -1681,6 +1683,8 @@ SDF_status_t SDFFinishEnumeration(
                                        &prev_seqno,
                                        &curr_seqno,
                                        &backup_time );
+
+	plat_free(iterator);
 
     return(status);
 }
@@ -1716,6 +1720,8 @@ SDF_status_t SDFNextEnumeratedObject(
 {
     SDF_status_t             ret;
     SDF_action_init_t       *pai = (SDF_action_init_t *) sdf_thread_state;
+
+	plat_assert(iterator);
 
     ret = process_raw_get_command_enum(
 				     (mcd_osd_shard_t *) iterator->shard,
