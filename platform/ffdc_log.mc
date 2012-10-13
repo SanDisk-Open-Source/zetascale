@@ -3026,6 +3026,10 @@
 150024 NULL - %s
 150025 pread failed!
 150026 Failed to find shard for %s
+150027 not enough space: quota=%lu - free_seg=%lu - seg_size=%lu
+150028 segment free list set up, %d segments, %lu bytes/segment
+150029 failed to allocate hash table: %lu
+150031 pread failed - %s
 
 
 # root
