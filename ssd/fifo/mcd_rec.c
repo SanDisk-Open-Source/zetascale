@@ -5312,14 +5312,15 @@ updater_thread( uint64_t arg )
         // Reply to requestor
         // -----------------------------------------------------
 
-        // signal this shard update is done
-        if ( mail->updated_mbox != NULL ) {
-            fthMboxPost( mail->updated_mbox, recovered_objs );
-        }
-
+	// 101712: reversed the order of fthSemUp and fthMboxPost to fix 10108
         // make persistent log available for writing
         if ( mail->updated_sem != NULL ) {
             fthSemUp( mail->updated_sem, 1 );
+        }
+
+        // signal this shard update is done
+        if ( mail->updated_mbox != NULL ) {
+            fthMboxPost( mail->updated_mbox, recovered_objs );
         }
 
         fthGetTimeOfDay( &tv );
