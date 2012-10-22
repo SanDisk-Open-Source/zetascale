@@ -989,17 +989,19 @@ SDF_status_t SDFOpenContainer(
             }
 
 #ifdef SDFAPIONLY
-    	    if (CMC_CGUID != cguid) {
-	    	shard = container_to_shard(pai, lc);
-	     	if (NULL != shard) {
-	       	    mcd_shard = (mcd_osd_shard_t *)shard;
-	            mcd_shard->cntr = &Mcd_containers[index];
-		    fprintf(stderr, "SDFOpenContainer: shard_recover_phase2\n");
-	    	    shard_recover_phase2( mcd_shard );
-	     	} else {
-            	    plat_log_msg(150026, LOG_CAT,LOG_ERR, "Failed to find shard for %s", path);
-		}
-	     }
+            if (CMC_CGUID != cguid) {
+                shard = container_to_shard(pai, lc);
+                if (NULL != shard) {
+                    mcd_shard = (mcd_osd_shard_t *)shard;
+                    mcd_shard->cntr = &Mcd_containers[index];
+                    if( 1 == mcd_shard->persistent ) {
+                        fprintf(stderr, "SDFOpenContainer: shard_recover_phase2\n");
+                        shard_recover_phase2( mcd_shard );
+                    }
+                } else {
+                    plat_log_msg(150026, LOG_CAT,LOG_ERR, "Failed to find shard for %s", path);
+                }
+            }
 #endif /* SDFAPIONLY */
 
             releaseLocalContainer(&lc);
