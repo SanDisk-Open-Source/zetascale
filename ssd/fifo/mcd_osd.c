@@ -4321,6 +4321,7 @@ mcd_fth_osd_slab_dealloc( mcd_osd_shard_t * shard, uint32_t address )
 static int mcd_osd_prefix_delete( mcd_osd_shard_t * shard, char * key,
                                   int key_len )
 {
+#ifndef SDFAPI
     SDF_status_t   status;
 
     mcd_log_msg( 50047, MCD_OSD_LOG_LVL_INFO,
@@ -4334,7 +4335,7 @@ static int mcd_osd_prefix_delete( mcd_osd_shard_t * shard, char * key,
                      key, SDF_Status_Strings[status] );
         return FLASH_ENOMEM;
     }
-
+#endif /* SDFAPI */
     return FLASH_EOK;
 }
 
