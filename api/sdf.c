@@ -602,6 +602,7 @@ SDF_status_t SDFCreateContainer(
 	SDF_cguid_t 		*cguid 
 	)
 {
+    int					 i				= 0;
     uint64_t  				 cid				= 0;
     struct SDF_shared_state 		*state 				= &sdf_shared_state;
     SDF_status_t 			 status 			= SDF_FAILURE;
@@ -649,8 +650,8 @@ SDF_status_t SDFCreateContainer(
         isCMC = SDF_TRUE;
         home_node = CMC_HOME;
     } else {
-        int i;
         *cguid = generate_cguid(pai, cname, init_get_my_node_id(), cid); // Generate the cguid
+#if 0
 	for (i=0; i<MCD_MAX_NUM_CNTRS; i++) {
 	    if (CtnrMap[i].cguid == 0) {
 	        // this is an unused map entry
@@ -666,7 +667,7 @@ SDF_status_t SDFCreateContainer(
 		break;
 	    }
 	}
-
+#endif
 	if (i == MCD_MAX_NUM_CNTRS) {
 	    plat_log_msg(150023, LOG_CAT,LOG_ERR, "SDFCreateContainer failed for container %s because 128 containers have already been created.", cname);
 	    status = SDF_TOO_MANY_CONTAINERS;
@@ -861,12 +862,26 @@ SDF_status_t SDFCreateContainer(
 */
 #endif
 
-    if (SDF_SUCCESS == status) {
-    	for (int index=0; index<MCD_MAX_NUM_CNTRS; index++) {
-            if (Mcd_containers[index].shard == NULL) {
-                 Mcd_containers[index].cguid = *cguid;
-             }
-         }
+    if (SDF_SUCCESS == status && CMC_CGUID != *cguid) {
+        for (i=0; i<MCD_MAX_NUM_CNTRS; i++) {
+            if (CtnrMap[i].cguid == 0) {
+                // this is an unused map entry
+                CtnrMap[i].cname = plat_alloc(strlen(cname)+1);
+                if (CtnrMap[i].cname == NULL) {
+                    status = SDF_FAILURE_MEMORY_ALLOC;
+                    SDFEndSerializeContainerOp(pai);
+                    return(status);
+                }
+                strcpy(CtnrMap[i].cname, cname);
+                CtnrMap[i].cguid         = *cguid;
+                CtnrMap[i].sdf_container = containerNull;
+#ifdef SDFAPIONLY
+                Mcd_containers[i].cguid = *cguid;
+                strcpy(Mcd_containers[i].cname, cname);
+#endif /* SDfAPIONLY */
+                break;
+            }           
+	}
     }
     SDFEndSerializeContainerOp(pai);
     plat_log_msg(21511, LOG_CAT, LOG_INFO, "%s - %s", cname, SDF_Status_Strings[status]);
@@ -879,7 +894,6 @@ SDF_status_t SDFOpenContainer(
 	SDF_container_mode_t 	 mode
 	) 
 {               
-    int				index		= -1;
     SDF_status_t 		status 		= SDF_SUCCESS;
     local_SDF_CONTAINER 	lc 		= NULL;
     SDF_CONTAINER_PARENT 	parent;
@@ -914,13 +928,6 @@ SDF_status_t SDFOpenContainer(
 	path = CMC_PATH;
     }
 
-    // Find the Mcd_containers index for this cguid
-    for (index=0; index<MCD_MAX_NUM_CNTRS; index++) {
-        if (Mcd_containers[index].cguid == cguid) {
-            break;
-        }
-    }
-             
     if (ISEMPTY(path)) { 
         status = SDF_INVALID_PARAMETER;
     } else if (!isContainerParentNull(parent = isParentContainerOpened(path))) {
@@ -993,9 +1000,8 @@ SDF_status_t SDFOpenContainer(
                 shard = container_to_shard(pai, lc);
                 if (NULL != shard) {
                     mcd_shard = (mcd_osd_shard_t *)shard;
-                    mcd_shard->cntr = &Mcd_containers[index];
+                    mcd_shard->cntr = &Mcd_containers[i_ctnr];
                     if( 1 == mcd_shard->persistent ) {
-                        fprintf(stderr, "SDFOpenContainer: shard_recover_phase2\n");
                         shard_recover_phase2( mcd_shard );
                     }
                 } else {

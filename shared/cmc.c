@@ -431,7 +431,6 @@ cmc_recover(SDF_internal_ctxt_t *pai, const char *cmc_path) {
     SDF_container_meta_t *meta = NULL;
     struct SDF_shared_state *state = &sdf_shared_state;
 
-fprintf(stderr, "cmc_recover\n");
     plat_log_msg(21498, LOG_CAT, LOG_DBG, "Node: %d", init_get_my_node_id());
 
     if (ISEMPTY(cmc_path)) {
@@ -535,7 +534,6 @@ fprintf(stderr, "cmc_recover\n");
 		// Bypass the CMC blob...we re-create it in the SDF globals...
 		if (blob->meta.cguid != CMC_CGUID) {
 		    ctnr_meta_version_check(blob->meta.version);
-
 		    status = cmc_create_meta(pai,
 					     theCMC,
 					     blob->meta.cname,
@@ -548,6 +546,28 @@ fprintf(stderr, "cmc_recover\n");
 						      blob->meta.cguid,
 						      blob->meta.cname);
 		    }
+
+#ifdef SDFAPI
+    		    //  Initialize the container map
+    		    for (int i=0; i<MCD_MAX_NUM_CNTRS; i++) {
+            		if (CtnrMap[i].cguid == 0) {
+                	    // this is an unused map entry
+                	    CtnrMap[i].cname = plat_alloc(strlen(blob->meta.cname)+1);
+                	    if (CtnrMap[i].cname == NULL) {
+                    	        status = SDF_FAILURE_MEMORY_ALLOC;
+			        break;
+                	    }
+                	    strcpy(CtnrMap[i].cname, blob->meta.cname);
+                	    CtnrMap[i].cguid         = blob->meta.cguid;
+                	    CtnrMap[i].sdf_container = containerNull;
+#ifdef SDFAPIONLY
+			    Mcd_containers[i].cguid  = blob->meta.cguid;
+                	    strcpy(Mcd_containers[i].cname, blob->meta.cname);
+#endif /* SDFAPIONLY */
+                	    break;
+			}
+            	    }
+#endif /* SDFAPI */
 		}
 	    }
 	}
