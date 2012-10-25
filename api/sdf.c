@@ -1791,11 +1791,15 @@ SDF_status_t SDFStopContainer(
             #endif
             shard = shardFind(flash_dev, meta.shard);
 
+	    	((mcd_osd_shard_t*)shard)->cntr->state = cntr_stopping;
+
             shardStop(shard);
 
             /* Clean up additional action node state for the container.
              */
             status = SDFActionStopContainer(pai, &meta);
+
+	    	((mcd_osd_shard_t*)shard)->cntr->state = cntr_stopped;
         } else {
             plat_log_msg(21539, LOG_CAT, LOG_ERR,
                          "name_service_put_meta failed for cguid %"PRIu64"", cguid);
