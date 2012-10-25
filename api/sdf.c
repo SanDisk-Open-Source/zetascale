@@ -1742,12 +1742,19 @@ SDF_status_t SDFStartContainer(
 
             shard = shardFind(flash_dev, meta.shard);
 
-            shardStart(shard);
+			if(shard)
+			{
+	            shardStart(shard);
 
-            /* Clean up additional action node state for the container.
-             */
-            status = SDFActionStartContainer(pai, &meta);
-
+	            /* Clean up additional action node state for the container.
+	             */
+	            status = SDFActionStartContainer(pai, &meta);
+			}
+			else
+        	{
+            	status = SDF_CONTAINER_UNKNOWN;
+	            plat_log_msg(160029, LOG_CAT,LOG_ERR, "Failed to find shard for cguid %"PRIu64"", cguid);
+	        }
         } else {
             plat_log_msg(21539, LOG_CAT, LOG_ERR,
                          "name_service_put_meta failed for cguid %"PRIu64"", cguid);
@@ -1791,15 +1798,23 @@ SDF_status_t SDFStopContainer(
             #endif
             shard = shardFind(flash_dev, meta.shard);
 
-	    	((mcd_osd_shard_t*)shard)->cntr->state = cntr_stopping;
+			if(shard)
+			{
+		    	((mcd_osd_shard_t*)shard)->cntr->state = cntr_stopping;
 
-            shardStop(shard);
+	            shardStop(shard);
 
-            /* Clean up additional action node state for the container.
-             */
-            status = SDFActionStopContainer(pai, &meta);
+	            /* Clean up additional action node state for the container.
+	             */
+	            status = SDFActionStopContainer(pai, &meta);
 
-	    	((mcd_osd_shard_t*)shard)->cntr->state = cntr_stopped;
+		    	((mcd_osd_shard_t*)shard)->cntr->state = cntr_stopped;
+			}
+			else
+        	{
+            	status = SDF_CONTAINER_UNKNOWN;
+	            plat_log_msg(160029, LOG_CAT,LOG_ERR, "Failed to find shard for cguid %"PRIu64"", cguid);
+	        }
         } else {
             plat_log_msg(21539, LOG_CAT, LOG_ERR,
                          "name_service_put_meta failed for cguid %"PRIu64"", cguid);
@@ -2244,6 +2259,11 @@ SDF_status_t SDFEnumerateContainerObjects(
 	flash_dev = state->config.flash_dev;
     #endif
     iterator->shard = shardFind(flash_dev, meta.shard);
+	if(!iterator->shard)
+    {
+	    plat_log_msg(160029, LOG_CAT,LOG_ERR, "Failed to find shard for cguid %"PRIu64"", cguid);
+		return SDF_FAILURE;
+	}
 #if 0
     fprintf(stderr, "SDFEnumerateContainerObjects: iterator->shard->shardID: %lu\n", iterator->shard->shardID);
     fprintf(stderr, "SDFEnumerateContainerObjects: iterator->shard->quota: %lu\n", iterator->shard->quota);
