@@ -166,10 +166,11 @@ SDF_boolean_t agent_engine_post_init(
 	);
 
 extern 
-SDF_status_t delete_container_internal(
+SDF_status_t delete_container_internal_low(
 	SDF_internal_ctxt_t 	*pai, 
 	const char 		*path, 
-	SDF_boolean_t 		 serialize
+	SDF_boolean_t 		 serialize,
+	int *deleted
 	);
 
 SDF_status_t SDFGetStatsStr (
@@ -1608,6 +1609,8 @@ SDF_status_t SDFCloseContainer(
 
         if (status == SDF_SUCCESS && ok_to_delete) {
 
+		    plat_log_msg(160031, LOG_CAT, LOG_INFO, "Delete request pending. Deleting... cguid=%lu", cguid);
+
             if ((status = name_service_lock_meta(pai, path)) == SDF_SUCCESS) {
 
                 // Flush and invalidate all of the container's cached objects
@@ -1666,6 +1669,8 @@ SDF_status_t SDFCloseContainer(
                                  "%s - remove cguid map succeeded", path);
                 }
             }
+
+    		CtnrMap[i_ctnr].cguid         = 0;
         }
     }
 
@@ -1683,30 +1688,31 @@ SDF_status_t SDFDeleteContainer(
 	struct SDF_thread_state	*sdf_thread_state,
 	SDF_cguid_t		 cguid
 	)
-{  
-    SDF_status_t status = SDF_FAILURE;
-    char *path = NULL;
-    int  i_ctnr;
+{
     SDF_internal_ctxt_t *pai = (SDF_internal_ctxt_t *) sdf_thread_state;
+    SDF_status_t status = SDF_INVALID_PARAMETER;
+    int  i_ctnr, ok_to_delete = 0;
 
     plat_log_msg(21630, LOG_CAT, LOG_INFO, "%lu", cguid);
 
     i_ctnr = get_ctnr_from_cguid(cguid);
 
-    if (i_ctnr == -1) {
-        status = SDF_INVALID_PARAMETER;
-    } else {
-	path = CtnrMap[i_ctnr].cname;
-    	if (ISEMPTY(path)) {
-       	    status = SDF_INVALID_PARAMETER;
-	} else {
-	    status = delete_container_internal(pai, path, SDF_TRUE /* serialize */);
-	}
-    }
+    if (i_ctnr >=0 && !ISEMPTY(CtnrMap[i_ctnr].cname)) {
+	    status = delete_container_internal_low(pai, CtnrMap[i_ctnr].cname, SDF_TRUE /* serialize */, &ok_to_delete);
 
-    plat_free(CtnrMap[i_ctnr].cname);
-    CtnrMap[i_ctnr].cguid         = 0;
-    CtnrMap[i_ctnr].sdf_container = containerNull;
+		plat_free(CtnrMap[i_ctnr].cname);
+		CtnrMap[i_ctnr].cname = NULL;
+
+		if(ok_to_delete)
+		{
+    		CtnrMap[i_ctnr].cguid         = 0;
+		    CtnrMap[i_ctnr].sdf_container = containerNull;
+		}
+		else
+		{
+	    	plat_log_msg(160030, LOG_CAT, LOG_INFO, "Container is not deleted (busy or error): cguid=%lu(%d), status=%s", cguid, i_ctnr, SDF_Status_Strings[status]);
+		}
+    }
 
     plat_log_msg(20819, LOG_CAT, LOG_INFO, "%s", SDF_Status_Strings[status]);
 

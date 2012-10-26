@@ -761,7 +761,7 @@ SDFDeleteContainer(SDF_internal_ctxt_t *pai, const char *path)
 }
 #endif /* SDFAPI */
 
-SDF_status_t delete_container_internal(SDF_internal_ctxt_t *pai, const char *path, SDF_boolean_t serialize) 
+SDF_status_t delete_container_internal_low(SDF_internal_ctxt_t *pai, const char *path, SDF_boolean_t serialize, int *deleted) 
 {
 
     SDF_status_t         status = SDF_SUCCESS;
@@ -902,8 +902,17 @@ SDF_status_t delete_container_internal(SDF_internal_ctxt_t *pai, const char *pat
     if (serialize) {
 	SDFEndSerializeContainerOp(pai);
     }
+
+	if(deleted) *deleted = ok_to_delete;
+
     return (status);
 }
+
+SDF_status_t delete_container_internal(SDF_internal_ctxt_t *pai, const char *path, SDF_boolean_t serialize) 
+{
+	return delete_container_internal_low(pai, path, serialize, NULL);	
+}
+
 
 #ifndef SDFAPI
 SDF_status_t
