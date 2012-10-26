@@ -177,7 +177,7 @@ SDF_status_t SDFGetStatsStr (
         SDF_cguid_t cguid, char *stats_str );
 void action_stats_new_cguid(SDF_internal_ctxt_t *pac, char *str, int size, SDF_cguid_t cguid);
 void action_stats(SDF_internal_ctxt_t *pac, char *str, int size);
-
+#if 0
 static void set_log_level( unsigned int log_level )
 {
     char                buf[80];
@@ -187,6 +187,7 @@ static void set_log_level( unsigned int log_level )
     sprintf( buf, "apps/memcached/server=%s", levels[log_level] );
     plat_log_parse_arg( buf );
 }
+#endif
 
 static int sdf_check_delete_in_future(void *data)
 {
@@ -473,7 +474,7 @@ SDF_status_t SDFInit(
     load_settings(&(agent_state.flash_settings));
 
     //  Set the logging level
-    set_log_level(agent_state.flash_settings.sdf_log_level);
+    //set_log_level(agent_state.flash_settings.sdf_log_level);
 
     if (!agent_engine_pre_init(&agent_state, argc, argv)) {
         return(SDF_FAILURE); 

@@ -45,6 +45,53 @@ int unloadProperties()
     return (ret);
 }
 
+int getPropertyFromFile(const char *prop_file, char *inKey, char *outVal) {
+    int ret = 0;
+    FILE *fp = fopen(prop_file, "r");
+
+    if (!fp) {
+        plat_log_msg(21756, PLAT_LOG_CAT_PRINT_ARGS,
+                     PLAT_LOG_LEVEL_ERROR,
+                     "Reading properties file '%s' has an error!\n", propertiesDefaultFile);
+        return -1;
+    }
+
+    char *line = (char *) plat_alloc(2048), *beg, *str, *key, *val;
+    while(fgets(line, 2048, fp)) {
+        beg = line;
+        while(' ' == *beg) { // trim beginning
+            beg++;
+        }
+        
+        if('#' == *beg || '\0' == *beg || '\n' == *beg) { // search for comment
+            continue;
+        }
+        
+        str = beg;
+        while('=' != *str && '\0' != *str && ' ' != *str && '\n' != *str) { // get key
+            str++;
+        }
+        key = strndup(beg, str-beg);
+        
+        beg = str++;
+        while(' ' == *beg || '=' == *beg) { // trim beginning
+            beg++;
+        }
+        str = beg;
+        while('=' != *str && '\0' != *str && ' ' != *str && '\n' != *str) { // get value
+            str++;
+        }
+        val = strndup(beg, str-beg);
+        if ( strcmp(inKey,key) == 0 ) {
+            strcpy(outVal,val);
+            break;
+        }
+    }
+    fclose(fp);
+    plat_free(line);
+    return (ret);
+}
+
 int loadProperties(const char *path_arg)
 {
     if (NULL != _sdf_globalPropertiesMap) {

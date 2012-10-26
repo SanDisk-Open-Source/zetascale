@@ -7308,7 +7308,7 @@ mcd_osd_register_ops( void )
     Ssd_fifo_ops.flashRegisterSetRetainedTombstoneGuaranteeCallback =
         mcd_osd_slab_flash_register_set_rtg_callback;
 
-    mcd_log_msg( 20413, PLAT_LOG_LEVEL_INFO, "mcd_osd ops registered" );
+    //mcd_log_msg( 20413, PLAT_LOG_LEVEL_INFO, "mcd_osd ops registered" );
 
     return;
 }

@@ -1456,7 +1456,7 @@ mcd_aio_register_ops( void )
     Ssd_aio_ops.aio_blk_read            = mcd_fth_aio_blk_read;
     Ssd_aio_ops.aio_blk_write           = mcd_fth_aio_blk_write;
 
-    mcd_log_msg(20062, PLAT_LOG_LEVEL_INFO, "mcd_aio ops registered" );
+    //mcd_log_msg(20062, PLAT_LOG_LEVEL_INFO, "mcd_aio ops registered" );
 
     return;
 }

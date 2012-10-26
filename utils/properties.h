@@ -24,6 +24,8 @@ void initializeProperties();
 */
 int loadProperties(const char *path);
 
+int getPropertyFromFile(const char *prop_file, char *inKey, char *outVal);
+
 /**
 * @return 0 on success, 1 if duplicate and replacement not done
 */

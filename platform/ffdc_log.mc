@@ -3061,3 +3061,4 @@
 160025 Node %d does not have any persistent container\n
 160026 Node becomes authoritative for persistent containers\n
 160027 pwrite failed!
+160029 Failed to find shard for cguid %"PRIu64"
