@@ -901,8 +901,8 @@ SDF_status_t SDFOpenContainer(
     SDF_CONTAINER_PARENT 	parent;
     local_SDF_CONTAINER_PARENT 	lparent 	= NULL;
     int 			log_level 	= LOG_ERR;
-    char 			*path 		= NULL;
-    int  			i_ctnr 		= -1;
+    char 			*path 		= CMC_PATH;
+    int  			i_ctnr 		= 0;
     SDF_CONTAINER 		container 	= containerNull;
     SDF_internal_ctxt_t     	*pai 		= (SDF_internal_ctxt_t *) sdf_thread_state;
 #ifdef SDFAPIONLY
@@ -916,24 +916,26 @@ SDF_status_t SDFOpenContainer(
     SDFStartSerializeContainerOp(pai);
 
     if (CMC_CGUID != cguid) {
-    	
-	i_ctnr = get_ctnr_from_cguid(cguid);
+	
+		i_ctnr = get_ctnr_from_cguid(cguid);
 
-    	if (i_ctnr == -1) {
+    	if (i_ctnr != -1)
+			path = CtnrMap[i_ctnr].cname;
+		else
         	status = SDF_INVALID_PARAMETER;
-    	} else {
-		path = CtnrMap[i_ctnr].cname;
-    	}
-
-    } else {
-	i_ctnr = 0;
-	path = CMC_PATH;
     }
 
-    if (ISEMPTY(path)) { 
+    if (ISEMPTY(path))
         status = SDF_INVALID_PARAMETER;
-    } else if (!isContainerParentNull(parent = isParentContainerOpened(path))) {
-                
+
+	if(status != SDF_SUCCESS || !isContainerNull(CtnrMap[i_ctnr].sdf_container))
+	{
+	    SDFEndSerializeContainerOp(pai);
+		return status;
+	}
+
+    if (!isContainerParentNull(parent = isParentContainerOpened(path))) {
+
         plat_log_msg(20819, LOG_CAT, LOG_INFO, "%s", path);
 
         // Test for pending delete
