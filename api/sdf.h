@@ -159,7 +159,8 @@ typedef enum {
     SDF_READ_MODE,
     SDF_WRITE_MODE,
     SDF_APPEND_MODE,
-    SDF_READ_WRITE_MODE
+    SDF_READ_WRITE_MODE,
+    SDF_CNTR_MODE_MAX   /*Used to check validity of the container mode*/
 } SDF_container_mode_t;
 
 typedef enum {

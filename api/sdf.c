@@ -803,6 +803,7 @@ SDF_status_t SDFCreateContainer(
         if ((shardid = build_shard(state, pai, cname, num_objs,
                                    in_shard_count, properties2, *cguid,
                                    isCMC ? BUILD_SHARD_CMC : BUILD_SHARD_OTHER, cname)) <= SDF_SHARDID_LIMIT) {
+            properties2.cguid = *cguid;
             if ((meta = build_meta(cname, properties2, *cguid, shardid)) != NULL) {
 #ifdef STATE_MACHINE_SUPPORT
                 SDFUpdateMetaClusterGroupInfo(pai,meta,properties->container_id.container_id);
@@ -933,6 +934,10 @@ SDF_status_t SDFOpenContainer(
 
     if (ISEMPTY(path))
         status = SDF_INVALID_PARAMETER;
+
+    if ( (mode < SDF_READ_MODE) || (mode >= SDF_CNTR_MODE_MAX) ) {
+        status = SDF_INVALID_PARAMETER;
+    }
 
 	if(status != SDF_SUCCESS || !isContainerNull(CtnrMap[i_ctnr].sdf_container))
 	{
