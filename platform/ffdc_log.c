@@ -9,7 +9,7 @@
  * codebase. This file also contains the API to enable, disable, and
  * initialize FFDC.
  * 
- * Generated On: 2012-10-03 13:43:31
+ * Generated On: 2012-10-29 10:02:51
  *------------------------------------------------------------------------*/
 
 #define PLATFORM_INTERNAL 1
@@ -40955,6 +40955,75 @@ ffdc_log_func_150026(int lineno, int msgid, int catid, int level, const char* fm
 }
 
 /*---------------------------------------------------------------------------
+ * MsgID : 150027
+ * Msg   : "not enough space: quota=%lu - free_seg=%lu - seg_size=%lu"
+ *-------------------------------------------------------------------------*/
+__inline__ void
+ffdc_log_func_150027(int lineno, int msgid, int catid, int level, const char* fmt,
+    long arg1, long arg2, long arg3)
+{
+    FFDC_START(150027, catid, level, lineno);
+    FFDC_ADD_NUM(arg1);
+    FFDC_ADD_NUM(arg2);
+    FFDC_ADD_NUM(arg3);
+    FFDC_END();
+}
+
+/*---------------------------------------------------------------------------
+ * MsgID : 150028
+ * Msg   : "segment free list set up, %d segments, %lu bytes/segment"
+ *-------------------------------------------------------------------------*/
+__inline__ void
+ffdc_log_func_150028(int lineno, int msgid, int catid, int level, const char* fmt,
+    int arg1, long arg2)
+{
+    FFDC_START(150028, catid, level, lineno);
+    FFDC_ADD_NUM(arg1);
+    FFDC_ADD_NUM(arg2);
+    FFDC_END();
+}
+
+/*---------------------------------------------------------------------------
+ * MsgID : 150029
+ * Msg   : "failed to allocate hash table: %lu"
+ *-------------------------------------------------------------------------*/
+__inline__ void
+ffdc_log_func_150029(int lineno, int msgid, int catid, int level, const char* fmt,
+    long arg1)
+{
+    FFDC_START(150029, catid, level, lineno);
+    FFDC_ADD_NUM(arg1);
+    FFDC_END();
+}
+
+/*---------------------------------------------------------------------------
+ * MsgID : 150031
+ * Msg   : "pread failed - %s"
+ *-------------------------------------------------------------------------*/
+__inline__ void
+ffdc_log_func_150031(int lineno, int msgid, int catid, int level, const char* fmt,
+    const char* arg1)
+{
+    FFDC_START(150031, catid, level, lineno);
+    FFDC_ADD_STR(arg1);
+    FFDC_END();
+}
+
+/*---------------------------------------------------------------------------
+ * MsgID : 150032
+ * Msg   : "Failed to find meta data for %lu -  %s"
+ *-------------------------------------------------------------------------*/
+__inline__ void
+ffdc_log_func_150032(int lineno, int msgid, int catid, int level, const char* fmt,
+    long arg1, const char* arg2)
+{
+    FFDC_START(150032, catid, level, lineno);
+    FFDC_ADD_NUM(arg1);
+    FFDC_ADD_STR(arg2);
+    FFDC_END();
+}
+
+/*---------------------------------------------------------------------------
  * MsgID : 160000
  * Msg   : "failed to get events; errno=%d (%s)"
  *-------------------------------------------------------------------------*/
@@ -41351,6 +41420,48 @@ __inline__ void
 ffdc_log_func_160027(int lineno, int msgid, int catid, int level, const char* fmt)
 {
     FFDC_START(160027, catid, level, lineno);
+    FFDC_END();
+}
+
+/*---------------------------------------------------------------------------
+ * MsgID : 160029
+ * Msg   : "Failed to find shard for cguid %"PRIu64""
+ *-------------------------------------------------------------------------*/
+__inline__ void
+ffdc_log_func_160029(int lineno, int msgid, int catid, int level, const char* fmt,
+    long arg1)
+{
+    FFDC_START(160029, catid, level, lineno);
+    FFDC_ADD_NUM(arg1);
+    FFDC_END();
+}
+
+/*---------------------------------------------------------------------------
+ * MsgID : 160030
+ * Msg   : "Container is not deleted (busy or error): cguid=%lu(%d), 
+ *          status=%s"
+ *-------------------------------------------------------------------------*/
+__inline__ void
+ffdc_log_func_160030(int lineno, int msgid, int catid, int level, const char* fmt,
+    long arg1, int arg2, const char* arg3)
+{
+    FFDC_START(160030, catid, level, lineno);
+    FFDC_ADD_NUM(arg1);
+    FFDC_ADD_NUM(arg2);
+    FFDC_ADD_STR(arg3);
+    FFDC_END();
+}
+
+/*---------------------------------------------------------------------------
+ * MsgID : 160031
+ * Msg   : "Delete request pending. Deleting... cguid=%lu"
+ *-------------------------------------------------------------------------*/
+__inline__ void
+ffdc_log_func_160031(int lineno, int msgid, int catid, int level, const char* fmt,
+    long arg1)
+{
+    FFDC_START(160031, catid, level, lineno);
+    FFDC_ADD_NUM(arg1);
     FFDC_END();
 }
 

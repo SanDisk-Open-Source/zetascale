@@ -3030,6 +3030,7 @@
 150028 segment free list set up, %d segments, %lu bytes/segment
 150029 failed to allocate hash table: %lu
 150031 pread failed - %s
+150032 Failed to find meta data for %lu -  %s
 
 
 # root
@@ -3062,3 +3063,5 @@
 160026 Node becomes authoritative for persistent containers\n
 160027 pwrite failed!
 160029 Failed to find shard for cguid %"PRIu64"
+160030 Container is not deleted (busy or error): cguid=%lu(%d), status=%s
+160031 Delete request pending. Deleting... cguid=%lu

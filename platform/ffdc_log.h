@@ -9,7 +9,7 @@
  * log message in the codebase.  The structure contains one field for
  * each message parameter in the log message, along with other meta data
  * 
- * Generated On: 2012-10-03 13:43:31
+ * Generated On: 2012-10-29 10:02:51
  *------------------------------------------------------------------------*/
 
 #ifndef PLATFORM_FFDC_H
@@ -68278,6 +68278,120 @@ ffdc_log_func_150026(int lineno, int msgid, int catid, int level, const char* fm
     const char* arg1);
 
 /*---------------------------------------------------------------------------
+ * MsgID : 150027
+ * Msg   : "not enough space: quota=%lu - free_seg=%lu - seg_size=%lu"
+ *-------------------------------------------------------------------------*/
+struct ffdc_log_struct_150027
+{
+    int magic;
+    int msgid;
+    int catid;
+    int level;
+    unsigned long th_id;
+    unsigned long fth_id;
+    int lineno;
+    struct timeval timestamp;
+
+    long arg1;
+    long arg2;
+    long arg3;
+} __attribute__ ((aligned (64)));
+
+__inline__ void
+ffdc_log_func_150027(int lineno, int msgid, int catid, int level, const char* fmt,
+    long arg1, long arg2, long arg3);
+
+/*---------------------------------------------------------------------------
+ * MsgID : 150028
+ * Msg   : "segment free list set up, %d segments, %lu bytes/segment"
+ *-------------------------------------------------------------------------*/
+struct ffdc_log_struct_150028
+{
+    int magic;
+    int msgid;
+    int catid;
+    int level;
+    unsigned long th_id;
+    unsigned long fth_id;
+    int lineno;
+    struct timeval timestamp;
+
+    int arg1;
+    long arg2;
+} __attribute__ ((aligned (64)));
+
+__inline__ void
+ffdc_log_func_150028(int lineno, int msgid, int catid, int level, const char* fmt,
+    int arg1, long arg2);
+
+/*---------------------------------------------------------------------------
+ * MsgID : 150029
+ * Msg   : "failed to allocate hash table: %lu"
+ *-------------------------------------------------------------------------*/
+struct ffdc_log_struct_150029
+{
+    int magic;
+    int msgid;
+    int catid;
+    int level;
+    unsigned long th_id;
+    unsigned long fth_id;
+    int lineno;
+    struct timeval timestamp;
+
+    long arg1;
+} __attribute__ ((aligned (64)));
+
+__inline__ void
+ffdc_log_func_150029(int lineno, int msgid, int catid, int level, const char* fmt,
+    long arg1);
+
+/*---------------------------------------------------------------------------
+ * MsgID : 150031
+ * Msg   : "pread failed - %s"
+ *-------------------------------------------------------------------------*/
+struct ffdc_log_struct_150031
+{
+    int magic;
+    int msgid;
+    int catid;
+    int level;
+    unsigned long th_id;
+    unsigned long fth_id;
+    int lineno;
+    struct timeval timestamp;
+
+    char arg1[FFDC_MAX_STR_SIZE];
+} __attribute__ ((aligned (64)));
+
+__inline__ void
+ffdc_log_func_150031(int lineno, int msgid, int catid, int level, const char* fmt,
+    const char* arg1);
+
+/*---------------------------------------------------------------------------
+ * MsgID : 150032
+ * Msg   : "Failed to find meta data for %lu -  %s"
+ *-------------------------------------------------------------------------*/
+struct ffdc_log_struct_150032
+{
+    int magic;
+    int msgid;
+    int catid;
+    int level;
+    unsigned long th_id;
+    unsigned long fth_id;
+    int lineno;
+    struct timeval timestamp;
+
+    long arg1;
+    char arg2[FFDC_MAX_STR_SIZE];
+} __attribute__ ((aligned (64)));
+
+__inline__ void
+ffdc_log_func_150032(int lineno, int msgid, int catid, int level, const char* fmt,
+    long arg1, const char* arg2);
+
+/*---------------------------------------------------------------------------
  * MsgID : 160000
  * Msg   : "failed to get events; errno=%d (%s)"
  *-------------------------------------------------------------------------*/
@@ -68932,6 +69046,75 @@ struct ffdc_log_struct_160027
 
 __inline__ void
 ffdc_log_func_160027(int lineno, int msgid, int catid, int level, const char* fmt);
+
+/*---------------------------------------------------------------------------
+ * MsgID : 160029
+ * Msg   : "Failed to find shard for cguid %"PRIu64""
+ *-------------------------------------------------------------------------*/
+struct ffdc_log_struct_160029
+{
+    int magic;
+    int msgid;
+    int catid;
+    int level;
+    unsigned long th_id;
+    unsigned long fth_id;
+    int lineno;
+    struct timeval timestamp;
+
+    long arg1;
+} __attribute__ ((aligned (64)));
+
+__inline__ void
+ffdc_log_func_160029(int lineno, int msgid, int catid, int level, const char* fmt,
+    long arg1);
+
+/*---------------------------------------------------------------------------
+ * MsgID : 160030
+ * Msg   : "Container is not deleted (busy or error): cguid=%lu(%d), 
+ *          status=%s"
+ *-------------------------------------------------------------------------*/
+struct ffdc_log_struct_160030
+{
+    int magic;
+    int msgid;
+    int catid;
+    int level;
+    unsigned long th_id;
+    unsigned long fth_id;
+    int lineno;
+    struct timeval timestamp;
+
+    long arg1;
+    int arg2;
+    char arg3[FFDC_MAX_STR_SIZE];
+} __attribute__ ((aligned (64)));
+
+__inline__ void
+ffdc_log_func_160030(int lineno, int msgid, int catid, int level, const char* fmt,
+    long arg1, int arg2, const char* arg3);
+
+/*---------------------------------------------------------------------------
+ * MsgID : 160031
+ * Msg   : "Delete request pending. Deleting... cguid=%lu"
+ *-------------------------------------------------------------------------*/
+struct ffdc_log_struct_160031
+{
+    int magic;
+    int msgid;
+    int catid;
+    int level;
+    unsigned long th_id;
+    unsigned long fth_id;
+    int lineno;
+    struct timeval timestamp;
+
+    long arg1;
+} __attribute__ ((aligned (64)));
+
+__inline__ void
+ffdc_log_func_160031(int lineno, int msgid, int catid, int level, const char* fmt,
+    long arg1);
 
 __END_DECLS
 #endif /* PLATFORM_FFDC_H */
