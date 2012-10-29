@@ -983,6 +983,7 @@ SDF_status_t SDFDeleteContainerPath(
 	struct SDF_thread_state 	*sdf_thread_state,
 	const char 		*path
 	);
+void SDFShutdown();
 #endif // SDF_APP
 
 #endif /* SDFAPI */

@@ -515,6 +515,12 @@ SDF_status_t SDFInit(
     return(SDF_SUCCESS);
 }
 
+void SDFShutdown() {
+    // Stop the Messaging sub system
+    fprintf(stderr,"Shutting down the FDF\n");
+    sdf_msg_stop();
+}
+
 struct SDF_thread_state * SDFInitPerThreadState(
 	struct SDF_state *sdf_state
 	)
