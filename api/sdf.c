@@ -1559,12 +1559,17 @@ SDF_status_t SDFCloseContainer(
 	SDF_cguid_t  		      cguid
 	)
 {
+    //mcd_container_t 		cntr;
+    struct shard		*shard		= NULL;
+    flashDev_t              *flash_dev;
+    SDF_container_meta_t     meta;
     SDF_status_t status = SDF_FAILURE;
     unsigned     n_descriptors;
     int  i_ctnr;
     SDF_CONTAINER container = containerNull;
     SDF_internal_ctxt_t     *pai = (SDF_internal_ctxt_t *) sdf_thread_state;
-    SDF_status_t lock_status = SDF_SUCCESS;
+    struct SDF_shared_state *state = &sdf_shared_state;
+    SDF_status_t tmp_status;
     int log_level = LOG_ERR;
     int ok_to_delete = 0;
     SDF_cguid_t parent_cguid = SDF_NULL_CGUID;
@@ -1609,6 +1614,44 @@ SDF_status_t SDFCloseContainer(
             log_level = LOG_INFO;
         }
 
+    	if ((status = name_service_get_meta(pai, cguid, &meta)) == SDF_SUCCESS) {
+
+			#ifdef MULTIPLE_FLASH_DEV_ENABLED
+				flash_dev = get_flashdev_from_shardid(state->config.flash_dev,
+											  meta.shard, state->config.flash_dev_count);
+			#else
+				flash_dev = state->config.flash_dev;
+			#endif
+			shard = shardFind(flash_dev, meta.shard);
+
+			if(shard)
+				((mcd_osd_shard_t*)shard)->open = 0;
+		}
+
+	    // Invalidate all of the container's cached objects
+	    if ((status = name_service_inval_object_container(pai, path)) != SDF_SUCCESS) {
+		plat_log_msg(21540, LOG_CAT, LOG_ERR,
+			     "%s - failed to flush and invalidate container", path);
+		log_level = LOG_ERR;
+	    } else {
+		plat_log_msg(21541, LOG_CAT, LOG_DBG,
+			     "%s - flush and invalidate container succeed", path);
+	    }
+
+		if ((tmp_status = name_service_get_meta_from_cname(pai, path, &meta)) == SDF_SUCCESS) {
+		    tmp_status = SDFActionDeleteContainer(pai, &meta);
+		    if (tmp_status != SDF_SUCCESS) {
+			// xxxzzz container will be left in a weird state!
+			plat_log_msg(21542, LOG_CAT, LOG_ERR,
+				"%s - failed to delete action thread container state", path);
+			log_level = LOG_ERR;
+		    } else {
+			plat_log_msg(21543, LOG_CAT, LOG_DBG,
+				"%s - action thread delete container state succeeded", path);
+		    }
+		}
+
+#if 0 // not used
         // FIXME: This is where shardClose call goes.
         if (n_descriptors == 1) {
             #define MAX_SHARDIDS 32 // Not sure what max is today
@@ -1619,69 +1662,13 @@ SDF_status_t SDFCloseContainer(
                 //shardClose(shardids[i]);
             }
         }
+#endif
 
         if (status == SDF_SUCCESS && ok_to_delete) {
 
 		    plat_log_msg(160031, LOG_CAT, LOG_INFO, "Delete request pending. Deleting... cguid=%lu", cguid);
 
-            if ((status = name_service_lock_meta(pai, path)) == SDF_SUCCESS) {
-
-                // Flush and invalidate all of the container's cached objects
-                if ((status = name_service_inval_object_container(pai, path)) != SDF_SUCCESS) {
-                    plat_log_msg(21540, LOG_CAT, LOG_ERR,
-                                 "%s - failed to flush and invalidate container", path);
-                    log_level = LOG_ERR;
-                } else {
-                    plat_log_msg(21541, LOG_CAT, LOG_DBG,
-                                 "%s - flush and invalidate container succeed", path);
-                }
-
-                // Remove the container shards
-                if (status == SDF_SUCCESS &&
-                    (status = name_service_delete_shards(pai, path)) != SDF_SUCCESS) {
-                    plat_log_msg(21544, LOG_CAT, LOG_ERR,
-                                 "%s - failed to delete container shards", path);
-                    log_level = LOG_ERR;
-                } else {
-                    plat_log_msg(21545, LOG_CAT, LOG_DBG,
-                                 "%s - delete container shards succeeded", path);
-                }
-
-                // Remove the container metadata
-                if (status == SDF_SUCCESS &&
-                    (status = name_service_remove_meta(pai, path)) != SDF_SUCCESS) {
-                    plat_log_msg(21546, LOG_CAT, LOG_ERR,
-                                 "%s - failed to remove metadata", path);
-                    log_level = LOG_ERR;
-                } else {
-                    plat_log_msg(21547, LOG_CAT, LOG_DBG,
-                                 "%s - remove metadata succeeded", path);
-                }
-
-                // Unlock the metadata - only return lock error status if no other errors
-                if ((lock_status == name_service_unlock_meta(pai, path)) != SDF_SUCCESS) {
-                    plat_log_msg(21548, LOG_CAT, LOG_ERR,
-                                 "%s - failed to unlock metadata", path);
-                    if (status == SDF_SUCCESS) {
-                        status = lock_status;
-                        log_level = LOG_ERR;
-                    }
-                } else {
-                    plat_log_msg(21549, LOG_CAT, LOG_DBG,
-                                 "%s - unlock metadata succeeded", path);
-                }
-
-                // Remove the container guid map
-                if (status == SDF_SUCCESS &&
-                    name_service_remove_cguid_map(pai, path) != SDF_SUCCESS) {
-                    plat_log_msg(21550, LOG_CAT, LOG_ERR,
-                                 "%s - failed to remove cguid map", path);
-                    log_level = LOG_ERR;
-                } else {
-                    plat_log_msg(21551, LOG_CAT, LOG_DBG,
-                                 "%s - remove cguid map succeeded", path);
-                }
-            }
+	    	status = delete_container_internal_low(pai, path, SDF_FALSE /* serialize */, NULL);
 
     		CtnrMap[i_ctnr].cguid         = 0;
         }
@@ -1690,6 +1677,7 @@ SDF_status_t SDFCloseContainer(
     CtnrMap[i_ctnr].sdf_container = containerNull;
 
 out:
+
     plat_log_msg(20819, LOG_CAT, log_level, "%s", SDF_Status_Strings[status]);
 
     SDFEndSerializeContainerOp(pai);
@@ -1723,6 +1711,7 @@ SDF_status_t SDFDeleteContainer(
 		}
 		else
 		{
+//			status = SDF_FAILURE;
 	    	plat_log_msg(160030, LOG_CAT, LOG_INFO, "Container is not deleted (busy or error): cguid=%lu(%d), status=%s", cguid, i_ctnr, SDF_Status_Strings[status]);
 		}
     }

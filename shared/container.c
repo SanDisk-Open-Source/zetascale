@@ -765,7 +765,7 @@ SDF_status_t delete_container_internal_low(SDF_internal_ctxt_t *pai, const char 
 {
 
     SDF_status_t         status = SDF_SUCCESS;
-    SDF_status_t         tmp_status = SDF_SUCCESS;
+    //SDF_status_t         tmp_status = SDF_SUCCESS;
     SDF_status_t         lock_status = SDF_SUCCESS;
     SDF_CONTAINER_PARENT p;
     int                  log_level = LOG_DBG;
@@ -812,6 +812,7 @@ SDF_status_t delete_container_internal_low(SDF_internal_ctxt_t *pai, const char 
 
         if ((status = name_service_lock_meta(pai, path)) == SDF_SUCCESS) {
 
+#ifndef SDFAPIONLY //Moved to SDFCloseContainer
 	    // Invalidate all of the container's cached objects
 	    if ((status = name_service_inval_object_container(pai, path)) != SDF_SUCCESS) {
 		plat_log_msg(21540, LOG_CAT, LOG_ERR,
@@ -842,7 +843,7 @@ SDF_status_t delete_container_internal_low(SDF_internal_ctxt_t *pai, const char 
 		    }
 		}
 	    }
-
+#endif
             // Remove the container shards
             if (status == SDF_SUCCESS && 
 		(status = name_service_delete_shards(pai, path)) != SDF_SUCCESS) {
