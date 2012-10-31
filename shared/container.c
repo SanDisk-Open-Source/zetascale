@@ -765,7 +765,9 @@ SDF_status_t delete_container_internal_low(SDF_internal_ctxt_t *pai, const char 
 {
 
     SDF_status_t         status = SDF_SUCCESS;
-    //SDF_status_t         tmp_status = SDF_SUCCESS;
+#ifndef SDFAPIONLY
+    SDF_status_t         tmp_status = SDF_SUCCESS;
+#endif
     SDF_status_t         lock_status = SDF_SUCCESS;
     SDF_CONTAINER_PARENT p;
     int                  log_level = LOG_DBG;
