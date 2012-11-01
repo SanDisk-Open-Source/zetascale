@@ -660,28 +660,28 @@ SDF_status_t SDFCreateContainer(
     } else {
         *cguid = generate_cguid(pai, cname, init_get_my_node_id(), cid); // Generate the cguid
 #if 0
-	for (i=0; i<MCD_MAX_NUM_CNTRS; i++) {
-	    if (CtnrMap[i].cguid == 0) {
-	        // this is an unused map entry
-		CtnrMap[i].cname = plat_alloc(strlen(cname)+1);
-		if (CtnrMap[i].cname == NULL) {
-		    status = SDF_FAILURE_MEMORY_ALLOC;
-		    SDFEndSerializeContainerOp(pai);
-		    return(status);
+		for (i=0; i<MCD_MAX_NUM_CNTRS; i++) {
+	    	if (CtnrMap[i].cguid == 0) {
+	        	// this is an unused map entry
+				CtnrMap[i].cname = plat_alloc(strlen(cname)+1);
+				if (CtnrMap[i].cname == NULL) {
+		    		status = SDF_FAILURE_MEMORY_ALLOC;
+		    		SDFEndSerializeContainerOp(pai);
+		    		return(status);
+				}
+				strcpy(CtnrMap[i].cname, cname);
+				CtnrMap[i].cguid         = *cguid;
+				CtnrMap[i].sdf_container = containerNull;
+				break;
+	    	}
 		}
-		strcpy(CtnrMap[i].cname, cname);
-		CtnrMap[i].cguid         = *cguid;
-		CtnrMap[i].sdf_container = containerNull;
-		break;
-	    }
-	}
 #endif
-	if (i == MCD_MAX_NUM_CNTRS) {
-	    plat_log_msg(150023, LOG_CAT,LOG_ERR, "SDFCreateContainer failed for container %s because 128 containers have already been created.", cname);
-	    status = SDF_TOO_MANY_CONTAINERS;
-	    SDFEndSerializeContainerOp(pai);
-	    return(status);
-	}
+		if (i == MCD_MAX_NUM_CNTRS) {
+	    	plat_log_msg(150023, LOG_CAT,LOG_ERR, "SDFCreateContainer failed for container %s because 128 containers have already been created.", cname);
+	    	status = SDF_TOO_MANY_CONTAINERS;
+	    	SDFEndSerializeContainerOp(pai);
+	    	return(status);
+		}
         isCMC = SDF_FALSE;
         home_node = init_get_my_node_id();
     }

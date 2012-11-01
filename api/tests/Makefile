@@ -1,7 +1,9 @@
 TOP = ../../..
 
 PROG = \
-       fdf_static_test
+       fdf_static_test \
+       fdf_multi_test 
+	
 
 TESTS = $(PROG)
 

@@ -7,11 +7,22 @@ static struct SDF_state *sdf_state;
 static SDF_cguid_t  cguid_shared;
 static char *base;
 
+void
+advance_spinner() {
+    static char bars[] = { '/', '-', '\\', '|' };
+    static int nbars = sizeof(bars) / sizeof(char);
+    static int pos = 0;
+
+    fprintf(stderr, "%c\r", bars[pos]);
+    fflush(stderr);
+    pos = (pos + 1) % nbars;
+}
+
 SDF_status_t sdf_create_container (
-			struct SDF_thread_state* _sdf_thd_state,
-			char                    *cname,
-			SDF_cguid_t             *cguid
-	       )
+	struct SDF_thread_state* _sdf_thd_state,
+	char                    *cname,
+	SDF_cguid_t             *cguid
+	)
 {
     SDF_status_t            ret;
     SDF_container_props_t   props;
@@ -28,7 +39,7 @@ SDF_status_t sdf_create_container (
 
     props.container_id.num_objs = 1000000; // is this enforced? xxxzzz
     // props.container_id.container_id = xxxzzz; // only used for replication?
-    props.container_id.size = 1024*1024 ; // unused?
+    props.container_id.size = 1024 * 1024; // unused?
     // props.container_id.owner = xxxzzz; // ????
 
     //props.replication.num_replicas = 1;
@@ -78,7 +89,7 @@ SDF_status_t sdf_get (
     SDF_status_t  ret;
     SDF_time_t    texp;
 
-	fprintf(stderr, "%x sdf_get before: key=%s, keylen=%d\n", (int)pthread_self(), key, keylen);
+    //fprintf(stderr, "%x sdf_get before: key=%s, keylen=%d\n", (int)pthread_self(), key, keylen);
     ret = SDFGetForReadBufferedObject(
 			_sdf_thd_state, 
 			cguid, 
@@ -90,7 +101,7 @@ SDF_status_t sdf_get (
 			&texp // *expiry_time
 		);
     plat_assert(data && datalen);
-	fprintf(stderr, "%x sdf_get after: key=%s, keylen=%d, data=%s, datalen=%ld ret %d\n", (int)pthread_self(), key, keylen, *data, *datalen, (int)ret);
+    //fprintf(stderr, "%x sdf_get after: key=%s, keylen=%d, data=%s, datalen=%ld ret %d\n", (int)pthread_self(), key, keylen, *data, *datalen, (int)ret);
     return(ret);
 }
 
@@ -116,7 +127,7 @@ SDF_status_t sdf_get_buffer(
 
 SDF_status_t sdf_enumerate (
 			struct SDF_thread_state* _sdf_thd_state,
-	       SDF_cguid_t cguid,
+	       		SDF_cguid_t cguid,
 			struct SDF_iterator** _sdf_iterator
 	   )
 {
@@ -131,7 +142,7 @@ do{
 		);
     }while(ret == SDF_FLASH_EBUSY && i--);
 
-	fprintf(stderr, "%x sdf_enumerate after: ret %d\n", (int)pthread_self(), ret);
+    //fprintf(stderr, "%x sdf_enumerate after: ret %d\n", (int)pthread_self(), ret);
     return(ret);
 }
 
@@ -155,7 +166,7 @@ SDF_status_t sdf_next_enumeration (
 			data,
 			datalen
 		);
-	fprintf(stderr, "%x sdf_next_enumeration after: key=%s, keylen=%d, data=%s, datalen=%ld ret %d\n", (int)pthread_self(), *key, *keylen, *data, *datalen, (int)ret);
+    //fprintf(stderr, "%x sdf_next_enumeration after: key=%s, keylen=%d, data=%s, datalen=%ld ret %d\n", (int)pthread_self(), *key, *keylen, *data, *datalen, (int)ret);
     return(ret);
 }
 
@@ -171,7 +182,7 @@ SDF_status_t sdf_finish_enumeration (
 			_sdf_thd_state, 
 			_sdf_iterator
 		);
-	fprintf(stderr, "%x sdf_finish_enumeration after: ret %d\n", (int)pthread_self(), ret);
+    //fprintf(stderr, "%x sdf_finish_enumeration after: ret %d\n", (int)pthread_self(), ret);
     return(ret);
 }
 
@@ -186,7 +197,7 @@ SDF_status_t sdf_set (
 {
     SDF_status_t  ret;
 
-	fprintf(stderr, "%x sdf_set before: key=%s, keylen=%d, data=%s, datalen=%ld\n", (int)pthread_self(), key, keylen, data, datalen);
+    //fprintf(stderr, "%x sdf_set before: key=%s, keylen=%d, data=%s, datalen=%ld\n", (int)pthread_self(), key, keylen, data, datalen);
 
     ret = SDFSetBufferedObject (
 			_sdf_thd_state, 
@@ -198,7 +209,7 @@ SDF_status_t sdf_set (
 			0,    //  current_time
 			0     // *expiry_time
 		);
-	fprintf(stderr, "%x sdf_set after: key=%s, keylen=%d, data=%s, datalen=%ld ret %d\n", (int)pthread_self(), key, keylen, data, datalen, (int)ret);
+    //fprintf(stderr, "%x sdf_set after: key=%s, keylen=%d, data=%s, datalen=%ld ret %d\n", (int)pthread_self(), key, keylen, data, datalen, (int)ret);
     return(ret);
 }
 
@@ -237,7 +248,7 @@ SDF_status_t sdf_create (
 {
     SDF_status_t  ret;
 
-	fprintf(stderr, "%x sdf_create before: key=%s, keylen=%d, data=%s, datalen=%ld\n", (int)pthread_self(), key, keylen, data, datalen);
+    //fprintf(stderr, "%x sdf_create before: key=%s, keylen=%d, data=%s, datalen=%ld\n", (int)pthread_self(), key, keylen, data, datalen);
     ret = SDFCreateBufferedObject (
 			_sdf_thd_state, 
 			cguid,
@@ -248,7 +259,7 @@ SDF_status_t sdf_create (
 			0,    //  current_time
 			0     // *expiry_time
 		);
-	fprintf(stderr, "%x sdf_create after: key=%s, keylen=%d, data=%s, datalen=%ld ret %d\n", (int)pthread_self(), key, keylen, data, datalen, (int)ret);
+    //fprintf(stderr, "%x sdf_create after: key=%s, keylen=%d, data=%s, datalen=%ld ret %d\n", (int)pthread_self(), key, keylen, data, datalen, (int)ret);
     return(ret);
 }
 
@@ -273,11 +284,11 @@ SDF_status_t sdf_delete (
 
 void* worker(void *arg)
 {
-#define NUM_VALUES 9
-	int i;
+#define NUM_VALUES 100000
+    int i;
 
-	struct SDF_thread_state *_sdf_thd_state;
-	struct SDF_iterator *_sdf_iterator;
+    struct SDF_thread_state *_sdf_thd_state;
+    struct SDF_iterator *_sdf_iterator;
 
     SDF_cguid_t  cguid;
     char cname[32] = "cntr0";
@@ -285,64 +296,81 @@ void* worker(void *arg)
     uint64_t     datalen;
     char        *key;
     uint32_t     keylen;
-    char key_str[11] = "key00";
-    char key_data[11] = "key00_data";
+    char key_str[24] = "key00";
+    char key_data[24] = "key00_data";
+    SDF_status_t status = SDF_FAILURE;
 
     _sdf_thd_state    = SDFInitPerThreadState(sdf_state);
 
     fprintf(stderr, "%x sdf_before_create_container\n", (int)pthread_self());
 
-    //cname[4] = (long)arg + 0x30;
     sprintf(cname, "%s-%x", base, (int)pthread_self());
     plat_assert(sdf_create_container(_sdf_thd_state, cname, &cguid) == SDF_SUCCESS);
 
     for(i = 0; i < NUM_VALUES; i++)
     {
-		key_str[3]= i + 0x30;
-		key_str[4]= (long)arg + 0x30;
-		key_data[3]= i + 0x30;
-		key_data[4]= (long)arg + 0x30;
-	    plat_assert(sdf_create(_sdf_thd_state, cguid, key_str, 6, key_data, 11) == SDF_SUCCESS);
+	sprintf(key_str, "key%04ld-%08d", (long) arg, i);
+	sprintf(key_data, "key%04ld-%08d_data", (long) arg, i);
+	status = sdf_create(_sdf_thd_state, cguid, key_str, strlen(key_str), key_data, strlen(key_data));
+	if (SDF_SUCCESS != status ) {
+	    fprintf(stderr, "sdf_create: %s - %s\n", key_str, SDF_Status_Strings[status]);
 	}
+	plat_assert(status == SDF_SUCCESS);
+	advance_spinner();
+    }
 
     for(i = 0; i < NUM_VALUES; i++)
     {
-		key_str[3]= i + 0x30;
-		key_str[4]= (long)arg + 0x30;
-		key_data[3]= i + 0x30;
-		key_data[4]= (long)arg + 0x30;
-    	plat_assert(sdf_get(_sdf_thd_state, cguid, key_str, 6, &data, &datalen) == SDF_SUCCESS);
-		plat_assert(!memcmp(data, key_data, 11));	
+	sprintf(key_str, "key%04ld-%08d", (long) arg, i);
+	sprintf(key_data, "key%04ld-%08d_data", (long) arg, i);
+    	status = sdf_get(_sdf_thd_state, cguid, key_str, strlen(key_str), &data, &datalen);
+	if (SDF_SUCCESS != status ) {
+	    fprintf(stderr, "sdf_get: %s - %s\n", key_str, SDF_Status_Strings[status]);
 	}
+	plat_assert(status == SDF_SUCCESS);
+	plat_assert(!memcmp(data, key_data, 11));	
+	advance_spinner();
+    }
 
-    fprintf(stderr, "%x before enumeration start\n", (int)pthread_self());
+    for(i = 0; i < NUM_VALUES; i++)
+    {
+	sprintf(key_str, "key%04ld-%08d", (long) arg, i);
+	sprintf(key_data, "KEY%04ld-%08d_data", (long) arg, i);
+    	status = sdf_put(_sdf_thd_state, cguid, key_str, strlen(key_str), key_data, strlen(key_data));
+	if (SDF_SUCCESS != status ) {
+	    fprintf(stderr, "sdf_put: %s - %s\n", key_str, SDF_Status_Strings[status]);
+	}
+	plat_assert(status == SDF_SUCCESS);
+	advance_spinner();
+    }
+
+    fprintf(stderr, "\n%x before enumeration start\n", (int)pthread_self());
     plat_assert(sdf_enumerate(_sdf_thd_state, cguid, &_sdf_iterator) == SDF_SUCCESS);
 
     fprintf(stderr, "%x before enumeration next\n", (int)pthread_self());
     while (sdf_next_enumeration(_sdf_thd_state, cguid, _sdf_iterator, &key, &keylen, &data, &datalen) == SDF_SUCCESS) {
-		fprintf(stderr, "%x sdf_enum: key=%s, keylen=%d, data=%s, datalen=%ld\n", (int)pthread_self(), key, keylen, data, datalen);
+	fprintf(stderr, "%x sdf_enum: key=%s, keylen=%d, data=%s, datalen=%ld\n", (int)pthread_self(), key, keylen, data, datalen);
+	//advance_spinner();
     }
+
+    fprintf(stderr, "\n");
 
     plat_assert(sdf_finish_enumeration(_sdf_thd_state, cguid, _sdf_iterator) == SDF_SUCCESS);
 /*
     for(i = 0; i < NUM_VALUES; i++)
     {
-		key_str[3]= i + 0x30;
-		key_str[4]= (long)arg + 0x30;
-		key_data[3]= i + 0x30;
-		key_data[4]= (long)arg + 0x30;
-	    plat_assert(sdf_create(_sdf_thd_state, cguid_shared, key_str, 6, key_data, 11) == SDF_SUCCESS);
-	}
+	sprintf(key_str, "key%04ld-%08d", (long) arg, i);
+	sprintf(key_data, "key%04ld-%08d_data", (long) arg, i);
+	plat_assert(sdf_create(_sdf_thd_state, cguid_shared, key_str, strlen(key_str), key_data, strlen(key_data)) == SDF_SUCCESS);
+    }
 
     for(i = 0; i < NUM_VALUES; i++)
     {
-		key_str[3]= i + 0x30;
-		key_str[4]= (long)arg + 0x30;
-		key_data[3]= i + 0x30;
-		key_data[4]= (long)arg + 0x30;
-    	plat_assert(sdf_get(_sdf_thd_state, cguid_shared, key_str, 6, &data, &datalen) == SDF_SUCCESS);
-		plat_assert(!memcmp(data, key_data, 11));	
-	}
+	sprintf(key_str, "key%04ld-%08d", (long) arg, i);
+	sprintf(key_data, "key%04ld-%08d_data", (long) arg, i);
+    	plat_assert(sdf_get(_sdf_thd_state, cguid_shared, key_str, strlen(key_str), &data, &datalen) == SDF_SUCCESS);
+	plat_assert(!memcmp(data, key_data, 11));	
+    }
 
     fprintf(stderr, "%x before enumeration start\n", (int)pthread_self());
     plat_assert(sdf_enumerate(_sdf_thd_state, cguid_shared, &_sdf_iterator) == SDF_SUCCESS);
@@ -357,24 +385,25 @@ void* worker(void *arg)
 
 int main(int argc, char *argv[])
 {
-	struct SDF_thread_state *_sdf_thd_state;
-	char name[32];
+    struct SDF_thread_state *_sdf_thd_state;
+    char name[32];
 
-	if (argc > 1) {
-	    base = argv[1];
-	} else {
-	    base = "container";
-	}
-	sprintf(name, "%s-foo", base);
+    if (argc > 1) {
+	base = argv[1];
+    } else {
+	base = "container";
+    }
 
-#define NUM_THREADS 9
-	pthread_t thread_id[NUM_THREADS];
+    sprintf(name, "%s-foo", base);
 
-	int i;
+#define NUM_THREADS 16
+    pthread_t thread_id[NUM_THREADS];
+
+    int i;
 
     if (SDFInit(&sdf_state, 0, NULL) != SDF_SUCCESS) {
-		fprintf(stderr, "SDF initialization failed!\n");
-		plat_assert(0);
+	fprintf(stderr, "SDF initialization failed!\n");
+	plat_assert(0);
     }
 
     fprintf(stderr, "SDF was initialized successfully!\n");
@@ -383,12 +412,13 @@ int main(int argc, char *argv[])
 
     plat_assert(sdf_create_container(_sdf_thd_state, name, &cguid_shared) == SDF_SUCCESS);
 
-	for(i = 0; i < NUM_THREADS; i++)
-		pthread_create(&thread_id[i], NULL, worker, (void*)(long)i);
+    for(i = 0; i < NUM_THREADS; i++)
+	pthread_create(&thread_id[i], NULL, worker, (void*)(long)i);
 
-	for(i = 0; i < NUM_THREADS; i++)
-		pthread_join(thread_id[i], NULL);
+    for(i = 0; i < NUM_THREADS; i++)
+	pthread_join(thread_id[i], NULL);
 
     fprintf(stderr, "DONE\n");
+
     return(0);
 }

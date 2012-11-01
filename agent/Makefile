@@ -9,6 +9,7 @@ LIB = libsdfagent.a
 
 LIB_SRCS = \
 	agent_helper.c \
+	fdf_agent.c \
 	agent_sm.c
 
 USE_MPI = 1

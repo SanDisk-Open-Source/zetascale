@@ -3,7 +3,8 @@
 TOP = ../..
 LIB = libsdf.a
 LIB_SRCS = \
-	sdf.c 
+	sdf.c \
+	fdf.c
 
 SUBDIRS = tests
 

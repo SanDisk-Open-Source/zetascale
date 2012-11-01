@@ -1039,130 +1039,128 @@ sdf/agent/agent_sm.c:125:plat_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_PRINT_AR
 sdf/agent/agent_sm.c:147:plat_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_PRINT_ARGS:20864:PROP: SHMEM_FAKE=%d
 sdf/agent/agent_sm.c:154:plat_log_msg:PLAT_LOG_LEVEL_FATAL:PLAT_LOG_CAT_PLATFORM_TEST_SHMEM:20865:shmem_init(%s) failed: %s
 sdf/agent/agent_sm.c:164:plat_log_msg:PLAT_LOG_LEVEL_FATAL:PLAT_LOG_CAT_PLATFORM_TEST_SHMEM:20073:shmem_attach(%s) failed: %s
-sdf/api/fdf.c:304:mcd_log_msg:PLAT_LOG_LEVEL_FATAL::20147:agent_engine_post_init() failed
-sdf/api/fdf.c:413:mcd_log_msg:PLAT_LOG_LEVEL_FATAL::20163:pthread_create() failed, rc=%d
-sdf/api/fdf.c:417:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG::20164:scheduler %d created
-sdf/api/fdf.c:499:mcd_log_msg:PLAT_LOG_LEVEL_FATAL::20163:pthread_create() failed, rc=%d
-sdf/api/fdf.c:502:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG::150022:scheduler startup process created
-sdf/api/fdf.c:621:plat_log_msg:LOG_INFO:LOG_CAT:20819:%s
-sdf/api/fdf.c:625:plat_log_msg:LOG_ERR:LOG_CAT:30572:Writeback caching can only be enabled for eviction mode containers
-sdf/api/fdf.c:631:plat_log_msg:LOG_ERR:LOG_CAT:30572:Writeback caching can only be enabled for eviction mode containers
-sdf/api/fdf.c:638:plat_log_msg:LOG_ERR:LOG_CAT:30575:Cannot enable writeback caching for container '%s' because writeback caching is disabled.
-sdf/api/fdf.c:673:plat_log_msg:LOG_ERR:LOG_CAT:150023:SDFCreateContainer failed for container %s because 128 containers have already been created.
-sdf/api/fdf.c:754:plat_log_msg:LOG_INFO:LOG_CAT:21527:Container: %s - Multi Devs: %d
-sdf/api/fdf.c:757:plat_log_msg:LOG_INFO:LOG_CAT:21528:Container: %s - Single Dev
-sdf/api/fdf.c:760:plat_log_msg:LOG_INFO:LOG_CAT:21529:Container: %s - Num Shards: %d
-sdf/api/fdf.c:763:plat_log_msg:LOG_INFO:LOG_CAT:21530:Container: %s - Num Objs: %d
-sdf/api/fdf.c:766:plat_log_msg:LOG_INFO:LOG_CAT:21531:Container: %s - DEBUG_MULTI_SHARD_INDEX: %d
-sdf/api/fdf.c:779:plat_log_msg:LOG_ERR:LOG_CAT:21532:failed to lock %s
-sdf/api/fdf.c:785:plat_log_msg:LOG_ERR:LOG_CAT:21533:failed to unlock %s
-sdf/api/fdf.c:808:plat_log_msg:LOG_ERR:LOG_CAT:21534:failed to map cguid: %s
-sdf/api/fdf.c:811:plat_log_msg:LOG_ERR:LOG_CAT:21532:failed to lock %s
-sdf/api/fdf.c:823:plat_log_msg:LOG_ERR:LOG_CAT:21533:failed to unlock %s
-sdf/api/fdf.c:826:plat_log_msg:LOG_ERR:LOG_CAT:21535:cname=%s, build_shard failed
-sdf/api/fdf.c:829:plat_log_msg:LOG_ERR:LOG_CAT:21536:cname=%s, createParentContainer() failed
-sdf/api/fdf.c:835:plat_log_msg:LOG_ERR:LOG_CAT:21537:cname=%s, build_meta failed
-sdf/api/fdf.c:838:plat_log_msg:LOG_ERR:LOG_CAT:21535:cname=%s, build_shard failed
-sdf/api/fdf.c:842:plat_log_msg:LOG_DBG:LOG_CAT:21511:%s - %s
-sdf/api/fdf.c:846:plat_log_msg:LOG_ERR:LOG_CAT:21538:cname=%s, function returned status = %u
-sdf/api/fdf.c:888:plat_log_msg:LOG_INFO:LOG_CAT:21511:%s - %s
-sdf/api/fdf.c:913:plat_log_msg:LOG_INFO:LOG_CAT:21630:%lu
-sdf/api/fdf.c:936:plat_log_msg:LOG_INFO:LOG_CAT:20819:%s
-sdf/api/fdf.c:943:plat_log_msg:LOG_ERR:LOG_CAT:21552:Delete pending for %s
-sdf/api/fdf.c:979:plat_log_msg:LOG_DBG:LOG_CAT:21553:set cid %d (%d) to cguid %d\n
-sdf/api/fdf.c:996:plat_log_msg:LOG_ERR:LOG_CAT:21554:SDFActionOpenContainer failed for container %s
-sdf/api/fdf.c:1009:plat_log_msg:LOG_ERR:LOG_CAT:150026:Failed to find shard for %s
-sdf/api/fdf.c:1015:plat_log_msg:LOG_DBG:LOG_CAT:21555:Opened %s
-sdf/api/fdf.c:1018:plat_log_msg:LOG_ERR:LOG_CAT:21556:Failed to find %s
-sdf/api/fdf.c:1023:plat_log_msg:log_level:LOG_CAT:21511:%s - %s
-sdf/api/fdf.c:1025:plat_log_msg:log_level:LOG_CAT:150024:NULL - %s
-sdf/api/fdf.c:1320:plat_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20648:sdf stat %s parsing failure
-sdf/api/fdf.c:1338:plat_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20649:invalid stat key %d
-sdf/api/fdf.c:1356:plat_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20650:invalid sdf cache stats, rd=%lu rx=%lu tr=%lu
-sdf/api/fdf.c:1464:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20694:/proc/stat opened, fd=%d
-sdf/api/fdf.c:1475:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20695:failed to read from proc, rc=%d errno=%d
-sdf/api/fdf.c:1538:plat_log_msg:log_level:LOG_CAT:20819:%s
-sdf/api/fdf.c:1558:plat_log_msg:LOG_INFO:LOG_CAT:21630:%lu
-sdf/api/fdf.c:1616:plat_log_msg:LOG_ERR:LOG_CAT:21540:%s - failed to flush and invalidate container
-sdf/api/fdf.c:1620:plat_log_msg:LOG_DBG:LOG_CAT:21541:%s - flush and invalidate container succeed
-sdf/api/fdf.c:1627:plat_log_msg:LOG_ERR:LOG_CAT:21544:%s - failed to delete container shards
-sdf/api/fdf.c:1631:plat_log_msg:LOG_DBG:LOG_CAT:21545:%s - delete container shards succeeded
-sdf/api/fdf.c:1638:plat_log_msg:LOG_ERR:LOG_CAT:21546:%s - failed to remove metadata
-sdf/api/fdf.c:1642:plat_log_msg:LOG_DBG:LOG_CAT:21547:%s - remove metadata succeeded
-sdf/api/fdf.c:1648:plat_log_msg:LOG_ERR:LOG_CAT:21548:%s - failed to unlock metadata
-sdf/api/fdf.c:1655:plat_log_msg:LOG_DBG:LOG_CAT:21549:%s - unlock metadata succeeded
-sdf/api/fdf.c:1662:plat_log_msg:LOG_ERR:LOG_CAT:21550:%s - failed to remove cguid map
-sdf/api/fdf.c:1666:plat_log_msg:LOG_DBG:LOG_CAT:21551:%s - remove cguid map succeeded
-sdf/api/fdf.c:1675:plat_log_msg:log_level:LOG_CAT:20819:%s
-sdf/api/fdf.c:1692:plat_log_msg:LOG_INFO:LOG_CAT:21630:%lu
-sdf/api/fdf.c:1711:plat_log_msg:LOG_INFO:LOG_CAT:20819:%s
-sdf/api/fdf.c:1728:plat_log_msg:LOG_INFO:LOG_CAT:21630:%lu
-sdf/api/fdf.c:1754:plat_log_msg:LOG_ERR:LOG_CAT:21539:name_service_put_meta failed for cguid %"PRIu64"
-sdf/api/fdf.c:1760:plat_log_msg:LOG_INFO:LOG_CAT:20819:%s
-sdf/api/fdf.c:1777:plat_log_msg:LOG_INFO:LOG_CAT:21630:%lu
-sdf/api/fdf.c:1802:plat_log_msg:LOG_ERR:LOG_CAT:21539:name_service_put_meta failed for cguid %"PRIu64"
-sdf/api/fdf.c:1808:plat_log_msg:LOG_INFO:LOG_CAT:20819:%s
-sdf/api/fdf.c:2133:plat_log_msg:LOG_DBG:LOG_CAT:150019:SDFGenerateCguid: %llu
-sdf/api/fdf.c:2272:plat_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED_BACKUP:30664:container backup sync failed for enum, status=%s
-sdf/api/fdf.c:2465:mcd_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_APP_MEMCACHED_BACKUP:50006:formatting container, name=%s
-sdf/api/fdf.c:2606:mcd_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_APP_MEMCACHED_BACKUP:20728:formatting container, port=%d
+sdf/agent/fdf_agent.c:130:plat_log_msg:PLAT_LOG_LEVEL_INFO:LOG_CAT:21788:Initialized FFDC logging (max buffers=%d, thread bufsize=0x%lx)
+sdf/agent/fdf_agent.c:136:plat_log_msg:PLAT_LOG_LEVEL_WARN:LOG_CAT:21789:Unable to initialize FFDC logging (max buffers=%d, thread bufsize=0x%lx)
+sdf/agent/fdf_agent.c:140:plat_log_msg:PLAT_LOG_LEVEL_INFO:LOG_CAT:10005:FFDC logging disabled
+sdf/agent/fdf_agent.c:178:plat_log_msg:success ?  LOG_LEV : PLAT_LOG_LEVEL_INFO:LOG_CAT:20849:plat_opts_parse_sdf_agent SUCCESS = %u
+sdf/agent/fdf_agent.c:185:plat_log_msg:success ? LOG_LEV : PLAT_LOG_LEVEL_INFO:LOG_CAT:20850:set properties SUCCESS = %u
+sdf/api/fdf.c:376:mcd_log_msg:PLAT_LOG_LEVEL_FATAL::20147:agent_engine_post_init() failed
+sdf/api/fdf.c:483:mcd_log_msg:PLAT_LOG_LEVEL_FATAL::20163:pthread_create() failed, rc=%d
+sdf/api/fdf.c:487:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG::20164:scheduler %d created
+sdf/api/fdf.c:591:mcd_log_msg:PLAT_LOG_LEVEL_FATAL::20163:pthread_create() failed, rc=%d
+sdf/api/fdf.c:595:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG::150022:scheduler startup process created
+sdf/api/fdf.c:626:mcd_log_msg:PLAT_LOG_LEVEL_ERROR::50030:failed to get SDF properties, status=%s
+sdf/api/fdf.c:637:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG::20131:next container id %lu
+sdf/api/fdf.c:763:plat_log_msg:LOG_INFO:LOG_CAT:20819:%s
+sdf/api/fdf.c:771:plat_log_msg:LOG_ERR:LOG_CAT:30572:Writeback caching can only be enabled for eviction mode containers
+sdf/api/fdf.c:778:plat_log_msg:LOG_ERR:LOG_CAT:30572:Writeback caching can only be enabled for eviction mode containers
+sdf/api/fdf.c:785:plat_log_msg:LOG_ERR:LOG_CAT:30575:Cannot enable writeback caching for container '%s' because writeback caching is disabled.
+sdf/api/fdf.c:804:plat_log_msg:LOG_ERR:LOG_CAT:150033:FDFCreateContainer failed for container %s because 128 containers have already been created.
+sdf/api/fdf.c:892:plat_log_msg:LOG_INFO:LOG_CAT:21527:Container: %s - Multi Devs: %d
+sdf/api/fdf.c:895:plat_log_msg:LOG_INFO:LOG_CAT:21528:Container: %s - Single Dev
+sdf/api/fdf.c:898:plat_log_msg:LOG_INFO:LOG_CAT:21529:Container: %s - Num Shards: %d
+sdf/api/fdf.c:901:plat_log_msg:LOG_INFO:LOG_CAT:21530:Container: %s - Num Objs: %d
+sdf/api/fdf.c:904:plat_log_msg:LOG_INFO:LOG_CAT:21531:Container: %s - DEBUG_MULTI_SHARD_INDEX: %d
+sdf/api/fdf.c:915:plat_log_msg:LOG_ERR:LOG_CAT:21532:failed to lock %s
+sdf/api/fdf.c:921:plat_log_msg:LOG_ERR:LOG_CAT:21533:failed to unlock %s
+sdf/api/fdf.c:943:plat_log_msg:LOG_ERR:LOG_CAT:21534:failed to map cguid: %s
+sdf/api/fdf.c:946:plat_log_msg:LOG_ERR:LOG_CAT:21532:failed to lock %s
+sdf/api/fdf.c:960:plat_log_msg:LOG_ERR:LOG_CAT:21533:failed to unlock %s
+sdf/api/fdf.c:963:plat_log_msg:LOG_ERR:LOG_CAT:21535:cname=%s, build_shard failed
+sdf/api/fdf.c:966:plat_log_msg:LOG_ERR:LOG_CAT:21536:cname=%s, createParentContainer() failed
+sdf/api/fdf.c:972:plat_log_msg:LOG_ERR:LOG_CAT:21537:cname=%s, build_meta failed
+sdf/api/fdf.c:975:plat_log_msg:LOG_ERR:LOG_CAT:21535:cname=%s, build_shard failed
+sdf/api/fdf.c:979:plat_log_msg:LOG_DBG:LOG_CAT:21511:%s - %s
+sdf/api/fdf.c:982:plat_log_msg:LOG_ERR:LOG_CAT:21538:cname=%s, function returned status = %u
+sdf/api/fdf.c:1024:plat_log_msg:LOG_INFO:LOG_CAT:21511:%s - %s
+sdf/api/fdf.c:1049:plat_log_msg:LOG_INFO:LOG_CAT:20819:%s
+sdf/api/fdf.c:1075:plat_log_msg:LOG_INFO:LOG_CAT:20819:%s
+sdf/api/fdf.c:1082:plat_log_msg:LOG_ERR:LOG_CAT:21552:Delete pending for %s
+sdf/api/fdf.c:1118:plat_log_msg:LOG_DBG:LOG_CAT:21553:set cid %d (%d) to cguid %d\n
+sdf/api/fdf.c:1135:plat_log_msg:LOG_ERR:LOG_CAT:21554:SDFActionOpenContainer failed for container %s
+sdf/api/fdf.c:1148:plat_log_msg:LOG_ERR:LOG_CAT:150026:Failed to find shard for %s
+sdf/api/fdf.c:1154:plat_log_msg:LOG_DBG:LOG_CAT:21555:Opened %s
+sdf/api/fdf.c:1157:plat_log_msg:LOG_ERR:LOG_CAT:21556:Failed to find %s
+sdf/api/fdf.c:1162:plat_log_msg:log_level:LOG_CAT:21511:%s - %s
+sdf/api/fdf.c:1164:plat_log_msg:log_level:LOG_CAT:150024:NULL - %s
+sdf/api/fdf.c:1187:plat_log_msg:LOG_INFO:LOG_CAT:21630:%lu
+sdf/api/fdf.c:1245:plat_log_msg:LOG_ERR:LOG_CAT:21540:%s - failed to flush and invalidate container
+sdf/api/fdf.c:1249:plat_log_msg:LOG_DBG:LOG_CAT:21541:%s - flush and invalidate container succeed
+sdf/api/fdf.c:1256:plat_log_msg:LOG_ERR:LOG_CAT:21544:%s - failed to delete container shards
+sdf/api/fdf.c:1260:plat_log_msg:LOG_DBG:LOG_CAT:21545:%s - delete container shards succeeded
+sdf/api/fdf.c:1267:plat_log_msg:LOG_ERR:LOG_CAT:21546:%s - failed to remove metadata
+sdf/api/fdf.c:1271:plat_log_msg:LOG_DBG:LOG_CAT:21547:%s - remove metadata succeeded
+sdf/api/fdf.c:1277:plat_log_msg:LOG_ERR:LOG_CAT:21548:%s - failed to unlock metadata
+sdf/api/fdf.c:1284:plat_log_msg:LOG_DBG:LOG_CAT:21549:%s - unlock metadata succeeded
+sdf/api/fdf.c:1291:plat_log_msg:LOG_ERR:LOG_CAT:21550:%s - failed to remove cguid map
+sdf/api/fdf.c:1295:plat_log_msg:LOG_DBG:LOG_CAT:21551:%s - remove cguid map succeeded
+sdf/api/fdf.c:1304:plat_log_msg:log_level:LOG_CAT:20819:%s
+sdf/api/fdf.c:1321:plat_log_msg:LOG_INFO:LOG_CAT:21630:%lu
+sdf/api/fdf.c:1340:plat_log_msg:LOG_INFO:LOG_CAT:20819:%s
+sdf/api/fdf.c:1632:plat_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED_BACKUP:30664:container backup sync failed for enum, status=%s
+sdf/api/fdf.c:2077:plat_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20648:sdf stat %s parsing failure
+sdf/api/fdf.c:2095:plat_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20649:invalid stat key %d
+sdf/api/fdf.c:2113:plat_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20650:invalid sdf cache stats, rd=%lu rx=%lu tr=%lu
+sdf/api/fdf.c:2221:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20694:/proc/stat opened, fd=%d
+sdf/api/fdf.c:2232:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20695:failed to read from proc, rc=%d errno=%d
+sdf/api/fdf.c:2297:plat_log_msg:log_level:LOG_CAT:20819:%s
+sdf/api/fdf.c:2466:plat_log_msg:LOG_INFO:LOG_CAT:21630:%lu
+sdf/api/fdf.c:2492:plat_log_msg:LOG_ERR:LOG_CAT:21539:name_service_put_meta failed for cguid %"PRIu64"
+sdf/api/fdf.c:2498:plat_log_msg:LOG_INFO:LOG_CAT:20819:%s
+sdf/api/fdf.c:2515:plat_log_msg:LOG_INFO:LOG_CAT:21630:%lu
+sdf/api/fdf.c:2540:plat_log_msg:LOG_ERR:LOG_CAT:21539:name_service_put_meta failed for cguid %"PRIu64"
+sdf/api/fdf.c:2546:plat_log_msg:LOG_INFO:LOG_CAT:20819:%s
 sdf/api/sdf.c:305:mcd_log_msg:PLAT_LOG_LEVEL_FATAL::20147:agent_engine_post_init() failed
 sdf/api/sdf.c:414:mcd_log_msg:PLAT_LOG_LEVEL_FATAL::20163:pthread_create() failed, rc=%d
 sdf/api/sdf.c:418:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG::20164:scheduler %d created
 sdf/api/sdf.c:500:mcd_log_msg:PLAT_LOG_LEVEL_FATAL::20163:pthread_create() failed, rc=%d
 sdf/api/sdf.c:503:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG::150022:scheduler startup process created
-sdf/api/sdf.c:622:plat_log_msg:LOG_INFO:LOG_CAT:20819:%s
-sdf/api/sdf.c:626:plat_log_msg:LOG_ERR:LOG_CAT:30572:Writeback caching can only be enabled for eviction mode containers
+sdf/api/sdf.c:628:plat_log_msg:LOG_INFO:LOG_CAT:20819:%s
 sdf/api/sdf.c:632:plat_log_msg:LOG_ERR:LOG_CAT:30572:Writeback caching can only be enabled for eviction mode containers
-sdf/api/sdf.c:639:plat_log_msg:LOG_ERR:LOG_CAT:30575:Cannot enable writeback caching for container '%s' because writeback caching is disabled.
-sdf/api/sdf.c:674:plat_log_msg:LOG_ERR:LOG_CAT:150023:SDFCreateContainer failed for container %s because 128 containers have already been created.
-sdf/api/sdf.c:755:plat_log_msg:LOG_INFO:LOG_CAT:21527:Container: %s - Multi Devs: %d
-sdf/api/sdf.c:758:plat_log_msg:LOG_INFO:LOG_CAT:21528:Container: %s - Single Dev
-sdf/api/sdf.c:761:plat_log_msg:LOG_INFO:LOG_CAT:21529:Container: %s - Num Shards: %d
-sdf/api/sdf.c:764:plat_log_msg:LOG_INFO:LOG_CAT:21530:Container: %s - Num Objs: %d
-sdf/api/sdf.c:767:plat_log_msg:LOG_INFO:LOG_CAT:21531:Container: %s - DEBUG_MULTI_SHARD_INDEX: %d
-sdf/api/sdf.c:780:plat_log_msg:LOG_ERR:LOG_CAT:21532:failed to lock %s
-sdf/api/sdf.c:786:plat_log_msg:LOG_ERR:LOG_CAT:21533:failed to unlock %s
-sdf/api/sdf.c:809:plat_log_msg:LOG_ERR:LOG_CAT:21534:failed to map cguid: %s
-sdf/api/sdf.c:812:plat_log_msg:LOG_ERR:LOG_CAT:21532:failed to lock %s
-sdf/api/sdf.c:824:plat_log_msg:LOG_ERR:LOG_CAT:21533:failed to unlock %s
-sdf/api/sdf.c:827:plat_log_msg:LOG_ERR:LOG_CAT:21535:cname=%s, build_shard failed
-sdf/api/sdf.c:830:plat_log_msg:LOG_ERR:LOG_CAT:21536:cname=%s, createParentContainer() failed
-sdf/api/sdf.c:836:plat_log_msg:LOG_ERR:LOG_CAT:21537:cname=%s, build_meta failed
-sdf/api/sdf.c:839:plat_log_msg:LOG_ERR:LOG_CAT:21535:cname=%s, build_shard failed
-sdf/api/sdf.c:843:plat_log_msg:LOG_DBG:LOG_CAT:21511:%s - %s
-sdf/api/sdf.c:847:plat_log_msg:LOG_ERR:LOG_CAT:21538:cname=%s, function returned status = %u
-sdf/api/sdf.c:889:plat_log_msg:LOG_INFO:LOG_CAT:21511:%s - %s
-sdf/api/sdf.c:914:plat_log_msg:LOG_INFO:LOG_CAT:21630:%lu
-sdf/api/sdf.c:939:plat_log_msg:LOG_INFO:LOG_CAT:20819:%s
-sdf/api/sdf.c:946:plat_log_msg:LOG_ERR:LOG_CAT:21552:Delete pending for %s
-sdf/api/sdf.c:982:plat_log_msg:LOG_DBG:LOG_CAT:21553:set cid %d (%d) to cguid %d\n
-sdf/api/sdf.c:999:plat_log_msg:LOG_ERR:LOG_CAT:21554:SDFActionOpenContainer failed for container %s
-sdf/api/sdf.c:1012:plat_log_msg:LOG_ERR:LOG_CAT:150026:Failed to find shard for %s
-sdf/api/sdf.c:1018:plat_log_msg:LOG_DBG:LOG_CAT:21555:Opened %s
-sdf/api/sdf.c:1021:plat_log_msg:LOG_ERR:LOG_CAT:21556:Failed to find %s
-sdf/api/sdf.c:1026:plat_log_msg:log_level:LOG_CAT:21511:%s - %s
-sdf/api/sdf.c:1028:plat_log_msg:log_level:LOG_CAT:150024:NULL - %s
-sdf/api/sdf.c:1323:plat_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20648:sdf stat %s parsing failure
-sdf/api/sdf.c:1341:plat_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20649:invalid stat key %d
-sdf/api/sdf.c:1359:plat_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20650:invalid sdf cache stats, rd=%lu rx=%lu tr=%lu
-sdf/api/sdf.c:1467:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20694:/proc/stat opened, fd=%d
-sdf/api/sdf.c:1478:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20695:failed to read from proc, rc=%d errno=%d
-sdf/api/sdf.c:1541:plat_log_msg:log_level:LOG_CAT:20819:%s
-sdf/api/sdf.c:1561:plat_log_msg:LOG_INFO:LOG_CAT:21630:%lu
-sdf/api/sdf.c:1614:plat_log_msg:LOG_INFO:LOG_CAT:160031:Delete request pending. Deleting... cguid=%lu
-sdf/api/sdf.c:1621:plat_log_msg:LOG_ERR:LOG_CAT:21540:%s - failed to flush and invalidate container
-sdf/api/sdf.c:1625:plat_log_msg:LOG_DBG:LOG_CAT:21541:%s - flush and invalidate container succeed
-sdf/api/sdf.c:1632:plat_log_msg:LOG_ERR:LOG_CAT:21544:%s - failed to delete container shards
-sdf/api/sdf.c:1636:plat_log_msg:LOG_DBG:LOG_CAT:21545:%s - delete container shards succeeded
-sdf/api/sdf.c:1643:plat_log_msg:LOG_ERR:LOG_CAT:21546:%s - failed to remove metadata
-sdf/api/sdf.c:1647:plat_log_msg:LOG_DBG:LOG_CAT:21547:%s - remove metadata succeeded
-sdf/api/sdf.c:1653:plat_log_msg:LOG_ERR:LOG_CAT:21548:%s - failed to unlock metadata
-sdf/api/sdf.c:1660:plat_log_msg:LOG_DBG:LOG_CAT:21549:%s - unlock metadata succeeded
-sdf/api/sdf.c:1667:plat_log_msg:LOG_ERR:LOG_CAT:21550:%s - failed to remove cguid map
-sdf/api/sdf.c:1671:plat_log_msg:LOG_DBG:LOG_CAT:21551:%s - remove cguid map succeeded
-sdf/api/sdf.c:1682:plat_log_msg:log_level:LOG_CAT:20819:%s
-sdf/api/sdf.c:1698:plat_log_msg:LOG_INFO:LOG_CAT:21630:%lu
+sdf/api/sdf.c:638:plat_log_msg:LOG_ERR:LOG_CAT:30572:Writeback caching can only be enabled for eviction mode containers
+sdf/api/sdf.c:645:plat_log_msg:LOG_ERR:LOG_CAT:30575:Cannot enable writeback caching for container '%s' because writeback caching is disabled.
+sdf/api/sdf.c:680:plat_log_msg:LOG_ERR:LOG_CAT:150023:SDFCreateContainer failed for container %s because 128 containers have already been created.
+sdf/api/sdf.c:761:plat_log_msg:LOG_INFO:LOG_CAT:21527:Container: %s - Multi Devs: %d
+sdf/api/sdf.c:764:plat_log_msg:LOG_INFO:LOG_CAT:21528:Container: %s - Single Dev
+sdf/api/sdf.c:767:plat_log_msg:LOG_INFO:LOG_CAT:21529:Container: %s - Num Shards: %d
+sdf/api/sdf.c:770:plat_log_msg:LOG_INFO:LOG_CAT:21530:Container: %s - Num Objs: %d
+sdf/api/sdf.c:773:plat_log_msg:LOG_INFO:LOG_CAT:21531:Container: %s - DEBUG_MULTI_SHARD_INDEX: %d
+sdf/api/sdf.c:786:plat_log_msg:LOG_ERR:LOG_CAT:21532:failed to lock %s
+sdf/api/sdf.c:792:plat_log_msg:LOG_ERR:LOG_CAT:21533:failed to unlock %s
+sdf/api/sdf.c:816:plat_log_msg:LOG_ERR:LOG_CAT:21534:failed to map cguid: %s
+sdf/api/sdf.c:819:plat_log_msg:LOG_ERR:LOG_CAT:21532:failed to lock %s
+sdf/api/sdf.c:831:plat_log_msg:LOG_ERR:LOG_CAT:21533:failed to unlock %s
+sdf/api/sdf.c:834:plat_log_msg:LOG_ERR:LOG_CAT:21535:cname=%s, build_shard failed
+sdf/api/sdf.c:837:plat_log_msg:LOG_ERR:LOG_CAT:21536:cname=%s, createParentContainer() failed
+sdf/api/sdf.c:843:plat_log_msg:LOG_ERR:LOG_CAT:21537:cname=%s, build_meta failed
+sdf/api/sdf.c:846:plat_log_msg:LOG_ERR:LOG_CAT:21535:cname=%s, build_shard failed
+sdf/api/sdf.c:850:plat_log_msg:LOG_DBG:LOG_CAT:21511:%s - %s
+sdf/api/sdf.c:854:plat_log_msg:LOG_ERR:LOG_CAT:21538:cname=%s, function returned status = %u
+sdf/api/sdf.c:896:plat_log_msg:LOG_INFO:LOG_CAT:21511:%s - %s
+sdf/api/sdf.c:921:plat_log_msg:LOG_INFO:LOG_CAT:21630:%lu
+sdf/api/sdf.c:950:plat_log_msg:LOG_INFO:LOG_CAT:20819:%s
+sdf/api/sdf.c:957:plat_log_msg:LOG_ERR:LOG_CAT:21552:Delete pending for %s
+sdf/api/sdf.c:993:plat_log_msg:LOG_DBG:LOG_CAT:21553:set cid %d (%d) to cguid %d\n
+sdf/api/sdf.c:1010:plat_log_msg:LOG_ERR:LOG_CAT:21554:SDFActionOpenContainer failed for container %s
+sdf/api/sdf.c:1023:plat_log_msg:LOG_ERR:LOG_CAT:150026:Failed to find shard for %s
+sdf/api/sdf.c:1029:plat_log_msg:LOG_DBG:LOG_CAT:21555:Opened %s
+sdf/api/sdf.c:1032:plat_log_msg:LOG_ERR:LOG_CAT:21556:Failed to find %s
+sdf/api/sdf.c:1037:plat_log_msg:log_level:LOG_CAT:21511:%s - %s
+sdf/api/sdf.c:1039:plat_log_msg:log_level:LOG_CAT:150024:NULL - %s
+sdf/api/sdf.c:1334:plat_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20648:sdf stat %s parsing failure
+sdf/api/sdf.c:1352:plat_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20649:invalid stat key %d
+sdf/api/sdf.c:1370:plat_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20650:invalid sdf cache stats, rd=%lu rx=%lu tr=%lu
+sdf/api/sdf.c:1478:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20694:/proc/stat opened, fd=%d
+sdf/api/sdf.c:1489:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20695:failed to read from proc, rc=%d errno=%d
+sdf/api/sdf.c:1552:plat_log_msg:log_level:LOG_CAT:20819:%s
+sdf/api/sdf.c:1577:plat_log_msg:LOG_INFO:LOG_CAT:21630:%lu
+sdf/api/sdf.c:1634:plat_log_msg:LOG_ERR:LOG_CAT:21540:%s - failed to flush and invalidate container
+sdf/api/sdf.c:1638:plat_log_msg:LOG_DBG:LOG_CAT:21541:%s - flush and invalidate container succeed
+sdf/api/sdf.c:1646:plat_log_msg:LOG_ERR:LOG_CAT:21542:%s - failed to delete action thread container state
+sdf/api/sdf.c:1650:plat_log_msg:LOG_DBG:LOG_CAT:21543:%s - action thread delete container state succeeded
+sdf/api/sdf.c:1669:plat_log_msg:LOG_INFO:LOG_CAT:160031:Delete request pending. Deleting... cguid=%lu
+sdf/api/sdf.c:1681:plat_log_msg:log_level:LOG_CAT:20819:%s
+sdf/api/sdf.c:1697:plat_log_msg:LOG_INFO:LOG_CAT:21630:%lu
 sdf/api/sdf.c:1715:plat_log_msg:LOG_INFO:LOG_CAT:160030:Container is not deleted (busy or error): cguid=%lu(%d), status=%s
 sdf/api/sdf.c:1719:plat_log_msg:LOG_INFO:LOG_CAT:20819:%s
 sdf/api/sdf.c:1736:plat_log_msg:LOG_INFO:LOG_CAT:21630:%lu
@@ -2939,69 +2937,69 @@ sdf/shared/container.c:676:plat_log_msg:LOG_ERR:LOG_CAT:21539:name_service_put_m
 sdf/shared/container.c:692:plat_log_msg:LOG_INFO:LOG_CAT:150007:SDFGetContainerProps: %p - %lu - %p
 sdf/shared/container.c:698:plat_log_msg:LOG_INFO:LOG_CAT:150011:SDFGetContainerProps: status=%s
 sdf/shared/container.c:749:plat_log_msg:LOG_ERR:LOG_CAT:21539:name_service_put_meta failed for cguid %"PRIu64"
-sdf/shared/container.c:775:plat_log_msg:LOG_DBG:LOG_CAT:20819:%s
-sdf/shared/container.c:818:plat_log_msg:LOG_ERR:LOG_CAT:21540:%s - failed to flush and invalidate container
-sdf/shared/container.c:822:plat_log_msg:LOG_DBG:LOG_CAT:21541:%s - flush and invalidate container succeed
-sdf/shared/container.c:837:plat_log_msg:LOG_ERR:LOG_CAT:21542:%s - failed to delete action thread container state
-sdf/shared/container.c:841:plat_log_msg:LOG_DBG:LOG_CAT:21543:%s - action thread delete container state succeeded
-sdf/shared/container.c:850:plat_log_msg:LOG_ERR:LOG_CAT:21544:%s - failed to delete container shards
-sdf/shared/container.c:854:plat_log_msg:LOG_DBG:LOG_CAT:21545:%s - delete container shards succeeded
-sdf/shared/container.c:861:plat_log_msg:LOG_ERR:LOG_CAT:21546:%s - failed to remove metadata
-sdf/shared/container.c:866:plat_log_msg:LOG_DBG:LOG_CAT:21547:%s - remove metadata succeeded
-sdf/shared/container.c:872:plat_log_msg:LOG_ERR:LOG_CAT:21548:%s - failed to unlock metadata
-sdf/shared/container.c:880:plat_log_msg:LOG_DBG:LOG_CAT:21549:%s - unlock metadata succeeded
-sdf/shared/container.c:890:plat_log_msg:LOG_ERR:LOG_CAT:21550:%s - failed to remove cguid map
-sdf/shared/container.c:895:plat_log_msg:LOG_DBG:LOG_CAT:21551:%s - remove cguid map succeeded
-sdf/shared/container.c:900:plat_log_msg:log_level:LOG_CAT:21511:%s - %s
-sdf/shared/container.c:929:plat_log_msg:LOG_DBG:LOG_CAT:20819:%s
-sdf/shared/container.c:946:plat_log_msg:LOG_ERR:LOG_CAT:21552:Delete pending for %s
-sdf/shared/container.c:977:plat_log_msg:LOG_DBG:LOG_CAT:21553:set cid %d (%d) to cguid %d\n
-sdf/shared/container.c:994:plat_log_msg:LOG_ERR:LOG_CAT:21554:SDFActionOpenContainer failed for container %s
-sdf/shared/container.c:998:plat_log_msg:LOG_DBG:LOG_CAT:21555:Opened %s
-sdf/shared/container.c:1001:plat_log_msg:LOG_ERR:LOG_CAT:21556:Failed to find %s
-sdf/shared/container.c:1005:plat_log_msg:log_level:LOG_CAT:21511:%s - %s
-sdf/shared/container.c:1072:plat_log_msg:LOG_ERR:LOG_CAT:21540:%s - failed to flush and invalidate container
-sdf/shared/container.c:1076:plat_log_msg:LOG_DBG:LOG_CAT:21541:%s - flush and invalidate container succeed
-sdf/shared/container.c:1083:plat_log_msg:LOG_ERR:LOG_CAT:21544:%s - failed to delete container shards
-sdf/shared/container.c:1087:plat_log_msg:LOG_DBG:LOG_CAT:21545:%s - delete container shards succeeded
-sdf/shared/container.c:1094:plat_log_msg:LOG_ERR:LOG_CAT:21546:%s - failed to remove metadata
-sdf/shared/container.c:1098:plat_log_msg:LOG_DBG:LOG_CAT:21547:%s - remove metadata succeeded
-sdf/shared/container.c:1104:plat_log_msg:LOG_ERR:LOG_CAT:21548:%s - failed to unlock metadata
-sdf/shared/container.c:1111:plat_log_msg:LOG_DBG:LOG_CAT:21549:%s - unlock metadata succeeded
-sdf/shared/container.c:1118:plat_log_msg:LOG_ERR:LOG_CAT:21550:%s - failed to remove cguid map
-sdf/shared/container.c:1122:plat_log_msg:LOG_DBG:LOG_CAT:21551:%s - remove cguid map succeeded
-sdf/shared/container.c:1128:plat_log_msg:log_level:LOG_CAT:20819:%s
-sdf/shared/container.c:1213:plat_log_msg:LOG_DBG:LOG_CAT:21557:Enumerate: %s - %u
-sdf/shared/container.c:1237:plat_log_msg:log_level:LOG_CAT:20819:%s
-sdf/shared/container.c:1247:plat_log_msg:LOG_DBG:LOG_CAT:20819:%s
-sdf/shared/container.c:1257:plat_log_msg:LOG_DBG:LOG_CAT:20819:%s
-sdf/shared/container.c:1321:plat_log_msg:log_level:LOG_CAT:20819:%s
-sdf/shared/container.c:1347:plat_log_msg:log_level:LOG_CAT:20819:%s
-sdf/shared/container.c:1362:plat_log_msg:LOG_ERR:LOG_CAT:21558:FAILURE: SDFCreateContainer - build meta
-sdf/shared/container.c:1373:plat_log_msg:LOG_DBG:LOG_CAT:21559:create_put_meta: %s - %lu
-sdf/shared/container.c:1377:plat_log_msg:LOG_ERR:LOG_CAT:21560:FAILURE: create_put_meta - create %s
-sdf/shared/container.c:1380:plat_log_msg:LOG_DBG:LOG_CAT:21561:SUCCESS: create_put_meta - put %s
-sdf/shared/container.c:1404:plat_log_msg:LOG_DBG:LOG_CAT:21562:create_put_meta: %d\n
-sdf/shared/container.c:1422:plat_log_msg:LOG_DBG:LOG_CAT:21563:Container parent descriptor [blockSize=%u, container_type=%u, dir=%s, cguid=%lu, name=%s, num_open_descr=%u, ptr_open_descr=TODO]\n
-sdf/shared/container.c:1440:plat_log_msg:LOG_DBG:LOG_CAT:21564:Container descriptor [mode=%u, ptr_next=TODO, ptr_parent=TODO, ptr_void=TODO]
-sdf/shared/container.c:1629:plat_log_msg:PLAT_LOG_LEVEL_TRACE:LOG_CAT_SHARD:21565:create shard %lu on node %u
-sdf/shared/container.c:1641:plat_log_msg:LOG_ERR:LOG_CAT_SHARD:21566:create shard %lu on node %u failed to send message
-sdf/shared/container.c:1662:plat_log_msg:LOG_ERR:LOG_CAT_SHARD:21567:create shard %lu on node %u received error %s
-sdf/shared/container.c:1670:plat_log_msg:PLAT_LOG_LEVEL_TRACE:LOG_CAT_SHARD:21568:create shard %lu on node %u succeeded
-sdf/shared/container.c:1674:plat_log_msg:PLAT_LOG_LEVEL_ERROR:LOG_CAT_SHARD:21569:create shard %lu on node %u failed
-sdf/shared/container.c:1739:plat_log_msg:PLAT_LOG_LEVEL_TRACE:LOG_CAT_SHARD:21570:delete shard %lu on node %u
-sdf/shared/container.c:1751:plat_log_msg:LOG_ERR:LOG_CAT_SHARD:21571:delete shard %lu on node %u failed to send message
-sdf/shared/container.c:1772:plat_log_msg:LOG_ERR:LOG_CAT_SHARD:21572:delete shard %lu on node %u received error %s
-sdf/shared/container.c:1780:plat_log_msg:PLAT_LOG_LEVEL_TRACE:LOG_CAT_SHARD:21573:delete shard %lu on node %u succeeded
-sdf/shared/container.c:1784:plat_log_msg:PLAT_LOG_LEVEL_ERROR:LOG_CAT_SHARD:21574:delete shard %lu on node %u failed
-sdf/shared/container.c:1849:plat_log_msg:LOG_INFO:LOG_CAT_SHARD:21575:STMDBG: Create META shard id:%lx  metasguid:%lx CGUID:%lu\n
-sdf/shared/container.c:1854:plat_log_msg:LOG_INFO:LOG_CAT_SHARD:21576:STMDBG: Sh. Create id:%lx metasguid:%lx CGUID:%lu FAILED\n
-sdf/shared/container.c:1890:plat_log_msg:LOG_DBG:LOG_CAT:20819:%s
-sdf/shared/container.c:1981:plat_log_msg:PLAT_LOG_LEVEL_TRACE:PLAT_LOG_CAT_SDF_SHARED:21577:build_shard container_type.type %d num_objs %d num_replicas %d
-sdf/shared/container.c:2087:plat_log_msg:LOG_DBG:LOG_CAT_SHARD:21578:FAILURE: SDFCreateContainer - %d shard
-sdf/shared/container.c:2090:plat_log_msg:LOG_DBG:LOG_CAT:21579:%s - %lu
-sdf/shared/container.c:2126:plat_log_msg:LOG_DBG:LOG_CAT_SHARD:21580:generate_cguid: %llu
-sdf/shared/container.c:2157:plat_log_msg:LOG_DBG:LOG_CAT_SHARD:21581:generated shardids 0x%lx (+ %u reserved) for  cguid %lu
+sdf/shared/container.c:777:plat_log_msg:LOG_DBG:LOG_CAT:20819:%s
+sdf/shared/container.c:821:plat_log_msg:LOG_ERR:LOG_CAT:21540:%s - failed to flush and invalidate container
+sdf/shared/container.c:825:plat_log_msg:LOG_DBG:LOG_CAT:21541:%s - flush and invalidate container succeed
+sdf/shared/container.c:840:plat_log_msg:LOG_ERR:LOG_CAT:21542:%s - failed to delete action thread container state
+sdf/shared/container.c:844:plat_log_msg:LOG_DBG:LOG_CAT:21543:%s - action thread delete container state succeeded
+sdf/shared/container.c:853:plat_log_msg:LOG_ERR:LOG_CAT:21544:%s - failed to delete container shards
+sdf/shared/container.c:857:plat_log_msg:LOG_DBG:LOG_CAT:21545:%s - delete container shards succeeded
+sdf/shared/container.c:864:plat_log_msg:LOG_ERR:LOG_CAT:21546:%s - failed to remove metadata
+sdf/shared/container.c:869:plat_log_msg:LOG_DBG:LOG_CAT:21547:%s - remove metadata succeeded
+sdf/shared/container.c:875:plat_log_msg:LOG_ERR:LOG_CAT:21548:%s - failed to unlock metadata
+sdf/shared/container.c:883:plat_log_msg:LOG_DBG:LOG_CAT:21549:%s - unlock metadata succeeded
+sdf/shared/container.c:893:plat_log_msg:LOG_ERR:LOG_CAT:21550:%s - failed to remove cguid map
+sdf/shared/container.c:898:plat_log_msg:LOG_DBG:LOG_CAT:21551:%s - remove cguid map succeeded
+sdf/shared/container.c:903:plat_log_msg:log_level:LOG_CAT:21511:%s - %s
+sdf/shared/container.c:932:plat_log_msg:LOG_DBG:LOG_CAT:20819:%s
+sdf/shared/container.c:949:plat_log_msg:LOG_ERR:LOG_CAT:21552:Delete pending for %s
+sdf/shared/container.c:980:plat_log_msg:LOG_DBG:LOG_CAT:21553:set cid %d (%d) to cguid %d\n
+sdf/shared/container.c:997:plat_log_msg:LOG_ERR:LOG_CAT:21554:SDFActionOpenContainer failed for container %s
+sdf/shared/container.c:1001:plat_log_msg:LOG_DBG:LOG_CAT:21555:Opened %s
+sdf/shared/container.c:1004:plat_log_msg:LOG_ERR:LOG_CAT:21556:Failed to find %s
+sdf/shared/container.c:1008:plat_log_msg:log_level:LOG_CAT:21511:%s - %s
+sdf/shared/container.c:1075:plat_log_msg:LOG_ERR:LOG_CAT:21540:%s - failed to flush and invalidate container
+sdf/shared/container.c:1079:plat_log_msg:LOG_DBG:LOG_CAT:21541:%s - flush and invalidate container succeed
+sdf/shared/container.c:1086:plat_log_msg:LOG_ERR:LOG_CAT:21544:%s - failed to delete container shards
+sdf/shared/container.c:1090:plat_log_msg:LOG_DBG:LOG_CAT:21545:%s - delete container shards succeeded
+sdf/shared/container.c:1097:plat_log_msg:LOG_ERR:LOG_CAT:21546:%s - failed to remove metadata
+sdf/shared/container.c:1101:plat_log_msg:LOG_DBG:LOG_CAT:21547:%s - remove metadata succeeded
+sdf/shared/container.c:1107:plat_log_msg:LOG_ERR:LOG_CAT:21548:%s - failed to unlock metadata
+sdf/shared/container.c:1114:plat_log_msg:LOG_DBG:LOG_CAT:21549:%s - unlock metadata succeeded
+sdf/shared/container.c:1121:plat_log_msg:LOG_ERR:LOG_CAT:21550:%s - failed to remove cguid map
+sdf/shared/container.c:1125:plat_log_msg:LOG_DBG:LOG_CAT:21551:%s - remove cguid map succeeded
+sdf/shared/container.c:1131:plat_log_msg:log_level:LOG_CAT:20819:%s
+sdf/shared/container.c:1216:plat_log_msg:LOG_DBG:LOG_CAT:21557:Enumerate: %s - %u
+sdf/shared/container.c:1240:plat_log_msg:log_level:LOG_CAT:20819:%s
+sdf/shared/container.c:1250:plat_log_msg:LOG_DBG:LOG_CAT:20819:%s
+sdf/shared/container.c:1260:plat_log_msg:LOG_DBG:LOG_CAT:20819:%s
+sdf/shared/container.c:1324:plat_log_msg:log_level:LOG_CAT:20819:%s
+sdf/shared/container.c:1350:plat_log_msg:log_level:LOG_CAT:20819:%s
+sdf/shared/container.c:1365:plat_log_msg:LOG_ERR:LOG_CAT:21558:FAILURE: SDFCreateContainer - build meta
+sdf/shared/container.c:1376:plat_log_msg:LOG_DBG:LOG_CAT:21559:create_put_meta: %s - %lu
+sdf/shared/container.c:1380:plat_log_msg:LOG_ERR:LOG_CAT:21560:FAILURE: create_put_meta - create %s
+sdf/shared/container.c:1383:plat_log_msg:LOG_DBG:LOG_CAT:21561:SUCCESS: create_put_meta - put %s
+sdf/shared/container.c:1407:plat_log_msg:LOG_DBG:LOG_CAT:21562:create_put_meta: %d\n
+sdf/shared/container.c:1425:plat_log_msg:LOG_DBG:LOG_CAT:21563:Container parent descriptor [blockSize=%u, container_type=%u, dir=%s, cguid=%lu, name=%s, num_open_descr=%u, ptr_open_descr=TODO]\n
+sdf/shared/container.c:1443:plat_log_msg:LOG_DBG:LOG_CAT:21564:Container descriptor [mode=%u, ptr_next=TODO, ptr_parent=TODO, ptr_void=TODO]
+sdf/shared/container.c:1632:plat_log_msg:PLAT_LOG_LEVEL_TRACE:LOG_CAT_SHARD:21565:create shard %lu on node %u
+sdf/shared/container.c:1644:plat_log_msg:LOG_ERR:LOG_CAT_SHARD:21566:create shard %lu on node %u failed to send message
+sdf/shared/container.c:1665:plat_log_msg:LOG_ERR:LOG_CAT_SHARD:21567:create shard %lu on node %u received error %s
+sdf/shared/container.c:1673:plat_log_msg:PLAT_LOG_LEVEL_TRACE:LOG_CAT_SHARD:21568:create shard %lu on node %u succeeded
+sdf/shared/container.c:1677:plat_log_msg:PLAT_LOG_LEVEL_ERROR:LOG_CAT_SHARD:21569:create shard %lu on node %u failed
+sdf/shared/container.c:1742:plat_log_msg:PLAT_LOG_LEVEL_TRACE:LOG_CAT_SHARD:21570:delete shard %lu on node %u
+sdf/shared/container.c:1754:plat_log_msg:LOG_ERR:LOG_CAT_SHARD:21571:delete shard %lu on node %u failed to send message
+sdf/shared/container.c:1775:plat_log_msg:LOG_ERR:LOG_CAT_SHARD:21572:delete shard %lu on node %u received error %s
+sdf/shared/container.c:1783:plat_log_msg:PLAT_LOG_LEVEL_TRACE:LOG_CAT_SHARD:21573:delete shard %lu on node %u succeeded
+sdf/shared/container.c:1787:plat_log_msg:PLAT_LOG_LEVEL_ERROR:LOG_CAT_SHARD:21574:delete shard %lu on node %u failed
+sdf/shared/container.c:1852:plat_log_msg:LOG_INFO:LOG_CAT_SHARD:21575:STMDBG: Create META shard id:%lx  metasguid:%lx CGUID:%lu\n
+sdf/shared/container.c:1857:plat_log_msg:LOG_INFO:LOG_CAT_SHARD:21576:STMDBG: Sh. Create id:%lx metasguid:%lx CGUID:%lu FAILED\n
+sdf/shared/container.c:1893:plat_log_msg:LOG_DBG:LOG_CAT:20819:%s
+sdf/shared/container.c:1984:plat_log_msg:PLAT_LOG_LEVEL_TRACE:PLAT_LOG_CAT_SDF_SHARED:21577:build_shard container_type.type %d num_objs %d num_replicas %d
+sdf/shared/container.c:2090:plat_log_msg:LOG_DBG:LOG_CAT_SHARD:21578:FAILURE: SDFCreateContainer - %d shard
+sdf/shared/container.c:2093:plat_log_msg:LOG_DBG:LOG_CAT:21579:%s - %lu
+sdf/shared/container.c:2129:plat_log_msg:LOG_DBG:LOG_CAT_SHARD:21580:generate_cguid: %llu
+sdf/shared/container.c:2160:plat_log_msg:LOG_DBG:LOG_CAT_SHARD:21581:generated shardids 0x%lx (+ %u reserved) for  cguid %lu
 sdf/shared/container_meta.c:62:plat_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_SHARED:21582:FAILED: container name exceeds max
 sdf/shared/container_meta.c:67:plat_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_SHARED:21583:metadata created for %s
 sdf/shared/container_meta.c:71:plat_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_SHARED:21584:could not allocate memory

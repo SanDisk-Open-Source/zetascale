@@ -9,7 +9,7 @@
  * log message in the codebase.  The structure contains one field for
  * each message parameter in the log message, along with other meta data
  * 
- * Generated On: 2012-10-29 10:02:51
+ * Generated On: 2012-11-01 16:02:09
  *------------------------------------------------------------------------*/
 
 #ifndef PLATFORM_FFDC_H
@@ -68390,6 +68390,29 @@ struct ffdc_log_struct_150032
 __inline__ void
 ffdc_log_func_150032(int lineno, int msgid, int catid, int level, const char* fmt,
     long arg1, const char* arg2);
+
+/*---------------------------------------------------------------------------
+ * MsgID : 150033
+ * Msg   : "FDFCreateContainer failed for container %s because 128 
+ *          containers have already been created."
+ *-------------------------------------------------------------------------*/
+struct ffdc_log_struct_150033
+{
+    int magic;
+    int msgid;
+    int catid;
+    int level;
+    unsigned long th_id;
+    unsigned long fth_id;
+    int lineno;
+    struct timeval timestamp;
+
+    char arg1[FFDC_MAX_STR_SIZE];
+} __attribute__ ((aligned (64)));
+
+__inline__ void
+ffdc_log_func_150033(int lineno, int msgid, int catid, int level, const char* fmt,
+    const char* arg1);
 
 /*---------------------------------------------------------------------------
  * MsgID : 160000

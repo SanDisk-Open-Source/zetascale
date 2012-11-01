@@ -423,44 +423,18 @@ typedef struct {
     
     SDF_container_id_props_t    container_id;
     SDF_cguid_t                 cguid;
-//    char                        cname[CONTAINER_NAME_MAXLEN];
     SDF_container_type_props_t  container_type;
     SDF_replication_props_t     replication;
     SDF_cache_props_t           cache;
     SDF_shard_props_t           shard;
     uint32_t                    fifo_mode;
     SDF_durability_level_t      durability_level;
-#if 0
-    char                        cname[CONTAINER_NAME_MAXLEN];
-    char                        cluster_name[64];
-    int                         sync_backup;
-    int                         sync_updates;
-    uint32_t                    sync_msec;
-    uint64_t                    size_quota;
-    uint32_t                    obj_quota;
-#endif
     union {
         SDF_block_container_props_t        block_props;
         SDF_object_container_props_t       object_props;
         SDF_log_container_props_t          log_props;
     } specific;
     
-#if 0
-    uint32_t                    generation;
-    uint32_t                    ref_count;
-
-    // container stats
-    struct stats              * stats;
-    struct bucket_stats       * bucket_stats;
-    int                         hot_key_stats;
-    int                         max_hot_keys;
-    void                      * hot_key_reporter;
-
-
-    // misc ptrs
-    SDFContainer              * sdf_container;
-#endif
-
     // Mcd index
     int                         mcd_index;
 

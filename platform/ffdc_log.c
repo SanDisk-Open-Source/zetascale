@@ -9,7 +9,7 @@
  * codebase. This file also contains the API to enable, disable, and
  * initialize FFDC.
  * 
- * Generated On: 2012-10-29 10:02:51
+ * Generated On: 2012-11-01 16:02:09
  *------------------------------------------------------------------------*/
 
 #define PLATFORM_INTERNAL 1
@@ -41020,6 +41020,20 @@ ffdc_log_func_150032(int lineno, int msgid, int catid, int level, const char* fm
     FFDC_START(150032, catid, level, lineno);
     FFDC_ADD_NUM(arg1);
     FFDC_ADD_STR(arg2);
+    FFDC_END();
+}
+
+/*---------------------------------------------------------------------------
+ * MsgID : 150033
+ * Msg   : "FDFCreateContainer failed for container %s because 128 
+ *          containers have already been created."
+ *-------------------------------------------------------------------------*/
+__inline__ void
+ffdc_log_func_150033(int lineno, int msgid, int catid, int level, const char* fmt,
+    const char* arg1)
+{
+    FFDC_START(150033, catid, level, lineno);
+    FFDC_ADD_STR(arg1);
     FFDC_END();
 }
 
