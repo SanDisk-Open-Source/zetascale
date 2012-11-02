@@ -942,6 +942,7 @@ SDF_status_t SDFOpenContainer(
 	if(status != SDF_SUCCESS || !isContainerNull(CtnrMap[i_ctnr].sdf_container))
 	{
 	    SDFEndSerializeContainerOp(pai);
+		plat_log_msg(160032, LOG_CAT, log_level, "Already opened or error: %s - %s", path, SDF_Status_Strings[status]);
 		return status;
 	}
 
@@ -1625,7 +1626,11 @@ SDF_status_t SDFCloseContainer(
 			shard = shardFind(flash_dev, meta.shard);
 
 			if(shard)
+			{
 				((mcd_osd_shard_t*)shard)->open = 0;
+
+				shardSync(shard);
+			}
 		}
 
 	    // Invalidate all of the container's cached objects
