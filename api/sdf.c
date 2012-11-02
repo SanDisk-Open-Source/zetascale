@@ -1560,17 +1560,19 @@ SDF_status_t SDFCloseContainer(
 	SDF_cguid_t  		      cguid
 	)
 {
+#ifdef SDFAPIONLY
     //mcd_container_t 		cntr;
     struct shard		*shard		= NULL;
     flashDev_t              *flash_dev;
     SDF_container_meta_t     meta;
+    SDF_status_t tmp_status;
+    struct SDF_shared_state *state = &sdf_shared_state;
+#endif
     SDF_status_t status = SDF_FAILURE;
     unsigned     n_descriptors;
     int  i_ctnr;
     SDF_CONTAINER container = containerNull;
     SDF_internal_ctxt_t     *pai = (SDF_internal_ctxt_t *) sdf_thread_state;
-    struct SDF_shared_state *state = &sdf_shared_state;
-    SDF_status_t tmp_status;
     int log_level = LOG_ERR;
     int ok_to_delete = 0;
     SDF_cguid_t parent_cguid = SDF_NULL_CGUID;
@@ -1615,6 +1617,7 @@ SDF_status_t SDFCloseContainer(
             log_level = LOG_INFO;
         }
 
+#ifdef SDFAPIONLY
     	if ((status = name_service_get_meta(pai, cguid, &meta)) == SDF_SUCCESS) {
 
 			#ifdef MULTIPLE_FLASH_DEV_ENABLED
@@ -1655,6 +1658,7 @@ SDF_status_t SDFCloseContainer(
 				"%s - action thread delete container state succeeded", path);
 		    }
 		}
+#endif
 
 #if 0 // not used
         // FIXME: This is where shardClose call goes.
