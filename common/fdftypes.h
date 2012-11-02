@@ -43,6 +43,7 @@ typedef uint64_t FDF_cguid_t;
     item(FDF_FAILURE, /* default */) \
     item(FDF_FAILURE_GENERIC, /* default */) \
     item(FDF_FAILURE_CONTAINER_GENERIC, /* default */) \
+    item(FDF_FAILURE_CONTAINER_NOT_OPEN, /* default */) \
     item(FDF_FAILURE_INVALID_CONTAINER_TYPE, /* default */) \
     item(FDF_INVALID_PARAMETER, /* default */) \
     item(FDF_CONTAINER_UNKNOWN, /* default */) \

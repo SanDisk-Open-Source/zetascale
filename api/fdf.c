@@ -1070,6 +1070,12 @@ static FDF_status_t fdf_open_container(
 		*cguid = CMC_CGUID;
     }
 
+    if ( !isContainerNull( CtnrMap[i_ctnr].sdf_container ) ) {
+        SDFEndSerializeContainerOp( pai );
+        plat_log_msg( 160032, LOG_CAT, log_level, "Already opened or error: %s - %s", cname, SDF_Status_Strings[status] );
+        return SDF_SUCCESS;
+    }
+
     if ( !isContainerParentNull( parent = isParentContainerOpened( cname ) ) ) {
                 
         plat_log_msg( 20819, LOG_CAT, LOG_INFO, "%s", cname );
@@ -1198,7 +1204,7 @@ FDF_status_t FDFCloseContainer(
     }
 
     if (isContainerNull(container)) {
-        status = SDF_FAILURE_CONTAINER_GENERIC;
+        status = SDF_FAILURE_CONTAINER_NOT_OPEN;
     } else {
 
         // Delete the container if there are no outstanding opens and a delete is pending

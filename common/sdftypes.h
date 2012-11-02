@@ -210,6 +210,7 @@ typedef struct {
     item(SDF_FAILURE, /* default */) \
     item(SDF_FAILURE_GENERIC, /* default */) \
     item(SDF_FAILURE_CONTAINER_GENERIC, /* default */) \
+    item(SDF_FAILURE_CONTAINER_NOT_OPEN, /* default */) \
     item(SDF_FAILURE_INVALID_CONTAINER_TYPE, /* default */) \
     item(SDF_INVALID_PARAMETER, /* default */) \
     item(SDF_CONTAINER_UNKNOWN, /* default */) \
