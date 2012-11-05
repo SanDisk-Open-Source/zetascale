@@ -216,6 +216,7 @@ static void load_settings(flash_settings_t *osd_settings)
     // num_threads // legacy--not used
 
     osd_settings->num_cores        = getProperty_Int("SDF_FTHREAD_SCHEDULERS", 1); // "-N" 
+    osd_settings->num_sched        = osd_settings->num_cores;
     osd_settings->num_sdf_threads  = getProperty_Int("SDF_THREADS_PER_SCHEDULER", 1); // "-T"
 
     osd_settings->sdf_log_level    = getProperty_Int("SDF_LOG_LEVEL", 4); 
