@@ -110,6 +110,13 @@ extern SDF_status_t process_raw_get_command_enum(
     uint64_t         *addr_out
     );
 
+extern
+SDF_status_t delete_container_internal_low(
+    SDF_internal_ctxt_t     *pai,
+    const char      		*path,
+    SDF_boolean_t        	 serialize,
+    int 					*deleted
+    );
 
 /*
 ** Forward declarations
@@ -1320,31 +1327,45 @@ FDF_status_t FDFDeleteContainer(
 	FDF_cguid_t		 		 cguid
 	)
 {  
-    FDF_status_t status = SDF_FAILURE;
-    char *path = NULL;
-    int  i_ctnr;
-    SDF_internal_ctxt_t *pai = (SDF_internal_ctxt_t *) fdf_thread_state;
+    FDF_status_t 	 	 status 		= SDF_FAILURE;
+    int  			 	 i_ctnr			= -1;
+	int				  	 ok_to_delete	= 0;
+    SDF_internal_ctxt_t *pai 			= (SDF_internal_ctxt_t *) fdf_thread_state;
 
-    plat_log_msg(21630, LOG_CAT, LOG_INFO, "%lu", cguid);
+    plat_log_msg( 21630, 
+				  LOG_CAT, 
+				  LOG_INFO, 
+				  "%lu", 
+				  cguid );
 
-    i_ctnr = fdf_get_ctnr_from_cguid(cguid);
+    i_ctnr = fdf_get_ctnr_from_cguid( cguid );
 
-    if (i_ctnr == -1) {
-        status = SDF_INVALID_PARAMETER;
-    } else {
-	path = CtnrMap[i_ctnr].cname;
-    	if (ISEMPTY(path)) {
-       	    status = SDF_INVALID_PARAMETER;
-	} else {
-	    status = delete_container_internal(pai, path, SDF_TRUE /* serialize */);
-	}
+    if ( i_ctnr >= 0 && !ISEMPTY( CtnrMap[i_ctnr].cname ) ) {
+        status = delete_container_internal_low( pai, CtnrMap[i_ctnr].cname, SDF_TRUE /* serialize */, &ok_to_delete );
+
+        plat_free( CtnrMap[i_ctnr].cname );
+        CtnrMap[i_ctnr].cname = NULL;
+
+        if ( ok_to_delete) {
+            CtnrMap[i_ctnr].cguid         = 0;
+            CtnrMap[i_ctnr].sdf_container = containerNull;
+        } else {
+            status = SDF_FAILURE;
+            plat_log_msg( 160030, 
+						  LOG_CAT, 
+						  LOG_INFO, 
+						  "Container is not deleted (busy or error): cguid=%lu(%d), status=%s", 
+						  cguid, 
+						  i_ctnr, 
+						  SDF_Status_Strings[status] );
+        }
     }
 
-    plat_free(CtnrMap[i_ctnr].cname);
-    CtnrMap[i_ctnr].cguid         = 0;
-    CtnrMap[i_ctnr].sdf_container = containerNull;
-
-    plat_log_msg(20819, LOG_CAT, LOG_INFO, "%s", SDF_Status_Strings[status]);
+    plat_log_msg( 20819, 
+				  LOG_CAT, 
+				  LOG_INFO, 
+				  "%s", 
+				  SDF_Status_Strings[status] );
 
     return status;
 }

@@ -1723,7 +1723,7 @@ SDF_status_t SDFDeleteContainer(
 		}
 		else
 		{
-//			status = SDF_FAILURE;
+  			status = SDF_FAILURE;
 	    	plat_log_msg(160030, LOG_CAT, LOG_INFO, "Container is not deleted (busy or error): cguid=%lu(%d), status=%s", cguid, i_ctnr, SDF_Status_Strings[status]);
 		}
     }
