@@ -2092,7 +2092,7 @@ SDF_status_t SDFRemoveObjectWithExpiry(
     pac = (SDF_action_init_t *) sdf_thread_state;
     
     ar.reqtype = APDBE;
-    //ar.prefix_delete = pref_del;
+    ar.prefix_delete = 0;
     ar.curtime = current_time;
     ar.ctxt = pac->ctxt;
     ar.ctnr = cguid;
