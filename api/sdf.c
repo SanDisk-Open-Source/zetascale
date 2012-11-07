@@ -571,6 +571,9 @@ SDF_status_t SDFGetContainerProps(
     SDF_container_meta_t     meta;
     SDF_internal_ctxt_t     *pai = (SDF_internal_ctxt_t *) sdf_thread_state;
 
+	if(!cguid)
+		return SDF_INVALID_PARAMETER;
+
     SDFStartSerializeContainerOp(pai);  
     if ((status = name_service_get_meta(pai, cguid, &meta)) == SDF_SUCCESS) {
         *pprops = meta.properties;      
@@ -589,6 +592,9 @@ SDF_status_t SDFSetContainerProps(
     SDF_status_t             status = SDF_SUCCESS;
     SDF_container_meta_t     meta;
     SDF_internal_ctxt_t     *pai = (SDF_internal_ctxt_t *) sdf_thread_state;
+
+	if(!cguid)
+		return SDF_INVALID_PARAMETER;
 
     SDFStartSerializeContainerOp(pai);
     if ((status = name_service_get_meta(pai, cguid, &meta)) == SDF_SUCCESS) {
@@ -626,7 +632,10 @@ SDF_status_t SDFCreateContainer(
     const char 				*writeback_enabled_string	= NULL;
     SDF_internal_ctxt_t			*pai 				= (SDF_internal_ctxt_t *) sdf_thread_state;
 
-    plat_log_msg(20819, LOG_CAT, LOG_INFO, "%s", cname);
+	if(!properties || !cguid || !cname || !sdf_thread_state)
+		return SDF_INVALID_PARAMETER;
+
+    plat_log_msg(160033, LOG_CAT, LOG_INFO, "%s, size=%ld bytes", cname, properties->container_id.size * 1024);
 
     if ((!properties->container_type.caching_container) && (!properties->cache.writethru)) {
         plat_log_msg(30572, LOG_CAT, LOG_ERR,
@@ -894,7 +903,10 @@ SDF_status_t SDFCreateContainer(
 	}
     }
     SDFEndSerializeContainerOp(pai);
-    plat_log_msg(21511, LOG_CAT, LOG_INFO, "%s - %s", cname, SDF_Status_Strings[status]);
+
+	plat_assert(*cguid);
+
+    plat_log_msg(160034, LOG_CAT, LOG_INFO, "%s(cguid=%lu) - %s", cname, *cguid, SDF_Status_Strings[status]);
     return (status);
 }
 
@@ -920,6 +932,9 @@ SDF_status_t SDFOpenContainer(
 #endif /* SDFAPIONLY */
                         
     plat_log_msg(21630, LOG_CAT, LOG_INFO, "%lu", cguid);
+
+	if(!cguid)
+		return SDF_INVALID_PARAMETER;
 
     SDFStartSerializeContainerOp(pai);
 
@@ -1516,7 +1531,11 @@ SDF_status_t SDFGetStatsStr (
     SDF_container_props_t       dummy_prop;
     memset( (void *)&dummy_prop, 0, sizeof(dummy_prop) );
 
-    //SDFStartSerializeContainerOp(pai);
+	if(!cguid)
+		return SDF_INVALID_PARAMETER;
+
+    SDFStartSerializeContainerOp(pai);
+
     //fprintf(stderr,"Container CGID:%u\n",cguid);
     i_ctnr = get_ctnr_from_cguid(cguid);
     if (i_ctnr == -1) {
@@ -1526,6 +1545,8 @@ SDF_status_t SDFGetStatsStr (
     else {
         sdf_container = CtnrMap[i_ctnr].sdf_container;
     }
+
+    SDFEndSerializeContainerOp(pai);
 
     buf_len = STAT_BUFFER_SIZE;
     temp = stats_str;
@@ -1708,10 +1729,15 @@ SDF_status_t SDFDeleteContainer(
 
     plat_log_msg(21630, LOG_CAT, LOG_INFO, "%lu", cguid);
 
+	if(!cguid)
+		return SDF_INVALID_PARAMETER;
+
+    SDFStartSerializeContainerOp(pai);
+
     i_ctnr = get_ctnr_from_cguid(cguid);
 
     if (i_ctnr >=0 && !ISEMPTY(CtnrMap[i_ctnr].cname)) {
-	    status = delete_container_internal_low(pai, CtnrMap[i_ctnr].cname, SDF_TRUE /* serialize */, &ok_to_delete);
+	    status = delete_container_internal_low(pai, CtnrMap[i_ctnr].cname, SDF_FALSE /* serialize */, &ok_to_delete);
 
 		plat_free(CtnrMap[i_ctnr].cname);
 		CtnrMap[i_ctnr].cname = NULL;
@@ -1727,6 +1753,8 @@ SDF_status_t SDFDeleteContainer(
 	    	plat_log_msg(160030, LOG_CAT, LOG_INFO, "Container is not deleted (busy or error): cguid=%lu(%d), status=%s", cguid, i_ctnr, SDF_Status_Strings[status]);
 		}
     }
+
+	SDFEndSerializeContainerOp(pai);
 
     plat_log_msg(20819, LOG_CAT, LOG_INFO, "%s", SDF_Status_Strings[status]);
 
@@ -1858,6 +1886,9 @@ SDF_status_t SDFFlushContainer(
     SDF_appreq_t        ar;
     SDF_action_init_t  *pac;
 
+	if(!cguid)
+		return SDF_INVALID_PARAMETER;
+
     pac = (SDF_action_init_t *) sdf_thread_state;
 
     ar.reqtype = APFCO;
@@ -1887,6 +1918,9 @@ SDF_status_t SDFGetForReadBufferedObject(
     SDF_appreq_t        ar;
     SDF_action_init_t  *pac;
     SDF_status_t        status;
+
+	if(!cguid)
+		return SDF_INVALID_PARAMETER;
 
     pac = (SDF_action_init_t *) sdf_thread_state;
    
@@ -1949,6 +1983,9 @@ SDF_status_t SDFCreateBufferedObject(
     SDF_appreq_t        ar;
     SDF_action_init_t  *pac;
     SDF_status_t        status;
+
+	if(!cguid)
+		return SDF_INVALID_PARAMETER;
 
     pac = (SDF_action_init_t *) sdf_thread_state;
 
@@ -2013,6 +2050,9 @@ SDF_status_t SDFSetBufferedObject(
     SDF_appreq_t        ar;
     SDF_action_init_t  *pac;
     SDF_status_t        status;
+
+	if(!cguid)
+		return SDF_INVALID_PARAMETER;
 
     pac = (SDF_action_init_t *) sdf_thread_state;
 
@@ -2118,6 +2158,9 @@ SDF_status_t SDFFlushObject(
     SDF_appreq_t        ar;
     SDF_action_init_t  *pac;
     SDF_status_t        status;
+
+	if(!cguid)
+		return SDF_INVALID_PARAMETER;
 
     pac = (SDF_action_init_t *) sdf_thread_state;
    
@@ -2261,6 +2304,9 @@ SDF_status_t SDFEnumerateContainerObjects(
     flashDev_t                 *flash_dev;
     struct SDF_iterator        *iterator;
 
+	if(!cguid)
+		return SDF_INVALID_PARAMETER;
+
     if ((status = name_service_get_meta(pai, cguid, &meta)) != SDF_SUCCESS) {
         fprintf(stderr, "sdf_enumerate: failed to get meta for cguid: %lu\n", cguid);
 	return SDF_FAILURE; // xxxzzz TODO: better return code?
@@ -2366,7 +2412,8 @@ SDF_status_t SDFFinishEnumeration(
     uint64_t                    curr_seqno;
     uint32_t                    version;
 
-	plat_assert(iterator);
+	if(!iterator)
+		return SDF_INVALID_PARAMETER;
 
     // stop the backup
     status = backup_container( iterator->shard,
@@ -2416,7 +2463,8 @@ SDF_status_t SDFNextEnumeratedObject(
     SDF_status_t             ret;
     SDF_action_init_t       *pai = (SDF_action_init_t *) sdf_thread_state;
 
-	plat_assert(iterator);
+	if(!iterator)
+		return SDF_INVALID_PARAMETER;
 
     ret = process_raw_get_command_enum(
 				     (mcd_osd_shard_t *) iterator->shard,
