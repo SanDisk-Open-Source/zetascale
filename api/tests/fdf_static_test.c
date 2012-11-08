@@ -12,6 +12,7 @@
 #include <inttypes.h>
 #include <string.h> 
 #include <unistd.h> 
+#if 0
 #include "common/sdftypes.h"
 #include "fth/fth.h"
 #include "utils/properties.h"
@@ -29,12 +30,12 @@
 #include "ssd/fifo/mcd_aio.h"
 #include "ssd/fifo/mcd_osd.h"
 #include "ssd/fifo/mcd_ipf.h"
+#endif
 #include "api/sdf.h"
 
 enum { NO_CPU_AFFINITY = -1 };
 
 volatile time_t 		 current_time;
-struct settings 		 settings;
 static struct SDF_state 	*sdf_state;
 
 
