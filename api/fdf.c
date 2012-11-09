@@ -764,11 +764,12 @@ static FDF_status_t fdf_create_container(
     SDF_internal_ctxt_t			*pai 						= (SDF_internal_ctxt_t *) fdf_thread_state;
 	SDF_container_props_t 		*sdf_properties				= NULL;
 
-    plat_log_msg(20819, LOG_CAT, LOG_INFO, "%s", cname);
-
 	if ( ISEMPTY( cname ) ) {
 		return FDF_INVALID_PARAMETER;
 	}
+
+    plat_log_msg(20819, LOG_CAT, LOG_INFO, "%s", cname);
+
     if (( !properties->evicting ) && ( !properties->writethru )) {
         plat_log_msg( 30572, LOG_CAT, LOG_ERR,
                       "Writeback caching can only be enabled for eviction mode containers" );
