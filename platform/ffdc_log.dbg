@@ -1,6 +1,6 @@
-Skipping /opt/schooner/src/membrain-4.2/server/apps/memcached/clients/libmemcached/libmemcached-0.12/tests/function.c
-Skipping /opt/schooner/src/membrain-4.2/server/apps/memcached/clients/libmemcached/libmemcached-0.12/tests/test.c
-Skipping /opt/schooner/src/membrain-4.2/server/apps/memcached/clients/libmemcached/libmemcached-0.12/tests/test.h
+Skipping /root/membrain-4.2/membrain/server/apps/memcached/clients/libmemcached/libmemcached-0.12/tests/function.c
+Skipping /root/membrain-4.2/membrain/server/apps/memcached/clients/libmemcached/libmemcached-0.12/tests/test.c
+Skipping /root/membrain-4.2/membrain/server/apps/memcached/clients/libmemcached/libmemcached-0.12/tests/test.h
 apps/memcached/server/memcached-1.2.5-schooner/checkpoint/mcd_aio.c:142:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG::20000:ENTERING
 apps/memcached/server/memcached-1.2.5-schooner/checkpoint/mcd_aio.c:146:mcd_log_msg:PLAT_LOG_LEVEL_ERROR::20001:failed to allocate memory
 apps/memcached/server/memcached-1.2.5-schooner/checkpoint/mcd_aio.c:155:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG::20002:allocated buf=%p, aligned buf=%p
@@ -1044,138 +1044,141 @@ sdf/agent/fdf_agent.c:136:plat_log_msg:PLAT_LOG_LEVEL_WARN:LOG_CAT:21789:Unable 
 sdf/agent/fdf_agent.c:140:plat_log_msg:PLAT_LOG_LEVEL_INFO:LOG_CAT:10005:FFDC logging disabled
 sdf/agent/fdf_agent.c:178:plat_log_msg:success ?  LOG_LEV : PLAT_LOG_LEVEL_INFO:LOG_CAT:20849:plat_opts_parse_sdf_agent SUCCESS = %u
 sdf/agent/fdf_agent.c:185:plat_log_msg:success ? LOG_LEV : PLAT_LOG_LEVEL_INFO:LOG_CAT:20850:set properties SUCCESS = %u
-sdf/api/fdf.c:376:mcd_log_msg:PLAT_LOG_LEVEL_FATAL::20147:agent_engine_post_init() failed
-sdf/api/fdf.c:483:mcd_log_msg:PLAT_LOG_LEVEL_FATAL::20163:pthread_create() failed, rc=%d
-sdf/api/fdf.c:487:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG::20164:scheduler %d created
-sdf/api/fdf.c:591:mcd_log_msg:PLAT_LOG_LEVEL_FATAL::20163:pthread_create() failed, rc=%d
-sdf/api/fdf.c:595:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG::150022:scheduler startup process created
-sdf/api/fdf.c:626:mcd_log_msg:PLAT_LOG_LEVEL_ERROR::50030:failed to get SDF properties, status=%s
-sdf/api/fdf.c:637:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG::20131:next container id %lu
-sdf/api/fdf.c:763:plat_log_msg:LOG_INFO:LOG_CAT:20819:%s
-sdf/api/fdf.c:771:plat_log_msg:LOG_ERR:LOG_CAT:30572:Writeback caching can only be enabled for eviction mode containers
+sdf/api/fdf.c:384:mcd_log_msg:PLAT_LOG_LEVEL_FATAL::20147:agent_engine_post_init() failed
+sdf/api/fdf.c:491:mcd_log_msg:PLAT_LOG_LEVEL_FATAL::20163:pthread_create() failed, rc=%d
+sdf/api/fdf.c:495:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG::20164:scheduler %d created
+sdf/api/fdf.c:599:mcd_log_msg:PLAT_LOG_LEVEL_FATAL::20163:pthread_create() failed, rc=%d
+sdf/api/fdf.c:603:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG::150022:scheduler startup process created
+sdf/api/fdf.c:634:mcd_log_msg:PLAT_LOG_LEVEL_ERROR::50030:failed to get SDF properties, status=%s
+sdf/api/fdf.c:645:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG::20131:next container id %lu
+sdf/api/fdf.c:771:plat_log_msg:LOG_INFO:LOG_CAT:20819:%s
 sdf/api/fdf.c:778:plat_log_msg:LOG_ERR:LOG_CAT:30572:Writeback caching can only be enabled for eviction mode containers
-sdf/api/fdf.c:785:plat_log_msg:LOG_ERR:LOG_CAT:30575:Cannot enable writeback caching for container '%s' because writeback caching is disabled.
-sdf/api/fdf.c:804:plat_log_msg:LOG_ERR:LOG_CAT:150033:FDFCreateContainer failed for container %s because 128 containers have already been created.
-sdf/api/fdf.c:892:plat_log_msg:LOG_INFO:LOG_CAT:21527:Container: %s - Multi Devs: %d
-sdf/api/fdf.c:895:plat_log_msg:LOG_INFO:LOG_CAT:21528:Container: %s - Single Dev
-sdf/api/fdf.c:898:plat_log_msg:LOG_INFO:LOG_CAT:21529:Container: %s - Num Shards: %d
-sdf/api/fdf.c:901:plat_log_msg:LOG_INFO:LOG_CAT:21530:Container: %s - Num Objs: %d
-sdf/api/fdf.c:904:plat_log_msg:LOG_INFO:LOG_CAT:21531:Container: %s - DEBUG_MULTI_SHARD_INDEX: %d
-sdf/api/fdf.c:915:plat_log_msg:LOG_ERR:LOG_CAT:21532:failed to lock %s
-sdf/api/fdf.c:921:plat_log_msg:LOG_ERR:LOG_CAT:21533:failed to unlock %s
-sdf/api/fdf.c:943:plat_log_msg:LOG_ERR:LOG_CAT:21534:failed to map cguid: %s
-sdf/api/fdf.c:946:plat_log_msg:LOG_ERR:LOG_CAT:21532:failed to lock %s
-sdf/api/fdf.c:960:plat_log_msg:LOG_ERR:LOG_CAT:21533:failed to unlock %s
-sdf/api/fdf.c:963:plat_log_msg:LOG_ERR:LOG_CAT:21535:cname=%s, build_shard failed
-sdf/api/fdf.c:966:plat_log_msg:LOG_ERR:LOG_CAT:21536:cname=%s, createParentContainer() failed
-sdf/api/fdf.c:972:plat_log_msg:LOG_ERR:LOG_CAT:21537:cname=%s, build_meta failed
-sdf/api/fdf.c:975:plat_log_msg:LOG_ERR:LOG_CAT:21535:cname=%s, build_shard failed
-sdf/api/fdf.c:979:plat_log_msg:LOG_DBG:LOG_CAT:21511:%s - %s
-sdf/api/fdf.c:982:plat_log_msg:LOG_ERR:LOG_CAT:21538:cname=%s, function returned status = %u
-sdf/api/fdf.c:1024:plat_log_msg:LOG_INFO:LOG_CAT:21511:%s - %s
-sdf/api/fdf.c:1049:plat_log_msg:LOG_INFO:LOG_CAT:20819:%s
-sdf/api/fdf.c:1075:plat_log_msg:LOG_INFO:LOG_CAT:20819:%s
-sdf/api/fdf.c:1082:plat_log_msg:LOG_ERR:LOG_CAT:21552:Delete pending for %s
-sdf/api/fdf.c:1118:plat_log_msg:LOG_DBG:LOG_CAT:21553:set cid %d (%d) to cguid %d\n
-sdf/api/fdf.c:1135:plat_log_msg:LOG_ERR:LOG_CAT:21554:SDFActionOpenContainer failed for container %s
-sdf/api/fdf.c:1148:plat_log_msg:LOG_ERR:LOG_CAT:150026:Failed to find shard for %s
-sdf/api/fdf.c:1154:plat_log_msg:LOG_DBG:LOG_CAT:21555:Opened %s
-sdf/api/fdf.c:1157:plat_log_msg:LOG_ERR:LOG_CAT:21556:Failed to find %s
-sdf/api/fdf.c:1162:plat_log_msg:log_level:LOG_CAT:21511:%s - %s
-sdf/api/fdf.c:1164:plat_log_msg:log_level:LOG_CAT:150024:NULL - %s
-sdf/api/fdf.c:1187:plat_log_msg:LOG_INFO:LOG_CAT:21630:%lu
-sdf/api/fdf.c:1245:plat_log_msg:LOG_ERR:LOG_CAT:21540:%s - failed to flush and invalidate container
-sdf/api/fdf.c:1249:plat_log_msg:LOG_DBG:LOG_CAT:21541:%s - flush and invalidate container succeed
-sdf/api/fdf.c:1256:plat_log_msg:LOG_ERR:LOG_CAT:21544:%s - failed to delete container shards
-sdf/api/fdf.c:1260:plat_log_msg:LOG_DBG:LOG_CAT:21545:%s - delete container shards succeeded
-sdf/api/fdf.c:1267:plat_log_msg:LOG_ERR:LOG_CAT:21546:%s - failed to remove metadata
-sdf/api/fdf.c:1271:plat_log_msg:LOG_DBG:LOG_CAT:21547:%s - remove metadata succeeded
-sdf/api/fdf.c:1277:plat_log_msg:LOG_ERR:LOG_CAT:21548:%s - failed to unlock metadata
-sdf/api/fdf.c:1284:plat_log_msg:LOG_DBG:LOG_CAT:21549:%s - unlock metadata succeeded
-sdf/api/fdf.c:1291:plat_log_msg:LOG_ERR:LOG_CAT:21550:%s - failed to remove cguid map
-sdf/api/fdf.c:1295:plat_log_msg:LOG_DBG:LOG_CAT:21551:%s - remove cguid map succeeded
-sdf/api/fdf.c:1304:plat_log_msg:log_level:LOG_CAT:20819:%s
-sdf/api/fdf.c:1321:plat_log_msg:LOG_INFO:LOG_CAT:21630:%lu
-sdf/api/fdf.c:1340:plat_log_msg:LOG_INFO:LOG_CAT:20819:%s
-sdf/api/fdf.c:1632:plat_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED_BACKUP:30664:container backup sync failed for enum, status=%s
-sdf/api/fdf.c:2077:plat_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20648:sdf stat %s parsing failure
-sdf/api/fdf.c:2095:plat_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20649:invalid stat key %d
-sdf/api/fdf.c:2113:plat_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20650:invalid sdf cache stats, rd=%lu rx=%lu tr=%lu
-sdf/api/fdf.c:2221:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20694:/proc/stat opened, fd=%d
-sdf/api/fdf.c:2232:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20695:failed to read from proc, rc=%d errno=%d
-sdf/api/fdf.c:2297:plat_log_msg:log_level:LOG_CAT:20819:%s
-sdf/api/fdf.c:2466:plat_log_msg:LOG_INFO:LOG_CAT:21630:%lu
-sdf/api/fdf.c:2492:plat_log_msg:LOG_ERR:LOG_CAT:21539:name_service_put_meta failed for cguid %"PRIu64"
-sdf/api/fdf.c:2498:plat_log_msg:LOG_INFO:LOG_CAT:20819:%s
-sdf/api/fdf.c:2515:plat_log_msg:LOG_INFO:LOG_CAT:21630:%lu
-sdf/api/fdf.c:2540:plat_log_msg:LOG_ERR:LOG_CAT:21539:name_service_put_meta failed for cguid %"PRIu64"
-sdf/api/fdf.c:2546:plat_log_msg:LOG_INFO:LOG_CAT:20819:%s
-sdf/api/sdf.c:305:mcd_log_msg:PLAT_LOG_LEVEL_FATAL::20147:agent_engine_post_init() failed
-sdf/api/sdf.c:414:mcd_log_msg:PLAT_LOG_LEVEL_FATAL::20163:pthread_create() failed, rc=%d
-sdf/api/sdf.c:418:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG::20164:scheduler %d created
-sdf/api/sdf.c:500:mcd_log_msg:PLAT_LOG_LEVEL_FATAL::20163:pthread_create() failed, rc=%d
-sdf/api/sdf.c:503:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG::150022:scheduler startup process created
-sdf/api/sdf.c:628:plat_log_msg:LOG_INFO:LOG_CAT:20819:%s
-sdf/api/sdf.c:632:plat_log_msg:LOG_ERR:LOG_CAT:30572:Writeback caching can only be enabled for eviction mode containers
-sdf/api/sdf.c:638:plat_log_msg:LOG_ERR:LOG_CAT:30572:Writeback caching can only be enabled for eviction mode containers
-sdf/api/sdf.c:645:plat_log_msg:LOG_ERR:LOG_CAT:30575:Cannot enable writeback caching for container '%s' because writeback caching is disabled.
-sdf/api/sdf.c:680:plat_log_msg:LOG_ERR:LOG_CAT:150023:SDFCreateContainer failed for container %s because 128 containers have already been created.
-sdf/api/sdf.c:761:plat_log_msg:LOG_INFO:LOG_CAT:21527:Container: %s - Multi Devs: %d
-sdf/api/sdf.c:764:plat_log_msg:LOG_INFO:LOG_CAT:21528:Container: %s - Single Dev
-sdf/api/sdf.c:767:plat_log_msg:LOG_INFO:LOG_CAT:21529:Container: %s - Num Shards: %d
-sdf/api/sdf.c:770:plat_log_msg:LOG_INFO:LOG_CAT:21530:Container: %s - Num Objs: %d
-sdf/api/sdf.c:773:plat_log_msg:LOG_INFO:LOG_CAT:21531:Container: %s - DEBUG_MULTI_SHARD_INDEX: %d
-sdf/api/sdf.c:786:plat_log_msg:LOG_ERR:LOG_CAT:21532:failed to lock %s
-sdf/api/sdf.c:792:plat_log_msg:LOG_ERR:LOG_CAT:21533:failed to unlock %s
-sdf/api/sdf.c:816:plat_log_msg:LOG_ERR:LOG_CAT:21534:failed to map cguid: %s
-sdf/api/sdf.c:819:plat_log_msg:LOG_ERR:LOG_CAT:21532:failed to lock %s
-sdf/api/sdf.c:831:plat_log_msg:LOG_ERR:LOG_CAT:21533:failed to unlock %s
-sdf/api/sdf.c:834:plat_log_msg:LOG_ERR:LOG_CAT:21535:cname=%s, build_shard failed
-sdf/api/sdf.c:837:plat_log_msg:LOG_ERR:LOG_CAT:21536:cname=%s, createParentContainer() failed
-sdf/api/sdf.c:843:plat_log_msg:LOG_ERR:LOG_CAT:21537:cname=%s, build_meta failed
-sdf/api/sdf.c:846:plat_log_msg:LOG_ERR:LOG_CAT:21535:cname=%s, build_shard failed
-sdf/api/sdf.c:850:plat_log_msg:LOG_DBG:LOG_CAT:21511:%s - %s
-sdf/api/sdf.c:854:plat_log_msg:LOG_ERR:LOG_CAT:21538:cname=%s, function returned status = %u
-sdf/api/sdf.c:896:plat_log_msg:LOG_INFO:LOG_CAT:21511:%s - %s
-sdf/api/sdf.c:921:plat_log_msg:LOG_INFO:LOG_CAT:21630:%lu
-sdf/api/sdf.c:950:plat_log_msg:LOG_INFO:LOG_CAT:20819:%s
-sdf/api/sdf.c:957:plat_log_msg:LOG_ERR:LOG_CAT:21552:Delete pending for %s
-sdf/api/sdf.c:993:plat_log_msg:LOG_DBG:LOG_CAT:21553:set cid %d (%d) to cguid %d\n
-sdf/api/sdf.c:1010:plat_log_msg:LOG_ERR:LOG_CAT:21554:SDFActionOpenContainer failed for container %s
-sdf/api/sdf.c:1023:plat_log_msg:LOG_ERR:LOG_CAT:150026:Failed to find shard for %s
-sdf/api/sdf.c:1029:plat_log_msg:LOG_DBG:LOG_CAT:21555:Opened %s
-sdf/api/sdf.c:1032:plat_log_msg:LOG_ERR:LOG_CAT:21556:Failed to find %s
-sdf/api/sdf.c:1037:plat_log_msg:log_level:LOG_CAT:21511:%s - %s
-sdf/api/sdf.c:1039:plat_log_msg:log_level:LOG_CAT:150024:NULL - %s
-sdf/api/sdf.c:1334:plat_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20648:sdf stat %s parsing failure
-sdf/api/sdf.c:1352:plat_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20649:invalid stat key %d
-sdf/api/sdf.c:1370:plat_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20650:invalid sdf cache stats, rd=%lu rx=%lu tr=%lu
-sdf/api/sdf.c:1478:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20694:/proc/stat opened, fd=%d
-sdf/api/sdf.c:1489:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20695:failed to read from proc, rc=%d errno=%d
-sdf/api/sdf.c:1552:plat_log_msg:log_level:LOG_CAT:20819:%s
-sdf/api/sdf.c:1577:plat_log_msg:LOG_INFO:LOG_CAT:21630:%lu
-sdf/api/sdf.c:1634:plat_log_msg:LOG_ERR:LOG_CAT:21540:%s - failed to flush and invalidate container
-sdf/api/sdf.c:1638:plat_log_msg:LOG_DBG:LOG_CAT:21541:%s - flush and invalidate container succeed
-sdf/api/sdf.c:1646:plat_log_msg:LOG_ERR:LOG_CAT:21542:%s - failed to delete action thread container state
-sdf/api/sdf.c:1650:plat_log_msg:LOG_DBG:LOG_CAT:21543:%s - action thread delete container state succeeded
-sdf/api/sdf.c:1669:plat_log_msg:LOG_INFO:LOG_CAT:160031:Delete request pending. Deleting... cguid=%lu
-sdf/api/sdf.c:1681:plat_log_msg:log_level:LOG_CAT:20819:%s
-sdf/api/sdf.c:1697:plat_log_msg:LOG_INFO:LOG_CAT:21630:%lu
-sdf/api/sdf.c:1715:plat_log_msg:LOG_INFO:LOG_CAT:160030:Container is not deleted (busy or error): cguid=%lu(%d), status=%s
-sdf/api/sdf.c:1719:plat_log_msg:LOG_INFO:LOG_CAT:20819:%s
-sdf/api/sdf.c:1736:plat_log_msg:LOG_INFO:LOG_CAT:21630:%lu
-sdf/api/sdf.c:1765:plat_log_msg:LOG_ERR:LOG_CAT:160029:Failed to find shard for cguid %"PRIu64"
-sdf/api/sdf.c:1769:plat_log_msg:LOG_ERR:LOG_CAT:21539:name_service_put_meta failed for cguid %"PRIu64"
-sdf/api/sdf.c:1775:plat_log_msg:LOG_INFO:LOG_CAT:20819:%s
-sdf/api/sdf.c:1792:plat_log_msg:LOG_INFO:LOG_CAT:21630:%lu
-sdf/api/sdf.c:1825:plat_log_msg:LOG_ERR:LOG_CAT:160029:Failed to find shard for cguid %"PRIu64"
-sdf/api/sdf.c:1829:plat_log_msg:LOG_ERR:LOG_CAT:21539:name_service_put_meta failed for cguid %"PRIu64"
-sdf/api/sdf.c:1835:plat_log_msg:LOG_INFO:LOG_CAT:20819:%s
-sdf/api/sdf.c:2160:plat_log_msg:LOG_DBG:LOG_CAT:150019:SDFGenerateCguid: %llu
-sdf/api/sdf.c:2273:plat_log_msg:LOG_ERR:LOG_CAT:160029:Failed to find shard for cguid %"PRIu64"
-sdf/api/sdf.c:2304:plat_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED_BACKUP:30664:container backup sync failed for enum, status=%s
-sdf/api/sdf.c:2497:mcd_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_APP_MEMCACHED_BACKUP:50006:formatting container, name=%s
-sdf/api/sdf.c:2638:mcd_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_APP_MEMCACHED_BACKUP:20728:formatting container, port=%d
+sdf/api/fdf.c:785:plat_log_msg:LOG_ERR:LOG_CAT:30572:Writeback caching can only be enabled for eviction mode containers
+sdf/api/fdf.c:792:plat_log_msg:LOG_ERR:LOG_CAT:30575:Cannot enable writeback caching for container '%s' because writeback caching is disabled.
+sdf/api/fdf.c:811:plat_log_msg:LOG_ERR:LOG_CAT:150033:FDFCreateContainer failed for container %s because 128 containers have already been created.
+sdf/api/fdf.c:899:plat_log_msg:LOG_INFO:LOG_CAT:21527:Container: %s - Multi Devs: %d
+sdf/api/fdf.c:902:plat_log_msg:LOG_INFO:LOG_CAT:21528:Container: %s - Single Dev
+sdf/api/fdf.c:905:plat_log_msg:LOG_INFO:LOG_CAT:21529:Container: %s - Num Shards: %d
+sdf/api/fdf.c:908:plat_log_msg:LOG_INFO:LOG_CAT:21530:Container: %s - Num Objs: %d
+sdf/api/fdf.c:911:plat_log_msg:LOG_INFO:LOG_CAT:21531:Container: %s - DEBUG_MULTI_SHARD_INDEX: %d
+sdf/api/fdf.c:922:plat_log_msg:LOG_ERR:LOG_CAT:21532:failed to lock %s
+sdf/api/fdf.c:928:plat_log_msg:LOG_ERR:LOG_CAT:21533:failed to unlock %s
+sdf/api/fdf.c:950:plat_log_msg:LOG_ERR:LOG_CAT:21534:failed to map cguid: %s
+sdf/api/fdf.c:953:plat_log_msg:LOG_ERR:LOG_CAT:21532:failed to lock %s
+sdf/api/fdf.c:967:plat_log_msg:LOG_ERR:LOG_CAT:21533:failed to unlock %s
+sdf/api/fdf.c:970:plat_log_msg:LOG_ERR:LOG_CAT:21535:cname=%s, build_shard failed
+sdf/api/fdf.c:973:plat_log_msg:LOG_ERR:LOG_CAT:21536:cname=%s, createParentContainer() failed
+sdf/api/fdf.c:979:plat_log_msg:LOG_ERR:LOG_CAT:21537:cname=%s, build_meta failed
+sdf/api/fdf.c:982:plat_log_msg:LOG_ERR:LOG_CAT:21535:cname=%s, build_shard failed
+sdf/api/fdf.c:986:plat_log_msg:LOG_DBG:LOG_CAT:21511:%s - %s
+sdf/api/fdf.c:989:plat_log_msg:LOG_ERR:LOG_CAT:21538:cname=%s, function returned status = %u
+sdf/api/fdf.c:1031:plat_log_msg:LOG_INFO:LOG_CAT:21511:%s - %s
+sdf/api/fdf.c:1056:plat_log_msg:LOG_INFO:LOG_CAT:20819:%s
+sdf/api/fdf.c:1082:plat_log_msg:log_level:LOG_CAT:160032:Already opened or error: %s - %s
+sdf/api/fdf.c:1088:plat_log_msg:LOG_INFO:LOG_CAT:20819:%s
+sdf/api/fdf.c:1095:plat_log_msg:LOG_ERR:LOG_CAT:21552:Delete pending for %s
+sdf/api/fdf.c:1131:plat_log_msg:LOG_DBG:LOG_CAT:21553:set cid %d (%d) to cguid %d\n
+sdf/api/fdf.c:1148:plat_log_msg:LOG_ERR:LOG_CAT:21554:SDFActionOpenContainer failed for container %s
+sdf/api/fdf.c:1161:plat_log_msg:LOG_ERR:LOG_CAT:150026:Failed to find shard for %s
+sdf/api/fdf.c:1167:plat_log_msg:LOG_DBG:LOG_CAT:21555:Opened %s
+sdf/api/fdf.c:1170:plat_log_msg:LOG_ERR:LOG_CAT:21556:Failed to find %s
+sdf/api/fdf.c:1175:plat_log_msg:log_level:LOG_CAT:21511:%s - %s
+sdf/api/fdf.c:1177:plat_log_msg:log_level:LOG_CAT:150024:NULL - %s
+sdf/api/fdf.c:1200:plat_log_msg:LOG_INFO:LOG_CAT:21630:%lu
+sdf/api/fdf.c:1258:plat_log_msg:LOG_ERR:LOG_CAT:21540:%s - failed to flush and invalidate container
+sdf/api/fdf.c:1262:plat_log_msg:LOG_DBG:LOG_CAT:21541:%s - flush and invalidate container succeed
+sdf/api/fdf.c:1269:plat_log_msg:LOG_ERR:LOG_CAT:21544:%s - failed to delete container shards
+sdf/api/fdf.c:1273:plat_log_msg:LOG_DBG:LOG_CAT:21545:%s - delete container shards succeeded
+sdf/api/fdf.c:1280:plat_log_msg:LOG_ERR:LOG_CAT:21546:%s - failed to remove metadata
+sdf/api/fdf.c:1284:plat_log_msg:LOG_DBG:LOG_CAT:21547:%s - remove metadata succeeded
+sdf/api/fdf.c:1290:plat_log_msg:LOG_ERR:LOG_CAT:21548:%s - failed to unlock metadata
+sdf/api/fdf.c:1297:plat_log_msg:LOG_DBG:LOG_CAT:21549:%s - unlock metadata succeeded
+sdf/api/fdf.c:1304:plat_log_msg:LOG_ERR:LOG_CAT:21550:%s - failed to remove cguid map
+sdf/api/fdf.c:1308:plat_log_msg:LOG_DBG:LOG_CAT:21551:%s - remove cguid map succeeded
+sdf/api/fdf.c:1317:plat_log_msg:log_level:LOG_CAT:20819:%s
+sdf/api/fdf.c:1338:plat_log_msg:LOG_INFO:LOG_CAT:21630:%lu
+sdf/api/fdf.c:1359:plat_log_msg:LOG_INFO:LOG_CAT:160030:Container is not deleted (busy or error): cguid=%lu(%d), status=%s
+sdf/api/fdf.c:1367:plat_log_msg:LOG_INFO:LOG_CAT:20819:%s
+sdf/api/fdf.c:1660:plat_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED_BACKUP:30664:container backup sync failed for enum, status=%s
+sdf/api/fdf.c:2105:plat_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20648:sdf stat %s parsing failure
+sdf/api/fdf.c:2123:plat_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20649:invalid stat key %d
+sdf/api/fdf.c:2141:plat_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20650:invalid sdf cache stats, rd=%lu rx=%lu tr=%lu
+sdf/api/fdf.c:2249:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20694:/proc/stat opened, fd=%d
+sdf/api/fdf.c:2260:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20695:failed to read from proc, rc=%d errno=%d
+sdf/api/fdf.c:2325:plat_log_msg:log_level:LOG_CAT:20819:%s
+sdf/api/fdf.c:2494:plat_log_msg:LOG_INFO:LOG_CAT:21630:%lu
+sdf/api/fdf.c:2520:plat_log_msg:LOG_ERR:LOG_CAT:21539:name_service_put_meta failed for cguid %"PRIu64"
+sdf/api/fdf.c:2526:plat_log_msg:LOG_INFO:LOG_CAT:20819:%s
+sdf/api/fdf.c:2543:plat_log_msg:LOG_INFO:LOG_CAT:21630:%lu
+sdf/api/fdf.c:2568:plat_log_msg:LOG_ERR:LOG_CAT:21539:name_service_put_meta failed for cguid %"PRIu64"
+sdf/api/fdf.c:2574:plat_log_msg:LOG_INFO:LOG_CAT:20819:%s
+sdf/api/sdf.c:306:mcd_log_msg:PLAT_LOG_LEVEL_FATAL::20147:agent_engine_post_init() failed
+sdf/api/sdf.c:415:mcd_log_msg:PLAT_LOG_LEVEL_FATAL::20163:pthread_create() failed, rc=%d
+sdf/api/sdf.c:419:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG::20164:scheduler %d created
+sdf/api/sdf.c:501:mcd_log_msg:PLAT_LOG_LEVEL_FATAL::20163:pthread_create() failed, rc=%d
+sdf/api/sdf.c:504:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG::150022:scheduler startup process created
+sdf/api/sdf.c:638:plat_log_msg:LOG_INFO:LOG_CAT:160033:%s, size=%ld bytes
+sdf/api/sdf.c:643:plat_log_msg:LOG_ERR:LOG_CAT:30572:Writeback caching can only be enabled for eviction mode containers
+sdf/api/sdf.c:649:plat_log_msg:LOG_ERR:LOG_CAT:30572:Writeback caching can only be enabled for eviction mode containers
+sdf/api/sdf.c:656:plat_log_msg:LOG_ERR:LOG_CAT:30575:Cannot enable writeback caching for container '%s' because writeback caching is disabled.
+sdf/api/sdf.c:691:plat_log_msg:LOG_ERR:LOG_CAT:150023:SDFCreateContainer failed for container %s because 128 containers have already been created.
+sdf/api/sdf.c:772:plat_log_msg:LOG_INFO:LOG_CAT:21527:Container: %s - Multi Devs: %d
+sdf/api/sdf.c:775:plat_log_msg:LOG_INFO:LOG_CAT:21528:Container: %s - Single Dev
+sdf/api/sdf.c:778:plat_log_msg:LOG_INFO:LOG_CAT:21529:Container: %s - Num Shards: %d
+sdf/api/sdf.c:781:plat_log_msg:LOG_INFO:LOG_CAT:21530:Container: %s - Num Objs: %d
+sdf/api/sdf.c:784:plat_log_msg:LOG_INFO:LOG_CAT:21531:Container: %s - DEBUG_MULTI_SHARD_INDEX: %d
+sdf/api/sdf.c:797:plat_log_msg:LOG_ERR:LOG_CAT:21532:failed to lock %s
+sdf/api/sdf.c:803:plat_log_msg:LOG_ERR:LOG_CAT:21533:failed to unlock %s
+sdf/api/sdf.c:827:plat_log_msg:LOG_ERR:LOG_CAT:21534:failed to map cguid: %s
+sdf/api/sdf.c:830:plat_log_msg:LOG_ERR:LOG_CAT:21532:failed to lock %s
+sdf/api/sdf.c:842:plat_log_msg:LOG_ERR:LOG_CAT:21533:failed to unlock %s
+sdf/api/sdf.c:845:plat_log_msg:LOG_ERR:LOG_CAT:21535:cname=%s, build_shard failed
+sdf/api/sdf.c:848:plat_log_msg:LOG_ERR:LOG_CAT:21536:cname=%s, createParentContainer() failed
+sdf/api/sdf.c:854:plat_log_msg:LOG_ERR:LOG_CAT:21537:cname=%s, build_meta failed
+sdf/api/sdf.c:857:plat_log_msg:LOG_ERR:LOG_CAT:21535:cname=%s, build_shard failed
+sdf/api/sdf.c:861:plat_log_msg:LOG_DBG:LOG_CAT:21511:%s - %s
+sdf/api/sdf.c:865:plat_log_msg:LOG_ERR:LOG_CAT:21538:cname=%s, function returned status = %u
+sdf/api/sdf.c:910:plat_log_msg:LOG_INFO:LOG_CAT:160034:%s(cguid=%lu) - %s
+sdf/api/sdf.c:935:plat_log_msg:LOG_INFO:LOG_CAT:21630:%lu
+sdf/api/sdf.c:962:plat_log_msg:log_level:LOG_CAT:160032:Already opened or error: %s - %s
+sdf/api/sdf.c:968:plat_log_msg:LOG_INFO:LOG_CAT:20819:%s
+sdf/api/sdf.c:975:plat_log_msg:LOG_ERR:LOG_CAT:21552:Delete pending for %s
+sdf/api/sdf.c:1011:plat_log_msg:LOG_DBG:LOG_CAT:21553:set cid %d (%d) to cguid %d\n
+sdf/api/sdf.c:1028:plat_log_msg:LOG_ERR:LOG_CAT:21554:SDFActionOpenContainer failed for container %s
+sdf/api/sdf.c:1041:plat_log_msg:LOG_ERR:LOG_CAT:150026:Failed to find shard for %s
+sdf/api/sdf.c:1047:plat_log_msg:LOG_DBG:LOG_CAT:21555:Opened %s
+sdf/api/sdf.c:1050:plat_log_msg:LOG_ERR:LOG_CAT:21556:Failed to find %s
+sdf/api/sdf.c:1055:plat_log_msg:log_level:LOG_CAT:21511:%s - %s
+sdf/api/sdf.c:1057:plat_log_msg:log_level:LOG_CAT:150024:NULL - %s
+sdf/api/sdf.c:1352:plat_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20648:sdf stat %s parsing failure
+sdf/api/sdf.c:1370:plat_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20649:invalid stat key %d
+sdf/api/sdf.c:1388:plat_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20650:invalid sdf cache stats, rd=%lu rx=%lu tr=%lu
+sdf/api/sdf.c:1496:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20694:/proc/stat opened, fd=%d
+sdf/api/sdf.c:1507:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20695:failed to read from proc, rc=%d errno=%d
+sdf/api/sdf.c:1576:plat_log_msg:log_level:LOG_CAT:20819:%s
+sdf/api/sdf.c:1603:plat_log_msg:LOG_INFO:LOG_CAT:21630:%lu
+sdf/api/sdf.c:1667:plat_log_msg:LOG_ERR:LOG_CAT:21540:%s - failed to flush and invalidate container
+sdf/api/sdf.c:1671:plat_log_msg:LOG_DBG:LOG_CAT:21541:%s - flush and invalidate container succeed
+sdf/api/sdf.c:1679:plat_log_msg:LOG_ERR:LOG_CAT:21542:%s - failed to delete action thread container state
+sdf/api/sdf.c:1683:plat_log_msg:LOG_DBG:LOG_CAT:21543:%s - action thread delete container state succeeded
+sdf/api/sdf.c:1703:plat_log_msg:LOG_INFO:LOG_CAT:160031:Delete request pending. Deleting... cguid=%lu
+sdf/api/sdf.c:1715:plat_log_msg:log_level:LOG_CAT:20819:%s
+sdf/api/sdf.c:1731:plat_log_msg:LOG_INFO:LOG_CAT:21630:%lu
+sdf/api/sdf.c:1754:plat_log_msg:LOG_INFO:LOG_CAT:160030:Container is not deleted (busy or error): cguid=%lu(%d), status=%s
+sdf/api/sdf.c:1760:plat_log_msg:LOG_INFO:LOG_CAT:20819:%s
+sdf/api/sdf.c:1777:plat_log_msg:LOG_INFO:LOG_CAT:21630:%lu
+sdf/api/sdf.c:1806:plat_log_msg:LOG_ERR:LOG_CAT:160029:Failed to find shard for cguid %"PRIu64"
+sdf/api/sdf.c:1810:plat_log_msg:LOG_ERR:LOG_CAT:21539:name_service_put_meta failed for cguid %"PRIu64"
+sdf/api/sdf.c:1816:plat_log_msg:LOG_INFO:LOG_CAT:20819:%s
+sdf/api/sdf.c:1833:plat_log_msg:LOG_INFO:LOG_CAT:21630:%lu
+sdf/api/sdf.c:1866:plat_log_msg:LOG_ERR:LOG_CAT:160029:Failed to find shard for cguid %"PRIu64"
+sdf/api/sdf.c:1870:plat_log_msg:LOG_ERR:LOG_CAT:21539:name_service_put_meta failed for cguid %"PRIu64"
+sdf/api/sdf.c:1876:plat_log_msg:LOG_INFO:LOG_CAT:20819:%s
+sdf/api/sdf.c:2216:plat_log_msg:LOG_DBG:LOG_CAT:150019:SDFGenerateCguid: %llu
+sdf/api/sdf.c:2332:plat_log_msg:LOG_ERR:LOG_CAT:160029:Failed to find shard for cguid %"PRIu64"
+sdf/api/sdf.c:2363:plat_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED_BACKUP:30664:container backup sync failed for enum, status=%s
+sdf/api/sdf.c:2558:mcd_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_APP_MEMCACHED_BACKUP:50006:formatting container, name=%s
+sdf/api/sdf.c:2699:mcd_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_APP_MEMCACHED_BACKUP:20728:formatting container, port=%d
 sdf/applib/fthFlashAccess.c:125:plat_log_msg:PLAT_LOG_LEVEL_FATAL:PLAT_LOG_CAT_SDF_SHARED:20866:Not enough shared memory, plat_shmem_alloc() failed.
 sdf/applib/fthFlashAccess.c:439:plat_log_msg:PLAT_LOG_LEVEL_FATAL:PLAT_LOG_CAT_PLATFORM_TEST_SHMEM:20073:shmem_attach(%s) failed: %s
 sdf/applib/fthFlashAccess.c:455:plat_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_PRINT_ARGS:20867:PROP: SDF_SHARD_MAX_OBJECTS=%d
@@ -1183,7 +1186,7 @@ sdf/applib/ftopMboxTest.c:177:plat_log_msg:PLAT_LOG_LEVEL_FATAL:PLAT_LOG_CAT_PLA
 sdf/applib/ptofMboxTest.c:150:plat_log_msg:PLAT_LOG_LEVEL_FATAL:PLAT_LOG_CAT_PLATFORM_TEST_SHMEM:20073:shmem_attach(%s) failed: %s
 sdf/applib/simpleWaitTest.c:69:plat_log_msg:PLAT_LOG_LEVEL_FATAL:PLAT_LOG_CAT_PLATFORM_TEST_SHMEM:20073:shmem_attach(%s) failed: %s
 sdf/applib/XLockTest.c:122:plat_log_msg:PLAT_LOG_LEVEL_FATAL:PLAT_LOG_CAT_PLATFORM_TEST_SHMEM:20073:shmem_attach(%s) failed: %s
-sdf/common/sdftypes.h:475:plat_log_msg:PLAT_LOG_LEVEL_FATAL:PLAT_LOG_CAT_SDF:20868:%s:%u: %s: Assertion `%s (%d) == %s (%d)' failed.
+sdf/common/sdftypes.h:476:plat_log_msg:PLAT_LOG_LEVEL_FATAL:PLAT_LOG_CAT_SDF:20868:%s:%u: %s: Assertion `%s (%d) == %s (%d)' failed.
 sdf/fth/archive/fth_c_1_test.c:164:plat_log_msg:PLAT_LOG_LEVEL_FATAL:PLAT_LOG_CAT_PLATFORM_TEST_SHMEM:20073:shmem_attach(%s) failed: %s
 sdf/fth/archive/fth_c_3_test.c:125:plat_log_msg:PLAT_LOG_LEVEL_FATAL:PLAT_LOG_CAT_PLATFORM_TEST_SHMEM:20073:shmem_attach(%s) failed: %s
 sdf/fth/archive/fthCUnitTest.c:211:plat_log_msg:PLAT_LOG_LEVEL_FATAL:PLAT_LOG_CAT_PLATFORM_TEST_SHMEM:20073:shmem_attach(%s) failed: %s
@@ -1323,9 +1326,9 @@ sdf/platform/event.c:541:plat_log_msg:PLAT_LOG_LEVEL_TRACE:event->logcat:20937:e
 sdf/platform/fd_dispatcher.c:276:plat_log_msg:PLAT_LOG_LEVEL_ERROR:LOG_CAT:20938:epoll(%d) failed: %d
 sdf/platform/fd_dispatcher.c:466:plat_log_msg:PLAT_LOG_LEVEL_TRACE:LOG_CAT:20939:polled nfds %d timeout %d ret %d
 sdf/platform/fd_dispatcher.c:664:plat_log_msg:PLAT_LOG_LEVEL_TRACE:LOG_CAT:20940:plat_fd_event %p state %s->%s
-Skipping /opt/schooner/src/membrain-4.2/server/sdf/platform/ffdc_log.c
-Skipping /opt/schooner/src/membrain-4.2/server/sdf/platform/ffdc_log.h
-Skipping /opt/schooner/src/membrain-4.2/server/sdf/platform/ffdc_reader.c
+Skipping /root/membrain-4.2/membrain/server/sdf/platform/ffdc_log.c
+Skipping /root/membrain-4.2/membrain/server/sdf/platform/ffdc_log.h
+Skipping /root/membrain-4.2/membrain/server/sdf/platform/ffdc_reader.c
 sdf/platform/fork.c:132:plat_log_msg:PLAT_LOG_LEVEL_ERROR:LOG_CAT:20941:plat_fork_execve(filename = %s, args = %s) failed: %d
 sdf/platform/fork.c:138:plat_log_msg:PLAT_LOG_LEVEL_DEBUG:LOG_CAT:20942:plat_fork_execve(filename = %s, args = %s)
 sdf/platform/fth_scheduler.c:119:plat_log_msg:PLAT_LOG_LEVEL_DEBUG:LOG_CAT:20943:plat_fth_scheduler %p start called
@@ -1336,7 +1339,7 @@ sdf/platform/fth_scheduler.c:198:plat_log_msg:PLAT_LOG_LEVEL_DEBUG:LOG_CAT:20947
 sdf/platform/fth_scheduler.c:217:plat_log_msg:PLAT_LOG_LEVEL_DEBUG:LOG_CAT:20948:plat_fth_scheduler %p shutdown complete
 sdf/platform/fth_scheduler.c:259:plat_log_msg:PLAT_LOG_LEVEL_DEBUG:LOG_CAT:20949:plat_fth_scheduler %p shutdown called
 sdf/platform/logging.c:411:plat_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_PLATFORM_LOGGING:20950:log gettime function changed
-Skipping /opt/schooner/src/membrain-4.2/server/sdf/platform/logging.h
+Skipping /root/membrain-4.2/membrain/server/sdf/platform/logging.h
 sdf/platform/memory_fault.c:106:plat_log_msg:PLAT_LOG_LEVEL_INFO:LOG_CAT:20951:Faulted %p len 0x%lx, %ld pages in %ld secs %ld usecs %.2g usecs per maj_flt %ld min_flt %ld
 sdf/platform/memory_size.c:41:plat_log_msg:PLAT_LOG_LEVEL_ERROR:LOG_CAT:20952:Couldn't find MemTotal in %s
 sdf/platform/memory_size.c:47:plat_log_msg:PLAT_LOG_LEVEL_ERROR:LOG_CAT:20953:Error reading %s: %s
@@ -2519,211 +2522,211 @@ sdf/protocol/replication/sdf_vips.c:203:plat_log_msg:PLAT_LOG_LEVEL_WARN:LOG_CAT
 sdf/protocol/replication/sdf_vips.c:217:plat_log_msg:PLAT_LOG_LEVEL_TRACE:LOG_CAT:80014:sdf_vip_group_get_node_rank for %d = %d\n
 sdf/protocol/replication/sdf_vips.c:226:plat_log_msg:PLAT_LOG_LEVEL_WARN:LOG_CAT:80015:sdf_vip_group_get_node_by_preference for %d(grp:%d) = %d\n
 sdf/protocol/replication/sdf_vips.c:231:plat_log_msg:PLAT_LOG_LEVEL_TRACE:LOG_CAT:80015:sdf_vip_group_get_node_by_preference for %d(grp:%d) = %d\n
-Skipping /opt/schooner/src/membrain-4.2/server/sdf/protocol/replication/tests/checkpoint/fcnl_framework_state_machine_test.c
-Skipping /opt/schooner/src/membrain-4.2/server/sdf/protocol/replication/tests/checkpoint/key_lock_test.c
-Skipping /opt/schooner/src/membrain-4.2/server/sdf/protocol/replication/tests/checkpoint/test_common.h
-Skipping /opt/schooner/src/membrain-4.2/server/sdf/protocol/replication/tests/checkpoint/test_config.h
-Skipping /opt/schooner/src/membrain-4.2/server/sdf/protocol/replication/tests/checkpoint/test_framework.c
-Skipping /opt/schooner/src/membrain-4.2/server/sdf/protocol/replication/tests/checkpoint/test_framework.h
-Skipping /opt/schooner/src/membrain-4.2/server/sdf/protocol/replication/tests/checkpoint/test_node.c
-Skipping /opt/schooner/src/membrain-4.2/server/sdf/protocol/replication/tests/checkpoint/test_node.h
-Skipping /opt/schooner/src/membrain-4.2/server/sdf/protocol/replication/tests/fcnl_framework_async_get_put_stress.c
-Skipping /opt/schooner/src/membrain-4.2/server/sdf/protocol/replication/tests/fcnl_framework_async_shard.c
-Skipping /opt/schooner/src/membrain-4.2/server/sdf/protocol/replication/tests/fcnl_framework_async_test.c
-Skipping /opt/schooner/src/membrain-4.2/server/sdf/protocol/replication/tests/fcnl_framework_cursor_test.c
-Skipping /opt/schooner/src/membrain-4.2/server/sdf/protocol/replication/tests/fcnl_framework_home_node_test.c
-Skipping /opt/schooner/src/membrain-4.2/server/sdf/protocol/replication/tests/fcnl_framework_msg_timeout_test.c
-Skipping /opt/schooner/src/membrain-4.2/server/sdf/protocol/replication/tests/fcnl_framework_recover_test.c
-Skipping /opt/schooner/src/membrain-4.2/server/sdf/protocol/replication/tests/fcnl_framework_replica_node_test.c
-Skipping /opt/schooner/src/membrain-4.2/server/sdf/protocol/replication/tests/fcnl_framework_seqno_test.c
-Skipping /opt/schooner/src/membrain-4.2/server/sdf/protocol/replication/tests/fcnl_framework_state_machine_test.c
-Skipping /opt/schooner/src/membrain-4.2/server/sdf/protocol/replication/tests/fcnl_framework_sync_test.c
-Skipping /opt/schooner/src/membrain-4.2/server/sdf/protocol/replication/tests/fcnl_msg_timeout_test.c
-Skipping /opt/schooner/src/membrain-4.2/server/sdf/protocol/replication/tests/fcnl_rms_crash_switch_over_test.c
-Skipping /opt/schooner/src/membrain-4.2/server/sdf/protocol/replication/tests/fcnl_rms_fault_in_test.c
-Skipping /opt/schooner/src/membrain-4.2/server/sdf/protocol/replication/tests/fcnl_rms_get_lease_test.c
-Skipping /opt/schooner/src/membrain-4.2/server/sdf/protocol/replication/tests/fcnl_rms_get_put_del_test.c
-Skipping /opt/schooner/src/membrain-4.2/server/sdf/protocol/replication/tests/fcnl_rms_get_put_test.c
-Skipping /opt/schooner/src/membrain-4.2/server/sdf/protocol/replication/tests/fcnl_rms_multi_put_test.c
-Skipping /opt/schooner/src/membrain-4.2/server/sdf/protocol/replication/tests/fcnl_rms_put_crash_expire_put_test.c
-Skipping /opt/schooner/src/membrain-4.2/server/sdf/protocol/replication/tests/fcnl_rms_put_crash_get_test.c
-Skipping /opt/schooner/src/membrain-4.2/server/sdf/protocol/replication/tests/fcnl_rms_simple_test.c
-Skipping /opt/schooner/src/membrain-4.2/server/sdf/protocol/replication/tests/fcnl_rtf_stress_test.c
-Skipping /opt/schooner/src/membrain-4.2/server/sdf/protocol/replication/tests/fcnl_sn_all_crash_test.c
-Skipping /opt/schooner/src/membrain-4.2/server/sdf/protocol/replication/tests/fcnl_sn_get_put_test.c
-Skipping /opt/schooner/src/membrain-4.2/server/sdf/protocol/replication/tests/fcnl_sn_lock_test1.c
-Skipping /opt/schooner/src/membrain-4.2/server/sdf/protocol/replication/tests/fcnl_sn_lock_test2.c
-Skipping /opt/schooner/src/membrain-4.2/server/sdf/protocol/replication/tests/fcnl_sn_multi_crash_test.c
-Skipping /opt/schooner/src/membrain-4.2/server/sdf/protocol/replication/tests/fcnl_sn_multi_shard_test2.c
-Skipping /opt/schooner/src/membrain-4.2/server/sdf/protocol/replication/tests/fcnl_sn_multi_shard_test.c
-Skipping /opt/schooner/src/membrain-4.2/server/sdf/protocol/replication/tests/fcnl_sn_null_test.c
-Skipping /opt/schooner/src/membrain-4.2/server/sdf/protocol/replication/tests/fcnl_sn_ss_mc_test.c
-Skipping /opt/schooner/src/membrain-4.2/server/sdf/protocol/replication/tests/key_lock_test.c
-Skipping /opt/schooner/src/membrain-4.2/server/sdf/protocol/replication/tests/sdf_fth_mbox_test.c
-Skipping /opt/schooner/src/membrain-4.2/server/sdf/protocol/replication/tests/t/fcnl_rtg_test.c
-Skipping /opt/schooner/src/membrain-4.2/server/sdf/protocol/replication/tests/t/fcnl_rtm_case.c
-Skipping /opt/schooner/src/membrain-4.2/server/sdf/protocol/replication/tests/t/fcnl_rtm_test2.c
-Skipping /opt/schooner/src/membrain-4.2/server/sdf/protocol/replication/tests/t/fcnl_rtm_test.c
-Skipping /opt/schooner/src/membrain-4.2/server/sdf/protocol/replication/tests/t/fcnl_rtm_test_lzwei.c
-Skipping /opt/schooner/src/membrain-4.2/server/sdf/protocol/replication/tests/test_api.h
-Skipping /opt/schooner/src/membrain-4.2/server/sdf/protocol/replication/tests/test_common.c
-Skipping /opt/schooner/src/membrain-4.2/server/sdf/protocol/replication/tests/test_common.h
-Skipping /opt/schooner/src/membrain-4.2/server/sdf/protocol/replication/tests/test_config.h
-Skipping /opt/schooner/src/membrain-4.2/server/sdf/protocol/replication/tests/test_flash.c
-Skipping /opt/schooner/src/membrain-4.2/server/sdf/protocol/replication/tests/test_flash.h
-Skipping /opt/schooner/src/membrain-4.2/server/sdf/protocol/replication/tests/test_framework.c
-Skipping /opt/schooner/src/membrain-4.2/server/sdf/protocol/replication/tests/test_framework.h
-Skipping /opt/schooner/src/membrain-4.2/server/sdf/protocol/replication/tests/test_generator.c
-Skipping /opt/schooner/src/membrain-4.2/server/sdf/protocol/replication/tests/test_generator.h
-Skipping /opt/schooner/src/membrain-4.2/server/sdf/protocol/replication/tests/test.h
-Skipping /opt/schooner/src/membrain-4.2/server/sdf/protocol/replication/tests/test_meta.h
-Skipping /opt/schooner/src/membrain-4.2/server/sdf/protocol/replication/tests/test_model.c
-Skipping /opt/schooner/src/membrain-4.2/server/sdf/protocol/replication/tests/test_model.h
-Skipping /opt/schooner/src/membrain-4.2/server/sdf/protocol/replication/tests/test_node.c
-Skipping /opt/schooner/src/membrain-4.2/server/sdf/protocol/replication/tests/test_node.h
-Skipping /opt/schooner/src/membrain-4.2/server/sdf/protocol/replication/tests/tlmap3.c
-Skipping /opt/schooner/src/membrain-4.2/server/sdf/protocol/replication/tests/tlmap3.h
+Skipping /root/membrain-4.2/membrain/server/sdf/protocol/replication/tests/checkpoint/fcnl_framework_state_machine_test.c
+Skipping /root/membrain-4.2/membrain/server/sdf/protocol/replication/tests/checkpoint/key_lock_test.c
+Skipping /root/membrain-4.2/membrain/server/sdf/protocol/replication/tests/checkpoint/test_common.h
+Skipping /root/membrain-4.2/membrain/server/sdf/protocol/replication/tests/checkpoint/test_config.h
+Skipping /root/membrain-4.2/membrain/server/sdf/protocol/replication/tests/checkpoint/test_framework.c
+Skipping /root/membrain-4.2/membrain/server/sdf/protocol/replication/tests/checkpoint/test_framework.h
+Skipping /root/membrain-4.2/membrain/server/sdf/protocol/replication/tests/checkpoint/test_node.c
+Skipping /root/membrain-4.2/membrain/server/sdf/protocol/replication/tests/checkpoint/test_node.h
+Skipping /root/membrain-4.2/membrain/server/sdf/protocol/replication/tests/fcnl_framework_async_get_put_stress.c
+Skipping /root/membrain-4.2/membrain/server/sdf/protocol/replication/tests/fcnl_framework_async_shard.c
+Skipping /root/membrain-4.2/membrain/server/sdf/protocol/replication/tests/fcnl_framework_async_test.c
+Skipping /root/membrain-4.2/membrain/server/sdf/protocol/replication/tests/fcnl_framework_cursor_test.c
+Skipping /root/membrain-4.2/membrain/server/sdf/protocol/replication/tests/fcnl_framework_home_node_test.c
+Skipping /root/membrain-4.2/membrain/server/sdf/protocol/replication/tests/fcnl_framework_msg_timeout_test.c
+Skipping /root/membrain-4.2/membrain/server/sdf/protocol/replication/tests/fcnl_framework_recover_test.c
+Skipping /root/membrain-4.2/membrain/server/sdf/protocol/replication/tests/fcnl_framework_replica_node_test.c
+Skipping /root/membrain-4.2/membrain/server/sdf/protocol/replication/tests/fcnl_framework_seqno_test.c
+Skipping /root/membrain-4.2/membrain/server/sdf/protocol/replication/tests/fcnl_framework_state_machine_test.c
+Skipping /root/membrain-4.2/membrain/server/sdf/protocol/replication/tests/fcnl_framework_sync_test.c
+Skipping /root/membrain-4.2/membrain/server/sdf/protocol/replication/tests/fcnl_msg_timeout_test.c
+Skipping /root/membrain-4.2/membrain/server/sdf/protocol/replication/tests/fcnl_rms_crash_switch_over_test.c
+Skipping /root/membrain-4.2/membrain/server/sdf/protocol/replication/tests/fcnl_rms_fault_in_test.c
+Skipping /root/membrain-4.2/membrain/server/sdf/protocol/replication/tests/fcnl_rms_get_lease_test.c
+Skipping /root/membrain-4.2/membrain/server/sdf/protocol/replication/tests/fcnl_rms_get_put_del_test.c
+Skipping /root/membrain-4.2/membrain/server/sdf/protocol/replication/tests/fcnl_rms_get_put_test.c
+Skipping /root/membrain-4.2/membrain/server/sdf/protocol/replication/tests/fcnl_rms_multi_put_test.c
+Skipping /root/membrain-4.2/membrain/server/sdf/protocol/replication/tests/fcnl_rms_put_crash_expire_put_test.c
+Skipping /root/membrain-4.2/membrain/server/sdf/protocol/replication/tests/fcnl_rms_put_crash_get_test.c
+Skipping /root/membrain-4.2/membrain/server/sdf/protocol/replication/tests/fcnl_rms_simple_test.c
+Skipping /root/membrain-4.2/membrain/server/sdf/protocol/replication/tests/fcnl_rtf_stress_test.c
+Skipping /root/membrain-4.2/membrain/server/sdf/protocol/replication/tests/fcnl_sn_all_crash_test.c
+Skipping /root/membrain-4.2/membrain/server/sdf/protocol/replication/tests/fcnl_sn_get_put_test.c
+Skipping /root/membrain-4.2/membrain/server/sdf/protocol/replication/tests/fcnl_sn_lock_test1.c
+Skipping /root/membrain-4.2/membrain/server/sdf/protocol/replication/tests/fcnl_sn_lock_test2.c
+Skipping /root/membrain-4.2/membrain/server/sdf/protocol/replication/tests/fcnl_sn_multi_crash_test.c
+Skipping /root/membrain-4.2/membrain/server/sdf/protocol/replication/tests/fcnl_sn_multi_shard_test2.c
+Skipping /root/membrain-4.2/membrain/server/sdf/protocol/replication/tests/fcnl_sn_multi_shard_test.c
+Skipping /root/membrain-4.2/membrain/server/sdf/protocol/replication/tests/fcnl_sn_null_test.c
+Skipping /root/membrain-4.2/membrain/server/sdf/protocol/replication/tests/fcnl_sn_ss_mc_test.c
+Skipping /root/membrain-4.2/membrain/server/sdf/protocol/replication/tests/key_lock_test.c
+Skipping /root/membrain-4.2/membrain/server/sdf/protocol/replication/tests/sdf_fth_mbox_test.c
+Skipping /root/membrain-4.2/membrain/server/sdf/protocol/replication/tests/t/fcnl_rtg_test.c
+Skipping /root/membrain-4.2/membrain/server/sdf/protocol/replication/tests/t/fcnl_rtm_case.c
+Skipping /root/membrain-4.2/membrain/server/sdf/protocol/replication/tests/t/fcnl_rtm_test2.c
+Skipping /root/membrain-4.2/membrain/server/sdf/protocol/replication/tests/t/fcnl_rtm_test.c
+Skipping /root/membrain-4.2/membrain/server/sdf/protocol/replication/tests/t/fcnl_rtm_test_lzwei.c
+Skipping /root/membrain-4.2/membrain/server/sdf/protocol/replication/tests/test_api.h
+Skipping /root/membrain-4.2/membrain/server/sdf/protocol/replication/tests/test_common.c
+Skipping /root/membrain-4.2/membrain/server/sdf/protocol/replication/tests/test_common.h
+Skipping /root/membrain-4.2/membrain/server/sdf/protocol/replication/tests/test_config.h
+Skipping /root/membrain-4.2/membrain/server/sdf/protocol/replication/tests/test_flash.c
+Skipping /root/membrain-4.2/membrain/server/sdf/protocol/replication/tests/test_flash.h
+Skipping /root/membrain-4.2/membrain/server/sdf/protocol/replication/tests/test_framework.c
+Skipping /root/membrain-4.2/membrain/server/sdf/protocol/replication/tests/test_framework.h
+Skipping /root/membrain-4.2/membrain/server/sdf/protocol/replication/tests/test_generator.c
+Skipping /root/membrain-4.2/membrain/server/sdf/protocol/replication/tests/test_generator.h
+Skipping /root/membrain-4.2/membrain/server/sdf/protocol/replication/tests/test.h
+Skipping /root/membrain-4.2/membrain/server/sdf/protocol/replication/tests/test_meta.h
+Skipping /root/membrain-4.2/membrain/server/sdf/protocol/replication/tests/test_model.c
+Skipping /root/membrain-4.2/membrain/server/sdf/protocol/replication/tests/test_model.h
+Skipping /root/membrain-4.2/membrain/server/sdf/protocol/replication/tests/test_node.c
+Skipping /root/membrain-4.2/membrain/server/sdf/protocol/replication/tests/test_node.h
+Skipping /root/membrain-4.2/membrain/server/sdf/protocol/replication/tests/tlmap3.c
+Skipping /root/membrain-4.2/membrain/server/sdf/protocol/replication/tests/tlmap3.h
 sdf/sdfappcommon/threadPoolTest.c:98:plat_log_msg:PLAT_LOG_LEVEL_FATAL:PLAT_LOG_CAT_PLATFORM_TEST_SHMEM:20073:shmem_attach(%s) failed: %s
 sdf/sdfappcommon/XListShmemTest.c:150:plat_log_msg:PLAT_LOG_LEVEL_FATAL:PLAT_LOG_CAT_PLATFORM_TEST_SHMEM:20073:shmem_attach(%s) failed: %s
 sdf/sdfappcommon/XListTest.c:141:plat_log_msg:PLAT_LOG_LEVEL_FATAL:PLAT_LOG_CAT_PLATFORM_TEST_SHMEM:20073:shmem_attach(%s) failed: %s
-Skipping /opt/schooner/src/membrain-4.2/server/sdf/sdfmsg/old/sdf_msg_engine.c
-Skipping /opt/schooner/src/membrain-4.2/server/sdf/sdfmsg/old/sdf_msg.h
-Skipping /opt/schooner/src/membrain-4.2/server/sdf/sdfmsg/old/sdf_msg_hash.c
-Skipping /opt/schooner/src/membrain-4.2/server/sdf/sdfmsg/old/sdf_msg_hash.h
-Skipping /opt/schooner/src/membrain-4.2/server/sdf/sdfmsg/old/sdf_msg_hmap.c
-Skipping /opt/schooner/src/membrain-4.2/server/sdf/sdfmsg/old/sdf_msg_hmap.h
-Skipping /opt/schooner/src/membrain-4.2/server/sdf/sdfmsg/old/sdf_msg_mgmnt.c
-Skipping /opt/schooner/src/membrain-4.2/server/sdf/sdfmsg/old/sdf_msg_mpi.c
-Skipping /opt/schooner/src/membrain-4.2/server/sdf/sdfmsg/old/sdf_msg_mpi.h
-Skipping /opt/schooner/src/membrain-4.2/server/sdf/sdfmsg/old/sdf_msg_queue.c
-Skipping /opt/schooner/src/membrain-4.2/server/sdf/sdfmsg/old/sdf_msg_tester.c
-Skipping /opt/schooner/src/membrain-4.2/server/sdf/sdfmsg/old/sdf_msg_types.h
-Skipping /opt/schooner/src/membrain-4.2/server/sdf/sdfmsg/oldtests/bigsize_fth_test.c
-Skipping /opt/schooner/src/membrain-4.2/server/sdf/sdfmsg/oldtests/bigsize_test.c
-Skipping /opt/schooner/src/membrain-4.2/server/sdf/sdfmsg/oldtests/consistency_test.c
-Skipping /opt/schooner/src/membrain-4.2/server/sdf/sdfmsg/oldtests/fcnl_bigsize_fth_lib1.c
-Skipping /opt/schooner/src/membrain-4.2/server/sdf/sdfmsg/oldtests/fcnl_bigsize_fth_test1.c
-Skipping /opt/schooner/src/membrain-4.2/server/sdf/sdfmsg/oldtests/fcnl_bigsize_lib1.c
-Skipping /opt/schooner/src/membrain-4.2/server/sdf/sdfmsg/oldtests/fcnl_bigsize_test1.c
-Skipping /opt/schooner/src/membrain-4.2/server/sdf/sdfmsg/oldtests/fcnl_consistency_lib1.c
-Skipping /opt/schooner/src/membrain-4.2/server/sdf/sdfmsg/oldtests/fcnl_consistency_lib2.c
-Skipping /opt/schooner/src/membrain-4.2/server/sdf/sdfmsg/oldtests/fcnl_consistency_test1.c
-Skipping /opt/schooner/src/membrain-4.2/server/sdf/sdfmsg/oldtests/fcnl_consistency_test2.c
-Skipping /opt/schooner/src/membrain-4.2/server/sdf/sdfmsg/oldtests/fcnl_flush_lib1.c
-Skipping /opt/schooner/src/membrain-4.2/server/sdf/sdfmsg/oldtests/fcnl_flush_test1.c
-Skipping /opt/schooner/src/membrain-4.2/server/sdf/sdfmsg/oldtests/fcnl_fth_mbx_lib1.c
-Skipping /opt/schooner/src/membrain-4.2/server/sdf/sdfmsg/oldtests/fcnl_fth_mbx_test1.c
-Skipping /opt/schooner/src/membrain-4.2/server/sdf/sdfmsg/oldtests/fcnl_membership_lib1.c
-Skipping /opt/schooner/src/membrain-4.2/server/sdf/sdfmsg/oldtests/fcnl_membership_test1.c
-Skipping /opt/schooner/src/membrain-4.2/server/sdf/sdfmsg/oldtests/fcnl_metadata_lib1.c
-Skipping /opt/schooner/src/membrain-4.2/server/sdf/sdfmsg/oldtests/fcnl_metadata_test1.c
-Skipping /opt/schooner/src/membrain-4.2/server/sdf/sdfmsg/oldtests/fcnl_mgnt_lib1.c
-Skipping /opt/schooner/src/membrain-4.2/server/sdf/sdfmsg/oldtests/fcnl_mgnt_test1.c
-Skipping /opt/schooner/src/membrain-4.2/server/sdf/sdfmsg/oldtests/fcnl_mixed_thread_lib1.c
-Skipping /opt/schooner/src/membrain-4.2/server/sdf/sdfmsg/oldtests/fcnl_mixed_thread_lib2.c
-Skipping /opt/schooner/src/membrain-4.2/server/sdf/sdfmsg/oldtests/fcnl_mixed_thread_test1.c
-Skipping /opt/schooner/src/membrain-4.2/server/sdf/sdfmsg/oldtests/fcnl_mixed_thread_test2.c
-Skipping /opt/schooner/src/membrain-4.2/server/sdf/sdfmsg/oldtests/fcnl_msg_pfm_lib1.c
-Skipping /opt/schooner/src/membrain-4.2/server/sdf/sdfmsg/oldtests/fcnl_msg_pfm_test1.c
-Skipping /opt/schooner/src/membrain-4.2/server/sdf/sdfmsg/oldtests/fcnl_multinode_doubleside_lib1.c
-Skipping /opt/schooner/src/membrain-4.2/server/sdf/sdfmsg/oldtests/fcnl_multinode_doubleside_lib2.c
-Skipping /opt/schooner/src/membrain-4.2/server/sdf/sdfmsg/oldtests/fcnl_multinode_doubleside_lib3.c
-Skipping /opt/schooner/src/membrain-4.2/server/sdf/sdfmsg/oldtests/fcnl_multinode_doubleside_lib4.c
-Skipping /opt/schooner/src/membrain-4.2/server/sdf/sdfmsg/oldtests/fcnl_multinode_doubleside_test1.c
-Skipping /opt/schooner/src/membrain-4.2/server/sdf/sdfmsg/oldtests/fcnl_multinode_doubleside_test2.c
-Skipping /opt/schooner/src/membrain-4.2/server/sdf/sdfmsg/oldtests/fcnl_multinode_doubleside_test3.c
-Skipping /opt/schooner/src/membrain-4.2/server/sdf/sdfmsg/oldtests/fcnl_multinode_doubleside_test4.c
-Skipping /opt/schooner/src/membrain-4.2/server/sdf/sdfmsg/oldtests/fcnl_multinode_lib1.c
-Skipping /opt/schooner/src/membrain-4.2/server/sdf/sdfmsg/oldtests/fcnl_multinode_lib2.c
-Skipping /opt/schooner/src/membrain-4.2/server/sdf/sdfmsg/oldtests/fcnl_multinode_lib3.c
-Skipping /opt/schooner/src/membrain-4.2/server/sdf/sdfmsg/oldtests/fcnl_multinode_lib4.c
-Skipping /opt/schooner/src/membrain-4.2/server/sdf/sdfmsg/oldtests/fcnl_multinode_multiptl_lib1.c
-Skipping /opt/schooner/src/membrain-4.2/server/sdf/sdfmsg/oldtests/fcnl_multinode_multiptl_lib2.c
-Skipping /opt/schooner/src/membrain-4.2/server/sdf/sdfmsg/oldtests/fcnl_multinode_multiptl_test1.c
-Skipping /opt/schooner/src/membrain-4.2/server/sdf/sdfmsg/oldtests/fcnl_multinode_multiptl_test2.c
-Skipping /opt/schooner/src/membrain-4.2/server/sdf/sdfmsg/oldtests/fcnl_multinode_test1.c
-Skipping /opt/schooner/src/membrain-4.2/server/sdf/sdfmsg/oldtests/fcnl_multinode_test2.c
-Skipping /opt/schooner/src/membrain-4.2/server/sdf/sdfmsg/oldtests/fcnl_multinode_test3.c
-Skipping /opt/schooner/src/membrain-4.2/server/sdf/sdfmsg/oldtests/fcnl_multinode_test4.c
-Skipping /opt/schooner/src/membrain-4.2/server/sdf/sdfmsg/oldtests/fcnl_multi_protocol_lib1.c
-Skipping /opt/schooner/src/membrain-4.2/server/sdf/sdfmsg/oldtests/fcnl_multi_protocol_test1.c
-Skipping /opt/schooner/src/membrain-4.2/server/sdf/sdfmsg/oldtests/fcnl_multiptl_quantity_lib1.c
-Skipping /opt/schooner/src/membrain-4.2/server/sdf/sdfmsg/oldtests/fcnl_multiptl_quantity_test1.c
-Skipping /opt/schooner/src/membrain-4.2/server/sdf/sdfmsg/oldtests/fcnl_multiptl_sequential_lib1.c
-Skipping /opt/schooner/src/membrain-4.2/server/sdf/sdfmsg/oldtests/fcnl_multiptl_sequential_lib2.c
-Skipping /opt/schooner/src/membrain-4.2/server/sdf/sdfmsg/oldtests/fcnl_multiptl_sequential_lib3.c
-Skipping /opt/schooner/src/membrain-4.2/server/sdf/sdfmsg/oldtests/fcnl_multiptl_sequential_lib4.c
-Skipping /opt/schooner/src/membrain-4.2/server/sdf/sdfmsg/oldtests/fcnl_multiptl_sequential_test1.c
-Skipping /opt/schooner/src/membrain-4.2/server/sdf/sdfmsg/oldtests/fcnl_multiptl_sequential_test2.c
-Skipping /opt/schooner/src/membrain-4.2/server/sdf/sdfmsg/oldtests/fcnl_multiptl_sequential_test3.c
-Skipping /opt/schooner/src/membrain-4.2/server/sdf/sdfmsg/oldtests/fcnl_multiptl_sequential_test4.c
-Skipping /opt/schooner/src/membrain-4.2/server/sdf/sdfmsg/oldtests/fcnl_presstest_lib1.c
-Skipping /opt/schooner/src/membrain-4.2/server/sdf/sdfmsg/oldtests/fcnl_presstest_test1.c
-Skipping /opt/schooner/src/membrain-4.2/server/sdf/sdfmsg/oldtests/fcnl_queue_order_fth_lib1.c
-Skipping /opt/schooner/src/membrain-4.2/server/sdf/sdfmsg/oldtests/fcnl_queue_order_fth_lib2.c
-Skipping /opt/schooner/src/membrain-4.2/server/sdf/sdfmsg/oldtests/fcnl_queue_order_fth_test1.c
-Skipping /opt/schooner/src/membrain-4.2/server/sdf/sdfmsg/oldtests/fcnl_queue_order_fth_test2.c
-Skipping /opt/schooner/src/membrain-4.2/server/sdf/sdfmsg/oldtests/fcnl_queue_order_pth_lib1.c
-Skipping /opt/schooner/src/membrain-4.2/server/sdf/sdfmsg/oldtests/fcnl_queue_order_pth_lib2.c
-Skipping /opt/schooner/src/membrain-4.2/server/sdf/sdfmsg/oldtests/fcnl_queue_order_pth_test1.c
-Skipping /opt/schooner/src/membrain-4.2/server/sdf/sdfmsg/oldtests/fcnl_queue_order_pth_test2.c
-Skipping /opt/schooner/src/membrain-4.2/server/sdf/sdfmsg/oldtests/fcnl_receive_queue_lib1.c
-Skipping /opt/schooner/src/membrain-4.2/server/sdf/sdfmsg/oldtests/fcnl_receive_queue_test1.c
-Skipping /opt/schooner/src/membrain-4.2/server/sdf/sdfmsg/oldtests/fcnl_replication_lib1.c
-Skipping /opt/schooner/src/membrain-4.2/server/sdf/sdfmsg/oldtests/fcnl_replication_test1.c
-Skipping /opt/schooner/src/membrain-4.2/server/sdf/sdfmsg/oldtests/fcnl_send_queue_lib1.c
-Skipping /opt/schooner/src/membrain-4.2/server/sdf/sdfmsg/oldtests/fcnl_send_queue_test1.c
-Skipping /opt/schooner/src/membrain-4.2/server/sdf/sdfmsg/oldtests/fcnl_simplexsr_lib1.c
-Skipping /opt/schooner/src/membrain-4.2/server/sdf/sdfmsg/oldtests/fcnl_simplexsr_test1.c
-Skipping /opt/schooner/src/membrain-4.2/server/sdf/sdfmsg/oldtests/fcnl_single_protocol_lib1.c
-Skipping /opt/schooner/src/membrain-4.2/server/sdf/sdfmsg/oldtests/fcnl_single_protocol_test1.c
-Skipping /opt/schooner/src/membrain-4.2/server/sdf/sdfmsg/oldtests/fcnl_singleptl_chkmsg_lib1.c
-Skipping /opt/schooner/src/membrain-4.2/server/sdf/sdfmsg/oldtests/fcnl_singleptl_chkmsg_test1.c
-Skipping /opt/schooner/src/membrain-4.2/server/sdf/sdfmsg/oldtests/fcnl_singleptl_chksize_lib1.c
-Skipping /opt/schooner/src/membrain-4.2/server/sdf/sdfmsg/oldtests/fcnl_singleptl_chksize_test1.c
-Skipping /opt/schooner/src/membrain-4.2/server/sdf/sdfmsg/oldtests/fcnl_singleptl_sequential_lib1.c
-Skipping /opt/schooner/src/membrain-4.2/server/sdf/sdfmsg/oldtests/fcnl_singleptl_sequential_lib2.c
-Skipping /opt/schooner/src/membrain-4.2/server/sdf/sdfmsg/oldtests/fcnl_singleptl_sequential_lib3.c
-Skipping /opt/schooner/src/membrain-4.2/server/sdf/sdfmsg/oldtests/fcnl_singleptl_sequential_test1.c
-Skipping /opt/schooner/src/membrain-4.2/server/sdf/sdfmsg/oldtests/fcnl_singleptl_sequential_test2.c
-Skipping /opt/schooner/src/membrain-4.2/server/sdf/sdfmsg/oldtests/fcnl_singleptl_sequential_test3.c
-Skipping /opt/schooner/src/membrain-4.2/server/sdf/sdfmsg/oldtests/fcnl_system_lib1.c
-Skipping /opt/schooner/src/membrain-4.2/server/sdf/sdfmsg/oldtests/fcnl_system_test1.c
-Skipping /opt/schooner/src/membrain-4.2/server/sdf/sdfmsg/oldtests/fcnl_test.h
-Skipping /opt/schooner/src/membrain-4.2/server/sdf/sdfmsg/oldtests/fcnl_wrapper_fth_lib1.c
-Skipping /opt/schooner/src/membrain-4.2/server/sdf/sdfmsg/oldtests/fcnl_wrapper_fth_test1.c
-Skipping /opt/schooner/src/membrain-4.2/server/sdf/sdfmsg/oldtests/fcnl_wrapper_lib1.c
-Skipping /opt/schooner/src/membrain-4.2/server/sdf/sdfmsg/oldtests/fcnl_wrapper_test1.c
-Skipping /opt/schooner/src/membrain-4.2/server/sdf/sdfmsg/oldtests/flush_test.c
-Skipping /opt/schooner/src/membrain-4.2/server/sdf/sdfmsg/oldtests/log.c
-Skipping /opt/schooner/src/membrain-4.2/server/sdf/sdfmsg/oldtests/log.h
-Skipping /opt/schooner/src/membrain-4.2/server/sdf/sdfmsg/oldtests/management_test.c
-Skipping /opt/schooner/src/membrain-4.2/server/sdf/sdfmsg/oldtests/membership_test.c
-Skipping /opt/schooner/src/membrain-4.2/server/sdf/sdfmsg/oldtests/metadata_test.c
-Skipping /opt/schooner/src/membrain-4.2/server/sdf/sdfmsg/oldtests/msg_test.h
-Skipping /opt/schooner/src/membrain-4.2/server/sdf/sdfmsg/oldtests/msg_test_main.c
-Skipping /opt/schooner/src/membrain-4.2/server/sdf/sdfmsg/oldtests/perf_timecal_lib1.c
-Skipping /opt/schooner/src/membrain-4.2/server/sdf/sdfmsg/oldtests/perf_timecal_test1.c
-Skipping /opt/schooner/src/membrain-4.2/server/sdf/sdfmsg/oldtests/pfm_test.h
-Skipping /opt/schooner/src/membrain-4.2/server/sdf/sdfmsg/oldtests/pfm_throughput_lib1.c
-Skipping /opt/schooner/src/membrain-4.2/server/sdf/sdfmsg/oldtests/pfm_throughput_test1.c
-Skipping /opt/schooner/src/membrain-4.2/server/sdf/sdfmsg/oldtests/queue_order_test_fth.c
-Skipping /opt/schooner/src/membrain-4.2/server/sdf/sdfmsg/oldtests/queue_order_test_pthread.c
-Skipping /opt/schooner/src/membrain-4.2/server/sdf/sdfmsg/oldtests/receive_queue_test.c
-Skipping /opt/schooner/src/membrain-4.2/server/sdf/sdfmsg/oldtests/replication_test.c
-Skipping /opt/schooner/src/membrain-4.2/server/sdf/sdfmsg/oldtests/sdf_msg_motor.c
-Skipping /opt/schooner/src/membrain-4.2/server/sdf/sdfmsg/oldtests/sdf_msg_oob.c
-Skipping /opt/schooner/src/membrain-4.2/server/sdf/sdfmsg/oldtests/sdf_msg_oob.h
-Skipping /opt/schooner/src/membrain-4.2/server/sdf/sdfmsg/oldtests/sdf_msg_oob_mgmnt.c
-Skipping /opt/schooner/src/membrain-4.2/server/sdf/sdfmsg/oldtests/sdf_msg_protocol.c
-Skipping /opt/schooner/src/membrain-4.2/server/sdf/sdfmsg/oldtests/sdf_msg_pthread_example.c
-Skipping /opt/schooner/src/membrain-4.2/server/sdf/sdfmsg/oldtests/send_queue_test.c
-Skipping /opt/schooner/src/membrain-4.2/server/sdf/sdfmsg/oldtests/simplexsr_test.c
-Skipping /opt/schooner/src/membrain-4.2/server/sdf/sdfmsg/oldtests/slinkedlist.c
-Skipping /opt/schooner/src/membrain-4.2/server/sdf/sdfmsg/oldtests/slinkedlist.h
-Skipping /opt/schooner/src/membrain-4.2/server/sdf/sdfmsg/oldtests/system_test.c
-Skipping /opt/schooner/src/membrain-4.2/server/sdf/sdfmsg/oldtests/Utilfuncs.c
-Skipping /opt/schooner/src/membrain-4.2/server/sdf/sdfmsg/oldtests/Utilfuncs.h
+Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/old/sdf_msg_engine.c
+Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/old/sdf_msg.h
+Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/old/sdf_msg_hash.c
+Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/old/sdf_msg_hash.h
+Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/old/sdf_msg_hmap.c
+Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/old/sdf_msg_hmap.h
+Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/old/sdf_msg_mgmnt.c
+Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/old/sdf_msg_mpi.c
+Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/old/sdf_msg_mpi.h
+Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/old/sdf_msg_queue.c
+Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/old/sdf_msg_tester.c
+Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/old/sdf_msg_types.h
+Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/bigsize_fth_test.c
+Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/bigsize_test.c
+Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/consistency_test.c
+Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/fcnl_bigsize_fth_lib1.c
+Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/fcnl_bigsize_fth_test1.c
+Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/fcnl_bigsize_lib1.c
+Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/fcnl_bigsize_test1.c
+Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/fcnl_consistency_lib1.c
+Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/fcnl_consistency_lib2.c
+Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/fcnl_consistency_test1.c
+Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/fcnl_consistency_test2.c
+Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/fcnl_flush_lib1.c
+Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/fcnl_flush_test1.c
+Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/fcnl_fth_mbx_lib1.c
+Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/fcnl_fth_mbx_test1.c
+Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/fcnl_membership_lib1.c
+Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/fcnl_membership_test1.c
+Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/fcnl_metadata_lib1.c
+Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/fcnl_metadata_test1.c
+Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/fcnl_mgnt_lib1.c
+Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/fcnl_mgnt_test1.c
+Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/fcnl_mixed_thread_lib1.c
+Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/fcnl_mixed_thread_lib2.c
+Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/fcnl_mixed_thread_test1.c
+Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/fcnl_mixed_thread_test2.c
+Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/fcnl_msg_pfm_lib1.c
+Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/fcnl_msg_pfm_test1.c
+Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/fcnl_multinode_doubleside_lib1.c
+Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/fcnl_multinode_doubleside_lib2.c
+Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/fcnl_multinode_doubleside_lib3.c
+Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/fcnl_multinode_doubleside_lib4.c
+Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/fcnl_multinode_doubleside_test1.c
+Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/fcnl_multinode_doubleside_test2.c
+Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/fcnl_multinode_doubleside_test3.c
+Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/fcnl_multinode_doubleside_test4.c
+Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/fcnl_multinode_lib1.c
+Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/fcnl_multinode_lib2.c
+Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/fcnl_multinode_lib3.c
+Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/fcnl_multinode_lib4.c
+Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/fcnl_multinode_multiptl_lib1.c
+Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/fcnl_multinode_multiptl_lib2.c
+Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/fcnl_multinode_multiptl_test1.c
+Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/fcnl_multinode_multiptl_test2.c
+Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/fcnl_multinode_test1.c
+Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/fcnl_multinode_test2.c
+Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/fcnl_multinode_test3.c
+Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/fcnl_multinode_test4.c
+Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/fcnl_multi_protocol_lib1.c
+Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/fcnl_multi_protocol_test1.c
+Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/fcnl_multiptl_quantity_lib1.c
+Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/fcnl_multiptl_quantity_test1.c
+Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/fcnl_multiptl_sequential_lib1.c
+Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/fcnl_multiptl_sequential_lib2.c
+Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/fcnl_multiptl_sequential_lib3.c
+Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/fcnl_multiptl_sequential_lib4.c
+Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/fcnl_multiptl_sequential_test1.c
+Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/fcnl_multiptl_sequential_test2.c
+Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/fcnl_multiptl_sequential_test3.c
+Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/fcnl_multiptl_sequential_test4.c
+Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/fcnl_presstest_lib1.c
+Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/fcnl_presstest_test1.c
+Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/fcnl_queue_order_fth_lib1.c
+Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/fcnl_queue_order_fth_lib2.c
+Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/fcnl_queue_order_fth_test1.c
+Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/fcnl_queue_order_fth_test2.c
+Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/fcnl_queue_order_pth_lib1.c
+Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/fcnl_queue_order_pth_lib2.c
+Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/fcnl_queue_order_pth_test1.c
+Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/fcnl_queue_order_pth_test2.c
+Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/fcnl_receive_queue_lib1.c
+Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/fcnl_receive_queue_test1.c
+Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/fcnl_replication_lib1.c
+Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/fcnl_replication_test1.c
+Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/fcnl_send_queue_lib1.c
+Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/fcnl_send_queue_test1.c
+Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/fcnl_simplexsr_lib1.c
+Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/fcnl_simplexsr_test1.c
+Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/fcnl_single_protocol_lib1.c
+Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/fcnl_single_protocol_test1.c
+Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/fcnl_singleptl_chkmsg_lib1.c
+Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/fcnl_singleptl_chkmsg_test1.c
+Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/fcnl_singleptl_chksize_lib1.c
+Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/fcnl_singleptl_chksize_test1.c
+Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/fcnl_singleptl_sequential_lib1.c
+Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/fcnl_singleptl_sequential_lib2.c
+Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/fcnl_singleptl_sequential_lib3.c
+Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/fcnl_singleptl_sequential_test1.c
+Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/fcnl_singleptl_sequential_test2.c
+Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/fcnl_singleptl_sequential_test3.c
+Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/fcnl_system_lib1.c
+Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/fcnl_system_test1.c
+Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/fcnl_test.h
+Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/fcnl_wrapper_fth_lib1.c
+Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/fcnl_wrapper_fth_test1.c
+Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/fcnl_wrapper_lib1.c
+Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/fcnl_wrapper_test1.c
+Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/flush_test.c
+Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/log.c
+Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/log.h
+Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/management_test.c
+Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/membership_test.c
+Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/metadata_test.c
+Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/msg_test.h
+Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/msg_test_main.c
+Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/perf_timecal_lib1.c
+Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/perf_timecal_test1.c
+Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/pfm_test.h
+Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/pfm_throughput_lib1.c
+Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/pfm_throughput_test1.c
+Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/queue_order_test_fth.c
+Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/queue_order_test_pthread.c
+Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/receive_queue_test.c
+Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/replication_test.c
+Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/sdf_msg_motor.c
+Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/sdf_msg_oob.c
+Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/sdf_msg_oob.h
+Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/sdf_msg_oob_mgmnt.c
+Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/sdf_msg_protocol.c
+Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/sdf_msg_pthread_example.c
+Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/send_queue_test.c
+Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/simplexsr_test.c
+Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/slinkedlist.c
+Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/slinkedlist.h
+Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/system_test.c
+Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/Utilfuncs.c
+Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/Utilfuncs.h
 sdf/sdfmsg/sdf_msg_action.c:85:plat_log_msg:PLAT_LOG_LEVEL_TRACE:LOG_CAT:21485:\nNode %d: what action-how %s mbox %p\n
 sdf/sdfmsg/sdf_msg_action.c:123:plat_log_msg:PLAT_LOG_LEVEL_TRACE:LOG_CAT:21485:\nNode %d: what action-how %s mbox %p\n
 sdf/sdfmsg/sdf_msg_new.c:444:sdf_logi::LOG_CAT:70029:sdfmsg version %d

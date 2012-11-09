@@ -9,7 +9,7 @@
  * codebase. This file also contains the API to enable, disable, and
  * initialize FFDC.
  * 
- * Generated On: 2012-11-01 16:02:09
+ * Generated On: 2012-11-09 00:37:10
  *------------------------------------------------------------------------*/
 
 #define PLATFORM_INTERNAL 1
@@ -41476,6 +41476,49 @@ ffdc_log_func_160031(int lineno, int msgid, int catid, int level, const char* fm
 {
     FFDC_START(160031, catid, level, lineno);
     FFDC_ADD_NUM(arg1);
+    FFDC_END();
+}
+
+/*---------------------------------------------------------------------------
+ * MsgID : 160032
+ * Msg   : "Already opened or error: %s - %s"
+ *-------------------------------------------------------------------------*/
+__inline__ void
+ffdc_log_func_160032(int lineno, int msgid, int catid, int level, const char* fmt,
+    const char* arg1, const char* arg2)
+{
+    FFDC_START(160032, catid, level, lineno);
+    FFDC_ADD_STR(arg1);
+    FFDC_ADD_STR(arg2);
+    FFDC_END();
+}
+
+/*---------------------------------------------------------------------------
+ * MsgID : 160033
+ * Msg   : "%s, size=%ld bytes"
+ *-------------------------------------------------------------------------*/
+__inline__ void
+ffdc_log_func_160033(int lineno, int msgid, int catid, int level, const char* fmt,
+    const char* arg1, long arg2)
+{
+    FFDC_START(160033, catid, level, lineno);
+    FFDC_ADD_STR(arg1);
+    FFDC_ADD_NUM(arg2);
+    FFDC_END();
+}
+
+/*---------------------------------------------------------------------------
+ * MsgID : 160034
+ * Msg   : "%s(cguid=%lu) - %s"
+ *-------------------------------------------------------------------------*/
+__inline__ void
+ffdc_log_func_160034(int lineno, int msgid, int catid, int level, const char* fmt,
+    const char* arg1, long arg2, const char* arg3)
+{
+    FFDC_START(160034, catid, level, lineno);
+    FFDC_ADD_STR(arg1);
+    FFDC_ADD_NUM(arg2);
+    FFDC_ADD_STR(arg3);
     FFDC_END();
 }
 

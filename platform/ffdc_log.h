@@ -9,7 +9,7 @@
  * log message in the codebase.  The structure contains one field for
  * each message parameter in the log message, along with other meta data
  * 
- * Generated On: 2012-11-01 16:02:09
+ * Generated On: 2012-11-09 00:37:10
  *------------------------------------------------------------------------*/
 
 #ifndef PLATFORM_FFDC_H
@@ -69138,6 +69138,76 @@ struct ffdc_log_struct_160031
 __inline__ void
 ffdc_log_func_160031(int lineno, int msgid, int catid, int level, const char* fmt,
     long arg1);
+
+/*---------------------------------------------------------------------------
+ * MsgID : 160032
+ * Msg   : "Already opened or error: %s - %s"
+ *-------------------------------------------------------------------------*/
+struct ffdc_log_struct_160032
+{
+    int magic;
+    int msgid;
+    int catid;
+    int level;
+    unsigned long th_id;
+    unsigned long fth_id;
+    int lineno;
+    struct timeval timestamp;
+
+    char arg1[FFDC_MAX_STR_SIZE];
+    char arg2[FFDC_MAX_STR_SIZE];
+} __attribute__ ((aligned (64)));
+
+__inline__ void
+ffdc_log_func_160032(int lineno, int msgid, int catid, int level, const char* fmt,
+    const char* arg1, const char* arg2);
+
+/*---------------------------------------------------------------------------
+ * MsgID : 160033
+ * Msg   : "%s, size=%ld bytes"
+ *-------------------------------------------------------------------------*/
+struct ffdc_log_struct_160033
+{
+    int magic;
+    int msgid;
+    int catid;
+    int level;
+    unsigned long th_id;
+    unsigned long fth_id;
+    int lineno;
+    struct timeval timestamp;
+
+    char arg1[FFDC_MAX_STR_SIZE];
+    long arg2;
+} __attribute__ ((aligned (64)));
+
+__inline__ void
+ffdc_log_func_160033(int lineno, int msgid, int catid, int level, const char* fmt,
+    const char* arg1, long arg2);
+
+/*---------------------------------------------------------------------------
+ * MsgID : 160034
+ * Msg   : "%s(cguid=%lu) - %s"
+ *-------------------------------------------------------------------------*/
+struct ffdc_log_struct_160034
+{
+    int magic;
+    int msgid;
+    int catid;
+    int level;
+    unsigned long th_id;
+    unsigned long fth_id;
+    int lineno;
+    struct timeval timestamp;
+
+    char arg1[FFDC_MAX_STR_SIZE];
+    long arg2;
+    char arg3[FFDC_MAX_STR_SIZE];
+} __attribute__ ((aligned (64)));
+
+__inline__ void
+ffdc_log_func_160034(int lineno, int msgid, int catid, int level, const char* fmt,
+    const char* arg1, long arg2, const char* arg3);
 
 __END_DECLS
 #endif /* PLATFORM_FFDC_H */

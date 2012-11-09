@@ -3066,3 +3066,6 @@
 160029 Failed to find shard for cguid %"PRIu64"
 160030 Container is not deleted (busy or error): cguid=%lu(%d), status=%s
 160031 Delete request pending. Deleting... cguid=%lu
+160032 Already opened or error: %s - %s
+160033 %s, size=%ld bytes
+160034 %s(cguid=%lu) - %s
