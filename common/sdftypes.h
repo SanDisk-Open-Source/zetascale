@@ -86,7 +86,8 @@ typedef struct {
 typedef unsigned long SDF_operation_t;
 typedef unsigned long SDF_size_t;
 
-#define SDF_NULL_CGUID UINT64_MAX
+#define SDF_NULL_CGUID UINT64_MAX	// NULL container guid
+#define SDF_NULL_CID   UINT64_MAX	// NULL container id
 
 #define SDF_MAX_OPIDS          16
 #define SDF_RESERVED_CONTEXTS  1024

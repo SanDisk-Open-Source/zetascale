@@ -13,6 +13,7 @@
 typedef struct ctnr_map {
     char           *cname;
     SDF_cguid_t     cguid;
+    uint64_t       	cid;
     SDF_CONTAINER   sdf_container;
 } ctnr_map_t;
 
