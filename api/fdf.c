@@ -141,6 +141,11 @@ SDF_container_props_t *fdf_create_sdf_props(
     FDF_container_props_t 	*fdf_properties,
 	uint64_t				 cid
     );
+
+FDF_status_t fdf_create_fdf_props(
+    SDF_container_props_t   *sdf_properties,
+    FDF_container_props_t   *fdf_properties
+    );
  
 FDF_status_t FDFInitPerThreadState(
 	struct FDF_state 		 *fdf_state,
@@ -814,6 +819,8 @@ static FDF_status_t fdf_create_container(
         home_node = init_get_my_node_id();
     }
 
+	properties->cguid = *cguid;
+
 	if ( (sdf_properties = fdf_create_sdf_props( properties, cid )) == NULL ) {
 		*cguid = SDF_NULL_CGUID;
 		return FDF_FAILURE_MEMORY_ALLOC;
@@ -1401,12 +1408,7 @@ FDF_status_t FDFGetContainerProps(
 
     SDFStartSerializeContainerOp(pai);  
     if (( status = name_service_get_meta( pai, cguid, &meta )) == SDF_SUCCESS ) {
-		pprops = (FDF_container_props_t *) plat_alloc( sizeof( FDF_container_props_t ));
-		if ( NULL == pprops ) {
-			status = FDF_FAILURE_MEMORY_ALLOC;
-		} else {
-			memcpy ( pprops, &meta.fdf_properties, sizeof ( FDF_container_props_t ));
-		}
+		status = fdf_create_fdf_props( &meta.properties, pprops );
     }              
     SDFEndSerializeContainerOp( pai );   
                    
@@ -2473,6 +2475,28 @@ SDF_container_props_t *fdf_create_sdf_props(
 	}
 
 	return sdf_properties;
+}
+
+FDF_status_t fdf_create_fdf_props(
+    SDF_container_props_t   *sdf_properties,
+    FDF_container_props_t   *fdf_properties
+    )
+{
+	FDF_status_t	status	= FDF_INVALID_PARAMETER;
+
+    if ( NULL != fdf_properties ) {
+        fdf_properties->size_kb 							= sdf_properties->container_id.size;
+        fdf_properties->fifo_mode 							= sdf_properties->fifo_mode;
+        fdf_properties->persistent							= sdf_properties->container_type.persistence;
+        fdf_properties->evicting							= sdf_properties->container_type.caching_container;
+        fdf_properties->writethru							= sdf_properties->cache.writethru;
+        fdf_properties->durability_level					= sdf_properties->durability_level;
+        fdf_properties->cguid								= sdf_properties->cguid;
+        fdf_properties->num_shards							= sdf_properties->shard.num_shards;
+		status												= FDF_SUCCESS;
+    }
+
+    return status;
 }
 
 #ifdef notdef
