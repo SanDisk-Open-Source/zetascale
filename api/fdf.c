@@ -722,23 +722,19 @@ FDF_status_t FDFOpenContainer(
 	FDF_status_t status		= FDF_SUCCESS;
 
 	if ( flags && FDF_CTNR_CREATE ) {
-		status = fdf_create_container(
-					fdf_thread_state,
-					cname,
-					properties,
-					flags,
-					cguid
-					);
+		status = fdf_create_container( fdf_thread_state,
+									   cname,
+									   properties,
+									   flags,
+									   cguid );
 	}
 		
 	if ( FDF_SUCCESS == status ) {
-		fdf_open_container(
-			fdf_thread_state,
-			cname,
-			properties,
-			flags,
-			cguid
-			);
+		status = fdf_open_container( fdf_thread_state,
+									 cname,
+									 properties,
+									 flags,
+									 cguid );
 	}
 
 	return status;
