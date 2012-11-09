@@ -294,7 +294,7 @@ struct plat_opts_config_sdf_agent {
          ({ sdf_msg_setinitn("msg_nhold", optarg), 0;}),                       \
          PLAT_OPTS_ARG_REQUIRED)                                               \
     item("msg_nobcast", "messaging: turn of broadcasting", MSG_NOBCAST,        \
-         ({ sdf_msg_setinitn("msg_nobcast", optarg), 0;}),                     \
+         ({ sdf_msg_setinitn("msg_nobcast", optarg), 1;}),                     \
          PLAT_OPTS_ARG_REQUIRED)                                               \
     item("msg_nodes", "messaging: expected node count", MSG_NODES,             \
          ({ sdf_msg_setinitn("msg_nodes", optarg), 0;}),                       \

@@ -636,6 +636,7 @@ SDF_status_t SDFCreateContainer(
 		return SDF_INVALID_PARAMETER;
 
     plat_log_msg(160033, LOG_CAT, LOG_INFO, "%s, size=%ld bytes", cname, properties->container_id.size * 1024);
+    properties->container_id.num_objs = (properties->container_id.size * 1024/512);
 
     if ((!properties->container_type.caching_container) && (!properties->cache.writethru)) {
         plat_log_msg(30572, LOG_CAT, LOG_ERR,

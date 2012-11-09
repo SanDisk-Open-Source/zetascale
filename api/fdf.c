@@ -773,7 +773,6 @@ static FDF_status_t fdf_create_container(
 	if ( ISEMPTY( cname ) ) {
 		return FDF_INVALID_PARAMETER;
 	}
-
     if (( !properties->evicting ) && ( !properties->writethru )) {
         plat_log_msg( 30572, LOG_CAT, LOG_ERR,
                       "Writeback caching can only be enabled for eviction mode containers" );
@@ -841,7 +840,7 @@ static FDF_status_t fdf_create_container(
     }
 #endif /* notdef */
 
-    num_objs = 1; // Is this used???
+    num_objs = sdf_properties->container_id.num_objs;
 
 #ifdef notdef
     /*
@@ -2447,7 +2446,7 @@ SDF_container_props_t *fdf_create_sdf_props(
     	sdf_properties->container_id.size                     = fdf_properties->size_kb;
     	sdf_properties->container_id.container_id             = cid;
     	sdf_properties->container_id.owner                    = 0; 
-    	sdf_properties->container_id.num_objs                 = 1000000;
+    	sdf_properties->container_id.num_objs                 = (fdf_properties->size_kb * 1024 / 512);
     
     	sdf_properties->cguid                                 = fdf_properties->cguid;
     
