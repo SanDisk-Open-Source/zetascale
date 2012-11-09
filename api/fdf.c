@@ -341,6 +341,32 @@ static sem_t Mcd_initer_sem;
 
 ctnr_map_t CtnrMap[MCD_MAX_NUM_CNTRS];
 
+#ifdef notdef
+static int count_containers() {
+    int i = 0;
+    int count = 0;
+
+    for (i = 0; i < MCD_MAX_NUM_CNTRS; i++ ) {
+        if ( CtnrMap[i].cguid != 0 ) {
+            ++count;
+        }
+    }
+
+    return count;
+}
+
+static void dump_map() {
+    for (int i=0; i<MCD_MAX_NUM_CNTRS; i++) {
+        if (CtnrMap[i].cguid != 0) {
+            fprintf(stderr, ">>>CtnrMap[%d].cname           = %s\n", i, CtnrMap[i].cname);
+            fprintf(stderr, ">>>CtnrMap[%d].cguid           = %lu\n", i, CtnrMap[i].cguid);
+            fprintf(stderr, ">>>CtnrMap[%d].cid         = %lu\n", i, CtnrMap[i].cid);
+            fprintf(stderr, ">>>CtnrMap[%d].sdf_container   = %d\n", i, !isContainerNull(CtnrMap[i].sdf_container));
+        }
+    }
+}
+#endif
+
 int fdf_get_ctnr_from_cguid(
 	FDF_cguid_t cguid
 	)
@@ -1215,7 +1241,7 @@ FDF_status_t FDFCloseContainer(
     }
 
     if (isContainerNull(container)) {
-        status = SDF_FAILURE_CONTAINER_NOT_OPEN;
+        status = SDF_FAILURE_CONTAINER_GENERIC;
     } else {
 
         // Delete the container if there are no outstanding opens and a delete is pending
@@ -1252,9 +1278,10 @@ FDF_status_t FDFCloseContainer(
             }
         }
 
-        if (status == SDF_SUCCESS && ok_to_delete) {
+        if ( status == SDF_SUCCESS ) {
+    		CtnrMap[i_ctnr].sdf_container = containerNull;
 
-            if ((status = name_service_lock_meta(pai, path)) == SDF_SUCCESS) {
+            if ( ok_to_delete && (status = name_service_lock_meta( pai, path )) == SDF_SUCCESS ) {
 
                 // Flush and invalidate all of the container's cached objects
                 if ((status = name_service_inval_object_container(pai, path)) != SDF_SUCCESS) {
@@ -1311,11 +1338,15 @@ FDF_status_t FDFCloseContainer(
                     plat_log_msg(21551, LOG_CAT, LOG_DBG,
                                  "%s - remove cguid map succeeded", path);
                 }
+		
+				// Clean up the container map
+    			plat_free( CtnrMap[i_ctnr].cname );
+    			CtnrMap[i_ctnr].cname			= NULL;
+    			CtnrMap[i_ctnr].cguid			= 0;
+    			CtnrMap[i_ctnr].cid				= SDF_NULL_CID;
             }
         }
     }
-
-    CtnrMap[i_ctnr].sdf_container = containerNull;
 
 out:
     plat_log_msg(20819, LOG_CAT, log_level, "%s", SDF_Status_Strings[status]);
