@@ -1050,8 +1050,6 @@ static FDF_status_t fdf_open_container(
     struct shard				*shard		= NULL;
 #endif /* SDFAPIONLY */
                         
-    plat_log_msg( 20819, LOG_CAT, LOG_INFO, "%s", cname );
-
     SDFStartSerializeContainerOp( pai );
 
     if ( ISEMPTY( cname ) ) { 
@@ -1059,6 +1057,8 @@ static FDF_status_t fdf_open_container(
 		*cguid = SDF_NULL_CGUID;
 		return status;
 	}
+
+    plat_log_msg( 20819, LOG_CAT, LOG_INFO, "%s", cname );
 
     if ( strcmp( cname, CMC_PATH ) != 0 ) {
 		i_ctnr = fdf_get_ctnr_from_cname( cname );
