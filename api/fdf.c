@@ -12,6 +12,7 @@
 #include <stdint.h>
 #include <unistd.h>
 #include <fcntl.h>
+#include <time.h>
 
 #include "sdf.h"
 #include "sdf_internal.h"
@@ -46,7 +47,8 @@
 #define LOG_ERR PLAT_LOG_LEVEL_ERROR
 #define LOG_WARN PLAT_LOG_LEVEL_WARN
 #define LOG_FATAL PLAT_LOG_LEVEL_FATAL
-#define BUF_LEN 2048
+#define BUF_LEN 4096
+#define STATS_API_TEST 1
 
 static time_t 		current_time 		= 0;
 
@@ -209,6 +211,374 @@ static char * FDFCacheCountStrings[] = {
     "new_entries",
 };
 
+
+static char *FDFAccessTypeSearchStrings[] = {
+    "APCOE",/*FDF_ACCESS_TYPES_APCOE*/
+    "APCOP",/*FDF_ACCESS_TYPES_APCOP*/
+    "APPAE",/*FDF_ACCESS_TYPES_APPAE*/
+    "APPTA",/*FDF_ACCESS_TYPES_APPTA*/
+    "APSOE",/*FDF_ACCESS_TYPES_APSOE*/
+    "APSOB",/*FDF_ACCESS_TYPES_APSOB*/
+    "APGRX",/*FDF_ACCESS_TYPES_APGRX*/
+    "APGRD",/*FDF_ACCESS_TYPES_APGRD*/
+    "APDBE",/*FDF_ACCESS_TYPES_APDBE*/
+    "APFLS",/*FDF_ACCESS_TYPES_APFLS*/
+    "APFLI",/*FDF_ACCESS_TYPES_APFLI*/
+    "APINV",/*FDF_ACCESS_TYPES_APINV*/
+    "APSYC",/*FDF_ACCESS_TYPES_APSYC*/
+    "APICD",/*FDF_ACCESS_TYPES_APICD*/
+    "APGIT",/*FDF_ACCESS_TYPES_APGIT*/
+    "APFCO",/*FDF_ACCESS_TYPES_APFCO*/
+    "APFCI",/*FDF_ACCESS_TYPES_APFCI*/
+    "APICO",/*FDF_ACCESS_TYPES_APICO*/
+    "APRIV",/*FDF_ACCESS_TYPES_APRIV*/
+    "APRIV",/*FDF_ACCESS_TYPES_APRUP*/
+};
+
+static char *FDFFlashStatsSearchStrings[] = {
+    "NUM_OBJS",/*FDF_FLASH_STATS_NUM_OBJS*/
+    "NUM_CREATED_OBJS",/*FDF_FLASH_STATS_NUM_CREATED_OBJS*/
+    "NUM_EVICTIONS",/*FDF_FLASH_STATS_NUM_EVICTIONS*/
+    "HASH_EVICTIONS",/*FDF_FLASH_STATS_NUM_HASH_EVICTIONS*/
+    "INVAL_EVICTIONS",/*FDF_FLASH_STATS_NUM_INVAL_EVICTIONS*/
+    "SOFT_OVERFLOWS",/*FDF_FLASH_STATS_NUM_SOFT_OVERFLOWS*/
+    "NUM_HARD_OVERFLOWS",/*FDF_FLASH_STATS_NUM_HARD_OVERFLOWS*/
+    "GET_HASH_COLLISION",/*FDF_FLASH_STATS_GET_HASH_COLLISION*/
+    "SET_HASH_COLLISION",/* FDF_FLASH_STATS_SET_HASH_COLLISION*/
+    "NUM_OVERWRITES",/*FDF_FLASH_STATS_NUM_OVERWRITES*/
+    "NUM_OPS",/*FDF_FLASH_STATS_NUM_OPS*/
+    "READ_OPS",/*FDF_FLASH_STATS_NUM_READ_OPS*/
+    "GET_OPS",/*FDF_FLASH_STATS_NUM_GET_OPS*/
+    "PUT_OPS",/*FDF_FLASH_STATS_NUM_PUT_OPS*/
+    "DEL_OPS",/*FDF_FLASH_STATS_NUM_DEL_OPS*/
+    "FULL_BUCKETS",/*FDF_FLASH_STATS_GET_EXIST_CHECKS*/
+    "FULL_BUCKETS",/*FDF_FLASH_STATS_NUM_FULL_BUCKETS*/
+    "PENDING_IOS",/*FDF_FLASH_STATS_PENDING_IOS*/
+    "SPACE_ALLOCATED",/*FDF_FLASH_STATS_SPACE_ALLOCATED*/
+    "SPACE_CONSUMED",/*FDF_FLASH_STATS_SPACE_CONSUMED*/
+};
+
+
+
+
+static char *FDFCacheStatsSearchStrings[] = {
+    "overwrites_s",/* FDF_CACHE_STAT_OVERWRITES_S */
+    "overwrites_m",/* FDF_CACHE_STAT_OVERWRITES_M */
+    "inplaceowr_s",/* FDF_CACHE_STAT_INPLACEOWR_S */
+    "inplaceowr_m",/* FDF_CACHE_STAT_INPLACEOWR_M */
+    "new_entries",/* FDF_CACHE_STAT_NEW_ENTRIES */
+    "writethrus",/* FDF_CACHE_STAT_WRITETHRUS */
+    "writebacks",/* FDF_CACHE_STAT_WRITEBACKS */
+    "flushes",/* FDF_CACHE_STAT_FLUSHES */
+    /* request from cache to flash manager */
+    "AHCOB",/* FDF_CACHE_STAT_AHCOB */
+    "AHCOP",/* FDF_CACHE_STAT_AHCOP */
+    "AHCWD", /* FDF_CACHE_STAT_AHCWD */
+    "AHDOB",/* FDF_CACHE_STAT_AHDOB */
+    "AHFLD",/* FDF_CACHE_STAT_AHFLD */
+    "AHGTR", /* FDF_CACHE_STAT_AHGTR */
+    "AHGTW", /* FDF_CACHE_STAT_AHGTW */
+    "AHPTA", /* FDF_CACHE_STAT_AHPTA */
+    "AHSOB", /* FDF_CACHE_STAT_AHSOB */
+    "AHSOP",/* FDF_CACHE_STAT_AHSOP */
+    /* Request from flash manager to cache */
+    "HACRC",/* FDF_CACHE_STAT_HACRC */
+    "HACRF",/* FDF_CACHE_STAT_HACRF */
+    "HACSC",/* FDF_CACHE_STAT_HACSC */
+    "HACSF",/* FDF_CACHE_STAT_HACSF */
+    "HADEC",/* FDF_CACHE_STAT_HADEC */
+    "HADEF",/* FDF_CACHE_STAT_HADEF */
+    "HAFLC",/* FDF_CACHE_STAT_HAFLC */
+    "HAFLF",/* FDF_CACHE_STAT_HAFLF */
+    "HAGRC",/* FDF_CACHE_STAT_HAGRC */
+    "HAGRF",/* FDF_CACHE_STAT_HAGRF */
+    "HAGWC",/* FDF_CACHE_STAT_HAGWC */
+    "HAGWF",/* FDF_CACHE_STAT_HAGWF */
+    "HAPAC",/* FDF_CACHE_STAT_HAPAC */
+    "HAPAF",/* FDF_CACHE_STAT_HAPAF */
+    "HASTC",/* FDF_CACHE_STAT_HASTC */
+    "HASTF",/* FDF_CACHE_STAT_HASTF */
+    "HFXST",/* FDF_CACHE_STAT_HFXST */
+    "FHXST",/* FDF_CACHE_STAT_FHXST */
+    "FHNXS",/* FDF_CACHE_STAT_FHNXS */
+    "HFGFF",/* FDF_CACHE_STAT_HFGFF */
+    "FHDAT",/* FDF_CACHE_STAT_FHDAT */
+    "FHGTF",/* FDF_CACHE_STAT_FHGTF */
+    "HFPTF",/* FDF_CACHE_STAT_HFPTF */
+    "FHPTC",/* FDF_CACHE_STAT_FHPTC */
+    "FHPTF",/* FDF_CACHE_STAT_FHPTF */
+    "HFDFF",/* FDF_CACHE_STAT_HFDFF */
+    "FHDEC",/* FDF_CACHE_STAT_FHDEC */
+    "FHDEF",/* FDF_CACHE_STAT_FHDEF */
+    "HFCIF",/* FDF_CACHE_STAT_HFCIF */
+    "FHCRC",/* FDF_CACHE_STAT_FHCRC */
+    "FHCRF",/* FDF_CACHE_STAT_FHCRF */
+    "HFCZF",/* FDF_CACHE_STAT_HFCZF */
+    "HFSET",/* FDF_CACHE_STAT_HFSET */
+    "HFSTC",/* FDF_CACHE_STAT_HFSTC */
+    "FHSTF",/* FDF_CACHE_STAT_FHSTF */
+    "HFCSH",/* FDF_CACHE_STAT_HFCSH */
+    "FHCSC",/* FDF_CACHE_STAT_FHCSC */
+    "FHCSF",/* FDF_CACHE_STAT_FHCSF */
+    "FHCSF",/* FDF_CACHE_STAT_HFSSH */
+    "FHSSC",/* FDF_CACHE_STAT_FHSSC */
+    "FHSSF",/* FDF_CACHE_STAT_FHSSF */
+    "HFDSH",/* FDF_CACHE_STAT_HFDSH */
+    "FHDSC",/* FDF_CACHE_STAT_FHDSC */
+    "FHDSF",/* FDF_CACHE_STAT_FHDSF */
+    "HFGLS",/* FDF_CACHE_STAT_HFGLS */
+    "FHGLC",/* FDF_CACHE_STAT_FHGLC */
+    "FHGLF",/* FDF_CACHE_STAT_FHGLF */
+    "HFGIC",/* FDF_CACHE_STAT_HFGIC */
+    "FHGIC",/* FDF_CACHE_STAT_FHGIC */
+    "FHGIF",/* FDF_CACHE_STAT_FHGIF */
+    "HFGBC",/* FDF_CACHE_STAT_HFGBC */
+    "FHGCC",/* FDF_CACHE_STAT_FHGCC */
+    "FHGCF",/* FDF_CACHE_STAT_FHGCF */
+    "HFGSN",/* FDF_CACHE_STAT_HFGSN */
+    "HFGCS",/* FDF_CACHE_STAT_HFGCS */
+    "FHGSC",/* FDF_CACHE_STAT_FHGSC */
+    "FHGSF",/* FDF_CACHE_STAT_FHGSF */
+    "HFSRR",/* FDF_CACHE_STAT_HFSRR */
+    "FHSRC",/* FDF_CACHE_STAT_FHSRC */
+    "FHSRF",/* FDF_CACHE_STAT_FHSRF */
+    "HFSPR",/* FDF_CACHE_STAT_HFSPR */
+    "FHSPC",/* FDF_CACHE_STAT_FHSPC */
+    "FHSPF",/* FDF_CACHE_STAT_FHSPF */
+    "HFFLA",/* FDF_CACHE_STAT_HFFLA */
+    "FHFLC",/* FDF_CACHE_STAT_FHFLC */
+    "FHFLF",/* FDF_CACHE_STAT_FHFLF */
+    "HFRVG",/* FDF_CACHE_STAT_HFRVG */
+    "FHRVC",/* FDF_CACHE_STAT_FHRVC */
+    "FHRVF",/* FDF_CACHE_STAT_FHRVF */
+    "HFNOP",/* FDF_CACHE_STAT_HFNOP */
+    "FHNPC",/* FDF_CACHE_STAT_FHNPC */
+    "FHNPF",/* FDF_CACHE_STAT_FHNPF */
+    "HFOSH", /* FDF_CACHE_STAT_HFOSH */
+    "FHOSC",/* FDF_CACHE_STAT_FHOSC */
+    "FHOSF",/* FDF_CACHE_STAT_FHOSF */
+    "HFFLS",/* FDF_CACHE_STAT_HFFLS */
+    "FHFCC",/* FDF_CACHE_STAT_FHFCC */
+    "FHFCF",/* FDF_CACHE_STAT_FHFCF */
+    "HFFIV",/* FDF_CACHE_STAT_HFFIV */
+    "FHFIC",/* FDF_CACHE_STAT_FHFIC */
+    "FHFIF",/* FDF_CACHE_STAT_FHFIF */
+    "HFINV",/* FDF_CACHE_STAT_HFINV */
+    "FHINC",/* FDF_CACHE_STAT_FHINC */
+    "FHINF",/* FDF_CACHE_STAT_FHINF */
+    "HFFLC",/* FDF_CACHE_STAT_HFFLC */
+    "FHLCC",/* FDF_CACHE_STAT_FHLCC */
+    "FHLCF",/* FDF_CACHE_STAT_FHLCF */
+    "HFFLI",/* FDF_CACHE_STAT_HFFLI */
+    "FHLIC",/* FDF_CACHE_STAT_FHLIC */
+    "FHLIF",/* FDF_CACHE_STAT_FHLIF */
+    "HFINC",/* FDF_CACHE_STAT_HFINC */
+    "HFINC",/* FDF_CACHE_STAT_FHCIC */
+    "FHCIF",/* FDF_CACHE_STAT_FHCIF */
+    "EOK",/* FDF_CACHE_STAT_EOK */
+    "EPERM",/* FDF_CACHE_STAT_EPERM */
+    "ENOENT",/* FDF_CACHE_STAT_ENOENT */
+    "EDATASIZE",/* FDF_CACHE_STAT_EDATASIZE */
+    "ESTOPPED",/* FDF_CACHE_STAT_ESTOPPED */
+    "EBADCTNR",/* FDF_CACHE_STAT_EBADCTNR */
+    "EDELFAIL",/* FDF_CACHE_STAT_EDELFAIL */
+    "EAGAIN",/* FDF_CACHE_STAT_EAGAIN */
+    "ENOMEM",/* FDF_CACHE_STAT_ENOMEM */
+    "EACCES",/* FDF_CACHE_STAT_EACCES */
+    "EINCONS",/* FDF_CACHE_STAT_EINCONS */
+    "EBUSY",/* FDF_CACHE_STAT_EBUSY */
+    "EEXIST",/* FDF_CACHE_STAT_EEXIST */
+    "EINVAL",/* FDF_CACHE_STAT_EINVAL */
+    "EMFILE",/* FDF_CACHE_STAT_EMFILE */
+    "ENOSPC",/* FDF_CACHE_STAT_ENOSPC */
+    "ENOBUFS",/* FDF_CACHE_STAT_ENOBUFS */
+    "ESTALE",/* FDF_CACHE_STAT_ESTALE */
+    "EDQUOT",/* FDF_CACHE_STAT_EDQUOT */
+    "EDELFAIL",/* FDF_CACHE_STAT_RMT_EDELFAIL */
+    "EBADCTNR",/* FDF_CACHE_STAT_RMT_EBADCTNR */
+    "hashBuckets",/* FDF_CACHE_STAT_HASH_BUCKETS */
+    "nSlabs",/* FDF_CACHE_STAT_NUM_SLABS */
+    "numElements",/* FDF_CACHE_STAT_NUM_ELEMENTS */
+    "maxSz",/* FDF_CACHE_STAT_MAX_SIZE */
+    "currSz",/* FDF_CACHE_STAT_CURR_SIZE */
+    "currSzWkeys",/* FDF_CACHE_STAT_CURR_SIZE_WKEYS */
+    "nMod",/* FDF_CACHE_STAT_NUM_MODIFIED_OBJS */
+    "modSzWkeys",/* FDF_CACHE_STAT_NUM_MODIFIED_OBJS_WKEYS */
+    "nModFlushes",/* FDF_CACHE_STAT_NUM_MODIFIED_OBJS_FLUSHED */
+    "nModBGFlushes",/* FDF_CACHE_STAT_NUM_MODIFIED_OBJS_BGFLUSHED */
+    "nPending",/* FDF_CACHE_STAT_NUM_PENDING_REQS */
+    "nModRecEnums",/* FDF_CACHE_STAT_NUM_MODIFIED_OBJC_REC */
+    "bkFlshProg",/* FDF_CACHE_STAT_BGFLUSH_PROGRESS */
+    "nBkFlsh",/* FDF_CACHE_STAT_NUM_BGFLUSH */
+    "nFlshTok",/* FDF_CACHE_STAT_NUM_FLUSH_PARALLEL */
+    "nBkFlshTok",/* FDF_CACHE_STAT_NUM_BGFLUSH_PARALLEL */
+    "FlsMs",/* FDF_CACHE_STAT_BGFLUSH_WAIT */
+    "modPct",/* FDF_CACHE_STAT_MODIFIED_PCT */
+    "nAppBufs",/* FDF_CACHE_STAT_NUM_APP_BUFFERS */
+    "nTrans",/* FDF_CACHE_STAT_NUM_CACHE_OPS_PROG */
+    "nFGBufs",/* FDF_CACHE_STAT_NUM_FGBUFFER_PROCESSED */
+    "nResp",/* FDF_CACHE_STAT_NUM_RESP_PROCESSED  */
+};
+
+static char *FDFCacheStatsDescStrings[] = {
+    "",/* FDF_CACHE_STAT_OVERWRITES_S */
+    "",/* FDF_CACHE_STAT_OVERWRITES_M */
+    "",/* FDF_CACHE_STAT_INPLACEOWR_S */
+    "placeowr_m",/* FDF_CACHE_STAT_INPLACEOWR_M */
+    "new_entries",/* FDF_CACHE_STAT_NEW_ENTRIES */
+    "writethrus",/* FDF_CACHE_STAT_WRITETHRUS */
+    "writebacks",/* FDF_CACHE_STAT_WRITEBACKS */
+    "flushes",/* FDF_CACHE_STAT_FLUSHES */
+    /* request from cache to flash manager */
+    "AHCOB",/* FDF_CACHE_STAT_AHCOB */
+    "AHCOP",/* FDF_CACHE_STAT_AHCOP */
+    "AHCWD", /* FDF_CACHE_STAT_AHCWD */
+    "AHDOB",/* FDF_CACHE_STAT_AHDOB */
+    "AHFLD",/* FDF_CACHE_STAT_AHFLD */
+    "AHGTR", /* FDF_CACHE_STAT_AHGTR */
+    "AHGTW", /* FDF_CACHE_STAT_AHGTW */
+    "AHPTA", /* FDF_CACHE_STAT_AHPTA */
+    "AHSOB", /* FDF_CACHE_STAT_AHSOB */
+    "AHSOP",/* FDF_CACHE_STAT_AHSOP */
+    /* Request from flash manager to cache */
+    "HACRC",/* FDF_CACHE_STAT_HACRC */
+    "HACRF",/* FDF_CACHE_STAT_HACRF */
+    "HACSC",/* FDF_CACHE_STAT_HACSC */
+    "HACSF",/* FDF_CACHE_STAT_HACSF */
+    "HADEC",/* FDF_CACHE_STAT_HADEC */
+    "HADEF",/* FDF_CACHE_STAT_HADEF */
+    "",/* FDF_CACHE_STAT_HAFLC */
+    "",/* FDF_CACHE_STAT_HAFLF */
+    "",/* FDF_CACHE_STAT_HAGRC */
+    "",/* FDF_CACHE_STAT_HAGRF */
+    "",/* FDF_CACHE_STAT_HAGWC */
+    "",/* FDF_CACHE_STAT_HAGWF */
+    "",/* FDF_CACHE_STAT_HAPAC */
+    "",/* FDF_CACHE_STAT_HAPAF */
+    "",/* FDF_CACHE_STAT_HASTC */
+    "",/* FDF_CACHE_STAT_HASTF */
+    "",/* FDF_CACHE_STAT_HFXST */
+    "",/* FDF_CACHE_STAT_FHXST */
+    "",/* FDF_CACHE_STAT_FHNXS */
+    "",/* FDF_CACHE_STAT_HFGFF */
+    "",/* FDF_CACHE_STAT_FHDAT */
+    "",/* FDF_CACHE_STAT_FHGTF */
+    "",/* FDF_CACHE_STAT_HFPTF */
+    "",/* FDF_CACHE_STAT_FHPTC */
+    "",/* FDF_CACHE_STAT_FHPTF */
+    "",/* FDF_CACHE_STAT_HFDFF */
+    "",/* FDF_CACHE_STAT_FHDEC */
+    "",/* FDF_CACHE_STAT_FHDEF */
+    "",/* FDF_CACHE_STAT_HFCIF */
+    "",/* FDF_CACHE_STAT_FHCRC */
+    "",/* FDF_CACHE_STAT_FHCRF */
+    "",/* FDF_CACHE_STAT_HFCZF */
+    "",/* FDF_CACHE_STAT_HFSET */
+    "",/* FDF_CACHE_STAT_HFSTC */
+    "",/* FDF_CACHE_STAT_FHSTF */
+    "",/* FDF_CACHE_STAT_HFCSH */
+    "",/* FDF_CACHE_STAT_FHCSC */
+    "",/* FDF_CACHE_STAT_FHCSF */
+    "",/* FDF_CACHE_STAT_HFSSH */
+    "",/* FDF_CACHE_STAT_FHSSC */
+    "",/* FDF_CACHE_STAT_FHSSF */
+    "",/* FDF_CACHE_STAT_HFDSH */
+    "",/* FDF_CACHE_STAT_FHDSC */
+    "",/* FDF_CACHE_STAT_FHDSF */
+    "",/* FDF_CACHE_STAT_HFGLS */
+    "",/* FDF_CACHE_STAT_FHGLC */
+    "",/* FDF_CACHE_STAT_FHGLF */
+    "",/* FDF_CACHE_STAT_HFGIC */
+    "",/* FDF_CACHE_STAT_FHGIC */
+    "",/* FDF_CACHE_STAT_FHGIF */
+    "",/* FDF_CACHE_STAT_HFGBC */
+    "",/* FDF_CACHE_STAT_FHGCC */
+    "",/* FDF_CACHE_STAT_FHGCF */
+    "",/* FDF_CACHE_STAT_HFGSN */
+    "",/* FDF_CACHE_STAT_HFGCS */
+    "",/* FDF_CACHE_STAT_FHGSC */
+    "",/* FDF_CACHE_STAT_FHGSF */
+    "",/* FDF_CACHE_STAT_HFSRR */
+    "",/* FDF_CACHE_STAT_FHSRC */
+    "",/* FDF_CACHE_STAT_FHSRF */
+    "",/* FDF_CACHE_STAT_HFSPR */
+    "",/* FDF_CACHE_STAT_FHSPC */
+    "",/* FDF_CACHE_STAT_FHSPF */
+    "",/* FDF_CACHE_STAT_HFFLA */
+    "",/* FDF_CACHE_STAT_FHFLC */
+    "",/* FDF_CACHE_STAT_FHFLF */
+    "",/* FDF_CACHE_STAT_HFRVG */
+    "",/* FDF_CACHE_STAT_FHRVC */
+    "",/* FDF_CACHE_STAT_FHRVF */
+    "",/* FDF_CACHE_STAT_HFNOP */
+    "",/* FDF_CACHE_STAT_FHNPC */
+    "",/* FDF_CACHE_STAT_FHNPF */
+   "", /* FDF_CACHE_STAT_HFOSH */
+    "",/* FDF_CACHE_STAT_FHOSC */
+    "",/* FDF_CACHE_STAT_FHOSF */
+    "",/* FDF_CACHE_STAT_HFFLS */
+    "",/* FDF_CACHE_STAT_FHFCC */
+    "",/* FDF_CACHE_STAT_FHFCF */
+    "",/* FDF_CACHE_STAT_HFFIV */
+    "",/* FDF_CACHE_STAT_FHFIC */
+    "",/* FDF_CACHE_STAT_FHFIF */
+    "",/* FDF_CACHE_STAT_HFINV */
+    "",/* FDF_CACHE_STAT_FHINC */
+    "",/* FDF_CACHE_STAT_FHINF */
+    "",/* FDF_CACHE_STAT_HFFLC */
+    "",/* FDF_CACHE_STAT_FHLCC */
+    "",/* FDF_CACHE_STAT_FHLCF */
+    "",/* FDF_CACHE_STAT_HFFLI */
+    "",/* FDF_CACHE_STAT_FHLIC */
+    "",/* FDF_CACHE_STAT_FHLIF */
+    "",/* FDF_CACHE_STAT_HFINC */
+    "",/* FDF_CACHE_STAT_FHCIC */
+    "",/* FDF_CACHE_STAT_FHCIF */
+    "",/* FDF_CACHE_STAT_EOK */
+    "",/* FDF_CACHE_STAT_EPERM */
+    "",/* FDF_CACHE_STAT_ENOENT */
+    "",/* FDF_CACHE_STAT_EDATASIZE */
+    "",/* FDF_CACHE_STAT_ESTOPPED */
+    "",/* FDF_CACHE_STAT_EBADCTNR */
+    "",/* FDF_CACHE_STAT_EDELFAIL */
+    "",/* FDF_CACHE_STAT_EAGAIN */
+    "",/* FDF_CACHE_STAT_ENOMEM */
+    "",/* FDF_CACHE_STAT_EACCES */
+    "",/* FDF_CACHE_STAT_EINCONS */
+    "",/* FDF_CACHE_STAT_EBUSY */
+    "",/* FDF_CACHE_STAT_EEXIST */
+    "",/* FDF_CACHE_STAT_EINVAL */
+    "",/* FDF_CACHE_STAT_EMFILE */
+    "",/* FDF_CACHE_STAT_ENOSPC */
+    "",/* FDF_CACHE_STAT_ENOBUFS */
+    "",/* FDF_CACHE_STAT_ESTALE */
+    "",/* FDF_CACHE_STAT_EDQUOT */
+    "",/* FDF_CACHE_STAT_RMT_EDELFAIL */
+    "",/* FDF_CACHE_STAT_RMT_EBADCTNR */
+    "",/* FDF_CACHE_STAT_HASH_BUCKETS */
+    "",/* FDF_CACHE_STAT_NUM_SLABS */
+    "",/* FDF_CACHE_STAT_NUM_ELEMENTS */
+    "",/* FDF_CACHE_STAT_MAX_SIZE */
+    "",/* FDF_CACHE_STAT_CURR_SIZE */
+    "",/* FDF_CACHE_STAT_CURR_SIZE_WKEYS */
+    "",/* FDF_CACHE_STAT_NUM_MODIFIED_OBJS */
+    "",/* FDF_CACHE_STAT_NUM_MODIFIED_OBJS_WKEYS */
+    "",/* FDF_CACHE_STAT_NUM_MODIFIED_OBJS_FLUSHED */
+    "",/* FDF_CACHE_STAT_NUM_MODIFIED_OBJS_BGFLUSHED */
+    "",/* FDF_CACHE_STAT_NUM_PENDING_REQS */
+    "",/* FDF_CACHE_STAT_NUM_MODIFIED_OBJC_REC */
+    "",/* FDF_CACHE_STAT_BGFLUSH_PROGRESS */
+    "",/* FDF_CACHE_STAT_NUM_BGFLUSH */
+    "",/* FDF_CACHE_STAT_NUM_FLUSH_PARALLEL */
+    "",/* FDF_CACHE_STAT_NUM_BGFLUSH_PARALLEL */
+    "",/* FDF_CACHE_STAT_BGFLUSH_WAIT */
+    "",/* FDF_CACHE_STAT_MODIFIED_PCT */
+    "",/* FDF_CACHE_STAT_NUM_APP_BUFFERS */
+    "",/* FDF_CACHE_STAT_NUM_CACHE_OPS_PROG */
+    "",/* FDF_CACHE_STAT_NUM_FGBUFFER_PROCESSED */
+    "",/* FDF_CACHE_STAT_NUM_RESP_PROCESSED  */
+};
+
 typedef enum {
     MCD_STAT_GET_KEY = 0,
     MCD_STAT_GET_DATA,
@@ -272,7 +642,8 @@ SDF_status_t delete_container_internal(
 FDF_status_t FDFGetStatsStr (
 	struct FDF_thread_state *fdf_thread_state,
 	FDF_cguid_t 			 cguid,
-	char 					*stats_str 
+	char 					*stats_str,
+    FDF_stats_t *stats
 	);
 
 void action_stats_new_cguid(SDF_internal_ctxt_t *pac, char *str, int size, SDF_cguid_t cguid);
@@ -441,6 +812,32 @@ static void fdf_fth_initer(uint64_t arg)
 
 #define STAT_BUFFER_SIZE 16384
 
+static void print_fdf_stats(FILE *log, FDF_stats_t *stats, char *disp_str) {
+    int i;
+    char buf[BUF_LEN];
+    fputs(disp_str,log); 
+    for (i = 0; i < FDF_N_FLASH_STATS; i++ ) {
+        if( stats->flash_stats[i] != 0 ) {
+            sprintf(buf,"%s = %lu\n",FDFFlashStatsSearchStrings[i],stats->flash_stats[i]);
+            fputs(buf,log);
+        }
+    }
+    for (i = 0; i < FDF_N_CACHE_STATS; i++ ) {
+        if( stats->cache_stats[i] != 0 ) {
+            sprintf(buf,"%s = %lu\n",FDFCacheStatsSearchStrings[i],stats->cache_stats[i]);
+            fputs(buf,log);
+        }
+    }
+    for (i = 0; i < FDF_N_ACCESS_TYPES; i++ ) {
+        if( stats->n_accesses[i] != 0 ) {
+            sprintf(buf,"%s = %lu\n",FDFAccessTypeSearchStrings[i],stats->n_accesses[i]);
+            fputs(buf,log);
+        }
+    }
+    fputs("---------\n",log); 
+    fflush(log);
+}
+
 static void *fdf_stats_thread(void *arg) {
     FDF_cguid_t cguids[128];
     uint32_t n_cguids;
@@ -448,6 +845,7 @@ static void *fdf_stats_thread(void *arg) {
     FILE *stats_log;
     int i;
     struct FDF_thread_state *thd_state;
+    FDF_stats_t stats;
 
 
     if ( FDF_SUCCESS != FDFInitPerThreadState( ( struct FDF_state * ) arg, ( struct FDF_thread_state ** ) &thd_state )) {
@@ -470,9 +868,14 @@ static void *fdf_stats_thread(void *arg) {
         }
         for ( i = 0; i < n_cguids; i++ ) {
             memset(stats_str,0,STAT_BUFFER_SIZE);
-            FDFGetStatsStr(thd_state,cguids[i],stats_str);
+            FDFGetStatsStr(thd_state,cguids[i],stats_str,NULL);
             fputs(stats_str,stats_log);
-            //fprintf(stderr,"%s",stats_str);
+            if ( getProperty_Int( "FDF_STATS_API_DEBUG", 0 ) == 1 ) {
+                FDFGetContainerStats(thd_state,cguids[i],&stats);
+                print_fdf_stats(stats_log,&stats,"Container\n");
+                FDFGetStats(thd_state,&stats);
+                print_fdf_stats(stats_log,&stats,"Flash\n");
+            }
             sleep(1);
         }
         sleep(10);
@@ -1908,7 +2311,7 @@ FDF_status_t FDFFlushCache(
 }
 
 static void fdf_get_fth_stats(SDF_internal_ctxt_t *pai, char ** ppos, int * lenp,
-                                 SDF_CONTAINER sdf_container)
+                                 SDF_CONTAINER sdf_container, FDF_stats_t *stats )
 {
     uint64_t            old_value;
     static uint64_t     idle_time = 0;
@@ -1923,6 +2326,8 @@ static void fdf_get_fth_stats(SDF_internal_ctxt_t *pai, char ** ppos, int * lenp
     extern uint64_t Mcd_num_pending_ios;
     plat_snprintfcat( ppos, lenp, "STAT pending_ios %lu\r\n",
                       Mcd_num_pending_ios );
+    if (stats != NULL)
+        stats->flash_stats[FDF_FLASH_STATS_PENDING_IOS] = Mcd_num_pending_ios;
 
     extern uint64_t Mcd_fth_waiting_io;
     plat_snprintfcat( ppos, lenp, "STAT fth_waiting_io %lu\r\n",
@@ -2003,7 +2408,7 @@ static void fdf_get_fth_stats(SDF_internal_ctxt_t *pai, char ** ppos, int * lenp
 }
 
 static void fdf_get_flash_stats( SDF_internal_ctxt_t *pai, char ** ppos, int * lenp,
-                                 SDF_CONTAINER sdf_container)
+                                 SDF_CONTAINER sdf_container, FDF_stats_t *stats)
 {
     uint64_t            space_allocated = 0;
     uint64_t            space_consumed = 0;
@@ -2049,18 +2454,24 @@ static void fdf_get_flash_stats( SDF_internal_ctxt_t *pai, char ** ppos, int * l
     plat_snprintfcat( ppos, lenp,
                       "STAT flash_space_allocated %lu\r\n",
                       space_allocated );
+    if (stats != NULL) 
+        stats->flash_stats[FDF_FLASH_STATS_SPACE_ALLOCATED] = space_allocated;
 
     SDFContainerStat( pai, sdf_container,
                              FLASH_SPACE_CONSUMED,
                              &space_consumed );
     plat_snprintfcat( ppos, lenp, "STAT flash_space_consumed %lu\r\n",
                       space_consumed );
+    if (stats != NULL) 
+        stats->flash_stats[FDF_FLASH_STATS_SPACE_CONSUMED] = space_consumed;
 
     SDFContainerStat( pai, sdf_container,
                              FLASH_NUM_OBJECTS,
                              &num_objects );
     plat_snprintfcat( ppos, lenp, "STAT flash_num_objects %lu\r\n",
                       num_objects );
+    if (stats != NULL) 
+        stats->flash_stats[FDF_FLASH_STATS_NUM_OBJS] = num_objects;
 
     SDFContainerStat( pai, sdf_container,
                              FLASH_NUM_CREATED_OBJECTS,
@@ -2068,12 +2479,16 @@ static void fdf_get_flash_stats( SDF_internal_ctxt_t *pai, char ** ppos, int * l
     plat_snprintfcat( ppos, lenp,
                       "STAT flash_num_created_objects %lu\r\n",
                       num_created_objects );
+    if (stats != NULL) 
+        stats->flash_stats[FDF_FLASH_STATS_NUM_CREATED_OBJS] = num_created_objects;
 
     SDFContainerStat( pai, sdf_container,
                              FLASH_NUM_EVICTIONS,
                              &num_evictions );
     plat_snprintfcat( ppos, lenp, "STAT flash_num_evictions %lu\r\n",
                       num_evictions );
+    if (stats != NULL) 
+        stats->flash_stats[FDF_FLASH_STATS_NUM_EVICTIONS] = num_evictions;
 
     SDFContainerStat( pai, sdf_container,
                                  FLASH_NUM_HASH_EVICTIONS,
@@ -2081,6 +2496,8 @@ static void fdf_get_flash_stats( SDF_internal_ctxt_t *pai, char ** ppos, int * l
     plat_snprintfcat( ppos, lenp,
                           "STAT flash_num_hash_evictions %lu\r\n",
                           num_hash_evictions );
+    if (stats != NULL) 
+        stats->flash_stats[FDF_FLASH_STATS_NUM_HASH_EVICTIONS] = num_hash_evictions;
 
     SDFContainerStat( pai, sdf_container,
                                  FLASH_NUM_INVAL_EVICTIONS,
@@ -2088,6 +2505,8 @@ static void fdf_get_flash_stats( SDF_internal_ctxt_t *pai, char ** ppos, int * l
     plat_snprintfcat( ppos, lenp,
                           "STAT flash_num_inval_evictions %lu\r\n",
                           num_inval_evictions );
+    if (stats != NULL) 
+        stats->flash_stats[FDF_FLASH_STATS_NUM_INVAL_EVICTIONS] = num_inval_evictions;
 
     SDFContainerStat( pai, sdf_container,
                                  FLASH_NUM_SOFT_OVERFLOWS,
@@ -2095,6 +2514,8 @@ static void fdf_get_flash_stats( SDF_internal_ctxt_t *pai, char ** ppos, int * l
     plat_snprintfcat( ppos, lenp,
                           "STAT flash_num_soft_overflows %lu\r\n",
                           num_hash_overflows );
+    if (stats != NULL) 
+        stats->flash_stats[FDF_FLASH_STATS_NUM_SOFT_OVERFLOWS] = num_hash_overflows;
 
     SDFContainerStat( pai, sdf_container,
                                  FLASH_NUM_HARD_OVERFLOWS,
@@ -2102,6 +2523,8 @@ static void fdf_get_flash_stats( SDF_internal_ctxt_t *pai, char ** ppos, int * l
     plat_snprintfcat( ppos, lenp,
                           "STAT flash_num_hard_overflows %lu\r\n",
                           num_hash_overflows );
+    if (stats != NULL) 
+        stats->flash_stats[FDF_FLASH_STATS_NUM_HARD_OVERFLOWS] = num_hash_overflows;
 
     SDFContainerStat( pai, sdf_container,
                              FLASH_GET_HASH_COLLISIONS,
@@ -2109,6 +2532,9 @@ static void fdf_get_flash_stats( SDF_internal_ctxt_t *pai, char ** ppos, int * l
     plat_snprintfcat( ppos, lenp,
                           "STAT flash_get_hash_collisions %lu\r\n",
                           get_hash_collisions );
+    if (stats != NULL)
+        stats->flash_stats[FDF_FLASH_STATS_GET_HASH_COLLISION] = get_hash_collisions;
+
 
     SDFContainerStat( pai, sdf_container,
                                  FLASH_SET_HASH_COLLISIONS,
@@ -2116,42 +2542,57 @@ static void fdf_get_flash_stats( SDF_internal_ctxt_t *pai, char ** ppos, int * l
     plat_snprintfcat( ppos, lenp,
                           "STAT flash_set_hash_collisions %lu\r\n",
                           set_hash_collisions );
+    if (stats != NULL)
+        stats->flash_stats[FDF_FLASH_STATS_SET_HASH_COLLISION] = set_hash_collisions;
 
     SDFContainerStat( pai, sdf_container,
                              FLASH_NUM_OVERWRITES,
                              &num_overwrites );
     plat_snprintfcat( ppos, lenp, "STAT flash_num_overwrites %lu\r\n",
                       num_overwrites );
+    if (stats != NULL)
+        stats->flash_stats[FDF_FLASH_STATS_NUM_OVERWRITES] = num_overwrites;
 
     SDFContainerStat( pai, sdf_container,
                              FLASH_OPS,
                              &num_ops );
     plat_snprintfcat( ppos, lenp, "STAT flash_num_ops %lu\r\n",
                       num_ops );
+    if (stats != NULL)
+        stats->flash_stats[FDF_FLASH_STATS_NUM_OPS] = num_ops;
 
     SDFContainerStat( pai, sdf_container,
                              FLASH_READ_OPS,
                              &num_read_ops );
+
     plat_snprintfcat( ppos, lenp, "STAT flash_num_read_ops %lu\r\n",
                       num_read_ops );
+    if (stats != NULL)
+        stats->flash_stats[FDF_FLASH_STATS_NUM_READ_OPS] = num_read_ops;
 
     SDFContainerStat( pai, sdf_container,
                              FLASH_NUM_GET_OPS,
                              &num_get_ops );
     plat_snprintfcat( ppos, lenp, "STAT flash_num_get_ops %lu\r\n",
                       num_get_ops );
+    if (stats != NULL)
+        stats->flash_stats[FDF_FLASH_STATS_NUM_GET_OPS] = num_get_ops;
 
     SDFContainerStat( pai, sdf_container,
                              FLASH_NUM_PUT_OPS,
                              &num_put_ops );
     plat_snprintfcat( ppos, lenp, "STAT flash_num_put_ops %lu\r\n",
                       num_put_ops );
+    if (stats != NULL)
+        stats->flash_stats[FDF_FLASH_STATS_NUM_PUT_OPS] = num_put_ops;
 
     SDFContainerStat( pai, sdf_container,
                              FLASH_NUM_DELETE_OPS,
                              &num_del_ops );
     plat_snprintfcat( ppos, lenp, "STAT flash_num_del_ops %lu\r\n",
                       num_del_ops );
+    if (stats != NULL)
+        stats->flash_stats[FDF_FLASH_STATS_NUM_DEL_OPS] = num_del_ops;
 
     SDFContainerStat( pai, sdf_container,
                                  FLASH_NUM_EXIST_CHECKS,
@@ -2159,6 +2600,8 @@ static void fdf_get_flash_stats( SDF_internal_ctxt_t *pai, char ** ppos, int * l
     plat_snprintfcat( ppos, lenp,
                           "STAT flash_get_exist_checks %lu\r\n",
                           num_ext_checks );
+    if (stats != NULL)
+        stats->flash_stats[FDF_FLASH_STATS_GET_EXIST_CHECKS] = num_ext_checks;
 
     SDFContainerStat( pai, sdf_container,
                                  FLASH_NUM_FULL_BUCKETS,
@@ -2166,6 +2609,8 @@ static void fdf_get_flash_stats( SDF_internal_ctxt_t *pai, char ** ppos, int * l
     plat_snprintfcat( ppos, lenp,
                           "STAT flash_num_full_buckets %lu\r\n",
                           num_full_buckets );
+    if (stats != NULL)
+        stats->flash_stats[FDF_FLASH_STATS_NUM_FULL_BUCKETS] = num_full_buckets;
 
     //mcd_osd_recovery_stats( mcd_osd_container_shard(c->mcd_container), ppos, lenp );
 
@@ -2198,8 +2643,47 @@ static uint64_t parse_count( char * buf, char * name )
 
     return x;
 }
+
+char *FDFGetStatsDescription(FDF_cache_stat_t stat) {
+    return FDFCacheStatsDescStrings[stat];
+}
+
+SDF_status_t fdf_parse_access_stats (char * stat_buf,FDF_stats_t *stats ) {
+    int i;                       
+    uint64_t val;
+                          
+    if (stats == NULL ) { 
+        return SDF_SUCCESS;
+    }   
+    for ( i = 0; i < FDF_N_ACCESS_TYPES; i++ ) {
+        val = parse_count( stat_buf, FDFAccessTypeSearchStrings[i] );
+        if ( val != 0 ) {        
+            stats->n_accesses[i] = val;
+        }
+    }                     
+    return SDF_SUCCESS;   
+}   
+
+
+SDF_status_t fdf_parse_cache_stats (char * stat_buf,FDF_stats_t *stats ) {
+    int i;
+    uint64_t val;
+
+    if (stats == NULL ) {
+        return SDF_SUCCESS;
+    }
+    //fprintf(stderr,"fdf_parse_cache_stats: %s\n",stat_buf);
+    for ( i = 0; i < FDF_N_CACHE_STATS; i++ ) {
+        val = parse_count( stat_buf, FDFCacheStatsSearchStrings[i] );
+        if ( val != 0 ) {
+            stats->cache_stats[i] = val;
+        }
+    }
+    return SDF_SUCCESS;
+}
+
 SDF_status_t
-fdf_parse_stats( char * stat_buf, int stat_key, uint64_t * pstat )
+fdf_parse_stats( char * stat_buf, int stat_key, uint64_t * pstat)
 {
     int         i;
     uint64_t    stats[MCD_NUM_SDF_STATS];
@@ -2246,7 +2730,7 @@ fdf_parse_stats( char * stat_buf, int stat_key, uint64_t * pstat )
 
 
 static void get_fdf_stats( SDF_internal_ctxt_t *pai, char ** ppos, int * lenp,
-                               SDF_CONTAINER sdf_container)
+                               SDF_CONTAINER sdf_container, FDF_stats_t *stat)
 {
     char                buf[BUF_LEN];
     uint64_t            n;
@@ -2277,9 +2761,9 @@ static void get_fdf_stats( SDF_internal_ctxt_t *pai, char ** ppos, int * lenp,
     fdf_parse_stats( buf, FDF_FLASH_CACHE_HITS, &sdf_flash_hits );
     fdf_parse_stats( buf, FDF_FLASH_CACHE_MISSES, &sdf_flash_misses );
     fdf_parse_stats( buf, FDF_DRAM_CACHE_CASTOUTS, &sdf_cache_evictions );
-    fdf_parse_stats( buf, FDF_DRAM_N_OVERWRITES, &sdf_n_overwrites);
-    fdf_parse_stats( buf, FDF_DRAM_N_IN_PLACE_OVERWRITES, &sdf_n_in_place_overwrites);
-    fdf_parse_stats( buf, FDF_DRAM_N_NEW_ENTRY, &sdf_n_new_entry);
+    fdf_parse_stats( buf, FDF_DRAM_N_OVERWRITES, &sdf_n_overwrites );
+    fdf_parse_stats( buf, FDF_DRAM_N_IN_PLACE_OVERWRITES, &sdf_n_in_place_overwrites );
+    fdf_parse_stats( buf, FDF_DRAM_N_NEW_ENTRY, &sdf_n_new_entry );
 
     plat_snprintfcat( ppos, lenp, "STAT sdf_cache_hits %lu\r\n",
                       sdf_cache_hits );
@@ -2310,6 +2794,8 @@ static void get_fdf_stats( SDF_internal_ctxt_t *pai, char ** ppos, int * lenp,
     plat_snprintfcat( ppos, lenp, "STAT sdf_cache_only_items %lu\r\n", n);
 
     plat_snprintfcat( ppos, lenp, "STAT %s", buf );
+    fdf_parse_access_stats(buf,stat);
+    fdf_parse_cache_stats(buf,stat);
 
 	/*
      * get stats for entire cache (for all cguid's)
@@ -2356,12 +2842,14 @@ static void get_proc_stats( char ** ppos, int * lenp )
 FDF_status_t FDFGetStatsStr (
     struct FDF_thread_state *fdf_thread_state,
     FDF_cguid_t 			 cguid,
-	char 					*stats_str 
+	char 					*stats_str,
+    FDF_stats_t *stats
 	) 
 {
     FDF_status_t status = SDF_FAILURE;
     SDF_CONTAINER sdf_container = containerNull;
     SDF_internal_ctxt_t *pai = (SDF_internal_ctxt_t *) fdf_thread_state;
+    time_t t;
     //SDF_status_t lock_status = SDF_SUCCESS;
     //SDF_cguid_t parent_cguid = SDF_NULL_CGUID;
     //int log_level = LOG_ERR;
@@ -2399,7 +2887,10 @@ FDF_status_t FDFGetStatsStr (
     memset( temp, 0, buf_len );
     pos = temp;
     buf_len -= strlen( "\r\nEND\r\n" ) + 1;
-
+    time(&t);
+    plat_snprintfcat( &pos, &buf_len, "STAT Time %s\r\n", ctime(&t) );    
+    plat_snprintfcat( &pos, &buf_len, "STAT Container Name %s\r\n", CtnrMap[i_ctnr].cname );
+    plat_snprintfcat( &pos, &buf_len, "STAT CGUID %lu\r\n", cguid );
     SDFContainerStat( pai, sdf_container, SDF_N_CURR_ITEMS, &n );
     plat_snprintfcat( &pos, &buf_len, "STAT curr_items %lu\r\n", n );
     SDFContainerStat( pai, sdf_container,
@@ -2413,9 +2904,9 @@ FDF_status_t FDFGetStatsStr (
                                          FLASH_SHARD_MAXBYTES, &maxbytes );
     plat_snprintfcat( &pos, &buf_len, "STAT limit_maxbytes %lu\r\n",
                               maxbytes );
-    fdf_get_flash_stats( pai, &pos, &buf_len, sdf_container );
-    fdf_get_fth_stats( pai, &pos, &buf_len, sdf_container );
-    get_fdf_stats(pai, &pos, &buf_len, sdf_container );
+    fdf_get_flash_stats( pai, &pos, &buf_len, sdf_container,stats);
+    fdf_get_fth_stats( pai, &pos, &buf_len, sdf_container,stats);
+    get_fdf_stats(pai, &pos, &buf_len, sdf_container,stats);
     get_proc_stats(&pos, &buf_len);
 out:
     //plat_log_msg(20819, LOG_CAT, log_level, "%s", SDF_Status_Strings[status]);
@@ -2496,7 +2987,17 @@ FDF_status_t FDFGetStats(
 	FDF_stats_t             *stats
 	)
 {
-    //  no-op in this simple implementation
+    char buf[BUF_LEN];
+    char *ptr;
+    if ( stats == NULL ) {
+        return FDF_SUCCESS;
+    }
+    memset (stats, 0, sizeof(FDF_stats_t));
+    SDF_internal_ctxt_t *pai = (SDF_internal_ctxt_t *)fdf_thread_state;
+    action_stats(pai, buf, BUF_LEN );
+    ptr = strstr(buf,"<CACHE>"); 
+    fdf_parse_access_stats(ptr,stats);
+    fdf_parse_cache_stats(ptr,stats);
     return( FDF_SUCCESS );
 }
 
@@ -2506,6 +3007,12 @@ FDF_status_t FDFGetContainerStats(
 	FDF_stats_t					*stats
 	)
 {
+    char stats_str[STAT_BUFFER_SIZE];
+    if ( stats == NULL ) {
+        return FDF_SUCCESS;
+    }
+    memset (stats, 0, sizeof(FDF_stats_t));
+    FDFGetStatsStr(fdf_thread_state,cguid,stats_str, stats);
     //  no-op in this simple implementation
     return( FDF_SUCCESS );
 }
