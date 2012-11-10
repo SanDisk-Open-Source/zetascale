@@ -38,7 +38,6 @@
 #include "shared/internal_blk_obj_api.h"
 #include "agent/agent_common.h"
 #include "agent/agent_helper.h"
-#include "agent/fdf_agent.h"
 
 #define LOG_ID PLAT_LOG_ID_INITIAL
 #define LOG_CAT PLAT_LOG_CAT_SDF_NAMING
@@ -296,9 +295,25 @@ static int fdf_check_delete_in_future(void *data)
 
 static void fdf_load_settings(flash_settings_t *osd_settings)
 {
-    (void) strcpy(osd_settings->aio_base, getProperty_String("AIO_BASE_FILENAME", "/schooner/data/schooner%d")); // base filename of flash files
+    /* Set properties which defaults isn't suitable for library */
+	insertProperty("SDF_PROP_FILE_VERSION", "1");
+	insertProperty("SHMEM_FAKE", "1");
+	insertProperty("MEMCACHED_STATIC_CONTAINERS", "1");
+	insertProperty("SDF_MSG_ENGINE_START", "0");
+	insertProperty("SDF_FLASH_PROTOCOL_THREADS", "1");
+	insertProperty("SDF_CC_BUCKETS", "1000");
+	insertProperty("SDF_CC_NSLABS", "100");
+
+    (void) strcpy(osd_settings->aio_base, getProperty_String("SDF_FLASH_FILENAME", "/tmp/schooner%d")); // base filename of flash files
+
+	/* This is added for compatibility with old property files which don't contain SDF_FLASH_FILENAME property */
+	const char *p = getProperty_String("AIO_BASE_FILENAME", osd_settings->aio_base);
+	if(p != osd_settings->aio_base)
+	    (void) strcpy(osd_settings->aio_base, p); // base filename of flash files
+
     osd_settings->aio_create          = 1;// use O_CREAT - membrain sets this to 0
-    osd_settings->aio_total_size      = getProperty_Int("AIO_FLASH_SIZE_TOTAL", 0); // this flash size counts!
+    osd_settings->aio_total_size      = getProperty_Int("SDF_FLASH_SIZE", 2); // this flash size counts! 2Gb by default
+    osd_settings->aio_total_size      = getProperty_Int("AIO_FLASH_SIZE_TOTAL", osd_settings->aio_total_size); // compatibility with old property files
     osd_settings->aio_sync_enabled    = getProperty_Int("AIO_SYNC_ENABLED", 0); // AIO_SYNC_ENABLED
     osd_settings->rec_log_verify      = 0;
     osd_settings->enable_fifo         = 1;
@@ -556,28 +571,21 @@ static void *fdf_run_schedulers(void *arg)
 /*
 ** API
 */
-FDF_status_t FDFLoadConfigDefaults(
-	FDF_config_t	*fdf_config,
-	char			*defaults_filename
-	)
+void FDFSetProperty(const char* property, const char* value)
 {
-	FDF_status_t	status = FDF_FAILURE;
+	value = strndup(value, 256);
 
-	if ( !fdf_config || defaults_filename ) {
-		return FDF_INVALID_PARAMETER;
-	}
+	if(value)
+		setProperty(property, (void*)value);
+}
 
-	// Load properties
-	if ( loadProperties( defaults_filename ) < 0 ) {
-		return FDF_INVALID_PARAMETER;
-	}
-
-	return status;
+int FDFLoadProperties(const char *prop_file)
+{
+	return prop_file ? loadProperties(prop_file) : 0;
 }
 
 FDF_status_t FDFInit(
-	struct FDF_state	**fdf_state, 
-	FDF_config_t		 *fdf_config
+	struct FDF_state	**fdf_state
 	)
 {
     int                 rc;
@@ -585,6 +593,7 @@ FDF_status_t FDFInit(
     pthread_attr_t      attr;
     uint64_t            num_sched;
     struct timeval 	timer;
+	const char	*prop_file;
 
     sem_init( &Mcd_initer_sem, 0, 0 );
 
@@ -593,17 +602,20 @@ FDF_status_t FDFInit(
 
     *fdf_state = (struct FDF_state *) &agent_state;
 
-    mcd_aio_register_ops();
-    mcd_osd_register_ops();
-
+	prop_file = getenv("FDF_PROPERTY_FILE");
+	if(prop_file)
+		loadProperties(prop_file);
 
     //  Initialize a crap-load of settings
     fdf_load_settings( &(agent_state.flash_settings) );
 
+    mcd_aio_register_ops();
+    mcd_osd_register_ops();
+
     //  Set the logging level
     set_log_level( agent_state.flash_settings.sdf_log_level );
 
-    if ( !fdf_agent_engine_pre_init( &agent_state ) ) {
+    if ( !agent_engine_pre_init( &agent_state, 0, NULL ) ) {
         return FDF_FAILURE; 
     }
 
@@ -795,11 +807,14 @@ static FDF_status_t fdf_create_container(
     SDF_internal_ctxt_t			*pai 						= (SDF_internal_ctxt_t *) fdf_thread_state;
 	SDF_container_props_t 		*sdf_properties				= NULL;
 
-	if ( ISEMPTY( cname ) ) {
+	if ( !properties || !cguid || !fdf_thread_state ||
+		  ISEMPTY( cname ) ) {
 		return FDF_INVALID_PARAMETER;
 	}
 
-    plat_log_msg(20819, LOG_CAT, LOG_INFO, "%s", cname);
+	*cguid = 0;
+
+     plat_log_msg(160035, LOG_CAT, LOG_INFO, "%s, size=%d bytes", cname, properties->size_kb * 1024);
 
     if (( !properties->evicting ) && ( !properties->writethru )) {
         plat_log_msg( 30572, LOG_CAT, LOG_ERR,
@@ -1058,7 +1073,10 @@ static FDF_status_t fdf_create_container(
 		}
     }
     SDFEndSerializeContainerOp( pai );
-    plat_log_msg( 21511, LOG_CAT, LOG_INFO, "%s - %s", cname, SDF_Status_Strings[status] );
+
+	plat_assert(status != SDF_SUCCESS || *cguid);
+
+    plat_log_msg(160034, LOG_CAT, LOG_INFO, "%s(cguid=%lu) - %s", cname, *cguid, SDF_Status_Strings[status]);
     return status;
 }
 
@@ -1084,6 +1102,9 @@ static FDF_status_t fdf_open_container(
 #endif /* SDFAPIONLY */
                         
     SDFStartSerializeContainerOp( pai );
+
+	if(!cguid)
+		return SDF_INVALID_PARAMETER;
 
     if ( ISEMPTY( cname ) ) { 
         status = SDF_INVALID_PARAMETER;
@@ -1217,19 +1238,31 @@ FDF_status_t FDFCloseContainer(
 	FDF_cguid_t  		     cguid
 	)
 {
+#ifdef SDFAPIONLY
+    //mcd_container_t 		cntr;
+    struct shard		*shard		= NULL;
+    flashDev_t              *flash_dev;
+    SDF_container_meta_t     meta;
+    FDF_status_t tmp_status;
+    struct SDF_shared_state *state = &sdf_shared_state;
+#endif
     FDF_status_t status = SDF_FAILURE;
     unsigned     n_descriptors;
     int  i_ctnr;
     SDF_CONTAINER container = containerNull;
     SDF_internal_ctxt_t     *pai = (SDF_internal_ctxt_t *) fdf_thread_state;
-    FDF_status_t lock_status = SDF_SUCCESS;
     int log_level = LOG_ERR;
     int ok_to_delete = 0;
     FDF_cguid_t parent_cguid = SDF_NULL_CGUID;
 
     plat_log_msg(21630, LOG_CAT, LOG_INFO, "%lu", cguid);
 
+	if(!cguid)
+		return SDF_INVALID_PARAMETER;
+
     SDFStartSerializeContainerOp(pai);
+
+	FDFFlushContainer(fdf_thread_state, cguid);
 
     i_ctnr = fdf_get_ctnr_from_cguid(cguid);
 
@@ -1267,6 +1300,50 @@ FDF_status_t FDFCloseContainer(
             log_level = LOG_INFO;
         }
 
+#ifdef SDFAPIONLY
+    	if ((status = name_service_get_meta(pai, cguid, &meta)) == SDF_SUCCESS) {
+
+			#ifdef MULTIPLE_FLASH_DEV_ENABLED
+				flash_dev = get_flashdev_from_shardid(state->config.flash_dev,
+											  meta.shard, state->config.flash_dev_count);
+			#else
+				flash_dev = state->config.flash_dev;
+			#endif
+			shard = shardFind(flash_dev, meta.shard);
+
+			if(shard)
+			{
+				((mcd_osd_shard_t*)shard)->open = 0;
+
+				shardSync(shard);
+			}
+		}
+
+	    // Invalidate all of the container's cached objects
+	    if ((status = name_service_inval_object_container(pai, path)) != SDF_SUCCESS) {
+		plat_log_msg(21540, LOG_CAT, LOG_ERR,
+			     "%s - failed to flush and invalidate container", path);
+		log_level = LOG_ERR;
+	    } else {
+		plat_log_msg(21541, LOG_CAT, LOG_DBG,
+			     "%s - flush and invalidate container succeed", path);
+	    }
+
+		if ((tmp_status = name_service_get_meta_from_cname(pai, path, &meta)) == SDF_SUCCESS) {
+		    tmp_status = SDFActionDeleteContainer(pai, &meta);
+		    if (tmp_status != SDF_SUCCESS) {
+			// xxxzzz container will be left in a weird state!
+			plat_log_msg(21542, LOG_CAT, LOG_ERR,
+				"%s - failed to delete action thread container state", path);
+			log_level = LOG_ERR;
+		    } else {
+			plat_log_msg(21543, LOG_CAT, LOG_DBG,
+				"%s - action thread delete container state succeeded", path);
+		    }
+		}
+#endif
+
+#if 0 // not used
         // FIXME: This is where shardClose call goes.
         if (n_descriptors == 1) {
             #define MAX_SHARDIDS 32 // Not sure what max is today
@@ -1277,78 +1354,26 @@ FDF_status_t FDFCloseContainer(
                 //shardClose(shardids[i]);
             }
         }
+#endif
 
         if ( status == SDF_SUCCESS ) {
     		CtnrMap[i_ctnr].sdf_container = containerNull;
 
-            if ( ok_to_delete && (status = name_service_lock_meta( pai, path )) == SDF_SUCCESS ) {
+			if(ok_to_delete)
+			{
+			    plat_log_msg(160031, LOG_CAT, LOG_INFO, "Delete request pending. Deleting... cguid=%lu", cguid);
 
-                // Flush and invalidate all of the container's cached objects
-                if ((status = name_service_inval_object_container(pai, path)) != SDF_SUCCESS) {
-                    plat_log_msg(21540, LOG_CAT, LOG_ERR,
-                                 "%s - failed to flush and invalidate container", path);
-                    log_level = LOG_ERR;
-                } else {
-                    plat_log_msg(21541, LOG_CAT, LOG_DBG,
-                                 "%s - flush and invalidate container succeed", path);
-                }
+		    	status = delete_container_internal_low(pai, path, SDF_FALSE /* serialize */, NULL);
 
-                // Remove the container shards
-                if (status == SDF_SUCCESS &&
-                    (status = name_service_delete_shards(pai, path)) != SDF_SUCCESS) {
-                    plat_log_msg(21544, LOG_CAT, LOG_ERR,
-                                 "%s - failed to delete container shards", path);
-                    log_level = LOG_ERR;
-                } else {
-                    plat_log_msg(21545, LOG_CAT, LOG_DBG,
-                                 "%s - delete container shards succeeded", path);
-                }
-
-                // Remove the container metadata
-                if (status == SDF_SUCCESS &&
-                    (status = name_service_remove_meta(pai, path)) != SDF_SUCCESS) {
-                    plat_log_msg(21546, LOG_CAT, LOG_ERR,
-                                 "%s - failed to remove metadata", path);
-                    log_level = LOG_ERR;
-                } else {
-                    plat_log_msg(21547, LOG_CAT, LOG_DBG,
-                                 "%s - remove metadata succeeded", path);
-                }
-
-                // Unlock the metadata - only return lock error status if no other errors
-                if ((lock_status == name_service_unlock_meta(pai, path)) != SDF_SUCCESS) {
-                    plat_log_msg(21548, LOG_CAT, LOG_ERR,
-                                 "%s - failed to unlock metadata", path);
-                    if (status == SDF_SUCCESS) {
-                        status = lock_status;
-                        log_level = LOG_ERR;
-                    }
-                } else {
-                    plat_log_msg(21549, LOG_CAT, LOG_DBG,
-                                 "%s - unlock metadata succeeded", path);
-                }
-
-                // Remove the container guid map
-                if (status == SDF_SUCCESS &&
-                    name_service_remove_cguid_map(pai, path) != SDF_SUCCESS) {
-                    plat_log_msg(21550, LOG_CAT, LOG_ERR,
-                                 "%s - failed to remove cguid map", path);
-                    log_level = LOG_ERR;
-                } else {
-                    plat_log_msg(21551, LOG_CAT, LOG_DBG,
-                                 "%s - remove cguid map succeeded", path);
-                }
-		
-				// Clean up the container map
-    			plat_free( CtnrMap[i_ctnr].cname );
-    			CtnrMap[i_ctnr].cname			= NULL;
-    			CtnrMap[i_ctnr].cguid			= 0;
-    			CtnrMap[i_ctnr].cid				= SDF_NULL_CID;
-            }
+	    		CtnrMap[i_ctnr].cguid         = 0;
+	    		CtnrMap[i_ctnr].cname			= NULL;
+	    		CtnrMap[i_ctnr].cid				= SDF_NULL_CID;
+			}
         }
     }
 
 out:
+
     plat_log_msg(20819, LOG_CAT, log_level, "%s", SDF_Status_Strings[status]);
 
     SDFEndSerializeContainerOp(pai);
@@ -1372,10 +1397,15 @@ FDF_status_t FDFDeleteContainer(
 				  "%lu", 
 				  cguid );
 
+	if(!cguid)
+		return SDF_INVALID_PARAMETER;
+
+    SDFStartSerializeContainerOp(pai);
+
     i_ctnr = fdf_get_ctnr_from_cguid( cguid );
 
     if ( i_ctnr >= 0 && !ISEMPTY( CtnrMap[i_ctnr].cname ) ) {
-        status = delete_container_internal_low( pai, CtnrMap[i_ctnr].cname, SDF_TRUE /* serialize */, &ok_to_delete );
+        status = delete_container_internal_low( pai, CtnrMap[i_ctnr].cname, SDF_FALSE /* serialize */, &ok_to_delete );
 
         plat_free( CtnrMap[i_ctnr].cname );
         CtnrMap[i_ctnr].cname = NULL;
@@ -1400,6 +1430,8 @@ FDF_status_t FDFDeleteContainer(
 				  LOG_INFO, 
 				  "%s", 
 				  SDF_Status_Strings[status] );
+
+    SDFEndSerializeContainerOp(pai);
 
     return status;
 }
@@ -1437,6 +1469,9 @@ FDF_status_t FDFGetContainerProps(
     SDF_container_meta_t     	 meta;
     SDF_internal_ctxt_t     	*pai 	= (SDF_internal_ctxt_t *) fdf_thread_state;
 
+	if(!cguid)
+		return SDF_INVALID_PARAMETER;
+
     SDFStartSerializeContainerOp(pai);  
     if (( status = name_service_get_meta( pai, cguid, &meta )) == SDF_SUCCESS ) {
 		status = fdf_create_fdf_props( &meta.properties, pprops );
@@ -1456,6 +1491,9 @@ FDF_status_t FDFSetContainerProps(
     SDF_container_meta_t     meta;
     SDF_internal_ctxt_t     *pai = (SDF_internal_ctxt_t *) fdf_thread_state;
 	SDF_container_props_t	 sdf_properties;
+
+	if(!cguid)
+		return SDF_INVALID_PARAMETER;
 
     SDFStartSerializeContainerOp(pai);
     if (( status = name_service_get_meta( pai, cguid, &meta )) == SDF_SUCCESS ) {
@@ -1564,6 +1602,9 @@ FDF_status_t FDFWriteObject(
     SDF_action_init_t  *pac;
     FDF_status_t        status;
 
+ 	if(!cguid)
+ 		return SDF_INVALID_PARAMETER;
+ 
     pac = (SDF_action_init_t *) fdf_thread_state;
 
 	if ( flags & FDF_WRITE_MUST_EXIST ) {
@@ -1602,9 +1643,12 @@ FDF_status_t FDFDeleteObject(
     SDF_appreq_t        ar;
     SDF_action_init_t  *pac;
     FDF_status_t        status;
-    
+
+	if(!cguid)
+		return SDF_INVALID_PARAMETER;
+
     pac = (SDF_action_init_t *) fdf_thread_state;
-    
+
     ar.reqtype = APDBE;
     ar.prefix_delete = 0;
     ar.curtime = 0;
@@ -1615,9 +1659,9 @@ FDF_status_t FDFDeleteObject(
     if ((status=SDFObjnameToKey(&(ar.key), (char *) key, keylen)) != SDF_SUCCESS) {
         return(status); 
     }
-    
+
     ActionProtocolAgentNew(pac, &ar);
-    
+
     return(ar.respStatus);
 }
 
@@ -1637,6 +1681,9 @@ FDF_status_t FDFEnumerateContainerObjects(
     struct SDF_shared_state    *state = &sdf_shared_state;
     flashDev_t                 *flash_dev;
     struct FDF_iterator        *iterator;
+
+	if(!cguid)
+		return SDF_INVALID_PARAMETER;
 
     if (( status = name_service_get_meta( pai, cguid, &meta )) != SDF_SUCCESS ) {
         fprintf( stderr, "sdf_enumerate: failed to get meta for cguid: %lu\n", cguid );
@@ -1770,7 +1817,8 @@ FDF_status_t FDFFinishEnumeration(
     uint64_t                    curr_seqno;
     uint32_t                    version;
 
-	plat_assert( iterator );
+	if(!iterator)
+		return SDF_INVALID_PARAMETER;
 
     // stop the backup
     status = backup_container( iterator->shard,
@@ -1844,6 +1892,18 @@ FDF_status_t FDFFlushCache(
 	struct FDF_thread_state  *fdf_thread_state
 	)
 {
+	FDF_status_t status;
+    int   i;
+
+    for (i = 0; i < MCD_MAX_NUM_CNTRS; i++) {
+        if( CtnrMap[i].cguid != 0 ) {
+            status = FDFFlushContainer(fdf_thread_state, Mcd_containers[i].cguid);
+
+			if(status != FDF_SUCCESS)
+				return status;
+        }
+    }
+
     return(FDF_SUCCESS);
 }
 
@@ -2317,7 +2377,11 @@ FDF_status_t FDFGetStatsStr (
     FDF_container_props_t       dummy_prop;
     memset( (void *)&dummy_prop, 0, sizeof(dummy_prop) );
 
-    //SDFStartSerializeContainerOp(pai);
+	if(!cguid)
+		return SDF_INVALID_PARAMETER;
+
+    SDFStartSerializeContainerOp(pai);
+
     //fprintf(stderr,"Container CGID:%u\n",cguid);
     i_ctnr = fdf_get_ctnr_from_cguid(cguid);
     if (i_ctnr == -1) {
@@ -2327,6 +2391,8 @@ FDF_status_t FDFGetStatsStr (
     else {
         sdf_container = CtnrMap[i_ctnr].sdf_container;
     }
+
+    SDFEndSerializeContainerOp(pai);
 
     buf_len = STAT_BUFFER_SIZE;
     temp = stats_str;
@@ -2573,7 +2639,7 @@ FDF_status_t FDFStartContainer(
         }
     }
 
-    SDFEndSerializeContainerOp(pai);
+	SDFEndSerializeContainerOp(pai);
 
     plat_log_msg(20819, LOG_CAT, LOG_INFO, "%s", SDF_Status_Strings[status]);
 

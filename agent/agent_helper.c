@@ -370,6 +370,7 @@ agent_config_set_defaults(struct plat_opts_config_sdf_agent *config)
     strncpy(config->flashDevName, "/dev/flash", sizeof(config->flashDevName));
 
     #ifdef SDFAPI
+	//EF: Not used in SDFAPI should be removed
 	if ((s = getenv("FDF_PROPERTY_FILE"))) {
 	    strncpy(config->propertyFileName, 
 		    s, 
@@ -401,9 +402,11 @@ int property_file_report_version( char **bufp, int *lenp)
 int
 agent_config_set_properties(struct plat_opts_config_sdf_agent *config)
 {
-    int success;
+    int success = 1;
 
+#ifndef SDFAPIONLY
     success = !loadProperties(config->propertyFileName);
+#endif
 
     SDFPropertyFileVersionFound = getProperty_uLongInt("SDF_PROP_FILE_VERSION", 0);
 
@@ -598,10 +601,6 @@ SDF_boolean_t agent_engine_pre_init(struct sdf_agent_state *state, int argc, cha
                      success ? LOG_LEV : PLAT_LOG_LEVEL_INFO,
                      "set properties SUCCESS = %u", success);
     }
-
-#ifdef SDFAPIONLY
-    (void ) strcpy(state->flash_settings.aio_base, getProperty_String("AIO_BASE_FILENAME", "/schooner/backup/schooner%d"));
-#endif /* SDFAPIONLY */
 
     if (success && !state->config.log_less) {
         set_debug_flags();

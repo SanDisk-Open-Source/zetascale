@@ -1114,10 +1114,10 @@ int mcd_aio_init( void * state, char * dname )
      * get total flash size from property file
      */
     Mcd_aio_total_size = getProperty_Int( "AIO_FLASH_SIZE_TOTAL", 0 );
-    Mcd_aio_total_size *= ( 1024 * 1024 * 1024 );
     if ( 0 != flash_settings.aio_total_size ) {
         Mcd_aio_total_size = flash_settings.aio_total_size;
     }
+    Mcd_aio_total_size *= ( 1024 * 1024 * 1024 );
     if ( 0 == Mcd_aio_total_size ) {
         mcd_log_msg(20051, PLAT_LOG_LEVEL_FATAL,
                      "Please specify total flash size with the property file"

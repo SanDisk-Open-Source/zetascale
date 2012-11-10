@@ -235,7 +235,7 @@ void* worker(void *arg)
     {
 		sprintf(key_str, "key%04ld-%08d", (long) arg, i);
 		sprintf(key_data, "key%04ld-%08d_data", (long) arg, i);
-		status = fdf_set(_fdf_thd_state, cguid, key_str, strlen(key_str), key_data, strlen(key_data));
+		status = fdf_set(_fdf_thd_state, cguid, key_str, strlen(key_str) + 1, key_data, strlen(key_data) + 1);
 		if (FDF_SUCCESS != status ) {
 	    	fprintf(stderr, "fdf_set: %s - %s\n", key_str, SDF_Status_Strings[status]);
 		}
@@ -249,7 +249,7 @@ void* worker(void *arg)
     {
 		sprintf(key_str, "key%04ld-%08d", (long) arg, i);
 		sprintf(key_data, "key%04ld-%08d_data", (long) arg, i);
-    	status = fdf_get(_fdf_thd_state, cguid, key_str, strlen(key_str), &data, &datalen);
+    	status = fdf_get(_fdf_thd_state, cguid, key_str, strlen(key_str) + 1, &data, &datalen);
 		if (FDF_SUCCESS != status ) {
 	    	fprintf(stderr, "fdf_get: %s - %s\n", key_str, SDF_Status_Strings[status]);
 		}
@@ -278,7 +278,6 @@ int main(int argc, char *argv[])
 {
     struct FDF_thread_state 	*_fdf_thd_state;
     char 						 name[32];
-    FDF_config_t                 fdf_config;
 
 	if ( argc < 4 ) {
 		fprintf( stderr, "Usage: %s <size> <threads> <iterations>\n", argv[0] );
@@ -290,27 +289,19 @@ int main(int argc, char *argv[])
 		fprintf(stderr, "size=%d, hreads=%d, iterations=%d\n", size, threads, iterations);
 	}
 
-    fdf_config.version                      = 1;
-    fdf_config.n_flash_devices              = 1;
-    fdf_config.flash_base_name              = "/schooner/data/schooner%d";
-    fdf_config.flash_size_per_device_gb     = 12;
-    fdf_config.dram_cache_size_gb           = 8;
-    fdf_config.n_cache_partitions           = 100;
-    fdf_config.reformat                     = 1;
-    fdf_config.max_object_size              = 1048576;
-    fdf_config.max_background_flushes       = 8;
-    fdf_config.background_flush_msec        = 1000;
-    fdf_config.max_outstanding_writes       = 32;
-    fdf_config.cache_modified_fraction      = 1.0;
-    fdf_config.max_flushes_per_mod_check    = 32;
-        
+    FDFSetProperty("SDF_FLASH_FILENAME", "/schooner/data/schooner%d");
+    FDFSetProperty("SDF_FLASH_SIZE", "12");
+    FDFSetProperty("SDF_CC_MAXCACHESIZE", "1000000000");
+
+	//FDFLoadProperties("/schooner/backup/evgeny/membrain-4.2/membrain/server/sdf/api/really_really_simple.prop");
+
     sprintf(name, "%s-foo", base);
 
     pthread_t thread_id[threads];
 
     int i;
 
-    if ( FDFInit( &fdf_state, &fdf_config ) != FDF_SUCCESS ) {
+    if ( FDFInit( &fdf_state ) != FDF_SUCCESS ) {
         fprintf( stderr, "FDF initialization failed!\n" );
         plat_assert( 0 );
     }

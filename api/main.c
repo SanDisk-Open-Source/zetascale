@@ -284,7 +284,7 @@ SDF_status_t sdf_delete (
 
 void* worker(void *arg)
 {
-#define NUM_VALUES 100000
+#define NUM_VALUES 10
     int i;
 
     struct SDF_thread_state *_sdf_thd_state;
@@ -311,7 +311,7 @@ void* worker(void *arg)
     {
 	sprintf(key_str, "key%04ld-%08d", (long) arg, i);
 	sprintf(key_data, "key%04ld-%08d_data", (long) arg, i);
-	status = sdf_create(_sdf_thd_state, cguid, key_str, strlen(key_str), key_data, strlen(key_data));
+	status = sdf_create(_sdf_thd_state, cguid, key_str, strlen(key_str) + 1, key_data, strlen(key_data) + 1);
 	if (SDF_SUCCESS != status ) {
 	    fprintf(stderr, "sdf_create: %s - %s\n", key_str, SDF_Status_Strings[status]);
 	}
@@ -323,7 +323,7 @@ void* worker(void *arg)
     {
 	sprintf(key_str, "key%04ld-%08d", (long) arg, i);
 	sprintf(key_data, "key%04ld-%08d_data", (long) arg, i);
-    	status = sdf_get(_sdf_thd_state, cguid, key_str, strlen(key_str), &data, &datalen);
+    	status = sdf_get(_sdf_thd_state, cguid, key_str, strlen(key_str) + 1, &data, &datalen);
 	if (SDF_SUCCESS != status ) {
 	    fprintf(stderr, "sdf_get: %s - %s\n", key_str, SDF_Status_Strings[status]);
 	}
@@ -336,7 +336,7 @@ void* worker(void *arg)
     {
 	sprintf(key_str, "key%04ld-%08d", (long) arg, i);
 	sprintf(key_data, "KEY%04ld-%08d_data", (long) arg, i);
-    	status = sdf_put(_sdf_thd_state, cguid, key_str, strlen(key_str), key_data, strlen(key_data));
+    	status = sdf_put(_sdf_thd_state, cguid, key_str, strlen(key_str) + 1, key_data, strlen(key_data) + 1);
 	if (SDF_SUCCESS != status ) {
 	    fprintf(stderr, "sdf_put: %s - %s\n", key_str, SDF_Status_Strings[status]);
 	}
@@ -361,14 +361,14 @@ void* worker(void *arg)
     {
 	sprintf(key_str, "key%04ld-%08d", (long) arg, i);
 	sprintf(key_data, "key%04ld-%08d_data", (long) arg, i);
-	plat_assert(sdf_create(_sdf_thd_state, cguid_shared, key_str, strlen(key_str), key_data, strlen(key_data)) == SDF_SUCCESS);
+	plat_assert(sdf_create(_sdf_thd_state, cguid_shared, key_str, strlen(key_str) + 1, key_data, strlen(key_data) + 1) == SDF_SUCCESS);
     }
 
     for(i = 0; i < NUM_VALUES; i++)
     {
 	sprintf(key_str, "key%04ld-%08d", (long) arg, i);
 	sprintf(key_data, "key%04ld-%08d_data", (long) arg, i);
-    	plat_assert(sdf_get(_sdf_thd_state, cguid_shared, key_str, strlen(key_str), &data, &datalen) == SDF_SUCCESS);
+    	plat_assert(sdf_get(_sdf_thd_state, cguid_shared, key_str, strlen(key_str) + 1, &data, &datalen) == SDF_SUCCESS);
 	plat_assert(!memcmp(data, key_data, 11));	
     }
 
@@ -400,6 +400,12 @@ int main(int argc, char *argv[])
     pthread_t thread_id[NUM_THREADS];
 
     int i;
+
+	//SDFSetProperty("SDF_FLASH_FILENAME", "/mnt/ssd/schooner%d");
+	//SDFSetProperty("SDF_FLASH_SIZE_TOTAL", "16");
+
+	//char* props = "/schooner/backup/evgeny/membrain-4.2/membrain/server/sdf/api/really_really_simple.prop";
+	//SDFLoadProperties(props);
 
     if (SDFInit(&sdf_state, 0, NULL) != SDF_SUCCESS) {
 	fprintf(stderr, "SDF initialization failed!\n");

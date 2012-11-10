@@ -489,6 +489,29 @@ typedef struct {
 #endif
 
 /**
+ * @brief set FDF property
+ *
+ * @param propery <IN> property name
+ * @param value <IN> pointer to value
+ * 
+ */
+void SDFSetProperty(
+	const char* property,
+	const char* value
+	);
+
+/**
+ * @brief Load properties from specified file
+ *
+ * @param propery <IN> properties file name
+ * @return 0 on success
+ * 
+ */
+int SDFLoadProperties(
+	const char* prop_file
+	);
+
+/**
  * @brief FDF initialization
  *
  * @param fdf_state <IN> FDF state variable
@@ -634,6 +657,17 @@ SDF_status_t SDFFlushContainer(
 	struct SDF_thread_state  *sdf_thread_state,
 	SDF_cguid_t               cguid,
 	SDF_time_t                current_time
+	);
+
+/**
+ * @brief Force any buffered changes to any container to storage and sync storage.
+ *
+ *  @param sdf_thread_state <IN> The SDF context for which this operation applies.
+ *
+ *  @return SDF_SUCCESS on success
+ */
+SDF_status_t SDFFlushCache (
+	struct SDF_thread_state *sdf_thread_state
 	);
 
 /**
@@ -828,17 +862,6 @@ SDF_cguid_t SDFGenerateCguid(
         struct SDF_thread_state *sdf_thread_state,
         int64_t             cntr_id64
         );
-
-/**
- * @brief Flush the cache
- *
- * @param current_time  <IN> time
- * @return SDF_SUCCESS on success
- */
-SDF_status_t SDFFlushCache(
-	struct SDF_thread_state  *sdf_thread_state,
-	SDF_time_t                current_time
-	);
 
 /**
  * @brief Enumerate container objects

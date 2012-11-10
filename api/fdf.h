@@ -765,23 +765,6 @@ typedef struct FDF_state {
 
 } FDF_state_t;
 
-
-typedef struct {
-	uint32_t		 version;
-	uint32_t		 n_flash_devices;
-	char			*flash_base_name;
-	uint32_t		 flash_size_per_device_gb;
-	uint32_t		 dram_cache_size_gb;
-	uint32_t		 n_cache_partitions;
-	FDF_boolean_t	 reformat;
-	uint32_t		 max_object_size;
-	uint32_t		 max_background_flushes;
-	uint32_t		 background_flush_msec;
-	uint32_t		 max_outstanding_writes;
-	double			 cache_modified_fraction;
-	uint32_t		 max_flushes_per_mod_check;
-} FDF_config_t;
-
 typedef struct {
 	uint64_t		n;
 	uint64_t		min;
@@ -1045,26 +1028,37 @@ struct FDF_thread_state;
 struct FDF_iterator;
 
 /**
- * @brief FDF load default container properties
+ * @brief set FDF property
  *
- * @param props <IN> FDF container properties pointer
- * @return FDF_SUCCESS on success
+ * @param propery <IN> property name
+ * @param value <IN> pointer to value
+ * 
  */
-FDF_status_t FDFLoadConfigDefaults(
-	FDF_config_t	*fdf_config;
-	char			*defaults_filename;
+void FDFSetProperty(
+	const char* property,
+	const char* value
+	);
+
+/**
+ * @brief Load properties from specified file
+ *
+ * @param proper_file <IN> properties file
+ * @return 0 on success
+ * 
+ */
+int FDFLoadProperties(
+	const char *prop_file
 	);
 
 /**
  * @brief FDF initialization
  *
  * @param fdf_state <OUT> FDF state variable
- * @param fdf_config <IN> FDF configuration
+ * @param prop_file <IN> FDF property file or NULL
  * @return FDF_SUCCESS on success
  */
 FDF_status_t FDFInit(
-	struct FDF_state	**fdf_state, 
-	FDF_config_t		 *fdf_config
+	struct FDF_state	**fdf_state
 	);
 
 /**

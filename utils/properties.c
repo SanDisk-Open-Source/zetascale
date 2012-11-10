@@ -94,9 +94,12 @@ int getPropertyFromFile(const char *prop_file, char *inKey, char *outVal) {
 
 int loadProperties(const char *path_arg)
 {
+#ifndef SDFAPIONLY
+    /* In SDF library the hash can be initialized already by SDFSetPropery API*/
     if (NULL != _sdf_globalPropertiesMap) {
         return 0;
     }
+#endif
 
     int ret = 0;
     const char *path = NULL;
@@ -152,13 +155,19 @@ int loadProperties(const char *path_arg)
             str++;
         }
         val = strndup(beg, str-beg);
-        
+       
+#ifdef SDFAPIONLY 
+		/* in SDF library properties from file override properties 
+           set in runtime using SDFSetProperty */
+        setProperty(key, val);
+#else
         if (0 != insertProperty(key, val)) {
             ret--;
             plat_log_msg(21757, PLAT_LOG_CAT_PRINT_ARGS,
                      PLAT_LOG_LEVEL_INFO,
                      "Parsed property error (ret:%d)('%s', '%s')", ret, key, val);
         }
+#endif
 
         /**
          * XXX: drew 2008-12-17 It would be better to log at the point of use
@@ -183,6 +192,12 @@ int insertProperty(const char *key, void* value)
 
 int setProperty(const char *key, void* value)
 {
+#ifdef SDFAPIONLY
+    /* SDFSetPropery may be called before loadProperties, initialize the hash here in this case */
+    if (!_sdf_globalPropertiesMap) {
+        initializeProperties();
+    }
+#endif
     if (SDF_TRUE != HashMap_put(_sdf_globalPropertiesMap, key, value)) {
         void *p = HashMap_replace(_sdf_globalPropertiesMap, key, value);
         if (p) {

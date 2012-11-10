@@ -197,10 +197,20 @@ static int sdf_check_delete_in_future(void *data)
 
 static void load_settings(flash_settings_t *osd_settings)
 {
-    (void) strcpy(osd_settings->aio_base, getProperty_String("AIO_BASE_FILENAME", "/schooner/data/schooner%d")); // base filename of flash files
-//    (void) strcpy(osd_settings->aio_base, getProperty_String("AIO_BASE_FILENAME", "/schooner/backup/schooner%d")); // base filename of flash files
+    /* Set properties which defaults isn't suitable for library */
+	insertProperty("SDF_PROP_FILE_VERSION", "1");
+	insertProperty("SHMEM_FAKE", "1");
+	insertProperty("MEMCACHED_STATIC_CONTAINERS", "1");
+	insertProperty("SDF_MSG_ENGINE_START", "0");
+	insertProperty("SDF_FLASH_PROTOCOL_THREADS", "1");
+	insertProperty("SDF_CC_BUCKETS", "1000");
+	insertProperty("SDF_CC_NSLABS", "100");
+
+    (void) strcpy(osd_settings->aio_base, getProperty_String("SDF_FLASH_FILENAME", "/schooner/data/schooner%d")); // base filename of flash files
+
     osd_settings->aio_create          = 1;// use O_CREAT - membrain sets this to 0
-    osd_settings->aio_total_size      = getProperty_Int("AIO_FLASH_SIZE_TOTAL", 0); // this flash size counts!
+    osd_settings->aio_total_size      = getProperty_Int("SDF_FLASH_SIZE", 0); // this flash size counts!
+    osd_settings->aio_total_size      = getProperty_Int("AIO_FLASH_SIZE_TOTAL", osd_settings->aio_total_size); // compatibility with old property files
     osd_settings->aio_sync_enabled    = getProperty_Int("AIO_SYNC_ENABLED", 0); // AIO_SYNC_ENABLED
     osd_settings->rec_log_verify      = 0;
     osd_settings->enable_fifo         = 1;
@@ -446,6 +456,19 @@ static void *run_schedulers(void *arg)
     return(NULL);
 }
 
+void SDFSetProperty(const char* property, const char* value)
+{
+	value = strndup(value, 256);
+
+	if(value)
+		setProperty(property, (void*)value);
+}
+
+int SDFLoadProperties(const char* prop_file)
+{
+	return prop_file ? loadProperties(prop_file) : 0;
+}
+
 /*
 ** API
 */
@@ -460,6 +483,7 @@ SDF_status_t SDFInit(
     pthread_attr_t      attr;
     uint64_t            num_sched;
     struct timeval 	timer;
+	const char	*prop_file;
 
     sem_init( &Mcd_initer_sem, 0, 0 );
 
@@ -468,12 +492,16 @@ SDF_status_t SDFInit(
 
     *sdf_state = (struct SDF_state *) &agent_state;
 
-    mcd_aio_register_ops();
-    mcd_osd_register_ops();
+	prop_file = getenv("FDF_PROPERTY_FILE");
 
+	if(prop_file)
+		loadProperties(prop_file);
 
     //  Initialize a crap-load of settings
     load_settings(&(agent_state.flash_settings));
+
+    mcd_aio_register_ops();
+    mcd_osd_register_ops();
 
     //  Set the logging level
     //set_log_level(agent_state.flash_settings.sdf_log_level);
@@ -1905,6 +1933,23 @@ SDF_status_t SDFFlushContainer(
     return(ar.respStatus);
 }
 
+SDF_status_t SDFFlushCache (struct SDF_thread_state *sdf_thread_state)
+{
+	SDF_status_t status;
+    int   i;
+
+    for (i = 0; i < MCD_MAX_NUM_CNTRS; i++) {
+        if( CtnrMap[i].cguid != 0 ) {
+            status = SDFFlushContainer(sdf_thread_state, Mcd_containers[i].cguid, time(NULL));
+
+			if(status != SDF_SUCCESS)
+				return status;
+        }
+    }
+
+    return SDF_SUCCESS;
+}
+
 SDF_status_t SDFGetForReadBufferedObject(
 	struct SDF_thread_state   *sdf_thread_state,
 	SDF_cguid_t                cguid,
@@ -2216,14 +2261,6 @@ SDF_cguid_t SDFGenerateCguid(
                  "SDFGenerateCguid: %llu", (unsigned long long) cguid);
 
     return (cguid);
-}
-
-SDF_status_t SDFFlushCache(
-	struct SDF_thread_state  *sdf_thread_state,
-	SDF_time_t           	  current_time
-	)
-{
-    return(SDF_SUCCESS);
 }
 
 static SDF_status_t backup_container_prepare( 
