@@ -187,6 +187,12 @@ int loadProperties(const char *path_arg)
 
 int insertProperty(const char *key, void* value)
 {
+#ifdef SDFAPIONLY
+    /* SDFSetPropery may be called before loadProperties, initialize the hash here in this case */
+    if (!_sdf_globalPropertiesMap) {
+        initializeProperties();
+    }
+#endif
     return ((SDF_TRUE == HashMap_put(_sdf_globalPropertiesMap, key, value)) ? 0 : 1);
 }
 
