@@ -140,8 +140,7 @@ static FDF_status_t fdf_open_container(
 	);
 
 SDF_container_props_t *fdf_create_sdf_props(
-    FDF_container_props_t 	*fdf_properties,
-	uint64_t				 cid
+    FDF_container_props_t 	*fdf_properties
     );
 
 FDF_status_t fdf_create_fdf_props(
@@ -1294,7 +1293,7 @@ static FDF_status_t fdf_create_container(
 
 	properties->cguid = *cguid;
 
-	if ( (sdf_properties = fdf_create_sdf_props( properties, cid )) == NULL ) {
+	if ( (sdf_properties = fdf_create_sdf_props( properties )) == NULL ) {
 		*cguid = SDF_NULL_CGUID;
 		return FDF_FAILURE_MEMORY_ALLOC;
 	}
@@ -3073,8 +3072,7 @@ FDF_status_t FDFRestoreContainer(
 }
 
 SDF_container_props_t *fdf_create_sdf_props(
-	FDF_container_props_t 	*fdf_properties,
-	uint64_t	 			 cid
+	FDF_container_props_t 	*fdf_properties
 	)
 {
 	SDF_container_props_t	*sdf_properties = (SDF_container_props_t *) plat_alloc ( sizeof ( SDF_container_props_t ) );
@@ -3082,7 +3080,7 @@ SDF_container_props_t *fdf_create_sdf_props(
 	if ( NULL != sdf_properties ) {
     	sdf_properties->container_id.owner                    = 0;
     	sdf_properties->container_id.size                     = fdf_properties->size_kb;
-    	sdf_properties->container_id.container_id             = cid;
+    	sdf_properties->container_id.container_id             = fdf_properties->cid;
     	sdf_properties->container_id.owner                    = 0; 
     	sdf_properties->container_id.num_objs                 = (fdf_properties->size_kb * 1024 / 512);
     
@@ -3132,6 +3130,7 @@ FDF_status_t fdf_create_fdf_props(
         fdf_properties->durability_level					= sdf_properties->durability_level;
         fdf_properties->cguid								= sdf_properties->cguid;
         fdf_properties->num_shards							= sdf_properties->shard.num_shards;
+        fdf_properties->cid									= sdf_properties->container_id.container_id;
 		status												= FDF_SUCCESS;
     }
 
