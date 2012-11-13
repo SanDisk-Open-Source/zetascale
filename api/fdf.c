@@ -2044,9 +2044,12 @@ FDF_status_t FDFWriteObject(
 
 	if ( flags & FDF_WRITE_MUST_EXIST ) {
     	ar.reqtype = APPAE;
-	} else {
+	} else if( flags & FDF_WRITE_MUST_NOT_EXIST ) {
     	ar.reqtype = APCOE;
 	}
+    else {
+    	ar.reqtype = APSOE;
+    }
     ar.curtime = 0;
     ar.ctxt = pac->ctxt;
     ar.ctnr = cguid;
