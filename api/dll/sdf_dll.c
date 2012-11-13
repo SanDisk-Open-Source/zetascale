@@ -3,7 +3,6 @@
  * Copyright (c) 2012, SanDisk Corporation.  All rights reserved.
  */
 #include <dlfcn.h>
-#include <errno.h>
 #include <stdio.h>
 #include <stdarg.h>
 #include <stdlib.h>
@@ -14,7 +13,22 @@
 /*
  * Macros.
  */
+#define nel(a)      (sizeof(a)/sizeof(*(a)))
 #define unlikely(x) __builtin_expect((x), 0)
+
+
+/*
+ * FDF Library locations.
+ */
+static char *fdflibs[] ={
+    "/usr/lib64/fdf/libfdf.so",
+    "/usr/lib/fdf/libfdf.so",
+    "/lib64/libfdf.so",
+    "/lib/libfdf.so",
+    "/usr/local/lib64/libfdf.so",
+    "/usr/local/lib/libfdf.so",
+    "libfdf.so",
+};
 
 
 /*
@@ -236,35 +250,52 @@ panic(char *fmt, ...)
 static void
 undefined(char *sym)
 {
-    panic("undefined symbol: %s", sym);
+    panic("FDF: undefined symbol: %s", sym);
+}
+
+
+/*
+ * Determine if the string ends with "No such file or directory".
+ */
+static int
+nsfod(char *str)
+{
+    char *err = "No such file or directory";
+    int  elen = strlen(err);
+    int  slen = strlen(str);
+
+    if (slen < elen)
+        return 0;
+    return !strcmp(str+slen-elen, err);
 }
 
 
 /*
  * Load the FDF library.
  */
-static void
+static int
 load(char *path)
 {
     int i;
-    void *dl = dlopen(path, RTLD_LAZY);
+    void  *dl = dlopen(path, RTLD_LAZY);
+    char *err = dlerror();
 
-    if (!dl)
-        panic("failed to load FDF library: %s: %s (%d)",
-              path, dlerror(), errno);
+    if (!dl) {
+        if (nsfod(err))
+            return 0;
+        panic("%s", err);
+    }
     
-    int n = sizeof(table)/sizeof(table[0]);
+    int n = nel(table);
     for (i = 0; i < n; i++) {
         const char *name = table[i].name;
         void *func = dlsym(dl, name);
         if (func)
             *(void **)table[i].func = func;
         else
-            fprintf(stderr, "warning: undefined symbol: %s\n", name);
+            fprintf(stderr, "warning: FDF: undefined symbol: %s\n", name);
     }
-
-    //if (dlclose(dl) < 0)
-        //panic("dlclose failed (%d)", errno);
+    return 1;
 }
 
 
@@ -274,11 +305,22 @@ load(char *path)
 static void
 parse(int argc, char *argv[])
 {
+    int i;
     char *lib = getenv("FDF_LIB");
 
-    if (!lib)
-        lib = "fdf.so";
-    load(lib);
+    if (lib) {
+        if (load(lib))
+            return;
+        panic("cannot find FDF_LIB=%s", lib);
+    }
+
+    if (load("/usr/lib64/fdf/libfdf.so"))
+        return;
+
+    for (i = 0; i < nel(fdflibs); i++)
+        if (load(fdflibs[i]))
+            return;
+    panic("cannot find libfdf.so");
 }
 
 

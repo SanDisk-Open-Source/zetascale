@@ -1,0 +1,40 @@
+Running FDF As A DLL
+====================
+
+Compiling
+---------
+When compiling, instead of specifying libfdf.a as the FDF library, instead use
+libfdfdll.a.
+
+    gcc -o hello hello.c libfdfdll.a
+
+Running
+-------
+Once loaded, the executable will look for the library in several fixed
+locations; in the following order:
+
+    /usr/lib64/fdf/libfdf.so
+    /usr/lib/fdf/libfdf.so
+    /lib64/libfdf.so
+    /lib/libfdf.so
+    /usr/local/lib64/libfdf.so
+    /usr/local/lib/libfdf.so
+
+So if it is placed in one of these locations, one can run the executable as
+expected and the library will automatically be found:
+
+    ./hello
+
+If it is not in one of the above locations, LD_LIBRARY_PATH is searched to find
+libfdf.so.  So you could place libfdf.so in /usr/local/fdf/libfdf.so and then
+run it as follows:
+
+    export LD_LIBRARY_PATH=/usr/local/fdf
+    ./hello
+
+Finally, if you set the environment variable FDF_LIB, it will only look for the
+library there.  If you want to use /tmp/libfdfdbg.so as your library, you can
+run it as follows:
+
+    export FDF_LIB=/tmp/libfdfdbg.so
+    ./hello
