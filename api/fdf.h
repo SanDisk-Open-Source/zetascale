@@ -1015,8 +1015,8 @@ typedef enum {
 } FDF_container_mode_t;
 
 typedef enum {
-    FDF_WRITE_MUST_NOT_EXIST    = 0,
-    FDF_WRITE_MUST_EXIST    	= 1,
+    FDF_WRITE_MUST_NOT_EXIST    = 1,
+    FDF_WRITE_MUST_EXIST    	= 2,
 } FDF_write_mode_t;
 
 typedef struct FDF_iterator {
