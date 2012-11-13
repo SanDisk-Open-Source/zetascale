@@ -45,6 +45,7 @@ time_t current_time = 0;
 ** Externals
 */
 extern void *cmc_settings;
+extern SDF_cmc_t *theCMC;
 
 extern 
 SDF_cguid_t generate_cguid(
@@ -253,6 +254,32 @@ static sem_t Mcd_initer_sem;
 
 ctnr_map_t CtnrMap[MCD_MAX_NUM_CNTRS];
 
+#ifdef notdef
+static int count_containers() {
+	int i = 0;
+	int count = 0;
+
+    for (i = 0; i < MCD_MAX_NUM_CNTRS; i++ ) {
+        if ( CtnrMap[i].cguid != 0 ) {
+			++count;
+        }
+    }   
+
+	return count;
+}   
+#endif /* notdef */
+
+#ifdef notdef
+static void dump_map() {
+    for (int i=0; i<MCD_MAX_NUM_CNTRS; i++) {
+        if (CtnrMap[i].cguid != 0) {
+			fprintf(stderr, ">>>CtnrMap: %d - %s - %lu - %lu - %d\n", 
+					i, CtnrMap[i].cname, CtnrMap[i].cguid, CtnrMap[i].cid, !isContainerNull(CtnrMap[i].sdf_container));
+        }
+    }
+}
+#endif /* notdef */
+
 int get_ctnr_from_cguid(SDF_cguid_t cguid)
 {
     int i;
@@ -260,9 +287,9 @@ int get_ctnr_from_cguid(SDF_cguid_t cguid)
 
     for (i=0; i<MCD_MAX_NUM_CNTRS; i++) {
         if (CtnrMap[i].cguid == cguid) {
-	    i_ctnr = i;
-	    break;
-	}
+	    	i_ctnr = i;
+	    	break;
+		}
     }
     return(i_ctnr);
 }
@@ -273,7 +300,7 @@ int get_ctnr_from_cname(char *cname)
     int i_ctnr = -1;
 
     for (i=0; i<MCD_MAX_NUM_CNTRS; i++) {
-	if ((NULL != CtnrMap[i].cname) && (0 == strcmp(CtnrMap[i].cname, cname))) {
+		if ((NULL != CtnrMap[i].cname) && (0 == strcmp(CtnrMap[i].cname, cname))) {
             i_ctnr = i;
             break;
         }
@@ -636,31 +663,31 @@ SDF_status_t SDFSetContainerProps(
 
 #define CONTAINER_PENDING
 
-static uint64_t cid_counter = 0;
+//extern uint64_t cid_counter;
 
 SDF_status_t SDFCreateContainer(
 	struct SDF_thread_state	*sdf_thread_state, 
-	char 		        *cname,
+	char 		        	*cname,
 	SDF_container_props_t 	*properties, 
-	SDF_cguid_t 		*cguid 
+	SDF_cguid_t 			*cguid 
 	)
 {
-    int					 i				= 0;
-    uint64_t  				 cid				= 0;
-    struct SDF_shared_state 		*state 				= &sdf_shared_state;
-    SDF_status_t 			 status 			= SDF_FAILURE;
-    SDF_shardid_t 			 shardid 			= SDF_SHARDID_INVALID;
-    SDF_container_meta_t 		*meta 				= NULL;
-    SDF_CONTAINER_PARENT 		 parent 			= containerParentNull;
-    local_SDF_CONTAINER_PARENT 		 lparent 			= NULL;
-    SDF_boolean_t 			 isCMC				= SDF_FALSE;
-    uint32_t 				 in_shard_count			= 0;
-    SDF_vnode_t 			 home_node			= 0;
-    uint32_t 				 num_objs 			= 0;
-    const char 				*writeback_enabled_string	= NULL;
-    SDF_internal_ctxt_t			*pai 				= (SDF_internal_ctxt_t *) sdf_thread_state;
+    int					 			 i							= 0;
+    uint64_t  				 		 cid						= 0;
+    struct SDF_shared_state 		*state 						= &sdf_shared_state;
+    SDF_status_t 			 		 status 					= SDF_FAILURE;
+    SDF_shardid_t 			 		 shardid 					= SDF_SHARDID_INVALID;
+    SDF_container_meta_t 			*meta 						= NULL;
+    SDF_CONTAINER_PARENT 		 	 parent 					= containerParentNull;
+    local_SDF_CONTAINER_PARENT 		 lparent 					= NULL;
+    SDF_boolean_t 			 		 isCMC						= SDF_FALSE;
+    uint32_t 				 		 in_shard_count				= 0;
+    SDF_vnode_t 			 		 home_node					= 0;
+    uint32_t 				 		 num_objs 					= 0;
+    const char 						*writeback_enabled_string	= NULL;
+    SDF_internal_ctxt_t				*pai 						= (SDF_internal_ctxt_t *) sdf_thread_state;
 
-	if(!properties || !cguid || !cname || !sdf_thread_state)
+	if ( !properties || !cguid || !cname || !sdf_thread_state )
 		return SDF_INVALID_PARAMETER;
 
     plat_log_msg(160033, LOG_CAT, LOG_INFO, "%s, size=%ld bytes", cname, properties->container_id.size * 1024);
@@ -690,46 +717,54 @@ SDF_status_t SDFCreateContainer(
 
     SDFStartSerializeContainerOp(pai);
 
-    cid = cid_counter++;
-
     if (strcmp(cname, CMC_PATH) == 0) {
         *cguid = CMC_CGUID;
         isCMC = SDF_TRUE;
         home_node = CMC_HOME;
     } else {
-        *cguid = generate_cguid(pai, cname, init_get_my_node_id(), cid); // Generate the cguid
-#if 0
-		for (i=0; i<MCD_MAX_NUM_CNTRS; i++) {
-	    	if (CtnrMap[i].cguid == 0) {
-	        	// this is an unused map entry
-				CtnrMap[i].cname = plat_alloc(strlen(cname)+1);
-				if (CtnrMap[i].cname == NULL) {
-		    		status = SDF_FAILURE_MEMORY_ALLOC;
-		    		SDFEndSerializeContainerOp(pai);
-		    		return(status);
-				}
-				strcpy(CtnrMap[i].cname, cname);
-				CtnrMap[i].cguid         = *cguid;
-				CtnrMap[i].sdf_container = containerNull;
-				break;
-	    	}
-		}
-#endif
-		if (i == MCD_MAX_NUM_CNTRS) {
-	    	plat_log_msg(150023, LOG_CAT,LOG_ERR, "SDFCreateContainer failed for container %s because 128 containers have already been created.", cname);
+		// Make sure we have not gone over the container limit
+        int count = 0;
+        for (i=0; i<MCD_MAX_NUM_CNTRS; i++) {
+            if (CtnrMap[i].cguid != 0) {
+                ++count;
+            }
+        }
+
+		if (count == MCD_MAX_NUM_CNTRS) {
+	    	plat_log_msg( 150023, 
+						  LOG_CAT,LOG_ERR, 
+						  "SDFCreateContainer failed for container %s because 128 containers have already been created.", cname);
 	    	status = SDF_TOO_MANY_CONTAINERS;
 	    	SDFEndSerializeContainerOp(pai);
 	    	return(status);
 		}
+
+        state->config.cguid_counter += 1;
+        cid = state->config.cguid_counter;
+        properties->container_id.container_id = cid;
+        *cguid = generate_cguid(pai, cname, init_get_my_node_id(), cid); // Generate the cguid
+
         isCMC = SDF_FALSE;
         home_node = init_get_my_node_id();
+    	if ( SDF_SUCCESS != name_service_put_cguid_state( pai,
+														  init_get_my_node_id(), 
+														  cid ) ) {
+        	plat_log_msg( 150034,                         
+                      	LOG_CAT,
+                      	LOG_ERR,
+                      	"Failed to save cguid state: %s",
+                      	SDF_Status_Strings[status] );
+                      
+        	return SDF_PUT_METADATA_FAILED;
+    	}   
     }
 
     /*
      *  Save the cguid in a useful place so that the replication code in
      *  mcd_ipf.c can find it.
+	 *  NOT YET IMPLEMENTED IN FDF
      */
-#if 0
+#ifdef notdef
     if (cmc_settings != NULL) {
         struct settings *settings = cmc_settings;
         int  i;
@@ -888,8 +923,7 @@ SDF_status_t SDFCreateContainer(
 
     plat_log_msg(21511, LOG_CAT, LOG_DBG, "%s - %s", cname, SDF_Status_Strings[status]);
 
-    if (status == SDF_SUCCESS) {
-    } else if (status != SDF_SUCCESS && status != SDF_CONTAINER_EXISTS) {
+    if (status != SDF_SUCCESS && status != SDF_CONTAINER_EXISTS) {
         plat_log_msg(21538, LOG_CAT, LOG_ERR, "cname=%s, function returned status = %u", cname, status);
         name_service_remove_meta(pai, cname);
 #if 0
@@ -922,6 +956,7 @@ SDF_status_t SDFCreateContainer(
                 }
                 strcpy(CtnrMap[i].cname, cname);
                 CtnrMap[i].cguid         = *cguid;
+				CtnrMap[i].cid           = cid;
                 CtnrMap[i].sdf_container = containerNull;
 #ifdef SDFAPIONLY
                 Mcd_containers[i].cguid = *cguid;
@@ -929,13 +964,14 @@ SDF_status_t SDFCreateContainer(
 #endif /* SDfAPIONLY */
                 break;
             }           
-	}
+		}
     }
     SDFEndSerializeContainerOp(pai);
 
 	plat_assert(*cguid);
 
     plat_log_msg(160034, LOG_CAT, LOG_INFO, "%s(cguid=%lu) - %s", cname, *cguid, SDF_Status_Strings[status]);
+
     return (status);
 }
 
@@ -945,19 +981,18 @@ SDF_status_t SDFOpenContainer(
 	SDF_container_mode_t 	 mode
 	) 
 {               
-    SDF_status_t 		status 		= SDF_SUCCESS;
-    local_SDF_CONTAINER 	lc 		= NULL;
-    SDF_CONTAINER_PARENT 	parent;
-    local_SDF_CONTAINER_PARENT 	lparent 	= NULL;
-    int 			log_level 	= LOG_ERR;
-    char 			*path 		= CMC_PATH;
-    int  			i_ctnr 		= 0;
-    SDF_CONTAINER 		container 	= containerNull;
+    SDF_status_t 				 status		= SDF_SUCCESS;
+    local_SDF_CONTAINER 		 lc 		= NULL;
+    SDF_CONTAINER_PARENT 		 parent;
+    local_SDF_CONTAINER_PARENT 	 lparent 	= NULL;
+    int 						 log_level 	= LOG_ERR;
+    char 						*path 		= CMC_PATH;
+    int  						 i_ctnr 	= 0;
+    SDF_CONTAINER 				 container 	= containerNull;
     SDF_internal_ctxt_t     	*pai 		= (SDF_internal_ctxt_t *) sdf_thread_state;
 #ifdef SDFAPIONLY
-    //mcd_container_t 		cntr;
-    mcd_osd_shard_t 		*mcd_shard	= NULL;
-    struct shard		*shard		= NULL;
+    mcd_osd_shard_t 			*mcd_shard	= NULL;
+    struct shard				*shard		= NULL;
 #endif /* SDFAPIONLY */
                         
     plat_log_msg(21630, LOG_CAT, LOG_INFO, "%lu", cguid);
@@ -984,8 +1019,7 @@ SDF_status_t SDFOpenContainer(
         status = SDF_INVALID_PARAMETER;
     }
 
-	if(status != SDF_SUCCESS || !isContainerNull(CtnrMap[i_ctnr].sdf_container))
-	{
+	if ( status != SDF_SUCCESS || !isContainerNull( CtnrMap[i_ctnr].sdf_container ) ) {
 	    SDFEndSerializeContainerOp(pai);
 		plat_log_msg(160032, LOG_CAT, log_level, "Already opened or error: %s - %s", path, SDF_Status_Strings[status]);
 		return status;
@@ -1011,10 +1045,15 @@ SDF_status_t SDFOpenContainer(
         container = openParentContainer(pai, path);
 
         if (isContainerNull(container)) {
-	    fprintf(stderr, "SDFOpenContainer: failed to open parent container for %s\n", path);
-	}
+	    	fprintf(stderr, "SDFOpenContainer: failed to open parent container for %s\n", path);
+			plat_abort();
+		}
 
-	CtnrMap[i_ctnr].sdf_container = container;
+		if ( CMC_CGUID == cguid ) {
+			theCMC->c = internal_serverToClientContainer( container );
+		} else {
+			CtnrMap[i_ctnr].sdf_container = container;
+		}
 
         if (!isContainerNull(container)) {
             lc = getLocalContainer(&lc, container);
@@ -1080,9 +1119,9 @@ SDF_status_t SDFOpenContainer(
     }
 
     if (path) {
-	plat_log_msg(21511, LOG_CAT, log_level, "%s - %s", path, SDF_Status_Strings[status]);
+		plat_log_msg(21511, LOG_CAT, log_level, "%s - %s", path, SDF_Status_Strings[status]);
     } else {
-	plat_log_msg(150024, LOG_CAT, log_level, "NULL - %s", SDF_Status_Strings[status]);
+		plat_log_msg(150024, LOG_CAT, log_level, "NULL - %s", SDF_Status_Strings[status]);
     }
 
     SDFEndSerializeContainerOp(pai);
@@ -1638,9 +1677,9 @@ SDF_status_t SDFCloseContainer(
 
     if (i_ctnr == -1) {
         status = SDF_INVALID_PARAMETER;
-	goto out;
+		goto out;
     } else {
-	container = CtnrMap[i_ctnr].sdf_container;
+		container = CtnrMap[i_ctnr].sdf_container;
     }
 
     if (isContainerNull(container)) {
@@ -1768,13 +1807,13 @@ SDF_status_t SDFDeleteContainer(
     if (i_ctnr >=0 && !ISEMPTY(CtnrMap[i_ctnr].cname)) {
 	    status = delete_container_internal_low(pai, CtnrMap[i_ctnr].cname, SDF_FALSE /* serialize */, &ok_to_delete);
 
-		plat_free(CtnrMap[i_ctnr].cname);
-		CtnrMap[i_ctnr].cname = NULL;
-
 		if(ok_to_delete)
 		{
-    		CtnrMap[i_ctnr].cguid         = 0;
-		    CtnrMap[i_ctnr].sdf_container = containerNull;
+			plat_free(CtnrMap[i_ctnr].cname);
+			CtnrMap[i_ctnr].cname 			= NULL;
+    		CtnrMap[i_ctnr].cguid         	= 0;
+    		CtnrMap[i_ctnr].cid         	= SDF_NULL_CID;
+		    CtnrMap[i_ctnr].sdf_container 	= containerNull;
 		}
 		else
 		{

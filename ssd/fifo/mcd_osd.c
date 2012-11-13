@@ -954,10 +954,10 @@ int mcd_fth_do_try_container( void * pai, mcd_container_t **ppcontainer, bool op
 }
 
 static int mcd_fth_do_try_container_internal( void * pai, int index, 
-                              mcd_container_t **ppcontainer, bool open_only,
-                              int tcp_port, int udp_port,
-                              SDF_container_props_t * prop, char * cntr_name,
-                              mcd_cntr_props_t * cntr_props )
+											  mcd_container_t **ppcontainer, bool open_only,
+											  int tcp_port, int udp_port,
+											  SDF_container_props_t * prop, char * cntr_name,
+											  mcd_cntr_props_t * cntr_props )
 {
     int                         rc;
     SDF_status_t                status = SDF_FAILURE;
@@ -1011,8 +1011,8 @@ static int mcd_fth_do_try_container_internal( void * pai, int index,
         status = mcd_fth_create_open_container( pai,
                                                 0,      // ctxt
                                                 cname,
-						prop,
-						&cguid);
+												prop,
+												&cguid);
 #else
         status = mcd_fth_create_open_container( pai,
                                                 0,      // ctxt
@@ -1034,52 +1034,55 @@ static int mcd_fth_do_try_container_internal( void * pai, int index,
     }
     else {
 #ifdef SDFAPI
-	int map_index = get_ctnr_from_cname(cname);
-	if (map_index >= 0) {
-	    container = CtnrMap[map_index].sdf_container;
-	}
+		int map_index = get_ctnr_from_cname(cname);
+		if (map_index >= 0) {
+	    	container = CtnrMap[map_index].sdf_container;
+			if ( isContainerNull( container ) ) {
+            	mcd_log_msg( 150035, PLAT_LOG_LEVEL_ERROR, "Open container structure is NULL - %s", cname);
+				plat_abort();
+			}
+		}
 #endif /* SDFAPI */
         local_SDF_CONTAINER lc = getLocalContainer(&lc, container);
         SDF_time_t time;
 
-	/*  
-	 *  Use the container structure specified by index if it is valid.
-	 *  Otherwise, look for an unused structure.
-	 */
-
+		/*  
+	 	 *  Use the container structure specified by index if it is valid.
+	 	 *  Otherwise, look for an unused structure.
+	 	 */
         if (index == -1) {
-	    for (index=0; index<MCD_MAX_NUM_CNTRS; index++) {
-		if (Mcd_containers[index].tcp_port == 0) {
-		    break;
+	    	for (index=0; index<MCD_MAX_NUM_CNTRS; index++) {
+				if (Mcd_containers[index].tcp_port == 0) {
+					break;
+				}
+			}
+			plat_assert(index < MCD_MAX_NUM_CNTRS);
 		}
-	    }
-	    plat_assert(index < MCD_MAX_NUM_CNTRS);
-	}
 
-	*ppcontainer = &(Mcd_containers[index]);
+		*ppcontainer = &(Mcd_containers[index]);
 
-	// Set Mcd index in container properties
-	properties.mcd_index = index;
+		// Set Mcd index in container properties
+		properties.mcd_index = index;
 
-        Mcd_containers[index].state        = cntr_stopped;
-        Mcd_containers[index].generation   =
-            __sync_fetch_and_add( &Mcd_next_cntr_gen, 1 );
+		Mcd_containers[index].state        = cntr_stopped;
+		Mcd_containers[index].generation   = __sync_fetch_and_add( &Mcd_next_cntr_gen, 1 );
 
-        /*
-         * initialize the mcd_container structure
-         */
-        status = SDF_I_GetContainerInvalidationTime( pai, lc->cguid, &time );
-        if ( SDF_SUCCESS != status ) {
-            mcd_log_msg( 20120, PLAT_LOG_LEVEL_ERROR,
-                         "failed to obtain invalidation time for container %s",
-                         cname );
-        }
-        Mcd_containers[index].flush_time    = (time_t)time;
+		/*
+		 * initialize the mcd_container structure
+		 */
+		status = SDF_I_GetContainerInvalidationTime( pai, lc->cguid, &time );
+		if ( SDF_SUCCESS != status ) {
+			mcd_log_msg( 20120, PLAT_LOG_LEVEL_ERROR,
+						 "failed to obtain invalidation time for container %s",
+						 cname );
+		}
+
+		Mcd_containers[index].flush_time    = (time_t)time;
 
 #ifdef  SIMPLE_REPLICATION
-        Mcd_containers[index].cas_num_nodes = QREP_MAX_REPLICAS;
+		Mcd_containers[index].cas_num_nodes = QREP_MAX_REPLICAS;
 #else
-        Mcd_containers[index].cas_num_nodes = SDF_REPLICATION_MAX_REPLICAS;
+		Mcd_containers[index].cas_num_nodes = SDF_REPLICATION_MAX_REPLICAS;
 #endif
         Mcd_containers[index].cas_node_id   = Mcd_fth_node_id;
         Mcd_containers[index].cas_id        = cntr_props->cas_id;
@@ -1105,17 +1108,17 @@ static int mcd_fth_do_try_container_internal( void * pai, int index,
         Mcd_containers[index].obj_quota    = properties.container_id.num_objs;
 
 #ifdef SDFAPI
-        Mcd_containers[index].cguid        = lc->cguid;
+    	Mcd_containers[index].cguid        = lc->cguid;
 #else
         Mcd_containers[index].cguid        = cguid;
 #endif /* SDAPI */
         Mcd_containers[index].sdf_container = internal_serverToClientContainer( container );
 
-        Mcd_containers[index].shard = (void *)container_to_shard( pai, lc );
-        if ( NULL == Mcd_containers[index].shard ) {
-            mcd_log_msg( 20121, PLAT_LOG_LEVEL_ERROR,
-                         "failed to obtain shard for container %s", cname );
-        }
+       	Mcd_containers[index].shard = (void *)container_to_shard( pai, lc );
+       	if ( NULL == Mcd_containers[index].shard ) {
+           	mcd_log_msg( 20121, PLAT_LOG_LEVEL_ERROR,
+						 "failed to obtain shard for container %s", cname );
+       	}
 
         if ( NULL != cntr_ips ) {
             Mcd_containers[index].num_ips = cntr_ips->num_ips;
@@ -1148,7 +1151,7 @@ static int mcd_fth_do_try_container_internal( void * pai, int index,
                      properties.container_type.caching_container,
                      properties.container_type.persistence );
 #ifdef SIMPLE_REPLICATION
-        SDFRepDataStructAddContainer( pai, properties,lc->cguid );
+       	SDFRepDataStructAddContainer( pai, properties,lc->cguid );
 #endif
 
         /*
@@ -1163,23 +1166,24 @@ static int mcd_fth_do_try_container_internal( void * pai, int index,
                              "failed to set shard flush_time, rc=%d", rc );
                 (void) (*flash_settings.delete_container_callback)( pai, &Mcd_containers[index] );
                 return -1;
-            }
-            SDF_status_t sdf_rc =
-                SDF_I_InvalidateContainerObjects( pai, lc->cguid,
-                                                  (*(flash_settings.pcurrent_time)),
-                                                  cntr_props->flush_time );
-            if ( SDF_SUCCESS != sdf_rc ) {
-                mcd_log_msg( 50073, PLAT_LOG_LEVEL_ERROR,
-                             "failed to set sdf flush_time, rc=%d", rc );
-                (void) (*flash_settings.delete_container_callback)( pai, &Mcd_containers[index] );
-                return -1;
-            }
+            } 
+
+			SDF_status_t sdf_rc = SDF_I_InvalidateContainerObjects( pai, 
+																	lc->cguid, 
+																	(*(flash_settings.pcurrent_time)),
+																	cntr_props->flush_time );
+           	if ( SDF_SUCCESS != sdf_rc ) {
+               	mcd_log_msg( 50073, PLAT_LOG_LEVEL_ERROR,
+							 "failed to set sdf flush_time, rc=%d", rc );
+               	(void) (*flash_settings.delete_container_callback)( pai, &Mcd_containers[index] );
+               	return -1;
+			}
         }
 
         return 0;       /* SUCCESS */
     }
 
-out:
+ out:
     if ( pfx_deleter ) {
         mcd_prefix_cleanup( pfx_deleter );
     }

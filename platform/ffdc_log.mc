@@ -3032,6 +3032,8 @@
 150031 pread failed - %s
 150032 Failed to find meta data for %lu -  %s
 150033 FDFCreateContainer failed for container %s because 128 containers have already been created.
+150034 Failed to save cguid state: %s
+150035 Open container structure is NULL - %s
 
 
 # root
@@ -3069,3 +3071,4 @@
 160032 Already opened or error: %s - %s
 160033 %s, size=%ld bytes
 160034 %s(cguid=%lu) - %s
+160035 %s, size=%d bytes

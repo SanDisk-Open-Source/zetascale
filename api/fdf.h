@@ -1005,6 +1005,7 @@ typedef struct {
 	FDF_boolean_t			writethru;
 	FDF_durability_level_t	durability_level;
 	FDF_cguid_t				cguid;
+	uint64_t				cid;
 	uint32_t				num_shards;
 } FDF_container_props_t;
 	

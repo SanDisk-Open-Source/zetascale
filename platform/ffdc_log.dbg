@@ -1,6 +1,6 @@
-Skipping /root/membrain-4.2/membrain/server/apps/memcached/clients/libmemcached/libmemcached-0.12/tests/function.c
-Skipping /root/membrain-4.2/membrain/server/apps/memcached/clients/libmemcached/libmemcached-0.12/tests/test.c
-Skipping /root/membrain-4.2/membrain/server/apps/memcached/clients/libmemcached/libmemcached-0.12/tests/test.h
+Skipping /opt/schooner/src/membrain-4.2.mb/server/apps/memcached/clients/libmemcached/libmemcached-0.12/tests/function.c
+Skipping /opt/schooner/src/membrain-4.2.mb/server/apps/memcached/clients/libmemcached/libmemcached-0.12/tests/test.c
+Skipping /opt/schooner/src/membrain-4.2.mb/server/apps/memcached/clients/libmemcached/libmemcached-0.12/tests/test.h
 apps/memcached/server/memcached-1.2.5-schooner/checkpoint/mcd_aio.c:142:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG::20000:ENTERING
 apps/memcached/server/memcached-1.2.5-schooner/checkpoint/mcd_aio.c:146:mcd_log_msg:PLAT_LOG_LEVEL_ERROR::20001:failed to allocate memory
 apps/memcached/server/memcached-1.2.5-schooner/checkpoint/mcd_aio.c:155:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG::20002:allocated buf=%p, aligned buf=%p
@@ -1009,29 +1009,29 @@ sdf/agent/agent_helper.c:329:plat_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_PRINT
 sdf/agent/agent_helper.c:332:plat_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_PRINT_ARGS:30609:SDF_MAX_OUTSTANDING_BACKGROUND_FLUSHES = %d
 sdf/agent/agent_helper.c:339:plat_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_PRINT_ARGS:30610:SDF_BACKGROUND_FLUSH_SLEEP_MSEC must be >= %d; defaulting to minimum value
 sdf/agent/agent_helper.c:342:plat_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_PRINT_ARGS:30611:SDF_BACKGROUND_FLUSH_SLEEP_MSEC = %d
-sdf/agent/agent_helper.c:417:plat_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_PRINT_ARGS:20838:Missing version in property file  (Add 'SDF_PROP_FILE_VERSION = %"PRIu64"')
-sdf/agent/agent_helper.c:423:plat_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_PRINT_ARGS:20839:Inconsistent version of property file: %"PRIu64" (only version %"PRIu64" is supported)
-sdf/agent/agent_helper.c:428:plat_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_PRINT_ARGS:20840:Version of property file: %"PRIu64"
-sdf/agent/agent_helper.c:471:plat_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_PRINT_ARGS:20841:PROP: SDF_CLUSTER_NUMBER_NODES=%u
-sdf/agent/agent_helper.c:473:plat_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_PRINT_ARGS:20842:PROP: SDF_ACTION_NODE_THREADS=%u
-sdf/agent/agent_helper.c:475:plat_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_PRINT_ARGS:20843:PROP: SDF_FLASH_PROTOCOL_THREADS=%u
-sdf/agent/agent_helper.c:477:plat_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_PRINT_ARGS:20844:PROP: SDF_REPLICATION_THREADS=%u
-sdf/agent/agent_helper.c:479:plat_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_PRINT_ARGS:20845:PROP: SDF_SHARD_MAX_OBJECTS=%u
-sdf/agent/agent_helper.c:481:plat_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_PRINT_ARGS:20846:PROP: SDF_MSG_ENGINE_START=%u
-sdf/agent/agent_helper.c:483:plat_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_PRINT_ARGS:20847:PROP: SDF_NUM_FLASH_DEVS=%u
-sdf/agent/agent_helper.c:485:plat_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_PRINT_ARGS:20848:PROP: SDF_DEFAULT_SHARD_COUNT=%u
-sdf/agent/agent_helper.c:531:plat_log_msg:PLAT_LOG_LEVEL_INFO:LOG_CAT:21788:Initialized FFDC logging (max buffers=%d, thread bufsize=0x%lx)
-sdf/agent/agent_helper.c:537:plat_log_msg:PLAT_LOG_LEVEL_WARN:LOG_CAT:21789:Unable to initialize FFDC logging (max buffers=%d, thread bufsize=0x%lx)
-sdf/agent/agent_helper.c:541:plat_log_msg:PLAT_LOG_LEVEL_INFO:LOG_CAT:10005:FFDC logging disabled
-sdf/agent/agent_helper.c:592:plat_log_msg:success ?  LOG_LEV : PLAT_LOG_LEVEL_INFO:LOG_CAT:20849:plat_opts_parse_sdf_agent SUCCESS = %u
-sdf/agent/agent_helper.c:599:plat_log_msg:success ? LOG_LEV : PLAT_LOG_LEVEL_INFO:LOG_CAT:20850:set properties SUCCESS = %u
-sdf/agent/agent_helper.c:689:plat_log_msg:PLAT_LOG_LEVEL_TRACE:LOG_CAT:20851: Replication StateMachine Turned ON\n
-sdf/agent/agent_helper.c:701:plat_log_msg:success ?  LOG_LEV : PLAT_LOG_LEVEL_INFO:LOG_CAT:20852:init_flash  = %u
-sdf/agent/agent_helper.c:711:plat_log_msg:success ?  LOG_LEV : PLAT_LOG_LEVEL_INFO:LOG_CAT:20853:init_action_home = %u
-sdf/agent/agent_helper.c:729:plat_log_msg:success ?  LOG_LEV : PLAT_LOG_LEVEL_INFO:LOG_CAT:20854:home_flash_start = %u
-sdf/agent/agent_helper.c:741:plat_log_msg:success ?  LOG_LEV : PLAT_LOG_LEVEL_INFO:LOG_CAT:20855:sdf_replicator_adapter_start = %u
-sdf/agent/agent_helper.c:764:plat_log_msg:success ?  LOG_LEV : PLAT_LOG_LEVEL_INFO:LOG_CAT:20856:async_puts_start = %u
-sdf/agent/agent_helper.c:777:plat_log_msg:success ?  LOG_LEV : PLAT_LOG_LEVEL_INFO:LOG_CAT:20857:init_containers  = %u
+sdf/agent/agent_helper.c:420:plat_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_PRINT_ARGS:20838:Missing version in property file  (Add 'SDF_PROP_FILE_VERSION = %"PRIu64"')
+sdf/agent/agent_helper.c:426:plat_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_PRINT_ARGS:20839:Inconsistent version of property file: %"PRIu64" (only version %"PRIu64" is supported)
+sdf/agent/agent_helper.c:431:plat_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_PRINT_ARGS:20840:Version of property file: %"PRIu64"
+sdf/agent/agent_helper.c:474:plat_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_PRINT_ARGS:20841:PROP: SDF_CLUSTER_NUMBER_NODES=%u
+sdf/agent/agent_helper.c:476:plat_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_PRINT_ARGS:20842:PROP: SDF_ACTION_NODE_THREADS=%u
+sdf/agent/agent_helper.c:478:plat_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_PRINT_ARGS:20843:PROP: SDF_FLASH_PROTOCOL_THREADS=%u
+sdf/agent/agent_helper.c:480:plat_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_PRINT_ARGS:20844:PROP: SDF_REPLICATION_THREADS=%u
+sdf/agent/agent_helper.c:482:plat_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_PRINT_ARGS:20845:PROP: SDF_SHARD_MAX_OBJECTS=%u
+sdf/agent/agent_helper.c:484:plat_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_PRINT_ARGS:20846:PROP: SDF_MSG_ENGINE_START=%u
+sdf/agent/agent_helper.c:486:plat_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_PRINT_ARGS:20847:PROP: SDF_NUM_FLASH_DEVS=%u
+sdf/agent/agent_helper.c:488:plat_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_PRINT_ARGS:20848:PROP: SDF_DEFAULT_SHARD_COUNT=%u
+sdf/agent/agent_helper.c:534:plat_log_msg:PLAT_LOG_LEVEL_INFO:LOG_CAT:21788:Initialized FFDC logging (max buffers=%d, thread bufsize=0x%lx)
+sdf/agent/agent_helper.c:540:plat_log_msg:PLAT_LOG_LEVEL_WARN:LOG_CAT:21789:Unable to initialize FFDC logging (max buffers=%d, thread bufsize=0x%lx)
+sdf/agent/agent_helper.c:544:plat_log_msg:PLAT_LOG_LEVEL_INFO:LOG_CAT:10005:FFDC logging disabled
+sdf/agent/agent_helper.c:595:plat_log_msg:success ?  LOG_LEV : PLAT_LOG_LEVEL_INFO:LOG_CAT:20849:plat_opts_parse_sdf_agent SUCCESS = %u
+sdf/agent/agent_helper.c:602:plat_log_msg:success ? LOG_LEV : PLAT_LOG_LEVEL_INFO:LOG_CAT:20850:set properties SUCCESS = %u
+sdf/agent/agent_helper.c:688:plat_log_msg:PLAT_LOG_LEVEL_TRACE:LOG_CAT:20851: Replication StateMachine Turned ON\n
+sdf/agent/agent_helper.c:700:plat_log_msg:success ?  LOG_LEV : PLAT_LOG_LEVEL_INFO:LOG_CAT:20852:init_flash  = %u
+sdf/agent/agent_helper.c:710:plat_log_msg:success ?  LOG_LEV : PLAT_LOG_LEVEL_INFO:LOG_CAT:20853:init_action_home = %u
+sdf/agent/agent_helper.c:728:plat_log_msg:success ?  LOG_LEV : PLAT_LOG_LEVEL_INFO:LOG_CAT:20854:home_flash_start = %u
+sdf/agent/agent_helper.c:740:plat_log_msg:success ?  LOG_LEV : PLAT_LOG_LEVEL_INFO:LOG_CAT:20855:sdf_replicator_adapter_start = %u
+sdf/agent/agent_helper.c:763:plat_log_msg:success ?  LOG_LEV : PLAT_LOG_LEVEL_INFO:LOG_CAT:20856:async_puts_start = %u
+sdf/agent/agent_helper.c:776:plat_log_msg:success ?  LOG_LEV : PLAT_LOG_LEVEL_INFO:LOG_CAT:20857:init_containers  = %u
 sdf/agent/agent_sm.c:79:plat_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_PRINT_ARGS:20858:PROP: %s=%s
 sdf/agent/agent_sm.c:86:plat_log_msg:PLAT_LOG_LEVEL_FATAL:PLAT_LOG_CAT_SDF_CLIENT:21795:Error creating path (%s), returned (%s)
 sdf/agent/agent_sm.c:112:plat_log_msg:PLAT_LOG_LEVEL_FATAL:PLAT_LOG_CAT_SDF_CLIENT:21795:Error creating path (%s), returned (%s)
@@ -1044,141 +1044,138 @@ sdf/agent/fdf_agent.c:136:plat_log_msg:PLAT_LOG_LEVEL_WARN:LOG_CAT:21789:Unable 
 sdf/agent/fdf_agent.c:140:plat_log_msg:PLAT_LOG_LEVEL_INFO:LOG_CAT:10005:FFDC logging disabled
 sdf/agent/fdf_agent.c:178:plat_log_msg:success ?  LOG_LEV : PLAT_LOG_LEVEL_INFO:LOG_CAT:20849:plat_opts_parse_sdf_agent SUCCESS = %u
 sdf/agent/fdf_agent.c:185:plat_log_msg:success ? LOG_LEV : PLAT_LOG_LEVEL_INFO:LOG_CAT:20850:set properties SUCCESS = %u
-sdf/api/fdf.c:384:mcd_log_msg:PLAT_LOG_LEVEL_FATAL::20147:agent_engine_post_init() failed
-sdf/api/fdf.c:491:mcd_log_msg:PLAT_LOG_LEVEL_FATAL::20163:pthread_create() failed, rc=%d
-sdf/api/fdf.c:495:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG::20164:scheduler %d created
-sdf/api/fdf.c:599:mcd_log_msg:PLAT_LOG_LEVEL_FATAL::20163:pthread_create() failed, rc=%d
-sdf/api/fdf.c:603:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG::150022:scheduler startup process created
-sdf/api/fdf.c:634:mcd_log_msg:PLAT_LOG_LEVEL_ERROR::50030:failed to get SDF properties, status=%s
-sdf/api/fdf.c:645:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG::20131:next container id %lu
-sdf/api/fdf.c:771:plat_log_msg:LOG_INFO:LOG_CAT:20819:%s
-sdf/api/fdf.c:778:plat_log_msg:LOG_ERR:LOG_CAT:30572:Writeback caching can only be enabled for eviction mode containers
-sdf/api/fdf.c:785:plat_log_msg:LOG_ERR:LOG_CAT:30572:Writeback caching can only be enabled for eviction mode containers
-sdf/api/fdf.c:792:plat_log_msg:LOG_ERR:LOG_CAT:30575:Cannot enable writeback caching for container '%s' because writeback caching is disabled.
-sdf/api/fdf.c:811:plat_log_msg:LOG_ERR:LOG_CAT:150033:FDFCreateContainer failed for container %s because 128 containers have already been created.
-sdf/api/fdf.c:899:plat_log_msg:LOG_INFO:LOG_CAT:21527:Container: %s - Multi Devs: %d
-sdf/api/fdf.c:902:plat_log_msg:LOG_INFO:LOG_CAT:21528:Container: %s - Single Dev
-sdf/api/fdf.c:905:plat_log_msg:LOG_INFO:LOG_CAT:21529:Container: %s - Num Shards: %d
-sdf/api/fdf.c:908:plat_log_msg:LOG_INFO:LOG_CAT:21530:Container: %s - Num Objs: %d
-sdf/api/fdf.c:911:plat_log_msg:LOG_INFO:LOG_CAT:21531:Container: %s - DEBUG_MULTI_SHARD_INDEX: %d
-sdf/api/fdf.c:922:plat_log_msg:LOG_ERR:LOG_CAT:21532:failed to lock %s
-sdf/api/fdf.c:928:plat_log_msg:LOG_ERR:LOG_CAT:21533:failed to unlock %s
-sdf/api/fdf.c:950:plat_log_msg:LOG_ERR:LOG_CAT:21534:failed to map cguid: %s
-sdf/api/fdf.c:953:plat_log_msg:LOG_ERR:LOG_CAT:21532:failed to lock %s
-sdf/api/fdf.c:967:plat_log_msg:LOG_ERR:LOG_CAT:21533:failed to unlock %s
-sdf/api/fdf.c:970:plat_log_msg:LOG_ERR:LOG_CAT:21535:cname=%s, build_shard failed
-sdf/api/fdf.c:973:plat_log_msg:LOG_ERR:LOG_CAT:21536:cname=%s, createParentContainer() failed
-sdf/api/fdf.c:979:plat_log_msg:LOG_ERR:LOG_CAT:21537:cname=%s, build_meta failed
-sdf/api/fdf.c:982:plat_log_msg:LOG_ERR:LOG_CAT:21535:cname=%s, build_shard failed
-sdf/api/fdf.c:986:plat_log_msg:LOG_DBG:LOG_CAT:21511:%s - %s
-sdf/api/fdf.c:989:plat_log_msg:LOG_ERR:LOG_CAT:21538:cname=%s, function returned status = %u
-sdf/api/fdf.c:1031:plat_log_msg:LOG_INFO:LOG_CAT:21511:%s - %s
-sdf/api/fdf.c:1056:plat_log_msg:LOG_INFO:LOG_CAT:20819:%s
-sdf/api/fdf.c:1082:plat_log_msg:log_level:LOG_CAT:160032:Already opened or error: %s - %s
-sdf/api/fdf.c:1088:plat_log_msg:LOG_INFO:LOG_CAT:20819:%s
-sdf/api/fdf.c:1095:plat_log_msg:LOG_ERR:LOG_CAT:21552:Delete pending for %s
-sdf/api/fdf.c:1131:plat_log_msg:LOG_DBG:LOG_CAT:21553:set cid %d (%d) to cguid %d\n
-sdf/api/fdf.c:1148:plat_log_msg:LOG_ERR:LOG_CAT:21554:SDFActionOpenContainer failed for container %s
-sdf/api/fdf.c:1161:plat_log_msg:LOG_ERR:LOG_CAT:150026:Failed to find shard for %s
-sdf/api/fdf.c:1167:plat_log_msg:LOG_DBG:LOG_CAT:21555:Opened %s
-sdf/api/fdf.c:1170:plat_log_msg:LOG_ERR:LOG_CAT:21556:Failed to find %s
-sdf/api/fdf.c:1175:plat_log_msg:log_level:LOG_CAT:21511:%s - %s
-sdf/api/fdf.c:1177:plat_log_msg:log_level:LOG_CAT:150024:NULL - %s
-sdf/api/fdf.c:1200:plat_log_msg:LOG_INFO:LOG_CAT:21630:%lu
-sdf/api/fdf.c:1258:plat_log_msg:LOG_ERR:LOG_CAT:21540:%s - failed to flush and invalidate container
-sdf/api/fdf.c:1262:plat_log_msg:LOG_DBG:LOG_CAT:21541:%s - flush and invalidate container succeed
-sdf/api/fdf.c:1269:plat_log_msg:LOG_ERR:LOG_CAT:21544:%s - failed to delete container shards
-sdf/api/fdf.c:1273:plat_log_msg:LOG_DBG:LOG_CAT:21545:%s - delete container shards succeeded
-sdf/api/fdf.c:1280:plat_log_msg:LOG_ERR:LOG_CAT:21546:%s - failed to remove metadata
-sdf/api/fdf.c:1284:plat_log_msg:LOG_DBG:LOG_CAT:21547:%s - remove metadata succeeded
-sdf/api/fdf.c:1290:plat_log_msg:LOG_ERR:LOG_CAT:21548:%s - failed to unlock metadata
-sdf/api/fdf.c:1297:plat_log_msg:LOG_DBG:LOG_CAT:21549:%s - unlock metadata succeeded
-sdf/api/fdf.c:1304:plat_log_msg:LOG_ERR:LOG_CAT:21550:%s - failed to remove cguid map
-sdf/api/fdf.c:1308:plat_log_msg:LOG_DBG:LOG_CAT:21551:%s - remove cguid map succeeded
-sdf/api/fdf.c:1317:plat_log_msg:log_level:LOG_CAT:20819:%s
-sdf/api/fdf.c:1338:plat_log_msg:LOG_INFO:LOG_CAT:21630:%lu
-sdf/api/fdf.c:1359:plat_log_msg:LOG_INFO:LOG_CAT:160030:Container is not deleted (busy or error): cguid=%lu(%d), status=%s
-sdf/api/fdf.c:1367:plat_log_msg:LOG_INFO:LOG_CAT:20819:%s
-sdf/api/fdf.c:1660:plat_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED_BACKUP:30664:container backup sync failed for enum, status=%s
-sdf/api/fdf.c:2105:plat_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20648:sdf stat %s parsing failure
-sdf/api/fdf.c:2123:plat_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20649:invalid stat key %d
-sdf/api/fdf.c:2141:plat_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20650:invalid sdf cache stats, rd=%lu rx=%lu tr=%lu
-sdf/api/fdf.c:2249:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20694:/proc/stat opened, fd=%d
-sdf/api/fdf.c:2260:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20695:failed to read from proc, rc=%d errno=%d
-sdf/api/fdf.c:2325:plat_log_msg:log_level:LOG_CAT:20819:%s
-sdf/api/fdf.c:2494:plat_log_msg:LOG_INFO:LOG_CAT:21630:%lu
-sdf/api/fdf.c:2520:plat_log_msg:LOG_ERR:LOG_CAT:21539:name_service_put_meta failed for cguid %"PRIu64"
-sdf/api/fdf.c:2526:plat_log_msg:LOG_INFO:LOG_CAT:20819:%s
-sdf/api/fdf.c:2543:plat_log_msg:LOG_INFO:LOG_CAT:21630:%lu
-sdf/api/fdf.c:2568:plat_log_msg:LOG_ERR:LOG_CAT:21539:name_service_put_meta failed for cguid %"PRIu64"
-sdf/api/fdf.c:2574:plat_log_msg:LOG_INFO:LOG_CAT:20819:%s
-sdf/api/sdf.c:306:mcd_log_msg:PLAT_LOG_LEVEL_FATAL::20147:agent_engine_post_init() failed
-sdf/api/sdf.c:415:mcd_log_msg:PLAT_LOG_LEVEL_FATAL::20163:pthread_create() failed, rc=%d
-sdf/api/sdf.c:419:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG::20164:scheduler %d created
-sdf/api/sdf.c:501:mcd_log_msg:PLAT_LOG_LEVEL_FATAL::20163:pthread_create() failed, rc=%d
-sdf/api/sdf.c:504:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG::150022:scheduler startup process created
-sdf/api/sdf.c:638:plat_log_msg:LOG_INFO:LOG_CAT:160033:%s, size=%ld bytes
-sdf/api/sdf.c:643:plat_log_msg:LOG_ERR:LOG_CAT:30572:Writeback caching can only be enabled for eviction mode containers
-sdf/api/sdf.c:649:plat_log_msg:LOG_ERR:LOG_CAT:30572:Writeback caching can only be enabled for eviction mode containers
-sdf/api/sdf.c:656:plat_log_msg:LOG_ERR:LOG_CAT:30575:Cannot enable writeback caching for container '%s' because writeback caching is disabled.
-sdf/api/sdf.c:691:plat_log_msg:LOG_ERR:LOG_CAT:150023:SDFCreateContainer failed for container %s because 128 containers have already been created.
-sdf/api/sdf.c:772:plat_log_msg:LOG_INFO:LOG_CAT:21527:Container: %s - Multi Devs: %d
-sdf/api/sdf.c:775:plat_log_msg:LOG_INFO:LOG_CAT:21528:Container: %s - Single Dev
-sdf/api/sdf.c:778:plat_log_msg:LOG_INFO:LOG_CAT:21529:Container: %s - Num Shards: %d
-sdf/api/sdf.c:781:plat_log_msg:LOG_INFO:LOG_CAT:21530:Container: %s - Num Objs: %d
-sdf/api/sdf.c:784:plat_log_msg:LOG_INFO:LOG_CAT:21531:Container: %s - DEBUG_MULTI_SHARD_INDEX: %d
-sdf/api/sdf.c:797:plat_log_msg:LOG_ERR:LOG_CAT:21532:failed to lock %s
-sdf/api/sdf.c:803:plat_log_msg:LOG_ERR:LOG_CAT:21533:failed to unlock %s
-sdf/api/sdf.c:827:plat_log_msg:LOG_ERR:LOG_CAT:21534:failed to map cguid: %s
-sdf/api/sdf.c:830:plat_log_msg:LOG_ERR:LOG_CAT:21532:failed to lock %s
-sdf/api/sdf.c:842:plat_log_msg:LOG_ERR:LOG_CAT:21533:failed to unlock %s
-sdf/api/sdf.c:845:plat_log_msg:LOG_ERR:LOG_CAT:21535:cname=%s, build_shard failed
-sdf/api/sdf.c:848:plat_log_msg:LOG_ERR:LOG_CAT:21536:cname=%s, createParentContainer() failed
-sdf/api/sdf.c:854:plat_log_msg:LOG_ERR:LOG_CAT:21537:cname=%s, build_meta failed
-sdf/api/sdf.c:857:plat_log_msg:LOG_ERR:LOG_CAT:21535:cname=%s, build_shard failed
-sdf/api/sdf.c:861:plat_log_msg:LOG_DBG:LOG_CAT:21511:%s - %s
-sdf/api/sdf.c:865:plat_log_msg:LOG_ERR:LOG_CAT:21538:cname=%s, function returned status = %u
-sdf/api/sdf.c:910:plat_log_msg:LOG_INFO:LOG_CAT:160034:%s(cguid=%lu) - %s
-sdf/api/sdf.c:935:plat_log_msg:LOG_INFO:LOG_CAT:21630:%lu
-sdf/api/sdf.c:962:plat_log_msg:log_level:LOG_CAT:160032:Already opened or error: %s - %s
-sdf/api/sdf.c:968:plat_log_msg:LOG_INFO:LOG_CAT:20819:%s
-sdf/api/sdf.c:975:plat_log_msg:LOG_ERR:LOG_CAT:21552:Delete pending for %s
-sdf/api/sdf.c:1011:plat_log_msg:LOG_DBG:LOG_CAT:21553:set cid %d (%d) to cguid %d\n
-sdf/api/sdf.c:1028:plat_log_msg:LOG_ERR:LOG_CAT:21554:SDFActionOpenContainer failed for container %s
-sdf/api/sdf.c:1041:plat_log_msg:LOG_ERR:LOG_CAT:150026:Failed to find shard for %s
-sdf/api/sdf.c:1047:plat_log_msg:LOG_DBG:LOG_CAT:21555:Opened %s
-sdf/api/sdf.c:1050:plat_log_msg:LOG_ERR:LOG_CAT:21556:Failed to find %s
-sdf/api/sdf.c:1055:plat_log_msg:log_level:LOG_CAT:21511:%s - %s
-sdf/api/sdf.c:1057:plat_log_msg:log_level:LOG_CAT:150024:NULL - %s
-sdf/api/sdf.c:1352:plat_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20648:sdf stat %s parsing failure
-sdf/api/sdf.c:1370:plat_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20649:invalid stat key %d
-sdf/api/sdf.c:1388:plat_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20650:invalid sdf cache stats, rd=%lu rx=%lu tr=%lu
-sdf/api/sdf.c:1496:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20694:/proc/stat opened, fd=%d
-sdf/api/sdf.c:1507:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20695:failed to read from proc, rc=%d errno=%d
-sdf/api/sdf.c:1576:plat_log_msg:log_level:LOG_CAT:20819:%s
-sdf/api/sdf.c:1603:plat_log_msg:LOG_INFO:LOG_CAT:21630:%lu
-sdf/api/sdf.c:1667:plat_log_msg:LOG_ERR:LOG_CAT:21540:%s - failed to flush and invalidate container
-sdf/api/sdf.c:1671:plat_log_msg:LOG_DBG:LOG_CAT:21541:%s - flush and invalidate container succeed
-sdf/api/sdf.c:1679:plat_log_msg:LOG_ERR:LOG_CAT:21542:%s - failed to delete action thread container state
-sdf/api/sdf.c:1683:plat_log_msg:LOG_DBG:LOG_CAT:21543:%s - action thread delete container state succeeded
-sdf/api/sdf.c:1703:plat_log_msg:LOG_INFO:LOG_CAT:160031:Delete request pending. Deleting... cguid=%lu
-sdf/api/sdf.c:1715:plat_log_msg:log_level:LOG_CAT:20819:%s
-sdf/api/sdf.c:1731:plat_log_msg:LOG_INFO:LOG_CAT:21630:%lu
-sdf/api/sdf.c:1754:plat_log_msg:LOG_INFO:LOG_CAT:160030:Container is not deleted (busy or error): cguid=%lu(%d), status=%s
-sdf/api/sdf.c:1760:plat_log_msg:LOG_INFO:LOG_CAT:20819:%s
-sdf/api/sdf.c:1777:plat_log_msg:LOG_INFO:LOG_CAT:21630:%lu
-sdf/api/sdf.c:1806:plat_log_msg:LOG_ERR:LOG_CAT:160029:Failed to find shard for cguid %"PRIu64"
-sdf/api/sdf.c:1810:plat_log_msg:LOG_ERR:LOG_CAT:21539:name_service_put_meta failed for cguid %"PRIu64"
-sdf/api/sdf.c:1816:plat_log_msg:LOG_INFO:LOG_CAT:20819:%s
-sdf/api/sdf.c:1833:plat_log_msg:LOG_INFO:LOG_CAT:21630:%lu
-sdf/api/sdf.c:1866:plat_log_msg:LOG_ERR:LOG_CAT:160029:Failed to find shard for cguid %"PRIu64"
-sdf/api/sdf.c:1870:plat_log_msg:LOG_ERR:LOG_CAT:21539:name_service_put_meta failed for cguid %"PRIu64"
-sdf/api/sdf.c:1876:plat_log_msg:LOG_INFO:LOG_CAT:20819:%s
-sdf/api/sdf.c:2216:plat_log_msg:LOG_DBG:LOG_CAT:150019:SDFGenerateCguid: %llu
-sdf/api/sdf.c:2332:plat_log_msg:LOG_ERR:LOG_CAT:160029:Failed to find shard for cguid %"PRIu64"
-sdf/api/sdf.c:2363:plat_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED_BACKUP:30664:container backup sync failed for enum, status=%s
-sdf/api/sdf.c:2558:mcd_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_APP_MEMCACHED_BACKUP:50006:formatting container, name=%s
-sdf/api/sdf.c:2699:mcd_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_APP_MEMCACHED_BACKUP:20728:formatting container, port=%d
+sdf/api/fdf.c:802:mcd_log_msg:PLAT_LOG_LEVEL_FATAL::20147:agent_engine_post_init() failed
+sdf/api/fdf.c:941:mcd_log_msg:PLAT_LOG_LEVEL_FATAL::20163:pthread_create() failed, rc=%d
+sdf/api/fdf.c:945:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG::20164:scheduler %d created
+sdf/api/fdf.c:1046:mcd_log_msg:PLAT_LOG_LEVEL_FATAL::20163:pthread_create() failed, rc=%d
+sdf/api/fdf.c:1050:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG::150022:scheduler startup process created
+sdf/api/fdf.c:1082:mcd_log_msg:PLAT_LOG_LEVEL_ERROR::50030:failed to get SDF properties, status=%s
+sdf/api/fdf.c:1093:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG::20131:next container id %lu
+sdf/api/fdf.c:1222:plat_log_msg:LOG_INFO:LOG_CAT:160035:%s, size=%d bytes
+sdf/api/fdf.c:1226:plat_log_msg:LOG_ERR:LOG_CAT:30572:Writeback caching can only be enabled for eviction mode containers
+sdf/api/fdf.c:1233:plat_log_msg:LOG_ERR:LOG_CAT:30572:Writeback caching can only be enabled for eviction mode containers
+sdf/api/fdf.c:1240:plat_log_msg:LOG_ERR:LOG_CAT:30575:Cannot enable writeback caching for container '%s' because writeback caching is disabled.
+sdf/api/fdf.c:1266:plat_log_msg:LOG_ERR:LOG_CAT:150033:FDFCreateContainer failed for container %s because 128 containers have already been created.
+sdf/api/fdf.c:1289:plat_log_msg:LOG_ERR:LOG_CAT:150034:Failed to save cguid state: %s
+sdf/api/fdf.c:1376:plat_log_msg:LOG_INFO:LOG_CAT:21527:Container: %s - Multi Devs: %d
+sdf/api/fdf.c:1379:plat_log_msg:LOG_INFO:LOG_CAT:21528:Container: %s - Single Dev
+sdf/api/fdf.c:1382:plat_log_msg:LOG_INFO:LOG_CAT:21529:Container: %s - Num Shards: %d
+sdf/api/fdf.c:1385:plat_log_msg:LOG_INFO:LOG_CAT:21530:Container: %s - Num Objs: %d
+sdf/api/fdf.c:1388:plat_log_msg:LOG_INFO:LOG_CAT:21531:Container: %s - DEBUG_MULTI_SHARD_INDEX: %d
+sdf/api/fdf.c:1399:plat_log_msg:LOG_ERR:LOG_CAT:21532:failed to lock %s
+sdf/api/fdf.c:1405:plat_log_msg:LOG_ERR:LOG_CAT:21533:failed to unlock %s
+sdf/api/fdf.c:1427:plat_log_msg:LOG_ERR:LOG_CAT:21534:failed to map cguid: %s
+sdf/api/fdf.c:1430:plat_log_msg:LOG_ERR:LOG_CAT:21532:failed to lock %s
+sdf/api/fdf.c:1444:plat_log_msg:LOG_ERR:LOG_CAT:21533:failed to unlock %s
+sdf/api/fdf.c:1447:plat_log_msg:LOG_ERR:LOG_CAT:21535:cname=%s, build_shard failed
+sdf/api/fdf.c:1450:plat_log_msg:LOG_ERR:LOG_CAT:21536:cname=%s, createParentContainer() failed
+sdf/api/fdf.c:1456:plat_log_msg:LOG_ERR:LOG_CAT:21537:cname=%s, build_meta failed
+sdf/api/fdf.c:1459:plat_log_msg:LOG_ERR:LOG_CAT:21535:cname=%s, build_shard failed
+sdf/api/fdf.c:1463:plat_log_msg:LOG_DBG:LOG_CAT:21511:%s - %s
+sdf/api/fdf.c:1466:plat_log_msg:LOG_ERR:LOG_CAT:21538:cname=%s, function returned status = %u
+sdf/api/fdf.c:1512:plat_log_msg:LOG_INFO:LOG_CAT:160034:%s(cguid=%lu) - %s
+sdf/api/fdf.c:1548:plat_log_msg:LOG_INFO:LOG_CAT:20819:%s
+sdf/api/fdf.c:1566:plat_log_msg:log_level:LOG_CAT:160032:Already opened or error: %s - %s
+sdf/api/fdf.c:1572:plat_log_msg:LOG_INFO:LOG_CAT:20819:%s
+sdf/api/fdf.c:1579:plat_log_msg:LOG_ERR:LOG_CAT:21552:Delete pending for %s
+sdf/api/fdf.c:1619:plat_log_msg:LOG_DBG:LOG_CAT:21553:set cid %d (%d) to cguid %d\n
+sdf/api/fdf.c:1636:plat_log_msg:LOG_ERR:LOG_CAT:21554:SDFActionOpenContainer failed for container %s
+sdf/api/fdf.c:1649:plat_log_msg:LOG_ERR:LOG_CAT:150026:Failed to find shard for %s
+sdf/api/fdf.c:1655:plat_log_msg:LOG_DBG:LOG_CAT:21555:Opened %s
+sdf/api/fdf.c:1658:plat_log_msg:LOG_ERR:LOG_CAT:21556:Failed to find %s
+sdf/api/fdf.c:1663:plat_log_msg:log_level:LOG_CAT:21511:%s - %s
+sdf/api/fdf.c:1665:plat_log_msg:log_level:LOG_CAT:150024:NULL - %s
+sdf/api/fdf.c:1694:plat_log_msg:LOG_INFO:LOG_CAT:21630:%lu
+sdf/api/fdf.c:1761:plat_log_msg:LOG_ERR:LOG_CAT:21540:%s - failed to flush and invalidate container
+sdf/api/fdf.c:1765:plat_log_msg:LOG_DBG:LOG_CAT:21541:%s - flush and invalidate container succeed
+sdf/api/fdf.c:1773:plat_log_msg:LOG_ERR:LOG_CAT:21542:%s - failed to delete action thread container state
+sdf/api/fdf.c:1777:plat_log_msg:LOG_DBG:LOG_CAT:21543:%s - action thread delete container state succeeded
+sdf/api/fdf.c:1799:plat_log_msg:LOG_INFO:LOG_CAT:160031:Delete request pending. Deleting... cguid=%lu
+sdf/api/fdf.c:1812:plat_log_msg:log_level:LOG_CAT:20819:%s
+sdf/api/fdf.c:1833:plat_log_msg:LOG_INFO:LOG_CAT:21630:%lu
+sdf/api/fdf.c:1859:plat_log_msg:LOG_INFO:LOG_CAT:160030:Container is not deleted (busy or error): cguid=%lu(%d), status=%s
+sdf/api/fdf.c:1867:plat_log_msg:LOG_INFO:LOG_CAT:20819:%s
+sdf/api/fdf.c:2172:plat_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED_BACKUP:30664:container backup sync failed for enum, status=%s
+sdf/api/fdf.c:2672:plat_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20648:sdf stat %s parsing failure
+sdf/api/fdf.c:2729:plat_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20649:invalid stat key %d
+sdf/api/fdf.c:2747:plat_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20650:invalid sdf cache stats, rd=%lu rx=%lu tr=%lu
+sdf/api/fdf.c:2857:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20694:/proc/stat opened, fd=%d
+sdf/api/fdf.c:2868:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20695:failed to read from proc, rc=%d errno=%d
+sdf/api/fdf.c:2944:plat_log_msg:log_level:LOG_CAT:20819:%s
+sdf/api/fdf.c:3151:plat_log_msg:LOG_INFO:LOG_CAT:21630:%lu
+sdf/api/fdf.c:3177:plat_log_msg:LOG_ERR:LOG_CAT:21539:name_service_put_meta failed for cguid %"PRIu64"
+sdf/api/fdf.c:3183:plat_log_msg:LOG_INFO:LOG_CAT:20819:%s
+sdf/api/fdf.c:3200:plat_log_msg:LOG_INFO:LOG_CAT:21630:%lu
+sdf/api/fdf.c:3225:plat_log_msg:LOG_ERR:LOG_CAT:21539:name_service_put_meta failed for cguid %"PRIu64"
+sdf/api/fdf.c:3231:plat_log_msg:LOG_INFO:LOG_CAT:20819:%s
+sdf/api/sdf.c:343:mcd_log_msg:PLAT_LOG_LEVEL_FATAL::20147:agent_engine_post_init() failed
+sdf/api/sdf.c:452:mcd_log_msg:PLAT_LOG_LEVEL_FATAL::20163:pthread_create() failed, rc=%d
+sdf/api/sdf.c:456:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG::20164:scheduler %d created
+sdf/api/sdf.c:556:mcd_log_msg:PLAT_LOG_LEVEL_FATAL::20163:pthread_create() failed, rc=%d
+sdf/api/sdf.c:559:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG::150022:scheduler startup process created
+sdf/api/sdf.c:693:plat_log_msg:LOG_INFO:LOG_CAT:160033:%s, size=%ld bytes
+sdf/api/sdf.c:698:plat_log_msg:LOG_ERR:LOG_CAT:30572:Writeback caching can only be enabled for eviction mode containers
+sdf/api/sdf.c:704:plat_log_msg:LOG_ERR:LOG_CAT:30572:Writeback caching can only be enabled for eviction mode containers
+sdf/api/sdf.c:711:plat_log_msg:LOG_ERR:LOG_CAT:30575:Cannot enable writeback caching for container '%s' because writeback caching is disabled.
+sdf/api/sdf.c:736:plat_log_msg:LOG_ERR:LOG_CAT:150023:SDFCreateContainer failed for container %s because 128 containers have already been created.
+sdf/api/sdf.c:756:plat_log_msg:LOG_ERR:LOG_CAT:150034:Failed to save cguid state: %s
+sdf/api/sdf.c:835:plat_log_msg:LOG_INFO:LOG_CAT:21527:Container: %s - Multi Devs: %d
+sdf/api/sdf.c:838:plat_log_msg:LOG_INFO:LOG_CAT:21528:Container: %s - Single Dev
+sdf/api/sdf.c:841:plat_log_msg:LOG_INFO:LOG_CAT:21529:Container: %s - Num Shards: %d
+sdf/api/sdf.c:844:plat_log_msg:LOG_INFO:LOG_CAT:21530:Container: %s - Num Objs: %d
+sdf/api/sdf.c:847:plat_log_msg:LOG_INFO:LOG_CAT:21531:Container: %s - DEBUG_MULTI_SHARD_INDEX: %d
+sdf/api/sdf.c:860:plat_log_msg:LOG_ERR:LOG_CAT:21532:failed to lock %s
+sdf/api/sdf.c:866:plat_log_msg:LOG_ERR:LOG_CAT:21533:failed to unlock %s
+sdf/api/sdf.c:890:plat_log_msg:LOG_ERR:LOG_CAT:21534:failed to map cguid: %s
+sdf/api/sdf.c:893:plat_log_msg:LOG_ERR:LOG_CAT:21532:failed to lock %s
+sdf/api/sdf.c:905:plat_log_msg:LOG_ERR:LOG_CAT:21533:failed to unlock %s
+sdf/api/sdf.c:908:plat_log_msg:LOG_ERR:LOG_CAT:21535:cname=%s, build_shard failed
+sdf/api/sdf.c:911:plat_log_msg:LOG_ERR:LOG_CAT:21536:cname=%s, createParentContainer() failed
+sdf/api/sdf.c:917:plat_log_msg:LOG_ERR:LOG_CAT:21537:cname=%s, build_meta failed
+sdf/api/sdf.c:920:plat_log_msg:LOG_ERR:LOG_CAT:21535:cname=%s, build_shard failed
+sdf/api/sdf.c:924:plat_log_msg:LOG_DBG:LOG_CAT:21511:%s - %s
+sdf/api/sdf.c:927:plat_log_msg:LOG_ERR:LOG_CAT:21538:cname=%s, function returned status = %u
+sdf/api/sdf.c:973:plat_log_msg:LOG_INFO:LOG_CAT:160034:%s(cguid=%lu) - %s
+sdf/api/sdf.c:998:plat_log_msg:LOG_INFO:LOG_CAT:21630:%lu
+sdf/api/sdf.c:1024:plat_log_msg:log_level:LOG_CAT:160032:Already opened or error: %s - %s
+sdf/api/sdf.c:1030:plat_log_msg:LOG_INFO:LOG_CAT:20819:%s
+sdf/api/sdf.c:1037:plat_log_msg:LOG_ERR:LOG_CAT:21552:Delete pending for %s
+sdf/api/sdf.c:1078:plat_log_msg:LOG_DBG:LOG_CAT:21553:set cid %d (%d) to cguid %d\n
+sdf/api/sdf.c:1095:plat_log_msg:LOG_ERR:LOG_CAT:21554:SDFActionOpenContainer failed for container %s
+sdf/api/sdf.c:1108:plat_log_msg:LOG_ERR:LOG_CAT:150026:Failed to find shard for %s
+sdf/api/sdf.c:1114:plat_log_msg:LOG_DBG:LOG_CAT:21555:Opened %s
+sdf/api/sdf.c:1117:plat_log_msg:LOG_ERR:LOG_CAT:21556:Failed to find %s
+sdf/api/sdf.c:1122:plat_log_msg:log_level:LOG_CAT:21511:%s - %s
+sdf/api/sdf.c:1124:plat_log_msg:log_level:LOG_CAT:150024:NULL - %s
+sdf/api/sdf.c:1419:plat_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20648:sdf stat %s parsing failure
+sdf/api/sdf.c:1437:plat_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20649:invalid stat key %d
+sdf/api/sdf.c:1455:plat_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20650:invalid sdf cache stats, rd=%lu rx=%lu tr=%lu
+sdf/api/sdf.c:1563:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20694:/proc/stat opened, fd=%d
+sdf/api/sdf.c:1574:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20695:failed to read from proc, rc=%d errno=%d
+sdf/api/sdf.c:1643:plat_log_msg:log_level:LOG_CAT:20819:%s
+sdf/api/sdf.c:1670:plat_log_msg:LOG_INFO:LOG_CAT:21630:%lu
+sdf/api/sdf.c:1734:plat_log_msg:LOG_ERR:LOG_CAT:21540:%s - failed to flush and invalidate container
+sdf/api/sdf.c:1738:plat_log_msg:LOG_DBG:LOG_CAT:21541:%s - flush and invalidate container succeed
+sdf/api/sdf.c:1746:plat_log_msg:LOG_ERR:LOG_CAT:21542:%s - failed to delete action thread container state
+sdf/api/sdf.c:1750:plat_log_msg:LOG_DBG:LOG_CAT:21543:%s - action thread delete container state succeeded
+sdf/api/sdf.c:1770:plat_log_msg:LOG_INFO:LOG_CAT:160031:Delete request pending. Deleting... cguid=%lu
+sdf/api/sdf.c:1782:plat_log_msg:log_level:LOG_CAT:20819:%s
+sdf/api/sdf.c:1798:plat_log_msg:LOG_INFO:LOG_CAT:21630:%lu
+sdf/api/sdf.c:1821:plat_log_msg:LOG_INFO:LOG_CAT:160030:Container is not deleted (busy or error): cguid=%lu(%d), status=%s
+sdf/api/sdf.c:1827:plat_log_msg:LOG_INFO:LOG_CAT:20819:%s
+sdf/api/sdf.c:1844:plat_log_msg:LOG_INFO:LOG_CAT:21630:%lu
+sdf/api/sdf.c:1873:plat_log_msg:LOG_ERR:LOG_CAT:160029:Failed to find shard for cguid %"PRIu64"
+sdf/api/sdf.c:1877:plat_log_msg:LOG_ERR:LOG_CAT:21539:name_service_put_meta failed for cguid %"PRIu64"
+sdf/api/sdf.c:1883:plat_log_msg:LOG_INFO:LOG_CAT:20819:%s
+sdf/api/sdf.c:1900:plat_log_msg:LOG_INFO:LOG_CAT:21630:%lu
+sdf/api/sdf.c:1933:plat_log_msg:LOG_ERR:LOG_CAT:160029:Failed to find shard for cguid %"PRIu64"
+sdf/api/sdf.c:1937:plat_log_msg:LOG_ERR:LOG_CAT:21539:name_service_put_meta failed for cguid %"PRIu64"
+sdf/api/sdf.c:1943:plat_log_msg:LOG_INFO:LOG_CAT:20819:%s
+sdf/api/sdf.c:2300:plat_log_msg:LOG_DBG:LOG_CAT:150019:SDFGenerateCguid: %llu
+sdf/api/sdf.c:2408:plat_log_msg:LOG_ERR:LOG_CAT:160029:Failed to find shard for cguid %"PRIu64"
+sdf/api/sdf.c:2439:plat_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED_BACKUP:30664:container backup sync failed for enum, status=%s
+sdf/api/sdf.c:2634:mcd_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_APP_MEMCACHED_BACKUP:50006:formatting container, name=%s
+sdf/api/sdf.c:2775:mcd_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_APP_MEMCACHED_BACKUP:20728:formatting container, port=%d
 sdf/applib/fthFlashAccess.c:125:plat_log_msg:PLAT_LOG_LEVEL_FATAL:PLAT_LOG_CAT_SDF_SHARED:20866:Not enough shared memory, plat_shmem_alloc() failed.
 sdf/applib/fthFlashAccess.c:439:plat_log_msg:PLAT_LOG_LEVEL_FATAL:PLAT_LOG_CAT_PLATFORM_TEST_SHMEM:20073:shmem_attach(%s) failed: %s
 sdf/applib/fthFlashAccess.c:455:plat_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_PRINT_ARGS:20867:PROP: SDF_SHARD_MAX_OBJECTS=%d
@@ -1186,7 +1183,7 @@ sdf/applib/ftopMboxTest.c:177:plat_log_msg:PLAT_LOG_LEVEL_FATAL:PLAT_LOG_CAT_PLA
 sdf/applib/ptofMboxTest.c:150:plat_log_msg:PLAT_LOG_LEVEL_FATAL:PLAT_LOG_CAT_PLATFORM_TEST_SHMEM:20073:shmem_attach(%s) failed: %s
 sdf/applib/simpleWaitTest.c:69:plat_log_msg:PLAT_LOG_LEVEL_FATAL:PLAT_LOG_CAT_PLATFORM_TEST_SHMEM:20073:shmem_attach(%s) failed: %s
 sdf/applib/XLockTest.c:122:plat_log_msg:PLAT_LOG_LEVEL_FATAL:PLAT_LOG_CAT_PLATFORM_TEST_SHMEM:20073:shmem_attach(%s) failed: %s
-sdf/common/sdftypes.h:476:plat_log_msg:PLAT_LOG_LEVEL_FATAL:PLAT_LOG_CAT_SDF:20868:%s:%u: %s: Assertion `%s (%d) == %s (%d)' failed.
+sdf/common/sdftypes.h:477:plat_log_msg:PLAT_LOG_LEVEL_FATAL:PLAT_LOG_CAT_SDF:20868:%s:%u: %s: Assertion `%s (%d) == %s (%d)' failed.
 sdf/fth/archive/fth_c_1_test.c:164:plat_log_msg:PLAT_LOG_LEVEL_FATAL:PLAT_LOG_CAT_PLATFORM_TEST_SHMEM:20073:shmem_attach(%s) failed: %s
 sdf/fth/archive/fth_c_3_test.c:125:plat_log_msg:PLAT_LOG_LEVEL_FATAL:PLAT_LOG_CAT_PLATFORM_TEST_SHMEM:20073:shmem_attach(%s) failed: %s
 sdf/fth/archive/fthCUnitTest.c:211:plat_log_msg:PLAT_LOG_LEVEL_FATAL:PLAT_LOG_CAT_PLATFORM_TEST_SHMEM:20073:shmem_attach(%s) failed: %s
@@ -1326,9 +1323,9 @@ sdf/platform/event.c:541:plat_log_msg:PLAT_LOG_LEVEL_TRACE:event->logcat:20937:e
 sdf/platform/fd_dispatcher.c:276:plat_log_msg:PLAT_LOG_LEVEL_ERROR:LOG_CAT:20938:epoll(%d) failed: %d
 sdf/platform/fd_dispatcher.c:466:plat_log_msg:PLAT_LOG_LEVEL_TRACE:LOG_CAT:20939:polled nfds %d timeout %d ret %d
 sdf/platform/fd_dispatcher.c:664:plat_log_msg:PLAT_LOG_LEVEL_TRACE:LOG_CAT:20940:plat_fd_event %p state %s->%s
-Skipping /root/membrain-4.2/membrain/server/sdf/platform/ffdc_log.c
-Skipping /root/membrain-4.2/membrain/server/sdf/platform/ffdc_log.h
-Skipping /root/membrain-4.2/membrain/server/sdf/platform/ffdc_reader.c
+Skipping /opt/schooner/src/membrain-4.2.mb/server/sdf/platform/ffdc_log.c
+Skipping /opt/schooner/src/membrain-4.2.mb/server/sdf/platform/ffdc_log.h
+Skipping /opt/schooner/src/membrain-4.2.mb/server/sdf/platform/ffdc_reader.c
 sdf/platform/fork.c:132:plat_log_msg:PLAT_LOG_LEVEL_ERROR:LOG_CAT:20941:plat_fork_execve(filename = %s, args = %s) failed: %d
 sdf/platform/fork.c:138:plat_log_msg:PLAT_LOG_LEVEL_DEBUG:LOG_CAT:20942:plat_fork_execve(filename = %s, args = %s)
 sdf/platform/fth_scheduler.c:119:plat_log_msg:PLAT_LOG_LEVEL_DEBUG:LOG_CAT:20943:plat_fth_scheduler %p start called
@@ -1339,7 +1336,7 @@ sdf/platform/fth_scheduler.c:198:plat_log_msg:PLAT_LOG_LEVEL_DEBUG:LOG_CAT:20947
 sdf/platform/fth_scheduler.c:217:plat_log_msg:PLAT_LOG_LEVEL_DEBUG:LOG_CAT:20948:plat_fth_scheduler %p shutdown complete
 sdf/platform/fth_scheduler.c:259:plat_log_msg:PLAT_LOG_LEVEL_DEBUG:LOG_CAT:20949:plat_fth_scheduler %p shutdown called
 sdf/platform/logging.c:411:plat_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_PLATFORM_LOGGING:20950:log gettime function changed
-Skipping /root/membrain-4.2/membrain/server/sdf/platform/logging.h
+Skipping /opt/schooner/src/membrain-4.2.mb/server/sdf/platform/logging.h
 sdf/platform/memory_fault.c:106:plat_log_msg:PLAT_LOG_LEVEL_INFO:LOG_CAT:20951:Faulted %p len 0x%lx, %ld pages in %ld secs %ld usecs %.2g usecs per maj_flt %ld min_flt %ld
 sdf/platform/memory_size.c:41:plat_log_msg:PLAT_LOG_LEVEL_ERROR:LOG_CAT:20952:Couldn't find MemTotal in %s
 sdf/platform/memory_size.c:47:plat_log_msg:PLAT_LOG_LEVEL_ERROR:LOG_CAT:20953:Error reading %s: %s
@@ -2522,211 +2519,211 @@ sdf/protocol/replication/sdf_vips.c:203:plat_log_msg:PLAT_LOG_LEVEL_WARN:LOG_CAT
 sdf/protocol/replication/sdf_vips.c:217:plat_log_msg:PLAT_LOG_LEVEL_TRACE:LOG_CAT:80014:sdf_vip_group_get_node_rank for %d = %d\n
 sdf/protocol/replication/sdf_vips.c:226:plat_log_msg:PLAT_LOG_LEVEL_WARN:LOG_CAT:80015:sdf_vip_group_get_node_by_preference for %d(grp:%d) = %d\n
 sdf/protocol/replication/sdf_vips.c:231:plat_log_msg:PLAT_LOG_LEVEL_TRACE:LOG_CAT:80015:sdf_vip_group_get_node_by_preference for %d(grp:%d) = %d\n
-Skipping /root/membrain-4.2/membrain/server/sdf/protocol/replication/tests/checkpoint/fcnl_framework_state_machine_test.c
-Skipping /root/membrain-4.2/membrain/server/sdf/protocol/replication/tests/checkpoint/key_lock_test.c
-Skipping /root/membrain-4.2/membrain/server/sdf/protocol/replication/tests/checkpoint/test_common.h
-Skipping /root/membrain-4.2/membrain/server/sdf/protocol/replication/tests/checkpoint/test_config.h
-Skipping /root/membrain-4.2/membrain/server/sdf/protocol/replication/tests/checkpoint/test_framework.c
-Skipping /root/membrain-4.2/membrain/server/sdf/protocol/replication/tests/checkpoint/test_framework.h
-Skipping /root/membrain-4.2/membrain/server/sdf/protocol/replication/tests/checkpoint/test_node.c
-Skipping /root/membrain-4.2/membrain/server/sdf/protocol/replication/tests/checkpoint/test_node.h
-Skipping /root/membrain-4.2/membrain/server/sdf/protocol/replication/tests/fcnl_framework_async_get_put_stress.c
-Skipping /root/membrain-4.2/membrain/server/sdf/protocol/replication/tests/fcnl_framework_async_shard.c
-Skipping /root/membrain-4.2/membrain/server/sdf/protocol/replication/tests/fcnl_framework_async_test.c
-Skipping /root/membrain-4.2/membrain/server/sdf/protocol/replication/tests/fcnl_framework_cursor_test.c
-Skipping /root/membrain-4.2/membrain/server/sdf/protocol/replication/tests/fcnl_framework_home_node_test.c
-Skipping /root/membrain-4.2/membrain/server/sdf/protocol/replication/tests/fcnl_framework_msg_timeout_test.c
-Skipping /root/membrain-4.2/membrain/server/sdf/protocol/replication/tests/fcnl_framework_recover_test.c
-Skipping /root/membrain-4.2/membrain/server/sdf/protocol/replication/tests/fcnl_framework_replica_node_test.c
-Skipping /root/membrain-4.2/membrain/server/sdf/protocol/replication/tests/fcnl_framework_seqno_test.c
-Skipping /root/membrain-4.2/membrain/server/sdf/protocol/replication/tests/fcnl_framework_state_machine_test.c
-Skipping /root/membrain-4.2/membrain/server/sdf/protocol/replication/tests/fcnl_framework_sync_test.c
-Skipping /root/membrain-4.2/membrain/server/sdf/protocol/replication/tests/fcnl_msg_timeout_test.c
-Skipping /root/membrain-4.2/membrain/server/sdf/protocol/replication/tests/fcnl_rms_crash_switch_over_test.c
-Skipping /root/membrain-4.2/membrain/server/sdf/protocol/replication/tests/fcnl_rms_fault_in_test.c
-Skipping /root/membrain-4.2/membrain/server/sdf/protocol/replication/tests/fcnl_rms_get_lease_test.c
-Skipping /root/membrain-4.2/membrain/server/sdf/protocol/replication/tests/fcnl_rms_get_put_del_test.c
-Skipping /root/membrain-4.2/membrain/server/sdf/protocol/replication/tests/fcnl_rms_get_put_test.c
-Skipping /root/membrain-4.2/membrain/server/sdf/protocol/replication/tests/fcnl_rms_multi_put_test.c
-Skipping /root/membrain-4.2/membrain/server/sdf/protocol/replication/tests/fcnl_rms_put_crash_expire_put_test.c
-Skipping /root/membrain-4.2/membrain/server/sdf/protocol/replication/tests/fcnl_rms_put_crash_get_test.c
-Skipping /root/membrain-4.2/membrain/server/sdf/protocol/replication/tests/fcnl_rms_simple_test.c
-Skipping /root/membrain-4.2/membrain/server/sdf/protocol/replication/tests/fcnl_rtf_stress_test.c
-Skipping /root/membrain-4.2/membrain/server/sdf/protocol/replication/tests/fcnl_sn_all_crash_test.c
-Skipping /root/membrain-4.2/membrain/server/sdf/protocol/replication/tests/fcnl_sn_get_put_test.c
-Skipping /root/membrain-4.2/membrain/server/sdf/protocol/replication/tests/fcnl_sn_lock_test1.c
-Skipping /root/membrain-4.2/membrain/server/sdf/protocol/replication/tests/fcnl_sn_lock_test2.c
-Skipping /root/membrain-4.2/membrain/server/sdf/protocol/replication/tests/fcnl_sn_multi_crash_test.c
-Skipping /root/membrain-4.2/membrain/server/sdf/protocol/replication/tests/fcnl_sn_multi_shard_test2.c
-Skipping /root/membrain-4.2/membrain/server/sdf/protocol/replication/tests/fcnl_sn_multi_shard_test.c
-Skipping /root/membrain-4.2/membrain/server/sdf/protocol/replication/tests/fcnl_sn_null_test.c
-Skipping /root/membrain-4.2/membrain/server/sdf/protocol/replication/tests/fcnl_sn_ss_mc_test.c
-Skipping /root/membrain-4.2/membrain/server/sdf/protocol/replication/tests/key_lock_test.c
-Skipping /root/membrain-4.2/membrain/server/sdf/protocol/replication/tests/sdf_fth_mbox_test.c
-Skipping /root/membrain-4.2/membrain/server/sdf/protocol/replication/tests/t/fcnl_rtg_test.c
-Skipping /root/membrain-4.2/membrain/server/sdf/protocol/replication/tests/t/fcnl_rtm_case.c
-Skipping /root/membrain-4.2/membrain/server/sdf/protocol/replication/tests/t/fcnl_rtm_test2.c
-Skipping /root/membrain-4.2/membrain/server/sdf/protocol/replication/tests/t/fcnl_rtm_test.c
-Skipping /root/membrain-4.2/membrain/server/sdf/protocol/replication/tests/t/fcnl_rtm_test_lzwei.c
-Skipping /root/membrain-4.2/membrain/server/sdf/protocol/replication/tests/test_api.h
-Skipping /root/membrain-4.2/membrain/server/sdf/protocol/replication/tests/test_common.c
-Skipping /root/membrain-4.2/membrain/server/sdf/protocol/replication/tests/test_common.h
-Skipping /root/membrain-4.2/membrain/server/sdf/protocol/replication/tests/test_config.h
-Skipping /root/membrain-4.2/membrain/server/sdf/protocol/replication/tests/test_flash.c
-Skipping /root/membrain-4.2/membrain/server/sdf/protocol/replication/tests/test_flash.h
-Skipping /root/membrain-4.2/membrain/server/sdf/protocol/replication/tests/test_framework.c
-Skipping /root/membrain-4.2/membrain/server/sdf/protocol/replication/tests/test_framework.h
-Skipping /root/membrain-4.2/membrain/server/sdf/protocol/replication/tests/test_generator.c
-Skipping /root/membrain-4.2/membrain/server/sdf/protocol/replication/tests/test_generator.h
-Skipping /root/membrain-4.2/membrain/server/sdf/protocol/replication/tests/test.h
-Skipping /root/membrain-4.2/membrain/server/sdf/protocol/replication/tests/test_meta.h
-Skipping /root/membrain-4.2/membrain/server/sdf/protocol/replication/tests/test_model.c
-Skipping /root/membrain-4.2/membrain/server/sdf/protocol/replication/tests/test_model.h
-Skipping /root/membrain-4.2/membrain/server/sdf/protocol/replication/tests/test_node.c
-Skipping /root/membrain-4.2/membrain/server/sdf/protocol/replication/tests/test_node.h
-Skipping /root/membrain-4.2/membrain/server/sdf/protocol/replication/tests/tlmap3.c
-Skipping /root/membrain-4.2/membrain/server/sdf/protocol/replication/tests/tlmap3.h
+Skipping /opt/schooner/src/membrain-4.2.mb/server/sdf/protocol/replication/tests/checkpoint/fcnl_framework_state_machine_test.c
+Skipping /opt/schooner/src/membrain-4.2.mb/server/sdf/protocol/replication/tests/checkpoint/key_lock_test.c
+Skipping /opt/schooner/src/membrain-4.2.mb/server/sdf/protocol/replication/tests/checkpoint/test_common.h
+Skipping /opt/schooner/src/membrain-4.2.mb/server/sdf/protocol/replication/tests/checkpoint/test_config.h
+Skipping /opt/schooner/src/membrain-4.2.mb/server/sdf/protocol/replication/tests/checkpoint/test_framework.c
+Skipping /opt/schooner/src/membrain-4.2.mb/server/sdf/protocol/replication/tests/checkpoint/test_framework.h
+Skipping /opt/schooner/src/membrain-4.2.mb/server/sdf/protocol/replication/tests/checkpoint/test_node.c
+Skipping /opt/schooner/src/membrain-4.2.mb/server/sdf/protocol/replication/tests/checkpoint/test_node.h
+Skipping /opt/schooner/src/membrain-4.2.mb/server/sdf/protocol/replication/tests/fcnl_framework_async_get_put_stress.c
+Skipping /opt/schooner/src/membrain-4.2.mb/server/sdf/protocol/replication/tests/fcnl_framework_async_shard.c
+Skipping /opt/schooner/src/membrain-4.2.mb/server/sdf/protocol/replication/tests/fcnl_framework_async_test.c
+Skipping /opt/schooner/src/membrain-4.2.mb/server/sdf/protocol/replication/tests/fcnl_framework_cursor_test.c
+Skipping /opt/schooner/src/membrain-4.2.mb/server/sdf/protocol/replication/tests/fcnl_framework_home_node_test.c
+Skipping /opt/schooner/src/membrain-4.2.mb/server/sdf/protocol/replication/tests/fcnl_framework_msg_timeout_test.c
+Skipping /opt/schooner/src/membrain-4.2.mb/server/sdf/protocol/replication/tests/fcnl_framework_recover_test.c
+Skipping /opt/schooner/src/membrain-4.2.mb/server/sdf/protocol/replication/tests/fcnl_framework_replica_node_test.c
+Skipping /opt/schooner/src/membrain-4.2.mb/server/sdf/protocol/replication/tests/fcnl_framework_seqno_test.c
+Skipping /opt/schooner/src/membrain-4.2.mb/server/sdf/protocol/replication/tests/fcnl_framework_state_machine_test.c
+Skipping /opt/schooner/src/membrain-4.2.mb/server/sdf/protocol/replication/tests/fcnl_framework_sync_test.c
+Skipping /opt/schooner/src/membrain-4.2.mb/server/sdf/protocol/replication/tests/fcnl_msg_timeout_test.c
+Skipping /opt/schooner/src/membrain-4.2.mb/server/sdf/protocol/replication/tests/fcnl_rms_crash_switch_over_test.c
+Skipping /opt/schooner/src/membrain-4.2.mb/server/sdf/protocol/replication/tests/fcnl_rms_fault_in_test.c
+Skipping /opt/schooner/src/membrain-4.2.mb/server/sdf/protocol/replication/tests/fcnl_rms_get_lease_test.c
+Skipping /opt/schooner/src/membrain-4.2.mb/server/sdf/protocol/replication/tests/fcnl_rms_get_put_del_test.c
+Skipping /opt/schooner/src/membrain-4.2.mb/server/sdf/protocol/replication/tests/fcnl_rms_get_put_test.c
+Skipping /opt/schooner/src/membrain-4.2.mb/server/sdf/protocol/replication/tests/fcnl_rms_multi_put_test.c
+Skipping /opt/schooner/src/membrain-4.2.mb/server/sdf/protocol/replication/tests/fcnl_rms_put_crash_expire_put_test.c
+Skipping /opt/schooner/src/membrain-4.2.mb/server/sdf/protocol/replication/tests/fcnl_rms_put_crash_get_test.c
+Skipping /opt/schooner/src/membrain-4.2.mb/server/sdf/protocol/replication/tests/fcnl_rms_simple_test.c
+Skipping /opt/schooner/src/membrain-4.2.mb/server/sdf/protocol/replication/tests/fcnl_rtf_stress_test.c
+Skipping /opt/schooner/src/membrain-4.2.mb/server/sdf/protocol/replication/tests/fcnl_sn_all_crash_test.c
+Skipping /opt/schooner/src/membrain-4.2.mb/server/sdf/protocol/replication/tests/fcnl_sn_get_put_test.c
+Skipping /opt/schooner/src/membrain-4.2.mb/server/sdf/protocol/replication/tests/fcnl_sn_lock_test1.c
+Skipping /opt/schooner/src/membrain-4.2.mb/server/sdf/protocol/replication/tests/fcnl_sn_lock_test2.c
+Skipping /opt/schooner/src/membrain-4.2.mb/server/sdf/protocol/replication/tests/fcnl_sn_multi_crash_test.c
+Skipping /opt/schooner/src/membrain-4.2.mb/server/sdf/protocol/replication/tests/fcnl_sn_multi_shard_test2.c
+Skipping /opt/schooner/src/membrain-4.2.mb/server/sdf/protocol/replication/tests/fcnl_sn_multi_shard_test.c
+Skipping /opt/schooner/src/membrain-4.2.mb/server/sdf/protocol/replication/tests/fcnl_sn_null_test.c
+Skipping /opt/schooner/src/membrain-4.2.mb/server/sdf/protocol/replication/tests/fcnl_sn_ss_mc_test.c
+Skipping /opt/schooner/src/membrain-4.2.mb/server/sdf/protocol/replication/tests/key_lock_test.c
+Skipping /opt/schooner/src/membrain-4.2.mb/server/sdf/protocol/replication/tests/sdf_fth_mbox_test.c
+Skipping /opt/schooner/src/membrain-4.2.mb/server/sdf/protocol/replication/tests/t/fcnl_rtg_test.c
+Skipping /opt/schooner/src/membrain-4.2.mb/server/sdf/protocol/replication/tests/t/fcnl_rtm_case.c
+Skipping /opt/schooner/src/membrain-4.2.mb/server/sdf/protocol/replication/tests/t/fcnl_rtm_test2.c
+Skipping /opt/schooner/src/membrain-4.2.mb/server/sdf/protocol/replication/tests/t/fcnl_rtm_test.c
+Skipping /opt/schooner/src/membrain-4.2.mb/server/sdf/protocol/replication/tests/t/fcnl_rtm_test_lzwei.c
+Skipping /opt/schooner/src/membrain-4.2.mb/server/sdf/protocol/replication/tests/test_api.h
+Skipping /opt/schooner/src/membrain-4.2.mb/server/sdf/protocol/replication/tests/test_common.c
+Skipping /opt/schooner/src/membrain-4.2.mb/server/sdf/protocol/replication/tests/test_common.h
+Skipping /opt/schooner/src/membrain-4.2.mb/server/sdf/protocol/replication/tests/test_config.h
+Skipping /opt/schooner/src/membrain-4.2.mb/server/sdf/protocol/replication/tests/test_flash.c
+Skipping /opt/schooner/src/membrain-4.2.mb/server/sdf/protocol/replication/tests/test_flash.h
+Skipping /opt/schooner/src/membrain-4.2.mb/server/sdf/protocol/replication/tests/test_framework.c
+Skipping /opt/schooner/src/membrain-4.2.mb/server/sdf/protocol/replication/tests/test_framework.h
+Skipping /opt/schooner/src/membrain-4.2.mb/server/sdf/protocol/replication/tests/test_generator.c
+Skipping /opt/schooner/src/membrain-4.2.mb/server/sdf/protocol/replication/tests/test_generator.h
+Skipping /opt/schooner/src/membrain-4.2.mb/server/sdf/protocol/replication/tests/test.h
+Skipping /opt/schooner/src/membrain-4.2.mb/server/sdf/protocol/replication/tests/test_meta.h
+Skipping /opt/schooner/src/membrain-4.2.mb/server/sdf/protocol/replication/tests/test_model.c
+Skipping /opt/schooner/src/membrain-4.2.mb/server/sdf/protocol/replication/tests/test_model.h
+Skipping /opt/schooner/src/membrain-4.2.mb/server/sdf/protocol/replication/tests/test_node.c
+Skipping /opt/schooner/src/membrain-4.2.mb/server/sdf/protocol/replication/tests/test_node.h
+Skipping /opt/schooner/src/membrain-4.2.mb/server/sdf/protocol/replication/tests/tlmap3.c
+Skipping /opt/schooner/src/membrain-4.2.mb/server/sdf/protocol/replication/tests/tlmap3.h
 sdf/sdfappcommon/threadPoolTest.c:98:plat_log_msg:PLAT_LOG_LEVEL_FATAL:PLAT_LOG_CAT_PLATFORM_TEST_SHMEM:20073:shmem_attach(%s) failed: %s
 sdf/sdfappcommon/XListShmemTest.c:150:plat_log_msg:PLAT_LOG_LEVEL_FATAL:PLAT_LOG_CAT_PLATFORM_TEST_SHMEM:20073:shmem_attach(%s) failed: %s
 sdf/sdfappcommon/XListTest.c:141:plat_log_msg:PLAT_LOG_LEVEL_FATAL:PLAT_LOG_CAT_PLATFORM_TEST_SHMEM:20073:shmem_attach(%s) failed: %s
-Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/old/sdf_msg_engine.c
-Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/old/sdf_msg.h
-Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/old/sdf_msg_hash.c
-Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/old/sdf_msg_hash.h
-Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/old/sdf_msg_hmap.c
-Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/old/sdf_msg_hmap.h
-Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/old/sdf_msg_mgmnt.c
-Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/old/sdf_msg_mpi.c
-Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/old/sdf_msg_mpi.h
-Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/old/sdf_msg_queue.c
-Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/old/sdf_msg_tester.c
-Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/old/sdf_msg_types.h
-Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/bigsize_fth_test.c
-Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/bigsize_test.c
-Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/consistency_test.c
-Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/fcnl_bigsize_fth_lib1.c
-Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/fcnl_bigsize_fth_test1.c
-Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/fcnl_bigsize_lib1.c
-Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/fcnl_bigsize_test1.c
-Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/fcnl_consistency_lib1.c
-Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/fcnl_consistency_lib2.c
-Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/fcnl_consistency_test1.c
-Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/fcnl_consistency_test2.c
-Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/fcnl_flush_lib1.c
-Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/fcnl_flush_test1.c
-Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/fcnl_fth_mbx_lib1.c
-Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/fcnl_fth_mbx_test1.c
-Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/fcnl_membership_lib1.c
-Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/fcnl_membership_test1.c
-Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/fcnl_metadata_lib1.c
-Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/fcnl_metadata_test1.c
-Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/fcnl_mgnt_lib1.c
-Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/fcnl_mgnt_test1.c
-Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/fcnl_mixed_thread_lib1.c
-Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/fcnl_mixed_thread_lib2.c
-Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/fcnl_mixed_thread_test1.c
-Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/fcnl_mixed_thread_test2.c
-Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/fcnl_msg_pfm_lib1.c
-Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/fcnl_msg_pfm_test1.c
-Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/fcnl_multinode_doubleside_lib1.c
-Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/fcnl_multinode_doubleside_lib2.c
-Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/fcnl_multinode_doubleside_lib3.c
-Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/fcnl_multinode_doubleside_lib4.c
-Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/fcnl_multinode_doubleside_test1.c
-Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/fcnl_multinode_doubleside_test2.c
-Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/fcnl_multinode_doubleside_test3.c
-Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/fcnl_multinode_doubleside_test4.c
-Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/fcnl_multinode_lib1.c
-Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/fcnl_multinode_lib2.c
-Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/fcnl_multinode_lib3.c
-Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/fcnl_multinode_lib4.c
-Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/fcnl_multinode_multiptl_lib1.c
-Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/fcnl_multinode_multiptl_lib2.c
-Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/fcnl_multinode_multiptl_test1.c
-Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/fcnl_multinode_multiptl_test2.c
-Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/fcnl_multinode_test1.c
-Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/fcnl_multinode_test2.c
-Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/fcnl_multinode_test3.c
-Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/fcnl_multinode_test4.c
-Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/fcnl_multi_protocol_lib1.c
-Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/fcnl_multi_protocol_test1.c
-Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/fcnl_multiptl_quantity_lib1.c
-Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/fcnl_multiptl_quantity_test1.c
-Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/fcnl_multiptl_sequential_lib1.c
-Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/fcnl_multiptl_sequential_lib2.c
-Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/fcnl_multiptl_sequential_lib3.c
-Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/fcnl_multiptl_sequential_lib4.c
-Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/fcnl_multiptl_sequential_test1.c
-Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/fcnl_multiptl_sequential_test2.c
-Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/fcnl_multiptl_sequential_test3.c
-Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/fcnl_multiptl_sequential_test4.c
-Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/fcnl_presstest_lib1.c
-Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/fcnl_presstest_test1.c
-Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/fcnl_queue_order_fth_lib1.c
-Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/fcnl_queue_order_fth_lib2.c
-Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/fcnl_queue_order_fth_test1.c
-Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/fcnl_queue_order_fth_test2.c
-Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/fcnl_queue_order_pth_lib1.c
-Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/fcnl_queue_order_pth_lib2.c
-Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/fcnl_queue_order_pth_test1.c
-Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/fcnl_queue_order_pth_test2.c
-Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/fcnl_receive_queue_lib1.c
-Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/fcnl_receive_queue_test1.c
-Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/fcnl_replication_lib1.c
-Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/fcnl_replication_test1.c
-Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/fcnl_send_queue_lib1.c
-Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/fcnl_send_queue_test1.c
-Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/fcnl_simplexsr_lib1.c
-Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/fcnl_simplexsr_test1.c
-Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/fcnl_single_protocol_lib1.c
-Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/fcnl_single_protocol_test1.c
-Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/fcnl_singleptl_chkmsg_lib1.c
-Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/fcnl_singleptl_chkmsg_test1.c
-Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/fcnl_singleptl_chksize_lib1.c
-Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/fcnl_singleptl_chksize_test1.c
-Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/fcnl_singleptl_sequential_lib1.c
-Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/fcnl_singleptl_sequential_lib2.c
-Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/fcnl_singleptl_sequential_lib3.c
-Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/fcnl_singleptl_sequential_test1.c
-Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/fcnl_singleptl_sequential_test2.c
-Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/fcnl_singleptl_sequential_test3.c
-Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/fcnl_system_lib1.c
-Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/fcnl_system_test1.c
-Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/fcnl_test.h
-Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/fcnl_wrapper_fth_lib1.c
-Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/fcnl_wrapper_fth_test1.c
-Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/fcnl_wrapper_lib1.c
-Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/fcnl_wrapper_test1.c
-Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/flush_test.c
-Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/log.c
-Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/log.h
-Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/management_test.c
-Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/membership_test.c
-Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/metadata_test.c
-Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/msg_test.h
-Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/msg_test_main.c
-Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/perf_timecal_lib1.c
-Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/perf_timecal_test1.c
-Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/pfm_test.h
-Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/pfm_throughput_lib1.c
-Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/pfm_throughput_test1.c
-Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/queue_order_test_fth.c
-Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/queue_order_test_pthread.c
-Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/receive_queue_test.c
-Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/replication_test.c
-Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/sdf_msg_motor.c
-Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/sdf_msg_oob.c
-Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/sdf_msg_oob.h
-Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/sdf_msg_oob_mgmnt.c
-Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/sdf_msg_protocol.c
-Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/sdf_msg_pthread_example.c
-Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/send_queue_test.c
-Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/simplexsr_test.c
-Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/slinkedlist.c
-Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/slinkedlist.h
-Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/system_test.c
-Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/Utilfuncs.c
-Skipping /root/membrain-4.2/membrain/server/sdf/sdfmsg/oldtests/Utilfuncs.h
+Skipping /opt/schooner/src/membrain-4.2.mb/server/sdf/sdfmsg/old/sdf_msg_engine.c
+Skipping /opt/schooner/src/membrain-4.2.mb/server/sdf/sdfmsg/old/sdf_msg.h
+Skipping /opt/schooner/src/membrain-4.2.mb/server/sdf/sdfmsg/old/sdf_msg_hash.c
+Skipping /opt/schooner/src/membrain-4.2.mb/server/sdf/sdfmsg/old/sdf_msg_hash.h
+Skipping /opt/schooner/src/membrain-4.2.mb/server/sdf/sdfmsg/old/sdf_msg_hmap.c
+Skipping /opt/schooner/src/membrain-4.2.mb/server/sdf/sdfmsg/old/sdf_msg_hmap.h
+Skipping /opt/schooner/src/membrain-4.2.mb/server/sdf/sdfmsg/old/sdf_msg_mgmnt.c
+Skipping /opt/schooner/src/membrain-4.2.mb/server/sdf/sdfmsg/old/sdf_msg_mpi.c
+Skipping /opt/schooner/src/membrain-4.2.mb/server/sdf/sdfmsg/old/sdf_msg_mpi.h
+Skipping /opt/schooner/src/membrain-4.2.mb/server/sdf/sdfmsg/old/sdf_msg_queue.c
+Skipping /opt/schooner/src/membrain-4.2.mb/server/sdf/sdfmsg/old/sdf_msg_tester.c
+Skipping /opt/schooner/src/membrain-4.2.mb/server/sdf/sdfmsg/old/sdf_msg_types.h
+Skipping /opt/schooner/src/membrain-4.2.mb/server/sdf/sdfmsg/oldtests/bigsize_fth_test.c
+Skipping /opt/schooner/src/membrain-4.2.mb/server/sdf/sdfmsg/oldtests/bigsize_test.c
+Skipping /opt/schooner/src/membrain-4.2.mb/server/sdf/sdfmsg/oldtests/consistency_test.c
+Skipping /opt/schooner/src/membrain-4.2.mb/server/sdf/sdfmsg/oldtests/fcnl_bigsize_fth_lib1.c
+Skipping /opt/schooner/src/membrain-4.2.mb/server/sdf/sdfmsg/oldtests/fcnl_bigsize_fth_test1.c
+Skipping /opt/schooner/src/membrain-4.2.mb/server/sdf/sdfmsg/oldtests/fcnl_bigsize_lib1.c
+Skipping /opt/schooner/src/membrain-4.2.mb/server/sdf/sdfmsg/oldtests/fcnl_bigsize_test1.c
+Skipping /opt/schooner/src/membrain-4.2.mb/server/sdf/sdfmsg/oldtests/fcnl_consistency_lib1.c
+Skipping /opt/schooner/src/membrain-4.2.mb/server/sdf/sdfmsg/oldtests/fcnl_consistency_lib2.c
+Skipping /opt/schooner/src/membrain-4.2.mb/server/sdf/sdfmsg/oldtests/fcnl_consistency_test1.c
+Skipping /opt/schooner/src/membrain-4.2.mb/server/sdf/sdfmsg/oldtests/fcnl_consistency_test2.c
+Skipping /opt/schooner/src/membrain-4.2.mb/server/sdf/sdfmsg/oldtests/fcnl_flush_lib1.c
+Skipping /opt/schooner/src/membrain-4.2.mb/server/sdf/sdfmsg/oldtests/fcnl_flush_test1.c
+Skipping /opt/schooner/src/membrain-4.2.mb/server/sdf/sdfmsg/oldtests/fcnl_fth_mbx_lib1.c
+Skipping /opt/schooner/src/membrain-4.2.mb/server/sdf/sdfmsg/oldtests/fcnl_fth_mbx_test1.c
+Skipping /opt/schooner/src/membrain-4.2.mb/server/sdf/sdfmsg/oldtests/fcnl_membership_lib1.c
+Skipping /opt/schooner/src/membrain-4.2.mb/server/sdf/sdfmsg/oldtests/fcnl_membership_test1.c
+Skipping /opt/schooner/src/membrain-4.2.mb/server/sdf/sdfmsg/oldtests/fcnl_metadata_lib1.c
+Skipping /opt/schooner/src/membrain-4.2.mb/server/sdf/sdfmsg/oldtests/fcnl_metadata_test1.c
+Skipping /opt/schooner/src/membrain-4.2.mb/server/sdf/sdfmsg/oldtests/fcnl_mgnt_lib1.c
+Skipping /opt/schooner/src/membrain-4.2.mb/server/sdf/sdfmsg/oldtests/fcnl_mgnt_test1.c
+Skipping /opt/schooner/src/membrain-4.2.mb/server/sdf/sdfmsg/oldtests/fcnl_mixed_thread_lib1.c
+Skipping /opt/schooner/src/membrain-4.2.mb/server/sdf/sdfmsg/oldtests/fcnl_mixed_thread_lib2.c
+Skipping /opt/schooner/src/membrain-4.2.mb/server/sdf/sdfmsg/oldtests/fcnl_mixed_thread_test1.c
+Skipping /opt/schooner/src/membrain-4.2.mb/server/sdf/sdfmsg/oldtests/fcnl_mixed_thread_test2.c
+Skipping /opt/schooner/src/membrain-4.2.mb/server/sdf/sdfmsg/oldtests/fcnl_msg_pfm_lib1.c
+Skipping /opt/schooner/src/membrain-4.2.mb/server/sdf/sdfmsg/oldtests/fcnl_msg_pfm_test1.c
+Skipping /opt/schooner/src/membrain-4.2.mb/server/sdf/sdfmsg/oldtests/fcnl_multinode_doubleside_lib1.c
+Skipping /opt/schooner/src/membrain-4.2.mb/server/sdf/sdfmsg/oldtests/fcnl_multinode_doubleside_lib2.c
+Skipping /opt/schooner/src/membrain-4.2.mb/server/sdf/sdfmsg/oldtests/fcnl_multinode_doubleside_lib3.c
+Skipping /opt/schooner/src/membrain-4.2.mb/server/sdf/sdfmsg/oldtests/fcnl_multinode_doubleside_lib4.c
+Skipping /opt/schooner/src/membrain-4.2.mb/server/sdf/sdfmsg/oldtests/fcnl_multinode_doubleside_test1.c
+Skipping /opt/schooner/src/membrain-4.2.mb/server/sdf/sdfmsg/oldtests/fcnl_multinode_doubleside_test2.c
+Skipping /opt/schooner/src/membrain-4.2.mb/server/sdf/sdfmsg/oldtests/fcnl_multinode_doubleside_test3.c
+Skipping /opt/schooner/src/membrain-4.2.mb/server/sdf/sdfmsg/oldtests/fcnl_multinode_doubleside_test4.c
+Skipping /opt/schooner/src/membrain-4.2.mb/server/sdf/sdfmsg/oldtests/fcnl_multinode_lib1.c
+Skipping /opt/schooner/src/membrain-4.2.mb/server/sdf/sdfmsg/oldtests/fcnl_multinode_lib2.c
+Skipping /opt/schooner/src/membrain-4.2.mb/server/sdf/sdfmsg/oldtests/fcnl_multinode_lib3.c
+Skipping /opt/schooner/src/membrain-4.2.mb/server/sdf/sdfmsg/oldtests/fcnl_multinode_lib4.c
+Skipping /opt/schooner/src/membrain-4.2.mb/server/sdf/sdfmsg/oldtests/fcnl_multinode_multiptl_lib1.c
+Skipping /opt/schooner/src/membrain-4.2.mb/server/sdf/sdfmsg/oldtests/fcnl_multinode_multiptl_lib2.c
+Skipping /opt/schooner/src/membrain-4.2.mb/server/sdf/sdfmsg/oldtests/fcnl_multinode_multiptl_test1.c
+Skipping /opt/schooner/src/membrain-4.2.mb/server/sdf/sdfmsg/oldtests/fcnl_multinode_multiptl_test2.c
+Skipping /opt/schooner/src/membrain-4.2.mb/server/sdf/sdfmsg/oldtests/fcnl_multinode_test1.c
+Skipping /opt/schooner/src/membrain-4.2.mb/server/sdf/sdfmsg/oldtests/fcnl_multinode_test2.c
+Skipping /opt/schooner/src/membrain-4.2.mb/server/sdf/sdfmsg/oldtests/fcnl_multinode_test3.c
+Skipping /opt/schooner/src/membrain-4.2.mb/server/sdf/sdfmsg/oldtests/fcnl_multinode_test4.c
+Skipping /opt/schooner/src/membrain-4.2.mb/server/sdf/sdfmsg/oldtests/fcnl_multi_protocol_lib1.c
+Skipping /opt/schooner/src/membrain-4.2.mb/server/sdf/sdfmsg/oldtests/fcnl_multi_protocol_test1.c
+Skipping /opt/schooner/src/membrain-4.2.mb/server/sdf/sdfmsg/oldtests/fcnl_multiptl_quantity_lib1.c
+Skipping /opt/schooner/src/membrain-4.2.mb/server/sdf/sdfmsg/oldtests/fcnl_multiptl_quantity_test1.c
+Skipping /opt/schooner/src/membrain-4.2.mb/server/sdf/sdfmsg/oldtests/fcnl_multiptl_sequential_lib1.c
+Skipping /opt/schooner/src/membrain-4.2.mb/server/sdf/sdfmsg/oldtests/fcnl_multiptl_sequential_lib2.c
+Skipping /opt/schooner/src/membrain-4.2.mb/server/sdf/sdfmsg/oldtests/fcnl_multiptl_sequential_lib3.c
+Skipping /opt/schooner/src/membrain-4.2.mb/server/sdf/sdfmsg/oldtests/fcnl_multiptl_sequential_lib4.c
+Skipping /opt/schooner/src/membrain-4.2.mb/server/sdf/sdfmsg/oldtests/fcnl_multiptl_sequential_test1.c
+Skipping /opt/schooner/src/membrain-4.2.mb/server/sdf/sdfmsg/oldtests/fcnl_multiptl_sequential_test2.c
+Skipping /opt/schooner/src/membrain-4.2.mb/server/sdf/sdfmsg/oldtests/fcnl_multiptl_sequential_test3.c
+Skipping /opt/schooner/src/membrain-4.2.mb/server/sdf/sdfmsg/oldtests/fcnl_multiptl_sequential_test4.c
+Skipping /opt/schooner/src/membrain-4.2.mb/server/sdf/sdfmsg/oldtests/fcnl_presstest_lib1.c
+Skipping /opt/schooner/src/membrain-4.2.mb/server/sdf/sdfmsg/oldtests/fcnl_presstest_test1.c
+Skipping /opt/schooner/src/membrain-4.2.mb/server/sdf/sdfmsg/oldtests/fcnl_queue_order_fth_lib1.c
+Skipping /opt/schooner/src/membrain-4.2.mb/server/sdf/sdfmsg/oldtests/fcnl_queue_order_fth_lib2.c
+Skipping /opt/schooner/src/membrain-4.2.mb/server/sdf/sdfmsg/oldtests/fcnl_queue_order_fth_test1.c
+Skipping /opt/schooner/src/membrain-4.2.mb/server/sdf/sdfmsg/oldtests/fcnl_queue_order_fth_test2.c
+Skipping /opt/schooner/src/membrain-4.2.mb/server/sdf/sdfmsg/oldtests/fcnl_queue_order_pth_lib1.c
+Skipping /opt/schooner/src/membrain-4.2.mb/server/sdf/sdfmsg/oldtests/fcnl_queue_order_pth_lib2.c
+Skipping /opt/schooner/src/membrain-4.2.mb/server/sdf/sdfmsg/oldtests/fcnl_queue_order_pth_test1.c
+Skipping /opt/schooner/src/membrain-4.2.mb/server/sdf/sdfmsg/oldtests/fcnl_queue_order_pth_test2.c
+Skipping /opt/schooner/src/membrain-4.2.mb/server/sdf/sdfmsg/oldtests/fcnl_receive_queue_lib1.c
+Skipping /opt/schooner/src/membrain-4.2.mb/server/sdf/sdfmsg/oldtests/fcnl_receive_queue_test1.c
+Skipping /opt/schooner/src/membrain-4.2.mb/server/sdf/sdfmsg/oldtests/fcnl_replication_lib1.c
+Skipping /opt/schooner/src/membrain-4.2.mb/server/sdf/sdfmsg/oldtests/fcnl_replication_test1.c
+Skipping /opt/schooner/src/membrain-4.2.mb/server/sdf/sdfmsg/oldtests/fcnl_send_queue_lib1.c
+Skipping /opt/schooner/src/membrain-4.2.mb/server/sdf/sdfmsg/oldtests/fcnl_send_queue_test1.c
+Skipping /opt/schooner/src/membrain-4.2.mb/server/sdf/sdfmsg/oldtests/fcnl_simplexsr_lib1.c
+Skipping /opt/schooner/src/membrain-4.2.mb/server/sdf/sdfmsg/oldtests/fcnl_simplexsr_test1.c
+Skipping /opt/schooner/src/membrain-4.2.mb/server/sdf/sdfmsg/oldtests/fcnl_single_protocol_lib1.c
+Skipping /opt/schooner/src/membrain-4.2.mb/server/sdf/sdfmsg/oldtests/fcnl_single_protocol_test1.c
+Skipping /opt/schooner/src/membrain-4.2.mb/server/sdf/sdfmsg/oldtests/fcnl_singleptl_chkmsg_lib1.c
+Skipping /opt/schooner/src/membrain-4.2.mb/server/sdf/sdfmsg/oldtests/fcnl_singleptl_chkmsg_test1.c
+Skipping /opt/schooner/src/membrain-4.2.mb/server/sdf/sdfmsg/oldtests/fcnl_singleptl_chksize_lib1.c
+Skipping /opt/schooner/src/membrain-4.2.mb/server/sdf/sdfmsg/oldtests/fcnl_singleptl_chksize_test1.c
+Skipping /opt/schooner/src/membrain-4.2.mb/server/sdf/sdfmsg/oldtests/fcnl_singleptl_sequential_lib1.c
+Skipping /opt/schooner/src/membrain-4.2.mb/server/sdf/sdfmsg/oldtests/fcnl_singleptl_sequential_lib2.c
+Skipping /opt/schooner/src/membrain-4.2.mb/server/sdf/sdfmsg/oldtests/fcnl_singleptl_sequential_lib3.c
+Skipping /opt/schooner/src/membrain-4.2.mb/server/sdf/sdfmsg/oldtests/fcnl_singleptl_sequential_test1.c
+Skipping /opt/schooner/src/membrain-4.2.mb/server/sdf/sdfmsg/oldtests/fcnl_singleptl_sequential_test2.c
+Skipping /opt/schooner/src/membrain-4.2.mb/server/sdf/sdfmsg/oldtests/fcnl_singleptl_sequential_test3.c
+Skipping /opt/schooner/src/membrain-4.2.mb/server/sdf/sdfmsg/oldtests/fcnl_system_lib1.c
+Skipping /opt/schooner/src/membrain-4.2.mb/server/sdf/sdfmsg/oldtests/fcnl_system_test1.c
+Skipping /opt/schooner/src/membrain-4.2.mb/server/sdf/sdfmsg/oldtests/fcnl_test.h
+Skipping /opt/schooner/src/membrain-4.2.mb/server/sdf/sdfmsg/oldtests/fcnl_wrapper_fth_lib1.c
+Skipping /opt/schooner/src/membrain-4.2.mb/server/sdf/sdfmsg/oldtests/fcnl_wrapper_fth_test1.c
+Skipping /opt/schooner/src/membrain-4.2.mb/server/sdf/sdfmsg/oldtests/fcnl_wrapper_lib1.c
+Skipping /opt/schooner/src/membrain-4.2.mb/server/sdf/sdfmsg/oldtests/fcnl_wrapper_test1.c
+Skipping /opt/schooner/src/membrain-4.2.mb/server/sdf/sdfmsg/oldtests/flush_test.c
+Skipping /opt/schooner/src/membrain-4.2.mb/server/sdf/sdfmsg/oldtests/log.c
+Skipping /opt/schooner/src/membrain-4.2.mb/server/sdf/sdfmsg/oldtests/log.h
+Skipping /opt/schooner/src/membrain-4.2.mb/server/sdf/sdfmsg/oldtests/management_test.c
+Skipping /opt/schooner/src/membrain-4.2.mb/server/sdf/sdfmsg/oldtests/membership_test.c
+Skipping /opt/schooner/src/membrain-4.2.mb/server/sdf/sdfmsg/oldtests/metadata_test.c
+Skipping /opt/schooner/src/membrain-4.2.mb/server/sdf/sdfmsg/oldtests/msg_test.h
+Skipping /opt/schooner/src/membrain-4.2.mb/server/sdf/sdfmsg/oldtests/msg_test_main.c
+Skipping /opt/schooner/src/membrain-4.2.mb/server/sdf/sdfmsg/oldtests/perf_timecal_lib1.c
+Skipping /opt/schooner/src/membrain-4.2.mb/server/sdf/sdfmsg/oldtests/perf_timecal_test1.c
+Skipping /opt/schooner/src/membrain-4.2.mb/server/sdf/sdfmsg/oldtests/pfm_test.h
+Skipping /opt/schooner/src/membrain-4.2.mb/server/sdf/sdfmsg/oldtests/pfm_throughput_lib1.c
+Skipping /opt/schooner/src/membrain-4.2.mb/server/sdf/sdfmsg/oldtests/pfm_throughput_test1.c
+Skipping /opt/schooner/src/membrain-4.2.mb/server/sdf/sdfmsg/oldtests/queue_order_test_fth.c
+Skipping /opt/schooner/src/membrain-4.2.mb/server/sdf/sdfmsg/oldtests/queue_order_test_pthread.c
+Skipping /opt/schooner/src/membrain-4.2.mb/server/sdf/sdfmsg/oldtests/receive_queue_test.c
+Skipping /opt/schooner/src/membrain-4.2.mb/server/sdf/sdfmsg/oldtests/replication_test.c
+Skipping /opt/schooner/src/membrain-4.2.mb/server/sdf/sdfmsg/oldtests/sdf_msg_motor.c
+Skipping /opt/schooner/src/membrain-4.2.mb/server/sdf/sdfmsg/oldtests/sdf_msg_oob.c
+Skipping /opt/schooner/src/membrain-4.2.mb/server/sdf/sdfmsg/oldtests/sdf_msg_oob.h
+Skipping /opt/schooner/src/membrain-4.2.mb/server/sdf/sdfmsg/oldtests/sdf_msg_oob_mgmnt.c
+Skipping /opt/schooner/src/membrain-4.2.mb/server/sdf/sdfmsg/oldtests/sdf_msg_protocol.c
+Skipping /opt/schooner/src/membrain-4.2.mb/server/sdf/sdfmsg/oldtests/sdf_msg_pthread_example.c
+Skipping /opt/schooner/src/membrain-4.2.mb/server/sdf/sdfmsg/oldtests/send_queue_test.c
+Skipping /opt/schooner/src/membrain-4.2.mb/server/sdf/sdfmsg/oldtests/simplexsr_test.c
+Skipping /opt/schooner/src/membrain-4.2.mb/server/sdf/sdfmsg/oldtests/slinkedlist.c
+Skipping /opt/schooner/src/membrain-4.2.mb/server/sdf/sdfmsg/oldtests/slinkedlist.h
+Skipping /opt/schooner/src/membrain-4.2.mb/server/sdf/sdfmsg/oldtests/system_test.c
+Skipping /opt/schooner/src/membrain-4.2.mb/server/sdf/sdfmsg/oldtests/Utilfuncs.c
+Skipping /opt/schooner/src/membrain-4.2.mb/server/sdf/sdfmsg/oldtests/Utilfuncs.h
 sdf/sdfmsg/sdf_msg_action.c:85:plat_log_msg:PLAT_LOG_LEVEL_TRACE:LOG_CAT:21485:\nNode %d: what action-how %s mbox %p\n
 sdf/sdfmsg/sdf_msg_action.c:123:plat_log_msg:PLAT_LOG_LEVEL_TRACE:LOG_CAT:21485:\nNode %d: what action-how %s mbox %p\n
 sdf/sdfmsg/sdf_msg_new.c:444:sdf_logi::LOG_CAT:70029:sdfmsg version %d
@@ -2804,111 +2801,111 @@ sdf/shared/cmc.c:382:plat_log_msg:log_level:LOG_CAT:21501:Node: %d - %s\n
 sdf/shared/cmc.c:396:plat_log_msg:LOG_ERR:LOG_CAT:21502:Incompatible version of SDF_container_meta_blob_t\n
 sdf/shared/cmc.c:405:plat_log_msg:LOG_ERR:LOG_CAT:21503:Incompatible version of SDF_container_meta_t\n
 sdf/shared/cmc.c:434:plat_log_msg:LOG_DBG:LOG_CAT:21498:Node: %d
-sdf/shared/cmc.c:448:plat_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_PRINT_ARGS:21499:PROP: SDF_META_TYPE=%d
-sdf/shared/cmc.c:452:plat_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_PRINT_ARGS:21492:PROP: SDF_CMC_BUCKETS=%d
-sdf/shared/cmc.c:581:plat_log_msg:log_level:LOG_CAT:21504:Node: %d - %s
-sdf/shared/cmc.c:603:plat_log_msg:LOG_DBG:LOG_CAT:21505:%s - cguid: %llu\n
-sdf/shared/cmc.c:642:plat_log_msg:log_level:LOG_CAT:21506:%llu - %s
-sdf/shared/cmc.c:660:plat_log_msg:LOG_DBG:LOG_CAT:21507:%llu
-sdf/shared/cmc.c:704:plat_log_msg:LOG_ERR:LOG_CAT:21508:Failed to get %s
-sdf/shared/cmc.c:712:plat_log_msg:log_level:LOG_CAT:21509:CACHED - %llu - %s
-sdf/shared/cmc.c:740:plat_log_msg:LOG_FATAL:LOG_CAT:21510:Invalid CMC_TYPE!
-sdf/shared/cmc.c:747:plat_log_msg:log_level:LOG_CAT:21511:%s - %s
-sdf/shared/cmc.c:760:plat_log_msg:LOG_DBG:LOG_CAT:20819:%s
-sdf/shared/cmc.c:777:plat_log_msg:log_level:LOG_CAT:21511:%s - %s
-sdf/shared/cmc.c:794:plat_log_msg:LOG_DBG:LOG_CAT:21507:%llu
-sdf/shared/cmc.c:840:plat_log_msg:LOG_FATAL:LOG_CAT:21510:Invalid CMC_TYPE!
-sdf/shared/cmc.c:847:plat_log_msg:log_level:LOG_CAT:21506:%llu - %s
-sdf/shared/cmc.c:862:plat_log_msg:LOG_DBG:LOG_CAT:21507:%llu
-sdf/shared/cmc.c:873:plat_log_msg:LOG_DBG:LOG_CAT:21512:remove from TL %llu
-sdf/shared/cmc.c:881:plat_log_msg:LOG_DBG:LOG_CAT:21513:remove from global map %llu
-sdf/shared/cmc.c:888:plat_log_msg:LOG_DBG:LOG_CAT:21514:remove from flash %llu
-sdf/shared/cmc.c:899:plat_log_msg:log_level:LOG_CAT:21506:%llu - %s
-sdf/shared/cmc.c:912:plat_log_msg:LOG_DBG:LOG_CAT:21507:%llu
-sdf/shared/cmc.c:919:plat_log_msg:log_level:LOG_CAT:21506:%llu - %s
-sdf/shared/cmc.c:932:plat_log_msg:LOG_DBG:LOG_CAT:21507:%llu
-sdf/shared/cmc.c:945:plat_log_msg:log_level:LOG_CAT:21506:%llu - %s
-sdf/shared/cmc.c:958:plat_log_msg:LOG_DBG:LOG_CAT:21507:%llu
-sdf/shared/cmc.c:965:plat_log_msg:log_level:LOG_CAT:21506:%llu - %s
-sdf/shared/cmc.c:977:plat_log_msg:LOG_DBG:LOG_CAT:21507:%llu
-sdf/shared/cmc.c:991:plat_log_msg:log_level:LOG_CAT:21506:%llu - %s
-sdf/shared/cmc.c:1007:plat_log_msg:LOG_DBG:LOG_CAT:20819:%s
-sdf/shared/cmc.c:1059:plat_log_msg:log_level:LOG_CAT:21511:%s - %s
-sdf/shared/cmc.c:1071:plat_log_msg:LOG_DBG:LOG_CAT:21507:%llu
-sdf/shared/cmc.c:1076:plat_log_msg:LOG_ERR:LOG_CAT:21515:Invalid cmc_type!
-sdf/shared/cmc.c:1081:plat_log_msg:log_level:LOG_CAT:21506:%llu - %s
-sdf/shared/cmc.c:1092:plat_log_msg:LOG_DBG:LOG_CAT:21507:%llu
-sdf/shared/cmc.c:1097:plat_log_msg:LOG_ERR:LOG_CAT:21515:Invalid cmc_type!
-sdf/shared/cmc.c:1102:plat_log_msg:log_level:LOG_CAT:21506:%llu - %s
-sdf/shared/cmc.c:1115:plat_log_msg:LOG_DBG:LOG_CAT:20819:%s
-sdf/shared/cmc.c:1138:plat_log_msg:log_level:LOG_CAT:21511:%s - %s
-sdf/shared/cmc.c:1152:plat_log_msg:LOG_DBG:LOG_CAT:21506:%llu - %s
-sdf/shared/cmc.c:1195:plat_log_msg:log_level:LOG_CAT:21516:%llu - %s - %s
-sdf/shared/cmc.c:1208:plat_log_msg:LOG_DBG:LOG_CAT:21506:%llu - %s
-sdf/shared/cmc.c:1250:plat_log_msg:log_level:LOG_CAT:21516:%llu - %s - %s
-sdf/shared/cmc.c:1266:plat_log_msg:LOG_DBG:LOG_CAT:20819:%s
-sdf/shared/cmc.c:1308:plat_log_msg:LOG_FATAL:LOG_CAT:21510:Invalid CMC_TYPE!
-sdf/shared/cmc.c:1318:plat_log_msg:log_level:LOG_CAT:21511:%s - %s
-sdf/shared/cmc.c:1331:plat_log_msg:LOG_DBG:LOG_CAT:20819:%s
-sdf/shared/cmc.c:1355:plat_log_msg:LOG_DBG:LOG_CAT:21511:%s - %s
-sdf/shared/cmc.c:1373:plat_log_msg:LOG_DBG:PLAT_LOG_CAT_SDF_CLIENT:20819:%s
-sdf/shared/cmc.c:1378:plat_log_msg:log_level:LOG_CAT:30543:NULL container name - %s
-sdf/shared/cmc.c:1389:plat_log_msg:log_level:LOG_CAT:21511:%s - %s
-sdf/shared/cmc.c:1402:plat_log_msg:LOG_DBG:PLAT_LOG_CAT_SDF_CLIENT:20819:%s
-sdf/shared/cmc.c:1407:plat_log_msg:log_level:LOG_CAT:30543:NULL container name - %s
-sdf/shared/cmc.c:1417:plat_log_msg:log_level:LOG_CAT:21511:%s - %s
-sdf/shared/cmc.c:1432:plat_log_msg:LOG_DBG:PLAT_LOG_CAT_SDF_CLIENT:21630:%lu
-sdf/shared/cmc.c:1437:plat_log_msg:log_level:LOG_CAT:150020:Invalid cguid - %s
-sdf/shared/cmc.c:1443:plat_log_msg:log_level:LOG_CAT:150021:%lu - %s
-sdf/shared/cmc.c:1457:plat_log_msg:LOG_DBG:PLAT_LOG_CAT_SDF_CLIENT:20819:%s
-sdf/shared/cmc.c:1462:plat_log_msg:log_level:LOG_CAT:30544:NULL path - %s
-sdf/shared/cmc.c:1469:plat_log_msg:log_level:LOG_CAT:21511:%s - %s
-sdf/shared/cmc.c:1484:plat_log_msg:LOG_DBG:PLAT_LOG_CAT_SDF_CLIENT:20819:%s
-sdf/shared/cmc.c:1489:plat_log_msg:log_level:LOG_CAT:30544:NULL path - %s
-sdf/shared/cmc.c:1496:plat_log_msg:log_level:LOG_CAT:21511:%s - %s
-sdf/shared/cmc.c:1510:plat_log_msg:LOG_DBG:LOG_CAT:20819:%s
-sdf/shared/cmc.c:1519:plat_log_msg:log_level:LOG_CAT:21511:%s - %s
-sdf/shared/cmc.c:1531:plat_log_msg:LOG_DBG:LOG_CAT:20819:%s
-sdf/shared/cmc.c:1540:plat_log_msg:log_level:LOG_CAT:21511:%s - %s
-sdf/shared/cmc.c:1555:plat_log_msg:LOG_DBG:PLAT_LOG_CAT_SDF_CLIENT:21517:entry
-sdf/shared/cmc.c:1559:plat_log_msg:log_level:LOG_CAT:20819:%s
-sdf/shared/cmc.c:1564:plat_log_msg:log_level:LOG_CAT:20819:%s
-sdf/shared/cmc.c:1576:plat_log_msg:LOG_DBG:PLAT_LOG_CAT_SDF_CLIENT:21517:entry
-sdf/shared/cmc.c:1583:plat_log_msg:log_level:LOG_CAT:20819:%s
-sdf/shared/cmc.c:1596:plat_log_msg:LOG_DBG:PLAT_LOG_CAT_SDF_CLIENT:21517:entry
-sdf/shared/cmc.c:1603:plat_log_msg:log_level:LOG_CAT:20819:%s
-sdf/shared/cmc.c:1618:plat_log_msg:LOG_DBG:LOG_CAT:20819:%s
-sdf/shared/cmc.c:1632:plat_log_msg:log_level:LOG_CAT:21511:%s - %s
-sdf/shared/cmc.c:1645:plat_log_msg:LOG_DBG:LOG_CAT:20819:%s
-sdf/shared/cmc.c:1648:plat_log_msg:LOG_ERR:LOG_CAT:21515:Invalid cmc_type!
-sdf/shared/cmc.c:1653:plat_log_msg:log_level:LOG_CAT:21511:%s - %s
-sdf/shared/cmc.c:1666:plat_log_msg:LOG_DBG:LOG_CAT:20819:%s
-sdf/shared/cmc.c:1669:plat_log_msg:LOG_ERR:LOG_CAT:21518:Unsupported operation!
-sdf/shared/cmc.c:1674:plat_log_msg:log_level:LOG_CAT:21511:%s - %s
-sdf/shared/cmc.c:1686:plat_log_msg:LOG_DBG:LOG_CAT:20819:%s
-sdf/shared/cmc.c:1698:plat_log_msg:log_level:LOG_CAT:21511:%s - %s
-sdf/shared/cmc.c:1712:plat_log_msg:LOG_DBG:LOG_CAT:20819:%s
-sdf/shared/cmc.c:1723:plat_log_msg:log_level:LOG_CAT:21511:%s - %s
-sdf/shared/cmc.c:1736:plat_log_msg:LOG_DBG:LOG_CAT:20819:%s
-sdf/shared/cmc.c:1749:plat_log_msg:log_level:LOG_CAT:21511:%s - %s
-sdf/shared/cmc.c:1762:plat_log_msg:LOG_DBG:LOG_CAT:20819:%s
-sdf/shared/cmc.c:1776:plat_log_msg:log_level:LOG_CAT:21511:%s - %s
-sdf/shared/cmc.c:1788:plat_log_msg:LOG_DBG:LOG_CAT:20819:%s
-sdf/shared/cmc.c:1801:plat_log_msg:log_level:LOG_CAT:21511:%s - %s
-sdf/shared/cmc.c:1813:plat_log_msg:LOG_DBG:LOG_CAT:20819:%s
-sdf/shared/cmc.c:1826:plat_log_msg:log_level:LOG_CAT:21511:%s - %s
-sdf/shared/cmc.c:1840:plat_log_msg:LOG_DBG:LOG_CAT:20819:%s
-sdf/shared/cmc.c:1847:plat_log_msg:LOG_ERR:LOG_CAT:21519:Failed to allocate memory for hash key
-sdf/shared/cmc.c:1861:plat_log_msg:LOG_ERR:LOG_CAT:21520:Failed to replace meta hash entry
-sdf/shared/cmc.c:1867:plat_log_msg:LOG_DBG:LOG_CAT:21521:%p - REPLACE: %s - %p
-sdf/shared/cmc.c:1890:plat_log_msg:LOG_DBG:LOG_CAT:21522:%p - INSERT: %s - %p
-sdf/shared/cmc.c:1895:plat_log_msg:status == SDF_TRUE ? LOG_DBG:LOG_ERR:LOG_CAT:21523:Status: %s
-sdf/shared/cmc.c:1911:plat_log_msg:LOG_ERR:LOG_CAT:21519:Failed to allocate memory for hash key
-sdf/shared/cmc.c:1924:plat_log_msg:LOG_ERR:LOG_CAT:21520:Failed to replace meta hash entry
-sdf/shared/cmc.c:1937:plat_log_msg:status == SDF_TRUE ? LOG_DBG:LOG_ERR:LOG_CAT:21523:Status: %s
-sdf/shared/cmc.c:1953:plat_log_msg:LOG_ERR:LOG_CAT:21519:Failed to allocate memory for hash key
-sdf/shared/cmc.c:1968:plat_log_msg:LOG_ERR:LOG_CAT:21520:Failed to replace meta hash entry
-sdf/shared/cmc.c:1978:plat_log_msg:status == SDF_TRUE ? LOG_DBG:LOG_ERR:LOG_CAT:21523:Status: %s
+sdf/shared/cmc.c:450:plat_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_PRINT_ARGS:21499:PROP: SDF_META_TYPE=%d
+sdf/shared/cmc.c:457:plat_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_PRINT_ARGS:21492:PROP: SDF_CMC_BUCKETS=%d
+sdf/shared/cmc.c:583:plat_log_msg:log_level:LOG_CAT:21504:Node: %d - %s
+sdf/shared/cmc.c:605:plat_log_msg:LOG_DBG:LOG_CAT:21505:%s - cguid: %llu\n
+sdf/shared/cmc.c:644:plat_log_msg:log_level:LOG_CAT:21506:%llu - %s
+sdf/shared/cmc.c:662:plat_log_msg:LOG_DBG:LOG_CAT:21507:%llu
+sdf/shared/cmc.c:706:plat_log_msg:LOG_ERR:LOG_CAT:21508:Failed to get %s
+sdf/shared/cmc.c:714:plat_log_msg:log_level:LOG_CAT:21509:CACHED - %llu - %s
+sdf/shared/cmc.c:742:plat_log_msg:LOG_FATAL:LOG_CAT:21510:Invalid CMC_TYPE!
+sdf/shared/cmc.c:749:plat_log_msg:log_level:LOG_CAT:21511:%s - %s
+sdf/shared/cmc.c:762:plat_log_msg:LOG_DBG:LOG_CAT:20819:%s
+sdf/shared/cmc.c:779:plat_log_msg:log_level:LOG_CAT:21511:%s - %s
+sdf/shared/cmc.c:796:plat_log_msg:LOG_DBG:LOG_CAT:21507:%llu
+sdf/shared/cmc.c:842:plat_log_msg:LOG_FATAL:LOG_CAT:21510:Invalid CMC_TYPE!
+sdf/shared/cmc.c:849:plat_log_msg:log_level:LOG_CAT:21506:%llu - %s
+sdf/shared/cmc.c:864:plat_log_msg:LOG_DBG:LOG_CAT:21507:%llu
+sdf/shared/cmc.c:875:plat_log_msg:LOG_DBG:LOG_CAT:21512:remove from TL %llu
+sdf/shared/cmc.c:883:plat_log_msg:LOG_DBG:LOG_CAT:21513:remove from global map %llu
+sdf/shared/cmc.c:890:plat_log_msg:LOG_DBG:LOG_CAT:21514:remove from flash %llu
+sdf/shared/cmc.c:901:plat_log_msg:log_level:LOG_CAT:21506:%llu - %s
+sdf/shared/cmc.c:914:plat_log_msg:LOG_DBG:LOG_CAT:21507:%llu
+sdf/shared/cmc.c:921:plat_log_msg:log_level:LOG_CAT:21506:%llu - %s
+sdf/shared/cmc.c:934:plat_log_msg:LOG_DBG:LOG_CAT:21507:%llu
+sdf/shared/cmc.c:947:plat_log_msg:log_level:LOG_CAT:21506:%llu - %s
+sdf/shared/cmc.c:960:plat_log_msg:LOG_DBG:LOG_CAT:21507:%llu
+sdf/shared/cmc.c:967:plat_log_msg:log_level:LOG_CAT:21506:%llu - %s
+sdf/shared/cmc.c:979:plat_log_msg:LOG_DBG:LOG_CAT:21507:%llu
+sdf/shared/cmc.c:993:plat_log_msg:log_level:LOG_CAT:21506:%llu - %s
+sdf/shared/cmc.c:1009:plat_log_msg:LOG_DBG:LOG_CAT:20819:%s
+sdf/shared/cmc.c:1061:plat_log_msg:log_level:LOG_CAT:21511:%s - %s
+sdf/shared/cmc.c:1073:plat_log_msg:LOG_DBG:LOG_CAT:21507:%llu
+sdf/shared/cmc.c:1078:plat_log_msg:LOG_ERR:LOG_CAT:21515:Invalid cmc_type!
+sdf/shared/cmc.c:1083:plat_log_msg:log_level:LOG_CAT:21506:%llu - %s
+sdf/shared/cmc.c:1094:plat_log_msg:LOG_DBG:LOG_CAT:21507:%llu
+sdf/shared/cmc.c:1099:plat_log_msg:LOG_ERR:LOG_CAT:21515:Invalid cmc_type!
+sdf/shared/cmc.c:1104:plat_log_msg:log_level:LOG_CAT:21506:%llu - %s
+sdf/shared/cmc.c:1117:plat_log_msg:LOG_DBG:LOG_CAT:20819:%s
+sdf/shared/cmc.c:1140:plat_log_msg:log_level:LOG_CAT:21511:%s - %s
+sdf/shared/cmc.c:1154:plat_log_msg:LOG_DBG:LOG_CAT:21506:%llu - %s
+sdf/shared/cmc.c:1197:plat_log_msg:log_level:LOG_CAT:21516:%llu - %s - %s
+sdf/shared/cmc.c:1210:plat_log_msg:LOG_DBG:LOG_CAT:21506:%llu - %s
+sdf/shared/cmc.c:1252:plat_log_msg:log_level:LOG_CAT:21516:%llu - %s - %s
+sdf/shared/cmc.c:1268:plat_log_msg:LOG_DBG:LOG_CAT:20819:%s
+sdf/shared/cmc.c:1310:plat_log_msg:LOG_FATAL:LOG_CAT:21510:Invalid CMC_TYPE!
+sdf/shared/cmc.c:1320:plat_log_msg:log_level:LOG_CAT:21511:%s - %s
+sdf/shared/cmc.c:1333:plat_log_msg:LOG_DBG:LOG_CAT:20819:%s
+sdf/shared/cmc.c:1357:plat_log_msg:LOG_DBG:LOG_CAT:21511:%s - %s
+sdf/shared/cmc.c:1375:plat_log_msg:LOG_DBG:PLAT_LOG_CAT_SDF_CLIENT:20819:%s
+sdf/shared/cmc.c:1380:plat_log_msg:log_level:LOG_CAT:30543:NULL container name - %s
+sdf/shared/cmc.c:1391:plat_log_msg:log_level:LOG_CAT:21511:%s - %s
+sdf/shared/cmc.c:1404:plat_log_msg:LOG_DBG:PLAT_LOG_CAT_SDF_CLIENT:20819:%s
+sdf/shared/cmc.c:1409:plat_log_msg:log_level:LOG_CAT:30543:NULL container name - %s
+sdf/shared/cmc.c:1419:plat_log_msg:log_level:LOG_CAT:21511:%s - %s
+sdf/shared/cmc.c:1434:plat_log_msg:LOG_DBG:PLAT_LOG_CAT_SDF_CLIENT:21630:%lu
+sdf/shared/cmc.c:1439:plat_log_msg:log_level:LOG_CAT:150020:Invalid cguid - %s
+sdf/shared/cmc.c:1445:plat_log_msg:log_level:LOG_CAT:150021:%lu - %s
+sdf/shared/cmc.c:1459:plat_log_msg:LOG_DBG:PLAT_LOG_CAT_SDF_CLIENT:20819:%s
+sdf/shared/cmc.c:1464:plat_log_msg:log_level:LOG_CAT:30544:NULL path - %s
+sdf/shared/cmc.c:1471:plat_log_msg:log_level:LOG_CAT:21511:%s - %s
+sdf/shared/cmc.c:1486:plat_log_msg:LOG_DBG:PLAT_LOG_CAT_SDF_CLIENT:20819:%s
+sdf/shared/cmc.c:1491:plat_log_msg:log_level:LOG_CAT:30544:NULL path - %s
+sdf/shared/cmc.c:1498:plat_log_msg:log_level:LOG_CAT:21511:%s - %s
+sdf/shared/cmc.c:1512:plat_log_msg:LOG_DBG:LOG_CAT:20819:%s
+sdf/shared/cmc.c:1521:plat_log_msg:log_level:LOG_CAT:21511:%s - %s
+sdf/shared/cmc.c:1533:plat_log_msg:LOG_DBG:LOG_CAT:20819:%s
+sdf/shared/cmc.c:1542:plat_log_msg:log_level:LOG_CAT:21511:%s - %s
+sdf/shared/cmc.c:1557:plat_log_msg:LOG_DBG:PLAT_LOG_CAT_SDF_CLIENT:21517:entry
+sdf/shared/cmc.c:1561:plat_log_msg:log_level:LOG_CAT:20819:%s
+sdf/shared/cmc.c:1566:plat_log_msg:log_level:LOG_CAT:20819:%s
+sdf/shared/cmc.c:1578:plat_log_msg:LOG_DBG:PLAT_LOG_CAT_SDF_CLIENT:21517:entry
+sdf/shared/cmc.c:1585:plat_log_msg:log_level:LOG_CAT:20819:%s
+sdf/shared/cmc.c:1598:plat_log_msg:LOG_DBG:PLAT_LOG_CAT_SDF_CLIENT:21517:entry
+sdf/shared/cmc.c:1605:plat_log_msg:log_level:LOG_CAT:20819:%s
+sdf/shared/cmc.c:1620:plat_log_msg:LOG_DBG:LOG_CAT:20819:%s
+sdf/shared/cmc.c:1634:plat_log_msg:log_level:LOG_CAT:21511:%s - %s
+sdf/shared/cmc.c:1647:plat_log_msg:LOG_DBG:LOG_CAT:20819:%s
+sdf/shared/cmc.c:1650:plat_log_msg:LOG_ERR:LOG_CAT:21515:Invalid cmc_type!
+sdf/shared/cmc.c:1655:plat_log_msg:log_level:LOG_CAT:21511:%s - %s
+sdf/shared/cmc.c:1668:plat_log_msg:LOG_DBG:LOG_CAT:20819:%s
+sdf/shared/cmc.c:1671:plat_log_msg:LOG_ERR:LOG_CAT:21518:Unsupported operation!
+sdf/shared/cmc.c:1676:plat_log_msg:log_level:LOG_CAT:21511:%s - %s
+sdf/shared/cmc.c:1688:plat_log_msg:LOG_DBG:LOG_CAT:20819:%s
+sdf/shared/cmc.c:1700:plat_log_msg:log_level:LOG_CAT:21511:%s - %s
+sdf/shared/cmc.c:1714:plat_log_msg:LOG_DBG:LOG_CAT:20819:%s
+sdf/shared/cmc.c:1725:plat_log_msg:log_level:LOG_CAT:21511:%s - %s
+sdf/shared/cmc.c:1738:plat_log_msg:LOG_DBG:LOG_CAT:20819:%s
+sdf/shared/cmc.c:1751:plat_log_msg:log_level:LOG_CAT:21511:%s - %s
+sdf/shared/cmc.c:1764:plat_log_msg:LOG_DBG:LOG_CAT:20819:%s
+sdf/shared/cmc.c:1778:plat_log_msg:log_level:LOG_CAT:21511:%s - %s
+sdf/shared/cmc.c:1790:plat_log_msg:LOG_DBG:LOG_CAT:20819:%s
+sdf/shared/cmc.c:1803:plat_log_msg:log_level:LOG_CAT:21511:%s - %s
+sdf/shared/cmc.c:1815:plat_log_msg:LOG_DBG:LOG_CAT:20819:%s
+sdf/shared/cmc.c:1828:plat_log_msg:log_level:LOG_CAT:21511:%s - %s
+sdf/shared/cmc.c:1842:plat_log_msg:LOG_DBG:LOG_CAT:20819:%s
+sdf/shared/cmc.c:1849:plat_log_msg:LOG_ERR:LOG_CAT:21519:Failed to allocate memory for hash key
+sdf/shared/cmc.c:1863:plat_log_msg:LOG_ERR:LOG_CAT:21520:Failed to replace meta hash entry
+sdf/shared/cmc.c:1869:plat_log_msg:LOG_DBG:LOG_CAT:21521:%p - REPLACE: %s - %p
+sdf/shared/cmc.c:1892:plat_log_msg:LOG_DBG:LOG_CAT:21522:%p - INSERT: %s - %p
+sdf/shared/cmc.c:1897:plat_log_msg:status == SDF_TRUE ? LOG_DBG:LOG_ERR:LOG_CAT:21523:Status: %s
+sdf/shared/cmc.c:1913:plat_log_msg:LOG_ERR:LOG_CAT:21519:Failed to allocate memory for hash key
+sdf/shared/cmc.c:1926:plat_log_msg:LOG_ERR:LOG_CAT:21520:Failed to replace meta hash entry
+sdf/shared/cmc.c:1939:plat_log_msg:status == SDF_TRUE ? LOG_DBG:LOG_ERR:LOG_CAT:21523:Status: %s
+sdf/shared/cmc.c:1955:plat_log_msg:LOG_ERR:LOG_CAT:21519:Failed to allocate memory for hash key
+sdf/shared/cmc.c:1970:plat_log_msg:LOG_ERR:LOG_CAT:21520:Failed to replace meta hash entry
+sdf/shared/cmc.c:1980:plat_log_msg:status == SDF_TRUE ? LOG_DBG:LOG_ERR:LOG_CAT:21523:Status: %s
 sdf/shared/container.c:147:plat_log_msg:PLAT_LOG_LEVEL_FATAL:PLAT_LOG_CAT_SDF_SHARED:20866:Not enough shared memory, plat_shmem_alloc() failed.
 sdf/shared/container.c:188:plat_log_msg:PLAT_LOG_LEVEL_FATAL:PLAT_LOG_CAT_SDF_SHARED:20866:Not enough shared memory, plat_shmem_alloc() failed.
 sdf/shared/container.c:327:plat_log_msg:LOG_DBG:LOG_CAT:21524:Shared Memory Stats:\n Initial: allocated_bytes=%"PRIu64", allocated_count=%"PRIu64", used_bytes=%"PRIu64"
@@ -3031,11 +3028,11 @@ sdf/shared/getput_sim.c:444:plat_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_S
 sdf/shared/init_sdf.c:107:plat_log_msg:LOG_DBG:LOG_CAT:21498:Node: %d
 sdf/shared/init_sdf.c:118:plat_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_SHARED:21604:CMC create succeeded
 sdf/shared/init_sdf.c:123:plat_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_SHARED:21605:CMC create failed
-sdf/shared/init_sdf.c:137:plat_log_msg:PLAT_LOG_LEVEL_WARN:PLAT_LOG_CAT_SDF_SHARED:21606:Did not find cguid counter state - re-initializing counter
-sdf/shared/init_sdf.c:151:plat_log_msg:log_level:LOG_CAT:21607:Failed to write cguid state
-sdf/shared/init_sdf.c:155:plat_log_msg:log_level:LOG_CAT:21504:Node: %d - %s
-sdf/shared/init_sdf.c:178:plat_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_CMC:21608:Failure: Node %u - init_set_cmc_cguid - failed to map cguid %s - status %u
-sdf/shared/init_sdf.c:182:plat_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_CMC:21609:Success: Node %u - init_set_cmc_cguid
+sdf/shared/init_sdf.c:139:plat_log_msg:PLAT_LOG_LEVEL_WARN:PLAT_LOG_CAT_SDF_SHARED:21606:Did not find cguid counter state - re-initializing counter
+sdf/shared/init_sdf.c:153:plat_log_msg:log_level:LOG_CAT:21607:Failed to write cguid state
+sdf/shared/init_sdf.c:157:plat_log_msg:log_level:LOG_CAT:21504:Node: %d - %s
+sdf/shared/init_sdf.c:180:plat_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_CMC:21608:Failure: Node %u - init_set_cmc_cguid - failed to map cguid %s - status %u
+sdf/shared/init_sdf.c:184:plat_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_CMC:21609:Success: Node %u - init_set_cmc_cguid
 sdf/shared/name_service.c:47:plat_log_msg:LOG_DBG:LOG_CAT:21579:%s - %lu
 sdf/shared/name_service.c:74:plat_log_msg:log_level:LOG_CAT:21610:%s - %llu - %s
 sdf/shared/name_service.c:86:plat_log_msg:LOG_DBG:LOG_CAT:21507:%llu
@@ -3076,13 +3073,13 @@ sdf/shared/name_service.c:467:plat_log_msg:LOG_DBG:LOG_CAT:21507:%llu
 sdf/shared/name_service.c:483:plat_log_msg:log_level:LOG_CAT:21615:%llu - %u - %s
 sdf/shared/name_service.c:486:plat_log_msg:log_level:LOG_CAT:21616:%llu - NULL - %s
 sdf/shared/name_service.c:504:plat_log_msg:LOG_DBG:LOG_CAT:20819:%s
-sdf/shared/name_service.c:526:plat_log_msg:log_level:LOG_CAT:21511:%s - %s
-sdf/shared/name_service.c:541:plat_log_msg:LOG_DBG:LOG_CAT:20819:%s
-sdf/shared/name_service.c:561:plat_log_msg:log_level:LOG_CAT:21511:%s - %s
-sdf/shared/name_service.c:576:plat_log_msg:LOG_DBG:LOG_CAT:20819:%s
-sdf/shared/name_service.c:590:plat_log_msg:log_level:LOG_CAT:21511:%s - %s
-sdf/shared/name_service.c:604:plat_log_msg:LOG_DBG:LOG_CAT:20819:%s
-sdf/shared/name_service.c:610:plat_log_msg:log_level:LOG_CAT:21511:%s - %s
+sdf/shared/name_service.c:528:plat_log_msg:log_level:LOG_CAT:21511:%s - %s
+sdf/shared/name_service.c:543:plat_log_msg:LOG_DBG:LOG_CAT:20819:%s
+sdf/shared/name_service.c:565:plat_log_msg:log_level:LOG_CAT:21511:%s - %s
+sdf/shared/name_service.c:580:plat_log_msg:LOG_DBG:LOG_CAT:20819:%s
+sdf/shared/name_service.c:594:plat_log_msg:log_level:LOG_CAT:21511:%s - %s
+sdf/shared/name_service.c:608:plat_log_msg:LOG_DBG:LOG_CAT:20819:%s
+sdf/shared/name_service.c:614:plat_log_msg:log_level:LOG_CAT:21511:%s - %s
 sdf/shared/open_container_map.c:80:plat_log_msg:PLAT_LOG_LEVEL_FATAL:PLAT_LOG_CAT_SDF_SHARED:20866:Not enough shared memory, plat_shmem_alloc() failed.
 sdf/shared/open_container_mgr.c:31:plat_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_SHARED:21617:Container %s exists in backend
 sdf/shared/open_container_mgr.c:36:plat_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_SHARED:21618:Container %s does not exist in backend
@@ -3441,317 +3438,318 @@ sdf/ssd/fifo/mcd_osd.c:936:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_AGE
 sdf/ssd/fifo/mcd_osd.c:990:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_AGENT:50027:failed to initialize prefix-based deleter for container %s
 sdf/ssd/fifo/mcd_osd.c:1004:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_AGENT:20088:failed to open container %s, status=%s
 sdf/ssd/fifo/mcd_osd.c:1026:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_AGENT:20119:failed to create and open container %s, status=%s
-sdf/ssd/fifo/mcd_osd.c:1075:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_AGENT:20120:failed to obtain invalidation time for container %s
-sdf/ssd/fifo/mcd_osd.c:1117:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_AGENT:20121:failed to obtain shard for container %s
-sdf/ssd/fifo/mcd_osd.c:1149:mcd_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_AGENT:20122:container %s opened, id=%ld size=%lluKB num_objs=%d eviction=%d persistence=%d
-sdf/ssd/fifo/mcd_osd.c:1163:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_AGENT:50072:failed to set shard flush_time, rc=%d
-sdf/ssd/fifo/mcd_osd.c:1173:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_AGENT:50073:failed to set sdf flush_time, rc=%d
-sdf/ssd/fifo/mcd_osd.c:1235:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_AGENT:20123:container prop found, port=%d id=%d name=%s
-sdf/ssd/fifo/mcd_osd.c:1242:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_AGENT:20124:persisted container state %d
-sdf/ssd/fifo/mcd_osd.c:1251:mcd_log_msg:PLAT_LOG_LEVEL_WARN:PLAT_LOG_CAT_SDF_AGENT:20125:recovered container state not found
-sdf/ssd/fifo/mcd_osd.c:1299:mcd_log_msg:PLAT_LOG_LEVEL_FATAL:PLAT_LOG_CAT_SDF_AGENT:20126:invalid recovered container state %d
-sdf/ssd/fifo/mcd_osd.c:1321:mcd_log_msg:PLAT_LOG_LEVEL_FATAL:PLAT_LOG_CAT_SDF_AGENT:20127:container error during initialization, aborting...
-sdf/ssd/fifo/mcd_osd.c:1358:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_AGENT:20000:ENTERING
-sdf/ssd/fifo/mcd_osd.c:1373:mcd_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_AGENT:20128:got cluster status, node_id=%u num_nodes=%d
-sdf/ssd/fifo/mcd_osd.c:1449:mcd_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_AGENT:20293:ENTERING, shard=%p shard_id=%lu flags=0x%x quota=%lu max_nobjs=%u
-sdf/ssd/fifo/mcd_osd.c:1482:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_AGENT:20294:shard size greater than 2TB, not supported yet
-sdf/ssd/fifo/mcd_osd.c:1492:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_AGENT:20295:failed to allocate random table
-sdf/ssd/fifo/mcd_osd.c:1516:mcd_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_AGENT:20296:rand_table[%d]=%u, segments[%d]=%u
-sdf/ssd/fifo/mcd_osd.c:1532:mcd_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_AGENT:20297:remapping table initialized, size=%lu
-sdf/ssd/fifo/mcd_osd.c:1550:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_AGENT:20298:failed to allocate hash buckets
-sdf/ssd/fifo/mcd_osd.c:1561:mcd_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_AGENT:20299:hash buckets allocated, size=%lu
-sdf/ssd/fifo/mcd_osd.c:1581:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_AGENT:20099:failed to alloc bucket locks
-sdf/ssd/fifo/mcd_osd.c:1592:mcd_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_AGENT:20300:lock_buckets=%lu lock_bktsize=%d, total lock size=%lu
-sdf/ssd/fifo/mcd_osd.c:1601:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_AGENT:20301:failed to allocate hash table
-sdf/ssd/fifo/mcd_osd.c:1612:mcd_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_AGENT:20302:hash table initialized, size=%lu
-sdf/ssd/fifo/mcd_osd.c:1621:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_AGENT:20301:failed to allocate hash table
-sdf/ssd/fifo/mcd_osd.c:1629:mcd_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_AGENT:20307:address table initialized, size=%lu
-sdf/ssd/fifo/mcd_osd.c:1637:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_AGENT:20308:failed to allocate write buffer
-sdf/ssd/fifo/mcd_osd.c:1662:mcd_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_AGENT:20309:shard initialized, total allocated bytes=%lu
-sdf/ssd/fifo/mcd_osd.c:1685:mcd_log_msg:PLAT_LOG_LEVEL_WARN:PLAT_LOG_CAT_SDF_AGENT:20310:nothing to reclaim
-sdf/ssd/fifo/mcd_osd.c:1696:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_AGENT:20311:not enough magic, blk_offset=%lu
-sdf/ssd/fifo/mcd_osd.c:1700:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_AGENT:20312:key_len=%d data_len=%u
-sdf/ssd/fifo/mcd_osd.c:1726:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_AGENT:20313:reclaiming item: syndrome=%lx syn=%x addr=%u blocks=%u
-sdf/ssd/fifo/mcd_osd.c:1759:mcd_log_msg:MCD_OSD_LOG_LVL_INFO:PLAT_LOG_CAT_SDF_AGENT:20314:space reclaimed, blk_offset=%lu blocks=%d
-sdf/ssd/fifo/mcd_osd.c:1780:mcd_log_msg:MCD_OSD_LOG_LVL_INFO:PLAT_LOG_CAT_SDF_AGENT:20316:got writer mail, blk_committed=%lu
-sdf/ssd/fifo/mcd_osd.c:1791:mcd_log_msg:PLAT_LOG_LEVEL_FATAL:PLAT_LOG_CAT_SDF_AGENT:20317:this should not happen
-sdf/ssd/fifo/mcd_osd.c:1797:mcd_log_msg:MCD_OSD_LOG_LVL_INFO:PLAT_LOG_CAT_SDF_AGENT:20318:writer mail arrived out of order
-sdf/ssd/fifo/mcd_osd.c:1812:mcd_log_msg:PLAT_LOG_LEVEL_FATAL:PLAT_LOG_CAT_SDF_AGENT:20319:failed to commit buffer, rc=%d
-sdf/ssd/fifo/mcd_osd.c:1825:mcd_log_msg:MCD_OSD_LOG_LVL_INFO:PLAT_LOG_CAT_SDF_AGENT:20320:buffer still referenced, count=%u
-sdf/ssd/fifo/mcd_osd.c:1842:mcd_log_msg:MCD_OSD_LOG_LVL_INFO:PLAT_LOG_CAT_SDF_AGENT:20321:wbuf %d committed, rsvd=%lu alloc=%lu cmtd=%lu next=%lu
-sdf/ssd/fifo/mcd_osd.c:1862:mcd_log_msg:MCD_OSD_LOG_LVL_INFO:PLAT_LOG_CAT_SDF_AGENT:20322:rbuf to read, blk_offset=%lu
-sdf/ssd/fifo/mcd_osd.c:1870:mcd_log_msg:PLAT_LOG_LEVEL_FATAL:PLAT_LOG_CAT_SDF_AGENT:20323:failed to read data, rc=%d
-sdf/ssd/fifo/mcd_osd.c:1899:mcd_log_msg:MCD_OSD_LOG_LVL_DEBUG:PLAT_LOG_CAT_SDF_AGENT:20324:sleeper waked up, blocks=%d, total=%d
-sdf/ssd/fifo/mcd_osd.c:1950:mcd_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_AGENT:150002:writer fthread spawned, use context %p
-sdf/ssd/fifo/mcd_osd.c:1972:mcd_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_AGENT:20000:ENTERING
-sdf/ssd/fifo/mcd_osd.c:1977:mcd_log_msg:PLAT_LOG_LEVEL_FATAL:PLAT_LOG_CAT_SDF_AGENT:20315:failed to allocate read buffer
-sdf/ssd/fifo/mcd_osd.c:2003:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_AGENT:50041:writer resume mail posted, shard=%p
-sdf/ssd/fifo/mcd_osd.c:2013:mcd_log_msg:MCD_OSD_LOG_LVL_INFO:PLAT_LOG_CAT_SDF_AGENT:20316:got writer mail, blk_committed=%lu
-sdf/ssd/fifo/mcd_osd.c:2024:mcd_log_msg:PLAT_LOG_LEVEL_FATAL:PLAT_LOG_CAT_SDF_AGENT:20317:this should not happen
-sdf/ssd/fifo/mcd_osd.c:2030:mcd_log_msg:MCD_OSD_LOG_LVL_INFO:PLAT_LOG_CAT_SDF_AGENT:20318:writer mail arrived out of order
-sdf/ssd/fifo/mcd_osd.c:2046:mcd_log_msg:PLAT_LOG_LEVEL_FATAL:PLAT_LOG_CAT_SDF_AGENT:20319:failed to commit buffer, rc=%d
-sdf/ssd/fifo/mcd_osd.c:2059:mcd_log_msg:MCD_OSD_LOG_LVL_INFO:PLAT_LOG_CAT_SDF_AGENT:20320:buffer still referenced, count=%u
-sdf/ssd/fifo/mcd_osd.c:2076:mcd_log_msg:MCD_OSD_LOG_LVL_INFO:PLAT_LOG_CAT_SDF_AGENT:20321:wbuf %d committed, rsvd=%lu alloc=%lu cmtd=%lu next=%lu
-sdf/ssd/fifo/mcd_osd.c:2096:mcd_log_msg:MCD_OSD_LOG_LVL_INFO:PLAT_LOG_CAT_SDF_AGENT:20322:rbuf to read, blk_offset=%lu
-sdf/ssd/fifo/mcd_osd.c:2104:mcd_log_msg:PLAT_LOG_LEVEL_FATAL:PLAT_LOG_CAT_SDF_AGENT:20323:failed to read data, rc=%d
-sdf/ssd/fifo/mcd_osd.c:2130:mcd_log_msg:MCD_OSD_LOG_LVL_DEBUG:PLAT_LOG_CAT_SDF_AGENT:20324:sleeper waked up, blocks=%d, total=%d
-sdf/ssd/fifo/mcd_osd.c:2167:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_AGENT:20000:ENTERING
-sdf/ssd/fifo/mcd_osd.c:2196:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_AGENT:20312:key_len=%d data_len=%u
-sdf/ssd/fifo/mcd_osd.c:2199:mcd_log_msg:PLAT_LOG_LEVEL_FATAL:PLAT_LOG_CAT_SDF_AGENT:20325:not enough magic!
-sdf/ssd/fifo/mcd_osd.c:2206:mcd_log_msg:MCD_OSD_LOG_LVL_DIAG:PLAT_LOG_CAT_SDF_AGENT:20326:key length mismatch, req %d osd %d
-sdf/ssd/fifo/mcd_osd.c:2215:mcd_log_msg:MCD_OSD_LOG_LVL_DIAG:PLAT_LOG_CAT_SDF_AGENT:20006:key mismatch, req %s
-sdf/ssd/fifo/mcd_osd.c:2257:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_AGENT:20000:ENTERING
-sdf/ssd/fifo/mcd_osd.c:2264:mcd_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_AGENT:20327:%lu get cmds
-sdf/ssd/fifo/mcd_osd.c:2381:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_AGENT:20003:failed to read blocks, rc=%d
-sdf/ssd/fifo/mcd_osd.c:2388:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_AGENT:20312:key_len=%d data_len=%u
-sdf/ssd/fifo/mcd_osd.c:2391:mcd_log_msg:PLAT_LOG_LEVEL_FATAL:PLAT_LOG_CAT_SDF_AGENT:20325:not enough magic!
-sdf/ssd/fifo/mcd_osd.c:2398:mcd_log_msg:MCD_OSD_LOG_LVL_DIAG:PLAT_LOG_CAT_SDF_AGENT:20326:key length mismatch, req %d osd %d
-sdf/ssd/fifo/mcd_osd.c:2406:mcd_log_msg:MCD_OSD_LOG_LVL_DIAG:PLAT_LOG_CAT_SDF_AGENT:20006:key mismatch, req %s
-sdf/ssd/fifo/mcd_osd.c:2481:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_AGENT:20000:ENTERING
-sdf/ssd/fifo/mcd_osd.c:2496:mcd_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_AGENT:20329:%lu sets, b_alloc=%lu overwrites=%lu evictions=%lu soft_of=%lu hard_of=%lu p_id=%d 
-sdf/ssd/fifo/mcd_osd.c:2505:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_AGENT:20330:object size beyond limit, raw_len=%lu
-sdf/ssd/fifo/mcd_osd.c:2534:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_AGENT:20331:object exists
-sdf/ssd/fifo/mcd_osd.c:2593:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_AGENT:20003:failed to read blocks, rc=%d
-sdf/ssd/fifo/mcd_osd.c:2599:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_AGENT:20312:key_len=%d data_len=%u
-sdf/ssd/fifo/mcd_osd.c:2602:mcd_log_msg:PLAT_LOG_LEVEL_FATAL:PLAT_LOG_CAT_SDF_AGENT:20325:not enough magic!
-sdf/ssd/fifo/mcd_osd.c:2609:mcd_log_msg:MCD_OSD_LOG_LVL_DIAG:PLAT_LOG_CAT_SDF_AGENT:20326:key length mismatch, req %d osd %d
-sdf/ssd/fifo/mcd_osd.c:2616:mcd_log_msg:MCD_OSD_LOG_LVL_DIAG:PLAT_LOG_CAT_SDF_AGENT:20006:key mismatch, req %s
-sdf/ssd/fifo/mcd_osd.c:2622:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_AGENT:20331:object exists
-sdf/ssd/fifo/mcd_osd.c:2721:mcd_log_msg:PLAT_LOG_LEVEL_FATAL:PLAT_LOG_CAT_SDF_AGENT:20332:block offset about to wrap
-sdf/ssd/fifo/mcd_osd.c:2755:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_AGENT:20333:mail posted, ready to sleep
-sdf/ssd/fifo/mcd_osd.c:2764:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_AGENT:20334:waked up, mail=%lu
-sdf/ssd/fifo/mcd_osd.c:2783:mcd_log_msg:PLAT_LOG_LEVEL_FATAL:PLAT_LOG_CAT_SDF_AGENT:20335:over allocation detected, rsvd=%lu alloc=%lu next=%lu offset=%lu blks=%d
-sdf/ssd/fifo/mcd_osd.c:2819:mcd_log_msg:MCD_OSD_LOG_LVL_INFO:PLAT_LOG_CAT_SDF_AGENT:20336:wbuf %d full, writer mail posted off=%lu rsvd=%lu alloc=%lu cmtd=%lu next=%lu
-sdf/ssd/fifo/mcd_osd.c:2831:mcd_log_msg:MCD_OSD_LOG_LVL_INFO:PLAT_LOG_CAT_SDF_AGENT:50042:wbuf %d full, writer notified off=%lu rsvd=%lu alloc=%lu cmtd=%lu next=%lu
-sdf/ssd/fifo/mcd_osd.c:2859:mcd_log_msg:MCD_OSD_LOG_LVL_INFO:PLAT_LOG_CAT_SDF_AGENT:20336:wbuf %d full, writer mail posted off=%lu rsvd=%lu alloc=%lu cmtd=%lu next=%lu
-sdf/ssd/fifo/mcd_osd.c:2871:mcd_log_msg:MCD_OSD_LOG_LVL_INFO:PLAT_LOG_CAT_SDF_AGENT:50042:wbuf %d full, writer notified off=%lu rsvd=%lu alloc=%lu cmtd=%lu next=%lu
-sdf/ssd/fifo/mcd_osd.c:2900:plat_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20337:store object [%ld][%d]: syndrome: %lx key_len: %d
-sdf/ssd/fifo/mcd_osd.c:2967:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20338:blocks allocated, key_len=%d data_len=%lu blk_offset=%lu addr=%lu blocks=%d filled=%u
-sdf/ssd/fifo/mcd_osd.c:2984:mcd_log_msg:MCD_OSD_LOG_LVL_INFO:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20336:wbuf %d full, writer mail posted off=%lu rsvd=%lu alloc=%lu cmtd=%lu next=%lu
-sdf/ssd/fifo/mcd_osd.c:2996:mcd_log_msg:MCD_OSD_LOG_LVL_INFO:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:50042:wbuf %d full, writer notified off=%lu rsvd=%lu alloc=%lu cmtd=%lu next=%lu
-sdf/ssd/fifo/mcd_osd.c:3088:mcd_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20293:ENTERING, shard=%p shard_id=%lu flags=0x%x quota=%lu max_nobjs=%u
-sdf/ssd/fifo/mcd_osd.c:3112:mcd_log_msg:PLAT_LOG_LEVEL_FATAL:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20294:shard size greater than 2TB, not supported yet
-sdf/ssd/fifo/mcd_osd.c:3125:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20339:failed to allocate slab segments
-sdf/ssd/fifo/mcd_osd.c:3133:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:40111:base segment table initialized, size=%lu
-sdf/ssd/fifo/mcd_osd.c:3141:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20340:failed to allocate segment bitmaps[%d]
-sdf/ssd/fifo/mcd_osd.c:3149:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:40112:bitmaps initialized, size=%d, bitmap_size=%d, total=%d
-sdf/ssd/fifo/mcd_osd.c:3173:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20339:failed to allocate slab segments
-sdf/ssd/fifo/mcd_osd.c:3199:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20341:failed to allocate free lists
-sdf/ssd/fifo/mcd_osd.c:3210:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:40113:slab class inited, blksize=%d, free_slabs=%lu, segments=%lu
-sdf/ssd/fifo/mcd_osd.c:3215:mcd_log_msg:MCD_OSD_LOG_LVL_INFO:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:50043:max slab_blksize=%d
-sdf/ssd/fifo/mcd_osd.c:3225:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20343:failed to allocate segment lookup table
-sdf/ssd/fifo/mcd_osd.c:3234:mcd_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20344:segments initialized, %d segments, %d classes size=%lu
-sdf/ssd/fifo/mcd_osd.c:3253:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:150029:failed to allocate hash table: %lu
-sdf/ssd/fifo/mcd_osd.c:3261:mcd_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20307:address table initialized, size=%lu
-sdf/ssd/fifo/mcd_osd.c:3270:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20295:failed to allocate random table
-sdf/ssd/fifo/mcd_osd.c:3294:mcd_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20296:rand_table[%d]=%u, segments[%d]=%u
-sdf/ssd/fifo/mcd_osd.c:3310:mcd_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20297:remapping table initialized, size=%lu
-sdf/ssd/fifo/mcd_osd.c:3319:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20298:failed to allocate hash buckets
-sdf/ssd/fifo/mcd_osd.c:3330:mcd_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20299:hash buckets allocated, size=%lu
-sdf/ssd/fifo/mcd_osd.c:3350:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20099:failed to alloc bucket locks
-sdf/ssd/fifo/mcd_osd.c:3361:mcd_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20300:lock_buckets=%lu lock_bktsize=%d, total lock size=%lu
-sdf/ssd/fifo/mcd_osd.c:3371:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20301:failed to allocate hash table
-sdf/ssd/fifo/mcd_osd.c:3382:mcd_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20302:hash table initialized, size=%lu
-sdf/ssd/fifo/mcd_osd.c:3387:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20303:failed to alloc overflow table
-sdf/ssd/fifo/mcd_osd.c:3400:mcd_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20304:overflow table initialized, size=%lu
-sdf/ssd/fifo/mcd_osd.c:3407:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20305:failed to alloc overflow index
-sdf/ssd/fifo/mcd_osd.c:3417:mcd_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20306:overflow index initialized, size=%lu
-sdf/ssd/fifo/mcd_osd.c:3431:mcd_log_msg:MCD_OSD_LOG_LVL_INFO:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:50044:last entry, i=%d blksize=%d
-sdf/ssd/fifo/mcd_osd.c:3437:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20345:failed to alloc shard cache
-sdf/ssd/fifo/mcd_osd.c:3443:mcd_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20346:shard cache allocated, size=%lu miss_interval=%d
-sdf/ssd/fifo/mcd_osd.c:3447:mcd_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20309:shard initialized, total allocated bytes=%lu
-sdf/ssd/fifo/mcd_osd.c:3476:mcd_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20347:ENTERING, total=%lu blks=%lu free=%lu
-sdf/ssd/fifo/mcd_osd.c:3482:mcd_log_msg:PLAT_LOG_LEVEL_FATAL:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20348:maximum storage size supported is 2TB
-sdf/ssd/fifo/mcd_osd.c:3488:mcd_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20349:rand_blksize set to %d
-sdf/ssd/fifo/mcd_osd.c:3496:mcd_log_msg:PLAT_LOG_LEVEL_FATAL:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20350:number of ssd files needs to be power of 2
-sdf/ssd/fifo/mcd_osd.c:3501:mcd_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20351:aio strip size set to %lu
-sdf/ssd/fifo/mcd_osd.c:3514:mcd_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20352:collision detected, needs a larger table
-sdf/ssd/fifo/mcd_osd.c:3520:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20353:mask=%.16lx index=%lu value=%u
-sdf/ssd/fifo/mcd_osd.c:3541:mcd_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:150028:segment free list set up, %d segments, %lu bytes/segment
-sdf/ssd/fifo/mcd_osd.c:3590:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20355:out of free segments
-sdf/ssd/fifo/mcd_osd.c:3612:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20356:error updating class
-sdf/ssd/fifo/mcd_osd.c:3621:mcd_log_msg:MCD_OSD_LOG_LVL_INFO:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20357:segment %d allocated for shard %lu class %ld, blk_offset=%lu used_slabs=%lu total_slabs=%lu
-sdf/ssd/fifo/mcd_osd.c:3656:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20003:failed to read blocks, rc=%d
-sdf/ssd/fifo/mcd_osd.c:3663:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20325:not enough magic!
-sdf/ssd/fifo/mcd_osd.c:3864:mcd_log_msg:MCD_OSD_LOG_LVL_INFO:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20359:free slab, map_off=%d blk_off=%lu
-sdf/ssd/fifo/mcd_osd.c:3923:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20360:unused slab found, seg_off=%lu map_off=%u
-sdf/ssd/fifo/mcd_osd.c:3994:mcd_log_msg:PLAT_LOG_LEVEL_WARN:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:50045:too many invalid evictions, cnt=%u moff=%d boff=%lu hind=%u
-sdf/ssd/fifo/mcd_osd.c:4013:mcd_log_msg:PLAT_LOG_LEVEL_WARN:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:50046:too many deleted evictions, cnt=%u
-sdf/ssd/fifo/mcd_osd.c:4020:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20361:evicting, pth_id=%d hand=%u address=%u index=%lu
-sdf/ssd/fifo/mcd_osd.c:4154:mcd_log_msg:PLAT_LOG_LEVEL_DIAGNOSTIC:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20362:segment not ready yet
-sdf/ssd/fifo/mcd_osd.c:4193:mcd_log_msg:PLAT_LOG_LEVEL_DIAGNOSTIC:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20363:race detected
-sdf/ssd/fifo/mcd_osd.c:4242:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20000:ENTERING
-sdf/ssd/fifo/mcd_osd.c:4276:mcd_log_msg:MCD_OSD_LOG_LVL_DEBUG:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20364:cls=%ld addr=%u off=%d map=%.16lx curr=%d slabs=%lu tid=%d
-sdf/ssd/fifo/mcd_osd.c:4293:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20000:ENTERING
-sdf/ssd/fifo/mcd_osd.c:4315:mcd_log_msg:MCD_OSD_LOG_LVL_DEBUG:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20365:cls=%ld addr=%u off=%d map=%.16lx slabs=%lu, pend=%lu
-sdf/ssd/fifo/mcd_osd.c:4328:mcd_log_msg:MCD_OSD_LOG_LVL_INFO:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:50047:ENTERING key=%s len=%d
-sdf/ssd/fifo/mcd_osd.c:4335:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:50048:prefix-based deletion failed, prefix=%s status=%s
-sdf/ssd/fifo/mcd_osd.c:4370:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20000:ENTERING
-sdf/ssd/fifo/mcd_osd.c:4411:mcd_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20329:%lu sets, b_alloc=%lu overwrites=%lu evictions=%lu soft_of=%lu hard_of=%lu p_id=%d 
-sdf/ssd/fifo/mcd_osd.c:4420:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20330:object size beyond limit, raw_len=%lu
-sdf/ssd/fifo/mcd_osd.c:4484:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20003:failed to read blocks, rc=%d
-sdf/ssd/fifo/mcd_osd.c:4491:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20366:syndrome collision, key_len=%d data_len=%u
-sdf/ssd/fifo/mcd_osd.c:4495:mcd_log_msg:PLAT_LOG_LEVEL_FATAL:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20325:not enough magic!
-sdf/ssd/fifo/mcd_osd.c:4502:mcd_log_msg:MCD_OSD_LOG_LVL_DIAG:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20326:key length mismatch, req %d osd %d
-sdf/ssd/fifo/mcd_osd.c:4508:mcd_log_msg:MCD_OSD_LOG_LVL_DIAG:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20006:key mismatch, req %s
-sdf/ssd/fifo/mcd_osd.c:4515:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20331:object exists
-sdf/ssd/fifo/mcd_osd.c:4752:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20367:failed to allocate slab
-sdf/ssd/fifo/mcd_osd.c:4759:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20368:blocks allocated, key_len=%d data_len=%lu blk_offset=%lu blocks=%d
-sdf/ssd/fifo/mcd_osd.c:4824:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20008:failed to write blocks, rc=%d
-sdf/ssd/fifo/mcd_osd.c:4841:plat_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20369:store object [%ld][%d]: syndrome: %lx
-sdf/ssd/fifo/mcd_osd.c:4984:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20370:bucket=%lu index=%hu
-sdf/ssd/fifo/mcd_osd.c:5123:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20000:ENTERING
-sdf/ssd/fifo/mcd_osd.c:5130:mcd_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20327:%lu get cmds
-sdf/ssd/fifo/mcd_osd.c:5224:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20003:failed to read blocks, rc=%d
-sdf/ssd/fifo/mcd_osd.c:5243:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20003:failed to read blocks, rc=%d
-sdf/ssd/fifo/mcd_osd.c:5251:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20312:key_len=%d data_len=%u
-sdf/ssd/fifo/mcd_osd.c:5254:mcd_log_msg:PLAT_LOG_LEVEL_FATAL:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20325:not enough magic!
-sdf/ssd/fifo/mcd_osd.c:5261:mcd_log_msg:MCD_OSD_LOG_LVL_DIAG:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20326:key length mismatch, req %d osd %d
-sdf/ssd/fifo/mcd_osd.c:5269:mcd_log_msg:MCD_OSD_LOG_LVL_DIAG:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20006:key mismatch, req %s
-sdf/ssd/fifo/mcd_osd.c:5302:mcd_log_msg:PLAT_LOG_LEVEL_DIAGNOSTIC:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:150003:object size doesn't match hash entry!!! klen=%d dlen=%u nbybes=%d syn=%lu hsyn=%hu ctime=%u
-sdf/ssd/fifo/mcd_osd.c:5339:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20371:ENTERING, shard=%p
-sdf/ssd/fifo/mcd_osd.c:5511:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20000:ENTERING
-sdf/ssd/fifo/mcd_osd.c:5533:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20000:ENTERING
-sdf/ssd/fifo/mcd_osd.c:5537:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20066:plat_alloc failed
-sdf/ssd/fifo/mcd_osd.c:5543:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20066:plat_alloc failed
-sdf/ssd/fifo/mcd_osd.c:5563:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20173:failed to alloc osd_buf
-sdf/ssd/fifo/mcd_osd.c:5617:mcd_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20374:ENTERING, initializing mcd osd
-sdf/ssd/fifo/mcd_osd.c:5620:mcd_log_msg:PLAT_LOG_LEVEL_FATAL:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20375:failed to init mcd osd
-sdf/ssd/fifo/mcd_osd.c:5630:mcd_log_msg:PLAT_LOG_LEVEL_FATAL:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20376:failed to format flash rec area
-sdf/ssd/fifo/mcd_osd.c:5636:mcd_log_msg:PLAT_LOG_LEVEL_FATAL:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20377:failed to init mcd rec
-sdf/ssd/fifo/mcd_osd.c:5643:mcd_log_msg:PLAT_LOG_LEVEL_FATAL:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20378:failed to init replication
-sdf/ssd/fifo/mcd_osd.c:5685:mcd_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20379:ENTERING, shard_id=%lu flags=0x%x quota=%lu max_nobjs=%u
-sdf/ssd/fifo/mcd_osd.c:5696:mcd_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20380:shard found, id=%lu
-sdf/ssd/fifo/mcd_osd.c:5708:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:150027:not enough space: quota=%lu - free_seg=%lu - seg_size=%lu
-sdf/ssd/fifo/mcd_osd.c:5715:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20382:failed to allocate mcd_shard
-sdf/ssd/fifo/mcd_osd.c:5738:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:160003:not enough space, needed %lu available %lu
-sdf/ssd/fifo/mcd_osd.c:5746:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20384:failed to allocated segment list
-sdf/ssd/fifo/mcd_osd.c:5757:mcd_log_msg:MCD_OSD_LOG_LVL_INFO:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20385:%dth segment allocated, blk_offset=%u
-sdf/ssd/fifo/mcd_osd.c:5763:mcd_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:160004:%lu segments allcated to shard %lu, free_seg_curr=%lu
-sdf/ssd/fifo/mcd_osd.c:5777:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20387:too many shards created
-sdf/ssd/fifo/mcd_osd.c:5791:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20388:shard_format() failed, rc=%d
-sdf/ssd/fifo/mcd_osd.c:5807:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20389:seqno cache init failed, rc=%d
-sdf/ssd/fifo/mcd_osd.c:5896:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:40114:slab class dealloc, blksize=%d, free_slabs=%lu, segments=%lu
-sdf/ssd/fifo/mcd_osd.c:5938:mcd_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20391:segments deallocated, %lu segments, %d classes size=%lu
-sdf/ssd/fifo/mcd_osd.c:5952:mcd_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20392:overflow index deallocated, size=%lu
-sdf/ssd/fifo/mcd_osd.c:5964:mcd_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20393:hash table deallocated, size=%lu
-sdf/ssd/fifo/mcd_osd.c:5972:mcd_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20394:overflow table deallocated, size=%lu
-sdf/ssd/fifo/mcd_osd.c:5983:mcd_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20395:lock_buckets deallocated, size=%lu
-sdf/ssd/fifo/mcd_osd.c:5995:mcd_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20396:hash buckets deallocated, size=%lu
-sdf/ssd/fifo/mcd_osd.c:6007:mcd_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20397:remapping table deallocated, size=%lu
-sdf/ssd/fifo/mcd_osd.c:6017:mcd_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20398:address table deallocated, size=%lu
-sdf/ssd/fifo/mcd_osd.c:6022:mcd_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20399:shardID=%lu, total deallocated bytes=%lu
-sdf/ssd/fifo/mcd_osd.c:6037:mcd_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20400:ENTERING, shard_id=%lu
-sdf/ssd/fifo/mcd_osd.c:6046:mcd_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20380:shard found, id=%lu
-sdf/ssd/fifo/mcd_osd.c:6052:mcd_log_msg:PLAT_LOG_LEVEL_WARN:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20401:could not find shard, id=%lu
-sdf/ssd/fifo/mcd_osd.c:6077:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20402:shard init failed, id=%lu
-sdf/ssd/fifo/mcd_osd.c:6109:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20403:shard recover failed, id=%lu
-sdf/ssd/fifo/mcd_osd.c:6121:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20404:shard backup init failed, shardID=%lu
-sdf/ssd/fifo/mcd_osd.c:6158:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20065:ENTERING, shardID=%lu
-sdf/ssd/fifo/mcd_osd.c:6177:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20065:ENTERING, shardID=%lu
-sdf/ssd/fifo/mcd_osd.c:6191:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20065:ENTERING, shardID=%lu
-sdf/ssd/fifo/mcd_osd.c:6201:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20405:ENTERING, shardID=%lu, seqno=%lu
-sdf/ssd/fifo/mcd_osd.c:6211:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20065:ENTERING, shardID=%lu
-sdf/ssd/fifo/mcd_osd.c:6221:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20000:ENTERING
-sdf/ssd/fifo/mcd_osd.c:6239:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20406:ENTERING, context=%p shardID=%lu
-sdf/ssd/fifo/mcd_osd.c:6290:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20406:ENTERING, context=%p shardID=%lu
-sdf/ssd/fifo/mcd_osd.c:6356:mcd_bak_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:40120:ENTERING, shardID=%lu, full=%d, vers=%d
-sdf/ssd/fifo/mcd_osd.c:6382:mcd_bak_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20408:ENTERING, shardID=%lu, full=%d, can=%d, com=%d
-sdf/ssd/fifo/mcd_osd.c:6415:mcd_bak_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20409:ENTERING, shardID=%lu, pseq=%lu, cseq=%lu, can=%d, com=%d
-sdf/ssd/fifo/mcd_osd.c:6452:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20065:ENTERING, shardID=%lu
-sdf/ssd/fifo/mcd_osd.c:6538:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20065:ENTERING, shardID=%lu
-sdf/ssd/fifo/mcd_osd.c:6813:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20141:container stopping mail posted
-sdf/ssd/fifo/mcd_osd.c:6829:mcd_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20178:ENTERING, port=%d
-sdf/ssd/fifo/mcd_osd.c:6835:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20179:SDFStartContainer() failed, status=%s
-sdf/ssd/fifo/mcd_osd.c:6849:mcd_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20178:ENTERING, port=%d
-sdf/ssd/fifo/mcd_osd.c:6855:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20180:SDFStopContainer() failed, status=%s
-sdf/ssd/fifo/mcd_osd.c:6870:mcd_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20718:stopping container, port=%d
-sdf/ssd/fifo/mcd_osd.c:6880:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20410:invalid mail, expecting %d received %lu
-sdf/ssd/fifo/mcd_osd.c:6883:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20411:admin mail received
-sdf/ssd/fifo/mcd_osd.c:6890:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20719:failed to stop container, status=%s
-sdf/ssd/fifo/mcd_osd.c:6897:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20716:failed to set container state, rc=%d
-sdf/ssd/fifo/mcd_osd.c:6903:mcd_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20720:container stopped, port=%d
-sdf/ssd/fifo/mcd_osd.c:6924:mcd_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20714:starting container, port=%d
-sdf/ssd/fifo/mcd_osd.c:6953:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20715:failed to start container, status=%s
-sdf/ssd/fifo/mcd_osd.c:6960:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20716:failed to set container state, rc=%d
-sdf/ssd/fifo/mcd_osd.c:6966:mcd_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20717:container started, port=%d
-sdf/ssd/fifo/mcd_osd.c:6994:mcd_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:50007:starting container, name=%s
-sdf/ssd/fifo/mcd_osd.c:7021:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20715:failed to start container, status=%s
-sdf/ssd/fifo/mcd_osd.c:7028:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20716:failed to set container state, rc=%d
-sdf/ssd/fifo/mcd_osd.c:7034:mcd_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20717:container started, port=%d
-sdf/ssd/fifo/mcd_osd.c:7051:mcd_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20718:stopping container, port=%d
-sdf/ssd/fifo/mcd_osd.c:7074:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20410:invalid mail, expecting %d received %lu
-sdf/ssd/fifo/mcd_osd.c:7077:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20411:admin mail received
-sdf/ssd/fifo/mcd_osd.c:7084:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20719:failed to stop container, status=%s
-sdf/ssd/fifo/mcd_osd.c:7091:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20716:failed to set container state, rc=%d
-sdf/ssd/fifo/mcd_osd.c:7097:mcd_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20720:container stopped, port=%d
-sdf/ssd/fifo/mcd_osd.c:7118:mcd_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:50008:stopping container, name=%s
-sdf/ssd/fifo/mcd_osd.c:7139:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20410:invalid mail, expecting %d received %lu
-sdf/ssd/fifo/mcd_osd.c:7142:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20411:admin mail received
-sdf/ssd/fifo/mcd_osd.c:7149:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20719:failed to stop container, status=%s
-sdf/ssd/fifo/mcd_osd.c:7156:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20716:failed to set container state, rc=%d
-sdf/ssd/fifo/mcd_osd.c:7162:mcd_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20720:container stopped, port=%d
-sdf/ssd/fifo/mcd_osd.c:7180:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20065:ENTERING, shardID=%lu
-sdf/ssd/fifo/mcd_osd.c:7197:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20410:invalid mail, expecting %d received %lu
-sdf/ssd/fifo/mcd_osd.c:7200:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20411:admin mail received
-sdf/ssd/fifo/mcd_osd.c:7217:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20065:ENTERING, shardID=%lu
-sdf/ssd/fifo/mcd_osd.c:7230:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20065:ENTERING, shardID=%lu
-sdf/ssd/fifo/mcd_osd.c:7240:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20412:ENTERING, index=%d
-sdf/ssd/fifo/mcd_osd.c:7249:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20065:ENTERING, shardID=%lu
-sdf/ssd/fifo/mcd_osd.c:7311:mcd_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20413:mcd_osd ops registered
-sdf/ssd/fifo/mcd_osd.c:7339:mcd_bak_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20000:ENTERING
-sdf/ssd/fifo/mcd_osd.c:7345:mcd_bak_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20414:not supported yet
-sdf/ssd/fifo/mcd_osd.c:7357:mcd_bak_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20415:invalid raw data size, len=%lu
-sdf/ssd/fifo/mcd_osd.c:7364:mcd_bak_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:40121:invalid key offset %lu
-sdf/ssd/fifo/mcd_osd.c:7375:mcd_bak_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20416:key/raw_data size mismatch, mkey_len=%d rkey_len=%d md_len=%u rd_len=%lu
-sdf/ssd/fifo/mcd_osd.c:7440:mcd_bak_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:40125:Reading bad raw segment (%lu), blksize=%d, seg_offset=%lu, num_blks=%d, blks=%d, rec=%s
-sdf/ssd/fifo/mcd_osd.c:7462:mcd_bak_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:40126:Error reading bad raw segment (%lu), seg_offset=%lu, blk_offset=%lu, blks=%d, rc=%d
-sdf/ssd/fifo/mcd_osd.c:7483:mcd_bak_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:40127:Bad block(s) found in raw segment (%lu), seg_offset=%lu, count=%d
-sdf/ssd/fifo/mcd_osd.c:7533:mcd_bak_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20000:ENTERING
-sdf/ssd/fifo/mcd_osd.c:7539:mcd_bak_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20414:not supported yet
-sdf/ssd/fifo/mcd_osd.c:7564:mcd_bak_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20417:failed to allocate raw read buffer
-sdf/ssd/fifo/mcd_osd.c:7616:mcd_bak_msg:MCD_OSD_LOG_LVL_INFO:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20418:reading raw segment, blk_offset=%lu
-sdf/ssd/fifo/mcd_osd.c:7634:mcd_bak_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:40122:Error reading raw segment, blk_offset=%lu, slab_blksize=%d, next_slab=%u, rc=%d
-sdf/ssd/fifo/mcd_osd.c:7638:mcd_bak_msg:MCD_OSD_LOG_LVL_INFO:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20420:segment read, blk_offset=%lu
-sdf/ssd/fifo/mcd_osd.c:7680:mcd_bak_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:40128:object skipped (error), blk_offset=%lu map_offset=%lu
-sdf/ssd/fifo/mcd_osd.c:7692:mcd_bak_msg:PLAT_LOG_LEVEL_FATAL:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20421:not enough magic! blk_off=%lu map_off=%lu key_len=%d seqno=%lu
-sdf/ssd/fifo/mcd_osd.c:7706:mcd_bak_msg:MCD_OSD_LOG_LVL_INFO:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20422:object deleted, blk_offset=%lu map_offset=%lu key_len=%d seqno=%lu
-sdf/ssd/fifo/mcd_osd.c:7721:mcd_bak_msg:MCD_OSD_LOG_LVL_INFO:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20423:object found, blk_offset=%lu map_offset=%lu key_len=%d seqno=%lu
-sdf/ssd/fifo/mcd_osd.c:7735:mcd_bak_msg:PLAT_LOG_LEVEL_TRACE:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:40002:object skipped (expired), blk_offset=%lu map_offset=%lu key_len=%d
-sdf/ssd/fifo/mcd_osd.c:7750:mcd_bak_msg:PLAT_LOG_LEVEL_TRACE:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:40003:object skipped (flush), blk_offset=%lu map_offset=%lu key_len=%d
-sdf/ssd/fifo/mcd_osd.c:7801:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20000:ENTERING
-sdf/ssd/fifo/mcd_osd.c:7831:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20141:container stopping mail posted
-sdf/ssd/fifo/mcd_osd.c:7854:mcd_log_msg:MCD_OSD_LOG_LVL_DEBUG:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20430:found slab mode container, tcp_port=%d
-sdf/ssd/fifo/mcd_osd.c:7868:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20141:container stopping mail posted
-sdf/ssd/fifo/mcd_osd.c:7915:mcd_log_msg:MCD_OSD_LOG_LVL_DEBUG:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20427:ENTERING, next_addr=%lu bytes=%lu scanned=%lu expired=%lu
-sdf/ssd/fifo/mcd_osd.c:7953:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20417:failed to allocate raw read buffer
-sdf/ssd/fifo/mcd_osd.c:7979:mcd_log_msg:PLAT_LOG_LEVEL_FATAL:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20419:failed to read meta, rc=%d
-sdf/ssd/fifo/mcd_osd.c:7985:mcd_log_msg:MCD_OSD_LOG_LVL_INFO:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20420:segment read, blk_offset=%lu
-sdf/ssd/fifo/mcd_osd.c:8029:mcd_log_msg:PLAT_LOG_LEVEL_DIAGNOSTIC:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20421:not enough magic! blk_off=%lu map_off=%lu key_len=%d seqno=%lu
-sdf/ssd/fifo/mcd_osd.c:8043:mcd_log_msg:MCD_OSD_LOG_LVL_INFO:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20428:expired obj, key=%s key_len=%d data_len=%d
-sdf/ssd/fifo/mcd_osd.c:8066:mcd_log_msg:PLAT_LOG_LEVEL_TRACE_LOW:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:50049:prefix-based delete, key=%s
-sdf/ssd/fifo/mcd_osd.c:8102:mcd_log_msg:MCD_OSD_LOG_LVL_INFO:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20429:expired object deleted, key=%s
-sdf/ssd/fifo/mcd_osd.c:8107:mcd_log_msg:MCD_OSD_LOG_LVL_INFO:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:50050:prefix object deleted, key=%s
-sdf/ssd/fifo/mcd_osd.c:8138:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:50051:failed to update prefix deleter, rc=%s
-sdf/ssd/fifo/mcd_osd.c:8170:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20000:ENTERING
-sdf/ssd/fifo/mcd_osd.c:8204:mcd_log_msg:MCD_OSD_LOG_LVL_DEBUG:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20324:sleeper waked up, blocks=%d, total=%d
-sdf/ssd/fifo/mcd_osd.c:8222:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20141:container stopping mail posted
-sdf/ssd/fifo/mcd_osd.c:8247:mcd_log_msg:MCD_OSD_LOG_LVL_INFO:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:50052:ENTERING container=%s prefix=%s
-sdf/ssd/fifo/mcd_osd.c:8264:mcd_log_msg:MCD_OSD_LOG_LVL_INFO:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:50053:prefix registered, key=%s time=%lu addr=%lu
-sdf/ssd/fifo/mcd_osd.c:8268:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:50054:failed to register prefix, key=%s
-sdf/ssd/fifo/mcd_osd.c:8284:mcd_log_msg:MCD_OSD_LOG_LVL_INFO:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:50055:ENTERING container=%s
-sdf/ssd/fifo/mcd_osd.c:8302:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:50056:failed to get prefix list
-sdf/ssd/fifo/mcd_osd.c:8309:mcd_log_msg:MCD_OSD_LOG_LVL_INFO:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:50057:number of prefixes is %d
-sdf/ssd/fifo/mcd_osd.c:8397:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20175:ENTERING, self=%p
-sdf/ssd/fifo/mcd_osd.c:8401:mcd_log_msg:PLAT_LOG_LEVEL_FATAL:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:50077:invalid aio context category %d
-sdf/ssd/fifo/mcd_osd.c:8414:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20176:self found, use context %d
-sdf/ssd/fifo/mcd_osd.c:8429:mcd_log_msg:PLAT_LOG_LEVEL_FATAL:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20172:Please reduce the number of fthreads
-sdf/ssd/fifo/mcd_osd.c:8433:mcd_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:50075:aio context category %s count=%d
-sdf/ssd/fifo/mcd_osd.c:8442:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:50076:new aio context allocated, category=%s count=%d
-sdf/ssd/fifo/mcd_osd.c:8450:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:150004:Mcd_aio_states[%d] = %p
-sdf/ssd/fifo/mcd_osd.c:8459:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:50078:ENTERING category=%d
-sdf/ssd/fifo/mcd_osd.c:8463:mcd_log_msg:PLAT_LOG_LEVEL_FATAL:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:50077:invalid aio context category %d
-sdf/ssd/fifo/mcd_osd.c:8536:mcd_log_msg:PLAT_LOG_LEVEL_FATAL:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:30665:process_raw_get_command_enum() failed
+sdf/ssd/fifo/mcd_osd.c:1041:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_AGENT:150035:Open container structure is NULL - %s
+sdf/ssd/fifo/mcd_osd.c:1077:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_AGENT:20120:failed to obtain invalidation time for container %s
+sdf/ssd/fifo/mcd_osd.c:1120:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_AGENT:20121:failed to obtain shard for container %s
+sdf/ssd/fifo/mcd_osd.c:1152:mcd_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_AGENT:20122:container %s opened, id=%ld size=%lluKB num_objs=%d eviction=%d persistence=%d
+sdf/ssd/fifo/mcd_osd.c:1166:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_AGENT:50072:failed to set shard flush_time, rc=%d
+sdf/ssd/fifo/mcd_osd.c:1177:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_AGENT:50073:failed to set sdf flush_time, rc=%d
+sdf/ssd/fifo/mcd_osd.c:1239:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_AGENT:20123:container prop found, port=%d id=%d name=%s
+sdf/ssd/fifo/mcd_osd.c:1246:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_AGENT:20124:persisted container state %d
+sdf/ssd/fifo/mcd_osd.c:1255:mcd_log_msg:PLAT_LOG_LEVEL_WARN:PLAT_LOG_CAT_SDF_AGENT:20125:recovered container state not found
+sdf/ssd/fifo/mcd_osd.c:1303:mcd_log_msg:PLAT_LOG_LEVEL_FATAL:PLAT_LOG_CAT_SDF_AGENT:20126:invalid recovered container state %d
+sdf/ssd/fifo/mcd_osd.c:1325:mcd_log_msg:PLAT_LOG_LEVEL_FATAL:PLAT_LOG_CAT_SDF_AGENT:20127:container error during initialization, aborting...
+sdf/ssd/fifo/mcd_osd.c:1362:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_AGENT:20000:ENTERING
+sdf/ssd/fifo/mcd_osd.c:1377:mcd_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_AGENT:20128:got cluster status, node_id=%u num_nodes=%d
+sdf/ssd/fifo/mcd_osd.c:1453:mcd_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_AGENT:20293:ENTERING, shard=%p shard_id=%lu flags=0x%x quota=%lu max_nobjs=%u
+sdf/ssd/fifo/mcd_osd.c:1486:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_AGENT:20294:shard size greater than 2TB, not supported yet
+sdf/ssd/fifo/mcd_osd.c:1496:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_AGENT:20295:failed to allocate random table
+sdf/ssd/fifo/mcd_osd.c:1520:mcd_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_AGENT:20296:rand_table[%d]=%u, segments[%d]=%u
+sdf/ssd/fifo/mcd_osd.c:1536:mcd_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_AGENT:20297:remapping table initialized, size=%lu
+sdf/ssd/fifo/mcd_osd.c:1554:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_AGENT:20298:failed to allocate hash buckets
+sdf/ssd/fifo/mcd_osd.c:1565:mcd_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_AGENT:20299:hash buckets allocated, size=%lu
+sdf/ssd/fifo/mcd_osd.c:1585:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_AGENT:20099:failed to alloc bucket locks
+sdf/ssd/fifo/mcd_osd.c:1596:mcd_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_AGENT:20300:lock_buckets=%lu lock_bktsize=%d, total lock size=%lu
+sdf/ssd/fifo/mcd_osd.c:1605:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_AGENT:20301:failed to allocate hash table
+sdf/ssd/fifo/mcd_osd.c:1616:mcd_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_AGENT:20302:hash table initialized, size=%lu
+sdf/ssd/fifo/mcd_osd.c:1625:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_AGENT:20301:failed to allocate hash table
+sdf/ssd/fifo/mcd_osd.c:1633:mcd_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_AGENT:20307:address table initialized, size=%lu
+sdf/ssd/fifo/mcd_osd.c:1641:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_AGENT:20308:failed to allocate write buffer
+sdf/ssd/fifo/mcd_osd.c:1666:mcd_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_AGENT:20309:shard initialized, total allocated bytes=%lu
+sdf/ssd/fifo/mcd_osd.c:1689:mcd_log_msg:PLAT_LOG_LEVEL_WARN:PLAT_LOG_CAT_SDF_AGENT:20310:nothing to reclaim
+sdf/ssd/fifo/mcd_osd.c:1700:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_AGENT:20311:not enough magic, blk_offset=%lu
+sdf/ssd/fifo/mcd_osd.c:1704:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_AGENT:20312:key_len=%d data_len=%u
+sdf/ssd/fifo/mcd_osd.c:1730:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_AGENT:20313:reclaiming item: syndrome=%lx syn=%x addr=%u blocks=%u
+sdf/ssd/fifo/mcd_osd.c:1763:mcd_log_msg:MCD_OSD_LOG_LVL_INFO:PLAT_LOG_CAT_SDF_AGENT:20314:space reclaimed, blk_offset=%lu blocks=%d
+sdf/ssd/fifo/mcd_osd.c:1784:mcd_log_msg:MCD_OSD_LOG_LVL_INFO:PLAT_LOG_CAT_SDF_AGENT:20316:got writer mail, blk_committed=%lu
+sdf/ssd/fifo/mcd_osd.c:1795:mcd_log_msg:PLAT_LOG_LEVEL_FATAL:PLAT_LOG_CAT_SDF_AGENT:20317:this should not happen
+sdf/ssd/fifo/mcd_osd.c:1801:mcd_log_msg:MCD_OSD_LOG_LVL_INFO:PLAT_LOG_CAT_SDF_AGENT:20318:writer mail arrived out of order
+sdf/ssd/fifo/mcd_osd.c:1816:mcd_log_msg:PLAT_LOG_LEVEL_FATAL:PLAT_LOG_CAT_SDF_AGENT:20319:failed to commit buffer, rc=%d
+sdf/ssd/fifo/mcd_osd.c:1829:mcd_log_msg:MCD_OSD_LOG_LVL_INFO:PLAT_LOG_CAT_SDF_AGENT:20320:buffer still referenced, count=%u
+sdf/ssd/fifo/mcd_osd.c:1846:mcd_log_msg:MCD_OSD_LOG_LVL_INFO:PLAT_LOG_CAT_SDF_AGENT:20321:wbuf %d committed, rsvd=%lu alloc=%lu cmtd=%lu next=%lu
+sdf/ssd/fifo/mcd_osd.c:1866:mcd_log_msg:MCD_OSD_LOG_LVL_INFO:PLAT_LOG_CAT_SDF_AGENT:20322:rbuf to read, blk_offset=%lu
+sdf/ssd/fifo/mcd_osd.c:1874:mcd_log_msg:PLAT_LOG_LEVEL_FATAL:PLAT_LOG_CAT_SDF_AGENT:20323:failed to read data, rc=%d
+sdf/ssd/fifo/mcd_osd.c:1903:mcd_log_msg:MCD_OSD_LOG_LVL_DEBUG:PLAT_LOG_CAT_SDF_AGENT:20324:sleeper waked up, blocks=%d, total=%d
+sdf/ssd/fifo/mcd_osd.c:1954:mcd_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_AGENT:150002:writer fthread spawned, use context %p
+sdf/ssd/fifo/mcd_osd.c:1976:mcd_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_AGENT:20000:ENTERING
+sdf/ssd/fifo/mcd_osd.c:1981:mcd_log_msg:PLAT_LOG_LEVEL_FATAL:PLAT_LOG_CAT_SDF_AGENT:20315:failed to allocate read buffer
+sdf/ssd/fifo/mcd_osd.c:2007:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_AGENT:50041:writer resume mail posted, shard=%p
+sdf/ssd/fifo/mcd_osd.c:2017:mcd_log_msg:MCD_OSD_LOG_LVL_INFO:PLAT_LOG_CAT_SDF_AGENT:20316:got writer mail, blk_committed=%lu
+sdf/ssd/fifo/mcd_osd.c:2028:mcd_log_msg:PLAT_LOG_LEVEL_FATAL:PLAT_LOG_CAT_SDF_AGENT:20317:this should not happen
+sdf/ssd/fifo/mcd_osd.c:2034:mcd_log_msg:MCD_OSD_LOG_LVL_INFO:PLAT_LOG_CAT_SDF_AGENT:20318:writer mail arrived out of order
+sdf/ssd/fifo/mcd_osd.c:2050:mcd_log_msg:PLAT_LOG_LEVEL_FATAL:PLAT_LOG_CAT_SDF_AGENT:20319:failed to commit buffer, rc=%d
+sdf/ssd/fifo/mcd_osd.c:2063:mcd_log_msg:MCD_OSD_LOG_LVL_INFO:PLAT_LOG_CAT_SDF_AGENT:20320:buffer still referenced, count=%u
+sdf/ssd/fifo/mcd_osd.c:2080:mcd_log_msg:MCD_OSD_LOG_LVL_INFO:PLAT_LOG_CAT_SDF_AGENT:20321:wbuf %d committed, rsvd=%lu alloc=%lu cmtd=%lu next=%lu
+sdf/ssd/fifo/mcd_osd.c:2100:mcd_log_msg:MCD_OSD_LOG_LVL_INFO:PLAT_LOG_CAT_SDF_AGENT:20322:rbuf to read, blk_offset=%lu
+sdf/ssd/fifo/mcd_osd.c:2108:mcd_log_msg:PLAT_LOG_LEVEL_FATAL:PLAT_LOG_CAT_SDF_AGENT:20323:failed to read data, rc=%d
+sdf/ssd/fifo/mcd_osd.c:2134:mcd_log_msg:MCD_OSD_LOG_LVL_DEBUG:PLAT_LOG_CAT_SDF_AGENT:20324:sleeper waked up, blocks=%d, total=%d
+sdf/ssd/fifo/mcd_osd.c:2171:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_AGENT:20000:ENTERING
+sdf/ssd/fifo/mcd_osd.c:2200:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_AGENT:20312:key_len=%d data_len=%u
+sdf/ssd/fifo/mcd_osd.c:2203:mcd_log_msg:PLAT_LOG_LEVEL_FATAL:PLAT_LOG_CAT_SDF_AGENT:20325:not enough magic!
+sdf/ssd/fifo/mcd_osd.c:2210:mcd_log_msg:MCD_OSD_LOG_LVL_DIAG:PLAT_LOG_CAT_SDF_AGENT:20326:key length mismatch, req %d osd %d
+sdf/ssd/fifo/mcd_osd.c:2219:mcd_log_msg:MCD_OSD_LOG_LVL_DIAG:PLAT_LOG_CAT_SDF_AGENT:20006:key mismatch, req %s
+sdf/ssd/fifo/mcd_osd.c:2261:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_AGENT:20000:ENTERING
+sdf/ssd/fifo/mcd_osd.c:2268:mcd_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_AGENT:20327:%lu get cmds
+sdf/ssd/fifo/mcd_osd.c:2385:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_AGENT:20003:failed to read blocks, rc=%d
+sdf/ssd/fifo/mcd_osd.c:2392:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_AGENT:20312:key_len=%d data_len=%u
+sdf/ssd/fifo/mcd_osd.c:2395:mcd_log_msg:PLAT_LOG_LEVEL_FATAL:PLAT_LOG_CAT_SDF_AGENT:20325:not enough magic!
+sdf/ssd/fifo/mcd_osd.c:2402:mcd_log_msg:MCD_OSD_LOG_LVL_DIAG:PLAT_LOG_CAT_SDF_AGENT:20326:key length mismatch, req %d osd %d
+sdf/ssd/fifo/mcd_osd.c:2410:mcd_log_msg:MCD_OSD_LOG_LVL_DIAG:PLAT_LOG_CAT_SDF_AGENT:20006:key mismatch, req %s
+sdf/ssd/fifo/mcd_osd.c:2485:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_AGENT:20000:ENTERING
+sdf/ssd/fifo/mcd_osd.c:2500:mcd_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_AGENT:20329:%lu sets, b_alloc=%lu overwrites=%lu evictions=%lu soft_of=%lu hard_of=%lu p_id=%d 
+sdf/ssd/fifo/mcd_osd.c:2509:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_AGENT:20330:object size beyond limit, raw_len=%lu
+sdf/ssd/fifo/mcd_osd.c:2538:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_AGENT:20331:object exists
+sdf/ssd/fifo/mcd_osd.c:2597:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_AGENT:20003:failed to read blocks, rc=%d
+sdf/ssd/fifo/mcd_osd.c:2603:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_AGENT:20312:key_len=%d data_len=%u
+sdf/ssd/fifo/mcd_osd.c:2606:mcd_log_msg:PLAT_LOG_LEVEL_FATAL:PLAT_LOG_CAT_SDF_AGENT:20325:not enough magic!
+sdf/ssd/fifo/mcd_osd.c:2613:mcd_log_msg:MCD_OSD_LOG_LVL_DIAG:PLAT_LOG_CAT_SDF_AGENT:20326:key length mismatch, req %d osd %d
+sdf/ssd/fifo/mcd_osd.c:2620:mcd_log_msg:MCD_OSD_LOG_LVL_DIAG:PLAT_LOG_CAT_SDF_AGENT:20006:key mismatch, req %s
+sdf/ssd/fifo/mcd_osd.c:2626:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_AGENT:20331:object exists
+sdf/ssd/fifo/mcd_osd.c:2725:mcd_log_msg:PLAT_LOG_LEVEL_FATAL:PLAT_LOG_CAT_SDF_AGENT:20332:block offset about to wrap
+sdf/ssd/fifo/mcd_osd.c:2759:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_AGENT:20333:mail posted, ready to sleep
+sdf/ssd/fifo/mcd_osd.c:2768:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_AGENT:20334:waked up, mail=%lu
+sdf/ssd/fifo/mcd_osd.c:2787:mcd_log_msg:PLAT_LOG_LEVEL_FATAL:PLAT_LOG_CAT_SDF_AGENT:20335:over allocation detected, rsvd=%lu alloc=%lu next=%lu offset=%lu blks=%d
+sdf/ssd/fifo/mcd_osd.c:2823:mcd_log_msg:MCD_OSD_LOG_LVL_INFO:PLAT_LOG_CAT_SDF_AGENT:20336:wbuf %d full, writer mail posted off=%lu rsvd=%lu alloc=%lu cmtd=%lu next=%lu
+sdf/ssd/fifo/mcd_osd.c:2835:mcd_log_msg:MCD_OSD_LOG_LVL_INFO:PLAT_LOG_CAT_SDF_AGENT:50042:wbuf %d full, writer notified off=%lu rsvd=%lu alloc=%lu cmtd=%lu next=%lu
+sdf/ssd/fifo/mcd_osd.c:2863:mcd_log_msg:MCD_OSD_LOG_LVL_INFO:PLAT_LOG_CAT_SDF_AGENT:20336:wbuf %d full, writer mail posted off=%lu rsvd=%lu alloc=%lu cmtd=%lu next=%lu
+sdf/ssd/fifo/mcd_osd.c:2875:mcd_log_msg:MCD_OSD_LOG_LVL_INFO:PLAT_LOG_CAT_SDF_AGENT:50042:wbuf %d full, writer notified off=%lu rsvd=%lu alloc=%lu cmtd=%lu next=%lu
+sdf/ssd/fifo/mcd_osd.c:2904:plat_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20337:store object [%ld][%d]: syndrome: %lx key_len: %d
+sdf/ssd/fifo/mcd_osd.c:2971:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20338:blocks allocated, key_len=%d data_len=%lu blk_offset=%lu addr=%lu blocks=%d filled=%u
+sdf/ssd/fifo/mcd_osd.c:2988:mcd_log_msg:MCD_OSD_LOG_LVL_INFO:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20336:wbuf %d full, writer mail posted off=%lu rsvd=%lu alloc=%lu cmtd=%lu next=%lu
+sdf/ssd/fifo/mcd_osd.c:3000:mcd_log_msg:MCD_OSD_LOG_LVL_INFO:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:50042:wbuf %d full, writer notified off=%lu rsvd=%lu alloc=%lu cmtd=%lu next=%lu
+sdf/ssd/fifo/mcd_osd.c:3092:mcd_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20293:ENTERING, shard=%p shard_id=%lu flags=0x%x quota=%lu max_nobjs=%u
+sdf/ssd/fifo/mcd_osd.c:3116:mcd_log_msg:PLAT_LOG_LEVEL_FATAL:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20294:shard size greater than 2TB, not supported yet
+sdf/ssd/fifo/mcd_osd.c:3129:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20339:failed to allocate slab segments
+sdf/ssd/fifo/mcd_osd.c:3137:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:40111:base segment table initialized, size=%lu
+sdf/ssd/fifo/mcd_osd.c:3145:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20340:failed to allocate segment bitmaps[%d]
+sdf/ssd/fifo/mcd_osd.c:3153:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:40112:bitmaps initialized, size=%d, bitmap_size=%d, total=%d
+sdf/ssd/fifo/mcd_osd.c:3177:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20339:failed to allocate slab segments
+sdf/ssd/fifo/mcd_osd.c:3203:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20341:failed to allocate free lists
+sdf/ssd/fifo/mcd_osd.c:3214:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:40113:slab class inited, blksize=%d, free_slabs=%lu, segments=%lu
+sdf/ssd/fifo/mcd_osd.c:3219:mcd_log_msg:MCD_OSD_LOG_LVL_INFO:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:50043:max slab_blksize=%d
+sdf/ssd/fifo/mcd_osd.c:3229:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20343:failed to allocate segment lookup table
+sdf/ssd/fifo/mcd_osd.c:3238:mcd_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20344:segments initialized, %d segments, %d classes size=%lu
+sdf/ssd/fifo/mcd_osd.c:3257:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:150029:failed to allocate hash table: %lu
+sdf/ssd/fifo/mcd_osd.c:3265:mcd_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20307:address table initialized, size=%lu
+sdf/ssd/fifo/mcd_osd.c:3274:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20295:failed to allocate random table
+sdf/ssd/fifo/mcd_osd.c:3298:mcd_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20296:rand_table[%d]=%u, segments[%d]=%u
+sdf/ssd/fifo/mcd_osd.c:3314:mcd_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20297:remapping table initialized, size=%lu
+sdf/ssd/fifo/mcd_osd.c:3323:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20298:failed to allocate hash buckets
+sdf/ssd/fifo/mcd_osd.c:3334:mcd_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20299:hash buckets allocated, size=%lu
+sdf/ssd/fifo/mcd_osd.c:3354:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20099:failed to alloc bucket locks
+sdf/ssd/fifo/mcd_osd.c:3365:mcd_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20300:lock_buckets=%lu lock_bktsize=%d, total lock size=%lu
+sdf/ssd/fifo/mcd_osd.c:3375:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20301:failed to allocate hash table
+sdf/ssd/fifo/mcd_osd.c:3386:mcd_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20302:hash table initialized, size=%lu
+sdf/ssd/fifo/mcd_osd.c:3391:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20303:failed to alloc overflow table
+sdf/ssd/fifo/mcd_osd.c:3404:mcd_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20304:overflow table initialized, size=%lu
+sdf/ssd/fifo/mcd_osd.c:3411:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20305:failed to alloc overflow index
+sdf/ssd/fifo/mcd_osd.c:3421:mcd_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20306:overflow index initialized, size=%lu
+sdf/ssd/fifo/mcd_osd.c:3435:mcd_log_msg:MCD_OSD_LOG_LVL_INFO:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:50044:last entry, i=%d blksize=%d
+sdf/ssd/fifo/mcd_osd.c:3441:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20345:failed to alloc shard cache
+sdf/ssd/fifo/mcd_osd.c:3447:mcd_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20346:shard cache allocated, size=%lu miss_interval=%d
+sdf/ssd/fifo/mcd_osd.c:3451:mcd_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20309:shard initialized, total allocated bytes=%lu
+sdf/ssd/fifo/mcd_osd.c:3480:mcd_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20347:ENTERING, total=%lu blks=%lu free=%lu
+sdf/ssd/fifo/mcd_osd.c:3486:mcd_log_msg:PLAT_LOG_LEVEL_FATAL:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20348:maximum storage size supported is 2TB
+sdf/ssd/fifo/mcd_osd.c:3492:mcd_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20349:rand_blksize set to %d
+sdf/ssd/fifo/mcd_osd.c:3500:mcd_log_msg:PLAT_LOG_LEVEL_FATAL:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20350:number of ssd files needs to be power of 2
+sdf/ssd/fifo/mcd_osd.c:3505:mcd_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20351:aio strip size set to %lu
+sdf/ssd/fifo/mcd_osd.c:3518:mcd_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20352:collision detected, needs a larger table
+sdf/ssd/fifo/mcd_osd.c:3524:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20353:mask=%.16lx index=%lu value=%u
+sdf/ssd/fifo/mcd_osd.c:3545:mcd_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:150028:segment free list set up, %d segments, %lu bytes/segment
+sdf/ssd/fifo/mcd_osd.c:3594:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20355:out of free segments
+sdf/ssd/fifo/mcd_osd.c:3616:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20356:error updating class
+sdf/ssd/fifo/mcd_osd.c:3625:mcd_log_msg:MCD_OSD_LOG_LVL_INFO:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20357:segment %d allocated for shard %lu class %ld, blk_offset=%lu used_slabs=%lu total_slabs=%lu
+sdf/ssd/fifo/mcd_osd.c:3660:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20003:failed to read blocks, rc=%d
+sdf/ssd/fifo/mcd_osd.c:3667:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20325:not enough magic!
+sdf/ssd/fifo/mcd_osd.c:3868:mcd_log_msg:MCD_OSD_LOG_LVL_INFO:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20359:free slab, map_off=%d blk_off=%lu
+sdf/ssd/fifo/mcd_osd.c:3927:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20360:unused slab found, seg_off=%lu map_off=%u
+sdf/ssd/fifo/mcd_osd.c:3998:mcd_log_msg:PLAT_LOG_LEVEL_WARN:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:50045:too many invalid evictions, cnt=%u moff=%d boff=%lu hind=%u
+sdf/ssd/fifo/mcd_osd.c:4017:mcd_log_msg:PLAT_LOG_LEVEL_WARN:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:50046:too many deleted evictions, cnt=%u
+sdf/ssd/fifo/mcd_osd.c:4024:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20361:evicting, pth_id=%d hand=%u address=%u index=%lu
+sdf/ssd/fifo/mcd_osd.c:4158:mcd_log_msg:PLAT_LOG_LEVEL_DIAGNOSTIC:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20362:segment not ready yet
+sdf/ssd/fifo/mcd_osd.c:4197:mcd_log_msg:PLAT_LOG_LEVEL_DIAGNOSTIC:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20363:race detected
+sdf/ssd/fifo/mcd_osd.c:4246:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20000:ENTERING
+sdf/ssd/fifo/mcd_osd.c:4280:mcd_log_msg:MCD_OSD_LOG_LVL_DEBUG:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20364:cls=%ld addr=%u off=%d map=%.16lx curr=%d slabs=%lu tid=%d
+sdf/ssd/fifo/mcd_osd.c:4297:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20000:ENTERING
+sdf/ssd/fifo/mcd_osd.c:4319:mcd_log_msg:MCD_OSD_LOG_LVL_DEBUG:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20365:cls=%ld addr=%u off=%d map=%.16lx slabs=%lu, pend=%lu
+sdf/ssd/fifo/mcd_osd.c:4332:mcd_log_msg:MCD_OSD_LOG_LVL_INFO:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:50047:ENTERING key=%s len=%d
+sdf/ssd/fifo/mcd_osd.c:4339:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:50048:prefix-based deletion failed, prefix=%s status=%s
+sdf/ssd/fifo/mcd_osd.c:4374:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20000:ENTERING
+sdf/ssd/fifo/mcd_osd.c:4415:mcd_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20329:%lu sets, b_alloc=%lu overwrites=%lu evictions=%lu soft_of=%lu hard_of=%lu p_id=%d 
+sdf/ssd/fifo/mcd_osd.c:4424:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20330:object size beyond limit, raw_len=%lu
+sdf/ssd/fifo/mcd_osd.c:4488:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20003:failed to read blocks, rc=%d
+sdf/ssd/fifo/mcd_osd.c:4495:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20366:syndrome collision, key_len=%d data_len=%u
+sdf/ssd/fifo/mcd_osd.c:4499:mcd_log_msg:PLAT_LOG_LEVEL_FATAL:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20325:not enough magic!
+sdf/ssd/fifo/mcd_osd.c:4506:mcd_log_msg:MCD_OSD_LOG_LVL_DIAG:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20326:key length mismatch, req %d osd %d
+sdf/ssd/fifo/mcd_osd.c:4512:mcd_log_msg:MCD_OSD_LOG_LVL_DIAG:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20006:key mismatch, req %s
+sdf/ssd/fifo/mcd_osd.c:4519:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20331:object exists
+sdf/ssd/fifo/mcd_osd.c:4756:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20367:failed to allocate slab
+sdf/ssd/fifo/mcd_osd.c:4763:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20368:blocks allocated, key_len=%d data_len=%lu blk_offset=%lu blocks=%d
+sdf/ssd/fifo/mcd_osd.c:4828:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20008:failed to write blocks, rc=%d
+sdf/ssd/fifo/mcd_osd.c:4845:plat_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20369:store object [%ld][%d]: syndrome: %lx
+sdf/ssd/fifo/mcd_osd.c:4988:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20370:bucket=%lu index=%hu
+sdf/ssd/fifo/mcd_osd.c:5127:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20000:ENTERING
+sdf/ssd/fifo/mcd_osd.c:5134:mcd_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20327:%lu get cmds
+sdf/ssd/fifo/mcd_osd.c:5228:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20003:failed to read blocks, rc=%d
+sdf/ssd/fifo/mcd_osd.c:5247:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20003:failed to read blocks, rc=%d
+sdf/ssd/fifo/mcd_osd.c:5255:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20312:key_len=%d data_len=%u
+sdf/ssd/fifo/mcd_osd.c:5258:mcd_log_msg:PLAT_LOG_LEVEL_FATAL:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20325:not enough magic!
+sdf/ssd/fifo/mcd_osd.c:5265:mcd_log_msg:MCD_OSD_LOG_LVL_DIAG:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20326:key length mismatch, req %d osd %d
+sdf/ssd/fifo/mcd_osd.c:5273:mcd_log_msg:MCD_OSD_LOG_LVL_DIAG:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20006:key mismatch, req %s
+sdf/ssd/fifo/mcd_osd.c:5306:mcd_log_msg:PLAT_LOG_LEVEL_DIAGNOSTIC:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:150003:object size doesn't match hash entry!!! klen=%d dlen=%u nbybes=%d syn=%lu hsyn=%hu ctime=%u
+sdf/ssd/fifo/mcd_osd.c:5343:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20371:ENTERING, shard=%p
+sdf/ssd/fifo/mcd_osd.c:5515:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20000:ENTERING
+sdf/ssd/fifo/mcd_osd.c:5537:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20000:ENTERING
+sdf/ssd/fifo/mcd_osd.c:5541:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20066:plat_alloc failed
+sdf/ssd/fifo/mcd_osd.c:5547:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20066:plat_alloc failed
+sdf/ssd/fifo/mcd_osd.c:5567:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20173:failed to alloc osd_buf
+sdf/ssd/fifo/mcd_osd.c:5621:mcd_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20374:ENTERING, initializing mcd osd
+sdf/ssd/fifo/mcd_osd.c:5624:mcd_log_msg:PLAT_LOG_LEVEL_FATAL:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20375:failed to init mcd osd
+sdf/ssd/fifo/mcd_osd.c:5634:mcd_log_msg:PLAT_LOG_LEVEL_FATAL:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20376:failed to format flash rec area
+sdf/ssd/fifo/mcd_osd.c:5640:mcd_log_msg:PLAT_LOG_LEVEL_FATAL:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20377:failed to init mcd rec
+sdf/ssd/fifo/mcd_osd.c:5647:mcd_log_msg:PLAT_LOG_LEVEL_FATAL:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20378:failed to init replication
+sdf/ssd/fifo/mcd_osd.c:5689:mcd_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20379:ENTERING, shard_id=%lu flags=0x%x quota=%lu max_nobjs=%u
+sdf/ssd/fifo/mcd_osd.c:5700:mcd_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20380:shard found, id=%lu
+sdf/ssd/fifo/mcd_osd.c:5712:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:150027:not enough space: quota=%lu - free_seg=%lu - seg_size=%lu
+sdf/ssd/fifo/mcd_osd.c:5719:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20382:failed to allocate mcd_shard
+sdf/ssd/fifo/mcd_osd.c:5742:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:160003:not enough space, needed %lu available %lu
+sdf/ssd/fifo/mcd_osd.c:5750:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20384:failed to allocated segment list
+sdf/ssd/fifo/mcd_osd.c:5761:mcd_log_msg:MCD_OSD_LOG_LVL_INFO:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20385:%dth segment allocated, blk_offset=%u
+sdf/ssd/fifo/mcd_osd.c:5767:mcd_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:160004:%lu segments allcated to shard %lu, free_seg_curr=%lu
+sdf/ssd/fifo/mcd_osd.c:5781:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20387:too many shards created
+sdf/ssd/fifo/mcd_osd.c:5795:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20388:shard_format() failed, rc=%d
+sdf/ssd/fifo/mcd_osd.c:5811:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20389:seqno cache init failed, rc=%d
+sdf/ssd/fifo/mcd_osd.c:5900:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:40114:slab class dealloc, blksize=%d, free_slabs=%lu, segments=%lu
+sdf/ssd/fifo/mcd_osd.c:5942:mcd_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20391:segments deallocated, %lu segments, %d classes size=%lu
+sdf/ssd/fifo/mcd_osd.c:5956:mcd_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20392:overflow index deallocated, size=%lu
+sdf/ssd/fifo/mcd_osd.c:5968:mcd_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20393:hash table deallocated, size=%lu
+sdf/ssd/fifo/mcd_osd.c:5976:mcd_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20394:overflow table deallocated, size=%lu
+sdf/ssd/fifo/mcd_osd.c:5987:mcd_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20395:lock_buckets deallocated, size=%lu
+sdf/ssd/fifo/mcd_osd.c:5999:mcd_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20396:hash buckets deallocated, size=%lu
+sdf/ssd/fifo/mcd_osd.c:6011:mcd_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20397:remapping table deallocated, size=%lu
+sdf/ssd/fifo/mcd_osd.c:6021:mcd_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20398:address table deallocated, size=%lu
+sdf/ssd/fifo/mcd_osd.c:6026:mcd_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20399:shardID=%lu, total deallocated bytes=%lu
+sdf/ssd/fifo/mcd_osd.c:6041:mcd_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20400:ENTERING, shard_id=%lu
+sdf/ssd/fifo/mcd_osd.c:6050:mcd_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20380:shard found, id=%lu
+sdf/ssd/fifo/mcd_osd.c:6056:mcd_log_msg:PLAT_LOG_LEVEL_WARN:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20401:could not find shard, id=%lu
+sdf/ssd/fifo/mcd_osd.c:6081:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20402:shard init failed, id=%lu
+sdf/ssd/fifo/mcd_osd.c:6113:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20403:shard recover failed, id=%lu
+sdf/ssd/fifo/mcd_osd.c:6125:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20404:shard backup init failed, shardID=%lu
+sdf/ssd/fifo/mcd_osd.c:6162:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20065:ENTERING, shardID=%lu
+sdf/ssd/fifo/mcd_osd.c:6181:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20065:ENTERING, shardID=%lu
+sdf/ssd/fifo/mcd_osd.c:6195:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20065:ENTERING, shardID=%lu
+sdf/ssd/fifo/mcd_osd.c:6205:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20405:ENTERING, shardID=%lu, seqno=%lu
+sdf/ssd/fifo/mcd_osd.c:6215:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20065:ENTERING, shardID=%lu
+sdf/ssd/fifo/mcd_osd.c:6225:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20000:ENTERING
+sdf/ssd/fifo/mcd_osd.c:6243:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20406:ENTERING, context=%p shardID=%lu
+sdf/ssd/fifo/mcd_osd.c:6294:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20406:ENTERING, context=%p shardID=%lu
+sdf/ssd/fifo/mcd_osd.c:6360:mcd_bak_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:40120:ENTERING, shardID=%lu, full=%d, vers=%d
+sdf/ssd/fifo/mcd_osd.c:6386:mcd_bak_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20408:ENTERING, shardID=%lu, full=%d, can=%d, com=%d
+sdf/ssd/fifo/mcd_osd.c:6419:mcd_bak_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20409:ENTERING, shardID=%lu, pseq=%lu, cseq=%lu, can=%d, com=%d
+sdf/ssd/fifo/mcd_osd.c:6456:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20065:ENTERING, shardID=%lu
+sdf/ssd/fifo/mcd_osd.c:6542:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20065:ENTERING, shardID=%lu
+sdf/ssd/fifo/mcd_osd.c:6817:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20141:container stopping mail posted
+sdf/ssd/fifo/mcd_osd.c:6833:mcd_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20178:ENTERING, port=%d
+sdf/ssd/fifo/mcd_osd.c:6839:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20179:SDFStartContainer() failed, status=%s
+sdf/ssd/fifo/mcd_osd.c:6853:mcd_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20178:ENTERING, port=%d
+sdf/ssd/fifo/mcd_osd.c:6859:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20180:SDFStopContainer() failed, status=%s
+sdf/ssd/fifo/mcd_osd.c:6874:mcd_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20718:stopping container, port=%d
+sdf/ssd/fifo/mcd_osd.c:6884:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20410:invalid mail, expecting %d received %lu
+sdf/ssd/fifo/mcd_osd.c:6887:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20411:admin mail received
+sdf/ssd/fifo/mcd_osd.c:6894:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20719:failed to stop container, status=%s
+sdf/ssd/fifo/mcd_osd.c:6901:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20716:failed to set container state, rc=%d
+sdf/ssd/fifo/mcd_osd.c:6907:mcd_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20720:container stopped, port=%d
+sdf/ssd/fifo/mcd_osd.c:6928:mcd_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20714:starting container, port=%d
+sdf/ssd/fifo/mcd_osd.c:6957:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20715:failed to start container, status=%s
+sdf/ssd/fifo/mcd_osd.c:6964:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20716:failed to set container state, rc=%d
+sdf/ssd/fifo/mcd_osd.c:6970:mcd_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20717:container started, port=%d
+sdf/ssd/fifo/mcd_osd.c:6998:mcd_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:50007:starting container, name=%s
+sdf/ssd/fifo/mcd_osd.c:7025:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20715:failed to start container, status=%s
+sdf/ssd/fifo/mcd_osd.c:7032:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20716:failed to set container state, rc=%d
+sdf/ssd/fifo/mcd_osd.c:7038:mcd_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20717:container started, port=%d
+sdf/ssd/fifo/mcd_osd.c:7055:mcd_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20718:stopping container, port=%d
+sdf/ssd/fifo/mcd_osd.c:7078:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20410:invalid mail, expecting %d received %lu
+sdf/ssd/fifo/mcd_osd.c:7081:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20411:admin mail received
+sdf/ssd/fifo/mcd_osd.c:7088:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20719:failed to stop container, status=%s
+sdf/ssd/fifo/mcd_osd.c:7095:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20716:failed to set container state, rc=%d
+sdf/ssd/fifo/mcd_osd.c:7101:mcd_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20720:container stopped, port=%d
+sdf/ssd/fifo/mcd_osd.c:7122:mcd_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:50008:stopping container, name=%s
+sdf/ssd/fifo/mcd_osd.c:7143:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20410:invalid mail, expecting %d received %lu
+sdf/ssd/fifo/mcd_osd.c:7146:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20411:admin mail received
+sdf/ssd/fifo/mcd_osd.c:7153:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20719:failed to stop container, status=%s
+sdf/ssd/fifo/mcd_osd.c:7160:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20716:failed to set container state, rc=%d
+sdf/ssd/fifo/mcd_osd.c:7166:mcd_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20720:container stopped, port=%d
+sdf/ssd/fifo/mcd_osd.c:7184:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20065:ENTERING, shardID=%lu
+sdf/ssd/fifo/mcd_osd.c:7201:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20410:invalid mail, expecting %d received %lu
+sdf/ssd/fifo/mcd_osd.c:7204:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20411:admin mail received
+sdf/ssd/fifo/mcd_osd.c:7221:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20065:ENTERING, shardID=%lu
+sdf/ssd/fifo/mcd_osd.c:7234:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20065:ENTERING, shardID=%lu
+sdf/ssd/fifo/mcd_osd.c:7244:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20412:ENTERING, index=%d
+sdf/ssd/fifo/mcd_osd.c:7253:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20065:ENTERING, shardID=%lu
+sdf/ssd/fifo/mcd_osd.c:7315:mcd_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20413:mcd_osd ops registered
+sdf/ssd/fifo/mcd_osd.c:7343:mcd_bak_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20000:ENTERING
+sdf/ssd/fifo/mcd_osd.c:7349:mcd_bak_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20414:not supported yet
+sdf/ssd/fifo/mcd_osd.c:7361:mcd_bak_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20415:invalid raw data size, len=%lu
+sdf/ssd/fifo/mcd_osd.c:7368:mcd_bak_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:40121:invalid key offset %lu
+sdf/ssd/fifo/mcd_osd.c:7379:mcd_bak_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20416:key/raw_data size mismatch, mkey_len=%d rkey_len=%d md_len=%u rd_len=%lu
+sdf/ssd/fifo/mcd_osd.c:7444:mcd_bak_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:40125:Reading bad raw segment (%lu), blksize=%d, seg_offset=%lu, num_blks=%d, blks=%d, rec=%s
+sdf/ssd/fifo/mcd_osd.c:7466:mcd_bak_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:40126:Error reading bad raw segment (%lu), seg_offset=%lu, blk_offset=%lu, blks=%d, rc=%d
+sdf/ssd/fifo/mcd_osd.c:7487:mcd_bak_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:40127:Bad block(s) found in raw segment (%lu), seg_offset=%lu, count=%d
+sdf/ssd/fifo/mcd_osd.c:7537:mcd_bak_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20000:ENTERING
+sdf/ssd/fifo/mcd_osd.c:7543:mcd_bak_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20414:not supported yet
+sdf/ssd/fifo/mcd_osd.c:7568:mcd_bak_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20417:failed to allocate raw read buffer
+sdf/ssd/fifo/mcd_osd.c:7620:mcd_bak_msg:MCD_OSD_LOG_LVL_INFO:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20418:reading raw segment, blk_offset=%lu
+sdf/ssd/fifo/mcd_osd.c:7638:mcd_bak_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:40122:Error reading raw segment, blk_offset=%lu, slab_blksize=%d, next_slab=%u, rc=%d
+sdf/ssd/fifo/mcd_osd.c:7642:mcd_bak_msg:MCD_OSD_LOG_LVL_INFO:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20420:segment read, blk_offset=%lu
+sdf/ssd/fifo/mcd_osd.c:7684:mcd_bak_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:40128:object skipped (error), blk_offset=%lu map_offset=%lu
+sdf/ssd/fifo/mcd_osd.c:7696:mcd_bak_msg:PLAT_LOG_LEVEL_FATAL:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20421:not enough magic! blk_off=%lu map_off=%lu key_len=%d seqno=%lu
+sdf/ssd/fifo/mcd_osd.c:7710:mcd_bak_msg:MCD_OSD_LOG_LVL_INFO:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20422:object deleted, blk_offset=%lu map_offset=%lu key_len=%d seqno=%lu
+sdf/ssd/fifo/mcd_osd.c:7725:mcd_bak_msg:MCD_OSD_LOG_LVL_INFO:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20423:object found, blk_offset=%lu map_offset=%lu key_len=%d seqno=%lu
+sdf/ssd/fifo/mcd_osd.c:7739:mcd_bak_msg:PLAT_LOG_LEVEL_TRACE:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:40002:object skipped (expired), blk_offset=%lu map_offset=%lu key_len=%d
+sdf/ssd/fifo/mcd_osd.c:7754:mcd_bak_msg:PLAT_LOG_LEVEL_TRACE:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:40003:object skipped (flush), blk_offset=%lu map_offset=%lu key_len=%d
+sdf/ssd/fifo/mcd_osd.c:7805:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20000:ENTERING
+sdf/ssd/fifo/mcd_osd.c:7835:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20141:container stopping mail posted
+sdf/ssd/fifo/mcd_osd.c:7858:mcd_log_msg:MCD_OSD_LOG_LVL_DEBUG:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20430:found slab mode container, tcp_port=%d
+sdf/ssd/fifo/mcd_osd.c:7872:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20141:container stopping mail posted
+sdf/ssd/fifo/mcd_osd.c:7919:mcd_log_msg:MCD_OSD_LOG_LVL_DEBUG:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20427:ENTERING, next_addr=%lu bytes=%lu scanned=%lu expired=%lu
+sdf/ssd/fifo/mcd_osd.c:7957:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20417:failed to allocate raw read buffer
+sdf/ssd/fifo/mcd_osd.c:7983:mcd_log_msg:PLAT_LOG_LEVEL_FATAL:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20419:failed to read meta, rc=%d
+sdf/ssd/fifo/mcd_osd.c:7989:mcd_log_msg:MCD_OSD_LOG_LVL_INFO:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20420:segment read, blk_offset=%lu
+sdf/ssd/fifo/mcd_osd.c:8033:mcd_log_msg:PLAT_LOG_LEVEL_DIAGNOSTIC:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20421:not enough magic! blk_off=%lu map_off=%lu key_len=%d seqno=%lu
+sdf/ssd/fifo/mcd_osd.c:8047:mcd_log_msg:MCD_OSD_LOG_LVL_INFO:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20428:expired obj, key=%s key_len=%d data_len=%d
+sdf/ssd/fifo/mcd_osd.c:8070:mcd_log_msg:PLAT_LOG_LEVEL_TRACE_LOW:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:50049:prefix-based delete, key=%s
+sdf/ssd/fifo/mcd_osd.c:8106:mcd_log_msg:MCD_OSD_LOG_LVL_INFO:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20429:expired object deleted, key=%s
+sdf/ssd/fifo/mcd_osd.c:8111:mcd_log_msg:MCD_OSD_LOG_LVL_INFO:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:50050:prefix object deleted, key=%s
+sdf/ssd/fifo/mcd_osd.c:8142:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:50051:failed to update prefix deleter, rc=%s
+sdf/ssd/fifo/mcd_osd.c:8174:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20000:ENTERING
+sdf/ssd/fifo/mcd_osd.c:8208:mcd_log_msg:MCD_OSD_LOG_LVL_DEBUG:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20324:sleeper waked up, blocks=%d, total=%d
+sdf/ssd/fifo/mcd_osd.c:8226:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20141:container stopping mail posted
+sdf/ssd/fifo/mcd_osd.c:8251:mcd_log_msg:MCD_OSD_LOG_LVL_INFO:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:50052:ENTERING container=%s prefix=%s
+sdf/ssd/fifo/mcd_osd.c:8268:mcd_log_msg:MCD_OSD_LOG_LVL_INFO:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:50053:prefix registered, key=%s time=%lu addr=%lu
+sdf/ssd/fifo/mcd_osd.c:8272:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:50054:failed to register prefix, key=%s
+sdf/ssd/fifo/mcd_osd.c:8288:mcd_log_msg:MCD_OSD_LOG_LVL_INFO:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:50055:ENTERING container=%s
+sdf/ssd/fifo/mcd_osd.c:8306:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:50056:failed to get prefix list
+sdf/ssd/fifo/mcd_osd.c:8313:mcd_log_msg:MCD_OSD_LOG_LVL_INFO:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:50057:number of prefixes is %d
+sdf/ssd/fifo/mcd_osd.c:8401:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20175:ENTERING, self=%p
+sdf/ssd/fifo/mcd_osd.c:8405:mcd_log_msg:PLAT_LOG_LEVEL_FATAL:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:50077:invalid aio context category %d
+sdf/ssd/fifo/mcd_osd.c:8418:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20176:self found, use context %d
+sdf/ssd/fifo/mcd_osd.c:8433:mcd_log_msg:PLAT_LOG_LEVEL_FATAL:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20172:Please reduce the number of fthreads
+sdf/ssd/fifo/mcd_osd.c:8437:mcd_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:50075:aio context category %s count=%d
+sdf/ssd/fifo/mcd_osd.c:8446:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:50076:new aio context allocated, category=%s count=%d
+sdf/ssd/fifo/mcd_osd.c:8454:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:150004:Mcd_aio_states[%d] = %p
+sdf/ssd/fifo/mcd_osd.c:8463:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:50078:ENTERING category=%d
+sdf/ssd/fifo/mcd_osd.c:8467:mcd_log_msg:PLAT_LOG_LEVEL_FATAL:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:50077:invalid aio context category %d
+sdf/ssd/fifo/mcd_osd.c:8540:mcd_log_msg:PLAT_LOG_LEVEL_FATAL:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:30665:process_raw_get_command_enum() failed
 sdf/ssd/fifo/mcd_rec.c:289:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG::20065:ENTERING, shardID=%lu
 sdf/ssd/fifo/mcd_rec.c:300:mcd_log_msg:PLAT_LOG_LEVEL_ERROR::20431:invalid length %d (max=%d)
 sdf/ssd/fifo/mcd_rec.c:332:mcd_log_msg:PLAT_LOG_LEVEL_ERROR::20432:couldn't find shardID=%lu
@@ -4091,10 +4089,10 @@ sdf/utils/linkedlist.c:258:plat_log_msg:LOG_DBG:LOG_CAT:21752:In LinkedList_get(
 sdf/utils/linkedlist.c:276:plat_log_msg:LOG_DBG:LOG_CAT:21753:In LinkedList_get(%s), could not find *****\n
 sdf/utils/properties.c:41:plat_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_PRINT_ARGS:21754:unloaded properties
 sdf/utils/properties.c:55:plat_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_PRINT_ARGS:21756:Reading properties file '%s' has an error!\n
-sdf/utils/properties.c:113:plat_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_PRINT_ARGS:21755:Reading properties file '%s'
-sdf/utils/properties.c:120:plat_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_PRINT_ARGS:21756:Reading properties file '%s' has an error!\n
-sdf/utils/properties.c:160:plat_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_PRINT_ARGS:21757:Parsed property error (ret:%d)('%s', '%s')
-sdf/utils/properties.c:171:plat_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_PRINT_ARGS:21758:Parsed property ('%s', '%s')
+sdf/utils/properties.c:116:plat_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_PRINT_ARGS:21755:Reading properties file '%s'
+sdf/utils/properties.c:123:plat_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_PRINT_ARGS:21756:Reading properties file '%s' has an error!\n
+sdf/utils/properties.c:168:plat_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_PRINT_ARGS:21757:Parsed property error (ret:%d)('%s', '%s')
+sdf/utils/properties.c:180:plat_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_PRINT_ARGS:21758:Parsed property ('%s', '%s')
 sdf/utils/sdfkey.h:126:plat_log_msg:PLAT_LOG_LEVEL_FATAL:PLAT_LOG_CAT_SDF_SHARED:20866:Not enough shared memory, plat_shmem_alloc() failed.
 sdf/utils/sdfkey.h:208:plat_log_msg:PLAT_LOG_LEVEL_FATAL:PLAT_LOG_CAT_SDF_SHARED:20866:Not enough shared memory, plat_shmem_alloc() failed.
 sdf/utils/sdfkey.h:230:plat_log_msg:PLAT_LOG_LEVEL_FATAL:PLAT_LOG_CAT_SDF_SHARED:20866:Not enough shared memory, plat_shmem_alloc() failed.

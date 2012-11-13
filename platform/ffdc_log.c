@@ -9,7 +9,7 @@
  * codebase. This file also contains the API to enable, disable, and
  * initialize FFDC.
  * 
- * Generated On: 2012-11-09 00:37:10
+ * Generated On: 2012-11-12 16:01:06
  *------------------------------------------------------------------------*/
 
 #define PLATFORM_INTERNAL 1
@@ -41038,6 +41038,32 @@ ffdc_log_func_150033(int lineno, int msgid, int catid, int level, const char* fm
 }
 
 /*---------------------------------------------------------------------------
+ * MsgID : 150034
+ * Msg   : "Failed to save cguid state: %s"
+ *-------------------------------------------------------------------------*/
+__inline__ void
+ffdc_log_func_150034(int lineno, int msgid, int catid, int level, const char* fmt,
+    const char* arg1)
+{
+    FFDC_START(150034, catid, level, lineno);
+    FFDC_ADD_STR(arg1);
+    FFDC_END();
+}
+
+/*---------------------------------------------------------------------------
+ * MsgID : 150035
+ * Msg   : "Open container structure is NULL - %s"
+ *-------------------------------------------------------------------------*/
+__inline__ void
+ffdc_log_func_150035(int lineno, int msgid, int catid, int level, const char* fmt,
+    const char* arg1)
+{
+    FFDC_START(150035, catid, level, lineno);
+    FFDC_ADD_STR(arg1);
+    FFDC_END();
+}
+
+/*---------------------------------------------------------------------------
  * MsgID : 160000
  * Msg   : "failed to get events; errno=%d (%s)"
  *-------------------------------------------------------------------------*/
@@ -41519,6 +41545,20 @@ ffdc_log_func_160034(int lineno, int msgid, int catid, int level, const char* fm
     FFDC_ADD_STR(arg1);
     FFDC_ADD_NUM(arg2);
     FFDC_ADD_STR(arg3);
+    FFDC_END();
+}
+
+/*---------------------------------------------------------------------------
+ * MsgID : 160035
+ * Msg   : "%s, size=%d bytes"
+ *-------------------------------------------------------------------------*/
+__inline__ void
+ffdc_log_func_160035(int lineno, int msgid, int catid, int level, const char* fmt,
+    const char* arg1, int arg2)
+{
+    FFDC_START(160035, catid, level, lineno);
+    FFDC_ADD_STR(arg1);
+    FFDC_ADD_NUM(arg2);
     FFDC_END();
 }
 

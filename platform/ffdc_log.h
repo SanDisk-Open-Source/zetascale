@@ -9,7 +9,7 @@
  * log message in the codebase.  The structure contains one field for
  * each message parameter in the log message, along with other meta data
  * 
- * Generated On: 2012-11-09 00:37:10
+ * Generated On: 2012-11-12 16:01:06
  *------------------------------------------------------------------------*/
 
 #ifndef PLATFORM_FFDC_H
@@ -68415,6 +68415,50 @@ ffdc_log_func_150033(int lineno, int msgid, int catid, int level, const char* fm
     const char* arg1);
 
 /*---------------------------------------------------------------------------
+ * MsgID : 150034
+ * Msg   : "Failed to save cguid state: %s"
+ *-------------------------------------------------------------------------*/
+struct ffdc_log_struct_150034
+{
+    int magic;
+    int msgid;
+    int catid;
+    int level;
+    unsigned long th_id;
+    unsigned long fth_id;
+    int lineno;
+    struct timeval timestamp;
+
+    char arg1[FFDC_MAX_STR_SIZE];
+} __attribute__ ((aligned (64)));
+
+__inline__ void
+ffdc_log_func_150034(int lineno, int msgid, int catid, int level, const char* fmt,
+    const char* arg1);
+
+/*---------------------------------------------------------------------------
+ * MsgID : 150035
+ * Msg   : "Open container structure is NULL - %s"
+ *-------------------------------------------------------------------------*/
+struct ffdc_log_struct_150035
+{
+    int magic;
+    int msgid;
+    int catid;
+    int level;
+    unsigned long th_id;
+    unsigned long fth_id;
+    int lineno;
+    struct timeval timestamp;
+
+    char arg1[FFDC_MAX_STR_SIZE];
+} __attribute__ ((aligned (64)));
+
+__inline__ void
+ffdc_log_func_150035(int lineno, int msgid, int catid, int level, const char* fmt,
+    const char* arg1);
+
+/*---------------------------------------------------------------------------
  * MsgID : 160000
  * Msg   : "failed to get events; errno=%d (%s)"
  *-------------------------------------------------------------------------*/
@@ -69208,6 +69252,29 @@ struct ffdc_log_struct_160034
 __inline__ void
 ffdc_log_func_160034(int lineno, int msgid, int catid, int level, const char* fmt,
     const char* arg1, long arg2, const char* arg3);
+
+/*---------------------------------------------------------------------------
+ * MsgID : 160035
+ * Msg   : "%s, size=%d bytes"
+ *-------------------------------------------------------------------------*/
+struct ffdc_log_struct_160035
+{
+    int magic;
+    int msgid;
+    int catid;
+    int level;
+    unsigned long th_id;
+    unsigned long fth_id;
+    int lineno;
+    struct timeval timestamp;
+
+    char arg1[FFDC_MAX_STR_SIZE];
+    int arg2;
+} __attribute__ ((aligned (64)));
+
+__inline__ void
+ffdc_log_func_160035(int lineno, int msgid, int catid, int level, const char* fmt,
+    const char* arg1, int arg2);
 
 __END_DECLS
 #endif /* PLATFORM_FFDC_H */

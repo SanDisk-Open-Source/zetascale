@@ -511,7 +511,7 @@ name_service_create_cguid_state(SDF_internal_ctxt_t *pai, SDF_vnode_t vnode, SDF
 						 name, 
 						 sizeof(SDF_cguid_state_t),
 						 &state)) == SDF_SUCCESS) {
-	log_level = LOG_DBG;
+		log_level = LOG_DBG;
     }
 
     blob.version = SDF_BLOB_CONTAINER_META_VERSION;
@@ -520,8 +520,10 @@ name_service_create_cguid_state(SDF_internal_ctxt_t *pai, SDF_vnode_t vnode, SDF
     if (status == SDF_SUCCESS && init_container_meta_blob_put != NULL &&
 	(status = init_container_meta_blob_put(0, (char *) &blob,
 					 sizeof(SDF_container_meta_blob_t))) == SDF_SUCCESS) {
-	log_level = LOG_DBG;
+		log_level = LOG_DBG;
     }
+
+	init_set_cguid_counter( cguid_counter );
 
     plat_log_msg(21511, LOG_CAT, log_level, "%s - %s", name, SDF_Status_Strings[status]);
 
@@ -553,10 +555,12 @@ name_service_put_cguid_state(SDF_internal_ctxt_t *pai, SDF_vnode_t vnode, SDF_cg
     memcpy(&(blob.meta), &cguid_counter, sizeof(cguid_counter));
 
     if (status == SDF_SUCCESS && init_container_meta_blob_put != NULL &&
-	(status = init_container_meta_blob_put(0, (char *) &blob,
+	   (status = init_container_meta_blob_put(0, (char *) &blob,
 					 sizeof(SDF_container_meta_blob_t))) == SDF_SUCCESS) {
-	log_level = LOG_DBG;
+		log_level = LOG_DBG;
     }
+
+	init_set_cguid_counter( cguid_counter );
 
     plat_log_msg(21511, LOG_CAT, log_level, "%s - %s", name, SDF_Status_Strings[status]);
 

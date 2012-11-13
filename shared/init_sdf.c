@@ -58,8 +58,8 @@ init_sdf_initialize_config(struct SDF_config *config,
 #endif                           
                            uint32_t flash_dev_count,
                            uint32_t shard_count,
-			   struct sdf_replicator *replicator) {
-
+			   			   struct sdf_replicator *replicator) 
+{
     plat_assert(pai);
     plat_assert(flash_dev);
 
@@ -125,17 +125,19 @@ init_sdf_initialize(const struct SDF_config *config, int restart)
 
     /* Recover the node's cguid counter if we are recovering from flash. */
     if (status == SDF_SUCCESS && sdf_shared_state.config.system_recovery == SYS_FLASH_RECOVERY) {
-	SDF_cguid_t cguid_counter;
-	if ((status = name_service_get_cguid_state(config->pai, 
-						   init_get_my_node_id(), 
-						   &cguid_counter)) == SDF_SUCCESS) {
-	    init_set_cguid_counter(cguid_counter);
-	    log_level = LOG_INFO;
-	} else {
-	    // Did not recover cguid state - fail for now - need a resilient recovery method
-	    plat_log_msg(21606, PLAT_LOG_CAT_SDF_SHARED, PLAT_LOG_LEVEL_WARN,
-			 "Did not find cguid counter state - re-initializing counter");
-	}
+		SDF_cguid_t cguid_counter;
+		if ((status = name_service_get_cguid_state(config->pai,
+												   init_get_my_node_id(), 
+						   					   	   &cguid_counter)) == SDF_SUCCESS) {
+	    	init_set_cguid_counter(cguid_counter);
+	    	log_level = LOG_INFO;
+		} else {
+	    	// Did not recover cguid state - fail for now - need a resilient recovery method
+	    	plat_log_msg(21606, 
+						 PLAT_LOG_CAT_SDF_SHARED, 
+						 PLAT_LOG_LEVEL_WARN, 
+						 "Did not find cguid counter state - re-initializing counter");
+		}
     }
 
     /* The master now allows the slaves to continue */
@@ -144,12 +146,12 @@ init_sdf_initialize(const struct SDF_config *config, int restart)
 
     // Write out a cguid state object so that cmc recovery will work
     if (status == SDF_SUCCESS && sdf_shared_state.config.system_recovery != SYS_FLASH_RECOVERY) {
-	if ((status = name_service_create_cguid_state(config->pai,
-						      init_get_my_node_id(), 
-						      0)) != SDF_SUCCESS) {
-	    log_level = LOG_FATAL;
-	    plat_log_msg(21607, LOG_CAT, log_level, "Failed to write cguid state");
-	}
+		if ((status = name_service_create_cguid_state(config->pai, 
+													  init_get_my_node_id(), 
+						      						  0)) != SDF_SUCCESS) {
+	    	log_level = LOG_FATAL;
+	    	plat_log_msg(21607, LOG_CAT, log_level, "Failed to write cguid state");
+		}
     }
 
     plat_log_msg(21504, LOG_CAT, log_level, "Node: %d - %s", init_get_my_node_id(), SDF_Status_Strings[status]);

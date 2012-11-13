@@ -55,8 +55,9 @@ static time_t 		current_time 		= 0;
 /*
 ** Externals
 */
-extern void 	*cmc_settings;
-extern int 		Mcd_osd_max_nclasses;
+extern void			*cmc_settings;
+extern int 			 Mcd_osd_max_nclasses;
+extern SDF_cmc_t 	*theCMC;
 
 extern int loadProperties(
 	const char *path_arg;
@@ -643,7 +644,7 @@ FDF_status_t FDFGetStatsStr (
 	struct FDF_thread_state *fdf_thread_state,
 	FDF_cguid_t 			 cguid,
 	char 					*stats_str,
-    FDF_stats_t *stats
+    FDF_stats_t				*stats
 	);
 
 void action_stats_new_cguid(SDF_internal_ctxt_t *pac, char *str, int size, SDF_cguid_t cguid);
@@ -725,7 +726,7 @@ static struct sdf_agent_state agent_state;
 static sem_t Mcd_fsched_sem;
 static sem_t Mcd_initer_sem;
 
-ctnr_map_t CtnrMap[MCD_MAX_NUM_CNTRS];
+extern ctnr_map_t CtnrMap[MCD_MAX_NUM_CNTRS];
 
 #ifdef notdef
 static int count_containers() {
@@ -991,12 +992,12 @@ FDF_status_t FDFInit(
 	struct FDF_state	**fdf_state
 	)
 {
-    int                 rc;
-    pthread_t           run_sched_pthread;
-    pthread_attr_t      attr;
-    uint64_t            num_sched;
-    struct timeval 	timer;
-	const char	*prop_file;
+    int                  rc;
+    pthread_t            run_sched_pthread;
+    pthread_attr_t       attr;
+    uint64_t             num_sched;
+    struct timeval		 timer;
+	const char			*prop_file;
 
     sem_init( &Mcd_initer_sem, 0, 0 );
 
@@ -1006,7 +1007,7 @@ FDF_status_t FDFInit(
     *fdf_state = (struct FDF_state *) &agent_state;
 
 	prop_file = getenv("FDF_PROPERTY_FILE");
-	if(prop_file)
+	if (prop_file)
 		loadProperties(prop_file);
 
     //  Initialize a crap-load of settings
@@ -1068,21 +1069,22 @@ FDF_status_t FDFInit(
     uint64_t cntr_id = 0; 
     for ( i = 0; i < MCD_MAX_NUM_CNTRS; i++ ) {
         if (Mcd_containers[i] == NULL) {
-        continue;
-    }
-    SDF_container_props_t sdf_properties;
-	SDF_status_t props_rc = FDFGetContainerProps( fth_state->pai,
-                              pMcd_containers[i]->cguid,
-                                                      &sdf_properties );
-        if ( SDF_SUCCESS != props_rc ) {
-            mcd_log_msg( 50030, PLAT_LOG_LEVEL_ERROR,
-                         "failed to get SDF properties, status=%s",
-                         SDF_Status_Strings[props_rc] );
-            plat_abort();
-        }
-        if ( cntr_id < sdf_properties->container_id.container_id)
-    {   
-            cntr_id = sdf_properties->container_id.container_id;
+	        continue;
+	    }
+
+	    SDF_container_props_t sdf_properties;
+		SDF_status_t props_rc = FDFGetContainerProps( fth_state->pai,
+													  pMcd_containers[i]->cguid,
+	                                                  &sdf_properties );
+		if ( SDF_SUCCESS != props_rc ) {
+			mcd_log_msg( 50030, PLAT_LOG_LEVEL_ERROR,
+	                     "failed to get SDF properties, status=%s",
+	                     SDF_Status_Strings[props_rc] );
+	        plat_abort();
+		}
+
+		if ( cntr_id < sdf_properties->container_id.container_id) {   
+			cntr_id = sdf_properties->container_id.container_id;
         }
     }
     
@@ -1155,7 +1157,7 @@ FDF_status_t FDFLoadCntrPropDefaults(
 
 #define CONTAINER_PENDING
 
-static uint64_t cid_counter = 0;
+//static uint64_t cid_counter = 0;
 
 FDF_status_t FDFOpenContainer(
 	struct FDF_thread_state	*fdf_thread_state, 
@@ -1244,23 +1246,50 @@ static FDF_status_t fdf_create_container(
 
     SDFStartSerializeContainerOp( pai );
 
-    cid = cid_counter++;
-
     if ( strcmp( cname, CMC_PATH ) == 0 ) {
         *cguid = CMC_CGUID;
         isCMC = SDF_TRUE;
         home_node = CMC_HOME;
     } else {
-        *cguid = generate_cguid( pai, cname, init_get_my_node_id(), cid ); // Generate the cguid
-		if (i == MCD_MAX_NUM_CNTRS) {
-	    	plat_log_msg( 150033, LOG_CAT,LOG_ERR, 
-						  "FDFCreateContainer failed for container %s because 128 containers have already been created.", cname );
+        // Make sure we have not gone over the container limit
+        for ( i = 0; i < MCD_MAX_NUM_CNTRS; i++ ) {
+            if ( CtnrMap[i].cguid == 0 ) { 
+                // this is an unused map entry
+                break;
+            }
+        }
+
+		if ( i == MCD_MAX_NUM_CNTRS ) {
+	    	plat_log_msg( 150033, 
+						  LOG_CAT,LOG_ERR, 
+						  "FDFCreateContainer failed for container %s because 128 containers have already been created.", 
+						  cname );
 	    	status = SDF_TOO_MANY_CONTAINERS;
 	    	SDFEndSerializeContainerOp( pai );
 	    	return status;
 		}
+
+        state->config.cguid_counter += 1;
+        cid = state->config.cguid_counter;
+        properties->cid = cid;
+
+        *cguid = generate_cguid( pai, cname, init_get_my_node_id(), cid ); // Generate the cguid
+
         isCMC = SDF_FALSE;
         home_node = init_get_my_node_id();
+	
+		// Save the current cid
+        if ( SDF_SUCCESS != name_service_put_cguid_state( pai,
+                                                          init_get_my_node_id(),
+                                                          cid ) ) {
+            plat_log_msg( 150034,
+                        LOG_CAT,
+                        LOG_ERR,
+                        "Failed to save cguid state: %s",
+                        SDF_Status_Strings[status] );
+
+            return FDF_PUT_METADATA_FAILED;
+        }
     }
 
 	properties->cguid = *cguid;
@@ -1466,6 +1495,7 @@ static FDF_status_t fdf_create_container(
                 }
                 strcpy( CtnrMap[i].cname, cname );
                 CtnrMap[i].cguid         = *cguid;
+                CtnrMap[i].cid         	 = cid;
                 CtnrMap[i].sdf_container = containerNull;
 #ifdef SDFAPIONLY
                 Mcd_containers[i].cguid = *cguid;
@@ -1506,7 +1536,7 @@ static FDF_status_t fdf_open_container(
                         
     SDFStartSerializeContainerOp( pai );
 
-	if(!cguid)
+	if (!cguid)
 		return SDF_INVALID_PARAMETER;
 
     if ( ISEMPTY( cname ) ) { 
@@ -1557,10 +1587,14 @@ static FDF_status_t fdf_open_container(
         container = openParentContainer( pai, cname );
 
         if ( isContainerNull( container ) ) {
-	    	fprintf( stderr, "SDFOpenContainer: failed to open parent container for %s\n", cname );
+	    	fprintf( stderr, "FDFOpenContainer: failed to open parent container for %s\n", cname );
 		}
 
-		CtnrMap[i_ctnr].sdf_container = container;
+        if ( CMC_CGUID == *cguid ) {
+            theCMC->c = internal_serverToClientContainer( container );
+        } else {
+            CtnrMap[i_ctnr].sdf_container = container;
+        }
 
         if ( !isContainerNull( container ) ) {
             lc = getLocalContainer( &lc, container );
@@ -1642,25 +1676,24 @@ FDF_status_t FDFCloseContainer(
 	)
 {
 #ifdef SDFAPIONLY
-    //mcd_container_t 		cntr;
-    struct shard		*shard		= NULL;
+    struct shard			*shard			= NULL;
     flashDev_t              *flash_dev;
     SDF_container_meta_t     meta;
-    FDF_status_t tmp_status;
-    struct SDF_shared_state *state = &sdf_shared_state;
+    FDF_status_t			 tmp_status;
+    struct SDF_shared_state *state			= &sdf_shared_state;
 #endif
-    FDF_status_t status = SDF_FAILURE;
-    unsigned     n_descriptors;
-    int  i_ctnr;
-    SDF_CONTAINER container = containerNull;
-    SDF_internal_ctxt_t     *pai = (SDF_internal_ctxt_t *) fdf_thread_state;
-    int log_level = LOG_ERR;
-    int ok_to_delete = 0;
-    FDF_cguid_t parent_cguid = SDF_NULL_CGUID;
+    FDF_status_t			 status			= SDF_FAILURE;
+    unsigned				 n_descriptors;
+    int						 i_ctnr;
+    SDF_CONTAINER			 container		= containerNull;
+    SDF_internal_ctxt_t     *pai			= (SDF_internal_ctxt_t *) fdf_thread_state;
+    int						 log_level		= LOG_ERR;
+    int						 ok_to_delete	= 0;
+    FDF_cguid_t				 parent_cguid	= SDF_NULL_CGUID;
 
     plat_log_msg(21630, LOG_CAT, LOG_INFO, "%lu", cguid);
 
-	if(!cguid)
+	if ( !cguid )
 		return SDF_INVALID_PARAMETER;
 
     SDFStartSerializeContainerOp(pai);
@@ -1762,13 +1795,12 @@ FDF_status_t FDFCloseContainer(
         if ( status == SDF_SUCCESS ) {
     		CtnrMap[i_ctnr].sdf_container = containerNull;
 
-			if(ok_to_delete)
-			{
+			if (ok_to_delete) {
 			    plat_log_msg(160031, LOG_CAT, LOG_INFO, "Delete request pending. Deleting... cguid=%lu", cguid);
 
 		    	status = delete_container_internal_low(pai, path, SDF_FALSE /* serialize */, NULL);
 
-	    		CtnrMap[i_ctnr].cguid         = 0;
+	    		CtnrMap[i_ctnr].cguid           = 0;
 	    		CtnrMap[i_ctnr].cname			= NULL;
 	    		CtnrMap[i_ctnr].cid				= SDF_NULL_CID;
 			}
@@ -1800,7 +1832,7 @@ FDF_status_t FDFDeleteContainer(
 				  "%lu", 
 				  cguid );
 
-	if(!cguid)
+	if ( !cguid )
 		return SDF_INVALID_PARAMETER;
 
     SDFStartSerializeContainerOp(pai);
@@ -1872,7 +1904,7 @@ FDF_status_t FDFGetContainerProps(
     SDF_container_meta_t     	 meta;
     SDF_internal_ctxt_t     	*pai 	= (SDF_internal_ctxt_t *) fdf_thread_state;
 
-	if(!cguid)
+	if ( !cguid )
 		return SDF_INVALID_PARAMETER;
 
     SDFStartSerializeContainerOp(pai);  
@@ -1895,7 +1927,7 @@ FDF_status_t FDFSetContainerProps(
     SDF_internal_ctxt_t     *pai = (SDF_internal_ctxt_t *) fdf_thread_state;
 	SDF_container_props_t	 sdf_properties;
 
-	if(!cguid)
+	if ( !cguid )
 		return SDF_INVALID_PARAMETER;
 
     SDFStartSerializeContainerOp(pai);
@@ -2005,7 +2037,7 @@ FDF_status_t FDFWriteObject(
     SDF_action_init_t  *pac;
     FDF_status_t        status;
 
- 	if(!cguid)
+ 	if ( !cguid )
  		return SDF_INVALID_PARAMETER;
  
     pac = (SDF_action_init_t *) fdf_thread_state;
@@ -2047,7 +2079,7 @@ FDF_status_t FDFDeleteObject(
     SDF_action_init_t  *pac;
     FDF_status_t        status;
 
-	if(!cguid)
+	if ( !cguid )
 		return SDF_INVALID_PARAMETER;
 
     pac = (SDF_action_init_t *) fdf_thread_state;
@@ -2085,7 +2117,7 @@ FDF_status_t FDFEnumerateContainerObjects(
     flashDev_t                 *flash_dev;
     struct FDF_iterator        *iterator;
 
-	if(!cguid)
+	if ( !cguid )
 		return SDF_INVALID_PARAMETER;
 
     if (( status = name_service_get_meta( pai, cguid, &meta )) != SDF_SUCCESS ) {
@@ -2220,7 +2252,7 @@ FDF_status_t FDFFinishEnumeration(
     uint64_t                    curr_seqno;
     uint32_t                    version;
 
-	if(!iterator)
+	if ( !iterator )
 		return SDF_INVALID_PARAMETER;
 
     // stop the backup
@@ -2295,19 +2327,19 @@ FDF_status_t FDFFlushCache(
 	struct FDF_thread_state  *fdf_thread_state
 	)
 {
-	FDF_status_t status;
-    int   i;
+	FDF_status_t	status	= FDF_FAILURE;
+    int				i;
 
-    for (i = 0; i < MCD_MAX_NUM_CNTRS; i++) {
-        if( CtnrMap[i].cguid != 0 ) {
-            status = FDFFlushContainer(fdf_thread_state, Mcd_containers[i].cguid);
+    for ( i = 0; i < MCD_MAX_NUM_CNTRS; i++ ) {
+        if ( CtnrMap[i].cguid != 0 ) {
+			status = FDFFlushContainer( fdf_thread_state, Mcd_containers[i].cguid );
 
-			if(status != FDF_SUCCESS)
+			if ( status != FDF_SUCCESS )
 				return status;
         }
     }
 
-    return(FDF_SUCCESS);
+    return FDF_SUCCESS;
 }
 
 static void fdf_get_fth_stats(SDF_internal_ctxt_t *pai, char ** ppos, int * lenp,

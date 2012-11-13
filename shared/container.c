@@ -777,13 +777,13 @@ SDF_status_t delete_container_internal_low(SDF_internal_ctxt_t *pai, const char 
     plat_log_msg(20819, LOG_CAT, LOG_DBG, "%s", path);
 
     if (serialize) {
-	SDFStartSerializeContainerOp(pai);
+		SDFStartSerializeContainerOp(pai);
     }
 
     if (ISEMPTY(path)) {
-	status = SDF_INVALID_PARAMETER;
+		status = SDF_INVALID_PARAMETER;
     } else if (!doesContainerExistInBackend(pai, path)) {
-	status = SDF_CONTAINER_UNKNOWN;
+		status = SDF_CONTAINER_UNKNOWN;
     }
 
     if (status == SDF_SUCCESS) {
@@ -791,17 +791,17 @@ SDF_status_t delete_container_internal_low(SDF_internal_ctxt_t *pai, const char 
             // Container is open - just set the tombstone
             local_SDF_CONTAINER_PARENT lparent = getLocalContainerParent(&lparent, p);
 	    
-	    /*  Get a copy of the metadata here for use later in call to
-	     *  SDFActionDeleteContainer, before things start to disappear.
-	     */
-	    if ((status = name_service_get_meta(pai, lparent->cguid, &meta)) != SDF_SUCCESS) {
-		ok_to_delete = 0;
-	    }
-
-            if (lparent->num_open_descriptors > 0) {
-                lparent->delete_pending = SDF_TRUE;
-                ok_to_delete = 0;
-            }
+	    	/*  Get a copy of the metadata here for use later in call to
+	     	*  SDFActionDeleteContainer, before things start to disappear.
+	     	*/
+	    	if ((status = name_service_get_meta(pai, lparent->cguid, &meta)) != SDF_SUCCESS) {
+				ok_to_delete = 0;
+	    	}
+	
+			if (lparent->num_open_descriptors > 0) {
+				lparent->delete_pending = SDF_TRUE;
+				ok_to_delete = 0;
+			}
             releaseLocalContainerParent(&lparent);
         }
     }
