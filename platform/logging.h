@@ -189,7 +189,7 @@ plat_log_level_immediate_cache[PLAT_LOG_MAX_CATEGORY];
  * a category with a log message and just generating a new log message when
  * that gets updated.
  *
- * Next number: 298
+ * Next number: 300
  *
  * XXX: drew 2009-12-07 So that customer support phone sessions go more
  * smoothly, we'd like the dynamically assigned numeric categories from
@@ -205,7 +205,12 @@ plat_log_level_immediate_cache[PLAT_LOG_MAX_CATEGORY];
  */
 #define PLAT_LOG_CATEGORY_ITEMS() \
     PLAT_LOG_CATEGORY_NORMAL_ITEMS() \
-    PLAT_LOG_CATEGORY_AUTO_ITEMS()
+    PLAT_LOG_CATEGORY_AUTO_ITEMS() \
+    PLAT_LOG_CATEGORY_DLL_ITEMS()
+
+#define PLAT_LOG_CATEGORY_DLL_ITEMS() \
+    item(PLATFORM_ALLOC_MPROBE, "platform/alloc/mprobe", 298) \
+    item(PLATFORM_FD_DISPATCHER, "platform/fd_dispatcher", 299)
 
 #define PLAT_LOG_CATEGORY_NORMAL_ITEMS() \
     /* For setting default=priority; users should log to something real */ \
