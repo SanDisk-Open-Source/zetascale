@@ -127,8 +127,7 @@ static SDF_status_t
                       SDF_time_t current_time);
 
 static SDF_status_t 
-(*ptr_FlushCache)(struct SDF_thread_state *sdf_thread_state,
-                  SDF_time_t current_time);
+(*ptr_FlushCache)(struct SDF_thread_state *sdf_thread_state);
 
 static SDF_status_t 
 (*ptr_GetContainers)(struct SDF_thread_state *sdf_thread_state,
@@ -240,7 +239,7 @@ panic(char *fmt, ...)
     vfprintf(stderr, fmt, alist);
     va_end(alist);
     fprintf(stderr, "\n");
-    exit(1);
+    sdf_exit(1);
 }
 
 
@@ -607,13 +606,12 @@ SDFFlushContainer(struct SDF_thread_state *sdf_thread_state,
  * SDFFlushCache
  */
 SDF_status_t 
-SDFFlushCache(struct SDF_thread_state *sdf_thread_state,
-              SDF_time_t current_time)
+SDFFlushCache(struct SDF_thread_state *sdf_thread_state)
 {
     if (unlikely(!ptr_FlushCache))
         undefined("SDFFlushCache");
 
-    return (*ptr_FlushCache)(sdf_thread_state, current_time);
+    return (*ptr_FlushCache)(sdf_thread_state);
 }
 
 

@@ -1,12 +1,22 @@
 Running FDF As A DLL
 ====================
 
+
+Building libfdfdll.a
+--------------------
+After checking out membrain-4.2, cd to the appropriate directory and type make:
+
+    cd membrain-4.2/membrain/server/sdf/api/dll
+    make
+
+
 Compiling
 ---------
 When compiling, instead of specifying libfdf.a as the FDF library, instead use
 libfdfdll.a.
 
     gcc -o hello hello.c libfdfdll.a
+
 
 Running
 -------
