@@ -966,6 +966,7 @@ SDF_status_t SDFCreateContainer(
             }           
 		}
     }
+
     SDFEndSerializeContainerOp(pai);
 
 	plat_assert(*cguid);
@@ -1019,10 +1020,12 @@ SDF_status_t SDFOpenContainer(
         status = SDF_INVALID_PARAMETER;
     }
 
-	if ( status != SDF_SUCCESS || !isContainerNull( CtnrMap[i_ctnr].sdf_container ) ) {
-	    SDFEndSerializeContainerOp(pai);
-		plat_log_msg(160032, LOG_CAT, log_level, "Already opened or error: %s - %s", path, SDF_Status_Strings[status]);
-		return status;
+	if (CMC_CGUID != cguid ) {
+		if ( status != SDF_SUCCESS || !isContainerNull( CtnrMap[i_ctnr].sdf_container ) ) {
+	    	SDFEndSerializeContainerOp(pai);
+			plat_log_msg(160032, LOG_CAT, log_level, "Already opened or error: %s - %s", path, SDF_Status_Strings[status]);
+			return status;
+		}
 	}
 
     if (!isContainerParentNull(parent = isParentContainerOpened(path))) {

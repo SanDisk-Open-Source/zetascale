@@ -520,6 +520,7 @@ cmc_recover(SDF_internal_ctxt_t *pai, const char *cmc_path) {
 				blob_version_check(blob->version);
 	    
 				memcpy( (char *)&cguid_counter, &(blob->meta), sizeof(cguid_counter) );
+fprintf(stderr, "cmc_recover: recovered cguid_counter = %lu\n", cguid_counter);
 				snprintf(name, sizeof(name), CGUID_COUNTER_TEMPLATE, init_get_my_node_id());
 	    
 				status = name_service_create_cguid_state(pai,
@@ -546,7 +547,7 @@ cmc_recover(SDF_internal_ctxt_t *pai, const char *cmc_path) {
 												      blob->meta.cname);
 				    }
 
-#if 0
+#ifdef SDFAPIONLY
 					//  Initialize the container map
 					//  Also recover the cid_counter to the largest recovered cid + 1
 					for (int i=0; i<MCD_MAX_NUM_CNTRS; i++) {
@@ -561,15 +562,13 @@ cmc_recover(SDF_internal_ctxt_t *pai, const char *cmc_path) {
 							CtnrMap[i].cguid         		= blob->meta.cguid;
 							CtnrMap[i].cid         			= blob->meta.properties.container_id.container_id;
 							CtnrMap[i].sdf_container 		= containerNull;
-#ifdef SDFAPIONLY
 					    	Mcd_containers[i].cguid 		= blob->meta.cguid;
 					    	Mcd_containers[i].container_id  = blob->meta.properties.container_id.container_id;
 							strcpy(Mcd_containers[i].cname, blob->meta.cname);
-#endif /* SDFAPIONLY */
 							break;
 						}
 					}
-#endif /* notdef */
+#endif /* SDFAPIONLY */
 				}
 		    }
 		}
