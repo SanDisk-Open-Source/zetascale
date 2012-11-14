@@ -1009,10 +1009,9 @@ typedef struct {
 	uint32_t				num_shards;
 } FDF_container_props_t;
 	
-typedef enum {
-	FDF_CTNR_RW_MODE 	= 0,
-	FDF_CTNR_CREATE		= 1,
-} FDF_container_mode_t;
+#define FDF_CTNR_CREATE   1
+#define FDF_CTNR_RO_MODE  2
+#define FDF_CTNR_RW_MODE  4
 
 typedef enum {
     FDF_WRITE_MUST_NOT_EXIST    = 1,
