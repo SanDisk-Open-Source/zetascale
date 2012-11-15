@@ -2344,6 +2344,15 @@ FDF_status_t FDFFlushCache(
     return FDF_SUCCESS;
 }
 
+FDF_status_t FDFContainerStat(SDF_internal_ctxt_t *pai, SDF_CONTAINER container, int key, uint64_t *stat) 
+{
+    FDF_status_t   status;
+
+    status = SDFContainerStatInternal(pai, container, key, stat);
+    return(status);
+}
+
+
 static void fdf_get_fth_stats(SDF_internal_ctxt_t *pai, char ** ppos, int * lenp,
                                  SDF_CONTAINER sdf_container, FDF_stats_t *stats )
 {
@@ -2378,7 +2387,7 @@ static void fdf_get_fth_stats(SDF_internal_ctxt_t *pai, char ** ppos, int * lenp
     plat_snprintfcat( ppos, lenp, "\r\n");
 
     old_value = idle_time;
-    SDFContainerStat( pai, sdf_container,
+    FDFContainerStat( pai, sdf_container,
                              FLASH_FTH_SCHEDULER_IDLE_TIME,
                              &idle_time );
     plat_snprintfcat( ppos, lenp, "STAT fth_idle_time %lu %lu\r\n",
@@ -2386,7 +2395,7 @@ static void fdf_get_fth_stats(SDF_internal_ctxt_t *pai, char ** ppos, int * lenp
                       (unsigned long)(idle_time - old_value) );
 
     old_value = num_dispatches;
-    SDFContainerStat( pai, sdf_container,
+    FDFContainerStat( pai, sdf_container,
                              FLASH_FTH_NUM_DISPATCHES,
                              &num_dispatches );
     plat_snprintfcat( ppos, lenp,
@@ -2394,14 +2403,14 @@ static void fdf_get_fth_stats(SDF_internal_ctxt_t *pai, char ** ppos, int * lenp
                       num_dispatches, num_dispatches - old_value );
 
     old_value = dispatch_time;
-    SDFContainerStat( pai, sdf_container,
+    FDFContainerStat( pai, sdf_container,
                              FLASH_FTH_SCHEDULER_DISPATCH_TIME,
                              &dispatch_time );
     plat_snprintfcat( ppos, lenp, "STAT fth_dispatch_time %lu %lu\r\n",
                       dispatch_time, dispatch_time - old_value );
 
     old_value = num_low_prio_dispatches;
-    SDFContainerStat( pai, sdf_container,
+    FDFContainerStat( pai, sdf_container,
                              FLASH_FTH_NUM_LOW_PRIO_DISPATCHES,
                              &num_low_prio_dispatches );
     plat_snprintfcat( ppos, lenp,
@@ -2410,7 +2419,7 @@ static void fdf_get_fth_stats(SDF_internal_ctxt_t *pai, char ** ppos, int * lenp
                       num_low_prio_dispatches - old_value );
 
     old_value = low_prio_dispatch_time;
-    SDFContainerStat( pai, sdf_container,
+    FDFContainerStat( pai, sdf_container,
                              FLASH_FTH_SCHEDULER_LOW_PRIO_DISPATCH_TIME,
                              &low_prio_dispatch_time );
     plat_snprintfcat( ppos, lenp,
@@ -2419,7 +2428,7 @@ static void fdf_get_fth_stats(SDF_internal_ctxt_t *pai, char ** ppos, int * lenp
                       low_prio_dispatch_time - old_value );
 
     old_value = thread_time;
-    SDFContainerStat( pai, sdf_container,
+    FDFContainerStat( pai, sdf_container,
                              FLASH_FTH_TOTAL_THREAD_RUN_TIME,
                              &thread_time );
     plat_snprintfcat( ppos, lenp,
@@ -2427,13 +2436,13 @@ static void fdf_get_fth_stats(SDF_internal_ctxt_t *pai, char ** ppos, int * lenp
                       thread_time, thread_time - old_value );
 
     old_value = ticks;
-    SDFContainerStat( pai, sdf_container,
+    FDFContainerStat( pai, sdf_container,
                              FLASH_TSC_TICKS_PER_MICROSECOND, &ticks);
     plat_snprintfcat( ppos, lenp,
                       "STAT fth_tsc_ticks_per_usec %lu %lu\r\n",
                       ticks, old_value );
 
-    SDFContainerStat( pai, sdf_container,
+    FDFContainerStat( pai, sdf_container,
                              FLASH_FTH_AVG_DISPATCH_NANOSEC,
                              &avg_dispatch );
     plat_snprintfcat( ppos, lenp,
@@ -2464,7 +2473,7 @@ static void fdf_get_flash_stats( SDF_internal_ctxt_t *pai, char ** ppos, int * l
     uint64_t            num_full_buckets = 0;
     uint64_t          * stats_ptr;
 
-    SDFContainerStat( pai, sdf_container,
+    FDFContainerStat( pai, sdf_container,
                              FLASH_SLAB_CLASS_SEGS,
                              (uint64_t *)&stats_ptr );
     plat_snprintfcat( ppos, lenp, "STAT flash_class_map" );
@@ -2473,7 +2482,7 @@ static void fdf_get_flash_stats( SDF_internal_ctxt_t *pai, char ** ppos, int * l
     }
     plat_snprintfcat( ppos, lenp, "\r\n" );
 
-    SDFContainerStat( pai, sdf_container,
+    FDFContainerStat( pai, sdf_container,
                              FLASH_SLAB_CLASS_SLABS,
                              (uint64_t *)&stats_ptr );
     plat_snprintfcat( ppos, lenp, "STAT flash_slab_map" );
@@ -2482,7 +2491,7 @@ static void fdf_get_flash_stats( SDF_internal_ctxt_t *pai, char ** ppos, int * l
     }
     plat_snprintfcat( ppos, lenp, "\r\n" );
 
-    SDFContainerStat( pai, sdf_container,
+    FDFContainerStat( pai, sdf_container,
                              FLASH_SPACE_ALLOCATED,
                              &space_allocated );
     plat_snprintfcat( ppos, lenp,
@@ -2491,7 +2500,7 @@ static void fdf_get_flash_stats( SDF_internal_ctxt_t *pai, char ** ppos, int * l
     if (stats != NULL) 
         stats->flash_stats[FDF_FLASH_STATS_SPACE_ALLOCATED] = space_allocated;
 
-    SDFContainerStat( pai, sdf_container,
+    FDFContainerStat( pai, sdf_container,
                              FLASH_SPACE_CONSUMED,
                              &space_consumed );
     plat_snprintfcat( ppos, lenp, "STAT flash_space_consumed %lu\r\n",
@@ -2499,7 +2508,7 @@ static void fdf_get_flash_stats( SDF_internal_ctxt_t *pai, char ** ppos, int * l
     if (stats != NULL) 
         stats->flash_stats[FDF_FLASH_STATS_SPACE_CONSUMED] = space_consumed;
 
-    SDFContainerStat( pai, sdf_container,
+    FDFContainerStat( pai, sdf_container,
                              FLASH_NUM_OBJECTS,
                              &num_objects );
     plat_snprintfcat( ppos, lenp, "STAT flash_num_objects %lu\r\n",
@@ -2507,7 +2516,7 @@ static void fdf_get_flash_stats( SDF_internal_ctxt_t *pai, char ** ppos, int * l
     if (stats != NULL) 
         stats->flash_stats[FDF_FLASH_STATS_NUM_OBJS] = num_objects;
 
-    SDFContainerStat( pai, sdf_container,
+    FDFContainerStat( pai, sdf_container,
                              FLASH_NUM_CREATED_OBJECTS,
                              &num_created_objects );
     plat_snprintfcat( ppos, lenp,
@@ -2516,7 +2525,7 @@ static void fdf_get_flash_stats( SDF_internal_ctxt_t *pai, char ** ppos, int * l
     if (stats != NULL) 
         stats->flash_stats[FDF_FLASH_STATS_NUM_CREATED_OBJS] = num_created_objects;
 
-    SDFContainerStat( pai, sdf_container,
+    FDFContainerStat( pai, sdf_container,
                              FLASH_NUM_EVICTIONS,
                              &num_evictions );
     plat_snprintfcat( ppos, lenp, "STAT flash_num_evictions %lu\r\n",
@@ -2524,7 +2533,7 @@ static void fdf_get_flash_stats( SDF_internal_ctxt_t *pai, char ** ppos, int * l
     if (stats != NULL) 
         stats->flash_stats[FDF_FLASH_STATS_NUM_EVICTIONS] = num_evictions;
 
-    SDFContainerStat( pai, sdf_container,
+    FDFContainerStat( pai, sdf_container,
                                  FLASH_NUM_HASH_EVICTIONS,
                                  &num_hash_evictions );
     plat_snprintfcat( ppos, lenp,
@@ -2533,7 +2542,7 @@ static void fdf_get_flash_stats( SDF_internal_ctxt_t *pai, char ** ppos, int * l
     if (stats != NULL) 
         stats->flash_stats[FDF_FLASH_STATS_NUM_HASH_EVICTIONS] = num_hash_evictions;
 
-    SDFContainerStat( pai, sdf_container,
+    FDFContainerStat( pai, sdf_container,
                                  FLASH_NUM_INVAL_EVICTIONS,
                                  &num_inval_evictions );
     plat_snprintfcat( ppos, lenp,
@@ -2542,7 +2551,7 @@ static void fdf_get_flash_stats( SDF_internal_ctxt_t *pai, char ** ppos, int * l
     if (stats != NULL) 
         stats->flash_stats[FDF_FLASH_STATS_NUM_INVAL_EVICTIONS] = num_inval_evictions;
 
-    SDFContainerStat( pai, sdf_container,
+    FDFContainerStat( pai, sdf_container,
                                  FLASH_NUM_SOFT_OVERFLOWS,
                                  &num_hash_overflows );
     plat_snprintfcat( ppos, lenp,
@@ -2551,7 +2560,7 @@ static void fdf_get_flash_stats( SDF_internal_ctxt_t *pai, char ** ppos, int * l
     if (stats != NULL) 
         stats->flash_stats[FDF_FLASH_STATS_NUM_SOFT_OVERFLOWS] = num_hash_overflows;
 
-    SDFContainerStat( pai, sdf_container,
+    FDFContainerStat( pai, sdf_container,
                                  FLASH_NUM_HARD_OVERFLOWS,
                                  &num_hash_overflows );
     plat_snprintfcat( ppos, lenp,
@@ -2560,7 +2569,7 @@ static void fdf_get_flash_stats( SDF_internal_ctxt_t *pai, char ** ppos, int * l
     if (stats != NULL) 
         stats->flash_stats[FDF_FLASH_STATS_NUM_HARD_OVERFLOWS] = num_hash_overflows;
 
-    SDFContainerStat( pai, sdf_container,
+    FDFContainerStat( pai, sdf_container,
                              FLASH_GET_HASH_COLLISIONS,
                                  &get_hash_collisions );
     plat_snprintfcat( ppos, lenp,
@@ -2570,7 +2579,7 @@ static void fdf_get_flash_stats( SDF_internal_ctxt_t *pai, char ** ppos, int * l
         stats->flash_stats[FDF_FLASH_STATS_GET_HASH_COLLISION] = get_hash_collisions;
 
 
-    SDFContainerStat( pai, sdf_container,
+    FDFContainerStat( pai, sdf_container,
                                  FLASH_SET_HASH_COLLISIONS,
                                  &set_hash_collisions );
     plat_snprintfcat( ppos, lenp,
@@ -2579,7 +2588,7 @@ static void fdf_get_flash_stats( SDF_internal_ctxt_t *pai, char ** ppos, int * l
     if (stats != NULL)
         stats->flash_stats[FDF_FLASH_STATS_SET_HASH_COLLISION] = set_hash_collisions;
 
-    SDFContainerStat( pai, sdf_container,
+    FDFContainerStat( pai, sdf_container,
                              FLASH_NUM_OVERWRITES,
                              &num_overwrites );
     plat_snprintfcat( ppos, lenp, "STAT flash_num_overwrites %lu\r\n",
@@ -2587,7 +2596,7 @@ static void fdf_get_flash_stats( SDF_internal_ctxt_t *pai, char ** ppos, int * l
     if (stats != NULL)
         stats->flash_stats[FDF_FLASH_STATS_NUM_OVERWRITES] = num_overwrites;
 
-    SDFContainerStat( pai, sdf_container,
+    FDFContainerStat( pai, sdf_container,
                              FLASH_OPS,
                              &num_ops );
     plat_snprintfcat( ppos, lenp, "STAT flash_num_ops %lu\r\n",
@@ -2595,7 +2604,7 @@ static void fdf_get_flash_stats( SDF_internal_ctxt_t *pai, char ** ppos, int * l
     if (stats != NULL)
         stats->flash_stats[FDF_FLASH_STATS_NUM_OPS] = num_ops;
 
-    SDFContainerStat( pai, sdf_container,
+    FDFContainerStat( pai, sdf_container,
                              FLASH_READ_OPS,
                              &num_read_ops );
 
@@ -2604,7 +2613,7 @@ static void fdf_get_flash_stats( SDF_internal_ctxt_t *pai, char ** ppos, int * l
     if (stats != NULL)
         stats->flash_stats[FDF_FLASH_STATS_NUM_READ_OPS] = num_read_ops;
 
-    SDFContainerStat( pai, sdf_container,
+    FDFContainerStat( pai, sdf_container,
                              FLASH_NUM_GET_OPS,
                              &num_get_ops );
     plat_snprintfcat( ppos, lenp, "STAT flash_num_get_ops %lu\r\n",
@@ -2612,7 +2621,7 @@ static void fdf_get_flash_stats( SDF_internal_ctxt_t *pai, char ** ppos, int * l
     if (stats != NULL)
         stats->flash_stats[FDF_FLASH_STATS_NUM_GET_OPS] = num_get_ops;
 
-    SDFContainerStat( pai, sdf_container,
+    FDFContainerStat( pai, sdf_container,
                              FLASH_NUM_PUT_OPS,
                              &num_put_ops );
     plat_snprintfcat( ppos, lenp, "STAT flash_num_put_ops %lu\r\n",
@@ -2620,7 +2629,7 @@ static void fdf_get_flash_stats( SDF_internal_ctxt_t *pai, char ** ppos, int * l
     if (stats != NULL)
         stats->flash_stats[FDF_FLASH_STATS_NUM_PUT_OPS] = num_put_ops;
 
-    SDFContainerStat( pai, sdf_container,
+    FDFContainerStat( pai, sdf_container,
                              FLASH_NUM_DELETE_OPS,
                              &num_del_ops );
     plat_snprintfcat( ppos, lenp, "STAT flash_num_del_ops %lu\r\n",
@@ -2628,7 +2637,7 @@ static void fdf_get_flash_stats( SDF_internal_ctxt_t *pai, char ** ppos, int * l
     if (stats != NULL)
         stats->flash_stats[FDF_FLASH_STATS_NUM_DEL_OPS] = num_del_ops;
 
-    SDFContainerStat( pai, sdf_container,
+    FDFContainerStat( pai, sdf_container,
                                  FLASH_NUM_EXIST_CHECKS,
                                  &num_ext_checks );
     plat_snprintfcat( ppos, lenp,
@@ -2637,7 +2646,7 @@ static void fdf_get_flash_stats( SDF_internal_ctxt_t *pai, char ** ppos, int * l
     if (stats != NULL)
         stats->flash_stats[FDF_FLASH_STATS_GET_EXIST_CHECKS] = num_ext_checks;
 
-    SDFContainerStat( pai, sdf_container,
+    FDFContainerStat( pai, sdf_container,
                                  FLASH_NUM_FULL_BUCKETS,
                                  &num_full_buckets );
     plat_snprintfcat( ppos, lenp,
@@ -2823,7 +2832,7 @@ static void get_fdf_stats( SDF_internal_ctxt_t *pai, char ** ppos, int * lenp,
     plat_snprintfcat( ppos, lenp, "STAT sdf_n_new_entries %lu\r\n",
                       sdf_n_new_entry);
 
-    SDFContainerStat( pai, sdf_container,
+    FDFContainerStat( pai, sdf_container,
                              SDF_N_ONLY_IN_CACHE, &n);
     plat_snprintfcat( ppos, lenp, "STAT sdf_cache_only_items %lu\r\n", n);
 
@@ -2914,8 +2923,6 @@ FDF_status_t FDFGetStatsStr (
         sdf_container = CtnrMap[i_ctnr].sdf_container;
     }
 
-    SDFEndSerializeContainerOp(pai);
-
     buf_len = STAT_BUFFER_SIZE;
     temp = stats_str;
     memset( temp, 0, buf_len );
@@ -2925,16 +2932,16 @@ FDF_status_t FDFGetStatsStr (
     plat_snprintfcat( &pos, &buf_len, "STAT Time %s\r\n", ctime(&t) );    
     plat_snprintfcat( &pos, &buf_len, "STAT Container Name %s\r\n", CtnrMap[i_ctnr].cname );
     plat_snprintfcat( &pos, &buf_len, "STAT CGUID %lu\r\n", cguid );
-    SDFContainerStat( pai, sdf_container, SDF_N_CURR_ITEMS, &n );
+    FDFContainerStat( pai, sdf_container, SDF_N_CURR_ITEMS, &n );
     plat_snprintfcat( &pos, &buf_len, "STAT curr_items %lu\r\n", n );
-    SDFContainerStat( pai, sdf_container,
+    FDFContainerStat( pai, sdf_container,
                              FLASH_SPACE_USED, &space_used );
     plat_snprintfcat( &pos, &buf_len, "STAT bytes %lu\r\n", space_used );
-    SDFContainerStat( pai, sdf_container,
+    FDFContainerStat( pai, sdf_container,
                                          FLASH_NUM_EVICTIONS, &num_evictions );
     plat_snprintfcat( &pos, &buf_len, "STAT evictions %lu\r\n",
                               num_evictions );
-    SDFContainerStat( pai, sdf_container,
+    FDFContainerStat( pai, sdf_container,
                                          FLASH_SHARD_MAXBYTES, &maxbytes );
     plat_snprintfcat( &pos, &buf_len, "STAT limit_maxbytes %lu\r\n",
                               maxbytes );
@@ -2943,8 +2950,10 @@ FDF_status_t FDFGetStatsStr (
     get_fdf_stats(pai, &pos, &buf_len, sdf_container,stats);
     get_proc_stats(&pos, &buf_len);
 out:
+
     //plat_log_msg(20819, LOG_CAT, log_level, "%s", SDF_Status_Strings[status]);
-    //SDFEndSerializeContainerOp(pai);
+    SDFEndSerializeContainerOp(pai);
+
     return (status);
 }
 
