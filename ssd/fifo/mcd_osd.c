@@ -1416,7 +1416,8 @@ SDF_status_t mcd_fth_container_init( void * pai, int system_recovery, int tcp_po
         mcd_fth_try_container( pai, i, system_recovery, tcp_ports[i], udp_ports[i], true, ctnr_name );
     }
 
-#ifdef MCD_ENABLE_PERSISTENCE
+//#ifdef MCD_ENABLE_PERSISTENCE
+#if 1
     /*
      * reclaim space left by deleted containers
      */
