@@ -592,7 +592,8 @@ typedef uint64_t FDF_cguid_t;
     item(FDF_NO_WRITEBACK_IN_STORE_MODE, /* default */) \
     item(FDF_WRITEBACK_CACHING_DISABLED, /* default */) \
     /* @brief Update ignored due to duplicate info */ \
-    item(FDF_UPDATE_DUPLICATE, /* default */)
+    item(FDF_UPDATE_DUPLICATE, /* default */) \
+    item(FDF_FAILURE_CONTAINER_TOO_SMALL, /* default */)
 
 
 typedef enum {

@@ -1221,6 +1221,12 @@ static FDF_status_t fdf_create_container(
 
      plat_log_msg(160035, LOG_CAT, LOG_INFO, "%s, size=%d bytes", cname, properties->size_kb * 1024);
 
+	if( properties->size_kb < 1024 * 1024 )
+	{
+     	plat_log_msg(160036, LOG_CAT, LOG_ERR, "%s, container size=%d bytes is less then minimum container size, which is 1Gb", cname, properties->size_kb * 1024);
+		return FDF_FAILURE_CONTAINER_TOO_SMALL;
+	}
+
     if (( !properties->evicting ) && ( !properties->writethru )) {
         plat_log_msg( 30572, LOG_CAT, LOG_ERR,
                       "Writeback caching can only be enabled for eviction mode containers" );
