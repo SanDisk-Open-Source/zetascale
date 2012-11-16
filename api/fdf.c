@@ -58,6 +58,7 @@ static time_t 		current_time 		= 0;
 extern void			*cmc_settings;
 extern int 			 Mcd_osd_max_nclasses;
 extern SDF_cmc_t 	*theCMC;
+extern uint64_t Mcd_num_pending_ios;
 
 extern int loadProperties(
 	const char *path_arg;
@@ -2352,7 +2353,7 @@ FDF_status_t FDFContainerStat(SDF_internal_ctxt_t *pai, SDF_CONTAINER container,
     return(status);
 }
 
-
+#if 0
 static void fdf_get_fth_stats(SDF_internal_ctxt_t *pai, char ** ppos, int * lenp,
                                  SDF_CONTAINER sdf_container, FDF_stats_t *stats )
 {
@@ -2449,6 +2450,7 @@ static void fdf_get_fth_stats(SDF_internal_ctxt_t *pai, char ** ppos, int * lenp
                       "STAT fth_avg_dispatch_nanosec %lu\r\n",
                       avg_dispatch );
 }
+#endif
 
 static void fdf_get_flash_stats( SDF_internal_ctxt_t *pai, char ** ppos, int * lenp,
                                  SDF_CONTAINER sdf_container, FDF_stats_t *stats)
@@ -2892,6 +2894,8 @@ FDF_status_t FDFGetStatsStr (
     FDF_status_t status = SDF_FAILURE;
     SDF_CONTAINER sdf_container = containerNull;
     SDF_internal_ctxt_t *pai = (SDF_internal_ctxt_t *) fdf_thread_state;
+    FDF_container_props_t   pprops;
+    SDF_container_meta_t    meta;
     time_t t;
     //SDF_status_t lock_status = SDF_SUCCESS;
     //SDF_cguid_t parent_cguid = SDF_NULL_CGUID;
@@ -2923,6 +2927,10 @@ FDF_status_t FDFGetStatsStr (
         sdf_container = CtnrMap[i_ctnr].sdf_container;
     }
 
+    if (( status = name_service_get_meta( pai, cguid, &meta )) == SDF_SUCCESS ) {
+        status = fdf_create_fdf_props( &meta.properties, &pprops );
+    }
+
     buf_len = STAT_BUFFER_SIZE;
     temp = stats_str;
     memset( temp, 0, buf_len );
@@ -2930,7 +2938,14 @@ FDF_status_t FDFGetStatsStr (
     buf_len -= strlen( "\r\nEND\r\n" ) + 1;
     time(&t);
     plat_snprintfcat( &pos, &buf_len, "STAT Time %s\r\n", ctime(&t) );    
-    plat_snprintfcat( &pos, &buf_len, "STAT Container Name %s\r\n", CtnrMap[i_ctnr].cname );
+    if ( status == SDF_SUCCESS ) {
+        //Add container properties to the list
+        plat_snprintfcat( &pos, &buf_len, "STAT Container Name %s size:%ukb FIFO:%d persistence:%d eviction:%d writethru:%d\r\n", 
+                                           CtnrMap[i_ctnr].cname, pprops.size_kb, pprops.fifo_mode, pprops.persistent, pprops.evicting, pprops.writethru );
+    }
+    else {
+        plat_snprintfcat( &pos, &buf_len, "STAT Container Name %s\r\n", CtnrMap[i_ctnr].cname );
+    }
     plat_snprintfcat( &pos, &buf_len, "STAT CGUID %lu\r\n", cguid );
     FDFContainerStat( pai, sdf_container, SDF_N_CURR_ITEMS, &n );
     plat_snprintfcat( &pos, &buf_len, "STAT curr_items %lu\r\n", n );
@@ -2946,7 +2961,12 @@ FDF_status_t FDFGetStatsStr (
     plat_snprintfcat( &pos, &buf_len, "STAT limit_maxbytes %lu\r\n",
                               maxbytes );
     fdf_get_flash_stats( pai, &pos, &buf_len, sdf_container,stats);
+    #if 0
     fdf_get_fth_stats( pai, &pos, &buf_len, sdf_container,stats);
+    #endif
+    if (stats != NULL) {
+        stats->flash_stats[FDF_FLASH_STATS_PENDING_IOS] = Mcd_num_pending_ios;
+    }
     get_fdf_stats(pai, &pos, &buf_len, sdf_container,stats);
     get_proc_stats(&pos, &buf_len);
 out:
