@@ -1336,13 +1336,13 @@ static SDF_status_t update_container_map(char *cname, SDF_cguid_t cguid) {
     int 	 i;
     SDF_status_t status = SDF_FAILURE;
 
-    for (i=1; i<MCD_MAX_NUM_CNTRS; i++) {
+    for (i=0; i<MCD_MAX_NUM_CNTRS; i++) {
         if (CtnrMap[i].cguid == 0) {
             // this is an unused map entry
             CtnrMap[i].cname = plat_alloc(strlen(cname)+1);
             if (CtnrMap[i].cname == NULL) {
                 status = SDF_FAILURE_MEMORY_ALLOC;
-		break;
+				break;
             }
             strcpy(CtnrMap[i].cname, cname);
             CtnrMap[i].cguid         = cguid;
@@ -1397,13 +1397,13 @@ SDF_status_t mcd_fth_container_init( void * pai, int system_recovery, int tcp_po
         mcd_osd_shard_get_properties( i + 1, &Mcd_fth_saved_props[i] );
         if ( 0 == flash_settings.static_containers &&
              SYS_FLASH_REFORMAT != system_recovery ) {
-	    if ( Mcd_fth_saved_props[i].tcp_port != 0 ) {
-		char *cname = Mcd_fth_saved_props[i].cname;
-                SDF_cguid_t cguid;
-		if (SDF_SUCCESS == name_service_get_cguid(pai, cname, &cguid)) {
-		    update_container_map(cname, cguid);
-		}
-	    }
+	    	if ( Mcd_fth_saved_props[i].tcp_port != 0 ) {
+				char *cname = Mcd_fth_saved_props[i].cname;
+				SDF_cguid_t cguid;
+				if (SDF_SUCCESS == name_service_get_cguid(pai, cname, &cguid)) {
+		    		update_container_map(cname, cguid);
+				}
+	    	}
             tcp_ports[i] = Mcd_fth_saved_props[i].tcp_port;
             udp_ports[i] = Mcd_fth_saved_props[i].udp_port;
         }
