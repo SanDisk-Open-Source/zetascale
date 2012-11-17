@@ -187,177 +187,178 @@ typedef struct {
  *  don't get screwed up because of inconsistent status codes!!!!!
  */
 
-#define SDF_STATUS_ITEMS() \
-    item(SDF_SUCCESS, = 1) \
-    item(SDF_FAILURE, /* default */) \
-    item(SDF_FAILURE_GENERIC, /* default */) \
-    item(SDF_FAILURE_CONTAINER_GENERIC, /* default */) \
-    item(SDF_FAILURE_INVALID_CONTAINER_TYPE, /* default */) \
-    item(SDF_INVALID_PARAMETER, /* default */) \
-    item(SDF_CONTAINER_UNKNOWN, /* default */) \
-    item(SDF_UNPRELOAD_CONTAINER_FAILED, /* default */) \
-    item(SDF_CONTAINER_EXISTS, /* default */) \
-    item(SDF_SHARD_NOT_FOUND, /* default */) \
-    item(SDF_OBJECT_UNKNOWN, /* default */) \
-    item(SDF_OBJECT_EXISTS, /* default */) \
-    item(SDF_OBJECT_TOO_BIG, /* default */) \
-    item(SDF_FAILURE_STORAGE_READ, /* default */) \
-    item(SDF_FAILURE_STORAGE_WRITE, /* default */) \
-    item(SDF_FAILURE_MEMORY_ALLOC, /* default */) \
-    item(SDF_LOCK_INVALID_OP, /* default */) \
-    item(SDF_ALREADY_UNLOCKED, /* default */) \
-    item(SDF_ALREADY_READ_LOCKED, /* default */) \
-    item(SDF_ALREADY_WRITE_LOCKED, /* default */) \
-    item(SDF_OBJECT_NOT_CACHED, /* default */) \
-    item(SDF_SM_WAITING, /* default */) \
-    item(SDF_TOO_MANY_OPIDS, /* default */) \
-    item(SDF_TRANS_CONFLICT, /* default */) \
-    item(SDF_PIN_CONFLICT, /* default */) \
-    item(SDF_OBJECT_DELETED, /* default */) \
-    item(SDF_TRANS_NONTRANS_CONFLICT, /* default */) \
-    item(SDF_ALREADY_READ_PINNED, /* default */) \
-    item(SDF_ALREADY_WRITE_PINNED, /* default */) \
-    item(SDF_TRANS_PIN_CONFLICT, /* default */) \
-    item(SDF_PIN_NONPINNED_CONFLICT, /* default */) \
-    item(SDF_TRANS_FLUSH, /* default */) \
-    item(SDF_TRANS_LOCK, /* default */) \
-    item(SDF_TRANS_UNLOCK, /* default */) \
-    item(SDF_UNSUPPORTED_REQUEST, /* default */) \
-    item(SDF_UNKNOWN_REQUEST, /* default */) \
-    item(SDF_BAD_PBUF_POINTER, /* default */) \
-    item(SDF_BAD_PDATA_POINTER, /* default */) \
-    item(SDF_BAD_SUCCESS_POINTER, /* default */) \
-    item(SDF_NOT_PINNED, /* default */) \
-    item(SDF_NOT_READ_LOCKED, /* default */) \
-    item(SDF_NOT_WRITE_LOCKED, /* default */) \
-    item(SDF_PIN_FLUSH, /* default */) \
-    item(SDF_BAD_CONTEXT, /* default */) \
-    item(SDF_IN_TRANS, /* default */) \
-    item(SDF_NONCACHEABLE_CONTAINER, /* default */) \
-    item(SDF_OUT_OF_CONTEXTS, /* default */) \
-    item(SDF_INVALID_RANGE, /* default */) \
-    item(SDF_OUT_OF_MEM, /* default */) \
-    item(SDF_NOT_IN_TRANS, /* default */) \
-    item(SDF_TRANS_ABORTED, /* default */) \
-    item(SDF_FAILURE_MBOX, /* default */) \
-    item(SDF_FAILURE_MSG_ALLOC, /* default */) \
-    item(SDF_FAILURE_MSG_SEND, /* default */) \
-    item(SDF_FAILURE_MSG_RECEIVE, /* default */) \
-    item(SDF_ENUMERATION_END, /* default */) \
-    item(SDF_BAD_KEY, /* default */) \
-    item(SDF_FAILURE_CONTAINER_OPEN, /* default */) \
-    item(SDF_BAD_PEXPTIME_POINTER, /* default */) \
-    item(SDF_BAD_PINVTIME_POINTER, /* default */) \
-    item(SDF_BAD_PSTAT_POINTER, /* default */) \
-    item(SDF_BAD_PPCBUF_POINTER, /* default */) \
-    item(SDF_BAD_SIZE_POINTER, /* default */) \
-    item(SDF_EXPIRED, /* default */) \
-    item(SDF_EXPIRED_FAIL, /* default */) \
-    item(SDF_PROTOCOL_ERROR, /* default */)\
-    item(SDF_TOO_MANY_CONTAINERS, /* default */)\
-    item(SDF_STOPPED_CONTAINER, /* default */)\
-    item(SDF_GET_METADATA_FAILED, /* default */)\
-    item(SDF_PUT_METADATA_FAILED, /* default */)\
-    item(SDF_GET_DIRENTRY_FAILED, /* default */)\
-    item(SDF_EXPIRY_GET_FAILED, /* default */)\
-    item(SDF_EXPIRY_DELETE_FAILED, /* default */)\
-    item(SDF_EXIST_FAILED, /* default */)\
-    item(SDF_NO_PSHARD, /* default */)\
-    item(SDF_SHARD_DELETE_SERVICE_FAILED, /* default */) \
-    item(SDF_START_SHARD_MAP_ENTRY_FAILED, /* default */) \
-    item(SDF_STOP_SHARD_MAP_ENTRY_FAILED, /* default */) \
-    item(SDF_DELETE_SHARD_MAP_ENTRY_FAILED, /* default */) \
-    item(SDF_CREATE_SHARD_MAP_ENTRY_FAILED, /* default */) \
-    item(SDF_FLASH_DELETE_FAILED, /* default */) \
-    item(SDF_FLASH_EPERM, /* default */) \
-    item(SDF_FLASH_ENOENT, /* default */) \
-    item(SDF_FLASH_EAGAIN, /* default */) \
-    item(SDF_FLASH_ENOMEM, /* default */) \
-    item(SDF_FLASH_EDATASIZE, /* default */) \
-    item(SDF_FLASH_EBUSY, /* default */) \
-    item(SDF_FLASH_EEXIST, /* default */) \
-    item(SDF_FLASH_EACCES, /* default */) \
-    item(SDF_FLASH_EINVAL, /* default */) \
-    item(SDF_FLASH_EMFILE, /* default */) \
-    item(SDF_FLASH_ENOSPC, /* default */) \
-    item(SDF_FLASH_ENOBUFS, /* default */) \
-    item(SDF_FLASH_EDQUOT, /* default */) \
-    item(SDF_FLASH_STALE_CURSOR, /* default */) \
-    item(SDF_FLASH_EDELFAIL, /* default */) \
-    item(SDF_FLASH_EINCONS, /* default */) \
-    item(SDF_STALE_LTIME, /* default */) \
-    item(SDF_WRONG_NODE, /* default */) \
-    item(SDF_UNAVAILABLE, /* default */) \
-    item(SDF_TEST_FAIL, /* default */) \
-    item(SDF_TEST_CRASH, /* default */) \
-    item(SDF_VERSION_CHECK_NO_PEER, /* default */) \
-    item(SDF_VERSION_CHECK_BAD_VERSION, /* default */) \
-    item(SDF_VERSION_CHECK_FAILED, /* default */) \
-    item(SDF_META_DATA_VERSION_TOO_NEW, /* default */) \
-    item(SDF_META_DATA_INVALID, /* default */) \
-    item(SDF_BAD_META_SEQNO, /* default */) \
-    item(SDF_BAD_LTIME, /* default */) \
-    item(SDF_LEASE_EXISTS, /* default */) \
+#define FDF_STATUS_ITEMS() \
+    item(FDF_SUCCESS, = 1) \
+    item(FDF_FAILURE, /* default */) \
+    item(FDF_FAILURE_GENERIC, /* default */) \
+    item(FDF_FAILURE_CONTAINER_GENERIC, /* default */) \
+	item(FDF_FAILURE_CONTAINER_NOT_OPEN, /* default */) \
+    item(FDF_FAILURE_INVALID_CONTAINER_TYPE, /* default */) \
+    item(FDF_INVALID_PARAMETER, /* default */) \
+    item(FDF_CONTAINER_UNKNOWN, /* default */) \
+    item(FDF_UNPRELOAD_CONTAINER_FAILED, /* default */) \
+    item(FDF_CONTAINER_EXISTS, /* default */) \
+    item(FDF_SHARD_NOT_FOUND, /* default */) \
+    item(FDF_OBJECT_UNKNOWN, /* default */) \
+    item(FDF_OBJECT_EXISTS, /* default */) \
+    item(FDF_OBJECT_TOO_BIG, /* default */) \
+    item(FDF_FAILURE_STORAGE_READ, /* default */) \
+    item(FDF_FAILURE_STORAGE_WRITE, /* default */) \
+    item(FDF_FAILURE_MEMORY_ALLOC, /* default */) \
+    item(FDF_LOCK_INVALID_OP, /* default */) \
+    item(FDF_ALREADY_UNLOCKED, /* default */) \
+    item(FDF_ALREADY_READ_LOCKED, /* default */) \
+    item(FDF_ALREADY_WRITE_LOCKED, /* default */) \
+    item(FDF_OBJECT_NOT_CACHED, /* default */) \
+    item(FDF_SM_WAITING, /* default */) \
+    item(FDF_TOO_MANY_OPIDS, /* default */) \
+    item(FDF_TRANS_CONFLICT, /* default */) \
+    item(FDF_PIN_CONFLICT, /* default */) \
+    item(FDF_OBJECT_DELETED, /* default */) \
+    item(FDF_TRANS_NONTRANS_CONFLICT, /* default */) \
+    item(FDF_ALREADY_READ_PINNED, /* default */) \
+    item(FDF_ALREADY_WRITE_PINNED, /* default */) \
+    item(FDF_TRANS_PIN_CONFLICT, /* default */) \
+    item(FDF_PIN_NONPINNED_CONFLICT, /* default */) \
+    item(FDF_TRANS_FLUSH, /* default */) \
+    item(FDF_TRANS_LOCK, /* default */) \
+    item(FDF_TRANS_UNLOCK, /* default */) \
+    item(FDF_UNSUPPORTED_REQUEST, /* default */) \
+    item(FDF_UNKNOWN_REQUEST, /* default */) \
+    item(FDF_BAD_PBUF_POINTER, /* default */) \
+    item(FDF_BAD_PDATA_POINTER, /* default */) \
+    item(FDF_BAD_SUCCESS_POINTER, /* default */) \
+    item(FDF_NOT_PINNED, /* default */) \
+    item(FDF_NOT_READ_LOCKED, /* default */) \
+    item(FDF_NOT_WRITE_LOCKED, /* default */) \
+    item(FDF_PIN_FLUSH, /* default */) \
+    item(FDF_BAD_CONTEXT, /* default */) \
+    item(FDF_IN_TRANS, /* default */) \
+    item(FDF_NONCACHEABLE_CONTAINER, /* default */) \
+    item(FDF_OUT_OF_CONTEXTS, /* default */) \
+    item(FDF_INVALID_RANGE, /* default */) \
+    item(FDF_OUT_OF_MEM, /* default */) \
+    item(FDF_NOT_IN_TRANS, /* default */) \
+    item(FDF_TRANS_ABORTED, /* default */) \
+    item(FDF_FAILURE_MBOX, /* default */) \
+    item(FDF_FAILURE_MSG_ALLOC, /* default */) \
+    item(FDF_FAILURE_MSG_SEND, /* default */) \
+    item(FDF_FAILURE_MSG_RECEIVE, /* default */) \
+    item(FDF_ENUMERATION_END, /* default */) \
+    item(FDF_BAD_KEY, /* default */) \
+    item(FDF_FAILURE_CONTAINER_OPEN, /* default */) \
+    item(FDF_BAD_PEXPTIME_POINTER, /* default */) \
+    item(FDF_BAD_PINVTIME_POINTER, /* default */) \
+    item(FDF_BAD_PSTAT_POINTER, /* default */) \
+    item(FDF_BAD_PPCBUF_POINTER, /* default */) \
+    item(FDF_BAD_SIZE_POINTER, /* default */) \
+    item(FDF_EXPIRED, /* default */) \
+    item(FDF_EXPIRED_FAIL, /* default */) \
+    item(FDF_PROTOCOL_ERROR, /* default */)\
+    item(FDF_TOO_MANY_CONTAINERS, /* default */)\
+    item(FDF_STOPPED_CONTAINER, /* default */)\
+    item(FDF_GET_METADATA_FAILED, /* default */)\
+    item(FDF_PUT_METADATA_FAILED, /* default */)\
+    item(FDF_GET_DIRENTRY_FAILED, /* default */)\
+    item(FDF_EXPIRY_GET_FAILED, /* default */)\
+    item(FDF_EXPIRY_DELETE_FAILED, /* default */)\
+    item(FDF_EXIST_FAILED, /* default */)\
+    item(FDF_NO_PSHARD, /* default */)\
+    item(FDF_SHARD_DELETE_SERVICE_FAILED, /* default */) \
+    item(FDF_START_SHARD_MAP_ENTRY_FAILED, /* default */) \
+    item(FDF_STOP_SHARD_MAP_ENTRY_FAILED, /* default */) \
+    item(FDF_DELETE_SHARD_MAP_ENTRY_FAILED, /* default */) \
+    item(FDF_CREATE_SHARD_MAP_ENTRY_FAILED, /* default */) \
+    item(FDF_FLASH_DELETE_FAILED, /* default */) \
+    item(FDF_FLASH_EPERM, /* default */) \
+    item(FDF_FLASH_ENOENT, /* default */) \
+    item(FDF_FLASH_EAGAIN, /* default */) \
+    item(FDF_FLASH_ENOMEM, /* default */) \
+    item(FDF_FLASH_EDATASIZE, /* default */) \
+    item(FDF_FLASH_EBUSY, /* default */) \
+    item(FDF_FLASH_EEXIST, /* default */) \
+    item(FDF_FLASH_EACCES, /* default */) \
+    item(FDF_FLASH_EINVAL, /* default */) \
+    item(FDF_FLASH_EMFILE, /* default */) \
+    item(FDF_FLASH_ENOSPC, /* default */) \
+    item(FDF_FLASH_ENOBUFS, /* default */) \
+    item(FDF_FLASH_EDQUOT, /* default */) \
+    item(FDF_FLASH_STALE_CURSOR, /* default */) \
+    item(FDF_FLASH_EDELFAIL, /* default */) \
+    item(FDF_FLASH_EINCONS, /* default */) \
+    item(FDF_STALE_LTIME, /* default */) \
+    item(FDF_WRONG_NODE, /* default */) \
+    item(FDF_UNAVAILABLE, /* default */) \
+    item(FDF_TEST_FAIL, /* default */) \
+    item(FDF_TEST_CRASH, /* default */) \
+    item(FDF_VERSION_CHECK_NO_PEER, /* default */) \
+    item(FDF_VERSION_CHECK_BAD_VERSION, /* default */) \
+    item(FDF_VERSION_CHECK_FAILED, /* default */) \
+    item(FDF_META_DATA_VERSION_TOO_NEW, /* default */) \
+    item(FDF_META_DATA_INVALID, /* default */) \
+    item(FDF_BAD_META_SEQNO, /* default */) \
+    item(FDF_BAD_LTIME, /* default */) \
+    item(FDF_LEASE_EXISTS, /* default */) \
     /** @brief Subsystem has conflicting requests in  progress */ \
-    item(SDF_BUSY, /* default */) \
+    item(FDF_BUSY, /* default */) \
     /* @brief Subsystem already shutdown */ \
-    item(SDF_SHUTDOWN, /* default */) \
-    item(SDF_TIMEOUT, /* default */) \
-    item(SDF_NODE_DEAD, /* default */) \
-    item(SDF_SHARD_DOES_NOT_EXIST, /* default */) \
-    item(SDF_STATE_CHANGED, /* default */) \
-    item(SDF_NO_META, /* default */) \
-    item(SDF_TEST_MODEL_VIOLATION, /* default */) \
-    item(SDF_REPLICATION_NOT_READY, /* default */) \
-    item(SDF_REPLICATION_BAD_TYPE, /* default */) \
-    item(SDF_REPLICATION_BAD_STATE, /* default */) \
-    item(SDF_NODE_INVALID, /* default */) \
-    item(SDF_CORRUPT_MSG, /* default */) \
-    item(SDF_QUEUE_FULL, /* default */) \
-    item(SDF_RMT_CONTAINER_UNKNOWN, /* default */) \
-    item(SDF_FLASH_RMT_EDELFAIL, /* default */)  \
+    item(FDF_SHUTDOWN, /* default */) \
+    item(FDF_TIMEOUT, /* default */) \
+    item(FDF_NODE_DEAD, /* default */) \
+    item(FDF_SHARD_DOES_NOT_EXIST, /* default */) \
+    item(FDF_STATE_CHANGED, /* default */) \
+    item(FDF_NO_META, /* default */) \
+    item(FDF_TEST_MODEL_VIOLATION, /* default */) \
+    item(FDF_REPLICATION_NOT_READY, /* default */) \
+    item(FDF_REPLICATION_BAD_TYPE, /* default */) \
+    item(FDF_REPLICATION_BAD_STATE, /* default */) \
+    item(FDF_NODE_INVALID, /* default */) \
+    item(FDF_CORRUPT_MSG, /* default */) \
+    item(FDF_QUEUE_FULL, /* default */) \
+    item(FDF_RMT_CONTAINER_UNKNOWN, /* default */) \
+    item(FDF_FLASH_RMT_EDELFAIL, /* default */)  \
     /* @brief Lock request conflicts with a reserved lock */ \
-    item(SDF_LOCK_RESERVED, /* default */) \
-    item(SDF_KEY_TOO_LONG, /* default */) \
-    item(SDF_NO_WRITEBACK_IN_STORE_MODE, /* default */) \
-    item(SDF_WRITEBACK_CACHING_DISABLED, /* default */) \
+    item(FDF_LOCK_RESERVED, /* default */) \
+    item(FDF_KEY_TOO_LONG, /* default */) \
+    item(FDF_NO_WRITEBACK_IN_STORE_MODE, /* default */) \
+    item(FDF_WRITEBACK_CACHING_DISABLED, /* default */) \
     /* @brief Update ignored due to duplicate info */ \
-    item(SDF_UPDATE_DUPLICATE, /* default */)
+    item(FDF_UPDATE_DUPLICATE, /* default */)
 
 
 typedef enum {
 #define item(caps, value) \
     caps value,
-    SDF_STATUS_ITEMS()
+    FDF_STATUS_ITEMS()
 #undef item
-    N_SDF_STATUS_STRINGS
-} SDF_status_t;
+    N_FDF_STATUS_STRINGS
+} FDF_status_t;
 
     /* these MUST be kept in sync with above enums! */
 #ifndef _INSTANTIATE_SDF_STATUS_STRINGS
-    extern char *SDF_Status_Strings[];
+    extern char *FDF_Status_Strings[];
 #else
-    char *SDF_Status_Strings[] = {
+    char *FDF_Status_Strings[] = {
 	"UNKNOWN_STATUS", /* since SDF_SUCCESS is 1! */
 #define item(caps, value) \
         #caps,
-        SDF_STATUS_ITEMS()
+        FDF_STATUS_ITEMS()
 #undef item
     };
 #endif
 
 static inline int
-sdf_status_valid(SDF_status_t status) {
-    return (status < N_SDF_STATUS_STRINGS);
+fdf_status_valid(FDF_status_t status) {
+    return (status < N_FDF_STATUS_STRINGS);
 }
 
 /* Avoid link order problem with strings */
 static inline const char *
-sdf_status_to_string(SDF_status_t status) {
+fdf_status_to_string(FDF_status_t status) {
     switch (status) {
 #define item(caps, value) \
     case caps: return (#caps);
-    SDF_STATUS_ITEMS()
+    FDF_STATUS_ITEMS()
 #undef item
     default:
         return ("Invalid");
