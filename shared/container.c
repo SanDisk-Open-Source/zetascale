@@ -1320,8 +1320,9 @@ SDF_status_t SDFContainerStatInternal(SDF_internal_ctxt_t *pai, SDF_CONTAINER co
 
 	log_level = LOG_DBG;
     }
-
+    #ifndef SDFAPIONLY
     plat_log_msg(20819, LOG_CAT, log_level, "%s", SDF_Status_Strings[status]);
+    #endif
 
     return (status);
 }

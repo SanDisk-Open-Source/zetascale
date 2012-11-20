@@ -1006,6 +1006,9 @@ FDF_status_t FDFInit(
 
     *fdf_state = (struct FDF_state *) &agent_state;
 
+    #ifdef FDF_REVISION
+    plat_log_msg(160038, LOG_CAT, LOG_INFO, "Flash Data Fabric:%s",FDF_REVISION);
+    #endif
 	prop_file = getenv("FDF_PROPERTY_FILE");
 	if (prop_file)
 		loadProperties(prop_file);
@@ -2484,20 +2487,30 @@ static void fdf_get_flash_stats( SDF_internal_ctxt_t *pai, char ** ppos, int * l
     FDFContainerStat( pai, sdf_container,
                              FLASH_SLAB_CLASS_SEGS,
                              (uint64_t *)&stats_ptr );
-    plat_snprintfcat( ppos, lenp, "STAT flash_class_map" );
-    for ( int i = 0; i < Mcd_osd_max_nclasses; i++ ) {
-        plat_snprintfcat( ppos, lenp, " %lu", stats_ptr[i] );
+    if( stats_ptr != NULL ) {
+        plat_snprintfcat( ppos, lenp, "STAT flash_class_map" );
+        for ( int i = 0; i < Mcd_osd_max_nclasses; i++ ) {
+            plat_snprintfcat( ppos, lenp, " %lu", stats_ptr[i] );
+        }
+        plat_snprintfcat( ppos, lenp, "\r\n" );
     }
-    plat_snprintfcat( ppos, lenp, "\r\n" );
+    else {
+        plat_snprintfcat( ppos, lenp, "STAT flash_class_map:\r\n" );
+    }
 
     FDFContainerStat( pai, sdf_container,
                              FLASH_SLAB_CLASS_SLABS,
                              (uint64_t *)&stats_ptr );
-    plat_snprintfcat( ppos, lenp, "STAT flash_slab_map" );
-    for ( int i = 0; i < Mcd_osd_max_nclasses; i++ ) {
-        plat_snprintfcat( ppos, lenp, " %lu", stats_ptr[i] );
+    if( stats_ptr != NULL ) {
+        plat_snprintfcat( ppos, lenp, "STAT flash_slab_map" );
+        for ( int i = 0; i < Mcd_osd_max_nclasses; i++ ) {
+            plat_snprintfcat( ppos, lenp, " %lu", stats_ptr[i] );
+        }
+        plat_snprintfcat( ppos, lenp, "\r\n" );
     }
-    plat_snprintfcat( ppos, lenp, "\r\n" );
+    else {
+        plat_snprintfcat( ppos, lenp, "STAT flash_slab_map:\r\n" );
+    }
 
     FDFContainerStat( pai, sdf_container,
                              FLASH_SPACE_ALLOCATED,
@@ -2802,7 +2815,11 @@ static void get_fdf_stats( SDF_internal_ctxt_t *pai, char ** ppos, int * lenp,
     //container = internal_clientToServerContainer( sdf_container );
     //lc = getLocalContainer( &lc, container );
     lc = getLocalContainer( &lc, sdf_container );
-	plat_assert( NULL != lc );
+    if ( lc == NULL ) {  
+	    //plat_assert( NULL != lc );
+        plat_snprintfcat( ppos, lenp, "STAT sdf_stats: None\r\n");
+        return;
+    }
 
     memset( buf, 0, BUF_LEN);
     action_stats_new_cguid(pai, buf, BUF_LEN, lc->cguid );
