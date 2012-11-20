@@ -1,6 +1,12 @@
 #!/bin/bash
 
-CFLAGS = -c -I.. -I../.. -DSDFAPI -DSDFAPIONLY
+#CFLAGS = -c -Isdf/inc -I../api -I..
+CFLAGS = -c -I../api -I..
 
-libfdfdll.a: sdf_dll.o
-	ar cr libfdfdll.a sdf_dll.o
+libfdfdll.a: fdf_dll.o
+	ar cr libfdfdll.a fdf_dll.o
+
+.PHONY: clean
+
+clean:
+	rm -f fdf_dll.o libfdfdll.a

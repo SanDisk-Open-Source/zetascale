@@ -1,0 +1,11 @@
+A Simple FDF Test Program
+=========================
+
+To run the test program, set FDF_LIB to point to the location of your shared
+FDF library and then type run_hello.  So you might type:
+
+    export FDF_LIB=/tmp/libfdfdbg.so
+    ./run_hello
+
+This will ensure that libfdfdll.a is built, build the test program and then run
+it.
