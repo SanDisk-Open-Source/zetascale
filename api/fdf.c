@@ -1253,6 +1253,13 @@ static FDF_status_t fdf_create_container(
         }
     }
 
+	// We only allow FIFO mode for evicting, non-persistent containers
+	if ( properties->fifo_mode && ( !properties->evicting || properties->persistent ) ) {
+        plat_log_msg( 150043, LOG_CAT, LOG_ERR,
+                      "FIFO mode is only allowed for evicting, non-persistent containers" );
+        return FDF_FAILURE_INVALID_CONTAINER_TYPE;
+	}
+
     SDFStartSerializeContainerOp( pai );
 
     if ( strcmp( cname, CMC_PATH ) == 0 ) {
@@ -1514,6 +1521,10 @@ static FDF_status_t fdf_create_container(
             }           
 		}
     }
+
+	if ( NULL != sdf_properties )
+		plat_free ( sdf_properties );
+
     SDFEndSerializeContainerOp( pai );
 
 	plat_assert(status != SDF_SUCCESS || *cguid);
