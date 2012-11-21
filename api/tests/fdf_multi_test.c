@@ -9,7 +9,7 @@ static FDF_cguid_t  cguid_shared;
 static char *base = "contatiner";
 static int iterations = 1000;
 static int threads = 1;
-static int size = 1024 * 1024;
+static long size = 1024 * 1024 * 1024;
 
 void
 advance_spinner() {
@@ -34,7 +34,7 @@ FDF_status_t fdf_create_container (
     FDF_container_props_t   props;
     uint32_t                flags		= FDF_CTNR_CREATE;
 
-    props.size_kb                       = size;
+    props.size_kb                       = size / 1024;
     props.fifo_mode                     = SDF_FALSE;
     props.persistent                    = SDF_TRUE;
     props.evicting                      = SDF_FALSE;
@@ -280,20 +280,18 @@ int main(int argc, char *argv[])
     char 						 name[32];
 
 	if ( argc < 4 ) {
-		fprintf( stderr, "Usage: %s <size> <threads> <iterations>\n", argv[0] );
+		fprintf( stderr, "Usage: %s <size in gb> <threads> <iterations>\n", argv[0] );
 		return 0;
 	} else {
-		size = atoi( argv[1] );
+		size = atol( argv[1] ) * 1024 * 1024 * 1024;
 		threads = atoi( argv[2] );
 		iterations = atoi( argv[3] );
-		fprintf(stderr, "size=%d, hreads=%d, iterations=%d\n", size, threads, iterations);
+		fprintf(stderr, "size=%lu, hreads=%d, iterations=%d\n", size, threads, iterations);
 	}
 
     FDFSetProperty("SDF_FLASH_FILENAME", "/schooner/data/schooner%d");
     FDFSetProperty("SDF_FLASH_SIZE", "12");
     FDFSetProperty("SDF_CC_MAXCACHESIZE", "1000000000");
-
-	//FDFLoadProperties("/schooner/backup/evgeny/membrain-4.2/membrain/server/sdf/api/really_really_simple.prop");
 
     sprintf(name, "%s-foo", base);
 

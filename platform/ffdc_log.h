@@ -9,7 +9,7 @@
  * log message in the codebase.  The structure contains one field for
  * each message parameter in the log message, along with other meta data
  * 
- * Generated On: 2012-11-12 16:01:06
+ * Generated On: 2012-11-20 15:44:23
  *------------------------------------------------------------------------*/
 
 #ifndef PLATFORM_FFDC_H
@@ -68459,6 +68459,187 @@ ffdc_log_func_150035(int lineno, int msgid, int catid, int level, const char* fm
     const char* arg1);
 
 /*---------------------------------------------------------------------------
+ * MsgID : 150036
+ * Msg   : "Set to %s"
+ *-------------------------------------------------------------------------*/
+struct ffdc_log_struct_150036
+{
+    int magic;
+    int msgid;
+    int catid;
+    int level;
+    unsigned long th_id;
+    unsigned long fth_id;
+    int lineno;
+    struct timeval timestamp;
+
+    char arg1[FFDC_MAX_STR_SIZE];
+} __attribute__ ((aligned (64)));
+
+__inline__ void
+ffdc_log_func_150036(int lineno, int msgid, int catid, int level, const char* fmt,
+    const char* arg1);
+
+/*---------------------------------------------------------------------------
+ * MsgID : 150037
+ * Msg   : "done"
+ *-------------------------------------------------------------------------*/
+struct ffdc_log_struct_150037
+{
+    int magic;
+    int msgid;
+    int catid;
+    int level;
+    unsigned long th_id;
+    unsigned long fth_id;
+    int lineno;
+    struct timeval timestamp;
+
+
+} __attribute__ ((aligned (64)));
+
+__inline__ void
+ffdc_log_func_150037(int lineno, int msgid, int catid, int level, const char* fmt);
+
+/*---------------------------------------------------------------------------
+ * MsgID : 150038
+ * Msg   : "ENTERING, buf=%p offset=%lu nbytes=%d"
+ *-------------------------------------------------------------------------*/
+struct ffdc_log_struct_150038
+{
+    int magic;
+    int msgid;
+    int catid;
+    int level;
+    unsigned long th_id;
+    unsigned long fth_id;
+    int lineno;
+    struct timeval timestamp;
+
+    long arg1;
+    long arg2;
+    int arg3;
+} __attribute__ ((aligned (64)));
+
+__inline__ void
+ffdc_log_func_150038(int lineno, int msgid, int catid, int level, const char* fmt,
+    void* arg1, long arg2, int arg3);
+
+/*---------------------------------------------------------------------------
+ * MsgID : 150039
+ * Msg   : "%s, size=%u bytes"
+ *-------------------------------------------------------------------------*/
+struct ffdc_log_struct_150039
+{
+    int magic;
+    int msgid;
+    int catid;
+    int level;
+    unsigned long th_id;
+    unsigned long fth_id;
+    int lineno;
+    struct timeval timestamp;
+
+    char arg1[FFDC_MAX_STR_SIZE];
+    int arg2;
+} __attribute__ ((aligned (64)));
+
+__inline__ void
+ffdc_log_func_150039(int lineno, int msgid, int catid, int level, const char* fmt,
+    const char* arg1, int arg2);
+
+/*---------------------------------------------------------------------------
+ * MsgID : 150040
+ * Msg   : "%s, size=%lu bytes"
+ *-------------------------------------------------------------------------*/
+struct ffdc_log_struct_150040
+{
+    int magic;
+    int msgid;
+    int catid;
+    int level;
+    unsigned long th_id;
+    unsigned long fth_id;
+    int lineno;
+    struct timeval timestamp;
+
+    char arg1[FFDC_MAX_STR_SIZE];
+    long arg2;
+} __attribute__ ((aligned (64)));
+
+__inline__ void
+ffdc_log_func_150040(int lineno, int msgid, int catid, int level, const char* fmt,
+    const char* arg1, long arg2);
+
+/*---------------------------------------------------------------------------
+ * MsgID : 150041
+ * Msg   : "Container is not deleted (busy or error): cguid=%lu, status=%
+ *          s"
+ *-------------------------------------------------------------------------*/
+struct ffdc_log_struct_150041
+{
+    int magic;
+    int msgid;
+    int catid;
+    int level;
+    unsigned long th_id;
+    unsigned long fth_id;
+    int lineno;
+    struct timeval timestamp;
+
+    long arg1;
+    char arg2[FFDC_MAX_STR_SIZE];
+} __attribute__ ((aligned (64)));
+
+__inline__ void
+ffdc_log_func_150041(int lineno, int msgid, int catid, int level, const char* fmt,
+    long arg1, const char* arg2);
+
+/*---------------------------------------------------------------------------
+ * MsgID : 150042
+ * Msg   : "FIFO mode is only allowed for non-evicting, non-persistent 
+ *          containers"
+ *-------------------------------------------------------------------------*/
+struct ffdc_log_struct_150042
+{
+    int magic;
+    int msgid;
+    int catid;
+    int level;
+    unsigned long th_id;
+    unsigned long fth_id;
+    int lineno;
+    struct timeval timestamp;
+
+
+} __attribute__ ((aligned (64)));
+
+__inline__ void
+ffdc_log_func_150042(int lineno, int msgid, int catid, int level, const char* fmt);
+
+/*---------------------------------------------------------------------------
+ * MsgID : 150043
+ * Msg   : "FIFO mode is only allowed for evicting, non-persistent 
+ *          containers"
+ *-------------------------------------------------------------------------*/
+struct ffdc_log_struct_150043
+{
+    int magic;
+    int msgid;
+    int catid;
+    int level;
+    unsigned long th_id;
+    unsigned long fth_id;
+    int lineno;
+    struct timeval timestamp;
+
+
+} __attribute__ ((aligned (64)));
+
+__inline__ void
+ffdc_log_func_150043(int lineno, int msgid, int catid, int level, const char* fmt);
+
+/*---------------------------------------------------------------------------
  * MsgID : 160000
  * Msg   : "failed to get events; errno=%d (%s)"
  *-------------------------------------------------------------------------*/
@@ -69275,6 +69456,52 @@ struct ffdc_log_struct_160035
 __inline__ void
 ffdc_log_func_160035(int lineno, int msgid, int catid, int level, const char* fmt,
     const char* arg1, int arg2);
+
+/*---------------------------------------------------------------------------
+ * MsgID : 160036
+ * Msg   : "%s, container size=%d bytes is less then minimum container 
+ *          size, which is 1Gb"
+ *-------------------------------------------------------------------------*/
+struct ffdc_log_struct_160036
+{
+    int magic;
+    int msgid;
+    int catid;
+    int level;
+    unsigned long th_id;
+    unsigned long fth_id;
+    int lineno;
+    struct timeval timestamp;
+
+    char arg1[FFDC_MAX_STR_SIZE];
+    int arg2;
+} __attribute__ ((aligned (64)));
+
+__inline__ void
+ffdc_log_func_160036(int lineno, int msgid, int catid, int level, const char* fmt,
+    const char* arg1, int arg2);
+
+/*---------------------------------------------------------------------------
+ * MsgID : 160038
+ * Msg   : "Flash Data Fabric:%s"
+ *-------------------------------------------------------------------------*/
+struct ffdc_log_struct_160038
+{
+    int magic;
+    int msgid;
+    int catid;
+    int level;
+    unsigned long th_id;
+    unsigned long fth_id;
+    int lineno;
+    struct timeval timestamp;
+
+    char arg1[FFDC_MAX_STR_SIZE];
+} __attribute__ ((aligned (64)));
+
+__inline__ void
+ffdc_log_func_160038(int lineno, int msgid, int catid, int level, const char* fmt,
+    const char* arg1);
 
 __END_DECLS
 #endif /* PLATFORM_FFDC_H */

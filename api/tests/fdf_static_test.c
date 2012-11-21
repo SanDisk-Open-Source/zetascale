@@ -32,6 +32,7 @@
 #include "ssd/fifo/mcd_ipf.h"
 #endif
 #include "api/sdf.h"
+#include "common/fdftypes.h"
 
 enum { NO_CPU_AFFINITY = -1 };
 

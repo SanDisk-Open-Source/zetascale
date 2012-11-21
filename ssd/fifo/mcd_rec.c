@@ -49,7 +49,6 @@
 #include "mcd_rep.h"
 #include "mcd_bak.h"
 
-
 /*
  * For flushing logs.
  */
@@ -2432,7 +2431,6 @@ show_buf(unsigned char *buf, char *msg)
 }
 #endif
 
-#ifdef FLOG
 /*
  * Allocate the fbio buffers.
  */
@@ -2644,7 +2642,6 @@ flog_init(mcd_osd_shard_t *shard, void *context)
     flog_recover(shard, context);
     flog_prepare(shard);
 }
-#endif /* FLOG */
 
 void
 shard_recovery_stats( mcd_osd_shard_t * shard, char ** ppos, int * lenp )
@@ -2701,9 +2698,7 @@ shard_recover( mcd_osd_shard_t * shard )
                  pshard->rec_log_blks * MCD_REC_LOG_BLK_RECS );
 
     // initialize log flushing
-#ifdef FLOG
     flog_init(shard, context);
-#endif /* FLOG */
 
     // get aligned buffer
     buf = (char *)( ( (uint64_t)context->osd_buf + Mcd_osd_blk_size - 1 ) &
@@ -3232,6 +3227,11 @@ shard_unrecover( mcd_osd_shard_t * shard )
                 // make sure the updater thread isn't working on this shard
                 log_wait( shard );
             }
+
+			int i = 600;
+			while(log->started && i--)
+				sleep(1);
+
             plat_assert( log->started == 0 );
             if ( shard->refcount != 0 ) {
                 mcd_log_msg( 20559, PLAT_LOG_LEVEL_WARN,
@@ -5345,14 +5345,14 @@ updater_thread( uint64_t arg )
 
     (void) __sync_sub_and_fetch( &Mcd_rec_updater_threads, 1 );
 
+    // decrement refcount
+    (void) __sync_sub_and_fetch( &shard->refcount, 1 );
+
     // show that updater has ended
     log->updater_started = 0;
 
     // acknowledge halt signal
     fthMboxPost( &log->update_stop_mbox, 0 );
-
-    // decrement refcount
-    (void) __sync_sub_and_fetch( &shard->refcount, 1 );
 
     // return segment array and aio context
     plat_free( buf_segments );
@@ -7034,10 +7034,7 @@ log_writer_thread( uint64_t arg )
                  "Log writer thread %lu halting, shardID=%lu",
                  thread_id, shard->id );
 
-    (void) __sync_sub_and_fetch( &Mcd_rec_log_writer_threads, 1 ),
-
-    // show that the log writer has ended
-    log->started = 0;
+    (void) __sync_sub_and_fetch( &Mcd_rec_log_writer_threads, 1 );
 
     // signal waiter
     if ( logbuf->sync_sem ) {
@@ -7049,6 +7046,9 @@ log_writer_thread( uint64_t arg )
 
     // return context
     context_free( context );
+
+    // show that the log writer has ended
+    log->started = 0;
 
     return;
 }

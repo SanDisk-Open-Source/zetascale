@@ -6483,12 +6483,13 @@ mcd_osd_shard_delete( struct shard * lshard )
             break;
         }
     }
-
+#ifndef SDFAPIONLY
     // persistent container cleanup
     if ( shard->persistent ) {
         // kill log writer, free all persistence data structures
         shard_unrecover( shard );
     }
+#endif
 
     // find the total number of segments
     if ( shard->use_fifo ) {

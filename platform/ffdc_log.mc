@@ -3034,6 +3034,14 @@
 150033 FDFCreateContainer failed for container %s because 128 containers have already been created.
 150034 Failed to save cguid state: %s
 150035 Open container structure is NULL - %s
+150036 Set to %s
+150037 done
+150038 ENTERING, buf=%p offset=%lu nbytes=%d
+150039 %s, size=%u bytes
+150040 %s, size=%lu bytes
+150041 Container is not deleted (busy or error): cguid=%lu, status=%s
+150042 FIFO mode is only allowed for non-evicting, non-persistent containers
+150043 FIFO mode is only allowed for evicting, non-persistent containers
 
 
 # root
@@ -3072,3 +3080,5 @@
 160033 %s, size=%ld bytes
 160034 %s(cguid=%lu) - %s
 160035 %s, size=%d bytes
+160036 %s, container size=%d bytes is less then minimum container size, which is 1Gb
+160038 Flash Data Fabric:%s

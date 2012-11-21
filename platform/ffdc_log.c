@@ -9,7 +9,7 @@
  * codebase. This file also contains the API to enable, disable, and
  * initialize FFDC.
  * 
- * Generated On: 2012-11-12 16:01:06
+ * Generated On: 2012-11-20 15:44:23
  *------------------------------------------------------------------------*/
 
 #define PLATFORM_INTERNAL 1
@@ -41064,6 +41064,112 @@ ffdc_log_func_150035(int lineno, int msgid, int catid, int level, const char* fm
 }
 
 /*---------------------------------------------------------------------------
+ * MsgID : 150036
+ * Msg   : "Set to %s"
+ *-------------------------------------------------------------------------*/
+__inline__ void
+ffdc_log_func_150036(int lineno, int msgid, int catid, int level, const char* fmt,
+    const char* arg1)
+{
+    FFDC_START(150036, catid, level, lineno);
+    FFDC_ADD_STR(arg1);
+    FFDC_END();
+}
+
+/*---------------------------------------------------------------------------
+ * MsgID : 150037
+ * Msg   : "done"
+ *-------------------------------------------------------------------------*/
+__inline__ void
+ffdc_log_func_150037(int lineno, int msgid, int catid, int level, const char* fmt)
+{
+    FFDC_START(150037, catid, level, lineno);
+    FFDC_END();
+}
+
+/*---------------------------------------------------------------------------
+ * MsgID : 150038
+ * Msg   : "ENTERING, buf=%p offset=%lu nbytes=%d"
+ *-------------------------------------------------------------------------*/
+__inline__ void
+ffdc_log_func_150038(int lineno, int msgid, int catid, int level, const char* fmt,
+    void* arg1, long arg2, int arg3)
+{
+    FFDC_START(150038, catid, level, lineno);
+    FFDC_ADD_PTR(arg1);
+    FFDC_ADD_NUM(arg2);
+    FFDC_ADD_NUM(arg3);
+    FFDC_END();
+}
+
+/*---------------------------------------------------------------------------
+ * MsgID : 150039
+ * Msg   : "%s, size=%u bytes"
+ *-------------------------------------------------------------------------*/
+__inline__ void
+ffdc_log_func_150039(int lineno, int msgid, int catid, int level, const char* fmt,
+    const char* arg1, int arg2)
+{
+    FFDC_START(150039, catid, level, lineno);
+    FFDC_ADD_STR(arg1);
+    FFDC_ADD_NUM(arg2);
+    FFDC_END();
+}
+
+/*---------------------------------------------------------------------------
+ * MsgID : 150040
+ * Msg   : "%s, size=%lu bytes"
+ *-------------------------------------------------------------------------*/
+__inline__ void
+ffdc_log_func_150040(int lineno, int msgid, int catid, int level, const char* fmt,
+    const char* arg1, long arg2)
+{
+    FFDC_START(150040, catid, level, lineno);
+    FFDC_ADD_STR(arg1);
+    FFDC_ADD_NUM(arg2);
+    FFDC_END();
+}
+
+/*---------------------------------------------------------------------------
+ * MsgID : 150041
+ * Msg   : "Container is not deleted (busy or error): cguid=%lu, status=%
+ *          s"
+ *-------------------------------------------------------------------------*/
+__inline__ void
+ffdc_log_func_150041(int lineno, int msgid, int catid, int level, const char* fmt,
+    long arg1, const char* arg2)
+{
+    FFDC_START(150041, catid, level, lineno);
+    FFDC_ADD_NUM(arg1);
+    FFDC_ADD_STR(arg2);
+    FFDC_END();
+}
+
+/*---------------------------------------------------------------------------
+ * MsgID : 150042
+ * Msg   : "FIFO mode is only allowed for non-evicting, non-persistent 
+ *          containers"
+ *-------------------------------------------------------------------------*/
+__inline__ void
+ffdc_log_func_150042(int lineno, int msgid, int catid, int level, const char* fmt)
+{
+    FFDC_START(150042, catid, level, lineno);
+    FFDC_END();
+}
+
+/*---------------------------------------------------------------------------
+ * MsgID : 150043
+ * Msg   : "FIFO mode is only allowed for evicting, non-persistent 
+ *          containers"
+ *-------------------------------------------------------------------------*/
+__inline__ void
+ffdc_log_func_150043(int lineno, int msgid, int catid, int level, const char* fmt)
+{
+    FFDC_START(150043, catid, level, lineno);
+    FFDC_END();
+}
+
+/*---------------------------------------------------------------------------
  * MsgID : 160000
  * Msg   : "failed to get events; errno=%d (%s)"
  *-------------------------------------------------------------------------*/
@@ -41559,6 +41665,34 @@ ffdc_log_func_160035(int lineno, int msgid, int catid, int level, const char* fm
     FFDC_START(160035, catid, level, lineno);
     FFDC_ADD_STR(arg1);
     FFDC_ADD_NUM(arg2);
+    FFDC_END();
+}
+
+/*---------------------------------------------------------------------------
+ * MsgID : 160036
+ * Msg   : "%s, container size=%d bytes is less then minimum container 
+ *          size, which is 1Gb"
+ *-------------------------------------------------------------------------*/
+__inline__ void
+ffdc_log_func_160036(int lineno, int msgid, int catid, int level, const char* fmt,
+    const char* arg1, int arg2)
+{
+    FFDC_START(160036, catid, level, lineno);
+    FFDC_ADD_STR(arg1);
+    FFDC_ADD_NUM(arg2);
+    FFDC_END();
+}
+
+/*---------------------------------------------------------------------------
+ * MsgID : 160038
+ * Msg   : "Flash Data Fabric:%s"
+ *-------------------------------------------------------------------------*/
+__inline__ void
+ffdc_log_func_160038(int lineno, int msgid, int catid, int level, const char* fmt,
+    const char* arg1)
+{
+    FFDC_START(160038, catid, level, lineno);
+    FFDC_ADD_STR(arg1);
     FFDC_END();
 }
 

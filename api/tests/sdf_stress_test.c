@@ -4,10 +4,10 @@
 #include "api/sdf.h"
 
 static struct SDF_state *sdf_state;
-static char *base;
+static char 		*base			= "container";
 static SDF_cguid_t	cguids[128];
 static int			threads			= 16;
-static int			items			= 100;
+static int			items			= 1000;
 static int			iterations		= 10;
 
 void
@@ -33,10 +33,10 @@ SDF_status_t sdf_create_container (
     SDF_container_props_t   props;
 
     props.durability_level = SDF_FULL_DURABILITY;
-    props.fifo_mode = SDF_FALSE; // xxxzzz
+    props.fifo_mode = SDF_TRUE; // xxxzzz
 
     props.container_type.type = SDF_OBJECT_CONTAINER;
-    props.container_type.caching_container = SDF_TRUE;
+    props.container_type.caching_container = SDF_FALSE;
     props.container_type.persistence = SDF_TRUE;
     props.container_type.async_writes = SDF_FALSE;
 
@@ -348,7 +348,7 @@ void* worker(void *arg)
 
     sprintf(cname, "%s-%x", base, (int)pthread_self());
 
-	for (int j = 0; j < 10; j++) {
+	for (int j = 0; j < iterations; j++) {
     	plat_assert(sdf_create_container(_sdf_thd_state, cname, &cguids[index]) == SDF_SUCCESS);
 
     	for(i = 0; i < items; i++) {
@@ -399,7 +399,6 @@ void* worker(void *arg)
 
 int main(int argc, char *argv[])
 {
-    struct SDF_thread_state *_sdf_thd_state;
     int i;
 
     if ( argc < 3 ) {
@@ -418,8 +417,6 @@ int main(int argc, char *argv[])
     }
 
     fprintf(stderr, "SDF was initialized successfully!\n");
-
-    _sdf_thd_state    = SDFInitPerThreadState(sdf_state);
 
     for(i = 0; i < threads; i++)
 		pthread_create(&thread_id[i], NULL, worker, (void*)(long)i);

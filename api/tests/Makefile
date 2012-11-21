@@ -2,6 +2,7 @@ TOP = ../../..
 
 PROG = \
        fdf_static_test \
+       fdf_prop_test \
        sdf_stress_test \
        fdf_multi_test 
 	
