@@ -52,6 +52,15 @@
 
 static time_t 		current_time 		= 0;
 
+
+char *FDF_Status_Strings[] = {
+    "UNKNOWN_STATUS", /* since SDF_SUCCESS is 1! */
+#define item(caps, value) \
+        #caps,
+        FDF_STATUS_ITEMS()
+#undef item
+    };
+
 /*
 ** Externals
 */
