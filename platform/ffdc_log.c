@@ -9,7 +9,7 @@
  * codebase. This file also contains the API to enable, disable, and
  * initialize FFDC.
  * 
- * Generated On: 2012-11-20 15:44:23
+ * Generated On: 2012-11-26 14:57:28
  *------------------------------------------------------------------------*/
 
 #define PLATFORM_INTERNAL 1
@@ -41166,6 +41166,17 @@ __inline__ void
 ffdc_log_func_150043(int lineno, int msgid, int catid, int level, const char* fmt)
 {
     FFDC_START(150043, catid, level, lineno);
+    FFDC_END();
+}
+
+/*---------------------------------------------------------------------------
+ * MsgID : 150044
+ * Msg   : "shard delete failed due to NULL shard pointer"
+ *-------------------------------------------------------------------------*/
+__inline__ void
+ffdc_log_func_150044(int lineno, int msgid, int catid, int level, const char* fmt)
+{
+    FFDC_START(150044, catid, level, lineno);
     FFDC_END();
 }
 

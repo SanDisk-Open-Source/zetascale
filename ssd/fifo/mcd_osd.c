@@ -6456,6 +6456,14 @@ mcd_osd_shard_delete( struct shard * lshard )
     mcd_log_msg( 20065, PLAT_LOG_LEVEL_DEBUG,
                 "ENTERING, shardID=%lu", shard->id );
 
+	if ( !lshard) {
+		mcd_log_msg( 150044, 
+					 PLAT_LOG_LEVEL_ERROR,
+                     "shard delete failed due to NULL shard pointer" );
+
+		return -1;
+	}
+
     if (shard->flush_fd > 0) {
         close(shard->flush_fd);
     }
@@ -6483,13 +6491,12 @@ mcd_osd_shard_delete( struct shard * lshard )
             break;
         }
     }
-#ifndef SDFAPIONLY
+
     // persistent container cleanup
     if ( shard->persistent ) {
         // kill log writer, free all persistence data structures
         shard_unrecover( shard );
     }
-#endif
 
     // find the total number of segments
     if ( shard->use_fifo ) {

@@ -1044,73 +1044,73 @@ sdf/agent/fdf_agent.c:136:plat_log_msg:PLAT_LOG_LEVEL_WARN:LOG_CAT:21789:Unable 
 sdf/agent/fdf_agent.c:140:plat_log_msg:PLAT_LOG_LEVEL_INFO:LOG_CAT:10005:FFDC logging disabled
 sdf/agent/fdf_agent.c:178:plat_log_msg:success ?  LOG_LEV : PLAT_LOG_LEVEL_INFO:LOG_CAT:20849:plat_opts_parse_sdf_agent SUCCESS = %u
 sdf/agent/fdf_agent.c:185:plat_log_msg:success ? LOG_LEV : PLAT_LOG_LEVEL_INFO:LOG_CAT:20850:set properties SUCCESS = %u
-sdf/api/fdf.c:802:mcd_log_msg:PLAT_LOG_LEVEL_FATAL::20147:agent_engine_post_init() failed
-sdf/api/fdf.c:941:mcd_log_msg:PLAT_LOG_LEVEL_FATAL::20163:pthread_create() failed, rc=%d
-sdf/api/fdf.c:945:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG::20164:scheduler %d created
-sdf/api/fdf.c:1010:plat_log_msg:LOG_INFO:LOG_CAT:160038:Flash Data Fabric:%s
-sdf/api/fdf.c:1049:mcd_log_msg:PLAT_LOG_LEVEL_FATAL:LOG_CAT:20163:pthread_create() failed, rc=%d
-sdf/api/fdf.c:1053:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG:LOG_CAT:150022:scheduler startup process created
-sdf/api/fdf.c:1085:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:LOG_CAT:50030:failed to get SDF properties, status=%s
-sdf/api/fdf.c:1096:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG:LOG_CAT:20131:next container id %lu
-sdf/api/fdf.c:1225:plat_log_msg:LOG_INFO:LOG_CAT:160035:%s, size=%d bytes
-sdf/api/fdf.c:1229:plat_log_msg:LOG_ERR:LOG_CAT:160036:%s, container size=%d bytes is less then minimum container size, which is 1Gb
-sdf/api/fdf.c:1235:plat_log_msg:LOG_ERR:LOG_CAT:30572:Writeback caching can only be enabled for eviction mode containers
-sdf/api/fdf.c:1242:plat_log_msg:LOG_ERR:LOG_CAT:30572:Writeback caching can only be enabled for eviction mode containers
-sdf/api/fdf.c:1249:plat_log_msg:LOG_ERR:LOG_CAT:30575:Cannot enable writeback caching for container '%s' because writeback caching is disabled.
-sdf/api/fdf.c:1259:plat_log_msg:LOG_ERR:LOG_CAT:150043:FIFO mode is only allowed for evicting, non-persistent containers
-sdf/api/fdf.c:1282:plat_log_msg:LOG_ERR:LOG_CAT:150033:FDFCreateContainer failed for container %s because 128 containers have already been created.
-sdf/api/fdf.c:1305:plat_log_msg:LOG_ERR:LOG_CAT:150034:Failed to save cguid state: %s
-sdf/api/fdf.c:1392:plat_log_msg:LOG_INFO:LOG_CAT:21527:Container: %s - Multi Devs: %d
-sdf/api/fdf.c:1395:plat_log_msg:LOG_INFO:LOG_CAT:21528:Container: %s - Single Dev
-sdf/api/fdf.c:1398:plat_log_msg:LOG_INFO:LOG_CAT:21529:Container: %s - Num Shards: %d
-sdf/api/fdf.c:1401:plat_log_msg:LOG_INFO:LOG_CAT:21530:Container: %s - Num Objs: %d
-sdf/api/fdf.c:1404:plat_log_msg:LOG_INFO:LOG_CAT:21531:Container: %s - DEBUG_MULTI_SHARD_INDEX: %d
-sdf/api/fdf.c:1415:plat_log_msg:LOG_ERR:LOG_CAT:21532:failed to lock %s
-sdf/api/fdf.c:1421:plat_log_msg:LOG_ERR:LOG_CAT:21533:failed to unlock %s
-sdf/api/fdf.c:1443:plat_log_msg:LOG_ERR:LOG_CAT:21534:failed to map cguid: %s
-sdf/api/fdf.c:1446:plat_log_msg:LOG_ERR:LOG_CAT:21532:failed to lock %s
-sdf/api/fdf.c:1460:plat_log_msg:LOG_ERR:LOG_CAT:21533:failed to unlock %s
-sdf/api/fdf.c:1463:plat_log_msg:LOG_ERR:LOG_CAT:21535:cname=%s, build_shard failed
-sdf/api/fdf.c:1466:plat_log_msg:LOG_ERR:LOG_CAT:21536:cname=%s, createParentContainer() failed
-sdf/api/fdf.c:1472:plat_log_msg:LOG_ERR:LOG_CAT:21537:cname=%s, build_meta failed
-sdf/api/fdf.c:1475:plat_log_msg:LOG_ERR:LOG_CAT:21535:cname=%s, build_shard failed
-sdf/api/fdf.c:1479:plat_log_msg:LOG_DBG:LOG_CAT:21511:%s - %s
-sdf/api/fdf.c:1482:plat_log_msg:LOG_ERR:LOG_CAT:21538:cname=%s, function returned status = %u
-sdf/api/fdf.c:1532:plat_log_msg:LOG_INFO:LOG_CAT:160034:%s(cguid=%lu) - %s
-sdf/api/fdf.c:1568:plat_log_msg:LOG_INFO:LOG_CAT:20819:%s
-sdf/api/fdf.c:1586:plat_log_msg:log_level:LOG_CAT:160032:Already opened or error: %s - %s
-sdf/api/fdf.c:1592:plat_log_msg:LOG_INFO:LOG_CAT:20819:%s
-sdf/api/fdf.c:1599:plat_log_msg:LOG_ERR:LOG_CAT:21552:Delete pending for %s
-sdf/api/fdf.c:1639:plat_log_msg:LOG_DBG:LOG_CAT:21553:set cid %d (%d) to cguid %d\n
-sdf/api/fdf.c:1656:plat_log_msg:LOG_ERR:LOG_CAT:21554:SDFActionOpenContainer failed for container %s
-sdf/api/fdf.c:1669:plat_log_msg:LOG_ERR:LOG_CAT:150026:Failed to find shard for %s
-sdf/api/fdf.c:1675:plat_log_msg:LOG_DBG:LOG_CAT:21555:Opened %s
-sdf/api/fdf.c:1678:plat_log_msg:LOG_ERR:LOG_CAT:21556:Failed to find %s
-sdf/api/fdf.c:1683:plat_log_msg:log_level:LOG_CAT:21511:%s - %s
-sdf/api/fdf.c:1685:plat_log_msg:log_level:LOG_CAT:150024:NULL - %s
-sdf/api/fdf.c:1714:plat_log_msg:LOG_INFO:LOG_CAT:21630:%lu
-sdf/api/fdf.c:1781:plat_log_msg:LOG_ERR:LOG_CAT:21540:%s - failed to flush and invalidate container
-sdf/api/fdf.c:1785:plat_log_msg:LOG_DBG:LOG_CAT:21541:%s - flush and invalidate container succeed
-sdf/api/fdf.c:1793:plat_log_msg:LOG_ERR:LOG_CAT:21542:%s - failed to delete action thread container state
-sdf/api/fdf.c:1797:plat_log_msg:LOG_DBG:LOG_CAT:21543:%s - action thread delete container state succeeded
-sdf/api/fdf.c:1819:plat_log_msg:LOG_INFO:LOG_CAT:160031:Delete request pending. Deleting... cguid=%lu
-sdf/api/fdf.c:1832:plat_log_msg:log_level:LOG_CAT:20819:%s
-sdf/api/fdf.c:1853:plat_log_msg:LOG_INFO:LOG_CAT:21630:%lu
-sdf/api/fdf.c:1879:plat_log_msg:LOG_INFO:LOG_CAT:160030:Container is not deleted (busy or error): cguid=%lu(%d), status=%s
-sdf/api/fdf.c:1887:plat_log_msg:LOG_INFO:LOG_CAT:20819:%s
-sdf/api/fdf.c:2195:plat_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED_BACKUP:30664:container backup sync failed for enum, status=%s
-sdf/api/fdf.c:2715:plat_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20648:sdf stat %s parsing failure
-sdf/api/fdf.c:2772:plat_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20649:invalid stat key %d
-sdf/api/fdf.c:2790:plat_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20650:invalid sdf cache stats, rd=%lu rx=%lu tr=%lu
-sdf/api/fdf.c:2904:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20694:/proc/stat opened, fd=%d
-sdf/api/fdf.c:2915:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20695:failed to read from proc, rc=%d errno=%d
-sdf/api/fdf.c:3008:plat_log_msg:log_level:LOG_CAT:20819:%s
-sdf/api/fdf.c:3216:plat_log_msg:LOG_INFO:LOG_CAT:21630:%lu
-sdf/api/fdf.c:3242:plat_log_msg:LOG_ERR:LOG_CAT:21539:name_service_put_meta failed for cguid %"PRIu64"
-sdf/api/fdf.c:3248:plat_log_msg:LOG_INFO:LOG_CAT:20819:%s
-sdf/api/fdf.c:3265:plat_log_msg:LOG_INFO:LOG_CAT:21630:%lu
-sdf/api/fdf.c:3290:plat_log_msg:LOG_ERR:LOG_CAT:21539:name_service_put_meta failed for cguid %"PRIu64"
-sdf/api/fdf.c:3296:plat_log_msg:LOG_INFO:LOG_CAT:20819:%s
+sdf/api/fdf.c:811:mcd_log_msg:PLAT_LOG_LEVEL_FATAL::20147:agent_engine_post_init() failed
+sdf/api/fdf.c:950:mcd_log_msg:PLAT_LOG_LEVEL_FATAL::20163:pthread_create() failed, rc=%d
+sdf/api/fdf.c:954:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG::20164:scheduler %d created
+sdf/api/fdf.c:1019:plat_log_msg:LOG_INFO:LOG_CAT:160038:Flash Data Fabric:%s
+sdf/api/fdf.c:1058:mcd_log_msg:PLAT_LOG_LEVEL_FATAL:LOG_CAT:20163:pthread_create() failed, rc=%d
+sdf/api/fdf.c:1062:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG:LOG_CAT:150022:scheduler startup process created
+sdf/api/fdf.c:1094:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:LOG_CAT:50030:failed to get SDF properties, status=%s
+sdf/api/fdf.c:1105:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG:LOG_CAT:20131:next container id %lu
+sdf/api/fdf.c:1234:plat_log_msg:LOG_INFO:LOG_CAT:160035:%s, size=%d bytes
+sdf/api/fdf.c:1238:plat_log_msg:LOG_ERR:LOG_CAT:160036:%s, container size=%d bytes is less then minimum container size, which is 1Gb
+sdf/api/fdf.c:1244:plat_log_msg:LOG_ERR:LOG_CAT:30572:Writeback caching can only be enabled for eviction mode containers
+sdf/api/fdf.c:1251:plat_log_msg:LOG_ERR:LOG_CAT:30572:Writeback caching can only be enabled for eviction mode containers
+sdf/api/fdf.c:1258:plat_log_msg:LOG_ERR:LOG_CAT:30575:Cannot enable writeback caching for container '%s' because writeback caching is disabled.
+sdf/api/fdf.c:1268:plat_log_msg:LOG_ERR:LOG_CAT:150043:FIFO mode is only allowed for evicting, non-persistent containers
+sdf/api/fdf.c:1291:plat_log_msg:LOG_ERR:LOG_CAT:150033:FDFCreateContainer failed for container %s because 128 containers have already been created.
+sdf/api/fdf.c:1314:plat_log_msg:LOG_ERR:LOG_CAT:150034:Failed to save cguid state: %s
+sdf/api/fdf.c:1401:plat_log_msg:LOG_INFO:LOG_CAT:21527:Container: %s - Multi Devs: %d
+sdf/api/fdf.c:1404:plat_log_msg:LOG_INFO:LOG_CAT:21528:Container: %s - Single Dev
+sdf/api/fdf.c:1407:plat_log_msg:LOG_INFO:LOG_CAT:21529:Container: %s - Num Shards: %d
+sdf/api/fdf.c:1410:plat_log_msg:LOG_INFO:LOG_CAT:21530:Container: %s - Num Objs: %d
+sdf/api/fdf.c:1413:plat_log_msg:LOG_INFO:LOG_CAT:21531:Container: %s - DEBUG_MULTI_SHARD_INDEX: %d
+sdf/api/fdf.c:1424:plat_log_msg:LOG_ERR:LOG_CAT:21532:failed to lock %s
+sdf/api/fdf.c:1430:plat_log_msg:LOG_ERR:LOG_CAT:21533:failed to unlock %s
+sdf/api/fdf.c:1452:plat_log_msg:LOG_ERR:LOG_CAT:21534:failed to map cguid: %s
+sdf/api/fdf.c:1455:plat_log_msg:LOG_ERR:LOG_CAT:21532:failed to lock %s
+sdf/api/fdf.c:1469:plat_log_msg:LOG_ERR:LOG_CAT:21533:failed to unlock %s
+sdf/api/fdf.c:1472:plat_log_msg:LOG_ERR:LOG_CAT:21535:cname=%s, build_shard failed
+sdf/api/fdf.c:1475:plat_log_msg:LOG_ERR:LOG_CAT:21536:cname=%s, createParentContainer() failed
+sdf/api/fdf.c:1481:plat_log_msg:LOG_ERR:LOG_CAT:21537:cname=%s, build_meta failed
+sdf/api/fdf.c:1484:plat_log_msg:LOG_ERR:LOG_CAT:21535:cname=%s, build_shard failed
+sdf/api/fdf.c:1488:plat_log_msg:LOG_DBG:LOG_CAT:21511:%s - %s
+sdf/api/fdf.c:1491:plat_log_msg:LOG_ERR:LOG_CAT:21538:cname=%s, function returned status = %u
+sdf/api/fdf.c:1541:plat_log_msg:LOG_INFO:LOG_CAT:160034:%s(cguid=%lu) - %s
+sdf/api/fdf.c:1577:plat_log_msg:LOG_INFO:LOG_CAT:20819:%s
+sdf/api/fdf.c:1595:plat_log_msg:log_level:LOG_CAT:160032:Already opened or error: %s - %s
+sdf/api/fdf.c:1601:plat_log_msg:LOG_INFO:LOG_CAT:20819:%s
+sdf/api/fdf.c:1608:plat_log_msg:LOG_ERR:LOG_CAT:21552:Delete pending for %s
+sdf/api/fdf.c:1648:plat_log_msg:LOG_DBG:LOG_CAT:21553:set cid %d (%d) to cguid %d\n
+sdf/api/fdf.c:1665:plat_log_msg:LOG_ERR:LOG_CAT:21554:SDFActionOpenContainer failed for container %s
+sdf/api/fdf.c:1678:plat_log_msg:LOG_ERR:LOG_CAT:150026:Failed to find shard for %s
+sdf/api/fdf.c:1684:plat_log_msg:LOG_DBG:LOG_CAT:21555:Opened %s
+sdf/api/fdf.c:1687:plat_log_msg:LOG_ERR:LOG_CAT:21556:Failed to find %s
+sdf/api/fdf.c:1692:plat_log_msg:log_level:LOG_CAT:21511:%s - %s
+sdf/api/fdf.c:1694:plat_log_msg:log_level:LOG_CAT:150024:NULL - %s
+sdf/api/fdf.c:1723:plat_log_msg:LOG_INFO:LOG_CAT:21630:%lu
+sdf/api/fdf.c:1795:plat_log_msg:LOG_ERR:LOG_CAT:21540:%s - failed to flush and invalidate container
+sdf/api/fdf.c:1799:plat_log_msg:LOG_DBG:LOG_CAT:21541:%s - flush and invalidate container succeed
+sdf/api/fdf.c:1807:plat_log_msg:LOG_ERR:LOG_CAT:21542:%s - failed to delete action thread container state
+sdf/api/fdf.c:1811:plat_log_msg:LOG_DBG:LOG_CAT:21543:%s - action thread delete container state succeeded
+sdf/api/fdf.c:1833:plat_log_msg:LOG_INFO:LOG_CAT:160031:Delete request pending. Deleting... cguid=%lu
+sdf/api/fdf.c:1846:plat_log_msg:log_level:LOG_CAT:20819:%s
+sdf/api/fdf.c:1867:plat_log_msg:LOG_INFO:LOG_CAT:21630:%lu
+sdf/api/fdf.c:1893:plat_log_msg:LOG_INFO:LOG_CAT:160030:Container is not deleted (busy or error): cguid=%lu(%d), status=%s
+sdf/api/fdf.c:1901:plat_log_msg:LOG_INFO:LOG_CAT:20819:%s
+sdf/api/fdf.c:2209:plat_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED_BACKUP:30664:container backup sync failed for enum, status=%s
+sdf/api/fdf.c:2729:plat_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20648:sdf stat %s parsing failure
+sdf/api/fdf.c:2786:plat_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20649:invalid stat key %d
+sdf/api/fdf.c:2804:plat_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20650:invalid sdf cache stats, rd=%lu rx=%lu tr=%lu
+sdf/api/fdf.c:2918:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20694:/proc/stat opened, fd=%d
+sdf/api/fdf.c:2929:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_APP_MEMCACHED:20695:failed to read from proc, rc=%d errno=%d
+sdf/api/fdf.c:3022:plat_log_msg:log_level:LOG_CAT:20819:%s
+sdf/api/fdf.c:3230:plat_log_msg:LOG_INFO:LOG_CAT:21630:%lu
+sdf/api/fdf.c:3256:plat_log_msg:LOG_ERR:LOG_CAT:21539:name_service_put_meta failed for cguid %"PRIu64"
+sdf/api/fdf.c:3262:plat_log_msg:LOG_INFO:LOG_CAT:20819:%s
+sdf/api/fdf.c:3279:plat_log_msg:LOG_INFO:LOG_CAT:21630:%lu
+sdf/api/fdf.c:3304:plat_log_msg:LOG_ERR:LOG_CAT:21539:name_service_put_meta failed for cguid %"PRIu64"
+sdf/api/fdf.c:3310:plat_log_msg:LOG_INFO:LOG_CAT:20819:%s
 sdf/api/sdf.c:343:mcd_log_msg:PLAT_LOG_LEVEL_FATAL::20147:agent_engine_post_init() failed
 sdf/api/sdf.c:452:mcd_log_msg:PLAT_LOG_LEVEL_FATAL::20163:pthread_create() failed, rc=%d
 sdf/api/sdf.c:456:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG::20164:scheduler %d created
@@ -3822,99 +3822,100 @@ sdf/ssd/fifo/mcd_osd.c:6361:mcd_bak_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_SI
 sdf/ssd/fifo/mcd_osd.c:6387:mcd_bak_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20408:ENTERING, shardID=%lu, full=%d, can=%d, com=%d
 sdf/ssd/fifo/mcd_osd.c:6420:mcd_bak_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20409:ENTERING, shardID=%lu, pseq=%lu, cseq=%lu, can=%d, com=%d
 sdf/ssd/fifo/mcd_osd.c:6457:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20065:ENTERING, shardID=%lu
-sdf/ssd/fifo/mcd_osd.c:6544:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20065:ENTERING, shardID=%lu
-sdf/ssd/fifo/mcd_osd.c:6819:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20141:container stopping mail posted
-sdf/ssd/fifo/mcd_osd.c:6835:mcd_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20178:ENTERING, port=%d
-sdf/ssd/fifo/mcd_osd.c:6841:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20179:SDFStartContainer() failed, status=%s
-sdf/ssd/fifo/mcd_osd.c:6855:mcd_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20178:ENTERING, port=%d
-sdf/ssd/fifo/mcd_osd.c:6861:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20180:SDFStopContainer() failed, status=%s
-sdf/ssd/fifo/mcd_osd.c:6876:mcd_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20718:stopping container, port=%d
-sdf/ssd/fifo/mcd_osd.c:6886:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20410:invalid mail, expecting %d received %lu
-sdf/ssd/fifo/mcd_osd.c:6889:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20411:admin mail received
-sdf/ssd/fifo/mcd_osd.c:6896:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20719:failed to stop container, status=%s
-sdf/ssd/fifo/mcd_osd.c:6903:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20716:failed to set container state, rc=%d
-sdf/ssd/fifo/mcd_osd.c:6909:mcd_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20720:container stopped, port=%d
-sdf/ssd/fifo/mcd_osd.c:6930:mcd_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20714:starting container, port=%d
-sdf/ssd/fifo/mcd_osd.c:6959:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20715:failed to start container, status=%s
-sdf/ssd/fifo/mcd_osd.c:6966:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20716:failed to set container state, rc=%d
-sdf/ssd/fifo/mcd_osd.c:6972:mcd_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20717:container started, port=%d
-sdf/ssd/fifo/mcd_osd.c:7000:mcd_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:50007:starting container, name=%s
-sdf/ssd/fifo/mcd_osd.c:7027:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20715:failed to start container, status=%s
-sdf/ssd/fifo/mcd_osd.c:7034:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20716:failed to set container state, rc=%d
-sdf/ssd/fifo/mcd_osd.c:7040:mcd_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20717:container started, port=%d
-sdf/ssd/fifo/mcd_osd.c:7057:mcd_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20718:stopping container, port=%d
-sdf/ssd/fifo/mcd_osd.c:7080:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20410:invalid mail, expecting %d received %lu
-sdf/ssd/fifo/mcd_osd.c:7083:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20411:admin mail received
-sdf/ssd/fifo/mcd_osd.c:7090:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20719:failed to stop container, status=%s
-sdf/ssd/fifo/mcd_osd.c:7097:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20716:failed to set container state, rc=%d
-sdf/ssd/fifo/mcd_osd.c:7103:mcd_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20720:container stopped, port=%d
-sdf/ssd/fifo/mcd_osd.c:7124:mcd_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:50008:stopping container, name=%s
-sdf/ssd/fifo/mcd_osd.c:7145:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20410:invalid mail, expecting %d received %lu
-sdf/ssd/fifo/mcd_osd.c:7148:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20411:admin mail received
-sdf/ssd/fifo/mcd_osd.c:7155:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20719:failed to stop container, status=%s
-sdf/ssd/fifo/mcd_osd.c:7162:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20716:failed to set container state, rc=%d
-sdf/ssd/fifo/mcd_osd.c:7168:mcd_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20720:container stopped, port=%d
-sdf/ssd/fifo/mcd_osd.c:7186:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20065:ENTERING, shardID=%lu
-sdf/ssd/fifo/mcd_osd.c:7203:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20410:invalid mail, expecting %d received %lu
-sdf/ssd/fifo/mcd_osd.c:7206:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20411:admin mail received
-sdf/ssd/fifo/mcd_osd.c:7223:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20065:ENTERING, shardID=%lu
-sdf/ssd/fifo/mcd_osd.c:7236:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20065:ENTERING, shardID=%lu
-sdf/ssd/fifo/mcd_osd.c:7246:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20412:ENTERING, index=%d
-sdf/ssd/fifo/mcd_osd.c:7255:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20065:ENTERING, shardID=%lu
-sdf/ssd/fifo/mcd_osd.c:7317:mcd_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20413:mcd_osd ops registered
-sdf/ssd/fifo/mcd_osd.c:7345:mcd_bak_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20000:ENTERING
-sdf/ssd/fifo/mcd_osd.c:7351:mcd_bak_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20414:not supported yet
-sdf/ssd/fifo/mcd_osd.c:7363:mcd_bak_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20415:invalid raw data size, len=%lu
-sdf/ssd/fifo/mcd_osd.c:7370:mcd_bak_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:40121:invalid key offset %lu
-sdf/ssd/fifo/mcd_osd.c:7381:mcd_bak_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20416:key/raw_data size mismatch, mkey_len=%d rkey_len=%d md_len=%u rd_len=%lu
-sdf/ssd/fifo/mcd_osd.c:7446:mcd_bak_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:40125:Reading bad raw segment (%lu), blksize=%d, seg_offset=%lu, num_blks=%d, blks=%d, rec=%s
-sdf/ssd/fifo/mcd_osd.c:7468:mcd_bak_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:40126:Error reading bad raw segment (%lu), seg_offset=%lu, blk_offset=%lu, blks=%d, rc=%d
-sdf/ssd/fifo/mcd_osd.c:7489:mcd_bak_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:40127:Bad block(s) found in raw segment (%lu), seg_offset=%lu, count=%d
-sdf/ssd/fifo/mcd_osd.c:7539:mcd_bak_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20000:ENTERING
-sdf/ssd/fifo/mcd_osd.c:7545:mcd_bak_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20414:not supported yet
-sdf/ssd/fifo/mcd_osd.c:7570:mcd_bak_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20417:failed to allocate raw read buffer
-sdf/ssd/fifo/mcd_osd.c:7622:mcd_bak_msg:MCD_OSD_LOG_LVL_INFO:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20418:reading raw segment, blk_offset=%lu
-sdf/ssd/fifo/mcd_osd.c:7640:mcd_bak_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:40122:Error reading raw segment, blk_offset=%lu, slab_blksize=%d, next_slab=%u, rc=%d
-sdf/ssd/fifo/mcd_osd.c:7644:mcd_bak_msg:MCD_OSD_LOG_LVL_INFO:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20420:segment read, blk_offset=%lu
-sdf/ssd/fifo/mcd_osd.c:7686:mcd_bak_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:40128:object skipped (error), blk_offset=%lu map_offset=%lu
-sdf/ssd/fifo/mcd_osd.c:7698:mcd_bak_msg:PLAT_LOG_LEVEL_FATAL:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20421:not enough magic! blk_off=%lu map_off=%lu key_len=%d seqno=%lu
-sdf/ssd/fifo/mcd_osd.c:7712:mcd_bak_msg:MCD_OSD_LOG_LVL_INFO:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20422:object deleted, blk_offset=%lu map_offset=%lu key_len=%d seqno=%lu
-sdf/ssd/fifo/mcd_osd.c:7727:mcd_bak_msg:MCD_OSD_LOG_LVL_INFO:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20423:object found, blk_offset=%lu map_offset=%lu key_len=%d seqno=%lu
-sdf/ssd/fifo/mcd_osd.c:7741:mcd_bak_msg:PLAT_LOG_LEVEL_TRACE:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:40002:object skipped (expired), blk_offset=%lu map_offset=%lu key_len=%d
-sdf/ssd/fifo/mcd_osd.c:7756:mcd_bak_msg:PLAT_LOG_LEVEL_TRACE:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:40003:object skipped (flush), blk_offset=%lu map_offset=%lu key_len=%d
-sdf/ssd/fifo/mcd_osd.c:7807:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20000:ENTERING
-sdf/ssd/fifo/mcd_osd.c:7837:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20141:container stopping mail posted
-sdf/ssd/fifo/mcd_osd.c:7860:mcd_log_msg:MCD_OSD_LOG_LVL_DEBUG:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20430:found slab mode container, tcp_port=%d
-sdf/ssd/fifo/mcd_osd.c:7874:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20141:container stopping mail posted
-sdf/ssd/fifo/mcd_osd.c:7921:mcd_log_msg:MCD_OSD_LOG_LVL_DEBUG:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20427:ENTERING, next_addr=%lu bytes=%lu scanned=%lu expired=%lu
-sdf/ssd/fifo/mcd_osd.c:7959:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20417:failed to allocate raw read buffer
-sdf/ssd/fifo/mcd_osd.c:7985:mcd_log_msg:PLAT_LOG_LEVEL_FATAL:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20419:failed to read meta, rc=%d
-sdf/ssd/fifo/mcd_osd.c:7991:mcd_log_msg:MCD_OSD_LOG_LVL_INFO:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20420:segment read, blk_offset=%lu
-sdf/ssd/fifo/mcd_osd.c:8035:mcd_log_msg:PLAT_LOG_LEVEL_DIAGNOSTIC:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20421:not enough magic! blk_off=%lu map_off=%lu key_len=%d seqno=%lu
-sdf/ssd/fifo/mcd_osd.c:8049:mcd_log_msg:MCD_OSD_LOG_LVL_INFO:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20428:expired obj, key=%s key_len=%d data_len=%d
-sdf/ssd/fifo/mcd_osd.c:8072:mcd_log_msg:PLAT_LOG_LEVEL_TRACE_LOW:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:50049:prefix-based delete, key=%s
-sdf/ssd/fifo/mcd_osd.c:8108:mcd_log_msg:MCD_OSD_LOG_LVL_INFO:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20429:expired object deleted, key=%s
-sdf/ssd/fifo/mcd_osd.c:8113:mcd_log_msg:MCD_OSD_LOG_LVL_INFO:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:50050:prefix object deleted, key=%s
-sdf/ssd/fifo/mcd_osd.c:8144:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:50051:failed to update prefix deleter, rc=%s
-sdf/ssd/fifo/mcd_osd.c:8176:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20000:ENTERING
-sdf/ssd/fifo/mcd_osd.c:8210:mcd_log_msg:MCD_OSD_LOG_LVL_DEBUG:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20324:sleeper waked up, blocks=%d, total=%d
-sdf/ssd/fifo/mcd_osd.c:8228:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20141:container stopping mail posted
-sdf/ssd/fifo/mcd_osd.c:8253:mcd_log_msg:MCD_OSD_LOG_LVL_INFO:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:50052:ENTERING container=%s prefix=%s
-sdf/ssd/fifo/mcd_osd.c:8270:mcd_log_msg:MCD_OSD_LOG_LVL_INFO:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:50053:prefix registered, key=%s time=%lu addr=%lu
-sdf/ssd/fifo/mcd_osd.c:8274:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:50054:failed to register prefix, key=%s
-sdf/ssd/fifo/mcd_osd.c:8290:mcd_log_msg:MCD_OSD_LOG_LVL_INFO:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:50055:ENTERING container=%s
-sdf/ssd/fifo/mcd_osd.c:8308:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:50056:failed to get prefix list
-sdf/ssd/fifo/mcd_osd.c:8315:mcd_log_msg:MCD_OSD_LOG_LVL_INFO:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:50057:number of prefixes is %d
-sdf/ssd/fifo/mcd_osd.c:8403:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20175:ENTERING, self=%p
-sdf/ssd/fifo/mcd_osd.c:8407:mcd_log_msg:PLAT_LOG_LEVEL_FATAL:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:50077:invalid aio context category %d
-sdf/ssd/fifo/mcd_osd.c:8420:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20176:self found, use context %d
-sdf/ssd/fifo/mcd_osd.c:8435:mcd_log_msg:PLAT_LOG_LEVEL_FATAL:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20172:Please reduce the number of fthreads
-sdf/ssd/fifo/mcd_osd.c:8439:mcd_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:50075:aio context category %s count=%d
-sdf/ssd/fifo/mcd_osd.c:8448:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:50076:new aio context allocated, category=%s count=%d
-sdf/ssd/fifo/mcd_osd.c:8456:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:150004:Mcd_aio_states[%d] = %p
-sdf/ssd/fifo/mcd_osd.c:8465:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:50078:ENTERING category=%d
-sdf/ssd/fifo/mcd_osd.c:8469:mcd_log_msg:PLAT_LOG_LEVEL_FATAL:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:50077:invalid aio context category %d
-sdf/ssd/fifo/mcd_osd.c:8542:mcd_log_msg:PLAT_LOG_LEVEL_FATAL:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:30665:process_raw_get_command_enum() failed
+sdf/ssd/fifo/mcd_osd.c:6462:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:150044:shard delete failed due to NULL shard pointer
+sdf/ssd/fifo/mcd_osd.c:6551:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20065:ENTERING, shardID=%lu
+sdf/ssd/fifo/mcd_osd.c:6826:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20141:container stopping mail posted
+sdf/ssd/fifo/mcd_osd.c:6842:mcd_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20178:ENTERING, port=%d
+sdf/ssd/fifo/mcd_osd.c:6848:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20179:SDFStartContainer() failed, status=%s
+sdf/ssd/fifo/mcd_osd.c:6862:mcd_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20178:ENTERING, port=%d
+sdf/ssd/fifo/mcd_osd.c:6868:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20180:SDFStopContainer() failed, status=%s
+sdf/ssd/fifo/mcd_osd.c:6883:mcd_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20718:stopping container, port=%d
+sdf/ssd/fifo/mcd_osd.c:6893:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20410:invalid mail, expecting %d received %lu
+sdf/ssd/fifo/mcd_osd.c:6896:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20411:admin mail received
+sdf/ssd/fifo/mcd_osd.c:6903:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20719:failed to stop container, status=%s
+sdf/ssd/fifo/mcd_osd.c:6910:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20716:failed to set container state, rc=%d
+sdf/ssd/fifo/mcd_osd.c:6916:mcd_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20720:container stopped, port=%d
+sdf/ssd/fifo/mcd_osd.c:6937:mcd_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20714:starting container, port=%d
+sdf/ssd/fifo/mcd_osd.c:6966:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20715:failed to start container, status=%s
+sdf/ssd/fifo/mcd_osd.c:6973:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20716:failed to set container state, rc=%d
+sdf/ssd/fifo/mcd_osd.c:6979:mcd_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20717:container started, port=%d
+sdf/ssd/fifo/mcd_osd.c:7007:mcd_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:50007:starting container, name=%s
+sdf/ssd/fifo/mcd_osd.c:7034:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20715:failed to start container, status=%s
+sdf/ssd/fifo/mcd_osd.c:7041:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20716:failed to set container state, rc=%d
+sdf/ssd/fifo/mcd_osd.c:7047:mcd_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20717:container started, port=%d
+sdf/ssd/fifo/mcd_osd.c:7064:mcd_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20718:stopping container, port=%d
+sdf/ssd/fifo/mcd_osd.c:7087:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20410:invalid mail, expecting %d received %lu
+sdf/ssd/fifo/mcd_osd.c:7090:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20411:admin mail received
+sdf/ssd/fifo/mcd_osd.c:7097:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20719:failed to stop container, status=%s
+sdf/ssd/fifo/mcd_osd.c:7104:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20716:failed to set container state, rc=%d
+sdf/ssd/fifo/mcd_osd.c:7110:mcd_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20720:container stopped, port=%d
+sdf/ssd/fifo/mcd_osd.c:7131:mcd_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:50008:stopping container, name=%s
+sdf/ssd/fifo/mcd_osd.c:7152:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20410:invalid mail, expecting %d received %lu
+sdf/ssd/fifo/mcd_osd.c:7155:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20411:admin mail received
+sdf/ssd/fifo/mcd_osd.c:7162:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20719:failed to stop container, status=%s
+sdf/ssd/fifo/mcd_osd.c:7169:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20716:failed to set container state, rc=%d
+sdf/ssd/fifo/mcd_osd.c:7175:mcd_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20720:container stopped, port=%d
+sdf/ssd/fifo/mcd_osd.c:7193:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20065:ENTERING, shardID=%lu
+sdf/ssd/fifo/mcd_osd.c:7210:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20410:invalid mail, expecting %d received %lu
+sdf/ssd/fifo/mcd_osd.c:7213:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20411:admin mail received
+sdf/ssd/fifo/mcd_osd.c:7230:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20065:ENTERING, shardID=%lu
+sdf/ssd/fifo/mcd_osd.c:7243:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20065:ENTERING, shardID=%lu
+sdf/ssd/fifo/mcd_osd.c:7253:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20412:ENTERING, index=%d
+sdf/ssd/fifo/mcd_osd.c:7262:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20065:ENTERING, shardID=%lu
+sdf/ssd/fifo/mcd_osd.c:7324:mcd_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20413:mcd_osd ops registered
+sdf/ssd/fifo/mcd_osd.c:7352:mcd_bak_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20000:ENTERING
+sdf/ssd/fifo/mcd_osd.c:7358:mcd_bak_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20414:not supported yet
+sdf/ssd/fifo/mcd_osd.c:7370:mcd_bak_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20415:invalid raw data size, len=%lu
+sdf/ssd/fifo/mcd_osd.c:7377:mcd_bak_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:40121:invalid key offset %lu
+sdf/ssd/fifo/mcd_osd.c:7388:mcd_bak_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20416:key/raw_data size mismatch, mkey_len=%d rkey_len=%d md_len=%u rd_len=%lu
+sdf/ssd/fifo/mcd_osd.c:7453:mcd_bak_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:40125:Reading bad raw segment (%lu), blksize=%d, seg_offset=%lu, num_blks=%d, blks=%d, rec=%s
+sdf/ssd/fifo/mcd_osd.c:7475:mcd_bak_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:40126:Error reading bad raw segment (%lu), seg_offset=%lu, blk_offset=%lu, blks=%d, rc=%d
+sdf/ssd/fifo/mcd_osd.c:7496:mcd_bak_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:40127:Bad block(s) found in raw segment (%lu), seg_offset=%lu, count=%d
+sdf/ssd/fifo/mcd_osd.c:7546:mcd_bak_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20000:ENTERING
+sdf/ssd/fifo/mcd_osd.c:7552:mcd_bak_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20414:not supported yet
+sdf/ssd/fifo/mcd_osd.c:7577:mcd_bak_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20417:failed to allocate raw read buffer
+sdf/ssd/fifo/mcd_osd.c:7629:mcd_bak_msg:MCD_OSD_LOG_LVL_INFO:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20418:reading raw segment, blk_offset=%lu
+sdf/ssd/fifo/mcd_osd.c:7647:mcd_bak_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:40122:Error reading raw segment, blk_offset=%lu, slab_blksize=%d, next_slab=%u, rc=%d
+sdf/ssd/fifo/mcd_osd.c:7651:mcd_bak_msg:MCD_OSD_LOG_LVL_INFO:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20420:segment read, blk_offset=%lu
+sdf/ssd/fifo/mcd_osd.c:7693:mcd_bak_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:40128:object skipped (error), blk_offset=%lu map_offset=%lu
+sdf/ssd/fifo/mcd_osd.c:7705:mcd_bak_msg:PLAT_LOG_LEVEL_FATAL:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20421:not enough magic! blk_off=%lu map_off=%lu key_len=%d seqno=%lu
+sdf/ssd/fifo/mcd_osd.c:7719:mcd_bak_msg:MCD_OSD_LOG_LVL_INFO:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20422:object deleted, blk_offset=%lu map_offset=%lu key_len=%d seqno=%lu
+sdf/ssd/fifo/mcd_osd.c:7734:mcd_bak_msg:MCD_OSD_LOG_LVL_INFO:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20423:object found, blk_offset=%lu map_offset=%lu key_len=%d seqno=%lu
+sdf/ssd/fifo/mcd_osd.c:7748:mcd_bak_msg:PLAT_LOG_LEVEL_TRACE:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:40002:object skipped (expired), blk_offset=%lu map_offset=%lu key_len=%d
+sdf/ssd/fifo/mcd_osd.c:7763:mcd_bak_msg:PLAT_LOG_LEVEL_TRACE:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:40003:object skipped (flush), blk_offset=%lu map_offset=%lu key_len=%d
+sdf/ssd/fifo/mcd_osd.c:7814:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20000:ENTERING
+sdf/ssd/fifo/mcd_osd.c:7844:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20141:container stopping mail posted
+sdf/ssd/fifo/mcd_osd.c:7867:mcd_log_msg:MCD_OSD_LOG_LVL_DEBUG:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20430:found slab mode container, tcp_port=%d
+sdf/ssd/fifo/mcd_osd.c:7881:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20141:container stopping mail posted
+sdf/ssd/fifo/mcd_osd.c:7928:mcd_log_msg:MCD_OSD_LOG_LVL_DEBUG:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20427:ENTERING, next_addr=%lu bytes=%lu scanned=%lu expired=%lu
+sdf/ssd/fifo/mcd_osd.c:7966:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20417:failed to allocate raw read buffer
+sdf/ssd/fifo/mcd_osd.c:7992:mcd_log_msg:PLAT_LOG_LEVEL_FATAL:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20419:failed to read meta, rc=%d
+sdf/ssd/fifo/mcd_osd.c:7998:mcd_log_msg:MCD_OSD_LOG_LVL_INFO:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20420:segment read, blk_offset=%lu
+sdf/ssd/fifo/mcd_osd.c:8042:mcd_log_msg:PLAT_LOG_LEVEL_DIAGNOSTIC:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20421:not enough magic! blk_off=%lu map_off=%lu key_len=%d seqno=%lu
+sdf/ssd/fifo/mcd_osd.c:8056:mcd_log_msg:MCD_OSD_LOG_LVL_INFO:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20428:expired obj, key=%s key_len=%d data_len=%d
+sdf/ssd/fifo/mcd_osd.c:8079:mcd_log_msg:PLAT_LOG_LEVEL_TRACE_LOW:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:50049:prefix-based delete, key=%s
+sdf/ssd/fifo/mcd_osd.c:8115:mcd_log_msg:MCD_OSD_LOG_LVL_INFO:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20429:expired object deleted, key=%s
+sdf/ssd/fifo/mcd_osd.c:8120:mcd_log_msg:MCD_OSD_LOG_LVL_INFO:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:50050:prefix object deleted, key=%s
+sdf/ssd/fifo/mcd_osd.c:8151:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:50051:failed to update prefix deleter, rc=%s
+sdf/ssd/fifo/mcd_osd.c:8183:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20000:ENTERING
+sdf/ssd/fifo/mcd_osd.c:8217:mcd_log_msg:MCD_OSD_LOG_LVL_DEBUG:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20324:sleeper waked up, blocks=%d, total=%d
+sdf/ssd/fifo/mcd_osd.c:8235:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20141:container stopping mail posted
+sdf/ssd/fifo/mcd_osd.c:8260:mcd_log_msg:MCD_OSD_LOG_LVL_INFO:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:50052:ENTERING container=%s prefix=%s
+sdf/ssd/fifo/mcd_osd.c:8277:mcd_log_msg:MCD_OSD_LOG_LVL_INFO:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:50053:prefix registered, key=%s time=%lu addr=%lu
+sdf/ssd/fifo/mcd_osd.c:8281:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:50054:failed to register prefix, key=%s
+sdf/ssd/fifo/mcd_osd.c:8297:mcd_log_msg:MCD_OSD_LOG_LVL_INFO:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:50055:ENTERING container=%s
+sdf/ssd/fifo/mcd_osd.c:8315:mcd_log_msg:PLAT_LOG_LEVEL_ERROR:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:50056:failed to get prefix list
+sdf/ssd/fifo/mcd_osd.c:8322:mcd_log_msg:MCD_OSD_LOG_LVL_INFO:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:50057:number of prefixes is %d
+sdf/ssd/fifo/mcd_osd.c:8410:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20175:ENTERING, self=%p
+sdf/ssd/fifo/mcd_osd.c:8414:mcd_log_msg:PLAT_LOG_LEVEL_FATAL:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:50077:invalid aio context category %d
+sdf/ssd/fifo/mcd_osd.c:8427:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20176:self found, use context %d
+sdf/ssd/fifo/mcd_osd.c:8442:mcd_log_msg:PLAT_LOG_LEVEL_FATAL:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:20172:Please reduce the number of fthreads
+sdf/ssd/fifo/mcd_osd.c:8446:mcd_log_msg:PLAT_LOG_LEVEL_INFO:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:50075:aio context category %s count=%d
+sdf/ssd/fifo/mcd_osd.c:8455:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:50076:new aio context allocated, category=%s count=%d
+sdf/ssd/fifo/mcd_osd.c:8463:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:150004:Mcd_aio_states[%d] = %p
+sdf/ssd/fifo/mcd_osd.c:8472:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:50078:ENTERING category=%d
+sdf/ssd/fifo/mcd_osd.c:8476:mcd_log_msg:PLAT_LOG_LEVEL_FATAL:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:50077:invalid aio context category %d
+sdf/ssd/fifo/mcd_osd.c:8549:mcd_log_msg:PLAT_LOG_LEVEL_FATAL:PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION:30665:process_raw_get_command_enum() failed
 sdf/ssd/fifo/mcd_rec.c:288:mcd_log_msg:PLAT_LOG_LEVEL_DEBUG::20065:ENTERING, shardID=%lu
 sdf/ssd/fifo/mcd_rec.c:299:mcd_log_msg:PLAT_LOG_LEVEL_ERROR::20431:invalid length %d (max=%d)
 sdf/ssd/fifo/mcd_rec.c:331:mcd_log_msg:PLAT_LOG_LEVEL_ERROR::20432:couldn't find shardID=%lu

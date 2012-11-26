@@ -761,7 +761,7 @@ static void dump_map() {
         }
     }
 }
-#endif
+#endif /* notdef */
 
 int fdf_get_ctnr_from_cguid(
 	FDF_cguid_t cguid
@@ -1876,14 +1876,14 @@ FDF_status_t FDFDeleteContainer(
     if ( i_ctnr >= 0 && !ISEMPTY( CtnrMap[i_ctnr].cname ) ) {
         status = delete_container_internal_low( pai, CtnrMap[i_ctnr].cname, SDF_FALSE /* serialize */, &ok_to_delete );
 
-        plat_free( CtnrMap[i_ctnr].cname );
-        CtnrMap[i_ctnr].cname = NULL;
-
-        if ( ok_to_delete) {
+        if ( FDF_SUCCESS == status && ok_to_delete) {
+        	plat_free( CtnrMap[i_ctnr].cname );
+        	CtnrMap[i_ctnr].cname = NULL;
             CtnrMap[i_ctnr].cguid         = 0;
             CtnrMap[i_ctnr].sdf_container = containerNull;
         } else {
-            status = SDF_FAILURE;
+            if ( FDF_SUCCESS == status )
+				status = FDF_FAILURE;
             plat_log_msg( 160030, 
 						  LOG_CAT, 
 						  LOG_INFO, 

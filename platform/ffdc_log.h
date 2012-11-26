@@ -9,7 +9,7 @@
  * log message in the codebase.  The structure contains one field for
  * each message parameter in the log message, along with other meta data
  * 
- * Generated On: 2012-11-20 15:44:23
+ * Generated On: 2012-11-26 14:57:28
  *------------------------------------------------------------------------*/
 
 #ifndef PLATFORM_FFDC_H
@@ -68638,6 +68638,27 @@ struct ffdc_log_struct_150043
 
 __inline__ void
 ffdc_log_func_150043(int lineno, int msgid, int catid, int level, const char* fmt);
+
+/*---------------------------------------------------------------------------
+ * MsgID : 150044
+ * Msg   : "shard delete failed due to NULL shard pointer"
+ *-------------------------------------------------------------------------*/
+struct ffdc_log_struct_150044
+{
+    int magic;
+    int msgid;
+    int catid;
+    int level;
+    unsigned long th_id;
+    unsigned long fth_id;
+    int lineno;
+    struct timeval timestamp;
+
+
+} __attribute__ ((aligned (64)));
+
+__inline__ void
+ffdc_log_func_150044(int lineno, int msgid, int catid, int level, const char* fmt);
 
 /*---------------------------------------------------------------------------
  * MsgID : 160000

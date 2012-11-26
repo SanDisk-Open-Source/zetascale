@@ -3042,6 +3042,7 @@
 150041 Container is not deleted (busy or error): cguid=%lu, status=%s
 150042 FIFO mode is only allowed for non-evicting, non-persistent containers
 150043 FIFO mode is only allowed for evicting, non-persistent containers
+150044 shard delete failed due to NULL shard pointer
 
 
 # root
