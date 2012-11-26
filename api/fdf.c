@@ -1781,6 +1781,11 @@ FDF_status_t FDFCloseContainer(
 				((mcd_osd_shard_t*)shard)->open = 0;
 
 				shardSync(shard);
+
+				if ( ((mcd_osd_shard_t*)shard)->persistent ) {
+		    	    // kill log writer, free all persistence data structures
+        			shard_unrecover( shard );
+			    }
 			}
 		}
 
