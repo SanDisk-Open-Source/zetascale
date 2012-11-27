@@ -1959,48 +1959,20 @@ FDF_status_t FDFSetContainerProps(
     FDF_status_t             status = SDF_SUCCESS;
     SDF_container_meta_t     meta;
     SDF_internal_ctxt_t     *pai = (SDF_internal_ctxt_t *) fdf_thread_state;
-	SDF_container_props_t	 sdf_properties;
 
 	if ( !cguid )
 		return SDF_INVALID_PARAMETER;
 
     SDFStartSerializeContainerOp(pai);
     if (( status = name_service_get_meta( pai, cguid, &meta )) == SDF_SUCCESS ) {
-    	sdf_properties.container_id.owner                    = 0;
-    	sdf_properties.container_id.size                     = pprops->size_kb;
-    	//sdf_properties.container_id.container_id             = 1;
-    	//sdf_properties.container_id.owner                    = 0;
-    	//sdf_properties.container_id.num_objs                 = 1000000;
 
-    	sdf_properties.cguid                                 = pprops->cguid;
-
-    	sdf_properties.container_type.type                   = SDF_OBJECT_CONTAINER;
-    	sdf_properties.container_type.persistence            = pprops->persistent;
-    	sdf_properties.container_type.caching_container      = pprops->evicting;
-    	sdf_properties.container_type.async_writes           = SDF_FALSE;
-
-    	sdf_properties.replication.enabled                   = 0;
-    	sdf_properties.replication.type                      = SDF_REPLICATION_NONE;
-    	sdf_properties.replication.num_replicas              = 1;
-    	sdf_properties.replication.num_meta_replicas         = 0;
-    	sdf_properties.replication.synchronous               = 1;
-
-    	sdf_properties.cache.not_cacheable                   = SDF_FALSE;
-    	sdf_properties.cache.shared                          = SDF_FALSE;
-    	sdf_properties.cache.coherent                        = SDF_FALSE;
-    	sdf_properties.cache.enabled                         = SDF_TRUE;
-    	sdf_properties.cache.writethru                       = pprops->writethru;
-    	sdf_properties.cache.size                            = 0;
-    	sdf_properties.cache.max_size                        = 0;
-
-    	sdf_properties.shard.enabled                         = SDF_TRUE;
-    	sdf_properties.shard.num_shards                      = pprops->num_shards;
-
-    	sdf_properties.fifo_mode                             = pprops->fifo_mode;
-
-    	sdf_properties.durability_level                      = pprops->durability_level;
-
-        meta.properties = sdf_properties;
+    	meta.properties.container_id.size                     = pprops->size_kb;
+    	meta.properties.container_type.caching_container      = pprops->evicting;
+    	meta.properties.cache.writethru                       = pprops->writethru;
+    	meta.properties.fifo_mode                             = pprops->fifo_mode;
+    	meta.properties.shard.num_shards                      = pprops->num_shards;
+    	meta.properties.cguid                                 = pprops->cguid;
+    	meta.properties.durability_level                      = pprops->durability_level;
 
         status = name_service_put_meta( pai, cguid, &meta );
     }
