@@ -469,6 +469,9 @@ extern int  flash_format( uint64_t total_size );
 extern int  shard_format( uint64_t shard_id, int flags, uint64_t quota,
                           unsigned max_objs, mcd_osd_shard_t * shard );
 extern int  shard_unformat( uint64_t shard );
+#ifdef SDFAPIONLY
+extern int  shard_unformat_api( mcd_osd_shard_t* shard );
+#endif
 extern int  shard_recover( mcd_osd_shard_t * shard );
 extern void shard_recover_phase2( mcd_osd_shard_t * shard );
 extern void shard_unrecover( mcd_osd_shard_t * shard );

@@ -6468,12 +6468,14 @@ mcd_osd_shard_delete( struct shard * lshard )
         close(shard->flush_fd);
     }
 
+#ifndef SDFAPIONLY
     // remove shard and its properties from superblock
     // including non-persistent shards' properties
     rc = shard_unformat( shard->id );
     if ( rc != 0 ) {
         return rc;
     }
+#endif
 
     // remove shard from flashDev shardList
     wait = fthLock( &dev->lock, 1, NULL );
@@ -6492,11 +6494,21 @@ mcd_osd_shard_delete( struct shard * lshard )
         }
     }
 
+#ifndef SDFAPIONLY
     // persistent container cleanup
     if ( shard->persistent ) {
         // kill log writer, free all persistence data structures
         shard_unrecover( shard );
     }
+#else
+    // remove shard and its properties from superblock
+    // including non-persistent shards' properties
+	// EF: frees pshard which allocated in shard_format of recovery_init	
+    rc = shard_unformat_api( shard );
+    if ( rc != 0 ) {
+        return rc;
+    }
+#endif
 
     // find the total number of segments
     if ( shard->use_fifo ) {

@@ -2765,6 +2765,8 @@ shard_recover( mcd_osd_shard_t * shard )
             plat_assert_always( class->slab_blksize == pclass->slab_blksize );
         }
 
+		class->num_segments = 0;
+
         // recover segment list for class
         for ( b = 0; b < pshard->map_blks; b++ ) {
 
@@ -3304,13 +3306,14 @@ shard_unrecover( mcd_osd_shard_t * shard )
 #endif
     }
 
+#ifndef SDFAPIONLY
     plat_free( shard->pshard );
     shard->pshard = NULL;
     shard->ps_alloc -= sizeof( mcd_rec_shard_t );
 
     mcd_log_msg( 20495, PLAT_LOG_LEVEL_INFO,
                  "pshard deleted, allocated=%lu", shard->ps_alloc );
-
+#endif
     return;
 }
 
@@ -7470,6 +7473,24 @@ shard_unformat( uint64_t shard_id )
 
     return rc;
 }
+
+#ifdef SDFAPIONLY
+int
+shard_unformat_api( mcd_osd_shard_t* shard )
+{
+	if(shard->pshard)
+	{
+		plat_free( shard->pshard );
+	    shard->pshard = NULL;
+	    shard->ps_alloc -= sizeof( mcd_rec_shard_t );
+
+	}
+    mcd_log_msg( 20495, PLAT_LOG_LEVEL_INFO,
+	             "pshard deleted, allocated=%lu", shard->ps_alloc );
+
+	return shard_unformat(shard->id);
+}
+#endif
 
 int
 flash_format ( uint64_t total_size )
