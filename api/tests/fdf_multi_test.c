@@ -52,7 +52,7 @@ FDF_status_t fdf_create_container (
 			);
 
     if ( ret != FDF_SUCCESS ) {
-		fprintf( stderr, "FDFOpenContainer: %s\n", SDF_Status_Strings[ret] );
+		fprintf( stderr, "FDFOpenContainer: %s\n", FDFStrError(FDF_SUCCESS) );
 		return ret;
     }
 
@@ -237,7 +237,7 @@ void* worker(void *arg)
 		sprintf(key_data, "key%04ld-%08d_data", (long) arg, i);
 		status = fdf_set(_fdf_thd_state, cguid, key_str, strlen(key_str) + 1, key_data, strlen(key_data) + 1);
 		if (FDF_SUCCESS != status ) {
-	    	fprintf(stderr, "fdf_set: %s - %s\n", key_str, SDF_Status_Strings[status]);
+	    	fprintf(stderr, "fdf_set: %s - %s\n", key_str, FDFStrError(status));
 		}
 		plat_assert(status == FDF_SUCCESS);
 		advance_spinner();
@@ -251,7 +251,7 @@ void* worker(void *arg)
 		sprintf(key_data, "key%04ld-%08d_data", (long) arg, i);
     	status = fdf_get(_fdf_thd_state, cguid, key_str, strlen(key_str) + 1, &data, &datalen);
 		if (FDF_SUCCESS != status ) {
-	    	fprintf(stderr, "fdf_get: %s - %s\n", key_str, SDF_Status_Strings[status]);
+	    	fprintf(stderr, "fdf_get: %s - %s\n", key_str, FDFStrError(status));
 		}
 		plat_assert(status == FDF_SUCCESS);
 		plat_assert(!memcmp(data, key_data, 11));	

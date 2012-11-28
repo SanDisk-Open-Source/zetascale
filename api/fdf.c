@@ -1170,6 +1170,12 @@ FDF_status_t FDFLoadCntrPropDefaults(
 #define CONTAINER_PENDING
 
 //static uint64_t cid_counter = 0;
+char *FDFStrError(FDF_status_t fdf_errno) {
+    if ( fdf_errno >= N_FDF_STATUS_STRINGS ) {
+        return FDF_Status_Strings[0];  
+    }
+    return FDF_Status_Strings[fdf_errno]; 
+}
 
 FDF_status_t FDFOpenContainer(
 	struct FDF_thread_state	*fdf_thread_state, 

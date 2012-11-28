@@ -679,6 +679,14 @@ FDF_status_t FDFGetContainerStats(
 	FDF_stats_t     		*stats
 	);
 
+/**
+ * @brief Get error string for given error code
+ *
+ * @param errno FDF error number
+ * @return  error string
+ */
+char *FDFStrError(FDF_status_t fdf_errno);
+
 #ifdef __cplusplus
 }
 #endif
