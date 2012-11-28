@@ -34,6 +34,12 @@ static char *fdflibs[] ={
 /*
  * Function pointers.
  */
+static void 
+(*ptr_FDFSetProperty)(const char *property, const char *value);
+
+static int 
+(*ptr_FDFLoadProperties)(const char *prop_file);
+
 static FDF_status_t 
 (*ptr_FDFInit)(struct FDF_state **fdf_state);
 
@@ -145,6 +151,9 @@ static FDF_status_t
                             FDF_cguid_t cguid,
                             FDF_stats_t *stats);
 
+static char *
+(*ptr_FDFStrError)(FDF_status_t fdf_errno);
+
 
 /*
  * Linkage table.
@@ -153,6 +162,8 @@ static struct {
     const char *name;
     void       *func;
 } table[] ={
+    { "FDFSetProperty",                &ptr_FDFSetProperty               },
+    { "FDFLoadProperties",             &ptr_FDFLoadProperties            },
     { "FDFInit",                       &ptr_FDFInit                      },
     { "FDFInitPerThreadState",         &ptr_FDFInitPerThreadState        },
     { "FDFReleasePerThreadState",      &ptr_FDFReleasePerThreadState     },
@@ -176,6 +187,7 @@ static struct {
     { "FDFFlushCache",                 &ptr_FDFFlushCache                },
     { "FDFGetStats",                   &ptr_FDFGetStats                  },
     { "FDFGetContainerStats",          &ptr_FDFGetContainerStats         },
+    { "FDFStrError",                   &ptr_FDFStrError                  },
 };
 
 
@@ -272,6 +284,32 @@ parse(void)
         if (load(fdflibs[i]))
             return;
     panic("cannot find libfdf.so");
+}
+
+
+/*
+ * FDFSetProperty
+ */
+void 
+FDFSetProperty(const char *property, const char *value)
+{
+    if (unlikely(!ptr_FDFSetProperty))
+        undefined("FDFSetProperty");
+
+    return (*ptr_FDFSetProperty)(property, value);
+}
+
+
+/*
+ * FDFLoadProperties
+ */
+int 
+FDFLoadProperties(const char *prop_file)
+{
+    if (unlikely(!ptr_FDFLoadProperties))
+        undefined("FDFLoadProperties");
+
+    return (*ptr_FDFLoadProperties)(prop_file);
 }
 
 
@@ -635,4 +673,17 @@ FDFGetContainerStats(struct FDF_thread_state *fdf_thread_state,
         undefined("FDFGetContainerStats");
 
     return (*ptr_FDFGetContainerStats)(fdf_thread_state, cguid, stats);
+}
+
+
+/*
+ * FDFStrError
+ */
+char *
+FDFStrError(FDF_status_t fdf_errno)
+{
+    if (unlikely(!ptr_FDFStrError))
+        undefined("FDFStrError");
+
+    return (*ptr_FDFStrError)(fdf_errno);
 }

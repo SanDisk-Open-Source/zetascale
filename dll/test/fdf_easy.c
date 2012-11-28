@@ -277,3 +277,15 @@ fdf_iter_next(fdf_iter_t *iter, char **key, uint64_t *keylen,
     else
         return -1;
 }
+
+
+#if 0
+/*
+ * Return a string corresponding to a particular FDF message.
+ */
+char *
+fdf_errmsg(FDF_status_t ss)
+{
+    return FDFStrError(ss);
+}
+#endif
