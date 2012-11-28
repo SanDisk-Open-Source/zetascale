@@ -10,7 +10,7 @@
 /*
  * Type definitions.
  */
-typedef SDF_status_t fdf_err_t;
+typedef FDF_status_t fdf_err_t;
 
 
 /*

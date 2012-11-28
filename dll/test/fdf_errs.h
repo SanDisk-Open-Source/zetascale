@@ -10,4 +10,4 @@
 /*
  * Function prototypes.
  */
-char *fdf_errmsg(SDF_status_t ss);
+char *fdf_errmsg(FDF_status_t ss);

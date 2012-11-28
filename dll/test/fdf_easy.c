@@ -118,7 +118,7 @@ fdf_ctr_init(fdf_t *fdf, char *name, fdf_err_t *errp)
     FDF_container_props_t *props = &ctr->props;
 
     props->size_kb          = 1024 * 1024;
-    props->fifo_mode        = FDF_TRUE;
+    props->fifo_mode        = FDF_FALSE;
     props->persistent       = FDF_TRUE;
     props->evicting         = FDF_FALSE;
     props->writethru        = FDF_TRUE;
@@ -165,11 +165,8 @@ fdf_ctr_open(fdf_ctr_t *ctr, fdf_err_t *errp)
 
     err_init(&errp, &errl);
     *errp = FDFOpenContainer(thread, ctr->name,
-#ifdef NOBUG
-                             &ctr->props, FDF_CNTR_RW_MODE, &ctr->cguid);
-#else
-                             &ctr->props, SDF_READ_WRITE_MODE, &ctr->cguid);
-#endif
+                             &ctr->props, FDF_CTNR_CREATE|FDF_CTNR_RW_MODE,
+                             &ctr->cguid);
     return *errp == FDF_SUCCESS;
 }
 

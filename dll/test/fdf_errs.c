@@ -167,7 +167,7 @@ init(void)
  * Return a string corresponding to a particular FDF message.
  */
 char *
-fdf_errmsg(SDF_status_t ss)
+fdf_errmsg(FDF_status_t ss)
 {
     if (ss < 0 || ss > sizeof(msgs)/sizeof(*msgs))
         return NULL;
