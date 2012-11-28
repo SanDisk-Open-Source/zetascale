@@ -2765,8 +2765,6 @@ shard_recover( mcd_osd_shard_t * shard )
             plat_assert_always( class->slab_blksize == pclass->slab_blksize );
         }
 
-		class->num_segments = 0;
-
         // recover segment list for class
         for ( b = 0; b < pshard->map_blks; b++ ) {
 

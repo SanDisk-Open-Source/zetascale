@@ -3111,6 +3111,7 @@ mcd_osd_slab_shard_init( mcd_osd_shard_t * shard, uint64_t shard_id,
 
     shard->total_size = shard->total_segments * Mcd_osd_segment_size;
     shard->total_blks = shard->total_segments * Mcd_osd_segment_blks;
+	shard->blk_allocated = 0;
 
     if ( 4294967296ULL < shard->total_blks ) {
         mcd_log_msg( 20294, PLAT_LOG_LEVEL_FATAL,
@@ -3169,6 +3170,8 @@ mcd_osd_slab_shard_init( mcd_osd_shard_t * shard, uint64_t shard_id,
     shard->base_segments = segments;
 
     for ( i = 0, blksize = 1; i < MCD_OSD_MAX_NCLASSES; i++ ) {
+
+		memset(shard->slab_classes + i, 0, sizeof(shard->slab_classes[i]));
 
         fthLockInit( &shard->slab_classes[i].lock );
         shard->slab_classes[i].segments = (mcd_osd_segment_t **)
