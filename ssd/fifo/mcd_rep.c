@@ -1070,7 +1070,11 @@ int rep_iterate_cursors_progress(struct shard * shard, resume_cursor_t * cursor)
         finished_ops = cursor->cursor1;
     }
 
+#ifndef SDFAPIONLY
     percentage = floor((finished_ops * 100) / total_ops);
+#else
+    percentage = finished_ops * 100 / total_ops;
+#endif
 
 #if SHOW_REPLICATION_STATUS
     printf("%d%%\n", percentage);

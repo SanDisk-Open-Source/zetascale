@@ -144,7 +144,11 @@ static uint64_t check_nslabs(SDFNewCache_t *pc, uint64_t nslabs_in)
 
     for (nslabs=nslabs_in; nslabs>0; nslabs--) {
 	npages     = (pc->size_limit - pc->mem_used - nslabs*sizeof(SDFNewCacheSlab_t) + 8)/pc->page_size;
+#ifndef SDFAPIONLY
 	max_nslabs = npages/ceil(((double) pc->max_obj_entry_size)/((double) pc->page_data_size));
+#else
+	max_nslabs = npages / ((pc->max_obj_entry_size + pc->page_data_size - 1) / pc->page_data_size);
+#endif
 	if (max_nslabs >= nslabs) {
 	    break;
 	}
