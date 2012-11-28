@@ -12,6 +12,7 @@ OPTION(BUILD_SHARED "Generate shared libs" OFF)
 OPTION(PERMISSIVE "Omit -Werror for build" OFF)
 #
 INCLUDE_DIRECTORIES(${CMAKE_CURRENT_SOURCE_DIR})
+INCLUDE_DIRECTORIES(${CMAKE_CURRENT_SOURCE_DIR}/api)
 INCLUDE_DIRECTORIES(${CMAKE_CURRENT_SOURCE_DIR}/../3rdparty_inc)
 #
 SET(LIBRARY_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/output/lib)
@@ -55,6 +56,7 @@ add_subdirectory(sdfmsg)
 add_subdirectory(utils)
 add_subdirectory(ssd)
 add_subdirectory(shared)
+add_subdirectory(dll)
 #
 ADD_LIBRARY(${LIBRARY} ${LIB_TYPE} 
 $<TARGET_OBJECTS:agent>
