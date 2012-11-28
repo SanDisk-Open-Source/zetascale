@@ -7601,7 +7601,7 @@ repeat:
     if ( Raw_rbuf->blk_offset > next_addr || next_addr >=
          Raw_rbuf->blk_offset + Mcd_osd_segment_size / Mcd_osd_blk_size ||
          Raw_rbuf->prev_seq != prev_seq ||
-         Raw_rbuf->curr_seq != curr_seq) {
+         Raw_rbuf->curr_seq != curr_seq || Raw_rbuf->container != shard->cntr) {
 
         // don't read next segment on multi-getr
         if ( multiKey ) {
@@ -7667,6 +7667,8 @@ repeat:
         Raw_rbuf->blk_offset = blk_offset;
         Raw_rbuf->prev_seq = prev_seq;
         Raw_rbuf->curr_seq = curr_seq;
+        Raw_rbuf->container = shard->cntr;
+        Raw_rbuf->container_id = shard->cntr->container_id;
     }
 
     class = segment->class;
