@@ -1783,16 +1783,7 @@ FDF_status_t FDFCloseContainer(
 			shard = shardFind(flash_dev, meta.shard);
 
 			if(shard)
-			{
-				((mcd_osd_shard_t*)shard)->open = 0;
-
 				shardSync(shard);
-
-				if ( ((mcd_osd_shard_t*)shard)->persistent ) {
-		    	    // kill log writer, free all persistence data structures
-        			shard_unrecover( (mcd_osd_shard_t*)shard );
-			    }
-			}
 		}
 
 	    // Invalidate all of the container's cached objects
@@ -1815,6 +1806,16 @@ FDF_status_t FDFCloseContainer(
 		    } else {
 			plat_log_msg(21543, LOG_CAT, LOG_DBG,
 				"%s - action thread delete container state succeeded", path);
+		    }
+		}
+
+		if(shard)
+		{
+			((mcd_osd_shard_t*)shard)->open = 0;
+
+			if ( ((mcd_osd_shard_t*)shard)->persistent ) {
+	    	    // kill log writer, free all persistence data structures
+       			shard_unrecover( (mcd_osd_shard_t*)shard );
 		    }
 		}
 #endif
