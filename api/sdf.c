@@ -204,8 +204,8 @@ static void load_settings(flash_settings_t *osd_settings)
 	insertProperty("MEMCACHED_STATIC_CONTAINERS", "1");
 	insertProperty("SDF_MSG_ENGINE_START", "0");
 	insertProperty("SDF_FLASH_PROTOCOL_THREADS", "1");
-	insertProperty("SDF_CC_BUCKETS", "1000");
-	insertProperty("SDF_CC_NSLABS", "100");
+//	insertProperty("SDF_CC_BUCKETS", "1000");
+//	insertProperty("SDF_CC_NSLABS", "100");
 
     (void) strcpy(osd_settings->aio_base, getProperty_String("SDF_FLASH_FILENAME", "/schooner/data/schooner%d")); // base filename of flash files
 
