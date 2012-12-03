@@ -30,7 +30,6 @@ struct sdf_replicator;
 /*
  * maximum number of containers supported by one instance of memcached
  */
-#define MCD_MAX_NUM_CNTRS       128
 #define MCD_MAX_NUM_SCHED       32
 #define MCD_MAX_NUM_FTHREADS    1025
 
