@@ -1631,7 +1631,20 @@ recovery_init( void )
                 shard->segments[ seg_count++ ] = (uint32_t)seg_list->data[ j ];
                 mcd_log_msg( 40064, PLAT_LOG_LEVEL_TRACE,
                              "recovered segment[%lu]: blk_offset=%u",
-                             seg_count - 1, shard->segments[ seg_count ] );
+                             seg_count - 1, shard->segments[seg_count - 1] );
+#ifdef SDFAPIONLY
+				/*EF: Remove recovered segment from the list of free segments */
+
+				int k = Mcd_osd_free_seg_curr;
+				while(--k >= 0 && Mcd_osd_free_segments[k] != shard->segments[seg_count - 1]);
+
+				plat_assert(k >= 0); /*EF: Recovered segment MUST be in the list of free, so far, segments */
+
+				if(k + 1 < Mcd_osd_free_seg_curr)
+					memmove(Mcd_osd_free_segments + k, Mcd_osd_free_segments + k + 1, Mcd_osd_free_seg_curr - k - 1);
+
+				Mcd_osd_free_seg_curr--;
+#endif
             }
         }
 
@@ -2915,6 +2928,11 @@ shard_recover( mcd_osd_shard_t * shard )
     if ( !Mcd_rec_chicken ) {
         // start updater thread for this shard
         fthResume( fthSpawn( &updater_thread, 40960 ), (uint64_t)shard );
+#ifdef SDFAPIONLY
+		int i = 300;
+		while(!shard->log->updater_started && i--)
+			sleep(1);
+#endif
     }
 
     return 0;

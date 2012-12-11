@@ -1810,14 +1810,7 @@ FDF_status_t FDFCloseContainer(
 		}
 
 		if(shard)
-		{
-			((mcd_osd_shard_t*)shard)->open = 0;
-
-			if ( ((mcd_osd_shard_t*)shard)->persistent ) {
-	    	    // kill log writer, free all persistence data structures
-       			shard_unrecover( (mcd_osd_shard_t*)shard );
-		    }
-		}
+			shardClose(shard);
 #endif
 
 #if 0 // not used
@@ -2321,9 +2314,17 @@ FDF_status_t FDFFlushContainer(
 	FDF_cguid_t               cguid
 	)
 {
-    SDF_appreq_t        ar;
-    SDF_action_init_t  *pac;
-
+    SDF_appreq_t        	 ar;
+    SDF_action_init_t  		*pac;
+	FDF_status_t			 status			= FDF_FAILURE;
+#ifdef SDFAPIONLY
+    SDF_internal_ctxt_t     *pai			= (SDF_internal_ctxt_t *) fdf_thread_state;
+    struct shard            *shard          = NULL;
+    flashDev_t              *flash_dev;
+    SDF_container_meta_t     meta;
+    struct SDF_shared_state *state          = &sdf_shared_state;
+#endif
+	
     pac = (SDF_action_init_t *) fdf_thread_state;
 
     ar.reqtype = APFCO;
@@ -2336,7 +2337,28 @@ FDF_status_t FDFFlushContainer(
 
     ActionProtocolAgentNew(pac, &ar);
 
-    return(ar.respStatus);
+	if ( FDF_SUCCESS != ar.respStatus ) 
+    	return(ar.respStatus);
+
+#ifdef SDFAPIONLY
+	if ((status = name_service_get_meta(pai, cguid, &meta)) == SDF_SUCCESS) {
+
+#ifdef MULTIPLE_FLASH_DEV_ENABLED
+		flash_dev = get_flashdev_from_shardid( state->config.flash_dev,
+                                               meta.shard, 
+											   state->config.flash_dev_count
+											 );
+#else
+		flash_dev = state->config.flash_dev;
+#endif
+		shard = shardFind(flash_dev, meta.shard);
+
+		if (shard)
+			shardSync(shard);
+	}
+#endif /* SDFAPIONLY */
+
+	return status;
 }
 
 FDF_status_t FDFFlushCache(

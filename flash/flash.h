@@ -217,6 +217,8 @@ int flashSequenceScan(struct shard *shard, uint64_t *id1, uint64_t *id2,
 	ssd_shardCreate(dev, shardID, flags, quota, maxObjs) 
     #define shardOpen(dev, shardID) \
 	ssd_shardOpen(dev, shardID) 
+    #define shardClose(shard) \
+	ssd_shardClose(shard) 
     #define shardDelete(shard) \
 	ssd_shardDelete(shard) 
     #define shardSync(shard) \

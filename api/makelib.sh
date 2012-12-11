@@ -11,7 +11,7 @@ then
     exit 0    
 fi
 
-if [ "$1" = "optmize" ]
+if [ "$1" = "optimize" ]
 then
     OPTIMIZE="_o" 
     make optimize

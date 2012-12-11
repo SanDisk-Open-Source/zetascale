@@ -31,6 +31,7 @@ extern struct shard *ssd_shardOpen( struct flashDev * dev, uint64_t shardID );
 extern void ssd_shardFree(struct shard *);
 extern void ssd_shardAttributes(struct shard *shard, int *p_flags, 
 	  uint64_t *p_quota, unsigned *p_maxObjs);
+extern void ssd_shardClose(struct shard *shard);
 extern int ssd_shardDelete(struct shard *shard);
 extern int ssd_shardStart(struct shard *shard);
 extern int ssd_shardStop(struct shard *shard);

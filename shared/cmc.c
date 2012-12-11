@@ -1046,6 +1046,15 @@ cmc_delete_shards(SDF_internal_ctxt_t *pai, SDF_cmc_t *cmc, const char *cname) {
 		    #else
 			shard = shardFind(state->config.flash_dev, shard_id);
 		    #endif
+#ifdef SDFAPIONLY
+/* EF: the shard has never been opened. Open and Close here to initialize shard structures which required on later shardDelete */
+			if(!shard)
+			{
+				shardOpen(state->config.flash_dev, shard_id);
+				shard = shardFind(state->config.flash_dev, shard_id);
+				shardClose(shard);
+			}
+#endif
 		    shardDelete(shard);
 		    break;
 		default:

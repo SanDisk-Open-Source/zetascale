@@ -33,6 +33,7 @@
 #undef  shardCreate
 #undef  shardOpen
 #undef  shardSync
+#undef  shardClose
 #undef  shardDelete
 #undef  shardStart
 #undef  shardStop
@@ -60,6 +61,7 @@ ssd_fifo_ops_t      Ssd_fifo_ops = {
     .flashPut           = NULL,
     .flashFreeBuf       = NULL,
     .flashStats         = NULL,
+	.shardClose			= NULL,
     .shardSync          = NULL,
     .shardDelete        = NULL,
     .shardStart         = NULL,
@@ -254,6 +256,19 @@ void fifo_shardSync( struct shard * shard )
     }
     
     return Ssd_fifo_ops.shardSync( shard );
+}
+
+void fifo_shardClose( struct shard * shard )
+{
+    if ( NULL == Ssd_fifo_ops.shardClose ) {
+        plat_log_msg(160040, 
+                      PLAT_LOG_CAT_SDF_APP_MEMCACHED,
+                      PLAT_LOG_LEVEL_FATAL,
+                      "fifo_shardClose not implemented!" );
+        plat_abort();
+    }
+    
+    Ssd_fifo_ops.shardClose( shard );
 }
 
 int fifo_shardDelete( struct shard * shard )

@@ -126,6 +126,7 @@ typedef struct ssdState {
 	      char **dataPtr, int flags);
     int (*flashFreeBuf)(void *p);
     void (*shardSync)(struct shard *shard);
+    void (*shardClose)(struct shard *shard);
     int (*flashGetIterationCursors)(struct shard *shard, uint64_t seqno_start,
                                     uint64_t seqno_len, uint64_t seqno_max,
                                     const resume_cursor_t * resume_cursor_in,

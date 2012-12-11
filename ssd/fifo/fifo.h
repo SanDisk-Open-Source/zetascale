@@ -50,6 +50,8 @@ typedef struct ssd_fifo_ops {
 
     void                (*shardSync)( struct shard * shard );
 
+    void                 (*shardClose)( struct shard * shard );
+
     int                 (*shardDelete)( struct shard * shard );
 
     int                 (*shardStart)( struct shard * shard );
@@ -87,6 +89,7 @@ extern int fifo_flashPut(struct ssdaio_ctxt *pctxt, struct shard *shard, struct 
 extern int fifo_flashFreeBuf(void *p);
 extern uint64_t fifo_flashStats( struct shard * shard, int key );
 extern void fifo_shardSync(shard_t *shard);
+extern void  fifo_shardClose(shard_t *shard);
 extern int  fifo_shardDelete(shard_t *shard);
 extern int  fifo_shardStart(shard_t *shard);
 extern int  fifo_shardStop(shard_t *shard);

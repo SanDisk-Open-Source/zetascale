@@ -110,6 +110,7 @@ void ssd_Init()
             psss->flashFreeBuf      = fifo_flashFreeBuf;
             psss->flashStats        = fifo_flashStats;
             psss->shardSync         = fifo_shardSync;
+            psss->shardClose       = fifo_shardClose;
             psss->shardDelete       = fifo_shardDelete;
             psss->shardStart        = fifo_shardStart;
             psss->shardStop         = fifo_shardStop;
@@ -264,6 +265,12 @@ int ssd_flashFreeBuf(void *p)
 void ssd_shardSync(shard_t *shard) 
 {
     (ssdState.shardSync)(shard);
+}
+
+void ssd_shardClose(shard_t *shard) 
+{
+	if(ssdState.shardClose)
+	    (ssdState.shardClose)(shard);
 }
 
 uint64_t ssd_flashGetRetainedTombstoneGuarantee(struct shard *shard)

@@ -5632,12 +5632,18 @@ struct flashDev * mcd_osd_flash_open( char * name, flash_settings_t *flash_setti
     // format persistent structures in flash
     if ( ( (flags & FLASH_OPEN_REFORMAT_DEVICE) ||
            (flags & FLASH_OPEN_FORMAT_VIRGIN_DEVICE) ||
-           (flags & FLASH_OPEN_REVIRGINIZE_DEVICE) ) &&
-         ( 0 != flash_format( Mcd_aio_total_size ) ) ) {
-        mcd_log_msg( 20376, PLAT_LOG_LEVEL_FATAL,
+           (flags & FLASH_OPEN_REVIRGINIZE_DEVICE) ))
+	{
+		if(0 != flash_format( Mcd_aio_total_size )) {
+        	mcd_log_msg( 20376, PLAT_LOG_LEVEL_FATAL,
                      "failed to format flash rec area" );
-        plat_abort();
-    }
+	        plat_abort();
+    	}
+	}
+#ifdef SDFAPIONLY
+	else
+    	Mcd_osd_free_seg_curr--;
+#endif
 
     // initialize recovery
     if ( 0 != recovery_init() ) {
@@ -6179,6 +6185,20 @@ static void mcd_osd_shard_open_phase2( struct shard * shard, mcd_container_t * c
 }
 
 void
+mcd_osd_shard_close( struct shard * shard )
+{
+    mcd_log_msg( 20065, PLAT_LOG_LEVEL_DEBUG, "ENTERING, shardID=%lu",
+                 shard->shardID );
+
+	((mcd_osd_shard_t*)shard)->open = 0;
+
+	if ( ((mcd_osd_shard_t*)shard)->persistent ) {
+   	    // kill log writer, free all persistence data structures
+		shard_unrecover( (mcd_osd_shard_t*)shard );
+    }
+}
+
+void
 mcd_osd_shard_sync( struct shard * shard )
 {
     mcd_log_msg( 20065, PLAT_LOG_LEVEL_DEBUG, "ENTERING, shardID=%lu",
@@ -6551,7 +6571,8 @@ mcd_osd_shard_delete( struct shard * lshard )
     #endif
 
     // clear mcd_container structure
-    memset( (void *) shard->cntr, 0, sizeof(mcd_container_t) );
+	if(shard->cntr)
+	    memset( (void *) shard->cntr, 0, sizeof(mcd_container_t) );
 
     // free the shard
     plat_free( shard );
@@ -7325,6 +7346,7 @@ mcd_osd_register_ops( void )
     Ssd_fifo_ops.flashFreeBuf           = mcd_osd_release_buf;
     Ssd_fifo_ops.flashStats             = mcd_osd_shard_get_stats;
     Ssd_fifo_ops.shardSync              = mcd_osd_shard_sync;
+    Ssd_fifo_ops.shardClose            = mcd_osd_shard_close;
     Ssd_fifo_ops.shardDelete            = mcd_osd_shard_delete;
     Ssd_fifo_ops.shardStart             = mcd_osd_shard_start;
     Ssd_fifo_ops.shardStop              = mcd_osd_shard_stop;
