@@ -1245,12 +1245,6 @@ static FDF_status_t fdf_create_container(
 		return FDF_FAILURE_CONTAINER_TOO_SMALL;
 	}
 
-    if (( !properties->evicting ) && ( !properties->writethru )) {
-        plat_log_msg( 30572, LOG_CAT, LOG_ERR,
-                      "Writeback caching can only be enabled for eviction mode containers" );
-        return FDF_FAILURE_INVALID_CONTAINER_TYPE;
-    }
-
     if ( !properties->writethru ) {
         if ( !properties->evicting ) {
             plat_log_msg( 30572, LOG_CAT, LOG_ERR,
@@ -1733,7 +1727,7 @@ FDF_status_t FDFCloseContainer(
 
     SDFStartSerializeContainerOp(pai);
 
-	FDFFlushContainer(fdf_thread_state, cguid);
+	//FDFFlushContainer(fdf_thread_state, cguid);
 
     i_ctnr = fdf_get_ctnr_from_cguid(cguid);
 
@@ -1787,7 +1781,7 @@ FDF_status_t FDFCloseContainer(
 		}
 
 	    // Invalidate all of the container's cached objects
-	    if ((status = name_service_inval_object_container(pai, path)) != SDF_SUCCESS) {
+	    if ((status = name_service_flush_inval_object_container(pai, path)) != SDF_SUCCESS) {
 		plat_log_msg(21540, LOG_CAT, LOG_ERR,
 			     "%s - failed to flush and invalidate container", path);
 		log_level = LOG_ERR;
@@ -1811,19 +1805,6 @@ FDF_status_t FDFCloseContainer(
 
 		if(shard)
 			shardClose(shard);
-#endif
-
-#if 0 // not used
-        // FIXME: This is where shardClose call goes.
-        if (n_descriptors == 1) {
-            #define MAX_SHARDIDS 32 // Not sure what max is today
-            SDF_shardid_t shardids[MAX_SHARDIDS];
-            uint32_t shard_count;
-            get_container_shards(pai, parent_cguid, shardids, MAX_SHARDIDS, &shard_count);
-            for (int i = 0; i < shard_count; i++) {
-                //shardClose(shardids[i]);
-            }
-        }
 #endif
 
         if ( status == SDF_SUCCESS ) {
