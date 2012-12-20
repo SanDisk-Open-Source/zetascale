@@ -1674,7 +1674,7 @@ SDF_status_t SDFCloseContainer(
 
     SDFStartSerializeContainerOp(pai);
 
-	SDFFlushContainer(sdf_thread_state, cguid, time(NULL));
+	//SDFFlushContainer(sdf_thread_state, cguid, time(NULL));
 
     i_ctnr = get_ctnr_from_cguid(cguid);
 
@@ -1728,7 +1728,7 @@ SDF_status_t SDFCloseContainer(
 		}
 
 	    // Invalidate all of the container's cached objects
-	    if ((status = name_service_inval_object_container(pai, path)) != SDF_SUCCESS) {
+	    if ((status = name_service_flush_inval_object_container(pai, path)) != SDF_SUCCESS) {
 		plat_log_msg(21540, LOG_CAT, LOG_ERR,
 			     "%s - failed to flush and invalidate container", path);
 		log_level = LOG_ERR;

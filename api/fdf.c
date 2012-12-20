@@ -797,6 +797,25 @@ int fdf_get_ctnr_from_cname(
     return i_ctnr;
 }
 
+// Return 0 - not open, 1 - open
+int fdf_is_ctnr_open(
+    FDF_cguid_t cguid
+    )
+{
+    int i		= -1;
+    int result	= 0;
+
+	i = fdf_get_ctnr_from_cguid( cguid );
+
+	if ( i >= 0 ) {
+		if ( !isContainerNull(CtnrMap[i].sdf_container) ) {
+			result = 1;
+		}
+	}
+
+    return result;
+}
+
 #define MCD_FTH_STACKSIZE       81920
 
 static void fdf_fth_initer(uint64_t arg)
@@ -1723,7 +1742,7 @@ FDF_status_t FDFCloseContainer(
     plat_log_msg(21630, LOG_CAT, LOG_INFO, "%lu", cguid);
 
 	if ( !cguid )
-		return SDF_INVALID_PARAMETER;
+		return FDF_INVALID_PARAMETER;
 
     SDFStartSerializeContainerOp(pai);
 
@@ -1732,14 +1751,14 @@ FDF_status_t FDFCloseContainer(
     i_ctnr = fdf_get_ctnr_from_cguid(cguid);
 
     if (i_ctnr == -1) {
-        status = SDF_INVALID_PARAMETER;
+        status = FDF_INVALID_PARAMETER;
 		goto out;
     } else {
 		container = CtnrMap[i_ctnr].sdf_container;
     }
 
     if (isContainerNull(container)) {
-        status = SDF_FAILURE_CONTAINER_GENERIC;
+        status = FDF_FAILURE_CONTAINER_NOT_OPEN;
     } else {
 
         // Delete the container if there are no outstanding opens and a delete is pending
@@ -1975,6 +1994,14 @@ FDF_status_t FDFReadObject(
     SDF_action_init_t  *pac;
     SDF_status_t        status;
 
+    if ( !cguid )
+        return FDF_INVALID_PARAMETER;
+
+    if ( !fdf_is_ctnr_open( cguid) ) {
+        plat_log_msg( 150045, LOG_CAT, LOG_ERR, "Container must be open to execute a read object" );
+        return FDF_FAILURE_CONTAINER_NOT_OPEN;
+    }
+
     pac = (SDF_action_init_t *) fdf_thread_state;
    
     ar.reqtype = APGRX;
@@ -1988,14 +2015,14 @@ FDF_status_t FDFReadObject(
         return(status);
     }
     if (data == NULL) {
-        return(SDF_BAD_PBUF_POINTER);
+        return(FDF_BAD_PBUF_POINTER);
     }
     ar.ppbuf_in = (void **)data;
 
     ActionProtocolAgentNew(pac, &ar);
 
     if (datalen == NULL) {
-        return(SDF_BAD_SIZE_POINTER);
+        return(FDF_BAD_SIZE_POINTER);
     }
     *datalen = ar.destLen;
 
@@ -2025,8 +2052,13 @@ FDF_status_t FDFWriteObject(
     FDF_status_t        status;
 
  	if ( !cguid )
- 		return SDF_INVALID_PARAMETER;
+ 		return FDF_INVALID_PARAMETER;
  
+    if ( !fdf_is_ctnr_open( cguid) ) {
+    	plat_log_msg( 150046, LOG_CAT, LOG_ERR, "Container must be open to execute a write object" );
+        return FDF_FAILURE_CONTAINER_NOT_OPEN;
+	}
+		
     pac = (SDF_action_init_t *) fdf_thread_state;
 
 	if ( flags & FDF_WRITE_MUST_EXIST ) {
@@ -2050,7 +2082,7 @@ FDF_status_t FDFWriteObject(
     ar.pbuf_out = (void *) data;
     ar.exptime = 0;
     if (data == NULL) {
-        return(SDF_BAD_PBUF_POINTER);
+        return(FDF_BAD_PBUF_POINTER);
     }
 
     ActionProtocolAgentNew(pac, &ar);
@@ -2069,8 +2101,13 @@ FDF_status_t FDFDeleteObject(
     SDF_action_init_t  *pac;
     FDF_status_t        status;
 
-	if ( !cguid )
-		return SDF_INVALID_PARAMETER;
+    if ( !cguid )
+        return FDF_INVALID_PARAMETER;
+        
+    if ( !fdf_is_ctnr_open( cguid) ) {
+        plat_log_msg( 150047, LOG_CAT, LOG_ERR, "Container must be open to execute a delete object" );
+        return FDF_FAILURE_CONTAINER_NOT_OPEN;
+    }
 
     pac = (SDF_action_init_t *) fdf_thread_state;
 
@@ -2108,11 +2145,16 @@ FDF_status_t FDFEnumerateContainerObjects(
     struct FDF_iterator        *iterator;
 
 	if ( !cguid )
-		return SDF_INVALID_PARAMETER;
+		return FDF_INVALID_PARAMETER;
 
+    if ( !fdf_is_ctnr_open( cguid) ) {
+        plat_log_msg( 150048, LOG_CAT, LOG_ERR, "Container must be open to execute a container enumeration" );
+        return FDF_FAILURE_CONTAINER_NOT_OPEN;
+    }
+    
     if (( status = name_service_get_meta( pai, cguid, &meta )) != SDF_SUCCESS ) {
         fprintf( stderr, "sdf_enumerate: failed to get meta for cguid: %lu\n", cguid );
-		return FDF_FAILURE; // xxxzzz TODO: better return code?
+		return FDF_GET_METADATA_FAILED;
     }
 
     *iterator_out = NULL;
@@ -2243,7 +2285,7 @@ FDF_status_t FDFFinishEnumeration(
     uint32_t                    version;
 
 	if ( !iterator )
-		return SDF_INVALID_PARAMETER;
+		return FDF_INVALID_PARAMETER;
 
     // stop the backup
     status = backup_container( iterator->shard,
@@ -2274,6 +2316,14 @@ FDF_status_t FDFFlushObject(
 
     pac = (SDF_action_init_t *) fdf_thread_state;
    
+	if ( !cguid )
+		return FDF_INVALID_PARAMETER;
+
+    if ( !fdf_is_ctnr_open( cguid) ) {
+        plat_log_msg( 150049, LOG_CAT, LOG_ERR, "Container must be open to execute a flush object" );
+        return FDF_FAILURE_CONTAINER_NOT_OPEN;
+    }
+
     ar.reqtype = APFLS;
     ar.curtime = 0;
     ar.ctxt = pac->ctxt;
@@ -2306,6 +2356,14 @@ FDF_status_t FDFFlushContainer(
     struct SDF_shared_state *state          = &sdf_shared_state;
 #endif
 	
+    if ( !cguid )
+        return FDF_INVALID_PARAMETER;
+
+    if ( !fdf_is_ctnr_open( cguid) ) {
+        plat_log_msg( 150050, LOG_CAT, LOG_ERR, "Container must be open to execute a flush container" );
+        return FDF_FAILURE_CONTAINER_NOT_OPEN;
+    }
+
     pac = (SDF_action_init_t *) fdf_thread_state;
 
     ar.reqtype = APFCO;
