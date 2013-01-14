@@ -55,6 +55,10 @@
 
 #define PLAT_WRAP_PRAGMA(text) _Pragma(#text)
 
+#if (__GNUC__ > 4) || (__GNUC__ == 4 && __GNUC_MINOR__ >= 6)
+#define PLATFORM_BYPASS
+#endif
+
 #ifdef PLATFORM_BYPASS
 
 #define PLAT_WRAP_CPP_POISON(ident)
@@ -110,8 +114,7 @@
  * GCC 4.3.0 always emits the poisoned strings even if the inline function
  * isn't being referenced. Avoid this.
  */
-// #if __GNUC__  == 4 && __GNUC_MINOR__ == 3
-#if (__GNUC__  == 4 && __GNUC_MINOR__ == 3) || (__GNUC__  == 4 && __GNUC_MINOR__ == 1) || (__GNUC__  == 4 && __GNUC_MINOR__ == 4)
+#if (__GNUC__ == 4 && (__GNUC_MINOR__ == 1 || __GNUC_MINOR__ >= 3))
 #define PLAT_WRAP_POISON(ret, sym, declare, call, cppthrow, attributes)
 #else
 #define PLAT_WRAP_POISON(ret, sym, declare, call, cppthrow, attributes)        \
