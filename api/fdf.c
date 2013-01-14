@@ -1183,6 +1183,16 @@ FDF_status_t FDFLoadCntrPropDefaults(
 	FDF_container_props_t *props
 	)
 {
+	props->size_kb = 1024 * 1024;
+	props->fifo_mode = SDF_TRUE;
+	props->persistent = SDF_FALSE;
+    props->evicting = SDF_TRUE;
+	props->writethru = SDF_TRUE;
+	props->async_writes = SDF_FALSE;
+	props->durability_level = FDF_PERIODIC_DURABILITY;
+	props->cguid = 0;
+	props->cid = 1;
+	props->num_shards = 1;
 	return FDF_SUCCESS;
 }
 
@@ -1973,6 +1983,7 @@ FDF_status_t FDFSetContainerProps(
     	meta.properties.shard.num_shards                      = pprops->num_shards;
     	meta.properties.cguid                                 = pprops->cguid;
     	meta.properties.durability_level                      = pprops->durability_level;
+    	meta.properties.container_type.async_writes			  = pprops->async_writes;
 
         status = name_service_put_meta( pai, cguid, &meta );
     }
@@ -3206,7 +3217,7 @@ SDF_container_props_t *fdf_create_sdf_props(
     	sdf_properties->container_type.type                   = SDF_OBJECT_CONTAINER;
     	sdf_properties->container_type.persistence            = fdf_properties->persistent;
     	sdf_properties->container_type.caching_container      = fdf_properties->evicting;
-    	sdf_properties->container_type.async_writes           = SDF_FALSE;
+    	sdf_properties->container_type.async_writes           = fdf_properties->async_writes;
     
     	sdf_properties->replication.enabled                   = 0; 
     	sdf_properties->replication.type                      = SDF_REPLICATION_NONE;
@@ -3247,6 +3258,7 @@ FDF_status_t fdf_create_fdf_props(
         fdf_properties->durability_level					= sdf_properties->durability_level;
         fdf_properties->cguid								= sdf_properties->cguid;
         fdf_properties->num_shards							= sdf_properties->shard.num_shards;
+        fdf_properties->async_writes						= sdf_properties->container_type.async_writes;
         fdf_properties->cid									= sdf_properties->container_id.container_id;
 		status												= FDF_SUCCESS;
     }

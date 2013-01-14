@@ -270,6 +270,7 @@ typedef struct {
 	FDF_boolean_t			persistent;
     FDF_boolean_t			evicting;
 	FDF_boolean_t			writethru;
+	FDF_boolean_t			async_writes;
 	FDF_durability_level_t	durability_level;
 	FDF_cguid_t				cguid;
 	uint64_t				cid;
