@@ -10,6 +10,7 @@
  * $Id: mem_debug.cc 2967 2008-08-21 00:26:33Z drew $
  */
 
+#include <unistd.h>
 #include <execinfo.h>
 
 #include <cstring>
