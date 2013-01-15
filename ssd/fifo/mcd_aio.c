@@ -338,8 +338,8 @@ mcd_fth_aio_blk_read( osd_state_t * context, char * buf, uint64_t offset, int nb
 
 
 int
-mcd_fth_aio_blk_write( osd_state_t * context, char * buf, uint64_t offset,
-                       int nbytes )
+mcd_fth_aio_blk_write_low( osd_state_t * context, char * buf, uint64_t offset,
+                       int nbytes, char sync )
 {
     int                         aio_err = 0;
     int                         aio_fd = Mcd_aio_fds[0];
@@ -437,6 +437,9 @@ mcd_fth_aio_blk_write( osd_state_t * context, char * buf, uint64_t offset,
             break;
         }
     } while ( 1 );
+
+	if(sync)
+		fdatasync(aio_fd);
 
     return FLASH_EOK;   /* SUCCESS */
 
@@ -538,6 +541,13 @@ mcd_fth_aio_blk_write( osd_state_t * context, char * buf, uint64_t offset,
     }
 
     return FLASH_EOK;   /* SUCCESS */
+}
+
+int
+mcd_fth_aio_blk_write( osd_state_t * context, char * buf, uint64_t offset,
+                       int nbytes )
+{
+	return mcd_fth_aio_blk_write_low(context, buf, offset, nbytes, 1);
 }
 
 

@@ -122,9 +122,9 @@ typedef enum {
 } SDF_container_type_t;
 
 typedef enum {
-    SDF_FULL_DURABILITY = 0,
+    SDF_NO_DURABILITY = 0,
     SDF_RELAXED_DURABILITY,
-    SDF_NO_DURABILITY
+    SDF_FULL_DURABILITY,
 } SDF_durability_level_t;
 
 typedef struct {

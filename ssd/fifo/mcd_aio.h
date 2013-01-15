@@ -110,6 +110,7 @@ struct osd_state;
 extern int mcd_fth_aio_blk_read( struct osd_state * context, char * buf, uint64_t offset, int nbytes );
 
 extern int mcd_fth_aio_blk_write( struct osd_state * context, char * buf, uint64_t offset, int nbytes );
+extern int mcd_fth_aio_blk_write_low( struct osd_state * context, char * buf, uint64_t offset, int nbytes, char sync );
 
 extern void mcd_aio_set_fds( int order[] );
 

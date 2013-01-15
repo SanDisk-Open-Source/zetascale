@@ -211,6 +211,7 @@ typedef struct mcd_osd_shard {
     int                         open;
     int                         flush_fd;
     int                         persistent;
+    int                         durability_level;
     int                         replicated;
     int                         evict_to_free;
     int                         use_fifo;

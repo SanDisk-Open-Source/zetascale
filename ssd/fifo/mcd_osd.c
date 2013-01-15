@@ -108,6 +108,9 @@ extern void SDFClusterStatus(SDF_action_init_t *pai, uint32_t *mynode_id, uint32
 // from mcd_rep.c
 extern uint64_t rep_seqno_get(struct shard * shard);
 
+void
+flog_close(struct shard *shard);
+
 #ifdef SDFAPI
 // from sdf.c
 extern ctnr_map_t CtnrMap[MCD_MAX_NUM_CNTRS];
@@ -1808,10 +1811,10 @@ static int mcd_osd_fifo_write( mcd_osd_shard_t * shard, char * rbuf,
             + ( blk_offset % Mcd_osd_rand_blksize );
         offset = tmp_offset * Mcd_osd_blk_size;
 
-        rc = mcd_fth_aio_blk_write( (void *) &osd_state->osd_aio_state,
+        rc = mcd_fth_aio_blk_write_low( (void *) &osd_state->osd_aio_state,
                                     wbuf->buf,
                                     offset,
-                                    MCD_OSD_WBUF_SIZE );
+                                    MCD_OSD_WBUF_SIZE, shard->durability_level > SDF_RELAXED_DURABILITY);
         if ( FLASH_EOK != rc ) {
             mcd_log_msg( 20319, PLAT_LOG_LEVEL_FATAL,
                          "failed to commit buffer, rc=%d", rc );
@@ -2041,10 +2044,10 @@ void mcd_fth_osd_writer( uint64_t arg )
                 + ( blk_offset % Mcd_osd_rand_blksize );
             offset = tmp_offset * Mcd_osd_blk_size;
 
-            rc = mcd_fth_aio_blk_write( (void *) &osd_state->osd_aio_state,
+            rc = mcd_fth_aio_blk_write_low( (void *) &osd_state->osd_aio_state,
                                         wbuf->buf,
                                         offset,
-                                        MCD_OSD_WBUF_SIZE );
+                                        MCD_OSD_WBUF_SIZE, shard->durability_level > SDF_RELAXED_DURABILITY );
 
             if ( FLASH_EOK != rc ) {
                 mcd_log_msg( 20319, PLAT_LOG_LEVEL_FATAL,
@@ -4812,17 +4815,19 @@ mcd_fth_osd_slab_set( void * context, mcd_osd_shard_t * shard, char * key,
      * FIXME: pad the object if size < 128KB
      */
     if ( blocks < 256 ) {
-        rc = mcd_fth_aio_blk_write( context,
+        rc = mcd_fth_aio_blk_write_low( context,
                                     buf,
                                     offset,
                                     (1 << shard->class_table[blocks]) *
-                                    Mcd_osd_blk_size );
+                                    Mcd_osd_blk_size,
+									shard->durability_level > SDF_RELAXED_DURABILITY);
     }
     else {
-        rc = mcd_fth_aio_blk_write( context,
+        rc = mcd_fth_aio_blk_write_low( context,
                                     buf,
                                     offset,
-                                    blocks * Mcd_osd_blk_size );
+                                    blocks * Mcd_osd_blk_size,
+									shard->durability_level > SDF_RELAXED_DURABILITY);
     }
     if ( FLASH_EOK != rc ) {
         /*
@@ -6078,12 +6083,15 @@ mcd_osd_shard_open( struct flashDev * dev, uint64_t shard_id )
                                       mcd_shard->shard.flags,
                                       mcd_shard->shard.quota,
                                       mcd_shard->shard.maxObjs );
+    	mcd_shard->durability_level = 0;
     }
     else {
         rc = mcd_osd_slab_shard_init( mcd_shard, shard_id,
                                       mcd_shard->shard.flags,
                                       mcd_shard->shard.quota,
                                       mcd_shard->shard.maxObjs );
+    	mcd_shard->durability_level =
+            (mcd_shard->shard.flags >> 20) & FLASH_SHARD_INIT_DURABILITY_MASK;
     }
 
     if ( 0 != rc ) {
@@ -6092,6 +6100,10 @@ mcd_osd_shard_open( struct flashDev * dev, uint64_t shard_id )
         mcd_osd_shard_uninit( mcd_shard );
         return NULL;
     }
+
+    mcd_log_msg( 160043, PLAT_LOG_LEVEL_INFO,
+       "ENTERING, shard_id=%lu durability_level=%u",
+                 shard_id, mcd_shard->durability_level );
 
     /*
      * initialize the public shard structure
@@ -6191,6 +6203,8 @@ mcd_osd_shard_close( struct shard * shard )
                  shard->shardID );
 
 	((mcd_osd_shard_t*)shard)->open = 0;
+
+	flog_close(shard);
 
 	if ( ((mcd_osd_shard_t*)shard)->persistent ) {
    	    // kill log writer, free all persistence data structures
@@ -6487,11 +6501,11 @@ mcd_osd_shard_delete( struct shard * lshard )
 		return -1;
 	}
 
+#ifndef SDFAPIONLY
     if (shard->flush_fd > 0) {
         close(shard->flush_fd);
     }
 
-#ifndef SDFAPIONLY
     // remove shard and its properties from superblock
     // including non-persistent shards' properties
     rc = shard_unformat( shard->id );

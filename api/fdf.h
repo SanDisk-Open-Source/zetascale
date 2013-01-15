@@ -43,8 +43,9 @@ typedef struct {
 } FDF_histo_t;
 
 typedef enum {
-	FDF_FULL_DURABILITY 	= 0,
-	FDF_PERIODIC_DURABILITY = 1,
+	FDF_DURABILITY_PERIODIC = 0,
+	FDF_DURABILITY_SW_CRASH_SAFE    = 0x1,
+	FDF_DURABILITY_HW_CRASH_SAFE    = 0x2,
 } FDF_durability_level_t;
 
 typedef enum {

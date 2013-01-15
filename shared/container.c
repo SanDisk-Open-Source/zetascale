@@ -1945,6 +1945,10 @@ build_shard(struct SDF_shared_state *state, SDF_internal_ctxt_t *pai,
         plat_assert(0);
     }
 
+#ifdef SDFAPIONLY
+    flags |= (props.durability_level << 20);
+#endif
+
     if (SDF_TRUE == props.container_type.persistence) {
         shard_meta.persistence = SDF_SHARD_PERSISTENCE_YES;
         flags |= FLASH_SHARD_INIT_PERSISTENCE_YES;

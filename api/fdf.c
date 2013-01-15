@@ -1189,7 +1189,7 @@ FDF_status_t FDFLoadCntrPropDefaults(
     props->evicting = SDF_TRUE;
 	props->writethru = SDF_TRUE;
 	props->async_writes = SDF_FALSE;
-	props->durability_level = FDF_PERIODIC_DURABILITY;
+	props->durability_level = FDF_DURABILITY_PERIODIC;
 	props->cguid = 0;
 	props->cid = 1;
 	props->num_shards = 1;
@@ -1266,7 +1266,7 @@ static FDF_status_t fdf_create_container(
 
 	*cguid = 0;
 
-     plat_log_msg(160035, LOG_CAT, LOG_INFO, "%s, size=%d bytes", cname, properties->size_kb * 1024);
+     plat_log_msg(160035, LOG_CAT, LOG_INFO, "%s, size=%ld bytes", cname, (long)properties->size_kb * 1024);
 
 	if( properties->size_kb < 1024 * 1024 )
 	{
@@ -1982,7 +1982,13 @@ FDF_status_t FDFSetContainerProps(
     	meta.properties.fifo_mode                             = pprops->fifo_mode;
     	meta.properties.shard.num_shards                      = pprops->num_shards;
     	meta.properties.cguid                                 = pprops->cguid;
-    	meta.properties.durability_level                      = pprops->durability_level;
+
+	meta.properties.durability_level = SDF_NO_DURABILITY;
+	if(pprops->durability_level == FDF_DURABILITY_HW_CRASH_SAFE)
+	    	meta.properties.durability_level = SDF_FULL_DURABILITY;
+	else if(pprops->durability_level == FDF_DURABILITY_SW_CRASH_SAFE)
+	    	meta.properties.durability_level = SDF_RELAXED_DURABILITY;
+
     	meta.properties.container_type.async_writes			  = pprops->async_writes;
 
         status = name_service_put_meta( pai, cguid, &meta );
@@ -3218,11 +3224,11 @@ SDF_container_props_t *fdf_create_sdf_props(
     	sdf_properties->container_type.persistence            = fdf_properties->persistent;
     	sdf_properties->container_type.caching_container      = fdf_properties->evicting;
     	sdf_properties->container_type.async_writes           = fdf_properties->async_writes;
-    
-    	sdf_properties->replication.enabled                   = 0; 
+
+    	sdf_properties->replication.enabled                   = 0;
     	sdf_properties->replication.type                      = SDF_REPLICATION_NONE;
-    	sdf_properties->replication.num_replicas              = 1; 
-    	sdf_properties->replication.num_meta_replicas         = 0; 
+    	sdf_properties->replication.num_replicas              = 1;
+    	sdf_properties->replication.num_meta_replicas         = 0;
     	sdf_properties->replication.synchronous               = 1;
 
     	sdf_properties->cache.not_cacheable                   = SDF_FALSE;
@@ -3231,12 +3237,17 @@ SDF_container_props_t *fdf_create_sdf_props(
     	sdf_properties->cache.enabled                         = SDF_TRUE;
     	sdf_properties->cache.writethru                       = fdf_properties->writethru;
     	sdf_properties->cache.size                            = 0;
-    	sdf_properties->cache.max_size                        = 0; 
-        
+    	sdf_properties->cache.max_size                        = 0;
+
     	sdf_properties->shard.enabled                         = SDF_TRUE;
     	sdf_properties->shard.num_shards                      = fdf_properties->num_shards;
     	sdf_properties->fifo_mode                             = fdf_properties->fifo_mode;
-    	sdf_properties->durability_level                      = fdf_properties->durability_level;
+
+	sdf_properties->durability_level = SDF_NO_DURABILITY;
+	if(fdf_properties->durability_level == FDF_DURABILITY_HW_CRASH_SAFE)
+	    	sdf_properties->durability_level = SDF_FULL_DURABILITY;
+	else if(fdf_properties->durability_level == FDF_DURABILITY_SW_CRASH_SAFE)
+	    	sdf_properties->durability_level = SDF_RELAXED_DURABILITY;
 	}
 
 	return sdf_properties;
@@ -3255,7 +3266,13 @@ FDF_status_t fdf_create_fdf_props(
         fdf_properties->persistent							= sdf_properties->container_type.persistence;
         fdf_properties->evicting							= sdf_properties->container_type.caching_container;
         fdf_properties->writethru							= sdf_properties->cache.writethru;
-        fdf_properties->durability_level					= sdf_properties->durability_level;
+
+	fdf_properties->durability_level = FDF_DURABILITY_PERIODIC;
+	if(sdf_properties->durability_level == SDF_FULL_DURABILITY)
+	    	fdf_properties->durability_level = FDF_DURABILITY_HW_CRASH_SAFE;
+	else if(sdf_properties->durability_level == SDF_RELAXED_DURABILITY)
+	    	fdf_properties->durability_level = FDF_DURABILITY_SW_CRASH_SAFE;
+
         fdf_properties->cguid								= sdf_properties->cguid;
         fdf_properties->num_shards							= sdf_properties->shard.num_shards;
         fdf_properties->async_writes						= sdf_properties->container_type.async_writes;

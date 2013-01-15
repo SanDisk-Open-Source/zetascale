@@ -2652,9 +2652,23 @@ flog_prepare(mcd_osd_shard_t *shard)
 static void
 flog_init(mcd_osd_shard_t *shard, void *context)
 {
-    flog_recover(shard, context);
-    flog_prepare(shard);
+	if(shard->durability_level > SDF_NO_DURABILITY)
+	{
+	    flog_recover(shard, context);
+	    flog_prepare(shard);
+	}
+	else
+		shard->flush_fd = -1;
 }
+
+void
+flog_close(mcd_osd_shard_t *shard)
+{
+    if (shard->flush_fd > 0) {
+        close(shard->flush_fd);
+    }
+}
+
 
 void
 shard_recovery_stats( mcd_osd_shard_t * shard, char ** ppos, int * lenp )
@@ -2711,7 +2725,7 @@ shard_recover( mcd_osd_shard_t * shard )
                  pshard->rec_log_blks * MCD_REC_LOG_BLK_RECS );
 
     // initialize log flushing
-    flog_init(shard, context);
+	flog_init(shard, context);
 
     // get aligned buffer
     buf = (char *)( ( (uint64_t)context->osd_buf + Mcd_osd_blk_size - 1 ) &
@@ -6325,7 +6339,7 @@ log_init_phase2( void * context, mcd_osd_shard_t * shard )
  * Persist the log.
  */
 static void
-persist_log(mcd_osd_shard_t *shard,
+flog_persist(mcd_osd_shard_t *shard,
             uint64_t slot_seqno,
             mcd_logrec_object_t *logrec_obj)
 {
@@ -6434,7 +6448,7 @@ log_write_internal( mcd_osd_shard_t * shard, mcd_logrec_object_t * data )
         rec_filled = __sync_add_and_fetch( &logbuf->fill_count, 1 );
 
         if (shard->flush_fd > 0)
-            persist_log(shard, slot_seqno, data);
+            flog_persist(shard, slot_seqno, data);
 
         if ( rec_filled == MCD_REC_LOGBUF_RECS ) {
             mcd_rlg_msg( 20543, PLAT_LOG_LEVEL_DEBUG,
