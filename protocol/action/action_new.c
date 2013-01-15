@@ -391,7 +391,11 @@ void InitActionProtocolCommonState(SDF_action_state_t *pas, SDF_action_init_t *p
     plat_log_msg(21071, PLAT_LOG_CAT_PRINT_ARGS, PLAT_LOG_LEVEL_INFO, "PROP: SDF_MAX_OBJ_SIZE=%"PRIu64, max_obj_size);
     max_obj_size += 20; // allow extra bytes for secret memcached metadata
 
+#ifdef SDFAPIONLY
+    uint64_t cacheSize = getProperty_uLongLong("FDF_CACHE_SIZE", 100000000ULL);
+#else
     uint64_t cacheSize = getProperty_uLongLong("SDF_CC_MAXCACHESIZE", 100000000ULL);
+#endif
     plat_log_msg(21072, PLAT_LOG_CAT_PRINT_ARGS, PLAT_LOG_LEVEL_INFO, "PROP: SDF_CC_MAXCACHESIZE=%"PRIu64,
                  cacheSize);
 
@@ -413,10 +417,14 @@ void InitActionProtocolCommonState(SDF_action_state_t *pas, SDF_action_init_t *p
     if (buckets_default < SDF_CC_MIN_DEFAULT_BUCKETS) {
         buckets_default = SDF_CC_MIN_DEFAULT_BUCKETS;
     }
+#ifdef SDFAPIONLY
+    uint64_t buckets = getProperty_uLongLong("FDF_CC_BUCKETS", buckets_default);
+    nslabs = getProperty_uLongLong("FDF_CC_NSLABS", 10000);
+#else
     uint64_t buckets = getProperty_uLongLong("SDF_CC_BUCKETS", buckets_default);
-    plat_log_msg(21074, PLAT_LOG_CAT_PRINT_ARGS, PLAT_LOG_LEVEL_INFO, "PROP: SDF_CC_BUCKETS=%"PRIu64, buckets);
-
     nslabs = getProperty_uLongLong("SDF_CC_NSLABS", 10000);
+#endif
+    plat_log_msg(21074, PLAT_LOG_CAT_PRINT_ARGS, PLAT_LOG_LEVEL_INFO, "PROP: SDF_CC_BUCKETS=%"PRIu64, buckets);
     plat_log_msg(21075, PLAT_LOG_CAT_PRINT_ARGS, PLAT_LOG_LEVEL_INFO, "PROP: SDF_CC_NSLABS=%"PRIu64, nslabs);
 
     per_thread_nonobject_arena = getProperty_String("SDF_CACHE_NONOBJECT_ARENA", "root_thread");

@@ -2588,7 +2588,7 @@ flog_recover(mcd_osd_shard_t *shard, void *context)
     char path[FLUSH_LOG_MAX_PATH];
     FILE            *fp = NULL;
     char          *fast = NULL;
-    char *log_flush_dir = (char *) getProperty_String("LOG_FLUSH_DIR", NULL);
+    char *log_flush_dir = (char *) getProperty_String("FDF_LOG_FLUSH_DIR", NULL);
 
     if (log_flush_dir == NULL)
         return;
@@ -2617,7 +2617,7 @@ static void
 flog_prepare(mcd_osd_shard_t *shard)
 {
     char path[FLUSH_LOG_MAX_PATH];
-    char *log_flush_dir = (char *)getProperty_String("LOG_FLUSH_DIR", NULL);
+    char *log_flush_dir = (char *)getProperty_String("FDF_LOG_FLUSH_DIR", NULL);
 
     if (log_flush_dir == NULL)
         return;

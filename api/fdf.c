@@ -682,18 +682,19 @@ static void fdf_load_settings(flash_settings_t *osd_settings)
 	insertProperty("MEMCACHED_STATIC_CONTAINERS", "1");
 	insertProperty("SDF_MSG_ENGINE_START", "0");
 	insertProperty("SDF_FLASH_PROTOCOL_THREADS", "1");
-//	insertProperty("SDF_CC_BUCKETS", "1000");
-//	insertProperty("SDF_CC_NSLABS", "100");
+	insertProperty("FDF_LOG_FLUSH_DIR", "/tmp");
+//	insertProperty("FDF_CC_BUCKETS", "1000");
+//	insertProperty("FDF_CC_NSLABS", "100");
 
-    (void) strcpy(osd_settings->aio_base, getProperty_String("SDF_FLASH_FILENAME", "/tmp/schooner%d")); // base filename of flash files
+    (void) strcpy(osd_settings->aio_base, getProperty_String("FDF_FLASH_FILENAME", "/tmp/schooner%d")); // base filename of flash files
 
-	/* This is added for compatibility with old property files which don't contain SDF_FLASH_FILENAME property */
+	/* This is added for compatibility with old property files which don't contain FDF_FLASH_FILENAME property */
 	const char *p = getProperty_String("AIO_BASE_FILENAME", osd_settings->aio_base);
 	if(p != osd_settings->aio_base)
 	    (void) strcpy(osd_settings->aio_base, p); // base filename of flash files
 
     osd_settings->aio_create          = 1;// use O_CREAT - membrain sets this to 0
-    osd_settings->aio_total_size      = getProperty_Int("SDF_FLASH_SIZE", 2); // this flash size counts! 2Gb by default
+    osd_settings->aio_total_size      = getProperty_Int("FDF_FLASH_SIZE", 2); // this flash size counts! 2Gb by default
     osd_settings->aio_total_size      = getProperty_Int("AIO_FLASH_SIZE_TOTAL", osd_settings->aio_total_size); // compatibility with old property files
     osd_settings->aio_sync_enabled    = getProperty_Int("AIO_SYNC_ENABLED", 0); // AIO_SYNC_ENABLED
     osd_settings->rec_log_verify      = 0;
