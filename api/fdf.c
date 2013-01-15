@@ -1266,7 +1266,7 @@ static FDF_status_t fdf_create_container(
 
 	*cguid = 0;
 
-     plat_log_msg(160035, LOG_CAT, LOG_INFO, "%s, size=%ld bytes", cname, (long)properties->size_kb * 1024);
+     plat_log_msg(160033, LOG_CAT, LOG_INFO, "%s, size=%ld bytes", cname, (long)properties->size_kb * 1024);
 
 	if( properties->size_kb < 1024 * 1024 )
 	{
