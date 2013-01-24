@@ -9,7 +9,7 @@
  * codebase. This file also contains the API to enable, disable, and
  * initialize FFDC.
  * 
- * Generated On: 2012-11-26 14:57:28
+ * Generated On: 2013-01-23 19:22:30
  *------------------------------------------------------------------------*/
 
 #define PLATFORM_INTERNAL 1
@@ -41704,6 +41704,97 @@ ffdc_log_func_160038(int lineno, int msgid, int catid, int level, const char* fm
 {
     FFDC_START(160038, catid, level, lineno);
     FFDC_ADD_STR(arg1);
+    FFDC_END();
+}
+
+/*---------------------------------------------------------------------------
+ * MsgID : 160039
+ * Msg   : "Container must be open to execute a read object"
+ *-------------------------------------------------------------------------*/
+__inline__ void
+ffdc_log_func_160039(int lineno, int msgid, int catid, int level, const char* fmt)
+{
+    FFDC_START(160039, catid, level, lineno);
+    FFDC_END();
+}
+
+/*---------------------------------------------------------------------------
+ * MsgID : 160040
+ * Msg   : "Container must be open to execute a write object"
+ *-------------------------------------------------------------------------*/
+__inline__ void
+ffdc_log_func_160040(int lineno, int msgid, int catid, int level, const char* fmt)
+{
+    FFDC_START(160040, catid, level, lineno);
+    FFDC_END();
+}
+
+/*---------------------------------------------------------------------------
+ * MsgID : 160041
+ * Msg   : "Container must be open to execute a delete object"
+ *-------------------------------------------------------------------------*/
+__inline__ void
+ffdc_log_func_160041(int lineno, int msgid, int catid, int level, const char* fmt)
+{
+    FFDC_START(160041, catid, level, lineno);
+    FFDC_END();
+}
+
+/*---------------------------------------------------------------------------
+ * MsgID : 160042
+ * Msg   : "Container must be open to execute a container enumeration"
+ *-------------------------------------------------------------------------*/
+__inline__ void
+ffdc_log_func_160042(int lineno, int msgid, int catid, int level, const char* fmt)
+{
+    FFDC_START(160042, catid, level, lineno);
+    FFDC_END();
+}
+
+/*---------------------------------------------------------------------------
+ * MsgID : 160043
+ * Msg   : "Container must be open to execute a flush object"
+ *-------------------------------------------------------------------------*/
+__inline__ void
+ffdc_log_func_160043(int lineno, int msgid, int catid, int level, const char* fmt)
+{
+    FFDC_START(160043, catid, level, lineno);
+    FFDC_END();
+}
+
+/*---------------------------------------------------------------------------
+ * MsgID : 160044
+ * Msg   : "Container must be open to execute a flush container"
+ *-------------------------------------------------------------------------*/
+__inline__ void
+ffdc_log_func_160044(int lineno, int msgid, int catid, int level, const char* fmt)
+{
+    FFDC_START(160044, catid, level, lineno);
+    FFDC_END();
+}
+
+/*---------------------------------------------------------------------------
+ * MsgID : 160045
+ * Msg   : "fifo_shardClose not implemented!"
+ *-------------------------------------------------------------------------*/
+__inline__ void
+ffdc_log_func_160045(int lineno, int msgid, int catid, int level, const char* fmt)
+{
+    FFDC_START(160045, catid, level, lineno);
+    FFDC_END();
+}
+
+/*---------------------------------------------------------------------------
+ * MsgID : 160046
+ * Msg   : "ENTERING, shard_id=%lu durability_level=%u"
+ *-------------------------------------------------------------------------*/
+__inline__ void
+ffdc_log_func_160046(int lineno, int msgid, int catid, int level, const char* fmt,
+    long arg1, int arg2)
+{
+    FFDC_START(160046, catid, level, lineno);
+    FFDC_ADD_NUM(arg1);
+    FFDC_ADD_NUM(arg2);
     FFDC_END();
 }
 

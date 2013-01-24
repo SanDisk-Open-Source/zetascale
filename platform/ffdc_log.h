@@ -9,7 +9,7 @@
  * log message in the codebase.  The structure contains one field for
  * each message parameter in the log message, along with other meta data
  * 
- * Generated On: 2012-11-26 14:57:28
+ * Generated On: 2013-01-23 19:22:30
  *------------------------------------------------------------------------*/
 
 #ifndef PLATFORM_FFDC_H
@@ -69523,6 +69523,176 @@ struct ffdc_log_struct_160038
 __inline__ void
 ffdc_log_func_160038(int lineno, int msgid, int catid, int level, const char* fmt,
     const char* arg1);
+
+/*---------------------------------------------------------------------------
+ * MsgID : 160039
+ * Msg   : "Container must be open to execute a read object"
+ *-------------------------------------------------------------------------*/
+struct ffdc_log_struct_160039
+{
+    int magic;
+    int msgid;
+    int catid;
+    int level;
+    unsigned long th_id;
+    unsigned long fth_id;
+    int lineno;
+    struct timeval timestamp;
+
+
+} __attribute__ ((aligned (64)));
+
+__inline__ void
+ffdc_log_func_160039(int lineno, int msgid, int catid, int level, const char* fmt);
+
+/*---------------------------------------------------------------------------
+ * MsgID : 160040
+ * Msg   : "Container must be open to execute a write object"
+ *-------------------------------------------------------------------------*/
+struct ffdc_log_struct_160040
+{
+    int magic;
+    int msgid;
+    int catid;
+    int level;
+    unsigned long th_id;
+    unsigned long fth_id;
+    int lineno;
+    struct timeval timestamp;
+
+
+} __attribute__ ((aligned (64)));
+
+__inline__ void
+ffdc_log_func_160040(int lineno, int msgid, int catid, int level, const char* fmt);
+
+/*---------------------------------------------------------------------------
+ * MsgID : 160041
+ * Msg   : "Container must be open to execute a delete object"
+ *-------------------------------------------------------------------------*/
+struct ffdc_log_struct_160041
+{
+    int magic;
+    int msgid;
+    int catid;
+    int level;
+    unsigned long th_id;
+    unsigned long fth_id;
+    int lineno;
+    struct timeval timestamp;
+
+
+} __attribute__ ((aligned (64)));
+
+__inline__ void
+ffdc_log_func_160041(int lineno, int msgid, int catid, int level, const char* fmt);
+
+/*---------------------------------------------------------------------------
+ * MsgID : 160042
+ * Msg   : "Container must be open to execute a container enumeration"
+ *-------------------------------------------------------------------------*/
+struct ffdc_log_struct_160042
+{
+    int magic;
+    int msgid;
+    int catid;
+    int level;
+    unsigned long th_id;
+    unsigned long fth_id;
+    int lineno;
+    struct timeval timestamp;
+
+
+} __attribute__ ((aligned (64)));
+
+__inline__ void
+ffdc_log_func_160042(int lineno, int msgid, int catid, int level, const char* fmt);
+
+/*---------------------------------------------------------------------------
+ * MsgID : 160043
+ * Msg   : "Container must be open to execute a flush object"
+ *-------------------------------------------------------------------------*/
+struct ffdc_log_struct_160043
+{
+    int magic;
+    int msgid;
+    int catid;
+    int level;
+    unsigned long th_id;
+    unsigned long fth_id;
+    int lineno;
+    struct timeval timestamp;
+
+
+} __attribute__ ((aligned (64)));
+
+__inline__ void
+ffdc_log_func_160043(int lineno, int msgid, int catid, int level, const char* fmt);
+
+/*---------------------------------------------------------------------------
+ * MsgID : 160044
+ * Msg   : "Container must be open to execute a flush container"
+ *-------------------------------------------------------------------------*/
+struct ffdc_log_struct_160044
+{
+    int magic;
+    int msgid;
+    int catid;
+    int level;
+    unsigned long th_id;
+    unsigned long fth_id;
+    int lineno;
+    struct timeval timestamp;
+
+
+} __attribute__ ((aligned (64)));
+
+__inline__ void
+ffdc_log_func_160044(int lineno, int msgid, int catid, int level, const char* fmt);
+
+/*---------------------------------------------------------------------------
+ * MsgID : 160045
+ * Msg   : "fifo_shardClose not implemented!"
+ *-------------------------------------------------------------------------*/
+struct ffdc_log_struct_160045
+{
+    int magic;
+    int msgid;
+    int catid;
+    int level;
+    unsigned long th_id;
+    unsigned long fth_id;
+    int lineno;
+    struct timeval timestamp;
+
+
+} __attribute__ ((aligned (64)));
+
+__inline__ void
+ffdc_log_func_160045(int lineno, int msgid, int catid, int level, const char* fmt);
+
+/*---------------------------------------------------------------------------
+ * MsgID : 160046
+ * Msg   : "ENTERING, shard_id=%lu durability_level=%u"
+ *-------------------------------------------------------------------------*/
+struct ffdc_log_struct_160046
+{
+    int magic;
+    int msgid;
+    int catid;
+    int level;
+    unsigned long th_id;
+    unsigned long fth_id;
+    int lineno;
+    struct timeval timestamp;
+
+    long arg1;
+    int arg2;
+} __attribute__ ((aligned (64)));
+
+__inline__ void
+ffdc_log_func_160046(int lineno, int msgid, int catid, int level, const char* fmt,
+    long arg1, int arg2);
 
 __END_DECLS
 #endif /* PLATFORM_FFDC_H */

@@ -2016,7 +2016,7 @@ FDF_status_t FDFReadObject(
         return FDF_INVALID_PARAMETER;
 
     if ( !fdf_is_ctnr_open( cguid) ) {
-        plat_log_msg( 150045, LOG_CAT, LOG_ERR, "Container must be open to execute a read object" );
+        plat_log_msg( 160039, LOG_CAT, LOG_ERR, "Container must be open to execute a read object" );
         return FDF_FAILURE_CONTAINER_NOT_OPEN;
     }
 
@@ -2073,7 +2073,7 @@ FDF_status_t FDFWriteObject(
  		return FDF_INVALID_PARAMETER;
  
     if ( !fdf_is_ctnr_open( cguid) ) {
-    	plat_log_msg( 150046, LOG_CAT, LOG_ERR, "Container must be open to execute a write object" );
+    	plat_log_msg( 160040, LOG_CAT, LOG_ERR, "Container must be open to execute a write object" );
         return FDF_FAILURE_CONTAINER_NOT_OPEN;
 	}
 		
@@ -2123,7 +2123,7 @@ FDF_status_t FDFDeleteObject(
         return FDF_INVALID_PARAMETER;
         
     if ( !fdf_is_ctnr_open( cguid) ) {
-        plat_log_msg( 150047, LOG_CAT, LOG_ERR, "Container must be open to execute a delete object" );
+        plat_log_msg( 160041, LOG_CAT, LOG_ERR, "Container must be open to execute a delete object" );
         return FDF_FAILURE_CONTAINER_NOT_OPEN;
     }
 
@@ -2166,7 +2166,7 @@ FDF_status_t FDFEnumerateContainerObjects(
 		return FDF_INVALID_PARAMETER;
 
     if ( !fdf_is_ctnr_open( cguid) ) {
-        plat_log_msg( 150048, LOG_CAT, LOG_ERR, "Container must be open to execute a container enumeration" );
+        plat_log_msg( 160042, LOG_CAT, LOG_ERR, "Container must be open to execute a container enumeration" );
         return FDF_FAILURE_CONTAINER_NOT_OPEN;
     }
     
@@ -2338,7 +2338,7 @@ FDF_status_t FDFFlushObject(
 		return FDF_INVALID_PARAMETER;
 
     if ( !fdf_is_ctnr_open( cguid) ) {
-        plat_log_msg( 150049, LOG_CAT, LOG_ERR, "Container must be open to execute a flush object" );
+        plat_log_msg( 160043, LOG_CAT, LOG_ERR, "Container must be open to execute a flush object" );
         return FDF_FAILURE_CONTAINER_NOT_OPEN;
     }
 
@@ -2378,7 +2378,7 @@ FDF_status_t FDFFlushContainer(
         return FDF_INVALID_PARAMETER;
 
     if ( !fdf_is_ctnr_open( cguid) ) {
-        plat_log_msg( 150050, LOG_CAT, LOG_ERR, "Container must be open to execute a flush container" );
+        plat_log_msg( 160044, LOG_CAT, LOG_ERR, "Container must be open to execute a flush container" );
         return FDF_FAILURE_CONTAINER_NOT_OPEN;
     }
 

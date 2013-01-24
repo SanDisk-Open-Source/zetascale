@@ -6101,7 +6101,7 @@ mcd_osd_shard_open( struct flashDev * dev, uint64_t shard_id )
         return NULL;
     }
 
-    mcd_log_msg( 160043, PLAT_LOG_LEVEL_INFO,
+    mcd_log_msg( 160046, PLAT_LOG_LEVEL_INFO,
        "ENTERING, shard_id=%lu durability_level=%u",
                  shard_id, mcd_shard->durability_level );
 

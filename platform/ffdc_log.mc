@@ -3083,3 +3083,11 @@
 160035 %s, size=%d bytes
 160036 %s, container size=%d bytes is less then minimum container size, which is 1Gb
 160038 Flash Data Fabric:%s
+160039 Container must be open to execute a read object
+160040 Container must be open to execute a write object
+160041 Container must be open to execute a delete object
+160042 Container must be open to execute a container enumeration
+160043 Container must be open to execute a flush object
+160044 Container must be open to execute a flush container
+160045 fifo_shardClose not implemented!
+160046 ENTERING, shard_id=%lu durability_level=%u

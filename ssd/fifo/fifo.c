@@ -261,7 +261,7 @@ void fifo_shardSync( struct shard * shard )
 void fifo_shardClose( struct shard * shard )
 {
     if ( NULL == Ssd_fifo_ops.shardClose ) {
-        plat_log_msg(160040, 
+        plat_log_msg(160045, 
                       PLAT_LOG_CAT_SDF_APP_MEMCACHED,
                       PLAT_LOG_LEVEL_FATAL,
                       "fifo_shardClose not implemented!" );
