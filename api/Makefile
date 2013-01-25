@@ -4,7 +4,8 @@ TOP = ../..
 LIB = libsdf.a
 LIB_SRCS = \
 	sdf.c \
-	fdf.c
+	fdf.c \
+        enumerate.c
 
 SUBDIRS = tests
 
