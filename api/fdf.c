@@ -39,6 +39,7 @@
 #include "shared/internal_blk_obj_api.h"
 #include "agent/agent_common.h"
 #include "agent/agent_helper.h"
+#include "fdf_trans.h"
 
 #define LOG_ID PLAT_LOG_ID_INITIAL
 #define LOG_CAT PLAT_LOG_CAT_SDF_NAMING
@@ -850,6 +851,9 @@ static void print_fdf_stats(FILE *log, FDF_stats_t *stats, char *disp_str) {
     fflush(log);
 }
 
+/* Defined later in this file */
+void fdf_trx_print_stats(FILE *log);
+
 static void *fdf_stats_thread(void *arg) {
     FDF_cguid_t cguids[128];
     uint32_t n_cguids;
@@ -892,6 +896,9 @@ static void *fdf_stats_thread(void *arg) {
         }
         sleep(10);
     }
+
+	fdf_trx_print_stats(stats_log);
+
     fclose(stats_log);
 }
 
@@ -3020,6 +3027,85 @@ FDF_status_t fdf_create_fdf_props(
     }
 
     return status;
+}
+
+/* Mini transactions handling */
+
+static uint64_t next_trx_id = 0;
+uint64_t stat_trx_active_count = 0;
+
+static __thread trx_t trx = {0};
+
+void fdf_trx_print_stats(FILE *log)
+{
+    char buf[BUF_LEN];
+
+	sprintf(buf, "trx_active_count %ld\ntrx_id_counter %ld\n",
+		stat_trx_active_count, next_trx_id);
+
+	fputs(buf, log);
+}
+
+trx_t* fdf_trx_get()
+{
+	return &trx;
+}
+
+/* Those function should be moved and implemented at lower level */
+FDF_status_t fdf_trx_start(trx_t* trx)
+{
+	return FDF_SUCCESS;
+}
+
+FDF_status_t fdf_trx_commit(trx_t* trx)
+{
+	return FDF_SUCCESS;
+}
+
+/**
+ * @brief Start mini transaction
+ *
+ * @param fdf_thread_state <IN> The SDF context for which this operation applies
+ * @return FDF_SUCCESS on success
+ *         FDF_FAILURE_ALREADY_IN_TRANS if thread has active transaction already
+ */
+FDF_status_t FDFMiniTransactionStart(
+	struct FDF_thread_state	*fdf_thread_state
+	)
+{
+	if(trx.id)
+		return FDF_FAILURE_ALREADY_IN_TRANS;
+
+	trx.id = __sync_add_and_fetch(&next_trx_id, 1);
+
+	__sync_add_and_fetch(&stat_trx_active_count, 1);
+
+	return fdf_trx_start(&trx);
+}
+
+/**
+ * @brief Commit mini transaction
+ *
+ * @param fdf_thread_state <IN> The SDF context for which this operation applies
+ * @return FDF_SUCCESS on success
+ *         FDF_FAILURE_NO_TRANS if there is no active transaction in the current thread
+ */
+FDF_status_t FDFMiniTransactionCommit(
+	struct FDF_thread_state	*fdf_thread_state
+	)
+{
+	FDF_status_t status;
+
+	if(!trx.id)
+		return FDF_FAILURE_NO_TRANS;
+
+	status = fdf_trx_commit(&trx);
+
+	__sync_sub_and_fetch(&stat_trx_active_count, 1);
+
+	trx.id = 0;
+
+	return status;
 }
 
 #ifdef notdef

@@ -176,7 +176,9 @@ typedef uint64_t FDF_cguid_t;
     item(FDF_WRITEBACK_CACHING_DISABLED, /* default */) \
     /* @brief Update ignored due to duplicate info */ \
     item(FDF_UPDATE_DUPLICATE, /* default */) \
-    item(FDF_FAILURE_CONTAINER_TOO_SMALL, /* default */)
+    item(FDF_FAILURE_CONTAINER_TOO_SMALL, /* default */) \
+    item(FDF_FAILURE_ALREADY_IN_TRANS, /* default */) \
+    item(FDF_FAILURE_NO_TRANS, /* default */)
 
 
 typedef enum {

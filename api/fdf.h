@@ -689,6 +689,28 @@ FDF_status_t FDFGetContainerStats(
  */
 char *FDFStrError(FDF_status_t fdf_errno);
 
+/**
+ * @brief Start mini transaction
+ *
+ * @param fdf_thread_state <IN> The SDF context for which this operation applies
+ * @return FDF_SUCCESS on success
+ *         FDF_FAILURE_ALREADY_IN_TRANS if thread has active transaction already
+ */
+FDF_status_t FDFMiniTransactionStart(
+	struct FDF_thread_state	*fdf_thread_state
+	);
+
+/**
+ * @brief Commit mini transaction
+ *
+ * @param fdf_thread_state <IN> The SDF context for which this operation applies
+ * @return FDF_SUCCESS on success
+ *         FDF_FAILURE_NO_TRANS if there is no active transaction in the current thread
+ */
+FDF_status_t FDFMiniTransactionCommit(
+	struct FDF_thread_state	*fdf_thread_state
+	);
+
 #ifdef __cplusplus
 }
 #endif
