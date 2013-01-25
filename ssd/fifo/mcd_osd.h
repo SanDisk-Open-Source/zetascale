@@ -82,15 +82,41 @@ enum cntr_states {
 
 //struct mcd_container;
 
+
+/*
+ * Relevant to in-core hash table.
+ */
+#define OSD_HASH_ENTRY_HOPED_SIZE 10
+
+
+/*
+ * An attempt to get a unique container id from the shard id.
+ */
+#define cntrid(shard) ((shard->id >> 40) & 0xffff)
+
+
+/*
+ * Container id type.
+ */
+typedef uint16_t cntr_id_t;
+
+
+/*
+ * In-core hash table.  Blocks are in 512 byte sectors.
+ */
 typedef struct mcd_osd_hash_entry {
-    unsigned int        used:1;
-    unsigned int        referenced:1;
-    unsigned int        deleted:1;
-    unsigned int        r1:1;           /* reserved */
-    unsigned int        blocks:12;      /* in 512B sectors */
-    uint16_t            syndrome;
-    uint32_t            address;
-} mcd_osd_hash_t;
+    unsigned int used:1;
+    unsigned int deleted:1;
+    unsigned int referenced:1;
+    unsigned int reserved:1;
+    unsigned int blocks:12;
+    uint16_t     syndrome;
+    uint32_t     address;
+    cntr_id_t    cntr_id;
+}
+     __attribute__ ((packed))
+     __attribute__ ((aligned (2)))
+mcd_osd_hash_t;
 
 
 struct mcd_osd_slab_class;
@@ -391,7 +417,8 @@ typedef struct mcd_logrec_object {
     uint32_t    bucket;                // hash bucket
     uint32_t    blk_offset;            // logical block offset within shard
     uint32_t    old_offset;            // old offset within shard (overwrite)
-    uint64_t    seqno;                 // sequence number for this record
+    uint64_t    cntr_id:16;            // seqno of superceded (target) object
+    uint64_t    seqno:48;              // sequence number for this record
     uint64_t    target_seqno;          // seqno of superceded (target) object
                                        //   used when deleting or overwriting,
                                        //   but not during eviction

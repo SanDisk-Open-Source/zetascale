@@ -291,6 +291,7 @@ enum {
     MCD_REC_CKPT_EYE_CATCHER = 0x54504b43, // "CKPT" (in little endian)
 };
 
+
 // "Flash Object"
 // An item in the "Recovery Object Table", the persistent table of objects
 // in flash maintained by applying updates from a log.
@@ -304,8 +305,10 @@ typedef struct mcd_rec_flash_object {
     uint16_t        blocks:12;         // number of 512-byte blocks occupied
     // ------------------
     uint32_t        bucket;            // hash bucket
-    uint64_t        seqno;             // sequence number
+    uint64_t        cntr_id:16;        // container id
+    uint64_t        seqno:48;          // sequence number
 } mcd_rec_flash_object_t;
+
 
 // Log page header
 // Lives at the beginning of each page of the log. Contains the LSN of the

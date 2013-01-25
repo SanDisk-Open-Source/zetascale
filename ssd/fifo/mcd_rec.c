@@ -791,6 +791,7 @@ delete_object( mcd_rec_flash_object_t * object )
     object->reserved  = 0;
     object->blocks    = 0;
     object->bucket    = 0;
+    object->cntr_id   = 0;
     object->seqno     = 0;
 }
 
@@ -3373,7 +3374,7 @@ dump_hash_bucket( void * context, mcd_osd_shard_t * shard,
                  "bucket=%u, seqno=%lu, boff=%lu, ooff=%lu",
                  obj->syndrome, obj->tombstone, obj->deleted,
                  mcd_osd_lba_to_blk( obj->blocks ),
-                 obj->bucket, obj->seqno, blk_offset, obj_offset );
+                 obj->bucket, (uint64_t) obj->seqno, blk_offset, obj_offset );
 
     // read object from disk and show information
     tmp_offset =
@@ -3397,8 +3398,8 @@ dump_hash_bucket( void * context, mcd_osd_shard_t * shard,
                  "seqno=%lu, chksum=%lu, syn=%lu, ssyn=%u",
                  meta->magic, meta->version, meta->key_len,
                  meta->data_len, meta->blk1_chksum, meta->create_time,
-                 meta->expiry_time, meta->seqno, meta->checksum, syn,
-                 (uint16_t)(syn >> 48) );
+                 meta->expiry_time, (uint64_t) meta->seqno, meta->checksum,
+                 syn, (uint16_t)(syn >> 48) );
 
     // show all the accessible hash entries and disk objects
     mcd_dbg_msg( PLAT_LOG_LEVEL_INFO,
@@ -3438,8 +3439,8 @@ dump_hash_bucket( void * context, mcd_osd_shard_t * shard,
                      "seqno=%lu, chksum=%lu, syn=%lu, ssyn=%u",
                      i, meta->magic, meta->version, meta->key_len,
                      meta->data_len, meta->blk1_chksum, meta->create_time,
-                     meta->expiry_time, meta->seqno, meta->checksum, syn,
-                     (uint16_t)(syn >> 48) );
+                     meta->expiry_time, (uint64_t) meta->seqno, meta->checksum,
+                     syn, (uint16_t)(syn >> 48) );
     }
 
     // show all the inaccessible hash entries (if any) and disk objects
@@ -3479,8 +3480,8 @@ dump_hash_bucket( void * context, mcd_osd_shard_t * shard,
                      "seqno=%lu, chksum=%lu, syn=%lu, ssyn=%u",
                      i, meta->magic, meta->version, meta->key_len,
                      meta->data_len, meta->blk1_chksum, meta->create_time,
-                     meta->expiry_time, meta->seqno, meta->checksum, syn,
-                     (uint16_t)(syn >> 48) );
+                     meta->expiry_time, (uint64_t) meta->seqno, meta->checksum,
+                     syn, (uint16_t)(syn >> 48) );
     }
 }
 
@@ -3601,6 +3602,8 @@ update_hash_table( void * context, mcd_osd_shard_t * shard,
         hash_entry->blocks     = obj->blocks;
         hash_entry->syndrome   = obj->syndrome;
         hash_entry->address    = blk_offset;
+        hash_entry->cntr_id    = cntrid(shard);
+fprintf(stderr, "SETTING hash ctr_id new=%x old=%lx\n", hash_entry->cntr_id, shard->id);
 
         mcd_log_msg( 20498, MCD_REC_LOG_LVL_TRACE,
                      "<<<< upd_HT: syn=%u, blocks=%u, del=%u, bucket=%u, "
@@ -3777,10 +3780,10 @@ apply_log_record( mcd_osd_shard_t * shard, char * data,
                  rec->syndrome, mcd_osd_lba_to_blk( rec->blocks ),
                  rec->deleted, rec->bucket, rec->blk_offset,
                  (rec->old_offset == 0 ? 0 : ~(rec->old_offset)),
-                 rec->seqno, rec->target_seqno,
+                 (uint64_t) rec->seqno, rec->target_seqno,
                  object->syndrome, object->tombstone,
                  mcd_osd_lba_to_blk( object->blocks ),
-                 object->bucket, obj_offset, object->seqno );
+                 object->bucket, obj_offset, (uint64_t) object->seqno );
 
     if ( rec != orig_rec ) {
         mcd_log_msg( 20502, PLAT_LOG_LEVEL_TRACE,
@@ -3790,7 +3793,7 @@ apply_log_record( mcd_osd_shard_t * shard, char * data,
                      mcd_osd_lba_to_blk( orig_rec->blocks ),
                      orig_rec->deleted, orig_rec->bucket,
                      orig_rec->blk_offset, orig_rec->old_offset,
-                     orig_rec->seqno, orig_rec->target_seqno );
+                     (uint64_t) orig_rec->seqno, orig_rec->target_seqno );
     }
 
     // garbage collect tombstone if needed
@@ -3811,7 +3814,8 @@ apply_log_record( mcd_osd_shard_t * shard, char * data,
                          " hwm_seqno=%lu",
                          rec->syndrome, mcd_osd_lba_to_blk( rec->blocks ),
                          rec->deleted, rec->bucket,
-                         rec->blk_offset, rec->old_offset, rec->seqno,
+                         rec->blk_offset, rec->old_offset,
+                         (uint64_t) rec->seqno,
                          rec->target_seqno, object->syndrome,
                          object->tombstone,
                          mcd_osd_lba_to_blk( object->blocks ), object->deleted,
@@ -3824,7 +3828,8 @@ apply_log_record( mcd_osd_shard_t * shard, char * data,
                              mcd_osd_lba_to_blk( orig_rec->blocks ),
                              orig_rec->deleted, orig_rec->bucket,
                              orig_rec->blk_offset, orig_rec->old_offset,
-                             orig_rec->seqno, orig_rec->target_seqno );
+                             (uint64_t) orig_rec->seqno,
+                             orig_rec->target_seqno );
             }
             plat_abort();
         }
@@ -3846,11 +3851,12 @@ apply_log_record( mcd_osd_shard_t * shard, char * data,
                              "toff=%lu, seq=%lu, hwm_seqno=%lu",
                              rec->syndrome, mcd_osd_lba_to_blk( rec->blocks ),
                              rec->deleted, rec->bucket, rec->blk_offset,
-                             rec->old_offset, rec->seqno, rec->target_seqno,
+                             rec->old_offset, (uint64_t) rec->seqno,
+                             rec->target_seqno,
                              object->syndrome, object->tombstone,
                              mcd_osd_lba_to_blk( object->blocks ),
                              object->deleted, object->bucket, obj_offset,
-                             object->seqno, hwm_seqno );
+                             (uint64_t) object->seqno, hwm_seqno );
                 if ( rec != orig_rec ) {
                     mcd_log_msg( 20502, PLAT_LOG_LEVEL_FATAL,
                                  "orig_rec: syn=%u, blocks=%u, del=%u, "
@@ -3860,7 +3866,8 @@ apply_log_record( mcd_osd_shard_t * shard, char * data,
                                  mcd_osd_lba_to_blk( orig_rec->blocks ),
                                  orig_rec->deleted, orig_rec->bucket,
                                  orig_rec->blk_offset, orig_rec->old_offset,
-                                 orig_rec->seqno, orig_rec->target_seqno );
+                                 (uint64_t) orig_rec->seqno,
+                                 orig_rec->target_seqno );
                 }
                 plat_abort();
             }
@@ -3902,11 +3909,12 @@ apply_log_record( mcd_osd_shard_t * shard, char * data,
                              "toff=%lu, seq=%lu, hwm_seqno=%lu",
                              rec->syndrome, mcd_osd_lba_to_blk( rec->blocks ),
                              rec->deleted, rec->bucket, rec->blk_offset,
-                             rec->old_offset, rec->seqno, rec->target_seqno,
+                             rec->old_offset, (uint64_t) rec->seqno,
+                             rec->target_seqno,
                              object->syndrome, object->tombstone,
                              mcd_osd_lba_to_blk( object->blocks ),
                              object->deleted, object->bucket,
-                             obj_offset, object->seqno, hwm_seqno );
+                             obj_offset, (uint64_t) object->seqno, hwm_seqno );
                 if ( rec != orig_rec ) {
                     mcd_log_msg( 20502, PLAT_LOG_LEVEL_FATAL,
                                  "orig_rec: syn=%u, blocks=%u, del=%u, "
@@ -3916,7 +3924,8 @@ apply_log_record( mcd_osd_shard_t * shard, char * data,
                                  mcd_osd_lba_to_blk( orig_rec->blocks ),
                                  orig_rec->deleted, orig_rec->bucket,
                                  orig_rec->blk_offset, orig_rec->old_offset,
-                                 orig_rec->seqno, orig_rec->target_seqno );
+                                 (uint64_t) orig_rec->seqno,
+                                 orig_rec->target_seqno );
                 }
                 plat_abort();
             }
@@ -3925,6 +3934,7 @@ apply_log_record( mcd_osd_shard_t * shard, char * data,
         object->deleted   = rec->deleted;
         object->blocks    = rec->blocks;
         object->bucket    = rec->bucket;
+        object->cntr_id	  = rec->cntr_id;
         object->seqno	  = rec->seqno;
         object->tombstone = 0;
         applied++;
@@ -4652,11 +4662,11 @@ verify_object_table( void * context, mcd_osd_shard_t * shard,
                              obj1->syndrome, obj1->tombstone,
                              mcd_osd_lba_to_blk( obj1->blocks ),
                              obj1->deleted, obj1->bucket,
-                             state->start_obj + i, obj1->seqno,
+                             state->start_obj + i, (uint64_t) obj1->seqno,
                              obj2->syndrome, obj2->tombstone,
                              mcd_osd_lba_to_blk( obj2->blocks ),
                              obj2->deleted, obj2->bucket,
-                             state->start_obj + i, obj2->seqno );
+                             state->start_obj + i, (uint64_t) obj2->seqno );
                 break;
             }
         }
@@ -6439,7 +6449,7 @@ log_write_internal( mcd_osd_shard_t * shard, mcd_logrec_object_t * data )
                      "old_offset=%u, tseq=%lu",
                      shard->id, data->syndrome,
                      mcd_osd_lba_to_blk( data->blocks ), data->deleted,
-                     data->bucket, data->blk_offset, data->seqno,
+                     data->bucket, data->blk_offset, (uint64_t) data->seqno,
                      data->old_offset, data->target_seqno );
 
         plat_assert_always( slot_seqno == logbuf->seqno + buf_offset );
@@ -6663,7 +6673,7 @@ log_write_postprocess( mcd_osd_shard_t * shard, mcd_rec_logbuf_t * logbuf,
             mcd_bak_msg( 20549, MCD_REC_LOG_LVL_DEBUG,
                          "shardId=%lu, curr_seqno=%lu, rec_seqno=%lu, "
                          "count=%d", shard->id, bk->backup_curr_seqno,
-                         rec->seqno, bk->ps_count );
+                         (uint64_t) rec->seqno, bk->ps_count );
         }
 
         // ------------------------------------------------------
@@ -6738,7 +6748,7 @@ log_write_postprocess( mcd_osd_shard_t * shard, mcd_rec_logbuf_t * logbuf,
             mcd_bak_msg( 20549, MCD_REC_LOG_LVL_TRACE,
                          "shardId=%lu, curr_seqno=%lu, rec_seqno=%lu, "
                          "count=%d", shard->id, bk->backup_curr_seqno,
-                         entry->rec.seqno, bk->ps_count );
+                         (uint64_t) entry->rec.seqno, bk->ps_count );
 
             if ( bk->ps_count < 0 ) {
                 plat_abort();

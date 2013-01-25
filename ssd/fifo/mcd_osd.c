@@ -1609,8 +1609,6 @@ mcd_osd_fifo_shard_init( mcd_osd_shard_t * shard, uint64_t shard_id,
                      "failed to allocate hash table" );
         return FLASH_ENOMEM;
     }
-    plat_assert_always(
-        0 == ( (uint64_t)shard->hash_table % sizeof(mcd_osd_hash_t) ) );
 
     memset( (void *)shard->hash_table, 0,
             shard->hash_size * sizeof(mcd_osd_hash_t) );
@@ -2484,7 +2482,7 @@ mcd_fth_osd_fifo_set( void * context, mcd_osd_shard_t * shard, char * key,
     mcd_osd_fifo_wbuf_t       * wbuf;
     osd_state_t               * osd_state = (osd_state_t *)context;
 
-    new_entry.r1 = 0;
+    new_entry.reserved = 0;
 
     mcd_log_msg( 20000, PLAT_LOG_LEVEL_DEBUG, "ENTERING" );
     (void) __sync_fetch_and_add( &shard->num_puts, 1 );
@@ -2915,6 +2913,7 @@ mcd_fth_osd_fifo_set( void * context, mcd_osd_shard_t * shard, char * key,
     new_entry.blocks     = mcd_osd_blk_to_lba( blocks );
     new_entry.syndrome   = (uint16_t)(syndrome >> 48);
     new_entry.address    = blk_offset % shard->total_blks;
+    new_entry.cntr_id    = cntrid(shard);
 
     new_entry.deleted    = 0;
     if ( &Mcd_osd_cmc_cntr != shard->cntr ) {
@@ -3382,8 +3381,6 @@ mcd_osd_slab_shard_init( mcd_osd_shard_t * shard, uint64_t shard_id,
                      "failed to allocate hash table" );
         return FLASH_ENOMEM;
     }
-    plat_assert_always(
-        0 == ( (uint64_t)shard->hash_table % sizeof(mcd_osd_hash_t) ) );
 
     memset( (void *)shard->hash_table, 0,
             shard->hash_size * sizeof(mcd_osd_hash_t) );
@@ -3398,8 +3395,6 @@ mcd_osd_slab_shard_init( mcd_osd_shard_t * shard, uint64_t shard_id,
                      "failed to alloc overflow table" );
         return FLASH_ENOMEM;
     }
-    plat_assert_always(
-        0 == ( (uint64_t)shard->overflow_table % sizeof(mcd_osd_hash_t) ) );
 
     memset( (void *)shard->overflow_table, 0, shard->lock_buckets
             * Mcd_osd_overflow_depth * sizeof(mcd_osd_hash_t) );
@@ -3486,7 +3481,7 @@ static int mcd_osd_slab_init()
                  "ENTERING, total=%lu blks=%lu free=%lu",
                  Mcd_osd_total_size, Mcd_osd_total_blks, Mcd_osd_free_blks );
 
-    plat_assert_always( 8 == sizeof(mcd_osd_hash_t) );
+    plat_assert_always(sizeof(mcd_osd_hash_t) == OSD_HASH_ENTRY_HOPED_SIZE);
 
     if ( MCD_OSD_MAX_SSDSIZE < Mcd_osd_total_size ) {
         mcd_log_msg( 20348, PLAT_LOG_LEVEL_FATAL,
@@ -4039,6 +4034,7 @@ mcd_fth_osd_get_slab( void * context, mcd_osd_shard_t * shard,
             log_rec.bucket       = hash_index;
             log_rec.blk_offset   = hash_entry->address;
             log_rec.old_offset   = 0;
+            log_rec.cntr_id      = shard->id;
             if ( 1 == shard->replicated ) {
                 // Must make RPC call to get a seqno to use for this eviction
                 log_rec.seqno = rep_seqno_get((struct shard *)shard);
@@ -4402,6 +4398,7 @@ mcd_fth_osd_slab_set( void * context, mcd_osd_shard_t * shard, char * key,
         log_rec.bucket       = 0;
         log_rec.blk_offset   = 0xffffffffu; // marks this record
         log_rec.old_offset   = 0;
+        log_rec.cntr_id      = 0;
         log_rec.seqno        = 0;
         log_rec.target_seqno = shard->cntr->cas_id;
         log_write( shard, &log_rec );
@@ -4572,6 +4569,7 @@ mcd_fth_osd_slab_set( void * context, mcd_osd_shard_t * shard, char * key,
                     } else {
                         log_rec.old_offset = 0;
                     }
+                    log_rec.cntr_id      = shard->id;
                     log_rec.seqno        = meta_data->sequence;
                     log_rec.target_seqno = target_seqno;
                     log_write( shard, &log_rec );
@@ -4704,6 +4702,7 @@ mcd_fth_osd_slab_set( void * context, mcd_osd_shard_t * shard, char * key,
                 log_rec.bucket       = syndrome % shard->hash_size;
                 log_rec.blk_offset   = hash_entry->address;
                 log_rec.old_offset   = 0;
+                log_rec.cntr_id      = shard->id;
                 if ( 1 == shard->replicated ) {
                     log_rec.seqno = meta_data->sequence;
                 } else {
@@ -4861,6 +4860,7 @@ mcd_fth_osd_slab_set( void * context, mcd_osd_shard_t * shard, char * key,
     new_entry.blocks     = mcd_osd_blk_to_lba( blocks );
     new_entry.syndrome   = (uint16_t)(syndrome >> 48);
     new_entry.address    = blk_offset;
+    new_entry.cntr_id    = cntrid(shard);
 
     new_entry.deleted    = 0;
     if ( &Mcd_osd_cmc_cntr != shard->cntr ) {
@@ -4897,6 +4897,7 @@ mcd_fth_osd_slab_set( void * context, mcd_osd_shard_t * shard, char * key,
                 log_rec.bucket       = syndrome % shard->hash_size;
                 log_rec.blk_offset   = hash_entry->address;
                 log_rec.old_offset   = 0;
+                log_rec.cntr_id      = shard->id;
                 if ( 1 == shard->replicated ) {
                     log_rec.seqno = meta_data->sequence;
                 } else {
@@ -5046,6 +5047,7 @@ mcd_fth_osd_slab_set( void * context, mcd_osd_shard_t * shard, char * key,
                     log_rec.bucket       = syndrome % shard->hash_size;
                     log_rec.blk_offset   = hash_entry->address;
                     log_rec.old_offset   = 0;
+                    log_rec.cntr_id      = shard->id;
                     if ( 1 == shard->replicated ) {
                         log_rec.seqno = meta_data->sequence;
                     } else {
@@ -5091,6 +5093,7 @@ mcd_fth_osd_slab_set( void * context, mcd_osd_shard_t * shard, char * key,
         log_rec.blocks     = new_entry.blocks;
         log_rec.bucket     = syndrome % shard->hash_size;
         log_rec.blk_offset = new_entry.address;
+        log_rec.cntr_id    = shard->id;
         log_rec.seqno      = meta_data->sequence;
         if ( true == obj_exists && 0 == shard->evict_to_free ) {
             // overwrite case in store mode
@@ -8582,7 +8585,7 @@ SDF_status_t process_raw_get_command_enum(
     uint64_t                    real_len = 0;
     char                       *raw_data = NULL;
     mcd_osd_meta_t             *meta;
-    object_data_t              *obj_data;
+    //object_data_t              *obj_data;
     char                       *key     = NULL;
     uint32_t                    keylen  = 0;
     char                       *data    = NULL;
@@ -8616,8 +8619,8 @@ SDF_status_t process_raw_get_command_enum(
 
             // get metadata pointers
             meta     = (mcd_osd_meta_t *) raw_data;
-            obj_data = (object_data_t *)
-                (raw_data + sizeof(mcd_osd_meta_t) + meta->key_len);
+            //obj_data = (object_data_t *)
+                //(raw_data + sizeof(mcd_osd_meta_t) + meta->key_len);
 
 	    keylen = meta->key_len;
 	    key = (char *) plat_alloc(keylen);
@@ -8655,4 +8658,3 @@ SDF_status_t process_raw_get_command_enum(
 
     return(status);
 }
-

@@ -1,9 +1,9 @@
 /*
- * File: recovery.h
+ * Fast recovery and enumeration.
  * Author: Johann George
- * Copyright (c) 2010, Schooner Information Technology, Inc.
+ *
+ * Copyright (c) 2010-2013, SanDisk Corporation.  All rights reserved.
  */
-
 #ifndef _RECOVERY_H
 #define _RECOVERY_H
 
