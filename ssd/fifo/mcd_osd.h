@@ -90,9 +90,13 @@ enum cntr_states {
 
 
 /*
- * An attempt to get a unique container id from the shard id.
+ * An attempt to get a unique container id from the shard and cguid.
  */
-#define cntrid(shard) ((shard->id >> 40) & 0xffff)
+#ifdef LOGICAL_CONTAINERS
+#define cntrid(shard, cguid) (cguid)
+#else
+#define cntrid(shard, cguid) ((shard->id >> 40) & 0xffff)
+#endif
 
 
 /*

@@ -2913,7 +2913,7 @@ mcd_fth_osd_fifo_set( void * context, mcd_osd_shard_t * shard, char * key,
     new_entry.blocks     = mcd_osd_blk_to_lba( blocks );
     new_entry.syndrome   = (uint16_t)(syndrome >> 48);
     new_entry.address    = blk_offset % shard->total_blks;
-    new_entry.cntr_id    = cntrid(shard);
+    new_entry.cntr_id    = cntrid(shard, 0);
 
     new_entry.deleted    = 0;
     if ( &Mcd_osd_cmc_cntr != shard->cntr ) {
@@ -4860,7 +4860,7 @@ mcd_fth_osd_slab_set( void * context, mcd_osd_shard_t * shard, char * key,
     new_entry.blocks     = mcd_osd_blk_to_lba( blocks );
     new_entry.syndrome   = (uint16_t)(syndrome >> 48);
     new_entry.address    = blk_offset;
-    new_entry.cntr_id    = cntrid(shard);
+    new_entry.cntr_id    = cntrid(shard, 0);
 
     new_entry.deleted    = 0;
     if ( &Mcd_osd_cmc_cntr != shard->cntr ) {

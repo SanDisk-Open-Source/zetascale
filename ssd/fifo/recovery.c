@@ -4302,7 +4302,7 @@ e_hash_fill(pai_t *pai, void *state, int lock_i)
     e_state_t          *es = (e_state_t *) state;
     mo_shard_t      *shard = es->shard;
     uint64_t bkts_per_lock = shard->lock_bktsize / Mcd_osd_bucket_size;
-    cntr_id_t      cntr_id = cntrid(shard);
+    cntr_id_t      cntr_id = cntrid(shard, es->cguid);
     fthLock_t        *lock = &shard->bucket_locks[lock_i];
     wait_t           *wait = fthLock(lock, 0, NULL);
 
@@ -4348,7 +4348,7 @@ enumerate_next(pai_t *pai, void *state, char **key, uint32_t *keylen,
 {
     e_state_t     *es = (e_state_t *) state;
     mo_shard_t *shard = es->shard;
-    cntr_id_t cntr_id = cntrid(shard);
+    cntr_id_t cntr_id = cntrid(shard, es->cguid);
 
     for (;;) {
         while (!es->hash_buf_i) {

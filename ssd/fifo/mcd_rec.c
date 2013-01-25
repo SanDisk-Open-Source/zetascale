@@ -3602,7 +3602,7 @@ update_hash_table( void * context, mcd_osd_shard_t * shard,
         hash_entry->blocks     = obj->blocks;
         hash_entry->syndrome   = obj->syndrome;
         hash_entry->address    = blk_offset;
-        hash_entry->cntr_id    = cntrid(shard);
+        hash_entry->cntr_id    = cntrid(shard, 0);
 fprintf(stderr, "SETTING hash ctr_id new=%x old=%lx\n", hash_entry->cntr_id, shard->id);
 
         mcd_log_msg( 20498, MCD_REC_LOG_LVL_TRACE,
