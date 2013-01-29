@@ -113,8 +113,7 @@ build_shard(struct SDF_shared_state *state, SDF_internal_ctxt_t *pai,
             enum build_shard_type build_shard_type, const char *cname);
 
 SDF_status_t
-create_put_meta(SDF_internal_ctxt_t *pai, const char *path, SDF_container_meta_t *meta, 
-		SDF_cguid_t cguid);
+create_put_meta(SDF_internal_ctxt_t *pai, const char *path, SDF_container_meta_t *meta, SDF_cguid_t cguid);
 
 SDF_cguid_t
 generate_cguid(SDF_internal_ctxt_t *pai, const char *path, uint32_t node, int64_t cntr_id);
@@ -761,7 +760,12 @@ SDFDeleteContainer(SDF_internal_ctxt_t *pai, const char *path)
 }
 #endif /* SDFAPI */
 
-SDF_status_t delete_container_internal_low(SDF_internal_ctxt_t *pai, const char *path, SDF_boolean_t serialize, int *deleted) 
+SDF_status_t delete_container_internal_low(
+	SDF_internal_ctxt_t *pai, 
+	const char *path, 
+	SDF_boolean_t serialize, 
+	SDF_boolean_t	delete_shards,
+	int *deleted) 
 {
 
     SDF_status_t         status = SDF_SUCCESS;
@@ -847,8 +851,9 @@ SDF_status_t delete_container_internal_low(SDF_internal_ctxt_t *pai, const char 
 	    }
 #endif
             // Remove the container shards
-            if (status == SDF_SUCCESS && 
-		(status = name_service_delete_shards(pai, path)) != SDF_SUCCESS) {
+            if (delete_shards && 
+				status == SDF_SUCCESS && 
+				(status = name_service_delete_shards(pai, path)) != SDF_SUCCESS) {
                 plat_log_msg(21544, LOG_CAT, LOG_ERR,
                         "%s - failed to delete container shards", path);
                 log_level = LOG_ERR;
@@ -913,7 +918,7 @@ SDF_status_t delete_container_internal_low(SDF_internal_ctxt_t *pai, const char 
 
 SDF_status_t delete_container_internal(SDF_internal_ctxt_t *pai, const char *path, SDF_boolean_t serialize) 
 {
-	return delete_container_internal_low(pai, path, serialize, NULL);	
+	return delete_container_internal_low(pai, path, serialize, SDF_TRUE, NULL);	
 }
 
 
@@ -1369,8 +1374,7 @@ build_meta(const char *path, SDF_container_props_t props, SDF_cguid_t cguid, SDF
 }
 
 SDF_status_t
-create_put_meta(SDF_internal_ctxt_t *pai, const char *path, SDF_container_meta_t *meta, 
-		SDF_cguid_t cguid) {
+create_put_meta(SDF_internal_ctxt_t *pai, const char *path, SDF_container_meta_t *meta, SDF_cguid_t cguid) {
 
     SDF_status_t status = SDF_FAILURE;
 
@@ -1387,22 +1391,20 @@ create_put_meta(SDF_internal_ctxt_t *pai, const char *path, SDF_container_meta_t
         // For the CMC, simply initialize the CMC structure.
         init_cmc(meta);
 
-	/*
-	** We need to stuff away metadata in the shard so that the CMC can be recovered.
-	** Need to revisit this after Beta. It would be better to delete containers from Admin.
-	*/
-	if (init_container_meta_blob_put != NULL) {
+		/*
+		** We need to stuff away metadata in the shard so that the CMC can be recovered.
+		** Need to revisit this after Beta. It would be better to delete containers from Admin.
+		*/
+		if (cguid <= LAST_PHYSICAL_CGUID && init_container_meta_blob_put != NULL) {
 
-	    SDF_container_meta_blob_t blob;
+	    	SDF_container_meta_blob_t blob;
 
-	    // Stuff the metadata
-	    blob.version = SDF_BLOB_CONTAINER_META_VERSION;
-	    memcpy(&(blob.meta), meta, sizeof(*meta));
+	    	// Stuff the metadata
+	    	blob.version = SDF_BLOB_CONTAINER_META_VERSION;
+	    	memcpy(&(blob.meta), meta, sizeof(*meta));
 
-	    status = init_container_meta_blob_put(meta->shard, (char *) &blob,
-						  sizeof(SDF_container_meta_blob_t));
-	}
-
+	    	status = init_container_meta_blob_put(meta->shard, (char *) &blob, sizeof(SDF_container_meta_blob_t));
+		}
     }
 
     plat_log_msg(21562, LOG_CAT, LOG_DBG, "create_put_meta: %d\n", status);
@@ -2128,7 +2130,8 @@ generate_cguid(SDF_internal_ctxt_t *pai, const char *path, uint32_t node, int64_
      *  node).  Alas, this is necessary to support multiple memcached
      *  processes per system.
      */
-    cguid = cntr_id64 + NODE_MULTIPLIER; // so they don't collide with CMC_CGUID=1
+    //cguid = cntr_id64 + NODE_MULTIPLIER; // so they don't collide with CMC_CGUID=1
+    cguid = cntr_id64; 
 
     plat_log_msg(21580, LOG_CAT_SHARD, LOG_DBG,
 		 "generate_cguid: %llu", (unsigned long long) cguid);

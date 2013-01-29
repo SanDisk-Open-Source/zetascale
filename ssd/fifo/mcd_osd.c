@@ -1342,11 +1342,6 @@ static SDF_status_t update_container_map(char *cname, SDF_cguid_t cguid) {
     for (i=0; i<MCD_MAX_NUM_CNTRS; i++) {
         if (CtnrMap[i].cguid == 0) {
             // this is an unused map entry
-            CtnrMap[i].cname = plat_alloc(strlen(cname)+1);
-            if (CtnrMap[i].cname == NULL) {
-                status = SDF_FAILURE_MEMORY_ALLOC;
-				break;
-            }
             strcpy(CtnrMap[i].cname, cname);
             CtnrMap[i].cguid         = cguid;
             CtnrMap[i].sdf_container = containerNull;

@@ -61,204 +61,210 @@ cmc_destroy(SDF_internal_ctxt_t *pai, SDF_cmc_t *cmc);
 /**
  * @brief Create the container metadata object for the named container.
  *
- * @param cmc <IN> Pointer to the CMC object.
+ * @param c <IN> CMC open container pointer.
  * @param cname <IN> Container name.
  * @param cguid <IN> Container guid.
  * @param meta <IN> Pointer to the container metadata object.
  * return SDF status.
  */
 SDF_status_t
-cmc_create_meta(SDF_internal_ctxt_t *pai, SDF_cmc_t *cmc, const char *cname, 
+cmc_create_meta(SDF_internal_ctxt_t *pai, SDFContainer c, const char *cname, 
 		SDF_cguid_t cguid, SDF_container_meta_t *meta);
 
 /**
  * @brief Get the container metadata object for the container cguid.
  *
- * @param cmc <IN> Pointer to the CMC object.
+ * @param c <IN> CMC open container pointer.
  * @param cguid <IN> Container guid.
  * @param meta <OUT> Pointer to a user-supplied meta data buffer.
  * return SDF status.
  */
 SDF_status_t
-cmc_get_meta(SDF_internal_ctxt_t *pai, SDF_cmc_t *cmc, SDF_cguid_t cguid, 
+cmc_get_meta(SDF_internal_ctxt_t *pai, SDFContainer c, SDF_cguid_t cguid, 
 	     SDF_container_meta_t *meta);
 
 /**
  * @brief Get the container metadata object for the named container.
  *
- * @param cmc <IN> Pointer to the CMC object.
+ * @param c <IN> CMC open container pointer.
  * @param cname <IN> Container name.
  * @param meta <OUT> Pointer to a user-supplied meta data buffer.
  * return SDF status.
  */
 SDF_status_t
-cmc_get_meta_from_cname(SDF_internal_ctxt_t *pai, SDF_cmc_t *cmc, const char *cname,
+cmc_get_meta_from_cname(SDF_internal_ctxt_t *pai, SDFContainer c, const char *cname,
 			SDF_container_meta_t *meta);
 
 /**
  * @brief Remove the container object for the named container.
  *
- * @param cmc <IN> Pointer to the CMC object.
+ * @param c <IN> CMC open container pointer.
  * @param cguid <IN> Container guid.
  * @return SDF status.
  */
 SDF_status_t
-cmc_remove_meta(SDF_internal_ctxt_t *pai, SDF_cmc_t *cmc, SDF_cguid_t cguid);
+cmc_remove_meta(SDF_internal_ctxt_t *pai, SDFContainer c, SDF_cguid_t cguid);
 
 /**
  * @brief Lock a container metadata object.
  *
  * This is an fth lock.
  *
- * @param pai <IN> Action agent context.
- * @param cmc <IN> Pointer to the CMC object.
+ * @param c <IN> CMC open container pointer.
  * @param cguid <IN> Container guid.
  * @return SDF status.
  */
 SDF_status_t
-cmc_lock_meta(SDF_internal_ctxt_t *pai, SDF_cmc_t *cmc, SDF_cguid_t cguid);
+cmc_lock_meta(SDF_internal_ctxt_t *pai, SDFContainer c, SDF_cguid_t cguid);
 
 /**
  * @brief Unlock a container metadata object.
  *
  * This is an fth unlock.
  *
- * @param pai <IN> Action agent context.
- * @param cmc <IN> Pointer to the CMC object.
+ * @param c <IN> CMC open container pointer.
  * @param cguid <IN> Container guid.
  * @return SDF status.
  */
 SDF_status_t
-cmc_unlock_meta(SDF_internal_ctxt_t *pai, SDF_cmc_t *cmc, SDF_cguid_t cguid);
+cmc_unlock_meta(SDF_internal_ctxt_t *pai, SDFContainer c, SDF_cguid_t cguid);
 
 /**
  * @brief Determine the existance of a metadata object.
  *
- * @param pai <IN> Action agent context.
- * @param cmc <IN> Pointer to the CMC object.
+ * @param c <IN> CMC open container pointer.
  * @param cname <IN> Container name.
  * @return SDF status (SDF_SUCCESS if exists, SDF_FAILURE if it does not).
  */
 SDF_status_t
-cmc_meta_exists(SDF_internal_ctxt_t *pai, SDF_cmc_t *cmc, const char *cname);
+cmc_meta_exists(SDF_internal_ctxt_t *pai, SDFContainer c, const char *cname);
+
+/**
+ * @brief Determine the existance of a cguid.
+ *
+ * @param c <IN> CMC open container pointer.
+ * @param cguid <IN> Container guid.
+ * @return SDF status (SDF_SUCCESS if exists, SDF_FAILURE if it does not).
+ */
+SDF_status_t
+cmc_cguid_exists(SDF_internal_ctxt_t *pai, SDFContainer c, SDF_cguid_t cguid);
 
 /**
  * @brief Put the container metadata object for the named container.
  *
- * @param cmc <IN> Pointer to the CMC object.
+ * @param c <IN> CMC open container pointer.
  * @param cguid <IN> Container guid.
  * @param meta <IN> Pointer to the container metadata object.
  * @return SDF status.
  */
 SDF_status_t
-cmc_put_meta(SDF_internal_ctxt_t *pai, SDF_cmc_t *cmc, SDF_cguid_t cguid, 
+cmc_put_meta(SDF_internal_ctxt_t *pai, SDFContainer c, SDF_cguid_t cguid, 
 	     SDF_container_meta_t *meta);
 
 /**
  * @brief Get the container properties object for the named container.
  *
 
- * @param cmc <IN> Pointer to the CMC object.
+ * @param c <IN> CMC open container pointer.
  * @param cguid <IN> Container guid.
  * @param props <OUT> Pointer to a copy of the container properties object. Caller must free.
  * @return SDF status.
  */
 SDF_status_t
-cmc_get_props(SDF_internal_ctxt_t *pai, SDF_cmc_t *cmc, SDF_cguid_t cguid, 
+cmc_get_props(SDF_internal_ctxt_t *pai, SDFContainer c, SDF_cguid_t cguid, 
 	      SDF_container_props_t *props);
 
 /**
  * @brief Put the container properties object for the named container.
  *
- * @param cmc <IN> Pointer to the CMC object.
+ * @param c <IN> CMC open container pointer.
  * @param cguid <IN> Container guid.
  * @param props <OUT> Pointer to the container properties object.
  * @return SDF status.
  */
 SDF_status_t
-cmc_put_props(SDF_internal_ctxt_t *pai, SDF_cmc_t *cmc, SDF_cguid_t cguid, 
+cmc_put_props(SDF_internal_ctxt_t *pai, SDFContainer c, SDF_cguid_t cguid, 
 	      SDF_container_props_t props);
 
 /**
  * @brief Get the container shard mapping table object for the named container.
  *
- * @param cmc <IN> Pointer to the CMC object.
+ * @param c <IN> CMC open container pointer.
  * @param cguid <IN> Container guid.
  * @return Shard, #SDF_SHARDID_INVALID on failure
  */
 SDF_shardid_t
-cmc_get_shard(SDF_internal_ctxt_t *pai, SDF_cmc_t *cmc, SDF_cguid_t cguid);
+cmc_get_shard(SDF_internal_ctxt_t *pai, SDFContainer c, SDF_cguid_t cguid);
 
 /**
  * @brief Put the container shard mapping table object for the named container.
  *
- * @param cmc <IN> Pointer to the CMC object.
+ * @param c <IN> CMC open container pointer.
  * @param cguid <IN> Container guid.
  * @return Pointer to the container shard mapping table object.
  * @return SDF status.
  */
 SDF_status_t
-cmc_put_shard(SDF_internal_ctxt_t *pai, SDF_cmc_t *cmc, SDF_cguid_t cguid,
+cmc_put_shard(SDF_internal_ctxt_t *pai, SDFContainer c, SDF_cguid_t cguid,
               SDF_shardid_t shard);
 
 /**
  * @brief Delete all shards from a container. Assumes the container metadata is locked.
  *
- * @param cmc <IN> Pointer to the CMC object.
+ * @param c <IN> CMC open container pointer.
  * @param cname <IN> Container name.
  * @return SDF status.
  */
 SDF_status_t
-cmc_delete_shards(SDF_internal_ctxt_t *pai, SDF_cmc_t *cmc, const char *cname);
+cmc_delete_shards(SDF_internal_ctxt_t *pai, SDFContainer c, const char *cname);
 
 /**
  * @brief Map a container path name to its guid.
  *
- * @param cmc <IN> Pointer to the CMC object.
+ * @param c <IN> CMC open container pointer.
  * @param cguid <IN> Container guid.
  * @param cname <IN> Container name.
  * @return SDF status.
  */
 SDF_status_t
-cmc_create_cguid_map(SDF_internal_ctxt_t *pai, SDF_cmc_t *cmc, SDF_cguid_t cguid, const char *cname);
+cmc_create_cguid_map(SDF_internal_ctxt_t *pai, SDFContainer c, SDF_cguid_t cguid, const char *cname);
 
 /**
  * @brief Get the container name to guid map object.
  *
- * @param cmc <IN> Pointer to the CMC object.
+ * @param c <IN> CMC open container pointer.
  * @param cname <IN> Container name.
  * @param meta <OUT> Pointer to a user-supplied cguid map buffer.
  * @return SDF status.
  */
 SDF_status_t
-cmc_get_cguid_map(SDF_internal_ctxt_t *pai, SDF_cmc_t *cmc, const char *cname, 
+cmc_get_cguid_map(SDF_internal_ctxt_t *pai, SDFContainer c, const char *cname, 
 		  SDF_cguid_map_t *map);
 
 /**
  * @brief Update a container name to guid map.
  *
- * @param cmc <IN> Pointer to the CMC object.
+ * @param c <IN> CMC open container pointer.
  * @param cguid <IN> Container guid.
  * @param cname <IN> Container name.
  * @return SDF status.
  */
 SDF_status_t
-cmc_put_cguid_map(SDF_internal_ctxt_t *pai, SDF_cmc_t *cmc, SDF_cguid_t cguid, const char *cname);
+cmc_put_cguid_map(SDF_internal_ctxt_t *pai, SDFContainer c, SDF_cguid_t cguid, const char *cname);
 
 /**
  * @brief Remove a container name to guid map.
  *
- * @param cmc <IN> Pointer to the CMC object.
+ * @param c <IN> CMC open container pointer.
  * @param cname <IN> Container name.
  * @return SDF status.
  */
 SDF_status_t
-cmc_remove_cguid_map(SDF_internal_ctxt_t *pai, SDF_cmc_t *cmc, const char *cname);
+cmc_remove_cguid_map(SDF_internal_ctxt_t *pai, SDFContainer c, const char *cname);
 
 /**
  * @brief Create an object container
  *
- * @param pai <IN> Action agent context.
  * @param path <IN> Container name.
  * @param p <IN> Container properties.
  * @return SDF status.
@@ -269,7 +275,6 @@ cmc_create_object_container(SDF_internal_ctxt_t *pai, const char *path, SDF_cont
 /**
  * @brief Delete an object container
  *
- * @param pai <IN> Action agent context.
  * @param path <IN> Container name.
  * @return SDF status.
  */
@@ -279,7 +284,6 @@ cmc_delete_object_container(SDF_internal_ctxt_t *pai, const char *path);
 /**
  * @brief Open an object container
  *
- * @param pai <IN> Action agent context.
  * @param path <IN> Container name.
  * @param mode <IN> mode to open the container in (e.g. read/write/append/read-write).
  * @param container <OUT> pointer to the client-accessible container handle.
@@ -310,8 +314,7 @@ cmc_close_object_container(SDF_internal_ctxt_t *pai, SDFContainer container);
 /**
  * @brief Flush and invalidate a container's objects.
  *
- * @param pai <IN> Action agent context.
-  @param path <IN> Container name.
+ * @param path <IN> Container name.
  * @return SDF_status.
  */
 SDF_status_t
@@ -320,7 +323,6 @@ cmc_flush_inval_object_container(SDF_internal_ctxt_t *pai, const char *path);
 /**
  * @brief Invalidate a container's objects.
  *
- * @param pai <IN> Action agent context.
  * @param path <IN> Container name.
  * @return SDF_status.
  */
@@ -330,7 +332,6 @@ cmc_inval_object_container(SDF_internal_ctxt_t *pai, const char *path);
 /**
  * @brief Create/put a buffered object.
  *
- * @param pai <IN> Action agent context.
  * @param container <IN> Container handle.
  * @param objkey <IN> Object key.
  * @param size <IN> Object size.
@@ -344,7 +345,6 @@ cmc_create_put_buffered_object(SDF_internal_ctxt_t *pai, SDFContainer container,
 /**
  * @brief Put a buffered object.
  *
- * @param pai <IN> Action agent context.
  * @param container <IN> Container handle.
  * @param objkey <IN> Object key.
  * @param size <IN> Object size.
@@ -374,7 +374,6 @@ cmc_get_for_read_buffered_object(SDF_internal_ctxt_t *pai, SDFContainer containe
 /**
  * @brief Get a buffered object for write access.
  *
- * @param pai <IN> Action agent context.
  * @param container <IN> Container handle.
  * @param objkey <IN> Object key.
  * @param pbuf <IN> Pointer to object buffer.
@@ -390,7 +389,6 @@ cmc_get_for_write_buffered_object(SDF_internal_ctxt_t *pai, SDFContainer contain
 /**
  * @brief Remove an object.
  *
- * @param pai <IN> Action agent context.
  * @param container <IN> Container handle.
  * @param objkey <IN> Object key.
  * @return SDF status.

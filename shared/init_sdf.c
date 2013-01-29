@@ -13,6 +13,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <sys/stat.h>
+#include <netinet/in.h>
 #include "platform/stdlib.h"
 #include "platform/logging.h"
 #include "sdfmsg/sdf_msg_types.h"
@@ -22,7 +23,12 @@
 #include "name_service.h"
 #include "init_sdf.h"
 #include "cmc.h"
+#include "shard_compute.h"
 #include "ssd/fifo/container_meta_blob.h"
+#include "utils/properties.h"
+#include "api/fdf.h"
+#include "ssd/fifo/mcd_osd_internal.h"
+#include "api/sdf_internal.h"
 
 #include "private.h"
 
@@ -34,10 +40,14 @@
 #define LOG_WARN PLAT_LOG_LEVEL_WARN
 #define LOG_FATAL PLAT_LOG_LEVEL_FATAL
 
+
 // Globals
 SDF_cmc_t *theCMC = NULL;        // Container metadata container
 
 struct SDF_shared_state sdf_shared_state;
+
+extern SDF_status_t
+fdf_open_virtual_support_containers(SDF_internal_ctxt_t *pai, int flags);
 
 int 
 (*init_container_meta_blob_put)( uint64_t shard_id, char * data, int len ) = NULL;
@@ -100,9 +110,9 @@ init_sdf_reset(SDF_internal_ctxt_t *pai)
 SDF_status_t
 init_sdf_initialize(const struct SDF_config *config, int restart) 
 {
-    SDF_status_t status = SDF_FAILURE;
-    char *cmc = CMC_PATH;
-    int log_level = LOG_ERR;
+    SDF_status_t 			 status 	= SDF_FAILURE;
+    char 					*cmc 		= CMC_PATH;
+    int 					 log_level 	= LOG_ERR;
 
     plat_log_msg(21498, LOG_CAT, LOG_DBG, "Node: %d", init_get_my_node_id());
 
@@ -117,13 +127,13 @@ init_sdf_initialize(const struct SDF_config *config, int restart)
         plat_log_msg(21604, PLAT_LOG_CAT_SDF_SHARED, PLAT_LOG_LEVEL_DEBUG,
                      "CMC create succeeded");
         status = SDF_SUCCESS;
-	log_level = LOG_INFO;
+		log_level = LOG_INFO;
     } else {
         plat_log_msg(21605, PLAT_LOG_CAT_SDF_SHARED, PLAT_LOG_LEVEL_ERROR,
                      "CMC create failed");
     }
 
-    /* Recover the node's cguid counter if we are recovering from flash. */
+	// Recover FDF system containers and objects
     if (status == SDF_SUCCESS && sdf_shared_state.config.system_recovery == SYS_FLASH_RECOVERY) {
 		SDF_cguid_t cguid_counter;
 		if ((status = name_service_get_cguid_state(config->pai,
@@ -144,17 +154,19 @@ init_sdf_initialize(const struct SDF_config *config, int restart)
     if (!restart && config->my_node == CMC_HOME)
         sdf_msg_sync();
 
-    // Write out a cguid state object so that cmc recovery will work
+    // Create FDF system containers and objects
     if (status == SDF_SUCCESS && sdf_shared_state.config.system_recovery != SYS_FLASH_RECOVERY) {
+
+    	// Write out a cguid state object so that cmc recovery will work
 		if ((status = name_service_create_cguid_state(config->pai, 
 													  init_get_my_node_id(), 
-						      						  0)) != SDF_SUCCESS) {
+						      						  CMC_CGUID_INITIAL_VALUE)) != SDF_SUCCESS) {
 	    	log_level = LOG_FATAL;
 	    	plat_log_msg(21607, LOG_CAT, log_level, "Failed to write cguid state");
 		}
     }
 
-    plat_log_msg(21504, LOG_CAT, log_level, "Node: %d - %s", init_get_my_node_id(), SDF_Status_Strings[status]);
+    plat_log_msg(20819, LOG_CAT, log_level, "%s", SDF_Status_Strings[status]);
 
     return (status);
 }
@@ -174,13 +186,13 @@ init_set_cmc_cguid(SDF_internal_ctxt_t *pai) {
     SDF_status_t status = SDF_FAILURE;
     uint32_t my_node = sdf_shared_state.config.my_node;
 
-    if ((cmc_put_cguid_map(pai, theCMC, CMC_CGUID, CMC_PATH)) != SDF_SUCCESS) {
-	plat_log_msg(21608, PLAT_LOG_CAT_SDF_CMC, PLAT_LOG_LEVEL_ERROR,
+    if ((cmc_put_cguid_map(pai, theCMC->c, CMC_CGUID, CMC_PATH)) != SDF_SUCCESS) {
+		plat_log_msg(21608, PLAT_LOG_CAT_SDF_CMC, PLAT_LOG_LEVEL_ERROR,
 		     "Failure: Node %u - init_set_cmc_cguid - failed to map cguid %s - status %u",
 		     my_node, CMC_PATH, status);
     } else {
-	status = SDF_SUCCESS;
-	plat_log_msg(21609, PLAT_LOG_CAT_SDF_CMC, PLAT_LOG_LEVEL_DEBUG,
+		status = SDF_SUCCESS;
+		plat_log_msg(21609, PLAT_LOG_CAT_SDF_CMC, PLAT_LOG_LEVEL_DEBUG,
 		     "Success: Node %u - init_set_cmc_cguid", my_node);
     }
 

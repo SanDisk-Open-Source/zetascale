@@ -38,42 +38,38 @@ container_meta_create(const char *name, SDF_container_props_t props, SDF_cguid_t
     if (shard <= SDF_SHARDID_LIMIT && !ISEMPTY(name)) {
         if ((meta = (SDF_container_meta_t *)
              plat_alloc(sizeof (SDF_container_meta_t))) != NULL) {
-	    bzero((void *) meta, sizeof(SDF_container_meta_t));	    
-	    meta->type = SDF_META_TYPE_CONTAINER;
-	    meta->version = SDF_CONTAINER_META_VERSION;
-	    meta->cguid = cguid;
+	    	bzero((void *) meta, sizeof(SDF_container_meta_t));	    
+	    	meta->type = SDF_META_TYPE_CONTAINER;
+	    	meta->version = SDF_CONTAINER_META_VERSION;
+	    	meta->cguid = cguid;
             meta->properties = props;
             meta->flush_time = 0;
-            // meta->stopflag = SDF_FALSE;
+            meta->delete_in_progress = SDF_FALSE;
             meta->stopflag = SDF_TRUE; // default is now stopped
             meta->flush_set_time = 0;
             meta->shard = shard;
-	    if (cguid == CMC_CGUID) 
-		meta->node = CMC_HOME;
-	    else
-		meta->node = init_get_my_node_id();
-	    meta->counters.sguid = 0;
-	    meta->counters.oguid = 0;
-	    if (meta->properties.shard.num_shards <= 0) {
-		meta->properties.shard.num_shards = SDF_SHARD_DEFAULT_SHARD_COUNT;
-	    }
-	    if (strlen(name) > MAX_CNAME_SIZE) {
-		plat_log_msg(21582, PLAT_LOG_CAT_SDF_SHARED,
-			     PLAT_LOG_LEVEL_ERROR, "FAILED: container name exceeds max");
-	    } else {
-		memcpy(&meta->cname, name, strlen(name));
+	    	if (cguid == CMC_CGUID) 
+				meta->node = CMC_HOME;
+	    	else
+				meta->node = init_get_my_node_id();
+	    		meta->counters.sguid = 0;
+	    		meta->counters.oguid = 0;
+	    		if (meta->properties.shard.num_shards <= 0) {
+					meta->properties.shard.num_shards = SDF_SHARD_DEFAULT_SHARD_COUNT;
+	    		}
+	    		if (strlen(name) > MAX_CNAME_SIZE) {
+					plat_log_msg(21582, PLAT_LOG_CAT_SDF_SHARED, PLAT_LOG_LEVEL_ERROR, "FAILED: container name exceeds max");
+	    		} else {
+					memcpy(&meta->cname, name, strlen(name));
 
-		plat_log_msg(21583, PLAT_LOG_CAT_SDF_SHARED,
-			     PLAT_LOG_LEVEL_DEBUG, "metadata created for %s", name);
-	    }
-        } else {
-            plat_log_msg(21584, PLAT_LOG_CAT_SDF_SHARED,
-                         PLAT_LOG_LEVEL_DEBUG, "could not allocate memory");
-        }
-    } else {
-        plat_log_msg(21585, PLAT_LOG_CAT_SDF_SHARED,
-                     PLAT_LOG_LEVEL_DEBUG, "invalid parameter");
-    }
+					plat_log_msg(21583, PLAT_LOG_CAT_SDF_SHARED, PLAT_LOG_LEVEL_DEBUG, "metadata created for %s", name);
+	    		}
+       	} else {
+            plat_log_msg(21584, PLAT_LOG_CAT_SDF_SHARED, PLAT_LOG_LEVEL_DEBUG, "could not allocate memory");
+       	}
+   	} else {
+       	plat_log_msg(21585, PLAT_LOG_CAT_SDF_SHARED, PLAT_LOG_LEVEL_DEBUG, "invalid parameter");
+   	}
 
     return (meta);
 }

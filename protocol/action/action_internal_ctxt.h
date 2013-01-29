@@ -26,7 +26,8 @@
 extern "C" {
 #endif
 
-#define SDF_MAX_CONTAINERS 129   // 128 plus 1 for cmc
+//#define SDF_MAX_CONTAINERS 129   // 128 plus 1 for cmc
+#define SDF_MAX_CONTAINERS UINT16_MAX   // 65535 
 
 struct SDF_action_state;
 

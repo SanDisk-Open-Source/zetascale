@@ -1207,7 +1207,7 @@ int mcd_aio_init( void * state, char * dname )
     }
 
     if( Mcd_aio_num_files != 1 ) {
-        mcd_log_msg(160041,PLAT_LOG_LEVEL_FATAL,
+        mcd_log_msg(150090,PLAT_LOG_LEVEL_FATAL,
             "Incorrect value(%d) for Mcd_aio_num_files. It must be set to 1",Mcd_aio_num_files);
         plat_abort();
     }

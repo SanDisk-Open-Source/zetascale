@@ -18,8 +18,9 @@ LIBS = \
 	$(TOP)/sdf/api/libsdf.a \
 	$(TOP)/sdf/agent/libsdfagent.a \
 	$(TOP)/sdf/shared/libsdfshared.a \
-        $(TOP)/sdf/protocol/action/libsdfaction.a \
-        $(TOP)/sdf/protocol/home/libsdfhome.a \
+	$(TOP)/sdf/api/libsdf.a \
+    $(TOP)/sdf/protocol/action/libsdfaction.a \
+    $(TOP)/sdf/protocol/home/libsdfhome.a \
 	$(TOP)/sdf/protocol/libsdfprotocol.a \
 	$(TOP)/sdf/ssd/libsdfssd.a \
 	$(TOP)/sdf/ssd/clipper/libclipper.a \

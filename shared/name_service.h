@@ -123,6 +123,15 @@ SDF_status_t
 name_service_meta_exists(SDF_internal_ctxt_t *pai, const char *cname);
 
 /**
+ * @brief Test for cguid existence (status == SDF_OBJECT_EXISTS).
+ *
+ * @param cguid <IN> Container cguid.
+ * @return SDF status.
+ */
+SDF_status_t
+name_service_cguid_exists(SDF_internal_ctxt_t *pai, SDF_cguid_t cguid);
+
+/**
  * @brief Get the container properties object for the named container.
  *
  * @param cname <IN> Container name.

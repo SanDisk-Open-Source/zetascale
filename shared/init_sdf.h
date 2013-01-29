@@ -49,7 +49,7 @@ struct SDF_config {
      * Used to generate unique container ids. Persistent (updated to last used value on recovery).
      *
      */
-    SDF_cguid_t cguid_counter;
+    uint16_t cguid_counter;
 
     /**
      * @brief Recovery flag

@@ -265,18 +265,38 @@ typedef struct {
 	FDF_histo_t		 access_time_histo[FDF_N_ACCESS_TYPES];
 } FDF_stats_t;
 
+#if 0
 typedef struct {
-	uint32_t				size_kb;
-	FDF_boolean_t			fifo_mode;
+	uint64_t				size_kb;
 	FDF_boolean_t			persistent;
     FDF_boolean_t			evicting;
 	FDF_boolean_t			writethru;
-	FDF_boolean_t			async_writes;
 	FDF_durability_level_t	durability_level;
-	FDF_cguid_t				cguid;
-	uint64_t				cid;
-	uint32_t				num_shards;
 } FDF_container_props_t;
+
+typedef struct {
+	uint64_t				current_size;
+	uint64_t				num_obj;
+	FDF_boolean_t			fifo_mode;
+    FDF_cguid_t             cguid;
+    uint32_t                num_shards;
+	FDF_boolean_t			async_writes;
+} FDF_internal_container_props_t;
+#else
+typedef struct {
+    uint64_t                size_kb;
+    FDF_boolean_t           fifo_mode;
+    FDF_boolean_t           persistent;
+    FDF_boolean_t           evicting;
+    FDF_boolean_t           writethru;
+    FDF_boolean_t           async_writes;
+    FDF_durability_level_t  durability_level;
+    FDF_cguid_t             cguid;
+    uint64_t                cid;
+    uint32_t                num_shards;
+} FDF_container_props_t;
+#endif
+
 	
 #define FDF_CTNR_CREATE   1
 #define FDF_CTNR_RO_MODE  2
@@ -377,7 +397,7 @@ FDF_status_t FDFLoadCntrPropDefaults(
 	);
 
  /**
- * @brief Create and open a container.
+ * @brief Create and open a virtual container.
  *
  * @param fdf_thread_state <IN> The FDF context for which this operation applies
  * @param cname <IN> container name
@@ -394,8 +414,26 @@ FDF_status_t FDFOpenContainer(
 	FDF_cguid_t				*cguid
 	);
 
+ /**
+ * @brief Create and open a physical container.
+ *
+ * @param fdf_thread_state <IN> The FDF context for which this operation applies
+ * @param cname <IN> container name
+ * @param properties <IN> container properties
+ * @param flags <IN> container open options
+ * @param cguid <OUT> container GUID
+ * @return FDF_SUCCESS on success
+ */
+FDF_status_t FDFOpenPhysicalContainer(
+    struct FDF_thread_state *fdf_thread_state,
+    char                    *cname,
+    FDF_container_props_t   *properties,
+    uint32_t                 flags,
+    FDF_cguid_t             *cguid
+    );
+
 /**
- * @brief Close a container.
+ * @brief Close a virtual container.
  *
  * @param fdf_thread_state <IN> The FDF context for which this operation applies
  * @param cguid <IN> container CGUID
@@ -407,7 +445,19 @@ FDF_status_t FDFCloseContainer(
 	);
 
 /**
- * @brief Delete a container
+ * @brief Close a phyiscal container.
+ *
+ * @param fdf_thread_state <IN> The FDF context for which this operation applies
+ * @param cguid <IN> container CGUID
+ * @return FDF_SUCCESS on success
+ */
+FDF_status_t FDFClosePhysicalContainer(
+    struct FDF_thread_state *fdf_thread_state,
+    FDF_cguid_t              cguid
+    );
+
+/**
+ * @brief Delete a virtual container
  *
  * @param fdf_thread_state <IN> The FDF context for which this operation applies
  * @param cguid <IN> container CGUID
@@ -417,6 +467,18 @@ FDF_status_t FDFDeleteContainer(
 	struct FDF_thread_state *fdf_thread_state,
 	FDF_cguid_t				 cguid
 	);
+
+/**
+ * @brief Delete a physical container
+ *
+ * @param fdf_thread_state <IN> The FDF context for which this operation applies
+ * @param cguid <IN> container CGUID
+ * @return FDF_SUCCESS on success
+ */
+FDF_status_t FDFDeletePhysicalContainer(
+    struct FDF_thread_state *fdf_thread_state,
+    FDF_cguid_t              cguid
+    );
 
 /**
  * @brief Get container list

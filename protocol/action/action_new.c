@@ -3612,15 +3612,16 @@ SDF_status_t SDFActionDeleteContainer(SDF_action_init_t *pai, SDF_container_meta
     /* Go through all action threads and delete this container from the .
      * per-thread shard maps.
      */
-
-    wait = fthLock(&(pas->nthrds_lock), 1, NULL);
-    for (pts = pas->threadstates; pts != NULL; pts = pts->next) {
-        ret = delete_home_shard_map_entry(pts, pmeta->shard);
-        if (ret != 0) {
-            status = SDF_DELETE_SHARD_MAP_ENTRY_FAILED;
-        }
-    }
-    fthUnlock(wait);
+   if ( pmeta->cguid < LAST_PHYSICAL_CGUID ) {
+       wait = fthLock(&(pas->nthrds_lock), 1, NULL);
+       for (pts = pas->threadstates; pts != NULL; pts = pts->next) {
+           ret = delete_home_shard_map_entry(pts, pmeta->shard);
+           if (ret != 0) {
+               status = SDF_DELETE_SHARD_MAP_ENTRY_FAILED;
+           }
+       }
+       fthUnlock(wait);
+   }
 
     if (status != SDF_SUCCESS) {
         // xxxzzz container will be left in a weird state!
@@ -3652,7 +3653,7 @@ SDF_status_t SDFActionOpenContainer(SDF_action_init_t *pai, SDF_cguid_t cguid)
 
     status = SDFPreloadContainerMetaData(pai, cguid);
 
-    if (status == SDF_SUCCESS) {
+    if (cguid <= LAST_PHYSICAL_CGUID && status == SDF_SUCCESS) {
         pctnr_md = get_preloaded_cache_ctnr_meta(pas, cguid);
         if (pctnr_md == NULL) {
             status = SDF_CREATE_SHARD_MAP_ENTRY_FAILED;

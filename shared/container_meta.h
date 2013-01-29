@@ -140,6 +140,8 @@ typedef struct SDF_container_meta {
     */
     char cname[MAX_CNAME_SIZE + 1];
 
+	SDF_boolean_t delete_in_progress;
+
 } SDF_container_meta_t;
 
 

@@ -11,10 +11,13 @@
 #define MAX_CONTAINERS  1000
 
 typedef struct ctnr_map {
-    char           *cname;
+    char            cname[CONTAINER_NAME_MAXLEN];
     SDF_cguid_t     cguid;
     uint64_t       	cid;
     SDF_CONTAINER   sdf_container;
+	uint64_t		size_kb;
+	uint64_t		current_size;
+	uint64_t		num_obj;
 } ctnr_map_t;
 
 typedef struct SDF_state {

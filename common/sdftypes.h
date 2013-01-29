@@ -68,15 +68,25 @@ typedef struct {
     uint32_t    len;
 } SDF_simple_key_t;
 
+// System containers:
+//		CMC		physical container metadata
+//		VMC		virtual container metadata
+//		VDC		virtual container data objects
 #define CMC_PATH "/sdf/CMC"
+#define VMC_PATH "/sdf/VMC"
+#define VDC_PATH "/sdf/VDC"
 
 /*
  * maximum number of containers supported by one instance of SDF
  */
-#define MCD_MAX_NUM_CNTRS       128
+//#define MCD_MAX_NUM_CNTRS       128
+#define MCD_MAX_NUM_CNTRS       UINT16_MAX - 1
 
 // Not 0 so that we can differentiate uninitialized
-#define CMC_CGUID 1
+#define CMC_CGUID 1					// Physical container
+#define VMC_CGUID 2					// Physical container
+#define VDC_CGUID 3					// Physical container
+#define LAST_PHYSICAL_CGUID 3
 #define CMC_HOME 0
 #define CMC_CGUID_INITIAL_VALUE 1
 
@@ -342,7 +352,12 @@ typedef struct {
     item(SDF_NO_WRITEBACK_IN_STORE_MODE, /* default */) \
     item(SDF_WRITEBACK_CACHING_DISABLED, /* default */) \
     /* @brief Update ignored due to duplicate info */ \
-    item(SDF_UPDATE_DUPLICATE, /* default */)
+    item(SDF_UPDATE_DUPLICATE, /* default */) \
+    item(SDF_FAILURE_CONTAINER_TOO_SMALL, /* default */) \
+    item(SDF_CONTAINER_FULL, /* default */) \
+    item(SDF_CANNOT_REDUCE_CONTAINER_SIZE, /* default */) \
+    item(SDF_CANNOT_CHANGE_CONTAINER_SIZE, /* default */) \
+    item(SDF_OUT_OF_STORAGE_SPACE, /* default */)
 
 
 typedef enum {

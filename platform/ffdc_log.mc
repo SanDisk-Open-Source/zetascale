@@ -3043,6 +3043,28 @@
 150042 FIFO mode is only allowed for non-evicting, non-persistent containers
 150043 FIFO mode is only allowed for evicting, non-persistent containers
 150044 shard delete failed due to NULL shard pointer
+150055 Failed to open support containers
+150056 Failed to create support containers
+150057 Failed to create VMC container - %s\n
+150058 Failed to find metadata container for %lu
+150059 Failed to create CMC container - %s\n
+150060 Failed status = %d...\n
+150063 Failed to find metadata container for %s
+150076 Failed to open support containers: %s
+150077 Container full
+150078 Cannnot change container size
+150079 Cannnot reduce container size
+150080 Cannnot read container metadata for %lu
+150081 Cannnot write container metadata for %lu
+150082 Cannnot find container id %lu
+150083 %lu - %s\n
+150084 Failed to generate container id for %s
+150085 Could not read metadata for %lu\n
+150086 Could not mark delete in progress for container %lu\n
+150087 Could not clear delete in progress for container %lu\n
+150088 Unable to initialize FDF thread state, exiting
+150089 Unable to start the virtual container initialization thread.
+150090 Incorrect value(%d) for Mcd_aio_num_files. It must be set to 1
 
 
 # root

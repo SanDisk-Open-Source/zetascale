@@ -9,7 +9,7 @@
  * codebase. This file also contains the API to enable, disable, and
  * initialize FFDC.
  * 
- * Generated On: 2013-01-23 19:22:30
+ * Generated On: 2013-01-29 12:55:49
  *------------------------------------------------------------------------*/
 
 #define PLATFORM_INTERNAL 1
@@ -41177,6 +41177,280 @@ __inline__ void
 ffdc_log_func_150044(int lineno, int msgid, int catid, int level, const char* fmt)
 {
     FFDC_START(150044, catid, level, lineno);
+    FFDC_END();
+}
+
+/*---------------------------------------------------------------------------
+ * MsgID : 150055
+ * Msg   : "Failed to open support containers"
+ *-------------------------------------------------------------------------*/
+__inline__ void
+ffdc_log_func_150055(int lineno, int msgid, int catid, int level, const char* fmt)
+{
+    FFDC_START(150055, catid, level, lineno);
+    FFDC_END();
+}
+
+/*---------------------------------------------------------------------------
+ * MsgID : 150056
+ * Msg   : "Failed to create support containers"
+ *-------------------------------------------------------------------------*/
+__inline__ void
+ffdc_log_func_150056(int lineno, int msgid, int catid, int level, const char* fmt)
+{
+    FFDC_START(150056, catid, level, lineno);
+    FFDC_END();
+}
+
+/*---------------------------------------------------------------------------
+ * MsgID : 150057
+ * Msg   : "Failed to create VMC container - %s\n"
+ *-------------------------------------------------------------------------*/
+__inline__ void
+ffdc_log_func_150057(int lineno, int msgid, int catid, int level, const char* fmt,
+    const char* arg1)
+{
+    FFDC_START(150057, catid, level, lineno);
+    FFDC_ADD_STR(arg1);
+    FFDC_END();
+}
+
+/*---------------------------------------------------------------------------
+ * MsgID : 150058
+ * Msg   : "Failed to find metadata container for %lu"
+ *-------------------------------------------------------------------------*/
+__inline__ void
+ffdc_log_func_150058(int lineno, int msgid, int catid, int level, const char* fmt,
+    long arg1)
+{
+    FFDC_START(150058, catid, level, lineno);
+    FFDC_ADD_NUM(arg1);
+    FFDC_END();
+}
+
+/*---------------------------------------------------------------------------
+ * MsgID : 150059
+ * Msg   : "Failed to create CMC container - %s\n"
+ *-------------------------------------------------------------------------*/
+__inline__ void
+ffdc_log_func_150059(int lineno, int msgid, int catid, int level, const char* fmt,
+    const char* arg1)
+{
+    FFDC_START(150059, catid, level, lineno);
+    FFDC_ADD_STR(arg1);
+    FFDC_END();
+}
+
+/*---------------------------------------------------------------------------
+ * MsgID : 150060
+ * Msg   : "Failed status = %d...\n"
+ *-------------------------------------------------------------------------*/
+__inline__ void
+ffdc_log_func_150060(int lineno, int msgid, int catid, int level, const char* fmt,
+    int arg1)
+{
+    FFDC_START(150060, catid, level, lineno);
+    FFDC_ADD_NUM(arg1);
+    FFDC_END();
+}
+
+/*---------------------------------------------------------------------------
+ * MsgID : 150063
+ * Msg   : "Failed to find metadata container for %s"
+ *-------------------------------------------------------------------------*/
+__inline__ void
+ffdc_log_func_150063(int lineno, int msgid, int catid, int level, const char* fmt,
+    const char* arg1)
+{
+    FFDC_START(150063, catid, level, lineno);
+    FFDC_ADD_STR(arg1);
+    FFDC_END();
+}
+
+/*---------------------------------------------------------------------------
+ * MsgID : 150076
+ * Msg   : "Failed to open support containers: %s"
+ *-------------------------------------------------------------------------*/
+__inline__ void
+ffdc_log_func_150076(int lineno, int msgid, int catid, int level, const char* fmt,
+    const char* arg1)
+{
+    FFDC_START(150076, catid, level, lineno);
+    FFDC_ADD_STR(arg1);
+    FFDC_END();
+}
+
+/*---------------------------------------------------------------------------
+ * MsgID : 150077
+ * Msg   : "Container full"
+ *-------------------------------------------------------------------------*/
+__inline__ void
+ffdc_log_func_150077(int lineno, int msgid, int catid, int level, const char* fmt)
+{
+    FFDC_START(150077, catid, level, lineno);
+    FFDC_END();
+}
+
+/*---------------------------------------------------------------------------
+ * MsgID : 150078
+ * Msg   : "Cannnot change container size"
+ *-------------------------------------------------------------------------*/
+__inline__ void
+ffdc_log_func_150078(int lineno, int msgid, int catid, int level, const char* fmt)
+{
+    FFDC_START(150078, catid, level, lineno);
+    FFDC_END();
+}
+
+/*---------------------------------------------------------------------------
+ * MsgID : 150079
+ * Msg   : "Cannnot reduce container size"
+ *-------------------------------------------------------------------------*/
+__inline__ void
+ffdc_log_func_150079(int lineno, int msgid, int catid, int level, const char* fmt)
+{
+    FFDC_START(150079, catid, level, lineno);
+    FFDC_END();
+}
+
+/*---------------------------------------------------------------------------
+ * MsgID : 150080
+ * Msg   : "Cannnot read container metadata for %lu"
+ *-------------------------------------------------------------------------*/
+__inline__ void
+ffdc_log_func_150080(int lineno, int msgid, int catid, int level, const char* fmt,
+    long arg1)
+{
+    FFDC_START(150080, catid, level, lineno);
+    FFDC_ADD_NUM(arg1);
+    FFDC_END();
+}
+
+/*---------------------------------------------------------------------------
+ * MsgID : 150081
+ * Msg   : "Cannnot write container metadata for %lu"
+ *-------------------------------------------------------------------------*/
+__inline__ void
+ffdc_log_func_150081(int lineno, int msgid, int catid, int level, const char* fmt,
+    long arg1)
+{
+    FFDC_START(150081, catid, level, lineno);
+    FFDC_ADD_NUM(arg1);
+    FFDC_END();
+}
+
+/*---------------------------------------------------------------------------
+ * MsgID : 150082
+ * Msg   : "Cannnot find container id %lu"
+ *-------------------------------------------------------------------------*/
+__inline__ void
+ffdc_log_func_150082(int lineno, int msgid, int catid, int level, const char* fmt,
+    long arg1)
+{
+    FFDC_START(150082, catid, level, lineno);
+    FFDC_ADD_NUM(arg1);
+    FFDC_END();
+}
+
+/*---------------------------------------------------------------------------
+ * MsgID : 150083
+ * Msg   : "%lu - %s\n"
+ *-------------------------------------------------------------------------*/
+__inline__ void
+ffdc_log_func_150083(int lineno, int msgid, int catid, int level, const char* fmt,
+    long arg1, const char* arg2)
+{
+    FFDC_START(150083, catid, level, lineno);
+    FFDC_ADD_NUM(arg1);
+    FFDC_ADD_STR(arg2);
+    FFDC_END();
+}
+
+/*---------------------------------------------------------------------------
+ * MsgID : 150084
+ * Msg   : "Failed to generate container id for %s"
+ *-------------------------------------------------------------------------*/
+__inline__ void
+ffdc_log_func_150084(int lineno, int msgid, int catid, int level, const char* fmt,
+    const char* arg1)
+{
+    FFDC_START(150084, catid, level, lineno);
+    FFDC_ADD_STR(arg1);
+    FFDC_END();
+}
+
+/*---------------------------------------------------------------------------
+ * MsgID : 150085
+ * Msg   : "Could not read metadata for %lu\n"
+ *-------------------------------------------------------------------------*/
+__inline__ void
+ffdc_log_func_150085(int lineno, int msgid, int catid, int level, const char* fmt,
+    long arg1)
+{
+    FFDC_START(150085, catid, level, lineno);
+    FFDC_ADD_NUM(arg1);
+    FFDC_END();
+}
+
+/*---------------------------------------------------------------------------
+ * MsgID : 150086
+ * Msg   : "Could not mark delete in progress for container %lu\n"
+ *-------------------------------------------------------------------------*/
+__inline__ void
+ffdc_log_func_150086(int lineno, int msgid, int catid, int level, const char* fmt,
+    long arg1)
+{
+    FFDC_START(150086, catid, level, lineno);
+    FFDC_ADD_NUM(arg1);
+    FFDC_END();
+}
+
+/*---------------------------------------------------------------------------
+ * MsgID : 150087
+ * Msg   : "Could not clear delete in progress for container %lu\n"
+ *-------------------------------------------------------------------------*/
+__inline__ void
+ffdc_log_func_150087(int lineno, int msgid, int catid, int level, const char* fmt,
+    long arg1)
+{
+    FFDC_START(150087, catid, level, lineno);
+    FFDC_ADD_NUM(arg1);
+    FFDC_END();
+}
+
+/*---------------------------------------------------------------------------
+ * MsgID : 150088
+ * Msg   : "Unable to initialize FDF thread state, exiting"
+ *-------------------------------------------------------------------------*/
+__inline__ void
+ffdc_log_func_150088(int lineno, int msgid, int catid, int level, const char* fmt)
+{
+    FFDC_START(150088, catid, level, lineno);
+    FFDC_END();
+}
+
+/*---------------------------------------------------------------------------
+ * MsgID : 150089
+ * Msg   : "Unable to start the virtual container initialization thread."
+ *-------------------------------------------------------------------------*/
+__inline__ void
+ffdc_log_func_150089(int lineno, int msgid, int catid, int level, const char* fmt)
+{
+    FFDC_START(150089, catid, level, lineno);
+    FFDC_END();
+}
+
+/*---------------------------------------------------------------------------
+ * MsgID : 150090
+ * Msg   : "Incorrect value(%d) for Mcd_aio_num_files. It must be set to 
+ *          1"
+ *-------------------------------------------------------------------------*/
+__inline__ void
+ffdc_log_func_150090(int lineno, int msgid, int catid, int level, const char* fmt,
+    int arg1)
+{
+    FFDC_START(150090, catid, level, lineno);
+    FFDC_ADD_NUM(arg1);
     FFDC_END();
 }
 

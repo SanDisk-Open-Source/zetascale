@@ -9,7 +9,7 @@
  * log message in the codebase.  The structure contains one field for
  * each message parameter in the log message, along with other meta data
  * 
- * Generated On: 2013-01-23 19:22:30
+ * Generated On: 2013-01-29 12:55:49
  *------------------------------------------------------------------------*/
 
 #ifndef PLATFORM_FFDC_H
@@ -68659,6 +68659,485 @@ struct ffdc_log_struct_150044
 
 __inline__ void
 ffdc_log_func_150044(int lineno, int msgid, int catid, int level, const char* fmt);
+
+/*---------------------------------------------------------------------------
+ * MsgID : 150055
+ * Msg   : "Failed to open support containers"
+ *-------------------------------------------------------------------------*/
+struct ffdc_log_struct_150055
+{
+    int magic;
+    int msgid;
+    int catid;
+    int level;
+    unsigned long th_id;
+    unsigned long fth_id;
+    int lineno;
+    struct timeval timestamp;
+
+
+} __attribute__ ((aligned (64)));
+
+__inline__ void
+ffdc_log_func_150055(int lineno, int msgid, int catid, int level, const char* fmt);
+
+/*---------------------------------------------------------------------------
+ * MsgID : 150056
+ * Msg   : "Failed to create support containers"
+ *-------------------------------------------------------------------------*/
+struct ffdc_log_struct_150056
+{
+    int magic;
+    int msgid;
+    int catid;
+    int level;
+    unsigned long th_id;
+    unsigned long fth_id;
+    int lineno;
+    struct timeval timestamp;
+
+
+} __attribute__ ((aligned (64)));
+
+__inline__ void
+ffdc_log_func_150056(int lineno, int msgid, int catid, int level, const char* fmt);
+
+/*---------------------------------------------------------------------------
+ * MsgID : 150057
+ * Msg   : "Failed to create VMC container - %s\n"
+ *-------------------------------------------------------------------------*/
+struct ffdc_log_struct_150057
+{
+    int magic;
+    int msgid;
+    int catid;
+    int level;
+    unsigned long th_id;
+    unsigned long fth_id;
+    int lineno;
+    struct timeval timestamp;
+
+    char arg1[FFDC_MAX_STR_SIZE];
+} __attribute__ ((aligned (64)));
+
+__inline__ void
+ffdc_log_func_150057(int lineno, int msgid, int catid, int level, const char* fmt,
+    const char* arg1);
+
+/*---------------------------------------------------------------------------
+ * MsgID : 150058
+ * Msg   : "Failed to find metadata container for %lu"
+ *-------------------------------------------------------------------------*/
+struct ffdc_log_struct_150058
+{
+    int magic;
+    int msgid;
+    int catid;
+    int level;
+    unsigned long th_id;
+    unsigned long fth_id;
+    int lineno;
+    struct timeval timestamp;
+
+    long arg1;
+} __attribute__ ((aligned (64)));
+
+__inline__ void
+ffdc_log_func_150058(int lineno, int msgid, int catid, int level, const char* fmt,
+    long arg1);
+
+/*---------------------------------------------------------------------------
+ * MsgID : 150059
+ * Msg   : "Failed to create CMC container - %s\n"
+ *-------------------------------------------------------------------------*/
+struct ffdc_log_struct_150059
+{
+    int magic;
+    int msgid;
+    int catid;
+    int level;
+    unsigned long th_id;
+    unsigned long fth_id;
+    int lineno;
+    struct timeval timestamp;
+
+    char arg1[FFDC_MAX_STR_SIZE];
+} __attribute__ ((aligned (64)));
+
+__inline__ void
+ffdc_log_func_150059(int lineno, int msgid, int catid, int level, const char* fmt,
+    const char* arg1);
+
+/*---------------------------------------------------------------------------
+ * MsgID : 150060
+ * Msg   : "Failed status = %d...\n"
+ *-------------------------------------------------------------------------*/
+struct ffdc_log_struct_150060
+{
+    int magic;
+    int msgid;
+    int catid;
+    int level;
+    unsigned long th_id;
+    unsigned long fth_id;
+    int lineno;
+    struct timeval timestamp;
+
+    int arg1;
+} __attribute__ ((aligned (64)));
+
+__inline__ void
+ffdc_log_func_150060(int lineno, int msgid, int catid, int level, const char* fmt,
+    int arg1);
+
+/*---------------------------------------------------------------------------
+ * MsgID : 150063
+ * Msg   : "Failed to find metadata container for %s"
+ *-------------------------------------------------------------------------*/
+struct ffdc_log_struct_150063
+{
+    int magic;
+    int msgid;
+    int catid;
+    int level;
+    unsigned long th_id;
+    unsigned long fth_id;
+    int lineno;
+    struct timeval timestamp;
+
+    char arg1[FFDC_MAX_STR_SIZE];
+} __attribute__ ((aligned (64)));
+
+__inline__ void
+ffdc_log_func_150063(int lineno, int msgid, int catid, int level, const char* fmt,
+    const char* arg1);
+
+/*---------------------------------------------------------------------------
+ * MsgID : 150076
+ * Msg   : "Failed to open support containers: %s"
+ *-------------------------------------------------------------------------*/
+struct ffdc_log_struct_150076
+{
+    int magic;
+    int msgid;
+    int catid;
+    int level;
+    unsigned long th_id;
+    unsigned long fth_id;
+    int lineno;
+    struct timeval timestamp;
+
+    char arg1[FFDC_MAX_STR_SIZE];
+} __attribute__ ((aligned (64)));
+
+__inline__ void
+ffdc_log_func_150076(int lineno, int msgid, int catid, int level, const char* fmt,
+    const char* arg1);
+
+/*---------------------------------------------------------------------------
+ * MsgID : 150077
+ * Msg   : "Container full"
+ *-------------------------------------------------------------------------*/
+struct ffdc_log_struct_150077
+{
+    int magic;
+    int msgid;
+    int catid;
+    int level;
+    unsigned long th_id;
+    unsigned long fth_id;
+    int lineno;
+    struct timeval timestamp;
+
+
+} __attribute__ ((aligned (64)));
+
+__inline__ void
+ffdc_log_func_150077(int lineno, int msgid, int catid, int level, const char* fmt);
+
+/*---------------------------------------------------------------------------
+ * MsgID : 150078
+ * Msg   : "Cannnot change container size"
+ *-------------------------------------------------------------------------*/
+struct ffdc_log_struct_150078
+{
+    int magic;
+    int msgid;
+    int catid;
+    int level;
+    unsigned long th_id;
+    unsigned long fth_id;
+    int lineno;
+    struct timeval timestamp;
+
+
+} __attribute__ ((aligned (64)));
+
+__inline__ void
+ffdc_log_func_150078(int lineno, int msgid, int catid, int level, const char* fmt);
+
+/*---------------------------------------------------------------------------
+ * MsgID : 150079
+ * Msg   : "Cannnot reduce container size"
+ *-------------------------------------------------------------------------*/
+struct ffdc_log_struct_150079
+{
+    int magic;
+    int msgid;
+    int catid;
+    int level;
+    unsigned long th_id;
+    unsigned long fth_id;
+    int lineno;
+    struct timeval timestamp;
+
+
+} __attribute__ ((aligned (64)));
+
+__inline__ void
+ffdc_log_func_150079(int lineno, int msgid, int catid, int level, const char* fmt);
+
+/*---------------------------------------------------------------------------
+ * MsgID : 150080
+ * Msg   : "Cannnot read container metadata for %lu"
+ *-------------------------------------------------------------------------*/
+struct ffdc_log_struct_150080
+{
+    int magic;
+    int msgid;
+    int catid;
+    int level;
+    unsigned long th_id;
+    unsigned long fth_id;
+    int lineno;
+    struct timeval timestamp;
+
+    long arg1;
+} __attribute__ ((aligned (64)));
+
+__inline__ void
+ffdc_log_func_150080(int lineno, int msgid, int catid, int level, const char* fmt,
+    long arg1);
+
+/*---------------------------------------------------------------------------
+ * MsgID : 150081
+ * Msg   : "Cannnot write container metadata for %lu"
+ *-------------------------------------------------------------------------*/
+struct ffdc_log_struct_150081
+{
+    int magic;
+    int msgid;
+    int catid;
+    int level;
+    unsigned long th_id;
+    unsigned long fth_id;
+    int lineno;
+    struct timeval timestamp;
+
+    long arg1;
+} __attribute__ ((aligned (64)));
+
+__inline__ void
+ffdc_log_func_150081(int lineno, int msgid, int catid, int level, const char* fmt,
+    long arg1);
+
+/*---------------------------------------------------------------------------
+ * MsgID : 150082
+ * Msg   : "Cannnot find container id %lu"
+ *-------------------------------------------------------------------------*/
+struct ffdc_log_struct_150082
+{
+    int magic;
+    int msgid;
+    int catid;
+    int level;
+    unsigned long th_id;
+    unsigned long fth_id;
+    int lineno;
+    struct timeval timestamp;
+
+    long arg1;
+} __attribute__ ((aligned (64)));
+
+__inline__ void
+ffdc_log_func_150082(int lineno, int msgid, int catid, int level, const char* fmt,
+    long arg1);
+
+/*---------------------------------------------------------------------------
+ * MsgID : 150083
+ * Msg   : "%lu - %s\n"
+ *-------------------------------------------------------------------------*/
+struct ffdc_log_struct_150083
+{
+    int magic;
+    int msgid;
+    int catid;
+    int level;
+    unsigned long th_id;
+    unsigned long fth_id;
+    int lineno;
+    struct timeval timestamp;
+
+    long arg1;
+    char arg2[FFDC_MAX_STR_SIZE];
+} __attribute__ ((aligned (64)));
+
+__inline__ void
+ffdc_log_func_150083(int lineno, int msgid, int catid, int level, const char* fmt,
+    long arg1, const char* arg2);
+
+/*---------------------------------------------------------------------------
+ * MsgID : 150084
+ * Msg   : "Failed to generate container id for %s"
+ *-------------------------------------------------------------------------*/
+struct ffdc_log_struct_150084
+{
+    int magic;
+    int msgid;
+    int catid;
+    int level;
+    unsigned long th_id;
+    unsigned long fth_id;
+    int lineno;
+    struct timeval timestamp;
+
+    char arg1[FFDC_MAX_STR_SIZE];
+} __attribute__ ((aligned (64)));
+
+__inline__ void
+ffdc_log_func_150084(int lineno, int msgid, int catid, int level, const char* fmt,
+    const char* arg1);
+
+/*---------------------------------------------------------------------------
+ * MsgID : 150085
+ * Msg   : "Could not read metadata for %lu\n"
+ *-------------------------------------------------------------------------*/
+struct ffdc_log_struct_150085
+{
+    int magic;
+    int msgid;
+    int catid;
+    int level;
+    unsigned long th_id;
+    unsigned long fth_id;
+    int lineno;
+    struct timeval timestamp;
+
+    long arg1;
+} __attribute__ ((aligned (64)));
+
+__inline__ void
+ffdc_log_func_150085(int lineno, int msgid, int catid, int level, const char* fmt,
+    long arg1);
+
+/*---------------------------------------------------------------------------
+ * MsgID : 150086
+ * Msg   : "Could not mark delete in progress for container %lu\n"
+ *-------------------------------------------------------------------------*/
+struct ffdc_log_struct_150086
+{
+    int magic;
+    int msgid;
+    int catid;
+    int level;
+    unsigned long th_id;
+    unsigned long fth_id;
+    int lineno;
+    struct timeval timestamp;
+
+    long arg1;
+} __attribute__ ((aligned (64)));
+
+__inline__ void
+ffdc_log_func_150086(int lineno, int msgid, int catid, int level, const char* fmt,
+    long arg1);
+
+/*---------------------------------------------------------------------------
+ * MsgID : 150087
+ * Msg   : "Could not clear delete in progress for container %lu\n"
+ *-------------------------------------------------------------------------*/
+struct ffdc_log_struct_150087
+{
+    int magic;
+    int msgid;
+    int catid;
+    int level;
+    unsigned long th_id;
+    unsigned long fth_id;
+    int lineno;
+    struct timeval timestamp;
+
+    long arg1;
+} __attribute__ ((aligned (64)));
+
+__inline__ void
+ffdc_log_func_150087(int lineno, int msgid, int catid, int level, const char* fmt,
+    long arg1);
+
+/*---------------------------------------------------------------------------
+ * MsgID : 150088
+ * Msg   : "Unable to initialize FDF thread state, exiting"
+ *-------------------------------------------------------------------------*/
+struct ffdc_log_struct_150088
+{
+    int magic;
+    int msgid;
+    int catid;
+    int level;
+    unsigned long th_id;
+    unsigned long fth_id;
+    int lineno;
+    struct timeval timestamp;
+
+
+} __attribute__ ((aligned (64)));
+
+__inline__ void
+ffdc_log_func_150088(int lineno, int msgid, int catid, int level, const char* fmt);
+
+/*---------------------------------------------------------------------------
+ * MsgID : 150089
+ * Msg   : "Unable to start the virtual container initialization thread."
+ *-------------------------------------------------------------------------*/
+struct ffdc_log_struct_150089
+{
+    int magic;
+    int msgid;
+    int catid;
+    int level;
+    unsigned long th_id;
+    unsigned long fth_id;
+    int lineno;
+    struct timeval timestamp;
+
+
+} __attribute__ ((aligned (64)));
+
+__inline__ void
+ffdc_log_func_150089(int lineno, int msgid, int catid, int level, const char* fmt);
+
+/*---------------------------------------------------------------------------
+ * MsgID : 150090
+ * Msg   : "Incorrect value(%d) for Mcd_aio_num_files. It must be set to 
+ *          1"
+ *-------------------------------------------------------------------------*/
+struct ffdc_log_struct_150090
+{
+    int magic;
+    int msgid;
+    int catid;
+    int level;
+    unsigned long th_id;
+    unsigned long fth_id;
+    int lineno;
+    struct timeval timestamp;
+
+    int arg1;
+} __attribute__ ((aligned (64)));
+
+__inline__ void
+ffdc_log_func_150090(int lineno, int msgid, int catid, int level, const char* fmt,
+    int arg1);
 
 /*---------------------------------------------------------------------------
  * MsgID : 160000

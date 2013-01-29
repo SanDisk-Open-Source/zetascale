@@ -27,6 +27,12 @@ typedef enum {
     FDF_TRUE = 1
 } FDF_boolean_t;
 
+typedef enum {
+    FDF_PHYSICAL_CNTR 	= 0x0,
+    FDF_VIRTUAL_CNTR 	= 0x1,
+} FDF_container_mode_t;
+
+
 typedef uint64_t FDF_cguid_t;
 
 /**
@@ -177,8 +183,10 @@ typedef uint64_t FDF_cguid_t;
     /* @brief Update ignored due to duplicate info */ \
     item(FDF_UPDATE_DUPLICATE, /* default */) \
     item(FDF_FAILURE_CONTAINER_TOO_SMALL, /* default */) \
-    item(FDF_FAILURE_ALREADY_IN_TRANS, /* default */) \
-    item(FDF_FAILURE_NO_TRANS, /* default */)
+    item(FDF_CONTAINER_FULL, /* default */) \
+    item(FDF_CANNOT_REDUCE_CONTAINER_SIZE, /* default */) \
+    item(FDF_CANNOT_CHANGE_CONTAINER_SIZE, /* default */) \
+    item(FDF_OUT_OF_STORAGE_SPACE, /* default */)
 
 
 typedef enum {
@@ -189,7 +197,7 @@ typedef enum {
     N_FDF_STATUS_STRINGS
 } FDF_status_t;
 
-#define SDF_NULL_CGUID UINT64_MAX 
+#define FDF_NULL_CGUID UINT64_MAX 
 
 
 

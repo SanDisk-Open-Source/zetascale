@@ -171,6 +171,7 @@ SDF_status_t delete_container_internal_low(
 	SDF_internal_ctxt_t 	*pai, 
 	const char 		*path, 
 	SDF_boolean_t 		 serialize,
+	SDF_boolean_t 		 delete_shards,
 	int *deleted
 	);
 
@@ -948,12 +949,6 @@ SDF_status_t SDFCreateContainer(
         for (i=0; i<MCD_MAX_NUM_CNTRS; i++) {
             if (CtnrMap[i].cguid == 0) {
                 // this is an unused map entry
-                CtnrMap[i].cname = plat_alloc(strlen(cname)+1);
-                if (CtnrMap[i].cname == NULL) {
-                    status = SDF_FAILURE_MEMORY_ALLOC;
-                    SDFEndSerializeContainerOp(pai);
-                    return(status);
-                }
                 strcpy(CtnrMap[i].cname, cname);
                 CtnrMap[i].cguid         = *cguid;
 				CtnrMap[i].cid           = cid;
@@ -1021,7 +1016,7 @@ SDF_status_t SDFOpenContainer(
     }
 
 	if (CMC_CGUID != cguid ) {
-		if ( status != SDF_SUCCESS || !isContainerNull( CtnrMap[i_ctnr].sdf_container ) ) {
+		if ( status != SDF_SUCCESS || !isContainerNull ( CtnrMap[i_ctnr].sdf_container ) ) {
 	    	SDFEndSerializeContainerOp(pai);
 			plat_log_msg(160032, LOG_CAT, log_level, "Already opened or error: %s - %s", path, SDF_Status_Strings[status]);
 			return status;
@@ -1779,7 +1774,7 @@ SDF_status_t SDFCloseContainer(
 
 		    plat_log_msg(160031, LOG_CAT, LOG_INFO, "Delete request pending. Deleting... cguid=%lu", cguid);
 
-	    	status = delete_container_internal_low(pai, path, SDF_FALSE /* serialize */, NULL);
+	    	status = delete_container_internal_low(pai, path, SDF_FALSE, SDF_TRUE, NULL);
 
     		CtnrMap[i_ctnr].cguid         = 0;
         }
@@ -1815,12 +1810,11 @@ SDF_status_t SDFDeleteContainer(
     i_ctnr = get_ctnr_from_cguid(cguid);
 
     if (i_ctnr >=0 && !ISEMPTY(CtnrMap[i_ctnr].cname)) {
-	    status = delete_container_internal_low(pai, CtnrMap[i_ctnr].cname, SDF_FALSE /* serialize */, &ok_to_delete);
+	    status = delete_container_internal_low(pai, CtnrMap[i_ctnr].cname, SDF_FALSE, SDF_TRUE, &ok_to_delete);
 
 		if(ok_to_delete)
 		{
-			plat_free(CtnrMap[i_ctnr].cname);
-			CtnrMap[i_ctnr].cname 			= NULL;
+			CtnrMap[i_ctnr].cname[0]		= '\0';
     		CtnrMap[i_ctnr].cguid         	= 0;
     		CtnrMap[i_ctnr].cid         	= SDF_NULL_CID;
 		    CtnrMap[i_ctnr].sdf_container 	= containerNull;
