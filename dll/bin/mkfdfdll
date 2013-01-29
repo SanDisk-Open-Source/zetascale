@@ -361,7 +361,6 @@ sub maxv (@) {
 }
 
 
-use Qlib;
 # Make link table.
 #
 sub make_link_table ($) {
