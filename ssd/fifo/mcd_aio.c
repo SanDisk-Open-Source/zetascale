@@ -176,7 +176,7 @@ mcd_fth_aio_blk_read( osd_state_t * context, char * buf, uint64_t offset, int nb
         cur_offset = offset + submitted;
         aio_offset = cur_offset;
 
-        if ( 0 != Mcd_aio_strip_size ) {
+        if ( 0 ) { /*TRAC 10303. We always use flash as single stripe. So this logic is not required */
 
             strip = ( cur_offset / Mcd_aio_strip_size ) % Mcd_aio_num_files;
 
@@ -382,7 +382,7 @@ mcd_fth_aio_blk_write_low( osd_state_t * context, char * buf, uint64_t offset,
         cur_offset = offset + submitted;
         aio_offset = cur_offset;
 
-        if ( 0 != Mcd_aio_strip_size ) {
+        if ( 0 ) { /*TRAC 10303. We always use flash as single stripe. So this logic is not required */
 
             strip = ( cur_offset / Mcd_aio_strip_size ) % Mcd_aio_num_files;
 
@@ -1204,6 +1204,12 @@ int mcd_aio_init( void * state, char * dname )
     }
     if ( 0 != flash_settings.aio_num_files ) {
         Mcd_aio_num_files = flash_settings.aio_num_files;
+    }
+
+    if( Mcd_aio_num_files != 1 ) {
+        mcd_log_msg(160041,PLAT_LOG_LEVEL_FATAL,
+            "Incorrect value(%d) for Mcd_aio_num_files. It must be set to 1",Mcd_aio_num_files);
+        plat_abort();
     }
 
     if ( MCD_AIO_MAX_NSUBFILES < flash_settings.aio_sub_files ) {
