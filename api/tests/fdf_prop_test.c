@@ -92,7 +92,7 @@ int prop_test()
 		plat_assert( fdf_get_container_props( _fdf_thd_state, cguid, &props ) == SDF_SUCCESS);
 
 		fprintf( stderr, "\n>>>cname					            = %s\n", cname );
-		fprintf( stderr, ">>>container_props: size_kb           = %u\n", props.size_kb );
+		fprintf( stderr, ">>>container_props: size_kb           = %lu\n", props.size_kb );
 		fprintf( stderr, ">>>container_props: fifo_mode         = %u\n", props.fifo_mode );
 		fprintf( stderr, ">>>container_props: persistent        = %u\n", props.persistent );
 		fprintf( stderr, ">>>container_props: evicting          = %u\n", props.evicting );
