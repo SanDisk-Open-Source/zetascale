@@ -186,7 +186,9 @@ typedef uint64_t FDF_cguid_t;
     item(FDF_CONTAINER_FULL, /* default */) \
     item(FDF_CANNOT_REDUCE_CONTAINER_SIZE, /* default */) \
     item(FDF_CANNOT_CHANGE_CONTAINER_SIZE, /* default */) \
-    item(FDF_OUT_OF_STORAGE_SPACE, /* default */)
+    item(FDF_OUT_OF_STORAGE_SPACE, /* default */) \
+    item(FDF_FAILURE_ALREADY_IN_TRANS, /* default */) \
+    item(FDF_FAILURE_NO_TRANS, /* default */)
 
 
 typedef enum {

@@ -925,10 +925,11 @@ static void *fdf_stats_thread(void *arg) {
             }
             sleep(1);
         }
+
+		fdf_trx_print_stats(stats_log);
+
         sleep(10);
     }
-
-	fdf_trx_print_stats(stats_log);
 
     fclose(stats_log);
 }
@@ -3537,3 +3538,83 @@ static FDF_status_t fdf_generate_cguid(
 
 	return status;
 }
+
+/* Mini transactions handling */
+
+static uint64_t next_trx_id = 0;
+uint64_t stat_trx_active_count = 0;
+
+static __thread trx_t trx = {0};
+
+void fdf_trx_print_stats(FILE *log)
+{
+    char buf[BUF_LEN];
+
+	sprintf(buf, "trx_active_count %ld\ntrx_id_counter %ld\n",
+		stat_trx_active_count, next_trx_id);
+
+	fputs(buf, log);
+}
+
+trx_t* fdf_trx_get()
+{
+	return &trx;
+}
+
+/* Those function should be moved and implemented at lower level */
+FDF_status_t fdf_trx_start(trx_t* trx)
+{
+	return FDF_SUCCESS;
+}
+
+FDF_status_t fdf_trx_commit(trx_t* trx)
+{
+	return FDF_SUCCESS;
+}
+
+/**
+ * @brief Start mini transaction
+ *
+ * @param fdf_thread_state <IN> The SDF context for which this operation applies
+ * @return FDF_SUCCESS on success
+ *         FDF_FAILURE_ALREADY_IN_TRANS if thread has active transaction already
+ */
+FDF_status_t FDFMiniTransactionStart(
+	struct FDF_thread_state	*fdf_thread_state
+	)
+{
+	if(trx.id)
+		return FDF_FAILURE_ALREADY_IN_TRANS;
+
+	trx.id = __sync_add_and_fetch(&next_trx_id, 1);
+
+	__sync_add_and_fetch(&stat_trx_active_count, 1);
+
+	return fdf_trx_start(&trx);
+}
+
+/**
+ * @brief Commit mini transaction
+ *
+ * @param fdf_thread_state <IN> The SDF context for which this operation applies
+ * @return FDF_SUCCESS on success
+ *         FDF_FAILURE_NO_TRANS if there is no active transaction in the current thread
+ */
+FDF_status_t FDFMiniTransactionCommit(
+	struct FDF_thread_state	*fdf_thread_state
+	)
+{
+	FDF_status_t status;
+
+	if(!trx.id)
+		return FDF_FAILURE_NO_TRANS;
+
+	status = fdf_trx_commit(&trx);
+
+	__sync_sub_and_fetch(&stat_trx_active_count, 1);
+
+	trx.id = 0;
+
+	return status;
+}
+
