@@ -645,6 +645,7 @@ static void delete_from_flash(SDF_trans_state_t *ptrans)
         ptrans->flash_retcode = FLASH_EOK;
     #else
         ptrans->metaData.dataLen = 0;
+        ptrans->metaData.cguid   = ptrans->par->ctnr;
         ptrans->flash_retcode = flashPut_wrapper(ptrans, ptrans->meta->pshard, &ptrans->metaData, ptrans->pflash_key, NULL, FLASH_PUT_TEST_NONEXIST, SDF_FALSE /* skip for writeback */);
         incr(ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].flash_retcode_counts[ptrans->flash_retcode]);
 
@@ -675,6 +676,7 @@ static void delete_from_flash_no_replication(SDF_trans_state_t *ptrans)
     #else
         ptrans->metaData.dataLen = 0;
 	(ptrans->metaData.keyLen)--; // adjust for extra NULL added by SDF
+        ptrans->metaData.cguid = ptrans->par->ctnr;
         ptrans->flash_retcode = flashPut(ptrans->meta->pshard, &ptrans->metaData, ptrans->pflash_key, NULL, FLASH_PUT_TEST_NONEXIST);
 	(ptrans->metaData.keyLen)++; // adjust for extra NULL added by SDF
         incr(ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].flash_retcode_counts[ptrans->flash_retcode]);
@@ -706,6 +708,7 @@ static void prefix_delete_from_flash_no_replication(SDF_trans_state_t *ptrans)
     #else
         ptrans->metaData.dataLen = 0;
 	(ptrans->metaData.keyLen)--; // adjust for extra NULL added by SDF
+        ptrans->metaData.cguid = ptrans->par->ctnr;
         ptrans->flash_retcode = flashPut(ptrans->meta->pshard, &ptrans->metaData, ptrans->pflash_key, NULL, FLASH_PUT_PREFIX_DELETE);
 	(ptrans->metaData.keyLen)++; // adjust for extra NULL added by SDF
         incr(ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].flash_retcode_counts[ptrans->flash_retcode]);
@@ -736,6 +739,7 @@ static void get_from_flash(SDF_trans_state_t *ptrans)
         ptrans->flash_retcode = FLASH_ENOENT;
     #else
         (ptrans->metaData.keyLen--); // adjust for extra NULL added by SDF
+        ptrans->metaData.cguid = ptrans->par->ctnr;
         ptrans->flash_retcode = flashGet(ptrans->meta->pshard, &ptrans->metaData, ptrans->pflash_key, &ptrans->pflash_data, FLASH_GET_NO_TEST);
         (ptrans->metaData.keyLen++); // adjust for extra NULL added by SDF
         incr(ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].flash_retcode_counts[ptrans->flash_retcode]);
@@ -769,6 +773,7 @@ static void put_to_flash(SDF_trans_state_t *ptrans)
     #ifdef FAKE_FLASH
         ptrans->flash_retcode = FLASH_EOK;
     #else
+        ptrans->metaData.cguid = ptrans->par->ctnr;
         ptrans->flash_retcode = flashPut_wrapper(ptrans, ptrans->meta->pshard, &ptrans->metaData, ptrans->pflash_key, ptrans->pflash_data, FLASH_PUT_TEST_NONEXIST, SDF_TRUE /* skip for writeback */);
         incr(ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].flash_retcode_counts[ptrans->flash_retcode]);
 
@@ -797,6 +802,7 @@ static void set_to_flash(SDF_trans_state_t *ptrans, SDF_boolean_t skip_for_write
     #ifdef FAKE_FLASH
         ptrans->flash_retcode = FLASH_EOK;
     #else
+        ptrans->metaData.cguid = ptrans->par->ctnr;
         ptrans->flash_retcode = flashPut_wrapper(ptrans, ptrans->meta->pshard, &ptrans->metaData, ptrans->pflash_key, ptrans->pflash_data, FLASH_PUT_NO_TEST, skip_for_writeback /* skip for writeback */);
         incr(ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].flash_retcode_counts[ptrans->flash_retcode]);
 
@@ -825,6 +831,7 @@ static void create_put_to_flash(SDF_trans_state_t *ptrans)
     #ifdef FAKE_FLASH
         ptrans->flash_retcode = FLASH_EOK;
     #else
+        ptrans->metaData.cguid = ptrans->par->ctnr;
         ptrans->flash_retcode = flashPut_wrapper(ptrans, ptrans->meta->pshard, &ptrans->metaData, ptrans->pflash_key, ptrans->pflash_data, FLASH_PUT_TEST_EXIST, SDF_TRUE /* skip for writeback */);
         incr(ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].flash_retcode_counts[ptrans->flash_retcode]);
 
@@ -4592,6 +4599,7 @@ static int delete_local_object(SDF_async_put_request_t *pap)
 
     // flash_delete
     (pap->flash_meta.keyLen)--; // adjust for extra NULL added by SDF
+    pap->flash_meta.cguid = pap->ctnr;
     ret = flashPut(pap->pshard, &(pap->flash_meta), pap->pkey_simple->key, NULL, FLASH_PUT_TEST_NONEXIST);
     (pap->flash_meta.keyLen)++; // adjust for extra NULL added by SDF
 
@@ -4874,6 +4882,7 @@ static SDF_status_t set_remote_object_old(SDF_async_put_request_t *pap)
         flash_meta = pap->flash_meta;
 
         (flash_meta.keyLen)--; // adjust for extra NULL added by SDF
+        flash_meta.cguid = pap->ctnr;
         retflash = flashGet(pap->pshard, &flash_meta, pap->pkey_simple->key, &pdata, FLASH_GET_NO_TEST);
         (flash_meta.keyLen)++; // adjust for extra NULL added by SDF
 
@@ -4994,6 +5003,7 @@ int do_put(SDF_async_put_request_t *pap, SDF_boolean_t unlock_slab)
         {
             (void) incr(pap->pas->stats_new_per_sched[curSchedNum].ctnr_stats[pap->n_ctnr].n_writethrus);
             (pap->flash_meta.keyLen)--; // adjust for extra NULL added by SDF
+	    pap->flash_meta.cguid = pap->ctnr;
             ret = flashPut(pap->pshard, &(pap->flash_meta), pap->pkey_simple->key, pap->pdata, pap->flash_flags);
             (pap->flash_meta.keyLen)++; // adjust for extra NULL added by SDF
             #ifdef INCLUDE_TRACE_CODE
@@ -5043,6 +5053,7 @@ int do_put(SDF_async_put_request_t *pap, SDF_boolean_t unlock_slab)
             {
                 (void) incr(pap->pas->stats_new_per_sched[curSchedNum].ctnr_stats[pap->n_ctnr].n_writethrus);
                 (pap->flash_meta.keyLen)--; // adjust for extra NULL added by SDF
+		pap->flash_meta.cguid = pap->ctnr;
                 ret = flashPut(pap->pshard, &(pap->flash_meta), pap->pkey_simple->key, pap->pdata, pap->flash_flags);
                 plat_log_msg(21128, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION, PLAT_LOG_LEVEL_DEBUG,
                              "data local store no partner: key: %s data: 0x%lx ret: %d",  pap->pkey_simple->key, (uint64_t) pap->pdata, ret);
@@ -5179,6 +5190,7 @@ int do_put(SDF_async_put_request_t *pap, SDF_boolean_t unlock_slab)
             {
                 (void) incr(pap->pas->stats_new_per_sched[curSchedNum].ctnr_stats[pap->n_ctnr].n_writethrus);
                 (pap->flash_meta.keyLen)--; // adjust for extra NULL added by SDF
+		pap->flash_meta.cguid = pap->ctnr;
                 ret = flashPut(pap->pshard, &(pap->flash_meta), pap->pkey_simple->key, pap->pdata, pap->flash_flags);
                 plat_log_msg(21131, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION, PLAT_LOG_LEVEL_DEBUG,
                              "data local store partner: key: %s len: %d data: 0x%lx ret: %d",  pap->pkey_simple->key, pap->pkey_simple->len, (uint64_t) pap->pdata, ret);
@@ -5361,6 +5373,7 @@ int do_writeback(SDF_async_put_request_t *pap)
 
     (void) incr(pap->pas->stats_new_per_sched[curSchedNum].ctnr_stats[pap->n_ctnr].n_writebacks);
     (pap->flash_meta.keyLen)--; // adjust for extra NULL added by SDF
+    pap->flash_meta.cguid = pap->ctnr;
     ret = flashPut(pap->pshard, &(pap->flash_meta), pap->pkey_simple->key, pap->pdata, pap->flash_flags);
     (pap->flash_meta.keyLen)++; // adjust for extra NULL added by SDF
     #ifdef INCLUDE_TRACE_CODE
@@ -5384,6 +5397,7 @@ int do_flush(SDF_async_put_request_t *pap)
 
     (void) incr(pap->pas->stats_new_per_sched[curSchedNum].ctnr_stats[pap->n_ctnr].n_flushes);
     (pap->flash_meta.keyLen)--; // adjust for extra NULL added by SDF
+    pap->flash_meta.cguid = pap->ctnr;
     ret = flashPut(pap->pshard, &(pap->flash_meta), pap->pkey_simple->key, pap->pdata, pap->flash_flags);
     (pap->flash_meta.keyLen)++; // adjust for extra NULL added by SDF
     #ifdef INCLUDE_TRACE_CODE

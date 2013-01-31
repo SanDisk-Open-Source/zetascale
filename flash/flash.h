@@ -75,6 +75,7 @@ typedef struct objMetaData {
     uint8_t reserved;
     uint64_t sequence;                       // Sequence number (used only if associated
                                              // shard flag is set on shard create call)
+    uint64_t cguid;                          // Added for virtual container support
 
     char userMetaData[0];                    // Arbitrary user data
     
