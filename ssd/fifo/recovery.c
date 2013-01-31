@@ -4311,7 +4311,7 @@ e_hash_fill(pai_t *pai, void *state, int lock_i)
         mo_bucket_t *bucket = &shard->hash_buckets[bkt_i];
 
         hash = &shard->hash_table[bkt_i * Mcd_osd_bucket_size];
-        for (n = bucket->next_item; n--; bucket++) {
+        for (n = bucket->next_item; n--; hash++) {
             if (hash->cntr_id != cntr_id)
                 continue;
             if (es->hash_buf_i < es->hash_buf_n)

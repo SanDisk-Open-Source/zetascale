@@ -4029,7 +4029,7 @@ mcd_fth_osd_get_slab( void * context, mcd_osd_shard_t * shard,
             log_rec.bucket       = hash_index;
             log_rec.blk_offset   = hash_entry->address;
             log_rec.old_offset   = 0;
-            log_rec.cntr_id      = shard->id;
+            log_rec.cntr_id      = hash_entry->cntr_id;
             if ( 1 == shard->replicated ) {
                 // Must make RPC call to get a seqno to use for this eviction
                 log_rec.seqno = rep_seqno_get((struct shard *)shard);
@@ -4368,6 +4368,7 @@ mcd_fth_osd_slab_set( void * context, mcd_osd_shard_t * shard, char * key,
     mcd_osd_bucket_t          * bucket;
     mcd_osd_slab_class_t      * class;
     mcd_logrec_object_t         log_rec;
+    cntr_id_t                   cntr_id = cntrid(shard, meta_data->cguid);
 
     mcd_log_msg( 20000, PLAT_LOG_LEVEL_DEBUG, "ENTERING" );
 
@@ -4467,6 +4468,8 @@ mcd_fth_osd_slab_set( void * context, mcd_osd_shard_t * shard, char * key,
                 continue;
             }
         }
+        if (hash_entry->cntr_id != cntr_id)
+            continue;
 
         if ( (uint16_t)(syndrome >> 48) == hash_entry->syndrome ) {
             /*
@@ -4564,7 +4567,7 @@ mcd_fth_osd_slab_set( void * context, mcd_osd_shard_t * shard, char * key,
                     } else {
                         log_rec.old_offset = 0;
                     }
-                    log_rec.cntr_id      = shard->id;
+                    log_rec.cntr_id      = cntr_id;
                     log_rec.seqno        = meta_data->sequence;
                     log_rec.target_seqno = target_seqno;
                     log_write( shard, &log_rec );
@@ -4697,7 +4700,7 @@ mcd_fth_osd_slab_set( void * context, mcd_osd_shard_t * shard, char * key,
                 log_rec.bucket       = syndrome % shard->hash_size;
                 log_rec.blk_offset   = hash_entry->address;
                 log_rec.old_offset   = 0;
-                log_rec.cntr_id      = shard->id;
+                log_rec.cntr_id      = cntr_id;
                 if ( 1 == shard->replicated ) {
                     log_rec.seqno = meta_data->sequence;
                 } else {
@@ -4855,7 +4858,7 @@ mcd_fth_osd_slab_set( void * context, mcd_osd_shard_t * shard, char * key,
     new_entry.blocks     = mcd_osd_blk_to_lba( blocks );
     new_entry.syndrome   = (uint16_t)(syndrome >> 48);
     new_entry.address    = blk_offset;
-    new_entry.cntr_id    = cntrid(shard, meta_data->cguid);
+    new_entry.cntr_id    = cntr_id;
 
     new_entry.deleted    = 0;
     if ( &Mcd_osd_cmc_cntr != shard->cntr ) {
@@ -4892,7 +4895,7 @@ mcd_fth_osd_slab_set( void * context, mcd_osd_shard_t * shard, char * key,
                 log_rec.bucket       = syndrome % shard->hash_size;
                 log_rec.blk_offset   = hash_entry->address;
                 log_rec.old_offset   = 0;
-                log_rec.cntr_id      = shard->id;
+                log_rec.cntr_id      = cntr_id;
                 if ( 1 == shard->replicated ) {
                     log_rec.seqno = meta_data->sequence;
                 } else {
@@ -5042,7 +5045,7 @@ mcd_fth_osd_slab_set( void * context, mcd_osd_shard_t * shard, char * key,
                     log_rec.bucket       = syndrome % shard->hash_size;
                     log_rec.blk_offset   = hash_entry->address;
                     log_rec.old_offset   = 0;
-                    log_rec.cntr_id      = shard->id;
+                    log_rec.cntr_id      = cntr_id;
                     if ( 1 == shard->replicated ) {
                         log_rec.seqno = meta_data->sequence;
                     } else {
@@ -5088,7 +5091,7 @@ mcd_fth_osd_slab_set( void * context, mcd_osd_shard_t * shard, char * key,
         log_rec.blocks     = new_entry.blocks;
         log_rec.bucket     = syndrome % shard->hash_size;
         log_rec.blk_offset = new_entry.address;
-        log_rec.cntr_id    = shard->id;
+        log_rec.cntr_id    = cntr_id;
         log_rec.seqno      = meta_data->sequence;
         if ( true == obj_exists && 0 == shard->evict_to_free ) {
             // overwrite case in store mode
@@ -5130,6 +5133,7 @@ mcd_fth_osd_slab_get( void * context, mcd_osd_shard_t * shard, char *key,
     mcd_osd_meta_t            * meta;
     mcd_osd_hash_t            * hash_entry;
     mcd_osd_bucket_t          * bucket;
+    cntr_id_t                   cntr_id = cntrid(shard, meta_data->cguid);
 
     mcd_log_msg( 20000, PLAT_LOG_LEVEL_DEBUG, "ENTERING" );
     (void) __sync_fetch_and_add( &shard->num_gets, 1 );
@@ -5181,6 +5185,9 @@ mcd_fth_osd_slab_get( void * context, mcd_osd_shard_t * shard, char *key,
                 continue;
             }
         }
+
+        if (hash_entry->cntr_id != cntr_id)
+            continue;
 
         if ( (uint16_t)(syndrome >> 48) != hash_entry->syndrome ) {
             continue;
