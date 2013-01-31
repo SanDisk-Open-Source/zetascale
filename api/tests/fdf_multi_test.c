@@ -310,8 +310,10 @@ int main(int argc, char *argv[])
         fprintf( stderr, "FDF thread initialization failed!\n" );
         plat_assert( 0 );
     }
-
-    plat_assert(fdf_create_container(_fdf_thd_state, name, &cguid_shared) == FDF_SUCCESS);
+    for(i = 0; i < 64999; i++ ) {
+        sprintf(name,"%s-%d","container",i);
+        plat_assert(fdf_create_container(_fdf_thd_state, name, &cguid_shared) == FDF_SUCCESS);
+    }
 
     for(i = 0; i < threads; i++)
 		pthread_create(&thread_id[i], NULL, worker, (void*)(long)i);

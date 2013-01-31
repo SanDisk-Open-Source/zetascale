@@ -886,7 +886,7 @@ static void print_fdf_stats(FILE *log, FDF_stats_t *stats, char *disp_str) {
 void fdf_trx_print_stats(FILE *log);
 
 static void *fdf_stats_thread(void *arg) {
-    FDF_cguid_t cguids[128];
+    FDF_cguid_t cguids[MCD_MAX_NUM_CNTRS];
     uint32_t n_cguids;
     char stats_str[STAT_BUFFER_SIZE];
     FILE *stats_log;
@@ -923,12 +923,11 @@ static void *fdf_stats_thread(void *arg) {
                 FDFGetStats(thd_state,&stats);
                 print_fdf_stats(stats_log,&stats,"Flash\n");
             }
-            sleep(1);
         }
 
 		fdf_trx_print_stats(stats_log);
 
-        sleep(10);
+        sleep(getProperty_Int( "FDF_STATS_DUMP_INTERVAL", 60 ));
     }
 
     fclose(stats_log);
