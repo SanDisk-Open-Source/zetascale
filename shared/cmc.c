@@ -1397,7 +1397,9 @@ cmc_remove_cguid_map(SDF_internal_ctxt_t *pai, SDFContainer c, const char *cname
 
     SDF_status_t status = SDF_FAILURE;
     fthWaitEl_t *wait = NULL;
+#ifndef SDFAPI
     int log_level = LOG_ERR;
+#endif /* SDFAPI */
     SDF_cguid_map_t *map = NULL;
                 
     plat_log_msg(20819, LOG_CAT, LOG_DBG, "%s", cname);
@@ -1408,14 +1410,18 @@ cmc_remove_cguid_map(SDF_internal_ctxt_t *pai, SDFContainer c, const char *cname
 			if ((map = (SDF_cguid_map_t *) HashMap_remove(cguid_map, cname)) != NULL) {
 	    		plat_free(map);
 	    		status = SDF_SUCCESS;
+#ifndef SDFAPI
 	    		log_level = LOG_DBG;
+#endif /* SDFAPI */
 			}
 			// Fall through to remove from flash
 
     	default:
 			wait = fthLock(&cguid_lock, 1, NULL);
 			if ((status = cmc_remove_object(pai, c, cname)) == SDF_SUCCESS) {
+#ifndef SDFAPI
 	    		log_level = LOG_DBG;
+#endif /* SDFAPI */
 			}
 			fthUnlock(wait);
    	}
@@ -1437,8 +1443,8 @@ cmc_create_object_container(SDF_internal_ctxt_t *pai, const char *cname,
 			    SDF_container_props_t *properties) {
 
     SDF_status_t status = SDF_FAILURE;
-    int log_level = LOG_ERR;
 #ifdef SDFAPI
+    int log_level = LOG_ERR;
     SDF_cguid_t cguid;
 #endif /* SDFAPI */
 

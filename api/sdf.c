@@ -358,8 +358,6 @@ static void mcd_fth_initer(uint64_t arg)
 static void *stats_thread(void *arg) {
     SDF_cguid_t cguids[128];
     uint32_t n_cguids;
-    struct SDF_thread_state *sdf_thd_state;
-    sdf_thd_state = (struct SDF_thread_state *)arg;
     char stats_str[STAT_BUFFER_SIZE];
     FILE *stats_log;
     int i;
@@ -683,7 +681,6 @@ SDF_status_t SDFCreateContainer(
     local_SDF_CONTAINER_PARENT 		 lparent 					= NULL;
     SDF_boolean_t 			 		 isCMC						= SDF_FALSE;
     uint32_t 				 		 in_shard_count				= 0;
-    SDF_vnode_t 			 		 home_node					= 0;
     uint32_t 				 		 num_objs 					= 0;
     const char 						*writeback_enabled_string	= NULL;
     SDF_internal_ctxt_t				*pai 						= (SDF_internal_ctxt_t *) sdf_thread_state;
@@ -721,7 +718,6 @@ SDF_status_t SDFCreateContainer(
     if (strcmp(cname, CMC_PATH) == 0) {
         *cguid = CMC_CGUID;
         isCMC = SDF_TRUE;
-        home_node = CMC_HOME;
     } else {
 		// Make sure we have not gone over the container limit
         int count = 0;
@@ -746,7 +742,7 @@ SDF_status_t SDFCreateContainer(
         *cguid = generate_cguid(pai, cname, init_get_my_node_id(), cid); // Generate the cguid
 
         isCMC = SDF_FALSE;
-        home_node = init_get_my_node_id();
+        init_get_my_node_id();
     	if ( SDF_SUCCESS != name_service_put_cguid_state( pai,
 														  init_get_my_node_id(), 
 														  cid ) ) {
@@ -1657,13 +1653,11 @@ SDF_status_t SDFCloseContainer(
     struct SDF_shared_state *state = &sdf_shared_state;
 #endif
     SDF_status_t status = SDF_FAILURE;
-    unsigned     n_descriptors;
     int  i_ctnr;
     SDF_CONTAINER container = containerNull;
     SDF_internal_ctxt_t     *pai = (SDF_internal_ctxt_t *) sdf_thread_state;
     int log_level = LOG_ERR;
     int ok_to_delete = 0;
-    SDF_cguid_t parent_cguid = SDF_NULL_CGUID;
 
     plat_log_msg(21630, LOG_CAT, LOG_INFO, "%lu", cguid);
 
@@ -1698,8 +1692,6 @@ SDF_status_t SDFCloseContainer(
             ok_to_delete = 1;
         }
         // copy these from lparent before I nuke it!
-        n_descriptors = lparent->num_open_descriptors;
-        parent_cguid  = lparent->cguid;
         releaseLocalContainerParent(&lparent);
 
         if (closeParentContainer(container)) {

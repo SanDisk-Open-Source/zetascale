@@ -55,7 +55,7 @@ static time_t 			current_time 	= 0;
 static SDF_shardid_t	vdc_shardid		= SDF_SHARDID_INVALID;
 
 char *FDF_Status_Strings[] = {
-    "UNKNOWN_STATUS", /* since SDF_SUCCESS is 1! */
+    "UNKNOWN_STATUS", /* since FDF_SUCCESS is 1! */
 #define item(caps, value) \
         #caps,
         FDF_STATUS_ITEMS()
@@ -1130,7 +1130,7 @@ FDF_status_t FDFInit(
 		SDF_status_t props_rc = FDFGetContainerProps( fth_state->pai,
 													  pMcd_containers[i]->cguid,
 	                                                  &sdf_properties );
-		if ( SDF_SUCCESS != props_rc ) {
+		if ( FDF_SUCCESS != props_rc ) {
 			mcd_log_msg( 50030, PLAT_LOG_LEVEL_ERROR,
 	                     "failed to get SDF properties, status=%s",
 	                     SDF_Status_Strings[props_rc] );
@@ -1311,7 +1311,6 @@ static FDF_status_t fdf_create_container(
     local_SDF_CONTAINER_PARENT 	 	 lparent 					= NULL;
     SDF_boolean_t 			 	 	 isCMC						= SDF_FALSE;
     uint32_t 				 	 	 in_shard_count				= 0;
-    SDF_vnode_t 			 	 	 home_node					= 0;
     uint32_t 				 	 	 num_objs 					= 0;
     const char 						*writeback_enabled_string	= NULL;
     SDF_internal_ctxt_t				*pai 						= (SDF_internal_ctxt_t *) fdf_thread_state;
@@ -1380,7 +1379,6 @@ static FDF_status_t fdf_create_container(
     if ( strcmp( cname, CMC_PATH ) == 0 ) {
         *cguid = CMC_CGUID;
         isCMC = SDF_TRUE;
-        home_node = CMC_HOME;
     } else {
         // Make sure we have not gone over the container limit
         for ( i = 0; i < MCD_MAX_NUM_CNTRS; i++ ) {
@@ -1412,7 +1410,7 @@ static FDF_status_t fdf_create_container(
 		}
 
         isCMC = SDF_FALSE;
-        home_node = init_get_my_node_id();
+        init_get_my_node_id();
 	
 		// Save the current cguid counter for use in recovery
         if ( SDF_SUCCESS != name_service_put_cguid_state( pai,
@@ -1542,13 +1540,13 @@ static FDF_status_t fdf_create_container(
                 local_SDF_CONTAINER_PARENT lparent = getLocalContainerParent( &lparent, parent );
 
              if ( lparent->delete_pending == SDF_TRUE ) {
-                    if ( !isCMC && (status = name_service_lock_meta( pai, cname )) != SDF_SUCCESS ) {
+                    if ( !isCMC && (status = name_service_lock_meta( pai, cname )) != FDF_SUCCESS ) {
                             plat_log_msg( 21532, LOG_CAT, LOG_ERR, "failed to lock %s", cname );
                 }
 
                 lparent->delete_pending = SDF_FALSE;
 
-                if ( !isCMC && (status = name_service_unlock_meta( pai, cname )) != SDF_SUCCESS ) {
+                if ( !isCMC && (status = name_service_unlock_meta( pai, cname )) != FDF_SUCCESS ) {
                             plat_log_msg( 21533, LOG_CAT, LOG_ERR, "failed to unlock %s", cname );
                 }
 
@@ -1584,7 +1582,7 @@ static FDF_status_t fdf_create_container(
                         plat_log_msg( 21534, LOG_CAT, LOG_ERR,
                                       "failed to map cguid: %s", cname );
                     }
-                    if ( !isCMC && (status = name_service_lock_meta( pai, cname )) != SDF_SUCCESS ) {
+                    if ( !isCMC && (status = name_service_lock_meta( pai, cname )) != FDF_SUCCESS ) {
                         plat_log_msg(21532, LOG_CAT, LOG_ERR, "failed to lock %s", cname);
                     } else if ( !isContainerParentNull(parent = createParentContainer( pai, cname, meta )) ) {
                         lparent = getLocalContainerParent( &lparent, parent ); // TODO C++ please!
@@ -1598,7 +1596,7 @@ static FDF_status_t fdf_create_container(
 
                         status = FDF_SUCCESS;
 
-                        if ( !isCMC && (status = name_service_unlock_meta( pai, cname )) != SDF_SUCCESS ) {
+                        if ( !isCMC && (status = name_service_unlock_meta( pai, cname )) != FDF_SUCCESS ) {
                             plat_log_msg( 21533, LOG_CAT, LOG_ERR, "failed to unlock %s", cname );
                         }
                     } else {
@@ -1621,7 +1619,7 @@ static FDF_status_t fdf_create_container(
 
     plat_log_msg( 21511, LOG_CAT, LOG_DBG, "%s - %s", cname, SDF_Status_Strings[status] );
 
-    if ( status != SDF_SUCCESS && status != SDF_CONTAINER_EXISTS ) {
+    if ( status != FDF_SUCCESS && status != FDF_CONTAINER_EXISTS ) {
         plat_log_msg( 21538, LOG_CAT, LOG_ERR, "cname=%s, function returned status = %u", cname, status );
         name_service_remove_meta( pai, cname );
 #if 0
@@ -1636,13 +1634,13 @@ static FDF_status_t fdf_create_container(
     }
 #ifdef SIMPLE_REPLICATION
 /*
-    else if ( status == SDF_SUCCESS ) {
+    else if ( status == FDF_SUCCESS ) {
         SDFRepDataStructAddContainer( pai, sdf_properties, *cguid );
     }
 */
 #endif
 
-    if ( SDF_SUCCESS == status && CMC_CGUID != *cguid ) {
+    if ( FDF_SUCCESS == status && CMC_CGUID != *cguid ) {
         for ( i=0; i<MCD_MAX_NUM_CNTRS; i++ ) {
             if ( CtnrMap[i].cguid == 0 ) {
                 // this is an unused map entry
@@ -1666,7 +1664,7 @@ static FDF_status_t fdf_create_container(
 
     SDFEndSerializeContainerOp( pai );
 
-	plat_assert(status != SDF_SUCCESS || *cguid);
+	plat_assert(status != FDF_SUCCESS || *cguid);
 
     plat_log_msg(160034, LOG_CAT, LOG_INFO, "%s(cguid=%lu) - %s", cname, *cguid, SDF_Status_Strings[status]);
     return status;
@@ -1681,7 +1679,7 @@ static FDF_status_t fdf_open_container(
 	FDF_container_mode_t	 mode
 	) 
 {               
-    FDF_status_t 				 status 	= SDF_SUCCESS;
+    FDF_status_t 				 status 	= FDF_SUCCESS;
     local_SDF_CONTAINER 		 lc 		= NULL;
     SDF_CONTAINER_PARENT 		 parent;
     local_SDF_CONTAINER_PARENT 	 lparent 	= NULL;
@@ -1725,7 +1723,7 @@ static FDF_status_t fdf_open_container(
     if ( !isContainerNull( CtnrMap[i_ctnr].sdf_container ) ) {
         SDFEndSerializeContainerOp( pai );
         plat_log_msg( 160032, LOG_CAT, log_level, "Already opened or error: %s - %s", cname, SDF_Status_Strings[status] );
-        return SDF_SUCCESS;
+        return FDF_SUCCESS;
     }
 
     if ( !isContainerParentNull( parent = isParentContainerOpened( cname ) ) ) {
@@ -1742,7 +1740,7 @@ static FDF_status_t fdf_open_container(
         releaseLocalContainerParent( &lparent );
     }
 
-    if ( status == SDF_SUCCESS ) {
+    if ( status == FDF_SUCCESS ) {
 
         // Ok to open
         container = openParentContainer( pai, cname );
@@ -1800,7 +1798,7 @@ static FDF_status_t fdf_open_container(
 			}
 
             status = SDFActionOpenContainer( pai, lc->cguid );
-            if ( status != SDF_SUCCESS ) {
+            if ( status != FDF_SUCCESS ) {
                 plat_log_msg( 21554, LOG_CAT,LOG_ERR, "SDFActionOpenContainer failed for container %s", cname );
             }
 
@@ -1874,13 +1872,11 @@ static FDF_status_t fdf_close_container(
     struct SDF_shared_state *state			= &sdf_shared_state;
 #endif
     FDF_status_t			 status			= SDF_FAILURE;
-    unsigned				 n_descriptors;
     int						 i_ctnr;
     SDF_CONTAINER			 container		= containerNull;
     SDF_internal_ctxt_t     *pai			= (SDF_internal_ctxt_t *) fdf_thread_state;
     int						 log_level		= LOG_ERR;
     int						 ok_to_delete	= 0;
-    FDF_cguid_t				 parent_cguid	= SDF_NULL_CGUID;
 
     plat_log_msg(21630, LOG_CAT, LOG_INFO, "%lu", cguid);
 
@@ -1918,18 +1914,16 @@ static FDF_status_t fdf_close_container(
             ok_to_delete = 1;
         }
         // copy these from lparent before I nuke it!
-        n_descriptors = lparent->num_open_descriptors;
-        parent_cguid  = lparent->cguid;
         releaseLocalContainerParent(&lparent);
 
         if (closeParentContainer(container)) {
-            status = SDF_SUCCESS;
+            status = FDF_SUCCESS;
             log_level = LOG_INFO;
         }
 
 #ifdef SDFAPIONLY
     	if ( mode == FDF_PHYSICAL_CNTR && 
-			(status = name_service_get_meta(pai, cguid, &meta)) == SDF_SUCCESS) {
+			(status = name_service_get_meta(pai, cguid, &meta)) == FDF_SUCCESS) {
 
 			#ifdef MULTIPLE_FLASH_DEV_ENABLED
 				flash_dev = get_flashdev_from_shardid(state->config.flash_dev,
@@ -1944,7 +1938,7 @@ static FDF_status_t fdf_close_container(
 		}
 
 	    // Invalidate all of the container's cached objects
-	    if ((status = name_service_flush_inval_object_container(pai, path)) != SDF_SUCCESS) {
+	    if ((status = name_service_flush_inval_object_container(pai, path)) != FDF_SUCCESS) {
 			plat_log_msg(21540, LOG_CAT, LOG_ERR,
 			     "%s - failed to flush and invalidate container", path);
 			log_level = LOG_ERR;
@@ -1953,9 +1947,9 @@ static FDF_status_t fdf_close_container(
 			     "%s - flush and invalidate container succeed", path);
 	    }
 
-		if ((tmp_status = name_service_get_meta_from_cname(pai, path, &meta)) == SDF_SUCCESS) {
+		if ((tmp_status = name_service_get_meta_from_cname(pai, path, &meta)) == FDF_SUCCESS) {
 		    tmp_status = SDFActionDeleteContainer(pai, &meta);
-		    if (tmp_status != SDF_SUCCESS) {
+		    if (tmp_status != FDF_SUCCESS) {
 				// xxxzzz container will be left in a weird state!
 				plat_log_msg(21542, LOG_CAT, LOG_ERR,
 					"%s - failed to delete action thread container state", path);
@@ -1970,7 +1964,7 @@ static FDF_status_t fdf_close_container(
 			shardClose(shard);
 #endif
 
-        if ( status == SDF_SUCCESS ) {
+        if ( status == FDF_SUCCESS ) {
     		CtnrMap[i_ctnr].sdf_container = containerNull;
 
 			if (ok_to_delete) {
@@ -2041,7 +2035,7 @@ static FDF_status_t fdf_delete_container(
 
     SDFStartSerializeContainerOp(pai);
 
-	if ( ( status = name_service_get_meta( pai, cguid, &meta ) ) != SDF_SUCCESS ) {
+	if ( ( status = name_service_get_meta( pai, cguid, &meta ) ) != FDF_SUCCESS ) {
 		plat_log_msg( 150085, LOG_CAT, LOG_ERR, "Could not read metadata for %lu\n", cguid );
     	SDFEndSerializeContainerOp(pai);
 		return FDF_FAILURE;
@@ -2136,7 +2130,7 @@ FDF_status_t FDFGetContainerProps(
 		return SDF_INVALID_PARAMETER;
 
     SDFStartSerializeContainerOp(pai);  
-    if (( status = name_service_get_meta( pai, cguid, &meta )) == SDF_SUCCESS ) {
+    if (( status = name_service_get_meta( pai, cguid, &meta )) == FDF_SUCCESS ) {
 		status = fdf_create_fdf_props( &meta.properties, pprops );
     }              
     SDFEndSerializeContainerOp( pai );   
@@ -2150,7 +2144,7 @@ FDF_status_t FDFSetContainerProps(
 	FDF_container_props_t	*pprops
 	)
 {
-    FDF_status_t             status = SDF_SUCCESS;
+    FDF_status_t             status = FDF_SUCCESS;
     SDF_container_meta_t     meta;
     SDF_internal_ctxt_t     *pai = (SDF_internal_ctxt_t *) fdf_thread_state;
 
@@ -2158,7 +2152,7 @@ FDF_status_t FDFSetContainerProps(
 		return SDF_INVALID_PARAMETER;
 
     SDFStartSerializeContainerOp(pai);
-    if (( status = name_service_get_meta( pai, cguid, &meta )) == SDF_SUCCESS ) {
+    if (( status = name_service_get_meta( pai, cguid, &meta )) == FDF_SUCCESS ) {
 
 		if ( pprops->size_kb != meta.properties.container_id.size ) {
 			if ( ( status = fdf_resize_container( fdf_thread_state, cguid, pprops->size_kb ) ) != FDF_SUCCESS ) {
@@ -2296,7 +2290,7 @@ FDF_status_t FDFWriteObject(
     ar.ctnr_type = SDF_OBJECT_CONTAINER;
     ar.internal_request = SDF_TRUE;
     ar.internal_thread = fthSelf();
-    if ((status=SDFObjnameToKey(&(ar.key), (char *) key, keylen)) != SDF_SUCCESS) {
+    if ((status=SDFObjnameToKey(&(ar.key), (char *) key, keylen)) != FDF_SUCCESS) {
         return(status);
     }
     ar.sze = datalen;
@@ -2308,7 +2302,7 @@ FDF_status_t FDFWriteObject(
 
     ActionProtocolAgentNew(pac, &ar);
 
-	if ( FDF_SUCCESS == ar.respStatus ) {
+	if ( SDF_SUCCESS == ar.respStatus ) {
 		index = fdf_get_ctnr_from_cguid( cguid );
 		if ( index > -1 ) {
 			CtnrMap[ index ].current_size += keylen + datalen;
@@ -2351,7 +2345,7 @@ buf[keylen] = '\0';
     ar.ctnr_type = SDF_OBJECT_CONTAINER;
     ar.internal_request = SDF_TRUE;    
 	ar.internal_thread = fthSelf();
-    if ((status=SDFObjnameToKey(&(ar.key), (char *) key, keylen)) != SDF_SUCCESS) {
+    if ((status=SDFObjnameToKey(&(ar.key), (char *) key, keylen)) != FDF_SUCCESS) {
         return(status); 
     }
 
@@ -2398,7 +2392,7 @@ FDF_status_t FDFFlushObject(
     ar.ctnr_type = SDF_OBJECT_CONTAINER;
     ar.internal_request = SDF_TRUE;
     ar.internal_thread = fthSelf();
-    if ((status=SDFObjnameToKey(&(ar.key), (char *) key, keylen)) != SDF_SUCCESS) {
+    if ((status=SDFObjnameToKey(&(ar.key), (char *) key, keylen)) != FDF_SUCCESS) {
         return(status);
     }
 
@@ -2443,11 +2437,11 @@ FDF_status_t FDFFlushContainer(
 
     ActionProtocolAgentNew(pac, &ar);
 
-	if ( FDF_SUCCESS != ar.respStatus ) 
+	if ( SDF_SUCCESS != ar.respStatus ) 
     	return(ar.respStatus);
 
 #ifdef SDFAPIONLY
-	if ((status = name_service_get_meta(pai, cguid, &meta)) == SDF_SUCCESS) {
+	if ((status = name_service_get_meta(pai, cguid, &meta)) == FDF_SUCCESS) {
 
 #ifdef MULTIPLE_FLASH_DEV_ENABLED
 		flash_dev = get_flashdev_from_shardid( state->config.flash_dev,
@@ -2849,7 +2843,7 @@ SDF_status_t fdf_parse_access_stats (char * stat_buf,FDF_stats_t *stats ) {
     uint64_t val;
                           
     if (stats == NULL ) { 
-        return SDF_SUCCESS;
+        return FDF_SUCCESS;
     }   
     for ( i = 0; i < FDF_N_ACCESS_TYPES; i++ ) {
         val = parse_count( stat_buf, FDFAccessTypeSearchStrings[i] );
@@ -2857,7 +2851,7 @@ SDF_status_t fdf_parse_access_stats (char * stat_buf,FDF_stats_t *stats ) {
             stats->n_accesses[i] = val;
         }
     }                     
-    return SDF_SUCCESS;   
+    return FDF_SUCCESS;   
 }   
 
 
@@ -2866,7 +2860,7 @@ SDF_status_t fdf_parse_cache_stats (char * stat_buf,FDF_stats_t *stats ) {
     uint64_t val;
 
     if (stats == NULL ) {
-        return SDF_SUCCESS;
+        return FDF_SUCCESS;
     }
     //fprintf(stderr,"fdf_parse_cache_stats: %s\n",stat_buf);
     for ( i = 0; i < FDF_N_CACHE_STATS; i++ ) {
@@ -2875,7 +2869,7 @@ SDF_status_t fdf_parse_cache_stats (char * stat_buf,FDF_stats_t *stats ) {
             stats->cache_stats[i] = val;
         }
     }
-    return SDF_SUCCESS;
+    return FDF_SUCCESS;
 }
 
 SDF_status_t
@@ -3052,7 +3046,7 @@ FDF_status_t FDFGetStatsStr (
     FDF_container_props_t   pprops;
     SDF_container_meta_t    meta;
     time_t t;
-    //SDF_status_t lock_status = SDF_SUCCESS;
+    //SDF_status_t lock_status = FDF_SUCCESS;
     //SDF_cguid_t parent_cguid = SDF_NULL_CGUID;
     //int log_level = LOG_ERR;
     int  i_ctnr;
@@ -3082,7 +3076,7 @@ FDF_status_t FDFGetStatsStr (
         sdf_container = CtnrMap[i_ctnr].sdf_container;
     }
 
-    if (( status = name_service_get_meta( pai, cguid, &meta )) == SDF_SUCCESS ) {
+    if (( status = name_service_get_meta( pai, cguid, &meta )) == FDF_SUCCESS ) {
         status = fdf_create_fdf_props( &meta.properties, &pprops );
     }
 
@@ -3093,7 +3087,7 @@ FDF_status_t FDFGetStatsStr (
     buf_len -= strlen( "\r\nEND\r\n" ) + 1;
     time(&t);
     plat_snprintfcat( &pos, &buf_len, "STAT Time %s\r\n", ctime(&t) );    
-    if ( status == SDF_SUCCESS ) {
+    if ( status == FDF_SUCCESS ) {
         //Add container properties to the list
         plat_snprintfcat( &pos, &buf_len, "STAT Container Name %s size:%lukb FIFO:%d persistence:%d eviction:%d writethru:%d\r\n", 
                                            CtnrMap[i_ctnr].cname, pprops.size_kb, /*pprops.fifo_mode*/ 0, pprops.persistent, pprops.evicting, pprops.writethru );
@@ -3340,12 +3334,15 @@ FDF_status_t fdf_resize_container(
     if ( index > -1 ) {
         plat_log_msg( 150082, LOG_CAT, LOG_ERR, "Cannnot find container id %lu", cguid );
         status = FDF_CONTAINER_UNKNOWN;
+// If this code is executed, will likely segfault - Johann
+#if 0
     } else if ( size < CtnrMap[ index ].size_kb ) {
             plat_log_msg( 150079, LOG_CAT, LOG_ERR, "Cannnot reduce container size" );
             status = FDF_CANNOT_REDUCE_CONTAINER_SIZE;
+#endif
     } else if ( ( status = name_service_get_meta( pai,
                                                	  cguid,
-                                               	  &meta ) ) != SDF_SUCCESS) {
+                                               	  &meta ) ) != FDF_SUCCESS) {
             plat_log_msg( 150080, LOG_CAT, LOG_ERR, "Cannnot read container metadata for %lu", cguid );
     } else {
 
@@ -3353,10 +3350,13 @@ FDF_status_t fdf_resize_container(
 
         if ( ( status = name_service_put_meta( pai,
                                                cguid,
-                                               &meta ) ) != SDF_SUCCESS ) {
+                                               &meta ) ) != FDF_SUCCESS ) {
             plat_log_msg( 150081, LOG_CAT, LOG_ERR, "Cannnot write container metadata for %lu", cguid );
         } else {
+// If this code is executed, will likely segfault - Johann
+#if 0
             CtnrMap[ index ].size_kb = size;
+#endif
         }
     }
 
@@ -3484,7 +3484,7 @@ fdf_vc_init(
     p.durability_level      = FDF_DURABILITY_HW_CRASH_SAFE;
     p.size_kb               = 1024 * 1024; // kB
 
-    if ((status = FDFOpenPhysicalContainer(pai, VMC_PATH, &p, flags, &cguid)) != FDF_SUCCESS) {
+    if ((status = FDFOpenPhysicalContainer(pai, VMC_PATH, &p, flags, &cguid)) != SDF_SUCCESS) {
         plat_log_msg(150057, LOG_CAT, LOG_ERR, "Failed to create VMC container - %s\n", SDF_Status_Strings[status]);
         return status;
     }
@@ -3496,7 +3496,7 @@ fdf_vc_init(
     p.durability_level      = FDF_DURABILITY_HW_CRASH_SAFE;
     p.size_kb               = getProperty_Int("FDF_FLASH_SIZE", 2) * 1024 * 1024 - (2 * 1024 * 1024) - (32 * 1024); // Minus CMC/VMC allocation
 
-    if ((status = FDFOpenPhysicalContainer(pai, VDC_PATH, &p, flags, &cguid)) != FDF_SUCCESS) {
+    if ((status = FDFOpenPhysicalContainer(pai, VDC_PATH, &p, flags, &cguid)) != SDF_SUCCESS) {
         plat_log_msg(150057, LOG_CAT, LOG_ERR, "Failed to create VMC container - %s\n", SDF_Status_Strings[status]);
         return status;
     }
@@ -3527,7 +3527,7 @@ static FDF_status_t fdf_generate_cguid(
 		state->config.cguid_counter += 1; 
 		if ( state->config.cguid_counter == 0 )
 			state->config.cguid_counter += 1; 
-		if ( ( status = name_service_cguid_exists( pai, state->config.cguid_counter ) ) == SDF_OBJECT_UNKNOWN ) {
+		if ( ( status = name_service_cguid_exists( pai, state->config.cguid_counter ) ) == FDF_OBJECT_UNKNOWN ) {
 			*cguid = state->config.cguid_counter;
 			status = FDF_SUCCESS;
 			break;

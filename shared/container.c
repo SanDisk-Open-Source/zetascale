@@ -1284,7 +1284,9 @@ SDF_status_t SDFContainerStatInternal(SDF_internal_ctxt_t *pai, SDF_CONTAINER co
     struct SDF_shared_state *state = &sdf_shared_state;
     local_SDF_CONTAINER lc = getLocalContainer(&lc, container);
     struct shard *shard = NULL;
+#ifndef SDFAPI
     int log_level = LOG_ERR;
+#endif /* SDFAPI */
 
     plat_log_msg(LOG_ID, LOG_CAT, LOG_DBG, " ");
 
@@ -1323,7 +1325,9 @@ SDF_status_t SDFContainerStatInternal(SDF_internal_ctxt_t *pai, SDF_CONTAINER co
 	    status = SDF_SUCCESS;
 	}
 
+#ifndef SDFAPI
 	log_level = LOG_DBG;
+#endif /* SDFAPI */
     }
     #ifndef SDFAPIONLY
     plat_log_msg(20819, LOG_CAT, log_level, "%s", SDF_Status_Strings[status]);

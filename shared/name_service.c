@@ -345,15 +345,14 @@ name_service_put_props(SDF_internal_ctxt_t *pai, const char *cname, SDF_containe
     SDF_status_t 	status 		= SDF_FAILURE;
     SDF_cguid_t 	cguid 		= SDF_NULL_CGUID;
     int 			log_level 	= LOG_ERR;
-	SDFContainer	c			= NULL;
 
     plat_log_msg(20819, LOG_CAT, LOG_DBG, "%s", cname);
 
     if (ISEMPTY(cname)) {
 		status = SDF_INVALID_PARAMETER;
     } else if ((status = name_service_get_cguid(pai, cname, &cguid)) == SDF_SUCCESS) {
-		c = name_service_metadata_container_from_cguid( cguid );
-	    if ((status = cmc_put_props(pai, theCMC, cguid, props) == SDF_SUCCESS)) 
+		name_service_metadata_container_from_cguid( cguid );
+	    if ((status = cmc_put_props(pai, theCMC, cguid, props) == SDF_SUCCESS))
 			log_level = LOG_DBG;
     }
 
@@ -441,13 +440,17 @@ SDF_status_t
 name_service_create_cguid_map(SDF_internal_ctxt_t *pai, const char *cname, SDF_cguid_t cguid) {
 
     SDF_status_t 	status 		= SDF_FAILURE;
+#ifndef SDFAPI
     int 			log_level 	= LOG_ERR;
+#endif /* SDFAPI */
 
     plat_log_msg(21614, LOG_CAT, LOG_DBG, "%s - %llu",
 		 cname, (unsigned long long)cguid);
 
     if ((status = cmc_create_cguid_map(pai, theCMC->c, cguid, cname)) == SDF_SUCCESS) {
+#ifndef SDFAPI
 		log_level = LOG_DBG;
+#endif /* SDFAPI */
     }
 
     plat_log_msg(21610, LOG_CAT, LOG_DBG, "%s - %llu - %s", 
@@ -488,13 +491,17 @@ SDF_status_t
 name_service_put_cguid_map(SDF_internal_ctxt_t *pai, const char *cname, SDF_cguid_t cguid) {
 
     SDF_status_t 	status 		= SDF_FAILURE;
+#ifndef SDFAPI
     int 			log_level 	= LOG_DBG;
+#endif /* SDFAPI */
 
     plat_log_msg(21614, LOG_CAT, LOG_DBG, "%s - %llu",
 		 cname, (unsigned long long)cguid);
 
     if ((status = cmc_put_cguid_map(pai, theCMC->c, cguid, cname)) == SDF_SUCCESS) {
+#ifndef SDFAPI
 		log_level = LOG_DBG;
+#endif /* SDFAPI */
     }
 
     plat_log_msg(21610, LOG_CAT, LOG_DBG, "%s - %llu - %s", 
