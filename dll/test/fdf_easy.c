@@ -2,36 +2,105 @@
  * An easier interface to FDF.
  * Author: Johann George
  *
- * Copyright (c) 2012,  Sandisk Corporation.  All rights reserved.
+ * Copyright (c) 2012-2013, Sandisk Corporation.  All rights reserved.
  */
+#include <errno.h>
 #include <stdio.h>
 #include <stdarg.h>
 #include <stdlib.h>
 #include <string.h>
+#include <pthread.h>
 #include "fdf_easy.h"
+#include "fdf_easy_int.h"
 
 
 /*
- * Initialize an error return.
+ * Set errno based on a FDF error.
  */
-static inline void
-err_init(fdf_err_t **errpp, fdf_err_t *errlp)
+static void
+fdf_set_errno(FDF_status_t ferr)
 {
-    if (!*errpp)
-        *errpp = errlp;
-    **errpp = FDF_SUCCESS;
+    if (ferr == FDF_SUCCESS)
+        errno = 0;
+    else if (ferr == FDF_FAILURE_MEMORY_ALLOC)
+        errno = ENOMEM;
+    else if (ferr == FDF_INVALID_PARAMETER)
+        errno = EINVAL;
+    else
+        errno = EIO;
 }
 
 
 /*
- * Initialize an error return.
+ * If there is a FDF error, set a string indicating the error, translate the
+ * error and return 1.
  */
-static inline int
-err_good(fdf_err_t *errp, FDF_status_t ss)
+static int
+set_err_fdf_if(char **errp, FDF_status_t ferr)
 {
-    if (*errp == FDF_SUCCESS)
-        *errp = ss;
-    return *errp == FDF_SUCCESS;
+    if (ferr == FDF_SUCCESS)
+        return 0;
+
+    fdf_set_errno(ferr);
+    fdf_aperr_(errp, NULL, ferr, 0, NULL);
+    return 1;
+}
+
+
+/*
+ * Convert a UNIX error to a string.
+ */
+static void
+set_err_sys(char **errp, int err)
+{
+    fdf_aperr_(errp, NULL, 0, err, NULL);
+}
+
+
+/*
+ * Convert a UNIX error to a string if there is one.
+ */
+static int
+set_err_sys_if(char **errp, int err)
+{
+    if (!err)
+        return 0;
+
+    errno = err;
+    fdf_aperr_(errp, NULL, 0, err, NULL);
+    return 1;
+}
+
+
+/*
+ * Return the current thread state.
+ */
+static struct FDF_thread_state *
+ts_get(fdf_t *fdf, char **errp)
+{
+    struct FDF_thread_state *ts = pthread_getspecific(fdf->key);
+    
+    if (!ts) {
+        FDF_status_t ferr = FDFInitPerThreadState(fdf->state, &ts);
+        if (set_err_fdf_if(errp, ferr))
+            return NULL;
+
+        int err = pthread_setspecific(fdf->key, ts);
+        if (set_err_sys_if(errp, err))
+            return NULL;
+    }
+    return ts;
+}
+
+
+/*
+ * Destroy the current thread state.
+ */
+static void
+ts_destroy(void *p)
+{
+    struct FDF_thread_state *ts = p;
+    FDFReleasePerThreadState(&ts);
 }
 
 
@@ -39,28 +108,23 @@ err_good(fdf_err_t *errp, FDF_status_t ss)
  * Initialize FDF.
  */
 fdf_t *
-fdf_init(fdf_err_t *errp)
+fdf_init(char **errp)
 {
-    fdf_t *fdf;
-    fdf_err_t errl;
-    FDF_status_t ss;
+    fdf_link_();
 
-    err_init(&errp, &errl);
-    fdf = malloc(sizeof(*fdf));
+    fdf_t *fdf = malloc(sizeof(*fdf));
     if (!fdf) {
-        *errp = FDF_FAILURE_MEMORY_ALLOC;
+        set_err_sys(errp, errno);
         return NULL;
     }
 
-    ss = FDFInit(&fdf->state);
-    if (!err_good(errp, ss)) {
+    int err = pthread_key_create(&fdf->key, ts_destroy);
+    if (set_err_sys_if(errp, err))
+        return NULL;
+
+    FDF_status_t ferr = FDFInit(&fdf->state);
+    if (set_err_fdf_if(errp, ferr)) {
         free(fdf);
-        return NULL;
-    }
-
-    ss = FDFInitPerThreadState(fdf->state, &fdf->thread);
-    if (!err_good(errp, ss)) {
-        fdf_done(fdf);
         return NULL;
     }
     return fdf;
@@ -92,16 +156,14 @@ fdf_free(fdf_t *fdf, void *ptr)
  * Initialize a container.
  */
 fdf_ctr_t *
-fdf_ctr_init(fdf_t *fdf, char *name, fdf_err_t *errp)
+fdf_ctr_init(fdf_t *fdf, char *name, char **errp)
 {
-    static int num = 0;
+    static int num = 1;
     fdf_ctr_t *ctr;
-    fdf_err_t errl;
 
-    err_init(&errp, &errl);
     ctr = malloc(sizeof(*ctr));
     if (!ctr) {
-        *errp = FDF_FAILURE_MEMORY_ALLOC;
+        set_err_sys(errp, errno);
         return NULL;
     }
 
@@ -110,19 +172,18 @@ fdf_ctr_init(fdf_t *fdf, char *name, fdf_err_t *errp)
 
     name = strdup(name);
     if (!name) {
-        *errp = FDF_FAILURE_MEMORY_ALLOC;
         free(ctr);
+        set_err_sys(errp, errno);
         return NULL;
     }
 
     FDF_container_props_t *props = &ctr->props;
-
     props->size_kb          = 1024 * 1024;
     props->fifo_mode        = FDF_FALSE;
     props->persistent       = FDF_TRUE;
     props->evicting         = FDF_FALSE;
     props->writethru        = FDF_TRUE;
-    props->durability_level = FDF_FULL_DURABILITY;
+    props->durability_level = FDF_DURABILITY_PERIODIC;
     props->cid              = 0;
     props->num_shards       = 1;
 
@@ -136,21 +197,21 @@ fdf_ctr_init(fdf_t *fdf, char *name, fdf_err_t *errp)
  * Finish with a FDF container.
  */
 int
-fdf_ctr_done(fdf_ctr_t *ctr, fdf_err_t *errp)
+fdf_ctr_done(fdf_ctr_t *ctr, char **errp)
 {
-    FDF_cguid_t               cguid = ctr->cguid;
-    struct FDF_thread_state *thread = ctr->fdf->thread;
+    struct FDF_thread_state *ts = ts_get(ctr->fdf, errp);
+    if (!ts)
+        return 0;
 
-    FDF_status_t ss  = FDFCloseContainer(thread, cguid);
-    FDF_status_t ss2 = FDFDeleteContainer(thread, cguid);
+    FDF_cguid_t  cguid = ctr->cguid;
+    FDF_status_t ferr  = FDFCloseContainer(ts, cguid);
+    FDF_status_t ferr2 = FDFDeleteContainer(ts, cguid);
     free(ctr->name);
     free(ctr);
 
-    if (ss == FDF_SUCCESS)
-        ss = ss2;
-    if (errp)
-        *errp = ss;
-    return ss == FDF_SUCCESS;
+    if (ferr == FDF_SUCCESS)
+        ferr = ferr2;
+    return !set_err_fdf_if(errp, ferr);
 }
 
 
@@ -158,16 +219,16 @@ fdf_ctr_done(fdf_ctr_t *ctr, fdf_err_t *errp)
  * Open a FDF container.
  */
 int
-fdf_ctr_open(fdf_ctr_t *ctr, fdf_err_t *errp)
+fdf_ctr_open(fdf_ctr_t *ctr, char **errp)
 {
-    fdf_err_t errl;
-    struct FDF_thread_state *thread = ctr->fdf->thread;
+    struct FDF_thread_state *ts = ts_get(ctr->fdf, errp);
+    if (!ts)
+        return 0;
 
-    err_init(&errp, &errl);
-    *errp = FDFOpenContainer(thread, ctr->name,
-                             &ctr->props, FDF_CTNR_CREATE|FDF_CTNR_RW_MODE,
-                             &ctr->cguid);
-    return *errp == FDF_SUCCESS;
+    FDF_status_t ferr = FDFOpenContainer(ts, ctr->name, &ctr->props,
+                                         FDF_CTNR_CREATE|FDF_CTNR_RW_MODE,
+                                         &ctr->cguid);
+    return !set_err_fdf_if(errp, ferr);
 }
 
 
@@ -176,17 +237,20 @@ fdf_ctr_open(fdf_ctr_t *ctr, fdf_err_t *errp)
  */
 int
 fdf_ctr_get(fdf_ctr_t *ctr, char *key, uint64_t keylen,
-            char **data, uint64_t *datalen, fdf_err_t *errp)
+            char **data, uint64_t *datalen, char **errp)
 {
-    fdf_err_t errl;
-
-    err_init(&errp, &errl);
-    *errp = FDFReadObject(ctr->fdf->thread, ctr->cguid,
-                          key, keylen, data, datalen);
-    if (*errp == FDF_SUCCESS)
-        return 1;
-    if (*errp == FDF_OBJECT_UNKNOWN)
+    struct FDF_thread_state *ts = ts_get(ctr->fdf, errp);
+    if (!ts)
         return 0;
+
+    FDF_status_t ferr;
+    ferr = FDFReadObject(ts, ctr->cguid, key, keylen, data, datalen);
+    if (ferr == FDF_SUCCESS)
+        return 1;
+    if (ferr == FDF_OBJECT_UNKNOWN)
+        return 0;
+
+    set_err_fdf_if(errp, ferr);
     return -1;
 }
 
@@ -196,14 +260,15 @@ fdf_ctr_get(fdf_ctr_t *ctr, char *key, uint64_t keylen,
  */
 int
 fdf_ctr_set(fdf_ctr_t *ctr, char *key, uint64_t keylen,
-            char *data, uint64_t datalen, fdf_err_t *errp)
+            char *data, uint64_t datalen, char **errp)
 {
-    fdf_err_t errl;
+    struct FDF_thread_state *ts = ts_get(ctr->fdf, errp);
+    if (!ts)
+        return 0;
 
-    err_init(&errp, &errl);
-    *errp = FDFWriteObject(ctr->fdf->thread, ctr->cguid,
-                           key, keylen, data, datalen, 0);
-    return *errp == FDF_SUCCESS;
+    FDF_status_t ferr;
+    ferr = FDFWriteObject(ts, ctr->cguid, key, keylen, data, datalen, 0);
+    return !set_err_fdf_if(errp, ferr);
 }
 
 
@@ -211,23 +276,22 @@ fdf_ctr_set(fdf_ctr_t *ctr, char *key, uint64_t keylen,
  * Prepare to iterate through a container.
  */
 fdf_iter_t *
-fdf_iter_init(fdf_ctr_t *ctr, fdf_err_t *errp)
+fdf_iter_init(fdf_ctr_t *ctr, char **errp)
 {
-    fdf_err_t errl;
-    FDF_status_t ss;
-    fdf_iter_t *iter;
+    struct FDF_thread_state *ts = ts_get(ctr->fdf, errp);
+    if (!ts)
+        return 0;
 
-    err_init(&errp, &errl);
-    iter = malloc(sizeof(*iter));
+    fdf_iter_t *iter = malloc(sizeof(*iter));
     if (!iter) {
-        *errp = FDF_FAILURE_MEMORY_ALLOC;
+        set_err_sys(errp, errno);
         return NULL;
     }
 
     iter->ctr  = ctr;
-    ss = FDFEnumerateContainerObjects(ctr->fdf->thread,
-                                      ctr->cguid, &iter->iter);
-    if (!err_good(errp, ss)) {
+    FDF_status_t ferr;
+    ferr = FDFEnumerateContainerObjects(ts, ctr->cguid, &iter->iter);
+    if (set_err_fdf_if(errp, ferr)) {
         free(iter);
         return NULL;
     }
@@ -239,17 +303,18 @@ fdf_iter_init(fdf_ctr_t *ctr, fdf_err_t *errp)
  * Complete container iteration.
  */
 int
-fdf_iter_done(fdf_iter_t *iter, fdf_err_t *errp)
+fdf_iter_done(fdf_iter_t *iter, char **errp)
 {
-    fdf_err_t errl;
-    FDF_status_t ss;
+    struct FDF_thread_state *ts = ts_get(iter->ctr->fdf, errp);
+    if (!ts)
+        return 0;
 
-    err_init(&errp, &errl);
+    FDF_status_t ferr = FDF_SUCCESS;
     if (iter->iter)
-        ss = FDFFinishEnumeration(iter->ctr->fdf->thread, iter->iter);
+        ferr = FDFFinishEnumeration(ts, iter->iter);
     iter->iter = NULL;
     free(iter);
-    return err_good(errp, ss);
+    return !set_err_fdf_if(errp, ferr);
 }
 
 
@@ -258,34 +323,23 @@ fdf_iter_done(fdf_iter_t *iter, fdf_err_t *errp)
  */
 int
 fdf_iter_next(fdf_iter_t *iter, char **key, uint64_t *keylen,
-              char **data, uint64_t *datalen, fdf_err_t *errp)
+              char **data, uint64_t *datalen, char **errp)
 {
-    fdf_err_t errl;
-    FDF_status_t ss;
-    uint32_t keylen0;
-
-    err_init(&errp, &errl);
-    ss = FDFNextEnumeratedObject(iter->ctr->fdf->thread, iter->iter,
-                                 key, &keylen0, data, datalen);
-    *keylen = keylen0;
-    *errp = ss;
-
-    if (ss == FDF_SUCCESS)
-        return 1;
-    else if (ss == FDF_OBJECT_UNKNOWN)
+    struct FDF_thread_state *ts = ts_get(iter->ctr->fdf, errp);
+    if (!ts)
         return 0;
-    else
-        return -1;
-}
 
+    uint32_t keylen0;
+    FDF_status_t ferr;
+    ferr = FDFNextEnumeratedObject(ts, iter->iter,
+                                   key, &keylen0, data, datalen);
+    *keylen = keylen0;
 
-#if 0
-/*
- * Return a string corresponding to a particular FDF message.
- */
-char *
-fdf_errmsg(FDF_status_t ss)
-{
-    return FDFStrError(ss);
+    if (ferr == FDF_SUCCESS)
+        return 1;
+    if (ferr == FDF_OBJECT_UNKNOWN)
+        return 0;
+
+    set_err_fdf_if(errp, ferr);
+    return -1;
 }
-#endif

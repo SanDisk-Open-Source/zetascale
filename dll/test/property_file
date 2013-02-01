@@ -1,4 +1,3 @@
-SDF_REFORMAT         = 1
-AIO_FLASH_SIZE_TOTAL = 4
-SDF_FLASH_SIZE_TOTAL = 4
-SDF_FLASH_FILENAME   = /tmp/fdf_disk%d
+SDF_REFORMAT       = 1
+FDF_FLASH_SIZE     = 4G
+FDF_FLASH_FILENAME = /tmp/fdf_disk%d

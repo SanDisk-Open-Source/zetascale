@@ -2,45 +2,28 @@
  * A FDF program to use some FDF functions.
  * Author: Johann George
  *
- * Copyright (c) 2012, Sandisk Corporation.  All rights reserved.
+ * Copyright (c) 2012-2013, Sandisk Corporation.  All rights reserved.
  */
 #include <stdio.h>
 #include <stdarg.h>
 #include <stdlib.h>
 #include <string.h>
-#include "fdf.h"
 #include "fdf_easy.h"
-#include "fdf_errs.h"
 
 
 /*
- * Print out an error message and exit.
- */
-void
-panic(char *fmt, ...)
-{
-    va_list alist;
-
-    va_start(alist, fmt);
-    vfprintf(stderr, fmt, alist);
-    va_end(alist);
-    fprintf(stderr, "\n");
-    exit(1);
-}
-
-
-/*
- * Print out a FDF error message.
+ * Print out an allocated error message and exit.
  */
 static void
-err_fdf(fdf_err_t err, char *fmt, ...)
+die(char *err, char *fmt, ...)
 {
     va_list alist;
 
     va_start(alist, fmt);
     vfprintf(stderr, fmt, alist);
     va_end(alist);
-    fprintf(stderr, ": %s\n", fdf_errmsg(err));
+    fprintf(stderr, ": %s\n", err);
+    free(err);
     exit(1);
 }
 
@@ -51,14 +34,14 @@ err_fdf(fdf_err_t err, char *fmt, ...)
 static fdf_ctr_t *
 make_ctr(fdf_t *fdf, char *name)
 {
-    fdf_err_t err;
+    char *err;
 
     fdf_ctr_t *ctr = fdf_ctr_init(fdf, name, &err);
     if (!ctr)
-        err_fdf(err, "fdf_ctr_init failed");
+        die(err, "fdf_ctr_init failed");
 
     if (!fdf_ctr_open(ctr, &err))
-        err_fdf(err, "fdf_ctr_open failed");
+        die(err, "fdf_ctr_open failed");
     return ctr;
 }
 
@@ -69,10 +52,10 @@ make_ctr(fdf_t *fdf, char *name)
 static void
 set_key(fdf_ctr_t *ctr, char *key, char *value)
 {
-    fdf_err_t err;
+    char *err;
 
     if (!fdf_ctr_set(ctr, key, strlen(key), value, strlen(value), &err)) {
-        err_fdf(err, "fdf_ctr_set failed: %s: %s => %s",
+        die(err, "fdf_ctr_set failed: %s: %s => %s",
                 ctr->name, key, value);
     }
 }
@@ -86,11 +69,11 @@ show_key(fdf_ctr_t *ctr, char *key)
 {
     char *data;
     uint64_t datalen;
-    fdf_err_t err;
+    char *err;
 
     int s = fdf_ctr_get(ctr, key, strlen(key), &data, &datalen, &err);
     if (s < 0)
-        err_fdf(err, "fdf_ctr_get failed %s: %s", ctr->name, key);
+        die(err, "fdf_ctr_get failed %s: %s", ctr->name, key);
 
     if (s == 0)
         printf("ctr %s: object %s was not set\n", ctr->name, key);
@@ -107,11 +90,11 @@ show_key(fdf_ctr_t *ctr, char *key)
 static void
 show_keys(fdf_ctr_t *ctr)
 {
-    fdf_err_t err;
+    char *err;
 
     fdf_iter_t *iter = fdf_iter_init(ctr, &err);
     if (!iter)
-        err_fdf(err, "fdf_iter_init failed");
+        die(err, "fdf_iter_init failed");
 
     printf("\n%s\n", ctr->name);
     for (;;) {
@@ -122,7 +105,7 @@ show_keys(fdf_ctr_t *ctr)
 
         int s = fdf_iter_next(iter, &key, &keylen, &data, &datalen, &err);
         if (s < 0)
-            err_fdf(err, "fdf_iter_next failed");
+            die(err, "fdf_iter_next failed");
         if (s == 0)
             break;
 
@@ -130,19 +113,27 @@ show_keys(fdf_ctr_t *ctr)
     }
 
     if (!fdf_iter_done(iter, &err))
-        err_fdf(err, "fdf_iter_done failed");
+        die(err, "fdf_iter_done failed");
 }
 
 
 int
 main(int argc, char *argv[])
 {
-    fdf_err_t err;
+    char *err;
 
     /* Initialize FDF */
     fdf_t *fdf = fdf_init(&err);
     if (!fdf)
-        err_fdf(err, "fdf_init failed");
+        die(err, "fdf_init failed");
+
+    /* Prepare property file */
+    if (!fdf_conf(fdf, "./property_file", &err))
+        die(err, "fdf_conf_init failed");
+
+    /* Print a property */
+    printf("FDF_FLASH_FILENAME = %s\n",
+           fdf_get_prop2(fdf, "FDF", "FLASH_FILENAME"));
 
     /* Create containers */
     fdf_ctr_t *ctr1 = make_ctr(fdf, "c0");

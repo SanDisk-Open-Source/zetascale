@@ -2,7 +2,7 @@
  * FDF messages.
  * Author: Johann George
  *
- * Copyright (c) 2012,  Sandisk Corporation.  All rights reserved.
+ * Copyright (c) 2012-2013, Sandisk Corporation.  All rights reserved.
  */
 #include <string.h>
 #include <stdlib.h>
@@ -146,6 +146,13 @@ static char *msgs[] ={
     "FDF: no writeback in store mode",
     "FDF: writeback caching disabled",
     "FDF: update duplicate",
+    "FDF: container too small",
+    "FDF: container full",
+    "FDF: cannot reduce container size",
+    "FDF: cannot change container size",
+    "FDF: out of storage space",
+    "FDF: already in active transaction",
+    "FDF: no active transaction",
 };
 
 
@@ -155,7 +162,7 @@ static char *msgs[] ={
 static __attribute__((constructor)) void
 init(void)
 {
-    if (FDF_UPDATE_DUPLICATE == 132)
+    if (FDF_FAILURE_NO_TRANS == 139)
         return;
 
     fprintf(stderr, "FDF errors have been re-numbered; fix fdf_errs.c\n");
@@ -167,7 +174,7 @@ init(void)
  * Return a string corresponding to a particular FDF message.
  */
 char *
-fdf_errmsg(FDF_status_t ss)
+fdf_errmsg_(FDF_status_t ss)
 {
     if (ss < 0 || ss > sizeof(msgs)/sizeof(*msgs))
         return NULL;
