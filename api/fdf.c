@@ -3561,16 +3561,8 @@ trx_t* fdf_trx_get()
 	return &trx;
 }
 
-/* Those function should be moved and implemented at lower level */
-FDF_status_t fdf_trx_start(trx_t* trx)
-{
-	return FDF_SUCCESS;
-}
-
-FDF_status_t fdf_trx_commit(trx_t* trx)
-{
-	return FDF_SUCCESS;
-}
+bool	mcd_trx_start( ),
+	mcd_trx_commit( );
 
 /**
  * @brief Start mini transaction
@@ -3590,7 +3582,7 @@ FDF_status_t FDFMiniTransactionStart(
 
 	__sync_add_and_fetch(&stat_trx_active_count, 1);
 
-	return fdf_trx_start(&trx);
+	return (mcd_trx_start( )? FDF_SUCCESS: FDF_OUT_OF_MEM);
 }
 
 /**
@@ -3609,7 +3601,7 @@ FDF_status_t FDFMiniTransactionCommit(
 	if(!trx.id)
 		return FDF_FAILURE_NO_TRANS;
 
-	status = fdf_trx_commit(&trx);
+	status = mcd_trx_commit( )? FDF_SUCCESS: FDF_TRANS_ABORTED;
 
 	__sync_sub_and_fetch(&stat_trx_active_count, 1);
 

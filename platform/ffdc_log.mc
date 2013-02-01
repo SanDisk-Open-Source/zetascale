@@ -34,7 +34,8 @@
 140000 build
 150000 darryl
 160000 root
-170000 always_last
+170000 rico
+180000 always_last
 
 
 [MESSAGES]
@@ -3113,3 +3114,8 @@
 160044 Container must be open to execute a flush container
 160045 fifo_shardClose not implemented!
 160046 ENTERING, shard_id=%lu durability_level=%u
+
+
+# rico
+170001 1st error message by Rico (%s)
+170002 2nd error message by Rico (%s)

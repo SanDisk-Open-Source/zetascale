@@ -6390,6 +6390,7 @@ flog_persist(mcd_osd_shard_t *shard,
         fdatasync(shard->flush_fd);
 }
 
+static bool	trx_in_progress( mcd_osd_shard_t *, mcd_logrec_object_t *);
 
 void
 log_write_internal( mcd_osd_shard_t * shard, mcd_logrec_object_t * data )
@@ -6409,11 +6410,13 @@ log_write_internal( mcd_osd_shard_t * shard, mcd_logrec_object_t * data )
 
     //mcd_rlg_msg( 20000, PLAT_LOG_LEVEL_TRACE, "ENTERING" );
 
-    if ( data ) {
+    if (data) {
+	if (trx_in_progress( shard, data))
+	    return;
         mode = FLUSH_MODE_FILL;
-    } else {
-        mode = FLUSH_MODE_SYNC;
     }
+    else
+        mode = FLUSH_MODE_SYNC;
 
     // get write lock for sync, read  lock for fill
     if (Log_flush_in_place)
@@ -7721,4 +7724,162 @@ mcd_rec_attach_test( int testcmd, int test_arg )
     }
 
     return 0;
+}
+
+
+/*
+ * mini-transaction support
+ *
+ * Outstanding issues and considerations:
+ * (1) delete container during trx could be interesting...
+ * (2) need to employ lock around log writing to keep trx commit atomic
+ * (3) need to support multiple failure returns
+ * (4) ensure current log has room, otherwise pad before trx commit
+ */
+#include	"utils/rico.h"
+
+typedef struct mcd_trx_state {
+	mcd_osd_shard_t		*s;
+	mcd_logrec_object_t	lrtab[100000];
+	uint			n;
+	bool			okay;
+} mcd_trx_state_t;
+
+static __thread struct mcd_trx_state	*trx;
+
+
+/*
+ * start transaction
+ *
+ * Callable from FDF top-level.  Concurrent transactions are supported, one
+ * per thread.  Activity on objects - but not containers - will be deferred
+ * in the log.  Incremental changes are visible to all threads, meaning poor
+ * (ACID) isolation.  Transactions in progress are forgotten after a crash.
+ *
+ * Returns FALSE if memory exhausted or transaction already active.
+ */
+bool
+mcd_trx_start( )
+{
+
+	unless (trx) {
+		unless (trx = plat_alloc( sizeof *trx))
+			return (FALSE);
+		trx->s = 0;
+		trx->n = 0;
+		trx->okay = TRUE;
+	}
+	return (TRUE);
+}
+
+
+/*
+ * commit transaction in progress
+ *
+ * Callable from FDF top-level.  On return, thread's transaction has been
+ * committed to persistent storage.
+ *
+ * Returns FALSE if transaction limit was exceeded, transaction referenced
+ * multiple (physical) shards, or no transaction active.
+ */
+bool
+mcd_trx_commit( )
+{
+	uint	i;
+
+	mcd_trx_state_t	*t = trx;
+	unless (t)
+		return (FALSE);
+	trx = 0;
+	if (t->okay) {
+		for (i=0; i<t->n; ++i)
+			log_write( t->s, &t->lrtab[i]);
+	}
+	bool okay = t->okay;
+	plat_free( t);
+	return (okay);
+}
+
+
+static bool
+trx_in_progress( mcd_osd_shard_t *shard, mcd_logrec_object_t *lr)
+{
+
+	unless (trx)
+		return (FALSE);
+	if (trx->s) {
+		unless (trx->s == shard) {
+			trx->okay = FALSE;
+			return (TRUE);
+		}
+	}
+	else
+		trx->s = shard;
+	if (trx->n < nel( trx->lrtab))
+		trx->lrtab[trx->n++] = *lr;
+	else
+		trx->okay = FALSE;
+	return (TRUE);
+}
+
+
+/*
+ * (under development)
+ */
+void
+fred_log_write_internal( mcd_osd_shard_t * shard, mcd_logrec_object_t * data )
+{
+	mcd_rec_logbuf_t
+			*logbuf;
+	fthWaitEl_t	*wait;
+	uint64_t	slot_seqno,
+			rec_filled,
+			nth_buffer,
+			buf_offset;
+	mcd_rec_log_t	*log		= shard->log;
+	fthSem_t	sync_sem;
+
+	// get write lock for sync, read  lock for fill
+	if (Log_flush_in_place)
+	    wait = fthLock(&log->sync_fill_lock, 1, NULL);
+	else
+	    wait = fthLock(&log->sync_fill_lock, 0, NULL);
+
+	fthSemDown( &log->fill_sem, 1 );
+
+	// leave room for page header
+	do {
+	    slot_seqno = __sync_fetch_and_add( &log->next_fill, 1 );
+	} while ( (slot_seqno % MCD_REC_LOG_BLK_SLOTS) == 0 );
+
+    	buf_offset = slot_seqno % MCD_REC_LOGBUF_SLOTS;
+    	nth_buffer = slot_seqno / MCD_REC_LOGBUF_SLOTS;
+    	logbuf     = &log->logbufs[ nth_buffer % MCD_REC_NUM_LOGBUFS ];
+
+	plat_assert_always( slot_seqno == logbuf->seqno + buf_offset );
+
+	logbuf->entries[ buf_offset ] = *data;
+	rec_filled = __sync_add_and_fetch( &logbuf->fill_count, 1 );
+
+	if (shard->flush_fd > 0)
+		flog_persist(shard, slot_seqno, data);
+
+	if (rec_filled == MCD_REC_LOGBUF_RECS)
+		fthSemUp( logbuf->write_sem, 1 );
+
+	// Update the logbuf seqno cache
+	rep_logbuf_seqno_update( (struct shard *)shard,	nth_buffer, data->seqno);
+
+	if (Log_flush_in_place) {
+		fthSemInit( &sync_sem, 0 );
+		logbuf->sync_sem  = &sync_sem;
+		logbuf->sync_blks = 1 + (buf_offset / MCD_REC_LOG_BLK_SLOTS);
+
+		fthSemUp( logbuf->write_sem, 1 );
+		fthSemDown( &sync_sem, 1 );
+
+		logbuf->sync_blks = 0;
+		logbuf->sync_sem  = NULL;
+	}
+    	fthUnlock( wait );
 }

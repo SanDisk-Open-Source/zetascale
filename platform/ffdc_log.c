@@ -9,7 +9,7 @@
  * codebase. This file also contains the API to enable, disable, and
  * initialize FFDC.
  * 
- * Generated On: 2013-01-29 12:55:49
+ * Generated On: 2013-01-31 16:43:39
  *------------------------------------------------------------------------*/
 
 #define PLATFORM_INTERNAL 1
@@ -42069,6 +42069,32 @@ ffdc_log_func_160046(int lineno, int msgid, int catid, int level, const char* fm
     FFDC_START(160046, catid, level, lineno);
     FFDC_ADD_NUM(arg1);
     FFDC_ADD_NUM(arg2);
+    FFDC_END();
+}
+
+/*---------------------------------------------------------------------------
+ * MsgID : 170001
+ * Msg   : "1st error message by Rico (%s)"
+ *-------------------------------------------------------------------------*/
+__inline__ void
+ffdc_log_func_170001(int lineno, int msgid, int catid, int level, const char* fmt,
+    const char* arg1)
+{
+    FFDC_START(170001, catid, level, lineno);
+    FFDC_ADD_STR(arg1);
+    FFDC_END();
+}
+
+/*---------------------------------------------------------------------------
+ * MsgID : 170002
+ * Msg   : "2nd error message by Rico (%s)"
+ *-------------------------------------------------------------------------*/
+__inline__ void
+ffdc_log_func_170002(int lineno, int msgid, int catid, int level, const char* fmt,
+    const char* arg1)
+{
+    FFDC_START(170002, catid, level, lineno);
+    FFDC_ADD_STR(arg1);
     FFDC_END();
 }
 
