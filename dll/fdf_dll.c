@@ -110,6 +110,11 @@ static FDF_status_t
                      uint64_t *datalen);
 
 static FDF_status_t 
+(*ptr_FDFReadObjectExpiry)(struct FDF_thread_state *fdf_thread_state,
+                           FDF_cguid_t cguid,
+                           FDF_readobject_t *robj);
+
+static FDF_status_t 
 (*ptr_FDFFreeBuffer)(char *buf);
 
 static FDF_status_t 
@@ -120,6 +125,12 @@ static FDF_status_t
                       char *data,
                       uint64_t datalen,
                       uint32_t flags);
+
+static FDF_status_t 
+(*ptr_FDFWriteObjectExpiry)(struct FDF_thread_state *fdf_thread_state,
+                            FDF_cguid_t cguid,
+                            FDF_writeobject_t *wobj,
+                            uint32_t flags);
 
 static FDF_status_t 
 (*ptr_FDFDeleteObject)(struct FDF_thread_state *fdf_thread_state,
@@ -200,8 +211,10 @@ static struct {
     { "FDFGetContainerProps",          &ptr_FDFGetContainerProps         },
     { "FDFSetContainerProps",          &ptr_FDFSetContainerProps         },
     { "FDFReadObject",                 &ptr_FDFReadObject                },
+    { "FDFReadObjectExpiry",           &ptr_FDFReadObjectExpiry          },
     { "FDFFreeBuffer",                 &ptr_FDFFreeBuffer                },
     { "FDFWriteObject",                &ptr_FDFWriteObject               },
+    { "FDFWriteObjectExpiry",          &ptr_FDFWriteObjectExpiry         },
     { "FDFDeleteObject",               &ptr_FDFDeleteObject              },
     { "FDFEnumerateContainerObjects",  &ptr_FDFEnumerateContainerObjects },
     { "FDFNextEnumeratedObject",       &ptr_FDFNextEnumeratedObject      },
@@ -573,6 +586,21 @@ FDFReadObject(struct FDF_thread_state *fdf_thread_state,
 
 
 /*
+ * FDFReadObjectExpiry
+ */
+FDF_status_t 
+FDFReadObjectExpiry(struct FDF_thread_state *fdf_thread_state,
+                    FDF_cguid_t cguid,
+                    FDF_readobject_t *robj)
+{
+    if (unlikely(!ptr_FDFReadObjectExpiry))
+        undefined("FDFReadObjectExpiry");
+
+    return (*ptr_FDFReadObjectExpiry)(fdf_thread_state, cguid, robj);
+}
+
+
+/*
  * FDFFreeBuffer
  */
 FDF_status_t 
@@ -607,6 +635,22 @@ FDFWriteObject(struct FDF_thread_state *sdf_thread_state,
                                  data,
                                  datalen,
                                  flags);
+}
+
+
+/*
+ * FDFWriteObjectExpiry
+ */
+FDF_status_t 
+FDFWriteObjectExpiry(struct FDF_thread_state *fdf_thread_state,
+                     FDF_cguid_t cguid,
+                     FDF_writeobject_t *wobj,
+                     uint32_t flags)
+{
+    if (unlikely(!ptr_FDFWriteObjectExpiry))
+        undefined("FDFWriteObjectExpiry");
+
+    return (*ptr_FDFWriteObjectExpiry)(fdf_thread_state, cguid, wobj, flags);
 }
 
 

@@ -2234,6 +2234,51 @@ FDF_status_t FDFReadObject(
     return(ar.respStatus);
 }
 
+FDF_status_t FDFReadObjectExpiry(
+    struct FDF_thread_state  *fdf_thread_state,
+    FDF_cguid_t               cguid,
+    FDF_readobject_t         *robj
+    )
+{
+    SDF_appreq_t        ar;
+    SDF_action_init_t  *pac;
+    SDF_status_t        status;
+
+    if ( !cguid )
+        return FDF_INVALID_PARAMETER;
+
+    if ((NULL == fdf_thread_state) || (NULL == robj) || (NULL == robj->key)) {
+        return FDF_INVALID_PARAMETER;        
+    }
+
+    if ( !fdf_is_ctnr_open( cguid) ) {
+        plat_log_msg( 160039, LOG_CAT, LOG_ERR, "Container must be open to execute a read object" );
+        return FDF_FAILURE_CONTAINER_NOT_OPEN;
+    }
+
+    pac = (SDF_action_init_t *) fdf_thread_state;
+   
+    ar.reqtype = APGRX;
+    ar.curtime = robj->current;
+    ar.ctxt = pac->ctxt;
+    ar.ctnr = cguid;
+    ar.ctnr_type = SDF_OBJECT_CONTAINER;
+    ar.internal_request = SDF_TRUE;
+    ar.internal_thread = fthSelf();
+    if ((status=SDFObjnameToKey(&(ar.key), (char *) robj->key, robj->key_len)) != SDF_SUCCESS) {
+        return(status);
+    }
+ 
+    ar.ppbuf_in = (void **)(&(robj->data));
+
+    ActionProtocolAgentNew(pac, &ar);
+
+    robj->data_len = ar.destLen;
+    robj->expiry = ar.exptime;
+
+    return(ar.respStatus);
+}
+
 FDF_status_t FDFFreeBuffer(
 	char *buf
 	)
@@ -2310,6 +2355,61 @@ FDF_status_t FDFWriteObject(
 	}
 	
     return ar.respStatus;
+}
+
+FDF_status_t FDFWriteObjectExpiry(
+    struct FDF_thread_state  *fdf_thread_state,
+    FDF_cguid_t               cguid,
+    FDF_writeobject_t        *wobj,
+    uint32_t                  flags
+    )
+{
+    SDF_appreq_t        ar;
+    SDF_action_init_t  *pac;
+    FDF_status_t        status;
+
+    if ( !cguid )
+        return FDF_INVALID_PARAMETER;
+ 
+    if ((NULL == fdf_thread_state) || (NULL == wobj) || (NULL == wobj->key)) {
+        return FDF_INVALID_PARAMETER;        
+    }
+
+    if (NULL == wobj->data) {
+        return FDF_BAD_PBUF_POINTER;
+    }
+
+    if ( !fdf_is_ctnr_open( cguid) ) {
+        plat_log_msg( 160040, LOG_CAT, LOG_ERR, "Container must be open to execute a write object" );
+        return FDF_FAILURE_CONTAINER_NOT_OPEN;
+    }
+
+    pac = (SDF_action_init_t *) fdf_thread_state;
+
+    if ( flags & FDF_WRITE_MUST_EXIST ) {
+        ar.reqtype = APPAE;
+    } else if( flags & FDF_WRITE_MUST_NOT_EXIST ) {
+        ar.reqtype = APCOE;
+    }
+    else {
+        ar.reqtype = APSOE;
+    }
+    ar.curtime = wobj->current;
+    ar.ctxt = pac->ctxt;
+    ar.ctnr = cguid;
+    ar.ctnr_type = SDF_OBJECT_CONTAINER;
+    ar.internal_request = SDF_TRUE;
+    ar.internal_thread = fthSelf();
+    if ((status=SDFObjnameToKey(&(ar.key), (char *)wobj->key, wobj->key_len)) != SDF_SUCCESS) {
+        return(status);
+    }
+    ar.sze = wobj->data_len;
+    ar.pbuf_out = (void *) (wobj->data);
+    ar.exptime = wobj->expiry;
+
+    ActionProtocolAgentNew(pac, &ar);
+
+    return(ar.respStatus);
 }
 
 FDF_status_t FDFDeleteObject(

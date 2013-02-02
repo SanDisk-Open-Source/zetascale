@@ -315,6 +315,23 @@ typedef struct FDF_iterator {
     FDF_cguid_t       cguid;
 } FDF_iterator_t;
 
+typedef struct {
+    char            *key;
+    uint32_t         key_len;
+    char            *data;
+    uint64_t         data_len;
+    FDF_time_t       current;
+    FDF_time_t       expiry;
+} FDF_readobject_t;
+
+typedef struct {
+    char            *key;
+    uint32_t         key_len;
+    char            *data;
+    uint64_t         data_len;
+    FDF_time_t       current;
+    FDF_time_t       expiry;
+} FDF_writeobject_t;
 
 struct FDF_state;
 struct FDF_thread_state;
@@ -555,6 +572,30 @@ FDF_status_t FDFReadObject(
 	);
 
 /**
+ *  @brief Get a copy of an object for read-only  access. Return its current expiry time.
+ *
+ *  Get an object and copy it into an SDF-allocated buffer. The application
+ *  only intends to read the object. The current expiry time is returned.
+ *
+ *  @param fdf_thread_state <IN> The FDF context for which this operation applies.
+ *  @param cguid <IN> Identity of an open container with appropriate permissions.
+ *  @param robj <IN> Identity of a read object structure
+ *
+ *  @return FDF_SUCCESS: operation completed successfully.
+ *          FDF_BAD_CONTEXT: the provided context is invalid.
+ *          FDF_CONTAINER_UNKNOWN: the container ID is invalid.
+ *          FDF_OBJECT_UNKNOWN: the object does not exist.
+ *          FDF_IN_TRANS: this operation cannot be done inside a transaction.
+ *          FDF_FAILURE: operation failed.
+ */
+FDF_status_t FDFReadObjectExpiry(
+    struct FDF_thread_state  *fdf_thread_state,
+    FDF_cguid_t               cguid,
+    FDF_readobject_t         *robj
+    );
+
+
+/**
  * @brief Free an object buffer
  *
  * @param buf <IN> object buffer
@@ -596,6 +637,33 @@ FDF_status_t FDFWriteObject(
 	uint64_t             datalen,
 	uint32_t			 flags
 	);
+
+/**
+ *  @brief Write entire object, creating it if necessary.  
+ *
+ *  Put an entire object, with contents copied from an application-provided
+ *  buffer. This may change the size of the object. The expiry time
+ *  is set. If the object does not exist, create it and assign its
+ *  value.
+ *
+ *  @param fdf_thread_state <IN> The SDF context for which this operation applies.
+ *  @param cguid <IN> Identity of an open container with appropriate permissions.
+ *  @param wobj <IN> Identity of a write object structure
+ *  @param flags <IN> create/update flags
+ *
+ *  @return FDF_SUCCESS: operation completed successfully.
+ *          FDF_BAD_CONTEXT: the provided context is invalid.
+ *          FDF_CONTAINER_UNKNOWN: the container ID is invalid.
+ *          FDF_OUT_OF_MEM: there is insufficient memory/flash.
+ *          FDF_IN_TRANS: this operation cannot be done inside a transaction.
+ *          FDF_FAILURE: operation failed.
+ */
+FDF_status_t FDFWriteObjectExpiry(
+    struct FDF_thread_state  *fdf_thread_state,
+    FDF_cguid_t               cguid,
+    FDF_writeobject_t        *wobj,
+    uint32_t                  flags
+    );
 
 /**
  *  @brief Delete an object, but check for expiry first.
@@ -772,6 +840,8 @@ FDF_status_t FDFMiniTransactionStart(
 FDF_status_t FDFMiniTransactionCommit(
 	struct FDF_thread_state	*fdf_thread_state
 	);
+
+
 
 #ifdef __cplusplus
 }

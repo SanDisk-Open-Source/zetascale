@@ -34,6 +34,7 @@ typedef enum {
 
 
 typedef uint64_t FDF_cguid_t;
+typedef uint32_t FDF_time_t; 
 
 /**
  * @brief Statuses and their value
