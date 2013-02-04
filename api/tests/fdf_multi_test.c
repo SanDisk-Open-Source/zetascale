@@ -233,10 +233,11 @@ void* worker(void *arg)
 
     for(i = 0; i < iterations; i++)
     {
-		sprintf(key_str, "key%04ld-%08d", (long) arg, i);
+		//sprintf(key_str, "key%04ld-%08d", (long) arg, i);
+		sprintf(key_str, "key%04d-%08d", 0, i);
 		sprintf(key_data, "key%04ld-%08d_data", (long) arg, i);
 		status = fdf_set(_fdf_thd_state, cguid, key_str, strlen(key_str) + 1, key_data, strlen(key_data) + 1);
-		if (FDF_SUCCESS != status ) {
+		if ( FDF_SUCCESS != status ) {
 	    	fprintf(stderr, "fdf_set: %s - %s\n", key_str, FDFStrError(status));
 		}
 		plat_assert(status == FDF_SUCCESS);
@@ -247,10 +248,11 @@ void* worker(void *arg)
 
     for(i = 0; i < iterations; i++)
     {
-		sprintf(key_str, "key%04ld-%08d", (long) arg, i);
+		//sprintf(key_str, "key%04ld-%08d", (long) arg, i);
+		sprintf(key_str, "key%04d-%08d", 0, i);
 		sprintf(key_data, "key%04ld-%08d_data", (long) arg, i);
     	status = fdf_get(_fdf_thd_state, cguid, key_str, strlen(key_str) + 1, &data, &datalen);
-		if (FDF_SUCCESS != status ) {
+		if ( FDF_SUCCESS != status ) {
 	    	fprintf(stderr, "fdf_get: %s - %s\n", key_str, FDFStrError(status));
 		}
 		plat_assert(status == FDF_SUCCESS);
@@ -286,12 +288,8 @@ int main(int argc, char *argv[])
 		size = atol( argv[1] ) * 1024 * 1024 * 1024;
 		threads = atoi( argv[2] );
 		iterations = atoi( argv[3] );
-		fprintf(stderr, "size=%lu, hreads=%d, iterations=%d\n", size, threads, iterations);
+		fprintf(stderr, "size=%lu, threads=%d, iterations=%d\n", size, threads, iterations);
 	}
-
-    FDFSetProperty("SDF_FLASH_FILENAME", "/schooner/data/schooner%d");
-    FDFSetProperty("SDF_FLASH_SIZE", "12");
-    FDFSetProperty("SDF_CC_MAXCACHESIZE", "1000000000");
 
     sprintf(name, "%s-foo", base);
 
