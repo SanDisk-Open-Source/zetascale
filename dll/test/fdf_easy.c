@@ -15,6 +15,28 @@
 
 
 /*
+ * Macros.
+ */
+#define streq(a, b) (strcmp(a, b) == 0)
+#define round(n, d) (((n)+(d)-1)/(d))
+
+
+/*
+ * Log an error message.
+ */
+static void
+loge(const char *fmt, ...)
+{
+    va_list alist;
+
+    va_start(alist, fmt);
+    vfprintf(stderr, fmt, alist);
+    va_end(alist);
+    fprintf(stderr, "\n");
+}
+
+
+/*
  * Set errno based on a FDF error.
  */
 static void
@@ -153,6 +175,81 @@ fdf_free(fdf_t *fdf, void *ptr)
 
 
 /*
+ * Get a durability level property.
+ */
+static int
+prop2_durability(fdf_t *fdf, int *fail, char *pre, char *name, int def)
+{
+    const char *val = fdf_get_prop2(fdf, pre, name);
+    if (!val)
+        return def;
+
+    if (streq(val, "PERIODIC"))
+	return FDF_DURABILITY_PERIODIC;
+    if (streq(val, "SW_CRASH_SAFE"))
+	return FDF_DURABILITY_SW_CRASH_SAFE;
+    if (streq(val, "HW_CRASH_SAFE"))
+	return FDF_DURABILITY_HW_CRASH_SAFE;
+
+    loge("bad property: %s_%s = %s", pre, name, val);
+    *fail = 1;
+    errno = EINVAL;
+    return def;
+}
+
+
+/*
+ * Get an unsigned integer property.
+ */
+static unsigned long
+prop2_uint(fdf_t *fdf, int *fail, char *pre, char *name, unsigned long def)
+{
+    const char *val = fdf_get_prop2(fdf, pre, name);
+    if (!val)
+        return def;
+
+    char *end;
+    unsigned long ret = strtol(val, &end, 0);
+    int c = *end;
+
+    if (c == 'K')
+        ret *= 1024;
+    else if (c == 'M')
+        ret *= 1024 * 1024;
+    else if (c == 'G')
+        ret *= 1024 * 1024 * 1024;
+    else if (c != '\0') {
+        loge("bad property: %s_%s = %s", pre, name, val);
+        *fail = 1;
+        errno = EINVAL;
+        ret = def;
+    }
+    return ret;
+}
+
+
+/*
+ * Get a boolean property.
+ */
+static int
+prop2_bool(fdf_t *fdf, int *fail, char *pre, char *name, int def)
+{
+    const char *val = fdf_get_prop2(fdf, pre, name);
+    if (!val)
+        return def;
+    if (streq(val, "1") || streq(val, "on") || streq(val, "true"))
+        return FDF_TRUE;
+    if (streq(val, "0") || streq(val, "off") || streq(val, "false"))
+        return FDF_FALSE;
+
+    loge("bad property: %s_%s = %s", pre, name, val);
+    *fail = 1;
+    errno = EINVAL;
+    return def;
+}
+
+
+/*
  * Initialize a container.
  */
 fdf_ctr_t *
@@ -177,15 +274,27 @@ fdf_ctr_init(fdf_t *fdf, char *name, char **errp)
         return NULL;
     }
 
+    int fail = 0;
     FDF_container_props_t *props = &ctr->props;
-    props->size_kb          = 1024 * 1024;
-    props->fifo_mode        = FDF_FALSE;
-    props->persistent       = FDF_TRUE;
-    props->evicting         = FDF_FALSE;
-    props->writethru        = FDF_TRUE;
-    props->durability_level = FDF_DURABILITY_PERIODIC;
-    props->cid              = 0;
-    props->num_shards       = 1;
+
+    props->fifo_mode  = prop2_bool(fdf, &fail, name, "FIFO_MODE",  FDF_FALSE);
+    props->persistent = prop2_bool(fdf, &fail, name, "PERSISTENT", FDF_TRUE);
+    props->evicting   = prop2_bool(fdf, &fail, name, "EVICTING",   FDF_FALSE);
+    props->evicting   = prop2_bool(fdf, &fail, name, "WRITETHRU",  FDF_TRUE);
+    props->cid        = prop2_uint(fdf, &fail, name, "CID",        0);
+    props->num_shards = prop2_uint(fdf, &fail, name, "NUM_SHARDS", 1);
+
+    props->size_kb =
+        round(prop2_uint(fdf, &fail, name, "SIZE", 1024 * 1024), 1024);
+
+    props->durability_level =
+        prop2_durability(fdf, &fail, name, "DURABILITY_LEVEL",
+                         FDF_DURABILITY_PERIODIC);
+
+    if (fail) {
+        set_err_sys(errp, errno);
+        return NULL;
+    }
 
     ctr->name = name;
     ctr->num  = __sync_fetch_and_add(&num, 1);

@@ -136,8 +136,8 @@ main(int argc, char *argv[])
            fdf_get_prop2(fdf, "FDF", "FLASH_FILENAME"));
 
     /* Create containers */
-    fdf_ctr_t *ctr1 = make_ctr(fdf, "c0");
-    fdf_ctr_t *ctr2 = make_ctr(fdf, "c1");
+    fdf_ctr_t *ctr1 = make_ctr(fdf, "C0");
+    fdf_ctr_t *ctr2 = make_ctr(fdf, "C1");
 
     /* Set some keys */
     set_key(ctr1, "white", "horse");
