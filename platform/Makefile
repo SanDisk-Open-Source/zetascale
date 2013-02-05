@@ -121,10 +121,7 @@ $(BUILD)ffdc.stamp: $(FFDC_PARSER) $(MAKEFILES)
 	fi
 	cd $(BUILD)tmp; $(PERL) $(abspath $(FFDC_PARSER)) $(abspath $(TOP))
 	for file in $(FFDC_SRC); do \
-	    cmp $$file $(BUILD)tmp/$$file; \
-	    if [ $$? -ne 0 ] ; then \
 		cp $(BUILD)tmp/$$file .; \
-	    fi; \
 	done
 	cmp ffdc_log.mc $(BUILD)tmp/ffdc_log.mc; \
 	if [ $$? -ne 0 ]; then \
