@@ -11,7 +11,7 @@ if [ -z "${FDF_SDK_VERSION}" ]; then
 fi
 #
 if [ -z ${SVN_REVISION} ]; then
-	export SVN_REVISION=$(git-svn info | awk '/Last Changed Rev:/ {print $NF}')
+	export SVN_REVISION=$(svn info | awk '/Last Changed Rev:/ {print $NF}')
 fi
 #
 if [ -z ${BUILD_NUMBER} ]; then
