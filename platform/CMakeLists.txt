@@ -52,3 +52,11 @@ ADD_LIBRARY(platform OBJECT aio_api.c
 	time.c
         )
 add_subdirectory(tool/hotkey)
+
+add_custom_command(
+    OUTPUT ffdc_log.c ffdc_log.h ffdc_log.dbg ffdc_reader.c
+    COMMAND /usr/bin/perl fdf_ffdc_parser.pl $(CMAKE_SOURCE_DIR)
+)
+add_custom_target(ffdc DEPENDS ffdc_log.c ffdc_log.h ffdc_log.dbg ffdc_reader.c)
+add_dependencies(platform ffdc)
+

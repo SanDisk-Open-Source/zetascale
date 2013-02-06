@@ -5,3 +5,4 @@ add_library(sdftcp OBJECT msg_int.c
 	stats.c 
 	tools.c 
 	trace.c)
+add_dependencies(sdftcp ffdc)

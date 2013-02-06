@@ -5,3 +5,4 @@ add_library(fth OBJECT fth.c
         fthSem.c 
         fthOpt.c 
 	fthSignal.c)
+add_dependencies(fth ffdc)

@@ -11,3 +11,4 @@ add_library(misc OBJECT parse_int.c
 	stop.c 
 	timeout.c
 )
+add_dependencies(misc ffdc)
