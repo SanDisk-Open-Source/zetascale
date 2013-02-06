@@ -5,7 +5,8 @@ LIB = libsdf.a
 LIB_SRCS = \
 	sdf.c \
 	fdf.c \
-        enumerate.c
+	fdf_cmap.c \
+    enumerate.c
 
 SUBDIRS = tests
 

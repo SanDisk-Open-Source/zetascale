@@ -3066,6 +3066,12 @@
 150088 Unable to initialize FDF thread state, exiting
 150089 Unable to start the virtual container initialization thread.
 150090 Incorrect value(%d) for Mcd_aio_num_files. It must be set to 1
+150091 Cannot open container %lu to delete it
+150092 Failed to delete container objects
+150093 Cannot close container %lu to delete it
+150094 Failed to resize %lu - %s
+150095 Failed to delete object while deleting container: %s
+150096 Failed to end enumeration while deleting container: %s
 
 
 # root

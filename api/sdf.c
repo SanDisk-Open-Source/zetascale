@@ -253,7 +253,7 @@ static struct sdf_agent_state agent_state;
 static sem_t Mcd_fsched_sem;
 static sem_t Mcd_initer_sem;
 
-ctnr_map_t CtnrMap[MCD_MAX_NUM_CNTRS];
+extern ctnr_map_t CtnrMap[MCD_MAX_NUM_CNTRS];
 
 #ifdef notdef
 static int count_containers() {
@@ -947,7 +947,7 @@ SDF_status_t SDFCreateContainer(
                 // this is an unused map entry
                 strcpy(CtnrMap[i].cname, cname);
                 CtnrMap[i].cguid         = *cguid;
-				CtnrMap[i].cid           = cid;
+				//CtnrMap[i].cid           = cid;
                 CtnrMap[i].sdf_container = containerNull;
 #ifdef SDFAPIONLY
                 Mcd_containers[i].cguid = *cguid;
@@ -1808,7 +1808,7 @@ SDF_status_t SDFDeleteContainer(
 		{
 			CtnrMap[i_ctnr].cname[0]		= '\0';
     		CtnrMap[i_ctnr].cguid         	= 0;
-    		CtnrMap[i_ctnr].cid         	= SDF_NULL_CID;
+    		//CtnrMap[i_ctnr].cid         	= SDF_NULL_CID;
 		    CtnrMap[i_ctnr].sdf_container 	= containerNull;
 		}
 		else

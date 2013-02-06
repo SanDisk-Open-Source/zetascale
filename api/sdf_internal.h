@@ -15,7 +15,6 @@ typedef struct ctnr_map {
 	FDF_boolean_t	allocated;
     char            cname[CONTAINER_NAME_MAXLEN];
     FDF_cguid_t     cguid;
-	uint64_t       	cid;			// unused
     SDF_CONTAINER   sdf_container;
 	uint64_t		size_kb;
 	uint64_t		current_size;

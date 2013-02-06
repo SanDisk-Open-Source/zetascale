@@ -239,7 +239,6 @@ cmc_create(
     for (i=0; i<MCD_MAX_NUM_CNTRS; i++) {
         CtnrMap[i].cname[0]      = '\0';
         CtnrMap[i].cguid         = 0;
-        CtnrMap[i].cid         	 = SDF_NULL_CID;
         CtnrMap[i].sdf_container = containerNull;
         CtnrMap[i].size_kb  	 = 0;
         CtnrMap[i].current_size  = 0;
@@ -585,7 +584,6 @@ cmc_recover(SDF_internal_ctxt_t *pai, const char *cmc_path) {
 							// this is an unused map entry
 							strcpy(CtnrMap[i].cname, blob->meta.cname);
 							CtnrMap[i].cguid         		= blob->meta.cguid;
-							CtnrMap[i].cid         			= blob->meta.properties.container_id.container_id;
 							CtnrMap[i].sdf_container 		= containerNull;
 							CtnrMap[i].size_kb				= blob->meta.properties.container_id.size;
 							CtnrMap[i].current_size 		= 0;
