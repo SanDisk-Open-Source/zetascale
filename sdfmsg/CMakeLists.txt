@@ -6,4 +6,3 @@ add_library(sdfmsg OBJECT sdf_fth_mbx.c
 	sdf_msg_action.c 
 	sdf_msg_wrapper.c 
 	sdf_msg_binding.c)
-add_dependencies(sdfmsg ffdc)

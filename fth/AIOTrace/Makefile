@@ -1,0 +1,22 @@
+
+#CC      = gcc
+CC      = cc
+CFLAGS  = -g
+LDFLAGS =
+TARGET  = aa
+
+LIBS	= -lm
+
+OBJS = hash.o tlmap.o xtlmap.o main.o
+
+aa : $(OBJS)
+	$(CC) $(LDFLAGS) $(LIBS) -o $@ $(OBJS)
+
+-include $(OBJS:.o=.d)
+
+%.o: %.c
+	$(CC) -c $(CFLAGS) $*.c -o $*.o
+	$(CC) -MM $(CFLAGS) $*.c > $*.d
+
+clean:
+	rm -f $(TARGET) *.o *.d
