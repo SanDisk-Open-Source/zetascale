@@ -2209,7 +2209,11 @@ FDF_status_t FDFSetContainerProps(
     	meta.properties.cache.writethru                       = SDF_TRUE;
 		meta.properties.fifo_mode 							  = SDF_FALSE;
 		meta.properties.shard.num_shards 					  = 1;
-		meta.properties.cguid 								  = pprops->cguid;
+		/* TRAC:10469
+           Disabling the following line because cguid can never be changed and if allowed
+           apps can set invalid value for cguid, GetContainerProperties return invalid cguids
+        */
+        /*meta.properties.cguid 							  = pprops->cguid;*/
 #endif
 
 		meta.properties.durability_level = SDF_NO_DURABILITY;
