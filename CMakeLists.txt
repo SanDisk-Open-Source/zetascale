@@ -8,9 +8,11 @@ ENDIF()
 #
 OPTION(OPTIMIZE "Generate optimized build" ON)
 OPTION(DEBUG "Generate debug build" OFF)
-OPTION(BUILD_SHARED "Generate shared libs" OFF)
+OPTION(BUILD_SHARED "Generate shared libs" ON)
 OPTION(PERMISSIVE "Omit -Werror for build" OFF)
 #
+ENABLE_TESTING()
+
 INCLUDE_DIRECTORIES(${CMAKE_CURRENT_SOURCE_DIR})
 INCLUDE_DIRECTORIES(${CMAKE_CURRENT_SOURCE_DIR}/api)
 INCLUDE_DIRECTORIES(${CMAKE_CURRENT_SOURCE_DIR}/../3rdparty_inc)
@@ -46,6 +48,7 @@ ENDIF(NOT PERMISSIVE)
 #
 add_subdirectory(agent)
 add_subdirectory(api)
+add_subdirectory(api/tests)
 add_subdirectory(ecc)
 add_subdirectory(fth)
 add_subdirectory(misc)
@@ -78,6 +81,7 @@ $<TARGET_OBJECTS:shared>
 $<TARGET_OBJECTS:clipper> 
 $<TARGET_OBJECTS:fifo> 
 )
+add_dependencies(${LIBRARY} ffdc)
 #
 IF(BUILD_SHARED)
 	SET_TARGET_PROPERTIES(${LIBRARY} PROPERTIES 

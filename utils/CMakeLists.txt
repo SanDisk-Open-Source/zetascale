@@ -8,3 +8,4 @@ add_library(utils OBJECT linkedlist.c
 	caller.c 
 	sdfkey.c 
 	platform_check.c)
+add_dependencies(utils ffdc)

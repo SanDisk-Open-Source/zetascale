@@ -9,3 +9,4 @@ add_library(fifo OBJECT fifo.c
  	mcd_osd.c 
  	mcd_ipf.c 
 	recovery.c )
+add_dependencies(fifo ffdc)
