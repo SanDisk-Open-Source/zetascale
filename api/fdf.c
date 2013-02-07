@@ -2035,6 +2035,11 @@ static FDF_status_t fdf_delete_container(
 
     SDFStartSerializeContainerOp(pai);
 
+	if ( fdf_is_ctnr_open( cguid ) ) {
+		status = FDF_CANNOT_DELETE_OPEN_CONTAINER;
+		goto out;
+	}
+
 	if ( ( status = name_service_get_meta( pai, cguid, &meta ) ) != FDF_SUCCESS ) {
 		plat_log_msg( 150085, LOG_CAT, LOG_ERR, "Could not read metadata for %lu\n", cguid );
     	SDFEndSerializeContainerOp(pai);
