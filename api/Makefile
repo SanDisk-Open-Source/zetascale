@@ -8,8 +8,6 @@ LIB_SRCS = \
 	fdf_cmap.c \
     enumerate.c
 
-SUBDIRS = tests
-
 PROG = sdftest
 
 SRCS = \
