@@ -96,8 +96,7 @@ typedef struct {
 typedef unsigned long SDF_operation_t;
 typedef unsigned long SDF_size_t;
 
-#define SDF_NULL_CGUID UINT64_MAX	// NULL container guid
-#define SDF_NULL_CID   UINT64_MAX	// NULL container id
+#define SDF_NULL_CGUID 0			// NULL container guid
 
 #define SDF_MAX_OPIDS          16
 #define SDF_RESERVED_CONTEXTS  1024
@@ -357,7 +356,10 @@ typedef struct {
     item(SDF_CONTAINER_FULL, /* default */) \
     item(SDF_CANNOT_REDUCE_CONTAINER_SIZE, /* default */) \
     item(SDF_CANNOT_CHANGE_CONTAINER_SIZE, /* default */) \
-    item(SDF_OUT_OF_STORAGE_SPACE, /* default */)
+    item(SDF_OUT_OF_STORAGE_SPACE, /* default */) \
+    item(SDF_FAILURE_ALREADY_IN_TRANS, /* default */) \
+    item(SDF_FAILURE_NO_TRANS, /* default */) \
+    item(SDF_CANNOT_DELETE_OPEN_CONTAINER, /* default */)     
 
 
 typedef enum {

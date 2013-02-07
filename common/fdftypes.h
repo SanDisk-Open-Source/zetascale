@@ -189,7 +189,8 @@ typedef uint32_t FDF_time_t;
     item(FDF_CANNOT_CHANGE_CONTAINER_SIZE, /* default */) \
     item(FDF_OUT_OF_STORAGE_SPACE, /* default */) \
     item(FDF_FAILURE_ALREADY_IN_TRANS, /* default */) \
-    item(FDF_FAILURE_NO_TRANS, /* default */)
+    item(FDF_FAILURE_NO_TRANS, /* default */) \
+    item(FDF_CANNOT_DELETE_OPEN_CONTAINER, /* default */) 
 
 
 typedef enum {
@@ -200,7 +201,7 @@ typedef enum {
     N_FDF_STATUS_STRINGS
 } FDF_status_t;
 
-#define FDF_NULL_CGUID UINT64_MAX 
+#define FDF_NULL_CGUID 0
 
 
 
