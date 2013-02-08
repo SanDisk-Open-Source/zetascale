@@ -1348,7 +1348,12 @@ static FDF_status_t fdf_create_container(
 
 	if( properties->size_kb < 1 )
 	{
-     	plat_log_msg(160036, LOG_CAT, LOG_ERR, "%s, container size=%lu bytes is less then minimum container size, which is 1KB", cname, properties->size_kb * 1024);
+     	plat_log_msg( 150100, 
+					  LOG_CAT, 
+					  LOG_ERR, 
+					  "%s, container size=%lu bytes is less then minimum container size, which is 1KB", 
+					  cname, 
+					  properties->size_kb * 1024);
 		return FDF_FAILURE_CONTAINER_TOO_SMALL;
 	}
 

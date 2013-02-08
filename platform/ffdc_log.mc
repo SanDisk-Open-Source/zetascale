@@ -3075,6 +3075,7 @@
 150097 Failed to close container during delete - attempting delete
 150098 Failed to delete container %lu during recovery - %s
 150099 Container does not exist
+150100 %s, container size=%lu bytes is less then minimum container size, which is 1KB
 
 
 # root
