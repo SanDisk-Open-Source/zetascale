@@ -3072,6 +3072,9 @@
 150094 Failed to resize %lu - %s
 150095 Failed to delete object while deleting container: %s
 150096 Failed to end enumeration while deleting container: %s
+150097 Failed to close container during delete - attempting delete
+150098 Failed to delete container %lu during recovery - %s
+150099 Container does not exist
 
 
 # root

@@ -1346,13 +1346,11 @@ static FDF_status_t fdf_create_container(
 
      plat_log_msg(160033, LOG_CAT, LOG_INFO, "%s, size=%ld bytes", cname, (long)properties->size_kb * 1024);
 
-#ifdef notdef
-	if( properties->size_kb < 1024 * 1024 )
+	if( properties->size_kb < 1 )
 	{
-     	plat_log_msg(160036, LOG_CAT, LOG_ERR, "%s, container size=%d bytes is less then minimum container size, which is 1Gb", cname, properties->size_kb * 1024);
+     	plat_log_msg(160036, LOG_CAT, LOG_ERR, "%s, container size=%lu bytes is less then minimum container size, which is 1KB", cname, properties->size_kb * 1024);
 		return FDF_FAILURE_CONTAINER_TOO_SMALL;
 	}
-#endif
 
     if ( !properties->writethru ) {
         if ( !properties->evicting ) {
@@ -2031,13 +2029,28 @@ static FDF_status_t fdf_delete_container(
 				  cguid );
 
 	if ( !cguid )
-		return SDF_INVALID_PARAMETER;
+		return FDF_INVALID_PARAMETER;
 
     SDFStartSerializeContainerOp(pai);
 
-	if ( fdf_is_ctnr_open( cguid ) ) {
-		status = FDF_CANNOT_DELETE_OPEN_CONTAINER;
+    i_ctnr = fdf_get_ctnr_from_cguid( cguid );
+
+	if ( i_ctnr < 0 ) {
+		plat_log_msg( 150099,
+					  LOG_CAT,
+					  LOG_ERR,
+					  "Container does not exist" );
+		status = FDF_FAILURE;
 		goto out;
+	}
+
+	if ( fdf_is_ctnr_open( cguid ) ) {
+		if ( ( status = fdf_close_container( fdf_thread_state, cguid, mode, FDF_FALSE ) ) != FDF_SUCCESS ) {
+			plat_log_msg( 150097,
+						  LOG_CAT,
+						  LOG_ERR,
+						  "Failed to close container during delete - attempting delete" );
+		}
 	}
 
 	if ( ( status = name_service_get_meta( pai, cguid, &meta ) ) != FDF_SUCCESS ) {
@@ -2148,7 +2161,7 @@ FDF_status_t FDFGetContainers(
     n_containers = 0;
 
     for ( i = 0; i < MCD_MAX_NUM_CNTRS; i++ ) {
-		if ( CtnrMap[i].cguid != 0 ) {
+		if ( CtnrMap[i].cguid != 0 && CtnrMap[i].cguid != VMC_CGUID && CtnrMap[i].cguid != VDC_CGUID ) {
 			cguids[n_containers] = Mcd_containers[i].cguid;
             n_containers++;
         }
@@ -3470,12 +3483,9 @@ FDF_status_t fdf_resize_container(
     if ( index > -1 ) {
         plat_log_msg( 150082, LOG_CAT, LOG_ERR, "Cannnot find container id %lu", cguid );
         status = FDF_CONTAINER_UNKNOWN;
-// If this code is executed, will likely segfault - Johann
-#if 0
     } else if ( size < CtnrMap[ index ].size_kb ) {
             plat_log_msg( 150079, LOG_CAT, LOG_ERR, "Cannnot reduce container size" );
             status = FDF_CANNOT_REDUCE_CONTAINER_SIZE;
-#endif
     } else if ( ( status = name_service_get_meta( pai,
                                                	  cguid,
                                                	  &meta ) ) != FDF_SUCCESS) {
@@ -3489,10 +3499,7 @@ FDF_status_t fdf_resize_container(
                                                &meta ) ) != FDF_SUCCESS ) {
             plat_log_msg( 150081, LOG_CAT, LOG_ERR, "Cannnot write container metadata for %lu", cguid );
         } else {
-// If this code is executed, will likely segfault - Johann
-#if 0
             CtnrMap[ index ].size_kb = size;
-#endif
         }
     }
 
@@ -3508,13 +3515,18 @@ static void *fdf_vc_thread(
     struct FDF_iterator     *_fdf_iterator  		= NULL;
     int                      i              		= 1000;
     int                      j              		= 0;
+    int                      k              		= 0;
     char                    *key            		= NULL;
     uint32_t                 keylen         		= 0;
     uint64_t                 datalen        		= 0;
     SDF_container_meta_t    *meta           		= NULL;
 	struct SDF_shared_state *state 					= &sdf_shared_state;
 	int						 flags					= FDF_CTNR_CREATE;
+	FDF_cguid_t				 deletes[MCD_MAX_NUM_CNTRS];
 
+
+	for ( k = 0; k < MCD_MAX_NUM_CNTRS; k++ )
+		deletes[k] = FDF_NULL_CGUID;
 
     if ( FDF_SUCCESS != FDFInitPerThreadState( ( struct FDF_state * ) arg, 
 											   ( struct FDF_thread_state ** ) &fdf_thread_state ) ) 
@@ -3569,11 +3581,26 @@ fprintf(stderr, ">>>fdf_vc_thread: recovering %s - %lu\n", meta->cname, meta->cg
                 break;
             }
         }
+
+		if ( meta->delete_in_progress ) {
+			deletes[k] = meta->cguid;
+			k++;
+		}
     }
     
     status = FDFFinishEnumeration( fdf_thread_state, 
 								   _fdf_iterator
 								 );
+	
+	for( k = 0; k < MCD_MAX_NUM_CNTRS && deletes[k] != FDF_NULL_CGUID; k++ ) {
+		if ( ( status = FDFDeleteContainer( fdf_thread_state, deletes[k] ) ) != FDF_SUCCESS )
+			plat_log_msg( 150098,
+					  	  LOG_CAT, 
+					  	  LOG_ERR, 
+					  	  "Failed to delete container %lu during recovery - %s", 
+					  	  deletes[k], 
+					  	  FDFStrError( status ) );
+	}
 
 	return NULL;
 }
@@ -3682,7 +3709,7 @@ static FDF_status_t fdf_delete_objects(
 	)
 {
     FDF_status_t             status                 = FDF_FAILURE;
-    FDF_status_t             del_status             = FDF_FAILURE;
+    FDF_status_t             del_status             = FDF_SUCCESS;
     struct FDF_iterator     *_fdf_iterator          = NULL;
     int                      i                      = 1000;
     char                    *key            		= NULL;
@@ -3725,10 +3752,7 @@ static FDF_status_t fdf_delete_objects(
 				  	  FDFStrError( del_status ) ); 
 	}
 
-	if ( FDF_SUCCESS != del_status )
-		status = del_status;
-
-	return status;
+	return del_status;
 }
 
 /* Mini transactions handling */
