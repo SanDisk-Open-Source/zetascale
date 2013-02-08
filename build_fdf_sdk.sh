@@ -1,10 +1,11 @@
 #!/bin/bash
 #
 
-BUILD=./fdf-build
-
 set -xe
 export mWORKSPACE=$(readlink -f $(dirname $0))
+
+BUILD=${mWORKSPACE}/fdf-build
+
 #
 if [ -z "${FDF_SDK_VERSION}" ]; then
 	export FDF_SDK_VERSION=1.2
@@ -37,7 +38,8 @@ cd ${mWORKSPACE}
 echo "Building OPTIMIZED shared lib"
 rm -f CMakeCache.txt
 cmake ${mWORKSPACE} -DFDF_REVISION="${FDF_SDK_VERSION}-${SCHOONER_RELEASE}" #Default: -DDEBUG=OFF -DBUILD_SHARED=ON
-make -j24
+CPU=$(cat /proc/cpuinfo|grep CPU|wc -l)
+make -j $CPU
 #ctest
 cp -fv ${mWORKSPACE}/output/lib/* ${membrain_sdk_dir}/lib
 #make clean
@@ -50,12 +52,7 @@ cp -fv ${mWORKSPACE}/output/lib/* ${membrain_sdk_dir}/lib
 #cp -fv ${mWORKSPACE}/output/lib/* ${membrain_sdk_dir}/lib
 #
 #
-#cp -av ${mWORKSPACE}/config/memcached.properties.default ${membrain_sdk_dir}/config
 cp -av ${mWORKSPACE}/api/fdf.h ${membrain_sdk_dir}/include
-#cp -av ${mWORKSPACE}/api/fdf.h ${membrain_sdk_dir}/samples
-#cp -av ${mWORKSPACE}/api/tests/fdf_multi_test.c ${membrain_sdk_dir}/samples
-#cp -av ${mWORKSPACE}/api/Makefile.sdk ${membrain_sdk_dir}/samples/Makefile
-#
 mkdir -p ${membrain_sdk_dir}/include/common
 cp -va ${mWORKSPACE}/common/fdf{stats,types}.h ${membrain_sdk_dir}/include/common
 #
