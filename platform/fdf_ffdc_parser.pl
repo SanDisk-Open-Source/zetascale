@@ -212,7 +212,8 @@ sub _sitNeedToCreateFiles()
         return 1;
     }
 
-    return 0;
+    _sitLogInfo("Regenerate always. Re-generating source files...");    
+    return 1;
 }
 
 sub _sitIsNumber
