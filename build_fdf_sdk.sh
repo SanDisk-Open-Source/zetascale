@@ -1,7 +1,7 @@
 #!/bin/bash
 #
 
-BUILD=/dev/shm/fdf-build
+BUILD=./fdf-build
 
 set -xe
 export mWORKSPACE=$(readlink -f $(dirname $0))
@@ -38,7 +38,7 @@ echo "Building OPTIMIZED shared lib"
 rm -f CMakeCache.txt
 cmake ${mWORKSPACE} -DFDF_REVISION="${FDF_SDK_VERSION}-${SCHOONER_RELEASE}" #Default: -DDEBUG=OFF -DBUILD_SHARED=ON
 make -j24
-ctest
+#ctest
 cp -fv ${mWORKSPACE}/output/lib/* ${membrain_sdk_dir}/lib
 #make clean
 #
