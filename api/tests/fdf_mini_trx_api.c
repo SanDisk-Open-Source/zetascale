@@ -114,11 +114,6 @@ int main(int argc, char *argv[])
 		fprintf(stderr, "size=%lu, hreads=%d, iterations=%d\n", size, threads, iterations);
 	}
 
-    FDFSetProperty("FDF_FLASH_FILENAME", "/schooner/data/schooner%d");
-    FDFSetProperty("FDF_FLASH_SIZE", "12");
-    FDFSetProperty("FDF_CACHE_SIZE", "1000000000");
-    FDFSetProperty("SDF_REFORMAT", "1");
-
     t(fdf_init(), FDF_SUCCESS);
 
     t(fdf_init_thread(), FDF_SUCCESS);

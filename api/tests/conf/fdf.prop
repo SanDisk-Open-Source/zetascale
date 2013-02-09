@@ -1,0 +1,3 @@
+FDF_FLASH_FILENAME=/schooner/backup/schooner%d
+FDF_FLASH_SIZE=64
+SDF_REFORMAT=1

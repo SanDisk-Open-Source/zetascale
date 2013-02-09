@@ -28,12 +28,18 @@ membrain_sdk_dir=$BUILD/fdf_sdk-${FDF_SDK_VERSION}-${SCHOONER_RELEASE}
 rm -fr ${membrain_sdk_dir}
 mkdir -p ${membrain_sdk_dir}/{config,lib,include,samples,tests,docs}
 
-# FFDC log parser magic
-#cd ${mWORKSPACE}/platform
-#/usr/bin/perl ${mWORKSPACE}/platform/fdf_ffdc_parser.pl ${mWORKSPACE}
-
 cd ${mWORKSPACE}
 
+#debug shared lib
+if [ "$1" == "--debug" ] || [ "$2" == "--debug" ]; then
+echo "Building DEBUG shared lib"
+rm -f CMakeCache.txt
+cmake ${mWORKSPACE} -DDEBUG=ON -DFDF_REVISION="${FDF_SDK_VERSION}-${SCHOONER_RELEASE}"
+make -j $CPU
+cp -fv ${mWORKSPACE}/output/lib/* ${membrain_sdk_dir}/lib
+make clean
+fi
+#
 #optimized shared lib
 echo "Building OPTIMIZED shared lib"
 rm -f CMakeCache.txt
@@ -42,14 +48,6 @@ CPU=$(cat /proc/cpuinfo|grep CPU|wc -l)
 make -j $CPU
 #ctest
 cp -fv ${mWORKSPACE}/output/lib/* ${membrain_sdk_dir}/lib
-#make clean
-#
-#debug shared lib
-#echo "Building DEBUG shared lib"
-#rm -f CMakeCache.txt
-#cmake ${mWORKSPACE} -DDEBUG=ON -DBUILD_SHARED=ON  -DFDF_REVISION="${FDF_SDK_VERSION}-${SCHOONER_RELEASE}"
-#make -j24
-#cp -fv ${mWORKSPACE}/output/lib/* ${membrain_sdk_dir}/lib
 #
 #
 cp -av ${mWORKSPACE}/api/fdf.h ${membrain_sdk_dir}/include
@@ -59,3 +57,18 @@ cp -va ${mWORKSPACE}/common/fdf{stats,types}.h ${membrain_sdk_dir}/include/commo
 cd ${membrain_sdk_dir}/..
 tar --exclude=.svn --exclude=.git --exclude=libfdf.a --exclude=libfdfdbg.a -czf ${mWORKSPACE}/fdf_sdk-${FDF_SDK_VERSION}-${SCHOONER_RELEASE}.tar.gz fdf_sdk-${FDF_SDK_VERSION}-${SCHOONER_RELEASE}
 rm -fr fdf_sdk-${FDF_SDK_VERSION}-${SCHOONER_RELEASE}
+
+echo -e "\n** BUILD SUCCESSFUL **\n"
+
+echo -e "\n** Please set the following variables and modify FDF_PROPERTY_FILE\nto conform your envvironment in order to run 'make test':\nexport FDF_LIB=${mWORKSPACE}/output/lib/libfdf.so\nexport FDF_PROPERTY_FILE=${mWORKSPACE}/api/tests/conf/fdf.prop\n**\n"
+
+#Running tests
+if [ "$1" == "--test" ] || [ "$2" == "--test" ]; then
+	cd ${mWORKSPACE}
+
+	export FDF_LIB=${mWORKSPACE}/output/lib/libfdf.so
+	export FDF_PROPERTY_FILE=${mWORKSPACE}/api/tests/conf/fdf.prop
+
+	make test
+fi
+
