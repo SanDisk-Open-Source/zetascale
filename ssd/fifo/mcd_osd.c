@@ -10,6 +10,8 @@
  * $Id: mcd_osd.c 16149 2011-02-15 16:07:23Z briano $
  */
 
+#include <sdftcp/trace.h>
+
 #include <stdio.h>
 #include <signal.h>
 #include <aio.h>
@@ -66,6 +68,13 @@ SDF_cguid_t generate_cguid(
 extern uint32_t
 init_get_my_node_id();
 #endif
+
+
+/*
+ * Set logging category.
+ */
+#define LOG_CAT PLAT_LOG_CAT_SDF_AGENT
+
 
 /*
  *    Per fthread aio state.  All fthreads that call aio routines
@@ -8444,6 +8453,15 @@ mcd_osd_blk_to_lba_x(uint32_t blocks) {
 
 
 /*
+ * Exportable version of mcd_osd_lba_to_blk.
+ */
+uint32_t
+mcd_osd_lba_to_blk_x(uint32_t blocks) {
+    return mcd_osd_lba_to_blk(blocks);
+}
+
+
+/*
  * Exportable version of mcd_fth_osd_grow_class.
  */
 int
@@ -8659,4 +8677,16 @@ SDF_status_t process_raw_get_command_enum(
     *addr_out    = curr_addr + 1;
 
     return(status);
+}
+
+
+/*
+ * Convert a number of block to the actual number that is being used.
+ */
+baddr_t
+mcd_osd_blk_to_use(mcd_osd_shard_t *shard, baddr_t blk)
+{
+    if (blk > MCD_OSD_OBJ_MAX_BLKS)
+        fatal("block too large %ld", (uint64_t) blk);
+    return shard->slab_classes[shard->class_table[blk]].slab_blksize;
 }

@@ -14,6 +14,7 @@
 #define __HASH_H
 
 #include "platform/types.h"
+#include "common/fdftypes.h"
 
 //
 // Header file for Bob Tuttles lookup8 hash algorithm
@@ -22,6 +23,8 @@
 //
 
 // Level is an arbitrary salt for the hash.
-uint64_t hash(const unsigned char *key, uint64_t keyLength, uint64_t level);
+uint64_t hash(const unsigned char *key,
+              uint64_t keyLength,
+              uint64_t level);
 
 #endif

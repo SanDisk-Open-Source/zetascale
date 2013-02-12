@@ -1,0 +1,2 @@
+FDF_FLASH_SIZE      = 4G
+FDF_FLASH_FILENAME  = /tmp/fdf_disk%d

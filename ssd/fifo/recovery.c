@@ -646,6 +646,7 @@ struct sdf_rec_funcs Funcs ={
  * External function prototypes.
  */
 uint32_t mcd_osd_blk_to_lba_x(uint32_t blocks);
+uint32_t mcd_osd_lba_to_blk_x(uint32_t blocks);
 int      mcd_fth_osd_grow_class_x(mo_shard_t *shard, mo_slab_class_t *class);
 
 
@@ -4440,4 +4441,54 @@ enumerate_init(pai_t *pai, struct shard *shard_arg,
     es->cguid = cguid;
     *((e_state_t **) state) = es;
     return 0;
+}
+
+
+/*
+ * Go through the hash table computing the number of objects and bytes used by
+ * each of the containers.
+ */
+void
+set_cntr_sizes(pai_t *pai, shard_t *shard_arg)
+{
+    typedef struct {
+        uint64_t bytes;
+        uint64_t objects;
+    } info_t;
+    uint64_t n;
+    mo_shard_t *shard = (mo_shard_t *) shard_arg;
+
+    if (sizeof(cntr_id_t) != 2)
+        fatal("sizeof cntr_id must be 2");
+
+    uint64_t cntr_n = 1 << (sizeof(cntr_id_t) * 8);
+    info_t *cntr_p = plat_alloc(cntr_n * sizeof(info_t));
+    if (!cntr_p)
+        fatal("Cannot allocate container information");
+    memset(cntr_p, 0, cntr_n * sizeof(info_t));
+
+    mo_hash_t *hash = shard->hash_table;
+    for (n = shard->hash_size; n--; hash++) {
+        uint64_t blks = mcd_osd_lba_to_blk_x(hash->blocks);
+        blks = mcd_osd_blk_to_use(shard, blks);
+        info_t *p = &cntr_p[hash->cntr_id];
+        p->objects++;
+        p->bytes += blks * MCD_OSD_BLK_SIZE;
+    }
+
+    info_t *p = cntr_p;
+    for (n = 0; n < cntr_n; n++, p++) {
+        if (!p->objects)
+            continue;
+        ctnr_map_t *cmap = get_cntr_map(n);
+        if (!cmap)
+            sdf_loge(PLAT_LOG_ID_INITIAL, "bad container: %ld", n);
+        else {
+            cmap->num_obj += p->objects;
+            cmap->current_size += p->bytes;
+            rel_cntr_map(cmap);
+        }
+    }
+
+    plat_free(cntr_p);
 }

@@ -19,6 +19,9 @@
 #define	bitsof( a)	(8 * sizeof( a))
 #define	ctrl( c)	((c) - 0100)
 #define	tab( col)	(((col)|7) + 1)
-#define	streq( s0, s1)	(strcmp( s0, s1) == 0)
 #define	trunc( n, r)	((n) - (n)%(r))
 #define	roundup( n, r)	((n) - 1 - ((n)+(r)-1)%(r) + (r))
+
+#ifndef streq
+#define	streq( s0, s1)	(strcmp( s0, s1) == 0)
+#endif

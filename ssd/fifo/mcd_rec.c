@@ -39,15 +39,13 @@
 #include "ssd/fifo/fifo.h"
 #include "ssd/ssd_aio.h"
 
-//#include "memcached.h"
-//#include "command.h"
-//#include "mcd_sdf.h"
 #include "mcd_aio.h"
 #include "mcd_osd.h"
 #include "container_meta_blob.h"
 #include "mcd_rec.h"
 #include "mcd_rep.h"
 #include "mcd_bak.h"
+
 
 /*
  * For flushing logs.
@@ -3602,8 +3600,7 @@ update_hash_table( void * context, mcd_osd_shard_t * shard,
         hash_entry->blocks     = obj->blocks;
         hash_entry->syndrome   = obj->syndrome;
         hash_entry->address    = blk_offset;
-        hash_entry->cntr_id    = cntrid(shard, obj->cntr_id);
-fprintf(stderr, "SETTING hash ctr_id new=%x old=%lx\n", hash_entry->cntr_id, shard->id);
+        hash_entry->cntr_id    = obj->cntr_id;
 
         mcd_log_msg( 20498, MCD_REC_LOG_LVL_TRACE,
                      "<<<< upd_HT: syn=%u, blocks=%u, del=%u, bucket=%u, "
@@ -3618,7 +3615,10 @@ fprintf(stderr, "SETTING hash ctr_id new=%x old=%lx\n", hash_entry->cntr_id, sha
         shard->addr_table[ blk_offset ] = hash_entry - shard->hash_table;
 
         // housekeeping
-        shard->blk_consumed  += mcd_osd_lba_to_blk( obj->blocks );
+        uint64_t blks = mcd_osd_lba_to_blk(obj->blocks);
+        blks = mcd_osd_blk_to_use(shard, blks);
+
+        shard->blk_consumed  += blks;
         shard->num_objects   += 1;
         shard->total_objects += 1;
 
@@ -3641,7 +3641,6 @@ fprintf(stderr, "SETTING hash ctr_id new=%x old=%lx\n", hash_entry->cntr_id, sha
             Mcd_osd_bitmap_masks[ map_offset % 64 ];
         segment->alloc_map[ map_offset / 64 ] |=
             Mcd_osd_bitmap_masks[ map_offset % 64 ]; // used by full backup
-
         // save the oldest item (by seqno)
         if ( lru_scan[ class_index ].seqno == 0 ||
              obj->seqno < lru_scan[ class_index ].seqno ) {
@@ -3694,8 +3693,6 @@ fprintf(stderr, "SETTING hash ctr_id new=%x old=%lx\n", hash_entry->cntr_id, sha
         // increment to next possible object location
         obj_offset += power_of_two_roundup( mcd_osd_lba_to_blk(obj->blocks) );
     }
-
-    return;
 }
 
 int
@@ -7133,7 +7130,6 @@ shard_format( uint64_t shard_id, int flags, uint64_t quota, unsigned max_objs,
     uint64_t                    blk_offset;
     uint64_t                    reserved_blks;
     uint64_t                    reserved_segs;
-    uint64_t                    seg_list_size;
     uint64_t                    seg_list_offset;
     uint64_t                    base_class_offset;
     uint64_t                    blob_offset;
@@ -7160,7 +7156,6 @@ shard_format( uint64_t shard_id, int flags, uint64_t quota, unsigned max_objs,
     // --------------------------------------------
 
     // find max metadata size
-    seg_list_size     = shard->total_segments * sizeof( uint64_t );
     seg_list_blks     = ( ( shard->total_segments +
                             MCD_REC_LIST_ITEMS_PER_BLK - 1 ) /
                           MCD_REC_LIST_ITEMS_PER_BLK );

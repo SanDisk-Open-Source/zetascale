@@ -41,7 +41,7 @@ enumerate_next(SDF_action_init_t *pai, void *iter, char **key,
 /*
  * Convert a cguid to a shard.
  */
-static FDF_status_t
+FDF_status_t
 cguid_to_shard(SDF_action_init_t *pai, FDF_cguid_t cguid, shard_t **shard_ptr)
 {
     SDF_container_meta_t meta;
@@ -67,7 +67,7 @@ cguid_to_shard(SDF_action_init_t *pai, FDF_cguid_t cguid, shard_t **shard_ptr)
         return FDF_SHARD_NOT_FOUND;
 
     *shard_ptr = shard;
-    return 0;
+    return FDF_SUCCESS;
 }
 
 
@@ -84,7 +84,7 @@ FDFEnumerateContainerObjects(struct FDF_thread_state *ts,
     SDF_action_init_t *pai = (SDF_action_init_t *) ts;
 
     s = cguid_to_shard(pai, cguid, &shard);
-    if (s)
+    if (s != FDF_SUCCESS)
         return s;
 
     s = enumerate_init(pai, shard, cguid, (void **)iter);

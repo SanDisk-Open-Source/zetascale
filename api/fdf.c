@@ -62,6 +62,15 @@ char *FDF_Status_Strings[] = {
 #undef item
     };
 
+
+/* From enumerate.c */
+FDF_status_t cguid_to_shard(SDF_action_init_t *pai, FDF_cguid_t cguid,
+                            shard_t **shard_ptr);
+
+/* From recovery.c */
+void set_cntr_sizes(SDF_action_init_t *pai, shard_t *shard);
+
+
 /*
 ** Externals
 */
@@ -756,6 +765,22 @@ static sem_t Mcd_initer_sem;
 
 ctnr_map_t CtnrMap[MCD_MAX_NUM_CNTRS];
 
+
+/*
+ * Get the container map for a given container id.
+ */
+ctnr_map_t *
+get_cntr_map(cntr_id_t cntr_id)
+{
+    int i;
+
+    for (i = 0; i < MCD_MAX_NUM_CNTRS; i++)
+        if (CtnrMap[i].cguid == cntr_id)
+            return &CtnrMap[i];
+    return NULL;
+}
+
+
 #ifdef notdef
 static int count_containers() {
     int i = 0;
@@ -1119,6 +1144,13 @@ FDF_status_t FDFInit(
    	}
 
 	fdf_start_vc_thread ( *fdf_state );
+
+        shard_t *shard;
+        SDF_action_init_t *pai = (SDF_action_init_t *) fdf_state;
+        int s = cguid_to_shard(pai, VDC_CGUID, &shard);
+        if (s != FDF_SUCCESS)
+            return s;
+        set_cntr_sizes((SDF_action_init_t *) fdf_state, shard);
 
 #if 0
     /*
@@ -2476,9 +2508,11 @@ FDF_status_t FDFWriteObjectExpiry(
     ar.ctnr_type = SDF_OBJECT_CONTAINER;
     ar.internal_request = SDF_TRUE;
     ar.internal_thread = fthSelf();
-    if ((status=SDFObjnameToKey(&(ar.key), (char *)wobj->key, wobj->key_len)) != SDF_SUCCESS) {
-        return(status);
-    }
+
+    status = SDFObjnameToKey(&(ar.key), (char *)wobj->key, wobj->key_len);
+    if (status != FDF_SUCCESS)
+        return status;
+
     ar.sze = wobj->data_len;
     ar.pbuf_out = (void *) (wobj->data);
     ar.exptime = wobj->expiry;

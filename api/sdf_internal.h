@@ -11,6 +11,8 @@
 
 #define MAX_CONTAINERS  1000
 
+#define rel_cntr_map(cmap)
+
 typedef struct ctnr_map {
 	FDF_boolean_t	allocated;
     char            cname[CONTAINER_NAME_MAXLEN];
@@ -40,6 +42,7 @@ typedef struct SDF_iterator {
 
 extern int get_ctnr_from_cguid(FDF_cguid_t cguid);
 extern int get_ctnr_from_cname(char *cname);
+extern ctnr_map_t *get_cntr_map(cntr_id_t cntr_id);
 
 // Container metadata map API
 

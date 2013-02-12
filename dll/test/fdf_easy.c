@@ -303,23 +303,54 @@ fdf_ctr_init(fdf_t *fdf, char *name, char **errp)
 
 
 /*
- * Finish with a FDF container.
+ * Flush a FDF container.
  */
 int
-fdf_ctr_done(fdf_ctr_t *ctr, char **errp)
+fdf_ctr_flush(fdf_ctr_t *ctr, char **errp)
 {
     struct FDF_thread_state *ts = ts_get(ctr->fdf, errp);
     if (!ts)
         return 0;
 
-    FDF_cguid_t  cguid = ctr->cguid;
-    FDF_status_t ferr  = FDFCloseContainer(ts, cguid);
-    FDF_status_t ferr2 = FDFDeleteContainer(ts, cguid);
+    FDF_status_t ferr = FDFFlushContainer(ts, ctr->cguid);
+    return !set_err_fdf_if(errp, ferr);
+}
+
+
+/*
+ * Delete a FDF container.
+ */
+int
+fdf_ctr_delete(fdf_ctr_t *ctr, char **errp)
+{
+    struct FDF_thread_state *ts = ts_get(ctr->fdf, errp);
+    if (!ts)
+        return 0;
+
+    FDF_cguid_t cguid = ctr->cguid;
+    FDF_status_t ferr = FDFDeleteContainer(ts, cguid);
     free(ctr->name);
     free(ctr);
 
-    if (ferr == FDF_SUCCESS)
-        ferr = ferr2;
+    return !set_err_fdf_if(errp, ferr);
+}
+
+
+/*
+ * Close a FDF container.
+ */
+int
+fdf_ctr_close(fdf_ctr_t *ctr, char **errp)
+{
+    struct FDF_thread_state *ts = ts_get(ctr->fdf, errp);
+    if (!ts)
+        return 0;
+
+    FDF_cguid_t cguid = ctr->cguid;
+    FDF_status_t ferr = FDFCloseContainer(ts, cguid);
+    free(ctr->name);
+    free(ctr);
+
     return !set_err_fdf_if(errp, ferr);
 }
 
@@ -328,14 +359,13 @@ fdf_ctr_done(fdf_ctr_t *ctr, char **errp)
  * Open a FDF container.
  */
 int
-fdf_ctr_open(fdf_ctr_t *ctr, char **errp)
+fdf_ctr_open(fdf_ctr_t *ctr, int mode, char **errp)
 {
     struct FDF_thread_state *ts = ts_get(ctr->fdf, errp);
     if (!ts)
         return 0;
 
-    FDF_status_t ferr = FDFOpenContainer(ts, ctr->name, &ctr->props,
-                                         FDF_CTNR_CREATE|FDF_CTNR_RW_MODE,
+    FDF_status_t ferr = FDFOpenContainer(ts, ctr->name, &ctr->props, mode,
                                          &ctr->cguid);
     return !set_err_fdf_if(errp, ferr);
 }

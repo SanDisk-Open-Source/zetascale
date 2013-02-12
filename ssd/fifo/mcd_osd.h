@@ -22,6 +22,7 @@
 #include "ssd/ssd_local.h"
 #include "ssd/fifo/mcd_osd_internal.h"
 #include "ssd/fifo/mcd_aio.h"
+#include "api/sdf_internal.h"
 #ifdef SDFAPI
 #include "api/sdf.h"
 #else
@@ -100,12 +101,6 @@ enum cntr_states {
 
 
 /*
- * Container id type.
- */
-typedef uint16_t cntr_id_t;
-
-
-/*
  * In-core hash table.  Blocks are in 512 byte sectors.
  */
 typedef struct mcd_osd_hash_entry {
@@ -115,7 +110,7 @@ typedef struct mcd_osd_hash_entry {
     unsigned int reserved:1;
     unsigned int blocks:12;
     uint16_t     syndrome;
-    uint32_t     address;
+    baddr_t      address;
     cntr_id_t    cntr_id;
 }
      __attribute__ ((packed))
@@ -685,5 +680,7 @@ extern int mcd_fth_do_try_container( void * pai, mcd_container_t **ppcontainer, 
                               int tcp_port, int udp_port,
                               SDF_container_props_t * prop, char * cntr_name,
                               mcd_cntr_props_t * cntr_props );
+
+extern baddr_t mcd_osd_blk_to_use(mcd_osd_shard_t *shard, baddr_t blk);
 
 #endif  /* __MCD_OSD_H__ */
