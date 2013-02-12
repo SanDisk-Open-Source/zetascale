@@ -3127,6 +3127,11 @@
 160044 Container must be open to execute a flush container
 160045 fifo_shardClose not implemented!
 160046 ENTERING, shard_id=%lu durability_level=%u
+160047 Failed to get container metadata for VMC
+160048 Metadata for cguid %"PRIu64" has already been loaded!
+160050 Container %ld has only %d hash bits while the FDF cache uses %d hash bits!
+160051 hash_fn must be non-NULL!
+160052 failed to allocate key buffer
 
 
 # rico

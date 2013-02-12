@@ -67,6 +67,7 @@ typedef struct SDFNewCacheEntry {
     SDF_time_t                exptime;
     SDF_cguid_t               cguid;
     uint64_t                  syndrome;
+    baddr_t                   blockaddr;
     struct SDFNewCacheBucket *pbucket;
     struct SDFNewCacheEntry  *next;
     struct SDFNewCacheEntry  *lru_next;
@@ -126,12 +127,15 @@ typedef struct {
 typedef struct SDFNewCache {
     uint64_t              size_limit;
     uint64_t              nbuckets;
+    int                   nhashbits;
     SDFNewCacheBucket_t  *buckets;
     uint64_t              nslabs;
     uint64_t              buckets_per_slab;
     SDFNewCacheSlab_t    *slabs;
     uint64_t              slabsize;
     uint64_t               pages_per_slab;
+    uint64_t            (*hash_fn)(void *hash_arg, SDF_cguid_t cguid, char *key, uint64_t key_len);
+    void                 *hash_arg;
     void                (*init_state_fn)(SDFNewCacheEntry_t *pce, SDF_time_t curtime);
     int                 (*print_fn)(SDFNewCacheEntry_t *pce, char *sout, int max_len);
     void                (*wrbk_fn)(SDFNewCacheEntry_t *pce, void *wrbk_arg);
@@ -190,9 +194,13 @@ typedef struct SDFNewCacheStats {
     uint32_t     mod_percent;
 } SDFNewCacheStats_t;
 
+struct shard;
+
 extern void SDFNewCacheGetStats(SDFNewCache_t *pc, SDFNewCacheStats_t *ps);
 void SDFNewCacheInit(SDFNewCache_t *pc, uint64_t nbuckets, uint64_t nslabs_in,
      uint64_t size, uint32_t max_key_size, uint64_t max_object_size,
+     uint64_t      (*hash_fn)(void *hash_arg, SDF_cguid_t cguid, char *key, uint64_t key_len),
+     void           *hash_arg, 
      void          (*init_state_fn)(SDFNewCacheEntry_t *pce, SDF_time_t curtime),
      int           (*print_fn)(SDFNewCacheEntry_t *pce, char *sout, int max_len),
      void          (*wrbk_fn)(SDFNewCacheEntry_t *pce, void *wrbk_arg),
@@ -249,6 +257,24 @@ extern void SDFNewCacheSetFlushTokens(SDFNewCache_t *pc, uint32_t ntokens);
 extern void SDFNewCacheSetBackgroundFlushTokens(SDFNewCache_t *pc, uint32_t ntokens, uint32_t sleep_msec);
 extern void SDFNewCacheSetModifiedLimit(SDFNewCache_t *pc, double fmod);
 extern void SDFNewCacheFlushComplete(SDFNewCache_t *pc, SDF_boolean_t background_flush);
+
+/*
+ * Look up an entry in the cache by block address and chash.  The metadata,
+ * key, data and the lengths are returned.  Return 1 on success and 0 on
+ * failure.  ADDED TO SUPPORT VIRTUAL CONTAINERS
+ */
+
+extern int SDFNewCacheGetByBlockAddr(SDFNewCache_t *pc,
+				     struct shard *shard,
+				     SDF_cguid_t cguid,
+				     baddr_t baddr,
+				     chash_t chash,
+				     char **key,
+				     uint64_t *key_len,
+				     char **data,
+				     uint64_t *data_len);
+
+extern int SDFNewCacheHashBits(SDFNewCache_t *pc); // TO SUPPORT VIRTUAL CONTAINERS
 
 #ifdef	__cplusplus
 }

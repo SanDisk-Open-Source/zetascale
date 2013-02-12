@@ -100,6 +100,25 @@ extern SDF_status_t flush_all(struct SDF_trans_state *ptrans);
 extern struct SDF_trans_state *get_trans_state(SDF_action_thrd_state_t *pts);
 extern SDF_cache_ctnr_metadata_t *get_container_metadata(SDF_action_init_t *pai, SDF_cguid_t cguid);
 extern SDF_container_meta_t *sdf_get_preloaded_ctnr_meta(SDF_action_state_t *pas, SDF_cguid_t cguid);
+
+/*
+ * Look up an entry in the cache by block address and chash.  The metadata,
+ * key, data and the lengths are returned.  Return 1 on success and 0 on
+ * failure.
+ */
+
+extern int
+cache_get_by_addr(SDF_action_init_t *pai,
+                  struct shard *shard,
+                  SDF_cguid_t cguid,
+                  baddr_t baddr,
+                  chash_t chash,
+                  struct objMetaData *meta,
+                  char **key,
+                  uint64_t *key_len,
+                  char **data,
+                  uint64_t *data_len);
+
 #ifdef	__cplusplus
 }
 #endif

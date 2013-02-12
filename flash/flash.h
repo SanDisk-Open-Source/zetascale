@@ -15,6 +15,9 @@
 
 #include "common/sdftypes.h"
 
+typedef uint64_t chash_t;
+typedef uint32_t baddr_t;
+
 // Flags for opening flash devices
 enum flashOpenFlags {
     FLASH_OPEN_NORMAL_RECOVERY       = 0x00,
@@ -76,6 +79,7 @@ typedef struct objMetaData {
     uint64_t sequence;                       // Sequence number (used only if associated
                                              // shard flag is set on shard create call)
     uint64_t cguid;                          // Added for virtual container support
+    baddr_t  blockaddr;                      // Used to return block address from flash subsystem
 
     char userMetaData[0];                    // Arbitrary user data
     

@@ -3883,7 +3883,8 @@ static SDF_status_t simple_replicator_sync_remote_container(SDF_action_init_t * 
 int cguid_to_index(SDF_action_state_t * pas, SDF_cguid_t cguid) {    
     int i;
     
-    for (i = 0; i < SDF_MAX_CONTAINERS; i++) {
+    {
+        i = cguid;
         if (pas->ctnr_meta[i].cguid == cguid) {
             return i;
         }

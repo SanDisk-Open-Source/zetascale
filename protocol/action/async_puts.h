@@ -56,6 +56,7 @@ typedef struct SDF_async_put_request {
     struct objMetaData    flash_meta;
     char                 *pkey;
     SDF_simple_key_t     *pkey_simple;
+    SDFNewCacheEntry_t   *entry;
     SDFNewCacheEntry_t   *pce;
     char                 *pdata;
     int                   flash_flags;

@@ -3404,9 +3404,12 @@ get_lock_container(pas_t *pas, mo_shard_t *shard)
     int i;
     SDF_cguid_t cguid = shard->cntr->cguid;
 
-    for (i = 0; i < SDF_MAX_CONTAINERS; i++)
-        if (pas->ctnr_meta[i].cguid == cguid)
+    {
+        i = cguid;
+        if (pas->ctnr_meta[i].cguid == cguid) {
             return pas->ctnr_meta[i].lock_container;
+	}
+    }
     fatal("could not obtain lock_container for shard");
 }
 

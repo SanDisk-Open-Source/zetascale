@@ -401,8 +401,15 @@ void SDFNewCacheCopyIntoObject(SDFNewCache_t *pc, void *pfrom_in, SDFNewCacheEnt
     plat_assert(nbytes_left == 0);
 }
 
+int SDFNewCacheHashBits(SDFNewCache_t *pc)
+{
+    return(pc->nhashbits);
+}
+
 void SDFNewCacheInit(SDFNewCache_t *pc, uint64_t nbuckets, uint64_t nslabs_in,
      uint64_t size, uint32_t max_key_size, uint64_t max_object_size,
+     uint64_t      (*hash_fn)(void *hash_arg, SDF_cguid_t cguid, char *key, uint64_t key_len),
+     void           *hash_arg, 
      void (*init_state_fn)(SDFNewCacheEntry_t *pce, SDF_time_t curtime),
      int (*print_fn)(SDFNewCacheEntry_t *pce, char *sout, int max_len),
      void (*wrbk_fn)(SDFNewCacheEntry_t *pce, void *wrbk_arg),
@@ -430,6 +437,15 @@ void SDFNewCacheInit(SDFNewCache_t *pc, uint64_t nbuckets, uint64_t nslabs_in,
     pc->max_flushes_per_mod_check = max_flushes_per_mod_check;
     pc->f_modified                = f_modified;
 
+    if (hash_fn == NULL) {
+	plat_log_msg(160051, 
+		     PLAT_LOG_CAT_SDF_CC, 
+		     PLAT_LOG_LEVEL_FATAL,
+		     "hash_fn must be non-NULL!");
+	plat_assert_always(0);
+    }
+    pc->hash_fn   = hash_fn;
+    pc->hash_arg  = hash_arg;
     if (init_state_fn == NULL) {
 	plat_log_msg(30566, 
 		     PLAT_LOG_CAT_SDF_CC, 
@@ -500,6 +516,14 @@ void SDFNewCacheInit(SDFNewCache_t *pc, uint64_t nbuckets, uint64_t nslabs_in,
     if (pc->nbuckets % pc->nslabs) {
         (pc->buckets_per_slab)++;
     }
+
+    //  Compute number of bits required for hashing
+    for (i=1; i<=64; i++) {
+        if ((pc->nbuckets >> i) == 0) {
+	    break;
+	}
+    }
+    pc->nhashbits = i;
 
     for (i=0; i<nbuckets; i++) {
 	pc->buckets[i].entry = NULL;
@@ -629,7 +653,8 @@ void SDFNewCachePostRequest(SDFNewCache_t *pc,
     SDFNewCacheSlab_t      *ps;
     SDFNewCacheRequest_t   *prqst;
 
-    syndrome = hash((const unsigned char *) pkey->key, pkey->len, 0);
+    // syndrome = hash((const unsigned char *) pkey->key, pkey->len, 0);
+    syndrome = pc->hash_fn(pc->hash_arg, cguid, pkey->key, pkey->len);
     h        = syndrome % pc->nbuckets;
     pb       = &(pc->buckets[h]);
     ps       = pb->slab;
@@ -655,7 +680,8 @@ SDFNewCacheEntry_t *SDFNewCacheGetCreate(SDFNewCache_t *pc, SDF_cguid_t cguid, S
 
     *pnewflag = SDF_FALSE;
 
-    syndrome = hash((const unsigned char *) pkey->key, pkey->len, 0);
+    // syndrome = hash((const unsigned char *) pkey->key, pkey->len, 0);
+    syndrome = pc->hash_fn(pc->hash_arg, cguid, pkey->key, pkey->len);
     h = syndrome % pc->nbuckets;
     pb = &(pc->buckets[h]);
     *ppbucket = pb;
@@ -2464,11 +2490,11 @@ static void lock_trace(char *fmt, ...)
 
 #endif
 
-/**************************************************************************************
+/****************************************************************************
  *
  *    Stuff added to support LRU
  *
- **************************************************************************************/
+ ****************************************************************************/
 
 void SDFNewCacheTransientEntryCheck(SDFNewCacheBucket_t *pb, SDFNewCacheEntry_t *pce)
 {
@@ -2481,5 +2507,84 @@ void SDFNewCacheTransientEntryCheck(SDFNewCacheBucket_t *pb, SDFNewCacheEntry_t 
     }
 }
 
+/****************************************************************************
+ *
+ *    Stuff added to support virtual containers
+ *
+ ****************************************************************************/
+
+
+/*
+ * Look up an entry in the cache by block address and chash.  The metadata,
+ * key, data and the lengths are returned.  Return 1 on success and 0 on
+ * failure.
+ */
+
+int SDFNewCacheGetByBlockAddr(SDFNewCache_t *pc,
+			      struct shard *shard,
+			      SDF_cguid_t cguid,
+			      baddr_t baddr,
+			      chash_t chash,
+			      char **key,
+			      uint64_t *key_len,
+			      char **data,
+			      uint64_t *data_len)
+{
+    int                   ret=0;
+    uint64_t              h, syndrome;
+    SDFNewCacheEntry_t   *pce;
+    SDFNewCacheSlab_t    *ps;
+    SDFNewCacheBucket_t  *pb;
+    char                 *pkey;
+    char                 *pdata;
+
+    // syndrome = hash((const unsigned char *) pkey->key, pkey->len, 0);
+    // syndrome = pc->hash_fn(pc->hash_arg, cguid, pkey->key, pkey->len);
+    syndrome  = chash;
+    h         = syndrome % pc->nbuckets;
+    pb        = &(pc->buckets[h]);
+    ps        = pb->slab;
+
+    CacheLock(ps->lock, ps->lock_wait);
+
+    for (pce = pb->entry; pce != NULL; pce = pce->next) {
+	if (pce->blockaddr == baddr) {
+	    break;
+	}
+    }
+
+    if (pce != NULL) {
+	/* copy out the key and data into FDF-allocated buffers */
+	pkey  = (char *) malloc(pce->key_len);
+	if (!pkey) {
+	    plat_log_msg(160052, 
+			 PLAT_LOG_CAT_SDF_CC, 
+			 PLAT_LOG_LEVEL_ERROR,
+			 "failed to allocate key buffer");
+	    ret = 1;
+	} else {
+	    pdata = (char *) malloc(pce->obj_size);
+	    if (pdata == NULL) {
+		plat_log_msg(20328, 
+			     PLAT_LOG_CAT_SDF_CC, 
+			     PLAT_LOG_LEVEL_ERROR,
+			     "failed to allocate data buffer");
+	        free(pkey);
+		ret = 1;
+	    } else {
+		(void) SDFNewCacheCopyKeyOutofObject(pc, pkey, pce);
+		SDFNewCacheCopyOutofObject(pc, pdata, pce, pce->obj_size);
+		*key      = pkey;
+		*key_len  = pce->key_len;
+		*data     = pdata;
+		*data_len = pce->obj_size;
+	    }
+	}
+    } else {
+        ret = 1;
+    }
+    CacheUnlock(ps->lock, ps->lock_wait);
+    return(ret);
+}
 
 

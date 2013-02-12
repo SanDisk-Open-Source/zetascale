@@ -58,6 +58,7 @@
 #include "protocol/replication/replicator.h"
 #include "protocol/protocol_alloc.h"
 #include "utils/properties.h"
+#include "utils/hash.h"
 #include <inttypes.h>
 #ifdef SDFAPI
 #include "api/sdf.h"
@@ -71,6 +72,36 @@
      *  the logging level for sdf/prot=trace.
      */
 #define INCLUDE_TRACE_CODE
+
+//-----------------------------------------------------------
+// temporary stuff for testing cache_get_by_addr()!!!
+
+/*
+ * Compute the cache hash entry given a key and length.
+ * Johann to write.
+ */
+static chash_t
+chash(struct shard *shard, SDF_cguid_t cguid, char *key, uint64_t key_len)
+{
+    uint64_t   syndrome;
+
+    syndrome = hash((const unsigned char *) key, key_len, 0);
+    return(syndrome);
+}
+
+
+/*
+ * Return the number of bits that a cache hash entry makes use of.
+ * Johann to write.
+ */
+static int
+chash_bits(struct shard *shard)
+{
+    return(64);
+}
+
+// end of temporary stuff!!
+//-----------------------------------------------------------
 
 //  for stats collection
 #define incr(x) __sync_fetch_and_add(&(x), 1)
@@ -262,6 +293,7 @@ static uint64_t count_cache_entries(SDFNewCache_t *cache,
 static SDF_tag_t get_tag(SDF_action_thrd_state_t *pts);
 static void release_tag(SDF_action_thrd_state_t *pts);
 
+static uint64_t hash_fn(void *hash_arg, SDF_cguid_t cguid, char *key, uint64_t key_len);
 static int sdfcc_print_fn(SDFNewCacheEntry_t *psce, char *sout, int max_len);
 static void wrbk_fn(SDFNewCacheEntry_t *pce, void *wrbk_arg);
 static void flush_fn(SDFNewCacheEntry_t *pce, void *flush_arg, SDF_boolean_t background_flush);
@@ -474,7 +506,7 @@ void InitActionProtocolCommonState(SDF_action_state_t *pas, SDF_action_init_t *p
 
     max_key_size = 256; // includes room for trailing NULL!
     SDFNewCacheInit(pas->new_actiondir, buckets, nslabs, cacheSize,
-         max_key_size, max_obj_size, init_state_fn,
+         max_key_size, max_obj_size, hash_fn, (void *) pas, init_state_fn,
          sdfcc_print_fn, wrbk_fn, flush_fn, CS_M, CS_S,
          max_flushes_per_mod_check, f_modified);
 
@@ -745,6 +777,7 @@ static void get_from_flash(SDF_trans_state_t *ptrans)
         incr(ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].flash_retcode_counts[ptrans->flash_retcode]);
 
         if (ptrans->flash_retcode == 0) {
+            ptrans->entry->blockaddr = ptrans->metaData.blockaddr;
 	    (ptrans->pts->nflash_bufs)++;
             #ifdef MALLOC_TRACE
                 UTMallocTrace("fastpath: flashGet", SDF_FALSE, SDF_FALSE, SDF_FALSE, (void *) ptrans->pflash_data, ptrans->metaData.dataLen);
@@ -1762,16 +1795,29 @@ static void flush_all_local(SDF_trans_state_t *ptrans)
         ptrans->par->respStatus  = SDF_PUT_METADATA_FAILED;
     } else {
 
-        /* do an ssd_sync on the CMC */
-        pmeta_cmc = get_container_metadata(ptrans->pai, CMC_CGUID);
-        if (pmeta_cmc == NULL) {
-            plat_log_msg(21100, PLAT_LOG_CAT_SDF_PROT, PLAT_LOG_LEVEL_INFO,
-                         "Failed to get container metadata for CMC");
-            // plat_abort();
-            ptrans->par->respStatus  = SDF_GET_METADATA_FAILED;
-        } else {
-            ptrans->par->respStatus = shardSync_wrapper(ptrans, pmeta_cmc->pshard);
-        }
+        if ( ptrans->par->ctnr <= LAST_PHYSICAL_CGUID ) {
+	    /* This cguid is physical, do an ssd_sync on the CMC */
+	    pmeta_cmc = get_container_metadata(ptrans->pai, CMC_CGUID);
+	    if (pmeta_cmc == NULL) {
+		plat_log_msg(21100, PLAT_LOG_CAT_SDF_PROT, PLAT_LOG_LEVEL_INFO,
+			     "Failed to get container metadata for CMC");
+		// plat_abort();
+		ptrans->par->respStatus  = SDF_GET_METADATA_FAILED;
+	    } else {
+		ptrans->par->respStatus = shardSync_wrapper(ptrans, pmeta_cmc->pshard);
+	    }
+	} else {
+	    /* This cguid is virtual, do an ssd_sync on the VMC */
+	    pmeta_cmc = get_container_metadata(ptrans->pai, VMC_CGUID);
+	    if (pmeta_cmc == NULL) {
+		plat_log_msg(160047, PLAT_LOG_CAT_SDF_PROT, PLAT_LOG_LEVEL_INFO,
+			     "Failed to get container metadata for VMC");
+		// plat_abort();
+		ptrans->par->respStatus  = SDF_GET_METADATA_FAILED;
+	    } else {
+		ptrans->par->respStatus = shardSync_wrapper(ptrans, pmeta_cmc->pshard);
+	    }
+	}
     }
 
     fthUnlock(wait);
@@ -2345,31 +2391,29 @@ SDF_status_t SDFPreloadContainerMetaData(SDF_action_init_t *pai, SDF_cguid_t cgu
     SDF_shardid_t          shard;
     SDF_action_state_t    *pas;
     fthWaitEl_t           *wait;
+    int                    n_hash_bits;
 
     pas = pai->pcs;
     wait = fthLock(&(pas->ctnr_preload_lock), 1, NULL);
 
     // First check that this container has not already been loaded!
-    for (i=0; i<SDF_MAX_CONTAINERS; i++) {
-        if (pas->ctnr_meta[i].valid && (pas->ctnr_meta[i].cguid == cguid)) {
-	    plat_log_msg(30640, PLAT_LOG_CAT_SDF_PROT, PLAT_LOG_LEVEL_INFO,
-			 "Duplicate container for cguid %"PRIu64".", cguid);
+    {
+        i = cguid;
+
+	if (i >= SDF_MAX_CONTAINERS) {
+	    plat_log_msg(21107, PLAT_LOG_CAT_SDF_PROT, PLAT_LOG_LEVEL_INFO,
+			 "Exceeded max number of containers (%d).", SDF_MAX_CONTAINERS);
+	    // plat_abort();
+	    fthUnlock(wait);
+	    return(SDF_TOO_MANY_CONTAINERS);
+	}
+
+        if (pas->ctnr_meta[i].valid) {
+	    plat_log_msg(160048, PLAT_LOG_CAT_SDF_PROT, PLAT_LOG_LEVEL_INFO,
+			 "Metadata for cguid %"PRIu64" has already been loaded!", cguid);
 	    fthUnlock(wait);
 	    return(SDF_CONTAINER_EXISTS);
         }
-    }
-
-    for (i=0; i<SDF_MAX_CONTAINERS; i++) {
-        if (!pas->ctnr_meta[i].valid) {
-            break;
-        }
-    }
-
-    if (i >= SDF_MAX_CONTAINERS) {
-        plat_log_msg(21107, PLAT_LOG_CAT_SDF_PROT, PLAT_LOG_LEVEL_INFO,
-                     "Exceeded max number of containers (%d).", SDF_MAX_CONTAINERS);
-        // plat_abort();
-        ret = SDF_TOO_MANY_CONTAINERS;
     }
 
     if ((ret == SDF_SUCCESS) &&
@@ -2461,6 +2505,19 @@ SDF_status_t SDFPreloadContainerMetaData(SDF_action_init_t *pai, SDF_cguid_t cgu
         asm __volatile__("mfence":::"memory"); // Make sure all is seen
         pas->ctnr_meta[i].valid = 1;
 
+       if (( cguid <= LAST_PHYSICAL_CGUID ) &&
+           ( cguid != CMC_CGUID) &&
+           ( cguid != VMC_CGUID))
+       {
+	    //  Check number of hash bits from hash layer below
+
+	    n_hash_bits = chash_bits(pas->ctnr_meta[i].pshard);
+	    if (n_hash_bits < SDFNewCacheHashBits(pas->new_actiondir)) {
+		plat_log_msg(160050, PLAT_LOG_CAT_SDF_PROT, PLAT_LOG_LEVEL_INFO,
+			     "Container %ld has only %d hash bits while the FDF cache uses %d hash bits!", cguid, n_hash_bits, SDFNewCacheHashBits(pas->new_actiondir));
+	    }
+	}
+
         clear_all_sched_ctnr_stats(pas, i);
     }
 
@@ -2485,12 +2542,12 @@ SDF_status_t SDFUnPreloadContainerMetaData(SDF_action_init_t *pai, SDF_cguid_t c
         ret = SDF_UNPRELOAD_CONTAINER_FAILED;
     } else {
         pctnr_md = NULL;
-        for (i=0; i<SDF_MAX_CONTAINERS; i++) {
+	{
+	    i = cguid;
             if ((pas->ctnr_meta[i].valid) && 
                 (pas->ctnr_meta[i].cguid == cguid)) 
             {
                 pctnr_md = &(pas->ctnr_meta[i]);
-                break;
             }
         }
 
@@ -2865,7 +2922,8 @@ int get_container_index(SDF_action_init_t *pai, SDF_cguid_t cguid)
         return(-1);
     }
 
-    for (i=0; i<SDF_MAX_CONTAINERS; i++) {
+    {
+        i = cguid;
         if ((pas->ctnr_meta[i].valid) && 
             (pas->ctnr_meta[i].cguid == cguid)) 
         {
@@ -2883,12 +2941,12 @@ SDF_container_meta_t *sdf_get_preloaded_ctnr_meta(SDF_action_state_t *pas, SDF_c
 
     pmeta    = NULL;
     pctnr_md = NULL;
-    for (i=0; i<SDF_MAX_CONTAINERS; i++) {
+    {
+        i = cguid;
         if ((pas->ctnr_meta[i].valid) && 
             (pas->ctnr_meta[i].cguid == cguid)) 
         {
             pctnr_md = &(pas->ctnr_meta[i]);
-            break;
         }
     }
 
@@ -2905,7 +2963,8 @@ static SDF_cache_ctnr_metadata_t *get_preloaded_cache_ctnr_meta(SDF_action_state
     SDF_cache_ctnr_metadata_t  *pctnr_md;
 
     pctnr_md = NULL;
-    for (i=0; i<SDF_MAX_CONTAINERS; i++) {
+    {
+        i = cguid;
         if ((pas->ctnr_meta[i].valid) && 
             (pas->ctnr_meta[i].cguid == cguid)) 
         {
@@ -2916,7 +2975,6 @@ static SDF_cache_ctnr_metadata_t *get_preloaded_cache_ctnr_meta(SDF_action_state
                     "(cguid=%"PRIu64"): pas->ctnr_meta[%d].pshard=%p, pctnr_md=%p", 
 		    cguid, i, pas->ctnr_meta[i].pshard, pctnr_md);
             #endif
-            break;
         }
     }
 
@@ -2936,12 +2994,12 @@ SDF_cache_ctnr_metadata_t *get_container_metadata(SDF_action_init_t *pai, SDF_cg
     }
 
     pctnr_md = NULL;
-    for (i=0; i<SDF_MAX_CONTAINERS; i++) {
+    {
+        i = cguid;
         if ((pas->ctnr_meta[i].valid) && 
             (pas->ctnr_meta[i].cguid == cguid)) 
         {
             pctnr_md = &(pas->ctnr_meta[i]);
-            break;
         }
     }
 
@@ -3619,7 +3677,7 @@ SDF_status_t SDFActionDeleteContainer(SDF_action_init_t *pai, SDF_container_meta
     /* Go through all action threads and delete this container from the .
      * per-thread shard maps.
      */
-   if ( pmeta->cguid < LAST_PHYSICAL_CGUID ) {
+   if ( pmeta->cguid <= LAST_PHYSICAL_CGUID ) {
        wait = fthLock(&(pas->nthrds_lock), 1, NULL);
        for (pts = pas->threadstates; pts != NULL; pts = pts->next) {
            ret = delete_home_shard_map_entry(pts, pmeta->shard);
@@ -4291,6 +4349,14 @@ void action_stats_new_cguid(SDF_internal_ctxt_t *pac, char *str, int size, SDF_c
     fthUnlock(wait);
 }
 
+static uint64_t hash_fn(void *hash_arg, SDF_cguid_t cguid, char *key, uint64_t key_len)
+{
+    uint64_t syndrome;
+
+    syndrome = chash(get_preloaded_cache_ctnr_meta((SDF_action_state_t *) hash_arg, cguid)->pshard, cguid, key, key_len);
+    return(syndrome);
+}
+
 static void init_state_fn(SDFNewCacheEntry_t *pce, SDF_time_t curtime)
 {
     /* this is a newly created entry, so initialize it */
@@ -4406,6 +4472,7 @@ static void flush_wrbk_fn_wrapper(SDFNewCacheEntry_t *pce, void *wrbk_arg, SDF_a
     }
 
     rqst.rtype         = request_type;
+    rqst.entry         = pce;
     rqst.skip_for_wrbk = SDF_FALSE;
     rqst.pas           = ptrans->pas;
     rqst.tag           = ptrans->tag;
@@ -4532,10 +4599,14 @@ static int flashPut_wrapper(SDF_trans_state_t *ptrans, struct shard *pshard, str
             (pmeta->keyLen)--; // adjust for extra NULL added by SDF
             ret = flashPut(pshard, pmeta, pkey, pdata, flags);
             (pmeta->keyLen)++; // adjust for extra NULL added by SDF
+	    if (ret == 0) {
+		ptrans->entry->blockaddr = pmeta->blockaddr;
+	    }
         }
     } else {
 
         rqst.rtype         = ASYNC_PUT;
+	rqst.entry         = ptrans->entry;
         rqst.skip_for_wrbk = skip_for_writeback;
         rqst.pas           = ptrans->pas;
         rqst.tag           = ptrans->tag;
@@ -5006,6 +5077,9 @@ int do_put(SDF_async_put_request_t *pap, SDF_boolean_t unlock_slab)
 	    pap->flash_meta.cguid = pap->ctnr;
             ret = flashPut(pap->pshard, &(pap->flash_meta), pap->pkey_simple->key, pap->pdata, pap->flash_flags);
             (pap->flash_meta.keyLen)++; // adjust for extra NULL added by SDF
+	    if (ret == 0) {
+		pap->entry->blockaddr = pap->flash_meta.blockaddr;
+	    }
             #ifdef INCLUDE_TRACE_CODE
                     plat_log_msg(21127, PLAT_LOG_CAT_SDF_PROT, PLAT_LOG_LEVEL_TRACE,
                     "===========  END async put (cguid=%"PRIu64",key='%s'):  ===========", pap->ctnr, pap->pkey_simple->key);
@@ -5055,6 +5129,9 @@ int do_put(SDF_async_put_request_t *pap, SDF_boolean_t unlock_slab)
                 (pap->flash_meta.keyLen)--; // adjust for extra NULL added by SDF
 		pap->flash_meta.cguid = pap->ctnr;
                 ret = flashPut(pap->pshard, &(pap->flash_meta), pap->pkey_simple->key, pap->pdata, pap->flash_flags);
+		if (ret == 0) {
+		    pap->entry->blockaddr = pap->flash_meta.blockaddr;
+		}
                 plat_log_msg(21128, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION, PLAT_LOG_LEVEL_DEBUG,
                              "data local store no partner: key: %s data: 0x%lx ret: %d",  pap->pkey_simple->key, (uint64_t) pap->pdata, ret);
                 (pap->flash_meta.keyLen)++; // adjust for extra NULL added by SDF
@@ -5192,6 +5269,9 @@ int do_put(SDF_async_put_request_t *pap, SDF_boolean_t unlock_slab)
                 (pap->flash_meta.keyLen)--; // adjust for extra NULL added by SDF
 		pap->flash_meta.cguid = pap->ctnr;
                 ret = flashPut(pap->pshard, &(pap->flash_meta), pap->pkey_simple->key, pap->pdata, pap->flash_flags);
+		if (ret == 0) {
+		    pap->entry->blockaddr = pap->flash_meta.blockaddr;
+		}
                 plat_log_msg(21131, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION, PLAT_LOG_LEVEL_DEBUG,
                              "data local store partner: key: %s len: %d data: 0x%lx ret: %d",  pap->pkey_simple->key, pap->pkey_simple->len, (uint64_t) pap->pdata, ret);
                 (pap->flash_meta.keyLen)++; // adjust for extra NULL added by SDF
@@ -5376,6 +5456,9 @@ int do_writeback(SDF_async_put_request_t *pap)
     pap->flash_meta.cguid = pap->ctnr;
     ret = flashPut(pap->pshard, &(pap->flash_meta), pap->pkey_simple->key, pap->pdata, pap->flash_flags);
     (pap->flash_meta.keyLen)++; // adjust for extra NULL added by SDF
+    if (ret == 0) {
+	pap->entry->blockaddr = pap->flash_meta.blockaddr;
+    }
     #ifdef INCLUDE_TRACE_CODE
             plat_log_msg(30564, PLAT_LOG_CAT_SDF_PROT, PLAT_LOG_LEVEL_TRACE,
             "===========  END async writeback (cguid=%"PRIu64",key='%s'):  ===========", pap->ctnr, pap->pkey_simple->key);
@@ -5400,6 +5483,9 @@ int do_flush(SDF_async_put_request_t *pap)
     pap->flash_meta.cguid = pap->ctnr;
     ret = flashPut(pap->pshard, &(pap->flash_meta), pap->pkey_simple->key, pap->pdata, pap->flash_flags);
     (pap->flash_meta.keyLen)++; // adjust for extra NULL added by SDF
+    if (ret == 0) {
+	pap->entry->blockaddr = pap->flash_meta.blockaddr;
+    }
     #ifdef INCLUDE_TRACE_CODE
             plat_log_msg(30580, PLAT_LOG_CAT_SDF_PROT, PLAT_LOG_LEVEL_TRACE,
             "===========  END async flush (cguid=%"PRIu64",key='%s'):  ===========", pap->ctnr, pap->pkey_simple->key);
@@ -6275,6 +6361,26 @@ static char *enum_recovery_fill(SDF_cache_enum_t *cenum)
 	i_recovery_enum_data += (key_len + data_len + 2*sizeof(SDF_time_t));
     }
     return(sret);
+}
+
+/*
+ * Look up an entry in the cache by block address and chash.  The metadata,
+ * key, data and the lengths are returned.  Return 1 on success and 0 on
+ * failure.
+ */
+
+int cache_get_by_addr(SDF_action_init_t *pai,
+		      struct shard *shard,
+		      SDF_cguid_t cguid,
+		      baddr_t baddr,
+		      chash_t chash,
+		      struct objMetaData *meta,
+		      char **key,
+		      uint64_t *key_len,
+		      char **data,
+		      uint64_t *data_len)
+{
+    return(SDFNewCacheGetByBlockAddr(pai->pcs->new_actiondir, shard, cguid, baddr, chash, key, key_len, data, data_len));
 }
 
 static void oh_oh_stress(char *s)
