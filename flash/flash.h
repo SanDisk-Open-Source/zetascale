@@ -14,9 +14,9 @@
 #define __FLASH_H
 
 #include "common/sdftypes.h"
+#include "common/fdftypes.h"
 
 typedef uint64_t chash_t;
-typedef uint32_t baddr_t;
 
 // Flags for opening flash devices
 enum flashOpenFlags {
