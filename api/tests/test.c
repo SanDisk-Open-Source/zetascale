@@ -58,6 +58,20 @@ FDF_status_t fdf_create_container (
     return ret;
 }
 
+FDF_status_t fdf_delete_container (
+    FDF_cguid_t                cguid
+       )
+{
+    FDF_status_t  ret;
+
+    ret = FDFDeleteContainer(
+            _fdf_thd_state,
+            cguid
+        );
+
+    return(ret);
+}
+
 FDF_status_t fdf_get (
 	FDF_cguid_t                cguid,
 	char                      *key,

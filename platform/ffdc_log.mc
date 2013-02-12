@@ -3076,6 +3076,9 @@
 150098 Failed to delete container %lu during recovery - %s
 150099 Container does not exist
 150100 %s, container size=%lu bytes is less then minimum container size, which is 1KB
+150101 %s, container size=%lu KB is less then minimum container size, which is 1KB
+150102 i_ctnr=%d
+150103 stop=%d, i=%d
 
 
 # root

@@ -257,10 +257,10 @@ cmc_create(
 		struct SDF_shared_state *state = &sdf_shared_state;
 
 		if (state->config.system_recovery == SYS_FLASH_RECOVERY) {
-	    	plat_log_msg(21496, LOG_CAT, LOG_DBG, "********CMC RECOVER********");
+	    	plat_log_msg(21496, LOG_CAT, LOG_INFO, "********CMC RECOVER********");
 	    	cmc = cmc_recover(pai, cmc_path);
 		} else {
-	    	plat_log_msg(21497, LOG_CAT, LOG_DBG, "********CMC INITIALIZE********");
+	    	plat_log_msg(21497, LOG_CAT, LOG_INFO, "********CMC INITIALIZE********");
 	    	cmc = cmc_initialize(pai, cmc_path);
 		}
     }

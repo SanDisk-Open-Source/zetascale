@@ -1348,7 +1348,7 @@ static FDF_status_t fdf_create_container(
 
 	if( properties->size_kb < 1 )
 	{
-     	plat_log_msg( PLAT_LOG_ID_INITIAL,
+     	plat_log_msg( 150101,
 					  LOG_CAT, 
 					  LOG_ERR, 
 					  "%s, container size=%lu KB is less then minimum container size, which is 1KB", 
@@ -2123,13 +2123,13 @@ static FDF_status_t fdf_delete_container(
 	            CtnrMap[i_ctnr].sdf_container 	= containerNull;
 	            CtnrMap[i_ctnr].size_kb			= 0;
 	            CtnrMap[i_ctnr].current_size  	= 0;
-#if 0
+
 				// Make sure the metadata container is in sync
 				if ( FDF_VIRTUAL_CNTR == mode )
 					FDFFlushContainer( fdf_thread_state, VMC_CGUID );
 				else
 					FDFFlushContainer( fdf_thread_state, CMC_CGUID );
-#endif
+
 	        } else {
 	            if ( FDF_SUCCESS == status )
 					status = FDF_FAILURE;
