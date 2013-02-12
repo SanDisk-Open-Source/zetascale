@@ -253,9 +253,9 @@ int test_basic_check_3(uint32_t aw)
 
     char         *data;
     uint64_t     datalen;
-    data = (char *)malloc(4*1024*1024*sizeof(char));
-    datalen = strlen(data);
-    memset(data,'a',strlen(data));
+    data = (char *)malloc(1*1024*1024*sizeof(char));
+    datalen = 1*1024*1024*sizeof(char);
+    memset(data,'a',datalen);
 
     for(int i = 0; i < 3; i++)
     {

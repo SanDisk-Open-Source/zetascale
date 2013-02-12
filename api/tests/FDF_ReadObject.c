@@ -292,7 +292,7 @@ int test_check_object_change(uint32_t aw)
     char *data1, *data2;
     uint64_t datalen1, datalen2;
     data1 = (char *)malloc(64*1024*sizeof(char));
-    datalen1 = strlen(data1);
+    datalen1 = 64*1024*sizeof(char);
     data2 = NULL;
     datalen2 = 0;
 
@@ -305,7 +305,7 @@ int test_check_object_change(uint32_t aw)
             if(FDF_SUCCESS == WriteObject(cguid, "sdhsd", 6, data1, datalen1, 1))
             {
                 ret = ReadObject(cguid, "sdhsd", 6, &data2, &datalen2);
-                if((FDF_SUCCESS == ret) && (!strcmp(data1, data2)) && (datalen1 == datalen2))
+                if((FDF_SUCCESS == ret) && (datalen1 == datalen2) && (!memcmp(data1, data2, datalen1)))
                 {
                     result[aw][4][i] += 1;
                 }
@@ -316,7 +316,7 @@ int test_check_object_change(uint32_t aw)
             if(FDF_SUCCESS == WriteObject(cguid, "sdhsd", 6, data1, datalen1, 2))
             {
                 ret = ReadObject(cguid, "sdhsd", 6, &data2, &datalen2);
-                if((FDF_SUCCESS == ret) && (!strcmp(data1, data2)) && (datalen1 == datalen2))
+                if((FDF_SUCCESS == ret) && (datalen1 == datalen2) && (!memcmp(data1, data2, datalen1)))
                 {
                     result[aw][4][i] += 1;
                 }

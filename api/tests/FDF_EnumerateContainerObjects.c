@@ -287,11 +287,11 @@ int FDFEnumerateContainerObjects_Twice()
             while(FDF_SUCCESS == NextEnumeratedObject(iterator2));
             FinishEnumeration(iterator2);
             fprintf(fp,"EnumerateContainerObjects contiuous twice success.\n");
-            flag = 0;
+            flag = 1;
         }
         else{
             fprintf(fp,"EnumerateContainerObjects contiuous twice fail:%s.\n",FDFStrError(ret));
-            flag = 1;
+            flag = 0;
         }
 
         FinishEnumeration(iterator1);
