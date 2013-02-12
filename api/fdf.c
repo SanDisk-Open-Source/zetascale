@@ -3541,6 +3541,8 @@ static void *fdf_vc_thread(
 	for ( k = 0; k < MCD_MAX_NUM_CNTRS; k++ )
 		deletes[k] = FDF_NULL_CGUID;
 
+	k = 0;
+
     if ( FDF_SUCCESS != FDFInitPerThreadState( ( struct FDF_state * ) arg, 
 											   ( struct FDF_thread_state ** ) &fdf_thread_state ) ) 
 	{
@@ -3578,13 +3580,11 @@ static void *fdf_vc_thread(
         for ( j = 0; j < MCD_MAX_NUM_CNTRS; j++ ) {
             if (CtnrMap[j].cguid == 0) {
                 // this is an unused map entry
-fprintf(stderr, ">>>fdf_vc_thread: recovering %s - %lu\n", meta->cname, meta->cguid);
 				memcpy( CtnrMap[j].cname, meta->cname, strlen( meta->cname ) );
                 CtnrMap[j].cguid                = meta->cguid;
                 CtnrMap[j].sdf_container        = containerNull;
                 Mcd_containers[j].cguid         = meta->cguid;
                 Mcd_containers[j].container_id  = meta->properties.container_id.container_id;
-                //strcpy( Mcd_containers[j].cname, meta->cname );
 				memcpy( Mcd_containers[j].cname, meta->cname, strlen( meta->cname ) );
 
 				name_service_create_cguid_map( fdf_thread_state,
@@ -3736,6 +3736,8 @@ static FDF_status_t fdf_delete_objects(
                                                &_fdf_iterator
                                              );
     } while ( status == FDF_FLASH_EBUSY && i-- );
+
+	i = 0;
 
     while ( ( status = FDFNextEnumeratedObject ( fdf_thread_state,
                                                  _fdf_iterator,
