@@ -1348,12 +1348,12 @@ static FDF_status_t fdf_create_container(
 
 	if( properties->size_kb < 1 )
 	{
-     	plat_log_msg( 150100, 
+     	plat_log_msg( PLAT_LOG_ID_INITIAL,
 					  LOG_CAT, 
 					  LOG_ERR, 
-					  "%s, container size=%lu bytes is less then minimum container size, which is 1KB", 
+					  "%s, container size=%lu KB is less then minimum container size, which is 1KB", 
 					  cname, 
-					  properties->size_kb * 1024);
+					  properties->size_kb);
 		return FDF_FAILURE_CONTAINER_TOO_SMALL;
 	}
 
@@ -2117,11 +2117,19 @@ static FDF_status_t fdf_delete_container(
 													&ok_to_delete );
 
 	        if ( FDF_SUCCESS == status && ok_to_delete) {
+
 	        	CtnrMap[i_ctnr].cname[0]		= '\0';
 	            CtnrMap[i_ctnr].cguid         	= 0;
 	            CtnrMap[i_ctnr].sdf_container 	= containerNull;
 	            CtnrMap[i_ctnr].size_kb			= 0;
 	            CtnrMap[i_ctnr].current_size  	= 0;
+#if 0
+				// Make sure the metadata container is in sync
+				if ( FDF_VIRTUAL_CNTR == mode )
+					FDFFlushContainer( fdf_thread_state, VMC_CGUID );
+				else
+					FDFFlushContainer( fdf_thread_state, CMC_CGUID );
+#endif
 	        } else {
 	            if ( FDF_SUCCESS == status )
 					status = FDF_FAILURE;
@@ -2378,7 +2386,7 @@ FDF_status_t FDFWriteObject(
         return FDF_FAILURE_CONTAINER_NOT_OPEN;
 	}
 
-	// NOTE: FDF tests don't like this
+	// Need help from storage level to maintain current size across restarts
 	index = fdf_get_ctnr_from_cguid( cguid );
 	if ( 0 && index > -1 ) {
 		if ( CtnrMap[ index ].current_size + keylen + datalen > CtnrMap[ index ].size_kb * 1024 ) {
