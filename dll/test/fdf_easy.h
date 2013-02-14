@@ -59,9 +59,10 @@ int fdf_ctr_delete(fdf_ctr_t *ctr, char **errp);
 int fdf_iter_done(fdf_iter_t *iter, char **errp);
 int fdf_conf(fdf_t *fdf, char *path, char **errp);
 int fdf_ctr_open(fdf_ctr_t *ctr, int mode, char **errp);
-int fdf_ctr_set(fdf_ctr_t *ctr, char *key, uint64_t keylen,
+int fdf_obj_del(fdf_ctr_t *ctr, char *key, uint64_t keylen, char **errp);
+int fdf_obj_set(fdf_ctr_t *ctr, char *key, uint64_t keylen,
                 char *data, uint64_t datalen, char **errp);
-int fdf_ctr_get(fdf_ctr_t *ctr, char *key, uint64_t keylen,
+int fdf_obj_get(fdf_ctr_t *ctr, char *key, uint64_t keylen,
                 char **data, uint64_t *datalen, char **errp);
 int fdf_iter_next(fdf_iter_t *iter, char **key, uint64_t *keylen,
                           char **data, uint64_t *datalen, char **errp);

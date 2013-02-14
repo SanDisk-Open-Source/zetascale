@@ -121,6 +121,7 @@ our @SKIPFILES = qw(
 
 our @VALID_PLACEHOLDERS = qw(
     PLAT_LOG_ID_INITIAL
+    PLII
     LOG_ID
 );
 

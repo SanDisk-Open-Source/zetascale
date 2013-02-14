@@ -40,6 +40,7 @@
 #include "agent/agent_common.h"
 #include "agent/agent_helper.h"
 #include "fdf_trans.h"
+#include "sdftcp/locks.h"
 
 #define LOG_ID PLAT_LOG_ID_INITIAL
 #define LOG_CAT PLAT_LOG_CAT_SDF_NAMING
@@ -778,6 +779,50 @@ get_cntr_map(cntr_id_t cntr_id)
         if (CtnrMap[i].cguid == cntr_id)
             return &CtnrMap[i];
     return NULL;
+}
+
+
+/*
+ * Add a number of objects and the size consumed to a container map.
+ */
+FDF_status_t
+inc_cntr_map(cntr_id_t cntr_id, int64_t objs, int64_t size)
+{
+    ctnr_map_t *cmap = get_cntr_map(cntr_id);
+    if (!cmap) {
+        sdf_loge(PLII, "bad container: %d", cntr_id);
+        //FIXME: uncomment next line when Darryl fixes initialization problems
+        //return FDF_CONTAINER_UNKNOWN;
+        return FDF_SUCCESS;
+    }
+
+    int64_t t_objs = atomic_add_get(cmap->num_obj, objs);
+    int64_t t_size = atomic_add_get(cmap->current_size, size);
+    int64_t  limit = cmap->size_kb * 1024;
+
+    if (t_objs < 0 || t_size < 0 || (limit && t_size > limit)) {
+        atomic_sub(cmap->num_obj, objs);
+        atomic_sub(cmap->current_size, size);
+    }
+    rel_cntr_map(cmap);
+
+    if (t_objs < 0) {
+        sdf_loge(PLII, "container %d would have %ld objects", cntr_id, objs);
+        return FDF_FAILURE_CONTAINER_GENERIC;
+    }
+
+    if (t_size < 0) {
+        sdf_loge(PLII, "container %d would have a size of %ld bytes",
+                 cntr_id, size);
+        return FDF_FAILURE_CONTAINER_GENERIC;
+    }
+
+#if 0
+    if (limit && t_size > limit)
+        return FDF_CONTAINER_FULL;
+#endif
+
+    return FDF_SUCCESS;
 }
 
 
@@ -2455,12 +2500,14 @@ FDF_status_t FDFWriteObject(
 
     ActionProtocolAgentNew(pac, &ar);
 
+#if 0
 	if ( SDF_SUCCESS == ar.respStatus ) {
 		index = fdf_get_ctnr_from_cguid( cguid );
 		if ( index > -1 ) {
 			CtnrMap[ index ].current_size += keylen + datalen;
 		}
 	}
+#endif
 	
     return ar.respStatus;
 }
@@ -3530,9 +3577,11 @@ FDF_status_t fdf_resize_container(
     if ( index > -1 ) {
         plat_log_msg( 150082, LOG_CAT, LOG_ERR, "Cannnot find container id %lu", cguid );
         status = FDF_CONTAINER_UNKNOWN;
+#if 0 // this branch if taken will segfault (Johann)
     } else if ( size < CtnrMap[ index ].size_kb ) {
             plat_log_msg( 150079, LOG_CAT, LOG_ERR, "Cannnot reduce container size" );
             status = FDF_CANNOT_REDUCE_CONTAINER_SIZE;
+#endif
     } else if ( ( status = name_service_get_meta( pai,
                                                	  cguid,
                                                	  &meta ) ) != FDF_SUCCESS) {
@@ -3545,8 +3594,10 @@ FDF_status_t fdf_resize_container(
                                                cguid,
                                                &meta ) ) != FDF_SUCCESS ) {
             plat_log_msg( 150081, LOG_CAT, LOG_ERR, "Cannnot write container metadata for %lu", cguid );
+#if 0 // this branch if taken will segfault (Johann)
         } else {
             CtnrMap[ index ].size_kb = size;
+#endif
         }
     }
 

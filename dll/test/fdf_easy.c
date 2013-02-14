@@ -285,7 +285,7 @@ fdf_ctr_init(fdf_t *fdf, char *name, char **errp)
     props->num_shards = prop2_uint(fdf, &fail, name, "NUM_SHARDS", 1);
 
     props->size_kb =
-        round(prop2_uint(fdf, &fail, name, "SIZE", 1024 * 1024), 1024);
+        round(prop2_uint(fdf, &fail, name, "SIZE", 1024 * 1024 * 1024), 1024);
 
     props->durability_level =
         prop2_durability(fdf, &fail, name, "DURABILITY_LEVEL",
@@ -372,10 +372,10 @@ fdf_ctr_open(fdf_ctr_t *ctr, int mode, char **errp)
 
 
 /*
- * Get a key and value.
+ * Get an object.
  */
 int
-fdf_ctr_get(fdf_ctr_t *ctr, char *key, uint64_t keylen,
+fdf_obj_get(fdf_ctr_t *ctr, char *key, uint64_t keylen,
             char **data, uint64_t *datalen, char **errp)
 {
     struct FDF_thread_state *ts = ts_get(ctr->fdf, errp);
@@ -398,7 +398,7 @@ fdf_ctr_get(fdf_ctr_t *ctr, char *key, uint64_t keylen,
  * Set a key and value.
  */
 int
-fdf_ctr_set(fdf_ctr_t *ctr, char *key, uint64_t keylen,
+fdf_obj_set(fdf_ctr_t *ctr, char *key, uint64_t keylen,
             char *data, uint64_t datalen, char **errp)
 {
     struct FDF_thread_state *ts = ts_get(ctr->fdf, errp);
@@ -407,6 +407,21 @@ fdf_ctr_set(fdf_ctr_t *ctr, char *key, uint64_t keylen,
 
     FDF_status_t ferr;
     ferr = FDFWriteObject(ts, ctr->cguid, key, keylen, data, datalen, 0);
+    return !set_err_fdf_if(errp, ferr);
+}
+
+
+/*
+ * Get an object.
+ */
+int
+fdf_obj_del(fdf_ctr_t *ctr, char *key, uint64_t keylen, char **errp)
+{
+    struct FDF_thread_state *ts = ts_get(ctr->fdf, errp);
+    if (!ts)
+        return 0;
+
+    FDF_status_t ferr = FDFDeleteObject(ts, ctr->cguid, key, keylen);
     return !set_err_fdf_if(errp, ferr);
 }
 

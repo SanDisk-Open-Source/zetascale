@@ -43,6 +43,7 @@ typedef struct SDF_iterator {
 extern int get_ctnr_from_cguid(FDF_cguid_t cguid);
 extern int get_ctnr_from_cname(char *cname);
 extern ctnr_map_t *get_cntr_map(cntr_id_t cntr_id);
+extern FDF_status_t inc_cntr_map(cntr_id_t cntr_id, int64_t objs, int64_t size);
 
 // Container metadata map API
 

@@ -100,7 +100,6 @@ int rep_get_iteration_cursors(struct shard *shard, uint64_t seqno_start,
                               it_cursor_t ** cursors_out)
 {
     resume_cursor_t * resume_cursor;
-    uint64_t resume_cursor_size;
     it_cursor_t * it_cursor;
     rep_cursor_t * cursors;
     uint64_t high_watermark;
@@ -162,7 +161,6 @@ int rep_get_iteration_cursors(struct shard *shard, uint64_t seqno_start,
     cursors = (rep_cursor_t *)it_cursor->cursors;
 
     resume_cursor = &it_cursor->resume_cursor;
-    resume_cursor_size = sizeof(resume_cursor_t);
 
     if (resume_cursor_in) {
         memcpy(resume_cursor, resume_cursor_in, sizeof(resume_cursor_t));
@@ -217,11 +215,13 @@ static int logs_iterate(struct shard *shard, resume_cursor_t * resume_cursor,
                         rep_cursor_t * cursors) {
     struct mcd_rec_shard * pshard;
     struct mcd_osd_shard * osd_shard;
+    mcd_logrec_object_t * rec;
+#if notyet
     seqno_logbuf_cache_t * logbuf_seqno_cache;
     seqno_logbuf_cache_t * logbuf;
-    mcd_logrec_object_t * rec;
     uint64_t logbuf_start;
     uint64_t logbuf_end;
+#endif
 
     char * logbuf_buf_unaligned;
     char * logbuf_buf;
@@ -250,14 +250,18 @@ static int logs_iterate(struct shard *shard, resume_cursor_t * resume_cursor,
     plat_assert(osd_shard->persistent == 1);
 
     num_logbuf = pshard->rec_log_blks / MCD_REC_LOGBUF_BLKS;
+#if notyet
     logbuf_seqno_cache = osd_shard->logbuf_seqno_cache;
+#endif
 
     // Search seqno_logbuf_cache for what log bufs we need
     for (i = resume_cursor->cursor1; i < num_logbuf; i++) {
         // Get our log buf and it's start and end
+#if notyet
         logbuf = &logbuf_seqno_cache[i];
         logbuf_start = logbuf->seqno_start;
         logbuf_end = logbuf->seqno_end;
+#endif
         
         // Check if overlap
 #if notyet
@@ -349,8 +353,10 @@ static int object_table_iterate(struct shard *shard, resume_cursor_t * resume_cu
     mcd_rec_flash_object_t * rec;
     osd_state_t * context;
     uint64_t read_size;
+#if notyet
     uint64_t total_num_blks;
     uint64_t cursors_left;
+#endif
     uint64_t num_cursors;
     uint64_t offset;
     uint64_t i=0, j=0;
@@ -363,8 +369,10 @@ static int object_table_iterate(struct shard *shard, resume_cursor_t * resume_cu
     osd_shard = (mcd_osd_shard_t *)shard;
 
     // Setup our loop
+#if notyet
     total_num_blks = pshard->rec_log_blks / sizeof(mcd_rec_flash_object_t);
     cursors_left = seqno_len;
+#endif
     context = mcd_fth_init_aio_ctxt( SSD_AIO_CTXT_MCD_REP_ITER );
     
     num_cursors = 0;
@@ -443,7 +451,9 @@ static int volatile_object_table_iterate(struct shard *shard, resume_cursor_t * 
                                          int seqno_start, int seqno_max, int seqno_len,
                                          rep_cursor_t * cursors)
 {
+#ifdef notyet
     struct mcd_rec_shard * pshard;
+#endif
     struct mcd_osd_shard * osd_shard;
     mcd_osd_bucket_t * bucket;
     fthLock_t * bucket_lock;
@@ -458,7 +468,9 @@ static int volatile_object_table_iterate(struct shard *shard, resume_cursor_t * 
     plat_assert(seqno_len > max_hash_bucket_size());
 
     // Get the pshard
+#ifdef notyet
     pshard = ((mcd_osd_shard_t *)shard)->pshard;
+#endif
     osd_shard = (mcd_osd_shard_t *)shard;
 
     num_cursors = 0;
@@ -565,12 +577,16 @@ out:
 
 fthWaitEl_t * rep_lock_bucket(struct shard * shard, rep_cursor_t * rep_cursor)
 {
+#ifdef notyet
     struct mcd_rec_shard * pshard;
+#endif
     struct mcd_osd_shard * osd_shard;
     fthLock_t * bucket_lock;
     fthWaitEl_t * wait;
     
+#ifdef notyet
     pshard = ((mcd_osd_shard_t *)shard)->pshard;
+#endif
     osd_shard = (mcd_osd_shard_t *)shard;
 
     bucket_lock = osd_shard->bucket_locks +
@@ -589,14 +605,12 @@ void rep_unlock_bucket(fthWaitEl_t * wait)
 
 int check_object_exists(struct shard *shard, rep_cursor_t * rep_cursor)
 {
-    struct mcd_rec_shard * pshard;
     struct mcd_osd_shard * osd_shard;
 
     mcd_osd_bucket_t * bucket;
     mcd_osd_hash_t * entry;
     int i;
     
-    pshard = ((mcd_osd_shard_t *)shard)->pshard;
     osd_shard = (mcd_osd_shard_t *)shard;
 
     bucket = osd_shard->hash_buckets + rep_cursor->bucket;
@@ -662,7 +676,6 @@ int rep_get_by_cursor(struct shard *shard, int cursor_len, const void *cursor,
     char * data_buf;
     char * buf;
     char * s;
-    int rc;
 
     rep_cursor = (rep_cursor_t *)cursor;
 
@@ -700,7 +713,7 @@ int rep_get_by_cursor(struct shard *shard, int cursor_len, const void *cursor,
 
     // Read the object from flash
     blocks_to_read = max(rep_cursor->blocks, 1);
-    rc = obj_read(shard, rep_cursor->blk_offset, blocks_to_read * MCD_OSD_BLK_SIZE, (void **)&buf, &wbuf);
+    obj_read(shard, rep_cursor->blk_offset, blocks_to_read * MCD_OSD_BLK_SIZE, (void **)&buf, &wbuf);
 
     // Unlock bucket
     rep_unlock_bucket(wait);

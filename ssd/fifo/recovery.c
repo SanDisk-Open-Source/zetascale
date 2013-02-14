@@ -16,6 +16,7 @@
  *
  * Copyright (c) 2010-2013, SanDisk Corporation.  All rights reserved.
  */
+#include <time.h>
 #include <ctype.h>
 #include <libaio.h>
 #include "mcd_bak.h"
@@ -3402,15 +3403,10 @@ err:
 static rklc_t *
 get_lock_container(pas_t *pas, mo_shard_t *shard)
 {
-    int i;
     SDF_cguid_t cguid = shard->cntr->cguid;
 
-    {
-        i = cguid;
-        if (pas->ctnr_meta[i].cguid == cguid) {
-            return pas->ctnr_meta[i].lock_container;
-	}
-    }
+    if (pas->ctnr_meta[cguid].cguid == cguid)
+        return pas->ctnr_meta[cguid].lock_container;
     fatal("could not obtain lock_container for shard");
 }
 
@@ -4242,7 +4238,7 @@ lba_to_blk(uint32_t nb)
  * Given a data block, extract the key and data and return it.
  */
 static FDF_status_t
-e_extr_obj(e_state_t *es, char **key, uint32_t *keylen,
+e_extr_obj(e_state_t *es, time_t now, char **key, uint32_t *keylen,
 	   char **data, uint64_t  *datalen)
 {
     mo_meta_t     *meta = (mo_meta_t *) es->data_buf_align;
@@ -4257,6 +4253,9 @@ e_extr_obj(e_state_t *es, char **key, uint32_t *keylen,
         return FDF_OBJECT_UNKNOWN;
 
     if (meta->version != MCD_OSD_META_VERSION)
+        return FDF_OBJECT_UNKNOWN;
+
+    if (meta->expiry_time && meta->expiry_time <= now)
         return FDF_OBJECT_UNKNOWN;
 
     char *kptr = plat_malloc(klen);
@@ -4306,7 +4305,7 @@ e_hash_fill(pai_t *pai, void *state, int lock_i)
     e_state_t          *es = (e_state_t *) state;
     mo_shard_t      *shard = es->shard;
     uint64_t bkts_per_lock = shard->lock_bktsize / Mcd_osd_bucket_size;
-    cntr_id_t      cntr_id = cntrid(shard, es->cguid);
+    cntr_id_t      cntr_id = es->cguid;
     fthLock_t        *lock = &shard->bucket_locks[lock_i];
     wait_t           *wait = fthLock(lock, 0, NULL);
 
@@ -4350,9 +4349,10 @@ FDF_status_t
 enumerate_next(pai_t *pai, void *state, char **key, uint32_t *keylen,
 	       char **data, uint64_t  *datalen)
 {
+    time_t        now = time(NULL);
     e_state_t     *es = (e_state_t *) state;
     mo_shard_t *shard = es->shard;
-    cntr_id_t cntr_id = cntrid(shard, es->cguid);
+    cntr_id_t cntr_id = es->cguid;
 
     for (;;) {
         while (!es->hash_buf_i) {
@@ -4374,7 +4374,7 @@ enumerate_next(pai_t *pai, void *state, char **key, uint32_t *keylen,
         if (!s)
             return FDF_FLASH_EINVAL;
 
-        s = e_extr_obj(es, key, keylen, data, datalen);
+        s = e_extr_obj(es, now, key, keylen, data, datalen);
         if (s == FDF_OBJECT_UNKNOWN)
             continue;
         return s;
@@ -4471,6 +4471,8 @@ set_cntr_sizes(pai_t *pai, shard_t *shard_arg)
     for (n = shard->hash_size; n--; hash++) {
         uint64_t blks = mcd_osd_lba_to_blk_x(hash->blocks);
         blks = mcd_osd_blk_to_use(shard, blks);
+        if (!hash->used)
+            continue;
         info_t *p = &cntr_p[hash->cntr_id];
         p->objects++;
         p->bytes += blks * MCD_OSD_BLK_SIZE;
@@ -4480,14 +4482,9 @@ set_cntr_sizes(pai_t *pai, shard_t *shard_arg)
     for (n = 0; n < cntr_n; n++, p++) {
         if (!p->objects)
             continue;
-        ctnr_map_t *cmap = get_cntr_map(n);
-        if (!cmap)
-            sdf_loge(PLAT_LOG_ID_INITIAL, "bad container: %ld", n);
-        else {
-            cmap->num_obj += p->objects;
-            cmap->current_size += p->bytes;
-            rel_cntr_map(cmap);
-        }
+        inc_cntr_map(n, p->objects, p->bytes);
+        sdf_logi(PLII, "Container %ld: objects=%ld bytes=%ld",
+                 n, p->objects, p->bytes);
     }
 
     plat_free(cntr_p);

@@ -66,6 +66,7 @@ rwlock_t *rwl_init(void);
 #define atomic_dec_get(v)                  __sync_sub_and_fetch(&v, 1)
 #define atomic_get_dec(v)                  __sync_fetch_and_sub(&v, 1)
 #define atomic_add(v, a)            (void) __sync_add_and_fetch(&v, a)
+#define atomic_add_get(v, a)               __sync_add_and_fetch(&v, a)
 #define atomic_get_add(v, a)               __sync_fetch_and_add(&v, a)
 #define atomic_sub(v, a)            (void) __sync_sub_and_fetch(&v, a)
 #define atomic_and(v, a)            (void) __sync_and_and_fetch(&v, a)

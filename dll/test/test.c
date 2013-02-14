@@ -8,6 +8,7 @@
 #include <stdarg.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 #include <sys/stat.h>
 #include "fdf_easy.h"
 
@@ -70,33 +71,46 @@ open_ctr(fdf_t *fdf, char *name, int mode)
 
 
 /*
- * Set a key in a container.
+ * Set an object.
  */
 static void
-set_key(fdf_ctr_t *ctr, char *key, char *value)
+set_obj(fdf_ctr_t *ctr, char *key, char *value)
 {
     char *err;
 
-    if (!fdf_ctr_set(ctr, key, strlen(key), value, strlen(value), &err)) {
-        die(err, "fdf_ctr_set failed: %s: %s => %s",
+    if (!fdf_obj_set(ctr, key, strlen(key), value, strlen(value), &err)) {
+        die(err, "fdf_obj_set failed: %s: %s => %s",
                 ctr->name, key, value);
     }
 }
 
 
 /*
- * Get and show a key from a container.
+ * Delete an object.
  */
 static void
-show_key(fdf_ctr_t *ctr, char *key, char *value)
+del_obj(fdf_ctr_t *ctr, char *key)
+{
+    char *err;
+
+    if (!fdf_obj_del(ctr, key, strlen(key), &err))
+        die(err, "fdf_obj_del failed: %s: %s", ctr->name, key);
+}
+
+
+/*
+ * Get and show an object from a container.
+ */
+static void
+show_obj(fdf_ctr_t *ctr, char *key, char *value)
 {
     char *data;
     uint64_t datalen;
     char *err;
 
-    int s = fdf_ctr_get(ctr, key, strlen(key), &data, &datalen, &err);
+    int s = fdf_obj_get(ctr, key, strlen(key), &data, &datalen, &err);
     if (s < 0)
-        die(err, "fdf_ctr_get failed %s: %s", ctr->name, key);
+        die(err, "fdf_obj_get failed %s: %s", ctr->name, key);
 
     if (s == 0)
         printf("ctr %s: object %s was not set\n", ctr->name, key);
@@ -108,10 +122,10 @@ show_key(fdf_ctr_t *ctr, char *key, char *value)
 
 
 /*
- * Show all the keys in a container.
+ * Show all objects in a container.
  */
 static void
-show_keys(fdf_ctr_t *ctr)
+show_objs(fdf_ctr_t *ctr)
 {
     char *err;
 
@@ -150,15 +164,15 @@ run_t2(fdf_t *fdf)
     fdf_ctr_t *ctr1 = open_ctr(fdf, "C0", 0);
     fdf_ctr_t *ctr2 = open_ctr(fdf, "C1", 0);
 
-    /* Show some keys */
-    show_key(ctr1, "white", "horse");
-    show_key(ctr2, "white", "cow");
-    show_key(ctr1, "red",   "squirrel");
-    show_key(ctr2, "green", "alligator");
+    /* Show some objects */
+    show_obj(ctr1, "white", "horse");
+    show_obj(ctr2, "white", "cow");
+    show_obj(ctr1, "red",   "squirrel");
+    show_obj(ctr2, "green", "alligator");
 
-    /* Show all keys */
-    show_keys(ctr1);
-    show_keys(ctr2);
+    /* Show all objects */
+    show_objs(ctr1);
+    show_objs(ctr2);
 
     /* Close containers */
     fdf_ctr_close(ctr1, NULL);
@@ -176,29 +190,34 @@ run_t1(fdf_t *fdf)
     fdf_ctr_t *ctr1 = open_ctr(fdf, "C0", FDF_CTNR_CREATE);
     fdf_ctr_t *ctr2 = open_ctr(fdf, "C1", FDF_CTNR_CREATE);
 
-    /* Set some keys */
-    set_key(ctr1, "white", "horse");
-    set_key(ctr2, "white", "cow");
-    set_key(ctr1, "red",   "squirrel");
-    set_key(ctr2, "green", "alligator");
+    /* Set some objects */
+    set_obj(ctr1, "white", "horse");
+    set_obj(ctr2, "white", "cow");
+    set_obj(ctr1, "red",   "squirrel");
+    set_obj(ctr2, "green", "alligator");
+
+    del_obj(ctr2, "white");
+    set_obj(ctr2, "yellow", "yak");
+    set_obj(ctr2, "yellow", "pig");
 
     /* Flush containers */
     flush_ctr(ctr1);
     flush_ctr(ctr2);
 
-    /* Show some keys */
-    show_key(ctr1, "white", "horse");
-    show_key(ctr2, "white", "cow");
-    show_key(ctr1, "red",   "squirrel");
-    show_key(ctr2, "green", "alligator");
+    /* Show some objects */
+    show_obj(ctr1, "white", "horse");
+    show_obj(ctr2, "white", "cow");
+    show_obj(ctr1, "red",   "squirrel");
+    show_obj(ctr2, "green", "alligator");
 
-    /* Show all keys */
-    show_keys(ctr1);
-    show_keys(ctr2);
+    /* Show all objects */
+    show_objs(ctr1);
+    show_objs(ctr2);
 
     /* Close containers */
     fdf_ctr_close(ctr1, NULL);
     fdf_ctr_close(ctr2, NULL);
+    //sleep(3);
 }
 
 

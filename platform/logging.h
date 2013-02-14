@@ -63,6 +63,7 @@ __BEGIN_DECLS
 
 
 #define PLAT_LOG_ID_INITIAL 0
+#define PLII PLAT_LOG_ID_INITIAL
 
 /**
  * @brief Log levels

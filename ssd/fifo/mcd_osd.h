@@ -91,16 +91,6 @@ enum cntr_states {
 
 
 /*
- * An attempt to get a unique container id from the shard and cguid.
- */
-#if 1
-#define cntrid(shard, cguid) (cguid)
-#else
-#define cntrid(shard, cguid) ((shard->id >> 40) & 0xffff)
-#endif
-
-
-/*
  * In-core hash table.  Blocks are in 512 byte sectors.
  */
 typedef struct mcd_osd_hash_entry {

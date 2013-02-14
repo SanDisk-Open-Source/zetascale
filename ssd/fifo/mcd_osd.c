@@ -2917,7 +2917,7 @@ mcd_fth_osd_fifo_set( void * context, mcd_osd_shard_t * shard, char * key,
     new_entry.blocks     = mcd_osd_blk_to_lba( blocks );
     new_entry.syndrome   = (uint16_t)(syndrome >> 48);
     new_entry.address    = blk_offset % shard->total_blks;
-    new_entry.cntr_id    = cntrid(shard, meta_data->cguid);
+    new_entry.cntr_id    = meta_data->cguid;
 
     new_entry.deleted    = 0;
     if ( &Mcd_osd_cmc_cntr != shard->cntr ) {
@@ -4377,7 +4377,11 @@ mcd_fth_osd_slab_set( void * context, mcd_osd_shard_t * shard, char * key,
     mcd_osd_bucket_t          * bucket;
     mcd_osd_slab_class_t      * class;
     mcd_logrec_object_t         log_rec;
-    cntr_id_t                   cntr_id = cntrid(shard, meta_data->cguid);
+    int64_t                     plus_objs = 0;
+    int64_t                     plus_blks = 0;
+    int64_t                     done_objs = 0;
+    int64_t                     done_blks = 0;
+    cntr_id_t                   cntr_id = meta_data->cguid;
 
     mcd_log_msg( 20000, PLAT_LOG_LEVEL_DEBUG, "ENTERING" );
 
@@ -4543,6 +4547,9 @@ mcd_fth_osd_slab_set( void * context, mcd_osd_shard_t * shard, char * key,
                 rc = FLASH_EEXIST;
                 goto out;
             }
+
+            plus_objs--;
+            plus_blks -= mcd_osd_blk_to_use(shard, hash_entry->blocks);
 
             /*
              * FIXME: write in place if possible?
@@ -4876,6 +4883,17 @@ mcd_fth_osd_slab_set( void * context, mcd_osd_shard_t * shard, char * key,
         }
     }
 
+    plus_objs++;
+    plus_blks += mcd_osd_blk_to_use(shard, blocks);
+    if (plus_objs || plus_blks) {
+        rc = inc_cntr_map(cntr_id, plus_objs, plus_blks * MCD_OSD_BLK_SIZE);
+        if (rc != FDF_SUCCESS)
+            goto out;
+        rc = FLASH_EOK;
+        done_objs = plus_objs;
+        done_blks = plus_blks;
+    }
+
     /*
      * if the shard allows eviction and is replicated, evict all
      * items with the same hash to make life easier before we insert
@@ -5122,6 +5140,14 @@ out:
     if ( dyn_buffer ) {
         mcd_fth_osd_iobuf_free( buf );
     }
+
+    if (rc != FLASH_EOK)
+        plus_objs = plus_blks = 0;
+
+    plus_objs -= done_objs;
+    plus_blks -= done_blks;
+    if (plus_objs || plus_blks)
+        inc_cntr_map(cntr_id, plus_objs, plus_blks * MCD_OSD_BLK_SIZE);
     return rc;
 }
 
@@ -5142,7 +5168,7 @@ mcd_fth_osd_slab_get( void * context, mcd_osd_shard_t * shard, char *key,
     mcd_osd_meta_t            * meta;
     mcd_osd_hash_t            * hash_entry;
     mcd_osd_bucket_t          * bucket;
-    cntr_id_t                   cntr_id = cntrid(shard, meta_data->cguid);
+    cntr_id_t                   cntr_id = meta_data->cguid;
 
     mcd_log_msg( 20000, PLAT_LOG_LEVEL_DEBUG, "ENTERING" );
     (void) __sync_fetch_and_add( &shard->num_gets, 1 );

@@ -1,12 +1,16 @@
-SDF_REFORMAT        = 1
-FDF_FLASH_SIZE      = 4G
-FDF_FLASH_FILENAME  = /tmp/fdf_disk%d
+SDF_REFORMAT            = 1
+FDF_FLASH_SIZE          = 4G
+FDF_FLASH_FILENAME      = /tmp/fdf_disk%d
+#FDF_STATS_THREAD        = 1
+#FDF_STATS_DUMP_INTERVAL = 1
 
-C0_SIZE             = 1G
-C0_FIFO_MODE        = 0
-C0_PERSISTENT       = 1
-C0_EVICTING         = 0
-C0_WRITETHRU        = 1
-C0_CID              = 0
-C0_NUM_SHARDS       = 1
-C0_DURABILITY_LEVEL = PERIODIC
+C0_SIZE                 = 1G
+C0_FIFO_MODE            = 0
+C0_PERSISTENT           = 1
+C0_EVICTING             = 0
+C0_WRITETHRU            = 1
+C0_CID                  = 0
+C0_NUM_SHARDS           = 1
+C0_DURABILITY_LEVEL     = PERIODIC
+
+#C1_SIZE                 = 1024
