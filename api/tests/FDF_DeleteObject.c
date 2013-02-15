@@ -104,7 +104,6 @@ FDF_status_t WriteObject(FDF_cguid_t cid,char *key,uint32_t keylen,char *data,ui
     ret = FDFWriteObject(fdf_thrd_state, cid, key, keylen, data, datalen, flags);
     fprintf(fp,"FDFWriteObject : ");
     fprintf(fp,"%s\n",FDFStrError(ret));
-    fprintf(stdout,"%s\n",FDFStrError(ret));
     return ret;
 }
 
@@ -249,23 +248,19 @@ int test_basic_check(uint32_t aw)
     fprintf(fp,"%s\n",testname[3]);
 
     char *data;
-    uint64_t datalen;
-    data = (char *)malloc(1*1024*1024*sizeof(char));
-    datalen = 1*1024*1024*sizeof(char);
+    uint64_t datalen = 1*1024*1024*sizeof(char);
+    data = (char *)malloc(datalen);
     memset(data, 'x', datalen);
 
     for(int i = 0; i < 3; i++)
     {
         ret = OpenContainer("test3", 1, aw, i);
-		assert(ret == FDF_SUCCESS);
         if(FDF_SUCCESS == ret)
         {
             ret = WriteObject(cguid, "xxxx", 5, data, datalen, 1);
-			assert(ret == FDF_SUCCESS);
             if(FDF_SUCCESS == ret)
             {
                 ret = DeleteObject(cguid, "xxxx", 5);
-				assert(ret == FDF_SUCCESS);
                 if(FDF_SUCCESS == ret)
                 {
                     tag += 1;
