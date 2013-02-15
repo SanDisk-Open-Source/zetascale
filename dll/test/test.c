@@ -164,6 +164,10 @@ run_t2(fdf_t *fdf)
     fdf_ctr_t *ctr1 = open_ctr(fdf, "C0", 0);
     fdf_ctr_t *ctr2 = open_ctr(fdf, "C1", 0);
 
+    /* Set some objects */
+    set_obj(ctr1, "purple", "penguin");
+    set_obj(ctr2, "purple", "porpoise");
+
     /* Show some objects */
     show_obj(ctr1, "white", "horse");
     show_obj(ctr2, "white", "cow");

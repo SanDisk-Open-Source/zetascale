@@ -154,4 +154,18 @@ FDF_status_t fdf_cmap_set_num_obj(
 	FDF_cguid_t	cguid,
 	uint64_t	num_obj
 	);
+
+/*
+ * Get information about a container.  Returns 1 on success and 0 on error.
+ * Any of the parameters may be null if we are not interested.
+ * Defined in fdf.c
+ */
+int
+get_cntr_info(cntr_id_t cntr_id,
+              char *name,
+              int name_len,
+              uint64_t *objs,
+              uint64_t *used,
+              uint64_t *size);
+
 #endif // __SDF_INTERNAL_H

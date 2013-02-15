@@ -597,7 +597,7 @@ typedef struct {
 /*
  * Container enumeration state information.
  */
-typedef struct {
+typedef struct FDF_iterator {
     mo_shard_t *shard;
     FDF_cguid_t cguid;
     void       *data_buf_alloc;
@@ -4386,9 +4386,8 @@ enumerate_next(pai_t *pai, void *state, char **key, uint32_t *keylen,
  * Finish enumeration of a container.
  */
 FDF_status_t
-enumerate_done(pai_t *pai, void *state)
+enumerate_done(pai_t *pai, e_state_t *es)
 {
-    e_state_t *es = (e_state_t *) state;
     if (es->data_buf_alloc)
         plat_free(es->data_buf_alloc);
     if (es->hash_buf)
@@ -4416,7 +4415,7 @@ e_init_fail(pai_t *pai, e_state_t *es)
  */
 FDF_status_t
 enumerate_init(pai_t *pai, struct shard *shard_arg,
-               FDF_cguid_t cguid, void **state)
+               FDF_cguid_t cguid, e_state_t **esp)
 {
     mo_shard_t *shard = (mo_shard_t *) shard_arg;
 
@@ -4439,7 +4438,7 @@ enumerate_init(pai_t *pai, struct shard *shard_arg,
 
     es->shard = shard;
     es->cguid = cguid;
-    *((e_state_t **) state) = es;
+    *((e_state_t **) esp) = es;
     return 0;
 }
 
@@ -4483,8 +4482,23 @@ set_cntr_sizes(pai_t *pai, shard_t *shard_arg)
         if (!p->objects)
             continue;
         inc_cntr_map(n, p->objects, p->bytes);
-        sdf_logi(PLII, "Container %ld: objects=%ld bytes=%ld",
-                 n, p->objects, p->bytes);
+
+        uint64_t objs;
+        uint64_t used;
+        uint64_t size;
+        char name[256];
+        if (!get_cntr_info(n, name, sizeof(name), &objs, &used, &size))
+            sdf_loge(PLII, "Failed on get_cntr_info for container %ld", n);
+        else {
+            if (size) {
+                sdf_logi(PLII, "Container %s: id=%ld objs=%ld used=%ld"
+                               " size=%ld full=%.1f%%",
+                         name, n, objs, used, size, used*100.0/size);
+            } else {
+                sdf_logi(PLII, "Container %s: id=%ld objs=%ld used=%ld",
+                         name, n, objs, used);
+            }
+        }
     }
 
     plat_free(cntr_p);

@@ -28,14 +28,14 @@ extern int fdf_is_ctnr_open(FDF_cguid_t cguid);
  */
 extern FDF_status_t
 enumerate_init(SDF_action_init_t *pai, struct shard *shard,
-               FDF_cguid_t cguid, void **iter);
+               FDF_cguid_t cguid, struct FDF_iterator **iter);
 
 extern FDF_status_t
-enumerate_done(SDF_action_init_t *pai, void *iter);
+enumerate_done(SDF_action_init_t *pai, struct FDF_iterator *iter);
 
 extern FDF_status_t
-enumerate_next(SDF_action_init_t *pai, void *iter, char **key,
-	       uint32_t *keylen, char **data, uint64_t *datalen);
+enumerate_next(SDF_action_init_t *pai, struct FDF_iterator *iter,
+               char **key, uint32_t *keylen, char **data, uint64_t *datalen);
 
 
 /*
@@ -87,7 +87,7 @@ FDFEnumerateContainerObjects(struct FDF_thread_state *ts,
     if (s != FDF_SUCCESS)
         return s;
 
-    s = enumerate_init(pai, shard, cguid, (void **)iter);
+    s = enumerate_init(pai, shard, cguid, iter);
     if (s)
         return s;
     return FDF_SUCCESS;

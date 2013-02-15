@@ -13,4 +13,4 @@ C0_CID                  = 0
 C0_NUM_SHARDS           = 1
 C0_DURABILITY_LEVEL     = PERIODIC
 
-#C1_SIZE                 = 1024
+C1_SIZE                 = 1024

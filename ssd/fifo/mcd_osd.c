@@ -5148,6 +5148,7 @@ out:
     plus_blks -= done_blks;
     if (plus_objs || plus_blks)
         inc_cntr_map(cntr_id, plus_objs, plus_blks * MCD_OSD_BLK_SIZE);
+
     return rc;
 }
 

@@ -307,14 +307,6 @@ typedef enum {
     FDF_WRITE_MUST_EXIST    	= 2,
 } FDF_write_mode_t;
 
-typedef struct FDF_iterator {
-    uint64_t          addr;
-    uint64_t          prev_seq;
-    uint64_t          curr_seq;
-    struct shard     *shard;
-    FDF_cguid_t       cguid;
-} FDF_iterator_t;
-
 typedef struct {
     char            *key;
     uint32_t         key_len;

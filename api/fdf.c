@@ -783,6 +783,39 @@ get_cntr_map(cntr_id_t cntr_id)
 
 
 /*
+ * Get information for a given container.
+ */
+int
+get_cntr_info(cntr_id_t cntr_id,
+              char *name, int name_len,
+              uint64_t *objs,
+              uint64_t *used,
+              uint64_t *size)
+{
+    ctnr_map_t *cmap = get_cntr_map(cntr_id);
+    if (!cmap)
+        return 0;
+
+    if (name) {
+        int n = name_len - 1;
+        if (n > sizeof(cmap->cname))
+            n = sizeof(cmap->cname);
+        strncpy(name, cmap->cname, n);
+        name[n] = '\0';
+    }
+
+    if (objs)
+        *objs = cmap->num_obj;
+    if (used)
+        *used = cmap->current_size;
+    if (size)
+        *size = cmap->size_kb * 1024;
+    rel_cntr_map(cmap);
+    return 1;
+}
+
+
+/*
  * Add a number of objects and the size consumed to a container map.
  */
 FDF_status_t
