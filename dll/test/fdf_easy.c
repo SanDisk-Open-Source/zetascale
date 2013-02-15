@@ -132,8 +132,6 @@ ts_destroy(void *p)
 fdf_t *
 fdf_init(char **errp)
 {
-    fdf_link_();
-
     fdf_t *fdf = malloc(sizeof(*fdf));
     if (!fdf) {
         set_err_sys(errp, errno);

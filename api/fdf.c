@@ -817,10 +817,8 @@ inc_cntr_map(cntr_id_t cntr_id, int64_t objs, int64_t size)
         return FDF_FAILURE_CONTAINER_GENERIC;
     }
 
-#if 0
     if (limit && t_size > limit)
         return FDF_CONTAINER_FULL;
-#endif
 
     return FDF_SUCCESS;
 }

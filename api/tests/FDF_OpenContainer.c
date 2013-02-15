@@ -225,7 +225,7 @@ int FDFOpenContainer_basic_check_size()
     fprintf(fp,"test %d:\n",++testCount);
     p.size_kb = 0;
     ret = OpenContainer("test",&p,FDF_CTNR_CREATE,&cguid);
-    p.size_kb = 1;   
+    p.size_kb = 3;   
 
     if(FDF_SUCCESS == ret){
         fprintf(fp,"set size < 1K Create container success.\n");

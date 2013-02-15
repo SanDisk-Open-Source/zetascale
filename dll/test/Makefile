@@ -1,6 +1,6 @@
 CC	= gcc
 CFLAGS = -Wall -g -I../../api -I../..
-OBJS	= test.o fdf_easy.o fdf_conf.o fdf_errs.o fdf_link.o fdf_dll.o
+OBJS	= test.o fdf_easy.o fdf_conf.o fdf_errs.o fdf_dll.o
 
 all: test
 

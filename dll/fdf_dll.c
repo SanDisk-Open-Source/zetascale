@@ -302,14 +302,32 @@ load(char *path)
 
 
 /*
+ * Cause the given library to be loaded.
+ */
+static void
+dlo(const char *lib)
+{
+    void *dl = dlopen(lib, RTLD_NOW|RTLD_GLOBAL);
+    if (!dl) {
+        char *err = dlerror();
+        fprintf(stderr, "%s\n", err);
+        exit(1);
+    }
+}
+
+
+/*
  * Load the FDF library.
  */
 static void
 parse(void)
 {
     int i;
-    char *lib = getenv("FDF_LIB");
 
+    dlo("librt.so");
+    dlo("libaio.so");
+
+    char *lib = getenv("FDF_LIB");
     if (lib) {
         if (load(lib))
             return;
