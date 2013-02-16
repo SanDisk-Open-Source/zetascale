@@ -872,13 +872,15 @@ static int count_containers() {
 }
 #endif /* notdef */
 
-#if 1
+#ifdef notdef
 void dump_map() {
     for (int i=0; i<MCD_MAX_NUM_CNTRS; i++) {
         if (CtnrMap[i].cguid != 0) {
             fprintf(stderr, ">>>CtnrMap[%d].cname           = %s\n", i, CtnrMap[i].cname);
             fprintf(stderr, ">>>CtnrMap[%d].cguid           = %lu\n", i, CtnrMap[i].cguid);
             fprintf(stderr, ">>>CtnrMap[%d].sdf_container   = %d\n", i, !isContainerNull(CtnrMap[i].sdf_container));
+			fprintf(stderr, ">>>CtnrMap[%d].size_kb 		= %lu\n", i, CtnrMap[i].size_kb);
+            fprintf(stderr, ">>>CtnrMap[%d].num_obj 		= %lu\n", i, CtnrMap[i].num_obj);
             fprintf(stderr, ">>>CtnrMap[%d].current_size 	= %lu\n", i, CtnrMap[i].current_size);
         }
     }
@@ -3699,6 +3701,7 @@ static void *fdf_vc_thread(
 				memcpy( CtnrMap[j].cname, meta->cname, strlen( meta->cname ) );
                 CtnrMap[j].cguid                = meta->cguid;
                 CtnrMap[j].sdf_container        = containerNull;
+				CtnrMap[j].size_kb              = meta->properties.container_id.size;
                 Mcd_containers[j].cguid         = meta->cguid;
                 Mcd_containers[j].container_id  = meta->properties.container_id.container_id;
 				memcpy( Mcd_containers[j].cname, meta->cname, strlen( meta->cname ) );
@@ -3771,7 +3774,7 @@ fdf_vc_init(
 
     // Create the VMC
     p.persistent            = FDF_TRUE;
-    p.evicting              = FDF_TRUE;
+    p.evicting              = FDF_FALSE;
     p.writethru             = FDF_TRUE;
     p.durability_level      = FDF_DURABILITY_HW_CRASH_SAFE;
     p.size_kb               = 1024 * 1024; // kB
