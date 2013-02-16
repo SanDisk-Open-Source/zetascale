@@ -14,6 +14,14 @@ use diagnostics;
 use constant LineLen => 80;
 
 
+# These functions may need to call load.
+#
+my %Onload =(
+    'Init'        => 1,
+    'SetProperty' => 1,
+);
+
+
 # Code at beginning.
 #
 my $Code_start = '
@@ -34,6 +42,12 @@ my $Code_start = '
      */
     #define nel(a)      (sizeof(a)/sizeof(*(a)))
     #define unlikely(x) __builtin_expect((x), 0)
+
+
+    /*
+     * Set once FDF has been loaded.
+     */
+    static int loaded;
 
 
     /*
@@ -151,7 +165,9 @@ my $Code_funcs = '
     static void
     parse(void)
     {
-        int i;
+        if (loaded)
+            return;
+        loaded = 1;
 
         dlo("librt.so");
         dlo("libaio.so");
@@ -166,6 +182,7 @@ my $Code_funcs = '
         if (load("/usr/lib64/fdf/libfdf.so"))
             return;
 
+        int i;
         for (i = 0; i < nel(fdflibs); i++)
             if (load(fdflibs[i]))
                 return;
@@ -357,7 +374,7 @@ sub make_link_funcs ($) {
 
         my $half = rem_sdf $name;
         $str .= "{\n";
-        $str .= "    parse();\n" if ($half eq 'Init');
+        $str .= "    parse();\n" if $Onload{$half};
         $str .= "    if (unlikely(!ptr_$name))\n";
         $str .= "        undefined(\"$name\");\n";
         $str .= "\n";

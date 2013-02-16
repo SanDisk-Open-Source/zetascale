@@ -18,6 +18,12 @@
 
 
 /*
+ * Set once FDF has been loaded.
+ */
+static int loaded;
+
+
+/*
  * FDF Library locations.
  */
 static char *fdflibs[] ={
@@ -322,7 +328,9 @@ dlo(const char *lib)
 static void
 parse(void)
 {
-    int i;
+    if (loaded)
+        return;
+    loaded = 1;
 
     dlo("librt.so");
     dlo("libaio.so");
@@ -337,6 +345,7 @@ parse(void)
     if (load("/usr/lib64/fdf/libfdf.so"))
         return;
 
+    int i;
     for (i = 0; i < nel(fdflibs); i++)
         if (load(fdflibs[i]))
             return;
@@ -350,6 +359,7 @@ parse(void)
 void 
 FDFSetProperty(const char *property, const char *value)
 {
+    parse();
     if (unlikely(!ptr_FDFSetProperty))
         undefined("FDFSetProperty");
 

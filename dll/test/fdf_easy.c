@@ -127,52 +127,6 @@ ts_destroy(void *p)
 
 
 /*
- * Initialize FDF.
- */
-fdf_t *
-fdf_init(char **errp)
-{
-    fdf_t *fdf = malloc(sizeof(*fdf));
-    if (!fdf) {
-        set_err_sys(errp, errno);
-        return NULL;
-    }
-
-    int err = pthread_key_create(&fdf->key, ts_destroy);
-    if (set_err_sys_if(errp, err))
-        return NULL;
-
-    FDF_status_t ferr = FDFInit(&fdf->state);
-    if (set_err_fdf_if(errp, ferr)) {
-        free(fdf);
-        return NULL;
-    }
-    return fdf;
-}
-
-
-/*
- * Finish with FDF.
- */
-void
-fdf_done(fdf_t *fdf)
-{
-    FDFShutdown(fdf->state);
-    free(fdf);
-}
-
-
-/*
- * Free an object.
- */
-void
-fdf_free(fdf_t *fdf, void *ptr)
-{
-    FDFFreeBuffer(ptr);
-}
-
-
-/*
  * Get a durability level property.
  */
 static int
@@ -261,8 +215,8 @@ fdf_ctr_init(fdf_t *fdf, char *name, char **errp)
         set_err_sys(errp, errno);
         return NULL;
     }
-
     memset(ctr, 0, sizeof(*ctr));
+
     ctr->fdf = fdf;
 
     name = strdup(name);
@@ -439,6 +393,7 @@ fdf_iter_init(fdf_ctr_t *ctr, char **errp)
         set_err_sys(errp, errno);
         return NULL;
     }
+    memset(iter, 0, sizeof(*iter));
 
     iter->ctr  = ctr;
     FDF_status_t ferr;
@@ -494,4 +449,72 @@ fdf_iter_next(fdf_iter_t *iter, char **key, uint64_t *keylen,
 
     set_err_fdf_if(errp, ferr);
     return -1;
+}
+
+
+/*
+ * Free an object.
+ */
+void
+fdf_free(fdf_t *fdf, void *ptr)
+{
+    FDFFreeBuffer(ptr);
+}
+
+
+/*
+ * Finish with FDF.
+ */
+void
+fdf_done(fdf_t *fdf)
+{
+    FDFShutdown(fdf->state);
+    free(fdf);
+}
+
+
+/*
+ * Set a FDF property.
+ */
+int
+fdf_set_prop(fdf_t *fdf, const char *prop, const char *value)
+{
+    FDFSetProperty(prop, value);
+    return 1;
+}
+
+
+/*
+ * Start FDF.
+ */
+int
+fdf_start(fdf_t *fdf, char **errp)
+{
+    FDF_status_t ferr = FDFInit(&fdf->state);
+    return !set_err_fdf_if(errp, ferr);
+}
+
+
+/*
+ * Initialize FDF.
+ */
+fdf_t *
+fdf_init(int start, char **errp)
+{
+    fdf_t *fdf = malloc(sizeof(*fdf));
+    if (!fdf) {
+        set_err_sys(errp, errno);
+        return NULL;
+    }
+    memset(fdf, 0, sizeof(*fdf));
+
+    int err = pthread_key_create(&fdf->key, ts_destroy);
+    if (set_err_sys_if(errp, err))
+        return NULL;
+
+    if (start && !fdf_start(fdf, errp)) {
+        free(fdf);
+        return NULL;
+    }
+    return fdf;
 }

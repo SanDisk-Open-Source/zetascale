@@ -20,7 +20,7 @@
 
 
 /*
- * Print out an allocated error message and exit.
+ * Print out an error message that was allocated and exit.
  */
 static void
 die(char *err, char *fmt, ...)
@@ -50,6 +50,34 @@ flush_ctr(fdf_ctr_t *ctr)
     if (!fdf_ctr_flush(ctr, &err))
         die(err, "fdf_ctr_flush failed");
 }
+
+
+/*
+ * Delete a container.
+ */
+static void
+delete_ctr(fdf_ctr_t *ctr)
+{
+    char *err;
+
+    if (!fdf_ctr_delete(ctr, &err))
+        die(err, "fdf_ctr_delete failed");
+}
+
+
+#if 0
+/*
+ * Reopen a container.
+ */
+static void
+reopen_ctr(fdf_ctr_t *ctr, int mode)
+{
+    char *err;
+
+    if (!fdf_ctr_open(ctr, mode, &err))
+        die(err, "fdf_ctr_open failed");
+}
+#endif
 
 
 /*
@@ -155,6 +183,56 @@ show_objs(fdf_ctr_t *ctr)
 
 
 /*
+ * Test 3.
+ */
+static void
+run_t3(fdf_t *fdf)
+{
+    /* Create containers */
+    fdf_ctr_t *ctr1 = open_ctr(fdf, "C0", FDF_CTNR_CREATE);
+    fdf_ctr_t *ctr2 = open_ctr(fdf, "C1", FDF_CTNR_CREATE);
+
+    /* Set some objects */
+    set_obj(ctr1, "white", "horse");
+    set_obj(ctr2, "white", "cow");
+    set_obj(ctr1, "red",   "squirrel");
+    set_obj(ctr2, "green", "alligator");
+
+    /* Delete containers */
+    delete_ctr(ctr1);
+    delete_ctr(ctr2);
+
+    /* Create containers */
+    ctr1 = open_ctr(fdf, "C0", FDF_CTNR_CREATE);
+    ctr2 = open_ctr(fdf, "C1", FDF_CTNR_CREATE);
+
+    /* Set some objects */
+    set_obj(ctr1, "white", "horse");
+    set_obj(ctr2, "white", "cow");
+    set_obj(ctr1, "red",   "squirrel");
+    set_obj(ctr2, "green", "alligator");
+
+    /* Set some more objects */
+    set_obj(ctr1, "purple", "penguin");
+    set_obj(ctr2, "purple", "porpoise");
+
+    /* Show some objects */
+    show_obj(ctr1, "white", "horse");
+    show_obj(ctr2, "white", "cow");
+    show_obj(ctr1, "red",   "squirrel");
+    show_obj(ctr2, "green", "alligator");
+
+    /* Show all objects */
+    show_objs(ctr1);
+    show_objs(ctr2);
+
+    /* Close containers */
+    fdf_ctr_close(ctr1, NULL);
+    fdf_ctr_close(ctr2, NULL);
+}
+
+
+/*
  * Test 2.
  */
 static void
@@ -221,7 +299,46 @@ run_t1(fdf_t *fdf)
     /* Close containers */
     fdf_ctr_close(ctr1, NULL);
     fdf_ctr_close(ctr2, NULL);
-    //sleep(3);
+}
+
+
+/*
+ * The equivalent of hello world.
+ */
+static void
+run_hello(fdf_t *fdf)
+{
+    /* Create containers */
+    fdf_ctr_t *ctr1 = open_ctr(fdf, "C0", FDF_CTNR_CREATE);
+    fdf_ctr_t *ctr2 = open_ctr(fdf, "C1", FDF_CTNR_CREATE);
+
+    /* Set some objects */
+    set_obj(ctr1, "white", "horse");
+    set_obj(ctr2, "white", "cow");
+    set_obj(ctr1, "red",   "squirrel");
+    set_obj(ctr2, "green", "alligator");
+
+    del_obj(ctr2, "white");
+    set_obj(ctr2, "yellow", "yak");
+    set_obj(ctr2, "yellow", "pig");
+
+    /* Flush containers */
+    flush_ctr(ctr1);
+    flush_ctr(ctr2);
+
+    /* Show some objects */
+    show_obj(ctr1, "white", "horse");
+    show_obj(ctr2, "white", "cow");
+    show_obj(ctr1, "red",   "squirrel");
+    show_obj(ctr2, "green", "alligator");
+
+    /* Show all objects */
+    show_objs(ctr1);
+    show_objs(ctr2);
+
+    /* Close containers */
+    fdf_ctr_close(ctr1, NULL);
+    fdf_ctr_close(ctr2, NULL);
 }
 
 
@@ -246,9 +363,10 @@ init_fdf(char *name)
         setenv("FDF_PROPERTY_FILE", buf, 1);
         prop = buf;
     }
-    setenv("FDF_LIB", "/tmp/libfdf.so", 0);
+    if (stat("/tmp/libfdf.so", &sbuf) >= 0)
+        setenv("FDF_LIB", "/tmp/libfdf.so", 0);
 
-    fdf_t *fdf = fdf_init(&err);
+    fdf_t *fdf = fdf_init(1, &err);
     if (!fdf)
         die(err, "fdf_init failed");
 
@@ -259,20 +377,47 @@ init_fdf(char *name)
 }
 
 
+/*
+ * Print out a usage message and exit.
+ */
+static void
+usage(void)
+{
+    int i;
+    const char *str[] = {
+        "Usage:",
+        "    test Name",
+        "Name:",
+        "    hello - Simple test",
+        "    t1    - Enumerate several objects",
+        "    t2    - Reopen existing containers",
+        "    t3    - Delete and reopen containers",
+    };
+
+    for (i = 0; i < sizeof(str)/sizeof(*str); i++)
+        printf("%s\n", str[i]);
+    exit(0);
+}
+
+
 int
 main(int argc, char *argv[])
 {
     if (argc < 2)
-        die(NULL, "usage: test Name");
+        usage();
     fdf_t *fdf = init_fdf(argv[1]);
 
     int i;
     for (i = 1; i < argc; i++) {
         char *name = argv[i];
-        if (streq(name, "t1"))
+        if (streq(name, "hello"))
+            run_hello(fdf);
+        else if (streq(name, "t1"))
             run_t1(fdf);
         else if (streq(name, "t2"))
             run_t2(fdf);
+        else if (streq(name, "t3"))
+            run_t3(fdf);
         else
             die(NULL, "unknown test: %s", name);
     }
