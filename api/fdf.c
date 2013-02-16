@@ -41,6 +41,7 @@
 #include "agent/agent_helper.h"
 #include "fdf_trans.h"
 #include "sdftcp/locks.h"
+#include "fdf_internal.h"
 
 #define LOG_ID PLAT_LOG_ID_INITIAL
 #define LOG_CAT PLAT_LOG_CAT_SDF_NAMING
@@ -53,6 +54,7 @@
 #define STATS_API_TEST 1
 
 static time_t 			current_time 	= 0;
+static int stats_dump = 0;
 static SDF_shardid_t	vdc_shardid		= SDF_SHARDID_INVALID;
 
 char *FDF_Status_Strings[] = {
@@ -256,373 +258,242 @@ static char * FDFCacheCountStrings[] = {
     "new_entries",
 };
 
+fdf_stats_info_t fdf_stats_access_type[] = {
+    {"APCOE","num_created_objs_with_expiry",FDF_STATS_TYPE_APP_REQ},/*FDF_ACCESS_TYPES_APCOE*/
+    {"APCOP","num_created_objs",FDF_STATS_TYPE_APP_REQ},/*FDF_ACCESS_TYPES_APCOP*/
+    {"APPAE","num_put_objs_with_expiry",FDF_STATS_TYPE_APP_REQ},/*FDF_ACCESS_TYPES_APPAE*/
+    {"APPTA","num_put_objs",FDF_STATS_TYPE_APP_REQ},/*FDF_ACCESS_TYPES_APPTA*/
+    {"APSOE","num_set_objs_with_expiry",FDF_STATS_TYPE_APP_REQ},/*FDF_ACCESS_TYPES_APSOE*/
+    {"APSOB","num_set_objs",FDF_STATS_TYPE_APP_REQ},/*FDF_ACCESS_TYPES_APSOB*/
+    {"APGRX","num_get_objs_and_check_expiry",FDF_STATS_TYPE_APP_REQ},/*FDF_ACCESS_TYPES_APGRX*/
+    {"APGRD","num_get_objs",FDF_STATS_TYPE_APP_REQ},/*FDF_ACCESS_TYPES_APGRD*/
+    {"APDBE","num_del_objs_with_expiry",FDF_STATS_TYPE_APP_REQ},/*FDF_ACCESS_TYPES_APDBE*/
+    {"APDOB","num_del_objs",FDF_STATS_TYPE_APP_REQ},/*FDF_ACCESS_TYPES_APDOB*/
+    {"APFLS","num_flush_objs",FDF_STATS_TYPE_APP_REQ},/*FDF_ACCESS_TYPES_APFLS*/
+    {"APFLI","num_flush_and_invalidate_objs",FDF_STATS_TYPE_APP_REQ},/*FDF_ACCESS_TYPES_APFLI*/
+    {"APINV","num_invalidate_objs",FDF_STATS_TYPE_APP_REQ},/*FDF_ACCESS_TYPES_APINV*/
+    {"APSYC","num_sync_to_flash",FDF_STATS_TYPE_APP_REQ},/*FDF_ACCESS_TYPES_APSYC*/
+    {"APICD","num_delayed_invalidates",FDF_STATS_TYPE_APP_REQ},/*FDF_ACCESS_TYPES_APICD*/
+    {"APGIT","delayed_invalidation_time",FDF_STATS_TYPE_APP_REQ},/*FDF_ACCESS_TYPES_APGIT*/
+    {"APFCO","num_flush_container",FDF_STATS_TYPE_APP_REQ},/*FDF_ACCESS_TYPES_APFCO*/
+    {"APFCI","num_flush_and_invalidate_container",FDF_STATS_TYPE_APP_REQ},/*FDF_ACCESS_TYPES_APFCI*/
+    {"APICO","num_invalidate_container",FDF_STATS_TYPE_APP_REQ},/*FDF_ACCESS_TYPES_APICO*/
+    {"APRIV","num_remote_invalidations",FDF_STATS_TYPE_APP_REQ},/*FDF_ACCESS_TYPES_APRIV*/
+    {"APRUP","num_remote_updates",FDF_STATS_TYPE_APP_REQ},/*FDF_ACCESS_TYPES_APRUP*/
+};
+char *get_access_type_stats_desc(int stat ) {
+    if( stat >= sizeof(fdf_stats_access_type)/sizeof(fdf_stats_info_t)) {
+        return "Invalid stat";
+    }
+    return fdf_stats_access_type[stat].desc;
+}
 
-static char *FDFAccessTypeSearchStrings[] = {
-    "APCOE",/*FDF_ACCESS_TYPES_APCOE*/
-    "APCOP",/*FDF_ACCESS_TYPES_APCOP*/
-    "APPAE",/*FDF_ACCESS_TYPES_APPAE*/
-    "APPTA",/*FDF_ACCESS_TYPES_APPTA*/
-    "APSOE",/*FDF_ACCESS_TYPES_APSOE*/
-    "APSOB",/*FDF_ACCESS_TYPES_APSOB*/
-    "APGRX",/*FDF_ACCESS_TYPES_APGRX*/
-    "APGRD",/*FDF_ACCESS_TYPES_APGRD*/
-    "APDBE",/*FDF_ACCESS_TYPES_APDBE*/
-    "APFLS",/*FDF_ACCESS_TYPES_APFLS*/
-    "APFLI",/*FDF_ACCESS_TYPES_APFLI*/
-    "APINV",/*FDF_ACCESS_TYPES_APINV*/
-    "APSYC",/*FDF_ACCESS_TYPES_APSYC*/
-    "APICD",/*FDF_ACCESS_TYPES_APICD*/
-    "APGIT",/*FDF_ACCESS_TYPES_APGIT*/
-    "APFCO",/*FDF_ACCESS_TYPES_APFCO*/
-    "APFCI",/*FDF_ACCESS_TYPES_APFCI*/
-    "APICO",/*FDF_ACCESS_TYPES_APICO*/
-    "APRIV",/*FDF_ACCESS_TYPES_APRIV*/
-    "APRIV",/*FDF_ACCESS_TYPES_APRUP*/
+fdf_stats_info_t fdf_stats_flash[] = {
+    {"NUM_OBJS","num_items_flash",FDF_STATS_TYPE_FLASH},/*FDF_FLASH_STATS_NUM_OBJS*/
+    {"NUM_CREATED_OBJS","num_items_total",FDF_STATS_TYPE_FLASH},/*FDF_FLASH_STATS_NUM_CREATED_OBJS*/
+    {"NUM_EVICTIONS","num_evictions_flash",FDF_STATS_TYPE_FLASH},/*FDF_FLASH_STATS_NUM_EVICTIONS*/
+    {"HASH_EVICTIONS","num_hash_evictions",FDF_STATS_TYPE_FLASH},/*FDF_FLASH_STATS_NUM_HASH_EVICTIONS*/
+    {"INVAL_EVICTIONS","nun_inval_evictions",FDF_STATS_TYPE_FLASH},/*FDF_FLASH_STATS_NUM_INVAL_EVICTIONS*/
+    {"SOFT_OVERFLOWS","nun_inval_evictions",FDF_STATS_TYPE_FLASH},/*FDF_FLASH_STATS_NUM_SOFT_OVERFLOWS*/
+    {"NUM_HARD_OVERFLOWS","nun_inval_evictions",FDF_STATS_TYPE_FLASH},/*FDF_FLASH_STATS_NUM_HARD_OVERFLOWS*/
+    {"GET_HASH_COLLISION","num_get_hash_collisions",FDF_STATS_TYPE_FLASH},/*FDF_FLASH_STATS_GET_HASH_COLLISION*/
+    {"SET_HASH_COLLISION","num_set_hash_collisions",FDF_STATS_TYPE_FLASH},/* FDF_FLASH_STATS_SET_HASH_COLLISION*/
+    {"NUM_OVERWRITES","num_overwrites",FDF_STATS_TYPE_FLASH},/*FDF_FLASH_STATS_NUM_OVERWRITES*/
+    {"NUM_OPS","num_flash_ops",FDF_STATS_TYPE_FLASH},/*FDF_FLASH_STATS_NUM_OPS*/
+    {"READ_OPS","num_read_ops",FDF_STATS_TYPE_FLASH},/*FDF_FLASH_STATS_NUM_READ_OPS*/
+    {"GET_OPS","num_get_ops",FDF_STATS_TYPE_FLASH},/*FDF_FLASH_STATS_NUM_GET_OPS*/
+    {"PUT_OPS","num_put_ops",FDF_STATS_TYPE_FLASH},/*FDF_FLASH_STATS_NUM_PUT_OPS*/
+    {"DEL_OPS","num_del_ops",FDF_STATS_TYPE_FLASH},/*FDF_FLASH_STATS_NUM_DEL_OPS*/
+    {"FULL_BUCKETS","num_existence_checks",FDF_STATS_TYPE_FLASH},/*FDF_FLASH_STATS_GET_EXIST_CHECKS*/
+    {"FULL_BUCKETS","num_full_hash_buckets",FDF_STATS_TYPE_FLASH},/*FDF_FLASH_STATS_NUM_FULL_BUCKETS*/
+    {"PENDING_IOS","num_pending_ios",FDF_STATS_TYPE_FLASH},/*FDF_FLASH_STATS_PENDING_IOS*/
+    {"SPACE_ALLOCATED","flash_space_allocated",FDF_STATS_TYPE_FLASH},/*FDF_FLASH_STATS_SPACE_ALLOCATED*/
+    {"SPACE_CONSUMED","flash_space_consumed",FDF_STATS_TYPE_FLASH},/*FDF_FLASH_STATS_SPACE_CONSUMED*/
 };
 
-static char *FDFFlashStatsSearchStrings[] = {
-    "NUM_OBJS",/*FDF_FLASH_STATS_NUM_OBJS*/
-    "NUM_CREATED_OBJS",/*FDF_FLASH_STATS_NUM_CREATED_OBJS*/
-    "NUM_EVICTIONS",/*FDF_FLASH_STATS_NUM_EVICTIONS*/
-    "HASH_EVICTIONS",/*FDF_FLASH_STATS_NUM_HASH_EVICTIONS*/
-    "INVAL_EVICTIONS",/*FDF_FLASH_STATS_NUM_INVAL_EVICTIONS*/
-    "SOFT_OVERFLOWS",/*FDF_FLASH_STATS_NUM_SOFT_OVERFLOWS*/
-    "NUM_HARD_OVERFLOWS",/*FDF_FLASH_STATS_NUM_HARD_OVERFLOWS*/
-    "GET_HASH_COLLISION",/*FDF_FLASH_STATS_GET_HASH_COLLISION*/
-    "SET_HASH_COLLISION",/* FDF_FLASH_STATS_SET_HASH_COLLISION*/
-    "NUM_OVERWRITES",/*FDF_FLASH_STATS_NUM_OVERWRITES*/
-    "NUM_OPS",/*FDF_FLASH_STATS_NUM_OPS*/
-    "READ_OPS",/*FDF_FLASH_STATS_NUM_READ_OPS*/
-    "GET_OPS",/*FDF_FLASH_STATS_NUM_GET_OPS*/
-    "PUT_OPS",/*FDF_FLASH_STATS_NUM_PUT_OPS*/
-    "DEL_OPS",/*FDF_FLASH_STATS_NUM_DEL_OPS*/
-    "FULL_BUCKETS",/*FDF_FLASH_STATS_GET_EXIST_CHECKS*/
-    "FULL_BUCKETS",/*FDF_FLASH_STATS_NUM_FULL_BUCKETS*/
-    "PENDING_IOS",/*FDF_FLASH_STATS_PENDING_IOS*/
-    "SPACE_ALLOCATED",/*FDF_FLASH_STATS_SPACE_ALLOCATED*/
-    "SPACE_CONSUMED",/*FDF_FLASH_STATS_SPACE_CONSUMED*/
-};
+char *get_flash_type_stats_desc(int stat ) {
+    if( stat >= sizeof(fdf_stats_flash)/sizeof(fdf_stats_info_t)) {
+        return "Invalid stat";
+    }
+    return fdf_stats_flash[stat].desc;
+}
 
-
-
-
-static char *FDFCacheStatsSearchStrings[] = {
-    "overwrites_s",/* FDF_CACHE_STAT_OVERWRITES_S */
-    "overwrites_m",/* FDF_CACHE_STAT_OVERWRITES_M */
-    "inplaceowr_s",/* FDF_CACHE_STAT_INPLACEOWR_S */
-    "inplaceowr_m",/* FDF_CACHE_STAT_INPLACEOWR_M */
-    "new_entries",/* FDF_CACHE_STAT_NEW_ENTRIES */
-    "writethrus",/* FDF_CACHE_STAT_WRITETHRUS */
-    "writebacks",/* FDF_CACHE_STAT_WRITEBACKS */
-    "flushes",/* FDF_CACHE_STAT_FLUSHES */
+fdf_stats_info_t fdf_stats_cache[] = {
+    {"overwrites_s","num_overwrites_s_state",FDF_STATS_TYPE_OVERWRITES},/* FDF_CACHE_STAT_OVERWRITES_S */
+    {"overwrites_m","num_overwrites_m_state",FDF_STATS_TYPE_OVERWRITES},/* FDF_CACHE_STAT_OVERWRITES_M */
+    {"inplaceowr_s","num_inplace_overwrites_s_state",FDF_STATS_TYPE_OVERWRITES},/* FDF_CACHE_STAT_INPLACEOWR_S */
+    {"inplaceowr_m","num_inplace_overwrites_m_state",FDF_STATS_TYPE_OVERWRITES},/* FDF_CACHE_STAT_INPLACEOWR_M */
+    {"new_entries","num_new_entries",FDF_STATS_TYPE_OVERWRITES},/* FDF_CACHE_STAT_NEW_ENTRIES */
+    {"writethrus","num_writethrus_to_flash",FDF_STATS_TYPE_OVERWRITES},/* FDF_CACHE_STAT_WRITETHRUS */
+    {"writebacks","num_writebacks",FDF_STATS_TYPE_OVERWRITES},/* FDF_CACHE_STAT_WRITEBACKS */
+    {"flushes","num_flush_ops_to_flash",FDF_STATS_TYPE_OVERWRITES},/* FDF_CACHE_STAT_FLUSHES */
     /* request from cache to flash manager */
-    "AHCOB",/* FDF_CACHE_STAT_AHCOB */
-    "AHCOP",/* FDF_CACHE_STAT_AHCOP */
-    "AHCWD", /* FDF_CACHE_STAT_AHCWD */
-    "AHDOB",/* FDF_CACHE_STAT_AHDOB */
-    "AHFLD",/* FDF_CACHE_STAT_AHFLD */
-    "AHGTR", /* FDF_CACHE_STAT_AHGTR */
-    "AHGTW", /* FDF_CACHE_STAT_AHGTW */
-    "AHPTA", /* FDF_CACHE_STAT_AHPTA */
-    "AHSOB", /* FDF_CACHE_STAT_AHSOB */
-    "AHSOP",/* FDF_CACHE_STAT_AHSOP */
+    {"AHCOB","num_create_objs",FDF_STATS_TYPE_CACHE_TO_FLASH},/* FDF_CACHE_STAT_AHCOB */
+    {"AHCOP","num_create_objs_and_put",FDF_STATS_TYPE_CACHE_TO_FLASH},/* FDF_CACHE_STAT_AHCOP */
+    {"AHCWD","num_create_objs_with_data",FDF_STATS_TYPE_CACHE_TO_FLASH},/* FDF_CACHE_STAT_AHCWD */
+    {"AHDOB","num_delete_objs",FDF_STATS_TYPE_CACHE_TO_FLASH},/* FDF_CACHE_STAT_AHDOB */
+    {"AHFLD","num_flush_objs",FDF_STATS_TYPE_CACHE_TO_FLASH},/* FDF_CACHE_STAT_AHFLD */
+    {"AHGTR","num_get_objs_to_read",FDF_STATS_TYPE_CACHE_TO_FLASH},/* FDF_CACHE_STAT_AHGTR */
+    {"AHGTW","num_get_objs_to_write",FDF_STATS_TYPE_CACHE_TO_FLASH},/* FDF_CACHE_STAT_AHGTW */
+    {"AHPTA","num_put_objs",FDF_STATS_TYPE_CACHE_TO_FLASH},/* FDF_CACHE_STAT_AHPTA */
+    {"AHSOB","num_set_objs",FDF_STATS_TYPE_CACHE_TO_FLASH},/* FDF_CACHE_STAT_AHSOB */
+    {"AHSOP","num_set_objs_and_put",FDF_STATS_TYPE_CACHE_TO_FLASH},/* FDF_CACHE_STAT_AHSOP */
     /* Request from flash manager to cache */
-    "HACRC",/* FDF_CACHE_STAT_HACRC */
-    "HACRF",/* FDF_CACHE_STAT_HACRF */
-    "HACSC",/* FDF_CACHE_STAT_HACSC */
-    "HACSF",/* FDF_CACHE_STAT_HACSF */
-    "HADEC",/* FDF_CACHE_STAT_HADEC */
-    "HADEF",/* FDF_CACHE_STAT_HADEF */
-    "HAFLC",/* FDF_CACHE_STAT_HAFLC */
-    "HAFLF",/* FDF_CACHE_STAT_HAFLF */
-    "HAGRC",/* FDF_CACHE_STAT_HAGRC */
-    "HAGRF",/* FDF_CACHE_STAT_HAGRF */
-    "HAGWC",/* FDF_CACHE_STAT_HAGWC */
-    "HAGWF",/* FDF_CACHE_STAT_HAGWF */
-    "HAPAC",/* FDF_CACHE_STAT_HAPAC */
-    "HAPAF",/* FDF_CACHE_STAT_HAPAF */
-    "HASTC",/* FDF_CACHE_STAT_HASTC */
-    "HASTF",/* FDF_CACHE_STAT_HASTF */
-    "HFXST",/* FDF_CACHE_STAT_HFXST */
-    "FHXST",/* FDF_CACHE_STAT_FHXST */
-    "FHNXS",/* FDF_CACHE_STAT_FHNXS */
-    "HFGFF",/* FDF_CACHE_STAT_HFGFF */
-    "FHDAT",/* FDF_CACHE_STAT_FHDAT */
-    "FHGTF",/* FDF_CACHE_STAT_FHGTF */
-    "HFPTF",/* FDF_CACHE_STAT_HFPTF */
-    "FHPTC",/* FDF_CACHE_STAT_FHPTC */
-    "FHPTF",/* FDF_CACHE_STAT_FHPTF */
-    "HFDFF",/* FDF_CACHE_STAT_HFDFF */
-    "FHDEC",/* FDF_CACHE_STAT_FHDEC */
-    "FHDEF",/* FDF_CACHE_STAT_FHDEF */
-    "HFCIF",/* FDF_CACHE_STAT_HFCIF */
-    "FHCRC",/* FDF_CACHE_STAT_FHCRC */
-    "FHCRF",/* FDF_CACHE_STAT_FHCRF */
-    "HFCZF",/* FDF_CACHE_STAT_HFCZF */
-    "HFSET",/* FDF_CACHE_STAT_HFSET */
-    "HFSTC",/* FDF_CACHE_STAT_HFSTC */
-    "FHSTF",/* FDF_CACHE_STAT_FHSTF */
-    "HFCSH",/* FDF_CACHE_STAT_HFCSH */
-    "FHCSC",/* FDF_CACHE_STAT_FHCSC */
-    "FHCSF",/* FDF_CACHE_STAT_FHCSF */
-    "FHCSF",/* FDF_CACHE_STAT_HFSSH */
-    "FHSSC",/* FDF_CACHE_STAT_FHSSC */
-    "FHSSF",/* FDF_CACHE_STAT_FHSSF */
-    "HFDSH",/* FDF_CACHE_STAT_HFDSH */
-    "FHDSC",/* FDF_CACHE_STAT_FHDSC */
-    "FHDSF",/* FDF_CACHE_STAT_FHDSF */
-    "HFGLS",/* FDF_CACHE_STAT_HFGLS */
-    "FHGLC",/* FDF_CACHE_STAT_FHGLC */
-    "FHGLF",/* FDF_CACHE_STAT_FHGLF */
-    "HFGIC",/* FDF_CACHE_STAT_HFGIC */
-    "FHGIC",/* FDF_CACHE_STAT_FHGIC */
-    "FHGIF",/* FDF_CACHE_STAT_FHGIF */
-    "HFGBC",/* FDF_CACHE_STAT_HFGBC */
-    "FHGCC",/* FDF_CACHE_STAT_FHGCC */
-    "FHGCF",/* FDF_CACHE_STAT_FHGCF */
-    "HFGSN",/* FDF_CACHE_STAT_HFGSN */
-    "HFGCS",/* FDF_CACHE_STAT_HFGCS */
-    "FHGSC",/* FDF_CACHE_STAT_FHGSC */
-    "FHGSF",/* FDF_CACHE_STAT_FHGSF */
-    "HFSRR",/* FDF_CACHE_STAT_HFSRR */
-    "FHSRC",/* FDF_CACHE_STAT_FHSRC */
-    "FHSRF",/* FDF_CACHE_STAT_FHSRF */
-    "HFSPR",/* FDF_CACHE_STAT_HFSPR */
-    "FHSPC",/* FDF_CACHE_STAT_FHSPC */
-    "FHSPF",/* FDF_CACHE_STAT_FHSPF */
-    "HFFLA",/* FDF_CACHE_STAT_HFFLA */
-    "FHFLC",/* FDF_CACHE_STAT_FHFLC */
-    "FHFLF",/* FDF_CACHE_STAT_FHFLF */
-    "HFRVG",/* FDF_CACHE_STAT_HFRVG */
-    "FHRVC",/* FDF_CACHE_STAT_FHRVC */
-    "FHRVF",/* FDF_CACHE_STAT_FHRVF */
-    "HFNOP",/* FDF_CACHE_STAT_HFNOP */
-    "FHNPC",/* FDF_CACHE_STAT_FHNPC */
-    "FHNPF",/* FDF_CACHE_STAT_FHNPF */
-    "HFOSH", /* FDF_CACHE_STAT_HFOSH */
-    "FHOSC",/* FDF_CACHE_STAT_FHOSC */
-    "FHOSF",/* FDF_CACHE_STAT_FHOSF */
-    "HFFLS",/* FDF_CACHE_STAT_HFFLS */
-    "FHFCC",/* FDF_CACHE_STAT_FHFCC */
-    "FHFCF",/* FDF_CACHE_STAT_FHFCF */
-    "HFFIV",/* FDF_CACHE_STAT_HFFIV */
-    "FHFIC",/* FDF_CACHE_STAT_FHFIC */
-    "FHFIF",/* FDF_CACHE_STAT_FHFIF */
-    "HFINV",/* FDF_CACHE_STAT_HFINV */
-    "FHINC",/* FDF_CACHE_STAT_FHINC */
-    "FHINF",/* FDF_CACHE_STAT_FHINF */
-    "HFFLC",/* FDF_CACHE_STAT_HFFLC */
-    "FHLCC",/* FDF_CACHE_STAT_FHLCC */
-    "FHLCF",/* FDF_CACHE_STAT_FHLCF */
-    "HFFLI",/* FDF_CACHE_STAT_HFFLI */
-    "FHLIC",/* FDF_CACHE_STAT_FHLIC */
-    "FHLIF",/* FDF_CACHE_STAT_FHLIF */
-    "HFINC",/* FDF_CACHE_STAT_HFINC */
-    "HFINC",/* FDF_CACHE_STAT_FHCIC */
-    "FHCIF",/* FDF_CACHE_STAT_FHCIF */
-    "EOK",/* FDF_CACHE_STAT_EOK */
-    "EPERM",/* FDF_CACHE_STAT_EPERM */
-    "ENOENT",/* FDF_CACHE_STAT_ENOENT */
-    "EDATASIZE",/* FDF_CACHE_STAT_EDATASIZE */
-    "ESTOPPED",/* FDF_CACHE_STAT_ESTOPPED */
-    "EBADCTNR",/* FDF_CACHE_STAT_EBADCTNR */
-    "EDELFAIL",/* FDF_CACHE_STAT_EDELFAIL */
-    "EAGAIN",/* FDF_CACHE_STAT_EAGAIN */
-    "ENOMEM",/* FDF_CACHE_STAT_ENOMEM */
-    "EACCES",/* FDF_CACHE_STAT_EACCES */
-    "EINCONS",/* FDF_CACHE_STAT_EINCONS */
-    "EBUSY",/* FDF_CACHE_STAT_EBUSY */
-    "EEXIST",/* FDF_CACHE_STAT_EEXIST */
-    "EINVAL",/* FDF_CACHE_STAT_EINVAL */
-    "EMFILE",/* FDF_CACHE_STAT_EMFILE */
-    "ENOSPC",/* FDF_CACHE_STAT_ENOSPC */
-    "ENOBUFS",/* FDF_CACHE_STAT_ENOBUFS */
-    "ESTALE",/* FDF_CACHE_STAT_ESTALE */
-    "EDQUOT",/* FDF_CACHE_STAT_EDQUOT */
-    "EDELFAIL",/* FDF_CACHE_STAT_RMT_EDELFAIL */
-    "EBADCTNR",/* FDF_CACHE_STAT_RMT_EBADCTNR */
-    "hashBuckets",/* FDF_CACHE_STAT_HASH_BUCKETS */
-    "nSlabs",/* FDF_CACHE_STAT_NUM_SLABS */
-    "numElements",/* FDF_CACHE_STAT_NUM_ELEMENTS */
-    "maxSz",/* FDF_CACHE_STAT_MAX_SIZE */
-    "currSz",/* FDF_CACHE_STAT_CURR_SIZE */
-    "currSzWkeys",/* FDF_CACHE_STAT_CURR_SIZE_WKEYS */
-    "nMod",/* FDF_CACHE_STAT_NUM_MODIFIED_OBJS */
-    "modSzWkeys",/* FDF_CACHE_STAT_NUM_MODIFIED_OBJS_WKEYS */
-    "nModFlushes",/* FDF_CACHE_STAT_NUM_MODIFIED_OBJS_FLUSHED */
-    "nModBGFlushes",/* FDF_CACHE_STAT_NUM_MODIFIED_OBJS_BGFLUSHED */
-    "nPending",/* FDF_CACHE_STAT_NUM_PENDING_REQS */
-    "nModRecEnums",/* FDF_CACHE_STAT_NUM_MODIFIED_OBJC_REC */
-    "bkFlshProg",/* FDF_CACHE_STAT_BGFLUSH_PROGRESS */
-    "nBkFlsh",/* FDF_CACHE_STAT_NUM_BGFLUSH */
-    "nFlshTok",/* FDF_CACHE_STAT_NUM_FLUSH_PARALLEL */
-    "nBkFlshTok",/* FDF_CACHE_STAT_NUM_BGFLUSH_PARALLEL */
-    "FlsMs",/* FDF_CACHE_STAT_BGFLUSH_WAIT */
-    "modPct",/* FDF_CACHE_STAT_MODIFIED_PCT */
-    "nAppBufs",/* FDF_CACHE_STAT_NUM_APP_BUFFERS */
-    "nTrans",/* FDF_CACHE_STAT_NUM_CACHE_OPS_PROG */
-    "nFGBufs",/* FDF_CACHE_STAT_NUM_FGBUFFER_PROCESSED */
-    "nResp",/* FDF_CACHE_STAT_NUM_RESP_PROCESSED  */
+    {"HACRC","num_create_objs_completed",FDF_STATS_TYPE_FLASH_TO_CACHE},/* FDF_CACHE_STAT_HACRC */
+    {"HACRF","num_create_objs_failed",FDF_STATS_TYPE_FLASH_TO_CACHE},/* FDF_CACHE_STAT_HACRF */
+    {"HACSC","num_castout_completed",FDF_STATS_TYPE_FLASH_TO_CACHE},/* FDF_CACHE_STAT_HACSC */
+    {"HACSF","num_castout_failed",FDF_STATS_TYPE_FLASH_TO_CACHE},/* FDF_CACHE_STAT_HACSF */
+    {"HADEC","num_delete_objs_completed",FDF_STATS_TYPE_FLASH_TO_CACHE},/* FDF_CACHE_STAT_HADEC */
+    {"HADEF","num_delete_objs_failed",FDF_STATS_TYPE_FLASH_TO_CACHE},/* FDF_CACHE_STAT_HADEF */
+    {"HAFLC","num_flush_objs_completed",FDF_STATS_TYPE_FLASH_TO_CACHE},/* FDF_CACHE_STAT_HAFLC */
+    {"HAFLF","num_flush_objs_failed",FDF_STATS_TYPE_FLASH_TO_CACHE},/* FDF_CACHE_STAT_HAFLF */
+    {"HAGRC","num_get_objs_to_read_completed",FDF_STATS_TYPE_FLASH_TO_CACHE},/* FDF_CACHE_STAT_HAGRC */
+    {"HAGRF","num_get_objs_to_read_failed",FDF_STATS_TYPE_FLASH_TO_CACHE},/* FDF_CACHE_STAT_HAGRF */
+    {"HAGWC","num_get_objs_to_write_completed",FDF_STATS_TYPE_FLASH_TO_CACHE},/* FDF_CACHE_STAT_HAGWC */
+    {"HAGWF","num_get_objs_to_write_failed",FDF_STATS_TYPE_FLASH_TO_CACHE},/* FDF_CACHE_STAT_HAGWF */
+    {"HAPAC","num_put_objs_completed",FDF_STATS_TYPE_FLASH_TO_CACHE},/* FDF_CACHE_STAT_HAPAC */
+    {"HAPAF","num_put_objs_failed",FDF_STATS_TYPE_FLASH_TO_CACHE},/* FDF_CACHE_STAT_HAPAF */
+    {"HASTC","num_set_objs_completed",FDF_STATS_TYPE_FLASH_TO_CACHE},/* FDF_CACHE_STAT_HASTC */
+    {"HASTF","num_set_objs_failed",FDF_STATS_TYPE_FLASH_TO_CACHE},/* FDF_CACHE_STAT_HASTF */
+    {"HFXST","num_existence_checks",FDF_STATS_TYPE_FLASH_MANAGER},/* FDF_CACHE_STAT_HFXST */
+    {"FHXST","num_existence_success",FDF_STATS_TYPE_FLASH_MANAGER},/* FDF_CACHE_STAT_FHXST */
+    {"FHNXS","num_existence_failed",FDF_STATS_TYPE_FLASH_MANAGER},/* FDF_CACHE_STAT_FHNXS */
+    {"HFGFF","num_get_objs",FDF_STATS_TYPE_FLASH_MANAGER},/* FDF_CACHE_STAT_HFGFF */
+    {"FHDAT","num_objs_data",FDF_STATS_TYPE_FLASH_MANAGER},/* FDF_CACHE_STAT_FHDAT */
+    {"FHGTF","num_get_objs_failed",FDF_STATS_TYPE_FLASH_MANAGER},/* FDF_CACHE_STAT_FHGTF */
+    {"HFPTF","num_put_objs",FDF_STATS_TYPE_FLASH_MANAGER},/* FDF_CACHE_STAT_HFPTF */
+    {"FHPTC","num_put_objs_completed",FDF_STATS_TYPE_FLASH_MANAGER},/* FDF_CACHE_STAT_FHPTC */
+    {"FHPTF","num_put_objs_failed",FDF_STATS_TYPE_FLASH_MANAGER},/* FDF_CACHE_STAT_FHPTF */
+    {"HFDFF","num_delete_objs",FDF_STATS_TYPE_FLASH_MANAGER},/* FDF_CACHE_STAT_HFDFF */
+    {"FHDEC","num_delete_completed",FDF_STATS_TYPE_FLASH_MANAGER},/* FDF_CACHE_STAT_FHDEC */
+    {"FHDEF","num_delete_failed",FDF_STATS_TYPE_FLASH_MANAGER},/* FDF_CACHE_STAT_FHDEF */
+    {"HFCIF","num_create_objects",FDF_STATS_TYPE_FLASH_MANAGER},/* FDF_CACHE_STAT_HFCIF */
+    {"FHCRC","num_create_completerdf",FDF_STATS_TYPE_FLASH_MANAGER},/* FDF_CACHE_STAT_FHCRC */
+    {"FHCRF","num_create_failed",FDF_STATS_TYPE_FLASH_MANAGER},/* FDF_CACHE_STAT_FHCRF */
+    {"HFCZF","num_create_zeroed_objs",FDF_STATS_TYPE_FLASH_MANAGER},/* FDF_CACHE_STAT_HFCZF */
+    {"HFCRC","num_create_zeroed_objs_completed",FDF_STATS_TYPE_FLASH_MANAGER},/* FDF_CACHE_STAT_HFCRC */
+    {"HFCRF","num_create_zeroed_objs_failed",FDF_STATS_TYPE_FLASH_MANAGER},/* FDF_CACHE_STAT_HFCRF */
+    {"HFSET","num_set_objs",FDF_STATS_TYPE_FLASH_MANAGER},/* FDF_CACHE_STAT_HFSET */
+    {"HFSTC","num_set_objs_completed",FDF_STATS_TYPE_FLASH_MANAGER},/* FDF_CACHE_STAT_HFSTC */
+    {"FHSTF","num_set_objs_failed",FDF_STATS_TYPE_FLASH_MANAGER},/* FDF_CACHE_STAT_FHSTF */
+    {"HFCSH","num_create_shards",FDF_STATS_TYPE_FLASH_MANAGER},/* FDF_CACHE_STAT_HFCSH */
+    {"FHCSC","num_create_shards_completed",FDF_STATS_TYPE_FLASH_MANAGER},/* FDF_CACHE_STAT_FHCSC */
+    {"FHCSF","num_create_shards_failed",FDF_STATS_TYPE_FLASH_MANAGER},/* FDF_CACHE_STAT_FHCSF */
+    {"FHSSH","num_sync_shards",FDF_STATS_TYPE_FLASH_MANAGER},/* FDF_CACHE_STAT_HFSSH */
+    {"FHSSC","num_sync_shards_completed",FDF_STATS_TYPE_FLASH_MANAGER},/* FDF_CACHE_STAT_FHSSC */
+    {"FHSSF","num_sync_shards_failed",FDF_STATS_TYPE_FLASH_MANAGER},/* FDF_CACHE_STAT_FHSSF */
+    {"HFDSH","num_delete_shards",FDF_STATS_TYPE_FLASH_MANAGER},/* FDF_CACHE_STAT_HFDSH */
+    {"FHDSC","num_delete_shards_completed",FDF_STATS_TYPE_FLASH_MANAGER},/* FDF_CACHE_STAT_FHDSC */
+    {"FHDSF","num_delete_shards_failed",FDF_STATS_TYPE_FLASH_MANAGER},/* FDF_CACHE_STAT_FHDSF */
+    {"HFGLS","num_get_last_seq",FDF_STATS_TYPE_FLASH_MANAGER},/* FDF_CACHE_STAT_HFGLS */
+    {"FHGLC","num_get_last_seq_completed",FDF_STATS_TYPE_FLASH_MANAGER},/* FDF_CACHE_STAT_FHGLC */
+    {"FHGLF","num_get_last_seq_failed",FDF_STATS_TYPE_FLASH_MANAGER},/* FDF_CACHE_STAT_FHGLF */
+    {"HFGIC","num_get_iter_cursors",FDF_STATS_TYPE_FLASH_MANAGER},/* FDF_CACHE_STAT_HFGIC */
+    {"FHGIC","num_get_iter_cursors_completed",FDF_STATS_TYPE_FLASH_MANAGER},/* FDF_CACHE_STAT_FHGIC */
+    {"FHGIF","num_get_iter_cursors_failed",FDF_STATS_TYPE_FLASH_MANAGER},/* FDF_CACHE_STAT_FHGIF */
+    {"HFGBC","num_get_by_cursors",FDF_STATS_TYPE_FLASH_MANAGER},/* FDF_CACHE_STAT_HFGBC */
+    {"FHGCC","num_get_by_cursors_completed",FDF_STATS_TYPE_FLASH_MANAGER},/* FDF_CACHE_STAT_FHGCC */
+    {"FHGCF","num_get_by_cursors_failed",FDF_STATS_TYPE_FLASH_MANAGER},/* FDF_CACHE_STAT_FHGCF */
+    {"HFGSN","num_get_seq_numbers",FDF_STATS_TYPE_FLASH_MANAGER},/* FDF_CACHE_STAT_HFGSN */
+    {"HFGCS","num_get_container_stats",FDF_STATS_TYPE_FLASH_MANAGER},/* FDF_CACHE_STAT_HFGCS */
+    {"FHGSC","num_get_container_stats_completed",FDF_STATS_TYPE_FLASH_MANAGER},/* FDF_CACHE_STAT_FHGSC */
+    {"FHGSF","num_get_container_stats_failed",FDF_STATS_TYPE_FLASH_MANAGER},/* FDF_CACHE_STAT_FHGSF */
+    {"HFSRR","num_replication_starts",FDF_STATS_TYPE_FLASH_MANAGER},/* FDF_CACHE_STAT_HFSRR */
+    {"FHSRC","num_replication_starts_completed",FDF_STATS_TYPE_FLASH_MANAGER},/* FDF_CACHE_STAT_FHSRC */
+    {"FHSRF","num_replication_starts_failed",FDF_STATS_TYPE_FLASH_MANAGER},/* FDF_CACHE_STAT_FHSRF */
+    {"HFSPR","num_replication_stops",FDF_STATS_TYPE_FLASH_MANAGER},/* FDF_CACHE_STAT_HFSPR */
+    {"FHSPC","num_replication_stops_completed",FDF_STATS_TYPE_FLASH_MANAGER},/* FDF_CACHE_STAT_FHSPC */
+    {"FHSPF","num_replication_stops_failed",FDF_STATS_TYPE_FLASH_MANAGER},/* FDF_CACHE_STAT_FHSPF */
+    {"HFFLA","num_flush_objs",FDF_STATS_TYPE_FLASH_MANAGER},/* FDF_CACHE_STAT_HFFLA */
+    {"FHFLC","num_flush_objs_completed",FDF_STATS_TYPE_FLASH_MANAGER},/* FDF_CACHE_STAT_FHFLC */
+    {"FHFLF","num_flush_objs_failed",FDF_STATS_TYPE_FLASH_MANAGER},/* FDF_CACHE_STAT_FHFLF */
+    {"HFRVG","num_release_vip_grps",FDF_STATS_TYPE_FLASH_MANAGER},/* FDF_CACHE_STAT_HFRVG */
+    {"FHRVC","num_release_vip_grps_completed",FDF_STATS_TYPE_FLASH_MANAGER},/* FDF_CACHE_STAT_FHRVC */
+    {"FHRVF","num_release_vip_grps_failed",FDF_STATS_TYPE_FLASH_MANAGER},/* FDF_CACHE_STAT_FHRVF */
+    {"HFNOP","num_noop",FDF_STATS_TYPE_FLASH_MANAGER},/* FDF_CACHE_STAT_HFNOP */
+    {"FHNPC","num_noop_completed",FDF_STATS_TYPE_FLASH_MANAGER},/* FDF_CACHE_STAT_FHNPC */
+    {"FHNPF","num_noop_failed",FDF_STATS_TYPE_FLASH_MANAGER},/* FDF_CACHE_STAT_FHNPF */
+    {"HFOSH","num_open_shards",FDF_STATS_TYPE_FLASH_MANAGER}, /* FDF_CACHE_STAT_HFOSH */
+    {"FHOSC","num_open_shards_completed",FDF_STATS_TYPE_FLASH_MANAGER},/* FDF_CACHE_STAT_FHOSC */
+    {"FHOSF","num_open_shards_failed",FDF_STATS_TYPE_FLASH_MANAGER},/* FDF_CACHE_STAT_FHOSF */
+    {"HFFLS","num_flush_objs",FDF_STATS_TYPE_FLASH_MANAGER},/* FDF_CACHE_STAT_HFFLS */
+    {"FHFCC","num_flush_objs_completed",FDF_STATS_TYPE_FLASH_MANAGER},/* FDF_CACHE_STAT_FHFCC */
+    {"FHFCF","num_flush_objs_fialed",FDF_STATS_TYPE_FLASH_MANAGER},/* FDF_CACHE_STAT_FHFCF */
+    {"HFFIV","num_flush_invalidate_objs",FDF_STATS_TYPE_FLASH_MANAGER},/* FDF_CACHE_STAT_HFFIV */
+    {"FHFIC","num_flush_invalidate_objs_completed",FDF_STATS_TYPE_FLASH_MANAGER},/* FDF_CACHE_STAT_FHFIC */
+    {"FHFIF","num_flush_invalidate_objs_failed",FDF_STATS_TYPE_FLASH_MANAGER},/* FDF_CACHE_STAT_FHFIF */
+    {"HFINV","num_invalidate_objs",FDF_STATS_TYPE_FLASH_MANAGER},/* FDF_CACHE_STAT_HFINV */
+    {"FHINC","num_invalidate_objs",FDF_STATS_TYPE_FLASH_MANAGER},/* FDF_CACHE_STAT_FHINC */
+    {"FHINF","num_invalidate_objs",FDF_STATS_TYPE_FLASH_MANAGER},/* FDF_CACHE_STAT_FHINF */
+    {"HFFLC","num_flush_containers",FDF_STATS_TYPE_FLASH_MANAGER},/* FDF_CACHE_STAT_HFFLC */
+    {"FHLCC","num_flush_containers_completed",FDF_STATS_TYPE_FLASH_MANAGER},/* FDF_CACHE_STAT_FHLCC */
+    {"FHLCF","num_flush_containers_failed",FDF_STATS_TYPE_FLASH_MANAGER},/* FDF_CACHE_STAT_FHLCF */
+    {"HFFLI","num_flush_invalidate_containers",FDF_STATS_TYPE_FLASH_MANAGER},/* FDF_CACHE_STAT_HFFLI */
+    {"FHLIC","num_flush_invalidate_containers_completed",FDF_STATS_TYPE_FLASH_MANAGER},/* FDF_CACHE_STAT_FHLIC */
+    {"FHLIF","num_flush_invalidate_containers_failed",FDF_STATS_TYPE_FLASH_MANAGER},/* FDF_CACHE_STAT_FHLIF */
+    {"HFINC","num_invalidate_containers",FDF_STATS_TYPE_FLASH_MANAGER},/* FDF_CACHE_STAT_HFINC */
+    {"HFINC","num_invalidate_containers_completed",FDF_STATS_TYPE_FLASH_MANAGER},/* FDF_CACHE_STAT_FHCIC */
+    {"FHCIF","num_invalidate_containers_failed",FDF_STATS_TYPE_FLASH_MANAGER},/* FDF_CACHE_STAT_FHCIF */
+    {"EOK","num_success",FDF_STATS_TYPE_FLASH_RC},/* FDF_CACHE_STAT_EOK */
+    {"EPERM","num_errors_not_permitted_",FDF_STATS_TYPE_FLASH_RC},/* FDF_CACHE_STAT_EPERM */
+    {"ENOENT","num_errors_objects_not_found",FDF_STATS_TYPE_FLASH_RC},/* FDF_CACHE_STAT_ENOENT */
+    {"EDATASIZE","num_errors_insufficient_buffer",FDF_STATS_TYPE_FLASH_RC},/* FDF_CACHE_STAT_EDATASIZE */
+    {"ESTOPPED","num_errors_container_stopped",FDF_STATS_TYPE_FLASH_RC},/* FDF_CACHE_STAT_ESTOPPED */
+    {"EBADCTNR","num_errors_container_not_found",FDF_STATS_TYPE_FLASH_RC},/* FDF_CACHE_STAT_EBADCTNR */
+    {"EDELFAIL","num_errors_delete_failed",FDF_STATS_TYPE_FLASH_RC},/* FDF_CACHE_STAT_EDELFAIL */
+    {"EAGAIN","num_errors_try_again",FDF_STATS_TYPE_FLASH_RC},/* FDF_CACHE_STAT_EAGAIN */
+    {"ENOMEM","num_errors_no_memory",FDF_STATS_TYPE_FLASH_RC},/* FDF_CACHE_STAT_ENOMEM */
+    {"EACCES","num_errors_perm_denied",FDF_STATS_TYPE_FLASH_RC},/* FDF_CACHE_STAT_EACCES */
+    {"EINCONS","num_errors_replication_inconsistencies",FDF_STATS_TYPE_FLASH_RC},/* FDF_CACHE_STAT_EINCONS */
+    {"EBUSY","num_errors_dev_busy",FDF_STATS_TYPE_FLASH_RC},/* FDF_CACHE_STAT_EBUSY */
+    {"EEXIST","num_errors_obj_exists",FDF_STATS_TYPE_FLASH_RC},/* FDF_CACHE_STAT_EEXIST */
+    {"EINVAL","num_errors_invalid_arguments",FDF_STATS_TYPE_FLASH_RC},/* FDF_CACHE_STAT_EINVAL */
+    {"EMFILE","num_errors_too_many_objs",FDF_STATS_TYPE_FLASH_RC},/* FDF_CACHE_STAT_EMFILE */
+    {"ENOSPC","num_errors_no_flash_space",FDF_STATS_TYPE_FLASH_RC},/* FDF_CACHE_STAT_ENOSPC */
+    {"ENOBUFS","num_errors_no_system_resource",FDF_STATS_TYPE_FLASH_RC},/* FDF_CACHE_STAT_ENOBUFS */
+    {"ESTALE","num_errors_stale_data",FDF_STATS_TYPE_FLASH_RC},/* FDF_CACHE_STAT_ESTALE */
+    {"EDQUOT","num_errors_quota_exceeded",FDF_STATS_TYPE_FLASH_RC},/* FDF_CACHE_STAT_EDQUOT */
+    {"EDELFAIL","num_errors_remote_delete_failures",FDF_STATS_TYPE_FLASH_RC},/* FDF_CACHE_STAT_RMT_EDELFAIL */
+    {"EBADCTNR","num_errors_no_remote_container",FDF_STATS_TYPE_FLASH_RC},/* FDF_CACHE_STAT_RMT_EBADCTNR */
+    {"hashBuckets","num_hash_buckets_in_cache",FDF_STATS_TYPE_PER_CACHE},/* FDF_CACHE_STAT_HASH_BUCKETS */
+    {"nSlabs","num_cache_partitions",FDF_STATS_TYPE_PER_CACHE},/* FDF_CACHE_STAT_NUM_SLABS */
+    {"numElements","num_objects_in_cache",FDF_STATS_TYPE_PER_CACHE},/* FDF_CACHE_STAT_NUM_ELEMENTS */
+    {"maxSz","max_cache_capacity",FDF_STATS_TYPE_PER_CACHE},/* FDF_CACHE_STAT_MAX_SIZE */
+    {"currSz","current_data_size_in_cache",FDF_STATS_TYPE_PER_CACHE},/* FDF_CACHE_STAT_CURR_SIZE */
+    {"currSzWkeys","current_key_and_data_size_in_cache",FDF_STATS_TYPE_PER_CACHE},/* FDF_CACHE_STAT_CURR_SIZE_WKEYS */
+    {"nMod","num_modified_objs_in_cache",FDF_STATS_TYPE_PER_CACHE},/* FDF_CACHE_STAT_NUM_MODIFIED_OBJS */
+    {"modSzWkeys","num_bytes_of_modified_objs_in_cache",FDF_STATS_TYPE_PER_CACHE},/* FDF_CACHE_STAT_NUM_MODIFIED_OBJS_WKEYS */
+    {"nModFlushes","num_mod_objs_flushed",FDF_STATS_TYPE_PER_CACHE},/* FDF_CACHE_STAT_NUM_MODIFIED_OBJS_FLUSHED */
+    {"nModBGFlushes","num_mod_objs_flushed_by_bgflush",FDF_STATS_TYPE_PER_CACHE},/* FDF_CACHE_STAT_NUM_MODIFIED_OBJS_BGFLUSHED */
+    {"nPending","num_pending_remote_cache_req",FDF_STATS_TYPE_PER_CACHE},/* FDF_CACHE_STAT_NUM_PENDING_REQS */
+    {"nModRecEnums","num_modified_objs_copied_during_recovery",FDF_STATS_TYPE_PER_CACHE},/* FDF_CACHE_STAT_NUM_MODIFIED_OBJC_REC */
+    {"bkFlshProg","background_flush_progress",FDF_STATS_TYPE_PER_CACHE},/* FDF_CACHE_STAT_BGFLUSH_PROGRESS */
+    {"nBkFlsh","num_background_flushes",FDF_STATS_TYPE_PER_CACHE},/* FDF_CACHE_STAT_NUM_BGFLUSH */
+    {"nFlshTok","max_parallel_flushes",FDF_STATS_TYPE_PER_CACHE},/* FDF_CACHE_STAT_NUM_FLUSH_PARALLEL */
+    {"nBkFlshTok","max_parallel_bg_flushes",FDF_STATS_TYPE_PER_CACHE},/* FDF_CACHE_STAT_NUM_BGFLUSH_PARALLEL */
+    {"FlsMs","time_to_wait_after_bgflush_for_nodirty_data",FDF_STATS_TYPE_PER_CACHE},/* FDF_CACHE_STAT_BGFLUSH_WAIT */
+    {"modPct","max_percent_limit_on_modifiable_cache",FDF_STATS_TYPE_PER_CACHE},/* FDF_CACHE_STAT_MODIFIED_PCT */
+    {"nAppBufs","num_app_buffers_inuse",FDF_STATS_TYPE_PER_CACHE},/* FDF_CACHE_STAT_NUM_APP_BUFFERS */
+    {"nTrans","num_cache_ops_in_progress",FDF_STATS_TYPE_PER_CACHE},/* FDF_CACHE_STAT_NUM_CACHE_OPS_PROG */
+    {"nFGBufs","num_flash_data_buffer_being_processed",FDF_STATS_TYPE_PER_CACHE},/* FDF_CACHE_STAT_NUM_FGBUFFER_PROCESSED */
+    {"nResp","num_resp_msg_being_processed",FDF_STATS_TYPE_PER_CACHE},/* FDF_CACHE_STAT_NUM_RESP_PROCESSED  */
 };
 
-static char *FDFCacheStatsDescStrings[] = {
-    "",/* FDF_CACHE_STAT_OVERWRITES_S */
-    "",/* FDF_CACHE_STAT_OVERWRITES_M */
-    "",/* FDF_CACHE_STAT_INPLACEOWR_S */
-    "placeowr_m",/* FDF_CACHE_STAT_INPLACEOWR_M */
-    "new_entries",/* FDF_CACHE_STAT_NEW_ENTRIES */
-    "writethrus",/* FDF_CACHE_STAT_WRITETHRUS */
-    "writebacks",/* FDF_CACHE_STAT_WRITEBACKS */
-    "flushes",/* FDF_CACHE_STAT_FLUSHES */
-    /* request from cache to flash manager */
-    "AHCOB",/* FDF_CACHE_STAT_AHCOB */
-    "AHCOP",/* FDF_CACHE_STAT_AHCOP */
-    "AHCWD", /* FDF_CACHE_STAT_AHCWD */
-    "AHDOB",/* FDF_CACHE_STAT_AHDOB */
-    "AHFLD",/* FDF_CACHE_STAT_AHFLD */
-    "AHGTR", /* FDF_CACHE_STAT_AHGTR */
-    "AHGTW", /* FDF_CACHE_STAT_AHGTW */
-    "AHPTA", /* FDF_CACHE_STAT_AHPTA */
-    "AHSOB", /* FDF_CACHE_STAT_AHSOB */
-    "AHSOP",/* FDF_CACHE_STAT_AHSOP */
-    /* Request from flash manager to cache */
-    "HACRC",/* FDF_CACHE_STAT_HACRC */
-    "HACRF",/* FDF_CACHE_STAT_HACRF */
-    "HACSC",/* FDF_CACHE_STAT_HACSC */
-    "HACSF",/* FDF_CACHE_STAT_HACSF */
-    "HADEC",/* FDF_CACHE_STAT_HADEC */
-    "HADEF",/* FDF_CACHE_STAT_HADEF */
-    "",/* FDF_CACHE_STAT_HAFLC */
-    "",/* FDF_CACHE_STAT_HAFLF */
-    "",/* FDF_CACHE_STAT_HAGRC */
-    "",/* FDF_CACHE_STAT_HAGRF */
-    "",/* FDF_CACHE_STAT_HAGWC */
-    "",/* FDF_CACHE_STAT_HAGWF */
-    "",/* FDF_CACHE_STAT_HAPAC */
-    "",/* FDF_CACHE_STAT_HAPAF */
-    "",/* FDF_CACHE_STAT_HASTC */
-    "",/* FDF_CACHE_STAT_HASTF */
-    "",/* FDF_CACHE_STAT_HFXST */
-    "",/* FDF_CACHE_STAT_FHXST */
-    "",/* FDF_CACHE_STAT_FHNXS */
-    "",/* FDF_CACHE_STAT_HFGFF */
-    "",/* FDF_CACHE_STAT_FHDAT */
-    "",/* FDF_CACHE_STAT_FHGTF */
-    "",/* FDF_CACHE_STAT_HFPTF */
-    "",/* FDF_CACHE_STAT_FHPTC */
-    "",/* FDF_CACHE_STAT_FHPTF */
-    "",/* FDF_CACHE_STAT_HFDFF */
-    "",/* FDF_CACHE_STAT_FHDEC */
-    "",/* FDF_CACHE_STAT_FHDEF */
-    "",/* FDF_CACHE_STAT_HFCIF */
-    "",/* FDF_CACHE_STAT_FHCRC */
-    "",/* FDF_CACHE_STAT_FHCRF */
-    "",/* FDF_CACHE_STAT_HFCZF */
-    "",/* FDF_CACHE_STAT_HFSET */
-    "",/* FDF_CACHE_STAT_HFSTC */
-    "",/* FDF_CACHE_STAT_FHSTF */
-    "",/* FDF_CACHE_STAT_HFCSH */
-    "",/* FDF_CACHE_STAT_FHCSC */
-    "",/* FDF_CACHE_STAT_FHCSF */
-    "",/* FDF_CACHE_STAT_HFSSH */
-    "",/* FDF_CACHE_STAT_FHSSC */
-    "",/* FDF_CACHE_STAT_FHSSF */
-    "",/* FDF_CACHE_STAT_HFDSH */
-    "",/* FDF_CACHE_STAT_FHDSC */
-    "",/* FDF_CACHE_STAT_FHDSF */
-    "",/* FDF_CACHE_STAT_HFGLS */
-    "",/* FDF_CACHE_STAT_FHGLC */
-    "",/* FDF_CACHE_STAT_FHGLF */
-    "",/* FDF_CACHE_STAT_HFGIC */
-    "",/* FDF_CACHE_STAT_FHGIC */
-    "",/* FDF_CACHE_STAT_FHGIF */
-    "",/* FDF_CACHE_STAT_HFGBC */
-    "",/* FDF_CACHE_STAT_FHGCC */
-    "",/* FDF_CACHE_STAT_FHGCF */
-    "",/* FDF_CACHE_STAT_HFGSN */
-    "",/* FDF_CACHE_STAT_HFGCS */
-    "",/* FDF_CACHE_STAT_FHGSC */
-    "",/* FDF_CACHE_STAT_FHGSF */
-    "",/* FDF_CACHE_STAT_HFSRR */
-    "",/* FDF_CACHE_STAT_FHSRC */
-    "",/* FDF_CACHE_STAT_FHSRF */
-    "",/* FDF_CACHE_STAT_HFSPR */
-    "",/* FDF_CACHE_STAT_FHSPC */
-    "",/* FDF_CACHE_STAT_FHSPF */
-    "",/* FDF_CACHE_STAT_HFFLA */
-    "",/* FDF_CACHE_STAT_FHFLC */
-    "",/* FDF_CACHE_STAT_FHFLF */
-    "",/* FDF_CACHE_STAT_HFRVG */
-    "",/* FDF_CACHE_STAT_FHRVC */
-    "",/* FDF_CACHE_STAT_FHRVF */
-    "",/* FDF_CACHE_STAT_HFNOP */
-    "",/* FDF_CACHE_STAT_FHNPC */
-    "",/* FDF_CACHE_STAT_FHNPF */
-   "", /* FDF_CACHE_STAT_HFOSH */
-    "",/* FDF_CACHE_STAT_FHOSC */
-    "",/* FDF_CACHE_STAT_FHOSF */
-    "",/* FDF_CACHE_STAT_HFFLS */
-    "",/* FDF_CACHE_STAT_FHFCC */
-    "",/* FDF_CACHE_STAT_FHFCF */
-    "",/* FDF_CACHE_STAT_HFFIV */
-    "",/* FDF_CACHE_STAT_FHFIC */
-    "",/* FDF_CACHE_STAT_FHFIF */
-    "",/* FDF_CACHE_STAT_HFINV */
-    "",/* FDF_CACHE_STAT_FHINC */
-    "",/* FDF_CACHE_STAT_FHINF */
-    "",/* FDF_CACHE_STAT_HFFLC */
-    "",/* FDF_CACHE_STAT_FHLCC */
-    "",/* FDF_CACHE_STAT_FHLCF */
-    "",/* FDF_CACHE_STAT_HFFLI */
-    "",/* FDF_CACHE_STAT_FHLIC */
-    "",/* FDF_CACHE_STAT_FHLIF */
-    "",/* FDF_CACHE_STAT_HFINC */
-    "",/* FDF_CACHE_STAT_FHCIC */
-    "",/* FDF_CACHE_STAT_FHCIF */
-    "",/* FDF_CACHE_STAT_EOK */
-    "",/* FDF_CACHE_STAT_EPERM */
-    "",/* FDF_CACHE_STAT_ENOENT */
-    "",/* FDF_CACHE_STAT_EDATASIZE */
-    "",/* FDF_CACHE_STAT_ESTOPPED */
-    "",/* FDF_CACHE_STAT_EBADCTNR */
-    "",/* FDF_CACHE_STAT_EDELFAIL */
-    "",/* FDF_CACHE_STAT_EAGAIN */
-    "",/* FDF_CACHE_STAT_ENOMEM */
-    "",/* FDF_CACHE_STAT_EACCES */
-    "",/* FDF_CACHE_STAT_EINCONS */
-    "",/* FDF_CACHE_STAT_EBUSY */
-    "",/* FDF_CACHE_STAT_EEXIST */
-    "",/* FDF_CACHE_STAT_EINVAL */
-    "",/* FDF_CACHE_STAT_EMFILE */
-    "",/* FDF_CACHE_STAT_ENOSPC */
-    "",/* FDF_CACHE_STAT_ENOBUFS */
-    "",/* FDF_CACHE_STAT_ESTALE */
-    "",/* FDF_CACHE_STAT_EDQUOT */
-    "",/* FDF_CACHE_STAT_RMT_EDELFAIL */
-    "",/* FDF_CACHE_STAT_RMT_EBADCTNR */
-    "",/* FDF_CACHE_STAT_HASH_BUCKETS */
-    "",/* FDF_CACHE_STAT_NUM_SLABS */
-    "",/* FDF_CACHE_STAT_NUM_ELEMENTS */
-    "",/* FDF_CACHE_STAT_MAX_SIZE */
-    "",/* FDF_CACHE_STAT_CURR_SIZE */
-    "",/* FDF_CACHE_STAT_CURR_SIZE_WKEYS */
-    "",/* FDF_CACHE_STAT_NUM_MODIFIED_OBJS */
-    "",/* FDF_CACHE_STAT_NUM_MODIFIED_OBJS_WKEYS */
-    "",/* FDF_CACHE_STAT_NUM_MODIFIED_OBJS_FLUSHED */
-    "",/* FDF_CACHE_STAT_NUM_MODIFIED_OBJS_BGFLUSHED */
-    "",/* FDF_CACHE_STAT_NUM_PENDING_REQS */
-    "",/* FDF_CACHE_STAT_NUM_MODIFIED_OBJC_REC */
-    "",/* FDF_CACHE_STAT_BGFLUSH_PROGRESS */
-    "",/* FDF_CACHE_STAT_NUM_BGFLUSH */
-    "",/* FDF_CACHE_STAT_NUM_FLUSH_PARALLEL */
-    "",/* FDF_CACHE_STAT_NUM_BGFLUSH_PARALLEL */
-    "",/* FDF_CACHE_STAT_BGFLUSH_WAIT */
-    "",/* FDF_CACHE_STAT_MODIFIED_PCT */
-    "",/* FDF_CACHE_STAT_NUM_APP_BUFFERS */
-    "",/* FDF_CACHE_STAT_NUM_CACHE_OPS_PROG */
-    "",/* FDF_CACHE_STAT_NUM_FGBUFFER_PROCESSED */
-    "",/* FDF_CACHE_STAT_NUM_RESP_PROCESSED  */
-};
+char *get_cache_type_stats_desc(int stat ) {
+    if( stat >= sizeof(fdf_stats_cache)/sizeof(fdf_stats_info_t)) {
+        return "Invalid stat";
+    }
+    return fdf_stats_cache[stat].desc;
+}
+
+int get_cache_type_stats_category(int stat ) {
+    if( stat >= sizeof(fdf_stats_cache)/sizeof(fdf_stats_info_t)) {
+        return -1;
+    }
+    return fdf_stats_cache[stat].category;
+}   
+
+
 
 typedef enum {
     MCD_STAT_GET_KEY = 0,
@@ -971,19 +842,19 @@ static void print_fdf_stats(FILE *log, FDF_stats_t *stats, char *disp_str) {
     fputs(disp_str,log); 
     for (i = 0; i < FDF_N_FLASH_STATS; i++ ) {
         if( stats->flash_stats[i] != 0 ) {
-            sprintf(buf,"%s = %lu\n",FDFFlashStatsSearchStrings[i],stats->flash_stats[i]);
+            sprintf(buf,"%s = %lu\n",fdf_stats_flash[i].stat_token,stats->flash_stats[i]);
             fputs(buf,log);
         }
     }
     for (i = 0; i < FDF_N_CACHE_STATS; i++ ) {
         if( stats->cache_stats[i] != 0 ) {
-            sprintf(buf,"%s = %lu\n",FDFCacheStatsSearchStrings[i],stats->cache_stats[i]);
+            sprintf(buf,"%s = %lu\n",fdf_stats_cache[i].stat_token,stats->cache_stats[i]);
             fputs(buf,log);
         }
     }
     for (i = 0; i < FDF_N_ACCESS_TYPES; i++ ) {
         if( stats->n_accesses[i] != 0 ) {
-            sprintf(buf,"%s = %lu\n",FDFAccessTypeSearchStrings[i],stats->n_accesses[i]);
+            sprintf(buf,"%s = %lu\n",fdf_stats_access_type[i].stat_token,stats->n_accesses[i]);
             fputs(buf,log);
         }
     }
@@ -993,6 +864,16 @@ static void print_fdf_stats(FILE *log, FDF_stats_t *stats, char *disp_str) {
 
 /* Defined later in this file */
 void fdf_trx_print_stats(FILE *log);
+
+void enable_stats_auto_dump() {
+    stats_dump = 1;
+}
+void disable_stats_auto_dump() {
+    stats_dump = 0;
+}
+int is_auto_dump_enabled() {
+    return stats_dump;
+}
 
 static void *fdf_stats_thread(void *arg) {
     FDF_cguid_t cguids[MCD_MAX_NUM_CNTRS];
@@ -1009,13 +890,24 @@ static void *fdf_stats_thread(void *arg) {
         return NULL;
     }
 
-    stats_log = fopen("/var/log/fdfstats.log","a+");
+    stats_log = fopen(getProperty_String("FDF_STATS_FILE","/var/log/fdfstats.log"),"a+");
     if( stats_log == NULL ) {
         fprintf(stderr,"Stats Thread:Unable to open the log file /tmp/fdf_stats.log. Exiting\n");
         return NULL;
     }
-
+    stats_dump = getProperty_Int( "FDF_STATS_DUMP", 0 );
     while(1) {
+        if( stats_dump == 0 ) {
+            sleep(5);
+            continue;
+        }
+
+        if(getProperty_Int( "FDF_STATS_NEW", 1 ) == 1 ) {
+            dump_all_container_stats(thd_state,STATS_PRINT_TYPE_DETAILED);
+            sleep(getProperty_Int( "FDF_STATS_DUMP_INTERVAL", 60 ));
+            continue;
+        }
+
         FDFGetContainers(thd_state,cguids,&n_cguids);
         if( n_cguids <= 0 ) {
              fprintf(stderr,"Stats Thread:No container exists\n");    
@@ -1216,10 +1108,11 @@ FDF_status_t FDFInit(
     } while (rc == -1 && errno == EINTR);
 
    	plat_assert( 0 == rc );
-   	if ( getProperty_Int( "FDF_STATS_THREAD", 0 ) == 1 ) {
-       	fprintf( stderr,"Starting the stats thread. Check the stats at /var/log/fdfstats.log\n" );
-       	fdf_start_stats_thread( *fdf_state );
-   	}
+    fprintf( stderr,"Starting the stats dump thread.\n" );
+    fdf_start_stats_thread( *fdf_state );
+    if ( getProperty_Int( "FDF_ADMIN_ENABLED", 1 ) == 1 ) {
+        fdf_start_admin_thread(*fdf_state );
+    }
 
 	fdf_start_vc_thread ( *fdf_state );
 
@@ -2272,6 +2165,26 @@ static FDF_status_t fdf_delete_container(
     return status;
 }
 
+FDF_cguid_t FDFGetCguid (char *cname ) {
+    int i;
+    for ( i = 0; i < MCD_MAX_NUM_CNTRS; i++ ) {
+        if((CtnrMap[i].cguid != 0) && (!strcmp(CtnrMap[i].cname,cname))){
+            return CtnrMap[i].cguid;
+        }
+    }
+    return SDF_NULL_CGUID;
+}
+
+char *FDFGetContainerName(FDF_cguid_t cguid) {
+    int i;
+    for ( i = 0; i < MCD_MAX_NUM_CNTRS; i++ ) {
+        if((CtnrMap[i].cguid != 0) && (CtnrMap[i].cguid == cguid)){
+            return CtnrMap[i].cname;
+        }
+    }
+    return "";
+}
+
 FDF_status_t FDFGetContainers(
 	struct FDF_thread_state	*fdf_thread_state,
 	FDF_cguid_t             *cguids,
@@ -2863,6 +2776,65 @@ static void fdf_get_fth_stats(SDF_internal_ctxt_t *pai, char ** ppos, int * lenp
 }
 #endif
 
+void fdf_get_flash_map(struct FDF_thread_state *thd_state, FDF_cguid_t cguid, 
+                       char *buf, int *size){
+    int rc, i_ctnr;
+    uint64_t *stats_ptr;
+    SDF_internal_ctxt_t *pai ;
+    SDF_CONTAINER sdf_container = containerNull;
+
+    *size = 0;
+    pai  = (SDF_internal_ctxt_t *)thd_state;
+    SDFStartSerializeContainerOp(pai);
+
+    i_ctnr = fdf_get_ctnr_from_cguid(cguid);
+    if (i_ctnr == -1) {
+        *size = sprintf(buf,"Unable to get container from cguid\n");
+        SDFEndSerializeContainerOp(pai);
+        return;
+    }   
+
+    sdf_container = CtnrMap[i_ctnr].sdf_container;
+    FDFContainerStat( pai, sdf_container,
+                             FLASH_SLAB_CLASS_SEGS,
+                             (uint64_t *)&stats_ptr );
+    if( stats_ptr != NULL ) {
+        rc = sprintf(buf+ (*size),"   flash_class_map" );
+        *size = *size + rc;
+        for ( int i = 0; i < Mcd_osd_max_nclasses; i++ ) {
+            rc = sprintf(buf+ (*size)," %lu", stats_ptr[i] );
+            *size = *size + rc;
+        }
+        rc = sprintf(buf+ (*size),"\n" );
+        *size = *size + rc;
+    }
+    else {
+        rc = sprintf(buf+ (*size),"   flash_class_map" );
+        *size = *size + rc;
+    }
+    
+    FDFContainerStat( pai, sdf_container,
+                             FLASH_SLAB_CLASS_SLABS,
+                             (uint64_t *)&stats_ptr );
+    if( stats_ptr != NULL ) {
+        rc = sprintf(buf+ (*size),"   flash_slab_map" );
+        *size = *size + rc;
+        for ( int i = 0; i < Mcd_osd_max_nclasses; i++ ) {
+            rc = sprintf(buf+ (*size)," %lu", stats_ptr[i] );
+            *size = *size + rc;
+        }
+        rc = sprintf(buf+ (*size),"\n" );
+        *size = *size + rc;
+    }
+    else {
+        rc = sprintf(buf+ (*size),"   flash_slab_map" );
+        *size = *size + rc;
+    }
+    SDFEndSerializeContainerOp(pai);
+}
+
+
+
 static void fdf_get_flash_stats( SDF_internal_ctxt_t *pai, char ** ppos, int * lenp,
                                  SDF_CONTAINER sdf_container, FDF_stats_t *stats)
 {
@@ -3109,10 +3081,11 @@ static uint64_t parse_count( char * buf, char * name )
 
     return x;
 }
-
+#if 0
 char *FDFGetStatsDescription(FDF_cache_stat_t stat) {
     return FDFCacheStatsDescStrings[stat];
 }
+#endif
 
 SDF_status_t fdf_parse_access_stats (char * stat_buf,FDF_stats_t *stats ) {
     int i;                       
@@ -3122,7 +3095,7 @@ SDF_status_t fdf_parse_access_stats (char * stat_buf,FDF_stats_t *stats ) {
         return FDF_SUCCESS;
     }   
     for ( i = 0; i < FDF_N_ACCESS_TYPES; i++ ) {
-        val = parse_count( stat_buf, FDFAccessTypeSearchStrings[i] );
+        val = parse_count( stat_buf, fdf_stats_access_type[i].stat_token );
         if ( val != 0 ) {        
             stats->n_accesses[i] = val;
         }
@@ -3140,7 +3113,7 @@ SDF_status_t fdf_parse_cache_stats (char * stat_buf,FDF_stats_t *stats ) {
     }
     //fprintf(stderr,"fdf_parse_cache_stats: %s\n",stat_buf);
     for ( i = 0; i < FDF_N_CACHE_STATS; i++ ) {
-        val = parse_count( stat_buf, FDFCacheStatsSearchStrings[i] );
+        val = parse_count( stat_buf, fdf_stats_cache[i].stat_token );
         if ( val != 0 ) {
             stats->cache_stats[i] = val;
         }
@@ -3337,12 +3310,13 @@ FDF_status_t FDFGetStatsStr (
     FDF_container_props_t       dummy_prop;
     memset( (void *)&dummy_prop, 0, sizeof(dummy_prop) );
 
-	if(!cguid)
+	if(!cguid) {
 		return SDF_INVALID_PARAMETER;
+    }
 
     SDFStartSerializeContainerOp(pai);
 
-    //fprintf(stderr,"Container CGID:%u\n",cguid);
+    //fprintf(stderr,"Container CGID:%lu\n",cguid);
     i_ctnr = fdf_get_ctnr_from_cguid(cguid);
     if (i_ctnr == -1) {
         status = SDF_INVALID_PARAMETER;
@@ -3374,6 +3348,7 @@ FDF_status_t FDFGetStatsStr (
     plat_snprintfcat( &pos, &buf_len, "STAT CGUID %lu\r\n", cguid );
     FDFContainerStat( pai, sdf_container, SDF_N_CURR_ITEMS, &n );
     plat_snprintfcat( &pos, &buf_len, "STAT curr_items %lu\r\n", n );
+
     FDFContainerStat( pai, sdf_container,
                              FLASH_SPACE_USED, &space_used );
     plat_snprintfcat( &pos, &buf_len, "STAT bytes %lu\r\n", space_used );
@@ -3393,6 +3368,16 @@ FDF_status_t FDFGetStatsStr (
         stats->flash_stats[FDF_FLASH_STATS_PENDING_IOS] = Mcd_num_pending_ios;
     }
     get_fdf_stats(pai, &pos, &buf_len, sdf_container,stats);
+#if 0
+    if( (cguid > 3) && (stats != NULL) ) {
+        uint64_t num_objs = 0;
+        uint64_t used = 0;    
+        /* Virtual containers. Get the size and space consumed */
+        get_cntr_info(cguid,NULL, 0, &num_objs, &used, NULL);
+        stats->flash_stats[FDF_FLASH_STATS_SPACE_CONSUMED] = used;
+        stats->flash_stats[FDF_FLASH_STATS_NUM_CREATED_OBJS] = num_objs;
+    }
+#endif
     get_proc_stats(&pos, &buf_len);
 out:
 
@@ -3428,13 +3413,14 @@ FDF_status_t FDFGetContainerStats(
 	)
 {
     char stats_str[STAT_BUFFER_SIZE];
+    FDF_status_t rc;
     if ( stats == NULL ) {
         return FDF_SUCCESS;
     }
     memset (stats, 0, sizeof(FDF_stats_t));
-    FDFGetStatsStr(fdf_thread_state,cguid,stats_str, stats);
+    rc = FDFGetStatsStr(fdf_thread_state,cguid,stats_str, stats);
     //  no-op in this simple implementation
-    return( FDF_SUCCESS );
+    return(FDF_SUCCESS);
 }
 
 FDF_status_t FDFBackupContainer(

@@ -3132,6 +3132,14 @@
 160050 Container %ld has only %d hash bits while the FDF cache uses %d hash bits!
 160051 hash_fn must be non-NULL!
 160052 failed to allocate key buffer
+160053 Unable to write string %s
+160054 Unable to open stats file %s
+160055 No container exists
+160056 Unable to create thread state(%d)\n
+160057 Unable to open socket for admin port
+160058 Unable to bind admin port %u
+160059 Unable to accept new connections
+160060 Admin thread exiting...
 
 
 # rico
