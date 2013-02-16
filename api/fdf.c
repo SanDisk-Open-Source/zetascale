@@ -30,6 +30,7 @@
 #include "ssd/fifo/mcd_ipf.h"
 #include "ssd/fifo/mcd_osd.h"
 #include "ssd/fifo/mcd_bak.h"
+#include "ssd/fifo/mcd_trx.h"
 #include "shared/init_sdf.h"
 #include "shared/private.h"
 #include "shared/open_container_mgr.h"
@@ -39,7 +40,6 @@
 #include "shared/internal_blk_obj_api.h"
 #include "agent/agent_common.h"
 #include "agent/agent_helper.h"
-#include "fdf_trans.h"
 #include "sdftcp/locks.h"
 #include "fdf_internal.h"
 
@@ -862,9 +862,6 @@ static void print_fdf_stats(FILE *log, FDF_stats_t *stats, char *disp_str) {
     fflush(log);
 }
 
-/* Defined later in this file */
-void fdf_trx_print_stats(FILE *log);
-
 void enable_stats_auto_dump() {
     stats_dump = 1;
 }
@@ -926,7 +923,7 @@ static void *fdf_stats_thread(void *arg) {
             }
         }
 
-		fdf_trx_print_stats(stats_log);
+		mcd_trx_print_stats(stats_log);
 
         sleep(getProperty_Int( "FDF_STATS_DUMP_INTERVAL", 60 ));
     }
@@ -3875,30 +3872,6 @@ static FDF_status_t fdf_delete_objects(
 	return del_status;
 }
 
-/* Mini transactions handling */
-
-static uint64_t next_trx_id = 0;
-uint64_t stat_trx_active_count = 0;
-
-static __thread trx_t trx = {0};
-
-void fdf_trx_print_stats(FILE *log)
-{
-    char buf[BUF_LEN];
-
-	sprintf(buf, "trx_active_count %ld\ntrx_id_counter %ld\n",
-		stat_trx_active_count, next_trx_id);
-
-	fputs(buf, log);
-}
-
-trx_t* fdf_trx_get()
-{
-	return &trx;
-}
-
-bool	mcd_trx_start( ),
-	mcd_trx_commit( );
 
 /**
  * @brief Start mini transaction
@@ -3906,19 +3879,24 @@ bool	mcd_trx_start( ),
  * @param fdf_thread_state <IN> The SDF context for which this operation applies
  * @return FDF_SUCCESS on success
  *         FDF_FAILURE_ALREADY_IN_TRANS if thread has active transaction already
+ *         FDF_OUT_OF_MEM if memory exhausted
+ *         FDF_FAILURE for error unspecified
  */
 FDF_status_t FDFMiniTransactionStart(
 	struct FDF_thread_state	*fdf_thread_state
 	)
 {
-	if(trx.id)
-		return FDF_FAILURE_ALREADY_IN_TRANS;
 
-	trx.id = __sync_add_and_fetch(&next_trx_id, 1);
-
-	__sync_add_and_fetch(&stat_trx_active_count, 1);
-
-	return (mcd_trx_start( )? FDF_SUCCESS: FDF_OUT_OF_MEM);
+	switch (mcd_trx_start( )) {
+	case MCD_TRX_OKAY:
+		return (FDF_SUCCESS);
+	case MCD_TRX_TRANS_ACTIVE:
+		return (FDF_FAILURE_ALREADY_IN_TRANS);
+	case MCD_TRX_NO_MEM:
+		return (FDF_OUT_OF_MEM);
+	default:
+		return (FDF_FAILURE);
+	}
 }
 
 /**
@@ -3927,22 +3905,23 @@ FDF_status_t FDFMiniTransactionStart(
  * @param fdf_thread_state <IN> The SDF context for which this operation applies
  * @return FDF_SUCCESS on success
  *         FDF_FAILURE_NO_TRANS if there is no active transaction in the current thread
+ *         FDF_TRANS_ABORTED if transaction aborted due to excessive size or internal error
  */
 FDF_status_t FDFMiniTransactionCommit(
 	struct FDF_thread_state	*fdf_thread_state
 	)
 {
-	FDF_status_t status;
 
-	if(!trx.id)
-		return FDF_FAILURE_NO_TRANS;
-
-	status = mcd_trx_commit( )? FDF_SUCCESS: FDF_TRANS_ABORTED;
-
-	__sync_sub_and_fetch(&stat_trx_active_count, 1);
-
-	trx.id = 0;
-
-	return status;
+	switch (mcd_trx_commit( )) {
+	case MCD_TRX_NO_TRANS:
+		return (FDF_FAILURE_NO_TRANS);
+	case MCD_TRX_BAD_SHARD:
+	case MCD_TRX_TOO_BIG:
+		return (FDF_TRANS_ABORTED);
+	case MCD_TRX_OKAY:
+		return (FDF_SUCCESS);
+	default:
+		return (FDF_FAILURE);
+	}
 }
 

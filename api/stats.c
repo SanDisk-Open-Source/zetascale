@@ -47,7 +47,6 @@
 #include "shared/internal_blk_obj_api.h"
 #include "agent/agent_common.h"
 #include "agent/agent_helper.h"
-#include "fdf_trans.h"
 #include "fdf_internal.h"
 
 /*
