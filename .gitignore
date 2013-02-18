@@ -3,7 +3,7 @@ CMakeFiles
 CMakeCache.txt
 *.cmake
 Makefile
-platform/ffdc_log.c
+platform/ffdc_log.*c
 platform/ffdc_log.dbg
 platform/ffdc_log.h
 platform/ffdc_reader.c

@@ -23,6 +23,7 @@ fi
 
 VERSION=${FDF_SDK_VERSION}-${SCHOONER_RELEASE}
 NCPU=$(cat /proc/cpuinfo|grep CPU|wc -l)
+NCPU=$((NCPU*15/10))
 
 DBG=OFF
 PKG_NAME=fdf_sdk-$VERSION
@@ -39,7 +40,7 @@ mkdir -p $SDK_DIR/{config,lib,include,samples,tests,docs}
 
 echo "Building DEBUG=$DBG shared lib"
 rm -f CMakeCache.txt
-cmake $WD -DDEBUG=$DBG -DFDF_REVISION="$VERSION"
+cmake $WD -DNCPU=$NCPU -DDEBUG=$DBG -DFDF_REVISION="$VERSION"
 make -j $NCPU
 
 #Packaging

@@ -64,6 +64,9 @@ use File::Basename;
 #--------------------------------------------------------------------
 # Global Variable Definitions
 #--------------------------------------------------------------------
+our $FFDC_LOG_N = shift @ARGV or
+    die "Must specify NCPU on command line";
+
 our $PATH = shift @ARGV or
     die "Must specify path on command line";
 
@@ -99,29 +102,46 @@ our $FFDC_RANGE_END_ID = 0;
 our $MSG_ID_START = 0;
 our $CURR_MSGID = 0;
 our $NEW_MSG_CNT = 0;
+our $FFDC_LOG_CUR = 1;
+our @FFDC_C_ARR;
 
 our $WHOAMI = $ENV{'USER'} or 
     die "Can't determine user";
 
 our @DIRS = qw(
-    apps
-    sdf
+    agent
+    api
+    applib
+    common
+    dll
+    ecc
+    flash
+    fth
+    misc
+    physmem
+    platform
+    protocol
+    sdfappcommon
+    sdfmsg
+    sdftcp
+    shared
+    ssd
+    sys
+    utils
 );
 
 our @SKIPFILES = qw(
-    sdf/sdfmsg/old/
-    sdf/sdfmsg/oldtests/
-    sdf/platform/logging.h
-    sdf/platform/ffdc_log.h
-    sdf/platform/ffdc_log.c
-    sdf/platform/ffdc_reader.c
-    sdf/protocol/replication/tests/
-    apps/memcached/clients/libmemcached/libmemcached-0.12/tests/
+    sdfmsg/old/
+    sdfmsg/oldtests/
+    platform/logging.h
+    platform/ffdc_log.h
+    platform/ffdc_log.c
+    platform/ffdc_reader.c
+    protocol/replication/tests/
 );
 
 our @VALID_PLACEHOLDERS = qw(
     PLAT_LOG_ID_INITIAL
-    PLII
     LOG_ID
 );
 
@@ -197,7 +217,8 @@ sub _sitNeedToCreateFiles()
         return 1;
     }
 
-    return 0;
+    _sitLogInfo("Regenerate always. Re-generating source files...");    
+    return 1;
 }
 
 sub _sitIsNumber
@@ -832,11 +853,18 @@ sub _sitArgsToStruct
     print FFDC_H "__inline__ $func_buf);\n\n";
 
     $func_body .= "    ${U_PREFIX}_END();\n";
-    print FFDC_C "__inline__ $func_buf)\n{\n$func_body}\n\n";
+
+    my $FF = $FFDC_C_ARR[$FFDC_LOG_CUR++];
+
+    print $FF "__inline__ $func_buf)\n{\n$func_body}\n\n";
+
+    if ($FFDC_LOG_CUR > $FFDC_LOG_N) {
+        $FFDC_LOG_CUR = 1;
+    }
 
     $printf_buf .= ");\n\n    }\n    return (char*) (shmem + sizeof(struct ${PREFIX}_log_struct_${msgid}));\n";
     printf READER "$printf_buf}\n\n";
-    
+
     return 0;
 }
 
@@ -1130,7 +1158,7 @@ EOF
 
 sub _sitCreateFFDCSourceFiles
 {
-    my($ret, $key, $comment, $range_ndx, @msgid_ranges, $msg);
+    my($ret, $key, $comment, $range_ndx, @msgid_ranges, $msg, $n);
 
     print "\n";
     _sitLogInfo("Creating FFDC source files...");
@@ -1144,6 +1172,11 @@ sub _sitCreateFFDCSourceFiles
     _sitSourceAddHeader();
     _sitReaderAddHeader();
     _sitMsgCatalogAddHeader();
+
+    for $n(1..$FFDC_LOG_N) { 
+        open ($FFDC_C_ARR[$n], ">$FFDC_DIR/ffdc_log.$n.c") || die ("Unable to open $FFDC_DIR/ffdc_log.$n.c\n");
+        _sitSourceAddHeader_short($FFDC_C_ARR[$n]);
+    }
     
     @msgid_ranges = sort { $a <=> $b } keys %FFDC_RANGES;
     
@@ -1151,14 +1184,14 @@ sub _sitCreateFFDCSourceFiles
     foreach $key (sort { $a <=> $b } keys %FFDC_MSGIDS) {
         $msg = _sitUnescape($FFDC_MSGIDS{$key});
         
-        $comment = "/*---------------------------------------------------------------------------\n";
-        $comment .= " * MsgID : $key\n";
-        $comment .= " * Msg   : \"" . _sitWrapLogMsgComment($msg) . "\"\n";
-        $comment .= " *-------------------------------------------------------------------------*/\n";
+#        $comment = "/*---------------------------------------------------------------------------\n";
+#        $comment .= " * MsgID : $key\n";
+#        $comment .= " * Msg   : \"" . _sitWrapLogMsgComment($msg) . "\"\n";
+#        $comment .= " *-------------------------------------------------------------------------*/\n";
         
-        print FFDC_C $comment;
-        print FFDC_H $comment;
-        print READER $comment;
+#       print FFDC_C $comment;
+#       print FFDC_H $comment;
+#       print READER $comment;
         
         $ret = _sitArgsToStruct($key, $FFDC_MSGIDS{$key});
         if ($ret > 0) {
@@ -1182,6 +1215,10 @@ sub _sitCreateFFDCSourceFiles
     close FFDC_H;
     close FFDC_MC;
     close READER;
+
+    for $n(0..$FFDC_LOG_N) { 
+        close $FFDC_C_ARR[$n];
+    }
     
     system("mv", "$FFDC_DIR/${FFDC_MSGCAT_FILE}.ffdc_modified", "$FFDC_DIR/${FFDC_MSGCAT_FILE}");
 }
@@ -1444,10 +1481,10 @@ print FFDC_C << "EOF";
 #include "platform/$FFDC_HEADER_FILE"
 #include "fth/fth.h"
 
-static struct ffdc_info *_ffdc_info = NULL;
+struct ffdc_info *_ffdc_info = NULL;
 
-static __thread uint64_t _ffdc_thread_offset = -1;
-static __thread int _ffdc_thread_ndx = -1;
+__thread uint64_t _ffdc_thread_offset = -1;
+__thread int _ffdc_thread_ndx = -1;
 
 static void 
 ffdc_at_fork(void *extra,  pid_t pid) {
@@ -1546,6 +1583,48 @@ ffdc_detach()
 }
 
 EOF
+}
+
+sub _sitSourceAddHeader_short
+{
+  my ($FF) = @_;
+
+  my $header = << "EOF";
+/*------------------------------------------------------------------------
+ * AUTO GENERATED: DO NOT CHECK INTO SVN
+ *
+ * This file is automatically generated by ffdc_parser.pl.  Please do not
+ * modify this file since your changes will be lost once ffdc_parser.pl
+ * is run.
+ *
+ * This file defines one log function for each unique log message in the
+ * codebase. This file also contains the API to enable, disable, and
+ * initialize FFDC.
+ * 
+ * Generated On: $TIMESTAMP
+ *------------------------------------------------------------------------*/
+
+#define PLATFORM_INTERNAL 1
+
+#include "platform/stdio.h"
+#include "platform/stdlib.h"
+#include "platform/string.h"
+#include "platform/shmem_global.h"
+#include "platform/platform.h"
+#include "platform/types.h"
+#include "platform/unistd.h"
+#include "platform/$FFDC_HEADER_FILE"
+#include "fth/fth.h"
+
+extern struct ffdc_info *_ffdc_info;
+
+extern __thread uint64_t _ffdc_thread_offset;
+extern __thread int _ffdc_thread_ndx;
+
+EOF
+
+print $FF $header;
+
 }
 
 sub _sitReaderAddHeader
