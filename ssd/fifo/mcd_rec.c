@@ -7715,27 +7715,29 @@ mcd_trx_commit( )
 
 	unless (trx)
 		return (MCD_TRX_NO_TRANS);
-	mcd_trx_t status = trx->status;
-	if (status == MCD_TRX_OKAY) {
+	unless (trx->status == MCD_TRX_OKAY)
+		mcd_trx_stats.failures++;
+	else if (trx->s) {
 		fthWaitEl_t *w = fthLock( &trx->s->log->sync_fill_lock, 1, NULL);
-		mcd_rec_log_t *log = trx->s->log;
-		uint n = __sync_fetch_and_add( &log->write_buffer_seqno, 0);
-		n = log->total_slots - n%log->total_slots;
-		if (n < trx->n*MCD_REC_LOGBUF_SLOTS/MCD_REC_LOGBUF_RECS+1+2*MCD_REC_LOGBUF_RECS) {
-			mcd_logrec_object_t z;
-			memset( &z, 0, sizeof z);
-			z.blk_offset = 0xffffffffu;	/* CAS type */
-			for (i=0; i<n*MCD_REC_LOGBUF_RECS/MCD_REC_LOGBUF_SLOTS; ++i)
-				log_write_internal( trx->s, &z);
+		if (trx->n > 1) {
+			mcd_rec_log_t *log = trx->s->log;
+			uint n = __sync_fetch_and_add( &log->write_buffer_seqno, 0);
+			n = log->total_slots - n%log->total_slots;
+			if (n < trx->n*MCD_REC_LOGBUF_SLOTS/MCD_REC_LOGBUF_RECS+1+2*MCD_REC_LOGBUF_RECS) {
+				mcd_logrec_object_t z;
+				memset( &z, 0, sizeof z);
+				z.blk_offset = 0xffffffffu;	/* CAS type */
+				for (i=0; i<n*MCD_REC_LOGBUF_RECS/MCD_REC_LOGBUF_SLOTS; ++i)
+					log_write_internal( trx->s, &z);
+			}
 		}
 		for (i=0; i<trx->n; ++i)
 			log_write_internal( trx->s, &trx->lrtab[i]);
 		fthUnlock( w);
 		mcd_trx_stats.operations += trx->n;
-		++mcd_trx_stats.transactions;
 	}
-	else
-		++mcd_trx_stats.failures;
+	mcd_trx_stats.transactions++;
+	mcd_trx_t status = trx->status;
 	plat_free( trx);
 	trx = 0;
 	return (status);
