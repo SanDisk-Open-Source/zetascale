@@ -696,7 +696,7 @@ FDF_status_t fdf_start_admin_thread( struct FDF_state *fdf_state ) {
     /* Create Admin thread */    
     rc = pthread_create(&thd,NULL,FDFAdminThread,(void *)&admin_config);
     if( rc != 0 ) {
-        plat_log_msg(PLAT_LOG_ID_INITIAL,LOG_CAT, LOG_ERR,
+        plat_log_msg(170003,LOG_CAT, LOG_ERR,
                                          "Unable to start the stats thread");
     }
     return FDF_SUCCESS; 

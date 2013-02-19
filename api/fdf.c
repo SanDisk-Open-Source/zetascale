@@ -1346,6 +1346,7 @@ static FDF_status_t fdf_create_container(
 
      plat_log_msg(160033, LOG_CAT, LOG_INFO, "%s, size=%ld bytes", cname, (long)properties->size_kb * 1024);
 
+#if 0
 	if( properties->size_kb < 1 )
 	{
      	plat_log_msg( 150101,
@@ -1356,6 +1357,7 @@ static FDF_status_t fdf_create_container(
 					  properties->size_kb);
 		return FDF_FAILURE_CONTAINER_TOO_SMALL;
 	}
+#endif
 
     if ( !properties->writethru ) {
         if ( !properties->evicting ) {
@@ -2188,19 +2190,27 @@ FDF_status_t FDFGetContainers(
 	uint32_t                *n_cguids
 	)
 {
-    int   i;
-    int   n_containers;
+    int   						 i				= 0;
+    int   						 n_containers	= 0;
+    SDF_internal_ctxt_t     	*pai 			= (SDF_internal_ctxt_t *) fdf_thread_state;
 
     n_containers = 0;
 
+	if ( !cguids || !n_cguids )
+		return FDF_INVALID_PARAMETER;
+
+    SDFStartSerializeContainerOp(pai);  
+
     for ( i = 0; i < MCD_MAX_NUM_CNTRS; i++ ) {
 		if ( CtnrMap[i].cguid != 0 && CtnrMap[i].cguid != VMC_CGUID && CtnrMap[i].cguid != VDC_CGUID ) {
-			cguids[n_containers] = Mcd_containers[i].cguid;
+			cguids[n_containers] = CtnrMap[i].cguid;
             n_containers++;
         }
     }
 
     *n_cguids = n_containers;
+
+    SDFEndSerializeContainerOp( pai );   
 
     return FDF_SUCCESS;
 }
@@ -2215,8 +2225,8 @@ FDF_status_t FDFGetContainerProps(
     SDF_container_meta_t     	 meta;
     SDF_internal_ctxt_t     	*pai 	= (SDF_internal_ctxt_t *) fdf_thread_state;
 
-	if ( !cguid )
-		return SDF_INVALID_PARAMETER;
+	if ( !cguid || !pprops )
+		return FDF_INVALID_PARAMETER;
 
     SDFStartSerializeContainerOp(pai);  
     if (( status = name_service_get_meta( pai, cguid, &meta )) == FDF_SUCCESS ) {
@@ -2237,8 +2247,8 @@ FDF_status_t FDFSetContainerProps(
     SDF_container_meta_t     meta;
     SDF_internal_ctxt_t     *pai = (SDF_internal_ctxt_t *) fdf_thread_state;
 
-	if ( !cguid )
-		return SDF_INVALID_PARAMETER;
+	if ( !cguid || !pprops )
+		return FDF_INVALID_PARAMETER;
 
     SDFStartSerializeContainerOp(pai);
     if (( status = name_service_get_meta( pai, cguid, &meta )) == FDF_SUCCESS ) {
@@ -3590,14 +3600,12 @@ FDF_status_t fdf_resize_container(
     }
     
     index = fdf_get_ctnr_from_cguid( cguid );
-    if ( index > -1 ) {
+    if ( index < 0 ) {
         plat_log_msg( 150082, LOG_CAT, LOG_ERR, "Cannnot find container id %lu", cguid );
         status = FDF_CONTAINER_UNKNOWN;
-#if 0 // this branch if taken will segfault (Johann)
     } else if ( size < CtnrMap[ index ].size_kb ) {
             plat_log_msg( 150079, LOG_CAT, LOG_ERR, "Cannnot reduce container size" );
             status = FDF_CANNOT_REDUCE_CONTAINER_SIZE;
-#endif
     } else if ( ( status = name_service_get_meta( pai,
                                                	  cguid,
                                                	  &meta ) ) != FDF_SUCCESS) {
@@ -3610,10 +3618,8 @@ FDF_status_t fdf_resize_container(
                                                cguid,
                                                &meta ) ) != FDF_SUCCESS ) {
             plat_log_msg( 150081, LOG_CAT, LOG_ERR, "Cannnot write container metadata for %lu", cguid );
-#if 0 // this branch if taken will segfault (Johann)
         } else {
             CtnrMap[ index ].size_kb = size;
-#endif
         }
     }
 

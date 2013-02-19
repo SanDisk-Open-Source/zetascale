@@ -39,6 +39,7 @@ FDF_status_t fdf_create_container (
     props.persistent                    = FDF_TRUE;
     props.evicting                      = FDF_FALSE;
     props.writethru                     = FDF_TRUE;
+    props.async_writes                  = FDF_FALSE;
     props.durability_level              = FDF_DURABILITY_PERIODIC;
     props.num_shards                    = 1;
 

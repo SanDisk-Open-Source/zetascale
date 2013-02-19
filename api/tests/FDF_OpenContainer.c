@@ -228,15 +228,15 @@ int FDFOpenContainer_basic_check_size()
     p.size_kb = 3;   
 
     if(FDF_SUCCESS == ret){
-        fprintf(fp,"set size < 1K Create container success.\n");
+        fprintf(fp,"set size = 0 Create container success.\n");
         CloseContainer(cguid );
         if(FDF_SUCCESS != DeleteContainer(cguid))
             return -2;
-        return 0;
+        return 1;
     }
     else{
-        fprintf(fp,"set size < 1K Create container failed.\n");
-        return 1;
+        fprintf(fp,"set size = 0 Create container failed.\n");
+        return 0;
     }
 }
 
