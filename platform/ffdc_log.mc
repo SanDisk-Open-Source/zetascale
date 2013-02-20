@@ -3140,6 +3140,14 @@
 160058 Unable to bind admin port %u
 160059 Unable to accept new connections
 160060 Admin thread exiting...
+160061 Using writeback caching with store mode containers can result in lost data if the system crashes
+160062 FDFCreateContainer failed for container %s because %d containers have already been created.
+160063 PROP: FDF_CACHE_ALWAYS_MISS=%s
+160064 PROP: FDF_STRICT_WRITEBACK=%s
+160065 Using writeback caching for store mode container %"PRIu64" may result in data loss if system crashes.
+160066 %ld asynchronous writes have failed!  This message is displayed only every %d failures.
+160067 %ld asynchronous writebacks have failed!  This message is displayed only every %d failures.
+160068 %ld asynchronous flushes have failed!  This message is displayed only every %d failures.
 
 
 # rico

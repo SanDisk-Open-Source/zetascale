@@ -57,6 +57,8 @@ enum hf_msg_type {
     // from action_new.c
 extern SDF_status_t get_status(int retcode);
 extern int get_retcode(SDF_status_t status);
+extern int check_flash_space(SDF_action_state_t *pas, struct shard *pshard);
+extern void finish_write_in_flight(SDF_action_state_t *pas);
 
 /* Don't access directly, instead use sdf_get_current_time() as when
  * memcached is built in, their current time is used instead
@@ -1110,10 +1112,15 @@ home_flash_wrapper(
 		plat_log_msg(21312, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION, PLAT_LOG_LEVEL_DEBUG,
 			     "data forwarding recv: key: %s len: %d data: 0x%lx",  pflash_key, metaData.keyLen, (uint64_t) pflash_data2);
 
-		(metaData.keyLen)--; // adjust for added null from SDF
-		retcode = flashPut(pshard, &metaData, pflash_key, pflash_data2,
-				   flash_flags);
-		(metaData.keyLen)++; // adjust for added null from SDF
+                if (!check_flash_space(pai->pcs, pshard)) {
+		    (metaData.keyLen)--; // adjust for added null from SDF
+		    retcode = flashPut(pshard, &metaData, pflash_key, pflash_data2,
+				       flash_flags);
+		    (metaData.keyLen)++; // adjust for added null from SDF
+		    finish_write_in_flight(pai->pcs);
+		} else {
+		    retcode = FLASH_ENOSPC;
+		}
 		if (retcode == FLASH_EOK && (pm->flags & f_sync)) {
 		    /*
 		     * XXX: drew 2009-06-16 This should be a single key flush

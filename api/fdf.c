@@ -327,6 +327,13 @@ fdf_stats_info_t fdf_stats_cache[] = {
     {"writethrus","num_writethrus_to_flash",FDF_STATS_TYPE_OVERWRITES},/* FDF_CACHE_STAT_WRITETHRUS */
     {"writebacks","num_writebacks",FDF_STATS_TYPE_OVERWRITES},/* FDF_CACHE_STAT_WRITEBACKS */
     {"flushes","num_flush_ops_to_flash",FDF_STATS_TYPE_OVERWRITES},/* FDF_CACHE_STAT_FLUSHES */
+    {"async_drains","async_drains",FDF_STATS_TYPE_CACHE_TO_FLASH},/* FDF_CACHE_STAT_ASYNC_DRAINS */
+    {"async_puts","async_puts",FDF_STATS_TYPE_CACHE_TO_FLASH},/* FDF_CACHE_STAT_ASYNC_PUTS */
+    {"async_put_fails","async_put_fails",FDF_STATS_TYPE_CACHE_TO_FLASH},/* FDF_CACHE_STAT_ASYNC_PUT_FAILS */
+    {"async_flushes","async_flushes",FDF_STATS_TYPE_CACHE_TO_FLASH},/* FDF_CACHE_STAT_ASYNC_FLUSHES */
+    {"async_flush_fails","async_flush_fails",FDF_STATS_TYPE_CACHE_TO_FLASH},/* FDF_CACHE_STAT_ASYNC_FLUSH_FAILS */
+    {"async_wrbks","async_wrbks",FDF_STATS_TYPE_CACHE_TO_FLASH},/* FDF_CACHE_STAT_ASYNC_WRBKS */
+    {"async_wrbk_fails","async_wrbk_fails",FDF_STATS_TYPE_CACHE_TO_FLASH},/* FDF_CACHE_STAT_ASYNC_WRBK_FAILS */
     /* request from cache to flash manager */
     {"AHCOB","num_create_objs",FDF_STATS_TYPE_CACHE_TO_FLASH},/* FDF_CACHE_STAT_AHCOB */
     {"AHCOP","num_create_objs_and_put",FDF_STATS_TYPE_CACHE_TO_FLASH},/* FDF_CACHE_STAT_AHCOP */
@@ -1334,7 +1341,7 @@ static FDF_status_t fdf_create_container(
 
 	properties->persistent			= SDF_TRUE;
 	properties->evicting  			= SDF_FALSE;
-	properties->writethru  			= SDF_TRUE;
+	// properties->writethru  			= SDF_TRUE;
 #if 0
     iproperties.current_size		= 0;
     iproperties.num_obj				= 0;
@@ -1361,9 +1368,8 @@ static FDF_status_t fdf_create_container(
 
     if ( !properties->writethru ) {
         if ( !properties->evicting ) {
-            plat_log_msg( 30572, LOG_CAT, LOG_ERR,
-                          "Writeback caching can only be enabled for eviction mode containers" );
-        	return FDF_FAILURE_INVALID_CONTAINER_TYPE;
+            plat_log_msg( PLAT_LOG_ID_INITIAL, LOG_CAT, LOG_WARN,
+                          "Using writeback caching with store mode containers can result in lost data if the system crashes" );
         } else {
             writeback_enabled_string = getProperty_String( "SDF_WRITEBACK_CACHE_SUPPORT", "On" );
             if ( strcmp( writeback_enabled_string, "On" ) != 0 ) {
@@ -1401,19 +1407,19 @@ static FDF_status_t fdf_create_container(
 
 		if ( i == MCD_MAX_NUM_CNTRS ) {
 	    	plat_log_msg( 150033, 
-						  LOG_CAT,LOG_ERR, 
-						  "FDFCreateContainer failed for container %s because 128 containers have already been created.", 
-						  cname );
+			      LOG_CAT,LOG_ERR, 
+			      "FDFCreateContainer failed for container %s because 128 containers have already been created.", 
+			      cname );
 	    	status = FDF_TOO_MANY_CONTAINERS;
 			goto out;
 		}
 
 		if ( ( status = fdf_generate_cguid( fdf_thread_state, cguid ) ) != FDF_SUCCESS ) {
 			plat_log_msg( 150084,
-						  LOG_CAT,
-						  LOG_ERR,
-						  "Failed to generate container id for %s", 
-						  cname );
+				      LOG_CAT,
+				      LOG_ERR,
+				      "Failed to generate container id for %s", 
+				      cname );
 	    	status = FDF_TOO_MANY_CONTAINERS;
 	    	SDFEndSerializeContainerOp( pai );
 	    	return status;
@@ -2267,21 +2273,21 @@ FDF_status_t FDFSetContainerProps(
     	meta.properties.cache.writethru                       = pprops->writethru;
 #else
     	meta.properties.container_type.caching_container      = SDF_FALSE;
-    	meta.properties.cache.writethru                       = SDF_TRUE;
-		meta.properties.fifo_mode 							  = SDF_FALSE;
-		meta.properties.shard.num_shards 					  = 1;
-		/* TRAC:10469
+    	meta.properties.cache.writethru                       = pprops->writethru;
+	meta.properties.fifo_mode 			      = SDF_FALSE;
+	meta.properties.shard.num_shards 		      = 1;
+	/* TRAC:10469
            Disabling the following line because cguid can never be changed and if allowed
            apps can set invalid value for cguid, GetContainerProperties return invalid cguids
         */
         /*meta.properties.cguid 							  = pprops->cguid;*/
 #endif
 
-		meta.properties.durability_level = SDF_NO_DURABILITY;
-		if ( pprops->durability_level == FDF_DURABILITY_HW_CRASH_SAFE )
-	    	meta.properties.durability_level = SDF_FULL_DURABILITY;
-		else if ( pprops->durability_level == FDF_DURABILITY_SW_CRASH_SAFE )
-	    	meta.properties.durability_level = SDF_RELAXED_DURABILITY;
+	meta.properties.durability_level = SDF_NO_DURABILITY;
+	if ( pprops->durability_level == FDF_DURABILITY_HW_CRASH_SAFE )
+	    meta.properties.durability_level = SDF_FULL_DURABILITY;
+	else if ( pprops->durability_level == FDF_DURABILITY_SW_CRASH_SAFE )
+	    meta.properties.durability_level = SDF_RELAXED_DURABILITY;
 
         status = name_service_put_meta( pai, cguid, &meta );
     }
@@ -3481,7 +3487,7 @@ static SDF_container_props_t *fdf_create_sdf_props(
         sdf_properties->cache.shared                            = SDF_FALSE;
         sdf_properties->cache.coherent                          = SDF_FALSE;
         sdf_properties->cache.enabled                           = SDF_TRUE;
-        sdf_properties->cache.writethru                         = SDF_TRUE /* fdf_properties->writethru */;
+        sdf_properties->cache.writethru                         = fdf_properties->writethru;
         sdf_properties->cache.size                              = 0;
         sdf_properties->cache.max_size                          = 0;
 

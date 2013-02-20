@@ -38,6 +38,14 @@
 
 #define LOG_CAT PLAT_LOG_CAT_SDF_PROT_FLASH
 
+    /*  Print async write failure messages periodically,
+     *  after this many errors occur:
+     */
+#define ASYNC_ERR_MSG_INTERVAL 1000000
+
+//  for stats collection
+#define incr(x) __sync_fetch_and_add(&(x), 1)
+
 struct SDF_async_puts_thrd_state {
     /** @brief parent state */
     struct SDF_async_puts_state *paps;
@@ -284,11 +292,14 @@ static void ap_main(uint64_t arg)
     SDF_async_put_request_t           rqst;
     int                               ret = SDF_SUCCESS;
     fthMbox_t                        *ack_mbox;
+    uint64_t                          x;
+    SDF_action_state_t               *pas = paps->p_action_state;
 
     /* imported from action_new.c */
     extern int do_put(SDF_async_put_request_t *pap, SDF_boolean_t unlock_slab);
     extern int do_writeback(SDF_async_put_request_t *pap);
     extern int do_flush(SDF_async_put_request_t *pap);
+    extern void finish_write_in_flight(SDF_action_state_t *pas);
 
     /*  Initialize per-thread state here
      *  (so aio_ctxt is set up correctly!)
@@ -337,6 +348,7 @@ static void ap_main(uint64_t arg)
 		 */
 
 		(void) fthMboxWait(&pts->drain_complete_mbx);
+		(void) incr(pas->stats_new_per_sched[curSchedNum].ctnr_stats[VDC_CGUID].n_async_drains);
 	        break;
 
             case ASYNC_PUT:
@@ -377,6 +389,15 @@ static void ap_main(uint64_t arg)
 		rqst.req_resp_mbx = &(pts->req_resp_fthmbx);
 		rqst.pts          = pts->pats;
 		ret = do_put(&rqst, SDF_TRUE /* unlock slab */);
+		(void) incr(pas->stats_new_per_sched[curSchedNum].ctnr_stats[rqst.n_ctnr].n_async_puts);
+		if (ret != FLASH_EOK) {
+		    x = incr(pas->stats_new_per_sched[curSchedNum].ctnr_stats[rqst.n_ctnr].n_async_put_fails);
+		    if ((x % ASYNC_ERR_MSG_INTERVAL) == 1) {
+			plat_log_msg(160066, PLAT_LOG_CAT_SDF_PROT, PLAT_LOG_LEVEL_ERROR,
+			             "%ld asynchronous writes have failed!  This message is displayed only every %d failures.", x, ASYNC_ERR_MSG_INTERVAL);
+		    }
+		}
+		finish_write_in_flight(rqst.pai->pcs);
 	        break;
 
             case ASYNC_WRITEBACK:
@@ -414,6 +435,14 @@ static void ap_main(uint64_t arg)
 		rqst.pkey_simple  = &(pts->key_simple);
 		rqst.ack_mbx      = NULL;
 		ret = do_writeback(&rqst);
+		(void) incr(pas->stats_new_per_sched[curSchedNum].ctnr_stats[rqst.n_ctnr].n_async_wrbks);
+		if (ret != FLASH_EOK) {
+		    x = incr(pas->stats_new_per_sched[curSchedNum].ctnr_stats[rqst.n_ctnr].n_async_wrbk_fails);
+		    if ((x % ASYNC_ERR_MSG_INTERVAL) == 1) {
+			plat_log_msg(160067, PLAT_LOG_CAT_SDF_PROT, PLAT_LOG_LEVEL_ERROR,
+			             "%ld asynchronous writebacks have failed!  This message is displayed only every %d failures.", x, ASYNC_ERR_MSG_INTERVAL);
+		    }
+		}
 	        break;
 
             case ASYNC_FLUSH:
@@ -447,6 +476,14 @@ static void ap_main(uint64_t arg)
 		// for flow control
                 (void) __sync_fetch_and_add(&paps->flushes_in_progress, 1);
 		ret = do_flush(&rqst);
+		(void) incr(pas->stats_new_per_sched[curSchedNum].ctnr_stats[rqst.n_ctnr].n_async_flushes);
+		if (ret != FLASH_EOK) {
+		    x = incr(pas->stats_new_per_sched[curSchedNum].ctnr_stats[rqst.n_ctnr].n_async_flush_fails);
+		    if ((x % ASYNC_ERR_MSG_INTERVAL) == 1) {
+			plat_log_msg(160068, PLAT_LOG_CAT_SDF_PROT, PLAT_LOG_LEVEL_ERROR,
+			             "%ld asynchronous flushes have failed!  This message is displayed only every %d failures.", x, ASYNC_ERR_MSG_INTERVAL);
+		    }
+		}
 		// for flow control
                 __sync_fetch_and_add(&paps->flushes_in_progress, -1);
 

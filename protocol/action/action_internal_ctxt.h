@@ -85,6 +85,14 @@ typedef struct {
     int64_t               n_writebacks;
     int64_t               n_writethrus;
     int64_t               n_flushes;
+    //  added to expose async write/writeback/flush failures:
+    int64_t               n_async_drains;
+    int64_t               n_async_puts;
+    int64_t               n_async_flushes;
+    int64_t               n_async_wrbks;
+    int64_t               n_async_put_fails;
+    int64_t               n_async_flush_fails;
+    int64_t               n_async_wrbk_fails;
 } SDF_cache_ctnr_stats_t;
 
 typedef struct SDF_action_stats_new {
@@ -193,6 +201,8 @@ typedef struct SDF_action_state {
     SDF_action_stats_new_t            stats_new_per_sched[FTH_MAX_SCHEDS];
     SDF_action_stats_new_t            stats_new;
     SDF_action_stats_new_t            stats_per_ctnr;
+    SDF_boolean_t                     strict_wrbk;
+    SDF_boolean_t                     always_miss;
     SDF_boolean_t                     enable_replication;
     fthLock_t                         container_serialization_lock;
 
@@ -214,6 +224,10 @@ typedef struct SDF_action_state {
 
     // for prefix-based delete
     char                          prefix_delete_delimiter;
+
+    //  Count of writes in flight, used to ensure there is
+    //  space for asynchronous writes.
+    uint64_t                      writes_in_flight;
 
 } SDF_action_state_t;
 

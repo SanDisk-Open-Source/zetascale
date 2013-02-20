@@ -71,7 +71,7 @@
      *  trace collection code.  It is only used if
      *  the logging level for sdf/prot=trace.
      */
-#define INCLUDE_TRACE_CODE
+// #define INCLUDE_TRACE_CODE
 
 //-----------------------------------------------------------
 // temporary stuff for testing cache_get_by_addr()!!!
@@ -338,7 +338,6 @@ SDF_status_t get_status(int retcode);
 int get_retcode(SDF_status_t status);
 static void finish_up(SDF_trans_state_t *ptrans);
 static void load_return_values(SDF_trans_state_t *ptrans);
-static void dump_flash_trace(SDF_trans_state_t *ptrans, char *name, int retcode);
 static void destroy_per_thread_state(SDF_action_thrd_state_t *pts);
 static int flashPut_wrapper(SDF_trans_state_t *ptrans, struct shard *pshard, struct objMetaData *pmeta, char *pkey, char *pdata, int flags, SDF_boolean_t skip_for_writeback);
 static int shardSync_wrapper(SDF_trans_state_t *ptrans, struct shard *pshard);
@@ -346,6 +345,10 @@ static SDF_status_t flush_inval_wrapper(SDF_trans_state_t *ptrans, struct shard 
 static void drain_store_pipe(SDF_action_thrd_state_t *pts);
 int do_put(SDF_async_put_request_t *pap, SDF_boolean_t unlock_slab);
 static SDF_status_t process_prefix_delete(SDF_trans_state_t *ptrans);
+
+#ifdef INCLUDE_TRACE_CODE
+static void dump_flash_trace(SDF_trans_state_t *ptrans, char *name, int retcode);
+#endif
 
 static sdf_msg_t *load_msg(SDF_tag_t tag,
                            SDF_time_t  exp_time,
@@ -379,6 +382,57 @@ static struct sdf_queue_pair *get_queue_pair(uint32_t node_from, uint32_t node_t
     return(x);
 }
 
+//  Returns 1 if insufficient space, 0 otherwise
+int check_flash_space(SDF_action_state_t *pas, struct shard *pshard)
+{
+    int        ret=0;
+    // uint64_t   in_flight;
+    // uint64_t   free_segs;
+    uint64_t   in_flight;
+    uint64_t   total_bytes;
+    uint64_t   used_bytes;
+    uint64_t   cache_bytes;
+    uint64_t   flash_bytes;
+    uint64_t   thresh_bytes;
+    uint64_t   seg_bytes = 32*1024*1024;
+    uint64_t   obj_bytes = 8*1024*1024;
+    uint64_t   nclasses = 15;
+
+    if (!pas->strict_wrbk) {
+        return(0);
+    }
+    
+    // extern uint64_t mcd_osd_get_free_segments_count(struct shard* shard);
+    total_bytes = flashStats(pshard, FLASH_SHARD_MAXBYTES);
+    used_bytes  = flashStats(pshard, FLASH_SPACE_USED);
+    cache_bytes = pas->cachesize;
+
+    in_flight = __sync_fetch_and_add(&pas->writes_in_flight, 1);
+
+    thresh_bytes = cache_bytes + in_flight*obj_bytes;
+    flash_bytes  = (total_bytes - used_bytes - nclasses*seg_bytes)/2;
+
+    // TODO: xxxzzz enable this once EF checks in appropriate code!
+    // free_segs = mcd_osd_get_free_segments_count(pshard);
+    // free_segs = 1000; // arbitrarily large for now!
+    
+    // if (in_flight >= free_segs) {
+    //     __sync_fetch_and_add(&pas->writes_in_flight, -1);
+    //	ret = 1;
+    //}
+
+    if (flash_bytes < thresh_bytes) {
+        ret = 1;
+    }
+
+    return(ret);
+}
+
+void finish_write_in_flight(SDF_action_state_t *pas)
+{
+    __sync_fetch_and_add(&pas->writes_in_flight, -1);
+}
+
 void InitActionProtocolCommonState(SDF_action_state_t *pas, SDF_action_init_t *pai)
 {
     int             i;
@@ -391,6 +445,8 @@ void InitActionProtocolCommonState(SDF_action_state_t *pas, SDF_action_init_t *p
     uint64_t        buckets_default;
     uint32_t        max_flushes_per_mod_check;
     double          f_modified;
+    const char     *always_miss_string;;
+    const char     *strict_wrbk_string;;
     const char     *enable_replication_string;
     const char     *pfx_delimiter;
     #ifdef SIMPLE_REPLICATION
@@ -400,6 +456,22 @@ void InitActionProtocolCommonState(SDF_action_state_t *pas, SDF_action_init_t *p
     #ifdef MALLOC_TRACE
         UTMallocTraceInit();
     #endif // MALLOC_TRACE
+
+    always_miss_string = getProperty_String("FDF_CACHE_ALWAYS_MISS", "Off");
+    plat_log_msg(160063, PLAT_LOG_CAT_PRINT_ARGS, PLAT_LOG_LEVEL_INFO, "PROP: FDF_CACHE_ALWAYS_MISS=%s", always_miss_string);
+    if (strcmp(always_miss_string, "On") == 0) {
+        pas->always_miss = SDF_TRUE;
+    } else {
+        pas->always_miss = SDF_FALSE;
+    }
+
+    strict_wrbk_string = getProperty_String("FDF_STRICT_WRITEBACK", "Off");
+    plat_log_msg(160064, PLAT_LOG_CAT_PRINT_ARGS, PLAT_LOG_LEVEL_INFO, "PROP: FDF_STRICT_WRITEBACK=%s", strict_wrbk_string);
+    if (strcmp(strict_wrbk_string, "On") == 0) {
+        pas->strict_wrbk = SDF_TRUE;
+    } else {
+        pas->strict_wrbk = SDF_FALSE;
+    }
 
     enable_replication_string = getProperty_String("SDF_REPLICATION", "Off");
     plat_log_msg(21068, PLAT_LOG_CAT_PRINT_ARGS, PLAT_LOG_LEVEL_INFO, "PROP: SDF_REPLICATION=%s", enable_replication_string);
@@ -627,6 +699,10 @@ void InitActionProtocolCommonState(SDF_action_state_t *pas, SDF_action_init_t *p
         getProperty_String( "MEMCACHED_PREFIX_DEL_DELIMITER", ":" );
     pas->prefix_delete_delimiter = pfx_delimiter[0];
     plat_log_msg(10019, PLAT_LOG_CAT_PRINT_ARGS, PLAT_LOG_LEVEL_INFO, "PROP: MEMCACHED_PREFIX_DEL_DELIMITER=%c", pas->prefix_delete_delimiter);
+
+    //  Count of writes in flight, used to ensure there is
+    //  space for asynchronous writes.
+    pas->writes_in_flight = 0;
 }
 
 void ShutdownActionProtocol(SDF_action_state_t *pas)
@@ -3008,6 +3084,8 @@ SDF_cache_ctnr_metadata_t *get_container_metadata(SDF_action_init_t *pai, SDF_cg
 
 static SDF_boolean_t process_object_operation(SDF_trans_state_t *ptrans, SDF_boolean_t try_flag)
 {
+    int     did_remove=0;
+
     if (!(SDF_App_Request_Info[ptrans->par->reqtype].format & a_curt)) {
         ptrans->par->curtime = 0; // force curtime to a known out-of-band value
     }
@@ -3119,6 +3197,7 @@ static SDF_boolean_t process_object_operation(SDF_trans_state_t *ptrans, SDF_boo
 
     if (ptrans->entry->state == CS_I) {
         /* cache entry has no valid contents, so free it */
+        did_remove = 1;
         (void) incrn(ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].n_total_in_cache, -1);
         (void) incrn(ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].bytes_total_in_cache, -ptrans->entry->obj_size);
         SDFNewCacheRemove(ptrans->pts->new_actiondir, ptrans->entry, SDF_FALSE /* wrbk_flag */, NULL /* wrbk_arg */);
@@ -3157,6 +3236,14 @@ static SDF_boolean_t process_object_operation(SDF_trans_state_t *ptrans, SDF_boo
     if (ptrans->par->respStatus == SDF_SUCCESS) {
         /* this operation succeeded, so load return values */
         load_return_values(ptrans);
+    }
+
+    /*  Force all cache accesses to miss, if so desired.
+     */
+    if (ptrans->pas->always_miss && !did_remove) {
+        (void) incrn(ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].n_total_in_cache, -1);
+        (void) incrn(ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].bytes_total_in_cache, -ptrans->entry->obj_size);
+        SDFNewCacheRemove(ptrans->pts->new_actiondir, ptrans->entry, SDF_FALSE /* wrbk_flag */, NULL /* wrbk_arg */);
     }
 
     #ifdef CHECK_HEAP
@@ -3587,25 +3674,23 @@ SDF_status_t SDFActionChangeContainerWritebackMode(SDF_action_init_t *pai, SDF_c
     } else {
         writeback_enabled_string = getProperty_String("SDF_WRITEBACK_CACHE_SUPPORT", "On");
         if (enable_writeback) {
-            if (!pmeta_cached->properties.container_type.caching_container) {
-		plat_log_msg(30624, 
+	    if (strcmp(writeback_enabled_string, "On") != 0) {
+		plat_log_msg(30562, 
 			     PLAT_LOG_CAT_SDF_PROT, 
 			     PLAT_LOG_LEVEL_ERROR,
-			     "Cannot enable writeback caching for store mode container %"PRIu64".",
+			     "Cannot enable writeback caching for container %"PRIu64" because writeback caching is disabled.",
 			     cguid);
-		status = SDF_NO_WRITEBACK_IN_STORE_MODE;
+		pmeta_cached->properties.cache.writethru = SDF_TRUE;
+		status = SDF_WRITEBACK_CACHING_DISABLED;
+	    } else if (!pmeta_cached->properties.container_type.caching_container) {
+		plat_log_msg(160065, 
+			     PLAT_LOG_CAT_SDF_PROT, 
+			     PLAT_LOG_LEVEL_WARN,
+			     "Using writeback caching for store mode container %"PRIu64" may result in data loss if system crashes.",
+			     cguid);
+		pmeta_cached->properties.cache.writethru = SDF_FALSE;
 	    } else {
-		if (strcmp(writeback_enabled_string, "On") != 0) {
-		    plat_log_msg(30562, 
-				 PLAT_LOG_CAT_SDF_PROT, 
-				 PLAT_LOG_LEVEL_ERROR,
-				 "Cannot enable writeback caching for container %"PRIu64" because writeback caching is disabled.",
-				 cguid);
-		    pmeta_cached->properties.cache.writethru = SDF_TRUE;
-		    status = SDF_WRITEBACK_CACHING_DISABLED;
-		} else {
-		    pmeta_cached->properties.cache.writethru = SDF_FALSE;
-		}
+		pmeta_cached->properties.cache.writethru = SDF_FALSE;
 	    }
         } else {
             pmeta_cached->properties.cache.writethru = SDF_TRUE;
@@ -4100,10 +4185,48 @@ static void sum_sched_stats(SDF_action_state_t *pas)
 
             pas->stats_per_ctnr.ctnr_stats[used_ctnr[i]].n_writebacks += 
                 pas->stats_new_per_sched[nsched].ctnr_stats[used_ctnr[i]].n_writebacks;
+            pas->stats_per_ctnr.ctnr_stats[0].n_writebacks += 
+                pas->stats_new_per_sched[nsched].ctnr_stats[used_ctnr[i]].n_writebacks;
+
             pas->stats_per_ctnr.ctnr_stats[used_ctnr[i]].n_flushes += 
                 pas->stats_new_per_sched[nsched].ctnr_stats[used_ctnr[i]].n_flushes;
             pas->stats_new.ctnr_stats[0].n_flushes += 
                 pas->stats_new_per_sched[nsched].ctnr_stats[used_ctnr[i]].n_flushes;
+
+            pas->stats_per_ctnr.ctnr_stats[used_ctnr[i]].n_async_drains += 
+                pas->stats_new_per_sched[nsched].ctnr_stats[used_ctnr[i]].n_async_drains;
+            pas->stats_new.ctnr_stats[0].n_async_drains += 
+                pas->stats_new_per_sched[nsched].ctnr_stats[used_ctnr[i]].n_async_drains;
+
+            pas->stats_per_ctnr.ctnr_stats[used_ctnr[i]].n_async_puts += 
+                pas->stats_new_per_sched[nsched].ctnr_stats[used_ctnr[i]].n_async_puts;
+            pas->stats_new.ctnr_stats[0].n_async_puts += 
+                pas->stats_new_per_sched[nsched].ctnr_stats[used_ctnr[i]].n_async_puts;
+
+            pas->stats_per_ctnr.ctnr_stats[used_ctnr[i]].n_async_put_fails += 
+                pas->stats_new_per_sched[nsched].ctnr_stats[used_ctnr[i]].n_async_put_fails;
+            pas->stats_new.ctnr_stats[0].n_async_put_fails += 
+                pas->stats_new_per_sched[nsched].ctnr_stats[used_ctnr[i]].n_async_put_fails;
+
+            pas->stats_per_ctnr.ctnr_stats[used_ctnr[i]].n_async_flushes += 
+                pas->stats_new_per_sched[nsched].ctnr_stats[used_ctnr[i]].n_async_flushes;
+            pas->stats_new.ctnr_stats[0].n_async_flushes += 
+                pas->stats_new_per_sched[nsched].ctnr_stats[used_ctnr[i]].n_async_flushes;
+
+            pas->stats_per_ctnr.ctnr_stats[used_ctnr[i]].n_async_flush_fails += 
+                pas->stats_new_per_sched[nsched].ctnr_stats[used_ctnr[i]].n_async_flush_fails;
+            pas->stats_new.ctnr_stats[0].n_async_flush_fails += 
+                pas->stats_new_per_sched[nsched].ctnr_stats[used_ctnr[i]].n_async_flush_fails;
+
+            pas->stats_per_ctnr.ctnr_stats[used_ctnr[i]].n_async_wrbks += 
+                pas->stats_new_per_sched[nsched].ctnr_stats[used_ctnr[i]].n_async_wrbks;
+            pas->stats_new.ctnr_stats[0].n_async_wrbks += 
+                pas->stats_new_per_sched[nsched].ctnr_stats[used_ctnr[i]].n_async_wrbks;
+
+            pas->stats_per_ctnr.ctnr_stats[used_ctnr[i]].n_async_wrbk_fails += 
+                pas->stats_new_per_sched[nsched].ctnr_stats[used_ctnr[i]].n_async_wrbk_fails;
+            pas->stats_new.ctnr_stats[0].n_async_wrbk_fails += 
+                pas->stats_new_per_sched[nsched].ctnr_stats[used_ctnr[i]].n_async_wrbk_fails;
         }
     }
 }
@@ -4257,6 +4380,14 @@ static int cache_stats_cguid(SDF_internal_ctxt_t *pac, SDF_action_state_t *pas, 
     i += snprintf(str+i, size-i, ", %s=%"PRIu64, "writebacks", pas->stats_per_ctnr.ctnr_stats[index].n_writebacks);
     i += snprintf(str+i, size-i, ", %s=%"PRIu64, "flushes", pas->stats_per_ctnr.ctnr_stats[index].n_flushes);
 
+    i += snprintf(str+i, size-i, ", %s=%"PRIu64, "async_drains", pas->stats_per_ctnr.ctnr_stats[index].n_async_drains);
+    i += snprintf(str+i, size-i, ", %s=%"PRIu64, "async_puts", pas->stats_per_ctnr.ctnr_stats[index].n_async_puts);
+    i += snprintf(str+i, size-i, ", %s=%"PRIu64, "async_put_fails", pas->stats_per_ctnr.ctnr_stats[index].n_async_put_fails);
+    i += snprintf(str+i, size-i, ", %s=%"PRIu64, "async_flushes", pas->stats_per_ctnr.ctnr_stats[index].n_async_flushes);
+    i += snprintf(str+i, size-i, ", %s=%"PRIu64, "async_flush_fails", pas->stats_per_ctnr.ctnr_stats[index].n_async_flush_fails);
+    i += snprintf(str+i, size-i, ", %s=%"PRIu64, "async_wrbks", pas->stats_per_ctnr.ctnr_stats[index].n_async_wrbks);
+    i += snprintf(str+i, size-i, ", %s=%"PRIu64, "async_wrbk_fails", pas->stats_per_ctnr.ctnr_stats[index].n_async_wrbk_fails);
+
     i += snprintf(str+i, size-i, "]\n");
     // plat_assert(i < size); xxxzzz FIX ME
     return(i);
@@ -4365,6 +4496,8 @@ static void init_state_fn(SDFNewCacheEntry_t *pce, SDF_time_t curtime)
     pce->state          = CS_I; /* invalid*/
 }
 
+
+#ifdef INCLUDE_TRACE_CODE
 static void dump_flash_trace(SDF_trans_state_t *ptrans, char *name, int retcode)
 {
     plat_log_msg(21125, 
@@ -4379,6 +4512,7 @@ static void dump_flash_trace(SDF_trans_state_t *ptrans, char *name, int retcode)
                  ptrans->pflash_data, ptrans->metaData.dataLen,
                  ptrans->metaData.sequence);
 }
+#endif
 
 SDF_status_t get_status(int retcode)
 {
@@ -4566,6 +4700,11 @@ static int flashPut_wrapper(SDF_trans_state_t *ptrans, struct shard *pshard, str
     SDF_action_init_t  __attribute__((unused)) *pai = ptrans->pts->pai;
     SDF_async_put_request_t  rqst;
 
+    //  Force write-thru if we suppress loading the cache!
+    if (ptrans->pas->always_miss) {
+        skip_for_writeback = SDF_FALSE;
+    }
+
     #ifdef RR_ITERATION_TEST
     {
         // from replication/rpc.c
@@ -4582,28 +4721,40 @@ static int flashPut_wrapper(SDF_trans_state_t *ptrans, struct shard *pshard, str
          (!ptrans->pas->enable_replication) && 
          (!ptrans->meta->meta.properties.container_type.async_writes)
         ) ||
-        (ptrans->par->ctnr == CMC_CGUID))
+        (ptrans->par->ctnr == CMC_CGUID) ||
+        (ptrans->par->ctnr == VMC_CGUID))
     {
-        /*  Don't replicate CMC modifications, and don't do
+        /*  Don't replicate CMC or VMC modifications, and don't do
          *  them asynchronously! 
          */
 
         /*  Skip the write to flash if this is a writeback container and this IS a set.
          */
         if ((ptrans->par->ctnr == CMC_CGUID) ||
+            (ptrans->par->ctnr == VMC_CGUID) ||
             ptrans->meta->meta.properties.cache.writethru || 
             (flags != FLASH_PUT_NO_TEST) || 
             (!skip_for_writeback))
         {
             (void) incr(ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].n_writethrus);
             (pmeta->keyLen)--; // adjust for extra NULL added by SDF
-            ret = flashPut(pshard, pmeta, pkey, pdata, flags);
+	    if ((ptrans->par->ctnr != CMC_CGUID) &&
+	        (ptrans->par->ctnr != VMC_CGUID))
+	    {
+		if ((pdata == NULL) || (!check_flash_space(ptrans->pas, pshard))) {
+		    ret = flashPut(pshard, pmeta, pkey, pdata, flags);
+		} else {
+		    ret = FLASH_ENOSPC;
+		}
+	    } else {
+		ret = flashPut(pshard, pmeta, pkey, pdata, flags);
+	    }
             (pmeta->keyLen)++; // adjust for extra NULL added by SDF
 	    if (ret == 0) {
 		ptrans->entry->blockaddr = pmeta->blockaddr;
 	    }
         }
-    } else {
+    } else if ((pdata == NULL) || (!check_flash_space(ptrans->pas, pshard))) {
 
         rqst.rtype         = ASYNC_PUT;
 	rqst.entry         = ptrans->entry;
@@ -4657,8 +4808,11 @@ static int flashPut_wrapper(SDF_trans_state_t *ptrans, struct shard *pshard, str
 
             ret = 0; // success by default
         } else {
-            ret = do_put(&rqst, SDF_FALSE /* unlock slab */);
+	    ret = do_put(&rqst, SDF_FALSE /* unlock slab */);
+	    finish_write_in_flight(ptrans->pas);
         }
+    } else {
+	ret = FLASH_ENOSPC;
     }
     return(ret);
 }
@@ -5721,15 +5875,10 @@ static int shardSync_wrapper(SDF_trans_state_t *ptrans, struct shard *pshard)
     service_t                to_service;
     SDF_status_t             error;
 
-    if ((!ptrans->meta->meta.properties.cache.writethru) || ptrans->meta->meta.properties.container_type.async_writes) {
-
-        /*  Drain the store/writeback pipe before doing the shardSync.
-         *  This is only necessary for writeback containers or containers that
-         *  are configured for async writes.
-         */
-
-        drain_store_pipe(ptrans->pts);
-    }
+    /*  Always drain the store pipe, because we can dynamically change
+     *  writeback mode!
+     */
+    drain_store_pipe(ptrans->pts);
 
     if (!ptrans->pas->enable_replication) {
         ssd_shardSync(pshard);
