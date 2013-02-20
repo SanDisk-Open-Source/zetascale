@@ -1221,14 +1221,15 @@ FDF_status_t FDFLoadCntrPropDefaults(
 	)
 {
 	props->size_kb = 1024 * 1024;
-	//props->fifo_mode = SDF_TRUE;
-	props->persistent = SDF_FALSE;
-    props->evicting = SDF_TRUE;
-	props->writethru = SDF_TRUE;
-	//props->async_writes = SDF_FALSE;
+	props->fifo_mode = FDF_FALSE;
+	props->persistent = FDF_TRUE; 
+    props->evicting = FDF_FALSE;
+	props->writethru = FDF_TRUE;
+	props->async_writes = SDF_FALSE;
 	props->durability_level = FDF_DURABILITY_PERIODIC;
-	//props->cguid = 0;
-	//props->num_shards = 1;
+	props->cguid = 0;
+	props->cid = 0;
+	props->num_shards = 1;
 	return FDF_SUCCESS;
 }
 
@@ -1368,7 +1369,7 @@ static FDF_status_t fdf_create_container(
 
     if ( !properties->writethru ) {
         if ( !properties->evicting ) {
-            plat_log_msg( PLAT_LOG_ID_INITIAL, LOG_CAT, LOG_WARN,
+            plat_log_msg( 160061, LOG_CAT, LOG_WARN,
                           "Using writeback caching with store mode containers can result in lost data if the system crashes" );
         } else {
             writeback_enabled_string = getProperty_String( "SDF_WRITEBACK_CACHE_SUPPORT", "On" );
@@ -2412,7 +2413,6 @@ FDF_status_t FDFWriteObject(
     SDF_appreq_t        ar;
     SDF_action_init_t  *pac		= NULL;
     FDF_status_t        status	= FDF_FAILURE;
-	int					index 	= -1;
 
  	if ( !cguid )
  		return FDF_INVALID_PARAMETER;
@@ -2422,15 +2422,6 @@ FDF_status_t FDFWriteObject(
         return FDF_FAILURE_CONTAINER_NOT_OPEN;
 	}
 
-	// Need help from storage level to maintain current size across restarts
-	index = fdf_get_ctnr_from_cguid( cguid );
-	if ( 0 && index > -1 ) {
-		if ( CtnrMap[ index ].current_size + keylen + datalen > CtnrMap[ index ].size_kb * 1024 ) {
-    		plat_log_msg( 150077, LOG_CAT, LOG_ERR, "Container full" );
-			return FDF_FLASH_ENOSPC;
-		}
-	}
-		
     pac = (SDF_action_init_t *) fdf_thread_state;
 
 	if ( flags & FDF_WRITE_MUST_EXIST ) {
@@ -2459,15 +2450,6 @@ FDF_status_t FDFWriteObject(
 
     ActionProtocolAgentNew(pac, &ar);
 
-#if 0
-	if ( SDF_SUCCESS == ar.respStatus ) {
-		index = fdf_get_ctnr_from_cguid( cguid );
-		if ( index > -1 ) {
-			CtnrMap[ index ].current_size += keylen + datalen;
-		}
-	}
-#endif
-	
     return ar.respStatus;
 }
 
@@ -3869,6 +3851,7 @@ static FDF_status_t fdf_delete_objects(
 						  FDFStrError( del_status ) ); 
 			break;
         }
+		++i;
     }
 
     if ( ( status = FDFFinishEnumeration( fdf_thread_state,
