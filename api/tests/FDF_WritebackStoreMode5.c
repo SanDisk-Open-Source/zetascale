@@ -206,6 +206,7 @@ int test_basic_check(uint32_t aw)
 	        sprintf(stmp, "zzz%d", k);
 		(void)WriteObject(cguid, stmp, 1+strlen(stmp), DummyData, DummyDataSize, 0);
 	    }
+            sleep(10);
             ret = GetContainerStats(cguid, &stats1);
 	    fprintf(stderr, "GetContainerStats returned %d for cguid=%ld\n", ret, cguid);
             if (FDF_SUCCESS == ret)
