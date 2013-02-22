@@ -38,6 +38,8 @@
 
 __BEGIN_DECLS
 
+#define __leaf__
+
 #define item(ret, sym, declare, call, cppthrow, attributes) \
     PLAT_WRAP(ret, sym, declare, call, cppthrow, attributes)
 PLAT_MMAN_WRAP_ITEMS()

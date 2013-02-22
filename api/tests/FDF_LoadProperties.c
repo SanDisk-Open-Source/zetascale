@@ -84,11 +84,11 @@ int test_basic_check()
     int tag = 0;
     testname[2] = "#test2: test with basic function.";
 
-    (void)system("mkdir /tmp/my.properties");
+    if (system("mkdir /tmp/my.properties")) {}
     sleep(5);
     tag = FDFLoadProperties("/tmp/my.properties");
-    fprintf(stderr, "%d\n", tag);
-    (void)system("rm -rf /tmp/my.properties");
+    fprintf(stderr, "FDFLoadProperties test_basic_check() returned %d\n", tag);
+    if (system("rm -rf /tmp/my.properties")) {}
     if(0 == tag)
     {
         result[2] = 1;

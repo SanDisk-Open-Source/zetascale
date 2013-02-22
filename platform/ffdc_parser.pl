@@ -1500,7 +1500,7 @@ int
 ffdc_initialize(int readonly, int bld_version, long buffer_len)
 {
     plat_shmem_ptr_base_t shared_ptr;
-    uint64_t existing = 0;
+    // uint64_t existing = 0;
     uint64_t base_addr  = 0;
     struct timeval tv;
     int status;
@@ -1517,7 +1517,8 @@ ffdc_initialize(int readonly, int bld_version, long buffer_len)
             /* memory allocation failed */
             return 1;
         }
-        existing = shmem_global_set(SHMEM_GLOBAL_FFDC, shared_ptr.int_base);
+        // existing = shmem_global_set(SHMEM_GLOBAL_FFDC, shared_ptr.int_base);
+        if (shmem_global_set(SHMEM_GLOBAL_FFDC, shared_ptr.int_base)) {}
         _ffdc_info = (struct ffdc_info *) plat_shmem_ptr_base_to_ptr(shared_ptr);
 
     memset(_ffdc_info, 0, sizeof (*_ffdc_info));

@@ -722,9 +722,9 @@ void ShutdownActionProtocol(SDF_action_state_t *pas)
 
 void SDFClusterStatus(SDF_action_init_t *pai, uint32_t *mynode_id, uint32_t *cluster_size)
 {
-    SDF_action_state_t *pas;
+    // SDF_action_state_t *pas;
 
-    pas = pai->pcs;
+    // pas = pai->pcs;
     *mynode_id    = sdf_msg_myrank();
     *cluster_size = sdf_msg_numranks();
     if ((*cluster_size) == 0) {
@@ -1934,7 +1934,7 @@ SDF_status_t flush_all(SDF_trans_state_t *ptrans)
     struct sdf_msg          *send_msg = NULL;
     struct sdf_msg          *new_msg = NULL;
     SDF_protocol_msg_t      *pm_new = NULL;
-    SDF_status_t             ret;
+    SDF_status_t             ret = SDF_SUCCESS;
     SDF_status_t             error;
 
     if (SDFSimpleReplication) {
@@ -2041,7 +2041,8 @@ SDF_status_t flush_all(SDF_trans_state_t *ptrans)
         flush_all_local(ptrans);
     }
 
-    return SDF_SUCCESS;
+    // return SDF_SUCCESS;
+    return ret;
 }
 
 void sdf_dump_msg_error(SDF_status_t error, struct sdf_msg * msg)
@@ -3426,7 +3427,8 @@ SDF_status_t SDFActionStartContainer(SDF_action_init_t *pai, SDF_container_meta_
         fthUnlock(wait);
     }
 
-    return(SDF_SUCCESS);
+    // return(SDF_SUCCESS);
+    return(status);
 }
 
 SDF_status_t SDFSetAutoflush(SDF_action_init_t *pai, uint32_t percent, uint32_t sleep_msec)
@@ -3484,13 +3486,13 @@ SDF_status_t SDFSetAutoflush(SDF_action_init_t *pai, uint32_t percent, uint32_t 
 static SDF_status_t setup_action_state(void *setup_arg, void **pflush_arg)
 {
     SDF_status_t              status = SDF_SUCCESS;
-    SDF_action_state_t       *pas;
+    // SDF_action_state_t       *pas;
     SDF_trans_state_t        *ptrans;
     SDF_action_thrd_state_t  *pts_in;
 
     pts_in = (SDF_action_thrd_state_t *) setup_arg;
 
-    pas = pts_in->phs;
+    // pas = pts_in->phs;
 
     ptrans = get_trans_state(pts_in);
     ptrans->pts = plat_alloc(sizeof(SDF_action_thrd_state_t));
@@ -3618,11 +3620,11 @@ SDF_status_t SDFSetModThresh(SDF_action_init_t *pai, uint32_t percent)
 SDF_status_t SDFSelfTest(SDF_action_init_t *pai, SDF_cguid_t cguid, char *args)
 {
     SDF_status_t              status = SDF_SUCCESS;
-    SDF_action_state_t       *pas;
+    // SDF_action_state_t       *pas;
     SDF_trans_state_t        *ptrans;
     SDF_appreq_t              ar;
 
-    pas = pai->pcs;
+    // pas = pai->pcs;
 
     plat_log_msg(30616, 
 		 PLAT_LOG_CAT_SDF_PROT, 
@@ -4412,13 +4414,13 @@ void action_stats(SDF_internal_ctxt_t *pac, char *str, int size)
 {
     int                        len = 0;
     SDF_action_state_t        *pas;
-    SDF_action_thrd_state_t   *pts;
+    // SDF_action_thrd_state_t   *pts;
     SDF_action_init_t         *pai = NULL;
     fthWaitEl_t               *wait;
 
     pai = (SDF_action_init_t *) pac;
     pas = pai->pcs;
-    pts = (SDF_action_thrd_state_t *) pai->pts;
+    // pts = (SDF_action_thrd_state_t *) pai->pts;
 
     /*  Make sure concurrent calls don't scramble the stats! */
     wait = fthLock(&(pas->stats_lock), 1, NULL);
@@ -4434,7 +4436,7 @@ void action_stats_new_cguid(SDF_internal_ctxt_t *pac, char *str, int size, SDF_c
 {
     int                        len = 0;
     SDF_action_state_t        *pas;
-    SDF_action_thrd_state_t   *pts;
+    // SDF_action_thrd_state_t   *pts;
     SDF_action_init_t         *pai = NULL;
     fthWaitEl_t               *wait;
     int                        status;
@@ -4444,7 +4446,7 @@ void action_stats_new_cguid(SDF_internal_ctxt_t *pac, char *str, int size, SDF_c
 
     pai = (SDF_action_init_t *) pac;
     pas = pai->pcs;
-    pts = (SDF_action_thrd_state_t *) pai->pts;
+    // pts = (SDF_action_thrd_state_t *) pai->pts;
 
     /*  Make sure concurrent calls don't scramble the stats! */
     wait = fthLock(&(pas->stats_lock), 1, NULL);
@@ -4590,7 +4592,7 @@ static void alloc_test(void **pp)
 
 static void flush_wrbk_fn_wrapper(SDFNewCacheEntry_t *pce, void *wrbk_arg, SDF_async_rqst_type_t request_type, SDF_boolean_t add_locker)
 {
-    uint32_t                   h;
+    // uint32_t                   h;
     SDF_trans_state_t         *ptrans;
     SDF_async_put_request_t    rqst;
     SDF_simple_key_t           simple_key;
@@ -4652,7 +4654,7 @@ static void flush_wrbk_fn_wrapper(SDFNewCacheEntry_t *pce, void *wrbk_arg, SDF_a
             "===========  START async wrbk (cguid=%"PRIu64",key='%s'):  ===========", ptrans->par->ctnr, simple_key.key);
     #endif
 
-    h = (pce->syndrome) % (ptrans->pts->phs->async_puts_state->config.nthreads);
+    // h = (pce->syndrome) % (ptrans->pts->phs->async_puts_state->config.nthreads);
     // fthMboxPost(&(ptrans->pts->phs->async_puts_state->inbound_fth_mbx[h]), (uint64_t) &rqst);
     fthMboxPost(&(ptrans->pts->phs->async_puts_state->inbound_fth_mbx[0]), (uint64_t) &rqst);
 
@@ -4695,7 +4697,7 @@ static void dummy_flush_progress_fn(SDFNewCache_t *pc, void *wrbk_arg, uint32_t 
 
 static int flashPut_wrapper(SDF_trans_state_t *ptrans, struct shard *pshard, struct objMetaData *pmeta, char *pkey, char *pdata, int flags, SDF_boolean_t skip_for_writeback)
 {
-    uint32_t                 h;
+    // uint32_t                 h;
     int                      ret = 0; // default is success
     SDF_action_init_t  __attribute__((unused)) *pai = ptrans->pts->pai;
     SDF_async_put_request_t  rqst;
@@ -4794,7 +4796,7 @@ static int flashPut_wrapper(SDF_trans_state_t *ptrans, struct shard *pshard, str
                     "===========  START async put (cguid=%"PRIu64",key='%s'):  ===========", ptrans->par->ctnr, ptrans->par->key.key);
             #endif
 
-            h = (ptrans->entry->syndrome) % (ptrans->pts->phs->async_puts_state->config.nthreads);
+            // h = (ptrans->entry->syndrome) % (ptrans->pts->phs->async_puts_state->config.nthreads);
             // fthMboxPost(&(ptrans->pts->phs->async_puts_state->inbound_fth_mbx[h]), (uint64_t) &rqst);
             fthMboxPost(&(ptrans->pts->phs->async_puts_state->inbound_fth_mbx[0]), (uint64_t) &rqst);
 

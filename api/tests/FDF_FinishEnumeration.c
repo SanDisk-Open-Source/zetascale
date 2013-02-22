@@ -219,7 +219,7 @@ int FDFFinishEnumeration_basic_check2()
 
 int main(int argc, char *argv[])
 {
-    int result[3][2][13] = {{{10,10}}};
+    int result[2][3][13] = {{{10,10}}};
     FDF_boolean_t eviction[] = {0,0,0};
     FDF_boolean_t persistent[] = {1,1,1};
     FDF_boolean_t fifo[] = {0,0,0};

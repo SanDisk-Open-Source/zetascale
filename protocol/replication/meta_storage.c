@@ -989,7 +989,7 @@ rms_queue_local_op(struct replicator_meta_storage *rms, struct rms_op *op) {
 
 static void
 rms_queue_remote_op(struct replicator_meta_storage *rms, struct rms_op *op) {
-    SDF_status_t status;
+    // SDF_status_t status;
     void *data;
     size_t total_len = 0;
     struct sdf_msg *msg;
@@ -1007,7 +1007,7 @@ rms_queue_remote_op(struct replicator_meta_storage *rms, struct rms_op *op) {
     case caps:                                                                 \
         if (unmarshal) {                                                       \
             plat_assert(op->shard_meta);                                       \
-            status = cr_shard_meta_marshal(&data, &total_len, header_len,      \
+            (void) cr_shard_meta_marshal(&data, &total_len, header_len,      \
                                            op->shard_meta);                    \
             msg = (struct sdf_msg *)data;                                      \
         } else {                                                               \

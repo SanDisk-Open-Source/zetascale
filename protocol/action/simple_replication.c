@@ -2319,10 +2319,10 @@ qrep_ctnr_state_t * cguid_to_pcs(qrep_state_t * ps, vnode_t node, SDF_cguid_t cg
 {
     qrep_node_state_t *pns;
     qrep_ctnr_state_t *pcs;
-    int mynode;
+    // int mynode;
     int i;
 
-    mynode = sdf_msg_myrank();
+    // mynode = sdf_msg_myrank();
     
     pns = &(ps->node_state[node]);
 
@@ -2392,7 +2392,8 @@ int stop_clone_to_node(SDF_action_init_t * pai, int cnode ) {
 }
 
 int start_persistent_recovery(SDF_action_init_t * pai) {
-    int mynode, peer_node;
+    int mynode;
+    // int peer_node;
     qrep_state_t      *rep_state;
     qrep_node_state_t *pns;
     /*qrep_ctnr_state_t * pcs;
@@ -2411,9 +2412,9 @@ int start_persistent_recovery(SDF_action_init_t * pai) {
     if ( rep_state->groups[pns->group_id].type != SDF_CLUSTER_GRP_TYPE_MIRRORED ) {
         return 1;
     }
-    peer_node = rep_state->groups[pns->group_id].nodes[0];
+    // peer_node = rep_state->groups[pns->group_id].nodes[0];
     if( rep_state->groups[pns->group_id].nodes[0] == mynode ){
-        peer_node = rep_state->groups[pns->group_id].nodes[1];
+        // peer_node = rep_state->groups[pns->group_id].nodes[1];
     }
     pns->persistent_auth = 1;
 #if 0
@@ -3597,7 +3598,7 @@ static void sync_container_thread_new(uint64_t arg)
 {
     struct cursor_data   *cursor_data;
     SDF_action_state_t   *pas;
-    qrep_state_t         *ps;
+    // qrep_state_t         *ps;
     struct ssdaio_ctxt   *paio_ctxt;   
 
     struct objMetaData    meta;
@@ -3615,7 +3616,7 @@ static void sync_container_thread_new(uint64_t arg)
     uint32_t              n_recovery_mboxes;
 
     pas = (SDF_action_state_t *) arg;
-    ps = &pas->qrep_state;
+    // ps = &pas->qrep_state;
 
     mynode = sdf_msg_myrank();
 

@@ -1123,7 +1123,7 @@ SDF_status_t SDFNewCacheStartBackgroundFlusher(SDFNewCache_t *pc, void *setup_ar
         fthResume(fth, (uint64_t) pc);
     }
 
-    return(SDF_SUCCESS);
+    return(ret);
 }
 
 static void background_flusher(uint64_t arg)
@@ -1209,7 +1209,7 @@ SDF_status_t SDFNewCacheFlushCache(SDFNewCache_t *pc,
     SDFNewCacheEntry_t  *pce = NULL;
     SDFNewCacheSlab_t   *ps;
     SDF_boolean_t        dirty_found;
-    SDF_boolean_t        objects_found;
+    // SDF_boolean_t        objects_found;
     char                 slab_flags[100000];
 
     /*  Only do one bucket per slab at a time.
@@ -1221,7 +1221,7 @@ SDF_status_t SDFNewCacheFlushCache(SDFNewCache_t *pc,
     memset((void *) slab_flags, 0, pc->nslabs);
     nb            = 0;
     dirty_found   = SDF_FALSE;
-    objects_found = SDF_FALSE;
+    // objects_found = SDF_FALSE;
     flush_progress_fn(pc, flush_arg, 0);
 
     /*  First pass:
@@ -1246,7 +1246,7 @@ SDF_status_t SDFNewCacheFlushCache(SDFNewCache_t *pc,
 	process_pending_remote_requests(pc, ps, flush_arg);
 
         if (ps->nobjects > 0) {
-	    objects_found = SDF_TRUE;
+	    // objects_found = SDF_TRUE;
 	}
         if (ps->n_mod > 0) {
 	    dirty_found = SDF_TRUE;

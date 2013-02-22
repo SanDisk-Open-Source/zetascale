@@ -196,7 +196,7 @@ ipf_create_if(uint32_t address, uint32_t netmask, char *if_1, int16_t if_2)
     snprintf(command, sizeof(command), "%s %s:%d down",
         if_command, if_1, if_2);
 
-    system(command);
+    if (system(command)) {}
 
     snprintf(command, sizeof(command),
         "%s %s:%d %d.%d.%d.%d netmask %d.%d.%d.%d up",
@@ -212,7 +212,7 @@ ipf_create_if(uint32_t address, uint32_t netmask, char *if_1, int16_t if_2)
         (netmask >>  8) & 0xff,
         (netmask >>  0) & 0xff);
 
-    system(command);
+    if (system(command)) {}
 
     snprintf(command, sizeof(command),
         "%s -q -c 3 -U -I %s %d.%d.%d.%d",
@@ -223,7 +223,7 @@ ipf_create_if(uint32_t address, uint32_t netmask, char *if_1, int16_t if_2)
         (address >>  8) & 0xff,
         (address >>  0) & 0xff);
 
-    system(command); 
+    if (system(command)) {}
   
     return;
 }
@@ -444,19 +444,20 @@ void configure_vip_group_async(ipf_entry_t *entry) {
 
 static void ipf_delete_single_vip(qrep_ctnr_iface_t *vip) {
     char system_cmd[512];
-    int maskbits,rc;
+    // int maskbits;
+    int rc;
     unsigned int md[4];
-    unsigned char bitarr[16]={0,1,1,2,1,2,2,3,1,2,2,3,2,3,3,4};
+    // unsigned char bitarr[16]={0,1,1,2,1,2,2,3,1,2,2,3,2,3,3,4};
 
     plat_log_msg(20206,PLAT_LOG_CAT_SDF_PROT, PLAT_LOG_LEVEL_DEBUG,
                 "Deleting single vip %s ruletable:%d type:%d",
                  vip->ip, vip->rule_table_id, vip->vip_subnet_type);
 
     sscanf(vip->mask,"%d.%d.%d.%d",&md[0],&md[1],&md[2],&md[3]);
-    maskbits = bitarr[md[0] & 0xF] + bitarr[(md[0] >>4) & 0xF]+
-               bitarr[md[1] & 0xF] + bitarr[(md[1] >>4) & 0xF]+
-               bitarr[md[2] & 0xF] + bitarr[(md[2] >>4) & 0xF]+
-               bitarr[md[3] & 0xF] + bitarr[(md[3] >>4) & 0xF] ;
+    // maskbits = bitarr[md[0] & 0xF] + bitarr[(md[0] >>4) & 0xF]+
+    //            bitarr[md[1] & 0xF] + bitarr[(md[1] >>4) & 0xF]+
+    //            bitarr[md[2] & 0xF] + bitarr[(md[2] >>4) & 0xF]+
+    //            bitarr[md[3] & 0xF] + bitarr[(md[3] >>4) & 0xF] ;
 
     sprintf(system_cmd,"%s addr del %s/%d dev %s 2>/dev/null 1>/dev/null",ip_command,
                                                          vip->ip,32,vip->name);
@@ -2595,8 +2596,9 @@ int get_rule_table_id() {
 void ipf_handle_vip_manage_laptop(int add, int intra_node_vip_group_id) {
     struct sdf_agent_state *mcd_state;
     qrep_state_t *ps;
-    int my_node_id, vport, rport, vnode, rnode, i,num_pfws = 0;
-    ipf_pfw_entry_t pfw_entries[NUM_PFW_ENTRIES];
+    int my_node_id, vport, rport, vnode, i,num_pfws = 0;
+    // int rnode;
+    // ipf_pfw_entry_t pfw_entries[NUM_PFW_ENTRIES];
 
     mcd_state = &(Mcd_agent_state);
     SDF_action_state_t *pas = mcd_state->ActionInitState.pcs;
@@ -2609,13 +2611,13 @@ void ipf_handle_vip_manage_laptop(int add, int intra_node_vip_group_id) {
     plat_log_msg(20267, PLAT_LOG_CAT_SDF_APP_MEMCACHED, PLAT_LOG_LEVEL_DEBUG,
                                         "NODE IS VIRTUAL  NUM_PFWS:%d \n",num_pfws);
     vnode = my_node_id;
-    rnode = my_node_id - 1;
+    // rnode = my_node_id - 1;
     num_pfws = ps->node_state[my_node_id].nctnrs_node;
     for( i = 0; i < num_pfws; i++ ) {
         mcd_get_tcp_port_by_cguid(ps->node_state[vnode].cntrs[i].cguid, &vport);
         rport = vport - 1000;
-        pfw_entries[i].vport = vport;
-        pfw_entries[i].rport = rport;
+        // pfw_entries[i].vport = vport;
+        // pfw_entries[i].rport = rport;
 #ifndef IPF_TEST
         if( add == 1 ) {
             ipf_handle_container_add(vport,rport,intra_node_vip_group_id);
@@ -2629,7 +2631,8 @@ void ipf_handle_vip_manage_laptop(int add, int intra_node_vip_group_id) {
 
 
 void ipf_handle_container_add(int vport, int rport, int node){
-    int my_rank, num_vips,num_pfws;
+    int my_rank, num_vips;
+    // int num_pfws;
     SDF_action_state_t *pas;
     struct sdf_agent_state *mcd_state;
     struct qrep_state *repstate;
@@ -2656,7 +2659,7 @@ void ipf_handle_container_add(int vport, int rport, int node){
         num_vips = MAX_PORT_FWD_VIPS;
     }
     memcpy(pfw_entries[0].vips,repstate->node_state[node].vipgroup,num_vips * sizeof(qrep_ctnr_iface_t));
-    num_pfws = 1;
+    // num_pfws = 1;
     pfw_entries[0].num_vips = num_vips;
     pfw_entries[0].vport = vport;
     pfw_entries[0].rport = rport;
@@ -3083,7 +3086,7 @@ int configure_vip(const struct sdf_vip_config *config, int vip_group_id) {
    struct sdf_agent_state *mcd_state;
    SDF_action_state_t *pas;
    int my_rank = msg_sdf_myrank();
-   int vip_rule_tbl_index = 0;
+   // int vip_rule_tbl_index = 0;
 
    /*Get IF List*/
    vgrp = sdf_vip_config_get_vip_group(config, vip_group_id);
@@ -3110,7 +3113,7 @@ int configure_vip(const struct sdf_vip_config *config, int vip_group_id) {
    }
 #endif // 0
 #ifdef IPF_TEST_VIP
-   vip_rule_tbl_index = repstate->node_state[my_rank].num_vgrps_being_serviced;
+   // vip_rule_tbl_index = repstate->node_state[my_rank].num_vgrps_being_serviced;
    repstate->node_state[my_rank].serviced_vgrp_ids[repstate->node_state[my_rank].num_vgrps_being_serviced] = vip_group_id;
    repstate->node_state[my_rank].num_vgrps_being_serviced++;
    for( i = 0 ; i < node->num_vips; i++ ) {
@@ -3119,7 +3122,7 @@ int configure_vip(const struct sdf_vip_config *config, int vip_group_id) {
 #else
    fthWaitEl_t * wait_list;
    wait_list = fthLock(&(repstate->node_state[my_rank].lock), 1, NULL);
-   vip_rule_tbl_index = repstate->node_state[my_rank].num_vgrps_being_serviced;
+   // vip_rule_tbl_index = repstate->node_state[my_rank].num_vgrps_being_serviced;
    repstate->node_state[my_rank].serviced_vgrp_ids[repstate->node_state[my_rank].num_vgrps_being_serviced] = vip_group_id;
    repstate->node_state[my_rank].num_vgrps_being_serviced++;
    fthUnlock(wait_list);
@@ -3238,12 +3241,12 @@ int configure_vip(const struct sdf_vip_config *config, int vip_group_id) {
  */
 void process_vip_command(struct mcd_conn * c, mcd_request_t * req)
 {
-    SDF_action_init_t * pai;
-    qrep_state_t * ps;
+    // SDF_action_init_t * pai;
+    // qrep_state_t * ps;
 
     // If needed for stub
-    pai = (SDF_action_init_t *)c->pai;
-    ps = &(pai->pcs->qrep_state);
+    // pai = (SDF_action_init_t *)c->pai;
+    // ps = &(pai->pcs->qrep_state);
 
     switch (req->cmd) {
     case MCD_CMD_ACTIVATE_VIP:

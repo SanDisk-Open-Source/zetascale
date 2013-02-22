@@ -149,7 +149,7 @@ char *SDFsPrintProtocolMsg(char *sout, SDF_protocol_msg_t *pm, int strSize)
                 len += snprintf(sout + len, strSize-len, "|");
 	    }
 	    //strcat(sout, SDF_Protocol_Msg_Flags_Info[j].name);
-            len += snprintf(sout + len, strSize-len, SDF_Protocol_Msg_Flags_Info[j].name);
+            len += snprintf(sout + len, strSize-len, "%s", SDF_Protocol_Msg_Flags_Info[j].name);
 	    first = SDF_FALSE;
 	}
     }

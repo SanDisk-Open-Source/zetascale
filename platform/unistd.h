@@ -85,6 +85,8 @@ PLAT_WRAP_CPP_POISON(readline)
 
 __BEGIN_DECLS
 
+#define __leaf__
+
 #define item(ret, sym, declare, call, cppthrow, attributes) \
     PLAT_WRAP(ret, sym, declare, call, cppthrow, attributes)
 PLAT_UNISTD_WRAP_ITEMS()

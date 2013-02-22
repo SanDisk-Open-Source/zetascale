@@ -3573,8 +3573,8 @@ cr_shard_meta_update_external(struct cr_shard *shard,
                 shard->shard_meta->replicas[shard->local_replica]->persistent.state;
             /* can no longer become home node */
             if (shard->shard_meta->persistent.lease_usecs > 0 ||
-                (replica_state != CR_REPLICA_STATE_AUTHORITATIVE &&
-                 replica_state != CR_REPLICA_STATE_SYNCHRONIZED)) {
+                ((int) replica_state != CR_REPLICA_STATE_AUTHORITATIVE &&
+                 (int) replica_state != CR_REPLICA_STATE_SYNCHRONIZED)) {
                 cr_shard_set_state(shard, CR_SHARD_STATE_WAIT_META);
             }
         }
@@ -3792,7 +3792,7 @@ cr_shard_vip_group_lease_allowed(struct cr_shard *shard) {
  */
 static void
 cr_shard_vip_group_check(struct cr_shard *shard) {
-    int flags;
+    // int flags;
     struct cr_shard *other_shard;
     struct cr_shard *next_shard;
     int allowed;
@@ -3800,7 +3800,8 @@ cr_shard_vip_group_check(struct cr_shard *shard) {
 
     if (shard->sguid != SDF_SHARDID_INVALID &&
         shard->vip_group_id != VIP_GROUP_ID_INVALID && shard->shard_meta) {
-        flags = cr_replication_type_flags(shard->shard_meta->persistent.type);
+        // flags = cr_replication_type_flags(shard->shard_meta->persistent.type);
+        (void) cr_replication_type_flags(shard->shard_meta->persistent.type);
 
         LIST_FOREACH_SAFE(other_shard, &shard->cr->shard_list, shard_list_entry,
                           next_shard) {
@@ -4852,7 +4853,7 @@ cr_shard_put_meta(struct cr_shard *shard, cr_shard_put_meta_cb_t cb) {
     struct cr_shard_put_meta_state *state;
     int failed;
     rms_shard_meta_cb_t put_meta_cb;
-    SDF_status_t status;
+    // SDF_status_t status;
 
     plat_assert_imply(shard->state != CR_SHARD_STATE_CREATE_LEASE &&
                       shard->state != CR_SHARD_STATE_CREATE_NO_LEASE,
@@ -4928,7 +4929,8 @@ cr_shard_put_meta(struct cr_shard *shard, cr_shard_put_meta_cb_t cb) {
 #endif
 
     if (shard->local_vip_meta) {
-        status = cr_shard_meta_replace_vip_meta(shard->proposed_shard_meta,
+        // status = cr_shard_meta_replace_vip_meta(shard->proposed_shard_meta, shard->local_vip_meta);
+        (void) cr_shard_meta_replace_vip_meta(shard->proposed_shard_meta,
                                                 shard->local_vip_meta);
     }
 
@@ -7208,7 +7210,7 @@ cr_replica_get_by_cursor_cb(struct plat_closure_scheduler *context,
                      (status != SDF_SUCCESS &&
                       status != SDF_FLASH_STALE_CURSOR &&
                       status != SDF_OBJECT_UNKNOWN &&
-                      shard->state != CR_REPLICA_STATE_TO_DEAD) ?
+                      (int) shard->state != CR_REPLICA_STATE_TO_DEAD) ?
                      PLAT_LOG_LEVEL_WARN : PLAT_LOG_LEVEL_TRACE,
                      "cr_replica %p node %u shard 0x%lx vip group %d replica %d"
                      " local to node %u shard state %s replica state %s"
@@ -7549,7 +7551,7 @@ cr_replica_redo_response(struct plat_closure_scheduler *context,
 
     plat_log_msg(21401, LOG_CAT_RECOVERY_REDO,
                  (status != SDF_SUCCESS &&
-                  shard->state != CR_REPLICA_STATE_TO_DEAD) ?
+                  (int) shard->state != CR_REPLICA_STATE_TO_DEAD) ?
                  PLAT_LOG_LEVEL_WARN : PLAT_LOG_LEVEL_TRACE,
                  "cr_replica %p node %u shard 0x%lx vip group %d redo replica"
                  " at node %u to cr_replica %p node %u"
@@ -7565,14 +7567,14 @@ cr_replica_redo_response(struct plat_closure_scheduler *context,
     if (op->put_msgtype == HFSET) {
         ++shard->stat_counters->recovery_set_complete;
         ++shard->cr->total_stat_counters->recovery_set_complete;
-        if (status != SDF_SUCCESS && shard->state != CR_REPLICA_STATE_TO_DEAD) {
+        if (status != SDF_SUCCESS && (int) shard->state != CR_REPLICA_STATE_TO_DEAD) {
             ++shard->stat_counters->recovery_set_failed;
             ++shard->cr->total_stat_counters->recovery_set_failed;
         }
     } else if (op->put_msgtype == HFDFF) {
         ++shard->stat_counters->recovery_delete_complete;
         ++shard->cr->total_stat_counters->recovery_delete_complete;
-        if (status != SDF_SUCCESS && shard->state != CR_REPLICA_STATE_TO_DEAD) {
+        if (status != SDF_SUCCESS && (int) shard->state != CR_REPLICA_STATE_TO_DEAD) {
             ++shard->stat_counters->recovery_delete_failed;
             ++shard->cr->total_stat_counters->recovery_delete_failed;
         }
@@ -8677,12 +8679,11 @@ static void
 cr_op_synthesize_response(struct cr_op *op) {
     struct sdf_msg *resp_msg;
     SDF_protocol_msg_type_t msg_type;
-    sdf_msg_wrapper_free_local_t local_free;
+    // sdf_msg_wrapper_free_local_t local_free;
     SDF_size_t msize;
 
-    local_free =
-        sdf_msg_wrapper_free_local_create(PLAT_CLOSURE_SCHEDULER_ANY_OR_SYNCHRONOUS,
-                                          &cr_msg_free, NULL);
+    // local_free = sdf_msg_wrapper_free_local_create(PLAT_CLOSURE_SCHEDULER_ANY_OR_SYNCHRONOUS, &cr_msg_free, NULL);
+    (void) sdf_msg_wrapper_free_local_create(PLAT_CLOSURE_SCHEDULER_ANY_OR_SYNCHRONOUS, &cr_msg_free, NULL);
 
     plat_assert(!op->response_wrapper);
     plat_assert(op->response_status != SDF_SUCCESS);

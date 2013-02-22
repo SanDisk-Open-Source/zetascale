@@ -1244,7 +1244,7 @@ exit_task(void)
     for (p = V.tasks, n = V.init.nthreads; n--; p++)
         p->run = 0;
     barrier();
-    write(V.wake_work[1], "", 1);
+    if (write(V.wake_work[1], "", 1)) {}
 
     for (p = V.tasks, n = V.init.nthreads; n--; p++) {
         if (p != V.tasks)
@@ -3607,7 +3607,7 @@ tcp_accept(void *arg)
 static void
 errv_close(int fd, char *msg)
 {
-    sdf_loge_sys(LOG_ID, msg);
+    sdf_loge_sys(20819, "%s", msg);
     if (fd >= 0)
         close(fd);
 }
@@ -3632,7 +3632,7 @@ errz_close(int fd, char *msg)
 static void *
 errp_close(int fd, char *msg)
 {
-    sdf_loge(LOG_ID, msg);
+    sdf_loge(20819, "%s", msg);
     if (fd >= 0)
         close(fd);
     return NULL;
@@ -5288,7 +5288,7 @@ ready_nb(int fd, int events, int usecs)
 void
 msg_wake(void)
 {
-    write(V.wake_main[1], "", 1);
+    if (write(V.wake_main[1], "", 1)) {}
 }
 
 
@@ -5695,6 +5695,6 @@ error(int sys, char *fmt, ...)
         else
             xsprint(&xstr, ": %d", err);
     }
-    sdf_loge(LOG_ID, xstr.p);
+    sdf_loge(160069, "%p", xstr.p);
     xsfree(&xstr);
 }

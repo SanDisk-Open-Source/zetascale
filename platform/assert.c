@@ -40,7 +40,7 @@ plat_assert_fail(const char *expr, const char *file,
     snprintf(buf, sizeof (buf) - 1,
         "%s:%u: %s: Assertion `%s' failed.%s\n", file, line, fn,
         expr, recursing > 1 ? " (double fault)" : "");
-    plat_write(2, buf, strlen(buf));
+    if (plat_write(2, buf, strlen(buf))) {}
 
     if (recursing == 1) {
         plat_log_msg(20905, PLAT_LOG_CAT_PLATFORM, 

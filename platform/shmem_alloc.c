@@ -2235,7 +2235,7 @@ sa_bucket_grow_locked(struct shmem_alloc *shmem_alloc, struct sa_arena *arena,
     int grow_objects_desired;
     /* Number of objects we actually got */
     int got_objects;
-    struct sa_arena *tree_arena;
+    struct sa_arena *tree_arena = NULL;
     struct sa_arena *parent_arena;
     struct sa_bucket *parent_bucket;
     size_t alloc_size;

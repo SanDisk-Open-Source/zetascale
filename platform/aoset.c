@@ -651,7 +651,7 @@ aoset_hash_histogram(aoset_impl_t *setp)
     hash_ent_t *hvec;
     int *tbl;
     uint_t slot;    /* hash bucket index */
-    uint_t n;       /* number of entries in entire hash table */
+    // uint_t n;       /* number of entries in entire hash table */
     uint_t b;       /* number of hash buckets */
     uint_t freq[64];
     uint_t f;       /* frequency category */
@@ -659,7 +659,7 @@ aoset_hash_histogram(aoset_impl_t *setp)
 
     hvec = (hash_ent_t *)GVPTR_REF(setp->aos_hvec);
     tbl = (int *)GVPTR_REF(setp->aos_table);
-    n = setp->aos_size;
+    // n = setp->aos_size;
     b = setp->aos_tsize;
 
     for (f = 0; f < ELEMENTS(freq); ++f) {

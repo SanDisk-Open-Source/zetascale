@@ -372,7 +372,7 @@ sdf_msg_wrapper_to_common_msg_alloc(struct sdf_msg_wrapper *wrapper,
     struct sdf_msg *msg;
     enum send_action action;
     struct sdf_msg *tmp = NULL;
-    int include_mbx;
+    // int include_mbx;
 
     status = sdf_msg_wrapper_start_send(wrapper, &tmp, &msg, &action);
 
@@ -391,19 +391,19 @@ sdf_msg_wrapper_to_common_msg_alloc(struct sdf_msg_wrapper *wrapper,
         switch (wrapper->msg_wrapper_type) {
         case SMW_TYPE_REQUEST:
             msg->msg_flags |= SDF_MSG_FLAG_MBX_RESP_EXPECTED;
-            include_mbx = 1;
+            // include_mbx = 1;
             break;
         case SMW_TYPE_RESPONSE:
             plat_assert(wrapper->response_mbx_valid);
             msg->msg_flags |= SDF_MSG_FLAG_MBX_RESP_INCLUDED;
-            include_mbx = 1;
+            // include_mbx = 1;
             break;
         case SMW_TYPE_ONE_WAY:
-            include_mbx = 0;
+            // include_mbx = 0;
             break;
         default:
             plat_fatal("msg_wrapper_type not in enum");
-            include_mbx = 0;
+            // include_mbx = 0;
             break;
         }
 

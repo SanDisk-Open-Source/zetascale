@@ -198,7 +198,7 @@ do_child(const char *filename, char * const argv[], char * const envp[],
      * FIXME: Write a string_t with something for logging if it wasn't
      * an exec failure.
      */
-    sys_write(pipe_ends[PIPE_CHILD], &errno, sizeof(errno));
+    if (sys_write(pipe_ends[PIPE_CHILD], &errno, sizeof(errno))) {}
     sys__exit(1);
 }
 

@@ -78,8 +78,8 @@ void UTStartDebugger(const char *sprog)
     /* sprintf(stmp, "xterm -geometry 100x65 -e bash -c 'gdb %s %d' &", sprog, pid); */
     snprintf(stmp, 1024, "xterm -geometry 100x65 -e bash -c '/usr/bin/gdb %s %d' &", sprog, pid);
     fprintf(stderr, "Invoking debugger: '%s'\n", stmp);
-    system(stmp);
-    system("sleep 2");
+    if (system(stmp)) {}
+    if (system("sleep 2")) {}
     // sleep(2);
 }
 

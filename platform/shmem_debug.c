@@ -103,8 +103,8 @@ shmem_backtrace_init(void)
                 if (GVPTR_IS_NULL(new_set)) {
                     new_set.int_base = 2;   /* Mark as error */
                 }
-                shmem_global_reset(SHMEM_GLOBAL_BACKTRACE_SET,
-                                   new_set.int_base);
+                if (shmem_global_reset(SHMEM_GLOBAL_BACKTRACE_SET,
+                                   new_set.int_base)) {}
                 shmem_backtrace_set = new_set;
                 break;
             }

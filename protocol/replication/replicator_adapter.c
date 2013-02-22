@@ -543,7 +543,7 @@ ra_send_msg(plat_closure_scheduler_t *context, void *env,
 static void
 ra_timer_thread(uint64_t arg) {
     struct sdf_replicator_adapter *ra = (struct sdf_replicator_adapter *)arg;
-    int fired;
+    // int fired;
     uint64_t delay_nsecs = ra->config.timer_poll_usecs * 1000;
 
     /*
@@ -552,7 +552,8 @@ ra_timer_thread(uint64_t arg) {
      * field?) and resuming the shutdown process.
      */
     while (1) {
-        fired = plat_timer_dispatcher_fire(ra->timer_dispatcher);
+        // fired = plat_timer_dispatcher_fire(ra->timer_dispatcher);
+        (void) plat_timer_dispatcher_fire(ra->timer_dispatcher);
         fthNanoSleep(delay_nsecs);
     }
 }

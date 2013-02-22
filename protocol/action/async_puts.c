@@ -259,10 +259,10 @@ static struct SDF_async_puts_thrd_state *ap_alloc(struct SDF_async_puts_state *p
 
 static void ap_free(struct SDF_async_puts_thrd_state *pts) 
 {
-    SDF_async_puts_state_t *paps;
+    // SDF_async_puts_state_t *paps;
 
     if (pts) {
-        paps = pts->paps;
+        // paps = pts->paps;
 
         if (pts->pats) {
             plat_free(pts->pats);

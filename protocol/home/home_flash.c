@@ -406,7 +406,7 @@ static struct SDF_flash_thrd_state *
 pts_alloc(struct SDF_flash_state *pfs) {
     struct SDF_flash_thrd_state *pts;
     int failed;
-    int after;
+    // int after;
 
     pts = proto_plat_alloc_arena(sizeof (*pts), NonCacheObjectArena);
 #ifdef MALLOC_TRACE
@@ -414,7 +414,8 @@ pts_alloc(struct SDF_flash_state *pfs) {
 #endif // MALLOC_TRACE
     failed = !pts;
     if (!failed) {
-        after = __sync_add_and_fetch(&pfs->ref_count, 1);
+        // after = __sync_add_and_fetch(&pfs->ref_count, 1);
+        (void) __sync_add_and_fetch(&pfs->ref_count, 1);
         pts->pfs = pfs;
         pts->pats =
             (struct SDF_action_thrd_state *)proto_plat_alloc_arena(sizeof (*pts->pats), NonCacheObjectArena);
@@ -500,7 +501,7 @@ pts_main(uint64_t arg) {
     struct sdf_msg *send_msg = NULL;
     SDF_protocol_msg_t *send_pm = NULL;
     SDF_size_t msize = 0;
-    int status = 0;
+    // int status = 0;
     int before = 0;
     enum hf_msg_type msg_type;
 
@@ -679,7 +680,8 @@ pts_main(uint64_t arg) {
                 plat_log_msg(21302, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                              "sending message msgtype = %s",
                              SDF_Protocol_Msg_Info[send_pm->msgtype].shortname);
-                status = hf_send_reply(pts, send_msg, msize, recv_msg);
+                // status = hf_send_reply(pts, send_msg, msize, recv_msg);
+                if (hf_send_reply(pts, send_msg, msize, recv_msg)) {}
             }
 
             if (recv_msg) {
@@ -908,7 +910,7 @@ home_flash_wrapper(
     SDF_protocol_msg_type_t  in_mtype;
     struct objMetaData       metaData;
     int                      retcode = FLASH_EOK;
-    SDF_protocol_msg_t      *pm_new = NULL;
+    // SDF_protocol_msg_t      *pm_new = NULL;
     SDF_time_t               exptime;
     SDF_time_t               createtime;
     SDF_action_init_t       *pai;
@@ -1324,7 +1326,7 @@ home_flash_wrapper(
                             exptime, createtime, sequence,
                             status, pmsize, 0, 0, 0);
 
-    pm_new = (SDF_protocol_msg_t *) (new_msg->msg_payload);
+    // pm_new = (SDF_protocol_msg_t *) (new_msg->msg_payload);
 
     if (pflash_data != NULL) {
         flashFreeBuf(pflash_data);
@@ -2057,12 +2059,12 @@ home_flash_shard_wrapper(
 	case HFFLI: // Home to Flash Flush Inval Container
 	case HFINC: // Home to Flash Inval Container
 	{
-            qrep_node_state_t *pns;
-            qrep_state_t * ps;
+            // qrep_node_state_t *pns;
+            // qrep_state_t * ps;
 	    SDF_appreq_t par;
 
-            ps = &(pai->pcs->qrep_state);        
-            pns = &(ps->node_state[recv_pm->node_from]);
+            // ps = &(pai->pcs->qrep_state);        
+            // pns = &(ps->node_state[recv_pm->node_from]);
 
 	    par.ctnr    = recv_pm->cguid;
 	    switch (recv_pm->msgtype) {
@@ -2090,13 +2092,13 @@ home_flash_shard_wrapper(
 	}
 	case HFPBD: // Home to Flash Prefix-based Delete
 	{
-            qrep_node_state_t    *pns;
-            qrep_state_t         *ps;
+            // qrep_node_state_t    *pns;
+            // qrep_state_t         *ps;
 	    SDF_appreq_t          par;
 	    struct objMetaData    flashMetaData;
 
-            ps = &(pai->pcs->qrep_state);        
-            pns = &(ps->node_state[recv_pm->node_from]);
+            // ps = &(pai->pcs->qrep_state);        
+            // pns = &(ps->node_state[recv_pm->node_from]);
 
 	    par.ctnr    = recv_pm->cguid;
 	    par.reqtype = recv_pm->msgtype;

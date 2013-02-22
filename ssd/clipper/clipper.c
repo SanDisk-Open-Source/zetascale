@@ -624,8 +624,8 @@ int clipper_flashPut(ssdaio_ctxt_t *pctxt, struct shard *shard, struct objMetaDa
     uint32_t              nslab;
     uint32_t              npages_new;
     uint32_t              npages_actual;
-    uint64_t              ice, ice_old;
-    uint32_t              lice, lice_old;
+    uint64_t              ice;
+    uint32_t              lice;
     uint64_t              offset;
     ClipperFlashMeta_t   *pmeta;
     Clipper_t            *pc;
@@ -794,8 +794,8 @@ int clipper_flashPut(ssdaio_ctxt_t *pctxt, struct shard *shard, struct objMetaDa
 		    } else {
 		        /* need more pages for new object */
 
-                        ice_old  = ice; // remember the old ice for debugging
-                        lice_old = lice; // remember the old lice for debugging
+                        // ice_old  = ice; // remember the old ice for debugging
+                        // lice_old = lice; // remember the old lice for debugging
 
 			rc = free_object_entries(pc, pslab, metaData, key, ice, 1 /* put on free list */, pmeta->databytes + pmeta->key_len, pmeta->npages_used);
 			if (rc) {

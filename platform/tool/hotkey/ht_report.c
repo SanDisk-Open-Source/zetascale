@@ -480,15 +480,15 @@ calc_hotkey_memory(int maxtop, int nbuckets, int reporter_flag)
 
     int ncandidates_per_list    = 0;
     int nwinners_per_list       = 0;
-    int snapshot_entries        = 0;
+    // int snapshot_entries        = 0;
     if (hotkey_mode == HOTKEY_SEPARATE) {
         ncandidates_per_list    = CANDIDATES_PER_LIST / MAX_INSTANCES;
         nwinners_per_list       = WINNERS_PER_LIST / MAX_INSTANCES;
-        snapshot_entries        = (maxtop + MAX_INSTANCES - 1) / MAX_INSTANCES;
+        // snapshot_entries        = (maxtop + MAX_INSTANCES - 1) / MAX_INSTANCES;
     } else {
         ncandidates_per_list    = CANDIDATES_PER_LIST;
         nwinners_per_list       = WINNERS_PER_LIST;    
-        snapshot_entries        = maxtop;  
+        // snapshot_entries        = maxtop;  
     }
 
     int nkeys_per_winner_list   = nwinners_per_list / 4;

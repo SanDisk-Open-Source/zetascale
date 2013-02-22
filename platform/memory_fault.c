@@ -50,7 +50,7 @@ plat_fault(void *buf, size_t len, enum fault_how how) {
     int page_size;
     volatile char *ptr;
     volatile char *end;
-    char ignore;
+    // char ignore;
     struct timeval tv_start;
     struct rusage rusage_start;
     struct timeval tv_end;
@@ -69,7 +69,7 @@ plat_fault(void *buf, size_t len, enum fault_how how) {
          len, page_size = getpagesize(); ptr < end; ptr += page_size) {
         switch (how) {
         case FAULT_READ:
-            ignore = *ptr;
+            // ignore = *ptr;
             break;
         case FAULT_WRITE:
             *ptr = 0;

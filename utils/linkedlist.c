@@ -98,8 +98,8 @@ LinkedList_printElements(LinkedList ll) {
     }
     i += snprintf(str+i, size-i, "}");
     // plat_assert(i < size);
-    plat_log_msg(PLAT_LOG_ID_INITIAL, PLAT_LOG_CAT_SDF_CLIENT,
-                 PLAT_LOG_LEVEL_DEBUG, str);
+    plat_log_msg(20819, PLAT_LOG_CAT_SDF_CLIENT,
+                 PLAT_LOG_LEVEL_DEBUG, "%s", str);
 }
 
 void* LinkedList_replace(LinkedList ll, const char *key, void* value, uint16_t keyLen)

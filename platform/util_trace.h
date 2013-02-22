@@ -127,7 +127,7 @@ struct shmem_buffer *get_shmem_info(int index);
     {\
         while(!feof(fd))\
         {\
-            fgets(buffer,1024,fd);\
+            if (fgets(buffer,1024,fd)) {}\
             index=strstr(buffer,name);\
             if(index)\
             {\

@@ -40,6 +40,8 @@
 
 __BEGIN_DECLS
 
+#define __leaf__
+
 #define item(ret, sym, declare, call, cppthrow, attributes) \
     PLAT_WRAP_NO_POISON(ret, sym, declare, call, cppthrow, attributes)
 PLAT_STAT_WRAP_ITEMS()
