@@ -628,7 +628,7 @@ void *FDFAdminThread(void *arg) {
         }
         fp = fdopen(conn_fd,"a+");
         if( fp == NULL ) {
-            plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, LOG_ERR,
+            plat_log_msg(70113, LOG_CAT, LOG_ERR,
                          "Unable to open file descriptor ");
             continue;
         }
