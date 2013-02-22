@@ -564,7 +564,7 @@ SDF_status_t SDFInit(
     plat_assert( 0 == rc );
     if ( getProperty_Int("SDF_STATS_THREAD", 0) == 1 ) {
         fprintf(stderr,"Starting the stats thread. Check the stats at /var/log/fdfstats.log\n");
-        start_stats_thread(*sdf_state);
+        //start_stats_thread(*sdf_state);
     }
 
     return(SDF_SUCCESS);

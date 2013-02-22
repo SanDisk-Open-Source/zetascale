@@ -884,7 +884,7 @@ static void *fdf_stats_thread(void *arg) {
     uint32_t n_cguids;
     char stats_str[STAT_BUFFER_SIZE];
     FILE *stats_log;
-    int i;
+    int i, dump_interval;
     struct FDF_thread_state *thd_state;
     FDF_stats_t stats;
 
@@ -894,21 +894,25 @@ static void *fdf_stats_thread(void *arg) {
         return NULL;
     }
 
-    stats_log = fopen(getProperty_String("FDF_STATS_FILE","/var/log/fdfstats.log"),"a+");
+    stats_log = fopen(getProperty_String("FDF_STATS_FILE","/tmp/fdfstats.log"),"a+");
     if( stats_log == NULL ) {
         fprintf(stderr,"Stats Thread:Unable to open the log file /tmp/fdf_stats.log. Exiting\n");
         return NULL;
     }
-    stats_dump = getProperty_Int( "FDF_STATS_DUMP", 0 );
+    if ( getProperty_Int( "FDF_STATS_DUMP_INTERVAL", 0 ) > 0 ) {
+        stats_dump = 1;
+    }
+
     while(1) {
-        if( stats_dump == 0 ) {
+        dump_interval = getProperty_Int( "FDF_STATS_DUMP_INTERVAL", 0 ); 
+        if( (stats_dump == 0) || ( dump_interval <= 0) ) {
             sleep(5);
             continue;
         }
 
         if(getProperty_Int( "FDF_STATS_NEW", 1 ) == 1 ) {
             dump_all_container_stats(thd_state,STATS_PRINT_TYPE_DETAILED);
-            sleep(getProperty_Int( "FDF_STATS_DUMP_INTERVAL", 60 ));
+            sleep(dump_interval);
             continue;
         }
 
@@ -932,7 +936,7 @@ static void *fdf_stats_thread(void *arg) {
 
 		mcd_trx_print_stats(stats_log);
 
-        sleep(getProperty_Int( "FDF_STATS_DUMP_INTERVAL", 60 ));
+        sleep(dump_interval);
     }
 
     fclose(stats_log);
@@ -2190,6 +2194,21 @@ char *FDFGetContainerName(FDF_cguid_t cguid) {
     }
     return "";
 }
+char *FDFGetNextContainerName(int *index) {
+    int i;
+    for ( i = *index ; i < MCD_MAX_NUM_CNTRS; i++ ) {
+        if(CtnrMap[i].cguid != 0){
+            /* Skip CMC, VMC and VDC */
+            if( (strcmp(CtnrMap[i].cname,"/sdf/VMC") == 0) ||
+                (strcmp(CtnrMap[i].cname,"/sdf/VDC") == 0) ) {
+                continue;
+            }
+            *index = i+1;
+            return CtnrMap[i].cname;
+        }
+    }
+    return "";
+}
 
 FDF_status_t FDFGetContainers(
 	struct FDF_thread_state	*fdf_thread_state,
@@ -2779,6 +2798,7 @@ void fdf_get_flash_map(struct FDF_thread_state *thd_state, FDF_cguid_t cguid,
     SDF_CONTAINER sdf_container = containerNull;
 
     *size = 0;
+    stats_ptr = NULL;
     pai  = (SDF_internal_ctxt_t *)thd_state;
     SDFStartSerializeContainerOp(pai);
 
@@ -2794,35 +2814,42 @@ void fdf_get_flash_map(struct FDF_thread_state *thd_state, FDF_cguid_t cguid,
                              FLASH_SLAB_CLASS_SEGS,
                              (uint64_t *)&stats_ptr );
     if( stats_ptr != NULL ) {
-        rc = sprintf(buf+ (*size),"   flash_class_map" );
+        rc = snprintf(buf+ (*size),(STATS_BUFFER_SIZE - (*size)),
+                                                       "   flash_class_map" );
         *size = *size + rc;
         for ( int i = 0; i < Mcd_osd_max_nclasses; i++ ) {
-            rc = sprintf(buf+ (*size)," %lu", stats_ptr[i] );
+            rc = snprintf(buf+ (*size),(STATS_BUFFER_SIZE - (*size)),
+                                                       " %lu", stats_ptr[i] );
             *size = *size + rc;
         }
-        rc = sprintf(buf+ (*size),"\n" );
+        rc = snprintf(buf+ (*size),(STATS_BUFFER_SIZE - (*size)),"\n" );
         *size = *size + rc;
     }
     else {
-        rc = sprintf(buf+ (*size),"   flash_class_map" );
+        rc = snprintf(buf+ (*size),(STATS_BUFFER_SIZE - (*size)),
+                                                      "   flash_class_map" );
         *size = *size + rc;
     }
     
+    stats_ptr = NULL;
     FDFContainerStat( pai, sdf_container,
                              FLASH_SLAB_CLASS_SLABS,
                              (uint64_t *)&stats_ptr );
     if( stats_ptr != NULL ) {
-        rc = sprintf(buf+ (*size),"   flash_slab_map" );
+        rc = snprintf(buf+ (*size),(STATS_BUFFER_SIZE - (*size)),
+                                                       "   flash_slab_map" );
         *size = *size + rc;
         for ( int i = 0; i < Mcd_osd_max_nclasses; i++ ) {
-            rc = sprintf(buf+ (*size)," %lu", stats_ptr[i] );
+            rc = snprintf(buf+ (*size),(STATS_BUFFER_SIZE - (*size)),
+                                                       " %lu", stats_ptr[i] );
             *size = *size + rc;
         }
-        rc = sprintf(buf+ (*size),"\n" );
+        rc = snprintf(buf+ (*size),(STATS_BUFFER_SIZE - (*size)),"\n" );
         *size = *size + rc;
     }
     else {
-        rc = sprintf(buf+ (*size),"   flash_slab_map" );
+        rc = snprintf(buf+ (*size),(STATS_BUFFER_SIZE - (*size)), 
+                                                        "   flash_slab_map" );
         *size = *size + rc;
     }
     SDFEndSerializeContainerOp(pai);

@@ -23,8 +23,7 @@ extern "C" {
 #include "common/fdfstats.h"
 
 
-
-
+#define STATS_BUFFER_SIZE 1024
 /* Stats and Admin port*/
 typedef enum { 
     FDF_STATS_TYPE_APP_REQ,
@@ -80,6 +79,7 @@ int get_cache_type_stats_category(int stat );
 void enable_stats_auto_dump() ;
 void disable_stats_auto_dump() ;
 int is_auto_dump_enabled() ;
+char *FDFGetNextContainerName(int *index);
 
 
 
