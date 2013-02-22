@@ -2296,7 +2296,6 @@ FDF_status_t FDFSetContainerProps(
 
     SDFStartSerializeContainerOp(pai);
     if (( status = name_service_get_meta( pai, cguid, &meta )) == FDF_SUCCESS ) {
-
 		if ( pprops->size_kb != meta.properties.container_id.size ) {
 			if ( ( status = fdf_resize_container( fdf_thread_state, cguid, pprops->size_kb ) ) != FDF_SUCCESS ) {
 				plat_log_msg( 150094, LOG_CAT, LOG_ERR, "Failed to resize %lu - %s", cguid, FDFStrError( status ) );
@@ -3644,27 +3643,33 @@ FDF_status_t fdf_resize_container(
     if ( index < 0 ) {
         plat_log_msg( 150082, LOG_CAT, LOG_ERR, "Cannnot find container id %lu", cguid );
         status = FDF_CONTAINER_UNKNOWN;
+		goto out;
     } else if ( size < CtnrMap[ index ].size_kb ) {
             plat_log_msg( 150079, LOG_CAT, LOG_ERR, "Cannnot reduce container size" );
             status = FDF_CANNOT_REDUCE_CONTAINER_SIZE;
-    } else if ( ( status = name_service_get_meta( pai,
-                                               	  cguid,
-                                               	  &meta ) ) != FDF_SUCCESS) {
-            plat_log_msg( 150080, LOG_CAT, LOG_ERR, "Cannnot read container metadata for %lu", cguid );
-    } else {
-
-        meta.properties.container_id.size = size;
-
-        if ( ( status = name_service_put_meta( pai,
-                                               cguid,
-                                               &meta ) ) != FDF_SUCCESS ) {
-            plat_log_msg( 150081, LOG_CAT, LOG_ERR, "Cannnot write container metadata for %lu", cguid );
-        } else {
-            CtnrMap[ index ].size_kb = size;
-        }
+			goto out;
     }
 
-    return FDF_SUCCESS;
+	if ( ( status = name_service_get_meta( pai,
+                                           cguid,
+                                           &meta ) ) != FDF_SUCCESS) {
+		plat_log_msg( 150080, LOG_CAT, LOG_ERR, "Cannnot read container metadata for %lu", cguid );
+   	} else {
+
+		meta.properties.container_id.size = size; 
+
+		if ( ( status = name_service_put_meta( pai, 
+											   cguid, 
+											   &meta ) ) != FDF_SUCCESS ) {
+           	plat_log_msg( 150081, LOG_CAT, LOG_ERR, "Cannnot write container metadata for %lu", cguid );
+       	} else {
+           	CtnrMap[ index ].size_kb = size;
+			status = FDF_SUCCESS;
+		}
+    }
+
+out:
+    return status;
 }
 
 static void *fdf_vc_thread(

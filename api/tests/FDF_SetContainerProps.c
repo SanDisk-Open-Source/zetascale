@@ -325,7 +325,7 @@ int FDFSetContainerProps_SetMore2()
     for(int j = 0 ;j < 3;j++){
 
         ret= SetContainerProps_async_durability(cguid,size[j],durability[j],async[i]);
-        if(FDF_SUCCESS != ret){
+        if(FDF_SUCCESS != ret && FDF_CANNOT_REDUCE_CONTAINER_SIZE != ret){
             fprintf(fp,"FDFSetContainerProps:size=%d,durability=%d,async=%d failed:%s\n",size[j],durability[j],async[i],FDFStrError(ret));
             flag = -2; 
             if(FDF_SUCCESS != CloseContainer(cguid ))flag = -3;
@@ -333,7 +333,8 @@ int FDFSetContainerProps_SetMore2()
             return flag;
         }
 
-        flag = CheckProps(cguid,p.persistent);
+ 		if(FDF_CANNOT_REDUCE_CONTAINER_SIZE != ret)
+        		flag = CheckProps(cguid,p.persistent);
         if(flag != 1){
             fprintf(fp,"SetContainerProps:size=%d,durability=%d,async=%d wrong.\n",size[j],durability[j],async[i]);
             
