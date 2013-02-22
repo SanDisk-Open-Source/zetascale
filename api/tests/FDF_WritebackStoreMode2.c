@@ -195,7 +195,7 @@ int test_basic_check(uint32_t aw)
             //(void)WriteObject(cguid, "yyyy", 5, "456", 4, FDF_WRITE_MUST_NOT_EXIST);
             (void)WriteObject(cguid, "xxxx", 5, "123", 4, 0);
             (void)WriteObject(cguid, "yyyy", 5, "456", 4, 0);
-            sleep(10);
+	    (void) FDFFlushContainer(fdf_thrd_state, cguid);
             ret = GetContainerStats(cguid, &stats1);
 	    fprintf(fp, "GetContainerStats returned %d for cguid=%ld\n", ret, cguid);
             if (FDF_SUCCESS == ret)

@@ -203,7 +203,7 @@ int test_basic_check(uint32_t aw)
             (void)WriteObject(cguid, "1111", 5, DummyData, DummyDataSize, 0);
             (void)WriteObject(cguid, "2222", 5, DummyData, DummyDataSize, 0);
             (void)WriteObject(cguid, "3333", 5, DummyData, DummyDataSize, 0);
-            sleep(10);
+	    (void) FDFFlushContainer(fdf_thrd_state, cguid);
             ret = GetContainerStats(cguid, &stats1);
 	    fprintf(stderr, "GetContainerStats returned %d for cguid=%ld\n", ret, cguid);
             if (FDF_SUCCESS == ret)
