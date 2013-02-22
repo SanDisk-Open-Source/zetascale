@@ -2928,6 +2928,9 @@
 70107 Flush log sync: patched %d log records for shard %lu
 70108 Flush log sync: cannot open sync log file %s flags=%x error=%d
 70109 Flush log sync: log flush write failed seek=%ld errno=%d size=%ld
+70110 message
+70111 enumeration started for container %ld
+70112 enumeration error %ld >= %ld
 
 
 # mkrishnan

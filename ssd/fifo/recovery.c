@@ -5,9 +5,11 @@
  * Exported
  *   qrecovery_init()
  *   qrecovery_exit()
+ *
  *   enumerate_init()
  *   enumerate_done()
  *   enumerate_next()
+ *   enumerate_stats()
  *
  * Notes
  *   - Since the enumeration routines share this file, exported enumeration
@@ -26,6 +28,8 @@
 #include "ssd/ssd_aio.h"
 #include "mcd_aio.h"
 #include "fth/fthMbox.h"
+#include "sdf_internal.h"
+#include "sdftcp/locks.h"
 #include "sdftcp/trace.h"
 #include "shared/private.h"
 #include "utils/properties.h"
@@ -516,7 +520,7 @@ typedef struct {
 
 
 /*
- * Recovering node variables.
+ * Recovering node variables used by fast recovery.
  *
  *  stats            - statistics.
  *  num_fth          - Number of fthreads.
@@ -563,7 +567,7 @@ typedef struct {
 
 
 /*
- * Surviving node variables.
+ * Surviving node variables used by fast recovery.
  *
  *  no_del_opt - Do not try to optimize delete code.
  *  num_ssx    - Number of set indices a message can hold.
@@ -580,7 +584,7 @@ typedef struct {
 
 
 /*
- * Variables used by both the survivor and recoverer.
+ * Variables used by both the survivor and recoverer for fast recovery.
  *
  *  no_fast    - Disallow fast recovery.
  *  show_stats - Show statistic information at the end of recovery.
@@ -592,6 +596,19 @@ typedef struct {
     int      show_stats;
     uint64_t mem_used;
 } all_var_t;
+
+
+/*
+ * Variables used by enumeration.
+ *
+ *  num_total   - Total enumerations started.
+ *  num_active  - Number of active enumerations.
+ *  num_objects - Number of objects enumerated.
+ *
+ */
+typedef struct {
+    enum_stats_t stats;
+} enum_var_t;
 
 
 /*
@@ -614,12 +631,14 @@ typedef struct FDF_iterator {
  * Static variables.
  *
  *  AV       - Variables used by both nodes.
+ *  EV       - Variables used by enumeration.
  *  RV       - Variables used by the recovering node.
  *  SV       - Variables used by the surviving node.
  */
-static all_var_t AV;
-static rec_var_t RV;
-static sur_var_t SV;
+static  all_var_t AV;
+static  rec_var_t RV;
+static  sur_var_t SV;
+static enum_var_t EV;
 
 
 /*
@@ -4235,6 +4254,16 @@ lba_to_blk(uint32_t nb)
 
 
 /*
+ * Return enumeration statistics.
+ */
+void
+enumerate_stats(enum_stats_t *s)
+{
+    memcpy(s, &EV.stats, sizeof(enum_stats_t));
+}
+
+
+/*
  * Given a data block, extract the key and data and return it.
  */
 static FDF_status_t
@@ -4285,7 +4314,7 @@ e_extr_obj(e_state_t *es, time_t now, char **key, uint32_t *keylen,
 static void
 e_enum_error(e_state_t *es)
 {
-    sdf_loge(PLAT_LOG_ID_INITIAL, "enumeration error %ld >= %ld",
+    sdf_loge(70112, "enumeration error %ld >= %ld",
              es->hash_buf_i, es->hash_buf_n);
 }
 
@@ -4297,12 +4326,11 @@ e_enum_error(e_state_t *es)
  * current bucket.
  */
 static void
-e_hash_fill(pai_t *pai, void *state, int lock_i)
+e_hash_fill(pai_t *pai, e_state_t *es, int lock_i)
 {
     int b;
     int n;
     mo_hash_t *hash;
-    e_state_t          *es = (e_state_t *) state;
     mo_shard_t      *shard = es->shard;
     uint64_t bkts_per_lock = shard->lock_bktsize / Mcd_osd_bucket_size;
     cntr_id_t      cntr_id = es->cguid;
@@ -4346,11 +4374,10 @@ e_hash_fill(pai_t *pai, void *state, int lock_i)
  * Return the next enumerated object in a container.
  */
 FDF_status_t
-enumerate_next(pai_t *pai, void *state, char **key, uint32_t *keylen,
+enumerate_next(pai_t *pai, e_state_t *es, char **key, uint32_t *keylen,
 	       char **data, uint64_t  *datalen)
 {
     time_t        now = time(NULL);
-    e_state_t     *es = (e_state_t *) state;
     mo_shard_t *shard = es->shard;
     cntr_id_t cntr_id = es->cguid;
 
@@ -4358,7 +4385,7 @@ enumerate_next(pai_t *pai, void *state, char **key, uint32_t *keylen,
         while (!es->hash_buf_i) {
             if (es->hash_lock_i >= shard->lock_buckets)
                 return FDF_OBJECT_UNKNOWN;
-            e_hash_fill(pai, state, es->hash_lock_i++); }
+            e_hash_fill(pai, es, es->hash_lock_i++); }
 
         int s;
         mo_hash_t *hash = &es->hash_buf[--es->hash_buf_i];
@@ -4377,7 +4404,11 @@ enumerate_next(pai_t *pai, void *state, char **key, uint32_t *keylen,
         s = e_extr_obj(es, now, key, keylen, data, datalen);
         if (s == FDF_OBJECT_UNKNOWN)
             continue;
-        return s;
+        if (s != FDF_SUCCESS)
+            return s;
+
+        atomic_inc(EV.stats.num_objects);
+        return FDF_SUCCESS;
     }
 }
 
@@ -4388,6 +4419,9 @@ enumerate_next(pai_t *pai, void *state, char **key, uint32_t *keylen,
 FDF_status_t
 enumerate_done(pai_t *pai, e_state_t *es)
 {
+    atomic_dec(EV.stats.num_active);
+    sdf_logd(PLII, "enumeration ended for container %ld", es->cguid);
+
     if (es->data_buf_alloc)
         plat_free(es->data_buf_alloc);
     if (es->hash_buf)
@@ -4439,6 +4473,10 @@ enumerate_init(pai_t *pai, struct shard *shard_arg,
     es->shard = shard;
     es->cguid = cguid;
     *((e_state_t **) esp) = es;
+
+    atomic_inc(EV.stats.num_total);
+    atomic_inc(EV.stats.num_active);
+    sdf_logd(70111, "enumeration started for container %ld", es->cguid);
     return 0;
 }
 

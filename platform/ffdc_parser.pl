@@ -954,7 +954,8 @@ sub _sitParseFile
             $multi_source_line =~ s/.*UTMessage/UTMessage/;
             
             $log_func = "UTMessage";
-        } elsif ($multi_source_line =~ /sdf_log([defitw])(_sys)?\(((?:LOG_ID|
+        } elsif ($multi_source_line =~ /sdf_log([defitw])(_sys)?\(((?:
+                                        LOG_ID|PLII|PLAT_LOG_ID_INITIAL|
                                         [1-9]\d*,).*?)\)\s*;\s*\\?$/x) {
             $log_func = "sdf_log$1$2";
             ($msgid, $ma) = split(/,/, $3, 2);

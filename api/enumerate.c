@@ -13,6 +13,7 @@
 #include "fdf.h"
 #include "shared/private.h"
 #include "shared/name_service.h"
+#include "protocol/action/recovery.h"
 #include "protocol/protocol_common.h"
 #include "protocol/action/action_thread.h"
 
@@ -21,21 +22,6 @@
  * Functions defined in fdf.c
  */
 extern int fdf_is_ctnr_open(FDF_cguid_t cguid);
-
-
-/*
- * Functions defined in recovery.c
- */
-extern FDF_status_t
-enumerate_init(SDF_action_init_t *pai, struct shard *shard,
-               FDF_cguid_t cguid, struct FDF_iterator **iter);
-
-extern FDF_status_t
-enumerate_done(SDF_action_init_t *pai, struct FDF_iterator *iter);
-
-extern FDF_status_t
-enumerate_next(SDF_action_init_t *pai, struct FDF_iterator *iter,
-               char **key, uint32_t *keylen, char **data, uint64_t *datalen);
 
 
 /*

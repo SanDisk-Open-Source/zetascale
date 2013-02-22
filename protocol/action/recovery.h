@@ -7,6 +7,7 @@
 #ifndef _RECOVERY_H
 #define _RECOVERY_H
 
+#include "sdf_internal.h"
 #include "shared/private.h"
 #include "protocol/action/action_internal_ctxt.h"
 
@@ -53,6 +54,24 @@ struct sdf_rec_funcs {
      */
     void (*prep_del)(vnode_t rank, struct shard *shard);
 } *sdf_rec_funcs;
+
+
+/*
+ * Enumeration functions
+ */
+extern FDF_status_t
+enumerate_init(SDF_action_init_t *pai, struct shard *shard,
+               FDF_cguid_t cguid, struct FDF_iterator **iter);
+
+extern FDF_status_t
+enumerate_done(SDF_action_init_t *pai, struct FDF_iterator *iter);
+
+extern FDF_status_t
+enumerate_next(SDF_action_init_t *pai, struct FDF_iterator *iter,
+               char **key, uint32_t *keylen, char **data, uint64_t *datalen);
+
+extern void
+enumerate_stats(enum_stats_t *s);
  
 
 #endif /* _RECOVERY_H */

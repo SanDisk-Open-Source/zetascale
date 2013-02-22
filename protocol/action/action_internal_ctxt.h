@@ -15,8 +15,10 @@
 #include "common/sdftypes.h"
 #include "agent/agent_helper.h"
 #include "fth/fth.h"
+#include "protocol/protocol_common.h"
 #include "protocol/replication/sdf_vips.h"
 #include "protocol/action/simple_replication.h"
+#include "shared/sdf_sm_msg.h"
 #include "shared/container_meta.h"
 
 #ifndef _ACTION_INTERNAL_CTXT_H

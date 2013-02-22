@@ -23,6 +23,17 @@ typedef struct ctnr_map {
 	uint64_t		num_obj;
 } ctnr_map_t;
 
+
+/*
+ * Statistics returned from enumeration.
+ */
+typedef struct {
+    uint64_t num_total;
+    uint64_t num_active;
+    uint64_t num_objects;
+} enum_stats_t;
+
+
 typedef struct SDF_state {
 #if 0
     struct SDFTLMap   *ctnr_map_by_name;

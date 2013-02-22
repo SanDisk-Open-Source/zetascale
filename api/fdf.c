@@ -17,31 +17,31 @@
 #include "sdf.h"
 #include "sdf_internal.h"
 #include "fdf.h"
-#include "utils/properties.h"
+#include "fdf_internal.h"
 #include "protocol/protocol_utils.h"
 #include "protocol/protocol_common.h"
-#include "protocol/action/action_thread.h"
-#include "protocol/action/async_puts.h"
+#include "protocol/action/recovery.h"
 #include "protocol/home/home_flash.h"
 #include "protocol/action/async_puts.h"
-#include "protocol/replication/copy_replicator.h"
+#include "protocol/action/action_thread.h"
 #include "protocol/replication/replicator.h"
+#include "protocol/replication/copy_replicator.h"
 #include "protocol/replication/replicator_adapter.h"
+#include "agent/agent_common.h"
+#include "agent/agent_helper.h"
+#include "sdftcp/locks.h"
+#include "shared/private.h"
+#include "shared/init_sdf.h"
+#include "shared/name_service.h"
+#include "shared/shard_compute.h"
+#include "shared/container_meta.h"
+#include "shared/open_container_mgr.h"
+#include "shared/internal_blk_obj_api.h"
 #include "ssd/fifo/mcd_ipf.h"
 #include "ssd/fifo/mcd_osd.h"
 #include "ssd/fifo/mcd_bak.h"
 #include "ssd/fifo/mcd_trx.h"
-#include "shared/init_sdf.h"
-#include "shared/private.h"
-#include "shared/open_container_mgr.h"
-#include "shared/container_meta.h"
-#include "shared/name_service.h"
-#include "shared/shard_compute.h"
-#include "shared/internal_blk_obj_api.h"
-#include "agent/agent_common.h"
-#include "agent/agent_helper.h"
-#include "sdftcp/locks.h"
-#include "fdf_internal.h"
+#include "utils/properties.h"
 
 #define LOG_ID PLAT_LOG_ID_INITIAL
 #define LOG_CAT PLAT_LOG_CAT_SDF_NAMING
@@ -280,6 +280,24 @@ fdf_stats_info_t fdf_stats_access_type[] = {
     {"APICO","num_invalidate_container",FDF_STATS_TYPE_APP_REQ},/*FDF_ACCESS_TYPES_APICO*/
     {"APRIV","num_remote_invalidations",FDF_STATS_TYPE_APP_REQ},/*FDF_ACCESS_TYPES_APRIV*/
     {"APRUP","num_remote_updates",FDF_STATS_TYPE_APP_REQ},/*FDF_ACCESS_TYPES_APRUP*/
+
+    {
+        "ENUM_TOTAL",
+        "completed_enumerations",
+        FDF_STATS_TYPE_APP_REQ,
+    },
+
+    {
+        "ENUM_ACTIVE",
+        "active_enumerations",
+        FDF_STATS_TYPE_APP_REQ,
+    },
+
+    {
+        "ENUM_OBJECTS",
+        "objects_enumerated",
+        FDF_STATS_TYPE_APP_REQ,
+    },
 };
 char *get_access_type_stats_desc(int stat ) {
     if( stat >= sizeof(fdf_stats_access_type)/sizeof(fdf_stats_info_t)) {
@@ -571,8 +589,8 @@ static void set_log_level( unsigned int log_level )
     char              * levels[] = { "devel", "trace", "debug", "diagnostic",
                                      "info", "warn", "error", "fatal" };
 
-    sprintf( buf, "apps/memcached/server=%s", levels[log_level] );
-    plat_log_parse_arg( buf );
+    sprintf(buf, "apps/membrain/server=%s", levels[log_level]);
+    plat_log_parse_arg(buf);
 }
 
 static int fdf_check_delete_in_future(void *data)
@@ -3272,6 +3290,15 @@ static void get_fdf_stats( SDF_internal_ctxt_t *pai, char ** ppos, int * lenp,
     // memset( buf, 0, 1024 );
     // home_stats( buf, 1024 );
     // plat_snprintfcat( ppos, lenp, "STAT %s\r\n", buf );
+
+    /* Enumeration statistics */
+    enum_stats_t e;
+    uint64_t *p = stat->n_accesses;
+
+    enumerate_stats(&e);
+    p[FDF_ACCESS_TYPES_ENUM_TOTAL]   = e.num_total;
+    p[FDF_ACCESS_TYPES_ENUM_ACTIVE]  = e.num_active;
+    p[FDF_ACCESS_TYPES_ENUM_OBJECTS] = e.num_objects;
 }
 static void get_proc_stats( char ** ppos, int * lenp )
 {
@@ -3435,12 +3462,11 @@ FDF_status_t FDFGetContainerStats(
 	)
 {
     char stats_str[STAT_BUFFER_SIZE];
-    FDF_status_t rc;
     if ( stats == NULL ) {
         return FDF_SUCCESS;
     }
     memset (stats, 0, sizeof(FDF_stats_t));
-    rc = FDFGetStatsStr(fdf_thread_state,cguid,stats_str, stats);
+    FDFGetStatsStr(fdf_thread_state,cguid,stats_str, stats);
     //  no-op in this simple implementation
     return(FDF_SUCCESS);
 }
