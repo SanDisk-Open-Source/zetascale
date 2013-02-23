@@ -1992,7 +1992,7 @@ static FDF_status_t fdf_close_container(
 		    }
 		}
 
-		if(shard)
+    	if ( mode == FDF_PHYSICAL_CNTR && shard )
 			shardClose(shard);
 #endif
 
