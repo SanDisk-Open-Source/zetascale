@@ -401,7 +401,8 @@ enum {
 typedef struct mcd_logrec_object {
     uint16_t    syndrome;              // 16-bit syndrome
     uint16_t    deleted:1;             // 1=marked for delete-in-future
-    uint16_t    reserved:3;            // reserved
+    uint16_t    reserved:1;            // reserved
+    uint16_t    trx:2;                 // reserved
     uint16_t    blocks:12;             // number of 512-byte blocks occupied
     uint32_t    bucket;                // hash bucket
     uint32_t    blk_offset;            // logical block offset within shard

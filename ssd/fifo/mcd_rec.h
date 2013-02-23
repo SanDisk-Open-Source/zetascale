@@ -524,27 +524,38 @@ typedef struct mcd_rec_list_block {
     uint64_t                data[ MCD_REC_LIST_ITEMS_PER_BLK ];
 } mcd_rec_list_block_t;
 
+enum trx_rec {
+	TRX_REC_OKAY	= 0,
+	TRX_REC_NOMEM,
+	TRX_REC_OVERFLOW,
+	TRX_REC_BAD_SEQ
+};
+
 // Object Table State
 // Used during online object table update and during recovery.
 // Holds state of the object table, e.g. read/write cursor, etc.
 typedef struct mcd_rec_obj_state {
-    int              in_recovery;        // 1=in recovery; 0=not in recovery
-    int              pass;               // current pass, 1 or 2
-    int              passes;             // 1 pass online; 2 passes in recovery
+    int                   in_recovery;   // 1=in recovery; 0=not in recovery
+    int                   pass;          // current pass, 1 or 2
+    int                   passes;        // 1 pass online; 2 passes in recovery
 
-    int              chunk;              // current "chunk" # of object table
-    int              num_chunks;         // total number of "chunks"
-    int              chunk_blks;         // # blks in chunk to read/write
+    int                   chunk;         // current "chunk" # of object table
+    int                   num_chunks;    // total number of "chunks"
+    int                   chunk_blks;    // # blks in chunk to read/write
 
-    uint64_t         start_blk;          // blk to start read/write operation
-    uint64_t         num_blks;           // # blks in object table
+    uint64_t              start_blk;     // blk to start read/write operation
+    uint64_t              num_blks;      // # blks in object table
 
-    uint64_t         start_obj;          // rel obj num (or blk off) in chunk
-    uint64_t         num_objs;           // # objects in table chunk
+    uint64_t              start_obj;     // rel obj num (or blk off) in chunk
+    uint64_t              num_objs;      // # objects in table chunk
 
-    int              seg_objects;        // # objects per segment
-    int              seg_count;          // # object table segments
-    char          ** segments;           // list of object table segments
+    int                   seg_objects;   // # objects per segment
+    int                   seg_count;     // # object table segments
+    char               ** segments;      // list of object table segments
+
+    mcd_logrec_object_t * trxbuf;        // trx accumulator
+    uint                  trxnum;        // trx count of log records
+    enum trx_rec          trxstatus;     // status of accumulation
 } mcd_rec_obj_state_t;
 
 // Log State

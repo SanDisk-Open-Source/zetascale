@@ -10,3 +10,4 @@ add_library(fifo OBJECT fifo.c
  	mcd_ipf.c 
 	recovery.c )
 add_dependencies(fifo ffdc)
+add_definitions(-Wno-switch)

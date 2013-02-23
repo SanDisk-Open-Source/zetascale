@@ -3159,3 +3159,6 @@
 170001 1st error message by Rico (%s)
 170002 2nd error message by Rico (%s)
 170003 Unable to start the stats thread
+170007 TRX cannot be applied due to insufficient memory
+170008 TRX too big to apply
+170009 TRX sequence anomaly

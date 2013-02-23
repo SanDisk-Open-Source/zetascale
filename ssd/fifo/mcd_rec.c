@@ -140,6 +140,11 @@ static int Sync_data;
 // number of blocks to reserve for volume label
 #define MCD_REC_LABEL_BLKS      8
 
+/*
+ * Operations per mini-transaction tuned for a smaller log
+ */
+#define	TRX_LIMIT	100000
+
 // -----------------------------------------------------
 //    Globals
 // -----------------------------------------------------
@@ -3688,263 +3693,204 @@ update_hash_table( void * context, mcd_osd_shard_t * shard,
     }
 }
 
-int
-apply_log_record( mcd_osd_shard_t * shard, char * data,
-                  mcd_rec_obj_state_t * state,
-                  uint64_t * high_offset, uint64_t * low_offset )
+#include	"utils/rico.h"
+
+enum {
+	TRX_OP		= 1,
+	TRX_OP_LAST	= 2
+};
+
+
+static int
+apply_log_record_internal( mcd_osd_shard_t *shard, mcd_logrec_object_t *rec, mcd_rec_obj_state_t *state, uint64_t *high_offset, uint64_t *low_offset)
 {
-    int                         applied = 0;
-    uint64_t                    hwm_seqno = tombstone_get_lcss( shard );
-    uint64_t                    obj_offset;
-    mcd_rec_flash_object_t    * object;
-    mcd_logrec_object_t       * rec = (mcd_logrec_object_t *)data;
-    mcd_logrec_object_t       * orig_rec = rec;
-    mcd_logrec_object_t         mod_rec;
+	int			applied		= 0;
+	uint64_t		obj_offset;
+	mcd_rec_flash_object_t	*object;
+	mcd_logrec_object_t	*orig_rec	= rec;
+	mcd_logrec_object_t	mod_rec;
 
-    // skip dummy records
-    if ( rec->syndrome == 0 && rec->blocks == 0 &&
-         rec->bucket == 0 && rec->seqno == 0 &&
-         rec->old_offset == 0 ) {
-        if ( rec->blk_offset == 0xffffffffu &&   // special cas_id record
-             shard->cntr->cas_id < rec->target_seqno ) {
-            shard->cntr->cas_id = rec->target_seqno;
-        }
-        return 0;
-    }
-
-    // return log record address (record offset)
-    if ( rec->blk_offset > *high_offset ) {
-        *high_offset = rec->blk_offset;
-    }
-    if ( rec->blk_offset < *low_offset ) {
-        *low_offset = rec->blk_offset;
-    }
-    if ( rec->old_offset != 0 ) {
-        if ( ~(rec->old_offset) > *high_offset ) {
-            *high_offset = ~(rec->old_offset);
-        }
-        if ( ~(rec->old_offset) < *low_offset ) {
-            *low_offset = ~(rec->old_offset);
-        }
-    }
-
- reapply:
-
-    // check that record applies to this table range
-    if ( rec->blk_offset < state->start_obj ||
-         rec->blk_offset > state->start_obj + state->num_objs - 1 ) {
-
-        // special delete/create record has an "old_offset"
-        if ( rec->old_offset != 0 ) {
-            // copy original record
-            mod_rec = *rec;
-            rec     = &mod_rec;
-
-            // make it into a delete record and reapply it
-            rec->blk_offset = ~(rec->old_offset);
-            rec->old_offset = 0;
-            rec->blocks     = 0;
-            goto reapply;
-        }
-
-        // record is out of this table range
-        mcd_log_msg( 20499, PLAT_LOG_LEVEL_DEVEL,
-                     "<<<< skipping offset=%u, start=%lu, end=%lu",
-                     rec->blk_offset, state->start_obj,
-                     state->start_obj + state->num_objs - 1 );
-        return applied;
-    }
-
-    // calculate offset to the object, in the proper segment
-    obj_offset  = rec->blk_offset - state->start_obj;
-    object      = (mcd_rec_flash_object_t *)
-        state->segments[ obj_offset / state->seg_objects ] +
-        (obj_offset % state->seg_objects);
-    plat_assert( obj_offset / state->seg_objects < state->seg_count );
-
-    mcd_log_msg( 20500, MCD_REC_LOG_LVL_TRACE,
-                 "<<<< apply_log_rec: syn=%u, blocks=%u, del=%u, "
-                 "bucket=%u, boff=%u, ooff=%u, seq=%lu, tseq=%lu, "
-                 "obj: syn=%u, ts=%u, blocks=%u, bucket=%u, toff=%lu, "
-                 "seq=%lu",
-                 rec->syndrome, mcd_osd_lba_to_blk( rec->blocks ),
-                 rec->deleted, rec->bucket, rec->blk_offset,
-                 (rec->old_offset == 0 ? 0 : ~(rec->old_offset)),
-                 (uint64_t) rec->seqno, rec->target_seqno,
-                 object->syndrome, object->tombstone,
-                 mcd_osd_lba_to_blk( object->blocks ),
-                 object->bucket, obj_offset, (uint64_t) object->seqno );
-
-    if ( rec != orig_rec ) {
-        mcd_log_msg( 20502, PLAT_LOG_LEVEL_TRACE,
-                     "orig_rec: syn=%u, blocks=%u, del=%u, bucket=%u, "
-                     "boff=%u, ooff=%u, seq=%lu, tseq=%lu",
-                     orig_rec->syndrome,
-                     mcd_osd_lba_to_blk( orig_rec->blocks ),
-                     orig_rec->deleted, orig_rec->bucket,
-                     orig_rec->blk_offset, orig_rec->old_offset,
-                     (uint64_t) orig_rec->seqno, orig_rec->target_seqno );
-    }
-
-    // garbage collect tombstone if needed
-    if ( object->tombstone ) {
-#ifdef MCD_ENABLE_TOMBSTONES
-        // no persisted tombstones in cache mode
-        plat_assert( shard->evict_to_free == 0 );
-
-        // delete object if hwm seqno reached
-        if ( object->seqno < hwm_seqno ) {
-            delete_object( object );
-
-        } else {
-            mcd_log_msg( 20501, PLAT_LOG_LEVEL_FATAL,
-                         "rec: syn=%u, blocks=%u, del=%u, bucket=%u, boff=%u, "
-                         "ooff=%u, seq=%lu, tseq=%lu, obj: syn=%u, ts=%u, "
-                         "blocks=%u, del=%u, bucket=%u, toff=%lu, seq=%lu, "
-                         " hwm_seqno=%lu",
-                         rec->syndrome, mcd_osd_lba_to_blk( rec->blocks ),
-                         rec->deleted, rec->bucket,
-                         rec->blk_offset, rec->old_offset,
-                         (uint64_t) rec->seqno,
-                         rec->target_seqno, object->syndrome,
-                         object->tombstone,
-                         mcd_osd_lba_to_blk( object->blocks ), object->deleted,
-                         object->bucket, obj_offset, object->seqno, hwm_seqno);
-            if ( rec != orig_rec ) {
-                mcd_log_msg( 20502, PLAT_LOG_LEVEL_FATAL,
-                             "orig_rec: syn=%u, blocks=%u, del=%u, bucket=%u, "
-                             "boff=%u, ooff=%u, seq=%lu, tseq=%lu",
-                             orig_rec->syndrome,
-                             mcd_osd_lba_to_blk( orig_rec->blocks ),
-                             orig_rec->deleted, orig_rec->bucket,
-                             orig_rec->blk_offset, orig_rec->old_offset,
-                             (uint64_t) orig_rec->seqno,
-                             orig_rec->target_seqno );
-            }
-            plat_abort();
-        }
-#endif
-    }
-
-    // apply the record
-    if ( rec->blocks == 0 ) {                  // delete record
-        if ( !state->in_recovery ) {
-            if ( ! (object->bucket / Mcd_osd_bucket_size ==
-                    rec->bucket / Mcd_osd_bucket_size &&
-                    object->syndrome == rec->syndrome &&
-                    ( object->seqno == rec->target_seqno ||
-                      shard->evict_to_free )) ) {
-                mcd_log_msg( 20503, PLAT_LOG_LEVEL_FATAL,
-                             "rec: syn=%u, blocks=%u, del=%u, bucket=%u, "
-                             "boff=%u, ooff=%u, seq=%lu, tseq=%lu, obj: "
-                             "syn=%u, ts=%u, blocks=%u, del=%u, bucket=%u, "
-                             "toff=%lu, seq=%lu, hwm_seqno=%lu",
-                             rec->syndrome, mcd_osd_lba_to_blk( rec->blocks ),
-                             rec->deleted, rec->bucket, rec->blk_offset,
-                             rec->old_offset, (uint64_t) rec->seqno,
-                             rec->target_seqno,
-                             object->syndrome, object->tombstone,
-                             mcd_osd_lba_to_blk( object->blocks ),
-                             object->deleted, object->bucket, obj_offset,
-                             (uint64_t) object->seqno, hwm_seqno );
-                if ( rec != orig_rec ) {
-                    mcd_log_msg( 20502, PLAT_LOG_LEVEL_FATAL,
-                                 "orig_rec: syn=%u, blocks=%u, del=%u, "
-                                 "bucket=%u, boff=%u, ooff=%u, seq=%lu, "
-                                 "tseq=%lu",
-                                 orig_rec->syndrome,
-                                 mcd_osd_lba_to_blk( orig_rec->blocks ),
-                                 orig_rec->deleted, orig_rec->bucket,
-                                 orig_rec->blk_offset, orig_rec->old_offset,
-                                 (uint64_t) orig_rec->seqno,
-                                 orig_rec->target_seqno );
-                }
-                plat_abort();
-            }
-        }
-
-        // replicated shard has more cases
-        if ( shard->replicated ) {
-#ifdef MCD_ENABLE_TOMBSTONES
-            // cache mode: don't persist tombstones in object table (delete)
-            // store mode: delete object if hwm seqno reached
-            if ( shard->evict_to_free || rec->seqno < hwm_seqno ) {
-                delete_object( object );
-            }
-            // store mode: persist delete as tombstone (hwm seqno not reached)
-            else {
-                object->seqno     = rec->seqno;
-                object->tombstone = 1;
-                //object->blocks    = 0;  // leave blocks in place
-            }
-#endif
-        }
-        // non-replicated shard, delete the object
-        else {
-            delete_object( object );
-        }
-        applied++;
-
-    } else {                                   // put record
-        if ( !state->in_recovery ) {
-            if ( ! (object->blocks == 0 &&
-                    object->bucket == 0 &&
-                    object->syndrome == 0 &&
-                    object->tombstone == 0 &&
-                    object->seqno == 0) ) {
-                mcd_log_msg( 20503, PLAT_LOG_LEVEL_FATAL,
-                             "rec: syn=%u, blocks=%u, del=%u, bucket=%u, "
-                             "boff=%u, ooff=%u, seq=%lu, tseq=%lu, obj: "
-                             "syn=%u, ts=%u, blocks=%u, del=%u, bucket=%u, "
-                             "toff=%lu, seq=%lu, hwm_seqno=%lu",
-                             rec->syndrome, mcd_osd_lba_to_blk( rec->blocks ),
-                             rec->deleted, rec->bucket, rec->blk_offset,
-                             rec->old_offset, (uint64_t) rec->seqno,
-                             rec->target_seqno,
-                             object->syndrome, object->tombstone,
-                             mcd_osd_lba_to_blk( object->blocks ),
-                             object->deleted, object->bucket,
-                             obj_offset, (uint64_t) object->seqno, hwm_seqno );
-                if ( rec != orig_rec ) {
-                    mcd_log_msg( 20502, PLAT_LOG_LEVEL_FATAL,
-                                 "orig_rec: syn=%u, blocks=%u, del=%u, "
-                                 "bucket=%u, boff=%u, ooff=%u, seq=%lu, "
-                                 "tseq=%lu",
-                                 orig_rec->syndrome,
-                                 mcd_osd_lba_to_blk( orig_rec->blocks ),
-                                 orig_rec->deleted, orig_rec->bucket,
-                                 orig_rec->blk_offset, orig_rec->old_offset,
-                                 (uint64_t) orig_rec->seqno,
-                                 orig_rec->target_seqno );
-                }
-                plat_abort();
-            }
-        }
-        object->syndrome  = rec->syndrome;
-        object->deleted   = rec->deleted;
-        object->blocks    = rec->blocks;
-        object->bucket    = rec->bucket;
-        object->cntr_id	  = rec->cntr_id;
-        object->seqno	  = rec->seqno;
-        object->tombstone = 0;
-        applied++;
-
-        // special delete/create record has an "old_offset"
-        if ( rec->old_offset != 0 ) {
-            // copy original record
-            mod_rec = *rec;
-            rec     = &mod_rec;
-
-            // make it into a delete record and reapply it
-            rec->blk_offset = ~(rec->old_offset);
-            rec->old_offset = 0;
-            rec->blocks     = 0;
-            goto reapply;
-        }
-    }
-
-    return applied;
+	// skip dummy records
+	if ((rec->syndrome == 0)
+	and (rec->blocks == 0)
+	and (rec->bucket == 0)
+	and (rec->seqno == 0)
+	and (rec->old_offset == 0)) {
+		if ((rec->blk_offset == 0xffffffffu)
+		and (shard->cntr->cas_id < rec->target_seqno))	// special cas_id record
+			shard->cntr->cas_id = rec->target_seqno;
+		return 0;
+	}
+	// return log record address (record offset)
+	if (rec->blk_offset > *high_offset)
+		*high_offset = rec->blk_offset;
+	if (rec->blk_offset < *low_offset)
+		*low_offset = rec->blk_offset;
+	if (rec->old_offset) {
+		if (~(rec->old_offset) > *high_offset)
+			*high_offset = ~(rec->old_offset);
+		if (~(rec->old_offset) < *low_offset)
+			*low_offset = ~(rec->old_offset);
+	}
+reapply:
+	// check that record applies to this table range
+	if ((rec->blk_offset < state->start_obj)
+	or (rec->blk_offset > state->start_obj + state->num_objs - 1)) {
+		// special delete/create record has an "old_offset"
+		if (rec->old_offset) {
+			// copy original record
+			mod_rec = *rec;
+			rec	= &mod_rec;
+			// make it into a delete record and reapply it
+			rec->blk_offset = ~(rec->old_offset);
+			rec->old_offset = 0;
+			rec->blocks	= 0;
+			goto reapply;
+		}
+		// record is out of this table range
+		mcd_log_msg( 20499, PLAT_LOG_LEVEL_DEVEL, "<<<< skipping offset=%u, start=%lu, end=%lu", rec->blk_offset, state->start_obj, state->start_obj + state->num_objs - 1);
+		return applied;
+	}
+	// calculate offset to the object, in the proper segment
+	obj_offset = rec->blk_offset - state->start_obj;
+	object	= (mcd_rec_flash_object_t *) state->segments[ obj_offset / state->seg_objects ] + (obj_offset % state->seg_objects);
+	plat_assert( obj_offset / state->seg_objects < state->seg_count);
+	mcd_log_msg( 20500, MCD_REC_LOG_LVL_TRACE, "<<<< apply_log_rec: syn=%u, blocks=%u, del=%u, " "bucket=%u, boff=%u, ooff=%u, seq=%lu, tseq=%lu, " "obj: syn=%u, ts=%u, blocks=%u, bucket=%u, toff=%lu, " "seq=%lu", rec->syndrome, mcd_osd_lba_to_blk( rec->blocks), rec->deleted, rec->bucket, rec->blk_offset, (rec->old_offset == 0 ? 0 : ~(rec->old_offset)), (uint64_t) rec->seqno, rec->target_seqno, object->syndrome, object->tombstone, mcd_osd_lba_to_blk( object->blocks), object->bucket, obj_offset, (uint64_t) object->seqno);
+	if (rec != orig_rec)
+		mcd_log_msg( 20502, PLAT_LOG_LEVEL_TRACE, "orig_rec: syn=%u, blocks=%u, del=%u, bucket=%u, " "boff=%u, ooff=%u, seq=%lu, tseq=%lu", orig_rec->syndrome, mcd_osd_lba_to_blk( orig_rec->blocks), orig_rec->deleted, orig_rec->bucket, orig_rec->blk_offset, orig_rec->old_offset, (uint64_t) orig_rec->seqno, orig_rec->target_seqno);
+	// apply the record
+	if (rec->blocks == 0) {				// delete record
+		unless (state->in_recovery) {
+			unless ((object->bucket/Mcd_osd_bucket_size == rec->bucket/Mcd_osd_bucket_size)
+			and (object->syndrome == rec->syndrome)
+			and (object->seqno==rec->target_seqno || shard->evict_to_free)) {
+				mcd_log_msg( 20503, PLAT_LOG_LEVEL_FATAL, "rec: syn=%u, blocks=%u, del=%u, bucket=%u, " "boff=%u, ooff=%u, seq=%lu, tseq=%lu, obj: " "syn=%u, ts=%u, blocks=%u, del=%u, bucket=%u, " "toff=%lu, seq=%lu, hwm_seqno=%lu", rec->syndrome, mcd_osd_lba_to_blk( rec->blocks), rec->deleted, rec->bucket, rec->blk_offset, rec->old_offset, (uint64_t) rec->seqno, rec->target_seqno, object->syndrome, object->tombstone, mcd_osd_lba_to_blk( object->blocks), object->deleted, object->bucket, obj_offset, (uint64_t) object->seqno, 0uL);
+				if (rec != orig_rec)
+					mcd_log_msg( 20502, PLAT_LOG_LEVEL_FATAL, "orig_rec: syn=%u, blocks=%u, del=%u, " "bucket=%u, boff=%u, ooff=%u, seq=%lu, " "tseq=%lu", orig_rec->syndrome, mcd_osd_lba_to_blk( orig_rec->blocks), orig_rec->deleted, orig_rec->bucket, orig_rec->blk_offset, orig_rec->old_offset, (uint64_t) orig_rec->seqno, orig_rec->target_seqno);
+				plat_abort();
+			}
+		}
+		unless (shard->replicated)		// non-replicated shard, delete the object
+			delete_object( object);
+		applied++;
+	}
+	else {						// put record
+		unless (state->in_recovery) {
+			unless ((object->blocks == 0)
+			and (object->bucket == 0)
+			and (object->syndrome == 0)
+			and (object->tombstone == 0)
+			and (object->seqno == 0)) {
+				mcd_log_msg( 20503, PLAT_LOG_LEVEL_FATAL, "rec: syn=%u, blocks=%u, del=%u, bucket=%u, " "boff=%u, ooff=%u, seq=%lu, tseq=%lu, obj: " "syn=%u, ts=%u, blocks=%u, del=%u, bucket=%u, " "toff=%lu, seq=%lu, hwm_seqno=%lu", rec->syndrome, mcd_osd_lba_to_blk( rec->blocks), rec->deleted, rec->bucket, rec->blk_offset, rec->old_offset, (uint64_t) rec->seqno, rec->target_seqno, object->syndrome, object->tombstone, mcd_osd_lba_to_blk( object->blocks), object->deleted, object->bucket, obj_offset, (uint64_t) object->seqno, 0uL);
+				if (rec != orig_rec)
+					mcd_log_msg( 20502, PLAT_LOG_LEVEL_FATAL, "orig_rec: syn=%u, blocks=%u, del=%u, " "bucket=%u, boff=%u, ooff=%u, seq=%lu, " "tseq=%lu", orig_rec->syndrome, mcd_osd_lba_to_blk( orig_rec->blocks), orig_rec->deleted, orig_rec->bucket, orig_rec->blk_offset, orig_rec->old_offset, (uint64_t) orig_rec->seqno, orig_rec->target_seqno);
+				plat_abort();
+			}
+		}
+		object->syndrome  = rec->syndrome;
+		object->deleted   = rec->deleted;
+		object->blocks	= rec->blocks;
+		object->bucket	= rec->bucket;
+		object->cntr_id	 = rec->cntr_id;
+		object->seqno	 = rec->seqno;
+		object->tombstone = 0;
+		applied++;
+		// special delete/create record has an "old_offset"
+		if (rec->old_offset) {
+			// copy original record
+			mod_rec = *rec;
+			rec	= &mod_rec;
+			// make it into a delete record and reapply it
+			rec->blk_offset = ~(rec->old_offset);
+			rec->old_offset = 0;
+			rec->blocks	= 0;
+			goto reapply;
+		}
+	}
+	return applied;
 }
+
+
+
+/*
+ * Free trx resources.  Must be called after applying a log.  Errors may
+ * be deemed fatal, or not.
+ */
+static void
+apply_log_record_cleanup( mcd_rec_obj_state_t *state)
+{
+
+	switch (state->trxstatus) {
+	case TRX_REC_NOMEM:
+		mcd_log_msg( 170007, PLAT_LOG_LEVEL_FATAL, "TRX cannot be applied due to insufficient memory");
+		plat_abort( );
+		break;
+	case TRX_REC_OVERFLOW:
+		mcd_log_msg( 170008, PLAT_LOG_LEVEL_FATAL, "TRX too big to apply");
+		plat_abort( );
+		break;
+	case TRX_REC_BAD_SEQ:
+		mcd_log_msg( 170009, PLAT_LOG_LEVEL_ERROR, "TRX sequence anomaly");
+	}
+	if (state->trxbuf)
+		plat_free( state->trxbuf);
+	state->trxbuf = 0;
+	state->trxnum = 0;
+	state->trxstatus = TRX_REC_OKAY;
+}
+
+
+/*
+ * Gather complete transactions.  If 'trxfailed' is set then a botched
+ * transaction is being discarded.  Otherwise, a successful transaction is
+ * being accumulated if 'trxbuf' is set.  Transactions will only be applied
+ * if the TRX_OP_LAST record is reached successfully.
+ */
+static int
+apply_log_record( mcd_osd_shard_t *shard, char *data, mcd_rec_obj_state_t *state, uint64_t *high_offset, uint64_t *low_offset)
+{
+	uint	i;
+
+	mcd_logrec_object_t *rec = (mcd_logrec_object_t *)data;
+	uint a = 0;
+	switch (rec->trx) {
+	case TRX_OP:
+		unless (state->trxstatus == TRX_REC_OKAY)
+			break;
+		unless ((state->trxbuf)
+		or (state->trxbuf = plat_alloc( TRX_LIMIT*sizeof( *state->trxbuf)))) {
+			state->trxstatus = TRX_REC_NOMEM;
+			break;
+		}
+		if (state->trxnum < TRX_LIMIT)
+			state->trxbuf[state->trxnum++] = *rec;
+		else
+			state->trxstatus = TRX_REC_OVERFLOW;
+		break;
+	case TRX_OP_LAST:
+		unless (state->trxstatus == TRX_REC_OKAY) {
+			apply_log_record_cleanup( state);
+			break;
+		}
+		if (state->trxbuf) {
+			for (i=0; i<state->trxnum; ++i)
+				a += apply_log_record_internal( shard, &state->trxbuf[i], state, high_offset, low_offset);
+			apply_log_record_cleanup( state);
+		}
+		a += apply_log_record_internal( shard, rec, state, high_offset, low_offset);
+		break;
+	default:
+		unless (state->trxstatus == TRX_REC_OKAY)
+			apply_log_record_cleanup( state);
+		else if (state->trxbuf) {
+			state->trxstatus = TRX_REC_BAD_SEQ;
+			apply_log_record_cleanup( state);
+		}
+		a += apply_log_record_internal( shard, rec, state, high_offset, low_offset);
+	}
+	return (a);
+}
+
 
 int
 read_log_segment( void * context, int segment, mcd_osd_shard_t * shard,
@@ -4285,6 +4231,7 @@ process_log( void * context, mcd_osd_shard_t * shard,
             }
         }
     }
+    apply_log_record_cleanup( state);
 
     plat_assert_always( blk_count == log_state->num_blks || end_of_log );
 
@@ -6380,9 +6327,6 @@ flog_persist(mcd_osd_shard_t *shard,
         fdatasync(shard->flush_fd);
 }
 
-
-#include	"utils/rico.h"
-
 static bool	trx_in_progress( mcd_osd_shard_t *, mcd_logrec_object_t *);
 
 static void
@@ -6400,7 +6344,7 @@ log_flush_internal( mcd_rec_logbuf_t *logbuf, uint buf_offset)
 }
 
 
-void
+static void
 log_write_internal( mcd_osd_shard_t *s, mcd_logrec_object_t *lr)
 {
 	uint64_t	slot_seqno;
@@ -6451,6 +6395,7 @@ log_write( mcd_osd_shard_t *s, mcd_logrec_object_t *lr)
 
 	if (trx_in_progress( s, lr))
 		return;
+	lr->trx = 0;
 	fthWaitEl_t *w = fthLock( &s->log->sync_fill_lock, 1, NULL);
 	log_write_internal( s, lr);
 	fthUnlock( w);
@@ -7650,17 +7595,14 @@ mcd_rec_attach_test( int testcmd, int test_arg )
 
 
 /*
- * mini-transaction support
- *
- * Outstanding issues and considerations:
- * (3) need to support multiple failure returns
+ * mini-transaction section
  */
 
 #include	"mcd_trx.h"
 
 struct mcd_trx_state {
 	mcd_osd_shard_t		*s;
-	mcd_logrec_object_t	lrtab[100000];
+	mcd_logrec_object_t	lrtab[TRX_LIMIT];
 	uint			n;
 	mcd_trx_t		status;
 	uint64_t		id;
@@ -7701,12 +7643,12 @@ mcd_trx_start( )
  * commit transaction in progress
  *
  * Callable from FDF top-level.  On return, thread's transaction has been
- * committed to persistent storage.  To maximize crash consistency, the
+ * committed to persistent storage.  To achieve crash consistency, the
  * transaction will not span the two logs: this possibility is detected, and
  * avoided by padding the remaindered log with no-op entries (CAS type).
  *
- * Returns FALSE if transaction limit was exceeded, transaction referenced
- * multiple (physical) shards, or no transaction active.
+ * Fails if transaction limit was exceeded, transaction referenced multiple
+ * (physical) shards, or no transaction active.
  */
 mcd_trx_t
 mcd_trx_commit( )
@@ -7731,8 +7673,12 @@ mcd_trx_commit( )
 					log_write_internal( trx->s, &z);
 			}
 		}
-		for (i=0; i<trx->n; ++i)
+		for (i=0; i<trx->n-1; ++i) {
+			trx->lrtab[i].trx = TRX_OP;
 			log_write_internal( trx->s, &trx->lrtab[i]);
+		}
+		trx->lrtab[i].trx = TRX_OP_LAST;
+		log_write_internal( trx->s, &trx->lrtab[i]);		/* comment out for fault injection */
 		fthUnlock( w);
 		mcd_trx_stats.operations += trx->n;
 	}
