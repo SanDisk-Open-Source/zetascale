@@ -51,4 +51,9 @@
         plat_exit(1);                   \
     } while (0) 
 
+#define ignore(s)   \
+    do {            \
+        if (s);     \
+    } while(0)
+
 #endif /* MSG_SDFINCL_H */

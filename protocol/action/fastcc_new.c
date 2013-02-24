@@ -2561,7 +2561,6 @@ int SDFNewCacheGetByBlockAddr(SDFNewCache_t *pc,
 			 PLAT_LOG_CAT_SDF_CC, 
 			 PLAT_LOG_LEVEL_ERROR,
 			 "failed to allocate key buffer");
-	    ret = 1;
 	} else {
 	    pdata = (char *) malloc(pce->obj_size);
 	    if (pdata == NULL) {
@@ -2570,7 +2569,6 @@ int SDFNewCacheGetByBlockAddr(SDFNewCache_t *pc,
 			     PLAT_LOG_LEVEL_ERROR,
 			     "failed to allocate data buffer");
 	        free(pkey);
-		ret = 1;
 	    } else {
 		(void) SDFNewCacheCopyKeyOutofObject(pc, pkey, pce);
 		SDFNewCacheCopyOutofObject(pc, pdata, pce, pce->obj_size);
@@ -2578,10 +2576,9 @@ int SDFNewCacheGetByBlockAddr(SDFNewCache_t *pc,
 		*key_len  = pce->key_len;
 		*data     = pdata;
 		*data_len = pce->obj_size;
+	        ret = 1;
 	    }
 	}
-    } else {
-        ret = 1;
     }
     CacheUnlock(ps->lock, ps->lock_wait);
     return(ret);

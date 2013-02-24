@@ -92,11 +92,14 @@ FDFNextEnumeratedObject(struct FDF_thread_state *ts,
 	                uint64_t   *datalen)
 {
     FDF_status_t s;
+    uint64_t keylen64;
     SDF_action_init_t *pai = (SDF_action_init_t *) ts;
     
-    s = enumerate_next(pai, iter, key, keylen, data, datalen);
-    if (s)
+    s = enumerate_next(pai, iter, key, &keylen64, data, datalen);
+    if (s != FDF_SUCCESS)
         return s;
+
+    *keylen = keylen64;
     return FDF_SUCCESS;
 }
 

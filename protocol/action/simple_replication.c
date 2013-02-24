@@ -4147,7 +4147,7 @@ static SDF_status_t rpc_get_iteration_cursors(SDF_action_state_t *pas, SDF_conte
     struct sdf_msg * recv_msg;
     SDF_protocol_msg_t * recv_pm;
     struct sdf_msg * sdf_msg;
-    SDF_size_t message_size;
+    SDF_size_t message_size = 0;
 
     SDF_status_t error;
     int rc;

@@ -1244,7 +1244,7 @@ exit_task(void)
     for (p = V.tasks, n = V.init.nthreads; n--; p++)
         p->run = 0;
     barrier();
-    if (write(V.wake_work[1], "", 1)) {}
+    ignore(write(V.wake_work[1], "", 1));
 
     for (p = V.tasks, n = V.init.nthreads; n--; p++) {
         if (p != V.tasks)
@@ -5288,7 +5288,7 @@ ready_nb(int fd, int events, int usecs)
 void
 msg_wake(void)
 {
-    if (write(V.wake_main[1], "", 1)) {}
+    ignore(write(V.wake_main[1], "", 1));
 }
 
 

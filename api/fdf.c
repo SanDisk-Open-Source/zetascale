@@ -70,9 +70,6 @@ char *FDF_Status_Strings[] = {
 FDF_status_t cguid_to_shard(SDF_action_init_t *pai, FDF_cguid_t cguid,
                             shard_t **shard_ptr);
 
-/* From recovery.c */
-void set_cntr_sizes(SDF_action_init_t *pai, shard_t *shard);
-
 
 /*
 ** Externals
@@ -296,6 +293,12 @@ fdf_stats_info_t fdf_stats_access_type[] = {
     {
         "ENUM_OBJECTS",
         "objects_enumerated",
+        FDF_STATS_TYPE_APP_REQ,
+    },
+
+    {
+        "ENUM_CACHED_OBJECTS",
+        "cached_objects_enumerated",
         FDF_STATS_TYPE_APP_REQ,
     },
 };
@@ -719,7 +722,7 @@ inc_cntr_map(cntr_id_t cntr_id, int64_t objs, int64_t size)
 {
     ctnr_map_t *cmap = get_cntr_map(cntr_id);
     if (!cmap) {
-        sdf_loge(PLII, "bad container: %d", cntr_id);
+        sdf_loge(70114, "bad container: %d", cntr_id);
         //FIXME: uncomment next line when Darryl fixes initialization problems
         //return FDF_CONTAINER_UNKNOWN;
         return FDF_SUCCESS;
@@ -736,12 +739,12 @@ inc_cntr_map(cntr_id_t cntr_id, int64_t objs, int64_t size)
     rel_cntr_map(cmap);
 
     if (t_objs < 0) {
-        sdf_loge(PLII, "container %d would have %ld objects", cntr_id, objs);
+        sdf_loge(70115, "container %d would have %ld objects", cntr_id, objs);
         return FDF_FAILURE_CONTAINER_GENERIC;
     }
 
     if (t_size < 0) {
-        sdf_loge(PLII, "container %d would have a size of %ld bytes",
+        sdf_loge(70116, "container %d would have a size of %ld bytes",
                  cntr_id, size);
         return FDF_FAILURE_CONTAINER_GENERIC;
     }
@@ -3295,9 +3298,10 @@ static void get_fdf_stats( SDF_internal_ctxt_t *pai, char ** ppos, int * lenp,
     uint64_t *p = stat->n_accesses;
 
     enumerate_stats(&e);
-    p[FDF_ACCESS_TYPES_ENUM_TOTAL]   = e.num_total;
-    p[FDF_ACCESS_TYPES_ENUM_ACTIVE]  = e.num_active;
-    p[FDF_ACCESS_TYPES_ENUM_OBJECTS] = e.num_objects;
+    p[FDF_ACCESS_TYPES_ENUM_TOTAL]          = e.num_total;
+    p[FDF_ACCESS_TYPES_ENUM_ACTIVE]         = e.num_active;
+    p[FDF_ACCESS_TYPES_ENUM_OBJECTS]        = e.num_objects;
+    p[FDF_ACCESS_TYPES_ENUM_CACHED_OBJECTS] = e.num_cached_objects;
 }
 static void get_proc_stats( char ** ppos, int * lenp )
 {

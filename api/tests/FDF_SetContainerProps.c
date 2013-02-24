@@ -313,7 +313,7 @@ int FDFSetContainerProps_SetMore2()
 {
     FDF_status_t           ret = FDF_SUCCESS;
     FDF_cguid_t            cguid;
-    int                    flag ;
+    int                    flag = 0;
     FDF_boolean_t          async[2] = {1,0};
     FDF_durability_level_t durability[] = {0,1,2};
     uint32_t               size[] = {1024*1025,1024*1026,1048577};

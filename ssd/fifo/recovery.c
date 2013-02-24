@@ -21,22 +21,15 @@
 #include <time.h>
 #include <ctype.h>
 #include <libaio.h>
-#include "mcd_bak.h"
 #include "mcd_osd.h"
 #include "utils/hash.h"
-#include "fth/fthSem.h"
 #include "ssd/ssd_aio.h"
-#include "mcd_aio.h"
-#include "fth/fthMbox.h"
-#include "sdf_internal.h"
+#include "flash/flash.h"
 #include "sdftcp/locks.h"
 #include "sdftcp/trace.h"
-#include "shared/private.h"
 #include "utils/properties.h"
-#include "mcd_aio_internal.h"
-#include "protocol/protocol_common.h"
 #include "protocol/action/recovery.h"
-#include "shared/internal_blk_obj_api.h"
+#include "protocol/action/action_new.h"
 #include "protocol/replication/key_lock.h"
 
 
@@ -60,7 +53,6 @@
  */
 #define BMAP_BITS      (8 * sizeof(bitmap_t))
 #define MOBJ_MAGIC     0xface
-#define HASH_SYN_SHIFT 48
 #define FAKE_KLOCK     (klock_t)1
 
 
@@ -601,14 +593,21 @@ typedef struct {
 /*
  * Variables used by enumeration.
  *
- *  num_total   - Total enumerations started.
- *  num_active  - Number of active enumerations.
- *  num_objects - Number of objects enumerated.
+ *  stats  - Enumeration statistics.
  *
  */
 typedef struct {
     enum_stats_t stats;
 } enum_var_t;
+
+
+/*
+ * Enumeration hash entry information.
+ */
+typedef struct {
+    mo_hash_t h;
+    uint64_t  index;
+} e_hash_t;
 
 
 /*
@@ -619,7 +618,7 @@ typedef struct FDF_iterator {
     FDF_cguid_t cguid;
     void       *data_buf_alloc;
     void       *data_buf_align;
-    mo_hash_t  *hash_buf;
+    e_hash_t   *hash_buf;
     uint64_t    hash_buf_i;
     uint64_t    hash_buf_n;
     uint64_t    hash_lock_i;
@@ -644,9 +643,9 @@ static enum_var_t EV;
 /*
  * Static function for linkage.
  */
-static int  ctr_copy(vnode_t rank, struct shard *shard, pai_t *pai);
+static int  ctr_copy(vnode_t rank, shard_t *sshard, pai_t *pai);
 static void nop_fill(sdf_hfnop_t *nop);
-static void prep_del(vnode_t rank, struct shard *shard);
+static void prep_del(vnode_t rank, shard_t *sshard);
 static void msg_recv(sdf_msg_t *req_msg, pai_t *pai, pas_t *pas,
                      flash_t *flash);
 
@@ -2017,7 +2016,7 @@ obj_valid(mo_shard_t *shard, mo_meta_t *meta, addr_t addr)
     int n;
     uchar_t        *key = (void *) &meta[1];
     uint64_t   syndrome = hash(key, meta->key_len, 0);
-    uint16_t        syn = syndrome >> HASH_SYN_SHIFT;
+    hashsyn_t   hashsyn = syndrome >> OSD_HASH_SYN_SHIFT;
     uint64_t         hi = syndrome % shard->hash_size;
     mo_bucket_t *bucket = &shard->hash_buckets[hi / Mcd_osd_bucket_size];
     mo_hash_t     *hash = &shard->hash_table[hi & Mcd_osd_bucket_mask];
@@ -2025,7 +2024,7 @@ obj_valid(mo_shard_t *shard, mo_meta_t *meta, addr_t addr)
     wait_t        *wait = fthLock(lock, 0, NULL);
 
     for (n = bucket->next_item; n--; hash++) {
-        if (hash->syndrome != syn)
+        if (hash->syndrome != hashsyn)
             continue;
         if (hash->address != addr)
             continue;
@@ -2038,7 +2037,7 @@ obj_valid(mo_shard_t *shard, mo_meta_t *meta, addr_t addr)
     n = Mcd_osd_overflow_depth;
     hash = &shard->overflow_table[hi/shard->lock_bktsize * n];
     for (; n--; hash++) {
-        if (hash->syndrome != syn)
+        if (hash->syndrome != hashsyn)
             continue;
         if (hash->address != addr)
             continue;
@@ -3016,7 +3015,7 @@ coal_puthash(rec_t *rec)
     uint_t    hash_blks = v->hash_blks;
     blkno_t       blkno = v->blkno;
     uint64_t   syndrome = v->syndrome;
-    uint16_t        syn = syndrome >> HASH_SYN_SHIFT;
+    hashsyn_t   hashsyn = syndrome >> OSD_HASH_SYN_SHIFT;
     mo_bucket_t *bucket = &shard->hash_buckets[hash_off / Mcd_osd_bucket_size];
     mo_hash_t     *hash = &shard->hash_table[hash_off & Mcd_osd_bucket_mask];
 
@@ -3026,7 +3025,7 @@ coal_puthash(rec_t *rec)
     }
 
     for (n = bucket->next_item, h = hash; n--; h++) {
-        if (h->syndrome == syn) {
+        if (h->syndrome == hashsyn) {
             atomic_inc(RV.stats.num_m_clashed);
             return 0;
         }
@@ -3040,7 +3039,7 @@ coal_puthash(rec_t *rec)
     /* Write out log entry */
     if (shard->persistent) {
         mcd_logrec_object_t log ={
-            .syndrome   = syn,
+            .syndrome   = hashsyn,
             .blocks     = hash_blks,
             .bucket     = hash_off,
             .blk_offset = blkno,
@@ -3055,7 +3054,7 @@ coal_puthash(rec_t *rec)
             .used       = 1,
             .referenced = 1,
             .blocks     = hash_blks,
-            .syndrome   = syn,
+            .syndrome   = hashsyn,
             .address    = blkno,
         };
         *h = new;
@@ -4024,9 +4023,9 @@ rec_done(rec_t *rec)
  * Initialise recovery information.
  */
 static void
-rec_init(rec_t *rec, pai_t *pai, vnode_t rank, struct shard *s, sect_t *sect)
+rec_init(rec_t *rec, pai_t *pai, vnode_t rank, shard_t *sshard, sect_t *sect)
 {
-    mo_shard_t *shard = (mo_shard_t *) s;
+    mo_shard_t *shard = (mo_shard_t *) sshard;
     uint_t   map_size = bit_bytes(shard->hash_size / Mcd_osd_bucket_size);
     uint_t group_size = (RV.l2_max_slab_blks+1) * sizeof(obj_group_t);
 
@@ -4053,7 +4052,7 @@ rec_init(rec_t *rec, pai_t *pai, vnode_t rank, struct shard *s, sect_t *sect)
  * indicator.
  */
 static int
-ctr_copy(vnode_t rank, struct shard *shardx, pai_t *pai)
+ctr_copy(vnode_t rank, shard_t *sshard, pai_t *pai)
 {
     rec_t rec;
     mrep_bmap_t *mrep_bmap;
@@ -4065,7 +4064,7 @@ ctr_copy(vnode_t rank, struct shard *shardx, pai_t *pai)
         return -1;
     sdf_logi(70001, "using fast recovery");
 
-    rec_init(&rec, pai, rank, shardx, &sect);
+    rec_init(&rec, pai, rank, sshard, &sect);
     msg_mrep_bmap = get_remote_bmap(&rec);
     if (!msg_mrep_bmap)
         goto err;
@@ -4106,14 +4105,14 @@ err:
  * outstanding deletes are written on both sides.
  */
 static void
-prep_del(vnode_t rank, struct shard *shard)
+prep_del(vnode_t rank, shard_t *sshard)
 {
     cntr_t *cntr;
     setx_t  mdel;
     wait_t *wait;
     sur_t sur ={
         .rank  = rank,
-        .shard = (mo_shard_t *) shard,
+        .shard = (mo_shard_t *) sshard,
     };
 
     wait = cntr_lock(&sur, 0);
@@ -4242,6 +4241,44 @@ qrecovery_init(void)
 
 
 /*
+ * Compute the cache hash given a hash index.
+ */
+static chash_t
+chash_index(mo_shard_t *shard, uint64_t hashi, hashsyn_t hashsyn)
+{
+    uint64_t bkti_l2 = (hashi / Mcd_osd_bucket_size) & shard->bkti_l2_mask;
+    return (bkti_l2 << OSD_HASH_SYN_SIZE) | hashsyn;
+}
+
+
+/*
+ * Compute the cache hash given a key and length.
+ */
+chash_t
+chash_key(shard_t *sshard, SDF_cguid_t cguid, char *key, uint64_t keylen)
+{
+    mo_shard_t *shard = (mo_shard_t *) sshard;
+    uint64_t syndrome = hash((unsigned char *) key, keylen, 0);
+    hashsyn_t hashsyn = syndrome >> OSD_HASH_SYN_SHIFT;
+    uint64_t    hashi = syndrome % shard->hash_size;
+
+    return chash_index(shard, hashi, hashsyn);
+}
+
+
+/*
+ * Return the number of bits of a syndrome that we can piece together given a
+ * hash entry.  This is the number of bits used by the cache hashing function.
+ */
+int
+chash_bits(shard_t *sshard)
+{
+    mo_shard_t *shard = (mo_shard_t *) sshard;
+    return shard->bkti_l2_size + OSD_HASH_SYN_SIZE;
+}
+
+
+/*
  * Unencode a block count stored in a hash entry.
  */
 static inline uint64_t
@@ -4267,7 +4304,7 @@ enumerate_stats(enum_stats_t *s)
  * Given a data block, extract the key and data and return it.
  */
 static FDF_status_t
-e_extr_obj(e_state_t *es, time_t now, char **key, uint32_t *keylen,
+e_extr_obj(e_state_t *es, time_t now, char **key, uint64_t *keylen,
 	   char **data, uint64_t  *datalen)
 {
     mo_meta_t     *meta = (mo_meta_t *) es->data_buf_align;
@@ -4320,6 +4357,17 @@ e_enum_error(e_state_t *es)
 
 
 /*
+ * Copy a hash entry.
+ */
+static inline void
+copyhash(mo_shard_t *shard, e_hash_t *ehash, mo_hash_t *hash)
+{
+    ehash->h = *hash;
+    ehash->index = hash - shard->hash_table;
+}
+
+
+/*
  * Fill our internal hash buffer with hash entries from all buckets and
  * overflow entries within a given lock that correspond to the container we are
  * interested in.  When called, we should always have enough room to fill the
@@ -4346,7 +4394,7 @@ e_hash_fill(pai_t *pai, e_state_t *es, int lock_i)
             if (hash->cntr_id != cntr_id)
                 continue;
             if (es->hash_buf_i < es->hash_buf_n)
-                es->hash_buf[es->hash_buf_i++] = *hash;
+                copyhash(shard, &es->hash_buf[es->hash_buf_i++], hash);
             else {
                 e_enum_error(es);
                 break;
@@ -4359,7 +4407,7 @@ e_hash_fill(pai_t *pai, e_state_t *es, int lock_i)
         if (hash->cntr_id != cntr_id)
             continue;
         if (es->hash_buf_i < es->hash_buf_n)
-            es->hash_buf[es->hash_buf_i++] = *hash;
+            copyhash(shard, &es->hash_buf[es->hash_buf_i++], hash);
         else {
             e_enum_error(es);
             break;
@@ -4374,7 +4422,7 @@ e_hash_fill(pai_t *pai, e_state_t *es, int lock_i)
  * Return the next enumerated object in a container.
  */
 FDF_status_t
-enumerate_next(pai_t *pai, e_state_t *es, char **key, uint32_t *keylen,
+enumerate_next(pai_t *pai, e_state_t *es, char **key, uint64_t *keylen,
 	       char **data, uint64_t  *datalen)
 {
     time_t        now = time(NULL);
@@ -4388,9 +4436,20 @@ enumerate_next(pai_t *pai, e_state_t *es, char **key, uint32_t *keylen,
             e_hash_fill(pai, es, es->hash_lock_i++); }
 
         int s;
-        mo_hash_t *hash = &es->hash_buf[--es->hash_buf_i];
+        e_hash_t *ehash = &es->hash_buf[--es->hash_buf_i];
+        mo_hash_t *hash = &ehash->h;
         if (!hash->used || hash->cntr_id != cntr_id)
             continue;
+
+        chash_t chash = chash_index(shard, ehash->index, hash->syndrome);
+        s = cache_get_by_addr(pai, (shard_t *) es->shard, cntr_id,
+                              hash->address, chash, key, keylen,
+                              data, datalen);
+        if (s) {
+            atomic_inc(EV.stats.num_objects);
+            atomic_inc(EV.stats.num_cached_objects);
+            return FDF_SUCCESS;
+        }
 
         uint64_t nb = lba_to_blk(hash->blocks);
         if (nb > MCD_OSD_SEGMENT_BLKS)
@@ -4420,7 +4479,7 @@ FDF_status_t
 enumerate_done(pai_t *pai, e_state_t *es)
 {
     atomic_dec(EV.stats.num_active);
-    sdf_logd(PLII, "enumeration ended for container %ld", es->cguid);
+    sdf_logd(70117, "enumeration ended for container %ld", es->cguid);
 
     if (es->data_buf_alloc)
         plat_free(es->data_buf_alloc);
@@ -4448,10 +4507,9 @@ e_init_fail(pai_t *pai, e_state_t *es)
  * Prepare for the enumeration of all objects in a container.
  */
 FDF_status_t
-enumerate_init(pai_t *pai, struct shard *shard_arg,
-               FDF_cguid_t cguid, e_state_t **esp)
+enumerate_init(pai_t *pai, shard_t *sshard, FDF_cguid_t cguid, e_state_t **esp)
 {
-    mo_shard_t *shard = (mo_shard_t *) shard_arg;
+    mo_shard_t *shard = (mo_shard_t *) sshard;
 
     e_state_t *es = plat_malloc(sizeof(*es));
     if (!es)
@@ -4486,14 +4544,14 @@ enumerate_init(pai_t *pai, struct shard *shard_arg,
  * each of the containers.
  */
 void
-set_cntr_sizes(pai_t *pai, shard_t *shard_arg)
+set_cntr_sizes(pai_t *pai, shard_t *sshard)
 {
     typedef struct {
         uint64_t bytes;
         uint64_t objects;
     } info_t;
     uint64_t n;
-    mo_shard_t *shard = (mo_shard_t *) shard_arg;
+    mo_shard_t *shard = (mo_shard_t *) sshard;
 
     if (sizeof(cntr_id_t) != 2)
         fatal("sizeof cntr_id must be 2");
@@ -4526,14 +4584,14 @@ set_cntr_sizes(pai_t *pai, shard_t *shard_arg)
         uint64_t size;
         char name[256];
         if (!get_cntr_info(n, name, sizeof(name), &objs, &used, &size))
-            sdf_loge(PLII, "Failed on get_cntr_info for container %ld", n);
+            sdf_loge(70118, "Failed on get_cntr_info for container %ld", n);
         else {
             if (size) {
-                sdf_logi(PLII, "Container %s: id=%ld objs=%ld used=%ld"
-                               " size=%ld full=%.1f%%",
+                sdf_logi(70119, "Container %s: id=%ld objs=%ld used=%ld"
+                                " size=%ld full=%.1f%%",
                          name, n, objs, used, size, used*100.0/size);
             } else {
-                sdf_logi(PLII, "Container %s: id=%ld objs=%ld used=%ld",
+                sdf_logi(70120, "Container %s: id=%ld objs=%ld used=%ld",
                          name, n, objs, used);
             }
         }

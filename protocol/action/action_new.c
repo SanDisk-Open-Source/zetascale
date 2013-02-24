@@ -73,35 +73,6 @@
      */
 // #define INCLUDE_TRACE_CODE
 
-//-----------------------------------------------------------
-// temporary stuff for testing cache_get_by_addr()!!!
-
-/*
- * Compute the cache hash entry given a key and length.
- * Johann to write.
- */
-static chash_t
-chash(struct shard *shard, SDF_cguid_t cguid, char *key, uint64_t key_len)
-{
-    uint64_t   syndrome;
-
-    syndrome = hash((const unsigned char *) key, key_len, 0);
-    return(syndrome);
-}
-
-
-/*
- * Return the number of bits that a cache hash entry makes use of.
- * Johann to write.
- */
-static int
-chash_bits(struct shard *shard)
-{
-    return(64);
-}
-
-// end of temporary stuff!!
-//-----------------------------------------------------------
 
 //  for stats collection
 #define incr(x) __sync_fetch_and_add(&(x), 1)
@@ -4486,7 +4457,12 @@ static uint64_t hash_fn(void *hash_arg, SDF_cguid_t cguid, char *key, uint64_t k
 {
     uint64_t syndrome;
 
-    syndrome = chash(get_preloaded_cache_ctnr_meta((SDF_action_state_t *) hash_arg, cguid)->pshard, cguid, key, key_len);
+    // Brian seems to be adding one to the key length; should probably be fixed
+    // somewhere else.
+    if (key_len > 0)
+        key_len--;
+
+    syndrome = chash_key(get_preloaded_cache_ctnr_meta((SDF_action_state_t *) hash_arg, cguid)->pshard, cguid, key, key_len);
     return(syndrome);
 }
 
@@ -6525,7 +6501,6 @@ int cache_get_by_addr(SDF_action_init_t *pai,
 		      SDF_cguid_t cguid,
 		      baddr_t baddr,
 		      chash_t chash,
-		      struct objMetaData *meta,
 		      char **key,
 		      uint64_t *key_len,
 		      char **data,

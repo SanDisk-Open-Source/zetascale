@@ -14,6 +14,7 @@
 #define _ACTION_NEW_H
 
 #include "sdfmsg/sdf_fth_mbx.h"
+#include "protocol/action/action_thread.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -113,7 +114,6 @@ cache_get_by_addr(SDF_action_init_t *pai,
                   SDF_cguid_t cguid,
                   baddr_t baddr,
                   chash_t chash,
-                  struct objMetaData *meta,
                   char **key,
                   uint64_t *key_len,
                   char **data,

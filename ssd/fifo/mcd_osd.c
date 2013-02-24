@@ -1446,6 +1446,23 @@ SDF_status_t mcd_fth_container_init( void * pai, int system_recovery, int tcp_po
 }
 
 
+/*
+ * Return the number of bits in a integer rounded down.
+ */
+static int
+log2i(uint64_t n)
+{
+    int l = 0;
+
+    n >>= 1;
+    while (n) {
+        l++;
+        n >>= 1;
+    }
+    return l;
+}
+
+
 static int
 mcd_osd_fifo_shard_init( mcd_osd_shard_t * shard, uint64_t shard_id,
                          int flags, uint64_t quota, unsigned max_nobjs )
@@ -1551,6 +1568,13 @@ mcd_osd_fifo_shard_init( mcd_osd_shard_t * shard, uint64_t shard_id,
         shard->hash_size = ( max_nobjs + Mcd_osd_segment_blks - 1 )
             / Mcd_osd_segment_blks * Mcd_osd_segment_blks;
     }
+
+    /*
+     * Calculate the number of bits of the syndrome we can piece together from
+     * a hash index.
+     */
+    shard->bkti_l2_size = log2i(shard->hash_size / Mcd_osd_bucket_size);
+    shard->bkti_l2_mask = (1 << shard->bkti_l2_size) - 1;
 
     /*
      * allocate the bucket table
@@ -3258,6 +3282,13 @@ mcd_osd_slab_shard_init( mcd_osd_shard_t * shard, uint64_t shard_id,
     }
 
     /*
+     * Calculate the number of bits of the syndrome we can piece together from
+     * a hash index.
+     */
+    shard->bkti_l2_size = log2i(shard->hash_size / Mcd_osd_bucket_size);
+    shard->bkti_l2_mask = (1 << shard->bkti_l2_size) - 1;
+
+    /*
      * initialize the address lookup table
      */
     shard->addr_table = (uint32_t *)
@@ -4671,6 +4702,7 @@ mcd_fth_osd_slab_set( void * context, mcd_osd_shard_t * shard, char * key,
                 (void) __sync_fetch_and_add( &shard->num_deletes, 1 );
 
                 rc = FLASH_EOK;
+                meta_data->blockaddr = hash_entry->address;
                 goto out;
             }
 
@@ -5135,6 +5167,7 @@ mcd_fth_osd_slab_set( void * context, mcd_osd_shard_t * shard, char * key,
     shard->addr_table[blk_offset] = hash_entry - shard->hash_table;
     (void) __sync_fetch_and_add( &shard->blk_consumed,
                                  mcd_osd_lba_to_blk( new_entry.blocks ) );
+    meta_data->blockaddr = new_entry.address;
 
 out:
     if ( dyn_buffer ) {
@@ -5337,6 +5370,7 @@ mcd_fth_osd_slab_get( void * context, mcd_osd_shard_t * shard, char *key,
              * ok only an existence check
              */
             mcd_fth_osd_slab_free( data_buf );
+            meta_data->blockaddr = hash_entry->address;
             return FLASH_EOK;
         }
 
@@ -5377,6 +5411,7 @@ mcd_fth_osd_slab_get( void * context, mcd_osd_shard_t * shard, char *key,
         memmove( data_buf, buf + sizeof(mcd_osd_meta_t) + meta->key_len,
                  meta->data_len );
 
+        meta_data->blockaddr = hash_entry->address;
         return FLASH_EOK;
     }
 

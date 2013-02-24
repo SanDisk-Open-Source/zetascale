@@ -24,6 +24,23 @@ extern "C" {
 
 
 #define STATS_BUFFER_SIZE 1024
+
+
+/*
+ * Statistics returned from enumeration.
+ *  num_total          - Total enumerations completed.
+ *  num_active         - Active enumerations.
+ *  num_cached         - Number of objects enumerated.
+ *  num_cached_objects - Number of objects enumerated that were cached.
+ */
+typedef struct {
+    uint64_t num_total;
+    uint64_t num_active;
+    uint64_t num_objects;
+    uint64_t num_cached_objects;
+} enum_stats_t;
+
+
 /* Stats and Admin port*/
 typedef enum { 
     FDF_STATS_TYPE_APP_REQ,
@@ -35,6 +52,7 @@ typedef enum {
     FDF_STATS_TYPE_FLASH_MANAGER,
     FDF_STATS_TYPE_PER_CACHE
 }FDF_STATS_TYPE;
+
 
 typedef enum {
     STATS_PRINT_TYPE_SHORT,
@@ -57,6 +75,8 @@ typedef struct fdf_stats_info {
     char desc[64];
     uint16_t category;
 }fdf_stats_info_t;
+
+struct FDF_thread_state;
 
 /* Function declaration for Admin and Stats */
 FDF_status_t dump_container_stats_by_cguid(struct FDF_thread_state *thd_state,

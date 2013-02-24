@@ -5,8 +5,7 @@
 #
 # Created on December 11, 2009
 #
-# (c) Copyright 2009, Schooner Information Technology, Inc.
-# http://www.schoonerinfotech.com/
+# Copyright (c) 2009-2013, SanDisk Corporation.  All rights reserved.
 #
 # $Id: ffdc_parser.pl 13896 2010-05-28 01:55:47Z johann $
 #
@@ -143,6 +142,7 @@ our @SKIPFILES = qw(
 our @VALID_PLACEHOLDERS = qw(
     PLAT_LOG_ID_INITIAL
     LOG_ID
+    LOGID
 );
 
 our %LEVELS =(
@@ -887,7 +887,7 @@ sub _sitParseFile
     $line_num = 0;
     
     # just display the latter half of the path
-    $file =~ s/$PATH\///g;
+    $file =~ s/^$PATH\///g;
     
     $msgcnt = 0;
     while ($line = <FILE>) {
@@ -955,7 +955,7 @@ sub _sitParseFile
             
             $log_func = "UTMessage";
         } elsif ($multi_source_line =~ /sdf_log([defitw])(_sys)?\(((?:
-                                        LOG_ID|PLII|PLAT_LOG_ID_INITIAL|
+                                        LOG_ID|LOGID|PLAT_LOG_ID_INITIAL|
                                         [1-9]\d*,).*?)\)\s*;\s*\\?$/x) {
             $log_func = "sdf_log$1$2";
             ($msgid, $ma) = split(/,/, $3, 2);
@@ -1133,8 +1133,7 @@ print FFDC_MC << "EOF";
 # File: \$HeadURL\$
 # Last Changed By: \$LastChangedBy\$
 #
-# (c) Copyright 2009, Schooner Information Technology, Inc.
-# http://www.schoonerinfotech.com/
+# Copyright (c) 2009-2013, SanDisk Corporation.  All rights reserved.
 #
 # \$Id\$
 #

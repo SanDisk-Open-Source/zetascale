@@ -405,6 +405,7 @@ FDF_status_t print_container_stats_by_cguid( struct FDF_thread_state *thd_state,
         return FDF_FAILURE;
     }
     print_stats(fp,&stats);
+    fflush(fp);
     return FDF_SUCCESS;
 }
 

@@ -87,6 +87,8 @@ enum cntr_states {
 /*
  * Relevant to in-core hash table.
  */
+#define OSD_HASH_SYN_SIZE         16
+#define OSD_HASH_SYN_SHIFT        48
 #define OSD_HASH_ENTRY_HOPED_SIZE 10
 
 
@@ -99,7 +101,7 @@ typedef struct mcd_osd_hash_entry {
     unsigned int referenced:1;
     unsigned int reserved:1;
     unsigned int blocks:12;
-    uint16_t     syndrome;
+    hashsyn_t    syndrome;
     baddr_t      address;
     cntr_id_t    cntr_id;
 }
@@ -230,6 +232,8 @@ typedef struct mcd_osd_shard {
     int                         replicated;
     int                         evict_to_free;
     int                         use_fifo;
+    int                         bkti_l2_size;
+    uint64_t                    bkti_l2_mask;
     uint64_t                    total_segments;
     uint64_t                    total_size;
     uint64_t                    total_blks;

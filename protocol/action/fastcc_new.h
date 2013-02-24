@@ -17,6 +17,7 @@
 
 #include "shared/sdf_sm_msg.h"
 #include "protocol/protocol_common.h"
+#include "protocol/action/recovery.h"
 
 #ifdef __cplusplus
 extern "C" {

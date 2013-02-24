@@ -7,9 +7,14 @@
 #ifndef _RECOVERY_H
 #define _RECOVERY_H
 
-#include "sdf_internal.h"
+#include "fdf_internal.h"
 #include "shared/private.h"
 #include "protocol/action/action_internal_ctxt.h"
+
+
+/*
+ * Fast recovery.
+ */
 
 
 /*
@@ -56,22 +61,47 @@ struct sdf_rec_funcs {
 } *sdf_rec_funcs;
 
 
+
+
 /*
- * Enumeration functions
+ * Enumeration.
  */
-extern FDF_status_t
+void enumerate_stats(enum_stats_t *s);
+
+FDF_status_t
 enumerate_init(SDF_action_init_t *pai, struct shard *shard,
                FDF_cguid_t cguid, struct FDF_iterator **iter);
 
-extern FDF_status_t
+FDF_status_t
 enumerate_done(SDF_action_init_t *pai, struct FDF_iterator *iter);
 
-extern FDF_status_t
+FDF_status_t
 enumerate_next(SDF_action_init_t *pai, struct FDF_iterator *iter,
-               char **key, uint32_t *keylen, char **data, uint64_t *datalen);
+               char **key, uint64_t *keylen, char **data, uint64_t *datalen);
 
-extern void
-enumerate_stats(enum_stats_t *s);
+
+
+
+/*
+ * Cache Hash
+ */
+typedef uint64_t chash_t;
+
+
+/*
+ * Cache Hash functions.
+ */
+int chash_bits(shard_t *sshard);
+
+chash_t
+chash_key(shard_t *sshard, SDF_cguid_t cguid, char *key, uint64_t keylen);
+
+
+
+
+/*
+ * Other functions.
+ */
+void set_cntr_sizes(SDF_action_init_t *pai, shard_t *sshard);
  
-
 #endif /* _RECOVERY_H */

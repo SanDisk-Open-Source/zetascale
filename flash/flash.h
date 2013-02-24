@@ -16,8 +16,6 @@
 #include "common/sdftypes.h"
 #include "common/fdftypes.h"
 
-typedef uint64_t chash_t;
-
 // Flags for opening flash devices
 enum flashOpenFlags {
     FLASH_OPEN_NORMAL_RECOVERY       = 0x00,

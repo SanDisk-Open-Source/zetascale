@@ -2,8 +2,7 @@
 # File: $HeadURL$
 # Last Changed By: $LastChangedBy$
 #
-# (c) Copyright 2009, Schooner Information Technology, Inc.
-# http://www.schoonerinfotech.com/
+# Copyright (c) 2009-2013, SanDisk Corporation.  All rights reserved.
 #
 # $Id$
 #
@@ -2932,6 +2931,13 @@
 70111 enumeration started for container %ld
 70112 enumeration error %ld >= %ld
 70113 Unable to open file descriptor 
+70114 bad container: %d
+70115 container %d would have %ld objects
+70116 container %d would have a size of %ld bytes
+70117 enumeration ended for container %ld
+70118 Failed on get_cntr_info for container %ld
+70119 Container %s: id=%ld objs=%ld used=%ld size=%ld full=%.1f%%
+70120 Container %s: id=%ld objs=%ld used=%ld
 
 
 # mkrishnan
