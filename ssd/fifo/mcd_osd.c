@@ -270,6 +270,10 @@ static int mcd_fth_do_try_container_internal( void * pai, int index,
 static SDF_status_t
 mcd_osd_delete_expired( osd_state_t *osd_state, mcd_osd_shard_t * shard );
 
+#ifdef FAST_DELETE
+int mcd_fth_osd_slab_fast_delete( mcd_osd_shard_t * shard, mcd_osd_hash_t * hash_entry, uint64_t seqno );
+#endif
+
 /*
  * copied from mc_init.c
  */
@@ -4601,6 +4605,7 @@ mcd_fth_osd_slab_set( void * context, mcd_osd_shard_t * shard, char * key,
                 }
 
                 // explicit delete case
+#ifndef FAST_DELETE
                 if ( 1 == shard->persistent ) {
                     log_rec.syndrome     = hash_entry->syndrome;
                     log_rec.deleted      = hash_entry->deleted;
@@ -4634,6 +4639,9 @@ mcd_fth_osd_slab_set( void * context, mcd_osd_shard_t * shard, char * key,
                 } else {
                     mcd_fth_osd_remove_entry( shard, hash_entry );
                 }
+#else
+				mcd_fth_osd_slab_fast_delete( shard, hash_entry, meta_data->sequence );
+#endif /* FAST_DELETE */
 
                 if ( 0 == overflow ) {
                     if ( 0 == bucket->next_item ) {
@@ -5185,7 +5193,6 @@ out:
     return rc;
 }
 
-
 static int
 mcd_fth_osd_slab_get( void * context, mcd_osd_shard_t * shard, char *key,
                       int key_len, void ** ppdata, SDF_size_t * pactual_size,
@@ -5418,6 +5425,50 @@ mcd_fth_osd_slab_get( void * context, mcd_osd_shard_t * shard, char *key,
     return FLASH_ENOENT;
 }
 
+#ifdef FAST_DELETE
+int
+mcd_fth_osd_slab_fast_delete( mcd_osd_shard_t * shard,
+                              mcd_osd_hash_t * hash_entry,
+							  uint64_t seqno )
+{
+    mcd_logrec_object_t          log_rec;
+    mcd_osd_slab_class_t        *class      = NULL;
+    int                          rc         = 0;
+
+    if ( 1 == shard->persistent ) {
+        log_rec.syndrome     = hash_entry->syndrome;
+        log_rec.deleted      = hash_entry->deleted;
+        log_rec.reserved     = 0;
+        log_rec.blocks       = 0;  // distinguishes a delete record
+        log_rec.bucket       = hash_entry->syndrome % shard->hash_size;
+        log_rec.blk_offset   = hash_entry->address;
+        if ( 0 == shard->evict_to_free ) {
+            // store mode: delay flash space dealloc
+            log_rec.old_offset = ~(hash_entry->address);
+        } else {
+            log_rec.old_offset = 0;
+        }
+
+        log_rec.cntr_id      = hash_entry->cntr_id;
+        log_rec.seqno        = seqno;
+        log_rec.target_seqno = 0;
+        log_write( shard, &log_rec );
+    }
+
+    if ( 1 == shard->replicated || (1 == shard->persistent && 0 == shard->evict_to_free) ) {
+        class = shard->slab_classes + shard->class_table[mcd_osd_lba_to_blk(hash_entry->blocks)];
+        (void) __sync_fetch_and_add( &class->dealloc_pending, 1 );
+        (void) __sync_fetch_and_add( &shard->blk_dealloc_pending, class->slab_blksize );
+        (void) __sync_fetch_and_sub( &shard->blk_consumed, mcd_osd_lba_to_blk(hash_entry->blocks) );
+        *((uint64_t *)hash_entry) = 0;
+    } else {
+        // Eviction mode container
+        mcd_fth_osd_remove_entry( shard, hash_entry );
+    }
+
+    return rc;
+}
+#endif /* FAST_DELETE */
 
 uint64_t mcd_osd_shard_get_stats( struct shard * shard, int stat_key )
 
@@ -6462,6 +6513,46 @@ mcd_osd_flash_put( struct ssdaio_ctxt * pctxt, struct shard * shard,
 
     return ret;
 }
+
+#ifdef FAST_DELETE
+int
+mcd_osd_flash_fast_delete( struct ssdaio_ctxt 	* pctxt, 
+						   struct shard 		* shard,
+                           mcd_osd_hash_t 		* hash_entry,
+						   uint64_t				  seqno )
+{
+    int                         ret;
+    osd_state_t               * osd_state = (osd_state_t *)pctxt;
+    mcd_osd_shard_t           * mcd_shard = (mcd_osd_shard_t *)shard;
+
+    mcd_log_msg( 20406, PLAT_LOG_LEVEL_DEBUG, "ENTERING, context=%p shardID=%lu",
+                 (void *)pctxt, shard->shardID );
+
+    osd_state->osd_lock = (void *)( mcd_shard->bucket_locks +
+        ( ( hash_entry->syndrome % mcd_shard->hash_size ) / mcd_shard->lock_bktsize ) );
+    osd_state->osd_wait =
+        fthLock( (fthLock_t *)osd_state->osd_lock, 1, NULL );
+
+    if ( mcd_shard->use_fifo ) {
+#ifdef ndef
+        ret = mcd_fth_osd_fifo_fast_delete(  mcd_shard,
+											 hash_entry );
+#else
+		fprintf(stderr, "mcd_osd_flash_fast_delete: FIFO not supported!\n");
+		plat_abort(0);
+#endif /* ndef */
+    }
+    else {
+        ret = mcd_fth_osd_slab_fast_delete( mcd_shard,
+											hash_entry,
+											seqno );
+    }
+
+    fthUnlock( osd_state->osd_wait );
+
+    return ret;
+}
+#endif /* FAST_DELETE */
 
 
 int

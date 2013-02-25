@@ -2351,7 +2351,7 @@ FDF_status_t FDFReadObject(
     SDF_action_init_t  *pac;
     SDF_status_t        status;
 
-    if ( !cguid )
+    if ( !cguid || !key )
         return FDF_INVALID_PARAMETER;
 
     if ( !fdf_is_ctnr_open( cguid) ) {
@@ -2453,7 +2453,7 @@ FDF_status_t FDFWriteObject(
     SDF_action_init_t  *pac		= NULL;
     FDF_status_t        status	= FDF_FAILURE;
 
- 	if ( !cguid )
+ 	if ( !cguid || !key )
  		return FDF_INVALID_PARAMETER;
  
     if ( !fdf_is_ctnr_open( cguid) ) {
@@ -2560,7 +2560,7 @@ FDF_status_t FDFDeleteObject(
     SDF_action_init_t  *pac		= NULL;
     FDF_status_t        status	= FDF_FAILURE;
 
-    if ( !cguid )
+    if ( !cguid || !key )
         return FDF_INVALID_PARAMETER;
         
     if ( !fdf_is_ctnr_open( cguid) ) {
@@ -2600,7 +2600,7 @@ FDF_status_t FDFFlushObject(
 
     pac = (SDF_action_init_t *) fdf_thread_state;
    
-	if ( !cguid )
+	if ( !cguid || !key )
 		return FDF_INVALID_PARAMETER;
 
     if ( !fdf_is_ctnr_open( cguid) ) {
