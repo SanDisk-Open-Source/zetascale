@@ -43,7 +43,7 @@ static char *fdflibs[] ={
 static void 
 (*ptr_FDFSetProperty)(const char *property, const char *value);
 
-static int 
+static FDF_status_t
 (*ptr_FDFLoadProperties)(const char *prop_file);
 
 static FDF_status_t 
@@ -370,7 +370,7 @@ FDFSetProperty(const char *property, const char *value)
 /*
  * FDFLoadProperties
  */
-int 
+FDF_status_t
 FDFLoadProperties(const char *prop_file)
 {
     if (unlikely(!ptr_FDFLoadProperties))
