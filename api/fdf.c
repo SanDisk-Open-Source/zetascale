@@ -1062,9 +1062,15 @@ void FDFSetProperty(const char* property, const char* value)
 		setProperty(property, (void*)value);
 }
 
-int FDFLoadProperties(const char *prop_file)
+FDF_status_t FDFLoadProperties(const char *prop_file)
 {
-	return prop_file ? loadProperties(prop_file) : 0;
+	if ( !prop_file )
+		return FDF_INVALID_PARAMETER;
+
+	if ( loadProperties(prop_file) )
+		return FDF_FAILURE;
+	else
+		return FDF_SUCCESS;
 }
 
 FDF_status_t FDFInit(

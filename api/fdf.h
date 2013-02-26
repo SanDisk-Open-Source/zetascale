@@ -359,10 +359,10 @@ void FDFSetProperty(
  * @brief Load properties from specified file
  *
  * @param proper_file <IN> properties file
- * @return 0 on success
+ * @return FDF_SUCCESS on success
  * 
  */
-int FDFLoadProperties(
+FDF_status_t FDFLoadProperties(
 	const char *prop_file
 	);
 
