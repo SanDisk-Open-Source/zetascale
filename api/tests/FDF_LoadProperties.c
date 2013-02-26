@@ -47,28 +47,28 @@ void clear_env()
 
 int test_property_is_null()
 {
-    int tag = 0;
+    FDF_status_t status;
     testname[0] = "#test0: test with incoming parmeter is NULL.";
 
-    tag = FDFLoadProperties(NULL);
-    if(0 == tag)
+    status = FDFLoadProperties(NULL);
+    if(FDF_SUCCESS == status)
     {
-        result[0] = 1;
         fprintf(fp,"ok -> can load properties with input is NULL!\n");
-        return 1;
+        return 0;
     }else{
         fprintf(fp,"fail -> can't load properties with input is NULL!\n");
-        return 0;
+        result[0] = 1;
+        return 1;
     }
 }
 
 int test_property_is_wrong()
 {
-    int tag = 0;
+    FDF_status_t status;
     testname[1] = "#test1: test with property path is none exist or wrong.";
 
-    tag = FDFLoadProperties("lalala");
-    if(-1 == tag)
+    status = FDFLoadProperties("lalala");
+    if(FDF_SUCCESS != status)
     {
         result[1] = 1;
         fprintf(fp,"ok -> can't load properties with property path is none-exist!\n");
@@ -81,15 +81,15 @@ int test_property_is_wrong()
 
 int test_basic_check()
 {
-    int tag = 0;
+    FDF_status_t status;
     testname[2] = "#test2: test with basic function.";
 
     if (system("mkdir /tmp/my.properties")) {}
     sleep(5);
-    tag = FDFLoadProperties("/tmp/my.properties");
-    fprintf(stderr, "FDFLoadProperties test_basic_check() returned %d\n", tag);
+    status = FDFLoadProperties("/tmp/my.properties");
+    fprintf(stderr, "FDFLoadProperties test_basic_check() returned %s\n", FDFStrError(status));
     if (system("rm -rf /tmp/my.properties")) {}
-    if(0 == tag)
+    if(FDF_SUCCESS == status)
     {
         result[2] = 1;
         fprintf(fp,"ok -> can't load properties with valid property path!\n");
