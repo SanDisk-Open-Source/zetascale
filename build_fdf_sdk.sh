@@ -9,8 +9,15 @@ if [ -z "${FDF_SDK_VERSION}" ]; then
 	export FDF_SDK_VERSION=1.2
 fi
 #
-if [ -z ${SVN_REVISION} ]; then
-	export SVN_REVISION=$(svn info | awk '/Last Changed Rev:/ {print $NF}')
+if test -d .git; then
+	BRANCH=$(git rev-parse --abbrev-ref HEAD)
+	if [ -z ${SVN_REVISION} ]; then
+		export SVN_REVISION=$(git rev-list HEAD|head -c 8)
+	fi
+else
+	if [ -z ${SVN_REVISION} ]; then
+		export SVN_REVISION=$(svn info | awk '/Last Changed Rev:/ {print $NF}')
+	fi
 fi
 #
 if [ -z ${BUILD_NUMBER} ]; then
@@ -21,12 +28,18 @@ if [ -z ${SCHOONER_RELEASE} ]; then
 	export SCHOONER_RELEASE=${SVN_REVISION}.${BUILD_NUMBER}
 fi
 
+
 VERSION=${FDF_SDK_VERSION}-${SCHOONER_RELEASE}
 NCPU=$(cat /proc/cpuinfo|grep CPU|wc -l)
 NCPU=$((NCPU*15/10))
 
 DBG=OFF
 PKG_NAME=fdf_sdk-$VERSION
+
+if [ -n "$BRANCH" ]; then
+	PKG_NAME=$PKG_NAME-$BRANCH
+fi
+
 if [ "$1" != "--optimize" ] && [ "$2" != "--optimize" ]; then
 	PKG_NAME=$PKG_NAME-dbg
 	DBG=ON

@@ -1,6 +1,8 @@
 #ifndef PLATFORM_LOGGING_H
 #define PLATFORM_LOGGING_H 1
 
+#include <string.h>
+
 /*
  * File:   $HeadURL: svn://svn.schoonerinfotech.net/schooner-trunk/trunk/sdf/platform/logging.h $
  * Author: drew
@@ -1003,7 +1005,7 @@ void plat_log_msg_helper(const char *file, unsigned line, const char *function,
                              format, args...)                                  \
     do {                                                                       \
         if (plat_log_enabled((category), (level))) {                           \
-            plat_log_msg_helper(file, line, function, logid, category, level,  \
+            plat_log_msg_helper(basename(file), line, function, logid, category, level,  \
                                 format, ##args);                               \
         }                                                                      \
     } while (0)

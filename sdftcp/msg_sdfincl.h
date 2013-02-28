@@ -33,7 +33,7 @@
                      PLAT_LOG_LEVEL_ ## level, fmt, ##args);        \
         if (t_on(LOGS) ||                                           \
             plat_log_enabled(LOG_CAT, PLAT_LOG_LEVEL_ ## level)) {  \
-            trace_print(__FILE__, __LINE__, __PRETTY_FUNCTION__,    \
+            trace_print(basename(__FILE__), __LINE__, __PRETTY_FUNCTION__,    \
                         type, id, LOG_CAT, sys,                     \
                         PLAT_LOG_LEVEL_ ## level, fmt, ##args);     \
         }                                                           \

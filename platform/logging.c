@@ -585,15 +585,15 @@ plat_log_msg_helper(const char *file, unsigned line, const char *function,
     plat_log_time(time_buf, sizeof (time_buf));
 
     if (file) {
-        if (sys_asprintf(&real_format, "%s%s %lx %p %s:%s %s:%u %s %d-%d %s\n",
+        sys_asprintf(&real_format, "%s%s %lx %s:%s %s:%u %s %d-%d %s\n",
                      time_buf, prog_ident, (unsigned long)pthread_self(),
-                     fthSelf(), categories.category[category].name,
-                     levels[level], file, line, function, category, logid, format)) {}
+                     categories.category[category].name,
+                     levels[level], file, line, function, category, logid, format);
     } else {
-        if (sys_asprintf(&real_format, "%s%s %lx %p %s:%s %d-%d %s\n",
+        sys_asprintf(&real_format, "%s%s %lx %s:%s %d-%d %s\n",
                      time_buf, prog_ident, (unsigned long)pthread_self(),
-                     fthSelf(), categories.category[category].name,
-                     levels[level], category, logid, format)) {}
+                     categories.category[category].name,
+                     levels[level], category, logid, format);
     }
 
     if (real_format) {

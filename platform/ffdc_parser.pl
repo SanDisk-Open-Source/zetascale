@@ -1216,7 +1216,7 @@ sub _sitCreateFFDCSourceFiles
     close FFDC_MC;
     close READER;
 
-    for $n(0..$FFDC_LOG_N) { 
+    for $n(1..$FFDC_LOG_N) { 
         close $FFDC_C_ARR[$n];
     }
     
