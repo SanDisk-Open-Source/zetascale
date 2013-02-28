@@ -154,7 +154,7 @@ static struct output output = {
 
 
 /** @brief strftime format string matching /bin/date (%+ doesn't work) */
-static const char log_time_bin_date_format[] = "%a %b %d %T %Z %G";
+static const char log_time_bin_date_format[] = "%b %d %T %G";
 
 static const char log_time_hms_format[] = "%r";
 
@@ -585,15 +585,15 @@ plat_log_msg_helper(const char *file, unsigned line, const char *function,
     plat_log_time(time_buf, sizeof (time_buf));
 
     if (file) {
-        sys_asprintf(&real_format, "%s%s %lx %s:%s %s:%u %s %d-%d %s\n",
-                     time_buf, prog_ident, (unsigned long)pthread_self(),
-                     categories.category[category].name,
-                     levels[level], file, line, function, category, logid, format);
+        sys_asprintf(&real_format, "%s%x %s %s:%u %s %s\n",
+                     time_buf, /*prog_ident,*/ (unsigned int)pthread_self(),
+                     //categories.category[category].name,
+                     levels[level], file, line, function, /*category, logid,*/ format);
     } else {
-        sys_asprintf(&real_format, "%s%s %lx %s:%s %d-%d %s\n",
-                     time_buf, prog_ident, (unsigned long)pthread_self(),
-                     categories.category[category].name,
-                     levels[level], category, logid, format);
+        sys_asprintf(&real_format, "%s%x %s %s\n",
+                     time_buf, /*prog_ident,*/ (unsigned int)pthread_self(),
+                     /*categories.category[category].name,*/
+                     levels[level], /* category, logid,*/ format);
     }
 
     if (real_format) {
