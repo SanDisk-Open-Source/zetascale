@@ -6218,7 +6218,7 @@ mcd_osd_shard_open( struct flashDev * dev, uint64_t shard_id )
                                       mcd_shard->shard.quota,
                                       mcd_shard->shard.maxObjs );
     	mcd_shard->durability_level =
-            (mcd_shard->shard.flags >> 20) & FLASH_SHARD_INIT_DURABILITY_MASK;
+            (mcd_shard->shard.flags & FLASH_SHARD_INIT_DURABILITY_MASK) >> 20;
     }
 
     if ( 0 != rc ) {
