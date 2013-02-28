@@ -6311,6 +6311,7 @@ log_init_phase2( void * context, mcd_osd_shard_t * shard )
 static void
 flog_persist(mcd_osd_shard_t *shard,
             uint64_t slot_seqno,
+            uint64_t lsn,
             mcd_logrec_object_t *logrec_obj)
 {
     char buf[FLUSH_LOG_SEC_SIZE+FLUSH_LOG_SEC_ALIGN-1];
@@ -6336,7 +6337,8 @@ flog_persist(mcd_osd_shard_t *shard,
     frec->flush_blk  = flush_blk;
     frec->shard_blk  = shard_blk;
     frec->shard_off  = shard_off;
-    frec->lsn        = (slot_seqno / MCD_REC_LOG_BLK_SLOTS) + 1;
+//    frec->lsn        = (slot_seqno / MCD_REC_LOG_BLK_SLOTS) + 1;
+    frec->lsn        = lsn;
     frec->logrec_obj = *logrec_obj;
 
     size_t size = pwrite(shard->flush_fd, sector, sec_size, flush_seek);
@@ -6370,20 +6372,30 @@ log_flush_internal( mcd_rec_logbuf_t *logbuf, uint buf_offset)
 static void
 log_write_internal( mcd_osd_shard_t *s, mcd_logrec_object_t *lr)
 {
+	mcd_rec_logpage_hdr_t     * hdr;
 	uint64_t	slot_seqno;
 
 	(void)__sync_fetch_and_add( &s->refcount, 1);
 	mcd_rec_log_t *log = s->log;
 	fthSemDown( &log->fill_sem, 1);
+	uint64_t need_lsn_upd = !(log->next_fill % MCD_REC_LOG_BLK_SLOTS);
 	until ((slot_seqno=log->next_fill++) % MCD_REC_LOG_BLK_SLOTS)
 		;/* skipping page header */
 	uint64_t buf_offset = slot_seqno % MCD_REC_LOGBUF_SLOTS;
 	uint64_t nth_buffer = slot_seqno / MCD_REC_LOGBUF_SLOTS;
 	mcd_rec_logbuf_t *logbuf = &log->logbufs[nth_buffer%MCD_REC_NUM_LOGBUFS];
+	if(need_lsn_upd)
+	{
+		log->curr_LSN++;
+		hdr = (mcd_rec_logpage_hdr_t *)
+			(logbuf->buf + (buf_offset - 1) * sizeof(mcd_logrec_object_t));
+		hdr->LSN         = log->curr_LSN;
+	}
+
 	logbuf->entries[buf_offset] = *lr;
 	uint rec_filled = __sync_add_and_fetch( &logbuf->fill_count, 1);
 	if (s->flush_fd > 0)
-		flog_persist( s, slot_seqno, lr);
+		flog_persist( s, slot_seqno, log->curr_LSN, lr);
 	if (rec_filled == MCD_REC_LOGBUF_RECS)
 		fthSemUp( logbuf->write_sem, 1);
 	rep_logbuf_seqno_update( (struct shard *)s, nth_buffer, lr->seqno);
@@ -6399,15 +6411,25 @@ log_write_internal( mcd_osd_shard_t *s, mcd_logrec_object_t *lr)
 void
 log_sync_internal( mcd_osd_shard_t *s)
 {
+	mcd_rec_logpage_hdr_t     * hdr;
 
 	(void)__sync_fetch_and_add( &s->refcount, 1);
 	mcd_rec_log_t *log = s->log;
 	fthSemDown( &log->fill_sem, 1);
+	uint64_t need_lsn_upd = !(log->next_fill % MCD_REC_LOG_BLK_SLOTS);
 	uint64_t slot_seqno = log->next_fill;
 	uint64_t buf_offset = slot_seqno % MCD_REC_LOGBUF_SLOTS;
 	uint64_t nth_buffer = slot_seqno / MCD_REC_LOGBUF_SLOTS;
 	mcd_rec_logbuf_t *logbuf = &log->logbufs[nth_buffer%MCD_REC_NUM_LOGBUFS];
-	log_flush_internal( logbuf, buf_offset);
+
+	if(need_lsn_upd)
+	{
+		hdr = (mcd_rec_logpage_hdr_t *)
+			(logbuf->buf + (buf_offset) * sizeof(mcd_logrec_object_t));
+		hdr->LSN         = log->curr_LSN + 1;
+	}
+
+	log_flush_internal(logbuf, buf_offset);
 	fthSemUp( &log->fill_sem, 1);			/* relinquish slot */
 	(void)__sync_fetch_and_sub( &s->refcount, 1);
 }
@@ -6676,7 +6698,7 @@ log_writer_thread( uint64_t arg )
     int                         i, rc;
     int                         curr_log;
     uint64_t                    thread_id;
-    uint64_t                    LSN;
+    //uint64_t                    LSN;
     uint64_t                    blk_count;
     uint64_t                    log_blk;
     uint64_t                    start_blk;
@@ -6769,16 +6791,18 @@ log_writer_thread( uint64_t arg )
             blk_count = logbuf->sync_blks;
         }
 
-        LSN = log->curr_LSN;
+		/*EF: LSNs now generated in log_write_internal */
+//        LSN = log->curr_LSN;
 
         // install LSN and checksum in every page header in logbuf
         for ( i = 0; i < blk_count; i++ ) {
             hdr = (mcd_rec_logpage_hdr_t *)(logbuf->buf +
                                             (i * Mcd_osd_blk_size));
-            plat_assert_always( hdr->LSN == 0 || hdr->LSN == LSN + 1 );
+//            plat_assert_always( hdr->LSN == 0 || hdr->LSN == LSN + 1 );
+            plat_assert_always( hdr->LSN != 0);
             hdr->eye_catcher = MCD_REC_LOGHDR_EYE_CATCHER;
             hdr->version     = MCD_REC_LOGHDR_VERSION;
-            hdr->LSN         = ++LSN;
+//            hdr->LSN         = ++LSN;
             hdr->checksum    = 0;
             hdr->checksum    = hash( (unsigned char *)
                                      (logbuf->buf + (i * Mcd_osd_blk_size)),
@@ -6867,7 +6891,7 @@ log_writer_thread( uint64_t arg )
             plat_assert_always( log->write_buffer_seqno == logbuf->seqno );
 
             log->write_buffer_seqno += MCD_REC_LOGBUF_SLOTS;
-            log->curr_LSN           += MCD_REC_LOGBUF_BLKS;
+//            log->curr_LSN           += MCD_REC_LOGBUF_BLKS;
 
             // when persistent log is full, signal updater thread
             if ( log->write_buffer_seqno % log->total_slots == 0 ) {

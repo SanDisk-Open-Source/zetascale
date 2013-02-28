@@ -413,7 +413,7 @@ mcd_fth_aio_blk_write_low( osd_state_t * context, char * buf, uint64_t offset,
         }
 
 	if (pwrite(aio_fd, buf+submitted, aio_nbytes, aio_offset) != aio_nbytes) {
-            mcd_log_msg(160027, PLAT_LOG_LEVEL_ERROR, "pwrite failed!");
+            mcd_log_msg(180002, PLAT_LOG_LEVEL_ERROR, "pwrite failed!(%s)", plat_strerror(errno));
 	    plat_exit(1);
 	}
 

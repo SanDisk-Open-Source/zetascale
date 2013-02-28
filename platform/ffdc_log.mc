@@ -3174,3 +3174,4 @@
 # efirsov
 180000 Removing log file %s
 180001 Flush log sync: cannot unlink sync log file %s error=%d
+180002 pwrite failed!(%s)
