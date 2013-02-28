@@ -34,7 +34,8 @@
 150000 darryl
 160000 root
 170000 rico
-180000 always_last
+180000 efirsov
+190000 always_last
 
 
 [MESSAGES]
@@ -3168,3 +3169,8 @@
 170007 TRX cannot be applied due to insufficient memory
 170008 TRX too big to apply
 170009 TRX sequence anomaly
+
+
+# efirsov
+180000 Removing log file %s
+180001 Flush log sync: cannot unlink sync log file %s error=%d

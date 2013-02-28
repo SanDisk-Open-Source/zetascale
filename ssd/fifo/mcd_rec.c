@@ -2666,6 +2666,29 @@ flog_close(mcd_osd_shard_t *shard)
     }
 }
 
+void
+flog_clean(uint64_t shard_id)
+{
+    char path[FLUSH_LOG_MAX_PATH];
+    char *log_flush_dir = (char *)getProperty_String("FDF_LOG_FLUSH_DIR", NULL);
+
+    if (log_flush_dir == NULL)
+        return;
+
+    snprintf(path, sizeof(path), "%s/%s%lu",
+             log_flush_dir, FLUSH_LOG_PREFIX, shard_id);
+    mcd_log_msg(180000, PLAT_LOG_LEVEL_INFO, "Removing log file %s", path);
+
+    if(unlink(path) == -1)
+    {
+        mcd_log_msg(180001, PLAT_LOG_LEVEL_ERROR,
+                    "Flush log sync:"
+                    " cannot unlink sync log file %s error=%d",
+                    path, errno);
+        return;
+    }
+}
+
 
 void
 shard_recovery_stats( mcd_osd_shard_t * shard, char ** ppos, int * lenp )
@@ -7344,6 +7367,8 @@ shard_format( uint64_t shard_id, int flags, uint64_t quota, unsigned max_objs,
                      "failed to write shard props, rc=%d", rc );
         return rc;
     }
+
+    flog_clean(shard_id);
 
     // sync all devices
     rc = mcd_aio_sync_devices();
