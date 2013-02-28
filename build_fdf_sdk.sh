@@ -80,3 +80,4 @@ if [ "$1" == "--test" ] || [ "$2" == "--test" ]; then
 	make test
 fi
 
+echo "Package located at: $WD/$PKG_NAME.tar.gz"
