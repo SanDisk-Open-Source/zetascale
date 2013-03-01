@@ -1358,7 +1358,7 @@ fdf_containers_cleanup(struct FDF_state *fdf_state)
 
 	for (i = 0; i < n_cguids; i++) {
 		props_rc = FDFGetContainerProps(fdf_thread_state, cguids[i], &props);
-		if (FDF_SUCCESS != props_rc) {
+		if (SDF_SUCCESS != props_rc) {
 			plat_log_msg(160075, LOG_CAT, LOG_ERR, 
 					"Error getting container properties for index=%d cguid=%ld: %s",
 					i, cguids[i], SDF_Status_Strings[status]);

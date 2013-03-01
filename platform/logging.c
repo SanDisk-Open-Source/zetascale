@@ -45,6 +45,7 @@
 #include "platform/string.h"
 #include "platform/time.h"
 #include "platform/unistd.h"
+#include "sdftcp/trace.h"
 
 /**
  * Default log threshold for immediate output when not specified in level
@@ -564,7 +565,6 @@ plat_log_msg_helper(const char *file, unsigned line, const char *function,
                     int logid, int category, enum plat_log_level level,
                     const char *format, ...) {
     char *real_format = NULL;
-    const char *prog_ident;
     va_list ap;
     char time_buf[80];
 
@@ -580,20 +580,16 @@ plat_log_msg_helper(const char *file, unsigned line, const char *function,
 
     va_start(ap, format);
 
-    prog_ident = plat_get_prog_ident();
-
     plat_log_time(time_buf, sizeof (time_buf));
 
     if (file) {
-        sys_asprintf(&real_format, "%s%x %s %s:%u %s %s\n",
-                     time_buf, /*prog_ident,*/ (unsigned int)pthread_self(),
-                     //categories.category[category].name,
-                     levels[level], file, line, function, /*category, logid,*/ format);
+        ignore(sys_asprintf(&real_format, "%s%x %s %s:%u %s %s\n",
+                     time_buf, (unsigned int)pthread_self(),
+                     levels[level], file, line, function, format));
     } else {
-        sys_asprintf(&real_format, "%s%x %s %s\n",
-                     time_buf, /*prog_ident,*/ (unsigned int)pthread_self(),
-                     /*categories.category[category].name,*/
-                     levels[level], /* category, logid,*/ format);
+        ignore(sys_asprintf(&real_format, "%s%x %s %s\n",
+                            time_buf, (unsigned int)pthread_self(),
+                            levels[level], format));
     }
 
     if (real_format) {
