@@ -3160,6 +3160,19 @@
 160067 %ld asynchronous writebacks have failed!  This message is displayed only every %d failures.
 160068 %ld asynchronous flushes have failed!  This message is displayed only every %d failures.
 160069 %p
+160070 Operation denied: Shutdown in progress %s
+160071 Thread state is null
+160072 Waiting for %d containers deletes to finish
+160073 Unable to create thread context %s
+160074 Total containers = %d
+160075 Error getting container properties for index=%d cguid=%ld: %s
+160076 Error closing container properties: %s
+160077 Closed %d containers
+160078 Shutdown phase 1 returns :%s
+160079 is_fdf_operation_allowed:%s
+160080 Got container properties for index=%d cguid=%ld: %s
+160081 Error closing container ID: %ld with %s
+160082 Closed container id %ld with %s
 
 
 # rico
