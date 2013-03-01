@@ -193,7 +193,8 @@ typedef uint64_t FDF_cguid_t;
     item(FDF_OUT_OF_STORAGE_SPACE, /* default */) \
     item(FDF_FAILURE_ALREADY_IN_TRANS, /* default */) \
     item(FDF_FAILURE_NO_TRANS, /* default */) \
-    item(FDF_CANNOT_DELETE_OPEN_CONTAINER, /* default */) 
+    item(FDF_CANNOT_DELETE_OPEN_CONTAINER, /* default */) \
+    item(FDF_FAILURE_OPERATION_DISALLOWED, /* default */)
 
 
 typedef enum {

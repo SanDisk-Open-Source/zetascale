@@ -221,6 +221,8 @@ init_containers(struct sdf_agent_state *state)
         status = init_sdf_initialize(&state->ContainerInitState,
                                      state->config.system_restart);
     }
+	// initFDF_operational_states_t();
+	state->op_access.is_shutdown_in_progress = SDF_FALSE;
 
     return (status == SDF_SUCCESS);
 }

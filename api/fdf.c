@@ -56,7 +56,7 @@
 static time_t 			current_time 	= 0;
 static int stats_dump = 0;
 static SDF_shardid_t	vdc_shardid		= SDF_SHARDID_INVALID;
-
+ 
 char *FDF_Status_Strings[] = {
     "UNKNOWN_STATUS", /* since FDF_SUCCESS is 1! */
 #define item(caps, value) \
@@ -665,6 +665,33 @@ static sem_t Mcd_initer_sem;
 
 ctnr_map_t CtnrMap[MCD_MAX_NUM_CNTRS];
 
+/*
+ * Check if we could allow an operation to start
+ * XXX: TODO We would pass an operation as an argument to this
+ *            function.
+ * @param [in] void
+ * @retval SDF_boolean_t, SDF_TRUE for success
+ */
+FDF_status_t is_fdf_operation_allowed(void)
+{
+	FDF_status_t status = FDF_SUCCESS;
+
+	/*
+	 * Check if shutdown is in progress
+	 */
+	if (SDF_TRUE == agent_state.op_access.is_shutdown_in_progress) {
+		/*
+		 * Disallow further operation
+		 */
+		status = FDF_FAILURE_OPERATION_DISALLOWED;
+
+		plat_log_msg(160070, LOG_CAT, LOG_ERR, 
+				"Operation denied: Shutdown in progress %s",
+				SDF_Status_Strings[status]);
+	}
+	return status;
+}
+
 
 /*
  * Get the container map for a given container id.
@@ -1236,25 +1263,193 @@ FDF_status_t FDFReleasePerThreadState(
     struct FDF_thread_state **thd_state
     )
 {
+	if (NULL == *thd_state) {
+    	plat_log_msg(160071, LOG_CAT, LOG_ERR, 
+                     "Thread state is null");
+		plat_assert(*thd_state);
+		// return FDF_FAILURE 
+	}
+
 	plat_free( *thd_state );
+	*thd_state = NULL;
+
 	return FDF_SUCCESS;
 }
 
-FDF_status_t FDFShutdown(
-	struct FDF_state	*fdf_state
-	)
+/*
+ * Dummy function to delete containers asynchronously
+ */
+void dummy_get_async_delete_stats(uint32_t *num_del, uint32_t *del_prog)
 {
-	return FDF_SUCCESS;
+
 }
+
+
+	static void
+fdf_wait_delete_containers()
+{
+	uint32_t num_del = 0, del_prog = 0;
+
+	if (1 == getProperty_Int("GRACEFUL_SHUTDOWN_DEL_CONT_WAIT", 1)) {
+		do {
+			dummy_get_async_delete_stats(&num_del, &del_prog);
+			sleep(1);
+
+			plat_log_msg(160072,
+					PLAT_LOG_CAT_SDF_PROT,
+					PLAT_LOG_LEVEL_INFO,
+					"Waiting for %d containers deletes to finish",
+					num_del);
+		} while(num_del);
+	}
+}
+
+
+/*
+ * The phase one of FDF shutdown process
+ * @param [in] Pointer to FDF state object
+ * @retval FDF_status_t, FDF_SUCCES for success. Any other value indicate a failure.
+ */
+static FDF_status_t
+fdf_containers_cleanup(struct FDF_state *fdf_state)
+{
+	plat_log_msg(160069, LOG_CAT, LOG_INFO, "%p", fdf_state);
+
+	struct FDF_thread_state *fdf_thread_state = NULL;
+	FDF_cguid_t cguids[MCD_MAX_NUM_CNTRS] = {0};
+	FDF_container_props_t props = {0};
+
+	FDF_status_t status = FDF_SUCCESS;
+	SDF_status_t props_rc = FDF_SUCCESS;
+
+	uint32_t n_cguids = 0;
+	uint32_t i = 0;
+	uint32_t num_closed_containers = 0;
+
+	/*
+	 * If container deletion operations are in progress, let them
+	 * complete.
+   	 */
+	fdf_wait_delete_containers();
+
+	status = FDFInitPerThreadState((struct FDF_state*) fdf_state,
+			(struct FDF_thread_state **) &fdf_thread_state);
+
+	if ( FDF_SUCCESS != status)	{
+		plat_log_msg(160073, LOG_CAT, LOG_ERR, 
+				"Unable to create thread context %s",
+				SDF_Status_Strings[status]);
+		return status;
+	}
+
+	/*
+	 * We will get all containers but physical containers (CMC, VMC and VDC)
+	 */
+	status = FDFGetContainers(fdf_thread_state, cguids, &n_cguids);
+
+	if (0 >= n_cguids) {
+		plat_log_msg(160055, LOG_CAT, LOG_INFO, 
+				"No container exists");
+		return status;
+	}
+
+	plat_log_msg(160074, LOG_CAT, LOG_INFO, 
+			"Total containers = %d", n_cguids);
+
+	for (i = 0; i < n_cguids; i++) {
+		props_rc = FDFGetContainerProps(fdf_thread_state, cguids[i], &props);
+		if (FDF_SUCCESS != props_rc) {
+			plat_log_msg(160075, LOG_CAT, LOG_ERR, 
+					"Error getting container properties for index=%d cguid=%ld: %s",
+					i, cguids[i], SDF_Status_Strings[status]);
+
+			/*
+			 * Carry on with remaining containers
+			 */
+			continue;
+		}
+		plat_log_msg(160080, LOG_CAT, LOG_INFO, 
+				"Got container properties for index=%d cguid=%ld: %s",
+				i, cguids[i], SDF_Status_Strings[status]);
+
+		/*
+		 * Close the container
+		 */
+		status = FDFCloseContainer(fdf_thread_state, cguids[i]);
+
+		if (FDF_SUCCESS != status) {
+			plat_log_msg(160081, LOG_CAT, LOG_ERR, 
+					"Error closing container ID: %ld with %s",
+					cguids[i], SDF_Status_Strings[status]);
+		}
+
+		plat_log_msg(160082, LOG_CAT, LOG_INFO, 
+				"Closed container id %ld with %s",
+				cguids[i], SDF_Status_Strings[status]);
+		num_closed_containers++;
+	}
+
+	plat_log_msg(160077, LOG_CAT,
+			LOG_INFO, "Closed %d containers", num_closed_containers);
+
+	FDFReleasePerThreadState(&fdf_thread_state);
+
+	return status;
+}
+
+
+/*
+ * The FDF shutdown process. This function should get called once.
+ * @param [in] Pointer to FDF state object
+ * @retval FDF_status_t, FDF_SUCCES for success. Any other value
+ *         indicates a failure.
+ */
+FDF_status_t FDFShutdown(struct FDF_state *fdf_state)
+{
+	plat_assert(fdf_state);
+
+	FDF_status_t status = FDF_SUCCESS;
+
+	if (1 == getProperty_Int("GRACEFUL_SHUTDOWN", 1)) {
+		plat_log_msg(20819, PLAT_LOG_CAT_SDF_PROT,
+				PLAT_LOG_LEVEL_INFO, "%s", "Starting graceful shutdown");
+
+		/*
+		 * Mark shutdown in progress
+		 */
+		if (atomic_cmp_swap(agent_state.op_access.is_shutdown_in_progress,
+					SDF_FALSE,
+					SDF_TRUE)) {
+			plat_log_msg(20819, PLAT_LOG_CAT_SDF_PROT,
+					PLAT_LOG_LEVEL_ERROR, "%s", "Another shutdown is in progress");
+
+			return FDF_FAILURE;
+		}
+
+		/*
+		 * Phase 1: Process containers
+		 */
+		plat_log_msg(20819, PLAT_LOG_CAT_SDF_PROT,
+				PLAT_LOG_LEVEL_INFO, "%s", "Shutdown phase 1: Closing containers");
+
+		status = fdf_containers_cleanup(fdf_state);
+
+		plat_log_msg(160078, PLAT_LOG_CAT_SDF_PROT,
+				PLAT_LOG_LEVEL_INFO, "Shutdown phase 1 returns :%s",
+				SDF_Status_Strings[status]);
+	}
+	return status;
+}
+
 
 FDF_status_t FDFLoadCntrPropDefaults(
-	FDF_container_props_t *props
-	)
+		FDF_container_props_t *props
+		)
 {
 	props->size_kb = 1024 * 1024;
 	props->fifo_mode = FDF_FALSE;
 	props->persistent = FDF_TRUE; 
-    props->evicting = FDF_FALSE;
+	props->evicting = FDF_FALSE;
 	props->writethru = FDF_TRUE;
 	props->async_writes = SDF_FALSE;
 	props->durability_level = FDF_DURABILITY_PERIODIC;
@@ -1268,104 +1463,104 @@ FDF_status_t FDFLoadCntrPropDefaults(
 
 //static uint64_t cid_counter = 0;
 char *FDFStrError(FDF_status_t fdf_errno) {
-    if ( fdf_errno >= N_FDF_STATUS_STRINGS ) {
-        return FDF_Status_Strings[0];  
-    }
-    return FDF_Status_Strings[fdf_errno]; 
+	if ( fdf_errno >= N_FDF_STATUS_STRINGS ) {
+		return FDF_Status_Strings[0];  
+	}
+	return FDF_Status_Strings[fdf_errno]; 
 }
 
 FDF_status_t FDFOpenContainer(
-	struct FDF_thread_state	*fdf_thread_state, 
-	char					*cname,
-	FDF_container_props_t	*properties,
-	uint32_t				 flags,
-	FDF_cguid_t 	 	 	*cguid
-	)
+		struct FDF_thread_state	*fdf_thread_state, 
+		char					*cname,
+		FDF_container_props_t	*properties,
+		uint32_t				 flags,
+		FDF_cguid_t 	 	 	*cguid
+		)
 {
 	FDF_status_t status		= FDF_SUCCESS;
 
 	if ( flags & FDF_CTNR_CREATE ) {
 		status = fdf_create_container( fdf_thread_state,
-									   cname,
-									   properties,
-									   flags,
-									   cguid,
-									   FDF_VIRTUAL_CNTR );
+				cname,
+				properties,
+				flags,
+				cguid,
+				FDF_VIRTUAL_CNTR );
 	}
-		
+
 	if ( FDF_SUCCESS == status ) {
 		status = fdf_open_container( fdf_thread_state,
-									 cname,
-									 properties,
-									 flags,
-									 cguid,
-									 FDF_VIRTUAL_CNTR,
-									 FDF_TRUE );
+				cname,
+				properties,
+				flags,
+				cguid,
+				FDF_VIRTUAL_CNTR,
+				FDF_TRUE );
 	}
 
 	return status;
 }
 
 FDF_status_t FDFOpenPhysicalContainer(
-    struct FDF_thread_state *fdf_thread_state,
-    char                    *cname,
-    FDF_container_props_t   *properties,
-    uint32_t                 flags,
-    FDF_cguid_t             *cguid
-    )
+		struct FDF_thread_state *fdf_thread_state,
+		char                    *cname,
+		FDF_container_props_t   *properties,
+		uint32_t                 flags,
+		FDF_cguid_t             *cguid
+		)
 {
-    FDF_status_t status     = FDF_SUCCESS;
+	FDF_status_t status     = FDF_SUCCESS;
 
-    if ( flags & FDF_CTNR_CREATE ) {
-        status = fdf_create_container( fdf_thread_state,
-                                       cname,
-                                       properties,
-                                       flags,
-                                       cguid,
-									   FDF_PHYSICAL_CNTR );
-    }
+	if ( flags & FDF_CTNR_CREATE ) {
+		status = fdf_create_container( fdf_thread_state,
+				cname,
+				properties,
+				flags,
+				cguid,
+				FDF_PHYSICAL_CNTR );
+	}
 
-    if ( FDF_SUCCESS == status ) {
-        status = fdf_open_container( fdf_thread_state,
-                                     cname,
-                                     properties,
-                                     flags,
-                                     cguid,
-									 FDF_PHYSICAL_CNTR,
-									 FDF_TRUE );
-    }
+	if ( FDF_SUCCESS == status ) {
+		status = fdf_open_container( fdf_thread_state,
+				cname,
+				properties,
+				flags,
+				cguid,
+				FDF_PHYSICAL_CNTR,
+				FDF_TRUE );
+	}
 
-    return status;
+	return status;
 }
 
 static FDF_status_t fdf_create_container(
-	struct FDF_thread_state	*fdf_thread_state, 
-	char					*cname,
-	FDF_container_props_t	*properties,
-	uint32_t				 flags,
-	FDF_cguid_t 	 	 	*cguid,
-	FDF_container_mode_t	 mode
-	)
+		struct FDF_thread_state	*fdf_thread_state, 
+		char					*cname,
+		FDF_container_props_t	*properties,
+		uint32_t				 flags,
+		FDF_cguid_t 	 	 	*cguid,
+		FDF_container_mode_t	 mode
+		)
 {
-    int					 	 	 	 i							= 0;
-    struct SDF_shared_state			*state 						= &sdf_shared_state;
-    FDF_status_t 			 	 	 status 					= FDF_FAILURE;
-    SDF_shardid_t 			 	 	 shardid 					= SDF_SHARDID_INVALID;
-    SDF_container_meta_t 			*meta 						= NULL;
-    SDF_CONTAINER_PARENT 		 	 parent 					= containerParentNull;
-    local_SDF_CONTAINER_PARENT 	 	 lparent 					= NULL;
-    SDF_boolean_t 			 	 	 isCMC						= SDF_FALSE;
-    uint32_t 				 	 	 in_shard_count				= 0;
-    uint32_t 				 	 	 num_objs 					= 0;
-    const char 						*writeback_enabled_string	= NULL;
-    SDF_internal_ctxt_t				*pai 						= (SDF_internal_ctxt_t *) fdf_thread_state;
+	int					 	 	 	 i							= 0;
+	struct SDF_shared_state			*state 						= &sdf_shared_state;
+	FDF_status_t 			 	 	 status 					= FDF_FAILURE;
+	SDF_shardid_t 			 	 	 shardid 					= SDF_SHARDID_INVALID;
+	SDF_container_meta_t 			*meta 						= NULL;
+	SDF_CONTAINER_PARENT 		 	 parent 					= containerParentNull;
+	local_SDF_CONTAINER_PARENT 	 	 lparent 					= NULL;
+	SDF_boolean_t 			 	 	 isCMC						= SDF_FALSE;
+	uint32_t 				 	 	 in_shard_count				= 0;
+	uint32_t 				 	 	 num_objs 					= 0;
+	const char 						*writeback_enabled_string	= NULL;
+	SDF_internal_ctxt_t				*pai 						= (SDF_internal_ctxt_t *) fdf_thread_state;
 	SDF_container_props_t 			*sdf_properties				= NULL;
 #if 0
 	FDF_internal_container_props_t   iproperties;
 #endif
 
 	if ( !properties || !cguid || !fdf_thread_state ||
-		  ISEMPTY( cname ) ) {
+			ISEMPTY( cname ) ) {
 		return FDF_INVALID_PARAMETER;
 	}
 
@@ -1375,108 +1570,108 @@ static FDF_status_t fdf_create_container(
 	properties->evicting  			= SDF_FALSE;
 	// properties->writethru  			= SDF_TRUE;
 #if 0
-    iproperties.current_size		= 0;
-    iproperties.num_obj				= 0;
-    iproperties.fifo_mode			= FDF_FALSE;
-    iproperties.cguid				= 0;
+	iproperties.current_size		= 0;
+	iproperties.num_obj				= 0;
+	iproperties.fifo_mode			= FDF_FALSE;
+	iproperties.cguid				= 0;
 	iproperties.num_shards 			= 1;  
-    iproperties.async_writes		= FDF_FALSE;
+	iproperties.async_writes		= FDF_FALSE;
 #endif
 
-     plat_log_msg(160033, LOG_CAT, LOG_INFO, "%s, size=%ld bytes", cname, (long)properties->size_kb * 1024);
+	plat_log_msg(160033, LOG_CAT, LOG_INFO, "%s, size=%ld bytes", cname, (long)properties->size_kb * 1024);
 
 #if 0
 	if( properties->size_kb < 1 )
 	{
-     	plat_log_msg( 150101,
-					  LOG_CAT, 
-					  LOG_ERR, 
-					  "%s, container size=%lu KB is less then minimum container size, which is 1KB", 
-					  cname, 
-					  properties->size_kb);
+		plat_log_msg( 150101,
+				LOG_CAT, 
+				LOG_ERR, 
+				"%s, container size=%lu KB is less then minimum container size, which is 1KB", 
+				cname, 
+				properties->size_kb);
 		return FDF_FAILURE_CONTAINER_TOO_SMALL;
 	}
 #endif
 
-    if ( !properties->writethru ) {
-        if ( !properties->evicting ) {
-            plat_log_msg( 160061, LOG_CAT, LOG_WARN,
-                          "Using writeback caching with store mode containers can result in lost data if the system crashes" );
-        } else {
-            writeback_enabled_string = getProperty_String( "SDF_WRITEBACK_CACHE_SUPPORT", "On" );
-            if ( strcmp( writeback_enabled_string, "On" ) != 0 ) {
-                plat_log_msg( 30575, LOG_CAT, LOG_ERR,
-                              "Cannot enable writeback caching for container '%s' because writeback caching is disabled.",
-                              cname );
+	if ( !properties->writethru ) {
+		if ( !properties->evicting ) {
+			plat_log_msg( 160061, LOG_CAT, LOG_WARN,
+					"Using writeback caching with store mode containers can result in lost data if the system crashes" );
+		} else {
+			writeback_enabled_string = getProperty_String( "SDF_WRITEBACK_CACHE_SUPPORT", "On" );
+			if ( strcmp( writeback_enabled_string, "On" ) != 0 ) {
+				plat_log_msg( 30575, LOG_CAT, LOG_ERR,
+						"Cannot enable writeback caching for container '%s' because writeback caching is disabled.",
+						cname );
 
-                properties->writethru = SDF_TRUE;
-            }
-        }
-    }
+				properties->writethru = SDF_TRUE;
+			}
+		}
+	}
 
 #ifdef notdef
 	// We only allow FIFO mode for evicting, non-persistent containers
 	if ( properties->fifo_mode && ( !properties->evicting || properties->persistent ) ) {
-        plat_log_msg( 150043, LOG_CAT, LOG_ERR,
-                      "FIFO mode is only allowed for evicting, non-persistent containers" );
-        return FDF_FAILURE_INVALID_CONTAINER_TYPE;
+		plat_log_msg( 150043, LOG_CAT, LOG_ERR,
+				"FIFO mode is only allowed for evicting, non-persistent containers" );
+		return FDF_FAILURE_INVALID_CONTAINER_TYPE;
 	}
 #endif /* notdef */
 
-    SDFStartSerializeContainerOp( pai );
+	SDFStartSerializeContainerOp( pai );
 
-    if ( strcmp( cname, CMC_PATH ) == 0 ) {
-        *cguid = CMC_CGUID;
-        isCMC = SDF_TRUE;
-    } else {
-        // Make sure we have not gone over the container limit
-        for ( i = 0; i < MCD_MAX_NUM_CNTRS; i++ ) {
-            if ( CtnrMap[i].cguid == 0 ) { 
-                // this is an unused map entry
-                break;
-            }
-        }
+	if ( strcmp( cname, CMC_PATH ) == 0 ) {
+		*cguid = CMC_CGUID;
+		isCMC = SDF_TRUE;
+	} else {
+		// Make sure we have not gone over the container limit
+		for ( i = 0; i < MCD_MAX_NUM_CNTRS; i++ ) {
+			if ( CtnrMap[i].cguid == 0 ) { 
+				// this is an unused map entry
+				break;
+			}
+		}
 
 		if ( i == MCD_MAX_NUM_CNTRS ) {
-	    	plat_log_msg( 150033, 
-			      LOG_CAT,LOG_ERR, 
-			      "FDFCreateContainer failed for container %s because 128 containers have already been created.", 
-			      cname );
-	    	status = FDF_TOO_MANY_CONTAINERS;
+			plat_log_msg( 150033, 
+					LOG_CAT,LOG_ERR, 
+					"FDFCreateContainer failed for container %s because 128 containers have already been created.", 
+					cname );
+			status = FDF_TOO_MANY_CONTAINERS;
 			goto out;
 		}
 
 		if ( ( status = fdf_generate_cguid( fdf_thread_state, cguid ) ) != FDF_SUCCESS ) {
 			plat_log_msg( 150084,
-				      LOG_CAT,
-				      LOG_ERR,
-				      "Failed to generate container id for %s", 
-				      cname );
-	    	status = FDF_TOO_MANY_CONTAINERS;
-	    	SDFEndSerializeContainerOp( pai );
-	    	return status;
+					LOG_CAT,
+					LOG_ERR,
+					"Failed to generate container id for %s", 
+					cname );
+			status = FDF_TOO_MANY_CONTAINERS;
+			SDFEndSerializeContainerOp( pai );
+			return status;
 		}
 
-        isCMC = SDF_FALSE;
-        init_get_my_node_id();
-	
-		// Save the current cguid counter for use in recovery
-        if ( SDF_SUCCESS != name_service_put_cguid_state( pai,
-                                                          init_get_my_node_id(),
-                                                          *cguid ) ) {
-            plat_log_msg( 150034,
-                        LOG_CAT,
-                        LOG_ERR,
-                        "Failed to save cguid state: %s",
-                        SDF_Status_Strings[status] );
+		isCMC = SDF_FALSE;
+		init_get_my_node_id();
 
-            status = FDF_PUT_METADATA_FAILED;
+		// Save the current cguid counter for use in recovery
+		if ( SDF_SUCCESS != name_service_put_cguid_state( pai,
+					init_get_my_node_id(),
+					*cguid ) ) {
+			plat_log_msg( 150034,
+					LOG_CAT,
+					LOG_ERR,
+					"Failed to save cguid state: %s",
+					SDF_Status_Strings[status] );
+
+			status = FDF_PUT_METADATA_FAILED;
 			goto out;
-        }
-    }
+		}
+	}
 
 #if 0
-    iproperties.cguid = *cguid;
+	iproperties.cguid = *cguid;
 #else
 	properties->cguid = *cguid;
 #endif
@@ -1495,125 +1690,125 @@ static FDF_status_t fdf_create_container(
 	}
 #endif
 
-    /*
-     *  Save the cguid in a useful place so that the replication code in
-     *  mcd_ipf.c can find it.
-     */
+	/*
+	 *  Save the cguid in a useful place so that the replication code in
+	 *  mcd_ipf.c can find it.
+	 */
 #ifdef notdef
-    if (cmc_settings != NULL) {
-        struct settings *settings = cmc_settings;
-        int  i;
+	if (cmc_settings != NULL) {
+		struct settings *settings = cmc_settings;
+		int  i;
 
-        for (i = 0; i < sizeof(settings->vips) / sizeof(settings->vips[0]); i++) {
-            if (sdf_properties->container_id.container_id ==
-                   settings->vips[i].container_id) {
-                   settings->vips[i].cguid = *cguid;
-            }
-        }
-    }
+		for (i = 0; i < sizeof(settings->vips) / sizeof(settings->vips[0]); i++) {
+			if (sdf_properties->container_id.container_id ==
+					settings->vips[i].container_id) {
+				settings->vips[i].cguid = *cguid;
+			}
+		}
+	}
 #endif /* notdef */
 
-    num_objs = sdf_properties->container_id.num_objs;
+	num_objs = sdf_properties->container_id.num_objs;
 
 #ifdef notdef
-    /*
-     * XXX: Provide default replication parameters for non-CMC containers.
-     * It would be better for this to be a test program runtime option for
-     * default container properties.
-     *
-     * 1/6/09: Enabled CMC replication.
-     *
-     * XXX: Disabling CMC replication doesn't seem to work in the current
-     * code, perhaps because it's getting to the replication code with
-     * a type of SDF_REPLICATION_NONE?  Try to make the CMC available
-     * everywhere since it should be write once.
-     */
-    if (/*!isCMC &&*/ state->config.always_replicate) {
-        if (isCMC && state->config.replication_type != SDF_REPLICATION_SIMPLE) {
-            sdf_properties->replication.num_replicas = state->config.nnodes;
-            sdf_properties->replication.num_meta_replicas = 0;
-            sdf_properties->replication.type = SDF_REPLICATION_SIMPLE;
-        } else {
-            sdf_properties->replication.num_replicas = state->config.always_replicate;
-            sdf_properties->replication.num_meta_replicas = 1;
-            sdf_properties->replication.type = state->config.replication_type;
-        }
+	/*
+	 * XXX: Provide default replication parameters for non-CMC containers.
+	 * It would be better for this to be a test program runtime option for
+	 * default container properties.
+	 *
+	 * 1/6/09: Enabled CMC replication.
+	 *
+	 * XXX: Disabling CMC replication doesn't seem to work in the current
+	 * code, perhaps because it's getting to the replication code with
+	 * a type of SDF_REPLICATION_NONE?  Try to make the CMC available
+	 * everywhere since it should be write once.
+	 */
+	if (/*!isCMC &&*/ state->config.always_replicate) {
+		if (isCMC && state->config.replication_type != SDF_REPLICATION_SIMPLE) {
+			sdf_properties->replication.num_replicas = state->config.nnodes;
+			sdf_properties->replication.num_meta_replicas = 0;
+			sdf_properties->replication.type = SDF_REPLICATION_SIMPLE;
+		} else {
+			sdf_properties->replication.num_replicas = state->config.always_replicate;
+			sdf_properties->replication.num_meta_replicas = 1;
+			sdf_properties->replication.type = state->config.replication_type;
+		}
 
-        sdf_properties->replication.enabled = 1;
-        sdf_properties->replication.synchronous = 1;
-        if( sdf_properties->replication.type == SDF_REPLICATION_V1_2_WAY ) {
-            sdf_properties->replication.num_replicas = 2;
-        }
-    }
+		sdf_properties->replication.enabled = 1;
+		sdf_properties->replication.synchronous = 1;
+		if( sdf_properties->replication.type == SDF_REPLICATION_V1_2_WAY ) {
+			sdf_properties->replication.num_replicas = 2;
+		}
+	}
 #endif /* notdef */
 
-    /*
-       How do we set shard_count :
-     1) check if shard_count in the incoming Container properties is non-zero
-     2) else use the shard_count from the properties file (by incredibly
-        complicated maze of initialization ending up in state->config)
-     3) else  use the hard-coded SDF_SHARD_DEFAULT_SHARD_COUNT macro
-    */
+	/*
+	   How do we set shard_count :
+	   1) check if shard_count in the incoming Container properties is non-zero
+	   2) else use the shard_count from the properties file (by incredibly
+	   complicated maze of initialization ending up in state->config)
+	   3) else  use the hard-coded SDF_SHARD_DEFAULT_SHARD_COUNT macro
+	 */
 
-    in_shard_count = sdf_properties->shard.num_shards?sdf_properties->shard.num_shards:
-        (state->config.shard_count?
-         state->config.shard_count:SDF_SHARD_DEFAULT_SHARD_COUNT);
+	in_shard_count = sdf_properties->shard.num_shards?sdf_properties->shard.num_shards:
+		(state->config.shard_count?
+		 state->config.shard_count:SDF_SHARD_DEFAULT_SHARD_COUNT);
 
-     /* XXX: If we reached here without having set the shard_count in
-        container properties, set the property here. In the future we
-        might want to assert on this condition.
-     */
-    if ( sdf_properties->shard.num_shards == 0 ) {
-        sdf_properties->shard.num_shards = in_shard_count;
-    }
+	/* XXX: If we reached here without having set the shard_count in
+	   container properties, set the property here. In the future we
+	   might want to assert on this condition.
+	 */
+	if ( sdf_properties->shard.num_shards == 0 ) {
+		sdf_properties->shard.num_shards = in_shard_count;
+	}
 
 #ifdef MULTIPLE_FLASH_DEV_ENABLED
-    plat_log_msg( 21527, LOG_CAT, LOG_INFO, "Container: %s - Multi Devs: %d",
-                  path, state->config.flash_dev_count );
+	plat_log_msg( 21527, LOG_CAT, LOG_INFO, "Container: %s - Multi Devs: %d",
+			path, state->config.flash_dev_count );
 #else
-    plat_log_msg( 21528, LOG_CAT, LOG_INFO, "Container: %s - Single Dev",
-                  cname );
+	plat_log_msg( 21528, LOG_CAT, LOG_INFO, "Container: %s - Single Dev",
+			cname );
 #endif
-    plat_log_msg( 21529, LOG_CAT, LOG_INFO, "Container: %s - Num Shards: %d",
-                  cname, sdf_properties->shard.num_shards );
+	plat_log_msg( 21529, LOG_CAT, LOG_INFO, "Container: %s - Num Shards: %d",
+			cname, sdf_properties->shard.num_shards );
 
-    plat_log_msg( 21530, LOG_CAT, LOG_INFO, "Container: %s - Num Objs: %d",
-                  cname, state->config.num_objs );
+	plat_log_msg( 21530, LOG_CAT, LOG_INFO, "Container: %s - Num Objs: %d",
+			cname, state->config.num_objs );
 
-    plat_log_msg( 21531, LOG_CAT, LOG_INFO, "Container: %s - DEBUG_MULTI_SHARD_INDEX: %d",
-                  cname, getProperty_Int( "DEBUG_MULTISHARD_INDEX", -1 ) );
+	plat_log_msg( 21531, LOG_CAT, LOG_INFO, "Container: %s - DEBUG_MULTI_SHARD_INDEX: %d",
+			cname, getProperty_Int( "DEBUG_MULTISHARD_INDEX", -1 ) );
 
 
-    if ( doesContainerExistInBackend( pai, cname )) {
-        #ifdef CONTAINER_PENDING
-        // Unset parent delete flag if with deleted flag
-        if ( !isContainerParentNull( parent = isParentContainerOpened( cname ) ) ) {
-                local_SDF_CONTAINER_PARENT lparent = getLocalContainerParent( &lparent, parent );
+	if ( doesContainerExistInBackend( pai, cname )) {
+#ifdef CONTAINER_PENDING
+		// Unset parent delete flag if with deleted flag
+		if ( !isContainerParentNull( parent = isParentContainerOpened( cname ) ) ) {
+			local_SDF_CONTAINER_PARENT lparent = getLocalContainerParent( &lparent, parent );
 
-             if ( lparent->delete_pending == SDF_TRUE ) {
-                    if ( !isCMC && (status = name_service_lock_meta( pai, cname )) != FDF_SUCCESS ) {
-                            plat_log_msg( 21532, LOG_CAT, LOG_ERR, "failed to lock %s", cname );
-                }
+			if ( lparent->delete_pending == SDF_TRUE ) {
+				if ( !isCMC && (status = name_service_lock_meta( pai, cname )) != FDF_SUCCESS ) {
+					plat_log_msg( 21532, LOG_CAT, LOG_ERR, "failed to lock %s", cname );
+				}
 
-                lparent->delete_pending = SDF_FALSE;
+				lparent->delete_pending = SDF_FALSE;
 
-                if ( !isCMC && (status = name_service_unlock_meta( pai, cname )) != FDF_SUCCESS ) {
-                            plat_log_msg( 21533, LOG_CAT, LOG_ERR, "failed to unlock %s", cname );
-                }
+				if ( !isCMC && (status = name_service_unlock_meta( pai, cname )) != FDF_SUCCESS ) {
+					plat_log_msg( 21533, LOG_CAT, LOG_ERR, "failed to unlock %s", cname );
+				}
 
-             }
+			}
 
-            releaseLocalContainerParent( &lparent ); // TODO C++ please!
-        }
-        #endif
+			releaseLocalContainerParent( &lparent ); // TODO C++ please!
+		}
+#endif
 		status = FDF_CONTAINER_EXISTS;
-    } else {
+	} else {
 
-        if ( mode == FDF_PHYSICAL_CNTR ) {
+		if ( mode == FDF_PHYSICAL_CNTR ) {
 
 			if ( ( shardid = build_shard( state, pai, cname, num_objs,
-                                          in_shard_count, *sdf_properties, *cguid,
-                                          isCMC ? BUILD_SHARD_CMC : BUILD_SHARD_OTHER, cname ) ) <= SDF_SHARDID_LIMIT ) {
+							in_shard_count, *sdf_properties, *cguid,
+							isCMC ? BUILD_SHARD_CMC : BUILD_SHARD_OTHER, cname ) ) <= SDF_SHARDID_LIMIT ) {
 				if ( VDC_CGUID == *cguid )
 					vdc_shardid = shardid;
 			}
@@ -1622,132 +1817,155 @@ static FDF_status_t fdf_create_container(
 		}
 
 		if ( shardid != SDF_SHARDID_INVALID ) {
-            if ( (meta = build_meta( cname, *sdf_properties, (SDF_cguid_t) *cguid, shardid )) != NULL ) {
+			if ( (meta = build_meta( cname, *sdf_properties, (SDF_cguid_t) *cguid, shardid )) != NULL ) {
 #ifdef STATE_MACHINE_SUPPORT
-                SDFUpdateMetaClusterGroupInfo( pai, meta, sdf_properties->container_id.container_id );
+				SDFUpdateMetaClusterGroupInfo( pai, meta, sdf_properties->container_id.container_id );
 #endif
-                if ( create_put_meta( pai, cname, meta, (SDF_cguid_t) *cguid ) == SDF_SUCCESS ) {
+				if ( create_put_meta( pai, cname, meta, (SDF_cguid_t) *cguid ) == SDF_SUCCESS ) {
 
-                    // For non-CMC, map the cguid and cname
-                    if ( !isCMC && (name_service_create_cguid_map( pai, cname, *cguid )) != SDF_SUCCESS ) {
-                        plat_log_msg( 21534, LOG_CAT, LOG_ERR,
-                                      "failed to map cguid: %s", cname );
-                    }
-                    if ( !isCMC && (status = name_service_lock_meta( pai, cname )) != FDF_SUCCESS ) {
-                        plat_log_msg(21532, LOG_CAT, LOG_ERR, "failed to lock %s", cname);
-                    } else if ( !isContainerParentNull(parent = createParentContainer( pai, cname, meta )) ) {
-                        lparent = getLocalContainerParent( &lparent, parent ); // TODO C++ please!
+					// For non-CMC, map the cguid and cname
+					if ( !isCMC && (name_service_create_cguid_map( pai, cname, *cguid )) != SDF_SUCCESS ) {
+						plat_log_msg( 21534, LOG_CAT, LOG_ERR,
+								"failed to map cguid: %s", cname );
+					}
+					if ( !isCMC && (status = name_service_lock_meta( pai, cname )) != FDF_SUCCESS ) {
+						plat_log_msg(21532, LOG_CAT, LOG_ERR, "failed to lock %s", cname);
+					} else if ( !isContainerParentNull(parent = createParentContainer( pai, cname, meta )) ) {
+						lparent = getLocalContainerParent( &lparent, parent ); // TODO C++ please!
 #ifdef notdef
-                        lparent->container_type = sdf_properties->container_type.type;
-                        if ( lparent->container_type == SDF_BLOCK_CONTAINER ) {
-                            lparent->blockSize = sdf_properties->specific.block_props.blockSize;
-                        }
+						lparent->container_type = sdf_properties->container_type.type;
+						if ( lparent->container_type == SDF_BLOCK_CONTAINER ) {
+							lparent->blockSize = sdf_properties->specific.block_props.blockSize;
+						}
 #endif
-                        releaseLocalContainerParent(&lparent); // TODO C++ please!
+						releaseLocalContainerParent(&lparent); // TODO C++ please!
 
-                        status = FDF_SUCCESS;
+						status = FDF_SUCCESS;
 
-                        if ( !isCMC && (status = name_service_unlock_meta( pai, cname )) != FDF_SUCCESS ) {
-                            plat_log_msg( 21533, LOG_CAT, LOG_ERR, "failed to unlock %s", cname );
-                        }
-                    } else {
-                        plat_log_msg( 21535, LOG_CAT, LOG_ERR, "cname=%s, build_shard failed", cname );
-                    }
-                } else {
-                    plat_log_msg( 21536, LOG_CAT, LOG_ERR, "cname=%s, createParentContainer() failed", cname );
-                }
+						if ( !isCMC && (status = name_service_unlock_meta( pai, cname )) != FDF_SUCCESS ) {
+							plat_log_msg( 21533, LOG_CAT, LOG_ERR, "failed to unlock %s", cname );
+						}
+					} else {
+						plat_log_msg( 21535, LOG_CAT, LOG_ERR, "cname=%s, build_shard failed", cname );
+					}
+				} else {
+					plat_log_msg( 21536, LOG_CAT, LOG_ERR, "cname=%s, createParentContainer() failed", cname );
+				}
 
-                container_meta_destroy( meta );
+				container_meta_destroy( meta );
 
-            } else {
-                plat_log_msg( 21537, LOG_CAT, LOG_ERR, "cname=%s, build_meta failed", cname );
-            }
-        } else {
-            plat_log_msg( 21535, LOG_CAT, LOG_ERR, "cname=%s, build_shard failed", cname );
+			} else {
+				plat_log_msg( 21537, LOG_CAT, LOG_ERR, "cname=%s, build_meta failed", cname );
+			}
+		} else {
+			plat_log_msg( 21535, LOG_CAT, LOG_ERR, "cname=%s, build_shard failed", cname );
 			status = FDF_OUT_OF_STORAGE_SPACE;
-        }
-    }
-
-    plat_log_msg( 21511, LOG_CAT, LOG_DBG, "%s - %s", cname, SDF_Status_Strings[status] );
-
-    if ( status != FDF_SUCCESS && status != FDF_CONTAINER_EXISTS ) {
-        plat_log_msg( 21538, LOG_CAT, LOG_ERR, "cname=%s, function returned status = %u", cname, status );
-        name_service_remove_meta( pai, cname );
-#if 0
-        /*
-         * XXX We're leaking the rest of the shard anyways, and this could
-         * cause dangling pointer problems to manifest from the coalesce, etc.
-         * internal flash threads so skip it.
-         */
-        shardDelete( shard );
-        xxxzzz continue from here
-#endif
-    }
-#ifdef SIMPLE_REPLICATION
-/*
-    else if ( status == FDF_SUCCESS ) {
-        SDFRepDataStructAddContainer( pai, sdf_properties, *cguid );
-    }
-*/
-#endif
-
-    if ( FDF_SUCCESS == status && CMC_CGUID != *cguid ) {
-        for ( i=0; i<MCD_MAX_NUM_CNTRS; i++ ) {
-            if ( CtnrMap[i].cguid == 0 ) {
-                // this is an unused map entry
-                strcpy( CtnrMap[i].cname, cname );
-                CtnrMap[i].cguid         = *cguid;
-                CtnrMap[i].sdf_container = containerNull;
-                CtnrMap[i].size_kb     	 = properties->size_kb;
-                CtnrMap[i].current_size	 = 0;
-#ifdef SDFAPIONLY
-                Mcd_containers[i].cguid = *cguid;
-                strcpy( Mcd_containers[i].cname, cname );
-#endif /* SDfAPIONLY */
-                break;
-            }           
 		}
-    }
+	}
 
- out:
+	plat_log_msg( 21511, LOG_CAT, LOG_DBG, "%s - %s", cname, SDF_Status_Strings[status] );
+
+	if ( status != FDF_SUCCESS && status != FDF_CONTAINER_EXISTS ) {
+		plat_log_msg( 21538, LOG_CAT, LOG_ERR, "cname=%s, function returned status = %u", cname, status );
+		name_service_remove_meta( pai, cname );
+#if 0
+		/*
+		 * XXX We're leaking the rest of the shard anyways, and this could
+		 * cause dangling pointer problems to manifest from the coalesce, etc.
+		 * internal flash threads so skip it.
+		 */
+		shardDelete( shard );
+		xxxzzz continue from here
+#endif
+	}
+#ifdef SIMPLE_REPLICATION
+	/*
+	   else if ( status == FDF_SUCCESS ) {
+	   SDFRepDataStructAddContainer( pai, sdf_properties, *cguid );
+	   }
+	 */
+#endif
+
+	if ( FDF_SUCCESS == status && CMC_CGUID != *cguid ) {
+		for ( i=0; i<MCD_MAX_NUM_CNTRS; i++ ) {
+			if ( CtnrMap[i].cguid == 0 ) {
+				// this is an unused map entry
+				strcpy( CtnrMap[i].cname, cname );
+				CtnrMap[i].cguid         = *cguid;
+				CtnrMap[i].sdf_container = containerNull;
+				CtnrMap[i].size_kb     	 = properties->size_kb;
+				CtnrMap[i].current_size	 = 0;
+#ifdef SDFAPIONLY
+				Mcd_containers[i].cguid = *cguid;
+				strcpy( Mcd_containers[i].cname, cname );
+#endif /* SDfAPIONLY */
+				break;
+			}           
+		}
+	}
+
+out:
 	if ( NULL != sdf_properties )
 		plat_free ( sdf_properties );
 
-    SDFEndSerializeContainerOp( pai );
+	SDFEndSerializeContainerOp( pai );
 
 	//plat_assert(status != FDF_SUCCESS || *cguid);
 
-    plat_log_msg(160034, LOG_CAT, LOG_INFO, "%s(cguid=%lu) - %s", cname, *cguid, SDF_Status_Strings[status]);
+	plat_log_msg(160034, LOG_CAT, LOG_INFO, "%s(cguid=%lu) - %s", cname, *cguid, SDF_Status_Strings[status]);
 
-    return status;
+	return status;
 }
 
 static FDF_status_t fdf_open_container(
-	struct FDF_thread_state	*fdf_thread_state, 
-	char					*cname,
-	FDF_container_props_t	*props,
-	uint32_t				 flags,
-	FDF_cguid_t 	 	 	*cguid,
-	FDF_container_mode_t	 mode,
-	FDF_boolean_t			 serialize
-	) 
+		struct FDF_thread_state	*fdf_thread_state, 
+		char					*cname,
+		FDF_container_props_t	*props,
+		uint32_t				 flags,
+		FDF_cguid_t 	 	 	*cguid,
+		FDF_container_mode_t	 mode,
+		FDF_boolean_t			 serialize
+		) 
 {               
-    FDF_status_t 				 status 	= FDF_SUCCESS;
-    local_SDF_CONTAINER 		 lc 		= NULL;
-    SDF_CONTAINER_PARENT 		 parent;
-    local_SDF_CONTAINER_PARENT 	 lparent 	= NULL;
-    int 						 log_level 	= LOG_ERR;
-    int  						 i_ctnr 	= -1;
-    SDF_CONTAINER 				 container 	= containerNull;
-    SDF_internal_ctxt_t     	*pai 		= (SDF_internal_ctxt_t *) fdf_thread_state;
+	FDF_status_t 				 status 	= FDF_SUCCESS;
+	local_SDF_CONTAINER 		 lc 		= NULL;
+	SDF_CONTAINER_PARENT 		 parent;
+	local_SDF_CONTAINER_PARENT 	 lparent 	= NULL;
+	int 						 log_level 	= LOG_ERR;
+	int  						 i_ctnr 	= -1;
+	SDF_CONTAINER 				 container 	= containerNull;
+	SDF_internal_ctxt_t     	*pai 		= (SDF_internal_ctxt_t *) fdf_thread_state;
 #ifdef SDFAPIONLY
-    mcd_osd_shard_t 			*mcd_shard	= NULL;
-    struct shard				*shard		= NULL;
+	mcd_osd_shard_t 			*mcd_shard	= NULL;
+	struct shard				*shard		= NULL;
 #endif /* SDFAPIONLY */
 	SDF_container_meta_t		 meta;
 
+	/*
+	 * Check if operation can begin
+	 */
+	if (FDF_SUCCESS != (status = is_fdf_operation_allowed())) {
+		plat_log_msg(160079, LOG_CAT,
+				LOG_ERR, "is_fdf_operation_allowed:%s",
+				SDF_Status_Strings[status]);
+
+		return status;
+	}
+
 	if ( serialize )                        
-	    SDFStartSerializeContainerOp( pai );
+		SDFStartSerializeContainerOp( pai );
+
+	/*
+	 * Check again, if operation can begin
+	 */
+	if (FDF_SUCCESS != (status = is_fdf_operation_allowed())) {
+
+		plat_log_msg(160079, LOG_CAT,
+				LOG_ERR, "is_fdf_operation_allowed:%s",
+				SDF_Status_Strings[status]);
+
+		goto out;
+	}
 
 	if ( !cguid ) {
 		status = FDF_INVALID_PARAMETER;
@@ -1880,6 +2098,8 @@ FDF_status_t FDFCloseContainer(
 	FDF_cguid_t  		     cguid
 	)
 {
+    // plat_assert(fdf_thread_state);
+
 	return fdf_close_container( fdf_thread_state,
 								cguid,
 								FDF_VIRTUAL_CNTR,
@@ -2073,10 +2293,34 @@ static FDF_status_t fdf_delete_container(
 				  "%lu", 
 				  cguid );
 
+    /*
+     * Check if operation can begin
+     */
+    if (FDF_SUCCESS != is_fdf_operation_allowed()) {
+		plat_log_msg(160079, LOG_CAT,
+				LOG_ERR, "is_fdf_operation_allowed:%s",
+				SDF_Status_Strings[status]);
+
+        return FDF_FAILURE_OPERATION_DISALLOWED;
+    }
+
 	if ( !cguid )
 		return FDF_INVALID_PARAMETER;
 
     SDFStartSerializeContainerOp(pai);
+
+
+    /*
+     * Check if operation can begin
+     */
+    if (FDF_SUCCESS != is_fdf_operation_allowed()) {
+
+		plat_log_msg(160079, LOG_CAT,
+				LOG_ERR, "is_fdf_operation_allowed:%s",
+				SDF_Status_Strings[status]);
+
+		goto out;
+    }
 
     i_ctnr = fdf_get_ctnr_from_cguid( cguid );
 

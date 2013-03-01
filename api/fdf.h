@@ -847,6 +847,12 @@ FDF_status_t FDFMiniTransactionCommit(
 	struct FDF_thread_state	*fdf_thread_state
 	);
 
+/*
+ * Check if we could allow an operation to start
+ * @param [in] void
+ * @retval FDF_status_t, FDF_SUCCESS for success
+ */
+FDF_status_t is_fdf_operation_allowed(void);
 
 
 #ifdef __cplusplus

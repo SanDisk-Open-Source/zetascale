@@ -488,6 +488,14 @@ typedef struct {
 } SDF_container_stats_t;
 #endif
 
+typedef struct FDF_operational_states_t_ {
+    SDF_boolean_t is_shutdown_in_progress;
+    /*
+     * Add more flags if needed.
+     */
+} FDF_operational_states_t;
+
+
 /**
  * @brief set FDF property
  *

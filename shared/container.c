@@ -880,7 +880,7 @@ SDF_status_t delete_container_internal_low(
                         "%s - failed to unlock metadata", path);
 		if (status == SDF_SUCCESS) {
 		    status = lock_status;
-		    log_level = LOG_ERR;		    
+		    log_level = LOG_ERR;
 		}
 		plat_assert(0);
             } else {
