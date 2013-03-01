@@ -47,7 +47,12 @@ struct sdf_agent_state {
 #else
     struct  flashDev *flash_dev;
 #endif
-    
+	/*
+	 * Allow or disallow an operation based on
+	 * different dynamic parameters. 
+	 */   
+	FDF_operational_states_t op_access;
+ 
     pthread_t threads[MAX_THREADS];
     int numThreads;
     pthread_mutex_t threads_mutex;
