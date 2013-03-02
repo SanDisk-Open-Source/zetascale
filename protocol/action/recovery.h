@@ -6,7 +6,7 @@
  */
 #ifndef _RECOVERY_H
 #define _RECOVERY_H
-
+#include "fdf.h"
 #include "fdf_internal.h"
 #include "shared/private.h"
 #include "protocol/action/action_internal_ctxt.h"

@@ -33,6 +33,7 @@
 #include <netinet/in.h>
 #include "ssd/fifo/mcd_osd_internal.h"
 #include "api/sdf_internal.h"
+#include "api/fdf_internal.h"
 extern mcd_container_t Mcd_containers[MCD_MAX_NUM_CNTRS];
 extern ctnr_map_t CtnrMap[MCD_MAX_NUM_CNTRS];
 

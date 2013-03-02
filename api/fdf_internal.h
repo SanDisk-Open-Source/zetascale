@@ -26,6 +26,9 @@ extern "C" {
 #define STATS_BUFFER_SIZE 1024
 #define MCD_FTH_STACKSIZE 81920
 
+typedef struct FDF_state {
+    uint64_t           cguid_cntr;
+} FDF_state_t;
 
 /*
  * Statistics returned from enumeration.
@@ -89,6 +92,57 @@ FDF_status_t dump_all_container_stats(struct FDF_thread_state *thd_state,
 FDF_status_t fdf_start_admin_thread( struct FDF_state *fdf_state );
 
 /* FDF internal functions */
+
+ /**
+ * @brief Create and open a physical container.
+ *
+ * @param fdf_thread_state <IN> The FDF context for which this operation applies
+ * @param cname <IN> container name
+ * @param properties <IN> container properties
+ * @param flags <IN> container open options
+ * @param cguid <OUT> container GUID
+ * @return FDF_SUCCESS on success
+ */
+FDF_status_t FDFOpenPhysicalContainer(
+    struct FDF_thread_state *fdf_thread_state,
+    char                    *cname,
+    FDF_container_props_t   *properties,
+    uint32_t                 flags,
+    FDF_cguid_t             *cguid
+    );
+
+/**
+ * @brief Close a phyiscal container.
+ *
+ * @param fdf_thread_state <IN> The FDF context for which this operation applies
+ * @param cguid <IN> container CGUID
+ * @return FDF_SUCCESS on success
+ */
+FDF_status_t FDFClosePhysicalContainer(
+    struct FDF_thread_state *fdf_thread_state,
+    FDF_cguid_t              cguid
+    );
+
+/**
+ * @brief Delete a physical container
+ *
+ * @param fdf_thread_state <IN> The FDF context for which this operation applies
+ * @param cguid <IN> container CGUID
+ * @return FDF_SUCCESS on success
+ */
+FDF_status_t FDFDeletePhysicalContainer(
+    struct FDF_thread_state *fdf_thread_state,
+    FDF_cguid_t              cguid
+    );
+
+/*
+ * Check if we could allow an operation to start
+ * @param [in] void
+ * @retval FDF_status_t, FDF_SUCCESS for success
+ */
+FDF_status_t is_fdf_operation_allowed(void);
+
+
 void fdf_get_flash_map(struct FDF_thread_state *thd_state, FDF_cguid_t cguid,
                        char *buf, int *size);
 FDF_cguid_t FDFGetCguid (char *cname );

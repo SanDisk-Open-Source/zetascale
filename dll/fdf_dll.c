@@ -43,7 +43,7 @@ static char *fdflibs[] ={
 static void 
 (*ptr_FDFSetProperty)(const char *property, const char *value);
 
-static FDF_status_t
+static FDF_status_t 
 (*ptr_FDFLoadProperties)(const char *prop_file);
 
 static FDF_status_t 
@@ -70,27 +70,12 @@ static FDF_status_t
                         FDF_cguid_t *cguid);
 
 static FDF_status_t 
-(*ptr_FDFOpenPhysicalContainer)(struct FDF_thread_state *fdf_thread_state,
-                                char *cname,
-                                FDF_container_props_t *properties,
-                                uint32_t flags,
-                                FDF_cguid_t *cguid);
-
-static FDF_status_t 
 (*ptr_FDFCloseContainer)(struct FDF_thread_state *fdf_thread_state,
                          FDF_cguid_t cguid);
 
 static FDF_status_t 
-(*ptr_FDFClosePhysicalContainer)(struct FDF_thread_state *fdf_thread_state,
-                                 FDF_cguid_t cguid);
-
-static FDF_status_t 
 (*ptr_FDFDeleteContainer)(struct FDF_thread_state *fdf_thread_state,
                           FDF_cguid_t cguid);
-
-static FDF_status_t 
-(*ptr_FDFDeletePhysicalContainer)(struct FDF_thread_state *fdf_thread_state,
-                                  FDF_cguid_t cguid);
 
 static FDF_status_t 
 (*ptr_FDFGetContainers)(struct FDF_thread_state *fdf_thread_state,
@@ -208,11 +193,8 @@ static struct {
     { "FDFShutdown",                   &ptr_FDFShutdown                  },
     { "FDFLoadCntrPropDefaults",       &ptr_FDFLoadCntrPropDefaults      },
     { "FDFOpenContainer",              &ptr_FDFOpenContainer             },
-    { "FDFOpenPhysicalContainer",      &ptr_FDFOpenPhysicalContainer     },
     { "FDFCloseContainer",             &ptr_FDFCloseContainer            },
-    { "FDFClosePhysicalContainer",     &ptr_FDFClosePhysicalContainer    },
     { "FDFDeleteContainer",            &ptr_FDFDeleteContainer           },
-    { "FDFDeletePhysicalContainer",    &ptr_FDFDeletePhysicalContainer   },
     { "FDFGetContainers",              &ptr_FDFGetContainers             },
     { "FDFGetContainerProps",          &ptr_FDFGetContainerProps         },
     { "FDFSetContainerProps",          &ptr_FDFSetContainerProps         },
@@ -370,7 +352,7 @@ FDFSetProperty(const char *property, const char *value)
 /*
  * FDFLoadProperties
  */
-FDF_status_t
+FDF_status_t 
 FDFLoadProperties(const char *prop_file)
 {
     if (unlikely(!ptr_FDFLoadProperties))
@@ -469,27 +451,6 @@ FDFOpenContainer(struct FDF_thread_state *fdf_thread_state,
 
 
 /*
- * FDFOpenPhysicalContainer
- */
-FDF_status_t 
-FDFOpenPhysicalContainer(struct FDF_thread_state *fdf_thread_state,
-                         char *cname,
-                         FDF_container_props_t *properties,
-                         uint32_t flags,
-                         FDF_cguid_t *cguid)
-{
-    if (unlikely(!ptr_FDFOpenPhysicalContainer))
-        undefined("FDFOpenPhysicalContainer");
-
-    return (*ptr_FDFOpenPhysicalContainer)(fdf_thread_state,
-                                           cname,
-                                           properties,
-                                           flags,
-                                           cguid);
-}
-
-
-/*
  * FDFCloseContainer
  */
 FDF_status_t 
@@ -504,20 +465,6 @@ FDFCloseContainer(struct FDF_thread_state *fdf_thread_state,
 
 
 /*
- * FDFClosePhysicalContainer
- */
-FDF_status_t 
-FDFClosePhysicalContainer(struct FDF_thread_state *fdf_thread_state,
-                          FDF_cguid_t cguid)
-{
-    if (unlikely(!ptr_FDFClosePhysicalContainer))
-        undefined("FDFClosePhysicalContainer");
-
-    return (*ptr_FDFClosePhysicalContainer)(fdf_thread_state, cguid);
-}
-
-
-/*
  * FDFDeleteContainer
  */
 FDF_status_t 
@@ -528,20 +475,6 @@ FDFDeleteContainer(struct FDF_thread_state *fdf_thread_state,
         undefined("FDFDeleteContainer");
 
     return (*ptr_FDFDeleteContainer)(fdf_thread_state, cguid);
-}
-
-
-/*
- * FDFDeletePhysicalContainer
- */
-FDF_status_t 
-FDFDeletePhysicalContainer(struct FDF_thread_state *fdf_thread_state,
-                           FDF_cguid_t cguid)
-{
-    if (unlikely(!ptr_FDFDeletePhysicalContainer))
-        undefined("FDFDeletePhysicalContainer");
-
-    return (*ptr_FDFDeletePhysicalContainer)(fdf_thread_state, cguid);
 }
 
 

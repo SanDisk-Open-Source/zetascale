@@ -24,13 +24,6 @@ extern "C" {
 #include "common/fdfstats.h"
 
 #define CONTAINER_NAME_MAXLEN 64
-/* FDF */
-extern char *FDF_Status_Strings[];
-
-typedef struct FDF_state {
-    uint64_t           cguid_cntr;
-
-} FDF_state_t;
 
 typedef struct {
 	uint64_t		n;
@@ -438,25 +431,6 @@ FDF_status_t FDFOpenContainer(
 	uint32_t			 	 flags,
 	FDF_cguid_t				*cguid
 	);
-
- /**
- * @brief Create and open a physical container.
- *
- * @param fdf_thread_state <IN> The FDF context for which this operation applies
- * @param cname <IN> container name
- * @param properties <IN> container properties
- * @param flags <IN> container open options
- * @param cguid <OUT> container GUID
- * @return FDF_SUCCESS on success
- */
-FDF_status_t FDFOpenPhysicalContainer(
-    struct FDF_thread_state *fdf_thread_state,
-    char                    *cname,
-    FDF_container_props_t   *properties,
-    uint32_t                 flags,
-    FDF_cguid_t             *cguid
-    );
-
 /**
  * @brief Close a virtual container.
  *
@@ -470,18 +444,6 @@ FDF_status_t FDFCloseContainer(
 	);
 
 /**
- * @brief Close a phyiscal container.
- *
- * @param fdf_thread_state <IN> The FDF context for which this operation applies
- * @param cguid <IN> container CGUID
- * @return FDF_SUCCESS on success
- */
-FDF_status_t FDFClosePhysicalContainer(
-    struct FDF_thread_state *fdf_thread_state,
-    FDF_cguid_t              cguid
-    );
-
-/**
  * @brief Delete a virtual container
  *
  * @param fdf_thread_state <IN> The FDF context for which this operation applies
@@ -492,18 +454,6 @@ FDF_status_t FDFDeleteContainer(
 	struct FDF_thread_state *fdf_thread_state,
 	FDF_cguid_t				 cguid
 	);
-
-/**
- * @brief Delete a physical container
- *
- * @param fdf_thread_state <IN> The FDF context for which this operation applies
- * @param cguid <IN> container CGUID
- * @return FDF_SUCCESS on success
- */
-FDF_status_t FDFDeletePhysicalContainer(
-    struct FDF_thread_state *fdf_thread_state,
-    FDF_cguid_t              cguid
-    );
 
 /**
  * @brief Get container list
@@ -848,14 +798,6 @@ FDF_status_t FDFMiniTransactionStart(
 FDF_status_t FDFMiniTransactionCommit(
 	struct FDF_thread_state	*fdf_thread_state
 	);
-
-/*
- * Check if we could allow an operation to start
- * @param [in] void
- * @retval FDF_status_t, FDF_SUCCESS for success
- */
-FDF_status_t is_fdf_operation_allowed(void);
-
 
 #ifdef __cplusplus
 }
