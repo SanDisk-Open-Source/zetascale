@@ -13,6 +13,13 @@
 
 #define rel_cntr_map(cmap)
 
+typedef enum {
+    FDF_CONTAINER_STATE_UNINIT,     /* Uninitialized */
+    FDF_CONTAINER_STATE_CLOSED,     /* Container is closed */
+    FDF_CONTAINER_STATE_OPEN,       /* Container is Open */
+    FDF_CONTAINER_STATE_DELETE_PROG /* Container submitted for async delete */
+}FDF_CONTAINER_STATE;
+
 typedef struct ctnr_map {
 	FDF_boolean_t	allocated;
     char            cname[CONTAINER_NAME_MAXLEN];
@@ -21,6 +28,7 @@ typedef struct ctnr_map {
 	uint64_t		size_kb;
 	uint64_t		current_size;
 	uint64_t		num_obj;
+    FDF_CONTAINER_STATE state;
 } ctnr_map_t;
 
 

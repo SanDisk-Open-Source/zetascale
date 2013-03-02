@@ -778,7 +778,7 @@ SDF_status_t delete_container_internal_low(
     int                  ok_to_delete = 1;
     SDF_container_meta_t meta;
 
-    plat_log_msg(20819, LOG_CAT, LOG_DBG, "%s", path);
+    plat_log_msg(160096, LOG_CAT, LOG_DBG, "%s serialize:%d", path,serialize);
 
     if (serialize) {
 		SDFStartSerializeContainerOp(pai);

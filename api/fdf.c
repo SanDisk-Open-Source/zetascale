@@ -56,6 +56,10 @@
 static time_t 			current_time 	= 0;
 static int stats_dump = 0;
 static SDF_shardid_t	vdc_shardid		= SDF_SHARDID_INVALID;
+
+/* Id used to uniquely differenciate 
+   parallel container deletes with same name */
+static uint32_t delete_prefix = 0; 
  
 char *FDF_Status_Strings[] = {
     "UNKNOWN_STATUS", /* since FDF_SUCCESS is 1! */
@@ -160,7 +164,8 @@ static FDF_status_t fdf_close_container(
 	struct FDF_thread_state	*fdf_thread_state,
 	FDF_cguid_t  		     cguid,
 	FDF_container_mode_t	 mode,
-	FDF_boolean_t			 serialize
+	FDF_boolean_t			 serialize,
+	FDF_boolean_t			 delete_check
 	);
 
 static FDF_status_t fdf_delete_container(
@@ -299,6 +304,16 @@ fdf_stats_info_t fdf_stats_access_type[] = {
     {
         "ENUM_CACHED_OBJECTS",
         "cached_objects_enumerated",
+        FDF_STATS_TYPE_APP_REQ,
+    },
+    {
+        "FDF_ACCESS_TYPES_NUM_CONT_DELETES_PEND",
+        "num_container_deletes_pending",
+        FDF_STATS_TYPE_APP_REQ,
+    },
+    {
+        "FDF_ACCESS_TYPES_NUM_CONT_DELETES_PROG",
+        "num_container_deletes_progress",
         FDF_STATS_TYPE_APP_REQ,
     },
 };
@@ -685,7 +700,7 @@ FDF_status_t is_fdf_operation_allowed(void)
 		 */
 		status = FDF_FAILURE_OPERATION_DISALLOWED;
 
-		plat_log_msg(160070, LOG_CAT, LOG_ERR, 
+		plat_log_msg(160097, LOG_CAT, LOG_ERR, 
 				"Operation denied: Shutdown in progress %s",
 				SDF_Status_Strings[status]);
 	}
@@ -861,12 +876,14 @@ int fdf_is_ctnr_open(
 		if ( !isContainerNull(CtnrMap[i].sdf_container) ) {
 			result = 1;
 		}
+        if( CtnrMap[i].state == FDF_CONTAINER_STATE_DELETE_PROG ) {
+            result = 1;
+        }
 	}
 
     return result;
 }
 
-#define MCD_FTH_STACKSIZE       81920
 
 static void fdf_fth_initer(uint64_t arg)
 {
@@ -1175,6 +1192,9 @@ FDF_status_t FDFInit(
     if ( getProperty_Int( "FDF_ADMIN_ENABLED", 1 ) == 1 ) {
         fdf_start_admin_thread(*fdf_state );
     }
+    if ( getProperty_Int( "ASYNC_DELETE_CONTAINERS",1) == 1 ) {
+        init_async_cmd_handler(getProperty_Int("ASYNC_DELETE_CONTAINERS_THREADS",5),*fdf_state);
+    }
 
 	fdf_start_vc_thread ( *fdf_state );
 
@@ -1264,7 +1284,7 @@ FDF_status_t FDFReleasePerThreadState(
     )
 {
 	if (NULL == *thd_state) {
-    	plat_log_msg(160071, LOG_CAT, LOG_ERR, 
+    	plat_log_msg(160098, LOG_CAT, LOG_ERR, 
                      "Thread state is null");
 		plat_assert(*thd_state);
 		// return FDF_FAILURE 
@@ -1295,7 +1315,7 @@ fdf_wait_delete_containers()
 			dummy_get_async_delete_stats(&num_del, &del_prog);
 			sleep(1);
 
-			plat_log_msg(160072,
+			plat_log_msg(160099,
 					PLAT_LOG_CAT_SDF_PROT,
 					PLAT_LOG_LEVEL_INFO,
 					"Waiting for %d containers deletes to finish",
@@ -1336,7 +1356,7 @@ fdf_containers_cleanup(struct FDF_state *fdf_state)
 			(struct FDF_thread_state **) &fdf_thread_state);
 
 	if ( FDF_SUCCESS != status)	{
-		plat_log_msg(160073, LOG_CAT, LOG_ERR, 
+		plat_log_msg(160100, LOG_CAT, LOG_ERR, 
 				"Unable to create thread context %s",
 				SDF_Status_Strings[status]);
 		return status;
@@ -1353,13 +1373,13 @@ fdf_containers_cleanup(struct FDF_state *fdf_state)
 		return status;
 	}
 
-	plat_log_msg(160074, LOG_CAT, LOG_INFO, 
+	plat_log_msg(160101, LOG_CAT, LOG_INFO, 
 			"Total containers = %d", n_cguids);
 
 	for (i = 0; i < n_cguids; i++) {
 		props_rc = FDFGetContainerProps(fdf_thread_state, cguids[i], &props);
 		if (SDF_SUCCESS != props_rc) {
-			plat_log_msg(160075, LOG_CAT, LOG_ERR, 
+			plat_log_msg(160102, LOG_CAT, LOG_ERR, 
 					"Error getting container properties for index=%d cguid=%ld: %s",
 					i, cguids[i], SDF_Status_Strings[status]);
 
@@ -1368,7 +1388,7 @@ fdf_containers_cleanup(struct FDF_state *fdf_state)
 			 */
 			continue;
 		}
-		plat_log_msg(160080, LOG_CAT, LOG_INFO, 
+		plat_log_msg(160103, LOG_CAT, LOG_INFO, 
 				"Got container properties for index=%d cguid=%ld: %s",
 				i, cguids[i], SDF_Status_Strings[status]);
 
@@ -1378,18 +1398,18 @@ fdf_containers_cleanup(struct FDF_state *fdf_state)
 		status = FDFCloseContainer(fdf_thread_state, cguids[i]);
 
 		if (FDF_SUCCESS != status) {
-			plat_log_msg(160081, LOG_CAT, LOG_ERR, 
+			plat_log_msg(160104, LOG_CAT, LOG_ERR, 
 					"Error closing container ID: %ld with %s",
 					cguids[i], SDF_Status_Strings[status]);
 		}
 
-		plat_log_msg(160082, LOG_CAT, LOG_INFO, 
+		plat_log_msg(160105, LOG_CAT, LOG_INFO, 
 				"Closed container id %ld with %s",
 				cguids[i], SDF_Status_Strings[status]);
 		num_closed_containers++;
 	}
 
-	plat_log_msg(160077, LOG_CAT,
+	plat_log_msg(160106, LOG_CAT,
 			LOG_INFO, "Closed %d containers", num_closed_containers);
 
 	FDFReleasePerThreadState(&fdf_thread_state);
@@ -1434,7 +1454,7 @@ FDF_status_t FDFShutdown(struct FDF_state *fdf_state)
 
 		status = fdf_containers_cleanup(fdf_state);
 
-		plat_log_msg(160078, PLAT_LOG_CAT_SDF_PROT,
+		plat_log_msg(160107, PLAT_LOG_CAT_SDF_PROT,
 				PLAT_LOG_LEVEL_INFO, "Shutdown phase 1 returns :%s",
 				SDF_Status_Strings[status]);
 	}
@@ -1945,7 +1965,7 @@ static FDF_status_t fdf_open_container(
 	 * Check if operation can begin
 	 */
 	if (FDF_SUCCESS != (status = is_fdf_operation_allowed())) {
-		plat_log_msg(160079, LOG_CAT,
+		plat_log_msg(160108, LOG_CAT,
 				LOG_ERR, "is_fdf_operation_allowed:%s",
 				SDF_Status_Strings[status]);
 
@@ -1960,7 +1980,7 @@ static FDF_status_t fdf_open_container(
 	 */
 	if (FDF_SUCCESS != (status = is_fdf_operation_allowed())) {
 
-		plat_log_msg(160079, LOG_CAT,
+		plat_log_msg(160108, LOG_CAT,
 				LOG_ERR, "is_fdf_operation_allowed:%s",
 				SDF_Status_Strings[status]);
 
@@ -1978,7 +1998,7 @@ static FDF_status_t fdf_open_container(
 		goto out;
 	}
 
-    plat_log_msg( 20819, LOG_CAT, LOG_INFO, "%s", cname );
+    plat_log_msg( 20819, LOG_CAT, LOG_INFO, "%s", cname);
 
     if ( strcmp( cname, CMC_PATH ) != 0 ) {
 		i_ctnr = fdf_get_ctnr_from_cname( cname );
@@ -2103,7 +2123,8 @@ FDF_status_t FDFCloseContainer(
 	return fdf_close_container( fdf_thread_state,
 								cguid,
 								FDF_VIRTUAL_CNTR,
-								FDF_TRUE
+								FDF_TRUE,
+                                FDF_TRUE
 							  );
 }
 
@@ -2115,15 +2136,32 @@ FDF_status_t FDFClosePhysicalContainer(
 	return fdf_close_container( fdf_thread_state,
 								cguid,
 								FDF_PHYSICAL_CNTR,
-								FDF_TRUE
+								FDF_TRUE,
+                                FDF_TRUE
 							  );
+}
+
+bool is_container_being_deleted(FDF_cguid_t cguid ) {
+    /* This function must be called with in SDFStartSerializeContainerOp */
+    int i_ctnr;
+
+    i_ctnr = fdf_get_ctnr_from_cguid(cguid);
+    if ( i_ctnr < 0 ) {
+        return FDF_TRUE;
+    }
+    /* Check if container is being deleted, if so return error */
+    if( CtnrMap[i_ctnr].state == FDF_CONTAINER_STATE_DELETE_PROG ) {
+        return FDF_TRUE;
+    }
+    return FDF_FALSE;
 }
 
 static FDF_status_t fdf_close_container(
 	struct FDF_thread_state	*fdf_thread_state,
 	FDF_cguid_t  		     cguid,
 	FDF_container_mode_t	 mode,
-	FDF_boolean_t			 serialize
+	FDF_boolean_t			 serialize,
+	FDF_boolean_t			 delete_check
 	)
 {
 #ifdef SDFAPIONLY
@@ -2140,7 +2178,7 @@ static FDF_status_t fdf_close_container(
     int						 log_level		= LOG_ERR;
     int						 ok_to_delete	= 0;
 
-    plat_log_msg(21630, LOG_CAT, LOG_INFO, "%lu", cguid);
+    plat_log_msg( 21630, LOG_CAT, LOG_INFO, "%lu", cguid);
 
 	if ( !cguid )
 		return FDF_INVALID_PARAMETER;
@@ -2155,6 +2193,14 @@ static FDF_status_t fdf_close_container(
 		goto out;
     } else {
 		container = CtnrMap[i_ctnr].sdf_container;
+    }
+    /* Check if container is being deleted, if so return error */
+    if ( delete_check && is_container_being_deleted(cguid) == FDF_TRUE ) {
+       plat_log_msg(160089,LOG_CAT, LOG_ERR,"Container %lu does not exist",cguid);
+       if ( serialize ) {
+           SDFEndSerializeContainerOp(pai);
+       }
+       return FDF_INVALID_PARAMETER;
     }
 
     if (isContainerNull(container)) {
@@ -2256,10 +2302,16 @@ FDF_status_t FDFDeleteContainer(
     FDF_cguid_t              cguid
     )
 {
-	return fdf_delete_container( fdf_thread_state,
+    if ( getProperty_Int("ASYNC_DELETE_CONTAINERS",1) == 1 ) {
+        return fdf_delete_container_async_start(fdf_thread_state,cguid,
+                                                        FDF_VIRTUAL_CNTR);
+    }
+    else {
+	    return fdf_delete_container( fdf_thread_state,
 								 cguid,
 								 FDF_VIRTUAL_CNTR
 							   );
+    }
 }
 
 FDF_status_t FDFDeletePhysicalContainer(
@@ -2272,6 +2324,273 @@ FDF_status_t FDFDeletePhysicalContainer(
 								 FDF_PHYSICAL_CNTR
 							   );
 }
+
+
+FDF_status_t fdf_delete_container_async_end(
+                                struct FDF_thread_state *fdf_thread_state,
+                                                         FDF_cguid_t cguid){
+    FDF_status_t status;
+    int i_ctnr,ok_to_delete;
+    FDF_cguid_t mycguid;
+    SDF_container_meta_t meta;
+    SDF_internal_ctxt_t *pai;
+    FDF_container_mode_t mode;
+
+    pai = (SDF_internal_ctxt_t *) fdf_thread_state;
+    /* Serializing container operation not required here. Because 
+       it is protected by flag delete under progress */
+    i_ctnr = fdf_get_ctnr_from_cguid( cguid );  
+    if ( i_ctnr < 0 ) {
+        plat_log_msg( 160074, LOG_CAT, LOG_ERR,
+                        "Container does not exist. Delete can not proceed" );
+        return FDF_FAILURE;
+    }      
+
+    mode = FDF_VIRTUAL_CNTR;
+    if( cguid <= 2 ) { 
+        mode = FDF_PHYSICAL_CNTR;
+    }
+    //sleep(15);
+
+    /* Open container and delete */
+    status = fdf_open_container( fdf_thread_state,CtnrMap[ i_ctnr ].cname,
+                                  NULL,0,&mycguid,mode,FDF_TRUE);
+    if( status != FDF_SUCCESS ) {
+        plat_log_msg(160075,LOG_CAT,LOG_ERR,
+                    "Unable to open container %lu for deleting",cguid);
+        return FDF_FAILURE;
+    }
+    status = fdf_delete_objects( fdf_thread_state, cguid );
+    if( status != FDF_SUCCESS ) {
+        plat_log_msg(160076,LOG_CAT,LOG_ERR,
+                    "Deleting all objects in container %lu failed",cguid);
+        return FDF_FAILURE;
+    }
+    status = fdf_close_container(fdf_thread_state,cguid,mode,
+                                                       FDF_TRUE,FDF_FALSE);
+    if( status != FDF_SUCCESS ) {
+        plat_log_msg(160077,LOG_CAT,LOG_ERR,
+                 "Closing container %lu after deleting objects failed",cguid);
+        return FDF_FAILURE;
+    }
+
+    /* All objects got deleted. Just cleanup metaadata */
+    SDFStartSerializeContainerOp(pai);
+	status = delete_container_internal_low( pai, CtnrMap[i_ctnr].cname, 
+				SDF_FALSE,  (mode == FDF_PHYSICAL_CNTR ? SDF_TRUE:SDF_FALSE), 
+													&ok_to_delete );
+	if ( FDF_SUCCESS == status && ok_to_delete) {
+	    CtnrMap[i_ctnr].cname[0]		= '\0';
+	    CtnrMap[i_ctnr].cguid         	= 0;
+	    CtnrMap[i_ctnr].sdf_container 	= containerNull;
+	    CtnrMap[i_ctnr].size_kb			= 0;
+	    CtnrMap[i_ctnr].current_size  	= 0;
+	    CtnrMap[i_ctnr].state       	= FDF_CONTAINER_STATE_UNINIT;
+		if ( FDF_VIRTUAL_CNTR == mode ) {
+            FDFFlushContainer( fdf_thread_state, VMC_CGUID );
+        }
+		else {
+    		FDFFlushContainer( fdf_thread_state, CMC_CGUID );
+        }
+    } 
+    else { 
+        /* for some reason cleanup failed. Just reset delete_in_progress*/
+        status = FDF_FAILURE;
+        if (name_service_get_meta( pai, cguid, &meta ) != FDF_SUCCESS ) {
+            plat_log_msg( 160078, LOG_CAT, LOG_ERR,
+                   "Could not read metadata for %lu. Delete can not proceed\n",
+                                                                        cguid );
+            SDFEndSerializeContainerOp(pai);
+            return FDF_FAILURE;
+        }
+        meta.delete_in_progress = FDF_FALSE;
+        if ( name_service_put_meta( pai, cguid, &meta ) != SDF_SUCCESS ) { 
+            plat_log_msg( 160079, LOG_CAT, LOG_ERR, 
+                    "Could not clear Metadata for %lu after delete", cguid );
+        }
+        plat_log_msg( 160090, LOG_CAT, LOG_ERR, 
+                    "Container %lu is not cleanedup completly", cguid );
+    }
+    SDFEndSerializeContainerOp( pai );
+    return status;
+}
+
+#define CONTAINER_RENAME_PREFIX "$c#@@n**"
+
+/* This function MUST be called after aquiring 
+                                 SDFStartSerializeContainerOp(pai) lock */
+FDF_status_t fdf_rename_container(struct FDF_thread_state *fdf_thread_state,
+                                                         FDF_cguid_t cguid ) {
+    int i_ctnr;
+    time_t t;
+    FDF_status_t status;
+    SDF_container_meta_t meta;
+    char cname[CONTAINER_NAME_MAXLEN];
+    SDF_internal_ctxt_t *pai;
+
+    pai = (SDF_internal_ctxt_t *) fdf_thread_state;
+
+    i_ctnr = fdf_get_ctnr_from_cguid( cguid );
+    if ( i_ctnr < 0 ) {
+        plat_log_msg( 160110, LOG_CAT, LOG_ERR,
+                        "Container does not exist. Can not rename" );
+        return FDF_FAILURE;
+    }
+
+    status = name_service_get_meta( pai, cguid, &meta );
+    if ( status != FDF_SUCCESS ) {
+        plat_log_msg( 160111, LOG_CAT, LOG_ERR,
+          "Could not read metadata for %lu. Can not rename\n", cguid );
+        return FDF_FAILURE;
+    }   
+    if ( strncmp(meta.cname,CONTAINER_RENAME_PREFIX,
+                                    strlen(CONTAINER_RENAME_PREFIX)) == 0 ) {
+        plat_log_msg( 160112, LOG_CAT, LOG_ERR,
+          "Container %lu is already renamed. \n", cguid );
+        return FDF_SUCCESS;
+    }
+    time(&t);
+    snprintf(cname,CONTAINER_NAME_MAXLEN,"%s_%x_%s",CONTAINER_RENAME_PREFIX,
+                                 atomic_add_get(delete_prefix,1),meta.cname);
+    plat_log_msg( 160113, LOG_CAT, LOG_ERR,
+          "Renaming container %s to %s\n",meta.cname,cname );
+    status = name_service_remove_cguid_map(pai,meta.cname);
+    if ( status != SDF_SUCCESS ) {
+        plat_log_msg( 160114,LOG_CAT, LOG_ERR,
+                       "Unable to remove cguid map for container %lu."
+                       " Can not rename",meta.cguid);
+        return FDF_FAILURE;
+    }
+    if ( getProperty_Int("ASYNC_DEL_CONT_TEST_ABORT_AFTER_REM_MAP", 0) == 1 ){
+         plat_abort();
+    }
+    snprintf(meta.cname,CONTAINER_NAME_MAXLEN,"%s",cname);
+    snprintf(CtnrMap[i_ctnr].cname,CONTAINER_NAME_MAXLEN,"%s",cname);
+    status = name_service_put_meta( pai, cguid, &meta );
+    if ( status != SDF_SUCCESS ) {
+        plat_log_msg( 160115, LOG_CAT, LOG_ERR,
+                      "Unable to write metadata for %lu. Can not rename ",
+                                                                      cguid );
+        return FDF_FAILURE;
+    }
+    if ( getProperty_Int("ASYNC_DEL_CONT_TEST_ABORT_BEF_CMAP", 0) == 1 ){
+         plat_abort();
+    }
+    /* Create New container Map with new name */
+    status = name_service_create_cguid_map(fdf_thread_state,
+                                                  meta.cname,meta.cguid);
+    if ( status != SDF_SUCCESS ) {
+        plat_log_msg( 160116,LOG_CAT, LOG_ERR,
+             "Unable to create cguid map for container %lu."
+             "Can not rename",meta.cguid);
+        return FDF_FAILURE;
+    }
+    return FDF_SUCCESS;
+}
+
+FDF_status_t fdf_delete_container_async_start(
+                                struct FDF_thread_state *fdf_thread_state,
+                                FDF_cguid_t cguid, FDF_container_mode_t mode ){
+
+    int i_ctnr;
+    FDF_status_t status;
+    SDF_container_meta_t meta;
+    SDF_internal_ctxt_t *pai;
+
+    plat_log_msg(160091,LOG_CAT, LOG_INFO,
+                                     "Deleting container %lu",cguid);
+    if ( !cguid ) {
+        plat_log_msg(160081,LOG_CAT, LOG_ERR,
+                      "Null container Id. Delete can not proceed.");
+        return FDF_INVALID_PARAMETER;
+    }
+
+    pai = (SDF_internal_ctxt_t *) fdf_thread_state;
+
+    SDFStartSerializeContainerOp(pai);
+    i_ctnr = fdf_get_ctnr_from_cguid( cguid );
+    if ( i_ctnr < 0 ) {
+        plat_log_msg( 160074, LOG_CAT, LOG_ERR,
+                        "Container does not exist. Delete can not proceed" );
+        SDFEndSerializeContainerOp(pai);
+        return FDF_FAILURE;
+    }
+
+    status = name_service_get_meta( pai, cguid, &meta );
+    if ( status != FDF_SUCCESS ) {
+        plat_log_msg( 160078, LOG_CAT, LOG_ERR, 
+          "Could not read metadata for %lu. Delete can not proceed\n", cguid );
+        SDFEndSerializeContainerOp(pai);
+        return FDF_FAILURE;
+    }
+    /* Check if delete is under progress already */
+    if ( meta.delete_in_progress == FDF_TRUE ) {
+        /* Check if we have initiated the async command. While doing 
+           Recovery, we have to make sure we are sending the command */
+        if( CtnrMap[i_ctnr].state == FDF_CONTAINER_STATE_DELETE_PROG ) {
+            plat_log_msg( 160083, LOG_CAT, LOG_ERR,
+                      "Delete already under progress fpr %lu",cguid);
+            SDFEndSerializeContainerOp(pai);
+            return FDF_FAILURE; 
+        }
+        /* check if it needs renaming */
+        status = fdf_rename_container(fdf_thread_state,cguid);
+        if ( status != FDF_SUCCESS ) {
+            plat_log_msg(160117,LOG_CAT, LOG_ERR,
+                                   "Failed to delete the container:%lu",cguid);
+            SDFEndSerializeContainerOp(pai);
+            return FDF_FAILURE;
+        }
+    }
+    else {
+       
+        /* Close the container if it is open already */
+        if ( fdf_is_ctnr_open( cguid ) ) {
+            status = fdf_close_container(fdf_thread_state, cguid,
+                                               mode, FDF_FALSE,FDF_TRUE);
+            if ( status != FDF_SUCCESS ) {
+                plat_log_msg( 160082, LOG_CAT, LOG_ERR,
+                          "Failed to close container during delete" );
+                SDFEndSerializeContainerOp(pai);
+                return FDF_FAILURE;
+            }
+        }
+        meta.delete_in_progress = FDF_TRUE;
+        status = name_service_put_meta( pai, cguid, &meta );
+        if ( status != FDF_SUCCESS ) {
+            plat_log_msg( 160093, LOG_CAT, LOG_ERR, 
+                      "Could not mark delete in progress for container %lu. ",
+                                                                      cguid );
+            SDFEndSerializeContainerOp(pai);
+            return FDF_FAILURE;
+        } 
+        if ( getProperty_Int("ASYNC_DEL_CONT_TEST_ABORT_AFTER_META", 0) == 1 ){
+            plat_abort();
+        }
+
+        status = fdf_rename_container(fdf_thread_state,cguid);
+        if ( status != FDF_SUCCESS ) {
+            plat_log_msg(160117,LOG_CAT, LOG_ERR,
+                                   "Failed to delete the container:%lu",cguid);
+            SDFEndSerializeContainerOp(pai);
+            return FDF_FAILURE;
+        }
+    }
+    status = aync_command_delete_container(cguid);
+    if ( status != FDF_SUCCESS ) {
+        plat_log_msg( 160085, LOG_CAT, LOG_ERR,
+             "Failed to initiate the asynchronous container delete");
+        SDFEndSerializeContainerOp(pai);
+        return FDF_FAILURE;
+    }
+    /* Set the state that async delete is under progress */
+    CtnrMap[i_ctnr].state = FDF_CONTAINER_STATE_DELETE_PROG;
+    SDFEndSerializeContainerOp(pai);
+    return FDF_SUCCESS;
+}
+                                    
+
+
 
 static FDF_status_t fdf_delete_container(
 	struct FDF_thread_state	*fdf_thread_state,
@@ -2297,7 +2616,7 @@ static FDF_status_t fdf_delete_container(
      * Check if operation can begin
      */
     if (FDF_SUCCESS != is_fdf_operation_allowed()) {
-		plat_log_msg(160079, LOG_CAT,
+		plat_log_msg(160108, LOG_CAT,
 				LOG_ERR, "is_fdf_operation_allowed:%s",
 				SDF_Status_Strings[status]);
 
@@ -2315,7 +2634,7 @@ static FDF_status_t fdf_delete_container(
      */
     if (FDF_SUCCESS != is_fdf_operation_allowed()) {
 
-		plat_log_msg(160079, LOG_CAT,
+		plat_log_msg(160108, LOG_CAT,
 				LOG_ERR, "is_fdf_operation_allowed:%s",
 				SDF_Status_Strings[status]);
 
@@ -2334,7 +2653,7 @@ static FDF_status_t fdf_delete_container(
 	}
 
 	if ( fdf_is_ctnr_open( cguid ) ) {
-		if ( ( status = fdf_close_container( fdf_thread_state, cguid, mode, FDF_FALSE ) ) != FDF_SUCCESS ) {
+		if ( ( status = fdf_close_container( fdf_thread_state, cguid, mode, FDF_FALSE, FDF_TRUE ) ) != FDF_SUCCESS ) {
 			plat_log_msg( 150097,
 						  LOG_CAT,
 						  LOG_ERR,
@@ -2383,7 +2702,7 @@ static FDF_status_t fdf_delete_container(
 		if ( ( status = fdf_close_container( fdf_thread_state,  
    											 mycguid,
 											 mode,
-											 FDF_FALSE ) ) != FDF_SUCCESS ) {
+											 FDF_FALSE, FDF_TRUE ) ) != FDF_SUCCESS ) {
 			plat_log_msg( 150093,
 					  	  LOG_CAT,
 						  LOG_ERR,
@@ -2465,8 +2784,13 @@ char *FDFGetContainerName(FDF_cguid_t cguid) {
     }
     return "";
 }
-char *FDFGetNextContainerName(int *index) {
+char *FDFGetNextContainerName(struct FDF_thread_state *fdf_thread_state,int *index) {
     int i;
+    SDF_container_meta_t meta;
+    SDF_internal_ctxt_t *pai;
+
+    pai = (SDF_internal_ctxt_t *) fdf_thread_state;
+    SDFStartSerializeContainerOp(pai);
     for ( i = *index ; i < MCD_MAX_NUM_CNTRS; i++ ) {
         if(CtnrMap[i].cguid != 0){
             /* Skip CMC, VMC and VDC */
@@ -2474,10 +2798,25 @@ char *FDFGetNextContainerName(int *index) {
                 (strcmp(CtnrMap[i].cname,"/sdf/VDC") == 0) ) {
                 continue;
             }
+            /* check if the container is being deleted */
+            if (name_service_get_meta( pai, CtnrMap[i].cguid, &meta ) != FDF_SUCCESS ) {
+                //plat_log_msg( 160087, LOG_CAT, LOG_ERR,
+                //   "Could not read metadata for %lu. skipping this container from list",
+                //                                                        CtnrMap[i].cguid );
+                continue;
+            }
+            if ( meta.delete_in_progress == FDF_TRUE ) {
+                //plat_log_msg( 160088, LOG_CAT, LOG_INFO,
+                //            "Container %lu is being deleted. So not included in the list",
+                //                                                        CtnrMap[i].cguid);
+                continue;
+            }
             *index = i+1;
+            SDFEndSerializeContainerOp( pai );
             return CtnrMap[i].cname;
         }
     }
+    SDFEndSerializeContainerOp( pai );
     return "";
 }
 
@@ -2490,6 +2829,7 @@ FDF_status_t FDFGetContainers(
     int   						 i				= 0;
     int   						 n_containers	= 0;
     SDF_internal_ctxt_t     	*pai 			= (SDF_internal_ctxt_t *) fdf_thread_state;
+    SDF_container_meta_t        meta;
 
     n_containers = 0;
 
@@ -2499,7 +2839,21 @@ FDF_status_t FDFGetContainers(
     SDFStartSerializeContainerOp(pai);  
 
     for ( i = 0; i < MCD_MAX_NUM_CNTRS; i++ ) {
+        
 		if ( CtnrMap[i].cguid != 0 && CtnrMap[i].cguid != VMC_CGUID && CtnrMap[i].cguid != VDC_CGUID ) {
+            /* check if the container is being deleted */
+            if (name_service_get_meta( pai, CtnrMap[i].cguid, &meta ) != FDF_SUCCESS ) {
+                //plat_log_msg( 160087, LOG_CAT, LOG_ERR,
+                //   "Could not read metadata for %lu. skipping this container from list",
+                //                                                        CtnrMap[i].cguid );
+                continue;
+            }
+            if ( meta.delete_in_progress == FDF_TRUE ) {
+                //plat_log_msg( 160088, LOG_CAT, LOG_INFO,
+                //            "Container %lu is being deleted. So not included in the list",
+                //                                                        CtnrMap[i].cguid);
+                continue;
+            }
 			cguids[n_containers] = CtnrMap[i].cguid;
             n_containers++;
         }
@@ -2525,7 +2879,12 @@ FDF_status_t FDFGetContainerProps(
 	if ( !cguid || !pprops )
 		return FDF_INVALID_PARAMETER;
 
+
     SDFStartSerializeContainerOp(pai);  
+    if ( is_container_being_deleted(cguid) == FDF_TRUE ) {
+        SDFEndSerializeContainerOp( pai );
+        return FDF_INVALID_PARAMETER;
+    }
     if (( status = name_service_get_meta( pai, cguid, &meta )) == FDF_SUCCESS ) {
 		status = fdf_create_fdf_props( &meta.properties, pprops );
     }              
@@ -2548,6 +2907,10 @@ FDF_status_t FDFSetContainerProps(
 		return FDF_INVALID_PARAMETER;
 
     SDFStartSerializeContainerOp(pai);
+    if ( is_container_being_deleted(cguid) == FDF_TRUE ) {
+        SDFEndSerializeContainerOp( pai );
+        return FDF_INVALID_PARAMETER;
+    }
     if (( status = name_service_get_meta( pai, cguid, &meta )) == FDF_SUCCESS ) {
 		if ( pprops->size_kb != meta.properties.container_id.size ) {
 			if ( ( status = fdf_resize_container( fdf_thread_state, cguid, pprops->size_kb ) ) != FDF_SUCCESS ) {
@@ -2738,6 +3101,9 @@ FDF_status_t FDFWriteObject(
     }
 
     ActionProtocolAgentNew(pac, &ar);
+    if( ar.respStatus != FDF_SUCCESS ) {
+         fprintf(stderr,"Write failed: cguid:%lu key:%s\n",cguid,key);
+    }
 
     return ar.respStatus;
 }
@@ -2795,6 +3161,9 @@ FDF_status_t FDFWriteObjectExpiry(
     ar.exptime = wobj->expiry;
 
     ActionProtocolAgentNew(pac, &ar);
+    if( ar.respStatus != FDF_SUCCESS ) {
+         fprintf(stderr,"Write failed: cguid:%lu\n",cguid);
+    }
 
     return(ar.respStatus);
 }
@@ -2942,7 +3311,8 @@ FDF_status_t FDFFlushCache(
     int				i;
 
     for ( i = 0; i < MCD_MAX_NUM_CNTRS; i++ ) {
-        if ( CtnrMap[i].cguid != 0 ) {
+
+        if ( (CtnrMap[i].cguid != 0 ) && (CtnrMap[i].state != FDF_CONTAINER_STATE_DELETE_PROG) ) {
 			status = FDFFlushContainer( fdf_thread_state, Mcd_containers[i].cguid );
 
 			if ( status != FDF_SUCCESS )
@@ -3552,6 +3922,15 @@ static void get_fdf_stats( SDF_internal_ctxt_t *pai, char ** ppos, int * lenp,
     p[FDF_ACCESS_TYPES_ENUM_ACTIVE]         = e.num_active;
     p[FDF_ACCESS_TYPES_ENUM_OBJECTS]        = e.num_objects;
     p[FDF_ACCESS_TYPES_ENUM_CACHED_OBJECTS] = e.num_cached_objects;
+
+    /* Async deletes stats */
+#if 0
+    uint32_t num_dels, dels_prog;
+    get_async_delete_stats(&num_dels,&dels_prog);
+    p[FDF_ACCESS_TYPES_NUM_CONT_DELETES_PEND] = num_dels;
+    p[FDF_ACCESS_TYPES_NUM_CONT_DELETES_PROG] = dels_prog;
+#endif
+    
 }
 static void get_proc_stats( char ** ppos, int * lenp )
 {
@@ -3626,6 +4005,12 @@ FDF_status_t FDFGetStatsStr (
     }
     else {
         sdf_container = CtnrMap[i_ctnr].sdf_container;
+    }
+    /* Check if this container is being deleted */
+    if( CtnrMap[i_ctnr].state == FDF_CONTAINER_STATE_DELETE_PROG ) {
+        fprintf(stderr,"Container is beling deleted. Skipping the stats\n");
+        SDFEndSerializeContainerOp(pai);
+        return FDF_FAILURE;     
     }
 
     if (( status = name_service_get_meta( pai, cguid, &meta )) == FDF_SUCCESS ) {
@@ -3705,9 +4090,15 @@ FDF_status_t FDFGetStats(
     ptr = strstr(buf,"<CACHE>"); 
     fdf_parse_access_stats(ptr,stats);
     fdf_parse_cache_stats(ptr,stats);
+    /* Async deletes stats */
+    uint32_t num_dels, dels_prog;
+    uint64_t *p = stats->n_accesses;
+    get_async_delete_stats(&num_dels,&dels_prog);
+    p[FDF_ACCESS_TYPES_NUM_CONT_DELETES_PEND] = num_dels;
+    p[FDF_ACCESS_TYPES_NUM_CONT_DELETES_PROG] = dels_prog;
     return( FDF_SUCCESS );
 }
-
+#define MAX_STATS_RETRY 5
 FDF_status_t FDFGetContainerStats(
 	struct FDF_thread_state   	*fdf_thread_state,
 	FDF_cguid_t                	 cguid,
@@ -3715,12 +4106,19 @@ FDF_status_t FDFGetContainerStats(
 	)
 {
     char stats_str[STAT_BUFFER_SIZE];
+    FDF_status_t rc;
+
     if ( stats == NULL ) {
         return FDF_SUCCESS;
     }
     memset (stats, 0, sizeof(FDF_stats_t));
-    FDFGetStatsStr(fdf_thread_state,cguid,stats_str, stats);
+    rc = FDFGetStatsStr(fdf_thread_state,cguid,stats_str, stats);
+    if ( rc != FDF_SUCCESS ) { 
+        plat_log_msg( 160109, LOG_CAT, LOG_ERR,
+                      "Unable to get stats for container:%lu",cguid );
+    }
     //  no-op in this simple implementation
+    //return rc;
     return(FDF_SUCCESS);
 }
 
@@ -4146,6 +4544,10 @@ static FDF_status_t fdf_delete_objects(
     } while ( status == FDF_FLASH_EBUSY && i-- );
 
 	i = 0;
+    if ( _fdf_iterator == NULL ) {
+        fprintf(stderr,"NULL _fdf_iterator\n");
+        return FDF_FAILURE;
+    }
 
     while ( ( status = FDFNextEnumeratedObject ( fdf_thread_state,
                                                  _fdf_iterator,

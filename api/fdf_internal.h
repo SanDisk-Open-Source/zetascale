@@ -24,6 +24,7 @@ extern "C" {
 
 
 #define STATS_BUFFER_SIZE 1024
+#define MCD_FTH_STACKSIZE 81920
 
 
 /*
@@ -71,8 +72,8 @@ typedef struct {
 } cmd_token_t;
 
 typedef struct fdf_stats_info {
-    char stat_token[32];
-    char desc[64];
+    char stat_token[64];
+    char desc[128];
     uint16_t category;
 }fdf_stats_info_t;
 
@@ -99,13 +100,16 @@ int get_cache_type_stats_category(int stat );
 void enable_stats_auto_dump() ;
 void disable_stats_auto_dump() ;
 int is_auto_dump_enabled() ;
-char *FDFGetNextContainerName(int *index);
-
-
-
-
-
-
+char *FDFGetNextContainerName(struct FDF_thread_state *fdf_thread_state,int *index);
+FDF_status_t aync_command_delete_container(FDF_cguid_t cguid);
+void get_async_delete_stats( uint32_t *num_deletes,uint32_t *num_prog);
+FDF_status_t fdf_delete_container_async_end(
+                                struct FDF_thread_state *fdf_thread_state,
+                                                         FDF_cguid_t cguid);
+FDF_status_t fdf_delete_container_async_start(
+                                struct FDF_thread_state *fdf_thread_state,
+                                FDF_cguid_t cguid, FDF_container_mode_t mode );
+void init_async_cmd_handler(int num_thds, struct FDF_state *fdf_state);
 
 #ifdef __cplusplus
 }

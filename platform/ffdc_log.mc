@@ -3160,19 +3160,54 @@
 160067 %ld asynchronous writebacks have failed!  This message is displayed only every %d failures.
 160068 %ld asynchronous flushes have failed!  This message is displayed only every %d failures.
 160069 %p
-160070 Operation denied: Shutdown in progress %s
-160071 Thread state is null
-160072 Waiting for %d containers deletes to finish
-160073 Unable to create thread context %s
-160074 Total containers = %d
-160075 Error getting container properties for index=%d cguid=%ld: %s
-160076 Error closing container properties: %s
-160077 Closed %d containers
-160078 Shutdown phase 1 returns :%s
-160079 is_fdf_operation_allowed:%s
-160080 Got container properties for index=%d cguid=%ld: %s
-160081 Error closing container ID: %ld with %s
-160082 Closed container id %ld with %s
+160070 Invalid command(%d) received
+160071 Memory allocation failed
+160072 Invalid FDF state
+160073 Unable to initialize thread state\n
+160074 Container does not exist. Delete can not proceed
+160075 Unable to open container %lu for deleting
+160076 Deleting all objects in container %lu failed
+160077 Closing container %lu after deleting objects failed
+160078 Could not read metadata for %lu. Delete can not proceed\n
+160079 Could not clear Metadata for %lu after delete
+160080 Container %lu is not cleanedup completlt
+160081 Null container Id. Delete can not proceed.
+160082 Failed to close container during delete
+160083 Delete already under progress fpr %lu
+160084 Could not mark delete in progress for container %lu. Delete can not proceed
+160085 Failed to initiate the asynchronous container delete
+160086 Unsupported command(%d) received
+160087 Could not read metadata for %lu. skipping this container from list
+160088 Container %lu is being deleted. So not included in the list
+160089 Container %lu does not exist
+160090 Container %lu is not cleanedup completly
+160091 Deleting container %lu
+160092 Unable to remove cguid map for container %lu. Delete can not proceed
+160093 Could not mark delete in progress for container %lu. 
+160094 Unable to create cguid map for container %lu.
+160095 Failed to get container metadata for cguid:%lu
+160096 %s serialize:%d
+160097 Operation denied: Shutdown in progress %s
+160098 Thread state is null
+160099 Waiting for %d containers deletes to finish
+160100 Unable to create thread context %s
+160101 Total containers = %d
+160102 Error getting container properties for index=%d cguid=%ld: %s
+160103 Got container properties for index=%d cguid=%ld: %s
+160104 Error closing container ID: %ld with %s
+160105 Closed container id %ld with %s
+160106 Closed %d containers
+160107 Shutdown phase 1 returns :%s
+160108 is_fdf_operation_allowed:%s
+160109 Unable to get stats for container:%lu
+160110 Container does not exist. Can not rename
+160111 Could not read metadata for %lu. Can not rename\n
+160112 Container %lu is already renamed. \n
+160113 Renaming container %s to %s\n
+160114 Unable to remove cguid map for container %lu. Can not rename
+160115 Unable to write metadata for %lu. Can not rename 
+160116 Unable to create cguid map for container %lu.Can not rename
+160117 Failed to delete the container:%lu
 
 
 # rico

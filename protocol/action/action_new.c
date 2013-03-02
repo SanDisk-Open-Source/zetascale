@@ -3984,7 +3984,10 @@ static int sprint_cache_state(char *s, SDFNewCacheEntry_t *psce, int max_len)
 
 static void clear_all_sched_ctnr_stats(SDF_action_state_t *pas, int ctnr_index)
 {
-    memset((void *) pas->stats_new_per_sched, 0, totalScheds*sizeof(SDF_action_stats_new_t));
+    /* skip resetting whole stats for virtual containers */
+    if ( ctnr_index <= LAST_PHYSICAL_CGUID ) {
+        memset((void *) pas->stats_new_per_sched, 0, totalScheds*sizeof(SDF_action_stats_new_t));
+    }
 }
 
 static void init_stats(SDF_action_stats_new_t *ps)
@@ -4426,8 +4429,8 @@ void action_stats_new_cguid(SDF_internal_ctxt_t *pac, char *str, int size, SDF_c
 
     pmeta = get_container_metadata(pai, cguid);
     if (pmeta == NULL) {
-        plat_log_msg(21098, PLAT_LOG_CAT_SDF_PROT, PLAT_LOG_LEVEL_INFO,
-                     "Failed to get container metadata");
+        plat_log_msg(160095, PLAT_LOG_CAT_SDF_PROT, PLAT_LOG_LEVEL_INFO,
+                     "Failed to get container metadata for cguid:%lu",cguid);
         plat_assert_always(0);
     }
 

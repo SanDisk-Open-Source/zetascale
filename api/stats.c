@@ -493,7 +493,7 @@ static void process_container_cmd(struct FDF_thread_state *thd_state,
     }
     else if( strcmp(tokens[1].value,"list" ) == 0 ) {
         for( i = 0; i < MCD_MAX_NUM_CNTRS;  ) {
-            cname = FDFGetNextContainerName(&i);
+            cname = FDFGetNextContainerName(thd_state,&i);
             if ( strcmp(cname,"") != 0) {     
                 fprintf(fp,"%s\n",cname);
                 continue;
