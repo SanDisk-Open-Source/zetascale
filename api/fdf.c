@@ -2396,7 +2396,7 @@ FDF_status_t fdf_delete_container_async_end(
     else { 
         /* for some reason cleanup failed. Just reset delete_in_progress*/
         status = FDF_FAILURE;
-        if (name_service_get_meta( pai, cguid, &meta ) != FDF_SUCCESS ) {
+        if (name_service_get_meta( pai, cguid, &meta ) != SDF_SUCCESS ) {
             plat_log_msg( 160078, LOG_CAT, LOG_ERR,
                    "Could not read metadata for %lu. Delete can not proceed\n",
                                                                         cguid );
@@ -2455,7 +2455,7 @@ FDF_status_t fdf_rename_container(struct FDF_thread_state *fdf_thread_state,
     plat_log_msg( 160113, LOG_CAT, LOG_ERR,
           "Renaming container %s to %s\n",meta.cname,cname );
     status = name_service_remove_cguid_map(pai,meta.cname);
-    if ( status != SDF_SUCCESS ) {
+    if ( status != FDF_SUCCESS ) {
         plat_log_msg( 160114,LOG_CAT, LOG_ERR,
                        "Unable to remove cguid map for container %lu."
                        " Can not rename",meta.cguid);
@@ -2467,7 +2467,7 @@ FDF_status_t fdf_rename_container(struct FDF_thread_state *fdf_thread_state,
     snprintf(meta.cname,CONTAINER_NAME_MAXLEN,"%s",cname);
     snprintf(CtnrMap[i_ctnr].cname,CONTAINER_NAME_MAXLEN,"%s",cname);
     status = name_service_put_meta( pai, cguid, &meta );
-    if ( status != SDF_SUCCESS ) {
+    if ( status != FDF_SUCCESS ) {
         plat_log_msg( 160115, LOG_CAT, LOG_ERR,
                       "Unable to write metadata for %lu. Can not rename ",
                                                                       cguid );
@@ -2479,7 +2479,7 @@ FDF_status_t fdf_rename_container(struct FDF_thread_state *fdf_thread_state,
     /* Create New container Map with new name */
     status = name_service_create_cguid_map(fdf_thread_state,
                                                   meta.cname,meta.cguid);
-    if ( status != SDF_SUCCESS ) {
+    if ( status != FDF_SUCCESS ) {
         plat_log_msg( 160116,LOG_CAT, LOG_ERR,
              "Unable to create cguid map for container %lu."
              "Can not rename",meta.cguid);
@@ -2524,7 +2524,7 @@ FDF_status_t fdf_delete_container_async_start(
         return FDF_FAILURE;
     }
     /* Check if delete is under progress already */
-    if ( meta.delete_in_progress == FDF_TRUE ) {
+    if ( meta.delete_in_progress == SDF_TRUE ) {
         /* Check if we have initiated the async command. While doing 
            Recovery, we have to make sure we are sending the command */
         if( CtnrMap[i_ctnr].state == FDF_CONTAINER_STATE_DELETE_PROG ) {
@@ -2799,13 +2799,13 @@ char *FDFGetNextContainerName(struct FDF_thread_state *fdf_thread_state,int *ind
                 continue;
             }
             /* check if the container is being deleted */
-            if (name_service_get_meta( pai, CtnrMap[i].cguid, &meta ) != FDF_SUCCESS ) {
+            if (name_service_get_meta( pai, CtnrMap[i].cguid, &meta ) != SDF_SUCCESS ) {
                 //plat_log_msg( 160087, LOG_CAT, LOG_ERR,
                 //   "Could not read metadata for %lu. skipping this container from list",
                 //                                                        CtnrMap[i].cguid );
                 continue;
             }
-            if ( meta.delete_in_progress == FDF_TRUE ) {
+            if ( meta.delete_in_progress == SDF_TRUE ) {
                 //plat_log_msg( 160088, LOG_CAT, LOG_INFO,
                 //            "Container %lu is being deleted. So not included in the list",
                 //                                                        CtnrMap[i].cguid);
@@ -2842,13 +2842,13 @@ FDF_status_t FDFGetContainers(
         
 		if ( CtnrMap[i].cguid != 0 && CtnrMap[i].cguid != VMC_CGUID && CtnrMap[i].cguid != VDC_CGUID ) {
             /* check if the container is being deleted */
-            if (name_service_get_meta( pai, CtnrMap[i].cguid, &meta ) != FDF_SUCCESS ) {
+            if (name_service_get_meta( pai, CtnrMap[i].cguid, &meta ) != SDF_SUCCESS ) {
                 //plat_log_msg( 160087, LOG_CAT, LOG_ERR,
                 //   "Could not read metadata for %lu. skipping this container from list",
                 //                                                        CtnrMap[i].cguid );
                 continue;
             }
-            if ( meta.delete_in_progress == FDF_TRUE ) {
+            if ( meta.delete_in_progress == SDF_TRUE ) {
                 //plat_log_msg( 160088, LOG_CAT, LOG_INFO,
                 //            "Container %lu is being deleted. So not included in the list",
                 //                                                        CtnrMap[i].cguid);
@@ -3101,7 +3101,7 @@ FDF_status_t FDFWriteObject(
     }
 
     ActionProtocolAgentNew(pac, &ar);
-    if( ar.respStatus != FDF_SUCCESS ) {
+    if( ar.respStatus != SDF_SUCCESS ) {
          fprintf(stderr,"Write failed: cguid:%lu key:%s\n",cguid,key);
     }
 
@@ -3161,7 +3161,7 @@ FDF_status_t FDFWriteObjectExpiry(
     ar.exptime = wobj->expiry;
 
     ActionProtocolAgentNew(pac, &ar);
-    if( ar.respStatus != FDF_SUCCESS ) {
+    if( ar.respStatus != SDF_SUCCESS ) {
          fprintf(stderr,"Write failed: cguid:%lu\n",cguid);
     }
 
