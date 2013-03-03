@@ -59,7 +59,7 @@
 /*
  * Enumeration constants.
  */
-#define E_ROOM_FOR_LOCKS 1
+#define HASH_CACHE_SIZE 1024
 
 
 /*
@@ -606,7 +606,7 @@ typedef struct {
  */
 typedef struct {
     mo_hash_t h;
-    uint64_t  index;
+    uint64_t  bkt_i;
 } e_hash_t;
 
 
@@ -616,13 +616,15 @@ typedef struct {
 typedef struct FDF_iterator {
     mo_shard_t *shard;
     FDF_cguid_t cguid;
+    int         enum_error;
     void       *data_buf_alloc;
     void       *data_buf_align;
     e_hash_t   *hash_buf;
     uint64_t    hash_buf_i;
     uint64_t    hash_buf_n;
-    uint64_t    hash_lock_i;
-    uint64_t    hash_per_lock;
+    uint64_t    hash_bkt_i;
+    uint64_t    max_hash_per_bkt;
+    uint64_t    num_bkts;
 } e_state_t;
 
 
@@ -4244,9 +4246,9 @@ qrecovery_init(void)
  * Compute the cache hash given a hash index.
  */
 static chash_t
-chash_index(mo_shard_t *shard, uint64_t hashi, hashsyn_t hashsyn)
+chash_index(mo_shard_t *shard, uint64_t bkt_i, hashsyn_t hashsyn)
 {
-    uint64_t bkti_l2 = (hashi / Mcd_osd_bucket_size) & shard->bkti_l2_mask;
+    uint64_t bkti_l2 = bkt_i & shard->bkti_l2_mask;
     return (bkti_l2 << OSD_HASH_SYN_SIZE) | hashsyn;
 }
 
@@ -4260,9 +4262,9 @@ chash_key(shard_t *sshard, SDF_cguid_t cguid, char *key, uint64_t keylen)
     mo_shard_t *shard = (mo_shard_t *) sshard;
     uint64_t syndrome = hash((unsigned char *) key, keylen, 0);
     hashsyn_t hashsyn = syndrome >> OSD_HASH_SYN_SHIFT;
-    uint64_t    hashi = syndrome % shard->hash_size;
+    uint64_t    bkt_i = (syndrome % shard->hash_size) / Mcd_osd_bucket_size;
 
-    return chash_index(shard, hashi, hashsyn);
+    return chash_index(shard, bkt_i, hashsyn);
 }
 
 
@@ -4346,72 +4348,62 @@ e_extr_obj(e_state_t *es, time_t now, char **key, uint64_t *keylen,
 
 
 /*
- * Notify the user of an enumeration error.  This should never happen.
- */
-static void
-e_enum_error(e_state_t *es)
-{
-    sdf_loge(70112, "enumeration error %ld >= %ld",
-             es->hash_buf_i, es->hash_buf_n);
-}
-
-
-/*
- * Copy a hash entry.
+ * Copy a hash entry if it belongs to our container.
  */
 static inline void
-copyhash(mo_shard_t *shard, e_hash_t *ehash, mo_hash_t *hash)
+copyhash(e_state_t *es, mo_hash_t *hash, uint64_t bkt_i)
 {
+    cntr_id_t cntr_id = es->cguid;
+
+    if (hash->cntr_id != cntr_id)
+        return;
+
+    if (es->hash_buf_i >= es->hash_buf_n) {
+        if (!es->enum_error) {
+            es->enum_error = 1;
+            sdf_loge(70121, "enumeration internal error %ld >= %ld",
+                     es->hash_buf_i, es->hash_buf_n);
+        }
+        return;
+    }
+
+    e_hash_t *ehash = &es->hash_buf[es->hash_buf_i++];
     ehash->h = *hash;
-    ehash->index = hash - shard->hash_table;
+    ehash->bkt_i = bkt_i;
 }
 
 
 /*
- * Fill our internal hash buffer with hash entries from all buckets and
- * overflow entries within a given lock that correspond to the container we are
- * interested in.  When called, we should always have enough room to fill the
- * current bucket.
+ * Fill our internal hash buffer with all that hash entries that correspond to
+ * a given bucket.  When called, we should always have enough room to fill the
+ * current bucket; we check anyway in copyhash.
  */
 static void
-e_hash_fill(pai_t *pai, e_state_t *es, int lock_i)
+e_hash_fill(pai_t *pai, e_state_t *es, int bkt_i)
 {
-    int b;
     int n;
     mo_hash_t *hash;
-    mo_shard_t      *shard = es->shard;
-    uint64_t bkts_per_lock = shard->lock_bktsize / Mcd_osd_bucket_size;
-    cntr_id_t      cntr_id = es->cguid;
-    fthLock_t        *lock = &shard->bucket_locks[lock_i];
-    wait_t           *wait = fthLock(lock, 0, NULL);
+    mo_shard_t   *shard = es->shard;
+    mo_bucket_t *bucket = &shard->hash_buckets[bkt_i];
+    uint64_t     lock_i = bkt_i / (shard->lock_bktsize / Mcd_osd_bucket_size);
+    fthLock_t     *lock = &shard->bucket_locks[lock_i];
+    wait_t        *wait = fthLock(lock, 0, NULL);
 
-    for (b = 0; b < bkts_per_lock; b++) {
-        uint64_t      bkt_i = lock_i * bkts_per_lock + b;
-        mo_bucket_t *bucket = &shard->hash_buckets[bkt_i];
+    hash = &shard->hash_table[bkt_i * Mcd_osd_bucket_size];
+    for (n = bucket->next_item; n--; hash++)
+        copyhash(es, hash, bkt_i);
 
-        hash = &shard->hash_table[bkt_i * Mcd_osd_bucket_size];
-        for (n = bucket->next_item; n--; hash++) {
-            if (hash->cntr_id != cntr_id)
-                continue;
-            if (es->hash_buf_i < es->hash_buf_n)
-                copyhash(shard, &es->hash_buf[es->hash_buf_i++], hash);
-            else {
-                e_enum_error(es);
-                break;
-            }
-        }
-    }
+    uint64_t oflow_i = lock_i * Mcd_osd_overflow_depth;
+    uint16_t index_v = bkt_i % shard->lock_bktsize;
+    uint16_t  *index = &shard->overflow_index[oflow_i];
 
-    hash = &shard->overflow_table[lock_i * Mcd_osd_overflow_depth];
-    for (n = Mcd_osd_overflow_depth; n--; hash++) {
-        if (hash->cntr_id != cntr_id)
+    hash = &shard->overflow_table[oflow_i];
+    for (n = Mcd_osd_overflow_depth; n--; hash++, index++) {
+        if (!hash->used)
             continue;
-        if (es->hash_buf_i < es->hash_buf_n)
-            copyhash(shard, &es->hash_buf[es->hash_buf_i++], hash);
-        else {
-            e_enum_error(es);
-            break;
-        }
+        if (*index != index_v)
+            continue;
+        copyhash(es, hash, bkt_i);
     }
 
     fthUnlock(wait);
@@ -4431,9 +4423,10 @@ enumerate_next(pai_t *pai, e_state_t *es, char **key, uint64_t *keylen,
 
     for (;;) {
         while (!es->hash_buf_i) {
-            if (es->hash_lock_i >= shard->lock_buckets)
+            if (es->hash_bkt_i >= es->num_bkts)
                 return FDF_OBJECT_UNKNOWN;
-            e_hash_fill(pai, es, es->hash_lock_i++); }
+            e_hash_fill(pai, es, es->hash_bkt_i++);
+        }
 
         int s;
         e_hash_t *ehash = &es->hash_buf[--es->hash_buf_i];
@@ -4441,7 +4434,7 @@ enumerate_next(pai_t *pai, e_state_t *es, char **key, uint64_t *keylen,
         if (!hash->used || hash->cntr_id != cntr_id)
             continue;
 
-        chash_t chash = chash_index(shard, ehash->index, hash->syndrome);
+        chash_t chash = chash_index(shard, ehash->bkt_i, hash->syndrome);
         s = cache_get_by_addr(pai, (shard_t *) es->shard, cntr_id,
                               hash->address, chash, key, keylen,
                               data, datalen);
@@ -4521,8 +4514,11 @@ enumerate_init(pai_t *pai, shard_t *sshard, FDF_cguid_t cguid, e_state_t **esp)
         return e_init_fail(pai, es);
     es->data_buf_align = chunk_next_ptr(es->data_buf_alloc, BLK_SIZE);
 
-    es->hash_per_lock = shard->lock_bktsize + Mcd_osd_overflow_depth;
-    es->hash_buf_n    = E_ROOM_FOR_LOCKS * es->hash_per_lock;
+    es->num_bkts         = shard->hash_size / Mcd_osd_bucket_size;
+    es->hash_buf_n       = HASH_CACHE_SIZE;
+    es->max_hash_per_bkt = Mcd_osd_bucket_size + Mcd_osd_overflow_depth;
+    if (es->hash_buf_n < es->max_hash_per_bkt)
+        es->hash_buf_n = es->max_hash_per_bkt;
 
     es->hash_buf = plat_malloc(es->hash_buf_n * sizeof(mo_hash_t));
     if (!es->hash_buf)

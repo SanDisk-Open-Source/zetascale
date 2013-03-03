@@ -2939,6 +2939,7 @@
 70118 Failed on get_cntr_info for container %ld
 70119 Container %s: id=%ld objs=%ld used=%ld size=%ld full=%.1f%%
 70120 Container %s: id=%ld objs=%ld used=%ld
+70121 enumeration internal error %ld >= %ld
 
 
 # mkrishnan
