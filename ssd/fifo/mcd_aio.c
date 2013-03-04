@@ -34,7 +34,8 @@
 #include "utils/hash.h"
 #include "fth/fthMbox.h"
 #include "utils/properties.h"
-#include "fdf_internal.h"
+
+extern int fdf_instance_id;
 
 #include "fth/fth.h"
 #include "ssd/ssd_aio.h"

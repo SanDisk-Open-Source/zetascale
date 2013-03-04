@@ -20,13 +20,14 @@
 #include "platform/types.h"
 #include "platform/unistd.h"
 #include "utils/properties.h"
-#include "fdf_internal.h"
 
 #include <stdlib.h>
 #include <stdio.h>
 
 
 #include "agent_helper.h"
+
+extern int fdf_instance_id;
 
 /**
  * @brief Initialize and attach shared memory
