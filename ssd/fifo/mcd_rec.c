@@ -9,12 +9,12 @@
  *
  * $Id: mcd_rec.c 16149 2011-02-15 16:07:23Z briano $
  */
-
+#include <aio.h>
+#include <ctype.h>
 #include <stdio.h>
 #include <signal.h>
-#include <aio.h>
 #include <linux/fs.h>
-#include <ctype.h>
+#include <sys/stat.h>
 
 #include "common/sdftypes.h"
 #include "common/sdfstats.h"
