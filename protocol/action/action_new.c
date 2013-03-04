@@ -3984,10 +3984,7 @@ static int sprint_cache_state(char *s, SDFNewCacheEntry_t *psce, int max_len)
 
 static void clear_all_sched_ctnr_stats(SDF_action_state_t *pas, int ctnr_index)
 {
-    /* skip resetting whole stats for virtual containers */
-    if ( ctnr_index <= LAST_PHYSICAL_CGUID ) {
-        memset((void *) pas->stats_new_per_sched, 0, totalScheds*sizeof(SDF_action_stats_new_t));
-    }
+    memset((void *) pas->stats_new_per_sched, 0, totalScheds*sizeof(SDF_action_stats_new_t));
 }
 
 static void init_stats(SDF_action_stats_new_t *ps)
@@ -4429,8 +4426,8 @@ void action_stats_new_cguid(SDF_internal_ctxt_t *pac, char *str, int size, SDF_c
 
     pmeta = get_container_metadata(pai, cguid);
     if (pmeta == NULL) {
-        plat_log_msg(160095, PLAT_LOG_CAT_SDF_PROT, PLAT_LOG_LEVEL_INFO,
-                     "Failed to get container metadata for cguid:%lu",cguid);
+        plat_log_msg(21098, PLAT_LOG_CAT_SDF_PROT, PLAT_LOG_LEVEL_INFO,
+                     "Failed to get container metadata");
         plat_assert_always(0);
     }
 
@@ -4723,6 +4720,10 @@ static int flashPut_wrapper(SDF_trans_state_t *ptrans, struct shard *pshard, str
 	        (ptrans->par->ctnr != VMC_CGUID))
 	    {
 		if ((pdata == NULL) || (!check_flash_space(ptrans->pas, pshard))) {
+                    if (ptrans->meta->meta.properties.durability_level == SDF_RELAXED_DURABILITY)
+                        flags |= FLASH_PUT_DURA_SW_CRASH;
+                    else if (ptrans->meta->meta.properties.durability_level == SDF_FULL_DURABILITY)
+                        flags |= FLASH_PUT_DURA_HW_CRASH;
 		    ret = flashPut(pshard, pmeta, pkey, pdata, flags);
 		} else {
 		    ret = FLASH_ENOSPC;

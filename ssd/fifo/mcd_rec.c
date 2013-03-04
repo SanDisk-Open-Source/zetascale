@@ -150,8 +150,6 @@ static int Sync_data;
 //    Globals
 // -----------------------------------------------------
 
-static int                      Log_flush_in_place           = 0;
-
 static mcd_rec_superblock_t     Mcd_rec_superblock;
 static int                      Mcd_rec_superblock_formatted = 0;
 static int                      Mcd_rec_sb_data_copies       = 0;
@@ -1114,14 +1112,6 @@ recovery_init( void )
     fthWaitEl_t               * wait;
 
     mcd_log_msg( 20000, PLAT_LOG_LEVEL_DEBUG, "ENTERING" );
-
-    // set flags if we want to flush in place
-    Log_flush_in_place = getProperty_Int("LOG_FLUSH_IN_PLACE", 0);
-    if (Log_flush_in_place) {
-        mcd_log_msg(70098, PLAT_LOG_LEVEL_INFO,
-                    "Flushing logs in place (LOG_FLUSH_IN_PLACE set)");
-    }
-
 
     // initialize
     do_aio_init( 1 );
@@ -6388,6 +6378,36 @@ log_flush_internal( mcd_rec_logbuf_t *logbuf, uint buf_offset)
 }
 
 
+/*
+ * (slot temporarily allocated to sync with log writer)
+ */
+static void
+log_sync_internal( mcd_osd_shard_t *s)
+{
+	mcd_rec_logpage_hdr_t     * hdr;
+
+	(void)__sync_fetch_and_add( &s->refcount, 1);
+	mcd_rec_log_t *log = s->log;
+	fthSemDown( &log->fill_sem, 1);
+	uint64_t need_lsn_upd = !(log->next_fill % MCD_REC_LOG_BLK_SLOTS);
+	uint64_t slot_seqno = log->next_fill;
+	uint64_t buf_offset = slot_seqno % MCD_REC_LOGBUF_SLOTS;
+	uint64_t nth_buffer = slot_seqno / MCD_REC_LOGBUF_SLOTS;
+	mcd_rec_logbuf_t *logbuf = &log->logbufs[nth_buffer%MCD_REC_NUM_LOGBUFS];
+
+	if(need_lsn_upd)
+	{
+		hdr = (mcd_rec_logpage_hdr_t *)
+			(logbuf->buf + (buf_offset) * sizeof(mcd_logrec_object_t));
+		hdr->LSN         = log->curr_LSN + 1;
+	}
+
+	log_flush_internal(logbuf, buf_offset);
+	fthSemUp( &log->fill_sem, 1);			/* relinquish slot */
+	(void)__sync_fetch_and_sub( &s->refcount, 1);
+}
+
+
 static void
 log_write_internal( mcd_osd_shard_t *s, mcd_logrec_object_t *lr)
 {
@@ -6418,38 +6438,8 @@ log_write_internal( mcd_osd_shard_t *s, mcd_logrec_object_t *lr)
 	if (rec_filled == MCD_REC_LOGBUF_RECS)
 		fthSemUp( logbuf->write_sem, 1);
 	rep_logbuf_seqno_update( (struct shard *)s, nth_buffer, lr->seqno);
-	if (Log_flush_in_place)
-		log_flush_internal( logbuf, buf_offset);
-	(void)__sync_fetch_and_sub( &s->refcount, 1);
-}
-
-
-/*
- * (slot temporarily allocated to sync with log writer)
- */
-void
-log_sync_internal( mcd_osd_shard_t *s)
-{
-	mcd_rec_logpage_hdr_t     * hdr;
-
-	(void)__sync_fetch_and_add( &s->refcount, 1);
-	mcd_rec_log_t *log = s->log;
-	fthSemDown( &log->fill_sem, 1);
-	uint64_t need_lsn_upd = !(log->next_fill % MCD_REC_LOG_BLK_SLOTS);
-	uint64_t slot_seqno = log->next_fill;
-	uint64_t buf_offset = slot_seqno % MCD_REC_LOGBUF_SLOTS;
-	uint64_t nth_buffer = slot_seqno / MCD_REC_LOGBUF_SLOTS;
-	mcd_rec_logbuf_t *logbuf = &log->logbufs[nth_buffer%MCD_REC_NUM_LOGBUFS];
-
-	if(need_lsn_upd)
-	{
-		hdr = (mcd_rec_logpage_hdr_t *)
-			(logbuf->buf + (buf_offset) * sizeof(mcd_logrec_object_t));
-		hdr->LSN         = log->curr_LSN + 1;
-	}
-
-	log_flush_internal(logbuf, buf_offset);
-	fthSemUp( &log->fill_sem, 1);			/* relinquish slot */
+        if (s->durability_level == SDF_FULL_DURABILITY)
+		log_sync_internal( s);
 	(void)__sync_fetch_and_sub( &s->refcount, 1);
 }
 

@@ -37,7 +37,9 @@ enum flashPutFlags {
     FLASH_PUT_RESTORE         = 0x20,  // Put is a restore operation
     FLASH_PUT_DEL_EXPIRED     = 0x40,  // Delete if object expired
     FLASH_PUT_PREFIX_DELETE   = 0x80,  // Perform a prefix-based delete on this shard
-    FLASH_PUT_PREFIX_DO_DEL   = 0x180  // Prefix-based object deletion
+    FLASH_PUT_PREFIX_DO_DEL   = 0x180, // Prefix-based object deletion
+    FLASH_PUT_DURA_SW_CRASH   = 0x200, // Request elevated durability
+    FLASH_PUT_DURA_HW_CRASH   = 0x400  // Request maximum durability
 };
 
 enum flashGetFlags {

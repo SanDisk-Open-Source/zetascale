@@ -4420,6 +4420,12 @@ mcd_fth_osd_slab_set( void * context, mcd_osd_shard_t * shard, char * key,
 
     mcd_log_msg( 20000, PLAT_LOG_LEVEL_DEBUG, "ENTERING" );
 
+    shard->durability_level = SDF_NO_DURABILITY;
+    if (flags & FLASH_PUT_DURA_SW_CRASH)
+        shard->durability_level = SDF_RELAXED_DURABILITY;
+    else if (flags & FLASH_PUT_DURA_HW_CRASH)
+        shard->durability_level = SDF_FULL_DURABILITY;
+
     // don't allow normal flash puts during restore
     if ( 1 == shard->restore_running &&
          0 == (flags & FLASH_PUT_RESTORE) ) {
