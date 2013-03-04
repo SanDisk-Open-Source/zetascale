@@ -664,11 +664,11 @@ FDF_status_t fdf_start_admin_thread( struct FDF_state *fdf_state ) {
     pthread_t thd;
     int rc;
 
-    admin_config.admin_port  = getProperty_Int( "FDF_ADMIN_PORT", 0 ); //51350
+    admin_config.admin_port  = getProperty_Int( "FDF_ADMIN_PORT", 51350 );
     admin_config.num_threads = 1;
     admin_config.fdf_state   = fdf_state;
 
-	if(admin_config.admin_port)
+    if(!getProperty_Int( "FDF_TEST_MODE", 0) || getProperty_Int("FDF_ADMIN_PORT", 0))
 	{
 		/* Create Admin thread */    
 		rc = pthread_create(&thd,NULL,FDFAdminThread,(void *)&admin_config);

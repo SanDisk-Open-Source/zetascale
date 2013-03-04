@@ -2617,7 +2617,7 @@ flog_prepare(mcd_osd_shard_t *shard)
 	if(fdf_instance_id)
 	{
 		char temp[PATH_MAX + 1];
-		sprintf(temp, "%s/fdf_%d", log_flush_dir, fdf_instance_id);
+		snprintf(temp, sizeof(temp), "%s/fdf_%d", log_flush_dir, fdf_instance_id);
 		if(mkdir(temp, 0770) == -1 && errno != EEXIST)
 			mcd_log_msg(180003, PLAT_LOG_LEVEL_ERROR, "Couldn't create flush log directory %s: %s", temp, plat_strerror(errno));
 		log_flush_dir = temp;
