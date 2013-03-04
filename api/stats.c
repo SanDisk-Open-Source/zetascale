@@ -664,16 +664,20 @@ FDF_status_t fdf_start_admin_thread( struct FDF_state *fdf_state ) {
     pthread_t thd;
     int rc;
 
-    admin_config.admin_port  = getProperty_Int( "FDF_ADMIN_PORT", 51350 );
+    admin_config.admin_port  = getProperty_Int( "FDF_ADMIN_PORT", 0 ); //51350
     admin_config.num_threads = 1;
     admin_config.fdf_state   = fdf_state;
 
-    /* Create Admin thread */    
-    rc = pthread_create(&thd,NULL,FDFAdminThread,(void *)&admin_config);
-    if( rc != 0 ) {
-        plat_log_msg(170003,LOG_CAT, LOG_ERR,
-                                         "Unable to start the stats thread");
-    }
+	if(admin_config.admin_port)
+	{
+		/* Create Admin thread */    
+		rc = pthread_create(&thd,NULL,FDFAdminThread,(void *)&admin_config);
+		if( rc != 0 ) {
+			plat_log_msg(170003,LOG_CAT, LOG_ERR,
+					"Unable to start the stats thread");
+		}
+	}
+
     return FDF_SUCCESS; 
 }
 

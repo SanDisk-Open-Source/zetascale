@@ -1895,6 +1895,7 @@ static void get_flush_time(SDF_trans_state_t *ptrans)
 
 SDF_status_t flush_all(SDF_trans_state_t *ptrans)
 {
+    SDF_status_t             ret = SDF_SUCCESS;
 #ifdef SIMPLE_REPLICATION
     SDF_boolean_t send_msg_flag = SDF_TRUE;    
     vnode_t                  to_node = -1;
@@ -1905,7 +1906,6 @@ SDF_status_t flush_all(SDF_trans_state_t *ptrans)
     struct sdf_msg          *send_msg = NULL;
     struct sdf_msg          *new_msg = NULL;
     SDF_protocol_msg_t      *pm_new = NULL;
-    SDF_status_t             ret = SDF_SUCCESS;
     SDF_status_t             error;
 
     if (SDFSimpleReplication) {

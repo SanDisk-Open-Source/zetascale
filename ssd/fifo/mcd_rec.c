@@ -45,6 +45,7 @@
 #include "mcd_rec.h"
 #include "mcd_rep.h"
 #include "mcd_bak.h"
+#include "fdf_internal.h"
 
 
 /*
@@ -2590,7 +2591,11 @@ flog_recover(mcd_osd_shard_t *shard, void *context)
     if (log_flush_dir == NULL)
         return;
 
-    snprintf(path, sizeof(path), "%s/%s%lu",
+	if(fdf_instance_id)
+		snprintf(path, sizeof(path), "%s/fdf_%d/%s%lu",
+			log_flush_dir, fdf_instance_id, FLUSH_LOG_PREFIX, shard->id);
+	else
+		snprintf(path, sizeof(path), "%s/%s%lu",
              log_flush_dir, FLUSH_LOG_PREFIX, shard->id);
     fp = fopen(path, "r");
     if (!fp)
@@ -2619,6 +2624,15 @@ flog_prepare(mcd_osd_shard_t *shard)
     if (log_flush_dir == NULL)
         return;
 
+	if(fdf_instance_id)
+	{
+		char temp[PATH_MAX + 1];
+		sprintf(temp, "%s/fdf_%d", log_flush_dir, fdf_instance_id);
+		if(mkdir(temp, 0770) == -1 && errno != EEXIST)
+			mcd_log_msg(180003, PLAT_LOG_LEVEL_ERROR, "Couldn't create flush log directory %s: %s", temp, plat_strerror(errno));
+		log_flush_dir = temp;
+	}
+
     snprintf(path, sizeof(path), "%s/%s%lu",
              log_flush_dir, FLUSH_LOG_PREFIX, shard->id);
     mcd_log_msg(70080, PLAT_LOG_LEVEL_INFO, "Flushing logs to %s", path);
@@ -2639,6 +2653,7 @@ flog_prepare(mcd_osd_shard_t *shard)
                     path, flags, errno);
         return;
     }
+
     shard->flush_fd = fd;
 }
 
@@ -2675,11 +2690,15 @@ flog_clean(uint64_t shard_id)
     if (log_flush_dir == NULL)
         return;
 
-    snprintf(path, sizeof(path), "%s/%s%lu",
+	if(fdf_instance_id)
+		snprintf(path, sizeof(path), "%s/fdf_%d/%s%lu",
+			log_flush_dir, fdf_instance_id, FLUSH_LOG_PREFIX, shard_id);
+	else
+        snprintf(path, sizeof(path), "%s/%s%lu",
              log_flush_dir, FLUSH_LOG_PREFIX, shard_id);
     mcd_log_msg(180000, PLAT_LOG_LEVEL_INFO, "Removing log file %s", path);
 
-    if(unlink(path) == -1)
+    if(unlink(path) == -1 && errno != ENOENT)
     {
         mcd_log_msg(180001, PLAT_LOG_LEVEL_ERROR,
                     "Flush log sync:"

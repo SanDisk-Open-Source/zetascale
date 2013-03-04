@@ -34,6 +34,7 @@
 #include "utils/hash.h"
 #include "fth/fthMbox.h"
 #include "utils/properties.h"
+#include "fdf_internal.h"
 
 #include "fth/fth.h"
 #include "ssd/ssd_aio.h"
@@ -1245,7 +1246,18 @@ int mcd_aio_init( void * state, char * dname )
 
             sprintf( fname, Mcd_aio_base, fbase + i );
 
-            Mcd_aio_fds[i] = open( fname, open_flags, 00600 );
+			if(fdf_instance_id)
+			{
+				char temp[PATH_MAX + 1];
+				sprintf(temp, "%s.%d", fname, fdf_instance_id);
+				Mcd_aio_fds[i] = open( temp, open_flags, 00600 );
+				/* Remove from FS name space immediately, e.g. limit lifetime by this process */
+				if(getProperty_Int("FDF_TEST_MODE", 0))
+					unlink(temp);
+			}
+			else
+				Mcd_aio_fds[i] = open( fname, open_flags, 00600 );
+
             if ( 0 > Mcd_aio_fds[i] ) {
                 mcd_log_msg(20056, PLAT_LOG_LEVEL_FATAL,
                              "failed to open file %s: %s",

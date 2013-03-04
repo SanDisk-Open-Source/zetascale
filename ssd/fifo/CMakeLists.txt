@@ -7,7 +7,7 @@ add_library(fifo OBJECT fifo.c
 	mcd_sync.c 
 	mcd_hash.c 
  	mcd_osd.c 
- 	mcd_ipf.c 
+# 	mcd_ipf.c 
 	recovery.c )
 add_dependencies(fifo ffdc)
 add_definitions(-Wno-switch)

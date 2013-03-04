@@ -275,7 +275,7 @@ int main()
     int testnumber = 2;
 	int count      = 0;
 
-    if((fp = fopen("FDF_WritebackStoreMode.log", "w+")) == 0)
+    if((fp = fopen("FDF_WritebackStoreMode6.log", "w+")) == 0)
     {
         fprintf(stderr, " open log file failed!.\n");
         return -1;

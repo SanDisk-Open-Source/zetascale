@@ -143,7 +143,7 @@ FDF_status_t CreateObject(FDF_cguid_t cguid,char *key,uint32_t keylen,char *data
         fprintf(fp," FDFWriteObject cguid=%ld,key=%s,data=%s success.\n",cguid,key,data);
     }
     else fprintf(fp," FDFWriteObject cguid=%ld,key=%s,data=%s failed:%s.\n",cguid,key,data,FDFStrError(ret));
-    sleep(5);
+//    sleep(5); // Why is it here?
     return ret;
 }
 

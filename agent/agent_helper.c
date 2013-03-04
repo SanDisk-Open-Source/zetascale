@@ -511,7 +511,9 @@ agent_engine_pre_init_internal(struct sdf_agent_state *state,
     int numScheds;
     uint32_t sdf_msg_numprocs;
 
-    sdf_msg_init(argc, argv);
+	if (getProperty_Int("SDF_MSG_ENGINE_START", 1))
+		sdf_msg_init(argc, argv);
+
     state->rank = sdf_msg_myrank();
     sdf_msg_numprocs = sdf_msg_numranks();
 

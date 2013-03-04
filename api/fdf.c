@@ -37,7 +37,7 @@
 #include "shared/container_meta.h"
 #include "shared/open_container_mgr.h"
 #include "shared/internal_blk_obj_api.h"
-#include "ssd/fifo/mcd_ipf.h"
+//#include "ssd/fifo/mcd_ipf.h"
 #include "ssd/fifo/mcd_osd.h"
 #include "ssd/fifo/mcd_bak.h"
 #include "ssd/fifo/mcd_trx.h"
@@ -52,6 +52,14 @@
 #define LOG_FATAL PLAT_LOG_LEVEL_FATAL
 #define BUF_LEN 4096
 #define STATS_API_TEST 1
+
+/*
+ * maximum number of containers supported by one instance of memcached
+ */
+#define MCD_MAX_NUM_SCHED       32
+#define MCD_MAX_NUM_FTHREADS    1025
+
+int fdf_instance_id;
 
 static time_t 			current_time 	= 0;
 static int stats_dump = 0;
@@ -628,8 +636,15 @@ static void fdf_load_settings(flash_settings_t *osd_settings)
 //	insertProperty("FDF_CC_BUCKETS", "1000");
 //	insertProperty("FDF_CC_NSLABS", "100");
 
-    (void) strcpy(osd_settings->aio_base, getProperty_String("FDF_FLASH_FILENAME", "/tmp/schooner%d")); // base filename of flash files
+	/*EF: When fdf_instance_id set it used as as a suffix for all shared resources,
+		e.g. allows to start multiple instance of FDF on one machine */
+    fdf_instance_id = getProperty_Int("FDF_INSTANCE_ID", 0);
 
+	/* Use random value to run multiple tests simultaneously */
+	if(!fdf_instance_id && getProperty_Int("FDF_TEST_MODE", 0))
+		fdf_instance_id = getpid();
+
+    (void) strcpy(osd_settings->aio_base, getProperty_String("FDF_FLASH_FILENAME", "/tmp/schooner%d")); // base filename of flash files
 	/* This is added for compatibility with old property files which don't contain FDF_FLASH_FILENAME property */
 	const char *p = getProperty_String("AIO_BASE_FILENAME", osd_settings->aio_base);
 	if(p != osd_settings->aio_base)
@@ -661,7 +676,7 @@ static void fdf_load_settings(flash_settings_t *osd_settings)
     osd_settings->aio_sub_files    = 0; // what are these? ignore?
     osd_settings->aio_first_file   = 0; // "-z" index of first file! - membrain sets this to -1
     osd_settings->mq_ssd_balance   = 0;  // what does this do?
-    osd_settings->no_direct_io     = 0; // do NOT use O_DIRECT
+    osd_settings->no_direct_io     = !getProperty_Int("FDF_O_DIRECT", 1);
     osd_settings->sdf_persistence  = 0; // "-V" force containers to be persistent!
     osd_settings->max_aio_errors   = getProperty_Int("MEMCACHED_MAX_AIO_ERRORS", 1000 );
     osd_settings->check_delete_in_future = fdf_check_delete_in_future;
@@ -1030,11 +1045,15 @@ static int fdf_fth_cleanup( void )
 void fdf_start_stats_thread(struct FDF_state *sdf_state) {
     pthread_t thd;
     int rc;
-    fprintf(stderr,"starting stats thread\n");
-    rc = pthread_create(&thd,NULL,fdf_stats_thread,(void *)sdf_state);
-    if( rc != 0 ) {
-        fprintf(stderr,"Unable to start the stats thread\n");
-    }
+
+    if(getProperty_String("FDF_STATS_FILE","")[0])
+	{
+		fprintf(stderr,"starting stats thread\n");
+		rc = pthread_create(&thd,NULL,fdf_stats_thread,(void *)sdf_state);
+		if( rc != 0 ) {
+			fprintf(stderr,"Unable to start the stats thread\n");
+		}
+	}
 }
 
 
@@ -1159,7 +1178,7 @@ FDF_status_t FDFInit(
     fthResume( fthSpawn( &fdf_fth_initer, MCD_FTH_STACKSIZE ),
                (uint64_t) &agent_state );
 
-    ipf_set_active( 1 );
+    //ipf_set_active( 1 );
 
     // spawn scheduler startup process
     pthread_attr_init( &attr );
@@ -2017,7 +2036,6 @@ static FDF_status_t fdf_open_container(
     if ( !isContainerNull( CtnrMap[i_ctnr].sdf_container ) ) {
         SDFEndSerializeContainerOp( pai );
         plat_log_msg( 160032, LOG_CAT, log_level, "Already opened or error: %s - %s", cname, SDF_Status_Strings[status] );
-        status = FDF_SUCCESS;
 		goto out;
     }
 

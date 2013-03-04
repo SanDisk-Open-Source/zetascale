@@ -975,7 +975,7 @@ static int
 shmem_map_zero(void **out, void *in, size_t len, enum shmem_map_zero how) {
     int tmp;
     int ret = 0;
-    int fd = -1;
+    //int fd = -1;
     void *ptr;
 
 #ifdef SHMEM_PROBE_PROC
@@ -997,6 +997,9 @@ shmem_map_zero(void **out, void *in, size_t len, enum shmem_map_zero how) {
     }
 #endif
 
+/*EF: Approach with /dev/zero was extremely slow, when multiple instance run at once
+MAP_ANONYMOUS works much better */
+#if 0
     if (!ret) {
         fd = plat_open("/dev/zero", O_RDWR);
         if (fd == -1) {
@@ -1006,6 +1009,7 @@ shmem_map_zero(void **out, void *in, size_t len, enum shmem_map_zero how) {
             ret = -plat_errno;
         }
     }
+#endif
 
     if (!ret) {
         /*
@@ -1017,6 +1021,10 @@ shmem_map_zero(void **out, void *in, size_t len, enum shmem_map_zero how) {
          * is turned on.
          */
         ptr = plat_mmap(in, len, PROT_NONE,
+                        MAP_ANONYMOUS | MAP_PRIVATE|(in ?  MAP_FIXED : 0),
+                        0, 0);
+#if 0
+        ptr = plat_mmap(in, len, PROT_NONE,
 #ifdef SHMEM_PROBE_PROC
                         MAP_PRIVATE|(in ?  MAP_FIXED : 0),
 #else /* SHMEM_PROBE_PROC */
@@ -1024,6 +1032,7 @@ shmem_map_zero(void **out, void *in, size_t len, enum shmem_map_zero how) {
                                      MAP_FIXED : 0),
 #endif /* else def SHMEM_PROBE_PROC */
                         fd, 0);
+#endif
         if (ptr == MAP_FAILED) {
             plat_log_msg(21005, PLAT_LOG_CAT_PLATFORM_SHMEM,
                          PLAT_LOG_LEVEL_ERROR,
@@ -1049,10 +1058,11 @@ shmem_map_zero(void **out, void *in, size_t len, enum shmem_map_zero how) {
             *out = ptr;
         }
     }
-
+#if 0
     if (fd != -1) {
         plat_close(fd);
     }
+#endif
 
     return (ret);
 }

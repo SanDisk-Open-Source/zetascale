@@ -20,6 +20,7 @@
 #include "platform/types.h"
 #include "platform/unistd.h"
 #include "utils/properties.h"
+#include "fdf_internal.h"
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -115,8 +116,10 @@ init_agent_sm_config(struct plat_shmem_config *shmem_config, int index) {
         }
 
         if (ret == SDF_TRUE) {
-            status = plat_asprintf(&sm_name,
-                                   "%s/sdf_shmem%u", backing_dir, index);
+			if(fdf_instance_id)
+                status = plat_asprintf(&sm_name, "%s/sdf_shmem%u.%d", backing_dir, index, fdf_instance_id);
+			else
+                status = plat_asprintf(&sm_name, "%s/sdf_shmem%u", backing_dir, index);
             plat_assert(status != -1);
 
             plat_asprintf(&propName, "NODE[%u].SHMEM.SIZE", index);
