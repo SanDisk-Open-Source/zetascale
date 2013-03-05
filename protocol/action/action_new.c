@@ -3984,7 +3984,11 @@ static int sprint_cache_state(char *s, SDFNewCacheEntry_t *psce, int max_len)
 
 static void clear_all_sched_ctnr_stats(SDF_action_state_t *pas, int ctnr_index)
 {
-    memset((void *) pas->stats_new_per_sched, 0, totalScheds*sizeof(SDF_action_stats_new_t));
+    // memset((void *) pas->stats_new_per_sched, 0, totalScheds*sizeof(SDF_action_stats_new_t));
+    /* skip resetting whole stats for virtual containers */	     
+    if ( ctnr_index <= LAST_PHYSICAL_CGUID ) {	 
+        memset((void *) pas->stats_new_per_sched, 0, totalScheds*sizeof(SDF_action_stats_new_t));	 
+    }
 }
 
 static void init_stats(SDF_action_stats_new_t *ps)
