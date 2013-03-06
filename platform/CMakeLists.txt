@@ -1,12 +1,12 @@
 set(n 0)
 while(n LESS ${NCPU})
 	MATH( EXPR n "${n} + 1" )
-	set(ffdc_log_files ${ffdc_log_files} ffdc_log.${n}.c)
+	set(ffdc_log_files ${ffdc_log_files} ${CMAKE_CURRENT_SOURCE_DIR}/ffdc_log.${n}.c)
 endwhile(n LESS ${NCPU})
 
 add_custom_command(
-    OUTPUT ffdc_log.c ${ffdc_log_files} ffdc_log.h ffdc_log.dbg ffdc_reader.c
-    COMMAND /usr/bin/perl ffdc_parser.pl ${NCPU} $(CMAKE_SOURCE_DIR)
+    OUTPUT ${CMAKE_CURRENT_SOURCE_DIR}/ffdc_log.c ${ffdc_log_files} ${CMAKE_CURRENT_SOURCE_DIR}/ffdc_log.h ${CMAKE_CURRENT_SOURCE_DIR}/ffdc_log.dbg ${CMAKE_CURRENT_SOURCE_DIR}/ffdc_reader.c
+    COMMAND cd ${CMAKE_CURRENT_SOURCE_DIR} && /usr/bin/perl ffdc_parser.pl ${NCPU} $(CMAKE_SOURCE_DIR)
 	DEPENDS ffdc_log.mc
 )
 
@@ -65,6 +65,7 @@ ADD_LIBRARY(platform OBJECT aio_api.c
 	${ffdc_log_files}
         )
 add_subdirectory(tool/hotkey)
-
-add_custom_target(ffdc DEPENDS ffdc_log.c ${ffdc_log_files} ffdc_log.h ffdc_log.dbg ffdc_reader.c)
+add_custom_target(ffdc DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/ffdc_log.c
+${ffdc_log_files} ${CMAKE_CURRENT_SOURCE_DIR}/ffdc_log.h
+${CMAKE_CURRENT_SOURCE_DIR}/ffdc_log.dbg ${CMAKE_CURRENT_SOURCE_DIR}/ffdc_reader.c)
 add_dependencies(platform ffdc)
