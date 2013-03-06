@@ -88,7 +88,7 @@ __BEGIN_DECLS
     /* Significant informational messages.  Example: recovery complete */      \
     item(INFO, info, 60, LOG_NOTICE)                                           \
     /* Abnormal conditions that bear monitoring.  Example: ECC correction */   \
-    item(WARN, warn, 70, LOG_WARNING)                                          \
+    item(WARN, warning, 70, LOG_WARNING)                                       \
     /* Erors which are reported to the user */                                 \
     item(ERROR, error, 80, LOG_ERR)                                            \
     /* Errors which terminate a component */                                   \

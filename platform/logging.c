@@ -563,10 +563,13 @@ plat_log_op_msg(plat_op_label_t op, int logid,
 void
 plat_log_msg_helper(const char *file, unsigned line, const char *function,
                     int logid, int category, enum plat_log_level level,
-                    const char *format, ...) {
-    char *real_format = NULL;
+                    const char *format, ...)
+{
     va_list ap;
     char time_buf[80];
+    char *colbeg = "";
+    char *colend = "";
+    char *real_format = NULL;
 
     if (!categories.ncategory) {
         init_categories_locking();
@@ -582,14 +585,19 @@ plat_log_msg_helper(const char *file, unsigned line, const char *function,
 
     plat_log_time(time_buf, sizeof (time_buf));
 
+    if (level >= PLAT_LOG_LEVEL_WARN && isatty(2)) {
+        colbeg = (level == PLAT_LOG_LEVEL_WARN) ? "\033[35m" : "\033[31m";
+        colend = "\033[30m";
+    }
+
     if (file) {
-        ignore(sys_asprintf(&real_format, "%s%x %s %s:%u %s %s\n",
-                     time_buf, (unsigned int)pthread_self(),
-                     levels[level], file, line, function, format));
+        ignore(sys_asprintf(&real_format, "%s%s%x %s %s:%u %s%s %s\n",
+                     colbeg, time_buf, (unsigned int)pthread_self(),
+                     levels[level], file, line, function, colend, format));
     } else {
-        ignore(sys_asprintf(&real_format, "%s%x %s %s\n",
-                            time_buf, (unsigned int)pthread_self(),
-                            levels[level], format));
+        ignore(sys_asprintf(&real_format, "%s%s%x %s%s %s\n",
+                            colbeg, time_buf, (unsigned int)pthread_self(),
+                            levels[level], colend, format));
     }
 
     if (real_format) {

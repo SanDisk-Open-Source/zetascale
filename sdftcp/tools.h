@@ -25,6 +25,7 @@
 /*
  * Macro functions.
  */
+#define nel(a)      (sizeof(a)/sizeof(*(a)))
 #define clear(v)    memset(&v, 0, sizeof(v))
 #define streq(a, b) (strcmp(a, b) == 0)
 

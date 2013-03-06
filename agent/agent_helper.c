@@ -482,8 +482,8 @@ agent_config_set_properties(struct plat_opts_config_sdf_agent *config)
                  config->numReplicationThreads);
     plat_log_msg(20845, PLAT_LOG_CAT_PRINT_ARGS, PLAT_LOG_LEVEL_DEBUG, "PROP: SDF_SHARD_MAX_OBJECTS=%u",
                  config->numObjs);
-    plat_log_msg(20846, PLAT_LOG_CAT_PRINT_ARGS, PLAT_LOG_LEVEL_DEBUG, "PROP: SDF_MSG_ENGINE_START=%u",
-                 getProperty_Int("SDF_MSG_ENGINE_START", 1));
+    plat_log_msg(70126, PLAT_LOG_CAT_PRINT_ARGS, PLAT_LOG_LEVEL_DEBUG, "PROP: SDF_MSG_ON=%u",
+                 getProperty_Int("SDF_MSG_ON", 1));
     plat_log_msg(20847, PLAT_LOG_CAT_PRINT_ARGS, PLAT_LOG_LEVEL_DEBUG, "PROP: SDF_NUM_FLASH_DEVS=%u",
         config->numFlashDevs);
     plat_log_msg(20848, PLAT_LOG_CAT_PRINT_ARGS, PLAT_LOG_LEVEL_DEBUG, "PROP: SDF_DEFAULT_SHARD_COUNT=%u",
@@ -511,9 +511,7 @@ agent_engine_pre_init_internal(struct sdf_agent_state *state,
     int numScheds;
     uint32_t sdf_msg_numprocs;
 
-	if (getProperty_Int("SDF_MSG_ENGINE_START", 1))
-		sdf_msg_init(argc, argv);
-
+    sdf_msg_init(argc, argv);
     state->rank = sdf_msg_myrank();
     sdf_msg_numprocs = sdf_msg_numranks();
 
