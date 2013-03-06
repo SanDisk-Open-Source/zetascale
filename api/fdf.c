@@ -866,7 +866,7 @@ inc_cntr_map(cntr_id_t cntr_id, int64_t objs, int64_t size)
 {
     ctnr_map_t *cmap = get_cntr_map(cntr_id);
     if (!cmap) {
-        sdf_loge(70114, "bad container: %d", cntr_id);
+        //sdf_loge(70114, "bad container: %d", cntr_id);
         //FIXME: uncomment next line when Darryl fixes initialization problems
         //return FDF_CONTAINER_UNKNOWN;
         return FDF_SUCCESS;
