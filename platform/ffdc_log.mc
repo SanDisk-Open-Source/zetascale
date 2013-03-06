@@ -3214,6 +3214,11 @@
 160115 Unable to write metadata for %lu. Can not rename 
 160116 Unable to create cguid map for container %lu.Can not rename
 160117 Failed to delete the container:%lu
+160118 Start: Waiting for %d containers deletes to finish
+160119 End: Waiting for %d containers deletes to finish
+160120 Containers closed=%d
+160121 Signal completion of pending deletes\n
+160122 Waiting for completion of pending deletes\n
 
 
 # rico

@@ -165,6 +165,8 @@ FDF_status_t fdf_delete_container_async_start(
                                 FDF_cguid_t cguid, FDF_container_mode_t mode );
 void init_async_cmd_handler(int num_thds, struct FDF_state *fdf_state);
 
+void wait_for_container_del();
+
 extern int fdf_instance_id;
 
 #ifdef __cplusplus

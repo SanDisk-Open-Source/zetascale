@@ -73,7 +73,50 @@ typedef struct {
     FDF_ASYNC_CMD cmd;
     FDF_cguid_t cguid;
     uint32_t    size_free;
-}async_cmd_req_t;
+} async_cmd_req_t;
+
+/*
+ * This CV serves the purpose of blocking wait for a 
+ * thread awaiting completion of pending delete operations.
+ */
+pthread_mutex_t mutex =  PTHREAD_MUTEX_INITIALIZER;
+pthread_cond_t cv     =  PTHREAD_COND_INITIALIZER;
+
+/**
+ * @brief If all deletes have completed, signal the waiter
+ *
+ * return None
+ */
+void
+check_if_zero_num_deletes_pend()
+{
+	if (0 == num_deletes_pend) {
+		pthread_cond_signal(&cv);
+
+        plat_log_msg(160121,
+		             LOG_CAT, LOG_DBG,
+					 "Signal completion of pending deletes\n");
+	}	
+}
+
+ 
+/**
+ * @brief If deletes are pending, wait for completion
+ *
+ * return None
+ *
+ */
+void
+wait_for_container_del()
+{
+	if (0 != num_deletes_pend) {
+        plat_log_msg(160122,
+		             LOG_CAT, LOG_DBG,
+					 "Waiting for completion of pending deletes\n");
+		pthread_cond_wait(&cv, &mutex);
+	}
+}
+
 
 static void async_handler_thread(uint64_t arg){
     int rc;
@@ -100,7 +143,13 @@ static void async_handler_thread(uint64_t arg){
             fdf_delete_container_async_end(thd_state,req->cguid);
             /*Delete completed */
             atomic_sub(num_deletes_prog,1); 
-            atomic_sub(num_deletes_pend,1); 
+            atomic_sub(num_deletes_pend,1);
+
+			/*
+			 * Signal any waiter that is awaiting on pending delete
+			 * operations.
+			 */			
+			check_if_zero_num_deletes_pend();
         }
         else if( req->cmd == FDF_ASYNC_CMD_DELETE_OBJ) {
             plat_log_msg(160086,LOG_CAT, LOG_ERR,
@@ -123,7 +172,8 @@ void get_async_delete_stats( uint32_t *num_deletes,uint32_t *num_prog) {
     *num_deletes = num_deletes_pend;
     *num_prog    = num_deletes_prog;
 }
- 
+
+
 
 FDF_status_t aync_command_delete_container(FDF_cguid_t cguid) {
     async_cmd_req_t *req;    

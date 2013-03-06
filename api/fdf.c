@@ -230,6 +230,34 @@ static FDF_status_t fdf_delete_objects(
 	FDF_cguid_t 			  cguid
 	);
 
+static FDF_status_t
+fdf_get_containers(
+		struct FDF_thread_state	*fdf_thread_state,
+		FDF_cguid_t             *cguids,
+		uint32_t                *n_cguids
+		);
+
+
+static FDF_status_t
+fdf_get_container_props(
+		struct FDF_thread_state	*fdf_thread_state, 
+		FDF_cguid_t 		  	 cguid, 
+		FDF_container_props_t	*pprops
+		);
+
+static FDF_status_t
+fdf_flush_container(
+	struct FDF_thread_state  *fdf_thread_state,
+	FDF_cguid_t               cguid
+	);
+
+static FDF_status_t fdf_delete_container_1(
+	struct FDF_thread_state	*fdf_thread_state,
+	FDF_cguid_t		 		 cguid,
+	FDF_container_mode_t	 mode
+	);
+
+
 /*
 ** Types
 */
@@ -776,7 +804,7 @@ FDF_status_t is_fdf_operation_allowed(void)
 
 		plat_log_msg(160097, LOG_CAT, LOG_ERR, 
 				"Operation denied: Shutdown in progress %s",
-				SDF_Status_Strings[status]);
+				FDF_Status_Strings[status]);
 	}
 	return status;
 }
@@ -1055,7 +1083,7 @@ static void *fdf_stats_thread(void *arg) {
             continue;
         }
 
-        FDFGetContainers(thd_state,cguids,&n_cguids);
+        fdf_get_containers(thd_state,cguids,&n_cguids);
         if( n_cguids <= 0 ) {
              fprintf(stderr,"Stats Thread:No container exists\n");    
              sleep(10);
@@ -1374,31 +1402,44 @@ FDF_status_t FDFReleasePerThreadState(
 	return FDF_SUCCESS;
 }
 
-/*
- * Dummy function to delete containers asynchronously
+
+/**
+ * @brief Wait on asynchronous container deletion
+ * @return None
  */
-void dummy_get_async_delete_stats(uint32_t *num_del, uint32_t *del_prog)
+static void
+fdf_wait_containers_delete()
 {
+	uint32_t num_deletes = 0;
+	uint32_t num_prog = 0;
 
-}
+	if (1 == getProperty_Int("ASYNC_DELETE_CONTAINERS", 1)) {
 
+		/*
+		 * Get current count for deletion operation
+		 */
+		get_async_delete_stats(&num_deletes, &num_prog);
 
-	static void
-fdf_wait_delete_containers()
-{
-	uint32_t num_del = 0, del_prog = 0;
+		plat_log_msg(160118,
+				PLAT_LOG_CAT_SDF_PROT,
+				PLAT_LOG_LEVEL_INFO,
+				"Start: Waiting for %d containers deletes to finish",
+				num_deletes);
+		/*
+		 * Blocking wait for container deletion
+		 */
+		wait_for_container_del();
 
-	if (1 == getProperty_Int("GRACEFUL_SHUTDOWN_DEL_CONT_WAIT", 1)) {
-		do {
-			dummy_get_async_delete_stats(&num_del, &del_prog);
-			sleep(1);
+		/*
+		 * Update num_deletes. It should be zero.
+		 */
+		get_async_delete_stats(&num_deletes, &num_prog);
 
-			plat_log_msg(160099,
-					PLAT_LOG_CAT_SDF_PROT,
-					PLAT_LOG_LEVEL_INFO,
-					"Waiting for %d containers deletes to finish",
-					num_del);
-		} while(num_del);
+		plat_log_msg(160119,
+				PLAT_LOG_CAT_SDF_PROT,
+				PLAT_LOG_LEVEL_INFO,
+				"End: Waiting for %d containers deletes to finish",
+				num_deletes);
 	}
 }
 
@@ -1428,7 +1469,7 @@ fdf_containers_cleanup(struct FDF_state *fdf_state)
 	 * If container deletion operations are in progress, let them
 	 * complete.
    	 */
-	fdf_wait_delete_containers();
+	fdf_wait_containers_delete();
 
 	status = FDFInitPerThreadState((struct FDF_state*) fdf_state,
 			(struct FDF_thread_state **) &fdf_thread_state);
@@ -1436,16 +1477,17 @@ fdf_containers_cleanup(struct FDF_state *fdf_state)
 	if ( FDF_SUCCESS != status)	{
 		plat_log_msg(160100, LOG_CAT, LOG_ERR, 
 				"Unable to create thread context %s",
-				SDF_Status_Strings[status]);
+				FDF_Status_Strings[status]);
 		return status;
 	}
 
 	/*
-	 * We will get all containers but physical containers (CMC, VMC and VDC)
+	 * We will get all containers but physical containers (CMC, VMC and VDC).
+	 * This API do _not_ list a container that's marked for deletion.
 	 */
-	status = FDFGetContainers(fdf_thread_state, cguids, &n_cguids);
+	status = fdf_get_containers(fdf_thread_state, cguids, &n_cguids);
 
-	if (0 >= n_cguids) {
+	if (0 == n_cguids) {
 		plat_log_msg(160055, LOG_CAT, LOG_INFO, 
 				"No container exists");
 		return status;
@@ -1455,11 +1497,11 @@ fdf_containers_cleanup(struct FDF_state *fdf_state)
 			"Total containers = %d", n_cguids);
 
 	for (i = 0; i < n_cguids; i++) {
-		props_rc = FDFGetContainerProps(fdf_thread_state, cguids[i], &props);
+		props_rc = fdf_get_container_props(fdf_thread_state, cguids[i], &props);
 		if (SDF_SUCCESS != props_rc) {
 			plat_log_msg(160102, LOG_CAT, LOG_ERR, 
 					"Error getting container properties for index=%d cguid=%ld: %s",
-					i, cguids[i], SDF_Status_Strings[status]);
+					i, cguids[i], FDF_Status_Strings[status]);
 
 			/*
 			 * Carry on with remaining containers
@@ -1468,7 +1510,7 @@ fdf_containers_cleanup(struct FDF_state *fdf_state)
 		}
 		plat_log_msg(160103, LOG_CAT, LOG_INFO, 
 				"Got container properties for index=%d cguid=%ld: %s",
-				i, cguids[i], SDF_Status_Strings[status]);
+				i, cguids[i], FDF_Status_Strings[status]);
 
 		/*
 		 * Close the container
@@ -1478,17 +1520,23 @@ fdf_containers_cleanup(struct FDF_state *fdf_state)
 		if (FDF_SUCCESS != status) {
 			plat_log_msg(160104, LOG_CAT, LOG_ERR, 
 					"Error closing container ID: %ld with %s",
-					cguids[i], SDF_Status_Strings[status]);
+					cguids[i], FDF_Status_Strings[status]);
 		}
 
 		plat_log_msg(160105, LOG_CAT, LOG_INFO, 
 				"Closed container id %ld with %s",
-				cguids[i], SDF_Status_Strings[status]);
+				cguids[i], FDF_Status_Strings[status]);
+
 		num_closed_containers++;
 	}
 
-	plat_log_msg(160106, LOG_CAT,
-			LOG_INFO, "Closed %d containers", num_closed_containers);
+	if (0 == num_closed_containers) {
+		plat_log_msg(20819, LOG_CAT,
+				LOG_INFO, "%s", "No container closed.");
+	} else {
+		plat_log_msg(160120, LOG_CAT,
+				LOG_INFO, "Containers closed=%d", num_closed_containers);
+	}
 
 	FDFReleasePerThreadState(&fdf_thread_state);
 
@@ -1534,7 +1582,7 @@ FDF_status_t FDFShutdown(struct FDF_state *fdf_state)
 
 		plat_log_msg(160107, PLAT_LOG_CAT_SDF_PROT,
 				PLAT_LOG_LEVEL_INFO, "Shutdown phase 1 returns :%s",
-				SDF_Status_Strings[status]);
+				FDF_Status_Strings[status]);
 	}
 	return status;
 }
@@ -1576,6 +1624,17 @@ FDF_status_t FDFOpenContainer(
 		)
 {
 	FDF_status_t status		= FDF_SUCCESS;
+
+	/*
+	 * Check if operation can begin
+	 */
+	if (FDF_SUCCESS != (status = is_fdf_operation_allowed())) {
+		plat_log_msg(160108, LOG_CAT,
+				LOG_ERR, "is_fdf_operation_allowed:%s",
+				FDF_Status_Strings[status]);
+
+		return status;
+	}
 
 	if ( flags & FDF_CTNR_CREATE ) {
 		status = fdf_create_container( fdf_thread_state,
@@ -2039,31 +2098,10 @@ static FDF_status_t fdf_open_container(
 #endif /* SDFAPIONLY */
 	SDF_container_meta_t		 meta;
 
-	/*
-	 * Check if operation can begin
-	 */
-	if (FDF_SUCCESS != (status = is_fdf_operation_allowed())) {
-		plat_log_msg(160108, LOG_CAT,
-				LOG_ERR, "is_fdf_operation_allowed:%s",
-				SDF_Status_Strings[status]);
 
-		return status;
-	}
-
-	if ( serialize )                        
+	if ( serialize )
 		SDFStartSerializeContainerOp( pai );
 
-	/*
-	 * Check again, if operation can begin
-	 */
-	if (FDF_SUCCESS != (status = is_fdf_operation_allowed())) {
-
-		plat_log_msg(160108, LOG_CAT,
-				LOG_ERR, "is_fdf_operation_allowed:%s",
-				SDF_Status_Strings[status]);
-
-		goto out;
-	}
 
 	if ( !cguid ) {
 		status = FDF_INVALID_PARAMETER;
@@ -2365,8 +2403,14 @@ static FDF_status_t fdf_close_container(
     }
 
 out:
-
-    plat_log_msg(20819, LOG_CAT, log_level, "%s", SDF_Status_Strings[status]);
+	/*
+	 * We would not want to see this log emitted if shutdown is in progress.
+	 * Closing a closed container throws error that container was not open.
+	 * We collect the error in FDFShutdown() and emit appropriate log.
+	 */
+	if (!agent_state.op_access.is_shutdown_in_progress) {
+		plat_log_msg(20819, LOG_CAT, log_level, "%s", SDF_Status_Strings[status]);
+	}
 
 	if ( serialize )
 	    SDFEndSerializeContainerOp(pai);
@@ -2374,9 +2418,12 @@ out:
     return (status);
 }
 
-FDF_status_t FDFDeleteContainer(
+
+static FDF_status_t
+fdf_delete_container(
     struct FDF_thread_state *fdf_thread_state,
-    FDF_cguid_t              cguid
+    FDF_cguid_t              cguid,
+	FDF_container_mode_t	 mode
     )
 {
     if ( getProperty_Int("ASYNC_DELETE_CONTAINERS",1) == 1 ) {
@@ -2384,11 +2431,32 @@ FDF_status_t FDFDeleteContainer(
                                                         FDF_VIRTUAL_CNTR);
     }
     else {
-	    return fdf_delete_container( fdf_thread_state,
-								 cguid,
-								 FDF_VIRTUAL_CNTR
-							   );
+	    return fdf_delete_container_1(fdf_thread_state, cguid, FDF_VIRTUAL_CNTR);
     }
+}
+
+
+FDF_status_t FDFDeleteContainer(
+    struct FDF_thread_state *fdf_thread_state,
+    FDF_cguid_t              cguid
+    )
+{
+
+	FDF_status_t status = FDF_SUCCESS;
+
+	/*
+	 * Check if operation can begin
+	 */
+	if (FDF_SUCCESS != (status = is_fdf_operation_allowed())) {
+		plat_log_msg(160108, LOG_CAT,
+				LOG_ERR, "is_fdf_operation_allowed:%s",
+				FDF_Status_Strings[status]);
+
+		return status;
+	}
+
+	status = fdf_delete_container(fdf_thread_state, cguid, FDF_VIRTUAL_CNTR);
+	return status;
 }
 
 FDF_status_t FDFDeletePhysicalContainer(
@@ -2464,10 +2532,10 @@ FDF_status_t fdf_delete_container_async_end(
 	    CtnrMap[i_ctnr].current_size  	= 0;
 	    CtnrMap[i_ctnr].state       	= FDF_CONTAINER_STATE_UNINIT;
 		if ( FDF_VIRTUAL_CNTR == mode ) {
-            FDFFlushContainer( fdf_thread_state, VMC_CGUID );
+            fdf_flush_container( fdf_thread_state, VMC_CGUID );
         }
 		else {
-    		FDFFlushContainer( fdf_thread_state, CMC_CGUID );
+    		fdf_flush_container( fdf_thread_state, CMC_CGUID );
         }
     } 
     else { 
@@ -2665,11 +2733,9 @@ FDF_status_t fdf_delete_container_async_start(
     SDFEndSerializeContainerOp(pai);
     return FDF_SUCCESS;
 }
-                                    
 
 
-
-static FDF_status_t fdf_delete_container(
+static FDF_status_t fdf_delete_container_1(
 	struct FDF_thread_state	*fdf_thread_state,
 	FDF_cguid_t		 		 cguid,
 	FDF_container_mode_t	 mode
@@ -2689,16 +2755,6 @@ static FDF_status_t fdf_delete_container(
 				  "%lu", 
 				  cguid );
 
-    /*
-     * Check if operation can begin
-     */
-    if (FDF_SUCCESS != is_fdf_operation_allowed()) {
-		plat_log_msg(160108, LOG_CAT,
-				LOG_ERR, "is_fdf_operation_allowed:%s",
-				SDF_Status_Strings[status]);
-
-        return FDF_FAILURE_OPERATION_DISALLOWED;
-    }
 
 	if ( !cguid )
 		return FDF_INVALID_PARAMETER;
@@ -2706,17 +2762,6 @@ static FDF_status_t fdf_delete_container(
     SDFStartSerializeContainerOp(pai);
 
 
-    /*
-     * Check if operation can begin
-     */
-    if (FDF_SUCCESS != is_fdf_operation_allowed()) {
-
-		plat_log_msg(160108, LOG_CAT,
-				LOG_ERR, "is_fdf_operation_allowed:%s",
-				SDF_Status_Strings[status]);
-
-		goto out;
-    }
 
     i_ctnr = fdf_get_ctnr_from_cguid( cguid );
 
@@ -2806,9 +2851,9 @@ static FDF_status_t fdf_delete_container(
 
 				// Make sure the metadata container is in sync
 				if ( FDF_VIRTUAL_CNTR == mode )
-					FDFFlushContainer( fdf_thread_state, VMC_CGUID );
+					fdf_flush_container( fdf_thread_state, VMC_CGUID );
 				else
-					FDFFlushContainer( fdf_thread_state, CMC_CGUID );
+					fdf_flush_container( fdf_thread_state, CMC_CGUID );
 
 	        } else {
 	            if ( FDF_SUCCESS == status )
@@ -2861,6 +2906,8 @@ char *FDFGetContainerName(FDF_cguid_t cguid) {
     }
     return "";
 }
+
+
 char *FDFGetNextContainerName(struct FDF_thread_state *fdf_thread_state,int *index) {
     int i;
     SDF_container_meta_t meta;
@@ -2897,11 +2944,13 @@ char *FDFGetNextContainerName(struct FDF_thread_state *fdf_thread_state,int *ind
     return "";
 }
 
-FDF_status_t FDFGetContainers(
-	struct FDF_thread_state	*fdf_thread_state,
-	FDF_cguid_t             *cguids,
-	uint32_t                *n_cguids
-	)
+
+static FDF_status_t
+fdf_get_containers(
+		struct FDF_thread_state	*fdf_thread_state,
+		FDF_cguid_t             *cguids,
+		uint32_t                *n_cguids
+		)
 {
     int   						 i				= 0;
     int   						 n_containers	= 0;
@@ -2943,11 +2992,37 @@ FDF_status_t FDFGetContainers(
     return FDF_SUCCESS;
 }
 
-FDF_status_t FDFGetContainerProps(
-	struct FDF_thread_state	*fdf_thread_state, 
-	FDF_cguid_t 		  	 cguid, 
-	FDF_container_props_t	*pprops
+
+FDF_status_t FDFGetContainers(
+	struct FDF_thread_state	*fdf_thread_state,
+	FDF_cguid_t             *cguids,
+	uint32_t                *n_cguids
 	)
+{
+	FDF_status_t status = FDF_SUCCESS;
+
+	/*
+	 * Check if operation can begin
+	 */
+	if (FDF_SUCCESS != (status = is_fdf_operation_allowed())) {
+		plat_log_msg(160108, LOG_CAT,
+				LOG_ERR, "is_fdf_operation_allowed:%s",
+				FDF_Status_Strings[status]);
+
+		return status;
+	}
+
+	status = fdf_get_containers(fdf_thread_state, cguids, n_cguids);
+	return status;
+}
+
+
+static FDF_status_t
+fdf_get_container_props(
+		struct FDF_thread_state	*fdf_thread_state, 
+		FDF_cguid_t 		  	 cguid, 
+		FDF_container_props_t	*pprops
+		)
 {   
     FDF_status_t             	 status = FDF_SUCCESS;
     SDF_container_meta_t     	 meta;
@@ -2955,7 +3030,6 @@ FDF_status_t FDFGetContainerProps(
 
 	if ( !cguid || !pprops )
 		return FDF_INVALID_PARAMETER;
-
 
     SDFStartSerializeContainerOp(pai);  
     if ( is_container_being_deleted(cguid) == FDF_TRUE ) {
@@ -2969,12 +3043,38 @@ FDF_status_t FDFGetContainerProps(
                    
     return status;
 }
-    
-FDF_status_t FDFSetContainerProps(
+   
+
+FDF_status_t FDFGetContainerProps(
 	struct FDF_thread_state	*fdf_thread_state, 
-	FDF_cguid_t 	 	  	 cguid,
+	FDF_cguid_t 		  	 cguid, 
 	FDF_container_props_t	*pprops
 	)
+{
+	FDF_status_t status = FDF_SUCCESS;
+
+	/*
+	 * Check if operation can begin
+	 */
+	if (FDF_SUCCESS != (status = is_fdf_operation_allowed())) {
+		plat_log_msg(160108, LOG_CAT,
+				LOG_ERR, "is_fdf_operation_allowed:%s",
+				FDF_Status_Strings[status]);
+
+		return status;
+	}
+	status = fdf_get_container_props(fdf_thread_state, cguid, pprops);	
+
+	return status;
+}
+
+
+static FDF_status_t
+fdf_set_container_props(
+		struct FDF_thread_state	*fdf_thread_state, 
+		FDF_cguid_t 	 	  	 cguid,
+		FDF_container_props_t	*pprops
+		)
 {
     FDF_status_t             status = FDF_SUCCESS;
     SDF_container_meta_t     meta;
@@ -3028,7 +3128,33 @@ FDF_status_t FDFSetContainerProps(
     return status;
 }
 
-FDF_status_t FDFReadObject(
+
+FDF_status_t FDFSetContainerProps(
+	struct FDF_thread_state	*fdf_thread_state, 
+	FDF_cguid_t 	 	  	 cguid,
+	FDF_container_props_t	*pprops
+	)
+{
+    FDF_status_t             status = FDF_SUCCESS;
+
+	/*
+	 * Check if operation can begin
+	 */
+	if (FDF_SUCCESS != (status = is_fdf_operation_allowed())) {
+		plat_log_msg(160108, LOG_CAT,
+				LOG_ERR, "is_fdf_operation_allowed:%s",
+				FDF_Status_Strings[status]);
+
+		return status;
+	}
+
+	status = fdf_set_container_props(fdf_thread_state, cguid, pprops);
+	return status;
+}
+
+
+static FDF_status_t
+fdf_read_object(
 	struct FDF_thread_state   *fdf_thread_state,
 	FDF_cguid_t                cguid,
 	char                      *key,
@@ -3039,10 +3165,11 @@ FDF_status_t FDFReadObject(
 {
     SDF_appreq_t        ar;
     SDF_action_init_t  *pac;
-    SDF_status_t        status;
+    FDF_status_t        status = FDF_SUCCESS;
 
-    if ( !cguid || !key )
+    if ( !cguid || !key ) {
         return FDF_INVALID_PARAMETER;
+	}
 
     if ( !fdf_is_ctnr_open( cguid) ) {
         plat_log_msg( 160039, LOG_CAT, LOG_ERR, "Container must be open to execute a read object" );
@@ -3076,7 +3203,37 @@ FDF_status_t FDFReadObject(
     return(ar.respStatus);
 }
 
-FDF_status_t FDFReadObjectExpiry(
+
+FDF_status_t FDFReadObject(
+	struct FDF_thread_state   *fdf_thread_state,
+	FDF_cguid_t                cguid,
+	char                      *key,
+	uint32_t                   keylen,
+	char                     **data,
+	uint64_t                  *datalen
+	)
+{
+	FDF_status_t status = FDF_SUCCESS;
+
+	/*
+	 * Check if operation can begin
+	 */
+	if (FDF_SUCCESS != (status = is_fdf_operation_allowed())) {
+		plat_log_msg(160108, LOG_CAT,
+				LOG_ERR, "is_fdf_operation_allowed:%s",
+				FDF_Status_Strings[status]);
+
+		return status;
+	}
+
+	status = fdf_read_object(fdf_thread_state, cguid, key, keylen, data, datalen);
+
+	return status; 
+}
+
+
+static FDF_status_t
+fdf_read_object_expiry(
     struct FDF_thread_state  *fdf_thread_state,
     FDF_cguid_t               cguid,
     FDF_readobject_t         *robj
@@ -3121,6 +3278,32 @@ FDF_status_t FDFReadObjectExpiry(
     return(ar.respStatus);
 }
 
+
+FDF_status_t FDFReadObjectExpiry(
+    struct FDF_thread_state  *fdf_thread_state,
+    FDF_cguid_t               cguid,
+    FDF_readobject_t         *robj
+    )
+{
+	FDF_status_t status = FDF_SUCCESS;
+
+	/*
+	 * Check if operation can begin
+	 */
+	if (FDF_SUCCESS != (status = is_fdf_operation_allowed())) {
+		plat_log_msg(160108, LOG_CAT,
+				LOG_ERR, "is_fdf_operation_allowed:%s",
+				FDF_Status_Strings[status]);
+
+		return status;
+	}
+
+	status = fdf_read_object_expiry(fdf_thread_state, cguid, robj);
+
+	return status; 
+}
+
+
 FDF_status_t FDFFreeBuffer(
 	char *buf
 	)
@@ -3129,7 +3312,9 @@ FDF_status_t FDFFreeBuffer(
     return FDF_SUCCESS;
 }
 
-FDF_status_t FDFWriteObject(
+
+static FDF_status_t
+fdf_write_object(
 	struct FDF_thread_state  *fdf_thread_state,
 	FDF_cguid_t          cguid,
 	char                *key,
@@ -3185,7 +3370,38 @@ FDF_status_t FDFWriteObject(
     return ar.respStatus;
 }
 
-FDF_status_t FDFWriteObjectExpiry(
+
+FDF_status_t FDFWriteObject(
+	struct FDF_thread_state  *fdf_thread_state,
+	FDF_cguid_t          cguid,
+	char                *key,
+	uint32_t             keylen,
+	char                *data,
+	uint64_t             datalen,
+	uint32_t             flags
+	)
+{
+	FDF_status_t status = FDF_SUCCESS;
+
+	/*
+	 * Check if operation can begin
+	 */
+	if (FDF_SUCCESS != (status = is_fdf_operation_allowed())) {
+		plat_log_msg(160108, LOG_CAT,
+				LOG_ERR, "is_fdf_operation_allowed:%s",
+				FDF_Status_Strings[status]);
+
+		return status;
+	}
+
+	status = fdf_write_object(fdf_thread_state, cguid, key, keylen, data, datalen, flags);
+
+	return status; 
+}
+
+
+static FDF_status_t
+fdf_write_object_expiry(
     struct FDF_thread_state  *fdf_thread_state,
     FDF_cguid_t               cguid,
     FDF_writeobject_t        *wobj,
@@ -3245,7 +3461,35 @@ FDF_status_t FDFWriteObjectExpiry(
     return(ar.respStatus);
 }
 
-FDF_status_t FDFDeleteObject(
+
+FDF_status_t FDFWriteObjectExpiry(
+    struct FDF_thread_state  *fdf_thread_state,
+    FDF_cguid_t               cguid,
+    FDF_writeobject_t        *wobj,
+    uint32_t                  flags
+    )
+{
+    FDF_status_t        status	= FDF_SUCCESS;
+
+	/*
+	 * Check if operation can begin
+	 */
+	if (FDF_SUCCESS != (status = is_fdf_operation_allowed())) {
+		plat_log_msg(160108, LOG_CAT,
+				LOG_ERR, "is_fdf_operation_allowed:%s",
+				FDF_Status_Strings[status]);
+
+		return status;
+	}
+
+	status = fdf_write_object_expiry(fdf_thread_state, cguid, wobj, flags);
+
+	return status;
+}
+
+
+static FDF_status_t
+fdf_delete_object(
 	struct FDF_thread_state  *fdf_thread_state,
 	FDF_cguid_t          	  cguid,
 	char                	 *key,
@@ -3254,11 +3498,11 @@ FDF_status_t FDFDeleteObject(
 {
     SDF_appreq_t        ar;
     SDF_action_init_t  *pac		= NULL;
-    FDF_status_t        status	= FDF_FAILURE;
+    FDF_status_t        status	= FDF_SUCCESS;
 
     if ( !cguid || !key )
         return FDF_INVALID_PARAMETER;
-        
+
     if ( !fdf_is_ctnr_open( cguid) ) {
         plat_log_msg( 160041, LOG_CAT, LOG_ERR, "Container must be open to execute a delete object" );
         return FDF_FAILURE_CONTAINER_NOT_OPEN;
@@ -3283,7 +3527,34 @@ FDF_status_t FDFDeleteObject(
     return(ar.respStatus);
 }
 
-FDF_status_t FDFFlushObject(
+
+FDF_status_t FDFDeleteObject(
+	struct FDF_thread_state  *fdf_thread_state,
+	FDF_cguid_t          	  cguid,
+	char                	 *key,
+	uint32_t             	  keylen
+	)
+{
+    FDF_status_t        status	= FDF_FAILURE;
+
+	/*
+	 * Check if operation can begin
+	 */
+	if (FDF_SUCCESS != (status = is_fdf_operation_allowed())) {
+		plat_log_msg(160108, LOG_CAT,
+				LOG_ERR, "is_fdf_operation_allowed:%s",
+				FDF_Status_Strings[status]);
+
+		return status;
+	}
+
+	status = fdf_delete_object(fdf_thread_state, cguid, key, keylen);
+
+	return status;
+}
+
+
+static FDF_status_t fdf_flush_object(
 	struct FDF_thread_state  *fdf_thread_state,
 	FDF_cguid_t          	  cguid,
 	char                	 *key,
@@ -3295,7 +3566,7 @@ FDF_status_t FDFFlushObject(
     FDF_status_t        status;
 
     pac = (SDF_action_init_t *) fdf_thread_state;
-   
+
 	if ( !cguid || !key )
 		return FDF_INVALID_PARAMETER;
 
@@ -3320,7 +3591,36 @@ FDF_status_t FDFFlushObject(
     return(ar.respStatus);
 }
 
-FDF_status_t FDFFlushContainer(
+
+FDF_status_t FDFFlushObject(
+	struct FDF_thread_state  *fdf_thread_state,
+	FDF_cguid_t          	  cguid,
+	char                	 *key,
+	uint32_t             	  keylen
+	)
+{
+
+    FDF_status_t        status	= FDF_FAILURE;
+
+	/*
+	 * Check if operation can begin
+	 */
+	if (FDF_SUCCESS != (status = is_fdf_operation_allowed())) {
+		plat_log_msg(160108, LOG_CAT,
+				LOG_ERR, "is_fdf_operation_allowed:%s",
+				FDF_Status_Strings[status]);
+
+		return status;
+	}
+
+	status = fdf_flush_object(fdf_thread_state, cguid, key, keylen);
+
+	return status;
+}
+
+
+static FDF_status_t
+fdf_flush_container(
 	struct FDF_thread_state  *fdf_thread_state,
 	FDF_cguid_t               cguid
 	)
@@ -3335,7 +3635,7 @@ FDF_status_t FDFFlushContainer(
     SDF_container_meta_t     meta;
     struct SDF_shared_state *state          = &sdf_shared_state;
 #endif
-	
+
     if ( !cguid )
         return FDF_INVALID_PARAMETER;
 
@@ -3380,9 +3680,35 @@ FDF_status_t FDFFlushContainer(
 	return status;
 }
 
-FDF_status_t FDFFlushCache(
-	struct FDF_thread_state  *fdf_thread_state
+
+FDF_status_t FDFFlushContainer(
+	struct FDF_thread_state  *fdf_thread_state,
+	FDF_cguid_t               cguid
 	)
+{
+	FDF_status_t status = FDF_SUCCESS;
+
+	/*
+	 * Check if operation can begin
+	 */
+	if (FDF_SUCCESS != (status = is_fdf_operation_allowed())) {
+		plat_log_msg(160108, LOG_CAT,
+				LOG_ERR, "is_fdf_operation_allowed:%s",
+				FDF_Status_Strings[status]);
+
+		return status;
+	}
+
+	status = fdf_flush_container(fdf_thread_state, cguid);
+
+	return status;
+}
+
+
+static FDF_status_t
+fdf_flush_cache(
+		struct FDF_thread_state  *fdf_thread_state
+		)
 {
 	FDF_status_t	status	= FDF_FAILURE;
     int				i;
@@ -3390,7 +3716,7 @@ FDF_status_t FDFFlushCache(
     for ( i = 0; i < MCD_MAX_NUM_CNTRS; i++ ) {
 
         if ( (CtnrMap[i].cguid != 0 ) && (CtnrMap[i].state != FDF_CONTAINER_STATE_DELETE_PROG) ) {
-			status = FDFFlushContainer( fdf_thread_state, Mcd_containers[i].cguid );
+			status = fdf_flush_container( fdf_thread_state, Mcd_containers[i].cguid );
 
 			if ( status != FDF_SUCCESS )
 				return status;
@@ -3399,6 +3725,30 @@ FDF_status_t FDFFlushCache(
 
     return FDF_SUCCESS;
 }
+
+
+FDF_status_t FDFFlushCache(
+	struct FDF_thread_state  *fdf_thread_state
+	)
+{
+	FDF_status_t	status	= FDF_SUCCESS;
+
+	/*
+	 * Check if operation can begin
+	 */
+	if (FDF_SUCCESS != (status = is_fdf_operation_allowed())) {
+		plat_log_msg(160108, LOG_CAT,
+				LOG_ERR, "is_fdf_operation_allowed:%s",
+				FDF_Status_Strings[status]);
+
+		return status;
+	}
+
+	status = fdf_flush_cache(fdf_thread_state);
+
+	return status;
+}
+
 
 FDF_status_t FDFContainerStat(SDF_internal_ctxt_t *pai, SDF_CONTAINER container, int key, uint64_t *stat) 
 {
@@ -4151,6 +4501,7 @@ out:
     return (status);
 }
 
+
 FDF_status_t FDFGetStats(
 	struct FDF_thread_state *fdf_thread_state,
 	FDF_stats_t             *stats
@@ -4175,6 +4526,8 @@ FDF_status_t FDFGetStats(
     p[FDF_ACCESS_TYPES_NUM_CONT_DELETES_PROG] = dels_prog;
     return( FDF_SUCCESS );
 }
+
+
 #define MAX_STATS_RETRY 5
 FDF_status_t FDFGetContainerStats(
 	struct FDF_thread_state   	*fdf_thread_state,
@@ -4198,6 +4551,7 @@ FDF_status_t FDFGetContainerStats(
     //return rc;
     return(FDF_SUCCESS);
 }
+
 
 FDF_status_t FDFBackupContainer(
 	struct FDF_thread_state   *fdf_thread_state,
@@ -4489,7 +4843,7 @@ static void *fdf_vc_thread(
 								 );
 	
 	for( k = 0; k < MCD_MAX_NUM_CNTRS && deletes[k] != FDF_NULL_CGUID; k++ ) {
-		if ( ( status = FDFDeleteContainer( fdf_thread_state, deletes[k] ) ) != FDF_SUCCESS )
+		if ( ( status = fdf_delete_container( fdf_thread_state, deletes[k], FDF_VIRTUAL_CNTR) ) != FDF_SUCCESS )
 			plat_log_msg( 150098,
 					  	  LOG_CAT, 
 					  	  LOG_ERR, 
@@ -4634,7 +4988,7 @@ static FDF_status_t fdf_delete_objects(
                                                  &datalen
                                                ) ) == FDF_SUCCESS ) {
 
-		if ( ( del_status = FDFDeleteObject( fdf_thread_state, cguid, key, keylen ) ) != FDF_SUCCESS ) { 
+		if ( ( del_status = fdf_delete_object( fdf_thread_state, cguid, key, keylen ) ) != FDF_SUCCESS ) { 
 			plat_log_msg( 150095,
 						  LOG_CAT, 
 						  LOG_ERR, 
