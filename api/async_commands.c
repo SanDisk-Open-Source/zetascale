@@ -89,7 +89,8 @@ static void async_handler_thread(uint64_t arg){
                                        "Unable to initialize thread state\n");
         return;
     }
-    fprintf(stderr,"Async thread started...");
+    plat_log_msg(70122, LOG_CAT, LOG_INFO,
+                 "Async thread started...");
     while (1) {
         req = (async_cmd_req_t *)fthMboxWait(&async_cmds_hdr_mbox);
         fprintf(stderr,"received a command :%d\n",req->cmd);
@@ -167,7 +168,8 @@ void init_async_cmd_handler(int num_thds, struct FDF_state *fdf_state) {
 
     /* Start the threads */
     for ( i = 0; i < num_threads; i++) {
-        fprintf(stderr,"Initializing the async threads...\n");
+        plat_log_msg(70123, LOG_CAT, LOG_INFO,
+                     "Initializing the async threads...");
         fthResume( fthSpawn( &async_handler_thread, MCD_FTH_STACKSIZE ),
                                                    (uint64_t)fdf_state);
     }

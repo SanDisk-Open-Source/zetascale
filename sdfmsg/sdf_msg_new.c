@@ -37,7 +37,6 @@
 /*
  * Macro functions.
  */
-#define nel(a)        (sizeof(a)/sizeof(*a))
 #define str2str(a, b) (a)
 #define max(a, b)     ((a) > (b) ? (a) : (b))
 #define hash(i)       ((unsigned long)i % NHASH)
@@ -437,6 +436,9 @@ static parm_t Parm[] ={
 void
 sdf_msg_init(int argc, char *argv[])
 {
+    if (!getProperty_Int("SDF_MSG_ON", 0))
+        return;
+
     /* Ordering of this block is imporant */
     init_vars();
     if (!(Conf.set & MP_RANK))
@@ -465,12 +467,10 @@ sdf_msg_init(int argc, char *argv[])
     xainit(&V.live, sizeof(char), 16, 1);
     msg_livecall(1, 0, live_func, NULL);
 
-    if (getProperty_Int("SDF_MSG_ENGINE_START", 1)) {
-        V.alive = 1;
-        V.start = 1;
-        if (pthread_create(&V.pthread, NULL, loop, NULL) < 0)
-            fatal("pthread_create failed");
-    }
+    V.alive = 1;
+    V.start = 1;
+    if (pthread_create(&V.pthread, NULL, loop, NULL) < 0)
+        fatal("pthread_create failed");
 
     sdf_msg_sync_init();
     parm_show();

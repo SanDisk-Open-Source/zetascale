@@ -2940,6 +2940,11 @@
 70119 Container %s: id=%ld objs=%ld used=%ld size=%ld full=%.1f%%
 70120 Container %s: id=%ld objs=%ld used=%ld
 70121 enumeration internal error %ld >= %ld
+70122 Async thread started...
+70123 Initializing the async threads...
+70124 Read from properties file '%s'
+70125 Bad setting of FDF_LOG_LEVEL: %s
+70126 PROP: SDF_MSG_ON=%u
 
 
 # mkrishnan

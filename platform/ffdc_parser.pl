@@ -1342,11 +1342,13 @@ print FFDC_H << "EOF";
             plat_shmem_steal_from_heap(_ffdc_info->buffer_len);        \\
         if (shared_ptr.int_base == 0) {                                \\
             struct plat_shmem_alloc_stats stats;                       \\
+            if (0) /* Removing due to extreme pollution */             \\
             fprintf(stderr,                                            \\
                 "ffdc: pth[%lx] Cannot allocate %ld bytes (%d of %d)\\n", \\
                 pthread_self(), _ffdc_info->buffer_len,                \\
                 _ffdc_thread_ndx, FFDC_MAX_BUFFERS);                   \\
             if (!plat_shmem_alloc_get_stats(&stats)) {                 \\
+                if (0) /* Removing due to extreme pollution */         \\
                 fprintf(stderr,                                        \\
                         "ffdc: pth[%lx] %ld of %ld shmem bytes used\\n",\\
                         pthread_self(), (long)stats.allocated_bytes +  \\
