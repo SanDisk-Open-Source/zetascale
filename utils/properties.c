@@ -19,8 +19,6 @@
 
 #include "hashmap.h"
 #include "properties.h"
-#include "sdftcp/tools.h"
-
 
 static const char propertiesDefaultFile[] = 
     "/opt/schooner/config/schooner-med.properties";
@@ -94,25 +92,6 @@ int getPropertyFromFile(const char *prop_file, char *inKey, char *outVal) {
     return (ret);
 }
 
-
-/*
- * Determine if the log level being set is info or less stringent.
- */
-static int
-log_info(char *val)
-{
-    if (streq(val, "warning"))
-        return 0;
-    if (streq(val, "error"))
-        return 0;
-    if (streq(val, "fatal"))
-        return 0;
-    if (streq(val, "none"))
-        return 0;
-    return atoi(val) <= PLAT_LOG_LEVEL_INFO;
-}
-
-
 int loadProperties(const char *path_arg)
 {
 #ifndef SDFAPIONLY
@@ -123,7 +102,6 @@ int loadProperties(const char *path_arg)
 #endif
 
     int ret = 0;
-    int do_log = 1;
     const char *path = NULL;
 
     path = path_arg;
@@ -132,6 +110,10 @@ int loadProperties(const char *path_arg)
             path = propertiesDefaultFile;
         }
     }
+
+    plat_log_msg(21755, PLAT_LOG_CAT_PRINT_ARGS,
+                 PLAT_LOG_LEVEL_INFO,
+                 "Reading properties file '%s'", path);
 
     FILE *fp = fopen(path, "r");
 
@@ -186,8 +168,6 @@ int loadProperties(const char *path_arg)
                      "Parsed property error (ret:%d)('%s', '%s')", ret, key, val);
         }
 #endif
-        if (strcmp(key, "FDF_LOG_LEVEL") == 0)
-            do_log = log_info(val);
 
         /**
          * XXX: drew 2008-12-17 It would be better to log at the point of use
@@ -195,19 +175,11 @@ int loadProperties(const char *path_arg)
          * this will get us the current settings in Patrick's memcached
          * runs.
          */
-        if (do_log) {
-            plat_log_msg(21758, PLAT_LOG_CAT_PRINT_ARGS,
-                         PLAT_LOG_LEVEL_INFO,
-                         "Parsed property ('%s', '%s')", key, val);
-        }
-    }
-
-    if (do_log) {
-        plat_log_msg(70124, PLAT_LOG_CAT_PRINT_ARGS,
+        plat_log_msg(21758, PLAT_LOG_CAT_PRINT_ARGS,
                      PLAT_LOG_LEVEL_INFO,
-                     "Read from properties file '%s'", path);
+                     "Parsed property ('%s', '%s')", key, val);
     }
-
+    
     fclose(fp);
     plat_free(line);
     return (ret);

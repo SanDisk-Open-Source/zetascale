@@ -203,6 +203,7 @@ static void load_settings(flash_settings_t *osd_settings)
 	insertProperty("SDF_PROP_FILE_VERSION", "1");
 	insertProperty("SHMEM_FAKE", "1");
 	insertProperty("MEMCACHED_STATIC_CONTAINERS", "1");
+	insertProperty("SDF_MSG_ENGINE_START", "0");
 	insertProperty("SDF_FLASH_PROTOCOL_THREADS", "1");
 //	insertProperty("SDF_CC_BUCKETS", "1000");
 //	insertProperty("SDF_CC_NSLABS", "100");

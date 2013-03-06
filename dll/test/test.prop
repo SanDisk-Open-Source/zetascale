@@ -1,11 +1,10 @@
-FDF_LOG_LEVEL           = warning
 SDF_REFORMAT            = 1
 FDF_FLASH_SIZE          = 4G
 FDF_FLASH_FILENAME      = /tmp/fdf_disk%d
 FDF_STATS_THREAD        = 1
 FDF_STATS_DUMP_INTERVAL = 1
 FDF_STATS_FILE          = /tmp/fdf.stats
-SDF_MSG_ENGINE_START    = 0
+SDF_LOG_LEVEL           = 4
 
 C0_SIZE                 = 1G
 C0_FIFO_MODE            = 0

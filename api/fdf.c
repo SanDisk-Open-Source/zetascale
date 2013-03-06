@@ -8,12 +8,11 @@
  * http://www.sandisk.com
  *
  */
-#include <time.h>
-#include <ctype.h>
-#include <fcntl.h>
 #include <stdio.h>
 #include <stdint.h>
 #include <unistd.h>
+#include <fcntl.h>
+#include <time.h>
 
 #include "sdf.h"
 #include "sdf_internal.h"
@@ -31,7 +30,6 @@
 #include "agent/agent_common.h"
 #include "agent/agent_helper.h"
 #include "sdftcp/locks.h"
-#include "sdftcp/tools.h"
 #include "shared/private.h"
 #include "shared/init_sdf.h"
 #include "shared/name_service.h"
@@ -39,6 +37,7 @@
 #include "shared/container_meta.h"
 #include "shared/open_container_mgr.h"
 #include "shared/internal_blk_obj_api.h"
+//#include "ssd/fifo/mcd_ipf.h"
 #include "ssd/fifo/mcd_osd.h"
 #include "ssd/fifo/mcd_bak.h"
 #include "ssd/fifo/mcd_trx.h"
@@ -53,7 +52,6 @@
 #define LOG_FATAL PLAT_LOG_LEVEL_FATAL
 #define BUF_LEN 4096
 #define STATS_API_TEST 1
-
 
 /*
  * maximum number of containers supported by one instance of memcached
@@ -611,78 +609,20 @@ FDF_status_t FDFGetStatsStr (
 void action_stats_new_cguid(SDF_internal_ctxt_t *pac, char *str, int size, SDF_cguid_t cguid);
 void action_stats(SDF_internal_ctxt_t *pac, char *str, int size);
 
-
-/*
- * Log levels.
- */
-char *Log_levels[] ={
-    "devel",
-    "trace_low",
-    "trace",
-    "debug",
-    "diagnostic",
-    "info",
-    "warning",
-    "error",
-    "fatal"
-};
-
-
-/*
- * Set the FDF log level.
- */
-static void
-set_log_level(unsigned int level)
+static void set_log_level( unsigned int log_level )
 {
-    int i;
-    char buf[256];
-    char *cats[] = { "apps", "platform", "sdf", "fth", "print_args", "flash" };
+    char                buf[80];
+    char              * levels[] = { "devel", "trace", "debug", "diagnostic",
+                                     "info", "warn", "error", "fatal" };
 
-    if (level >= nel(Log_levels))
-        level = nel(Log_levels) - 1;
-
-    for (i = 0; i < nel(cats); i++) {
-        snprintf(buf, sizeof(buf), "%s=%s", cats[i], Log_levels[level]);
-        plat_log_parse_arg(buf);
-    }
+    sprintf(buf, "apps/membrain/server=%s", levels[log_level]);
+    plat_log_parse_arg(buf);
 }
-
-
-/*
- * Parse the FDF_LOG_LEVEL.
- */
-static int
-parse_log_level()
-{
-    int i;
-    const char *v = getProperty_String("FDF_LOG_LEVEL", NULL);
-
-    if (!v)
-        return LOG_INFO;
-
-    if (streq(v, "none"))
-        return LOG_FATAL;
-
-    for (i = 0; i < nel(Log_levels); i++)
-        if (streq(v, Log_levels[i]))
-            return i;
-
-    if (isdigit(v[0]) && v[1] == '\0') {
-        i = atoi(v);
-        if (i < nel(Log_levels))
-            return i;
-    }
-
-    sdf_loge(70125, "Bad setting of FDF_LOG_LEVEL: %s", v);
-    return LOG_INFO;
-}
-
 
 static int fdf_check_delete_in_future(void *data)
 {
     return(0);
 }
-
 
 static void fdf_load_settings(flash_settings_t *osd_settings)
 {
@@ -690,6 +630,7 @@ static void fdf_load_settings(flash_settings_t *osd_settings)
 	insertProperty("SDF_PROP_FILE_VERSION", "1");
 	insertProperty("SHMEM_FAKE", "1");
 	insertProperty("MEMCACHED_STATIC_CONTAINERS", "1");
+	insertProperty("SDF_MSG_ENGINE_START", "0");
 	insertProperty("SDF_FLASH_PROTOCOL_THREADS", "1");
 	insertProperty("FDF_LOG_FLUSH_DIR", "/tmp");
 //	insertProperty("FDF_CC_BUCKETS", "1000");
@@ -730,7 +671,7 @@ static void fdf_load_settings(flash_settings_t *osd_settings)
     osd_settings->num_sched        = osd_settings->num_cores;
     osd_settings->num_sdf_threads  = getProperty_Int("SDF_THREADS_PER_SCHEDULER", 1); // "-T"
 
-    osd_settings->sdf_log_level    = parse_log_level();
+    osd_settings->sdf_log_level    = getProperty_Int("SDF_LOG_LEVEL", 4); 
     osd_settings->aio_num_files    = getProperty_Int("AIO_NUM_FILES", 1); // "-Z"
     osd_settings->aio_sub_files    = 0; // what are these? ignore?
     osd_settings->aio_first_file   = 0; // "-z" index of first file! - membrain sets this to -1
@@ -1107,6 +1048,7 @@ void fdf_start_stats_thread(struct FDF_state *sdf_state) {
 
     if(getProperty_String("FDF_STATS_FILE","")[0])
 	{
+		fprintf(stderr,"starting stats thread\n");
 		rc = pthread_create(&thd,NULL,fdf_stats_thread,(void *)sdf_state);
 		if( rc != 0 ) {
 			fprintf(stderr,"Unable to start the stats thread\n");
@@ -1212,9 +1154,12 @@ FDF_status_t FDFInit(
 
     *fdf_state = (struct FDF_state *) &agent_state;
 
-    prop_file = getenv("FDF_PROPERTY_FILE");
-    if (prop_file)
-        loadProperties(prop_file);
+    #ifdef FDF_REVISION
+    plat_log_msg(160038, LOG_CAT, LOG_INFO, "Flash Data Fabric:%s",FDF_REVISION);
+    #endif
+	prop_file = getenv("FDF_PROPERTY_FILE");
+	if (prop_file)
+		loadProperties(prop_file);
 
     //  Initialize a crap-load of settings
     fdf_load_settings( &(agent_state.flash_settings) );
@@ -1224,11 +1169,6 @@ FDF_status_t FDFInit(
 
     //  Set the logging level
     set_log_level( agent_state.flash_settings.sdf_log_level );
-
-    #ifdef FDF_REVISION
-    plat_log_msg(160038, LOG_CAT, LOG_INFO,
-                 "Flash Data Fabric:%s",FDF_REVISION);
-    #endif
 
     if ( !agent_engine_pre_init( &agent_state, 0, NULL ) ) {
         return FDF_FAILURE; 
@@ -1266,6 +1206,7 @@ FDF_status_t FDFInit(
     } while (rc == -1 && errno == EINTR);
 
    	plat_assert( 0 == rc );
+    fprintf( stderr,"Starting the stats dump thread.\n" );
     fdf_start_stats_thread( *fdf_state );
     if ( getProperty_Int( "FDF_ADMIN_ENABLED", 1 ) == 1 ) {
         fdf_start_admin_thread(*fdf_state );

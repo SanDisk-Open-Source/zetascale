@@ -79,8 +79,7 @@ create_shmem(struct shmem_buffer *shmem, int key, int rmid)
     }
     /*only for the fist process to ini the share memory system */
     if (((shmem->shmid) = shmget(key, SHME_MAX_SIZE, IPC_CREAT | 0666)) < 0) {
-        // Always seems to fail; should use plat_log_msg anyway
-        // printf("LOG:SHMEM: shmget failed, use the stderr instead\n");
+        printf("LOG:SHMEM: shmget failed, use the stderr instead\n");
         return 0;
     }
     return 1;

@@ -1373,7 +1373,7 @@ recovery_init( void )
                                    Mcd_osd_blk_size,
                                    MCD_REC_PROP_EYE_CATCHER );
             if ( prop->checksum != checksum ) {
-                mcd_log_msg( 160010, PLAT_LOG_LEVEL_ERROR,
+                mcd_log_msg( 160010, PLAT_LOG_LEVEL_FATAL,
                              "Invalid property checksum, offset=%lu, "
                              "ssd=%lu, slot=%lu",
                              blk_offset, ssd, s );
