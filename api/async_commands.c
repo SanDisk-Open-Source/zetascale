@@ -90,6 +90,8 @@ pthread_cond_t cv     =  PTHREAD_COND_INITIALIZER;
 void
 check_if_zero_num_deletes_pend()
 {
+	pthread_mutex_lock(&mutex);
+
 	if (0 == num_deletes_pend) {
 		pthread_cond_signal(&cv);
 
@@ -97,6 +99,7 @@ check_if_zero_num_deletes_pend()
 		             LOG_CAT, LOG_DBG,
 					 "Signal completion of pending deletes\n");
 	}	
+	pthread_mutex_unlock(&mutex);
 }
 
  
@@ -109,12 +112,15 @@ check_if_zero_num_deletes_pend()
 void
 wait_for_container_del()
 {
+	pthread_mutex_lock(&mutex);
+
 	if (0 != num_deletes_pend) {
         plat_log_msg(160122,
 		             LOG_CAT, LOG_DBG,
 					 "Waiting for completion of pending deletes\n");
 		pthread_cond_wait(&cv, &mutex);
 	}
+	pthread_mutex_unlock(&mutex);
 }
 
 
