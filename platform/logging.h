@@ -1022,10 +1022,12 @@ void plat_log_msg_helper(const char *file, unsigned line, const char *function,
  *
  * Changing the log message/arguments requires a new id.
  */
-#define plat_log_msg(logid, category, level, format, args...)                  \
-    ffdc_log(__LINE__, logid, category, level, format, ##args);                \
-    plat_log_msg_forward(__FILE__, __LINE__, __PRETTY_FUNCTION__,              \
-                         logid, category, level, format, ##args)
+#define plat_log_msg(logid, category, level, format, args...)           \
+    do {                                                                \
+        ffdc_log(__LINE__, logid, category, level, format, ##args);     \
+        plat_log_msg_forward(__FILE__, __LINE__, __PRETTY_FUNCTION__,   \
+                             logid, category, level, format, ##args);   \
+    } while (0)
 
 /**
  * @brief Internal helper function for plat_log_enabled.

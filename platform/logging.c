@@ -587,7 +587,7 @@ plat_log_msg_helper(const char *file, unsigned line, const char *function,
 
     if (level >= PLAT_LOG_LEVEL_WARN && isatty(2)) {
         colbeg = (level == PLAT_LOG_LEVEL_WARN) ? "\033[35m" : "\033[31m";
-        colend = "\033[30m";
+        colend = "\033[39m";
     }
 
     if (file) {
