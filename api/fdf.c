@@ -3185,7 +3185,7 @@ fdf_read_object(
     ar.ctnr_type = SDF_OBJECT_CONTAINER;
     ar.internal_request = SDF_TRUE;
     ar.internal_thread = fthSelf();
-    if ((status=SDFObjnameToKey(&(ar.key), (char *) key, keylen)) != SDF_SUCCESS) {
+    if ((status=SDFObjnameToKey(&(ar.key), (char *) key, keylen)) != FDF_SUCCESS) {
         return(status);
     }
     if (data == NULL) {
