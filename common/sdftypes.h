@@ -80,7 +80,7 @@ typedef struct {
  * maximum number of containers supported by one instance of SDF
  */
 //#define MCD_MAX_NUM_CNTRS       128
-#define MCD_MAX_NUM_CNTRS       UINT16_MAX - 1
+#define MCD_MAX_NUM_CNTRS       UINT16_MAX - 1 - 9 /*EF: That seven doesn't fit in first segment */
 
 // Not 0 so that we can differentiate uninitialized
 #define CMC_CGUID 1					// Physical container

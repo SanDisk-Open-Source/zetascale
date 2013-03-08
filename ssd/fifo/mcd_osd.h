@@ -127,6 +127,7 @@ typedef struct mcd_osd_segment {
     struct mcd_osd_slab_class * class;
 } mcd_osd_segment_t;
 
+typedef struct slab_gc_class_struct slab_gc_class_t;
 
 typedef struct mcd_osd_slab_class {
     uint64_t                    used_slabs;
@@ -144,6 +145,8 @@ typedef struct mcd_osd_slab_class {
 
     // for serializing persistent class update writes
     fthLock_t                   lock;
+
+    slab_gc_class_t           * gc;
 } mcd_osd_slab_class_t;
 
 
@@ -196,6 +199,7 @@ typedef struct mcd_osd_shard_slab {
     uint64_t                    eviction_ages[MCD_OSD_EVAGE_SAMPLES];
 } mcd_osd_shard_slab_t;
 
+typedef struct slab_gc_shard_struct slab_gc_shard_t;
 
 typedef struct mcd_osd_shard {
 
@@ -258,6 +262,8 @@ typedef struct mcd_osd_shard {
     fthLock_t                   free_list_lock;
     uint64_t                    free_segments_count;
     uint64_t                  * free_segments;  /* logical block -> segment */
+
+    slab_gc_shard_t           * gc;
 
     int                         num_classes;
     mcd_osd_slab_class_t        slab_classes[MCD_OSD_MAX_NCLASSES];
@@ -684,5 +690,39 @@ extern int mcd_fth_do_try_container( void * pai, mcd_container_t **ppcontainer, 
                               mcd_cntr_props_t * cntr_props );
 
 extern baddr_t mcd_osd_blk_to_use(mcd_osd_shard_t *shard, baddr_t blk);
+
+/* Next functions used in slab_gc.c */
+int
+mcd_fth_osd_slab_alloc( void * context, mcd_osd_shard_t * shard, int blocks, uint64_t * blk_offset );
+
+/*
+ * remove an entry from the hash table, free up its slab and update
+ * the bitmap as well as the free list
+ */
+int
+mcd_fth_osd_remove_entry( mcd_osd_shard_t * shard,
+    mcd_osd_hash_t * hash_entry,
+    bool delayed,
+    bool remove_entry);
+
+uint64_t
+mcd_fth_osd_shrink_class(mcd_osd_shard_t * shard, mcd_osd_segment_t *segment, bool gc);
+
+int
+mcd_osd_slab_segments_get_free_slot(mcd_osd_slab_class_t* class);
+
+int
+mcd_osd_slab_segments_free_slot(mcd_osd_slab_class_t* class, mcd_osd_segment_t* segment);
+
+uint64_t mcd_osd_get_free_segments_count(mcd_osd_shard_t* shard);
+
+void
+mcd_osd_segment_unlock(mcd_osd_segment_t* segment);
+
+mcd_osd_segment_t*
+mcd_osd_segment_lock(mcd_osd_slab_class_t* class, mcd_osd_segment_t* segment);
+
+uint64_t
+mcd_osd_rand_address(mcd_osd_shard_t *shard, uint64_t offset);
 
 #endif  /* __MCD_OSD_H__ */
