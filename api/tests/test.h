@@ -20,10 +20,6 @@ FDF_status_t fdf_delete_container (
 	FDF_cguid_t             cguid
 	);
 
-FDF_status_t fdf_flush_container (
-    FDF_cguid_t                cguid
-       );
-
 FDF_status_t fdf_get (
 	FDF_cguid_t                cguid,
 	char                      *key,
@@ -69,16 +65,12 @@ FDF_status_t fdf_delete(
 	uint32_t				 keylen
 	);
 
-FDF_status_t fdf_get_stats(FDF_stats_t *stats);
-FDF_status_t fdf_get_container_stats(FDF_cguid_t cguid, FDF_stats_t *stats);
-
 void
 advance_spinner();
 
 #define t(func, res) ({ \
 	FDF_status_t r = func; \
-	if(r != res) \
-		fprintf(stderr, "%x %s:%d %s %s=%s - Expected: %s - %s\n", \
+	fprintf(stderr, "%x %s:%d %s %s=%s - Expected: %s - %s\n", \
 		(int)pthread_self(), basename(__FILE__), __LINE__, __FUNCTION__, \
 		#func, FDFStrError(r), #res, r == res ? "OK": "FAILED"); \
 	if(r != res) \

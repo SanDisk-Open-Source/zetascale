@@ -133,7 +133,7 @@ static int Sync_data;
 #endif
 
 // max number of shards used for formatting purposes
-#define MCD_REC_MAX_SHARDS      MCD_OSD_MAX_NUM_SHARDS // (MEGABYTE / MCD_OSD_BLK_SIZE)
+#define MCD_REC_MAX_SHARDS      (MEGABYTE / MCD_OSD_BLK_SIZE)
 
 // default copies of superblock to write on RAID device
 #define MCD_REC_SB_RAID_DEFAULT 3
@@ -222,7 +222,7 @@ static mcd_rec_update_t   Mcd_rec_attach_test_update_mail[ MCD_MAX_NUM_CNTRS ];
 // -----------------------------------------------------
 
 extern void mcd_fth_osd_slab_dealloc( mcd_osd_shard_t * shard,
-                                      uint32_t address, bool async );
+                                      uint32_t address );
 extern inline uint32_t mcd_osd_lba_to_blk( uint32_t blocks );
 
 
@@ -1375,7 +1375,8 @@ recovery_init( void )
             if ( prop->checksum != checksum ) {
                 mcd_log_msg( 160010, PLAT_LOG_LEVEL_ERROR,
                              "Invalid property checksum, offset=%lu, "
-                             "ssd=%lu, slot=%lu", blk_offset, ssd, s);
+                             "ssd=%lu, slot=%lu",
+                             blk_offset, ssd, s );
                 prop->checksum = checksum;   // restore original contents
                 snap_dump( source[ ssd ], Mcd_osd_blk_size );
                 continue;
@@ -2020,7 +2021,6 @@ update_class( mcd_osd_shard_t * shard, mcd_osd_slab_class_t * class,
     for ( bs = 1; bs < class->slab_blksize; bs *= 2 ) {
         class_index++;
     }
-
     pclass_offset = pshard->blk_offset + pshard->class_offset[ class_index ];
     blks          = 1 + pshard->map_blks;
 
@@ -2099,9 +2099,7 @@ update_class( mcd_osd_shard_t * shard, mcd_osd_slab_class_t * class,
     // install new segment
     // Note: since block offset 0 is a valid segment address, the offset
     // is bitwise inverted when stored so it can be found in recovery
-    seg_list->data[ seg_slot ] = 0;
-    if(class->segments[ segment_num ])
-       seg_list->data[ seg_slot ] = ~(class->segments[ segment_num ]->blk_offset);
+    seg_list->data[ seg_slot ] = ~(class->segments[ segment_num ]->blk_offset);
 
     // install new checksum
     seg_list->checksum = 0;
@@ -2114,7 +2112,7 @@ update_class( mcd_osd_shard_t * shard, mcd_osd_slab_class_t * class,
     mcd_log_msg( 40065, PLAT_LOG_LEVEL_TRACE,
                  "class[%d], blksize=%d: new_seg[%d], blk_offset=%lu",
                  class_index, class->slab_blksize, segment_num,
-                ~seg_list->data[ seg_slot ]);
+                 class->segments[ segment_num ]->blk_offset );
 
     // write persistent segment list (single updated block)
     rc = mcd_fth_aio_blk_write( context,
@@ -2385,6 +2383,7 @@ tombstone_prune( mcd_osd_shard_t * shard )
         // pull oldest tombstone off
         del_ts = ts;
         ts     = ts->next;
+
         // dealloc disk space
         mcd_fth_osd_slab_dealloc( shard, del_ts->blk_offset );
 
@@ -2620,7 +2619,7 @@ flog_prepare(mcd_osd_shard_t *shard)
 		char temp[PATH_MAX + 1];
 		snprintf(temp, sizeof(temp), "%s/fdf_%d", log_flush_dir, fdf_instance_id);
 		if(mkdir(temp, 0770) == -1 && errno != EEXIST)
-			mcd_log_msg(180010, PLAT_LOG_LEVEL_ERROR, "Couldn't create flush log directory %s: %s", temp, plat_strerror(errno));
+			mcd_log_msg(180003, PLAT_LOG_LEVEL_ERROR, "Couldn't create flush log directory %s: %s", temp, plat_strerror(errno));
 		log_flush_dir = temp;
 	}
 
@@ -2845,9 +2844,11 @@ shard_recover( mcd_osd_shard_t * shard )
             }
 
             for ( s = 0; s < MCD_REC_LIST_ITEMS_PER_BLK && !list_end; s++ ) {
-                //Segment removed or never allocated
+
+                // done when we hit a zero entry
                 if ( seg_list->data[ s ] == 0 ) {
-                    continue;
+                    list_end = true;
+                    break;
                 }
 
                 class->segments[ c_seg ] =
@@ -2857,7 +2858,6 @@ shard_recover( mcd_osd_shard_t * shard )
                 // Note: must bitwise invert segment address
                 class->segments[ c_seg ]->blk_offset = ~(seg_list->data[ s ]);
                 class->segments[ c_seg ]->class      = class;
-                class->segments[ c_seg ]->idx      = c_seg;
 
                 // Note: bitmap rebuilt with hash table, initialize it here
                 memset( class->segments[ c_seg ]->bitmap,
@@ -2867,9 +2867,7 @@ shard_recover( mcd_osd_shard_t * shard )
                 class->num_segments  += 1;
                 class->total_slabs   += class->slabs_per_segment;
 
-                if(class->segments[ c_seg ]->blk_offset + Mcd_osd_segment_blks > shard->blk_allocated)
-                    shard->blk_allocated = class->segments[ c_seg ]->blk_offset + Mcd_osd_segment_blks;
-
+                shard->blk_allocated += Mcd_osd_segment_blks;
                 shard->segment_table[ ~(seg_list->data[ s ]) /
                                       Mcd_osd_segment_blks ] =
                     class->segments[ c_seg ];
@@ -3673,9 +3671,6 @@ update_hash_table( void * context, mcd_osd_shard_t * shard,
             Mcd_osd_bitmap_masks[ map_offset % 64 ];
         segment->alloc_map[ map_offset / 64 ] |=
             Mcd_osd_bitmap_masks[ map_offset % 64 ]; // used by full backup
-
-        segment->used_slabs += 1;
-
         // save the oldest item (by seqno)
         if ( lru_scan[ class_index ].seqno == 0 ||
              obj->seqno < lru_scan[ class_index ].seqno ) {
@@ -6521,9 +6516,9 @@ log_sync_postprocess( mcd_osd_shard_t * shard,
                  shard->id, pp_state->dealloc_count, pp_state->fill_count );
 
     for ( int d = 0; d < pp_state->dealloc_count; d++ ) {
-        mcd_rlg_msg( 40123, PLAT_LOG_LEVEL_DEBUG,
+        mcd_rlg_msg( 40123, PLAT_LOG_LEVEL_TRACE,
                      "Dealloc[%d]: %d", d, pp_state->dealloc_list[ d ]  );
-        mcd_fth_osd_slab_dealloc( shard, pp_state->dealloc_list[ d ], true );
+        mcd_fth_osd_slab_dealloc( shard, pp_state->dealloc_list[ d ] );
     }
 
     pp_state->dealloc_count = 0;
@@ -6700,7 +6695,7 @@ log_write_postprocess( mcd_osd_shard_t * shard, mcd_rec_logbuf_t * logbuf,
                  "shardID=%lu, seqno=%lu, prev=%u, curr=%u, left=%lu, "
                  "hiseq=%lu", shard->id, logbuf->seqno, pp->fill_count,
                  s - pp->fill_count, MCD_REC_LOGBUF_SLOTS - s, *high_seqno );
-//fprintf(stderr, "log_write_postprocess: slot_count=%d total_slots=%ld s=%d\n", pp->slot_count, MCD_REC_LOGBUF_SLOTS, s);
+
     pp->slot_count = s;
     return;
 }
@@ -6733,10 +6728,10 @@ log_writer_thread( uint64_t arg )
 
     // free unused buffer
     context = context_alloc( SSD_AIO_CTXT_MCD_REC_LGWR );
-    /*if ( context->osd_buf != NULL ) {
+    if ( context->osd_buf != NULL ) {
         mcd_fth_osd_iobuf_free( context->osd_buf );
         context->osd_buf = NULL;
-    }*/
+    }
 
     // recover shard pointer
     shard = (mcd_osd_shard_t *)arg;

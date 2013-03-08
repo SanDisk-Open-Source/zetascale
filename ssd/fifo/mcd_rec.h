@@ -65,7 +65,7 @@
 
 #define MCD_REC_UPDATE_IOSIZE    (1 * MEGABYTE)   // <= upd seg size, power 2
 #define MCD_REC_UPDATE_LGIOSIZE  (1 * MEGABYTE)   // <= log seg size, power 2
-#define MCD_REC_FORMAT_BUFSIZE   (32 * MEGABYTE) //EF: need to write full segment for 655xx shards */
+#define MCD_REC_FORMAT_BUFSIZE   (5 * MEGABYTE)
 
 #define MCD_REC_NUM_LOGS         2
 

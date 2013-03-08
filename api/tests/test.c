@@ -34,11 +34,16 @@ FDF_status_t fdf_create_container (
     FDF_container_props_t   props;
     uint32_t                flags		= FDF_CTNR_CREATE;
 
-	FDFLoadCntrPropDefaults(&props);
+    props.size_kb                       = size / 1024;
+    props.fifo_mode                     = FDF_FALSE;
+    props.persistent                    = FDF_TRUE;
+    props.evicting                      = FDF_FALSE;
+    props.writethru                     = FDF_TRUE;
+    props.async_writes                  = FDF_FALSE;
+    props.durability_level              = FDF_DURABILITY_PERIODIC;
+    props.num_shards                    = 1;
 
-	props.size_kb                       = size / 1024;
-
-	ret = FDFOpenContainer (
+    ret = FDFOpenContainer (
 			_fdf_thd_state, 
 			cname, 
 			&props,
@@ -61,20 +66,6 @@ FDF_status_t fdf_delete_container (
     FDF_status_t  ret;
 
     ret = FDFDeleteContainer(
-            _fdf_thd_state,
-            cguid
-        );
-
-    return(ret);
-}
-
-FDF_status_t fdf_flush_container (
-    FDF_cguid_t                cguid
-       )
-{
-    FDF_status_t  ret;
-
-    ret = FDFFlushContainer(
             _fdf_thd_state,
             cguid
         );
@@ -213,31 +204,6 @@ FDF_status_t fdf_delete(
 			cguid,
 			key,
 			keylen
-			);
-
-    return ret;
-}
-
-FDF_status_t fdf_get_container_stats(FDF_cguid_t cguid, FDF_stats_t *stats)
-{
-    FDF_status_t  ret;
-
-    ret = FDFGetContainerStats(
-		  	_fdf_thd_state, 
-			cguid,
-			stats
-			);
-
-    return ret;
-}
-
-FDF_status_t fdf_get_stats(FDF_stats_t *stats)
-{
-    FDF_status_t  ret;
-
-    ret = FDFGetStats(
-		  	_fdf_thd_state, 
-			stats
 			);
 
     return ret;

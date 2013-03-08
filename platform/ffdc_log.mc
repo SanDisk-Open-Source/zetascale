@@ -3127,7 +3127,6 @@
 160025 Node %d does not have any persistent container\n
 160026 Node becomes authoritative for persistent containers\n
 160027 pwrite failed!
-160028 error updating class(shrink)
 160029 Failed to find shard for cguid %"PRIu64"
 160030 Container is not deleted (busy or error): cguid=%lu(%d), status=%s
 160031 Delete request pending. Deleting... cguid=%lu
@@ -3235,19 +3234,4 @@
 180000 Removing log file %s
 180001 Flush log sync: cannot unlink sync log file %s error=%d
 180002 pwrite failed!(%s)
-180003 PROP: FDF_SLAB_GC=%s
-180004 shard free segments list init failed, shardID=%lu
-180005 shard=%p GC threshold adjusted from %d %% to %d %%
-180006 ENTERING, shardID=%p
-180007 failed to allocate temporary segments map
-180008 shard=%p free_segments found %lu, blk_allocated %lu
-180009 failed to allocate free segments list
-180010 Couldn't create flush log directory %s: %s
-180011 shard->id=%ld class->blk_size=%d class->num_segments=%d shard->free_segments_count=%ld
-180012 Shard %ld, class->blksize %d, %seligible for%s%s%s GC\n
-180013 Shard %ld class->blksize %d, total_slabs=%ld, free_slabs=%d used_slabs=%d average_slabs=%d gc->threshold=%d\n
-180014 shard->id=%ld. GC of class->blksize=%d requested
-180015 shard->id=%ld. GC freed segment from class->blksize=%d. Shard free segments %ld
-180016 shard->id=%ld. signalling gc thread to gc class->slab_blksize=%d class->total_slabs=%ld class->used_slabs=%ld
-180017 Couldn't allocate space for shard->id=%ld class=%p blocks=%d
-180018 ENTERING, shard->id=%ld, gc threshold=%d
+180003 Couldn't create flush log directory %s: %s
