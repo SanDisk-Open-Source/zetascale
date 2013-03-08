@@ -317,6 +317,7 @@ typedef struct mcd_osd_meta {
     uint32_t            blk1_chksum;
     uint32_t            create_time;
     uint32_t            expiry_time;
+    uint64_t            cguid;
     uint64_t            seqno;
     uint64_t            checksum;
 } mcd_osd_meta_t;

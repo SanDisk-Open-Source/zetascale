@@ -197,7 +197,7 @@ __inline__ uint32_t HashMap_getBucket1(uint32_t numBuckets, unsigned cmpType, co
 {
     if (0 == *key_hashcode) {
         if (HASH_JENKINS == cmpType) {
-            *key_hashcode = hash((const unsigned char *)key, keyLen, 0);
+            *key_hashcode = hashk((const unsigned char *)key, keyLen, 0);
         } else {
             uint32_t sum = 0, i;
             for (i = 0; i < keyLen; i++) {

@@ -487,7 +487,8 @@ int clipper_flashGet(ssdaio_ctxt_t *pctxt, struct shard *shard,
 	check_size(pc);
     #endif
 
-    h = hash((const unsigned char *) key, metaData->keyLen, 0);
+    h = hashck((const unsigned char *) key,
+               metaData->keyLen, 0, metaData->cguid);
 
     syndrome = MASK(h, pc->syndrome_mask);
     nbucket  = (MASK(h, pc->bucket_mask)) % pc->nbuckets;
@@ -653,7 +654,8 @@ int clipper_flashPut(ssdaio_ctxt_t *pctxt, struct shard *shard, struct objMetaDa
 	check_size(pc);
     #endif
 
-    h = hash((const unsigned char *) key, metaData->keyLen, 0);
+    h = hashck((const unsigned char *) key,
+               metaData->keyLen, 0, metaData->cguid);
 
     syndrome = MASK(h, pc->syndrome_mask);
     nbucket  = (MASK(h, pc->bucket_mask)) % pc->nbuckets;

@@ -186,6 +186,7 @@ typedef struct {
     uint32_t data_len;                  /* Data length */
     uint32_t create_time;               /* Create time */
     uint32_t expiry_time;               /* Expiry time */
+    uint64_t cguid;                     /* Container id */
     uint64_t seqno;                     /* Sequence number */
     setx_t   setx;                      /* Set index */
     char     data[];                    /* Start of data */
@@ -774,6 +775,7 @@ n2h_mobj(mobj_t *mobj)
     msg_setn2h(mobj->data_len);
     msg_setn2h(mobj->create_time);
     msg_setn2h(mobj->expiry_time);
+    msg_setn2h(mobj->cguid);
     msg_setn2h(mobj->seqno);
     msg_setn2h(mobj->setx);
 }
@@ -790,6 +792,7 @@ h2n_mobj(mobj_t *mobj)
     msg_seth2n(mobj->data_len);
     msg_seth2n(mobj->create_time);
     msg_seth2n(mobj->expiry_time);
+    msg_seth2n(mobj->cguid);
     msg_seth2n(mobj->seqno);
     msg_seth2n(mobj->setx);
 }
@@ -2017,7 +2020,7 @@ obj_valid(mo_shard_t *shard, mo_meta_t *meta, addr_t addr)
 {
     int n;
     uchar_t        *key = (void *) &meta[1];
-    uint64_t   syndrome = hash(key, meta->key_len, 0);
+    uint64_t   syndrome = hashck(key, meta->key_len, 0, meta->cguid);
     hashsyn_t   hashsyn = syndrome >> OSD_HASH_SYN_SHIFT;
     uint64_t         hi = syndrome % shard->hash_size;
     mo_bucket_t *bucket = &shard->hash_buckets[hi / Mcd_osd_bucket_size];
@@ -2062,6 +2065,7 @@ obj_copy(sur_t *sur, char *dst, char *src, klock_t klock)
     int n;
     mo_meta_t    *meta = (mo_meta_t *) src;
     mobj_t       *mobj = (mobj_t *) dst;
+    uint64_t     cguid = meta->cguid;
     uint_t      keylen = meta->key_len;
     uint_t     datalen = meta->data_len;
     time_t create_time = meta->create_time;
@@ -2072,6 +2076,7 @@ obj_copy(sur_t *sur, char *dst, char *src, klock_t klock)
     mobj->data_len    = datalen;
     mobj->create_time = create_time;
     mobj->expiry_time = expiry_time;
+    mobj->cguid       = cguid;
     mobj->seqno       = 0;
     mobj->setx        = ssx_add(sur->cntr, klock);
     h2n_mobj(mobj);
@@ -2544,6 +2549,7 @@ cache_fill(s_cache_enum_t *cenum)
     mobj->data_len    = data_len;
     mobj->create_time = cenum->create_time;
     mobj->expiry_time = cenum->expiry_time;
+    mobj->cguid       = cenum->cguid;
     mobj->seqno       = 0;
     h2n_mobj(mobj);
 
@@ -2635,7 +2641,8 @@ printable(char *ptr, uint_t len)
  * Show an object.  Used for debugging.
  */
 static void
-obj_show(char *msg, char *key, int keylen, char *data, int datalen)
+obj_show(char *msg, uint64_t cguid,
+         char *key, int keylen, char *data, int datalen)
 {
     int key_ok;
     int data_ok;
@@ -2648,6 +2655,7 @@ obj_show(char *msg, char *key, int keylen, char *data, int datalen)
 
     if (msg)
         fprintf(stderr, "%s: ", msg);
+    fprintf(stderr, "%ld: ", cguid);
 
     if (key_ok && data_ok)
         fprintf(stderr, "%.*s = %.*s\n", keylen, key, datalen, data);
@@ -2669,7 +2677,7 @@ mobj_show(char *msg, mobj_t *mobj)
     char *obj_beg = mobj->data;
     uint_t klen = mobj->key_len;
 
-    obj_show(msg, obj_beg, klen, obj_beg + klen, mobj->data_len);
+    obj_show(msg, mobj->cguid, obj_beg, klen, obj_beg + klen, mobj->data_len);
 }
 
 
@@ -2691,7 +2699,7 @@ mrep_sect_show(mrep_sect_t *msg_sect)
             sdf_loge(70020, "bad recovery meta data");
             return;
         }
-        obj_show(NULL, obj_beg, mobj->key_len,
+        obj_show(NULL, mobj->cguid, obj_beg, mobj->key_len,
                  obj_beg + mobj->key_len, mobj->data_len);
         ptr = chunk_next_ptr(obj_end, sizeof(uint64_t));
     }
@@ -2712,6 +2720,7 @@ fth_req_one(freq_one_t *freq, aioctx_t *aioctx)
     struct objMetaData omd ={
         .keyLen     = key_len,
         .dataLen    = freq->o.data_len,
+        .cguid      = freq->o.cguid,
         .createTime = freq->o.create_time,
         .expTime    = freq->o.expiry_time,
     };
@@ -2986,6 +2995,7 @@ obj_layout(mobj_t *mobj, char *ptr, int size)
     clear(*meta);
     meta->magic       = MCD_OSD_META_MAGIC;
     meta->version     = MCD_OSD_META_VERSION;
+    meta->cguid       = mobj->cguid;
     meta->key_len     = mobj->key_len;
     meta->data_len    = mobj->data_len;
     meta->create_time = mobj->create_time;
@@ -3172,7 +3182,8 @@ coal_set(rec_t *rec, mobj_t *mobj)
     coal_var_t     *v = &rec->v;
     mo_shard_t *shard = rec->shard;
     freq_big_t  *freq = v->freq;
-    uint64_t syndrome = hash((uchar_t *) mobj->data, mobj->key_len, 0);
+    uint64_t syndrome = hashck((uchar_t *) mobj->data,
+                               mobj->key_len, 0, mobj->cguid);
     uint_t  slab_size = v->slab_size;
     uint64_t hash_off = syndrome % shard->hash_size;
     uint_t   buck_ind = hash_off / shard->lock_bktsize;
@@ -4260,7 +4271,7 @@ chash_t
 chash_key(shard_t *sshard, SDF_cguid_t cguid, char *key, uint64_t keylen)
 {
     mo_shard_t *shard = (mo_shard_t *) sshard;
-    uint64_t syndrome = hash((unsigned char *) key, keylen, 0);
+    uint64_t syndrome = hashck((unsigned char *) key, keylen, 0, cguid);
     hashsyn_t hashsyn = syndrome >> OSD_HASH_SYN_SHIFT;
     uint64_t    bkt_i = (syndrome % shard->hash_size) / Mcd_osd_bucket_size;
 

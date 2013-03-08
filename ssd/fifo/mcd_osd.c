@@ -1737,8 +1737,8 @@ static int mcd_osd_fifo_reclaim( mcd_osd_shard_t * shard, char * rbuf,
         mcd_log_msg( 20312, PLAT_LOG_LEVEL_DEBUG, "key_len=%d data_len=%u",
                      meta->key_len, meta->data_len );
 
-        syndrome = hash( (unsigned char *)meta + sizeof(mcd_osd_meta_t),
-                         meta->key_len, 0 );
+        syndrome = hashck((unsigned char *)meta + sizeof(mcd_osd_meta_t),
+                          meta->key_len, 0, meta->cguid);
 
         bkt_lock = shard->bucket_locks +
             ( syndrome % shard->hash_size ) / shard->lock_bktsize;
@@ -4859,7 +4859,7 @@ mcd_fth_osd_slab_set( void * context, mcd_osd_shard_t * shard, char * key,
         chksum32 = mcd_hash( (unsigned char *)buf, Mcd_osd_blk_size, 0 );
     }
     if ( flash_settings.chksum_data ) {
-        chksum64 = hash( (unsigned char *)buf, raw_len, 0 );
+        chksum64 = hashk((unsigned char *)buf, raw_len, 0);
     }
 
     meta->blk1_chksum = chksum32;
@@ -6413,7 +6413,8 @@ mcd_osd_flash_get( struct ssdaio_ctxt * pctxt, struct shard * shard,
     mcd_log_msg( 20406, PLAT_LOG_LEVEL_DEBUG, "ENTERING, context=%p shardID=%lu",
                  (void *)pctxt, shard->shardID );
 
-    syndrome = hash( (unsigned char *)key, metaData->keyLen, 0 );
+    syndrome = hashck((unsigned char *)key, metaData->keyLen,
+                      0, metaData->cguid);
 
     osd_state->osd_lock = (void *)( mcd_shard->bucket_locks +
         ( ( syndrome % mcd_shard->hash_size ) / mcd_shard->lock_bktsize ) );
@@ -6464,7 +6465,8 @@ mcd_osd_flash_put( struct ssdaio_ctxt * pctxt, struct shard * shard,
     mcd_log_msg( 20406, PLAT_LOG_LEVEL_DEBUG, "ENTERING, context=%p shardID=%lu",
                  (void *)pctxt, shard->shardID );
 
-    syndrome = hash( (unsigned char *)key, metaData->keyLen, 0 );
+    syndrome = hashck((unsigned char *)key,
+                      metaData->keyLen, 0, metaData->cguid);
 
     osd_state->osd_lock = (void *)( mcd_shard->bucket_locks +
         ( ( syndrome % mcd_shard->hash_size ) / mcd_shard->lock_bktsize ) );
@@ -7626,7 +7628,7 @@ mcd_osd_raw_set( osd_state_t     *osd_state,
     osd_set_shard_cas_id_if_higher( (struct shard *) shard, data );
 
     memcpy( key, raw_data + sizeof(mcd_osd_meta_t), keyLen );
-    syndrome = hash( (unsigned char *)key, keyLen, 0 );
+    syndrome = hashck((unsigned char *)key, keyLen, 0, meta->cguid);
 
     osd_state->osd_lock = (void *)( shard->bucket_locks +
         ( ( syndrome % shard->hash_size ) / shard->lock_bktsize ) );
@@ -8309,7 +8311,8 @@ mcd_osd_delete_expired( osd_state_t *osd_state, mcd_osd_shard_t * shard )
             }
 
             if ( exp_delete || pfx_delete ) {
-                syndrome = hash( (unsigned char *)key, meta->key_len, 0 );
+                syndrome = hashck((unsigned char *)key,
+                                  meta->key_len, 0, meta->cguid);
 
                 osd_state->osd_lock = (void *)( shard->bucket_locks +
                     ( (syndrome % shard->hash_size) / shard->lock_bktsize ) );

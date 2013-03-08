@@ -60,7 +60,8 @@ shard_compute_get_shard(SDF_cguid_t cguid, const char *objkey,
         key_len =  strnlen(objkey, 256);
         /* XXX:  objkey should probably be defined unsiged too */
         shard = first_shard +
-                hash((unsigned char *)objkey, key_len, 0) % shard_count;
+                hashck((unsigned char *) objkey, key_len, 0, cguid) %
+                shard_count;
     }
 
     plat_log_msg(21613, LOG_CAT, log_level, "%lu - %lu - %s",

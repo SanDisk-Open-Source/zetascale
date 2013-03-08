@@ -724,7 +724,9 @@ int rep_get_by_cursor(struct shard *shard, int cursor_len, const void *cursor,
     // Validate return values since we could get junk
     if (meta->key_len > SDF_SIMPLE_KEY_SIZE) {
         plat_log_msg(20577, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION, PLAT_LOG_LEVEL_DEBUG,
-                     "data copy send: stale: invalid keylen: %d syndrome requested: 0x%x", meta->key_len, rep_cursor->syndrome);
+                     "data copy send: stale: "
+                     "invalid keylen: %d syndrome requested: 0x%x",
+                     meta->key_len, rep_cursor->syndrome);
         plat_free(data_buf);
         if (wbuf) {
             (void) __sync_fetch_and_sub(&wbuf->ref_count, 1);
@@ -732,7 +734,7 @@ int rep_get_by_cursor(struct shard *shard, int cursor_len, const void *cursor,
         return FLASH_ESTALE;
     }
 
-    syndrome = hash((const unsigned char *)s, meta->key_len, 0);
+    syndrome = hashck((const unsigned char *)s, meta->key_len, 0, meta->cguid);
     
     // Check that we have the right object
     // 1.) Make sure we have a matching syndrome
@@ -782,7 +784,8 @@ int rep_get_by_cursor(struct shard *shard, int cursor_len, const void *cursor,
             return FLASH_ENOMEM;
         }
         
-        memcpy(*data, buf + sizeof(mcd_osd_meta_t) + meta->key_len, meta->data_len);
+        memcpy(*data, buf + sizeof(mcd_osd_meta_t) + meta->key_len,
+               meta->data_len);
     }
 
     // Copy over the key
@@ -804,6 +807,7 @@ int rep_get_by_cursor(struct shard *shard, int cursor_len, const void *cursor,
     metaData->dataLen = meta->data_len;
     metaData->createTime = meta->create_time;
     metaData->expTime = meta->expiry_time;
+    metaData->cguid = meta->cguid;
     metaData->sequence = meta->seqno;
 
     plat_log_msg(20580, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION, PLAT_LOG_LEVEL_DEBUG,

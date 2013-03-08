@@ -51,7 +51,8 @@ SDFTLMap4Entry_t *SDFTLMap4Create(SDFTLMap4_t *pm, uint64_t key)
     SDFTLMap4Entry_t   *pme;
     SDFTLMap4Bucket_t  *pb;
 
-    h = hash((const unsigned char *) &key, sizeof(uint64_t), 0) % pm->nbuckets;
+    h = hashk((const unsigned char *) &key, sizeof(uint64_t), 0) %
+        pm->nbuckets;
     pb = &(pm->buckets[h]);
 
     for (pme = pb->entry; pme != NULL; pme = pme->next) {
@@ -91,7 +92,8 @@ SDFTLMap4Entry_t *SDFTLMap4Get(SDFTLMap4_t *pm, uint64_t key)
     SDFTLMap4Entry_t   *pme;
     SDFTLMap4Bucket_t  *pb;
 
-    h = hash((const unsigned char *) &key, sizeof(uint64_t), 0) % pm->nbuckets;
+    h = hashk((const unsigned char *) &key, sizeof(uint64_t), 0) %
+        pm->nbuckets;
     pb = &(pm->buckets[h]);
 
     for (pme = pb->entry; pme != NULL; pme = pme->next) {

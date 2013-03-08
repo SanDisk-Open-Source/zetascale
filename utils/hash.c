@@ -1,4 +1,9 @@
 /*
+ * Copyright (c) 2013, SanDisk Corporation.  All rights reserved.
+ */
+
+
+/*
 --------------------------------------------------------------------
 lookup8.c, by Bob Jenkins, January 4 1997, Public Domain.
 hash(), hash2(), hash3, and mix() are externally useful functions.
@@ -90,7 +95,7 @@ is acceptable.  Do NOT use for cryptographic purposes.
 --------------------------------------------------------------------
 */
 
-ub8 hash( k, length, level)
+ub8 hashk(k, length, level)
 register const ub1 *k;        /* the key */
 register ub8  length;   /* the length of the key */
 register ub8  level;    /* the previous hash, or an arbitrary value */
@@ -164,3 +169,13 @@ register ub8  level;    /* the previous hash, or an arbitrary value */
   return c;
 }
 
+
+/*
+ * Hash the key and the container id.
+ */
+uint64_t
+hashck(const unsigned char *key, uint64_t key_len,
+       uint64_t level, cntr_id_t cntr_id)
+{
+    return hashk(key, key_len, level);
+}

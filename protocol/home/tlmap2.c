@@ -54,7 +54,8 @@ SDFTLMap2Entry_t *SDFTLMap2Create(SDFTLMap2_t *pm, uint64_t key)
     SDFTLMap2Entry_t   *pme;
     SDFTLMap2Bucket_t  *pb;
 
-    h = hash((const unsigned char *) &key, sizeof(uint64_t), 0) % pm->nbuckets;
+    h = hashk((const unsigned char *) &key, sizeof(uint64_t), 0) %
+        pm->nbuckets;
     pb = &(pm->buckets[h]);
 
     for (pme = pb->entry; pme != NULL; pme = pme->next) {
@@ -96,7 +97,8 @@ SDFTLMap2Entry_t *SDFTLMap2Get(SDFTLMap2_t *pm, uint64_t key)
     SDFTLMap2Entry_t   *pme;
     SDFTLMap2Bucket_t  *pb;
 
-    h = hash((const unsigned char *) &key, sizeof(uint64_t), 0) % pm->nbuckets;
+    h = hashk((const unsigned char *) &key, sizeof(uint64_t), 0) %
+        pm->nbuckets;
     pb = &(pm->buckets[h]);
 
     for (pme = pb->entry; pme != NULL; pme = pme->next) {
@@ -118,7 +120,8 @@ int SDFTLMap2Delete(SDFTLMap2_t *pm, uint64_t key)
     SDFTLMap2Entry_t    *pme;
     SDFTLMap2Bucket_t   *pb;
 
-    h = hash((const unsigned char *) &key, sizeof(uint64_t), 0) % pm->nbuckets;
+    h = hashk((const unsigned char *) &key, sizeof(uint64_t), 0) %
+        pm->nbuckets;
     pb = &(pm->buckets[h]);
 
     for (ppme = &(pb->entry); (*ppme) != NULL; ppme = &((*ppme)->next)) {
