@@ -443,7 +443,7 @@ sdf_msg_init(int argc, char *argv[])
     init_vars();
     if (!(Conf.set & MP_RANK))
         Conf.myrank = -1;
-    sdf_logi(70029, "sdfmsg version %d", VER_SDFMSG);
+    fdf_logi(70029, "sdfmsg version %d", VER_SDFMSG);
 
     set_alias();
     set_rank();
@@ -642,7 +642,7 @@ set_rank(void)
                 continue;
         }
         if (node_line_me(line)) {
-            sdf_logi(70030, "found rank of %d in property file", i);
+            fdf_logi(70030, "found rank of %d in property file", i);
             Conf.myrank = i;
             Conf.set |= MP_RANK;
             break;
@@ -873,7 +873,7 @@ sdf_msg_setliven(char *name, char *data)
 static int
 parm_bad(char *name, char *data)
 {
-    sdf_loge(70031, "bad messaging parameter: %s = %s", name, data);
+    fdf_loge(70031, "bad messaging parameter: %s = %s", name, data);
     return 0;
 }
 
@@ -924,7 +924,7 @@ parm_set(conf_t *conf, parm_t *parm, char *val)
         else if (size == sizeof(int64_t))
             *((int64_t *) ptr) = str2int(val, parm->name);
         else {
-            sdf_loge(70032, "parm_set: bad size: type=%c size=%d", type, size);
+            fdf_loge(70032, "parm_set: bad size: type=%c size=%d", type, size);
             return 0;
         }
     } else if (type == 'p') {
@@ -943,11 +943,11 @@ parm_set(conf_t *conf, parm_t *parm, char *val)
         else if (size == sizeof(uint64_t))
             *((uint64_t *) ptr) = str2int(val, parm->name);
         else {
-            sdf_loge(70032, "parm_set: bad size: type=%c size=%d", type, size);
+            fdf_loge(70032, "parm_set: bad size: type=%c size=%d", type, size);
             return 0;
         }
     } else {
-        sdf_loge(70033, "parm_set: bad parameter %s = %s", parm->name, val);
+        fdf_loge(70033, "parm_set: bad parameter %s = %s", parm->name, val);
         return 0;
     }
 
@@ -1015,12 +1015,12 @@ parm_show(void)
             continue;
         if (type == 'i' || type == 'u') {
             int64_t val = parm_getint(parm);
-            sdf_logi(70034, "%s = %ld", parm->name, val);
+            fdf_logi(70034, "%s = %ld", parm->name, val);
         } else if (type == 't') {
             double secs = (double) *((ntime_t *) ptr) / NANO;
-            sdf_logi(70035, "%s = %g", parm->name, secs);
+            fdf_logi(70035, "%s = %g", parm->name, secs);
         } else if (type == 'p') {
-            sdf_logi(70036, "%s = %s", parm->name, *((char **)ptr));
+            fdf_logi(70036, "%s = %s", parm->name, *((char **)ptr));
         }
     }
 }
@@ -1122,7 +1122,7 @@ wdog_rnodes(void)
         n = strlen(buf);
         if (n && buf[n-1] == '\n')
             buf[n-1] = '0';
-        sdf_logi(70061, "watchdog: R: %s", buf);
+        fdf_logi(70061, "watchdog: R: %s", buf);
         n = strtol(buf, &ptr, 10);
         if (ptr == buf || *ptr != ' ')
             fatal("bad msgif_ips line: %s", buf);
@@ -1171,9 +1171,9 @@ wdog_send(char *fmt, ...)
     }
 
     if (fp)
-        sdf_logi(70062, "watchdog: W: %s", buf);
+        fdf_logi(70062, "watchdog: W: %s", buf);
     else
-        sdf_logi(70063, "watchdog: connect failed: %s", buf);
+        fdf_logi(70063, "watchdog: connect failed: %s", buf);
     return fp;
 }
 
@@ -1794,7 +1794,7 @@ sdf_msg_send(sdf_msg_t *msg, uint32_t len, vnode_t drank, service_t dserv,
     if (drank >= V.live.n || !((char *)V.live.p)[drank]) {
         if (msg_rank2nno(drank) < 0) {
             int s = (sendq->ract || sendq->rbox) ? 0 : -1;
-            sdf_logi(70037, "sdf_msg_send to dead node: %d", drank);
+            fdf_logi(70037, "sdf_msg_send to dead node: %d", drank);
             fail_op_sendq(sendq, SDF_NODE_DEAD);
             if (sendq->mfree)
                 plat_free(sendq->data);
@@ -2076,12 +2076,12 @@ do_recv1(msg_info_t *info)
     atomic_add(Stat.live_recv_byte, info->len);
     rank = msg_nno2rank(info->nno);
     if (rank < 0) {
-        sdf_logi(70038, "received message from unknown node m%d", info->nno);
+        fdf_logi(70038, "received message from unknown node m%d", info->nno);
         goto drop;
     }
 
     if (info->len < sizeof (sdf_msg_t)) {
-        sdf_logi(70039, "received truncated message from node n%d", rank);
+        fdf_logi(70039, "received truncated message from node n%d", rank);
         goto drop;
     }
 
@@ -2094,7 +2094,7 @@ do_recv1(msg_info_t *info)
     msg_setn2h(msg->msg_flags);
 
     if (msg->cur_ver != VER_SDFMSG) {
-        sdf_logi(70040, "received message from node n%d: "
+        fdf_logi(70040, "received message from node n%d: "
                  "bad sdfmsg version: %d", rank, msg->cur_ver);
         goto drop;
     }
@@ -2127,7 +2127,7 @@ do_recv2(msg_info_t *info)
     if (do_bindingq(msg))
         return;
 
-    sdf_logi(70041, "stray message: addr=(%d:%d<=%d:%d) id=%ld len=%d",
+    fdf_logi(70041, "stray message: addr=(%d:%d<=%d:%d) id=%ld len=%d",
              Conf.myrank, msg->msg_dest_service, msg->msg_src_vnode,
              msg->msg_src_service, msg->sent_id, msg->msg_len);
     stray_post(msg);
@@ -2201,12 +2201,12 @@ do_recv(msg_info_t *info)
     atomic_add(Stat.live_recv_byte, info->len);
     rank = msg_nno2rank(info->nno);
     if (rank < 0) {
-        sdf_logi(70038, "received message from unknown node m%d", info->nno);
+        fdf_logi(70038, "received message from unknown node m%d", info->nno);
         return drop_node(info->nno);
     }
 
     if (info->len < sizeof (sdf_msg_t)) {
-        sdf_logi(70039, "received truncated message from node n%d", rank);
+        fdf_logi(70039, "received truncated message from node n%d", rank);
         return drop_node(info->nno);
     }
 
@@ -2219,7 +2219,7 @@ do_recv(msg_info_t *info)
     msg_setn2h(msg->msg_flags);
 
     if (msg->cur_ver != VER_SDFMSG) {
-        sdf_logi(70040, "received message from node n%d: "
+        fdf_logi(70040, "received message from node n%d: "
                  "bad sdfmsg version: %d", rank, msg->cur_ver);
         m_free(msg);
         return drop_node(info->nno);
@@ -2233,7 +2233,7 @@ do_recv(msg_info_t *info)
     if (do_bindingq(msg))
         return;
 
-    sdf_logi(70041, "stray message: addr=(%d:%d<=%d:%d) id=%ld len=%d",
+    fdf_logi(70041, "stray message: addr=(%d:%d<=%d:%d) id=%ld len=%d",
              Conf.myrank, msg->msg_dest_service, msg->msg_src_vnode,
              msg->msg_src_service, msg->sent_id, msg->msg_len);
     stray_post(msg);
@@ -2536,7 +2536,7 @@ node_died_readq(int rank)
 static void
 drop_node(int nno)
 {
-    sdf_logi(70042, "bad data from n%d(%d); dropped", msg_nno2rank(nno), nno);
+    fdf_logi(70042, "bad data from n%d(%d); dropped", msg_nno2rank(nno), nno);
     msg_nodedrop(nno);
 }
 
@@ -2594,7 +2594,7 @@ readq_add(readq_t *readq)
     wl_lock(ReadQ.lock);
     for (q = ReadQ.list; q; q = q->next) {
         if (readq_match(q, readq->srank, readq->sserv, readq->dserv))
-            sdf_logi(70043, "creating queue=(%d:%d=>%d:%d) "
+            fdf_logi(70043, "creating queue=(%d:%d=>%d:%d) "
                      "but (%d:%d=>%d:%d) already exists",
                      readq->srank, readq->sserv, Conf.myrank, readq->dserv,
                      q->srank, q->sserv, Conf.myrank, q->dserv);
@@ -2741,7 +2741,7 @@ recv_err(sdf_msg_t *msg, char *fmt, ...)
     va_start(alist, fmt);
     xsvprint(&xstr, fmt, alist);
     va_end(alist);
-    sdf_loge(70044, "%s: addr=(%d:%d=>%d:%d)", (char *)xstr.p,
+    fdf_loge(70044, "%s: addr=(%d:%d=>%d:%d)", (char *)xstr.p,
              msg->msg_src_vnode, msg->msg_src_service,
              Conf.myrank, msg->msg_dest_service);
     xsfree(&xstr);

@@ -701,7 +701,7 @@ parse_log_level()
             return i;
     }
 
-    sdf_loge(70125, "Bad setting of FDF_LOG_LEVEL: %s", v);
+    fdf_loge(70125, "Bad setting of FDF_LOG_LEVEL: %s", v);
     return LOG_INFO;
 }
 
@@ -866,7 +866,7 @@ inc_cntr_map(cntr_id_t cntr_id, int64_t objs, int64_t size)
 {
     ctnr_map_t *cmap = get_cntr_map(cntr_id);
     if (!cmap) {
-        //sdf_loge(70114, "bad container: %d", cntr_id);
+        //fdf_loge(70114, "bad container: %d", cntr_id);
         //FIXME: uncomment next line when Darryl fixes initialization problems
         //return FDF_CONTAINER_UNKNOWN;
         return FDF_SUCCESS;
@@ -883,12 +883,12 @@ inc_cntr_map(cntr_id_t cntr_id, int64_t objs, int64_t size)
     rel_cntr_map(cmap);
 
     if (t_objs < 0) {
-        sdf_loge(70115, "container %d would have %ld objects", cntr_id, objs);
+        fdf_loge(70115, "container %d would have %ld objects", cntr_id, objs);
         return FDF_FAILURE_CONTAINER_GENERIC;
     }
 
     if (t_size < 0) {
-        sdf_loge(70116, "container %d would have a size of %ld bytes",
+        fdf_loge(70116, "container %d would have a size of %ld bytes",
                  cntr_id, size);
         return FDF_FAILURE_CONTAINER_GENERIC;
     }

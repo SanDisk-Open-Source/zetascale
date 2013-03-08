@@ -11,19 +11,19 @@
 /*
  * Logging routines.
  */
-#define sdf_logd(fmt, args...)      t_logs(fmt, ##args)
-#define sdf_loge(fmt, args...)      t_logs(fmt, ##args)
-#define sdf_logf(fmt, args...)      t_logs(fmt, ##args)
-#define sdf_logi(fmt, args...)      t_logs(fmt, ##args)
-#define sdf_logt(fmt, args...)      t_logs(fmt, ##args)
-#define sdf_logw(fmt, args...)      t_logs(fmt, ##args)
+#define fdf_logd(fmt, args...)      t_logs(fmt, ##args)
+#define fdf_loge(fmt, args...)      t_logs(fmt, ##args)
+#define fdf_logf(fmt, args...)      t_logs(fmt, ##args)
+#define fdf_logi(fmt, args...)      t_logs(fmt, ##args)
+#define fdf_logt(fmt, args...)      t_logs(fmt, ##args)
+#define fdf_logw(fmt, args...)      t_logs(fmt, ##args)
 
-#define sdf_logd_sys(fmt, args...)  t_logs(fmt, ##args)
-#define sdf_loge_sys(fmt, args...)  t_logs(fmt, ##args)
-#define sdf_logf_sys(fmt, args...)  t_logs(fmt, ##args)
-#define sdf_logi_sys(fmt, args...)  t_logs(fmt, ##args)
-#define sdf_logt_sys(fmt, args...)  t_logs(fmt, ##args)
-#define sdf_logw_sys(fmt, args...)  t_logs(fmt, ##args)
+#define fdf_logd_sys(fmt, args...)  t_logs(fmt, ##args)
+#define fdf_loge_sys(fmt, args...)  t_logs(fmt, ##args)
+#define fdf_logf_sys(fmt, args...)  t_logs(fmt, ##args)
+#define fdf_logi_sys(fmt, args...)  t_logs(fmt, ##args)
+#define fdf_logt_sys(fmt, args...)  t_logs(fmt, ##args)
+#define fdf_logw_sys(fmt, args...)  t_logs(fmt, ##args)
 
 #define fatal(fmt, args...)     panic(fmt, ##args)
 #define fatal_sys(fmt, args...) panic(fmt, ##args)

@@ -751,13 +751,13 @@ malloc_nfw(size_t size, char *desc)
 
         if (ptr) {
             if (said)
-                sdf_logi(70027, "recovery: found buffer, size=%ld", size);
+                fdf_logi(70027, "recovery: found buffer, size=%ld", size);
             return ptr;
         }
 
         if (!said) {
             said = 1;
-            sdf_logi(70028, "recovery: waiting for buffer, size=%ld", size);
+            fdf_logi(70028, "recovery: waiting for buffer, size=%ld", size);
         }
         fthYield(0);
     }
@@ -1511,7 +1511,7 @@ ssx_del(cntr_t *cntr, setx_t setx)
     klock_t *buf = cntr->ssx_buf;
 
     if (setx < tail || setx >= head) {
-        sdf_loge(70025,
+        fdf_loge(70025,
                  "bad set index: %ld head=%ld tail=%ld", setx, head, tail);
         return;
     }
@@ -1519,7 +1519,7 @@ ssx_del(cntr_t *cntr, setx_t setx)
     n = setx % num;
     klock = buf[n];
     if (!klock) {
-        sdf_loge(70026,
+        fdf_loge(70026,
                  "null set index: %ld head=%ld tail=%ld", setx, head, tail);
     } else {
         kl_unlock(klock);
@@ -2298,11 +2298,11 @@ read_disk(mo_shard_t *shard, aioctx_t *aioctx,
         blkno_t n;
         blkno_t mapblk = rand_map(shard, blkno, nblks, &n);
 
-        sdf_logt(70023, "recovery read %ld:%ld (%ld)", blkno, n, mapblk);
+        fdf_logt(70023, "recovery read %ld:%ld (%ld)", blkno, n, mapblk);
         s = mcd_fth_aio_blk_read((osd_state_t *) aioctx,
                                  p, mapblk*BLK_SIZE, n*BLK_SIZE);
         if (s != FLASH_EOK) {
-            sdf_loge(70024, "mcd_fth_aio_blk_read failed: "
+            fdf_loge(70024, "mcd_fth_aio_blk_read failed: "
                      "st=%d blkno=%ld mapblk=%ld nb=%ld", s, blkno, mapblk, n);
             return 0;
         }
@@ -2496,13 +2496,13 @@ mkmsg_flash(sur_t *sur)
     for (i = 0; i < 2; i++) {
         sect_alloc(sect, meta_size, min_slabs, BLK_SIZE, 1, "sdf_msg");
         if (!sect_read(sur)) {
-            sdf_logi(70021, "mkmsg_flash: read error");
+            fdf_logi(70021, "mkmsg_flash: read error");
             return mkmsg_sect_null(sect, ERR_READ);
         }
         n = ssx_lock(sur->cntr, min_slabs);
         if (n < min_slabs) {
             ssx_unlock(sur->cntr);
-            sdf_logi(70022, "mkmsg_flash: recovering node died");
+            fdf_logi(70022, "mkmsg_flash: recovering node died");
             return mkmsg_sect_null(sect, ERR_DEAD);
         }
         if (cntr->ssx_mdel)
@@ -2696,7 +2696,7 @@ mrep_sect_show(mrep_sect_t *msg_sect)
         char *obj_end = obj_beg + mobj->key_len + mobj->data_len;
 
         if (obj_end > end) {
-            sdf_loge(70020, "bad recovery meta data");
+            fdf_loge(70020, "bad recovery meta data");
             return;
         }
         obj_show(NULL, mobj->cguid, obj_beg, mobj->key_len,
@@ -2758,14 +2758,14 @@ fth_req_big(freq_big_t *freq, aioctx_t  *aioctx)
         blkno_t n;
         blkno_t mapblk = rand_map(shard, blkno, nblks, &n);
 
-        sdf_logt(70018, "recovery write %ld:%ld (%ld)", blkno, n, mapblk);
+        fdf_logt(70018, "recovery write %ld:%ld (%ld)", blkno, n, mapblk);
         s = mcd_fth_aio_blk_write((osd_state_t *) aioctx, p,
                                   mapblk*BLK_SIZE, n*BLK_SIZE);
         if (s == FLASH_EOK)
             atomic_inc(RV.stats.num_m_writes);
         else {
             atomic_inc(RV.stats.num_m_errors);
-            sdf_loge(70019, "write failed bo=%ld nb=%ld", mapblk, n);
+            fdf_loge(70019, "write failed bo=%ld nb=%ld", mapblk, n);
         }
 
         blkno += n;
@@ -3386,11 +3386,11 @@ mrep_sect_obj_ready(mrep_sect_t *mrep_sect)
 
         n2h_mobj(mobj);
         if (mobj->magic != MOBJ_MAGIC) {
-            sdf_loge(70014, "recovery: mrep_sect: invalid magic %x",
+            fdf_loge(70014, "recovery: mrep_sect: invalid magic %x",
                      mobj->magic);
             break;
         } else if (count >= num_obj) {
-            sdf_loge(70015, "recovery: mrep_sect: invalid num_obj %d",
+            fdf_loge(70015, "recovery: mrep_sect: invalid num_obj %d",
                      num_obj);
             break;
         }
@@ -3408,12 +3408,12 @@ mrep_sect_obj_ready(mrep_sect_t *mrep_sect)
         goto err;
 
     if (count != num_obj) {
-        sdf_loge(70016,
+        fdf_loge(70016,
                  "recovery: mrep_sect: invalid num_obj (%d) should be %d",
                  num_obj, count);
         goto err;
     } else if (ptr != end) {
-        sdf_loge(70017, "recovery: mrep_sect: bad object list");
+        fdf_loge(70017, "recovery: mrep_sect: bad object list");
         goto err;
     }
 
@@ -3456,14 +3456,14 @@ mreq_sect(sur_t *sur, mrep_type_t type, sdf_msg_t *req_msg)
     uint       len = req_msg->msg_len - sizeof(sdf_msg_t);
 
     if (len < sizeof(mreq_sect_t)) {
-        sdf_logi(70011, "bad mreq_sect msg: bad length");
+        fdf_logi(70011, "bad mreq_sect msg: bad length");
         return mkmsg_null(type, ERR_INVAL);
     }
     n2h_mreq_sect(m);
 
     shard = (mo_shard_t *) shardFind(sur->flash, m->shard_id);
     if (!shard) {
-        sdf_logi(70012, "bad mreq_sect msg: bad shard");
+        fdf_logi(70012, "bad mreq_sect msg: bad shard");
         return mkmsg_null(type, ERR_SHARD);
     }
 
@@ -3479,7 +3479,7 @@ mreq_sect(sur_t *sur, mrep_type_t type, sdf_msg_t *req_msg)
 
     wait = cntr_lock(sur, 1);
     if (!wait) {
-        sdf_logi(70013, "mreq_sect: recovering node died");
+        fdf_logi(70013, "mreq_sect: recovering node died");
         return mkmsg_null(type, ERR_DEAD);
     }
 
@@ -3542,7 +3542,7 @@ mreq_setix(sur_t *sur, sdf_msg_t *req_msg)
     msg_setn2h(m->num_setx);
     n = m->num_setx;
     if (n * sizeof(setx_t) != len - sizeof(mreq_setx_t)) {
-        sdf_loge(70010, "bad HFFSX message: num_setx=%d len=%d", n, len);
+        fdf_loge(70010, "bad HFFSX message: num_setx=%d len=%d", n, len);
         return NULL;
     }
 
@@ -3591,14 +3591,14 @@ mreq_fbmap(sur_t *sur, sdf_msg_t *req_msg)
     uint len       = req_msg->msg_len - sizeof(sdf_msg_t);
 
     if (len < sizeof(mreq_bmap_t)) {
-        sdf_logi(70008, "bad mreq_fbmap msg: bad length");
+        fdf_logi(70008, "bad mreq_fbmap msg: bad length");
         return mkmsg_null(MREP_FBMAP, ERR_INVAL);
     }
     n2h_mreq_bmap(m);
 
     sur->shard = (mo_shard_t *) shardFind(sur->flash, m->shard_id);
     if (!sur->shard) {
-        sdf_logi(70009, "bad mreq_fbmap msg: bad shard");
+        fdf_logi(70009, "bad mreq_fbmap msg: bad shard");
         return mkmsg_null(MREP_FBMAP, ERR_SHARD);
     }
     return mkmsg_fbmap(sur);
@@ -3697,7 +3697,7 @@ msg_rep_check(sdf_msg_t *msg, mrep_type_t type, int size)
 
     msg_size = msg->msg_len - sizeof(sdf_msg_t);
     if (msg_size < sizeof(mrep_t)) {
-        sdf_loge(70004, "%s: msg size too small: %d", s, msg_size);
+        fdf_loge(70004, "%s: msg size too small: %d", s, msg_size);
         return 0;
     }
 
@@ -3705,11 +3705,11 @@ msg_rep_check(sdf_msg_t *msg, mrep_type_t type, int size)
     n2h_mrep_h(&h);
 
     if (h.type != type)
-        sdf_loge(70005, "%s: wrong type: %d != %d", s, h.type, type);
+        fdf_loge(70005, "%s: wrong type: %d != %d", s, h.type, type);
     else if (h.error != ERR_NONE)
-        sdf_loge(70006, "%s: error: %d", s, h.error);
+        fdf_loge(70006, "%s: error: %d", s, h.error);
     else if (msg_size < size)
-        sdf_loge(70007, "%s: wrong msg size: %d < %d", s, msg_size, size);
+        fdf_loge(70007, "%s: wrong msg size: %d < %d", s, msg_size, size);
     else
         return 1;
     return 0;
@@ -3737,7 +3737,7 @@ msg_rep_sect_check(sdf_msg_t *msg)
 
     len = msg->msg_len - sizeof(sdf_msg_t) - sizeof(mrep_sect_t);
     if (m->size != len) {
-        sdf_loge(70003, "recovery: mrep_sect: bad size: %ld != %d",
+        fdf_loge(70003, "recovery: mrep_sect: bad size: %ld != %d",
                  m->size, len);
         return 0;
     }
@@ -3768,7 +3768,7 @@ msg_rep_bmap_check(sdf_msg_t *msg)
     nsegs = m->nsegs;
     n = chunk_div(nsegs, BMAP_BITS) * sizeof(bitmap_t);
     if (n != msg->msg_len - sizeof(sdf_msg_t) - sizeof(mrep_bmap_t)) {
-        sdf_loge(70002, "recovery: mrep_bmap: bitmap too small: nsegs=%d",
+        fdf_loge(70002, "recovery: mrep_bmap: bitmap too small: nsegs=%d",
                  nsegs);
         return 0;
     }
@@ -4075,7 +4075,7 @@ ctr_copy(vnode_t rank, shard_t *sshard, pai_t *pai)
 
     if (AV.no_fast)
         return -1;
-    sdf_logi(70001, "using fast recovery");
+    fdf_logi(70001, "using fast recovery");
 
     rec_init(&rec, pai, rank, sshard, &sect);
     msg_mrep_bmap = get_remote_bmap(&rec);
@@ -4318,7 +4318,7 @@ enumerate_stats(enum_stats_t *s)
  */
 static FDF_status_t
 e_extr_obj(e_state_t *es, time_t now, char **key, uint64_t *keylen,
-	   char **data, uint64_t  *datalen)
+           char **data, uint64_t  *datalen)
 {
     mo_meta_t     *meta = (mo_meta_t *) es->data_buf_align;
     const uint64_t mlen = sizeof(*meta);
@@ -4372,7 +4372,7 @@ copyhash(e_state_t *es, mo_hash_t *hash, uint64_t bkt_i)
     if (es->hash_buf_i >= es->hash_buf_n) {
         if (!es->enum_error) {
             es->enum_error = 1;
-            sdf_loge(70121, "enumeration internal error %ld >= %ld",
+            fdf_loge(70121, "enumeration internal error %ld >= %ld",
                      es->hash_buf_i, es->hash_buf_n);
         }
         return;
@@ -4426,7 +4426,7 @@ e_hash_fill(pai_t *pai, e_state_t *es, int bkt_i)
  */
 FDF_status_t
 enumerate_next(pai_t *pai, e_state_t *es, char **key, uint64_t *keylen,
-	       char **data, uint64_t  *datalen)
+               char **data, uint64_t  *datalen)
 {
     time_t        now = time(NULL);
     mo_shard_t *shard = es->shard;
@@ -4483,7 +4483,7 @@ FDF_status_t
 enumerate_done(pai_t *pai, e_state_t *es)
 {
     atomic_dec(EV.stats.num_active);
-    sdf_logd(70117, "enumeration ended for container %ld", es->cguid);
+    fdf_logd(70117, "enumeration ended for container %ld", es->cguid);
 
     if (es->data_buf_alloc)
         plat_free(es->data_buf_alloc);
@@ -4541,7 +4541,7 @@ enumerate_init(pai_t *pai, shard_t *sshard, FDF_cguid_t cguid, e_state_t **esp)
 
     atomic_inc(EV.stats.num_total);
     atomic_inc(EV.stats.num_active);
-    sdf_logd(70111, "enumeration started for container %ld", es->cguid);
+    fdf_logd(70111, "enumeration started for container %ld", es->cguid);
     return 0;
 }
 
@@ -4591,14 +4591,14 @@ set_cntr_sizes(pai_t *pai, shard_t *sshard)
         uint64_t size;
         char name[256];
         if (!get_cntr_info(n, name, sizeof(name), &objs, &used, &size))
-            sdf_loge(70118, "Failed on get_cntr_info for container %ld", n);
+            fdf_loge(70118, "Failed on get_cntr_info for container %ld", n);
         else {
             if (size) {
-                sdf_logi(70119, "Container %s: id=%ld objs=%ld used=%ld"
+                fdf_logi(70119, "Container %s: id=%ld objs=%ld used=%ld"
                                 " size=%ld full=%.1f%%",
                          name, n, objs, used, size, used*100.0/size);
             } else {
-                sdf_logi(70120, "Container %s: id=%ld objs=%ld used=%ld",
+                fdf_logi(70120, "Container %s: id=%ld objs=%ld used=%ld",
                          name, n, objs, used);
             }
         }

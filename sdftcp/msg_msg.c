@@ -920,7 +920,7 @@ init_face(void)
 
             cip_2str(&p->local, lip, sizeof(lip));
             cip_2str(&p->bcast, bip, sizeof(bip));
-            sdf_logi(70064, "if=%s con=%d pri=%d lip=%s bip=%s",
+            fdf_logi(70064, "if=%s con=%d pri=%d lip=%s bip=%s",
                      p->name, p->nconn, p->prior, lip, bip);
         }
     }
@@ -1084,7 +1084,7 @@ init_tcp(void)
         .sin_addr   = {.s_addr = htonl(INADDR_ANY)},
     };
 
-    sdf_logi(70047, "msgtcp version %d", V.version);
+    fdf_logi(70047, "msgtcp version %d", V.version);
 
     fd = socket(AF_INET, SOCK_STREAM, 0);
     if (fd < 0)
@@ -1145,7 +1145,7 @@ udp_open(cip_t *ip, int port)
 
     fd = socket(AF_INET, SOCK_DGRAM, 0);
     if (fd < 0) {
-        sdf_loge(70073, "UDP socket failed");
+        fdf_loge(70073, "UDP socket failed");
         return -1;
     }
 
@@ -1159,7 +1159,7 @@ udp_open(cip_t *ip, int port)
 
     s = bind(fd, (sa_t *)&saddr, sizeof(sa_t));
     if (s < 0) {
-        sdf_loge(70074, "UDP bind failed");
+        fdf_loge(70074, "UDP bind failed");
         close(fd);
         return -1;
     }
@@ -1533,7 +1533,7 @@ ping_run(void)
 
     if (old && (now < old || (V.init.ping && now-old > 2*V.init.ping))) {
         if (!f_on(GDB))
-            sdf_logi(70048, "possible clock skew %.1fs",
+            fdf_logi(70048, "possible clock skew %.1fs",
                      (double)(now-old)/NANO);
         V.time_ping = now;
         node_redo_time(now);
@@ -1803,7 +1803,7 @@ hello_udp_read(int fd, hellostd_t *hstd)
     salen = sizeof(sa_t);
     len = recvfrom(fd, &hbuf, sizeof(hbuf), 0, (sa_t *)&saddr, &salen);
     if (len < 0) {
-        sdf_logi_sys(70049, "UDP receive failed");
+        fdf_logi_sys(70049, "UDP receive failed");
         return 0;
     }
 
@@ -1996,14 +1996,14 @@ hello_send(int type)
         if (sendto(rips->fd, &hbuf, len, 0, (sa_t *)&saddr, salen) != len) {
             if (!rips->fail) {
                 cip_2str(&rips->rip, dest, sizeof(dest));
-                sdf_logi_sys(70050, "UDP send failed: %s to %s",
+                fdf_logi_sys(70050, "UDP send failed: %s to %s",
                              type_msg(type), dest);
             }
             rips->fail = 1;
         } else {
             if (rips->fail) {
                 cip_2str(&rips->rip, dest, sizeof(dest));
-                sdf_logi(70051, "UDP send succeeded: %s to %s",
+                fdf_logi(70051, "UDP send succeeded: %s to %s",
                          type_msg(type), dest);
             }
             rips->fail = 0;
@@ -2234,7 +2234,7 @@ node_drop(node_t *node, char *msg)
     char nbuf[NOSIZE];
 
     node_no(node, nbuf, sizeof(nbuf));
-    sdf_logi(70052, "node drop rn=%s: %s", nbuf, msg);
+    fdf_logi(70052, "node drop rn=%s: %s", nbuf, msg);
     node->to_die = 1;
     for (conn = node->conn; conn; conn = conn->next)
         if (conn->state == CS_READY)
@@ -2353,7 +2353,7 @@ meta_recv(node_t *node, msg_info_t *info, atom_t aseqn)
         node_resend(node, aseqn+1);
     } else {
         t_meta(0, "recv m%d: bad metadata type=%d", node->nno, type);
-        sdf_logi(70053, "recv n%d: bad metadata type=%d", node->nno, type);
+        fdf_logi(70053, "recv n%d: bad metadata type=%d", node->nno, type);
     }
 
     msg_ifree(info);
@@ -2391,7 +2391,7 @@ node_resend(node_t *node, atom_t lseqn)
     wl_unlock(node->lock_sent);
     *qq = NULL;
 
-    sdf_logi(70054, "resending %d messages from %ld", n, lseqn);
+    fdf_logi(70054, "resending %d messages from %ld", n, lseqn);
     while ((p = q) != NULL) {
         q = p->link;
         p->flags |= MS_USESEQ;
@@ -2552,7 +2552,7 @@ send_talk(node_t *node)
     node_t       *me = V.nodes;
     msg_send_t *send = msg_salloc();
 
-    sdf_logi(70065, "send_talk node=m%d state=%s rank=%d",
+    fdf_logi(70065, "send_talk node=m%d state=%s rank=%d",
              node->nno, node_state_name(me->rank_state), me->rank);
 
     talk = m_malloc(sizeof(*talk), "talk_t");
@@ -2611,11 +2611,11 @@ msg_setstate(int nno, int new)
     node->rank_state = new;
 
     if (old != NS_ACTIVE && new == NS_ACTIVE) {
-        sdf_logi(70066, "node n%d is live", node->rank);
+        fdf_logi(70066, "node n%d is live", node->rank);
         fsync(2);
         live_call_all(1, node->rank);
     } else if (old == NS_ACTIVE && new != NS_ACTIVE) {
-        sdf_logi(70067, "node n%d is dead", node->rank);
+        fdf_logi(70067, "node n%d is dead", node->rank);
         fsync(2);
         live_call_all(0, node->rank);
     }
@@ -2666,7 +2666,7 @@ live_post(node_t *node, int event)
         char *s = (event==MSG_EJOIN) ? "connected" : "disconnected";
 
         node_no(node, nbuf, sizeof(nbuf));
-        sdf_logi(70068, "node %s is %s", nbuf, s);
+        fdf_logi(70068, "node %s is %s", nbuf, s);
     }
     info->type = event;
     info->nno  = node->nno;
@@ -2770,7 +2770,7 @@ node_new(int ver, cip_t *uip, msg_port_t port, char name[NNSIZE])
 
         node_no(node, nbuf, sizeof(nbuf));
         cip_2str(&node->uip, ubuf, sizeof(ubuf));
-        sdf_logi(70069, "node new rn=%s uip=%s ver=%d", nbuf, ubuf, node->ver);
+        fdf_logi(70069, "node new rn=%s uip=%s ver=%d", nbuf, ubuf, node->ver);
     }
     return node;
 }
@@ -3114,7 +3114,7 @@ path_msg(path_t *path, char *msg)
     node_no(path->node, nbuf, sizeof(nbuf));
     cip_2str(&path->lip, lbuf, sizeof(lbuf));
     cip_2str(&path->rip, rbuf, sizeof(rbuf));
-    sdf_logi(70077, "path %s rn=%s if=%s lip=%s rip=%s nc=%d",
+    fdf_logi(70077, "path %s rn=%s if=%s lip=%s rip=%s nc=%d",
              msg, nbuf, path->iface, lbuf, rbuf, path->nconn);
 }
 
@@ -3346,12 +3346,12 @@ msg_addrname(char *name)
     snprintf(buf, sizeof(buf), "%d", V.init.udpport);
     s = getaddrinfo(name, buf, &hints, &ailist);
     if (s != 0) {
-        sdf_loge(70055, "getaddrinfo %s:%s failed: %s",
+        fdf_loge(70055, "getaddrinfo %s:%s failed: %s",
                  name, buf, gai_strerror(s));
         return;
     }
     if (!ailist) {
-        sdf_loge(70056, "getaddrinfo %s:%s failed: no valid entries",
+        fdf_loge(70056, "getaddrinfo %s:%s failed: no valid entries",
                  name, buf);
         return;
     }
@@ -3405,7 +3405,7 @@ add_cast(cip_t *lip, cip_t *rip)
 
     if (q->fd < 0) {
         cip_2str(rip, rbuf, sizeof(rbuf));
-        sdf_loge(70075, "failed to add contact IP: %s", rbuf);
+        fdf_loge(70075, "failed to add contact IP: %s", rbuf);
     } else {
         rips_t *p;
         rips_t **pp;
@@ -3421,7 +3421,7 @@ add_cast(cip_t *lip, cip_t *rip)
         if (!p)
             return;
         cip_2str(rip, rbuf, sizeof(rbuf));
-        sdf_logi(70076, "attempting to add duplicate contact IP: %s", rbuf);
+        fdf_logi(70076, "attempting to add duplicate contact IP: %s", rbuf);
         close(q->fd);
     }
     m_free(q);
@@ -3607,7 +3607,7 @@ tcp_accept(void *arg)
 static void
 errv_close(int fd, char *msg)
 {
-    sdf_loge_sys(20819, "%s", msg);
+    fdf_loge_sys(20819, "%s", msg);
     if (fd >= 0)
         close(fd);
 }
@@ -3619,7 +3619,7 @@ errv_close(int fd, char *msg)
 static int
 errz_close(int fd, char *msg)
 {
-    sdf_loge_sys(20819, "%s", msg);
+    fdf_loge_sys(20819, "%s", msg);
     if (fd >= 0)
         close(fd);
     return 0;
@@ -3632,7 +3632,7 @@ errz_close(int fd, char *msg)
 static void *
 errp_close(int fd, char *msg)
 {
-    sdf_loge(20819, "%s", msg);
+    fdf_loge(20819, "%s", msg);
     if (fd >= 0)
         close(fd);
     return NULL;
@@ -4075,7 +4075,7 @@ conn_new(path_t *path, int fd)
             if (!best || p->path->prior < best->prior)
                 best = p->path;
     if (best && best->prior > path->prior)
-        sdf_logi(70057, "failing back to %s", path->iface);
+        fdf_logi(70057, "failing back to %s", path->iface);
 
     node->aconn++;
     if (node->ver == V1_HELLO) {
@@ -4175,10 +4175,10 @@ conn_error(conn_t *conn, int sys, char *msg)
     node_no(node, nbuf, sizeof(nbuf));
     cip_2str(&path->rip, rbuf, sizeof(rbuf));
     if (sys) {
-        sdf_logi_sys(70058, "conn err rn=%s if=%s fd=%d rip=%s: %s",
+        fdf_logi_sys(70058, "conn err rn=%s if=%s fd=%d rip=%s: %s",
                      nbuf, path->iface, conn->sfd, rbuf, msg);
     } else {
-        sdf_logi(70058, "conn err rn=%s if=%s fd=%d rip=%s: %s",
+        fdf_logi(70058, "conn err rn=%s if=%s fd=%d rip=%s: %s",
                  nbuf, path->iface, conn->sfd, rbuf, msg);
     }
 
@@ -4212,7 +4212,7 @@ conn_close(conn_t *conn)
             if (!best || p->path->prior < best->prior)
                 best = p->path;
     if (best && best->prior > path->prior)
-        sdf_logi(70059, "failing over to %s", best->iface);
+        fdf_logi(70059, "failing over to %s", best->iface);
 
     conn->path  = NULL;
     conn->sfd   = -1;
@@ -4276,7 +4276,7 @@ conn_msg(conn_t *conn, char *msg)
 
     node_no(path->node, nbuf, sizeof(nbuf));
     cip_2str(&path->rip, rbuf, sizeof(rbuf));
-    sdf_logi(70071, "conn %s rn=%s if=%s fd=%d rip=%s",
+    fdf_logi(70071, "conn %s rn=%s if=%s fd=%d rip=%s",
              msg, nbuf, path->iface, conn->sfd, rbuf);
 }
 
@@ -5695,6 +5695,6 @@ error(int sys, char *fmt, ...)
         else
             xsprint(&xstr, ": %d", err);
     }
-    sdf_loge(160069, "%p", xstr.p);
+    fdf_loge(160069, "%p", xstr.p);
     xsfree(&xstr);
 }
