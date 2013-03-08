@@ -113,6 +113,9 @@ mcd_osd_hash_t;
 struct mcd_osd_slab_class;
 
 typedef struct mcd_osd_segment {
+    uint32_t                    used_slabs;
+    uint32_t                    idx;  // index in segments list of class
+    uint32_t                    used; // guard segment deallocation
     uint32_t                    next_slab;
     uint64_t                    blk_offset;
     uint64_t                  * bitmap;
@@ -251,6 +254,10 @@ typedef struct mcd_osd_shard {
     fthLock_t                 * bucket_locks;
     mcd_osd_segment_t        ** segment_table;  /* logical block -> segment */
     mcd_osd_segment_t         * base_segments;
+
+    fthLock_t                   free_list_lock;
+    uint64_t                    free_segments_count;
+    uint64_t                  * free_segments;  /* logical block -> segment */
 
     int                         num_classes;
     mcd_osd_slab_class_t        slab_classes[MCD_OSD_MAX_NCLASSES];
