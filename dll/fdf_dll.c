@@ -355,6 +355,7 @@ FDFSetProperty(const char *property, const char *value)
 FDF_status_t 
 FDFLoadProperties(const char *prop_file)
 {
+    parse();
     if (unlikely(!ptr_FDFLoadProperties))
         undefined("FDFLoadProperties");
 

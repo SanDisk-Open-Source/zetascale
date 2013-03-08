@@ -19,6 +19,7 @@ use constant LineLen => 80;
 my %Onload =(
     'Init'        => 1,
     'SetProperty' => 1,
+    'LoadProperties' => 1,
 );
 
 
