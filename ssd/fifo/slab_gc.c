@@ -75,7 +75,11 @@ bool slab_gc_able(mcd_osd_shard_t *shard, mcd_osd_slab_class_t* class, bool sync
 	uint32_t used_slabs = class->used_slabs - class->dealloc_pending;
 	/* Its expensive to calcualte amount of slabs in least used segment here.
 		but average should be good enough upper bound for minimum. */
-	uint32_t avg_slabs = class->used_slabs * class->slabs_per_segment / class->total_slabs;
+	uint32_t avg_slabs;
+
+	if(!class->total_slabs) return false;
+
+	avg_slabs = class->used_slabs * class->slabs_per_segment / class->total_slabs;
 
 	/* Sync GC possible if there are enough free space to relocated average segment of the class */
 	bool gc_sync = class->total_slabs / class->slabs_per_segment > 1 && free_slabs > avg_slabs * 3; /* 3 = from + to + reserve */
@@ -454,6 +458,9 @@ void slab_gc_signal(
 	if(sync)
 	{
 		stat_inc(shard, WAIT_SYNC);
+
+		/* Try to free already collected/deleted objects */
+		log_sync(shard);
 
 		pthread_mutex_lock(&class->gc->mutex);
 
