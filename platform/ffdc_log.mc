@@ -3127,6 +3127,7 @@
 160025 Node %d does not have any persistent container\n
 160026 Node becomes authoritative for persistent containers\n
 160027 pwrite failed!
+160028 error updating class(shrink)
 160029 Failed to find shard for cguid %"PRIu64"
 160030 Container is not deleted (busy or error): cguid=%lu(%d), status=%s
 160031 Delete request pending. Deleting... cguid=%lu
@@ -3219,7 +3220,6 @@
 160120 Containers closed=%d
 160121 Signal completion of pending deletes\n
 160122 Waiting for completion of pending deletes\n
-
 
 # rico
 170001 1st error message by Rico (%s)

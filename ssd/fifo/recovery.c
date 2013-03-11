@@ -1625,6 +1625,7 @@ sf_flush_seg(slab_free_t *sf)
     for (i = 0; i < sf->num_words; i++)
         atomic_and(real_map[i], sf->bitmap[i]);
     atomic_sub(sf->class->used_slabs, sf->num_free);
+    atomic_sub(sf->segment->used_slabs, sf->num_free);
     sf->segment = NULL;
 }
 
@@ -1705,6 +1706,8 @@ sf_next(slab_free_t *sf)
         fthUnlock(wait);
     }
 
+    atomic_get_add(segment->used_slabs, seg_slabs);
+
     slab_i = atomic_get_add(segment->next_slab, seg_slabs);
     n = (slab_i > seg_slabs) ? seg_slabs : slab_i;
     atomic_sub(segment->next_slab, n);
@@ -1723,6 +1726,7 @@ sf_next(slab_free_t *sf)
     sf->next_slab = 0;
     sf->num_free = sf->num_slabs - bit_count(sf->bitmap, sf->num_slabs);
     atomic_sub(class->used_slabs, seg_slabs - sf->num_free);
+    atomic_sub(segment->used_slabs, seg_slabs - sf->num_free);
     return 1;
 }
 

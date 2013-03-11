@@ -2018,6 +2018,7 @@ update_class( mcd_osd_shard_t * shard, mcd_osd_slab_class_t * class,
     for ( bs = 1; bs < class->slab_blksize; bs *= 2 ) {
         class_index++;
     }
+
     pclass_offset = pshard->blk_offset + pshard->class_offset[ class_index ];
     blks          = 1 + pshard->map_blks;
 
@@ -2094,7 +2095,9 @@ update_class( mcd_osd_shard_t * shard, mcd_osd_slab_class_t * class,
     // install new segment
     // Note: since block offset 0 is a valid segment address, the offset
     // is bitwise inverted when stored so it can be found in recovery
-    seg_list->data[ seg_slot ] = ~(class->segments[ segment_num ]->blk_offset);
+    seg_list->data[ seg_slot ] = 0;
+    if(class->segments[ segment_num ])
+       seg_list->data[ seg_slot ] = ~(class->segments[ segment_num ]->blk_offset);
 
     // install new checksum
     seg_list->checksum = 0;
@@ -2105,7 +2108,7 @@ update_class( mcd_osd_shard_t * shard, mcd_osd_slab_class_t * class,
     mcd_log_msg( 40065, PLAT_LOG_LEVEL_TRACE,
                  "class[%d], blksize=%d: new_seg[%d], blk_offset=%lu",
                  class_index, class->slab_blksize, segment_num,
-                 class->segments[ segment_num ]->blk_offset );
+                ~seg_list->data[ seg_slot ]);
 
     // write persistent segment list (single updated block)
     rc = mcd_fth_aio_blk_write( context,
@@ -2376,7 +2379,6 @@ tombstone_prune( mcd_osd_shard_t * shard )
         // pull oldest tombstone off
         del_ts = ts;
         ts     = ts->next;
-
         // dealloc disk space
         mcd_fth_osd_slab_dealloc( shard, del_ts->blk_offset );
 
@@ -2835,11 +2837,9 @@ shard_recover( mcd_osd_shard_t * shard )
             }
 
             for ( s = 0; s < MCD_REC_LIST_ITEMS_PER_BLK && !list_end; s++ ) {
-
-                // done when we hit a zero entry
+                //Segment removed or never allocated
                 if ( seg_list->data[ s ] == 0 ) {
-                    list_end = true;
-                    break;
+                    continue;
                 }
 
                 class->segments[ c_seg ] =
@@ -2849,6 +2849,7 @@ shard_recover( mcd_osd_shard_t * shard )
                 // Note: must bitwise invert segment address
                 class->segments[ c_seg ]->blk_offset = ~(seg_list->data[ s ]);
                 class->segments[ c_seg ]->class      = class;
+                class->segments[ c_seg ]->idx      = c_seg;
 
                 // Note: bitmap rebuilt with hash table, initialize it here
                 memset( class->segments[ c_seg ]->bitmap,
@@ -2858,7 +2859,9 @@ shard_recover( mcd_osd_shard_t * shard )
                 class->num_segments  += 1;
                 class->total_slabs   += class->slabs_per_segment;
 
-                shard->blk_allocated += Mcd_osd_segment_blks;
+                if(class->segments[ c_seg ]->blk_offset + Mcd_osd_segment_blks > shard->blk_allocated)
+                    shard->blk_allocated = class->segments[ c_seg ]->blk_offset + Mcd_osd_segment_blks;
+
                 shard->segment_table[ ~(seg_list->data[ s ]) /
                                       Mcd_osd_segment_blks ] =
                     class->segments[ c_seg ];
@@ -3659,6 +3662,9 @@ update_hash_table( void * context, mcd_osd_shard_t * shard,
             Mcd_osd_bitmap_masks[ map_offset % 64 ];
         segment->alloc_map[ map_offset / 64 ] |=
             Mcd_osd_bitmap_masks[ map_offset % 64 ]; // used by full backup
+
+        segment->used_slabs += 1;
+
         // save the oldest item (by seqno)
         if ( lru_scan[ class_index ].seqno == 0 ||
              obj->seqno < lru_scan[ class_index ].seqno ) {
