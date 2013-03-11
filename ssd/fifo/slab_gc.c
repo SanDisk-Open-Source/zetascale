@@ -133,7 +133,7 @@ int slab_gc_relocate_slab(
 		goto out;
 
 //	plat_assert(dst_blk_offset < shard->total_blks);
-	if(dst_blk_offset >= shard->total_blks);
+	if(dst_blk_offset >= shard->total_blks)
 		fprintf(stderr, "This should not happen: dst_blk_offset(%ld) >= shard->total_blks(%ld)\n", dst_blk_offset, shard->total_blks);
 
 	dst_offset = mcd_osd_rand_address(shard, dst_blk_offset);
