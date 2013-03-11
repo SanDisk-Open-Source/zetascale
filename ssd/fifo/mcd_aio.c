@@ -1228,16 +1228,18 @@ int mcd_aio_init( void * state, char * dname )
     }
 
     open_flags = O_RDWR;
+
     if ( 0 == flash_settings.no_direct_io ) {
         open_flags |= O_DIRECT;
     }
+
     if ( 0 != flash_settings.aio_create ) {
         open_flags |= O_CREAT;
     }
 
     if (getProperty_Int("FDF_O_SYNC", 0)) {
         open_flags |= O_SYNC;
-        mcd_log_msg(180005, PLAT_LOG_LEVEL_INFO,
+        mcd_log_msg(180020, PLAT_LOG_LEVEL_INFO,
                     "FDF_O_SYNC is set");
     }
 

@@ -73,6 +73,7 @@ rwlock_t *rwl_init(void);
 #define atomic_or(v, a)             (void) __sync_or_and_fetch(&v, a)
 #define atomic_get_or(v, a)                __sync_fetch_and_or(&v, a)
 #define atomic_cmp_swap(v, a, b)           __sync_val_compare_and_swap(&v, a, b)
+#define atomic_cmp_swap_bool(v, a, b)           __sync_bool_compare_and_swap(&v, a, b)
 
 
 /*

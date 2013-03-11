@@ -57,10 +57,10 @@ cmake $WD -DNCPU=$NCPU -DDEBUG=$DBG -DFDF_REVISION="$VERSION"
 make -j $NCPU
 
 #Packaging
-cp -fv $WD/output/lib/* $SDK_DIR/lib
-cp -av $WD/api/fdf.h $SDK_DIR/include
+cp -f $WD/output/lib/* $SDK_DIR/lib
+cp -a $WD/api/fdf.h $SDK_DIR/include
 mkdir -p $SDK_DIR/include/common
-cp -va $WD/common/fdf{stats,types}.h $SDK_DIR/include/common
+cp -a $WD/common/fdf{stats,types}.h $SDK_DIR/include/common
 #
 cd $SDK_DIR/..
 tar --exclude=.svn --exclude=.git --exclude=libfdf.a -czf $WD/$PKG_NAME.tar.gz $PKG_NAME

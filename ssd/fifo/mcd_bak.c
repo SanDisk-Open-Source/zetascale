@@ -126,7 +126,10 @@ backup_maintain_bitmaps( mcd_osd_shard_t * shard, uint32_t blk_offset,
                  shard->id, blk_offset, delete );
 
     segment = shard->segment_table[blk_offset / Mcd_osd_segment_blks];
-    
+
+    if(!segment)
+        return;
+
     map_offset = blk_offset - segment->blk_offset;
     map_offset /= segment->class->slab_blksize;
 

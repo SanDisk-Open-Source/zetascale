@@ -43,6 +43,7 @@
 #include "ssd/fifo/mcd_bak.h"
 #include "ssd/fifo/mcd_trx.h"
 #include "utils/properties.h"
+#include "ssd/fifo/slab_gc.h"
 
 #define LOG_ID PLAT_LOG_ID_INITIAL
 #define LOG_CAT PLAT_LOG_CAT_SDF_NAMING
@@ -383,6 +384,18 @@ fdf_stats_info_t fdf_stats_flash[] = {
     {"PENDING_IOS","num_pending_ios",FDF_STATS_TYPE_FLASH},/*FDF_FLASH_STATS_PENDING_IOS*/
     {"SPACE_ALLOCATED","flash_space_allocated",FDF_STATS_TYPE_FLASH},/*FDF_FLASH_STATS_SPACE_ALLOCATED*/
     {"SPACE_CONSUMED","flash_space_consumed",FDF_STATS_TYPE_FLASH},/*FDF_FLASH_STATS_SPACE_CONSUMED*/
+
+    {"SEGMENTS_COMPACTED","slab_gc_segments_compacted",FDF_STATS_TYPE_FLASH},
+    {"SEGMENTS_FREED","slab_gc_segments_freed",FDF_STATS_TYPE_FLASH},
+    {"SLABS_RELOCATED","slab_gc_slabs_relocated",FDF_STATS_TYPE_FLASH},
+    {"BLOCKS_RELOCATED","slab_gc_blocks_relocated",FDF_STATS_TYPE_FLASH},
+    {"RELOCATE_ERRORS","slab_gc_relocate_errors",FDF_STATS_TYPE_FLASH},
+    {"SIGNALLED","slab_gc_signalled",FDF_STATS_TYPE_FLASH},
+    {"SIGNALLED_SYNC","slab_gc_signalled_sync",FDF_STATS_TYPE_FLASH},
+    {"WAIT_SYNC","slab_gc_wait_sync",FDF_STATS_TYPE_FLASH},
+    {"SEGMENTS_CANCELLED","slab_gc_segments_cancelled",FDF_STATS_TYPE_FLASH}, 
+
+    {"FREE_SEGMENTS","slab_free_segments",FDF_STATS_TYPE_FLASH}, 
 };
 
 char *get_flash_type_stats_desc(int stat ) {
@@ -741,6 +754,7 @@ static void fdf_load_settings(flash_settings_t *osd_settings)
     osd_settings->aio_total_size      = getProperty_Int("FDF_FLASH_SIZE", 2); // this flash size counts! 2Gb by default
     osd_settings->aio_total_size      = getProperty_Int("AIO_FLASH_SIZE_TOTAL", osd_settings->aio_total_size); // compatibility with old property files
     osd_settings->aio_sync_enabled    = getProperty_Int("AIO_SYNC_ENABLED", 0); // AIO_SYNC_ENABLED
+    osd_settings->no_direct_io        = !getProperty_Int("AIO_O_DIRECT", 1);
     osd_settings->rec_log_verify      = 0;
     osd_settings->enable_fifo         = 1;
     osd_settings->bypass_aio_check    = 0;
@@ -1102,6 +1116,8 @@ static void *fdf_stats_thread(void *arg) {
         }
 
 		mcd_trx_print_stats(stats_log);
+
+        //slab_gc_print_stats(stats_log);
 
         sleep(dump_interval);
     }
@@ -3945,6 +3961,7 @@ static void fdf_get_flash_stats( SDF_internal_ctxt_t *pai, char ** ppos, int * l
     uint64_t            num_del_ops = 0;
     uint64_t            num_ext_checks = 0;
     uint64_t            num_full_buckets = 0;
+    uint64_t            val = 0;
     uint64_t          * stats_ptr;
 
     FDFContainerStat( pai, sdf_container,
@@ -4138,6 +4155,14 @@ static void fdf_get_flash_stats( SDF_internal_ctxt_t *pai, char ** ppos, int * l
                           num_full_buckets );
     if (stats != NULL)
         stats->flash_stats[FDF_FLASH_STATS_NUM_FULL_BUCKETS] = num_full_buckets;
+
+    FDFContainerStat( pai, sdf_container,
+                             FLASH_NUM_FREE_SEGS,
+                             &val );
+    plat_snprintfcat( ppos, lenp, "STAT flash_num_free_segs %lu\r\n",
+                      val );
+    if (stats != NULL) 
+        stats->flash_stats[FDF_FLASH_STATS_NUM_FREE_SEGMENTS] = val;
 
     //mcd_osd_recovery_stats( mcd_osd_container_shard(c->mcd_container), ppos, lenp );
 
@@ -4549,6 +4574,7 @@ FDF_status_t FDFGetContainerStats(
     }
     //  no-op in this simple implementation
     //return rc;
+    slab_gc_get_stats(NULL, stats, NULL);
     return(FDF_SUCCESS);
 }
 
@@ -4891,11 +4917,8 @@ fdf_vc_init(
     SDF_internal_ctxt_t		*pai		= (SDF_internal_ctxt_t *) fdf_thread_state;
 
     // Create the VMC
-    p.persistent            = FDF_TRUE;
-    p.evicting              = FDF_FALSE;
-    p.writethru             = FDF_TRUE;
+    FDFLoadCntrPropDefaults(&p);
     p.durability_level      = FDF_DURABILITY_HW_CRASH_SAFE;
-    p.size_kb               = 1024 * 1024; // kB
 
     if ((status = FDFOpenPhysicalContainer(pai, VMC_PATH, &p, flags, &cguid)) != SDF_SUCCESS) {
         plat_log_msg(150057, LOG_CAT, LOG_ERR, "Failed to create VMC container - %s\n", SDF_Status_Strings[status]);
@@ -4903,9 +4926,7 @@ fdf_vc_init(
     }
 
     // Create the VDC
-    p.persistent            = FDF_TRUE;
-    p.evicting              = FDF_FALSE;
-    p.writethru             = FDF_TRUE;
+    FDFLoadCntrPropDefaults(&p);
     p.durability_level      = FDF_DURABILITY_HW_CRASH_SAFE;
     p.size_kb               = getProperty_Int("FDF_FLASH_SIZE", 2) * 1024 * 1024 - (2 * 1024 * 1024) - (32 * 1024); // Minus CMC/VMC allocation
 

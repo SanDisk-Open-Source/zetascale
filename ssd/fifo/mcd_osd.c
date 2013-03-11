@@ -53,6 +53,8 @@
 #include "mcd_rep.h"
 #include "mcd_hash.h"
 
+#include "slab_gc.h"
+
 #include "shared/private.h"
 #ifdef SDFAPI
 #include "api/sdf.h"
@@ -228,6 +230,8 @@ extern uint64_t                 Mcd_aio_real_size;
 extern uint64_t                 Mcd_aio_read_ops;
 extern uint64_t                 Mcd_aio_write_ops;
 
+static bool slab_gc_enabled = false;
+
 /*
  *  Unique pthread id.
  */
@@ -352,6 +356,13 @@ mcd_osd_lba_to_blk( uint32_t blocks )
     }
 
     return temp;
+}
+
+uint64_t
+mcd_osd_rand_address(mcd_osd_shard_t *shard, uint64_t offset)
+{
+    return (shard->rand_table[offset / Mcd_osd_rand_blksize]
+        + (offset % Mcd_osd_rand_blksize)) * Mcd_osd_blk_size;
 }
 
 
@@ -1807,7 +1818,6 @@ static int mcd_osd_fifo_write( mcd_osd_shard_t * shard, char * rbuf,
     int                         count;
     int                         cushion;
     int                         total;
-    uint64_t                    tmp_offset;
     uint64_t                    blk_offset;
     uint64_t                    offset;
     osd_state_t               * context;
@@ -1837,9 +1847,7 @@ static int mcd_osd_fifo_write( mcd_osd_shard_t * shard, char * rbuf,
         }
 
         blk_offset = wbuf->blk_offset % shard->total_blks;
-        tmp_offset = shard->rand_table[blk_offset / Mcd_osd_rand_blksize]
-            + ( blk_offset % Mcd_osd_rand_blksize );
-        offset = tmp_offset * Mcd_osd_blk_size;
+        offset = mcd_osd_rand_address(shard, blk_offset);
 
         rc = mcd_fth_aio_blk_write_low( (void *) &osd_state->osd_aio_state,
                                     wbuf->buf,
@@ -1891,10 +1899,7 @@ static int mcd_osd_fifo_write( mcd_osd_shard_t * shard, char * rbuf,
                            ( MCD_OSD_NUM_WBUFS * MCD_OSD_WBUF_BLKS ) )
                 % shard->total_blks;
 
-            tmp_offset =
-                shard->rand_table[blk_offset / Mcd_osd_rand_blksize]
-                + (blk_offset % Mcd_osd_rand_blksize);
-            offset = tmp_offset * Mcd_osd_blk_size;
+            offset = mcd_osd_rand_address(shard, blk_offset);
 
             mcd_log_msg( 20322, MCD_OSD_LOG_LVL_INFO,
                          "rbuf to read, blk_offset=%lu", blk_offset );
@@ -1998,7 +2003,6 @@ void mcd_fth_osd_writer( uint64_t arg )
     uint64_t                    mail;
     osd_state_t               * osd_state = (osd_state_t *)arg;
     int                         total;
-    uint64_t                    tmp_offset;
     uint64_t                    blk_offset;
     uint64_t                    offset;
     osd_state_t               * context;
@@ -2070,9 +2074,8 @@ void mcd_fth_osd_writer( uint64_t arg )
             }
 
             blk_offset = wbuf->blk_offset % shard->total_blks;
-            tmp_offset = shard->rand_table[blk_offset / Mcd_osd_rand_blksize]
-                + ( blk_offset % Mcd_osd_rand_blksize );
-            offset = tmp_offset * Mcd_osd_blk_size;
+
+            offset = mcd_osd_rand_address(shard, blk_offset);
 
             rc = mcd_fth_aio_blk_write_low( (void *) &osd_state->osd_aio_state,
                                         wbuf->buf,
@@ -2125,10 +2128,7 @@ void mcd_fth_osd_writer( uint64_t arg )
                                ( MCD_OSD_NUM_WBUFS * MCD_OSD_WBUF_BLKS ) )
                     % shard->total_blks;
 
-                tmp_offset =
-                    shard->rand_table[blk_offset / Mcd_osd_rand_blksize]
-                    + (blk_offset % Mcd_osd_rand_blksize);
-                offset = tmp_offset * Mcd_osd_blk_size;
+                offset = mcd_osd_rand_address(shard, blk_offset);
 
                 mcd_log_msg( 20322, MCD_OSD_LOG_LVL_INFO,
                              "rbuf to read, blk_offset=%lu", blk_offset );
@@ -2282,7 +2282,6 @@ mcd_fth_osd_fifo_get( void * context, mcd_osd_shard_t * shard, char * key,
     int                         committed;
     char                      * buf;
     char                      * data_buf;
-    uint64_t                    tmp_offset;
     uint64_t                    blk_offset;
     uint64_t                    offset;
     int                         nbytes;
@@ -2390,9 +2389,7 @@ mcd_fth_osd_fifo_get( void * context, mcd_osd_shard_t * shard, char * key,
 
         blk_offset = hash_entry->address;
 
-        tmp_offset = shard->rand_table[blk_offset / Mcd_osd_rand_blksize]
-            + (blk_offset % Mcd_osd_rand_blksize);
-        offset = tmp_offset * Mcd_osd_blk_size;
+        offset = mcd_osd_rand_address(shard, blk_offset);
 
         if ( NULL == ppdata ) {
             /*
@@ -2485,6 +2482,186 @@ mcd_osd_fifo_notify_writer( mcd_osd_shard_t * shard )
     }
 }
 
+static inline int
+mcd_fth_osd_free_segment( mcd_osd_shard_t * shard, mcd_osd_segment_t *segment, uint8_t put_to_list )
+{
+    mcd_osd_slab_class_t* class = segment->class;
+
+    plat_assert(class);
+
+    if ( 1 == shard->persistent ) {
+        int rc = update_class( shard, class, segment->idx );
+        if ( 0 != rc ) {
+            mcd_log_msg( 160028, PLAT_LOG_LEVEL_ERROR, "error updating class(shrink)" );
+            class->segments[segment->idx] = segment;
+            return rc;
+        }
+    }
+
+    atomic_sub(class->total_slabs, class->slabs_per_segment);
+
+    plat_assert(class->total_slabs >= 0);
+
+    segment->next_slab = 0;
+
+    while(class->num_segments && !class->segments[class->num_segments - 1])
+        class->num_segments--;
+
+    if(!put_to_list) return 0;
+
+    fthWaitEl_t* wait = fthLock( &shard->free_list_lock, 1, NULL );
+ 
+    shard->free_segments[shard->free_segments_count++] = segment->blk_offset;
+
+    fthUnlock( wait );
+
+    mcd_log_msg(180011, PLAT_LOG_LEVEL_DEBUG, "shard->id=%ld class->blk_size=%d class->num_segments=%d shard->free_segments_count=%ld", shard->id, class->slab_blksize, class->num_segments, shard->free_segments_count );
+
+    return 0;
+}
+
+uint64_t
+mcd_fth_osd_shrink_class(mcd_osd_shard_t * shard, mcd_osd_segment_t *segment, bool gc)
+{
+    int rc = 0;
+    mcd_osd_slab_class_t* class;
+    fthWaitEl_t *wait = NULL;
+
+    /* Make sure we acquire current segment's class lock */
+    do {
+       if(wait) fthUnlock(wait);
+
+       class = segment->class;
+
+       wait = fthLock( &class->lock, 1, NULL );
+
+    } while(segment->class != class);
+
+    /* The segment may be already removed from the segments list by GC thread.
+       Proceed if its GC thread, go out in all other cases */
+    if(!mcd_osd_slab_segments_free_slot(class, segment) && !gc)
+    {
+        fthUnlock( wait );
+        return 1;
+    }
+
+    barrier(); /* Prevent reordering of above and below lines */
+
+    while(segment->used); /* Wait while all user threads finish usage of this segment */
+
+    if(!segment->used_slabs)
+        rc = mcd_fth_osd_free_segment(shard, segment, 1 /* TRUE */);
+    else
+        class->segments[segment->idx] = segment;
+
+    fthUnlock( wait );
+
+    return rc;
+}
+
+/*
+ * Free slab for deallocated blocks, update bitmap. Called only when
+ * object is overwritten in store mode to free space for old object.
+ */
+void
+mcd_fth_osd_slab_dealloc( mcd_osd_shard_t * shard, uint32_t address, bool async )
+{
+    int                 free_slab_curr;
+    int                 map_offset;
+    mcd_osd_segment_t * segment;
+
+    mcd_log_msg( 20000, PLAT_LOG_LEVEL_DEBUG, "ENTERING" );
+
+    segment = shard->segment_table[address / Mcd_osd_segment_blks];
+
+    if(!segment)
+        return;
+
+    map_offset = address - segment->blk_offset;
+    map_offset /= segment->class->slab_blksize;
+
+    (void) __sync_fetch_and_and( &segment->bitmap[map_offset / 64],
+                                 ~Mcd_osd_bitmap_masks[map_offset % 64] );
+
+    atomic_dec(segment->class->used_slabs);
+    atomic_dec(segment->used_slabs);
+
+	if(async)
+	{
+    	atomic_dec(segment->class->dealloc_pending);
+    	atomic_sub(shard->blk_dealloc_pending, segment->class->slab_blksize);
+	}
+	else
+	{
+	    free_slab_curr = segment->class->free_slab_curr[Mcd_pthread_id];
+    	if ( free_slab_curr < segment->class->freelist_len ) {
+        	segment->class->free_slabs[Mcd_pthread_id][free_slab_curr] = address;
+	        segment->class->free_slab_curr[Mcd_pthread_id]++;
+    	}
+	}
+
+	if(!segment->used_slabs)
+		mcd_fth_osd_shrink_class(shard, segment, false);
+	else if(shard->gc)
+		slab_gc_signal(shard, segment->class);
+
+    mcd_log_msg( 20365, MCD_OSD_LOG_LVL_DEBUG,
+                 "cls=%ld addr=%u off=%d map=%.16lx slabs=%lu, pend=%lu",
+                 segment->class - shard->slab_classes,
+                 address,
+                 map_offset,
+                 segment->bitmap[map_offset / 64],
+                 segment->class->used_slabs,
+                 segment->class->dealloc_pending );
+
+    return;
+}
+
+
+/*
+ * remove an entry from the hash table, free up its slab and update
+ * the bitmap as well as the free list
+ */
+int
+mcd_fth_osd_remove_entry( mcd_osd_shard_t * shard,
+    mcd_osd_hash_t * hash_entry,
+	bool delayed,
+	bool remove_entry)
+{
+	mcd_osd_slab_class_t* class;
+
+    mcd_log_msg( 20000, PLAT_LOG_LEVEL_DEBUG, "ENTERING" );
+
+    if ( 0 == hash_entry->used || 0 == hash_entry->blocks ) {
+        plat_assert_always( 0 == 1 );
+    }
+
+        class = shard->slab_classes +
+            shard->class_table[mcd_osd_lba_to_blk(hash_entry->blocks)];
+    if (delayed)
+	{
+        class = shard->slab_classes +
+            shard->class_table[mcd_osd_lba_to_blk(hash_entry->blocks)];
+        uint64_t slabs = atomic_add_get(class->dealloc_pending, 1);
+        uint64_t blks  = atomic_add_get(shard->blk_dealloc_pending, class->slab_blksize);
+        // insert a clever algorithm here to determine if too
+        // much space is pending deallocation
+        if ( blks * 100 / shard->blk_allocated > 15 ||
+             ( class->used_slabs * 100 / (class->total_slabs + 1) > 40 &&
+               slabs * 100 / (class->used_slabs + 1) > 50 ) ) {
+            log_sync( shard );
+        }
+    } else
+		mcd_fth_osd_slab_dealloc(shard, hash_entry->address, false);
+
+    atomic_sub(shard->blk_consumed, mcd_osd_lba_to_blk(hash_entry->blocks));
+
+	if(remove_entry)
+	    *((uint64_t *)hash_entry) = 0;
+
+    return 0;   /* SUCCESS */
+}
+
 
 static int
 mcd_fth_osd_fifo_set( void * context, mcd_osd_shard_t * shard, char * key,
@@ -2502,7 +2679,6 @@ mcd_fth_osd_fifo_set( void * context, mcd_osd_shard_t * shard, char * key,
     uint32_t                    pending;
     uint32_t                    blk_filled;
     uint64_t                    blk_nextbuf;
-    uint64_t                    tmp_offset;
     uint64_t                    blk_offset;
     uint64_t                    offset;
     uint64_t                    mail;
@@ -2583,9 +2759,7 @@ mcd_fth_osd_fifo_set( void * context, mcd_osd_shard_t * shard, char * key,
                  * item found in memory, to be deleted
                  */
                 // mcd_fth_osd_remove_entry( shard, hash_entry );  // FIXME
-                (void) __sync_fetch_and_sub(
-                    &shard->blk_consumed,
-                    mcd_osd_lba_to_blk( hash_entry->blocks ) );
+                atomic_sub(shard->blk_consumed, mcd_osd_lba_to_blk( hash_entry->blocks));
                 *((uint64_t *)hash_entry) = 0;
 
                 if ( 0 == bucket->next_item ) {
@@ -2616,11 +2790,7 @@ mcd_fth_osd_fifo_set( void * context, mcd_osd_shard_t * shard, char * key,
             continue;
         }
 
-        blk_offset = hash_entry->address;
-
-        tmp_offset = shard->rand_table[blk_offset / Mcd_osd_rand_blksize]
-            + (blk_offset % Mcd_osd_rand_blksize);
-        offset = tmp_offset * Mcd_osd_blk_size;
+        offset = mcd_osd_rand_address(shard, hash_entry->address);
 
         rc = mcd_fth_aio_blk_read( context,
                                    buf,
@@ -2669,9 +2839,7 @@ mcd_fth_osd_fifo_set( void * context, mcd_osd_shard_t * shard, char * key,
              * item found on flash, to be deleted
              */
             // mcd_fth_osd_remove_entry( shard, hash_entry );   // FIXME
-            (void) __sync_fetch_and_sub(
-                &shard->blk_consumed,
-                mcd_osd_lba_to_blk( hash_entry->blocks ) );
+            atomic_sub(shard->blk_consumed, mcd_osd_lba_to_blk( hash_entry->blocks));
             *((uint64_t *)hash_entry) = 0;
 
             if ( 0 == bucket->next_item ) {
@@ -2975,9 +3143,7 @@ mcd_fth_osd_fifo_set( void * context, mcd_osd_shard_t * shard, char * key,
 
         if ( hash_entry ) {
             // mcd_fth_osd_remove_entry( shard, hash_entry );       // FIXME
-            (void) __sync_fetch_and_sub(
-                &shard->blk_consumed,
-                mcd_osd_lba_to_blk( hash_entry->blocks ) );
+            atomic_sub(shard->blk_consumed, mcd_osd_lba_to_blk( hash_entry->blocks));
             *((uint64_t *)hash_entry) = 0;
             (void) __sync_fetch_and_add( &shard->num_hash_evictions, 1 );
         }
@@ -3107,40 +3273,6 @@ get_bitmaps( int bitmap_size, int initializer )
     return bitmaps;
 }
 
-static inline int
-mcd_fth_osd_free_segment( mcd_osd_shard_t * shard, mcd_osd_segment_t *segment, uint8_t put_to_list )
-{
-    mcd_osd_slab_class_t* class = segment->class;
-
-    if ( 1 == shard->persistent ) {
-        int rc = update_class( shard, class, segment->idx );
-        if ( 0 != rc ) {
-            mcd_log_msg( 160028, PLAT_LOG_LEVEL_ERROR, "error updating class(shrink)" );
-            class->segments[segment->idx] = segment;
-            return rc;
-        }
-    }
-
-    atomic_sub(class->total_slabs, class->slabs_per_segment);
-
-    plat_assert(class->total_slabs >= 0);
-
-    segment->next_slab = 0;
-
-    while(class->num_segments && !class->segments[class->num_segments - 1])
-        class->num_segments--;
-
-    if(!put_to_list) return 0;
-
-    fthWaitEl_t* wait = fthLock( &shard->free_list_lock, 1, NULL );
- 
-    shard->free_segments[shard->free_segments_count++] = segment->blk_offset;
-
-    fthUnlock( wait );
-
-    return 0;
-}
-
 static int
 mcd_osd_slab_shard_init_free_segments( mcd_osd_shard_t * shard )
 {
@@ -3151,7 +3283,7 @@ mcd_osd_slab_shard_init_free_segments( mcd_osd_shard_t * shard )
 
     used_map = (int*) plat_alloc( max_segments / 8 );
     if (!used_map) {
-        mcd_log_msg( 160047, PLAT_LOG_LEVEL_ERROR,
+        mcd_log_msg(180007, PLAT_LOG_LEVEL_ERROR,
                      "failed to allocate temporary segments map" );
         return FLASH_ENOMEM;
     }
@@ -3184,7 +3316,7 @@ mcd_osd_slab_shard_init_free_segments( mcd_osd_shard_t * shard )
             shard->free_segments[shard->free_segments_count++] = i * Mcd_osd_segment_blks;
     }
 
-    mcd_log_msg( 160048, PLAT_LOG_LEVEL_INFO,
+    mcd_log_msg(180008, PLAT_LOG_LEVEL_INFO,
                  "shard=%p free_segments found %lu, blk_allocated %lu",
                  shard, shard->free_segments_count, shard->blk_allocated);
 #undef iBITS
@@ -3357,7 +3489,7 @@ mcd_osd_slab_shard_init( mcd_osd_shard_t * shard, uint64_t shard_id,
     shard->free_segments = (uint64_t*)
         plat_alloc( max_segments * sizeof(uint64_t *) );
     if ( NULL == shard->free_segments ) {
-        mcd_log_msg( 160049, PLAT_LOG_LEVEL_ERROR,
+        mcd_log_msg(180009, PLAT_LOG_LEVEL_ERROR,
                      "failed to allocate free segments list" );
         return FLASH_ENOMEM;
     }
@@ -3688,6 +3820,11 @@ static int mcd_osd_slab_init()
                              1024 * 1048576 );                  // max_nobjs
 #endif
 
+	slab_gc_enabled = !strcmp(getProperty_String("FDF_SLAB_GC", "On"), "On");
+
+	plat_log_msg(180003, PLAT_LOG_CAT_PRINT_ARGS, PLAT_LOG_LEVEL_INFO,
+		"PROP: FDF_SLAB_GC=%s", slab_gc_enabled ? "On" : "Off");
+
     return 0;   /* SUCCESS */
 }
 
@@ -3713,14 +3850,12 @@ mcd_osd_slab_slot_alloc(mcd_osd_shard_t* shard, mcd_osd_segment_t* segment, int 
   return 1;
 }
 
-static inline
 void
 mcd_osd_segment_unlock(mcd_osd_segment_t* segment)
 {
     atomic_dec(segment->used);
 }
 
-static inline
 mcd_osd_segment_t*
 mcd_osd_segment_lock(mcd_osd_slab_class_t* class, mcd_osd_segment_t* segment)
 {
@@ -3743,7 +3878,17 @@ mcd_osd_segment_get_and_lock(mcd_osd_slab_class_t* class, int i)
     return segment ? mcd_osd_segment_lock(class, segment) : NULL;
 }
 
+uint64_t mcd_osd_get_free_segments_count(mcd_osd_shard_t* shard)
+{
+    uint64_t count = 0;
+    uint64_t total_blks = shard->total_blks;
+    uint64_t allocated = shard->blk_allocated;
 
+    if(total_blks > allocated)
+        count += (total_blks - allocated) / Mcd_osd_segment_blks;
+
+    return count + shard->free_segments_count;
+}
 
 static inline uint64_t
 mcd_fth_osd_allocate_segment( mcd_osd_shard_t * shard)
@@ -3761,15 +3906,38 @@ mcd_fth_osd_allocate_segment( mcd_osd_shard_t * shard)
     return blk_offset;
 }
 
+int mcd_osd_slab_segments_get_free_slot(mcd_osd_slab_class_t* class)
+{
+    uint32_t seg_idx = 0;
+
+    /*TODO: EF: Below search must be implemented as O(1) later. Today it can cause
+        traverse of 32K element per each segment deallocation */
+    while(seg_idx < class->num_segments && class->segments[seg_idx] != NULL)
+        seg_idx++;
+
+    return seg_idx;
+}
+
+int mcd_osd_slab_segments_free_slot(mcd_osd_slab_class_t* class, mcd_osd_segment_t *segment)
+{
+    if(class->segments[segment->idx] != segment)
+        return 0;
+
+    class->segments[segment->idx] = NULL;
+
+    return 1;
+}
+
 /*
  * try to allocate a new segment for this slab class
  */
 static inline int
-mcd_fth_osd_grow_class( mcd_osd_shard_t * shard, mcd_osd_slab_class_t * class )
+mcd_fth_osd_grow_class(void* context, mcd_osd_shard_t * shard, mcd_osd_slab_class_t * class )
 {
     uint64_t                    blk_offset;
     uint32_t                    cnt, seg_idx;
     mcd_osd_segment_t         * segment;
+    osd_state_t               * osd_state = (osd_state_t *)context;
     fthWaitEl_t               * wait = NULL;
 
     // serialize updates to persistent class segment tables
@@ -3794,6 +3962,18 @@ mcd_fth_osd_grow_class( mcd_osd_shard_t * shard, mcd_osd_slab_class_t * class )
     {
         atomic_sub(shard->blk_allocated, Mcd_osd_segment_blks);
 
+        if(!shard->free_segments_count && shard->gc)
+        {
+            /*EF: GC thread may require these lock */
+            fthUnlock( wait );
+            fthUnlock( osd_state->osd_wait );
+
+            slab_gc_signal(shard, NULL /* == sync */);
+
+            osd_state->osd_wait = fthLock( osd_state->osd_lock, 1, NULL );
+            wait = fthLock( &class->lock, 1, NULL );
+        }
+
         if(shard->free_segments_count)
             blk_offset = mcd_fth_osd_allocate_segment(shard);
     }
@@ -3813,11 +3993,7 @@ mcd_fth_osd_grow_class( mcd_osd_shard_t * shard, mcd_osd_slab_class_t * class )
         seg_idx = __sync_fetch_and_add( &class->num_segments, 1 );
     else
     {
-      /*TODO: EF: Below search must be implemented as O(1) later. Today it can cause
-        traverse of 32K element per each segment deallocation */
-      seg_idx = 0;
-      while(seg_idx < class->num_segments && class->segments[seg_idx] != NULL)
-          seg_idx++;
+      seg_idx = mcd_osd_slab_segments_get_free_slot(class);
 
       /* There should be always free slot, so as we allocated segment from free list 
          or end of the shard above */
@@ -3862,8 +4038,6 @@ mcd_osd_slab_evage_update( void * context, mcd_osd_shard_t * shard,
     int                         rc;
     char                      * buf;
     char                      * data_buf = NULL;
-    uint64_t                    tmp_offset;
-    uint64_t                    blk_offset;
     uint64_t                    offset;
     uint64_t                    ev_age;
     mcd_osd_meta_t            * meta;
@@ -3872,11 +4046,7 @@ mcd_osd_slab_evage_update( void * context, mcd_osd_shard_t * shard,
     buf = (char *)( ( (uint64_t)data_buf + Mcd_osd_blk_size - 1 )
                     & Mcd_osd_blk_mask );
 
-    blk_offset = hash_entry->address;
-
-    tmp_offset = shard->rand_table[blk_offset / Mcd_osd_rand_blksize]
-        + (blk_offset % Mcd_osd_rand_blksize);
-    offset = tmp_offset * Mcd_osd_blk_size;
+    offset = mcd_osd_rand_address(shard, hash_entry->address);
 
     rc = mcd_fth_aio_blk_read( context,
                                buf,
@@ -4053,7 +4223,10 @@ mcd_fth_osd_get_slab( void * context, mcd_osd_shard_t * shard,
             segment = mcd_osd_segment_get_and_lock(class, idx);
 
             if (!segment)
+            {
+                hand += slabs_per_pth - (hand % slabs_per_pth);
                 continue;
+            }
 
             map_offset = hand % slabs_per_pth + Mcd_pthread_id * slabs_per_pth;
 
@@ -4101,6 +4274,7 @@ mcd_fth_osd_get_slab( void * context, mcd_osd_shard_t * shard,
     }
 
     if ( 0 == shard->evict_to_free ) {
+        mcd_log_msg(180017, PLAT_LOG_LEVEL_DEBUG, "Couldn't allocate space for shard->id=%ld class=%p blocks=%d", shard->id, class, blocks);
         return FLASH_ENOSPC;
     }
 
@@ -4171,6 +4345,10 @@ mcd_fth_osd_get_slab( void * context, mcd_osd_shard_t * shard,
              */
             fthUnlock( osd_state->osd_wait );
         }
+
+        /*EF: looks like the following code doesn't take overflow area into account
+          If hash_index > shard->hash_size then lock index is greater than shard->lock_buckets */
+
         osd_state->osd_wait =
             fthLock( shard->bucket_locks +
                      hash_index / shard->lock_bktsize, 1, NULL );
@@ -4260,22 +4438,13 @@ mcd_fth_osd_get_slab( void * context, mcd_osd_shard_t * shard,
             log_write( shard, &log_rec );
         }
 
-        if ( 1 == shard->replicated ) {
-            (void) __sync_fetch_and_add( &class->dealloc_pending, 1 );
-            (void) __sync_fetch_and_add( &shard->blk_dealloc_pending,
-                                         class->slab_blksize );
-        }
+		if(shard->replicated)
+	        mcd_fth_osd_remove_entry(shard, hash_entry, true, false);
 
         evictions = __sync_fetch_and_add( &shard->num_slab_evictions, 1 );
         if ( 0 == evictions % MCD_OSD_EVAGE_FEQUENCY ) {
             mcd_osd_slab_evage_update( context, shard, hash_entry, evictions );
         }
-
-        /*
-         * simple eviction, no update to bitmap and freelist needed
-         */
-        (void) __sync_fetch_and_sub( &shard->blk_consumed,
-                                     mcd_osd_lba_to_blk(hash_entry->blocks) );
 
         if ( 0 == bucket->next_item ) {
             plat_assert_always( 0 == 1 );
@@ -4341,13 +4510,14 @@ mcd_fth_osd_slab_alloc_low(mcd_osd_shard_t * shard, mcd_osd_segment_t* segment,
 /*
  * try to allocate a slab for the object
  */
-static inline int
+int
 mcd_fth_osd_slab_alloc( void * context, mcd_osd_shard_t * shard, int blocks,
                         uint64_t * blk_offset )
 {
     int                         i, idx, count;
     mcd_osd_segment_t         * segment;
     mcd_osd_slab_class_t* class = shard->slab_classes + shard->class_table[blocks];
+    osd_state_t               * osd_state = (osd_state_t *)context;
 
     if(mcd_fth_osd_get_free_slab(shard, class, blk_offset))
         return 0;
@@ -4395,140 +4565,13 @@ mcd_fth_osd_slab_alloc( void * context, mcd_osd_shard_t * shard, int blocks,
                                             blk_offset ) ) 
                 return 0;   /* SUCCESS */
 
-        if (mcd_fth_osd_grow_class( shard, class ) == -1)
+        /*EF: prevent call to grow_class from GC thread, which doesn't set osd_wait */
+        if (!osd_state->osd_wait || mcd_fth_osd_grow_class(context, shard, class) == -1)
             return mcd_fth_osd_get_slab( context, shard, class, blocks,
                                          blk_offset );
     } while ( 1 );
 
     plat_assert(0);
-}
-
-static inline uint64_t
-mcd_fth_osd_shrink_class(mcd_osd_shard_t * shard, mcd_osd_segment_t *segment)
-{
-    int rc = 0;
-    mcd_osd_slab_class_t* class;
-    fthWaitEl_t *wait = NULL;
-
-    do {
-       if(wait) fthUnlock(wait);
-
-       class = segment->class;
-
-       wait = fthLock( &class->lock, 1, NULL );
-
-    } while(segment->class != class);
-
-    class->segments[segment->idx] = NULL;
-
-    __sync_synchronize(); /* Prevent reordering of above and below lines */
-
-    while(segment->used); /* Wait while all user threads finish usage of this segment */
-
-    if(!segment->used_slabs)
-        rc = mcd_fth_osd_free_segment(shard, segment, 1 /* TRUE */);
-    else
-        class->segments[segment->idx] = segment;
-
-    fthUnlock( wait );
-
-    return rc;
-}
-
-/*
- * remove an entry from the hash table, free up its slab and update
- * the bitmap as well as the free list
- */
-static inline int
-mcd_fth_osd_remove_entry( mcd_osd_shard_t * shard,
-                          mcd_osd_hash_t * hash_entry )
-{
-    int                 map_offset;
-    int                 free_slab_curr;
-    mcd_osd_segment_t * segment;
-
-    mcd_log_msg( 20000, PLAT_LOG_LEVEL_DEBUG, "ENTERING" );
-
-    if ( 0 == hash_entry->used || 0 == hash_entry->blocks ) {
-        plat_assert_always( 0 == 1 );
-    }
-
-    segment =
-        shard->segment_table[hash_entry->address / Mcd_osd_segment_blks];
-
-    map_offset = hash_entry->address - segment->blk_offset;
-    map_offset /= segment->class->slab_blksize;
-
-    (void) __sync_fetch_and_and( &segment->bitmap[map_offset / 64],
-                                 ~Mcd_osd_bitmap_masks[map_offset % 64] );
-
-    free_slab_curr = segment->class->free_slab_curr[Mcd_pthread_id];
-    if ( free_slab_curr < segment->class->freelist_len ) {
-        segment->class->free_slabs[Mcd_pthread_id][free_slab_curr] =
-            hash_entry->address;
-        segment->class->free_slab_curr[Mcd_pthread_id]++;
-    }
-
-    atomic_dec(segment->class->used_slabs);
-    atomic_dec(segment->used_slabs);
-    atomic_sub(shard->blk_consumed, mcd_osd_lba_to_blk(hash_entry->blocks));
-
-    if(!segment->used_slabs)
-        mcd_fth_osd_shrink_class(shard, segment);
-
-    mcd_log_msg( 20364, MCD_OSD_LOG_LVL_DEBUG,
-                 "cls=%ld addr=%u off=%d map=%.16lx curr=%d slabs=%lu tid=%d",
-                 segment->class - shard->slab_classes,
-                 hash_entry->address,
-                 map_offset,
-                 segment->bitmap[map_offset / 64],
-                 segment->class->free_slab_curr[Mcd_pthread_id],
-                 segment->class->used_slabs,
-                 Mcd_pthread_id );
-
-    *((uint64_t *)hash_entry) = 0;
-
-    return 0;   /* SUCCESS */
-}
-
-/*
- * Free slab for deallocated blocks, update bitmap. Called only when
- * object is overwritten in store mode to free space for old object.
- */
-void
-mcd_fth_osd_slab_dealloc( mcd_osd_shard_t * shard, uint32_t address )
-{
-    int                 map_offset;
-    mcd_osd_segment_t * segment;
-
-    mcd_log_msg( 20000, PLAT_LOG_LEVEL_DEBUG, "ENTERING" );
-
-    segment = shard->segment_table[address / Mcd_osd_segment_blks];
-
-    map_offset = address - segment->blk_offset;
-    map_offset /= segment->class->slab_blksize;
-
-    (void) __sync_fetch_and_and( &segment->bitmap[map_offset / 64],
-                                 ~Mcd_osd_bitmap_masks[map_offset % 64] );
-
-    atomic_dec(segment->class->used_slabs);
-    atomic_dec(segment->used_slabs);
-    atomic_dec(segment->class->dealloc_pending);
-    atomic_sub(shard->blk_dealloc_pending, segment->class->slab_blksize);
-
-    if(!segment->used_slabs)
-        mcd_fth_osd_shrink_class(shard, segment);
-
-    mcd_log_msg( 20365, MCD_OSD_LOG_LVL_DEBUG,
-                 "cls=%ld addr=%u off=%d map=%.16lx slabs=%lu, pend=%lu",
-                 segment->class - shard->slab_classes,
-                 address,
-                 map_offset,
-                 segment->bitmap[map_offset / 64],
-                 segment->class->used_slabs,
-                 segment->class->dealloc_pending );
-
-    return;
 }
 
 
@@ -4567,7 +4610,6 @@ mcd_fth_osd_slab_set( void * context, mcd_osd_shard_t * shard, char * key,
     char                      * data_buf = NULL;
     uint32_t                    chksum32 = 0;
     uint64_t                    chksum64 = 0;
-    uint64_t                    tmp_offset;
     uint64_t                    blk_offset;
     uint64_t                    offset;
     uint64_t                    target_seqno = 0;
@@ -4578,7 +4620,6 @@ mcd_fth_osd_slab_set( void * context, mcd_osd_shard_t * shard, char * key,
     mcd_osd_hash_t            * hash_entry;
     mcd_osd_hash_t            * bucket_head;
     mcd_osd_bucket_t          * bucket;
-    mcd_osd_slab_class_t      * class;
     mcd_logrec_object_t         log_rec;
     int64_t                     plus_objs = 0;
     int64_t                     plus_blks = 0;
@@ -4699,9 +4740,7 @@ mcd_fth_osd_slab_set( void * context, mcd_osd_shard_t * shard, char * key,
              */
             blk_offset = hash_entry->address;
 
-            tmp_offset = shard->rand_table[blk_offset / Mcd_osd_rand_blksize]
-                + (blk_offset % Mcd_osd_rand_blksize);
-            offset = tmp_offset * Mcd_osd_blk_size;
+            offset = mcd_osd_rand_address(shard, blk_offset);
 
             rc = mcd_fth_aio_blk_read( context,
                                        buf,
@@ -4799,20 +4838,9 @@ mcd_fth_osd_slab_set( void * context, mcd_osd_shard_t * shard, char * key,
                     log_write( shard, &log_rec );
                 }
 
-                if ( 1 == shard->replicated ||
-                     (1 == shard->persistent && 0 == shard->evict_to_free) ) {
-                    class = shard->slab_classes + shard->class_table
-                        [mcd_osd_lba_to_blk(hash_entry->blocks)];
-                    (void) __sync_fetch_and_add( &class->dealloc_pending, 1 );
-                    (void) __sync_fetch_and_add( &shard->blk_dealloc_pending,
-                                                 class->slab_blksize );
-                    (void) __sync_fetch_and_sub(
-                        &shard->blk_consumed,
-                        mcd_osd_lba_to_blk(hash_entry->blocks) );
-                    *((uint64_t *)hash_entry) = 0;
-                } else {
-                    mcd_fth_osd_remove_entry( shard, hash_entry );
-                }
+                bool delayed = 1 == shard->replicated || (1 == shard->persistent && 0 == shard->evict_to_free);
+
+                mcd_fth_osd_remove_entry(shard, hash_entry, delayed, true);
 #else
 				mcd_fth_osd_slab_fast_delete( shard, hash_entry, meta_data->sequence );
 #endif /* FAST_DELETE */
@@ -4824,6 +4852,7 @@ mcd_fth_osd_slab_set( void * context, mcd_osd_shard_t * shard, char * key,
                     if ( bucket_head + bucket->next_item - 1 != hash_entry ) {
                         *hash_entry = bucket_head[--bucket->next_item];
                         *((uint64_t *)&bucket_head[bucket->next_item]) = 0;
+						shard->addr_table[hash_entry->address] = hash_entry - shard->hash_table;
                     }
                     else {
                         bucket->next_item--;
@@ -4854,6 +4883,7 @@ mcd_fth_osd_slab_set( void * context, mcd_osd_shard_t * shard, char * key,
                                 continue;
                             }
                             bucket_head[bucket->next_item++] = *hash_entry;
+                            shard->addr_table[hash_entry->address] = bucket_head - shard->hash_table + bucket->next_item - 1;
                             *((uint64_t *)hash_entry) = 0;
                             break;
                         }
@@ -4941,19 +4971,7 @@ mcd_fth_osd_slab_set( void * context, mcd_osd_shard_t * shard, char * key,
                 log_write( shard, &log_rec );
             }
 
-            if ( 1 == shard->replicated ) {
-                class = shard->slab_classes +
-                    shard->class_table[mcd_osd_lba_to_blk(hash_entry->blocks)];
-                (void) __sync_fetch_and_add( &class->dealloc_pending, 1 );
-                (void) __sync_fetch_and_add( &shard->blk_dealloc_pending,
-                                             class->slab_blksize );
-                (void) __sync_fetch_and_sub(
-                    &shard->blk_consumed,
-                    mcd_osd_lba_to_blk(hash_entry->blocks) );
-                *((uint64_t *)hash_entry) = 0;
-            } else {
-                mcd_fth_osd_remove_entry( shard, hash_entry );
-            }
+            mcd_fth_osd_remove_entry(shard, hash_entry, shard->replicated, true);
 
             if ( 0 == bucket->next_item ) {
                 plat_assert_always( 0 == 1 );
@@ -5033,9 +5051,7 @@ mcd_fth_osd_slab_set( void * context, mcd_osd_shard_t * shard, char * key,
     meta->blk1_chksum = chksum32;
     meta->checksum    = chksum64;
 
-    tmp_offset = shard->rand_table[blk_offset / Mcd_osd_rand_blksize]
-        + ( blk_offset % Mcd_osd_rand_blksize );
-    offset = tmp_offset * Mcd_osd_blk_size;
+    offset = mcd_osd_rand_address(shard, blk_offset);
 
 #ifndef MCD_ENABLE_SLAB_CACHE_NOSSD
     /*
@@ -5147,15 +5163,7 @@ mcd_fth_osd_slab_set( void * context, mcd_osd_shard_t * shard, char * key,
                 log_write( shard, &log_rec );
             }
 
-            class = shard->slab_classes +
-                shard->class_table[mcd_osd_lba_to_blk(hash_entry->blocks)];
-            (void) __sync_fetch_and_add( &class->dealloc_pending, 1 );
-            (void) __sync_fetch_and_add( &shard->blk_dealloc_pending,
-                                         class->slab_blksize );
-            (void) __sync_fetch_and_sub(
-                &shard->blk_consumed,
-                mcd_osd_lba_to_blk(hash_entry->blocks) );
-            *((uint64_t *)hash_entry) = 0;
+            mcd_fth_osd_remove_entry(shard, hash_entry, true, true);
 
             if ( 0 == bucket->next_item ) {
                 plat_assert_always( 0 == 1 );
@@ -5188,27 +5196,7 @@ mcd_fth_osd_slab_set( void * context, mcd_osd_shard_t * shard, char * key,
          * Here we won't write a log record or remove the hash entry;
          * instead we write a special log record at create time
          */
-        if ( 1 == shard->persistent ) {
-            class = shard->slab_classes +
-                shard->class_table[mcd_osd_lba_to_blk(hash_entry->blocks)];
-            uint64_t slabs = __sync_fetch_and_add( &class->dealloc_pending,
-                                                   1 );
-            uint64_t blks  = __sync_fetch_and_add( &shard->blk_dealloc_pending,
-                                                   class->slab_blksize );
-            (void) __sync_fetch_and_sub(
-                &shard->blk_consumed,
-                mcd_osd_lba_to_blk(hash_entry->blocks) );
-
-            // insert a clever algorithm here to determine if too
-            // much space is pending deallocation
-            if ( (double)blks / shard->blk_allocated > 0.15 ||
-                 ( (double)class->used_slabs / class->total_slabs > 0.40 &&
-                   (double)slabs / class->used_slabs > 0.50 ) ) {
-                log_sync( shard );
-            }
-        } else {
-            mcd_fth_osd_remove_entry( shard, hash_entry );
-        }
+        mcd_fth_osd_remove_entry(shard, hash_entry, shard->persistent, false);
 
         (void) __sync_fetch_and_add( &shard->num_overwrites, 1 );
     }
@@ -5248,7 +5236,7 @@ mcd_fth_osd_slab_set( void * context, mcd_osd_shard_t * shard, char * key,
                      */
                     (void) __sync_fetch_and_add( &shard->blk_consumed,
                                                  new_entry.blocks );
-                    mcd_fth_osd_remove_entry( shard, &new_entry );
+                    mcd_fth_osd_remove_entry( shard, &new_entry, false, true);
                     (void)__sync_fetch_and_add(&shard->num_hard_overflows, 1);
                     rc = FLASH_ENOSPC;
                     goto out;
@@ -5269,7 +5257,7 @@ mcd_fth_osd_slab_set( void * context, mcd_osd_shard_t * shard, char * key,
                     if ( ( 2 * Mcd_osd_bucket_size ) < n ) {
                         (void) __sync_fetch_and_add( &shard->blk_consumed,
                                                      blocks );
-                        mcd_fth_osd_remove_entry( shard, &new_entry );
+                        mcd_fth_osd_remove_entry(shard, &new_entry, false, true);
                         rc = FLASH_ENOSPC;
                         goto out;
                     }
@@ -5297,19 +5285,7 @@ mcd_fth_osd_slab_set( void * context, mcd_osd_shard_t * shard, char * key,
                     log_write( shard, &log_rec );
                 }
 
-                if ( 1 == shard->replicated ) {
-                    class = shard->slab_classes + shard->class_table
-                        [mcd_osd_lba_to_blk(hash_entry->blocks)];
-                    (void) __sync_fetch_and_add( &class->dealloc_pending, 1 );
-                    (void) __sync_fetch_and_add( &shard->blk_dealloc_pending,
-                                                 class->slab_blksize );
-                    (void) __sync_fetch_and_sub(
-                        &shard->blk_consumed,
-                        mcd_osd_lba_to_blk(hash_entry->blocks) );
-                    *((uint64_t *)hash_entry) = 0;
-                } else {
-                    mcd_fth_osd_remove_entry( shard, hash_entry );
-                }
+                mcd_fth_osd_remove_entry(shard, hash_entry, shard->replicated, true);
 
                 (void) __sync_fetch_and_add( &shard->num_hash_evictions, 1 );
             }
@@ -5347,6 +5323,8 @@ mcd_fth_osd_slab_set( void * context, mcd_osd_shard_t * shard, char * key,
 
     *hash_entry = new_entry;
     shard->addr_table[blk_offset] = hash_entry - shard->hash_table;
+	//fprintf(stderr, "blk_offset %ld addr_table %d %p he->address %d\n", blk_offset, shard->addr_table[blk_offset], hash_entry, hash_entry->address);
+
     (void) __sync_fetch_and_add( &shard->blk_consumed,
                                  mcd_osd_lba_to_blk( new_entry.blocks ) );
     meta_data->blockaddr = new_entry.address;
@@ -5376,7 +5354,6 @@ mcd_fth_osd_slab_get( void * context, mcd_osd_shard_t * shard, char *key,
     int                         i, rc;
     char                      * buf;
     char                      * data_buf;
-    uint64_t                    tmp_offset;
     uint64_t                    blk_offset;
     uint64_t                    offset;
     int                         nbytes;
@@ -5445,9 +5422,7 @@ mcd_fth_osd_slab_get( void * context, mcd_osd_shard_t * shard, char *key,
 
         blk_offset = hash_entry->address;
 
-        tmp_offset = shard->rand_table[blk_offset / Mcd_osd_rand_blksize]
-            + (blk_offset % Mcd_osd_rand_blksize);
-        offset = tmp_offset * Mcd_osd_blk_size;
+        offset = mcd_osd_rand_address(shard, blk_offset);
 
     override_retry:
         if ( NULL == ppdata ) {
@@ -5629,16 +5604,9 @@ mcd_fth_osd_slab_fast_delete( mcd_osd_shard_t * shard,
         log_write( shard, &log_rec );
     }
 
-    if ( 1 == shard->replicated || (1 == shard->persistent && 0 == shard->evict_to_free) ) {
-        class = shard->slab_classes + shard->class_table[mcd_osd_lba_to_blk(hash_entry->blocks)];
-        (void) __sync_fetch_and_add( &class->dealloc_pending, 1 );
-        (void) __sync_fetch_and_add( &shard->blk_dealloc_pending, class->slab_blksize );
-        (void) __sync_fetch_and_sub( &shard->blk_consumed, mcd_osd_lba_to_blk(hash_entry->blocks) );
-        *((uint64_t *)hash_entry) = 0;
-    } else {
-        // Eviction mode container
-        mcd_fth_osd_remove_entry( shard, hash_entry );
-    }
+    bool delayed = 1 == shard->replicated || (1 == shard->persistent && 0 == shard->evict_to_free);
+
+    mcd_fth_osd_remove_entry(shard, hash_entry, delayed, true);
 
     return rc;
 }
@@ -5807,6 +5775,10 @@ uint64_t mcd_osd_shard_get_stats( struct shard * shard, int stat_key )
 
     case FLASH_TSC_TICKS_PER_MICROSECOND:
         stat = fthGetTscTicksPerMicro();
+        break;
+
+    case FLASH_NUM_FREE_SEGS:
+        stat = mcd_shard->free_segments_count;
         break;
 
     default:
@@ -6441,7 +6413,7 @@ mcd_osd_shard_open( struct flashDev * dev, uint64_t shard_id )
         }
         rc = mcd_osd_slab_shard_init_free_segments( mcd_shard );
         if ( 0 != rc ) {
-            mcd_log_msg( 160050, PLAT_LOG_LEVEL_ERROR,
+            mcd_log_msg( 180004, PLAT_LOG_LEVEL_ERROR,
                      "shard free segments list init failed, shardID=%lu", shard_id );
             if ( 1 == mcd_shard->persistent ) {
                 shard_unrecover( mcd_shard );
@@ -6464,6 +6436,9 @@ mcd_osd_shard_open( struct flashDev * dev, uint64_t shard_id )
         mcd_osd_shard_uninit( mcd_shard );
         return NULL;
     }
+
+    if(slab_gc_enabled)
+        slab_gc_init(mcd_shard, getProperty_Int("FDF_SLAB_GC_THRESHOLD", 70 /* % */));
 
     mcd_shard->open = 1;
 
@@ -6512,18 +6487,22 @@ static void mcd_osd_shard_open_phase2( struct shard * shard, mcd_container_t * c
 }
 
 void
-mcd_osd_shard_close( struct shard * shard )
+mcd_osd_shard_close( struct shard * _shard )
 {
+	mcd_osd_shard_t *shard = (mcd_osd_shard_t*)_shard;
     mcd_log_msg( 20065, PLAT_LOG_LEVEL_DEBUG, "ENTERING, shardID=%lu",
-                 shard->shardID );
+                 ((struct shard*)shard)->shardID );
 
-	((mcd_osd_shard_t*)shard)->open = 0;
+	if(shard->gc)
+		slab_gc_end(shard);
 
-	flog_close(shard);
+	shard->open = 0;
 
-	if ( ((mcd_osd_shard_t*)shard)->persistent ) {
+	flog_close((struct shard*)shard);
+
+	if ( shard->persistent ) {
    	    // kill log writer, free all persistence data structures
-		shard_unrecover( (mcd_osd_shard_t*)shard );
+		shard_unrecover(shard);
     }
 }
 
@@ -7842,7 +7821,6 @@ mcd_osd_read_bad_segment( osd_state_t * ctxt, mcd_osd_shard_t * shard,
     int                         i, rc;
     int                         count = 0;
     uint64_t                    blk_offset;
-    uint64_t                    tmp_offset;
     uint64_t                    offset;
 
     /*
@@ -7864,9 +7842,7 @@ mcd_osd_read_bad_segment( osd_state_t * ctxt, mcd_osd_shard_t * shard,
     for ( i = num_blks - blks; i >= 0; i -= blks ) {
 
         blk_offset = seg_offset + i;
-        tmp_offset = shard->rand_table[blk_offset / Mcd_osd_rand_blksize]
-            + (blk_offset % Mcd_osd_rand_blksize);
-        offset = tmp_offset * Mcd_osd_blk_size;
+        offset = mcd_osd_rand_address(shard, blk_offset);
 
         rc = mcd_fth_aio_blk_read( (void *)ctxt,
                                    buf + (i * Mcd_osd_blk_size),
@@ -8035,9 +8011,7 @@ repeat:
         else {
             mcd_bak_msg( 20418, MCD_OSD_LOG_LVL_INFO,
                          "reading raw segment, blk_offset=%lu", blk_offset );
-            tmp_offset = shard->rand_table[blk_offset / Mcd_osd_rand_blksize]
-                + (blk_offset % Mcd_osd_rand_blksize);
-            offset = tmp_offset * Mcd_osd_blk_size;
+            offset = mcd_osd_rand_address(shard, blk_offset);
 
             rc = mcd_fth_aio_blk_read( (void *) osd_state,
                                        Raw_rbuf->buf,
@@ -8316,9 +8290,9 @@ mcd_osd_delete_expired( osd_state_t *osd_state, mcd_osd_shard_t * shard )
     uint64_t                    next_addr = shard->slab.ad_next_addr;
     int                         map_offset;
     int                         old_offset;
-    uint64_t                    tmp_offset;
     uint64_t                    map_value;
     uint64_t                    blk_offset;
+    uint64_t                    tmp_offset;
     uint64_t                    offset;
     uint64_t                    temp;
     uint64_t                    syndrome;
@@ -8390,9 +8364,7 @@ mcd_osd_delete_expired( osd_state_t *osd_state, mcd_osd_shard_t * shard )
     if ( Raw_rbuf->blk_offset > next_addr ||
          next_addr >= Raw_rbuf->blk_offset + Mcd_osd_segment_blks ) {
 
-        tmp_offset = shard->rand_table[blk_offset / Mcd_osd_rand_blksize]
-            + (blk_offset % Mcd_osd_rand_blksize);
-        offset = tmp_offset * Mcd_osd_blk_size;
+        offset = mcd_osd_rand_address(shard, blk_offset);
 
         nbytes = Mcd_osd_segment_size;
         rc = mcd_fth_aio_blk_read( (void *)osd_state,
@@ -8804,7 +8776,7 @@ mcd_osd_lba_to_blk_x(uint32_t blocks) {
     return mcd_osd_lba_to_blk(blocks);
 }
 
-
+#if 0
 /*
  * Exportable version of mcd_fth_osd_grow_class.
  */
@@ -8813,6 +8785,7 @@ mcd_fth_osd_grow_class_x(mcd_osd_shard_t *shard, mcd_osd_slab_class_t *class)
 {
     return mcd_fth_osd_grow_class(shard, class) == -1;
 }
+#endif
 
 /************************************************************************
  *                                                                      *
