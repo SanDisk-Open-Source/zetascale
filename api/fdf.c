@@ -1315,6 +1315,7 @@ FDF_status_t FDFInit(
         fdf_start_admin_thread(*fdf_state );
     }
     if ( getProperty_Int( "ASYNC_DELETE_CONTAINERS",1) == 1 ) {
+        time((time_t *)&delete_prefix);
         init_async_cmd_handler(getProperty_Int("ASYNC_DELETE_CONTAINERS_THREADS",5),*fdf_state);
     }
 
@@ -3379,9 +3380,6 @@ fdf_write_object(
     }
 
     ActionProtocolAgentNew(pac, &ar);
-    if( ar.respStatus != SDF_SUCCESS ) {
-         fprintf(stderr,"Write failed: cguid:%lu key:%s\n",cguid,key);
-    }
 
     return ar.respStatus;
 }
