@@ -94,8 +94,6 @@ typedef struct {
 /*
  * Static variables.
  */
-static int Sync_data;
-
 
 /*
  * turns out plat_alloc allocates outside of guma for requests above
@@ -2622,12 +2620,11 @@ flog_prepare(mcd_osd_shard_t *shard)
              log_flush_dir, FLUSH_LOG_PREFIX, shard->id);
     mcd_log_msg(70080, PLAT_LOG_LEVEL_INFO, "Flushing logs to %s", path);
 
-    Sync_data = getProperty_Int("SYNC_DATA", SYNC_DATA);
     int flags = O_CREAT|O_TRUNC|O_WRONLY;
-    if (Sync_data) {
+    if(getProperty_Int("FDF_LOG_O_DIRECT", 0)) {
         flags |= O_DIRECT;
-        mcd_log_msg(70102, PLAT_LOG_LEVEL_INFO,
-                    "Syncing logs (SYNC_DATA set)");
+        mcd_log_msg(180004, PLAT_LOG_LEVEL_INFO,
+                    "FDF_LOG_O_DIRECT is set");
     }
 
     int fd = open(path, flags, FLUSH_LOG_FILE_MODE);
@@ -6308,7 +6305,8 @@ static void
 flog_persist(mcd_osd_shard_t *shard,
             uint64_t slot_seqno,
             uint64_t lsn,
-            mcd_logrec_object_t *logrec_obj)
+            mcd_logrec_object_t *logrec_obj,
+            bool sync)
 {
     char buf[FLUSH_LOG_SEC_SIZE+FLUSH_LOG_SEC_ALIGN-1];
     char       *sector = align(buf, FLUSH_LOG_SEC_ALIGN);
@@ -6344,7 +6342,8 @@ flog_persist(mcd_osd_shard_t *shard,
                     " log flush write failed seek=%ld errno=%d size=%ld",
                     flush_seek, errno, size);
     }
-    if (Sync_data)
+
+    if (sync)
         fdatasync(shard->flush_fd);
 }
 
@@ -6420,14 +6419,18 @@ log_write_internal( mcd_osd_shard_t *s, mcd_logrec_object_t *lr)
 
 	logbuf->entries[buf_offset] = *lr;
 	uint rec_filled = __sync_add_and_fetch( &logbuf->fill_count, 1);
-	if (s->flush_fd > 0)
-		flog_persist( s, slot_seqno, log->curr_LSN, lr);
 	if (rec_filled == MCD_REC_LOGBUF_RECS)
 		fthSemUp( logbuf->write_sem, 1);
 	rep_logbuf_seqno_update( (struct shard *)s, nth_buffer, lr->seqno);
-        if (s->durability_level == SDF_FULL_DURABILITY)
-		log_sync_internal( s);
 	(void)__sync_fetch_and_sub( &s->refcount, 1);
+
+	if(s->durability_level == SDF_NO_DURABILITY)
+		return;
+
+	if (s->flush_fd > 0)
+		flog_persist( s, slot_seqno, log->curr_LSN, lr, s->durability_level == SDF_FULL_DURABILITY);
+	else if (s->durability_level == SDF_FULL_DURABILITY)
+		log_sync_internal( s);
 }
 
 void

@@ -3235,3 +3235,5 @@
 180001 Flush log sync: cannot unlink sync log file %s error=%d
 180002 pwrite failed!(%s)
 180003 Couldn't create flush log directory %s: %s
+180004 FDF_LOG_O_DIRECT is set
+180005 FDF_O_SYNC is set

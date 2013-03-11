@@ -1235,10 +1235,10 @@ int mcd_aio_init( void * state, char * dname )
         open_flags |= O_CREAT;
     }
 
-    if (getProperty_Int("SYNC_DATA", SYNC_DATA)) {
+    if (getProperty_Int("FDF_O_SYNC", 0)) {
         open_flags |= O_SYNC;
-        mcd_log_msg(70078, PLAT_LOG_LEVEL_INFO,
-                    "Syncing data (SYNC_DATA set)");
+        mcd_log_msg(180005, PLAT_LOG_LEVEL_INFO,
+                    "FDF_O_SYNC is set");
     }
 
     for ( int i = 0; i < Mcd_aio_num_files; i++ ) {
