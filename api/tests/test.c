@@ -1,5 +1,5 @@
 #include <assert.h>
-#include "api/fdf.h"
+#include "fdf.h"
 
 static struct FDF_state* fdf_state;
 static __thread struct FDF_thread_state *_fdf_thd_state;

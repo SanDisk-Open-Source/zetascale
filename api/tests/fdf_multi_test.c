@@ -3,7 +3,7 @@
 #include <unistd.h>
 #include <pthread.h>
 #include <string.h>
-#include "api/fdf.h"
+#include "fdf.h"
 #include "test.h"
 
 static char *base = "container";
