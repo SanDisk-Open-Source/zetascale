@@ -301,7 +301,7 @@ container_meta_blob_put( uint64_t shard_id, char * data, int len )
     blob->checksum    = 0;
 
     memcpy( blob->data, data, len );
-    blob->checksum    = hashk((unsigned char *)blob, Mcd_osd_blk_size, 0);
+    blob->checksum    = hashb((unsigned char *)blob, Mcd_osd_blk_size, 0);
 
     // "global" blob
     if ( shard_id == 0 ) {
@@ -371,7 +371,7 @@ read_blob( void * context, uint64_t blk_offset, char * buf )
     blob           = (mcd_rec_blob_t *)buf;
     checksum       = blob->checksum;
     blob->checksum = 0;
-    blob->checksum = hashk((unsigned char *)buf, Mcd_osd_blk_size, 0);
+    blob->checksum = hashb((unsigned char *)buf, Mcd_osd_blk_size, 0);
 
     if ( checksum != blob->checksum ||
          blob->eye_catcher != MCD_REC_BLOB_EYE_CATCHER ||
@@ -1203,7 +1203,7 @@ recovery_init( void )
         fd           = (mcd_rec_flash_t *)source[ ssd ];
         checksum     = fd->checksum;
         fd->checksum = 0;
-        fd->checksum = hashk((unsigned char *)fd,
+        fd->checksum = hashb((unsigned char *)fd,
                              blk_count * Mcd_osd_blk_size,
                              MCD_REC_FLASH_EYE_CATCHER);
         if ( fd->checksum != checksum ) {
@@ -1256,7 +1256,7 @@ recovery_init( void )
         fd->write_version++;
         fd->version  = MCD_REC_FLASH_VERSION;
         fd->checksum = 0;
-        fd->checksum = hashk((unsigned char *)fd,
+        fd->checksum = hashb((unsigned char *)fd,
                              Mcd_osd_blk_size,
                              MCD_REC_FLASH_EYE_CATCHER);
         mcd_log_msg( 40009, PLAT_LOG_LEVEL_INFO,
@@ -1285,7 +1285,7 @@ recovery_init( void )
         fd->write_version++;
         fd->max_shards = MCD_OSD_MAX_NUM_SHARDS;
         fd->checksum   = 0;
-        fd->checksum   = hashk((unsigned char *)fd,
+        fd->checksum   = hashb((unsigned char *)fd,
                                Mcd_osd_blk_size,
                                MCD_REC_FLASH_EYE_CATCHER);
 
@@ -1367,7 +1367,7 @@ recovery_init( void )
             // verify checksum on each property descriptor
             checksum       = prop->checksum;
             prop->checksum = 0;
-            prop->checksum = hashk((unsigned char *)prop,
+            prop->checksum = hashb((unsigned char *)prop,
                                    Mcd_osd_blk_size,
                                    MCD_REC_PROP_EYE_CATCHER);
             if ( prop->checksum != checksum ) {
@@ -1448,7 +1448,7 @@ recovery_init( void )
                 // install new version of props
                 prop->write_version++;
                 prop->checksum = 0;
-                prop->checksum = hashk((unsigned char *)prop,
+                prop->checksum = hashb((unsigned char *)prop,
                                        blk_count * Mcd_osd_blk_size,
                                        MCD_REC_PROP_EYE_CATCHER);
                 mcd_log_msg( 160013, PLAT_LOG_LEVEL_INFO,
@@ -1503,7 +1503,7 @@ recovery_init( void )
         // verify shard descriptor checksum
         checksum         = pshard->checksum;
         pshard->checksum = 0;
-        pshard->checksum = hashk((unsigned char *)pshard,
+        pshard->checksum = hashb((unsigned char *)pshard,
                                  Mcd_osd_blk_size,
                                  MCD_REC_SHARD_EYE_CATCHER);
         if ( pshard->checksum != checksum ||
@@ -1597,7 +1597,7 @@ recovery_init( void )
             // verify class segment block checksum
             checksum           = seg_list->checksum;
             seg_list->checksum = 0;
-            seg_list->checksum = hashk((unsigned char *)seg_list,
+            seg_list->checksum = hashb((unsigned char *)seg_list,
                                        Mcd_osd_blk_size, 0);
             if ( seg_list->checksum != checksum ) {
                 mcd_log_msg( 20464, PLAT_LOG_LEVEL_FATAL,
@@ -1863,7 +1863,7 @@ recovery_reclaim_space( void )
                              prop->cname, prop->tcp_port, prop->container_id );
                 prop->persistent = 1;
                 prop->checksum = 0;
-                prop->checksum = hashk((unsigned char *)prop,
+                prop->checksum = hashb((unsigned char *)prop,
                                        Mcd_osd_blk_size,
                                        MCD_REC_PROP_EYE_CATCHER);
                 rc = write_property( slot );
@@ -2043,7 +2043,7 @@ update_class( mcd_osd_shard_t * shard, mcd_osd_slab_class_t * class,
     // verify class descriptor checksum
     checksum         = pclass->checksum;
     pclass->checksum = 0;
-    pclass->checksum = hashk((unsigned char *)pclass,
+    pclass->checksum = hashb((unsigned char *)pclass,
                              Mcd_osd_blk_size, MCD_REC_CLASS_EYE_CATCHER);
     if ( pclass->checksum != checksum ||
          pclass->eye_catcher != MCD_REC_CLASS_EYE_CATCHER ||
@@ -2068,7 +2068,7 @@ update_class( mcd_osd_shard_t * shard, mcd_osd_slab_class_t * class,
         // check the checksum
         checksum           = seg_list->checksum;
         seg_list->checksum = 0;
-        seg_list->checksum = hashk((unsigned char *)seg_list,
+        seg_list->checksum = hashb((unsigned char *)seg_list,
                                    Mcd_osd_blk_size, 0);
         if ( seg_list->checksum != checksum ) {
             mcd_log_msg( 20472, PLAT_LOG_LEVEL_FATAL,
@@ -2100,7 +2100,7 @@ update_class( mcd_osd_shard_t * shard, mcd_osd_slab_class_t * class,
 
     // install new checksum
     seg_list->checksum = 0;
-    seg_list->checksum = hashk((unsigned char *)seg_list, Mcd_osd_blk_size, 0);
+    seg_list->checksum = hashb((unsigned char *)seg_list, Mcd_osd_blk_size, 0);
 
     offset = pclass_offset + pclass->seg_list_offset + seg_blk_offset;
 
@@ -2461,7 +2461,7 @@ fbio_flush(flog_bio_t *fbio)
     hdr->version     = MCD_REC_LOGHDR_VERSION;
     hdr->LSN         = fbio->lsn;
     hdr->checksum    = 0;
-    hdr->checksum    = hashk(fbio->abuf, Mcd_osd_blk_size, hdr->LSN);
+    hdr->checksum    = hashb(fbio->abuf, Mcd_osd_blk_size, hdr->LSN);
 
     int s = mcd_fth_aio_blk_write(fbio->context, (char *)fbio->abuf,
                                   fbio->blkno * MCD_OSD_BLK_SIZE,
@@ -2790,7 +2790,7 @@ shard_recover( mcd_osd_shard_t * shard )
         // verify class descriptor checksum
         checksum         = pclass->checksum;
         pclass->checksum = 0;
-        pclass->checksum = hashk((unsigned char *)pclass,
+        pclass->checksum = hashb((unsigned char *)pclass,
                                  Mcd_osd_blk_size,
                                  MCD_REC_CLASS_EYE_CATCHER);
         if ( pclass->checksum != checksum ||
@@ -2823,7 +2823,7 @@ shard_recover( mcd_osd_shard_t * shard )
             // verify class segment block checksum
             checksum           = seg_list->checksum;
             seg_list->checksum = 0;
-            seg_list->checksum = hashk((unsigned char *)seg_list,
+            seg_list->checksum = hashb((unsigned char *)seg_list,
                                        Mcd_osd_blk_size, 0);
             if ( seg_list->checksum != checksum ) {
                 mcd_log_msg( 20481, PLAT_LOG_LEVEL_FATAL,
@@ -2905,7 +2905,7 @@ shard_recover( mcd_osd_shard_t * shard )
     // verify ckpt record checksum
     checksum       = ckpt->checksum;
     ckpt->checksum = 0;
-    ckpt->checksum = hashk((unsigned char *)buf,
+    ckpt->checksum = hashb((unsigned char *)buf,
                            Mcd_osd_blk_size, MCD_REC_CKPT_EYE_CATCHER);
 
     if ( ckpt->checksum != checksum ||
@@ -3137,7 +3137,7 @@ shard_set_properties( mcd_osd_shard_t * shard, mcd_container_t * cntr )
 
     prop->write_version++;
     prop->checksum = 0;
-    prop->checksum = hashk((unsigned char *)prop,
+    prop->checksum = hashb((unsigned char *)prop,
                            Mcd_osd_blk_size, MCD_REC_PROP_EYE_CATCHER);
 
     mcd_log_msg( 20491, PLAT_LOG_LEVEL_DEBUG,
@@ -3221,7 +3221,7 @@ shard_set_state( mcd_osd_shard_t * shard, int new_state )
     old_state      = prop->state;
     prop->state    = new_state;
     prop->checksum = 0;
-    prop->checksum = hashk((unsigned char *)prop,
+    prop->checksum = hashb((unsigned char *)prop,
                            Mcd_osd_blk_size, MCD_REC_PROP_EYE_CATCHER);
 
     mcd_log_msg( 20493, PLAT_LOG_LEVEL_INFO,
@@ -4181,7 +4181,7 @@ process_log( void * context, mcd_osd_shard_t * shard,
             } else {
                 // verify checksum
                 page_hdr->checksum = 0;
-                page_hdr->checksum = hashk((unsigned char *)(buf+page_offset),
+                page_hdr->checksum = hashb((unsigned char *)(buf+page_offset),
                                            Mcd_osd_blk_size, page_hdr->LSN);
                 if ( page_hdr->checksum != checksum ) {
                     mcd_log_msg( 40036, PLAT_LOG_LEVEL_FATAL,
@@ -4692,7 +4692,7 @@ recovery_checkpoint( osd_state_t * context, mcd_osd_shard_t * shard,
     // install new checksum
     ckpt           = (mcd_rec_ckpt_t *)buf;
     ckpt->checksum = 0;
-    ckpt->checksum = hashk((unsigned char *)buf,
+    ckpt->checksum = hashb((unsigned char *)buf,
                            Mcd_osd_blk_size, MCD_REC_CKPT_EYE_CATCHER);
 
     // write ckpt record with updated LSN
@@ -5520,7 +5520,7 @@ process_log_chicken( void * context, mcd_osd_shard_t * shard, int num_segs,
             } else {
                 // verify checksum
                 page_hdr->checksum = 0;
-                page_hdr->checksum = hashk((unsigned char *)(buf+page_offset),
+                page_hdr->checksum = hashb((unsigned char *)(buf+page_offset),
                                            Mcd_osd_blk_size, page_hdr->LSN);
                 if ( page_hdr->checksum != checksum ) {
                     mcd_log_msg( 20507, PLAT_LOG_LEVEL_FATAL,
@@ -5977,7 +5977,7 @@ updater_thread_chicken( uint64_t arg )
 
             ((mcd_rec_ckpt_t *)ckpt_buf)->checksum = 0;
             ((mcd_rec_ckpt_t *)ckpt_buf)->checksum =
-                hashk((unsigned char *)ckpt_buf,
+                hashb((unsigned char *)ckpt_buf,
                       Mcd_osd_blk_size, MCD_REC_CKPT_EYE_CATCHER);
 
             // write ckpt record with updated LSN
@@ -6815,7 +6815,7 @@ log_writer_thread( uint64_t arg )
             hdr->version     = MCD_REC_LOGHDR_VERSION;
 //            hdr->LSN         = ++LSN;
             hdr->checksum    = 0;
-            hdr->checksum    = hashk((unsigned char *)
+            hdr->checksum    = hashb((unsigned char *)
                                      (logbuf->buf + (i * Mcd_osd_blk_size)),
                                      Mcd_osd_blk_size, hdr->LSN);
         }
@@ -7257,7 +7257,7 @@ shard_format( uint64_t shard_id, int flags, uint64_t quota, unsigned max_objs,
 
         // install checksum in this block
         seg_list->checksum = 0;
-        seg_list->checksum = hashk((unsigned char *)seg_list,
+        seg_list->checksum = hashb((unsigned char *)seg_list,
                                    Mcd_osd_blk_size, 0);
     }
 
@@ -7277,7 +7277,7 @@ shard_format( uint64_t shard_id, int flags, uint64_t quota, unsigned max_objs,
         pclass->slab_blksize    = blksize;
         pclass->seg_list_offset = seg_list_offset;
         pclass->checksum        = 0;
-        pclass->checksum        = hashk((unsigned char *)pclass,
+        pclass->checksum        = hashb((unsigned char *)pclass,
                                         Mcd_osd_blk_size,
                                         MCD_REC_CLASS_EYE_CATCHER);
 
@@ -7287,13 +7287,13 @@ shard_format( uint64_t shard_id, int flags, uint64_t quota, unsigned max_objs,
                 (buf + ( (pshard->class_offset[ c ] +
                           pclass->seg_list_offset +  b) * Mcd_osd_blk_size ));
             seg_list->checksum = 0;
-            seg_list->checksum = hashk((unsigned char *)seg_list,
+            seg_list->checksum = hashb((unsigned char *)seg_list,
                                        Mcd_osd_blk_size, 0);
         }
     }
 
     // install checksum in shard desc now that class offsets are in place
-    pshard->checksum = hashk((unsigned char *)pshard,
+    pshard->checksum = hashb((unsigned char *)pshard,
                              Mcd_osd_blk_size, MCD_REC_SHARD_EYE_CATCHER);
 
     // calculate offset to checkpoint record (last metadata block)
@@ -7306,7 +7306,7 @@ shard_format( uint64_t shard_id, int flags, uint64_t quota, unsigned max_objs,
     ckpt->r1          = 0;
     ckpt->LSN         = 0;
     ckpt->checksum    = 0;
-    ckpt->checksum    = hashk((unsigned char *)ckpt,
+    ckpt->checksum    = hashb((unsigned char *)ckpt,
                               Mcd_osd_blk_size, MCD_REC_CKPT_EYE_CATCHER);
 
     // write shard recovery metadata
@@ -7387,7 +7387,7 @@ shard_format( uint64_t shard_id, int flags, uint64_t quota, unsigned max_objs,
         prop->persistent = 0;
     }
 
-    prop->checksum = hashk((unsigned char *)prop,
+    prop->checksum = hashb((unsigned char *)prop,
                            Mcd_osd_blk_size, MCD_REC_PROP_EYE_CATCHER);
 
     // write shard properties
@@ -7554,7 +7554,7 @@ flash_format ( uint64_t total_size )
     fd->blk_offset    = fd_offset;
     fd->total_blks    = total_size / Mcd_osd_blk_size;
     fd->checksum      = 0;
-    fd->checksum      = hashk((unsigned char *)buf,
+    fd->checksum      = hashb((unsigned char *)buf,
                               Mcd_osd_blk_size,
                               MCD_REC_FLASH_EYE_CATCHER);
 

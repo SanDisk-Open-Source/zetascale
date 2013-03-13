@@ -5028,6 +5028,7 @@ mcd_fth_osd_slab_set( void * context, mcd_osd_shard_t * shard, char * key,
     meta->version  = MCD_OSD_META_VERSION;
     meta->key_len  = key_len;
     meta->data_len = data_len;
+    meta->cguid    = cntr_id;
 
     if ( NULL != meta_data ) {
         meta->create_time = meta_data->createTime;
@@ -5045,7 +5046,7 @@ mcd_fth_osd_slab_set( void * context, mcd_osd_shard_t * shard, char * key,
         chksum32 = mcd_hash( (unsigned char *)buf, Mcd_osd_blk_size, 0 );
     }
     if ( flash_settings.chksum_data ) {
-        chksum64 = hashk((unsigned char *)buf, raw_len, 0);
+        chksum64 = hashb((unsigned char *)buf, raw_len, 0);
     }
 
     meta->blk1_chksum = chksum32;

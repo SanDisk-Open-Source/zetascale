@@ -95,7 +95,7 @@ is acceptable.  Do NOT use for cryptographic purposes.
 --------------------------------------------------------------------
 */
 
-ub8 hashk(k, length, level)
+ub8 hashb(k, length, level)
 register const ub1 *k;        /* the key */
 register ub8  length;   /* the length of the key */
 register ub8  level;    /* the previous hash, or an arbitrary value */
@@ -177,5 +177,5 @@ uint64_t
 hashck(const unsigned char *key, uint64_t key_len,
        uint64_t level, cntr_id_t cntr_id)
 {
-    return hashk(key, key_len, level);
+    return hashb(key, key_len, level) + cntr_id;
 }

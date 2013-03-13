@@ -23,7 +23,7 @@
 //
 
 // Level is an arbitrary salt for the hash.
-uint64_t hashk(const unsigned char *key,
+uint64_t hashb(const unsigned char *key,
               uint64_t keyLength,
               uint64_t level);
 

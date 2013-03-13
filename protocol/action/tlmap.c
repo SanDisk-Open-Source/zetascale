@@ -53,7 +53,7 @@ SDFTLMapEntry_t *SDFTLMapGetCreate(SDFTLMap_t *pm, char *pkey)
     SDFTLMapBucket_t  *pb;
 
     keylen = strlen(pkey);
-    h = hashk((const unsigned char *) pkey, strlen(pkey), 0) %
+    h = hashb((const unsigned char *) pkey, strlen(pkey), 0) %
         pm->nbuckets;
     pb = &(pm->buckets[h]);
 

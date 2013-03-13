@@ -623,7 +623,7 @@ hotkey_update_hotclient(uint32_t client_ip, ReportClientEntry_t *clients) {
     struct in_addr addr;
     addr.s_addr                 = client_ip;
     const char *addr_str        = (const char *)inet_ntoa(addr);
-    uint64_t syndrome           = hashk((unsigned char *)addr_str, 
+    uint64_t syndrome           = hashb((unsigned char *)addr_str, 
                                         strlen(addr_str), 0);
     int index                   = syndrome % CLIENT_BUCKETS;
     int loop                    = 0;
