@@ -62,6 +62,9 @@ add_subdirectory(utils)
 add_subdirectory(ssd)
 add_subdirectory(shared)
 add_subdirectory(dll)
+IF(EXISTS test_suite/)
+add_subdirectory(test_suite)
+ENDIF(EXISTS test_suite/)
 #
 ADD_LIBRARY(${LIBRARY} ${LIB_TYPE} 
 $<TARGET_OBJECTS:agent>

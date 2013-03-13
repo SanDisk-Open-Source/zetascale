@@ -1223,6 +1223,10 @@ void FDFSetProperty(const char* property, const char* value)
 {
 	value = strndup(value, 256);
 
+	plat_log_msg(180021, PLAT_LOG_CAT_PRINT_ARGS,
+			PLAT_LOG_LEVEL_INFO,
+			"FDFSetProperty ('%s', '%s'). Old value: %s", property, value, getProperty_String(property, "NULL"));
+
 	if(value)
 		setProperty(property, (void*)value);
 }
