@@ -19,7 +19,7 @@
 #include "cmc.h"
 #include "container.h"
 #include "container_props.h"
-#include "utils/hash.h"
+#include "protocol/action/recovery.h"
 #include  "shared/shard_compute.h"
 #include  "common/sdftypes.h"
 

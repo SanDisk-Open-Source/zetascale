@@ -183,6 +183,68 @@ show_objs(fdf_ctr_t *ctr)
 
 
 /*
+ * Test 4.
+ */
+static void
+run_t4(fdf_t *fdf)
+{
+    int i;
+
+    for (i = 0; i < 16; i++) {
+        char name[3] = {'C', 'a'+i, '\0'};
+        fdf_ctr_t *ctr = open_ctr(fdf, name, FDF_CTNR_CREATE);
+        set_obj(ctr, "indigo", name);
+    }
+
+    /* Create containers */
+    fdf_ctr_t *ctr1 = open_ctr(fdf, "C0", FDF_CTNR_CREATE);
+    fdf_ctr_t *ctr2 = open_ctr(fdf, "C1", FDF_CTNR_CREATE);
+
+    /* Set some objects */
+    set_obj(ctr1, "indigo", "horse");
+    set_obj(ctr2, "indigo", "cow");
+    set_obj(ctr1, "red",   "squirrel");
+    set_obj(ctr2, "green", "alligator");
+
+    /* Show all objects */
+    show_objs(ctr1);
+    show_objs(ctr2);
+
+    /* Delete containers */
+    delete_ctr(ctr1);
+    delete_ctr(ctr2);
+
+    /* Create containers */
+    ctr1 = open_ctr(fdf, "C0", FDF_CTNR_CREATE);
+    ctr2 = open_ctr(fdf, "C1", FDF_CTNR_CREATE);
+
+    /* Set some objects */
+    set_obj(ctr1, "indigo", "horse");
+    set_obj(ctr2, "indigo", "cow");
+    set_obj(ctr1, "red",   "squirrel");
+    set_obj(ctr2, "green", "alligator");
+
+    /* Set some more objects */
+    set_obj(ctr1, "purple", "penguin");
+    set_obj(ctr2, "purple", "porpoise");
+
+    /* Show some objects */
+    show_obj(ctr1, "indigo", "horse");
+    show_obj(ctr2, "indigo", "cow");
+    show_obj(ctr1, "red",   "squirrel");
+    show_obj(ctr2, "green", "alligator");
+
+    /* Show all objects */
+    show_objs(ctr1);
+    show_objs(ctr2);
+
+    /* Close containers */
+    fdf_ctr_close(ctr1, NULL);
+    fdf_ctr_close(ctr2, NULL);
+}
+
+
+/*
  * Test 3.
  */
 static void
@@ -197,6 +259,10 @@ run_t3(fdf_t *fdf)
     set_obj(ctr2, "white", "cow");
     set_obj(ctr1, "red",   "squirrel");
     set_obj(ctr2, "green", "alligator");
+
+    /* Show all objects */
+    show_objs(ctr1);
+    show_objs(ctr2);
 
     /* Delete containers */
     delete_ctr(ctr1);
@@ -418,6 +484,8 @@ main(int argc, char *argv[])
             run_t2(fdf);
         else if (streq(name, "t3"))
             run_t3(fdf);
+        else if (streq(name, "t4"))
+            run_t4(fdf);
         else
             die(NULL, "unknown test: %s", name);
     }

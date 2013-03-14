@@ -13,7 +13,7 @@
 #include "sdftcp/locks.h" /* atomic_inc */
 #include "ssd/ssd_aio.h" /* SSD_AIO_CTXT_MCD_REC_LGWR */
 #include "api/fdf.h" /* Statistics */
-#include "utils/hash.h"
+#include "protocol/action/recovery.h"
 
 void *
 context_alloc( int category ); /* mcd_rec.c */

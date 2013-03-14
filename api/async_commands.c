@@ -142,7 +142,6 @@ static void async_handler_thread(uint64_t arg){
                  "Async thread started...");
     while (1) {
         req = (async_cmd_req_t *)fthMboxWait(&async_cmds_hdr_mbox);
-        fprintf(stderr,"received a command :%d\n",req->cmd);
         if( req->cmd == FDF_ASYNC_CMD_DELETE_CTNR) {
             /* Delete the containers */
             atomic_add(num_deletes_prog,1); 

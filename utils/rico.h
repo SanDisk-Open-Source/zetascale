@@ -14,7 +14,9 @@
 #define	until(expr)	while (not (expr))
 #define	unless(expr)	if (not (expr))
 
+#ifndef nel
 #define	nel( a)		(sizeof( a) / sizeof( (a)[0]))
+#endif
 #define	endof( a)	((a) + nel( a))
 #define	bitsof( a)	(8 * sizeof( a))
 #define	ctrl( c)	((c) - 0100)

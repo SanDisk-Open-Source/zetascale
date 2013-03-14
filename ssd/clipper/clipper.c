@@ -68,7 +68,7 @@
 #include "ssd/ssd_aio_local.h"
 #include "clipper_aio.h"
 #include "clipper.h"
-#include "utils/hash.h"
+#include "protocol/action/recovery.h"
 #include "common/sdftypes.h"
 
 /*================================================================*/

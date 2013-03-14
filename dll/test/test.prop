@@ -1,4 +1,5 @@
-FDF_LOG_LEVEL           = warning
+FDF_LOG_LEVEL           = none
+ASYNC_DELETE_CONTAINERS = 0
 SDF_REFORMAT            = 1
 FDF_FLASH_SIZE          = 4G
 FDF_FLASH_FILENAME      = /tmp/fdf_disk%d

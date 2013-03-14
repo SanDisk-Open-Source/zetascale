@@ -103,5 +103,12 @@ chash_key(shard_t *sshard, SDF_cguid_t cguid, char *key, uint64_t keylen);
  * Other functions.
  */
 void set_cntr_sizes(SDF_action_init_t *pai, shard_t *sshard);
+
+void
+delete_all_objects(SDF_action_init_t *pai, shard_t *sshard, FDF_cguid_t cguid);
+
+uint64_t
+hashck(const unsigned char *key, uint64_t key_len,
+       uint64_t level, cntr_id_t cntr_id);
  
 #endif /* _RECOVERY_H */

@@ -33,6 +33,7 @@
 
 #include "protocol/protocol_common.h"
 #include "protocol/action/action_internal_ctxt.h"
+#include "protocol/action/recovery.h"
 #include "shared/object.h"
 #include "shared/open_container_mgr.h"
 

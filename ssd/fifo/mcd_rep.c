@@ -27,7 +27,6 @@
 #include "platform/string.h"
 #include "platform/time.h"
 #include "platform/unistd.h"
-#include "utils/hash.h"
 #include "fth/fthMbox.h"
 
 #include "fth/fth.h"
@@ -38,6 +37,7 @@
 #include "protocol/replication/replicator.h"
 #include "protocol/replication/rpc.h"
 #include "protocol/action/simple_replication.h"
+#include "protocol/action/recovery.h"
 
 //#include "memcached.h"
 //#include "command.h"

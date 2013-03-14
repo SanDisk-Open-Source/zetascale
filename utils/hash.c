@@ -61,7 +61,7 @@ This implies that a hash using mix64 has no funnels.  There may be
 hash() -- hash a variable-length key into a 64-bit value
   k     : the key (the unaligned variable-length array of bytes)
   len   : the length of the key, counting by bytes
-  level : can be any 8-byte value
+  level : can be any 8-byte value (salt)
 Returns a 64-bit value.  Every bit of the key affects every bit of
 the return value.  No funnels.  Every 1-bit and 2-bit delta achieves
 avalanche.  About 41+5len instructions.
@@ -167,15 +167,4 @@ register ub8  level;    /* the previous hash, or an arbitrary value */
   mix64(a,b,c);
   /*-------------------------------------------- report the result */
   return c;
-}
-
-
-/*
- * Hash the key and the container id.
- */
-uint64_t
-hashck(const unsigned char *key, uint64_t key_len,
-       uint64_t level, cntr_id_t cntr_id)
-{
-    return hashb(key, key_len, level) + cntr_id;
 }

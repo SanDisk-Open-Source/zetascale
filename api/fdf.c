@@ -1647,7 +1647,7 @@ FDF_status_t FDFShutdown(struct FDF_state *fdf_state)
 		char temp[PATH_MAX + 1];
 		char *log_flush_dir = (char *)getProperty_String("FDF_LOG_FLUSH_DIR", NULL);
 		snprintf(temp, sizeof(temp), "rm -rf %s/fdf_%d", log_flush_dir, fdf_instance_id);
-		system(temp); 
+		ignore(system(temp));
 	}
 
 	return status;
@@ -5022,63 +5022,22 @@ static FDF_status_t fdf_generate_cguid(
 }
 
 
-static FDF_status_t fdf_delete_objects(
-	struct FDF_thread_state  *fdf_thread_state,
-	FDF_cguid_t 			  cguid
-	)
+/*
+ * Delete all objects.
+ */
+static FDF_status_t
+fdf_delete_objects(struct FDF_thread_state *ts, FDF_cguid_t cguid)
 {
-    FDF_status_t             status                 = FDF_FAILURE;
-    FDF_status_t             del_status             = FDF_SUCCESS;
-    struct FDF_iterator     *_fdf_iterator          = NULL;
-    int                      i                      = 1000;
-    char                    *key            		= NULL;
-    uint32_t                 keylen         		= 0;
-    uint64_t                 datalen        		= 0;
-    char                    *data           		= NULL;
+    FDF_status_t s;
+    struct shard *shard = NULL;
+    SDF_action_init_t *pai = (SDF_action_init_t *) ts;
 
-    do{
-        status = FDFEnumerateContainerObjects( fdf_thread_state,
-                                               cguid,
-                                               &_fdf_iterator
-                                             );
-    } while ( status == FDF_FLASH_EBUSY && i-- );
+    s = cguid_to_shard(pai, cguid, &shard);
+    if (s != FDF_SUCCESS)
+        return s;
 
-	i = 0;
-    if ( _fdf_iterator == NULL ) {
-        fprintf(stderr,"NULL _fdf_iterator\n");
-        return FDF_FAILURE;
-    }
-
-    while ( ( status = FDFNextEnumeratedObject ( fdf_thread_state,
-                                                 _fdf_iterator,
-                                                 &key,
-                                                 &keylen,
-                                                 &data,
-                                                 &datalen
-                                               ) ) == FDF_SUCCESS ) {
-
-		if ( ( del_status = fdf_delete_object( fdf_thread_state, cguid, key, keylen ) ) != FDF_SUCCESS ) { 
-			plat_log_msg( 150095,
-						  LOG_CAT, 
-						  LOG_ERR, 
-						  "Failed to delete object while deleting container: %s", 
-						  FDFStrError( del_status ) ); 
-			break;
-        }
-		++i;
-    }
-
-    if ( ( status = FDFFinishEnumeration( fdf_thread_state,
-                          		  		  _fdf_iterator ) ) != FDF_SUCCESS ) {
-
-		plat_log_msg( 150096,
-				  	  LOG_CAT, 
-				  	  LOG_ERR, 
-				  	  "Failed to end enumeration while deleting container: %s", 
-				  	  FDFStrError( del_status ) ); 
-	}
-
-	return del_status;
+    delete_all_objects(pai, shard, cguid);
+    return FDF_SUCCESS;
 }
 
 

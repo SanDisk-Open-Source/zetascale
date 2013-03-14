@@ -1,5 +1,5 @@
 /*
- * Fast recovery and enumeration.
+ * Fast recovery, enumeration and delete.
  * Author: Johann George
  *
  * Exported
@@ -10,6 +10,9 @@
  *   enumerate_done()
  *   enumerate_next()
  *   enumerate_stats()
+ *
+ *   set_cntr_sizes()
+ *   delete_all_objects()
  *
  * Notes
  *   - Since the enumeration routines share this file, exported enumeration
@@ -103,7 +106,7 @@ typedef uint32_t slab_t;
 typedef uint64_t bitmap_t;
 typedef fthWaitEl_t wait_t;
 typedef unsigned int uint_t;
-typedef SDF_cguid_t cguid_t;
+typedef FDF_cguid_t cguid_t;
 typedef unsigned char uchar_t;
 typedef struct flashDev flash_t;
 typedef SDF_action_init_t pai_t;
@@ -4551,6 +4554,80 @@ enumerate_init(pai_t *pai, shard_t *sshard, FDF_cguid_t cguid, e_state_t **esp)
 
 
 /*
+ * Delete an object given its hash entry.  The appropriate bucket must be
+ * locked.
+ */
+static void
+delete_object(mo_shard_t *shard, mo_hash_t *hash, uint64_t bkt_i)
+{
+    baddr_t baddr = hash->address;
+
+    hash->deleted = 1;
+    mcd_logrec_object_t log ={
+        .syndrome   = hash->syndrome,
+        .deleted    = 1,
+        .bucket     = bkt_i,
+        .blk_offset = baddr,
+        .old_offset = ~baddr,
+        .cntr_id    = hash->cntr_id,
+    };
+    log_write(shard, &log);
+
+    bool delayed = shard->replicated ||
+                   (shard->persistent && !shard->evict_to_free);
+    mcd_fth_osd_remove_entry(shard, hash, delayed, true);
+}
+
+
+/*
+ * Delete all objects in a container.
+ */
+void
+delete_all_objects(pai_t *pai, shard_t *sshard, cguid_t cguid)
+{
+    uint64_t lock_i;
+    mo_shard_t      *shard = (mo_shard_t *) sshard;
+    uint64_t bkts_per_lock = shard->lock_bktsize / Mcd_osd_bucket_size;
+
+    for (lock_i = 0; lock_i < shard->lock_buckets; lock_i++) {
+        int i;
+        uint64_t bi;
+        mo_hash_t *hash;
+        fthLock_t *lock = &shard->bucket_locks[lock_i];
+        wait_t    *wait = fthLock(lock, 0, NULL);
+
+        for (bi = 0; bi < bkts_per_lock; bi++) {
+            uint64_t bkt_i = lock_i * bkts_per_lock + bi;
+            mo_bucket_t *bucket = &shard->hash_buckets[bkt_i];
+            hash = &shard->hash_table[bkt_i * Mcd_osd_bucket_size];
+            for (i = bucket->next_item; i--;) {
+                if (cguid != hash[i].cntr_id)
+                    continue;
+
+                delete_object(shard, &hash[i], bkt_i);
+                hash[i] = hash[--bucket->next_item];
+            }
+        }
+
+        uint64_t in = lock_i * Mcd_osd_overflow_depth;
+        hash = &shard->overflow_table[in];
+        for (i = 0; i < Mcd_osd_overflow_depth; i++, hash++) {
+            if (!hash->used)
+                continue;
+            if (cguid != hash->cntr_id)
+                continue;
+
+            uint64_t bkt_i = lock_i * bkts_per_lock +
+                             shard->overflow_index[in + i] % bkts_per_lock;
+            delete_object(shard, hash, bkt_i);
+        }
+
+        fthUnlock(wait);
+    }
+}
+
+
+/*
  * Go through the hash table computing the number of objects and bytes used by
  * each of the containers.
  */
@@ -4609,4 +4686,15 @@ set_cntr_sizes(pai_t *pai, shard_t *sshard)
     }
 
     plat_free(cntr_p);
+}
+
+
+/*
+ * Hash the key and the container id.
+ */
+uint64_t
+hashck(const unsigned char *key, uint64_t key_len,
+       uint64_t level, cntr_id_t cntr_id)
+{
+    return hashb(key, key_len, level) + cntr_id * Mcd_osd_bucket_size;
 }

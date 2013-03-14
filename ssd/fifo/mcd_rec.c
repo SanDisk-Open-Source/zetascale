@@ -9,43 +9,29 @@
  *
  * $Id: mcd_rec.c 16149 2011-02-15 16:07:23Z briano $
  */
+
 #include <aio.h>
 #include <ctype.h>
 #include <stdio.h>
 #include <signal.h>
-#include <linux/fs.h>
 #include <sys/stat.h>
 
-#include "common/sdftypes.h"
-#include "common/sdfstats.h"
-#include "platform/assert.h"
-#include "platform/errno.h"
-#include "platform/logging.h"
-#include "platform/shmem.h"
-#include "platform/signal.h"
 #include "platform/stdio.h"
-#include "platform/stdlib.h"
-#include "platform/string.h"
-#include "platform/time.h"
 #include "platform/unistd.h"
-#include "utils/hash.h"
 #include "utils/properties.h"
-#include "fth/fthMbox.h"
-
-#include "fth/fth.h"
+#include "utils/hash.h"
 #include "fth/fthSem.h"
-#include "fth/fthLock.h"
 #include "ssd/ssd_local.h"
 #include "ssd/fifo/fifo.h"
 #include "ssd/ssd_aio.h"
-
 #include "mcd_aio.h"
 #include "mcd_osd.h"
-#include "container_meta_blob.h"
 #include "mcd_rec.h"
 #include "mcd_rep.h"
 #include "mcd_bak.h"
 #include "fdf_internal.h"
+#include "container_meta_blob.h"
+#include "protocol/action/recovery.h"
 
 
 /*
