@@ -3321,6 +3321,8 @@ mcd_osd_slab_shard_init_free_segments( mcd_osd_shard_t * shard )
                  shard, shard->free_segments_count, shard->blk_allocated);
 #undef iBITS
 
+    plat_free(used_map);
+
     return 0;   /* SUCCESS */
 }
 
