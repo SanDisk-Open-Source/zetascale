@@ -3654,10 +3654,17 @@ update_hash_table( void * context, mcd_osd_shard_t * shard,
     ts_housekeeping:
 #endif
 
+#if 0
         // get class pointer, update used slab count
         class_index = shard->class_table[ mcd_osd_lba_to_blk( obj->blocks ) ];
         class = shard->slab_classes + class_index;
         plat_assert_always( class->used_slabs <= class->total_slabs );
+#endif
+
+        class = segment->class;
+        class_index = shard->class_table[ class->slab_blksize ];
+        plat_assert( class );
+
         class->used_slabs += 1;
 
         // update bitmap for class segment
