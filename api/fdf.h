@@ -23,7 +23,9 @@ extern "C" {
 #include "common/fdftypes.h"
 #include "common/fdfstats.h"
 
-#define CONTAINER_NAME_MAXLEN 64
+#define CONTAINER_NAME_MAXLEN		64
+#define FDF_DEFAULT_CONTAINER_SIZE_KB	(1024 * 1024)	//1GB
+#define FDF_MIN_FLASH_SIZE		3		//3GB
 
 typedef struct {
 	uint64_t		n;

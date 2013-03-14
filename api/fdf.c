@@ -751,7 +751,7 @@ static void fdf_load_settings(flash_settings_t *osd_settings)
 	    (void) strcpy(osd_settings->aio_base, p); // base filename of flash files
 
     osd_settings->aio_create          = 1;// use O_CREAT - membrain sets this to 0
-    osd_settings->aio_total_size      = getProperty_Int("FDF_FLASH_SIZE", 2); // this flash size counts! 2Gb by default
+    osd_settings->aio_total_size      = getProperty_Int("FDF_FLASH_SIZE", FDF_MIN_FLASH_SIZE); // this flash size counts! 3Gb by default
     osd_settings->aio_total_size      = getProperty_Int("AIO_FLASH_SIZE_TOTAL", osd_settings->aio_total_size); // compatibility with old property files
     osd_settings->aio_sync_enabled    = getProperty_Int("AIO_SYNC_ENABLED", 0); // AIO_SYNC_ENABLED
     osd_settings->no_direct_io        = !getProperty_Int("AIO_O_DIRECT", 1);
@@ -785,6 +785,39 @@ static void fdf_load_settings(flash_settings_t *osd_settings)
     osd_settings->is_node_independent = 1;
     osd_settings->ips_per_cntr	    = 1;
     osd_settings->rec_log_size_factor = 0;
+}
+
+/*
+ * fdf_check_settings
+ *
+ * DESCRIPTION:
+ * Check whether the settings meet the minimum requirements.
+ * 
+ * INPUT: Flash settings having details of device.
+ *
+ * OUTPUT:
+ * 	true		If all inputs are valid 
+ * 	false		Minimum requirements not met.
+ */	
+static bool
+fdf_check_settings(flash_settings_t *osd_settings)
+{
+	plat_assert(osd_settings);
+
+	/* Device base name has to be set */
+	if (osd_settings->aio_base[0] == '\0') {
+		plat_log_msg(160123, LOG_CAT, LOG_ERR,	
+			"Base file name of flash files not set");
+		return false;
+	}
+
+	/* Device size must be atleast minimum size */
+	if (osd_settings->aio_total_size < FDF_MIN_FLASH_SIZE) {
+		plat_log_msg(160124, LOG_CAT, LOG_ERR,	
+			"Device size is less than minimum required");
+		return false;
+	}
+	return true;
 }
 
 /*
@@ -1266,7 +1299,10 @@ FDF_status_t FDFInit(
 
     //  Initialize a crap-load of settings
     fdf_load_settings( &(agent_state.flash_settings) );
-
+    if (fdf_check_settings(&(agent_state.flash_settings)) == false) {
+        return FDF_FAILURE;
+    } 
+    
     mcd_aio_register_ops();
     mcd_osd_register_ops();
 
@@ -1622,7 +1658,7 @@ FDF_status_t FDFLoadCntrPropDefaults(
 		FDF_container_props_t *props
 		)
 {
-	props->size_kb = 1024 * 1024;
+	props->size_kb = FDF_DEFAULT_CONTAINER_SIZE_KB;
 	props->fifo_mode = FDF_FALSE;
 	props->persistent = FDF_TRUE; 
 	props->evicting = FDF_FALSE;
@@ -4939,7 +4975,8 @@ fdf_vc_init(
     // Create the VDC
     FDFLoadCntrPropDefaults(&p);
     p.durability_level      = FDF_DURABILITY_HW_CRASH_SAFE;
-    p.size_kb               = getProperty_Int("FDF_FLASH_SIZE", 2) * 1024 * 1024 - (2 * 1024 * 1024) - (32 * 1024); // Minus CMC/VMC allocation
+    p.size_kb               = getProperty_Int("FDF_FLASH_SIZE", FDF_MIN_FLASH_SIZE) * 1024 * 1024 - 
+				(2 * FDF_DEFAULT_CONTAINER_SIZE_KB) - (32 * 1024); // Minus CMC/VMC allocation & super block
 
     if ((status = FDFOpenPhysicalContainer(pai, VDC_PATH, &p, flags, &cguid)) != SDF_SUCCESS) {
         plat_log_msg(150057, LOG_CAT, LOG_ERR, "Failed to create VMC container - %s\n", SDF_Status_Strings[status]);

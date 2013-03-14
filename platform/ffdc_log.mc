@@ -3220,6 +3220,8 @@
 160120 Containers closed=%d
 160121 Signal completion of pending deletes\n
 160122 Waiting for completion of pending deletes\n
+160123 Base file name of flash files not set
+160124 Device size is less than minimum required
 
 
 # rico
