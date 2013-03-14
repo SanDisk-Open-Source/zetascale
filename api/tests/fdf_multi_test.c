@@ -72,7 +72,6 @@ void* worker(void *arg)
 
 int main(int argc, char *argv[])
 {
-    pthread_t thread_id[threads];
     int i;
     char 						 name[32];
 
@@ -91,6 +90,8 @@ int main(int argc, char *argv[])
     t(fdf_init(),  FDF_SUCCESS);
 
     t(fdf_init_thread(), FDF_SUCCESS);
+
+    pthread_t thread_id[threads];
 
     for(i = 0; i < threads; i++)
 		pthread_create(&thread_id[i], NULL, worker, (void*)(long)i);

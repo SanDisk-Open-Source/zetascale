@@ -256,7 +256,7 @@ int main(int argc, char *argv[])
 	start_threads(threads, worker);
 	fprintf(stderr, "DEL(after): count=%d\n", threads * count / step);
 
-	wait_free_segments(9, 60);
+	wait_free_segments(9, 300);
 
 	print_stat();
 
@@ -296,7 +296,7 @@ int main(int argc, char *argv[])
 
 	fdf_flush_container(cguid_shared);
 
-	wait_free_segments(17, 60);
+	wait_free_segments(17, 300);
 
 	print_stat();
 
@@ -319,7 +319,7 @@ int main(int argc, char *argv[])
 
 	print_stat();
 
-	wait_free_segments(29, 60);
+	wait_free_segments(29, 300);
 
 	fprintf(stderr, "All tests passed\n");
 
