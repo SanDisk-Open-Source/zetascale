@@ -9,6 +9,11 @@ FDF_status_t fdf_init()
     return FDFInit( &fdf_state );
 }
 
+FDF_status_t fdf_shutdown()
+{
+    return FDFShutdown( fdf_state );
+}
+
 FDF_status_t fdf_init_thread()
 {
     return FDFInitPerThreadState(fdf_state, &_fdf_thd_state);

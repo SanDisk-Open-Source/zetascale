@@ -135,5 +135,7 @@ int main(int argc, char *argv[])
 
     fprintf(stderr, "All tests passed\n");
 
+	fdf_shutdown();
+
     return(0);
 }

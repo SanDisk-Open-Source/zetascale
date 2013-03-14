@@ -101,5 +101,7 @@ int main(int argc, char *argv[])
 
     fprintf(stderr, "DONE\n");
 
+	fdf_shutdown();
+
     return(0);
 }

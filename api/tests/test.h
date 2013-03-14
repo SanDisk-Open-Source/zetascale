@@ -5,6 +5,9 @@ FDF_status_t
 fdf_init();
 
 FDF_status_t
+fdf_shutdown();
+
+FDF_status_t
 fdf_init_thread();
 
 FDF_status_t fdf_transaction_start();

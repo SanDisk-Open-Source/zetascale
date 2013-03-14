@@ -1605,6 +1605,15 @@ FDF_status_t FDFShutdown(struct FDF_state *fdf_state)
 				PLAT_LOG_LEVEL_INFO, "Shutdown phase 1 returns :%s",
 				FDF_Status_Strings[status]);
 	}
+
+	/* This hack should be remove or wrapped with #if 0 in release code */
+	if (getProperty_Int("FDF_TEST_MODE", 0)) {
+		char temp[PATH_MAX + 1];
+		char *log_flush_dir = (char *)getProperty_String("FDF_LOG_FLUSH_DIR", NULL);
+		snprintf(temp, sizeof(temp), "rm -rf %s/fdf_%d", log_flush_dir, fdf_instance_id);
+		system(temp); 
+	}
+
 	return status;
 }
 
