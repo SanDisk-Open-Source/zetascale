@@ -30,6 +30,37 @@ FDF_status_t fdf_transaction_commit()
 }
 
 FDF_status_t fdf_create_container (
+    char                    *cname,
+    uint64_t                size,
+    FDF_cguid_t             *cguid
+    )
+{
+    FDF_status_t            ret;
+    FDF_container_props_t   props;
+    uint32_t                flags       = FDF_CTNR_CREATE;
+
+    FDFLoadCntrPropDefaults(&props);
+
+    props.size_kb   = size / 1024;
+    props.evicting  = FDF_TRUE;
+
+    ret = FDFOpenContainer (
+            _fdf_thd_state,
+            cname, 
+            &props,
+            flags,
+            cguid
+            );
+    
+    if ( ret != FDF_SUCCESS ) {
+        fprintf( stderr, "FDFOpenContainer: %s\n", FDFStrError(FDF_SUCCESS) );
+        return ret;
+    }
+    
+    return ret;
+}
+
+FDF_status_t fdf_open_container (
 	char                    *cname,
 	uint64_t				size,
 	FDF_cguid_t             *cguid
@@ -37,11 +68,12 @@ FDF_status_t fdf_create_container (
 {
     FDF_status_t            ret;
     FDF_container_props_t   props;
-    uint32_t                flags		= FDF_CTNR_CREATE;
+    uint32_t                flags		= 0;
 
 	FDFLoadCntrPropDefaults(&props);
 
-	props.size_kb                       = size / 1024;
+	props.size_kb   = size / 1024;
+	props.evicting	= FDF_TRUE;
 
 	ret = FDFOpenContainer (
 			_fdf_thd_state, 
@@ -57,6 +89,20 @@ FDF_status_t fdf_create_container (
     }
 
     return ret;
+}
+
+FDF_status_t fdf_close_container (
+    FDF_cguid_t                cguid
+       )
+{
+    FDF_status_t  ret;
+
+    ret = FDFCloseContainer(
+            _fdf_thd_state,
+            cguid
+        );
+
+    return(ret);
 }
 
 FDF_status_t fdf_delete_container (

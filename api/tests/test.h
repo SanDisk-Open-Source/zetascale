@@ -19,6 +19,16 @@ FDF_status_t fdf_create_container (
 	FDF_cguid_t             *cguid
 	);
 
+FDF_status_t fdf_open_container (
+	char                    *cname,
+	uint64_t				size,
+	FDF_cguid_t             *cguid
+	);
+
+FDF_status_t fdf_close_container (
+	FDF_cguid_t             cguid
+	);
+
 FDF_status_t fdf_delete_container (
 	FDF_cguid_t             cguid
 	);
