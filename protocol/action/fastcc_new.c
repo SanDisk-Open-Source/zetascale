@@ -2574,6 +2574,7 @@ int SDFNewCacheGetByBlockAddr(SDFNewCache_t *pc,
 		SDFNewCacheCopyOutofObject(pc, pdata, pce, pce->obj_size);
 		*key      = pkey;
 		*key_len  = pce->key_len;
+		if ( *key_len > 0 ) *key_len -= 1;
 		*data     = pdata;
 		*data_len = pce->obj_size;
 	        ret = 1;
