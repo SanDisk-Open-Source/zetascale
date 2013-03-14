@@ -1671,9 +1671,8 @@ cmc_create_put_buffered_object(SDF_internal_ctxt_t *pai, SDFContainer c,
 
     if (!cmc_object_container_arg_check2(container, objkey, &status)) {
         local_SDF_CONTAINER lc = getLocalContainer(&lc, container);
-        if ((status = 
-	     SDF_I_CreatePutBufferedObject(pai, lc->cguid, (char *)objkey, strlen(objkey), size, pbuf)) == SDF_SUCCESS) 
-	{
+        status = SDF_I_SetBufferedObjectWithExpiry( pai, lc->cguid, objkey, strlen(objkey), size, pbuf, 0, 0);
+        if (status == SDF_SUCCESS) {
 	    cmc_flush_object(pai, c, objkey);
 	    log_level = LOG_DBG;
 	}

@@ -2954,20 +2954,19 @@ shard_recover( mcd_osd_shard_t * shard )
     plat_assert( s < MCD_OSD_MAX_NUM_SHARDS );
     shard->prop_slot = ~( s );
 
-    // FIXME: hack alert
     if ( Mcd_rec_first_shard_recovered == 0 ) {
-        shard_recover_phase2( shard );
-        Mcd_rec_first_shard_recovered = 1;
+            fthResume( fthSpawn( &updater_thread, 40960 ), (uint64_t)shard );
+            int i = 300;
+            while(!shard->log->updater_started && i--)
+                    sleep(1);
+            shard_recover_phase2( shard );
+            Mcd_rec_first_shard_recovered = 1;
     }
-
-    if ( !Mcd_rec_chicken ) {
-        // start updater thread for this shard
-        fthResume( fthSpawn( &updater_thread, 40960 ), (uint64_t)shard );
-#ifdef SDFAPIONLY
-		int i = 300;
-		while(!shard->log->updater_started && i--)
-			sleep(1);
-#endif
+    else {
+            fthResume( fthSpawn( &updater_thread, 40960 ), (uint64_t)shard );
+            int i = 300;
+            while(!shard->log->updater_started && i--)
+                    sleep(1);
     }
 
     return 0;
@@ -2977,7 +2976,7 @@ shard_recover( mcd_osd_shard_t * shard )
 void
 shard_recover_phase2( mcd_osd_shard_t * shard )
 {
-    int                         i, rc;
+    int                         rc;
     uint64_t                    recovered_objs = 0;
     void                      * context =
     mcd_fth_init_aio_ctxt( SSD_AIO_CTXT_MCD_REC_RCVR );
@@ -3013,44 +3012,24 @@ shard_recover_phase2( mcd_osd_shard_t * shard )
     }
 
     // update the recovery object table in flash
-    else {
-        // initialize
-        fthMboxInit( &updated_mbox );
-        update_mail.log          = 0; // ignored during recovery
-        update_mail.cntr         = shard->cntr;
-        update_mail.in_recovery  = 1;
-        update_mail.updated_sem  = NULL;
-        update_mail.updated_mbox = &updated_mbox;
 
-        // signal updater thread to apply logs to this shard
-        if ( Mcd_rec_chicken ) {
-            fthMboxPost( &Mcd_rec_updater_mbox, (uint64_t)(&update_mail) );
-        } else {
-            fthMboxPost( &shard->log->update_mbox, (uint64_t)(&update_mail) );
-        }
+    // initialize
+    fthMboxInit( &updated_mbox );
+    update_mail.log          = 0; // ignored during recovery
+    update_mail.cntr         = shard->cntr;
+    update_mail.in_recovery  = 1;
+    update_mail.updated_sem  = NULL;
+    update_mail.updated_mbox = &updated_mbox;
 
-        // wait for updater thread to finish
-        recovered_objs = fthMboxWait( &updated_mbox );
-    }
+    // signal updater thread to apply logs to this shard
+    fthMboxPost( &shard->log->update_mbox, (uint64_t)(&update_mail) );
+
+    // wait for updater thread to finish
+    recovered_objs = fthMboxWait( &updated_mbox );
 
     // -----------------------------------------------------
     // Recovery is complete, initialize logging system
     // -----------------------------------------------------
-
-    if ( Mcd_rec_chicken ) {
-#ifndef MCD_REC_NOT_CHICKEN
-        // Initialize container log buffer write semaphores
-        for ( i = 0; i < MCD_LOGBUFS_PER_CNTR; i++ ) {
-            fthSemInit( &shard->cntr->write_sem[i], 0 );
-            shard->log->logbufs[i].write_sem = &(shard->cntr->write_sem[i]);
-        }
-#endif
-
-        // initialize container pointers
-        for ( i = 0; i < MCD_REC_NUM_LOGS; i++ ) {
-            shard->log->update_mail[i].cntr = shard->cntr;
-        }
-    }
 
     // make the log available for writing
     rc = log_init_phase2( context, shard );
