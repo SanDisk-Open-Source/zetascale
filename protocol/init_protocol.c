@@ -30,7 +30,7 @@ sdf_protocol_initialize(uint32_t rank, SDF_boolean_t usingFth)
     }
     if (NULL != map) {
         ret = SDF_TRUE;
-        plat_log_msg(21336, PLAT_LOG_CAT_SDF_PROT, PLAT_LOG_LEVEL_DEBUG,
+        plat_log_msg(21336, PLAT_LOG_CAT_SDF_PROT, PLAT_LOG_LEVEL_TRACE,
                      "sdf/PROTOCOL is INITIALIZED \n");
     }    
 

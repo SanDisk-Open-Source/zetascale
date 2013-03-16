@@ -155,7 +155,7 @@ static uint64_t check_nslabs(SDFNewCache_t *pc, uint64_t nslabs_in)
     }
     if (nslabs == 0) {
         // There is insufficient memory for even a single slab!
-        plat_log_msg(30576, PLAT_LOG_CAT_SDF_PROT, PLAT_LOG_LEVEL_INFO,
+        plat_log_msg(30576, PLAT_LOG_CAT_SDF_PROT, PLAT_LOG_LEVEL_DEBUG,
  		     "There is insufficient memory for even a single slab!  "
 		     "There must be at least enough memory to hold one max sized object.  "
 		     "Try increasing the cache size (SDF_CC_MAXCACHESIZE).");
@@ -506,8 +506,8 @@ void SDFNewCacheInit(SDFNewCache_t *pc, uint64_t nbuckets, uint64_t nslabs_in,
     if (nslabs != nslabs_in) {
 	plat_log_msg(30560, 
 		     PLAT_LOG_CAT_SDF_CC, 
-		     PLAT_LOG_LEVEL_INFO,
-		     "nslabs had to be reduced from %"PRIu64" to %"PRIu64" so that each slab could hold at least one max sized object", nslabs_in, nslabs);
+		     PLAT_LOG_LEVEL_WARN,
+		     "Small DRAM Cache: # of slabs had to be reduced from %"PRIu64" to %"PRIu64" so that each slab could hold at least one max sized object. Possible performance impact", nslabs_in, nslabs);
     }
     pc->slabs = fastcc_alloc(pc, "SDFNewCacheInit", nslabs*(sizeof(SDFNewCacheSlab_t)), NonCacheObjectArena);
 

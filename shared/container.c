@@ -86,6 +86,7 @@ extern SDF_status_t SDFActionChangeContainerWritebackMode(SDF_internal_ctxt_t *p
 #define LOG_ID PLAT_LOG_ID_INITIAL
 #define LOG_CAT PLAT_LOG_CAT_SDF_NAMING
 #define LOG_DBG PLAT_LOG_LEVEL_DEBUG
+#define LOG_TRACE PLAT_LOG_LEVEL_TRACE
 #define LOG_INFO PLAT_LOG_LEVEL_INFO
 #define LOG_ERR PLAT_LOG_LEVEL_ERROR
 #define LOG_WARN PLAT_LOG_LEVEL_WARN
@@ -322,11 +323,11 @@ plat_safe_strcat(unsigned char *dest, const unsigned char *src, size_t n, int de
 void
 print_sm_stats(struct plat_shmem_alloc_stats init, struct plat_shmem_alloc_stats end)
 {
-    plat_log_msg(21524, LOG_CAT, LOG_DBG, "Shared Memory Stats:\n Initial: allocated_bytes=%"PRIu64", allocated_count="
+    plat_log_msg(21524, LOG_CAT, LOG_TRACE, "Shared Memory Stats:\n Initial: allocated_bytes=%"PRIu64", allocated_count="
                  "%"PRIu64", used_bytes=%"PRIu64, init.allocated_bytes, init.allocated_count, init.used_bytes);
-    plat_log_msg(21525, LOG_CAT, LOG_DBG, "\n Ending : allocated_bytes=%"PRIu64", allocated_count=%"PRIu64
+    plat_log_msg(21525, LOG_CAT, LOG_TRACE, "\n Ending : allocated_bytes=%"PRIu64", allocated_count=%"PRIu64
                  ", used_bytes=%"PRIu64, end.allocated_bytes, end.allocated_count, end.used_bytes);
-    plat_log_msg(21526, LOG_CAT, LOG_DBG, "\n Diff   : allocated_bytes=%"PRIu64", allocated_count=%"PRIu64
+    plat_log_msg(21526, LOG_CAT, LOG_TRACE, "\n Diff   : allocated_bytes=%"PRIu64", allocated_count=%"PRIu64
                  ", used_bytes=%"PRIu64"\n", end.allocated_bytes - init.allocated_bytes,
                  end.allocated_count - init.allocated_count, end.used_bytes - init.used_bytes);
 }
@@ -359,7 +360,7 @@ SDFCreateContainer(SDF_internal_ctxt_t *pai, const char *path, SDF_container_pro
     uint32_t num_objs = 0;
     const char *writeback_enabled_string;
 
-    plat_log_msg(20819, LOG_CAT, LOG_DBG, "%s", path);
+    plat_log_msg(20819, LOG_CAT, LOG_TRACE, "%s", path);
 
     if ((!properties.container_type.caching_container) && (!properties.cache.writethru)) {
 	plat_log_msg(30572, LOG_CAT, LOG_ERR,
@@ -464,19 +465,19 @@ SDFCreateContainer(SDF_internal_ctxt_t *pai, const char *path, SDF_container_pro
     }
 
 #ifdef MULTIPLE_FLASH_DEV_ENABLED
-    plat_log_msg(21527, LOG_CAT, LOG_INFO, "Container: %s - Multi Devs: %d",
+    plat_log_msg(21527, LOG_CAT, LOG_DBG, "Container: %s - Multi Devs: %d",
 		 path, state->config.flash_dev_count);
 #else
-    plat_log_msg(21528, LOG_CAT, LOG_INFO, "Container: %s - Single Dev",
+    plat_log_msg(21528, LOG_CAT, LOG_DBG, "Container: %s - Single Dev",
 		 path);
 #endif
-    plat_log_msg(21529, LOG_CAT, LOG_INFO, "Container: %s - Num Shards: %d",
+    plat_log_msg(21529, LOG_CAT, LOG_DBG, "Container: %s - Num Shards: %d",
 		 path, properties.shard.num_shards);
 
-    plat_log_msg(21530, LOG_CAT, LOG_INFO, "Container: %s - Num Objs: %d",
+    plat_log_msg(21530, LOG_CAT, LOG_DBG, "Container: %s - Num Objs: %d",
 		 path, state->config.num_objs);
 
-    plat_log_msg(21531, LOG_CAT, LOG_INFO, "Container: %s - DEBUG_MULTI_SHARD_INDEX: %d",
+    plat_log_msg(21531, LOG_CAT, LOG_DBG, "Container: %s - DEBUG_MULTI_SHARD_INDEX: %d",
 		 path, getProperty_Int("DEBUG_MULTISHARD_INDEX", -1));
 
     if (ISEMPTY(path)) {
@@ -552,7 +553,7 @@ SDFCreateContainer(SDF_internal_ctxt_t *pai, const char *path, SDF_container_pro
 	}
     }
 
-    plat_log_msg(21511, LOG_CAT, LOG_DBG, "%s - %s", path, SDF_Status_Strings[status]);
+    plat_log_msg(21511, LOG_CAT, LOG_TRACE, "%s - %s", path, SDF_Status_Strings[status]);
 
     if (status != SDF_SUCCESS && status != SDF_CONTAINER_EXISTS) {
         plat_log_msg(21538, LOG_CAT, LOG_ERR, "cname=%s, function returned status = %u", path, status);
@@ -688,13 +689,13 @@ SDFGetContainerProps(SDF_internal_ctxt_t *pai, SDF_cguid_t cguid, SDF_container_
     SDF_status_t             status = SDF_SUCCESS;
     SDF_container_meta_t     meta;
 
-    plat_log_msg(150007, LOG_CAT, LOG_INFO, "SDFGetContainerProps: %p - %lu - %p", pai, cguid, pprops);
+    plat_log_msg(150007, LOG_CAT, LOG_DBG, "SDFGetContainerProps: %p - %lu - %p", pai, cguid, pprops);
     SDFStartSerializeContainerOp(pai);
     if ((status = name_service_get_meta(pai, cguid, &meta)) == SDF_SUCCESS) {
         *pprops = meta.properties;
     }
     SDFEndSerializeContainerOp(pai);
-    plat_log_msg(150011, LOG_CAT, LOG_INFO, "SDFGetContainerProps: status=%s", (status==SDF_SUCCESS) ? "SUCCESS":"FAIL");
+    plat_log_msg(150011, LOG_CAT, LOG_DBG, "SDFGetContainerProps: status=%s", (status==SDF_SUCCESS) ? "SUCCESS":"FAIL");
 
     return(status);
 }
@@ -774,11 +775,11 @@ SDF_status_t delete_container_internal_low(
 #endif
     SDF_status_t         lock_status = SDF_SUCCESS;
     SDF_CONTAINER_PARENT p;
-    int                  log_level = LOG_DBG;
+    int                  log_level = LOG_TRACE;
     int                  ok_to_delete = 1;
     SDF_container_meta_t meta;
 
-    plat_log_msg(160096, LOG_CAT, LOG_DBG, "%s serialize:%d", path,serialize);
+    plat_log_msg(160096, LOG_CAT, LOG_TRACE, "%s serialize:%d", path,serialize);
 
     if (serialize) {
 		SDFStartSerializeContainerOp(pai);
@@ -825,7 +826,7 @@ SDF_status_t delete_container_internal_low(
 			     "%s - failed to flush and invalidate container", path);
 		log_level = LOG_ERR;
 	    } else {
-		plat_log_msg(21541, LOG_CAT, LOG_DBG,
+		plat_log_msg(21541, LOG_CAT, LOG_TRACE,
 			     "%s - flush and invalidate container succeed", path);
 	    }
 
@@ -844,7 +845,7 @@ SDF_status_t delete_container_internal_low(
 				"%s - failed to delete action thread container state", path);
 			log_level = LOG_ERR;
 		    } else {
-			plat_log_msg(21543, LOG_CAT, LOG_DBG,
+			plat_log_msg(21543, LOG_CAT, LOG_TRACE,
 				"%s - action thread delete container state succeeded", path);
 		    }
 		}
@@ -858,7 +859,7 @@ SDF_status_t delete_container_internal_low(
                         "%s - failed to delete container shards", path);
                 log_level = LOG_ERR;
             } else {
-                plat_log_msg(21545, LOG_CAT, LOG_DBG,
+                plat_log_msg(21545, LOG_CAT, LOG_TRACE,
                         "%s - delete container shards succeeded", path);
 	    }
 
@@ -870,7 +871,7 @@ SDF_status_t delete_container_internal_low(
                 log_level = LOG_ERR;
 		plat_assert(0);
             } else {
-                plat_log_msg(21547, LOG_CAT, LOG_DBG,
+                plat_log_msg(21547, LOG_CAT, LOG_TRACE,
                         "%s - remove metadata succeeded", path);
 	    }
 
@@ -884,7 +885,7 @@ SDF_status_t delete_container_internal_low(
 		}
 		plat_assert(0);
             } else {
-                plat_log_msg(21549, LOG_CAT, LOG_DBG,
+                plat_log_msg(21549, LOG_CAT, LOG_TRACE,
                         "%s - unlock metadata succeeded", path);
 	    }
 
@@ -899,7 +900,7 @@ SDF_status_t delete_container_internal_low(
                 log_level = LOG_ERR;
 		plat_assert(0);
             } else {
-                plat_log_msg(21551, LOG_CAT, LOG_DBG,
+                plat_log_msg(21551, LOG_CAT, LOG_TRACE,
                         "%s - remove cguid map succeeded", path);
 	    }
 	}
@@ -934,7 +935,7 @@ SDFOpenContainer(SDF_internal_ctxt_t *pai, const char *path, SDF_container_mode_
     local_SDF_CONTAINER_PARENT lparent = NULL;
     int log_level = LOG_ERR;
 
-    plat_log_msg(20819, LOG_CAT, LOG_DBG, "%s", path);
+    plat_log_msg(20819, LOG_CAT, LOG_TRACE, "%s", path);
 
     SDFStartSerializeContainerOp(pai);
 
@@ -966,7 +967,7 @@ SDFOpenContainer(SDF_internal_ctxt_t *pai, const char *path, SDF_container_mode_
 	    lc = getLocalContainer(&lc, *container);
 	    lc->mode = mode; // (*container)->mode = mode;
 	    _sdf_print_container_descriptor(*container);
-	    log_level = LOG_DBG;
+	    log_level = LOG_TRACE;
 
             if (cmc_settings != NULL) {
                  struct settings *settings = cmc_settings;
@@ -979,7 +980,7 @@ SDFOpenContainer(SDF_internal_ctxt_t *pai, const char *path, SDF_container_mode_
                      if (lc->container_id == settings->vips[i].container_id) {
                          settings->vips[i].cguid = lc->cguid;
                             
-			 plat_log_msg(21553, LOG_CAT, LOG_DBG, "set cid %d (%d) to cguid %d\n",
+			 plat_log_msg(21553, LOG_CAT, LOG_TRACE, "set cid %d (%d) to cguid %d\n",
                          (int) settings->vips[i].container_id, 
                          (int) i,
                          (int) lc->cguid);
@@ -1003,7 +1004,7 @@ SDFOpenContainer(SDF_internal_ctxt_t *pai, const char *path, SDF_container_mode_
 	    }
 
 	    releaseLocalContainer(&lc);
-	    plat_log_msg(21555, LOG_CAT, LOG_DBG, "Opened %s", path);
+	    plat_log_msg(21555, LOG_CAT, LOG_TRACE, "Opened %s", path);
 	} else {
 	    status = SDF_CONTAINER_UNKNOWN;
 	    plat_log_msg(21556, LOG_CAT,LOG_ERR, "Failed to find %s", path);
@@ -1027,7 +1028,7 @@ SDFCloseContainer(SDF_internal_ctxt_t *pai, SDF_CONTAINER container)
     int log_level = LOG_ERR;
     int ok_to_delete = 0;
 
-    plat_log_msg(LOG_ID, LOG_CAT, LOG_DBG, " ");
+    plat_log_msg(LOG_ID, LOG_CAT, LOG_TRACE, " ");
 
     SDFStartSerializeContainerOp(pai);
 
@@ -1055,7 +1056,7 @@ SDFCloseContainer(SDF_internal_ctxt_t *pai, SDF_CONTAINER container)
 
 	if (closeParentContainer(container)) {
 	    status = SDF_SUCCESS;
-	    log_level = LOG_DBG;
+	    log_level = LOG_TRACE;
 	}
 
 	// FIXME: This is where shardClose call goes.
@@ -1080,7 +1081,7 @@ SDFCloseContainer(SDF_internal_ctxt_t *pai, SDF_CONTAINER container)
 				 "%s - failed to flush and invalidate container", path);
 		    log_level = LOG_ERR;
 		} else {
-		    plat_log_msg(21541, LOG_CAT, LOG_DBG,
+		    plat_log_msg(21541, LOG_CAT, LOG_TRACE,
 				 "%s - flush and invalidate container succeed", path);
 		}
 
@@ -1091,7 +1092,7 @@ SDFCloseContainer(SDF_internal_ctxt_t *pai, SDF_CONTAINER container)
 				 "%s - failed to delete container shards", path);
 		    log_level = LOG_ERR;
 		} else {
-		    plat_log_msg(21545, LOG_CAT, LOG_DBG,
+		    plat_log_msg(21545, LOG_CAT, LOG_TRACE,
 				 "%s - delete container shards succeeded", path);
 		}
 
@@ -1102,7 +1103,7 @@ SDFCloseContainer(SDF_internal_ctxt_t *pai, SDF_CONTAINER container)
 				 "%s - failed to remove metadata", path);
 		    log_level = LOG_ERR;
 		} else {
-		    plat_log_msg(21547, LOG_CAT, LOG_DBG,
+		    plat_log_msg(21547, LOG_CAT, LOG_TRACE,
 				 "%s - remove metadata succeeded", path);
 		}
 
@@ -1115,7 +1116,7 @@ SDFCloseContainer(SDF_internal_ctxt_t *pai, SDF_CONTAINER container)
 			log_level = LOG_ERR;		    
 		    }
 		} else {
-		    plat_log_msg(21549, LOG_CAT, LOG_DBG,
+		    plat_log_msg(21549, LOG_CAT, LOG_TRACE,
 				 "%s - unlock metadata succeeded", path);
 		}
 
@@ -1126,7 +1127,7 @@ SDFCloseContainer(SDF_internal_ctxt_t *pai, SDF_CONTAINER container)
 				 "%s - failed to remove cguid map", path);
 		    log_level = LOG_ERR;
 		} else {
-		    plat_log_msg(21551, LOG_CAT, LOG_DBG,
+		    plat_log_msg(21551, LOG_CAT, LOG_TRACE,
 				 "%s - remove cguid map succeeded", path);
 		}
 	    }
@@ -1200,9 +1201,9 @@ SDFEnumerateContainer(SDF_internal_ctxt_t *pai, SDF_CONTAINER container, char_sp
     objDesc_t *obj = NULL;
     objMetaData_t *metaData = NULL;
     int is_block = 0;
-    int log_level = LOG_DBG;
+    int log_level = LOG_TRACE;
 
-    plat_log_msg(LOG_ID, LOG_CAT, LOG_DBG, " ");
+    plat_log_msg(LOG_ID, LOG_CAT, LOG_TRACE, " ");
 
     SDFStartSerializeContainerOp(pai);
 
@@ -1218,7 +1219,7 @@ SDFEnumerateContainer(SDF_internal_ctxt_t *pai, SDF_CONTAINER container, char_sp
 	while ((obj = flashEnumerate(shard, obj, &hashIndex, (char **)&key)) != NULL) {
 	    metaData = getMetaData(obj);
 	    ++count;
-	    plat_log_msg(21557, LOG_CAT, LOG_DBG, "Enumerate: %s - %u", key, metaData->dataLen);
+	    plat_log_msg(21557, LOG_CAT, LOG_TRACE, "Enumerate: %s - %u", key, metaData->dataLen);
 	    append_to_blob(&myblob, key, metaData->dataLen, is_block);
 	    plat_free(key);
 	    key = NULL;
@@ -1252,7 +1253,7 @@ SDF_status_t
 SDFDoesContainerExist(SDF_internal_ctxt_t *pai, const char *path) {
     SDF_status_t status = SDF_FAILURE;
 
-    plat_log_msg(20819, LOG_CAT, LOG_DBG, "%s", path);
+    plat_log_msg(20819, LOG_CAT, LOG_TRACE, "%s", path);
 
     SDFStartSerializeContainerOp(pai);
 
@@ -1262,7 +1263,7 @@ SDFDoesContainerExist(SDF_internal_ctxt_t *pai, const char *path) {
 	status = SDF_CONTAINER_UNKNOWN;
     }
 
-    plat_log_msg(20819, LOG_CAT, LOG_DBG, "%s", SDF_Status_Strings[status]);
+    plat_log_msg(20819, LOG_CAT, LOG_TRACE, "%s", SDF_Status_Strings[status]);
 
     SDFEndSerializeContainerOp(pai);
     return (status);
@@ -1288,7 +1289,7 @@ SDF_status_t SDFContainerStatInternal(SDF_internal_ctxt_t *pai, SDF_CONTAINER co
     int log_level = LOG_ERR;
 #endif /* SDFAPI */
 
-    plat_log_msg(LOG_ID, LOG_CAT, LOG_DBG, " ");
+    plat_log_msg(LOG_ID, LOG_CAT, LOG_TRACE, " ");
 
     if (isContainerNull(container) || stat == NULL) {
         status = SDF_INVALID_PARAMETER;
@@ -1326,7 +1327,7 @@ SDF_status_t SDFContainerStatInternal(SDF_internal_ctxt_t *pai, SDF_CONTAINER co
 	}
 
 #ifndef SDFAPI
-	log_level = LOG_DBG;
+	log_level = LOG_TRACE;
 #endif /* SDFAPI */
     }
     #ifndef SDFAPIONLY
@@ -1342,7 +1343,7 @@ SDFContainerShards(SDF_internal_ctxt_t *pai, SDF_CONTAINER container, uint32_t m
     struct SDF_shared_state *state = &sdf_shared_state;
     SDF_status_t status = SDF_SUCCESS;
     local_SDF_CONTAINER lc = getLocalContainer(&lc, container);
-    int log_level = LOG_DBG;
+    int log_level = LOG_TRACE;
 
     SDFStartSerializeContainerOp(pai);
 
@@ -1382,14 +1383,14 @@ create_put_meta(SDF_internal_ctxt_t *pai, const char *path, SDF_container_meta_t
 
     SDF_status_t status = SDF_FAILURE;
 
-    plat_log_msg(21559, LOG_CAT, LOG_DBG, "create_put_meta: %s - %lu", path, cguid);
+    plat_log_msg(21559, LOG_CAT, LOG_TRACE, "create_put_meta: %s - %lu", path, cguid);
     if (strcmp(path, CMC_PATH) != 0) {
 
         if (name_service_create_meta(pai, path, cguid, meta) != SDF_SUCCESS) {
             plat_log_msg(21560, LOG_CAT, LOG_ERR, "FAILURE: create_put_meta - create %s", path);
         } else {
             status = SDF_SUCCESS;
-            plat_log_msg(21561, LOG_CAT, LOG_DBG, "SUCCESS: create_put_meta - put %s", path);
+            plat_log_msg(21561, LOG_CAT, LOG_TRACE, "SUCCESS: create_put_meta - put %s", path);
         }
     } else {
         // For the CMC, simply initialize the CMC structure.
@@ -1411,7 +1412,7 @@ create_put_meta(SDF_internal_ctxt_t *pai, const char *path, SDF_container_meta_t
 		}
     }
 
-    plat_log_msg(21562, LOG_CAT, LOG_DBG, "create_put_meta: %d\n", status);
+    plat_log_msg(21562, LOG_CAT, LOG_TRACE, "create_put_meta: %d\n", status);
 
     return (status);
 }
@@ -1426,7 +1427,7 @@ _sdf_print_parent_container_structure(SDF_CONTAINER_PARENT parent)
     plat_assert(!isContainerParentNull(parent));
     local_SDF_CONTAINER_PARENT lparent = getLocalContainerParent(&lparent, parent);
 
-    plat_log_msg(21563, LOG_CAT, LOG_DBG, "Container parent descriptor [blockSize=%u, container_type=%u, dir="
+    plat_log_msg(21563, LOG_CAT, LOG_TRACE, "Container parent descriptor [blockSize=%u, container_type=%u, dir="
                  "%s, cguid=%lu, name=%s, num_open_descr=%u, ptr_open_descr=TODO]\n",
                  lparent->blockSize, lparent->container_type, lparent->dir,
                  lparent->cguid, lparent->name, lparent->num_open_descriptors);
@@ -1446,7 +1447,7 @@ _sdf_print_container_descriptor(SDF_CONTAINER container)
     plat_assert(!isContainerNull(container));
     local_SDF_CONTAINER lc = getLocalContainer(&lc, container);
 
-    plat_log_msg(21564, LOG_CAT, LOG_DBG, "Container descriptor [mode=%u, ptr_next=TODO, ptr_parent=TODO, "
+    plat_log_msg(21564, LOG_CAT, LOG_TRACE, "Container descriptor [mode=%u, ptr_next=TODO, ptr_parent=TODO, "
                  "ptr_void=TODO]", lc->mode);
     // , (int)lc->next, (int)lc->parent, (int)lc->ptr);
 
@@ -1855,12 +1856,12 @@ void create_vip_group_meta_shard(SDF_internal_ctxt_t *pai, SDF_container_props_t
         shard_meta.replication_props.enabled      = SDF_TRUE;
         shard_meta.replication_props.num_replicas = SDFGetNumNodesInMyGroupFromConfig();
 
-        plat_log_msg(21575, LOG_CAT_SHARD, LOG_INFO, "STMDBG: Create META shard id:%lx  metasguid:%lx CGUID:%lu\n", 
+        plat_log_msg(21575, LOG_CAT_SHARD, LOG_DBG, "STMDBG: Create META shard id:%lx  metasguid:%lx CGUID:%lu\n", 
                                                                        shard_meta.sguid,shard_meta.sguid_meta,cguid);
         ret = shard_from_service(state, shard_meta.replication_props.enabled ? state->config.replication_service :
                                               state->config.flash_service, &shard_meta, cname, cguid);
         if( ret == SDF_SHARDID_INVALID ) {
-            plat_log_msg(21576, LOG_CAT_SHARD, LOG_INFO, "STMDBG: Sh. Create id:%lx metasguid:%lx CGUID:%lu FAILED\n",
+            plat_log_msg(21576, LOG_CAT_SHARD, LOG_DBG, "STMDBG: Sh. Create id:%lx metasguid:%lx CGUID:%lu FAILED\n",
                                                    shard_meta.sguid,shard_meta.sguid_meta,cguid);
         }
     }
@@ -1897,7 +1898,7 @@ build_shard(struct SDF_shared_state *state, SDF_internal_ctxt_t *pai,
     /** @brief flags are used for the direct path to flash */
     int flags;
 
-    plat_log_msg(20819, LOG_CAT, LOG_DBG, "%s", path);
+    plat_log_msg(20819, LOG_CAT, LOG_TRACE, "%s", path);
 
     plat_assert(state->config.flash_dev);
 
@@ -2096,12 +2097,12 @@ build_shard(struct SDF_shared_state *state, SDF_internal_ctxt_t *pai,
     }
 
     if (ret > SDF_SHARDID_LIMIT) {
-        plat_log_msg(21578, LOG_CAT_SHARD, LOG_DBG,
+        plat_log_msg(21578, LOG_CAT_SHARD, LOG_TRACE,
                      "FAILURE: SDFCreateContainer - %d shard",
                      shard_meta.type);
     }
 
-    plat_log_msg(21579, LOG_CAT, LOG_DBG, "%s - %lu", path, (unsigned long) ret);
+    plat_log_msg(21579, LOG_CAT, LOG_TRACE, "%s - %lu", path, (unsigned long) ret);
 
     return (ret);
 }
@@ -2137,7 +2138,7 @@ generate_cguid(SDF_internal_ctxt_t *pai, const char *path, uint32_t node, int64_
     //cguid = cntr_id64 + NODE_MULTIPLIER; // so they don't collide with CMC_CGUID=1
     cguid = cntr_id64; 
 
-    plat_log_msg(21580, LOG_CAT_SHARD, LOG_DBG,
+    plat_log_msg(21580, LOG_CAT_SHARD, LOG_TRACE,
 		 "generate_cguid: %llu", (unsigned long long) cguid);
 
     return (cguid);
@@ -2167,7 +2168,7 @@ generate_shard_ids(uint32_t node, SDF_cguid_t cguid, uint32_t count) {
     plat_assert_always(cguid < SDF_CONTAINER_ID_MAX);
 
     shard_id =  (cguid << (64 - SDF_SHARD_ID_BITS) | shard_part);
-    plat_log_msg(21581, LOG_CAT_SHARD, LOG_DBG,
+    plat_log_msg(21581, LOG_CAT_SHARD, LOG_TRACE,
                  "generated shardids 0x%lx (+ %u reserved) for  cguid %lu", 
                  shard_id, count, cguid);
 

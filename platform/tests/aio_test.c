@@ -311,7 +311,7 @@ test_main(uint64_t arg) {
     struct test_state *state = (struct test_state *)arg;
     int status = 0;
 
-    plat_log_msg(21804, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+    plat_log_msg(21804, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                  "setup context");
     status = test_state_setup_context(state, 10 /* max ops */);
     plat_assert(!status);
@@ -328,7 +328,7 @@ test_main(uint64_t arg) {
         test_error_injection(state);
     }
 
-    plat_log_msg(21811, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+    plat_log_msg(21811, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                  "destroy context");
     status = test_state_destroy_context(state);
     plat_assert(!status);
@@ -343,31 +343,31 @@ test_write_read(struct test_state *state) {
     struct timespec zero = { 0, 0 };
 
     /* Single write */
-    plat_log_msg(21822, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+    plat_log_msg(21822, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                  "write_read op 1 write offset 0 len 4096");
     status = test_state_start_op(state, TEST_OP_TYPE_WRITE, 0 /* offset */,
                                  4096 /* len */, TEST_OP_FAIL_NONE,
                                  NULL /* op out */);
-    plat_log_msg(21823, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+    plat_log_msg(21823, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                  "write_read op 1 write offset 0 len 4096 started");
     plat_assert(!status);
     status = test_state_getevents(state, 1 /* min */, NULL /* timeout */);
     plat_assert(status == 1);
-    plat_log_msg(21824, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+    plat_log_msg(21824, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                  "write_read op 1 write offset 0 len 4096 complete");
 
     /* Single read */
-    plat_log_msg(21825, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+    plat_log_msg(21825, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                  "write_read op 2 read offset 0 len 4096");
     status = test_state_start_op(state, TEST_OP_TYPE_READ, 0 /* offset */,
                                  4096 /* len */, TEST_OP_FAIL_NONE,
                                  NULL /* op out */);
-    plat_log_msg(21826, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+    plat_log_msg(21826, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                  "write_read op 2 read offset 0 len 4096 started");
     plat_assert(!status);
     status = test_state_getevents(state, 1 /* min */, NULL /* timeout */);
     plat_assert(status == 1);
-    plat_log_msg(21827, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+    plat_log_msg(21827, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                  "write_read op 2 read offset 0 len 4096 complete");
 
 
@@ -510,7 +510,7 @@ test_batch(struct test_state *state, const char *test_name,
             offset = start_offset +
                 batch * (count_arg * TEST_BATCH_OP_LEN + TEST_BATCH_SKIP) +
                 count * TEST_BATCH_OP_LEN;
-            plat_log_msg(21828, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+            plat_log_msg(21828, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                          "%s total batch %d count %d start %ld op %s"
                          " current batch %d count %d offset %ld len %ld",
                          test_name, batch_arg, count_arg, start_offset,
@@ -518,7 +518,7 @@ test_batch(struct test_state *state, const char *test_name,
                          batch, count, offset, len);
             status = test_state_start_op(state, op_type, offset, len, fail,
                                          &op);
-            plat_log_msg(21829, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+            plat_log_msg(21829, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                          "total batch %d count %d start %ld op %s started"
                          " current batch %d count %d offset %ld len %ld",
                          batch_arg, count_arg, start_offset,
@@ -551,33 +551,33 @@ test_error_injection(struct test_state *state) {
 
     /* FIXME: drew 2010-05-27 Should validate it doesn't match other areas */
 
-    plat_log_msg(21864, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+    plat_log_msg(21864, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                  "test_error_injection op 1 read offset 0 len 4096");
     status = test_state_start_op(state, TEST_OP_TYPE_READ, 0 /* offset */,
                                  4096 /* len */, TEST_OP_FAIL_EXPECTED,
                                  NULL /* op out */);
-    plat_log_msg(21865, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+    plat_log_msg(21865, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                  "test_error_injection op 1 read offset 0 len 4096 started");
     plat_assert(!status);
 
     status = test_state_getevents(state, 1 /* min */, NULL /* timeout */);
     plat_assert(status == 1);
-    plat_log_msg(21866, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+    plat_log_msg(21866, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                  "test_error_injection op 1 read offset 0 len 4096 complete");
 
     /* Error region should clear */
-    plat_log_msg(21867, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+    plat_log_msg(21867, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                  "test_error_injection op 2 read offset 0 len 4096");
     status = test_state_start_op(state, TEST_OP_TYPE_WRITE, 0 /* offset */,
                                  4096 /* len */, TEST_OP_FAIL_NONE,
                                  NULL /* op out */);
-    plat_log_msg(21868, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+    plat_log_msg(21868, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                  "test_error_injection op 2 read offset 0 len 4096 started");
     plat_assert(!status);
 
     status = test_state_getevents(state, 1 /* min */, NULL /* timeout */);
     plat_assert(status == 1);
-    plat_log_msg(21869, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+    plat_log_msg(21869, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                  "test_error_injection op 2 read offset 0 len 4096 complete");
 }
 

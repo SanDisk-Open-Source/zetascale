@@ -63,12 +63,12 @@ plat_mprobe(void *addr, size_t len, int prot, int not_prot) {
                 tmp = *ptr;
             }
             if ((prot & PROT_READ) && mprobe_signal_received) {
-                plat_log_msg(20954, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+                plat_log_msg(20954, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                              "buffer %p page %lx not readable",
                              addr, ((long)ptr)&~pagesize);
                 ret = -EPERM;
             } else if ((not_prot & PROT_READ) && !mprobe_signal_received) {
-                plat_log_msg(20955, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+                plat_log_msg(20955, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                              "buffer %p page %lx readable",
                              addr, ((long)ptr)&~pagesize);
                 ret = -EPERM;
@@ -81,12 +81,12 @@ plat_mprobe(void *addr, size_t len, int prot, int not_prot) {
                 *ptr = tmp;
             }
             if ((prot & PROT_WRITE) && mprobe_signal_received) {
-                plat_log_msg(20956, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+                plat_log_msg(20956, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                              "buffer %p page %lx not writable",
                              addr, ((long)ptr)&~pagesize);
                 ret = -EPERM;
             } else if ((not_prot & PROT_READ) && !mprobe_signal_received) {
-                plat_log_msg(20957, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+                plat_log_msg(20957, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                              "buffer %p page %lx writable",
                              addr, ((long)ptr)&~pagesize);
                 ret = -EPERM;

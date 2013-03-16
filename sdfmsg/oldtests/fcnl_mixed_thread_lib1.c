@@ -103,7 +103,7 @@ static void fthThreadSender(uint64_t arg) {
 		plat_log_msg(
 				PLAT_LOG_ID_INITIAL,
 				LOG_CAT,
-				PLAT_LOG_LEVEL_DEBUG,
+				PLAT_LOG_LEVEL_TRACE,
 				"\nNode %d: fth mb info fthmbxtst %p rbox %p abox %p lvl %d maxcnt %d\n",
 				myid, fthmbxtst, fthmbx.rbox, fthmbx.abox, SACK_BOTH_FTH,
 				maxcnt);
@@ -162,7 +162,7 @@ static void fthThreadSender(uint64_t arg) {
 	if (myid == 1) {
 		debug = 0;
 		if (debug) {
-			plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+			plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
 					"\nNode %d: DEBUG --- NOT SENDING MESSAGES FROM HERE", myid);
 			while (debug)
 				fthYield(100); /* Don't send mesages from node one for now */
@@ -284,7 +284,7 @@ static void fthThreadSender(uint64_t arg) {
 	    
 		fthYield(100);
 	printf("Sender End\n");
-	plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+	plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
 			"\nNode %d: EXITING completed sending %d messages - mysync %d\n",
 			myid, l, mysync);
 	fthKill(1); // Kill off FTH
@@ -330,7 +330,7 @@ static void fthThreadReceiver1(uint64_t arg) {
 
 	if (FASTPATH_TEST) {
 		node = myid;
-		plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+		plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
 				"\nNode %d: FASTPATH_TEST node %d myid %d\n", myid, node, myid);
 	}
 
@@ -347,7 +347,7 @@ static void fthThreadReceiver1(uint64_t arg) {
 	while (!mysync )
 		fthYield(1);
 
-	plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+	plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
 			"\nNode %d: Ready To Accept 1st MESSAGE sack lvl %d\n\n\n", myid,
 			fthmbx.actlvl);
 
@@ -366,7 +366,7 @@ static void fthThreadReceiver1(uint64_t arg) {
 		}
 		// yield to let other scheduler run
 		//usleep(1);
-		plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+		plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
 				"\nNode %d: Got One *msg %p sn %d dn %d proto %d type %d"
 					" akrpmbx %p\n", myid, recv_msg, recv_msg->msg_src_vnode,
 				recv_msg->msg_dest_vnode, recv_msg->msg_dest_service,
@@ -388,7 +388,7 @@ static void fthThreadReceiver1(uint64_t arg) {
 
 		send_msg = (struct sdf_msg *) sdf_msg_alloc(recv_msg->msg_len);
 		if (send_msg == NULL) {
-			plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+			plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
 					"sdf_msg_alloc(recv_msg->msg_len) failed\n");
 			/* return ((void *)1); */
 		}
@@ -404,7 +404,7 @@ static void fthThreadReceiver1(uint64_t arg) {
         rhkey.akrpmbx_from_req = NULL;
         rhkey.rbox = NULL;
 
-		plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+		plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
 				"\nNode %d: Sending MSG dn %d ds %d sn %d ss %d type %d"
 					" akrpmbx %p send_msg %p\n", myid, node, protocol, myid,
 				my_protocol, type, recv_msg->akrpmbx, send_msg);
@@ -451,7 +451,7 @@ static void fthThreadReceiver1(uint64_t arg) {
 
 	fthYield(1);
 	printf("receiver1 ends\n");
-	plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+	plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
 			"\nNode %d: WORKER FTH exiting - loop %d mysync %d\n", myid, i,
 			mysync);
 }
@@ -478,7 +478,7 @@ static void fthThreadReceiver2(uint64_t arg) {
 
 	if (FASTPATH_TEST) {
 		node = myid;
-		plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+		plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
 				"\nNode %d: FASTPATH_TEST node %d myid %d\n", myid, node, myid);
 	}
 	int localpn, actmask;
@@ -527,7 +527,7 @@ static void fthThreadReceiver2(uint64_t arg) {
 		if (recv_msg->msg_type == GOODBYE) {
 			sendfinished = 1;
 		}
-		plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+		plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
 				"\nNode %d: Got One *msg %p sn %d dn %d proto %d type %d"
 					" akrpmbx %p\n", myid, recv_msg, recv_msg->msg_src_vnode,
 				recv_msg->msg_dest_vnode, recv_msg->msg_dest_service,
@@ -609,7 +609,7 @@ static void fthThreadReceiver2(uint64_t arg) {
 	fthYield(1);
 	printf("2 Endsync:%d, Mysync:%d\n", endsync, mysync);
 	printf("receiver2 ends\n");
-	plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+	plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
 			"\nNode %d: WORKER FTH exiting - loop %d\n mysync %d", myid, i,
 			mysync);
 }
@@ -696,7 +696,7 @@ void * MixedthreadTestpthreadRoutine(void *arg) {
 		}
 
 		if (DBGP) {
-			plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+			plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
 					"\nNode %d msg %p msg->msg_payload %p\n", myid, send_msg,
 					send_msg->msg_payload);
 		}
@@ -710,7 +710,7 @@ void * MixedthreadTestpthreadRoutine(void *arg) {
 		plat_log_msg(
 				PLAT_LOG_ID_INITIAL,
 				LOG_CAT,
-				PLAT_LOG_LEVEL_DEBUG,
+				PLAT_LOG_LEVEL_TRACE,
 				"\nNode %d: SENDING MGMNT MSG dnode %d, proto %d, type %d loop num %d\n",
 				myid, node, protocol, type, j);
 		if (1) {
@@ -721,10 +721,10 @@ void * MixedthreadTestpthreadRoutine(void *arg) {
 
 			if (DBGP) {
 				plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT,
-						PLAT_LOG_LEVEL_DEBUG,
+						PLAT_LOG_LEVEL_TRACE,
 						"\nNode %d: sdf_msg_send returned %d\n", myid, ret);
 				plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT,
-						PLAT_LOG_LEVEL_DEBUG,
+						PLAT_LOG_LEVEL_TRACE,
 						"\nNode %d: %s: calling sdf_msg_receive(%p, %d, %d)\n",
 						myid, __func__, q_pair_MANAGEMENT->q_out, 0, B_TRUE);
 			}
@@ -747,7 +747,7 @@ void * MixedthreadTestpthreadRoutine(void *arg) {
 #endif
 
 		if (DBGP) {
-			plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+			plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
 					"\nNode %d: back from sdf_msg_receive with msg %p\n", myid,
 					recv_msg);
 		}
@@ -773,7 +773,7 @@ void * MixedthreadTestpthreadRoutine(void *arg) {
 			
 	}
 
-	plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+	plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
 			"\nNode %d Exiting pthread MANGEMENT Tester\n", myid);
 	return (0);
 }
@@ -784,7 +784,7 @@ void * MixedthreadTestfthRoutine(void *arg) {
 			"\nNode %d FTH threads firing up\n", myid);
 
 
-	plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+	plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
 			"\nNode %d FTH scheduler has initialized\n", myid);
 
 	fthResume(fthSpawn(&fthThreadReceiver1, 40960), 1);

@@ -146,7 +146,7 @@ fthThreadRoutine(uint64_t arg)
     fthmbx.release_on_send = 0;
 
 
-    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_INFO,
+    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
                  "\nFTH Thread starting %s Number of msgs to send = %d arg in %lu\n", __func__, maxcnt, arg);
 
     plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
@@ -214,20 +214,20 @@ fthThreadRoutine(uint64_t arg)
     if (myid == 1) {
         sdf_msg_barrier(myid, SDF_MSG_BARWAIT);
     } else {
-        plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+        plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                  "\nNode %d: Going into barrier release\n",
                  myid);
         usleep(2000);
         sdf_msg_barrier(myid, SDF_MSG_BARREL);
     }
 
-    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                  "\nNode %d: Barrier with slave wait done\n", myid);
 
     if (myid == 0) {
         sdf_msg_barrier(myid, SDF_MSG_BARCIC);
     } else {
-        plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+        plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                  "\nNode %d: Going into slave barrier release\n",
                  myid);
         usleep(2000);
@@ -235,7 +235,7 @@ fthThreadRoutine(uint64_t arg)
     }
 
 
-    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                  "\nNode %d: Barrier's ALL DONE\n\n\n\n\n", myid);
 #endif
 
@@ -435,7 +435,7 @@ fthThreadRoutine(uint64_t arg)
             /* release the receive buffer back to the sdf messaging thread */
 
             if (SHOWPL) {
-                plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+                plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                              "\nNode %d: Call to free resp msg %p msg_flags 0x%x msg_type %d loop %d ret %d\n",
                              myid, msg, msg->msg_flags, msg->msg_type, l, ret);
             }
@@ -514,7 +514,7 @@ fthThreadRoutine(uint64_t arg)
     fthMboxTerm(&ackmbox);
     fthMboxTerm(&respmbox);
 #if 1
-    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_INFO,
+    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
                  "\nNode %d: EXITING completed sending %d messages - mysync %d\n",
                  myid, l, mysync);
     printf("\nNode %d: %s EXITING completed sending %d messages\n",
@@ -553,7 +553,7 @@ void fthThreadRoutine1(uint64_t arg) {
     fthmbx.raction = NULL;
     fthmbx.release_on_send = 0;
 
-    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_INFO,
+    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
                  "\nNode %d: FTH Worker Thread %s starting\n", myid, __func__);
 
     int localpn, actmask;
@@ -639,7 +639,7 @@ void fthThreadRoutine1(uint64_t arg) {
             tms_old1 = show_howlong(tms_old1, 2, wt1_array);
         }
         if (SHOWPL) {
-            plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+            plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                          "\nNode %d: Got One *msg %p sn %d dn %d proto %d type %d len %d"
                          " akrpmbx %p\n", myid,
                          recv_msg, recv_msg->msg_src_vnode, recv_msg->msg_dest_vnode,
@@ -705,7 +705,7 @@ void fthThreadRoutine1(uint64_t arg) {
             }
         }
 #endif
-        plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+        plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                      "\nNode %d: RESPONSE INFO MSG %p dflt mkey %s rbox %p\n", myid, recv_msg,
                      ptrkey->mkey, ptrkey->rbox);
 
@@ -800,7 +800,7 @@ void fthThreadRoutine1(uint64_t arg) {
     }
     fthMboxTerm(&ackmbx1);
 #if 1
-    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                  "\nNode %d: WORKER FTH exiting - loop %d mysync %d\n", myid, ct, mysync);
     printf("\nNode %d: %s EXITING completed sending %d messages\n",
            myid, __func__, ct);
@@ -834,7 +834,7 @@ void fthThreadRoutine2(uint64_t arg) {
     fthmbx.raction = NULL;
     fthmbx.release_on_send = 0;
 
-    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_INFO,
+    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
                  "\nNode %d: FTH Worker Thread %s starting\n", myid, __func__);
 
     int localpn, actmask;
@@ -858,7 +858,7 @@ void fthThreadRoutine2(uint64_t arg) {
             }
         }
         for (int i = 0; i < numprocs; i++) {
-            plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+            plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                          "\nNode %d: %s cluster_node[%d] = %d my pnode %d\n", 
                          localrank, __func__, i, cluster_node[i], node);
         }
@@ -903,7 +903,7 @@ void fthThreadRoutine2(uint64_t arg) {
 /* crude way to force a timeout */
         int recv_pldsize = sdf_msg_get_payloadsze(recv_msg);
         for (int k = 0; k < FORCETIMEOUT; k++) {
-            plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_INFO,
+            plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
                          "\nNode %d: SLEEPING %d secs --- calculated payload size %d\n", myid, k, recv_pldsize);
             sleep(1);
         }
@@ -914,7 +914,7 @@ void fthThreadRoutine2(uint64_t arg) {
         }
 
         if (SHOWPL) {
-            plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+            plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                          "\nNode %d: Got One *msg %p sn %d dn %d proto %d type %d"
                          " akrpmbx %p mlen %d\n", myid,
                          recv_msg, recv_msg->msg_src_vnode,
@@ -967,7 +967,7 @@ void fthThreadRoutine2(uint64_t arg) {
                          myid, node, protocol, myid, my_protocol, type, ct);
         }
 
-        plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+        plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                      "\nNode %d: RESPONSE INFO MSG %p dflt mkey %s rbox %p\n", myid, recv_msg,
                      ptrkey->mkey, ptrkey->rbox);
 
@@ -1040,7 +1040,7 @@ void fthThreadRoutine2(uint64_t arg) {
     }
     fthMboxTerm(&ackmbx2);
 #if 1
-    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                  "\nNode %d: WORKER FTH exiting - loop %d mysync %d\n", myid, ct, mysync);
     printf("\nNode %d: %s EXITING completed sending %d messages\n",
            myid, __func__, ct);

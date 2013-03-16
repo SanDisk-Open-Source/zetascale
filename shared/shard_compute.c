@@ -43,10 +43,10 @@ shard_compute_get_shard(SDF_cguid_t cguid, const char *objkey,
 {
     SDF_shardid_t shard = SDF_SHARDID_INVALID;
     SDF_status_t status = SDF_FAILURE;
-    int log_level = LOG_DBG;
+    int log_level = LOG_TRC;
     size_t  key_len;
 
-    plat_log_msg(21630, LOG_CAT, LOG_DBG, "%lu",
+    plat_log_msg(21630, LOG_CAT, LOG_TRC, "%lu",
 		 cguid);
     
     if (cguid == CMC_CGUID) {

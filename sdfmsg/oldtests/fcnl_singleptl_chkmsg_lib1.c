@@ -109,7 +109,7 @@ fthThreadSglPtlMsgChkSender(uint64_t arg) {
     }
     else {
         node = local_get_pnode(localrank, localpn, numprocs);
-        plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+        plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
 	             "Node %d: %s my pnode is  %d\n", 
                      localrank, __func__, node);
 	fflush(stdout);
@@ -169,7 +169,7 @@ fthThreadSglPtlMsgChkSender(uint64_t arg) {
 
         sdf_msg_t * msg = (sdf_msg_t *)fthMboxWait(&respmbox);
         sdf_msg_free_buff(msg);
-        plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+        plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                      "\nnode %d, sender #%li get the response, from node: %d\n", 
                      myid, ptl, msg->msg_src_vnode);
 	if (ret != 0 )

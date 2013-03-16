@@ -200,7 +200,7 @@ void fthThreadMultiNodeMstomrRecver(uint64_t arg) {
         plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                      "\nNode %d: Waiting for messages q_pair %p loop %d\n", myid, q_pair[node], ct);
 
-        plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+        plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                      "\nNode %d: Got One *msg %p sn %d dn %d proto %d type %d"
                      " akrpmbx %p\n", myid, recv_msg, recv_msg->msg_src_vnode, recv_msg->msg_dest_vnode,
                      recv_msg->msg_dest_service, recv_msg->msg_type, recv_msg->akrpmbx);
@@ -208,7 +208,7 @@ void fthThreadMultiNodeMstomrRecver(uint64_t arg) {
 #if 1
     if(recv_msg) {
         uint32_t d = recv_msg->msg_dest_service;
-        plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+        plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
 			"node %d, receiver type#%li recvs protocol#%d type message from sender %d\n", myid, ptl, d, node);
 #if 0
 		local_printmsg_payload(recv_msg, TSZE, myid);
@@ -246,7 +246,7 @@ void fthThreadMultiNodeMstomrRecver(uint64_t arg) {
         if(ct == msgCount) break;
 
     }//end of for statement
-    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
 		"@@node %d, receiver type#%li, receive message finished, receive %d times\n", myid, ptl, ct);
 
     FTH_SPIN_LOCK(&ssync->spin);
@@ -269,10 +269,10 @@ void *
 MultiNodeMstomrPthreadRoutine(void *arg) {
 
     uint32_t *numprocs = (uint32_t *)arg;
-    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG, 
+    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE, 
 		"\nNode %d FTH threads firing up\n", myid);
 
-    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                  "\nNode %d FTH scheduler has initialized -- Now Spawning fth threads\n", myid);
 
     if(myid) {
@@ -288,11 +288,11 @@ MultiNodeMstomrPthreadRoutine(void *arg) {
     }
     info->pthread_info = 1;
     info->fth_info = (*numprocs)*2+2;
-    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,"\nNode %d Finished Create and Spawned -- Now starting sched\n", myid);
+    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,"\nNode %d Finished Create and Spawned -- Now starting sched\n", myid);
 
     fthSchedulerPthread(0);
 
-    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG, "\nFTH scheduler halted\n");
+    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE, "\nFTH scheduler halted\n");
 
     return (0);
 

@@ -570,10 +570,10 @@ void simple_replication_init(SDF_action_state_t *pas)
     }
 
     ps->ndistinct_ctnrs = 0;
-    plat_log_msg(160023, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION,PLAT_LOG_LEVEL_INFO,
+    plat_log_msg(160023, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION,PLAT_LOG_LEVEL_DEBUG,
                             "Instance iteration local tag %d:%u", msg_sdf_myrank(), (unsigned int)time(NULL));
     if( ( sdf_is_node_started_first_time() == SDF_TRUE ) || (sdf_is_node_started_in_auth_mode() == SDF_TRUE) ) {
-        plat_log_msg(160020, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION, PLAT_LOG_LEVEL_INFO,
+        plat_log_msg(160020, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION, PLAT_LOG_LEVEL_DEBUG,
                          "Node becomes authoritative for persistent containers"); 
     }
     for (nnode = 0; nnode < ps->nnodes; nnode++) {
@@ -628,7 +628,7 @@ void simple_replication_init(SDF_action_state_t *pas)
         }
 
         /* If started first time, set the persistent auth flag = 1*/
-        plat_log_msg(160021, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION, PLAT_LOG_LEVEL_INFO,
+        plat_log_msg(160021, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION, PLAT_LOG_LEVEL_DEBUG,
               "IS NODE STARTED FIRST TIME: %d, Is node started in authoritative mode:%d\n",
                                       sdf_is_node_started_first_time(),sdf_is_node_started_in_auth_mode() );
         if(sdf_is_node_started_first_time() == SDF_TRUE) {
@@ -696,7 +696,7 @@ void simple_replication_init(SDF_action_state_t *pas)
 		if ((pns->cntrs[i].replica_node[0] < 0) || 
 		    (pns->cntrs[i].replica_node[0] >= ps->nnodes))
 		{
-		    plat_log_msg(21184, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION, PLAT_LOG_LEVEL_INFO,
+		    plat_log_msg(21184, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION, PLAT_LOG_LEVEL_DEBUG,
 				 "Inconsistency in cluster configuration: Invalid replica node (%d) for MEMCACHED_CONTAINER[%d][%d]", pns->cntrs[i].replica_node[0], nnode, i);
 		    bad = SDF_TRUE;
 		}
@@ -707,7 +707,7 @@ void simple_replication_init(SDF_action_state_t *pas)
 		if ((pns->cntrs[i].replica_node[0] < 0) || 
 		    (pns->cntrs[i].replica_node[0] >= ps->nnodes))
 		{
-		    plat_log_msg(21184, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION, PLAT_LOG_LEVEL_INFO,
+		    plat_log_msg(21184, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION, PLAT_LOG_LEVEL_DEBUG,
 				 "Inconsistency in cluster configuration: Invalid replica node (%d) for MEMCACHED_CONTAINER[%d][%d]", pns->cntrs[i].replica_node[0], nnode, i);
 		    bad = SDF_TRUE;
 		}
@@ -716,12 +716,12 @@ void simple_replication_init(SDF_action_state_t *pas)
 		if ((pns->cntrs[i].replica_node[1] < 0) || 
 		    (pns->cntrs[i].replica_node[1] >= ps->nnodes))
 		{
-		    plat_log_msg(21184, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION, PLAT_LOG_LEVEL_INFO,
+		    plat_log_msg(21184, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION, PLAT_LOG_LEVEL_DEBUG,
 				 "Inconsistency in cluster configuration: Invalid replica node (%d) for MEMCACHED_CONTAINER[%d][%d]", pns->cntrs[i].replica_node[1], nnode, i);
 		    bad = SDF_TRUE;
 		}
 	    } else {
-		plat_log_msg(21185, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION, PLAT_LOG_LEVEL_INFO,
+		plat_log_msg(21185, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION, PLAT_LOG_LEVEL_DEBUG,
 			     "Inconsistency in cluster configuration: NREPLICAS must be 1 or 2 for MEMCACHED_CONTAINER[%d][%d]", nnode, i);
 		bad = SDF_TRUE;
 	    }
@@ -732,14 +732,14 @@ void simple_replication_init(SDF_action_state_t *pas)
 	        if ((pns->cntrs[i].standby_node < 0) || 
 		    (pns->cntrs[i].standby_node >= ps->nnodes))
 		{
-		    plat_log_msg(21186, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION, PLAT_LOG_LEVEL_INFO,
+		    plat_log_msg(21186, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION, PLAT_LOG_LEVEL_DEBUG,
 				 "Inconsistency in cluster configuration: Invalid standby node (%d) for MEMCACHED_CONTAINER[%d][%d]", pns->cntrs[i].standby_node, nnode, i);
 		    bad = SDF_TRUE;
 		}
 		if ((!(pns->cntrs[i].flags & qr_evict)) &&
 		    (pns->cntrs[i].nreplicas != 2))
 		{
-		    plat_log_msg(21187, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION, PLAT_LOG_LEVEL_INFO,
+		    plat_log_msg(21187, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION, PLAT_LOG_LEVEL_DEBUG,
 				 "Inconsistency in cluster configuration: Unreplicated containers with a standby must allow eviction (MEMCACHED_CONTAINER[%d][%d])", nnode, i);
 		    bad = SDF_TRUE;
 		}
@@ -752,21 +752,21 @@ void simple_replication_init(SDF_action_state_t *pas)
 	        if ((pns->cntrs[i].standby_container < 0) || 
 		    (pns->cntrs[i].standby_container >= ps->nnodes))
 		{
-		    plat_log_msg(21188, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION, PLAT_LOG_LEVEL_INFO,
+		    plat_log_msg(21188, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION, PLAT_LOG_LEVEL_DEBUG,
 				 "Inconsistency in cluster configuration: Invalid standby container (%d) for MEMCACHED_CONTAINER[%d][%d]", pns->cntrs[i].standby_container, nnode, i);
 		    bad = SDF_TRUE;
 		}
 		if ((!(pns->cntrs[i].flags & qr_evict)) &&
 		    (pns->cntrs[i].nreplicas != 2))
 		{
-		    plat_log_msg(21189, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION, PLAT_LOG_LEVEL_INFO,
+		    plat_log_msg(21189, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION, PLAT_LOG_LEVEL_DEBUG,
 				 "Inconsistency in cluster configuration: Unreplicated containers with a standby must allow eviction (MEMCACHED_CONTAINER[%d][%d].STANDBY_CONTAINER)", nnode, i);
 		    bad = SDF_TRUE;
 		}
 	        if ((pns->cntrs[i].standby_node < 0) || 
 		    (pns->cntrs[i].standby_node >= ps->nnodes))
 		{
-		    plat_log_msg(21190, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION, PLAT_LOG_LEVEL_INFO,
+		    plat_log_msg(21190, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION, PLAT_LOG_LEVEL_DEBUG,
 				 "Inconsistency in cluster configuration: Standby containers must have a standby node (ie need to know what node the container is on) Invalid standby node (%d) for MEMCACHED_CONTAINER[%d][%d]", pns->cntrs[i].standby_node, nnode, i);
 		    bad = SDF_TRUE;
 		}
@@ -860,13 +860,13 @@ void simple_replication_init(SDF_action_state_t *pas)
 		vip_mask = (void *) getProperty_String( prop_name, 0 );
 
 		if (vip_mask == NULL || strlen(vip_mask) == 0) {
-		    plat_log_msg(21193, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION, PLAT_LOG_LEVEL_INFO,
+		    plat_log_msg(21193, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION, PLAT_LOG_LEVEL_DEBUG,
 				 "Inconsistency in cluster configuration: No mask was given for vip %s (MEMCACHED_CONTAINER[%d][%d])", pns->cntrs[i].vip_addr, nnode, i);
 		    bad = SDF_TRUE;
 		}
 		count = sscanf(vip_mask, "%d.%d.%d.%d", &dq1, &dq2, &dq3, &dq4);
 		if (count != 4) {
-		    plat_log_msg(21194, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION, PLAT_LOG_LEVEL_INFO,
+		    plat_log_msg(21194, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION, PLAT_LOG_LEVEL_DEBUG,
 				 "The vip mask \"%s\" is not valid for MEMCACHED_CONTAINER[%d][%d]", vip_mask, nnode, i);
 		    bad = SDF_TRUE;
 		}
@@ -920,89 +920,89 @@ void simple_replication_init(SDF_action_state_t *pas)
 	            /* check consistency */
 
                     if (ps->ctnr_state[ndistinct].id != pns->cntrs[i].id) {
-		        plat_log_msg(21197, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION, PLAT_LOG_LEVEL_INFO,
+		        plat_log_msg(21197, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION, PLAT_LOG_LEVEL_DEBUG,
 		    		 "Inconsistency in cluster configuration: mismatched container ID's for MEMCACHED_CONTAINER[%d][%d]", nnode, i);
 		        bad = SDF_TRUE;
 		    }
                     if (ps->ctnr_state[ndistinct].global_index != pns->cntrs[i].global_index) {
-    		        plat_log_msg(21198, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION, PLAT_LOG_LEVEL_INFO,
+    		        plat_log_msg(21198, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION, PLAT_LOG_LEVEL_DEBUG,
 				 "Inconsistency in cluster configuration: mismatched global indices for MEMCACHED_CONTAINER[%d][%d]", nnode, i);
 		        bad = SDF_TRUE;
 		    }
                     if (ps->ctnr_state[ndistinct].gb != pns->cntrs[i].gb) {
-		        plat_log_msg(21199, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION, PLAT_LOG_LEVEL_INFO,
+		        plat_log_msg(21199, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION, PLAT_LOG_LEVEL_DEBUG,
 				 "Inconsistency in cluster configuration: mismatched GB's for MEMCACHED_CONTAINER[%d][%d]", nnode, i);
 		        bad = SDF_TRUE;
 		    }
                     if (ps->ctnr_state[ndistinct].max_objs != pns->cntrs[i].max_objs) {
-		        plat_log_msg(21200, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION, PLAT_LOG_LEVEL_INFO,
+		        plat_log_msg(21200, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION, PLAT_LOG_LEVEL_DEBUG,
 				 "Inconsistency in cluster configuration: mismatched MAX_OBJS's for MEMCACHED_CONTAINER[%d][%d]", nnode, i);
 		        bad = SDF_TRUE;
 	    	    }
                     /*
                     if (ps->ctnr_state[ndistinct].standby_node != pns->cntrs[i].standby_node) {
-		        plat_log_msg(21201, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION, PLAT_LOG_LEVEL_INFO,
+		        plat_log_msg(21201, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION, PLAT_LOG_LEVEL_DEBUG,
 				 "Inconsistency in cluster configuration: mismatched STANDBY_NODE's for MEMCACHED_CONTAINER[%d][%d]", nnode, i);
     		        bad = SDF_TRUE;
 		    }
                     */
                     if( ps->groups[pns->group_id].type == SDF_CLUSTER_GRP_TYPE_MIRRORED ) {
                         if (ps->ctnr_state[ndistinct].nreplicas != pns->cntrs[i].nreplicas) {
-		            plat_log_msg(21202, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION, PLAT_LOG_LEVEL_INFO,
+		            plat_log_msg(21202, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION, PLAT_LOG_LEVEL_DEBUG,
 				 "Inconsistency in cluster configuration: mismatched NREPLICAS for MEMCACHED_CONTAINER[%d][%d]", nnode, i);
 		            bad = SDF_TRUE;
 		        }
 
 		        if (ps->ctnr_state[ndistinct].nreplicas == 1) {
 		            if (ps->ctnr_state[ndistinct].nreplicas != pns->cntrs[i].nreplicas) {
-			        plat_log_msg(21203, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION, PLAT_LOG_LEVEL_INFO,
+			        plat_log_msg(21203, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION, PLAT_LOG_LEVEL_DEBUG,
 				     "Inconsistency in cluster configuration: unreplicated container on more than one node for MEMCACHED_CONTAINER[%d][%d]", nnode, i);
 			        bad = SDF_TRUE;
 		            }
 		        } else if (ps->ctnr_state[ndistinct].nreplicas == 2) {
 		            if (ps->ctnr_state[ndistinct].replica_node[0] == pns->cntrs[i].replica_node[0]) {
 			        if (ps->ctnr_state[ndistinct].replica_node[1] != pns->cntrs[i].replica_node[1]) {
-			            plat_log_msg(21204, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION, PLAT_LOG_LEVEL_INFO,
+			            plat_log_msg(21204, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION, PLAT_LOG_LEVEL_DEBUG,
 					 "Inconsistency in cluster configuration: mismached REPLICA_NODE's for MEMCACHED_CONTAINER[%d][%d]", nnode, i);
 			            bad = SDF_TRUE;
 			        }
 		            } else if (ps->ctnr_state[ndistinct].replica_node[0] == pns->cntrs[i].replica_node[1]) {
 			        if (ps->ctnr_state[ndistinct].replica_node[1] != pns->cntrs[i].replica_node[0]) {
-			            plat_log_msg(21204, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION, PLAT_LOG_LEVEL_INFO,
+			            plat_log_msg(21204, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION, PLAT_LOG_LEVEL_DEBUG,
 					 "Inconsistency in cluster configuration: mismached REPLICA_NODE's for MEMCACHED_CONTAINER[%d][%d]", nnode, i);
 			            bad = SDF_TRUE;
 			        }
 		            } else {
-			        plat_log_msg(21204, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION, PLAT_LOG_LEVEL_INFO,
+			        plat_log_msg(21204, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION, PLAT_LOG_LEVEL_DEBUG,
 				     "Inconsistency in cluster configuration: mismached REPLICA_NODE's for MEMCACHED_CONTAINER[%d][%d]", nnode, i);
 			        bad = SDF_TRUE;
 		            }
 		        } else {
-		            plat_log_msg(21205, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION, PLAT_LOG_LEVEL_INFO,
+		            plat_log_msg(21205, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION, PLAT_LOG_LEVEL_DEBUG,
 				 "Inconsistency in cluster configuration: invalid NREPLICAS for MEMCACHED_CONTAINER[%d][%d]", nnode, i);
 		            bad = SDF_TRUE;
 		        }
                     }
 
                     if ((ps->ctnr_state[ndistinct].flags & qr_evict)!= (pns->cntrs[i].flags & qr_evict)) {
-		        plat_log_msg(21206, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION, PLAT_LOG_LEVEL_INFO,
+		        plat_log_msg(21206, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION, PLAT_LOG_LEVEL_DEBUG,
 				 "Inconsistency in cluster configuration: EVICTION mode conflict for MEMCACHED_CONTAINER[%d][%d]", nnode, i);
 		        bad = SDF_TRUE;
 		    }
                     if ((ps->ctnr_state[ndistinct].flags & qr_persist)!= (pns->cntrs[i].flags & qr_persist)) {
-		        plat_log_msg(21207, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION, PLAT_LOG_LEVEL_INFO,
+		        plat_log_msg(21207, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION, PLAT_LOG_LEVEL_DEBUG,
 				 "Inconsistency in cluster configuration: PERSISTENT mode conflict for MEMCACHED_CONTAINER[%d][%d]", nnode, i);
 		        bad = SDF_TRUE;
 		    }
                     /*
                     if ((ps->ctnr_state[ndistinct].flags & qr_standby) != (pns->cntrs[i].flags & qr_standby)) {
-		        plat_log_msg(21208, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION, PLAT_LOG_LEVEL_INFO,
+		        plat_log_msg(21208, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION, PLAT_LOG_LEVEL_DEBUG,
 				 "Inconsistency in cluster configuration: an IS_STANDBY container can only reside on a single node (MEMCACHED_CONTAINER[%d][%d])", nnode, i);
 		        bad = SDF_TRUE;
 	    	    }
                     */
                     if ((ps->ctnr_state[ndistinct].flags & qr_vip)!= (pns->cntrs[i].flags & qr_vip)) {
-		        plat_log_msg(21209, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION, PLAT_LOG_LEVEL_INFO,
+		        plat_log_msg(21209, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION, PLAT_LOG_LEVEL_DEBUG,
 				 "Inconsistency in cluster configuration: VIP mode conflict for MEMCACHED_CONTAINER[%d][%d]", nnode, i);
 		        bad = SDF_TRUE;
 		    }
@@ -1010,27 +1010,27 @@ void simple_replication_init(SDF_action_state_t *pas)
                 #ifdef notdef
 		    // are these checks necessary?  xxxzzz
                     if (strcmp(ps->ctnr_state[ndistinct].vip_addr, pns->cntrs[i].vip_addr) != 0) {
-		        plat_log_msg(21210, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION, PLAT_LOG_LEVEL_INFO,
+		        plat_log_msg(21210, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION, PLAT_LOG_LEVEL_DEBUG,
 				 "Inconsistency in cluster configuration: mismatched VIP's for MEMCACHED_CONTAINER[%d][%d]", nnode, i);
 		        bad = SDF_TRUE;
 	    	    }
                     if (ps->ctnr_state[ndistinct].vip_mask != pns->cntrs[i].vip_mask) {
-		        plat_log_msg(21211, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION, PLAT_LOG_LEVEL_INFO,
+		        plat_log_msg(21211, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION, PLAT_LOG_LEVEL_DEBUG,
 				 "Inconsistency in cluster configuration: mismatched container VIP_MASK's for MEMCACHED_CONTAINER[%d][%d]", nnode, i);
 		        bad = SDF_TRUE;
 		    }
                     if (ps->ctnr_state[ndistinct].vip_tcp_port != pns->cntrs[i].vip_tcp_port) {
-		        plat_log_msg(21212, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION, PLAT_LOG_LEVEL_INFO,
+		        plat_log_msg(21212, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION, PLAT_LOG_LEVEL_DEBUG,
 				 "Inconsistency in cluster configuration: mismatched container VIP_TCP_PORT's for MEMCACHED_CONTAINER[%d][%d]", nnode, i);
 		        bad = SDF_TRUE;
 		    }
                     if (ps->ctnr_state[ndistinct].vip_udp_port != pns->cntrs[i].vip_udp_port) {
-		        plat_log_msg(21213, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION, PLAT_LOG_LEVEL_INFO,
+		        plat_log_msg(21213, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION, PLAT_LOG_LEVEL_DEBUG,
 				 "Inconsistency in cluster configuration: mismatched container VIP_UDP_PORT's for MEMCACHED_CONTAINER[%d][%d]", nnode, i);
 		        bad = SDF_TRUE;
 		    }
                     if (ps->ctnr_state[ndistinct].vip_if_id != pns->cntrs[i].vip_if_id) {
-		        plat_log_msg(21214, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION, PLAT_LOG_LEVEL_INFO,
+		        plat_log_msg(21214, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION, PLAT_LOG_LEVEL_DEBUG,
 				 "Inconsistency in cluster configuration: mismatched container VIP_IF's for MEMCACHED_CONTAINER[%d][%d]", nnode, i);
 		        bad = SDF_TRUE;
 	    	    }
@@ -1056,7 +1056,7 @@ void simple_replication_init(SDF_action_state_t *pas)
             if( ps->groups[i].type == SDF_CLUSTER_GRP_TYPE_MIRRORED ) {
                 int second_node = ps->groups[i].nodes[1];
                 ps->node_state[second_node].is_virtual = 1;
-                plat_log_msg(21215, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION, PLAT_LOG_LEVEL_INFO,
+                plat_log_msg(21215, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION, PLAT_LOG_LEVEL_DEBUG,
                                                "Setting Node: %d as Virtual",second_node);
                 /* Change the ports of all containers to something else */
                for( j = 0; j < ps->node_state[second_node].nctnrs_node; j++ ) {
@@ -1119,7 +1119,7 @@ void simple_replication_init(SDF_action_state_t *pas)
         /* In All other cases the Node goes to Active by default when itstarts*/
         /* Independent node */
         if( (sdf_is_node_started_first_time() == SDF_TRUE) && (getProperty_Int( prop_name, 0 ) == 1)) {
-            plat_log_msg(21216, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION, PLAT_LOG_LEVEL_INFO,
+            plat_log_msg(21216, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION, PLAT_LOG_LEVEL_DEBUG,
                                        "Starting in CLONE mode \n");
             sdf_create_queue_pair(mynode, VNODE_ANY, SDF_RESPONSES, SDF_FLSH, SDF_WAIT_FTH);
             fthMboxInit(&ps->sync_thread_avail_mbox);
@@ -1240,7 +1240,7 @@ void SDFRepDataStructAddContainer( SDF_internal_ctxt_t *pai , SDF_container_prop
         /* release the node lock */
         fthUnlock(wait);
     }
-    plat_log_msg(21217, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION, PLAT_LOG_LEVEL_INFO,
+    plat_log_msg(21217, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION, PLAT_LOG_LEVEL_DEBUG,
                         "Added a container with container id: %d (cguid:%d)to RepStruture peer:%d\n", 
                          (int)properties.container_id.container_id, (int)cguid, peer_node_id);
 
@@ -1248,7 +1248,7 @@ void SDFRepDataStructAddContainer( SDF_internal_ctxt_t *pai , SDF_container_prop
         /*Enable the replication only if we have one VIP group*/
         wait = fthLock( &lnode->lock, 1, NULL);
         if( lnode->num_vgrps_being_serviced == 1 ) {
-            plat_log_msg(21218, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION, PLAT_LOG_LEVEL_INFO,
+            plat_log_msg(21218, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION, PLAT_LOG_LEVEL_DEBUG,
                          "Enable replication to node %d\n",peer_node_id);
             rc = simple_replicator_enable_node(pas, cguid, peer_node_id);
             if (rc != SDF_SUCCESS) {
@@ -1277,9 +1277,9 @@ void check_for_authoritativeness(qrep_state_t *rep_state) {
     }
     if( i >= lnode->nctnrs_node ) {
         fthUnlock(wait);
-        plat_log_msg(160025, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION, PLAT_LOG_LEVEL_INFO,
+        plat_log_msg(160025, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION, PLAT_LOG_LEVEL_DEBUG,
                                                      "Node %d does not have any persistent container\n",mynode);
-        plat_log_msg(160026, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION, PLAT_LOG_LEVEL_INFO,
+        plat_log_msg(160026, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION, PLAT_LOG_LEVEL_DEBUG,
                                                      "Node becomes authoritative for persistent containers\n");
     }
     else {
@@ -1313,7 +1313,7 @@ void SDFRepDataStructDeleteContainer( SDF_internal_ctxt_t *pai , SDF_cguid_t cgu
     lnode = &(rep_state->node_state[mynode]);
     wait = fthLock( &lnode->lock, 1, NULL);
     if( lnode->nctnrs_node <= 0 ) {
-        plat_log_msg(21220, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION, PLAT_LOG_LEVEL_INFO,
+        plat_log_msg(21220, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION, PLAT_LOG_LEVEL_DEBUG,
                                                      "Node %d does not have any container\n",mynode);
         fthUnlock(wait);
         return;
@@ -1484,7 +1484,7 @@ int SDFNodeGroupGroupTypeFromConfig(int node_id) {
 
     sprintf( prop_name, "SDF_CLUSTER_GROUP[%d].TYPE",group_id);
     grp_type = (char *)getProperty_String(prop_name, "");
-    plat_log_msg(21223, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION,PLAT_LOG_LEVEL_INFO,
+    plat_log_msg(21223, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION,PLAT_LOG_LEVEL_DEBUG,
                        "Group Type:%s for node:%d\n",grp_type,node_id);
     plat_assert( strcmp(grp_type,"") != 0 );
 
@@ -1526,7 +1526,7 @@ int SDFNodeGroupGroupIdFromConfig(int node_id) {
     sprintf( prop_name, "NODE[%d].GROUP_ID", node_id);
     group_id = getProperty_uLongInt(prop_name, -1);
     plat_assert(group_id >= 0 );
-    plat_log_msg(21224, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION,PLAT_LOG_LEVEL_INFO,
+    plat_log_msg(21224, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION,PLAT_LOG_LEVEL_DEBUG,
                        "Group ID:%d for node:%d\n",group_id,node_id);
     return group_id;
 }
@@ -1553,7 +1553,7 @@ void SDFSetContainerStatus(SDF_internal_ctxt_t *pai, int cid, int status ) {
             continue;
         }
         plat_log_msg(21225, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION,
-                                   PLAT_LOG_LEVEL_INFO,
+                                   PLAT_LOG_LEVEL_DEBUG,
                        "Setting container status %d to cid :%d\n",status,cid);
         pcs->ctnr_state = QREP_CTNR_STATE_STOPPED;
         if( status == 1 ) {
@@ -1577,7 +1577,7 @@ void SDFSetContainerStatus(SDF_internal_ctxt_t *pai, int cid, int status ) {
             continue;
         }
         plat_log_msg(21226, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION,
-              PLAT_LOG_LEVEL_INFO,
+              PLAT_LOG_LEVEL_DEBUG,
              "Setting container status %d to cid :%d on replica\n",status,cid);
         pcs->ctnr_state = QREP_CTNR_STATE_STOPPED;
         if( status == 1 ) {
@@ -1620,7 +1620,7 @@ int SDFGetNumNodesInMyGroupFromConfig() {
     sprintf( prop_name, "SDF_CLUSTER_GROUP[%d].NUM_NODES",group_id);
     num_nodes = getProperty_uLongInt(prop_name, -1);
     plat_assert(num_nodes >= 0 );
-    plat_log_msg(21227, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION,PLAT_LOG_LEVEL_INFO,
+    plat_log_msg(21227, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION,PLAT_LOG_LEVEL_DEBUG,
                        "Number of Nodes:%d in node:%d\n",num_nodes,node_id);
     return num_nodes;
 }
@@ -1635,7 +1635,7 @@ int SDFGetNumNodesInClusterFromConfig() {
                     "SDF_CLUSTER_NUMBER_NODES should be > 0\n");
          plat_abort();
     }
-    plat_log_msg(80004, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION, PLAT_LOG_LEVEL_INFO,
+    plat_log_msg(80004, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION, PLAT_LOG_LEVEL_DEBUG,
                     "SDFGetNumNodesInClusterFromConfig: Number of Nodes  %d \n",num_nodes);
     return num_nodes;
 }
@@ -1669,7 +1669,7 @@ int SDFGetClusterGroupType( SDF_internal_ctxt_t *pai, int64_t cid ) {
           }
        }
     }
-    plat_log_msg(21228, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION, PLAT_LOG_LEVEL_INFO,
+    plat_log_msg(21228, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION, PLAT_LOG_LEVEL_DEBUG,
                  "SDFGetClusterGroupType CID:%d GroupType:%d \n",(int)cid, grp_type);
     return grp_type;
 }
@@ -1755,14 +1755,14 @@ int send_command_to_sb_handler(char *command) {
 
     sockfd = socket(AF_INET, SOCK_STREAM, 0);
     if (sockfd < 0)  {
-        plat_log_msg(21231, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION, PLAT_LOG_LEVEL_INFO,
+        plat_log_msg(21231, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION, PLAT_LOG_LEVEL_DEBUG,
                  "Unable to open socket\n");
         return 1;
     }
 
     server = gethostbyname("127.0.0.1");
     if (server == NULL) {
-        plat_log_msg(21232, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION, PLAT_LOG_LEVEL_INFO,
+        plat_log_msg(21232, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION, PLAT_LOG_LEVEL_DEBUG,
                  "Unable to resolve local host\n");
         close(sockfd);
         return 1;
@@ -1774,7 +1774,7 @@ int send_command_to_sb_handler(char *command) {
     serveraddr.sin_port = htons(SB_HANDLER_TCP_PORT);
     /* connect: create a connection with the server */
     if (connect(sockfd, (struct sockaddr *)&serveraddr, sizeof(serveraddr)) < 0) {
-      plat_log_msg(21233, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION, PLAT_LOG_LEVEL_INFO,
+      plat_log_msg(21233, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION, PLAT_LOG_LEVEL_DEBUG,
                  "Connection to split brain handler failed\n");
       close(sockfd);
       return 1;
@@ -1782,7 +1782,7 @@ int send_command_to_sb_handler(char *command) {
      /* send the message line to the server */
     n = write(sockfd, command, strlen(command));
     if (n < 0) {
-      plat_log_msg(21234, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION, PLAT_LOG_LEVEL_INFO,
+      plat_log_msg(21234, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION, PLAT_LOG_LEVEL_DEBUG,
                  "Write to split brain handler failed\n");
       close(sockfd);
       return 1;
@@ -1791,7 +1791,7 @@ int send_command_to_sb_handler(char *command) {
     bzero(buf, SB_HANDLER_BUF_SIZE);
     n = read(sockfd, buf, SB_HANDLER_BUF_SIZE);
     if (n < 0) {
-        plat_log_msg(21235, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION, PLAT_LOG_LEVEL_INFO,
+        plat_log_msg(21235, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION, PLAT_LOG_LEVEL_DEBUG,
                  "Read from split brain handler failed\n");
         close(sockfd);
         return 1 ;
@@ -1842,7 +1842,7 @@ void simple_replicator_node_live(SDF_action_state_t *pas, vnode_t pnode)
      */
     pns->live = 1;
 
-    plat_log_msg(21236, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION, PLAT_LOG_LEVEL_INFO,
+    plat_log_msg(21236, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION, PLAT_LOG_LEVEL_DEBUG,
 		 "Node %d is live!", pnode);
     my_node = msg_sdf_myrank();
     /* If my node is not part of NPLUS1 or 2way. Just skip from here */
@@ -1853,20 +1853,20 @@ void simple_replicator_node_live(SDF_action_state_t *pas, vnode_t pnode)
 
     /* Check whether the node is my self */
     if( my_node == pnode ) {
-        plat_log_msg(21237, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION, PLAT_LOG_LEVEL_INFO,
+        plat_log_msg(21237, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION, PLAT_LOG_LEVEL_DEBUG,
 		 "Live Node is my node. Ignore the event\n");
         return;
     }
 
     /* Check whether the new node is in the same group */
     if( ps->node_state[my_node].group_id != ps->node_state[pnode].group_id ) {
-        plat_log_msg(21238, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION, PLAT_LOG_LEVEL_INFO,
+        plat_log_msg(21238, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION, PLAT_LOG_LEVEL_DEBUG,
                  "The Live node is not part of the the local group(id:%d). So Ignore the event\n",
                                                      ps->node_state[my_node].group_id);
         return;
     }
     /* Both are in the same group */
-    plat_log_msg(21239, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION, PLAT_LOG_LEVEL_INFO,
+    plat_log_msg(21239, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION, PLAT_LOG_LEVEL_DEBUG,
           "Both the local node %d  and new live node %d are in same group %d\n",
                                               my_node, pnode, ps->node_state[my_node].group_id);
     /* Check whether local node is owning the virtual IP group of the new live node */
@@ -1877,7 +1877,7 @@ void simple_replicator_node_live(SDF_action_state_t *pas, vnode_t pnode)
     }
     if( (ps->node_state[my_node].type == QREP_NODE_TYPE_ACTIVE) && 
                                    (i >= ps->node_state[my_node].num_vgrps_being_serviced) ) {
-        plat_log_msg(21240, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION, PLAT_LOG_LEVEL_INFO,
+        plat_log_msg(21240, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION, PLAT_LOG_LEVEL_DEBUG,
         "The Live node %d is not serviced by the local node %d !. Ignore the event for now\n",
                                                                                       pnode, my_node);
         return;
@@ -1887,7 +1887,7 @@ void simple_replicator_node_live(SDF_action_state_t *pas, vnode_t pnode)
         /* The group is N plus 1 group. Just ignore */
         /* Check whether my current node is active. If not active. Ignore it */
         if( ps->node_state[my_node].type != QREP_NODE_TYPE_ACTIVE ) {
-            plat_log_msg(21241, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION, PLAT_LOG_LEVEL_INFO,
+            plat_log_msg(21241, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION, PLAT_LOG_LEVEL_DEBUG,
                          "My local node %d is not yet active just ignore\n", my_node);
             return;
         }
@@ -1907,13 +1907,13 @@ void simple_replicator_node_live(SDF_action_state_t *pas, vnode_t pnode)
     }
     if( ps->groups[ps->node_state[my_node].group_id].type == SDF_CLUSTER_GRP_TYPE_NPLUS1 ) {
         /* The group is N plus 1 group. Just ignore */
-        plat_log_msg(21242, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION, PLAT_LOG_LEVEL_INFO,
+        plat_log_msg(21242, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION, PLAT_LOG_LEVEL_DEBUG,
                          "The Recovering node is part of nplus 1. Just ignore \n");
         return;
     }
     else {
         /* The group is N plus 1 group. Just ignore */
-        plat_log_msg(21243, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION, PLAT_LOG_LEVEL_INFO,
+        plat_log_msg(21243, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION, PLAT_LOG_LEVEL_DEBUG,
                          "The Recovering node is in group %d Just ignore \n", 
                                                              ps->groups[ps->node_state[my_node].group_id].type);
     }
@@ -1927,7 +1927,7 @@ void send_recovery_start_event(int32_t pnode, QREP_RECOVERY_TYPE rtype) {
     int my_node = sdf_msg_myrank();
 
     if( sdf_action_init_ptr == NULL ) {
-        plat_log_msg(21244, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION, PLAT_LOG_LEVEL_INFO,
+        plat_log_msg(21244, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION, PLAT_LOG_LEVEL_DEBUG,
                              "Unable to find Action Init state. Skipping recovery...\n");
         return;
     }
@@ -2358,10 +2358,10 @@ void simple_replicator_send_data_copy_completed() {
         pshard = shardFind(pai->flash_dev, shardids[i]);
         ssd_shardSync(pshard);    
 
-        plat_log_msg(21246, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION,PLAT_LOG_LEVEL_DEBUG, "CMC Shard: %lx cguid:%d\n",
+        plat_log_msg(21246, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION,PLAT_LOG_LEVEL_TRACE, "CMC Shard: %lx cguid:%d\n",
                                               shardids[i],CMC_CGUID);
     }
-    plat_log_msg(21247, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION,PLAT_LOG_LEVEL_INFO, "Sending RECOVERED command to STM\n");
+    plat_log_msg(21247, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION,PLAT_LOG_LEVEL_DEBUG, "Sending RECOVERED command to STM\n");
     sdf_replicator_command_sync(sdf_shared_state.config.replicator,shardids[0], "RECOVERED", &output);
     send_command_to_sb_handler("db_fail_check");
 #endif
@@ -2380,7 +2380,7 @@ int stop_clone_to_node(SDF_action_init_t * pai, int cnode ) {
     ps = &(pai->pcs->qrep_state);
     pns = &(ps->node_state[mynode]);
     plat_log_msg(21248, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION,
-                 PLAT_LOG_LEVEL_INFO,"Stoping cloning\n");
+                 PLAT_LOG_LEVEL_DEBUG,"Stoping cloning\n");
     pns->type = QREP_NODE_TYPE_ACTIVE;
     wait_list = fthLock(&(pns->lock), 1, NULL);
     for (i = 0; i < pns->nctnrs_node; i++) {
@@ -2433,7 +2433,7 @@ int start_persistent_recovery(SDF_action_init_t * pai) {
             break;
         }
         if( sdf_mcd_start_container_internal(pai,pcs->vip_tcp_port) != 0 ) {
-                     plat_log_msg(21250, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION, PLAT_LOG_LEVEL_INFO,
+                     plat_log_msg(21250, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION, PLAT_LOG_LEVEL_DEBUG,
                         "Restarting the container %d failed before starting recovery", pcs->vip_tcp_port);
             fail = 1;
             continue;
@@ -2464,7 +2464,7 @@ int start_clone_to_node(SDF_action_init_t * pai, int cnode ) {
     /* Start the threads if not runnung already*/
     if( pns->rec_count == 0 ) {
         plat_log_msg(21251, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION,
-                 PLAT_LOG_LEVEL_INFO,"Starting cloning threads\n");
+                 PLAT_LOG_LEVEL_DEBUG,"Starting cloning threads\n");
         sdf_create_queue_pair(mynode, VNODE_ANY, SDF_RESPONSES, SDF_FLSH, SDF_WAIT_FTH);
         fthMboxInit(&ps->sync_thread_avail_mbox);
         fthMboxInit(&rec_thread_avail_mbox);
@@ -2536,7 +2536,7 @@ int simple_replicator_start_new_replica(SDF_action_init_t * pai, vnode_t master,
     if( SDFIsNodeInCloneMode() == 1 ) {
          qrep_node_state_t *mns;
          /* Containers are not modified dynamically. So no need to locl*/
-         plat_log_msg(10000, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION,PLAT_LOG_LEVEL_INFO,
+         plat_log_msg(10000, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION,PLAT_LOG_LEVEL_DEBUG,
                              "The Node is in CLONE Mode.\n");
          mns = &(ps->node_state[mynode]);
          pcs_list = plat_alloc(mns->nctnrs_node * sizeof(qrep_ctnr_state_t));
@@ -2560,7 +2560,7 @@ int simple_replicator_start_new_replica(SDF_action_init_t * pai, vnode_t master,
         if( mynode != master ) {
             if( pcs->id != cntr_id ) {
                  plat_log_msg(21254, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION,
-                              PLAT_LOG_LEVEL_INFO,"SLAVE Skipping container %d\n",cntr_id);
+                              PLAT_LOG_LEVEL_DEBUG,"SLAVE Skipping container %d\n",cntr_id);
                 continue;
             }
         }
@@ -2589,15 +2589,15 @@ int simple_replicator_start_new_replica(SDF_action_init_t * pai, vnode_t master,
         if (mynode != master) {
             time(&cur_time);
             sprintf(ps->node_state[mynode].datarecstat,"Data recovery from Node :%d Started on %s",master,ctime(&cur_time));
-            plat_log_msg(20819, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION, PLAT_LOG_LEVEL_INFO, "%s", 
+            plat_log_msg(20819, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION, PLAT_LOG_LEVEL_DEBUG, "%s", 
                                                                       ps->node_state[mynode].datarecstat);
             if( pcs->flags & qr_persist  ) {
                 /* Format the local persistant container before recovery*/
-                plat_log_msg(80006, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION, PLAT_LOG_LEVEL_INFO,
+                plat_log_msg(80006, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION, PLAT_LOG_LEVEL_DEBUG,
                           "Formating the container %s", pcs->name);
                 /* Stop the container before formating*/
                 if( sdf_mcd_stop_container_byname_internal(pai,pcs->name) != 0 ) {
-                     plat_log_msg(80007, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION, PLAT_LOG_LEVEL_INFO,
+                     plat_log_msg(80007, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION, PLAT_LOG_LEVEL_DEBUG,
                           "Stopping the container %s failed", pcs->name);
                 }
                 /* mcd_agent_state.config.system_recovery = SYS_FLASH_REFORMAT;*/
@@ -2667,21 +2667,21 @@ int simple_replicator_start_new_replica(SDF_action_init_t * pai, vnode_t master,
             }
             time(&cur_time);
             sprintf(ps->node_state[mynode].datarecstat,"Data recovery from Node :%d Completed on %s",master,ctime(&cur_time));
-            plat_log_msg(20819, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION, PLAT_LOG_LEVEL_INFO, "%s", 
+            plat_log_msg(20819, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION, PLAT_LOG_LEVEL_DEBUG, "%s", 
                                                                       ps->node_state[mynode].datarecstat);
             /* Get the peer container status and set the status  */
             if (pcs->ctnr_state !=  QREP_CTNR_STATE_ACTIVE) {
                 if( sdf_mcd_stop_container_byname_internal(pai,pcs->name) != 0 ) {
-                     plat_log_msg(80011, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION, PLAT_LOG_LEVEL_INFO,
+                     plat_log_msg(80011, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION, PLAT_LOG_LEVEL_DEBUG,
                           "Stoping the container %s after recovery failed", pcs->name);
                 }
             }
-            plat_log_msg(21265, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION, PLAT_LOG_LEVEL_INFO,
+            plat_log_msg(21265, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION, PLAT_LOG_LEVEL_DEBUG,
                          "Data recovery done for the container %d",pcs->id);
             if( pcs->flags & qr_persist  ) {
                 if( fail == 0 ) {
                     /* success. set my node */
-                    plat_log_msg(160024, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION, PLAT_LOG_LEVEL_INFO,
+                    plat_log_msg(160024, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION, PLAT_LOG_LEVEL_DEBUG,
                          "Node becomes authoritative for persistent containers %d",pcs->id);
                     ps->node_state[mynode].persistent_auth = 1; 
                 }
@@ -2774,12 +2774,12 @@ int simple_replicator_start_new_replica_old(SDF_action_init_t * pai, vnode_t mas
         if (mynode != master) {
             time(&cur_time);
             sprintf(ps->node_state[mynode].datarecstat,"Data recovery from Node :%d Started on %s",master,ctime(&cur_time));
-            plat_log_msg(20819, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION, PLAT_LOG_LEVEL_INFO, "%s", 
+            plat_log_msg(20819, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION, PLAT_LOG_LEVEL_DEBUG, "%s", 
                                                                       ps->node_state[mynode].datarecstat);
             /* I am slave If the container is in persistant mode. Nuke all the containers contents*/
             if( pcs->flags & qr_persist  ) {
                 /* get the TCP port for the given cguid */
-                plat_log_msg(21257, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION, PLAT_LOG_LEVEL_INFO,
+                plat_log_msg(21257, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION, PLAT_LOG_LEVEL_DEBUG,
                           "Formating the container %d", pcs->vip_tcp_port);
                 /* Stop the container before formating*/
                 sdf_mcd_stop_container_internal(pai,pcs->vip_tcp_port);
@@ -2793,7 +2793,7 @@ int simple_replicator_start_new_replica_old(SDF_action_init_t * pai, vnode_t mas
                                                                            master,ctime(&cur_time));
                      return 1;
                 }
-                plat_log_msg(21266, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION, PLAT_LOG_LEVEL_INFO,
+                plat_log_msg(21266, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION, PLAT_LOG_LEVEL_DEBUG,
                           "Restarting the container %d", pcs->vip_tcp_port);
                 sdf_mcd_start_container_internal(pai,pcs->vip_tcp_port);
             }
@@ -2821,7 +2821,7 @@ int simple_replicator_start_new_replica_old(SDF_action_init_t * pai, vnode_t mas
                 time(&cur_time);
                 sprintf(ps->node_state[mynode].datarecstat,"Data recovery from Node :%d Failed on %s",
                                                                                                  master,ctime(&cur_time));
-                plat_log_msg(20819, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION, PLAT_LOG_LEVEL_INFO, "%s", 
+                plat_log_msg(20819, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION, PLAT_LOG_LEVEL_DEBUG, "%s", 
                                                                       ps->node_state[mynode].datarecstat);
                 return 1;
             }
@@ -2831,18 +2831,18 @@ int simple_replicator_start_new_replica_old(SDF_action_init_t * pai, vnode_t mas
             }
             time(&cur_time);
             sprintf(ps->node_state[mynode].datarecstat,"Data recovery from Node :%d Completed on %s",master,ctime(&cur_time));
-            plat_log_msg(20819, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION, PLAT_LOG_LEVEL_INFO, "%s", 
+            plat_log_msg(20819, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION, PLAT_LOG_LEVEL_DEBUG, "%s", 
                                                                       ps->node_state[mynode].datarecstat);
             /* Get the peer container status and set the status  */
             for( int j = 0; j < ps->node_state[mynode].nctnrs_node; j++ ) {
                 qrep_ctnr_state_t *slave_cntr = &(ps->node_state[mynode].cntrs[j]);  
-                plat_log_msg(21268, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION, PLAT_LOG_LEVEL_INFO,
+                plat_log_msg(21268, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION, PLAT_LOG_LEVEL_DEBUG,
                            "SLAVE CNTRID: %d status %d\n",slave_cntr->id,slave_cntr->ctnr_state); 
                 if ((slave_cntr->id == pcs->id) && (slave_cntr->ctnr_state !=  QREP_CTNR_STATE_ACTIVE)) {
                     sdf_mcd_stop_container_internal(pai,pcs->vip_tcp_port);
                 }
             }
-            plat_log_msg(21269, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION, PLAT_LOG_LEVEL_INFO,
+            plat_log_msg(21269, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION, PLAT_LOG_LEVEL_DEBUG,
                          "Data recovery done");
         } else {
             /* Send a replication message */
@@ -2967,7 +2967,7 @@ void data_recovery_thread(uint64_t arg) {
         rtype = (rnode >> 8) & 0xFF;
         rnode = rnode & 0xFF;
         if ( (pns->type != QREP_NODE_TYPE_ACTIVE_CLONING) && (rtype != QREP_RECOVERY_TYPE_PERSISTENT_ONLY) ) {
-            plat_log_msg(21271, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION, PLAT_LOG_LEVEL_INFO,
+            plat_log_msg(21271, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION, PLAT_LOG_LEVEL_DEBUG,
                          "Waiting to start recovery to %d\n",rnode);
             time(&cur_time);
             unsigned long int timeinsecs = (unsigned long int)cur_time;
@@ -2979,13 +2979,13 @@ void data_recovery_thread(uint64_t arg) {
                  }
             }
             if( pns->num_vgrps_being_serviced != 2 ) {
-                plat_log_msg(21272, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION, PLAT_LOG_LEVEL_INFO,
+                plat_log_msg(21272, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION, PLAT_LOG_LEVEL_DEBUG,
                                                             "Number of VGRP serviced %d. Ignore Recovery to node %d\n",
                                                              pns->num_vgrps_being_serviced, rnode);
                 continue;
             }
             if( ps->node_state[rnode].rec_flag == 1 ) {
-                plat_log_msg(21273, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION, PLAT_LOG_LEVEL_INFO,
+                plat_log_msg(21273, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION, PLAT_LOG_LEVEL_DEBUG,
                                                             "Recovery to node %d already completed. Ignore\n", rnode);
                 continue;
             }
@@ -2998,13 +2998,13 @@ void data_recovery_thread(uint64_t arg) {
                 break;
             }
             else {
-                 plat_log_msg(21274, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION, PLAT_LOG_LEVEL_INFO,
+                 plat_log_msg(21274, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION, PLAT_LOG_LEVEL_DEBUG,
                               "Waiting for completion of container manipulation command to start recovery");
             }
             fthYield(5);
         }
         fthWaitEl_t * wait_list;
-        plat_log_msg(21275, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION, PLAT_LOG_LEVEL_INFO,
+        plat_log_msg(21275, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION, PLAT_LOG_LEVEL_DEBUG,
                          "recovery request ID  %d remote node %d rec_type %d\n",rec_id, rnode,rtype);
         int cur_recid=0;
         wait_list = fthLock(&(pns->lock), 1, NULL);
@@ -3012,16 +3012,16 @@ void data_recovery_thread(uint64_t arg) {
         fthUnlock(wait_list);
 
         if( rec_id != cur_recid ) {
-            plat_log_msg(21276, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION, PLAT_LOG_LEVEL_INFO,
+            plat_log_msg(21276, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION, PLAT_LOG_LEVEL_DEBUG,
                                                             "There is new recovery request waiting. Ignore the currrent one %d\n",rec_id);
             continue;
         }
         if( ps->node_state[rnode].live != 1 )  {
-            plat_log_msg(21277, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION, PLAT_LOG_LEVEL_INFO,
+            plat_log_msg(21277, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION, PLAT_LOG_LEVEL_DEBUG,
                                                             "Remote Node %d died. Ignore the recovery\n",rnode );
             continue;
         }
-        plat_log_msg(21278, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION, PLAT_LOG_LEVEL_INFO,
+        plat_log_msg(21278, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION, PLAT_LOG_LEVEL_DEBUG,
                          "My Node Hosts 2 VIP Groups.  Start the recovery to node %d\n",rnode);
         ps->node_state[rnode].rec_flag = 1;
          
@@ -3030,7 +3030,7 @@ void data_recovery_thread(uint64_t arg) {
          */
         time(&cur_time);
         sprintf(pns->datarecstat,"Data recovery to Node :%d Started on %s",rnode,ctime(&cur_time));
-        plat_log_msg(20819, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION, PLAT_LOG_LEVEL_INFO, "%s",pns->datarecstat);
+        plat_log_msg(20819, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION, PLAT_LOG_LEVEL_DEBUG, "%s",pns->datarecstat);
         ret = simple_replicator_start_new_replica(pai, mynode, rnode,0,rtype);
         /* Update the local node data recovery  recover starts */
         if( ret == 0 ) {
@@ -3039,7 +3039,7 @@ void data_recovery_thread(uint64_t arg) {
              */
             time(&cur_time);
             sprintf(pns->datarecstat,"Data recovery to Node :%d Completed on %s",rnode,ctime(&cur_time));
-            plat_log_msg(20819, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION, PLAT_LOG_LEVEL_INFO,"%s",pns->datarecstat);
+            plat_log_msg(20819, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION, PLAT_LOG_LEVEL_DEBUG,"%s",pns->datarecstat);
             if( (pns->type != QREP_NODE_TYPE_ACTIVE_CLONING) && (rtype != QREP_RECOVERY_TYPE_PERSISTENT_ONLY) &&
                 (ps->groups[pns->group_id].type == SDF_CLUSTER_GRP_TYPE_MIRRORED )) {
                 simple_replicator_send_data_copy_completed();
@@ -3051,7 +3051,7 @@ void data_recovery_thread(uint64_t arg) {
              */
             time(&cur_time);
             sprintf(pns->datarecstat,"Data recovery to Node :%d Failed on %s",rnode,ctime(&cur_time));
-            plat_log_msg(20819, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION, PLAT_LOG_LEVEL_INFO,"%s",pns->datarecstat);
+            plat_log_msg(20819, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION, PLAT_LOG_LEVEL_DEBUG,"%s",pns->datarecstat);
         }
     }
 }
@@ -3167,7 +3167,7 @@ static void sync_container_thread(uint64_t arg) {
                              "flash_put failed: key: %s len: %d data: 0x%lx", key, key_len, (uint64_t)data);
                 rc = get_status(rc);
             } else {
-                plat_log_msg(21280, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION, PLAT_LOG_LEVEL_DEBUG,
+                plat_log_msg(21280, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION, PLAT_LOG_LEVEL_TRACE,
                              "data copy recv: key: %s len: %d data: 0x%lx rc: %d", key, key_len, (uint64_t)data, rc);
                 rc = SDF_SUCCESS;
             }
@@ -3526,7 +3526,7 @@ static SDF_status_t simple_replicator_sync_remote_container_new(
 	} else if (it_cursor->cursor_count == 0) {
 	    plat_log_msg(21282, 
 	                 PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION, 
-			 PLAT_LOG_LEVEL_DEBUG,
+			 PLAT_LOG_LEVEL_TRACE,
 			 "get iteration complete");
 	    if (it_cursor) {
 		plat_free(it_cursor);
@@ -3673,7 +3673,7 @@ static void sync_container_thread_new(uint64_t arg)
 			     "flash_put failed: key: %s len: %d data: 0x%lx", key, key_len, (uint64_t)data);
 		rc = get_status(rc);
 	    } else {
-		plat_log_msg(21280, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION, PLAT_LOG_LEVEL_DEBUG,
+		plat_log_msg(21280, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION, PLAT_LOG_LEVEL_TRACE,
 			     "data copy recv: key: %s len: %d data: 0x%lx rc: %d", key, key_len, (uint64_t)data, rc);
 		rc = SDF_SUCCESS;
 	    }
@@ -3773,7 +3773,7 @@ static SDF_status_t simple_replicator_sync_remote_container(SDF_action_init_t * 
         // Stop once we have all the cursors or failure
         if (rc != SDF_SUCCESS || !it_cursor->cursor_count) {
             if (it_cursor && !it_cursor->cursor_count) {
-                plat_log_msg(21282, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION, PLAT_LOG_LEVEL_DEBUG,
+                plat_log_msg(21282, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION, PLAT_LOG_LEVEL_TRACE,
                              "get iteration complete");
                 rc = SDF_SUCCESS;
 
@@ -4326,7 +4326,7 @@ static SDF_status_t rpc_get_by_cursor(SDF_context_t ctxt, SDF_shardid_t shard, v
 	*key = 0;
     }
 
-    plat_log_msg(21287, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION, PLAT_LOG_LEVEL_DEBUG,
+    plat_log_msg(21287, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION, PLAT_LOG_LEVEL_TRACE,
                  "rpc_get_by_cursor recv: key: %s status: %d", *key ? *key : "null", rc);
 
 

@@ -973,7 +973,7 @@ shmem_alloc_attach(int create) {
 
             /* Skip NULL */
             if (physmem_count != attached->nsegments - 1) {
-                plat_log_msg(20968, LOG_CAT, PLAT_LOG_LEVEL_INFO,
+                plat_log_msg(20968, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
                              "Physmem disabled - not all segments have mapping");
             } else if (physmem_count) {
                 plat_log_msg(20969, LOG_CAT,
@@ -1037,7 +1037,7 @@ shmem_alloc_attach(int create) {
             local_alloc->magic = SHMEM_ALLOC_MAGIC;
             local_admin->alloc_state = shared_alloc;
 
-            plat_log_msg(20970, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+            plat_log_msg(20970, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                          "Created shmem_alloc at " PLAT_SP_FMT,
                          PLAT_SP_FMT_ARG(shared_alloc));
         }
@@ -1194,7 +1194,7 @@ sa_next_segment_locked(struct shmem_alloc *shmem_alloc) {
         (void) __sync_add_and_fetch(&shmem_alloc->unusable_bytes,
                                     unusable_bytes);
 
-        plat_log_msg(20973, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+        plat_log_msg(20973, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                      "switched to segment %d of %d skipping %llu"
                      " bytes in last segment", shmem_alloc->current_segment,
                      attached->nsegments, (unsigned long long)unusable_bytes);
@@ -1449,7 +1449,7 @@ sa_stat_handles_alloc(struct shmem_alloc *shmem_alloc) {
     if (!failed &&                                                             \
         !(stat_handles->totals.name =                                          \
           plat_stat_register("platform/shmem/alloc/total", #name, NULL,        \
-                             PLAT_LOG_LEVEL_INFO, NULL /* fn */,               \
+                             PLAT_LOG_LEVEL_DEBUG, NULL /* fn */,               \
                              NULL /* extra */))) {                             \
         failed = 1;                                                            \
     }
@@ -1567,7 +1567,7 @@ sa_stat_arena_handles_alloc(enum plat_shmem_arena index) {
     if (!failed &&                                                             \
         !(ret->name =                                                          \
           plat_stat_register("platform/shmem/alloc", arena_name, #name,        \
-                             PLAT_LOG_LEVEL_INFO, NULL /* fn */,               \
+                             PLAT_LOG_LEVEL_DEBUG, NULL /* fn */,               \
                              NULL /* extra */))) {                             \
         failed = 1;                                                            \
     }

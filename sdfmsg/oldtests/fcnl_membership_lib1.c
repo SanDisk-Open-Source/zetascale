@@ -117,7 +117,7 @@ void * MembershipPthreadRoutine(void *arg) {
 
    int debug = 0;
    if (debug)
-        plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+        plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                 "\nNode %d MEMBERSHIP TEST THREAD STOPPING HERE FOR DEBUG\n",
                 myid);
     while (debug);
@@ -134,7 +134,7 @@ void * MembershipPthreadRoutine(void *arg) {
         }
 
         if (DBGP) {
-            plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+            plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                     "\nNode %d msg %p msg->msg_payload %p\n", myid, send_msg,
                     send_msg->msg_payload);
         }
@@ -157,10 +157,10 @@ void * MembershipPthreadRoutine(void *arg) {
 
             if (DBGP) {
                 plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT,
-                        PLAT_LOG_LEVEL_DEBUG,
+                        PLAT_LOG_LEVEL_TRACE,
                         "\nNode %d: sdf_msg_send returned %d\n", myid, ret);
                 plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT,
-                        PLAT_LOG_LEVEL_DEBUG,
+                        PLAT_LOG_LEVEL_TRACE,
                         "\nNode %d: %s: calling sdf_msg_receive(%p, %d, %d)\n",
                         myid, __func__, q_pair_MEMBERSHIP->q_out, 0, B_TRUE);
             }
@@ -183,7 +183,7 @@ void * MembershipPthreadRoutine(void *arg) {
 #endif
 
         if (DBGP) {
-            plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+            plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                     "\nNode %d: back from sdf_msg_receive with msg %p\n", myid,
                     recv_msg);
         }
@@ -204,7 +204,7 @@ void * MembershipPthreadRoutine(void *arg) {
             break;
     }
 
-    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
 		 "\nNode %d Exiting pthread membership tester - total msgs sent %d\n", myid, j);
     return (0);
 }

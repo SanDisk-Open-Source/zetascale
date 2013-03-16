@@ -46,7 +46,7 @@ struct plat_opts_config_singletest1 {
     fprintf(stderr, fmt, ## __VA_ARGS__)
 
 #define debugprintf(fmt, ...) \
-    plat_log_msg(PLAT_LOG_ID_INITIAL, LOCAL_CAT, PLAT_LOG_LEVEL_DEBUG, fmt, ## __VA_ARGS__)
+    plat_log_msg(PLAT_LOG_ID_INITIAL, LOCAL_CAT, PLAT_LOG_LEVEL_TRACE, fmt, ## __VA_ARGS__)
 
 #define traceprintf(fmt, ...) \
 	plat_log_msg(PLAT_LOG_ID_INITIAL, LOCAL_CAT, PLAT_LOG_LEVEL_TRACE, fmt, ## __VA_ARGS__)

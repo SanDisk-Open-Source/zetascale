@@ -4675,11 +4675,11 @@ set_cntr_sizes(pai_t *pai, shard_t *sshard)
             fdf_loge(70118, "Failed on get_cntr_info for container %ld", n);
         else {
             if (size) {
-                fdf_logi(70119, "Container %s: id=%ld objs=%ld used=%ld"
+                fdf_logd(70119, "Container %s: id=%ld objs=%ld used=%ld"
                                 " size=%ld full=%.1f%%",
                          name, n, objs, used, size, used*100.0/size);
             } else {
-                fdf_logi(70120, "Container %s: id=%ld objs=%ld used=%ld",
+                fdf_logd(70120, "Container %s: id=%ld objs=%ld used=%ld",
                          name, n, objs, used);
             }
         }

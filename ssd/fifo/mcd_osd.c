@@ -100,10 +100,12 @@ static int Mcd_fth_aio_ctxts[SSD_AIO_CTXT_MAX_COUNT];
 #  define MCD_OSD_LOG_LVL_DEBUG PLAT_LOG_LEVEL_DEBUG
 #  define MCD_OSD_LOG_LVL_DIAG  PLAT_LOG_LEVEL_DIAGNOSTIC
 #  define MCD_OSD_LOG_LVL_INFO  PLAT_LOG_LEVEL_INFO
+#  define MCD_OSD_LOG_LVL_TRACE  PLAT_LOG_LEVEL_TRACE
 #else
-#  define MCD_OSD_LOG_LVL_INFO  PLAT_LOG_LEVEL_DEBUG
+#  define MCD_OSD_LOG_LVL_INFO  PLAT_LOG_LEVEL_INFO
 #  define MCD_OSD_LOG_LVL_DEBUG PLAT_LOG_LEVEL_DEBUG
-#  define MCD_OSD_LOG_LVL_DIAG  PLAT_LOG_LEVEL_DEBUG
+#  define MCD_OSD_LOG_LVL_DIAG  PLAT_LOG_LEVEL_DIAGNOSTIC
+#  define MCD_OSD_LOG_LVL_TRACE  PLAT_LOG_LEVEL_TRACE
 #endif
 
 #ifndef MCD_ENABLE_FIFO
@@ -246,7 +248,7 @@ static __thread uint32_t        Mcd_pthread_id = 0;
 void mcd_osd_assign_pthread_id()
 {
     Mcd_pthread_id = __sync_fetch_and_add( &thread_id, 1 );
-    mcd_log_msg( 150001, PLAT_LOG_LEVEL_INFO,
+    mcd_log_msg( 150001, PLAT_LOG_LEVEL_DEBUG,
                  "pth_id=%d", Mcd_pthread_id );
 }
 
@@ -401,7 +403,7 @@ void * mcd_fth_osd_iobuf_alloc( size_t size, bool is_static )
     buf_hdr->size = size + 2 * Mcd_osd_blk_size - 1;
     (void) __sync_fetch_and_add( &Mcd_osd_iobuf_total, buf_hdr->size );
 
-    mcd_log_msg( 50038, PLAT_LOG_LEVEL_DEBUG,
+    mcd_log_msg( 50038, PLAT_LOG_LEVEL_TRACE,
                  "buf=%p aligned=%p offset=%hu", buf, temp, buf_hdr->offset );
     return temp;
 }
@@ -422,7 +424,7 @@ mcd_fth_osd_iobuf_free( void * buf )
 
     (void) __sync_fetch_and_sub( &Mcd_osd_iobuf_total, buf_hdr->size );
 
-    mcd_log_msg( 50040, PLAT_LOG_LEVEL_DEBUG,
+    mcd_log_msg( 50040, PLAT_LOG_LEVEL_TRACE,
                  "freeing iobuf, buf=%p orig=%p", buf, buf - buf_hdr->offset );
     plat_free( buf - buf_hdr->offset );
 }
@@ -438,7 +440,7 @@ mcd_fth_osd_slab_free( void * buf )
         return 0;
     }
     else if ( MCD_OSD_BUF_DYN_MAGIC == buf_hdr->magic ) {
-        mcd_log_msg( 50040, PLAT_LOG_LEVEL_DEBUG,
+        mcd_log_msg( 50040, PLAT_LOG_LEVEL_TRACE,
                      "freeing iobuf, buf=%p orig=%p",
                      buf, buf - buf_hdr->offset );
         (void) __sync_fetch_and_sub( &Mcd_osd_iobuf_total, buf_hdr->size );
@@ -456,7 +458,7 @@ mcd_fth_osd_slab_free( void * buf )
 int
 mcd_osd_release_buf( void * buf )
 {
-    mcd_log_msg( 20407, PLAT_LOG_LEVEL_DEBUG, "ENTERING, buf=%p", buf );
+    mcd_log_msg( 20407, PLAT_LOG_LEVEL_TRACE, "ENTERING, buf=%p", buf );
 
     return mcd_fth_osd_slab_free( buf );
 }
@@ -715,7 +717,7 @@ mcd_fth_get_container_properties( int index, char * cname,
         struct in_addr          ip;
         bool                    ipaddr_any;
 
-        mcd_log_msg( 50016, PLAT_LOG_LEVEL_DEBUG, "got ips: %s", ips );
+        mcd_log_msg( 50016, PLAT_LOG_LEVEL_TRACE, "got ips: %s", ips );
 
         ipaddr_any = false;
         memset( (void *)cntr_ips, 0, sizeof(mcd_cntr_ips_t) );
@@ -753,7 +755,7 @@ mcd_fth_get_container_properties( int index, char * cname,
                          "IPADDR_ANY cannot be specified with any other IPs" );
             plat_abort();
         }
-        mcd_log_msg( 50021, PLAT_LOG_LEVEL_INFO,
+        mcd_log_msg( 50021, PLAT_LOG_LEVEL_DEBUG,
                      "total number of ips is %d, ips=%s",
                      cntr_ips->num_ips, ips );
 
@@ -853,7 +855,7 @@ mcd_fth_open_container( void * pai, SDF_context_t ctxt,
     SDF_cguid_t	cguid = SDF_NULL_CGUID;
 #endif /* SDFAPI */
 
-    mcd_log_msg( 20000, PLAT_LOG_LEVEL_DEBUG, "ENTERING" );
+    mcd_log_msg( 20000, PLAT_LOG_LEVEL_TRACE, "ENTERING" );
 
     status = SDF_I_NewContext( pai, &ctxt );
     plat_assert_always( SDF_SUCCESS == status );
@@ -881,7 +883,7 @@ mcd_fth_open_container( void * pai, SDF_context_t ctxt,
         }
     }
     else {
-        mcd_log_msg( 20072, PLAT_LOG_LEVEL_DEBUG, "container=%s opened", cname );
+        mcd_log_msg( 20072, PLAT_LOG_LEVEL_TRACE, "container=%s opened", cname );
     }
 
     ((SDF_action_init_t *)pai)->ctxt = old_ctxt;
@@ -907,7 +909,7 @@ mcd_fth_create_open_container( void * pai, SDF_context_t ctxt,
 {
     SDF_status_t        status = SDF_FAILURE;
 
-    mcd_log_msg( 20000, PLAT_LOG_LEVEL_DEBUG, "ENTERING" );
+    mcd_log_msg( 20000, PLAT_LOG_LEVEL_TRACE, "ENTERING" );
 
     status = SDF_I_NewContext( pai, &ctxt );
     plat_assert_always( SDF_SUCCESS == status );
@@ -961,7 +963,7 @@ mcd_fth_create_open_container( void * pai, SDF_context_t ctxt,
             }
         }
         else {
-            mcd_log_msg( 20090, PLAT_LOG_LEVEL_DEBUG, "container %s opened", cname );
+            mcd_log_msg( 20090, PLAT_LOG_LEVEL_TRACE, "container %s opened", cname );
         }
     }
 
@@ -1170,7 +1172,7 @@ static int mcd_fth_do_try_container_internal( void * pai, int index,
         mcd_osd_shard_open_phase2( Mcd_containers[index].shard,
                                    &Mcd_containers[index] );
 
-        mcd_log_msg( 20122, PLAT_LOG_LEVEL_INFO,
+        mcd_log_msg( 20122, PLAT_LOG_LEVEL_DEBUG,
                      "container %s opened, id=%ld size=%lluKB num_objs=%d "
                      "eviction=%d persistence=%d",
                      cname, (long) Mcd_containers[index].sdf_container,
@@ -1261,7 +1263,7 @@ static int mcd_fth_try_container( void * pai, int index, int system_recovery, in
                 if ( 0 == mcd_cntr->tcp_port ) {
                     continue;
                 }
-                mcd_log_msg( 20123, PLAT_LOG_LEVEL_DEBUG,
+                mcd_log_msg( 20123, PLAT_LOG_LEVEL_TRACE,
                              "container prop found, port=%d id=%d name=%s",
                              mcd_cntr->tcp_port, mcd_cntr->container_id,
                              mcd_cntr->cname );
@@ -1270,7 +1272,7 @@ static int mcd_fth_try_container( void * pai, int index, int system_recovery, in
                      mcd_cntr->container_id == container->container_id &&
                      0 == strcmp( mcd_cntr->cname, container->cname ) ) {
                     state = mcd_cntr->state;
-                    mcd_log_msg( 20124, PLAT_LOG_LEVEL_DEBUG,
+                    mcd_log_msg( 20124, PLAT_LOG_LEVEL_TRACE,
                                  "persisted container state %d", state );
                 }
             }
@@ -1382,7 +1384,7 @@ SDF_status_t mcd_fth_container_init( void * pai, int system_recovery, int tcp_po
 {
     int                         i;
 
-    mcd_log_msg( 20000, PLAT_LOG_LEVEL_DEBUG, "ENTERING" );
+    mcd_log_msg( 20000, PLAT_LOG_LEVEL_TRACE, "ENTERING" );
 
 #ifdef  MCD_SDF_NO_OP
     return SDF_SUCCESS;
@@ -1395,7 +1397,7 @@ SDF_status_t mcd_fth_container_init( void * pai, int system_recovery, int tcp_po
      * initialization
      */
     SDFClusterStatus( pai, &Mcd_fth_node_id, &Mcd_fth_num_nodes );
-    mcd_log_msg( 20128, PLAT_LOG_LEVEL_INFO,
+    mcd_log_msg( 20128, PLAT_LOG_LEVEL_DEBUG,
                  "got cluster status, node_id=%u num_nodes=%d",
                  Mcd_fth_node_id, Mcd_fth_num_nodes );
 #endif
@@ -1488,7 +1490,7 @@ mcd_osd_fifo_shard_init( mcd_osd_shard_t * shard, uint64_t shard_id,
     char                      * wbuf = NULL;
     char                      * wbuf_base;
 
-    mcd_log_msg( 20293, PLAT_LOG_LEVEL_INFO,
+    mcd_log_msg( 20293, PLAT_LOG_LEVEL_DEBUG,
                  "ENTERING, shard=%p shard_id=%lu flags=0x%x quota=%lu "
                  "max_nobjs=%u",
                  shard, shard_id, flags, quota, max_nobjs );
@@ -1555,7 +1557,7 @@ mcd_osd_fifo_shard_init( mcd_osd_shard_t * shard, uint64_t shard_id,
         else {
             shard->rand_table[i] = tmp_segments[i / temp]
                 + ( (i + i / temp) % temp ) * Mcd_osd_rand_blksize;
-            mcd_log_msg( 20296, PLAT_LOG_LEVEL_INFO,
+            mcd_log_msg( 20296, PLAT_LOG_LEVEL_DEBUG,
                          "rand_table[%d]=%u, segments[%d]=%u",
                          i, shard->rand_table[i],
                          i / temp, tmp_segments[i / temp] );
@@ -1571,7 +1573,7 @@ mcd_osd_fifo_shard_init( mcd_osd_shard_t * shard, uint64_t shard_id,
         shard->rand_table[j] = temp;
     }
 #endif
-    mcd_log_msg( 20297, PLAT_LOG_LEVEL_INFO,
+    mcd_log_msg( 20297, PLAT_LOG_LEVEL_DEBUG,
                  "remapping table initialized, size=%lu",
                  (shard->total_blks / Mcd_osd_rand_blksize) *
                  sizeof(uint32_t) );
@@ -1607,7 +1609,7 @@ mcd_osd_fifo_shard_init( mcd_osd_shard_t * shard, uint64_t shard_id,
         shard->hash_size / Mcd_osd_bucket_size * sizeof(mcd_osd_bucket_t) );
     total_alloc +=
         shard->hash_size / Mcd_osd_bucket_size * sizeof(mcd_osd_bucket_t);
-    mcd_log_msg( 20299, PLAT_LOG_LEVEL_INFO,
+    mcd_log_msg( 20299, PLAT_LOG_LEVEL_DEBUG,
                  "hash buckets allocated, size=%lu",
                  shard->hash_size /
                  Mcd_osd_bucket_size * sizeof(mcd_osd_bucket_t) );
@@ -1638,7 +1640,7 @@ mcd_osd_fifo_shard_init( mcd_osd_shard_t * shard, uint64_t shard_id,
     for ( i = 0; i < shard->lock_buckets; i++ ) {
         fthLockInit( &shard->bucket_locks[i] );
     }
-    mcd_log_msg( 20300, PLAT_LOG_LEVEL_INFO,
+    mcd_log_msg( 20300, PLAT_LOG_LEVEL_DEBUG,
                  "lock_buckets=%lu lock_bktsize=%d, total lock size=%lu",
                  shard->lock_buckets, shard->lock_bktsize,
                  shard->lock_buckets * sizeof(fthLock_t) );
@@ -1657,7 +1659,7 @@ mcd_osd_fifo_shard_init( mcd_osd_shard_t * shard, uint64_t shard_id,
     memset( (void *)shard->hash_table, 0,
             shard->hash_size * sizeof(mcd_osd_hash_t) );
     total_alloc += shard->hash_size * sizeof(mcd_osd_hash_t);
-    mcd_log_msg( 20302, PLAT_LOG_LEVEL_INFO,
+    mcd_log_msg( 20302, PLAT_LOG_LEVEL_DEBUG,
                  "hash table initialized, size=%lu",
                  shard->hash_size * sizeof(mcd_osd_hash_t) );
 
@@ -1674,7 +1676,7 @@ mcd_osd_fifo_shard_init( mcd_osd_shard_t * shard, uint64_t shard_id,
     memset( (void *)shard->addr_table, 0,
             shard->total_blks * sizeof(uint32_t) );
     total_alloc += shard->total_blks * sizeof(uint32_t);
-    mcd_log_msg( 20307, PLAT_LOG_LEVEL_INFO,
+    mcd_log_msg( 20307, PLAT_LOG_LEVEL_DEBUG,
                  "address table initialized, size=%lu",
                  shard->total_blks * sizeof(uint32_t) );
 
@@ -1708,7 +1710,7 @@ mcd_osd_fifo_shard_init( mcd_osd_shard_t * shard, uint64_t shard_id,
     shard->fifo.free_blks = shard->total_blks;
     fthMboxInit( &shard->fifo.sleeper_mbox );
 
-    mcd_log_msg( 20309, PLAT_LOG_LEVEL_INFO,
+    mcd_log_msg( 20309, PLAT_LOG_LEVEL_DEBUG,
                  "shard initialized, total allocated bytes=%lu", total_alloc );
     return 0;   /* SUCCESS */
 }
@@ -1746,7 +1748,7 @@ static int mcd_osd_fifo_reclaim( mcd_osd_shard_t * shard, char * rbuf,
                          blk_offset );
             plat_abort();
         }
-        mcd_log_msg( 20312, PLAT_LOG_LEVEL_DEBUG, "key_len=%d data_len=%u",
+        mcd_log_msg( 20312, PLAT_LOG_LEVEL_TRACE, "key_len=%d data_len=%u",
                      meta->key_len, meta->data_len );
 
         syndrome = hashck((unsigned char *)meta + sizeof(mcd_osd_meta_t),
@@ -1769,7 +1771,7 @@ static int mcd_osd_fifo_reclaim( mcd_osd_shard_t * shard, char * rbuf,
             }
             if ( blk_offset + ( (char *)meta - rbuf ) / Mcd_osd_blk_size
                  == hash_entry->address ) {
-                mcd_log_msg( 20313, PLAT_LOG_LEVEL_DEBUG,
+                mcd_log_msg( 20313, PLAT_LOG_LEVEL_TRACE,
                              "reclaiming item: syndrome=%lx "
                              "syn=%x addr=%u blocks=%u",
                              syndrome, hash_entry->syndrome,
@@ -1804,7 +1806,7 @@ static int mcd_osd_fifo_reclaim( mcd_osd_shard_t * shard, char * rbuf,
 
     (void) __sync_fetch_and_sub( &shard->blk_consumed, total );
 
-    mcd_log_msg( 20314, MCD_OSD_LOG_LVL_INFO,
+    mcd_log_msg( 20314, MCD_OSD_LOG_LVL_DEBUG,
                  "space reclaimed, blk_offset=%lu blocks=%d",
                  blk_offset, total );
 
@@ -1824,7 +1826,7 @@ static int mcd_osd_fifo_write( mcd_osd_shard_t * shard, char * rbuf,
     osd_state_t               * context;
     mcd_osd_fifo_wbuf_t       * wbuf;
 
-    mcd_log_msg( 20316, MCD_OSD_LOG_LVL_INFO,
+    mcd_log_msg( 20316, MCD_OSD_LOG_LVL_DEBUG,
                  "got writer mail, blk_committed=%lu",
                  shard->fifo.blk_committed );
 
@@ -1842,7 +1844,7 @@ static int mcd_osd_fifo_write( mcd_osd_shard_t * shard, char * rbuf,
         }
 
         if ( MCD_OSD_WBUF_BLKS != wbuf->filled ) {
-            mcd_log_msg( 20318, MCD_OSD_LOG_LVL_INFO,
+            mcd_log_msg( 20318, MCD_OSD_LOG_LVL_DEBUG,
                          "writer mail arrived out of order" );
             break;
         }
@@ -1867,7 +1869,7 @@ static int mcd_osd_fifo_write( mcd_osd_shard_t * shard, char * rbuf,
          * check whether there are still outstanding readers
          */
         while ( 0 != wbuf->ref_count ) {
-            mcd_log_msg( 20320, MCD_OSD_LOG_LVL_INFO,
+            mcd_log_msg( 20320, MCD_OSD_LOG_LVL_DEBUG,
                          "buffer still referenced, count=%u",
                          wbuf->ref_count );
             fthYield( 1 );
@@ -1882,7 +1884,7 @@ static int mcd_osd_fifo_write( mcd_osd_shard_t * shard, char * rbuf,
         (void) __sync_fetch_and_add(
             &shard->fifo.blk_nextbuf, MCD_OSD_WBUF_BLKS );
 
-        mcd_log_msg( 20321, MCD_OSD_LOG_LVL_INFO,
+        mcd_log_msg( 20321, MCD_OSD_LOG_LVL_DEBUG,
                      "wbuf %d committed, "
                      "rsvd=%lu alloc=%lu cmtd=%lu next=%lu", wbuf->id,
                      shard->fifo.blk_reserved, shard->fifo.blk_allocated,
@@ -1902,7 +1904,7 @@ static int mcd_osd_fifo_write( mcd_osd_shard_t * shard, char * rbuf,
 
             offset = mcd_osd_rand_address(shard, blk_offset);
 
-            mcd_log_msg( 20322, MCD_OSD_LOG_LVL_INFO,
+            mcd_log_msg( 20322, MCD_OSD_LOG_LVL_DEBUG,
                          "rbuf to read, blk_offset=%lu", blk_offset );
 
             rc = mcd_fth_aio_blk_read( (void *) &osd_state->osd_aio_state,
@@ -1938,7 +1940,7 @@ static int mcd_osd_fifo_write( mcd_osd_shard_t * shard, char * rbuf,
 
             fthMboxPost( (fthMbox_t *)context->osd_mbox, 0 );
             total += context->osd_blocks;
-            mcd_log_msg( 20324, MCD_OSD_LOG_LVL_DEBUG,
+            mcd_log_msg( 20324, MCD_OSD_LOG_LVL_TRACE,
                          "sleeper waked up, blocks=%d, total=%d",
                          context->osd_blocks, total );
 
@@ -1990,7 +1992,7 @@ void mcd_fth_start_osd_writers()
 
         fthResume( fthSpawn( &mcd_fth_osd_writer, 81920),
                    (uint64_t) osd_state );
-        mcd_log_msg( 150002, PLAT_LOG_LEVEL_INFO,
+        mcd_log_msg( 150002, PLAT_LOG_LEVEL_DEBUG,
                      "writer fthread spawned, use context %p", osd_state );
     }
 }
@@ -2012,7 +2014,7 @@ void mcd_fth_osd_writer( uint64_t arg )
     mcd_osd_shard_t           * shard;
     mcd_osd_fifo_wbuf_t       * wbuf;
 
-    mcd_log_msg( 20000, PLAT_LOG_LEVEL_INFO, "ENTERING" );
+    mcd_log_msg( 20000, PLAT_LOG_LEVEL_DEBUG, "ENTERING" );
 
     rbuf = plat_alloc( MCD_OSD_WBUF_SIZE + 4095 );
     if ( NULL == rbuf ) {
@@ -2041,7 +2043,7 @@ void mcd_fth_osd_writer( uint64_t arg )
                 rc = mcd_osd_fifo_write( shard, rbuf, osd_state );
                 if ( -EAGAIN == rc ) {
                     fthMboxPost( &Mcd_osd_writer_mbox, (uint64_t)shard );
-                    mcd_log_msg( 50041, PLAT_LOG_LEVEL_DEBUG,
+                    mcd_log_msg( 50041, PLAT_LOG_LEVEL_TRACE,
                                  "writer resume mail posted, shard=%p",
                                  shard );
                     break;
@@ -2051,7 +2053,7 @@ void mcd_fth_osd_writer( uint64_t arg )
         }
 
         (void) __sync_fetch_and_sub( &shard->fifo.pending_wmails, 1 );
-        mcd_log_msg( 20316, MCD_OSD_LOG_LVL_INFO,
+        mcd_log_msg( 20316, MCD_OSD_LOG_LVL_DEBUG,
                      "got writer mail, blk_committed=%lu",
                      shard->fifo.blk_committed );
 
@@ -2069,7 +2071,7 @@ void mcd_fth_osd_writer( uint64_t arg )
             }
 
             if ( MCD_OSD_WBUF_BLKS != wbuf->filled ) {
-                mcd_log_msg( 20318, MCD_OSD_LOG_LVL_INFO,
+                mcd_log_msg( 20318, MCD_OSD_LOG_LVL_DEBUG,
                              "writer mail arrived out of order" );
                 break;
             }
@@ -2096,7 +2098,7 @@ void mcd_fth_osd_writer( uint64_t arg )
              * check whether there are still outstanding readers
              */
             while ( 0 != wbuf->ref_count ) {
-                mcd_log_msg( 20320, MCD_OSD_LOG_LVL_INFO,
+                mcd_log_msg( 20320, MCD_OSD_LOG_LVL_DEBUG,
                              "buffer still referenced, count=%u",
                              wbuf->ref_count );
                 fthYield( 1 );
@@ -2111,7 +2113,7 @@ void mcd_fth_osd_writer( uint64_t arg )
             (void) __sync_fetch_and_add(
                 &shard->fifo.blk_nextbuf, MCD_OSD_WBUF_BLKS );
 
-            mcd_log_msg( 20321, MCD_OSD_LOG_LVL_INFO,
+            mcd_log_msg( 20321, MCD_OSD_LOG_LVL_DEBUG,
                          "wbuf %d committed, "
                          "rsvd=%lu alloc=%lu cmtd=%lu next=%lu", wbuf->id,
                          shard->fifo.blk_reserved, shard->fifo.blk_allocated,
@@ -2131,7 +2133,7 @@ void mcd_fth_osd_writer( uint64_t arg )
 
                 offset = mcd_osd_rand_address(shard, blk_offset);
 
-                mcd_log_msg( 20322, MCD_OSD_LOG_LVL_INFO,
+                mcd_log_msg( 20322, MCD_OSD_LOG_LVL_DEBUG,
                              "rbuf to read, blk_offset=%lu", blk_offset );
 
                 rc = mcd_fth_aio_blk_read( (void *) &osd_state->osd_aio_state,
@@ -2164,7 +2166,7 @@ void mcd_fth_osd_writer( uint64_t arg )
                 fthMboxPost( (fthMbox_t *)context->osd_mbox, 0 );
 
                 total += context->osd_blocks;
-                mcd_log_msg( 20324, MCD_OSD_LOG_LVL_DEBUG,
+                mcd_log_msg( 20324, MCD_OSD_LOG_LVL_TRACE,
                              "sleeper waked up, blocks=%d, total=%d",
                              context->osd_blocks, total );
 
@@ -2203,7 +2205,7 @@ mcd_fifo_find_buffered_obj( mcd_osd_shard_t * shard, char * key, int key_len,
     mcd_osd_meta_t            * meta;
     mcd_osd_fifo_wbuf_t       * wbuf;
 
-    mcd_log_msg( 20000, PLAT_LOG_LEVEL_DEBUG, "ENTERING" );
+    mcd_log_msg( 20000, PLAT_LOG_LEVEL_TRACE, "ENTERING" );
 
 retry:
     blk_committed = shard->fifo.blk_committed % shard->total_blks;
@@ -2231,7 +2233,7 @@ retry:
         buf = wbuf->buf + (address % MCD_OSD_WBUF_BLKS) * Mcd_osd_blk_size;
 
         meta = (mcd_osd_meta_t *)buf;
-        mcd_log_msg( 20312, PLAT_LOG_LEVEL_DEBUG, "key_len=%d data_len=%u",
+        mcd_log_msg( 20312, PLAT_LOG_LEVEL_TRACE, "key_len=%d data_len=%u",
                     meta->key_len, meta->data_len );
 
         if ( MCD_OSD_MAGIC_NUMBER != meta->magic ) {
@@ -2292,13 +2294,13 @@ mcd_fth_osd_fifo_get( void * context, mcd_osd_shard_t * shard, char * key,
     mcd_osd_bucket_t          * bucket;
     mcd_osd_fifo_wbuf_t       * wbuf;
 
-    mcd_log_msg( 20000, PLAT_LOG_LEVEL_DEBUG, "ENTERING" );
+    mcd_log_msg( 20000, PLAT_LOG_LEVEL_TRACE, "ENTERING" );
     (void) __sync_fetch_and_add( &shard->num_gets, 1 );
 
 #ifdef  MCD_OSD_DEBUGGING
     (void) __sync_fetch_and_add( &Mcd_osd_get_cmds, 1 );
     if ( 0 == Mcd_osd_get_cmds % MCD_OSD_DBG_GET_DIV ) {
-        mcd_log_msg( 20327, PLAT_LOG_LEVEL_INFO,
+        mcd_log_msg( 20327, PLAT_LOG_LEVEL_DEBUG,
                      "%lu get cmds", Mcd_osd_get_cmds );
     }
 #endif
@@ -2420,7 +2422,7 @@ mcd_fth_osd_fifo_get( void * context, mcd_osd_shard_t * shard, char * key,
         }
 
         meta = (mcd_osd_meta_t *)buf;
-        mcd_log_msg( 20312, PLAT_LOG_LEVEL_DEBUG, "key_len=%d data_len=%u",
+        mcd_log_msg( 20312, PLAT_LOG_LEVEL_TRACE, "key_len=%d data_len=%u",
                      meta->key_len, meta->data_len );
 
         if ( MCD_OSD_MAGIC_NUMBER != meta->magic ) {
@@ -2516,7 +2518,7 @@ mcd_fth_osd_free_segment( mcd_osd_shard_t * shard, mcd_osd_segment_t *segment, u
 
     fthUnlock( wait );
 
-    mcd_log_msg(180011, PLAT_LOG_LEVEL_DEBUG, "shard->id=%ld class->blk_size=%d class->num_segments=%d shard->free_segments_count=%ld", shard->id, class->slab_blksize, class->num_segments, shard->free_segments_count );
+    mcd_log_msg(180011, PLAT_LOG_LEVEL_TRACE, "shard->id=%ld class->blk_size=%d class->num_segments=%d shard->free_segments_count=%ld", shard->id, class->slab_blksize, class->num_segments, shard->free_segments_count );
 
     return 0;
 }
@@ -2571,7 +2573,7 @@ mcd_fth_osd_slab_dealloc( mcd_osd_shard_t * shard, uint32_t address, bool async 
     int                 map_offset;
     mcd_osd_segment_t * segment;
 
-    mcd_log_msg( 20000, PLAT_LOG_LEVEL_DEBUG, "ENTERING" );
+    mcd_log_msg( 20000, PLAT_LOG_LEVEL_TRACE, "ENTERING" );
 
     segment = shard->segment_table[address / Mcd_osd_segment_blks];
 
@@ -2606,7 +2608,7 @@ mcd_fth_osd_slab_dealloc( mcd_osd_shard_t * shard, uint32_t address, bool async 
 	else if(shard->gc)
 		slab_gc_signal(shard, segment->class);
 
-    mcd_log_msg( 20365, MCD_OSD_LOG_LVL_DEBUG,
+    mcd_log_msg( 20365, MCD_OSD_LOG_LVL_TRACE,
                  "cls=%ld addr=%u off=%d map=%.16lx slabs=%lu, pend=%lu",
                  segment->class - shard->slab_classes,
                  address,
@@ -2631,7 +2633,7 @@ mcd_fth_osd_remove_entry( mcd_osd_shard_t * shard,
 {
 	mcd_osd_slab_class_t* class;
 
-    mcd_log_msg( 20000, PLAT_LOG_LEVEL_DEBUG, "ENTERING" );
+    mcd_log_msg( 20000, PLAT_LOG_LEVEL_TRACE, "ENTERING" );
 
     if ( 0 == hash_entry->used || 0 == hash_entry->blocks ) {
         plat_assert_always( 0 == 1 );
@@ -2693,13 +2695,13 @@ mcd_fth_osd_fifo_set( void * context, mcd_osd_shard_t * shard, char * key,
 
     new_entry.reserved = 0;
 
-    mcd_log_msg( 20000, PLAT_LOG_LEVEL_DEBUG, "ENTERING" );
+    mcd_log_msg( 20000, PLAT_LOG_LEVEL_TRACE, "ENTERING" );
     (void) __sync_fetch_and_add( &shard->num_puts, 1 );
 
 #ifdef  MCD_OSD_DEBUGGING
     (void) __sync_fetch_and_add( &Mcd_osd_set_cmds, 1 );
     if ( 0 == Mcd_osd_set_cmds % MCD_OSD_DBG_SET_DIV ) {
-        mcd_log_msg( 20329, PLAT_LOG_LEVEL_INFO,
+        mcd_log_msg( 20329, PLAT_LOG_LEVEL_DEBUG,
                      "%lu sets, b_alloc=%lu overwrites=%lu evictions=%lu "
                      "soft_of=%lu hard_of=%lu p_id=%d ",
                      Mcd_osd_set_cmds,
@@ -2746,7 +2748,7 @@ mcd_fth_osd_fifo_set( void * context, mcd_osd_shard_t * shard, char * key,
                                          hash_entry->address, &wbuf,
                                          &committed ) ) {
             obj_exists = true;
-            mcd_log_msg( 20331, PLAT_LOG_LEVEL_DEBUG, "object exists" );
+            mcd_log_msg( 20331, PLAT_LOG_LEVEL_TRACE, "object exists" );
 
             (void) __sync_fetch_and_sub( &wbuf->ref_count, 1 );
 
@@ -2804,7 +2806,7 @@ mcd_fth_osd_fifo_set( void * context, mcd_osd_shard_t * shard, char * key,
         }
 
         meta = (mcd_osd_meta_t *)buf;
-        mcd_log_msg( 20312, PLAT_LOG_LEVEL_DEBUG, "key_len=%d data_len=%u",
+        mcd_log_msg( 20312, PLAT_LOG_LEVEL_TRACE, "key_len=%d data_len=%u",
                      meta->key_len, meta->data_len );
 
         if ( MCD_OSD_MAGIC_NUMBER != meta->magic ) {
@@ -2828,7 +2830,7 @@ mcd_fth_osd_fifo_set( void * context, mcd_osd_shard_t * shard, char * key,
         }
 
         obj_exists = true;
-        mcd_log_msg( 20331, PLAT_LOG_LEVEL_DEBUG, "object exists" );
+        mcd_log_msg( 20331, PLAT_LOG_LEVEL_TRACE, "object exists" );
 
         if ( FLASH_PUT_TEST_EXIST & flags ) {
             rc = FLASH_EEXIST;
@@ -2885,6 +2887,8 @@ mcd_fth_osd_fifo_set( void * context, mcd_osd_shard_t * shard, char * key,
                 }
             }
             if ( Mcd_osd_bucket_size == n ) {
+                mcd_log_msg( PLAT_LOG_ID_INITIAL, PLAT_LOG_LEVEL_TRACE, 
+                                            "No space left for hash entry" );
                 rc = FLASH_ENOSPC;
                 goto out;
             }
@@ -2958,7 +2962,7 @@ mcd_fth_osd_fifo_set( void * context, mcd_osd_shard_t * shard, char * key,
                              blk_nextbuf, shard->fifo.blk_nextbuf );
                 continue;
             }
-            mcd_log_msg( 20333, PLAT_LOG_LEVEL_DEBUG,
+            mcd_log_msg( 20333, PLAT_LOG_LEVEL_TRACE,
                          "mail posted, ready to sleep" );
 
             /*
@@ -2967,7 +2971,7 @@ mcd_fth_osd_fifo_set( void * context, mcd_osd_shard_t * shard, char * key,
             fthUnlock( osd_state->osd_wait );
 
             mail = fthMboxWait( ((osd_state_t *)context)->osd_mbox );
-            mcd_log_msg( 20334, PLAT_LOG_LEVEL_DEBUG,
+            mcd_log_msg( 20334, PLAT_LOG_LEVEL_TRACE,
                          "waked up, mail=%lu", mail );
 
             /*
@@ -3016,7 +3020,7 @@ mcd_fth_osd_fifo_set( void * context, mcd_osd_shard_t * shard, char * key,
                 }
                 else {
                     fthMboxPost( &Mcd_osd_writer_mbox, (uint64_t)shard );
-                    mcd_log_msg( 20336, MCD_OSD_LOG_LVL_INFO,
+                    mcd_log_msg( 20336, MCD_OSD_LOG_LVL_DEBUG,
                                  "wbuf %d full, writer mail posted off=%lu "
                                  "rsvd=%lu alloc=%lu cmtd=%lu next=%lu",
                                  wbuf->id, blk_offset,
@@ -3028,7 +3032,7 @@ mcd_fth_osd_fifo_set( void * context, mcd_osd_shard_t * shard, char * key,
             }
             else {
                 mcd_osd_fifo_notify_writer( shard );
-                mcd_log_msg( 50042, MCD_OSD_LOG_LVL_INFO,
+                mcd_log_msg( 50042, MCD_OSD_LOG_LVL_DEBUG,
                              "wbuf %d full, writer notified off=%lu "
                              "rsvd=%lu alloc=%lu cmtd=%lu next=%lu",
                              wbuf->id, blk_offset,
@@ -3056,7 +3060,7 @@ mcd_fth_osd_fifo_set( void * context, mcd_osd_shard_t * shard, char * key,
                 }
                 else {
                     fthMboxPost( &Mcd_osd_writer_mbox, (uint64_t)shard );
-                    mcd_log_msg( 20336, MCD_OSD_LOG_LVL_INFO,
+                    mcd_log_msg( 20336, MCD_OSD_LOG_LVL_DEBUG,
                                  "wbuf %d full, writer mail posted off=%lu "
                                  "rsvd=%lu alloc=%lu cmtd=%lu next=%lu",
                                  wbuf->id, blk_offset,
@@ -3068,7 +3072,7 @@ mcd_fth_osd_fifo_set( void * context, mcd_osd_shard_t * shard, char * key,
             }
             else {
                 mcd_osd_fifo_notify_writer( shard );
-                mcd_log_msg( 50042, MCD_OSD_LOG_LVL_INFO,
+                mcd_log_msg( 50042, MCD_OSD_LOG_LVL_DEBUG,
                              "wbuf %d full, writer notified off=%lu "
                              "rsvd=%lu alloc=%lu cmtd=%lu next=%lu",
                              wbuf->id, blk_offset,
@@ -3101,7 +3105,7 @@ mcd_fth_osd_fifo_set( void * context, mcd_osd_shard_t * shard, char * key,
     memcpy( buf + sizeof(mcd_osd_meta_t) + key_len, data, data_len );
 
     plat_log_msg( 20337, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION,
-                  PLAT_LOG_LEVEL_DEBUG,
+                  PLAT_LOG_LEVEL_TRACE,
                   "store object [%ld][%d]: syndrome: %lx key_len: %d",
                   (syndrome % shard->hash_size) / Mcd_osd_bucket_size, i,
                   syndrome, key_len );
@@ -3166,7 +3170,7 @@ mcd_fth_osd_fifo_set( void * context, mcd_osd_shard_t * shard, char * key,
     }
 
     blk_filled = __sync_add_and_fetch( &wbuf->filled, blocks );
-    mcd_log_msg( 20338, PLAT_LOG_LEVEL_DEBUG,
+    mcd_log_msg( 20338, PLAT_LOG_LEVEL_TRACE,
                  "blocks allocated, key_len=%d data_len=%lu "
                  "blk_offset=%lu addr=%lu blocks=%d filled=%u",
                  key_len, data_len, blk_offset,
@@ -3180,7 +3184,7 @@ mcd_fth_osd_fifo_set( void * context, mcd_osd_shard_t * shard, char * key,
             }
             else {
                 fthMboxPost( &Mcd_osd_writer_mbox, (uint64_t)shard );
-                mcd_log_msg( 20336, MCD_OSD_LOG_LVL_INFO,
+                mcd_log_msg( 20336, MCD_OSD_LOG_LVL_DEBUG,
                              "wbuf %d full, writer mail posted "
                              "off=%lu rsvd=%lu alloc=%lu cmtd=%lu next=%lu",
                              wbuf->id, blk_offset,
@@ -3192,7 +3196,7 @@ mcd_fth_osd_fifo_set( void * context, mcd_osd_shard_t * shard, char * key,
         }
         else {
             mcd_osd_fifo_notify_writer( shard );
-            mcd_log_msg( 50042, MCD_OSD_LOG_LVL_INFO,
+            mcd_log_msg( 50042, MCD_OSD_LOG_LVL_DEBUG,
                          "wbuf %d full, writer notified "
                          "off=%lu rsvd=%lu alloc=%lu cmtd=%lu next=%lu",
                          wbuf->id, blk_offset,
@@ -3317,7 +3321,7 @@ mcd_osd_slab_shard_init_free_segments( mcd_osd_shard_t * shard )
             shard->free_segments[shard->free_segments_count++] = i * Mcd_osd_segment_blks;
     }
 
-    mcd_log_msg(180008, PLAT_LOG_LEVEL_INFO,
+    mcd_log_msg(180008, PLAT_LOG_LEVEL_DEBUG,
                  "shard=%p free_segments found %lu, blk_allocated %lu",
                  shard, shard->free_segments_count, shard->blk_allocated);
 #undef iBITS
@@ -3340,7 +3344,7 @@ mcd_osd_slab_shard_init( mcd_osd_shard_t * shard, uint64_t shard_id,
     mcd_osd_segment_t    * segments = NULL;
     mcd_osd_slab_class_t * class;
 
-    mcd_log_msg( 20293, PLAT_LOG_LEVEL_INFO,
+    mcd_log_msg( 20293, PLAT_LOG_LEVEL_DEBUG,
                  "ENTERING, shard=%p shard_id=%lu flags=0x%x quota=%lu "
                  "max_nobjs=%u",
                  shard, shard_id, flags, quota, max_nobjs );
@@ -3387,7 +3391,7 @@ mcd_osd_slab_shard_init( mcd_osd_shard_t * shard, uint64_t shard_id,
     memset( (void *)segments, 0,
             max_segments * sizeof(mcd_osd_segment_t) );
     total_alloc += max_segments * sizeof(mcd_osd_segment_t);
-    mcd_log_msg( 40111, PLAT_LOG_LEVEL_DEBUG,
+    mcd_log_msg( 40111, PLAT_LOG_LEVEL_TRACE,
                  "base segment table initialized, size=%lu",
                  max_segments * sizeof(mcd_osd_segment_t) );
 
@@ -3401,7 +3405,7 @@ mcd_osd_slab_shard_init( mcd_osd_shard_t * shard, uint64_t shard_id,
         }
         total_alloc += max_segments * bitmap_size;
     }
-    mcd_log_msg( 40112, PLAT_LOG_LEVEL_DEBUG,
+    mcd_log_msg( 40112, PLAT_LOG_LEVEL_TRACE,
                  "bitmaps initialized, size=%d, bitmap_size=%d, total=%d",
                  bitmap_size, max_segments * bitmap_size,
                  5 * max_segments * bitmap_size );
@@ -3463,7 +3467,7 @@ mcd_osd_slab_shard_init( mcd_osd_shard_t * shard, uint64_t shard_id,
                     class->freelist_len * sizeof(uint32_t) );
             total_alloc += class->freelist_len * sizeof(uint32_t);
         }
-        mcd_log_msg( 40113, PLAT_LOG_LEVEL_DEBUG,
+        mcd_log_msg( 40113, PLAT_LOG_LEVEL_TRACE,
                      "slab class inited, blksize=%d, free_slabs=%lu, "
                      "segments=%lu",
                      blksize, class->freelist_len * sizeof(uint32_t),
@@ -3471,7 +3475,7 @@ mcd_osd_slab_shard_init( mcd_osd_shard_t * shard, uint64_t shard_id,
 
         shard->num_classes++;
         if ( blksize > MCD_OSD_OBJ_MAX_BLKS ) {
-            mcd_log_msg( 50043, MCD_OSD_LOG_LVL_INFO,
+            mcd_log_msg( 50043, MCD_OSD_LOG_LVL_DEBUG,
                          "max slab_blksize=%d", blksize );
             break;
         }
@@ -3501,7 +3505,7 @@ mcd_osd_slab_shard_init( mcd_osd_shard_t * shard, uint64_t shard_id,
     total_alloc += max_segments * sizeof(uint64_t *);
     shard->free_segments_count = 0;
 
-    mcd_log_msg( 20344, PLAT_LOG_LEVEL_INFO,
+    mcd_log_msg( 20344, PLAT_LOG_LEVEL_DEBUG,
                  "segments initialized, %d segments, %d classes size=%lu",
                  max_segments, i, total_alloc );
 
@@ -3535,7 +3539,7 @@ mcd_osd_slab_shard_init( mcd_osd_shard_t * shard, uint64_t shard_id,
     memset( (void *)shard->addr_table, 0,
             shard->total_blks * sizeof(uint32_t) );
     total_alloc += shard->total_blks * sizeof(uint32_t);
-    mcd_log_msg( 20307, PLAT_LOG_LEVEL_INFO,
+    mcd_log_msg( 20307, PLAT_LOG_LEVEL_DEBUG,
                  "address table initialized, size=%lu",
                  shard->total_blks * sizeof(uint32_t) );
 
@@ -3567,7 +3571,7 @@ mcd_osd_slab_shard_init( mcd_osd_shard_t * shard, uint64_t shard_id,
         else {
             shard->rand_table[i] = tmp_segments[i / temp]
                 + ( (i + i / temp) % temp ) * Mcd_osd_rand_blksize;
-            mcd_log_msg( 20296, PLAT_LOG_LEVEL_INFO,
+            mcd_log_msg( 20296, PLAT_LOG_LEVEL_DEBUG,
                          "rand_table[%d]=%u, segments[%d]=%u",
                          i, shard->rand_table[i],
                          i / temp, tmp_segments[i / temp] );
@@ -3583,7 +3587,7 @@ mcd_osd_slab_shard_init( mcd_osd_shard_t * shard, uint64_t shard_id,
         shard->rand_table[j] = temp;
     }
 #endif
-    mcd_log_msg( 20297, PLAT_LOG_LEVEL_INFO,
+    mcd_log_msg( 20297, PLAT_LOG_LEVEL_DEBUG,
                  "remapping table initialized, size=%lu",
                  (shard->total_blks / Mcd_osd_rand_blksize) *
                  sizeof(uint32_t) );
@@ -3603,7 +3607,7 @@ mcd_osd_slab_shard_init( mcd_osd_shard_t * shard, uint64_t shard_id,
         shard->hash_size / Mcd_osd_bucket_size * sizeof(mcd_osd_bucket_t) );
     total_alloc +=
         shard->hash_size / Mcd_osd_bucket_size * sizeof(mcd_osd_bucket_t);
-    mcd_log_msg( 20299, PLAT_LOG_LEVEL_INFO,
+    mcd_log_msg( 20299, PLAT_LOG_LEVEL_DEBUG,
                  "hash buckets allocated, size=%lu",
                  shard->hash_size /
                  Mcd_osd_bucket_size * sizeof(mcd_osd_bucket_t) );
@@ -3634,7 +3638,7 @@ mcd_osd_slab_shard_init( mcd_osd_shard_t * shard, uint64_t shard_id,
     for ( i = 0; i < shard->lock_buckets; i++ ) {
         fthLockInit( &shard->bucket_locks[i] );
     }
-    mcd_log_msg( 20300, PLAT_LOG_LEVEL_INFO,
+    mcd_log_msg( 20300, PLAT_LOG_LEVEL_DEBUG,
                  "lock_buckets=%lu lock_bktsize=%d, total lock size=%lu",
                  shard->lock_buckets, shard->lock_bktsize,
                  shard->lock_buckets * sizeof(fthLock_t) );
@@ -3654,7 +3658,7 @@ mcd_osd_slab_shard_init( mcd_osd_shard_t * shard, uint64_t shard_id,
     memset( (void *)shard->hash_table, 0,
             shard->hash_size * sizeof(mcd_osd_hash_t) );
     total_alloc += shard->hash_size * sizeof(mcd_osd_hash_t);
-    mcd_log_msg( 20302, PLAT_LOG_LEVEL_INFO,
+    mcd_log_msg( 20302, PLAT_LOG_LEVEL_DEBUG,
                  "hash table initialized, size=%lu",
                  shard->hash_size * sizeof(mcd_osd_hash_t) );
 
@@ -3669,7 +3673,7 @@ mcd_osd_slab_shard_init( mcd_osd_shard_t * shard, uint64_t shard_id,
             * Mcd_osd_overflow_depth * sizeof(mcd_osd_hash_t) );
     total_alloc +=
         shard->lock_buckets * Mcd_osd_overflow_depth * sizeof(mcd_osd_hash_t);
-    mcd_log_msg( 20304, PLAT_LOG_LEVEL_INFO,
+    mcd_log_msg( 20304, PLAT_LOG_LEVEL_DEBUG,
                  "overflow table initialized, size=%lu",
                  shard->lock_buckets * Mcd_osd_overflow_depth
                  * sizeof(mcd_osd_hash_t) );
@@ -3686,7 +3690,7 @@ mcd_osd_slab_shard_init( mcd_osd_shard_t * shard, uint64_t shard_id,
             * Mcd_osd_overflow_depth * sizeof(uint16_t) );
     total_alloc +=
         shard->lock_buckets * Mcd_osd_overflow_depth * sizeof(uint16_t);
-    mcd_log_msg( 20306, PLAT_LOG_LEVEL_INFO,
+    mcd_log_msg( 20306, PLAT_LOG_LEVEL_DEBUG,
                  "overflow index initialized, size=%lu",
                  shard->lock_buckets * Mcd_osd_overflow_depth
                  * sizeof(uint16_t) );
@@ -3701,7 +3705,7 @@ mcd_osd_slab_shard_init( mcd_osd_shard_t * shard, uint64_t shard_id,
         }
         shard->class_table[i] = j;
     }
-    mcd_log_msg( 50044, MCD_OSD_LOG_LVL_INFO,
+    mcd_log_msg( 50044, MCD_OSD_LOG_LVL_DEBUG,
                  "last entry, i=%d blksize=%d",
                  i - 1, shard->slab_classes[j].slab_blksize );
 
@@ -3713,12 +3717,12 @@ mcd_osd_slab_shard_init( mcd_osd_shard_t * shard, uint64_t shard_id,
         plat_abort();
     }
     total_alloc += shard->total_size;
-    mcd_log_msg( 20346, PLAT_LOG_LEVEL_INFO,
+    mcd_log_msg( 20346, PLAT_LOG_LEVEL_DEBUG,
                  "shard cache allocated, size=%lu miss_interval=%d",
                  shard->total_size, flash_settings.fake_miss_rate  );
 #endif
 
-    mcd_log_msg( 20309, PLAT_LOG_LEVEL_INFO,
+    mcd_log_msg( 20309, PLAT_LOG_LEVEL_DEBUG,
                  "shard initialized, total allocated bytes=%lu", total_alloc );
     return 0;   /* SUCCESS */
 
@@ -3746,7 +3750,7 @@ static int mcd_osd_slab_init()
     Mcd_osd_total_size = Mcd_aio_total_size;
     Mcd_osd_total_blks = Mcd_osd_total_size / Mcd_osd_blk_size;
     Mcd_osd_free_blks  = Mcd_osd_total_blks;
-    mcd_log_msg( 20347, PLAT_LOG_LEVEL_INFO,
+    mcd_log_msg( 20347, PLAT_LOG_LEVEL_DEBUG,
                  "ENTERING, total=%lu blks=%lu free=%lu",
                  Mcd_osd_total_size, Mcd_osd_total_blks, Mcd_osd_free_blks );
 
@@ -3759,7 +3763,7 @@ static int mcd_osd_slab_init()
     }
 
     Mcd_osd_rand_blksize = Mcd_osd_segment_blks / Mcd_aio_num_files;
-    mcd_log_msg( 20349, PLAT_LOG_LEVEL_INFO, "rand_blksize set to %d",
+    mcd_log_msg( 20349, PLAT_LOG_LEVEL_DEBUG, "rand_blksize set to %d",
                  Mcd_osd_rand_blksize );
 
     /*
@@ -3772,7 +3776,7 @@ static int mcd_osd_slab_init()
         plat_abort();
     }
     Mcd_aio_strip_size = Mcd_osd_segment_size / Mcd_aio_num_files;
-    mcd_log_msg( 20351, PLAT_LOG_LEVEL_INFO, "aio strip size set to %lu",
+    mcd_log_msg( 20351, PLAT_LOG_LEVEL_DEBUG, "aio strip size set to %lu",
                  Mcd_aio_strip_size );
 
     /*
@@ -3785,12 +3789,12 @@ static int mcd_osd_slab_init()
     for ( i = 0; i < 64; i++ ) {
         Mcd_osd_bitmap_masks[i] = mask;
         if ( 0xff != Mcd_osd_scan_table[mask % MCD_OSD_SCAN_TBSIZE] ) {
-            mcd_log_msg( 20352, PLAT_LOG_LEVEL_INFO,
+            mcd_log_msg( 20352, PLAT_LOG_LEVEL_DEBUG,
                          "collision detected, needs a larger table" );
             plat_abort();
         }
         Mcd_osd_scan_table[mask % MCD_OSD_SCAN_TBSIZE] = i;
-        mcd_log_msg( 20353, PLAT_LOG_LEVEL_DEBUG,
+        mcd_log_msg( 20353, PLAT_LOG_LEVEL_TRACE,
                      "mask=%.16lx index=%lu value=%u",
                      mask, mask % MCD_OSD_SCAN_TBSIZE, i );
         mask = mask << 1;
@@ -3812,7 +3816,7 @@ static int mcd_osd_slab_init()
             * Mcd_osd_segment_blks;
     }
     Mcd_osd_free_seg_curr = i;
-    mcd_log_msg( 150028, PLAT_LOG_LEVEL_INFO,
+    mcd_log_msg( 150028, PLAT_LOG_LEVEL_DEBUG,
                  "segment free list set up, %d segments, %lu bytes/segment", i, Mcd_osd_segment_size );
 
 #ifdef  USING_SDF_SHIM
@@ -3825,7 +3829,7 @@ static int mcd_osd_slab_init()
 
 	slab_gc_enabled = !strcmp(getProperty_String("FDF_SLAB_GC", "On"), "On");
 
-	plat_log_msg(180003, PLAT_LOG_CAT_PRINT_ARGS, PLAT_LOG_LEVEL_INFO,
+	plat_log_msg(180003, PLAT_LOG_CAT_PRINT_ARGS, PLAT_LOG_LEVEL_DEBUG,
 		"PROP: FDF_SLAB_GC=%s", slab_gc_enabled ? "On" : "Off");
 
     return 0;   /* SUCCESS */
@@ -3988,7 +3992,7 @@ mcd_fth_osd_grow_class(void* context, mcd_osd_shard_t * shard, mcd_osd_slab_clas
         if ( 1 == shard->persistent ) {
             fthUnlock( wait );
         }
-        mcd_log_msg( 20355, PLAT_LOG_LEVEL_DEBUG, "out of free segments" );
+        mcd_log_msg( 20355, PLAT_LOG_LEVEL_TRACE, "out of free segments" );
         return -1;
     }
 
@@ -4024,7 +4028,7 @@ mcd_fth_osd_grow_class(void* context, mcd_osd_shard_t * shard, mcd_osd_slab_clas
         }
     }
 
-    mcd_log_msg( 20357, MCD_OSD_LOG_LVL_INFO,
+    mcd_log_msg( 20357, MCD_OSD_LOG_LVL_DEBUG,
                  "segment %d allocated for shard %lu class %ld, "
                  "blk_offset=%lu used_slabs=%lu total_slabs=%lu",
                  seg_idx, shard->id, class - shard->slab_classes,
@@ -4171,6 +4175,8 @@ mcd_fth_osd_get_slab( void * context, mcd_osd_shard_t * shard,
      * currently not much we can do if the class is empty
      */
     if ( 0 == class->num_segments ) {
+        mcd_log_msg( PLAT_LOG_ID_INITIAL, PLAT_LOG_LEVEL_ERROR, 
+                                            "Slab class empty" );
         return FLASH_ENOSPC;
     }
 
@@ -4254,7 +4260,7 @@ mcd_fth_osd_get_slab( void * context, mcd_osd_shard_t * shard,
                                 tmp_offset - Mcd_pthread_id * slabs_per_pth
                                 + hand - (hand % slabs_per_pth);
 
-                            mcd_log_msg( 20359, MCD_OSD_LOG_LVL_INFO,
+                            mcd_log_msg( 20359, MCD_OSD_LOG_LVL_DEBUG,
                                          "free slab, map_off=%d blk_off=%lu",
                                          tmp_offset, *blk_offset );
 
@@ -4277,7 +4283,7 @@ mcd_fth_osd_get_slab( void * context, mcd_osd_shard_t * shard,
     }
 
     if ( 0 == shard->evict_to_free ) {
-        mcd_log_msg(180017, PLAT_LOG_LEVEL_DEBUG, "Couldn't allocate space for shard->id=%ld class=%p blocks=%d", shard->id, class, blocks);
+        mcd_log_msg(180017, PLAT_LOG_LEVEL_TRACE, "Couldn't allocate space for shard->id=%ld class=%p blocks=%d", shard->id, class, blocks);
         return FLASH_ENOSPC;
     }
 
@@ -4318,7 +4324,7 @@ mcd_fth_osd_get_slab( void * context, mcd_osd_shard_t * shard,
         if ( 0 == ( segment->bitmap[map_offset / 64] &
                     Mcd_osd_bitmap_masks[map_offset % 64] ) ) {
 
-            mcd_log_msg( 20360, PLAT_LOG_LEVEL_DEBUG,
+            mcd_log_msg( 20360, PLAT_LOG_LEVEL_TRACE,
                          "unused slab found, seg_off=%lu map_off=%u",
                          segment->blk_offset, map_offset );
 
@@ -4415,7 +4421,7 @@ mcd_fth_osd_get_slab( void * context, mcd_osd_shard_t * shard,
             }
             continue;
         }
-        mcd_log_msg( 20361, PLAT_LOG_LEVEL_DEBUG,
+        mcd_log_msg( 20361, PLAT_LOG_LEVEL_TRACE,
                      "evicting, pth_id=%d hand=%u address=%u index=%lu",
                      Mcd_pthread_id, hand,
                      hash_entry->address, hash_entry - shard->hash_table );
@@ -4584,7 +4590,7 @@ static int mcd_osd_prefix_delete( mcd_osd_shard_t * shard, char * key,
 #ifndef SDFAPI
     SDF_status_t   status;
 
-    mcd_log_msg( 50047, MCD_OSD_LOG_LVL_INFO,
+    mcd_log_msg( 50047, MCD_OSD_LOG_LVL_DEBUG,
                  "ENTERING key=%s len=%d", key, key_len );
 
     status = (*flash_settings.prefix_delete_callback)( key, key_len, shard->cntr);
@@ -4630,7 +4636,7 @@ mcd_fth_osd_slab_set( void * context, mcd_osd_shard_t * shard, char * key,
     int64_t                     done_blks = 0;
     cntr_id_t                   cntr_id = meta_data->cguid;
 
-    mcd_log_msg( 20000, PLAT_LOG_LEVEL_DEBUG, "ENTERING" );
+    mcd_log_msg( 20000, PLAT_LOG_LEVEL_TRACE, "ENTERING" );
 
     shard->durability_level = SDF_NO_DURABILITY;
     if (flags & FLASH_PUT_DURA_SW_CRASH)
@@ -4669,7 +4675,7 @@ mcd_fth_osd_slab_set( void * context, mcd_osd_shard_t * shard, char * key,
 #ifdef  MCD_OSD_DEBUGGING
     (void) __sync_fetch_and_add( &Mcd_osd_set_cmds, 1 );
     if ( 0 == Mcd_osd_set_cmds % MCD_OSD_DBG_SET_DIV ) {
-        mcd_log_msg( 20329, PLAT_LOG_LEVEL_INFO,
+        mcd_log_msg( 20329, PLAT_LOG_LEVEL_DEBUG,
                      "%lu sets, b_alloc=%lu overwrites=%lu evictions=%lu "
                      "soft_of=%lu hard_of=%lu p_id=%d ",
                      Mcd_osd_set_cmds,
@@ -4756,7 +4762,7 @@ mcd_fth_osd_slab_set( void * context, mcd_osd_shard_t * shard, char * key,
             }
 
             meta = (mcd_osd_meta_t *)buf;
-            mcd_log_msg( 20366, PLAT_LOG_LEVEL_DEBUG,
+            mcd_log_msg( 20366, PLAT_LOG_LEVEL_TRACE,
                          "syndrome collision, key_len=%d data_len=%u",
                          meta->key_len, meta->data_len );
 
@@ -4782,7 +4788,7 @@ mcd_fth_osd_slab_set( void * context, mcd_osd_shard_t * shard, char * key,
 
             target_seqno = meta->seqno;
             obj_exists = true;
-            mcd_log_msg( 20331, PLAT_LOG_LEVEL_DEBUG, "object exists" );
+            mcd_log_msg( 20331, PLAT_LOG_LEVEL_TRACE, "object exists" );
 
             if ( FLASH_PUT_TEST_EXIST & flags ) {
                 rc = FLASH_EEXIST;
@@ -4943,6 +4949,8 @@ mcd_fth_osd_slab_set( void * context, mcd_osd_shard_t * shard, char * key,
                 }
             }
             if ( Mcd_osd_bucket_size == n ) {
+                 mcd_log_msg( PLAT_LOG_ID_INITIAL, PLAT_LOG_LEVEL_ERROR, 
+                                            "No space left for hash entry" );
                 rc = FLASH_ENOSPC;
                 goto out;
             }
@@ -5008,11 +5016,11 @@ mcd_fth_osd_slab_set( void * context, mcd_osd_shard_t * shard, char * key,
     }
 
     if ( 0 != mcd_fth_osd_slab_alloc( context, shard, blocks, &blk_offset ) ) {
-        mcd_log_msg( 20367, PLAT_LOG_LEVEL_DEBUG, "failed to allocate slab" );
+        mcd_log_msg( 20367, PLAT_LOG_LEVEL_TRACE, "failed to allocate slab" );
         rc = FLASH_ENOSPC;
         goto out;
     }
-    mcd_log_msg( 20368, PLAT_LOG_LEVEL_DEBUG,
+    mcd_log_msg( 20368, PLAT_LOG_LEVEL_TRACE,
                  "blocks allocated, key_len=%d data_len=%lu "
                  "blk_offset=%lu blocks=%d",
                  key_len, data_len, blk_offset, blocks );
@@ -5095,7 +5103,7 @@ mcd_fth_osd_slab_set( void * context, mcd_osd_shard_t * shard, char * key,
 #endif
 
     plat_log_msg( 20369, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION,
-                  PLAT_LOG_LEVEL_DEBUG,
+                  PLAT_LOG_LEVEL_TRACE,
                   "store object [%ld][%d]: syndrome: %lx",
                   ( syndrome % shard->hash_size ) / Mcd_osd_bucket_size, i,
                   syndrome );
@@ -5224,7 +5232,7 @@ mcd_fth_osd_slab_set( void * context, mcd_osd_shard_t * shard, char * key,
                         bucket->overflowed = 1;
                         index[i] = ( bucket - shard->hash_buckets )
                             % shard->lock_bktsize;
-                        mcd_log_msg( 20370, PLAT_LOG_LEVEL_DEBUG,
+                        mcd_log_msg( 20370, PLAT_LOG_LEVEL_TRACE,
                                      "bucket=%lu index=%hu",
                                      bucket - shard->hash_buckets, index[i] );
                         (void) __sync_fetch_and_add( &shard->num_objects, 1 );
@@ -5242,6 +5250,9 @@ mcd_fth_osd_slab_set( void * context, mcd_osd_shard_t * shard, char * key,
                                                  new_entry.blocks );
                     mcd_fth_osd_remove_entry( shard, &new_entry, false, true);
                     (void)__sync_fetch_and_add(&shard->num_hard_overflows, 1);
+                    mcd_log_msg(PLAT_LOG_ID_INITIAL,PLAT_LOG_LEVEL_ERROR,
+                          "hash table overflow area full. num_hard_overflows=%lu",
+                                              shard->num_hard_overflows);
                     rc = FLASH_ENOSPC;
                     goto out;
                 }
@@ -5262,6 +5273,8 @@ mcd_fth_osd_slab_set( void * context, mcd_osd_shard_t * shard, char * key,
                         (void) __sync_fetch_and_add( &shard->blk_consumed,
                                                      blocks );
                         mcd_fth_osd_remove_entry(shard, &new_entry, false, true);
+                        mcd_log_msg(PLAT_LOG_ID_INITIAL,PLAT_LOG_LEVEL_ERROR,
+                          "No space left for hash entry");
                         rc = FLASH_ENOSPC;
                         goto out;
                     }
@@ -5366,13 +5379,13 @@ mcd_fth_osd_slab_get( void * context, mcd_osd_shard_t * shard, char *key,
     mcd_osd_bucket_t          * bucket;
     cntr_id_t                   cntr_id = meta_data->cguid;
 
-    mcd_log_msg( 20000, PLAT_LOG_LEVEL_DEBUG, "ENTERING" );
+    mcd_log_msg( 20000, PLAT_LOG_LEVEL_TRACE, "ENTERING" );
     (void) __sync_fetch_and_add( &shard->num_gets, 1 );
 
 #ifdef  MCD_OSD_DEBUGGING
     (void) __sync_fetch_and_add( &Mcd_osd_get_cmds, 1 );
     if ( 0 == Mcd_osd_get_cmds % MCD_OSD_DBG_GET_DIV ) {
-        mcd_log_msg( 20327, PLAT_LOG_LEVEL_INFO,
+        mcd_log_msg( 20327, PLAT_LOG_LEVEL_DEBUG,
                      "%lu get cmds", Mcd_osd_get_cmds );
     }
 #endif
@@ -5494,7 +5507,7 @@ mcd_fth_osd_slab_get( void * context, mcd_osd_shard_t * shard, char *key,
 #endif  /* MCD_ENABLE_SLAB_CACHE */
 
         meta = (mcd_osd_meta_t *)buf;
-        mcd_log_msg( 20312, PLAT_LOG_LEVEL_DEBUG, "key_len=%d data_len=%u",
+        mcd_log_msg( 20312, PLAT_LOG_LEVEL_TRACE, "key_len=%d data_len=%u",
                      meta->key_len, meta->data_len );
 
         if ( MCD_OSD_MAGIC_NUMBER != meta->magic ) {
@@ -5622,7 +5635,7 @@ uint64_t mcd_osd_shard_get_stats( struct shard * shard, int stat_key )
     uint64_t                    stat;
     mcd_osd_shard_t           * mcd_shard = (mcd_osd_shard_t *)shard;
 
-    mcd_log_msg( 20371, PLAT_LOG_LEVEL_DEBUG, "ENTERING, shard=%p", shard );
+    mcd_log_msg( 20371, PLAT_LOG_LEVEL_TRACE, "ENTERING, shard=%p", shard );
 
     switch ( stat_key ) {
 
@@ -5800,7 +5813,7 @@ SDF_status_t
 mcd_osd_get_shard_stats( void * pai, SDFContainer ctnr, int stat_key,
                          uint64_t * stat )
 {
-    mcd_log_msg( 20000, PLAT_LOG_LEVEL_DEBUG, "ENTERING" );
+    mcd_log_msg( 20000, PLAT_LOG_LEVEL_TRACE, "ENTERING" );
 
     *stat = mcd_osd_shard_get_stats( (struct shard *)&Mcd_osd_slab_shard,
                                      stat_key );
@@ -5822,7 +5835,7 @@ static osd_state_t *mcd_osd_init_state(int aio_category)
     fthMbox_t   *osd_mbox;
     osd_state_t *osd_state;
 
-    mcd_log_msg( 20000, PLAT_LOG_LEVEL_DEBUG, "ENTERING");
+    mcd_log_msg( 20000, PLAT_LOG_LEVEL_TRACE, "ENTERING");
 
     osd_state = (osd_state_t *) plat_alloc(sizeof(osd_state_t));
     if (osd_state == NULL) {
@@ -5905,7 +5918,7 @@ flash_report_version( char ** bufp, int * lenp )
 
 struct flashDev * mcd_osd_flash_open( char * name, flash_settings_t *flash_settings, int flags )
 {
-    mcd_log_msg( 20374, PLAT_LOG_LEVEL_INFO,
+    mcd_log_msg( 20374, PLAT_LOG_LEVEL_DEBUG,
                  "ENTERING, initializing mcd osd" );
 
     if ( 0 != mcd_osd_slab_init() ) {
@@ -5978,7 +5991,7 @@ mcd_osd_shard_create( struct flashDev * dev, uint64_t shard_id,
     mcd_osd_shard_t           * mcd_shard;
     fthWaitEl_t               * wait;
 
-    mcd_log_msg( 20379, PLAT_LOG_LEVEL_INFO,
+    mcd_log_msg( 20379, PLAT_LOG_LEVEL_TRACE,
                  "ENTERING, shard_id=%lu flags=0x%x quota=%lu max_nobjs=%u",
                  shard_id, flags, quota, max_nobjs );
 
@@ -5990,7 +6003,7 @@ mcd_osd_shard_create( struct flashDev * dev, uint64_t shard_id,
             }
             if ( Mcd_osd_slab_shards[i]->shard.shardID == shard_id ) {
                 mcd_shard = Mcd_osd_slab_shards[i];
-                mcd_log_msg( 20380, PLAT_LOG_LEVEL_INFO,
+                mcd_log_msg( 20380, PLAT_LOG_LEVEL_DEBUG,
                              "shard found, id=%lu", shard_id );
                 plat_assert_always( 1 == mcd_shard->open );
                 return (struct shard *)mcd_shard;
@@ -6050,13 +6063,13 @@ mcd_osd_shard_create( struct flashDev * dev, uint64_t shard_id,
         mcd_shard->segments[i] =
             Mcd_osd_free_segments[--Mcd_osd_free_seg_curr];
         if ( 0 == i % 100 ) {
-            mcd_log_msg( 20385, MCD_OSD_LOG_LVL_INFO,
+            mcd_log_msg( 20385, MCD_OSD_LOG_LVL_DEBUG,
                          "%dth segment allocated, blk_offset=%u",
                          i, mcd_shard->segments[i] );
         }
     }
     fthUnlock( wait );
-    mcd_log_msg( 160004, PLAT_LOG_LEVEL_INFO,
+    mcd_log_msg( 160004, PLAT_LOG_LEVEL_DEBUG,
                  "%lu segments allcated to shard %lu, free_seg_curr=%lu",
                  mcd_shard->total_segments, shard_id, Mcd_osd_free_seg_curr );
 
@@ -6186,7 +6199,7 @@ mcd_osd_shard_uninit( mcd_osd_shard_t * shard )
                 shard->slab_classes[i].segments = NULL;
                 total_alloc +=
                     shard->total_segments * sizeof(mcd_osd_segment_t *);
-                mcd_log_msg( 40114, PLAT_LOG_LEVEL_DEBUG,
+                mcd_log_msg( 40114, PLAT_LOG_LEVEL_TRACE,
                              "slab class dealloc, blksize=%d, free_slabs=%lu, "
                              "segments=%lu",
                              blksize, shard->slab_classes[i].freelist_len *
@@ -6231,7 +6244,7 @@ mcd_osd_shard_uninit( mcd_osd_shard_t * shard )
             total_alloc += shard->total_segments * sizeof(mcd_osd_segment_t );
         }
 
-        mcd_log_msg( 20391, PLAT_LOG_LEVEL_INFO,
+        mcd_log_msg( 20391, PLAT_LOG_LEVEL_DEBUG,
                      "segments deallocated, %lu segments, %d classes size=%lu",
                      shard->total_segments, i, total_alloc );
     }
@@ -6244,7 +6257,7 @@ mcd_osd_shard_uninit( mcd_osd_shard_t * shard )
         shard->overflow_index = NULL;
         total_alloc += shard->lock_buckets * Mcd_osd_overflow_depth *
             sizeof(uint16_t);
-        mcd_log_msg( 20392, PLAT_LOG_LEVEL_INFO,
+        mcd_log_msg( 20392, PLAT_LOG_LEVEL_DEBUG,
                      "overflow index deallocated, size=%lu",
                      shard->lock_buckets * Mcd_osd_overflow_depth
                      * sizeof(uint16_t) );
@@ -6257,14 +6270,14 @@ mcd_osd_shard_uninit( mcd_osd_shard_t * shard )
         plat_free_large( shard->hash_table );
         shard->hash_table = NULL;
         total_alloc += shard->hash_size * sizeof(mcd_osd_hash_t);
-        mcd_log_msg( 20393, PLAT_LOG_LEVEL_INFO,
+        mcd_log_msg( 20393, PLAT_LOG_LEVEL_DEBUG,
                      "hash table deallocated, size=%lu",
                      shard->hash_size * sizeof(mcd_osd_hash_t) );
         if ( shard->overflow_table ) {
             shard->overflow_table = NULL;
             total_alloc += shard->lock_buckets * Mcd_osd_overflow_depth *
                 sizeof(mcd_osd_hash_t);
-            mcd_log_msg( 20394, PLAT_LOG_LEVEL_INFO,
+            mcd_log_msg( 20394, PLAT_LOG_LEVEL_DEBUG,
                          "overflow table deallocated, size=%lu",
                          shard->lock_buckets * Mcd_osd_overflow_depth
                          * sizeof(mcd_osd_hash_t) );
@@ -6276,7 +6289,7 @@ mcd_osd_shard_uninit( mcd_osd_shard_t * shard )
         plat_free_large( shard->bucket_locks );
         shard->bucket_locks = NULL;
         total_alloc += shard->lock_buckets * sizeof(fthLock_t);
-        mcd_log_msg( 20395, PLAT_LOG_LEVEL_INFO,
+        mcd_log_msg( 20395, PLAT_LOG_LEVEL_DEBUG,
                      "lock_buckets deallocated, size=%lu",
                      shard->lock_buckets * sizeof(fthLock_t) );
     }
@@ -6287,7 +6300,7 @@ mcd_osd_shard_uninit( mcd_osd_shard_t * shard )
         shard->hash_buckets = NULL;
         total_alloc += shard->hash_size / Mcd_osd_bucket_size *
             sizeof(mcd_osd_bucket_t);
-        mcd_log_msg( 20396, PLAT_LOG_LEVEL_INFO,
+        mcd_log_msg( 20396, PLAT_LOG_LEVEL_DEBUG,
                      "hash buckets deallocated, size=%lu",
                      shard->hash_size /
                      Mcd_osd_bucket_size * sizeof(mcd_osd_bucket_t) );
@@ -6299,7 +6312,7 @@ mcd_osd_shard_uninit( mcd_osd_shard_t * shard )
         shard->rand_table = NULL;
         total_alloc += (shard->total_blks / Mcd_osd_rand_blksize) *
             sizeof(uint32_t);
-        mcd_log_msg( 20397, PLAT_LOG_LEVEL_INFO,
+        mcd_log_msg( 20397, PLAT_LOG_LEVEL_DEBUG,
                      "remapping table deallocated, size=%lu",
                      (shard->total_blks / Mcd_osd_rand_blksize) *
                      sizeof(uint32_t) );
@@ -6310,12 +6323,12 @@ mcd_osd_shard_uninit( mcd_osd_shard_t * shard )
         plat_free_large( shard->addr_table );
         shard->addr_table = NULL;
         total_alloc += shard->total_blks * sizeof(uint32_t);
-        mcd_log_msg( 20398, PLAT_LOG_LEVEL_INFO,
+        mcd_log_msg( 20398, PLAT_LOG_LEVEL_DEBUG,
                      "address table deallocated, size=%lu",
                      shard->total_blks * sizeof(uint32_t) );
     }
 
-    mcd_log_msg( 20399, PLAT_LOG_LEVEL_INFO,
+    mcd_log_msg( 20399, PLAT_LOG_LEVEL_DEBUG,
                  "shardID=%lu, total deallocated bytes=%lu",
                  shard->id, total_alloc );
 
@@ -6331,7 +6344,7 @@ mcd_osd_shard_open( struct flashDev * dev, uint64_t shard_id )
     struct shard              * shard;
     void                      * wait;
 
-    mcd_log_msg( 20400, PLAT_LOG_LEVEL_INFO, "ENTERING, shard_id=%lu",
+    mcd_log_msg( 20400, PLAT_LOG_LEVEL_TRACE, "ENTERING, shard_id=%lu",
                  shard_id );
 
     for ( i = 0; i < MCD_OSD_MAX_NUM_SHARDS; i++ ) {
@@ -6340,7 +6353,7 @@ mcd_osd_shard_open( struct flashDev * dev, uint64_t shard_id )
         }
         if ( Mcd_osd_slab_shards[i]->shard.shardID == shard_id ) {
             mcd_shard = Mcd_osd_slab_shards[i];
-            mcd_log_msg( 20380, PLAT_LOG_LEVEL_INFO,
+            mcd_log_msg( 20380, PLAT_LOG_LEVEL_DEBUG,
                          "shard found, id=%lu", shard_id );
             break;
         }
@@ -6380,7 +6393,7 @@ mcd_osd_shard_open( struct flashDev * dev, uint64_t shard_id )
         return NULL;
     }
 
-    mcd_log_msg( 160046, PLAT_LOG_LEVEL_INFO,
+    mcd_log_msg( 160046, PLAT_LOG_LEVEL_DEBUG,
        "ENTERING, shard_id=%lu durability_level=%u",
                  shard_id, mcd_shard->durability_level );
 
@@ -6474,7 +6487,7 @@ static void mcd_osd_shard_open_phase2( struct shard * shard, mcd_container_t * c
 {
     mcd_osd_shard_t           * mcd_shard = (mcd_osd_shard_t *)shard;
 
-    mcd_log_msg( 20065, PLAT_LOG_LEVEL_DEBUG, "ENTERING, shardID=%lu",
+    mcd_log_msg( 20065, PLAT_LOG_LEVEL_TRACE, "ENTERING, shardID=%lu",
                  shard->shardID );
 
     // set container back pointer
@@ -6494,7 +6507,7 @@ void
 mcd_osd_shard_close( struct shard * _shard )
 {
 	mcd_osd_shard_t *shard = (mcd_osd_shard_t*)_shard;
-    mcd_log_msg( 20065, PLAT_LOG_LEVEL_DEBUG, "ENTERING, shardID=%lu",
+    mcd_log_msg( 20065, PLAT_LOG_LEVEL_TRACE, "ENTERING, shardID=%lu",
                  ((struct shard*)shard)->shardID );
 
 	if(shard->gc)
@@ -6513,7 +6526,7 @@ mcd_osd_shard_close( struct shard * _shard )
 void
 mcd_osd_shard_sync( struct shard * shard )
 {
-    mcd_log_msg( 20065, PLAT_LOG_LEVEL_DEBUG, "ENTERING, shardID=%lu",
+    mcd_log_msg( 20065, PLAT_LOG_LEVEL_TRACE, "ENTERING, shardID=%lu",
                  shard->shardID );
 
     if ( 1 == ((mcd_osd_shard_t *)shard)->persistent ) {
@@ -6527,7 +6540,7 @@ mcd_osd_shard_sync( struct shard * shard )
 uint64_t
 mcd_osd_slab_flash_get_high_sequence( struct shard * shard )
 {
-    mcd_log_msg( 20065, PLAT_LOG_LEVEL_DEBUG, "ENTERING, shardID=%lu",
+    mcd_log_msg( 20065, PLAT_LOG_LEVEL_TRACE, "ENTERING, shardID=%lu",
                  shard->shardID );
 
     return ((mcd_osd_shard_t *)shard)->sequence;
@@ -6537,7 +6550,7 @@ mcd_osd_slab_flash_get_high_sequence( struct shard * shard )
 void
 mcd_osd_slab_flash_set_synced_sequence( struct shard * shard, uint64_t seqno )
 {
-    mcd_log_msg( 20405, PLAT_LOG_LEVEL_DEBUG, "ENTERING, shardID=%lu, seqno=%lu",
+    mcd_log_msg( 20405, PLAT_LOG_LEVEL_TRACE, "ENTERING, shardID=%lu, seqno=%lu",
                  shard->shardID, seqno );
     ((mcd_osd_shard_t *)shard)->lcss = seqno;
     return;
@@ -6547,7 +6560,7 @@ mcd_osd_slab_flash_set_synced_sequence( struct shard * shard, uint64_t seqno )
 uint64_t
 mcd_osd_slab_flash_get_rtg( struct shard * shard )
 {
-    mcd_log_msg( 20065, PLAT_LOG_LEVEL_DEBUG, "ENTERING, shardID=%lu",
+    mcd_log_msg( 20065, PLAT_LOG_LEVEL_TRACE, "ENTERING, shardID=%lu",
                  shard->shardID );
     return tombstone_get_rtg( (mcd_osd_shard_t *)shard );
 }
@@ -6558,7 +6571,7 @@ mcd_osd_slab_flash_register_set_rtg_callback( void (*callback)
                                               (uint64_t shardID,
                                                uint64_t seqno) )
 {
-    mcd_log_msg( 20000, PLAT_LOG_LEVEL_DEBUG, "ENTERING" );
+    mcd_log_msg( 20000, PLAT_LOG_LEVEL_TRACE, "ENTERING" );
     tombstone_register_rtg_callback( callback );
     return;
 }
@@ -6575,7 +6588,7 @@ mcd_osd_flash_get( struct ssdaio_ctxt * pctxt, struct shard * shard,
     osd_state_t               * osd_state = (osd_state_t *)pctxt;
     mcd_osd_shard_t           * mcd_shard = (mcd_osd_shard_t *)shard;
 
-    mcd_log_msg( 20406, PLAT_LOG_LEVEL_DEBUG, "ENTERING, context=%p shardID=%lu",
+    mcd_log_msg( 20406, PLAT_LOG_LEVEL_TRACE, "ENTERING, context=%p shardID=%lu",
                  (void *)pctxt, shard->shardID );
 
     syndrome = hashck((unsigned char *)key, metaData->keyLen,
@@ -6627,7 +6640,7 @@ mcd_osd_flash_put( struct ssdaio_ctxt * pctxt, struct shard * shard,
     osd_state_t               * osd_state = (osd_state_t *)pctxt;
     mcd_osd_shard_t           * mcd_shard = (mcd_osd_shard_t *)shard;
 
-    mcd_log_msg( 20406, PLAT_LOG_LEVEL_DEBUG, "ENTERING, context=%p shardID=%lu",
+    mcd_log_msg( 20406, PLAT_LOG_LEVEL_TRACE, "ENTERING, context=%p shardID=%lu",
                  (void *)pctxt, shard->shardID );
 
     syndrome = hashck((unsigned char *)key,
@@ -6698,7 +6711,7 @@ mcd_osd_flash_fast_delete( struct ssdaio_ctxt 	* pctxt,
     osd_state_t               * osd_state = (osd_state_t *)pctxt;
     mcd_osd_shard_t           * mcd_shard = (mcd_osd_shard_t *)shard;
 
-    mcd_log_msg( 20406, PLAT_LOG_LEVEL_DEBUG, "ENTERING, context=%p shardID=%lu",
+    mcd_log_msg( 20406, PLAT_LOG_LEVEL_TRACE, "ENTERING, context=%p shardID=%lu",
                  (void *)pctxt, shard->shardID );
 
     osd_state->osd_lock = (void *)( mcd_shard->bucket_locks +
@@ -6733,7 +6746,7 @@ mcd_osd_shard_backup_prepare( struct shard * shard, int full_backup,
                               uint32_t client_version,
                               uint32_t * server_version )
 {
-    mcd_bak_msg( 40120, PLAT_LOG_LEVEL_DEBUG,
+    mcd_bak_msg( 40120, PLAT_LOG_LEVEL_TRACE,
                  "ENTERING, shardID=%lu, full=%d, vers=%d",
                  shard->shardID, full_backup, client_version );
 
@@ -6759,7 +6772,7 @@ mcd_osd_shard_backup( struct shard * shard, int full_backup,
 {
     int                         rc = 0;
 
-    mcd_bak_msg( 20408, PLAT_LOG_LEVEL_DEBUG,
+    mcd_bak_msg( 20408, PLAT_LOG_LEVEL_TRACE,
                  "ENTERING, shardID=%lu, full=%d, can=%d, com=%d",
                  shard->shardID, full_backup, cancel, complete );
 
@@ -6792,7 +6805,7 @@ mcd_osd_shard_restore( struct shard * shard, uint64_t prev_seqno,
 {
     int                         rc = 0;
 
-    mcd_bak_msg( 20409, PLAT_LOG_LEVEL_DEBUG,
+    mcd_bak_msg( 20409, PLAT_LOG_LEVEL_TRACE,
                  "ENTERING, shardID=%lu, pseq=%lu, cseq=%lu, can=%d, com=%d",
                  shard->shardID, prev_seqno, curr_seqno, cancel, complete );
 
@@ -6830,7 +6843,7 @@ mcd_osd_shard_delete( struct shard * lshard )
     struct flashDev           * dev = lshard->dev;
     struct shard             ** prevPtr;
 
-    mcd_log_msg( 20065, PLAT_LOG_LEVEL_DEBUG,
+    mcd_log_msg( 20065, PLAT_LOG_LEVEL_TRACE,
                 "ENTERING, shardID=%lu", shard->id );
 
 	if ( !lshard) {
@@ -6937,7 +6950,7 @@ mcd_osd_shard_delete( struct shard * lshard )
 int
 mcd_osd_shard_start( struct shard * shard )
 {
-    mcd_log_msg( 20065, PLAT_LOG_LEVEL_DEBUG,
+    mcd_log_msg( 20065, PLAT_LOG_LEVEL_TRACE,
                  "ENTERING, shardID=%lu", shard->shardID );
     return(0);
 }
@@ -7212,7 +7225,7 @@ void mcd_osd_check_for_stopped_container(mcd_container_t *container)
 
 	if ( 0 == pending && cntr_stopping == container->state ) {
 	    fthMboxPost( &Mcd_fth_admin_mbox, cntr_stopping );
-	    mcd_log_msg( 20141, PLAT_LOG_LEVEL_DEBUG,
+	    mcd_log_msg( 20141, PLAT_LOG_LEVEL_TRACE,
 			 "container stopping mail posted" );
 	}
 	else {
@@ -7228,7 +7241,7 @@ SDF_status_t mcd_fth_container_start( void * context,
     SDF_status_t                status;
     SDF_action_init_t         * pai = (SDF_action_init_t *)context;
 
-    mcd_log_msg( 20178, PLAT_LOG_LEVEL_INFO,
+    mcd_log_msg( 20178, PLAT_LOG_LEVEL_TRACE,
                  "ENTERING, port=%d", mcd_osd_container_tcp_port(container) );
 
     status = SDFStartContainer((struct SDF_thread_state *) pai, mcd_osd_container_cguid(container));
@@ -7248,7 +7261,7 @@ SDF_status_t mcd_fth_container_stop( void * context,
     SDF_status_t                status;
     SDF_action_init_t         * pai = (SDF_action_init_t *)context;
 
-    mcd_log_msg( 20178, PLAT_LOG_LEVEL_INFO,
+    mcd_log_msg( 20178, PLAT_LOG_LEVEL_TRACE,
                  "ENTERING, port=%d", mcd_osd_container_tcp_port(container));
 
     status = SDFStopContainer((struct SDF_thread_state *) pai, mcd_osd_container_cguid(container));
@@ -7269,7 +7282,7 @@ int mcd_stop_container( void *pai, mcd_container_t * container )
     uint32_t                    ref_count;
     uint64_t                    mail;
 
-    mcd_log_msg( 20718, PLAT_LOG_LEVEL_INFO, "stopping container, port=%d",
+    mcd_log_msg( 20718, PLAT_LOG_LEVEL_DEBUG, "stopping container, port=%d",
                  container->tcp_port );
 
     container->state = cntr_stopping;
@@ -7283,7 +7296,7 @@ int mcd_stop_container( void *pai, mcd_container_t * container )
                          cntr_stopping, mail );
             goto out_stop;
         }
-        mcd_log_msg( 20411, PLAT_LOG_LEVEL_DEBUG, "admin mail received" );
+        mcd_log_msg( 20411, PLAT_LOG_LEVEL_TRACE, "admin mail received" );
     }
 
     status = mcd_fth_container_stop( pai, container );
@@ -7302,7 +7315,7 @@ int mcd_stop_container( void *pai, mcd_container_t * container )
     }
 
     container->state = cntr_stopped;
-    mcd_log_msg( 20720, PLAT_LOG_LEVEL_INFO, "container stopped, port=%d",
+    mcd_log_msg( 20720, PLAT_LOG_LEVEL_DEBUG, "container stopped, port=%d",
                  container->tcp_port );
 
     rc = 0;     /* SUCCESS */
@@ -7323,7 +7336,7 @@ int mcd_start_container_internal( void * pai, int tcp_port )
     SDF_status_t                status;
     mcd_container_t           * container = NULL;
 
-    mcd_log_msg( 20714, PLAT_LOG_LEVEL_INFO, "starting container, port=%d",
+    mcd_log_msg( 20714, PLAT_LOG_LEVEL_TRACE, "starting container, port=%d",
                  tcp_port );
 
     if ( flash_settings.ips_per_cntr ) {
@@ -7365,7 +7378,7 @@ int mcd_start_container_internal( void * pai, int tcp_port )
     }
 
     container->state = cntr_running;
-    mcd_log_msg( 20717, PLAT_LOG_LEVEL_INFO,
+    mcd_log_msg( 20717, PLAT_LOG_LEVEL_TRACE,
                  "container started, port=%d", container->tcp_port );
 
     return 0;   /* SUCCESS */
@@ -7393,7 +7406,7 @@ int mcd_start_container_byname_internal( void * pai, char * cname )
     SDF_status_t                status;
     mcd_container_t           * container = NULL;
 
-    mcd_log_msg( 50007, PLAT_LOG_LEVEL_INFO,
+    mcd_log_msg( 50007, PLAT_LOG_LEVEL_DEBUG,
                  "starting container, name=%s", cname );
 
     for ( int i = 0; i < MCD_MAX_NUM_CNTRS; i++ ) {
@@ -7433,7 +7446,7 @@ int mcd_start_container_byname_internal( void * pai, char * cname )
     }
 
     container->state = cntr_running;
-    mcd_log_msg( 20717, PLAT_LOG_LEVEL_INFO,
+    mcd_log_msg( 20717, PLAT_LOG_LEVEL_DEBUG,
                  "container started, port=%d", container->tcp_port );
 
     return 0;   /* SUCCESS */
@@ -7450,7 +7463,7 @@ int mcd_stop_container_internal( void * pai, int tcp_port )
     uint64_t                    mail;
     mcd_container_t           * container = NULL;
 
-    mcd_log_msg( 20718, PLAT_LOG_LEVEL_INFO, "stopping container, port=%d",
+    mcd_log_msg( 20718, PLAT_LOG_LEVEL_DEBUG, "stopping container, port=%d",
                  tcp_port );
 
     if ( flash_settings.ips_per_cntr ) {
@@ -7477,7 +7490,7 @@ int mcd_stop_container_internal( void * pai, int tcp_port )
                          cntr_stopping, mail );
             goto out_stop;
         }
-        mcd_log_msg( 20411, PLAT_LOG_LEVEL_DEBUG, "admin mail received" );
+        mcd_log_msg( 20411, PLAT_LOG_LEVEL_TRACE, "admin mail received" );
     }
 
     status = mcd_fth_container_stop( pai, container );
@@ -7496,7 +7509,7 @@ int mcd_stop_container_internal( void * pai, int tcp_port )
     }
 
     container->state = cntr_stopped;
-    mcd_log_msg( 20720, PLAT_LOG_LEVEL_INFO, "container stopped, port=%d",
+    mcd_log_msg( 20720, PLAT_LOG_LEVEL_DEBUG, "container stopped, port=%d",
                  container->tcp_port );
 
     rc = 0;     /* SUCCESS */
@@ -7517,7 +7530,7 @@ int mcd_stop_container_byname_internal( void * pai, char * cname )
     uint64_t                    mail;
     mcd_container_t           * container = NULL;
 
-    mcd_log_msg( 50008, PLAT_LOG_LEVEL_INFO,
+    mcd_log_msg( 50008, PLAT_LOG_LEVEL_TRACE,
                  "stopping container, name=%s", cname );
 
     for ( int i = 0; i < MCD_MAX_NUM_CNTRS; i++ ) {
@@ -7542,7 +7555,7 @@ int mcd_stop_container_byname_internal( void * pai, char * cname )
                          cntr_stopping, mail );
             goto out_stop;
         }
-        mcd_log_msg( 20411, PLAT_LOG_LEVEL_DEBUG, "admin mail received" );
+        mcd_log_msg( 20411, PLAT_LOG_LEVEL_TRACE, "admin mail received" );
     }
 
     status = mcd_fth_container_stop( pai, container );
@@ -7561,7 +7574,7 @@ int mcd_stop_container_byname_internal( void * pai, char * cname )
     }
 
     container->state = cntr_stopped;
-    mcd_log_msg( 20720, PLAT_LOG_LEVEL_INFO, "container stopped, port=%d",
+    mcd_log_msg( 20720, PLAT_LOG_LEVEL_DEBUG, "container stopped, port=%d",
                  container->tcp_port );
 
     rc = 0;     /* SUCCESS */
@@ -7579,7 +7592,7 @@ mcd_osd_shard_stop( struct shard * shard )
     uint64_t                    mail;
     mcd_osd_shard_t           * mcd_shard = (mcd_osd_shard_t *)shard;
 
-    mcd_log_msg( 20065, PLAT_LOG_LEVEL_DEBUG,
+    mcd_log_msg( 20065, PLAT_LOG_LEVEL_TRACE,
                  "ENTERING, shardID=%lu", shard->shardID );
 
     /*
@@ -7600,7 +7613,7 @@ mcd_osd_shard_stop( struct shard * shard )
                          cntr_stopping, mail );
             return -EINVAL;
         }
-        mcd_log_msg( 20411, PLAT_LOG_LEVEL_DEBUG, "admin mail received" );
+        mcd_log_msg( 20411, PLAT_LOG_LEVEL_TRACE, "admin mail received" );
     }
 
     // sync persistent shard and wait for object table update to complete
@@ -7616,7 +7629,7 @@ int mcd_osd_shard_set_flush_time( struct shard * shard, time_t new_time )
 {
     mcd_osd_shard_t           * mcd_shard = (mcd_osd_shard_t *)shard;
 
-    mcd_log_msg( 20065, PLAT_LOG_LEVEL_DEBUG,
+    mcd_log_msg( 20065, PLAT_LOG_LEVEL_TRACE,
                  "ENTERING, shardID=%lu", shard->shardID );
 
     // set new time in container
@@ -7629,7 +7642,7 @@ int mcd_osd_shard_set_flush_time( struct shard * shard, time_t new_time )
 int
 mcd_osd_shard_set_state( struct shard * shard, int new_state )
 {
-    mcd_log_msg( 20065, PLAT_LOG_LEVEL_DEBUG,
+    mcd_log_msg( 20065, PLAT_LOG_LEVEL_TRACE,
                  "ENTERING, shardID=%lu", shard->shardID );
 
     // set new state
@@ -7639,7 +7652,7 @@ mcd_osd_shard_set_state( struct shard * shard, int new_state )
 int
 mcd_osd_shard_get_properties( int index, mcd_container_t * cntr )
 {
-    mcd_log_msg( 20412, PLAT_LOG_LEVEL_DEBUG,
+    mcd_log_msg( 20412, PLAT_LOG_LEVEL_TRACE,
                  "ENTERING, index=%d", index );
 
     return shard_get_properties( index, cntr );
@@ -7648,7 +7661,7 @@ mcd_osd_shard_get_properties( int index, mcd_container_t * cntr )
 int
 mcd_osd_shard_set_properties( struct shard * shard, mcd_container_t * cntr )
 {
-    mcd_log_msg( 20065, PLAT_LOG_LEVEL_DEBUG,
+    mcd_log_msg( 20065, PLAT_LOG_LEVEL_TRACE,
                  "ENTERING, shardID=%lu", shard->shardID );
 
     return shard_set_properties( (mcd_osd_shard_t *)shard, cntr );
@@ -7712,7 +7725,7 @@ mcd_osd_register_ops( void )
     Ssd_fifo_ops.flashRegisterSetRetainedTombstoneGuaranteeCallback =
         mcd_osd_slab_flash_register_set_rtg_callback;
 
-    //mcd_log_msg( 20413, PLAT_LOG_LEVEL_INFO, "mcd_osd ops registered" );
+    //mcd_log_msg( 20413, PLAT_LOG_LEVEL_DEBUG, "mcd_osd ops registered" );
 
     return;
 }
@@ -7740,7 +7753,7 @@ mcd_osd_raw_set( osd_state_t     *osd_state,
     mcd_osd_meta_t            * meta;
     struct objMetaData          metaData;
 
-    mcd_bak_msg( 20000, PLAT_LOG_LEVEL_DEBUG, "ENTERING" );
+    mcd_bak_msg( 20000, PLAT_LOG_LEVEL_TRACE, "ENTERING" );
 
     /*
      * FIXME: only persistent containers are supported currently
@@ -7836,7 +7849,7 @@ mcd_osd_read_bad_segment( osd_state_t * ctxt, mcd_osd_shard_t * shard,
      * will be counted as an error.
      */
 
-    mcd_bak_msg( 40125, PLAT_LOG_LEVEL_DEBUG,
+    mcd_bak_msg( 40125, PLAT_LOG_LEVEL_TRACE,
                  "Reading bad raw segment (%lu), blksize=%d, "
                  "seg_offset=%lu, num_blks=%d, blks=%d, rec=%s",
                  segment->blk_offset, segment->class->slab_blksize,
@@ -7869,7 +7882,7 @@ mcd_osd_read_bad_segment( osd_state_t * ctxt, mcd_osd_shard_t * shard,
                                                segment->class->slab_blksize,
                                                blks, false );
 
-                mcd_bak_msg( 40127, PLAT_LOG_LEVEL_DEBUG,
+                mcd_bak_msg( 40127, PLAT_LOG_LEVEL_TRACE,
                              "Bad block(s) found in raw segment (%lu), "
                              "seg_offset=%lu, count=%d",
                              segment->blk_offset, seg_offset,
@@ -7931,7 +7944,7 @@ mcd_osd_raw_get( osd_state_t     *osd_state,
     mcd_bak_state_t           * bkup = shard->backup;
     mcd_bak_stats_t           * stats = &bkup->stats;
 
-    mcd_bak_msg( 20000, PLAT_LOG_LEVEL_DEBUG, "ENTERING" );
+    mcd_bak_msg( 20000, PLAT_LOG_LEVEL_TRACE, "ENTERING" );
 
     /*
      * FIXME: only persistent containers are supported currently
@@ -8013,7 +8026,7 @@ repeat:
         }
         // read raw segment
         else {
-            mcd_bak_msg( 20418, MCD_OSD_LOG_LVL_INFO,
+            mcd_bak_msg( 20418, MCD_OSD_LOG_LVL_DEBUG,
                          "reading raw segment, blk_offset=%lu", blk_offset );
             offset = mcd_osd_rand_address(shard, blk_offset);
 
@@ -8033,7 +8046,7 @@ repeat:
                          segment->next_slab, rc );
             return flash_to_sdf_status(rc);
         }
-        mcd_bak_msg( 20420, MCD_OSD_LOG_LVL_INFO,
+        mcd_bak_msg( 20420, MCD_OSD_LOG_LVL_DEBUG,
                      "segment read, blk_offset=%lu", blk_offset );
         (void) __sync_add_and_fetch( &stats->seg_read, 1 );
 
@@ -8075,7 +8088,7 @@ repeat:
             // check for dead object (i/o error)
             if ( MCD_BAK_DEAD_OBJECT_MAGIC == meta->magic ) {
                 map_offset = tmp_offset + 1;
-                mcd_bak_msg( 40128, PLAT_LOG_LEVEL_DEBUG,
+                mcd_bak_msg( 40128, PLAT_LOG_LEVEL_TRACE,
                              "object skipped (error), blk_offset=%lu "
                              "map_offset=%lu",
                              blk_offset, tmp_offset );
@@ -8100,7 +8113,7 @@ repeat:
                     Mcd_osd_bitmap_masks[tmp_offset % 64];
 
                 if ( 0 == a_map_value ) {
-                    mcd_bak_msg( 20422, MCD_OSD_LOG_LVL_INFO,
+                    mcd_bak_msg( 20422, MCD_OSD_LOG_LVL_DEBUG,
                                  "object deleted, blk_offset=%lu "
                                  "map_offset=%lu key_len=%d seqno=%lu",
                                  blk_offset, tmp_offset,
@@ -8117,7 +8130,7 @@ repeat:
                 }
             }
 
-            mcd_bak_msg( 20423, MCD_OSD_LOG_LVL_INFO, "object found, "
+            mcd_bak_msg( 20423, MCD_OSD_LOG_LVL_DEBUG, "object found, "
                          "blk_offset=%lu map_offset=%lu key_len=%d seqno=%lu",
                          blk_offset, tmp_offset, meta->key_len, meta->seqno );
 
@@ -8199,7 +8212,7 @@ void mcd_osd_auto_delete( struct ssdaio_ctxt *pctxt)
     mcd_osd_shard_t           * shard;
     osd_state_t               * osd_state = (osd_state_t *) pctxt;
 
-    mcd_log_msg( 20000, PLAT_LOG_LEVEL_DEBUG, "ENTERING" );
+    mcd_log_msg( 20000, PLAT_LOG_LEVEL_TRACE, "ENTERING" );
 
     if ( NULL != Raw_rbuf && NULL != Raw_rbuf->container &&
          0xffffffffffffffffull != Raw_rbuf->blk_offset ) {
@@ -8228,7 +8241,7 @@ void mcd_osd_auto_delete( struct ssdaio_ctxt *pctxt)
 
             if ( 0 == pending && cntr_stopping == container->state ) {
                 fthMboxPost( &Mcd_fth_admin_mbox, cntr_stopping );
-                mcd_log_msg( 20141, PLAT_LOG_LEVEL_DEBUG,
+                mcd_log_msg( 20141, PLAT_LOG_LEVEL_TRACE,
                              "container stopping mail posted" );
             }
             else {
@@ -8250,7 +8263,7 @@ void mcd_osd_auto_delete( struct ssdaio_ctxt *pctxt)
 
             shard = container->shard;
             if ( NULL != shard && 0 == shard->use_fifo ) {
-                mcd_log_msg( 20430, MCD_OSD_LOG_LVL_DEBUG,
+                mcd_log_msg( 20430, MCD_OSD_LOG_LVL_TRACE,
                              "found slab mode container, tcp_port=%d",
                              container->tcp_port );
                 mcd_osd_delete_expired( osd_state, shard );
@@ -8265,7 +8278,7 @@ void mcd_osd_auto_delete( struct ssdaio_ctxt *pctxt)
 
             if ( 0 == pending && cntr_stopping == container->state ) {
                 fthMboxPost( &Mcd_fth_admin_mbox, cntr_stopping );
-                mcd_log_msg( 20141, PLAT_LOG_LEVEL_DEBUG,
+                mcd_log_msg( 20141, PLAT_LOG_LEVEL_TRACE,
                              "container stopping mail posted" );
             }
             else {
@@ -8310,7 +8323,7 @@ mcd_osd_delete_expired( osd_state_t *osd_state, mcd_osd_shard_t * shard )
     mcd_osd_meta_t            * meta;
     static struct objMetaData   dummy_meta;
 
-    mcd_log_msg( 20427, MCD_OSD_LOG_LVL_DEBUG,
+    mcd_log_msg( 20427, MCD_OSD_LOG_LVL_TRACE,
                  "ENTERING, next_addr=%lu bytes=%lu scanned=%lu expired=%lu",
                  next_addr, shard->auto_del_bytes, shard->auto_del_scanned,
                  shard->auto_del_expired );
@@ -8380,7 +8393,7 @@ mcd_osd_delete_expired( osd_state_t *osd_state, mcd_osd_shard_t * shard )
             status = flash_to_sdf_status(rc);
             goto out;
         }
-        mcd_log_msg( 20420, MCD_OSD_LOG_LVL_INFO,
+        mcd_log_msg( 20420, MCD_OSD_LOG_LVL_DEBUG,
                      "segment read, blk_offset=%lu", blk_offset );
 
         Raw_rbuf->blk_offset = blk_offset;
@@ -8437,7 +8450,7 @@ mcd_osd_delete_expired( osd_state_t *osd_state, mcd_osd_shard_t * shard )
             if ( ( meta->expiry_time && meta->expiry_time < (*(flash_settings.pcurrent_time)) ) ||
                  ( meta->create_time < shard->cntr->flush_time ) ) {
                 exp_delete = true;
-                mcd_log_msg( 20428, MCD_OSD_LOG_LVL_INFO,
+                mcd_log_msg( 20428, MCD_OSD_LOG_LVL_DEBUG,
                             "expired obj, key=%s key_len=%d data_len=%d",
                             key, meta->key_len, meta->data_len );
             }
@@ -8498,12 +8511,12 @@ mcd_osd_delete_expired( osd_state_t *osd_state, mcd_osd_shard_t * shard )
 
                 if ( FLASH_EOK == rc ) {
                     if ( exp_delete ) {
-                        mcd_log_msg( 20429, MCD_OSD_LOG_LVL_INFO,
+                        mcd_log_msg( 20429, MCD_OSD_LOG_LVL_DEBUG,
                                      "expired object deleted, key=%s", key );
                         shard->auto_del_expired++;
                     }
                     else {
-                        mcd_log_msg( 50050, MCD_OSD_LOG_LVL_INFO,
+                        mcd_log_msg( 50050, MCD_OSD_LOG_LVL_DEBUG,
                                      "prefix object deleted, key=%s", key );
                         shard->auto_del_prefix++;
                     }
@@ -8567,7 +8580,7 @@ mcd_osd_fifo_check( void )
     mcd_container_t           * container;
     mcd_osd_shard_t           * shard;
 
-    mcd_log_msg( 20000, PLAT_LOG_LEVEL_DEBUG, "ENTERING" );
+    mcd_log_msg( 20000, PLAT_LOG_LEVEL_TRACE, "ENTERING" );
 
     for ( int i = 0; i < MCD_MAX_NUM_CNTRS; i++ ) {
 
@@ -8599,7 +8612,7 @@ mcd_osd_fifo_check( void )
 
                         fthMboxPost( (fthMbox_t *)context->osd_mbox, 0 );
                         total += context->osd_blocks;
-                        mcd_log_msg( 20324, MCD_OSD_LOG_LVL_DEBUG,
+                        mcd_log_msg( 20324, MCD_OSD_LOG_LVL_TRACE,
                                      "sleeper waked up, blocks=%d, total=%d",
                                      context->osd_blocks, total );
 
@@ -8618,7 +8631,7 @@ mcd_osd_fifo_check( void )
 
             if ( 0 == pending && cntr_stopping == container->state ) {
                 fthMboxPost( &Mcd_fth_admin_mbox, cntr_stopping );
-                mcd_log_msg( 20141, PLAT_LOG_LEVEL_DEBUG,
+                mcd_log_msg( 20141, PLAT_LOG_LEVEL_TRACE,
                              "container stopping mail posted" );
             }
             else {
@@ -8642,7 +8655,7 @@ SDF_status_t mcd_osd_do_prefix_delete( mcd_container_t *container, char *key, in
     char                        temp[256];
 
     plat_assert( NULL != container );
-    mcd_log_msg( 50052, MCD_OSD_LOG_LVL_INFO,
+    mcd_log_msg( 50052, MCD_OSD_LOG_LVL_DEBUG,
                  "ENTERING container=%s prefix=%s",
                  container->cname, key );
 
@@ -8659,7 +8672,7 @@ SDF_status_t mcd_osd_do_prefix_delete( mcd_container_t *container, char *key, in
         if ( SDF_SUCCESS == status ) {
             memcpy( temp, key, key_len - 3 );
             temp[key_len - 3] = 0;
-            mcd_log_msg( 50053, MCD_OSD_LOG_LVL_INFO,
+            mcd_log_msg( 50053, MCD_OSD_LOG_LVL_DEBUG,
                          "prefix registered, key=%s time=%lu addr=%lu",
                          temp, (*(flash_settings.pcurrent_time)), shard->slab.ad_next_addr );
         }
@@ -8680,7 +8693,7 @@ SDF_status_t mcd_osd_prefix_stats( mcd_container_t *container, char **pdata, uin
     mcd_osd_shard_t            *shard;
 
     plat_assert( NULL != container );
-    mcd_log_msg( 50055, MCD_OSD_LOG_LVL_INFO,
+    mcd_log_msg( 50055, MCD_OSD_LOG_LVL_DEBUG,
                  "ENTERING container=%s", container->cname );
 
     shard = (mcd_osd_shard_t *)container->shard;
@@ -8705,7 +8718,7 @@ SDF_status_t mcd_osd_prefix_stats( mcd_container_t *container, char **pdata, uin
         else {
             *pdata_len = prefixes;
             status = SDF_SUCCESS;
-            mcd_log_msg( 50057, MCD_OSD_LOG_LVL_INFO,
+            mcd_log_msg( 50057, MCD_OSD_LOG_LVL_DEBUG,
                          "number of prefixes is %d", prefixes );
         }
     }
@@ -8804,7 +8817,7 @@ osd_state_t *mcd_fth_init_aio_ctxt( int category )
     osd_state_t        *oss;
     fthWaitEl_t        *wait;
 
-    mcd_log_msg( 20175, PLAT_LOG_LEVEL_DEBUG, "ENTERING, self=%p", self );
+    mcd_log_msg( 20175, PLAT_LOG_LEVEL_TRACE, "ENTERING, self=%p", self );
 
     if ( 0 > category || SSD_AIO_CTXT_MAX_COUNT <= category ) {
         mcd_log_msg( 50077, PLAT_LOG_LEVEL_FATAL,
@@ -8820,7 +8833,7 @@ osd_state_t *mcd_fth_init_aio_ctxt( int category )
             continue;
         }
         if ( self == Mcd_aio_states[i]->osd_aio_state->aio_self) {
-            mcd_log_msg( 20176, PLAT_LOG_LEVEL_DEBUG,
+            mcd_log_msg( 20176, PLAT_LOG_LEVEL_TRACE,
                          "self found, use context %d", i );
             return (void *) Mcd_aio_states[i];
         }
@@ -8838,7 +8851,7 @@ osd_state_t *mcd_fth_init_aio_ctxt( int category )
         mcd_log_msg( 20172, PLAT_LOG_LEVEL_FATAL,
                      "Please reduce the number of fthreads" );
         for ( int i = 0; i < SSD_AIO_CTXT_MAX_COUNT; i++ ) {
-            mcd_log_msg( 50075, PLAT_LOG_LEVEL_INFO,
+            mcd_log_msg( 50075, PLAT_LOG_LEVEL_DEBUG,
                          "aio context category %s count=%d",
                          Ssd_aio_ctxt_names[i], Mcd_fth_aio_ctxts[i] );
         }
@@ -8846,7 +8859,7 @@ osd_state_t *mcd_fth_init_aio_ctxt( int category )
     }
 
     (void) __sync_fetch_and_add( &Mcd_fth_aio_ctxts[category], 1 );
-    mcd_log_msg( 50076, PLAT_LOG_LEVEL_DEBUG,
+    mcd_log_msg( 50076, PLAT_LOG_LEVEL_TRACE,
                  "new aio context allocated, category=%s count=%d",
                  Ssd_aio_ctxt_names[category],
                  Mcd_fth_aio_ctxts[category] );
@@ -8857,7 +8870,7 @@ osd_state_t *mcd_fth_init_aio_ctxt( int category )
     Mcd_aio_states[next] = oss;
     fthUnlock( wait );
 
-    mcd_log_msg( 150004, PLAT_LOG_LEVEL_DEBUG, "Mcd_aio_states[%d] = %p", next, Mcd_aio_states[next]);
+    mcd_log_msg( 150004, PLAT_LOG_LEVEL_TRACE, "Mcd_aio_states[%d] = %p", next, Mcd_aio_states[next]);
 
     return (void *) Mcd_aio_states[next];
 }
@@ -8865,7 +8878,7 @@ osd_state_t *mcd_fth_init_aio_ctxt( int category )
 
 int mcd_fth_free_aio_ctxt( osd_state_t * osd_state, int category )
 {
-    mcd_log_msg( 50078, PLAT_LOG_LEVEL_DEBUG,
+    mcd_log_msg( 50078, PLAT_LOG_LEVEL_TRACE,
                  "ENTERING category=%d", category );
 
     if ( 0 > category || SSD_AIO_CTXT_MAX_COUNT <= category ) {

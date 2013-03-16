@@ -107,7 +107,7 @@ main(int argc, char **argv) {
 
     char *buf = plat_stat_str_get_alloc("test ", NULL /* default suffix */);
     plat_assert(buf);
-    plat_log_msg(20819, LOG_CAT, PLAT_LOG_LEVEL_INFO,
+    plat_log_msg(20819, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
                  "%s", buf);
     plat_stat_str_get_free(buf);
 

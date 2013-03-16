@@ -893,7 +893,7 @@ sdf_msg_init_common(struct sdf_queue_pair **q_pair_out,
         msg->mkey[MSG_KEYSZE - 1] = '\0';
     }
 
-    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                  "\nNode %d: fth %p msg %p dn %d ds %d sn %d ss %d typ %d len %d\n"
                  "        flgs 0x%x seqnum %lu ar_mbx %p akrpmbx_from_req %p mkey %s mresp %p \n",
                  MeRank, fthId(), msg, dest_node, dest_service, src_node, src_service, 
@@ -993,7 +993,7 @@ sdf_msg_send(
             __sync_fetch_and_add(&sdf_msg_rtstate->sendstamp, 1);
         if (msg->msg_flags & SDF_MSG_FLAG_FREE_ON_SEND)
             msg->msg_flags ^= SDF_MSG_FLAG_FREE_ON_SEND;
-        plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+        plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
             "\nNode %d: FASTPATH Delivery of msg %p to dn %d"
             " flags 0x%x sendstamp %lu\n",
             msg->msg_src_vnode, msg,  msg->msg_dest_vnode,
@@ -1051,7 +1051,7 @@ sdf_msg_send_receive(
 
     send_msg = msg;
 
-    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                  "\nNode %d: MSG SEND/RECV sending dn %d ds %d sn %d ss %d type %d len %d\n",
                  MeRank, dest_node, dest_service, src_node, src_service, msg_type, msg->msg_len);
 
@@ -1130,7 +1130,7 @@ sdf_read_queue_and_forward(struct sdf_queue *queue)
                 strcpy(msg->mkey, tst->contents->mkey); /* save the mkey into the msg hdr */
                 /* DEBUG only inc when sending a msg that expects a response, dec when that comes in */
                 sdf_msg_rtstate->resp_n_flight++;
-                plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+                plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                 "\nNode %d: Sending ReqResp msg %p to dn %d w/HASH mkey %s har_mbx %p\n"
                 "        hrbox %p fth rbox %p rplmbx %p respnflght %lu seqnum %lu\n", 
                              MeRank, msg, msg->msg_dest_vnode, tst->contents->mkey,
@@ -1138,7 +1138,7 @@ sdf_read_queue_and_forward(struct sdf_queue *queue)
                              msg->akrpmbx->rbox, tst->contents->ar_mbx_from_req, sdf_msg_rtstate->resp_n_flight,
                              tst->contents->msg_seqnum);
             } else if ((msg->msg_dest_vnode != msg->msg_src_vnode) && (msg->msg_flags & SDF_MSG_FLAG_MBX_RESP_INCLUDED)) {
-                plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+                plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                 "\nNode %d: Sending RESP Msg %p to dn %d srcsvc %d destsvr %d sn %d type %d\n"
                 "        seq %d flags 0x%x len %d conver %ld tmstmp %ld ar_mbx %p\n"
                 "        akrpmbx_from_req %p ndbin %p sendstmp %ld mkey %s\n",
@@ -1147,7 +1147,7 @@ sdf_read_queue_and_forward(struct sdf_queue *queue)
                              msg->msg_conversation, msg->msg_timestamp, msg->akrpmbx, msg->akrpmbx_from_req,
                              msg->ndbin, msg->msg_sendstamp, msg->mkey);
             } else {
-                plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+                plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                 "\nNode %d: Sending Msg %p to dn %d srcsvc %d destsvr %d sn %d type %d\n"
                 "        seq %d flags 0x%x len %d conver %ld tmstmp %ld ar_mbx %p\n"
                 "        akrpmbx_from_req %p ndbin %p sendstmp %ld mkey %s\n",
@@ -1408,7 +1408,7 @@ sdf_do_receive_msg(struct sdf_msg *msg)
         plat_assert(msg->akrpmbx_from_req->actlvl > 0);
         plat_assert(msg->akrpmbx_from_req->actlvl <= SACK_MODERN);
 
-        plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+        plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                      "\nNode %d: Response msg %p sn %d ss %d dn %d ds %d type %d flgs 0x%x\n"
                      "        actlvl %d akrpmbx_from_req %p respbox %p mkey %s sndstmp %lu respnum %lu\n",
                      MeRank, msg, msg->msg_src_vnode, msg->msg_src_service, msg->msg_dest_vnode,
@@ -1524,7 +1524,7 @@ sdf_msg_sbuff_ack(service_t dest_service, struct sdf_msg *msg, sdf_fth_mbx_t *ac
                          "\nNode %d: Free on Send msg %p msg_flags 0x%x bin %p\n", nd, msgptr, flgs, bb);
             sdf_msg_free(msg);
         } else {
-            plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+            plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                          "\nNode %d: MPI Static buff %p detected on msg send - msg_flags 0x%x ndbin %p\n",
                          nd, msgptr, flgs, bb);
             sdf_msg_free_buff(msg);

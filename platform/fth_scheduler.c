@@ -115,7 +115,7 @@ plat_fth_scheduler_start(plat_closure_scheduler_t *scheduler) {
     int i;
     fthThread_t *fth;
 
-    plat_log_msg(20943, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+    plat_log_msg(20943, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                  "plat_fth_scheduler %p start called", pfs);
 
     status = __sync_bool_compare_and_swap(&pfs->state, PFS_STATE_INITIAL,
@@ -141,7 +141,7 @@ plat_fth_scheduler_start(plat_closure_scheduler_t *scheduler) {
     }
 
     if (!ret) {
-        plat_log_msg(20944, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+        plat_log_msg(20944, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                      "plat_fth_scheduler %p started", pfs);
     } else {
         plat_log_msg(20945, LOG_CAT, PLAT_LOG_LEVEL_ERROR,
@@ -177,7 +177,7 @@ pfs_main(uint64_t arg) {
         (*pfs->pts_start)(pts);
     }
 
-    plat_log_msg(20946, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+    plat_log_msg(20946, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                  "plat_fth_sched %p pts %p main starting", pfs, pts);
 
     while ((activation =
@@ -194,7 +194,7 @@ pfs_main(uint64_t arg) {
 
     (void) __sync_sub_and_fetch(&pfs->nthreads_running, 1);
 
-    plat_log_msg(20947, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+    plat_log_msg(20947, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                  "plat_fth_sched %p pts %p main stopped", pfs, pts);
 
     pfs_ref_count_dec(pfs);
@@ -213,7 +213,7 @@ pfs_ref_count_dec(struct plat_fth_scheduler *pfs) {
     after = __sync_sub_and_fetch(&pfs->ref_count, 1);
     plat_assert(after >= 0);
     if (!after) {
-        plat_log_msg(20948, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+        plat_log_msg(20948, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                      "plat_fth_scheduler %p shutdown complete", pfs);
 
         if (!plat_closure_scheduler_shutdown_is_null
@@ -255,7 +255,7 @@ pfs_shutdown(plat_closure_scheduler_t *self,
     int nthreads;
     int i;
 
-    plat_log_msg(20949, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+    plat_log_msg(20949, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                  "plat_fth_scheduler %p shutdown called", pfs);
 
     old_state = pfs->state;

@@ -62,10 +62,12 @@ typedef struct mcd_aio_meta {
 #  define MCD_AIO_LOG_LVL_DEBUG PLAT_LOG_LEVEL_DEBUG
 #  define MCD_AIO_LOG_LVL_DIAG  PLAT_LOG_LEVEL_DIAGNOSTIC
 #  define MCD_AIO_LOG_LVL_INFO  PLAT_LOG_LEVEL_INFO
+#  define MCD_AIO_LOG_LVL_TRACE PLAT_LOG_LEVEL_TRACE
 #else
-#  define MCD_AIO_LOG_LVL_INFO  PLAT_LOG_LEVEL_DEBUG
+#  define MCD_AIO_LOG_LVL_INFO  PLAT_LOG_LEVEL_INFO
 #  define MCD_AIO_LOG_LVL_DEBUG PLAT_LOG_LEVEL_DEBUG
-#  define MCD_AIO_LOG_LVL_DIAG  PLAT_LOG_LEVEL_DEBUG
+#  define MCD_AIO_LOG_LVL_DIAG  PLAT_LOG_LEVEL_DIAGNOSTIC
+#  define MCD_AIO_LOG_LVL_TRACE PLAT_LOG_LEVEL_TRACE
 #endif
 
 
@@ -152,7 +154,7 @@ mcd_fth_aio_blk_read( osd_state_t * context, char * buf, uint64_t offset, int nb
     mcd_aio_cb_t              * acbs[MCD_AIO_MAX_NFILES];
     aio_state_t               * aio_state = context->osd_aio_state;
 
-    mcd_log_msg(20010, PLAT_LOG_LEVEL_DEBUG, "ENTERING, offset=%lu nbytes=%d",
+    mcd_log_msg(20010, PLAT_LOG_LEVEL_TRACE, "ENTERING, offset=%lu nbytes=%d",
                  offset, nbytes );
 
     /*
@@ -202,7 +204,7 @@ mcd_fth_aio_blk_read( osd_state_t * context, char * buf, uint64_t offset, int nb
                 aio_offset =
                     ( aio_offset / Mcd_aio_strip_size / Mcd_aio_sub_files )
                     * Mcd_aio_strip_size + aio_offset % Mcd_aio_strip_size;
-                mcd_log_msg(20013, PLAT_LOG_LEVEL_DEBUG,
+                mcd_log_msg(20013, PLAT_LOG_LEVEL_TRACE,
                              "sub_fds[%d][%x]=%d aio_offset=%lu",
                              strip, sub_file, aio_fd, aio_offset );
             }
@@ -230,7 +232,7 @@ mcd_fth_aio_blk_read( osd_state_t * context, char * buf, uint64_t offset, int nb
             plat_abort();
         }
 
-        mcd_log_msg(20015, MCD_AIO_LOG_LVL_DEBUG,
+        mcd_log_msg(20015, MCD_AIO_LOG_LVL_TRACE,
                      "read iocb ready: fd=%d nbytes=%lu offset=%lu",
                      aio_fd, aio_nbytes, aio_offset );
 
@@ -273,7 +275,7 @@ mcd_fth_aio_blk_read( osd_state_t * context, char * buf, uint64_t offset, int nb
         aio_err = 1;
     }
     else {
-        mcd_log_msg(20017, PLAT_LOG_LEVEL_DEBUG,
+        mcd_log_msg(20017, PLAT_LOG_LEVEL_TRACE,
                      "read submitted, off=%lu bytes=%d fd=%d a_off=%lu "
                      "a_bytes=%lu pending=%u",
                      offset, nbytes, aio_fd, aio_offset,
@@ -300,7 +302,7 @@ mcd_fth_aio_blk_read( osd_state_t * context, char * buf, uint64_t offset, int nb
         (void) __sync_fetch_and_add( &Mcd_fth_waiting_io, 1 );
 
         mail = fthMboxWait( aio_state->aio_mbox );
-        mcd_log_msg(20018, PLAT_LOG_LEVEL_DEBUG, "got aio mail" );
+        mcd_log_msg(20018, PLAT_LOG_LEVEL_TRACE, "got aio mail" );
 
 	#ifdef AIO_TRACE
 	    aio_trace_t_end     = rdtsc()/fthTscTicksPerMicro;
@@ -358,7 +360,7 @@ mcd_fth_aio_blk_write_low( osd_state_t * context, char * buf, uint64_t offset,
     mcd_aio_cb_t              * acbs[MCD_AIO_MAX_NFILES];
     aio_state_t               * aio_state = context->osd_aio_state;
 
-    mcd_log_msg(20010, PLAT_LOG_LEVEL_DEBUG, "ENTERING, offset=%lu nbytes=%d",
+    mcd_log_msg(20010, PLAT_LOG_LEVEL_TRACE, "ENTERING, offset=%lu nbytes=%d",
                  offset, nbytes );
 
     /*
@@ -408,7 +410,7 @@ mcd_fth_aio_blk_write_low( osd_state_t * context, char * buf, uint64_t offset,
                 aio_offset =
                     ( aio_offset / Mcd_aio_strip_size / Mcd_aio_sub_files )
                     * Mcd_aio_strip_size + aio_offset % Mcd_aio_strip_size;
-                mcd_log_msg(20013, PLAT_LOG_LEVEL_DEBUG,
+                mcd_log_msg(20013, PLAT_LOG_LEVEL_TRACE,
                              "sub_fds[%d][%x]=%d aio_offset=%lu",
                              strip, sub_file, aio_fd, aio_offset );
             }
@@ -477,7 +479,7 @@ mcd_fth_aio_blk_write_low( osd_state_t * context, char * buf, uint64_t offset,
         aio_err = 1;
     }
     else {
-        mcd_log_msg(20020, PLAT_LOG_LEVEL_DEBUG,
+        mcd_log_msg(20020, PLAT_LOG_LEVEL_TRACE,
                      "write submitted, off=%lu bytes=%d fd=%d a_off=%lu "
                      "a_bytes=%lu pending=%u",
                      offset, nbytes, aio_fd, aio_offset,
@@ -505,7 +507,7 @@ mcd_fth_aio_blk_write_low( osd_state_t * context, char * buf, uint64_t offset,
         (void) __sync_fetch_and_add( &Mcd_fth_waiting_io, 1 );
 
         mail = fthMboxWait( aio_state->aio_mbox );
-        mcd_log_msg(20018, PLAT_LOG_LEVEL_DEBUG, "got aio mail" );
+        mcd_log_msg(20018, PLAT_LOG_LEVEL_TRACE, "got aio mail" );
 
         aio_err = mail ? mail : aio_err;
 
@@ -609,7 +611,7 @@ find_sync_device_block( uint64_t arg, dev_t block_dev, char * devname )
             // return device name
             strcpy( devname, dname );
 
-            mcd_log_msg(20024, PLAT_LOG_LEVEL_INFO,
+            mcd_log_msg(20024, PLAT_LOG_LEVEL_TRACE,
                          "thread %lu: name=%s, st_dev=0x%x, st_rdev=0x%x",
                          arg, devname, (int)st.st_dev, (int)st.st_rdev );
             break;
@@ -658,7 +660,7 @@ find_sync_device_raid( uint64_t arg, int old_fd, char * devname )
                          "readlink failed for thread %lu, '%s': %s",
                          arg, linkname, plat_strerror( errno ) );
             if ( -1 != old_fd ) {
-                mcd_log_msg(20028, PLAT_LOG_LEVEL_INFO,
+                mcd_log_msg(20028, PLAT_LOG_LEVEL_TRACE,
                              "thread %lu: closing old fd=%d, devname='%s'",
                              arg, old_fd, devname );
                 close( old_fd );      // close old device
@@ -687,7 +689,7 @@ find_sync_device_raid( uint64_t arg, int old_fd, char * devname )
     if ( devname[0] == '\0' ||
          0 != strcmp( devname, chkname ) ) {
 
-        mcd_log_msg(20030, PLAT_LOG_LEVEL_INFO,
+        mcd_log_msg(20030, PLAT_LOG_LEVEL_TRACE,
                      "thread %lu: opening raid block device '%s'",
                      arg, devname );
 
@@ -703,7 +705,7 @@ find_sync_device_raid( uint64_t arg, int old_fd, char * devname )
         fd = old_fd;
     }
 
-    mcd_log_msg(20032, PLAT_LOG_LEVEL_DEBUG,
+    mcd_log_msg(20032, PLAT_LOG_LEVEL_TRACE,
                  "thread %lu: devname='%s', old fd=%d, new fd=%d",
                  arg, devname, old_fd, fd );
 
@@ -729,7 +731,7 @@ mcd_aio_sync_device_thread( uint64_t arg )
         DEV_TYPE_RAID      = 4
     } dev_type = DEV_TYPE_INIT;
 
-    mcd_log_msg(20033, PLAT_LOG_LEVEL_DEBUG, "ENTERING, thread=%lu", arg );
+    mcd_log_msg(20033, PLAT_LOG_LEVEL_TRACE, "ENTERING, thread=%lu", arg );
 
     memset( devname, 0, sizeof( devname ) );
 
@@ -742,7 +744,7 @@ mcd_aio_sync_device_thread( uint64_t arg )
 
     // block device under a file system (beta 1 method)
     if ( 8 == major( st.st_dev ) ) {
-        mcd_log_msg(20035, PLAT_LOG_LEVEL_INFO,
+        mcd_log_msg(20035, PLAT_LOG_LEVEL_TRACE,
                      "thread %lu: filesystem on block device, "
                      "st_dev=0x%x, st_rdev=0x%x",
                      arg, (int)st.st_dev, (int)st.st_rdev );
@@ -758,7 +760,7 @@ mcd_aio_sync_device_thread( uint64_t arg )
 
     // real device block special file
     else if ( 8 == major( st.st_rdev ) ) {
-        mcd_log_msg(20036, PLAT_LOG_LEVEL_INFO,
+        mcd_log_msg(20036, PLAT_LOG_LEVEL_TRACE,
                      "thread %lu: raw block device st_dev=0x%x, st_rdev=0x%x",
                      arg, (int)st.st_dev, (int)st.st_rdev );
         dev_type = DEV_TYPE_BLOCK_RAW;
@@ -769,7 +771,7 @@ mcd_aio_sync_device_thread( uint64_t arg )
         // sync all devices all the time
         Mcd_aio_sync_all = 1;
 
-        mcd_log_msg(20037, PLAT_LOG_LEVEL_INFO,
+        mcd_log_msg(20037, PLAT_LOG_LEVEL_TRACE,
                      "thread %lu: raid array on block device, "
                      "st_dev=0x%x, st_rdev=0x%x",
                      arg, (int)st.st_dev, (int)st.st_rdev );
@@ -827,7 +829,7 @@ mcd_aio_sync_device_thread( uint64_t arg )
             if ( 0 > fd ) {
                 // dead device, do nothing
                 rc = 0;
-                mcd_log_msg(20040, PLAT_LOG_LEVEL_DEBUG,
+                mcd_log_msg(20040, PLAT_LOG_LEVEL_TRACE,
                              "thread %lu: device sync on dead device", arg );
             } else {
                 // issue sync command to underlying device
@@ -838,7 +840,7 @@ mcd_aio_sync_device_thread( uint64_t arg )
                                  "rc=%d, errno=%d",
                                  arg, devname, rc, errno );
                 } else {
-                    mcd_log_msg(20041, PLAT_LOG_LEVEL_DEBUG,
+                    mcd_log_msg(20041, PLAT_LOG_LEVEL_TRACE,
                                  "thread %lu: device sync fd=%d, devname=%s, "
                                  "rc=%d", arg, fd, devname, rc );
                 }
@@ -863,7 +865,7 @@ mcd_aio_sync_device_thread( uint64_t arg )
             plat_abort();
         }
 
-        mcd_log_msg(20043, PLAT_LOG_LEVEL_DEBUG,
+        mcd_log_msg(20043, PLAT_LOG_LEVEL_TRACE,
                      "device sync thread %lu, devname=%s sending reply, rc=%d",
                      arg, devname, rc );
         fthMboxPost( reply_mbox, (rc != 0) );
@@ -874,7 +876,7 @@ mcd_aio_sync_device_thread( uint64_t arg )
         close( fd );
     }
 
-    mcd_log_msg(20044, PLAT_LOG_LEVEL_DEBUG,
+    mcd_log_msg(20044, PLAT_LOG_LEVEL_TRACE,
                  "device sync thread %lu, devname=%s halting", arg, devname );
 
     return;
@@ -887,7 +889,7 @@ mcd_aio_sync_devices( void )
     int                         result = 0;
     fthMbox_t                   reply_mbox;
 
-    mcd_log_msg(20000, PLAT_LOG_LEVEL_DEBUG, "ENTERING" );
+    mcd_log_msg(20000, PLAT_LOG_LEVEL_TRACE, "ENTERING" );
 
     if ( 1 == Mcd_aio_sync_enabled ) {
 
@@ -905,14 +907,14 @@ mcd_aio_sync_devices( void )
         }
 
         if ( result == 0 ) {
-            mcd_log_msg(20045, PLAT_LOG_LEVEL_DEBUG, "all devices synced" );
+            mcd_log_msg(20045, PLAT_LOG_LEVEL_TRACE, "all devices synced" );
         } else {
             mcd_log_msg(20046, PLAT_LOG_LEVEL_ERROR,
                          "an error occurred syncing %d of %d devices",
                          result, Mcd_aio_num_files );
         }
     } else {
-        mcd_log_msg(20047, PLAT_LOG_LEVEL_DEBUG, "sync disabled" );
+        mcd_log_msg(20047, PLAT_LOG_LEVEL_TRACE, "sync disabled" );
     }
 
     return (result != 0);
@@ -929,7 +931,7 @@ mcd_aio_sync_device_offset( uint64_t sync_offset, int sync_bytes )
     uint64_t                    device;
     fthMbox_t                   reply_mbox;
 
-    mcd_log_msg(20000, PLAT_LOG_LEVEL_DEBUG, "ENTERING" );
+    mcd_log_msg(20000, PLAT_LOG_LEVEL_TRACE, "ENTERING" );
 
     if ( 1 == Mcd_aio_sync_all ) {
         result = mcd_aio_sync_devices();
@@ -962,7 +964,7 @@ mcd_aio_sync_device_offset( uint64_t sync_offset, int sync_bytes )
         }
 
         if ( result == 0 ) {
-            mcd_log_msg(20048, PLAT_LOG_LEVEL_DEBUG, "%d device(s) synced", num );
+            mcd_log_msg(20048, PLAT_LOG_LEVEL_TRACE, "%d device(s) synced", num );
         } else {
             mcd_log_msg(20049, PLAT_LOG_LEVEL_ERROR,
                          "an error occurred syncing %d of %d device(s)",
@@ -970,7 +972,7 @@ mcd_aio_sync_device_offset( uint64_t sync_offset, int sync_bytes )
         }
 
     } else {
-        mcd_log_msg(20047, PLAT_LOG_LEVEL_DEBUG, "sync disabled" );
+        mcd_log_msg(20047, PLAT_LOG_LEVEL_TRACE, "sync disabled" );
     }
 
     return (result != 0);
@@ -1025,7 +1027,7 @@ static inline void mcd_aio_poll( void )
         }
     }
     if ( 0 < num_events ) {
-        mcd_log_msg( 20134, PLAT_LOG_LEVEL_DEBUG,
+        mcd_log_msg( 20134, PLAT_LOG_LEVEL_TRACE,
                      "got io events, num_events=%d", num_events );
         (void) __sync_fetch_and_sub( &Mcd_num_pending_ios, num_events );
     }
@@ -1079,7 +1081,7 @@ aio_state_t *mcd_aio_init_state()
     fthMbox_t * aio_mbox = NULL;
     aio_state_t  *aio_state;
 
-    mcd_log_msg(20000, PLAT_LOG_LEVEL_INFO, "ENTERING");
+    mcd_log_msg(20000, PLAT_LOG_LEVEL_TRACE, "ENTERING");
 
     aio_state = (aio_state_t *) plat_alloc(sizeof(aio_state_t));
     if (aio_state == NULL) {
@@ -1112,14 +1114,14 @@ int mcd_aio_init( void * state, char * dname )
     struct ssdaio_state       * aio_state = (struct ssdaio_state *)state;
     bool                        paio_enabled;
 
-    mcd_log_msg(20050, PLAT_LOG_LEVEL_INFO, "ENTERING, dname=%s", dname );
+    mcd_log_msg(20050, PLAT_LOG_LEVEL_TRACE, "ENTERING, dname=%s", dname );
 
     /*
      * aio poller fthread
      */
     fthResume( fthSpawn( &mcd_aio_poller, 81920),
                (uint64_t) 0);
-    mcd_log_msg( 20144, PLAT_LOG_LEVEL_INFO,
+    mcd_log_msg( 20144, PLAT_LOG_LEVEL_TRACE,
                  "aio init helper fthread spawned" );
 
     /*
@@ -1173,7 +1175,7 @@ int mcd_aio_init( void * state, char * dname )
      */
         plat_abort();
     }
-    mcd_log_msg(20053, PLAT_LOG_LEVEL_INFO, "aio context initialized" );
+    mcd_log_msg(20053, PLAT_LOG_LEVEL_TRACE, "aio context initialized" );
 
     /*
      * open the aio backing files
@@ -1239,7 +1241,7 @@ int mcd_aio_init( void * state, char * dname )
 
     if (getProperty_Int("FDF_O_SYNC", 0)) {
         open_flags |= O_SYNC;
-        mcd_log_msg(180020, PLAT_LOG_LEVEL_INFO,
+        mcd_log_msg(180020, PLAT_LOG_LEVEL_TRACE,
                     "FDF_O_SYNC is set");
     }
 
@@ -1291,8 +1293,8 @@ int mcd_aio_init( void * state, char * dname )
                 }
             }
 
-            mcd_log_msg(20059, PLAT_LOG_LEVEL_INFO,
-                         "aio file %s opened successfully", fname );
+            mcd_log_msg(PLAT_LOG_ID_INITIAL, PLAT_LOG_LEVEL_INFO,
+                         "Flash file %s opened successfully", fname );
 
             if ( 1 == Mcd_aio_sync_enabled ) {
                 fthMboxInit( &Mcd_aio_device_sync_mbox[i] );
@@ -1333,7 +1335,7 @@ int mcd_aio_init( void * state, char * dname )
                         plat_abort();
                     }
                 }
-                mcd_log_msg(20059, PLAT_LOG_LEVEL_INFO,
+                mcd_log_msg(20059, PLAT_LOG_LEVEL_TRACE,
                              "aio file %s opened successfully", fname );
 
                 /*
@@ -1487,7 +1489,7 @@ mcd_aio_register_ops( void )
     Ssd_aio_ops.aio_blk_read            = mcd_fth_aio_blk_read;
     Ssd_aio_ops.aio_blk_write           = mcd_fth_aio_blk_write;
 
-    //mcd_log_msg(20062, PLAT_LOG_LEVEL_INFO, "mcd_aio ops registered" );
+    //mcd_log_msg(20062, PLAT_LOG_LEVEL_TRACE, "mcd_aio ops registered" );
 
     return;
 }

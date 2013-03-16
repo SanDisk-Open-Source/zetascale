@@ -112,7 +112,7 @@ void * SystemPthreadRoutine(void *arg) {
     }
 
     if (debug)
-        plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+        plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                 "\nNode %d SYSTEM TEST THREAD STOPPING HERE FOR DEBUG\n", myid);
     while (debug);
 
@@ -127,7 +127,7 @@ void * SystemPthreadRoutine(void *arg) {
         }
 
         if (DBGP) {
-            plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+            plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                     "\nNode %d msg %p msg->msg_payload %p\n", myid, send_msg,
                     send_msg->msg_payload);
         }
@@ -150,10 +150,10 @@ void * SystemPthreadRoutine(void *arg) {
 
             if (DBGP) {
                 plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT,
-                        PLAT_LOG_LEVEL_DEBUG,
+                        PLAT_LOG_LEVEL_TRACE,
                         "\nNode %d: sdf_msg_send returned %d\n", myid, ret);
                 plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT,
-                        PLAT_LOG_LEVEL_DEBUG,
+                        PLAT_LOG_LEVEL_TRACE,
                         "\nNode %d: %s: calling sdf_msg_receive(%p, %d, %d)\n",
                         myid, __func__, q_pair_SYSTEM->q_out, 0, B_TRUE);
             }
@@ -175,14 +175,14 @@ void * SystemPthreadRoutine(void *arg) {
         }
 		#endif
         if (DBGP) {
-            plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+            plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                     "\nNode %d: back from sdf_msg_receive with msg %p\n", myid,
                     recv_msg);
         }
         plat_log_msg(
                 PLAT_LOG_ID_INITIAL,
                 LOG_CAT,
-                PLAT_LOG_LEVEL_DEBUG,
+                PLAT_LOG_LEVEL_TRACE,
                 "\nNode %d: RECEIVING MSG vers %d clusterid %d ss %d ds %d sn %d dn %d type %d\n",
                 myid, recv_msg->msg_version, recv_msg->msg_clusterid,
                 recv_msg->msg_src_service, recv_msg->msg_dest_service,
@@ -197,7 +197,7 @@ void * SystemPthreadRoutine(void *arg) {
             break;
     }
 
-    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
             "\nNode %d Exiting pthread SYSTEM Tester\n", myid);
     return (0);
 }

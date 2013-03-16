@@ -117,7 +117,7 @@ void * SimplexSendReceiveRoutine(void *arg) {
     }
 
     if (debug)
-        plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+        plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                 "\nNode %d MNGMT TEST THREAD STOPPING HERE FOR DEBUG\n", myid);
 
     while (debug);
@@ -136,7 +136,7 @@ void * SimplexSendReceiveRoutine(void *arg) {
 
             if (DBGP) {
                 plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT,
-                        PLAT_LOG_LEVEL_DEBUG,
+                        PLAT_LOG_LEVEL_TRACE,
                         "\nNode %d msg %p msg->msg_payload %p\n", myid,
                         send_msg, send_msg->msg_payload);
             }
@@ -150,7 +150,7 @@ void * SimplexSendReceiveRoutine(void *arg) {
             plat_log_msg(
                     PLAT_LOG_ID_INITIAL,
                     LOG_CAT,
-                    PLAT_LOG_LEVEL_DEBUG,
+                    PLAT_LOG_LEVEL_TRACE,
                     "\nNode %d: SENDING MGMNT MSG dnode %d, proto %d, type %d loop num %d\n",
                     myid, node, protocol, type, j);
             if (1) {
@@ -161,12 +161,12 @@ void * SimplexSendReceiveRoutine(void *arg) {
 
                 if (DBGP) {
                     plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT,
-                            PLAT_LOG_LEVEL_DEBUG,
+                            PLAT_LOG_LEVEL_TRACE,
                             "\nNode %d: sdf_msg_send returned %d\n", myid, ret);
                     plat_log_msg(
                             PLAT_LOG_ID_INITIAL,
                             LOG_CAT,
-                            PLAT_LOG_LEVEL_DEBUG,
+                            PLAT_LOG_LEVEL_TRACE,
                             "\nNode %d: %s: calling sdf_msg_receive(%p, %d, %d)\n",
                             myid, __func__, q_pair_MANAGEMENT->q_out, 0, B_TRUE);
                 }
@@ -190,7 +190,7 @@ void * SimplexSendReceiveRoutine(void *arg) {
 #endif
             if (DBGP) {
                 plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT,
-                        PLAT_LOG_LEVEL_DEBUG,
+                        PLAT_LOG_LEVEL_TRACE,
                         "\nNode %d: back from sdf_msg_receive with msg %p\n",
                         myid, recv_msg);
             }
@@ -213,7 +213,7 @@ void * SimplexSendReceiveRoutine(void *arg) {
             break;
     }
 
-    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
 		 "\nNode %d Exiting pthread MANGEMENT Tester - total msgs sent %d\n", myid, j);
     return (0);
 }

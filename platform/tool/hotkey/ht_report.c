@@ -817,7 +817,7 @@ hot_key_report(Reporter_t *preporter, int ntop, char *rpbuf, int rpsize,
     if (ntop > preporter->maxtop) {
         plat_log_msg(21066,
                      LOG_CAT_HOTKEY,
-                     PLAT_LOG_LEVEL_INFO,
+                     PLAT_LOG_LEVEL_DEBUG,
                      "ntop is larger than maxtop: ntop=%d, maxtop=%d",
                      ntop, preporter->maxtop);
         ntop = preporter->maxtop;

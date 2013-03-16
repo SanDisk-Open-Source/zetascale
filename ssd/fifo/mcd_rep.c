@@ -500,7 +500,7 @@ static int volatile_object_table_iterate(struct shard *shard, resume_cursor_t * 
             
             num_cursors++;
             
-            plat_log_msg(20575, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION, PLAT_LOG_LEVEL_DEBUG,
+            plat_log_msg(20575, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION, PLAT_LOG_LEVEL_TRACE,
                          "add cursor[%ld][%ld]: syndrome: %x", i, j, entry->syndrome);
 
             if (num_cursors == seqno_len) {
@@ -705,7 +705,7 @@ int rep_get_by_cursor(struct shard *shard, int cursor_len, const void *cursor,
     if (!check_object_exists(shard, rep_cursor)) {
         rep_unlock_bucket(wait);
         plat_free(data_buf);
-        plat_log_msg(20576, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION, PLAT_LOG_LEVEL_DEBUG,
+        plat_log_msg(20576, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION, PLAT_LOG_LEVEL_TRACE,
                      "data copy send: stale: no longer on flash: %d syndrome requested: 0x%x", rep_cursor->bucket, rep_cursor->syndrome);
 
         return FLASH_ESTALE;
@@ -723,7 +723,7 @@ int rep_get_by_cursor(struct shard *shard, int cursor_len, const void *cursor,
 
     // Validate return values since we could get junk
     if (meta->key_len > SDF_SIMPLE_KEY_SIZE) {
-        plat_log_msg(20577, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION, PLAT_LOG_LEVEL_DEBUG,
+        plat_log_msg(20577, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION, PLAT_LOG_LEVEL_TRACE,
                      "data copy send: stale: "
                      "invalid keylen: %d syndrome requested: 0x%x",
                      meta->key_len, rep_cursor->syndrome);
@@ -739,7 +739,7 @@ int rep_get_by_cursor(struct shard *shard, int cursor_len, const void *cursor,
     // Check that we have the right object
     // 1.) Make sure we have a matching syndrome
     if ((uint16_t)(syndrome >> 48) != rep_cursor->syndrome) {
-        plat_log_msg(20578, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION, PLAT_LOG_LEVEL_DEBUG,
+        plat_log_msg(20578, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION, PLAT_LOG_LEVEL_TRACE,
                      "data copy send: stale: syndrome found: 0x%lx syndrome requested: 0x%x", syndrome, rep_cursor->syndrome);
         plat_free(data_buf);
         if (wbuf) {
@@ -751,7 +751,7 @@ int rep_get_by_cursor(struct shard *shard, int cursor_len, const void *cursor,
     // Check to see if object has expired or been flushed
     if ((flush_time <= (*(flash_settings.pcurrent_time)) && flush_time >= meta->create_time) ||
 	(meta->expiry_time && ((*(flash_settings.pcurrent_time)) > meta->expiry_time))) {
-        plat_log_msg(20579, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION, PLAT_LOG_LEVEL_DEBUG,
+        plat_log_msg(20579, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION, PLAT_LOG_LEVEL_TRACE,
                      "data copy send: stale: expired/flushed syndrome: 0x%x flush_time: %d create_time: %d", rep_cursor->syndrome, (uint32_t)flush_time, meta->create_time);
         plat_free(data_buf);
         if (wbuf) {
@@ -810,7 +810,7 @@ int rep_get_by_cursor(struct shard *shard, int cursor_len, const void *cursor,
     metaData->cguid = meta->cguid;
     metaData->sequence = meta->seqno;
 
-    plat_log_msg(20580, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION, PLAT_LOG_LEVEL_DEBUG,
+    plat_log_msg(20580, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION, PLAT_LOG_LEVEL_TRACE,
                  "data copy send: key: %s len: %d data: 0x%lx tombstone: %d syndrome: 0x%x", *key, meta->key_len, (uint64_t)*data, rep_cursor->tombstone, rep_cursor->syndrome);
 
     plat_free(data_buf);

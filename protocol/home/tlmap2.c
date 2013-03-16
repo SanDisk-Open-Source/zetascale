@@ -73,7 +73,7 @@ SDFTLMap2Entry_t *SDFTLMap2Create(SDFTLMap2_t *pm, uint64_t key)
 	    UTMallocTrace("SDFTLMap2GetCreate: entry", FALSE, FALSE, FALSE, (void *) pme, sizeof(SDFTLMap2Entry_t));
 	#endif // MALLOC_TRACE
 	if (pme == NULL) {
-	    plat_log_msg(21289, PLAT_LOG_CAT_SDF_CC, PLAT_LOG_LEVEL_INFO,
+	    plat_log_msg(21289, PLAT_LOG_CAT_SDF_CC, PLAT_LOG_LEVEL_ERROR,
 		 "Could not allocate a thread-local map entry.");
 	    return(NULL);
 	}
@@ -131,7 +131,7 @@ int SDFTLMap2Delete(SDFTLMap2_t *pm, uint64_t key)
                      ppme, &(pb->entry), h);
 	if (pme->key == key) {
             *ppme = pme->next;
-	    plat_log_msg(21335, LOG_CAT_FLASH, PLAT_LOG_LEVEL_DEBUG,
+	    plat_log_msg(21335, LOG_CAT_FLASH, PLAT_LOG_LEVEL_TRACE,
                          "\nHash Table Delete ppme %p key %"PRIu64" contents %p\n",
                          ppme, key, *ppme);
             plat_free(pme);

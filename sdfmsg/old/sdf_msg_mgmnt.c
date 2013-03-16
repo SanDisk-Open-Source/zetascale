@@ -98,7 +98,7 @@ sdf_msg_updatetimechk(struct msg_timeout *mtime) {
         sdf_msg_rtstate->mtime->mstimemkr = now.tv_usec;
         sdf_msg_rtstate->mtime->ntimemkr = sdf_msg_rtstate->mtime->timemkr + sdf_msg_rtstate->mtime->tmout;
 
-        plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+        plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                      "\nNode %d: INITIALIZE tmout %d ntimemkr %lu\n"
                      "        timemkr %lu usec %lu ptimemkr %lu diff %lu ne %d\n"
                      "        PC_CNT %d, PA_CNT %d, PN_CNT %d, C_CNT %d, A_CNT %d, N_CNT %d\n",
@@ -140,7 +140,7 @@ sdf_msg_updatetimechk(struct msg_timeout *mtime) {
         sdf_msg_rtstate->mtime->mcnts[A_CNT] = 0;
         sdf_msg_rtstate->mtime->mcnts[N_CNT] = 0;
 
-        plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+        plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                      "\nNode %d: tmout %d\n"
                      "        timemkr %lu ntimemkr %lu ptimemkr %lu diff %lu\n"
                      "        PC_CNT %d, PA_CNT %d, PN_CNT %d, C_CNT %d, A_CNT %d, N_CNT %d\n",
@@ -199,7 +199,7 @@ sdf_msg_chktimeout(void) {
                 sdf_msg_rtstate->resp_n_flight, sdf_msg_rtstate->myid);
         }
         if (sdf_msg_rtstate->mtime->mcnts[PC_CNT]) {
-            plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+            plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                          "\nNode %d: TIMEOUT DETECTED tmout %d ntimemkr %lu\n"
                          "        timemkr %lu usec %lu prevmkr %lu diff %lu\n"
                          "        PC_CNT %d, PA_CNT %d, PN_CNT %d, C_CNT %d, A_CNT %d, N_CNT %d\n",
@@ -223,7 +223,7 @@ sdf_msg_chktimeout(void) {
                 /* this is in ns */
                     currtm = show_howlong(checkit->contents->msg_basetimestamp, ne, tm);
                     if (dtmsec >= sdf_msg_rtstate->mtime->tmout + 1) {
-                        plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+                        plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                                      "\nNode %d: TIMEOUT DETECTED msg_seqnum %lu msg_tmout %lu timemkr %lu\n"
                                      "        inflight %lu ne %d etime %lu us difftm %lu sec\n",
                                      sdf_msg_rtstate->myid, checkit->contents->msg_seqnum,
@@ -297,7 +297,7 @@ sdf_msg_settimeout(int timeout) {
     } else {
         msg_srt->msg_timeout = timeout;
     }
-    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_INFO,
+    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
                  "\ntimeout %d msg_timeout %d\n", timeout, msg_srt->msg_timeout);
     pthread_mutex_unlock(&msg_srt->msg_release);
 
@@ -356,7 +356,7 @@ sdf_msg_tester_start(void *arg)
     fthmbx.actlvl = SACK_NONE_FTH;
     fthmbx.release_on_send = 1;
 
-    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                  "\nNode %d: Testing pthread MESSAGING MANGEMENT Communication\n", localid);
 
     /*
@@ -487,7 +487,7 @@ sdf_msg_tester_start(void *arg)
         type = SYS_REQUEST;     /* num value of 1 */
 
         if (localid == 0) {
-            plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+            plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                          "\nNode %d: SENDING SYS MSG dnode %d, proto %d, type %d loop num %d\n",
                          localid, node, protocol, type, j);
  
@@ -514,7 +514,7 @@ sdf_msg_tester_start(void *arg)
             if (cnt == 100000) {
                 recv_msg = sdf_msg_receive(q_pair_SYS[node]->q_out, 0, B_TRUE);
                 sdf_msg_free_buff(recv_msg);
-                plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+                plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                              "\nNode %d: %d messages done exiting...\n",
                              localid, cnt);
                 break;
@@ -528,7 +528,7 @@ sdf_msg_tester_start(void *arg)
             plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                          "\nNode %d: GOT ONE and back from sdf_msg_receive with msg %p\n",
                          localid, recv_msg);
-            plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+            plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                          "\nNode %d: RECEIVING MSG vers %d clusterid %d ss %d ds %d sn %d dn %d type %d loop %d\n",
                          localid, recv_msg->msg_version, recv_msg->msg_clusterid,
                          recv_msg->msg_src_service, recv_msg->msg_dest_service,
@@ -544,7 +544,7 @@ sdf_msg_tester_start(void *arg)
                 j = 0;
             }
             if (cnt == 100000) {
-                plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+                plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                              "\nNode %d: We are done total loop cnt %d\n",
                              localid, cnt);
                 j = 0;
@@ -555,7 +555,7 @@ sdf_msg_tester_start(void *arg)
         j++;
         }
 
-    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                  "\nNode %d Exiting pthread MANGEMENT Tester -- total msgs %d\n", localid, j);
     return (0);
 }

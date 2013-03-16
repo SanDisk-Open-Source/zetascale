@@ -133,7 +133,7 @@ fthThreadMultiNodeTntotnSender(uint64_t arg) {
         /* get the ack when sending success. */
         fthMboxWait(&ackmbox);   
 #if FLAG
-        plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,"node %d, wait and get the response message from pnode.\n", myid);
+        plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,"node %d, wait and get the response message from pnode.\n", myid);
         /* get the response when receive message success. */
         sdf_msg_t * msg = (sdf_msg_t *)fthMboxWait(&respmbox);
         ret = sdf_msg_free_buff(msg);
@@ -144,14 +144,14 @@ fthThreadMultiNodeTntotnSender(uint64_t arg) {
         fthYield(1);
     }
 
-    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,"@@node %d, sender type#%li sends protocol#%li message finished, send %d times\n", myid, ptl, ptl, l);
+    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,"@@node %d, sender type#%li sends protocol#%li message finished, send %d times\n", myid, ptl, ptl, l);
     FTH_SPIN_LOCK(&ssync->spin);
     fthCount ++;
     FTH_SPIN_UNLOCK(&ssync->spin);
 
     while (fthCount != 2) fthYield(10);
 
-    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,"node %d, sender type%li kill the scheduler.\n", myid, ptl);  
+    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,"node %d, sender type%li kill the scheduler.\n", myid, ptl);  
     fthKill(1);
 }
 
@@ -195,11 +195,11 @@ void fthThreadMultiNodeTntotnRecver(uint64_t arg) {
 #if 1
     if(recv_msg) {
         uint32_t d = recv_msg->msg_dest_service;
-        plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,"node %d, receiver type#%li recvs protocol#%d type message from sender %d\n", myid, ptl, d, node);
+        plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,"node %d, receiver type#%li recvs protocol#%d type message from sender %d\n", myid, ptl, d, node);
         local_printmsg_payload(recv_msg, TSZE, myid);
     }   
     else {
-        plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,"!!node %d, receiver type#%li recvs protocol#%d meessage from sender failed\n", myid, ptl, recv_msg->msg_dest_service);
+        plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,"!!node %d, receiver type#%li recvs protocol#%d meessage from sender failed\n", myid, ptl, recv_msg->msg_dest_service);
     }    
 #endif
     
@@ -233,7 +233,7 @@ void fthThreadMultiNodeTntotnRecver(uint64_t arg) {
 
 
     }//end of for statement
-    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,"@@node %d, receiver type#%li, receive message finished, receive %d times\n", myid, ptl, ct);
+    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,"@@node %d, receiver type#%li, receive message finished, receive %d times\n", myid, ptl, ct);
 
     FTH_SPIN_LOCK(&ssync->spin);
     fthCount ++;
@@ -249,9 +249,9 @@ MultiNodeTntotnPthreadRoutine(void *arg) {
 
     uint32_t *numprocs = (uint32_t *)arg;
     if (numprocs); // keep compiler happy
-    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG, "\nNode %d FTH threads firing up\n", myid);
+    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE, "\nNode %d FTH threads firing up\n", myid);
 
-    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                  "\nNode %d FTH scheduler has initialized -- Now Spawning fth threads\n", myid);
 
     if(myid == 2 || myid == 3) {
@@ -264,11 +264,11 @@ MultiNodeTntotnPthreadRoutine(void *arg) {
     }
     info->pthread_info = 1;
     info->fth_info = 4;
-    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,"\nNode %d Finished Create and Spawned -- Now starting sched\n", myid);
+    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,"\nNode %d Finished Create and Spawned -- Now starting sched\n", myid);
 
     fthSchedulerPthread(0);
 
-    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG, "\nFTH scheduler halted\n");
+    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE, "\nFTH scheduler halted\n");
     return (0);
 
 }

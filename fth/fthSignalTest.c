@@ -42,7 +42,7 @@ static int signal_received = 0;
 
 static void 
 handle_signal_fth(int signum) {
-    plat_log_msg(20881, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+    plat_log_msg(20881, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                  "Received signal %d", signum);
     signal_received = signum;
 

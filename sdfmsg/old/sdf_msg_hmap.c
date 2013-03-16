@@ -186,7 +186,7 @@ int SDFMSGMapDelete(SDFMSGMap_t *pm, char *pkey) {
             (strcmp((const char *)pme->key, (const char *)pkey) == 0)) {
  //           *ppme = pme->next;
             (pm->nentries)--;
-            plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_INFO,
+            plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
                          "\nHash Table Delete ppme %p mkey %s contents %p numentries %d\n",
                          *ppme, pkey, pme, pm->nentries);
             plat_free(pme->key);
@@ -207,7 +207,7 @@ int SDFMSGMapDelete(SDFMSGMap_t *pm, char *pkey) {
             (strcmp((const char *)pme->key, (const char *)pkey) == 0)) {
             *ppme = pme->next;
             (pm->nentries)--;
-	    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+	    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                          "\nHash Table Delete ppme %p mkey %s contents %p remaining numentries %d\n",
                          ppme, pkey, *ppme, pm->nentries);
             plat_free(pme->key);
@@ -326,13 +326,13 @@ int sdf_msg_setuphash(uint32_t myid, uint32_t num_buckts) {
     SDFMSGMapEnumerate(&respmsg_tracker);
     /* let's check the enum, should only have one enrty */
     checkit = SDFMSGMapNextEnumeration(&respmsg_tracker);
-    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                  "\nNode %d: Hash Table Next Enum entry %p has ts %lu does it =  testit ts %lu\n", myid,
                  checkit, checkit->contents->msg_basetimestamp, testit->contents->msg_basetimestamp);
     plat_assert(checkit->contents->msg_basetimestamp == testit->contents->msg_basetimestamp);
     /* look for the next one that should be null */
     checkit = SDFMSGMapNextEnumeration(&respmsg_tracker);
-    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                  "\nNode %d: Next Hash Table Enum checkit %p should be NULL\n", myid, checkit);
     plat_assert(checkit == NULL);
     /* now check the delete */
@@ -414,7 +414,7 @@ sdf_msg_resptag(struct sdf_msg *msg) {
     } else {
         sdf_msg_rtstate->mtime->mcnts[A_CNT]++;
     }
-    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                  "\nNode %d: msg %p hresp %p dn %d mkey %s klen %d ar_mbx %p\n"
                  "        actual rbox %p hseqnum %lu msg_timeout %li ptimemkr %lu timemkr %lu ntimemkr %lu\n"
                  "        PC_CNT %d, PA_CNT %d, PN_CNT %d, C_CNT %d, A_CNT %d, N_CNT %d\n",
@@ -445,7 +445,7 @@ sdf_msg_hashchk(SDFMSGMapEntry_t *hresp, struct sdf_msg *msg) {
     /* this is calculated in ns and we have a .5sec runway */
     hresp->contents->msg_elaptm = show_dtime(hresp->contents->msg_basetimestamp);
 
-    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                  "\nNode %d: HASH Retrive msg %p mhash %p hrmbx %p msg_timeout %lu hseqnum %lu\n"
                  "        har_mbx %p = mar_mbx %p hmbx_req %p = mmbx_req %p diff time %lu ms\n"
                  "        mkey %s ptimemkr %lu timemkr %lu ntimemkr %lu\n"

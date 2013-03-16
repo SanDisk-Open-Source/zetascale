@@ -144,7 +144,7 @@ void UTWarning(int id, char *fmt, ...)
 #endif
 
    plat_log_msg(id, PLAT_LOG_CAT_SDF_PROT,
-                PLAT_LOG_LEVEL_INFO, "%s", stmp);
+                PLAT_LOG_LEVEL_DEBUG, "%s", stmp);
 }
 
 void UTMessage(int id, char *fmt, ...)
@@ -164,7 +164,7 @@ void UTMessage(int id, char *fmt, ...)
 #endif
 
    plat_log_msg(id, PLAT_LOG_CAT_SDF_PROT,
-                PLAT_LOG_LEVEL_DEBUG, "%s", stmp);
+                PLAT_LOG_LEVEL_TRACE, "%s", stmp);
 }
 #endif /* notdef */
 
@@ -186,7 +186,7 @@ void UTMallocTraceInit()
     }
     setbuf(UTMallocData.ftrace, NULL);
     plat_log_msg(21343, PLAT_LOG_CAT_SDF_PROT, \
-		 PLAT_LOG_LEVEL_INFO, "Opened UTMalloc trace file: %s", UTMallocData.fname);
+		 PLAT_LOG_LEVEL_DEBUG, "Opened UTMalloc trace file: %s", UTMallocData.fname);
     for (i=0; i<N_UTMALLOC_STATS; i++) {
 	UTMallocData.stats[i] = 0;
     }

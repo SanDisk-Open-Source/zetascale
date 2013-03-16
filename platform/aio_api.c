@@ -21,7 +21,7 @@ static void paio_process_event(struct paio_context *ctx,
 
 void
 paio_api_destroy(struct paio_api *api) {
-    plat_log_msg(21812, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+    plat_log_msg(21812, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                  "paio_api %p destroy", api);
 
     return ((*api->api_destroy)(api));
@@ -34,7 +34,7 @@ paio_setup(struct paio_api *api, int maxevents, struct paio_context **ctxp) {
     ret = (*api->io_setup)(api, maxevents, ctxp);
 
     plat_log_msg(21813, LOG_CAT,
-                 !ret ?  PLAT_LOG_LEVEL_DEBUG : PLAT_LOG_LEVEL_WARN,
+                 !ret ?  PLAT_LOG_LEVEL_TRACE : PLAT_LOG_LEVEL_WARN,
                  "paio_api %p setup paio_context %p maxevents %d = %d", api,
                  *ctxp, maxevents, ret);
 
@@ -43,7 +43,7 @@ paio_setup(struct paio_api *api, int maxevents, struct paio_context **ctxp) {
 
 int
 paio_destroy(struct paio_context *ctx) {
-    plat_log_msg(21814, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+    plat_log_msg(21814, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                  "paio_context %p destroy", ctx);
 
     return ((*ctx->api->io_destroy)(ctx));
@@ -103,7 +103,7 @@ paio_cancel(struct paio_context *ctx, struct iocb *iocb, struct io_event *evt) {
     ret = (*ctx->api->io_cancel)(ctx, iocb, evt);
 
     plat_log_msg(21818, LOG_CAT,
-                 !ret ? PLAT_LOG_LEVEL_DEBUG : PLAT_LOG_LEVEL_DIAGNOSTIC,
+                 !ret ? PLAT_LOG_LEVEL_TRACE : PLAT_LOG_LEVEL_DIAGNOSTIC,
                  "paio_context %p cancel iocb %p op %d fd %d  = %d",
                  ctx, iocb, iocb->aio_lio_opcode, iocb->aio_fildes, ret);
 

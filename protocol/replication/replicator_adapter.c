@@ -308,7 +308,7 @@ sdf_replicator_adapter_alloc(const struct sdf_replicator_config *config,
     }
 
     if (!failed) {
-        plat_log_msg(21460, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+        plat_log_msg(21460, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                      "replicator_adapter %p allocated", ret);
     } else {
         plat_log_msg(21461, LOG_CAT, PLAT_LOG_LEVEL_ERROR,
@@ -327,7 +327,7 @@ int
 sdf_replicator_adapter_start(struct sdf_replicator_adapter *ra) {
     int ret = 0;
 
-    plat_log_msg(21462, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+    plat_log_msg(21462, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                  "replicator adapter %p starting", ra);
 
     if (!ret) {
@@ -336,23 +336,23 @@ sdf_replicator_adapter_start(struct sdf_replicator_adapter *ra) {
 
     ret = plat_fth_scheduler_start(ra->internal_sdf_client_scheduler);
     if (ret) {
-        plat_log_msg(21463, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+        plat_log_msg(21463, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                      "replicator adapter %p scheduler failed to start", ra);
     }
 
     if (!ret) {
         ret = sdf_replicator_start(ra->replicator);
         if (ret) {
-            plat_log_msg(21464, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+            plat_log_msg(21464, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                          "replicator adapter %p replicator failed to start", ra);
         }
     }
 
     if (!ret) {
-        plat_log_msg(21465, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+        plat_log_msg(21465, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                      "replicator adapter %p started", ra);
     } else {
-        plat_log_msg(21466, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+        plat_log_msg(21466, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                      "replicator adapter %p failed to start", ra);
     }
 
@@ -375,7 +375,7 @@ sdf_replicator_adapter_shutdown(struct sdf_replicator_adapter *ra,
 
     plat_assert(!before);
     if (!before) {
-        plat_log_msg(21467, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+        plat_log_msg(21467, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                      "replicator_adapter %p shutdown called", ra);
 
         ra->shutdown_closure = shutdown_closure;
@@ -396,7 +396,7 @@ ra_replicator_stopped(plat_closure_scheduler_t *context, void *env) {
     struct sdf_replicator_adapter *ra = (struct sdf_replicator_adapter *)env;
     plat_closure_scheduler_shutdown_t shutdown;
 
-    plat_log_msg(21468, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+    plat_log_msg(21468, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                  "replicator_adapter %p replicator stopped", ra);
     ra->replicator = NULL;
 
@@ -418,7 +418,7 @@ ra_scheduler_stopped(plat_closure_scheduler_t *context, void *env) {
     int i;
     struct sdf_replicator_adapter *ra = (struct sdf_replicator_adapter *)env;
 
-    plat_log_msg(21469, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+    plat_log_msg(21469, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                  "replicator_adapter %p scheduler stopped", ra);
     ra->internal_sdf_client_scheduler = NULL;
 

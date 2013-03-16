@@ -81,7 +81,7 @@ void * BigSizePthreadRoutine(void *arg) {
     int localrank = sdf_msg_nodestatus(&numprocs, &localpn, cluster_node, &actmask);
     if (localrank == localpn) {
         node = localpn;
-        plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+        plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                 "\nNode %d: FASTPATH_TEST node %d myid %d\n", myid, node, myid);
     } else {
         node = local_get_pnode(localrank, localpn, numprocs);
@@ -116,7 +116,7 @@ void * BigSizePthreadRoutine(void *arg) {
     }
 
     if (debug)
-        plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+        plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                 "\nNode %d MNGMT TEST THREAD STOPPING HERE FOR DEBUG\n", myid);
     while (debug);
 
@@ -133,7 +133,7 @@ void * BigSizePthreadRoutine(void *arg) {
         } else {
             msgsize *= 2;
         }
-        plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+        plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
 			"Ssend msg with size %d\n", msgsize);
         send_msg = (struct sdf_msg *) sdf_msg_alloc(msgsize);
         if (send_msg == NULL) {
@@ -142,7 +142,7 @@ void * BigSizePthreadRoutine(void *arg) {
         }
 
         if (DBGP) {
-            plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+            plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                     "\nNode %d msg %p msg->msg_payload %p\n", myid, send_msg,
                     send_msg->msg_payload);
         }
@@ -191,7 +191,7 @@ void * BigSizePthreadRoutine(void *arg) {
 #endif
 
         if (DBGP) {
-            plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+            plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                     "\nNode %d: back from sdf_msg_receive with msg %p\n", myid,
                     recv_msg);
         }
@@ -217,7 +217,7 @@ void * BigSizePthreadRoutine(void *arg) {
         j++;
     }
 
-    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
 		 "\nNode %d Exiting pthread MANGEMENT Tester - num msgs %d\n", myid, j);    
 	return (0);
 }

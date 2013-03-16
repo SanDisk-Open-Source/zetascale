@@ -115,11 +115,11 @@ void UTError(char *fmt, ...) __attribute__((__noreturn__));
 
 #define UTMessage(id, format, args...)                  \
    plat_log_msg(id, PLAT_LOG_CAT_SDF_PROT,              \
-                PLAT_LOG_LEVEL_DEBUG, format, ##args);
+                PLAT_LOG_LEVEL_TRACE, format, ##args);
 
 #define UTWarning(id, format, args...)                  \
    plat_log_msg(id, PLAT_LOG_CAT_SDF_PROT,              \
-                PLAT_LOG_LEVEL_DEBUG, "Warning: " format, ##args);
+                PLAT_LOG_LEVEL_TRACE, "Warning: " format, ##args);
 
 #ifdef	__cplusplus
 }

@@ -27,12 +27,12 @@ doesContainerExistInBackend(SDF_internal_ctxt_t *pai, const char *path)
         code = 1;
         plat_log_msg(21617,
                      PLAT_LOG_CAT_SDF_SHARED,
-                     PLAT_LOG_LEVEL_DEBUG,
+                     PLAT_LOG_LEVEL_TRACE,
                      "Container %s exists in backend", path);
     } else {
         plat_log_msg(21618,
                      PLAT_LOG_CAT_SDF_SHARED,
-                     PLAT_LOG_LEVEL_DEBUG,
+                     PLAT_LOG_LEVEL_TRACE,
                      "Container %s does not exist in backend", path);
     }
 
@@ -139,12 +139,12 @@ delContainerDescriptor(const char *path, SDF_CONTAINER container)
     if (ISEMPTY(path)) {
         plat_log_msg(21620,
                      PLAT_LOG_CAT_SDF_SHARED,
-                     PLAT_LOG_LEVEL_DEBUG,
+                     PLAT_LOG_LEVEL_TRACE,
                      "delContainerDescriptor: invalid path");
     } else  if (isContainerParentNull(parent = containerMap_getParent(path))) {
         plat_log_msg(21621,
                      PLAT_LOG_CAT_SDF_SHARED,
-                     PLAT_LOG_LEVEL_DEBUG,
+                     PLAT_LOG_LEVEL_TRACE,
                      "delContainerDescriptor: failed to find parent for %s", path);
     } else {
         // _sdf_print_parent_container_structure(parent); // DEBUG
@@ -191,7 +191,7 @@ createParentContainer(SDF_internal_ctxt_t *pai, const char *path, SDF_container_
     if (!isContainerParentNull(parent = containerMap_getParent(path))) { // STEP 1
         plat_log_msg(21622,
                      PLAT_LOG_CAT_SDF_SHARED,
-                     PLAT_LOG_LEVEL_DEBUG,
+                     PLAT_LOG_LEVEL_TRACE,
                      "createParentContainer: container exist for %s in map", path);
     } else { // STEP 2
         parent = addContainerParent(pai, path); // Create a parent object
@@ -204,7 +204,7 @@ createParentContainer(SDF_internal_ctxt_t *pai, const char *path, SDF_container_
 
         plat_log_msg(21623,
                      PLAT_LOG_CAT_SDF_SHARED,
-                     PLAT_LOG_LEVEL_DEBUG,
+                     PLAT_LOG_LEVEL_TRACE,
                      "NODE/GUID for %s = %lu/%llu", 
 		     path, (unsigned long)lparent->node, 
 		     (unsigned long long)lparent->cguid);
@@ -217,12 +217,12 @@ createParentContainer(SDF_internal_ctxt_t *pai, const char *path, SDF_container_
             parent = containerParentNull;
             plat_log_msg(21624,
                          PLAT_LOG_CAT_SDF_SHARED,
-                         PLAT_LOG_LEVEL_DEBUG,
+                         PLAT_LOG_LEVEL_TRACE,
                          "failed to add map for %s", path);
         } else {
             plat_log_msg(21625,
                          PLAT_LOG_CAT_SDF_SHARED,
-                         PLAT_LOG_LEVEL_DEBUG,
+                         PLAT_LOG_LEVEL_TRACE,
                          "successfully added map for %s", path);
         }
     }
@@ -276,7 +276,7 @@ closeParentContainer(SDF_CONTAINER container)
     if (!delContainerDescriptor(path, container)) {
         plat_log_msg(21626,
                      PLAT_LOG_CAT_SDF_SHARED,
-                     PLAT_LOG_LEVEL_DEBUG,
+                     PLAT_LOG_LEVEL_TRACE,
                      "closeParentContainer: failed to close %s", path);
     } else if (lparent->num_open_descriptors <= 0) {
 
@@ -293,19 +293,19 @@ closeParentContainer(SDF_CONTAINER container)
             status = 1;
             plat_log_msg(21627,
                          PLAT_LOG_CAT_SDF_SHARED,
-                         PLAT_LOG_LEVEL_DEBUG,
+                         PLAT_LOG_LEVEL_TRACE,
                          "closeParentContainer: closed parent");
         } else {
             plat_log_msg(21628,
                          PLAT_LOG_CAT_SDF_SHARED,
-                         PLAT_LOG_LEVEL_DEBUG,
+                         PLAT_LOG_LEVEL_TRACE,
                          "closeParentContainer: failed to remove parent for %s", path);
         }
     } else {
         status = 1;
         plat_log_msg(21629,
                      PLAT_LOG_CAT_SDF_SHARED,
-                     PLAT_LOG_LEVEL_DEBUG,
+                     PLAT_LOG_LEVEL_TRACE,
                      "closeParentContainer: closed descriptor for %s", path);
     }
     

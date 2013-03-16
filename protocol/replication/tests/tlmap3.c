@@ -45,7 +45,7 @@ void TLMap3Init(TLMap3_t *pm, uint64_t nbuckets,
 
 void TLMap3Destroy(TLMap3_t *pm)
 {
-    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT_FLASH, PLAT_LOG_LEVEL_INFO,
+    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT_FLASH, PLAT_LOG_LEVEL_DEBUG,
 	     "TLMap3Destroy is not yet implemented.");
 }
 
@@ -72,7 +72,7 @@ TLMap3Entry_t *TLMap3Create(TLMap3_t *pm, char *pkey, int keylen)
 
 	pme = (TLMap3Entry_t *) plat_alloc(sizeof(TLMap3Entry_t));
 	if (pme == NULL) {
-	    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT_FLASH, PLAT_LOG_LEVEL_INFO,
+	    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT_FLASH, PLAT_LOG_LEVEL_DEBUG,
 		 "Could not allocate a thread-local map entry.");
 	    return(NULL);
 	}
@@ -81,7 +81,7 @@ TLMap3Entry_t *TLMap3Create(TLMap3_t *pm, char *pkey, int keylen)
 	pme->key      = (char *) plat_alloc(keylen+1);
 
 	if (pme->key == NULL) {
-	    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT_FLASH, PLAT_LOG_LEVEL_INFO,
+	    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT_FLASH, PLAT_LOG_LEVEL_DEBUG,
 		 "Could not allocate a thread-local key.");
 	    plat_free(pme);
 	    return(NULL);
@@ -139,7 +139,7 @@ int TLMap3Delete(TLMap3_t *pm, char *pkey, int keylen)
             (strcmp((const char *)pme->key, (const char *)pkey) == 0)) 
 	{
             *ppme = pme->next;
-	    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT_FLASH, PLAT_LOG_LEVEL_DEBUG,
+	    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT_FLASH, PLAT_LOG_LEVEL_TRACE,
                          "\nHash Table Delete ppme %p key %s contents %p\n",
                          ppme, pkey, *ppme);
             plat_free(pme->key);

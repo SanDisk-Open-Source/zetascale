@@ -168,7 +168,7 @@ void fthThreadMultiPtlSglNodeRecver(uint64_t arg) {
     uint64_t aresp = 0, ptl;
     struct sdf_msg *recv_msg = NULL;
     vnode_t node;
-    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                  "\nnode %d, fth thread receiver %li starting %s\n", 
                  myid, arg, __func__);
     fflush(stdout);

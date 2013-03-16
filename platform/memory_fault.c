@@ -97,7 +97,7 @@ plat_fault(void *buf, size_t len, enum fault_how how) {
      * XXX: Shouldn't be INFO, but we should change the default compile time
      * priority to just a notch up from TRACE if we're still concerned.
      */
-    plat_log_msg(20951, LOG_CAT, PLAT_LOG_LEVEL_INFO,
+    plat_log_msg(20951, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
                  "Faulted %p len 0x%lx, %ld pages in %ld secs %ld usecs"
                  " %.2g usecs per maj_flt %ld min_flt %ld",
                  buf, (unsigned long)len, pages, tv_delta.tv_sec,

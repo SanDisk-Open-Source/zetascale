@@ -288,7 +288,7 @@ fthInitCpuInfo() {
     }
 
     plat_log_msg(20871, PLAT_LOG_CAT_FTH,
-                 PLAT_LOG_LEVEL_INFO, "fth using up to %d cores from set 0x%x",
+                 PLAT_LOG_LEVEL_DEBUG, "fth using up to %d cores from set 0x%x",
                  fth->cpuInfo.numCPUs, printCPUs);
 }
 

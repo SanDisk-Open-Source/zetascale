@@ -119,7 +119,7 @@ static void fthThreadSender(uint64_t arg) {
         plat_log_msg(
                 PLAT_LOG_ID_INITIAL,
                 LOG_CAT,
-                PLAT_LOG_LEVEL_DEBUG,
+                PLAT_LOG_LEVEL_TRACE,
                 "\nNode %d: fth mb info fthmbxtst %p rbox %p abox %p lvl %d maxcnt %d\n",
                 myid, fthmbxtst, fthmbx.rbox, fthmbx.abox, SACK_BOTH_FTH,
                 maxcnt);
@@ -169,7 +169,7 @@ static void fthThreadSender(uint64_t arg) {
     if (myid == 1) {
         debug = 0;
         if (debug) {
-            plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+            plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                     "\nNode %d: DEBUG --- NOT SENDING MESSAGES FROM HERE", myid);
             while (debug)
                 fthYield(100); /* Don't send mesages from node one for now */
@@ -193,7 +193,7 @@ static void fthThreadSender(uint64_t arg) {
         } else {
             msgsize *= 2;
         }
-        plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+        plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                 "Node %d: msg %d with size %d\n", myid, l, msgsize);
 
         /* create the buffer on every loop to check the buffer release func */
@@ -275,7 +275,7 @@ static void fthThreadSender(uint64_t arg) {
     }
     while (mysync != 3)
         fthYield(100);
-    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
             "\nNode %d: EXITING completed sending %d messages - mysync %d\n",
             myid, l, mysync);
     fthKill(5); // Kill off FTH
@@ -309,7 +309,7 @@ static void fthThreadReceiver1(uint64_t arg) {
     int localrank = sdf_msg_nodestatus(&numprocs, &localpn, cluster_node, &actmask);
     if (FASTPATH_TEST) {
         node = myid;
-        plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+        plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                 "\nNode %d: FASTPATH_TEST node %d myid %d\n", myid, node, myid);
     } else {
         /* just get the next node in line, not really a multi-node test */
@@ -328,7 +328,7 @@ static void fthThreadReceiver1(uint64_t arg) {
             "\nNode %d: created queue pair %p sn %d dn %d ss %d ds %d\n", myid,
             q_pair_RESPONSES, myid, node, SDF_RESPONSES,
             SDF_RESPONSES);
-    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
             "\nNode %d: Now yielding waiting for mysync\n", myid);
 
     /* Need to yield till all queues have been created */
@@ -344,7 +344,7 @@ static void fthThreadReceiver1(uint64_t arg) {
         plat_log_msg(
                 PLAT_LOG_ID_INITIAL,
                 LOG_CAT,
-                PLAT_LOG_LEVEL_DEBUG,
+                PLAT_LOG_LEVEL_TRACE,
                 "\nNode %d: Waiting for messages q_pair_CONSISTENCY %p loop%d\n",
                 myid, q_pair_CONSISTENCY, ct);
         recv_msg = sdf_msg_receive(q_pair_CONSISTENCY->q_out, 0, B_TRUE);
@@ -418,7 +418,7 @@ static void fthThreadReceiver1(uint64_t arg) {
     }
     mysync++;
     fthYield(1);
-    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
             "\nNode %d: WORKER FTH exiting - loop %d mysync %d\n", myid, i,
             mysync);
 }
@@ -449,7 +449,7 @@ static void fthThreadReceiver2(uint64_t arg) {
     int localrank = sdf_msg_nodestatus(&numprocs, &localpn, cluster_node, &actmask);
     if (FASTPATH_TEST) {
         node = myid;
-        plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+        plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                 "\nNode %d: FASTPATH_TEST node %d myid %d\n", myid, node, myid);
     } else {
         /* just get the next node in line, not really a multi-node test */
@@ -466,7 +466,7 @@ static void fthThreadReceiver2(uint64_t arg) {
             "\nNode %d: Found queue pair %p sn %d dn %d ss %d ds %d loop %d\n",
             myid, q_pair_RESPONSES, myid, node, SDF_RESPONSES,
             SDF_RESPONSES, ct);
-    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
             "\nNode %d: Now yielding waiting for mysync\n", myid);
 
     /* Need to yield till all queues have been created */
@@ -557,7 +557,7 @@ static void fthThreadReceiver2(uint64_t arg) {
     }
     mysync++;
     fthYield(1);
-    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
             "\nNode %d: WORKER FTH exiting - loop %d\n mysync %d", myid, i,
             mysync);
 }

@@ -131,9 +131,9 @@ plat_fork_execve(const char *filename, char *const argv[],
                      "plat_fork_execve(filename = %s, args = %s) failed: %d",
                      filename, args, plat_errno);
         plat_free(args);
-    } else if (plat_log_enabled(LOG_CAT, PLAT_LOG_LEVEL_DEBUG)) {
+    } else if (plat_log_enabled(LOG_CAT, PLAT_LOG_LEVEL_TRACE)) {
         args = plat_strarray_alloc(-1, (const char * const *)argv, " ");
-        plat_log_msg(20942, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+        plat_log_msg(20942, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                      "plat_fork_execve(filename = %s, args = %s)",
                      filename, args);
         plat_free(args);

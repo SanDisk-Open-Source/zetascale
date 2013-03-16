@@ -86,7 +86,7 @@ static SDF_boolean_t SDFEnable_Replication = SDF_FALSE;
 #undef LOG_CAT
 #define LOG_ID PLAT_LOG_ID_INITIAL
 #define LOG_CAT PLAT_LOG_CAT_SDF_AGENT
-#define LOG_LEV PLAT_LOG_LEVEL_DEBUG
+#define LOG_LEV PLAT_LOG_LEVEL_TRACE
 
 /*
  * @brief Pthread-safe pre-initialization of SDF agent engine.
@@ -123,7 +123,7 @@ fdf_agent_engine_pre_init_internal(struct sdf_agent_state *state) {
     if (state->config.ffdc_disable == 0) {
         if (ffdc_initialize(0, BLD_VERSION, 
                             state->config.ffdc_buffer_len) == 0) {
-            plat_log_msg(21788, LOG_CAT, PLAT_LOG_LEVEL_INFO,
+            plat_log_msg(21788, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
                          "Initialized FFDC logging "
                          "(max buffers=%d, thread bufsize=0x%lx)", 
                          FFDC_MAX_BUFFERS, 
@@ -136,7 +136,7 @@ fdf_agent_engine_pre_init_internal(struct sdf_agent_state *state) {
                          (long)state->config.ffdc_buffer_len);
         }
     } else {
-        plat_log_msg(10005, LOG_CAT, PLAT_LOG_LEVEL_INFO,
+        plat_log_msg(10005, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
                      "FFDC logging disabled");
     }
 
@@ -174,14 +174,14 @@ SDF_boolean_t fdf_agent_engine_pre_init(struct sdf_agent_state *state)
             SDF_FALSE : SDF_TRUE;
 #endif
         plat_log_msg(20849, LOG_CAT, 
-                     success ?  LOG_LEV : PLAT_LOG_LEVEL_INFO,
+                     success ?  LOG_LEV : PLAT_LOG_LEVEL_DEBUG,
                      "plat_opts_parse_sdf_agent SUCCESS = %u", success);
     }
 
     if (success) {
         success = agent_config_set_properties(&state->config);
         plat_log_msg(20850, LOG_CAT, 
-                     success ? LOG_LEV : PLAT_LOG_LEVEL_INFO,
+                     success ? LOG_LEV : PLAT_LOG_LEVEL_DEBUG,
                      "set properties SUCCESS = %u", success);
     }
 

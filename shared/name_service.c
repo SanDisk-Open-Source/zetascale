@@ -28,6 +28,7 @@
 #define LOG_ID PLAT_LOG_ID_INITIAL
 #define LOG_CAT PLAT_LOG_CAT_SDF_NAMING
 #define LOG_DBG PLAT_LOG_LEVEL_DEBUG
+#define LOG_TRACE PLAT_LOG_LEVEL_TRACE
 #define LOG_ERR PLAT_LOG_LEVEL_ERROR
 #define LOG_WARN PLAT_LOG_LEVEL_WARN
 #define LOG_FATAL PLAT_LOG_LEVEL_FATAL
@@ -59,14 +60,14 @@ name_service_create_meta(SDF_internal_ctxt_t *pai, const char *cname, SDF_cguid_
     int 			log_level 	= LOG_ERR;
 	SDFContainer	c			= NULL;
 
-    plat_log_msg(21579, LOG_CAT, LOG_DBG, "%s - %lu", cname, cguid);
+    plat_log_msg(21579, LOG_CAT, LOG_TRACE, "%s - %lu", cname, cguid);
 
     if (ISEMPTY(cname)) {
 		status = SDF_INVALID_PARAMETER;
     } else {
 		c = name_service_metadata_container_from_cguid( cguid );
 		if ( c && (status = cmc_create_meta( pai, c, cname, cguid, meta ) ) == SDF_SUCCESS) 
-			log_level = LOG_DBG;
+			log_level = LOG_TRACE;
     }
 
     /*
@@ -101,7 +102,7 @@ name_service_get_meta(SDF_internal_ctxt_t *pai, SDF_cguid_t cguid, SDF_container
     int 			log_level 	= LOG_ERR;
 	SDFContainer	c			= NULL;
 
-    plat_log_msg(21507, LOG_CAT, LOG_DBG, "%llu", (unsigned long long)cguid);
+    plat_log_msg(21507, LOG_CAT, LOG_TRACE, "%llu", (unsigned long long)cguid);
 
     if (meta == NULL) {
 
@@ -111,7 +112,7 @@ name_service_get_meta(SDF_internal_ctxt_t *pai, SDF_cguid_t cguid, SDF_container
 
         c = name_service_metadata_container_from_cguid( cguid );
 		if (c && (status = cmc_get_meta(pai, c, cguid, meta)) == SDF_SUCCESS)
-			log_level = LOG_DBG;
+			log_level = LOG_TRACE;
     }
 
 	if ( SDF_SUCCESS != status )
@@ -127,10 +128,10 @@ name_service_get_meta_from_cname(SDF_internal_ctxt_t *pai, const char *cname,
 				 SDF_container_meta_t *meta) {
 
     SDF_status_t 	status 		= SDF_FAILURE;
-    int 			log_level 	= LOG_DBG;
+    int 			log_level 	= LOG_TRACE;
 	SDFContainer	c			= NULL;
 
-    plat_log_msg(20819, LOG_CAT, LOG_DBG, "%s", cname);
+    plat_log_msg(20819, LOG_CAT, LOG_TRACE, "%s", cname);
 
     c = name_service_metadata_container_from_cname( (char *) cname );
     status = cmc_get_meta_from_cname(pai, c, cname, meta);
@@ -148,7 +149,7 @@ name_service_put_meta(SDF_internal_ctxt_t *pai, SDF_cguid_t cguid, SDF_container
     int 			log_level 	= LOG_ERR;
 	SDFContainer	c			= NULL;
 
-    plat_log_msg(21507, LOG_CAT, LOG_DBG, "%llu", (unsigned long long)cguid);
+    plat_log_msg(21507, LOG_CAT, LOG_TRACE, "%llu", (unsigned long long)cguid);
 
     if (meta == NULL) {
 		status = SDF_INVALID_PARAMETER;
@@ -156,7 +157,7 @@ name_service_put_meta(SDF_internal_ctxt_t *pai, SDF_cguid_t cguid, SDF_container
 
         c = name_service_metadata_container_from_cguid( cguid );
 		if (c && (status = cmc_put_meta(pai, c, cguid, meta)) == SDF_SUCCESS)
-			log_level = LOG_DBG;
+			log_level = LOG_TRACE;
     }
 
     /*
@@ -191,11 +192,11 @@ name_service_lock_meta(SDF_internal_ctxt_t *pai, const char *cname) {
     SDF_cguid_t cguid = SDF_NULL_CGUID;
     int log_level = LOG_ERR;
 
-    plat_log_msg(20819, LOG_CAT, LOG_DBG, "%s", cname);
+    plat_log_msg(20819, LOG_CAT, LOG_TRACE, "%s", cname);
 
     if ((status = name_service_get_cguid(pai, cname, &cguid)) == SDF_SUCCESS &&
 		(status = cmc_lock_meta(pai, theCMC->c, cguid)) == SDF_SUCCESS) {
-	log_level = LOG_DBG;
+	log_level = LOG_TRACE;
     }
 
     plat_log_msg(21506, LOG_CAT, log_level, "%llu - %s",
@@ -211,11 +212,11 @@ name_service_unlock_meta(SDF_internal_ctxt_t *pai, const char *cname) {
     SDF_cguid_t cguid = SDF_NULL_CGUID;
     int log_level = LOG_ERR;
 
-    plat_log_msg(20819, LOG_CAT, LOG_DBG, "%s", cname);
+    plat_log_msg(20819, LOG_CAT, LOG_TRACE, "%s", cname);
 
     if ((status = name_service_get_cguid(pai, cname, &cguid)) == SDF_SUCCESS &&
 		(status = cmc_unlock_meta(pai, theCMC->c, cguid)) == SDF_SUCCESS) {
-		log_level = LOG_DBG;
+		log_level = LOG_TRACE;
     }
 
     plat_log_msg(21506, LOG_CAT, log_level, "%llu - %s",
@@ -231,7 +232,7 @@ name_service_lock_meta_by_cguid(SDF_internal_ctxt_t *pai, SDF_cguid_t cguid) {
     int log_level = LOG_ERR;
 
     if ((status = cmc_lock_meta(pai, theCMC->c, cguid)) == SDF_SUCCESS) {
-		log_level = LOG_DBG;
+		log_level = LOG_TRACE;
     }
 
     plat_log_msg(21506, LOG_CAT, log_level, "%llu - %s",
@@ -247,7 +248,7 @@ name_service_unlock_meta_by_cguid(SDF_internal_ctxt_t *pai, SDF_cguid_t cguid) {
     int log_level = LOG_ERR;
 
     if ((status = cmc_unlock_meta(pai, theCMC->c, cguid)) == SDF_SUCCESS) {
-		log_level = LOG_DBG;
+		log_level = LOG_TRACE;
     }
 
     plat_log_msg(21506, LOG_CAT, log_level, "%llu - %s",
@@ -260,15 +261,15 @@ SDF_status_t
 name_service_meta_exists(SDF_internal_ctxt_t *pai, const char *cname) {
 
     SDF_status_t    status      = SDF_FAILURE;
-    int             log_level   = LOG_DBG;
+    int             log_level   = LOG_TRACE;
 
-    plat_log_msg(20819, LOG_CAT, LOG_DBG, "%s", cname);
+    plat_log_msg(20819, LOG_CAT, LOG_TRACE, "%s", cname);
 
     if ((status = cmc_meta_exists(pai, theCMC->c, cname)) != SDF_SUCCESS)
         log_level = LOG_ERR;
 
-    plat_log_msg(21511, LOG_CAT, log_level, "%s - %s",
-         cname, SDF_Status_Strings[status]);
+/*    plat_log_msg(21511, LOG_CAT, log_level, "%s - %s",
+         cname, SDF_Status_Strings[status]); */
 
     return (status);
 }
@@ -277,16 +278,16 @@ SDF_status_t
 name_service_cguid_exists(SDF_internal_ctxt_t *pai, SDF_cguid_t cguid) {
 
     SDF_status_t 	status 		= SDF_FAILURE;
-    int 			log_level 	= LOG_DBG;
+    int 			log_level 	= LOG_TRACE;
 	SDFContainer	c			= NULL;
 
-    plat_log_msg(21630, LOG_CAT, LOG_DBG, "%lu", cguid);
+    plat_log_msg(21630, LOG_CAT, LOG_TRACE, "%lu", cguid);
 
 	c = name_service_metadata_container_from_cguid( cguid );
 	if ((status = cmc_cguid_exists(pai, c, cguid)) != SDF_SUCCESS)
 		log_level = LOG_ERR;
 
-    plat_log_msg(150021, LOG_CAT, log_level, "%lu - %s",
+    plat_log_msg(150021, LOG_CAT, LOG_DBG, "%lu - %s",
 		 cguid, SDF_Status_Strings[status]);
 
     return (status);
@@ -300,13 +301,13 @@ name_service_remove_meta(SDF_internal_ctxt_t *pai, const char *cname) {
     int 			log_level 	= LOG_ERR;
 	SDFContainer	c			= NULL;
 
-    plat_log_msg(21507, LOG_CAT, LOG_DBG, "%llu",
+    plat_log_msg(21507, LOG_CAT, LOG_TRACE, "%llu",
 		 (unsigned long long)cguid);
 
     if ((status = name_service_get_cguid(pai, cname, &cguid)) == SDF_SUCCESS) {
 		c = name_service_metadata_container_from_cguid( cguid );
 		if ((status = cmc_remove_meta(pai, c, cguid)) == SDF_SUCCESS) 
-			log_level = LOG_DBG;
+			log_level = LOG_TRACE;
     }
 
     plat_log_msg(21506, LOG_CAT, log_level, "%llu - %s",
@@ -320,10 +321,10 @@ name_service_get_props(SDF_internal_ctxt_t *pai, const char *cname, SDF_containe
 
     SDF_status_t 	status 		= SDF_FAILURE;
     SDF_cguid_t 	cguid 		= SDF_NULL_CGUID;
-    int 			log_level 	= LOG_DBG;
+    int 			log_level 	= LOG_TRACE;
 	SDFContainer	c			= NULL;
 
-    plat_log_msg(20819, LOG_CAT, LOG_DBG, "%s", cname);
+    plat_log_msg(20819, LOG_CAT, LOG_TRACE, "%s", cname);
 
     if (ISEMPTY(cname) || props == NULL) {
 		status = SDF_INVALID_PARAMETER;
@@ -346,14 +347,14 @@ name_service_put_props(SDF_internal_ctxt_t *pai, const char *cname, SDF_containe
     SDF_cguid_t 	cguid 		= SDF_NULL_CGUID;
     int 			log_level 	= LOG_ERR;
 
-    plat_log_msg(20819, LOG_CAT, LOG_DBG, "%s", cname);
+    plat_log_msg(20819, LOG_CAT, LOG_TRACE, "%s", cname);
 
     if (ISEMPTY(cname)) {
 		status = SDF_INVALID_PARAMETER;
     } else if ((status = name_service_get_cguid(pai, cname, &cguid)) == SDF_SUCCESS) {
 		name_service_metadata_container_from_cguid( cguid );
 	    if ((status = cmc_put_props(pai, theCMC, cguid, props) == SDF_SUCCESS))
-			log_level = LOG_DBG;
+			log_level = LOG_TRACE;
     }
 
     plat_log_msg(21511, LOG_CAT, log_level, "%s - %s", 
@@ -369,9 +370,9 @@ name_service_get_shard(SDF_cguid_t cguid, const char *objkey,
 
     SDF_shardid_t shard = SDF_SHARDID_INVALID;
     SDF_status_t status = SDF_FAILURE;
-    int log_level = LOG_DBG;
+    int log_level = LOG_TRACE;
 
-    plat_log_msg(21506, LOG_CAT, LOG_DBG, "%llu - %s",
+    plat_log_msg(21506, LOG_CAT, LOG_TRACE, "%llu - %s",
 		 (unsigned long long)cguid, objkey);
 
     if (cguid == CMC_CGUID) {
@@ -399,12 +400,12 @@ name_service_put_shard(SDF_internal_ctxt_t *pai, SDF_cguid_t cguid, SDF_shardid_
     int 			log_level 	= LOG_ERR;
 	SDFContainer	c			= NULL;
 
-    plat_log_msg(21612, LOG_CAT, LOG_DBG, "%lu - %lu", 
+    plat_log_msg(21612, LOG_CAT, LOG_TRACE, "%lu - %lu", 
 		 cguid, shard);
 
 	c = name_service_metadata_container_from_cguid( cguid );
     if ((status = cmc_put_shard(pai, c, cguid, shard) == SDF_SUCCESS)) {
-		log_level = LOG_DBG;
+		log_level = LOG_TRACE;
     }
 
     plat_log_msg(21613, LOG_CAT, log_level, "%lu - %lu - %s",
@@ -421,12 +422,12 @@ name_service_delete_shards(SDF_internal_ctxt_t *pai, const char *cname) {
 	SDFContainer	c			= NULL;
 	int				index		= -1;
 
-    plat_log_msg(20819, LOG_CAT, LOG_DBG, "%s", cname);
+    plat_log_msg(20819, LOG_CAT, LOG_TRACE, "%s", cname);
 
 	if (( index = name_service_ctnr_from_cname( (char *) cname )) != -1 ) {
 		c = name_service_metadata_container_from_cguid( CtnrMap[index].cguid );
     	if ((status = cmc_delete_shards(pai, c, cname) == SDF_SUCCESS)) {
-			log_level = LOG_DBG;
+			log_level = LOG_TRACE;
     	}
 	}
 
@@ -444,16 +445,16 @@ name_service_create_cguid_map(SDF_internal_ctxt_t *pai, const char *cname, SDF_c
     int 			log_level 	= LOG_ERR;
 #endif /* SDFAPI */
 
-    plat_log_msg(21614, LOG_CAT, LOG_DBG, "%s - %llu",
+    plat_log_msg(21614, LOG_CAT, LOG_TRACE, "%s - %llu",
 		 cname, (unsigned long long)cguid);
 
     if ((status = cmc_create_cguid_map(pai, theCMC->c, cguid, cname)) == SDF_SUCCESS) {
 #ifndef SDFAPI
-		log_level = LOG_DBG;
+		log_level = LOG_TRACE;
 #endif /* SDFAPI */
     }
 
-    plat_log_msg(21610, LOG_CAT, LOG_DBG, "%s - %llu - %s", 
+    plat_log_msg(21610, LOG_CAT, LOG_TRACE, "%s - %llu - %s", 
 		 cname, (unsigned long long)cguid, SDF_Status_Strings[status]);
 
     return (status);
@@ -463,10 +464,10 @@ SDF_status_t
 name_service_get_cguid(SDF_internal_ctxt_t *pai, const char *cname, SDF_cguid_t *cguid) {
 
     SDF_status_t 	status 		= SDF_FAILURE;
-    int 			log_level 	= LOG_DBG;
+    int 			log_level 	= LOG_TRACE;
     SDF_cguid_map_t map;
 
-    plat_log_msg(20819, LOG_CAT, LOG_DBG, "%s", cname);
+    plat_log_msg(20819, LOG_CAT, LOG_TRACE, "%s", cname);
 
     *cguid = SDF_NULL_CGUID;
 
@@ -492,19 +493,19 @@ name_service_put_cguid_map(SDF_internal_ctxt_t *pai, const char *cname, SDF_cgui
 
     SDF_status_t 	status 		= SDF_FAILURE;
 #ifndef SDFAPI
-    int 			log_level 	= LOG_DBG;
+    int 			log_level 	= LOG_TRACE;
 #endif /* SDFAPI */
 
-    plat_log_msg(21614, LOG_CAT, LOG_DBG, "%s - %llu",
+    plat_log_msg(21614, LOG_CAT, LOG_TRACE, "%s - %llu",
 		 cname, (unsigned long long)cguid);
 
     if ((status = cmc_put_cguid_map(pai, theCMC->c, cguid, cname)) == SDF_SUCCESS) {
 #ifndef SDFAPI
-		log_level = LOG_DBG;
+		log_level = LOG_TRACE;
 #endif /* SDFAPI */
     }
 
-    plat_log_msg(21610, LOG_CAT, LOG_DBG, "%s - %llu - %s", 
+    plat_log_msg(21610, LOG_CAT, LOG_TRACE, "%s - %llu - %s", 
 		 cname, (unsigned long long)cguid, SDF_Status_Strings[status]);
 
     return (status);
@@ -516,10 +517,10 @@ name_service_remove_cguid_map(SDF_internal_ctxt_t *pai, const char *cname) {
     SDF_status_t 	status 		= SDF_FAILURE;
     int 			log_level 	= LOG_ERR;
 
-    plat_log_msg(20819, LOG_CAT, LOG_DBG, "%s", cname);
+    plat_log_msg(20819, LOG_CAT, LOG_TRACE, "%s", cname);
 
     if ((status = cmc_remove_cguid_map(pai, theCMC->c, cname)) == SDF_SUCCESS) {
-		log_level = LOG_DBG;
+		log_level = LOG_TRACE;
     }
 
     plat_log_msg(21511, LOG_CAT, log_level, "%s - %s", 
@@ -533,9 +534,9 @@ name_service_get_home_node(SDF_internal_ctxt_t *pai, SDF_cguid_t cguid, SDF_simp
 
     SDF_status_t 			status 		= SDF_FAILURE;
     SDF_container_meta_t 	meta;
-    int 					log_level 	= LOG_DBG;
+    int 					log_level 	= LOG_TRACE;
 
-    plat_log_msg(21507, LOG_CAT, LOG_DBG, "%llu", (unsigned long long)cguid);
+    plat_log_msg(21507, LOG_CAT, LOG_TRACE, "%llu", (unsigned long long)cguid);
 
     if (node == NULL) {
 		status = SDF_INVALID_PARAMETER; 
@@ -572,7 +573,7 @@ name_service_create_cguid_state(SDF_internal_ctxt_t *pai, SDF_vnode_t vnode, SDF
 
     snprintf(name, sizeof(name), CGUID_COUNTER_TEMPLATE, vnode);
 
-    plat_log_msg(20819, LOG_CAT, LOG_DBG, "%s", name);
+    plat_log_msg(20819, LOG_CAT, LOG_TRACE, "%s", name);
 
     state.type = SDF_META_TYPE_CGUID_STATE;
     state.cguid_counter = cguid_counter;
@@ -582,7 +583,7 @@ name_service_create_cguid_state(SDF_internal_ctxt_t *pai, SDF_vnode_t vnode, SDF
 						 						 name, 
 						 						 sizeof(SDF_cguid_state_t),
 						 						 &state)) == SDF_SUCCESS) {
-		log_level = LOG_DBG;
+		log_level = LOG_TRACE;
     }
 
     blob.version = SDF_BLOB_CONTAINER_META_VERSION;
@@ -591,7 +592,7 @@ name_service_create_cguid_state(SDF_internal_ctxt_t *pai, SDF_vnode_t vnode, SDF
     if (status == SDF_SUCCESS && init_container_meta_blob_put != NULL &&
 		(status = init_container_meta_blob_put(0, (char *) &blob,
 					 sizeof(SDF_container_meta_blob_t))) == SDF_SUCCESS) {
-		log_level = LOG_DBG;
+		log_level = LOG_TRACE;
     }
 
 	init_set_cguid_counter( cguid_counter );
@@ -611,7 +612,7 @@ name_service_put_cguid_state(SDF_internal_ctxt_t *pai, SDF_vnode_t vnode, SDF_cg
 
     snprintf(name, sizeof(name), CGUID_COUNTER_TEMPLATE, vnode);
 
-    plat_log_msg(20819, LOG_CAT, LOG_DBG, "%s", name);
+    plat_log_msg(20819, LOG_CAT, LOG_TRACE, "%s", name);
 
     state.type = SDF_META_TYPE_CGUID_STATE;
     state.cguid_counter = cguid_counter;
@@ -628,7 +629,7 @@ name_service_put_cguid_state(SDF_internal_ctxt_t *pai, SDF_vnode_t vnode, SDF_cg
     if (status == SDF_SUCCESS && init_container_meta_blob_put != NULL &&
 	   (status = init_container_meta_blob_put(0, (char *) &blob,
 					 sizeof(SDF_container_meta_blob_t))) == SDF_SUCCESS) {
-		log_level = LOG_DBG;
+		log_level = LOG_TRACE;
     }
 
 	init_set_cguid_counter( cguid_counter );
@@ -648,7 +649,7 @@ name_service_get_cguid_state(SDF_internal_ctxt_t *pai, SDF_vnode_t vnode, SDF_cg
 
     snprintf(name, sizeof(name), CGUID_COUNTER_TEMPLATE, vnode);
 
-    plat_log_msg(20819, LOG_CAT, LOG_DBG, "%s", name);
+    plat_log_msg(20819, LOG_CAT, LOG_TRACE, "%s", name);
 
     if ((status = cmc_get_for_read_buffered_object( pai, 
 													theCMC->c, 
@@ -657,7 +658,7 @@ name_service_get_cguid_state(SDF_internal_ctxt_t *pai, SDF_vnode_t vnode, SDF_cg
 						   							sizeof(SDF_cguid_state_t),
 						   							&len) == SDF_SUCCESS)) {
 		*cguid_counter = state.cguid_counter;
-		log_level = LOG_DBG;
+		log_level = LOG_TRACE;
     } else {
 		*cguid_counter = 0;
     }
@@ -676,10 +677,10 @@ name_service_remove_cguid_state(SDF_internal_ctxt_t *pai, SDF_vnode_t vnode, SDF
 
     snprintf(name, sizeof(name), CGUID_COUNTER_TEMPLATE, vnode);
 
-    plat_log_msg(20819, LOG_CAT, LOG_DBG, "%s", name);
+    plat_log_msg(20819, LOG_CAT, LOG_TRACE, "%s", name);
 
     if ((status = cmc_remove_object(pai, theCMC->c, name)) == SDF_SUCCESS) {
-		log_level = LOG_DBG;
+		log_level = LOG_TRACE;
     }
 
     plat_log_msg(21511, LOG_CAT, log_level, "%s - %s", name, SDF_Status_Strings[status]);

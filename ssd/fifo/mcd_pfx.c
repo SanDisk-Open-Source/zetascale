@@ -19,10 +19,12 @@
 #  define MCD_PFX_LOG_LVL_DEBUG PLAT_LOG_LEVEL_DEBUG
 #  define MCD_PFX_LOG_LVL_DIAG  PLAT_LOG_LEVEL_DIAGNOSTIC
 #  define MCD_PFX_LOG_LVL_INFO  PLAT_LOG_LEVEL_INFO
+#  define MCD_PFX_LOG_LVL_TRACE  PLAT_LOG_LEVEL_TRACE
 #else
 #  define MCD_PFX_LOG_LVL_INFO  PLAT_LOG_LEVEL_DEBUG
 #  define MCD_PFX_LOG_LVL_DEBUG PLAT_LOG_LEVEL_DEBUG
 #  define MCD_PFX_LOG_LVL_DIAG  PLAT_LOG_LEVEL_DEBUG
+#  define MCD_PFX_LOG_LVL_TRACE  PLAT_LOG_LEVEL_TRACE
 #endif
 
 /*
@@ -201,7 +203,7 @@ mcd_prefix_register( void * handle, char * prefix_ptr, int prefix_len,
                      0 : prefix_handle->container_size );
         return SDF_INVALID_PARAMETER;
     }
-    mcd_dbg_msg( MCD_PFX_LOG_LVL_INFO, "ENTERING prefix=%s start_cursor=%lu",
+    mcd_dbg_msg( MCD_PFX_LOG_LVL_DEBUG, "ENTERING prefix=%s start_cursor=%lu",
                  prefix_ptr, start_cursor );
 
     /* check whether prefix is existent */
@@ -271,7 +273,7 @@ mcd_prefix_register( void * handle, char * prefix_ptr, int prefix_len,
     prefix_handle->num_prefixes++;
     prefix_handle->total_prefixes_size += ( prefix_len + 1 );
 
-    mcd_dbg_msg( MCD_PFX_LOG_LVL_INFO, "prefix %s registered, bucket_no=%d",
+    mcd_dbg_msg( MCD_PFX_LOG_LVL_DEBUG, "prefix %s registered, bucket_no=%d",
                  ITEM_prefix(item), cursor_bucket_no );
 
     return SDF_SUCCESS;
@@ -338,7 +340,7 @@ SDF_status_t mcd_prefix_update( void * handle, uint64_t curr_cursor,
         ( curr_cursor % total_blks ) / prefix_handle->segment_size;
     cursor_bucket = &prefix_handle->cursor_table[cursor_bucket_no];
 
-    mcd_dbg_msg( MCD_PFX_LOG_LVL_INFO,
+    mcd_dbg_msg( MCD_PFX_LOG_LVL_DEBUG,
                  "ENTERING curr_cursor=%lu total_blks=%lu bucket_no=%d",
                  curr_cursor, total_blks, cursor_bucket_no );
 
@@ -352,7 +354,7 @@ SDF_status_t mcd_prefix_update( void * handle, uint64_t curr_cursor,
              curr_cursor > next_item->start_cursor &&
              curr_cursor - next_item->start_cursor > total_blks ) {
 
-            mcd_dbg_msg( MCD_PFX_LOG_LVL_INFO,
+            mcd_dbg_msg( MCD_PFX_LOG_LVL_DEBUG,
                          "deleting prefix %s", ITEM_prefix(next_item) );
 
             /* delete the item from the prefixes table */
@@ -422,7 +424,7 @@ int mcd_prefix_list( void * handle, char ** bufp, uint64_t curr_cursor,
         }
     }
     buf_len += null_padding;
-    mcd_dbg_msg( MCD_PFX_LOG_LVL_INFO, "buf_len=%d padding=%d",
+    mcd_dbg_msg( MCD_PFX_LOG_LVL_DEBUG, "buf_len=%d padding=%d",
                  buf_len, null_padding );
 
     /*
@@ -458,7 +460,7 @@ int mcd_prefix_list( void * handle, char ** bufp, uint64_t curr_cursor,
                               0 != item->prefix_len ? ITEM_prefix(item) :
                               MCD_NULL_PFX_STR );
 
-            mcd_dbg_msg( MCD_PFX_LOG_LVL_INFO,
+            mcd_dbg_msg( MCD_PFX_LOG_LVL_DEBUG,
                          "item found, prefix=%s len=%d "
                          "curr=%lu(%lu) start=%lu(%lu) total=%lu distance=%lu",
                          ITEM_prefix(item), item->prefix_len,

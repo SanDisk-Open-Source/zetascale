@@ -429,7 +429,7 @@ void InitActionProtocolCommonState(SDF_action_state_t *pas, SDF_action_init_t *p
     #endif // MALLOC_TRACE
 
     always_miss_string = getProperty_String("FDF_CACHE_ALWAYS_MISS", "Off");
-    plat_log_msg(160063, PLAT_LOG_CAT_PRINT_ARGS, PLAT_LOG_LEVEL_INFO, "PROP: FDF_CACHE_ALWAYS_MISS=%s", always_miss_string);
+    plat_log_msg(160063, PLAT_LOG_CAT_PRINT_ARGS, PLAT_LOG_LEVEL_DEBUG, "PROP: FDF_CACHE_ALWAYS_MISS=%s", always_miss_string);
     if (strcmp(always_miss_string, "On") == 0) {
         pas->always_miss = SDF_TRUE;
     } else {
@@ -437,7 +437,7 @@ void InitActionProtocolCommonState(SDF_action_state_t *pas, SDF_action_init_t *p
     }
 
     strict_wrbk_string = getProperty_String("FDF_STRICT_WRITEBACK", "Off");
-    plat_log_msg(160064, PLAT_LOG_CAT_PRINT_ARGS, PLAT_LOG_LEVEL_INFO, "PROP: FDF_STRICT_WRITEBACK=%s", strict_wrbk_string);
+    plat_log_msg(160064, PLAT_LOG_CAT_PRINT_ARGS, PLAT_LOG_LEVEL_DEBUG, "PROP: FDF_STRICT_WRITEBACK=%s", strict_wrbk_string);
     if (strcmp(strict_wrbk_string, "On") == 0) {
         pas->strict_wrbk = SDF_TRUE;
     } else {
@@ -445,7 +445,7 @@ void InitActionProtocolCommonState(SDF_action_state_t *pas, SDF_action_init_t *p
     }
 
     enable_replication_string = getProperty_String("SDF_REPLICATION", "Off");
-    plat_log_msg(21068, PLAT_LOG_CAT_PRINT_ARGS, PLAT_LOG_LEVEL_INFO, "PROP: SDF_REPLICATION=%s", enable_replication_string);
+    plat_log_msg(21068, PLAT_LOG_CAT_PRINT_ARGS, PLAT_LOG_LEVEL_DEBUG, "PROP: SDF_REPLICATION=%s", enable_replication_string);
     if (strcmp(enable_replication_string, "On") == 0) {
         pas->enable_replication = SDF_TRUE;
     } else {
@@ -454,7 +454,7 @@ void InitActionProtocolCommonState(SDF_action_state_t *pas, SDF_action_init_t *p
 
     #ifdef SIMPLE_REPLICATION
         simple_replication_string = getProperty_String("SDF_SIMPLE_REPLICATION", "Off");
-        plat_log_msg(21070, PLAT_LOG_CAT_PRINT_ARGS, PLAT_LOG_LEVEL_INFO, "PROP: SDF_SIMPLE_REPLICATION=%s", simple_replication_string);
+        plat_log_msg(21070, PLAT_LOG_CAT_PRINT_ARGS, PLAT_LOG_LEVEL_DEBUG, "PROP: SDF_SIMPLE_REPLICATION=%s", simple_replication_string);
         if (strcmp(simple_replication_string, "On") == 0) {
             pas->simple_replication = SDF_TRUE;
         } else {
@@ -463,7 +463,7 @@ void InitActionProtocolCommonState(SDF_action_state_t *pas, SDF_action_init_t *p
     #endif
 
     max_obj_size = getProperty_uLongLong("SDF_MAX_OBJ_SIZE", SDF_MAX_OBJ_SIZE);
-    plat_log_msg(21071, PLAT_LOG_CAT_PRINT_ARGS, PLAT_LOG_LEVEL_INFO, "PROP: SDF_MAX_OBJ_SIZE=%"PRIu64, max_obj_size);
+    plat_log_msg(21071, PLAT_LOG_CAT_PRINT_ARGS, PLAT_LOG_LEVEL_DEBUG, "PROP: SDF_MAX_OBJ_SIZE=%"PRIu64, max_obj_size);
     max_obj_size += 20; // allow extra bytes for secret memcached metadata
 
 #ifdef SDFAPIONLY
@@ -471,21 +471,21 @@ void InitActionProtocolCommonState(SDF_action_state_t *pas, SDF_action_init_t *p
 #else
     uint64_t cacheSize = getProperty_uLongLong("SDF_CC_MAXCACHESIZE", 100000000ULL);
 #endif
-    plat_log_msg(21072, PLAT_LOG_CAT_PRINT_ARGS, PLAT_LOG_LEVEL_INFO, "PROP: SDF_CC_MAXCACHESIZE=%"PRIu64,
+    plat_log_msg(21072, PLAT_LOG_CAT_PRINT_ARGS, PLAT_LOG_LEVEL_DEBUG, "PROP: SDF_CC_MAXCACHESIZE=%"PRIu64,
                  cacheSize);
 
     avg_objsize = getProperty_uLongInt("SDF_CC_AVG_OBJSIZE", 1000);
-    plat_log_msg(21073, PLAT_LOG_CAT_PRINT_ARGS, PLAT_LOG_LEVEL_INFO, "PROP: SDF_CC_AVG_OBJSIZE=%d", avg_objsize);
+    plat_log_msg(21073, PLAT_LOG_CAT_PRINT_ARGS, PLAT_LOG_LEVEL_DEBUG, "PROP: SDF_CC_AVG_OBJSIZE=%d", avg_objsize);
 
     max_flushes_per_mod_check = getProperty_uLongInt("SDF_MAX_FLUSHES_PER_MOD_CHECK", 10);
-    plat_log_msg(30581, PLAT_LOG_CAT_PRINT_ARGS, PLAT_LOG_LEVEL_INFO, "PROP: SDF_MAX_FLUSHES_PER_MOD_CHECK=%d", max_flushes_per_mod_check);
+    plat_log_msg(30581, PLAT_LOG_CAT_PRINT_ARGS, PLAT_LOG_LEVEL_DEBUG, "PROP: SDF_MAX_FLUSHES_PER_MOD_CHECK=%d", max_flushes_per_mod_check);
 
     f_modified = getProperty_LongDouble("SDF_MODIFIED_FRACTION", 1.00);
     if ((f_modified < 0) || (f_modified > 1)) {
         f_modified = 0.10;
-        plat_log_msg(30582, PLAT_LOG_CAT_PRINT_ARGS, PLAT_LOG_LEVEL_INFO, "PROP: SDF_MODIFIED_FRACTION is out of range; using default of %g", f_modified);
+        plat_log_msg(30582, PLAT_LOG_CAT_PRINT_ARGS, PLAT_LOG_LEVEL_DEBUG, "PROP: SDF_MODIFIED_FRACTION is out of range; using default of %g", f_modified);
     } else {
-        plat_log_msg(30583, PLAT_LOG_CAT_PRINT_ARGS, PLAT_LOG_LEVEL_INFO, "PROP: SDF_MODIFIED_FRACTION=%g", f_modified);
+        plat_log_msg(30583, PLAT_LOG_CAT_PRINT_ARGS, PLAT_LOG_LEVEL_DEBUG, "PROP: SDF_MODIFIED_FRACTION=%g", f_modified);
     }
 
     buckets_default = cacheSize/avg_objsize;
@@ -499,8 +499,8 @@ void InitActionProtocolCommonState(SDF_action_state_t *pas, SDF_action_init_t *p
     uint64_t buckets = getProperty_uLongLong("SDF_CC_BUCKETS", buckets_default);
     nslabs = getProperty_uLongLong("SDF_CC_NSLABS", 10000);
 #endif
-    plat_log_msg(21074, PLAT_LOG_CAT_PRINT_ARGS, PLAT_LOG_LEVEL_INFO, "PROP: SDF_CC_BUCKETS=%"PRIu64, buckets);
-    plat_log_msg(21075, PLAT_LOG_CAT_PRINT_ARGS, PLAT_LOG_LEVEL_INFO, "PROP: SDF_CC_NSLABS=%"PRIu64, nslabs);
+    plat_log_msg(21074, PLAT_LOG_CAT_PRINT_ARGS, PLAT_LOG_LEVEL_DEBUG, "PROP: SDF_CC_BUCKETS=%"PRIu64, buckets);
+    plat_log_msg(21075, PLAT_LOG_CAT_PRINT_ARGS, PLAT_LOG_LEVEL_DEBUG, "PROP: SDF_CC_NSLABS=%"PRIu64, nslabs);
 
     per_thread_nonobject_arena = getProperty_String("SDF_CACHE_NONOBJECT_ARENA", "root_thread");
     per_thread_object_arena    = getProperty_String("SDF_CACHE_OBJECT_ARENA", "cache_thread");
@@ -527,7 +527,7 @@ void InitActionProtocolCommonState(SDF_action_state_t *pas, SDF_action_init_t *p
     #endif // PROTOCOL_FORCE_ROOT_ARENA
 
     plat_log_msg(21080, PLAT_LOG_CAT_PRINT_ARGS,
-                 PLAT_LOG_LEVEL_INFO, "Cache arenas object %s nonobject %s",
+                 PLAT_LOG_LEVEL_DEBUG, "Cache arenas object %s nonobject %s",
                  plat_shmem_arena_to_str(CacheObjectArena),
                  plat_shmem_arena_to_str(NonCacheObjectArena));
 
@@ -606,10 +606,10 @@ void InitActionProtocolCommonState(SDF_action_state_t *pas, SDF_action_init_t *p
     fthMboxInit(&(pas->git_mbx));
 
     n_sync_container_threads = getProperty_uLongInt("SDF_N_SYNC_CONTAINER_THREADS", DEFAULT_NUM_SYNC_CONTAINER_THREADS);
-    plat_log_msg(21082, PLAT_LOG_CAT_PRINT_ARGS, PLAT_LOG_LEVEL_INFO, "PROP: SDF_N_SYNC_CONTAINER_THREADS=%d", n_sync_container_threads);
+    plat_log_msg(21082, PLAT_LOG_CAT_PRINT_ARGS, PLAT_LOG_LEVEL_DEBUG, "PROP: SDF_N_SYNC_CONTAINER_THREADS=%d", n_sync_container_threads);
 
     n_sync_container_cursors = getProperty_uLongInt("SDF_N_SYNC_CONTAINER_CURSORS", DEFAULT_NUM_SYNC_CONTAINER_CURSORS);
-    plat_log_msg(21083, PLAT_LOG_CAT_PRINT_ARGS, PLAT_LOG_LEVEL_INFO, "PROP: SDF_N_SYNC_CONTAINER_CURSORS=%d", n_sync_container_cursors);
+    plat_log_msg(21083, PLAT_LOG_CAT_PRINT_ARGS, PLAT_LOG_LEVEL_DEBUG, "PROP: SDF_N_SYNC_CONTAINER_CURSORS=%d", n_sync_container_cursors);
 
     pas->gbc_mbx = plat_alloc(n_sync_container_threads*sizeof(fthMbox_t));
     #ifdef MALLOC_TRACE
@@ -669,7 +669,7 @@ void InitActionProtocolCommonState(SDF_action_state_t *pas, SDF_action_init_t *p
     pfx_delimiter =
         getProperty_String( "MEMCACHED_PREFIX_DEL_DELIMITER", ":" );
     pas->prefix_delete_delimiter = pfx_delimiter[0];
-    plat_log_msg(10019, PLAT_LOG_CAT_PRINT_ARGS, PLAT_LOG_LEVEL_INFO, "PROP: MEMCACHED_PREFIX_DEL_DELIMITER=%c", pas->prefix_delete_delimiter);
+    plat_log_msg(10019, PLAT_LOG_CAT_PRINT_ARGS, PLAT_LOG_LEVEL_DEBUG, "PROP: MEMCACHED_PREFIX_DEL_DELIMITER=%c", pas->prefix_delete_delimiter);
 
     //  Count of writes in flight, used to ensure there is
     //  space for asynchronous writes.
@@ -1815,7 +1815,7 @@ static void flush_all_local(SDF_trans_state_t *ptrans)
 
     ptrans->meta = get_container_metadata(ptrans->pai, ptrans->par->ctnr);
     if (ptrans->meta == NULL) {
-        plat_log_msg(21098, PLAT_LOG_CAT_SDF_PROT, PLAT_LOG_LEVEL_INFO,
+        plat_log_msg(21098, PLAT_LOG_CAT_SDF_PROT, PLAT_LOG_LEVEL_DEBUG,
                      "Failed to get container metadata");
 
         // plat_abort();
@@ -1846,7 +1846,7 @@ static void flush_all_local(SDF_trans_state_t *ptrans)
 	    /* This cguid is physical, do an ssd_sync on the CMC */
 	    pmeta_cmc = get_container_metadata(ptrans->pai, CMC_CGUID);
 	    if (pmeta_cmc == NULL) {
-		plat_log_msg(21100, PLAT_LOG_CAT_SDF_PROT, PLAT_LOG_LEVEL_INFO,
+		plat_log_msg(21100, PLAT_LOG_CAT_SDF_PROT, PLAT_LOG_LEVEL_DEBUG,
 			     "Failed to get container metadata for CMC");
 		// plat_abort();
 		ptrans->par->respStatus  = SDF_GET_METADATA_FAILED;
@@ -1857,7 +1857,7 @@ static void flush_all_local(SDF_trans_state_t *ptrans)
 	    /* This cguid is virtual, do an ssd_sync on the VMC */
 	    pmeta_cmc = get_container_metadata(ptrans->pai, VMC_CGUID);
 	    if (pmeta_cmc == NULL) {
-		plat_log_msg(160047, PLAT_LOG_CAT_SDF_PROT, PLAT_LOG_LEVEL_INFO,
+		plat_log_msg(160047, PLAT_LOG_CAT_SDF_PROT, PLAT_LOG_LEVEL_DEBUG,
 			     "Failed to get container metadata for VMC");
 		// plat_abort();
 		ptrans->par->respStatus  = SDF_GET_METADATA_FAILED;
@@ -1880,7 +1880,7 @@ static void get_flush_time(SDF_trans_state_t *ptrans)
 
     ptrans->meta = get_container_metadata(ptrans->pai, ptrans->par->ctnr);
     if (ptrans->meta == NULL) {
-        plat_log_msg(21098, PLAT_LOG_CAT_SDF_PROT, PLAT_LOG_LEVEL_INFO,
+        plat_log_msg(21098, PLAT_LOG_CAT_SDF_PROT, PLAT_LOG_LEVEL_DEBUG,
                      "Failed to get container metadata");
 
         // plat_abort();
@@ -1922,7 +1922,7 @@ SDF_status_t flush_all(SDF_trans_state_t *ptrans)
         
         ptrans->meta = get_container_metadata(ptrans->pai, ptrans->par->ctnr);
         if (ptrans->meta == NULL) {
-            plat_log_msg(21098, PLAT_LOG_CAT_SDF_PROT, PLAT_LOG_LEVEL_INFO,
+            plat_log_msg(21098, PLAT_LOG_CAT_SDF_PROT, PLAT_LOG_LEVEL_DEBUG,
                          "Failed to get container metadata");
             
             // plat_abort();
@@ -2157,7 +2157,7 @@ static void sync_container(SDF_trans_state_t *ptrans)
 
     ptrans->meta = get_container_metadata(ptrans->pai, ptrans->par->ctnr);
     if (ptrans->meta == NULL) {
-        plat_log_msg(21098, PLAT_LOG_CAT_SDF_PROT, PLAT_LOG_LEVEL_INFO,
+        plat_log_msg(21098, PLAT_LOG_CAT_SDF_PROT, PLAT_LOG_LEVEL_DEBUG,
                      "Failed to get container metadata");
 
         // plat_abort();
@@ -2181,7 +2181,7 @@ static void flush_container(SDF_trans_state_t *ptrans)
 
     ptrans->meta = get_container_metadata(ptrans->pai, ptrans->par->ctnr);
     if (ptrans->meta == NULL) {
-        plat_log_msg(21098, PLAT_LOG_CAT_SDF_PROT, PLAT_LOG_LEVEL_INFO,
+        plat_log_msg(21098, PLAT_LOG_CAT_SDF_PROT, PLAT_LOG_LEVEL_DEBUG,
                      "Failed to get container metadata");
 
         // plat_abort();
@@ -2205,7 +2205,7 @@ static void inval_container(SDF_trans_state_t *ptrans)
 
     ptrans->meta = get_container_metadata(ptrans->pai, ptrans->par->ctnr);
     if (ptrans->meta == NULL) {
-        plat_log_msg(21098, PLAT_LOG_CAT_SDF_PROT, PLAT_LOG_LEVEL_INFO,
+        plat_log_msg(21098, PLAT_LOG_CAT_SDF_PROT, PLAT_LOG_LEVEL_DEBUG,
                      "Failed to get container metadata");
 
         // plat_abort();
@@ -2223,7 +2223,7 @@ static void flush_inval_container(SDF_trans_state_t *ptrans)
 
     ptrans->meta = get_container_metadata(ptrans->pai, ptrans->par->ctnr);
     if (ptrans->meta == NULL) {
-        plat_log_msg(21098, PLAT_LOG_CAT_SDF_PROT, PLAT_LOG_LEVEL_INFO,
+        plat_log_msg(21098, PLAT_LOG_CAT_SDF_PROT, PLAT_LOG_LEVEL_DEBUG,
                      "Failed to get container metadata");
 
         // plat_abort();
@@ -2342,7 +2342,7 @@ SDF_status_t SDFGetCacheStat(SDF_action_init_t *pai, SDF_CONTAINER container, in
 
     pmeta = get_container_metadata(pai, cguid);
     if (pmeta == NULL) {
-        plat_log_msg(21098, PLAT_LOG_CAT_SDF_PROT, PLAT_LOG_LEVEL_INFO,
+        plat_log_msg(21098, PLAT_LOG_CAT_SDF_PROT, PLAT_LOG_LEVEL_DEBUG,
                      "Failed to get container metadata");
 
         // plat_abort();
@@ -2449,7 +2449,7 @@ SDF_status_t SDFPreloadContainerMetaData(SDF_action_init_t *pai, SDF_cguid_t cgu
         i = cguid;
 
 	if (i >= SDF_MAX_CONTAINERS) {
-	    plat_log_msg(21107, PLAT_LOG_CAT_SDF_PROT, PLAT_LOG_LEVEL_INFO,
+	    plat_log_msg(21107, PLAT_LOG_CAT_SDF_PROT, PLAT_LOG_LEVEL_DEBUG,
 			 "Exceeded max number of containers (%d).", SDF_MAX_CONTAINERS);
 	    // plat_abort();
 	    fthUnlock(wait);
@@ -2457,7 +2457,7 @@ SDF_status_t SDFPreloadContainerMetaData(SDF_action_init_t *pai, SDF_cguid_t cgu
 	}
 
         if (pas->ctnr_meta[i].valid) {
-	    plat_log_msg(160048, PLAT_LOG_CAT_SDF_PROT, PLAT_LOG_LEVEL_INFO,
+	    plat_log_msg(160048, PLAT_LOG_CAT_SDF_PROT, PLAT_LOG_LEVEL_DEBUG,
 			 "Metadata for cguid %"PRIu64" has already been loaded!", cguid);
 	    fthUnlock(wait);
 	    return(SDF_CONTAINER_EXISTS);
@@ -2493,7 +2493,7 @@ SDF_status_t SDFPreloadContainerMetaData(SDF_action_init_t *pai, SDF_cguid_t cgu
          */
             
         if (flash_dev == NULL) {
-            plat_log_msg(21108, PLAT_LOG_CAT_SDF_PROT, PLAT_LOG_LEVEL_INFO,
+            plat_log_msg(21108, PLAT_LOG_CAT_SDF_PROT, PLAT_LOG_LEVEL_DEBUG,
                          "Could not find flash_dev for cguid %llu"
                          " shardid %lu", (unsigned long long) cguid, shard);
             // plat_abort();
@@ -2501,14 +2501,14 @@ SDF_status_t SDFPreloadContainerMetaData(SDF_action_init_t *pai, SDF_cguid_t cgu
         } else {
             pshard = shardFind(flash_dev, shard);
             if (!pshard) {
-                plat_log_msg(21109, PLAT_LOG_CAT_SDF_PROT, PLAT_LOG_LEVEL_INFO,
+                plat_log_msg(21109, PLAT_LOG_CAT_SDF_PROT, PLAT_LOG_LEVEL_DEBUG,
                              "flash returned no pshard for cguid %llu"
                              " shardid %lu",
                              (unsigned long long) cguid, shard);
                 // plat_abort();
                 ret = SDF_GET_METADATA_FAILED;
             } else {
-                plat_log_msg(30637, PLAT_LOG_CAT_SDF_PROT, PLAT_LOG_LEVEL_INFO,
+                plat_log_msg(30637, PLAT_LOG_CAT_SDF_PROT, PLAT_LOG_LEVEL_DEBUG,
                              "flash returned pshard %p for cguid %llu"
                              " shardid %lu",
                              pshard, (unsigned long long) cguid, shard);
@@ -2541,7 +2541,7 @@ SDF_status_t SDFPreloadContainerMetaData(SDF_action_init_t *pai, SDF_cguid_t cgu
         }
 
     } else {
-        plat_log_msg(21111, PLAT_LOG_CAT_SDF_PROT, PLAT_LOG_LEVEL_INFO,
+        plat_log_msg(21111, PLAT_LOG_CAT_SDF_PROT, PLAT_LOG_LEVEL_DEBUG,
                      "name_service_get_meta failed!");
         // plat_abort();
         ret = SDF_GET_METADATA_FAILED;
@@ -2561,7 +2561,7 @@ SDF_status_t SDFPreloadContainerMetaData(SDF_action_init_t *pai, SDF_cguid_t cgu
 
 	    n_hash_bits = chash_bits(pas->ctnr_meta[i].pshard);
 	    if (n_hash_bits < SDFNewCacheHashBits(pas->new_actiondir)) {
-		plat_log_msg(160050, PLAT_LOG_CAT_SDF_PROT, PLAT_LOG_LEVEL_INFO,
+		plat_log_msg(160050, PLAT_LOG_CAT_SDF_PROT, PLAT_LOG_LEVEL_DEBUG,
 			     "Container %ld has only %d hash bits while the FDF cache uses %d hash bits!", cguid, n_hash_bits, SDFNewCacheHashBits(pas->new_actiondir));
 	    }
 	}
@@ -3076,7 +3076,7 @@ static SDF_boolean_t process_object_operation(SDF_trans_state_t *ptrans, SDF_boo
 
     ptrans->meta = get_container_metadata(ptrans->pai, ptrans->par->ctnr);
     if (ptrans->meta == NULL) {
-        plat_log_msg(21098, PLAT_LOG_CAT_SDF_PROT, PLAT_LOG_LEVEL_INFO,
+        plat_log_msg(21098, PLAT_LOG_CAT_SDF_PROT, PLAT_LOG_LEVEL_DEBUG,
                      "Failed to get container metadata");
 
         // plat_abort();
@@ -3417,20 +3417,20 @@ SDF_status_t SDFSetAutoflush(SDF_action_init_t *pai, uint32_t percent, uint32_t 
     if (strcmp(writeback_enabled_string, "On") != 0) {
 	plat_log_msg(30613, 
 		     PLAT_LOG_CAT_SDF_PROT, 
-		     PLAT_LOG_LEVEL_ERROR,
+		     PLAT_LOG_LEVEL_WARN,
 		     "Cannot configure autoflush because writeback caching is disabled.");
 	status = SDF_WRITEBACK_CACHING_DISABLED;
     } else {
 	if ((percent < 0) || (percent > 100)) {
 	    plat_log_msg(30621, 
 			 PLAT_LOG_CAT_SDF_PROT, 
-			 PLAT_LOG_LEVEL_INFO,
+			 PLAT_LOG_LEVEL_DEBUG,
 			 "Percent parameter (%d) must be between 0 and 100.", percent);
 	    status = SDF_INVALID_PARAMETER;
 	} else if (sleep_msec < MIN_BACKGROUND_FLUSH_SLEEP_MSEC) {
 	    plat_log_msg(30612, 
 			 PLAT_LOG_CAT_SDF_PROT, 
-			 PLAT_LOG_LEVEL_INFO,
+			 PLAT_LOG_LEVEL_DEBUG,
 			 "sleep_msec parameter (%d) must be >= %d.", sleep_msec, MIN_BACKGROUND_FLUSH_SLEEP_MSEC);
 	    status = SDF_INVALID_PARAMETER;
 	} else {
@@ -3445,7 +3445,7 @@ SDF_status_t SDFSetAutoflush(SDF_action_init_t *pai, uint32_t percent, uint32_t 
 	    SDFNewCacheSetBackgroundFlushTokens(pas->new_actiondir, ntokens, sleep_msec);
 	    plat_log_msg(10015, 
 			 PLAT_LOG_CAT_SDF_PROT, 
-			 PLAT_LOG_LEVEL_INFO,
+			 PLAT_LOG_LEVEL_DEBUG,
 			 "SDF Autoflush set to %d%%, with %d sleep msec.", percent, sleep_msec);
 	}
     }
@@ -3499,7 +3499,7 @@ SDF_status_t SDFStartBackgroundFlusher(SDF_action_thrd_state_t *pts)
     if (strcmp(writeback_enabled_string, "On") != 0) {
 	plat_log_msg(30625, 
 		     PLAT_LOG_CAT_SDF_PROT, 
-		     PLAT_LOG_LEVEL_ERROR,
+		     PLAT_LOG_LEVEL_WARN,
 		     "Cannot start background flusher because writeback caching is disabled.");
 	status = SDF_SUCCESS;
     } else {
@@ -3522,14 +3522,14 @@ SDF_status_t SDFSetFlushThrottle(SDF_action_init_t *pai, uint32_t percent)
     if (strcmp(writeback_enabled_string, "On") != 0) {
 	plat_log_msg(30614, 
 		     PLAT_LOG_CAT_SDF_PROT, 
-		     PLAT_LOG_LEVEL_ERROR,
+		     PLAT_LOG_LEVEL_WARN,
 		     "Cannot set flush throttle because writeback caching is disabled.");
 	status = SDF_WRITEBACK_CACHING_DISABLED;
     } else {
 	if ((percent < 1) || (percent > 100)) {
 	    plat_log_msg(30599, 
 			 PLAT_LOG_CAT_SDF_PROT, 
-			 PLAT_LOG_LEVEL_INFO,
+			 PLAT_LOG_LEVEL_DEBUG,
 			 "Percent parameter (%d) must be between 1 and 100.", percent);
 	    status = SDF_INVALID_PARAMETER;
 	} else {
@@ -3544,7 +3544,7 @@ SDF_status_t SDFSetFlushThrottle(SDF_action_init_t *pai, uint32_t percent)
 	    SDFNewCacheSetFlushTokens(pas->new_actiondir, ntokens);
 	    plat_log_msg(10016, 
 			 PLAT_LOG_CAT_SDF_PROT, 
-			 PLAT_LOG_LEVEL_INFO,
+			 PLAT_LOG_LEVEL_DEBUG,
 			 "SDF flush throttle set to %d%%.", percent);
 	}
     }
@@ -3566,21 +3566,21 @@ SDF_status_t SDFSetModThresh(SDF_action_init_t *pai, uint32_t percent)
     if (strcmp(writeback_enabled_string, "On") != 0) {
 	plat_log_msg(30615, 
 		     PLAT_LOG_CAT_SDF_PROT, 
-		     PLAT_LOG_LEVEL_ERROR,
+		     PLAT_LOG_LEVEL_WARN,
 		     "Cannot set modified data threshold because writeback caching is disabled.");
 	status = SDF_WRITEBACK_CACHING_DISABLED;
     } else {
 	if ((percent < 1) || (percent > 100)) {
 	    plat_log_msg(30599, 
 			 PLAT_LOG_CAT_SDF_PROT, 
-			 PLAT_LOG_LEVEL_INFO,
+			 PLAT_LOG_LEVEL_DEBUG,
 			 "Percent parameter (%d) must be between 1 and 100.", percent);
 	    status = SDF_INVALID_PARAMETER;
 	} else {
 	    SDFNewCacheSetModifiedLimit(pas->new_actiondir, ((double) percent)/100.0);
 	    plat_log_msg(10017, 
 			 PLAT_LOG_CAT_SDF_PROT, 
-			 PLAT_LOG_LEVEL_INFO,
+			 PLAT_LOG_LEVEL_DEBUG,
 			 "SDF modified data threshold set to %d%%.", percent);
 	}
     }
@@ -3599,7 +3599,7 @@ SDF_status_t SDFSelfTest(SDF_action_init_t *pai, SDF_cguid_t cguid, char *args)
 
     plat_log_msg(30616, 
 		 PLAT_LOG_CAT_SDF_PROT, 
-		 PLAT_LOG_LEVEL_INFO,
+		 PLAT_LOG_LEVEL_DEBUG,
 		 "SDF self test started with args '%s'.", args);
 
     ptrans = get_trans_state((SDF_action_thrd_state_t *) pai->pts);
@@ -3614,7 +3614,7 @@ SDF_status_t SDFSelfTest(SDF_action_init_t *pai, SDF_cguid_t cguid, char *args)
 
     ptrans->meta = get_container_metadata(ptrans->pai, ptrans->par->ctnr);
     if (ptrans->meta == NULL) {
-	plat_log_msg(21098, PLAT_LOG_CAT_SDF_PROT, PLAT_LOG_LEVEL_INFO,
+	plat_log_msg(21098, PLAT_LOG_CAT_SDF_PROT, PLAT_LOG_LEVEL_DEBUG,
 		     "Failed to get container metadata");
 	// plat_abort();
 	status  = SDF_GET_METADATA_FAILED;
@@ -3650,7 +3650,7 @@ SDF_status_t SDFActionChangeContainerWritebackMode(SDF_action_init_t *pai, SDF_c
 	    if (strcmp(writeback_enabled_string, "On") != 0) {
 		plat_log_msg(30562, 
 			     PLAT_LOG_CAT_SDF_PROT, 
-			     PLAT_LOG_LEVEL_ERROR,
+			     PLAT_LOG_LEVEL_WARN,
 			     "Cannot enable writeback caching for container %"PRIu64" because writeback caching is disabled.",
 			     cguid);
 		pmeta_cached->properties.cache.writethru = SDF_TRUE;
@@ -4431,7 +4431,7 @@ void action_stats_new_cguid(SDF_internal_ctxt_t *pac, char *str, int size, SDF_c
 
     pmeta = get_container_metadata(pai, cguid);
     if (pmeta == NULL) {
-        plat_log_msg(21098, PLAT_LOG_CAT_SDF_PROT, PLAT_LOG_LEVEL_INFO,
+        plat_log_msg(21098, PLAT_LOG_CAT_SDF_PROT, PLAT_LOG_LEVEL_DEBUG,
                      "Failed to get container metadata");
         plat_assert_always(0);
     }
@@ -4583,7 +4583,7 @@ static void flush_wrbk_fn_wrapper(SDFNewCacheEntry_t *pce, void *wrbk_arg, SDF_a
 
     pmeta = get_container_metadata(ptrans->pai, pce->cguid);
     if (pmeta == NULL) {
-        plat_log_msg(21098, PLAT_LOG_CAT_SDF_PROT, PLAT_LOG_LEVEL_INFO,
+        plat_log_msg(21098, PLAT_LOG_CAT_SDF_PROT, PLAT_LOG_LEVEL_DEBUG,
                      "Failed to get container metadata");
         plat_assert_always(0);
     }
@@ -5273,7 +5273,7 @@ int do_put(SDF_async_put_request_t *pap, SDF_boolean_t unlock_slab)
 		if (ret == 0) {
 		    pap->entry->blockaddr = pap->flash_meta.blockaddr;
 		}
-                plat_log_msg(21128, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION, PLAT_LOG_LEVEL_DEBUG,
+                plat_log_msg(21128, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION, PLAT_LOG_LEVEL_TRACE,
                              "data local store no partner: key: %s data: 0x%lx ret: %d",  pap->pkey_simple->key, (uint64_t) pap->pdata, ret);
                 (pap->flash_meta.keyLen)++; // adjust for extra NULL added by SDF
             }
@@ -5312,7 +5312,7 @@ int do_put(SDF_async_put_request_t *pap, SDF_boolean_t unlock_slab)
                 to_service = SDF_REPLICATION;
             }
 
-            plat_log_msg(21130, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION, PLAT_LOG_LEVEL_DEBUG,
+            plat_log_msg(21130, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION, PLAT_LOG_LEVEL_TRACE,
                          "data forwarding sending: key: %s len: %d data: 0x%lx",  pap->pkey_simple->key, pap->pkey_simple->len, (uint64_t) pap->pdata);
 
         #else /* def SIMPLE_REPLICATION */
@@ -5413,7 +5413,7 @@ int do_put(SDF_async_put_request_t *pap, SDF_boolean_t unlock_slab)
 		if (ret == 0) {
 		    pap->entry->blockaddr = pap->flash_meta.blockaddr;
 		}
-                plat_log_msg(21131, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION, PLAT_LOG_LEVEL_DEBUG,
+                plat_log_msg(21131, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION, PLAT_LOG_LEVEL_TRACE,
                              "data local store partner: key: %s len: %d data: 0x%lx ret: %d",  pap->pkey_simple->key, pap->pkey_simple->len, (uint64_t) pap->pdata, ret);
                 (pap->flash_meta.keyLen)++; // adjust for extra NULL added by SDF
             }
@@ -6313,7 +6313,7 @@ static SDF_status_t process_prefix_delete(SDF_trans_state_t *ptrans)
     ptrans->metaData.keyLen     = ptrans->par->key.len;
     ptrans->meta = get_container_metadata(ptrans->pai, ptrans->par->ctnr);
     if (ptrans->meta == NULL) {
-	plat_log_msg(21098, PLAT_LOG_CAT_SDF_PROT, PLAT_LOG_LEVEL_INFO,
+	plat_log_msg(21098, PLAT_LOG_CAT_SDF_PROT, PLAT_LOG_LEVEL_DEBUG,
 		     "Failed to get container metadata");
 	return SDF_GET_METADATA_FAILED;
     }

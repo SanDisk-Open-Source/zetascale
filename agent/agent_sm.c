@@ -77,7 +77,7 @@ init_agent_sm_config(struct plat_shmem_config *shmem_config, int index) {
         status = plat_asprintf(&propName, "NODE[%u].SHMEM.BASEDIR", index);
         plat_assert(status != -1);
         basedir = getProperty_String(propName, plat_get_tmp_path());
-        plat_log_msg(20858, PLAT_LOG_CAT_PRINT_ARGS, PLAT_LOG_LEVEL_DEBUG,
+        plat_log_msg(20858, PLAT_LOG_CAT_PRINT_ARGS, PLAT_LOG_LEVEL_TRACE,
                      "PROP: %s=%s", propName, basedir);
         plat_free(propName);
 
@@ -125,7 +125,7 @@ init_agent_sm_config(struct plat_shmem_config *shmem_config, int index) {
 
             plat_asprintf(&propName, "NODE[%u].SHMEM.SIZE", index);
             sm_size = getProperty_uLongLong(propName, 16 * 1024 * 1024);
-            plat_log_msg(20863, PLAT_LOG_CAT_PRINT_ARGS, PLAT_LOG_LEVEL_DEBUG,
+            plat_log_msg(20863, PLAT_LOG_CAT_PRINT_ARGS, PLAT_LOG_LEVEL_TRACE,
                          "PROP: %s=%"PRIu64, propName, sm_size);
             plat_free(propName);
 
@@ -148,7 +148,7 @@ init_agent_sm_config(struct plat_shmem_config *shmem_config, int index) {
                                         PLAT_SHMEM_CONFIG_DEBUG_LOCAL_ALLOC);
         }
         plat_log_msg(20864, PLAT_LOG_CAT_PRINT_ARGS,
-                     PLAT_LOG_LEVEL_DEBUG, "PROP: SHMEM_FAKE=%d", fake);
+                     PLAT_LOG_LEVEL_TRACE, "PROP: SHMEM_FAKE=%d", fake);
 
         status = plat_shmem_prototype_init(shmem_config);
         if (status) {

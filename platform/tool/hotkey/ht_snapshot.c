@@ -375,7 +375,7 @@ dump_snapshot(ReporterInstance_t *rpt, ReportCopyWinner_t *copy_winner,
     if (ntop > snapshot->used) {
         plat_log_msg(100012,
                      LOG_CAT_HOTKEY,
-                     PLAT_LOG_LEVEL_INFO,
+                     PLAT_LOG_LEVEL_DEBUG,
                      "ntop is larger than statop: ntop=%d, statop=%d",
                      ntop, snapshot->used);
         ntop = snapshot->used;

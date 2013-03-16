@@ -141,7 +141,7 @@ sdf_msg_wrapper_forward_reply_alloc(struct sdf_msg_wrapper *request,
         ret->response_mbx = request->response_mbx;
         ret->response_mbx_valid = request->response_mbx_valid;
 
-        plat_log_msg(21486, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+        plat_log_msg(21486, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                      "\nNode %d: Alias replymsg %p req wrapper %p rep dn %d"
                      " rep ds %d ret sn %d ret ss %d\n"
                      "        ret response_mkx %p ret mkeyflags %lx\n"

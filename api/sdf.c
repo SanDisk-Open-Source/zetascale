@@ -33,6 +33,7 @@
 #define LOG_ID PLAT_LOG_ID_INITIAL
 #define LOG_CAT PLAT_LOG_CAT_SDF_NAMING
 #define LOG_DBG PLAT_LOG_LEVEL_DEBUG
+#define LOG_TRACE PLAT_LOG_LEVEL_TRACE
 #define LOG_INFO PLAT_LOG_LEVEL_INFO
 #define LOG_ERR PLAT_LOG_LEVEL_ERROR
 #define LOG_WARN PLAT_LOG_LEVEL_WARN
@@ -450,7 +451,7 @@ static void *run_schedulers(void *arg)
                          "pthread_create() failed, rc=%d", rc );
 	    plat_assert(0);
         }
-        mcd_log_msg( 20164, PLAT_LOG_LEVEL_DEBUG, "scheduler %d created",
+        mcd_log_msg( 20164, PLAT_LOG_LEVEL_TRACE, "scheduler %d created",
                      (int)fth_pthreads[i] );
     }
 
@@ -554,7 +555,7 @@ SDF_status_t SDFInit(
 		     "pthread_create() failed, rc=%d", rc );
 	return rc;
     }
-    mcd_log_msg(150022, PLAT_LOG_LEVEL_DEBUG, "scheduler startup process created");
+    mcd_log_msg(150022, PLAT_LOG_LEVEL_TRACE, "scheduler startup process created");
 
     // Wait until mcd_fth_initer is done
     do {
@@ -687,7 +688,7 @@ SDF_status_t SDFCreateContainer(
 	if ( !properties || !cguid || !cname || !sdf_thread_state )
 		return SDF_INVALID_PARAMETER;
 
-    plat_log_msg(160033, LOG_CAT, LOG_INFO, "%s, size=%ld bytes", cname, properties->container_id.size * 1024);
+    plat_log_msg(160033, LOG_CAT, LOG_DBG, "%s, size=%ld bytes", cname, properties->container_id.size * 1024);
     properties->container_id.num_objs = (properties->container_id.size * 1024/512);
 
     if ((!properties->container_type.caching_container) && (!properties->cache.writethru)) {
@@ -703,7 +704,7 @@ SDF_status_t SDFCreateContainer(
         } else {
             writeback_enabled_string = getProperty_String("SDF_WRITEBACK_CACHE_SUPPORT", "On");
             if (strcmp(writeback_enabled_string, "On") != 0) {
-                plat_log_msg(30575, LOG_CAT, LOG_ERR,
+                plat_log_msg(30575, LOG_CAT, LOG_WARN,
                              "Cannot enable writeback caching for container '%s' because writeback caching is disabled.",
                              cname);
 
@@ -827,19 +828,19 @@ SDF_status_t SDFCreateContainer(
     }
 
 #ifdef MULTIPLE_FLASH_DEV_ENABLED
-    plat_log_msg(21527, LOG_CAT, LOG_INFO, "Container: %s - Multi Devs: %d",
+    plat_log_msg(21527, LOG_CAT, LOG_DBG, "Container: %s - Multi Devs: %d",
                  path, state->config.flash_dev_count);
 #else
-    plat_log_msg(21528, LOG_CAT, LOG_INFO, "Container: %s - Single Dev",
+    plat_log_msg(21528, LOG_CAT, LOG_DBG, "Container: %s - Single Dev",
                  cname);
 #endif
-    plat_log_msg(21529, LOG_CAT, LOG_INFO, "Container: %s - Num Shards: %d",
+    plat_log_msg(21529, LOG_CAT, LOG_DBG, "Container: %s - Num Shards: %d",
                  cname, properties->shard.num_shards);
 
-    plat_log_msg(21530, LOG_CAT, LOG_INFO, "Container: %s - Num Objs: %d",
+    plat_log_msg(21530, LOG_CAT, LOG_DBG, "Container: %s - Num Objs: %d",
                  cname, state->config.num_objs);
 
-    plat_log_msg(21531, LOG_CAT, LOG_INFO, "Container: %s - DEBUG_MULTI_SHARD_INDEX: %d",
+    plat_log_msg(21531, LOG_CAT, LOG_DBG, "Container: %s - DEBUG_MULTI_SHARD_INDEX: %d",
                  cname, getProperty_Int("DEBUG_MULTISHARD_INDEX", -1));
 
 
@@ -917,7 +918,7 @@ SDF_status_t SDFCreateContainer(
         }
     }
 
-    plat_log_msg(21511, LOG_CAT, LOG_DBG, "%s - %s", cname, SDF_Status_Strings[status]);
+    plat_log_msg(21511, LOG_CAT, LOG_TRACE, "%s - %s", cname, SDF_Status_Strings[status]);
 
     if (status != SDF_SUCCESS && status != SDF_CONTAINER_EXISTS) {
         plat_log_msg(21538, LOG_CAT, LOG_ERR, "cname=%s, function returned status = %u", cname, status);
@@ -961,7 +962,7 @@ SDF_status_t SDFCreateContainer(
 
 	plat_assert(*cguid);
 
-    plat_log_msg(160034, LOG_CAT, LOG_INFO, "%s(cguid=%lu) - %s", cname, *cguid, SDF_Status_Strings[status]);
+    plat_log_msg(160034, LOG_CAT, LOG_DBG, "%s(cguid=%lu) - %s", cname, *cguid, SDF_Status_Strings[status]);
 
     return (status);
 }
@@ -986,7 +987,7 @@ SDF_status_t SDFOpenContainer(
     struct shard				*shard		= NULL;
 #endif /* SDFAPIONLY */
                         
-    plat_log_msg(21630, LOG_CAT, LOG_INFO, "%lu", cguid);
+    plat_log_msg(21630, LOG_CAT, LOG_DBG, "%lu", cguid);
 
 	if(!cguid)
 		return SDF_INVALID_PARAMETER;
@@ -1020,7 +1021,7 @@ SDF_status_t SDFOpenContainer(
 
     if (!isContainerParentNull(parent = isParentContainerOpened(path))) {
 
-        plat_log_msg(20819, LOG_CAT, LOG_INFO, "%s", path);
+        plat_log_msg(20819, LOG_CAT, LOG_DBG, "%s", path);
 
         // Test for pending delete
         lparent = getLocalContainerParent(&lparent, parent);
@@ -1052,7 +1053,7 @@ SDF_status_t SDFOpenContainer(
             lc = getLocalContainer(&lc, container);
             lc->mode = mode; // (container)->mode = mode;
             _sdf_print_container_descriptor(container);
-            log_level = LOG_INFO;
+            log_level = LOG_DBG;
 #if 0
             if (cmc_settings != NULL) {
                  struct settings *settings = cmc_settings;
@@ -1065,7 +1066,7 @@ SDF_status_t SDFOpenContainer(
                      if (lc->container_id == settings->vips[i].container_id) {
                          settings->vips[i].cguid = lc->cguid;
 
-                         plat_log_msg(21553, LOG_CAT, LOG_DBG, "set cid %d (%d) to cguid %d\n",
+                         plat_log_msg(21553, LOG_CAT, LOG_TRACE, "set cid %d (%d) to cguid %d\n",
                          (int) settings->vips[i].container_id,
                          (int) i,
                          (int) lc->cguid);
@@ -1104,7 +1105,7 @@ SDF_status_t SDFOpenContainer(
 #endif /* SDFAPIONLY */
 
             releaseLocalContainer(&lc);
-            plat_log_msg(21555, LOG_CAT, LOG_DBG, "Opened %s", path);
+            plat_log_msg(21555, LOG_CAT, LOG_TRACE, "Opened %s", path);
         } else {
             status = SDF_CONTAINER_UNKNOWN;
             plat_log_msg(21556, LOG_CAT,LOG_ERR, "Failed to find %s", path);
@@ -1426,7 +1427,7 @@ sdf_parse_stats( char * stat_buf, int stat_key, uint64_t * pstat )
 #ifdef NOT_NEEDED
         plat_log_msg( 20649,
                       PLAT_LOG_CAT_SDF_APP_MEMCACHED,
-                      PLAT_LOG_LEVEL_ERROR,
+                      PLAT_LOG_LEVEL_DEBUG,
                       "invalid stat key %d", stat_key );
 #endif
         return SDF_FAILURE;
@@ -1443,7 +1444,7 @@ sdf_parse_stats( char * stat_buf, int stat_key, uint64_t * pstat )
     else {
         plat_log_msg( 20650,
                       PLAT_LOG_CAT_SDF_APP_MEMCACHED,
-                      PLAT_LOG_LEVEL_ERROR,
+                      PLAT_LOG_LEVEL_DEBUG,
                       "invalid sdf cache stats, rd=%lu rx=%lu tr=%lu",
                       counts[apgrd], counts[apgrx], counts[ahgtr] );
         stats[SDF_DRAM_CACHE_HITS] = 0;
@@ -1548,11 +1549,11 @@ static void get_proc_stats( char ** ppos, int * lenp )
 
     proc_fd = open( "/proc/stat", O_RDONLY );
     if ( 0 > proc_fd ) {
-        mcd_log_msg ( PLAT_LOG_ID_INITIAL, PLAT_LOG_LEVEL_ERROR,
+        mcd_log_msg ( PLAT_LOG_ID_INITIAL, PLAT_LOG_LEVEL_WARN,
                       "cannot open /proc/stat" );
         return;
     }
-    mcd_log_msg( 20694, PLAT_LOG_LEVEL_DEBUG,
+    mcd_log_msg( 20694, PLAT_LOG_LEVEL_TRACE,
                  "/proc/stat opened, fd=%d", proc_fd );
 
     memset( proc_buf, 0, 128 );
@@ -1563,7 +1564,7 @@ static void get_proc_stats( char ** ppos, int * lenp )
         }
     }
     else {
-        mcd_log_msg( 20695, PLAT_LOG_LEVEL_ERROR,
+        mcd_log_msg( 20695, PLAT_LOG_LEVEL_WARN,
                      "failed to read from proc, rc=%d errno=%d", rc, errno );
     }
 
@@ -1658,7 +1659,7 @@ SDF_status_t SDFCloseContainer(
     int log_level = LOG_ERR;
     int ok_to_delete = 0;
 
-    plat_log_msg(21630, LOG_CAT, LOG_INFO, "%lu", cguid);
+    plat_log_msg(21630, LOG_CAT, LOG_DBG, "%lu", cguid);
 
     SDFStartSerializeContainerOp(pai);
 
@@ -1695,7 +1696,7 @@ SDF_status_t SDFCloseContainer(
 
         if (closeParentContainer(container)) {
             status = SDF_SUCCESS;
-            log_level = LOG_INFO;
+            log_level = LOG_DBG;
         }
 
 #ifdef SDFAPIONLY
@@ -1719,7 +1720,7 @@ SDF_status_t SDFCloseContainer(
 			     "%s - failed to flush and invalidate container", path);
 		log_level = LOG_ERR;
 	    } else {
-		plat_log_msg(21541, LOG_CAT, LOG_DBG,
+		plat_log_msg(21541, LOG_CAT, LOG_TRACE,
 			     "%s - flush and invalidate container succeed", path);
 	    }
 
@@ -1731,7 +1732,7 @@ SDF_status_t SDFCloseContainer(
 				"%s - failed to delete action thread container state", path);
 			log_level = LOG_ERR;
 		    } else {
-			plat_log_msg(21543, LOG_CAT, LOG_DBG,
+			plat_log_msg(21543, LOG_CAT, LOG_TRACE,
 				"%s - action thread delete container state succeeded", path);
 		    }
 		}
@@ -1763,7 +1764,7 @@ SDF_status_t SDFCloseContainer(
 
         if (status == SDF_SUCCESS && ok_to_delete) {
 
-		    plat_log_msg(160031, LOG_CAT, LOG_INFO, "Delete request pending. Deleting... cguid=%lu", cguid);
+		    plat_log_msg(160031, LOG_CAT, LOG_DBG, "Delete request pending. Deleting... cguid=%lu", cguid);
 
 	    	status = delete_container_internal_low(pai, path, SDF_FALSE, SDF_TRUE, NULL);
 
@@ -1791,7 +1792,7 @@ SDF_status_t SDFDeleteContainer(
     SDF_status_t status = SDF_INVALID_PARAMETER;
     int  i_ctnr, ok_to_delete = 0;
 
-    plat_log_msg(21630, LOG_CAT, LOG_INFO, "%lu", cguid);
+    plat_log_msg(21630, LOG_CAT, LOG_DBG, "%lu", cguid);
 
 	if(!cguid)
 		return SDF_INVALID_PARAMETER;
@@ -1813,13 +1814,13 @@ SDF_status_t SDFDeleteContainer(
 		else
 		{
   			status = SDF_FAILURE;
-	    	plat_log_msg(160030, LOG_CAT, LOG_INFO, "Container is not deleted (busy or error): cguid=%lu(%d), status=%s", cguid, i_ctnr, SDF_Status_Strings[status]);
+	    	plat_log_msg(160030, LOG_CAT, LOG_DBG, "Container is not deleted (busy or error): cguid=%lu(%d), status=%s", cguid, i_ctnr, SDF_Status_Strings[status]);
 		}
     }
 
 	SDFEndSerializeContainerOp(pai);
 
-    plat_log_msg(20819, LOG_CAT, LOG_INFO, "%s", SDF_Status_Strings[status]);
+    plat_log_msg(20819, LOG_CAT, LOG_DBG, "%s", SDF_Status_Strings[status]);
 
     return status;
 }
@@ -1836,7 +1837,7 @@ SDF_status_t SDFStartContainer(
     flashDev_t              *flash_dev;
     SDF_internal_ctxt_t     *pai = (SDF_internal_ctxt_t *) sdf_thread_state;
 
-    plat_log_msg(21630, LOG_CAT, LOG_INFO, "%lu", cguid);
+    plat_log_msg(21630, LOG_CAT, LOG_DBG, "%lu", cguid);
 
     SDFStartSerializeContainerOp(pai);
 
@@ -1875,7 +1876,7 @@ SDF_status_t SDFStartContainer(
 
     SDFEndSerializeContainerOp(pai);
 
-    plat_log_msg(20819, LOG_CAT, LOG_INFO, "%s", SDF_Status_Strings[status]);
+    plat_log_msg(20819, LOG_CAT, LOG_DBG, "%s", SDF_Status_Strings[status]);
 
     return(status);
 }
@@ -1892,7 +1893,7 @@ SDF_status_t SDFStopContainer(
     flashDev_t              *flash_dev;
     SDF_internal_ctxt_t     *pai = (SDF_internal_ctxt_t *) sdf_thread_state;
 
-    plat_log_msg(21630, LOG_CAT, LOG_INFO, "%lu", cguid);
+    plat_log_msg(21630, LOG_CAT, LOG_DBG, "%lu", cguid);
 
     SDFStartSerializeContainerOp(pai);
 
@@ -1935,7 +1936,7 @@ SDF_status_t SDFStopContainer(
 
     SDFEndSerializeContainerOp(pai);
 
-    plat_log_msg(20819, LOG_CAT, LOG_INFO, "%s", SDF_Status_Strings[status]);
+    plat_log_msg(20819, LOG_CAT, LOG_DBG, "%s", SDF_Status_Strings[status]);
 
     return(status);
 }
@@ -2291,7 +2292,7 @@ SDF_cguid_t SDFGenerateCguid(
      */
     cguid = cntr_id64 + NODE_MULTIPLIER; // so they don't collide with CMC_CGUID=1
 
-    plat_log_msg(150019, LOG_CAT, LOG_DBG,
+    plat_log_msg(150019, LOG_CAT, LOG_TRACE,
                  "SDFGenerateCguid: %llu", (unsigned long long) cguid);
 
     return (cguid);
@@ -2625,7 +2626,7 @@ SDF_status_t SDFFreeBuffer(
 int mcd_format_container_byname_internal( void * pai, char * cname )
 {
     #ifdef notdef
-    mcd_log_msg(50006, PLAT_LOG_LEVEL_INFO,
+    mcd_log_msg(50006, PLAT_LOG_LEVEL_DEBUG,
                  "formatting container, name=%s", cname );
 
     for ( int i = 0; i < MCD_MAX_NUM_CNTRS; i++ ) {
@@ -2766,7 +2767,7 @@ int mcd_vip_server_socket(struct vip *vip, Network_Port_Type port_type)
 int mcd_format_container_internal( void * pai, int tcp_port )
 {
     #ifdef notdef
-    mcd_log_msg(20728, PLAT_LOG_LEVEL_INFO, "formatting container, port=%d",
+    mcd_log_msg(20728, PLAT_LOG_LEVEL_DEBUG, "formatting container, port=%d",
                  tcp_port );
     if ( settings.ips_per_cntr ) {
         plat_abort();

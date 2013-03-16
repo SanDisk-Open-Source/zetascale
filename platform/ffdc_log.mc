@@ -2967,6 +2967,15 @@
 80017 sdf_vip_group_get_node_preference FOR %d(grpid:%d) = %d\n
 80018 IPF fail called :%d
 80019 Got signal %d, exiting
+80020 Initializing Flash Data Fabric (Rev:%s)
+80021 Waiting for %d container deletes to finish
+80022 Shutdown in Progress. Operation not allowed 
+80023 Delete already under progress for container %lu
+80024 Failed to get stats for container:%lu (%s)
+80025 %s Virtual Metadata Container (name = %s,size = %lu kbytes,persistence = %s,eviction = %s,writethrough = %s,fifo = %sasync_writes = %s,durability = %s)
+80026 %s Virtual Data Container (name = %s,size = %lu kbytes,persistence = %s,eviction = %s,writethrough = %s,fifo = %sasync_writes = %s,durability = %s)
+80027 Starting FDF admin on TCP Port:%u
+80028 Unable to start admin on TCP Port:%u
 
 
 # kcai
@@ -3222,6 +3231,9 @@
 160122 Waiting for completion of pending deletes\n
 160123 Base file name of flash files not set
 160124 Device size is less than minimum required
+160129 Shutdown in Progress. Operation not allowed
+160136 Opening Container Matadata Container
+160137 Creating Container Matadata Container
 
 
 # rico

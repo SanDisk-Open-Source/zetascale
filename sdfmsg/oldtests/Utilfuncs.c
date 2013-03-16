@@ -227,7 +227,7 @@ init_msgtest_sm_internal(struct plat_shmem_config *shmem_config, uint32_t index)
         char *propName = NULL;
         plat_asprintf(&propName, "NODE[%u].SHMEM.SIZE", index);
         int64_t sm_size = getProperty_uLongLong(propName, msgconfig[index].size);
-        plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_INFO,
+        plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
                      "\nPROP: %s=%lu\n", propName, sm_size);
         if (plat_shmem_config_add_backing_file(shmem_config, msgconfig[index].mmap, sm_size)) {
             ret = SDF_FALSE;
@@ -242,10 +242,10 @@ init_msgtest_sm_internal(struct plat_shmem_config *shmem_config, uint32_t index)
         if (fake == getProperty_Int("SHMEM_FAKE", 0)) {
             plat_shmem_config_set_flags(shmem_config, PLAT_SHMEM_CONFIG_DEBUG_LOCAL_ALLOC);
         }
-        plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+        plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                      "\nPROP: SHMEM_FAKE = %d\n", fake);
         tmp = plat_shmem_prototype_init(shmem_config);
-        plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_INFO,
+        plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
                      "\nDone with plat_shmem_prototype_init: ret = %d\n", tmp);
         if (tmp) {
             plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_FATAL,

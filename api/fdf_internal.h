@@ -168,6 +168,8 @@ void init_async_cmd_handler(int num_thds, struct FDF_state *fdf_state);
 void wait_for_container_del();
 
 extern int fdf_instance_id;
+char *get_bool_str( int val);
+char *get_durability_str(FDF_durability_level_t dura);
 
 #ifdef __cplusplus
 }

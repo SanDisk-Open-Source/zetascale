@@ -127,7 +127,7 @@ init_sdf_initialize(const struct SDF_config *config, int restart)
         plat_log_msg(21604, PLAT_LOG_CAT_SDF_SHARED, PLAT_LOG_LEVEL_DEBUG,
                      "CMC create succeeded");
         status = SDF_SUCCESS;
-		log_level = LOG_INFO;
+		log_level = LOG_DBG;
     } else {
         plat_log_msg(21605, PLAT_LOG_CAT_SDF_SHARED, PLAT_LOG_LEVEL_ERROR,
                      "CMC create failed");
@@ -140,7 +140,7 @@ init_sdf_initialize(const struct SDF_config *config, int restart)
 												   init_get_my_node_id(), 
 						   					   	   &cguid_counter)) == SDF_SUCCESS) {
 	    	init_set_cguid_counter(cguid_counter);
-	    	log_level = LOG_INFO;
+	    	log_level = LOG_DBG;
 		} else {
 	    	// Did not recover cguid state - fail for now - need a resilient recovery method
 	    	plat_log_msg(21606, 

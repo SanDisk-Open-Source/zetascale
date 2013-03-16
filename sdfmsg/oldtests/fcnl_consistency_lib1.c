@@ -118,7 +118,7 @@ static void fthThreadSender(uint64_t arg) {
         plat_log_msg(
                 PLAT_LOG_ID_INITIAL,
                 LOG_CAT,
-                PLAT_LOG_LEVEL_DEBUG,
+                PLAT_LOG_LEVEL_TRACE,
                 "\nNode %d: fth mb info fthmbxtst %p rbox %p abox %p lvl %d maxcnt %d\n",
                 myid, fthmbxtst, fthmbx.rbox, fthmbx.abox, SACK_BOTH_FTH,
                 maxcnt);
@@ -195,7 +195,7 @@ static void fthThreadSender(uint64_t arg) {
     if (myid == 1) {
         debug = 0;
         if (debug) {
-            plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+            plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                     "\nNode %d: DEBUG --- NOT SENDING MESSAGES FROM HERE", myid);
             while (debug)
                 fthYield(100); /* Don't send mesages from node one for now */
@@ -318,7 +318,7 @@ static void fthThreadSender(uint64_t arg) {
     while (mysync < 3)
         fthYield(100);
     printf("fthYield 100 after\n");
-    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
             "\nNode %d: EXITING completed sending %d messages - mysync %d\n",
             myid, l, mysync);
     fthKill(5); // Kill off FTH
@@ -347,7 +347,7 @@ static void fthThreadReceiver1(uint64_t arg) {
 
     if (FASTPATH_TEST) {
         node = myid;
-        plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+        plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                 "\nNode %d: FASTPATH_TEST node %d myid %d\n", myid, node, myid);
     } else {
         node = myid == 0 ? 1 : 0;
@@ -385,7 +385,7 @@ static void fthThreadReceiver1(uint64_t arg) {
         }
         // yield to let other scheduler run
         //usleep(1);
-        plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+        plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                 "\nNode %d: Got One *msg %p sn %d dn %d proto %d type %d"
                     " akrpmbx %p\n", myid, recv_msg, recv_msg->msg_src_vnode,
                 recv_msg->msg_dest_vnode, recv_msg->msg_dest_service,
@@ -421,7 +421,7 @@ static void fthThreadReceiver1(uint64_t arg) {
         rhkey.rbox = NULL;
         memcpy(send_msg->msg_payload, recv_msg->msg_payload, recv_msg->msg_len - sizeof(struct sdf_msg));
 
-        plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+        plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                 "\nNode %d: Sending MSG dn %d ds %d sn %d ss %d type %d"
                     " akrpmbx %p send_msg %p\n", myid, node, protocol, myid,
                 my_protocol, type, recv_msg->akrpmbx, send_msg);
@@ -494,7 +494,7 @@ static void fthThreadReceiver2(uint64_t arg) {
 
     if (FASTPATH_TEST) {
         node = myid;
-        plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+        plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                 "\nNode %d: FASTPATH_TEST node %d myid %d\n", myid, node, myid);
     } else {
         node = myid == 0 ? 1 : 0;
@@ -527,7 +527,7 @@ static void fthThreadReceiver2(uint64_t arg) {
         if (recv_msg->msg_type == GOODBYE && recv_ct >= 10) {
             break;
         }
-        plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+        plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                 "\nNode %d: Got One *msg %p sn %d dn %d proto %d type %d"
                     " akrpmbx %p\n", myid, recv_msg, recv_msg->msg_src_vnode,
                 recv_msg->msg_dest_vnode, recv_msg->msg_dest_service,
@@ -570,7 +570,7 @@ static void fthThreadReceiver2(uint64_t arg) {
         plat_log_msg(
                 PLAT_LOG_ID_INITIAL,
                 LOG_CAT,
-                PLAT_LOG_LEVEL_DEBUG,
+                PLAT_LOG_LEVEL_TRACE,
                 "\nNode %d: Posting reply MSG dn %d ds %d sn %d ss %d type %d loop %d\n",
                 myid, node, protocol, myid, my_protocol, type, recv_ct);
 
@@ -610,7 +610,7 @@ static void fthThreadReceiver2(uint64_t arg) {
     }
     mysync++;
     fthYield(1);
-    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
             "\nNode %d: WORKER FTH exiting - loop %d\n mysync %d", myid, i,
             mysync);
 }
@@ -622,7 +622,7 @@ void * ConsistencyPthreadRoutine(void *arg) {
 
     fthInit(); // Init a scheduler
 
-    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
             "\nNode %d FTH scheduler has initialized\n", myid);
 
     // Start a thread
@@ -633,7 +633,7 @@ void * ConsistencyPthreadRoutine(void *arg) {
 
     fthSchedulerPthread(0);
 
-    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
             "\nFTH scheduler halted\n");
     return (0);
 

@@ -273,7 +273,7 @@ FDF_status_t dump_all_container_stats(struct FDF_thread_state *thd_state,
 
     FDFGetContainers(thd_state,cguids,&n_cguids);
     if( n_cguids <= 0 ) {
-        plat_log_msg(160055, LOG_CAT, LOG_ERR,
+        plat_log_msg(160055, LOG_CAT, LOG_DBG,
                            "No container exists");
         return FDF_FAILURE;
     }
@@ -657,7 +657,7 @@ void *FDFAdminThread(void *arg) {
         /*close the connection*/ 
         fclose(fp);
     }
-    plat_log_msg(160060, LOG_CAT, LOG_INFO,"Admin thread exiting...");
+    plat_log_msg(160060, LOG_CAT, LOG_DBG,"Admin thread exiting...");
     return 0;
 }
 FDF_status_t fdf_start_admin_thread( struct FDF_state *fdf_state ) {
@@ -670,11 +670,13 @@ FDF_status_t fdf_start_admin_thread( struct FDF_state *fdf_state ) {
 
     if(!getProperty_Int( "FDF_TEST_MODE", 0) || getProperty_Int("FDF_ADMIN_PORT", 0))
 	{
+        plat_log_msg(80027,LOG_CAT, LOG_INFO,
+              "Starting FDF admin on TCP Port:%u", admin_config.admin_port);
 		/* Create Admin thread */    
 		rc = pthread_create(&thd,NULL,FDFAdminThread,(void *)&admin_config);
 		if( rc != 0 ) {
-			plat_log_msg(170003,LOG_CAT, LOG_ERR,
-					"Unable to start the stats thread");
+			plat_log_msg(80028,LOG_CAT, LOG_ERR,
+					"Unable to start admin on TCP Port:%u",admin_config.admin_port);
 		}
 	}
 

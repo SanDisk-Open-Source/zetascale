@@ -205,12 +205,12 @@ fthThreadMultiPtlQuaSender(uint64_t arg) {
         }
 
         if(myid == 0) {
-            plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+            plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                         "\nnode %d ,sender #%li sends %d times, message contents %li-%li-%d\n", 
                         myid, ptl, l + 1, ptl * msgCount + l, ptl, myid);
         }
         else {
-            plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+            plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                         "\nnode %d, sender #%li sends %d times, message contents %li-%li-%d\n", 
                         myid, ptl, l + 1, ptl *msgCount + l, ptl, myid);
   
@@ -254,7 +254,7 @@ void fthThreadMultiPtlQuaRecver(uint64_t arg) {
     fthMboxInit(&ackmbox);
     fthmbx.abox = &ackmbox;
     fthmbx.rbox = NULL;
-    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                  "\nnode %d, fth thread receiver %li starting %s\n", 
                  myid, arg, __func__);
     fflush(stdout);
@@ -354,7 +354,7 @@ void fthThreadMultiPtlQuaRecver(uint64_t arg) {
         if(i == 1) break;
 	fthYield(1);
     }
-    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                  "\n@@node %d, receiver #%li, receive message finished, receive %d times\n", 
                  myid, ptl, i);
     
@@ -362,7 +362,7 @@ void fthThreadMultiPtlQuaRecver(uint64_t arg) {
     fthCount ++;
     FTH_SPIN_UNLOCK(&ssync->spin);
 
-    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                  "\nnode: %d, protocol: %li, mysync[ptl]: %d, fthCount: %d\n", 
                  myid, ptl, mysync[ptl], fthCount);
     fthYield(1);

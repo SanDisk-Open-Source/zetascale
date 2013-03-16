@@ -59,7 +59,7 @@ void slab_gc_update_threshold(mcd_osd_shard_t *shard, int threshold)
 		if(gt > 100) gt = 100;
 		if(gt < 0) gt = 0;
 
-		mcd_log_msg(180005, PLAT_LOG_LEVEL_DEBUG,
+		mcd_log_msg(180005, PLAT_LOG_LEVEL_TRACE,
 			"shard=%p GC threshold adjusted from %d %% to %d %%",
 			shard, threshold, gt);
 	}
@@ -88,8 +88,8 @@ bool slab_gc_able(mcd_osd_shard_t *shard, mcd_osd_slab_class_t* class, bool sync
 
 	if(((sync && gc_sync) || gc_async) && !class->gc->pending)
 	{
-		mcd_log_msg(180012, PLAT_LOG_LEVEL_DEBUG, "Shard %ld, class->blksize %d, %seligible for%s%s%s GC\n", shard->id, class->slab_blksize, !gc_sync && !gc_async ? "not " : "", gc_sync ? "sync" : "", gc_sync && gc_async ? " and " : "", gc_async ? "async": "" );
-		mcd_log_msg(180013, PLAT_LOG_LEVEL_DEBUG, "Shard %ld class->blksize %d, total_slabs=%ld, free_slabs=%d used_slabs=%d average_slabs=%d gc->threshold=%d\n", shard->id, class->slab_blksize, class->total_slabs, free_slabs, used_slabs, avg_slabs, shard->gc->threshold);
+		mcd_log_msg(180012, PLAT_LOG_LEVEL_TRACE, "Shard %ld, class->blksize %d, %seligible for%s%s%s GC\n", shard->id, class->slab_blksize, !gc_sync && !gc_async ? "not " : "", gc_sync ? "sync" : "", gc_sync && gc_async ? " and " : "", gc_async ? "async": "" );
+		mcd_log_msg(180013, PLAT_LOG_LEVEL_TRACE, "Shard %ld class->blksize %d, total_slabs=%ld, free_slabs=%d used_slabs=%d average_slabs=%d gc->threshold=%d\n", shard->id, class->slab_blksize, class->total_slabs, free_slabs, used_slabs, avg_slabs, shard->gc->threshold);
 	}
 
 	return used_slabs && ((sync && gc_sync) || gc_async);
@@ -262,7 +262,7 @@ void slab_gc_compact_class(
 
 	segment = slab_gc_least_used_segment(class);
 
-	mcd_log_msg(180014, PLAT_LOG_LEVEL_DEBUG, "shard->id=%ld. GC of class->blksize=%d requested", shard->id, class->slab_blksize);
+	mcd_log_msg(180014, PLAT_LOG_LEVEL_TRACE, "shard->id=%ld. GC of class->blksize=%d requested", shard->id, class->slab_blksize);
 
 	wait = fthLock(&class->lock, 1, NULL);
 
@@ -337,7 +337,7 @@ void slab_gc_compact_class(
 		if(mcd_fth_osd_shrink_class(shard, segment, true))
 			goto out;
 
-		mcd_log_msg(180015, PLAT_LOG_LEVEL_DEBUG, "shard->id=%ld. GC freed segment from class->blksize=%d. Shard free segments %ld", shard->id, class->slab_blksize, shard->free_segments_count);
+		mcd_log_msg(180015, PLAT_LOG_LEVEL_TRACE, "shard->id=%ld. GC freed segment from class->blksize=%d. Shard free segments %ld", shard->id, class->slab_blksize, shard->free_segments_count);
 
 		stat_inc(shard, SEGMENTS_FREED);
 
@@ -378,9 +378,9 @@ void slab_gc_worker_thread(uint64_t arg)
 		while(slab_gc_able(shard, class, false) /*&& prev != class->total_slabs*/)
 		{
 		//	prev = class->total_slabs;
-			fprintf(stderr, "compact_class(async) before\n");
+            mcd_log_msg(PLAT_LOG_ID_INITIAL, PLAT_LOG_LEVEL_TRACE,"compact_class(async) before\n");
 			slab_gc_compact_class(context, shard, class);
-			fprintf(stderr, "compact_class(async) after\n");
+            mcd_log_msg(PLAT_LOG_ID_INITIAL, PLAT_LOG_LEVEL_TRACE,"compact_class(async) after\n");
 		}
 
 		/* Allow GC request submission for this class */
@@ -394,7 +394,7 @@ bool slab_gc_init(mcd_osd_shard_t* shard, int threshold /* % of used slabs */)
 {
 	int i, j;
 
-	mcd_log_msg(180018, PLAT_LOG_LEVEL_DEBUG, "ENTERING, shard->id=%ld, gc threshold=%d", shard->id, threshold);
+	mcd_log_msg(180018, PLAT_LOG_LEVEL_TRACE, "ENTERING, shard->id=%ld, gc threshold=%d", shard->id, threshold);
 
 	if(!(shard->gc = plat_alloc(sizeof(slab_gc_shard_t))))
 		return false;
@@ -450,7 +450,7 @@ void slab_gc_signal(
 		else
 			stat_inc(shard, SIGNALLED);
 
-		mcd_log_msg(180016, PLAT_LOG_LEVEL_DEBUG, "shard->id=%ld. signalling gc thread to gc class->slab_blksize=%d class->total_slabs=%ld class->used_slabs=%ld", shard->id, class->slab_blksize, class->total_slabs, class->used_slabs);
+		mcd_log_msg(180016, PLAT_LOG_LEVEL_TRACE, "shard->id=%ld. signalling gc thread to gc class->slab_blksize=%d class->total_slabs=%ld class->used_slabs=%ld", shard->id, class->slab_blksize, class->total_slabs, class->used_slabs);
 
 		fthMboxPost(&shard->gc->mbox, (uint64_t)(class));
 	}
@@ -475,7 +475,7 @@ void slab_gc_end(mcd_osd_shard_t* shard)
 {
 	int i;
 
-	mcd_log_msg(180006, PLAT_LOG_LEVEL_DEBUG, "ENTERING, shardID=%p", shard);
+	mcd_log_msg(180006, PLAT_LOG_LEVEL_TRACE, "ENTERING, shardID=%p", shard);
 
 	fthMboxPost(&shard->gc->mbox, 0);
 

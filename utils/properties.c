@@ -39,7 +39,7 @@ int unloadProperties()
     if (_sdf_globalPropertiesMap) {
         HashMap_destroy(_sdf_globalPropertiesMap);
         _sdf_globalPropertiesMap = NULL;
-        plat_log_msg(21754, PLAT_LOG_CAT_PRINT_ARGS, PLAT_LOG_LEVEL_INFO, 
+        plat_log_msg(21754, PLAT_LOG_CAT_PRINT_ARGS, PLAT_LOG_LEVEL_DEBUG, 
                      "unloaded properties");
         ret = 0;
     }
@@ -109,7 +109,7 @@ log_info(char *val)
         return 0;
     if (streq(val, "none"))
         return 0;
-    return atoi(val) <= PLAT_LOG_LEVEL_INFO;
+    return atoi(val) <= PLAT_LOG_LEVEL_DEBUG;
 }
 
 
@@ -182,7 +182,7 @@ int loadProperties(const char *path_arg)
         if (0 != insertProperty(key, val)) {
             ret--;
             plat_log_msg(21757, PLAT_LOG_CAT_PRINT_ARGS,
-                     PLAT_LOG_LEVEL_INFO,
+                     PLAT_LOG_LEVEL_ERROR,
                      "Parsed property error (ret:%d)('%s', '%s')", ret, key, val);
         }
 #endif
@@ -197,17 +197,16 @@ int loadProperties(const char *path_arg)
          */
         if (do_log) {
             plat_log_msg(21758, PLAT_LOG_CAT_PRINT_ARGS,
-                         PLAT_LOG_LEVEL_INFO,
+                         PLAT_LOG_LEVEL_TRACE_LOW,
                          "Parsed property ('%s', '%s')", key, val);
         }
     }
-
+    
     if (do_log) {
         plat_log_msg(70124, PLAT_LOG_CAT_PRINT_ARGS,
-                     PLAT_LOG_LEVEL_INFO,
+                     PLAT_LOG_LEVEL_TRACE_LOW,
                      "Read from properties file '%s'", path);
     }
-
     fclose(fp);
     plat_free(line);
     return (ret);

@@ -135,7 +135,7 @@ async_puts_alloc(struct SDF_async_puts_init *papi,
     }
 
     if (!failed) {
-        plat_log_msg(21134, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+        plat_log_msg(21134, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                      "async puts thread pool %p allocated", paps);
 	pas->async_puts_state = paps;
     } else {
@@ -149,7 +149,7 @@ async_puts_alloc(struct SDF_async_puts_init *papi,
 void async_puts_shutdown(struct SDF_async_puts_state *paps,
                     async_puts_shutdown_t shutdown_closure) 
 {
-    plat_log_msg(21136, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+    plat_log_msg(21136, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                  "shutdown async puts state %p NOT IMPLEMENTED!", paps);
 }
 
@@ -161,7 +161,7 @@ int async_puts_start(struct SDF_async_puts_state *paps)
     fthThread_t                      *fth;
     SDF_status_t                      status;
 
-    plat_log_msg(21137, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+    plat_log_msg(21137, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                  "async puts %p starting", paps);
 
     if (paps->config.nthreads < 1) {
@@ -210,7 +210,7 @@ int async_puts_start(struct SDF_async_puts_state *paps)
     }
 
     if (!ret) {
-        plat_log_msg(30617, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+        plat_log_msg(30617, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                      "async put thread pool %p started", paps);
     } else {
         plat_log_msg(30618, LOG_CAT, PLAT_LOG_LEVEL_ERROR,
@@ -497,7 +497,7 @@ static void ap_main(uint64_t arg)
 	}
     }
 
-    plat_log_msg(21141, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+    plat_log_msg(21141, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                  "async puts thread stopping pts %p", pts);
 
     ap_free(pts);

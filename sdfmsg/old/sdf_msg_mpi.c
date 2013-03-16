@@ -168,7 +168,7 @@ sdf_msg_init_mpi(int argc, char *argv[], int flags)
         bin_config.this_node = MeRank;
         myid1 = MeRank;
         myidp = MeRank;
-        plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_INFO,
+        plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
                      "\nNEW_MSG init found remote node --> my node # is %d\n", bin_config.this_node);
         bin_config.sch_node_lst = NumNodes;
         bin_config.active_nodes = 1;
@@ -184,7 +184,7 @@ sdf_msg_init_mpi(int argc, char *argv[], int flags)
                 bin_config.node_array[i] |= SDF_MSG_FLAG_VALID_NODE;
             }
         }
-        plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+        plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                      "\nMPI ID %d: active_nodes 0x%x numprocs %d active_mask 0x%x sch_node_lst %d\n",
                      bin_config.this_node, bin_config.active_nodes, NumNodes, bin_config.active_mask,
                      bin_config.sch_node_lst);
@@ -197,7 +197,7 @@ sdf_msg_init_mpi(int argc, char *argv[], int flags)
     }
 
     /* Show the messaging we are using */
-    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_INFO,
+    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
         "\nUsing %s\n", NewMsg ? "new messaging" : "MPI");
 
     /* we skip MPI_Init if we are passed the SDF_MSG_NO_MPI_INIT flag. */
@@ -272,7 +272,7 @@ sdf_msg_init_mpi(int argc, char *argv[], int flags)
                 bin_config.node_array[i] |= SDF_MSG_FLAG_VALID_NODE;
             }
         }
-        plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+        plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                      "\nMPI ID %d: active_nodes 0x%x numprocs %d active_mask 0x%x sch_node_lst %d\n",
                      bin_config.this_node, bin_config.active_nodes, NumNodes, bin_config.active_mask,
                      bin_config.sch_node_lst);
@@ -300,7 +300,7 @@ sdf_msg_nodestatus(uint32_t *sdf_msg_num_procs, int *pnodeid, int node_lst[MAX_N
 
     for (int i = 0; i < bin_config.sch_node_lst; i++) {
         node_lst[i] = ((int)bin_config.node_array[i] & nmask);
-        plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+        plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                      "\nNode %d: node_array[%d] = %d node_lst[%d] = %d\n", MeRank, i,
                      (bin_config.node_array[i] & nmask), i, (node_lst[i] & nmask));
     }
@@ -378,7 +378,7 @@ sdf_msg_register_queue_pair(struct sdf_queue_pair *q_pair) {
     plat_assert(sdf_msg_rtstate->qtotal < MAX_QCOUNT);
     /* alert the folks creating queues that messaging has been disabled and sends will not post or serviced */
     if (bin_config.mpi_init_status & SDF_MSG_DISABLE_MSG) {
-        plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+        plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                      "\nNode %d: WARNING: Created queues with messaging disabled! Don't send msgs: flags-0x%x\n",
                      MeRank, bin_config.mpi_init_status);
     }
@@ -401,7 +401,7 @@ int
 sdf_msg_closequeues(void) {
     for (int i = 0; i < sdf_msg_rtstate->qtotal; i++) {
         struct q_tracker *saveit = sdf_msg_rtstate->qstate[i];
-        plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_INFO,
+        plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
                      "\nNode %d: q_pair %p q_in %p q_out %p sn %d ss %d dn %d ds %d qcnt %d wcnt %d",
                      sdf_msg_rtstate->myid, saveit->q_pair_tkr, saveit->q_in, saveit->q_out, saveit->src_node,
                      saveit->src_srv, saveit->dest_node, saveit->dest_srv, saveit->qnum, saveit->wnum);
@@ -462,7 +462,7 @@ sdf_msg_init_bins(vnode_t thisnodeid)
      * GCC bug: GCC chokes on having the same macro defined twice within
      * a macro expansion.
      */
-    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                  "\nNode %d: %s: \nTotal Bins %d\n"
 #define item(caps) #caps "=%d\n"
              SDF_MSG_PROTOCOL_ITEMS()
@@ -565,7 +565,7 @@ sdf_msg_init_bins(vnode_t thisnodeid)
     if (bin_config.mpi_init_status & SDF_MSG_DISABLE_MSG) {
         bin_config.mpi_init_status ^= SDF_MSG_DISABLE_MSG; /* clear this now since we're done with sdf_msg_init */
     }
-    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                  "\nNode %d: DONE with message bin setup ---> flags 0x%x node_lst %d\n",
                  MeRank, bin_config.mpi_init_status, bin_config.sch_node_lst);
 
@@ -996,7 +996,7 @@ sdf_msg_chk_unex(sdf_msg_bin_init_t *node_bin) {
                 (unx_stat.MPI_TAG > (MSG_TAG_OFFSET + MAX_NUM_BINS))) {
                 recv_msg = (struct sdf_msg *)sdf_msg_alloc(acount);
 
-                plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+                plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                              "\nNode %d: Unexpected Msg with len %d revbuff %p\n", nodenum, acount, recv_msg);
 
                 MPI_Recv(recv_msg, acount, MPI_BYTE, mysource, mytag, MPI_COMM_WORLD, &stat);
@@ -1006,7 +1006,7 @@ sdf_msg_chk_unex(sdf_msg_bin_init_t *node_bin) {
                 /* package buff info into msg hdr for recovery */
                 recv_msg = sdf_msg_pkgb(recv_msg, node_bin, srt);
 
-                plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+                plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                              "\nNode %d: Actual MSG proto %d type %d ss % d ds %d seq %lu rcvstamp %lu msg %p\n",
                              node_bins[SDF_UNEXPECT].sdf_msg_rnode, recv_msg->msg_dest_service,
                              recv_msg->msg_type, recv_msg->msg_src_service, recv_msg->msg_dest_service,
@@ -1024,7 +1024,7 @@ sdf_msg_chk_unex(sdf_msg_bin_init_t *node_bin) {
                 plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                              "\nNode %d: recv_msg %p, err %d\n", nodenum, recv_msg, err);
             } else {
-                plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+                plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                              "\nNode %d: Proto ok but unexpected msg SOURCE %d, TAG %d, ERROR %d\n"
                              "count %d will not grab it\n",
                              nodenum, unx_stat.MPI_SOURCE, unx_stat.MPI_TAG,
@@ -1100,12 +1100,12 @@ sdf_msg_send_outgoing(struct sdf_msg *msg)
             }
         } else {
 #ifndef MSG_DISABLE_FP
-            plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_INFO,
+            plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
                          "\nNode %d: WARNING FASTPATH SAME NODE msg %p with MSG THREAD flags 0x%x from thread %p\n",
                          lserv, msg, msg->msg_flags, msg->fthid);
 #endif
             send_msg = (struct sdf_msg *)sdf_msg_alloc(msg->msg_len);
-            plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+            plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                          "\nNode %d: FASTPATH copy of msg %p to new msgbuff %p has flags 0x%x but old flags 0x%x\n",
                          lserv, msg, send_msg, send_msg->msg_flags, msg->msg_flags);
             memcpy(send_msg, msg, msg->msg_len);
@@ -1281,7 +1281,7 @@ sdf_msg_syshandle(sdf_msg_bin_init_t *node_bin, sdf_sys_msg_t *bf, int cnt, cbuf
                      "\nNode %d: Saw Large Msg request from dest %d send node %d hdr rsze %d id %lu\n",
                      b->sdf_msg_rnode, inmsg1->msg_dest_node, inmsg1->msg_send_node,
                      rsze, inmsg1->msg_req_id);
-        plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+        plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                      "\nNode %d: Setting up PP request buffer bigbuff %p sn %d dtag %d sze %d state %d\n",
                      b->sdf_msg_rnode, bigbuff, (int)inmsg1->msg_send_node,
                      (int)inmsg1->msg_dtag, (int)inmsg1->msg_blen, sdf_msg_rtstate->msg_delivered[SDF_DEBUG]);
@@ -1304,7 +1304,7 @@ for (int i = 0; i < 128; i++) {
     }
 #endif
 
-        plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+        plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                      "\nNode %d: Got the BIG PP from dest %d send %d bigbuff %p\n",
                      b->sdf_msg_rnode, inmsg1->msg_dest_node, inmsg1->msg_send_node, bigbuff);
         break;
@@ -1313,7 +1313,7 @@ for (int i = 0; i < 128; i++) {
 
         sdf_msg_rtstate->msg_delivered[SDF_DEBUG]++;
 
-        plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+        plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                      "\nNode %d: Ack'd BIG PP from dest %d send %d proto %d bigbuff %p cmd %d state %d ret %d\n",
                      b->sdf_msg_rnode, inmsg1->msg_dest_node, inmsg1->msg_send_node, inmsg1->msg_src_proto,
                      bigbuff, inmsg1->sys_command, sdf_msg_rtstate->msg_delivered[SDF_DEBUG], ret);
@@ -1340,7 +1340,7 @@ for (int i = 0; i < 128; i++) {
 
     case SYS_SHUTDOWN_ALL:
 
-        plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+        plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                      "\nNode %d: WARNING SYS Shutdown cmd received from dest %d sent from Node %d\n",
                      b->sdf_msg_rnode, inmsg1->msg_dest_node, inmsg1->msg_send_node);
         bbuff = NULL;
@@ -1450,7 +1450,7 @@ sdf_msg_looking_fornodes(struct sdf_msg_bin_list *bin_config)
     int i;
     bin_config->num_node_bins = SDF_PROTOCOL_COUNT;
 
-    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                  "\nNode %d: mpi hostnames\n"
                  "        host[%d]=%s\n"
                  "        host[%d]=%s\n"
@@ -1461,7 +1461,7 @@ sdf_msg_looking_fornodes(struct sdf_msg_bin_list *bin_config)
                  2, bin_config->mpihostnames[2],
                  3, bin_config->mpihostnames[3]);
 
-    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                  "\nNode %d: COMPLETE act_nodes 0x%x active_mask 0x%x sch_node_lst %d\n"
                  "        active_bins %d num_bins %d\n",
                  bin_config->this_node, bin_config->active_nodes, bin_config->active_mask,
@@ -1473,7 +1473,7 @@ sdf_msg_looking_fornodes(struct sdf_msg_bin_list *bin_config)
         strncpy(bin_config->mpihostnames[i], lp, SDF_MSG_MAX_NODENAME);
     }
 
-    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                  "\nNode %d: mpi hostnames\n"
                  "        host[%d]=%s\n"
                  "        host[%d]=%s\n"
@@ -1625,7 +1625,7 @@ sdf_msg_taglen_check(int destnode, int ptag, int mtype, int blen) {
     } else if ((blen >= SM_EAGRLMT)&&(blen >= CONBSZE)) {
         /* this is the rendevous PP setup case */
 
-        plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+        plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                      "\nNode %d: %s Need to send Big MSG blen %d sm sze %d PP sze %d dn %d ptag %d mtype %d\n",
                      myidp, __func__, blen, SM_EAGRLMT, CONBSZE, destnode, ptag, mtype);
 
@@ -1633,7 +1633,7 @@ sdf_msg_taglen_check(int destnode, int ptag, int mtype, int blen) {
                                         /* in order to separate it out from the std bin types */
         sdf_msg_sendsysmsg(SYS_PP_REQ, ptag, destnode, blen, rtag);
 
-        plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+        plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                      "\nNode %d: %s BigBuff Request made to destnod %d of sze %d will send now rtag %d\n",
                      myidp, __func__, destnode, blen, rtag);
     } else {
@@ -2123,7 +2123,7 @@ sdf_msg_getnodename(struct sdf_msg_bin_list *myndstate) {
             }
         }
     }
-    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                  "\nMPI ID %d: SDF Property File Cluster Map of Schooner IDs\n"
                  "        node_name[%d] = %s\n"
                  "        node_name[%d] = %s\n"

@@ -236,7 +236,7 @@ void configure_single_vip(qrep_ctnr_iface_t *vip) {
     char netaddr[32],bcast_addr[32];
     unsigned char bitarr[16]={0,1,1,2,1,2,2,3,1,2,2,3,2,3,3,4};
 
-    plat_log_msg(20195,PLAT_LOG_CAT_SDF_PROT, PLAT_LOG_LEVEL_DEBUG,
+    plat_log_msg(20195,PLAT_LOG_CAT_SDF_PROT, PLAT_LOG_LEVEL_TRACE,
                 "Configuring single vip %s ruletable:%d subnet type:%d",
                  vip->ip, vip->rule_table_id, vip->vip_subnet_type);
     /* Reset the existing route and address table */
@@ -283,7 +283,7 @@ void configure_single_vip(qrep_ctnr_iface_t *vip) {
                                               vip->rule_table_id, vip->ip,"255.255.255.255",bcast_addr);
     rc = execute_system_cmd(system_cmd);
     if( rc != 0 ) {
-        plat_log_msg(20196, PLAT_LOG_CAT_SDF_PROT, PLAT_LOG_LEVEL_INFO,
+        plat_log_msg(20196, PLAT_LOG_CAT_SDF_PROT, PLAT_LOG_LEVEL_DEBUG,
                "Configure IP:%s on interface %s failed\n", vip->ip,vip->name);
     }
     /* Send Gratituos Arps*/
@@ -295,7 +295,7 @@ void configure_single_vip(qrep_ctnr_iface_t *vip) {
                                                                                vip->rule_table_id );
     rc = execute_system_cmd(system_cmd);
     if( rc != 0 ) {
-        plat_log_msg(20197, PLAT_LOG_CAT_SDF_PROT, PLAT_LOG_LEVEL_INFO,
+        plat_log_msg(20197, PLAT_LOG_CAT_SDF_PROT, PLAT_LOG_LEVEL_DEBUG,
                "Adding source route table %d for %s failed\n",vip->rule_table_id, vip->ip);
     }
 
@@ -303,7 +303,7 @@ void configure_single_vip(qrep_ctnr_iface_t *vip) {
     sprintf(system_cmd,"%s rule add from %s table main 1>/dev/null",ip_command,vip->ip);
     rc = execute_system_cmd(system_cmd);
     if( rc != 0 ) {
-        plat_log_msg(20197, PLAT_LOG_CAT_SDF_PROT, PLAT_LOG_LEVEL_INFO,
+        plat_log_msg(20197, PLAT_LOG_CAT_SDF_PROT, PLAT_LOG_LEVEL_DEBUG,
                "Adding source route table %d for %s failed\n",vip->rule_table_id, vip->ip);
     }
     
@@ -311,21 +311,21 @@ void configure_single_vip(qrep_ctnr_iface_t *vip) {
     sprintf(system_cmd,"%s rule add from %s table %srtable 1>/dev/null",ip_command,vip->ip,vip->name);
     rc = execute_system_cmd(system_cmd);
     if( rc != 0 ) {
-        plat_log_msg(80000, PLAT_LOG_CAT_SDF_PROT, PLAT_LOG_LEVEL_INFO,
+        plat_log_msg(80000, PLAT_LOG_CAT_SDF_PROT, PLAT_LOG_LEVEL_DEBUG,
                "Adding source route to table %srtable for %s failed\n",vip->name, vip->ip);
     }
 
     if( vip->vip_subnet_type == QREP_VIP_SUBNET_TYPE_OWN  ) {
         /*Set the local route on the default table. We set this always. This may fail
           for subsequent sets. But it is ok*/
-        plat_log_msg(20198, PLAT_LOG_CAT_SDF_PROT, PLAT_LOG_LEVEL_DEBUG,
+        plat_log_msg(20198, PLAT_LOG_CAT_SDF_PROT, PLAT_LOG_LEVEL_TRACE,
                     "VIP %s not part of interface subnet. Add local route %s/%d",
                                                     vip->ip,netaddr,maskbits);
         sprintf(system_cmd,"%s add -net %s netmask %s dev %s 1>/dev/null 2>/dev/null",route_command,
                                                                       netaddr,vip->mask,vip->name);
         execute_system_cmd(system_cmd);
 
-        plat_log_msg(80002, PLAT_LOG_CAT_SDF_PROT, PLAT_LOG_LEVEL_DEBUG,
+        plat_log_msg(80002, PLAT_LOG_CAT_SDF_PROT, PLAT_LOG_LEVEL_TRACE,
                     "Add local route %s/%d for %s to %srtable", netaddr,maskbits,vip->ip,vip->name);
         sprintf(system_cmd,"%s route add %s/%d dev %s table  %srtable 1>/dev/null 2>/dev/null",ip_command,
                                                                       netaddr,maskbits,vip->name,vip->name);
@@ -336,7 +336,7 @@ void configure_single_vip(qrep_ctnr_iface_t *vip) {
                         netaddr,maskbits,vip->name,vip->rule_table_id,vip->ip);
     rc = execute_system_cmd(system_cmd);
     if( rc != 0 ) {
-        plat_log_msg(20199, PLAT_LOG_CAT_SDF_PROT, PLAT_LOG_LEVEL_INFO,
+        plat_log_msg(20199, PLAT_LOG_CAT_SDF_PROT, PLAT_LOG_LEVEL_DEBUG,
                "Adding Route %s/%d to table %d on %s for src %s failed \n",
                     netaddr,maskbits, vip->rule_table_id, vip->name, vip->ip);
     }
@@ -345,7 +345,7 @@ void configure_single_vip(qrep_ctnr_iface_t *vip) {
                      vip->gw,vip->name,vip->rule_table_id);
         rc = execute_system_cmd(system_cmd);
         if( rc != 0 ) {
-            plat_log_msg(20200, PLAT_LOG_CAT_SDF_PROT, PLAT_LOG_LEVEL_INFO,
+            plat_log_msg(20200, PLAT_LOG_CAT_SDF_PROT, PLAT_LOG_LEVEL_DEBUG,
                "Adding default Route via %s on %s  to table %d failed \n",
                     vip->gw, vip->name, vip->rule_table_id);
         }
@@ -372,9 +372,9 @@ void configure_vip_group_async(ipf_entry_t *entry) {
     pthread_t thread[MAX_THREAD_COUNT];
     pthread_attr_t attr;
 
-    plat_log_msg(20201, PLAT_LOG_CAT_SDF_PROT, PLAT_LOG_LEVEL_DEBUG, "+++++++++\nconfigvip: numvips:%d numpfws:%d\n",
+    plat_log_msg(20201, PLAT_LOG_CAT_SDF_PROT, PLAT_LOG_LEVEL_TRACE, "+++++++++\nconfigvip: numvips:%d numpfws:%d\n",
                                          entry->num_vips,entry->num_pfws);
-    plat_log_msg(20202, PLAT_LOG_CAT_SDF_PROT, PLAT_LOG_LEVEL_INFO,"VIP configure start: number of vips:%d\n",entry->num_vips);
+    plat_log_msg(20202, PLAT_LOG_CAT_SDF_PROT, PLAT_LOG_LEVEL_DEBUG,"VIP configure start: number of vips:%d\n",entry->num_vips);
 
     pthread_attr_init(&attr);
     pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_JOINABLE);
@@ -396,7 +396,7 @@ void configure_vip_group_async(ipf_entry_t *entry) {
             break;
         }
         th_cnt++;
-        plat_log_msg(20203, PLAT_LOG_CAT_SDF_PROT, PLAT_LOG_LEVEL_DEBUG,
+        plat_log_msg(20203, PLAT_LOG_CAT_SDF_PROT, PLAT_LOG_LEVEL_TRACE,
                                                 "VIPS for thread %d  start: %d  num vips: %d\n",i,vip_arry_index,thread_vips);
         entry->vips[vip_arry_index].temp = thread_vips;
         pthread_create(&thread[i], &attr, vip_config_thread, (void *) &(entry->vips[vip_arry_index]));
@@ -406,7 +406,7 @@ void configure_vip_group_async(ipf_entry_t *entry) {
     for(i = 0; i < th_cnt; i++ ) {
        pthread_join(thread[i],(void **) &status);
     }
-    plat_log_msg(20204, PLAT_LOG_CAT_SDF_PROT, PLAT_LOG_LEVEL_INFO,"VIP config done\n");
+    plat_log_msg(20204, PLAT_LOG_CAT_SDF_PROT, PLAT_LOG_LEVEL_DEBUG,"VIP config done\n");
 #endif
 
     #if 0
@@ -449,7 +449,7 @@ static void ipf_delete_single_vip(qrep_ctnr_iface_t *vip) {
     unsigned int md[4];
     // unsigned char bitarr[16]={0,1,1,2,1,2,2,3,1,2,2,3,2,3,3,4};
 
-    plat_log_msg(20206,PLAT_LOG_CAT_SDF_PROT, PLAT_LOG_LEVEL_DEBUG,
+    plat_log_msg(20206,PLAT_LOG_CAT_SDF_PROT, PLAT_LOG_LEVEL_TRACE,
                 "Deleting single vip %s ruletable:%d type:%d",
                  vip->ip, vip->rule_table_id, vip->vip_subnet_type);
 
@@ -463,7 +463,7 @@ static void ipf_delete_single_vip(qrep_ctnr_iface_t *vip) {
                                                          vip->ip,32,vip->name);
     rc = execute_system_cmd(system_cmd);
     if( rc != 0 ) {
-        plat_log_msg(20207, PLAT_LOG_CAT_SDF_PROT, PLAT_LOG_LEVEL_DEBUG,
+        plat_log_msg(20207, PLAT_LOG_CAT_SDF_PROT, PLAT_LOG_LEVEL_TRACE,
                "Deleting vip(%s) failed",system_cmd);
     }
     if( vip->rule_table_id != 0 ) {
@@ -483,7 +483,7 @@ static void ipf_delete_single_vip(qrep_ctnr_iface_t *vip) {
 
     }
     else {
-        plat_log_msg(20205, PLAT_LOG_CAT_SDF_PROT, PLAT_LOG_LEVEL_DEBUG,
+        plat_log_msg(20205, PLAT_LOG_CAT_SDF_PROT, PLAT_LOG_LEVEL_TRACE,
            "NULL ROUTE TABLE ID:%d ip:%s BUG?\n", vip->rule_table_id, vip->ip);
    }
 }
@@ -510,7 +510,7 @@ ipf_delete_if(ipf_entry_t *entry)
     pthread_t thread[MAX_THREAD_COUNT];
     pthread_attr_t attr;
 
-    plat_log_msg(20208,PLAT_LOG_CAT_SDF_PROT, PLAT_LOG_LEVEL_DEBUG,
+    plat_log_msg(20208,PLAT_LOG_CAT_SDF_PROT, PLAT_LOG_LEVEL_TRACE,
                             "++++++++++\nDelete VIPs: num_vips:%d",entry->num_vips);
     /* Killall Previos arpings if any one hangig around */
     sprintf(system_cmd,"sudo /usr/bin/killall arping 2>/dev/null");
@@ -533,7 +533,7 @@ ipf_delete_if(ipf_entry_t *entry)
             break;
         }
         th_cnt++;
-        plat_log_msg(20203, PLAT_LOG_CAT_SDF_PROT, PLAT_LOG_LEVEL_DEBUG,
+        plat_log_msg(20203, PLAT_LOG_CAT_SDF_PROT, PLAT_LOG_LEVEL_TRACE,
                                                 "VIPS for thread %d  start: %d  num vips: %d\n",i,vip_arry_index,thread_vips);
         entry->vips[vip_arry_index].temp = thread_vips;
         pthread_create(&thread[i], &attr, vip_delete_thread, (void *) &(entry->vips[vip_arry_index]));
@@ -543,7 +543,7 @@ ipf_delete_if(ipf_entry_t *entry)
     for(i = 0; i < th_cnt; i++ ) {
        pthread_join(thread[i],(void **) &status);
     }
-    plat_log_msg(20209, PLAT_LOG_CAT_SDF_PROT, PLAT_LOG_LEVEL_DEBUG,"VIP delete done\n");
+    plat_log_msg(20209, PLAT_LOG_CAT_SDF_PROT, PLAT_LOG_LEVEL_TRACE,"VIP delete done\n");
 #endif
 
 #if 0
@@ -634,7 +634,7 @@ int get_if_ip_param( char *ifname, char *ip, char *mask, char *gw) {
 
     fptr = fopen(ifcfg_file, "r");
     if( fptr == NULL ) {
-        plat_log_msg(20210,PLAT_LOG_CAT_SDF_PROT, PLAT_LOG_LEVEL_INFO,
+        plat_log_msg(20210,PLAT_LOG_CAT_SDF_PROT, PLAT_LOG_LEVEL_DEBUG,
                 "Getting IF Parameters for iface  %s Failed\n", ifname);
         return 1;
     }
@@ -642,7 +642,7 @@ int get_if_ip_param( char *ifname, char *ip, char *mask, char *gw) {
        if( strncmp(line,"IPADDR=",strlen("IPADDR=")) == 0)  {
           strncpy(ip,line+strlen("IPADDR="),strlen(line)-strlen("IPADDR="));
           if( inet_aton(ip, &inp) == 0 ) {
-              plat_log_msg(20211,PLAT_LOG_CAT_SDF_PROT, PLAT_LOG_LEVEL_INFO,
+              plat_log_msg(20211,PLAT_LOG_CAT_SDF_PROT, PLAT_LOG_LEVEL_DEBUG,
                 "Unable to parse IP Address(%s) from %s\n",ip,ifcfg_file);
               fclose(fptr);
               return 1;
@@ -652,7 +652,7 @@ int get_if_ip_param( char *ifname, char *ip, char *mask, char *gw) {
        else if( strncmp(line,"NETMASK=",strlen("NETMASK=")) == 0)  {
           strncpy(mask,line+strlen("NETMASK="),strlen(line)-strlen("NETMASK="));
           if( inet_aton(mask, &inp) == 0 ) {
-              plat_log_msg(20212,PLAT_LOG_CAT_SDF_PROT, PLAT_LOG_LEVEL_INFO,
+              plat_log_msg(20212,PLAT_LOG_CAT_SDF_PROT, PLAT_LOG_LEVEL_DEBUG,
                 "Unable to parse Mask(%s) from %s\n",ip,ifcfg_file);
               fclose(fptr);
               return 1;
@@ -662,7 +662,7 @@ int get_if_ip_param( char *ifname, char *ip, char *mask, char *gw) {
        else if( strncmp(line,"GATEWAY=",strlen("GATEWAY=")) == 0)  {
           strncpy(gw,line+strlen("GATEWAY="),strlen(line)-strlen("GATEWAY="));
           if( inet_aton(gw, &inp) == 0 ) {
-              plat_log_msg(20213,PLAT_LOG_CAT_SDF_PROT, PLAT_LOG_LEVEL_INFO,
+              plat_log_msg(20213,PLAT_LOG_CAT_SDF_PROT, PLAT_LOG_LEVEL_DEBUG,
                 "Unable to parse GW(%s) from %s\n",gw,ifcfg_file);
               fclose(fptr);
               return 1;
@@ -671,7 +671,7 @@ int get_if_ip_param( char *ifname, char *ip, char *mask, char *gw) {
        }
     }
     fclose(fptr);
-    plat_log_msg(20214,PLAT_LOG_CAT_SDF_PROT, PLAT_LOG_LEVEL_DEBUG,
+    plat_log_msg(20214,PLAT_LOG_CAT_SDF_PROT, PLAT_LOG_LEVEL_TRACE,
                 "Interface %s parameters(ip:%s mask:%s gw:%s)", ifname,ip,mask,gw);
     return 0;
 }
@@ -688,7 +688,7 @@ int find_vip_subnet_type_from_vip_list(qrep_ctnr_iface_t *vip_list, int num_vips
     int i;
     char netaddr0[32],netaddr1[32];
 
-    plat_log_msg(20215,PLAT_LOG_CAT_SDF_PROT, PLAT_LOG_LEVEL_DEBUG,
+    plat_log_msg(20215,PLAT_LOG_CAT_SDF_PROT, PLAT_LOG_LEVEL_TRACE,
                 "Getting vip subnet type for %s mask:%s ifname:%s type:%d", vip->ip,vip->mask,vip->name,vip->vip_subnet_type);
     for( i = 0; i < num_vips; i++ ) {
         if((strcmp(vip->ip,vip_list[i].ip) != 0) && (vip_list[i].vip_subnet_type != QREP_VIP_SUBNET_TYPE_UNKNOWN)
@@ -697,13 +697,13 @@ int find_vip_subnet_type_from_vip_list(qrep_ctnr_iface_t *vip_list, int num_vips
             get_net_address(vip->ip, vip->mask,netaddr1);
             if( strcmp(netaddr0,netaddr1) == 0 ) {
                 /* We found an entry in the list. So this vip should be secondary always*/
-                plat_log_msg(20216,PLAT_LOG_CAT_SDF_PROT, PLAT_LOG_LEVEL_DEBUG,
+                plat_log_msg(20216,PLAT_LOG_CAT_SDF_PROT, PLAT_LOG_LEVEL_TRACE,
                 "Entry found for %s on the vip entry %s", vip->ip, vip_list[i].ip);
                 return vip_list[i].vip_subnet_type;
             }
         }
     }
-    plat_log_msg(20217,PLAT_LOG_CAT_SDF_PROT, PLAT_LOG_LEVEL_DEBUG,
+    plat_log_msg(20217,PLAT_LOG_CAT_SDF_PROT, PLAT_LOG_LEVEL_TRACE,
                  "VIP subnet type not found on the given list for %s", vip->ip);
     return QREP_VIP_SUBNET_TYPE_UNKNOWN;
 }
@@ -717,10 +717,10 @@ void remove_vip_local_route_if_needed(qrep_ctnr_iface_t *vip) {
     char netaddr0[32],netaddr1[32],system_cmd[128];
     unsigned char bitarr[16]={0,1,1,2,1,2,2,3,1,2,2,3,2,3,3,4};
 
-    plat_log_msg(20218,PLAT_LOG_CAT_SDF_PROT, PLAT_LOG_LEVEL_DEBUG,
+    plat_log_msg(20218,PLAT_LOG_CAT_SDF_PROT, PLAT_LOG_LEVEL_TRACE,
                    "Remove local route if no other VIP in same subnet(ip: %s mask:%s iface:%s)",vip->ip,vip->mask,vip->name); 
     if( vip->vip_subnet_type != QREP_VIP_SUBNET_TYPE_OWN ) {
-        plat_log_msg(20219,PLAT_LOG_CAT_SDF_PROT, PLAT_LOG_LEVEL_DEBUG,
+        plat_log_msg(20219,PLAT_LOG_CAT_SDF_PROT, PLAT_LOG_LEVEL_TRACE,
                      "VIP Type for %s is not QREP_VIP_SUBNET_TYPE_OWN. Just return\n",vip->ip);
         return;
     }
@@ -735,14 +735,14 @@ void remove_vip_local_route_if_needed(qrep_ctnr_iface_t *vip) {
             get_net_address(current->vips[i].ip, current->vips[i].mask,netaddr1);
             if( strcmp(netaddr0,netaddr1) == 0 ) {
                 /* We found an entry in the list. So do not need to delete local route*/
-                plat_log_msg(20220, PLAT_LOG_CAT_SDF_PROT, PLAT_LOG_LEVEL_DEBUG,
+                plat_log_msg(20220, PLAT_LOG_CAT_SDF_PROT, PLAT_LOG_LEVEL_TRACE,
                          "Found other vip %s in same subnet. Just return",current->vips[i].ip);
                 return;
             }
         }
         current = current->next;
     }
-    plat_log_msg(20221,PLAT_LOG_CAT_SDF_PROT, PLAT_LOG_LEVEL_DEBUG,
+    plat_log_msg(20221,PLAT_LOG_CAT_SDF_PROT, PLAT_LOG_LEVEL_TRACE,
                    "No VIP exists in same subnet(ip: %s mask:%s iface:%s)just remove local route",vip->ip,vip->mask,vip->name); 
 
     sscanf(vip->ip,"%d.%d.%d.%d",&ip[0],&ip[1],&ip[2],&ip[3]);
@@ -788,7 +788,7 @@ int is_vip_partof_iface_subnet( qrep_ctnr_iface_t *vip ) {
     if( strcmp(netaddr0,netaddr1) == 0 ) {
         return 1;
     }
-    plat_log_msg(20224,PLAT_LOG_CAT_SDF_PROT, PLAT_LOG_LEVEL_INFO,
+    plat_log_msg(20224,PLAT_LOG_CAT_SDF_PROT, PLAT_LOG_LEVEL_DEBUG,
                    "Vip: %s mask:%s not part of iface:%s subnet",vip->ip,vip->mask,vip->name); 
     return 0;
 }
@@ -798,7 +798,7 @@ void find_vip_subnet_type(qrep_ctnr_iface_t *vips,int num_vips) {
     ipf_entry_t *current;
     char ifip[32],ifmask[32],ifgw[32];
 
-    plat_log_msg(20225,PLAT_LOG_CAT_SDF_PROT, PLAT_LOG_LEVEL_DEBUG,
+    plat_log_msg(20225,PLAT_LOG_CAT_SDF_PROT, PLAT_LOG_LEVEL_TRACE,
                    "Set VIP type num vips %d",num_vips);
     for( i = 0; i < num_vips; i++ ) {
         current = ipf_head;
@@ -810,7 +810,7 @@ void find_vip_subnet_type(qrep_ctnr_iface_t *vips,int num_vips) {
                 strcpy(vips[i].mask,"255.255.0.0");
             }
             else {
-                 plat_log_msg(20227,PLAT_LOG_CAT_SDF_PROT, PLAT_LOG_LEVEL_INFO,
+                 plat_log_msg(20227,PLAT_LOG_CAT_SDF_PROT, PLAT_LOG_LEVEL_DEBUG,
                         "Mask Field for %s is empty. Adding interface's mask(%s)",vips[i].ip,ifmask);
                 strcpy(vips[i].mask,ifmask);
             }
@@ -818,7 +818,7 @@ void find_vip_subnet_type(qrep_ctnr_iface_t *vips,int num_vips) {
         while( current != NULL ) {
             viptype = find_vip_subnet_type_from_vip_list(current->vips,current->num_vips, &(vips[i]));
             if( viptype != QREP_VIP_SUBNET_TYPE_UNKNOWN ) {
-                plat_log_msg(20228,PLAT_LOG_CAT_SDF_PROT, PLAT_LOG_LEVEL_DEBUG,
+                plat_log_msg(20228,PLAT_LOG_CAT_SDF_PROT, PLAT_LOG_LEVEL_TRACE,
                    "VIP subnet type found from old list for %s is set to %d",vips[i].ip, viptype);
                 vips[i].vip_subnet_type = viptype;
                 break;
@@ -829,19 +829,19 @@ void find_vip_subnet_type(qrep_ctnr_iface_t *vips,int num_vips) {
             /* try to find from the current list */
             viptype = find_vip_subnet_type_from_vip_list(vips,num_vips, &(vips[i]));
             if( viptype != QREP_VIP_SUBNET_TYPE_UNKNOWN ) {
-                plat_log_msg(20229,PLAT_LOG_CAT_SDF_PROT, PLAT_LOG_LEVEL_DEBUG,
+                plat_log_msg(20229,PLAT_LOG_CAT_SDF_PROT, PLAT_LOG_LEVEL_TRACE,
                    "VIP subnet type found from current list for %s and is set to %d",vips[i].ip, viptype);
                 vips[i].vip_subnet_type = viptype;
                 continue;
             }
             /* VIP type is still unknown Try to find from ifcfg file*/
             if( is_vip_partof_iface_subnet(&(vips[i])) == 1 ) {
-                plat_log_msg(20230,PLAT_LOG_CAT_SDF_PROT, PLAT_LOG_LEVEL_DEBUG,
+                plat_log_msg(20230,PLAT_LOG_CAT_SDF_PROT, PLAT_LOG_LEVEL_TRACE,
                    "VIP subnet type found from iface subnet for %s and vip subtype set to %d",vips[i].ip, QREP_VIP_SUBNET_TYPE_IFACE);
                 vips[i].vip_subnet_type = QREP_VIP_SUBNET_TYPE_IFACE;
             }
             else {
-                plat_log_msg(20231,PLAT_LOG_CAT_SDF_PROT, PLAT_LOG_LEVEL_DEBUG,
+                plat_log_msg(20231,PLAT_LOG_CAT_SDF_PROT, PLAT_LOG_LEVEL_TRACE,
                    "VIP subnet type can not be found from iface subnet for %s. subtyp set to %d",vips[i].ip, QREP_VIP_SUBNET_TYPE_OWN);
                 vips[i].vip_subnet_type = QREP_VIP_SUBNET_TYPE_OWN;
             }
@@ -852,7 +852,7 @@ void find_vip_subnet_type(qrep_ctnr_iface_t *vips,int num_vips) {
 void print_vip_info(char *str, qrep_ctnr_iface_t *vips, int num_vips) {
     int i; 
     for( i = 0; i < num_vips; i++ ) {
-        plat_log_msg(20232,PLAT_LOG_CAT_SDF_PROT, PLAT_LOG_LEVEL_DEBUG,
+        plat_log_msg(20232,PLAT_LOG_CAT_SDF_PROT, PLAT_LOG_LEVEL_TRACE,
                    "VIP %s Mask %s GW %s subnet type %d iface %s",vips[i].ip,vips[i].mask,vips[i].gw,vips[i].vip_subnet_type,vips[i].name);
     }
 }
@@ -867,7 +867,7 @@ static int ipf_add_vgrp_to_list( uint32_t vipgroupid, int num_vips, qrep_ctnr_if
     lease_extended = false;
     current = ipf_head;
 
-    plat_log_msg(20233,PLAT_LOG_CAT_SDF_PROT, PLAT_LOG_LEVEL_DEBUG,
+    plat_log_msg(20233,PLAT_LOG_CAT_SDF_PROT, PLAT_LOG_LEVEL_TRACE,
                       "=============\nCONFIGURE VIP REQUEST: NUM VIPS %d Group:%d\n",num_vips,vipgroupid);
     //set_vip_type(vips,num_vips);
     find_vip_subnet_type(vips,num_vips);
@@ -877,7 +877,7 @@ static int ipf_add_vgrp_to_list( uint32_t vipgroupid, int num_vips, qrep_ctnr_if
                 current->expiration = expiration;
                 lease_extended = true;
             }
-            plat_log_msg(20234,PLAT_LOG_CAT_SDF_PROT, PLAT_LOG_LEVEL_DEBUG,
+            plat_log_msg(20234,PLAT_LOG_CAT_SDF_PROT, PLAT_LOG_LEVEL_TRACE,
                    "Adding Dynamic VIP %s to group %d",vips[0].ip,vipgroupid); 
             /*Add the new list to current list*/
             memcpy( &(current->vips[current->num_vips]),vips,sizeof(qrep_ctnr_iface_t) * num_vips);
@@ -994,7 +994,7 @@ ipf_remove_from_list(uint32_t address, qrep_ctnr_iface_t *vip )
     while (current != null) {
         if (current->address == address) {
             if( vip == NULL ) { 
-                plat_log_msg(20235,PLAT_LOG_CAT_SDF_PROT, PLAT_LOG_LEVEL_DEBUG,
+                plat_log_msg(20235,PLAT_LOG_CAT_SDF_PROT, PLAT_LOG_LEVEL_TRACE,
                    "==========\nDelete All VIPs from group %d",address);
                 /* Delete all IPs in the group */
                 ipf_delete_if(current);
@@ -1016,13 +1016,13 @@ ipf_remove_from_list(uint32_t address, qrep_ctnr_iface_t *vip )
             }
             else {
                 int entry_found = 0;
-                plat_log_msg(20236,PLAT_LOG_CAT_SDF_PROT, PLAT_LOG_LEVEL_DEBUG,
+                plat_log_msg(20236,PLAT_LOG_CAT_SDF_PROT, PLAT_LOG_LEVEL_TRACE,
                    "===========\nTrying to Delete Dynamic VIP %s from group %d",vip->ip,address);
                 /* Search the given VIP from list*/
                 for( int i = 0; i < current->num_vips; i++ ) {
                     if( (entry_found == 0) && (strcmp(current->vips[i].ip, vip->ip) == 0)
                                            && (strcmp(current->vips[i].name, vip->name) == 0)) {
-                        plat_log_msg(20237,PLAT_LOG_CAT_SDF_PROT, PLAT_LOG_LEVEL_DEBUG,
+                        plat_log_msg(20237,PLAT_LOG_CAT_SDF_PROT, PLAT_LOG_LEVEL_TRACE,
                             "Entry found Deleting Dynamic VIP %s from group %d",vip->ip,address);
                         ipf_delete_single_vip( &(current->vips[i]));
                         /* If  vip is primary and then find whether there is another interface in the same subnet.
@@ -1032,7 +1032,7 @@ ipf_remove_from_list(uint32_t address, qrep_ctnr_iface_t *vip )
                         entry_found = 1;
                         if( i == current->num_vips ) {
                             /*This is last entry. Just comeout*/
-                            plat_log_msg(20238,PLAT_LOG_CAT_SDF_PROT, PLAT_LOG_LEVEL_INFO,
+                            plat_log_msg(20238,PLAT_LOG_CAT_SDF_PROT, PLAT_LOG_LEVEL_DEBUG,
                             "This is last entry. Do not need to adjust list");
                             break;
                         }
@@ -1053,7 +1053,7 @@ ipf_remove_from_list(uint32_t address, qrep_ctnr_iface_t *vip )
                           } else {
                               previous->next = current->next;
                           }
-                          plat_log_msg(20240,PLAT_LOG_CAT_SDF_PROT, PLAT_LOG_LEVEL_DEBUG,
+                          plat_log_msg(20240,PLAT_LOG_CAT_SDF_PROT, PLAT_LOG_LEVEL_TRACE,
                             "Number of VIPs in group %d is 0. So delete current entry",address);
                           plat_free(current);
                           break;
@@ -1081,7 +1081,7 @@ ipf_remove_all(void)
 
     dprintf(" ==== ipf_remove_all\n");
     current = ipf_head;
-    plat_log_msg(20241,PLAT_LOG_CAT_SDF_PROT, PLAT_LOG_LEVEL_DEBUG,
+    plat_log_msg(20241,PLAT_LOG_CAT_SDF_PROT, PLAT_LOG_LEVEL_TRACE,
                    "Remove all VIPS");
     pthread_mutex_lock(&ipf_lock);
     while (current != null) {
@@ -1121,7 +1121,7 @@ ipf_check_list(void)
     current = ipf_head;
     prev = null;
     tprintf("ipf_check_list:  enter\n");
-    plat_log_msg(20242,PLAT_LOG_CAT_SDF_PROT, PLAT_LOG_LEVEL_INFO,
+    plat_log_msg(20242,PLAT_LOG_CAT_SDF_PROT, PLAT_LOG_LEVEL_DEBUG,
                    "IPF Checklist");
     pthread_mutex_lock(&ipf_lock);
     while (current != null) {
@@ -1465,7 +1465,7 @@ ipf_notify
         /* XXX tbd("close any connections to this container"); */
     }
 #endif // ndef VIPGROUP_SUPPORT
-    plat_log_msg(20244, PLAT_LOG_CAT_SDF_APP_MEMCACHED, PLAT_LOG_LEVEL_DEBUG,
+    plat_log_msg(20244, PLAT_LOG_CAT_SDF_APP_MEMCACHED, PLAT_LOG_LEVEL_TRACE,
                             "IPF NOTIFY: Entering...");
 
     switch (access) {
@@ -1481,7 +1481,7 @@ ipf_notify
 #ifdef VIPGROUP_SUPPORT
         intra_node_vip_group_id = shard_meta->persistent.intra_node_vip_group_id;
         my_grp_id =  ps->node_state[my_node_id].group_id;
-        plat_log_msg(20246, PLAT_LOG_CAT_SDF_APP_MEMCACHED, PLAT_LOG_LEVEL_DEBUG,
+        plat_log_msg(20246, PLAT_LOG_CAT_SDF_APP_MEMCACHED, PLAT_LOG_LEVEL_TRACE,
                             "STM: SDF_REPLICATOR_ACCESS_RW: Vgrp:%d mygrp:%d mynode:%d\n",
                                    intra_node_vip_group_id,my_grp_id,my_node_id); 
         if( my_grp_id !=  ps->node_state[intra_node_vip_group_id].group_id ) {
@@ -1532,7 +1532,7 @@ ipf_notify
            current node*/
         configure_vip(ps->vip_config, intra_node_vip_group_id);
         ps->node_state[my_node_id].type = QREP_NODE_TYPE_ACTIVE;
-        plat_log_msg(20253, PLAT_LOG_CAT_SDF_APP_MEMCACHED, PLAT_LOG_LEVEL_INFO,
+        plat_log_msg(20253, PLAT_LOG_CAT_SDF_APP_MEMCACHED, PLAT_LOG_LEVEL_DEBUG,
                             "STM: Vgrp:%d configured at node:%d",intra_node_vip_group_id,my_node_id);
 #if 0
          /*Remember the information so that, when process dies, we can clear
@@ -1568,9 +1568,9 @@ ipf_notify
                 }
                 if ( i >= ps->node_state[my_node_id].nctnrs_node ) {
                      fthUnlock(wait);
-                     plat_log_msg(160025, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION, PLAT_LOG_LEVEL_INFO,
+                     plat_log_msg(160025, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION, PLAT_LOG_LEVEL_DEBUG,
                                                      "Node %d does not have any persistent container\n",my_node_id);
-                     plat_log_msg(160026, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION, PLAT_LOG_LEVEL_INFO,
+                     plat_log_msg(160026, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION, PLAT_LOG_LEVEL_DEBUG,
                                                      "Node becomes authoritative for persistent containers\n");
                 }
                 else {
@@ -1589,7 +1589,7 @@ ipf_notify
                     }
                 }
                 if( i >= ps->node_state[my_node_id].nctnrs_node ) {
-                    plat_log_msg(20254, PLAT_LOG_CAT_SDF_APP_MEMCACHED, PLAT_LOG_LEVEL_INFO,
+                    plat_log_msg(20254, PLAT_LOG_CAT_SDF_APP_MEMCACHED, PLAT_LOG_LEVEL_DEBUG,
                     "No persistent containers exist. Enabling this node for authority for future persistent recovery\n");
                     ps->node_state[my_node_id].persistent_auth = 1;
                 }
@@ -1612,7 +1612,7 @@ ipf_notify
                             if( ps->node_state[ps->node_state[my_node_id].serviced_vgrp_ids[i]].rec_flag == 0 ) {
                                 fthWaitEl_t * wait_list;
                                 QREP_RECOVERY_TYPE rtype;
-                                plat_log_msg(20255, PLAT_LOG_CAT_SDF_APP_MEMCACHED, PLAT_LOG_LEVEL_INFO,
+                                plat_log_msg(20255, PLAT_LOG_CAT_SDF_APP_MEMCACHED, PLAT_LOG_LEVEL_DEBUG,
                                 "Simultaneous Start!!. Send recovery event to %d",ps->node_state[my_node_id].serviced_vgrp_ids[i]);
                                 wait_list = fthLock(&(ps->node_state[my_node_id].lock), 1, NULL);
                                 if( ps->node_state[my_node_id].persistent_auth == 1 ) {
@@ -1625,7 +1625,7 @@ ipf_notify
                                 send_recovery_start_event(ps->node_state[my_node_id].serviced_vgrp_ids[i],rtype);
                             }
                             else {
-                                plat_log_msg(20256, PLAT_LOG_CAT_SDF_APP_MEMCACHED, PLAT_LOG_LEVEL_INFO,
+                                plat_log_msg(20256, PLAT_LOG_CAT_SDF_APP_MEMCACHED, PLAT_LOG_LEVEL_DEBUG,
                                           "Recovery Already completed. Ignore this VipGroup access for recovery\n");
                             }
                         }
@@ -1664,7 +1664,7 @@ ipf_notify
     case SDF_REPLICATOR_ACCESS_NONE:
 #ifdef VIPGROUP_SUPPORT
         intra_node_vip_group_id = shard_meta->persistent.intra_node_vip_group_id;
-        plat_log_msg(20257, PLAT_LOG_CAT_SDF_APP_MEMCACHED, PLAT_LOG_LEVEL_DEBUG,
+        plat_log_msg(20257, PLAT_LOG_CAT_SDF_APP_MEMCACHED, PLAT_LOG_LEVEL_TRACE,
                             "STM: SDF_REPLICATOR_ACCESS_NONE: Vgrp:%d mynode:%d\n",
                                    intra_node_vip_group_id,my_node_id); 
 
@@ -1677,7 +1677,7 @@ ipf_notify
                         "Current node %d is not in mirrored cluster, BUG!\n",my_node_id);
                    break; 
                 }
-                plat_log_msg(20259, PLAT_LOG_CAT_SDF_APP_MEMCACHED, PLAT_LOG_LEVEL_INFO,
+                plat_log_msg(20259, PLAT_LOG_CAT_SDF_APP_MEMCACHED, PLAT_LOG_LEVEL_DEBUG,
                         "Virtual IP group %d removed from node %d\n",intra_node_vip_group_id,my_node_id);
                 remove_vip(ps->vip_config,intra_node_vip_group_id);
                 ipf_send_vgroup( ipf_type_forget,intra_node_vip_group_id, 0,NULL,0,NULL,expiration );
@@ -1686,7 +1686,7 @@ ipf_notify
 #endif
             }
         }
-        plat_log_msg(20260, PLAT_LOG_CAT_SDF_APP_MEMCACHED, PLAT_LOG_LEVEL_DEBUG,
+        plat_log_msg(20260, PLAT_LOG_CAT_SDF_APP_MEMCACHED, PLAT_LOG_LEVEL_TRACE,
                              "VIP Group %d Not in my list. Ignore\n",intra_node_vip_group_id);
 #else
         address = ipf_get_host(settings.vips[i].address);
@@ -1718,7 +1718,7 @@ ipf_notify
 
     #ifdef SIMPLE_REPLICATION
     if (!SDFSimpleReplicationEnabled()) {
-         plat_log_msg(20261, PLAT_LOG_CAT_SDF_APP_MEMCACHED, PLAT_LOG_LEVEL_INFO,
+         plat_log_msg(20261, PLAT_LOG_CAT_SDF_APP_MEMCACHED, PLAT_LOG_LEVEL_DEBUG,
                             "Applying call back completion\n");
         plat_closure_apply(sdf_replicator_notification_complete_cb, &completion);
     }
@@ -2188,7 +2188,7 @@ int ipf_start_simple(int vipgroup)
     struct timeval   expiration;
     int16_t intra_node_vip_group_id=vipgroup;
     plat_log_msg(20263, PLAT_LOG_CAT_SDF_PROT, 
-                 PLAT_LOG_LEVEL_INFO, "Skipping start simple\n");
+                 PLAT_LOG_LEVEL_DEBUG, "Skipping start simple\n");
     return 0;
 
     expiration.tv_sec = ((unsigned long) -1) >> 1;
@@ -2442,7 +2442,7 @@ ipf_signal_handler(int signal)
         sleep(1);
         close(ipf_pipe_fd);
     }
-    plat_log_msg(80019, PLAT_LOG_CAT_SDF_PROT, PLAT_LOG_LEVEL_DEBUG, "Got signal %d, exiting",signal); 
+    plat_log_msg(80019, PLAT_LOG_CAT_SDF_PROT, PLAT_LOG_LEVEL_TRACE, "Got signal %d, exiting",signal); 
     plat_exit(0);
 }
 
@@ -2463,7 +2463,7 @@ ipf_exit(void)
 }
 
 int execute_system_cmd(char *cmd) {
-    plat_log_msg(20264, PLAT_LOG_CAT_SDF_PROT, PLAT_LOG_LEVEL_DEBUG, "Cmd:%s",cmd);
+    plat_log_msg(20264, PLAT_LOG_CAT_SDF_PROT, PLAT_LOG_LEVEL_TRACE, "Cmd:%s",cmd);
     return system(cmd);
 }
 
@@ -2608,7 +2608,7 @@ void ipf_handle_vip_manage_laptop(int add, int intra_node_vip_group_id) {
     if( ps->node_state[my_node_id].is_virtual != 1 ) {
         return;
     }
-    plat_log_msg(20267, PLAT_LOG_CAT_SDF_APP_MEMCACHED, PLAT_LOG_LEVEL_DEBUG,
+    plat_log_msg(20267, PLAT_LOG_CAT_SDF_APP_MEMCACHED, PLAT_LOG_LEVEL_TRACE,
                                         "NODE IS VIRTUAL  NUM_PFWS:%d \n",num_pfws);
     vnode = my_node_id;
     // rnode = my_node_id - 1;
@@ -2647,10 +2647,10 @@ void ipf_handle_container_add(int vport, int rport, int node){
     repstate = &(pas->qrep_state);
     my_rank = msg_sdf_myrank();
 
-    plat_log_msg(20268, PLAT_LOG_CAT_SDF_APP_MEMCACHED, PLAT_LOG_LEVEL_INFO,
+    plat_log_msg(20268, PLAT_LOG_CAT_SDF_APP_MEMCACHED, PLAT_LOG_LEVEL_DEBUG,
                       "container add rport: %d vport:%d node:%d\n",rport,vport,node);
     if( repstate->node_state[my_rank].is_virtual != 1 ) {
-        plat_log_msg(20269, PLAT_LOG_CAT_SDF_APP_MEMCACHED, PLAT_LOG_LEVEL_INFO,
+        plat_log_msg(20269, PLAT_LOG_CAT_SDF_APP_MEMCACHED, PLAT_LOG_LEVEL_DEBUG,
                      "The current node is not virtual. Ignore");
         return;
     }
@@ -2684,7 +2684,7 @@ void ipf_handle_container_delete(int vport, int rport, int node){
 
     my_rank = msg_sdf_myrank();
     if( repstate->node_state[my_rank].is_virtual != 1 ) {
-        plat_log_msg(20269, PLAT_LOG_CAT_SDF_APP_MEMCACHED, PLAT_LOG_LEVEL_INFO,
+        plat_log_msg(20269, PLAT_LOG_CAT_SDF_APP_MEMCACHED, PLAT_LOG_LEVEL_DEBUG,
                      "The current node is not virtual. Ignore");
         return;
     }
@@ -2722,14 +2722,14 @@ int ipf_add_vip(char *node_name, char *ifname, char *ip, char *mask, char *gw, c
     pas = mcd_state->ActionInitState.pcs;
     repstate = &(pas->qrep_state); 
 
-    plat_log_msg(20271, PLAT_LOG_CAT_SDF_PROT, PLAT_LOG_LEVEL_DEBUG,
+    plat_log_msg(20271, PLAT_LOG_CAT_SDF_PROT, PLAT_LOG_LEVEL_TRACE,
                                           "Add VIP:%s mask:%s gw:%s iface:%s node:%s",
                                            ip,mask,gw,ifname,node_name);
 
     /* Check My Node Mode */
     mynode = &(repstate->node_state[myrank]);
     if ( repstate->groups[mynode->group_id].type != SDF_CLUSTER_GRP_TYPE_MIRRORED ) {
-        plat_log_msg(20272, PLAT_LOG_CAT_SDF_PROT, PLAT_LOG_LEVEL_INFO,
+        plat_log_msg(20272, PLAT_LOG_CAT_SDF_PROT, PLAT_LOG_LEVEL_DEBUG,
                                           "Current node is not in Mirrored Mode");
         sprintf(err_str,"Current node is not in Mirrored Mode");
         return 1;
@@ -2801,7 +2801,7 @@ int ipf_add_vip(char *node_name, char *ifname, char *ip, char *mask, char *gw, c
     wait_list = fthLock(&(mynode->lock), 1, NULL);
     for( i = 0; i < mynode->num_vgrps_being_serviced; i++ ) {
         if(mynode->serviced_vgrp_ids[i] == node_rank) {
-            plat_log_msg(20277, PLAT_LOG_CAT_SDF_PROT, PLAT_LOG_LEVEL_INFO,
+            plat_log_msg(20277, PLAT_LOG_CAT_SDF_PROT, PLAT_LOG_LEVEL_DEBUG,
                    "The Current node servicing %s. Adding VIP %s on %s",node_name,ip,ifname);
             givennode->vipgroup[vip_index].rule_table_id = get_rule_table_id();
             ipf_send_vgroup( ipf_type_remember,node_rank, 1, 
@@ -2823,7 +2823,7 @@ int ipf_delete_vip(char *node_name, char *ifname, char *ip, char *err_str) {
     fthWaitEl_t *wait_list;
     struct timeval   expiration;
 
-    plat_log_msg(20278, PLAT_LOG_CAT_SDF_PROT, PLAT_LOG_LEVEL_DEBUG,
+    plat_log_msg(20278, PLAT_LOG_CAT_SDF_PROT, PLAT_LOG_LEVEL_TRACE,
                                           "Delete VIP:%s iface:%s node:%s",
                                            ip,ifname,node_name);
     expiration.tv_sec = ((unsigned long) -1) >> 1;
@@ -2903,7 +2903,7 @@ int ipf_delete_vip(char *node_name, char *ifname, char *ip, char *err_str) {
     wait_list = fthLock(&(mynode->lock), 1, NULL);
     for( i = 0; i < mynode->num_vgrps_being_serviced; i++ ) {
         if(mynode->serviced_vgrp_ids[i] == node_rank) {
-            plat_log_msg(20280, PLAT_LOG_CAT_SDF_PROT, PLAT_LOG_LEVEL_INFO,
+            plat_log_msg(20280, PLAT_LOG_CAT_SDF_PROT, PLAT_LOG_LEVEL_DEBUG,
                    "The Current node servicing %s. Removing VIP %s from %s",node_name,ip,ifname);
             put_rule_table_id(delete_if.rule_table_id);
             ipf_send_vgroup( ipf_type_forget,node_rank, 1,&(delete_if),0,NULL,expiration );
@@ -2955,7 +2955,7 @@ int remove_vip( struct sdf_vip_config *config, int vip_group_id) {
        }
    }
    if( i >= repstate->node_state[my_rank].num_vgrps_being_serviced ) {
-       plat_log_msg(20282, PLAT_LOG_CAT_SDF_PROT, PLAT_LOG_LEVEL_INFO, "Current Node not servicing vipgroup:%d\n",vip_group_id);
+       plat_log_msg(20282, PLAT_LOG_CAT_SDF_PROT, PLAT_LOG_LEVEL_DEBUG, "Current Node not servicing vipgroup:%d\n",vip_group_id);
        return 0;
    }
    
@@ -3012,13 +3012,13 @@ int remove_vip( struct sdf_vip_config *config, int vip_group_id) {
 
    if( repstate->node_state[my_rank].is_virtual == 1 ) {
        int vport, rport, vnode, rnode;
-       plat_log_msg(20284, PLAT_LOG_CAT_SDF_PROT, PLAT_LOG_LEVEL_INFO,
+       plat_log_msg(20284, PLAT_LOG_CAT_SDF_PROT, PLAT_LOG_LEVEL_DEBUG,
                      "VIPGROUP:REMOVAL My Node(%d) is virtual node\n",my_rank);
        vnode = my_rank;
        rnode = my_rank - 1;
        /* My Node is Virtual Node */
        if ( my_rank == vip_group_id ) {
-           plat_log_msg(20285, PLAT_LOG_CAT_SDF_PROT, PLAT_LOG_LEVEL_INFO,
+           plat_log_msg(20285, PLAT_LOG_CAT_SDF_PROT, PLAT_LOG_LEVEL_DEBUG,
                      "This is a Weird case that should never happen: vnode:%d rnode:%d\n",vnode, rnode);
            for( i = 0; i < node->nctnrs_node; i++ ) {
                vport = repstate->node_state[vnode].cntrs[i].vip_tcp_port;
@@ -3037,7 +3037,7 @@ int remove_vip( struct sdf_vip_config *config, int vip_group_id) {
        }
        else {
            /*It is a recovery The recovering node got the VIP and it is real node*/
-           plat_log_msg(20286, PLAT_LOG_CAT_SDF_PROT, PLAT_LOG_LEVEL_INFO,
+           plat_log_msg(20286, PLAT_LOG_CAT_SDF_PROT, PLAT_LOG_LEVEL_DEBUG,
                      "VIP Group is Real Node's group. vnode:%d rnode:%d\n",vnode, rnode);
            for( i = 0; i < node->nctnrs_node; i++ ) {
                vport = repstate->node_state[vnode].cntrs[i].vip_tcp_port;
@@ -3056,7 +3056,7 @@ int remove_vip( struct sdf_vip_config *config, int vip_group_id) {
        }
    }
    else {
-       plat_log_msg(20287, PLAT_LOG_CAT_SDF_PROT, PLAT_LOG_LEVEL_INFO,
+       plat_log_msg(20287, PLAT_LOG_CAT_SDF_PROT, PLAT_LOG_LEVEL_DEBUG,
                      "My Node:%d is not virtual node. Just DO Nothing on virtual node recovery\n",my_rank);
    } 
 #endif // def IPF_TEST_VIP
@@ -3180,7 +3180,7 @@ int configure_vip(const struct sdf_vip_config *config, int vip_group_id) {
    }
    if( repstate->node_state[my_rank].is_virtual == 1 ) {
        int vport, rport, vnode, rnode;
-       plat_log_msg(20289, PLAT_LOG_CAT_SDF_PROT, PLAT_LOG_LEVEL_INFO, 
+       plat_log_msg(20289, PLAT_LOG_CAT_SDF_PROT, PLAT_LOG_LEVEL_DEBUG, 
                      "VIPGrp Config: My Node(%d) is virtual node\n",my_rank);
        vnode = my_rank;
        rnode = my_rank - 1; /* Second node in the 2way mirror is always virtual) */
@@ -3188,7 +3188,7 @@ int configure_vip(const struct sdf_vip_config *config, int vip_group_id) {
        if ( my_rank == vip_group_id ) {
            /* We just configured our own virtual group. We have to create port forwarding rules as below
               if fromVIP == our VIP, dest port = real port, then Map it to our Port */
-           plat_log_msg(20290, PLAT_LOG_CAT_SDF_PROT, PLAT_LOG_LEVEL_INFO, 
+           plat_log_msg(20290, PLAT_LOG_CAT_SDF_PROT, PLAT_LOG_LEVEL_DEBUG, 
                      "VIP Group is My own Vip Group. Virtual Node startup vnode:%d rnode:%d\n",vnode, rnode);
            for( i = 0; i < repstate->node_state[my_rank].nctnrs_node; i++ ) {
                vport = repstate->node_state[vnode].cntrs[i].vip_tcp_port;
@@ -3208,7 +3208,7 @@ int configure_vip(const struct sdf_vip_config *config, int vip_group_id) {
        }
        else {
            /*It is a fail over. Other node is Real Node*/
-           plat_log_msg(20286, PLAT_LOG_CAT_SDF_PROT, PLAT_LOG_LEVEL_INFO, 
+           plat_log_msg(20286, PLAT_LOG_CAT_SDF_PROT, PLAT_LOG_LEVEL_DEBUG, 
                      "VIP Group is Real Node's group. vnode:%d rnode:%d\n",vnode, rnode);
            for( i = 0; i < node->nctnrs_node; i++ ) {
                vport = repstate->node_state[vnode].cntrs[i].vip_tcp_port;
@@ -3227,7 +3227,7 @@ int configure_vip(const struct sdf_vip_config *config, int vip_group_id) {
        }
    }
    else {
-       plat_log_msg(20291, PLAT_LOG_CAT_SDF_PROT, PLAT_LOG_LEVEL_INFO, 
+       plat_log_msg(20291, PLAT_LOG_CAT_SDF_PROT, PLAT_LOG_LEVEL_DEBUG, 
                      "My Node:%d is not virtual node. Just DO Nothing\n",my_rank);
    } 
 #endif // def IPF_TEST_VIP
@@ -3361,7 +3361,7 @@ static void maximize_rcvbuf( const int sfd )
     }
     plat_log_msg( 20760,
                   PLAT_LOG_CAT_SDF_APP_MEMCACHED,
-                  PLAT_LOG_LEVEL_INFO,
+                  PLAT_LOG_LEVEL_DEBUG,
                   "socket %d rcvbuf size was %d, now %d",
                   sfd, old_size, last_good );
 }

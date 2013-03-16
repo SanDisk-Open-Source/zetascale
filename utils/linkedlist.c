@@ -21,6 +21,7 @@
 #define LOG_ID PLAT_LOG_ID_INITIAL
 #define LOG_CAT PLAT_LOG_CAT_SDF_SHARED
 #define LOG_DBG PLAT_LOG_LEVEL_DEBUG
+#define LOG_TRACE PLAT_LOG_LEVEL_TRACE
 
 // =============================================================================
 #define DEBUG 0
@@ -55,7 +56,7 @@ LinkedList_create()
 void
 LinkedList_destroy(LinkedList ll)
 {
-    if (DEBUG) plat_log_msg(21744, LOG_CAT, LOG_DBG, "In LinkedList_destroy()");
+    if (DEBUG) plat_log_msg(21744, LOG_CAT, LOG_TRACE, "In LinkedList_destroy()");
 
     ListPtr temp = ll->Head;
 
@@ -88,7 +89,7 @@ LinkedList_printElements(LinkedList ll) {
     char str[size]; // TODO is it enough?
     int i = 0;
 
-    plat_log_msg(21745, LOG_CAT, LOG_DBG, "In LinkedList_printElements()");
+    plat_log_msg(21745, LOG_CAT, LOG_TRACE, "In LinkedList_printElements()");
 
     ListPtr temp = ll->Head;
     i += snprintf(str+i, size-i, "List elements {");
@@ -104,7 +105,7 @@ LinkedList_printElements(LinkedList ll) {
 
 void* LinkedList_replace(LinkedList ll, const char *key, void* value, uint16_t keyLen)
 {
-    if (DEBUG) plat_log_msg(21746, LOG_CAT, LOG_DBG, "In LinkedList_put(%s)\n", key);
+    if (DEBUG) plat_log_msg(21746, LOG_CAT, LOG_TRACE, "In LinkedList_put(%s)\n", key);
 
     if (!key || !value || LinkedList_isEmpty(ll)) {
         return (NULL);
@@ -131,7 +132,7 @@ SDF_boolean_t
 LinkedList_put(LinkedList ll, const char *key, void* value, uint16_t keyLen)
 {
     
-    if (DEBUG) plat_log_msg(21746, LOG_CAT, LOG_DBG, "In LinkedList_put(%s)\n", key);
+    if (DEBUG) plat_log_msg(21746, LOG_CAT, LOG_TRACE, "In LinkedList_put(%s)\n", key);
 
     if (!key || !value) {
         return (SDF_FALSE);
@@ -151,7 +152,7 @@ LinkedList_put(LinkedList ll, const char *key, void* value, uint16_t keyLen)
     while (temp) {
         if (temp->keyLen == keyLen) {
             if (0 == strcmp(temp->key, key)) {
-                plat_log_msg(21747, LOG_CAT, LOG_DBG, "LinkedList_put() - key[%s] already present\n", key);
+                plat_log_msg(21747, LOG_CAT, LOG_TRACE, "LinkedList_put() - key[%s] already present\n", key);
                 return (SDF_FALSE);
             }
         }
@@ -175,12 +176,12 @@ LinkedList_remove(LinkedList ll, const char *key, uint16_t keyLen)
     //    debug("In LinkedList_remove()");
 
     if (!key) {
-        plat_log_msg(21748, LOG_CAT, LOG_DBG, "In LinkedList_remove(), key is NULL *****\n");        
+        plat_log_msg(21748, LOG_CAT, LOG_TRACE, "In LinkedList_remove(), key is NULL *****\n");        
         return (NULL);
     }
 
     if (LinkedList_isEmpty(ll)) {
-        plat_log_msg(21749, LOG_CAT, LOG_DBG, "In LinkedList_remove(%s), list is empty *****\n", key);
+        plat_log_msg(21749, LOG_CAT, LOG_TRACE, "In LinkedList_remove(%s), list is empty *****\n", key);
         return (NULL);
     }
 
@@ -240,7 +241,7 @@ LinkedList_remove(LinkedList ll, const char *key, uint16_t keyLen)
         }
     }
 
-    plat_log_msg(21750, LOG_CAT, LOG_DBG, "In LinkedList_remove(%s), could not find, sz of list =%d *****\n", 
+    plat_log_msg(21750, LOG_CAT, LOG_TRACE, "In LinkedList_remove(%s), could not find, sz of list =%d *****\n", 
                  key, ll->size);
     return (NULL);
 }
@@ -255,7 +256,7 @@ LinkedList_get(LinkedList ll, const char *key, uint16_t keyLen)
     }
 
     if (LinkedList_isEmpty(ll)) {
-        plat_log_msg(21752, LOG_CAT, LOG_DBG, "In LinkedList_get(%s), list is empty *****\n", key);
+        plat_log_msg(21752, LOG_CAT, LOG_TRACE, "In LinkedList_get(%s), list is empty *****\n", key);
         return (NULL);
     }
 
@@ -273,6 +274,6 @@ LinkedList_get(LinkedList ll, const char *key, uint16_t keyLen)
         }
     }
 
-    plat_log_msg(21753, LOG_CAT, LOG_DBG, "In LinkedList_get(%s), could not find *****\n", key);
+    plat_log_msg(21753, LOG_CAT, LOG_TRACE, "In LinkedList_get(%s), could not find *****\n", key);
     return (NULL);
 }

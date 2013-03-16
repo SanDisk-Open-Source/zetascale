@@ -74,7 +74,7 @@ SDFTLMapEntry_t *SDFTLMapGetCreate(SDFTLMap_t *pm, char *pkey)
 	    UTMallocTrace("SDFTLMapGetCreate: entry", FALSE, FALSE, FALSE, (void *) pme, sizeof(SDFTLMapEntry_t));
 	#endif // MALLOC_TRACE
 	if (pme == NULL) {
-	    plat_log_msg(21289, PLAT_LOG_CAT_SDF_CC, PLAT_LOG_LEVEL_INFO,
+	    plat_log_msg(21289, PLAT_LOG_CAT_SDF_CC, PLAT_LOG_LEVEL_ERROR,
 		 "Could not allocate a thread-local map entry.");
 	    return(NULL);
 	}
@@ -86,7 +86,7 @@ SDFTLMapEntry_t *SDFTLMapGetCreate(SDFTLMap_t *pm, char *pkey)
 	#endif // MALLOC_TRACE
 
 	if (pme->key == NULL) {
-	    plat_log_msg(21290, PLAT_LOG_CAT_SDF_CC, PLAT_LOG_LEVEL_INFO,
+	    plat_log_msg(21290, PLAT_LOG_CAT_SDF_CC, PLAT_LOG_LEVEL_ERROR,
 		 "Could not allocate a thread-local key.");
 	    plat_free(pme);
 	    return(NULL);

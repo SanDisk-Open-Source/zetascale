@@ -244,7 +244,7 @@ void fthThreadMultiPtlSeqMultiRecver(uint64_t arg) {
     FTH_SPIN_LOCK(&ssync->spin);
     fthCount ++;
     FTH_SPIN_UNLOCK(&ssync->spin);
-    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                  "\nnode: %d, protocol: %li, mysync: %d, fthCount: %d\n", 
                  myid, ptl, mysync, fthCount);
     fthYield(1);

@@ -58,10 +58,10 @@ main(int argc, char **argv) {
     tmp =  ffdc_initialize(0, BLD_VERSION, 1024 * 1024);
     plat_assert_always(!tmp);
 
-    plat_log_msg(21763, PLAT_LOG_CAT_PLATFORM_TEST, PLAT_LOG_LEVEL_DEBUG,
+    plat_log_msg(21763, PLAT_LOG_CAT_PLATFORM_TEST, PLAT_LOG_LEVEL_TRACE,
                  "supressed - default");
     tmp = plat_log_enabled(PLAT_LOG_CAT_PLATFORM_TEST,
-                           PLAT_LOG_LEVEL_DEBUG);
+                           PLAT_LOG_LEVEL_TRACE);
     plat_assert_always(!tmp);
 
 
@@ -83,8 +83,8 @@ main(int argc, char **argv) {
     tmp = plat_log_parse_arg("platform=debug");
     plat_assert_always(!tmp);
     plat_log_msg(21765, PLAT_LOG_CAT_PLATFORM_TEST,
-                 PLAT_LOG_LEVEL_DEBUG, "Debug %s", "this");
-    tmp = plat_log_enabled(PLAT_LOG_CAT_PLATFORM_TEST, PLAT_LOG_LEVEL_DEBUG);
+                 PLAT_LOG_LEVEL_TRACE, "Debug %s", "this");
+    tmp = plat_log_enabled(PLAT_LOG_CAT_PLATFORM_TEST, PLAT_LOG_LEVEL_TRACE);
     plat_assert_always(tmp);
 
     /*
@@ -110,7 +110,7 @@ main(int argc, char **argv) {
     long_string[99] = 0; 
 
     plat_log_msg(21790, PLAT_LOG_CAT_PLATFORM_TEST,
-                 PLAT_LOG_LEVEL_INFO, 
+                 PLAT_LOG_LEVEL_DEBUG, 
                  "short string %s long string %"FFDC_LONG_STRING(100)"",
                  long_string, long_string);
 
@@ -123,7 +123,7 @@ main(int argc, char **argv) {
     plat_assert_always(pid != -1);
     if (pid == 0) {
         plat_log_msg(21793, PLAT_LOG_CAT_PLATFORM_TEST,
-                     PLAT_LOG_LEVEL_INFO, "in child process");
+                     PLAT_LOG_LEVEL_DEBUG, "in child process");
         ret = 0;
     }  else {
         do {

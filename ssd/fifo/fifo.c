@@ -83,7 +83,7 @@ struct flashDev * fifo_flashOpen( char * devName, flash_settings_t *flash_settin
 
     plat_log_msg(21691, 
                   PLAT_LOG_CAT_SDF_APP_MEMCACHED,
-                  PLAT_LOG_LEVEL_INFO,
+                  PLAT_LOG_LEVEL_DEBUG,
                   "ENTERING, devName=%s", devName );
     
     /*  Global settings for aio and flash subsystems */
@@ -128,7 +128,7 @@ struct flashDev * fifo_flashOpen( char * devName, flash_settings_t *flash_settin
     pdev->used = 0;
     plat_log_msg(21695, 
                   PLAT_LOG_CAT_SDF_APP_MEMCACHED,
-                  PLAT_LOG_LEVEL_INFO,
+                  PLAT_LOG_LEVEL_DEBUG,
                   "dev size is %lu", pdev->size );
     
     if ( NULL == Ssd_fifo_ops.flashOpen ) {
@@ -150,7 +150,7 @@ struct shard *fifo_shardCreate( struct flashDev * dev, uint64_t shardID,
 {
     plat_log_msg(21697, 
                   PLAT_LOG_CAT_SDF_APP_MEMCACHED,
-                  PLAT_LOG_LEVEL_INFO,
+                  PLAT_LOG_LEVEL_DEBUG,
                   "ENTERING, shardID=%lu max_nobjs=%u", 
                   shardID, maxObjs );
     
@@ -170,7 +170,7 @@ struct shard *fifo_shardOpen( struct flashDev * dev, uint64_t shardID )
 {
     plat_log_msg(20065, 
                   PLAT_LOG_CAT_SDF_APP_MEMCACHED,
-                  PLAT_LOG_LEVEL_INFO,
+                  PLAT_LOG_LEVEL_DEBUG,
                   "ENTERING, shardID=%lu", shardID );
     
     if ( NULL == Ssd_fifo_ops.shardOpen ) {

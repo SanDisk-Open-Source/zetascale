@@ -195,10 +195,10 @@ internal_testhomedir_init()
     } else {
         plat_shmem_alloc_get_stats(&g_init_sm_stats);
         uint64_t buckets = getProperty_uLongLong("SDF_HOME_DIR_BUCKETS", MAX_BUCKETS-1);
-        plat_log_msg(21332, PLAT_LOG_CAT_PRINT_ARGS, PLAT_LOG_LEVEL_DEBUG, "PROP: SDF_HOME_DIR_BUCKETS=%"PRIu64,
+        plat_log_msg(21332, PLAT_LOG_CAT_PRINT_ARGS, PLAT_LOG_LEVEL_TRACE, "PROP: SDF_HOME_DIR_BUCKETS=%"PRIu64,
                      buckets);
         uint32_t lockType = getProperty_uLongInt("SDF_HOME_DIR_LOCKTYPE", HMDIR_FTH_BUCKET);
-        plat_log_msg(21333, PLAT_LOG_CAT_PRINT_ARGS, PLAT_LOG_LEVEL_DEBUG, "PROP: SDF_HOME_DIR_LOCKTYPE=%"PRIu32,
+        plat_log_msg(21333, PLAT_LOG_CAT_PRINT_ARGS, PLAT_LOG_LEVEL_TRACE, "PROP: SDF_HOME_DIR_LOCKTYPE=%"PRIu32,
                      lockType);
         homedir = HomeDir_create(buckets, lockType);
     }

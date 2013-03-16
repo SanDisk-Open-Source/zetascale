@@ -73,7 +73,7 @@ fthIdleControlAlloc() {
     }
 
     if (!failed) {
-        plat_log_msg(20885, PLAT_LOG_CAT_FTH_IDLE, PLAT_LOG_LEVEL_DEBUG,
+        plat_log_msg(20885, PLAT_LOG_CAT_FTH_IDLE, PLAT_LOG_LEVEL_TRACE,
                      "fthIdleConrol " PLAT_SP_FMT " at %p allocated",
                      PLAT_SP_FMT_ARG(ret), ret_local);
         fthIdleControl_sp_rwrelease(&ret_local);
@@ -93,7 +93,7 @@ fthIdleControlFree(fthIdleControl_sp_t fthIdleControl) {
     if (!fthIdleControl_sp_is_null(fthIdleControl)) {
         fthIdleControl_sp_rwref(&local, fthIdleControl);
 
-        plat_log_msg(20887, PLAT_LOG_CAT_FTH_IDLE, PLAT_LOG_LEVEL_DEBUG,
+        plat_log_msg(20887, PLAT_LOG_CAT_FTH_IDLE, PLAT_LOG_LEVEL_TRACE,
                      "fthIdleConrol " PLAT_SP_FMT " at %p free",
                      PLAT_SP_FMT_ARG(fthIdleControl), local);
 
@@ -152,7 +152,7 @@ fthIdleControlDetachLocal(struct fthIdleControl *local) {
 
         if (!local->attached) {
             plat_log_msg(20890, PLAT_LOG_CAT_FTH_IDLE,
-                         PLAT_LOG_LEVEL_DEBUG,
+                         PLAT_LOG_LEVEL_TRACE,
                          "fthIdleControl at %p no thread, total sleep %ld",
                          local, local->sleep_count);
         }

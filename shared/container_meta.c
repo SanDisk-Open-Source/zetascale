@@ -62,13 +62,13 @@ container_meta_create(const char *name, SDF_container_props_t props, SDF_cguid_t
 	    		} else {
 					memcpy(&meta->cname, name, strlen(name));
 
-					plat_log_msg(21583, PLAT_LOG_CAT_SDF_SHARED, PLAT_LOG_LEVEL_DEBUG, "metadata created for %s", name);
+					plat_log_msg(21583, PLAT_LOG_CAT_SDF_SHARED, PLAT_LOG_LEVEL_TRACE, "metadata created for %s", name);
 	    		}
        	} else {
-            plat_log_msg(21584, PLAT_LOG_CAT_SDF_SHARED, PLAT_LOG_LEVEL_DEBUG, "could not allocate memory");
+            plat_log_msg(21584, PLAT_LOG_CAT_SDF_SHARED, PLAT_LOG_LEVEL_TRACE, "could not allocate memory");
        	}
    	} else {
-       	plat_log_msg(21585, PLAT_LOG_CAT_SDF_SHARED, PLAT_LOG_LEVEL_DEBUG, "invalid parameter");
+       	plat_log_msg(21585, PLAT_LOG_CAT_SDF_SHARED, PLAT_LOG_LEVEL_TRACE, "invalid parameter");
    	}
 
     return (meta);
@@ -83,10 +83,10 @@ container_meta_destroy(SDF_container_meta_t *meta) {
         plat_free(meta);
         status = SDF_SUCCESS;
         plat_log_msg(21586, PLAT_LOG_CAT_SDF_SHARED,
-                     PLAT_LOG_LEVEL_DEBUG, "SUCCESS: container_meta_destroy");
+                     PLAT_LOG_LEVEL_TRACE, "SUCCESS: container_meta_destroy");
     } else {
         plat_log_msg(21587, PLAT_LOG_CAT_SDF_SHARED,
-                     PLAT_LOG_LEVEL_DEBUG, "FAILED: container_meta_destroy");
+                     PLAT_LOG_LEVEL_TRACE, "FAILED: container_meta_destroy");
     }
 
     return (status);

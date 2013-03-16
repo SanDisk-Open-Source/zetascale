@@ -55,7 +55,7 @@ main(int argc, char* argv[])
                 ret = CU_get_number_of_failures();
             }
             plat_log_msg(21772, PLAT_LOG_CAT_PLATFORM_TEST_MEM_DEBUG,
-                         PLAT_LOG_LEVEL_INFO,
+                         PLAT_LOG_LEVEL_DEBUG,
                          "Tests completed with return value %d.", ret);
             CU_cleanup_registry();
         }

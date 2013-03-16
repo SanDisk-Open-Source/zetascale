@@ -1,4 +1,5 @@
-FDF_FLASH_FILENAME=/schooner/backup/schooner%d
+FDF_LOG_LEVEL = fatal
+FDF_FLASH_FILENAME=/schooner/data/schooner%d
 #FDF_FLASH_FILENAME=/dev/shm/schooner%d
 #FDF_LOG_FLUSH_DIR=/dev/shm
 FDF_FLASH_SIZE=16

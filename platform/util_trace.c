@@ -176,7 +176,7 @@ __attribute__ ((constructor))
     /*init both buffer A and B */
     if (SHME_ENABLE && init_shmem(&shmem_buffer_A, SHME_KEY_A)
         && init_shmem(&shmem_buffer_B, SHME_KEY_B)) {
-        printf("log buffer A: flag:%d, size: %d, real_size:%d, "
+        /* printf("log buffer A: flag:%d, size: %d, real_size:%d, "
                "total_size: %d, pid:%d\n",
                *shmem_buffer_A.flag, *shmem_buffer_A.size,
                *shmem_buffer_A.real_size, (*shmem_buffer_A.total_size),
@@ -185,7 +185,7 @@ __attribute__ ((constructor))
                "total_size: %d, pid:%d\n",
                *shmem_buffer_B.flag, *shmem_buffer_B.size,
                *shmem_buffer_B.real_size, *shmem_buffer_B.total_size,
-               *shmem_buffer_B.pid);
+               *shmem_buffer_B.pid); */
         current_buffer = shmem_buffer_A.flag;
         if ((*current_buffer) == 0) {
             shmem_buffer_ptr = &shmem_buffer_A;

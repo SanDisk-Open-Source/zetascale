@@ -156,7 +156,7 @@ backup_merge_bitmaps( mcd_osd_shard_t * shard )
     int                         blksize;
     int                         bitmap_size;
 
-    mcd_bak_msg( 20065, PLAT_LOG_LEVEL_DEBUG,
+    mcd_bak_msg( 20065, PLAT_LOG_LEVEL_TRACE,
                  "ENTERING, shardID=%lu", shard->id );
 
     for ( i = 0, blksize = 1; i < MCD_OSD_MAX_NCLASSES; i++ ) {
@@ -185,7 +185,7 @@ backup_snapshot_bitmaps( mcd_osd_shard_t * shard )
     int                         blksize;
     int                         bitmap_size;
 
-    mcd_bak_msg( 20065, PLAT_LOG_LEVEL_DEBUG,
+    mcd_bak_msg( 20065, PLAT_LOG_LEVEL_TRACE,
                  "ENTERING, shardID=%lu", shard->id );
 
     for ( i = 0, blksize = 1; i < MCD_OSD_MAX_NCLASSES; i++ ) {
@@ -215,7 +215,7 @@ backup_start_prepare( mcd_osd_shard_t * shard, int full_backup )
     bool                        success = false;
     mcd_bak_state_t           * bk = shard->backup;
 
-    mcd_bak_msg( 20065, PLAT_LOG_LEVEL_DEBUG,
+    mcd_bak_msg( 20065, PLAT_LOG_LEVEL_TRACE,
                  "ENTERING, shardID=%lu", shard->id );
 
     plat_assert( bk != NULL );
@@ -253,7 +253,7 @@ backup_start( mcd_osd_shard_t * shard, int full_backup, uint64_t * prev_seqno,
 {
     mcd_bak_state_t           * bk = shard->backup;
 
-    mcd_bak_msg( 20065, PLAT_LOG_LEVEL_DEBUG,
+    mcd_bak_msg( 20065, PLAT_LOG_LEVEL_TRACE,
                  "ENTERING, shardID=%lu", shard->id );
 
     plat_assert( bk != NULL );
@@ -294,7 +294,7 @@ backup_end( mcd_osd_shard_t * shard, int cancel )
 {
     mcd_bak_state_t           * bk = shard->backup;
 
-    mcd_bak_msg( 20065, PLAT_LOG_LEVEL_DEBUG,
+    mcd_bak_msg( 20065, PLAT_LOG_LEVEL_TRACE,
                  "ENTERING, shardID=%lu", shard->id );
 
     // cancel/complete a backup while restore running
@@ -324,7 +324,7 @@ backup_end( mcd_osd_shard_t * shard, int cancel )
         bk->full_backup_required = 0;
     }
 
-    mcd_bak_msg( 40119, PLAT_LOG_LEVEL_INFO,
+    mcd_bak_msg( 40119, PLAT_LOG_LEVEL_DEBUG,
                  "container (%s) backup: %lu of %lu allocated segments, "
                  "empty=%lu, error=%lu, total=%lu; "
                  "objects=%lu, blks=%lu; deleted=%lu, blks=%lu; "
@@ -361,7 +361,7 @@ restore_start( mcd_osd_shard_t * shard, uint64_t prev_seqno,
     bool                        success = false;
     mcd_bak_state_t           * bk = shard->backup;
 
-    mcd_bak_msg( 20065, PLAT_LOG_LEVEL_DEBUG,
+    mcd_bak_msg( 20065, PLAT_LOG_LEVEL_TRACE,
                  "ENTERING, shardID=%lu", shard->id );
 
     plat_assert( bk != NULL );

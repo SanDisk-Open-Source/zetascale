@@ -170,7 +170,7 @@ main(int argc, char **argv) {
         
         status = getrusage(RUSAGE_SELF, &usage);
         plat_assert_always(!status);
-        plat_log_msg(20878, LOG_CAT, PLAT_LOG_LEVEL_INFO,
+        plat_log_msg(20878, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
                      "%lld nsec/switch",
                      (1000000000LL *
                       (usage.ru_utime.tv_sec - usage_before.ru_utime.tv_sec)
@@ -194,7 +194,7 @@ main(int argc, char **argv) {
 
         idle_time = fthGetSchedulerIdleTime();
         plat_assert_always(idle_time > 0);
-        plat_log_msg(20879, LOG_CAT, PLAT_LOG_LEVEL_INFO,
+        plat_log_msg(20879, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
                      "%lld usec idle", idle_time);
      }
 

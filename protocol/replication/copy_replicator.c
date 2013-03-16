@@ -1950,7 +1950,7 @@ sdf_copy_replicator_alloc(const struct sdf_replicator_config *config,
     }
 
     if (!failed) {
-        plat_log_msg(21344, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+        plat_log_msg(21344, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                      "copy_replicator %p allocated", ret);
     } else {
         plat_log_msg(21345, LOG_CAT, PLAT_LOG_LEVEL_ERROR,
@@ -1972,7 +1972,7 @@ cr_start(struct sdf_replicator *self) {
     struct copy_replicator *cr = (struct copy_replicator *)self;
     int tmp;
 
-    plat_log_msg(21346, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+    plat_log_msg(21346, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                  "copy_replicator %p starting", cr);
 
     tmp = __sync_bool_compare_and_swap(&cr->state, CR_STATE_INITIAL,
@@ -2298,7 +2298,7 @@ cr_command_recovered(struct copy_replicator *cr, SDF_shardid_t sguid,
     status = SDF_SUCCESS;
     output = NULL;
 
-    plat_log_msg(21347, LOG_CAT_RECOVERY, PLAT_LOG_LEVEL_DEBUG,
+    plat_log_msg(21347, LOG_CAT_RECOVERY, PLAT_LOG_LEVEL_TRACE,
                  "copy_replicator %p shard 0x%lx recovered", cr, sguid);
 
     LIST_FOREACH(shard, &cr->shard_list, shard_list_entry) {
@@ -2349,7 +2349,7 @@ cr_command_recovered(struct copy_replicator *cr, SDF_shardid_t sguid,
 
     if (status != SDF_SUCCESS) {
         plat_log_msg(21348, LOG_CAT_RECOVERY,
-                     status == SDF_SUCCESS ? PLAT_LOG_LEVEL_DEBUG :
+                     status == SDF_SUCCESS ? PLAT_LOG_LEVEL_TRACE :
                      PLAT_LOG_LEVEL_WARN,
                      "copy_replicator %p shard 0x%lx recovered status %s"
                      " output '%s'", cr,
@@ -2454,7 +2454,7 @@ cr_shutdown(plat_closure_scheduler_t *context, void *env,
     /* Already shutdown */
     plat_assert(cr->ref_count > 0);
 
-    plat_log_msg(21349, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+    plat_log_msg(21349, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                  "copy_replicator %p shutdown", cr);
     plat_assert(old_state == CR_STATE_INITIAL || old_state == CR_STATE_RUNNING);
     status = __sync_bool_compare_and_swap(&cr->state, old_state,
@@ -2489,7 +2489,7 @@ cr_node_live(plat_closure_scheduler_t *context, void *env,
         if (node) {
             plat_log_msg(21351, LOG_CAT_LIVENESS,
                          node->state == CR_NODE_LIVE ?
-                         PLAT_LOG_LEVEL_DEBUG : PLAT_LOG_LEVEL_INFO,
+                         PLAT_LOG_LEVEL_TRACE : PLAT_LOG_LEVEL_DEBUG,
                          "copy_replicator %p node %u node %u live",
                          cr, cr->config.my_node, pnode);
 
@@ -2528,7 +2528,7 @@ cr_node_dead(plat_closure_scheduler_t *context, void *env,
         if (node) {
             plat_log_msg(21353, LOG_CAT_LIVENESS,
                          node->state == CR_NODE_DEAD ?
-                         PLAT_LOG_LEVEL_DEBUG : PLAT_LOG_LEVEL_WARN,
+                         PLAT_LOG_LEVEL_TRACE : PLAT_LOG_LEVEL_WARN,
                          "copy_replicator %p node %u node %u dead",
                          cr, cr->config.my_node, pnode);
 
@@ -2571,7 +2571,7 @@ cr_ref_count_dec(struct copy_replicator *cr) {
     if (!after) {
         plat_assert(cr->state == CR_STATE_STOPPING);
 
-        plat_log_msg(21355, LOG_CAT_SHUTDOWN, PLAT_LOG_LEVEL_DEBUG,
+        plat_log_msg(21355, LOG_CAT_SHUTDOWN, PLAT_LOG_LEVEL_TRACE,
                      "copy_replicator %p node %u refcount 0", cr,
                      cr->config.my_node);
         /*
@@ -2598,7 +2598,7 @@ cr_signal_shard_shutdown_complete(struct copy_replicator *cr) {
 
 
     if (!cr->shard_shutdown_count) {
-        plat_log_msg(21356, LOG_CAT_SHUTDOWN, PLAT_LOG_LEVEL_DEBUG,
+        plat_log_msg(21356, LOG_CAT_SHUTDOWN, PLAT_LOG_LEVEL_TRACE,
                      "copy_replicator %p node %u shard shutdown count 0", cr,
                      cr->config.my_node);
 
@@ -2618,7 +2618,7 @@ cr_rms_stopped(struct plat_closure_scheduler *context, void *env) {
     struct copy_replicator *cr = (struct copy_replicator *)env;
     plat_closure_scheduler_shutdown_t shutdown_closure;
 
-    plat_log_msg(21357, LOG_CAT_SHUTDOWN, PLAT_LOG_LEVEL_DEBUG,
+    plat_log_msg(21357, LOG_CAT_SHUTDOWN, PLAT_LOG_LEVEL_TRACE,
                  "copy_replicator %p node %u rms stopped", cr,
                  cr->config.my_node);
 
@@ -2640,7 +2640,7 @@ static void
 cr_closure_scheduler_stopped(struct plat_closure_scheduler *context, void *env) {
     struct copy_replicator *cr = (struct copy_replicator *)env;
 
-    plat_log_msg(21358, LOG_CAT_SHUTDOWN, PLAT_LOG_LEVEL_DEBUG,
+    plat_log_msg(21358, LOG_CAT_SHUTDOWN, PLAT_LOG_LEVEL_TRACE,
                  "copy_replicator %p node %u scheduler stopped", cr,
                  cr->config.my_node);
 
@@ -2877,7 +2877,7 @@ static void
 cr_shard_set_state(struct cr_shard *shard, enum cr_shard_state next_state) {
     enum cr_shard_state from = shard->state;
 
-    plat_log_msg(21359, LOG_CAT_STATE, PLAT_LOG_LEVEL_DEBUG,
+    plat_log_msg(21359, LOG_CAT_STATE, PLAT_LOG_LEVEL_TRACE,
                  "cr_shard %p node %u shard 0x%lx vip group %d state"
                  " from %s to %s",
                  shard, shard->cr->config.my_node, shard->sguid,
@@ -3252,7 +3252,7 @@ cr_shard_check_state_delay_lease_acquisition_for_both(struct cr_shard *shard,
 
         if (change) {
             plat_log_msg(21361, LOG_CAT_FAST_START,
-                         PLAT_LOG_LEVEL_DEBUG,
+                         PLAT_LOG_LEVEL_TRACE,
                          "cr_shard %p node %u shard 0x%lx vip group %d"
                          " fast start after_restart %d",
                          shard, shard->cr->config.my_node,
@@ -3286,7 +3286,7 @@ cr_shard_check_state_switch_back_2(struct cr_shard *shard) {
     if (shard->shard_meta->persistent.current_home_node != CR_HOME_NODE_NONE &&
         shard->shard_meta->persistent.current_home_node !=
         shard->cr->config.my_node) {
-        plat_log_msg(21759, LOG_CAT_STATE, PLAT_LOG_LEVEL_DEBUG,
+        plat_log_msg(21759, LOG_CAT_STATE, PLAT_LOG_LEVEL_TRACE,
                      "cr_shard %p node %u shard 0x%lx vip group %d"
                      " home node %u found",
                      shard, shard->cr->config.my_node, shard->sguid,
@@ -3318,7 +3318,7 @@ cr_shard_check_state_switch_back_2(struct cr_shard *shard) {
             done = 1;
         } else if (node->state == CR_NODE_DEAD) {
             plat_log_msg(21761, LOG_CAT_STATE,
-                         PLAT_LOG_LEVEL_DEBUG,
+                         PLAT_LOG_LEVEL_TRACE,
                          "cr_shard %p node %u shard 0x%lx vip group %d"
                          " preferred node %u dead",
                          shard, shard->cr->config.my_node, shard->sguid,
@@ -3371,7 +3371,7 @@ cr_shard_meta_update_external(struct cr_shard *shard,
 
     plat_log_msg(21362, LOG_CAT_META,
                  shard_meta->persistent.lease_usecs == 0 ?
-                 PLAT_LOG_LEVEL_DEBUG : PLAT_LOG_LEVEL_TRACE,
+                 PLAT_LOG_LEVEL_TRACE : PLAT_LOG_LEVEL_TRACE,
                  "cr_shard %p node %u shard 0x%lx vip group %d home %d"
                  " lease len %3.1f expires %s",
                  shard, cr->config.my_node, shard->sguid,
@@ -3923,7 +3923,7 @@ cr_shard_delay_lease_acquisition_enter(struct cr_shard *shard) {
         delay.tv_usec = delay_usecs % PLAT_MILLION;
         delay.tv_sec = delay_usecs / PLAT_MILLION;
 
-        plat_log_msg(21843, LOG_CAT_LEASE, PLAT_LOG_LEVEL_DEBUG,
+        plat_log_msg(21843, LOG_CAT_LEASE, PLAT_LOG_LEVEL_TRACE,
                      "cr_shard %p node %u shard 0x%lx vip group %d"
                      " delay %ld secs %lu usecs before lease request "
                      " with preference %d of %d",
@@ -4364,7 +4364,7 @@ cr_shard_mutual_redo_enter(struct cr_shard *shard) {
         }
 
         plat_log_msg(21364, LOG_CAT_RECOVERY_REDO,
-                     PLAT_LOG_LEVEL_DEBUG,
+                     PLAT_LOG_LEVEL_TRACE,
                      "cr_shard %p node %u shard 0x%lx vip group %d mutual redo"
                      " %s replica %d local to node %u in-core state %s"
                      " last range type %s start %lld len %lld",
@@ -4983,7 +4983,7 @@ cr_shard_put_meta_cb(struct plat_closure_scheduler *context, void *env,
                      shard->state_flags);
     } else {
         plat_log_msg(21369, LOG_CAT_META,
-                     status_arg == SDF_SUCCESS ? PLAT_LOG_LEVEL_DEBUG :
+                     status_arg == SDF_SUCCESS ? PLAT_LOG_LEVEL_TRACE :
                      PLAT_LOG_LEVEL_WARN,
                      "cr_shard %p node %u shard 0x%lx vip group %d put meta"
                      " complete: %s",
@@ -5186,20 +5186,20 @@ cr_shard_update_meta(struct cr_shard *shard, SDF_status_t status,
                   shard_meta->persistent.current_home_node ==
                   CR_HOME_NODE_NONE))) {
         if (!shard->shard_meta) {
-            update_log_level = PLAT_LOG_LEVEL_DEBUG;
+            update_log_level = PLAT_LOG_LEVEL_TRACE;
         } else if (shard->shard_meta) {
             /* Home node changes are most interesting */
             if (shard_meta->persistent.current_home_node !=
                 shard->shard_meta->persistent.current_home_node) {
                 update_log_level = PLAT_LOG_LEVEL_DIAGNOSTIC;
             /* Places that aren't lease renewals are interest ing */
-            } else if (plat_log_enabled(LOG_CAT_META, PLAT_LOG_LEVEL_DEBUG)) {
+            } else if (plat_log_enabled(LOG_CAT_META, PLAT_LOG_LEVEL_TRACE)) {
                 cmp_meta = cr_shard_meta_dup(shard->shard_meta);
                 cmp_meta->persistent.ltime = shard_meta->persistent.ltime;
                 cmp_meta->persistent.lease_usecs =
                     shard_meta->persistent.lease_usecs;
                 if (!cr_shard_meta_cmp(shard_meta, cmp_meta)) {
-                    update_log_level = PLAT_LOG_LEVEL_DEBUG;
+                    update_log_level = PLAT_LOG_LEVEL_TRACE;
                 } else {
                     update_log_level = PLAT_LOG_LEVEL_TRACE;
                 }
@@ -5446,7 +5446,7 @@ cr_shard_notify_do(struct cr_shard *shard) {
                 ++state->ref_count;
 
                 plat_log_msg(21374, LOG_CAT_NOTIFY,
-                             PLAT_LOG_LEVEL_DEBUG,
+                             PLAT_LOG_LEVEL_TRACE,
                              "cr_shard %p node %u shard 0x%lx vip group %d"
                              " seqno %lld notify"
                              " events {%s} access %s expires %s",
@@ -5513,7 +5513,7 @@ cr_shard_notify_ref_count_dec(struct cr_shard_notify_state *state) {
              state->start_tv.tv_usec);
 
         plat_log_msg(21375, LOG_CAT_NOTIFY,
-                     PLAT_LOG_LEVEL_DEBUG,
+                     PLAT_LOG_LEVEL_TRACE,
                      "cr_shard %p node %u shard 0x%lx vip group %d"
                      " notification ref count 0 after %ld usec",
                      shard, shard->cr->config.my_node, shard->sguid,
@@ -5553,7 +5553,7 @@ cr_shard_ref_count_dec(struct cr_shard *shard) {
     plat_assert(after >= 0);
     if (!after) {
         plat_log_msg(21376, LOG_CAT_SHUTDOWN,
-                     PLAT_LOG_LEVEL_DEBUG,
+                     PLAT_LOG_LEVEL_TRACE,
                      "cr_shard %p node %u shard 0x%lx vip group %d refcount 0",
                      shard, shard->cr->config.my_node, shard->sguid,
                      shard->vip_group_id);
@@ -5980,7 +5980,7 @@ cr_shard_get_preference(struct cr_shard *shard,
                 !(shard->cr->config.initial_preference)) {
                 *numerator_ptr =
                     sdf_vip_group_get_node_rank(intra_group, node);
-                plat_log_msg(21844, LOG_CAT_LEASE, PLAT_LOG_LEVEL_DEBUG,
+                plat_log_msg(21844, LOG_CAT_LEASE, PLAT_LOG_LEVEL_TRACE,
                              "cr_shard %p node %u shard 0x%lx vip group %d"
                              " initial preference %d of %d",
                              shard, shard->cr->config.my_node,
@@ -5989,7 +5989,7 @@ cr_shard_get_preference(struct cr_shard *shard,
             } else {
                 *numerator_ptr =
                     sdf_vip_group_get_node_preference(intra_group, node);
-                plat_log_msg(21845, LOG_CAT_LEASE, PLAT_LOG_LEVEL_DEBUG,
+                plat_log_msg(21845, LOG_CAT_LEASE, PLAT_LOG_LEVEL_TRACE,
                              "cr_shard %p node %u shard 0x%lx vip group %d"
                              " normal preference %d of %d",
                              shard, shard->cr->config.my_node,
@@ -6014,7 +6014,7 @@ cr_shard_get_preference(struct cr_shard *shard,
             }
 
             if (ret == SDF_SUCCESS) {
-                plat_log_msg(21846, LOG_CAT_LEASE, PLAT_LOG_LEVEL_DEBUG,
+                plat_log_msg(21846, LOG_CAT_LEASE, PLAT_LOG_LEVEL_TRACE,
                              "cr_shard %p node %u shard 0x%lx non-vip group"
                              " preference %d of %d", shard,
                              shard->cr->config.my_node, shard->sguid,
@@ -6074,7 +6074,7 @@ cr_shard_command_recovered(struct cr_shard *shard,
 
     plat_assert(shard->state == CR_SHARD_STATE_RW);
 
-    plat_log_msg(21380, LOG_CAT_RECOVERY, PLAT_LOG_LEVEL_DEBUG,
+    plat_log_msg(21380, LOG_CAT_RECOVERY, PLAT_LOG_LEVEL_TRACE,
                  "cr_shard %p node %u shard 0x%lx vip group %d recovered",
                  shard, shard->cr->config.my_node, shard->sguid,
                  shard->vip_group_id);
@@ -6206,7 +6206,7 @@ cr_shard_command_recovered_complete(struct cr_shard_command_recovered_state *sta
     struct cr_shard *shard = state->shard;
 
     plat_log_msg(21383, LOG_CAT_RECOVERY,
-                 status == SDF_SUCCESS ? PLAT_LOG_LEVEL_DEBUG :
+                 status == SDF_SUCCESS ? PLAT_LOG_LEVEL_TRACE :
                  PLAT_LOG_LEVEL_WARN,
                  "cr_shard %p node %u shard 0x%lx vip group %d"
                  " recovered status %s output '%s'",
@@ -6306,7 +6306,7 @@ cr_replica_set_state(struct cr_replica *replica,
     enum cr_replica_state from = replica->state;
 
     if (replica->state != next_state) {
-        plat_log_msg(21388, LOG_CAT_STATE, PLAT_LOG_LEVEL_DEBUG,
+        plat_log_msg(21388, LOG_CAT_STATE, PLAT_LOG_LEVEL_TRACE,
                      "cr_replica %p node %u shard 0x%lx vip group %d replica %d"
                      " local to node %u state from %s to %s",
                      replica, shard->cr->config.my_node,
@@ -6663,7 +6663,7 @@ cr_replica_recovered_enter(struct cr_replica *replica) {
     ++shard->stat_counters->replica_recovery_complete;
     ++shard->cr->total_stat_counters->replica_recovery_complete;
 
-    plat_log_msg(21389, LOG_CAT_RECOVERY, PLAT_LOG_LEVEL_INFO,
+    plat_log_msg(21389, LOG_CAT_RECOVERY, PLAT_LOG_LEVEL_DEBUG,
                  "node %u shard 0x%lx vip group %d replica %d local to node %u"
                  " set to RECOVERED state", shard->cr->config.my_node,
                  shard->sguid, shard->vip_group_id, replica->index,
@@ -7105,7 +7105,7 @@ cr_replica_get_iteration_cursors_cb(struct plat_closure_scheduler *context,
             replica->next_iteration_cursors = output;
             if (!output) {
                 plat_log_msg(21393, LOG_CAT_RECOVERY,
-                             PLAT_LOG_LEVEL_DEBUG,
+                             PLAT_LOG_LEVEL_TRACE,
                              "cr_replica %p node %u shard 0x%lx vip group %d"
                              " replica %d local to node %u eof",
                              replica, shard->cr->config.my_node,
@@ -7114,7 +7114,7 @@ cr_replica_get_iteration_cursors_cb(struct plat_closure_scheduler *context,
                 replica->get_iteration_cursors_eof = 1;
             } else {
                 plat_log_msg(21394, LOG_CAT_RECOVERY,
-                             PLAT_LOG_LEVEL_DEBUG,
+                             PLAT_LOG_LEVEL_TRACE,
                              "cr_replica %p node %u shard 0x%lx vip group %d"
                              " replica %d local to node %u %d cursors",
                              replica, shard->cr->config.my_node,
@@ -8148,7 +8148,7 @@ cr_replica_ref_count_dec(struct cr_replica *replica) {
     plat_assert(after >= 0);
     if (!after) {
         plat_log_msg(21408, LOG_CAT_SHUTDOWN,
-                     PLAT_LOG_LEVEL_DEBUG,
+                     PLAT_LOG_LEVEL_TRACE,
                      "cr_replica %p node %u shard 0x%lx vip group %d"
                      " refcount 0",
                      replica, replica->shard->cr->config.my_node,
@@ -8494,7 +8494,7 @@ cr_op_flash_response(struct plat_closure_scheduler *context, void *env,
     plat_log_msg(21413,
                  LOG_CAT, msg_status == SDF_SUCCESS ? PLAT_LOG_LEVEL_TRACE :
                  (msg_status == SDF_OBJECT_UNKNOWN ? PLAT_LOG_LEVEL_DIAGNOSTIC :
-                  PLAT_LOG_LEVEL_INFO),
+                  PLAT_LOG_LEVEL_DEBUG),
                  "copy_replicator %p op %p flash response received"
                  " Msg: %s (%s), V%d(%s) -> V%d(%s), Tag:%d",
                  op->cr, op, pmi->name, pmi->shortname,
@@ -8976,7 +8976,7 @@ crofr_response(struct plat_closure_scheduler *context, void *env,
         plat_log_msg(21419,
                      LOG_CAT, msg_status == SDF_SUCCESS ? PLAT_LOG_LEVEL_TRACE :
                      (msg_status == SDF_OBJECT_UNKNOWN ?
-                      PLAT_LOG_LEVEL_DIAGNOSTIC : PLAT_LOG_LEVEL_INFO),
+                      PLAT_LOG_LEVEL_DIAGNOSTIC : PLAT_LOG_LEVEL_DEBUG),
                      "copy_replicator %p op %p flash request %s node %d"
                      " response received"
                      " Msg: %s (%s), V%d(%s) -> V%d(%s), Tag:%d status %s",

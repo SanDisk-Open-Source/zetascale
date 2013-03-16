@@ -291,7 +291,7 @@ int
 plat_shmem_prototype_init(const struct plat_shmem_config *config) {
 #ifdef PLAT_SHMEM_FAKE
     plat_log_msg(20980, PLAT_LOG_CAT_PLATFORM_SHMEM,
-                 PLAT_LOG_LEVEL_INFO,
+                 PLAT_LOG_LEVEL_DEBUG,
                  "Not initializing due to -DPLAT_SHMEM_FAKE");
     return (0);
 #else
@@ -370,7 +370,7 @@ plat_shmem_prototype_init(const struct plat_shmem_config *config) {
     init_state.sim_phys = config->sim_phys;
     if (!ret && init_state.sim_phys) {
         plat_log_msg(20984, PLAT_LOG_CAT_PLATFORM_SHMEM,
-                     PLAT_LOG_LEVEL_INFO,
+                     PLAT_LOG_LEVEL_DEBUG,
                      "Simulating physical memory starting at 0x%lx",
                      (long)init_state.sim_phys);
     }
@@ -414,7 +414,7 @@ plat_shmem_prototype_init(const struct plat_shmem_config *config) {
                 if (align != SHMEM_INIT_MAP_ALIGN) {
                     plat_log_msg(20985,
                                  PLAT_LOG_CAT_PLATFORM_SHMEM,
-                                 PLAT_LOG_LEVEL_DEBUG,
+                                 PLAT_LOG_LEVEL_TRACE,
                                  "aligning address map by %lu bytes",
                                  (unsigned long)align);
                 }
@@ -542,7 +542,7 @@ plat_shmem_prototype_init(const struct plat_shmem_config *config) {
 
 #define item(caps, val) /* cstyle */, (config->flags & (val) ? " " #caps : "")
         plat_log_msg(PLAT_LOG_ID_INITIAL, PLAT_LOG_CAT_PLATFORM_SHMEM,
-                     PLAT_LOG_LEVEL_INFO, format_string,
+                     PLAT_LOG_LEVEL_DEBUG, format_string,
                      init_state.virt_map, init_state.phys_map,
                      (unsigned long)init_state.address_space
                      /* no comma because item includes one */
@@ -592,7 +592,7 @@ int
 plat_shmem_attach(const char *space) {
 #ifdef PLAT_SHMEM_FAKE
     plat_log_msg(20989, PLAT_LOG_CAT_PLATFORM_SHMEM,
-                 PLAT_LOG_LEVEL_INFO,
+                 PLAT_LOG_LEVEL_DEBUG,
                  "Not attaching due to -DPLAT_SHMEM_FAKE");
     return (0);
 #else
@@ -875,7 +875,7 @@ plat_shmem_attach(const char *space) {
             }
 
             plat_log_msg(21002, PLAT_LOG_CAT_PLATFORM_SHMEM,
-                         PLAT_LOG_LEVEL_INFO,
+                         PLAT_LOG_LEVEL_DEBUG,
                          "plat_shmem_attach alloc method %s",
                          human_method);
         }
@@ -1137,7 +1137,7 @@ shmem_vm_in_use(const void *addr, size_t len) {
         }
         if (!done) {
             plat_log_msg(20819, PLAT_LOG_CAT_PLATFORM_SHMEM,
-                         PLAT_LOG_LEVEL_DEBUG, "%s", line);
+                         PLAT_LOG_LEVEL_TRACE, "%s", line);
 
             if (start >= ((unsigned long)addr) + len) {
 #if 0
@@ -1159,7 +1159,7 @@ shmem_vm_in_use(const void *addr, size_t len) {
                  * as such?
                  */
                 plat_log_msg(21009, PLAT_LOG_CAT_PLATFORM_SHMEM,
-                             PLAT_LOG_LEVEL_INFO,
+                             PLAT_LOG_LEVEL_DEBUG,
                              "request 0x%lx-0x%lx existing map 0x%lx-0x%lx %s",
                              (unsigned long)addr, (unsigned long)addr + len,
                              start, end, file);
@@ -1236,7 +1236,7 @@ shmem_init_backing_file(struct shmem_init_state *init_state,
     int fd = -1;
 
     plat_log_msg(21011, PLAT_LOG_CAT_PLATFORM_SHMEM,
-                 PLAT_LOG_LEVEL_DEBUG, "init file %s len %llu",
+                 PLAT_LOG_LEVEL_TRACE, "init file %s len %llu",
                  path, (unsigned long long)len);
 
     if (!ret && plat_unlink(path) == -1 && plat_errno != ENOENT) {
@@ -1275,7 +1275,7 @@ shmem_init_backing_file(struct shmem_init_state *init_state,
 
     if (!ret) {
         plat_log_msg(21014, PLAT_LOG_CAT_PLATFORM_SHMEM,
-                     PLAT_LOG_LEVEL_INFO,
+                     PLAT_LOG_LEVEL_DEBUG,
                      "shared memory file %s len %lu initialized",
                      path, (unsigned long)len);
     } else {
@@ -1371,7 +1371,7 @@ shmem_init_backing_dev_physmem(struct shmem_init_state *init_state,
 
     if (!ret) {
         plat_log_msg(21018, PLAT_LOG_CAT_PLATFORM_SHMEM,
-                     PLAT_LOG_LEVEL_INFO,
+                     PLAT_LOG_LEVEL_DEBUG,
                      "shared memory physmem device %s len %llu initialized",
                      path, (unsigned long long)regions->total_len);
     } else {
@@ -1400,7 +1400,7 @@ shmem_init_backing_dev_regions(struct shmem_init_state *init_state,
     int first_region;
 
     plat_log_msg(21020, PLAT_LOG_CAT_PLATFORM_SHMEM,
-                 PLAT_LOG_LEVEL_DEBUG,
+                 PLAT_LOG_LEVEL_TRACE,
                  "adding %u regions from device %s total size %llu",
                  regions->nregion, path,
                  (unsigned long long)regions->total_len);
@@ -1423,7 +1423,7 @@ shmem_init_backing_dev_regions(struct shmem_init_state *init_state,
 
         if (region->len <= sizeof (struct shmem_header)) {
             plat_log_msg(21021, PLAT_LOG_CAT_PLATFORM_SHMEM,
-                         PLAT_LOG_LEVEL_INFO,
+                         PLAT_LOG_LEVEL_DEBUG,
                          "skipping region from device %s offset %llu"
                          " paddr %llu len %llu - too small", path,
                          (unsigned long long)region->offset,
@@ -1431,7 +1431,7 @@ shmem_init_backing_dev_regions(struct shmem_init_state *init_state,
                          (unsigned long long)region->len);
         } else if ((size_t)region->paddr > init_state->address_space) {
             plat_log_msg(21022, PLAT_LOG_CAT_PLATFORM_SHMEM,
-                         PLAT_LOG_LEVEL_INFO,
+                         PLAT_LOG_LEVEL_DEBUG,
                          "skipping region from device %s offset %llu"
                          " paddr %llu len %llu - paddr too high", path,
                          (unsigned long long)region->offset,
@@ -1456,7 +1456,7 @@ shmem_init_backing_dev_regions(struct shmem_init_state *init_state,
 
         if (region->len <= sizeof (struct shmem_header)) {
             plat_log_msg(21021, PLAT_LOG_CAT_PLATFORM_SHMEM,
-                         PLAT_LOG_LEVEL_INFO,
+                         PLAT_LOG_LEVEL_DEBUG,
                          "skipping region from device %s offset %llu"
                          " paddr %llu len %llu - too small", path,
                          (unsigned long long)region->offset,
@@ -1464,7 +1464,7 @@ shmem_init_backing_dev_regions(struct shmem_init_state *init_state,
                          (unsigned long long)region->len);
         } else if ((size_t)region->paddr > init_state->address_space) {
             plat_log_msg(21022, PLAT_LOG_CAT_PLATFORM_SHMEM,
-                         PLAT_LOG_LEVEL_INFO,
+                         PLAT_LOG_LEVEL_DEBUG,
                          "skipping region from device %s offset %llu"
                          " paddr %llu len %llu - paddr too high", path,
                          (unsigned long long)region->offset,
@@ -1519,7 +1519,7 @@ shmem_init_backing_mmap(struct shmem_init_state *init_state,
     void *ptr = MAP_FAILED;
 
     plat_log_msg(21024, PLAT_LOG_CAT_PLATFORM_SHMEM,
-                 PLAT_LOG_LEVEL_DEBUG,
+                 PLAT_LOG_LEVEL_TRACE,
                  "init mmap %s offset %llu len %llu paddr %llx",
                  path, (unsigned long long)offset, (unsigned long long)len,
                  (unsigned long long)paddr);
@@ -1780,7 +1780,7 @@ shmem_attach_segment_mmap(struct plat_shmem_attached_segment *attached_segment,
                 descriptor->type == SHMEM_TYPE_MMAP_DEV_PHYSMEM_VIRT);
 
     plat_log_msg(21029, PLAT_LOG_CAT_PLATFORM_SHMEM,
-                 PLAT_LOG_LEVEL_DEBUG,
+                 PLAT_LOG_LEVEL_TRACE,
                  "attach mmap %s offset %llu len %llu paddr %llx",
                  descriptor->specific.mmap.backing_name,
                  (unsigned long long)descriptor->specific.mmap.offset,

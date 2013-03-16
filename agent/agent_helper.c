@@ -97,7 +97,7 @@ static SDF_boolean_t SDFEnable_Replication = SDF_FALSE;
 #undef LOG_CAT
 #define LOG_ID PLAT_LOG_ID_INITIAL
 #define LOG_CAT PLAT_LOG_CAT_SDF_AGENT
-#define LOG_LEV PLAT_LOG_LEVEL_DEBUG
+#define LOG_LEV PLAT_LOG_LEVEL_TRACE
 
 void
 set_debug_flags()
@@ -313,34 +313,34 @@ init_action_home(struct sdf_agent_state *state)
     papi->max_flushes_in_progress = getProperty_uLongInt("SDF_MAX_OUTSTANDING_FLUSHES", 8);
     if (papi->max_flushes_in_progress == 0) {
         papi->max_flushes_in_progress = 8;
-	plat_log_msg(30603, PLAT_LOG_CAT_PRINT_ARGS, PLAT_LOG_LEVEL_INFO, 
+	plat_log_msg(30603, PLAT_LOG_CAT_PRINT_ARGS, PLAT_LOG_LEVEL_DEBUG, 
 		     "SDF_MAX_OUTSTANDING_FLUSHES must be non-zero; using default of %d", papi->max_flushes_in_progress);
     } else if (papi->max_flushes_in_progress > papi->nthreads) {
         papi->max_flushes_in_progress = papi->nthreads;
-	plat_log_msg(30604, PLAT_LOG_CAT_PRINT_ARGS, PLAT_LOG_LEVEL_INFO, 
+	plat_log_msg(30604, PLAT_LOG_CAT_PRINT_ARGS, PLAT_LOG_LEVEL_DEBUG, 
 		     "SDF_MAX_OUTSTANDING_FLUSHES must be less than or equal to the number of async put threads; setting to %d", papi->max_flushes_in_progress);
     } else {
-	plat_log_msg(30605, PLAT_LOG_CAT_PRINT_ARGS, PLAT_LOG_LEVEL_INFO, 
+	plat_log_msg(30605, PLAT_LOG_CAT_PRINT_ARGS, PLAT_LOG_LEVEL_DEBUG, 
 		     "SDF_MAX_OUTSTANDING_FLUSHES = %d", papi->max_flushes_in_progress);
     }
 
     papi->max_background_flushes_in_progress = getProperty_uLongInt("SDF_MAX_OUTSTANDING_BACKGROUND_FLUSHES", 8);
     if (papi->max_background_flushes_in_progress > papi->nthreads) {
         papi->max_background_flushes_in_progress = papi->nthreads;
-	plat_log_msg(30608, PLAT_LOG_CAT_PRINT_ARGS, PLAT_LOG_LEVEL_INFO, 
+	plat_log_msg(30608, PLAT_LOG_CAT_PRINT_ARGS, PLAT_LOG_LEVEL_DEBUG, 
 		     "SDF_MAX_OUTSTANDING_BACKGROUND_FLUSHES must be less than or equal to the number of async put threads; setting to %d", papi->max_background_flushes_in_progress);
     } else {
-	plat_log_msg(30609, PLAT_LOG_CAT_PRINT_ARGS, PLAT_LOG_LEVEL_INFO, 
+	plat_log_msg(30609, PLAT_LOG_CAT_PRINT_ARGS, PLAT_LOG_LEVEL_DEBUG, 
 		     "SDF_MAX_OUTSTANDING_BACKGROUND_FLUSHES = %d", papi->max_background_flushes_in_progress);
     }
 
     papi->background_flush_sleep_msec = getProperty_uLongInt("SDF_BACKGROUND_FLUSH_SLEEP_MSEC", 1000);
     if (papi->background_flush_sleep_msec < MIN_BACKGROUND_FLUSH_SLEEP_MSEC) {
         papi->background_flush_sleep_msec = MIN_BACKGROUND_FLUSH_SLEEP_MSEC;
-	plat_log_msg(30610, PLAT_LOG_CAT_PRINT_ARGS, PLAT_LOG_LEVEL_INFO, 
+	plat_log_msg(30610, PLAT_LOG_CAT_PRINT_ARGS, PLAT_LOG_LEVEL_DEBUG, 
 		     "SDF_BACKGROUND_FLUSH_SLEEP_MSEC must be >= %d; defaulting to minimum value", MIN_BACKGROUND_FLUSH_SLEEP_MSEC);
     } else {
-	plat_log_msg(30611, PLAT_LOG_CAT_PRINT_ARGS, PLAT_LOG_LEVEL_INFO, 
+	plat_log_msg(30611, PLAT_LOG_CAT_PRINT_ARGS, PLAT_LOG_LEVEL_DEBUG, 
 		     "SDF_BACKGROUND_FLUSH_SLEEP_MSEC = %d", papi->background_flush_sleep_msec);
     }
 
@@ -429,7 +429,7 @@ agent_config_set_properties(struct plat_opts_config_sdf_agent *config)
 	    success = 0;
 	} else {
 	    plat_log_msg(20840, PLAT_LOG_CAT_PRINT_ARGS, 
-			 PLAT_LOG_LEVEL_INFO, 
+			 PLAT_LOG_LEVEL_DEBUG, 
 			 "Version of property file: %"PRIu64"", SDFPropertyFileVersionFound);
 	}
     }
@@ -465,7 +465,7 @@ agent_config_set_properties(struct plat_opts_config_sdf_agent *config)
     }
 
     #ifdef SDFAPIONLY
-    if (1 == getProperty_Int("SDF_REFORMAT", 0)) {  	// Default to recover
+    if ( (1 == getProperty_Int("SDF_REFORMAT", 0)) || (1 == getProperty_Int("FDF_REFORMAT", 0))) {  	// Default to recover
         config->system_recovery = SYS_FLASH_REFORMAT;
     } else {
 	config->system_recovery = SYS_FLASH_RECOVERY;
@@ -529,7 +529,7 @@ agent_engine_pre_init_internal(struct sdf_agent_state *state,
     if (state->config.ffdc_disable == 0) {
         if (ffdc_initialize(0, BLD_VERSION, 
                             state->config.ffdc_buffer_len) == 0) {
-            plat_log_msg(21788, LOG_CAT, PLAT_LOG_LEVEL_INFO,
+            plat_log_msg(21788, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
                          "Initialized FFDC logging "
                          "(max buffers=%d, thread bufsize=0x%lx)", 
                          FFDC_MAX_BUFFERS, 
@@ -542,7 +542,7 @@ agent_engine_pre_init_internal(struct sdf_agent_state *state,
                          (long)state->config.ffdc_buffer_len);
         }
     } else {
-        plat_log_msg(10005, LOG_CAT, PLAT_LOG_LEVEL_INFO,
+        plat_log_msg(10005, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
                      "FFDC logging disabled");
     }
 
@@ -593,14 +593,14 @@ SDF_boolean_t agent_engine_pre_init(struct sdf_agent_state *state, int argc, cha
         success = plat_opts_parse_sdf_agent(&state->config, argc, argv) ?
             SDF_FALSE : SDF_TRUE;
         plat_log_msg(20849, LOG_CAT, 
-                     success ?  LOG_LEV : PLAT_LOG_LEVEL_INFO,
+                     success ?  LOG_LEV : PLAT_LOG_LEVEL_DEBUG,
                      "plat_opts_parse_sdf_agent SUCCESS = %u", success);
     }
 
     if (success) {
         success = agent_config_set_properties(&state->config);
         plat_log_msg(20850, LOG_CAT, 
-                     success ? LOG_LEV : PLAT_LOG_LEVEL_INFO,
+                     success ? LOG_LEV : PLAT_LOG_LEVEL_DEBUG,
                      "set properties SUCCESS = %u", success);
     }
 
@@ -698,7 +698,7 @@ SDF_boolean_t agent_engine_post_init(struct sdf_agent_state * state )
     if (success) {
         success = init_flash(state );
         plat_log_msg(20852, LOG_CAT, 
-                     success ?  LOG_LEV : PLAT_LOG_LEVEL_INFO,
+                     success ?  LOG_LEV : PLAT_LOG_LEVEL_DEBUG,
                      "init_flash  = %u", success);
     }
 
@@ -708,7 +708,7 @@ SDF_boolean_t agent_engine_post_init(struct sdf_agent_state * state )
     if (success) {
         success = init_action_home(state);
         plat_log_msg(20853, LOG_CAT, 
-                     success ?  LOG_LEV : PLAT_LOG_LEVEL_INFO,
+                     success ?  LOG_LEV : PLAT_LOG_LEVEL_DEBUG,
                      "init_action_home = %u", success);
     }
 
@@ -726,7 +726,7 @@ SDF_boolean_t agent_engine_post_init(struct sdf_agent_state * state )
 	     */
 	    success = ( 0 == success ) ? SDF_TRUE : SDF_FALSE;
 	    plat_log_msg(20854, LOG_CAT, 
-			 success ?  LOG_LEV : PLAT_LOG_LEVEL_INFO,
+			 success ?  LOG_LEV : PLAT_LOG_LEVEL_DEBUG,
 			 "home_flash_start = %u", success);
 	}
 
@@ -738,7 +738,7 @@ SDF_boolean_t agent_engine_post_init(struct sdf_agent_state * state )
 	    success = sdf_replicator_adapter_start(state->ReplicationInitState.adapter);
 	    success = ( 0 == success ) ? SDF_TRUE : SDF_FALSE;
 	    plat_log_msg(20855, LOG_CAT, 
-			 success ?  LOG_LEV : PLAT_LOG_LEVEL_INFO,
+			 success ?  LOG_LEV : PLAT_LOG_LEVEL_DEBUG,
 			 "sdf_replicator_adapter_start = %u", success);
 
 	    if (success) {
@@ -761,7 +761,7 @@ SDF_boolean_t agent_engine_post_init(struct sdf_agent_state * state )
 	 */
 	success = ( 0 == success ) ? SDF_TRUE : SDF_FALSE;
 	plat_log_msg(20856, LOG_CAT, 
-		     success ?  LOG_LEV : PLAT_LOG_LEVEL_INFO,
+		     success ?  LOG_LEV : PLAT_LOG_LEVEL_DEBUG,
 		     "async_puts_start = %u", success);
     }
 
@@ -774,7 +774,7 @@ SDF_boolean_t agent_engine_post_init(struct sdf_agent_state * state )
 	success = init_containers(state);
 	
 	plat_log_msg(20857, LOG_CAT, 
-		     success ?  LOG_LEV : PLAT_LOG_LEVEL_INFO,
+		     success ?  LOG_LEV : PLAT_LOG_LEVEL_DEBUG,
 		     "init_containers  = %u", success);
     }
 

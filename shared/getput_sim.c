@@ -92,7 +92,7 @@ get_object(struct shard *shard, SDF_key_t key, SDF_CACHE_OBJ *dest, SDF_size_t *
 
     if ((code = flashGet(shard, metaData, (char *)fkey, &data)) == 0) {
 
-        plat_log_msg(21588, PLAT_LOG_CAT_SDF_SHARED, PLAT_LOG_LEVEL_DEBUG,
+        plat_log_msg(21588, PLAT_LOG_CAT_SDF_SHARED, PLAT_LOG_LEVEL_TRACE,
                      "FAILURE: get_object - flashget");
 
     } else {
@@ -104,7 +104,7 @@ get_object(struct shard *shard, SDF_key_t key, SDF_CACHE_OBJ *dest, SDF_size_t *
         releaseLocalCacheObject(&lo, dataLen);
         *size = dataLen;
         status = SDF_SUCCESS;
-        plat_log_msg(21589, PLAT_LOG_CAT_SDF_SHARED, PLAT_LOG_LEVEL_DEBUG,
+        plat_log_msg(21589, PLAT_LOG_CAT_SDF_SHARED, PLAT_LOG_LEVEL_TRACE,
                      "SUCCESS: get_object - flashget");
     }
 
@@ -137,7 +137,7 @@ put_object(struct shard *shard, SDF_key_t key, void *pbuf, SDF_size_t size, SDF_
     if (pbuf != NULL && (data = plat_alloc(4+size)) == NULL) {
 
         status = SDF_FAILURE_MEMORY_ALLOC;
-        plat_log_msg(21590, PLAT_LOG_CAT_SDF_SHARED, PLAT_LOG_LEVEL_DEBUG,
+        plat_log_msg(21590, PLAT_LOG_CAT_SDF_SHARED, PLAT_LOG_LEVEL_TRACE,
                      "FAILURE: put_object - memory allocation");
 
     } else {
@@ -148,11 +148,11 @@ put_object(struct shard *shard, SDF_key_t key, void *pbuf, SDF_size_t size, SDF_
 
         if (!flashPut(shard, metaData, (char *)fkey, data)) {
             status = SDF_FAILURE_STORAGE_WRITE;
-            plat_log_msg(21591, PLAT_LOG_CAT_SDF_SHARED, PLAT_LOG_LEVEL_DEBUG,
+            plat_log_msg(21591, PLAT_LOG_CAT_SDF_SHARED, PLAT_LOG_LEVEL_TRACE,
                          "FAILURE: put_object - flashPut");
         } else {
             status = SDF_SUCCESS;
-            plat_log_msg(21592, PLAT_LOG_CAT_SDF_SHARED, PLAT_LOG_LEVEL_DEBUG,
+            plat_log_msg(21592, PLAT_LOG_CAT_SDF_SHARED, PLAT_LOG_LEVEL_TRACE,
                          "SUCCESS: put_object - flashPut");
         }
 
@@ -186,14 +186,14 @@ get_block(SDF_CONTAINER c, struct shard *shard, SDF_key_t key, SDF_CACHE_OBJ *de
     if (blockSize != flashBlockRead(dev, (void *) lo, blockNum, blockSize)) {
 
         status = SDF_FAILURE_STORAGE_READ;
-        plat_log_msg(21593, PLAT_LOG_CAT_SDF_SHARED, PLAT_LOG_LEVEL_DEBUG,
+        plat_log_msg(21593, PLAT_LOG_CAT_SDF_SHARED, PLAT_LOG_LEVEL_TRACE,
                      "FAILURE: get_block - flashBlockRead");
 
     } else {
         *size = blockSize;
         status = SDF_SUCCESS;
         plat_log_msg(21594, PLAT_LOG_CAT_SDF_SHARED,
-                     PLAT_LOG_LEVEL_DEBUG, "SUCCESS: get_block - flashBlockRead");
+                     PLAT_LOG_LEVEL_TRACE, "SUCCESS: get_block - flashBlockRead");
     }
     releaseLocalCacheObject(&lo, blockSize);
     return (status);
@@ -224,13 +224,13 @@ put_block(SDF_CONTAINER c, struct shard *shard, SDF_key_t key, void *pbuf, SDF_s
 
         status = SDF_FAILURE_STORAGE_WRITE;
         plat_log_msg(21595, PLAT_LOG_CAT_SDF_SHARED,
-                     PLAT_LOG_LEVEL_DEBUG, "FAILURE: put_block - flashBlockWrite");
+                     PLAT_LOG_LEVEL_TRACE, "FAILURE: put_block - flashBlockWrite");
 
     } else {
 
         status = SDF_SUCCESS;
         plat_log_msg(21596, PLAT_LOG_CAT_SDF_SHARED,
-                     PLAT_LOG_LEVEL_DEBUG, "SUCCESS: put_block - flashBlockWrite");
+                     PLAT_LOG_LEVEL_TRACE, "SUCCESS: put_block - flashBlockWrite");
 
     }
 
@@ -267,7 +267,7 @@ object_exists(SDF_internal_ctxt_t *pai, SDF_CONTAINER c, SDF_key_t key) {
             if ((shard = get_shard(pai, lc)) == NULL) {
 
                 exists = SDF_FALSE;
-                plat_log_msg(21597, PLAT_LOG_CAT_SDF_SHARED, PLAT_LOG_LEVEL_DEBUG,
+                plat_log_msg(21597, PLAT_LOG_CAT_SDF_SHARED, PLAT_LOG_LEVEL_TRACE,
                              "FAILURE: object_exists - failed to get shard");
 
             } else {
@@ -301,13 +301,13 @@ put(SDF_internal_ctxt_t *pai, SDF_CONTAINER c, SDF_key_t key, void *pbuf, SDF_si
 
         status = SDF_INVALID_PARAMETER;
         plat_log_msg(21598, PLAT_LOG_CAT_SDF_SHARED,
-                     PLAT_LOG_LEVEL_DEBUG, "FAILURE: put - invalid parm");
+                     PLAT_LOG_LEVEL_TRACE, "FAILURE: put - invalid parm");
 
     } else if ((shard = get_shard(pai, lc)) == NULL) {
 
         status = SDF_SHARD_NOT_FOUND;
         plat_log_msg(21599, PLAT_LOG_CAT_SDF_SHARED,
-                     PLAT_LOG_LEVEL_DEBUG, "FAILURE: put - could not find shard");
+                     PLAT_LOG_LEVEL_TRACE, "FAILURE: put - could not find shard");
 
     } else {
 
@@ -350,13 +350,13 @@ get(SDF_internal_ctxt_t *pai, SDF_CONTAINER c, SDF_key_t key, SDF_CACHE_OBJ *des
 
         status = SDF_INVALID_PARAMETER;
         plat_log_msg(21601, PLAT_LOG_CAT_SDF_SHARED,
-                     PLAT_LOG_LEVEL_DEBUG, "FAILURE: SDFGet - invalid parm");
+                     PLAT_LOG_LEVEL_TRACE, "FAILURE: SDFGet - invalid parm");
 
     } else if ((shard = get_shard(pai, lc)) == NULL) {
 
         status = SDF_SHARD_NOT_FOUND;
         plat_log_msg(21602, PLAT_LOG_CAT_SDF_SHARED,
-                     PLAT_LOG_LEVEL_DEBUG, "FAILURE: SDFGet - could not find shard");
+                     PLAT_LOG_LEVEL_TRACE, "FAILURE: SDFGet - could not find shard");
 
     } else {
 
@@ -416,13 +416,13 @@ delete(SDF_internal_ctxt_t *pai, SDF_CONTAINER c, SDF_key_t key, SDF_size_t size
 
         status = SDF_INVALID_PARAMETER;
         plat_log_msg(21598, PLAT_LOG_CAT_SDF_SHARED,
-                     PLAT_LOG_LEVEL_DEBUG, "FAILURE: put - invalid parm");
+                     PLAT_LOG_LEVEL_TRACE, "FAILURE: put - invalid parm");
 
     } else if ((shard = get_shard(pai, lc)) == NULL) {
 
         status = SDF_SHARD_NOT_FOUND;
         plat_log_msg(21599, PLAT_LOG_CAT_SDF_SHARED,
-                     PLAT_LOG_LEVEL_DEBUG, "FAILURE: put - could not find shard");
+                     PLAT_LOG_LEVEL_TRACE, "FAILURE: put - could not find shard");
 
     } else {
 

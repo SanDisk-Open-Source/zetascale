@@ -81,7 +81,7 @@ static msg_init_t *
 init_new_msg(msg_init_t *initmsg) {
 /* Test the new message init call*/
 
-    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_INFO,
+    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
                  "\nNEW_MSG_INIT... reg interrupt \n");
 
     /* register signal process function */
@@ -95,7 +95,7 @@ init_new_msg(msg_init_t *initmsg) {
 
     int ret = gethostname(initmsg->name, sizeof(mynname));
 
-    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_INFO,
+    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
                  "\nNEW_MSG_INIT... starting on %s\n", initmsg->name);
 
 //    initmsg->ifaces = NULL;
@@ -105,7 +105,7 @@ init_new_msg(msg_init_t *initmsg) {
 
     /* initiate msg system */
     msg_init(initmsg);
-    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_INFO,
+    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
                  "\nNEW_MSG_INIT... initmsg %p ret %d name %s ifaces %s debug %d\n",
                  initmsg, ret, initmsg->name, initmsg->ifaces, initmsg->debug);
     return(initmsg);
@@ -119,7 +119,7 @@ fthPthreadRoutine(void *arg)
     /* use the std tstconfig struct from now on */
     struct plat_opts_config_mpilogme *tstconfig = (struct plat_opts_config_mpilogme *)arg;
 
-    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG, 
+    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE, 
                  "\nNode %d FTH threads firing up\n", tstconfig->myid);
 
     // Start a thread
@@ -129,16 +129,16 @@ fthPthreadRoutine(void *arg)
     }
     else {
         fthResume(fthSpawn(&fthThreadRoutine1, MSGTST_FTHSTKSZE), 1);
-        plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_INFO,
+        plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
                      "\nNode %d Finished Creation and Spawned #1 with %d\n", tstconfig->myid, MSGTST_FTHSTKSZE);
         fthResume(fthSpawn(&fthThreadRoutine2, MSGTST_FTHSTKSZE), 2); // Start a thread
-        plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_INFO,
+        plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
                      "\nNode %d Finished Creation and Spawned #2 with %d\n", tstconfig->myid, MSGTST_FTHSTKSZE);
         fthResume(fthSpawn(&fthThreadRoutine, MSGTST_FTHSTKSZE), (uint64_t)tstconfig->msgtstnum);
-        plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_INFO,
+        plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
                      "\nNode %d Finished Creation and Spawned #3 with %d\n", tstconfig->myid, MSGTST_FTHSTKSZE);
     }
-    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_INFO,
+    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
                  "\nNode %d Finished Creation and Spawned -- Now starting sched\n", tstconfig->myid);
 
     fthSchedulerPthread(0);
@@ -170,7 +170,7 @@ main(int argc, char *argv[]) {
      * and you can hardcode your favorite here to your local path if you choose */
 #if LOCAL_PROPS
     char *lp = "/export/sdf_dev/schooner-trunk/trunk/config/schooner-med.properties";
-    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_INFO,
+    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
                  "\nUsing Local Prop file %s", lp);
     loadProperties("/export/sdf_dev/schooner-trunk/trunk/config/schooner-med.properties");
 #else
@@ -181,7 +181,7 @@ main(int argc, char *argv[]) {
     msgtst_setpreflags(tstconfig);
 
     /* Check to see if a command line option for msg_mpi has been set if not its SDF_MSG_NO_MPI_INIT */
-    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_INFO,
+    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
                  "\ninput arg nnum %d msg_mpi %d msgnum %d msg_init_flags 0x%x propfile %s success %d\n",
                  config.nnum, config.sdf_msg_init_state, config.msgtstnum, tstconfig->msg_init_flags,
                  config.propertyFileName, success);
@@ -194,7 +194,7 @@ main(int argc, char *argv[]) {
     msg_init_flags =  msg_init_flags | SDF_MSG_SINGLE_NODE_MSG;
     msg_init_flags =  msg_init_flags | SDF_MSG_NEW_MSG;
 
-    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_INFO,
+    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
                  "\nWARNING RUNNING NEW_MSG No MPI msg_init_flags 0x%x\n", msg_init_flags);
 
     /* NEW_MSG call to init the socket based messaging */
@@ -213,7 +213,7 @@ main(int argc, char *argv[]) {
 
     msgtst_setpostflags(tstconfig);
 
-    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_INFO,
+    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
                  "\nNode %d: num requested msgs %d with numprocs %d flags 0x%x\n", myid,
                  msgCount, numprocs, tstconfig->msg_init_flags);
 
@@ -235,14 +235,14 @@ main(int argc, char *argv[]) {
      */
     lock_processor(0, tstconfig->cores);
 
-    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_INFO,
+    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
                  "\nNode %d: with numprocs %d msg start %d\n", myid, numprocs, tstconfig->startMessagingThreads);
 
     msg_init_flags =  msg_init_flags | SDF_MSG_RTF_DISABLE_MNGMT;
 
     sdf_msg_init(myid, &pnodeid, msg_init_flags);
 
-    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_INFO,
+    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
                  "\nNode %d: msg_init_flags = 0x%x\n", myid, msg_init_flags);
 
     if (tstconfig->msg_init_flags & SDF_MSG_MPI_INIT) {
@@ -253,7 +253,7 @@ main(int argc, char *argv[]) {
                      "\nNode %d: %s MPI Version: %d.%d Name %s \n", 
                      myid, __func__, mpiv, mpisubv, processor_name);
 
-        plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+        plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                      "\nNode %d: Completed Msg Init procs %d active nodes 0x%x Starting Test\n", 
                      myid, numprocs, pnodeid);
     }
@@ -286,13 +286,13 @@ main(int argc, char *argv[]) {
     int stat = pthread_attr_getstacksize (&attr, &stack_size);
     pthread_create(&fthPthread, &attr, &fthPthreadRoutine, tstconfig);
 
-    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_INFO,
+    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
                  "\nNode %d: Created pthread for FTH %d with stacksize %lu stat %d\n", myid, 
                  msgCount, stack_size, stat);
 
     pthread_join(fthPthread, NULL);
 
-    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_INFO,
+    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
                  "\nNode %d: SDF Messaging Test Complete, start shutdown msgCount %d\n", myid, msgCount);
 
     /* Lets stop the messaging engine this will block until they complete */

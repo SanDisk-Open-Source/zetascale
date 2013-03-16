@@ -158,7 +158,7 @@ static void fthThreadSender(uint64_t arg) {
     if (myid == 1) {
         debug = 0;
         if (debug) {
-            plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+            plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                     "\nNode %d: DEBUG --- NOT SENDING MESSAGES FROM HERE", myid);
             while (debug)
                 fthYield(100); /* Don't send mesages from node one for now */
@@ -211,7 +211,7 @@ static void fthThreadSender(uint64_t arg) {
             ret = sdf_msg_send((struct sdf_msg *) send_msg, TSZE, node,
                     protocol, myid, my_protocol, type, &fthmbx, NULL);
 	}
-        plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+        plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                      "\nNode %d: Msg %d Posted ret %d proto %d type %d loop %d\n",
                      myid, l, ret, protocol, type, l);
     }
@@ -219,7 +219,7 @@ static void fthThreadSender(uint64_t arg) {
 
     /* at the end here we just do a simple test to fail a post, should print the error message
      * and we just exit this test */
-    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                  "\nNode %d: SEND QUEUE TEST - Posting to a non existent queue ds %d loop %d\n",
                  myid, SDF_METADATA, l);
     my_protocol = SDF_METADATA; /* set a bogus protocol that has no associated queue */
@@ -233,7 +233,7 @@ static void fthThreadSender(uint64_t arg) {
                             protocol, myid, my_protocol, type, &fthmbx, NULL);
 	}
 
-    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                  "\nNode %d: Done with SEND QUEUE TEST complete total msgs posted %d\n",
                      myid, l);
     mysync++;
@@ -249,7 +249,7 @@ void * SendQueuePthreadRoutine(void *arg) {
 
     fthInit(); // Init a scheduler
 
-    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
             "\nNode %d FTH scheduler has initialized\n", myid);
 
     // Start a thread
@@ -258,7 +258,7 @@ void * SendQueuePthreadRoutine(void *arg) {
 
     fthSchedulerPthread(0);
 
-    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
             "\nFTH scheduler halted\n");
 
     return (0);

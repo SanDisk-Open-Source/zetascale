@@ -1118,7 +1118,7 @@ static void load_line_map(FILE *fgdbout, LOCKANALYZER *pla)
 		2339            pthread_join( fth_pthreads[i], NULL );
 		2340        }
 		2341
-		2342        mcd_log_msg(20165, PLAT_LOG_LEVEL_INFO, "schedulers terminated" );
+		2342        mcd_log_msg(20165, PLAT_LOG_LEVEL_DEBUG, "schedulers terminated" );
 
 		/**********************************************************/
 		#endif

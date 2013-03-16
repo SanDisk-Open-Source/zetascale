@@ -105,15 +105,15 @@ typedef struct {
                   __VA_ARGS__ )
 
 #ifdef  MCD_REC_DEBUGGING
-#  define MCD_REC_LOG_LVL_DIAG  PLAT_LOG_LEVEL_INFO
-#  define MCD_REC_LOG_LVL_DEBUG PLAT_LOG_LEVEL_INFO
-#  define MCD_REC_LOG_LVL_TRACE PLAT_LOG_LEVEL_DIAGNOSTIC
+#  define MCD_REC_LOG_LVL_DIAG  PLAT_LOG_LEVEL_DEBUG
+#  define MCD_REC_LOG_LVL_DEBUG PLAT_LOG_LEVEL_DEBUG
+#  define MCD_REC_LOG_LVL_TRACE PLAT_LOG_LEVEL_TRACE
 #  define MCD_REC_LOG_LVL_DEVEL PLAT_LOG_LEVEL_DEBUG
 #else
 #  define MCD_REC_LOG_LVL_DIAG  PLAT_LOG_LEVEL_DIAGNOSTIC
 #  define MCD_REC_LOG_LVL_DEBUG PLAT_LOG_LEVEL_DEBUG
 #  define MCD_REC_LOG_LVL_TRACE PLAT_LOG_LEVEL_TRACE
-#  define MCD_REC_LOG_LVL_DEVEL PLAT_LOG_LEVEL_DEVEL
+#  define MCD_REC_LOG_LVL_DEVEL PLAT_LOG_LEVEL_DEBUG
 #endif
 
 // max number of shards used for formatting purposes
@@ -263,7 +263,7 @@ container_meta_blob_put( uint64_t shard_id, char * data, int len )
     char                      * buf;
     mcd_rec_blob_t            * blob;
 
-    mcd_log_msg( 20065, PLAT_LOG_LEVEL_DEBUG,
+    mcd_log_msg( 20065, PLAT_LOG_LEVEL_TRACE,
                  "ENTERING, shardID=%lu", shard_id );
 
     // make buffer aligned
@@ -385,7 +385,7 @@ container_meta_blob_get( char * blobs[], int num_slots )
     mcd_rec_flash_t           * fd = sb->flash_desc;
     char                      * source[ MCD_AIO_MAX_NFILES ];
 
-    mcd_log_msg( 20435, PLAT_LOG_LEVEL_DEBUG,
+    mcd_log_msg( 20435, PLAT_LOG_LEVEL_TRACE,
                  "ENTERING, slots=%d", num_slots );
 
     // calculate buffer size to hold aligned 1-block buffers
@@ -989,7 +989,7 @@ validate_superblock_data( char * dest, int good_count, int good_copy[],
     }
 
     // put out a message
-    log_level = PLAT_LOG_LEVEL_INFO;
+    log_level = PLAT_LOG_LEVEL_DEBUG;
     if ( copy_count == 0 ) {
         log_level = PLAT_LOG_LEVEL_FATAL;
     } else if ( copy_count < Mcd_rec_sb_data_copies ) {
@@ -1011,7 +1011,7 @@ validate_superblock_data( char * dest, int good_count, int good_copy[],
 
     // try to "fix" (re-write) any bad copies
     if ( copy_count < Mcd_rec_sb_data_copies ) {
-        mcd_log_msg( 20445, PLAT_LOG_LEVEL_INFO,
+        mcd_log_msg( 20445, PLAT_LOG_LEVEL_DEBUG,
                      "attempting to fix %d of %d bad/mismatched copies",
                      Mcd_rec_sb_data_copies - copy_count,
                      Mcd_rec_sb_data_copies );
@@ -1046,7 +1046,7 @@ validate_superblock_data( char * dest, int good_count, int good_copy[],
                 }
             }
             if ( rc == FLASH_EOK ) {
-                mcd_log_msg( 20448, PLAT_LOG_LEVEL_INFO,
+                mcd_log_msg( 20448, PLAT_LOG_LEVEL_DEBUG,
                              "successfully re-wrote superblock data, "
                              "offset=%lu, count=%d, copy=%d",
                              blk_offset, blk_count, ssd );
@@ -1095,7 +1095,7 @@ recovery_init( void )
     char                      * source[ MCD_AIO_MAX_NFILES ];
     fthWaitEl_t               * wait;
 
-    mcd_log_msg( 20000, PLAT_LOG_LEVEL_DEBUG, "ENTERING" );
+    mcd_log_msg( 20000, PLAT_LOG_LEVEL_TRACE, "ENTERING" );
 
     // initialize
     do_aio_init( 1 );
@@ -1245,7 +1245,7 @@ recovery_init( void )
         fd->checksum = hashb((unsigned char *)fd,
                              Mcd_osd_blk_size,
                              MCD_REC_FLASH_EYE_CATCHER);
-        mcd_log_msg( 40009, PLAT_LOG_LEVEL_INFO,
+        mcd_log_msg( 40009, PLAT_LOG_LEVEL_DEBUG,
                      "updating superblock, offset=%lu",
                      fd->blk_offset );
 
@@ -1437,7 +1437,7 @@ recovery_init( void )
                 prop->checksum = hashb((unsigned char *)prop,
                                        blk_count * Mcd_osd_blk_size,
                                        MCD_REC_PROP_EYE_CATCHER);
-                mcd_log_msg( 160013, PLAT_LOG_LEVEL_INFO,
+                mcd_log_msg( 160013, PLAT_LOG_LEVEL_DEBUG,
                              "updating properties, offset=%lu, slot=%lu",
                              blk_offset, s );
 
@@ -1633,7 +1633,7 @@ recovery_init( void )
         }
         plat_assert_always( i < MCD_OSD_MAX_NUM_SHARDS );
 
-        mcd_log_msg( 20465, PLAT_LOG_LEVEL_INFO,
+        mcd_log_msg( 20465, PLAT_LOG_LEVEL_DEBUG,
                      "found persistent shard, id=%lu, blk_offset=%lu, "
                      "md_blks=%lu, table_blks=%lu, pad=%lu, log_blks=%lu, "
                      "pad=%lu (%lu entries)",
@@ -1720,7 +1720,7 @@ recovery_init( void )
         // xxxzzz
         memset( data_buf, 0, seg_buf_size );
         Mcd_rec_log_segments_anchor = data_buf;
-        mcd_log_msg( 40062, PLAT_LOG_LEVEL_INFO,
+        mcd_log_msg( 40062, PLAT_LOG_LEVEL_DEBUG,
                      "allocated %lu byte buffer for %lu log segments",
                      seg_buf_size, seg_count );
 
@@ -1757,7 +1757,7 @@ recovery_init( void )
             return FLASH_ENOMEM;
         }
         Mcd_rec_upd_segments_anchor = data_buf;
-        mcd_log_msg( 40095, PLAT_LOG_LEVEL_INFO,
+        mcd_log_msg( 40095, PLAT_LOG_LEVEL_DEBUG,
                      "allocated %lu byte buffer for %lu update segments",
                      seg_buf_size, seg_count );
 
@@ -1807,7 +1807,7 @@ recovery_reclaim_space( void )
     fthWaitEl_t               * wait;
     int                         open_shards[ MCD_OSD_MAX_NUM_SHARDS ];
 
-    mcd_log_msg( 20000, PLAT_LOG_LEVEL_DEBUG, "ENTERING" );
+    mcd_log_msg( 20000, PLAT_LOG_LEVEL_TRACE, "ENTERING" );
 
     memset( open_shards, 0, sizeof( int ) * MCD_OSD_MAX_NUM_SHARDS );
 
@@ -1907,7 +1907,7 @@ recovery_reclaim_space( void )
              sb->props[ slot ]->shard_id != 0 ) {
 
             prop = sb->props[ slot ];
-            mcd_log_msg( 20468, PLAT_LOG_LEVEL_INFO,
+            mcd_log_msg( 20468, PLAT_LOG_LEVEL_DEBUG,
                          "removing %s shard, shardID=%lu "
                          "name=%s, tcpport=%d, id=%d "
                          "(not in current configuration)",
@@ -2235,7 +2235,7 @@ tombstone_init( mcd_osd_shard_t * shard )
 {
     int                         ts_max;
 
-    mcd_rlg_msg( 20000, PLAT_LOG_LEVEL_DEBUG, "ENTERING" );
+    mcd_rlg_msg( 20000, PLAT_LOG_LEVEL_TRACE, "ENTERING" );
 
     // FIXME: pick a size for the in-memory tombstone list.
     // This list is used to dealloc flash space after tombstones
@@ -2291,7 +2291,7 @@ tombstone_add( mcd_osd_shard_t * shard, uint16_t syndrome,
 {
     mcd_rec_tombstone_t       * ts;
 
-    mcd_rlg_msg( 20000, PLAT_LOG_LEVEL_DEBUG, "ENTERING" );
+    mcd_rlg_msg( 20000, PLAT_LOG_LEVEL_TRACE, "ENTERING" );
 
     // Note: no locking is needed since this is called by a single thread:
     // during recovery it is called by the updater thread; during normal
@@ -2349,7 +2349,7 @@ tombstone_prune( mcd_osd_shard_t * shard )
     mcd_rec_tombstone_t       * del_ts;
     uint64_t                    lcss = tombstone_get_lcss( shard );
 
-    mcd_rlg_msg( 20000, PLAT_LOG_LEVEL_DEBUG, "ENTERING" );
+    mcd_rlg_msg( 20000, PLAT_LOG_LEVEL_TRACE, "ENTERING" );
 
     // Note: no locking is needed since this is called by a single thread:
     // during recovery it is called by the updater thread; during normal
@@ -2535,7 +2535,7 @@ flog_patchup(mcd_osd_shard_t *shard, void *context, FILE *fp)
     } while (0);
 
     if (patched) {
-        mcd_log_msg(70107, PLAT_LOG_LEVEL_INFO,
+        mcd_log_msg(70107, PLAT_LOG_LEVEL_DEBUG,
                     "Flush log sync: patched %d log records for shard %lu",
                     patched, shard->id);
     }
@@ -2605,12 +2605,12 @@ flog_prepare(mcd_osd_shard_t *shard)
 
     snprintf(path, sizeof(path), "%s/%s%lu",
              log_flush_dir, FLUSH_LOG_PREFIX, shard->id);
-    mcd_log_msg(70080, PLAT_LOG_LEVEL_INFO, "Flushing logs to %s", path);
+    mcd_log_msg(70080, PLAT_LOG_LEVEL_DEBUG, "Flushing logs to %s", path);
 
     int flags = O_CREAT|O_TRUNC|O_WRONLY;
     if(getProperty_Int("FDF_LOG_O_DIRECT", 0)) {
         flags |= O_DIRECT;
-        mcd_log_msg(180019, PLAT_LOG_LEVEL_INFO,
+        mcd_log_msg(180019, PLAT_LOG_LEVEL_DEBUG,
                     "FDF_LOG_O_DIRECT is set");
     }
 
@@ -2665,7 +2665,7 @@ flog_clean(uint64_t shard_id)
 	else
         snprintf(path, sizeof(path), "%s/%s%lu",
              log_flush_dir, FLUSH_LOG_PREFIX, shard_id);
-    mcd_log_msg(180000, PLAT_LOG_LEVEL_INFO, "Removing log file %s", path);
+    mcd_log_msg(180000, PLAT_LOG_LEVEL_DEBUG, "Removing log file %s", path);
 
     if(unlink(path) == -1 && errno != ENOENT)
     {
@@ -2723,7 +2723,7 @@ shard_recover( mcd_osd_shard_t * shard )
     // in the first segment of the shard. There should be no danger of
     // I/O's crossing segment boundaries.
 
-    mcd_log_msg( 20478, PLAT_LOG_LEVEL_INFO,
+    mcd_log_msg( 20478, PLAT_LOG_LEVEL_DEBUG,
                  "Recovering persistent shard, id=%lu, blk_offset=%lu, "
                  "md_blks=%lu, table_blks=%lu, pad=%lu, log_blks=%lu, "
                  "pad=%lu (%lu entries)",
@@ -2973,7 +2973,7 @@ shard_recover_phase2( mcd_osd_shard_t * shard )
     // the persistent log(s) and udpating the object table. To start
     // this off, it reads the first page of each persistent log.
 
-    mcd_log_msg( 20486, MCD_REC_LOG_LVL_DEBUG,
+    mcd_log_msg( 20486, MCD_REC_LOG_LVL_TRACE,
                  "Recovering persistent shard, id=%lu", shard->id );
 
     // -----------------------------------------------------
@@ -3033,7 +3033,7 @@ shard_recover_phase2( mcd_osd_shard_t * shard )
     // high sequence number recovered, now add "safe" value to it
     shard->sequence += (MCD_REC_LOGBUF_RECS * MCD_REC_NUM_LOGBUFS);
 
-    mcd_log_msg( 20490, PLAT_LOG_LEVEL_INFO,
+    mcd_log_msg( 20490, PLAT_LOG_LEVEL_DEBUG,
                  "Recovered persistent shard, id=%lu, objects=%lu, seqno=%lu, "
                  "cas_id=%lu, bytes allocated=%lu", shard->id, recovered_objs,
                  shard->sequence, shard->cntr->cas_id, shard->ps_alloc );
@@ -3084,7 +3084,7 @@ shard_set_properties( mcd_osd_shard_t * shard, mcd_container_t * cntr )
     mcd_rec_properties_t      * prop;
     mcd_rec_superblock_t      * sb = &Mcd_rec_superblock;
 
-    mcd_log_msg( 20065, PLAT_LOG_LEVEL_DEBUG,
+    mcd_log_msg( 20065, PLAT_LOG_LEVEL_TRACE,
                  "ENTERING, shardID=%lu", shard->id );
 
     // find which slot holds the properties for this shard
@@ -3105,7 +3105,7 @@ shard_set_properties( mcd_osd_shard_t * shard, mcd_container_t * cntr )
     prop->checksum = hashb((unsigned char *)prop,
                            Mcd_osd_blk_size, MCD_REC_PROP_EYE_CATCHER);
 
-    mcd_log_msg( 20491, PLAT_LOG_LEVEL_DEBUG,
+    mcd_log_msg( 20491, PLAT_LOG_LEVEL_TRACE,
                  "writing properties for shardID=%lu, slot=%d",
                  shard->id, slot );
 
@@ -3130,7 +3130,7 @@ shard_get_properties( int slot, mcd_container_t * cntr )
     mcd_rec_superblock_t      * sb = &Mcd_rec_superblock;
     mcd_rec_properties_t      * prop = sb->props[ slot ];
 
-    mcd_log_msg( 20065, PLAT_LOG_LEVEL_DEBUG, "ENTERING, shardID=%lu",
+    mcd_log_msg( 20065, PLAT_LOG_LEVEL_TRACE, "ENTERING, shardID=%lu",
                  prop->shard_id );
 
     // fill in container properties
@@ -3170,7 +3170,7 @@ shard_set_state( mcd_osd_shard_t * shard, int new_state )
     mcd_rec_properties_t      * prop;
     mcd_rec_superblock_t      * sb = &Mcd_rec_superblock;
 
-    mcd_log_msg( 20065, PLAT_LOG_LEVEL_DEBUG,
+    mcd_log_msg( 20065, PLAT_LOG_LEVEL_TRACE,
                  "ENTERING, shardID=%lu", shard->id );
 
     // find which slot holds the properties for this shard
@@ -3189,7 +3189,7 @@ shard_set_state( mcd_osd_shard_t * shard, int new_state )
     prop->checksum = hashb((unsigned char *)prop,
                            Mcd_osd_blk_size, MCD_REC_PROP_EYE_CATCHER);
 
-    mcd_log_msg( 20493, PLAT_LOG_LEVEL_INFO,
+    mcd_log_msg( 20493, PLAT_LOG_LEVEL_DEBUG,
                  "persisting new state '%s' for shardID=%lu, slot=%d",
                  (new_state == cntr_running ? "running" :
                   (new_state == cntr_stopping ? "stopping" : "stopped")),
@@ -3215,11 +3215,11 @@ shard_unrecover( mcd_osd_shard_t * shard )
 {
     mcd_rec_log_t             * log = shard->log;
 
-    mcd_log_msg( 20065, PLAT_LOG_LEVEL_DEBUG, "ENTERING, shardID=%lu",
+    mcd_log_msg( 20065, PLAT_LOG_LEVEL_TRACE, "ENTERING, shardID=%lu",
                  shard->id );
 
     if ( !shard->pshard ) {
-        mcd_log_msg( 20494, PLAT_LOG_LEVEL_DEBUG,
+        mcd_log_msg( 20494, PLAT_LOG_LEVEL_TRACE,
                      "no pshard for shard shardID=%lu", shard->id );
         return;
     }
@@ -3274,7 +3274,7 @@ shard_unrecover( mcd_osd_shard_t * shard )
                 Mcd_rec_free_log_segments[ Mcd_rec_free_log_seg_curr++ ] =
                     log->segments[ s ];
             }
-            mcd_log_msg( 160015, PLAT_LOG_LEVEL_INFO,
+            mcd_log_msg( 160015, PLAT_LOG_LEVEL_DEBUG,
                          "deallocated %d log segments from shardID=%lu, "
                          "remaining=%lu",
                          log->segment_count, shard->id,
@@ -3325,7 +3325,7 @@ shard_unrecover( mcd_osd_shard_t * shard )
     shard->pshard = NULL;
     shard->ps_alloc -= sizeof( mcd_rec_shard_t );
 
-    mcd_log_msg( 20495, PLAT_LOG_LEVEL_INFO,
+    mcd_log_msg( 20495, PLAT_LOG_LEVEL_DEBUG,
                  "pshard deleted, allocated=%lu", shard->ps_alloc );
 #endif
     return;
@@ -3352,7 +3352,7 @@ dump_hash_bucket( void * context, mcd_osd_shard_t * shard,
                     Mcd_osd_blk_mask );
 
     // show what we know of the offending table entry
-    mcd_dbg_msg( PLAT_LOG_LEVEL_INFO,
+    mcd_dbg_msg( PLAT_LOG_LEVEL_DEBUG,
                  "table_obj: syn=%u, ts=%u, del=%u, blocks=%u, "
                  "bucket=%u, seqno=%lu, boff=%lu, ooff=%lu",
                  obj->syndrome, obj->tombstone, obj->deleted,
@@ -3375,7 +3375,7 @@ dump_hash_bucket( void * context, mcd_osd_shard_t * shard,
     meta = (mcd_osd_meta_t *)buf;
     key  = (char *)(buf + sizeof( mcd_osd_meta_t ));
     syn  = hashck((unsigned char *)key, meta->key_len, 0, meta->cguid);
-    mcd_dbg_msg( PLAT_LOG_LEVEL_INFO,
+    mcd_dbg_msg( PLAT_LOG_LEVEL_DEBUG,
                  "disk_object: magic=0x%X, vers=%u, key_len=%u, "
                  "data_len=%d, b1chk=%u, ctime=%u, etime=%u, "
                  "seqno=%lu, chksum=%lu, syn=%lu, ssyn=%u",
@@ -3385,13 +3385,13 @@ dump_hash_bucket( void * context, mcd_osd_shard_t * shard,
                  syn, (uint16_t)(syn >> 48) );
 
     // show all the accessible hash entries and disk objects
-    mcd_dbg_msg( PLAT_LOG_LEVEL_INFO,
+    mcd_dbg_msg( PLAT_LOG_LEVEL_DEBUG,
                  ">>>> hash entries <<<< bucket_size=%lu, next_item=%d, ",
                  Mcd_osd_bucket_size, bucket->next_item );
 
     hash_entry = bucket_head;
     for ( i = 0; i < bucket->next_item; i++, hash_entry++ ) {
-        mcd_dbg_msg( PLAT_LOG_LEVEL_INFO,
+        mcd_dbg_msg( PLAT_LOG_LEVEL_DEBUG,
                      "hash_entry[%d]: used=%d, ref=%u, del=%u, "
                      "blocks=%u, syn=%u, addr=%u",
                      i, hash_entry->used, hash_entry->referenced,
@@ -3416,7 +3416,7 @@ dump_hash_bucket( void * context, mcd_osd_shard_t * shard,
         meta = (mcd_osd_meta_t *)buf;
         key  = (char *)(buf + sizeof( mcd_osd_meta_t ));
         syn  = hashck((unsigned char *)key, meta->key_len, 0, meta->cguid);
-        mcd_dbg_msg( PLAT_LOG_LEVEL_INFO,
+        mcd_dbg_msg( PLAT_LOG_LEVEL_DEBUG,
                      "object[%d]: magic=0x%X, vers=%u, key_len=%u, "
                      "data_len=%d, b1chk=%u, ctime=%u, etime=%u, "
                      "seqno=%lu, chksum=%lu, syn=%lu, ssyn=%u",
@@ -3428,11 +3428,11 @@ dump_hash_bucket( void * context, mcd_osd_shard_t * shard,
 
     // show all the inaccessible hash entries (if any) and disk objects
     if ( i < Mcd_osd_bucket_size ) {
-        mcd_dbg_msg( PLAT_LOG_LEVEL_INFO,
+        mcd_dbg_msg( PLAT_LOG_LEVEL_DEBUG,
                      ">>>> hash entries that are not accessible <<<<" );
     }
     for ( /* */; i < Mcd_osd_bucket_size; i++, hash_entry++ ) {
-        mcd_dbg_msg( PLAT_LOG_LEVEL_INFO,
+        mcd_dbg_msg( PLAT_LOG_LEVEL_DEBUG,
                      "hash_entry_NA[%d]: used=%d, ref=%d, del=%d, "
                      "blocks=%d, syn=%u, addr=%u",
                      i, hash_entry->used, hash_entry->referenced,
@@ -3457,7 +3457,7 @@ dump_hash_bucket( void * context, mcd_osd_shard_t * shard,
         meta = (mcd_osd_meta_t *)buf;
         key  = (char *)(buf + sizeof( mcd_osd_meta_t ));
         syn  = hashck((unsigned char *)key, meta->key_len, 0, meta->cguid);
-        mcd_dbg_msg( PLAT_LOG_LEVEL_INFO,
+        mcd_dbg_msg( PLAT_LOG_LEVEL_DEBUG,
                      "object_NA[%d]: magic=0x%X, vers=%u, key_len=%u, "
                      "data_len=%d, b1chk=%u, ctime=%u, etime=%u, "
                      "seqno=%lu, chksum=%lu, syn=%lu, ssyn=%u",
@@ -3486,7 +3486,7 @@ update_hash_table( void * context, mcd_osd_shard_t * shard,
     mcd_osd_segment_t         * segment;
     mcd_osd_slab_class_t      * class;
 
-    mcd_log_msg( 20000, PLAT_LOG_LEVEL_DEBUG, "ENTERING" );
+    mcd_log_msg( 20000, PLAT_LOG_LEVEL_TRACE, "ENTERING" );
 
 #ifdef MCD_ENABLE_TOMBSTONES
     // lcss may have advanced, try to prune old tombstones
@@ -3918,7 +3918,7 @@ read_log_segment( void * context, int segment, mcd_osd_shard_t * shard,
                 ? log_state->num_blks - log_state->start_blk
                 : Mcd_rec_update_segment_blks);
 
-    mcd_log_msg( 40097, PLAT_LOG_LEVEL_DEBUG,
+    mcd_log_msg( 40097, PLAT_LOG_LEVEL_TRACE,
                  "Reading log segment %d: shardID=%lu, start=%lu, buf=%p",
                  segment, shard->id, log_state->start_blk, buf );
 
@@ -3983,7 +3983,7 @@ read_log_segment( void * context, int segment, mcd_osd_shard_t * shard,
             (buf + ((blk_count - 1) * Mcd_osd_blk_size));
         mcd_rec_logpage_hdr_t * hdr2 = (mcd_rec_logpage_hdr_t *)
             (buf + (blk_count * Mcd_osd_blk_size));
-        mcd_log_msg( 40118, PLAT_LOG_LEVEL_DEBUG,
+        mcd_log_msg( 40118, PLAT_LOG_LEVEL_TRACE,
                      "Read less than a full log segment: "
                      "buf=%p, blk_count=%d, logblks=%lu, soff=%lu, io=%lu, "
                      "boff=%lu, LSN1=%lu, LSN2=%lu",
@@ -4012,7 +4012,7 @@ verify_log_segment( void * context, int segment, mcd_osd_shard_t * shard,
     buf = (char *)( ( (uint64_t)data_buf + Mcd_osd_blk_size - 1 ) &
                     Mcd_osd_blk_mask );
 
-    mcd_dbg_msg( MCD_REC_LOG_LVL_DEBUG,
+    mcd_dbg_msg( MCD_REC_LOG_LVL_TRACE,
                  "Verifying log segment %d: shardID=%lu, start=%lu, "
                  "segbuf=%p, tmpbuf=%p",
                  segment, shard->id, log_state->start_blk,
@@ -4087,7 +4087,7 @@ process_log( void * context, mcd_osd_shard_t * shard,
           log_state->low_obj_offset > state->start_obj + state->num_objs-1) ||
          (log_state->high_LSN > 0 &&
           log_state->high_LSN <= shard->ckpt->LSN) ) {
-        mcd_log_msg( 40085, MCD_REC_LOG_LVL_DEBUG,
+        mcd_log_msg( 40085, MCD_REC_LOG_LVL_TRACE,
                      "Skip process log, shardID=%lu: pass %d of %d, log %d; "
                      "obj: start=%lu, end=%lu; highOff=%lu, lowOff=%lu, "
                      "highLSN=%lu, ckptLSN=%lu",
@@ -4098,11 +4098,11 @@ process_log( void * context, mcd_osd_shard_t * shard,
         if ( ! Mcd_rec_update_verify ) {
             return 0;
         }
-        mcd_dbg_msg( MCD_REC_LOG_LVL_DEBUG,
+        mcd_dbg_msg( MCD_REC_LOG_LVL_TRACE,
                      "Processing log anyway, shardID=%lu", shard->id );
     }
 
-    mcd_log_msg( 40099, MCD_REC_LOG_LVL_DEBUG,
+    mcd_log_msg( 40099, MCD_REC_LOG_LVL_TRACE,
                  "Processing log, shardID=%lu, pass %d of %d, "
                  "log %d: start=%lu, blks=%lu, segments=%d, cached=%u; "
                  "obj: start=%lu, end=%lu; highOff=%lu, lowOff=%lu, "
@@ -4181,7 +4181,7 @@ process_log( void * context, mcd_osd_shard_t * shard,
 
             // end of log?
             if ( page_hdr->LSN < prev_LSN ) {
-                mcd_log_msg( 40115, MCD_REC_LOG_LVL_DEBUG,
+                mcd_log_msg( 40115, MCD_REC_LOG_LVL_TRACE,
                              "LSN fell off, shardID=%lu, prevLSN=%lu, "
                              "pageLSN=%lu, ckptLSN=%lu, seg=%d, page=%d",
                              shard->id, prev_LSN, page_hdr->LSN,
@@ -4209,7 +4209,7 @@ process_log( void * context, mcd_osd_shard_t * shard,
 
             // log records in this page already applied?
             if ( page_hdr->LSN <= shard->ckpt->LSN ) {
-                mcd_log_msg( 40038, MCD_REC_LOG_LVL_DEBUG,
+                mcd_log_msg( 40038, MCD_REC_LOG_LVL_TRACE,
                              "Skipping log page, shardID=%lu, "
                              "boff=%lu, pageLSN=%lu, ckptLSN=%lu",
                              shard->id, blk_count + p,
@@ -4241,7 +4241,7 @@ process_log( void * context, mcd_osd_shard_t * shard,
     // return LSN from last valid page
     log_state->high_LSN = prev_LSN;
 
-    mcd_log_msg( 40039, MCD_REC_LOG_LVL_DEBUG,
+    mcd_log_msg( 40039, MCD_REC_LOG_LVL_TRACE,
                  "processed shardID=%lu, pass %d of %d, log %u: "
                  "high=%lu, low=%lu; highLSN=%lu; applied=%lu",
                  shard->id, state->pass, state->passes, log_state->log,
@@ -4363,7 +4363,7 @@ read_object_table( void * context, mcd_osd_shard_t * shard,
           (log_state->low_obj_offset != 0xffffffffffffffffull &&
            log_state->low_obj_offset > (state->start_obj +
                                         state->num_objs - 1))) ) {
-        mcd_log_msg( 40040, MCD_REC_LOG_LVL_DEBUG,
+        mcd_log_msg( 40040, MCD_REC_LOG_LVL_TRACE,
                      "Skip table read, shardID=%lu: pass %d of %d, "
                      "chunk %d of %d; "
                      "blk: start=%lu, count=%d; "
@@ -4377,11 +4377,11 @@ read_object_table( void * context, mcd_osd_shard_t * shard,
         if ( ! Mcd_rec_update_verify ) {
             return 0;
         }
-        mcd_dbg_msg( MCD_REC_LOG_LVL_DEBUG,
+        mcd_dbg_msg( MCD_REC_LOG_LVL_TRACE,
                      "Reading table anyway, shardID=%lu", shard->id );
     }
 
-    mcd_log_msg( 40101, MCD_REC_LOG_LVL_DEBUG,
+    mcd_log_msg( 40101, MCD_REC_LOG_LVL_TRACE,
                  "Reading table, shardID=%lu: pass %d of %d, "
                  "chunk %d of %d; segments=%d;  "
                  "blk: start=%lu, count=%d; "
@@ -4403,7 +4403,7 @@ read_object_table( void * context, mcd_osd_shard_t * shard,
             seg_blks = state->chunk_blks - blk_count;
         }
 
-        mcd_log_msg( 40116, PLAT_LOG_LEVEL_DEBUG,
+        mcd_log_msg( 40116, PLAT_LOG_LEVEL_TRACE,
                      "Reading segment %d: shardID=%lu, start=%lu, count=%d, "
                      "buf=%p",
                      s, shard->id,
@@ -4421,7 +4421,7 @@ read_object_table( void * context, mcd_osd_shard_t * shard,
         plat_assert_rc( rc );
 
         if ( plat_log_enabled( PLAT_LOG_CAT_SDF_APP_MEMCACHED_RECOVERY,
-                               MCD_REC_LOG_LVL_DEBUG ) ) {
+                               MCD_REC_LOG_LVL_TRACE ) ) {
             obj += table_obj_count( state->segments[ s ],
                                     seg_blks * Mcd_osd_blk_size /
                                     sizeof( mcd_rec_flash_object_t ),
@@ -4430,8 +4430,8 @@ read_object_table( void * context, mcd_osd_shard_t * shard,
     }
 
     if ( plat_log_enabled( PLAT_LOG_CAT_SDF_APP_MEMCACHED_RECOVERY,
-                           MCD_REC_LOG_LVL_DEBUG ) ) {
-        mcd_log_msg( 20520, MCD_REC_LOG_LVL_DEBUG,
+                           MCD_REC_LOG_LVL_TRACE ) ) {
+        mcd_log_msg( 20520, MCD_REC_LOG_LVL_TRACE,
                      ">>>> Found %lu objects, %lu tombstones "
                      "in table chunk %d of %d, shardID=%lu",
                      obj, ts, state->chunk, state->num_chunks, shard->id );
@@ -4452,7 +4452,7 @@ write_object_table( void * context, mcd_osd_shard_t * shard,
     int                         seg_blks = Mcd_rec_update_segment_blks;
     int                         blk_count;
 
-    mcd_log_msg( 40103, MCD_REC_LOG_LVL_DEBUG,
+    mcd_log_msg( 40103, MCD_REC_LOG_LVL_TRACE,
                  "Writing table, shardID=%lu: pass %d of %d, "
                  "chunk %d of %d; segments=%d, "
                  "blk: start=%lu, count=%d; "
@@ -4474,7 +4474,7 @@ write_object_table( void * context, mcd_osd_shard_t * shard,
             seg_blks = state->chunk_blks - blk_count;
         }
 
-        mcd_log_msg( 40117, PLAT_LOG_LEVEL_DEBUG,
+        mcd_log_msg( 40117, PLAT_LOG_LEVEL_TRACE,
                      "Writing segment %d: shardID=%lu, start=%lu, count=%d, "
                      "buf=%p",
                      s, shard->id,
@@ -4512,7 +4512,7 @@ verify_object_table( void * context, mcd_osd_shard_t * shard,
         return;
     }
 
-    mcd_dbg_msg( MCD_REC_LOG_LVL_DEBUG,
+    mcd_dbg_msg( MCD_REC_LOG_LVL_TRACE,
                  "Verifying table chunk, abort=%s, shardID=%lu: "
                  "pass %d of %d, chunk %d of %d; segments=%d, "
                  "blk: start=%lu, count=%d; "
@@ -4561,7 +4561,7 @@ verify_object_table( void * context, mcd_osd_shard_t * shard,
         // otherwise set dirty if compare fails
         dirty = ( dirty || rc != 0 );
 
-        mcd_dbg_msg( PLAT_LOG_LEVEL_DEBUG,
+        mcd_dbg_msg( PLAT_LOG_LEVEL_TRACE,
                      "Verified table chunk %d segment %d %s: abort=%s, seg=%s,"
                      " shardID=%lu, start=%lu, blks=%d, segbuf=%p, tmpbuf=%p",
                      state->chunk, s, (dirty ? "DIRTY" : "CLEAN"),
@@ -4616,7 +4616,7 @@ verify_object_table( void * context, mcd_osd_shard_t * shard,
     if ( ( Mcd_rec_update_verify == 2 ) &&
          ( (verify_abort == VERIFY_ABORT_IF_CLEAN && !dirty) ||
            (verify_abort == VERIFY_ABORT_IF_DIRTY && dirty) ) ) {
-        mcd_dbg_msg( MCD_REC_LOG_LVL_DEBUG,
+        mcd_dbg_msg( MCD_REC_LOG_LVL_TRACE,
                      "Verified table chunk %s, abort=%s, shardID=%lu: "
                      "pass %d of %d, chunk %d of %d; segments=%d, "
                      "blk: start=%lu, count=%d; "
@@ -4799,7 +4799,7 @@ updater_thread( uint64_t arg )
     mcd_rec_log_state_t         curr_log_state;
     struct timeval              tv;
 
-    mcd_log_msg( 20000, PLAT_LOG_LEVEL_DEBUG, "ENTERING" );
+    mcd_log_msg( 20000, PLAT_LOG_LEVEL_TRACE, "ENTERING" );
 
     // get aio context and free unused buffer
     context = context_alloc( SSD_AIO_CTXT_MCD_REC_UPDT );
@@ -4860,7 +4860,7 @@ updater_thread( uint64_t arg )
 
         // mail has out-of-band log, no-op
         if ( mail->log == -1 ) {
-            mcd_log_msg( 20516, MCD_REC_LOG_LVL_DEBUG,
+            mcd_log_msg( 20516, MCD_REC_LOG_LVL_TRACE,
                          "Object table updater no-op for shardID=%lu",
                          shard->id );
 
@@ -4926,7 +4926,7 @@ updater_thread( uint64_t arg )
         state.num_chunks  =
             (state.num_blks + state.chunk_blks - 1) / state.chunk_blks;
 
-        mcd_log_msg( 40072, PLAT_LOG_LEVEL_INFO,
+        mcd_log_msg( 40072, PLAT_LOG_LEVEL_DEBUG,
                      "updater thread %lu allocated %lu byte buffer", thread_id,
                      (uint64_t)state.seg_count * Mcd_rec_update_segment_size );
 
@@ -4969,7 +4969,7 @@ updater_thread( uint64_t arg )
                 ckpt_page_LSN = 0;
                 next_LSN      = 0;
 
-                mcd_log_msg( 40087, PLAT_LOG_LEVEL_DEBUG,
+                mcd_log_msg( 40087, PLAT_LOG_LEVEL_TRACE,
                              "ckptLSN=%lu, next_LSN=%lu, log_blks=%lu, "
                              "LSN[0]=%lu, lastLSN[0]=%lu, "
                              "LSN[1]=%lu, lastLSN[1]=%lu",
@@ -5013,7 +5013,7 @@ updater_thread( uint64_t arg )
                                               1 - ckpt_log, 0 );
                 }
 
-                mcd_log_msg( 40087, PLAT_LOG_LEVEL_DEBUG,
+                mcd_log_msg( 40087, PLAT_LOG_LEVEL_TRACE,
                              "ckptLSN=%lu, next_LSN=%lu, log_blks=%lu, "
                              "LSN[0]=%lu, lastLSN[0]=%lu, "
                              "LSN[1]=%lu, lastLSN[1]=%lu",
@@ -5039,7 +5039,7 @@ updater_thread( uint64_t arg )
                 }
             }
 
-            mcd_log_msg( 40088, PLAT_LOG_LEVEL_INFO,
+            mcd_log_msg( 40088, PLAT_LOG_LEVEL_DEBUG,
                          "Old log %d merge %s, shardID=%lu, "
                          "ckpt_LSN=%lu, log_pages=%lu, ckpt_log=%d, "
                          "ckpt_page=%lu, ckpt_page_LSN=%lu",
@@ -5049,7 +5049,7 @@ updater_thread( uint64_t arg )
                          ckpt_log, ckpt_page, ckpt_page_LSN );
         }
 
-        mcd_log_msg( 40089, PLAT_LOG_LEVEL_INFO,
+        mcd_log_msg( 40089, PLAT_LOG_LEVEL_DEBUG,
                      "%s object table, shardID=%lu, pass %d of %d",
                      state.in_recovery ? "Recovering" : "Merging",
                      shard->id, state.pass, state.passes );
@@ -5062,7 +5062,7 @@ updater_thread( uint64_t arg )
             if ( state.num_chunks < 10 ||
                  state.chunk % ((state.num_chunks + 9) / 10) == 0 ) {
                 if ( state.chunk > 0 ) {
-                    mcd_log_msg( 40090, PLAT_LOG_LEVEL_INFO,
+                    mcd_log_msg( 40090, PLAT_LOG_LEVEL_DEBUG,
                                  "%s object table, shardID=%lu, "
                                  "pass %d of %d: %d percent complete",
                                  state.in_recovery ? "Recovering" : "Merging",
@@ -5096,7 +5096,7 @@ updater_thread( uint64_t arg )
                                          VERIFY_ABORT_IF_DIRTY );
 
                     // no log records applied to this chunk
-                    mcd_log_msg( 40047, MCD_REC_LOG_LVL_DEBUG,
+                    mcd_log_msg( 40047, MCD_REC_LOG_LVL_TRACE,
                                  "Skip table write, shardID=%lu, "
                                  "pass %d of %d, chunk %d of %d,",
                                  shard->id, state.pass, state.passes,
@@ -5107,7 +5107,7 @@ updater_thread( uint64_t arg )
 
                 // no updates beyond this point in object table
                 if ( old_log_state.high_obj_offset < state.start_obj ) {
-                    mcd_log_msg( 40048, MCD_REC_LOG_LVL_DEBUG,
+                    mcd_log_msg( 40048, MCD_REC_LOG_LVL_TRACE,
                                  "Table update complete, shardID=%lu, "
                                  "pass %d of %d, chunk %d of %d",
                                  shard->id, state.pass, state.passes,
@@ -5119,7 +5119,7 @@ updater_thread( uint64_t arg )
             }
         }
 
-        mcd_log_msg( 40091, PLAT_LOG_LEVEL_INFO,
+        mcd_log_msg( 40091, PLAT_LOG_LEVEL_DEBUG,
                      "%s object table, shardID=%lu, "
                      "pass %d of %d: complete, highLSN=%lu, ckptLSN=%lu",
                      state.in_recovery ? "Recovering" : "Merging",
@@ -5151,7 +5151,7 @@ updater_thread( uint64_t arg )
             curr_log_state.seg_count       = log->segment_count;
             curr_log_state.segments        = log->segments;
 
-            mcd_log_msg( 40045, PLAT_LOG_LEVEL_INFO,
+            mcd_log_msg( 40045, PLAT_LOG_LEVEL_DEBUG,
                          "Recovering object table, shardID=%lu, pass %d of %d",
                          shard->id, state.pass, state.passes );
 
@@ -5163,7 +5163,7 @@ updater_thread( uint64_t arg )
                 if ( state.num_chunks < 10 ||
                      state.chunk % ((state.num_chunks + 9) / 10) == 0 ) {
                     if ( state.chunk > 0 ) {
-                        mcd_log_msg( 40081, PLAT_LOG_LEVEL_INFO,
+                        mcd_log_msg( 40081, PLAT_LOG_LEVEL_DEBUG,
                                      "Recovering object table, shardID=%lu, "
                                      "pass %d of %d: %d percent complete",
                                      shard->id, state.pass, state.passes,
@@ -5205,7 +5205,7 @@ updater_thread( uint64_t arg )
                                            &recovered_objs, lru_scan );
 
                         // no log records applied to this chunk
-                        mcd_log_msg( 40049, MCD_REC_LOG_LVL_DEBUG,
+                        mcd_log_msg( 40049, MCD_REC_LOG_LVL_TRACE,
                                      "Skip table write,shardID=%lu, "
                                      "pass %d of %d, chunk %d of %d",
                                      shard->id, state.pass, state.passes,
@@ -5221,14 +5221,14 @@ updater_thread( uint64_t arg )
                     plat_abort();
                 }
 
-                mcd_log_msg( 40051, MCD_REC_LOG_LVL_DEBUG,
+                mcd_log_msg( 40051, MCD_REC_LOG_LVL_TRACE,
                              "Recovered shardID=%lu, chunk %d of %d, "
                              "obj=%lu, seq=%lu",
                              shard->id, state.chunk, state.num_chunks,
                              recovered_objs, shard->sequence );
             }
 
-            mcd_log_msg( 40083, PLAT_LOG_LEVEL_INFO,
+            mcd_log_msg( 40083, PLAT_LOG_LEVEL_DEBUG,
                          "Recovering object table, shardID=%lu, "
                          "pass %d of %d: complete, highLSN=%lu, ckptLSN=%lu",
                          shard->id, state.pass, state.passes,
@@ -5416,7 +5416,7 @@ process_log_chicken( void * context, mcd_osd_shard_t * shard, int num_segs,
     uint64_t                      checksum;
     mcd_rec_logpage_hdr_t       * page_hdr;
 
-    mcd_log_msg( 20504, PLAT_LOG_LEVEL_DEBUG, "ENTERING, log_offset=%lu, "
+    mcd_log_msg( 20504, PLAT_LOG_LEVEL_TRACE, "ENTERING, log_offset=%lu, "
                  "log_blks=%lu, start_obj=%lu, num_objs=%lu, last_LSN=%lu, "
                  "high_offset=%lu, in_rec=%d",
                  log_offset, log_blks, start_obj, num_obj, *last_LSN,
@@ -5516,7 +5516,7 @@ process_log_chicken( void * context, mcd_osd_shard_t * shard, int num_segs,
 
             // end of log?
             if ( page_hdr->LSN < prev_LSN ) {
-                mcd_log_msg( 20509, MCD_REC_LOG_LVL_DEBUG, "LSN fell off, "
+                mcd_log_msg( 20509, MCD_REC_LOG_LVL_TRACE, "LSN fell off, "
                              "prevLSN=%lu, pageLSN=%lu, lastLSN=%lu",
                              prev_LSN, page_hdr->LSN, *last_LSN );
                 end_of_log = true;
@@ -5528,7 +5528,7 @@ process_log_chicken( void * context, mcd_osd_shard_t * shard, int num_segs,
             // log records in this page already applied?
             if ( page_hdr->LSN <= (*last_LSN) ) {
                 end_of_log = true;
-                mcd_log_msg( 20510, MCD_REC_LOG_LVL_DEBUG,
+                mcd_log_msg( 20510, MCD_REC_LOG_LVL_TRACE,
                              "Skipping log, offset=%lu, prevLSN=%lu, "
                              "lastLSN=%lu", log_offset, prev_LSN, *last_LSN );
                 break;
@@ -5603,7 +5603,7 @@ updater_thread_chicken( uint64_t arg )
     char                        ckpt_buffer[ 2 * MCD_OSD_BLK_SIZE ];
     struct timeval              tv;
 
-    mcd_log_msg( 20000, PLAT_LOG_LEVEL_DEBUG, "ENTERING" );
+    mcd_log_msg( 20000, PLAT_LOG_LEVEL_TRACE, "ENTERING" );
 
     // get aligned ckpt record buffer
     ckpt_buf = (char *)( ( (uint64_t)ckpt_buffer + Mcd_osd_blk_size - 1 ) &
@@ -5616,7 +5616,7 @@ updater_thread_chicken( uint64_t arg )
                      buf_size / MEGABYTE );
         plat_abort();
     }
-    mcd_log_msg( 20515, PLAT_LOG_LEVEL_INFO,
+    mcd_log_msg( 20515, PLAT_LOG_LEVEL_DEBUG,
                  "allocated %lu byte buffer", buf_size );
 
     buf = (char *)( ( (uint64_t)data_buf + Mcd_osd_blk_size - 1 ) &
@@ -5641,7 +5641,7 @@ updater_thread_chicken( uint64_t arg )
 
         // mail has out-of-band log, no-op
         if ( mail->log == -1 ) {
-            mcd_log_msg( 20516, MCD_REC_LOG_LVL_DEBUG,
+            mcd_log_msg( 20516, MCD_REC_LOG_LVL_TRACE,
                          "Object table updater no-op for shardID=%lu",
                          ((mcd_osd_shard_t *)cntr->shard)->id );
 
@@ -5712,14 +5712,14 @@ updater_thread_chicken( uint64_t arg )
             num_objs  = num_blks * obj_per_blk;
 
             if ( !mail->in_recovery && high_offset < start_obj ) {
-                mcd_log_msg( 20518, MCD_REC_LOG_LVL_DEBUG,
+                mcd_log_msg( 20518, MCD_REC_LOG_LVL_TRACE,
                              ">>>> Stopping table update, shardID=%lu, "
                              "start=%lu, high=%lu",
                              shard->id, start_obj, high_offset );
                 break;
             }
 
-            mcd_log_msg( 20519, MCD_REC_LOG_LVL_DEBUG,
+            mcd_log_msg( 20519, MCD_REC_LOG_LVL_TRACE,
                          ">>>> Reading table chunk %d of %d, shardID=%lu, "
                          "startBlk=%lu, count=%lu (startObj=%lu, count=%lu, "
                          "highOff=%lu)",
@@ -5736,10 +5736,10 @@ updater_thread_chicken( uint64_t arg )
             plat_assert_rc( rc );
 
             if ( plat_log_enabled( PLAT_LOG_CAT_SDF_APP_MEMCACHED_RECOVERY,
-                                   MCD_REC_LOG_LVL_DEBUG ) ) {
+                                   MCD_REC_LOG_LVL_TRACE ) ) {
                 uint64_t ts  = 0;
                 uint64_t obj = table_obj_count( buf, num_objs, &ts );
-                mcd_log_msg( 20520, MCD_REC_LOG_LVL_DEBUG,
+                mcd_log_msg( 20520, MCD_REC_LOG_LVL_TRACE,
                              ">>>> Found %lu objects, %lu tombstones "
                              "in table chunk %d of %d, shardID=%lu",
                              obj, ts, chunk, num_chunks, shard->id );
@@ -5752,14 +5752,14 @@ updater_thread_chicken( uint64_t arg )
             // is an object in the log that falls in this table range
             if ( high_offset < start_obj ) {
 
-                mcd_log_msg( 20521, MCD_REC_LOG_LVL_DEBUG,
+                mcd_log_msg( 20521, MCD_REC_LOG_LVL_TRACE,
                              ">>>> Skip process old log %u, shardID=%lu, "
                              "start=%lu, highOff=%lu, end=%lu, ckptLSN=%lu",
                              mail->log, shard->id, start_obj, high_offset,
                              start_obj + num_objs - 1, ckpt->LSN );
             } else {
 
-                mcd_log_msg( 20522, MCD_REC_LOG_LVL_DEBUG,
+                mcd_log_msg( 20522, MCD_REC_LOG_LVL_TRACE,
                              ">>>> Process old log %u, shardID=%lu, "
                              "start=%lu, highOff=%lu, end=%lu, ckptLSN=%lu",
                              mail->log, shard->id, start_obj, high_offset,
@@ -5783,7 +5783,7 @@ updater_thread_chicken( uint64_t arg )
                                            &high_LSN,
                                            &high_offset );
 
-                mcd_log_msg( 20523, MCD_REC_LOG_LVL_DEBUG,
+                mcd_log_msg( 20523, MCD_REC_LOG_LVL_TRACE,
                              ">>>> End process old log %u, shardID=%lu, "
                              "start=%lu, highOff=%lu, end=%lu, ckptLSN=%lu, "
                              "highLSN=%lu, applied=%d",
@@ -5799,7 +5799,7 @@ updater_thread_chicken( uint64_t arg )
                 // is an object in the log that falls in this table range
                 if ( high_offset < start_obj ) {
 
-                    mcd_log_msg( 20524, MCD_REC_LOG_LVL_DEBUG,
+                    mcd_log_msg( 20524, MCD_REC_LOG_LVL_TRACE,
                                  ">>>> Skip process curr log %u, shardID=%lu, "
                                  "start=%lu, highOff=%lu, end=%lu, "
                                  "ckptLSN=%lu",
@@ -5808,7 +5808,7 @@ updater_thread_chicken( uint64_t arg )
                                  ckpt->LSN );
                 } else {
 
-                    mcd_log_msg( 20525, MCD_REC_LOG_LVL_DEBUG,
+                    mcd_log_msg( 20525, MCD_REC_LOG_LVL_TRACE,
                                  ">>>> Process curr log %u, shardID=%lu, "
                                  "start=%lu, highOff=%lu, end=%lu, "
                                  "ckptLSN=%lu",
@@ -5831,7 +5831,7 @@ updater_thread_chicken( uint64_t arg )
                                                 &high_LSN,
                                                 &high_offset );
 
-                    mcd_log_msg( 20526, MCD_REC_LOG_LVL_DEBUG,
+                    mcd_log_msg( 20526, MCD_REC_LOG_LVL_TRACE,
                                  ">>>> End process curr log %u, shardID=%lu, "
                                  "start=%lu, highOff=%lu, end=%lu, "
                                  "ckptLSN=%lu, highLSN=%lu, applied=%d",
@@ -5840,7 +5840,7 @@ updater_thread_chicken( uint64_t arg )
                                  ckpt->LSN, high_LSN, curr_applied );
                 }
 
-                mcd_log_msg( 20527, PLAT_LOG_LEVEL_INFO,
+                mcd_log_msg( 20527, PLAT_LOG_LEVEL_DEBUG,
                              "Recovering object table, part %d of %d",
                              chunk + 1, num_chunks );
 
@@ -5852,7 +5852,7 @@ updater_thread_chicken( uint64_t arg )
                                    &recovered_objs,
                                    lru_scan );
 
-                mcd_log_msg( 20528, MCD_REC_LOG_LVL_DEBUG,
+                mcd_log_msg( 20528, MCD_REC_LOG_LVL_TRACE,
                              ">>>> Recovered chunk %d, objects=%lu, seqno=%lu",
                              chunk, recovered_objs, shard->sequence );
             }
@@ -5861,7 +5861,7 @@ updater_thread_chicken( uint64_t arg )
             // were log records applied
             if ( !old_applied && !curr_applied ) {
 
-                mcd_log_msg( 20529, MCD_REC_LOG_LVL_DEBUG,
+                mcd_log_msg( 20529, MCD_REC_LOG_LVL_TRACE,
                              ">>>> Skip writing table chunk %d of %d, "
                              "shardID=%lu, start=%lu, count=%lu (startObj=%lu,"
                              " count=%lu, highOff=%lu, old=%d, curr=%d)",
@@ -5870,7 +5870,7 @@ updater_thread_chicken( uint64_t arg )
                              curr_applied );
             } else {
 
-                mcd_log_msg( 20530, MCD_REC_LOG_LVL_DEBUG,
+                mcd_log_msg( 20530, MCD_REC_LOG_LVL_TRACE,
                              ">>>> Writing table chunk %d of %d, shardID=%lu, "
                              "startBlk=%lu, count=%lu (startObj=%lu, "
                              "count=%lu, highOff=%lu, old=%d, curr=%d)",
@@ -5940,7 +5940,7 @@ updater_thread_chicken( uint64_t arg )
         if ( high_LSN > ckpt->LSN ) {
 
             ckpt->LSN = high_LSN;
-            mcd_log_msg( 20531, MCD_REC_LOG_LVL_DEBUG,
+            mcd_log_msg( 20531, MCD_REC_LOG_LVL_TRACE,
                          ">>>> Updating ckptLSN=%lu, shardID=%lu",
                          ckpt->LSN, shard->id );
 
@@ -6020,7 +6020,7 @@ log_init( mcd_osd_shard_t * shard )
     mcd_rec_shard_t           * pshard = shard->pshard;
     mcd_rec_log_t             * log;
 
-    mcd_rlg_msg( 20000, PLAT_LOG_LEVEL_DEBUG, "ENTERING" );
+    mcd_rlg_msg( 20000, PLAT_LOG_LEVEL_TRACE, "ENTERING" );
 
     plat_assert_always( shard->ckpt != NULL );
 
@@ -6169,7 +6169,7 @@ log_init( mcd_osd_shard_t * shard )
             log->segments[ s ] =
                 Mcd_rec_free_log_segments[ --Mcd_rec_free_log_seg_curr ];
         }
-        mcd_log_msg( 160018, PLAT_LOG_LEVEL_INFO,
+        mcd_log_msg( 160018, PLAT_LOG_LEVEL_DEBUG,
                      "allocated %d log segments to shardID=%lu, remaining=%lu",
                      log->segment_count, shard->id,
                      Mcd_rec_free_log_seg_curr );
@@ -6193,7 +6193,7 @@ log_init_phase2( void * context, mcd_osd_shard_t * shard )
     mcd_rec_shard_t           * pshard = shard->pshard;
     mcd_rec_log_t             * log = shard->log;
 
-    mcd_rlg_msg( 20000, PLAT_LOG_LEVEL_DEBUG, "ENTERING" );
+    mcd_rlg_msg( 20000, PLAT_LOG_LEVEL_TRACE, "ENTERING" );
 
     plat_assert_always( shard->ckpt != NULL );
     plat_assert_always( log != NULL );
@@ -6253,7 +6253,7 @@ log_init_phase2( void * context, mcd_osd_shard_t * shard )
         // set previously saved value
         else {
             if ( shard->cntr->sync_updates > log->pp_max_updates ) {
-                mcd_rlg_msg( 20537, PLAT_LOG_LEVEL_INFO,
+                mcd_rlg_msg( 20537, PLAT_LOG_LEVEL_DEBUG,
                              "shardId=%lu, limiting SYNC_UPDATES to %d",
                              shard->id, log->pp_max_updates );
                 shard->cntr->sync_updates = log->pp_max_updates;
@@ -6267,7 +6267,7 @@ log_init_phase2( void * context, mcd_osd_shard_t * shard )
     fthMboxWait( &Mcd_rec_log_writer_mbox );
 
 
-    mcd_rlg_msg( 20541, PLAT_LOG_LEVEL_INFO,
+    mcd_rlg_msg( 20541, PLAT_LOG_LEVEL_DEBUG,
                  "log initialized, shardID=%lu, "
                  "curr_log=%d, log_offset=%lu/%lu, log_blks=%lu, "
                  "curr_LSN=%lu, wbs=%lu, nextfill=%lu, lbs0=%lu, lbs1=%lu",
@@ -6446,7 +6446,7 @@ log_wait( mcd_osd_shard_t * shard )
     mcd_rec_update_t            update_mail;
     fthMbox_t                   updated_mbox;
 
-    mcd_rlg_msg( 20547, PLAT_LOG_LEVEL_DEBUG,
+    mcd_rlg_msg( 20547, PLAT_LOG_LEVEL_TRACE,
                  "ENTERING: shardID=%lu, state=%s",
                  shard->id, shard->cntr->state == cntr_stopping ? "stopping" :
                  shard->cntr->state == cntr_stopped ? "stopped" : "running" );
@@ -6485,12 +6485,12 @@ void
 log_sync_postprocess( mcd_osd_shard_t * shard,
                       mcd_rec_pp_state_t * pp_state )
 {
-    mcd_rlg_msg( 40053, PLAT_LOG_LEVEL_DEBUG,
+    mcd_rlg_msg( 40053, PLAT_LOG_LEVEL_TRACE,
                  "ENTERING: shardID=%lu, count=%d, fill_count=%u",
                  shard->id, pp_state->dealloc_count, pp_state->fill_count );
 
     for ( int d = 0; d < pp_state->dealloc_count; d++ ) {
-        mcd_rlg_msg( 40123, PLAT_LOG_LEVEL_DEBUG,
+        mcd_rlg_msg( 40123, PLAT_LOG_LEVEL_TRACE,
                      "Dealloc[%d]: %d", d, pp_state->dealloc_list[ d ]  );
         mcd_fth_osd_slab_dealloc( shard, pp_state->dealloc_list[ d ], true );
     }
@@ -6511,7 +6511,7 @@ log_write_postprocess( mcd_osd_shard_t * shard, mcd_rec_logbuf_t * logbuf,
     mcd_rec_log_t             * log = shard->log;
     mcd_rec_pp_state_t        * pp = &log->pp_state;
 
-    mcd_rlg_msg( 40054, PLAT_LOG_LEVEL_DEBUG,
+    mcd_rlg_msg( 40054, PLAT_LOG_LEVEL_TRACE,
                  "ENTERING: shardID=%lu, seqno=%lu, count=%d, fill_count=%u",
                  shard->id, logbuf->seqno, pp->dealloc_count, pp->fill_count );
 
@@ -6570,7 +6570,7 @@ log_write_postprocess( mcd_osd_shard_t * shard, mcd_rec_logbuf_t * logbuf,
             entry->rec = (*rec);
             TAILQ_INSERT_TAIL( &bk->ps_list, entry, list_entry );
             bk->ps_count++;
-            mcd_bak_msg( 20549, MCD_REC_LOG_LVL_DEBUG,
+            mcd_bak_msg( 20549, MCD_REC_LOG_LVL_TRACE,
                          "shardId=%lu, curr_seqno=%lu, rec_seqno=%lu, "
                          "count=%d", shard->id, bk->backup_curr_seqno,
                          (uint64_t) rec->seqno, bk->ps_count );
@@ -6628,7 +6628,7 @@ log_write_postprocess( mcd_osd_shard_t * shard, mcd_rec_logbuf_t * logbuf,
     if ( bk->backup_prev_seqno != bk->backup_curr_seqno &&
          bk->snapshot_logbuf == logbuf->seqno ) {
 
-        mcd_bak_msg( 40055, MCD_REC_LOG_LVL_DEBUG,
+        mcd_bak_msg( 40055, MCD_REC_LOG_LVL_TRACE,
                      "shardId=%lu, snap_seqno=%lu, logbuf_seqno=%lu, "
                      "apply %d pending updates",
                      shard->id, bk->snapshot_logbuf, logbuf->seqno,
@@ -6665,7 +6665,7 @@ log_write_postprocess( mcd_osd_shard_t * shard, mcd_rec_logbuf_t * logbuf,
         }
     }
 
-    mcd_rlg_msg( 40056, MCD_REC_LOG_LVL_DEBUG,
+    mcd_rlg_msg( 40056, MCD_REC_LOG_LVL_TRACE,
                  "shardID=%lu, seqno=%lu, prev=%u, curr=%u, left=%lu, "
                  "hiseq=%lu", shard->id, logbuf->seqno, pp->fill_count,
                  s - pp->fill_count, MCD_REC_LOGBUF_SLOTS - s, *high_seqno );
@@ -6698,7 +6698,7 @@ log_writer_thread( uint64_t arg )
     osd_state_t               * context;
     fthSem_t                  * sync_sem;
 
-    mcd_rlg_msg( 20000, PLAT_LOG_LEVEL_DEBUG, "ENTERING" );
+    mcd_rlg_msg( 20000, PLAT_LOG_LEVEL_TRACE, "ENTERING" );
 
     // free unused buffer
     context = context_alloc( SSD_AIO_CTXT_MCD_REC_LGWR );
@@ -6896,7 +6896,7 @@ log_writer_thread( uint64_t arg )
              log->pp_state.curr_recs >= log->pp_state.sync_recs ||
              persistent_log_filled ) {
 
-            mcd_rlg_msg( 40057, MCD_REC_LOG_LVL_DEBUG,
+            mcd_rlg_msg( 40057, MCD_REC_LOG_LVL_TRACE,
                          "SYNC: shardID=%lu, pp_recs=%d, sync_recs=%d, "
                          "seqno=%lu, sync=%s",
                          shard->id, log->pp_state.curr_recs,
@@ -6930,7 +6930,7 @@ log_writer_thread( uint64_t arg )
         // when persistent log is full, signal updater thread
         if ( persistent_log_filled ) {
 
-            mcd_rlg_msg( 20556, MCD_REC_LOG_LVL_DEBUG,
+            mcd_rlg_msg( 20556, MCD_REC_LOG_LVL_TRACE,
                          "signaling update thread, "
                          "shardID=%lu, log=%d, hwm_seqno=%lu",
                          shard->id, curr_log, high_seqno );
@@ -7044,7 +7044,7 @@ shard_format( uint64_t shard_id, int flags, uint64_t quota, unsigned max_objs,
     mcd_rec_superblock_t      * sb = &Mcd_rec_superblock;
     mcd_rec_flash_t           * fd = sb->flash_desc;
 
-    mcd_log_msg( 20065, PLAT_LOG_LEVEL_DEBUG,
+    mcd_log_msg( 20065, PLAT_LOG_LEVEL_TRACE,
                  "ENTERING, shardID=%lu", shard_id );
 
     // format properties for non-persistent shards
@@ -7160,7 +7160,7 @@ shard_format( uint64_t shard_id, int flags, uint64_t quota, unsigned max_objs,
         if ( s == reserved_segs - 1 ||
              reserved_segs <= 8 ||
              (reserved_segs >= 8 && (s % (reserved_segs / 8) == 0)) ) {
-            mcd_log_msg( 20562, PLAT_LOG_LEVEL_INFO,
+            mcd_log_msg( 20562, PLAT_LOG_LEVEL_DEBUG,
                          "formatting shard id=%lu segment %d of %lu, "
                          "offset=%lu",
                          shard_id, s+1, reserved_segs, blk_offset );
@@ -7314,7 +7314,7 @@ shard_format( uint64_t shard_id, int flags, uint64_t quota, unsigned max_objs,
 
     plat_free( data_buf );
 
-    mcd_log_msg( 20566, PLAT_LOG_LEVEL_INFO,
+    mcd_log_msg( 20566, PLAT_LOG_LEVEL_DEBUG,
                  "formatted persistent shard, id=%lu, blk_offset=%lu, "
                  "md_blks=%lu, table_blks=%lu, pad=%lu, log_blks=%lu, "
                  "pad=%lu (%lu entries)",
@@ -7385,7 +7385,7 @@ shard_unformat( uint64_t shard_id )
     int                         slot;
     mcd_rec_superblock_t      * sb = &Mcd_rec_superblock;
 
-    mcd_log_msg( 20065, PLAT_LOG_LEVEL_DEBUG,
+    mcd_log_msg( 20065, PLAT_LOG_LEVEL_TRACE,
                  "ENTERING, shardID=%lu", shard_id );
 
     // find shard in shard properties list
@@ -7422,7 +7422,7 @@ shard_unformat_api( mcd_osd_shard_t* shard )
 	    shard->ps_alloc -= sizeof( mcd_rec_shard_t );
 
 	}
-    mcd_log_msg( 20495, PLAT_LOG_LEVEL_INFO,
+    mcd_log_msg( 20495, PLAT_LOG_LEVEL_DEBUG,
 	             "pshard deleted, allocated=%lu", shard->ps_alloc );
 
 	return shard_unformat(shard->id);
@@ -7447,7 +7447,7 @@ flash_format ( uint64_t total_size )
     mcd_rec_flash_t           * fd;
     fthWaitEl_t               * wait;
 
-    mcd_log_msg( 20000, PLAT_LOG_LEVEL_DEBUG, "ENTERING" );
+    mcd_log_msg( 20000, PLAT_LOG_LEVEL_TRACE, "ENTERING" );
 
     // initialize
     do_aio_init( 0 );
@@ -7490,7 +7490,7 @@ flash_format ( uint64_t total_size )
     // clear the buffer
     memset( buf, 0, reserved_blks * Mcd_osd_blk_size );
 
-    mcd_log_msg( 20569, PLAT_LOG_LEVEL_INFO,
+    mcd_log_msg( 20569, PLAT_LOG_LEVEL_DEBUG,
                  "formatting reserved areas, offset=%lu, blks=%d",
                  blk_offset, reserved_blks );
 

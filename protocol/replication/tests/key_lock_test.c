@@ -215,41 +215,41 @@ test_main(uint64_t arg) {
     state = (struct test_state *)arg;
 
     /* Uncontested exclusive - must pass */
-    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                  "op 1 exclusive lock %s", key1);
     attempt[0] = test_lock(state, "op 1 exclusive", key1,
                            RKL_MODE_EXCLUSIVE);
     plat_assert(attempt[0] && attempt[0]->lock_complete &&
                 attempt[0]->status == SDF_SUCCESS);
-    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                  "op 1 exclusive lock %s complete", key1);
 
     /* Shared lock contests existing exclusive - must block */
-    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                  "op 2 shared lock %s", key1);
     attempt[1] = test_lock(state, "op 2 shared", key1,
                            RKL_MODE_SHARED);
     plat_assert(attempt[1] && !attempt[1]->lock_complete);
 
     /* Second shared lock contests existing exclusive - must block */
-    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                  "op 3 shared lock %s", key1);
     attempt[2] = test_lock(state, "op 3 shared", key1, RKL_MODE_SHARED);
     plat_assert(attempt[2] && !attempt[2]->lock_complete);
 
     /* Release first lock, second and third shared must both succeed */
-    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                  "op 1 unlock %s", key1);
     test_lock_attempt_unlock(attempt[0]);
     plat_assert(attempt[1]->lock_complete && attempt[1]->status == SDF_SUCCESS);
-    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                  "op 2 shared lock %s complete", key1);
     plat_assert(attempt[2]->lock_complete && attempt[2]->status == SDF_SUCCESS);
-    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                  "op 3 shared lock %s complete", key1);
 
     /* Exclusive lock contests existing shared - must block */
-    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                  "op 4 exclusive lock %s", key1);
     attempt[3] = test_lock(state, "op 4 exclusive", key1,
                            RKL_MODE_EXCLUSIVE);
@@ -259,7 +259,7 @@ test_main(uint64_t arg) {
      * Second exclusive lock contests existing shared - must block until
      * held shared locks and previous exclusive lock complete.
      */
-    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                  "op 5 exclusive lock %s", key1);
     attempt[4] = test_lock(state, "op 5 exclusive", key1,
                            RKL_MODE_EXCLUSIVE);
@@ -269,36 +269,36 @@ test_main(uint64_t arg) {
      * Releasing first of two shared locks must not unblock either
      * blocked exclusive lock
      */
-    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                  "op 3 unlock %s", key1);
     test_lock_attempt_unlock(attempt[2]);
     plat_assert(!attempt[3]->lock_complete);
     plat_assert(!attempt[4]->lock_complete);
 
     /* First queued exclusive lock must win on second shared lock release */
-    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                  "op 2 unlock %s", key1);
     test_lock_attempt_unlock(attempt[1]);
     plat_assert(attempt[3]->lock_complete && attempt[3]->status == SDF_SUCCESS);
     plat_assert(!attempt[4]->lock_complete);
-    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                  "op 4 exclusive lock %s complete", key1);
 
     /* Queued  exclusive must complete on previous exclusive release */
-    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                  "op 4 unlock %s", key1);
     test_lock_attempt_unlock(attempt[3]);
     plat_assert(attempt[4]->lock_complete && attempt[4]->status == SDF_SUCCESS);
-    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                  "op 5 exclusive lock %s complete", key1);
 
     /* Recovery lock started with existing exclusive lock must fail */
-    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                  "op 6 recovery lock %s", key1);
     attempt[5] = test_lock(state, "op 6 recovery", key1, RKL_MODE_RECOVERY);
     plat_assert(attempt[5] && attempt[5]->lock_complete &&
                 attempt[5]->status == SDF_LOCK_RESERVED);
-    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                  "op 6 recovery lock %s failed as expected", key1);
 
 
@@ -307,29 +307,29 @@ test_main(uint64_t arg) {
      * terminated after the get starts causes a recovery lock to
      * fail.
      */
-    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                  "get 1 start");
     get[0] = rklc_start_get(state->lock_container);
-    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                  "get 1 started");
 
     /* Release final exclusive lock */
-    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                  "op 5 unlock %s", key1);
     test_lock_attempt_unlock(attempt[4]);
 
-    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                  "op 7 recovery lock %s", key1);
     attempt[6] = test_lock(state, "op 7 recovery", key1, RKL_MODE_RECOVERY);
     plat_assert(attempt[6] && attempt[6]->lock_complete &&
                 attempt[6]->status == SDF_LOCK_RESERVED);
-    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                  "op 7 recovery lock %s failed as expected", key1);
 
-    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                  "get 1 end");
     rklc_get_complete(get[0]);
-    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                  "get 1 complete");
 
     /*
@@ -347,40 +347,40 @@ test_main(uint64_t arg) {
      * started.
      */
 
-    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                  "get 2 start");
     get[0] = rklc_start_get(state->lock_container);
-    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                  "get 2 started");
 
     /* Uncontested exclusive - must pass */
-    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                  "op 8 exclusive lock %s", key1);
     attempt[7] = test_lock(state, "op 8 exclusive", key1,
                            RKL_MODE_EXCLUSIVE);
     plat_assert(attempt[7] && attempt[7]->lock_complete &&
                 attempt[7]->status == SDF_SUCCESS);
-    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                  "op 8 exclusive lock %s complete", key1);
 
     /* Release exclusive lock */
-    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                  "op 8 unlock %s", key1);
     test_lock_attempt_unlock(attempt[7]);
 
     /* Recovery lock must fail due to being contested */
-    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                  "op 9 recovery lock %s", key1);
     attempt[8] = test_lock(state, "op 9 recovery", key1, RKL_MODE_RECOVERY);
     plat_assert(attempt[8] && attempt[8]->lock_complete &&
                 attempt[8]->status == SDF_LOCK_RESERVED);
-    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                  "op 9 recovery lock %s failed as expected", key1);
 
-    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                  "get 2 end");
     rklc_get_complete(get[0]);
-    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                  "get 2 complete");
 
     /*
@@ -390,55 +390,55 @@ test_main(uint64_t arg) {
      */
 
     /* Uncontested exclusive - must pass */
-    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                  "op 10 exclusive lock %s", key1);
     attempt[9] = test_lock(state, "op 10 exclusive", key1,
                            RKL_MODE_EXCLUSIVE);
     plat_assert(attempt[9] && attempt[9]->lock_complete &&
                 attempt[9]->status == SDF_SUCCESS);
-    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                  "op 10 exclusive lock %s complete", key1);
 
-    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                  "get 3 start");
     get[0] = rklc_start_get(state->lock_container);
-    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                  "get 3 started");
 
     /* Release exclusive lock */
-    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                  "op 10 unlock %s", key1);
     test_lock_attempt_unlock(attempt[9]);
 
     /* Relock same key - must pass */
-    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                  "op 11 exclusive lock %s", key1);
     attempt[10] = test_lock(state, "op 11 exclusive", key1,
                             RKL_MODE_EXCLUSIVE);
     plat_assert(attempt[10] && attempt[10]->lock_complete &&
                 attempt[10]->status == SDF_SUCCESS);
-    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                  "op 11 exclusive lock %s complete", key1);
 
     /* Release exclusive lock */
-    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                  "op 11 unlock %s", key1);
     test_lock_attempt_unlock(attempt[10]);
 
     /* Recovery lock must fail due to being contested */
-    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                  "op 12 recovery lock %s", key1);
     attempt[11] = test_lock(state, "op 12 recovery", key1,
                             RKL_MODE_RECOVERY);
     plat_assert(attempt[11] && attempt[11]->lock_complete &&
                 attempt[11]->status == SDF_LOCK_RESERVED);
-    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                  "op 11 recovery lock %s failed as expected", key1);
 
-    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                  "get 3 end");
     rklc_get_complete(get[0]);
-    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                  "get 3 complete");
 
     /*
@@ -447,29 +447,29 @@ test_main(uint64_t arg) {
      */
 
     /* Uncontested exclusive - must pass */
-    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                  "op 13 exclusive lock %s", key1);
     attempt[12] = test_lock(state, "op 13 exclusive", key1,
                             RKL_MODE_EXCLUSIVE);
     plat_assert(attempt[12] && attempt[12]->lock_complete &&
                 attempt[12]->status == SDF_SUCCESS);
-    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                  "op 13 exclusive lock %s complete", key1);
 
-    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                  "get 4 start");
     get[0] = rklc_start_get(state->lock_container);
-    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                  "get 4 started");
 
-    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                  "get 4 end");
     rklc_get_complete(get[0]);
-    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                  "get 4 complete");
 
     /* Release exclusive lock */
-    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                  "op 13 unlock %s", key1);
     test_lock_attempt_unlock(attempt[12]);
 
@@ -479,97 +479,97 @@ test_main(uint64_t arg) {
      */
 
     /* Uncontested exclusive - must pass */
-    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                  "op 14 exclusive lock %s", key1);
     attempt[13] = test_lock(state, "op 14 exclusive", key1,
                             RKL_MODE_EXCLUSIVE);
     plat_assert(attempt[13] && attempt[13]->lock_complete &&
                 attempt[13]->status == SDF_SUCCESS);
-    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                  "op 14 exclusive lock %s complete", key1);
 
-    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                  "get 5 start");
     get[0] = rklc_start_get(state->lock_container);
-    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                  "get 5 started");
 
-    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                  "op 15 exclusive lock %s", key2);
     attempt[14] = test_lock(state, "op 15 exclusive", key2,
                             RKL_MODE_EXCLUSIVE);
     plat_assert(attempt[14] && attempt[14]->lock_complete &&
                 attempt[14]->status == SDF_SUCCESS);
-    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                  "op 15 exclusive lock %s complete", key2);
 
-    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                  "get 6 start");
     get[1] = rklc_start_get(state->lock_container);
-    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                  "get 6 started");
 
-    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                  "op 16 exclusive lock %s", key3);
     attempt[15] = test_lock(state, "op 15 exclusive", key3,
                             RKL_MODE_EXCLUSIVE);
     plat_assert(attempt[15] && attempt[15]->lock_complete &&
                 attempt[15]->status == SDF_SUCCESS);
-    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                  "op 16 exclusive lock %s complete", key2);
 
-    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                  "op 14 unlock %s", key1);
     test_lock_attempt_unlock(attempt[13]);
 
-    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                  "op 16 unlock %s", key3);
     test_lock_attempt_unlock(attempt[15]);
 
-    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                  "op 15 unlock %s", key2);
     test_lock_attempt_unlock(attempt[14]);
 
-    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                  "get 5 end");
     rklc_get_complete(get[0]);
-    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                  "get 5 complete");
 
     /* Recovery lock must fail due to being contested */
-    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                  "op 17 recovery lock %s", key1);
     attempt[16] = test_lock(state, "op 17 recovery", key1,
                             RKL_MODE_RECOVERY);
     plat_assert(attempt[16] && attempt[16]->lock_complete &&
                 attempt[16]->status == SDF_LOCK_RESERVED);
-    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                  "op 17 recovery lock %s failed as expected", key1);
 
     /* Recovery lock must fail due to being contested */
-    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                  "op 18 recovery lock %s", key2);
     attempt[17] = test_lock(state, "op 18 recovery", key2,
                             RKL_MODE_RECOVERY);
     plat_assert(attempt[17] && attempt[17]->lock_complete &&
                 attempt[17]->status == SDF_LOCK_RESERVED);
-    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                  "op 18 recovery lock %s failed as expected", key2);
 
     /* Recovery lock must fail due to being contested */
-    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                  "op 19 recovery lock %s", key3);
     attempt[18] = test_lock(state, "op 19 recovery", key2,
                             RKL_MODE_RECOVERY);
     plat_assert(attempt[18] && attempt[18]->lock_complete &&
                 attempt[18]->status == SDF_LOCK_RESERVED);
-    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                  "op 19 recovery lock %s failed as expected", key3);
 
-    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                  "get 6 end");
     rklc_get_complete(get[1]);
-    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                  "get 6 complete");
 
     /*
@@ -578,25 +578,25 @@ test_main(uint64_t arg) {
      * XXX: drew 2010-04-21 This only applies to SDF_REPLICATION_V1_2_WAY.
      * Other types fail with asserts.
      */
-    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                  "op 20 exclusive lock %s", key1);
     attempt[19] = test_lock(state, "op 20 exclusive", key1,
                             RKL_MODE_EXCLUSIVE);
     plat_assert(attempt[19]->lock_complete &&
                 attempt[19]->status == SDF_SUCCESS);
-    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                  "op 20 exclusive lock %s complete", key1);
 
     /* Recovery lock started with existing exclusive lock must fail */
-    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                  "op 21 recovery lock %s", key1);
     attempt[20] = test_lock(state, "op 21 recovery", key1, RKL_MODE_RECOVERY);
     plat_assert(attempt[20] && attempt[20]->lock_complete &&
                 attempt[20]->status == SDF_LOCK_RESERVED);
-    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                  "op 21 recovery lock %s failed as expected", key1);
 
-    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                  "op 20 unlock %s", key1);
     test_lock_attempt_unlock(attempt[19]);
 
@@ -634,21 +634,21 @@ thread_test_1(struct test_state *suite_state) {
     case_state->state = suite_state;
     fthMboxInit(&case_state->t1_block);
 
-    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                  "thread_test_1 get 1 start");
     case_state->t1_get = rklc_start_get(case_state->state->lock_container);
-    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                  "thread_test_1 get 1 started");
 
     /* Uncontended lock */
-    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                  "thread_test_1 op 1 recovery lock %s", key1);
     test_lock_sync(case_state->state, "thread_test_1 op 1 recovery", key1,
                    RKL_MODE_RECOVERY,  &case_state->t1_attempt);
     plat_assert(case_state->t1_attempt &&
                 case_state->t1_attempt->lock_complete &&
                 case_state->t1_attempt->status == SDF_SUCCESS);
-    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                  "thread_test_1 op 1 recovery lock %s complete", key1);
 
     fthResume(fthSpawn(&thread_test_1_t2, 40960), (uint64_t)case_state);
@@ -658,28 +658,28 @@ thread_test_1(struct test_state *suite_state) {
                 !case_state->t2_attempt->lock_complete);
 
     /* Release first lock, t2 lock must succeed */
-    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                  "thread_test_1 op 1 unlock %s", key1);
     test_lock_attempt_unlock(case_state->t1_attempt);
 
-    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                  "thread_test_1 op 3 exclusive lock %s", key1);
     test_lock_sync(case_state->state, "thread_test_1 op 2 exclusive", key1,
                    RKL_MODE_EXCLUSIVE, &case_state->t1_attempt);
     plat_assert(case_state->t1_attempt &&
                 case_state->t1_attempt->lock_complete &&
                 case_state->t1_attempt->status == SDF_SUCCESS);
-    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                  "thread_test_1 op 3 exclusive lock %s complete", key1);
 
-    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                  "thread_test_1 op 3 unlock %s", key1);
     test_lock_attempt_unlock(case_state->t1_attempt);
 
-    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                  "thread_test_1 get 1 end");
     rklc_get_complete(case_state->t1_get);
-    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                  "thread_test_1 get 1 complete");
 
     /* Validate correct garbage collection */
@@ -696,17 +696,17 @@ thread_test_1_t2(uint64_t arg) {
     /* Wake main thread after blocking below */
     fthMboxPost(&case_state->t1_block, 0 /* ignored */);
 
-    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                  "thread_test_1 op 2 exclusive lock %s", key1);
     test_lock_sync(case_state->state, "thread_test_1 op 2 exclusive", key1,
                    RKL_MODE_EXCLUSIVE,  &case_state->t2_attempt);
     plat_assert(case_state->t2_attempt &&
                 case_state->t2_attempt->lock_complete &&
                 case_state->t2_attempt->status == SDF_SUCCESS);
-    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                  "thread_test_2 op 2 recovery lock %s complete", key1);
 
-    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                  "thread_test_1 op 2 unlock %s", key1);
     test_lock_attempt_unlock(case_state->t2_attempt);
 }
@@ -876,7 +876,7 @@ test_lock_attempt_lock_cb(struct plat_closure_scheduler *context, void *env,
                           struct replicator_key_lock *key_lock) {
     struct test_lock_attempt *attempt = (struct test_lock_attempt *)env;
 
-    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                  "lock %s for key '%*.*s' complete with status %s",
                  attempt->name ? attempt->name : "",
                  attempt->key.len, attempt->key.len, attempt->key.key,

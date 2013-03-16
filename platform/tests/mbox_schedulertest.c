@@ -51,7 +51,7 @@ static void
 test_count(plat_closure_scheduler_t *context, void *env, int val) {
     struct test_state *state = (struct test_state *)env;
 
-    plat_log_msg(21766, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+    plat_log_msg(21766, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                  "test_count val=%d", val);
 
     plat_assert_always(state->fth_running);
@@ -64,7 +64,7 @@ static void
 test_done(plat_closure_scheduler_t *context, void *env) {
     struct test_state *state = (struct test_state *)env;
 
-    plat_log_msg(21767, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+    plat_log_msg(21767, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                  "test_done");
 
     plat_assert_always(state->fth_running);
@@ -98,14 +98,14 @@ pthread_main(void *arg) {
         (state->closure_scheduler, &test_done, state);
     plat_closure_scheduler_shutdown(state->closure_scheduler, shutdown);
 
-    plat_log_msg(21768, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+    plat_log_msg(21768, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                  "fth scheduler starting");
 
     ++state->fth_running;
     fthSchedulerPthread(0);
     --state->fth_running;
 
-    plat_log_msg(21769, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+    plat_log_msg(21769, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                  "fth scheduler stopped");
 
     return (NULL);

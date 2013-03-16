@@ -84,7 +84,7 @@ fthThreadMultiNodeSender(uint64_t arg) {
 #endif
 
 
-    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                  "\nNode %d, fth thread sender starting  %s: number msgs to send = %d\n", myid, __func__, msgCount);
 
     int localpn, actmask;
@@ -102,7 +102,7 @@ fthThreadMultiNodeSender(uint64_t arg) {
     }
     else {
         node = local_get_pnode(localrank, localpn, numprocs);
-        plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+        plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
 	             "\nNode %d: %s my pnode is  %d\n", localrank, __func__, node);
 	for (int i = 0; i < numprocs; i++) {
             printf("Node %d: %s cluster_node[%d] = %d\n", localrank, __func__, i, cluster_node[i]);
@@ -148,9 +148,9 @@ fthThreadMultiNodeSender(uint64_t arg) {
     }
     
     printf("Sender break\n");
-    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                  "\nNode %d: sender type#%li sends protocol#%li msg finished, send %d times\n", myid, ptl, ptl, l);
-    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                  "\nNode %d, sender type %li kill the scheduler.\n", myid, ptl);  
     fthKill(1);
 }
@@ -160,7 +160,7 @@ void fthThreadMultiNodeRecver(uint64_t arg) {
     uint64_t aresp = 0, ptl;
     struct sdf_msg *recv_msg = NULL, *send_msg = NULL;
     vnode_t node;
-    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                  "\nNode %d: fth thread receiver %li\n", myid, arg);
 
     int localpn, actmask;
@@ -197,14 +197,14 @@ void fthThreadMultiNodeRecver(uint64_t arg) {
     printf("************************Number:%d\n",(numprocs-1) * msgCount);
 for (;;) {
     for(i = 1; i < numprocs; i ++ ) {    
-        plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+        plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                      "\nNode %d: Waiting for messages q_pair %p loop %d\n", myid, q_pair[i], ct);
         ct++;
         if(ct > (numprocs-1) * msgCount)
             break;
         recv_msg = sdf_msg_receive(q_pair[i]->q_out, 0, B_TRUE);
 
-        plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+        plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                      "\nNode %d: Got One *msg %p sn %d dn %d proto %d type %d"
                      " akrpmbx %p\n", myid, recv_msg, recv_msg->msg_src_vnode, recv_msg->msg_dest_vnode,
 	             recv_msg->msg_dest_service, recv_msg->msg_type, recv_msg->akrpmbx);
@@ -212,7 +212,7 @@ for (;;) {
 #if 1
     if(recv_msg) {
         uint32_t d = recv_msg->msg_dest_service;
-        plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+        plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                      "\nNode %d, receiver type# %li recvs protocol# %d type msg from sender %d\n", myid, ptl, d, i);
         local_printmsg_payload(recv_msg, TSZE, myid);
     }
@@ -243,7 +243,7 @@ for (;;) {
         // release the receive buffer back to the sdf messaging thread
         ret = sdf_msg_free_buff(recv_msg);
 
-        plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+        plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                      "\nNode %d: Sent msg, Send ack'd, Buff Freed aresp %ld loop %d\n", myid, aresp, ct);
     }
 
@@ -256,7 +256,7 @@ for (;;) {
     printf("@@node %d, receiver type#%li, receive message finished, receive %d times\n", myid, ptl, ct * (numprocs - 1));
     
 
-   plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+   plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                 "\nNode %d: receiver type#%li, receive message finished, receive %d times\n", 
                 myid, ptl, ct * (numprocs - 1));
    fthYield(100);

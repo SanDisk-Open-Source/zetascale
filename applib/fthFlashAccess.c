@@ -451,7 +451,7 @@ int initFthFlashAccess(unsigned fthSchedNum, unsigned fthNum) {
             0xffffffffffffffff, getProperty_Int("SDF_SHARD_MAX_OBJECTS", 1000000)))) {
         return -3;
     }
-    plat_log_msg(20867, PLAT_LOG_CAT_PRINT_ARGS, PLAT_LOG_LEVEL_DEBUG, "PROP: SDF_SHARD_MAX_OBJECTS=%d",
+    plat_log_msg(20867, PLAT_LOG_CAT_PRINT_ARGS, PLAT_LOG_LEVEL_TRACE, "PROP: SDF_SHARD_MAX_OBJECTS=%d",
             getProperty_Int("SDF_SHARD_MAX_OBJECTS", 1000000));
 
     if (fio_sb_initQueue(&queue)) {

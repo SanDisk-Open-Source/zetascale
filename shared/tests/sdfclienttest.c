@@ -42,31 +42,31 @@ testCreateBlockContainer(void)
     if (SDF_SUCCESS != (status = SDFCreateBlockContainer(NULL, blockSize, properties))) {
         // NOTE: should fail as NULL path is not allowed
         plat_log_msg(21631, PLAT_LOG_CAT_SDF_CLIENT,
-                     PLAT_LOG_LEVEL_DEBUG, "SUCCESS: testCreateBlockContainer() #1");
+                     PLAT_LOG_LEVEL_TRACE, "SUCCESS: testCreateBlockContainer() #1");
     } else {
         plat_log_msg(21632, PLAT_LOG_CAT_SDF_CLIENT,
-                     PLAT_LOG_LEVEL_DEBUG, "FAILED: testCreateBlockContainer() #1");
+                     PLAT_LOG_LEVEL_TRACE, "FAILED: testCreateBlockContainer() #1");
         failed = 1;
     }
 
     if (SDF_SUCCESS != (status = SDFCreateBlockContainer(cpath, 8095, properties))) {
         // NOTE: should fail as odd number for block size is not allowed
         plat_log_msg(21633, PLAT_LOG_CAT_SDF_CLIENT,
-                     PLAT_LOG_LEVEL_DEBUG, "SUCCESS: testCreateBlockContainer() #2");
+                     PLAT_LOG_LEVEL_TRACE, "SUCCESS: testCreateBlockContainer() #2");
         failed = 1;
     } else {
         plat_log_msg(21634, PLAT_LOG_CAT_SDF_CLIENT,
-                     PLAT_LOG_LEVEL_DEBUG, "FAILED: testCreateBlockContainer() #2");
+                     PLAT_LOG_LEVEL_TRACE, "FAILED: testCreateBlockContainer() #2");
     }
 
     if (SDF_SUCCESS != (status = SDFCreateBlockContainer(cpath, blockSize, properties))) {
         plat_log_msg(21635, PLAT_LOG_CAT_SDF_CLIENT,
-                     PLAT_LOG_LEVEL_DEBUG, "FAILED: testCreateBlockContainer() #3");
+                     PLAT_LOG_LEVEL_TRACE, "FAILED: testCreateBlockContainer() #3");
         failed = 1;
     } else {
         failed = 0;
         plat_log_msg(21636, PLAT_LOG_CAT_SDF_CLIENT,
-                     PLAT_LOG_LEVEL_DEBUG, "SUCCESS: testCreateBlockContainer() #3");
+                     PLAT_LOG_LEVEL_TRACE, "SUCCESS: testCreateBlockContainer() #3");
     }
 
     return (failed);
@@ -81,10 +81,10 @@ testDeleteBlockContainer() {
     if (SDFDeleteContainer(cpath) == SDF_SUCCESS) {
         failed = 0;
         plat_log_msg(21637, PLAT_LOG_CAT_SDF_CLIENT,
-                     PLAT_LOG_LEVEL_DEBUG, "SUCCESS: delete block container");
+                     PLAT_LOG_LEVEL_TRACE, "SUCCESS: delete block container");
     } else {
         plat_log_msg(21638, PLAT_LOG_CAT_SDF_CLIENT,
-                     PLAT_LOG_LEVEL_DEBUG, "FAILURE: delete block container");
+                     PLAT_LOG_LEVEL_TRACE, "FAILURE: delete block container");
     }
 
     return (failed);
@@ -98,10 +98,10 @@ testOpenBlockContainer()
     printf("// testOpenBlockContainer\n");
     if (!isContainerNull(container = SDFOpenBlockContainer(cpath, SDF_READ_WRITE_MODE))) {
         plat_log_msg(21639, PLAT_LOG_CAT_SDF_CLIENT,
-                     PLAT_LOG_LEVEL_DEBUG, "FAILED: testOpenBlockContainer() #1");
+                     PLAT_LOG_LEVEL_TRACE, "FAILED: testOpenBlockContainer() #1");
     } else {
         plat_log_msg(21640, PLAT_LOG_CAT_SDF_CLIENT,
-                     PLAT_LOG_LEVEL_DEBUG, "SUCCESS: testOpenBlockContainer() #1");
+                     PLAT_LOG_LEVEL_TRACE, "SUCCESS: testOpenBlockContainer() #1");
     }
 
     return (container);
@@ -133,7 +133,7 @@ testGetPutBlockContainer(SDF_CONTAINER c) {
             break;
         }
         plat_log_msg(21641, PLAT_LOG_CAT_SDF_CLIENT,
-                     PLAT_LOG_LEVEL_DEBUG, "SUCCESS: testGetPutBlockContainer - put block %d", i);
+                     PLAT_LOG_LEVEL_TRACE, "SUCCESS: testGetPutBlockContainer - put block %d", i);
     }
 
     for (int k = 0; k < numBlocks; k++) {
@@ -141,10 +141,10 @@ testGetPutBlockContainer(SDF_CONTAINER c) {
         key->block_id = k;
         if ((SDFGetBlockForRead(txid, c, k, 0, 0, (void **) &pdata)) != SDF_SUCCESS) {
             plat_log_msg(21642, PLAT_LOG_CAT_SDF_CLIENT,
-                         PLAT_LOG_LEVEL_DEBUG, "FAILED: testGetPutBlockContainer - get block %d", (int)key->block_id);
+                         PLAT_LOG_LEVEL_TRACE, "FAILED: testGetPutBlockContainer - get block %d", (int)key->block_id);
         } else {
             plat_log_msg(21643, PLAT_LOG_CAT_SDF_CLIENT,
-                         PLAT_LOG_LEVEL_DEBUG, "SUCCESS: testGetPutBlockContainer - get block %d", (int)key->block_id);
+                         PLAT_LOG_LEVEL_TRACE, "SUCCESS: testGetPutBlockContainer - get block %d", (int)key->block_id);
         }
     }
 
@@ -165,11 +165,11 @@ test_create_container(char *cname) {
 
     if (status == SDF_SUCCESS) {
         plat_log_msg(21644, PLAT_LOG_CAT_SDF_CLIENT,
-                     PLAT_LOG_LEVEL_DEBUG, "SUCCESS: test container create");
+                     PLAT_LOG_LEVEL_TRACE, "SUCCESS: test container create");
 
     } else {
         plat_log_msg(21645, PLAT_LOG_CAT_SDF_CLIENT,
-                     PLAT_LOG_LEVEL_DEBUG, "FAILURE: test container create");
+                     PLAT_LOG_LEVEL_TRACE, "FAILURE: test container create");
     }
 
     return (status);
@@ -184,10 +184,10 @@ test_delete_container(char *cname) {
     printf("// test_delete_container\n");
     if ((status = SDFDeleteContainer(cname)) == SDF_SUCCESS) {
         plat_log_msg(21646, PLAT_LOG_CAT_SDF_CLIENT,
-                     PLAT_LOG_LEVEL_DEBUG, "SUCCESS: delete container");
+                     PLAT_LOG_LEVEL_TRACE, "SUCCESS: delete container");
     } else {
         plat_log_msg(21647, PLAT_LOG_CAT_SDF_CLIENT,
-                     PLAT_LOG_LEVEL_DEBUG, "FAILURE: delete container");
+                     PLAT_LOG_LEVEL_TRACE, "FAILURE: delete container");
     }
 
     return (status);
@@ -202,14 +202,14 @@ test_open_close_container(char *cname) {
     printf("// test_open_close_container\n");
     if (!isContainerNull(c = SDFOpenBlockContainer(cname, SDF_READ_WRITE_MODE))) {
         plat_log_msg(21648, PLAT_LOG_CAT_SDF_CLIENT,
-                     PLAT_LOG_LEVEL_DEBUG, "FAILURE: Open Container - %s", cname);
+                     PLAT_LOG_LEVEL_TRACE, "FAILURE: Open Container - %s", cname);
     } else if ((SDFCloseBlockContainer(c)) != SDF_SUCCESS) {
         plat_log_msg(21649, PLAT_LOG_CAT_SDF_CLIENT,
-                     PLAT_LOG_LEVEL_DEBUG, "FAILURE: Close Container - %s", cname);
+                     PLAT_LOG_LEVEL_TRACE, "FAILURE: Close Container - %s", cname);
     } else {
         status = SDF_SUCCESS;
         plat_log_msg(21650, PLAT_LOG_CAT_SDF_CLIENT,
-                     PLAT_LOG_LEVEL_DEBUG, "SUCCESS: Open/Close Container - %s", cname);
+                     PLAT_LOG_LEVEL_TRACE, "SUCCESS: Open/Close Container - %s", cname);
     }
     return (status);
 }
@@ -225,7 +225,7 @@ test_container_object(char *cname) {
     printf("// test_container_object\n");
     if (!isContainerNull(c = SDFOpenBlockContainer(cname, SDF_READ_WRITE_MODE))) {
         plat_log_msg(21648, PLAT_LOG_CAT_SDF_CLIENT,
-                     PLAT_LOG_LEVEL_DEBUG, "FAILURE: Open Container - %s", cname);
+                     PLAT_LOG_LEVEL_TRACE, "FAILURE: Open Container - %s", cname);
     } else {
 
         int size = 5;
@@ -245,7 +245,7 @@ test_container_object(char *cname) {
         char *gdata = (char *) plat_alloc(inData->len);
 
         if ((SDFCreate(c, (SDF_key_t *)key, (SDF_size_t) inData->len, 0)) != SDF_SUCCESS) {
-            plat_log_msg(21651, PLAT_LOG_CAT_SDF_CLIENT, PLAT_LOG_LEVEL_DEBUG, 
+            plat_log_msg(21651, PLAT_LOG_CAT_SDF_CLIENT, PLAT_LOG_LEVEL_TRACE, 
                          "FAILURE: SDFCreate");
             return;
         } 
@@ -253,20 +253,20 @@ test_container_object(char *cname) {
         memcpy(&key->chars, "goo", 3);
 
         if ((SDFCreate(c, (SDF_key_t *)key, (SDF_size_t) inData->len, 0)) != SDF_SUCCESS) {
-            plat_log_msg(21651, PLAT_LOG_CAT_SDF_CLIENT, PLAT_LOG_LEVEL_DEBUG, 
+            plat_log_msg(21651, PLAT_LOG_CAT_SDF_CLIENT, PLAT_LOG_LEVEL_TRACE, 
                          "FAILURE: SDFCreate");
             return;
         } 
 
         if ((SDFPut(c, (SDF_key_t *)key, (void *) pdata, (SDF_size_t) inData->len, 0)) != SDF_SUCCESS) {
-            plat_log_msg(21652, PLAT_LOG_CAT_SDF_CLIENT, PLAT_LOG_LEVEL_DEBUG, 
+            plat_log_msg(21652, PLAT_LOG_CAT_SDF_CLIENT, PLAT_LOG_LEVEL_TRACE, 
                          "FAILURE: SDFPut");
             return;
         } 
 
         memcpy(&key->chars, "foo", 3);
         if ((SDFGet(c, (SDF_key_t *)key, (void **) &gdata, (SDF_size_t) inData->len, 0)) != SDF_SUCCESS) {
-            plat_log_msg(21653, PLAT_LOG_CAT_SDF_CLIENT, PLAT_LOG_LEVEL_DEBUG, 
+            plat_log_msg(21653, PLAT_LOG_CAT_SDF_CLIENT, PLAT_LOG_LEVEL_TRACE, 
                          "FAILURE: SDFGet");
             return;
         }
@@ -274,7 +274,7 @@ test_container_object(char *cname) {
 
         memcpy(&key->chars, "goo", 3);
         if ((SDFGet(c, (SDF_key_t *)key, (void **) &gdata, (SDF_size_t) inData->len, 0)) != SDF_SUCCESS) {
-            plat_log_msg(21653, PLAT_LOG_CAT_SDF_CLIENT, PLAT_LOG_LEVEL_DEBUG, 
+            plat_log_msg(21653, PLAT_LOG_CAT_SDF_CLIENT, PLAT_LOG_LEVEL_TRACE, 
                          "FAILURE: SDFGet");
             return;
         }
@@ -282,7 +282,7 @@ test_container_object(char *cname) {
 
         memcpy(&key->chars, "boo", 3);
         if ((SDFGet(c, (SDF_key_t *)key, (void **) &gdata, (SDF_size_t) inData->len, 0)) != SDF_SUCCESS) {
-            plat_log_msg(21653, PLAT_LOG_CAT_SDF_CLIENT, PLAT_LOG_LEVEL_DEBUG, 
+            plat_log_msg(21653, PLAT_LOG_CAT_SDF_CLIENT, PLAT_LOG_LEVEL_TRACE, 
                          "FAILURE: SDFGet");
         } else {
             printf("foo - %s\n", gdata);
@@ -290,10 +290,10 @@ test_container_object(char *cname) {
 
         if ((SDFCloseContainer(cname, c)) != SDF_SUCCESS) {
             plat_log_msg(21649, PLAT_LOG_CAT_SDF_CLIENT,
-                         PLAT_LOG_LEVEL_DEBUG, "FAILURE: Close Container - %s", cname);
+                         PLAT_LOG_LEVEL_TRACE, "FAILURE: Close Container - %s", cname);
         } else {
             plat_log_msg(21650, PLAT_LOG_CAT_SDF_CLIENT,
-                         PLAT_LOG_LEVEL_DEBUG, "SUCCESS: Open/Close Container - %s", cname);
+                         PLAT_LOG_LEVEL_TRACE, "SUCCESS: Open/Close Container - %s", cname);
         }
     }
 }
@@ -303,10 +303,10 @@ void initialize(int num_objects) {
     printf("// initialize\n");
     if (init_sdf_initialize(num_objects) == SDF_SUCCESS) {
         plat_log_msg(21654, PLAT_LOG_CAT_SDF_CLIENT,
-                     PLAT_LOG_LEVEL_DEBUG, "SUCCESS: SDF init");
+                     PLAT_LOG_LEVEL_TRACE, "SUCCESS: SDF init");
     } else {
         plat_log_msg(21655, PLAT_LOG_CAT_SDF_CLIENT,
-                     PLAT_LOG_LEVEL_DEBUG, "FAILED: SDF init");
+                     PLAT_LOG_LEVEL_TRACE, "FAILED: SDF init");
     }
 
     printf("*************************************\n");
@@ -362,7 +362,7 @@ test_flash() {
 
     if (!flashPut(shard, key, inData, 0, 0, 0)) {
         plat_log_msg(21656, PLAT_LOG_CAT_SDF_CLIENT,
-                     PLAT_LOG_LEVEL_DEBUG, "FAILURE: flashPut");
+                     PLAT_LOG_LEVEL_TRACE, "FAILURE: flashPut");
     }
     
     memcpy(&key->chars, "bar", 3);
@@ -372,18 +372,18 @@ test_flash() {
 
     if (!flashPut(shard, key, inData, 0, 0, 0)) {
         plat_log_msg(21656, PLAT_LOG_CAT_SDF_CLIENT,
-                     PLAT_LOG_LEVEL_DEBUG, "FAILURE: flashPut");
+                     PLAT_LOG_LEVEL_TRACE, "FAILURE: flashPut");
     }
 
     if (!flashPut(shard, key, inData, 0, 0, 0)) {
         plat_log_msg(21656, PLAT_LOG_CAT_SDF_CLIENT,
-                     PLAT_LOG_LEVEL_DEBUG, "FAILURE: flashPut");
+                     PLAT_LOG_LEVEL_TRACE, "FAILURE: flashPut");
     }
 
     outData = NULL;
     if (!flashGet(shard, key, &outData, 0, 0)) {
         plat_log_msg(21657, PLAT_LOG_CAT_SDF_CLIENT,
-                     PLAT_LOG_LEVEL_DEBUG, "FAILURE: flashGet");
+                     PLAT_LOG_LEVEL_TRACE, "FAILURE: flashGet");
     }
     printf("bar - %s\n", outData->chars);
 
@@ -392,13 +392,13 @@ test_flash() {
     outData = NULL;
     if (!flashGet(shard, key, &outData, 0, 0)) {
         plat_log_msg(21657, PLAT_LOG_CAT_SDF_CLIENT,
-                     PLAT_LOG_LEVEL_DEBUG, "FAILURE: flashGet");
+                     PLAT_LOG_LEVEL_TRACE, "FAILURE: flashGet");
     }
     printf("foo - %s\n", outData->chars);
 
     if (!flashPut(shard, key, inData, 0, 0, 0)) {
         plat_log_msg(21656, PLAT_LOG_CAT_SDF_CLIENT,
-                     PLAT_LOG_LEVEL_DEBUG, "FAILURE: flashPut");
+                     PLAT_LOG_LEVEL_TRACE, "FAILURE: flashPut");
     }
 
 }

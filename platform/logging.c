@@ -51,7 +51,7 @@
  * Default log threshold for immediate output when not specified in level
  * threshold for specified category.
  */
-#define DEFAULT_LOG_LEVEL PLAT_LOG_LEVEL_INFO
+#define DEFAULT_LOG_LEVEL PLAT_LOG_LEVEL_TRACE
 
 /*
  * XXX: Debugging problems may be simpler when this is  split into simulated
@@ -409,7 +409,7 @@ plat_log_set_gettime(void (*fn)(void *extra, struct timeval *tv), void *extra,
                      void (**old_fn)(void *extra, struct timeval *tv),
                      void **old_extra) {
     plat_log_msg(20950, PLAT_LOG_CAT_PLATFORM_LOGGING,
-                 PLAT_LOG_LEVEL_INFO, "log gettime function changed");
+                 PLAT_LOG_LEVEL_DEBUG, "log gettime function changed");
 
     if (old_fn) {
         *old_fn = log_gettime_fn;

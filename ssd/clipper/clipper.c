@@ -309,21 +309,21 @@ static uint64_t clipperInit(Clipper_t *pc, shard_t *pshard, uint64_t size, uint6
     /*   Tell the world what we did.
      */
 
-    plat_log_msg(21669, PLAT_LOG_CAT_FLASH, PLAT_LOG_LEVEL_INFO,
+    plat_log_msg(21669, PLAT_LOG_CAT_FLASH, PLAT_LOG_LEVEL_DEBUG,
 		 "pagesize=%d, npages=%"PRIu64", pages/slab=%"PRIu64", nslabs=%"PRIu64", slabsize=%"PRIu64", nbuckets=%"PRIu64"", 
 		 pc->pagesize, pc->npages, pc->pages_per_slab, pc->nslabs, pc->slabsize, pc->nbuckets);
-    plat_log_msg(21670, PLAT_LOG_CAT_FLASH, PLAT_LOG_LEVEL_INFO,
+    plat_log_msg(21670, PLAT_LOG_CAT_FLASH, PLAT_LOG_LEVEL_DEBUG,
 		 "n_syndrome_bits=%d, n_bucket_bits=%d",
 		 pc->n_syndrome_bits, pc->n_bucket_bits);
-    plat_log_msg(21671, PLAT_LOG_CAT_FLASH, PLAT_LOG_LEVEL_INFO,
+    plat_log_msg(21671, PLAT_LOG_CAT_FLASH, PLAT_LOG_LEVEL_DEBUG,
 		 "requested ssd size = %"PRIu64", adjusted ssd size = %"PRIu64"",
 		 size, adjusted_size);
 
     if (pc->pshard->flags & FLASH_SHARD_INIT_EVICTION_STORE) {
-	plat_log_msg(21672, PLAT_LOG_CAT_FLASH, PLAT_LOG_LEVEL_INFO,
+	plat_log_msg(21672, PLAT_LOG_CAT_FLASH, PLAT_LOG_LEVEL_DEBUG,
 		     "Shard configured as DATA STORE.");
     } else {
-	plat_log_msg(21673, PLAT_LOG_CAT_FLASH, PLAT_LOG_LEVEL_INFO,
+	plat_log_msg(21673, PLAT_LOG_CAT_FLASH, PLAT_LOG_LEVEL_DEBUG,
 		     "Shard configured for EVICTION.");
     }
 
@@ -343,7 +343,7 @@ struct flashDev *clipper_flashOpen(char *devName, flash_settings_t *flash_settin
 
     pdev = plat_alloc(sizeof(struct flashDev));
     if (pdev == NULL) {
-	plat_log_msg(21674, PLAT_LOG_CAT_FLASH, PLAT_LOG_LEVEL_INFO,
+	plat_log_msg(21674, PLAT_LOG_CAT_FLASH, PLAT_LOG_LEVEL_DEBUG,
 		     "plat_alloc failed in flashOpen!");
         return(NULL);
     }
@@ -363,7 +363,7 @@ struct flashDev *clipper_flashOpen(char *devName, flash_settings_t *flash_settin
 	pdev->paio_state = plat_alloc(sizeof(struct ssdaio_state));
     #endif
     if (pdev->paio_state == NULL) {
-	plat_log_msg(21674, PLAT_LOG_CAT_FLASH, PLAT_LOG_LEVEL_INFO,
+	plat_log_msg(21674, PLAT_LOG_CAT_FLASH, PLAT_LOG_LEVEL_DEBUG,
 		     "plat_alloc failed in flashOpen!");
         return(NULL);
     }
@@ -403,7 +403,7 @@ struct shard *clipper_shardCreate(struct flashDev *dev, uint64_t shardID, int fl
     Lock(dev->lock, w);
 
     if ((dev->size - dev->used) < quota) {
-	plat_log_msg(21676, PLAT_LOG_CAT_FLASH, PLAT_LOG_LEVEL_INFO,
+	plat_log_msg(21676, PLAT_LOG_CAT_FLASH, PLAT_LOG_LEVEL_DEBUG,
 		     "Insufficient space on flash in shardCreate!  Reducing quota from %"PRIu64" to %"PRIu64"", quota, dev->size - dev->used);
 	quota = dev->size - dev->used;
 	// quota = 16*1024; // xxxzzz this is temporary!
@@ -412,7 +412,7 @@ struct shard *clipper_shardCreate(struct flashDev *dev, uint64_t shardID, int fl
 
     ps = plat_alloc(sizeof(struct shard));
     if (ps == NULL) {
-	plat_log_msg(21677, PLAT_LOG_CAT_FLASH, PLAT_LOG_LEVEL_INFO,
+	plat_log_msg(21677, PLAT_LOG_CAT_FLASH, PLAT_LOG_LEVEL_DEBUG,
 		     "plat_alloc failed in shardCreate!");
         return(NULL);
     }
@@ -429,7 +429,7 @@ struct shard *clipper_shardCreate(struct flashDev *dev, uint64_t shardID, int fl
 
     pc = plat_alloc(sizeof(Clipper_t));
     if (pc == NULL) {
-	plat_log_msg(21677, PLAT_LOG_CAT_FLASH, PLAT_LOG_LEVEL_INFO,
+	plat_log_msg(21677, PLAT_LOG_CAT_FLASH, PLAT_LOG_LEVEL_DEBUG,
 		     "plat_alloc failed in shardCreate!");
         return(NULL);
     }
@@ -1254,7 +1254,7 @@ static int get_meta(struct flashDev *pdev, ssdaio_ctxt_t *pctxt, Clipper_t *pc, 
 #else
     if ((rc = ssdaio_read_flash(pdev, pctxt, pbuf, blknum*pc->pagesize, pc->pagesize))) {
 #endif
-	plat_log_msg(21683, PLAT_LOG_CAT_FLASH, PLAT_LOG_LEVEL_INFO,
+	plat_log_msg(21683, PLAT_LOG_CAT_FLASH, PLAT_LOG_LEVEL_DEBUG,
 		     "read_flash failed (rc=%d).", rc);
 	*ppmeta = NULL;
 	return(rc);
@@ -1324,7 +1324,7 @@ static int get_object(struct flashDev *pdev, ssdaio_ctxt_t *pctxt,
 #else
     if ((rc = ssdaio_read_flash(pdev, pctxt, pbuf_aligned, blknum*pc->pagesize, npages*pc->pagesize))) {
 #endif
-	plat_log_msg(21683, PLAT_LOG_CAT_FLASH, PLAT_LOG_LEVEL_INFO,
+	plat_log_msg(21683, PLAT_LOG_CAT_FLASH, PLAT_LOG_LEVEL_DEBUG,
 		     "read_flash failed (rc=%d).", rc);
 	/* don't forget to free the big buffer! */
 	if (big_buffer) {
@@ -1376,7 +1376,7 @@ static int get_object(struct flashDev *pdev, ssdaio_ctxt_t *pctxt,
     }
 
     #ifdef DEBUG_CLIPPER
-	plat_log_msg(21684, PLAT_LOG_CAT_FLASH, PLAT_LOG_LEVEL_INFO,
+	plat_log_msg(21684, PLAT_LOG_CAT_FLASH, PLAT_LOG_LEVEL_DEBUG,
 	     "CLIPPER get_object: key='%s', ice=%"PRIu64", npages=%d, " 
 	     "pmeta->databytes=%d, pmeta->npages_used=%d, pmeta->npages_actual=%d",
 	     key, ice, npages, pmeta_flash->databytes, 
@@ -1457,7 +1457,7 @@ static int put_object(struct flashDev *pdev, ssdaio_ctxt_t *pctxt, Clipper_t *pc
     pmeta_flash->magic         = 0; // xxxzzz placeholder for recovery
 
     #ifdef DEBUG_CLIPPER
-	plat_log_msg(21685, PLAT_LOG_CAT_FLASH, PLAT_LOG_LEVEL_INFO,
+	plat_log_msg(21685, PLAT_LOG_CAT_FLASH, PLAT_LOG_LEVEL_DEBUG,
 	     "CLIPPER put_object: key='%s', ice=%"PRIu64", npages_new=%d, " 
 	     "pmeta->databytes=%d, pmeta->npages_used=%d, pmeta->npages_actual=%d",
 	     key, ice, npages_new, pmeta_flash->databytes, 
@@ -1469,7 +1469,7 @@ static int put_object(struct flashDev *pdev, ssdaio_ctxt_t *pctxt, Clipper_t *pc
 #else
     if ((rc = ssdaio_write_flash(pdev, pctxt, pbuf_aligned, blknum*pc->pagesize, npages_new*pc->pagesize))) {
 #endif
-	plat_log_msg(21686, PLAT_LOG_CAT_FLASH, PLAT_LOG_LEVEL_INFO,
+	plat_log_msg(21686, PLAT_LOG_CAT_FLASH, PLAT_LOG_LEVEL_DEBUG,
 		     "write_flash failed (rc=%d).", rc);
 	/* don't forget to free the big buffer! */
 	if (big_buffer) {

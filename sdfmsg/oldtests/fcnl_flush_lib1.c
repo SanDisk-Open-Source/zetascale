@@ -113,7 +113,7 @@ void * FlushPthreadRoutine(void *arg) {
     }
 
     if (debug)
-        plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+        plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                 "\nNode %d FLUSH TEST THREAD STOPPING HERE FOR DEBUG\n", myid);
     while (debug);
 
@@ -130,7 +130,7 @@ void * FlushPthreadRoutine(void *arg) {
         }
 
         if (DBGP) {
-            plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+            plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                     "\nNode %d msg %p msg->msg_payload %p\n", myid, send_msg,
                     send_msg->msg_payload);
         }
@@ -153,10 +153,10 @@ void * FlushPthreadRoutine(void *arg) {
 
             if (DBGP) {
                 plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT,
-                        PLAT_LOG_LEVEL_DEBUG,
+                        PLAT_LOG_LEVEL_TRACE,
                         "\nNode %d: sdf_msg_send returned %d\n", myid, ret);
                 plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT,
-                        PLAT_LOG_LEVEL_DEBUG,
+                        PLAT_LOG_LEVEL_TRACE,
                         "\nNode %d: %s: calling sdf_msg_receive(%p, %d, %d)\n",
                         myid, __func__, q_pair_FLSH->q_out, 0, B_TRUE);
             }
@@ -176,7 +176,7 @@ void * FlushPthreadRoutine(void *arg) {
          }
          }*/
         if (DBGP) {
-            plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+            plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                     "\nNode %d: back from sdf_msg_receive with msg %p\n", myid,
                     recv_msg);
         }
@@ -198,7 +198,7 @@ void * FlushPthreadRoutine(void *arg) {
             break;
     }
 
-    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
             "\nNode %d Exiting pthread FLUSH Tester\n", myid);
     return (0);
 }

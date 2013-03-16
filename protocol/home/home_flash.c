@@ -292,7 +292,7 @@ home_flash_alloc(struct SDF_flash_init *pfi,
     }
 
     if (!failed) {
-        plat_log_msg(21292, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+        plat_log_msg(21292, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                      "home flash %p allocated", pfs);
     } else {
         plat_log_msg(21293, LOG_CAT, PLAT_LOG_LEVEL_ERROR,
@@ -309,7 +309,7 @@ home_flash_shutdown(struct SDF_flash_state *pfs,
     int num_threads;
     int i;
 
-    plat_log_msg(21294, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+    plat_log_msg(21294, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                  "shutdown flash state %p ref_count %d",
                  pfs, pfs->ref_count);
 
@@ -336,7 +336,7 @@ home_flash_start(struct SDF_flash_state *pfs) {
     struct SDF_flash_thrd_state *pts;
     fthThread_t *fth;
 
-    plat_log_msg(21295, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+    plat_log_msg(21295, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                  "home flash %p starting", pfs);
 
     /* Setup clock events */
@@ -370,7 +370,7 @@ home_flash_start(struct SDF_flash_state *pfs) {
 	for (i = 0; !ret && i < pfs->config.nthreads; ++i) {
 	    (void) fthMboxWait(&(pfs->startup_mbx));
 	}
-        plat_log_msg(21138, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+        plat_log_msg(21138, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                      "home flash %p started", pfs);
     } else {
         plat_log_msg(21139, LOG_CAT, PLAT_LOG_LEVEL_ERROR,
@@ -396,7 +396,7 @@ home_flash_refcount_dec(struct SDF_flash_state *pfs) {
             UTMallocTrace("home_flash_refcount_dec", FALSE, TRUE, FALSE, (void *) pfs, sizeof(*pfs));
 #endif // MALLOC_TRACE
 
-        plat_log_msg(21296, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+        plat_log_msg(21296, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                      "shutdown flash state %p complete", pfs);
         plat_free(pfs);
     }
@@ -511,7 +511,7 @@ pts_main(uint64_t arg) {
     static int wait_count = 0;
 
     before = __sync_fetch_and_add(&pfs->num_threads, 1);
-    plat_log_msg(21297, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+    plat_log_msg(21297, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                  "flash protocol thread %d starting pts %p",
                  before, pts);
 
@@ -574,7 +574,7 @@ pts_main(uint64_t arg) {
 
                 if (PLAT_UNLIKELY(stale_ltime)) {
 
-                    plat_log_msg(21298, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+                    plat_log_msg(21298, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                                  "STALE LTIME - recv_pm->op_meta.shard_ltime: %u - pfs->ltime: %u",
                                  recv_pm->op_meta.shard_ltime, pfs->ltime);
 
@@ -652,7 +652,7 @@ pts_main(uint64_t arg) {
                         memcpy(&pfs->ltime, pdata, sizeof(sdf_replication_ltime_t));
                         pfs->ltime_drain = SDF_TRUE;
                         
-                        plat_log_msg(21301, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+                        plat_log_msg(21301, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                                      "update ltime: %u", pfs->ltime);
 
                         // Return ltime update success
@@ -705,7 +705,7 @@ pts_main(uint64_t arg) {
                 ++wait_count;
                 FTH_SPIN_UNLOCK(&pfs->pfs_spin);        
                 // Still draining - wait
-                plat_log_msg(21303, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+                plat_log_msg(21303, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                              "Home flash drain I/O not complete - waiting - ref count: %d - wait_count: %d",
                              pfs->io_ref_count, wait_count);
                 fthNanoSleep(HF_DRAIN_SLEEP);
@@ -722,7 +722,7 @@ pts_main(uint64_t arg) {
                 pfs->ltime_drain = SDF_FALSE;
                 wait_count = 0;
                 FTH_SPIN_UNLOCK(&pfs->pfs_spin);        
-                plat_log_msg(21305, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+                plat_log_msg(21305, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                              "Home flash drain I/O complete");
             }
         }
@@ -732,7 +732,7 @@ pts_main(uint64_t arg) {
     before = __sync_fetch_and_sub(&pfs->num_threads, 1);
     plat_assert(before > 0);
 
-    plat_log_msg(21306, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+    plat_log_msg(21306, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                  "flash protocol thread stopping pts %p, %d remain",
                  pts, before - 1);
 
@@ -773,7 +773,7 @@ int stop_home_shard_map_entry(SDF_action_thrd_state_t *pts, SDF_shardid_t shard)
     wait = fthLock(&(pts->shardmap_lock), 1, NULL);
     psme = SDFTLMap2Get(&(pts->shardmap), shard);
     if (!psme) {
-	plat_log_msg(21307, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+	plat_log_msg(21307, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
 		 "no shardmap entry for shardid 0x%lx", shard);
 	success = 1;
     } else {
@@ -1107,11 +1107,11 @@ home_flash_wrapper(
 		    metaData.expTime    = pm->exptime;
 		}
 		
-		plat_log_msg(21311, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION, PLAT_LOG_LEVEL_DEBUG,
+		plat_log_msg(21311, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION, PLAT_LOG_LEVEL_TRACE,
 			     "Adjust time current_time_in: %d current_time_local: %d clock_skew: %d",
 			     pm->createtime, metaData.createTime, pm->createtime - metaData.createTime);
 
-		plat_log_msg(21312, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION, PLAT_LOG_LEVEL_DEBUG,
+		plat_log_msg(21312, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION, PLAT_LOG_LEVEL_TRACE,
 			     "data forwarding recv: key: %s len: %d data: 0x%lx",  pflash_key, metaData.keyLen, (uint64_t) pflash_data2);
 
                 if (!check_flash_space(pai->pcs, pshard)) {
@@ -1562,7 +1562,7 @@ home_flash_shard_wrapper(
 			meta.properties.shard.num_shards = 1;
 
 			plat_log_msg(21317, LOG_CAT_SHARD,
-				     PLAT_LOG_LEVEL_INFO,
+				     PLAT_LOG_LEVEL_DEBUG,
 				     "HFCSH container name: %s", recv_pm->cname);
 
 			blob.version = SDF_BLOB_CONTAINER_META_VERSION;
@@ -1666,7 +1666,7 @@ home_flash_shard_wrapper(
 		sequence = flashGetHighSequence(pshard);
 
 		plat_log_msg(21324, LOG_CAT_SHARD,
-			     PLAT_LOG_LEVEL_DEBUG,
+			     PLAT_LOG_LEVEL_TRACE,
 			     "got sequence num %ld for  sguid 0x%lx",
 			     sequence, recv_shard_meta->sguid);
 
@@ -1880,7 +1880,7 @@ home_flash_shard_wrapper(
 		//sequence = drewsGetSeqnoCall();
 
 		plat_log_msg(21324, LOG_CAT_SHARD,
-			     PLAT_LOG_LEVEL_DEBUG,
+			     PLAT_LOG_LEVEL_TRACE,
 			     "got sequence num %ld for  sguid 0x%lx",
 			     sequence, recv_shard_meta->sguid);
 
@@ -1911,7 +1911,7 @@ home_flash_shard_wrapper(
 		if (ssd_shardDelete(pshard) != 0) {
 		    success = 0;
 		    plat_log_msg(21328, LOG_CAT_SHARD,
-				 PLAT_LOG_LEVEL_DEBUG,
+				 PLAT_LOG_LEVEL_TRACE,
 				 "flashDelete failed for sguid 0x%lx",
 				 recv_pm->shard);
 		}
@@ -1919,7 +1919,7 @@ home_flash_shard_wrapper(
 	    new_mtype = success ? FHDSC : FHDSF;
 	    if (success) {
 		plat_log_msg(21329, LOG_CAT_SHARD,
-			     PLAT_LOG_LEVEL_DEBUG,
+			     PLAT_LOG_LEVEL_TRACE,
 			     "flashDelete succeeded for sguid 0x%lx",
 			     recv_pm->shard);
 
@@ -2034,7 +2034,7 @@ home_flash_shard_wrapper(
             /* Save off clock skew */
             pns->clock_skew = clock_skew;
 
-            plat_log_msg(21330, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION, PLAT_LOG_LEVEL_DEBUG,
+            plat_log_msg(21330, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION, PLAT_LOG_LEVEL_TRACE,
                          "HFFLA: current_time_in: %d flush_time_in: %d current_time_local: %d clock_skew: %d flush_time_local: %d",
                          recv_pm->curtime, recv_pm->flushtime, par.curtime, (uint32_t)clock_skew, par.invtime);
 

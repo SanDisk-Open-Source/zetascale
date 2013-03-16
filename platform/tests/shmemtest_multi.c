@@ -440,7 +440,7 @@ fork_child(struct test_state *test_state) {
                          "fork, execve failed: %s", plat_strerror(plat_errno));
             ret = 1;
         } else {
-            plat_log_msg(21775, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+            plat_log_msg(21775, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                          "Child %d started", (int)pid);
         }
     }
@@ -479,7 +479,7 @@ wait_for_children(struct test_state *test_state, const char *stage) {
                     ret = 1;
                 } else {
                     plat_log_msg(21776, LOG_CAT,
-                                 PLAT_LOG_LEVEL_DEBUG,
+                                 PLAT_LOG_LEVEL_TRACE,
                                  "Child %d exited with status %d",
                                  (int)pid, WEXITSTATUS(status));
                 }

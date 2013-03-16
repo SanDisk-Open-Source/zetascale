@@ -121,7 +121,7 @@ main(int argc, char **argv) {
         plat_assert(!tmp);
 
         plat_log_msg(21042, LOG_CAT,
-            PLAT_LOG_LEVEL_INFO, "%llu objects totaling %llu bytes in-use",
+            PLAT_LOG_LEVEL_DEBUG, "%llu objects totaling %llu bytes in-use",
             (unsigned long long)alloc_stats.allocated_count,
             (unsigned long long)alloc_stats.allocated_bytes);
 

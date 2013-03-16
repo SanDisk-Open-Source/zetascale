@@ -109,7 +109,7 @@ sdf_msg_barrier(int mynode, int flags) {
     int localrank = sdf_msg_nodestatus(&numprocs, &localpn, cluster_node, &actmask);
     plat_assert(localrank == mynode);
     if (numprocs == 1) {
-        plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+        plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                      "\nNode %d: Single Node SDF Barrier call will ignore this request - flags 0x%x\n",
                      localrank, flags);
         return (0);
@@ -127,7 +127,7 @@ sdf_msg_barrier(int mynode, int flags) {
         /* will block until we get a msg on the GOODBYE queue from the home node */
         recv_msg = sdf_msg_receive(qpair_BARRIER->q_out, 0, B_TRUE);
         ret = sdf_msg_free_buff(recv_msg);
-        plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+        plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                      "\nNode ID %d: SDF_MSG_BARWAIT = Barrier Slave WAIT - COMPLETE\n",
                      mynode);
     } else if (flags == SDF_MSG_BARREL) { /* CMC_HOME sends release msg to all waiting slaves to continue */
@@ -150,7 +150,7 @@ sdf_msg_barrier(int mynode, int flags) {
                                mynode, protocol, type, &fthmbx, NULL);
             aresp = fthMboxWait(&ackmbox);
         }
-        plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+        plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                      "\nNode ID %d: SDF_MSG_BARREL = CMC_HOME release - COMPLETE\n",
                      mynode);
     } else if (flags == SDF_MSG_BARCIW) { /* slaves send msg that they have arrived and wait for release */
@@ -173,7 +173,7 @@ sdf_msg_barrier(int mynode, int flags) {
                      mynode, flags);
         recv_msg = sdf_msg_receive(qpair_BARRIER->q_out, 0, B_TRUE);
         ret = sdf_msg_free_buff(recv_msg);
-        plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+        plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                      "\nNode ID %d: SDF_MSG_BARCIW = Barrier Slave CI&WAIT - COMPLETE\n",
                      mynode);
     } else if (flags == SDF_MSG_BARCIC) { /* CMC_HOME waits till it see all active slaves report then says go */
@@ -199,7 +199,7 @@ sdf_msg_barrier(int mynode, int flags) {
                                mynode, protocol, type, &fthmbx, NULL);
             aresp = fthMboxWait(&ackmbox);
         }
-        plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+        plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                      "\nNode ID %d: SDF_MSG_BARCIC = CMC_HOME WAIT for ALL - COMPLETE\n",
                      mynode);
     } else {
@@ -281,12 +281,12 @@ startUpMsgng(void *nodeid, int msgflags)
     pthread_create(&threads[0], &attr, sdf_msg_engine_run, (uint32_t *)nodeid);
 
     if (msgflags & SDF_MSG_RTF_DISABLE_MNGMT) {
-        plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_INFO,
+        plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
                      "\nNode ID %d SDF Msg Management Thread Will Not Been Started - flags 0x%x\n",
                      *myid, msgflags);
     } else {
         pthread_create(&threads[1], &attr, sdf_msg_tester_start, (uint32_t *)nodeid);
-        plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_INFO,
+        plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
                      "\nNode ID %d SDF Msg Management Thread Has Been Started - flags 0x%x\n",
                      *myid, msgflags);
     }
@@ -341,7 +341,7 @@ sdf_msg_startmsg(uint32_t thisid, uint32_t flags, void *sdf_dispatch(void *)) {
         plat_assert(0);
         return (1);
     } else {
-        plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_INFO,
+        plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
                      "\nNode %d: msg thread up - flags 0x%x started by fth %p?\n"
                      "     tmp %d timeout_base %lu elaptime %lu count %lu\n",
                      thisid, flags, fthId(), tmp, timeout_base, timeout[0], timeout[2]);
@@ -372,7 +372,7 @@ sdf_msg_stopmsg(uint32_t thisid, uint32_t stoplvl)
                      "\nNode %d: SHUTDOWN ALL joining the messaging threads stoplvl %d\n",
                      thisid, stoplvl);
     } else if (stoplvl == SYS_SHUTDOWN_SELF) {
-        plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+        plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                      "\nNode %d Call to exit the messaging threads stoplvl %d\n",
                      thisid, stoplvl);
     } else {
@@ -393,7 +393,7 @@ sdf_msg_stopmsg(uint32_t thisid, uint32_t stoplvl)
     pthread_mutex_lock(&msg_srt->msg_release);
     msg_srt->msg_run_timetogo = stoplvl;
     pthread_mutex_unlock(&msg_srt->msg_release);
-    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_INFO,
+    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
         "\nNode %d: got mutex, wrote stoplvl %d\n", thisid, stoplvl);
     for (i = 0; i < 1; i++) {
         pthread_cancel(threads[i]);
@@ -492,7 +492,7 @@ sdf_msg_engine_run(void* arg) {
 
     node_status = sdf_msg_init_bins(ndid);
     if (node_status) {
-        plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_INFO,
+        plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
                      "\nNode %d: SINGLE NODE MESSAGING ONLY - node_status %d\n",
                      ndid, node_status);
     }
@@ -563,10 +563,10 @@ sdf_msg_engine_run(void* arg) {
         }
         pthread_mutex_unlock(&msg_srt->msg_release);
     }
-    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_INFO,
+    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
                  "\nNode %d: closing active queues...\n", ndid);
     sdf_msg_closequeues();
-    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_INFO,
+    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
                  "\nNode %d: exiting msg_engine timetogo %d\n", ndid, timetogo);
     //MPI_Barrier(MPI_COMM_WORLD);
 

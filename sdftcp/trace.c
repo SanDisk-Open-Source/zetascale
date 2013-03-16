@@ -328,7 +328,7 @@ trace_print(char *file, int line, const char *func, char *type,
 #ifndef NOSDF
     if (sdfmode) {
         if (level < 0)
-            level = PLAT_LOG_LEVEL_INFO;
+            level = PLAT_LOG_LEVEL_DEBUG;
         plat_log_msg_forward(file, line, func, id,
                              cat, level, "%s", (char *)xstr.p);
         xsfree(&xstr);

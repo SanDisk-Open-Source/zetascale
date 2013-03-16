@@ -241,7 +241,7 @@ pthread_main(void *arg) {
                                   test_state);
     plat_closure_apply(test_closure, &closure);
 
-    plat_log_msg(21768, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+    plat_log_msg(21768, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                  "fth scheduler starting");
 
     ++test_state->fth_running;
@@ -250,7 +250,7 @@ pthread_main(void *arg) {
 
     plat_assert_always(LIST_EMPTY(&test_state->timer_list));
 
-    plat_log_msg(21769, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+    plat_log_msg(21769, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                  "fth scheduler stopped");
 
     return (NULL);
@@ -272,7 +272,7 @@ start(plat_closure_scheduler_t *context, void *env) {
 /** @brief First timer fired, start second and advance time */
 static void
 timer1_fired(struct test_state *test_state, struct timer_state *timer_state) {
-    plat_log_msg(21779, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+    plat_log_msg(21779, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                  "timer fired at %d seconds", timer_state->when);
 
     timer_alloc(test_state, NULL, 2);
@@ -283,7 +283,7 @@ timer1_fired(struct test_state *test_state, struct timer_state *timer_state) {
 /** @brief Next timer fired, start additional and advance time part way */
 static void
 timer2_fired(struct test_state *test_state, struct timer_state *timer_state) {
-    plat_log_msg(21779, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+    plat_log_msg(21779, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                  "timer fired at %d seconds", timer_state->when);
 
     // In the past
@@ -298,7 +298,7 @@ timer2_fired(struct test_state *test_state, struct timer_state *timer_state) {
 /** @brief cancel a timer and advance time */
 static void
 timer4_fired(struct test_state *test_state, struct timer_state *timer_state) {
-    plat_log_msg(21779, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+    plat_log_msg(21779, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                  "timer fired at %d seconds", timer_state->when);
 
     plat_assert_always(test_state->cancel);
@@ -310,7 +310,7 @@ timer4_fired(struct test_state *test_state, struct timer_state *timer_state) {
 /** @brief last timer fired, advance time to end */
 static void
 timer6_fired(struct test_state *test_state, struct timer_state *timer_state) {
-    plat_log_msg(21779, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+    plat_log_msg(21779, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                  "timer fired at %d seconds", timer_state->when);
 
     test_settime(test_state, test_ends.tv_sec);
@@ -345,7 +345,7 @@ timer_dispatcher_main(uint64_t arg) {
         } while (next && !timercmp(next, &test_state->now, TIMERCMP_GREATER));
     } while (timercmp(&test_state->now, &test_ends, TIMERCMP_LESS));
 
-    plat_log_msg(21780, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+    plat_log_msg(21780, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                  "timer_dispatcher_main out of loop");
 
     test_dec_ref_count(test_state);
@@ -390,7 +390,7 @@ test_dec_ref_count(struct test_state *test_state) {
 
 
     if (!after) {
-        plat_log_msg(21781, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+        plat_log_msg(21781, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                      "ref count 0");
 
         shutdown = plat_closure_scheduler_shutdown_create
@@ -410,20 +410,20 @@ static void
 test_closure_scheduler_shutdown(plat_closure_scheduler_t *context, void *env) {
     struct test_state *test_state = (struct test_state *)env;
 
-    plat_log_msg(21782, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+    plat_log_msg(21782, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                  "test_closure_scheduler_shutdown");
 
     plat_assert_always(test_state->fth_running);
     plat_assert_always(context == test_state->closure_scheduler);
     test_state->closure_scheduler = NULL;
 
-    plat_log_msg(21783, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+    plat_log_msg(21783, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                  "freeing dispatcher");
 
     plat_timer_dispatcher_free(test_state->timer_dispatcher);
     test_state->timer_dispatcher = NULL;
 
-    plat_log_msg(21784, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+    plat_log_msg(21784, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                  "dispatcher free");
 
     /*

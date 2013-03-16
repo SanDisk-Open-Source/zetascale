@@ -52,6 +52,7 @@
 #define LOG_ID PLAT_LOG_ID_INITIAL
 #define LOG_CAT PLAT_LOG_CAT_SDF_NAMING
 #define LOG_DBG PLAT_LOG_LEVEL_DEBUG
+#define LOG_TRACE PLAT_LOG_LEVEL_TRACE
 #define LOG_INFO PLAT_LOG_LEVEL_INFO
 #define LOG_ERR PLAT_LOG_LEVEL_ERROR
 #define LOG_WARN PLAT_LOG_LEVEL_WARN
@@ -96,7 +97,7 @@ check_if_zero_num_deletes_pend()
 		pthread_cond_signal(&cv);
 
         plat_log_msg(160121,
-		             LOG_CAT, LOG_DBG,
+		             LOG_CAT, LOG_TRACE,
 					 "Signal completion of pending deletes\n");
 	}	
 	pthread_mutex_unlock(&mutex);
@@ -116,7 +117,7 @@ wait_for_container_del()
 
 	if (0 != num_deletes_pend) {
         plat_log_msg(160122,
-		             LOG_CAT, LOG_DBG,
+		             LOG_CAT, LOG_TRACE,
 					 "Waiting for completion of pending deletes\n");
 		pthread_cond_wait(&cv, &mutex);
 	}
@@ -138,7 +139,7 @@ static void async_handler_thread(uint64_t arg){
                                        "Unable to initialize thread state\n");
         return;
     }
-    plat_log_msg(70122, LOG_CAT, LOG_INFO,
+    plat_log_msg(70122, LOG_CAT, LOG_DBG,
                  "Async thread started...");
     while (1) {
         req = (async_cmd_req_t *)fthMboxWait(&async_cmds_hdr_mbox);
@@ -165,7 +166,7 @@ static void async_handler_thread(uint64_t arg){
             break; 
         } 
         else {
-            plat_log_msg(160070,LOG_CAT, LOG_ERR,
+            plat_log_msg(160070,LOG_CAT, LOG_WARN,
                                       "Invalid command(%d) received",req->cmd);
         }
         plat_free(req);
@@ -217,13 +218,15 @@ void init_async_cmd_handler(int num_thds, struct FDF_state *fdf_state) {
         plat_log_msg(160072,LOG_CAT, LOG_ERR,"Invalid FDF state");
         return;
     }
+    plat_log_msg(PLAT_LOG_ID_INITIAL,LOG_CAT, LOG_DBG,
+                        "Staring asynchronous command handler");
     /* Initialize the Mail box */   
     fthMboxInit(&async_cmds_hdr_mbox); 
     num_threads = num_thds;
 
     /* Start the threads */
     for ( i = 0; i < num_threads; i++) {
-        plat_log_msg(70123, LOG_CAT, LOG_INFO,
+        plat_log_msg(70123, LOG_CAT, LOG_DBG,
                      "Initializing the async threads...");
         fthResume( fthSpawn( &async_handler_thread, MCD_FTH_STACKSIZE ),
                                                    (uint64_t)fdf_state);

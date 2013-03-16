@@ -24,6 +24,7 @@
 #define LOG_CAT PLAT_LOG_CAT_SDF_SHARED
 #define LOG_ERR PLAT_LOG_LEVEL_ERROR
 #define LOG_DBG PLAT_LOG_LEVEL_DEBUG
+#define LOG_TRACE PLAT_LOG_LEVEL_TRACE
 #define LOG_INF PLAT_LOG_LEVEL_INFO
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -68,7 +69,7 @@ HashMap HashMap_create1(uint32_t numBuckets, SDF_utils_hashmap_locktype_t lockTy
     HashMap map = NULL;
     int i, size;
 
-    plat_log_msg(21739, LOG_CAT, LOG_DBG, "In HashMap_create()");
+    plat_log_msg(21739, LOG_CAT, PLAT_LOG_LEVEL_TRACE_LOW, "In HashMap_create()");
 
     if (numBuckets < 1 || lockType > 7 || lockType < 0) {
         plat_log_msg(21740, LOG_CAT, LOG_ERR, "Incorrect arguments in sdf/shared/HashMap_create"
@@ -148,7 +149,7 @@ HashMap HashMap_create1(uint32_t numBuckets, SDF_utils_hashmap_locktype_t lockTy
 void HashMap_destroy(HashMap map) {
     int i;
 
-    plat_log_msg(21741, LOG_CAT, LOG_DBG, "In HashMap_destroy()");
+    plat_log_msg(21741, LOG_CAT, LOG_TRACE, "In HashMap_destroy()");
     plat_assert(map);
 
     for (i = 0; i < map->numBuckets; i++) {
@@ -362,7 +363,7 @@ void *HashMap_genericOp(HashMap map, const char *key, void* value, uint16_t keyL
     void *ret = NULL;
     fthWaitEl_t *fthWait = NULL;
 
-    if (DEBUG) plat_log_msg(21742, LOG_CAT, LOG_DBG, "In HashMap_put(%s)", key);
+    if (DEBUG) plat_log_msg(21742, LOG_CAT, LOG_TRACE, "In HashMap_put(%s)", key);
 
     if (!key || !map) {
         return (SDF_FALSE);
@@ -493,7 +494,7 @@ int HashMap_stats(HashMap map, char *name, char *str, int size) {
     int i=0, j=0;
 
     if (NULL == map) {
-        plat_log_msg(21743, LOG_CAT, LOG_DBG, "argument map=%p", map);
+        plat_log_msg(21743, LOG_CAT, LOG_TRACE, "argument map=%p", map);
         return 0;
     }
     i += snprintf(str+i, size-i, "<HashMap %s> [buckets=%u, ", name, map->numBuckets);

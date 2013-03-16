@@ -89,7 +89,7 @@ enum {
                                                                                \
         if (status != SDF_SUCCESS) {                                           \
             plat_log_msg(21423, LOG_CAT,                         \
-                         PLAT_LOG_LEVEL_INFO,                                  \
+                         PLAT_LOG_LEVEL_DEBUG,                                  \
                          "error reading meta_data %s: %s %s", #dest,           \
                          sdf_status_to_string(status), reason);                \
         }                                                                      \
@@ -906,7 +906,7 @@ cr_vip_meta_unmarshal(struct cr_vip_meta **out, const void **inout,
         *out = meta;
         *inout = ptr;
     } else {
-        plat_log_msg(21424, LOG_CAT, PLAT_LOG_LEVEL_INFO,
+        plat_log_msg(21424, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
                      "error reading vip meta: %s %s",
                      sdf_status_to_string(ret), reason);
 

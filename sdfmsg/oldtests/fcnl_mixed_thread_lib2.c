@@ -100,7 +100,7 @@ static void fthThreadSender(uint64_t arg) {
         plat_log_msg(
                 PLAT_LOG_ID_INITIAL,
                 LOG_CAT,
-                PLAT_LOG_LEVEL_DEBUG,
+                PLAT_LOG_LEVEL_TRACE,
                 "\nNode %d: fth mb info fthmbxtst %p rbox %p abox %p lvl %d maxcnt %d\n",
                 myid, fthmbxtst, fthmbx.rbox, fthmbx.abox, SACK_BOTH_FTH,
                 maxcnt);
@@ -141,7 +141,7 @@ static void fthThreadSender(uint64_t arg) {
     plat_log_msg(
             PLAT_LOG_ID_INITIAL,
             LOG_CAT,
-            PLAT_LOG_LEVEL_DEBUG,
+            PLAT_LOG_LEVEL_TRACE,
             "\nNode %d: created queue pair %p sn %d dn %d ss %d ds %d maxcnt %d\n",
             myid, q_pair_fth_CONSISTENCY, myid, node, my_protocol,
             protocol, maxcnt);
@@ -157,7 +157,7 @@ static void fthThreadSender(uint64_t arg) {
     if (myid == 1) {
         debug = 0;
         if (debug) {
-            plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+            plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                     "\nNode %d: DEBUG --- NOT SENDING MESSAGES FROM HERE", myid);
             while (debug)
                 fthYield(100); /* Don't send mesages from node one for now */
@@ -171,7 +171,7 @@ static void fthThreadSender(uint64_t arg) {
 
         if (UNEXPT_TEST) {
             send_msg = (struct sdf_msg *) sdf_msg_alloc(8192);
-            plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+            plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
 				"Node %d: %s BIG Message Alloc %li\n", myid, __func__,
                     sizeof((struct sdf_msg *) send_msg));
         } else {
@@ -199,7 +199,7 @@ static void fthThreadSender(uint64_t arg) {
         plat_log_msg(
                 PLAT_LOG_ID_INITIAL,
                 LOG_CAT,
-                PLAT_LOG_LEVEL_DEBUG,
+                PLAT_LOG_LEVEL_TRACE,
                 "\nNode %d: Msg %d Posted ret %d proto %d type %d Now Sleep on Ack Mbox\n",
                 myid, l, ret, protocol, type);
 
@@ -263,7 +263,7 @@ static void fthThreadSender(uint64_t arg) {
 
     while (mysync != 3)
         fthYield(100);
-    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
             "\nNode %d: EXITING completed sending %d messages - mysync %d\n",
             myid, l, mysync);
     fthKill(1);
@@ -306,7 +306,7 @@ static void fthThreadReceiver1(uint64_t arg) {
     }
     if (FASTPATH_TEST) {
         node = myid;
-        plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+        plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                 "\nNode %d: FASTPATH_TEST node %d myid %d\n", myid, node, myid);
     }
     while (!mysync)
@@ -328,7 +328,7 @@ static void fthThreadReceiver1(uint64_t arg) {
         if (recv_msg->msg_type == GOODBYE) {
             sendfinished = 1;
         }
-        plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+        plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                 "\nNode %d: Got One *msg %p sn %d dn %d proto %d type %d"
                     " akrpmbx %p\n", myid, recv_msg, recv_msg->msg_src_vnode,
                 recv_msg->msg_dest_vnode, recv_msg->msg_dest_service,
@@ -370,7 +370,7 @@ static void fthThreadReceiver1(uint64_t arg) {
     FTH_SPIN_UNLOCK(&ssync->spin);
 
     printf("receiver1 ends\n");
-    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
             "\nNode %d: WORKER FTH exiting - loop %d mysync %d\n", myid, i,
             mysync);
 }
@@ -411,7 +411,7 @@ static void fthThreadReceiver2(uint64_t arg) {
     }
     if (FASTPATH_TEST) {
         node = myid;
-        plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+        plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                 "\nNode %d: FASTPATH_TEST node %d myid %d\n", myid, node, myid);
     }
 
@@ -442,7 +442,7 @@ static void fthThreadReceiver2(uint64_t arg) {
         if (recv_msg->msg_type == GOODBYE) {
             sendfinished = 1;
         }
-        plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+        plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                 "\nNode %d: Got One *msg %p sn %d dn %d proto %d type %d"
                     " akrpmbx %p\n", myid, recv_msg, recv_msg->msg_src_vnode,
                 recv_msg->msg_dest_vnode, recv_msg->msg_dest_service,
@@ -486,7 +486,7 @@ static void fthThreadReceiver2(uint64_t arg) {
     FTH_SPIN_UNLOCK(&ssync->spin);
 
     printf("receiver2 ends\n");
-    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
             "\nNode %d: WORKER FTH exiting - loop %d\n mysync %d", myid, i,
             mysync);
 }
@@ -508,7 +508,7 @@ void * MixedthreadTestpthreadUniptlRoutine(void *arg) {
     plat_log_msg(
             PLAT_LOG_ID_INITIAL,
             LOG_CAT,
-            PLAT_LOG_LEVEL_DEBUG,
+            PLAT_LOG_LEVEL_TRACE,
             "\nNode %d: Testing pthread MESSAGING SDF_METADATA Communication\n",
             myid);
     int localpn, actmask;
@@ -548,7 +548,7 @@ void * MixedthreadTestpthreadUniptlRoutine(void *arg) {
     }
 
     if (debug)
-        plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+        plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                 "\nNode %d MNGMT TEST THREAD STOPPING HERE FOR DEBUG\n", myid);
     while (debug);
 
@@ -563,7 +563,7 @@ void * MixedthreadTestpthreadUniptlRoutine(void *arg) {
         }
 
         if (DBGP) {
-            plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+            plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                     "\nNode %d msg %p msg->msg_payload %p\n", myid, send_msg,
                     send_msg->msg_payload);
         }
@@ -576,7 +576,7 @@ void * MixedthreadTestpthreadUniptlRoutine(void *arg) {
         plat_log_msg(
                 PLAT_LOG_ID_INITIAL,
                 LOG_CAT,
-                PLAT_LOG_LEVEL_DEBUG,
+                PLAT_LOG_LEVEL_TRACE,
                 "\nNode %d: SENDING MGMNT MSG dnode %d, proto %d, type %d loop num %d\n",
                 myid, node, protocol, type, j);
         if (1) {
@@ -585,10 +585,10 @@ void * MixedthreadTestpthreadUniptlRoutine(void *arg) {
 
             if (DBGP) {
                 plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT,
-                        PLAT_LOG_LEVEL_DEBUG,
+                        PLAT_LOG_LEVEL_TRACE,
                         "\nNode %d: sdf_msg_send returned %d\n", myid, ret);
                 plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT,
-                        PLAT_LOG_LEVEL_DEBUG,
+                        PLAT_LOG_LEVEL_TRACE,
                         "\nNode %d: %s: calling sdf_msg_receive(%p, %d, %d)\n",
                         myid, __func__, q_pair_pth_METADATA->q_out, 0, B_TRUE);
             }
@@ -610,7 +610,7 @@ void * MixedthreadTestpthreadUniptlRoutine(void *arg) {
 #endif
 
         if (DBGP) {
-            plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+            plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                     "\nNode %d: back from sdf_msg_receive with msg %p\n", myid,
                     recv_msg);
         }
@@ -632,7 +632,7 @@ void * MixedthreadTestpthreadUniptlRoutine(void *arg) {
             break;
     }
 
-    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
             "\nNode %d Exiting pthread METADATA Tester\n", myid);
     return (0);
 }
@@ -652,7 +652,7 @@ void * MixedthreadTestfthUniptlRoutine(void *arg) {
 
     fthSchedulerPthread(0);
 
-    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
             "\nFTH scheduler halted\n");
     return (0);
 

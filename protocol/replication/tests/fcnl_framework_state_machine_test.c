@@ -436,7 +436,7 @@ print_test_sdf_vip_config(sdf_vip_config_t *vipcfg) {
         }
     }
     plat_log_msg(PLAT_LOG_ID_INITIAL, PLAT_LOG_CAT_SDF_PROT,
-                 PLAT_LOG_LEVEL_INFO, "VIP CONFIG:%s", print_str);
+                 PLAT_LOG_LEVEL_DEBUG, "VIP CONFIG:%s", print_str);
 }
 
 /*
@@ -665,7 +665,7 @@ validate_nplus1() {
     plat_log_msg(LOG_ID, LOG_CAT, LOG_DBG, "Number of Active nodes %d",
                  n_act_nodes);
     if (n_act_nodes == 0) {
-        plat_log_msg(LOG_ID, LOG_CAT, PLAT_LOG_LEVEL_INFO,
+        plat_log_msg(LOG_ID, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
                      "Number of Active nodes %d", n_act_nodes);
         return (SDF_SUCCESS);
     }
@@ -738,7 +738,7 @@ test_nplus1(struct replication_test_framework *test_framework) {
     my_nodes[0].node_type = NODE_TYPE_STANDBY; /* Set to Non Active state */
     ggrp_id =  sdf_get_ggrpid_by_gid(vip_cfg, 0);
     if (ggrp_id == -1) {
-        plat_log_msg(LOG_ID, LOG_CAT, PLAT_LOG_LEVEL_INFO, "Invalid grpgrp id for node 0");
+        plat_log_msg(LOG_ID, LOG_CAT, PLAT_LOG_LEVEL_DEBUG, "Invalid grpgrp id for node 0");
         plat_abort();
     }
     plat_log_msg(LOG_ID, LOG_CAT, LOG_DBG, "Restart Node 0 Create Shard");
@@ -775,7 +775,7 @@ test_nplus1(struct replication_test_framework *test_framework) {
     plat_log_msg(LOG_ID, LOG_CAT, LOG_DBG, "Node 1 Restarted");
     ggrp_id =  sdf_get_ggrpid_by_gid(vip_cfg, 1);
     if (ggrp_id == -1) {
-        plat_log_msg(LOG_ID, LOG_CAT, PLAT_LOG_LEVEL_INFO, "Invalid grpgrp id for node 0");
+        plat_log_msg(LOG_ID, LOG_CAT, PLAT_LOG_LEVEL_DEBUG, "Invalid grpgrp id for node 0");
         plat_abort();
     }
     plat_log_msg(LOG_ID, LOG_CAT, LOG_DBG, "Restart Node 1 Create Shard");
@@ -1171,7 +1171,7 @@ print_node_list(int num_nodes) {
                     my_nodes[i].adm_state);
     }
     plat_log_msg(PLAT_LOG_ID_INITIAL, PLAT_LOG_CAT_SDF_PROT,
-                 PLAT_LOG_LEVEL_INFO, "NODE_INFO:%s", print_str);
+                 PLAT_LOG_LEVEL_DEBUG, "NODE_INFO:%s", print_str);
 }
 
 int
@@ -1202,7 +1202,7 @@ main(int argc, char **argv) {
 #ifdef notyet
         // For both mode
         vip_cfg = build_test_sdf_vip_config_2way_nplus1();
-        plat_log_msg(LOG_ID, LOG_CAT, PLAT_LOG_LEVEL_INFO,
+        plat_log_msg(LOG_ID, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
                      "\n2way and n+1 together not supported yet");
         plat_abort();
 #endif

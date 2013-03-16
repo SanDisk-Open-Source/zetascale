@@ -703,7 +703,7 @@ replicator_meta_storage_alloc(const struct sdf_replicator_config *config,
 #endif
 
     if (!failed) {
-        plat_log_msg(21425, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+        plat_log_msg(21425, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                      "rms %p allocated", ret);
     } else {
         plat_log_msg(21426, LOG_CAT, PLAT_LOG_LEVEL_ERROR,
@@ -717,7 +717,7 @@ void
 rms_start(struct replicator_meta_storage *rms) {
     int success;
 
-    plat_log_msg(21427, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+    plat_log_msg(21427, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                  "rms %p node %u start", rms, rms->config.my_node);
 
     success = __sync_bool_compare_and_swap(&rms->state, RMS_STATE_INITIAL,
@@ -739,7 +739,7 @@ rms_shutdown(struct replicator_meta_storage *rms,
     struct rms_shard *next;
     int success;
 
-    plat_log_msg(21428, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+    plat_log_msg(21428, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                  "rms %p node %u shutdown", rms, rms->config.my_node);
 
     success = __sync_bool_compare_and_swap(&rms->state, RMS_STATE_NORMAL,
@@ -760,7 +760,7 @@ void
 rms_create_shard_meta(struct replicator_meta_storage *rms,
                       const struct cr_shard_meta *cr_shard_meta,
                       rms_shard_meta_cb_t cb) {
-    plat_log_msg(21429, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+    plat_log_msg(21429, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                  "rms %p node %u create shard 0x%lx vip group %d", rms,
                  rms->config.my_node, (long)cr_shard_meta->persistent.sguid,
                  cr_shard_meta->persistent.intra_node_vip_group_id);
@@ -811,7 +811,7 @@ void
 rms_delete_shard_meta(struct replicator_meta_storage *rms,
                       const struct cr_shard_meta *cr_shard_meta,
                       rms_shard_meta_cb_t cb) {
-    plat_log_msg(21432, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+    plat_log_msg(21432, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                  "rms %p node %u delete shard 0x%lx seqno %ld", rms,
                  rms->config.my_node,
                  (long)cr_shard_meta->persistent.sguid,
@@ -1428,7 +1428,7 @@ rms_shard_shutdown(struct rms_shard *shard) {
 
     rms = shard->rms;
 
-    plat_log_msg(21436, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+    plat_log_msg(21436, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                  "rms %p node %u shutdown shard 0x%lx",
                  rms, rms->config.my_node, shard->sguid);
 
@@ -1455,7 +1455,7 @@ rms_shard_ref_count_dec(struct rms_shard *shard) {
 
     if (!after || (shard->state == RMS_SHARD_STATE_DELETED &&
                    rms->state != RMS_STATE_TO_SHUTDOWN && after == 1)) {
-        plat_log_msg(21437, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+        plat_log_msg(21437, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                      "rms %p node %u shard 0x%lx ref count zero state=%s",
                      rms, rms->config.my_node, shard->sguid,
                      rms_shard_state_to_string(shard->state));
@@ -1982,13 +1982,13 @@ static void
 rms_shard_notify_node_by_msg(struct rms_shard *shard, vnode_t node) {
     /* Skip if no meta-data */
     if (!shard->shard_meta) {
-        plat_log_msg(21837, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+        plat_log_msg(21837, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                      "rms %p node %u shard 0x%lx skip notify node %u"
                      " (no meta)", shard->rms, shard->rms->config.my_node,
                      shard->sguid, node);
     /* Skip if cached version and trying to notify remote node */
     } else if (shard->shard_meta_reput && node != shard->rms->config.my_node) {
-        plat_log_msg(21838, LOG_CAT, PLAT_LOG_LEVEL_DEBUG,
+        plat_log_msg(21838, LOG_CAT, PLAT_LOG_LEVEL_TRACE,
                      "rms %p node %u shard 0x%lx skip notify node %u"
                      " (local version is reput)", shard->rms,
                      shard->rms->config.my_node, shard->sguid, node);
@@ -2116,7 +2116,7 @@ rms_shard_schedule_lease_timeout(struct rms_shard *shard) {
                 MILLION;
         }
 
-        plat_log_msg(21444, LOG_CAT_LEASE, PLAT_LOG_LEVEL_DEBUG,
+        plat_log_msg(21444, LOG_CAT_LEASE, PLAT_LOG_LEVEL_TRACE,
                      "rms %p node %u shard 0x%lx vip group %d lease expires"
                      " in %3.1f seconds at %s",
                      rms, rms->config.my_node,
@@ -2233,7 +2233,7 @@ rms_shard_node_dead(struct rms_shard *shard, vnode_t pnode) {
         shard->shard_meta->persistent.current_home_node == pnode) {
 
         plat_log_msg(21447, LOG_CAT_LEASE_LIVENESS,
-                     PLAT_LOG_LEVEL_DEBUG,
+                     PLAT_LOG_LEVEL_TRACE,
                      "rms_shard %p node %u node %u dead", shard,
                      shard->rms->config.my_node, pnode);
 
@@ -2556,7 +2556,7 @@ rms_op_allowed(struct rms_op *op) {
                      (op->op_type == RMS_OP_REPUT ||
                       op->op_type == RMS_OP_CREATE) &&
                      (rms_replication_type_flags(op->shard_meta->persistent.type) &
-                      RRTF_META_DISTRIBUTED) ? PLAT_LOG_LEVEL_DEBUG :
+                      RRTF_META_DISTRIBUTED) ? PLAT_LOG_LEVEL_TRACE :
                      PLAT_LOG_LEVEL_WARN,
                      "rms %p node %u shard 0x%lx put with no lease but lease"
                      " exists for node %u", rms, rms->config.my_node,
@@ -2638,7 +2638,7 @@ rms_op_allowed(struct rms_op *op) {
                CR_HOME_NODE_NONE &&
                shard->shard_meta->persistent.current_home_node ==
                CR_HOME_NODE_NONE) {
-        plat_log_msg(21860, LOG_CAT_OP, PLAT_LOG_LEVEL_DEBUG,
+        plat_log_msg(21860, LOG_CAT_OP, PLAT_LOG_LEVEL_TRACE,
                      "rms %p node %u shard 0x%lx put with no home when"
                      " home exists", rms, rms->config.my_node,
                      shard->sguid);
@@ -3010,7 +3010,7 @@ rms_op_recv_response(struct plat_closure_scheduler *context, void *env,
         plat_log_msg(21456, LOG_CAT_REMOTE,
                      (status != SDF_SUCCESS && status != SDF_SHUTDOWN &&
                       status != SDF_TEST_CRASH) ?  PLAT_LOG_LEVEL_WARN :
-                     PLAT_LOG_LEVEL_DEBUG,
+                     PLAT_LOG_LEVEL_TRACE,
                      "rms %p node %u shard 0x%lx op %p meta response from"
                      " node %u SDF_MSG_ERROR status %s",
                      rms, rms->config.my_node, op->sguid,
@@ -3032,7 +3032,7 @@ rms_op_recv_response(struct plat_closure_scheduler *context, void *env,
         if (shard_meta) {
             plat_log_msg(21457, LOG_CAT_REMOTE,
                          status != SDF_SUCCESS ?
-                         PLAT_LOG_LEVEL_WARN : PLAT_LOG_LEVEL_DEBUG,
+                         PLAT_LOG_LEVEL_WARN : PLAT_LOG_LEVEL_TRACE,
                          "rms %p node %u shard 0x%lx op %p meta response from"
                          " node %u Msg: %s (%s) status %s current home node %d"
                          " meta seqno %lld ltime %lld",
@@ -3045,7 +3045,7 @@ rms_op_recv_response(struct plat_closure_scheduler *context, void *env,
         } else {
             plat_log_msg(21458, LOG_CAT_REMOTE,
                          status != SDF_SUCCESS ?  PLAT_LOG_LEVEL_WARN :
-                         PLAT_LOG_LEVEL_DEBUG,
+                         PLAT_LOG_LEVEL_TRACE,
                          "rms %p node %u shard 0x%lx op %p meta response from"
                          " node %u Msg: %s (%s) status %s",
                          rms, rms->config.my_node, op->sguid,
