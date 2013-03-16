@@ -1313,14 +1313,14 @@ void log_properties_file(const char *path, int log_level) {
             str++;
         }
         val = strndup(beg, str-beg);
-        plat_log_msg(PLAT_LOG_ID_INITIAL, PLAT_LOG_CAT_PRINT_ARGS,
+        plat_log_msg(70036, PLAT_LOG_CAT_PRINT_ARGS,
                      log_level,"%s = %s",key, val);
     }   
     fclose(fp);
     plat_free(line);
 }       
 void print_configuration(int log_level) {
-    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, log_level,
+    plat_log_msg(80030, LOG_CAT, log_level,
         "FDF Configuration: Storage size = %d GB,"
         "Reformat the storage = %s,"
         "Cache size = %llu,"
@@ -1330,7 +1330,7 @@ void print_configuration(int log_level) {
         getProperty_uLongLong("FDF_CACHE_SIZE", 100000000ULL),
         getProperty_uLongLong("SDF_MAX_OBJ_SIZE", SDF_MAX_OBJ_SIZE));
     if (getProperty_Int("FDF_TEST_MODE", 0)) {
-         plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, log_level,"FDF Testmode enabled");
+         plat_log_msg(80031, LOG_CAT, log_level,"FDF Testmode enabled");
     }
 }
 
@@ -1374,7 +1374,7 @@ FDF_status_t FDFInit(
             "Initializing Flash Data Fabric (Rev:%s)",FDF_REVISION);
     #endif
     if ( prop_file != NULL ) {
-        plat_log_msg(80020, LOG_CAT, LOG_INFO, "Property file: %s",prop_file);
+        plat_log_msg(80032, LOG_CAT, LOG_INFO, "Property file: %s",prop_file);
         log_properties_file(prop_file,LOG_INFO);
     }
     print_configuration(LOG_INFO);
@@ -1700,7 +1700,7 @@ FDF_status_t FDFShutdown(struct FDF_state *fdf_state)
 		/*
 		 * Phase 1: Process containers
 		 */
-		plat_log_msg(PLAT_LOG_ID_INITIAL, PLAT_LOG_CAT_SDF_PROT,
+		plat_log_msg(20819, PLAT_LOG_CAT_SDF_PROT,
                     PLAT_LOG_LEVEL_INFO, "%s", "Closing containers");
 
 		status = fdf_containers_cleanup(fdf_state);
@@ -1717,7 +1717,7 @@ FDF_status_t FDFShutdown(struct FDF_state *fdf_state)
 		snprintf(temp, sizeof(temp), "rm -rf %s/fdf_%d", log_flush_dir, fdf_instance_id);
 		ignore(system(temp));
 	}
-    plat_log_msg(PLAT_LOG_ID_INITIAL, PLAT_LOG_CAT_SDF_PROT,
+    plat_log_msg(80033, PLAT_LOG_CAT_SDF_PROT,
                          PLAT_LOG_LEVEL_INFO, "Shutdown completed");
 	return status;
 }
@@ -2351,7 +2351,7 @@ static FDF_status_t fdf_open_container(
     if ( cname ) {
         if ( status != FDF_SUCCESS ) {
             if( SDF_INVALID_PARAMETER == status ) {
-                plat_log_msg(PLAT_LOG_ID_INITIAL,LOG_CAT,LOG_DIAG,"Container %s does not exist",cname);
+                plat_log_msg(80034,LOG_CAT,LOG_DIAG,"Container %s does not exist",cname);
             }
             else {
 		        plat_log_msg( 21511, LOG_CAT, LOG_DIAG, "%s - %s", cname, SDF_Status_Strings[status] );
@@ -3143,7 +3143,7 @@ FDF_status_t FDFGetContainers(
 	 * Check if operation can begin
 	 */
 	if (FDF_SUCCESS != (status = is_fdf_operation_allowed())) {
-        plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT,
+        plat_log_msg(160129, LOG_CAT,
                 LOG_WARN, "Shutdown in Progress. Operation not allowed");
 		return status;
 	}
@@ -3193,7 +3193,7 @@ FDF_status_t FDFGetContainerProps(
 	 * Check if operation can begin
 	 */
 	if (FDF_SUCCESS != (status = is_fdf_operation_allowed())) {
-        plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT,
+        plat_log_msg(160129, LOG_CAT,
                 LOG_WARN, "Shutdown in Progress. Operation not allowed");
 		return status;
 	}
@@ -5024,7 +5024,7 @@ fdf_vc_init(
     // Create the VMC
     FDFLoadCntrPropDefaults(&p);
     p.durability_level      = FDF_DURABILITY_HW_CRASH_SAFE;
-    plat_log_msg(80025,LOG_CAT, LOG_INFO, "%s Virtual Metadata Container"
+    plat_log_msg(80035,LOG_CAT, LOG_INFO, "%s Virtual Metadata Container"
                           " (name = %s,size = %lu kbytes,"
                           "persistence = %s,eviction = %s,writethrough = %s,fifo = %s,"
                           "async_writes = %s,durability = %s)",
@@ -5044,11 +5044,11 @@ fdf_vc_init(
     p.size_kb               = getProperty_Int("FDF_FLASH_SIZE", FDF_MIN_FLASH_SIZE) * 1024 * 1024 - 
 				(2 * FDF_DEFAULT_CONTAINER_SIZE_KB) - (32 * 1024); // Minus CMC/VMC allocation & super block
     if ( (getProperty_Int("FDF_VDC_SIZE_CHECK", 1) && (p.size_kb > MAX_PHYSICAL_CONT_SIZE) ) ) {
-        plat_log_msg(PLAT_LOG_ID_INITIAL,LOG_CAT, LOG_ERR, "Unsupported size(%lu bytes) for VDC. Maximum supported size is 2TB",
+        plat_log_msg(80036,LOG_CAT, LOG_ERR, "Unsupported size(%lu bytes) for VDC. Maximum supported size is 2TB",
                                                             p.size_kb * 1024);
         return FDF_FAILURE;
     }
-    plat_log_msg(80026,LOG_CAT, LOG_INFO, "%s Virtual Data Container"
+    plat_log_msg(80037,LOG_CAT, LOG_INFO, "%s Virtual Data Container"
                            " (name = %s,size = %lu kbytes,"
                            "persistence = %s,eviction = %s,writethrough = %s,fifo = %s,"
                            "async_writes = %s,durability = %s)",

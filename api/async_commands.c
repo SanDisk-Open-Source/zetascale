@@ -218,7 +218,7 @@ void init_async_cmd_handler(int num_thds, struct FDF_state *fdf_state) {
         plat_log_msg(160072,LOG_CAT, LOG_ERR,"Invalid FDF state");
         return;
     }
-    plat_log_msg(PLAT_LOG_ID_INITIAL,LOG_CAT, LOG_DBG,
+    plat_log_msg(80029,LOG_CAT, LOG_DBG,
                         "Staring asynchronous command handler");
     /* Initialize the Mail box */   
     fthMboxInit(&async_cmds_hdr_mbox); 

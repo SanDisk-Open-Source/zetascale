@@ -1293,7 +1293,7 @@ int mcd_aio_init( void * state, char * dname )
                 }
             }
 
-            mcd_log_msg(PLAT_LOG_ID_INITIAL, PLAT_LOG_LEVEL_INFO,
+            mcd_log_msg(80041, PLAT_LOG_LEVEL_INFO,
                          "Flash file %s opened successfully", fname );
 
             if ( 1 == Mcd_aio_sync_enabled ) {

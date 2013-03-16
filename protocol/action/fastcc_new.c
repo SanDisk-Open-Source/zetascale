@@ -504,7 +504,7 @@ void SDFNewCacheInit(SDFNewCache_t *pc, uint64_t nbuckets, uint64_t nslabs_in,
 
     nslabs = check_nslabs(pc, nslabs_in);
     if (nslabs != nslabs_in) {
-	plat_log_msg(30560, 
+	plat_log_msg(80038, 
 		     PLAT_LOG_CAT_SDF_CC, 
 		     PLAT_LOG_LEVEL_WARN,
 		     "Small DRAM Cache: # of slabs had to be reduced from %"PRIu64" to %"PRIu64" so that each slab could hold at least one max sized object. Possible performance impact", nslabs_in, nslabs);

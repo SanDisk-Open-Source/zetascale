@@ -351,7 +351,7 @@ cmc_initialize(SDF_internal_ctxt_t *pai, const char *cmc_path) {
     	//fdf_p.num_shards            = 1;
     	fdf_p.durability_level      = FDF_DURABILITY_HW_CRASH_SAFE;
     	fdf_p.size_kb               = 1024 * 1024; // kB
-        plat_log_msg(PLAT_LOG_ID_INITIAL,LOG_CAT, LOG_INFO, "Creating Container Metadata Container"
+        plat_log_msg(80039,LOG_CAT, LOG_INFO, "Creating Container Metadata Container"
                           " (name = %s,size = %lu kbytes,"
                           "persistence = %s,eviction = %s,writethrough = %s,fifo = %s,"
                           "async_writes = %s,durability = %s)",
@@ -514,7 +514,7 @@ cmc_recover(SDF_internal_ctxt_t *pai, const char *cmc_path) {
         //fdf_p.num_shards            = 1;
         fdf_p.durability_level      = FDF_DURABILITY_HW_CRASH_SAFE;
         fdf_p.size_kb               = 1024 * 1024; // kB
-        plat_log_msg(PLAT_LOG_ID_INITIAL,LOG_CAT, LOG_INFO, "Opening Container Metadata Container"
+        plat_log_msg(80040,LOG_CAT, LOG_INFO, "Opening Container Metadata Container"
                           " (name = %s,size = %lu kbytes,"
                           "persistence = %s,eviction = %s,writethrough = %s,fifo = %s,"
                           "async_writes = %s,durability = %s)",

@@ -2887,7 +2887,7 @@ mcd_fth_osd_fifo_set( void * context, mcd_osd_shard_t * shard, char * key,
                 }
             }
             if ( Mcd_osd_bucket_size == n ) {
-                mcd_log_msg( PLAT_LOG_ID_INITIAL, PLAT_LOG_LEVEL_TRACE, 
+                mcd_log_msg( 80042, PLAT_LOG_LEVEL_TRACE, 
                                             "No space left for hash entry" );
                 rc = FLASH_ENOSPC;
                 goto out;
@@ -4175,7 +4175,7 @@ mcd_fth_osd_get_slab( void * context, mcd_osd_shard_t * shard,
      * currently not much we can do if the class is empty
      */
     if ( 0 == class->num_segments ) {
-        mcd_log_msg( PLAT_LOG_ID_INITIAL, PLAT_LOG_LEVEL_ERROR, 
+        mcd_log_msg( 80043, PLAT_LOG_LEVEL_ERROR, 
                                             "Slab class empty" );
         return FLASH_ENOSPC;
     }
@@ -4949,7 +4949,7 @@ mcd_fth_osd_slab_set( void * context, mcd_osd_shard_t * shard, char * key,
                 }
             }
             if ( Mcd_osd_bucket_size == n ) {
-                 mcd_log_msg( PLAT_LOG_ID_INITIAL, PLAT_LOG_LEVEL_ERROR, 
+                 mcd_log_msg( 80042, PLAT_LOG_LEVEL_ERROR, 
                                             "No space left for hash entry" );
                 rc = FLASH_ENOSPC;
                 goto out;
@@ -5250,7 +5250,7 @@ mcd_fth_osd_slab_set( void * context, mcd_osd_shard_t * shard, char * key,
                                                  new_entry.blocks );
                     mcd_fth_osd_remove_entry( shard, &new_entry, false, true);
                     (void)__sync_fetch_and_add(&shard->num_hard_overflows, 1);
-                    mcd_log_msg(PLAT_LOG_ID_INITIAL,PLAT_LOG_LEVEL_ERROR,
+                    mcd_log_msg(80044,PLAT_LOG_LEVEL_ERROR,
                           "hash table overflow area full. num_hard_overflows=%lu",
                                               shard->num_hard_overflows);
                     rc = FLASH_ENOSPC;
@@ -5273,7 +5273,7 @@ mcd_fth_osd_slab_set( void * context, mcd_osd_shard_t * shard, char * key,
                         (void) __sync_fetch_and_add( &shard->blk_consumed,
                                                      blocks );
                         mcd_fth_osd_remove_entry(shard, &new_entry, false, true);
-                        mcd_log_msg(PLAT_LOG_ID_INITIAL,PLAT_LOG_LEVEL_ERROR,
+                        mcd_log_msg(80042,PLAT_LOG_LEVEL_ERROR,
                           "No space left for hash entry");
                         rc = FLASH_ENOSPC;
                         goto out;

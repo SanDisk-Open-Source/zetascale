@@ -2976,6 +2976,24 @@
 80026 %s Virtual Data Container (name = %s,size = %lu kbytes,persistence = %s,eviction = %s,writethrough = %s,fifo = %sasync_writes = %s,durability = %s)
 80027 Starting FDF admin on TCP Port:%u
 80028 Unable to start admin on TCP Port:%u
+80029 Staring asynchronous command handler
+80030 FDF Configuration: Storage size = %d GB,Reformat the storage = %s,Cache size = %llu,Maximum object size = %llu
+80031 FDF Testmode enabled
+80032 Property file: %s
+80033 Shutdown completed
+80034 Container %s does not exist
+80035 %s Virtual Metadata Container (name = %s,size = %lu kbytes,persistence = %s,eviction = %s,writethrough = %s,fifo = %s,async_writes = %s,durability = %s)
+80036 Unsupported size(%lu bytes) for VDC. Maximum supported size is 2TB
+80037 %s Virtual Data Container (name = %s,size = %lu kbytes,persistence = %s,eviction = %s,writethrough = %s,fifo = %s,async_writes = %s,durability = %s)
+80038 Small DRAM Cache: # of slabs had to be reduced from %"PRIu64" to %"PRIu64" so that each slab could hold at least one max sized object. Possible performance impact
+80039 Creating Container Metadata Container (name = %s,size = %lu kbytes,persistence = %s,eviction = %s,writethrough = %s,fifo = %s,async_writes = %s,durability = %s)
+80040 Opening Container Metadata Container (name = %s,size = %lu kbytes,persistence = %s,eviction = %s,writethrough = %s,fifo = %s,async_writes = %s,durability = %s)
+80041 Flash file %s opened successfully
+80042 No space left for hash entry
+80043 Slab class empty
+80044 hash table overflow area full. num_hard_overflows=%lu
+80045 compact_class(async) before\n
+80046 compact_class(async) after\n
 
 
 # kcai
