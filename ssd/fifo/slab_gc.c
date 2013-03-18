@@ -130,7 +130,7 @@ int slab_gc_relocate_slab(
 
 	/* SLAB is pending deallocation, thats why in alloc_map so far,
 	   but hash_entry points to different place already */
-	if(hash_entry->address != src_blk_offset)
+	if(!hash_entry->used || hash_entry->address != src_blk_offset)
 		goto out;
 
 	if((rc = mcd_fth_osd_slab_alloc(context, shard, class->slab_blksize, &dst_blk_offset)))

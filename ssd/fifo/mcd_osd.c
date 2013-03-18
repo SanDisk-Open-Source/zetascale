@@ -2660,7 +2660,7 @@ mcd_fth_osd_remove_entry( mcd_osd_shard_t * shard,
     atomic_sub(shard->blk_consumed, mcd_osd_lba_to_blk(hash_entry->blocks));
 
 	if(remove_entry)
-	    *((uint64_t *)hash_entry) = 0;
+		memset(hash_entry, 0, sizeof(mcd_osd_hash_t));
 
     return 0;   /* SUCCESS */
 }
