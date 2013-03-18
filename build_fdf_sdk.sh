@@ -28,6 +28,9 @@ if [ -z ${SCHOONER_RELEASE} ]; then
 	export SCHOONER_RELEASE=${SVN_REVISION}.${BUILD_NUMBER}
 fi
 
+#if [ "$1" == "--test" ] || [ "$2" == "--test" ]; then
+#[ -d test_suite ] || svn co svn://svn.schoonerinfotech.net/schooner-trunk/ht_delivery/qa/FDF_test/FDF_test_framework test_suite
+#fi
 
 VERSION=${FDF_SDK_VERSION}-${SCHOONER_RELEASE}
 NCPU=$(cat /proc/cpuinfo|grep CPU|wc -l)

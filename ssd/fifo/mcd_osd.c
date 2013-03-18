@@ -4569,7 +4569,7 @@ mcd_fth_osd_slab_alloc( void * context, mcd_osd_shard_t * shard, int blocks,
          * if the class is under-utilized, allocate from existing
          * segments before trying to grow the class
          */
-        if ( class->used_slabs < class->total_slabs / 2 &&
+        if ( /*class->used_slabs < class->total_slabs * 90 / 100 &&*/
             !mcd_fth_osd_get_slab( context, shard, class, blocks,
                                             blk_offset ) ) 
                 return 0;   /* SUCCESS */
@@ -5664,7 +5664,7 @@ uint64_t mcd_osd_shard_get_stats( struct shard * shard, int stat_key )
             }
         }
         else {
-            stat = mcd_shard->blk_allocated * Mcd_osd_blk_size;
+            stat = mcd_shard->blk_allocated * Mcd_osd_blk_size - mcd_shard->free_segments_count;
         }
         break;
 

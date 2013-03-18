@@ -374,14 +374,8 @@ void slab_gc_worker_thread(uint64_t arg)
 		slab_gc_unlock_waiters(class, true);
 
 		/* Reclaim the rest taking threshold into accout */
-//		uint64_t prev = 0;
-		while(slab_gc_able(shard, class, false) /*&& prev != class->total_slabs*/)
-		{
-		//	prev = class->total_slabs;
-            mcd_log_msg(80045, PLAT_LOG_LEVEL_TRACE,"compact_class(async) before\n");
+		while(slab_gc_able(shard, class, false))
 			slab_gc_compact_class(context, shard, class);
-            mcd_log_msg(80046, PLAT_LOG_LEVEL_TRACE,"compact_class(async) after\n");
-		}
 
 		/* Allow GC request submission for this class */
 		slab_gc_unlock_waiters(class, false);
