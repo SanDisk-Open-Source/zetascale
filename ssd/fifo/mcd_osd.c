@@ -5664,7 +5664,7 @@ uint64_t mcd_osd_shard_get_stats( struct shard * shard, int stat_key )
             }
         }
         else {
-            stat = mcd_shard->blk_allocated * Mcd_osd_blk_size - mcd_shard->free_segments_count;
+            stat = mcd_shard->blk_allocated * Mcd_osd_blk_size - mcd_shard->free_segments_count * Mcd_osd_segment_size;
         }
         break;
 
