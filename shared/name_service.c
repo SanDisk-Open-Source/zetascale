@@ -261,12 +261,11 @@ SDF_status_t
 name_service_meta_exists(SDF_internal_ctxt_t *pai, const char *cname) {
 
     SDF_status_t    status      = SDF_FAILURE;
-    int             log_level   = LOG_TRACE;
 
     plat_log_msg(20819, LOG_CAT, LOG_TRACE, "%s", cname);
 
     if ((status = cmc_meta_exists(pai, theCMC->c, cname)) != SDF_SUCCESS)
-        log_level = LOG_ERR;
+        ;
 
 /*    plat_log_msg(21511, LOG_CAT, log_level, "%s - %s",
          cname, SDF_Status_Strings[status]); */
@@ -278,14 +277,13 @@ SDF_status_t
 name_service_cguid_exists(SDF_internal_ctxt_t *pai, SDF_cguid_t cguid) {
 
     SDF_status_t 	status 		= SDF_FAILURE;
-    int 			log_level 	= LOG_TRACE;
 	SDFContainer	c			= NULL;
 
     plat_log_msg(21630, LOG_CAT, LOG_TRACE, "%lu", cguid);
 
 	c = name_service_metadata_container_from_cguid( cguid );
 	if ((status = cmc_cguid_exists(pai, c, cguid)) != SDF_SUCCESS)
-		log_level = LOG_ERR;
+                ;
 
     plat_log_msg(150021, LOG_CAT, LOG_DBG, "%lu - %s",
 		 cguid, SDF_Status_Strings[status]);

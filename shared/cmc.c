@@ -1163,7 +1163,6 @@ SDF_status_t
 cmc_meta_exists(SDF_internal_ctxt_t *pai, SDFContainer c, const char *cname) {
 
     SDF_status_t 			status 		= SDF_OBJECT_UNKNOWN;
-    int 					log_level 	= LOG_TRACE;
 	SDF_cguid_map_t 		map;
 
     plat_log_msg(20819, LOG_CAT, LOG_TRACE, "%s", cname);
@@ -1171,7 +1170,6 @@ cmc_meta_exists(SDF_internal_ctxt_t *pai, SDFContainer c, const char *cname) {
     if (ISEMPTY(cname)) {
 
 		status = SDF_INVALID_PARAMETER;
-		log_level = LOG_ERR;
 
     } else if (strcmp(cname, CMC_PATH) == 0) {
 
@@ -1185,7 +1183,6 @@ cmc_meta_exists(SDF_internal_ctxt_t *pai, SDFContainer c, const char *cname) {
 		status = SDF_SUCCESS;
 
     } else if ((status = cmc_get_cguid_map(pai, theCMC->c, cname, &map)) != SDF_SUCCESS) {
-		log_level = LOG_WARN;
     }
 
     plat_log_msg(21511, LOG_CAT, LOG_DBG, "%s - %s", cname, SDF_Status_Strings[status]);
@@ -1197,7 +1194,6 @@ SDF_status_t
 cmc_cguid_exists(SDF_internal_ctxt_t *pai, SDFContainer c, SDF_cguid_t cguid) {
 
     SDF_status_t            status      = SDF_OBJECT_UNKNOWN;
-    int                     log_level   = LOG_TRACE;
     char 					cguid_str[MAX_CGUID_STR_LEN];
     SDF_container_meta_t    meta;
 
@@ -1206,7 +1202,6 @@ cmc_cguid_exists(SDF_internal_ctxt_t *pai, SDFContainer c, SDF_cguid_t cguid) {
     if (SDF_NULL_CGUID == cguid) {
 
         status = SDF_INVALID_PARAMETER;
-        log_level = LOG_ERR;
 
     } else if ( CMC_CGUID == cguid) {
 
@@ -1223,7 +1218,6 @@ cmc_cguid_exists(SDF_internal_ctxt_t *pai, SDFContainer c, SDF_cguid_t cguid) {
         status = SDF_SUCCESS;
 
     } else if (1 || (status = cmc_get_meta(pai, c, cguid, &meta)) != SDF_SUCCESS) {
-        log_level = LOG_WARN;
     }
 
     plat_log_msg(150021, LOG_CAT, LOG_DBG, "%lu - %s", cguid, SDF_Status_Strings[status]);
@@ -1345,7 +1339,6 @@ SDF_status_t
 cmc_get_cguid_map(SDF_internal_ctxt_t *pai, SDFContainer c, const char *cname, SDF_cguid_map_t *map) {
 
     SDF_status_t status = SDF_FAILURE;
-    int log_level = LOG_TRACE;
     SDF_size_t destLen = 0;
     SDF_cguid_map_t *cached = NULL;
     SDF_size_t size = sizeof(SDF_cguid_map_t);
@@ -1362,7 +1355,6 @@ cmc_get_cguid_map(SDF_internal_ctxt_t *pai, SDFContainer c, const char *cname, S
 	    		if ((status = cmc_get_for_read_buffered_object(pai, c,
 							   cname, (void *) map,
 							   size, &destLen)) != SDF_SUCCESS) {
-					log_level = LOG_WARN;
 	    		}
 			} else {
 
@@ -1388,7 +1380,6 @@ cmc_get_cguid_map(SDF_internal_ctxt_t *pai, SDFContainer c, const char *cname, S
 			if ((status = cmc_get_for_read_buffered_object(pai, c,
 						       cname, (void *) map,
 						       size, &destLen)) != SDF_SUCCESS) {
-	    		log_level = LOG_WARN;
 			}
 			break;
 

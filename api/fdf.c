@@ -2372,7 +2372,7 @@ static FDF_status_t fdf_open_container(
 
     if ( cname ) {
         if ( status != FDF_SUCCESS ) {
-            if( SDF_INVALID_PARAMETER == status ) {
+            if( FDF_INVALID_PARAMETER == status ) {
                 plat_log_msg(80034,LOG_CAT,LOG_DIAG,"Container %s does not exist",cname);
             }
             else {
@@ -2452,7 +2452,6 @@ static FDF_status_t fdf_close_container(
     int						 i_ctnr;
     SDF_CONTAINER			 container		= containerNull;
     SDF_internal_ctxt_t     *pai			= (SDF_internal_ctxt_t *) fdf_thread_state;
-    int						 log_level		= LOG_ERR;
     int						 ok_to_delete	= 0;
 
     plat_log_msg( 21630, LOG_CAT, LOG_DBG, "%lu", cguid);
@@ -2502,7 +2501,6 @@ static FDF_status_t fdf_close_container(
 
         if (closeParentContainer(container)) {
             status = FDF_SUCCESS;
-            log_level = LOG_DBG;
         }
 
 #ifdef SDFAPIONLY
@@ -2525,7 +2523,6 @@ static FDF_status_t fdf_close_container(
 	    if ((status = name_service_flush_inval_object_container(pai, path)) != FDF_SUCCESS) {
 			plat_log_msg(21540, LOG_CAT, LOG_ERR,
 			     "%s - failed to flush and invalidate container", path);
-			log_level = LOG_ERR;
 	    } else {
 			plat_log_msg(21541, LOG_CAT, LOG_TRACE,
 			     "%s - flush and invalidate container succeed", path);
@@ -2537,7 +2534,6 @@ static FDF_status_t fdf_close_container(
 				// xxxzzz container will be left in a weird state!
 				plat_log_msg(21542, LOG_CAT, LOG_ERR,
 					"%s - failed to delete action thread container state", path);
-				log_level = LOG_ERR;
 		    } else {
 				plat_log_msg(21543, LOG_CAT, LOG_TRACE,
 					"%s - action thread delete container state succeeded", path);
