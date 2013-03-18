@@ -166,19 +166,19 @@ int test_delete_invalid_cguid(uint32_t aw)
     fprintf(fp,"%s\n",testname[1]);
 
     ret = DeleteContainer(2);
-    if (FDF_CONTAINER_UNKNOWN == ret)
+    if (FDF_FAILURE_ILLEGAL_CONTAINER_ID == ret)
     {
         tag += 1;
         result[aw][1][0] = 1;
     }
     ret = DeleteContainer(-1);
-    if (FDF_CONTAINER_UNKNOWN == ret)
+    if (FDF_FAILURE_ILLEGAL_CONTAINER_ID == ret)
     {
         tag += 1;
         result[aw][1][1] = 1;
     }
     ret = DeleteContainer(0);
-    if (FDF_CONTAINER_UNKNOWN == ret)
+    if (FDF_FAILURE_ILLEGAL_CONTAINER_ID == ret)
     {
         tag += 1;
         result[aw][1][2] = 1;
@@ -364,7 +364,11 @@ int test_delete_doubleopen_doubledelete(uint32_t aw)
 
 int main() 
 {
-    int testnumber = 7;
+	/*
+	 * Number of tests we plan to run
+	 */
+    int testnumber = 8;
+
 	int count      = 0;
     
     if((fp = fopen("FDF_DeleteContainer.log", "w+")) == 0)
@@ -378,8 +382,12 @@ int main()
     {
         for(uint32_t aw = 0; aw < 2; aw++)
         {
+			/*
+			 * Make sure that that number of tests to run matches
+			 * variable "testnumber" defined a few lines before.
+			 */
             count += test_delete_with_opencontainer(aw);
-//          count += test_delete_invalid_cguid(aw);
+            count += test_delete_invalid_cguid(aw);
             count += test_delete_basiccheck_1(aw);
             count += test_delete_basiccheck_2(aw);
             count += test_double_delete(aw);
@@ -391,45 +399,48 @@ int main()
     }  
     fclose(fp);
 
-    fprintf(stderr, "Test Result:\n");
-    for(int aw = 0; aw < 2; aw++)
-    {
-        if(0 == aw)
-        {
-            fprintf(stderr, "***** When disable async write: *****\n");
-        }else{
-            fprintf(stderr, "***** When enable async write: *****\n");
-        }
+	fprintf(stderr, "Test Result:\n");
+	for(int aw = 0; aw < 2; aw++)
+	{
+		if(0 == aw)
+		{
+			fprintf(stderr, "***** When disable async write: *****\n");
+		}else{
+			fprintf(stderr, "***** When enable async write: *****\n");
+		}
 
-        for(int i = 0; i <= testnumber; i++)
-        {
-            if(NULL != testname[i])
-            {
-                fprintf(stderr, "%s\n", testname[i]);
-                for(int j = 0; j < 3; j++)
-                {
-                    if(result[aw][i][j] == 1)
-                    {
-                        fprintf(stderr, "durability type = %d pass\n",j);
-                    }else {
-                        fprintf(stderr, "durability type = %d fail\n",j);
-                    }
-                } 
-            }
-        }
-    }
-fprintf(stderr,"count = %d\n",count);
+		for(int i = 0; i <= testnumber; i++)
+		{
+			if(NULL != testname[i])
+			{
+				fprintf(stderr, "%s\n", testname[i]);
+				for(int j = 0; j < 3; j++)
+				{
+					if(result[aw][i][j] == 1)
+					{
+						fprintf(stderr, "durability type = %d pass\n",j);
+					}else {
+						fprintf(stderr, "durability type = %d fail\n",j);
+					}
+				} 
+			}
+		}
+	}
+	fprintf(stderr,"count = %d\n",count);
 
-    if(testnumber*2 == count)
-    {
-        fprintf(stderr, "#Test of FDFDeleteContainer pass!\n");
-	fprintf(stderr, "#The related test script is FDF_DeleteContainer.c\n");
-	fprintf(stderr, "#If you want, you can check test details in FDF_DeleteContainer.log\n");
-    }else{
-        fprintf(stderr, "#Test of FDFDeleteContainer fail!\n");
-	fprintf(stderr, "#The related test script is FDF_DeleteContainer.c\n");
-        fprintf(stderr, "#If you want, you can check test details in FDF_DeleteContainer.log\n");
-    }
+	/*
+	 * Test if we have run all tests as planned
+	 */
+	if ((testnumber * 2) == count)
+	{
+		fprintf(stderr, "#Test of FDFDeleteContainer pass!\n");
+		fprintf(stderr, "#The related test script is FDF_DeleteContainer.c\n");
+		fprintf(stderr, "#If you want, you can check test details in FDF_DeleteContainer.log\n");
+	} else {
+		fprintf(stderr, "#Test of FDFDeleteContainer fail!\n");
+		fprintf(stderr, "#The related test script is FDF_DeleteContainer.c\n");
+		fprintf(stderr, "#If you want, you can check test details in FDF_DeleteContainer.log\n");
+	}
 
 	return (!(testnumber*2 == count));
 }

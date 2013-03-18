@@ -3249,6 +3249,7 @@
 160122 Waiting for completion of pending deletes\n
 160123 Base file name of flash files not set
 160124 Device size is less than minimum required
+160125 Failed due to an illegal container ID:%s
 160129 Shutdown in Progress. Operation not allowed
 160136 Opening Container Matadata Container
 160137 Creating Container Matadata Container

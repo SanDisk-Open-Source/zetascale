@@ -726,6 +726,28 @@ static int fdf_check_delete_in_future(void *data)
     return(0);
 }
 
+/**
+ * @brief: Check if given cguid belongs to a valid
+ *         container (virtual, non-null cguid)
+ * @params[in]: cguid container ID
+ * @return FDF_TRUE if cguid belongs to a virtual container
+ *         FDF_FALSE otherwise
+ */
+static FDF_status_t
+fdf_validate_container(uint64_t cguid)
+{
+	switch (cguid) {
+		case         -1:
+		case          0:
+		case  CMC_CGUID:
+		case  VMC_CGUID:
+		case  VDC_CGUID:
+			return FDF_FAILURE_ILLEGAL_CONTAINER_ID;
+		default:
+			return FDF_SUCCESS;
+	}
+}
+
 
 static void fdf_load_settings(flash_settings_t *osd_settings)
 {
@@ -2590,6 +2612,20 @@ FDF_status_t FDFDeleteContainer(
 	if (FDF_SUCCESS != (status = is_fdf_operation_allowed())) {
        plat_log_msg(80022, LOG_CAT,
                LOG_DBG, "Shutdown in Progress. Operation not allowed ");
+		return status;
+	}
+
+	/*
+	 * Application can only perform operations on a virtual container.
+	 */
+	status = fdf_validate_container(cguid);
+
+	if (FDF_SUCCESS != status) {
+
+		plat_log_msg(160125, LOG_CAT,
+				LOG_ERR, "Failed due to an illegal container ID:%s",
+				FDF_Status_Strings[status]);
+
 		return status;
 	}
 
