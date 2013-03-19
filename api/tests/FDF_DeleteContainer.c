@@ -324,7 +324,7 @@ int test_delete_doubleopen_2(uint32_t aw)
 int test_delete_doubleopen_doubledelete(uint32_t aw)
 {
     int tag = 0;
-    FDF_status_t ret;
+	FDF_status_t ret = FDF_SUCCESS;
 
     testname[7] = "#test7 : double open,delete,close,delete";
     fprintf(fp,"****** async write = %d ******\n", aw);
@@ -332,22 +332,22 @@ int test_delete_doubleopen_doubledelete(uint32_t aw)
 
     for(int i = 0; i < 3; i++)
     {
-        if(FDF_SUCCESS == OpenContainer("c7", 1, aw, i))
+        if(FDF_SUCCESS == (ret = OpenContainer("c7", 1, aw, i)))
         {
             (void)CloseContainer(cguid);
-            if(FDF_SUCCESS == OpenContainer("c7", 2, aw, i))
+            if(FDF_SUCCESS == (ret = OpenContainer("c7", 2, aw, i)))
             {
-                if(FDF_SUCCESS == DeleteContainer(cguid))
+                if(FDF_SUCCESS == (ret = DeleteContainer(cguid)))
                 {
                     result[aw][7][i] += 1;
                 }
-                
+
                 ret = CloseContainer(cguid);
                 if((FDF_INVALID_PARAMETER == ret) || (FDF_FAILURE_CONTAINER_NOT_FOUND == ret))
                 {
                     result[aw][7][i] += 1;
                 }
-                if(FDF_FAILURE == DeleteContainer(cguid))
+                if(FDF_FAILURE == (ret = DeleteContainer(cguid)))
                 {
                     result[aw][7][i] += 1;
                 }

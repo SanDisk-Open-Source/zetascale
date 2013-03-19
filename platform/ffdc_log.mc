@@ -3253,6 +3253,9 @@
 160129 Shutdown in Progress. Operation not allowed
 160136 Opening Container Matadata Container
 160137 Creating Container Matadata Container
+160138 Container %lu is not found
+160139 Container %lu deletion is in progress
+160140 Container %lu does not exist:%s
 
 
 # rico

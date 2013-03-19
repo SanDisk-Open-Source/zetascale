@@ -195,7 +195,9 @@ typedef uint64_t FDF_cguid_t;
     item(FDF_FAILURE_NO_TRANS, /* default */) \
     item(FDF_CANNOT_DELETE_OPEN_CONTAINER, /* default */) \
     item(FDF_FAILURE_OPERATION_DISALLOWED, /* default */) \
-    item(FDF_FAILURE_ILLEGAL_CONTAINER_ID, /* default */)
+    item(FDF_FAILURE_ILLEGAL_CONTAINER_ID, /* default */) \
+    item(FDF_FAILURE_CONTAINER_NOT_FOUND, /* default */)
+
 
 
 typedef enum {
