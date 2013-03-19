@@ -1119,10 +1119,12 @@ int mcd_aio_init( void * state, char * dname )
     /*
      * aio poller fthread
      */
-    fthResume( fthSpawn( &mcd_aio_poller, 81920),
-               (uint64_t) 0);
-    mcd_log_msg( 20144, PLAT_LOG_LEVEL_TRACE,
-                 "aio init helper fthread spawned" );
+    if (0) {
+        fthResume( fthSpawn( &mcd_aio_poller, 81920),
+                   (uint64_t) 0);
+        mcd_log_msg( 20144, PLAT_LOG_LEVEL_TRACE,
+                     "aio init helper fthread spawned" );
+    }
 
     /*
      * get total flash size from property file
