@@ -1904,7 +1904,7 @@ static FDF_status_t fdf_create_container(
 	*cguid = 0;
 
 	properties->persistent			= SDF_TRUE;
-	properties->evicting			= SDF_FALSE;
+	//properties->evicting			= SDF_FALSE;
 #if 0
 	iproperties.current_size		= 0;
 	iproperties.num_obj				= 0;

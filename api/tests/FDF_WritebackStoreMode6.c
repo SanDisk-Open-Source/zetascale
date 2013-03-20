@@ -222,21 +222,43 @@ int test_basic_check(uint32_t aw)
 		fprintf(stderr, "cguid=%ld, FDF_CACHE_STAT_ASYNC_WRBK_FAILS=%ld\n", cguid, stats1.cache_stats[FDF_CACHE_STAT_ASYNC_WRBK_FAILS]);
 		if (mode[i][3] == 0) {
 		    // writeback
-		    if ((stats1.cache_stats[FDF_CACHE_STAT_WRITETHRUS] == 0) &&
-		        (stats1.cache_stats[FDF_CACHE_STAT_ASYNC_WRBKS] != 0) &&
-		        (stats1.cache_stats[FDF_CACHE_STAT_ASYNC_WRBK_FAILS] != 0))
-		    {
-			result[aw][1][i] += 1;
+		    if (mode[i][2]) {
+			// evicting
+			if ((stats1.cache_stats[FDF_CACHE_STAT_WRITETHRUS] == 0) &&
+			    (stats1.cache_stats[FDF_CACHE_STAT_ASYNC_WRBKS] != 0) &&
+			    (stats1.cache_stats[FDF_CACHE_STAT_ASYNC_WRBK_FAILS] == 0))
+			{
+			    result[aw][1][i] += 1;
+			}
+		    } else {
+			// non-evicting
+			if ((stats1.cache_stats[FDF_CACHE_STAT_WRITETHRUS] == 0) &&
+			    (stats1.cache_stats[FDF_CACHE_STAT_ASYNC_WRBKS] != 0) &&
+			    (stats1.cache_stats[FDF_CACHE_STAT_ASYNC_WRBK_FAILS] != 0))
+			{
+			    result[aw][1][i] += 1;
+			}
 		    }
 		} else {
 		    // writethru
 		    if (aw) {
 		        // async writes
-			if ((stats1.cache_stats[FDF_CACHE_STAT_WRITETHRUS] != 0) &&
-			    (stats1.cache_stats[FDF_CACHE_STAT_ASYNC_PUTS] != 0) &&
-			    (stats1.cache_stats[FDF_CACHE_STAT_ASYNC_PUT_FAILS] != 0))
-			{
-			    result[aw][1][i] += 1;
+			if (mode[i][2]) {
+			    // evicting
+			    if ((stats1.cache_stats[FDF_CACHE_STAT_WRITETHRUS] != 0) &&
+				(stats1.cache_stats[FDF_CACHE_STAT_ASYNC_PUTS] != 0) &&
+				(stats1.cache_stats[FDF_CACHE_STAT_ASYNC_PUT_FAILS] == 0))
+			    {
+				result[aw][1][i] += 1;
+			    }
+			} else {
+			    // non-evicting
+			    if ((stats1.cache_stats[FDF_CACHE_STAT_WRITETHRUS] != 0) &&
+				(stats1.cache_stats[FDF_CACHE_STAT_ASYNC_PUTS] != 0) &&
+				(stats1.cache_stats[FDF_CACHE_STAT_ASYNC_PUT_FAILS] != 0))
+			    {
+				result[aw][1][i] += 1;
+			    }
 			}
 		    } else {
 			if (stats1.cache_stats[FDF_CACHE_STAT_WRITETHRUS] != 0) {
@@ -275,7 +297,7 @@ int main()
     int testnumber = 2;
 	int count      = 0;
 
-    if((fp = fopen("FDF_WritebackStoreMode.log", "w+")) == 0)
+    if((fp = fopen("FDF_WritebackStoreMode6.log", "w+")) == 0)
     {
         fprintf(stderr, " open log file failed!.\n");
         return -1;
