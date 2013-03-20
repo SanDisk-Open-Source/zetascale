@@ -3123,6 +3123,9 @@
 150101 %s, container size=%lu KB is less then minimum container size, which is 1KB
 150102 i_ctnr=%d
 150103 stop=%d, i=%d
+150105 Failed to end enumeration while evicting objects: %s
+150107 Failed to initiate container eviction for %u\n
+150108 Could not determine eviction type for container %u\n
 
 
 # root
@@ -3256,6 +3259,8 @@
 160138 Container %lu is not found
 160139 Container %lu deletion is in progress
 160140 Container %lu does not exist:%s
+160141 Failed to make room for new object\n
+160142 Failed to evict object: %s - %s, continuing to search for victims
 
 
 # rico

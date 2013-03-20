@@ -353,7 +353,7 @@ FDF_status_t print_container_stats_by_cguid( struct FDF_thread_state *thd_state,
     }
     time(&t);
     /* Print the container properties */
-    get_cntr_info(cguid,NULL, 0, &num_objs, &used_space, NULL);
+    get_cntr_info(cguid,NULL, 0, &num_objs, &used_space, NULL, NULL);
     fprintf(fp,"Timestamp:%sPer Container Statistics\n"
                           "  Container Properties:\n"
                           "    name         = %s\n"

@@ -726,4 +726,6 @@ mcd_osd_segment_lock(mcd_osd_slab_class_t* class, mcd_osd_segment_t* segment);
 uint64_t
 mcd_osd_rand_address(mcd_osd_shard_t *shard, uint64_t offset);
 
+int
+mcd_fth_osd_evict_container_objects( mcd_osd_shard_t *shard, FDF_cguid_t cguid, SDF_size_t size );
 #endif  /* __MCD_OSD_H__ */

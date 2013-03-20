@@ -57,6 +57,16 @@
 #define BUF_LEN 4096
 #define STATS_API_TEST 1
 
+static FDF_status_t
+fdf_write_object(
+	struct FDF_thread_state  *fdf_thread_state,
+	FDF_cguid_t          cguid,
+	char                *key,
+	uint32_t             keylen,
+	char                *data,
+	uint64_t             datalen,
+	uint32_t             flags
+	);
 
 /*
  * maximum number of containers supported by one instance of memcached
@@ -226,6 +236,13 @@ static FDF_status_t fdf_vc_init(
 static FDF_status_t fdf_generate_cguid(
 	struct FDF_thread_state  *fdf_thread_state,
 	FDF_cguid_t 			 *cguid
+	);
+
+static FDF_status_t fdf_delete_object(
+	struct FDF_thread_state  *fdf_thread_state,
+	FDF_cguid_t          	  cguid,
+	char                	 *key,
+	uint32_t             	  keylen
 	);
 
 static FDF_status_t fdf_delete_objects(
@@ -904,7 +921,8 @@ get_cntr_info(cntr_id_t cntr_id,
               char *name, int name_len,
               uint64_t *objs,
               uint64_t *used,
-              uint64_t *size)
+              uint64_t *size,
+              FDF_boolean_t *evicting)
 {
     ctnr_map_t *cmap = get_cntr_map(cntr_id);
     if (!cmap)
@@ -924,6 +942,8 @@ get_cntr_info(cntr_id_t cntr_id,
         *used = cmap->current_size;
     if (size)
         *size = cmap->size_kb * 1024;
+    if (evicting)
+        *evicting = cmap->evicting;
     rel_cntr_map(cmap);
     return 1;
 }
@@ -996,6 +1016,7 @@ void dump_map() {
 			fprintf(stderr, ">>>CtnrMap[%d].size_kb 		= %lu\n", i, CtnrMap[i].size_kb);
             fprintf(stderr, ">>>CtnrMap[%d].num_obj 		= %lu\n", i, CtnrMap[i].num_obj);
             fprintf(stderr, ">>>CtnrMap[%d].current_size 	= %lu\n", i, CtnrMap[i].current_size);
+            fprintf(stderr, ">>>CtnrMap[%d].evicting 		= %d\n", i, CtnrMap[i].evicting);
         }
     }
 }
@@ -1883,8 +1904,6 @@ static FDF_status_t fdf_create_container(
 	*cguid = 0;
 
 	properties->persistent			= SDF_TRUE;
-	properties->evicting  			= SDF_FALSE;
-	// properties->writethru  			= SDF_TRUE;
 #if 0
 	iproperties.current_size		= 0;
 	iproperties.num_obj				= 0;
@@ -1895,19 +1914,6 @@ static FDF_status_t fdf_create_container(
 #endif
 
 	plat_log_msg(160033, LOG_CAT, LOG_DBG, "%s, size=%ld bytes", cname, (long)properties->size_kb * 1024);
-
-#if 0
-	if( properties->size_kb < 1 )
-	{
-		plat_log_msg( 150101,
-				LOG_CAT, 
-				LOG_ERR, 
-				"%s, container size=%lu KB is less then minimum container size, which is 1KB", 
-				cname, 
-				properties->size_kb);
-		return FDF_FAILURE_CONTAINER_TOO_SMALL;
-	}
-#endif
 
 	if ( !properties->writethru ) {
 		if ( !properties->evicting ) {
@@ -2211,6 +2217,7 @@ static FDF_status_t fdf_create_container(
 				CtnrMap[i].sdf_container = containerNull;
 				CtnrMap[i].size_kb     	 = properties->size_kb;
 				CtnrMap[i].current_size	 = 0;
+				CtnrMap[i].evicting    	 = properties->evicting;
 #ifdef SDFAPIONLY
 				Mcd_containers[i].cguid = *cguid;
 				strcpy( Mcd_containers[i].cname, cname );
@@ -2692,6 +2699,32 @@ FDF_status_t FDFDeletePhysicalContainer(
 							   );
 }
 
+FDF_status_t fdf_evict_container_objs(
+	struct FDF_thread_state *fdf_thread_state, 
+	FDF_cguid_t 			 cguid, 
+	uint32_t 				 size_free )
+{
+	shard_t 			*shard	= NULL; 
+	SDF_action_init_t 	*pai 	= (SDF_action_init_t *) fdf_thread_state;
+	FDF_status_t 		 status	= FDF_FAILURE;
+
+	if ( FDF_SUCCESS != ( status = is_fdf_operation_allowed() ) ) 
+		return status;
+
+	status = cguid_to_shard(pai, cguid, &shard); 
+
+	if ( status != FDF_SUCCESS ) 
+		return status;
+
+	if ( mcd_fth_osd_evict_container_objects( (mcd_osd_shard_t *)shard, cguid, size_free ) < size_free ) {
+		plat_log_msg( 160141, LOG_CAT, LOG_DBG, "Failed to make room for new object\n" );
+		status = FDF_FAILURE;
+	} else {
+		status = FDF_SUCCESS;
+	}
+
+	return status;
+}
 
 FDF_status_t fdf_delete_container_async_end(
                                 struct FDF_thread_state *fdf_thread_state,
@@ -2943,7 +2976,7 @@ FDF_status_t fdf_delete_container_async_start(
             return FDF_FAILURE;
         }
     }
-    status = aync_command_delete_container(cguid);
+    status = async_command_delete_container(cguid);
     if ( status != FDF_SUCCESS ) {
         plat_log_msg( 160085, LOG_CAT, LOG_ERR,
              "Failed to initiate the asynchronous container delete");
@@ -2982,8 +3015,6 @@ static FDF_status_t fdf_delete_container_1(
 		return FDF_INVALID_PARAMETER;
 
     SDFStartSerializeContainerOp(pai);
-
-
 
     i_ctnr = fdf_get_ctnr_from_cguid( cguid );
 
@@ -3329,21 +3360,11 @@ fdf_set_container_props(
 		}
 
     	meta.properties.container_id.size                     = pprops->size_kb;
-#if 0
-		// We currently support persistent, store containers
+		// We currently support slab only with 1 shard 
     	meta.properties.container_type.caching_container      = pprops->evicting;
     	meta.properties.cache.writethru                       = pprops->writethru;
-#else
-    	meta.properties.container_type.caching_container      = SDF_FALSE;
-    	meta.properties.cache.writethru                       = pprops->writethru;
-	meta.properties.fifo_mode 			      = SDF_FALSE;
-	meta.properties.shard.num_shards 		      = 1;
-	/* TRAC:10469
-           Disabling the following line because cguid can never be changed and if allowed
-           apps can set invalid value for cguid, GetContainerProperties return invalid cguids
-        */
-        /*meta.properties.cguid 							  = pprops->cguid;*/
-#endif
+		meta.properties.fifo_mode							  = SDF_FALSE;
+		meta.properties.shard.num_shards 		      		  = 1;
 
 	meta.properties.durability_level = SDF_NO_DURABILITY;
 	if ( pprops->durability_level == FDF_DURABILITY_HW_CRASH_SAFE )
@@ -3619,12 +3640,12 @@ FDF_status_t FDFWriteObject(
 
 	status = fdf_write_object(fdf_thread_state, cguid, key, keylen, data, datalen, flags);
 
-	return status; 
+	return status;
 }
 
 
 static FDF_status_t
-fdf_write_object_expiry(
+fdf_write_object_expiry (
     struct FDF_thread_state  *fdf_thread_state,
     FDF_cguid_t               cguid,
     FDF_writeobject_t        *wobj,
@@ -4715,7 +4736,7 @@ FDF_status_t FDFGetStatsStr (
         uint64_t num_objs = 0;
         uint64_t used = 0;    
         /* Virtual containers. Get the size and space consumed */
-        get_cntr_info(cguid,NULL, 0, &num_objs, &used, NULL);
+        get_cntr_info(cguid,NULL, 0, &num_objs, &used, NULL, NULL);
         stats->flash_stats[FDF_FLASH_STATS_SPACE_CONSUMED] = used;
         stats->flash_stats[FDF_FLASH_STATS_NUM_CREATED_OBJS] = num_objs;
     }
@@ -4820,7 +4841,7 @@ static SDF_container_props_t *fdf_create_sdf_props(
 
         sdf_properties->container_type.type                   	= SDF_OBJECT_CONTAINER;
         sdf_properties->container_type.persistence            	= SDF_TRUE /* fdf_properties->persistent */;
-        sdf_properties->container_type.caching_container      	= SDF_FALSE /* fdf_properties->evicting */;
+        sdf_properties->container_type.caching_container      	= fdf_properties->evicting;
         sdf_properties->container_type.async_writes           	= fdf_properties->async_writes;
 
         sdf_properties->replication.enabled                     = 0;

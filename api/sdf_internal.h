@@ -29,6 +29,7 @@ typedef struct ctnr_map {
 	uint64_t		current_size;
 	uint64_t		num_obj;
     FDF_CONTAINER_STATE state;
+	FDF_boolean_t   evicting;
 } ctnr_map_t;
 
 
@@ -175,6 +176,6 @@ get_cntr_info(cntr_id_t cntr_id,
               int name_len,
               uint64_t *objs,
               uint64_t *used,
-              uint64_t *size);
-
+              uint64_t *size,
+			  FDF_boolean_t *evicting);
 #endif // __SDF_INTERNAL_H

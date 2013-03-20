@@ -158,8 +158,7 @@ static void async_handler_thread(uint64_t arg){
 			check_if_zero_num_deletes_pend();
         }
         else if( req->cmd == FDF_ASYNC_CMD_DELETE_OBJ) {
-            plat_log_msg(160086,LOG_CAT, LOG_ERR,
-                                  "Unsupported command(%d) received",req->cmd);
+			fdf_evict_container_objs(thd_state, req->cguid, req->size_free);
         }
         else if( req->cmd == FDF_ASYNC_CMD_EXIT ) {
             plat_free(req);
@@ -179,9 +178,7 @@ void get_async_delete_stats( uint32_t *num_deletes,uint32_t *num_prog) {
     *num_prog    = num_deletes_prog;
 }
 
-
-
-FDF_status_t aync_command_delete_container(FDF_cguid_t cguid) {
+FDF_status_t async_command_delete_container(FDF_cguid_t cguid) {
     async_cmd_req_t *req;    
 
     req = (async_cmd_req_t *)plat_alloc(sizeof( async_cmd_req_t));
@@ -197,7 +194,24 @@ FDF_status_t aync_command_delete_container(FDF_cguid_t cguid) {
     return FDF_SUCCESS; 
 }
 
-FDF_status_t aync_command_exit() {
+struct FDF_state *my_fdf_state = NULL;
+
+FDF_status_t async_command_evict_objs(FDF_cguid_t cguid, uint32_t size_free) {
+    async_cmd_req_t *req;
+    req = (async_cmd_req_t *)plat_alloc(sizeof( async_cmd_req_t));
+    if ( req == NULL ) {
+        plat_log_msg(160071,LOG_CAT, LOG_ERR,
+                                         "Memory allocation failed");
+        return FDF_FAILURE;
+    }
+    req->cmd = FDF_ASYNC_CMD_DELETE_OBJ;
+    req->cguid = cguid;
+    req->size_free = size_free;
+    fthMboxPost(&async_cmds_hdr_mbox,(uint64_t)req);
+    return FDF_SUCCESS;
+}
+
+FDF_status_t async_command_exit() {
     async_cmd_req_t *req;
 
     req = (async_cmd_req_t *)plat_alloc(sizeof( async_cmd_req_t));
@@ -213,6 +227,8 @@ FDF_status_t aync_command_exit() {
 
 void init_async_cmd_handler(int num_thds, struct FDF_state *fdf_state) {
     int i;
+
+	my_fdf_state = fdf_state;
 
     if( fdf_state == NULL ) {
         plat_log_msg(160072,LOG_CAT, LOG_ERR,"Invalid FDF state");
@@ -237,7 +253,7 @@ void shutdown_async_cmd_handler() {
    int i;
    /*Stop the threads by sending exit command*/
    for ( i = 0; i < num_threads; i++) {
-       aync_command_exit();
+       async_command_exit();
    }
    /* Wait for all threads to finish */
    /*TODO*/

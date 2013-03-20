@@ -244,6 +244,7 @@ cmc_create(
         CtnrMap[i].sdf_container = containerNull;
         CtnrMap[i].size_kb  	 = 0;
         CtnrMap[i].current_size  = 0;
+        CtnrMap[i].evicting  	 = FDF_FALSE;
     }
 #endif /* SDFAPI */
 

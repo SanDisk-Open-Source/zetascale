@@ -4671,7 +4671,7 @@ set_cntr_sizes(pai_t *pai, shard_t *sshard)
         uint64_t used;
         uint64_t size;
         char name[256];
-        if (!get_cntr_info(n, name, sizeof(name), &objs, &used, &size))
+        if (!get_cntr_info(n, name, sizeof(name), &objs, &used, &size, NULL))
             fdf_loge(70118, "Failed on get_cntr_info for container %ld", n);
         else {
             if (size) {

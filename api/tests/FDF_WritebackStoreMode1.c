@@ -211,13 +211,17 @@ int test_basic_check(uint32_t aw)
 		if (mode[i][3] == 0) {
 		    // writeback
 		    if (stats1.cache_stats[FDF_CACHE_STAT_WRITETHRUS] == 0) {
-			result[aw][1][i] += 1;
-		    }
+				result[aw][1][i] += 1;
+		    } else {
+				exit(0);
+			}
 		} else {
 		    // writethru
 		    if (stats1.cache_stats[FDF_CACHE_STAT_WRITETHRUS] != 0) {
-			result[aw][1][i] += 1;
-		    }
+				result[aw][1][i] += 1;
+		    } else {
+				exit(0);
+			}
 		}
 
             }
