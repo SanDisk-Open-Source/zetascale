@@ -359,7 +359,8 @@ typedef struct {
     item(SDF_OUT_OF_STORAGE_SPACE, /* default */) \
     item(SDF_FAILURE_ALREADY_IN_TRANS, /* default */) \
     item(SDF_FAILURE_NO_TRANS, /* default */) \
-    item(SDF_CANNOT_DELETE_OPEN_CONTAINER, /* default */)     
+    item(SDF_CANNOT_DELETE_OPEN_CONTAINER, /* default */) \
+    item(SDF_FAILURE_INVALID_KEY_SIZE, /* default */)
 
 
 typedef enum {

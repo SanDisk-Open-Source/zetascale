@@ -515,23 +515,31 @@ void SDFBlknumToKey(SDF_simple_key_t *pkey, uint64_t blknum)
 
 SDF_status_t SDFObjnameToKey(SDF_simple_key_t *pkey, char *objname, uint32_t keylen)
 {
-    char  *sfrom, *sto;
-    int    i;
+    char  *sfrom = NULL;
+	char  *sto   = NULL;
 
-    if (keylen >= (SDF_SIMPLE_KEY_SIZE - 1)) {
-	plat_log_msg(30606, PLAT_LOG_CAT_SDF_PROT, PLAT_LOG_LEVEL_ERROR, "Object name is too long");
-	return(SDF_KEY_TOO_LONG);
-    }
+	if (keylen >= (SDF_SIMPLE_KEY_SIZE - 1)) {
+		plat_log_msg(30606, PLAT_LOG_CAT_SDF_PROT, PLAT_LOG_LEVEL_ERROR, "Object name is too long");
+		return(SDF_KEY_TOO_LONG);
+	}
 
-    sto = pkey->key;
+	if (0 >= keylen) {
+		plat_log_msg(160143,
+		             PLAT_LOG_CAT_SDF_PROT,
+					 PLAT_LOG_LEVEL_ERROR,
+					 "Zero or negative size key is provided");
+
+		return SDF_FAILURE_INVALID_KEY_SIZE;
+	}
+
+    sto   = pkey->key;
     sfrom = objname;
-    for (i=0; i<keylen; i++) {
-        *sto++ = *sfrom++;
-    }
-    *sto = '\0';
+
+	memcpy(sto, sfrom, keylen);
+
+    sto[keylen + 1] = '\0';
+
     pkey->len = keylen + 1;
+
     return(SDF_SUCCESS);
 }
-
-
-

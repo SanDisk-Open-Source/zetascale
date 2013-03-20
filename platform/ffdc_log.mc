@@ -3261,6 +3261,7 @@
 160140 Container %lu does not exist:%s
 160141 Failed to make room for new object\n
 160142 Failed to evict object: %s - %s, continuing to search for victims
+160143 Zero or negative size key is provided
 
 
 # rico
