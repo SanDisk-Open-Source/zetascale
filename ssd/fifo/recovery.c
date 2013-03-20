@@ -4566,7 +4566,7 @@ delete_object(mo_shard_t *shard, mo_hash_t *hash, uint64_t bkt_i)
     mcd_logrec_object_t log ={
         .syndrome   = hash->syndrome,
         .deleted    = 1,
-        .bucket     = bkt_i,
+        .bucket     = bkt_i * Mcd_osd_bucket_size,
         .blk_offset = baddr,
         .old_offset = ~baddr,
         .cntr_id    = hash->cntr_id,

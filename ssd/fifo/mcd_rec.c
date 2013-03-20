@@ -3767,7 +3767,10 @@ reapply:
 		unless (state->in_recovery) {
 			unless ((object->bucket/Mcd_osd_bucket_size == rec->bucket/Mcd_osd_bucket_size)
 			and (object->syndrome == rec->syndrome)
-			and (object->seqno==rec->target_seqno || shard->evict_to_free)) {
+			and (rec->target_seqno == 0 ||
+                 object->seqno==rec->target_seqno ||
+                 shard->evict_to_free))
+            {
 				mcd_log_msg( 20503, PLAT_LOG_LEVEL_FATAL, "rec: syn=%u, blocks=%u, del=%u, bucket=%u, " "boff=%u, ooff=%u, seq=%lu, tseq=%lu, obj: " "syn=%u, ts=%u, blocks=%u, del=%u, bucket=%u, " "toff=%lu, seq=%lu, hwm_seqno=%lu", rec->syndrome, mcd_osd_lba_to_blk( rec->blocks), rec->deleted, rec->bucket, rec->blk_offset, rec->old_offset, (uint64_t) rec->seqno, rec->target_seqno, object->syndrome, object->tombstone, mcd_osd_lba_to_blk( object->blocks), object->deleted, object->bucket, obj_offset, (uint64_t) object->seqno, 0uL);
 				if (rec != orig_rec)
 					mcd_log_msg( 20502, PLAT_LOG_LEVEL_FATAL, "orig_rec: syn=%u, blocks=%u, del=%u, " "bucket=%u, boff=%u, ooff=%u, seq=%lu, " "tseq=%lu", orig_rec->syndrome, mcd_osd_lba_to_blk( orig_rec->blocks), orig_rec->deleted, orig_rec->bucket, orig_rec->blk_offset, orig_rec->old_offset, (uint64_t) orig_rec->seqno, orig_rec->target_seqno);
