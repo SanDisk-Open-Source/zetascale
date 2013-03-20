@@ -4175,7 +4175,7 @@ mcd_fth_osd_get_slab( void * context, mcd_osd_shard_t * shard,
      * currently not much we can do if the class is empty
      */
     if ( 0 == class->num_segments ) {
-        mcd_log_msg( 80043, PLAT_LOG_LEVEL_ERROR, 
+        mcd_log_msg( 80043, PLAT_LOG_LEVEL_DEBUG, 
                                             "Slab class empty" );
         return FLASH_ENOSPC;
     }
