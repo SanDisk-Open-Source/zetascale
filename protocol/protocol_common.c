@@ -515,6 +515,7 @@ void SDFBlknumToKey(SDF_simple_key_t *pkey, uint64_t blknum)
 
 SDF_status_t SDFObjnameToKey(SDF_simple_key_t *pkey, char *objname, uint32_t keylen)
 {
+    int i;
     char  *sfrom = NULL;
 	char  *sto   = NULL;
 
@@ -534,8 +535,10 @@ SDF_status_t SDFObjnameToKey(SDF_simple_key_t *pkey, char *objname, uint32_t key
 
     sto   = pkey->key;
     sfrom = objname;
-
-	memcpy(sto, sfrom, keylen);
+    for (i=0; i<keylen; i++) {
+        *sto++ = *sfrom++;
+    }
+    *sto = '\0';
 
     sto[keylen + 1] = '\0';
 
