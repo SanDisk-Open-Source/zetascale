@@ -4,9 +4,10 @@
  *
  * Copyright (c) 2012-2013, Sandisk Corporation.  All rights reserved.
  */
-#ifndef FDF_H
-#define FDF_H
+#ifndef FDF_EASY_H
+#define FDF_EASY_H
 
+#include <pthread.h>
 #include "fdf.h"
 
 
@@ -70,4 +71,4 @@ int fdf_obj_get(fdf_ctr_t *ctr, char *key, uint64_t keylen,
 int fdf_iter_next(fdf_iter_t *iter, char **key, uint64_t *keylen,
                           char **data, uint64_t *datalen, char **errp);
 
-#endif /* FDF_H */
+#endif /* FDF_EASY_H */

@@ -1,0 +1,6 @@
+project(test)
+cmake_minimum_required(VERSION 2.8.10.2)
+file(GLOB SOURCES *.c ../fdf_dll.c)
+add_executable(test ${SOURCES})
+include_directories(../../api ../..)
+target_link_libraries(test dl pthread aio rt event m)
