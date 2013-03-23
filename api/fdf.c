@@ -440,6 +440,9 @@ fdf_stats_info_t fdf_stats_cache[] = {
     {"async_flush_fails","async_flush_fails",FDF_STATS_TYPE_CACHE_TO_FLASH},/* FDF_CACHE_STAT_ASYNC_FLUSH_FAILS */
     {"async_wrbks","async_wrbks",FDF_STATS_TYPE_CACHE_TO_FLASH},/* FDF_CACHE_STAT_ASYNC_WRBKS */
     {"async_wrbk_fails","async_wrbk_fails",FDF_STATS_TYPE_CACHE_TO_FLASH},/* FDF_CACHE_STAT_ASYNC_WRBK_FAILS */
+    {"cache_misses","cache_misses",FDF_STATS_TYPE_CACHE_TO_FLASH},/* FDF_CACHE_STAT_CACHE_MISSES */
+    {"cache_hits","cache_hits",FDF_STATS_TYPE_CACHE_TO_FLASH},/* FDF_CACHE_STAT_CACHE_HITS */
+
     /* request from cache to flash manager */
     {"AHCOB","num_create_objs",FDF_STATS_TYPE_CACHE_TO_FLASH},/* FDF_CACHE_STAT_AHCOB */
     {"AHCOP","num_create_objs_and_put",FDF_STATS_TYPE_CACHE_TO_FLASH},/* FDF_CACHE_STAT_AHCOP */
@@ -606,7 +609,36 @@ int get_cache_type_stats_category(int stat ) {
     return fdf_stats_cache[stat].category;
 }   
 
+FDF_status_t verify_stats_datastruct() {
+    int num_stats_array;
+    /*Number of stats listed in the corresponding descriptive array fdf_stats_access_type*/
+    num_stats_array = sizeof(fdf_stats_access_type)/sizeof(fdf_stats_info_t); 
+    if( FDF_N_ACCESS_TYPES != num_stats_array ) {
+         plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, LOG_ERR,
+            "Programming error: Numbers of stats defined in FDF_access_types_t(%d) does not match array fdf_stats_access_type(%d)",
+                     FDF_N_ACCESS_TYPES,num_stats_array);
+         return FDF_FAILURE;
+    }
 
+    /*Number of stats listed in the corresponding descriptive array fdf_stats_access_type*/
+    num_stats_array = sizeof(fdf_stats_cache)/sizeof(fdf_stats_info_t); 
+    if( FDF_N_CACHE_STATS != num_stats_array ) {
+         plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, LOG_ERR,
+            "Programming error: Numbers of stats defined in FDF_cache_stat_t(%d) does not match array fdf_stats_cache(%d)",
+                     FDF_N_CACHE_STATS,num_stats_array);
+         return FDF_FAILURE;
+    }
+
+    /*Number of stats listed in the corresponding descriptive array fdf_stats_access_type*/
+    num_stats_array = sizeof(fdf_stats_flash)/sizeof(fdf_stats_info_t);
+    if( FDF_N_FLASH_STATS != num_stats_array ) {
+         plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, LOG_ERR,
+            "Programming error: Numbers of stats defined in fdf_stats_flash(%d) does not match array fdf_stats_flash(%d)",
+                     FDF_N_FLASH_STATS,num_stats_array);
+         return FDF_FAILURE;
+    }
+    return FDF_SUCCESS;
+}
 
 typedef enum {
     MCD_STAT_GET_KEY = 0,
@@ -1316,8 +1348,10 @@ FDF_status_t FDFLoadProperties(const char *prop_file)
 
 	if ( loadProperties(prop_file) )
 		return FDF_FAILURE;
-	else
+	else {
+        log_properties_file(prop_file,LOG_INFO);
 		return FDF_SUCCESS;
+    }
 }
 
 void log_properties_file(const char *path, int log_level) {
@@ -1387,6 +1421,11 @@ FDF_status_t FDFInit(
     uint64_t             num_sched;
     struct timeval		 timer;
 	const char			*prop_file;
+
+
+    if (verify_stats_datastruct() != FDF_SUCCESS ) {
+        return FDF_FAILURE;
+    }
 
     sem_init( &Mcd_initer_sem, 0, 0 );
 
@@ -4540,6 +4579,10 @@ static void get_fdf_stats( SDF_internal_ctxt_t *pai, char ** ppos, int * lenp,
 
     fdf_parse_stats( buf, FDF_DRAM_CACHE_HITS, &sdf_cache_hits );
     fdf_parse_stats( buf, FDF_DRAM_CACHE_MISSES, &sdf_cache_misses );
+    if ( stat != NULL ) {
+        stat->cache_stats[FDF_CACHE_STAT_CACHE_MISSES] = sdf_cache_misses;
+        stat->cache_stats[FDF_CACHE_STAT_CACHE_HITS] = sdf_cache_hits;
+    }
     fdf_parse_stats( buf, FDF_FLASH_CACHE_HITS, &sdf_flash_hits );
     fdf_parse_stats( buf, FDF_FLASH_CACHE_MISSES, &sdf_flash_misses );
     fdf_parse_stats( buf, FDF_DRAM_CACHE_CASTOUTS, &sdf_cache_evictions );
@@ -4789,7 +4832,11 @@ FDF_status_t FDFGetContainerStats(
     FDF_status_t rc;
 
     if ( stats == NULL ) {
-        return FDF_SUCCESS;
+        return FDF_FAILURE;
+    }
+    if (cguid <= VDC_CGUID ) {
+        /* The cguid is for physical container. So return error */
+        return FDF_FAILURE;
     }
     memset (stats, 0, sizeof(FDF_stats_t));
     rc = FDFGetStatsStr(fdf_thread_state,cguid,stats_str, stats);
@@ -4798,9 +4845,8 @@ FDF_status_t FDFGetContainerStats(
                       "Failed to get stats for container:%lu (%s)",cguid,FDF_Status_Strings[rc] );
     }
     //  no-op in this simple implementation
-    //return rc;
     slab_gc_get_stats(NULL, stats, NULL);
-    return(FDF_SUCCESS);
+    return rc;
 }
 
 

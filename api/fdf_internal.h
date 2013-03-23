@@ -174,6 +174,7 @@ void wait_for_container_del();
 extern int fdf_instance_id;
 char *get_bool_str( int val);
 char *get_durability_str(FDF_durability_level_t dura);
+void log_properties_file(const char *path, int log_level);
 
 #ifdef __cplusplus
 }

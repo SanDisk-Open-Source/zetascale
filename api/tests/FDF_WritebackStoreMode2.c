@@ -135,37 +135,37 @@ int  test_invalid_para(uint32_t aw)
  
     FDF_stats_t p;
     ret = GetContainerStats(2, NULL);
-    if(FDF_SUCCESS == ret)
+    if(FDF_SUCCESS != ret)
     {
         tag += 1;
         result[aw][0][0] =1;
     }
     ret =  GetContainerStats(-1, &p);
-    if(FDF_SUCCESS == ret)
+    if(FDF_SUCCESS != ret)
     {
         tag += 1;
         result[aw][0][1] =1;
     }
     ret =  GetContainerStats(0, &p);
-    if(FDF_SUCCESS == ret)
+    if(FDF_SUCCESS != ret)
     {
         tag += 1;
         result[aw][0][2] =1;
     }
     ret =  GetContainerStats(1111, &p);
-    if(FDF_SUCCESS == ret)
+    if(FDF_SUCCESS != ret)
     {
         tag += 1;
         result[aw][0][3] =1;
     }
     ret =  GetContainerStats(11111111, &p);
-    if(FDF_SUCCESS == ret)
+    if(FDF_SUCCESS != ret)
     {
         tag += 1;
         result[aw][0][4] =1;
     }
     ret =  GetContainerStats(-215, &p);
-    if(FDF_SUCCESS == ret)
+    if(FDF_SUCCESS != ret)
     {
         tag += 1;
         result[aw][0][5] =1;

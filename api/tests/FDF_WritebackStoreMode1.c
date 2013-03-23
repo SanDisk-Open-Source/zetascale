@@ -136,42 +136,42 @@ int  test_invalid_para(uint32_t aw)
     FDF_stats_t p;
     ret = GetContainerStats(2, NULL);
     fprintf(stderr, "0) GetContainerStats returned %d\n", ret);
-    if(FDF_SUCCESS == ret)
+    if(FDF_SUCCESS != ret)
     {
         tag += 1;
         result[aw][0][0] =1;
     }
     ret =  GetContainerStats(-1, &p);
     fprintf(stderr, "1) GetContainerStats returned %d\n", ret);
-    if(FDF_SUCCESS == ret)
+    if(FDF_SUCCESS != ret)
     {
         tag += 1;
         result[aw][0][1] =1;
     }
     ret =  GetContainerStats(0, &p);
     fprintf(stderr, "2) GetContainerStats returned %d\n", ret);
-    if(FDF_SUCCESS == ret)
+    if(FDF_SUCCESS != ret)
     {
         tag += 1;
         result[aw][0][2] =1;
     }
     ret =  GetContainerStats(1111, &p);
     fprintf(stderr, "3) GetContainerStats returned %d\n", ret);
-    if(FDF_SUCCESS == ret)
+    if(FDF_SUCCESS != ret)
     {
         tag += 1;
         result[aw][0][3] =1;
     }
     ret =  GetContainerStats(11111111, &p);
     fprintf(stderr, "4) GetContainerStats returned %d\n", ret);
-    if(FDF_SUCCESS == ret)
+    if(FDF_SUCCESS != ret)
     {
         tag += 1;
         result[aw][0][4] =1;
     }
     ret =  GetContainerStats(-215, &p);
     fprintf(stderr, "5) GetContainerStats returned %d\n", ret);
-    if(FDF_SUCCESS == ret)
+    if(FDF_SUCCESS != ret)
     {
         tag += 1;
         result[aw][0][5] =1;
