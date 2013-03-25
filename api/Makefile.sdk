@@ -2,14 +2,21 @@
 
 TOP = ..
 PROG = fdf_multi_test
-SRCS = fdf_multi_test.c 
-CFLAGS = -O3 -D_GNU_SOURCE -DMPI_BUILD -DFLASH_SIM_TYPE=5 \
+SRCS = fdf_multi_test.c test.c 
+#CFLAGS = -O3 -D_GNU_SOURCE -DMPI_BUILD -DFLASH_SIM_TYPE=5 \
 -DPLAT_LOG_COMPILE_LEVEL=DEVEL -DENABLE_MULTIPLE_FLASH_SUBSYSTEMS \
 -DBLD_VERSION=857 -DSDFAPI -DSDFAPIREFORMAT -DSIMPLE_REPLICATION \
 -DVIPGROUP_SUPPORT -DENABLE_MULTIPLE_FLASH_SUBSYSTEMS 
-LIBS = $(TOP)/lib/libfdf.a \
-        -lpthread -lrt -lnsl -lutil -lm -laio -levent	
 
+CFLAGS = -D_GNU_SOURCE -DMPI_BUILD -DFLASH_SIM_TYPE=5 \
+-DPLAT_LOG_COMPILE_LEVEL=DEVEL -DENABLE_MULTIPLE_FLASH_SUBSYSTEMS \
+-DBLD_VERSION=857 -DSDFAPI -DSDFAPIONLY -DSDFAPIREFORMAT \
+-DENABLE_MULTIPLE_FLASH_SUBSYSTEMS \
+-O3 -pipe -Wall -fstack-protector-all -fno-strict-aliasing \
+-fno-omit-frame-pointer -Werror -std=gnu99 -fgnu89-inline 
+
+LIBS = $(TOP)/lib/libfdfdll.a \
+        -lpthread -lrt -lnsl -lutil -lm -laio -levent -ldl	
 all:
 	$(CC) $(CFLAGS) $(SRCS) $(LIBS) -I$(TOP)/include -o $(PROG)	
 
