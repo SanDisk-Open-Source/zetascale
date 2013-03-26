@@ -22,6 +22,7 @@ void show_objs(fdf_ctr_t *ctr);
 void flush_ctr(fdf_ctr_t *ctr);
 void delete_ctr(fdf_ctr_t *ctr);
 void fill_patn(char *buf, int len);
+void test_init(fdf_t *fdf, char *name);
 void del_obj(fdf_ctr_t *ctr, char *key);
 void die_err(char *err, char *fmt, ...);
 void reopen_ctr(fdf_ctr_t *ctr, int mode);
@@ -30,7 +31,6 @@ void show_obj(fdf_ctr_t *ctr, char *key, char *value);
 void fill_uint(char *buf, int len, unsigned long num);
 
 void      *alloc(long size);
-fdf_t     *init_fdf(char *name);
 fdf_ctr_t *open_ctr(fdf_t *fdf, char *name, int mode);
 
 #endif /* TLIB_H */

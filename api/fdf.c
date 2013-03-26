@@ -614,7 +614,7 @@ FDF_status_t verify_stats_datastruct() {
     /*Number of stats listed in the corresponding descriptive array fdf_stats_access_type*/
     num_stats_array = sizeof(fdf_stats_access_type)/sizeof(fdf_stats_info_t); 
     if( FDF_N_ACCESS_TYPES != num_stats_array ) {
-         plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, LOG_ERR,
+         plat_log_msg(70127, LOG_CAT, LOG_ERR,
             "Programming error: Numbers of stats defined in FDF_access_types_t(%d) does not match array fdf_stats_access_type(%d)",
                      FDF_N_ACCESS_TYPES,num_stats_array);
          return FDF_FAILURE;
@@ -623,7 +623,7 @@ FDF_status_t verify_stats_datastruct() {
     /*Number of stats listed in the corresponding descriptive array fdf_stats_access_type*/
     num_stats_array = sizeof(fdf_stats_cache)/sizeof(fdf_stats_info_t); 
     if( FDF_N_CACHE_STATS != num_stats_array ) {
-         plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, LOG_ERR,
+         plat_log_msg(70128, LOG_CAT, LOG_ERR,
             "Programming error: Numbers of stats defined in FDF_cache_stat_t(%d) does not match array fdf_stats_cache(%d)",
                      FDF_N_CACHE_STATS,num_stats_array);
          return FDF_FAILURE;
@@ -632,7 +632,7 @@ FDF_status_t verify_stats_datastruct() {
     /*Number of stats listed in the corresponding descriptive array fdf_stats_access_type*/
     num_stats_array = sizeof(fdf_stats_flash)/sizeof(fdf_stats_info_t);
     if( FDF_N_FLASH_STATS != num_stats_array ) {
-         plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, LOG_ERR,
+         plat_log_msg(70129, LOG_CAT, LOG_ERR,
             "Programming error: Numbers of stats defined in fdf_stats_flash(%d) does not match array fdf_stats_flash(%d)",
                      FDF_N_FLASH_STATS,num_stats_array);
          return FDF_FAILURE;
@@ -1326,19 +1326,31 @@ static void *fdf_run_schedulers(void *arg)
     return(NULL);
 }
 
+
+/*
+ * Get a FDF property.
+ */
+const char *
+FDFGetProperty(const char *key, const char *def)
+{
+    return getProperty_String(key, def);
+}
+
+
 /*
 ** API
 */
 void FDFSetProperty(const char* property, const char* value)
 {
-	value = strndup(value, 256);
+    value = strndup(value, 256);
+    if (value)
+        setProperty(property, (void*) value);
 
-	plat_log_msg(180021, PLAT_LOG_CAT_PRINT_ARGS,
-			PLAT_LOG_LEVEL_INFO,
-			"FDFSetProperty ('%s', '%s'). Old value: %s", property, value, getProperty_String(property, "NULL"));
-
-	if(value)
-		setProperty(property, (void*)value);
+    if (FDF_log_level <= PLAT_LOG_LEVEL_INFO) {
+        plat_log_msg(180021, PLAT_LOG_CAT_PRINT_ARGS, PLAT_LOG_LEVEL_INFO,
+                     "FDFSetProperty ('%s', '%s'). Old value: %s",
+                     property, value, getProperty_String(property, "NULL"));
+    }
 }
 
 FDF_status_t FDFLoadProperties(const char *prop_file)
@@ -1390,8 +1402,11 @@ void log_properties_file(const char *path, int log_level) {
             str++;
         }
         val = strndup(beg, str-beg);
-        plat_log_msg(70036, PLAT_LOG_CAT_PRINT_ARGS,
-                     log_level,"%s = %s",key, val);
+
+        if (FDF_log_level <= log_level) {
+            plat_log_msg(70036, PLAT_LOG_CAT_PRINT_ARGS,
+                         log_level,"%s = %s",key, val);
+        }
     }   
     fclose(fp);
     plat_free(line);

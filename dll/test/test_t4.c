@@ -17,12 +17,12 @@ static char *Desc = "test 4";
  * A test.
  */
 static void
-test(void)
+test(fdf_t *fdf)
 {
     int i;
 
     /* Initialize FDF */
-    fdf_t *fdf = init_fdf(Name);
+    test_init(fdf, Name);
 
     for (i = 0; i < 16; i++) {
         char name[3] = {'C', 'a'+i, '\0'};

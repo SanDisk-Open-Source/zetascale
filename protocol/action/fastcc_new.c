@@ -29,6 +29,7 @@
 #include "protocol/protocol_common.h"
 #include "fastcc_new.h"
 #include "utils/hash.h"
+#include "utils/properties.h"
 
 #define MIN_BACKGRND_FLUSH_SLEEP_MSEC   100
 
@@ -503,7 +504,7 @@ void SDFNewCacheInit(SDFNewCache_t *pc, uint64_t nbuckets, uint64_t nslabs_in,
     pc->buckets = fastcc_alloc(pc, "SDFNewCacheInit", nbuckets*(sizeof(SDFNewCacheBucket_t)), NonCacheObjectArena);
 
     nslabs = check_nslabs(pc, nslabs_in);
-    if (nslabs != nslabs_in) {
+    if (nslabs != nslabs_in && !getProperty_Int("HUSH_FASTCC", 0)) {
 	plat_log_msg(80038, 
 		     PLAT_LOG_CAT_SDF_CC, 
 		     PLAT_LOG_LEVEL_WARN,

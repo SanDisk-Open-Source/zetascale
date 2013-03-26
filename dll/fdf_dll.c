@@ -40,6 +40,9 @@ static char *fdflibs[] ={
 /*
  * Function pointers.
  */
+static const char *
+(*ptr_FDFGetProperty)(const char *key, const char *def);
+
 static void 
 (*ptr_FDFSetProperty)(const char *property, const char *value);
 
@@ -185,6 +188,7 @@ static struct {
     const char *name;
     void       *func;
 } table[] ={
+    { "FDFGetProperty",                &ptr_FDFGetProperty               },
     { "FDFSetProperty",                &ptr_FDFSetProperty               },
     { "FDFLoadProperties",             &ptr_FDFLoadProperties            },
     { "FDFInit",                       &ptr_FDFInit                      },
@@ -261,7 +265,7 @@ nsfod(char *str)
 
 
 /*
- * Load the FDF library.
+ * Given a pathname, assume it is a FDF library and load it.
  */
 static int
 load(char *path)
@@ -305,7 +309,8 @@ dlo(const char *lib)
 
 
 /*
- * Load the FDF library.
+ * If the FDF library is not already loaded, attempt to find it and then
+ * load it.
  */
 static void
 parse(void)
@@ -332,6 +337,20 @@ parse(void)
         if (load(fdflibs[i]))
             return;
     panic("cannot find libfdf.so");
+}
+
+
+/*
+ * FDFGetProperty
+ */
+const char *
+FDFGetProperty(const char *key, const char *def)
+{
+    parse();
+    if (unlikely(!ptr_FDFGetProperty))
+        undefined("FDFGetProperty");
+
+    return (*ptr_FDFGetProperty)(key, def);
 }
 
 

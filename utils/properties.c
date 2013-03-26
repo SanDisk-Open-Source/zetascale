@@ -21,6 +21,7 @@
 #include "properties.h"
 #include "sdftcp/tools.h"
 
+int FDF_log_level;
 
 static const char propertiesDefaultFile[] = 
     "/opt/schooner/config/schooner-med.properties";
@@ -49,6 +50,8 @@ int unloadProperties()
 
 int getPropertyFromFile(const char *prop_file, char *inKey, char *outVal) {
     int ret = 0;
+    if (!prop_file || !prop_file[0])
+        return 0;
     FILE *fp = fopen(prop_file, "r");
 
     if (!fp) {
@@ -96,20 +99,31 @@ int getPropertyFromFile(const char *prop_file, char *inKey, char *outVal) {
 
 
 /*
- * Determine if the log level being set is info or less stringent.
+ * Set the log level.
  */
-static int
-log_info(char *val)
+static void
+set_log_level(char *val)
 {
-    if (streq(val, "warning"))
-        return 0;
-    if (streq(val, "error"))
-        return 0;
-    if (streq(val, "fatal"))
-        return 0;
-    if (streq(val, "none"))
-        return 0;
-    return atoi(val) <= PLAT_LOG_LEVEL_DEBUG;
+    if (streq(val, "devel"))
+        FDF_log_level = PLAT_LOG_LEVEL_DEVEL;
+    else if (streq(val, "trace_low"))
+        FDF_log_level = PLAT_LOG_LEVEL_TRACE_LOW;
+    else if (streq(val, "trace"))
+        FDF_log_level = PLAT_LOG_LEVEL_TRACE;
+    else if (streq(val, "debug"))
+        FDF_log_level = PLAT_LOG_LEVEL_DEBUG;
+    else if (streq(val, "diagnostic"))
+        FDF_log_level = PLAT_LOG_LEVEL_DIAGNOSTIC;
+    else if (streq(val, "info"))
+        FDF_log_level = PLAT_LOG_LEVEL_INFO;
+    else if (streq(val, "warning"))
+        FDF_log_level = PLAT_LOG_LEVEL_WARN;
+    else if (streq(val, "error"))
+        FDF_log_level = PLAT_LOG_LEVEL_ERROR;
+    else if (streq(val, "fatal"))
+        FDF_log_level = PLAT_LOG_LEVEL_FATAL;
+    else if (streq(val, "none"))
+        FDF_log_level = PLAT_LOG_LEVEL_FATAL;
 }
 
 
@@ -123,15 +137,11 @@ int loadProperties(const char *path_arg)
 #endif
 
     int ret = 0;
-    int do_log = 1;
     const char *path = NULL;
 
     path = path_arg;
-    if (NULL == path) {
-        if (NULL == (path = getenv("PROPERTIES_FILE"))) {
-            path = propertiesDefaultFile;
-        }
-    }
+    if (!path)
+        return 0;
 
     FILE *fp = fopen(path, "r");
 
@@ -186,8 +196,6 @@ int loadProperties(const char *path_arg)
                      "Parsed property error (ret:%d)('%s', '%s')", ret, key, val);
         }
 #endif
-        if (strcmp(key, "FDF_LOG_LEVEL") == 0)
-            do_log = log_info(val);
 
         /**
          * XXX: drew 2008-12-17 It would be better to log at the point of use
@@ -195,14 +203,14 @@ int loadProperties(const char *path_arg)
          * this will get us the current settings in Patrick's memcached
          * runs.
          */
-        if (do_log) {
+        if (FDF_log_level <= PLAT_LOG_LEVEL_TRACE_LOW) {
             plat_log_msg(21758, PLAT_LOG_CAT_PRINT_ARGS,
                          PLAT_LOG_LEVEL_TRACE_LOW,
                          "Parsed property ('%s', '%s')", key, val);
         }
     }
     
-    if (do_log) {
+    if (FDF_log_level <= PLAT_LOG_LEVEL_TRACE_LOW) {
         plat_log_msg(70124, PLAT_LOG_CAT_PRINT_ARGS,
                      PLAT_LOG_LEVEL_TRACE_LOW,
                      "Read from properties file '%s'", path);
@@ -220,6 +228,8 @@ int insertProperty(const char *key, void* value)
         initializeProperties();
     }
 #endif
+    if (strcmp(key, "FDF_LOG_LEVEL") == 0)
+        set_log_level(value);
     return ((SDF_TRUE == HashMap_put(_sdf_globalPropertiesMap, key, value)) ? 0 : 1);
 }
 
@@ -231,6 +241,8 @@ int setProperty(const char *key, void* value)
         initializeProperties();
     }
 #endif
+    if (strcmp(key, "FDF_LOG_LEVEL") == 0)
+        set_log_level(value);
     if (SDF_TRUE != HashMap_put(_sdf_globalPropertiesMap, key, value)) {
         void *p = HashMap_replace(_sdf_globalPropertiesMap, key, value);
         if (p) {

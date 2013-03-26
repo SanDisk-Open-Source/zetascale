@@ -18,6 +18,7 @@ use constant LineLen => 80;
 #
 my %Onload =(
     'Init'        => 1,
+    'GetProperty' => 1,
     'SetProperty' => 1,
     'LoadProperties' => 1,
 );
@@ -117,7 +118,7 @@ my $Code_funcs = '
 
 
     /*
-     * Load the FDF library.
+     * Given a pathname, assume it is a FDF library and load it.
      */
     static int
     load(char *path)
@@ -161,7 +162,8 @@ my $Code_funcs = '
 
 
     /*
-     * Load the FDF library.
+     * If the FDF library is not already loaded, attempt to find it and then
+     * load it.
      */
     static void
     parse(void)
@@ -288,7 +290,7 @@ sub func_patn () {
     if ($] >= 5.012) {
         return '
             ^
-            \s* ([FS]DF_\w+|struct \s* [FS]DF_\w+|int|void|char)
+            \s* ([FS]DF_\w+|struct \s* [FS]DF_\w+|int|void|char|const\s+char)
             \s* (\**)
             \s* ([FS]DF\w+)
             \s* ( \( (?:[^()]*+ | (?4))* \) )
@@ -300,7 +302,7 @@ sub func_patn () {
            " still, doing our best";
     return '
         ^
-        \s* ([FS]DF_\w+|struct \s* [FS]DF_\w+|int|void|char)
+        \s* ([FS]DF_\w+|struct \s* [FS]DF_\w+|int|void|char|const\s+char)
         \s* (\**)
         \s* ([FS]DF\w+)
         \s* ( \( [^)]* \) )

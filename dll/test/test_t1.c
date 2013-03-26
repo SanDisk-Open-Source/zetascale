@@ -17,10 +17,10 @@ static char *Desc = "test 1";
  * A test.
  */
 static void
-test(void)
+test(fdf_t *fdf)
 {
     /* Initialize FDF */
-    fdf_t *fdf = init_fdf(Name);
+    test_init(fdf, Name);
 
     /* Create containers */
     fdf_ctr_t *ctr1 = open_ctr(fdf, "C0", FDF_CTNR_CREATE);

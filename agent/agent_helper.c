@@ -377,15 +377,10 @@ agent_config_set_defaults(struct plat_opts_config_sdf_agent *config)
 	    strncpy(config->propertyFileName, 
 		    s, 
 		    sizeof(config->propertyFileName));
-	} else {
-	    strncpy(config->propertyFileName, 
-		    "/home/briano/config/really_simple.prop",
-		    sizeof(config->propertyFileName));
-	}
+	} else
+            config->propertyFileName[0] = '\0';
     #else // SDFAPI
-	strncpy(config->propertyFileName, 
-		"/opt/schooner/config/schooner-med.properties",
-		sizeof(config->propertyFileName));
+        config->propertyFileName[0] = '\0';
     #endif // SDFAPI
 
     config->system_recovery = SYS_FLASH_RECOVERY;

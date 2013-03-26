@@ -2945,6 +2945,9 @@
 70124 Read from properties file '%s'
 70125 Bad setting of FDF_LOG_LEVEL: %s
 70126 PROP: SDF_MSG_ON=%u
+70127 Programming error: Numbers of stats defined in FDF_access_types_t(%d) does not match array fdf_stats_access_type(%d)
+70128 Programming error: Numbers of stats defined in FDF_cache_stat_t(%d) does not match array fdf_stats_cache(%d)
+70129 Programming error: Numbers of stats defined in fdf_stats_flash(%d) does not match array fdf_stats_flash(%d)
 
 
 # mkrishnan

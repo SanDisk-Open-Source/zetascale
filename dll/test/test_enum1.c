@@ -96,10 +96,10 @@ set_objs_thr(fdf_ctr_t *ctr, int num_objects,
  * A test.
  */
 static void
-test(void)
+test(fdf_t *fdf)
 {
     /* Initialize FDF */
-    fdf_t *fdf = init_fdf(Name);
+    test_init(fdf, Name);
 
     /* Set objects */
     fdf_ctr_t *ctr = open_ctr(fdf, "C0", FDF_CTNR_CREATE);

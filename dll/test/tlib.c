@@ -1,18 +1,12 @@
 /*
- * Test some FDF functions.
  * Author: Johann George
- *
  * Copyright (c) 2012-2013, Sandisk Corporation.  All rights reserved.
  */
 #include <stdio.h>
 #include <stdarg.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
-#include <pthread.h>
-#include <sys/stat.h>
 #include "tlib.h"
-#include "fdf_easy.h"
 
 
 /*
@@ -232,93 +226,4 @@ fill_uint(char *buf, int len, unsigned long num)
         *--buf = (num % 10) + '0';
         num /= 10;
     }
-}
-
-
-/*
- * Set a range of objects in a container.
- */
-static void
-set_obj_range(fdf_ctr_t *ctr, int n0, int n1, int key_len, int val_len)
-{
-    int n;
-    char *err;
-    char    *key = alloc(key_len);
-    char    *val = alloc(val_len);
-    int   id_len = min(20, key_len);
-    char *id_ptr = key + key_len - id_len;
-
-fprintf(stderr, "set_obj_range %d to %d\n", n0, n1);
-    fill_patn(key, key_len);
-    fill_patn(val, val_len);
-
-    for (n = n0; n < n1; n++) {
-        fill_uint(id_ptr, id_len, n);
-        if (!fdf_obj_set(ctr, key, key_len, val, val_len, &err)) {
-            die_err(err, "fdf_obj_set failed: key %d kl=%d dl=%d",
-                    n, key_len, val_len);
-        }
-    }
-}
-
-
-/*
- * Set objects in parallel in a container.
- */
-static void
-set_objs_par(fdf_ctr_t *ctr, int num_objects,
-         int key_len, int val_len, int num_threads)
-{
-    int lo;
-    int hi;
-    void *start(void *arg) {
-        set_obj_range(ctr, lo, hi, key_len, val_len);
-        return NULL;
-    }
-    int t;
-
-    int num = num_objects / num_threads;
-    int rem = num_objects % num_threads;
-    lo = 0;
-    for (t = 0; t < num_threads; t++) {
-        pthread_t thread;
-        hi = lo + num + (t < rem);
-        pthread_create(&thread, NULL, start, NULL);
-        lo = hi;
-    }
-}
-
-
-/*
- * Initialize FDF.
- */
-fdf_t *
-init_fdf(char *name)
-{
-    char *err;
-    char buf[256];
-    struct stat sbuf;
-    char *prop = getenv("FDF_PROPERTY_FILE");
-
-    if (!prop) {
-        snprintf(buf, sizeof(buf), "./%s.prop", name);
-        if (stat(buf, &sbuf) < 0) {
-            snprintf(buf, sizeof(buf), "./test.prop");
-            if (stat(buf, &sbuf) < 0)
-                die("cannot determine property file");
-        }
-        setenv("FDF_PROPERTY_FILE", buf, 1);
-        prop = buf;
-    }
-    if (stat("/tmp/libfdf.so", &sbuf) >= 0)
-        setenv("FDF_LIB", "/tmp/libfdf.so", 0);
-
-    fdf_t *fdf = fdf_init(1, &err);
-    if (!fdf)
-        die_err(err, "fdf_init failed");
-
-    if (!fdf_conf(fdf, prop, &err))
-        die_err(err, "fdf_conf_init failed");
-
-    return fdf;
 }

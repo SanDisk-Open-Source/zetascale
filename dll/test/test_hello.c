@@ -17,10 +17,10 @@ static char *Desc = "hello world";
  * A test.
  */
 static void
-test(void)
+test(fdf_t *fdf)
 {
     /* Initialize FDF */
-    fdf_t *fdf = init_fdf(Name);
+    test_init(fdf, Name);
 
     /* Create containers */
     fdf_ctr_t *ctr1 = open_ctr(fdf, "C0", FDF_CTNR_CREATE);
@@ -53,9 +53,6 @@ test(void)
     /* Close containers */
     fdf_ctr_close(ctr1, NULL);
     fdf_ctr_close(ctr2, NULL);
-
-    /* Close FDF */
-    fdf_done(fdf);
 }
 
 

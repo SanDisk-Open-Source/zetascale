@@ -1,20 +1,25 @@
-FDF_LOG_LEVEL           = none
-ASYNC_DELETE_CONTAINERS = 0
-SDF_REFORMAT            = 1
-FDF_FLASH_SIZE          = 4G
-FDF_FLASH_FILENAME      = /tmp/fdf_disk%d
-FDF_STATS_THREAD        = 1
-FDF_STATS_DUMP_INTERVAL = 1
-FDF_STATS_FILE          = /tmp/fdf.stats
-SDF_MSG_ENGINE_START    = 0
+#FDF_LOG_LEVEL           = warning
+#ASYNC_DELETE_CONTAINERS = 0
+#SDF_REFORMAT            = 1
+#FDF_FLASH_SIZE          = 4G
+#FDF_FLASH_FILENAME      = /tmp/fdf_disk%d
+#FDF_STATS_THREAD        = 1
+#FDF_STATS_DUMP_INTERVAL = 1
+#FDF_STATS_FILE          = /tmp/fdf.stats
 
-C0_SIZE                 = 1G
-C0_FIFO_MODE            = 0
-C0_PERSISTENT           = 1
-C0_EVICTING             = 0
-C0_WRITETHRU            = 1
-C0_CID                  = 0
-C0_NUM_SHARDS           = 1
-C0_DURABILITY_LEVEL     = PERIODIC
+#FDF_LOG_FLUSH_DIR       = /dev/shm
+#FDF_FLASH_FILENAME      = /dev/shm/fdf_disk%d
+#FDF_O_DIRECT            = 0
+#FDF_TEST_MODE           = 1
+#HUSH_FASTCC             = 1
 
-C1_SIZE                 = 1024
+#C0_SIZE                 = 1G
+#C0_FIFO_MODE            = 0
+#C0_PERSISTENT           = 1
+#C0_EVICTING             = 0
+#C0_WRITETHRU            = 1
+#C0_CID                  = 0
+#C0_NUM_SHARDS           = 1
+#C0_DURABILITY_LEVEL     = PERIODIC
+
+#C1_SIZE                 = 1024

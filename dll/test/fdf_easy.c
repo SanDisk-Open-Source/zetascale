@@ -15,10 +15,82 @@
 
 
 /*
+ * Configurable parameters.
+ */
+#define BUF_SIZE             256
+
+
+/*
  * Macros.
  */
 #define streq(a, b) (strcmp(a, b) == 0)
 #define round(n, d) (((n)+(d)-1)/(d))
+
+
+/*
+ * Print out an error message in a buffer.
+ */
+void
+fdf_perr(char *buf, int len, const char *func,
+         FDF_status_t fdf_err, int sys_err, const char *fmt, va_list alist)
+{
+    int n = 0;
+
+    if (func)
+        n += snprintf(&buf[n], len-n, "%s", func);
+    if (n > len - 1)
+        n = len - 1;
+
+    if (fmt) {
+        if (n)
+            n += snprintf(&buf[n], len-n, ": ");
+        n += vsnprintf(&buf[n], len-n, fmt, alist);
+        if (n > len - 1)
+            n = len - 1;
+    }
+
+    if (fdf_err) {
+        char *errstr = fdf_errmsg_(fdf_err);
+
+        if (n)
+            n += snprintf(&buf[n], len-n, ": ");
+        if (errstr)
+            n += snprintf(&buf[n], len-n, "%s (%d)", errstr, fdf_err);
+        else
+            n += snprintf(&buf[n], len-n, "(%d)", fdf_err);
+    } else if (sys_err) {
+        char errbuf[BUF_SIZE];
+        strerror_r(sys_err, errbuf, sizeof(errbuf));
+
+        if (n)
+            n += snprintf(&buf[n], len-n, ": ");
+        n += snprintf(&buf[n], len-n, "%s (%d)", errbuf, sys_err);
+    }
+
+    if (n > len - 1) {
+        n = len - 5;
+        n += snprintf(&buf[n], len-n, " ...");
+    }
+}
+
+
+/*
+ * Make an error message and allocate space for it.
+ */
+void
+fdf_aperr_(char **errp, const char *func,
+          FDF_status_t fdf_err, int sys_err, const char *fmt, ...)
+{
+    char buf[BUF_SIZE];
+    va_list alist;
+
+    if (!errp)
+        return;
+    va_start(alist, fmt);
+    fdf_perr(buf, sizeof(buf), func, fdf_err, sys_err, fmt, alist);
+    va_end(alist);
+    *errp = strdup(buf);
+}
 
 
 /*
@@ -132,7 +204,7 @@ ts_destroy(void *p)
 static int
 prop2_durability(fdf_t *fdf, int *fail, char *pre, char *name, int def)
 {
-    const char *val = fdf_get_prop2(fdf, pre, name);
+    const char *val = fdf_get_prop2(fdf, pre, name, NULL);
     if (!val)
         return def;
 
@@ -151,32 +223,47 @@ prop2_durability(fdf_t *fdf, int *fail, char *pre, char *name, int def)
 
 
 /*
+ * Get an unsigned integer scaled appropriately.
+ */
+int
+fdf_utoi(const char *str, unsigned long *ret)
+{
+    char *end;
+    unsigned long val = strtol(str, &end, 0);
+    int c = *end;
+
+    if (c == 'K')
+        val *= 1024;
+    else if (c == 'M')
+        val *= 1024 * 1024;
+    else if (c == 'G')
+        val *= 1024 * 1024 * 1024;
+    else if (c != '\0')
+        return 0;
+
+    *ret = val;
+    return 1;
+}
+
+
+/*
  * Get an unsigned integer property.
  */
 static unsigned long
 prop2_uint(fdf_t *fdf, int *fail, char *pre, char *name, unsigned long def)
 {
-    const char *val = fdf_get_prop2(fdf, pre, name);
-    if (!val)
+    unsigned long val;
+    const char *str = fdf_get_prop2(fdf, pre, name, NULL);
+    if (!str)
         return def;
 
-    char *end;
-    unsigned long ret = strtol(val, &end, 0);
-    int c = *end;
+    if (fdf_utoi(str, &val))
+        return val;
 
-    if (c == 'K')
-        ret *= 1024;
-    else if (c == 'M')
-        ret *= 1024 * 1024;
-    else if (c == 'G')
-        ret *= 1024 * 1024 * 1024;
-    else if (c != '\0') {
-        loge("bad property: %s_%s = %s", pre, name, val);
-        *fail = 1;
-        errno = EINVAL;
-        ret = def;
-    }
-    return ret;
+    loge("bad property: %s_%s = %s", pre, name, str);
+    *fail = 1;
+    errno = EINVAL;
+    return def;
 }
 
 
@@ -186,7 +273,7 @@ prop2_uint(fdf_t *fdf, int *fail, char *pre, char *name, unsigned long def)
 static int
 prop2_bool(fdf_t *fdf, int *fail, char *pre, char *name, int def)
 {
-    const char *val = fdf_get_prop2(fdf, pre, name);
+    const char *val = fdf_get_prop2(fdf, pre, name, NULL);
     if (!val)
         return def;
     if (streq(val, "1") || streq(val, "on") || streq(val, "true"))
@@ -463,24 +550,61 @@ fdf_free(fdf_t *fdf, void *ptr)
 
 
 /*
- * Finish with FDF.
+ * Load a FDF property file.
  */
-void
-fdf_done(fdf_t *fdf)
+int
+fdf_load_prop_file(fdf_t *fdf, const char *file, char **errp)
 {
-    FDFShutdown(fdf->state);
-    free(fdf);
+    FDF_status_t ferr = FDFLoadProperties(file);
+    return !set_err_fdf_if(errp, ferr);
 }
 
 
 /*
  * Set a FDF property.
  */
-int
-fdf_set_prop(fdf_t *fdf, const char *prop, const char *value)
+void
+fdf_set_prop(fdf_t *fdf, const char *key, const char *val)
 {
-    FDFSetProperty(prop, value);
-    return 1;
+    FDFSetProperty(key, val);
+}
+
+
+/*
+ * Get a FDF property with the key given in two parts.
+ */
+const char *
+fdf_get_prop2(fdf_t *fdf, const char *lkey, const char *rkey, const char *def)
+{
+    char buf[64];
+    char    *key = buf;
+    int lkey_len = strlen(lkey);
+    int rkey_len = strlen(rkey);
+
+    if (lkey_len + rkey_len >= sizeof(buf)) {
+        key = malloc(lkey_len + rkey_len + 1);
+        if (!key)
+            return def;
+    }
+
+    memcpy(key, lkey, lkey_len);
+    memcpy(key + lkey_len, rkey, rkey_len);
+    key[lkey_len + rkey_len] = '\0';
+
+    const char *val = FDFGetProperty(key, def);
+    if (key != buf)
+        free(key);
+    return val;
+}
+
+
+/*
+ * Get a FDF property.
+ */
+const char *
+fdf_get_prop(fdf_t *fdf, const char *key, const char *def)
+{
+    return FDFGetProperty(key, def);
 }
 
 
@@ -492,6 +616,18 @@ fdf_start(fdf_t *fdf, char **errp)
 {
     FDF_status_t ferr = FDFInit(&fdf->state);
     return !set_err_fdf_if(errp, ferr);
+}
+
+
+/*
+ * Finish with FDF.
+ */
+void
+fdf_done(fdf_t *fdf)
+{
+    if (fdf->state)
+        FDFShutdown(fdf->state);
+    free(fdf);
 }
 
 

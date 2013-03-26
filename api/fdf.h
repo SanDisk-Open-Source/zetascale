@@ -354,6 +354,13 @@ struct FDF_state;
 struct FDF_thread_state;
 struct FDF_iterator;
 
+
+/*
+ * Get a FDF property.
+ */
+const char *FDFGetProperty(const char *key, const char *def);
+
+
 /**
  * @brief set FDF property
  *
