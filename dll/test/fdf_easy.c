@@ -238,6 +238,12 @@ fdf_utoi(const char *str, unsigned long *ret)
         val *= 1024 * 1024;
     else if (c == 'G')
         val *= 1024 * 1024 * 1024;
+    else if (c == 'k')
+        val *= 1000;
+    else if (c == 'm')
+        val *= 1000 * 1000;
+    else if (c == 'g')
+        val *= 1000 * 1000 * 1000;
     else if (c != '\0')
         return 0;
 
@@ -319,7 +325,7 @@ fdf_ctr_init(fdf_t *fdf, char *name, char **errp)
     props->fifo_mode  = prop2_bool(fdf, &fail, name, "FIFO_MODE",  FDF_FALSE);
     props->persistent = prop2_bool(fdf, &fail, name, "PERSISTENT", FDF_TRUE);
     props->evicting   = prop2_bool(fdf, &fail, name, "EVICTING",   FDF_FALSE);
-    props->evicting   = prop2_bool(fdf, &fail, name, "WRITETHRU",  FDF_TRUE);
+    props->writethru  = prop2_bool(fdf, &fail, name, "WRITETHRU",  FDF_TRUE);
     props->cid        = prop2_uint(fdf, &fail, name, "CID",        0);
     props->num_shards = prop2_uint(fdf, &fail, name, "NUM_SHARDS", 1);
 
@@ -582,14 +588,15 @@ fdf_get_prop2(fdf_t *fdf, const char *lkey, const char *rkey, const char *def)
     int rkey_len = strlen(rkey);
 
     if (lkey_len + rkey_len >= sizeof(buf)) {
-        key = malloc(lkey_len + rkey_len + 1);
+        key = malloc(lkey_len + 1 + rkey_len + 1);
         if (!key)
             return def;
     }
 
     memcpy(key, lkey, lkey_len);
-    memcpy(key + lkey_len, rkey, rkey_len);
-    key[lkey_len + rkey_len] = '\0';
+    key[lkey_len] = '_';
+    memcpy(key + lkey_len + 1, rkey, rkey_len);
+    key[lkey_len + 1 + rkey_len] = '\0';
 
     const char *val = FDFGetProperty(key, def);
     if (key != buf)

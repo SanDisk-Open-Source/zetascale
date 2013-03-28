@@ -3,87 +3,76 @@
  */
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
 #include "test.h"
 #include "tlib.h"
-
-
-/*
- * For setting a range of objects in a pthread.
- */
-typedef struct thr_set {
-    fdf_ctr_t *ctr;
-    int        lo;
-    int        hi;
-    int        key_len;
-    int        val_len;
-} thr_set_t;
 
 
 /*
  * Test information.
  */
 static char *Name = "enum1";
-static char *Desc = "enumeration";
+static char *Desc = "multiple simultaneous enumeration";
 
 
 /*
- * Set a range of objects in a container.
+ * Static variables.
  */
-static void
-set_objs_range(fdf_ctr_t *ctr, int n0, int n1, int key_len, int val_len)
-{
-    int n;
-    char *err;
-    char    *key = alloc(key_len);
-    char    *val = alloc(val_len);
-    int   id_len = min(20, key_len);
-    char *id_ptr = key + key_len - id_len;
-
-fprintf(stderr, "set_objs_range %d to %d\n", n0, n1);
-    fill_patn(key, key_len);
-    fill_patn(val, val_len);
-
-    for (n = n0; n < n1; n++) {
-        fill_uint(id_ptr, id_len, n);
-        if (!fdf_obj_set(ctr, key, key_len, val, val_len, &err)) {
-            die_err(err, "fdf_obj_set failed: key %d kl=%d dl=%d",
-                    n, key_len, val_len);
-        }
-    }
-}
+static int Threads = 1;
+static int Objects = 100 * 1000;
 
 
 /*
- * Set objects in parallel in a container.
+ * Enumerate over all elements in a container.
  */
 static void *
-set_objs_start(void *arg)
+enum_start(void *arg)
 {
-    thr_set_t *t = arg;
-    set_objs_range(t->ctr, t->lo, t->hi, t->key_len, t->val_len);
+    char *err;
+    uint64_t   num = 0;
+    fdf_ctr_t *ctr = arg;
+
+    fdf_iter_t *iter = fdf_iter_init(ctr, &err);
+    if (!iter)
+        die_err(err, "fdf_iter_init failed");
+
+    for (;;) {
+        char *key;
+        char *data;
+        uint64_t keylen;
+        uint64_t datalen;
+
+        int s = fdf_iter_next(iter, &key, &keylen, &data, &datalen, &err);
+        if (s < 0)
+            die_err(err, "fdf_iter_next failed");
+        if (s == 0)
+            break;
+        num++;
+    }
+
+    if (!fdf_iter_done(iter, &err))
+        die_err(err, "fdf_iter_done failed");
+    if (num != Objects)
+        die("enumerated %ld/%ld objects", num, Objects);
+    printv("enumerated %ld/%ld objects", num, Objects);
     return NULL;
 }
 
 
 /*
- * Set objects in parallel in a container.
+ * Enumerate simultaneously using multiple threads.
  */
 static void
-set_objs_thr(fdf_ctr_t *ctr, int num_objects,
-             int key_len, int val_len, int num_threads)
+enum_m(fdf_ctr_t *ctr, int num_threads)
 {
     int t;
-    int            lo = 0;
-    int            num = num_objects / num_threads;
-    int            rem = num_objects % num_threads;
-    pthread_t *threads = alloc(num_threads * sizeof(pthread_t));
+    pthread_t *threads = malloc_q(num_threads * sizeof(pthread_t));
 
-    for (t = 0; t < num_threads; t++) {
-        int hi = lo + num + (t < rem);
-        if (pthread_create(&threads[t], NULL, set_objs_start, NULL) < 0)
+    for (t = 0; t < num_threads; t++)
+        if (pthread_create(&threads[t], NULL, enum_start, ctr) < 0)
             die("pthread_create failed");
-        lo = hi;
-    }
+
     for (t = 0; t < num_threads; t++)
         if (pthread_join(threads[t], NULL) != 0)
             die("pthread_join failed");
@@ -98,17 +87,73 @@ set_objs_thr(fdf_ctr_t *ctr, int num_objects,
 static void
 test(fdf_t *fdf)
 {
-    /* Initialize FDF */
     test_init(fdf, Name);
 
-    /* Set objects */
     fdf_ctr_t *ctr = open_ctr(fdf, "C0", FDF_CTNR_CREATE);
-    set_objs_thr(ctr, 10, 16, 32, 1);
+    set_objs_m(ctr, 0, Objects, 16, 32, Threads);
+    enum_m(ctr, Threads);
     fdf_ctr_close(ctr, NULL);
-
-    /* Close FDF */
-    fdf_done(fdf);
 }
+
+
+/*
+ * Print out a usage message and exit.
+ */
+static void
+usage(void)
+{
+    int i;
+    const char *str[] = {
+        "Usage:",
+        "    test enum1 Options",
+        "Options:",
+        "    -h|--help",
+        "       Print this message",
+        "    -o|--objects N (100,000)",
+        "       Set N objects",
+        "    -t|--threads N (1)",
+        "       Use N threads",
+    };
+
+    for (i = 0; i < sizeof(str)/sizeof(*str); i++)
+        printf("%s\n", str[i]);
+    exit(0);
+}
+
+
+/*
+ * Handle an argument.
+ */
+static void
+do_arg(char *arg, char **args, clint_t **clint)
+{
+    if (streq(arg, "-h") || streq(arg, "--help"))
+        usage();
+    else if (streq(arg, "-o") || streq(arg, "--objects"))
+        Objects = atoi(args[0]);
+    else if (streq(arg, "-t") || streq(arg, "--threads"))
+        Threads = atoi(args[0]);
+    else if (arg[0] == '-')
+        die("bad option: %s", arg);
+    else
+        die("bad argument: %s", arg);
+}
+
+
+/*
+ * Command line options.
+ */
+static clint_t Clint ={
+    do_arg, NULL, {
+        { "-h",        0 },
+        { "--help",    0 },
+        { "-o",        1 },
+        { "--objects", 1 },
+        { "-t",        1 },
+        { "--threads", 1 },
+        {},
+    }
+};
 
 
 /*
@@ -117,5 +162,5 @@ test(fdf_t *fdf)
 static __attribute__ ((constructor)) void
 init(void)
 {
-    test_info(Name, Desc, NULL, test);
+    test_info(Name, Desc, NULL, &Clint, test);
 }

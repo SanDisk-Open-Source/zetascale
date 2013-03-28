@@ -87,5 +87,5 @@ test(fdf_t *fdf)
 static __attribute__ ((constructor)) void
 init(void)
 {
-    test_info(Name, Desc, NULL, test);
+    test_info(Name, Desc, NULL, NULL, test);
 }

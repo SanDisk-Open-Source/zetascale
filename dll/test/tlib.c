@@ -7,6 +7,54 @@
 #include <stdlib.h>
 #include <string.h>
 #include "tlib.h"
+#include "xstr.h"
+
+
+/*
+ * Atomic operations.
+ */
+#define atomic_get_inc(v)        __sync_fetch_and_add(&v, 1)
+#define atomic_dec(v)     (void) __sync_sub_and_fetch(&v, 1)
+
+
+/*
+ * For setting a range of objects in a pthread.
+ */
+typedef struct {
+    fdf_ctr_t *ctr;
+    uint64_t   num;
+    uint64_t   max;
+    int        key_len;
+    int        val_len;
+} m_set_t;
+
+
+/*
+ * Allocate memory and die on failure.
+ */
+void *
+malloc_q(long size)
+{
+    char *p = malloc(size);
+
+    if (!p)
+        die("out of space");
+    return p;
+}
+
+
+/*
+ * Reallocate memory and die on failure.
+ */
+void *
+realloc_q(void *ptr, long size)
+{
+    char *p = realloc(ptr, size);
+
+    if (!p)
+        die("out of space");
+    return p;
+}
 
 
 /*
@@ -15,12 +63,16 @@
 void
 die(char *fmt, ...)
 {
+    xstr_t xstr;
     va_list alist;
 
+    xsinit(&xstr);
     va_start(alist, fmt);
-    vfprintf(stderr, fmt, alist);
+    xsvprint(&xstr, fmt, alist);
     va_end(alist);
-    fprintf(stderr, "\n");
+    xsprint(&xstr, "\n");
+    fwrite(xstr.p, xstr.i, 1, stderr);
+    xsfree(&xstr);
     exit(1);
 }
 
@@ -31,17 +83,43 @@ die(char *fmt, ...)
 void
 die_err(char *err, char *fmt, ...)
 {
+    xstr_t xstr;
     va_list alist;
 
+    xsinit(&xstr);
     va_start(alist, fmt);
-    vfprintf(stderr, fmt, alist);
+    xsvprint(&xstr, fmt, alist);
     va_end(alist);
     if (err) {
-        fprintf(stderr, ": %s", err);
+        xsprint(&xstr, ": %s", err);
         free(err);
     }
-    fprintf(stderr, "\n");
+    xsprint(&xstr, "\n");
+    fwrite(xstr.p, xstr.i, 1, stderr);
+    xsfree(&xstr);
     exit(1);
+}
+
+
+/*
+ * Print out a verbose message if desired.
+ */
+void
+printv(char *fmt, ...)
+{
+    xstr_t xstr;
+    va_list alist;
+
+    if (!Verbose)
+        return;
+
+    xsinit(&xstr);
+    va_start(alist, fmt);
+    xsvprint(&xstr, fmt, alist);
+    va_end(alist);
+    xsprint(&xstr, "\n");
+    fwrite(xstr.p, xstr.i, 1, stdout);
+    xsfree(&xstr);
 }
 
 
@@ -98,6 +176,11 @@ open_ctr(fdf_t *fdf, char *name, int mode)
 
     if (!fdf_ctr_open(ctr, mode, &err))
         die_err(err, "fdf_ctr_open failed");
+
+    FDF_container_props_t *p = &ctr->props;
+    printv("open ctr %s mode=%d fifo=%d pers=%d evict=%d wthru=%d",
+           name, mode, p->fifo_mode, p->persistent, p->evicting, p->writethru);
+
     return ctr;
 }
 
@@ -178,25 +261,11 @@ show_objs(fdf_ctr_t *ctr)
         if (s == 0)
             break;
 
-        printf("  %.*s => %.*s\n", (int)keylen, key, (int)datalen, data);
+        //printf("  %.*s => %.*s\n", (int)keylen, key, (int)datalen, data);
     }
 
     if (!fdf_iter_done(iter, &err))
         die_err(err, "fdf_iter_done failed");
-}
-
-
-/*
- * Allocate memory and die on failure.
- */
-void *
-alloc(long size)
-{
-    char *p = malloc(size);
-
-    if (!p)
-        die("out of space");
-    return p;
 }
 
 
@@ -226,4 +295,63 @@ fill_uint(char *buf, int len, unsigned long num)
         *--buf = (num % 10) + '0';
         num /= 10;
     }
+}
+
+
+/*
+ * Set objects in parallel in a container.
+ */
+static void *
+set_objs_start(void *arg)
+{
+    char *err;
+    m_set_t     *t = arg;
+    fdf_ctr_t *ctr = t->ctr;
+    int    key_len = t->key_len;
+    int    val_len = t->val_len;
+    char      *key = malloc_q(key_len);
+    char      *val = malloc_q(val_len);
+    int     id_len = min(20, key_len);
+    char   *id_ptr = key + key_len - id_len;
+
+    fill_patn(key, key_len);
+    fill_patn(val, val_len);
+
+    for (;;) {
+        uint64_t num = atomic_get_inc(t->num);
+        if (num >= t->max) {
+            atomic_dec(t->num);
+            break;
+        }
+
+        fill_uint(id_ptr, id_len, num);
+        if (!fdf_obj_set(ctr, key, key_len, val, val_len, &err)) {
+            die_err(err, "fdf_obj_set failed: key %d kl=%d dl=%d",
+                    num, key_len, val_len);
+        }
+    }
+    return NULL;
+}
+
+
+/*
+ * Set objects in a container using multiple threads.
+ */
+void
+set_objs_m(fdf_ctr_t *ctr, int obj_min, int obj_max,
+           int key_len, int val_len, int num_threads)
+{
+    int t;
+    pthread_t *threads = malloc_q(num_threads * sizeof(pthread_t));
+    m_set_t   thr_set  = {ctr, obj_min, obj_min + obj_max, key_len, val_len};
+
+    for (t = 0; t < num_threads; t++)
+        if (pthread_create(&threads[t], NULL, set_objs_start, &thr_set) < 0)
+            die("pthread_create failed");
+
+    for (t = 0; t < num_threads; t++)
+        if (pthread_join(threads[t], NULL) != 0)
+            die("pthread_join failed");
+
+    free(threads);
 }

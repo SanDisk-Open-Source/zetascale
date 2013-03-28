@@ -18,6 +18,7 @@
 
 
 void die(char *fmt, ...);
+void printv(char *fmt, ...);
 void show_objs(fdf_ctr_t *ctr);
 void flush_ctr(fdf_ctr_t *ctr);
 void delete_ctr(fdf_ctr_t *ctr);
@@ -29,8 +30,11 @@ void reopen_ctr(fdf_ctr_t *ctr, int mode);
 void set_obj(fdf_ctr_t *ctr, char *key, char *value);
 void show_obj(fdf_ctr_t *ctr, char *key, char *value);
 void fill_uint(char *buf, int len, unsigned long num);
+void set_objs_m(fdf_ctr_t *ctr, int obj_min, int obj_max,
+                int key_len, int val_len, int num_threads);
 
-void      *alloc(long size);
+void      *malloc_q(long size);
+void      *realloc_q(void *ptr, long size);
 fdf_ctr_t *open_ctr(fdf_t *fdf, char *name, int mode);
 
 #endif /* TLIB_H */

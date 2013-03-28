@@ -1,5 +1,5 @@
 /*
- * Test some FDF functions.
+ * Run various FDF tests.
  *
  * Author: Johann George
  * Copyright (c) 2012-2013, Sandisk Corporation.  All rights reserved.
@@ -56,21 +56,84 @@ typedef struct tinfo {
     char         *desc;
     char         *help;
     tfunc_t      *func;
+    clint_t      *clint;
 } tinfo_t;
 
 
 /*
  * Static variables.
  */
+static char    *Level;
+static tinfo_t *Test;
 static tinfo_t *Tinfo;
 static speed_t  Speed = AUTO;
+
+
+/*
+ * Global variables.
+ */
+int Verbose;
+
+
+/*
+ * Command line options for tests that don't take any arguments.
+ */
+static void do_arg_null(char *arg, char **args, clint_t **clint);
+static clint_t Clint_null ={ do_arg_null, NULL, {{} } };
+
+
+/*
+ * Command line options.
+ */
+static void do_arg(char *arg, char **args, clint_t **clint);
+static clint_t Clint ={
+    do_arg, NULL, {
+        { "-h",        0 },
+        { "--help",    0 },
+        { "-l",        1 },
+        { "--level",   1 },
+        { "-s",        1 },
+        { "--speed",   1 },
+        { "-v",        0 },
+        { "--verbose", 0 },
+        {},
+    }
+};
+
+
+/*
+ * Log levels.
+ */
+char *Levels[] ={
+     "none",
+     "fatal",
+     "error",
+     "warning",
+     "info",
+     "diagnostic",
+     "debug",
+     "trace",
+     "trace_low",
+     "devel",
+};
+
+
+/*
+ * Set the log level.
+ */
+static void
+set_level(fdf_t *fdf)
+{
+    if (Level)
+        fdf_set_prop(fdf, "FDF_LOG_LEVEL", Level);
+}
 
 
 /*
  * Determine whether we have enough memory for it to substitute as flash.
  */
 static speed_t
-set_speed(fdf_t *fdf)
+get_speed(fdf_t *fdf)
 {
     unsigned long flash;
     if (!fdf_utoi(fdf_get_prop(fdf, "FDF_FLASH_SIZE", "0"), &flash))
@@ -100,10 +163,10 @@ set_speed(fdf_t *fdf)
  * Set the properties relating to the speed.
  */
 static void
-set_speed_props(fdf_t *fdf)
+set_speed(fdf_t *fdf)
 {
     if (Speed == AUTO)
-        Speed = set_speed(fdf);
+        Speed = get_speed(fdf);
 
     if (Speed == SLOW)
         fdf_set_prop(fdf, "FDF_FLASH_FILENAME", "/tmp/fdf_disk%d");
@@ -134,11 +197,12 @@ init_prop_file(fdf_t *fdf, char *name)
         if (stat(buf, &sbuf) < 0) {
             snprintf(buf, sizeof(buf), "./test.prop");
             if (stat(buf, &sbuf) < 0)
-                die("cannot determine property file; set FDF_PROPERTY_FILE");
+                return;
         }
         prop = buf;
     }
 
+    printv("using property file: %s", prop);
     if (!fdf_load_prop_file(fdf, prop, &err))
         die_err(err, "fdf_load_prop_file failed");
 }
@@ -153,7 +217,8 @@ test_init(fdf_t *fdf, char *name)
     char *err;
 
     init_prop_file(fdf, name);
-    set_speed_props(fdf);
+    set_speed(fdf);
+    set_level(fdf);
 
     if (!fdf_start(fdf, &err))
         die_err(err, "fdf_start failed");
@@ -194,6 +259,7 @@ init_fdf_lib()
         if (stat(*l, &sbuf) < 0)
             continue;
         setenv(FDF_LIB, *l, 0);
+        printv("using FDF library: %s", *l);
         return;
     }
     die("cannot determine FDF library; set FDF_LIB");
@@ -223,15 +289,16 @@ run_test(tinfo_t *tinfo)
  * Add a test.
  */
 void
-test_info(char *name, char *desc, char *help, tfunc_t *func)
+test_info(char *name, char *desc, char *help, clint_t *clint, tfunc_t *func)
 {
-    tinfo_t *tinfo = alloc(sizeof(tinfo_t));
-    tinfo->nlen = strlen(name);
-    tinfo->name = name;
-    tinfo->desc = desc;
-    tinfo->help = help;
-    tinfo->func = func;
-    tinfo->next = Tinfo;
+    tinfo_t *tinfo = malloc_q(sizeof(tinfo_t));
+    tinfo->nlen  = strlen(name);
+    tinfo->name  = name;
+    tinfo->desc  = desc;
+    tinfo->help  = help;
+    tinfo->clint = clint;
+    tinfo->func  = func;
+    tinfo->next  = Tinfo;
     Tinfo = tinfo;
 }
 
@@ -277,9 +344,19 @@ usage(void)
     int i;
     tinfo_t *tinfo;
     const char *str[] = {
-        "Usage:",
-        "    test Name",
-        "Name:",
+        "Usage",
+        "    test Options Test",
+        "Options",
+        "    -h|--help",
+        "       Print this message.",
+        "    -l|--level S",
+        "        Set level to S: none, error, warn, info, diag, debug, trace,",
+        "        trace_low, devel.",
+        "    -s|--speed S",
+        "       Set speed to S: none, auto, slow, fast",
+        "    -v|--verbose",
+        "       Turn on verbose mode.",
+        "Test",
     };
 
     for (i = 0; i < sizeof(str)/sizeof(*str); i++)
@@ -293,7 +370,7 @@ usage(void)
             max = tinfo->nlen;
     }
 
-    tinfo_t **sorted = alloc(num * sizeof(tinfo_t *));
+    tinfo_t **sorted = malloc_q(num * sizeof(tinfo_t *));
     for (i = 0, tinfo = Tinfo; tinfo; tinfo = tinfo->next)
         sorted[i++] = tinfo;
 
@@ -306,39 +383,158 @@ usage(void)
 }
 
 
+/*
+ * Handle an argument for tests that don't take any arguments.
+ */
+static void
+do_arg_null(char *arg, char **args, clint_t **clint)
+{
+    if (arg[0] == '-')
+        die("bad option: %s", arg);
+    else
+        die("bad argument: %s", arg);
+}
+
+
+/*
+ * Select a test.
+ */
+static void
+arg_test(char *arg, clint_t **clintp)
+{
+    Test = tfind(arg);
+    if (!Test)
+        die("unknown test: %s", arg);
+
+    clint_t *clint = Test->clint;
+    *clintp = clint ? clint : &Clint_null;
+}
+
+
+/*
+ * Set the log level.
+ */
+static void
+arg_level(char *s)
+{
+    int i;
+    int n = strlen(s);
+
+    for (i = 0; i < nel(Levels); i++) {
+        if (strncmp(s, Levels[i], n) != 0)
+            continue;
+        Level = Levels[i];
+        return;
+    }
+    die("bad log level: %s", s);
+}
+
+
+/*
+ * Set the speed.
+ */
+static void
+arg_speed(char *s)
+{
+    int n = strlen(s);
+
+    if (strncmp(s, "none", n) == 0)
+        Speed = NONE;
+    else if (strncmp(s, "auto", n) == 0)
+        Speed = AUTO;
+    else if (strncmp(s, "slow", n) == 0)
+        Speed = SLOW;
+    else if (strncmp(s, "fast", n) == 0)
+        Speed = FAST;
+    else
+        die("bad speed: %s", s);
+}
+
+
+/*
+ * Handle an argument.
+ */
+static void
+do_arg(char *arg, char **args, clint_t **clint)
+{
+    if (streq(arg, "-h") || streq(arg, "--help"))
+        usage();
+    else if (streq(arg, "-l") || streq(arg, "--level"))
+        arg_level(args[0]);
+    else if (streq(arg, "-s") || streq(arg, "--speed"))
+        arg_speed(args[0]);
+    else if (streq(arg, "-v") || streq(arg, "--verbose"))
+        Verbose = 1;
+    else if (arg[0] == '-')
+        die("bad option: %s", arg);
+    else
+        arg_test(arg, clint);
+}
+
+
+/*
+ * Parse arguments.
+ */
+static void
+parse(int argc, char *argv[], clint_t *clint)
+{
+    int ai;
+    struct clopt *opt;
+
+    for (ai = 1; ai < argc; ai++) {
+        char *arg = argv[ai];
+        if (arg[0] != '-')
+            clint->do_arg(arg, NULL, &clint);
+        else if (arg[1] != '-') {
+            char *p;
+            for (p = &arg[1]; *p; p++) {
+                int c = *p;
+                for (opt = clint->opts; opt->str; opt++) {
+                    char *str = opt->str;
+                    if (str[0] == '-' && str[1] == c && str[2] == '\0')
+                        break;
+                }
+                if (!opt->str || opt->req == 0) {
+                    char str[3] = {'-', c, '\0'};
+                    clint->do_arg(str, NULL, &clint);
+                } else if (opt->req == 1 && p[1] != '\0') {
+                    char oname[3] = {'-', c, '\0'};
+                    char *oargs[] = {&p[1]};
+                    clint->do_arg(oname, oargs, &clint);
+                    break;
+                } else {
+                    char oname[3] = {'-', c, '\0'};
+                    if (ai + opt->req >= argc)
+                        die("-%c requires %d argument(s)", c, opt->req);
+                    clint->do_arg(oname, &argv[ai+1], &clint);
+                    ai += opt->req;
+                }
+            }
+        } else {
+            for (opt = clint->opts; opt->str; opt++)
+                if (streq(opt->str, arg))
+                    break;
+            if (!opt->str || opt->req == 0)
+                clint->do_arg(arg, NULL, &clint);
+            else if (ai + opt->req >= argc) {
+                    die("%s requires %d argument(s)", arg, opt->req);
+                clint->do_arg(arg, &argv[ai+1], &clint);
+                ai += opt->req;
+            }
+        }
+    }
+}
+
+
 int
 main(int argc, char *argv[])
 {
-    int i;
-    char *test = NULL;
-
     if (argc < 2)
         usage();
+    parse(argc, argv, &Clint);
 
-    for (i = 1; i < argc; i++) {
-        char *arg = argv[i];
-        if (streq(arg, "-sn") || streq(arg, "--none"))
-            Speed = NONE;
-        else if (streq(arg, "-sa") || streq(arg, "--auto"))
-            Speed = AUTO;
-        else if (streq(arg, "-ss") || streq(arg, "--slow"))
-            Speed = SLOW;
-        else if (streq(arg, "-sf") || streq(arg, "--fast"))
-            Speed = FAST;
-        else if (arg[0] == '-')
-            die("bad option: %s", arg);
-        else {
-            test = arg;
-            break;
-        }
-    }
-
-    if (!test)
+    if (!Test)
         die("must specify test");
-
-    tinfo_t *tinfo = tfind(test);
-    if (!tinfo)
-        die("unknown test: %s", test);
-    run_test(tinfo);
+    run_test(Test);
     return 0;
 }
