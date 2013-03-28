@@ -61,12 +61,6 @@ make -j $NCPU
 
 #Packaging
 cp -f $WD/output/lib/* $SDK_DIR/lib
-cp -f $WD/api/tests/conf/* $SDK_DIR/config
-cp -a $WD/api/tests/fdf_multi_test.c $SDK_DIR/samples
-cp -a $WD/api/tests/test.c $SDK_DIR/samples
-cp -a $WD/api/fdf.h $SDK_DIR/samples
-cp -a $WD/api/tests/test.h $SDK_DIR/samples
-cp -a $WD/api/Makefile.sdk $SDK_DIR/samples/Makefile
 cp -a $WD/api/fdf.h $SDK_DIR/include
 cp -a $WD/doc/FDF_programming_guide.docx $SDK_DIR/docs
 mkdir -p $SDK_DIR/include/common
@@ -87,7 +81,6 @@ if [ "$1" == "--test" ] || [ "$2" == "--test" ]; then
 	export FDF_LIB=$WD/output/lib/libfdf.so
 	export FDF_PROPERTY_FILE=$WD/api/tests/conf/fdf.prop
 
-	#make -j $NCPU test
 	make test
 fi
 
