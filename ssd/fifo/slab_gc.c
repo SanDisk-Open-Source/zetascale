@@ -201,7 +201,7 @@ void slab_gc_unlock_waiters(mcd_osd_slab_class_t *class, bool sync)
 		class->gc->pending = 0;
 
 	/* Wake everybody who wait for this class GC to finish */
-	pthread_cond_signal(&class->gc->cond);
+	pthread_cond_broadcast(&class->gc->cond);
 
 	pthread_mutex_unlock(&class->gc->mutex);
 }
