@@ -1970,6 +1970,12 @@ static FDF_status_t fdf_create_container(
 
 	plat_log_msg(160033, LOG_CAT, LOG_DBG, "%s, size=%ld bytes", cname, (long)properties->size_kb * 1024);
 
+    // Unlimited size containers must be store mode             
+    if ( properties->size_kb == 0 && properties->evicting ) {
+        plat_log_msg( PLAT_LOG_ID_INITIAL, LOG_CAT, LOG_ERR, "Unlimited containers must be non-evicting." );
+        return FDF_UNLIMITED_CONTAINER_MUST_BE_NON_EVICTING;
+    }
+
 	if ( !properties->writethru ) {
 		if ( !properties->evicting ) {
 			plat_log_msg( 160061, LOG_CAT, LOG_DBG,
