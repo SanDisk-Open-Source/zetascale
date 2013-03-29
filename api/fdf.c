@@ -3395,7 +3395,8 @@ fdf_set_container_props(
 {
     FDF_status_t             status = FDF_SUCCESS;
     SDF_container_meta_t     meta;
-    SDF_internal_ctxt_t     *pai = (SDF_internal_ctxt_t *) fdf_thread_state;
+    SDF_internal_ctxt_t     *pai 	= (SDF_internal_ctxt_t *) fdf_thread_state;
+	int						 index	= -1;
 
 	if ( !cguid || !pprops )
 		return FDF_INVALID_PARAMETER;
@@ -3427,13 +3428,18 @@ fdf_set_container_props(
 		meta.properties.fifo_mode							  = SDF_FALSE;
 		meta.properties.shard.num_shards 		      		  = 1;
 
-	meta.properties.durability_level = SDF_NO_DURABILITY;
-	if ( pprops->durability_level == FDF_DURABILITY_HW_CRASH_SAFE )
-	    meta.properties.durability_level = SDF_FULL_DURABILITY;
-	else if ( pprops->durability_level == FDF_DURABILITY_SW_CRASH_SAFE )
-	    meta.properties.durability_level = SDF_RELAXED_DURABILITY;
+		meta.properties.durability_level = SDF_NO_DURABILITY;
+		if ( pprops->durability_level == FDF_DURABILITY_HW_CRASH_SAFE )
+	    	meta.properties.durability_level = SDF_FULL_DURABILITY;
+		else if ( pprops->durability_level == FDF_DURABILITY_SW_CRASH_SAFE )
+	    	meta.properties.durability_level = SDF_RELAXED_DURABILITY;
 
         status = name_service_put_meta( pai, cguid, &meta );
+
+		index = fdf_get_ctnr_from_cguid( cguid );
+
+		if ( index >= 0 )
+			CtnrMap[index].evicting = pprops->evicting;
     }
 
  out:
