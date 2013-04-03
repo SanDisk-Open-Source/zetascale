@@ -1,32 +1,19 @@
 #!/bin/bash
 
-set -xe
+set -e
 export WD=$(readlink -f $(dirname $0))
 
-BUILD=$WD/fdf-build
-
-if [ -z "${FDF_SDK_VERSION}" ]; then
-	export FDF_SDK_VERSION=1.2
-fi
+[ -n "${FDF_SDK_VERSION}" ] || export FDF_SDK_VERSION=1.2
+[ -n "${BUILD_NUMBER}" ] || export BUILD_NUMBER=$(date +%s)
 #
 if test -d .git; then
 	BRANCH=$(git rev-parse --abbrev-ref HEAD)
-	if [ -z ${SVN_REVISION} ]; then
-		export SVN_REVISION=$(git rev-list HEAD|head -c 8)
-	fi
+	[ -n "${SVN_REVISION}" ] || export SVN_REVISION=$(git rev-list HEAD|head -c 8)
 else
-	if [ -z ${SVN_REVISION} ]; then
-		export SVN_REVISION=$(svn info | awk '/Last Changed Rev:/ {print $NF}')
-	fi
+	[ -n "${SVN_REVISION}" ] || export SVN_REVISION=$(svn info | awk '/Last Changed Rev:/ {print $NF}')
 fi
 #
-if [ -z ${BUILD_NUMBER} ]; then
-	export BUILD_NUMBER=$(date +%s)
-fi
-#
-if [ -z ${SCHOONER_RELEASE} ]; then
-	export SCHOONER_RELEASE=${SVN_REVISION}.${BUILD_NUMBER}
-fi
+[ -n "${SCHOONER_RELEASE}" ] || export SCHOONER_RELEASE=${SVN_REVISION}.${BUILD_NUMBER}
 
 #if [ "$1" == "--test" ] || [ "$2" == "--test" ]; then
 #[ -d test_suite ] || svn co svn://svn.schoonerinfotech.net/schooner-trunk/ht_delivery/qa/FDF_test/FDF_test_framework test_suite
@@ -34,14 +21,12 @@ fi
 
 VERSION=${FDF_SDK_VERSION}-${SCHOONER_RELEASE}
 NCPU=$(cat /proc/cpuinfo|grep CPU|wc -l)
-NCPU=$((NCPU*15/10))
+NCPU=$((NCPU*12/10))
 
 DBG=OFF
 PKG_NAME=fdf_sdk-$VERSION
 
-if [ -n "$BRANCH" ]; then
-	PKG_NAME=$PKG_NAME-$BRANCH
-fi
+[ -n "$BRANCH" ] && PKG_NAME=$PKG_NAME-$BRANCH
 
 if [ "$1" != "--optimize" ] && [ "$2" != "--optimize" ]; then
 	PKG_NAME=$PKG_NAME-dbg
@@ -50,7 +35,7 @@ fi
 
 cd $WD
 
-SDK_DIR=$BUILD/$PKG_NAME
+SDK_DIR=$WD/fdf-build/$PKG_NAME
 rm -fr $SDK_DIR
 mkdir -p $SDK_DIR/{config,lib,include,samples,tests,docs}
 
@@ -72,8 +57,6 @@ rm -fr $PKG_NAME
 
 echo -e "\n** BUILD SUCCESSFUL **\n"
 
-echo -e "\n** Please set the following variables and modify FDF_PROPERTY_FILE\nto conform your environment in order to run 'make test':\nexport FDF_LIB=$WD/output/lib/libfdf.so\nexport FDF_PROPERTY_FILE=$WD/api/tests/conf/fdf.prop\n**\n"
-
 #Running tests
 if [ "$1" == "--test" ] || [ "$2" == "--test" ]; then
 	cd $WD
@@ -81,7 +64,9 @@ if [ "$1" == "--test" ] || [ "$2" == "--test" ]; then
 	export FDF_LIB=$WD/output/lib/libfdf.so
 	export FDF_PROPERTY_FILE=$WD/api/tests/conf/fdf.prop
 
-	make test
+	ctest -j$NCPU
 fi
 
-echo "Package: root@$(hostname -s):$WD/$PKG_NAME.tar.gz"
+echo -e "\nVariables:\nexport FDF_LIB=$WD/output/lib/libfdf.so\nexport FDF_PROPERTY_FILE=$WD/api/tests/conf/fdf.prop\n"
+
+echo -e "Package: root@$(hostname -s):$WD/$PKG_NAME.tar.gz\n"
