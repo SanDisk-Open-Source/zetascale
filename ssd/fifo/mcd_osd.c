@@ -1624,6 +1624,7 @@ mcd_osd_fifo_shard_init( mcd_osd_shard_t * shard, uint64_t shard_id,
         shard->lock_bktsize /= 2;
         shard->lock_buckets *= 2;
     }
+    shard->bkts_per_lock = shard->lock_bktsize / Mcd_osd_bucket_size;
 
     shard->bucket_locks = (fthLock_t *)
         plat_alloc_large( shard->lock_buckets * sizeof(fthLock_t) );
@@ -4810,7 +4811,8 @@ mcd_fth_osd_slab_set( void * context, mcd_osd_shard_t * shard, char * key,
             }
 
             plus_objs--;
-            plus_blks -= mcd_osd_blk_to_use(shard, hash_entry->blocks);
+            plus_blks -= mcd_osd_blk_to_use(shard,
+                             mcd_osd_lba_to_blk(hash_entry->blocks));
 
             /*
              * FIXME: write in place if possible?

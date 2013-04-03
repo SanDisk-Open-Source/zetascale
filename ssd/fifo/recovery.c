@@ -108,17 +108,17 @@ typedef fthWaitEl_t wait_t;
 typedef unsigned int uint_t;
 typedef FDF_cguid_t cguid_t;
 typedef unsigned char uchar_t;
+typedef mcd_osd_hash_t mhash_t;
 typedef struct flashDev flash_t;
 typedef SDF_action_init_t pai_t;
 typedef SDF_shardid_t shardid_t;
-typedef mcd_osd_hash_t mo_hash_t;
 typedef mcd_osd_meta_t mo_meta_t;
+typedef mcd_osd_shard_t mshard_t;
 typedef SDF_action_state_t pas_t;
+typedef mcd_osd_bucket_t bucket_t;
 typedef mcd_osd_fifo_wbuf_t wbuf_t;
-typedef mcd_osd_shard_t mo_shard_t;
 typedef struct rklc_get rklc_get_t;
 typedef struct ssdaio_ctxt aioctx_t;
-typedef mcd_osd_bucket_t mo_bucket_t;
 typedef mcd_osd_segment_t mo_segment_t;
 typedef SDF_cache_enum_t s_cache_enum_t;
 typedef struct FDF_thread_state fdf_ts_t;
@@ -323,7 +323,7 @@ typedef struct {
  */
 typedef struct slab_free {
     struct slab_free *next;             /* Next entry */
-    mo_shard_t       *shard;            /* Shard */
+    mshard_t         *shard;            /* Shard */
     mo_slab_class_t  *class;            /* Class */
     mo_segment_t     *segment;          /* Segment number */
     uint_t            seg_ci;           /* Segment class index */
@@ -410,7 +410,7 @@ typedef struct {
 typedef struct cntr {
     struct cntr *next;                  /* Next in list */
     vnode_t      rank;                  /* Rank of recovering node */
-    mo_shard_t  *shard;                 /* Shard we are recovering */
+    mshard_t    *shard;                 /* Shard we are recovering */
     fthLock_t    ssx_lock;              /* Lock on set indices */
     wait_t      *ssx_wait;              /* Wait entry for lock */
     setx_t       ssx_head;              /* Head */
@@ -425,15 +425,15 @@ typedef struct cntr {
  * Information for a container on the surviving node.
  */
 typedef struct {
-    vnode_t     rank;                   /* Rank of recovering node*/
-    pai_t      *pai;                    /* Action internal pointer */
-    pas_t      *pas;                    /* Action state pointer */
-    cntr_t     *cntr;                   /* Recovering container information */
-    sect_t     *sect;                   /* Section */
-    rklc_t     *lock_ctr;               /* Key lock container */
-    flash_t    *flash;                  /* Flash device */
-    aioctx_t   *aioctx;                 /* AIO context */
-    mo_shard_t *shard;                  /* Shard */
+    vnode_t   rank;                     /* Rank of recovering node*/
+    pai_t    *pai;                      /* Action internal pointer */
+    pas_t    *pas;                      /* Action state pointer */
+    cntr_t   *cntr;                     /* Recovering container information */
+    sect_t   *sect;                     /* Section */
+    rklc_t   *lock_ctr;                 /* Key lock container */
+    flash_t  *flash;                    /* Flash device */
+    aioctx_t *aioctx;                   /* AIO context */
+    mshard_t *shard;                    /* Shard */
 } sur_t;
 
 
@@ -466,7 +466,7 @@ typedef struct rec {
     pai_t       *pai;
     sect_t      *sect;
     bitmap_t    *lock_map;
-    mo_shard_t  *shard;
+    mshard_t    *shard;
     obj_group_t *group;
     uint_t       map_size;
     vnode_t      rank;
@@ -609,8 +609,8 @@ typedef struct {
  * Enumeration hash entry information.
  */
 typedef struct {
-    mo_hash_t h;
-    uint64_t  bkt_i;
+    mhash_t  h;
+    uint64_t bkt_i;
 } e_hash_t;
 
 
@@ -618,7 +618,7 @@ typedef struct {
  * Container enumeration state information.
  */
 typedef struct FDF_iterator {
-    mo_shard_t *shard;
+    mshard_t   *shard;
     FDF_cguid_t cguid;
     int         enum_error;
     void       *data_buf_alloc;
@@ -672,7 +672,7 @@ struct sdf_rec_funcs Funcs ={
  */
 uint32_t mcd_osd_blk_to_lba_x(uint32_t blocks);
 uint32_t mcd_osd_lba_to_blk_x(uint32_t blocks);
-int      mcd_fth_osd_grow_class_x(mo_shard_t *shard, mo_slab_class_t *class);
+int      mcd_fth_osd_grow_class_x(mshard_t *shard, mo_slab_class_t *class);
 
 
 /*
@@ -1282,7 +1282,7 @@ cntr_free(cntr_t *cntr)
  * Free any container infos matching the given rank and shard.
  */
 static void
-sur_clean(int rank, mo_shard_t *shard)
+sur_clean(int rank, mshard_t *shard)
 {
     cntr_t *p;
     wait_t *wait = fthLock(&SV.cntrs_lock, 1, NULL);
@@ -1312,9 +1312,9 @@ static wait_t *
 cntr_lock(sur_t *sur, int force)
 {
     cntr_t *cntr;
-    vnode_t      rank = sur->rank;
-    mo_shard_t *shard = sur->shard;
-    wait_t *wait = fthLock(&SV.cntrs_lock, 0, NULL);
+    vnode_t    rank = sur->rank;
+    mshard_t *shard = sur->shard;
+    wait_t    *wait = fthLock(&SV.cntrs_lock, 0, NULL);
 
     if (!sdf_msg_is_live(rank)) {
         fthUnlock(wait);
@@ -1637,7 +1637,7 @@ sf_flush_seg(slab_free_t *sf)
  * Flush out the current segment in a slab_free_t entry.
  */
 static void
-sf_flush_shard(mo_shard_t *shard)
+sf_flush_shard(mshard_t *shard)
 {
     slab_free_t *sf;
 
@@ -1656,7 +1656,7 @@ sf_flush_shard(mo_shard_t *shard)
  * No errors.  Just lots of noise.
  */
 static int
-almost_full(mo_shard_t *shard)
+almost_full(mshard_t *shard)
 {
     blkno_t avail = shard->total_blks - shard->blk_allocated;
     int    almost = avail < (2 * Mcd_osd_segment_blks);
@@ -1678,7 +1678,7 @@ sf_next(slab_free_t *sf)
     slab_t slab_i;
     bitmap_t *real_map;
     mo_segment_t  *segment;
-    mo_shard_t      *shard = sf->shard;
+    mshard_t        *shard = sf->shard;
     mo_slab_class_t *class = sf->class;
     bitmap_t       *bitmap = sf->bitmap;
     int          seg_slabs = class->slabs_per_segment;
@@ -1801,7 +1801,7 @@ sf_find_free(slab_free_t *sf, int req_len, slab_t *slab_ptr)
  * Find the appropriate slab_free_t entry.  If one does not exist, create one.
  */
 static slab_free_t *
-sf_get(mo_shard_t *shard, int slab_l2b)
+sf_get(mshard_t *shard, int slab_l2b)
 {
     int seg_ci;
     uint_t num_slabs;
@@ -1869,9 +1869,9 @@ static void
 slab_free(rec_t *rec, slab_t nslabs)
 {
     slab_t slab_i;
-    uint_t   slab_l2b = rec->v.slab_l2b;
-    mo_shard_t *shard = rec->shard;
-    slab_free_t   *sf = sf_get(shard, slab_l2b);
+    uint_t slab_l2b = rec->v.slab_l2b;
+    mshard_t *shard = rec->shard;
+    slab_free_t *sf = sf_get(shard, slab_l2b);
 
     if (!sf)
         fatal("slab_free: no segment: shard=%p l2b=%d", shard, slab_l2b);
@@ -1892,9 +1892,9 @@ slab_alloc(rec_t *rec, slab_t nslab, uint64_t *blkno)
 {
     int n;
     slab_t slab_i;
-    uint_t   slab_l2b = rec->v.slab_l2b;
-    mo_shard_t *shard = rec->shard;
-    slab_free_t   *sf = sf_get(shard, slab_l2b);
+    uint_t slab_l2b = rec->v.slab_l2b;
+    mshard_t *shard = rec->shard;
+    slab_free_t *sf = sf_get(shard, slab_l2b);
 
     if (!sf)
         return 0;
@@ -1913,7 +1913,7 @@ slab_alloc(rec_t *rec, slab_t nslab, uint64_t *blkno)
  * the highest segment in use.
  */
 static int
-slab_set_map(mo_shard_t *shard, bitmap_t *seg_map)
+slab_set_map(mshard_t *shard, bitmap_t *seg_map)
 {
     uint_t segno;
     uint_t max_segno = 0;
@@ -1948,7 +1948,7 @@ slab_set_map(mo_shard_t *shard, bitmap_t *seg_map)
  * the highest segment in use.
  */
 static int
-fifo_set_map(mo_shard_t *shard, bitmap_t *seg_map)
+fifo_set_map(mshard_t *shard, bitmap_t *seg_map)
 {
     int i;
     uint_t nblks;
@@ -1981,14 +1981,14 @@ static sdf_msg_t *
 mkmsg_fbmap(sur_t *sur)
 {
     int nsegs;
-    mo_shard_t *shard = sur->shard;
-    int      max_segs = chunk_div(shard->total_blks, Mcd_osd_segment_blks);
-    int       max_len = bit_bytes(max_segs);
-    int       pay_len = sizeof(mrep_bmap_t) + max_len;
-    int       msg_len = sizeof(sdf_msg_t) + pay_len;
-    sdf_msg_t    *msg = malloc_nfw(msg_len, "sdf_msg");
-    mrep_bmap_t    *m = (mrep_bmap_t *) msg->msg_payload;
-    bitmap_t     *map = m->bitmap;
+    mshard_t *shard = sur->shard;
+    int    max_segs = chunk_div(shard->total_blks, Mcd_osd_segment_blks);
+    int     max_len = bit_bytes(max_segs);
+    int     pay_len = sizeof(mrep_bmap_t) + max_len;
+    int     msg_len = sizeof(sdf_msg_t) + pay_len;
+    sdf_msg_t  *msg = malloc_nfw(msg_len, "sdf_msg");
+    mrep_bmap_t  *m = (mrep_bmap_t *) msg->msg_payload;
+    bitmap_t   *map = m->bitmap;
 
     memset(msg, 0, msg_len);
     if (shard->use_fifo)
@@ -2023,17 +2023,17 @@ unlock_iret(wait_t *wait, int ret)
  * Determine if an object is valid.
  */
 static int
-obj_valid(mo_shard_t *shard, mo_meta_t *meta, addr_t addr)
+obj_valid(mshard_t *shard, mo_meta_t *meta, addr_t addr)
 {
     int n;
-    uchar_t        *key = (void *) &meta[1];
-    uint64_t   syndrome = hashck(key, meta->key_len, 0, meta->cguid);
-    hashsyn_t   hashsyn = syndrome >> OSD_HASH_SYN_SHIFT;
-    uint64_t         hi = syndrome % shard->hash_size;
-    mo_bucket_t *bucket = &shard->hash_buckets[hi / Mcd_osd_bucket_size];
-    mo_hash_t     *hash = &shard->hash_table[hi & Mcd_osd_bucket_mask];
-    fthLock_t     *lock = &shard->bucket_locks[hi / shard->lock_bktsize];
-    wait_t        *wait = fthLock(lock, 0, NULL);
+    uchar_t      *key = (void *) &meta[1];
+    uint64_t syndrome = hashck(key, meta->key_len, 0, meta->cguid);
+    hashsyn_t hashsyn = syndrome >> OSD_HASH_SYN_SHIFT;
+    uint64_t       hi = syndrome % shard->hash_size;
+    bucket_t  *bucket = &shard->hash_buckets[hi / Mcd_osd_bucket_size];
+    mhash_t     *hash = &shard->hash_table[hi & Mcd_osd_bucket_mask];
+    fthLock_t   *lock = &shard->bucket_locks[hi / shard->lock_bktsize];
+    wait_t      *wait = fthLock(lock, 0, NULL);
 
     for (n = bucket->next_item; n--; hash++) {
         if (hash->syndrome != hashsyn)
@@ -2264,7 +2264,7 @@ intersect(blkno_t *l_p, blkno_t *n_p,
  * might be less than the number we wanted.
  */
 static blkno_t
-rand_map(mo_shard_t *shard, blkno_t blkno, blkno_t want_blks, blkno_t *cont_p)
+rand_map(mshard_t *shard, blkno_t blkno, blkno_t want_blks, blkno_t *cont_p)
 {
     blkno_t rand_blks = Mcd_osd_segment_blks / Mcd_aio_num_files;
     blkno_t     index = blkno / rand_blks;
@@ -2295,7 +2295,7 @@ rand_map(mo_shard_t *shard, blkno_t blkno, blkno_t want_blks, blkno_t *cont_p)
  * fully scattered (unlike the memcached code).
  */
 static int
-read_disk(mo_shard_t *shard, aioctx_t *aioctx,
+read_disk(mshard_t *shard, aioctx_t *aioctx,
           char *buf, blkno_t blkno, blkno_t nblks)
 {
     char *p = buf;
@@ -2347,7 +2347,7 @@ read_fifo(sur_t *sur, char *buf, blkno_t blkno, blkno_t nblks)
         blkno_t offset;
         blkno_t blkoff;
     } incore[MCD_OSD_NUM_WBUFS];
-    mo_shard_t *shard = sur->shard;
+    mshard_t *shard = sur->shard;
 
     /*
      * Mark the sections that might be in cache.
@@ -2404,13 +2404,13 @@ read_fifo(sur_t *sur, char *buf, blkno_t blkno, blkno_t nblks)
 static int
 sect_read(sur_t *sur)
 {
-    mo_shard_t *shard = sur->shard;
-    sect_t      *sect = sur->sect;
-    slab_t  slab_blks = pow2(sect->slab_l2b);
-    uint_t    seg_off = sect->index1 * Mcd_osd_segment_blks;
-    blkno_t     blkno = seg_off + sect->init_slab * slab_blks;
-    blkno_t     nblks = sect->num_slabs * slab_blks;
-    char         *buf = &sect->buf[sect->data_off];
+    mshard_t  *shard = sur->shard;
+    sect_t     *sect = sur->sect;
+    slab_t slab_blks = pow2(sect->slab_l2b);
+    uint_t   seg_off = sect->index1 * Mcd_osd_segment_blks;
+    blkno_t    blkno = seg_off + sect->init_slab * slab_blks;
+    blkno_t    nblks = sect->num_slabs * slab_blks;
+    char        *buf = &sect->buf[sect->data_off];
 
     if (shard->use_fifo)
         return read_fifo(sur, buf, blkno, nblks);
@@ -2423,7 +2423,7 @@ sect_read(sur_t *sur)
  * Return the size of a unit in blocks.
  */
 static int
-sect_unit_l2b(mo_shard_t *shard, uint_t segno)
+sect_unit_l2b(mshard_t *shard, uint_t segno)
 {
     uint_t n;
     uint_t b;
@@ -2486,7 +2486,7 @@ mkmsg_flash(sur_t *sur)
     mrep_sect_t *mrep_sect;
     cntr_t      *cntr = sur->cntr;
     sect_t      *sect = sur->sect;
-    mo_shard_t *shard = sur->shard;
+    mshard_t   *shard = sur->shard;
     uint_t  meta_size = sizeof(sdf_msg_t) + sizeof(mrep_sect_t);
     uint_t   slab_l2b = sect_unit_l2b(shard, sect->index1);
     uint_t  slab_blks = pow2(slab_l2b);
@@ -2754,11 +2754,11 @@ static void
 fth_req_big(freq_big_t *freq, aioctx_t  *aioctx)
 {
     int i;
-    rec_t        *rec = freq->rec;
-    blkno_t     blkno = freq->blkno;
-    uint64_t    nblks = freq->num_objs * pow2(freq->slab_l2b);
-    char           *p = freq->data;
-    mo_shard_t *shard = rec->shard;
+    rec_t      *rec = freq->rec;
+    blkno_t   blkno = freq->blkno;
+    uint64_t  nblks = freq->num_objs * pow2(freq->slab_l2b);
+    char         *p = freq->data;
+    mshard_t *shard = rec->shard;
 
     while (nblks) {
         int s;
@@ -2877,7 +2877,7 @@ fth_stop(void)
  * Initialize fthreads and get parameters from property file.
  */
 static void
-fth_init(mo_shard_t *shard)
+fth_init(mshard_t *shard)
 {
     int i;
 
@@ -3027,16 +3027,16 @@ static int
 coal_puthash(rec_t *rec)
 {
     int n;
-    mo_hash_t *h;
-    coal_var_t       *v = &rec->v;
-    mo_shard_t   *shard = rec->shard;
-    uint_t     hash_off = v->hash_off;
-    uint_t    hash_blks = v->hash_blks;
-    blkno_t       blkno = v->blkno;
-    uint64_t   syndrome = v->syndrome;
-    hashsyn_t   hashsyn = syndrome >> OSD_HASH_SYN_SHIFT;
-    mo_bucket_t *bucket = &shard->hash_buckets[hash_off / Mcd_osd_bucket_size];
-    mo_hash_t     *hash = &shard->hash_table[hash_off & Mcd_osd_bucket_mask];
+    mhash_t *h;
+    coal_var_t     *v = &rec->v;
+    mshard_t   *shard = rec->shard;
+    uint_t   hash_off = v->hash_off;
+    uint_t  hash_blks = v->hash_blks;
+    blkno_t     blkno = v->blkno;
+    uint64_t syndrome = v->syndrome;
+    hashsyn_t hashsyn = syndrome >> OSD_HASH_SYN_SHIFT;
+    bucket_t  *bucket = &shard->hash_buckets[hash_off / Mcd_osd_bucket_size];
+    mhash_t     *hash = &shard->hash_table[hash_off & Mcd_osd_bucket_mask];
 
     if (bucket->next_item == Mcd_osd_bucket_size) {
         atomic_inc(RV.stats.num_m_overflow);
@@ -3069,7 +3069,7 @@ coal_puthash(rec_t *rec)
 
     /* Update hash table */
     {
-        mo_hash_t new ={
+        mhash_t new ={
             .used       = 1,
             .referenced = 1,
             .blocks     = hash_blks,
@@ -3187,7 +3187,7 @@ static int
 coal_set(rec_t *rec, mobj_t *mobj)
 {
     coal_var_t     *v = &rec->v;
-    mo_shard_t *shard = rec->shard;
+    mshard_t   *shard = rec->shard;
     freq_big_t  *freq = v->freq;
     uint64_t syndrome = hashck((uchar_t *) mobj->data,
                                mobj->key_len, 0, mobj->cguid);
@@ -3439,7 +3439,7 @@ err:
  * Return the lock container for a given shard.
  */
 static rklc_t *
-get_lock_container(pas_t *pas, mo_shard_t *shard)
+get_lock_container(pas_t *pas, mshard_t *shard)
 {
     SDF_cguid_t cguid = shard->cntr->cguid;
 
@@ -3457,7 +3457,7 @@ mreq_sect(sur_t *sur, mrep_type_t type, sdf_msg_t *req_msg)
 {
     sect_t sect;
     wait_t *wait;
-    mo_shard_t *shard;
+    mshard_t *shard;
     sdf_msg_t *rep_msg;
     mreq_sect_t *m = (mreq_sect_t *) req_msg->msg_payload;
     uint       len = req_msg->msg_len - sizeof(sdf_msg_t);
@@ -3468,7 +3468,7 @@ mreq_sect(sur_t *sur, mrep_type_t type, sdf_msg_t *req_msg)
     }
     n2h_mreq_sect(m);
 
-    shard = (mo_shard_t *) shardFind(sur->flash, m->shard_id);
+    shard = (mshard_t *) shardFind(sur->flash, m->shard_id);
     if (!shard) {
         fdf_logi(70012, "bad mreq_sect msg: bad shard");
         return mkmsg_null(type, ERR_SHARD);
@@ -3515,7 +3515,7 @@ mreq_rdone(sur_t *sur, sdf_msg_t *req_msg)
         return NULL;
 
     msg_setn2h(m->shard_id);
-    sur->shard = (mo_shard_t *) shardFind(sur->flash, m->shard_id);
+    sur->shard = (mshard_t *) shardFind(sur->flash, m->shard_id);
     if (!sur->shard)
         return NULL;
 
@@ -3542,7 +3542,7 @@ mreq_setix(sur_t *sur, sdf_msg_t *req_msg)
         return NULL;
 
     msg_setn2h(m->shard_id);
-    sur->shard = (mo_shard_t *) shardFind(sur->flash, m->shard_id);
+    sur->shard = (mshard_t *) shardFind(sur->flash, m->shard_id);
     if (!sur->shard)
         return NULL;
 
@@ -3603,7 +3603,7 @@ mreq_fbmap(sur_t *sur, sdf_msg_t *req_msg)
     }
     n2h_mreq_bmap(m);
 
-    sur->shard = (mo_shard_t *) shardFind(sur->flash, m->shard_id);
+    sur->shard = (mshard_t *) shardFind(sur->flash, m->shard_id);
     if (!sur->shard) {
         fdf_logi(70009, "bad mreq_fbmap msg: bad shard");
         return mkmsg_null(MREP_FBMAP, ERR_SHARD);
@@ -3878,10 +3878,10 @@ do_sect(rec_t *rec, sp_msg_type_t type)
     sdf_msg_t *msg;
     mlist_t *mlist;
     mrep_sect_t *mrep_sect;
-    int             s = 0;
-    setx_t  need_setx = rec->need_setx;
-    sect_t      *sect = rec->sect;
-    mo_shard_t *shard = rec->shard;
+    int            s = 0;
+    setx_t need_setx = rec->need_setx;
+    sect_t     *sect = rec->sect;
+    mshard_t  *shard = rec->shard;
 
     if (need_setx)
         coal_group_flush(rec, need_setx);
@@ -3925,7 +3925,7 @@ err:
 static int
 all_done(rec_t *rec)
 {
-    mo_shard_t *shard = rec->shard;
+    mshard_t *shard = rec->shard;
 
     if (shard->use_fifo) {
         if (shard->fifo.blk_committed >= shard->total_blks)
@@ -4026,7 +4026,7 @@ send_done(rec_t *rec)
 static void
 rec_done(rec_t *rec)
 {
-    mo_shard_t *shard = rec->shard;
+    mshard_t   *shard = rec->shard;
     uint_t   buf_size = RV.num_rsx * sizeof(setx_t);
     uint_t   map_size = bit_bytes(shard->hash_size / Mcd_osd_bucket_size);
     uint_t group_size = (RV.l2_max_slab_blks+1) * sizeof(obj_group_t);
@@ -4045,7 +4045,7 @@ rec_done(rec_t *rec)
 static void
 rec_init(rec_t *rec, pai_t *pai, vnode_t rank, shard_t *sshard, sect_t *sect)
 {
-    mo_shard_t *shard = (mo_shard_t *) sshard;
+    mshard_t   *shard = (mshard_t *) sshard;
     uint_t   map_size = bit_bytes(shard->hash_size / Mcd_osd_bucket_size);
     uint_t group_size = (RV.l2_max_slab_blks+1) * sizeof(obj_group_t);
 
@@ -4132,7 +4132,7 @@ prep_del(vnode_t rank, shard_t *sshard)
     wait_t *wait;
     sur_t sur ={
         .rank  = rank,
-        .shard = (mo_shard_t *) sshard,
+        .shard = (mshard_t *) sshard,
     };
 
     wait = cntr_lock(&sur, 0);
@@ -4264,7 +4264,7 @@ qrecovery_init(void)
  * Compute the cache hash given a hash index.
  */
 static chash_t
-chash_index(mo_shard_t *shard, uint64_t bkt_i, hashsyn_t hashsyn)
+chash_index(mshard_t *shard, uint64_t bkt_i, hashsyn_t hashsyn)
 {
     uint64_t bkti_l2 = bkt_i & shard->bkti_l2_mask;
     return (bkti_l2 << OSD_HASH_SYN_SIZE) | hashsyn;
@@ -4277,7 +4277,7 @@ chash_index(mo_shard_t *shard, uint64_t bkt_i, hashsyn_t hashsyn)
 chash_t
 chash_key(shard_t *sshard, SDF_cguid_t cguid, char *key, uint64_t keylen)
 {
-    mo_shard_t *shard = (mo_shard_t *) sshard;
+    mshard_t   *shard = (mshard_t *) sshard;
     uint64_t syndrome = hashck((unsigned char *) key, keylen, 0, cguid);
     hashsyn_t hashsyn = syndrome >> OSD_HASH_SYN_SHIFT;
     uint64_t    bkt_i = (syndrome % shard->hash_size) / Mcd_osd_bucket_size;
@@ -4293,7 +4293,7 @@ chash_key(shard_t *sshard, SDF_cguid_t cguid, char *key, uint64_t keylen)
 int
 chash_bits(shard_t *sshard)
 {
-    mo_shard_t *shard = (mo_shard_t *) sshard;
+    mshard_t *shard = (mshard_t *) sshard;
     return shard->bkti_l2_size + OSD_HASH_SYN_SIZE;
 }
 
@@ -4369,7 +4369,7 @@ e_extr_obj(e_state_t *es, time_t now, char **key, uint64_t *keylen,
  * Copy a hash entry if it belongs to our container.
  */
 static inline void
-copyhash(e_state_t *es, mo_hash_t *hash, uint64_t bkt_i)
+copyhash(e_state_t *es, mhash_t *hash, uint64_t bkt_i)
 {
     cntr_id_t cntr_id = es->cguid;
 
@@ -4400,12 +4400,12 @@ static void
 e_hash_fill(pai_t *pai, e_state_t *es, int bkt_i)
 {
     int n;
-    mo_hash_t *hash;
-    mo_shard_t   *shard = es->shard;
-    mo_bucket_t *bucket = &shard->hash_buckets[bkt_i];
-    uint64_t     lock_i = bkt_i / (shard->lock_bktsize / Mcd_osd_bucket_size);
-    fthLock_t     *lock = &shard->bucket_locks[lock_i];
-    wait_t        *wait = fthLock(lock, 0, NULL);
+    mhash_t *hash;
+    mshard_t  *shard = es->shard;
+    bucket_t *bucket = &shard->hash_buckets[bkt_i];
+    uint64_t  lock_i = bkt_i / (shard->lock_bktsize / Mcd_osd_bucket_size);
+    fthLock_t  *lock = &shard->bucket_locks[lock_i];
+    wait_t     *wait = fthLock(lock, 0, NULL);
 
     hash = &shard->hash_table[bkt_i * Mcd_osd_bucket_size];
     for (n = bucket->next_item; n--; hash++)
@@ -4436,7 +4436,7 @@ enumerate_next(pai_t *pai, e_state_t *es, char **key, uint64_t *keylen,
                char **data, uint64_t  *datalen)
 {
     time_t        now = time(NULL);
-    mo_shard_t *shard = es->shard;
+    mshard_t   *shard = es->shard;
     cntr_id_t cntr_id = es->cguid;
 
     for (;;) {
@@ -4448,7 +4448,7 @@ enumerate_next(pai_t *pai, e_state_t *es, char **key, uint64_t *keylen,
 
         int s;
         e_hash_t *ehash = &es->hash_buf[--es->hash_buf_i];
-        mo_hash_t *hash = &ehash->h;
+        mhash_t   *hash = &ehash->h;
         if (!hash->used || hash->cntr_id != cntr_id)
             continue;
 
@@ -4520,7 +4520,7 @@ e_init_fail(pai_t *pai, e_state_t *es)
 FDF_status_t
 enumerate_init(pai_t *pai, shard_t *sshard, FDF_cguid_t cguid, e_state_t **esp)
 {
-    mo_shard_t *shard = (mo_shard_t *) sshard;
+    mshard_t *shard = (mshard_t *) sshard;
 
     e_state_t *es = plat_malloc(sizeof(*es));
     if (!es)
@@ -4538,7 +4538,7 @@ enumerate_init(pai_t *pai, shard_t *sshard, FDF_cguid_t cguid, e_state_t **esp)
     if (es->hash_buf_n < es->max_hash_per_bkt)
         es->hash_buf_n = es->max_hash_per_bkt;
 
-    es->hash_buf = plat_malloc(es->hash_buf_n * sizeof(mo_hash_t));
+    es->hash_buf = plat_malloc(es->hash_buf_n * sizeof(mhash_t));
     if (!es->hash_buf)
         return e_init_fail(pai, es);
 
@@ -4558,7 +4558,7 @@ enumerate_init(pai_t *pai, shard_t *sshard, FDF_cguid_t cguid, e_state_t **esp)
  * locked.
  */
 static void
-delete_object(mo_shard_t *shard, mo_hash_t *hash, uint64_t bkt_i)
+delete_object(mshard_t *shard, mhash_t *hash, uint64_t bkt_i)
 {
     baddr_t baddr = hash->address;
 
@@ -4580,32 +4580,107 @@ delete_object(mo_shard_t *shard, mo_hash_t *hash, uint64_t bkt_i)
 
 
 /*
+ * If remove is set, remove an entry from the overflow table if possible.
+ */
+static void
+fix_overflow(mshard_t *shard, uint64_t bkt_i, int move)
+{
+    int oi;
+    uint64_t  lock_i = bkt_i / (shard->lock_bktsize / Mcd_osd_bucket_size);
+    uint64_t    base = lock_i * Mcd_osd_overflow_depth;
+    uint16_t   magic = bkt_i % shard->lock_bktsize;
+    uint16_t  *index = &shard->overflow_index[base];
+    mhash_t   *table = &shard->overflow_table[base];
+    bucket_t *bucket = &shard->hash_buckets[bkt_i];
+
+    if (move) {
+        for (oi = 0; oi < Mcd_osd_overflow_depth; oi++)
+            if (table[oi].used && index[oi] == magic)
+                break;
+
+        if (oi == Mcd_osd_overflow_depth)
+            return;
+        if (bucket->next_item != Mcd_osd_overflow_depth - 1)
+            fatal("fix_overflow issue next=%d", bucket->next_item);
+
+        mhash_t *hashb = &shard->hash_table[bkt_i * Mcd_osd_bucket_size];
+        hashb[bucket->next_item++] = table[oi];
+        memset(&table[oi], 0, sizeof(table[0]));
+    }
+
+    for (oi = 0; oi < Mcd_osd_overflow_depth; oi++)
+        if (table[oi].used && index[oi] == magic)
+            break;
+    bucket->overflowed = (oi != Mcd_osd_overflow_depth);
+}
+
+
+/*
+ * Remove an object from the overflow table and delete it.  The appropriate
+ * hash table lock must be held.
+ */
+static void
+del_obj_over(mshard_t *shard, mhash_t *hash)
+{
+    uint64_t     ho = hash - shard->overflow_table;
+    uint64_t lock_i = ho / Mcd_osd_overflow_depth;
+    uint64_t  bkt_i = lock_i * shard->bkts_per_lock +
+                      shard->overflow_index[ho] % shard->bkts_per_lock;
+
+    delete_object(shard, hash, bkt_i);
+    memset(hash, 0, sizeof(*hash));
+    fix_overflow(shard, bkt_i, 0);
+}
+
+
+/*
+ * Remove an object from the hash table and delete it.  The appropriate hash
+ * table lock must be held.
+ */
+static void
+del_obj_hash(mshard_t *shard, mhash_t *hash)
+{
+    uint64_t      bo = hash - shard->hash_table;
+    uint64_t   bkt_i = bo / Mcd_osd_bucket_size;
+    int           bi = bo % Mcd_osd_bucket_size;
+    bucket_t *bucket = &shard->hash_buckets[bkt_i];
+    mhash_t   *hashb = &shard->hash_table[bkt_i * Mcd_osd_bucket_size];
+
+    if (bi >= bucket->next_item)
+        fatal("misplaced hash entry bi=%d next=%d", bi, bucket->next_item);
+
+    delete_object(shard, hash, bkt_i);
+    *hash = hashb[--bucket->next_item];
+    if (bucket->overflowed)
+        fix_overflow(shard, bkt_i, 1);
+}
+
+
+/*
  * Delete all objects in a container.
  */
 void
 delete_all_objects(pai_t *pai, shard_t *sshard, cguid_t cguid)
 {
     uint64_t lock_i;
-    mo_shard_t      *shard = (mo_shard_t *) sshard;
-    uint64_t bkts_per_lock = shard->lock_bktsize / Mcd_osd_bucket_size;
+    mshard_t        *shard = (mshard_t *) sshard;
+    uint64_t bkts_per_lock = shard->bkts_per_lock;
 
     for (lock_i = 0; lock_i < shard->lock_buckets; lock_i++) {
         int i;
         uint64_t bi;
-        mo_hash_t *hash;
+        mhash_t *hash;
         fthLock_t *lock = &shard->bucket_locks[lock_i];
         wait_t    *wait = fthLock(lock, 0, NULL);
 
         for (bi = 0; bi < bkts_per_lock; bi++) {
             uint64_t bkt_i = lock_i * bkts_per_lock + bi;
-            mo_bucket_t *bucket = &shard->hash_buckets[bkt_i];
+            bucket_t *bucket = &shard->hash_buckets[bkt_i];
             hash = &shard->hash_table[bkt_i * Mcd_osd_bucket_size];
             for (i = bucket->next_item; i--;) {
                 if (cguid != hash[i].cntr_id)
                     continue;
-
-                delete_object(shard, &hash[i], bkt_i);
-                hash[i] = hash[--bucket->next_item];
+                del_obj_hash(shard, &hash[i]);
             }
         }
 
@@ -4616,14 +4691,142 @@ delete_all_objects(pai_t *pai, shard_t *sshard, cguid_t cguid)
                 continue;
             if (cguid != hash->cntr_id)
                 continue;
-
-            uint64_t bkt_i = lock_i * bkts_per_lock +
-                             shard->overflow_index[in + i] % bkts_per_lock;
-            delete_object(shard, hash, bkt_i);
+            del_obj_hash(shard, hash);
         }
 
         fthUnlock(wait);
     }
+}
+
+
+/*
+ * See if an object might be available to evict in a given lock index)
+ */
+int
+available(mshard_t *shard, uint64_t lock_i,
+          cguid_t cguid, uint64_t lba_lo, uint64_t lba_hi)
+{
+    int bi;
+    int    overflowed = 0;
+    int bkts_per_lock = shard->bkts_per_lock;
+
+    for (bi = 0; bi < bkts_per_lock; bi++) {
+        uint64_t   bkt_i = lock_i * bkts_per_lock + bi;
+        uint64_t      ho = bkt_i * Mcd_osd_bucket_size;
+        bucket_t *bucket = &shard->hash_buckets[bkt_i];
+        int            n = bucket->next_item;
+        mhash_t    *hash = &shard->hash_table[ho + n - 1];
+
+        if (!n)
+            continue;
+
+        if (bucket->overflowed)
+            overflowed = 1;
+        for (; n--; hash--) {
+            if (likely(cguid != hash->cntr_id))
+                continue;
+
+            uint64_t hblks = hash->blocks;
+            if (likely(!(hblks > lba_lo && hblks <= lba_hi)))
+                continue;
+            return 1;
+        }
+    }
+
+    if (overflowed) {
+        int n;
+        uint64_t base = lock_i * Mcd_osd_overflow_depth;
+        mhash_t *hash = &shard->overflow_table[base];
+
+        for (n = Mcd_osd_overflow_depth; n--; hash++) {
+            if (likely(!hash->used))
+                continue;
+            if (likely(cguid != hash->cntr_id))
+                continue;
+            uint64_t hblks = hash->blocks;
+            if (likely(!(hblks > lba_lo && hblks <= lba_hi)))
+                continue;
+            return 1;
+        }
+    }
+
+    return 0;
+}
+
+
+/*
+ * Evict an object in a certain slab class from the container.
+ */
+int
+evict_object(shard_t *sshard, cguid_t cguid, uint64_t nblks)
+{
+    uint64_t       lo = rand();
+    mshard_t   *shard = (mshard_t *) sshard;
+    uint64_t     used = mcd_osd_blk_to_use(shard, nblks);
+    uint64_t   lba_lo = mcd_osd_blk_to_lba_x(used >> 1);
+    uint64_t   lba_hi = mcd_osd_blk_to_lba_x(used);
+    int bkts_per_lock = shard->bkts_per_lock;
+
+    uint64_t li;
+    for (li = 0; li < shard->lock_buckets; li++) {
+        uint64_t lock_i = (li + lo) % shard->lock_buckets;
+        if (!available(shard, lock_i, cguid, lba_lo, lba_hi))
+            continue;
+
+        int  overflowed = 0;
+        fthLock_t *lock = &shard->bucket_locks[lock_i];
+        wait_t    *wait = fthLock(lock, 0, NULL);
+
+        int bi;
+        for (bi = 0; bi < bkts_per_lock; bi++) {
+            uint64_t   bkt_i = lock_i * bkts_per_lock + bi;
+            uint64_t      ho = bkt_i * Mcd_osd_bucket_size;
+            bucket_t *bucket = &shard->hash_buckets[bkt_i];
+            int            n = bucket->next_item;
+            mhash_t    *hash = &shard->hash_table[ho + n - 1];
+
+            if (!n)
+                continue;
+
+            if (bucket->overflowed)
+                overflowed = 1;
+            for (; n--; hash--) {
+                if (cguid != hash->cntr_id)
+                    continue;
+
+                uint64_t hblks = hash->blocks;
+                if (!(hblks > lba_lo && hblks <= lba_hi))
+                    continue;
+
+                del_obj_hash(shard, hash);
+                fthUnlock(wait);
+                return 1;
+            }
+        }
+
+        if (overflowed) {
+            int n;
+            uint64_t base = lock_i * Mcd_osd_overflow_depth;
+            mhash_t *hash = &shard->overflow_table[base];
+            for (n = Mcd_osd_overflow_depth; n--; hash++) {
+                if (!hash->used)
+                    continue;
+                if (cguid != hash->cntr_id)
+                    continue;
+
+                uint64_t hblks = hash->blocks;
+                if (!(hblks > lba_lo && hblks <= lba_hi))
+                    continue;
+
+                del_obj_over(shard, hash);
+                fthUnlock(wait);
+                return 1;
+            }
+        }
+
+        fthUnlock(wait);
+    }
+    return 0;
 }
 
 
@@ -4639,7 +4842,7 @@ set_cntr_sizes(pai_t *pai, shard_t *sshard)
         uint64_t objects;
     } info_t;
     uint64_t n;
-    mo_shard_t *shard = (mo_shard_t *) sshard;
+    mshard_t *shard = (mshard_t *) sshard;
 
     if (sizeof(cntr_id_t) != 2)
         fatal("sizeof cntr_id must be 2");
@@ -4650,7 +4853,7 @@ set_cntr_sizes(pai_t *pai, shard_t *sshard)
         fatal("Cannot allocate container information");
     memset(cntr_p, 0, cntr_n * sizeof(info_t));
 
-    mo_hash_t *hash = shard->hash_table;
+    mhash_t *hash = shard->hash_table;
     for (n = shard->hash_size; n--; hash++) {
         uint64_t blks = mcd_osd_lba_to_blk_x(hash->blocks);
         blks = mcd_osd_blk_to_use(shard, blks);

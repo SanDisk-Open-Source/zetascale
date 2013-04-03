@@ -254,6 +254,7 @@ typedef struct mcd_osd_shard {
     mcd_osd_hash_t            * hash_table;
     mcd_osd_bucket_t          * hash_buckets;
     int                         lock_bktsize;
+    int                         bkts_per_lock;
     uint64_t                    lock_buckets;
     fthLock_t                 * bucket_locks;
     mcd_osd_segment_t        ** segment_table;  /* logical block -> segment */
