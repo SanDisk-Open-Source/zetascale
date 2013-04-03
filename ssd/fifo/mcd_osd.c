@@ -4217,8 +4217,8 @@ mcd_fth_osd_get_slab( void * context, mcd_osd_shard_t * shard,
             hand = __sync_add_and_fetch( &class->scan_hand[0], 1 );
         }
     }
-    else if ( class->used_slabs + class->total_slabs / MCD_OSD_SCAN_THRESHOLD
-              < class->total_slabs ) {
+    else /*if ( class->used_slabs + class->total_slabs / MCD_OSD_SCAN_THRESHOLD
+              < class->total_slabs ) */ {
 
         hand = class->scan_hand[Mcd_pthread_id];
         for ( i = 0; i < class->num_segments; i++ ) {
