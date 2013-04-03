@@ -3265,6 +3265,7 @@
 160141 Failed to make room for new object\n
 160142 Failed to evict object: %s - %s, continuing to search for victims
 160143 Zero or negative size key is provided
+160144 Unlimited containers must be non-evicting.
 
 
 # rico
