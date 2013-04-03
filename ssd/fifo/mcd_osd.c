@@ -3848,8 +3848,6 @@ mcd_osd_slab_slot_alloc(mcd_osd_shard_t* shard, mcd_osd_segment_t* segment, int 
   atomic_inc(segment->class->used_slabs);
   atomic_inc(segment->used_slabs);
 
-  plat_assert(segment->class->used_slabs <= segment->class->total_slabs);
-
   if(blk_offset) *blk_offset = segment->blk_offset + offs * segment->class->slab_blksize;
 
   return 1;
