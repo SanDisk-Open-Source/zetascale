@@ -232,7 +232,7 @@ typedef struct mcd_osd_shard {
     int                         restore_running;
 
     uint64_t                    id;
-    int                         open;
+    int                         opened;
     int                         flush_fd;
     int                         persistent;
     int                         durability_level;
@@ -690,8 +690,6 @@ extern int mcd_fth_do_try_container( void * pai, mcd_container_t **ppcontainer, 
                               int tcp_port, int udp_port,
                               SDF_container_props_t * prop, char * cntr_name,
                               mcd_cntr_props_t * cntr_props );
-
-extern baddr_t mcd_osd_blk_to_use(mcd_osd_shard_t *shard, baddr_t blk);
 
 /* Next functions used in slab_gc.c */
 int

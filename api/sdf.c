@@ -1739,7 +1739,7 @@ SDF_status_t SDFCloseContainer(
 
         if(shard)
         {
-			((mcd_osd_shard_t*)shard)->open = 0; 
+			((mcd_osd_shard_t*)shard)->opened = 0; 
         
             if ( ((mcd_osd_shard_t*)shard)->persistent ) {
                 // kill log writer, free all persistence data structures

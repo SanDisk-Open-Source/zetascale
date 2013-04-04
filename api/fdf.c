@@ -982,44 +982,45 @@ get_cntr_info(cntr_id_t cntr_id,
 
 
 /*
- * Add a number of objects and the size consumed to a container map.
+ * Add a number of objects and the size consumed to a container map.  There are
+ * two modes.  If check is set, we only make the change if it does not
+ * contribute towards overburdening the container and return true if we made
+ * the change.  If check is not set, we always make the change and return true
+ * if the container is not overburdened.
  */
-FDF_status_t
-inc_cntr_map(cntr_id_t cntr_id, int64_t objs, int64_t size)
+int
+inc_cntr_map(cntr_id_t cntr_id, int64_t objs, int64_t blks, int check)
 {
+    int          ret = 1;
+    int64_t     size = blks * MCD_OSD_BLK_SIZE;
     ctnr_map_t *cmap = get_cntr_map(cntr_id);
-    if (!cmap) {
-        //fdf_loge(70114, "bad container: %d", cntr_id);
-        //FIXME: uncomment next line when Darryl fixes initialization problems
-        //return FDF_CONTAINER_UNKNOWN;
-        return FDF_SUCCESS;
-    }
+
+    if (!cmap)
+        return 1;
 
     int64_t t_objs = atomic_add_get(cmap->num_obj, objs);
     int64_t t_size = atomic_add_get(cmap->current_size, size);
     int64_t  limit = cmap->size_kb * 1024;
 
-    if (t_objs < 0 || t_size < 0 || (limit && t_size > limit)) {
-        atomic_sub(cmap->num_obj, objs);
-        atomic_sub(cmap->current_size, size);
+    if (limit && t_size > limit) {
+        if (!check)
+            ret = 0;
+        else if (size > 0) {
+            atomic_sub(cmap->num_obj, objs);
+            atomic_sub(cmap->current_size, size);
+            ret = 0;
+        }
     }
     rel_cntr_map(cmap);
 
-    if (t_objs < 0) {
+    if (t_objs < 0)
         fdf_loge(70115, "container %d would have %ld objects", cntr_id, objs);
-        return FDF_FAILURE_CONTAINER_GENERIC;
-    }
 
     if (t_size < 0) {
         fdf_loge(70116, "container %d would have a size of %ld bytes",
                  cntr_id, size);
-        return FDF_FAILURE_CONTAINER_GENERIC;
     }
-
-    if (limit && t_size > limit)
-        return FDF_CONTAINER_FULL;
-
-    return FDF_SUCCESS;
+    return ret;
 }
 
 

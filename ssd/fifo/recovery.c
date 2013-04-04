@@ -1,5 +1,5 @@
 /*
- * Fast recovery, enumeration and delete.
+ * Support for fast recovery, enumeration, delete and eviction.
  * Author: Johann George
  *
  * Exported
@@ -11,6 +11,15 @@
  *   enumerate_next()
  *   enumerate_stats()
  *
+ *   chash_key()
+ *   chash_bits()
+ *
+ *   hashck()
+ *   blk_to_lba()
+ *   blk_to_use()
+ *   lba_to_blk()
+ *   lba_to_use()
+ *   evict_object()
  *   set_cntr_sizes()
  *   delete_all_objects()
  *
@@ -670,9 +679,7 @@ struct sdf_rec_funcs Funcs ={
 /*
  * External function prototypes.
  */
-uint32_t mcd_osd_blk_to_lba_x(uint32_t blocks);
-uint32_t mcd_osd_lba_to_blk_x(uint32_t blocks);
-int      mcd_fth_osd_grow_class_x(mshard_t *shard, mo_slab_class_t *class);
+int mcd_fth_osd_grow_class_x(mshard_t *shard, mo_slab_class_t *class);
 
 
 /*
@@ -3274,7 +3281,7 @@ coalesce_same(rec_t *rec, mlist_t *mlist)
     v->slab_l2b  = slab_l2b;
     v->slab_blks = pow2(v->slab_l2b);
     v->slab_size = v->slab_blks * BLK_SIZE;
-    v->hash_blks = mcd_osd_blk_to_lba_x(v->slab_blks);
+    v->hash_blks = blk_to_lba(v->slab_blks);
 
     n = num_objs;
     for (i = 0 ; i < n; i++) {
@@ -4299,14 +4306,52 @@ chash_bits(shard_t *sshard)
 
 
 /*
+ * Encode a block count so it can be stored in a hash entry.
+ */
+uint64_t
+blk_to_lba(uint64_t blk)
+{
+    if (blk <= MCD_OSD_MAX_BLKS_OLD)
+        return blk;
+
+    int rem = blk % MCD_OSD_LBA_MIN_BLKS;
+    if (rem)
+        blk += rem;
+    return (blk >> MCD_OSD_LBA_SHIFT_BITS) | MCD_OSD_LBA_SHIFT_FLAG;
+}
+
+
+/*
  * Unencode a block count stored in a hash entry.
  */
-static inline uint64_t
-lba_to_blk(uint32_t nb)
+uint64_t
+lba_to_blk(uint64_t lba)
 {
-    if (nb < MCD_OSD_MAX_BLKS_OLD)
-        return nb;
-    return (nb & MCD_OSD_LBA_SHIFT_MASK) << MCD_OSD_LBA_SHIFT_BITS;
+    if (lba <= MCD_OSD_MAX_BLKS_OLD)
+        return lba;
+    return (lba & MCD_OSD_LBA_SHIFT_MASK) << MCD_OSD_LBA_SHIFT_BITS;
+}
+
+
+/*
+ * Convert a block count to what is actually being consumed.
+ */
+uint64_t
+blk_to_use(mshard_t *shard, uint64_t blk)
+{
+    if (blk > MCD_OSD_OBJ_MAX_BLKS)
+        fatal("block too large %ld", blk);
+    return shard->slab_classes[shard->class_table[blk]].slab_blksize;
+}
+
+
+/*
+ * Convert an encoded block count to the amount being consumed.
+ */
+uint64_t
+lba_to_use(mshard_t *shard, uint64_t lba)
+{
+    return blk_to_use(shard, lba_to_blk(lba));
 }
 
 
@@ -4758,13 +4803,12 @@ available(mshard_t *shard, uint64_t lock_i,
  * Evict an object in a certain slab class from the container.
  */
 int
-evict_object(shard_t *sshard, cguid_t cguid, uint64_t nblks)
+evict_object(mshard_t *shard, cguid_t cguid, uint64_t nblks)
 {
     uint64_t       lo = rand();
-    mshard_t   *shard = (mshard_t *) sshard;
-    uint64_t     used = mcd_osd_blk_to_use(shard, nblks);
-    uint64_t   lba_lo = mcd_osd_blk_to_lba_x(used >> 1);
-    uint64_t   lba_hi = mcd_osd_blk_to_lba_x(used);
+    uint64_t     used = blk_to_use(shard, nblks);
+    uint64_t   lba_lo = blk_to_lba(used >> 1);
+    uint64_t   lba_hi = blk_to_lba(used);
     int bkts_per_lock = shard->bkts_per_lock;
 
     uint64_t li;
@@ -4838,8 +4882,8 @@ void
 set_cntr_sizes(pai_t *pai, shard_t *sshard)
 {
     typedef struct {
-        uint64_t bytes;
-        uint64_t objects;
+        uint64_t blks;
+        uint64_t objs;
     } info_t;
     uint64_t n;
     mshard_t *shard = (mshard_t *) sshard;
@@ -4855,20 +4899,19 @@ set_cntr_sizes(pai_t *pai, shard_t *sshard)
 
     mhash_t *hash = shard->hash_table;
     for (n = shard->hash_size; n--; hash++) {
-        uint64_t blks = mcd_osd_lba_to_blk_x(hash->blocks);
-        blks = mcd_osd_blk_to_use(shard, blks);
+        uint64_t blks = lba_to_use(shard, hash->blocks);
         if (!hash->used)
             continue;
         info_t *p = &cntr_p[hash->cntr_id];
-        p->objects++;
-        p->bytes += blks * MCD_OSD_BLK_SIZE;
+        p->objs++;
+        p->blks += blks;
     }
 
     info_t *p = cntr_p;
     for (n = 0; n < cntr_n; n++, p++) {
-        if (!p->objects)
+        if (!p->objs)
             continue;
-        inc_cntr_map(n, p->objects, p->bytes);
+        inc_cntr_map(n, p->objs, p->blks, 0);
 
         uint64_t objs;
         uint64_t used;

@@ -1526,7 +1526,7 @@ recovery_init( void )
         memcpy( pshard, buf, sizeof( mcd_rec_shard_t ) );
 
         shard->pshard = pshard;
-        shard->open   = 0;
+        shard->opened = 0;
 
         // this read should not cross a segment boundary
         plat_assert( (pshard->blk_offset + pshard->seg_list_offset) /
@@ -1824,7 +1824,7 @@ recovery_reclaim_space( void )
         shard = Mcd_osd_slab_shards[ s ];
 
         // shard is open
-        if ( shard != NULL && shard->open ) {
+        if ( shard != NULL && shard->opened ) {
 
             // find shard props, mark open
             slot = ~( shard->prop_slot );
@@ -3609,7 +3609,7 @@ update_hash_table( void * context, mcd_osd_shard_t * shard,
 
         // housekeeping
         uint64_t blks = mcd_osd_lba_to_blk(obj->blocks);
-        blks = mcd_osd_blk_to_use(shard, blks);
+        blks = blk_to_use(shard, blks);
 
         shard->blk_consumed  += blks;
         shard->num_objects   += 1;

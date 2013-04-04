@@ -9,6 +9,7 @@
 #include "fdf.h"
 #include "fdf_internal.h"
 #include "shared/private.h"
+#include "ssd/fifo/mcd_osd.h"
 #include "protocol/action/action_internal_ctxt.h"
 
 
@@ -102,7 +103,13 @@ chash_key(shard_t *sshard, SDF_cguid_t cguid, char *key, uint64_t keylen);
 /*
  * Other functions.
  */
+uint64_t blk_to_lba(uint64_t blk);
+uint64_t lba_to_blk(uint64_t lba);
+uint64_t blk_to_use(mcd_osd_shard_t *shard, uint64_t blk);
+uint64_t lba_to_use(mcd_osd_shard_t *shard, uint64_t lba);
+
 void set_cntr_sizes(SDF_action_init_t *pai, shard_t *sshard);
+int  evict_object(mcd_osd_shard_t *shard, FDF_cguid_t cguid, uint64_t nblks);
 
 void
 delete_all_objects(SDF_action_init_t *pai, shard_t *sshard, FDF_cguid_t cguid);
@@ -110,5 +117,6 @@ delete_all_objects(SDF_action_init_t *pai, shard_t *sshard, FDF_cguid_t cguid);
 uint64_t
 hashck(const unsigned char *key, uint64_t key_len,
        uint64_t level, cntr_id_t cntr_id);
+
  
 #endif /* _RECOVERY_H */

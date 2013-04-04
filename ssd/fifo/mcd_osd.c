@@ -3623,6 +3623,7 @@ mcd_osd_slab_shard_init( mcd_osd_shard_t * shard, uint64_t shard_id,
         shard->lock_bktsize /= 2;
         shard->lock_buckets *= 2;
     }
+    shard->bkts_per_lock = shard->lock_bktsize / Mcd_osd_bucket_size;
 
     shard->bucket_locks = (fthLock_t *)
         plat_alloc_large( shard->lock_buckets * sizeof(fthLock_t) );
@@ -4628,8 +4629,6 @@ mcd_fth_osd_slab_set( void * context, mcd_osd_shard_t * shard, char * key,
     mcd_logrec_object_t         log_rec;
     int64_t                     plus_objs = 0;
     int64_t                     plus_blks = 0;
-    int64_t                     done_objs = 0;
-    int64_t                     done_blks = 0;
     cntr_id_t                   cntr_id = meta_data->cguid;
 	FDF_boolean_t				vc_evict = FDF_FALSE;
 
@@ -4808,10 +4807,6 @@ mcd_fth_osd_slab_set( void * context, mcd_osd_shard_t * shard, char * key,
                 goto out;
             }
 
-            plus_objs--;
-            plus_blks -= mcd_osd_blk_to_use(shard,
-                             mcd_osd_lba_to_blk(hash_entry->blocks));
-
             /*
              * FIXME: write in place if possible?
              */
@@ -4853,6 +4848,8 @@ mcd_fth_osd_slab_set( void * context, mcd_osd_shard_t * shard, char * key,
                 bool delayed = 1 == shard->replicated || (1 == shard->persistent && 0 == shard->evict_to_free);
 
                 mcd_fth_osd_remove_entry(shard, hash_entry, delayed, true);
+                plus_objs--;
+                plus_blks -= lba_to_use(shard, hash_entry->blocks);
 
                 if ( 0 == overflow ) {
                     if ( 0 == bucket->next_item ) {
@@ -5004,6 +5001,20 @@ mcd_fth_osd_slab_set( void * context, mcd_osd_shard_t * shard, char * key,
     }
 
     /*
+     * See if there is enough space.
+     */
+    if (!vc_evict) {
+        uint64_t rsvd_blks = blk_to_use(shard, blocks);
+        if (obj_exists)
+            rsvd_blks -= lba_to_use(shard, hash_entry->blocks);
+        if (!inc_cntr_map(cntr_id, 0, rsvd_blks, 1)) {
+            rc = FDF_CONTAINER_FULL;
+            goto out;
+        }
+        plus_blks -= rsvd_blks;
+    }
+
+    /*
      * re-alloc the buffer for large objects
      */     
     if ( MCD_OSD_MAX_BLKS_OLD < blocks ) {
@@ -5070,19 +5081,16 @@ mcd_fth_osd_slab_set( void * context, mcd_osd_shard_t * shard, char * key,
      * FIXME: pad the object if size < 128KB
      */
     if ( blocks < 256 ) {
-        rc = mcd_fth_aio_blk_write_low( context,
-                                    buf,
-                                    offset,
-                                    (1 << shard->class_table[blocks]) *
-                                    Mcd_osd_blk_size,
-									shard->durability_level > SDF_RELAXED_DURABILITY);
+        rc = mcd_fth_aio_blk_write_low(
+                context, buf, offset,
+                (1 << shard->class_table[blocks]) * Mcd_osd_blk_size,
+                shard->durability_level > SDF_RELAXED_DURABILITY);
     }
     else {
-        rc = mcd_fth_aio_blk_write_low( context,
-                                    buf,
-                                    offset,
-                                    blocks * Mcd_osd_blk_size,
-									shard->durability_level > SDF_RELAXED_DURABILITY);
+        rc = mcd_fth_aio_blk_write_low(
+                context, buf, offset,
+                blocks * Mcd_osd_blk_size,
+                shard->durability_level > SDF_RELAXED_DURABILITY);
     }
     if ( FLASH_EOK != rc ) {
         /*
@@ -5125,40 +5133,6 @@ mcd_fth_osd_slab_set( void * context, mcd_osd_shard_t * shard, char * key,
         }
     }
 
-    plus_objs++;
-    plus_blks += mcd_osd_blk_to_use(shard, blocks);
-    if (plus_objs || plus_blks) {
-        rc = inc_cntr_map(cntr_id, plus_objs, plus_blks * MCD_OSD_BLK_SIZE);
-        if (rc != FDF_SUCCESS) {
-            if ( rc == FDF_CONTAINER_FULL && vc_evict ) {
-                // Must evict
-                if ( 1 || getProperty_Int( "ASYNC_DELETE_CONTAINERS", 1 ) == 1 ) {
-                    if ( FDF_SUCCESS != async_command_evict_objs( cntr_id, key_len + data_len ) ) {
-                        mcd_log_msg( 150107,
-                                     PLAT_LOG_LEVEL_ERROR,
-                                     "Failed to initiate container eviction for %u\n",
-                                     cntr_id );
-                        goto out;
-                    }
-                } else {
-					// Sync mode hangs so we don't use it yet
-                    if ( !mcd_fth_osd_evict_container_objects( shard, cntr_id, key_len + data_len ) < key_len + data_len ) {
-                        slab_gc_signal( shard, NULL );
-                        if ( !mcd_fth_osd_evict_container_objects( shard, cntr_id, key_len + data_len ) < key_len + data_len ) {
-                            goto out;
-                        }
-                    }
-                }
-            } else {
-                // Some other error
-                goto out;
-            }
-        }
-        rc = FLASH_EOK;
-        done_objs = plus_objs;
-        done_blks = plus_blks;
-    }
-
     /*
      * if the shard allows eviction and is replicated, evict all
      * items with the same hash to make life easier before we insert
@@ -5199,6 +5173,8 @@ mcd_fth_osd_slab_set( void * context, mcd_osd_shard_t * shard, char * key,
             }
 
             mcd_fth_osd_remove_entry(shard, hash_entry, true, true);
+            plus_objs--;
+            plus_blks -= lba_to_use(shard, hash_entry->blocks);
 
             if ( 0 == bucket->next_item ) {
                 plat_assert_always( 0 == 1 );
@@ -5232,6 +5208,8 @@ mcd_fth_osd_slab_set( void * context, mcd_osd_shard_t * shard, char * key,
          * instead we write a special log record at create time
          */
         mcd_fth_osd_remove_entry(shard, hash_entry, shard->persistent, false);
+        plus_objs--;
+        plus_blks -= lba_to_use(shard, hash_entry->blocks);
 
         (void) __sync_fetch_and_add( &shard->num_overwrites, 1 );
     }
@@ -5272,6 +5250,8 @@ mcd_fth_osd_slab_set( void * context, mcd_osd_shard_t * shard, char * key,
                     (void) __sync_fetch_and_add( &shard->blk_consumed,
                                                  new_entry.blocks );
                     mcd_fth_osd_remove_entry( shard, &new_entry, false, true);
+                    plus_objs--;
+                    plus_blks -= lba_to_use(shard, hash_entry->blocks);
                     (void)__sync_fetch_and_add(&shard->num_hard_overflows, 1);
                     mcd_log_msg(80044,PLAT_LOG_LEVEL_ERROR,
                           "hash table overflow area full. num_hard_overflows=%lu",
@@ -5360,6 +5340,8 @@ mcd_fth_osd_slab_set( void * context, mcd_osd_shard_t * shard, char * key,
         }
         log_write( shard, &log_rec );
     }
+    plus_objs++;
+    plus_blks += blk_to_use(shard, blocks);
 
     *hash_entry = new_entry;
     shard->addr_table[blk_offset] = hash_entry - shard->hash_table;
@@ -5374,13 +5356,24 @@ out:
         mcd_fth_osd_iobuf_free( buf );
     }
 
-    if (rc != FLASH_EOK)
-        plus_objs = plus_blks = 0;
+    int room = inc_cntr_map(cntr_id, plus_objs, plus_blks, 0);
+    if (vc_evict && (!room || rc == FLASH_ENOMEM)) {
+        osd_state_t *osd_state = (osd_state_t *) context;
+        fthUnlock(osd_state->osd_wait);
+        osd_state->osd_wait = NULL;
 
-    plus_objs -= done_objs;
-    plus_blks -= done_blks;
-    if (plus_objs || plus_blks)
-        inc_cntr_map(cntr_id, plus_objs, plus_blks * MCD_OSD_BLK_SIZE);
+        int i;
+        for (i = 0; i < 2; i++) {
+            if (evict_object(shard, cntr_id, blocks)) {
+                uint64_t used = blk_to_use(shard, blocks);
+                if (inc_cntr_map(cntr_id, -1, -used, 0))
+                    break;
+            }
+        }
+
+        if (rc == FLASH_ENOMEM)
+            rc = FLASH_EOK;
+    }
 
     return rc;
 }
@@ -5990,7 +5983,7 @@ mcd_osd_shard_create( struct flashDev * dev, uint64_t shard_id,
                 mcd_shard = Mcd_osd_slab_shards[i];
                 mcd_log_msg( 20380, PLAT_LOG_LEVEL_DEBUG,
                              "shard found, id=%lu", shard_id );
-                plat_assert_always( 1 == mcd_shard->open );
+                plat_assert_always( 1 == mcd_shard->opened );
                 return (struct shard *)mcd_shard;
             }
         }
@@ -6349,7 +6342,7 @@ mcd_osd_shard_open( struct flashDev * dev, uint64_t shard_id )
         return NULL;
     }
 
-    plat_assert_always( 0 == mcd_shard->open );
+    plat_assert_always( 0 == mcd_shard->opened );
 
     if ( flash_settings.enable_fifo &&
          FLASH_SHARD_INIT_PERSISTENCE_YES !=
@@ -6442,7 +6435,7 @@ mcd_osd_shard_open( struct flashDev * dev, uint64_t shard_id )
     if(slab_gc_enabled)
         slab_gc_init(mcd_shard, getProperty_Int("FDF_SLAB_GC_THRESHOLD", 70 /* % */));
 
-    mcd_shard->open = 1;
+    mcd_shard->opened = 1;
 
 #if 0 /* Do not preallocated one segment for each class. */
     /*
@@ -6498,7 +6491,7 @@ mcd_osd_shard_close( struct shard * _shard )
 	if(shard->gc)
 		slab_gc_end(shard);
 
-	shard->open = 0;
+	shard->opened = 0;
 
 	flog_close((struct shard*)shard);
 
@@ -6680,7 +6673,8 @@ mcd_osd_flash_put( struct ssdaio_ctxt * pctxt, struct shard * shard,
         }
     }
 
-    fthUnlock( osd_state->osd_wait );
+    if (osd_state->osd_wait)
+        fthUnlock(osd_state->osd_wait);
 
     return ret;
 }
@@ -7767,7 +7761,8 @@ mcd_osd_raw_set( osd_state_t     *osd_state,
                                &metaData,                     // meta_data
                                syndrome );
 
-    fthUnlock( osd_state->osd_wait );
+    if (osd_state->osd_wait)
+        fthUnlock(osd_state->osd_wait);
 
     return flash_to_sdf_status( rc );
 }
@@ -8451,7 +8446,8 @@ mcd_osd_delete_expired( osd_state_t *osd_state, mcd_osd_shard_t * shard )
                                            &dummy_meta,           // meta_data
                                            syndrome );
 
-                fthUnlock( osd_state->osd_wait );
+                if (osd_state->osd_wait)
+                    fthUnlock(osd_state->osd_wait);
 
                 if ( FLASH_EOK == rc ) {
                     if ( exp_delete ) {
@@ -8956,111 +8952,3 @@ SDF_status_t process_raw_get_command_enum(
 
     return(status);
 }
-
-
-/*
- * Convert a number of block to the actual number that is being used.
- */
-baddr_t
-mcd_osd_blk_to_use(mcd_osd_shard_t *shard, baddr_t blk)
-{
-    if (blk > MCD_OSD_OBJ_MAX_BLKS)
-        fatal("block too large %ld", (uint64_t) blk);
-    return shard->slab_classes[shard->class_table[blk]].slab_blksize;
-}
-
-static void
-mcd_fth_osd_delete_hash(
-	mcd_osd_shard_t *shard, 
-	mcd_osd_hash_t *hash, 
-	uint64_t bkt_i )
-{
-    baddr_t baddr = hash->address;
-
-    hash->deleted = 1;
-    mcd_logrec_object_t log ={
-        .syndrome       = hash->syndrome,
-        .deleted        = 1,
-        .reserved       = 0,
-        .blocks         = 0,
-        .bucket         = bkt_i * Mcd_osd_bucket_size,
-        .blk_offset     = baddr,
-        .old_offset     = ~baddr,
-        .cntr_id        = hash->cntr_id,
-        .seqno          = 0,
-        .target_seqno   = 0,
-    };
-
-    log_write(shard, &log);
-
-    bool delayed = shard->replicated || (shard->persistent && !shard->evict_to_free);
-    mcd_fth_osd_remove_entry(shard, hash, delayed, true);
-}
-
-int
-mcd_fth_osd_evict_container_objects( 
-	mcd_osd_shard_t *shard, 
-	FDF_cguid_t 	 cguid, 
-	SDF_size_t 	 	 size )
-{
-    uint64_t lock_i				= 0;
-	int		 deleted_blocks 	= 0; 
-	int		 required_blocks 	= 0;
-	int		 deleted_objs		= 0;
-    uint64_t bkts_per_lock 		= shard->lock_bktsize / Mcd_osd_bucket_size;
-
-    for ( lock_i = 0; lock_i < shard->lock_buckets; lock_i++ ) {
-        int 			 i					= 0;
-        uint64_t 		 bi					= 0;
-		SDF_size_t		 raw_len			= 0;
-        mcd_osd_hash_t  *hash				= NULL;
-        fthLock_t 		*lock 				= &shard->bucket_locks[lock_i];
-    	fthWaitEl_t		*wait 				= fthLock(lock, 0, NULL);
-
-    	raw_len = sizeof(mcd_osd_meta_t) + size;
-    	required_blocks = ( raw_len + ( Mcd_osd_blk_size - 1 ) ) / Mcd_osd_blk_size;
-
-        for ( bi = 0; bi < bkts_per_lock && deleted_blocks <= required_blocks; bi++ ) {
-            uint64_t 			 bkt_i 	= lock_i * bkts_per_lock + bi;
-            mcd_osd_bucket_t 	*bucket = &shard->hash_buckets[ bkt_i ];
-            hash = &shard->hash_table[ bkt_i * Mcd_osd_bucket_size ];
-
-            for ( i = bucket->next_item; i--; ) {
-                //if ( !hash[ i ].used || !hash[ i ].blocks || cguid != hash[ i ].cntr_id )
-                if ( cguid != hash[ i ].cntr_id )
-                    continue;
-
-				deleted_blocks += hash[ i ].blocks;
-                mcd_fth_osd_delete_hash( shard, &hash[ i ], bkt_i );
-                //mcd_fth_osd_delete_hash( shard, &hash[ i ], &hash[ i ] - shard->hash_table, target_seqno );
-				++deleted_objs;
-                hash[ i ] = hash[ --bucket->next_item ];
-            }
-        }
-
-		if ( deleted_blocks < required_blocks ) {
-        	uint64_t in = lock_i * Mcd_osd_overflow_depth;
-        	hash = &shard->overflow_table[ in ];
-
-        	for ( i = 0; i < Mcd_osd_overflow_depth && deleted_blocks <= required_blocks; i++, hash++ ) {
-            	//if ( !hash->used || !hash->blocks || cguid != hash->cntr_id )
-            	if ( !hash->used || cguid != hash->cntr_id )
-                	continue;
-
-            	uint64_t bkt_i = lock_i * bkts_per_lock + shard->overflow_index[ in + i ] % bkts_per_lock;
-				deleted_blocks += hash->blocks;
-            	mcd_fth_osd_delete_hash( shard, hash, bkt_i );
-            	//mcd_fth_osd_delete_hash( shard, hash, hash - shard->hash_table, target_seqno );
-				++deleted_objs;
-        	}
-		}
-
-        fthUnlock( wait );
-    }
-
-	if ( deleted_objs || deleted_blocks )
-    	inc_cntr_map(cguid, -1 * deleted_objs, -1 * deleted_blocks * MCD_OSD_BLK_SIZE);
-
-	return deleted_blocks >= required_blocks;
-}
-
