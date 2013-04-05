@@ -156,7 +156,6 @@ void disable_stats_auto_dump() ;
 int is_auto_dump_enabled() ;
 char *FDFGetNextContainerName(struct FDF_thread_state *fdf_thread_state,int *index);
 FDF_status_t async_command_delete_container(FDF_cguid_t cguid);
-FDF_status_t async_command_evict_objs(FDF_cguid_t cguid, uint32_t size_free);
 void get_async_delete_stats( uint32_t *num_deletes,uint32_t *num_prog);
 FDF_status_t fdf_delete_container_async_end(
                                 struct FDF_thread_state *fdf_thread_state,
@@ -165,10 +164,6 @@ FDF_status_t fdf_delete_container_async_start(
                                 struct FDF_thread_state *fdf_thread_state,
                                 FDF_cguid_t cguid, FDF_container_mode_t mode );
 void init_async_cmd_handler(int num_thds, struct FDF_state *fdf_state);
-FDF_status_t fdf_evict_container_objs( 
-	struct FDF_thread_state *fdf_thread_state, 
-	FDF_cguid_t cguid, 
-    uint32_t size_free);
 void wait_for_container_del();
 
 extern int fdf_instance_id;

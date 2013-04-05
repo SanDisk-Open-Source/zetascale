@@ -66,7 +66,6 @@ static uint32_t num_threads;
 
 typedef enum {
     FDF_ASYNC_CMD_DELETE_CTNR,    
-    FDF_ASYNC_CMD_DELETE_OBJ,
     FDF_ASYNC_CMD_EXIT
 }FDF_ASYNC_CMD;
 
@@ -157,9 +156,6 @@ static void async_handler_thread(uint64_t arg){
 			 */			
 			check_if_zero_num_deletes_pend();
         }
-        else if( req->cmd == FDF_ASYNC_CMD_DELETE_OBJ) {
-			fdf_evict_container_objs(thd_state, req->cguid, req->size_free);
-        }
         else if( req->cmd == FDF_ASYNC_CMD_EXIT ) {
             plat_free(req);
             break; 
@@ -195,21 +191,6 @@ FDF_status_t async_command_delete_container(FDF_cguid_t cguid) {
 }
 
 struct FDF_state *my_fdf_state = NULL;
-
-FDF_status_t async_command_evict_objs(FDF_cguid_t cguid, uint32_t size_free) {
-    async_cmd_req_t *req;
-    req = (async_cmd_req_t *)plat_alloc(sizeof( async_cmd_req_t));
-    if ( req == NULL ) {
-        plat_log_msg(160071,LOG_CAT, LOG_ERR,
-                                         "Memory allocation failed");
-        return FDF_FAILURE;
-    }
-    req->cmd = FDF_ASYNC_CMD_DELETE_OBJ;
-    req->cguid = cguid;
-    req->size_free = size_free;
-    fthMboxPost(&async_cmds_hdr_mbox,(uint64_t)req);
-    return FDF_SUCCESS;
-}
 
 FDF_status_t async_command_exit() {
     async_cmd_req_t *req;

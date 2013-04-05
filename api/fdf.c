@@ -2761,33 +2761,6 @@ FDF_status_t FDFDeletePhysicalContainer(
 							   );
 }
 
-FDF_status_t fdf_evict_container_objs(
-	struct FDF_thread_state *fdf_thread_state, 
-	FDF_cguid_t 			 cguid, 
-	uint32_t 				 size_free )
-{
-	shard_t 			*shard	= NULL; 
-	SDF_action_init_t 	*pai 	= (SDF_action_init_t *) fdf_thread_state;
-	FDF_status_t 		 status	= FDF_FAILURE;
-
-	if ( FDF_SUCCESS != ( status = is_fdf_operation_allowed() ) ) 
-		return status;
-
-	status = cguid_to_shard(pai, cguid, &shard); 
-
-	if ( status != FDF_SUCCESS ) 
-		return status;
-
-	if ( mcd_fth_osd_evict_container_objects( (mcd_osd_shard_t *)shard, cguid, size_free ) < size_free ) {
-		plat_log_msg( 160141, LOG_CAT, LOG_DBG, "Failed to make room for new object\n" );
-		status = FDF_FAILURE;
-	} else {
-		status = FDF_SUCCESS;
-	}
-
-	return status;
-}
-
 FDF_status_t fdf_delete_container_async_end(
                                 struct FDF_thread_state *fdf_thread_state,
                                                          FDF_cguid_t cguid){
