@@ -6971,7 +6971,7 @@ log_writer_thread( uint64_t arg )
 #endif
         }
 
-        mcd_rlg_msg( 20557, MCD_REC_LOG_LVL_DIAG,
+        mcd_rlg_msg( 20557, MCD_REC_LOG_LVL_TRACE,
                      "shardID=%lu, logbuf %d written, sync=%s, "
                      "log=%d, rel_off=%lu, blk_off=%lu, blk_cnt=%lu",
                      shard->id, logbuf->id, (sync_sem ? "true" : "false"),

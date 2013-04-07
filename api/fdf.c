@@ -56,6 +56,14 @@
 #define LOG_FATAL PLAT_LOG_LEVEL_FATAL
 #define BUF_LEN 4096
 #define STATS_API_TEST 1
+/*
+** Globals
+*/
+static struct sdf_agent_state agent_state;
+static sem_t Mcd_fsched_sem;
+static sem_t Mcd_initer_sem;
+
+ctnr_map_t CtnrMap[MCD_MAX_NUM_CNTRS];
 
 static FDF_status_t
 fdf_write_object(
@@ -640,6 +648,15 @@ FDF_status_t verify_stats_datastruct() {
     return FDF_SUCCESS;
 }
 
+FDF_status_t verify_datastruct_consistency() {
+    if( N_SDF_STATUS_STRINGS != N_FDF_STATUS_STRINGS ) {
+        plat_log_msg(80047, LOG_CAT, LOG_ERR,
+           "Data structure SDF_status_t(size:%d) and FDF_status_t(size:%d) is not consistent.",N_SDF_STATUS_STRINGS, N_FDF_STATUS_STRINGS);
+        return FDF_FAILURE;
+    }
+    return verify_stats_datastruct();
+}
+
 typedef enum {
     MCD_STAT_GET_KEY = 0,
     MCD_STAT_GET_DATA,
@@ -703,7 +720,6 @@ FDF_status_t FDFGetStatsStr (
 void action_stats_new_cguid(SDF_internal_ctxt_t *pac, char *str, int size, SDF_cguid_t cguid);
 void action_stats(SDF_internal_ctxt_t *pac, char *str, int size);
 
-
 /*
  * Log levels.
  */
@@ -718,7 +734,6 @@ char *Log_levels[] ={
     "error",
     "fatal"
 };
-
 
 /*
  * Set the FDF log level.
@@ -739,6 +754,17 @@ set_log_level(unsigned int level)
     }
 }
 
+FDF_status_t change_log_level(char *level) {
+    int i;
+    for (i = 0; i < nel(Log_levels); i++){
+        if (streq(level, Log_levels[i])) {
+            set_log_level(i);
+            agent_state.flash_settings.sdf_log_level = i;
+            return FDF_SUCCESS;
+        }
+    }
+    return FDF_FAILURE;
+}
 
 /*
  * Parse the FDF_LOG_LEVEL.
@@ -893,14 +919,13 @@ fdf_check_settings(flash_settings_t *osd_settings)
 	return true;
 }
 
-/*
-** Globals
-*/
-static struct sdf_agent_state agent_state;
-static sem_t Mcd_fsched_sem;
-static sem_t Mcd_initer_sem;
 
-ctnr_map_t CtnrMap[MCD_MAX_NUM_CNTRS];
+char *get_log_level() {
+    if( agent_state.flash_settings.sdf_log_level < nel(Log_levels) ) {
+        return Log_levels[agent_state.flash_settings.sdf_log_level];
+    }
+    return "Invalid level set";
+}
 
 /*
  * Check if we could allow an operation to start
@@ -1191,12 +1216,9 @@ static void *fdf_stats_thread(void *arg) {
         fprintf(stderr,"Stats Thread:Unable to open the log file /tmp/fdf_stats.log. Exiting\n");
         return NULL;
     }
-    if ( getProperty_Int( "FDF_STATS_DUMP_INTERVAL", 0 ) > 0 ) {
-        stats_dump = 1;
-    }
-
+    stats_dump = 1;
     while(1) {
-        dump_interval = getProperty_Int( "FDF_STATS_DUMP_INTERVAL", 0 ); 
+        dump_interval = getProperty_Int( "FDF_STATS_DUMP_INTERVAL", 10 ); 
         if( (stats_dump == 0) || ( dump_interval <= 0) ) {
             sleep(5);
             continue;
@@ -1260,13 +1282,10 @@ void fdf_start_stats_thread(struct FDF_state *sdf_state) {
     pthread_t thd;
     int rc;
 
-    if(getProperty_String("FDF_STATS_FILE","")[0])
-	{
-		rc = pthread_create(&thd,NULL,fdf_stats_thread,(void *)sdf_state);
-		if( rc != 0 ) {
-			fprintf(stderr,"Unable to start the stats thread\n");
-		}
-	}
+    rc = pthread_create(&thd,NULL,fdf_stats_thread,(void *)sdf_state);
+    if( rc != 0 ) {
+        fprintf(stderr,"Unable to start the stats thread\n");
+    }
 }
 
 
@@ -1419,7 +1438,7 @@ void print_configuration(int log_level) {
         "Cache size = %llu,"
         "Maximum object size = %llu",
         getProperty_Int("FDF_FLASH_SIZE", FDF_MIN_FLASH_SIZE),
-        getProperty_Int("SDF_REFORMAT", 0 )?"yes":"no",
+        getProperty_Int("FDF_REFORMAT", 0 )?"yes":"no",
         getProperty_uLongLong("FDF_CACHE_SIZE", 100000000ULL),
         getProperty_uLongLong("SDF_MAX_OBJ_SIZE", SDF_MAX_OBJ_SIZE));
     if (getProperty_Int("FDF_TEST_MODE", 0)) {
@@ -1439,7 +1458,7 @@ FDF_status_t FDFInit(
 	const char			*prop_file;
 
 
-    if (verify_stats_datastruct() != FDF_SUCCESS ) {
+    if (verify_datastruct_consistency() != FDF_SUCCESS ) {
         return FDF_FAILURE;
     }
 
@@ -1512,7 +1531,10 @@ FDF_status_t FDFInit(
     } while (rc == -1 && errno == EINTR);
 
    	plat_assert( 0 == rc );
-    fdf_start_stats_thread( *fdf_state );
+    if(getProperty_String("FDF_STATS_FILE","")[0])
+    {
+        fdf_start_stats_thread( *fdf_state );
+    }
     if ( getProperty_Int( "FDF_ADMIN_ENABLED", 1 ) == 1 ) {
         fdf_start_admin_thread(*fdf_state );
     }
@@ -1751,7 +1773,7 @@ fdf_containers_cleanup(struct FDF_state *fdf_state)
 		}
 
        plat_log_msg(160106, LOG_CAT,
-               LOG_INFO, "Closed %d containers", num_closed_containers);
+               LOG_DBG, "Closed %d containers", num_closed_containers);
 
 
 		num_closed_containers++;
@@ -1785,7 +1807,7 @@ FDF_status_t FDFShutdown(struct FDF_state *fdf_state)
 
 	if (1 == getProperty_Int("GRACEFUL_SHUTDOWN", 1)) {
 		plat_log_msg(20819, PLAT_LOG_CAT_SDF_PROT,
-				PLAT_LOG_LEVEL_INFO, "%s", "Starting graceful shutdown");
+				PLAT_LOG_LEVEL_DEBUG, "%s", "Starting graceful shutdown");
 
 		/*
 		 * Mark shutdown in progress
@@ -1803,7 +1825,7 @@ FDF_status_t FDFShutdown(struct FDF_state *fdf_state)
 		 * Phase 1: Process containers
 		 */
 		plat_log_msg(20819, PLAT_LOG_CAT_SDF_PROT,
-                    PLAT_LOG_LEVEL_INFO, "%s", "Closing containers");
+                    PLAT_LOG_LEVEL_DEBUG, "%s", "Closing containers");
 
 		status = fdf_containers_cleanup(fdf_state);
 
@@ -1820,7 +1842,7 @@ FDF_status_t FDFShutdown(struct FDF_state *fdf_state)
 		ignore(system(temp));
 	}
     plat_log_msg(80033, PLAT_LOG_CAT_SDF_PROT,
-                         PLAT_LOG_LEVEL_INFO, "Shutdown completed");
+                         PLAT_LOG_LEVEL_DEBUG, "Shutdown completed");
 	return status;
 }
 
@@ -2482,8 +2504,11 @@ FDF_status_t FDFCloseContainer(
 
 		return status;
 	}
-
-
+        status = fdf_flush_container(fdf_thread_state,cguid);
+        if( status != FDF_SUCCESS ) {
+            plat_log_msg(80048,LOG_CAT,LOG_ERR,
+                     "Failed to flush before closing the container %lu",cguid);
+        }
 	return fdf_close_container( fdf_thread_state,
 								cguid,
 								FDF_VIRTUAL_CNTR,
@@ -4633,6 +4658,9 @@ static void get_fdf_stats( SDF_internal_ctxt_t *pai, char ** ppos, int * lenp,
     // memset( buf, 0, 1024 );
     // home_stats( buf, 1024 );
     // plat_snprintfcat( ppos, lenp, "STAT %s\r\n", buf );
+    if( stat == NULL ) {
+        return;
+    }
 
     /* Enumeration statistics */
     enum_stats_t e;
@@ -5192,7 +5220,7 @@ fdf_vc_init(
     // Create the VMC
     FDFLoadCntrPropDefaults(&p);
     p.durability_level      = FDF_DURABILITY_HW_CRASH_SAFE;
-    plat_log_msg(80035,LOG_CAT, LOG_INFO, "%s Virtual Metadata Container"
+    plat_log_msg(80035,LOG_CAT, LOG_DBG, "%s Virtual Metadata Container"
                           " (name = %s,size = %lu kbytes,"
                           "persistence = %s,eviction = %s,writethrough = %s,fifo = %s,"
                           "async_writes = %s,durability = %s)",
@@ -5216,7 +5244,7 @@ fdf_vc_init(
                                                             p.size_kb * 1024);
         return FDF_FAILURE;
     }
-    plat_log_msg(80037,LOG_CAT, LOG_INFO, "%s Virtual Data Container"
+    plat_log_msg(80037,LOG_CAT, LOG_DBG, "%s Virtual Data Container"
                            " (name = %s,size = %lu kbytes,"
                            "persistence = %s,eviction = %s,writethrough = %s,fifo = %s,"
                            "async_writes = %s,durability = %s)",

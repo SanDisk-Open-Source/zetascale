@@ -408,6 +408,30 @@ FDF_status_t print_container_stats_by_cguid( struct FDF_thread_state *thd_state,
     fflush(fp);
     return FDF_SUCCESS;
 }
+static void process_log_level_cmd(struct FDF_thread_state *thd_state,
+                       FILE *fp, cmd_token_t *tokens, size_t ntokens){
+    if ( ntokens < 2 ) {
+        fprintf(fp,"Invalid argument! Type help for more info\n");
+        return;
+    }
+    if ( strcmp(tokens[1].value,"get" ) == 0 ){
+        fprintf(fp,"%s\n",get_log_level());
+    }
+    else if ( strcmp(tokens[1].value,"set" ) == 0 ){
+        if( ntokens < 3 ) {
+            fprintf(fp,"Invalid arguments! Type help for more info\n");
+            return;
+        }
+        if( change_log_level(tokens[2].value) != FDF_SUCCESS ) {
+            fprintf(fp,"Invalid log level %s! Type help for more info\n",
+                           tokens[2].value);
+        }
+    }
+    else { 
+        fprintf(fp,"Invalid argument(%s)! Type help for more info\n",
+                             tokens[1].value);
+    }
+}
 
 static void process_container_cmd(struct FDF_thread_state *thd_state, 
                        FILE *fp, cmd_token_t *tokens, size_t ntokens){
@@ -418,7 +442,6 @@ static void process_container_cmd(struct FDF_thread_state *thd_state,
     pthread_t thread;
     //fprintf(stderr,"Number of tokens:%d\n",(int)ntokens);
     if ( ntokens < 2 ) {
-        
         fprintf(fp,"Invalid argument! Type help for more info\n");
         return;
     }
@@ -513,7 +536,10 @@ static void print_admin_command_usage(FILE *fp) {
                    "container stats <container name> [v]\n"
                    "container stats_dump <container name|all> [v]\n"
                    "container autodump   <enable/disable>\n"
-                   "container list\nhelp\nquit\n\n");
+                   "container list\n"
+                   "log_level <set/get> [fatal/error/warning/info/diagnostic/"
+                   "debug/trace/trace_low/devel]\n"
+                   "help\nquit\n\n");
 }
 
 static FDF_status_t process_admin_cmd( struct FDF_thread_state *thd_state, 
@@ -539,6 +565,9 @@ static FDF_status_t process_admin_cmd( struct FDF_thread_state *thd_state,
     }
     else if( strcmp(tokens[0].value,"help") == 0 ) {
         print_admin_command_usage(fp);
+    }
+    else if( strcmp(tokens[0].value,"log_level") == 0 ) {
+        process_log_level_cmd(thd_state, fp,tokens,ntokens);
     }
     else if( strcmp(tokens[0].value,"quit") == 0 ) {
          return FDF_FAILURE;

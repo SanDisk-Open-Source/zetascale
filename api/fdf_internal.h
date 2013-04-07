@@ -170,6 +170,8 @@ extern int fdf_instance_id;
 char *get_bool_str( int val);
 char *get_durability_str(FDF_durability_level_t dura);
 void log_properties_file(const char *path, int log_level);
+FDF_status_t change_log_level(char *level);
+char *get_log_level();
 
 #ifdef __cplusplus
 }

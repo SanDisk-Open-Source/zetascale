@@ -360,7 +360,11 @@ typedef struct {
     item(SDF_FAILURE_ALREADY_IN_TRANS, /* default */) \
     item(SDF_FAILURE_NO_TRANS, /* default */) \
     item(SDF_CANNOT_DELETE_OPEN_CONTAINER, /* default */) \
-    item(SDF_FAILURE_INVALID_KEY_SIZE, /* default */)
+    item(SDF_FAILURE_INVALID_KEY_SIZE, /* default */)\
+    item(SDF_FAILURE_OPERATION_DISALLOWED, /* default */) \
+    item(SDF_FAILURE_ILLEGAL_CONTAINER_ID, /* default */) \
+    item(SDF_FAILURE_CONTAINER_NOT_FOUND, /* default */) \
+    item(SDF_UNLIMITED_CONTAINER_MUST_BE_NON_EVICTING, /* default */)
 
 
 typedef enum {

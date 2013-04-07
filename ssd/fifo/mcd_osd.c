@@ -4025,7 +4025,7 @@ mcd_fth_osd_grow_class(void* context, mcd_osd_shard_t * shard, mcd_osd_slab_clas
         }
     }
 
-    mcd_log_msg( 20357, MCD_OSD_LOG_LVL_DEBUG,
+    mcd_log_msg( 20357, MCD_OSD_LOG_LVL_TRACE,
                  "segment %d allocated for shard %lu class %ld, "
                  "blk_offset=%lu used_slabs=%lu total_slabs=%lu",
                  seg_idx, shard->id, class - shard->slab_classes,
@@ -4172,7 +4172,7 @@ mcd_fth_osd_get_slab( void * context, mcd_osd_shard_t * shard,
      * currently not much we can do if the class is empty
      */
     if ( 0 == class->num_segments ) {
-        mcd_log_msg( 80043, PLAT_LOG_LEVEL_DEBUG, 
+        mcd_log_msg( 80043, PLAT_LOG_LEVEL_TRACE, 
                                             "Slab class empty" );
         return FLASH_ENOSPC;
     }
@@ -4257,7 +4257,7 @@ mcd_fth_osd_get_slab( void * context, mcd_osd_shard_t * shard,
                                 tmp_offset - Mcd_pthread_id * slabs_per_pth
                                 + hand - (hand % slabs_per_pth);
 
-                            mcd_log_msg( 20359, MCD_OSD_LOG_LVL_DEBUG,
+                            mcd_log_msg( 20359, MCD_OSD_LOG_LVL_TRACE,
                                          "free slab, map_off=%d blk_off=%lu",
                                          tmp_offset, *blk_offset );
 
@@ -4782,7 +4782,7 @@ mcd_fth_osd_slab_set( void * context, mcd_osd_shard_t * shard, char * key,
                 continue;
             }
             if ( 0 != strncmp( buf + sizeof(mcd_osd_meta_t), key, key_len ) ) {
-                mcd_log_msg( 20006, MCD_OSD_LOG_LVL_DIAG,
+                mcd_log_msg( 20006, MCD_OSD_LOG_LVL_TRACE,
                              "key mismatch, req %s", key );
                 (void) __sync_fetch_and_add( &shard->set_hash_collisions, 1 );
                 continue;
@@ -5541,7 +5541,7 @@ mcd_fth_osd_slab_get( void * context, mcd_osd_shard_t * shard, char *key,
         }
 
         if ( 0 != strncmp( buf + sizeof(mcd_osd_meta_t), key, key_len ) ) {
-            mcd_log_msg( 20006, MCD_OSD_LOG_LVL_DIAG,
+            mcd_log_msg( 20006, MCD_OSD_LOG_LVL_TRACE,
                          "key mismatch, req %s", key );
             (void) __sync_fetch_and_add( &shard->get_hash_collisions, 1 );
             mcd_fth_osd_slab_free( data_buf );
