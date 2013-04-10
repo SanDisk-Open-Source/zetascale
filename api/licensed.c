@@ -154,7 +154,7 @@ licd_handler_thread(uint64_t arg)
 
 	bzero(&data, sizeof(lic_data_t));
 
-	plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_INFO, LOG_DBG,
+	plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_INFO, LOG_INFO,
 			"Starting Licensing Daemon (license path: %s)...", lic_path);
 	memset(&abstime, 0, sizeof(struct timespec));
 	
@@ -174,8 +174,6 @@ licd_handler_thread(uint64_t arg)
 			licd_init = true;
 			plat_log_msg(160151, LOG_CAT, LOG_INFO,
 					"License daemon initialized\n");
-			plat_log_msg(160152, LOG_CAT, LOG_INFO,
-					"Waking up other threads\n");
 			pthread_cond_broadcast(&licd_cv);
 			pthread_mutex_unlock(&licd_mutex);
 		}
