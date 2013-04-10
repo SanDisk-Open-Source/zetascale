@@ -276,9 +276,7 @@ update_lic_info(lic_data_t	*data)
 					char ver[32] = {0};
 					sprintf(ver, "%s.", maj);
 					if (!strstr(FDF_REVISION, ver)){
-						ld_state = LS_PROD_MISMATCH;
-					} else {
-						ld_state = LS_VALID;
+						ld_state = LS_VER_MISMATCH;
 					}
 				} else {
 					ld_state = LS_PROD_MISMATCH;

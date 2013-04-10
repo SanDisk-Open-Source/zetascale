@@ -31,6 +31,7 @@ char *lic_state_msg[] = {
 	"Data is not entered for one of the fields.",
 	"License key does not match.",
 	"License is not for this product.",
+	"License is not for this version.",
 	"License is not for this machine.",
 	"License file is invalid.",
 };

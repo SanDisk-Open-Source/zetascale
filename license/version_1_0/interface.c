@@ -145,14 +145,15 @@ flf_gen_lic_file_v1_0(char *in, char **out)
 			ret = LS_DATA_MISSING;
 			goto out;
 		}
-		if (getTimeDiff(prt_ent[FROM_INDX], prt_ent[TO_INDX], &from, &to) == -1) {
+		if (getTimeDiff(prt_ent[FROM_INDX], prt_ent[TO_INDX], &from,
+							&to) == -1) {
 			ret = LS_FORMAT_INVALID;
 			goto out;
 		}
 	}
 	if (sscanf(prt_ent[MAC_INDX], "%x:%x:%x:%x:%x:%x",
-				&mac_license[0], &mac_license[1], &mac_license[2],
-				&mac_license[3], &mac_license[4], &mac_license[5]) != 6) {
+			&mac_license[0], &mac_license[1], &mac_license[2],
+			&mac_license[3], &mac_license[4], &mac_license[5]) != 6) {
 		ret = LS_FORMAT_INVALID;
 		goto out;
 	}
@@ -440,7 +441,9 @@ flf_get_license_details_v1_0(char *in, lic_data_t *data)
 		if (getTimeDiff(prt_ent[FROM_INDX], prt_ent[TO_INDX], &from, &to) != -1) {
 			copyas(LDI_DIFF_FROM, double, from);
 			copyas(LDI_DIFF_TO, double, to);
-			if (to <= 0) {
+			if (from < 0) {
+				data->fld_state = LS_NOTBEGUN;
+			} else if (to <= 0) {
 				data->fld_state = LS_EXPIRED;
 			}	
 		} else {

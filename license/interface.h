@@ -50,6 +50,7 @@ enum lic_state {
 	LS_DATA_MISSING,	//Invalid as data is missing
 	LS_KEY_MISMATCH,	//Invalid due to key mismatch
 	LS_PROD_MISMATCH,	//Invalid, license is not for this product
+	LS_VER_MISMATCH,	//Invalid, license is not for this version
 	LS_MAC_MISMATCH,	//Invalid, license is not for this machine
 	LS_INVALID,		//Invalid.
 };
