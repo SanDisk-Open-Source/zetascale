@@ -180,6 +180,9 @@ static FDF_status_t
 static FDF_status_t 
 (*ptr_FDFMiniTransactionCommit)(struct FDF_thread_state *fdf_thread_state);
 
+static FDF_status_t 
+(*ptr_FDFGetVersion)(struct FDF_thread_state *fdf_thread_state, char **str);
+
 
 /*
  * Linkage table.
@@ -219,6 +222,7 @@ static struct {
     { "FDFStrError",                   &ptr_FDFStrError                  },
     { "FDFMiniTransactionStart",       &ptr_FDFMiniTransactionStart      },
     { "FDFMiniTransactionCommit",      &ptr_FDFMiniTransactionCommit     },
+    { "FDFGetVersion",                 &ptr_FDFGetVersion                },
 };
 
 
@@ -812,4 +816,17 @@ FDFMiniTransactionCommit(struct FDF_thread_state *fdf_thread_state)
         undefined("FDFMiniTransactionCommit");
 
     return (*ptr_FDFMiniTransactionCommit)(fdf_thread_state);
+}
+
+
+/*
+ * FDFGetVersion
+ */
+FDF_status_t 
+FDFGetVersion(struct FDF_thread_state *fdf_thread_state, char **str)
+{
+    if (unlikely(!ptr_FDFGetVersion))
+        undefined("FDFGetVersion");
+
+    return (*ptr_FDFGetVersion)(fdf_thread_state, str);
 }

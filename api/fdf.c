@@ -14,6 +14,7 @@
 #include <stdio.h>
 #include <stdint.h>
 #include <unistd.h>
+#include <string.h>
 
 #include "sdf.h"
 #include "sdf_internal.h"
@@ -5367,5 +5368,35 @@ FDF_status_t FDFMiniTransactionCommit(
 	default:
 		return (FDF_FAILURE);
 	}
+}
+/**
+ * @brief Return version of FDF
+ *
+ * @param fdf_thread_state <IN> The SDF context for which this operation applies
+ * @return String having the versions
+ * 	   NULL if failed internally
+ */
+
+FDF_status_t
+FDFGetVersion(
+	struct FDF_thread_state *fdf_thread_state,
+	char **str
+	)
+{
+	if (!str) {
+		return FDF_INVALID_PARAMETER;
+	}
+	*str = NULL;
+
+#ifdef FDF_REVISION
+	size_t	len = strlen(FDF_REVISION) + 1;
+	*str = (char *)plat_malloc(len);
+	if (str) {
+		memcpy(*str, FDF_REVISION, len);
+		*(*str + len) ='\0';
+		return FDF_SUCCESS;
+	}
+#endif
+	return FDF_FAILURE;
 }
 
