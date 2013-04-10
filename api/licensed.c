@@ -278,7 +278,7 @@ update_lic_info(lic_data_t	*data)
 					if (!strstr(FDF_REVISION, ver)){
 						ld_state = LS_PROD_MISMATCH;
 					} else {
-						ld_state = LS_PROD_MISMATCH;
+						ld_state = LS_VALID;
 					}
 				} else {
 					ld_state = LS_PROD_MISMATCH;
