@@ -649,7 +649,7 @@ FDF_status_t verify_stats_datastruct() {
 }
 
 FDF_status_t verify_datastruct_consistency() {
-    if( N_SDF_STATUS_STRINGS != N_FDF_STATUS_STRINGS ) {
+    if( (FDF_status_t) N_SDF_STATUS_STRINGS != N_FDF_STATUS_STRINGS ) {
         plat_log_msg(80047, LOG_CAT, LOG_ERR,
            "Data structure SDF_status_t(size:%d) and FDF_status_t(size:%d) is not consistent.",N_SDF_STATUS_STRINGS, N_FDF_STATUS_STRINGS);
         return FDF_FAILURE;

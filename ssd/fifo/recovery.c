@@ -4843,7 +4843,7 @@ evict_object(mshard_t *shard, cguid_t cguid, uint64_t nblks)
                     continue;
 
                 del_obj_hash(shard, hash);
- 				(void) __sync_fetch_and_add( &shard->num_slab_evictions, 1 );
+ 		atomic_inc(shard->num_slab_evictions);
                 fthUnlock(wait);
                 return 1;
             }
@@ -4864,7 +4864,7 @@ evict_object(mshard_t *shard, cguid_t cguid, uint64_t nblks)
                     continue;
 
                 del_obj_over(shard, hash);
- 				(void) __sync_fetch_and_add( &shard->num_slab_evictions, 1 );
+ 		atomic_inc(shard->num_slab_evictions);
                 fthUnlock(wait);
                 return 1;
             }
