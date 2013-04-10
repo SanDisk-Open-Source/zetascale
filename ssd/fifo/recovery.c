@@ -4645,7 +4645,7 @@ fix_overflow(mshard_t *shard, uint64_t bkt_i, int move)
 
         if (oi == Mcd_osd_overflow_depth)
             return;
-        if (bucket->next_item != Mcd_osd_overflow_depth - 1)
+        if (bucket->next_item != Mcd_osd_bucket_size - 1)
             fatal("fix_overflow issue next=%d", bucket->next_item);
 
         mhash_t *hashb = &shard->hash_table[bkt_i * Mcd_osd_bucket_size];
