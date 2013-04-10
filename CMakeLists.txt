@@ -51,8 +51,10 @@ ENDIF(NOT PERMISSIVE)
 add_subdirectory(agent)
 add_subdirectory(api)
 add_subdirectory(api/tests)
+add_subdirectory(cmds)
 add_subdirectory(ecc)
 add_subdirectory(fth)
+add_subdirectory(license)
 add_subdirectory(misc)
 add_subdirectory(platform)
 add_subdirectory(protocol)
@@ -72,6 +74,7 @@ $<TARGET_OBJECTS:api>
 $<TARGET_OBJECTS:ecc> 
 $<TARGET_OBJECTS:fth> 
 $<TARGET_OBJECTS:hotkey> 
+$<TARGET_OBJECTS:license>
 $<TARGET_OBJECTS:misc> 
 $<TARGET_OBJECTS:platform> 
 $<TARGET_OBJECTS:protocol> 

@@ -26,6 +26,8 @@ extern "C" {
 #define STATS_BUFFER_SIZE 1024
 #define MCD_FTH_STACKSIZE 81920
 
+#define FDF_PRODUCT_NAME	"Flash Data Fabric"
+#define FDF_LICENSE_PATH	"/opt/sandisk/fdf/license"
 typedef struct FDF_state {
     uint64_t           cguid_cntr;
 } FDF_state_t;
@@ -172,6 +174,10 @@ char *get_durability_str(FDF_durability_level_t dura);
 void log_properties_file(const char *path, int log_level);
 FDF_status_t change_log_level(char *level);
 char *get_log_level();
+
+bool licd_start(const char *, struct FDF_state *);
+void wait_for_licd_start();
+bool is_license_valid();
 
 #ifdef __cplusplus
 }

@@ -364,7 +364,8 @@ typedef struct {
     item(SDF_FAILURE_OPERATION_DISALLOWED, /* default */) \
     item(SDF_FAILURE_ILLEGAL_CONTAINER_ID, /* default */) \
     item(SDF_FAILURE_CONTAINER_NOT_FOUND, /* default */) \
-    item(SDF_UNLIMITED_CONTAINER_MUST_BE_NON_EVICTING, /* default */)
+    item(SDF_UNLIMITED_CONTAINER_MUST_BE_NON_EVICTING, /* default */) \
+    item(SDF_LICENSE_CHK_FAILED, /* default */)
 
 
 typedef enum {

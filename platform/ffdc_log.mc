@@ -3268,6 +3268,22 @@
 160142 Failed to evict object: %s - %s, continuing to search for victims
 160143 Zero or negative size key is provided
 160144 Unlimited containers must be non-evicting.
+160145 License check failed.
+160146 Initializing %s (Rev:%s)
+160147 Creation of license daemon failed\n
+160148 License path not specified
+160149 Starting Licensing daemon failed.
+160150 Starting Licensing Daemon...
+160151 License daemon initialized\n
+160152 Waking up other threads\n
+160153 Waiting for License daemon to start
+160154 Woken up by License daemon
+160155 License has expired. Renew the license.
+160156 License is invalid. %s Install valid license.
+160157 License invalid beyond grace period. FDF will fail.
+160158 FDF will be functional for next %d days, %d hours and %d minutes only.
+160159 Valid license found (%s/%s).
+160160 License will expire in next %d days, %d hours and %d minutes.
 
 
 # rico

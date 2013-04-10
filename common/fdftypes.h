@@ -198,7 +198,8 @@ typedef uint64_t FDF_cguid_t;
     item(FDF_FAILURE_OPERATION_DISALLOWED, /* default */) \
     item(FDF_FAILURE_ILLEGAL_CONTAINER_ID, /* default */) \
     item(FDF_FAILURE_CONTAINER_NOT_FOUND, /* default */) \
-    item(FDF_UNLIMITED_CONTAINER_MUST_BE_NON_EVICTING, /* default */)
+    item(FDF_UNLIMITED_CONTAINER_MUST_BE_NON_EVICTING, /* default */) \
+    item(FDF_LICENSE_CHK_FAILED, /* default */)
 
 
 typedef enum {

@@ -1142,6 +1142,14 @@ static void fdf_fth_initer(uint64_t arg)
 {
     struct sdf_agent_state    	*state 		= (struct sdf_agent_state *) arg;
 
+
+
+    wait_for_licd_start();
+    if (is_license_valid() == false) {
+	plat_log_msg(160145, LOG_CAT, LOG_WARN, "License check failed.");
+	goto out;
+    }	
+
     /*
      *  Final SDF Initialization
      */
@@ -1153,6 +1161,7 @@ static void fdf_fth_initer(uint64_t arg)
 
     mcd_fth_start_osd_writers();
 
+out:
     /*
      * signal the parent thread
      */
@@ -1488,8 +1497,8 @@ FDF_status_t FDFInit(
     set_log_level( agent_state.flash_settings.sdf_log_level );
 
     #ifdef FDF_REVISION
-    plat_log_msg(80020, LOG_CAT, LOG_INFO,
-            "Initializing Flash Data Fabric (Rev:%s)",FDF_REVISION);
+    plat_log_msg(160146, LOG_CAT, LOG_INFO,
+            "Initializing %s (Rev:%s)", FDF_PRODUCT_NAME, FDF_REVISION);
     #endif
     if ( prop_file != NULL ) {
         plat_log_msg(80032, LOG_CAT, LOG_INFO, "Property file: %s",prop_file);
@@ -1503,7 +1512,14 @@ FDF_status_t FDFInit(
     // spawn initer thread (like mcd_fth_initer)
     fthResume( fthSpawn( &fdf_fth_initer, MCD_FTH_STACKSIZE ),
                (uint64_t) &agent_state );
-
+    //Start License daemon
+    if (!licd_start(getProperty_String("FDF_LICENSE_PATH", FDF_LICENSE_PATH),
+		                          *fdf_state)) {
+	    mcd_log_msg(160147, PLAT_LOG_LEVEL_FATAL, 
+			    "Creation of license daemon failed\n");
+	    return FDF_FAILURE;
+    }
+    
     //ipf_set_active( 1 );
 
     // spawn scheduler startup process
@@ -1511,7 +1527,6 @@ FDF_status_t FDFInit(
     pthread_attr_setdetachstate( &attr, PTHREAD_CREATE_JOINABLE );
 
     num_sched = agent_state.flash_settings.num_cores;
-
     rc = pthread_create( &run_sched_pthread, 
 						 &attr, 
 						 fdf_run_schedulers,
@@ -1523,8 +1538,14 @@ FDF_status_t FDFInit(
 					 rc );
 		return rc;
     }
-
     mcd_log_msg( 150022, PLAT_LOG_LEVEL_TRACE, "scheduler startup process created" );
+    
+    
+    wait_for_licd_start();
+    if (is_license_valid() == false) {
+	plat_log_msg(160145, LOG_CAT, LOG_WARN, "License check failed.");
+	return FDF_LICENSE_CHK_FAILED;
+    }	
 
     // Wait until mcd_fth_initer is done
     do {
@@ -1892,6 +1913,10 @@ FDF_status_t FDFOpenContainer(
         plat_log_msg(160129, LOG_CAT,
                LOG_WARN, "Shutdown in Progress. Operation not allowed");
 		return status;
+	}
+	if (is_license_valid() == false) {
+		plat_log_msg(160145, LOG_CAT, LOG_WARN, "License check failed.");
+		return FDF_LICENSE_CHK_FAILED;
 	}
 
 	if ( flags & FDF_CTNR_CREATE ) {
@@ -2757,6 +2782,10 @@ FDF_status_t FDFDeleteContainer(
                LOG_DBG, "Shutdown in Progress. Operation not allowed ");
 		return status;
 	}
+	if (is_license_valid() == false) {
+		plat_log_msg(160145, LOG_CAT, LOG_WARN, "License check failed.");
+		return FDF_LICENSE_CHK_FAILED;
+	}
 
 	/*
 	 * Application can only perform operations on a virtual container.
@@ -3323,6 +3352,10 @@ FDF_status_t FDFGetContainers(
                 LOG_WARN, "Shutdown in Progress. Operation not allowed");
 		return status;
 	}
+	if (is_license_valid() == false) {
+		plat_log_msg(160145, LOG_CAT, LOG_WARN, "License check failed.");
+		return FDF_LICENSE_CHK_FAILED;
+	}
 
 	status = fdf_get_containers(fdf_thread_state, cguids, n_cguids);
 	return status;
@@ -3379,6 +3412,10 @@ FDF_status_t FDFGetContainerProps(
         plat_log_msg(160129, LOG_CAT,
                 LOG_WARN, "Shutdown in Progress. Operation not allowed");
 		return status;
+	}
+	if (is_license_valid() == false) {
+		plat_log_msg(160145, LOG_CAT, LOG_WARN, "License check failed.");
+		return FDF_LICENSE_CHK_FAILED;
 	}
 	status = fdf_get_container_props(fdf_thread_state, cguid, pprops);	
 
@@ -3465,6 +3502,10 @@ FDF_status_t FDFSetContainerProps(
                LOG_WARN, "Shutdown in Progress. Operation not allowed ");
 		return status;
 	}
+	if (is_license_valid() == false) {
+		plat_log_msg(160145, LOG_CAT, LOG_WARN, "License check failed.");
+		return FDF_LICENSE_CHK_FAILED;
+	}
 
 	status = fdf_set_container_props(fdf_thread_state, cguid, pprops);
 	return status;
@@ -3542,6 +3583,10 @@ FDF_status_t FDFReadObject(
 
 		return status;
 	}
+	if (is_license_valid() == false) {
+		plat_log_msg(160145, LOG_CAT, LOG_WARN, "License check failed.");
+		return FDF_LICENSE_CHK_FAILED;
+	}
 
 	status = fdf_read_object(fdf_thread_state, cguid, key, keylen, data, datalen);
 
@@ -3613,6 +3658,10 @@ FDF_status_t FDFReadObjectExpiry(
 		return status;
 	}
 
+	if (is_license_valid() == false) {
+		plat_log_msg(160145, LOG_CAT, LOG_WARN, "License check failed.");
+		return FDF_LICENSE_CHK_FAILED;
+	}
 	status = fdf_read_object_expiry(fdf_thread_state, cguid, robj);
 
 	return status; 
@@ -3704,6 +3753,10 @@ FDF_status_t FDFWriteObject(
 
 		return status;
 	}
+	if (is_license_valid() == false) {
+		plat_log_msg(160145, LOG_CAT, LOG_WARN, "License check failed.");
+		return FDF_LICENSE_CHK_FAILED;
+	}
 
 	status = fdf_write_object(fdf_thread_state, cguid, key, keylen, data, datalen, flags);
 
@@ -3791,6 +3844,10 @@ FDF_status_t FDFWriteObjectExpiry(
 
 		return status;
 	}
+	if (is_license_valid() == false) {
+		plat_log_msg(160145, LOG_CAT, LOG_WARN, "License check failed.");
+		return FDF_LICENSE_CHK_FAILED;
+	}
 
 	status = fdf_write_object_expiry(fdf_thread_state, cguid, wobj, flags);
 
@@ -3855,6 +3912,10 @@ FDF_status_t FDFDeleteObject(
                LOG_WARN, "Shutdown in Progress. Operation not allowed ");
 
 		return status;
+	}
+	if (is_license_valid() == false) {
+		plat_log_msg(160145, LOG_CAT, LOG_WARN, "License check failed.");
+		return FDF_LICENSE_CHK_FAILED;
 	}
 
 	status = fdf_delete_object(fdf_thread_state, cguid, key, keylen);

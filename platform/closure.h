@@ -1,5 +1,9 @@
 #ifndef PLATFORM_CLOSURE_H
 #define PLATFORM_CLOSURE_H 1
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 
 /*
  * File:   sdf/platform/closure.h
@@ -926,4 +930,7 @@ plat_closure_scheduler_set(plat_closure_scheduler_t *scheduler) {
 
 __END_DECLS
 
+#ifdef __cplusplus
+}
+#endif
 #endif /* ndef PLATFORM_CLOSURE_H */
