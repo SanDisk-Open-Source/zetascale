@@ -52,6 +52,7 @@ typedef struct SDF_home_flash_entry {
 } SDF_home_flash_entry_t;
 
 typedef struct SDF_action_thrd_state {
+
     uint32_t                thrdnum;
     SDF_vnode_t             mynode;
     uint32_t                nnodes;
@@ -104,6 +105,11 @@ typedef struct SDF_action_thrd_state {
     /* to check for memory leaks */
     int64_t                   nflash_bufs;
     int64_t                   nresp_msgs;
+
+    /*
+     * Flag that indicates this thread context is in use.
+     */
+    bool ctxt_in_use;
 
 } SDF_action_thrd_state_t;
 

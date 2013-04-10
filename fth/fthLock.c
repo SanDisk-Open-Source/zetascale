@@ -5,7 +5,7 @@
  * Created on February 29, 2008
  *
  * (c) Copyright 2008, Schooner Information Technology, Inc.
- * http:                                     //www.schoonerinfotech.com/
+ * http: //www.schoonerinfotech.com/
  *
  */
 
@@ -29,6 +29,11 @@
 void fthLockInitName(fthLock_t *lock, const char *name, const char * f) 
 {
     pthread_mutex_init(&(lock->mutex), NULL);
+#ifdef DEBUG_BUILD
+    lock->owner_tid = -1; //Invalid tid 0xfffffffff..
+    lock->locking_func = NULL;
+#endif 
+    lock->locks = 0;
 }
 
 /**
@@ -38,6 +43,17 @@ void fthLockInitName(fthLock_t *lock, const char *name, const char * f)
  */
 void fthUnlock(fthWaitEl_t *lockEl) 
 {
+    plat_assert(lockEl->locks == 1);
+#ifdef DEBUG_BUILD
+    plat_assert(lockEl->locking_func != NULL);
+//  plat_assert(pthread_self() == lockEl->owner_tid); //lock and unlock from same thread
+
+    lockEl->owner_tid = -1;
+    lockEl->locking_func = NULL;
+    lockEl->last_unlock_func =  __builtin_return_address(0);
+#endif 
+    lockEl->locks--;
+
     pthread_mutex_unlock(&(lockEl->mutex));
 }
 
@@ -62,6 +78,16 @@ void fthDemoteLock(fthWaitEl_t *lockEl)
 fthWaitEl_t *fthLock(fthLock_t *lock, int write, fthWaitEl_t *waitEl) 
 {
     pthread_mutex_lock(&(lock->mutex));
+    plat_assert(lock->locks == 0);
+    lock->locks++;
+  
+#ifdef DEBUG_BUILD 
+    lock->owner_tid = pthread_self();
+    plat_assert(lock->locking_func == NULL);
+    lock->locking_func = __builtin_return_address(0);
+    lock->last_unlock_func = NULL;
+#endif 
+    
     return lock;
 }
 
@@ -78,6 +104,13 @@ fthWaitEl_t *fthTryLock(fthLock_t *lock, int write, fthWaitEl_t *waitEl)
     fthWaitEl_t  *rv;
 
     if (pthread_mutex_trylock(&(lock->mutex)) == 0) {
+	plat_assert(lock->locks == 0);
+#ifdef DEBUG_BUILD
+        plat_assert(lock->locking_func == NULL);
+	lock->locking_func = __builtin_return_address(0);
+	lock->last_unlock_func = NULL;
+#endif 
+	lock->locks++;
         rv = lock;
     } else {
         rv = NULL;

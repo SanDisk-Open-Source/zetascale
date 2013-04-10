@@ -540,7 +540,7 @@ SDF_status_t SDFInit(
     fthResume( fthSpawn( &mcd_fth_initer, MCD_FTH_STACKSIZE ),
                (uint64_t) &agent_state);
 
-    ipf_set_active(1);
+ /*   ipf_set_active(1); */
 
     // spawn scheduler startup process
     pthread_attr_init( &attr );

@@ -65,6 +65,7 @@ typedef struct SDF_action_init {
     struct flashDev        *flash_dev;
 #endif
     uint32_t                flash_dev_count;
+    
 } SDF_action_init_t;
 
 typedef struct {

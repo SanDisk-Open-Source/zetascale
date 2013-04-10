@@ -6629,6 +6629,8 @@ mcd_osd_flash_put( struct ssdaio_ctxt * pctxt, struct shard * shard,
     osd_state->osd_wait =
         fthLock( (fthLock_t *)osd_state->osd_lock, 1, NULL );
 
+    plat_assert(osd_state->osd_lock == osd_state->osd_wait);
+
     if ( mcd_shard->use_fifo ) {
         ret = mcd_fth_osd_fifo_set( (void *)pctxt,
                                     mcd_shard,
@@ -6672,6 +6674,7 @@ mcd_osd_flash_put( struct ssdaio_ctxt * pctxt, struct shard * shard,
             backup_decr_pending_seqno( mcd_shard, window );
         }
     }
+
 
     if (osd_state->osd_wait)
         fthUnlock(osd_state->osd_wait);
@@ -8733,16 +8736,18 @@ mcd_osd_lba_to_blk_x(uint32_t blocks) {
     return mcd_osd_lba_to_blk(blocks);
 }
 
-#if 0
+#if 1
 /*
  * Exportable version of mcd_fth_osd_grow_class.
  */
 int
 mcd_fth_osd_grow_class_x(mcd_osd_shard_t *shard, mcd_osd_slab_class_t *class)
 {
-    return mcd_fth_osd_grow_class(shard, class) == -1;
+    return 0;
+    //return mcd_fth_osd_grow_class(shard, class) == -1;
 }
-#endif
+
+#endif 
 
 /************************************************************************
  *                                                                      *

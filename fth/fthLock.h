@@ -23,8 +23,12 @@
 /** @brief The lock data structure for sleep-type read-write locks */
 typedef struct fthLock {
     pthread_mutex_t     mutex;
-    const char * name;                       // file and line number, for now
-    const char * func;                       // __PRETTY_FUNCTION__
+    int locks;
+#ifdef DEBUG_BUILD
+    void *locking_func;
+    pthread_t owner_tid;
+    void *last_unlock_func;
+#endif 
 } fthLock_t;
 
 typedef fthLock_t fthWaitEl_t;

@@ -929,13 +929,46 @@ char *get_log_level() {
 }
 
 /*
+ * Lock and unlock the thread context.
+ */
+inline bool
+fdf_lock_thd_ctxt(struct FDF_thread_state *thd_state)
+{
+	bool ret = false;
+	SDF_action_init_t *pai = (SDF_action_init_t*) thd_state;
+	SDF_action_thrd_state_t *pts = (SDF_action_thrd_state_t *)
+					pai->pts;
+	plat_assert(pts->ctxt_in_use == false);
+
+	ret = !(__sync_fetch_and_or(&pts->ctxt_in_use, true));
+	return ret;
+}
+
+inline void
+fdf_unlock_thd_ctxt(struct FDF_thread_state *thd_state)
+{
+	SDF_action_init_t *pai = (SDF_action_init_t*) thd_state;
+	SDF_action_thrd_state_t *pts = (SDF_action_thrd_state_t *)
+					pai->pts;
+	
+	plat_assert(pts->ctxt_in_use == true);
+	bool oldval = __sync_fetch_and_and(&pts->ctxt_in_use, false);
+
+	/*
+	 * It was indeed locked.
+	 */
+	plat_assert(oldval == true);
+}
+
+/*
  * Check if we could allow an operation to start
  * XXX: TODO We would pass an operation as an argument to this
  *            function.
  * @param [in] void
  * @retval SDF_boolean_t, SDF_TRUE for success
  */
-FDF_status_t is_fdf_operation_allowed(void)
+FDF_status_t 
+is_fdf_operation_allowed(void)
 {
 	FDF_status_t status = FDF_SUCCESS;
 
@@ -1637,6 +1670,11 @@ FDF_status_t FDFInitPerThreadState(
     plat_assert_always( NULL != pts );
     pts->phs = state->ActionInitState.pcs;
 
+    /*
+     * Mark the thread context free.
+     */
+    pts->ctxt_in_use = false;
+
     pai_new->pts = (void *) pts;
     InitActionAgentPerThreadState( pai_new->pcs, pts, pai_new );
     pai_new->paio_ctxt = pts->pai->paio_ctxt;
@@ -1905,18 +1943,31 @@ FDF_status_t FDFOpenContainer(
 		)
 {
 	FDF_status_t status		= FDF_SUCCESS;
+	bool thd_ctx_locked = false;
 
 	/*
 	 * Check if operation can begin
 	 */
 	if (FDF_SUCCESS != (status = is_fdf_operation_allowed())) {
-        plat_log_msg(160129, LOG_CAT,
-               LOG_WARN, "Shutdown in Progress. Operation not allowed");
-		return status;
+		plat_log_msg(160129, LOG_CAT,
+		       LOG_WARN, "Shutdown in Progress. Operation not allowed");
+		goto out;
 	}
 	if (is_license_valid() == false) {
 		plat_log_msg(160145, LOG_CAT, LOG_WARN, "License check failed.");
-		return FDF_LICENSE_CHK_FAILED;
+		status = FDF_LICENSE_CHK_FAILED;
+		goto out;
+	}
+
+	thd_ctx_locked = fdf_lock_thd_ctxt(fdf_thread_state);
+	if (false == thd_ctx_locked) {
+		/*
+		 * Could not get thread context lock, error out.
+		 */
+		status = FDF_THREAD_CONTEXT_BUSY;
+		plat_log_msg(160161, LOG_CAT,
+		       	     LOG_DBG, "Could not get thread context lock");
+		goto out;
 	}
 
 	if ( flags & FDF_CTNR_CREATE ) {
@@ -1938,6 +1989,10 @@ FDF_status_t FDFOpenContainer(
 				FDF_TRUE );
 	}
 
+out:
+	if (thd_ctx_locked) {
+		fdf_unlock_thd_ctxt(fdf_thread_state);
+	}
 	return status;
 }
 
@@ -2407,7 +2462,6 @@ static FDF_status_t fdf_open_container(
     }
 
     if ( !isContainerNull( CtnrMap[i_ctnr].sdf_container ) ) {
-        SDFEndSerializeContainerOp( pai );
         plat_log_msg( 160032, LOG_CAT, LOG_DBG, "Already opened or error: %s - %s", cname, SDF_Status_Strings[status] );
 		goto out;
     }
@@ -2519,6 +2573,7 @@ FDF_status_t FDFCloseContainer(
     //plat_assert(fdf_thread_state);
 
 	FDF_status_t status = FDF_SUCCESS;
+	bool thd_ctx_locked = false;
 	
 	/*
 	 * Check if operation can begin
@@ -2528,19 +2583,38 @@ FDF_status_t FDFCloseContainer(
 				LOG_ERR, "is_fdf_operation_allowed:%s",
 				FDF_Status_Strings[status]);
 
-		return status;
+		goto out;
 	}
+
+	thd_ctx_locked = fdf_lock_thd_ctxt(fdf_thread_state);
+	if (false == thd_ctx_locked) {
+		/*
+		 * Could not get thread context lock, error out.
+		 */
+		status = FDF_THREAD_CONTEXT_BUSY;
+		plat_log_msg(160161, LOG_CAT,
+		       	     LOG_DBG, "Could not get thread context lock");
+		goto out;
+	}
+
         status = fdf_flush_container(fdf_thread_state,cguid);
         if( status != FDF_SUCCESS ) {
             plat_log_msg(80048,LOG_CAT,LOG_ERR,
                      "Failed to flush before closing the container %lu",cguid);
         }
-	return fdf_close_container( fdf_thread_state,
-								cguid,
-								FDF_VIRTUAL_CNTR,
-								FDF_TRUE,
-                                FDF_TRUE
-							  );
+
+	status = fdf_close_container(fdf_thread_state,
+					cguid,
+					FDF_VIRTUAL_CNTR,
+					FDF_TRUE,
+					FDF_TRUE);
+
+
+out:
+	if (thd_ctx_locked) {
+		fdf_unlock_thd_ctxt(fdf_thread_state);
+	}
+	return status;
 }
 
 FDF_status_t FDFClosePhysicalContainer(
@@ -2773,18 +2847,20 @@ FDF_status_t FDFDeleteContainer(
 {
 
 	FDF_status_t status = FDF_SUCCESS;
+	bool thd_ctx_locked = false;
 
 	/*
 	 * Check if operation can begin
 	 */
 	if (FDF_SUCCESS != (status = is_fdf_operation_allowed())) {
-       plat_log_msg(80022, LOG_CAT,
+	       plat_log_msg(80022, LOG_CAT,
                LOG_DBG, "Shutdown in Progress. Operation not allowed ");
-		return status;
+		goto out;
 	}
 	if (is_license_valid() == false) {
 		plat_log_msg(160145, LOG_CAT, LOG_WARN, "License check failed.");
-		return FDF_LICENSE_CHK_FAILED;
+		status = FDF_LICENSE_CHK_FAILED;
+		goto out;
 	}
 
 	/*
@@ -2797,11 +2873,26 @@ FDF_status_t FDFDeleteContainer(
 		plat_log_msg(160125, LOG_CAT,
 				LOG_ERR, "Failed due to an illegal container ID:%s",
 				FDF_Status_Strings[status]);
+		goto out;
+	}
 
-		return status;
+	thd_ctx_locked = fdf_lock_thd_ctxt(fdf_thread_state);
+	if (false == thd_ctx_locked) {
+		/*
+		 * Could not get thread context lock, error out.
+		 */
+		status = FDF_THREAD_CONTEXT_BUSY;
+		plat_log_msg(160161, LOG_CAT,
+		       	     LOG_DBG, "Could not get thread context lock");
+		goto out;
 	}
 
 	status = fdf_delete_container(fdf_thread_state, cguid, FDF_VIRTUAL_CNTR);
+
+out:
+	if (thd_ctx_locked) {
+		fdf_unlock_thd_ctxt(fdf_thread_state);
+	}
 	return status;
 }
 
@@ -3343,21 +3434,39 @@ FDF_status_t FDFGetContainers(
 	)
 {
 	FDF_status_t status = FDF_SUCCESS;
+	bool thd_ctx_locked = false;
 
 	/*
 	 * Check if operation can begin
 	 */
 	if (FDF_SUCCESS != (status = is_fdf_operation_allowed())) {
-        plat_log_msg(160129, LOG_CAT,
-                LOG_WARN, "Shutdown in Progress. Operation not allowed");
-		return status;
+		plat_log_msg(160129, LOG_CAT,
+			LOG_WARN, "Shutdown in Progress. Operation not allowed");
+		goto out;
 	}
 	if (is_license_valid() == false) {
 		plat_log_msg(160145, LOG_CAT, LOG_WARN, "License check failed.");
-		return FDF_LICENSE_CHK_FAILED;
+		status = FDF_LICENSE_CHK_FAILED;
+		goto out;
+	}
+
+	thd_ctx_locked = fdf_lock_thd_ctxt(fdf_thread_state);
+	if (false == thd_ctx_locked) {
+		/*
+		 * Could not get thread context lock, error out.
+		 */
+		status = FDF_THREAD_CONTEXT_BUSY;
+		plat_log_msg(160161, LOG_CAT,
+		       	     LOG_DBG, "Could not get thread context lock");
+		goto out;
 	}
 
 	status = fdf_get_containers(fdf_thread_state, cguids, n_cguids);
+
+out:
+	if (thd_ctx_locked) {
+		fdf_unlock_thd_ctxt(fdf_thread_state);
+	}
 	return status;
 }
 
@@ -3404,21 +3513,39 @@ FDF_status_t FDFGetContainerProps(
 	)
 {
 	FDF_status_t status = FDF_SUCCESS;
+	bool thd_ctx_locked = false;
 
 	/*
 	 * Check if operation can begin
 	 */
 	if (FDF_SUCCESS != (status = is_fdf_operation_allowed())) {
-        plat_log_msg(160129, LOG_CAT,
-                LOG_WARN, "Shutdown in Progress. Operation not allowed");
-		return status;
+		plat_log_msg(160129, LOG_CAT,
+			LOG_WARN, "Shutdown in Progress. Operation not allowed");
+		goto out;
 	}
+
+	thd_ctx_locked = fdf_lock_thd_ctxt(fdf_thread_state);
+	if (false == thd_ctx_locked) {
+		/*
+		 * Could not get thread context lock, error out.
+		 */
+		status = FDF_THREAD_CONTEXT_BUSY;
+		plat_log_msg(160161, LOG_CAT,
+		       	     LOG_DBG, "Could not get thread context lock");
+		goto out;
+	}
+
 	if (is_license_valid() == false) {
 		plat_log_msg(160145, LOG_CAT, LOG_WARN, "License check failed.");
-		return FDF_LICENSE_CHK_FAILED;
+		status = FDF_LICENSE_CHK_FAILED;
+		goto out;
 	}
 	status = fdf_get_container_props(fdf_thread_state, cguid, pprops);	
 
+out:
+	if (thd_ctx_locked) {
+		fdf_unlock_thd_ctxt(fdf_thread_state);
+	}
 	return status;
 }
 
@@ -3492,7 +3619,8 @@ FDF_status_t FDFSetContainerProps(
 	FDF_container_props_t	*pprops
 	)
 {
-    FDF_status_t             status = FDF_SUCCESS;
+	FDF_status_t  status = FDF_SUCCESS;
+	bool thd_ctx_locked = false;
 
 	/*
 	 * Check if operation can begin
@@ -3500,14 +3628,31 @@ FDF_status_t FDFSetContainerProps(
 	if (FDF_SUCCESS != (status = is_fdf_operation_allowed())) {
         plat_log_msg(80022, LOG_CAT,
                LOG_WARN, "Shutdown in Progress. Operation not allowed ");
-		return status;
+		goto out;
 	}
 	if (is_license_valid() == false) {
 		plat_log_msg(160145, LOG_CAT, LOG_WARN, "License check failed.");
-		return FDF_LICENSE_CHK_FAILED;
+		status = FDF_LICENSE_CHK_FAILED;
+		goto out;
+	}
+
+	thd_ctx_locked = fdf_lock_thd_ctxt(fdf_thread_state);
+	if (false == thd_ctx_locked) {
+		/*
+		 * Could not get thread context lock, error out.
+		 */
+		status = FDF_THREAD_CONTEXT_BUSY;
+		plat_log_msg(160161, LOG_CAT,
+		       	     LOG_DBG, "Could not get thread context lock");
+		goto out;
 	}
 
 	status = fdf_set_container_props(fdf_thread_state, cguid, pprops);
+
+out:
+	if (thd_ctx_locked) {
+		fdf_unlock_thd_ctxt(fdf_thread_state);
+	}
 	return status;
 }
 
@@ -3573,6 +3718,7 @@ FDF_status_t FDFReadObject(
 	)
 {
 	FDF_status_t status = FDF_SUCCESS;
+	bool thd_ctx_locked = false;
 
 	/*
 	 * Check if operation can begin
@@ -3580,16 +3726,31 @@ FDF_status_t FDFReadObject(
 	if (FDF_SUCCESS != (status = is_fdf_operation_allowed())) {
         plat_log_msg(80022, LOG_CAT,
                LOG_WARN, "Shutdown in Progress. Operation not allowed ");
+		goto out;
+	}
 
-		return status;
+	thd_ctx_locked = fdf_lock_thd_ctxt(fdf_thread_state);
+	if (false == thd_ctx_locked) {
+		/*
+		 * Could not get thread context lock, error out.
+		 */
+		status = FDF_THREAD_CONTEXT_BUSY;
+		plat_log_msg(160161, LOG_CAT,
+		       	     LOG_DBG, "Could not get thread context lock");
+		goto out;
 	}
 	if (is_license_valid() == false) {
 		plat_log_msg(160145, LOG_CAT, LOG_WARN, "License check failed.");
-		return FDF_LICENSE_CHK_FAILED;
+		status = FDF_LICENSE_CHK_FAILED;
+		goto out;
 	}
 
 	status = fdf_read_object(fdf_thread_state, cguid, key, keylen, data, datalen);
 
+out:
+	if (thd_ctx_locked) {
+		fdf_unlock_thd_ctxt(fdf_thread_state);
+	}
 	return status; 
 }
 
@@ -3648,6 +3809,7 @@ FDF_status_t FDFReadObjectExpiry(
     )
 {
 	FDF_status_t status = FDF_SUCCESS;
+	bool thd_ctx_locked = false;
 
 	/*
 	 * Check if operation can begin
@@ -3655,15 +3817,31 @@ FDF_status_t FDFReadObjectExpiry(
 	if (FDF_SUCCESS != (status = is_fdf_operation_allowed())) {
         plat_log_msg(80022, LOG_CAT,
                LOG_WARN, "Shutdown in Progress. Operation not allowed ");
-		return status;
+		goto out;
+	}
+
+	thd_ctx_locked = fdf_lock_thd_ctxt(fdf_thread_state);
+	if (false == thd_ctx_locked) {
+		/*
+		 * Could not get thread context lock, error out.
+		 */
+		status = FDF_THREAD_CONTEXT_BUSY;
+		plat_log_msg(160161, LOG_CAT,
+		       	     LOG_DBG, "Could not get thread context lock");
+		goto out;
 	}
 
 	if (is_license_valid() == false) {
 		plat_log_msg(160145, LOG_CAT, LOG_WARN, "License check failed.");
-		return FDF_LICENSE_CHK_FAILED;
+		status = FDF_LICENSE_CHK_FAILED;
+		goto out;
 	}
 	status = fdf_read_object_expiry(fdf_thread_state, cguid, robj);
 
+out:
+	if (thd_ctx_locked) {
+		fdf_unlock_thd_ctxt(fdf_thread_state);
+	}
 	return status; 
 }
 
@@ -3743,6 +3921,7 @@ FDF_status_t FDFWriteObject(
 	)
 {
 	FDF_status_t status = FDF_SUCCESS;
+	bool thd_ctx_locked = false;
 
 	/*
 	 * Check if operation can begin
@@ -3750,16 +3929,31 @@ FDF_status_t FDFWriteObject(
 	if (FDF_SUCCESS != (status = is_fdf_operation_allowed())) {
         plat_log_msg(80022, LOG_CAT,
                LOG_WARN, "Shutdown in Progress. Operation not allowed ");
+		goto out;
+	}
 
-		return status;
+	thd_ctx_locked = fdf_lock_thd_ctxt(fdf_thread_state);
+	if (false == thd_ctx_locked) {
+		/*
+		 * Could not get thread context lock, error out.
+		 */
+		status = FDF_THREAD_CONTEXT_BUSY;
+		plat_log_msg(160161, LOG_CAT,
+		       	     LOG_DBG, "Could not get thread context lock");
+		goto out;
 	}
 	if (is_license_valid() == false) {
 		plat_log_msg(160145, LOG_CAT, LOG_WARN, "License check failed.");
-		return FDF_LICENSE_CHK_FAILED;
+		status = FDF_LICENSE_CHK_FAILED;
+		goto out;
 	}
 
 	status = fdf_write_object(fdf_thread_state, cguid, key, keylen, data, datalen, flags);
 
+out:
+	if (thd_ctx_locked) {
+		fdf_unlock_thd_ctxt(fdf_thread_state);
+	}
 	return status;
 }
 
@@ -3834,6 +4028,7 @@ FDF_status_t FDFWriteObjectExpiry(
     )
 {
     FDF_status_t        status	= FDF_SUCCESS;
+	bool thd_ctx_locked = false;
 
 	/*
 	 * Check if operation can begin
@@ -3841,16 +4036,31 @@ FDF_status_t FDFWriteObjectExpiry(
 	if (FDF_SUCCESS != (status = is_fdf_operation_allowed())) {
         plat_log_msg(80022, LOG_CAT,
                LOG_WARN, "Shutdown in Progress. Operation not allowed ");
+		goto out;
+	}
 
-		return status;
+	thd_ctx_locked = fdf_lock_thd_ctxt(fdf_thread_state);
+	if (false == thd_ctx_locked) {
+		/*
+		 * Could not get thread context lock, error out.
+		 */
+		status = FDF_THREAD_CONTEXT_BUSY;
+		plat_log_msg(160161, LOG_CAT,
+		       	     LOG_DBG, "Could not get thread context lock");
+		goto out;
 	}
 	if (is_license_valid() == false) {
 		plat_log_msg(160145, LOG_CAT, LOG_WARN, "License check failed.");
-		return FDF_LICENSE_CHK_FAILED;
+		status = FDF_LICENSE_CHK_FAILED;
+		goto out;
 	}
 
 	status = fdf_write_object_expiry(fdf_thread_state, cguid, wobj, flags);
 
+out:
+	if (thd_ctx_locked) {
+		fdf_unlock_thd_ctxt(fdf_thread_state);
+	}
 	return status;
 }
 
@@ -3903,6 +4113,7 @@ FDF_status_t FDFDeleteObject(
 	)
 {
     FDF_status_t        status	= FDF_FAILURE;
+	bool thd_ctx_locked = false;
 
 	/*
 	 * Check if operation can begin
@@ -3910,16 +4121,31 @@ FDF_status_t FDFDeleteObject(
 	if (FDF_SUCCESS != (status = is_fdf_operation_allowed())) {
         plat_log_msg(80022, LOG_CAT,
                LOG_WARN, "Shutdown in Progress. Operation not allowed ");
+		goto out;
+	}
 
-		return status;
+	thd_ctx_locked = fdf_lock_thd_ctxt(fdf_thread_state);
+	if (false == thd_ctx_locked) {
+		/*
+		 * Could not get thread context lock, error out.
+		 */
+		status = FDF_THREAD_CONTEXT_BUSY;
+		plat_log_msg(160161, LOG_CAT,
+		       	     LOG_DBG, "Could not get thread context lock");
+		goto out;
 	}
 	if (is_license_valid() == false) {
 		plat_log_msg(160145, LOG_CAT, LOG_WARN, "License check failed.");
-		return FDF_LICENSE_CHK_FAILED;
+		status = FDF_LICENSE_CHK_FAILED;
+		goto out;
 	}
 
 	status = fdf_delete_object(fdf_thread_state, cguid, key, keylen);
 
+out:
+	if (thd_ctx_locked) {
+		fdf_unlock_thd_ctxt(fdf_thread_state);
+	}
 	return status;
 }
 
@@ -3972,6 +4198,7 @@ FDF_status_t FDFFlushObject(
 {
 
     FDF_status_t        status	= FDF_FAILURE;
+	bool thd_ctx_locked = false;
 
 	/*
 	 * Check if operation can begin
@@ -3979,12 +4206,26 @@ FDF_status_t FDFFlushObject(
 	if (FDF_SUCCESS != (status = is_fdf_operation_allowed())) {
         plat_log_msg(80022, LOG_CAT,
                LOG_WARN, "Shutdown in Progress. Operation not allowed ");
+		goto out;
+	}
 
-		return status;
+	thd_ctx_locked = fdf_lock_thd_ctxt(fdf_thread_state);
+	if (false == thd_ctx_locked) {
+		/*
+		 * Could not get thread context lock, error out.
+		 */
+		status = FDF_THREAD_CONTEXT_BUSY;
+		plat_log_msg(160161, LOG_CAT,
+		       	     LOG_DBG, "Could not get thread context lock");
+		goto out;
 	}
 
 	status = fdf_flush_object(fdf_thread_state, cguid, key, keylen);
 
+out:
+	if (thd_ctx_locked) {
+		fdf_unlock_thd_ctxt(fdf_thread_state);
+	}
 	return status;
 }
 
@@ -4057,6 +4298,7 @@ FDF_status_t FDFFlushContainer(
 	)
 {
 	FDF_status_t status = FDF_SUCCESS;
+	bool thd_ctx_locked = false;
 
 	/*
 	 * Check if operation can begin
@@ -4064,12 +4306,26 @@ FDF_status_t FDFFlushContainer(
 	if (FDF_SUCCESS != (status = is_fdf_operation_allowed())) {
         plat_log_msg(80022, LOG_CAT,
                LOG_WARN, "Shutdown in Progress. Operation not allowed ");
+		goto out;
+	}
 
-		return status;
+	thd_ctx_locked = fdf_lock_thd_ctxt(fdf_thread_state);
+	if (false == thd_ctx_locked) {
+		/*
+		 * Could not get thread context lock, error out.
+		 */
+		status = FDF_THREAD_CONTEXT_BUSY;
+		plat_log_msg(160161, LOG_CAT,
+		       	     LOG_DBG, "Could not get thread context lock");
+		goto out;
 	}
 
 	status = fdf_flush_container(fdf_thread_state, cguid);
 
+out:
+	if (thd_ctx_locked) {
+		fdf_unlock_thd_ctxt(fdf_thread_state);
+	}
 	return status;
 }
 
@@ -4101,6 +4357,7 @@ FDF_status_t FDFFlushCache(
 	)
 {
 	FDF_status_t	status	= FDF_SUCCESS;
+	bool thd_ctx_locked = false;
 
 	/*
 	 * Check if operation can begin
@@ -4108,12 +4365,26 @@ FDF_status_t FDFFlushCache(
 	if (FDF_SUCCESS != (status = is_fdf_operation_allowed())) {
         plat_log_msg(80022, LOG_CAT,
                LOG_WARN, "Shutdown in Progress. Operation not allowed ");
+		goto out;
+	}
 
-		return status;
+	thd_ctx_locked = fdf_lock_thd_ctxt(fdf_thread_state);
+	if (false == thd_ctx_locked) {
+		/*
+		 * Could not get thread context lock, error out.
+		 */
+		status = FDF_THREAD_CONTEXT_BUSY;
+		plat_log_msg(160161, LOG_CAT,
+		       	     LOG_DBG, "Could not get thread context lock");
+		goto out;
 	}
 
 	status = fdf_flush_cache(fdf_thread_state);
 
+out:
+	if (thd_ctx_locked) {
+		fdf_unlock_thd_ctxt(fdf_thread_state);
+	}
 	return status;
 }
 

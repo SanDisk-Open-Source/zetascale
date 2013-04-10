@@ -3284,6 +3284,8 @@
 160158 FDF will be functional for next %d days, %d hours and %d minutes only.
 160159 Valid license found (%s/%s).
 160160 License will expire in next %d days, %d hours and %d minutes.
+160161 Could not get thread context lock
+160162 Starting Licensing Daemon (license path: %s)...
 
 
 # rico

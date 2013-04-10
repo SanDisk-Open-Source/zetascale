@@ -154,7 +154,7 @@ licd_handler_thread(uint64_t arg)
 
 	bzero(&data, sizeof(lic_data_t));
 
-	plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_INFO, LOG_INFO,
+	plat_log_msg(160162, LOG_INFO, LOG_INFO,
 			"Starting Licensing Daemon (license path: %s)...", lic_path);
 	memset(&abstime, 0, sizeof(struct timespec));
 	
