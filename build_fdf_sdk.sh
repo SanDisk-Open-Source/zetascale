@@ -49,7 +49,7 @@ cp -f $WD/output/lib/* $SDK_DIR/lib
 cp -a $WD/api/fdf.h $SDK_DIR/include
 cp -a $WD/doc/FDF_programming_guide.docx $SDK_DIR/docs
 mkdir -p $SDK_DIR/include/common
-cp -a $WD/common/fdf{types}.h $SDK_DIR/include/common
+cp -a $WD/common/fdftypes.h $SDK_DIR/include/common
 #
 cd $SDK_DIR/..
 tar --exclude=.svn --exclude=.git --exclude=libfdf.a -czf $WD/$PKG_NAME.tar.gz $PKG_NAME
