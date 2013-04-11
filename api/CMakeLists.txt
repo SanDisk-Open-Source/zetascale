@@ -1,4 +1,4 @@
-add_definitions(-std=gnu99 -fgnu89-inline)
+add_definitions(-Wno-switch -std=gnu99 -fgnu89-inline)
 add_library(api OBJECT sdf.c fdf.c enumerate.c stats.c async_commands.c
 		licensed.c)
 add_dependencies(api ffdc)

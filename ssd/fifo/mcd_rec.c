@@ -126,7 +126,7 @@ typedef struct {
 #define MCD_REC_LABEL_BLKS      8
 
 /*
- * Operations per mini-transaction tuned for a smaller log
+ * Operations per transaction tuned for a smaller log
  */
 #define	TRX_LIMIT	100000
 
@@ -6334,7 +6334,7 @@ flog_persist(mcd_osd_shard_t *shard,
         fdatasync(shard->flush_fd);
 }
 
-static bool	trx_in_progress( mcd_osd_shard_t *, mcd_logrec_object_t *);
+static bool	trx_in_progress( mcd_osd_shard_t *, mcd_logrec_object_t *, uint64_t, mcd_osd_hash_t *);
 
 static void
 log_flush_internal( mcd_rec_logbuf_t *logbuf, uint buf_offset)
@@ -6420,16 +6420,24 @@ log_write_internal( mcd_osd_shard_t *s, mcd_logrec_object_t *lr)
 		log_sync_internal( s);
 }
 
+
 void
 log_write( mcd_osd_shard_t *s, mcd_logrec_object_t *lr)
 {
 
-	if (trx_in_progress( s, lr))
-		return;
 	lr->trx = 0;
 	fthWaitEl_t *w = fthLock( &s->log->sync_fill_lock, 1, NULL);
 	log_write_internal( s, lr);
 	fthUnlock( w);
+}
+
+
+void
+log_write_trx( mcd_osd_shard_t *s, mcd_logrec_object_t *lr, uint64_t syn, mcd_osd_hash_t *he)
+{
+
+	unless (trx_in_progress( s, lr, syn, he))
+		log_write( s, lr);
 }
 
 
@@ -7625,18 +7633,29 @@ mcd_rec_attach_test( int testcmd, int test_arg )
 
 
 /*
- * mini-transaction section
+ * Section to support transactions
  */
 
 #include	"mcd_trx.h"
 
+
+typedef struct {
+	mcd_logrec_object_t	lr;
+	uint64_t		syn;
+	mcd_osd_hash_t		e;
+} mcd_trx_rec_t;
+
 struct mcd_trx_state {
 	mcd_osd_shard_t		*s;
-	mcd_logrec_object_t	lrtab[TRX_LIMIT];
+	mcd_trx_rec_t		trtab[TRX_LIMIT];
 	uint			n;
 	mcd_trx_t		status;
 	uint64_t		id;
 };
+
+
+void	mcd_osd_trx_revert( mcd_osd_shard_t *, mcd_logrec_object_t *, uint64_t, mcd_osd_hash_t *);
+bool	mcd_osd_trx_insert( mcd_osd_shard_t *, uint64_t, mcd_osd_hash_t *);
 
 static __thread struct mcd_trx_state	*trx;
 static mcd_trx_stats_t			mcd_trx_stats;
@@ -7678,7 +7697,9 @@ mcd_trx_start( )
  * avoided by padding the remaindered log with no-op entries (CAS type).
  *
  * Fails if transaction limit was exceeded, transaction referenced multiple
- * (physical) shards, or no transaction active.
+ * (physical) shards, or no transaction active.  In the first two cases,
+ * the transaction is rolled back automatically (see mcd_trx_rollback for
+ * those details).
  */
 mcd_trx_t
 mcd_trx_commit( )
@@ -7688,8 +7709,8 @@ mcd_trx_commit( )
 	unless (trx)
 		return (MCD_TRX_NO_TRANS);
 	unless (trx->status == MCD_TRX_OKAY)
-		mcd_trx_stats.failures++;
-	else if (trx->s) {
+		return (mcd_trx_rollback( ));
+	if (trx->s) {
 		fthWaitEl_t *w = fthLock( &trx->s->log->sync_fill_lock, 1, NULL);
 		if (trx->n > 1) {
 			mcd_rec_log_t *log = trx->s->log;
@@ -7704,14 +7725,47 @@ mcd_trx_commit( )
 			}
 		}
 		for (i=0; i<trx->n-1; ++i) {
-			trx->lrtab[i].trx = TRX_OP;
-			log_write_internal( trx->s, &trx->lrtab[i]);
+			trx->trtab[i].lr.trx = TRX_OP;
+			log_write_internal( trx->s, &trx->trtab[i].lr);
 		}
-		trx->lrtab[i].trx = TRX_OP_LAST;
-		log_write_internal( trx->s, &trx->lrtab[i]);		/* comment out for fault injection */
+		trx->trtab[i].lr.trx = TRX_OP_LAST;
+		log_write_internal( trx->s, &trx->trtab[i].lr);
 		fthUnlock( w);
 		mcd_trx_stats.operations += trx->n;
 	}
+	mcd_trx_stats.transactions++;
+	mcd_trx_t status = trx->status;
+	plat_free( trx);
+	trx = 0;
+	return (status);
+}
+
+
+/*
+ * undo transaction in progress
+ *
+ * Callable from FDF top-level.  On return, thread's transaction
+ * is concluded.  All changes to hash table and slabs are reverted.
+ * Accumulated log entries not written, but pitched.
+ *
+ * Fails if hash table is unexpectedly full, or no transaction active.
+ */
+mcd_trx_t
+mcd_trx_rollback( )
+{
+	uint	i;
+
+	unless (trx)
+		return (MCD_TRX_NO_TRANS);
+	for (i=0; i<trx->n; ++i) {
+		mcd_trx_rec_t *r = &trx->trtab[trx->n-i-1];
+		if (r->lr.blocks)
+			mcd_osd_trx_revert( trx->s, &r->lr, r->syn, &r->e);
+		else unless (mcd_osd_trx_insert( trx->s, r->syn, &r->e))
+			trx->status = MCD_TRX_HASHTABLE_FULL;
+	}
+	unless (trx->status == MCD_TRX_OKAY)
+		mcd_trx_stats.failures++;
 	mcd_trx_stats.transactions++;
 	mcd_trx_t status = trx->status;
 	plat_free( trx);
@@ -7758,10 +7812,10 @@ mcd_trx_print_stats( FILE *f)
  * other threads should proceed to the log writer.
  *
  * Errors effectively terminate the transaction, and will be reported by
- * mcd_trx_commit( ).
+ * mcd_trx_commit/mcd_trx_rollback.
  */
 static bool
-trx_in_progress( mcd_osd_shard_t *shard, mcd_logrec_object_t *lr)
+trx_in_progress( mcd_osd_shard_t *shard, mcd_logrec_object_t *lr, uint64_t syn, mcd_osd_hash_t *e)
 {
 
 	unless (trx)
@@ -7772,8 +7826,13 @@ trx_in_progress( mcd_osd_shard_t *shard, mcd_logrec_object_t *lr)
 		trx->status = MCD_TRX_BAD_SHARD;
 		return (TRUE);
 	}
-	if (trx->n < nel( trx->lrtab))
-		trx->lrtab[trx->n++] = *lr;
+	if (trx->n < nel( trx->trtab)) {
+		trx->trtab[trx->n].lr = *lr;
+		trx->trtab[trx->n].syn = syn;
+		if (e)
+			trx->trtab[trx->n].e = *e;
+		++trx->n;
+	}
 	else
 		trx->status = MCD_TRX_TOO_BIG;
 	return (TRUE);

@@ -5655,7 +5655,7 @@ fdf_delete_objects(struct FDF_thread_state *ts, FDF_cguid_t cguid)
 
 
 /**
- * @brief Start mini transaction
+ * @brief Start transaction
  *
  * @param fdf_thread_state <IN> The SDF context for which this operation applies
  * @return FDF_SUCCESS on success
@@ -5680,8 +5680,9 @@ FDF_status_t FDFMiniTransactionStart(
 	}
 }
 
+
 /**
- * @brief Commit mini transaction
+ * @brief Commit transaction
  *
  * @param fdf_thread_state <IN> The SDF context for which this operation applies
  * @return FDF_SUCCESS on success
@@ -5693,6 +5694,8 @@ FDF_status_t FDFMiniTransactionCommit(
 	)
 {
 
+	if (fdf_thread_state == 0)	// hack until FDFTransactionRollback added to DLL
+		return (FDFTransactionRollback( fdf_thread_state));
 	switch (mcd_trx_commit( )) {
 	case MCD_TRX_NO_TRANS:
 		return (FDF_FAILURE_NO_TRANS);
@@ -5701,10 +5704,39 @@ FDF_status_t FDFMiniTransactionCommit(
 		return (FDF_TRANS_ABORTED);
 	case MCD_TRX_OKAY:
 		return (FDF_SUCCESS);
-	default:
-		return (FDF_FAILURE);
 	}
+	return (FDF_FAILURE);
 }
+
+
+/**
+ * @brief Roll back transaction
+ *
+ * @param fdf_thread_state <IN> The SDF context for which this operation applies
+ * @return FDF_SUCCESS on success
+ *         FDF_FAILURE_NO_TRANS if there is no active transaction in the current thread
+ *         FDF_TRANS_ABORTED if transaction aborted due to excessive size or internal error
+ */
+FDF_status_t FDFTransactionRollback(
+	struct FDF_thread_state	*fdf_thread_state
+	)
+{
+
+	switch (mcd_trx_rollback( )) {
+	case MCD_TRX_NO_TRANS:
+		return (FDF_FAILURE_NO_TRANS);
+	case MCD_TRX_BAD_SHARD:
+	case MCD_TRX_TOO_BIG:
+		return (FDF_TRANS_ABORTED);
+	case MCD_TRX_HASHTABLE_FULL:
+		return (FDF_CONTAINER_FULL);
+	case MCD_TRX_OKAY:
+		return (FDF_SUCCESS);
+	}
+	return (FDF_FAILURE);
+}
+
+
 /**
  * @brief Return version of FDF
  *

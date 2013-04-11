@@ -519,7 +519,8 @@ extern int  shard_set_state( mcd_osd_shard_t * shard, int new_state );
 extern int mcd_osd_shard_set_flush_time( struct shard * shard, time_t new_time );
 extern void shard_recovery_stats( mcd_osd_shard_t * shard, char ** ppos,
                                   int * lenp );
-extern void log_write( mcd_osd_shard_t * shard, mcd_logrec_object_t * data );
+extern void log_write( mcd_osd_shard_t *, mcd_logrec_object_t *);
+extern void log_write_trx( mcd_osd_shard_t *, mcd_logrec_object_t *, uint64_t, mcd_osd_hash_t *);
 extern void log_sync( mcd_osd_shard_t * shard );
 extern void log_wait( mcd_osd_shard_t * shard );
 extern uint64_t tombstone_get_rtg( mcd_osd_shard_t * shard );

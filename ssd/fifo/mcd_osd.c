@@ -4833,16 +4833,17 @@ mcd_fth_osd_slab_set( void * context, mcd_osd_shard_t * shard, char * key,
                     log_rec.blocks       = 0;  // distinguishes a delete record
                     log_rec.bucket       = syndrome % shard->hash_size;
                     log_rec.blk_offset   = hash_entry->address;
-                    if ( 0 == shard->evict_to_free ) {
-                        // store mode: delay flash space dealloc
-                        log_rec.old_offset = ~(hash_entry->address);
-                    } else {
-                        log_rec.old_offset = 0;
-                    }
                     log_rec.cntr_id      = cntr_id;
                     log_rec.seqno        = meta_data->sequence;
                     log_rec.target_seqno = target_seqno;
-                    log_write( shard, &log_rec );
+                    if ( 0 == shard->evict_to_free ) {
+                        // store mode: delay flash space dealloc
+                        log_rec.old_offset = ~(hash_entry->address);
+                        log_write_trx( shard, &log_rec, syndrome, hash_entry);
+                    } else {
+                        log_rec.old_offset = 0;
+                        log_write( shard, &log_rec );
+                    }
                 }
 
                 bool delayed = 1 == shard->replicated || (1 == shard->persistent && 0 == shard->evict_to_free);
@@ -5334,12 +5335,14 @@ mcd_fth_osd_slab_set( void * context, mcd_osd_shard_t * shard, char * key,
             // overwrite case in store mode
             log_rec.old_offset   = ~(hash_entry->address);
             log_rec.target_seqno = target_seqno;
+            log_write_trx( shard, &log_rec, syndrome, hash_entry);
         } else {
             log_rec.old_offset   = 0;
             log_rec.target_seqno = 0;
+            log_write_trx( shard, &log_rec, syndrome, 0);
         }
-        log_write( shard, &log_rec );
     }
+
     plus_objs++;
     plus_blks += blk_to_use(shard, blocks);
 
@@ -8956,4 +8959,149 @@ SDF_status_t process_raw_get_command_enum(
     *addr_out    = curr_addr + 1;
 
     return(status);
+}
+
+
+/*
+ * Section to support transactions
+ */
+
+#include	"utils/rico.h"
+
+#define	overflowoffset( s, syn)	((syn) % (s)->hash_size / (s)->lock_bktsize * Mcd_osd_overflow_depth)
+#define	overflowtable( s, syn)	((s)->overflow_table + overflowoffset( (s), (syn)))
+#define	overflowindex( s, syn)	((s)->overflow_index + overflowoffset( (s), (syn)))
+
+
+/*
+ * transaction rollback
+ *
+ * An object create/update operation is rolled back by deleting the hash
+ * table entry and deallocating the slab.  No logging occurs.  If the
+ * original op was an update, the previous object value is restored to the
+ * hash table (its slab was preserved).
+ */
+void
+mcd_osd_trx_revert( mcd_osd_shard_t *s, mcd_logrec_object_t *lr, uint64_t syn, mcd_osd_hash_t *orig)
+{
+
+	fthLock_t *bl = s->bucket_locks + syn%s->hash_size/s->lock_bktsize;
+	fthWaitEl_t *w = fthLock( bl, 0, 0);
+	mcd_osd_bucket_t *b = s->hash_buckets + syn%s->hash_size / Mcd_osd_bucket_size;
+	mcd_osd_hash_t *e = s->hash_table + (syn%s->hash_size & Mcd_osd_bucket_mask);
+	uint i = 0;
+	loop {
+		unless (i < b->next_item) {
+			if (b->overflowed) {
+				mcd_osd_hash_t *oe = overflowtable( s, syn);
+				uint16_t *bo = overflowindex( s, syn);
+				for (uint j=0; j<Mcd_osd_overflow_depth; ++j)
+					if ((oe[j].used)
+					and (oe[j].address == lr->blk_offset)) {
+						if (lr->old_offset) {
+							oe[j] = *orig;
+							bo[j] = (b-s->hash_buckets) % s->lock_bktsize;
+							s->addr_table[oe[j].address] = &oe[j] - s->hash_table;
+						}
+						else
+							*(uint64_t *)&oe[j] = 0;
+						j = 0;
+						loop {
+							unless (j < Mcd_osd_overflow_depth) {
+								b->overflowed = 0;
+								break;
+							}
+							if ((oe[j].used)
+							and ((b-s->hash_buckets)%s->lock_bktsize == bo[j]))
+								break;
+							++j;
+						}
+						mcd_fth_osd_slab_dealloc( s, lr->blk_offset, false);
+						break;
+					}
+			}
+			break;
+		}
+		if (e[i].address == lr->blk_offset) {
+			if (lr->old_offset) {
+				e[i] = *orig;
+				s->addr_table[e[i].address] = &e[i] - s->hash_table;
+			}
+			else if (b->overflowed) {
+				mcd_osd_hash_t *oe = overflowtable( s, syn);
+				uint16_t *bo = overflowindex( s, syn);
+				uint j = 0;
+				loop {
+					unless (j < Mcd_osd_overflow_depth) {
+						mcd_log_msg( 170010, PLAT_LOG_LEVEL_FATAL, "hash bucket corrupt");
+						plat_abort( );
+					}
+					if ((oe[j].used)
+					and ((b-s->hash_buckets)%s->lock_bktsize == bo[j])) {
+						e[i] = oe[j];
+						*(uint64_t *)&oe[j] = 0;
+						s->addr_table[e[i].address] = &e[i] - s->hash_table;
+						loop {
+							unless (++j < Mcd_osd_overflow_depth) {
+								b->overflowed = 0;
+								break;
+							}
+							if ((oe[j].used)
+							and ((b-s->hash_buckets)%s->lock_bktsize == bo[j]))
+								break;
+						}
+						break;
+					}
+					++j;
+				}
+			}
+			else if (i < --b->next_item) {
+				e[i] = e[b->next_item];
+				s->addr_table[e[i].address] = &e[i] - s->hash_table;
+			}
+			mcd_fth_osd_slab_dealloc( s, lr->blk_offset, false);
+			break;
+		}
+		++i;
+	}
+	fthUnlock( w);
+}
+
+
+/*
+ * transaction rollback
+ *
+ * An object deletion operation is rolled back by inserting the original
+ * hash entry.  Original slab for the object has been preserved for this
+ * purpose.  No logging occurs.
+ */
+bool
+mcd_osd_trx_insert( mcd_osd_shard_t *s, uint64_t syn, mcd_osd_hash_t *orig)
+{
+
+	fthLock_t *bl = s->bucket_locks + syn%s->hash_size/s->lock_bktsize;
+	fthWaitEl_t *w = fthLock( bl, 0, 0);
+	mcd_osd_bucket_t *b = s->hash_buckets + syn%s->hash_size / Mcd_osd_bucket_size;
+	mcd_osd_hash_t *e = s->hash_table + (syn%s->hash_size & Mcd_osd_bucket_mask);
+	if (b->next_item < Mcd_osd_bucket_size) {
+		uint i = b->next_item++;
+		e[i] = *orig;
+		s->addr_table[e[i].address] = &e[i] - s->hash_table;
+	}
+	else {
+		mcd_osd_hash_t *oe = overflowtable( s, syn);
+		uint16_t *bo = overflowindex( s, syn);
+		uint j = 0;
+		while (oe[j].used)
+			unless (++j < Mcd_osd_overflow_depth) {
+				fthUnlock( w);
+				return (FALSE);
+			}
+		oe[j] = *orig;
+		bo[j] = (b-s->hash_buckets) % s->lock_bktsize;
+		s->addr_table[oe[j].address] = &oe[j] - s->hash_table;
+		b->overflowed = 1;
+	}
+	fthUnlock( w);
+	return (TRUE);
 }

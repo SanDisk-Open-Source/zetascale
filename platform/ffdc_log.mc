@@ -3296,6 +3296,7 @@
 170007 TRX cannot be applied due to insufficient memory
 170008 TRX too big to apply
 170009 TRX sequence anomaly
+170010 hash bucket corrupt
 
 
 # efirsov
