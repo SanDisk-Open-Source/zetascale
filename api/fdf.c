@@ -396,9 +396,9 @@ fdf_stats_info_t fdf_stats_flash[] = {
     {"NUM_CREATED_OBJS","num_items_total",FDF_STATS_TYPE_FLASH},/*FDF_FLASH_STATS_NUM_CREATED_OBJS*/
     {"NUM_EVICTIONS","num_evictions_flash",FDF_STATS_TYPE_FLASH},/*FDF_FLASH_STATS_NUM_EVICTIONS*/
     {"HASH_EVICTIONS","num_hash_evictions",FDF_STATS_TYPE_FLASH},/*FDF_FLASH_STATS_NUM_HASH_EVICTIONS*/
-    {"INVAL_EVICTIONS","nun_inval_evictions",FDF_STATS_TYPE_FLASH},/*FDF_FLASH_STATS_NUM_INVAL_EVICTIONS*/
-    {"SOFT_OVERFLOWS","nun_inval_evictions",FDF_STATS_TYPE_FLASH},/*FDF_FLASH_STATS_NUM_SOFT_OVERFLOWS*/
-    {"NUM_HARD_OVERFLOWS","nun_inval_evictions",FDF_STATS_TYPE_FLASH},/*FDF_FLASH_STATS_NUM_HARD_OVERFLOWS*/
+    {"INVAL_EVICTIONS","num_inval_evictions",FDF_STATS_TYPE_FLASH},/*FDF_FLASH_STATS_NUM_INVAL_EVICTIONS*/
+    {"SOFT_OVERFLOWS","num_soft_overflows",FDF_STATS_TYPE_FLASH},/*FDF_FLASH_STATS_NUM_SOFT_OVERFLOWS*/
+    {"NUM_HARD_OVERFLOWS","num_hard_overflows",FDF_STATS_TYPE_FLASH},/*FDF_FLASH_STATS_NUM_HARD_OVERFLOWS*/
     {"GET_HASH_COLLISION","num_get_hash_collisions",FDF_STATS_TYPE_FLASH},/*FDF_FLASH_STATS_GET_HASH_COLLISION*/
     {"SET_HASH_COLLISION","num_set_hash_collisions",FDF_STATS_TYPE_FLASH},/* FDF_FLASH_STATS_SET_HASH_COLLISION*/
     {"NUM_OVERWRITES","num_overwrites",FDF_STATS_TYPE_FLASH},/*FDF_FLASH_STATS_NUM_OVERWRITES*/
@@ -407,7 +407,7 @@ fdf_stats_info_t fdf_stats_flash[] = {
     {"GET_OPS","num_get_ops",FDF_STATS_TYPE_FLASH},/*FDF_FLASH_STATS_NUM_GET_OPS*/
     {"PUT_OPS","num_put_ops",FDF_STATS_TYPE_FLASH},/*FDF_FLASH_STATS_NUM_PUT_OPS*/
     {"DEL_OPS","num_del_ops",FDF_STATS_TYPE_FLASH},/*FDF_FLASH_STATS_NUM_DEL_OPS*/
-    {"FULL_BUCKETS","num_existence_checks",FDF_STATS_TYPE_FLASH},/*FDF_FLASH_STATS_GET_EXIST_CHECKS*/
+    {"EXIST_CHECKS","num_existence_checks",FDF_STATS_TYPE_FLASH},/*FDF_FLASH_STATS_GET_EXIST_CHECKS*/
     {"FULL_BUCKETS","num_full_hash_buckets",FDF_STATS_TYPE_FLASH},/*FDF_FLASH_STATS_NUM_FULL_BUCKETS*/
     {"PENDING_IOS","num_pending_ios",FDF_STATS_TYPE_FLASH},/*FDF_FLASH_STATS_PENDING_IOS*/
     {"SPACE_ALLOCATED","flash_space_allocated",FDF_STATS_TYPE_FLASH},/*FDF_FLASH_STATS_SPACE_ALLOCATED*/
@@ -2063,6 +2063,7 @@ static FDF_status_t fdf_create_container(
 
 	properties->persistent			= SDF_TRUE;
 	//properties->evicting			= SDF_FALSE;
+	//properties->async_writes		= FDF_FALSE;
 #if 0
 	iproperties.current_size		= 0;
 	iproperties.num_obj				= 0;
@@ -2574,7 +2575,7 @@ FDF_status_t FDFCloseContainer(
 
 	FDF_status_t status = FDF_SUCCESS;
 	bool thd_ctx_locked = false;
-	
+
 	/*
 	 * Check if operation can begin
 	 */
@@ -2599,8 +2600,8 @@ FDF_status_t FDFCloseContainer(
 
         status = fdf_flush_container(fdf_thread_state,cguid);
         if( status != FDF_SUCCESS ) {
-            plat_log_msg(80048,LOG_CAT,LOG_ERR,
-                     "Failed to flush before closing the container %lu",cguid);
+            plat_log_msg(150109,LOG_CAT,LOG_ERR,
+                     "Failed to flush before closing the container %lu - %s",cguid, FDFStrError(status));
         }
 
 	status = fdf_close_container(fdf_thread_state,
@@ -2648,7 +2649,6 @@ is_container_being_deleted(FDF_cguid_t cguid)
 	if ( i_ctnr < 0 ) {
 		plat_log_msg(160138, LOG_CAT, LOG_DIAG,
 				"Container %lu is not found", cguid);
-
 		return ret;
 	}
 
@@ -2813,7 +2813,7 @@ out:
 	 * We collect the error in FDFShutdown() and emit appropriate log.
 	 */
 	if (!agent_state.op_access.is_shutdown_in_progress) {
-		plat_log_msg(20819, LOG_CAT, LOG_DIAG, "%s", FDF_Status_Strings[status]);
+		plat_log_msg(150021, LOG_CAT, LOG_DIAG, "%lu - %s", cguid, FDF_Status_Strings[status]);
 	}
 
 	if ( serialize )
@@ -2848,6 +2848,8 @@ FDF_status_t FDFDeleteContainer(
 
 	FDF_status_t status = FDF_SUCCESS;
 	bool thd_ctx_locked = false;
+
+	plat_log_msg(21630, LOG_CAT, LOG_DBG, "%lu", cguid);
 
 	/*
 	 * Check if operation can begin
@@ -2893,6 +2895,8 @@ out:
 	if (thd_ctx_locked) {
 		fdf_unlock_thd_ctxt(fdf_thread_state);
 	}
+	plat_log_msg(150021, LOG_CAT, LOG_DBG, "%lu - %s", cguid, FDFStrError(status));
+
 	return status;
 }
 
