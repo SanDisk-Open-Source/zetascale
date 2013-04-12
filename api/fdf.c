@@ -1147,6 +1147,26 @@ int fdf_get_ctnr_from_cname(
 
     return i_ctnr;
 }
+FDF_status_t fdf_get_ctnr_status(FDF_cguid_t cguid) {
+    int i, state;
+
+    state = FDF_FAILURE_CONTAINER_NOT_OPEN;
+
+    i = fdf_get_ctnr_from_cguid( cguid );
+    if ( i < 0 ) {
+        return FDF_FAILURE_CONTAINER_NOT_FOUND;
+    }
+    if ( i >= 0 ) {
+        if ( !isContainerNull(CtnrMap[i].sdf_container) ) {
+            state = FDF_CONTAINER_OPEN ;
+        }
+        if( CtnrMap[i].state == FDF_CONTAINER_STATE_DELETE_PROG ) {
+            state = FDF_CONTAINER_OPEN;
+        }
+    }
+    return state;
+}
+
 
 // Return 0 - not open, 1 - open
 int fdf_is_ctnr_open(
@@ -1652,6 +1672,11 @@ FDF_status_t FDFInitPerThreadState(
     SDF_action_init_t       *pai_new;
     SDF_action_thrd_state_t *pts;
 
+    if ( !fdf_state ) {
+        plat_log_msg(80052,LOG_CAT,LOG_DBG,
+                             "FDF state is NULL");
+        return FDF_INVALID_PARAMETER;
+    }
     struct sdf_agent_state    *state = &agent_state;
 
     fthSpawnPthread();
@@ -1861,7 +1886,11 @@ fdf_containers_cleanup(struct FDF_state *fdf_state)
  */
 FDF_status_t FDFShutdown(struct FDF_state *fdf_state)
 {
-	plat_assert(fdf_state);
+        if ( !fdf_state ) {
+            plat_log_msg(80052,LOG_CAT,LOG_DBG,
+                           "FDF state is NULL");
+            return FDF_INVALID_PARAMETER;
+        }
 
 	FDF_status_t status = FDF_SUCCESS;
 
@@ -1953,6 +1982,17 @@ FDF_status_t FDFOpenContainer(
 		       LOG_WARN, "Shutdown in Progress. Operation not allowed");
 		goto out;
 	}
+        if ( !fdf_thread_state || !cguid || ISEMPTY(cname) ) {
+            if ( !fdf_thread_state ) {
+                plat_log_msg(80049,LOG_CAT,LOG_DBG,
+                             "FDF Thread state is NULL");
+            }
+            if ( ISEMPTY(cname) ) {
+                plat_log_msg(80053,LOG_CAT,LOG_DBG,
+                             "Invalid container name");
+            }
+            return FDF_INVALID_PARAMETER;
+        }
 	if (is_license_valid() == false) {
 		plat_log_msg(160145, LOG_CAT, LOG_WARN, "License check failed.");
 		status = FDF_LICENSE_CHK_FAILED;
@@ -1971,6 +2011,14 @@ FDF_status_t FDFOpenContainer(
 	}
 
 	if ( flags & FDF_CTNR_CREATE ) {
+                uint64_t vdc_size = getProperty_Int("FDF_FLASH_SIZE", FDF_MIN_FLASH_SIZE) * 1024 * 1024 -
+                                                                       (2 * FDF_DEFAULT_CONTAINER_SIZE_KB);
+                if( properties->size_kb >  vdc_size) {
+                    plat_log_msg(80063, LOG_CAT, LOG_DBG,
+                         "Container size %lu kb greater than the flash size %lu kb",
+                              properties->size_kb,vdc_size);
+                    return FDF_FAILURE_INVALID_CONTAINER_SIZE;
+                }
 		status = fdf_create_container( fdf_thread_state,
 				cname,
 				properties,
@@ -2586,6 +2634,17 @@ FDF_status_t FDFCloseContainer(
 
 		goto out;
 	}
+        if ( !fdf_thread_state || !cguid ) {
+            if ( !fdf_thread_state ) {
+                plat_log_msg(80049,LOG_CAT,LOG_DBG,
+                             "FDF Thread state is NULL");
+            }
+            if ( !cguid ) {
+                plat_log_msg(80050,LOG_CAT,LOG_DBG,
+                             "Invalid container cguid:%lu",cguid);
+            }
+            return FDF_INVALID_PARAMETER;
+        }
 
 	thd_ctx_locked = fdf_lock_thd_ctxt(fdf_thread_state);
 	if (false == thd_ctx_locked) {
@@ -2859,6 +2918,18 @@ FDF_status_t FDFDeleteContainer(
                LOG_DBG, "Shutdown in Progress. Operation not allowed ");
 		goto out;
 	}
+        if ( !fdf_thread_state || !cguid ) {
+            if ( !fdf_thread_state ) {
+                plat_log_msg(80049,LOG_CAT,LOG_DBG,
+                             "FDF Thread state is NULL");
+            }
+            if ( !cguid ) {
+                plat_log_msg(80050,LOG_CAT,LOG_DBG,
+                             "Invalid container cguid:%lu",cguid);
+            }
+            return FDF_INVALID_PARAMETER;
+        }
+
 	if (is_license_valid() == false) {
 		plat_log_msg(160145, LOG_CAT, LOG_WARN, "License check failed.");
 		status = FDF_LICENSE_CHK_FAILED;
@@ -3448,6 +3519,12 @@ FDF_status_t FDFGetContainers(
 			LOG_WARN, "Shutdown in Progress. Operation not allowed");
 		goto out;
 	}
+       if ( !fdf_thread_state ) {
+            plat_log_msg(80049,LOG_CAT,LOG_DBG,
+                         "FDF Thread state is NULL");
+            return FDF_INVALID_PARAMETER;
+        }
+
 	if (is_license_valid() == false) {
 		plat_log_msg(160145, LOG_CAT, LOG_WARN, "License check failed.");
 		status = FDF_LICENSE_CHK_FAILED;
@@ -3527,6 +3604,17 @@ FDF_status_t FDFGetContainerProps(
 			LOG_WARN, "Shutdown in Progress. Operation not allowed");
 		goto out;
 	}
+        if ( !fdf_thread_state || !cguid ) {
+            if ( !fdf_thread_state ) {
+                plat_log_msg(80049,LOG_CAT,LOG_DBG,
+                             "FDF Thread state is NULL");
+            }
+            if ( !cguid ) {
+                plat_log_msg(80050,LOG_CAT,LOG_DBG,
+                             "Invalid container cguid:%lu",cguid);
+            }
+            return FDF_INVALID_PARAMETER;
+        }
 
 	thd_ctx_locked = fdf_lock_thd_ctxt(fdf_thread_state);
 	if (false == thd_ctx_locked) {
@@ -3634,6 +3722,21 @@ FDF_status_t FDFSetContainerProps(
                LOG_WARN, "Shutdown in Progress. Operation not allowed ");
 		goto out;
 	}
+        if ( !fdf_thread_state || !cguid || !pprops ) {
+            if ( !fdf_thread_state ) {
+                plat_log_msg(80049,LOG_CAT,LOG_DBG,
+                             "FDF Thread state is NULL");
+            }
+            if ( !cguid ) {
+                plat_log_msg(80050,LOG_CAT,LOG_DBG,
+                             "Invalid container cguid:%lu",cguid);
+            }
+            if( !pprops ) {
+                plat_log_msg(80054,LOG_CAT,LOG_DBG,
+                             "Container property is NULL");
+            }
+            return FDF_INVALID_PARAMETER;
+        }
 	if (is_license_valid() == false) {
 		plat_log_msg(160145, LOG_CAT, LOG_WARN, "License check failed.");
 		status = FDF_LICENSE_CHK_FAILED;
@@ -3679,9 +3782,9 @@ fdf_read_object(
         return FDF_INVALID_PARAMETER;
 	}
 
-    if ( !fdf_is_ctnr_open( cguid) ) {
+    if ( (status = fdf_get_ctnr_status(cguid)) != FDF_CONTAINER_OPEN ) {
         plat_log_msg( 160039, LOG_CAT, LOG_DIAG, "Container must be open to execute a read object" );
-        return FDF_FAILURE_CONTAINER_NOT_OPEN;
+        return status;
     }
 
     pac = (SDF_action_init_t *) fdf_thread_state;
@@ -3732,6 +3835,25 @@ FDF_status_t FDFReadObject(
                LOG_WARN, "Shutdown in Progress. Operation not allowed ");
 		goto out;
 	}
+        if ( !fdf_thread_state || !cguid || ISEMPTY(key) || !keylen ) {
+            if ( !fdf_thread_state ) {
+                plat_log_msg(80049,LOG_CAT,LOG_DBG,
+                             "FDF Thread state is NULL");
+            }
+            if ( !cguid ) {
+                plat_log_msg(80050,LOG_CAT,LOG_DBG,
+                             "Invalid container cguid:%lu",cguid);
+            }
+            if ( ISEMPTY(key) ) {
+                plat_log_msg(80055,LOG_CAT,LOG_DBG,
+                             "Invalid key");
+            }
+            if ( !keylen ) {
+                plat_log_msg(80056,LOG_CAT,LOG_DBG,
+                             "Invalid key length");
+            }
+            return FDF_INVALID_PARAMETER;
+        }
 
 	thd_ctx_locked = fdf_lock_thd_ctxt(fdf_thread_state);
 	if (false == thd_ctx_locked) {
@@ -3777,9 +3899,9 @@ fdf_read_object_expiry(
         return FDF_INVALID_PARAMETER;        
     }
 
-    if ( !fdf_is_ctnr_open( cguid) ) {
+    if ( (status = fdf_get_ctnr_status(cguid)) != FDF_CONTAINER_OPEN ) {
         plat_log_msg( 160039, LOG_CAT, LOG_DIAG, "Container must be open to execute a read object" );
-        return FDF_FAILURE_CONTAINER_NOT_OPEN;
+        return status;
     }
 
     pac = (SDF_action_init_t *) fdf_thread_state;
@@ -3823,6 +3945,29 @@ FDF_status_t FDFReadObjectExpiry(
                LOG_WARN, "Shutdown in Progress. Operation not allowed ");
 		goto out;
 	}
+        if ( !fdf_thread_state || !cguid || !robj || ISEMPTY(robj->key) || !robj->key_len ) {
+            if ( !fdf_thread_state ) {
+                plat_log_msg(80049,LOG_CAT,LOG_DBG,
+                             "FDF Thread state is NULL");
+            }
+            if ( !cguid ) {
+                plat_log_msg(80050,LOG_CAT,LOG_DBG,
+                             "Invalid container cguid:%lu",cguid);
+            }
+            if( !robj ) {
+                plat_log_msg(80057,LOG_CAT,LOG_DBG,
+                             "Invalid container FDF_readobject_t");
+            }
+            if ( ISEMPTY(robj->key) ) {
+                plat_log_msg(80055,LOG_CAT,LOG_DBG,
+                             "Invalid key");
+            }
+            if ( !robj->key_len ) {
+                plat_log_msg(80056,LOG_CAT,LOG_DBG,
+                             "Invalid key length");
+            }
+            return FDF_INVALID_PARAMETER;
+        }
 
 	thd_ctx_locked = fdf_lock_thd_ctxt(fdf_thread_state);
 	if (false == thd_ctx_locked) {
@@ -3877,9 +4022,9 @@ fdf_write_object(
  	if ( !cguid || !key )
  		return FDF_INVALID_PARAMETER;
  
-    if ( !fdf_is_ctnr_open( cguid) ) {
+    if ( (status = fdf_get_ctnr_status(cguid)) != FDF_CONTAINER_OPEN ) {
     	plat_log_msg( 160040, LOG_CAT, LOG_DIAG, "Container must be open to execute a write object" );
-        return FDF_FAILURE_CONTAINER_NOT_OPEN;
+        return status;
 	}
 
     pac = (SDF_action_init_t *) fdf_thread_state;
@@ -3935,6 +4080,33 @@ FDF_status_t FDFWriteObject(
                LOG_WARN, "Shutdown in Progress. Operation not allowed ");
 		goto out;
 	}
+        if ( !fdf_thread_state || !cguid || ISEMPTY(key) || !keylen || !data || !datalen  ) {
+            if ( !fdf_thread_state ) {
+                plat_log_msg(80049,LOG_CAT,LOG_DBG,
+                             "FDF Thread state is NULL");
+            }
+            if ( !cguid ) {
+                plat_log_msg(80050,LOG_CAT,LOG_DBG,
+                             "Invalid container cguid:%lu",cguid);
+            }
+            if ( ISEMPTY(key) ) {
+                plat_log_msg(80055,LOG_CAT,LOG_DBG,
+                             "Invalid key");
+            }
+            if ( !keylen ) {
+                plat_log_msg(80056,LOG_CAT,LOG_DBG,
+                             "Invalid key length");
+            }
+            if ( !data ) {
+                plat_log_msg(80058,LOG_CAT,LOG_DBG,
+                             "Invalid data(NULL)");
+            }
+            if ( !datalen ) {
+                plat_log_msg(80059,LOG_CAT,LOG_DBG,
+                             "Invalid data length");
+            }
+            return FDF_INVALID_PARAMETER;
+        }
 
 	thd_ctx_locked = fdf_lock_thd_ctxt(fdf_thread_state);
 	if (false == thd_ctx_locked) {
@@ -3985,9 +4157,9 @@ fdf_write_object_expiry (
         return FDF_BAD_PBUF_POINTER;
     }
 
-    if ( !fdf_is_ctnr_open( cguid) ) {
+    if ( (status = fdf_get_ctnr_status(cguid)) != FDF_CONTAINER_OPEN ) {
         plat_log_msg( 160040, LOG_CAT, LOG_DIAG, "Container must be open to execute a write object" );
-        return FDF_FAILURE_CONTAINER_NOT_OPEN;
+        return status;
     }
 
     pac = (SDF_action_init_t *) fdf_thread_state;
@@ -4042,6 +4214,37 @@ FDF_status_t FDFWriteObjectExpiry(
                LOG_WARN, "Shutdown in Progress. Operation not allowed ");
 		goto out;
 	}
+        if ( !fdf_thread_state || !cguid || ISEMPTY(wobj->key) || !wobj->key_len || !wobj->data || !wobj->data_len  ) {
+            if ( !fdf_thread_state ) {
+                plat_log_msg(80049,LOG_CAT,LOG_DBG,
+                             "FDF Thread state is NULL");
+            }
+            if ( !cguid ) {
+                plat_log_msg(80050,LOG_CAT,LOG_DBG,
+                             "Invalid container cguid:%lu",cguid);
+            }
+            if ( !wobj ) {
+                plat_log_msg(80060,LOG_CAT,LOG_DBG,
+                             "Invalid FDF_writeobject_t");
+            }
+            if ( ISEMPTY(wobj->key) ) {
+                plat_log_msg(80055,LOG_CAT,LOG_DBG,
+                             "Invalid key");
+            }
+            if ( !wobj->key_len ) {
+                plat_log_msg(80056,LOG_CAT,LOG_DBG,
+                             "Invalid key length");
+            }
+            if ( !wobj->data ) {
+                plat_log_msg(80061,LOG_CAT,LOG_DBG,
+                             "Invalid data (NULL)");
+            }
+            if ( !wobj->data_len ) {
+                plat_log_msg(80059,LOG_CAT,LOG_DBG,
+                             "Invalid data length");
+            }
+            return FDF_INVALID_PARAMETER;
+        }
 
 	thd_ctx_locked = fdf_lock_thd_ctxt(fdf_thread_state);
 	if (false == thd_ctx_locked) {
@@ -4084,9 +4287,9 @@ fdf_delete_object(
     if ( !cguid || !key )
         return FDF_INVALID_PARAMETER;
 
-    if ( !fdf_is_ctnr_open( cguid) ) {
+    if ( (status = fdf_get_ctnr_status(cguid)) != FDF_CONTAINER_OPEN ) {
         plat_log_msg( 160041, LOG_CAT, LOG_DIAG, "Container must be open to execute a delete object" );
-        return FDF_FAILURE_CONTAINER_NOT_OPEN;
+        return status;
     }
 
     pac = (SDF_action_init_t *) fdf_thread_state;
@@ -4127,6 +4330,25 @@ FDF_status_t FDFDeleteObject(
                LOG_WARN, "Shutdown in Progress. Operation not allowed ");
 		goto out;
 	}
+        if ( !fdf_thread_state || !cguid || ISEMPTY(key) || !keylen ) {
+            if ( !fdf_thread_state ) {
+                plat_log_msg(80049,LOG_CAT,LOG_DBG,
+                             "FDF Thread state is NULL");
+            }
+            if ( !cguid ) {
+                plat_log_msg(80050,LOG_CAT,LOG_DBG,
+                             "Invalid container cguid:%lu",cguid);
+            }
+            if ( ISEMPTY(key) ) {
+                plat_log_msg(80055,LOG_CAT,LOG_DBG,
+                             "Invalid key");
+            }
+            if ( !keylen ) {
+                plat_log_msg(80056,LOG_CAT,LOG_DBG,
+                             "Invalid key length");
+            }
+            return FDF_INVALID_PARAMETER;
+        }
 
 	thd_ctx_locked = fdf_lock_thd_ctxt(fdf_thread_state);
 	if (false == thd_ctx_locked) {
@@ -4171,9 +4393,9 @@ fdf_flush_object(
 	if ( !cguid || !key )
 		return FDF_INVALID_PARAMETER;
 
-    if ( !fdf_is_ctnr_open( cguid) ) {
+    if ( (status = fdf_get_ctnr_status(cguid)) != FDF_CONTAINER_OPEN ) {
         plat_log_msg( 160043, LOG_CAT, LOG_DIAG, "Container must be open to execute a flush object" );
-        return FDF_FAILURE_CONTAINER_NOT_OPEN;
+        return status;
     }
 
     ar.reqtype = APFLS;
@@ -4212,6 +4434,25 @@ FDF_status_t FDFFlushObject(
                LOG_WARN, "Shutdown in Progress. Operation not allowed ");
 		goto out;
 	}
+        if ( !fdf_thread_state || !cguid || ISEMPTY(key) || !keylen ) {
+            if ( !fdf_thread_state ) {
+                plat_log_msg(80049,LOG_CAT,LOG_DBG,
+                             "FDF Thread state is NULL");
+            }
+            if ( !cguid ) {
+                plat_log_msg(80050,LOG_CAT,LOG_DBG,
+                             "Invalid container cguid:%lu",cguid);
+            }
+            if ( ISEMPTY(key) ) {
+                plat_log_msg(80055,LOG_CAT,LOG_DBG,
+                             "Invalid key");
+            }
+            if ( !keylen ) {
+                plat_log_msg(80056,LOG_CAT,LOG_DBG,
+                             "Invalid key length");
+            }
+            return FDF_INVALID_PARAMETER;
+        }
 
 	thd_ctx_locked = fdf_lock_thd_ctxt(fdf_thread_state);
 	if (false == thd_ctx_locked) {
@@ -4254,9 +4495,9 @@ fdf_flush_container(
     if ( !cguid )
         return FDF_INVALID_PARAMETER;
 
-    if ( !fdf_is_ctnr_open( cguid) ) {
+    if ( (status = fdf_get_ctnr_status(cguid)) != FDF_CONTAINER_OPEN ) {
         plat_log_msg( 160044, LOG_CAT, LOG_DIAG, "Container must be open to execute a flush container" );
-        return FDF_FAILURE_CONTAINER_NOT_OPEN;
+        return status;
     }
 
     pac = (SDF_action_init_t *) fdf_thread_state;
@@ -4312,6 +4553,17 @@ FDF_status_t FDFFlushContainer(
                LOG_WARN, "Shutdown in Progress. Operation not allowed ");
 		goto out;
 	}
+        if ( !fdf_thread_state || !cguid ) {
+            if ( !fdf_thread_state ) {
+                plat_log_msg(80049,LOG_CAT,LOG_DBG,
+                             "FDF Thread state is NULL");
+            }
+            if ( !cguid ) {
+                plat_log_msg(80050,LOG_CAT,LOG_DBG,
+                             "Invalid container cguid:%lu",cguid);
+            }
+            return FDF_INVALID_PARAMETER;
+        }
 
 	thd_ctx_locked = fdf_lock_thd_ctxt(fdf_thread_state);
 	if (false == thd_ctx_locked) {
@@ -4371,6 +4623,11 @@ FDF_status_t FDFFlushCache(
                LOG_WARN, "Shutdown in Progress. Operation not allowed ");
 		goto out;
 	}
+        if ( !fdf_thread_state ) {
+            plat_log_msg(80049,LOG_CAT,LOG_DBG,
+                             "FDF Thread state is NULL");
+            return FDF_INVALID_PARAMETER;
+        }
 
 	thd_ctx_locked = fdf_lock_thd_ctxt(fdf_thread_state);
 	if (false == thd_ctx_locked) {
@@ -5171,6 +5428,11 @@ FDF_status_t FDFGetStats(
     if ( stats == NULL ) {
         return FDF_SUCCESS;
     }
+    if ( !fdf_thread_state ) {
+        plat_log_msg(80049,LOG_CAT,LOG_DBG,
+                             "FDF Thread state is NULL");
+    }
+
     memset (stats, 0, sizeof(FDF_stats_t));
     SDF_internal_ctxt_t *pai = (SDF_internal_ctxt_t *)fdf_thread_state;
     action_stats(pai, buf, BUF_LEN );
@@ -5197,8 +5459,20 @@ FDF_status_t FDFGetContainerStats(
     char stats_str[STAT_BUFFER_SIZE];
     FDF_status_t rc;
 
-    if ( stats == NULL ) {
-        return FDF_FAILURE;
+    if ( !fdf_thread_state || !cguid || !stats ) {
+        if ( !fdf_thread_state ) {
+            plat_log_msg(80049,LOG_CAT,LOG_DBG,
+                         "FDF Thread state is NULL");
+        }
+        if ( !cguid ) {
+            plat_log_msg(80050,LOG_CAT,LOG_DBG,
+                         "Invalid container cguid:%lu",cguid);
+        }
+        if ( !stats ) {
+            plat_log_msg(80062,LOG_CAT,LOG_DBG,
+                         "Invalid FDF_stats_t(NULL)");
+        }
+        return FDF_INVALID_PARAMETER;
     }
     if (cguid <= VDC_CGUID ) {
         /* The cguid is for physical container. So return error */
@@ -5574,8 +5848,8 @@ fdf_vc_init(
     // Create the VDC
     FDFLoadCntrPropDefaults(&p);
     p.durability_level      = FDF_DURABILITY_HW_CRASH_SAFE;
-    p.size_kb               = getProperty_Int("FDF_FLASH_SIZE", FDF_MIN_FLASH_SIZE) * 1024 * 1024 - 
-				(2 * FDF_DEFAULT_CONTAINER_SIZE_KB) - (32 * 1024); // Minus CMC/VMC allocation & super block
+    p.size_kb               = getProperty_Int("FDF_FLASH_SIZE", FDF_MIN_FLASH_SIZE) * 1024 * 1024 -
+                              (2 * FDF_DEFAULT_CONTAINER_SIZE_KB) - (32 * 1024); // Minus CMC/VMC allocation & super block;
     if ( (getProperty_Int("FDF_VDC_SIZE_CHECK", 1) && (p.size_kb > MAX_PHYSICAL_CONT_SIZE) ) ) {
         plat_log_msg(80036,LOG_CAT, LOG_ERR, "Unsupported size(%lu bytes) for VDC. Maximum supported size is 2TB",
                                                             p.size_kb * 1024);
@@ -5667,6 +5941,10 @@ FDF_status_t FDFMiniTransactionStart(
 	struct FDF_thread_state	*fdf_thread_state
 	)
 {
+        if ( !fdf_thread_state ) {
+            plat_log_msg(80049,LOG_CAT,LOG_DBG,
+                             "FDF Thread state is NULL");
+        }
 
 	switch (mcd_trx_start( )) {
 	case MCD_TRX_OKAY:
@@ -5693,7 +5971,10 @@ FDF_status_t FDFMiniTransactionCommit(
 	struct FDF_thread_state	*fdf_thread_state
 	)
 {
-
+        if ( !fdf_thread_state ) {
+            plat_log_msg(80049,LOG_CAT,LOG_DBG,
+                             "FDF Thread state is NULL");
+        }
 	if (fdf_thread_state == 0)	// hack until FDFTransactionRollback added to DLL
 		return (FDFTransactionRollback( fdf_thread_state));
 	switch (mcd_trx_commit( )) {

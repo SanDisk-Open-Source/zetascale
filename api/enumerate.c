@@ -21,7 +21,7 @@
 /*
  * Functions defined in fdf.c
  */
-extern int fdf_is_ctnr_open(FDF_cguid_t cguid);
+extern FDF_status_t fdf_get_ctnr_status(FDF_cguid_t cguid);
 
 
 /*
@@ -30,12 +30,13 @@ extern int fdf_is_ctnr_open(FDF_cguid_t cguid);
 FDF_status_t
 cguid_to_shard(SDF_action_init_t *pai, FDF_cguid_t cguid, shard_t **shard_ptr)
 {
+    FDF_status_t s;
     SDF_container_meta_t meta;
 
-    if (!fdf_is_ctnr_open(cguid))
-        return FDF_FAILURE_CONTAINER_NOT_OPEN;
+    if ( (s = fdf_get_ctnr_status(cguid)) != FDF_CONTAINER_OPEN )
+        return s;
     
-    FDF_status_t s = name_service_get_meta(pai, cguid, &meta);
+    s = name_service_get_meta(pai, cguid, &meta);
     if (s != FDF_SUCCESS)
         return s;
 
@@ -67,6 +68,22 @@ FDFEnumerateContainerObjects(struct FDF_thread_state *ts,
 {
     FDF_status_t s;
     struct shard *shard = NULL;
+
+    if ( !ts || !cguid || !iter ) {
+        if ( !ts ) {
+            plat_log_msg(80049,PLAT_LOG_CAT_SDF_NAMING,
+                         PLAT_LOG_LEVEL_DEBUG,"FDF Thread state is NULL");
+        }
+        if ( !cguid ) {
+            plat_log_msg(80050,PLAT_LOG_CAT_SDF_NAMING,
+                  PLAT_LOG_LEVEL_DEBUG,"Invalid container cguid:%lu",cguid);
+        }
+        if ( !iter ) {
+            plat_log_msg(80051,PLAT_LOG_CAT_SDF_NAMING,
+              PLAT_LOG_LEVEL_DEBUG, "The argument FDF_iterator is NULL");
+        }
+        return FDF_INVALID_PARAMETER;
+    }
     SDF_action_init_t *pai = (SDF_action_init_t *) ts;
 
     s = cguid_to_shard(pai, cguid, &shard);
@@ -93,6 +110,18 @@ FDFNextEnumeratedObject(struct FDF_thread_state *ts,
 {
     FDF_status_t s;
     uint64_t keylen64;
+
+    if ( !ts || !iter ) {
+        if ( !ts ) {
+            plat_log_msg(80049,PLAT_LOG_CAT_SDF_NAMING,
+                         PLAT_LOG_LEVEL_DEBUG,"FDF Thread state is NULL");
+        }
+        if ( !iter ) {
+            plat_log_msg(80051,PLAT_LOG_CAT_SDF_NAMING,
+               PLAT_LOG_LEVEL_DEBUG, "The argument FDF_iterator is NULL");
+        }
+        return FDF_INVALID_PARAMETER;
+    }
     SDF_action_init_t *pai = (SDF_action_init_t *) ts;
     
     s = enumerate_next(pai, iter, key, &keylen64, data, datalen);
@@ -111,7 +140,18 @@ FDF_status_t
 FDFFinishEnumeration(struct FDF_thread_state *ts, struct FDF_iterator *iter)
 {
     FDF_status_t s;
-    
+
+    if ( !ts || !iter ) {
+        if ( !ts ) {
+            plat_log_msg(80049,PLAT_LOG_CAT_SDF_NAMING,
+                         PLAT_LOG_LEVEL_DEBUG,"FDF Thread state is NULL");
+        }
+        if ( !iter ) {
+            plat_log_msg(80051,PLAT_LOG_CAT_SDF_NAMING,
+               PLAT_LOG_LEVEL_DEBUG, "The argument FDF_iterator is NULL");
+        }
+        return FDF_INVALID_PARAMETER;
+    }
     s = enumerate_done((SDF_action_init_t *)ts, iter);
     if (s)
         return s;

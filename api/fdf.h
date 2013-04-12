@@ -21,7 +21,6 @@ extern "C" {
 #include <stdint.h>
 
 #include "common/fdftypes.h"
-#include "common/fdfstats.h"
 
 #define CONTAINER_NAME_MAXLEN		64
 #define FDF_DEFAULT_CONTAINER_SIZE_KB	(1024 * 1024)	//1GB
@@ -523,7 +522,7 @@ FDF_status_t FDFSetContainerProps(
 /**
  *  @brief Get a copy of an object for read-only  access. Return its current expiry time.
  *
- *  Get an object and copy it into an SDF-allocated buffer. The application
+ *  Get an object and copy it into an FDF-allocated buffer. The application
  *  only intends to read the object. The current expiry time is returned.
  *
  *  @param sdf_thread_state <IN> The FDF context for which this operation applies.
@@ -531,8 +530,8 @@ FDF_status_t FDFSetContainerProps(
  *  @param key <IN> Key of object to be operated on.
  *  @param keylen <IN> Length of key in bytes.
  *  @param data <IN> Variable in which to return a pointer to the object (in a buffer
- *  allocated by SDF; it must be freed by the application with a call
- *  to SDFFreeObjectBuffer).
+ *  allocated by FDF; it must be freed by the application with a call
+ *  to FDFFreeObjectBuffer).
  *  @param datalen <OUT> Pointer to the variable in which to return the actual size of
  *  an object.
  *
@@ -555,7 +554,7 @@ FDF_status_t FDFReadObject(
 /**
  *  @brief Get a copy of an object for read-only  access. Return its current expiry time.
  *
- *  Get an object and copy it into an SDF-allocated buffer. The application
+ *  Get an object and copy it into an FDF-allocated buffer. The application
  *  only intends to read the object. The current expiry time is returned.
  *
  *  @param fdf_thread_state <IN> The FDF context for which this operation applies.
@@ -594,7 +593,7 @@ FDF_status_t FDFFreeBuffer(
  *  is set. If the object does not exist, create it and assign its
  *  value.
  *
- *  @param fdf_state <IN> The SDF context for which this operation applies.
+ *  @param fdf_state <IN> The FDF context for which this operation applies.
  *  @param cguid <IN> Identity of an open container with appropriate permissions.
  *  @param key <IN> Key of object to be operated on.
  *  @param keylen <IN> Length of key in bytes.
@@ -627,7 +626,7 @@ FDF_status_t FDFWriteObject(
  *  is set. If the object does not exist, create it and assign its
  *  value.
  *
- *  @param fdf_thread_state <IN> The SDF context for which this operation applies.
+ *  @param fdf_thread_state <IN> The FDF context for which this operation applies.
  *  @param cguid <IN> Identity of an open container with appropriate permissions.
  *  @param wobj <IN> Identity of a write object structure
  *  @param flags <IN> create/update flags
@@ -651,7 +650,7 @@ FDF_status_t FDFWriteObjectExpiry(
  *
  *  Delete an object, but check for expiry first.
  *
- *  @param fdf_thread_state <IN> The SDF context for which this operation applies.
+ *  @param fdf_thread_state <IN> The FDF context for which this operation applies.
  *  @param cguid <IN> Identity of an open container with appropriate permissions.
  *  @param key <IN> Key of object to be operated on.
  *  @param keylen <IN> Length of key in bytes.
@@ -672,7 +671,7 @@ FDF_status_t FDFDeleteObject(
 /**
  * @brief Enumerate container objects
  *
- * @param fdf_thread_state <IN> The SDF context for which this operation applies
+ * @param fdf_thread_state <IN> The FDF context for which this operation applies
  * @param cguid  <IN> container global identifier
  * @param iterator <IN> enumeration iterator
  * @return FDF_SUCCESS on success
@@ -686,7 +685,7 @@ FDF_status_t FDFEnumerateContainerObjects(
 /**
  * @brief Container object enumration iterator
  *
- * @param fdf_thread_state <IN> The SDF context for which this operation applies
+ * @param fdf_thread_state <IN> The FDF context for which this operation applies
  * @param iterator <IN> enumeration iterator
  * @param cguid  <IN> container global identifier
  * @param key <OUT> pointer to key variable
@@ -707,7 +706,7 @@ FDF_status_t FDFNextEnumeratedObject(
 /**
  * @brief Terminate enumeration
  *
- * @param fdf_thread_state <IN> The SDF context for which this operation applies
+ * @param fdf_thread_state <IN> The FDF context for which this operation applies
  * @param iterator <IN> enumeration iterator
  * @return FDF_SUCCESS on success
  */
@@ -722,10 +721,10 @@ FDF_status_t FDFFinishEnumeration(
  *  Flush any modified contents of an object to its backing store
  *  (as determined by its container type). For coherent containers,
  *  this is a global operation that applies to any cache or buffer
- *  in the SDF cluster. For non-coherent containers, this only applies
+ *  in the FDF cluster. For non-coherent containers, this only applies
  *  to the local cache.
  *
- *  @param fdf_thread_state <IN> The SDF context for which this operation applies.
+ *  @param fdf_thread_state <IN> The FDF context for which this operation applies.
  *  @param cguid <IN> Identity of an open container with appropriate permissions.
  *  @param key <IN> Key of object to be operated on.
  *  @param keylen <IN> Length of key in bytes.
@@ -759,7 +758,7 @@ FDF_status_t FDFFlushContainer(
 /**
  * @brief Flush the cache
  *
- * @param fdf_thread_state <IN> The SDF context for which this operation applies.
+ * @param fdf_thread_state <IN> The FDF context for which this operation applies.
  * @return FDF_SUCCESS on success
  */
 FDF_status_t FDFFlushCache(
@@ -769,7 +768,7 @@ FDF_status_t FDFFlushCache(
 /**
  * @brief Get FDF statistics
  *
- * @param fdf_thread_state <IN> The SDF context for which this operation applies
+ * @param fdf_thread_state <IN> The FDF context for which this operation applies
  * @param stats <OUT> pointer to statistics return structure
  * @return FDF_SUCCESS on success
  */
@@ -781,7 +780,7 @@ FDF_status_t FDFGetStats(
 /**
  * @brief Get per container statistics
  *
- * @param fdf_thread_state <IN> The SDF context for which this operation applies
+ * @param fdf_thread_state <IN> The FDF context for which this operation applies
  * @param cguid  <IN> container global identifier
  * @param stats <OUT> pointer to statistics return structure
  * @return FDF_SUCCESS on success
@@ -803,7 +802,7 @@ char *FDFStrError(FDF_status_t fdf_errno);
 /**
  * @brief Start transaction
  *
- * @param fdf_thread_state <IN> The SDF context for which this operation applies
+ * @param fdf_thread_state <IN> The FDF context for which this operation applies
  * @return FDF_SUCCESS on success
  *         FDF_FAILURE_ALREADY_IN_TRANS if thread has active transaction already
  *         FDF_OUT_OF_MEM if memory exhausted
@@ -816,7 +815,7 @@ FDF_status_t FDFMiniTransactionStart(
 /**
  * @brief Commit transaction
  *
- * @param fdf_thread_state <IN> The SDF context for which this operation applies
+ * @param fdf_thread_state <IN> The FDF context for which this operation applies
  * @return FDF_SUCCESS on success
  *         FDF_FAILURE_NO_TRANS if there is no active transaction in the current thread
  *         FDF_TRANS_ABORTED if transaction aborted due to excessive size or internal error

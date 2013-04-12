@@ -2999,6 +2999,21 @@
 80046 compact_class(async) after\n
 80047 Data structure SDF_status_t(size:%d) and FDF_status_t(size:%d) is not consistent.
 80048 Failed to flush before closing the container %lu
+80049 FDF Thread state is NULL
+80050 Invalid container cguid:%lu
+80051 The argument FDF_iterator is NULL
+80052 FDF state is NULL
+80053 Invalid container name
+80054 Container property is NULL
+80055 Invalid key
+80056 Invalid key length
+80057 Invalid container FDF_readobject_t
+80058 Invalid data(NULL)
+80059 Invalid data length
+80060 Invalid FDF_writeobject_t
+80061 Invalid data (NULL)
+80062 Invalid FDF_stats_t(NULL)
+80063 Container size %lu kb greater than the flash size %lu kb
 
 
 # kcai

@@ -206,7 +206,9 @@ void print_stats(FILE *fp, FDF_stats_t *stats) {
     fprintf(fp,"  %s:\n",
                         get_stats_catogory_desc_str(FDF_STATS_TYPE_OVERWRITES));
     for (i = 0; i < FDF_N_CACHE_STATS; i++ ) {
-        if( stats->cache_stats[i] == 0 ) {
+        if( (i != FDF_CACHE_STAT_CACHE_MISSES) &&
+            (i != FDF_CACHE_STAT_CACHE_HITS) &&
+            (stats->cache_stats[i] == 0 )  ) {
             continue;
         }
         category = get_cache_type_stats_category(i); 

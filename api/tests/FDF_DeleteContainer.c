@@ -178,7 +178,7 @@ int test_delete_invalid_cguid(uint32_t aw)
         result[aw][1][1] = 1;
     }
     ret = DeleteContainer(0);
-    if (FDF_FAILURE_ILLEGAL_CONTAINER_ID == ret)
+    if (FDF_INVALID_PARAMETER == ret)
     {
         tag += 1;
         result[aw][1][2] = 1;

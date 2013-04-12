@@ -200,7 +200,9 @@ typedef uint64_t FDF_cguid_t;
     item(FDF_FAILURE_CONTAINER_NOT_FOUND, /* default */) \
     item(FDF_UNLIMITED_CONTAINER_MUST_BE_NON_EVICTING, /* default */) \
     item(FDF_THREAD_CONTEXT_BUSY, /*Multiple parallel fdf calls using same thread context */) \
-    item(FDF_LICENSE_CHK_FAILED, /* default */)
+    item(FDF_LICENSE_CHK_FAILED, /* default */)\
+    item(FDF_CONTAINER_OPEN,/* default */)\
+    item(FDF_FAILURE_INVALID_CONTAINER_SIZE, /* default */) 
 
 typedef enum {
 #define item(caps, value) \
