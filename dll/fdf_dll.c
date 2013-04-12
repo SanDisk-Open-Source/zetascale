@@ -178,7 +178,16 @@ static FDF_status_t
 (*ptr_FDFMiniTransactionStart)(struct FDF_thread_state *fdf_thread_state);
 
 static FDF_status_t 
+(*ptr_FDFTransactionStart)(struct FDF_thread_state *fdf_thread_state);
+
+static FDF_status_t 
 (*ptr_FDFMiniTransactionCommit)(struct FDF_thread_state *fdf_thread_state);
+
+static FDF_status_t 
+(*ptr_FDFTransactionCommit)(struct FDF_thread_state *fdf_thread_state);
+
+static FDF_status_t 
+(*ptr_FDFTransactionRollback)(struct FDF_thread_state *fdf_thread_state);
 
 static FDF_status_t 
 (*ptr_FDFGetVersion)(struct FDF_thread_state *fdf_thread_state, char **str);
@@ -221,7 +230,10 @@ static struct {
     { "FDFGetContainerStats",          &ptr_FDFGetContainerStats         },
     { "FDFStrError",                   &ptr_FDFStrError                  },
     { "FDFMiniTransactionStart",       &ptr_FDFMiniTransactionStart      },
+    { "FDFTransactionStart",           &ptr_FDFTransactionStart          },
     { "FDFMiniTransactionCommit",      &ptr_FDFMiniTransactionCommit     },
+    { "FDFTransactionCommit",          &ptr_FDFTransactionCommit         },
+    { "FDFTransactionRollback",        &ptr_FDFTransactionRollback       },
     { "FDFGetVersion",                 &ptr_FDFGetVersion                },
 };
 
@@ -807,6 +819,19 @@ FDFMiniTransactionStart(struct FDF_thread_state *fdf_thread_state)
 
 
 /*
+ * FDFTransactionStart
+ */
+FDF_status_t 
+FDFTransactionStart(struct FDF_thread_state *fdf_thread_state)
+{
+    if (unlikely(!ptr_FDFTransactionStart))
+        undefined("FDFTransactionStart");
+
+    return (*ptr_FDFTransactionStart)(fdf_thread_state);
+}
+
+
+/*
  * FDFMiniTransactionCommit
  */
 FDF_status_t 
@@ -816,6 +841,32 @@ FDFMiniTransactionCommit(struct FDF_thread_state *fdf_thread_state)
         undefined("FDFMiniTransactionCommit");
 
     return (*ptr_FDFMiniTransactionCommit)(fdf_thread_state);
+}
+
+
+/*
+ * FDFTransactionCommit
+ */
+FDF_status_t 
+FDFTransactionCommit(struct FDF_thread_state *fdf_thread_state)
+{
+    if (unlikely(!ptr_FDFTransactionCommit))
+        undefined("FDFTransactionCommit");
+
+    return (*ptr_FDFTransactionCommit)(fdf_thread_state);
+}
+
+
+/*
+ * FDFTransactionRollback
+ */
+FDF_status_t 
+FDFTransactionRollback(struct FDF_thread_state *fdf_thread_state)
+{
+    if (unlikely(!ptr_FDFTransactionRollback))
+        undefined("FDFTransactionRollback");
+
+    return (*ptr_FDFTransactionRollback)(fdf_thread_state);
 }
 
 

@@ -5931,20 +5931,40 @@ fdf_delete_objects(struct FDF_thread_state *ts, FDF_cguid_t cguid)
 /**
  * @brief Start transaction
  *
- * @param fdf_thread_state <IN> The SDF context for which this operation applies
+ * @param fdf_thread_state <IN> The FDF context for which this operation applies
  * @return FDF_SUCCESS on success
  *         FDF_FAILURE_ALREADY_IN_TRANS if thread has active transaction already
  *         FDF_OUT_OF_MEM if memory exhausted
  *         FDF_FAILURE for error unspecified
+ *
+ * ============================================================
+ * DELETE THIS FUNCTION AS SOON AS REGRESSION TESTS ARE UPDATED
+ * ============================================================
  */
 FDF_status_t FDFMiniTransactionStart(
 	struct FDF_thread_state	*fdf_thread_state
 	)
 {
-        if ( !fdf_thread_state ) {
-            plat_log_msg(80049,LOG_CAT,LOG_DBG,
-                             "FDF Thread state is NULL");
-        }
+
+	return (FDFTransactionStart( fdf_thread_state));
+}
+
+
+/**
+ * @brief Start transaction
+ *
+ * @param fdf_thread_state <IN> The FDF context for which this operation applies
+ * @return FDF_SUCCESS on success
+ *         FDF_FAILURE_ALREADY_IN_TRANS if thread has active transaction already
+ *         FDF_OUT_OF_MEM if memory exhausted
+ *         FDF_FAILURE for error unspecified
+ */
+FDF_status_t FDFTransactionStart(
+	struct FDF_thread_state	*fdf_thread_state
+	)
+{
+	if (fdf_thread_state == 0)
+		plat_log_msg( 80049, LOG_CAT, LOG_DBG, "FDF Thread state is NULL");
 
 	switch (mcd_trx_start( )) {
 	case MCD_TRX_OKAY:
@@ -5953,30 +5973,47 @@ FDF_status_t FDFMiniTransactionStart(
 		return (FDF_FAILURE_ALREADY_IN_TRANS);
 	case MCD_TRX_NO_MEM:
 		return (FDF_OUT_OF_MEM);
-	default:
-		return (FDF_FAILURE);
 	}
+	return (FDF_FAILURE);
 }
 
 
 /**
  * @brief Commit transaction
  *
- * @param fdf_thread_state <IN> The SDF context for which this operation applies
+ * @param fdf_thread_state <IN> The FDF context for which this operation applies
  * @return FDF_SUCCESS on success
  *         FDF_FAILURE_NO_TRANS if there is no active transaction in the current thread
  *         FDF_TRANS_ABORTED if transaction aborted due to excessive size or internal error
+ *
+ * ============================================================
+ * DELETE THIS FUNCTION AS SOON AS REGRESSION TESTS ARE UPDATED
+ * ============================================================
  */
 FDF_status_t FDFMiniTransactionCommit(
 	struct FDF_thread_state	*fdf_thread_state
 	)
 {
-        if ( !fdf_thread_state ) {
-            plat_log_msg(80049,LOG_CAT,LOG_DBG,
-                             "FDF Thread state is NULL");
-        }
-	if (fdf_thread_state == 0)	// hack until FDFTransactionRollback added to DLL
-		return (FDFTransactionRollback( fdf_thread_state));
+
+	return (FDFTransactionCommit( fdf_thread_state));
+}
+
+
+/**
+ * @brief Commit transaction
+ *
+ * @param fdf_thread_state <IN> The FDF context for which this operation applies
+ * @return FDF_SUCCESS on success
+ *         FDF_FAILURE_NO_TRANS if there is no active transaction in the current thread
+ *         FDF_TRANS_ABORTED if transaction aborted due to excessive size or internal error
+ */
+FDF_status_t FDFTransactionCommit(
+	struct FDF_thread_state	*fdf_thread_state
+	)
+{
+        if (fdf_thread_state == 0)
+		plat_log_msg( 80049, LOG_CAT, LOG_DBG, "FDF Thread state is NULL");
+
 	switch (mcd_trx_commit( )) {
 	case MCD_TRX_NO_TRANS:
 		return (FDF_FAILURE_NO_TRANS);
@@ -5993,7 +6030,7 @@ FDF_status_t FDFMiniTransactionCommit(
 /**
  * @brief Roll back transaction
  *
- * @param fdf_thread_state <IN> The SDF context for which this operation applies
+ * @param fdf_thread_state <IN> The FDF context for which this operation applies
  * @return FDF_SUCCESS on success
  *         FDF_FAILURE_NO_TRANS if there is no active transaction in the current thread
  *         FDF_TRANS_ABORTED if transaction aborted due to excessive size or internal error
@@ -6021,7 +6058,7 @@ FDF_status_t FDFTransactionRollback(
 /**
  * @brief Return version of FDF
  *
- * @param fdf_thread_state <IN> The SDF context for which this operation applies
+ * @param fdf_thread_state <IN> The FDF context for which this operation applies
  * @return String having the versions
  * 	   NULL if failed internally
  */

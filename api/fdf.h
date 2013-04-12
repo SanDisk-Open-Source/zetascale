@@ -807,8 +807,41 @@ char *FDFStrError(FDF_status_t fdf_errno);
  *         FDF_FAILURE_ALREADY_IN_TRANS if thread has active transaction already
  *         FDF_OUT_OF_MEM if memory exhausted
  *         FDF_FAILURE for error unspecified
+ *
+ * ============================================================
+ * DELETE THIS FUNCTION AS SOON AS REGRESSION TESTS ARE UPDATED
+ * ============================================================
  */
 FDF_status_t FDFMiniTransactionStart(
+	struct FDF_thread_state	*fdf_thread_state
+	);
+
+/**
+ * @brief Start transaction
+ *
+ * @param fdf_thread_state <IN> The FDF context for which this operation applies
+ * @return FDF_SUCCESS on success
+ *         FDF_FAILURE_ALREADY_IN_TRANS if thread has active transaction already
+ *         FDF_OUT_OF_MEM if memory exhausted
+ *         FDF_FAILURE for error unspecified
+ */
+FDF_status_t FDFTransactionStart(
+	struct FDF_thread_state	*fdf_thread_state
+	);
+
+/**
+ * @brief Commit transaction
+ *
+ * @param fdf_thread_state <IN> The FDF context for which this operation applies
+ * @return FDF_SUCCESS on success
+ *         FDF_FAILURE_NO_TRANS if there is no active transaction in the current thread
+ *         FDF_TRANS_ABORTED if transaction aborted due to excessive size or internal error
+ *
+ * ============================================================
+ * DELETE THIS FUNCTION AS SOON AS REGRESSION TESTS ARE UPDATED
+ * ============================================================
+ */
+FDF_status_t FDFMiniTransactionCommit(
 	struct FDF_thread_state	*fdf_thread_state
 	);
 
@@ -820,14 +853,14 @@ FDF_status_t FDFMiniTransactionStart(
  *         FDF_FAILURE_NO_TRANS if there is no active transaction in the current thread
  *         FDF_TRANS_ABORTED if transaction aborted due to excessive size or internal error
  */
-FDF_status_t FDFMiniTransactionCommit(
+FDF_status_t FDFTransactionCommit(
 	struct FDF_thread_state	*fdf_thread_state
 	);
 
 /**
  * @brief Roll back transaction
  *
- * @param fdf_thread_state <IN> The SDF context for which this operation applies
+ * @param fdf_thread_state <IN> The FDF context for which this operation applies
  * @return FDF_SUCCESS on success
  *         FDF_FAILURE_NO_TRANS if there is no active transaction in the current thread
  *         FDF_TRANS_ABORTED if transaction aborted due to excessive size or internal error
@@ -839,7 +872,7 @@ FDF_status_t FDFTransactionRollback(
 /**
  * @brief Return version of FDF
  *
- * @param fdf_thread_state <IN> The SDF context for which this operation applies
+ * @param fdf_thread_state <IN> The FDF context for which this operation applies
  * @return String having the versions
  *         NULL if failed internally
  */
