@@ -21,15 +21,16 @@ typedef enum {
 }FDF_CONTAINER_STATE;
 
 typedef struct ctnr_map {
-	FDF_boolean_t	allocated;
-    char            cname[CONTAINER_NAME_MAXLEN];
-    FDF_cguid_t     cguid;
-    SDF_CONTAINER   sdf_container;
-	uint64_t		size_kb;
-	uint64_t		current_size;
-	uint64_t		num_obj;
-    FDF_CONTAINER_STATE state;
-	FDF_boolean_t   evicting;
+	int     		lock;       					/* Entry lock - do not change any state */
+	int     		io_count;						/* IO in flight count */
+    char            cname[CONTAINER_NAME_MAXLEN];	/* Container name */
+    FDF_cguid_t     cguid;							/* Container ID */
+    SDF_CONTAINER   sdf_container;					/* Open container handle */
+	uint64_t		size_kb;						/* Container size KB */
+	uint64_t		current_size;					/* Current container size */
+	uint64_t		num_obj;						/* Current number of objects */
+    FDF_CONTAINER_STATE state;						/* Container state */
+	FDF_boolean_t   evicting;						/* Eviction mode */
 } ctnr_map_t;
 
 

@@ -1183,7 +1183,7 @@ int fdf_is_ctnr_open(
 			result = 1;
 		}
         if( CtnrMap[i].state == FDF_CONTAINER_STATE_DELETE_PROG ) {
-            result = 1;
+            result = 0;
         }
 	}
 

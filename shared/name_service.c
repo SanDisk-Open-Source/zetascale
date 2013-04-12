@@ -196,7 +196,7 @@ name_service_lock_meta(SDF_internal_ctxt_t *pai, const char *cname) {
 
     if ((status = name_service_get_cguid(pai, cname, &cguid)) == SDF_SUCCESS &&
 		(status = cmc_lock_meta(pai, theCMC->c, cguid)) == SDF_SUCCESS) {
-	log_level = LOG_TRACE;
+		log_level = LOG_TRACE;
     }
 
     plat_log_msg(21506, LOG_CAT, log_level, "%llu - %s",
@@ -424,7 +424,9 @@ name_service_delete_shards(SDF_internal_ctxt_t *pai, const char *cname) {
 
 	if (( index = name_service_ctnr_from_cname( (char *) cname )) != -1 ) {
 		c = name_service_metadata_container_from_cguid( CtnrMap[index].cguid );
-    	if ((status = cmc_delete_shards(pai, c, cname) == SDF_SUCCESS)) {
+		if ( NULL == c ) {
+			status = SDF_FAILURE;
+		} else if ((status = cmc_delete_shards(pai, c, cname) == SDF_SUCCESS)) {
 			log_level = LOG_TRACE;
     	}
 	}
@@ -767,7 +769,7 @@ static int name_service_ctnr_from_cname(
     int i_ctnr = -1;
 
     for ( i = 0; i < MCD_MAX_NUM_CNTRS; i++ ) {
-    if ( (NULL != CtnrMap[i].cname) && (0 == strcmp( CtnrMap[i].cname, cname )) ) {
+    	if ( (NULL != CtnrMap[i].cname) && (0 == strcmp( CtnrMap[i].cname, cname )) ) {
             i_ctnr = i;
             break;
         }

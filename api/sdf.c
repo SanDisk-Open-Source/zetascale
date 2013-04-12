@@ -1,5 +1,5 @@
 //  sdf.cc
-
+#ifdef notdef
 #include <stdio.h>
 #include <stdint.h>
 #include <unistd.h>
@@ -281,6 +281,7 @@ static void dump_map() {
 }
 #endif /* notdef */
 
+#ifdef notdef
 int get_ctnr_from_cguid(SDF_cguid_t cguid)
 {
     int i;
@@ -2809,5 +2810,7 @@ int mcd_is_container_running( int tcp_port )
     return -ENOENT;
 }
 
+#endif /* notdef */
 #endif /* SDFAPI */
+#endif /* notdef */
 

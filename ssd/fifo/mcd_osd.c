@@ -126,10 +126,10 @@ extern uint64_t rep_seqno_get(struct shard * shard);
 void
 flog_close(struct shard *shard);
 
-#ifdef SDFAPI
+#ifdef notdef
 // from sdf.c
 extern ctnr_map_t CtnrMap[MCD_MAX_NUM_CNTRS];
-#endif /* SDFAPI */
+#endif /* notdef */
 
 /*
  * reserved blocks
@@ -1060,7 +1060,7 @@ static int mcd_fth_do_try_container_internal( void * pai, int index,
         rc = 1;
     }
     else {
-#ifdef SDFAPI
+#ifdef notdef
 		int map_index = get_ctnr_from_cname(cname);
 		if (map_index >= 0) {
 	    	container = CtnrMap[map_index].sdf_container;
@@ -1069,7 +1069,7 @@ static int mcd_fth_do_try_container_internal( void * pai, int index,
 				plat_abort();
 			}
 		}
-#endif /* SDFAPI */
+#endif /* notdef */
         local_SDF_CONTAINER lc = getLocalContainer(&lc, container);
         SDF_time_t time;
 
@@ -1359,6 +1359,7 @@ static int mcd_fth_try_container( void * pai, int index, int system_recovery, in
 // from mcd_rec.c
 extern int recovery_reclaim_space( void );
 
+#ifdef notdef
 static SDF_status_t update_container_map(char *cname, SDF_cguid_t cguid) {
     int 	 i;
     SDF_status_t status = SDF_FAILURE;
@@ -1376,6 +1377,7 @@ static SDF_status_t update_container_map(char *cname, SDF_cguid_t cguid) {
 
     return(status);
 }
+#endif /* notdef */
 
 SDF_status_t mcd_fth_container_init( void * pai, int system_recovery, int tcp_ports[MCD_MAX_NUM_CNTRS], int udp_ports[MCD_MAX_NUM_CNTRS], char *ctnr_name )
 {
@@ -1420,11 +1422,13 @@ SDF_status_t mcd_fth_container_init( void * pai, int system_recovery, int tcp_po
         if ( 0 == flash_settings.static_containers &&
              SYS_FLASH_REFORMAT != system_recovery ) {
 	    	if ( Mcd_fth_saved_props[i].tcp_port != 0 ) {
+#ifdef notdef
 				char *cname = Mcd_fth_saved_props[i].cname;
 				SDF_cguid_t cguid;
 				if (SDF_SUCCESS == name_service_get_cguid(pai, cname, &cguid)) {
 		    		update_container_map(cname, cguid);
 				}
+#endif /* notdef */
 	    	}
             tcp_ports[i] = Mcd_fth_saved_props[i].tcp_port;
             udp_ports[i] = Mcd_fth_saved_props[i].udp_port;
