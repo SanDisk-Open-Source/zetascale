@@ -24,7 +24,7 @@ NCPU=$(cat /proc/cpuinfo|grep CPU|wc -l)
 NCPU=$((NCPU*12/10))
 
 DBG=OFF
-PKG_NAME=fdf_sdk-$VERSION
+PKG_NAME=cassandra_fdf_sdk-$VERSION
 
 [ -n "$BRANCH" ] && PKG_NAME=$PKG_NAME-$BRANCH
 
