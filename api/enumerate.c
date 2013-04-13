@@ -122,6 +122,9 @@ FDFNextEnumeratedObject(struct FDF_thread_state *ts,
         }
         return FDF_INVALID_PARAMETER;
     }
+    if ( (s = fdf_get_ctnr_status(get_e_cguid(iter))) != FDF_CONTAINER_OPEN ) {
+        return s;
+    }
     SDF_action_init_t *pai = (SDF_action_init_t *) ts;
     
     s = enumerate_next(pai, iter, key, &keylen64, data, datalen);

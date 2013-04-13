@@ -45,6 +45,8 @@
 #include "ssd/fifo/mcd_trx.h"
 #include "utils/properties.h"
 #include "ssd/fifo/slab_gc.h"
+#include <execinfo.h>
+#include <signal.h>
 
 #define LOG_ID PLAT_LOG_ID_INITIAL
 #define LOG_CAT PLAT_LOG_CAT_SDF_NAMING
@@ -107,6 +109,7 @@ FDF_status_t cguid_to_shard(SDF_action_init_t *pai, FDF_cguid_t cguid,
                             shard_t **shard_ptr);
 
 
+void fdf_signal_handler(int signum);
 /*
 ** Externals
 */
@@ -1274,11 +1277,6 @@ static void *fdf_stats_thread(void *arg) {
         return NULL;
     }
 
-    stats_log = fopen(getProperty_String("FDF_STATS_FILE","/tmp/fdfstats.log"),"a+");
-    if( stats_log == NULL ) {
-        fprintf(stderr,"Stats Thread:Unable to open the log file /tmp/fdf_stats.log. Exiting\n");
-        return NULL;
-    }
     stats_dump = 1;
     while(1) {
         dump_interval = getProperty_Int( "FDF_STATS_DUMP_INTERVAL", 10 ); 
@@ -1291,6 +1289,11 @@ static void *fdf_stats_thread(void *arg) {
             dump_all_container_stats(thd_state,STATS_PRINT_TYPE_DETAILED);
             sleep(dump_interval);
             continue;
+        }
+        stats_log = fopen(getProperty_String("FDF_STATS_FILE","/tmp/fdfstats.log"),"a+");
+        if( stats_log == NULL ) {
+            fprintf(stderr,"Stats Thread:Unable to open the log file /tmp/fdf_stats.log. Exiting\n");
+            return NULL;
         }
 
         fdf_get_containers(thd_state,cguids,&n_cguids);
@@ -1508,7 +1511,6 @@ void print_configuration(int log_level) {
          plat_log_msg(80031, LOG_CAT, log_level,"FDF Testmode enabled");
     }
 }
-
 FDF_status_t FDFInit(
 	struct FDF_state	**fdf_state
 	)
@@ -1520,10 +1522,14 @@ FDF_status_t FDFInit(
     struct timeval		 timer;
 	const char			*prop_file;
 
-
     if (verify_datastruct_consistency() != FDF_SUCCESS ) {
         return FDF_FAILURE;
     }
+    /* Initialize signal handler */
+    signal(SIGSEGV, fdf_signal_handler);  
+    signal(SIGABRT, fdf_signal_handler);    
+    signal(SIGBUS, fdf_signal_handler);     
+    signal(SIGFPE, fdf_signal_handler); 
 
     sem_init( &Mcd_initer_sem, 0, 0 );
 
@@ -1932,7 +1938,7 @@ FDF_status_t FDFShutdown(struct FDF_state *fdf_state)
 	}
     plat_log_msg(80033, PLAT_LOG_CAT_SDF_PROT,
                          PLAT_LOG_LEVEL_DEBUG, "Shutdown completed");
-	return status;
+       return status;
 }
 
 
@@ -6086,3 +6092,25 @@ FDFGetVersion(
 	return FDF_FAILURE;
 }
 
+#define NUM_BTRACE_ENTRIES 50
+void fdf_print_backtrace() {
+    void *array[NUM_BTRACE_ENTRIES];
+    char **strings;
+    int size,i;
+    /*Get the trace */
+    size = backtrace (array, NUM_BTRACE_ENTRIES);
+    /*Print in stderr*/
+    strings = backtrace_symbols(array, size);
+    for (i = 0; i < size; i++) {
+        fprintf (stderr,"%s\n", strings[i]);
+    }
+    plat_free(strings);
+    return;
+}
+
+void fdf_signal_handler(int signum) { 
+    plat_log_msg(80064, LOG_CAT, LOG_ERR,
+                "Got signal %d(%s):",signum,strsignal(signum)); 
+    fdf_print_backtrace(); 
+    plat_exit(1); 
+} 

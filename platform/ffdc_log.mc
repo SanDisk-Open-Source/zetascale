@@ -3014,6 +3014,7 @@
 80061 Invalid data (NULL)
 80062 Invalid FDF_stats_t(NULL)
 80063 Container size %lu kb greater than the flash size %lu kb
+80064 Got signal %d(%s):
 
 
 # kcai

@@ -289,6 +289,7 @@ FDF_status_t dump_all_container_stats(struct FDF_thread_state *thd_state,
     }
     fprintf(fp,"--------\n");
     fflush(fp);
+    fclose(fp);
     return FDF_SUCCESS;
 }
 

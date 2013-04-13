@@ -80,6 +80,7 @@ FDF_status_t
 enumerate_next(SDF_action_init_t *pai, struct FDF_iterator *iter,
                char **key, uint64_t *keylen, char **data, uint64_t *datalen);
 
+FDF_cguid_t get_e_cguid(struct FDF_iterator *iter);
 
 
 

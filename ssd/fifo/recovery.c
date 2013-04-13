@@ -4597,6 +4597,12 @@ enumerate_init(pai_t *pai, shard_t *sshard, FDF_cguid_t cguid, e_state_t **esp)
     return 0;
 }
 
+/*
+ * Get cguid from a given iterator
+ */
+FDF_cguid_t get_e_cguid(e_state_t *es) {
+    return es->cguid;
+}
 
 /*
  * Delete an object given its hash entry.  The appropriate bucket must be
