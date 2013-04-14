@@ -66,14 +66,16 @@
 #define HOUR	(3600)
 #define DAY	(86400)
 
-#define FDF_INVAL_GPRD	(7 * DAY)
-#define FDF_EXP_GPRD	(30 * DAY)
+#define FDF_INVAL_GPRD		(3 * DAY)
+#define FDF_EXP_GPRD		(30 * DAY)
 
 /*
  * Period for checking the license, once in an hour.
  */
 double 		fdf_chk_prd = HOUR;
+int		fdf_chk_prd_option;
 
+char		*license_path;	/* License file path */
 char		*ld_prod;	/* Product Name */
 double		ld_frm_diff;	/* Current time - Start of license */
 double		ld_to_diff;	/* End of license - Current time */
@@ -81,20 +83,25 @@ double		ld_vtime;	/* Time stamp at which we found valid license */
 double		ld_cktime;	/* Time stamp at which we make last check */
 enum lic_state	ld_state;	/* Current license state */
 char		ld_type;	/* Type of license found */
-bool		ld_valid = true;	/* Is license valid or not? */
+bool		ld_valid = false;	/* Is license valid or not? */
 bool		licd_init = false;	/* Is license state initialized */
+bool		licd_running = false;	/* Is license daemon running? */
+bool		licstate_updating = false;	
 /*
  * This CV serves the purpose of blocking wait for a
  * thread awaiting completion of license checking operation.
  */
 pthread_cond_t	licd_cv = PTHREAD_COND_INITIALIZER;
-pthread_mutex_t	licd_mutex = PTHREAD_MUTEX_INITIALIZER;;
+pthread_mutex_t	licd_mutex = PTHREAD_MUTEX_INITIALIZER;
+pthread_cond_t	licstate_cv = PTHREAD_COND_INITIALIZER;
+pthread_mutex_t	licstate_mutex = PTHREAD_MUTEX_INITIALIZER;;
+
 static struct FDF_state *licd_fdf_state = NULL;
 
 static void licd_handler_thread(uint64_t);
-void update_lic_info(lic_data_t *);
-void print_time_left(double, double);
-void print_validity_left(lic_data_t *, lic_type);
+void update_lic_info(lic_data_t *, bool);
+void check_time_left(double, double, bool);
+void check_validity_left(lic_data_t *, lic_type, bool);
 void adjust_chk_prd(double);
 void free_details(lic_data_t *);
 
@@ -106,10 +113,18 @@ void free_details(lic_data_t *);
  * The license is read from the path passed in as argument (lic_path).
  */
 bool
-licd_start(const char *lic_path, struct FDF_state *fdf_state)
+licd_start(const char *lic_path, int period, struct FDF_state *fdf_state)
 {
 	plat_assert(lic_path);
 	plat_assert(fdf_state);
+
+	if (period > 0) {
+		fdf_chk_prd_option = period;
+		fdf_chk_prd = fdf_chk_prd_option;
+	} else {
+		fdf_chk_prd_option = 0;
+	}
+
 	if (!lic_path) {
 		plat_log_msg(160148, LOG_CAT,
 				LOG_ERR, "License path not specified");
@@ -128,9 +143,9 @@ licd_start(const char *lic_path, struct FDF_state *fdf_state)
 	return true;
 out:
 	plat_log_msg(160149, LOG_CAT, LOG_WARN, "Starting Licensing daemon failed.");
-	ld_valid = false;
 	pthread_mutex_lock(&licd_mutex);
 	licd_init = true;
+	licd_running = false;
 	pthread_cond_broadcast(&licd_cv);
 	pthread_mutex_unlock(&licd_mutex);
 	return false;
@@ -148,32 +163,56 @@ out:
 static void
 licd_handler_thread(uint64_t arg)
 {
-	char		*lic_path = (char *)arg;
 	struct timespec abstime;
 	lic_data_t	data;
 
-	bzero(&data, sizeof(lic_data_t));
+	license_path = (char *)arg;
 
 	plat_log_msg(160162, LOG_INFO, LOG_INFO,
-			"Starting Licensing Daemon (license path: %s)...", lic_path);
+			"Starting Licensing Daemon (license path: %s)...",
+			license_path);
 	memset(&abstime, 0, sizeof(struct timespec));
 	
 	clock_gettime(CLOCK_REALTIME, &abstime);
 	ld_vtime = abstime.tv_sec;
+	licd_running = true;
 	while(1) {
 		/*
 		 * Get license details and update in-house info.
 		 * This will get info as array of pointers.
 		 */
-		get_license_details(lic_path, &data);
-		update_lic_info(&data);
+		pthread_mutex_lock(&licstate_mutex);
+
+		/*
+		 * Some other thread is updating the status. Let us wait.
+		 */
+		if (licstate_updating == true) {
+			pthread_cond_wait(&licstate_cv, &licstate_mutex);
+		}
+
+		licstate_updating = true;
+		pthread_mutex_unlock(&licstate_mutex); 
+
+		/*
+		 * Even though recently some other thread had updated
+		 * license information, we shall do the check and update
+		 * the time period daemon has to wait.
+		 */
+		bzero(&data, sizeof(lic_data_t));
+		get_license_details(license_path, &data);
+		update_lic_info(&data, true);
+
+		pthread_mutex_lock(&licstate_mutex);
+		licstate_updating = false;
+		pthread_cond_broadcast(&licstate_cv);
+		pthread_mutex_unlock(&licstate_mutex); 
 
 		if (licd_init == false) {
 			// If running for first time, wake up waiting threads.
-			pthread_mutex_lock(&licd_mutex);
-			licd_init = true;
 			plat_log_msg(160151, LOG_CAT, LOG_INFO,
 					"License daemon initialized\n");
+			pthread_mutex_lock(&licd_mutex);
+			licd_init = true;
 			pthread_cond_broadcast(&licd_cv);
 			pthread_mutex_unlock(&licd_mutex);
 		}
@@ -216,7 +255,7 @@ wait_for_licd_start()
  * read from license file.
  */
 void
-update_lic_info(lic_data_t	*data)
+update_lic_info(lic_data_t *data, bool daemon)
 {
 	void		*p, *p1, *p2;
 	struct timespec abstime;
@@ -232,7 +271,8 @@ update_lic_info(lic_data_t	*data)
 	 * insufficient memory, let us not fail or decide license status.
 	 * Instead, read the license details again as soon as possible.
 	 */
-	if (data->fld_state == LS_INTERNAL_ERR) {
+	ld_state = data->fld_state;
+	if (daemon && (data->fld_state == LS_INTERNAL_ERR)) {
 		adjust_chk_prd(0);
 		return;
 	}
@@ -242,7 +282,6 @@ update_lic_info(lic_data_t	*data)
 	 * is for FDF. Else, let us mark the license as invalid and fail the
 	 * application.
 	 */
-	ld_state = data->fld_state;
 	if ((ld_state == LS_VALID) || (ld_state == LS_EXPIRED)) {
 		// We always expect license type and product to be set.
 		p = getptr(data, LDI_LIC_TYPE);
@@ -299,33 +338,39 @@ update_lic_info(lic_data_t	*data)
 	 * Print any info/warning messages based on status of license.
 	 */
 print:
+	ld_cktime = abstime.tv_sec; 
+
 	if (ld_state == LS_VALID) {
 		// Print any warning, if we are near to expiry.
-		print_validity_left(data, type);
+		check_validity_left(data, type, daemon);
 	} else if (ld_state == LS_EXPIRED) {
 		// If license has expired, then it has to be periodic.
 		plat_assert(GET_PER_TYPE(type) != LPT_PERPETUAL);
-		plat_log_msg(160155, LOG_CAT, LOG_WARN, 
+		if (daemon) {
+			plat_log_msg(160155, LOG_CAT, LOG_WARN, 
 				"License has expired. Renew the license.");
+		}
 		p = getptr(data, LDI_DIFF_TO);
 		plat_assert(p);
 		if (p) {
 			exptime = getas(p, double);
 			plat_assert(exptime < 0);
 			exptime = -exptime;
-			//Print warning and find period we need to make next check.
-			print_time_left(exptime, FDF_EXP_GPRD);
+			//Print warning & find period we need to make next check
+			check_time_left(exptime, FDF_EXP_GPRD, daemon);
 		}
 	} else {
 		//All other cases, license is invalid.
-		plat_log_msg(160156, LOG_CAT, LOG_WARN, 
-			"License is invalid. %s Install valid license.",
-			lic_state_msg[ld_state]);
+		if (daemon) {
+			plat_log_msg(160156, LOG_CAT, LOG_WARN, 
+				"License is invalid. %s Install valid license.",
+				lic_state_msg[ld_state]);
+		}
 		//Print warning and find period we need to make next check.
-		print_time_left(abstime.tv_sec - ld_vtime, FDF_INVAL_GPRD);
+		check_time_left(abstime.tv_sec - ld_vtime, FDF_INVAL_GPRD,
+				daemon);
 
 	}
-	ld_cktime = abstime.tv_sec; 
 }
 
 /*
@@ -339,19 +384,21 @@ print:
  *		eventhough it was expired/invalid.
  */
 void
-print_time_left(double time, double grace)
+check_time_left(double time, double grace, bool warn)
 {
 	int 		days, hrs, mins, secs;
 	
 	plat_assert(ld_state != LS_VALID);
-	if (time > grace) {
+	if (time >= grace) {
 		/*
 		 * If we are beyond grace period, mark license validity as
 		 * false and increase the rate at which we check the 
 		 * validity of license.
 		 */
-		plat_log_msg( 160157, LOG_CAT, LOG_WARN, 
+		if (warn) {
+			plat_log_msg( 160157, LOG_CAT, LOG_WARN, 
 			"License invalid beyond grace period. FDF will fail.");
+		}
 		ld_valid = false;
 		adjust_chk_prd(0);
 	} else {
@@ -363,9 +410,11 @@ print_time_left(double time, double grace)
 		mins = secs / 60;
 		hrs = mins / 60; mins = mins - hrs * 60; 
 		days = hrs / 24; hrs = hrs - days * 24;
-		plat_log_msg( 160158, LOG_CAT, LOG_WARN, 
-			"FDF will be functional for next %d days, %d "
-			"hours and %d minutes only.", days, hrs, mins);
+		if (warn) {
+			plat_log_msg( 160158, LOG_CAT, LOG_WARN, 
+				"FDF will be functional for next %d days, %d "
+				"hours and %d minutes only.", days, hrs, mins);
+		}
 		ld_valid = true;
 		adjust_chk_prd(secs);
 	}
@@ -381,18 +430,20 @@ print_time_left(double time, double grace)
  *	grace	Period in which user needs to be warned about expiry.
  */
 void
-print_validity_left(lic_data_t *data, lic_type type)
+check_validity_left(lic_data_t *data, lic_type type, bool warn)
 {
 	void		*p;
 	double		exptime;
 	int 		days, hrs, mins, secs;
 
 	plat_assert(ld_state == LS_VALID);
+	if (ld_valid == false) {
+		plat_log_msg(160159, LOG_CAT, LOG_INFO, 
+				"Valid license found (%s/%s).",
+				lic_installation_type[GET_INST_TYPE(type)],
+				lic_period_type[GET_PER_TYPE(type)]);
+	}
 	ld_valid = true;
-	plat_log_msg(160159, LOG_CAT, LOG_INFO, 
-			"Valid license found (%s/%s).",
-			lic_installation_type[GET_INST_TYPE(type)],
-			lic_period_type[GET_PER_TYPE(type)]);
 
 	p = getptr(data, LDI_DIFF_TO);
 	if (p) {
@@ -405,9 +456,11 @@ print_validity_left(lic_data_t *data, lic_type type)
 		mins = secs / 60;
 		hrs = mins / 60; mins = mins - hrs * 60; 
 		days = hrs / 24; hrs = hrs - days * 24;
-		plat_log_msg(160160, LOG_CAT, LOG_WARN, 
-			"License will expire in next %d days, %d "
-			"hours and %d minutes.", days, hrs, mins);
+		if (warn) {
+			plat_log_msg(160160, LOG_CAT, LOG_WARN, 
+				"License will expire in next %d days, %d "
+				"hours and %d minutes.", days, hrs, mins);
+		}
 		adjust_chk_prd(secs);
 	}
 }
@@ -427,12 +480,16 @@ print_validity_left(lic_data_t *data, lic_type type)
 void
 adjust_chk_prd(double secs)
 {
-	if (secs <= 15 * MINUTE) {
-		fdf_chk_prd = MINUTE;
-	} else if (secs <= HOUR) {
-		fdf_chk_prd = 15 * MINUTE;
+	if (fdf_chk_prd_option > 0) {
+		fdf_chk_prd = fdf_chk_prd_option;
 	} else {
-		fdf_chk_prd = HOUR;
+		if (secs <= 15 * MINUTE) {
+			fdf_chk_prd = MINUTE;
+		} else if (secs <= HOUR) {
+			fdf_chk_prd = 15 * MINUTE;
+		} else {
+			fdf_chk_prd = HOUR;
+		}
 	}
 }
 
@@ -442,6 +499,66 @@ adjust_chk_prd(double secs)
 bool
 is_license_valid()
 {
+	lic_data_t	data;
+	struct timespec abstime;
+	int		flag;
+
+
+	// If license start had failed, we shall based on when last check made.
+	flag = 0;
+	if (licd_running == false) {
+		clock_gettime(CLOCK_REALTIME, &abstime);
+		if ((abstime.tv_sec - ld_cktime) > fdf_chk_prd) {
+			flag = 1;
+		}
+	}
+start:
+	/*
+	 * If license is invalid, the license file might have got updated
+	 * while daemon is sleeping. Let us check the state now.
+	 */
+	if ((ld_valid == false) || flag) {
+		pthread_mutex_lock(&licstate_mutex);
+
+		/*
+		 * If daemon or some other thread is already checking the
+		 * state, lets wait. No need for multiple threads to do
+		 * the same check.
+		 */
+		if (licstate_updating == true) {
+			pthread_cond_wait(&licstate_cv, &licstate_mutex);
+			/*
+			 * The thread checking the status has hit an internal
+			 * error, we shall do the check now and wakr up daemon
+			 * too. 
+			 * Else, the state might have not changed in this small
+			 * time slot. We shall use the state returned by previo
+			 * thread.
+			 */
+			if (ld_state == LS_INTERNAL_ERR) {
+				pthread_mutex_unlock(&licstate_mutex);
+				pthread_cond_signal(&licd_cv);
+				goto start;
+			}
+		} else {
+			licstate_updating = true;
+			pthread_mutex_unlock(&licstate_mutex); 
+
+			bzero(&data, sizeof(lic_data_t));
+			get_license_details(license_path, &data);
+			update_lic_info(&data, false);
+			free_details(&data);
+
+			/*
+			 * Wake-up daemon and other threads waiting for 
+			 * license status.
+			 */
+			pthread_mutex_lock(&licstate_mutex);
+			licstate_updating = false;
+			pthread_cond_broadcast(&licstate_cv);
+		}
+		pthread_mutex_unlock(&licstate_mutex); 
+	}
 	return ld_valid;
 }
 

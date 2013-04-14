@@ -28,6 +28,8 @@ extern "C" {
 
 #define FDF_PRODUCT_NAME	"Flash Data Fabric"
 #define FDF_LICENSE_PATH	"/opt/sandisk/fdf/license"
+#define FDF_LICENSE_CHECK_PERIOD	0
+
 typedef struct FDF_state {
     uint64_t           cguid_cntr;
 } FDF_state_t;
@@ -175,7 +177,7 @@ void log_properties_file(const char *path, int log_level);
 FDF_status_t change_log_level(char *level);
 char *get_log_level();
 
-bool licd_start(const char *, struct FDF_state *);
+bool licd_start(const char *, int, struct FDF_state *);
 void wait_for_licd_start();
 bool is_license_valid();
 

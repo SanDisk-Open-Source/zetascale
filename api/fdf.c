@@ -1573,7 +1573,8 @@ FDF_status_t FDFInit(
                (uint64_t) &agent_state );
     //Start License daemon
     if (!licd_start(getProperty_String("FDF_LICENSE_PATH", FDF_LICENSE_PATH),
-		                          *fdf_state)) {
+    		    getProperty_Int("FDF_LICENSE_CHECK_PERIOD", FDF_LICENSE_CHECK_PERIOD),
+		    *fdf_state)) {
 	    mcd_log_msg(160147, PLAT_LOG_LEVEL_FATAL, 
 			    "Creation of license daemon failed\n");
 	    return FDF_FAILURE;
@@ -1988,6 +1989,11 @@ FDF_status_t FDFOpenContainer(
 		       LOG_WARN, "Shutdown in Progress. Operation not allowed");
 		goto out;
 	}
+	if (is_license_valid() == false) {
+		plat_log_msg(160145, LOG_CAT, LOG_WARN, "License check failed.");
+		status = FDF_LICENSE_CHK_FAILED;
+		goto out;
+	}
         if ( !fdf_thread_state || !cguid || ISEMPTY(cname) ) {
             if ( !fdf_thread_state ) {
                 plat_log_msg(80049,LOG_CAT,LOG_DBG,
@@ -1999,11 +2005,6 @@ FDF_status_t FDFOpenContainer(
             }
             return FDF_INVALID_PARAMETER;
         }
-	if (is_license_valid() == false) {
-		plat_log_msg(160145, LOG_CAT, LOG_WARN, "License check failed.");
-		status = FDF_LICENSE_CHK_FAILED;
-		goto out;
-	}
 
 	thd_ctx_locked = fdf_lock_thd_ctxt(fdf_thread_state);
 	if (false == thd_ctx_locked) {
@@ -2924,6 +2925,11 @@ FDF_status_t FDFDeleteContainer(
                LOG_DBG, "Shutdown in Progress. Operation not allowed ");
 		goto out;
 	}
+	if (is_license_valid() == false) {
+		plat_log_msg(160145, LOG_CAT, LOG_WARN, "License check failed.");
+		status = FDF_LICENSE_CHK_FAILED;
+		goto out;
+	}
         if ( !fdf_thread_state || !cguid ) {
             if ( !fdf_thread_state ) {
                 plat_log_msg(80049,LOG_CAT,LOG_DBG,
@@ -2936,11 +2942,6 @@ FDF_status_t FDFDeleteContainer(
             return FDF_INVALID_PARAMETER;
         }
 
-	if (is_license_valid() == false) {
-		plat_log_msg(160145, LOG_CAT, LOG_WARN, "License check failed.");
-		status = FDF_LICENSE_CHK_FAILED;
-		goto out;
-	}
 
 	/*
 	 * Application can only perform operations on a virtual container.
@@ -3525,17 +3526,17 @@ FDF_status_t FDFGetContainers(
 			LOG_WARN, "Shutdown in Progress. Operation not allowed");
 		goto out;
 	}
+	if (is_license_valid() == false) {
+		plat_log_msg(160145, LOG_CAT, LOG_WARN, "License check failed.");
+		status = FDF_LICENSE_CHK_FAILED;
+		goto out;
+	}
        if ( !fdf_thread_state ) {
             plat_log_msg(80049,LOG_CAT,LOG_DBG,
                          "FDF Thread state is NULL");
             return FDF_INVALID_PARAMETER;
         }
 
-	if (is_license_valid() == false) {
-		plat_log_msg(160145, LOG_CAT, LOG_WARN, "License check failed.");
-		status = FDF_LICENSE_CHK_FAILED;
-		goto out;
-	}
 
 	thd_ctx_locked = fdf_lock_thd_ctxt(fdf_thread_state);
 	if (false == thd_ctx_locked) {
@@ -3610,6 +3611,11 @@ FDF_status_t FDFGetContainerProps(
 			LOG_WARN, "Shutdown in Progress. Operation not allowed");
 		goto out;
 	}
+	if (is_license_valid() == false) {
+		plat_log_msg(160145, LOG_CAT, LOG_WARN, "License check failed.");
+		status = FDF_LICENSE_CHK_FAILED;
+		goto out;
+	}
         if ( !fdf_thread_state || !cguid ) {
             if ( !fdf_thread_state ) {
                 plat_log_msg(80049,LOG_CAT,LOG_DBG,
@@ -3633,11 +3639,6 @@ FDF_status_t FDFGetContainerProps(
 		goto out;
 	}
 
-	if (is_license_valid() == false) {
-		plat_log_msg(160145, LOG_CAT, LOG_WARN, "License check failed.");
-		status = FDF_LICENSE_CHK_FAILED;
-		goto out;
-	}
 	status = fdf_get_container_props(fdf_thread_state, cguid, pprops);	
 
 out:
@@ -3728,6 +3729,11 @@ FDF_status_t FDFSetContainerProps(
                LOG_WARN, "Shutdown in Progress. Operation not allowed ");
 		goto out;
 	}
+	if (is_license_valid() == false) {
+		plat_log_msg(160145, LOG_CAT, LOG_WARN, "License check failed.");
+		status = FDF_LICENSE_CHK_FAILED;
+		goto out;
+	}
         if ( !fdf_thread_state || !cguid || !pprops ) {
             if ( !fdf_thread_state ) {
                 plat_log_msg(80049,LOG_CAT,LOG_DBG,
@@ -3743,11 +3749,6 @@ FDF_status_t FDFSetContainerProps(
             }
             return FDF_INVALID_PARAMETER;
         }
-	if (is_license_valid() == false) {
-		plat_log_msg(160145, LOG_CAT, LOG_WARN, "License check failed.");
-		status = FDF_LICENSE_CHK_FAILED;
-		goto out;
-	}
 
 	thd_ctx_locked = fdf_lock_thd_ctxt(fdf_thread_state);
 	if (false == thd_ctx_locked) {
@@ -3841,6 +3842,11 @@ FDF_status_t FDFReadObject(
                LOG_WARN, "Shutdown in Progress. Operation not allowed ");
 		goto out;
 	}
+	if (is_license_valid() == false) {
+		plat_log_msg(160145, LOG_CAT, LOG_WARN, "License check failed.");
+		status = FDF_LICENSE_CHK_FAILED;
+		goto out;
+	}
         if ( !fdf_thread_state || !cguid || ISEMPTY(key) || !keylen ) {
             if ( !fdf_thread_state ) {
                 plat_log_msg(80049,LOG_CAT,LOG_DBG,
@@ -3869,11 +3875,6 @@ FDF_status_t FDFReadObject(
 		status = FDF_THREAD_CONTEXT_BUSY;
 		plat_log_msg(160161, LOG_CAT,
 		       	     LOG_DBG, "Could not get thread context lock");
-		goto out;
-	}
-	if (is_license_valid() == false) {
-		plat_log_msg(160145, LOG_CAT, LOG_WARN, "License check failed.");
-		status = FDF_LICENSE_CHK_FAILED;
 		goto out;
 	}
 
@@ -3951,6 +3952,11 @@ FDF_status_t FDFReadObjectExpiry(
                LOG_WARN, "Shutdown in Progress. Operation not allowed ");
 		goto out;
 	}
+	if (is_license_valid() == false) {
+		plat_log_msg(160145, LOG_CAT, LOG_WARN, "License check failed.");
+		status = FDF_LICENSE_CHK_FAILED;
+		goto out;
+	}
         if ( !fdf_thread_state || !cguid || !robj || ISEMPTY(robj->key) || !robj->key_len ) {
             if ( !fdf_thread_state ) {
                 plat_log_msg(80049,LOG_CAT,LOG_DBG,
@@ -3986,11 +3992,6 @@ FDF_status_t FDFReadObjectExpiry(
 		goto out;
 	}
 
-	if (is_license_valid() == false) {
-		plat_log_msg(160145, LOG_CAT, LOG_WARN, "License check failed.");
-		status = FDF_LICENSE_CHK_FAILED;
-		goto out;
-	}
 	status = fdf_read_object_expiry(fdf_thread_state, cguid, robj);
 
 out:
@@ -4086,6 +4087,11 @@ FDF_status_t FDFWriteObject(
                LOG_WARN, "Shutdown in Progress. Operation not allowed ");
 		goto out;
 	}
+	if (is_license_valid() == false) {
+		plat_log_msg(160145, LOG_CAT, LOG_WARN, "License check failed.");
+		status = FDF_LICENSE_CHK_FAILED;
+		goto out;
+	}
         if ( !fdf_thread_state || !cguid || ISEMPTY(key) || !keylen || !data || !datalen  ) {
             if ( !fdf_thread_state ) {
                 plat_log_msg(80049,LOG_CAT,LOG_DBG,
@@ -4122,11 +4128,6 @@ FDF_status_t FDFWriteObject(
 		status = FDF_THREAD_CONTEXT_BUSY;
 		plat_log_msg(160161, LOG_CAT,
 		       	     LOG_DBG, "Could not get thread context lock");
-		goto out;
-	}
-	if (is_license_valid() == false) {
-		plat_log_msg(160145, LOG_CAT, LOG_WARN, "License check failed.");
-		status = FDF_LICENSE_CHK_FAILED;
 		goto out;
 	}
 
@@ -4220,6 +4221,11 @@ FDF_status_t FDFWriteObjectExpiry(
                LOG_WARN, "Shutdown in Progress. Operation not allowed ");
 		goto out;
 	}
+	if (is_license_valid() == false) {
+		plat_log_msg(160145, LOG_CAT, LOG_WARN, "License check failed.");
+		status = FDF_LICENSE_CHK_FAILED;
+		goto out;
+	}
         if ( !fdf_thread_state || !cguid || ISEMPTY(wobj->key) || !wobj->key_len || !wobj->data || !wobj->data_len  ) {
             if ( !fdf_thread_state ) {
                 plat_log_msg(80049,LOG_CAT,LOG_DBG,
@@ -4260,11 +4266,6 @@ FDF_status_t FDFWriteObjectExpiry(
 		status = FDF_THREAD_CONTEXT_BUSY;
 		plat_log_msg(160161, LOG_CAT,
 		       	     LOG_DBG, "Could not get thread context lock");
-		goto out;
-	}
-	if (is_license_valid() == false) {
-		plat_log_msg(160145, LOG_CAT, LOG_WARN, "License check failed.");
-		status = FDF_LICENSE_CHK_FAILED;
 		goto out;
 	}
 
@@ -4336,6 +4337,11 @@ FDF_status_t FDFDeleteObject(
                LOG_WARN, "Shutdown in Progress. Operation not allowed ");
 		goto out;
 	}
+	if (is_license_valid() == false) {
+		plat_log_msg(160145, LOG_CAT, LOG_WARN, "License check failed.");
+		status = FDF_LICENSE_CHK_FAILED;
+		goto out;
+	}
         if ( !fdf_thread_state || !cguid || ISEMPTY(key) || !keylen ) {
             if ( !fdf_thread_state ) {
                 plat_log_msg(80049,LOG_CAT,LOG_DBG,
@@ -4364,11 +4370,6 @@ FDF_status_t FDFDeleteObject(
 		status = FDF_THREAD_CONTEXT_BUSY;
 		plat_log_msg(160161, LOG_CAT,
 		       	     LOG_DBG, "Could not get thread context lock");
-		goto out;
-	}
-	if (is_license_valid() == false) {
-		plat_log_msg(160145, LOG_CAT, LOG_WARN, "License check failed.");
-		status = FDF_LICENSE_CHK_FAILED;
 		goto out;
 	}
 
