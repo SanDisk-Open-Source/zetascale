@@ -872,12 +872,11 @@ FDF_status_t FDFTransactionRollback(
 /**
  * @brief Return version of FDF
  *
- * @param fdf_thread_state <IN> The FDF context for which this operation applies
+ * @param  Address of pointer to hold the version string 
  * @return String having the versions
  *         NULL if failed internally
  */
 FDF_status_t FDFGetVersion(
-	struct FDF_thread_state *fdf_thread_state,
 	char **str
 	);
 #ifdef __cplusplus

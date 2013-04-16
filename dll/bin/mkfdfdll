@@ -21,6 +21,7 @@ my %Onload =(
     'GetProperty' => 1,
     'SetProperty' => 1,
     'LoadProperties' => 1,
+    'GetVersion' => 1,
 );
 
 

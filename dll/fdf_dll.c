@@ -190,7 +190,7 @@ static FDF_status_t
 (*ptr_FDFTransactionRollback)(struct FDF_thread_state *fdf_thread_state);
 
 static FDF_status_t 
-(*ptr_FDFGetVersion)(struct FDF_thread_state *fdf_thread_state, char **str);
+(*ptr_FDFGetVersion)(char **str);
 
 
 /*
@@ -874,10 +874,11 @@ FDFTransactionRollback(struct FDF_thread_state *fdf_thread_state)
  * FDFGetVersion
  */
 FDF_status_t 
-FDFGetVersion(struct FDF_thread_state *fdf_thread_state, char **str)
+FDFGetVersion(char **str)
 {
+    parse();
     if (unlikely(!ptr_FDFGetVersion))
         undefined("FDFGetVersion");
 
-    return (*ptr_FDFGetVersion)(fdf_thread_state, str);
+    return (*ptr_FDFGetVersion)(str);
 }

@@ -6048,7 +6048,6 @@ FDF_status_t FDFTransactionRollback(
 
 FDF_status_t
 FDFGetVersion(
-	struct FDF_thread_state *fdf_thread_state,
 	char **str
 	)
 {
