@@ -396,7 +396,7 @@ char *get_access_type_stats_desc(int stat ) {
 
 fdf_stats_info_t fdf_stats_flash[] = {
     {"NUM_OBJS","num_items_flash",FDF_STATS_TYPE_FLASH},/*FDF_FLASH_STATS_NUM_OBJS*/
-    {"NUM_CREATED_OBJS","num_items_total",FDF_STATS_TYPE_FLASH},/*FDF_FLASH_STATS_NUM_CREATED_OBJS*/
+    {"NUM_CREATED_OBJS","num_items_created",FDF_STATS_TYPE_FLASH},/*FDF_FLASH_STATS_NUM_CREATED_OBJS*/
     {"NUM_EVICTIONS","num_evictions_flash",FDF_STATS_TYPE_FLASH},/*FDF_FLASH_STATS_NUM_EVICTIONS*/
     {"HASH_EVICTIONS","num_hash_evictions",FDF_STATS_TYPE_FLASH},/*FDF_FLASH_STATS_NUM_HASH_EVICTIONS*/
     {"INVAL_EVICTIONS","num_inval_evictions",FDF_STATS_TYPE_FLASH},/*FDF_FLASH_STATS_NUM_INVAL_EVICTIONS*/
@@ -3847,7 +3847,7 @@ FDF_status_t FDFReadObject(
 		status = FDF_LICENSE_CHK_FAILED;
 		goto out;
 	}
-        if ( !fdf_thread_state || !cguid || ISEMPTY(key) || !keylen ) {
+        if ( !fdf_thread_state || !cguid || !keylen ) {
             if ( !fdf_thread_state ) {
                 plat_log_msg(80049,LOG_CAT,LOG_DBG,
                              "FDF Thread state is NULL");
@@ -3855,10 +3855,6 @@ FDF_status_t FDFReadObject(
             if ( !cguid ) {
                 plat_log_msg(80050,LOG_CAT,LOG_DBG,
                              "Invalid container cguid:%lu",cguid);
-            }
-            if ( ISEMPTY(key) ) {
-                plat_log_msg(80055,LOG_CAT,LOG_DBG,
-                             "Invalid key");
             }
             if ( !keylen ) {
                 plat_log_msg(80056,LOG_CAT,LOG_DBG,
@@ -3957,7 +3953,7 @@ FDF_status_t FDFReadObjectExpiry(
 		status = FDF_LICENSE_CHK_FAILED;
 		goto out;
 	}
-        if ( !fdf_thread_state || !cguid || !robj || ISEMPTY(robj->key) || !robj->key_len ) {
+        if ( !fdf_thread_state || !cguid || !robj || !robj->key_len ) {
             if ( !fdf_thread_state ) {
                 plat_log_msg(80049,LOG_CAT,LOG_DBG,
                              "FDF Thread state is NULL");
@@ -3969,10 +3965,6 @@ FDF_status_t FDFReadObjectExpiry(
             if( !robj ) {
                 plat_log_msg(80057,LOG_CAT,LOG_DBG,
                              "Invalid container FDF_readobject_t");
-            }
-            if ( ISEMPTY(robj->key) ) {
-                plat_log_msg(80055,LOG_CAT,LOG_DBG,
-                             "Invalid key");
             }
             if ( !robj->key_len ) {
                 plat_log_msg(80056,LOG_CAT,LOG_DBG,
@@ -4092,7 +4084,7 @@ FDF_status_t FDFWriteObject(
 		status = FDF_LICENSE_CHK_FAILED;
 		goto out;
 	}
-        if ( !fdf_thread_state || !cguid || ISEMPTY(key) || !keylen || !data || !datalen  ) {
+        if ( !fdf_thread_state || !cguid || !keylen || !data || !datalen  ) {
             if ( !fdf_thread_state ) {
                 plat_log_msg(80049,LOG_CAT,LOG_DBG,
                              "FDF Thread state is NULL");
@@ -4100,10 +4092,6 @@ FDF_status_t FDFWriteObject(
             if ( !cguid ) {
                 plat_log_msg(80050,LOG_CAT,LOG_DBG,
                              "Invalid container cguid:%lu",cguid);
-            }
-            if ( ISEMPTY(key) ) {
-                plat_log_msg(80055,LOG_CAT,LOG_DBG,
-                             "Invalid key");
             }
             if ( !keylen ) {
                 plat_log_msg(80056,LOG_CAT,LOG_DBG,
@@ -4226,7 +4214,7 @@ FDF_status_t FDFWriteObjectExpiry(
 		status = FDF_LICENSE_CHK_FAILED;
 		goto out;
 	}
-        if ( !fdf_thread_state || !cguid || ISEMPTY(wobj->key) || !wobj->key_len || !wobj->data || !wobj->data_len  ) {
+        if ( !fdf_thread_state || !cguid || !wobj->key_len || !wobj->data || !wobj->data_len  ) {
             if ( !fdf_thread_state ) {
                 plat_log_msg(80049,LOG_CAT,LOG_DBG,
                              "FDF Thread state is NULL");
@@ -4238,10 +4226,6 @@ FDF_status_t FDFWriteObjectExpiry(
             if ( !wobj ) {
                 plat_log_msg(80060,LOG_CAT,LOG_DBG,
                              "Invalid FDF_writeobject_t");
-            }
-            if ( ISEMPTY(wobj->key) ) {
-                plat_log_msg(80055,LOG_CAT,LOG_DBG,
-                             "Invalid key");
             }
             if ( !wobj->key_len ) {
                 plat_log_msg(80056,LOG_CAT,LOG_DBG,
@@ -4342,7 +4326,7 @@ FDF_status_t FDFDeleteObject(
 		status = FDF_LICENSE_CHK_FAILED;
 		goto out;
 	}
-        if ( !fdf_thread_state || !cguid || ISEMPTY(key) || !keylen ) {
+        if ( !fdf_thread_state || !cguid || !keylen ) {
             if ( !fdf_thread_state ) {
                 plat_log_msg(80049,LOG_CAT,LOG_DBG,
                              "FDF Thread state is NULL");
@@ -4350,10 +4334,6 @@ FDF_status_t FDFDeleteObject(
             if ( !cguid ) {
                 plat_log_msg(80050,LOG_CAT,LOG_DBG,
                              "Invalid container cguid:%lu",cguid);
-            }
-            if ( ISEMPTY(key) ) {
-                plat_log_msg(80055,LOG_CAT,LOG_DBG,
-                             "Invalid key");
             }
             if ( !keylen ) {
                 plat_log_msg(80056,LOG_CAT,LOG_DBG,
@@ -4441,7 +4421,7 @@ FDF_status_t FDFFlushObject(
                LOG_WARN, "Shutdown in Progress. Operation not allowed ");
 		goto out;
 	}
-        if ( !fdf_thread_state || !cguid || ISEMPTY(key) || !keylen ) {
+        if ( !fdf_thread_state || !cguid || !keylen ) {
             if ( !fdf_thread_state ) {
                 plat_log_msg(80049,LOG_CAT,LOG_DBG,
                              "FDF Thread state is NULL");
@@ -4449,10 +4429,6 @@ FDF_status_t FDFFlushObject(
             if ( !cguid ) {
                 plat_log_msg(80050,LOG_CAT,LOG_DBG,
                              "Invalid container cguid:%lu",cguid);
-            }
-            if ( ISEMPTY(key) ) {
-                plat_log_msg(80055,LOG_CAT,LOG_DBG,
-                             "Invalid key");
             }
             if ( !keylen ) {
                 plat_log_msg(80056,LOG_CAT,LOG_DBG,
