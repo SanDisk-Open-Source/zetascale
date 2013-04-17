@@ -2641,12 +2641,11 @@ mcd_fth_osd_remove_entry( mcd_osd_shard_t * shard,
         plat_assert_always( 0 == 1 );
     }
 
-        class = shard->slab_classes +
-            shard->class_table[mcd_osd_lba_to_blk(hash_entry->blocks)];
     if (delayed)
 	{
         class = shard->slab_classes +
             shard->class_table[mcd_osd_lba_to_blk(hash_entry->blocks)];
+
         uint64_t slabs = atomic_add_get(class->dealloc_pending, 1);
         uint64_t blks  = atomic_add_get(shard->blk_dealloc_pending, class->slab_blksize);
         // insert a clever algorithm here to determine if too

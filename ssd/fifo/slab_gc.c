@@ -15,6 +15,8 @@
 #include "api/fdf.h" /* Statistics */
 #include "protocol/action/recovery.h"
 
+extern inline uint32_t mcd_osd_lba_to_blk( uint32_t blocks );
+
 void *
 context_alloc( int category ); /* mcd_rec.c */
 
@@ -175,7 +177,7 @@ int slab_gc_relocate_slab(
 
 	mcd_fth_osd_remove_entry(shard, hash_entry, delayed, false);
 	/* Later should be mcd_osd_lba_to_blk(hash_entry->blocks)) */
-	atomic_add(shard->blk_consumed, hash_entry->blocks);
+	atomic_add(shard->blk_consumed, mcd_osd_lba_to_blk(hash_entry->blocks));
 
 	hash_entry->address = dst_blk_offset;
 	shard->addr_table[dst_blk_offset] = hash_entry - shard->hash_table;
