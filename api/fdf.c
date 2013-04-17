@@ -5243,7 +5243,7 @@ static void get_fdf_stats( SDF_internal_ctxt_t *pai, char ** ppos, int * lenp,
     enum_stats_t e;
     uint64_t *p = stat->n_accesses;
 
-    enumerate_stats(&e);
+    enumerate_stats(&e, lc->cguid);
     p[FDF_ACCESS_TYPES_ENUM_TOTAL]          = e.num_total;
     p[FDF_ACCESS_TYPES_ENUM_ACTIVE]         = e.num_active;
     p[FDF_ACCESS_TYPES_ENUM_OBJECTS]        = e.num_objects;

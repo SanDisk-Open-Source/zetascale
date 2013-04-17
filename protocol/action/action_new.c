@@ -6508,24 +6508,42 @@ static char *enum_recovery_fill(SDF_cache_enum_t *cenum)
 
 
 /*
- * Look up an entry in the cache by block address, hash bucket and hash
- * syndrome.  The metadata, key, data and the lengths are returned.  Return 1
- * on success and 0 on failure.
+ * Look up an entry in the cache by information contained in the memory hash
+ * table.  Return the metadata, key, data and lengths.  1 indicates success and
+ * 0, failure.
  */
-int cache_get_by_addr(SDF_action_init_t *pai,
-		      struct shard *shard,
-		      SDF_cguid_t cguid,
-		      baddr_t baddr,
-                      uint64_t hashbkt,
-                      hashsyn_t hashsyn,
-		      char **key,
-		      uint64_t *key_len,
-		      char **data,
-		      uint64_t *data_len)
+int cache_get_by_mhash(SDF_action_init_t *pai, struct shard *shard,
+		       baddr_t baddr, uint64_t hashbkt, hashsyn_t hashsyn,
+                       char **key, uint64_t *key_len,
+		       char **data, uint64_t *data_len)
 {
-    return SDFNewCacheGetByBlockAddr(pai->pcs->new_actiondir, shard, cguid,
-                                     baddr, hashbkt, hashsyn, key, key_len,
-                                     data, data_len);
+    return SDFNewCacheGetByMhash(pai->pcs->new_actiondir, shard, baddr,
+                                 hashbkt, hashsyn, key, key_len,
+                                 data, data_len);
+}
+
+
+/*
+ * Invalidate a cache entry given information in the memory hash table.  Return
+ * the metadata, key, data and lengths.  1 indicates success and 0, failure.
+ */
+int
+cache_inval_by_mhash(SDF_action_init_t *pai, struct shard *shard,
+                     baddr_t baddr, uint64_t hashbkt, hashsyn_t hashsyn)
+{
+    return SDFNewCacheInvalByMhash(pai->pcs->new_actiondir, shard,
+                                   baddr, hashbkt, hashsyn);
+}
+
+
+/*
+ * Invalidate all cache entries corresponding to a given container.
+ */
+void
+cache_inval_by_cntr(SDF_action_init_t *pai, struct shard *shard,
+		    SDF_cguid_t cguid)
+{
+    return SDFNewCacheInvalByCntr(pai->pcs->new_actiondir, shard, cguid);
 }
 
 

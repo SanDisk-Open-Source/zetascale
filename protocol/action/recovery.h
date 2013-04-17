@@ -67,7 +67,7 @@ struct sdf_rec_funcs {
 /*
  * Enumeration.
  */
-void enumerate_stats(enum_stats_t *s);
+void enumerate_stats(enum_stats_t *s, FDF_cguid_t cguid);
 
 FDF_status_t
 enumerate_init(SDF_action_init_t *pai, struct shard *shard,

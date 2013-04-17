@@ -2522,16 +2522,10 @@ void SDFNewCacheTransientEntryCheck(SDFNewCacheBucket_t *pb, SDFNewCacheEntry_t 
  * failure.
  */
 
-int SDFNewCacheGetByBlockAddr(SDFNewCache_t *pc,
-			      struct shard *shard,
-			      SDF_cguid_t cguid,
-			      baddr_t baddr,
-                              uint64_t hashbkt,
-                              hashsyn_t hashsyn,
-			      char **key,
-			      uint64_t *key_len,
-			      char **data,
-			      uint64_t *data_len)
+int SDFNewCacheGetByMhash(SDFNewCache_t *pc, struct shard *shard,
+			  baddr_t baddr, uint64_t hashbkt, hashsyn_t hashsyn,
+			  char **key, uint64_t *key_len,
+			  char **data, uint64_t *data_len)
 {
     int                   ret=0;
     uint64_t              h;
@@ -2586,3 +2580,38 @@ int SDFNewCacheGetByBlockAddr(SDFNewCache_t *pc,
 }
 
 
+/*
+ * Invalidate an entry in the cache by block address, hash bucket and hash
+ * syndrome.  Return 1 on success and 0 on failure.
+ */
+int
+SDFNewCacheInvalByMhash(SDFNewCache_t *pc, struct shard *shard, baddr_t baddr,
+                        uint64_t hashbkt, hashsyn_t hashsyn)
+{
+    SDFNewCacheEntry_t   *pce;
+    uint64_t h = chash_index(shard, hashbkt, hashsyn, pc->nbuckets);
+    SDFNewCacheBucket_t *pb = &(pc->buckets[h]);
+    SDFNewCacheSlab_t   *ps = pb->slab;
+
+    CacheLock(ps->lock, ps->lock_wait);
+    for (pce = pb->entry; pce != NULL; pce = pce->next)
+	if (pce->blockaddr == baddr)
+	    break;
+
+    if (pce)
+        SDFNewCacheRemove(pc, pce, SDF_FALSE, NULL);
+
+    CacheUnlock(ps->lock, ps->lock_wait);
+    return pce != NULL;
+}
+
+
+/*
+ * Invalidate an entry in the cache by block address, hash bucket and hash
+ * syndrome.
+ */
+void
+SDFNewCacheInvalByCntr(SDFNewCache_t *pc, struct shard *shard,
+		       SDF_cguid_t cguid)
+{
+}

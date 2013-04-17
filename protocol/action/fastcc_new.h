@@ -261,22 +261,19 @@ extern void SDFNewCacheSetBackgroundFlushTokens(SDFNewCache_t *pc, uint32_t ntok
 extern void SDFNewCacheSetModifiedLimit(SDFNewCache_t *pc, double fmod);
 extern void SDFNewCacheFlushComplete(SDFNewCache_t *pc, SDF_boolean_t background_flush);
 
-/*
- * Look up an entry in the cache by block address and chash.  The metadata,
- * key, data and the lengths are returned.  Return 1 on success and 0 on
- * failure.  ADDED TO SUPPORT VIRTUAL CONTAINERS
- */
+int
+SDFNewCacheGetByMhash(SDFNewCache_t *pc, struct shard *shard, baddr_t baddr,
+                      uint64_t hashbkt, hashsyn_t hashsyn,
+                      char **key, uint64_t *key_len,
+		      char **data, uint64_t *data_len);
 
-extern int SDFNewCacheGetByBlockAddr(SDFNewCache_t *pc,
-				     struct shard *shard,
-				     SDF_cguid_t cguid,
-				     baddr_t baddr,
-                                     uint64_t hashbkt,
-                                     hashsyn_t hashsyn,
-				     char **key,
-				     uint64_t *key_len,
-				     char **data,
-				     uint64_t *data_len);
+int
+SDFNewCacheInvalByMhash(SDFNewCache_t *pc, struct shard *shard, baddr_t baddr,
+                        uint64_t hashbkt, hashsyn_t hashsyn);
+
+void
+SDFNewCacheInvalByCntr(SDFNewCache_t *pc, struct shard *shard,
+		       SDF_cguid_t cguid);
 
 extern int SDFNewCacheHashBits(SDFNewCache_t *pc); // TO SUPPORT VIRTUAL CONTAINERS
 

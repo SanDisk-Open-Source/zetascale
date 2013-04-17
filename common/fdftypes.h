@@ -21,6 +21,8 @@ extern "C" {
 #include <stdint.h>
 #include <limits.h>
 
+#define MAX_HASHSYN 65535
+
 /* FDF */
 typedef enum {
     FDF_FALSE = 0,

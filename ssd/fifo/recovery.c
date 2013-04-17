@@ -4279,6 +4279,14 @@ chash_index(shard_t *sshard, uint64_t bkt_i,
     uint64_t bkti_l2 = bkt_i & shard->bkti_l2_mask;
 
     return ((bkti_l2 << OSD_HASH_SYN_SIZE) | hashsyn) % num_bkts;
+
+    int i = (bkt_i + (double) hashsyn / (MAX_HASHSYN + 1)) /
+            (shard->hash_size / Mcd_osd_bucket_size) * num_bkts;
+
+    /* should never happen; but just in case of rounding errors */
+    if (i >= num_bkts)
+        i = num_bkts - 1;
+    return i;
 }
 
 
@@ -4366,7 +4374,7 @@ lba_to_use(mshard_t *shard, uint64_t lba)
  * Return enumeration statistics.
  */
 void
-enumerate_stats(enum_stats_t *s)
+enumerate_stats(enum_stats_t *s, FDF_cguid_t cguid)
 {
     memcpy(s, &EV.stats, sizeof(enum_stats_t));
 }
@@ -4504,8 +4512,8 @@ enumerate_next(pai_t *pai, e_state_t *es, char **key, uint64_t *keylen,
         if (!hash->used || hash->cntr_id != cntr_id)
             continue;
 
-        s = cache_get_by_addr(pai, (shard_t *) es->shard, cntr_id,
-                              hash->address, ehash->bkt_i, hash->syndrome,
+        s = cache_get_by_mhash(pai, (shard_t *) es->shard, hash->address,
+                               ehash->bkt_i, hash->syndrome,
                               key, keylen, data, datalen);
         if (s) {
             atomic_inc(EV.stats.num_objects);
