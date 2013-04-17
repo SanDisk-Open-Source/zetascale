@@ -192,6 +192,73 @@ static FDF_status_t
 static FDF_status_t 
 (*ptr_FDFGetVersion)(char **str);
 
+static void 
+(*ptr_FDFTLMapDestroy)(struct FDFTLMap *pm);
+
+static void 
+(*ptr_FDFTLMapClear)(struct FDFTLMap *pm);
+
+static struct FDFTLMapEntry *
+(*ptr_FDFTLMapCreate)(struct FDFTLMap *pm,
+                      char *pkey,
+                      uint32_t keylen,
+                      char *pdata,
+                      uint64_t datalen);
+
+static struct FDFTLMapEntry *
+(*ptr_FDFTLMapUpdate)(struct FDFTLMap *pm,
+                      char *pkey,
+                      uint32_t keylen,
+                      char *pdata,
+                      uint64_t datalen);
+
+static struct FDFTLMapEntry *
+(*ptr_FDFTLMapSet)(struct FDFTLMap *pm,
+                   char *pkey,
+                   uint32_t keylen,
+                   char *pdata,
+                   uint64_t datalen,
+                   char **old_pdata,
+                   uint64_t *old_datalen);
+
+static struct FDFTLMapEntry *
+(*ptr_FDFTLMapGet)(struct FDFTLMap *pc,
+                   char *key,
+                   uint32_t keylen,
+                   char **data,
+                   uint64_t *pdatalen);
+
+static int 
+(*ptr_FDFTLMapIncrRefcnt)(struct FDFTLMap *pm, char *key, uint32_t keylen);
+
+static void 
+(*ptr_FDFTLMapCheckRefcnts)(struct FDFTLMap *pm);
+
+static int 
+(*ptr_FDFTLMapRelease)(struct FDFTLMap *pm, char *key, uint32_t keylen);
+
+static int 
+(*ptr_FDFTLMapReleaseEntry)(struct FDFTLMap *pm, struct FDFTLMapEntry *pme);
+
+static struct FDFTLIterator *
+(*ptr_FDFTLMapEnum)(struct FDFTLMap *pm);
+
+static void 
+(*ptr_FDFTLFinishEnum)(struct FDFTLMap *pm, struct FDFTLIterator *iterator);
+
+static int 
+(*ptr_FDFTLMapNextEnum)(struct FDFTLMap *pm,
+                        struct FDFTLIterator *iterator,
+                        char **key,
+                        uint32_t *keylen,
+                        char **data,
+                        uint64_t *datalen);
+
+static int 
+(*ptr_FDFTLMapDelete)(struct FDFTLMap *pm, char *key, uint32_t keylen);
+
+struct FDFTLMap*
+(*ptr_FDFTLMapInit)(uint64_t nbuckets, uint64_t max_entries, char use_locks, void (*replacement_callback)(void *callback_data, char *key, uint32_t keylen, char *pdata, uint64_t datalen), void *replacement_callback_data);
 
 /*
  * Linkage table.
@@ -235,6 +302,21 @@ static struct {
     { "FDFTransactionCommit",          &ptr_FDFTransactionCommit         },
     { "FDFTransactionRollback",        &ptr_FDFTransactionRollback       },
     { "FDFGetVersion",                 &ptr_FDFGetVersion                },
+    { "FDFTLMapDestroy",               &ptr_FDFTLMapDestroy              },
+    { "FDFTLMapClear",                 &ptr_FDFTLMapClear                },
+    { "FDFTLMapCreate",                &ptr_FDFTLMapCreate               },
+    { "FDFTLMapUpdate",                &ptr_FDFTLMapUpdate               },
+    { "FDFTLMapSet",                   &ptr_FDFTLMapSet                  },
+    { "FDFTLMapGet",                   &ptr_FDFTLMapGet                  },
+    { "FDFTLMapIncrRefcnt",            &ptr_FDFTLMapIncrRefcnt           },
+    { "FDFTLMapCheckRefcnts",          &ptr_FDFTLMapCheckRefcnts         },
+    { "FDFTLMapRelease",               &ptr_FDFTLMapRelease              },
+    { "FDFTLMapReleaseEntry",          &ptr_FDFTLMapReleaseEntry         },
+    { "FDFTLMapEnum",                  &ptr_FDFTLMapEnum                 },
+    { "FDFTLFinishEnum",               &ptr_FDFTLFinishEnum              },
+    { "FDFTLMapNextEnum",              &ptr_FDFTLMapNextEnum             },
+    { "FDFTLMapDelete",                &ptr_FDFTLMapDelete               },
+    { "FDFTLMapInit",                  &ptr_FDFTLMapInit                 },
 };
 
 
@@ -855,6 +937,17 @@ FDFTransactionCommit(struct FDF_thread_state *fdf_thread_state)
 
     return (*ptr_FDFTransactionCommit)(fdf_thread_state);
 }
+/*
+ * FDFTLMapDestroy
+ */
+void 
+FDFTLMapDestroy(struct FDFTLMap *pm)
+{
+    if (unlikely(!ptr_FDFTLMapDestroy))
+        undefined("FDFTLMapDestroy");
+
+    return (*ptr_FDFTLMapDestroy)(pm);
+}
 
 
 /*
@@ -867,6 +960,17 @@ FDFTransactionRollback(struct FDF_thread_state *fdf_thread_state)
         undefined("FDFTransactionRollback");
 
     return (*ptr_FDFTransactionRollback)(fdf_thread_state);
+}
+/*
+ * FDFTLMapClear
+ */
+void 
+FDFTLMapClear(struct FDFTLMap *pm)
+{
+    if (unlikely(!ptr_FDFTLMapClear))
+        undefined("FDFTLMapClear");
+
+    return (*ptr_FDFTLMapClear)(pm);
 }
 
 
@@ -882,3 +986,199 @@ FDFGetVersion(char **str)
 
     return (*ptr_FDFGetVersion)(str);
 }
+/*
+ * FDFTLMapCreate
+ */
+struct FDFTLMapEntry *
+FDFTLMapCreate(struct FDFTLMap *pm,
+               char *pkey,
+               uint32_t keylen,
+               char *pdata,
+               uint64_t datalen)
+{
+    if (unlikely(!ptr_FDFTLMapCreate))
+        undefined("FDFTLMapCreate");
+
+    return (*ptr_FDFTLMapCreate)(pm, pkey, keylen, pdata, datalen);
+}
+
+
+/*
+ * FDFTLMapUpdate
+ */
+struct FDFTLMapEntry *
+FDFTLMapUpdate(struct FDFTLMap *pm,
+               char *pkey,
+               uint32_t keylen,
+               char *pdata,
+               uint64_t datalen)
+{
+    if (unlikely(!ptr_FDFTLMapUpdate))
+        undefined("FDFTLMapUpdate");
+
+    return (*ptr_FDFTLMapUpdate)(pm, pkey, keylen, pdata, datalen);
+}
+
+
+/*
+ * FDFTLMapSet
+ */
+struct FDFTLMapEntry *
+FDFTLMapSet(struct FDFTLMap *pm,
+            char *pkey,
+            uint32_t keylen,
+            char *pdata,
+            uint64_t datalen,
+            char **old_pdata,
+            uint64_t *old_datalen)
+{
+    if (unlikely(!ptr_FDFTLMapSet))
+        undefined("FDFTLMapSet");
+
+    return (*ptr_FDFTLMapSet)(pm,
+                              pkey,
+                              keylen,
+                              pdata,
+                              datalen,
+                              old_pdata,
+                              old_datalen);
+}
+
+
+/*
+ * FDFTLMapGet
+ */
+struct FDFTLMapEntry *
+FDFTLMapGet(struct FDFTLMap *pc,
+            char *key,
+            uint32_t keylen,
+            char **data,
+            uint64_t *pdatalen)
+{
+    if (unlikely(!ptr_FDFTLMapGet))
+        undefined("FDFTLMapGet");
+
+    return (*ptr_FDFTLMapGet)(pc, key, keylen, data, pdatalen);
+}
+
+
+/*
+ * FDFTLMapIncrRefcnt
+ */
+int 
+FDFTLMapIncrRefcnt(struct FDFTLMap *pm, char *key, uint32_t keylen)
+{
+    if (unlikely(!ptr_FDFTLMapIncrRefcnt))
+        undefined("FDFTLMapIncrRefcnt");
+
+    return (*ptr_FDFTLMapIncrRefcnt)(pm, key, keylen);
+}
+
+
+/*
+ * FDFTLMapCheckRefcnts
+ */
+void 
+FDFTLMapCheckRefcnts(struct FDFTLMap *pm)
+{
+    if (unlikely(!ptr_FDFTLMapCheckRefcnts))
+        undefined("FDFTLMapCheckRefcnts");
+
+    return (*ptr_FDFTLMapCheckRefcnts)(pm);
+}
+
+
+/*
+ * FDFTLMapRelease
+ */
+int 
+FDFTLMapRelease(struct FDFTLMap *pm, char *key, uint32_t keylen)
+{
+    if (unlikely(!ptr_FDFTLMapRelease))
+        undefined("FDFTLMapRelease");
+
+    return (*ptr_FDFTLMapRelease)(pm, key, keylen);
+}
+
+
+/*
+ * FDFTLMapReleaseEntry
+ */
+int 
+FDFTLMapReleaseEntry(struct FDFTLMap *pm, struct FDFTLMapEntry *pme)
+{
+    if (unlikely(!ptr_FDFTLMapReleaseEntry))
+        undefined("FDFTLMapReleaseEntry");
+
+    return (*ptr_FDFTLMapReleaseEntry)(pm, pme);
+}
+
+
+/*
+ * FDFTLMapEnum
+ */
+struct FDFTLIterator *
+FDFTLMapEnum(struct FDFTLMap *pm)
+{
+    if (unlikely(!ptr_FDFTLMapEnum))
+        undefined("FDFTLMapEnum");
+
+    return (*ptr_FDFTLMapEnum)(pm);
+}
+
+
+/*
+ * FDFTLFinishEnum
+ */
+void 
+FDFTLFinishEnum(struct FDFTLMap *pm, struct FDFTLIterator *iterator)
+{
+    if (unlikely(!ptr_FDFTLFinishEnum))
+        undefined("FDFTLFinishEnum");
+
+    return (*ptr_FDFTLFinishEnum)(pm, iterator);
+}
+
+
+/*
+ * FDFTLMapNextEnum
+ */
+int 
+FDFTLMapNextEnum(struct FDFTLMap *pm,
+                 struct FDFTLIterator *iterator,
+                 char **key,
+                 uint32_t *keylen,
+                 char **data,
+                 uint64_t *datalen)
+{
+    if (unlikely(!ptr_FDFTLMapNextEnum))
+        undefined("FDFTLMapNextEnum");
+
+    return (*ptr_FDFTLMapNextEnum)(pm, iterator, key, keylen, data, datalen);
+}
+
+
+/*
+ * FDFTLMapDelete
+ */
+int 
+FDFTLMapDelete(struct FDFTLMap *pm, char *key, uint32_t keylen)
+{
+    if (unlikely(!ptr_FDFTLMapDelete))
+        undefined("FDFTLMapDelete");
+
+    return (*ptr_FDFTLMapDelete)(pm, key, keylen);
+}
+
+/*
+ * FDFTLMapInit
+ */
+struct FDFTLMap*
+FDFTLMapInit(uint64_t nbuckets, uint64_t max_entries, char use_locks, void (*replacement_callback)(void *callback_data, char *key, uint32_t keylen, char *pdata, uint64_t datalen), void *replacement_callback_data)
+{
+    if (unlikely(!ptr_FDFTLMapInit))
+        undefined("FDFTLMapInit");
+
+    return (*ptr_FDFTLMapInit)(nbuckets, max_entries, use_locks, replacement_callback, replacement_callback_data);
+}
+

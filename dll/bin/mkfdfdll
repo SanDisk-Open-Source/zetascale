@@ -291,7 +291,7 @@ sub func_patn () {
     if ($] >= 5.012) {
         return '
             ^
-            \s* ([FS]DF_\w+|struct \s* [FS]DF_\w+|int|void|char|const\s+char)
+            \s* ([FS]DF_\w+|struct \s* [FS]DF[_T]\w+|int|void|char|const\s+char)
             \s* (\**)
             \s* ([FS]DF\w+)
             \s* ( \( (?:[^()]*+ | (?4))* \) )
@@ -303,7 +303,7 @@ sub func_patn () {
            " still, doing our best";
     return '
         ^
-        \s* ([FS]DF_\w+|struct \s* [FS]DF_\w+|int|void|char|const\s+char)
+        \s* ([FS]DF_\w+|struct \s* [FS]DF[_T]\w+|int|void|char|const\s+char)
         \s* (\**)
         \s* ([FS]DF\w+)
         \s* ( \( [^)]* \) )

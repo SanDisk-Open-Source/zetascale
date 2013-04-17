@@ -19,6 +19,7 @@ extern "C" {
 #include <stdint.h>
 #include <inttypes.h>
 #include <stdint.h>
+#include <pthread.h>
 
 #include "common/fdftypes.h"
 
@@ -879,6 +880,70 @@ FDF_status_t FDFTransactionRollback(
 FDF_status_t FDFGetVersion(
 	char **str
 	);
+
+#define N_ENTRIES_TO_MALLOC    100
+#define N_ITERATORS_TO_MALLOC  100
+
+struct FDFTLMapBucket;
+
+typedef struct FDFTLMapEntry {
+    char                  *contents;
+    uint64_t               datalen;
+    int32_t                refcnt;
+    char                  *key;
+    uint32_t               keylen;
+    struct FDFTLMapEntry  *next;
+    struct FDFTLMapEntry  *next_lru;
+    struct FDFTLMapEntry  *prev_lru;
+    struct FDFTLMapBucket *bucket;
+} FDFTLMapEntry_t;
+
+typedef struct FDFTLMapBucket {
+    struct FDFTLMapEntry *entry;
+} FDFTLMapBucket_t;
+
+typedef struct FDFTLIterator {
+    uint64_t                enum_bucket;
+    FDFTLMapEntry_t        *enum_entry;
+    struct FDFTLIterator   *next;
+} FDFTLIterator_t;
+
+typedef struct FDFTLMap {
+    uint64_t          nbuckets;
+    uint64_t          max_entries;
+    uint64_t          n_entries;
+    char              use_locks;
+    FDFTLMapBucket_t *buckets;
+    pthread_mutex_t   mutex;
+    pthread_mutex_t   enum_mutex;
+    FDFTLMapEntry_t  *lru_head;
+    FDFTLMapEntry_t  *lru_tail;
+    void              (*replacement_callback)(void *callback_data, char *key, uint32_t keylen, char *pdata, uint64_t datalen);
+    void             *replacement_callback_data;
+    uint32_t          NEntries;
+    uint32_t          NUsedEntries;
+    FDFTLMapEntry_t  *FreeEntries;
+    uint32_t          NIterators;
+    uint32_t          NUsedIterators;
+    struct FDFTLIterator *FreeIterators;
+} FDFTLMap_t;
+
+struct FDFTLMap* FDFTLMapInit(uint64_t nbuckets, uint64_t max_entries, char use_locks, void (*replacement_callback)(void *callback_data, char *key, uint32_t keylen, char *pdata, uint64_t datalen), void *replacement_callback_data);
+void FDFTLMapDestroy(struct FDFTLMap *pm);
+void FDFTLMapClear(struct FDFTLMap *pm);
+struct FDFTLMapEntry* FDFTLMapCreate(struct FDFTLMap *pm, char *pkey, uint32_t keylen, char *pdata, uint64_t datalen);
+struct FDFTLMapEntry* FDFTLMapUpdate(struct FDFTLMap *pm, char *pkey, uint32_t keylen, char *pdata, uint64_t datalen);
+struct FDFTLMapEntry* FDFTLMapSet(struct FDFTLMap *pm, char *pkey, uint32_t keylen, char *pdata, uint64_t datalen, char **old_pdata, uint64_t *old_datalen);
+struct FDFTLMapEntry* FDFTLMapGet(struct FDFTLMap *pc, char *key, uint32_t keylen, char** data, uint64_t *pdatalen);
+int FDFTLMapIncrRefcnt(struct FDFTLMap *pm, char *key, uint32_t keylen);
+void FDFTLMapCheckRefcnts(struct FDFTLMap *pm);
+int FDFTLMapRelease(struct FDFTLMap *pm, char *key, uint32_t keylen);
+int FDFTLMapReleaseEntry(struct FDFTLMap *pm, struct FDFTLMapEntry *pme);
+struct FDFTLIterator* FDFTLMapEnum(struct FDFTLMap *pm);
+void FDFTLFinishEnum(struct FDFTLMap *pm, struct FDFTLIterator *iterator);
+int FDFTLMapNextEnum(struct FDFTLMap *pm, struct FDFTLIterator *iterator, char **key, uint32_t *keylen, char **data, uint64_t *datalen);
+int FDFTLMapDelete(struct FDFTLMap *pm, char *key, uint32_t keylen);
+
 #ifdef __cplusplus
 }
 #endif
