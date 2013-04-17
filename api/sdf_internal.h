@@ -5,32 +5,34 @@
 
 #include <stdint.h>
 #include <inttypes.h>
+#include "sdftcp/locks.h"
 #include "common/fdftypes.h"
 #include "sdf.h"
 #include "fdf.h"
 
 #define MAX_CONTAINERS  1000
 
-#define rel_cntr_map(cmap)
 
 typedef enum {
-    FDF_CONTAINER_STATE_UNINIT,     /* Uninitialized */
-    FDF_CONTAINER_STATE_CLOSED,     /* Container is closed */
-    FDF_CONTAINER_STATE_OPEN,       /* Container is Open */
-    FDF_CONTAINER_STATE_DELETE_PROG /* Container submitted for async delete */
+    FDF_CONTAINER_STATE_UNINIT,  	  /* Container is uninitialized */
+    FDF_CONTAINER_STATE_CREATED, 	  /* Container is uninitialized */
+    FDF_CONTAINER_STATE_OPEN,         /* Container is Open */
+    FDF_CONTAINER_STATE_CLOSED,       /* Container is closed */
+    FDF_CONTAINER_STATE_DELETE_PROG,  /* Container submitted for async delete */
+    FDF_CONTAINER_STATE_DELETE_OPEN,  /* Container submitted for async delete */
+    FDF_CONTAINER_STATE_DELETE_CLOSED, /* Container submitted for async delete */
 }FDF_CONTAINER_STATE;
 
 typedef struct ctnr_map {
-	int     		lock;       					/* Entry lock - do not change any state */
-	int     		io_count;						/* IO in flight count */
-    char            cname[CONTAINER_NAME_MAXLEN];	/* Container name */
-    FDF_cguid_t     cguid;							/* Container ID */
-    SDF_CONTAINER   sdf_container;					/* Open container handle */
-	uint64_t		size_kb;						/* Container size KB */
-	uint64_t		current_size;					/* Current container size */
-	uint64_t		num_obj;						/* Current number of objects */
-    FDF_CONTAINER_STATE state;						/* Container state */
-	FDF_boolean_t   evicting;						/* Eviction mode */
+    char            	 cname[CONTAINER_NAME_MAXLEN];	/* Container name */
+	int     			 io_count;						/* IO in flight count */
+    FDF_cguid_t     	 cguid;							/* Container ID */
+    SDF_CONTAINER   	 sdf_container;					/* Open container handle */
+	uint64_t			 size_kb;						/* Container size KB */
+	uint64_t			 current_size;					/* Current container size */
+	uint64_t			 num_obj;						/* Current number of objects */
+    FDF_CONTAINER_STATE  state;							/* Container state */
+	FDF_boolean_t   	 evicting;						/* Eviction mode */
 } ctnr_map_t;
 
 

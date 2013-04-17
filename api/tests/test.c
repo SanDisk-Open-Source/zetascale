@@ -52,10 +52,8 @@ FDF_status_t fdf_create_container (
             cguid
             );
     
-    if ( ret != FDF_SUCCESS ) {
-        fprintf( stderr, "FDFOpenContainer: %s\n", FDFStrError(FDF_SUCCESS) );
-        return ret;
-    }
+    if ( ret != FDF_SUCCESS ) 
+        fprintf( stderr, "FDFOpenContainer: %s\n", FDFStrError(ret) );
     
     return ret;
 }
@@ -83,10 +81,8 @@ FDF_status_t fdf_open_container (
 			cguid
 			);
 
-    if ( ret != FDF_SUCCESS ) {
-		fprintf( stderr, "FDFOpenContainer: %s\n", FDFStrError(FDF_SUCCESS) );
-		return ret;
-    }
+    if ( ret != FDF_SUCCESS ) 
+		fprintf( stderr, "FDFOpenContainer: %s\n", FDFStrError(ret) );
 
     return ret;
 }

@@ -368,7 +368,8 @@ typedef struct {
     item(SDF_THREAD_CONTEXT_BUSY,/* Multiple parallel fdf calls using same thread context */) \
     item(SDF_LICENSE_CHK_FAILED, /* default */) \
     item(SDF_CONTAINER_OPEN,/* default */) \
-    item(SDF_FAILURE_INVALID_CONTAINER_SIZE, /* default */)
+    item(SDF_FAILURE_INVALID_CONTAINER_SIZE, /* default */) \
+    item(SDF_FAILURE_INVALID_CONTAINER_STATE, /* default */)
 
 typedef enum {
 #define item(caps, value) \

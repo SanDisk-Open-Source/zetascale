@@ -21,19 +21,21 @@
 /*
  * Functions defined in fdf.c
  */
-extern FDF_status_t fdf_get_ctnr_status(FDF_cguid_t cguid);
-
+extern FDF_status_t fdf_get_ctnr_status(FDF_cguid_t cguid, int delete_ok);
+extern int fdf_get_ctnr_from_cguid(FDF_cguid_t cguid);
+extern inline void fdf_incr_io_count( FDF_cguid_t cguid );
+extern inline void fdf_decr_io_count( FDF_cguid_t cguid );
 
 /*
  * Convert a cguid to a shard.
  */
 FDF_status_t
-cguid_to_shard(SDF_action_init_t *pai, FDF_cguid_t cguid, shard_t **shard_ptr)
+cguid_to_shard(SDF_action_init_t *pai, FDF_cguid_t cguid, shard_t **shard_ptr, int delete_ok)
 {
     FDF_status_t s;
     SDF_container_meta_t meta;
 
-    if ( (s = fdf_get_ctnr_status(cguid)) != FDF_CONTAINER_OPEN )
+    if ( (s = fdf_get_ctnr_status(cguid, delete_ok)) != FDF_CONTAINER_OPEN )
         return s;
     
     s = name_service_get_meta(pai, cguid, &meta);
@@ -86,12 +88,12 @@ FDFEnumerateContainerObjects(struct FDF_thread_state *ts,
     }
     SDF_action_init_t *pai = (SDF_action_init_t *) ts;
 
-    s = cguid_to_shard(pai, cguid, &shard);
+    s = cguid_to_shard(pai, cguid, &shard, 0);
     if (s != FDF_SUCCESS)
         return s;
 
     s = enumerate_init(pai, shard, cguid, iter);
-    if (s)
+    if (s) 
         return s;
     return FDF_SUCCESS;
 }
@@ -122,12 +124,21 @@ FDFNextEnumeratedObject(struct FDF_thread_state *ts,
         }
         return FDF_INVALID_PARAMETER;
     }
-    if ( (s = fdf_get_ctnr_status(get_e_cguid(iter))) != FDF_CONTAINER_OPEN ) {
+
+    if ( (s = fdf_get_ctnr_status(get_e_cguid(iter), 0)) != FDF_CONTAINER_OPEN ) {
         return s;
     }
+#ifdef CMAP
+   	fdf_incr_io_count( get_e_cguid(iter) );
+#endif /* CMAP */
     SDF_action_init_t *pai = (SDF_action_init_t *) ts;
     
     s = enumerate_next(pai, iter, key, &keylen64, data, datalen);
+
+#ifdef CMAP
+   	fdf_decr_io_count(get_e_cguid(iter));
+#endif /* CMAP */
+
     if (s != FDF_SUCCESS)
         return s;
 
