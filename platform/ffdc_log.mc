@@ -3015,6 +3015,18 @@
 80062 Invalid FDF_stats_t(NULL)
 80063 Container size %lu kb greater than the flash size %lu kb
 80064 Got signal %d(%s):
+80065 LIC: Starting Licensing Daemon (license path: %s)...
+80066 LIC: Daemon waiting.
+80067 LIC: Daemon updating license info.
+80068 LIC: License daemon initialized.
+80069 LIC: Daemon sleeping for %lf seconds.
+80070 License is invalid (%s). Install valid license.
+80071 LIC: API doing the checking.
+80072 LIC: API waiting as update in progress.
+80073 LIC: API rechecking license state.
+80074 LIC: API using state set by previous thread.
+80075 LIC: API updating license in progress.
+80076 LIC: API updating license done.
 
 
 # kcai
