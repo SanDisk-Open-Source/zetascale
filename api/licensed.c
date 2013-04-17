@@ -118,7 +118,8 @@ licd_start(const char *lic_path, int period, struct FDF_state *fdf_state)
 	plat_assert(lic_path);
 	plat_assert(fdf_state);
 
-	if (period > 0) {
+	//Checking period cannot be beyond an hour. Atleast once an hour needed
+	if ((period > 0) && (period < HOUR)) {
 		fdf_chk_prd_option = period;
 		fdf_chk_prd = fdf_chk_prd_option;
 	} else {
@@ -142,13 +143,14 @@ licd_start(const char *lic_path, int period, struct FDF_state *fdf_state)
 				(uint64_t)lic_path);
 	return true;
 out:
-	plat_log_msg(160149, LOG_CAT, LOG_WARN, "Starting Licensing daemon failed.");
+	plat_log_msg(160149, LOG_CAT, LOG_WARN,
+				"Starting Licensing daemon failed.");
 	pthread_mutex_lock(&licd_mutex);
 	licd_init = true;
 	licd_running = false;
 	pthread_cond_broadcast(&licd_cv);
 	pthread_mutex_unlock(&licd_mutex);
-	return false;
+	return true;
 }
 
 /*
@@ -168,8 +170,8 @@ licd_handler_thread(uint64_t arg)
 
 	license_path = (char *)arg;
 
-	plat_log_msg(160162, LOG_INFO, LOG_INFO,
-			"Starting Licensing Daemon (license path: %s)...",
+	plat_log_msg(160162, LOG_INFO, LOG_DBG,
+			"LIC: Starting Licensing Daemon (license path: %s)...",
 			license_path);
 	memset(&abstime, 0, sizeof(struct timespec));
 	
@@ -187,8 +189,12 @@ licd_handler_thread(uint64_t arg)
 		 * Some other thread is updating the status. Let us wait.
 		 */
 		if (licstate_updating == true) {
+			plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, LOG_DBG,
+				"LIC: Daemon waiting.");
 			pthread_cond_wait(&licstate_cv, &licstate_mutex);
 		}
+		plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, LOG_DBG,
+				"LIC: Daemon updating license info.");
 
 		licstate_updating = true;
 		pthread_mutex_unlock(&licstate_mutex); 
@@ -209,8 +215,8 @@ licd_handler_thread(uint64_t arg)
 
 		if (licd_init == false) {
 			// If running for first time, wake up waiting threads.
-			plat_log_msg(160151, LOG_CAT, LOG_INFO,
-					"License daemon initialized\n");
+			plat_log_msg(160151, LOG_CAT, LOG_DBG,
+					"LIC: License daemon initialized.");
 			pthread_mutex_lock(&licd_mutex);
 			licd_init = true;
 			pthread_cond_broadcast(&licd_cv);
@@ -222,6 +228,8 @@ licd_handler_thread(uint64_t arg)
 		pthread_mutex_lock(&licd_mutex);
 		clock_gettime(CLOCK_REALTIME, &abstime);
 		abstime.tv_sec += fdf_chk_prd;
+		plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, LOG_DBG,
+				"LIC: Daemon sleeping for %lf seconds.", fdf_chk_prd);
 		pthread_cond_timedwait(&licd_cv, &licd_mutex, &abstime);
 		pthread_mutex_unlock(&licd_mutex);
 	}
@@ -359,7 +367,7 @@ print:
 		//All other cases, license is invalid.
 		if (daemon) {
 			plat_log_msg(160156, LOG_CAT, LOG_WARN, 
-				"License is invalid. %s Install valid license.",
+			      "License is invalid (%s). Install valid license.",
 				lic_state_msg[ld_state]);
 		}
 		//Print warning and find period we need to make next check.
@@ -514,6 +522,8 @@ start:
 	 * while daemon is sleeping. Let us check the state now.
 	 */
 	if ((ld_valid == false) || flag) {
+		plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, LOG_DBG,
+				"LIC: API doing the checking.");
 		pthread_mutex_lock(&licstate_mutex);
 
 		/*
@@ -522,6 +532,8 @@ start:
 		 * the same check.
 		 */
 		if (licstate_updating == true) {
+			plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, LOG_DBG,
+				"LIC: API waiting as update in progress.");
 			pthread_cond_wait(&licstate_cv, &licstate_mutex);
 			/*
 			 * The thread checking the status has hit an internal
@@ -532,12 +544,18 @@ start:
 			 * thread.
 			 */
 			if (ld_state == LS_INTERNAL_ERR) {
+				plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, LOG_DBG,
+					"LIC: API rechecking license state.");
 				pthread_mutex_unlock(&licstate_mutex);
 				pthread_cond_signal(&licd_cv);
 				goto start;
 			}
+			plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, LOG_DBG,
+				"LIC: API using state set by previous thread.");
 		} else {
 			licstate_updating = true;
+			plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, LOG_DBG,
+					"LIC: API updating license in progress.");
 			pthread_mutex_unlock(&licstate_mutex); 
 
 			bzero(&data, sizeof(lic_data_t));
@@ -550,6 +568,8 @@ start:
 			 * license status.
 			 */
 			pthread_mutex_lock(&licstate_mutex);
+			plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, LOG_DBG,
+					"LIC: API updating license done.");
 			licstate_updating = false;
 			pthread_cond_broadcast(&licstate_cv);
 		}

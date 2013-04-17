@@ -16,21 +16,32 @@
 #include "license/interface.h"
 
 #define NO_OF_CONTACT_FIELDS	3
-#define NO_OF_PART_FIELDS	6
+#define NO_OF_PART_FIELDS	7
 
 
 const char contact_header[]= "@@CONTACT@@\n";
 const char *contact_section[]= {"Contact:", "Company:", "Email:"};
 const char particulars_header[]= "@@PARTICULARS@@\n";
-const char *particulars_section[]= {"Product:", "Version:", "Type:", "MAC Address:", "Date valid from (GMT):", "Date valid to (GMT):"};
-const char *comments_section[]= {NULL, NULL, " Permanent/Periodic", " Use 'ifconfig or ip addr' to get HWaddr of eth0", " mm/dd/yyyy HH:MM:SS", " mm/dd/yyyy HH:MM:SS"};
-const int mandatory_field[]={1, 1, 1, 1, 0, 0};
-const char key_header[]= "@@CIPHERTEXT@@\n";
+/*
+ * IMPORTANT:
+ * On adding new element to particulars_section, update corresponding index
+ * in comments_section and mandatory_field.
+ * In addition, also update index enum, to reflect the location of fields.
+ */
+const char *particulars_section[]= {"Product:", "Version:", "Type:",
+       				"MAC Address:", "License ID:",
+				"Date valid from (GMT):", "Date valid to (GMT):"};
 
-#define TYPE_INDX	2
-#define MAC_INDX	3
-#define FROM_INDX	4
-#define	TO_INDX		5
+const char *comments_section[]= {NULL, NULL, " Permanent/Periodic", 
+			 " Use 'ifconfig or ip addr' to get HWaddr of eth0",
+			 " Optional identifier",
+			 " mm/dd/yyyy HH:MM:SS",
+			 " mm/dd/yyyy HH:MM:SS"};
+
+const int mandatory_field[]={1, 1, 1, 1, 0, 0, 0};
+
+enum index {PRD_INDX, VER_INDX, TYPE_INDX, MAC_INDX, ID_INDX, FROM_INDX, TO_INDX};
+const char key_header[]= "@@CIPHERTEXT@@\n";
 
 static int getstring(char *in, char *field, char **value);
 lic_type get_license_type(char *);
