@@ -463,6 +463,8 @@ void InitActionProtocolCommonState(SDF_action_state_t *pas, SDF_action_init_t *p
     #endif
 
     max_obj_size = getProperty_uLongLong("SDF_MAX_OBJ_SIZE", SDF_MAX_OBJ_SIZE);
+    max_obj_size = getProperty_uLongLong("FDF_MAX_OBJ_SIZE", max_obj_size);
+
     plat_log_msg(21071, PLAT_LOG_CAT_PRINT_ARGS, PLAT_LOG_LEVEL_DEBUG, "PROP: SDF_MAX_OBJ_SIZE=%"PRIu64, max_obj_size);
     max_obj_size += 20; // allow extra bytes for secret memcached metadata
 
