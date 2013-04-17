@@ -4268,28 +4268,35 @@ qrecovery_init(void)
 
 
 /*
- * Compute the cache hash given a hash index.
+ * Compute a cache hashed bucket index given the in-memory hash index and the
+ * syndrome.
  */
-static chash_t
-chash_index(mshard_t *shard, uint64_t bkt_i, hashsyn_t hashsyn)
+uint64_t
+chash_index(shard_t *sshard, uint64_t bkt_i,
+            hashsyn_t hashsyn, uint64_t num_bkts)
 {
+    mshard_t  *shard = (mshard_t *) sshard;
     uint64_t bkti_l2 = bkt_i & shard->bkti_l2_mask;
-    return (bkti_l2 << OSD_HASH_SYN_SIZE) | hashsyn;
+
+    return ((bkti_l2 << OSD_HASH_SYN_SIZE) | hashsyn) % num_bkts;
 }
 
 
 /*
- * Compute the cache hash given a key and length.
+ * Compute a cache hashed bucket index given a key and length.
  */
-chash_t
-chash_key(shard_t *sshard, SDF_cguid_t cguid, char *key, uint64_t keylen)
+uint64_t
+chash_key(shard_t *sshard, SDF_cguid_t cguid,
+          char *key, uint64_t keylen, uint64_t num_bkts, hashsyn_t *hashsynp)
 {
     mshard_t   *shard = (mshard_t *) sshard;
     uint64_t syndrome = hashck((unsigned char *) key, keylen, 0, cguid);
     hashsyn_t hashsyn = syndrome >> OSD_HASH_SYN_SHIFT;
     uint64_t    bkt_i = (syndrome % shard->hash_size) / Mcd_osd_bucket_size;
 
-    return chash_index(shard, bkt_i, hashsyn);
+    if (hashsynp)
+        *hashsynp = hashsyn;
+    return chash_index(sshard, bkt_i, hashsyn, num_bkts);
 }
 
 
@@ -4497,10 +4504,9 @@ enumerate_next(pai_t *pai, e_state_t *es, char **key, uint64_t *keylen,
         if (!hash->used || hash->cntr_id != cntr_id)
             continue;
 
-        chash_t chash = chash_index(shard, ehash->bkt_i, hash->syndrome);
         s = cache_get_by_addr(pai, (shard_t *) es->shard, cntr_id,
-                              hash->address, chash, key, keylen,
-                              data, datalen);
+                              hash->address, ehash->bkt_i, hash->syndrome,
+                              key, keylen, data, datalen);
         if (s) {
             atomic_inc(EV.stats.num_objects);
             atomic_inc(EV.stats.num_cached_objects);

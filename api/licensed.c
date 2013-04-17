@@ -257,11 +257,11 @@ wait_for_licd_start()
 void
 update_lic_info(lic_data_t *data, bool daemon)
 {
-	void		*p, *p1, *p2;
+	void		*p, *p1;
 	struct timespec abstime;
 	double		exptime;
 	char		*prod;
-	char		*maj = NULL, *min = NULL;
+	char		*maj = NULL;
 	lic_type	type = 0;
 
 	clock_gettime(CLOCK_REALTIME, &abstime);
@@ -300,10 +300,6 @@ update_lic_info(lic_data_t *data, bool daemon)
 			p1 = getptr(data, LDI_PROD_MAJ);
 			if (p1) {
 				maj = getasstr(p1);
-			}
-			p2 = getptr(data, LDI_PROD_MIN);
-			if (p2) {
-				min = getasstr(p2);
 			}
 			/*
 			 * If product matches, check whether the version

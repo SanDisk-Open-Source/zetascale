@@ -3902,7 +3902,7 @@ fdf_read_object_expiry(
         return FDF_INVALID_PARAMETER;        
     }
 
-    if ( (status = fdf_get_ctnr_status(cguid)) != FDF_CONTAINER_OPEN ) {
+    if ( (status = fdf_get_ctnr_status(cguid)) != (SDF_status_t) FDF_CONTAINER_OPEN ) {
         plat_log_msg( 160039, LOG_CAT, LOG_DIAG, "Container must be open to execute a read object" );
         return status;
     }

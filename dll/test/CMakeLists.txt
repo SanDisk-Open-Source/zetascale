@@ -1,5 +1,5 @@
 project(test)
-cmake_minimum_required(VERSION 2.8.10.2)
+cmake_minimum_required(VERSION 2.8.8)
 file(GLOB SOURCES *.c ../fdf_dll.c)
 add_executable(test ${SOURCES})
 add_definitions(-g -Wall -Werror)

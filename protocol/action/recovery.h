@@ -85,18 +85,17 @@ FDF_cguid_t get_e_cguid(struct FDF_iterator *iter);
 
 
 /*
- * Cache Hash
- */
-typedef uint64_t chash_t;
-
-
-/*
  * Cache Hash functions.
  */
 int chash_bits(shard_t *sshard);
 
-chash_t
-chash_key(shard_t *sshard, SDF_cguid_t cguid, char *key, uint64_t keylen);
+uint64_t
+chash_key(shard_t *sshard, SDF_cguid_t cguid, char *key,
+          uint64_t keylen, uint64_t num_bkts, hashsyn_t *hashsynp);
+
+uint64_t
+chash_index(struct shard *sshard, uint64_t bkt_i,
+            hashsyn_t hashsyn, uint64_t num_bkts);
 
 
 

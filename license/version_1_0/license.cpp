@@ -8,6 +8,7 @@
  */
 
 #include <cstdlib>
+#include <unistd.h>
 #include <iostream>
 #include <time.h>
 #include <math.h>
@@ -48,13 +49,14 @@ const int N_STR_GENLIC_NULL_PARAMS = sizeof(STR_GENLIC_NULL_PARAMS);
  * Minimum length is 32 chars.
  */
 //char passPhrase[] = "3076020100300D06092A864886F70D010101050004623060020100021100A7851438A4F0E4E0849D0980EE8295BB020111021004ED536B13E8F7AC33DF2A8DAA2BB375020900E89B76ADD4CB0CC7020900B85DEC027FE9B36D0208290C603CCB32E42302090097D4E07A87752A59020873F15179EE27ED05";
-static char passPhrase[KEY_LEN * CRYPT_ITERATIONS + 1] =
+static unsigned char passPhrase[KEY_LEN * CRYPT_ITERATIONS + 1] =
           {0x60, 0x02, 0x01, 0xFE, 0x02, 0x11, 0xA7, 0x85,
            0x14, 0x38, 0xA4, 0xF0, 0xE4, 0xE0, 0x84, 0x9D,
            0x09, 0x80, 0xEE, 0x82, 0x95, 0xBB, 0x02, 0x01,
            0x03, 0xCC, 0xB3, 0x2E, 0x42, 0x30, 0x20, 0x90, 0x00};
 
-static char cbc_ivec[] = {0x85, 0xDE, 0xC0, 0x27, 0xFE, 0x9B, 0x36, 0xD0};
+static unsigned char cbc_ivec[] =
+    {0x85, 0xDE, 0xC0, 0x27, 0xFE, 0x9B, 0x36, 0xD0};
 
 static char hex_tbl[] = "0123456789ABCDEF";
 #define TO_HEX(a) hex_tbl[a]
@@ -363,7 +365,7 @@ extern "C" int GenerateLicense(char *clear_license, unsigned clear_len, unsigned
         return LS_INTERNAL_ERR;
     }
 
-    if (31 > strlen(passPhrase)) {
+    if (31 > strlen(((char *) passPhrase))) {
         //fprintf(stderr, "GenerateLicense() not set with min 32 char pass phrase. Exiting.\n");
         return LS_INTERNAL_ERR;
     }
@@ -378,7 +380,7 @@ extern "C" int GenerateLicense(char *clear_license, unsigned clear_len, unsigned
     }
 
     message_out[0] = '\0'; // reset outgoing message, just in case
-    std::string ciphertext = EncryptString(clear_license, passPhrase);
+    std::string ciphertext = EncryptString(clear_license, (char *) passPhrase);
     if(!ciphertext.length())
     {
         strncpy(message_out, STR_ENCRYPT_FAILED, N_STR_ENCRYPT_FAILED);
@@ -401,7 +403,7 @@ extern "C" lic_state isLicenseValid(char *clear_license, char *encr_license, cha
         return LS_FORMAT_INVALID;
     }
 
-    if (31 > strlen(passPhrase)) {
+    if (31 > strlen((char *) passPhrase)) {
         //fprintf(stderr, "GenerateLicense() not set with min 32 char pass phrase. Exiting.\n");
         return LS_FORMAT_INVALID;
     }
@@ -412,7 +414,7 @@ extern "C" lic_state isLicenseValid(char *clear_license, char *encr_license, cha
 
     message_out[0] = '\0'; // reset outgoing message, just in case
 
-    std::string decrypted = DecryptString(encr_license, passPhrase);
+    std::string decrypted = DecryptString(encr_license, (char *) passPhrase);
     if(!decrypted.length()) {
         strncpy(message_out, STR_DECRYPT_FAILED, N_STR_DECRYPT_FAILED);
         return LS_INTERNAL_ERR;

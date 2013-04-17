@@ -264,7 +264,9 @@ static uint64_t count_cache_entries(SDFNewCache_t *cache,
 static SDF_tag_t get_tag(SDF_action_thrd_state_t *pts);
 static void release_tag(SDF_action_thrd_state_t *pts);
 
-static uint64_t hash_fn(void *hash_arg, SDF_cguid_t cguid, char *key, uint64_t key_len);
+static uint64_t hash_fn(void *hash_arg, SDF_cguid_t cguid, char *key,
+                        uint64_t key_len, uint64_t num_bkts,
+                        hashsyn_t *syndrome);
 static int sdfcc_print_fn(SDFNewCacheEntry_t *psce, char *sout, int max_len);
 static void wrbk_fn(SDFNewCacheEntry_t *pce, void *wrbk_arg);
 static void flush_fn(SDFNewCacheEntry_t *pce, void *flush_arg, SDF_boolean_t background_flush);
@@ -4460,17 +4462,20 @@ void action_stats_new_cguid(SDF_internal_ctxt_t *pac, char *str, int size, SDF_c
     fthUnlock(wait);
 }
 
-static uint64_t hash_fn(void *hash_arg, SDF_cguid_t cguid, char *key, uint64_t key_len)
+static uint64_t hash_fn(void *hash_arg, SDF_cguid_t cguid, char *key,
+                        uint64_t key_len, uint64_t num_bkts,
+                        hashsyn_t *hashsyn)
 {
-    uint64_t syndrome;
+    struct shard *pshard;
 
     // Brian seems to be adding one to the key length; should probably be fixed
     // somewhere else.
     if (key_len > 0)
         key_len--;
 
-    syndrome = chash_key(get_preloaded_cache_ctnr_meta((SDF_action_state_t *) hash_arg, cguid)->pshard, cguid, key, key_len);
-    return(syndrome);
+    pshard = get_preloaded_cache_ctnr_meta((SDF_action_state_t *) hash_arg,
+                                           cguid)->pshard;
+    return chash_key(pshard, cguid, key, key_len, num_bkts, hashsyn);
 }
 
 static void init_state_fn(SDFNewCacheEntry_t *pce, SDF_time_t curtime)
@@ -6501,24 +6506,28 @@ static char *enum_recovery_fill(SDF_cache_enum_t *cenum)
     return(sret);
 }
 
-/*
- * Look up an entry in the cache by block address and chash.  The metadata,
- * key, data and the lengths are returned.  Return 1 on success and 0 on
- * failure.
- */
 
+/*
+ * Look up an entry in the cache by block address, hash bucket and hash
+ * syndrome.  The metadata, key, data and the lengths are returned.  Return 1
+ * on success and 0 on failure.
+ */
 int cache_get_by_addr(SDF_action_init_t *pai,
 		      struct shard *shard,
 		      SDF_cguid_t cguid,
 		      baddr_t baddr,
-		      chash_t chash,
+                      uint64_t hashbkt,
+                      hashsyn_t hashsyn,
 		      char **key,
 		      uint64_t *key_len,
 		      char **data,
 		      uint64_t *data_len)
 {
-    return(SDFNewCacheGetByBlockAddr(pai->pcs->new_actiondir, shard, cguid, baddr, chash, key, key_len, data, data_len));
+    return SDFNewCacheGetByBlockAddr(pai->pcs->new_actiondir, shard, cguid,
+                                     baddr, hashbkt, hashsyn, key, key_len,
+                                     data, data_len);
 }
+
 
 static void oh_oh_stress(char *s)
 {

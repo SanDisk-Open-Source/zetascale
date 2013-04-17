@@ -67,7 +67,7 @@ typedef struct SDFNewCacheEntry {
     SDF_time_t                createtime;
     SDF_time_t                exptime;
     SDF_cguid_t               cguid;
-    uint64_t                  syndrome;
+    hashsyn_t                 syndrome;
     baddr_t                   blockaddr;
     struct SDFNewCacheBucket *pbucket;
     struct SDFNewCacheEntry  *next;
@@ -135,7 +135,9 @@ typedef struct SDFNewCache {
     SDFNewCacheSlab_t    *slabs;
     uint64_t              slabsize;
     uint64_t               pages_per_slab;
-    uint64_t            (*hash_fn)(void *hash_arg, SDF_cguid_t cguid, char *key, uint64_t key_len);
+    uint64_t            (*hash_fn)(void *hash_arg, SDF_cguid_t cguid,
+                                   char *key, uint64_t key_len,
+                                   uint64_t num_bkts, hashsyn_t *hashsynp);
     void                 *hash_arg;
     void                (*init_state_fn)(SDFNewCacheEntry_t *pce, SDF_time_t curtime);
     int                 (*print_fn)(SDFNewCacheEntry_t *pce, char *sout, int max_len);
@@ -200,7 +202,7 @@ struct shard;
 extern void SDFNewCacheGetStats(SDFNewCache_t *pc, SDFNewCacheStats_t *ps);
 void SDFNewCacheInit(SDFNewCache_t *pc, uint64_t nbuckets, uint64_t nslabs_in,
      uint64_t size, uint32_t max_key_size, uint64_t max_object_size,
-     uint64_t      (*hash_fn)(void *hash_arg, SDF_cguid_t cguid, char *key, uint64_t key_len),
+     uint64_t      (*hash_fn)(void *hash_arg, SDF_cguid_t cguid, char *key, uint64_t key_len, uint64_t num_bkts, hashsyn_t *hashsynp),
      void           *hash_arg, 
      void          (*init_state_fn)(SDFNewCacheEntry_t *pce, SDF_time_t curtime),
      int           (*print_fn)(SDFNewCacheEntry_t *pce, char *sout, int max_len),
@@ -269,7 +271,8 @@ extern int SDFNewCacheGetByBlockAddr(SDFNewCache_t *pc,
 				     struct shard *shard,
 				     SDF_cguid_t cguid,
 				     baddr_t baddr,
-				     chash_t chash,
+                                     uint64_t hashbkt,
+                                     hashsyn_t hashsyn,
 				     char **key,
 				     uint64_t *key_len,
 				     char **data,

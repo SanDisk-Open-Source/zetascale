@@ -409,7 +409,9 @@ int SDFNewCacheHashBits(SDFNewCache_t *pc)
 
 void SDFNewCacheInit(SDFNewCache_t *pc, uint64_t nbuckets, uint64_t nslabs_in,
      uint64_t size, uint32_t max_key_size, uint64_t max_object_size,
-     uint64_t      (*hash_fn)(void *hash_arg, SDF_cguid_t cguid, char *key, uint64_t key_len),
+     uint64_t      (*hash_fn)(void *hash_arg, SDF_cguid_t cguid,
+                              char *key, uint64_t key_len,
+                              uint64_t num_bkts, hashsyn_t *hashsynp),
      void           *hash_arg, 
      void (*init_state_fn)(SDFNewCacheEntry_t *pce, SDF_time_t curtime),
      int (*print_fn)(SDFNewCacheEntry_t *pce, char *sout, int max_len),
@@ -649,16 +651,15 @@ void SDFNewCachePostRequest(SDFNewCache_t *pc,
               SDF_simple_key_t *pkey, SDF_container_type_t ctype,
 	      SDF_protocol_msg_t *pm)
 {
-    uint64_t                h, syndrome;
+    uint64_t                h;
     SDFNewCacheBucket_t    *pb;
     SDFNewCacheSlab_t      *ps;
     SDFNewCacheRequest_t   *prqst;
 
-    // syndrome = hash((const unsigned char *) pkey->key, pkey->len, 0);
-    syndrome = pc->hash_fn(pc->hash_arg, cguid, pkey->key, pkey->len);
-    h        = syndrome % pc->nbuckets;
-    pb       = &(pc->buckets[h]);
-    ps       = pb->slab;
+    h  = pc->hash_fn(pc->hash_arg, cguid, pkey->key,
+                     pkey->len, pc->nbuckets, NULL);
+    pb = &(pc->buckets[h]);
+    ps = pb->slab;
 
     prqst          = get_request_struct(ps);
     prqst->reqtype = reqtype;
@@ -672,7 +673,7 @@ void SDFNewCachePostRequest(SDFNewCache_t *pc,
 
 SDFNewCacheEntry_t *SDFNewCacheGetCreate(SDFNewCache_t *pc, SDF_cguid_t cguid, SDF_simple_key_t *pkey, SDF_container_type_t ctype, SDF_time_t curtime, SDF_boolean_t lock_slab, SDFNewCacheBucket_t **ppbucket, SDF_boolean_t try_lock, SDF_boolean_t *pnewflag, void *wrbk_arg)
 {
-    uint64_t              h, syndrome;
+    uint64_t              h;
     SDFNewCacheEntry_t   *pce;
     SDFNewCacheSlab_t    *ps;
     SDFNewCacheBucket_t  *pb;
@@ -681,9 +682,9 @@ SDFNewCacheEntry_t *SDFNewCacheGetCreate(SDFNewCache_t *pc, SDF_cguid_t cguid, S
 
     *pnewflag = SDF_FALSE;
 
-    // syndrome = hash((const unsigned char *) pkey->key, pkey->len, 0);
-    syndrome = pc->hash_fn(pc->hash_arg, cguid, pkey->key, pkey->len);
-    h = syndrome % pc->nbuckets;
+    hashsyn_t syndrome = 0;
+    h  = pc->hash_fn(pc->hash_arg, cguid, pkey->key,
+                     pkey->len, pc->nbuckets, &syndrome);
     pb = &(pc->buckets[h]);
     *ppbucket = pb;
     ps = pb->slab;
@@ -2525,26 +2526,24 @@ int SDFNewCacheGetByBlockAddr(SDFNewCache_t *pc,
 			      struct shard *shard,
 			      SDF_cguid_t cguid,
 			      baddr_t baddr,
-			      chash_t chash,
+                              uint64_t hashbkt,
+                              hashsyn_t hashsyn,
 			      char **key,
 			      uint64_t *key_len,
 			      char **data,
 			      uint64_t *data_len)
 {
     int                   ret=0;
-    uint64_t              h, syndrome;
+    uint64_t              h;
     SDFNewCacheEntry_t   *pce;
     SDFNewCacheSlab_t    *ps;
     SDFNewCacheBucket_t  *pb;
     char                 *pkey;
     char                 *pdata;
 
-    // syndrome = hash((const unsigned char *) pkey->key, pkey->len, 0);
-    // syndrome = pc->hash_fn(pc->hash_arg, cguid, pkey->key, pkey->len);
-    syndrome  = chash;
-    h         = syndrome % pc->nbuckets;
-    pb        = &(pc->buckets[h]);
-    ps        = pb->slab;
+    h  = chash_index(shard, hashbkt, hashsyn, pc->nbuckets);
+    pb = &(pc->buckets[h]);
+    ps = pb->slab;
 
     CacheLock(ps->lock, ps->lock_wait);
 
