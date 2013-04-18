@@ -2219,7 +2219,7 @@ static FDF_status_t fdf_create_container(
 
 	properties->persistent			= SDF_TRUE;
 	//properties->evicting			= SDF_FALSE;
-	//properties->async_writes		= FDF_FALSE;
+	properties->async_writes		= FDF_FALSE;
 #if 0
 	iproperties.current_size		= 0;
 	iproperties.num_obj				= 0;

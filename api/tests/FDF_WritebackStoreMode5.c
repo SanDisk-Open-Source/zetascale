@@ -294,7 +294,7 @@ int test_basic_check(uint32_t aw)
 
 int main() 
 {
-    int testnumber = 2;
+    int testnumber = 1;
 	int count      = 0;
 
     if((fp = fopen("FDF_WritebackStoreMode.log", "w+")) == 0)
@@ -308,7 +308,7 @@ int main()
     FDFSetProperty("FDF_CACHE_SIZE", "100000000");
     if (FDF_SUCCESS == pre_env())
     {
-        for(uint32_t aw = 0; aw < 2; aw++)
+        for(uint32_t aw = 0; aw < 1; aw++)
         {
             count += test_invalid_para(aw);
     	    count += test_basic_check(aw);
@@ -318,7 +318,7 @@ int main()
     fclose(fp);
   
     fprintf(stderr, "Test Result:\n");
-    for(int aw = 0; aw < 2; aw++)
+    for(int aw = 0; aw < 1; aw++)
     {
         if(0 == aw)
         {
