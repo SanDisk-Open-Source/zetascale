@@ -257,7 +257,7 @@ int test_double_delete(uint32_t aw)
                 if(FDF_SUCCESS == DeleteContainer(cguid))
                     {
                         ret = DeleteContainer(cguid);
-                        if(FDF_FAILURE == ret)
+                        if(FDF_SUCCESS != ret)
                             {
                                 tag += 1;
                                 result[aw][4][i] = 1;
@@ -347,7 +347,7 @@ int test_delete_doubleopen_doubledelete(uint32_t aw)
                 {
                     result[aw][7][i] += 1;
                 }
-                if(FDF_FAILURE == (ret = DeleteContainer(cguid)))
+                if(FDF_SUCCESS != (ret = DeleteContainer(cguid)))
                 {
                     result[aw][7][i] += 1;
                 }

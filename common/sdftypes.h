@@ -369,7 +369,8 @@ typedef struct {
     item(SDF_LICENSE_CHK_FAILED, /* default */) \
     item(SDF_CONTAINER_OPEN,/* default */) \
     item(SDF_FAILURE_INVALID_CONTAINER_SIZE, /* default */) \
-    item(SDF_FAILURE_INVALID_CONTAINER_STATE, /* default */)
+    item(SDF_FAILURE_INVALID_CONTAINER_STATE, /* default */) \
+    item(SDF_FAILURE_CONTAINER_DELETED, /* default */)
 
 typedef enum {
 #define item(caps, value) \

@@ -379,7 +379,8 @@ FDF_status_t print_container_stats_by_cguid( struct FDF_thread_state *thd_state,
     memset(&stats,0,sizeof(FDF_stats_t));
     rc = FDFGetContainerStats(thd_state,cguid,&stats); 
     if ( rc != FDF_SUCCESS ) {
-        fprintf(fp,"Stats failed for %s(error:%u)",cname,rc);
+		if ( 0 && FDF_FAILURE_CONTAINER_DELETED != rc )
+        	fprintf(fp,"FDFGetContainerStats failed for %s(error:%s)",cname,FDFStrError(rc));
         return FDF_FAILURE;
     }
     print_stats(fp,&stats);
@@ -404,7 +405,8 @@ FDF_status_t print_container_stats_by_cguid( struct FDF_thread_state *thd_state,
     memset(&stats,0,sizeof(FDF_stats_t));
     rc = FDFGetStats(thd_state,&stats);
     if ( rc != FDF_SUCCESS ) {
-        fprintf(fp,"Stats failed for %s(error:%u)", cname,rc);
+		if ( 0 && FDF_FAILURE_CONTAINER_DELETED != rc )
+        	fprintf(fp,"FDFGetStats failed for %s(error:%s)", cname,FDFStrError(rc));
         return FDF_FAILURE;
     }
     print_stats(fp,&stats);

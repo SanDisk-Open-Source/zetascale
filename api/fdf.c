@@ -3329,7 +3329,7 @@ FDF_status_t fdf_delete_container_async_start(
             plat_log_msg( 80023, LOG_CAT, LOG_DIAG,
                       "Delete already under progress for container %lu",cguid);
             SDFEndSerializeContainerOp(pai);
-            return FDF_FAILURE; 
+            return FDF_FAILURE_CONTAINER_DELETED; 
         }
         /* check if it needs renaming */
         status = fdf_rename_container(fdf_thread_state,cguid);
@@ -5561,9 +5561,11 @@ FDF_status_t FDFGetStatsStr (
         sdf_container = CtnrMap[i_ctnr].sdf_container;
     }
     /* Check if this container is being deleted */
-    if( CtnrMap[i_ctnr].state == FDF_CONTAINER_STATE_DELETE_PROG ) {
+    if( CtnrMap[i_ctnr].state == FDF_CONTAINER_STATE_DELETE_PROG ||
+        CtnrMap[i_ctnr].state == FDF_CONTAINER_STATE_DELETE_OPEN ||
+        CtnrMap[i_ctnr].state == FDF_CONTAINER_STATE_DELETE_CLOSED ) {
         SDFEndSerializeContainerOp(pai);
-        return FDF_FAILURE;     
+        return FDF_FAILURE_CONTAINER_DELETED;     
     }
 
     if (( status = name_service_get_meta( pai, cguid, &meta )) == FDF_SUCCESS ) {
