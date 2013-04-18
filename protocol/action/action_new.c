@@ -269,7 +269,7 @@ static uint64_t hash_fn(void *hash_arg, SDF_cguid_t cguid, char *key,
                         hashsyn_t *syndrome);
 static int sdfcc_print_fn(SDFNewCacheEntry_t *psce, char *sout, int max_len);
 static void wrbk_fn(SDFNewCacheEntry_t *pce, void *wrbk_arg);
-static void flush_fn(SDFNewCacheEntry_t *pce, void *flush_arg, SDF_boolean_t background_flush);
+static void flush_fn(SDFNewCacheEntry_t *pce, void *flush_arg, SDF_boolean_t background_flush, SDF_boolean_t do_inval);
 static void flush_progress_fn(SDFNewCache_t *pc, void *wrbk_arg, uint32_t percent);
 static void dummy_flush_progress_fn(SDFNewCache_t *pc, void *wrbk_arg, uint32_t percent);
 static void init_state_fn(SDFNewCacheEntry_t *pce, SDF_time_t curtime);
@@ -4578,7 +4578,7 @@ static void alloc_test(void **pp)
 
 #endif // MALLOC_FAIL_TEST
 
-static void flush_wrbk_fn_wrapper(SDFNewCacheEntry_t *pce, void *wrbk_arg, SDF_async_rqst_type_t request_type, SDF_boolean_t add_locker)
+static void flush_wrbk_fn_wrapper(SDFNewCacheEntry_t *pce, void *wrbk_arg, SDF_async_rqst_type_t request_type, SDF_boolean_t add_locker, SDF_boolean_t do_inval)
 {
     // uint32_t                   h;
     SDF_trans_state_t         *ptrans;
@@ -4597,6 +4597,7 @@ static void flush_wrbk_fn_wrapper(SDFNewCacheEntry_t *pce, void *wrbk_arg, SDF_a
 
     rqst.rtype         = request_type;
     rqst.entry         = pce;
+    rqst.inval_flag    = do_inval;
     rqst.skip_for_wrbk = SDF_FALSE;
     rqst.pas           = ptrans->pas;
     rqst.tag           = ptrans->tag;
@@ -4657,15 +4658,15 @@ static void flush_wrbk_fn_wrapper(SDFNewCacheEntry_t *pce, void *wrbk_arg, SDF_a
 
 static void wrbk_fn(SDFNewCacheEntry_t *pce, void *wrbk_arg)
 {
-    flush_wrbk_fn_wrapper(pce, wrbk_arg, ASYNC_WRITEBACK, SDF_TRUE /* add_locker */);
+    flush_wrbk_fn_wrapper(pce, wrbk_arg, ASYNC_WRITEBACK, SDF_TRUE /* add_locker */, SDF_TRUE /* do_inval */);
 }
 
-static void flush_fn(SDFNewCacheEntry_t *pce, void *wrbk_arg, SDF_boolean_t background_flush)
+static void flush_fn(SDFNewCacheEntry_t *pce, void *wrbk_arg, SDF_boolean_t background_flush, SDF_boolean_t do_inval)
 {
     if (background_flush) {
-	flush_wrbk_fn_wrapper(pce, wrbk_arg, ASYNC_BACKGROUND_FLUSH, SDF_TRUE /* add_locker */);
+	flush_wrbk_fn_wrapper(pce, wrbk_arg, ASYNC_BACKGROUND_FLUSH, SDF_TRUE /* add_locker */, do_inval /* do_inval */);
     } else {
-	flush_wrbk_fn_wrapper(pce, wrbk_arg, ASYNC_FLUSH, SDF_TRUE /* add_locker */);
+	flush_wrbk_fn_wrapper(pce, wrbk_arg, ASYNC_FLUSH, SDF_TRUE /* add_locker */, do_inval /* do_inval */);
     }
 
 }
@@ -5604,9 +5605,7 @@ int do_writeback(SDF_async_put_request_t *pap)
     pap->flash_meta.cguid = pap->ctnr;
     ret = flashPut(pap->pshard, &(pap->flash_meta), pap->pkey_simple->key, pap->pdata, pap->flash_flags);
     (pap->flash_meta.keyLen)++; // adjust for extra NULL added by SDF
-    if (ret == 0) {
-	pap->entry->blockaddr = pap->flash_meta.blockaddr;
-    }
+
     #ifdef INCLUDE_TRACE_CODE
             plat_log_msg(30564, PLAT_LOG_CAT_SDF_PROT, PLAT_LOG_LEVEL_TRACE,
             "===========  END async writeback (cguid=%"PRIu64",key='%s'):  ===========", pap->ctnr, pap->pkey_simple->key);
@@ -5631,7 +5630,7 @@ int do_flush(SDF_async_put_request_t *pap)
     pap->flash_meta.cguid = pap->ctnr;
     ret = flashPut(pap->pshard, &(pap->flash_meta), pap->pkey_simple->key, pap->pdata, pap->flash_flags);
     (pap->flash_meta.keyLen)++; // adjust for extra NULL added by SDF
-    if (ret == 0) {
+    if ((!pap->inval_flag) && (ret == 0)) {
 	pap->entry->blockaddr = pap->flash_meta.blockaddr;
     }
     #ifdef INCLUDE_TRACE_CODE

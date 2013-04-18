@@ -416,7 +416,7 @@ void SDFNewCacheInit(SDFNewCache_t *pc, uint64_t nbuckets, uint64_t nslabs_in,
      void (*init_state_fn)(SDFNewCacheEntry_t *pce, SDF_time_t curtime),
      int (*print_fn)(SDFNewCacheEntry_t *pce, char *sout, int max_len),
      void (*wrbk_fn)(SDFNewCacheEntry_t *pce, void *wrbk_arg),
-     void (*flush_fn)(SDFNewCacheEntry_t *pce, void *flush_arg, SDF_boolean_t background_flush),
+     void (*flush_fn)(SDFNewCacheEntry_t *pce, void *flush_arg, SDF_boolean_t background_flush, SDF_boolean_t do_inval),
      uint32_t mod_state, uint32_t shared_state, uint32_t max_flushes_per_mod_check,
      double f_modified)
 {
@@ -1211,6 +1211,7 @@ SDF_status_t SDFNewCacheFlushCache(SDFNewCache_t *pc,
     SDFNewCacheEntry_t  *pce = NULL;
     SDFNewCacheSlab_t   *ps;
     SDF_boolean_t        dirty_found;
+    SDF_boolean_t        do_inval;
     // SDF_boolean_t        objects_found;
     char                 slab_flags[100000];
 
@@ -1397,6 +1398,14 @@ SDF_status_t SDFNewCacheFlushCache(SDFNewCache_t *pc,
 		 */
 
 		if ((cguid == 0) || (cguid == pce->cguid)) {
+		    do_inval = SDF_FALSE;
+		    if (inval_flag) {
+		        if ((!inval_prefix) || 
+			    (prefix_match(pc, pce, inval_prefix, len_prefix))) 
+			{
+			    do_inval = SDF_TRUE;
+			}
+		    }
 		    if (flush_flag && (pce->state == pc->mod_state)) {
 
 			// flush this entry
@@ -1407,18 +1416,14 @@ SDF_status_t SDFNewCacheFlushCache(SDFNewCache_t *pc,
 			    (ps->n_mod_flushes)++;
 			}
 			nflushed++;
-			pc->flush_fn(pce, flush_arg, background_flush);
+			pc->flush_fn(pce, flush_arg, background_flush, do_inval);
 			// Set the state to unmodified to avoid unnecessary writebacks!
 			// Update counts of modified objects/bytes
 			SDFNewCacheSubtractModObjectStats(pce);
 			pce->state = pc->shared_state;
 		    }
-		    if (inval_flag) {
-		        if ((!inval_prefix) || 
-			    (prefix_match(pc, pce, inval_prefix, len_prefix))) 
-			{
-			    (void) SDFNewCacheRemove(pc, pce, SDF_FALSE /* wrbk_flag */, NULL);
-			}
+		    if (do_inval) {
+			(void) SDFNewCacheRemove(pc, pce, SDF_FALSE /* wrbk_flag */, NULL);
 		    }
 		}
 	    }

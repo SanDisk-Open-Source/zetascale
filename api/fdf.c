@@ -867,8 +867,14 @@ static void fdf_load_settings(flash_settings_t *osd_settings)
     osd_settings->rec_log_verify      = 0;
     osd_settings->enable_fifo         = 1;
     osd_settings->bypass_aio_check    = 0;
-    osd_settings->chksum_data         = 1; // membrain sets this to 0
-    osd_settings->chksum_metadata     = 1; // membrain sets this to 0
+
+
+    /*
+     * Object metadata and data checksum.
+     */
+    osd_settings->chksum_data         = getProperty_Int("SDF_OBJECT_FULL_CHECKSUM", 0);
+    osd_settings->chksum_metadata     = getProperty_Int("SDF_OBJECT_META_CHECKSUM", 0); 
+
     osd_settings->sb_data_copies      = 0; // use default
     osd_settings->multi_fifo_writers  = getProperty_Int("SDF_MULTI_FIFO_WRITERS", 1);
     osd_settings->aio_wc              = false;

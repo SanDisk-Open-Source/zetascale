@@ -142,7 +142,7 @@ typedef struct SDFNewCache {
     void                (*init_state_fn)(SDFNewCacheEntry_t *pce, SDF_time_t curtime);
     int                 (*print_fn)(SDFNewCacheEntry_t *pce, char *sout, int max_len);
     void                (*wrbk_fn)(SDFNewCacheEntry_t *pce, void *wrbk_arg);
-    void                (*flush_fn)(SDFNewCacheEntry_t *pce, void *flush_arg, SDF_boolean_t background_flush);
+    void                (*flush_fn)(SDFNewCacheEntry_t *pce, void *flush_arg, SDF_boolean_t background_flush, SDF_boolean_t do_inval);
     CacheLockType         enum_lock;
     CacheWaitType         enum_lock_wait;
     CacheLockType         enum_flush_lock;
@@ -207,7 +207,7 @@ void SDFNewCacheInit(SDFNewCache_t *pc, uint64_t nbuckets, uint64_t nslabs_in,
      void          (*init_state_fn)(SDFNewCacheEntry_t *pce, SDF_time_t curtime),
      int           (*print_fn)(SDFNewCacheEntry_t *pce, char *sout, int max_len),
      void          (*wrbk_fn)(SDFNewCacheEntry_t *pce, void *wrbk_arg),
-     void          (*flush_fn)(SDFNewCacheEntry_t *pce, void *flush_arg, SDF_boolean_t background_flush),
+     void          (*flush_fn)(SDFNewCacheEntry_t *pce, void *flush_arg, SDF_boolean_t background_flush, SDF_boolean_t do_inval),
      uint32_t      mod_state, uint32_t shared_state,
      uint32_t      max_flushes_per_mod_check,
      double        f_modified);

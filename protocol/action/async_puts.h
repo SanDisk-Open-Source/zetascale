@@ -43,6 +43,7 @@ typedef struct SDF_async_put_request {
     SDF_action_state_t   *pas;
     SDF_boolean_t         skip_for_wrbk;
     SDF_boolean_t         do_replicate;
+    SDF_boolean_t         inval_flag;
     SDF_tag_t             tag;
     SDF_action_init_t    *pai;
     SDF_cguid_t           ctnr;

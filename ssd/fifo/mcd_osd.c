@@ -5400,6 +5400,11 @@ mcd_fth_osd_slab_get( void * context, mcd_osd_shard_t * shard, char *key,
     mcd_osd_hash_t            * hash_entry;
     mcd_osd_bucket_t          * bucket;
     cntr_id_t                   cntr_id = meta_data->cguid;
+    uint64_t                    checksum64 = 0;
+    uint32_t                    checksum32 = 0;
+    uint64_t                    checksum_read_full = 0;
+    uint32_t                    checksum_read_meta = 0;
+    SDF_size_t                  raw_len;
 
     mcd_log_msg( 20000, PLAT_LOG_LEVEL_TRACE, "ENTERING" );
     (void) __sync_fetch_and_add( &shard->num_gets, 1 );
@@ -5600,6 +5605,43 @@ mcd_fth_osd_slab_get( void * context, mcd_osd_shard_t * shard, char *key,
         *ppdata = data_buf;
         *pactual_size = meta->data_len;
 
+	/*
+	 * Verify the data checksums.
+	 */
+	checksum_read_meta = meta->blk1_chksum;
+	checksum_read_full = meta->checksum;
+	meta->checksum = 0;
+	meta->blk1_chksum = 0;
+
+	if (flash_settings.chksum_metadata) {
+		checksum32 = mcd_hash((unsigned char *)meta, Mcd_osd_blk_size, 0 );
+		if (checksum32 != checksum_read_meta) {
+#ifdef DEBUG_BUILD
+			plat_assert(checksum32 == checksum_read_meta);
+#endif 
+			mcd_log_msg(160163, PLAT_LOG_LEVEL_FATAL,
+				"Data inconsistency found in cguid = %d, object block addr = %"PRIu64".\n",
+				cntr_id, offset);	
+			mcd_fth_osd_slab_free(data_buf);
+			return FLASH_EINCONS;
+		}
+	}
+
+        if (flash_settings.chksum_data) {
+		raw_len = sizeof(mcd_osd_meta_t) + meta->key_len + meta->data_len;
+		checksum64 = hashb((unsigned char *)meta, raw_len, 0);
+		if (checksum64 != checksum_read_full) {
+#ifdef DEBUG_BUILD
+			plat_assert(checksum64 == checksum_read_full);
+#endif 
+			mcd_log_msg(160163, PLAT_LOG_LEVEL_FATAL,
+				"Data inconsistency found in cguid = %d, object block addr = %"PRIu64".\n",
+				cntr_id, offset);	
+			mcd_fth_osd_slab_free(data_buf);
+			return FLASH_EINCONS;
+		}
+	}
+		
         /*
          * meta can no longer be accessed after this
          */

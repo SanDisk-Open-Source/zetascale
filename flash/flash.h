@@ -137,7 +137,7 @@ const enum {
     FLASH_EAGAIN = 11,              // Try again (transient error)
     FLASH_ENOMEM = 12,              // Out of system memory
     FLASH_EACCES = 13,              // Permission denied
-    FLASH_EINCONS= 14,              // Inconsistency during replication
+    FLASH_EINCONS= 14,              // Inconsistency during replication or while reading from on flash
     FLASH_RMT_EDELFAIL = 15,        // Deletion for a remote failure failed
     FLASH_EBUSY = 16,               // Device busy
     FLASH_EEXIST = 17,              // Object exists
