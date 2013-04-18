@@ -23,7 +23,7 @@
 
 static char *base = "container";
 
-void *worker(void *arg);
+void worker(void *arg);
 
 int
 main( )
@@ -65,16 +65,21 @@ main( )
 
 	//Initialize FDF state.
 	if ((status = FDFInit(&fdf_state)) != FDF_SUCCESS) {
-		printf("FDFInit failed with error %d\n", status);
-		return 0;
+		printf("FDFInit failed with error %s\n", FDFStrError(status));
+		return 1;
 	}
 
 	//Initialize per-thread FDF state for main thread.
-	FDFInitPerThreadState(fdf_state, &thd_state);
+	if ((status = FDFInitPerThreadState(fdf_state, &thd_state)) != 
+								FDF_SUCCESS) {
+		printf("FDFInitPerThreadState failed with error %s\n",
+							FDFStrError(status));
+		return 1;
+	}
 
 	//Spawn worker threads.
 	for (indx = 0; indx < THREADS; indx++) {
-		pthread_create(&thread_id[indx], NULL, worker,
+		pthread_create(&thread_id[indx], NULL, (void *)worker,
 						(void *)fdf_state);
 	}
 
@@ -83,9 +88,29 @@ main( )
 		pthread_join(thread_id[indx], NULL);
 	}
 
+	//Flush all the cache contents created by workers.
+	FDFFlushCache(thd_state);
+	
 	//Get the number of containers on the device.
-	FDFGetContainers(thd_state, cguid_list, &ncg);
+	if ((status = FDFGetContainers(thd_state, cguid_list, &ncg)) !=
+								FDF_SUCCESS) {
+		printf("FDFGetContainers failed with error %s\n",
+							FDFStrError(status));
+		return 1;
+	}
 	printf("Number of containers created by workers: %d\n", ncg);
+
+	for (  indx = 0; indx < ncg; indx++) {
+		status = FDFDeleteContainer(thd_state, cguid_list[indx]);
+		if (status != FDF_SUCCESS) {
+			printf("FDFDeleteContainer(%ld) failed with error %s\n",
+					cguid_list[indx], FDFStrError(status));
+			return 1;
+		} else {
+			printf("cguid: %ld delete successfully.\n",
+					cguid_list[indx]);
+		}
+	}
 
 	//Gracefuly shutdown FDF.
 	FDFShutdown(fdf_state);
@@ -97,7 +122,7 @@ main( )
  * This routine is called by each pthread created by main thread. This creates
  * a container and writes <key, object> in it.
  */
-void *
+void
 worker(void *arg)
 {
 	FDF_container_props_t		props;
@@ -134,7 +159,9 @@ worker(void *arg)
 		printf("Container %s (cguid: %ld) created with size: %ldKB.\n", 
 						cname, cguid, props.size_kb);
 	} else {
-		return 0;
+		printf("FDFOpenContainer (of %s) failed with %s.\n", 
+						cname, FDFStrError(status));
+		return;
 	}
 
 
@@ -142,9 +169,18 @@ worker(void *arg)
 	props.size_kb = 512 * 1024;
 	status = FDFSetContainerProps(thd_state, cguid, &props);
 	if (status == FDF_SUCCESS) {
-		FDFGetContainerProps(thd_state, cguid, &props);
+		status = FDFGetContainerProps(thd_state, cguid, &props);
+		if (status != FDF_SUCCESS) {
+			printf("FDFGetContainerProps (for %s) failed with"
+				" error %s.\n", cname, FDFStrError(status));
+			return;
+		}
 		printf("Container %s (cguid: %ld) size set to : %ldKB.\n",
 						cname, cguid, props.size_kb);
+	} else {
+		printf("FDFSetContainerProps (for %s) failed with"
+			" error %s.\n", cname, FDFStrError(status));
+		return;
 	}
 
 	//Create initial data.
@@ -213,10 +249,13 @@ worker(void *arg)
 	FDFFinishEnumeration(thd_state, iterator);
 
 	//Delete a <key, object> pair.
-	if (FDFDeleteObject(thd_state, cguid, "key2", 5) == FDF_SUCCESS) {
+	if ((status = FDFDeleteObject(thd_state, cguid, "key2", 5)) ==
+								FDF_SUCCESS) {
 		printf("cguid %ld: Key, key2, deleted successfully\n", cguid);
 	} else {
-		printf("cguid %ld: Key, key2, deletion failed\n", cguid);
+		printf("cguid %ld: Key, key2, deletion failed with %s\n",
+						cguid, FDFStrError(status));
+
 	}
 
 	//Flush contents of container.
@@ -263,7 +302,6 @@ worker(void *arg)
 		printf("cguid %ld: Contents of key1 after transaction:"
 			" data=%s, datalen=%ld\n", cguid, data, datalen);
 	}
-
 	//Get container statistics. Print number of objects in container.
 	if ((status = FDFGetContainerStats(thd_state, cguid, &stats)) ==
 								FDF_SUCCESS) {
@@ -276,5 +314,5 @@ worker(void *arg)
 
 	//Release/Free per thread state.
 	FDFReleasePerThreadState(&thd_state);
-	return 0;
+	return;
 }
