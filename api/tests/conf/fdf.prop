@@ -13,6 +13,5 @@ SDF_ASYNC_PUT_THREADS=3
 ASYNC_DELETE_CONTAINERS_THREADS=1
 FDF_LICENSE_PATH=/root/DEMO/ID/license
 
-# To enable data and metadata checksum, default is disabled
-#SDF_OBJECT_FULL_CHECKSUM=1
-#SDF_OBJECT_META_CHECKSUM=1
+# To enable data checksum, default is disabled
+#SDF_OBJECT_DATA_CHECKSUM=1

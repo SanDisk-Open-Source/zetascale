@@ -5072,7 +5072,8 @@ mcd_fth_osd_slab_set( void * context, mcd_osd_shard_t * shard, char * key,
         chksum32 = mcd_hash( (unsigned char *)buf, Mcd_osd_blk_size, 0 );
     }
     if ( flash_settings.chksum_data ) {
-        chksum64 = hashb((unsigned char *)buf, raw_len, 0);
+        chksum64 = hashb((unsigned char *)buf + sizeof(mcd_osd_meta_t),
+			 key_len + data_len, 0);
     }
 
     meta->blk1_chksum = chksum32;
@@ -5402,9 +5403,8 @@ mcd_fth_osd_slab_get( void * context, mcd_osd_shard_t * shard, char *key,
     cntr_id_t                   cntr_id = meta_data->cguid;
     uint64_t                    checksum64 = 0;
     uint32_t                    checksum32 = 0;
-    uint64_t                    checksum_read_full = 0;
+    uint64_t                    checksum_read_data = 0;
     uint32_t                    checksum_read_meta = 0;
-    SDF_size_t                  raw_len;
 
     mcd_log_msg( 20000, PLAT_LOG_LEVEL_TRACE, "ENTERING" );
     (void) __sync_fetch_and_add( &shard->num_gets, 1 );
@@ -5609,7 +5609,7 @@ mcd_fth_osd_slab_get( void * context, mcd_osd_shard_t * shard, char *key,
 	 * Verify the data checksums.
 	 */
 	checksum_read_meta = meta->blk1_chksum;
-	checksum_read_full = meta->checksum;
+	checksum_read_data = meta->checksum;
 	meta->checksum = 0;
 	meta->blk1_chksum = 0;
 
@@ -5628,11 +5628,11 @@ mcd_fth_osd_slab_get( void * context, mcd_osd_shard_t * shard, char *key,
 	}
 
         if (flash_settings.chksum_data) {
-		raw_len = sizeof(mcd_osd_meta_t) + meta->key_len + meta->data_len;
-		checksum64 = hashb((unsigned char *)meta, raw_len, 0);
-		if (checksum64 != checksum_read_full) {
+		checksum64 = hashb((unsigned char *) buf + sizeof(mcd_osd_meta_t),
+				    meta->key_len + meta->data_len, 0);
+		if (checksum64 != checksum_read_data) {
 #ifdef DEBUG_BUILD
-			plat_assert(checksum64 == checksum_read_full);
+			plat_assert(checksum64 == checksum_read_data);
 #endif 
 			mcd_log_msg(160163, PLAT_LOG_LEVEL_FATAL,
 				"Data inconsistency found in cguid = %d, object block addr = %"PRIu64".\n",

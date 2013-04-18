@@ -872,8 +872,8 @@ static void fdf_load_settings(flash_settings_t *osd_settings)
     /*
      * Object metadata and data checksum.
      */
-    osd_settings->chksum_data         = getProperty_Int("SDF_OBJECT_FULL_CHECKSUM", 0);
-    osd_settings->chksum_metadata     = getProperty_Int("SDF_OBJECT_META_CHECKSUM", 0); 
+    osd_settings->chksum_data         = getProperty_Int("SDF_OBJECT_DATA_CHECKSUM", 0);
+    osd_settings->chksum_metadata     = getProperty_Int("SDF_OBJECT_METADATA_CHECKSUM", 0); 
 
     osd_settings->sb_data_copies      = 0; // use default
     osd_settings->multi_fifo_writers  = getProperty_Int("SDF_MULTI_FIFO_WRITERS", 1);
