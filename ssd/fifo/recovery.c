@@ -4819,16 +4819,87 @@ available(mshard_t *shard, uint64_t lock_i,
 
 
 /*
+ * Attempt to evict an object from the overflow table based on a particular
+ * slab class.  Return 1 if successful and 0 if not.
+ */
+static int
+evict_obj_over(mshard_t *shard, cguid_t cguid,
+               uint64_t lock_i, uint64_t lba_lo, uint64_t lba_hi)
+{
+    int n;
+    uint64_t  base = lock_i * Mcd_osd_overflow_depth;
+    mhash_t  *hash = &shard->overflow_table[base];
+
+    for (n = Mcd_osd_overflow_depth; n--; hash++) {
+        if (!hash->used)
+            continue;
+        if (cguid != hash->cntr_id)
+            continue;
+
+        uint64_t hblks = hash->blocks;
+        if (!(hblks > lba_lo && hblks <= lba_hi))
+            continue;
+
+        del_obj_over(shard, hash);
+        atomic_inc(shard->num_slab_evictions);
+        return 1;
+    }
+    return 0;
+}
+
+
+/*
+ * Attempt to evict an object from the hash table in a particular lock bucket.
+ * Return 1 if successful, otherwise 0 if one of the buckets has overflowed and
+ * -1 if not.
+ */
+static int
+evict_obj_hash(mshard_t *shard, cguid_t cguid,
+               uint64_t lock_i, uint64_t lba_lo, uint64_t lba_hi)
+{
+    int bi;
+    int    overflowed = 0;
+    int bkts_per_lock = shard->bkts_per_lock;
+
+    for (bi = 0; bi < bkts_per_lock; bi++) {
+        uint64_t   bkt_i = lock_i * bkts_per_lock + bi;
+        uint64_t      ho = bkt_i * Mcd_osd_bucket_size;
+        bucket_t *bucket = &shard->hash_buckets[bkt_i];
+        int            n = bucket->next_item;
+        mhash_t    *hash = &shard->hash_table[ho + n - 1];
+
+        if (!n)
+            continue;
+
+        if (bucket->overflowed)
+            overflowed = 1;
+        for (; n--; hash--) {
+            if (cguid != hash->cntr_id)
+                continue;
+
+            uint64_t hblks = hash->blocks;
+            if (!(hblks > lba_lo && hblks <= lba_hi))
+                continue;
+
+            del_obj_hash(shard, hash);
+            atomic_inc(shard->num_slab_evictions);
+            return 1;
+        }
+    }
+    return overflowed ? 0 : -1;
+}
+
+
+/*
  * Evict an object in a certain slab class from the container.
  */
 int
 evict_object(mshard_t *shard, cguid_t cguid, uint64_t nblks)
 {
-    uint64_t       lo = rand();
-    uint64_t     used = blk_to_use(shard, nblks);
-    uint64_t   lba_lo = blk_to_lba(used >> 1);
-    uint64_t   lba_hi = blk_to_lba(used);
-    int bkts_per_lock = shard->bkts_per_lock;
+    uint64_t     lo = rand();
+    uint64_t   used = blk_to_use(shard, nblks);
+    uint64_t lba_lo = blk_to_lba(used >> 1);
+    uint64_t lba_hi = blk_to_lba(used);
 
     uint64_t li;
     for (li = 0; li < shard->lock_buckets; li++) {
@@ -4836,60 +4907,16 @@ evict_object(mshard_t *shard, cguid_t cguid, uint64_t nblks)
         if (!available(shard, lock_i, cguid, lba_lo, lba_hi))
             continue;
 
-        int  overflowed = 0;
         fthLock_t *lock = &shard->bucket_locks[lock_i];
         wait_t    *wait = fthLock(lock, 0, NULL);
 
-        int bi;
-        for (bi = 0; bi < bkts_per_lock; bi++) {
-            uint64_t   bkt_i = lock_i * bkts_per_lock + bi;
-            uint64_t      ho = bkt_i * Mcd_osd_bucket_size;
-            bucket_t *bucket = &shard->hash_buckets[bkt_i];
-            int            n = bucket->next_item;
-            mhash_t    *hash = &shard->hash_table[ho + n - 1];
-
-            if (!n)
-                continue;
-
-            if (bucket->overflowed)
-                overflowed = 1;
-            for (; n--; hash--) {
-                if (cguid != hash->cntr_id)
-                    continue;
-
-                uint64_t hblks = hash->blocks;
-                if (!(hblks > lba_lo && hblks <= lba_hi))
-                    continue;
-
-                del_obj_hash(shard, hash);
- 		atomic_inc(shard->num_slab_evictions);
-                fthUnlock(wait);
-                return 1;
-            }
-        }
-
-        if (overflowed) {
-            int n;
-            uint64_t base = lock_i * Mcd_osd_overflow_depth;
-            mhash_t *hash = &shard->overflow_table[base];
-            for (n = Mcd_osd_overflow_depth; n--; hash++) {
-                if (!hash->used)
-                    continue;
-                if (cguid != hash->cntr_id)
-                    continue;
-
-                uint64_t hblks = hash->blocks;
-                if (!(hblks > lba_lo && hblks <= lba_hi))
-                    continue;
-
-                del_obj_over(shard, hash);
- 		atomic_inc(shard->num_slab_evictions);
-                fthUnlock(wait);
-                return 1;
-            }
-        }
+        int s = evict_obj_hash(shard, cguid, lock_i, lba_lo, lba_hi);
+        if (s == 0)
+            s = evict_obj_over(shard, cguid, lock_i, lba_lo, lba_hi);
 
         fthUnlock(wait);
+        if (s > 0)
+            return 1;
     }
     return 0;
 }
