@@ -351,8 +351,9 @@ FDF_status_t print_container_stats_by_cguid( struct FDF_thread_state *thd_state,
     /* Get container properties and print */
     rc = FDFGetContainerProps(thd_state,cguid,&props);
     if ( rc != FDF_SUCCESS ) {
-         fprintf(fp,"Unable to get container properties for %s(error:%u)",cname,rc);
-         return FDF_FAILURE;
+		if ( FDF_FAILURE_OPERATION_DISALLOWED != rc && FDF_FAILURE_CONTAINER_NOT_FOUND != rc ) 
+			fprintf(fp,"Unable to get container properties for %s(error:%s)\n",cname,FDFStrError(rc)); 
+		return FDF_FAILURE;
     }
     time(&t);
     /* Print the container properties */
