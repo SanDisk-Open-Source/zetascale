@@ -256,6 +256,8 @@ int main(int argc, char *argv[])
 	start_threads(threads, worker);
 	fprintf(stderr, "DEL(after): count=%d\n", threads * count / step);
 
+	fdf_flush_container(cguid_shared);
+
 	wait_free_segments(9, 300);
 
 	print_stat();
