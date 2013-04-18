@@ -5258,9 +5258,12 @@ mcd_fth_osd_slab_set( void * context, mcd_osd_shard_t * shard, char * key,
                     plus_objs--;
                     plus_blks -= lba_to_use(shard, hash_entry->blocks);
                     (void)__sync_fetch_and_add(&shard->num_hard_overflows, 1);
-                    mcd_log_msg(80044,PLAT_LOG_LEVEL_ERROR,
-                          "hash table overflow area full. num_hard_overflows=%lu",
-                                              shard->num_hard_overflows);
+                    if (!vc_evict) {
+                        mcd_log_msg(80044, PLAT_LOG_LEVEL_WARN,
+                                    "hash table overflow area full:"
+                                    " num_hard_overflows=%lu",
+                                    shard->num_hard_overflows);
+                    }
                     rc = FLASH_ENOSPC;
                     goto out;
                 }
@@ -5364,7 +5367,7 @@ out:
     }
 
     int room = inc_cntr_map(cntr_id, plus_objs, plus_blks, 0);
-    if (vc_evict && (!room || rc == FLASH_ENOMEM)) {
+    if (vc_evict && (!room || rc == FLASH_ENOSPC)) {
         osd_state_t *osd_state = (osd_state_t *) context;
         fthUnlock(osd_state->osd_wait);
         osd_state->osd_wait = NULL;
@@ -5378,7 +5381,7 @@ out:
             }
         }
 
-        if (rc == FLASH_ENOMEM)
+        if (rc == FLASH_ENOSPC)
             rc = FLASH_EOK;
     }
 

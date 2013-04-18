@@ -2619,4 +2619,25 @@ void
 SDFNewCacheInvalByCntr(SDFNewCache_t *pc, struct shard *shard,
 		       SDF_cguid_t cguid)
 {
+    uint64_t h;
+    SDFNewCacheEntry_t *pce;
+    SDFNewCacheSlab_t *oldps = NULL;
+
+    for (h = 0; h < pc->nbuckets; h++) {
+        SDFNewCacheBucket_t *pb = &(pc->buckets[h]);
+        SDFNewCacheSlab_t   *ps = pb->slab;
+
+        if (ps != oldps) {
+            if (oldps)
+                CacheUnlock(oldps->lock, oldps->lock_wait);
+            CacheLock(ps->lock, ps->lock_wait);
+            oldps = ps;
+        }
+        for (pce = pb->entry; pce != NULL; pce = pce->next)
+            if (pce->cguid == cguid)
+                SDFNewCacheRemove(pc, pce, SDF_FALSE, NULL);
+    }
+
+    if (oldps)
+        CacheUnlock(oldps->lock, oldps->lock_wait);
 }

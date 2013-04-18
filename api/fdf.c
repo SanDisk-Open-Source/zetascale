@@ -3940,7 +3940,7 @@ fdf_read_object(
     fdf_incr_io_count( cguid );
 #endif
 
-	if ( (status = fdf_get_ctnr_status(cguid, 0)) != (SDF_status_t) FDF_CONTAINER_OPEN ) {
+	if ( (status = fdf_get_ctnr_status(cguid, 0)) != FDF_CONTAINER_OPEN ) {
         plat_log_msg( 160039, LOG_CAT, LOG_DIAG, "Container must be open to execute a read object" );
         goto out;     
     }
@@ -4065,7 +4065,7 @@ fdf_read_object_expiry(
     fdf_incr_io_count( cguid );
 #endif /* CMAP */
 
-    if ( (status = fdf_get_ctnr_status(cguid, 0)) != FDF_CONTAINER_OPEN ) {
+    if ( (status = fdf_get_ctnr_status(cguid, 0)) != (SDF_status_t) FDF_CONTAINER_OPEN ) {
         plat_log_msg( 160039, LOG_CAT, LOG_DIAG, "Container must be open to execute a read object" );
         goto out;     
     }
@@ -4712,7 +4712,7 @@ fdf_flush_container(
 
 	status = ar.respStatus;
 
-	if ( SDF_SUCCESS != status ) {
+	if ( FDF_SUCCESS != status ) {
 #ifdef CMAP
     	fdf_decr_io_count( cguid );
 #endif /* CMAP */
