@@ -4633,7 +4633,6 @@ delete_object(mshard_t *shard, mhash_t *hash, uint64_t bkt_i)
         .deleted    = 1,
         .bucket     = bkt_i * Mcd_osd_bucket_size,
         .blk_offset = baddr,
-        .old_offset = ~baddr,
         .cntr_id    = hash->cntr_id,
     };
     log_write(shard, &log);
