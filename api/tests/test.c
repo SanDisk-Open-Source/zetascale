@@ -42,7 +42,6 @@ FDF_status_t fdf_create_container (
     FDFLoadCntrPropDefaults(&props);
 
     props.size_kb   = size / 1024;
-    props.evicting  = FDF_TRUE;
 
     ret = FDFOpenContainer (
             _fdf_thd_state,
