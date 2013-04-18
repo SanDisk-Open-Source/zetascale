@@ -177,7 +177,7 @@ error_exit:
  */
 time_t convertDateTime(const char *buff) {
     int yy, mm, dd, hour, min, sec;
-    struct tm *when;
+    struct tm when;
     time_t tme;
 
     if (sscanf(buff, "%d/%d/%d %d:%d:%d", &mm, &dd, &yy, &hour, &min, &sec) != 6) {
@@ -200,14 +200,14 @@ time_t convertDateTime(const char *buff) {
     }
 
     time(&tme);
-    when = localtime(&tme);
-    when->tm_year = yy;
-    when->tm_mon = mm - 1;
-    when->tm_mday = dd;
-    when->tm_hour = hour;
-    when->tm_min = min;
-    when->tm_sec = sec;
-    return ( mktime(when));
+    when = *gmtime(&tme);
+    when.tm_year = yy;
+    when.tm_mon = mm - 1;
+    when.tm_mday = dd;
+    when.tm_hour = hour;
+    when.tm_min = min;
+    when.tm_sec = sec;
+    return ( mktime(&when));
 }
 
 /**
