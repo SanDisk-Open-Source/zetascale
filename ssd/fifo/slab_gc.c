@@ -38,7 +38,6 @@ struct slab_gc_class_struct {
 	pthread_cond_t cond;
 };
 
-
 #define stat_inc(s, a) atomic_inc(gc_stat[STAT(a) - STAT(SEGMENTS_COMPACTED)])
 
 void slab_gc_get_stats(mcd_osd_shard_t* shard, FDF_stats_t* stats, FILE* log)
@@ -75,24 +74,17 @@ bool slab_gc_able(mcd_osd_shard_t *shard, mcd_osd_slab_class_t* class, bool sync
 {
 	uint32_t free_slabs = class->total_slabs - class->used_slabs;
 	uint32_t used_slabs = class->used_slabs - class->dealloc_pending;
-	/* Its expensive to calcualte amount of slabs in least used segment here.
-		but average should be good enough upper bound for minimum. */
-	uint32_t avg_slabs;
 
 	if(!class->total_slabs) return false;
 
-	avg_slabs = class->used_slabs * class->slabs_per_segment / class->total_slabs;
+	/* Its expensive to calcualte amount of slabs in least used segment here.
+		but average should be good enough upper bound for minimum. */
+	uint32_t avg_slabs = class->used_slabs * class->slabs_per_segment / class->total_slabs;
 
 	/* Sync GC possible if there are enough free space to relocated average segment of the class */
 	bool gc_sync = class->total_slabs / class->slabs_per_segment > 1 && free_slabs > avg_slabs * 3; /* 3 = from + to + reserve */
 	/* Async GC possible if sync possible and class usage beyond GC threshold */
 	bool gc_async = used_slabs < shard->gc->threshold * class->total_slabs / 100 && gc_sync;
-
-	if(((sync && gc_sync) || gc_async) && !class->gc->pending)
-	{
-		mcd_log_msg(180012, PLAT_LOG_LEVEL_TRACE, "Shard %ld, class->blksize %d, %seligible for%s%s%s GC\n", shard->id, class->slab_blksize, !gc_sync && !gc_async ? "not " : "", gc_sync ? "sync" : "", gc_sync && gc_async ? " and " : "", gc_async ? "async": "" );
-		mcd_log_msg(180013, PLAT_LOG_LEVEL_TRACE, "Shard %ld class->blksize %d, total_slabs=%ld, free_slabs=%d used_slabs=%d average_slabs=%d gc->threshold=%d\n", shard->id, class->slab_blksize, class->total_slabs, free_slabs, used_slabs, avg_slabs, shard->gc->threshold);
-	}
 
 	return used_slabs && ((sync && gc_sync) || gc_async);
 }
@@ -138,10 +130,6 @@ int slab_gc_relocate_slab(
 	if((rc = mcd_fth_osd_slab_alloc(context, shard, class->slab_blksize, &dst_blk_offset)))
 		goto out;
 
-//	plat_assert(dst_blk_offset < shard->total_blks);
-	if(dst_blk_offset >= shard->total_blks)
-		fprintf(stderr, "This should not happen: dst_blk_offset(%ld) >= shard->total_blks(%ld)\n", dst_blk_offset, shard->total_blks);
-
 	dst_offset = mcd_osd_rand_address(shard, dst_blk_offset);
 
 	mcd_osd_meta_t *meta = (mcd_osd_meta_t *)buf;
@@ -176,7 +164,7 @@ int slab_gc_relocate_slab(
 	bool delayed = shard->replicated || (shard->persistent && !shard->evict_to_free);
 
 	mcd_fth_osd_remove_entry(shard, hash_entry, delayed, false);
-	/* Later should be mcd_osd_lba_to_blk(hash_entry->blocks)) */
+
 	atomic_add(shard->blk_consumed, mcd_osd_lba_to_blk(hash_entry->blocks));
 
 	hash_entry->address = dst_blk_offset;
@@ -262,9 +250,9 @@ void slab_gc_compact_class(
 	uint64_t blk_offset, map_offset, map_value;
 	fthWaitEl_t  *wait;
 
-	segment = slab_gc_least_used_segment(class);
-
 	mcd_log_msg(180014, PLAT_LOG_LEVEL_TRACE, "shard->id=%ld. GC of class->blksize=%d requested", shard->id, class->slab_blksize);
+
+	segment = slab_gc_least_used_segment(class);
 
 	wait = fthLock(&class->lock, 1, NULL);
 
@@ -286,6 +274,7 @@ void slab_gc_compact_class(
 	map_offset = 0;
 	blk_offset = segment->blk_offset;
 
+	/* Allocate and align buffer for segment */
 	if(unlikely(!shard->gc->_ubuf))
 	{
 		if(!(shard->gc->_ubuf = plat_alloc(MCD_OSD_SEGMENT_SIZE + Mcd_osd_blk_size)))
@@ -298,8 +287,10 @@ void slab_gc_compact_class(
 	if(!shard->gc->bitmap && !(shard->gc->bitmap = (uint64_t*)plat_alloc(Mcd_osd_segment_blks / 8)))
 		goto out;
 
+	/* Make bitmap snapshot */
 	memcpy(shard->gc->bitmap, segment->alloc_map, Mcd_osd_segment_blks / 8);
 
+	/* Read whole segment at once */
 	if((mcd_fth_aio_blk_read(context,
 			shard->gc->buf,
 			mcd_osd_rand_address(shard, blk_offset),
