@@ -604,17 +604,6 @@ typedef struct {
 
 
 /*
- * Variables used by enumeration.
- *
- *  stats  - Enumeration statistics.
- *
- */
-typedef struct {
-    enum_stats_t stats;
-} enum_var_t;
-
-
-/*
  * Enumeration hash entry information.
  */
 typedef struct {
@@ -645,14 +634,12 @@ typedef struct FDF_iterator {
  * Static variables.
  *
  *  AV       - Variables used by both nodes.
- *  EV       - Variables used by enumeration.
  *  RV       - Variables used by the recovering node.
  *  SV       - Variables used by the surviving node.
  */
 static  all_var_t AV;
 static  rec_var_t RV;
 static  sur_var_t SV;
-static enum_var_t EV;
 
 
 /*
@@ -4376,7 +4363,12 @@ lba_to_use(mshard_t *shard, uint64_t lba)
 void
 enumerate_stats(enum_stats_t *s, FDF_cguid_t cguid)
 {
-    memcpy(s, &EV.stats, sizeof(enum_stats_t));
+    ctnr_map_t *cmap = get_cntr_map(cguid);
+    if (cmap) {
+        memcpy(s, &cmap->enum_stats, sizeof(enum_stats_t));
+        rel_cntr_map(cmap);
+    } else
+        memset(s, 0, sizeof(enum_stats_t));
 }
 
 
@@ -4516,8 +4508,12 @@ enumerate_next(pai_t *pai, e_state_t *es, char **key, uint64_t *keylen,
                                ehash->bkt_i, hash->syndrome,
                               key, keylen, data, datalen);
         if (s) {
-            atomic_inc(EV.stats.num_objects);
-            atomic_inc(EV.stats.num_cached_objects);
+            ctnr_map_t *cmap = get_cntr_map(cntr_id);
+            if (cmap) {
+                atomic_inc(cmap->enum_stats.num_objects);
+                atomic_inc(cmap->enum_stats.num_cached_objects);
+                rel_cntr_map(cmap);
+            }
             return FDF_SUCCESS;
         }
 
@@ -4536,7 +4532,11 @@ enumerate_next(pai_t *pai, e_state_t *es, char **key, uint64_t *keylen,
         if (s != FDF_SUCCESS)
             return s;
 
-        atomic_inc(EV.stats.num_objects);
+        ctnr_map_t *cmap = get_cntr_map(cntr_id);
+        if (cmap) {
+            atomic_inc(cmap->enum_stats.num_objects);
+            rel_cntr_map(cmap);
+        }
         return FDF_SUCCESS;
     }
 }
@@ -4548,7 +4548,11 @@ enumerate_next(pai_t *pai, e_state_t *es, char **key, uint64_t *keylen,
 FDF_status_t
 enumerate_done(pai_t *pai, e_state_t *es)
 {
-    atomic_dec(EV.stats.num_active);
+    ctnr_map_t *cmap = get_cntr_map(es->cguid);
+    if (cmap) {
+        atomic_dec(cmap->enum_stats.num_active);
+        rel_cntr_map(cmap);
+    }
     fdf_logd(70117, "enumeration ended for container %ld", es->cguid);
 
     if (es->data_buf_alloc)
@@ -4605,8 +4609,12 @@ enumerate_init(pai_t *pai, shard_t *sshard, FDF_cguid_t cguid, e_state_t **esp)
     es->cguid = cguid;
     *((e_state_t **) esp) = es;
 
-    atomic_inc(EV.stats.num_total);
-    atomic_inc(EV.stats.num_active);
+    ctnr_map_t *cmap = get_cntr_map(cguid);
+    if (cmap) {
+        atomic_inc(cmap->enum_stats.num_total);
+        atomic_inc(cmap->enum_stats.num_active);
+        rel_cntr_map(cmap);
+    }
     fdf_logd(70111, "enumeration started for container %ld", es->cguid);
     return 0;
 }

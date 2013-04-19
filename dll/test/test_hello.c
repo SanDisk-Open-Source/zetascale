@@ -2,6 +2,7 @@
  * Copyright (c) 2012-2013, Sandisk Corporation.  All rights reserved.
  */
 #include <stdio.h>
+#include <unistd.h>
 #include "test.h"
 #include "tlib.h"
 
@@ -31,6 +32,10 @@ test(fdf_t *fdf)
     set_obj(ctr2, "white", "cow");
     set_obj(ctr1, "red",   "squirrel");
     set_obj(ctr2, "green", "alligator");
+
+    /* Show all objects */
+    show_objs(ctr1);
+    show_objs(ctr2);
 
     del_obj(ctr2, "white");
     set_obj(ctr2, "yellow", "yak");

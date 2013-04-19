@@ -34,20 +34,6 @@ typedef struct FDF_state {
     uint64_t           cguid_cntr;
 } FDF_state_t;
 
-/*
- * Statistics returned from enumeration.
- *  num_total          - Total enumerations completed.
- *  num_active         - Active enumerations.
- *  num_cached         - Number of objects enumerated.
- *  num_cached_objects - Number of objects enumerated that were cached.
- */
-typedef struct {
-    uint64_t num_total;
-    uint64_t num_active;
-    uint64_t num_objects;
-    uint64_t num_cached_objects;
-} enum_stats_t;
-
 
 /* Stats and Admin port*/
 typedef enum { 

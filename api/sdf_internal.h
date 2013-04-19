@@ -13,6 +13,21 @@
 #define MAX_CONTAINERS  1000
 
 
+/*
+ * Statistics returned from enumeration.
+ *  num_total          - Total enumerations completed.
+ *  num_active         - Active enumerations.
+ *  num_cached         - Number of objects enumerated.
+ *  num_cached_objects - Number of objects enumerated that were cached.
+ */
+typedef struct {
+    uint64_t num_total;
+    uint64_t num_active;
+    uint64_t num_objects;
+    uint64_t num_cached_objects;
+} enum_stats_t;
+
+
 typedef enum {
     FDF_CONTAINER_STATE_UNINIT,  	  /* Container is uninitialized */
     FDF_CONTAINER_STATE_CREATED, 	  /* Container is uninitialized */
@@ -33,6 +48,7 @@ typedef struct ctnr_map {
 	uint64_t			 num_obj;						/* Current number of objects */
     FDF_CONTAINER_STATE  state;							/* Container state */
 	FDF_boolean_t   	 evicting;						/* Eviction mode */
+    enum_stats_t enum_stats;
 } ctnr_map_t;
 
 
@@ -55,7 +71,9 @@ typedef struct SDF_iterator {
 
 extern int get_ctnr_from_cguid(FDF_cguid_t cguid);
 extern int get_ctnr_from_cname(char *cname);
-extern ctnr_map_t *get_cntr_map(cntr_id_t cntr_id);
+
+void rel_cntr_map(ctnr_map_t *cmap);
+ctnr_map_t *get_cntr_map(cntr_id_t cntr_id);
 int inc_cntr_map(cntr_id_t cntr_id, int64_t objs, int64_t blks, int check);
 
 // Container metadata map API

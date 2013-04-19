@@ -1011,12 +1011,28 @@ is_fdf_operation_allowed(void)
 ctnr_map_t *
 get_cntr_map(cntr_id_t cntr_id)
 {
-    int i;
+    int           n = MCD_MAX_NUM_CNTRS;
+    ctnr_map_t *cmap = CtnrMap;
 
-    for (i = 0; i < MCD_MAX_NUM_CNTRS; i++)
-        if (CtnrMap[i].cguid == cntr_id)
-            return &CtnrMap[i];
-    return NULL;
+    for (; n-- > 0; cmap++)
+        if (cmap->cguid == cntr_id)
+            break;
+
+    if (n < 0)
+        return NULL;
+
+    atomic_inc(cmap->io_count);
+    return cmap;
+}
+
+
+/*
+ * Release the container map.
+ */
+void
+rel_cntr_map(ctnr_map_t *cmap)
+{
+    atomic_dec(cmap->io_count);
 }
 
 
@@ -1051,6 +1067,8 @@ get_cntr_info(cntr_id_t cntr_id,
         *size = cmap->size_kb * 1024;
     if (evicting)
         *evicting = cmap->evicting;
+
+    rel_cntr_map(cmap);
     return 1;
 }
 
@@ -1093,6 +1111,8 @@ inc_cntr_map(cntr_id_t cntr_id, int64_t objs, int64_t blks, int check)
         fdf_loge(70116, "container %d would have a size of %ld bytes",
                  cntr_id, size);
     }
+
+    rel_cntr_map(cmap);
     return ret;
 }
 
@@ -2548,6 +2568,7 @@ static FDF_status_t fdf_create_container(
 	if ( FDF_SUCCESS == status && CMC_CGUID != *cguid ) {
 		for ( i = 0; i < MCD_MAX_NUM_CNTRS; i++ ) {
 			if ( CtnrMap[i].cguid == 0 ) {
+                                memset(&CtnrMap[i], 0, sizeof(ctnr_map_t));
 				strcpy( CtnrMap[i].cname, cname );
 				CtnrMap[i].cguid         = *cguid;
 				CtnrMap[i].sdf_container = containerNull;
@@ -5974,6 +5995,7 @@ static void *fdf_vc_thread(
         for ( j = 0; j < MCD_MAX_NUM_CNTRS; j++ ) {
             if (CtnrMap[j].cguid == 0) {
                 // this is an unused map entry
+                memset(&CtnrMap[j], 0, sizeof(ctnr_map_t));
 				memcpy( CtnrMap[j].cname, meta->cname, strlen( meta->cname ) );
                 CtnrMap[j].cguid                = meta->cguid;
                 CtnrMap[j].sdf_container        = containerNull;
