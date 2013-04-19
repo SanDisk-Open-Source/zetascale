@@ -4851,9 +4851,9 @@ mcd_fth_osd_slab_set( void * context, mcd_osd_shard_t * shard, char * key,
 
                 bool delayed = 1 == shard->replicated || (1 == shard->persistent && 0 == shard->evict_to_free);
 
-                mcd_fth_osd_remove_entry(shard, hash_entry, delayed, true);
                 plus_objs--;
                 plus_blks -= lba_to_use(shard, hash_entry->blocks);
+                mcd_fth_osd_remove_entry(shard, hash_entry, delayed, true);
 
                 if ( 0 == overflow ) {
                     if ( 0 == bucket->next_item ) {
@@ -5177,9 +5177,9 @@ mcd_fth_osd_slab_set( void * context, mcd_osd_shard_t * shard, char * key,
                 log_write( shard, &log_rec );
             }
 
-            mcd_fth_osd_remove_entry(shard, hash_entry, true, true);
             plus_objs--;
             plus_blks -= lba_to_use(shard, hash_entry->blocks);
+            mcd_fth_osd_remove_entry(shard, hash_entry, true, true);
 
             if ( 0 == bucket->next_item ) {
                 plat_assert_always( 0 == 1 );
@@ -5212,9 +5212,9 @@ mcd_fth_osd_slab_set( void * context, mcd_osd_shard_t * shard, char * key,
          * Here we won't write a log record or remove the hash entry;
          * instead we write a special log record at create time
          */
-        mcd_fth_osd_remove_entry(shard, hash_entry, shard->persistent, false);
         plus_objs--;
         plus_blks -= lba_to_use(shard, hash_entry->blocks);
+        mcd_fth_osd_remove_entry(shard, hash_entry, shard->persistent, false);
 
         (void) __sync_fetch_and_add( &shard->num_overwrites, 1 );
     }
@@ -5254,9 +5254,9 @@ mcd_fth_osd_slab_set( void * context, mcd_osd_shard_t * shard, char * key,
                      */
                     (void) __sync_fetch_and_add( &shard->blk_consumed,
                                                  new_entry.blocks );
-                    mcd_fth_osd_remove_entry( shard, &new_entry, false, true);
                     plus_objs--;
                     plus_blks -= lba_to_use(shard, hash_entry->blocks);
+                    mcd_fth_osd_remove_entry( shard, &new_entry, false, true);
                     (void)__sync_fetch_and_add(&shard->num_hard_overflows, 1);
                     if (!vc_evict) {
                         mcd_log_msg(80044, PLAT_LOG_LEVEL_WARN,
