@@ -2994,6 +2994,7 @@
 80041 Flash file %s opened successfully
 80042 No space left for hash entry
 80043 Slab class empty
+80044 hash table overflow area full: num_hard_overflows=%lu
 80045 compact_class(async) before\n
 80046 compact_class(async) after\n
 80047 Data structure SDF_status_t(size:%d) and FDF_status_t(size:%d) is not consistent.
