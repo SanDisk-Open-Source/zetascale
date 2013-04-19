@@ -5376,6 +5376,7 @@ out:
         for (i = 0; i < 2; i++) {
             if (evict_object(shard, cntr_id, blocks)) {
                 uint64_t used = blk_to_use(shard, blocks);
+                (void) __sync_fetch_and_sub( &shard->num_objects, 1 );
                 if (inc_cntr_map(cntr_id, -1, -used, 0))
                     break;
             }
