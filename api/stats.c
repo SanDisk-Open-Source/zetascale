@@ -515,6 +515,24 @@ static void process_container_cmd(struct FDF_thread_state *thd_state,
         else if( strcmp(tokens[2].value,"disable") == 0 ) {
             disable_stats_auto_dump();
         }
+        else if( strcmp(tokens[2].value,"interval") == 0 ) {
+            if ( ntokens < 4 ) {
+                 fprintf(fp,"Invalid arguments for autodump interval"
+                                             "Type help for more info\n");
+                 return;
+            }
+            if ( atoi(tokens[3].value) < 0 ) {
+                fprintf(fp,"Invalid auto dump interval:%d\n",
+                                                  atoi(tokens[3].value));
+                return;
+            } 
+            set_stats_autodump_interval(atoi(tokens[3].value));
+        }
+        else if( strcmp(tokens[2].value,"printcfg") == 0 ) {
+            fprintf(fp,"Auto dump:%s Interval:%d\n",
+                   is_auto_dump_enabled()?"enabled":"disabled", 
+                   get_autodump_interval());
+        }
         else {
             fprintf(fp,"Invalid subcommand %s\n", tokens[2].value);
             return;
@@ -541,7 +559,8 @@ static void print_admin_command_usage(FILE *fp) {
     fprintf(fp,"\nSupported commands:\n" 
                    "container stats <container name> [v]\n"
                    "container stats_dump <container name|all> [v]\n"
-                   "container autodump   <enable/disable>\n"
+                   "container autodump <enable/disable/interval/printcfg>"
+                   " [interval in secs]\n"
                    "container list\n"
                    "log_level <set/get> [fatal/error/warning/info/diagnostic/"
                    "debug/trace/trace_low/devel]\n"

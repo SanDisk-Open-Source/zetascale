@@ -60,8 +60,8 @@ main( )
 	 * Override properties set in the file.
 	 * Format the device and set maximum object size to 4MB.
 	 */
-	FDFSetProperty("SDF_REFORMAT", "1");
-	FDFSetProperty("SDF_MAX_OBJ_SIZE", "4194304");
+	FDFSetProperty("FDF_REFORMAT", "1");
+	FDFSetProperty("FDF_MAX_OBJ_SIZE", "4194304");
 
 	//Initialize FDF state.
 	if ((status = FDFInit(&fdf_state)) != FDF_SUCCESS) {

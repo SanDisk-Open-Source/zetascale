@@ -93,6 +93,7 @@ int fdf_instance_id;
 static time_t 			current_time 	= 0;
 static int stats_dump = 0;
 static SDF_shardid_t	vdc_shardid		= SDF_SHARDID_INVALID;
+static int dump_interval = 0;
 
 /* Id used to uniquely differenciate 
    parallel container deletes with same name */
@@ -1359,6 +1360,14 @@ static void print_fdf_stats(FILE *log, FDF_stats_t *stats, char *disp_str) {
     fflush(log);
 }
 
+void set_stats_autodump_interval(int interval) {
+    dump_interval = interval;
+}
+
+int get_autodump_interval() {
+    return dump_interval;
+}
+
 void enable_stats_auto_dump() {
     stats_dump = 1;
 }
@@ -1366,7 +1375,7 @@ void disable_stats_auto_dump() {
     stats_dump = 0;
 }
 int is_auto_dump_enabled() {
-    return stats_dump;
+    return ((stats_dump == 1) && (dump_interval > 0 ));
 }
 
 static void *fdf_stats_thread(void *arg) {
@@ -1374,7 +1383,7 @@ static void *fdf_stats_thread(void *arg) {
     uint32_t n_cguids;
     char stats_str[STAT_BUFFER_SIZE];
     FILE *stats_log;
-    int i, dump_interval;
+    int i;
     struct FDF_thread_state *thd_state;
     FDF_stats_t stats;
 
@@ -1385,8 +1394,8 @@ static void *fdf_stats_thread(void *arg) {
     }
 
     stats_dump = 1;
+    dump_interval = getProperty_Int( "FDF_STATS_DUMP_INTERVAL", 10 ); 
     while(1) {
-        dump_interval = getProperty_Int( "FDF_STATS_DUMP_INTERVAL", 10 ); 
         if( (stats_dump == 0) || ( dump_interval <= 0) ) {
             sleep(5);
             continue;
