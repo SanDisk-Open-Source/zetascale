@@ -67,6 +67,9 @@ add_subdirectory(dll)
 IF(EXISTS test_suite/)
 add_subdirectory(test_suite)
 ENDIF(EXISTS test_suite/)
+IF(EXISTS fdf_slap/)
+add_subdirectory(fdf_slap)
+ENDIF(EXISTS fdf_slap/)
 #
 ADD_LIBRARY(${LIBRARY} ${LIB_TYPE} 
 $<TARGET_OBJECTS:agent>
