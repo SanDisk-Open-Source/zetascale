@@ -1555,7 +1555,22 @@ static void *fdf_run_schedulers(void *arg)
 const char *
 FDFGetProperty(const char *key, const char *def)
 {
-    return getProperty_String(key, def);
+	const char	*value;
+	char 		*ret;	
+	int		len;
+
+	value = getProperty_String(key, def);
+	if (value != def) {
+		len = strlen(value) + 1;
+		ret = (char *)plat_alloc(len);
+		if (ret != NULL) {
+			strncpy(ret, value, len);
+			*(ret + len) = '\0';
+		}
+		return ret;
+	} else {
+		return def;
+	}
 }
 
 

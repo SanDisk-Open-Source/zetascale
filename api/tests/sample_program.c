@@ -14,6 +14,7 @@
 
 #include 	<stdio.h>
 #include 	<stdlib.h>
+#include 	<string.h>
 #include 	<unistd.h>
 #include 	<pthread.h>
 #include	<fdf.h>
@@ -36,6 +37,7 @@ main( )
 	char				*version;
 	int				indx;
 	uint32_t			ncg;
+	const char			*path;
 
 	//Get the version FDF the program running with.
 	if (FDFGetVersion(&version) == FDF_SUCCESS) {
@@ -62,6 +64,12 @@ main( )
 	 */
 	FDFSetProperty("FDF_REFORMAT", "1");
 	FDFSetProperty("FDF_MAX_OBJ_SIZE", "4194304");
+	
+	path = FDFGetProperty("FDF_LICENSE_PATH", "Default path");
+	if (path && (strcmp(path, "Default path") != 0)) {
+		printf("License will be searched at: %s\n", path);
+		FDFFreeBuffer((char *)path);
+	}
 
 	//Initialize FDF state.
 	if ((status = FDFInit(&fdf_state)) != FDF_SUCCESS) {
