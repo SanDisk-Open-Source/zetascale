@@ -42,13 +42,10 @@ struct slab_gc_class_struct {
 
 void slab_gc_get_stats(mcd_osd_shard_t* shard, FDF_stats_t* stats, FILE* log)
 { 
-	int i;
-	int cnt = STAT(SEGMENTS_CANCELLED) - STAT(SEGMENTS_COMPACTED) + 1;
+	int i, cnt = STAT(SEGMENTS_CANCELLED) - STAT(SEGMENTS_COMPACTED) + 1;
 
 	for(i = 0; i < cnt; i++)
-	{
 		stats->flash_stats[STAT(SEGMENTS_COMPACTED) + i] = gc_stat[i];
-	}
 }
 
 void slab_gc_update_threshold(mcd_osd_shard_t *shard, int threshold)
@@ -110,7 +107,6 @@ int slab_gc_relocate_slab(
 	hash_index = shard->addr_table[src_blk_offset];
 	hash_entry = shard->hash_table + hash_index;
 
-	plat_assert(src_blk_offset < shard->total_blks);
 	plat_assert(hash_index < shard->hash_size + shard->lock_buckets * Mcd_osd_overflow_depth);
 
 	if(hash_index >= shard->hash_size)
@@ -169,8 +165,6 @@ int slab_gc_relocate_slab(
 
 	hash_entry->address = dst_blk_offset;
 	shard->addr_table[dst_blk_offset] = hash_entry - shard->hash_table;
-
-	plat_assert(shard->addr_table[dst_blk_offset] < shard->hash_size + shard->lock_buckets * Mcd_osd_overflow_depth);
 
 out:
 	if(rc)
