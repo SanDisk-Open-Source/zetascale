@@ -6311,21 +6311,16 @@ FDFGetVersion(
 	char **str
 	)
 {
-	if (!str) {
+	if (!str)
 		return FDF_INVALID_PARAMETER;
-	}
-	*str = NULL;
 
 #ifdef FDF_REVISION
-	size_t	len = strlen(FDF_REVISION) + 1;
-	*str = (char *)plat_malloc(len);
-	if (str) {
-		memcpy(*str, FDF_REVISION, len);
-		*(*str + len) ='\0';
-		return FDF_SUCCESS;
-	}
+	*str = plat_strdup(FDF_REVISION);
+#else
+	*str = NULL;
 #endif
-	return FDF_FAILURE;
+
+	return *str ? FDF_SUCCESS : FDF_FAILURE;
 }
 
 #define NUM_BTRACE_ENTRIES 50
