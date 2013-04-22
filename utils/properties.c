@@ -76,7 +76,11 @@ int getPropertyFromFile(const char *prop_file, char *inKey, char *outVal) {
         while('=' != *str && '\0' != *str && ' ' != *str && '\n' != *str) { // get key
             str++;
         }
-        key = strndup(beg, str-beg);
+	if (str-beg) {
+		key = strndup(beg, str-beg);
+	} else {
+		continue;
+	}
         
         beg = str++;
         while(' ' == *beg || '=' == *beg) { // trim beginning
@@ -86,11 +90,22 @@ int getPropertyFromFile(const char *prop_file, char *inKey, char *outVal) {
         while('=' != *str && '\0' != *str && ' ' != *str && '\n' != *str) { // get value
             str++;
         }
-        val = strndup(beg, str-beg);
+	if (str - beg) {
+		val = strndup(beg, str-beg);
+	} else {
+		free(key);
+		continue;
+	}
+
         if ( strcmp(inKey,key) == 0 ) {
             strcpy(outVal,val);
+	    free(key);
+	    free(val);
             break;
-        }
+        } else {
+	    free(key);
+	    free(val);
+	}
     }
     fclose(fp);
     plat_free(line);
@@ -172,7 +187,11 @@ int loadProperties(const char *path_arg)
         while('=' != *str && '\0' != *str && ' ' != *str && '\n' != *str) { // get key
             str++;
         }
-        key = strndup(beg, str-beg);
+	if (str-beg) {
+		key = strndup(beg, str-beg);
+	} else {
+		continue;
+	}
         
         beg = str++;
         while(' ' == *beg || '=' == *beg) { // trim beginning
@@ -182,7 +201,12 @@ int loadProperties(const char *path_arg)
         while('=' != *str && '\0' != *str && ' ' != *str && '\n' != *str) { // get value
             str++;
         }
-        val = strndup(beg, str-beg);
+	if (str-beg) {
+		val = strndup(beg, str-beg);
+	} else {
+		free(key);
+		continue;
+	}
        
 #ifdef SDFAPIONLY 
 		/* in SDF library properties from file override properties 

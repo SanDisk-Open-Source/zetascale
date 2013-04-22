@@ -1627,7 +1627,11 @@ void log_properties_file(const char *path, int log_level) {
         while('=' != *str && '\0' != *str && ' ' != *str && '\n' != *str) { 
             str++;
         }
-        key = strndup(beg, str-beg);
+	if (str - beg) {
+		key = strndup(beg, str-beg);
+	} else {
+		continue;
+	}
         /* Trim beginning */ 
         beg = str++; 
         while(' ' == *beg || '=' == *beg) {
@@ -1638,12 +1642,19 @@ void log_properties_file(const char *path, int log_level) {
         while('=' != *str && '\0' != *str && ' ' != *str && '\n' != *str) {
             str++;
         }
-        val = strndup(beg, str-beg);
+	if (str - beg) {
+		val = strndup(beg, str-beg);
+	} else {
+		free(key);
+		continue;
+	}
 
         if (FDF_log_level <= log_level) {
             plat_log_msg(70036, PLAT_LOG_CAT_PRINT_ARGS,
                          log_level,"%s = %s",key, val);
         }
+	if (key) free(key);
+	if (val) free(val);
     }   
     fclose(fp);
     plat_free(line);
@@ -1978,7 +1989,7 @@ fdf_containers_cleanup(struct FDF_state *fdf_state)
 	if (0 == n_cguids) {
 		plat_log_msg(160055, LOG_CAT, LOG_DBG, 
 				"No container exists");
-		return status;
+		goto out;
 	}
 
 	plat_log_msg(160101, LOG_CAT, LOG_DBG, 
@@ -2029,7 +2040,7 @@ fdf_containers_cleanup(struct FDF_state *fdf_state)
 		plat_log_msg(160120, LOG_CAT,
 				LOG_DBG, "Containers closed=%d", num_closed_containers);
 	}
-
+out:
 	FDFReleasePerThreadState(&fdf_thread_state);
 
 	return status;

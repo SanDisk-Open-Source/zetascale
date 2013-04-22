@@ -340,7 +340,7 @@ flf_get_license_details_v1_0(char *in, lic_data_t *data)
 {
 	int		i;
 	char		*cnt_hdr;
-	char		*prt_ent[NO_OF_PART_FIELDS];
+	char		*prt_ent[NO_OF_PART_FIELDS] = {0};
 	int		len;
 	char		*prtstart, *keystart, *end;
 	char 		*decr = NULL, *key = NULL, *msg = NULL;
@@ -466,6 +466,9 @@ out:
 	if (decr) free(decr);
 	if (key) free(key);
 	if (msg) free(msg);
+	for ( i = 0; i < NO_OF_PART_FIELDS; i++) {
+		if (prt_ent[i]) free(prt_ent[i]);
+	}
 	return;
 }	
 
