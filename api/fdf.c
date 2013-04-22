@@ -1287,7 +1287,8 @@ FDF_status_t fdf_ctnr_set_state(
 			break;
 
 		case FDF_CONTAINER_STATE_DELETE_PROG:
-			if ( FDF_CONTAINER_STATE_CLOSED != current_state ) 
+			if ( FDF_CONTAINER_STATE_CLOSED != current_state &&
+			     FDF_CONTAINER_STATE_CREATED != current_state )
 				goto err;
 			break;
 
@@ -6023,9 +6024,12 @@ static void *fdf_vc_thread(
                 // this is an unused map entry
                 memset(&CtnrMap[j], 0, sizeof(ctnr_map_t));
 				memcpy( CtnrMap[j].cname, meta->cname, strlen( meta->cname ) );
+                CtnrMap[j].io_count             = 0;
                 CtnrMap[j].cguid                = meta->cguid;
                 CtnrMap[j].sdf_container        = containerNull;
 				CtnrMap[j].size_kb              = meta->properties.container_id.size;
+				CtnrMap[j].state                = FDF_CONTAINER_STATE_CREATED;
+				CtnrMap[j].evicting             = meta->properties.container_type.caching_container;
                 Mcd_containers[j].cguid         = meta->cguid;
                 Mcd_containers[j].container_id  = meta->properties.container_id.container_id;
 				memcpy( Mcd_containers[j].cname, meta->cname, strlen( meta->cname ) );
