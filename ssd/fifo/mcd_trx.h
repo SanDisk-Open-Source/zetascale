@@ -18,7 +18,7 @@ typedef struct {
 
 uint64_t	mcd_trx_id( );
 mcd_trx_t	mcd_trx_start( ),
-		mcd_trx_commit( ),
-		mcd_trx_rollback( );
+		mcd_trx_commit( void *),
+		mcd_trx_rollback( void *);
 mcd_trx_stats_t	mcd_trx_get_stats( );
 void		mcd_trx_print_stats( FILE *);

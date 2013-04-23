@@ -7636,6 +7636,7 @@ mcd_rec_attach_test( int testcmd, int test_arg )
  * Section to support transactions
  */
 
+#include	"protocol/action/action_new.h"
 #include	"mcd_trx.h"
 
 
@@ -7702,14 +7703,14 @@ mcd_trx_start( )
  * those details).
  */
 mcd_trx_t
-mcd_trx_commit( )
+mcd_trx_commit( void *pai)
 {
 	uint	i;
 
 	unless (trx)
 		return (MCD_TRX_NO_TRANS);
 	unless (trx->status == MCD_TRX_OKAY)
-		return (mcd_trx_rollback( ));
+		return (mcd_trx_rollback( pai));
 	if (trx->s) {
 		fthWaitEl_t *w = fthLock( &trx->s->log->sync_fill_lock, 1, NULL);
 		if (trx->n > 1) {
@@ -7746,12 +7747,13 @@ mcd_trx_commit( )
  *
  * Callable from FDF top-level.  On return, thread's transaction
  * is concluded.  All changes to hash table and slabs are reverted.
- * Accumulated log entries not written, but pitched.
+ * Accumulated log entries not written, but pitched.  Objects created by
+ * the transaction are purged from the object cache.
  *
  * Fails if hash table is unexpectedly full, or no transaction active.
  */
 mcd_trx_t
-mcd_trx_rollback( )
+mcd_trx_rollback( void *pai)
 {
 	uint	i;
 
@@ -7759,8 +7761,11 @@ mcd_trx_rollback( )
 		return (MCD_TRX_NO_TRANS);
 	for (i=0; i<trx->n; ++i) {
 		mcd_trx_rec_t *r = &trx->trtab[trx->n-i-1];
-		if (r->lr.blocks)
+		if (r->lr.blocks) {
 			mcd_osd_trx_revert( trx->s, &r->lr, r->syn, &r->e);
+			uint64_t bi = r->syn%trx->s->hash_size / Mcd_osd_bucket_size;
+			cache_inval_by_mhash( pai, &trx->s->shard, r->lr.blk_offset, bi, r->syn>>OSD_HASH_SYN_SHIFT);
+		}
 		else unless (mcd_osd_trx_insert( trx->s, r->syn, &r->e))
 			trx->status = MCD_TRX_HASHTABLE_FULL;
 	}
