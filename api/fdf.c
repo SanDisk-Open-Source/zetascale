@@ -1407,6 +1407,8 @@ static void *fdf_stats_thread(void *arg) {
     int i;
     struct FDF_thread_state *thd_state;
     FDF_stats_t stats;
+    time_t st,et;
+    int time_elapsed,cur_dump_int;
 
 
     if ( FDF_SUCCESS != FDFInitPerThreadState( ( struct FDF_state * ) arg, ( struct FDF_thread_state ** ) &thd_state )) {
@@ -1418,13 +1420,26 @@ static void *fdf_stats_thread(void *arg) {
     dump_interval = getProperty_Int( "FDF_STATS_DUMP_INTERVAL", 10 ); 
     while(1) {
         if( (stats_dump == 0) || ( dump_interval <= 0) ) {
+            /* Auto dump has been disabled. sleep 5 secs and check again */
             sleep(5);
             continue;
         }
-
         if(getProperty_Int( "FDF_STATS_NEW", 1 ) == 1 ) {
+            time(&st);
             dump_all_container_stats(thd_state,STATS_PRINT_TYPE_DETAILED);
-            sleep(dump_interval);
+            time(&et);
+            /* calculate the time elapsed for getting and printing above stats */
+            cur_dump_int = dump_interval;
+            time_elapsed = (uint32_t)et - (uint32_t)st;
+            if ( time_elapsed >= 0 ) {
+                if (time_elapsed < cur_dump_int) {
+                    sleep(cur_dump_int - time_elapsed);
+                }
+            }
+            else {
+                /* System time changed backwords, just sleep for default interval */                    
+                sleep(dump_interval);
+            }
             continue;
         }
         stats_log = fopen(getProperty_String("FDF_STATS_FILE","/tmp/fdfstats.log"),"a+");

@@ -3027,6 +3027,7 @@
 80074 LIC: API using state set by previous thread.
 80075 LIC: API updating license in progress.
 80076 LIC: API updating license done.
+80077 Number of DRAM cache slabs %"PRIu64"
 
 
 # kcai
