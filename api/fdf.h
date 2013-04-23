@@ -23,8 +23,6 @@ extern "C" {
 
 #include "common/fdftypes.h"
 
-#define CMAP 1
-
 #define fdf_cntr_drain_io( v )  while ( unlikely( v > 0 ) ) fthYield(0)
 
 #define CONTAINER_NAME_MAXLEN		64

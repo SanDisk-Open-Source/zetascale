@@ -2696,11 +2696,7 @@ static FDF_status_t fdf_open_container(
 		*cguid = CMC_CGUID;
     }
 
-#ifdef CMAP
     if ( FDF_CONTAINER_STATE_OPEN == CtnrMap[i_ctnr].state || FDF_CONTAINER_STATE_DELETE_OPEN == CtnrMap[ i_ctnr ].state) {
-#else
-	if ( !isContainerNull( CtnrMap[i_ctnr].sdf_container ) ) {
-#endif
         plat_log_msg( 160032, LOG_CAT, LOG_DBG, "Already opened or error: %s - %s", cname, SDF_Status_Strings[status] );
 		goto out;
     }
@@ -3683,11 +3679,6 @@ fdf_get_containers(
     int   						 i				= 0;
     int   						 n_containers	= 0;
     SDF_internal_ctxt_t     	*pai 			= (SDF_internal_ctxt_t *) fdf_thread_state;
-#ifndef CMAP
-    SDF_container_meta_t        meta;
-#endif
-
-    n_containers = 0;
 
 	if ( !cguids || !n_cguids )
 		return FDF_INVALID_PARAMETER;
@@ -3698,24 +3689,8 @@ fdf_get_containers(
         
 		if ( CtnrMap[i].cguid != 0 && CtnrMap[i].cguid != VMC_CGUID && 
 			 CtnrMap[i].cguid != VDC_CGUID && CtnrMap[i].state != FDF_CONTAINER_STATE_UNINIT ) {
-#ifdef CMAP
 			if ( FDF_CONTAINER_STATE_OPEN != CtnrMap[i].state ) 
 				continue;
-#else
-            /* check if the container is being deleted */
-            if (name_service_get_meta( pai, CtnrMap[i].cguid, &meta ) != SDF_SUCCESS ) {
-                //plat_log_msg( 160087, LOG_CAT, LOG_ERR,
-                //   "Could not read metadata for %lu. skipping this container from list",
-                //                                                        CtnrMap[i].cguid );
-                continue;
-            }
-            if ( meta.delete_in_progress == SDF_TRUE ) {
-                //plat_log_msg( 160088, LOG_CAT, LOG_DBG,
-                //            "Container %lu is being deleted. So not included in the list",
-                //                                                        CtnrMap[i].cguid);
-                continue;
-            }
-#endif
 			cguids[n_containers] = CtnrMap[i].cguid;
             n_containers++;
         }
@@ -4009,9 +3984,7 @@ fdf_read_object(
         return FDF_INVALID_PARAMETER;
 	}
 
-#ifdef CMAP
     fdf_incr_io_count( cguid );
-#endif
 
 	if ( (status = fdf_get_ctnr_status(cguid, 0)) != FDF_CONTAINER_OPEN ) {
         plat_log_msg( 160039, LOG_CAT, LOG_DIAG, "Container must be open to execute a read object" );
@@ -4046,9 +4019,7 @@ fdf_read_object(
 
 out:
 
-#ifdef CMAP
     fdf_decr_io_count( cguid );
-#endif /* CMAP */
 
     return status;
 }
@@ -4134,9 +4105,7 @@ fdf_read_object_expiry(
         return FDF_INVALID_PARAMETER;        
     }
 
-#ifdef CMAP
     fdf_incr_io_count( cguid );
-#endif /* CMAP */
 
     if ( (status = fdf_get_ctnr_status(cguid, 0)) != (SDF_status_t) FDF_CONTAINER_OPEN ) {
         plat_log_msg( 160039, LOG_CAT, LOG_DIAG, "Container must be open to execute a read object" );
@@ -4164,9 +4133,7 @@ fdf_read_object_expiry(
 
 out:
 
-#ifdef CMAP
     fdf_decr_io_count( cguid );
-#endif /* CMAP */
 
     robj->data_len = ar.destLen;
     robj->expiry = ar.exptime;
@@ -4265,9 +4232,7 @@ fdf_write_object(
  	if ( !cguid || !key )
  		return FDF_INVALID_PARAMETER;
  
-#ifdef CMAP
     fdf_incr_io_count( cguid );
-#endif /* CMAP */
 
     if ( (status = fdf_get_ctnr_status(cguid, 0)) != FDF_CONTAINER_OPEN ) {
     	plat_log_msg( 160040, LOG_CAT, LOG_DIAG, "Container must be open to execute a write object" );
@@ -4305,9 +4270,7 @@ fdf_write_object(
 	status = ar.respStatus;
 out:
 
-#ifdef CMAP
     fdf_decr_io_count( cguid );
-#endif /* CMAP */
 
     return status;
 }
@@ -4407,9 +4370,7 @@ fdf_write_object_expiry (
         return FDF_BAD_PBUF_POINTER;
     }
 
-#ifdef CMAP
     fdf_incr_io_count( cguid );
-#endif /* CMAP */
 
     if ( (status = fdf_get_ctnr_status(cguid, 0)) != FDF_CONTAINER_OPEN ) {
         plat_log_msg( 160040, LOG_CAT, LOG_DIAG, "Container must be open to execute a write object" );
@@ -4445,9 +4406,7 @@ fdf_write_object_expiry (
 	status = ar.respStatus;
 
 out: 
-#ifdef CMAP
     fdf_decr_io_count( cguid );
-#endif /* CMAP */
 
 	return status;
 }
@@ -4540,9 +4499,7 @@ fdf_delete_object(
     if ( !cguid || !key )
         return FDF_INVALID_PARAMETER;
 
-#ifdef CMAP
     fdf_incr_io_count( cguid );
-#endif
 
     if ( (status = fdf_get_ctnr_status(cguid, 0)) != FDF_CONTAINER_OPEN ) {
         plat_log_msg( 160041, LOG_CAT, LOG_DIAG, "Container must be open to execute a delete object" );
@@ -4569,9 +4526,7 @@ fdf_delete_object(
 
 out:
 
-#ifdef CMAP
     fdf_decr_io_count( cguid );
-#endif /* CMAP */
 
     return status;
 }
@@ -4654,9 +4609,7 @@ fdf_flush_object(
 	if ( !cguid || !key )
 		return FDF_INVALID_PARAMETER;
 
-#ifdef CMAP
     fdf_incr_io_count( cguid );
-#endif /* CMAP */
 
     if ( (status = fdf_get_ctnr_status(cguid, 0)) != FDF_CONTAINER_OPEN ) {
         plat_log_msg( 160043, LOG_CAT, LOG_DIAG, "Container must be open to execute a flush object" );
@@ -4678,9 +4631,7 @@ fdf_flush_object(
     status = ar.respStatus;
 
 out:
-#ifdef CMAP
     fdf_decr_io_count( cguid );
-#endif /* CMAP */
 
     return status;
 }
@@ -4762,9 +4713,7 @@ fdf_flush_container(
     if ( !cguid )
         return FDF_INVALID_PARAMETER;
 
-#ifdef CMAP
     fdf_incr_io_count( cguid );
-#endif /* CMAP */
 
     if ( (status = fdf_get_ctnr_status(cguid, 0)) != FDF_CONTAINER_OPEN ) {
         plat_log_msg( 160044, LOG_CAT, LOG_DIAG, "Container must be open to execute a flush container" );
@@ -4786,9 +4735,7 @@ fdf_flush_container(
 	status = ar.respStatus;
 
 	if ( FDF_SUCCESS != status ) {
-#ifdef CMAP
     	fdf_decr_io_count( cguid );
-#endif /* CMAP */
     	return status;         
 	}
 
@@ -4811,9 +4758,7 @@ fdf_flush_container(
 #endif /* SDFAPIONLY */
 
 out:
-#ifdef CMAP
    	fdf_decr_io_count( cguid );
-#endif /* CMAP */
 
 	return status;
 }
