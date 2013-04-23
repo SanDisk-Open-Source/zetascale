@@ -27,6 +27,13 @@ typedef struct {
     uint64_t num_cached_objects;
 } enum_stats_t;
 
+/*
+ * Per container flash statistics.     .
+ *  num_evictions      - Number of objects evicted.
+ */
+typedef struct {
+    uint64_t num_evictions;
+} FDF_container_stats_t;
 
 typedef enum {
     FDF_CONTAINER_STATE_UNINIT,  	  /* Container is uninitialized */
@@ -39,16 +46,17 @@ typedef enum {
 }FDF_CONTAINER_STATE;
 
 typedef struct ctnr_map {
-    char            	 cname[CONTAINER_NAME_MAXLEN];	/* Container name */
-	int     			 io_count;						/* IO in flight count */
-    FDF_cguid_t     	 cguid;							/* Container ID */
-    SDF_CONTAINER   	 sdf_container;					/* Open container handle */
-	uint64_t			 size_kb;						/* Container size KB */
-	uint64_t			 current_size;					/* Current container size */
-	uint64_t			 num_obj;						/* Current number of objects */
-    FDF_CONTAINER_STATE  state;							/* Container state */
-	FDF_boolean_t   	 evicting;						/* Eviction mode */
-    enum_stats_t enum_stats;
+    char            	 	cname[CONTAINER_NAME_MAXLEN];	/* Container name */
+	int     			 	io_count;						/* IO in flight count */
+    FDF_cguid_t     	 	cguid;							/* Container ID */
+    SDF_CONTAINER   	 	sdf_container;					/* Open container handle */
+	uint64_t			 	size_kb;						/* Container size KB */
+	uint64_t			 	current_size;					/* Current container size */
+	uint64_t			 	num_obj;						/* Current number of objects */
+    FDF_CONTAINER_STATE  	state;							/* Container state */
+	FDF_boolean_t   	 	evicting;						/* Eviction mode */
+    enum_stats_t 		 	enum_stats;						/* Enumeration stats */
+    FDF_container_stats_t 	container_stats;				/* Container stats */
 } ctnr_map_t;
 
 

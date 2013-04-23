@@ -4923,8 +4923,14 @@ evict_object(mshard_t *shard, cguid_t cguid, uint64_t nblks)
             s = evict_obj_over(shard, cguid, lock_i, lba_lo, lba_hi);
 
         fthUnlock(wait);
-        if (s > 0)
+        if (s > 0) {
+    		ctnr_map_t *cmap = get_cntr_map(cguid);
+    		if (cmap) {
+                atomic_inc( cmap->container_stats.num_evictions );
+        		rel_cntr_map(cmap);
+    		} 
             return 1;
+		}
     }
     return 0;
 }

@@ -1136,16 +1136,17 @@ static int count_containers() {
 void dump_map() {
     for (int i=0; i<MCD_MAX_NUM_CNTRS; i++) {
         if (CtnrMap[i].cguid != 0) {
-            fprintf(stderr, ">>>index        				= %d\n", i);
-            fprintf(stderr, ">>>CtnrMap[%d].io_count        = %d\n", i, CtnrMap[i].io_count);
-            fprintf(stderr, ">>>CtnrMap[%d].cname           = %s\n", i, CtnrMap[i].cname);
-            fprintf(stderr, ">>>CtnrMap[%d].cguid           = %lu\n", i, CtnrMap[i].cguid);
-            fprintf(stderr, ">>>CtnrMap[%d].sdf_container   = %d\n", i, !isContainerNull(CtnrMap[i].sdf_container));
-			fprintf(stderr, ">>>CtnrMap[%d].size_kb 		= %lu\n", i, CtnrMap[i].size_kb);
-            fprintf(stderr, ">>>CtnrMap[%d].num_obj 		= %lu\n", i, CtnrMap[i].num_obj);
-            fprintf(stderr, ">>>CtnrMap[%d].current_size 	= %lu\n", i, CtnrMap[i].current_size);
-            fprintf(stderr, ">>>CtnrMap[%d].state 			= %d\n", i, CtnrMap[i].state);
-            fprintf(stderr, ">>>CtnrMap[%d].evicting 		= %d\n", i, CtnrMap[i].evicting);
+            fprintf(stderr, ">>>index        								= %d\n", i);
+            fprintf(stderr, ">>>CtnrMap[%d].io_count        				= %d\n", i, CtnrMap[i].io_count);
+            fprintf(stderr, ">>>CtnrMap[%d].cname           				= %s\n", i, CtnrMap[i].cname);
+            fprintf(stderr, ">>>CtnrMap[%d].cguid           				= %lu\n", i, CtnrMap[i].cguid);
+            fprintf(stderr, ">>>CtnrMap[%d].sdf_container   				= %d\n", i, !isContainerNull(CtnrMap[i].sdf_container));
+			fprintf(stderr, ">>>CtnrMap[%d].size_kb 						= %lu\n", i, CtnrMap[i].size_kb);
+            fprintf(stderr, ">>>CtnrMap[%d].num_obj 						= %lu\n", i, CtnrMap[i].num_obj);
+            fprintf(stderr, ">>>CtnrMap[%d].current_size 					= %lu\n", i, CtnrMap[i].current_size);
+            fprintf(stderr, ">>>CtnrMap[%d].state 							= %d\n", i, CtnrMap[i].state);
+            fprintf(stderr, ">>>CtnrMap[%d].evicting 						= %d\n", i, CtnrMap[i].evicting);
+            fprintf(stderr, ">>>CtnrMap[%d].container_stats.num_evictions	= %lu\n", i, CtnrMap[i].container_stats.num_evictions);
         }
     }
 }
@@ -4938,8 +4939,8 @@ FDF_status_t FDFContainerStat(SDF_internal_ctxt_t *pai, SDF_CONTAINER container,
 {
     FDF_status_t   status;
 
-    status = SDFContainerStatInternal(pai, container, key, stat);
-    return(status);
+	status = SDFContainerStatInternal( pai, container, key, stat ); 
+	return status;
 }
 
 #if 0
@@ -5651,6 +5652,8 @@ FDF_status_t FDFGetStatsStr (
     buf_len -= strlen( "\r\nEND\r\n" ) + 1;
     time(&t);
     plat_snprintfcat( &pos, &buf_len, "STAT Time %s\r\n", ctime(&t) );    
+
+	// Get per container stats
     if ( status == FDF_SUCCESS ) {
         //Add container properties to the list
         plat_snprintfcat( &pos, &buf_len, "STAT Container Name %s size:%lukb FIFO:%d persistence:%d eviction:%d writethru:%d\r\n", 
@@ -5674,6 +5677,11 @@ FDF_status_t FDFGetStatsStr (
                                          FLASH_SHARD_MAXBYTES, &maxbytes );
     plat_snprintfcat( &pos, &buf_len, "STAT limit_maxbytes %lu\r\n",
                               maxbytes );
+
+    plat_snprintfcat( &pos, &buf_len, "STAT container_num_evictions %lu\r\n",
+                              CtnrMap[ i_ctnr ].container_stats.num_evictions );
+
+	// Get server-wide flash stats
     fdf_get_flash_stats( pai, &pos, &buf_len, sdf_container,stats);
     #if 0
     fdf_get_fth_stats( pai, &pos, &buf_len, sdf_container,stats);

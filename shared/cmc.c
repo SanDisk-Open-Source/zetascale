@@ -239,14 +239,15 @@ cmc_create(
     //  Initialize the container map
     int i;
     for (i=0; i<MCD_MAX_NUM_CNTRS; i++) {
-        CtnrMap[i].cname[0]      = '\0';
-        CtnrMap[i].io_count      = 0;
-        CtnrMap[i].cguid         = FDF_NULL_CGUID;
-        CtnrMap[i].sdf_container = containerNull;
-        CtnrMap[i].size_kb  	 = 0;
-        CtnrMap[i].current_size  = 0;
-        CtnrMap[i].state		 = FDF_CONTAINER_STATE_UNINIT;
-        CtnrMap[i].evicting  	 = FDF_FALSE;
+        CtnrMap[i].cname[0]      						= '\0';
+        CtnrMap[i].io_count      						= 0;
+        CtnrMap[i].cguid         						= FDF_NULL_CGUID;
+        CtnrMap[i].sdf_container 						= containerNull;
+        CtnrMap[i].size_kb  	 						= 0;
+        CtnrMap[i].current_size  						= 0;
+        CtnrMap[i].state		 						= FDF_CONTAINER_STATE_UNINIT;
+        CtnrMap[i].evicting  	 						= FDF_FALSE;
+        CtnrMap[i].container_stats.num_evictions  		= 0;
     }
 #endif /* SDFAPI */
 

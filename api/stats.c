@@ -50,6 +50,14 @@
 #include "fdf_internal.h"
 
 /*
+ * Externals
+ */
+extern ctnr_map_t CtnrMap[MCD_MAX_NUM_CNTRS];
+extern int fdf_get_ctnr_from_cguid(
+    FDF_cguid_t cguid
+    );
+
+/*
  * Functions defined in fdf.c
  */
 
@@ -187,6 +195,9 @@ char *get_stats_catogory_desc_str(FDF_STATS_TYPE type) {
     }
     else if( type == FDF_STATS_TYPE_FLASH_MANAGER )  {
         return "Flash Manager requests/responses";;
+    }
+    else if( type == FDF_STATS_TYPE_CONTAINER_FLASH )  {
+        return "Container evictions";;
     }
     return "Unknown type:";
 }
@@ -340,6 +351,7 @@ FDF_status_t print_container_stats_by_cguid( struct FDF_thread_state *thd_state,
     FDF_container_props_t props;
     uint64_t num_objs = 0;
     uint64_t used_space = 0;   
+	int index = -1;
 
     /* Get container name */
     cname = FDFGetContainerName(cguid);
@@ -385,7 +397,14 @@ FDF_status_t print_container_stats_by_cguid( struct FDF_thread_state *thd_state,
         return FDF_FAILURE;
     }
     print_stats(fp,&stats);
-    
+
+	// Output per container evictions 
+	index = fdf_get_ctnr_from_cguid( cguid ); 
+	if ( index >= 0 && CtnrMap[index].container_stats.num_evictions > 0 ) {
+		fprintf(fp,"  %s:\n", get_stats_catogory_desc_str(FDF_STATS_TYPE_CONTAINER_FLASH));
+		fprintf(fp,"    %s = %lu\n", "num_evictions", CtnrMap[index].container_stats.num_evictions);
+	}
+
     if( stats_type != STATS_PRINT_TYPE_DETAILED ) {   
         return FDF_SUCCESS;
     }
