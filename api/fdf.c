@@ -1136,16 +1136,17 @@ static int count_containers() {
 void dump_map() {
     for (int i=0; i<MCD_MAX_NUM_CNTRS; i++) {
         if (CtnrMap[i].cguid != 0) {
-            fprintf(stderr, ">>>index        				= %d\n", i);
-            fprintf(stderr, ">>>CtnrMap[%d].io_count        = %d\n", i, CtnrMap[i].io_count);
-            fprintf(stderr, ">>>CtnrMap[%d].cname           = %s\n", i, CtnrMap[i].cname);
-            fprintf(stderr, ">>>CtnrMap[%d].cguid           = %lu\n", i, CtnrMap[i].cguid);
-            fprintf(stderr, ">>>CtnrMap[%d].sdf_container   = %d\n", i, !isContainerNull(CtnrMap[i].sdf_container));
-			fprintf(stderr, ">>>CtnrMap[%d].size_kb 		= %lu\n", i, CtnrMap[i].size_kb);
-            fprintf(stderr, ">>>CtnrMap[%d].num_obj 		= %lu\n", i, CtnrMap[i].num_obj);
-            fprintf(stderr, ">>>CtnrMap[%d].current_size 	= %lu\n", i, CtnrMap[i].current_size);
-            fprintf(stderr, ">>>CtnrMap[%d].state 			= %d\n", i, CtnrMap[i].state);
-            fprintf(stderr, ">>>CtnrMap[%d].evicting 		= %d\n", i, CtnrMap[i].evicting);
+            fprintf(stderr, ">>>index        								= %d\n", i);
+            fprintf(stderr, ">>>CtnrMap[%d].io_count        				= %d\n", i, CtnrMap[i].io_count);
+            fprintf(stderr, ">>>CtnrMap[%d].cname           				= %s\n", i, CtnrMap[i].cname);
+            fprintf(stderr, ">>>CtnrMap[%d].cguid           				= %lu\n", i, CtnrMap[i].cguid);
+            fprintf(stderr, ">>>CtnrMap[%d].sdf_container   				= %d\n", i, !isContainerNull(CtnrMap[i].sdf_container));
+			fprintf(stderr, ">>>CtnrMap[%d].size_kb 						= %lu\n", i, CtnrMap[i].size_kb);
+            fprintf(stderr, ">>>CtnrMap[%d].num_obj 						= %lu\n", i, CtnrMap[i].num_obj);
+            fprintf(stderr, ">>>CtnrMap[%d].current_size 					= %lu\n", i, CtnrMap[i].current_size);
+            fprintf(stderr, ">>>CtnrMap[%d].state 							= %d\n", i, CtnrMap[i].state);
+            fprintf(stderr, ">>>CtnrMap[%d].evicting 						= %d\n", i, CtnrMap[i].evicting);
+            fprintf(stderr, ">>>CtnrMap[%d].container_stats.num_evictions	= %lu\n", i, CtnrMap[i].container_stats.num_evictions);
         }
     }
 }
@@ -1407,6 +1408,8 @@ static void *fdf_stats_thread(void *arg) {
     int i;
     struct FDF_thread_state *thd_state;
     FDF_stats_t stats;
+    time_t st,et;
+    int time_elapsed,cur_dump_int;
 
 
     if ( FDF_SUCCESS != FDFInitPerThreadState( ( struct FDF_state * ) arg, ( struct FDF_thread_state ** ) &thd_state )) {
@@ -1418,13 +1421,26 @@ static void *fdf_stats_thread(void *arg) {
     dump_interval = getProperty_Int( "FDF_STATS_DUMP_INTERVAL", 10 ); 
     while(1) {
         if( (stats_dump == 0) || ( dump_interval <= 0) ) {
+            /* Auto dump has been disabled. sleep 5 secs and check again */
             sleep(5);
             continue;
         }
-
         if(getProperty_Int( "FDF_STATS_NEW", 1 ) == 1 ) {
+            time(&st);
             dump_all_container_stats(thd_state,STATS_PRINT_TYPE_DETAILED);
-            sleep(dump_interval);
+            time(&et);
+            /* calculate the time elapsed for getting and printing above stats */
+            cur_dump_int = dump_interval;
+            time_elapsed = (uint32_t)et - (uint32_t)st;
+            if ( time_elapsed >= 0 ) {
+                if (time_elapsed < cur_dump_int) {
+                    sleep(cur_dump_int - time_elapsed);
+                }
+            }
+            else {
+                /* System time changed backwords, just sleep for default interval */                    
+                sleep(dump_interval);
+            }
             continue;
         }
         stats_log = fopen(getProperty_String("FDF_STATS_FILE","/tmp/fdfstats.log"),"a+");
@@ -2680,11 +2696,7 @@ static FDF_status_t fdf_open_container(
 		*cguid = CMC_CGUID;
     }
 
-#ifdef CMAP
     if ( FDF_CONTAINER_STATE_OPEN == CtnrMap[i_ctnr].state || FDF_CONTAINER_STATE_DELETE_OPEN == CtnrMap[ i_ctnr ].state) {
-#else
-	if ( !isContainerNull( CtnrMap[i_ctnr].sdf_container ) ) {
-#endif
         plat_log_msg( 160032, LOG_CAT, LOG_DBG, "Already opened or error: %s - %s", cname, SDF_Status_Strings[status] );
 		goto out;
     }
@@ -3667,11 +3679,6 @@ fdf_get_containers(
     int   						 i				= 0;
     int   						 n_containers	= 0;
     SDF_internal_ctxt_t     	*pai 			= (SDF_internal_ctxt_t *) fdf_thread_state;
-#ifndef CMAP
-    SDF_container_meta_t        meta;
-#endif
-
-    n_containers = 0;
 
 	if ( !cguids || !n_cguids )
 		return FDF_INVALID_PARAMETER;
@@ -3682,24 +3689,8 @@ fdf_get_containers(
         
 		if ( CtnrMap[i].cguid != 0 && CtnrMap[i].cguid != VMC_CGUID && 
 			 CtnrMap[i].cguid != VDC_CGUID && CtnrMap[i].state != FDF_CONTAINER_STATE_UNINIT ) {
-#ifdef CMAP
 			if ( FDF_CONTAINER_STATE_OPEN != CtnrMap[i].state ) 
 				continue;
-#else
-            /* check if the container is being deleted */
-            if (name_service_get_meta( pai, CtnrMap[i].cguid, &meta ) != SDF_SUCCESS ) {
-                //plat_log_msg( 160087, LOG_CAT, LOG_ERR,
-                //   "Could not read metadata for %lu. skipping this container from list",
-                //                                                        CtnrMap[i].cguid );
-                continue;
-            }
-            if ( meta.delete_in_progress == SDF_TRUE ) {
-                //plat_log_msg( 160088, LOG_CAT, LOG_DBG,
-                //            "Container %lu is being deleted. So not included in the list",
-                //                                                        CtnrMap[i].cguid);
-                continue;
-            }
-#endif
 			cguids[n_containers] = CtnrMap[i].cguid;
             n_containers++;
         }
@@ -3993,9 +3984,7 @@ fdf_read_object(
         return FDF_INVALID_PARAMETER;
 	}
 
-#ifdef CMAP
     fdf_incr_io_count( cguid );
-#endif
 
 	if ( (status = fdf_get_ctnr_status(cguid, 0)) != FDF_CONTAINER_OPEN ) {
         plat_log_msg( 160039, LOG_CAT, LOG_DIAG, "Container must be open to execute a read object" );
@@ -4030,9 +4019,7 @@ fdf_read_object(
 
 out:
 
-#ifdef CMAP
     fdf_decr_io_count( cguid );
-#endif /* CMAP */
 
     return status;
 }
@@ -4118,9 +4105,7 @@ fdf_read_object_expiry(
         return FDF_INVALID_PARAMETER;        
     }
 
-#ifdef CMAP
     fdf_incr_io_count( cguid );
-#endif /* CMAP */
 
     if ( (status = fdf_get_ctnr_status(cguid, 0)) != (SDF_status_t) FDF_CONTAINER_OPEN ) {
         plat_log_msg( 160039, LOG_CAT, LOG_DIAG, "Container must be open to execute a read object" );
@@ -4148,9 +4133,7 @@ fdf_read_object_expiry(
 
 out:
 
-#ifdef CMAP
     fdf_decr_io_count( cguid );
-#endif /* CMAP */
 
     robj->data_len = ar.destLen;
     robj->expiry = ar.exptime;
@@ -4249,9 +4232,7 @@ fdf_write_object(
  	if ( !cguid || !key )
  		return FDF_INVALID_PARAMETER;
  
-#ifdef CMAP
     fdf_incr_io_count( cguid );
-#endif /* CMAP */
 
     if ( (status = fdf_get_ctnr_status(cguid, 0)) != FDF_CONTAINER_OPEN ) {
     	plat_log_msg( 160040, LOG_CAT, LOG_DIAG, "Container must be open to execute a write object" );
@@ -4289,9 +4270,7 @@ fdf_write_object(
 	status = ar.respStatus;
 out:
 
-#ifdef CMAP
     fdf_decr_io_count( cguid );
-#endif /* CMAP */
 
     return status;
 }
@@ -4391,9 +4370,7 @@ fdf_write_object_expiry (
         return FDF_BAD_PBUF_POINTER;
     }
 
-#ifdef CMAP
     fdf_incr_io_count( cguid );
-#endif /* CMAP */
 
     if ( (status = fdf_get_ctnr_status(cguid, 0)) != FDF_CONTAINER_OPEN ) {
         plat_log_msg( 160040, LOG_CAT, LOG_DIAG, "Container must be open to execute a write object" );
@@ -4429,9 +4406,7 @@ fdf_write_object_expiry (
 	status = ar.respStatus;
 
 out: 
-#ifdef CMAP
     fdf_decr_io_count( cguid );
-#endif /* CMAP */
 
 	return status;
 }
@@ -4524,9 +4499,7 @@ fdf_delete_object(
     if ( !cguid || !key )
         return FDF_INVALID_PARAMETER;
 
-#ifdef CMAP
     fdf_incr_io_count( cguid );
-#endif
 
     if ( (status = fdf_get_ctnr_status(cguid, 0)) != FDF_CONTAINER_OPEN ) {
         plat_log_msg( 160041, LOG_CAT, LOG_DIAG, "Container must be open to execute a delete object" );
@@ -4553,9 +4526,7 @@ fdf_delete_object(
 
 out:
 
-#ifdef CMAP
     fdf_decr_io_count( cguid );
-#endif /* CMAP */
 
     return status;
 }
@@ -4638,9 +4609,7 @@ fdf_flush_object(
 	if ( !cguid || !key )
 		return FDF_INVALID_PARAMETER;
 
-#ifdef CMAP
     fdf_incr_io_count( cguid );
-#endif /* CMAP */
 
     if ( (status = fdf_get_ctnr_status(cguid, 0)) != FDF_CONTAINER_OPEN ) {
         plat_log_msg( 160043, LOG_CAT, LOG_DIAG, "Container must be open to execute a flush object" );
@@ -4662,9 +4631,7 @@ fdf_flush_object(
     status = ar.respStatus;
 
 out:
-#ifdef CMAP
     fdf_decr_io_count( cguid );
-#endif /* CMAP */
 
     return status;
 }
@@ -4746,9 +4713,7 @@ fdf_flush_container(
     if ( !cguid )
         return FDF_INVALID_PARAMETER;
 
-#ifdef CMAP
     fdf_incr_io_count( cguid );
-#endif /* CMAP */
 
     if ( (status = fdf_get_ctnr_status(cguid, 0)) != FDF_CONTAINER_OPEN ) {
         plat_log_msg( 160044, LOG_CAT, LOG_DIAG, "Container must be open to execute a flush container" );
@@ -4770,9 +4735,7 @@ fdf_flush_container(
 	status = ar.respStatus;
 
 	if ( FDF_SUCCESS != status ) {
-#ifdef CMAP
     	fdf_decr_io_count( cguid );
-#endif /* CMAP */
     	return status;         
 	}
 
@@ -4795,9 +4758,7 @@ fdf_flush_container(
 #endif /* SDFAPIONLY */
 
 out:
-#ifdef CMAP
    	fdf_decr_io_count( cguid );
-#endif /* CMAP */
 
 	return status;
 }
@@ -4923,8 +4884,8 @@ FDF_status_t FDFContainerStat(SDF_internal_ctxt_t *pai, SDF_CONTAINER container,
 {
     FDF_status_t   status;
 
-    status = SDFContainerStatInternal(pai, container, key, stat);
-    return(status);
+	status = SDFContainerStatInternal( pai, container, key, stat ); 
+	return status;
 }
 
 #if 0
@@ -5636,6 +5597,8 @@ FDF_status_t FDFGetStatsStr (
     buf_len -= strlen( "\r\nEND\r\n" ) + 1;
     time(&t);
     plat_snprintfcat( &pos, &buf_len, "STAT Time %s\r\n", ctime(&t) );    
+
+	// Get per container stats
     if ( status == FDF_SUCCESS ) {
         //Add container properties to the list
         plat_snprintfcat( &pos, &buf_len, "STAT Container Name %s size:%lukb FIFO:%d persistence:%d eviction:%d writethru:%d\r\n", 
@@ -5659,6 +5622,11 @@ FDF_status_t FDFGetStatsStr (
                                          FLASH_SHARD_MAXBYTES, &maxbytes );
     plat_snprintfcat( &pos, &buf_len, "STAT limit_maxbytes %lu\r\n",
                               maxbytes );
+
+    plat_snprintfcat( &pos, &buf_len, "STAT container_num_evictions %lu\r\n",
+                              CtnrMap[ i_ctnr ].container_stats.num_evictions );
+
+	// Get server-wide flash stats
     fdf_get_flash_stats( pai, &pos, &buf_len, sdf_container,stats);
     #if 0
     fdf_get_fth_stats( pai, &pos, &buf_len, sdf_container,stats);
