@@ -3162,6 +3162,7 @@
 150108 Could not determine eviction type for container %u\n
 150109 Failed to flush before closing the container %lu - %s
 150111 Failed to change container state: %d to %d
+150112 Failed to change container %lu state: %d to %d
 
 
 # root

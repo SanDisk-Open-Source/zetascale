@@ -1132,7 +1132,7 @@ static int count_containers() {
 }
 #endif /* notdef */
 
-#if 1
+#ifdef notdef
 void dump_map() {
     for (int i=0; i<MCD_MAX_NUM_CNTRS; i++) {
         if (CtnrMap[i].cguid != 0) {
@@ -1258,7 +1258,7 @@ FDF_status_t fdf_ctnr_set_state(
 	if ( index < 0 )
 		return status;
 
-	if ( 0 && CtnrMap[ index ].cguid <= LAST_PHYSICAL_CGUID ) {
+	if ( CtnrMap[ index ].cguid <= LAST_PHYSICAL_CGUID ) {
 		status = FDF_SUCCESS;
 		goto out;
 	}
@@ -1270,26 +1270,19 @@ FDF_status_t fdf_ctnr_set_state(
 				goto err;
 			break;
 
-		case FDF_CONTAINER_STATE_CREATED:
-			if ( FDF_CONTAINER_STATE_UNINIT != current_state ) 
-				goto err;
-			break;
-
 		case FDF_CONTAINER_STATE_OPEN:
-			if ( FDF_CONTAINER_STATE_UNINIT != current_state && 
-			     FDF_CONTAINER_STATE_CREATED != current_state && 
-			     FDF_CONTAINER_STATE_CLOSED != current_state ) 
+			if ( FDF_CONTAINER_STATE_CLOSED != current_state ) 
 				goto err;
 			break;
 
 		case FDF_CONTAINER_STATE_CLOSED:
-			if ( FDF_CONTAINER_STATE_OPEN != current_state ) 
+			if ( FDF_CONTAINER_STATE_OPEN != current_state &&
+			     FDF_CONTAINER_STATE_UNINIT != current_state ) 
 				goto err;
 			break;
 
 		case FDF_CONTAINER_STATE_DELETE_PROG:
-			if ( FDF_CONTAINER_STATE_CLOSED != current_state &&
-			     FDF_CONTAINER_STATE_CREATED != current_state )
+			if ( FDF_CONTAINER_STATE_CLOSED != current_state )
 				goto err;
 			break;
 
@@ -1316,7 +1309,13 @@ out:
 err:
 
 	if ( FDF_FAILURE_INVALID_CONTAINER_STATE == status ) {
-		plat_log_msg(150111, LOG_CAT, LOG_ERR, "Failed to change container state: %d to %d", current_state, new_state);
+		plat_log_msg( 150112, 
+					  LOG_CAT, 
+					  LOG_ERR, 
+					  "Failed to change container %lu state: %d to %d", 
+					  CtnrMap[ index ].cguid, 
+					  current_state, 
+					  new_state);
 		plat_abort(0);
 	}
 
@@ -2618,7 +2617,7 @@ static FDF_status_t fdf_create_container(
 				CtnrMap[i].size_kb     	 = properties->size_kb;
 				CtnrMap[i].current_size	 = 0;
 				CtnrMap[i].evicting    	 = properties->evicting;
-				if ( FDF_SUCCESS != ( status = fdf_ctnr_set_state( i, FDF_CONTAINER_STATE_CREATED ) ) )
+				if ( FDF_SUCCESS != ( status = fdf_ctnr_set_state( i, FDF_CONTAINER_STATE_CLOSED ) ) )
 					break;
 #ifdef SDFAPIONLY
 				Mcd_containers[i].cguid = *cguid;
@@ -3057,6 +3056,7 @@ static FDF_status_t fdf_close_container(
     		CtnrMap[i_ctnr].sdf_container = containerNull;
 
 			if (ok_to_delete) {
+				// Is this path used???
 			    plat_log_msg(160031, LOG_CAT, LOG_DBG, "Delete request pending. Deleting... cguid=%lu", cguid);
 
 		    	status = delete_container_internal_low(pai, path, SDF_FALSE, mode == FDF_PHYSICAL_CNTR ? SDF_TRUE:SDF_FALSE, NULL);
@@ -5996,7 +5996,7 @@ static void *fdf_vc_thread(
                 CtnrMap[j].cguid                = meta->cguid;
                 CtnrMap[j].sdf_container        = containerNull;
 				CtnrMap[j].size_kb              = meta->properties.container_id.size;
-				CtnrMap[j].state                = FDF_CONTAINER_STATE_CREATED;
+				CtnrMap[j].state                = fdf_ctnr_set_state( j, FDF_CONTAINER_STATE_CLOSED );
 				CtnrMap[j].evicting             = meta->properties.container_type.caching_container;
                 Mcd_containers[j].cguid         = meta->cguid;
                 Mcd_containers[j].container_id  = meta->properties.container_id.container_id;
@@ -6081,6 +6081,9 @@ fdf_vc_init(
                           get_bool_str(p.evicting),get_bool_str(p.writethru),
                           get_bool_str(p.fifo_mode),get_bool_str(p.async_writes),
                           get_durability_str(p.durability_level));
+
+	fdf_ctnr_set_state( 0, FDF_CONTAINER_STATE_CLOSED );
+
     if ((status = FDFOpenPhysicalContainer(pai, VMC_PATH, &p, flags, &cguid)) != SDF_SUCCESS) {
         plat_log_msg(150057, LOG_CAT, LOG_ERR, "Failed to create VMC container - %s\n", SDF_Status_Strings[status]);
         return status;
@@ -6105,6 +6108,8 @@ fdf_vc_init(
                            get_bool_str(p.evicting),get_bool_str(p.writethru),
                            get_bool_str(p.fifo_mode),get_bool_str(p.async_writes),
                            get_durability_str(p.durability_level));
+
+	fdf_ctnr_set_state( 1, FDF_CONTAINER_STATE_CLOSED );
 
     if ((status = FDFOpenPhysicalContainer(pai, VDC_PATH, &p, flags, &cguid)) != SDF_SUCCESS) {
         plat_log_msg(150057, LOG_CAT, LOG_ERR, "Failed to create VMC container - %s\n", SDF_Status_Strings[status]);

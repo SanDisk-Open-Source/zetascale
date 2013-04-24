@@ -37,9 +37,8 @@ typedef struct {
 
 typedef enum {
     FDF_CONTAINER_STATE_UNINIT,  	  /* Container is uninitialized */
-    FDF_CONTAINER_STATE_CREATED, 	  /* Container is uninitialized */
-    FDF_CONTAINER_STATE_OPEN,         /* Container is Open */
     FDF_CONTAINER_STATE_CLOSED,       /* Container is closed */
+    FDF_CONTAINER_STATE_OPEN,         /* Container is Open */
     FDF_CONTAINER_STATE_DELETE_PROG,  /* Container submitted for async delete */
     FDF_CONTAINER_STATE_DELETE_OPEN,  /* Container submitted for async delete */
     FDF_CONTAINER_STATE_DELETE_CLOSED, /* Container submitted for async delete */
