@@ -53,6 +53,7 @@ cp -a $WD/doc/FDF_programming_guide.docx $SDK_DIR/docs
 cp -a $WD/doc/FDF1.2_DesignDocument.docx $SDK_DIR/docs
 mkdir -p $SDK_DIR/include/common
 cp -a $WD/common/fdftypes.h $SDK_DIR/include/common
+cp -a $WD/../fdf_sample.prop $SDK_DIR/config/
 #
 cd $SDK_DIR/..
 tar --exclude=.svn --exclude=.git --exclude=libfdf.a -czf $WD/$PKG_NAME.tar.gz $PKG_NAME
