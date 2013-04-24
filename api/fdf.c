@@ -1703,11 +1703,13 @@ FDF_status_t FDFInit(
     if (verify_datastruct_consistency() != FDF_SUCCESS ) {
         return FDF_FAILURE;
     }
-    /* Initialize signal handler */
-    signal(SIGSEGV, fdf_signal_handler);  
-    signal(SIGABRT, fdf_signal_handler);    
-    signal(SIGBUS, fdf_signal_handler);     
-    signal(SIGFPE, fdf_signal_handler); 
+    if ( getProperty_Int( "FDF_SIGNAL_HANDLERS", 0 ) == 1 ) {
+        /* Initialize signal handler */
+        signal(SIGSEGV, fdf_signal_handler);  
+        signal(SIGABRT, fdf_signal_handler);    
+        signal(SIGBUS, fdf_signal_handler);     
+        signal(SIGFPE, fdf_signal_handler); 
+    }
 
     sem_init( &Mcd_initer_sem, 0, 0 );
 
