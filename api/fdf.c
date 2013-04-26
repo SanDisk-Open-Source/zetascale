@@ -1187,9 +1187,8 @@ int fdf_get_ctnr_from_cname(
 }
 
 FDF_status_t fdf_get_ctnr_status(FDF_cguid_t cguid, int delete_ok) {
-    int i, state;
-
-    state = FDF_FAILURE_CONTAINER_NOT_OPEN;
+    int i = 0;
+	FDF_status_t status = FDF_FAILURE_CONTAINER_NOT_OPEN;
 
     i = fdf_get_ctnr_from_cguid( cguid );
     if ( i < 0 ) {
@@ -1197,16 +1196,16 @@ FDF_status_t fdf_get_ctnr_status(FDF_cguid_t cguid, int delete_ok) {
     }
     if ( i >= 0 ) {
         if ( !isContainerNull(CtnrMap[i].sdf_container) ) {
-            state = FDF_CONTAINER_OPEN ;
+            status = FDF_CONTAINER_OPEN;
         }
         if ( FDF_CONTAINER_STATE_OPEN != CtnrMap[i].state ) {
-            state = FDF_FAILURE_CONTAINER_NOT_OPEN;
+            status = FDF_FAILURE_CONTAINER_NOT_OPEN;
         }
         if ( delete_ok && FDF_CONTAINER_STATE_DELETE_OPEN == CtnrMap[i].state ) {
-            state = FDF_CONTAINER_OPEN;
+            status = FDF_CONTAINER_OPEN;
         }
     }
-    return state;
+    return status;
 }
 
 inline void fdf_incr_io_count( FDF_cguid_t cguid )
@@ -1316,7 +1315,6 @@ err:
 					  CtnrMap[ index ].cguid, 
 					  current_state, 
 					  new_state);
-		plat_abort(0);
 	}
 
     return status;
@@ -1455,7 +1453,10 @@ static void *fdf_stats_thread(void *arg) {
              continue;
         }
         for ( i = 0; i < n_cguids; i++ ) {
-            memset(stats_str,0,STAT_BUFFER_SIZE);
+			// Skip containers that are not open
+			if ( FDF_FAILURE_CONTAINER_NOT_OPEN == fdf_get_ctnr_status( cguids[i], 0 ) ) 
+				continue;
+           	memset(stats_str,0,STAT_BUFFER_SIZE);
             FDFGetStatsStr(thd_state,cguids[i],stats_str,NULL);
             fputs(stats_str,stats_log);
             if ( getProperty_Int( "FDF_STATS_API_DEBUG", 0 ) == 1 ) {
@@ -3689,10 +3690,9 @@ fdf_get_containers(
 
     for ( i = 0; i < MCD_MAX_NUM_CNTRS; i++ ) {
         
-		if ( CtnrMap[i].cguid != 0 && CtnrMap[i].cguid != VMC_CGUID && 
-			 CtnrMap[i].cguid != VDC_CGUID && CtnrMap[i].state != FDF_CONTAINER_STATE_UNINIT ) {
-			if ( FDF_CONTAINER_STATE_OPEN != CtnrMap[i].state ) 
-				continue;
+		if ( CtnrMap[i].cguid > LAST_PHYSICAL_CGUID  && 
+			 ( CtnrMap[i].state == FDF_CONTAINER_STATE_CLOSED ||
+			   CtnrMap[i].state == FDF_CONTAINER_STATE_OPEN ) ) {
 			cguids[n_containers] = CtnrMap[i].cguid;
             n_containers++;
         }

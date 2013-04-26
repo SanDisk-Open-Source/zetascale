@@ -10,8 +10,6 @@
 #include "sdf.h"
 #include "fdf.h"
 
-#define MAX_CONTAINERS  1000
-
 
 /*
  * Statistics returned from enumeration.
@@ -60,10 +58,6 @@ typedef struct ctnr_map {
 
 
 typedef struct SDF_state {
-#if 0
-    struct SDFTLMap   *ctnr_map_by_name;
-    struct SDFTLMap   *ctnr_map_by_cguid[MAX_CONTAINERS];
-#endif
     uint64_t           cguid_cntr;
 
 } SDF_state_t;
