@@ -50,10 +50,10 @@ cp -a $WD/api/fdf.h $SDK_DIR/include
 cp -a $WD/api/tests/sample_program.c $SDK_DIR/samples
 cp -a $WD/api/tests/Makefile.sample $SDK_DIR/samples/Makefile
 cp -a $WD/doc/FDF_programming_guide.docx $SDK_DIR/docs
-cp -a $WD/doc/FDF1.2_DesignDocument.docx $SDK_DIR/docs
+#cp -a $WD/doc/FDF1.2_DesignDocument.docx $SDK_DIR/docs
 mkdir -p $SDK_DIR/include/common
 cp -a $WD/common/fdftypes.h $SDK_DIR/include/common
-cp -a $WD/../fdf_sample.prop $SDK_DIR/config/
+cp -a $WD/api/tests/conf/fdf_sample.prop $SDK_DIR/config/
 #
 cd $SDK_DIR/..
 tar --exclude=.svn --exclude=.git --exclude=libfdf.a -czf $WD/$PKG_NAME.tar.gz $PKG_NAME
