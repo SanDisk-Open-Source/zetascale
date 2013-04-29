@@ -12,6 +12,7 @@
 
 #include <aio.h>
 #include <ctype.h>
+#include <fcntl.h>
 #include <stdio.h>
 #include <signal.h>
 #include <sys/stat.h>

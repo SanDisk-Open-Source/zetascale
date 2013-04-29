@@ -10,6 +10,7 @@
  * $Id: mcd_aio.c 14162 2010-06-14 22:35:33Z hiney $
  */
 
+#include <fcntl.h>
 #include <stdio.h>
 #include <signal.h>
 #include <string.h>

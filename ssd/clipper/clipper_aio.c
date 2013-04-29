@@ -13,6 +13,7 @@
 
 #define _CLIPPER_AIO_C
 
+#include <fcntl.h>
 #include <stdint.h>
 #include <pthread.h>
 #include <sched.h>
