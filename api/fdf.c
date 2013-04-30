@@ -1578,8 +1578,8 @@ FDFGetProperty(const char *key, const char *def)
 
 	value = getProperty_String(key, def);
 	if (value != def) {
-		len = strlen(value) + 1;
-		ret = (char *)plat_alloc(len);
+		len = strlen(value);
+		ret = (char *)plat_alloc(len + 1);
 		if (ret != NULL) {
 			strncpy(ret, value, len);
 			*(ret + len) = '\0';
