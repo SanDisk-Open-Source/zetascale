@@ -646,6 +646,7 @@ int FDFTLMapDelete(struct FDFTLMap *pm, char *key, uint32_t keylen)
 
 	    //  Remove from the LRU list if necessary
 	    remove_lru(pm, pme);
+	    pm->n_entries--;
 
             *ppme = pme->next;
             free_pme(pm, pme);
@@ -800,6 +801,7 @@ static void replace_lru(struct FDFTLMap *pm, FDFTLMapEntry_t *pme_in)
     fdftlmap_assert(found_it);
 
     remove_lru(pm, pme);
+    pm->n_entries--;
     (pm->replacement_callback)(pm->replacement_callback_data, pme->key, pme->keylen, pme->contents, pme->datalen);
     free_pme(pm, pme);
 

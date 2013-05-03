@@ -17,6 +17,7 @@ fi
 
 #if [ "$1" == "--test" ] || [ "$2" == "--test" ]; then
 #[ -d test_suite ] || svn co svn://svn.schoonerinfotech.net/schooner-trunk/ht_delivery/qa/FDF_test/FDF_test_framework test_suite
+#[ -d fdf_slap ] || svn://svn.schoonerinfotech.net/schooner-trunk/ht_delivery/qa/sdf_test/fdf_slap fdf_slap
 #fi
 
 VERSION=${FDF_SDK_VERSION}-${SCHOONER_RELEASE}
