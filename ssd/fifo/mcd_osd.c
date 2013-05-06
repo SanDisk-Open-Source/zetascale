@@ -3829,7 +3829,7 @@ static int mcd_osd_slab_init()
                              1024 * 1048576 );                  // max_nobjs
 #endif
 
-	slab_gc_enabled = !strcmp(getProperty_String("FDF_SLAB_GC", "On"), "On");
+	slab_gc_enabled = !strcmp(getProperty_String("FDF_SLAB_GC", "Off"), "On");
 
 	plat_log_msg(180003, PLAT_LOG_CAT_PRINT_ARGS, PLAT_LOG_LEVEL_DEBUG,
 		"PROP: FDF_SLAB_GC=%s", slab_gc_enabled ? "On" : "Off");
