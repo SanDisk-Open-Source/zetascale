@@ -38,7 +38,7 @@ cd $WD
 
 SDK_DIR=$WD/fdf-build/$PKG_NAME
 rm -fr $SDK_DIR
-mkdir -p $SDK_DIR/{config,lib,include,samples,docs}
+mkdir -p $SDK_DIR/{config,lib,include,samples}
 
 echo "Building DEBUG=$DBG shared lib"
 rm -f CMakeCache.txt
@@ -50,7 +50,7 @@ cp -f $WD/output/lib/* $SDK_DIR/lib
 cp -a $WD/api/fdf.h $SDK_DIR/include
 cp -a $WD/api/tests/sample_program.c $SDK_DIR/samples
 cp -a $WD/api/tests/Makefile.sample $SDK_DIR/samples/Makefile
-cp -a $WD/doc/FDF_programming_guide.docx $SDK_DIR/docs
+#cp -a $WD/doc/FDF_programming_guide.docx $SDK_DIR/docs
 #cp -a $WD/doc/FDF1.2_DesignDocument.docx $SDK_DIR/docs
 mkdir -p $SDK_DIR/include/common
 cp -a $WD/common/fdftypes.h $SDK_DIR/include/common

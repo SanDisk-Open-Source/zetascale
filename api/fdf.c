@@ -1801,7 +1801,7 @@ FDF_status_t FDFInit(
     if ( getProperty_Int( "FDF_ADMIN_ENABLED", 1 ) == 1 ) {
         fdf_start_admin_thread(*fdf_state );
     }
-    if ( getProperty_Int( "ASYNC_DELETE_CONTAINERS",1) == 1 ) {
+    if ( getProperty_Int( "ASYNC_DELETE_CONTAINERS",0) == 1 ) {
         time((time_t *)&delete_prefix);
         init_async_cmd_handler(getProperty_Int("ASYNC_DELETE_CONTAINERS_THREADS",5),*fdf_state);
     }
@@ -1927,7 +1927,7 @@ fdf_wait_containers_delete()
 	uint32_t num_deletes = 0;
 	uint32_t num_prog = 0;
 
-	if (1 == getProperty_Int("ASYNC_DELETE_CONTAINERS", 1)) {
+	if (1 == getProperty_Int("ASYNC_DELETE_CONTAINERS", 0)) {
 
 		/*
 		 * Get current count for deletion operation
@@ -3098,7 +3098,7 @@ fdf_delete_container(
 	FDF_container_mode_t	 mode
     )
 {
-    if ( getProperty_Int("ASYNC_DELETE_CONTAINERS",1) == 1 ) {
+    if ( getProperty_Int("ASYNC_DELETE_CONTAINERS",0) == 1 ) {
         return fdf_delete_container_async_start(fdf_thread_state,cguid,
                                                         FDF_VIRTUAL_CNTR);
     }
