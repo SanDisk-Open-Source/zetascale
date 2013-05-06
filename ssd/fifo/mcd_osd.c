@@ -3287,7 +3287,7 @@ mcd_osd_slab_shard_init_free_segments( mcd_osd_shard_t * shard )
 
     fthLockInit( &shard->free_list_lock );
 
-    used_map = (int*) plat_alloc( max_segments / 8 + 1);
+    used_map = (int*) plat_alloc( max_segments / 8 + sizeof(int));
     if (!used_map) {
         mcd_log_msg(180007, PLAT_LOG_LEVEL_ERROR,
                      "failed to allocate temporary segments map" );
