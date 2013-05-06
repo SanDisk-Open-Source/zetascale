@@ -4764,7 +4764,7 @@ delete_all_objects(pai_t *pai, shard_t *sshard, cguid_t cguid)
                 continue;
             if (cguid != hash->cntr_id)
                 continue;
-            del_obj_hash(shard, hash);
+            del_obj_over(shard, hash);
         }
 
         fthUnlock(wait);
