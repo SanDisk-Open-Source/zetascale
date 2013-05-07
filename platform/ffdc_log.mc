@@ -3028,6 +3028,13 @@
 80075 LIC: API updating license in progress.
 80076 LIC: API updating license done.
 80077 Number of DRAM cache slabs %"PRIu64"
+80078 FDF_MAX_OUTSTANDING_BACKGROUND_FLUSHES must be less than or equal to the number of async put threads; setting to %d
+80079 FDF_MAX_OUTSTANDING_BACKGROUND_FLUSHES = %d
+80080 FDF_BACKGROUND_FLUSH_SLEEP_MSEC must be >= %d; defaulting to minimum value
+80081 FDF_BACKGROUND_FLUSH_SLEEP_MSEC = %d
+80082 PROP: FDF_MAX_FLUSHES_PER_MOD_CHECK=%d
+80083 PROP: FDF_MODIFIED_FRACTION is out of range; using default of %g
+80084 PROP: FDF_MODIFIED_FRACTION=%g
 
 
 # kcai

@@ -304,7 +304,7 @@ int main()
     }
 
     FDFSetProperty("FDF_STRICT_WRITEBACK", "Off");
-    FDFSetProperty("SDF_MAX_OUTSTANDING_BACKGROUND_FLUSHES", "0");
+    FDFSetProperty("FDF_MAX_OUTSTANDING_BACKGROUND_FLUSHES", "0");
     FDFSetProperty("FDF_CACHE_SIZE", "100000000");
     if (FDF_SUCCESS == pre_env())
     {

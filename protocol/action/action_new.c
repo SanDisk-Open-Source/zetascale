@@ -481,15 +481,15 @@ void InitActionProtocolCommonState(SDF_action_state_t *pas, SDF_action_init_t *p
     avg_objsize = getProperty_uLongInt("SDF_CC_AVG_OBJSIZE", 1000);
     plat_log_msg(21073, PLAT_LOG_CAT_PRINT_ARGS, PLAT_LOG_LEVEL_DEBUG, "PROP: SDF_CC_AVG_OBJSIZE=%d", avg_objsize);
 
-    max_flushes_per_mod_check = getProperty_uLongInt("SDF_MAX_FLUSHES_PER_MOD_CHECK", 10);
-    plat_log_msg(30581, PLAT_LOG_CAT_PRINT_ARGS, PLAT_LOG_LEVEL_DEBUG, "PROP: SDF_MAX_FLUSHES_PER_MOD_CHECK=%d", max_flushes_per_mod_check);
+    max_flushes_per_mod_check = getProperty_uLongInt("FDF_MAX_FLUSHES_PER_MOD_CHECK", 10);
+    plat_log_msg(80082, PLAT_LOG_CAT_PRINT_ARGS, PLAT_LOG_LEVEL_DEBUG, "PROP: FDF_MAX_FLUSHES_PER_MOD_CHECK=%d", max_flushes_per_mod_check);
 
-    f_modified = getProperty_LongDouble("SDF_MODIFIED_FRACTION", 1.00);
+    f_modified = getProperty_LongDouble("FDF_MODIFIED_FRACTION", 1.00);
     if ((f_modified < 0) || (f_modified > 1)) {
         f_modified = 0.10;
-        plat_log_msg(30582, PLAT_LOG_CAT_PRINT_ARGS, PLAT_LOG_LEVEL_DEBUG, "PROP: SDF_MODIFIED_FRACTION is out of range; using default of %g", f_modified);
+        plat_log_msg(80083, PLAT_LOG_CAT_PRINT_ARGS, PLAT_LOG_LEVEL_DEBUG, "PROP: FDF_MODIFIED_FRACTION is out of range; using default of %g", f_modified);
     } else {
-        plat_log_msg(30583, PLAT_LOG_CAT_PRINT_ARGS, PLAT_LOG_LEVEL_DEBUG, "PROP: SDF_MODIFIED_FRACTION=%g", f_modified);
+        plat_log_msg(80084, PLAT_LOG_CAT_PRINT_ARGS, PLAT_LOG_LEVEL_DEBUG, "PROP: FDF_MODIFIED_FRACTION=%g", f_modified);
     }
 
     buckets_default = cacheSize/avg_objsize;
