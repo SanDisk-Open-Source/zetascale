@@ -3294,7 +3294,7 @@ mcd_osd_slab_shard_init_free_segments( mcd_osd_shard_t * shard )
         return FLASH_ENOMEM;
     }
 
-    memset(used_map, 0, max_segments / 8);
+    memset(used_map, 0, max_segments / 8 + sizeof(int));
 
 #define iBITS (8 * sizeof(int))
 
