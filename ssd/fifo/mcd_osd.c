@@ -2604,11 +2604,12 @@ mcd_fth_osd_slab_dealloc( mcd_osd_shard_t * shard, uint32_t address, bool async 
 	        segment->class->free_slab_curr[Mcd_pthread_id]++;
     	}
 	}
-
+#if 0
 	if(!segment->used_slabs)
 		mcd_fth_osd_shrink_class(shard, segment, false);
 	else if(shard->gc)
 		slab_gc_signal(shard, segment->class);
+#endif
 
     mcd_log_msg( 20365, MCD_OSD_LOG_LVL_TRACE,
                  "cls=%ld addr=%u off=%d map=%.16lx slabs=%lu, pend=%lu",
