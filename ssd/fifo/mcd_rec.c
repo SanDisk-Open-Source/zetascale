@@ -6847,10 +6847,10 @@ log_writer_thread( uint64_t arg )
 
         // write the (perhaps partially-filled) logbuf buffer
 
-        rc = mcd_fth_aio_blk_write( (void *)context,
-                                    logbuf->buf,
-                                    offset * Mcd_osd_blk_size,
-                                    blk_count * Mcd_osd_blk_size );
+	if (shard->pshard->blk_offset == 65536)		// suppress logging for CMC
+		rc = FLASH_EOK;
+	else
+        	rc = mcd_fth_aio_blk_write( context, logbuf->buf, offset*Mcd_osd_blk_size, blk_count*Mcd_osd_blk_size);
         if ( FLASH_EOK != rc ) {
             mcd_rlg_msg( 20552, PLAT_LOG_LEVEL_FATAL,
                          "failed to commit log buffer, shardID=%lu, "
