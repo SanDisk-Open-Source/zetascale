@@ -3575,6 +3575,8 @@ static FDF_status_t fdf_delete_container_1(
 	            CtnrMap[i_ctnr].sdf_container 	= containerNull;
 	            CtnrMap[i_ctnr].size_kb			= 0;
 	            CtnrMap[i_ctnr].current_size  	= 0;
+        		if ( FDF_SUCCESS != ( status = fdf_ctnr_set_state( i_ctnr, FDF_CONTAINER_STATE_UNINIT ) ) )
+            		goto out;
 
 				// Make sure the metadata container is in sync
 				if ( FDF_VIRTUAL_CNTR == mode )
