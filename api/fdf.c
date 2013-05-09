@@ -5007,6 +5007,10 @@ void fdf_get_flash_map(struct FDF_thread_state *thd_state, FDF_cguid_t cguid,
         SDFEndSerializeContainerOp(pai);
         return;
     }   
+    if ( fdf_get_ctnr_status(cguid, 0) != FDF_CONTAINER_OPEN ) {
+        SDFEndSerializeContainerOp(pai);
+        return;
+    }
 
     sdf_container = CtnrMap[i_ctnr].sdf_container;
     FDFContainerStat( pai, sdf_container,
@@ -5078,7 +5082,7 @@ static void fdf_get_flash_stats( SDF_internal_ctxt_t *pai, char ** ppos, int * l
     uint64_t            num_ext_checks = 0;
     uint64_t            num_full_buckets = 0;
     uint64_t            val = 0;
-    uint64_t          * stats_ptr;
+    uint64_t          * stats_ptr = NULL;
 
     FDFContainerStat( pai, sdf_container,
                              FLASH_SLAB_CLASS_SEGS,
@@ -5093,7 +5097,7 @@ static void fdf_get_flash_stats( SDF_internal_ctxt_t *pai, char ** ppos, int * l
     else {
         plat_snprintfcat( ppos, lenp, "STAT flash_class_map:\r\n" );
     }
-
+    stats_ptr = NULL;
     FDFContainerStat( pai, sdf_container,
                              FLASH_SLAB_CLASS_SLABS,
                              (uint64_t *)&stats_ptr );
@@ -5579,6 +5583,9 @@ FDF_status_t FDFGetStatsStr (
     }
     else {
         sdf_container = CtnrMap[i_ctnr].sdf_container;
+    }
+    if ( (status = fdf_get_ctnr_status(cguid, 0)) != FDF_CONTAINER_OPEN ) {
+        goto out;
     }
     /* Check if this container is being deleted */
     if( CtnrMap[i_ctnr].state == FDF_CONTAINER_STATE_DELETE_PROG ||
