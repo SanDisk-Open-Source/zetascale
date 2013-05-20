@@ -2063,8 +2063,8 @@ static int find_rebalance(int *ret, btree_raw_t *btree, uint64_t this_id, uint64
     int                 remove_flag;
     int                 do_rebalance = 1;
     int                 next_do_rebalance = 0;
-    uint32_t            l_balance_keylen;
-    uint32_t            r_balance_keylen;
+    uint32_t            l_balance_keylen = 0;
+    uint32_t            r_balance_keylen = 0;
 
     if (*ret) { return(0); }
 

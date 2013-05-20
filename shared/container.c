@@ -102,7 +102,7 @@ void *cmc_settings;
  * Forward declarations
  */
 
-SDF_status_t delete_container_internal(SDF_internal_ctxt_t *pai, const char *path, SDF_boolean_t serialize);
+//SDF_status_t delete_container_internal(SDF_internal_ctxt_t *pai, const char *path, SDF_boolean_t serialize);
 
 SDF_container_meta_t *
 build_meta(const char *path, SDF_container_props_t props, SDF_cguid_t cguid, SDF_shardid_t shard);
@@ -126,10 +126,11 @@ static struct shard *
 get_shard_from_container(struct SDF_shared_state *state,
                          SDF_internal_ctxt_t *pai, local_SDF_CONTAINER lc,
 			 uint32_t shard_index);
+#if 0
 
 static void
 append_to_blob(char **blob, char *name, uint32_t len, int is_block);
-
+#endif
 struct plat_shmem_alloc_stats g_init_sm_stats, g_end_sm_stats;
 
 
@@ -581,6 +582,7 @@ SDFCreateContainer(SDF_internal_ctxt_t *pai, const char *path, SDF_container_pro
 }
 #endif /* SDFAPI */
 
+#if 0
 SDF_status_t
 SDFDeleteContainerByCguid(SDF_internal_ctxt_t *pai, SDF_cguid_t cguid) 
 {
@@ -607,6 +609,7 @@ SDFDeleteContainerByCguid(SDF_internal_ctxt_t *pai, SDF_cguid_t cguid)
     SDFEndSerializeContainerOp(pai);
     return(status);
 }
+#endif
 
 #ifndef SDFAPI
 SDF_status_t
@@ -681,7 +684,7 @@ SDFChangeContainerWritebackMode(SDF_internal_ctxt_t *pai, SDF_cguid_t cguid, SDF
     SDFEndSerializeContainerOp(pai);
     return(status);
 }
-
+#if 0
 #ifndef SDFAPI
 SDF_status_t
 SDFGetContainerProps(SDF_internal_ctxt_t *pai, SDF_cguid_t cguid, SDF_container_props_t *pprops) 
@@ -760,7 +763,7 @@ SDFDeleteContainer(SDF_internal_ctxt_t *pai, const char *path)
     return(delete_container_internal(pai, path, SDF_TRUE /* serialize */));
 }
 #endif /* SDFAPI */
-
+#endif
 SDF_status_t delete_container_internal_low(
 	SDF_internal_ctxt_t *pai, 
 	const char *path, 
@@ -898,7 +901,7 @@ SDF_status_t delete_container_internal_low(
                 plat_log_msg(21550, LOG_CAT, LOG_ERR,
                         "%s - failed to remove cguid map", path);
                 log_level = LOG_ERR;
-		plat_assert(0);
+               plat_assert(0);
             } else {
                 plat_log_msg(21551, LOG_CAT, LOG_TRACE,
                         "%s - remove cguid map succeeded", path);
@@ -916,11 +919,12 @@ SDF_status_t delete_container_internal_low(
 
     return (status);
 }
-
+#if 0
 SDF_status_t delete_container_internal(SDF_internal_ctxt_t *pai, const char *path, SDF_boolean_t serialize) 
 {
 	return delete_container_internal_low(pai, path, serialize, SDF_TRUE, NULL);	
 }
+#endif
 
 
 #ifndef SDFAPI
@@ -1182,7 +1186,7 @@ SDFImportContainer(SDF_internal_ctxt_t *pai, const char *sdfPath, FILE *srcFile)
     status = SDF_FAILURE;
     return (status);
 }
-
+#if 0
 SDF_status_t
 SDFEnumerateContainer(SDF_internal_ctxt_t *pai, SDF_CONTAINER container, char_sp_t *blob, uint32_t *len) 
 {
@@ -1248,6 +1252,7 @@ SDFEnumerateContainer(SDF_internal_ctxt_t *pai, SDF_CONTAINER container, char_sp
     SDFEndSerializeContainerOp(pai);
     return (status);
 }
+#endif
 
 SDF_status_t
 SDFDoesContainerExist(SDF_internal_ctxt_t *pai, const char *path) {
@@ -1268,7 +1273,7 @@ SDFDoesContainerExist(SDF_internal_ctxt_t *pai, const char *path) {
     SDFEndSerializeContainerOp(pai);
     return (status);
 }
-
+#if 0
 SDF_status_t SDFContainerStat(SDF_internal_ctxt_t *pai, SDF_CONTAINER container, int key, uint64_t *stat) 
 {
     SDF_status_t   status;
@@ -1278,6 +1283,7 @@ SDF_status_t SDFContainerStat(SDF_internal_ctxt_t *pai, SDF_CONTAINER container,
     SDFEndSerializeContainerOp(pai);
     return(status);
 }
+#endif
 
 SDF_status_t SDFContainerStatInternal(SDF_internal_ctxt_t *pai, SDF_CONTAINER container, int key, uint64_t *stat) 
 {
@@ -1337,6 +1343,7 @@ SDF_status_t SDFContainerStatInternal(SDF_internal_ctxt_t *pai, SDF_CONTAINER co
     return (status);
 }
 
+#if 0
 SDF_status_t
 SDFContainerShards(SDF_internal_ctxt_t *pai, SDF_CONTAINER container, uint32_t max_shards, struct shard * shards[], uint32_t * shard_count) {
 
@@ -1363,6 +1370,7 @@ SDFContainerShards(SDF_internal_ctxt_t *pai, SDF_CONTAINER container, uint32_t m
     SDFEndSerializeContainerOp(pai);
     return (status);
 }
+#endif
 
 // =====================================================================
 // Utilities
@@ -1461,7 +1469,7 @@ int
 validateContainerType(SDF_internal_ctxt_t *pai, SDF_CONTAINER container, SDF_container_type_t type) {
     return (0);
 }
-
+#if 0
 /*
  * Blob format:
  *   member count
@@ -1508,7 +1516,7 @@ append_to_blob(char **blob, char *name, uint32_t len, int is_block) {
     strcat(*blob, separator);
     strcat(*blob, buf);
 }
-
+#endif
 static struct shard *
 get_shard_from_container(struct SDF_shared_state *state,
                          SDF_internal_ctxt_t *pai, local_SDF_CONTAINER lc, 

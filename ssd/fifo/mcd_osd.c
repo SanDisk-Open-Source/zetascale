@@ -194,7 +194,7 @@ mcd_container_t Mcd_containers[MCD_MAX_NUM_CNTRS];
 /*
  * saved container properties from SSD
  */
-static mcd_container_t Mcd_fth_saved_props[MCD_MAX_NUM_CNTRS];
+//static mcd_container_t Mcd_fth_saved_props[MCD_MAX_NUM_CNTRS];
 
 /*
  * mbox for admin container command usage
@@ -265,6 +265,7 @@ mcd_container_t                 Mcd_osd_cmc_cntr;
 #define plat_alloc_large        plat_alloc_steal_from_heap
 #define plat_free_large         plat_free  // can't be freed, leaks memory
 
+#if 0
 /*
  *   Predeclarations
  */
@@ -275,6 +276,7 @@ static int mcd_fth_do_try_container_internal( void * pai, int index,
                               int tcp_port, int udp_port,
                               SDF_container_props_t * prop, char * cntr_name,
                               mcd_cntr_props_t * cntr_props );
+#endif
 static SDF_status_t
 mcd_osd_delete_expired( osd_state_t *osd_state, mcd_osd_shard_t * shard );
 
@@ -505,7 +507,7 @@ void mcd_osd_get_containers_cguids(struct ssdaio_ctxt *pctxt, SDF_cguid_t *cguid
 
     *n_cguids = n_containers;
 }
-
+#if 0
 static void
 mcd_fth_get_container_properties( int index, char * cname,
                                   int system_recovery,
@@ -840,7 +842,6 @@ mcd_fth_get_container_properties( int index, char * cname,
 
     return;
 }
-
 
 SDF_status_t
 mcd_fth_open_container( void * pai, SDF_context_t ctxt,
@@ -1463,7 +1464,7 @@ SDF_status_t mcd_fth_container_init( void * pai, int system_recovery, int tcp_po
 
     return SDF_SUCCESS;
 }
-
+#endif
 
 /*
  * Return the number of bits in a integer rounded down.
@@ -6515,7 +6516,7 @@ mcd_osd_shard_open( struct flashDev * dev, uint64_t shard_id )
     return shard;
 }
 
-
+#if 0
 static void mcd_osd_shard_open_phase2( struct shard * shard, mcd_container_t * cntr )
 {
     mcd_osd_shard_t           * mcd_shard = (mcd_osd_shard_t *)shard;
@@ -6535,6 +6536,7 @@ static void mcd_osd_shard_open_phase2( struct shard * shard, mcd_container_t * c
 
     return;
 }
+#endif
 
 void
 mcd_osd_shard_close( struct shard * _shard )
@@ -7230,7 +7232,7 @@ void mcd_osd_check_for_stopped_container(mcd_container_t *container)
 	}
     }
 }
-
+#if 0
 SDF_status_t mcd_fth_container_start( void * context,
                                       mcd_container_t * container )
 {
@@ -7379,6 +7381,7 @@ int mcd_start_container_internal( void * pai, int tcp_port )
 
     return 0;   /* SUCCESS */
 }
+
 
 mcd_container_t *mcd_osd_container_from_cguid(
 	SDF_cguid_t cguid
@@ -7581,6 +7584,7 @@ int mcd_stop_container_byname_internal( void * pai, char * cname )
     }
     return rc;
 }
+#endif
 
 int
 mcd_osd_shard_stop( struct shard * shard )

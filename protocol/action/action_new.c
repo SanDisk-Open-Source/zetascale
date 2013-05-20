@@ -106,7 +106,7 @@ extern int create_home_shard_map_entry(SDF_action_thrd_state_t *pts, SDF_shardid
      *  combinations.
      */
 
-static void heap_stress_test(SDF_trans_state_t *ptrans);
+//static void heap_stress_test(SDF_trans_state_t *ptrans);
 
     /*  Functions used in protocol tables.
      */
@@ -2436,6 +2436,7 @@ SDF_status_t SDFGetCacheStat(SDF_action_init_t *pai, SDF_CONTAINER container, in
     return(ret);
 }
 
+
 SDF_status_t SDFPreloadContainerMetaData(SDF_action_init_t *pai, SDF_cguid_t cguid)
 {
     SDF_status_t           ret = SDF_SUCCESS;
@@ -3594,7 +3595,7 @@ SDF_status_t SDFSetModThresh(SDF_action_init_t *pai, uint32_t percent)
     SDFEndSerializeContainerOp((SDF_internal_ctxt_t *) pai);
     return(status);  
 }
-
+#if 0
 SDF_status_t SDFSelfTest(SDF_action_init_t *pai, SDF_cguid_t cguid, char *args)
 {
     SDF_status_t              status = SDF_SUCCESS;
@@ -3632,6 +3633,7 @@ SDF_status_t SDFSelfTest(SDF_action_init_t *pai, SDF_cguid_t cguid, char *args)
 
     return(status);  
 }
+#endif
 
 SDF_status_t SDFActionChangeContainerWritebackMode(SDF_action_init_t *pai, SDF_cguid_t cguid, SDF_boolean_t enable_writeback)
 {
@@ -6483,7 +6485,7 @@ int protocol_message_report_version( char **bufp, int *lenp)
     return (plat_snprintfcat(bufp, lenp, "%s %d.%d.%d\r\n", 
                              "sdf/protocol_message", PROTOCOL_MSG_VERSION, 0, 0));
 }
-
+#if 0
 #define N_DATA   64*1024*1024
 static char stress_data[N_DATA];
 
@@ -6507,7 +6509,7 @@ static char *enum_recovery_fill(SDF_cache_enum_t *cenum)
     }
     return(sret);
 }
-
+#endif
 
 /*
  * Look up an entry in the cache by information contained in the memory hash
@@ -6548,7 +6550,7 @@ cache_inval_by_cntr(SDF_action_init_t *pai, struct shard *shard,
     return SDFNewCacheInvalByCntr(pai->pcs->new_actiondir, shard, cguid);
 }
 
-
+#if 0
 static void oh_oh_stress(char *s)
 {
     plat_log_msg(20819, PLAT_LOG_CAT_SDF_PROT, PLAT_LOG_LEVEL_FATAL,
@@ -6817,4 +6819,4 @@ static void heap_stress_test(SDF_trans_state_t *ptrans)
         SDFNewUnlockBucket(ptrans->pts->new_actiondir, ptrans->pbucket);
     }
 }
-
+#endif

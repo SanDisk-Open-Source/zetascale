@@ -369,7 +369,7 @@ static int
 load(char *path)
 {
     int i;
-    void  *dl = dlopen(path, RTLD_LAZY);
+    void  *dl = dlopen(path, RTLD_NOW | RTLD_DEEPBIND);
     char *err = dlerror();
 
     if (!dl) {

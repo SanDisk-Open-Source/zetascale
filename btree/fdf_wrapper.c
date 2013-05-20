@@ -907,6 +907,50 @@ FDF_status_t _FDFMiniTransactionCommit(
     return(FDFMiniTransactionCommit(fdf_thread_state));
 }
 
+/*
+ * FDFTransactionStart
+ */
+FDF_status_t 
+_FDFTransactionStart(struct FDF_thread_state *fdf_thread_state)
+{
+    my_thd_state = fdf_thread_state;
+
+    return(FDFTransactionStart(fdf_thread_state));
+}
+
+
+/*
+ * FDFMiniTransactionCommit
+ */
+FDF_status_t 
+_FDFTransactionCommit(struct FDF_thread_state *fdf_thread_state)
+{
+    my_thd_state = fdf_thread_state;
+
+    return(FDFTransactionCommit(fdf_thread_state));
+}
+
+/*
+ * FDFTransactionRollback
+ */
+FDF_status_t 
+_FDFTransactionRollback(struct FDF_thread_state *fdf_thread_state)
+{
+    my_thd_state = fdf_thread_state;
+
+    return(FDFTransactionRollback(fdf_thread_state));
+}
+
+/*
+ * FDFGetVersion
+ */
+FDF_status_t 
+_FDFGetVersion(char **str)
+{
+    return FDFGetVersion(str);
+}
+
+
 /*****************************************************************
  *
  *  B-Tree Callback Functions

@@ -66,12 +66,13 @@ echo -e "\n** BUILD SUCCESSFUL **\n"
 if [ "$1" == "--test" ] || [ "$2" == "--test" ]; then
 	cd $WD
 
+	export BTREE_LIB=$WD/output/lib/libbtree.so
 	export FDF_LIB=$WD/output/lib/libfdf.so
 	export FDF_PROPERTY_FILE=$WD/api/tests/conf/fdf.prop
 
 	ctest -j$NCPU
 fi
 
-echo -e "\nVariables:\nexport FDF_LIB=$WD/output/lib/libfdf.so\nexport FDF_PROPERTY_FILE=$WD/api/tests/conf/fdf.prop\n"
+echo -e "\nVariables:\nexport BTREE_LIB=$WD/output/lib/libbtree.so\nexport FDF_LIB=$WD/output/lib/libfdf.so\nexport FDF_PROPERTY_FILE=$WD/api/tests/conf/fdf.prop\n"
 
 echo -e "Package: root@$(hostname -s):$WD/$PKG_NAME.tar.gz\n"

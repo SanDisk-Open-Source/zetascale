@@ -375,6 +375,8 @@ cmc_initialize(SDF_internal_ctxt_t *pai, const char *cmc_path) {
 			status = SDF_SUCCESS;
 		}
 #else
+	plat_assert(0);
+#if 0
     	SDF_container_props_t p;
     	memset(&p, 0, sizeof(p));
     	p.container_type.type = SDF_OBJECT_CONTAINER;
@@ -399,6 +401,7 @@ cmc_initialize(SDF_internal_ctxt_t *pai, const char *cmc_path) {
         } else {
             plat_log_msg(150060, LOG_CAT, LOG_TRACE, "Failed status = %d...\n", status);
         }
+#endif
 #endif /* SDFAPI */
     }
 
@@ -1446,7 +1449,7 @@ cmc_remove_cguid_map(SDF_internal_ctxt_t *pai, SDFContainer c, const char *cname
     return (status);
 }
 
-
+#if 0
 // Internal interfaces
 
 SDF_status_t
@@ -1508,6 +1511,7 @@ cmc_delete_object_container(SDF_internal_ctxt_t *pai, const char *cname) {
 #endif /* notdef */
     return (status);
 }
+#endif
 
 #ifdef SDFAPI
 SDF_status_t 
