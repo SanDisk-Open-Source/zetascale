@@ -216,11 +216,28 @@ char *SDFNewCacheCopyKeyOutofObject(SDFNewCache_t *pc, char *pkey, SDFNewCacheEn
     uint64_t   nbytes_left;
     uint64_t   n;
 
-    // First skip header
-    p = *((void **) PAGE_POINTER(pc, pce));
+    pto = pkey;
 
-    pto         = pkey;
-    nbytes_left = pce->key_len;  // this includes NULL termination!
+    if (pc->page_size == pc->min_page_size) {
+	// First skip header
+	p = *((void **) PAGE_POINTER(pc, pce));
+	nbytes_left = pce->key_len;  // this includes NULL termination!
+    } else {
+	p = (void *) pce;
+	if ((pc->page_data_size - sizeof(SDFNewCacheEntry_t)) >= pce->key_len) {
+	    // entire key is in first page
+	    memcpy(pto, (void *) (((char *) p + sizeof(SDFNewCacheEntry_t))), pce->key_len);
+	    nbytes_left = 0;
+	} else {
+	    // only part of key is in first page
+            n = pc->page_data_size - sizeof(SDFNewCacheEntry_t);
+	    memcpy(pto, (void *) (((char *) p + sizeof(SDFNewCacheEntry_t))), n);
+	    p = *((void **) PAGE_POINTER(pc, pce));
+	    nbytes_left = pce->key_len - n;
+	    pto += n;
+	}
+    }
+
     for (p = p; (p != NULL) && (nbytes_left > 0); p = p_next) {
 	/* last 8B of a page holds the next page pointer */
 	p_next = *((void **) PAGE_POINTER(pc, p));
@@ -244,13 +261,31 @@ void SDFNewCacheCopyKeyIntoObject(SDFNewCache_t *pc, SDF_simple_key_t *pkey_simp
     uint64_t   nbytes_left;
     uint64_t   n;
 
-    // First skip header
-    p = *((void **) PAGE_POINTER(pc, pce));
-
     plat_assert(pkey_simple->len < pc->max_key_size);
 
-    pfrom       = pkey_simple->key;
-    nbytes_left = pkey_simple->len; // this includes NULL termination!
+    pfrom = pkey_simple->key;
+
+    if (pc->page_size == pc->min_page_size) {
+	// First skip header
+	p           = *((void **) PAGE_POINTER(pc, pce));
+	nbytes_left = pkey_simple->len; // this includes NULL termination!
+    } else {
+	p = (void *) pce;
+	if ((pc->page_data_size - sizeof(SDFNewCacheEntry_t)) >= pkey_simple->len) {
+	    // entire key is in first page
+            n = pkey_simple->len;
+	    memcpy((void *) (((char *) p) + sizeof(SDFNewCacheEntry_t)), pfrom, n);
+	    nbytes_left = 0;
+	} else {
+	    // only part of key is in first page
+            n = pc->page_data_size - sizeof(SDFNewCacheEntry_t);
+	    memcpy((void *) (((char *) p + sizeof(SDFNewCacheEntry_t))), pfrom, n);
+	    p = *((void **) PAGE_POINTER(pc, p));
+	    nbytes_left = pkey_simple->len - n;
+	    pfrom += n;
+	}
+    }
+
     for (p = p; (p != NULL) && (nbytes_left > 0); p = p_next) {
 	/* last 8B of a page holds the next page pointer */
 	p_next = *((void **) PAGE_POINTER(pc, p));
@@ -283,14 +318,28 @@ void SDFNewCacheCopyOutofObject(SDFNewCache_t *pc, void *pto_in, SDFNewCacheEntr
     }
     pto = pto_in;
 
-    // Skip header
-    p = *((void **) PAGE_POINTER(pc, pce));
-
     // Skip key
 
-    nbytes_left = pce->key_len;  // this includes NULL termination!
+    if (pc->page_size == pc->min_page_size) {
+	// Skip header
+	p           = *((void **) PAGE_POINTER(pc, pce));
+	nbytes_left = pce->key_len;  // this includes NULL termination!
+    } else {
+	if ((pc->page_data_size - sizeof(SDFNewCacheEntry_t)) >= pce->key_len) {
+	    // entire key is in first page
+	    p           = (void *) pce;
+	    n           = pce->key_len + sizeof(SDFNewCacheEntry_t);
+	    nbytes_left = 0;
+	} else {
+	    // only part of key is in first page
+	    p           = *((void **) PAGE_POINTER(pc, pce));
+	    n           = pc->page_data_size - sizeof(SDFNewCacheEntry_t);
+	    nbytes_left = pce->key_len - n;
+	}
+    }
+
     for (p_next = p; (p != NULL) && (nbytes_left > 0);) {
-        p = p_next;
+	p = p_next;
 	/* last 8B of a page holds the next page pointer */
 	p_next = *((void **) PAGE_POINTER(pc, p));
 	if (nbytes_left >= pc->page_data_size) {
@@ -300,6 +349,8 @@ void SDFNewCacheCopyOutofObject(SDFNewCache_t *pc, void *pto_in, SDFNewCacheEntr
 	}
 	nbytes_left -= n;
     }
+
+    // Copy data
 
     if (p != NULL) {
 	if (n < pc->page_data_size) {
@@ -352,11 +403,26 @@ void SDFNewCacheCopyIntoObject(SDFNewCache_t *pc, void *pfrom_in, SDFNewCacheEnt
     }
     pfrom = pfrom_in;
 
-    // Skip header
-    p = *((void **) PAGE_POINTER(pc, pce));
-
     // Skip key
-    nbytes_left = pce->key_len;  // this includes NULL termination!
+
+    if (pc->page_size == pc->min_page_size) {
+	// Skip header
+	p = *((void **) PAGE_POINTER(pc, pce));
+	nbytes_left = pce->key_len;  // this includes NULL termination!
+    } else {
+	if ((pc->page_data_size - sizeof(SDFNewCacheEntry_t)) >= pce->key_len) {
+	    // entire key is in first page
+	    p           = (void *) pce;
+	    n           = pce->key_len + sizeof(SDFNewCacheEntry_t);
+	    nbytes_left = 0;
+	} else {
+	    // only part of key is in first page
+	    p           = *((void **) PAGE_POINTER(pc, pce));
+	    n           = pc->page_data_size - sizeof(SDFNewCacheEntry_t);
+	    nbytes_left = pce->key_len - n;
+	}
+    }
+
     for (p_next = p; (p != NULL) && (nbytes_left > 0);) {
         p = p_next;
 	/* last 8B of a page holds the next page pointer */
@@ -368,6 +434,8 @@ void SDFNewCacheCopyIntoObject(SDFNewCache_t *pc, void *pfrom_in, SDFNewCacheEnt
 	}
 	nbytes_left -= n;
     }
+
+    // Copy data
 
     if (p != NULL) {
 	if (n < pc->page_data_size) {
@@ -407,7 +475,7 @@ int SDFNewCacheHashBits(SDFNewCache_t *pc)
     return(pc->nhashbits);
 }
 
-void SDFNewCacheInit(SDFNewCache_t *pc, uint64_t nbuckets, uint64_t nslabs_in,
+void SDFNewCacheInit(SDFNewCache_t *pc, uint64_t nbuckets, uint32_t page_size, uint64_t nslabs_in,
      uint64_t size, uint32_t max_key_size, uint64_t max_object_size,
      uint64_t      (*hash_fn)(void *hash_arg, SDF_cguid_t cguid,
                               char *key, uint64_t key_len,
@@ -428,7 +496,14 @@ void SDFNewCacheInit(SDFNewCache_t *pc, uint64_t nbuckets, uint64_t nslabs_in,
      *  metadata structure, plus 8B for the next page pointer.
      *  The next page pointer is kept at the end of the page.
      */
-    pc->page_size          = sizeof(SDFNewCacheEntry_t) + 8;
+    pc->min_page_size = sizeof(SDFNewCacheEntry_t) + 8;
+    if ((page_size != 0) && (page_size > pc->min_page_size)) {
+	pc->page_size = page_size;
+    } else {
+	pc->page_size = pc->min_page_size;
+    }
+    // pc->page_size = 8300; // xxxzzz this is temporary!
+    // pc->page_size = 2200; // xxxzzz this is temporary!
     pc->page_data_size     = pc->page_size - 8;
     pc->n_pending_requests = 0;
 

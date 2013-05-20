@@ -422,6 +422,7 @@ void InitActionProtocolCommonState(SDF_action_state_t *pas, SDF_action_init_t *p
     const char     *strict_wrbk_string;;
     const char     *enable_replication_string;
     const char     *pfx_delimiter;
+    uint32_t        page_size;
     #ifdef SIMPLE_REPLICATION
         const char *simple_replication_string;
     #endif
@@ -551,8 +552,10 @@ void InitActionProtocolCommonState(SDF_action_state_t *pas, SDF_action_init_t *p
         UTMallocTrace("actiondir", SDF_TRUE, SDF_FALSE, SDF_FALSE, (void *) pas->new_actiondir, sizeof(SDFNewCache_t));
     #endif // MALLOC_TRACE
 
+    page_size = getProperty_uLongInt("FDF_CACHE_CHUNK_SIZE", 8300);
+
     max_key_size = 256; // includes room for trailing NULL!
-    SDFNewCacheInit(pas->new_actiondir, buckets, nslabs, cacheSize,
+    SDFNewCacheInit(pas->new_actiondir, buckets, page_size, nslabs, cacheSize,
          max_key_size, max_obj_size, hash_fn, (void *) pas, init_state_fn,
          sdfcc_print_fn, wrbk_fn, flush_fn, CS_M, CS_S,
          max_flushes_per_mod_check, f_modified);

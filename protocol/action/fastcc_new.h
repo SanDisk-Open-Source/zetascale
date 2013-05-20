@@ -157,6 +157,7 @@ typedef struct SDFNewCache {
     void                 *pmem_start;
     void                 *pmem_used;
     SDF_boolean_t         lru_flag;
+    uint32_t              min_page_size;
     uint32_t              page_size;
     uint32_t              page_data_size;
     uint32_t              mod_state;
@@ -200,7 +201,7 @@ typedef struct SDFNewCacheStats {
 struct shard;
 
 extern void SDFNewCacheGetStats(SDFNewCache_t *pc, SDFNewCacheStats_t *ps);
-void SDFNewCacheInit(SDFNewCache_t *pc, uint64_t nbuckets, uint64_t nslabs_in,
+void SDFNewCacheInit(SDFNewCache_t *pc, uint64_t nbuckets, uint32_t page_size, uint64_t nslabs_in,
      uint64_t size, uint32_t max_key_size, uint64_t max_object_size,
      uint64_t      (*hash_fn)(void *hash_arg, SDF_cguid_t cguid, char *key, uint64_t key_len, uint64_t num_bkts, hashsyn_t *hashsynp),
      void           *hash_arg, 

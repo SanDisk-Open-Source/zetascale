@@ -34,7 +34,7 @@ extern "C" {
 #endif
 #endif
 
-#define ISEMPTY(s) (s == NULL || *s == '\0')
+#define ISEMPTY(s) (s == NULL)
 #define HAVE_STDBOOL_H 1
 
 /* Get a consistent bool type */
