@@ -2,6 +2,7 @@
 #define __BTREE_RAW_INTERNAL_H
 
 #include "btree_raw.h"
+#include "platform/rwlock.h"
 
 #define BAD_CHILD   0
 
@@ -91,6 +92,8 @@ typedef struct btree_raw {
     void              *cmp_cb_data;
 
     btree_stats_t      stats;
+
+    plat_rwlock_t      lock;
 } btree_raw_t;
 
 #endif // __BTREE_RAW_INTERNAL_H

@@ -176,9 +176,9 @@ extern int btree_raw_get_next_n(uint32_t n_in, uint32_t *n_out, struct btree_raw
 
 extern int btree_raw_fast_build(struct btree_raw *btree);
 
-extern void btree_raw_dump(FILE *f, struct btree_raw *btree);
+//extern void btree_raw_dump(FILE *f, struct btree_raw *btree);
 
-extern void btree_raw_check(struct btree_raw *btree);
+//extern void btree_raw_check(struct btree_raw *btree);
 
 extern void btree_raw_test(struct btree_raw *btree);
 

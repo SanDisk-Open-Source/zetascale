@@ -175,6 +175,9 @@ static void shift_left(int *ret, btree_raw_t *btree, btree_raw_node_t *anchor, b
 static int check_per_thread_keybuf(btree_raw_t *btree);
 static void btree_raw_init_stats(struct btree_raw *btree, btree_stats_t *stats);
 
+static void btree_raw_dump(FILE *f, struct btree_raw *btree);
+static void btree_raw_check(struct btree_raw *btree);
+
 static void default_msg_cb(int level, void *msg_data, char *filename, int lineno, char *msg, ...)
 {
     char     stmp[512];
@@ -319,6 +322,8 @@ btree_raw_t *btree_raw_init(uint32_t flags, uint32_t n_partition, uint32_t n_par
 	    btree_raw_dump(stderr, bt);
 	}
     #endif
+
+    plat_rwlock_init(&bt->lock);
 
     return(bt);
 }
@@ -824,6 +829,8 @@ int btree_raw_get(struct btree_raw *btree, char *key, uint32_t keylen, char **da
 	}
     #endif
 
+    plat_rwlock_rdlock(&btree->lock);
+
     for (n = get_existing_node(&ret, btree, btree->rootid);
          n != NULL;
 	 )
@@ -890,6 +897,9 @@ int btree_raw_get(struct btree_raw *btree, char *key, uint32_t keylen, char **da
 	    fprintf(stderr, "ZZZZZZZZ: AHA read failed!\n");
 	}
     #endif
+
+    plat_rwlock_unlock(&btree->lock);
+
     return(ret);
 }
 
@@ -1806,7 +1816,7 @@ static int btree_raw_write(struct btree_raw *btree, char *key, uint32_t keylen, 
     int                 ret = 0;
     btree_raw_node_t   *r, *s;
     uint64_t            syndrome;
-    int                 full;
+    int                 full, write_locked = 0;
 
     _pathcnt = 0;
 
@@ -1818,16 +1828,29 @@ static int btree_raw_write(struct btree_raw *btree, char *key, uint32_t keylen, 
 	}
     #endif
 
+    plat_rwlock_rdlock(&btree->lock);
+
+retry:
     r = get_existing_node(&ret, btree, btree->rootid);
     _pathcnt++;
 
     if (!(ret)) {
 
         if ((ret = check_fullness(btree, r, key, keylen, datalen, meta, syndrome, write_type, &full))) {
+
+            plat_rwlock_unlock(&btree->lock);
+
 	    return(ret);
 	}
 
 	if (full) {
+            if(!write_locked)
+            {
+                plat_rwlock_unlock(&btree->lock);
+                plat_rwlock_wrlock(&btree->lock);
+                write_locked = 1;
+                goto retry;
+            }
 	    #ifdef notdef
 		fprintf(stderr, "ZZZZZZZZ: AHA root split!\n");
 	    #endif
@@ -1872,6 +1895,8 @@ static int btree_raw_write(struct btree_raw *btree, char *key, uint32_t keylen, 
 	    fprintf(stderr, "********  Done checking after btree_raw_write for key '%s' [syn=%lu]:  *******\n", dump_key(key, keylen), syndrome);
 	}
     #endif
+
+    plat_rwlock_unlock(&btree->lock);
 
     return(ret);
 }
@@ -2012,8 +2037,13 @@ int btree_raw_delete(struct btree_raw *btree, char *key, uint32_t keylen, btree_
 
     syndrome = get_syndrome(btree, key, keylen);
 
+    plat_rwlock_wrlock(&btree->lock);
+
     // make sure that the temporary key buffer has been allocated
     if (check_per_thread_keybuf(btree)) {
+
+        plat_rwlock_unlock(&btree->lock);
+
 	return(1); // xxxzzz is this the best I can do?
     }
 
@@ -2036,6 +2066,8 @@ int btree_raw_delete(struct btree_raw *btree, char *key, uint32_t keylen, btree_
 	    fprintf(stderr, "********  Done checking after btree_raw_delete for key '%s' [syn=%lu]:  *******\n", dump_key(key, keylen), syndrome);
 	}
     #endif
+
+    plat_rwlock_unlock(&btree->lock);
 
     return(ret);
 }
@@ -3314,6 +3346,7 @@ static void dump_node(btree_raw_t *bt, FILE *f, btree_raw_node_t *n, char *key, 
     }
 }
 
+static
 void btree_raw_dump(FILE *f, btree_raw_t *bt)
 {
     int                ret = 0;
@@ -3535,6 +3568,8 @@ static void check_node(btree_raw_t *bt, FILE *f, btree_raw_node_t *n, char *key_
 	}
     }
 }
+
+static
 void btree_raw_check(btree_raw_t *bt)
 {
     int                ret = 0;
