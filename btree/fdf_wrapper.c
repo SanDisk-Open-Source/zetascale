@@ -92,14 +92,50 @@ static uint64_t N_txn_cmd_3   = 0;
 //  xxxzzz these are temporary:
 
 typedef struct cmap {
+    char           cname[CONTAINER_NAME_MAXLEN];
     uint64_t       cguid;
     struct btree  *btree;
     read_node_t    node_data;
 } ctrmap_t;
 
-#define MAX_OPEN_CONTAINERS   100
+#define MAX_OPEN_CONTAINERS   UINT16_MAX - 1 - 9
 static ctrmap_t Container_Map[MAX_OPEN_CONTAINERS];
 static int N_Open_Containers = 0;
+
+static int bt_get_ctnr_from_cguid( 
+    FDF_cguid_t cguid
+    )
+{
+    int i;
+    int i_ctnr = -1;
+
+    for ( i = 0; i < MAX_OPEN_CONTAINERS; i++ ) {
+        if ( Container_Map[i].cguid == cguid ) { 
+            i_ctnr = i; 
+            break; 
+        }
+    }
+
+    return i_ctnr;
+}
+#if 0
+static int bt_get_ctnr_from_cname( 
+     char *cname
+     )
+{
+    int i;
+    int i_ctnr = -1;
+
+    for ( i = 0; i < MAX_OPEN_CONTAINERS; i++ ) {
+        if ( (NULL != Container_Map[i].cname) && (0 == strcmp( Container_Map[i].cname, cname )) ) {
+            i_ctnr = i;
+            break;
+        }
+    }
+
+    return i_ctnr;
+}
+#endif
 
 static void dump_btree_stats(FILE *f, FDF_cguid_t cguid);
 
@@ -156,6 +192,13 @@ FDF_status_t _FDFInit(
 	)
 {
     char         *stest;
+    int           i = 0;
+
+    // Initialize the map
+    for (i=0; i<N_Open_Containers; i++) {
+        Container_Map[i].cguid = FDF_NULL_CGUID;
+        Container_Map[i].btree = NULL;
+    }
 
     stest = getenv("FDF_RUN_BTREE_SELFTEST");
     if (stest != NULL) {
@@ -256,19 +299,35 @@ FDF_status_t _FDFOpenContainer(
     void         *cmp_cb_data;
     void         *txn_cmd_cb_data;
     read_node_t  *prn;
+    int           index = -1;
 
     my_thd_state = fdf_thread_state;;
+
+    if (!cname)
+        return(FDF_INVALID_PARAMETER);
 
     if (N_Open_Containers >= MAX_OPEN_CONTAINERS) {
         msg("Exceeded size of Container_Map array in FDFOpenContainer!");
         return(FDF_FAILURE);
     }
-    prn = &(Container_Map[N_Open_Containers].node_data);
 
     ret = FDFOpenContainer(fdf_thread_state, cname, properties, flags_in, cguid);
-    if (ret != FDF_SUCCESS) {
+    if (ret != FDF_SUCCESS)
         return(ret);
-    }
+
+    // See if metadata exists (recovered container or opened already)
+    index = bt_get_ctnr_from_cguid(*cguid);
+    if (index >= 0) {
+        // Metadata exists, just return if btree is not empty
+        if (Container_Map[index].btree)
+            return(FDF_SUCCESS);
+    } else {
+        // Need to fill in metadata map
+        index = N_Open_Containers;
+        Container_Map[index].cguid = *cguid;
+    } 
+    
+    prn = &(Container_Map[index].node_data);
 
     create_node_cb_data = (void *) prn;
     read_node_cb_data   = (void *) prn;
@@ -329,8 +388,7 @@ FDF_status_t _FDFOpenContainer(
     // xxxzzz we should remember the btree info in a persistent place
     // xxxzzz for now, for performance testing, just use a hank
 
-    Container_Map[N_Open_Containers].cguid = *cguid;
-    Container_Map[N_Open_Containers].btree = bt;
+    Container_Map[index].btree = bt;
     N_Open_Containers++;
 
     return(ret);
@@ -350,7 +408,7 @@ FDF_status_t _FDFCloseContainer(
 {
     my_thd_state = fdf_thread_state;;
 
-    msg("FDFCloseContainer is not currently supported!"); // xxxzzz
+    //msg("FDFCloseContainer is not currently supported!"); // xxxzzz
     return(FDFCloseContainer(fdf_thread_state, cguid));
 }
 
@@ -366,10 +424,18 @@ FDF_status_t _FDFDeleteContainer(
 	FDF_cguid_t				 cguid
 	)
 {
+    FDF_status_t status;
+    int index = -1;
     my_thd_state = fdf_thread_state;;
 
-    msg("FDFDeleteContainer is not currently supported!"); // xxxzzz
-    return(FDFDeleteContainer(fdf_thread_state, cguid));
+    status = FDFDeleteContainer(fdf_thread_state, cguid);
+    index = bt_get_ctnr_from_cguid(cguid);
+    if (index >= 0) {
+        btree_destroy(Container_Map[index].btree);
+        Container_Map[index].cguid = FDF_NULL_CGUID;
+        Container_Map[index].btree = NULL;
+    }
+    return(status);
 }
 
 /**
@@ -528,9 +594,8 @@ FDF_status_t _FDFReadObjectExpiry(
 {
     my_thd_state = fdf_thread_state;;
 
-    msg("FDFReadObjectExpiry is not currently supported!");
-    // return(FDFReadObjectExpiry(fdf_thread_state, cguid, robj));
-    return(FDF_FAILURE);
+    //msg("FDFReadObjectExpiry is not currently supported!");
+    return(FDFReadObjectExpiry(fdf_thread_state, cguid, robj));
 }
 
 
@@ -611,22 +676,27 @@ FDF_status_t _FDFWriteObject(
 	ret = btree_set(bt, key, keylen, data, datalen, &meta);
     }
 
-    if (ret == 0) {
-	ret = FDF_SUCCESS;
-    } else if (ret == 2) {
-	if (flags & FDF_WRITE_MUST_NOT_EXIST) {
-	    ret = FDF_OBJECT_EXISTS;
-	} else if (flags & FDF_WRITE_MUST_EXIST) {
-	    ret = FDF_OBJECT_UNKNOWN;
-	} else {
-	    assert(0); // this should never happen!
+    switch(ret) {
+        case 0:
+            ret = FDF_SUCCESS;
+            break;
+        case FDF_SUCCESS:
+            break;
+        case 2:
+	    if (flags & FDF_WRITE_MUST_NOT_EXIST) {
+	        ret = FDF_OBJECT_EXISTS;
+	    } else if (flags & FDF_WRITE_MUST_EXIST) {
+	        ret = FDF_OBJECT_UNKNOWN;
+	    } else {
+	        assert(0); // this should never happen!
+	        ret = FDF_FAILURE; // xxxzzz fix this!
+	    }
+            break;
+        default:
+	    msg("btree_insert/update failed for key '%s' with ret=%s!\n", key, FDFStrError(ret));
 	    ret = FDF_FAILURE; // xxxzzz fix this!
-	}
-    } else {
-	msg("btree_insert/update failed for key '%s' with ret=%d!\n", key, ret);
-	ret = FDF_FAILURE; // xxxzzz fix this!
+            break;
     }
-
     return(ret);
 }
 
@@ -659,9 +729,8 @@ FDF_status_t _FDFWriteObjectExpiry(
 {
     my_thd_state = fdf_thread_state;;
 
-    msg("FDFWriteObjectExpiry is not currently supported!");
-    // return(FDFWriteObjectExpiry(fdf_thread_state, cguid, wobj, flags));
-    return(FDF_FAILURE);
+    //msg("FDFWriteObjectExpiry is not currently supported!");
+    return(FDFWriteObjectExpiry(fdf_thread_state, cguid, wobj, flags));
 }
 
 /**
@@ -689,9 +758,8 @@ FDF_status_t _FDFDeleteObject(
 {
     my_thd_state = fdf_thread_state;;
 
-    msg("FDFDeleteObject is not currently supported!");
-    // return(FDFDeleteObject(fdf_thread_state, cguid, key, keylen));
-    return(FDF_FAILURE);
+    //msg("FDFDeleteObject is not currently supported!");
+    return(FDFDeleteObject(fdf_thread_state, cguid, key, keylen));
 }
 
 /**
@@ -710,9 +778,8 @@ FDF_status_t _FDFEnumerateContainerObjects(
 {
     my_thd_state = fdf_thread_state;;
 
-    msg("FDFEnumerateContainerObjects is not currently supported!");
-    // return(FDFEnumerateContainerObjects(fdf_thread_state, cguid, iterator));
-    return(FDF_FAILURE);
+    //msg("FDFEnumerateContainerObjects is not currently supported!");
+    return(FDFEnumerateContainerObjects(fdf_thread_state, cguid, iterator));
 }
 
 /**
@@ -738,9 +805,8 @@ FDF_status_t _FDFNextEnumeratedObject(
 {
     my_thd_state = fdf_thread_state;;
 
-    msg("FDFNextEnumeratedObject is not currently supported!");
-    // return(FDFNextEnumeratedObject(fdf_thread_state, iterator, key, keylen, data, datalen));
-    return(FDF_FAILURE);
+    //msg("FDFNextEnumeratedObject is not currently supported!");
+    return(FDFNextEnumeratedObject(fdf_thread_state, iterator, key, keylen, data, datalen));
 }
 
 /**
@@ -757,9 +823,8 @@ FDF_status_t _FDFFinishEnumeration(
 {
     my_thd_state = fdf_thread_state;;
 
-    msg("FDFFinishEnumeration is not currently supported!");
-    // return(FDFFinishEnumeration(fdf_thread_state, iterator));
-    return(FDF_FAILURE);
+    //msg("FDFFinishEnumeration is not currently supported!");
+    return(FDFFinishEnumeration(fdf_thread_state, iterator));
 }
 
 /**
@@ -792,9 +857,8 @@ FDF_status_t _FDFFlushObject(
 {
     my_thd_state = fdf_thread_state;;
 
-    msg("FDFFlushObject is not currently supported!");
-    // return(FDFFlushObject(fdf_thread_state, cguid, key, keylen));
-    return(FDF_FAILURE);
+    //msg("FDFFlushObject is not currently supported!");
+    return(FDFFlushObject(fdf_thread_state, cguid, key, keylen));
 }
 
 /**
@@ -996,27 +1060,27 @@ static void write_node_cb(int *ret_out, void *cb_data, uint64_t lnodeid, char *d
     if (ret == FDF_SUCCESS) {
 	*ret_out = 0;
     } else {
-	fprintf(stderr, "ZZZZZZZZ   write_node_cb failed with ret=%d   ZZZZZZZZZ\n", ret);
+	fprintf(stderr, "ZZZZZZZZ   write_node_cb failed with ret=%s   ZZZZZZZZZ\n", FDFStrError(ret));
 	*ret_out = 1;
     }
 }
 
 static void txn_cmd_cb(int *ret_out, void *cb_data, int cmd_type)
 {
-    int                     ret;
+    int ret = FDF_FAILURE;
 
     switch (cmd_type) {
         case 1: // start txn
 	    N_txn_cmd_1++;
-	    ret = FDFMiniTransactionStart(my_thd_state);
+	    ret = FDFTransactionStart(my_thd_state);
 	    break;
         case 2: // commit txn
-	    ret = FDFMiniTransactionCommit(my_thd_state);
+	    ret = FDFTransactionCommit(my_thd_state);
 	    N_txn_cmd_2++;
 	    break;
         case 3: // abort txn
+	    ret = FDFTransactionRollback(my_thd_state);
 	    N_txn_cmd_3++;
-	    assert(0);
 	    break;
 	default:
 	    assert(0);

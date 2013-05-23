@@ -208,6 +208,7 @@ int btree_update(struct btree *btree, char *key, uint32_t keylen, char *data, ui
 {
     uint64_t   h;
     int        ret = 0;
+    int        txnret = 0;
     int        n_partition;
 
     h = hash_key(key, keylen);
@@ -221,12 +222,15 @@ int btree_update(struct btree *btree, char *key, uint32_t keylen, char *data, ui
     }
     ret = btree_raw_update(btree->partitions[n_partition], key, keylen, data, datalen, meta);
     if (ret) {
-	btree->txn_cmd_cb(&ret, btree->txn_cmd_cb_data, 3 /* abort */);
+	btree->txn_cmd_cb(&txnret, btree->txn_cmd_cb_data, 3 /* abort */);
     } else {
-	btree->txn_cmd_cb(&ret, btree->txn_cmd_cb_data, 2 /* commit */);
+	btree->txn_cmd_cb(&txnret, btree->txn_cmd_cb_data, 2 /* commit */);
     }
     pthread_mutex_unlock(&(btree->partition_locks[n_partition]));
-    return(ret);
+    if (txnret)
+        return(txnret);
+    else
+        return(ret);
 }
 
 int btree_set(struct btree *btree, char *key, uint32_t keylen, char *data, uint64_t datalen, btree_metadata_t *meta)
