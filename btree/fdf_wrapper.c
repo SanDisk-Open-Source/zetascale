@@ -60,10 +60,10 @@ static void                   txn_cmd_cb(int *ret_out, void *cb_data, int cmd_ty
     #define DEFAULT_MIN_KEYS_PER_NODE 4
 #endif
 
-// #define DEFAULT_N_PARTITIONS      1
+#define DEFAULT_N_PARTITIONS      1
 // #define DEFAULT_N_PARTITIONS      128
 // #define DEFAULT_N_PARTITIONS      4096
-#define DEFAULT_N_PARTITIONS      512
+// #define DEFAULT_N_PARTITIONS      512
 // #define DEFAULT_MAX_KEY_SIZE      10
 #define DEFAULT_MAX_KEY_SIZE      100
 // #define DEFAULT_NODE_SIZE         4000
@@ -281,6 +281,8 @@ FDF_status_t _FDFOpenContainer(
     txn_cmd_cb_data     = (void *) prn;
 
     flags = SYNDROME_INDEX;
+    if ((flags_in&FDF_CTNR_CREATE) == 0)
+        flags |= RELOAD;
     // flags = SECONDARY_INDEX;
     // flags |= IN_MEMORY; // use in-memory b-tree for this test
 

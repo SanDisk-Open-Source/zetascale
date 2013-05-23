@@ -39,7 +39,8 @@ typedef enum btree_flags {
     SYNDROME_INDEX  = 1,
     SECONDARY_INDEX = 2,
     IN_MEMORY       = 4,
-    VERBOSE_DEBUG   = 8
+    VERBOSE_DEBUG   = 8,
+    RELOAD          = 16,
 } btree_flags_t; 
 
 typedef enum btree_log_events {

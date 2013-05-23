@@ -136,6 +136,8 @@ typedef struct key_stuff {
 static uint64_t get_syndrome(btree_raw_t *bt, char *key, uint32_t keylen);
 static char *dump_key(char *key, uint32_t keylen);
 
+static int savepersistent( btree_raw_t *);
+static int loadpersistent( btree_raw_t *);
 static char *get_buffer(btree_raw_t *btree, uint64_t nbytes);
 static void free_buffer(btree_raw_t *btree, char *buf);
 static int get_leaf_data(btree_raw_t *bt, btree_raw_node_t *n, void *pkey, char *key, uint32_t keylen, char **data, uint64_t *datalen, btree_metadata_t *meta);
@@ -230,7 +232,6 @@ static void l1cache_replace(void *callback_data, char *key, uint32_t keylen, cha
 btree_raw_t *btree_raw_init(uint32_t flags, uint32_t n_partition, uint32_t n_partitions, uint32_t max_key_size, uint32_t min_keys_per_node, uint32_t nodesize, uint32_t n_l1cache_buckets, create_node_cb_t *create_node_cb, void *create_node_data, read_node_cb_t *read_node_cb, void *read_node_cb_data, write_node_cb_t *write_node_cb, void *write_node_cb_data, freebuf_cb_t *freebuf_cb, void *freebuf_cb_data, delete_node_cb_t *delete_node_cb, void *delete_node_data, log_cb_t *log_cb, void *log_cb_data, msg_cb_t *msg_cb, void *msg_cb_data, cmp_cb_t *cmp_cb, void * cmp_cb_data)
 {
     btree_raw_t      *bt;
-    btree_raw_node_t *root_node;
     uint32_t          nbytes_meta;
     int               ret = 0;
 
@@ -258,7 +259,7 @@ btree_raw_t *btree_raw_init(uint32_t flags, uint32_t n_partition, uint32_t n_par
     bt->nodesize_less_hdr    = nodesize - sizeof(btree_raw_node_t);
     // bt->big_object_size      = (nodesize - sizeof(btree_raw_node_t))/2; // xxxzzz check this
     bt->big_object_size      = (nodesize - sizeof(btree_raw_node_t))/4 - sizeof(node_vlkey_t); // xxxzzz check this
-    bt->logical_id_counter   = 123 + n_partition; // xxxzzz check this
+    bt->logical_id_counter   = 1;
     bt->create_node_cb       = create_node_cb;
     bt->create_node_cb_data  = create_node_data;
     bt->read_node_cb         = read_node_cb;
@@ -306,13 +307,26 @@ btree_raw_t *btree_raw_init(uint32_t flags, uint32_t n_partition, uint32_t n_par
 	return(NULL);
     }
 
-    root_node = get_new_node(&ret, bt, LEAF_NODE);
-    if (ret) {
-	bt_err("Could not allocate root node!");
-        free(bt);
-	return(NULL);
+    if (flags & RELOAD) {
+        if (! loadpersistent( bt)) {
+            bt_err( "Could not identify root node!");
+            free( bt);
+            return (NULL);
+        }
     }
-    bt->rootid = root_node->logical_id;
+    else {
+        btree_raw_node_t *root_node = get_new_node( &ret, bt, LEAF_NODE);
+        if (ret) {
+            bt_err( "Could not allocate root node!");
+            free( bt);
+            return (NULL);
+        }
+        bt->rootid = root_node->logical_id;
+        if (! savepersistent( bt)) {
+            free( bt);
+            return (NULL);
+        }
+    }
     if (deref_l1cache(bt)) {
         ret = 1;
     }
@@ -326,6 +340,50 @@ btree_raw_t *btree_raw_init(uint32_t flags, uint32_t n_partition, uint32_t n_par
     plat_rwlock_init(&bt->lock);
 
     return(bt);
+}
+
+/*
+ * save persistent btree metadata
+ *
+ * Info is stored as a btree node with special logical ID.  Return 1 on
+ * success, otherwise 0.
+ */
+static int
+savepersistent( btree_raw_t *bt)
+{
+	int	ret;
+	char	buf[bt->nodesize];
+
+	btree_raw_persist_t *r = (void *) buf;
+	r->logical_id_counter = bt->logical_id_counter;
+    	r->rootid = bt->rootid;
+	(*bt->write_node_cb)( &ret, bt->write_node_cb_data, META_LOGICAL_ID+bt->n_partition, buf, sizeof buf);
+	if (ret) {
+		bt_err( "Could not persist btree!");
+		return (0);
+	}
+	return (1);
+}
+
+/*
+ * load persistent btree metadata
+ *
+ * Info is stored as a btree node with special logical ID.  Return 1 on
+ * success, otherwise 0.
+ */
+static int
+loadpersistent( btree_raw_t *bt)
+{
+	int	ret;
+
+	btree_raw_node_t *n = (*bt->read_node_cb)( &ret, bt->read_node_cb_data, META_LOGICAL_ID+bt->n_partition);
+	if (ret)
+		return (0);
+	btree_raw_persist_t *r = (void *) n;
+	bt->logical_id_counter = r->logical_id_counter;
+    	bt->rootid = r->rootid;
+	free( n);
+	return (1);
 }
 
 int btree_raw_free_buffer(btree_raw_t *btree, char *buf)
@@ -1078,8 +1136,11 @@ static btree_raw_node_t *get_new_node(int *ret, btree_raw_t *btree, uint32_t lea
 	    n->logical_id = logical_id;
 	}
     } else {
-	logical_id = btree->logical_id_counter;
-	btree->logical_id_counter += btree->n_partitions;
+        logical_id = btree->logical_id_counter++*btree->n_partitions + btree->n_partition;
+        if (! savepersistent( btree)) {
+            *ret = 1;
+            return (NULL);
+        }
 	// n = btree->create_node_cb(ret, btree->create_node_cb_data, logical_id);
 	//  Just malloc the node here.  It will be written
 	//  out at the end of the request by deref_l1cache().
@@ -1858,6 +1919,8 @@ retry:
 	    if (!ret) {
 		s->rightmost  = btree->rootid;
 		btree->rootid = s->logical_id;
+                if (! savepersistent( btree))
+			assert( 0);
 	    }
 	    btree_split_child(&ret, btree, s, r, meta->seqno, meta, syndrome);
 	    btree_write_nonfull(&ret, btree, s, key, keylen, meta->seqno, datalen, data, meta, syndrome, write_type);
@@ -2215,6 +2278,8 @@ static void collapse_root(int *ret, btree_raw_t *btree, btree_raw_node_t *old_ro
 	assert(old_root_node->nkeys == 0);
 	assert(old_root_node->rightmost != BAD_CHILD);
 	btree->rootid = old_root_node->rightmost;
+        if (! savepersistent( btree))
+                assert( 0);
 	free_node(ret, btree, old_root_node);
     }
     return;
