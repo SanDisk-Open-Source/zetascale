@@ -44,6 +44,21 @@ typedef struct node_flkey {
 
 typedef void *node_key_t;
 
+typedef struct key_stuff {
+    int       fixed;
+    int       leaf;
+    uint64_t  ptr;
+    uint32_t  nkey;
+    uint32_t  offset;
+    void     *pkey_struct;
+    char     *pkey_val;
+    uint32_t  keylen;
+    uint64_t  datalen;
+    uint32_t  fkeys_per_node;
+    uint64_t  seqno;
+    uint64_t  syndrome;
+} key_stuff_t;
+
 typedef struct btree_raw_node {
     uint32_t      flags;
     uint64_t      logical_id;
@@ -101,5 +116,11 @@ typedef struct btree_raw_persist {
     uint64_t    rootid,
                 logical_id_counter;
 } btree_raw_persist_t;
+
+int get_key_stuff(btree_raw_t *bt, btree_raw_node_t *n, uint32_t nkey, key_stuff_t *pks);
+btree_status_t get_leaf_data(btree_raw_t *bt, btree_raw_node_t *n, void *pkey, char **data, uint64_t *datalen, uint32_t meta_flags);
+btree_status_t get_leaf_key(btree_raw_t *bt, btree_raw_node_t *n, void *pkey, char **key, uint32_t *keylen, uint32_t meta_flags);
+btree_raw_node_t *get_existing_node(int *ret, btree_raw_t *btree, uint64_t logical_id);
+int is_leaf(btree_raw_t *btree, btree_raw_node_t *node);
 
 #endif // __BTREE_RAW_INTERNAL_H

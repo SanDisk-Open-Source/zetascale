@@ -24,11 +24,13 @@
 #ifndef __BTREE_RAW_H
 #define __BTREE_RAW_H
 
-typedef enum btree_ret_vals {
-    BTREE_SUCCESS = 0,
-    BTREE_BUFFER_TOO_SMALL,
-    BTREE_FAIL
-} btree_ret_vals_t;
+typedef enum btree_status {
+	BTREE_SUCCESS = 0,       /* Fine & Dandy */
+	BTREE_FAILURE = 1,       /* Generic failure */
+	BTREE_BUFFER_TOO_SMALL,  /* Give me more */
+	BTREE_QUERY_DONE,        /* No more queries please */
+	BTREE_INVALID_QUERY      /* Correct questions please */
+} btree_status_t;
 
 typedef enum node_flags {
     LEAF_NODE     = 1,

@@ -88,21 +88,6 @@ static int Verbose = 0;
 #define bt_err(msg, args...) \
     (bt->msg_cb)(0, 0, __FILE__, __LINE__, msg, ##args)
 
-typedef struct key_stuff {
-    int       fixed;
-    int       leaf;
-    uint64_t  ptr;
-    uint32_t  nkey;
-    uint32_t  offset;
-    void     *pkey_struct;
-    char     *pkey_val;
-    uint32_t  keylen;
-    uint64_t  datalen;
-    uint32_t  fkeys_per_node;
-    uint64_t  seqno;
-    uint64_t  syndrome;
-} key_stuff_t;
-
 #define zmemcpy(to_in, from_in, n_in)  \
 {\
     uint64_t zi;\
@@ -140,13 +125,11 @@ static int savepersistent( btree_raw_t *);
 static int loadpersistent( btree_raw_t *);
 static char *get_buffer(btree_raw_t *btree, uint64_t nbytes);
 static void free_buffer(btree_raw_t *btree, char *buf);
-static int get_leaf_data(btree_raw_t *bt, btree_raw_node_t *n, void *pkey, char *key, uint32_t keylen, char **data, uint64_t *datalen, btree_metadata_t *meta);
 static uint64_t allocate_overflow_data(btree_raw_t *bt, uint64_t datalen, char *data, btree_metadata_t *meta);
 static void delete_overflow_data(int *ret, btree_raw_t *bt, uint64_t ptr, uint64_t datalen, btree_metadata_t *meta);
 static void free_node(int *ret, btree_raw_t *btree, btree_raw_node_t *n);
 
 static btree_raw_node_t *get_new_node(int *ret, btree_raw_t *btree, uint32_t leaf_flags);
-static btree_raw_node_t *get_existing_node(int *ret, btree_raw_t *btree, uint64_t logical_id);
 
 static int init_l1cache(btree_raw_t *btree, uint32_t n_l1cache_buckets);
 static int deref_l1cache(btree_raw_t *btree);
@@ -354,6 +337,10 @@ savepersistent( btree_raw_t *bt)
 	int	ret;
 	char	buf[bt->nodesize];
 
+	if (bt->flags & IN_MEMORY) {
+		return (1);
+	}
+
 	btree_raw_persist_t *r = (void *) buf;
 	r->logical_id_counter = bt->logical_id_counter;
     	r->rootid = bt->rootid;
@@ -394,7 +381,7 @@ int btree_raw_free_buffer(btree_raw_t *btree, char *buf)
 
 //======================   GET  =========================================
 
-static int is_leaf(btree_raw_t *btree, btree_raw_node_t *node)
+int is_leaf(btree_raw_t *btree, btree_raw_node_t *node)
 {
     if (node->flags & LEAF_NODE) {
         return(1);
@@ -403,7 +390,7 @@ static int is_leaf(btree_raw_t *btree, btree_raw_node_t *node)
     }
 }
 
-static int get_key_stuff(btree_raw_t *bt, btree_raw_node_t *n, uint32_t nkey, key_stuff_t *pks)
+int get_key_stuff(btree_raw_t *bt, btree_raw_node_t *n, uint32_t nkey, key_stuff_t *pks)
 {
     node_vkey_t   *pvk;
     node_vlkey_t  *pvlk;
@@ -681,7 +668,7 @@ static void free_buffer(btree_raw_t *btree, char *buf)
     }
 }
 
-static int get_leaf_data(btree_raw_t *bt, btree_raw_node_t *n, void *pkey, char *key, uint32_t keylen, char **data, uint64_t *datalen, btree_metadata_t *meta)
+btree_status_t get_leaf_data(btree_raw_t *bt, btree_raw_node_t *n, void *pkey, char **data, uint64_t *datalen, uint32_t meta_flags)
 {
     node_vlkey_t       *pvlk;
     btree_raw_node_t   *z;
@@ -695,10 +682,10 @@ static int get_leaf_data(btree_raw_t *bt, btree_raw_node_t *n, void *pkey, char 
 
     pvlk = (node_vlkey_t *) pkey;
 
-    if (meta->flags & BUFFER_PROVIDED) {
+    if (meta_flags & BUFFER_PROVIDED) {
         if (*datalen < pvlk->datalen) {
 	    ret = BTREE_BUFFER_TOO_SMALL;
-	    if (meta->flags & ALLOC_IF_TOO_SMALL) {
+	    if (meta_flags & ALLOC_IF_TOO_SMALL) {
 		buf = get_buffer(bt, pvlk->datalen);
 		if (buf == NULL) {
 		    bt_err("Failed to allocate a buffer of size %lld in get_leaf_data!", pvlk->datalen);
@@ -763,6 +750,48 @@ static int get_leaf_data(btree_raw_t *bt, btree_raw_node_t *n, void *pkey, char 
     *datalen = pvlk->datalen;
     *data    = buf;
     return(ret);
+}
+
+btree_status_t 
+get_leaf_key(btree_raw_t *bt, btree_raw_node_t *n, void *pkey, char **key, 
+             uint32_t *keylen, uint32_t meta_flags)
+{
+	node_vlkey_t       *pvlk;
+	btree_status_t     ret = BTREE_SUCCESS;
+	char               *buf;
+
+	pvlk = (node_vlkey_t *) pkey;
+
+	if (meta_flags & BUFFER_PROVIDED) {
+		if (*keylen < pvlk->keylen) {
+			ret = BTREE_BUFFER_TOO_SMALL;
+			if (!(meta_flags & ALLOC_IF_TOO_SMALL)) {
+				return ret;
+			}
+
+			buf = get_buffer(bt, pvlk->keylen);
+			if (buf == NULL) {
+				bt_err("Failed to allocate a buffer of size %lld "
+				       "in get_leaf_key!", pvlk->keylen);
+				return(BTREE_FAILURE);
+			}
+		} else {
+			buf = *key;
+		}
+	} else {
+		buf = get_buffer(bt, pvlk->keylen);
+		if (buf == NULL) {
+			bt_err("Failed to allocate a buffer of size %lld "
+			       "in get_leaf_key!", pvlk->keylen);
+			return(BTREE_FAILURE);
+		}
+	}
+
+	memcpy(buf, (char *) n + pvlk->keypos, pvlk->keylen);
+	*keylen = pvlk->keylen;
+	*key    = buf;
+
+	return(ret);
 }
 
 static uint64_t allocate_overflow_data(btree_raw_t *bt, uint64_t datalen, char *data, btree_metadata_t *meta)
@@ -898,7 +927,7 @@ int btree_raw_get(struct btree_raw *btree, char *key, uint32_t keylen, char **da
 
         if (keyrec) {
 	    if (is_leaf(btree, n)) {
-		ret = get_leaf_data(btree, n, keyrec, key, keylen, data, datalen, meta);
+		ret = get_leaf_data(btree, n, keyrec, data, datalen, meta->flags);
 		if (ret) {
 		    assert(0);
 		}
@@ -1086,7 +1115,7 @@ static void modify_l1cache_node(btree_raw_t *btree, btree_raw_node_t *n)
     (void) MapSet(btree->l1cache_mods, (char *) &(n->logical_id), sizeof(uint64_t), (char *) n, btree->nodesize, &old_data, &old_datalen);
 }
 
-static btree_raw_node_t *get_existing_node(int *ret, btree_raw_t *btree, uint64_t logical_id)
+btree_raw_node_t *get_existing_node(int *ret, btree_raw_t *btree, uint64_t logical_id)
 {
     btree_raw_node_t  *n;
 
