@@ -21,12 +21,12 @@ FDF_status_t fdf_init_thread()
 
 FDF_status_t fdf_transaction_start()
 {
-    return FDFMiniTransactionStart(_fdf_thd_state);
+    return FDFTransactionStart(_fdf_thd_state);
 }
 
 FDF_status_t fdf_transaction_commit()
 {
-    return FDFMiniTransactionCommit(_fdf_thd_state);
+    return FDFTransactionCommit(_fdf_thd_state);
 }
 
 FDF_status_t fdf_create_container (
