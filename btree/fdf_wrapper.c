@@ -74,7 +74,7 @@ static void                   txn_cmd_cb(int *ret_out, void *cb_data, int cmd_ty
 // #define DEFAULT_N_L1CACHE_BUCKETS 1000
 // #define DEFAULT_N_L1CACHE_BUCKETS 1000
 // #define DEFAULT_N_L1CACHE_BUCKETS 9600
-#define DEFAULT_N_L1CACHE_BUCKETS 1800
+#define DEFAULT_N_L1CACHE_BUCKETS 180000
 #define DEFAULT_MIN_KEYS_PER_NODE 4
 
     // Counts of number of times callbacks are invoked:
@@ -137,7 +137,7 @@ static int bt_get_ctnr_from_cname(
 }
 #endif
 
-static void dump_btree_stats(FILE *f, FDF_cguid_t cguid);
+//static void dump_btree_stats(FILE *f, FDF_cguid_t cguid);
 
 //  xxxzzz end of temporary stuff!
 
@@ -339,11 +339,11 @@ FDF_status_t _FDFOpenContainer(
     cmp_cb_data         = (void *) prn;
     txn_cmd_cb_data     = (void *) prn;
 
-    flags = SYNDROME_INDEX;
+    //flags = SYNDROME_INDEX;
+    // flags |= IN_MEMORY; // use in-memory b-tree for this test
+    flags = SECONDARY_INDEX;
     if ((flags_in&FDF_CTNR_CREATE) == 0)
         flags |= RELOAD;
-    // flags = SECONDARY_INDEX;
-    // flags |= IN_MEMORY; // use in-memory b-tree for this test
 
     n_partitions        = DEFAULT_N_PARTITIONS;
     max_key_size        = DEFAULT_MAX_KEY_SIZE;
@@ -535,9 +535,11 @@ FDF_status_t _FDFReadObject(
     {
         // xxxzzz this is temporary!
 	__sync_fetch_and_add(&(n_reads), 1);
+#if 0
 	if ((n_reads % 50000) == 0) {
 	    dump_btree_stats(stderr, cguid);
 	}
+#endif
     }
 
     my_thd_state = fdf_thread_state;;
@@ -1200,7 +1202,7 @@ static void msg_cb(int level, void *msg_data, char *filename, int lineno, char *
     }
 }
 
-
+#if 0
 static void dump_btree_stats(FILE *f, FDF_cguid_t cguid)
 {
     int               i;
@@ -1220,4 +1222,4 @@ static void dump_btree_stats(FILE *f, FDF_cguid_t cguid)
     btree_get_stats(bt, &bt_stats);
     btree_dump_stats(f, &bt_stats);
 }
-
+#endif

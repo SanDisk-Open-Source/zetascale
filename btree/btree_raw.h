@@ -101,6 +101,7 @@ typedef struct btree_metadata {
     item(BTSTAT_UPDATE_CNT, /* default */) \
     item(BTSTAT_UPDATE_PATH, /* default */) \
     item(BTSTAT_DELETE_CNT, /* default */) \
+    item(BTSTAT_DELETE_OPT_CNT, /* default */) \
     item(BTSTAT_DELETE_PATH, /* default */) 
 
 typedef enum {

@@ -28,6 +28,7 @@ extern struct MapEntry *MapUpdate(struct Map *pm, char *pkey, uint32_t keylen, c
 extern struct MapEntry *MapSet(struct Map *pm, char *pkey, uint32_t keylen, char *pdata, uint64_t datalen, char **old_pdata, uint64_t *old_datalen);
 extern struct MapEntry *MapGet(struct Map *pc, char *key, uint32_t keylen, char** data, uint64_t *pdatalen);
 extern int MapIncrRefcnt(struct Map *pm, char *key, uint32_t keylen);
+extern int MapGetRefcnt(struct Map *pm, char *key, uint32_t keylen);
 extern void MapCheckRefcnts(struct Map *pm);
 extern int MapRelease(struct Map *pm, char *key, uint32_t keylen);
 extern int MapReleaseEntry(struct Map *pm, struct MapEntry *pme);

@@ -38,6 +38,11 @@ plat_rwlock_init(plat_rwlock_t *rwlock) {
 }
 
 int
+plat_rwlock_destroy(plat_rwlock_t *rwlock) {
+    return (pthread_rwlock_destroy(rwlock));
+}
+
+int
 plat_rwlock_rdlock(plat_rwlock_t *rwlock) {
     return (pthread_rwlock_rdlock(rwlock));
 }

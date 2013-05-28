@@ -266,14 +266,18 @@ btree_get_next_range(btree_t              *btree,
 	bt = btree->partitions[n_partition];
 	*n_out = 0;
 
+	plat_rwlock_rdlock(&bt->lock);
+
 	n = get_existing_node(&ret, bt, bt->rootid);
 	if (n == NULL) {
+		plat_rwlock_unlock(&bt->lock);
 		return BTREE_FAILURE;
 	}
 
 	/* Stack to hold all the node keys */
 	master_list = blist_init();
 	if (master_list == NULL) {
+		plat_rwlock_unlock(&bt->lock);
 		return BTREE_FAILURE;
 	}
 
@@ -296,6 +300,7 @@ btree_get_next_range(btree_t              *btree,
 	key_list = blist_init();
 	if (key_list == NULL) {
 		blist_end(master_list);
+		plat_rwlock_unlock(&bt->lock);
 		return BTREE_FAILURE;
 	}
 
@@ -303,6 +308,7 @@ btree_get_next_range(btree_t              *btree,
 	if ((key_count == 0) || (*n_out == n_in)) {
 		blist_end(key_list);
 		blist_end(master_list);
+		plat_rwlock_unlock(&bt->lock);
 		return BTREE_QUERY_DONE;
 	}
 
@@ -321,6 +327,9 @@ btree_get_next_range(btree_t              *btree,
 	                               (void **)&keyrec,
 	                               (void **)&right) != NULL) {
 		if (is_leaf(bt, n)) {
+
+			//plat_rwlock_rdlock(leaf_lock);
+
 			/* Populate the output value with key, value, status 
 			 * syndrome information */
 			values[*n_out].status = BTREE_SUCCESS;
@@ -345,7 +354,7 @@ btree_get_next_range(btree_t              *btree,
 				status = get_leaf_data(bt, n, (void *)keyrec, 
 				                    &values[*n_out].data,
 				                    &values[*n_out].datalen,
-				                    meta_flags);
+				                    meta_flags, 1);
 
 				if (status != BTREE_SUCCESS) {
 					overall_status = BTREE_FAILURE;
@@ -356,9 +365,11 @@ btree_get_next_range(btree_t              *btree,
 				}
 			}
 
-    			pvlk = (node_vlkey_t *) keyrec;
+			pvlk = (node_vlkey_t *) keyrec;
 			values[*n_out].seqno    = pvlk->seqno; 
 			values[*n_out].syndrome = pvlk->syndrome; 
+
+			//plat_rwlock_unlock(leaf_lock);
 
 			(*n_out)++;
 
@@ -377,6 +388,7 @@ btree_get_next_range(btree_t              *btree,
 			}
 
 			n = get_existing_node(&ret, bt, ptr);
+			//n = get_existing_node_low(&ret, bt, ptr, leaf_lock, 1);
 			if (ret) {
 				assert(0);
 				break;
@@ -385,6 +397,7 @@ btree_get_next_range(btree_t              *btree,
 			key_list = blist_init();
 			if (key_list == NULL) {
 				blist_end(master_list);
+				plat_rwlock_unlock(&bt->lock);
 				return BTREE_FAILURE;
 			}
 			key_count = find_key_range(bt, n, &rmeta, key_list);
@@ -393,6 +406,8 @@ btree_get_next_range(btree_t              *btree,
 		}
 		pathcnt++;
 	}
+
+	plat_rwlock_unlock(&bt->lock);
 
 	blist_end(master_list);
 

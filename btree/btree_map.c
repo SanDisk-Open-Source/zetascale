@@ -33,7 +33,7 @@
 // #define LISTCHECK
 
 //  Define this to turn on debug messages
-// #define SANDISK_PRINTSTUFF
+//#define SANDISK_PRINTSTUFF
 
 static void _map_assert(int x) {
     if (x) {
@@ -403,6 +403,7 @@ struct MapEntry *MapGet(struct Map *pm, char *key, uint32_t keylen, char **pdata
     if (pme != NULL) {
         data    = pme->contents;
 	datalen = pme->datalen;
+	assert(pme->refcnt < 10000);
 	(pme->refcnt)++;
 
 	// update the LRU list if necessary
@@ -446,6 +447,23 @@ struct MapEntry *MapGet(struct Map *pm, char *key, uint32_t keylen, char **pdata
     return(pme);
 }
 
+//  Increment the reference count for this entry
+//  rc=1 if entry is found, rc=0 otherwise
+int MapGetRefcnt(struct Map *pm, char *key, uint32_t keylen)
+{
+    MapEntry_t   *pme;
+    int res;
+
+    do_lock(&(pm->mutex));
+
+    pme = find_pme(pm, key, keylen, NULL);
+
+    assert(pme);
+    res = (pme->refcnt);
+
+    do_unlock(&(pm->mutex));
+    return(res);
+}
 //  Increment the reference count for this entry
 //  rc=1 if entry is found, rc=0 otherwise
 int MapIncrRefcnt(struct Map *pm, char *key, uint32_t keylen)
@@ -498,8 +516,8 @@ int MapRelease(struct Map *pm, char *key, uint32_t keylen)
 	#ifdef SANDISK_PRINTSTUFF
 	    fprintf(stderr, ", after release refcnt=%d\n", pme->refcnt - 1);
 	#endif
-        // (pme->refcnt)--; xxxzzz check this!
-        pme->refcnt = 0;
+        (pme->refcnt)--; //xxxzzz check this!
+        //pme->refcnt = 0;
 	rc = 1;
     } else {
 	#ifdef SANDISK_PRINTSTUFF
@@ -823,7 +841,7 @@ static MapEntry_t *find_pme(struct Map *pm, char *pkey, uint32_t keylen, MapBuck
 {
     uint64_t           h;
     MapBucket_t  *pb;
-    MapEntry_t   *pme;
+    MapEntry_t   *pme = NULL;
     char              *key2;
     key2 = (char *) *((uint64_t *) pkey);
 

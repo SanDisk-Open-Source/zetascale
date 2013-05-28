@@ -811,7 +811,7 @@ static FDFTLMapEntry_t *find_pme(struct FDFTLMap *pm, char *pkey, uint32_t keyle
 {
     uint64_t           h;
     FDFTLMapBucket_t  *pb;
-    FDFTLMapEntry_t   *pme;
+    FDFTLMapEntry_t   *pme = NULL;
     char              *key2;
     key2 = (char *) *((uint64_t *) pkey);
 

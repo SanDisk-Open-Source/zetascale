@@ -37,7 +37,6 @@ typedef struct btree {
     /* fields unique to btree_t */
     uint32_t           n_partitions;
     struct btree_raw  **partitions;
-    pthread_mutex_t   *partition_locks;
     uint32_t           n_iterators;
     uint32_t           n_free_iterators;
     btree_iterator_t  *free_iterators;

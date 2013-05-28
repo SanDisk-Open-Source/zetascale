@@ -72,6 +72,11 @@ typedef struct btree_raw_node {
     node_key_t    keys[0];
 } btree_raw_node_t;
 
+typedef struct btree_raw_mem_node {
+	plat_rwlock_t lock;
+	btree_raw_node_t* node;
+} btree_raw_mem_node_t;
+
 #define BTREE_RAW_L1CACHE_LIST_MAX 10000
 
 typedef struct btree_raw {
@@ -110,6 +115,7 @@ typedef struct btree_raw {
     btree_stats_t      stats;
 
     plat_rwlock_t      lock;
+    int modify_tree;
 } btree_raw_t;
 
 typedef struct btree_raw_persist {
@@ -118,7 +124,7 @@ typedef struct btree_raw_persist {
 } btree_raw_persist_t;
 
 int get_key_stuff(btree_raw_t *bt, btree_raw_node_t *n, uint32_t nkey, key_stuff_t *pks);
-btree_status_t get_leaf_data(btree_raw_t *bt, btree_raw_node_t *n, void *pkey, char **data, uint64_t *datalen, uint32_t meta_flags);
+btree_status_t get_leaf_data(btree_raw_t *bt, btree_raw_node_t *n, void *pkey, char **data, uint64_t *datalen, uint32_t meta_flags, int ref);
 btree_status_t get_leaf_key(btree_raw_t *bt, btree_raw_node_t *n, void *pkey, char **key, uint32_t *keylen, uint32_t meta_flags);
 btree_raw_node_t *get_existing_node(int *ret, btree_raw_t *btree, uint64_t logical_id);
 int is_leaf(btree_raw_t *btree, btree_raw_node_t *node);

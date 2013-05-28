@@ -125,24 +125,16 @@ btree_t *btree_init(uint32_t n_partitions, uint32_t flags, uint32_t max_key_size
         free(bt);
 	return(NULL);
     }
-    bt->partition_locks = (pthread_mutex_t *) malloc(n_partitions*sizeof(pthread_mutex_t));
-    if (bt->partition_locks  == NULL) {
-	bt_err("Could not allocate btree partition locks");
-        free(bt->partitions);
-        free(bt);
-	return(NULL);
-    }
-    for (i=0; i<n_partitions; i++) {
-        pthread_mutex_init(&(bt->partition_locks[i]), 0);
 
-	bt->partitions[i] = btree_raw_init(flags, i, n_partitions, max_key_size, min_keys_per_node, nodesize, n_l1cache_buckets, create_node_cb, create_node_data, read_node_cb, read_node_cb_data, write_node_cb, write_node_cb_data, freebuf_cb, freebuf_cb_data, delete_node_cb, delete_node_data, log_cb, log_cb_data, msg_cb, msg_cb_data, cmp_cb, cmp_cb_data);
-	if (bt->partitions[i] == NULL) {
-	    bt_err("Failed to allocate a btree partition!");
-	    /* cleanup */
-	    // TODO xxxzzz
-	    return(NULL);
+    for (i=0; i<n_partitions; i++) {
+	   bt->partitions[i] = btree_raw_init(flags, i, n_partitions, max_key_size, min_keys_per_node, nodesize, n_l1cache_buckets, create_node_cb, create_node_data, read_node_cb, read_node_cb_data, write_node_cb, write_node_cb_data, freebuf_cb, freebuf_cb_data, delete_node_cb, delete_node_data, log_cb, log_cb_data, msg_cb, msg_cb_data, cmp_cb, cmp_cb_data);
+	   if (bt->partitions[i] == NULL) {
+		   bt_err("Failed to allocate a btree partition!");
+		   /* cleanup */
+		   // TODO xxxzzz
+		   return(NULL);
+	   }
 	}
-    }
 
     bt->n_iterators      = 0;
     bt->n_free_iterators = 0;
@@ -172,9 +164,7 @@ int btree_get(struct btree *btree, char *key, uint32_t keylen, char **data, uint
     h = hash_key(key, keylen);
     n_partition = h % btree->n_partitions;
 
-    pthread_mutex_lock(&(btree->partition_locks[n_partition]));
     ret = btree_raw_get(btree->partitions[n_partition], key, keylen, data, datalen, meta);
-    pthread_mutex_unlock(&(btree->partition_locks[n_partition]));
 
     return(ret);
 }
@@ -188,10 +178,8 @@ int btree_insert(struct btree *btree, char *key, uint32_t keylen, char *data, ui
     h = hash_key(key, keylen);
     n_partition = h % btree->n_partitions;
 
-    pthread_mutex_lock(&(btree->partition_locks[n_partition]));
     btree->txn_cmd_cb(&ret, btree->txn_cmd_cb_data, 1 /* start */);
     if (ret) {
-	pthread_mutex_unlock(&(btree->partition_locks[n_partition]));
 	return(ret);
     }
     ret = btree_raw_insert(btree->partitions[n_partition], key, keylen, data, datalen, meta);
@@ -200,7 +188,6 @@ int btree_insert(struct btree *btree, char *key, uint32_t keylen, char *data, ui
     } else {
 	btree->txn_cmd_cb(&ret, btree->txn_cmd_cb_data, 2 /* commit */);
     }
-    pthread_mutex_unlock(&(btree->partition_locks[n_partition]));
     return(ret);
 }
 
@@ -214,10 +201,8 @@ int btree_update(struct btree *btree, char *key, uint32_t keylen, char *data, ui
     h = hash_key(key, keylen);
     n_partition = h % btree->n_partitions;
 
-    pthread_mutex_lock(&(btree->partition_locks[n_partition]));
     btree->txn_cmd_cb(&ret, btree->txn_cmd_cb_data, 1 /* start */);
     if (ret) {
-	pthread_mutex_unlock(&(btree->partition_locks[n_partition]));
 	return(ret);
     }
     ret = btree_raw_update(btree->partitions[n_partition], key, keylen, data, datalen, meta);
@@ -226,7 +211,6 @@ int btree_update(struct btree *btree, char *key, uint32_t keylen, char *data, ui
     } else {
 	btree->txn_cmd_cb(&txnret, btree->txn_cmd_cb_data, 2 /* commit */);
     }
-    pthread_mutex_unlock(&(btree->partition_locks[n_partition]));
     if (txnret)
         return(txnret);
     else
@@ -242,10 +226,8 @@ int btree_set(struct btree *btree, char *key, uint32_t keylen, char *data, uint6
     h = hash_key(key, keylen);
     n_partition = h % btree->n_partitions;
 
-    pthread_mutex_lock(&(btree->partition_locks[n_partition]));
     btree->txn_cmd_cb(&ret, btree->txn_cmd_cb_data, 1 /* start */);
     if (ret) {
-	pthread_mutex_unlock(&(btree->partition_locks[n_partition]));
 	return(ret);
     }
     ret = btree_raw_set(btree->partitions[n_partition], key, keylen, data, datalen, meta);
@@ -254,7 +236,6 @@ int btree_set(struct btree *btree, char *key, uint32_t keylen, char *data, uint6
     } else {
 	btree->txn_cmd_cb(&ret, btree->txn_cmd_cb_data, 2 /* commit */);
     }
-    pthread_mutex_unlock(&(btree->partition_locks[n_partition]));
     return(ret);
 }
 
@@ -272,10 +253,8 @@ int btree_delete(struct btree *btree, char *key, uint32_t keylen, btree_metadata
     h = hash_key(key, keylen);
     n_partition = h % btree->n_partitions;
 
-    pthread_mutex_lock(&(btree->partition_locks[n_partition]));
     btree->txn_cmd_cb(&ret, btree->txn_cmd_cb_data, 1 /* start */);
     if (ret) {
-	pthread_mutex_unlock(&(btree->partition_locks[n_partition]));
 	return(ret);
     }
     ret = btree_raw_delete(btree->partitions[n_partition], key, keylen, meta);
@@ -284,7 +263,6 @@ int btree_delete(struct btree *btree, char *key, uint32_t keylen, btree_metadata
     } else {
 	btree->txn_cmd_cb(&ret, btree->txn_cmd_cb_data, 2 /* commit */);
     }
-    pthread_mutex_unlock(&(btree->partition_locks[n_partition]));
     return(ret);
 }
 
@@ -306,9 +284,7 @@ int btree_free_buffer(struct btree *btree, char *key, uint32_t keylen, char *buf
     h = hash_key(key, keylen);
     n_partition = h % btree->n_partitions;
 
-    pthread_mutex_lock(&(btree->partition_locks[n_partition]));
     ret = btree_raw_free_buffer(btree->partitions[n_partition], buf);
-    pthread_mutex_unlock(&(btree->partition_locks[n_partition]));
     return(ret);
 }
 
@@ -358,9 +334,7 @@ void btree_get_stats(struct btree *bt, btree_stats_t *stats_all)
 
     memset(stats_all, 0, sizeof(btree_stats_t));
     for (i=0; i<bt->n_partitions; i++) {
-	pthread_mutex_lock(&(bt->partition_locks[i]));
 	btree_raw_get_stats(bt->partitions[i], &stats);
-	pthread_mutex_unlock(&(bt->partition_locks[i]));
 
 	for (j=0; j<N_BTSTATS; j++) {
 	    stats_all->stat[j] +=  stats.stat[j];
