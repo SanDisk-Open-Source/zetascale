@@ -121,6 +121,8 @@ static int Verbose = 0;
     }\
 }
 
+//static void print_key(FILE *f, char* key, int keylen, char *msg, ...);
+
 static uint64_t get_syndrome(btree_raw_t *bt, char *key, uint32_t keylen);
 static char *dump_key(char *key, uint32_t keylen);
 
@@ -648,9 +650,11 @@ static node_key_t *find_key(btree_raw_t *bt, btree_raw_node_t *n, char *key_in, 
 		get_key_stuff(bt, n, i_check+1, &ks);
 		*child_id_after = ks.ptr;
 	    }
+
             if (n->flags & LEAF_NODE) {
                 *child_id_before = BAD_CHILD;
                 *child_id_after  = BAD_CHILD;
+                *child_id  = BAD_CHILD;
 	    }
 
             if (!key_found) {
@@ -906,14 +910,11 @@ static uint64_t get_syndrome(btree_raw_t *bt, char *key, uint32_t keylen)
     return(syndrome);
 }
 
-/* Caller is responsible for leaf_lock unlock and dereferencing node */
-node_key_t* btree_raw_find(struct btree_raw *btree, char *key, uint32_t keylen, btree_metadata_t *meta, btree_raw_node_t** node, plat_rwlock_t** leaf_lock, int* pathcnt)
+/* Caller is responsible for leaf_lock unlock and node dereferencing */
+node_key_t* btree_raw_find(struct btree_raw *btree, char *key, uint32_t keylen, uint64_t syndrome, btree_metadata_t *meta, btree_raw_node_t** node, plat_rwlock_t** leaf_lock, int* pathcnt)
 {
     int               ret = 0;
     uint64_t          child_id;
-    uint64_t          syndrome;
-
-    syndrome = get_syndrome(btree, key, keylen);
 
     *node = get_existing_node_low(&ret, btree, btree->rootid, leaf_lock, 0);
     assert(*node);
@@ -940,14 +941,12 @@ int btree_raw_get(struct btree_raw *btree, char *key, uint32_t keylen, char **da
     int               ret = 0, pathcnt = 1;
     btree_raw_node_t *node;
     node_key_t       *keyrec;
-    uint64_t          syndrome;
     plat_rwlock_t    *leaf_lock;
-
-    syndrome = get_syndrome(btree, key, keylen);
+    uint64_t          syndrome = get_syndrome(btree, key, keylen);
 
     plat_rwlock_rdlock(&btree->lock);
 
-    keyrec = btree_raw_find(btree, key, keylen, meta, &node, &leaf_lock, &pathcnt);
+    keyrec = btree_raw_find(btree, key, keylen, syndrome, meta, &node, &leaf_lock, &pathcnt);
 
     ret = 2; // object not found;
     if(keyrec) {
@@ -1825,8 +1824,7 @@ static void delete_key(int *ret, btree_raw_t *btree, btree_raw_node_t *node, cha
     pk_delete = bsearch_key(btree, node, key, keylen, &child_id, meta, syndrome);
 
     if (pk_delete == NULL) {
-        // key not found!
-	*ret = 1;
+	*ret = 1; // key not found!
 	return;
     }
 
@@ -2079,10 +2077,8 @@ err_exit:
 static int btree_raw_write(struct btree_raw *btree, char *key, uint32_t keylen, char *data, uint64_t datalen, btree_metadata_t *meta, int write_type)
 {
     int                 ret = 0;
-    uint64_t            syndrome;
     int                 pathcnt = 0;
-
-    syndrome = get_syndrome(btree, key, keylen);
+    uint64_t            syndrome = get_syndrome(btree, key, keylen);
 
     #ifdef notdef
 	if (syndrome == 13133508245666864056ULL) {
@@ -2205,31 +2201,31 @@ static int is_minimal(btree_raw_t *btree, btree_raw_node_t *n, uint32_t l_balanc
 int btree_raw_delete(struct btree_raw *btree, char *key, uint32_t keylen, btree_metadata_t *meta)
 {
     int                   ret=0, pathcnt = 0, opt;
-    uint64_t              syndrome;
     btree_raw_node_t     *node;
     plat_rwlock_t        *leaf_lock;
-    node_vlkey_t           *keyrec;
-
-    syndrome = get_syndrome(btree, key, keylen);
+    node_key_t           *keyrec;
+    uint64_t              syndrome = get_syndrome(btree, key, keylen);
 
     plat_rwlock_rdlock(&btree->lock);
 
-    keyrec = (node_vlkey_t*)btree_raw_find(btree, key, keylen, meta, &node, &leaf_lock, &pathcnt);
+    keyrec = btree_raw_find(btree, key, keylen, syndrome, meta, &node, &leaf_lock, &pathcnt);
 
-    if((opt = keyrec && _keybuf && !is_leaf_minimal_after_delete(btree, node, keyrec)))
-    {
-	delete_key_by_pkrec(&ret, btree, node, (node_key_t*)keyrec, 0);
+    /* Check if delete without restructure is possible */
+    opt = keyrec && _keybuf && !is_leaf_minimal_after_delete(btree, node, (node_vlkey_t*)keyrec);
+
+    if(opt) {
+	delete_key_by_pkrec(&ret, btree, node, keyrec, 0);
 	btree->stats.stat[BTSTAT_DELETE_OPT_CNT]++;
     }
 
     deref_l1cache_node(btree, node);
     plat_rwlock_unlock(leaf_lock);
+
     plat_rwlock_unlock(&btree->lock);
 
     if(!keyrec || ret) return 1; // key not found
 
-    if(opt)
-    {
+    if(opt) {
 #ifdef BTREE_RAW_CHECK
 	btree_raw_check(btree, __FUNCTION__, dump_key(key, keylen));
 #endif
@@ -3571,7 +3567,27 @@ void btree_raw_dump(FILE *f, btree_raw_t *bt)
 #endif
 
 //======================   CHECK   =========================================
+#if 0
+static void print_key(FILE *f, char* key, int keylen, char *msg, ...)
+{
+	int i;
+    char     stmp[1024];
+    char     stmp1[1024];
+    va_list  args;
+return;
+    va_start(args, msg);
 
+    vsprintf(stmp, msg, args);
+
+    va_end(args);
+
+	assert(keylen + 1 < sizeof(stmp1));
+	for(i=0;i<keylen;i++)
+		stmp1[i] = key[i] < 32 ? '^' : key[i];
+	stmp1[i] = 0;
+    (void) fprintf(stderr, "%s key=[%s]\n", stmp, stmp1);
+}
+#endif
 static void check_err(FILE *f, char *msg, ...)
 {
     char     stmp[1024];
