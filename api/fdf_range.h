@@ -3,42 +3,54 @@
  *    FDF RANGE QUERIES
  *
  *********************************************************/
+#ifndef __FDF_RANGE_H
+#define __FDF_RANGE_H
 
-typedef enum FDF_range_enums_t {
-    BUFFER_PROVIDED      = 1<<0,  // buffers for keys and data provided by application
-    ALLOC_IF_TOO_SMALL   = 1<<1,  // if supplied buffers are too small, FDF will allocate
-    SEQNO_LE             = 1<<2,  // only return objects with seqno <= end_seq
-    SEQNO_GT_LE          = 1<<3,  // only return objects with start_seq < seqno <= end_seq
+#include <unistd.h>
+#include <sys/syscall.h>
+#include <sys/types.h>
+#include <inttypes.h>
+#include "fdf.h"
 
-    START_GT             = 1<<4,  // keys must be >  key_start
-    START_GE             = 1<<5,  // keys must be >= key_start
-    START_LT             = 1<<6,  // keys must be <  key_start
-    START_LE             = 1<<7,  // keys must be <= key_start
+typedef enum {
+	FDF_RANGE_BUFFER_PROVIDED      = 1<<0,  // buffers for keys and data provided by application
+	FDF_RANGE_ALLOC_IF_TOO_SMALL   = 1<<1,  // if supplied buffers are too small, FDF will allocate
+	FDF_RANGE_SEQNO_LE             = 1<<5,  // only return objects with seqno <= end_seq
+	FDF_RANGE_SEQNO_GT_LE          = 1<<6,  // only return objects with start_seq < seqno <= end_seq
 
-    END_GT               = 1<<8,  // keys must be >  key_end
-    END_GE               = 1<<9,  // keys must be >= key_end
-    END_LT               = 1<<10, // keys must be <  key_end
-    END_LE               = 1<<11, // keys must be <= key_end
+	FDF_RANGE_START_GT             = 1<<7,  // keys must be >  key_start
+	FDF_RANGE_START_GE             = 1<<8,  // keys must be >= key_start
+	FDF_RANGE_START_LT             = 1<<9,  // keys must be <  key_start
+	FDF_RANGE_START_LE             = 1<<10, // keys must be <= key_start
 
-    KEYS_ONLY            = 1<<12, // only return keys (data is not required)
+	FDF_RANGE_END_GT               = 1<<11, // keys must be >  key_end
+	FDF_RANGE_END_GE               = 1<<12, // keys must be >= key_end
+	FDF_RANGE_END_LT               = 1<<13, // keys must be <  key_end
+	FDF_RANGE_END_LE               = 1<<14, // keys must be <= key_end
 
-    PRIMARY_KEY          = 1<<13, // return primary keys in secondary index query
-};
+	FDF_RANGE_KEYS_ONLY            = 1<<15, // only return keys (data is not required)
+
+	FDF_RANGE_PRIMARY_KEY          = 1<<16, // return primary keys in secondary index query
+	FDF_RANGE_INDEX_USES_DATA      = 1<<17, // Indicates that secondary index key 
+	                                        // is derived from object data
+} FDF_range_enums_t;
 
 typedef struct FDF_range_meta {
-    uint32_t       flags;        // flags controlling type of range query (see above)
-    uint32_t       keybuf_size;  // size of application provided key buffers (if applicable)
-    uint64_t       databuf_size; // size of application provided data buffers (if applicable)
-    char          *key_start;    // start key
-    uint32_t       keylen_start; // length of start key
-    char          *key_end;      // end key
-    uint32_t       keylen_end;   // length of end key
-    uint64_t       start_seq;    // starting sequence number (if applicable)
-    uint64_t       end_seq;      // ending sequence number (if applicable)
+	FDF_range_enums_t flags;         // flags controlling type of range query (see above)
+	uint32_t          keybuf_size;   // size of application provided key buffers (if applicable)
+	uint64_t          databuf_size;  // size of application provided data buffers (if applicable)
+	char              *key_start;    // start key
+	uint32_t          keylen_start;  // length of start key
+	char              *key_end;      // end key
+	uint32_t          keylen_end;    // length of end key
+	uint64_t          start_seq;     // starting sequence number (if applicable)
+	uint64_t          end_seq;       // ending sequence number (if applicable)
 } FDF_range_meta_t;
 
-struct FDF_cursor;       // opaque cursor handle
-uint64_t FDF_indexid_t;  // persistent opaque index handle
+struct           FDF_cursor;       // opaque cursor handle
+typedef uint64_t FDF_indexid_t;    // persistent opaque index handle
+
+#define FDF_RANGE_PRIMARY_INDEX     0
 
 /* Start an index query.
  * 
@@ -50,6 +62,12 @@ FDF_status_t FDFGetRange(struct FDF_thread_state *thrd_state, //  client thread 
                          FDF_indexid_t            indexid,    //  handle for index to use (use PRIMARY_INDEX for primary)
                          struct FDF_cursor      **cursor,     //  returns opaque cursor for this query
                          FDF_range_meta_t        *meta);      //  query attributes (see above)
+
+typedef enum {
+	FDF_RANGE_DATA_SUCCESS      = 1,
+	FDF_KEY_BUFFER_TOO_SMALL    = 2,
+	FDF_DATA_BUFFER_TOO_SMALL   = 4
+} FDF_range_status_t;
 
 typedef struct FDF_range_data {
     FDF_status_t  status;           // status
@@ -109,10 +127,12 @@ FDFGetNextRange(struct FDF_thread_state *thrd_state,  //  client thread FDF cont
  * Returns: FDF_SUCCESS if successful
  *          FDF_UNKNOWN_CURSOR if the cursor is invalid
  */
-FDF_status_t FDFGetRangeFinish(struct FDF_thread_state *thrd_state, 
-                               struct FDF_cursor *cursor);
+FDF_status_t 
+FDFGetRangeFinish(struct FDF_thread_state *thrd_state, 
+                  struct FDF_cursor *cursor);
 
 
+#if 0
 /*********************************************************
  *
  *    SECONDARY INDEXES
@@ -156,12 +176,7 @@ typedef int (FDF_cmp_fn_t)(void     *index_data, //  opaque user data
                            char     *key1,       //  first secondary key
                            uint32_t  keylen1,    //  length of first secondary key
                            char     *key2,       //  second secondary key
-                           uint32_t  keylen1);   //  length of second secondary key
-
-typedef enum FDF_range_enums_t {
-    INDEX_USES_DATA = 1<<0,  //  Indicates that secondary index key 
-                             //  is derived from object data
-};
+                           uint32_t  keylen2);   //  length of second secondary key
 
 typedef struct FDF_index_meta {
     uint32_t        flags;       //  flags (see FDF_range_enums_t)
@@ -273,3 +288,5 @@ FDFGetContainerSnapshots(struct FDF_thread_state *ts, //  client thread FDF cont
                          uint32_t *n_snapshots,       //  returns number of snapshots
                          uint64_t *snap_seqs);        //  returns array of snapshot sequence numbers
 
+#endif /* If 0 */
+#endif

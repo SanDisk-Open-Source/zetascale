@@ -162,11 +162,18 @@ static int find_key_range(btree_raw_t *bt,
 	}
 
 	if (!is_leaf(bt, n)) {
+		int push_last_node = 1;
+
 		/* For non-leaf nodes, the non-matched one need to be pushed 
 		 * as well except the cases where, it matches the end condition
 		 * of previous check exactly */
-		if ((bt->cmp_cb(bt->cmp_cb_data, upper, upper_len,
-		                ks.pkey_val, ks.keylen) != 0)) {
+		if ((x == 0) &&
+		    (bt->cmp_cb(bt->cmp_cb_data, upper, upper_len,
+		                ks.pkey_val, ks.keylen) == 0)) {
+			push_last_node = 0;
+		}
+			
+		if (push_last_node) {
 			if (i_cur == n->nkeys) {
 				PUSH_DATA_TO_LIST(key_list, rmeta, n, NULL, n->rightmost)
 			} else {
@@ -235,8 +242,7 @@ btree_start_range_query(btree_t                 *btree,
 }
 
 btree_status_t
-btree_get_next_range(btree_t              *btree,
-                     btree_range_cursor_t *cursor,
+btree_get_next_range(btree_range_cursor_t *cursor,
                      int                   n_in,
                      int                  *n_out,
                      btree_range_data_t   *values)
@@ -252,18 +258,20 @@ btree_get_next_range(btree_t              *btree,
 	uint32_t          meta_flags;
 	btree_status_t    overall_status;
 	btree_status_t    status;
-	int               ret;
+	int               ret = 0;
 	int               key_count;
 	node_key_t        *keyrec = NULL;
 	node_vlkey_t      *pvlk;
 	uint64_t          right;
+	int               key_index;
 
+	/* TODO: Handle non-debug failures */
 	assert(cursor != NULL);
-	assert(cursor->btree == btree);
+	assert(cursor->btree != NULL);
 
 	/* TODO: Take the lock and also clean this up */
 	int n_partition = 0;
-	bt = btree->partitions[n_partition];
+	bt = cursor->btree->partitions[n_partition];
 	*n_out = 0;
 
 	plat_rwlock_rdlock(&bt->lock);
@@ -292,7 +300,13 @@ btree_get_next_range(btree_t              *btree,
 		rmeta.key_start = cursor->last_key;
 		rmeta.keylen_start = cursor->last_keylen;
 
-		rmeta.flags = (IS_ASCENDING_QUERY(&rmeta)) ? RANGE_START_GT: RANGE_START_LT;
+		rmeta.flags &= ~(RANGE_START_GT | RANGE_START_GE | 
+		                 RANGE_START_LE | RANGE_START_LT);
+		if (IS_ASCENDING_QUERY(cursor->query_meta)) { 
+			rmeta.flags |= RANGE_START_GT;
+		} else {
+			rmeta.flags |= RANGE_START_LT;
+		}
 	}
 
 	/* Find all the key range provided in the meta into the stack.
@@ -321,6 +335,8 @@ btree_get_next_range(btree_t              *btree,
 	meta_flags = rmeta.flags & (RANGE_BUFFER_PROVIDED | RANGE_ALLOC_IF_TOO_SMALL);
 	overall_status = BTREE_SUCCESS;
 
+	key_index = -1;
+
 	/* Need to remove elements from head, to maintain order */
 	while (blist_pop_node_from_head(master_list, 
 	                               (void **)&n,
@@ -332,7 +348,7 @@ btree_get_next_range(btree_t              *btree,
 
 			/* Populate the output value with key, value, status 
 			 * syndrome information */
-			values[*n_out].status = BTREE_SUCCESS;
+			values[*n_out].status = BTREE_RANGE_SUCCESS;
 
 			status = get_leaf_key(bt, n, (void *)keyrec, 
 			                      &values[*n_out].key,
@@ -346,8 +362,7 @@ btree_get_next_range(btree_t              *btree,
 				   (status == BTREE_BUFFER_TOO_SMALL) ?
 				      BTREE_KEY_BUFFER_TOO_SMALL: BTREE_FAILURE;
 			} else {
-				cursor->last_key    = values[*n_out].key;
-				cursor->last_keylen = values[*n_out].keylen;
+				key_index = *n_out;
 			}
 
 			if (!(rmeta.flags & RANGE_KEYS_ONLY)) {
@@ -361,7 +376,7 @@ btree_get_next_range(btree_t              *btree,
 
 					values[*n_out].status |= 
 					   (status == BTREE_BUFFER_TOO_SMALL) ?
-					      BTREE_KEY_BUFFER_TOO_SMALL: BTREE_FAILURE;
+					      BTREE_DATA_BUFFER_TOO_SMALL: BTREE_FAILURE;
 				}
 			}
 
@@ -411,6 +426,18 @@ btree_get_next_range(btree_t              *btree,
 
 	blist_end(master_list);
 
+	if (key_index != -1) {
+		if (cursor->last_key) {
+			free(cursor->last_key);
+		}
+		cursor->last_key  = (char *)malloc(values[key_index].keylen);
+		assert(cursor->last_key);
+
+		memcpy(cursor->last_key, values[key_index].key, 
+		       values[key_index].keylen);
+		cursor->last_keylen = values[key_index].keylen;
+	}
+
 	/* TODO: Do we need to deref the L1 cache */
 	/* if (deref_l1cache(bt)) {
 		ret = 1;
@@ -423,10 +450,15 @@ btree_get_next_range(btree_t              *btree,
 }
 
 btree_status_t
-btree_end_range_query(btree_t                   *btree,
-                      btree_range_cursor_t      *cursor)
+btree_end_range_query(btree_range_cursor_t *cursor)
 {
-	assert(cursor->btree == btree);
+	assert(cursor != NULL);
+	assert(cursor->btree != NULL);
+
+	if (cursor->last_key) {
+		free(cursor->last_key);
+	}
+
 	free(cursor);
 
 	return (BTREE_SUCCESS);

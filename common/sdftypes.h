@@ -371,7 +371,8 @@ typedef struct {
     item(SDF_CONTAINER_OPEN,/* default */) \
     item(SDF_FAILURE_INVALID_CONTAINER_SIZE, /* default */) \
     item(SDF_FAILURE_INVALID_CONTAINER_STATE, /* default */) \
-    item(SDF_FAILURE_CONTAINER_DELETED, /* default */)
+    item(SDF_FAILURE_CONTAINER_DELETED, /* default */) \
+    item(SDF_QUERY_DONE, /* Completion of the FDF Range Query */)
 
 typedef enum {
 #define item(caps, value) \

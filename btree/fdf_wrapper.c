@@ -22,6 +22,8 @@
 #include "fdf.h"
 #include "btree.h"
 #include "selftest.h"
+#include "fdf_range.h"
+#include "btree_range.h"
 
 #define MAX_NODE_SIZE   128*1024
 static char Create_Data[MAX_NODE_SIZE];
@@ -74,7 +76,7 @@ static void                   txn_cmd_cb(int *ret_out, void *cb_data, int cmd_ty
 // #define DEFAULT_N_L1CACHE_BUCKETS 1000
 // #define DEFAULT_N_L1CACHE_BUCKETS 1000
 // #define DEFAULT_N_L1CACHE_BUCKETS 9600
-#define DEFAULT_N_L1CACHE_BUCKETS 180000
+#define DEFAULT_N_L1CACHE_BUCKETS 18000
 #define DEFAULT_MIN_KEYS_PER_NODE 4
 
     // Counts of number of times callbacks are invoked:
@@ -118,6 +120,19 @@ static int bt_get_ctnr_from_cguid(
 
     return i_ctnr;
 }
+
+static btree_t *bt_get_btree_from_cguid(FDF_cguid_t cguid)
+{
+	int i;
+
+	i = bt_get_ctnr_from_cguid(cguid);
+	if (i >= N_Open_Containers) {
+		return(NULL); // xxxzzz fix this!
+	}
+
+	return (Container_Map[i].btree);
+}
+
 #if 0
 static int bt_get_ctnr_from_cname( 
      char *cname
@@ -137,7 +152,7 @@ static int bt_get_ctnr_from_cname(
 }
 #endif
 
-//static void dump_btree_stats(FILE *f, FDF_cguid_t cguid);
+static void dump_btree_stats(FILE *f, FDF_cguid_t cguid);
 
 //  xxxzzz end of temporary stuff!
 
@@ -527,7 +542,6 @@ FDF_status_t _FDFReadObject(
 	uint64_t                 *datalen
 	)
 {
-    int               i;
     FDF_status_t      ret = FDF_SUCCESS;
     btree_metadata_t  meta;
     struct btree     *bt;
@@ -535,24 +549,17 @@ FDF_status_t _FDFReadObject(
     {
         // xxxzzz this is temporary!
 	__sync_fetch_and_add(&(n_reads), 1);
-#if 0
 	if ((n_reads % 50000) == 0) {
 	    dump_btree_stats(stderr, cguid);
 	}
-#endif
     }
 
     my_thd_state = fdf_thread_state;;
 
-    for (i=0; i<N_Open_Containers; i++) {
-	if (Container_Map[i].cguid == cguid) {
-	    break;
-	}
+    bt = bt_get_btree_from_cguid(cguid);
+    if (bt == NULL) {
+        return (FDF_FAILURE);
     }
-    if (i >= N_Open_Containers) {
-        return(FDF_FAILURE); // xxxzzz fix this!
-    }
-    bt = Container_Map[i].btree;
 
     meta.flags = 0;
 
@@ -651,22 +658,16 @@ FDF_status_t _FDFWriteObject(
 	uint32_t	     flags
 	)
 {
-    int               i;
     FDF_status_t      ret = FDF_SUCCESS;
     btree_metadata_t  meta;
     struct btree     *bt;
 
     my_thd_state = fdf_thread_state;;
 
-    for (i=0; i<N_Open_Containers; i++) {
-	if (Container_Map[i].cguid == cguid) {
-	    break;
-	}
+    bt = bt_get_btree_from_cguid(cguid);
+    if (bt == NULL) {
+        return (FDF_FAILURE);
     }
-    if (i >= N_Open_Containers) {
-        return(FDF_FAILURE); // xxxzzz fix this!
-    }
-    bt = Container_Map[i].btree;
 
     meta.flags = 0;
 
@@ -1018,6 +1019,94 @@ _FDFGetVersion(char **str)
     return FDFGetVersion(str);
 }
 
+/*
+ * FDFGetRange
+ */
+FDF_status_t 
+_FDFGetRange(struct FDF_thread_state *fdf_thread_state,
+             FDF_cguid_t              cguid, 
+             FDF_indexid_t            indexid,
+             struct FDF_cursor      **cursor,
+             FDF_range_meta_t        *rmeta)
+{
+	FDF_status_t      ret = FDF_SUCCESS;
+	btree_status_t    status;
+	struct btree     *bt;
+
+	my_thd_state = fdf_thread_state;
+
+	bt = bt_get_btree_from_cguid(cguid);
+	if (bt == NULL) {
+		return (FDF_FAILURE);
+	}
+
+	status = btree_start_range_query(bt, 
+	                                (btree_indexid_t) indexid, 
+	                                (btree_range_cursor_t **)cursor,
+	                                (btree_range_meta_t *)rmeta);
+
+	if (status == BTREE_SUCCESS) {
+		ret = FDF_SUCCESS;
+	} else {
+		ret = FDF_FAILURE;
+	}
+
+	return(ret);
+}
+
+FDF_status_t
+_FDFGetNextRange(struct FDF_thread_state *fdf_thread_state,
+                 struct FDF_cursor       *cursor,
+                 int                      n_in,
+                 int                     *n_out,
+                 FDF_range_data_t        *values)
+{
+	FDF_status_t      ret = FDF_SUCCESS;
+	btree_status_t    status;
+
+	my_thd_state = fdf_thread_state;;
+
+	/* TODO: Need to add additional callback to start_range_query
+	 * cursor, which generically maps status of each values to
+	 * whatever the user of btree needs (in this case fdf_wrapper).
+	 * At present, the status numbers are matched, but thats not
+	 * good for maintanability */
+	status = btree_get_next_range((btree_range_cursor_t *)cursor,
+	                              n_in,
+	                              n_out,
+	                              (btree_range_data_t *)values);
+
+	if (status == BTREE_SUCCESS) {
+		ret = FDF_SUCCESS;
+	} else if (status == BTREE_QUERY_DONE) {
+		ret = FDF_QUERY_DONE;
+	} else {
+		ret = FDF_FAILURE;
+	}
+
+	return(ret);
+}
+
+FDF_status_t 
+_FDFGetRangeFinish(struct FDF_thread_state *fdf_thread_state, 
+                   struct FDF_cursor *cursor)
+{
+	FDF_status_t      ret = FDF_SUCCESS;
+	btree_status_t    status;
+
+	my_thd_state = fdf_thread_state;;
+
+	status = btree_end_range_query((btree_range_cursor_t *)cursor);
+	if (status == BTREE_SUCCESS) {
+		ret = FDF_SUCCESS;
+	} else if (status == BTREE_QUERY_DONE) {
+		ret = FDF_QUERY_DONE;
+	} else {
+		ret = FDF_FAILURE;
+	}
+
+	return(ret);
+}
 
 /*****************************************************************
  *
@@ -1202,24 +1291,18 @@ static void msg_cb(int level, void *msg_data, char *filename, int lineno, char *
     }
 }
 
-#if 0
+
 static void dump_btree_stats(FILE *f, FDF_cguid_t cguid)
 {
-    int               i;
     struct btree     *bt;
     btree_stats_t     bt_stats;
 
-    for (i=0; i<N_Open_Containers; i++) {
-	if (Container_Map[i].cguid == cguid) {
-	    break;
-	}
-    }
-    if (i >= N_Open_Containers) {
+    bt = bt_get_btree_from_cguid(cguid);
+    if (bt == NULL) {
         return;
     }
-    bt = Container_Map[i].btree;
 
     btree_get_stats(bt, &bt_stats);
     btree_dump_stats(f, &bt_stats);
 }
-#endif
+

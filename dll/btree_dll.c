@@ -8,6 +8,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "fdf.h"
+#include "fdf_range.h"
 
 
 /*
@@ -191,6 +192,25 @@ static FDF_status_t
 
 static FDF_status_t 
 (*ptr_FDFGetVersion)(char **str);
+
+static FDF_status_t 
+(*ptr_FDFGetRange)(struct FDF_thread_state *fdf_thread_state,
+                  FDF_cguid_t              cguid, 
+                  FDF_indexid_t            indexid,
+                  struct FDF_cursor      **cursor,
+                  FDF_range_meta_t        *rmeta);
+
+static FDF_status_t
+(*ptr_FDFGetNextRange)(struct FDF_thread_state *thrd_state,  
+                       struct FDF_cursor       *cursor,
+                       int                      n_in, 
+                       int                     *n_out,
+                       FDF_range_data_t        *values);
+
+static FDF_status_t 
+(*ptr_FDFGetRangeFinish)(struct FDF_thread_state *thrd_state, 
+                         struct FDF_cursor *cursor);
+
 #if 0
 static void 
 (*ptr_FDFTLMapDestroy)(struct FDFTLMap *pm);
@@ -303,6 +323,9 @@ static struct {
     { "_FDFTransactionCommit",          &ptr_FDFTransactionCommit         },
     { "_FDFTransactionRollback",        &ptr_FDFTransactionRollback       },
     { "_FDFGetVersion",                 &ptr_FDFGetVersion                },
+    { "_FDFGetRange",                   &ptr_FDFGetRange                  },
+    { "_FDFGetNextRange",               &ptr_FDFGetNextRange              },
+    { "_FDFGetRangeFinish",             &ptr_FDFGetRangeFinish            },
 #if 0
     { "_FDFTLMapDestroy",               &ptr_FDFTLMapDestroy              },
     { "_FDFTLMapClear",                 &ptr_FDFTLMapClear                },
@@ -965,6 +988,52 @@ FDFGetVersion(char **str)
 
     return (*ptr_FDFGetVersion)(str);
 }
+
+/*
+ * FDFGetRange
+ */
+FDF_status_t
+FDFGetRange(struct FDF_thread_state *fdf_thread_state,
+            FDF_cguid_t              cguid, 
+            FDF_indexid_t            indexid,
+            struct FDF_cursor      **cursor,
+            FDF_range_meta_t        *rmeta)
+{
+    if (unlikely(!ptr_FDFGetRange))
+        undefined("FDFGetRange");
+
+    return (*ptr_FDFGetRange)(fdf_thread_state, cguid, indexid, cursor, rmeta);
+}
+
+/*
+ * FDFGetNextRange
+ */
+FDF_status_t
+FDFGetNextRange(struct FDF_thread_state *fdf_thread_state,  
+                struct FDF_cursor       *cursor,
+                int                      n_in, 
+                int                     *n_out,
+                FDF_range_data_t        *values)
+{
+    if (unlikely(!ptr_FDFGetNextRange))
+        undefined("FDFGetNextRange");
+
+    return (*ptr_FDFGetNextRange)(fdf_thread_state, cursor, n_in, n_out, values);
+}
+
+/*
+ * FDFGetRangeFinish
+ */
+FDF_status_t 
+FDFGetRangeFinish(struct FDF_thread_state *fdf_thread_state, 
+                  struct FDF_cursor *cursor)
+{
+    if (unlikely(!ptr_FDFGetRangeFinish))
+        undefined("FDFGetRangeFinish");
+
+    return (*ptr_FDFGetRangeFinish)(fdf_thread_state, cursor);
+}
+
 #if 0
 /*
  * FDFTLMapDestroy

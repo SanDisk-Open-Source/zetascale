@@ -29,7 +29,8 @@
 typedef uint64_t btree_indexid_t;          // persistent opaque index handle
 
 typedef enum btree_range_status {
-	BTREE_KEY_BUFFER_TOO_SMALL = 2,
+	BTREE_RANGE_SUCCESS         = 1,   // Kept as 1 to align with FDF for now
+	BTREE_KEY_BUFFER_TOO_SMALL  = 2,
 	BTREE_DATA_BUFFER_TOO_SMALL = 4
 } btree_range_status_t;
 
@@ -134,8 +135,7 @@ typedef struct btree_range_data {
  *                      FDF_BUFFER_TOO_SMALL  if the i'th buffer was too small to retrieve the object
  */
 btree_status_t
-btree_get_next_range(btree_t              *btree,    //  Btree to query for
-                     btree_range_cursor_t *cursor,   //  cursor for this indexed search
+btree_get_next_range(btree_range_cursor_t *cursor,   //  cursor for this indexed search
                      int                   n_in,     //  size of 'values' array
                      int                  *n_out,    //  number of items returned
                      btree_range_data_t   *values);  //  array of returned key/data values
@@ -146,7 +146,6 @@ btree_get_next_range(btree_t              *btree,    //  Btree to query for
  *          FDF_UNKNOWN_CURSOR if the cursor is invalid
  */
 btree_status_t
-btree_end_range_query(btree_t                   *btree,
-                      btree_range_cursor_t      *cursor);
+btree_end_range_query(btree_range_cursor_t *cursor);
 
 #endif

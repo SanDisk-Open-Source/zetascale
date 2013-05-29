@@ -77,13 +77,13 @@ void btest_range_test(btest_cfg_t *cfg)
 		assert(values);
 
 		/* Do the query now */
-		status = btree_get_next_range(cfg->bt, cursor, n_in_chunk, &n_out, values);
+		status = btree_get_next_range(cursor, n_in_chunk, &n_out, values);
 		printf("Status of range query: %d\n", status);
 		printf("n_out = %d\n", n_out);
 
 		for (i = 0; i < n_out; i++) {
 			printf("%-4d: status=%d ", i, values[i].status);
-			if (values[i].status == BTREE_SUCCESS) {
+			if (values[i].status == BTREE_RANGE_SUCCESS) {
 				printf("Key=%s Keylen=%d\n", values[i].key, values[i].keylen);
 			} else {
 				printf("\n");
@@ -92,7 +92,7 @@ void btest_range_test(btest_cfg_t *cfg)
 		n_in_iter += n_in_chunk;
 	}
 
-	status = btree_end_range_query(cfg->bt, cursor);
+	status = btree_end_range_query(cursor);
 }
 
 static void btest_range_usage(void)

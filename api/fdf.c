@@ -47,6 +47,7 @@
 #include "ssd/fifo/slab_gc.h"
 #include <execinfo.h>
 #include <signal.h>
+#include "fdf_range.h"
 
 #define LOG_ID PLAT_LOG_ID_INITIAL
 #define LOG_CAT PLAT_LOG_CAT_SDF_NAMING
@@ -6336,6 +6337,36 @@ FDFGetVersion(
 
 	return *str ? FDF_SUCCESS : FDF_FAILURE;
 }
+
+FDF_status_t FDFGetRange(struct FDF_thread_state *thrd_state, 
+                         FDF_cguid_t              cguid,
+                         FDF_indexid_t            indexid,
+                         struct FDF_cursor      **cursor,
+                         FDF_range_meta_t        *meta)
+{
+	fprintf(stderr, "FDF: FDFGetRange without btree is not supported\n");
+	return FDF_FAILURE;
+}
+
+FDF_status_t
+FDFGetNextRange(struct FDF_thread_state *thrd_state, 
+                struct FDF_cursor       *cursor,
+                int                      n_in, 
+                int                     *n_out,
+                FDF_range_data_t        *values)
+{
+	fprintf(stderr, "FDF: FDFGetNextRange without btree is not supported\n");
+	return FDF_FAILURE;
+}
+
+FDF_status_t 
+FDFGetRangeFinish(struct FDF_thread_state *thrd_state, 
+                  struct FDF_cursor *cursor)
+{
+	fprintf(stderr, "FDF: FDFGetRangeFinish without btree is not supported\n");
+	return FDF_FAILURE;
+}
+
 
 #define NUM_BTRACE_ENTRIES 50
 void fdf_print_backtrace() {
