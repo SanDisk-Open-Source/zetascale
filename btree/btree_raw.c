@@ -1063,7 +1063,7 @@ static int deref_l1cache(btree_raw_t *btree)
     MapClear(btree->l1cache_mods);
 
     // xxxzzz
-    if (MapNEntries(btree->l1cache) > btree->n_l1cache_buckets) {
+    if (MapNEntries(btree->l1cache) > 16 * btree->n_l1cache_buckets) {
         assert(0);
     }
 
