@@ -134,25 +134,6 @@ static btree_t *bt_get_btree_from_cguid(FDF_cguid_t cguid)
 	return (Container_Map[i].btree);
 }
 
-#if 0
-static int bt_get_ctnr_from_cname( 
-     char *cname
-     )
-{
-    int i;
-    int i_ctnr = -1;
-
-    for ( i = 0; i < MAX_OPEN_CONTAINERS; i++ ) {
-        if ( (NULL != Container_Map[i].cname) && (0 == strcmp( Container_Map[i].cname, cname )) ) {
-            i_ctnr = i;
-            break;
-        }
-    }
-
-    return i_ctnr;
-}
-#endif
-
 static void dump_btree_stats(FILE *f, FDF_cguid_t cguid);
 
 //  xxxzzz end of temporary stuff!
@@ -340,6 +321,7 @@ FDF_status_t _FDFOpenContainer(
     } else {
         // Need to fill in metadata map
         index = N_Open_Containers;
+        N_Open_Containers++;
         Container_Map[index].cguid = *cguid;
     } 
     
@@ -375,6 +357,7 @@ FDF_status_t _FDFOpenContainer(
     prn->cguid            = *cguid;
     prn->nodesize         = nodesize;
 
+#ifdef notdef
     msg("Creating a b-tree in FDFOpenContainer...\n");
     msg("n_partitions = %d\n",      n_partitions);
     msg("flags = %d\n",             flags);
@@ -382,6 +365,7 @@ FDF_status_t _FDFOpenContainer(
     msg("min_keys_per_node = %d\n", min_keys_per_node);
     msg("nodesize = %d\n",          nodesize);
     msg("n_l1cache_buckets = %d\n", n_l1cache_buckets);
+#endif
 
     if (nodesize > MAX_NODE_SIZE) {
 	msg("nodesize must <= %d\n", MAX_NODE_SIZE);
@@ -410,7 +394,6 @@ FDF_status_t _FDFOpenContainer(
     // xxxzzz for now, for performance testing, just use a hank
 
     Container_Map[index].btree = bt;
-    N_Open_Containers++;
 
     return(ret);
 }
@@ -674,6 +657,8 @@ FDF_status_t _FDFWriteObject(
     if (bt == NULL) {
         return (FDF_FAILURE);
     }
+    if (!bt) 
+	assert(0);
 
     meta.flags = 0;
     meta.seqno = seqnoalloc( fdf_thread_state);
@@ -692,7 +677,8 @@ FDF_status_t _FDFWriteObject(
         case 0:
             ret = FDF_SUCCESS;
             break;
-        case FDF_SUCCESS:
+        case 1:
+            ret = FDF_FAILURE_STORAGE_WRITE;
             break;
         case 2:
 	    if (flags & FDF_WRITE_MUST_NOT_EXIST) {
@@ -768,10 +754,38 @@ FDF_status_t _FDFDeleteObject(
 	uint32_t                  keylen
 	)
 {
+    int               i;
+    FDF_status_t      ret = FDF_SUCCESS;
+    btree_metadata_t  meta;
+    struct btree     *bt;
+
     my_thd_state = fdf_thread_state;;
 
-    //msg("FDFDeleteObject is not currently supported!");
-    return(FDFDeleteObject(fdf_thread_state, cguid, key, keylen));
+    for (i=0; i<N_Open_Containers; i++) {
+        if (Container_Map[i].cguid == cguid) {
+            break;
+        }
+    }
+    if (i >= N_Open_Containers) {
+        return(FDF_FAILURE); // xxxzzz fix this!
+    }
+    bt = Container_Map[i].btree;
+
+    meta.flags = 0;
+
+    ret = btree_delete(bt, key, keylen, &meta);
+    if (ret != 0) {
+        msg("btree_delete failed for key '%s' with ret=%d!\n", key, ret);
+        if (ret == 2) {
+            ret = FDF_OBJECT_UNKNOWN;
+        } else {
+            ret = FDF_FAILURE; // xxxzzz fix this!
+        }
+    } else {
+        ret = FDF_SUCCESS;
+    }
+
+    return(ret);
 }
 
 /**
@@ -1141,7 +1155,7 @@ static struct btree_raw_node *read_node_cb(int *ret, void *data, uint64_t lnodei
 	// fprintf(stderr, "SEGFAULT read_node_cb: %p [tid=%d]\n", n, tid);
 	return(n);
     } else {
-	fprintf(stderr, "ZZZZZZZZ   read_node_cb failed with ret=%d   ZZZZZZZZZ\n", *ret);
+	fprintf(stderr, "ZZZZZZZZ   red_node_cb %lu - %lu failed with ret=%s   ZZZZZZZZZ\n", lnodeid, datalen, FDFStrError(*ret));
         *ret = 1;
 	return(NULL);
     }
@@ -1160,14 +1174,14 @@ static void write_node_cb(int *ret_out, void *cb_data, uint64_t lnodeid, char *d
     if (ret == FDF_SUCCESS) {
 	*ret_out = 0;
     } else {
-	fprintf(stderr, "ZZZZZZZZ   write_node_cb failed with ret=%s   ZZZZZZZZZ\n", FDFStrError(ret));
+	fprintf(stderr, "ZZZZZZZZ   write_node_cb %lu - %lu failed with ret=%s   ZZZZZZZZZ\n", lnodeid, datalen, FDFStrError(ret));
 	*ret_out = 1;
     }
 }
 
 static void txn_cmd_cb(int *ret_out, void *cb_data, int cmd_type)
 {
-    int ret = FDF_FAILURE;
+    FDF_status_t ret = FDF_FAILURE;
 
     switch (cmd_type) {
         case 1: // start txn
