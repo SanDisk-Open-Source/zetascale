@@ -5,6 +5,9 @@
 #define	uint	unsigned
 #define	ulong	unsigned long
 
+#ifndef bool
+#define	bool		char
+#endif
 #define	TRUE		(0 == 0)
 #define	FALSE		(not TRUE)
 #define	not		!

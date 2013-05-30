@@ -47,6 +47,7 @@ static void                   log_cb(int *ret, void *data, uint32_t event_type, 
 static int                    cmp_cb(void *data, char *key1, uint32_t keylen1, char *key2, uint32_t keylen2);
 static void                   msg_cb(int level, void *msg_data, char *filename, int lineno, char *msg, ...);
 static void                   txn_cmd_cb(int *ret_out, void *cb_data, int cmd_type);
+static uint64_t               seqnoalloc( struct FDF_thread_state *);
 
 #define Error(msg, args...) \
     msg_cb(0, NULL, __FILE__, __LINE__, msg, ##args);
@@ -675,6 +676,9 @@ FDF_status_t _FDFWriteObject(
     }
 
     meta.flags = 0;
+    meta.seqno = seqnoalloc( fdf_thread_state);
+    if (meta.seqno == -1)
+        return (FDF_FAILURE);
 
     if (flags & FDF_WRITE_MUST_NOT_EXIST) {
 	ret = btree_insert(bt, key, keylen, data, datalen, &meta);
@@ -1311,3 +1315,89 @@ static void dump_btree_stats(FILE *f, FDF_cguid_t cguid)
     btree_dump_stats(f, &bt_stats);
 }
 
+
+/*
+ * persistent seqno facility
+ *
+ * This sequence number generator is shared by all btrees.  It offers
+ * crashproof persistence, high performance, and thread safety.  The counter
+ * is only reset by an FDF reformat and, with 64 bits of resolution, will
+ * never wrap.
+ *
+ * Counter is maintained in its own high-durability container (non btree),
+ * and is synchronized to flash after SEQNO_SYNC_INTERVAL increments.
+ * It is advanced by up to that interval on FDF restart.
+ */
+
+#include	"utils/rico.h"
+
+#define	SEQNO_SYNC_INTERVAL	10000000000
+
+
+/*
+ * return next seqno, or -1 on error
+ */
+static uint64_t
+seqnoalloc( struct FDF_thread_state *t)
+{
+	static bool		initialized;
+	static pthread_mutex_t	seqnolock		= PTHREAD_MUTEX_INITIALIZER;
+	static FDF_cguid_t	cguid;
+	static uint64_t		seqnolimit,
+				seqno;
+	static char		SEQNO_CONTAINER[]	= "__SanDisk_seqno_container";
+	static char		SEQNO_KEY[]		= "__SanDisk_seqno_key";
+	FDF_container_props_t	p;
+	FDF_status_t		s;
+	char			*data;
+	uint64_t		dlen;
+
+	pthread_mutex_lock( &seqnolock);
+	unless (initialized) {
+		memset( &p, 0, sizeof p);
+		switch (s = FDFOpenContainer( t, SEQNO_CONTAINER, &p, 0, &cguid)) {
+		case FDF_SUCCESS:
+			if ((FDFReadObject( t, cguid, SEQNO_KEY, sizeof SEQNO_KEY, &data, &dlen) == FDF_SUCCESS)
+			and (dlen == sizeof seqnolimit)) {
+				seqnolimit = *(uint64_t *)data;
+				seqno = seqnolimit;
+				FDFFreeBuffer( data);
+				break;
+			}
+			/* flash corruption likely, but consider recovery by tree search */
+			FDFCloseContainer( t, cguid);
+		default:
+			fprintf( stderr, "seqnoalloc: cannot initialize seqnolimit\n");
+			pthread_mutex_unlock( &seqnolock);
+			return (-1);
+		case FDF_INVALID_PARAMETER:		/* schizo FDF/SDF return */
+			p.size_kb = 1 * 1024 * 1024;
+			p.fifo_mode = FDF_FALSE;
+			p.persistent = FDF_TRUE;
+			p.evicting = FDF_FALSE;
+			p.writethru = FDF_TRUE;
+			p.durability_level = FDF_DURABILITY_HW_CRASH_SAFE;
+			s = FDFOpenContainer( t, SEQNO_CONTAINER, &p, FDF_CTNR_CREATE, &cguid);
+			unless (s == FDF_SUCCESS) {
+				fprintf( stderr, "seqnoalloc: cannot create %s (%s)\n", SEQNO_CONTAINER, FDFStrError( s));
+				pthread_mutex_unlock( &seqnolock);
+				return (-1);
+			}
+		}
+		initialized = TRUE;
+	}
+	unless (seqno < seqnolimit) {
+		seqnolimit = seqno + SEQNO_SYNC_INTERVAL;
+		s = FDFWriteObject( t, cguid, SEQNO_KEY, sizeof SEQNO_KEY, (char *)&seqnolimit, sizeof seqnolimit, 0);
+		unless (s == FDF_SUCCESS) {
+			seqnolimit = 0;
+			fprintf( stderr, "seqnoalloc: cannot update %s (%s)\n", SEQNO_KEY, FDFStrError( s));
+			pthread_mutex_unlock( &seqnolock);
+			return (-1);
+		}
+		fprintf( stderr, "seqnoalloc (info): new seqnolimit = %ld\n", seqnolimit);
+	}
+	uint64_t z = seqno++;
+	pthread_mutex_unlock( &seqnolock);
+	return (z);
+}

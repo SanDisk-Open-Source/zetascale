@@ -357,10 +357,8 @@ savepersistent( btree_raw_t *bt)
 	int	ret;
 	char	buf[bt->nodesize];
 
-	if (bt->flags & IN_MEMORY) {
+	if (bt->flags & IN_MEMORY)
 		return (1);
-	}
-
 	btree_raw_persist_t *r = (void *) buf;
 	r->logical_id_counter = bt->logical_id_counter;
     	r->rootid = bt->rootid;
