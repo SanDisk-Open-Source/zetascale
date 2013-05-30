@@ -776,7 +776,7 @@ FDF_status_t _FDFDeleteObject(
     ret = btree_delete(bt, key, keylen, &meta);
     if (ret != 0) {
         msg("btree_delete failed for key '%s' with ret=%d!\n", key, ret);
-        if (ret == 2) {
+        if (ret == 1) {
             ret = FDF_OBJECT_UNKNOWN;
         } else {
             ret = FDF_FAILURE; // xxxzzz fix this!
