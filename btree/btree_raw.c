@@ -134,8 +134,7 @@ static void free_node(int *ret, btree_raw_t *btree, btree_raw_node_t *n);
 
 static btree_raw_node_t *get_new_node(int *ret, btree_raw_t *btree, uint32_t leaf_flags);
 static btree_raw_node_t *get_new_node_low(int *ret, btree_raw_t *btree, uint32_t leaf_flags, int ref);
-btree_raw_node_t *get_existing_node(int *ret, btree_raw_t *btree, uint64_t logical_id);
-static btree_raw_node_t *get_existing_node_low(int *ret, btree_raw_t *btree, uint64_t logical_id, plat_rwlock_t** lock, int ref);
+btree_raw_node_t *get_existing_node_low(int *ret, btree_raw_t *btree, uint64_t logical_id, plat_rwlock_t** lock, int ref);
 
 static int init_l1cache(btree_raw_t *btree, uint32_t n_l1cache_buckets);
 static int deref_l1cache(btree_raw_t *btree);
@@ -1143,7 +1142,7 @@ static void modify_l1cache_node(btree_raw_t *btree, btree_raw_node_t *n)
     (void) MapSet(btree->l1cache_mods, (char *) &(n->logical_id), sizeof(uint64_t), (char *) n, btree->nodesize, &old_data, &old_datalen);
 }
 
-static btree_raw_node_t *get_existing_node_low(int *ret, btree_raw_t *btree, uint64_t logical_id, plat_rwlock_t** lock, int ref)
+btree_raw_node_t *get_existing_node_low(int *ret, btree_raw_t *btree, uint64_t logical_id, plat_rwlock_t** lock, int ref)
 {
     btree_raw_node_t  *n;
 

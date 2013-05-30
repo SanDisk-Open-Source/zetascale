@@ -20,6 +20,7 @@ typedef struct blist_node {
 	void                    *data1;
 	void                    *data2;
 	void                    *data3;
+	void                    *data4;
 } blist_node_t;
 
 typedef struct {
@@ -29,10 +30,10 @@ typedef struct {
 } blist_t;
 
 extern blist_t *blist_init(void);
-extern btree_status_t blist_push_node_from_head(blist_t *l, void *data1, void *data2, void *data3);
+extern btree_status_t blist_push_node_from_head(blist_t *l, void *data1, void *data2, void *data3, void *data4);
 extern btree_status_t blist_push_list_from_head(blist_t *l, blist_t *src_list);
-extern btree_status_t blist_push_node_from_tail(blist_t *l, void *data1, void *data2, void *data3);
-extern void *blist_pop_node_from_head(blist_t *l, void **data1, void **data2, void **data3);
+extern btree_status_t blist_push_node_from_tail(blist_t *l, void *data1, void *data2, void *data3, void *data4);
+extern int blist_pop_node_from_head(blist_t *l, void **data1, void **data2, void **data3, void **data4);
 extern void blist_end(blist_t *l);
 
 #endif // __BTREE_STACK_H

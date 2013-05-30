@@ -98,21 +98,29 @@ static int range_cmp(btree_raw_t *bt, char *cmp, uint32_t cmplen,
 
 #define PUSH_DATA_TO_LIST(l, rmeta, d1, d2, d3) \
 	if (IS_ASCENDING_QUERY(rmeta)) { \
-		blist_push_node_from_tail(l, (void *)d1, (void *)d2, (void *)d3); \
+		blist_push_node_from_tail(l, (void *)d1, (void *)d2, (void *)d3, (void *)NULL); \
 	} else { \
-		blist_push_node_from_head(l, (void *)d1, (void *)d2, (void *)d3); \
+		blist_push_node_from_head(l, (void *)d1, (void *)d2, (void *)d3, (void *)NULL); \
 	} \
+
+/* Marker should always be pushed to the end of the list, irrespective of whatever
+ * type the query is 
+ */
+#define PUSH_MARKER_TO_LIST(l, m) \
+	blist_push_node_from_tail(l, (void *)NULL, (void *)NULL, (void *)NULL, (void *)m); \
 
 /*
  * Find the keys in the node for the range provided. Returns total keys found between the
  * the range. The resulted key structures are put in the key_list structure. It will be
  * put in the same order as it is requested for.
  *
+ * The leaf_lock is the lock corresponding to the node, in case it is a leaf node.
  */
 static int find_key_range(btree_raw_t *bt,
                           btree_raw_node_t *n,
                           btree_range_meta_t *rmeta,
-                          blist_t *key_list)
+                          blist_t *key_list,
+                          plat_rwlock_t *leaf_lock)
 {
 	int            x;
 	int            i_cur;
@@ -122,10 +130,7 @@ static int find_key_range(btree_raw_t *bt,
 	char          *upper;
 	int           lower_incl, upper_incl;
 	uint32_t      lower_len, upper_len;
-
-	if (n->nkeys == 0) {
-		return 0;
-	}
+	int           is_leaf_node;
 
 	/* Easy denotions to avoid confusions and checks inside the logic */
 	if (IS_ASCENDING_QUERY(rmeta)) {
@@ -142,6 +147,18 @@ static int find_key_range(btree_raw_t *bt,
 		upper      = rmeta->key_start;
 		upper_len  = rmeta->keylen_start;
 		upper_incl = (rmeta->flags & RANGE_START_LE);
+	}
+
+	is_leaf_node = is_leaf(bt, n);
+
+	/* Leaf node could get modified without global btree lock. */
+ 	 /* TODO: Leaf lock could possibly be combined with node structure 
+	  * itself if possible or use the mem_node everywhere */
+	if (is_leaf_node) plat_rwlock_rdlock(leaf_lock);
+
+	if (n->nkeys == 0) {
+		if (is_leaf_node) plat_rwlock_unlock(leaf_lock);
+		return 0;
 	}
 
 	i_cur = 0;
@@ -161,7 +178,7 @@ static int find_key_range(btree_raw_t *bt,
 		i_cur++;
 	}
 
-	if (!is_leaf(bt, n)) {
+	if (!is_leaf_node) {
 		int push_last_node = 1;
 
 		/* For non-leaf nodes, the non-matched one need to be pushed 
@@ -175,11 +192,18 @@ static int find_key_range(btree_raw_t *bt,
 			
 		if (push_last_node) {
 			if (i_cur == n->nkeys) {
-				PUSH_DATA_TO_LIST(key_list, rmeta, n, NULL, n->rightmost)
+				PUSH_DATA_TO_LIST(key_list, rmeta, n, NULL, 
+				                  n->rightmost);
 			} else {
 				PUSH_DATA_TO_LIST(key_list, rmeta, n, pk, NULL);
 			}
 		}
+	} else {
+		/* Leaf nodes at the end of it, will not unlock. It will
+		 * be instead added as a marker to the list, which caller will
+		 * use to unlock. This is to provide a contigous locking
+		 * mechanism across the query */
+		PUSH_MARKER_TO_LIST(key_list, leaf_lock);
 	}
 
 	return (key_list->cnt);
@@ -264,6 +288,7 @@ btree_get_next_range(btree_range_cursor_t *cursor,
 	node_vlkey_t      *pvlk;
 	uint64_t          right;
 	int               key_index;
+	plat_rwlock_t     *leaf_lock;
 
 	/* TODO: Handle non-debug failures */
 	assert(cursor != NULL);
@@ -276,7 +301,7 @@ btree_get_next_range(btree_range_cursor_t *cursor,
 
 	plat_rwlock_rdlock(&bt->lock);
 
-	n = get_existing_node(&ret, bt, bt->rootid);
+	n = get_existing_node_low(&ret, bt, bt->rootid, &leaf_lock, 1);
 	if (n == NULL) {
 		plat_rwlock_unlock(&bt->lock);
 		return BTREE_FAILURE;
@@ -318,7 +343,7 @@ btree_get_next_range(btree_range_cursor_t *cursor,
 		return BTREE_FAILURE;
 	}
 
-	key_count = find_key_range(bt, n, &rmeta, key_list);
+	key_count = find_key_range(bt, n, &rmeta, key_list, leaf_lock);
 	if ((key_count == 0) || (*n_out == n_in)) {
 		blist_end(key_list);
 		blist_end(master_list);
@@ -341,10 +366,17 @@ btree_get_next_range(btree_range_cursor_t *cursor,
 	while (blist_pop_node_from_head(master_list, 
 	                               (void **)&n,
 	                               (void **)&keyrec,
-	                               (void **)&right) != NULL) {
+	                               (void **)&right,
+	                               (void **)&leaf_lock)) {
+		/* This is the marker entry from the find_key_range. At
+		 * present use this marker to unlock the leaf lock */
+		if (leaf_lock) {
+			/* Unlock leaf node lock which was locked by find_key_range */
+			plat_rwlock_unlock(leaf_lock);
+			continue;
+		}
+				
 		if (is_leaf(bt, n)) {
-
-			//plat_rwlock_rdlock(leaf_lock);
 
 			/* Populate the output value with key, value, status 
 			 * syndrome information */
@@ -384,8 +416,6 @@ btree_get_next_range(btree_range_cursor_t *cursor,
 			values[*n_out].seqno    = pvlk->seqno; 
 			values[*n_out].syndrome = pvlk->syndrome; 
 
-			//plat_rwlock_unlock(leaf_lock);
-
 			(*n_out)++;
 
 			if (n_in == *n_out) {
@@ -402,8 +432,9 @@ btree_get_next_range(btree_range_cursor_t *cursor,
 				}
 			}
 
-			n = get_existing_node(&ret, bt, ptr);
-			//n = get_existing_node_low(&ret, bt, ptr, leaf_lock, 1);
+			/* Get the node corresponding to this pointer and leaf
+			 * lock for this node */
+			n = get_existing_node_low(&ret, bt, ptr, &leaf_lock, 1);
 			if (ret) {
 				assert(0);
 				break;
@@ -415,7 +446,7 @@ btree_get_next_range(btree_range_cursor_t *cursor,
 				plat_rwlock_unlock(&bt->lock);
 				return BTREE_FAILURE;
 			}
-			key_count = find_key_range(bt, n, &rmeta, key_list);
+			key_count = find_key_range(bt, n, &rmeta, key_list, leaf_lock);
 			blist_push_list_from_head(master_list, key_list);
 			blist_end(key_list);
 		}
