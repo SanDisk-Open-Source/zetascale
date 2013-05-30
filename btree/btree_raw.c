@@ -977,7 +977,7 @@ int btree_raw_get(struct btree_raw *btree, char *key, uint32_t keylen, char **da
 static int init_l1cache(btree_raw_t *bt, uint32_t n_l1cache_buckets)
 {
     bt->n_l1cache_buckets = n_l1cache_buckets;
-    bt->l1cache = MapInit(n_l1cache_buckets, n_l1cache_buckets, 1, l1cache_replace, (void *) bt);
+    bt->l1cache = MapInit(n_l1cache_buckets, 16 * n_l1cache_buckets, 1, l1cache_replace, (void *) bt);
     if (bt->l1cache == NULL) {
         return(1);
     }

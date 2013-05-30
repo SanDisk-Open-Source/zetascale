@@ -364,7 +364,12 @@ FDF_status_t _FDFOpenContainer(
     max_key_size        = DEFAULT_MAX_KEY_SIZE;
     min_keys_per_node   = DEFAULT_MIN_KEYS_PER_NODE;
     nodesize            = DEFAULT_NODE_SIZE;
-    n_l1cache_buckets   = DEFAULT_N_L1CACHE_BUCKETS;
+
+    char* b =  getenv("N_L1CACHE_BUCKETS");
+    n_l1cache_buckets = b ? atoi(b) : 0;
+
+    if(!n_l1cache_buckets)
+	n_l1cache_buckets = DEFAULT_N_L1CACHE_BUCKETS;
 
     prn->cguid            = *cguid;
     prn->nodesize         = nodesize;
