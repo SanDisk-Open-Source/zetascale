@@ -24,6 +24,8 @@
 
 #define bt_err(msg, args...) \
     (bt->msg_cb)(0, 0, __FILE__, __LINE__, msg, ##args);
+#define bt_warn(msg, args...) \
+    (bt->msg_cb)(1, 0, __FILE__, __LINE__, msg, ##args);
 
 static void default_msg_cb(int level, void *msg_data, char *filename, int lineno, char *msg, ...)
 {
@@ -129,7 +131,7 @@ btree_t *btree_init(uint32_t n_partitions, uint32_t flags, uint32_t max_key_size
     for (i=0; i<n_partitions; i++) {
 	   bt->partitions[i] = btree_raw_init(flags, i, n_partitions, max_key_size, min_keys_per_node, nodesize, n_l1cache_buckets, create_node_cb, create_node_data, read_node_cb, read_node_cb_data, write_node_cb, write_node_cb_data, freebuf_cb, freebuf_cb_data, delete_node_cb, delete_node_data, log_cb, log_cb_data, msg_cb, msg_cb_data, cmp_cb, cmp_cb_data);
 	   if (bt->partitions[i] == NULL) {
-		   bt_err("Failed to allocate a btree partition!");
+		   bt_warn("Failed to allocate a btree partition!");
 		   /* cleanup */
 		   // TODO xxxzzz
 		   return(NULL);

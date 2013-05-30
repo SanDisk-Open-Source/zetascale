@@ -90,6 +90,8 @@ static int Verbose = 0;
 
 #define bt_err(msg, args...) \
     (bt->msg_cb)(0, 0, __FILE__, __LINE__, msg, ##args)
+#define bt_warn(msg, args...) \
+    (bt->msg_cb)(1, 0, __FILE__, __LINE__, msg, ##args)
 
 #define zmemcpy(to_in, from_in, n_in)  \
 {\
@@ -315,7 +317,7 @@ btree_raw_t *btree_raw_init(uint32_t flags, uint32_t n_partition, uint32_t n_par
     else {
         btree_raw_node_t *root_node = get_new_node( &ret, bt, LEAF_NODE);
         if (ret) {
-            bt_err( "Could not allocate root node!");
+            bt_warn( "Could not allocate root node!");
             free( bt);
             return (NULL);
         }
@@ -364,7 +366,7 @@ savepersistent( btree_raw_t *bt)
     	r->rootid = bt->rootid;
 	(*bt->write_node_cb)( &ret, bt->write_node_cb_data, META_LOGICAL_ID+bt->n_partition, buf, sizeof buf);
 	if (ret) {
-		bt_err( "Could not persist btree!");
+		bt_warn( "Could not persist btree!");
 		return (0);
 	}
 	return (1);
@@ -868,6 +870,8 @@ static uint64_t allocate_overflow_data(btree_raw_t *bt, uint64_t datalen, char *
     n_nodes = (datalen + bt->nodesize_less_hdr - 1) / bt->nodesize_less_hdr;
 
     n_first = n = get_new_node_low(&ret, bt, OVERFLOW_NODE, modify_tree);
+    if (ret)
+        return (0);
     while(nbytes > 0 && !ret) {
 	n->next = 0;
 
@@ -880,6 +884,8 @@ static uint64_t allocate_overflow_data(btree_raw_t *bt, uint64_t datalen, char *
 
 	if(!modify_tree) {
 	    bt->write_node_cb(&ret, bt->write_node_cb_data, n->logical_id, (char*) n, bt->nodesize);
+            if (ret)
+                break;
 	    bt->stats.stat[BTSTAT_L1WRITES]++;
 	}
 
@@ -1026,6 +1032,8 @@ static int deref_l1cache(btree_raw_t *btree)
 	    fprintf(stderr, "%x %s write_node_cb key=%ld data=%p datalen=%ld\n", (int)pthread_self(), __FUNCTION__, (uint64_t)key, data, datalen);
 #endif
 	    btree->write_node_cb(&ret, btree->write_node_cb_data, (uint64_t) key, data, datalen);
+            if (ret)
+                break;
 	// }
 	btree->stats.stat[BTSTAT_L1WRITES]++;
 	// break; // xxxzzz limited to 1!
@@ -1840,6 +1848,8 @@ static void btree_split_child(int *ret, btree_raw_t *btree, btree_raw_node_t *n_
     btree->stats.stat[BTSTAT_SPLITS]++;
 
     n_new = get_new_node(ret, btree, is_leaf(btree, n_child) ? LEAF_NODE : 0);
+    if (*ret)
+        return;
 
     // n_parent will be marked modified by insert_key()
     // n_new was marked in get_new_node()
@@ -2024,10 +2034,12 @@ restart:
                 goto err_exit;
 
             parent->rightmost  = btree->rootid;
+            uint64_t saverootid = btree->rootid;
             btree->rootid = parent->logical_id;
-
-            if (! savepersistent( btree))
-                assert( 0);
+            if (! savepersistent( btree)) {
+                btree->rootid = saverootid;
+                goto err_exit;
+            }
         }
 
         btree_split_child(&ret, btree, parent, node, seqno, meta, syndrome);
