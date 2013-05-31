@@ -183,15 +183,15 @@ int test_basic_check(uint32_t aw)
     FDF_status_t ret;
     int tag = 0;
     testname[1] = "#test1: basic check.";
-    fprintf(stderr,"****** async write = %d ******\n",aw);
-    fprintf(stderr,"%s\n",testname[1]);
+    fprintf(fp,"****** async write = %d ******\n",aw);
+    fprintf(fp,"%s\n",testname[1]);
 
     FDF_stats_t stats1,stats2;
     for(int i = 0; i < 10; i++)
     {
         ret = OpenContainer("test1", 1, aw, mode[i][0], mode[i][1], mode[i][2], mode[i][3]);
         // ret = OpenContainer("test1", 1, aw, mode[i][0], mode[i][1], mode[i][2], 0);
-	fprintf(stderr, "OpenContainer returned %d\n", ret);
+	fprintf(stderr, "penContainer returned %s\n", FDFStrError(ret));
         if(FDF_SUCCESS == ret)
         {
 	    fprintf(fp, "OpenContainer succeeded!\n");
@@ -293,7 +293,7 @@ int main()
     int testnumber = 1;
 	int count      = 0;
 
-    if((fp = fopen("FDF_WritebackStoreMode.log", "w+")) == 0)
+    if((fp = fopen("FDF_WritebackStoreMode4.log", "w+")) == 0)
     {
         fprintf(stderr, " open log file failed!.\n");
         return -1;
@@ -337,9 +337,9 @@ int main()
    }
    if(testnumber*2 == count)
    {
-      fprintf(stderr, "#Test of FDFWritebackStoreMode pass!\n");
+      fprintf(stderr, "#Test of FDFWritebackStoreMode4 pass!\n");
    }else{
-      fprintf(stderr, "#Test of FDFWritebackStoreMode fail!\n");
+      fprintf(stderr, "#Test of FDFWritebackStoreMode4 fail!\n");
    }
    return (!(testnumber*2 == count));
 }
