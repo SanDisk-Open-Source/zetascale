@@ -194,7 +194,7 @@ int test_basic_check(uint32_t aw)
     {
         ret = OpenContainer("test1", 1, aw, mode[i][0], mode[i][1], mode[i][2], mode[i][3]);
         // ret = OpenContainer("test1", 1, aw, mode[i][0], mode[i][1], mode[i][2], 0);
-	fprintf(stderr, "OpenContainer returned %d\n", ret);
+	fprintf(stderr, "OpenContainer returned %s\n", FDFStrError(ret));
         if(FDF_SUCCESS == ret)
         {
 	    fprintf(fp, "OpenContainer succeeded!\n");
@@ -343,9 +343,9 @@ int main()
    }
    if(testnumber*2 == count)
    {
-      fprintf(stderr, "#Test of FDFWritebackStoreMode pass!\n");
+      fprintf(stderr, "#Test of FDFWritebackStoreMode6 pass!\n");
    }else{
-      fprintf(stderr, "#Test of FDFWritebackStoreMode fail!\n");
+      fprintf(stderr, "#Test of FDFWritebackStoreMode6 fail!\n");
    }
    return (!(testnumber*2 == count));
 }
