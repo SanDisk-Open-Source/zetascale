@@ -321,6 +321,8 @@ int FDFOpenContainer_openCloseMore_createObj(int count)
     char                   key[6]="key_a";
     uint32_t               flags[2]={FDF_CTNR_RO_MODE,FDF_CTNR_RW_MODE};
 
+    // FDF + btree minimum container size is 8KB.
+    p.size_kb = 32;
     fprintf(fp,"test %d:\n",++testCount);
     ret = OpenContainer("test6",&p,FDF_CTNR_CREATE,&cguid);
     if(FDF_SUCCESS != ret)
