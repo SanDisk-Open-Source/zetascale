@@ -109,8 +109,9 @@ btree_t *btree_init(uint32_t n_partitions, uint32_t flags, uint32_t max_key_size
 	bt->cmp_cb           = default_cmp_cb;
 	bt->cmp_cb_data      = NULL;
     }
-    bt->txn_cmd_cb           = txn_cmd_cb;
-    bt->txn_cmd_cb_data      = txn_cmd_cb_data;
+
+//    bt->txn_cmd_cb           = txn_cmd_cb;
+//    bt->txn_cmd_cb_data      = txn_cmd_cb_data;
 
     if (min_keys_per_node < 4) {
 	bt_err("min_keys_per_node must be >= 4");
@@ -129,7 +130,7 @@ btree_t *btree_init(uint32_t n_partitions, uint32_t flags, uint32_t max_key_size
     }
 
     for (i=0; i<n_partitions; i++) {
-	   bt->partitions[i] = btree_raw_init(flags, i, n_partitions, max_key_size, min_keys_per_node, nodesize, n_l1cache_buckets, create_node_cb, create_node_data, read_node_cb, read_node_cb_data, write_node_cb, write_node_cb_data, freebuf_cb, freebuf_cb_data, delete_node_cb, delete_node_data, log_cb, log_cb_data, msg_cb, msg_cb_data, cmp_cb, cmp_cb_data);
+	   bt->partitions[i] = btree_raw_init(flags, i, n_partitions, max_key_size, min_keys_per_node, nodesize, n_l1cache_buckets, create_node_cb, create_node_data, read_node_cb, read_node_cb_data, write_node_cb, write_node_cb_data, freebuf_cb, freebuf_cb_data, delete_node_cb, delete_node_data, log_cb, log_cb_data, msg_cb, msg_cb_data, cmp_cb, cmp_cb_data, txn_cmd_cb, txn_cmd_cb_data);
 	   if (bt->partitions[i] == NULL) {
 		   bt_warn("Failed to allocate a btree partition!");
 		   /* cleanup */
@@ -159,94 +160,67 @@ static uint64_t hash_key(char *key, uint32_t keylen)
 
 int btree_get(struct btree *btree, char *key, uint32_t keylen, char **data, uint64_t *datalen, btree_metadata_t *meta)
 {
-    uint64_t   h;
-    int        ret;
-    int        n_partition;
+    int        n_partition = hash_key(key, keylen) % btree->n_partitions;
 
-    h = hash_key(key, keylen);
-    n_partition = h % btree->n_partitions;
-
-    ret = btree_raw_get(btree->partitions[n_partition], key, keylen, data, datalen, meta);
-
-    return(ret);
+    return  btree_raw_get(btree->partitions[n_partition], key, keylen, data, datalen, meta);
 }
 
 int btree_insert(struct btree *btree, char *key, uint32_t keylen, char *data, uint64_t datalen, btree_metadata_t *meta)
 {
-    uint64_t   h;
-    int        ret = 0;
-    int        txnret = 0;
-    int        n_partition;
+    int        n_partition = hash_key(key, keylen) % btree->n_partitions;
 
-    h = hash_key(key, keylen);
-    n_partition = h % btree->n_partitions;
+    return btree_raw_insert(btree->partitions[n_partition], key, keylen, data, datalen, meta);
+#if 0
+    int        ret = 0, txnret = 0;
 
     btree->txn_cmd_cb(&ret, btree->txn_cmd_cb_data, 1 /* start */);
-    if (ret) {
-	return(ret);
+
+    if (!ret) {
+	ret = btree_raw_insert(btree->partitions[n_partition], key, keylen, data, datalen, meta);
+	btree->txn_cmd_cb(&txnret, btree->txn_cmd_cb_data, ret ? 3 /* abort */ : 2 /* commit */);
     }
-    ret = btree_raw_insert(btree->partitions[n_partition], key, keylen, data, datalen, meta);
-    if (ret) {
-	btree->txn_cmd_cb(&txnret, btree->txn_cmd_cb_data, 3 /* abort */);
-    } else {
-	btree->txn_cmd_cb(&txnret, btree->txn_cmd_cb_data, 2 /* commit */);
-    }
-    if (txnret)
-        return(txnret);
-    else
-        return(ret);
+
+    return txnret ? txnret : ret;
+#endif
 }
 
 int btree_update(struct btree *btree, char *key, uint32_t keylen, char *data, uint64_t datalen, btree_metadata_t *meta)
 {
-    uint64_t   h;
-    int        ret = 0;
-    int        txnret = 0;
-    int        n_partition;
+    int n_partition = hash_key(key, keylen) % btree->n_partitions;
 
-    h = hash_key(key, keylen);
-    n_partition = h % btree->n_partitions;
+    return btree_raw_update(btree->partitions[n_partition], key, keylen, data, datalen, meta);
+#if 0
+    int        ret = 0, txnret = 0;
 
     btree->txn_cmd_cb(&ret, btree->txn_cmd_cb_data, 1 /* start */);
-    if (ret) {
-	return(ret);
+
+    if (!ret) {
+	ret = btree_raw_update(btree->partitions[n_partition], key, keylen, data, datalen, meta);
+	btree->txn_cmd_cb(&txnret, btree->txn_cmd_cb_data, ret ? 3 /* abort */ : 2 /* commit */);
     }
-    ret = btree_raw_update(btree->partitions[n_partition], key, keylen, data, datalen, meta);
-    if (ret) {
-	btree->txn_cmd_cb(&txnret, btree->txn_cmd_cb_data, 3 /* abort */);
-    } else {
-	btree->txn_cmd_cb(&txnret, btree->txn_cmd_cb_data, 2 /* commit */);
-    }
-    if (txnret)
-        return(txnret);
-    else
-        return(ret);
+
+    return txnnet ? txnret : ret;
+#endif
 }
 
 int btree_set(struct btree *btree, char *key, uint32_t keylen, char *data, uint64_t datalen, btree_metadata_t *meta)
 {
-    uint64_t   h;
-    int        ret = 0;
-    int        txnret = 0;
-    int        n_partition;
+    int n_partition = hash_key(key, keylen) % btree->n_partitions;
 
-    h = hash_key(key, keylen);
-    n_partition = h % btree->n_partitions;
+    return btree_raw_set(btree->partitions[n_partition], key, keylen, data, datalen, meta);
+#if 0
+    int        ret = 0, txnret = 0;
 
     btree->txn_cmd_cb(&ret, btree->txn_cmd_cb_data, 1 /* start */);
-    if (ret) {
-	return(ret);
+
+    if (!ret)
+    {
+	ret = btree_raw_set(btree->partitions[n_partition], key, keylen, data, datalen, meta);
+	btree->txn_cmd_cb(&txnret, btree->txn_cmd_cb_data, ret ? 3 /* abort */ : 2 /* commit */);
     }
-    ret = btree_raw_set(btree->partitions[n_partition], key, keylen, data, datalen, meta);
-    if (ret) {
-	btree->txn_cmd_cb(&txnret, btree->txn_cmd_cb_data, 3 /* abort */);
-    } else {
-	btree->txn_cmd_cb(&txnret, btree->txn_cmd_cb_data, 2 /* commit */);
-    }
-    if (txnret) 
-        return(txnret);
-    else 
-        return(ret);
+
+    return txnret ? txnret : ret;
+#endif
 }
 
 /*   delete a key
@@ -256,28 +230,21 @@ int btree_set(struct btree *btree, char *key, uint32_t keylen, char *data, uint6
  */
 int btree_delete(struct btree *btree, char *key, uint32_t keylen, btree_metadata_t *meta)
 {
-    uint64_t   h;
-    int        ret = 0;
-    int        txnret = 0;
-    int        n_partition;
+    int n_partition = hash_key(key, keylen) % btree->n_partitions;
 
-    h = hash_key(key, keylen);
-    n_partition = h % btree->n_partitions;
+    return btree_raw_delete(btree->partitions[n_partition], key, keylen, meta);
+#if 0
+    int        ret = 0, txnret = 0;
 
     btree->txn_cmd_cb(&ret, btree->txn_cmd_cb_data, 1 /* start */);
-    if (ret) {
-	return(ret);
+
+    if (!ret) {
+    	ret = btree_raw_delete(btree->partitions[n_partition], key, keylen, meta);
+	btree->txn_cmd_cb(&txnret, btree->txn_cmd_cb_data, ret ? 3 /* abort */ : 2 /* commit */);
     }
-    ret = btree_raw_delete(btree->partitions[n_partition], key, keylen, meta);
-    if (ret) {
-	btree->txn_cmd_cb(&txnret, btree->txn_cmd_cb_data, 3 /* abort */);
-    } else {
-	btree->txn_cmd_cb(&txnret, btree->txn_cmd_cb_data, 2 /* commit */);
-    }
-    if (txnret) 
-        return(txnret);
-    else 
-        return(ret);
+
+    return txnret ? txnret : ret;
+#endif
 }
 
 /* Like btree_get, but gets next n_in keys after a specified key.

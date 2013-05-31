@@ -128,12 +128,13 @@ static int Verbose = 0;
 static uint64_t get_syndrome(btree_raw_t *bt, char *key, uint32_t keylen);
 static char *dump_key(char *key, uint32_t keylen);
 
-static int savepersistent( btree_raw_t *);
+static int savepersistent( btree_raw_t *bt, int create, int modify_tree);
 static int loadpersistent( btree_raw_t *);
 static char *get_buffer(btree_raw_t *btree, uint64_t nbytes);
 static void free_buffer(btree_raw_t *btree, char *buf);
 static void free_node(int *ret, btree_raw_t *btree, btree_raw_node_t *n);
 
+static btree_raw_node_t *create_new_node(btree_raw_t *btree, uint64_t logical_id, int ref);
 static btree_raw_node_t *get_new_node(int *ret, btree_raw_t *btree, uint32_t leaf_flags);
 static btree_raw_node_t *get_new_node_low(int *ret, btree_raw_t *btree, uint32_t leaf_flags, int ref);
 btree_raw_node_t *get_existing_node_low(int *ret, btree_raw_t *btree, uint64_t logical_id, plat_rwlock_t** lock, int ref);
@@ -229,7 +230,7 @@ static void l1cache_replace(void *callback_data, char *key, uint32_t keylen, cha
     free(n);
 }
 
-btree_raw_t *btree_raw_init(uint32_t flags, uint32_t n_partition, uint32_t n_partitions, uint32_t max_key_size, uint32_t min_keys_per_node, uint32_t nodesize, uint32_t n_l1cache_buckets, create_node_cb_t *create_node_cb, void *create_node_data, read_node_cb_t *read_node_cb, void *read_node_cb_data, write_node_cb_t *write_node_cb, void *write_node_cb_data, freebuf_cb_t *freebuf_cb, void *freebuf_cb_data, delete_node_cb_t *delete_node_cb, void *delete_node_data, log_cb_t *log_cb, void *log_cb_data, msg_cb_t *msg_cb, void *msg_cb_data, cmp_cb_t *cmp_cb, void * cmp_cb_data)
+btree_raw_t *btree_raw_init(uint32_t flags, uint32_t n_partition, uint32_t n_partitions, uint32_t max_key_size, uint32_t min_keys_per_node, uint32_t nodesize, uint32_t n_l1cache_buckets, create_node_cb_t *create_node_cb, void *create_node_data, read_node_cb_t *read_node_cb, void *read_node_cb_data, write_node_cb_t *write_node_cb, void *write_node_cb_data, freebuf_cb_t *freebuf_cb, void *freebuf_cb_data, delete_node_cb_t *delete_node_cb, void *delete_node_data, log_cb_t *log_cb, void *log_cb_data, msg_cb_t *msg_cb, void *msg_cb_data, cmp_cb_t *cmp_cb, void * cmp_cb_data, txn_cmd_cb_t *txn_cmd_cb, void * txn_cmd_cb_data)
 {
     btree_raw_t      *bt;
     uint32_t          nbytes_meta;
@@ -285,6 +286,9 @@ btree_raw_t *btree_raw_init(uint32_t flags, uint32_t n_partition, uint32_t n_par
 	bt->cmp_cb_data      = NULL;
     }
 
+    bt->txn_cmd_cb           = txn_cmd_cb;
+    bt->txn_cmd_cb_data      = txn_cmd_cb_data;
+
     if (min_keys_per_node < 4) {
 	bt_err("min_keys_per_node must be >= 4");
         free(bt);
@@ -315,17 +319,18 @@ btree_raw_t *btree_raw_init(uint32_t flags, uint32_t n_partition, uint32_t n_par
         }
     }
     else {
+        bt->rootid = bt->logical_id_counter;
+        if (! savepersistent( bt, 1 /* create */, 1 /* modify_tree */)) {
+            free( bt);
+            return (NULL);
+        }
         btree_raw_node_t *root_node = get_new_node( &ret, bt, LEAF_NODE);
         if (ret) {
             bt_warn( "Could not allocate root node!");
             free( bt);
             return (NULL);
         }
-        bt->rootid = root_node->logical_id;
-        if (! savepersistent( bt)) {
-            free( bt);
-            return (NULL);
-        }
+        assert(root_node->logical_id == bt->rootid);
     }
     if (deref_l1cache(bt)) {
         ret = 1;
@@ -354,22 +359,40 @@ btree_raw_t *btree_raw_init(uint32_t flags, uint32_t n_partition, uint32_t n_par
  * success, otherwise 0.
  */
 static int
-savepersistent( btree_raw_t *bt)
+savepersistent( btree_raw_t *bt, int create, int modify_tree)
 {
-	int	ret;
-	char	buf[bt->nodesize];
+	btree_raw_persist_t *r;
+	int	ret = 0;
 
 	if (bt->flags & IN_MEMORY)
-		return (1);
-	btree_raw_persist_t *r = (void *) buf;
-	r->logical_id_counter = bt->logical_id_counter;
-    	r->rootid = bt->rootid;
-	(*bt->write_node_cb)( &ret, bt->write_node_cb_data, META_LOGICAL_ID+bt->n_partition, buf, sizeof buf);
-	if (ret) {
-		bt_warn( "Could not persist btree!");
-		return (0);
+            return (1);
+
+	if(create)
+	    r = (btree_raw_persist_t*)create_new_node(bt,
+                    META_LOGICAL_ID+bt->n_partition, modify_tree);
+	else
+	    r = (btree_raw_persist_t*)get_existing_node_low(&ret, bt,
+                    META_LOGICAL_ID+bt->n_partition, NULL, modify_tree);
+
+	if(r)
+	{
+            r->logical_id_counter = bt->logical_id_counter;
+            r->rootid = bt->rootid;
+
+            if(!modify_tree)
+            {
+                bt->write_node_cb(&ret, bt->write_node_cb_data, META_LOGICAL_ID+bt->n_partition, (char*) r, bt->nodesize);
+                deref_l1cache_node(bt, (btree_raw_node_t*)r);
+                bt->stats.stat[BTSTAT_L1WRITES]++;
+            }
 	}
-	return (1);
+	else
+		ret = 1;
+
+	if (ret)
+            bt_warn( "Could not persist btree!");
+
+	return !ret;
 }
 
 /*
@@ -381,16 +404,19 @@ savepersistent( btree_raw_t *bt)
 static int
 loadpersistent( btree_raw_t *bt)
 {
-	int	ret;
+    btree_raw_persist_t *r;
+    int	ret = 0;
 
-	btree_raw_node_t *n = (*bt->read_node_cb)( &ret, bt->read_node_cb_data, META_LOGICAL_ID+bt->n_partition);
-	if (ret)
-		return (0);
-	btree_raw_persist_t *r = (void *) n;
-	bt->logical_id_counter = r->logical_id_counter;
-    	bt->rootid = r->rootid;
-	free( n);
-	return (1);
+    r = (btree_raw_persist_t*)get_existing_node(&ret, bt,
+	    META_LOGICAL_ID + bt->n_partition);
+
+    if (ret)
+	return (0);
+
+    bt->logical_id_counter = r->logical_id_counter + 1;
+    bt->rootid = r->rootid;
+
+    return (1);
 }
 
 int btree_raw_free_buffer(btree_raw_t *btree, char *buf)
@@ -870,8 +896,6 @@ static uint64_t allocate_overflow_data(btree_raw_t *bt, uint64_t datalen, char *
     n_nodes = (datalen + bt->nodesize_less_hdr - 1) / bt->nodesize_less_hdr;
 
     n_first = n = get_new_node_low(&ret, bt, OVERFLOW_NODE, modify_tree);
-    if (ret)
-        return (0);
     while(nbytes > 0 && !ret) {
 	n->next = 0;
 
@@ -884,8 +908,7 @@ static uint64_t allocate_overflow_data(btree_raw_t *bt, uint64_t datalen, char *
 
 	if(!modify_tree) {
 	    bt->write_node_cb(&ret, bt->write_node_cb_data, n->logical_id, (char*) n, bt->nodesize);
-            if (ret)
-                break;
+	    deref_l1cache_node(bt, n);
 	    bt->stats.stat[BTSTAT_L1WRITES]++;
 	}
 
@@ -900,8 +923,13 @@ static uint64_t allocate_overflow_data(btree_raw_t *bt, uint64_t datalen, char *
     if(!ret) /* Success */
 	return n_first->logical_id;
 
+    /* Error. Delete partially allocated data */
+
     ret = 0;
-    delete_overflow_data(&ret, bt, n_first->logical_id, datalen, modify_tree); 
+
+    if(n_first)
+        delete_overflow_data(&ret, bt, n_first->logical_id, datalen, modify_tree); 
+
     return(0);
 }
 
@@ -914,7 +942,7 @@ static uint64_t get_syndrome(btree_raw_t *bt, char *key, uint32_t keylen)
 }
 
 /* Caller is responsible for leaf_lock unlock and node dereferencing */
-node_key_t* btree_raw_find(struct btree_raw *btree, char *key, uint32_t keylen, uint64_t syndrome, btree_metadata_t *meta, btree_raw_node_t** node, plat_rwlock_t** leaf_lock, int* pathcnt)
+node_key_t* btree_raw_find(struct btree_raw *btree, char *key, uint32_t keylen, uint64_t syndrome, btree_metadata_t *meta, btree_raw_node_t** node, int write_lock, plat_rwlock_t** leaf_lock, int* pathcnt)
 {
     int               ret = 0;
     uint64_t          child_id;
@@ -934,7 +962,10 @@ node_key_t* btree_raw_find(struct btree_raw *btree, char *key, uint32_t keylen, 
         (*pathcnt)++;
     }
 
-    plat_rwlock_rdlock(*leaf_lock);
+    if(write_lock)
+        plat_rwlock_wrlock(*leaf_lock);
+    else
+        plat_rwlock_rdlock(*leaf_lock);
 
     return bsearch_key(btree, *node, key, keylen, &child_id, meta, syndrome);
 }
@@ -949,7 +980,7 @@ int btree_raw_get(struct btree_raw *btree, char *key, uint32_t keylen, char **da
 
     plat_rwlock_rdlock(&btree->lock);
 
-    keyrec = btree_raw_find(btree, key, keylen, syndrome, meta, &node, &leaf_lock, &pathcnt);
+    keyrec = btree_raw_find(btree, key, keylen, syndrome, meta, &node, 0 /* shared */, &leaf_lock, &pathcnt);
 
     ret = 2; // object not found;
     if(keyrec) {
@@ -1006,7 +1037,7 @@ static void deref_l1cache_node(btree_raw_t* btree, btree_raw_node_t *node)
         assert(0);
 #ifdef DEBUG_STUFF
     if(Verbose)
-	fprintf(stderr, "%x %s node %p root: %d leaf: %d refcnt %d\n", (int)pthread_self(), __FUNCTION__, node, is_root(btree, node), is_leaf(btree, node), MapGetRefcnt(btree->l1cache, (char *) &node->logical_id, sizeof(uint64_t)));
+	fprintf(stderr, "%x %s node %p id %ld root: %d leaf: %d refcnt %d\n", (int)pthread_self(), __FUNCTION__, node, node->logical_id, is_root(btree, node), is_leaf(btree, node), MapGetRefcnt(btree->l1cache, (char *) &node->logical_id, sizeof(uint64_t)));
 #endif
 }
 
@@ -1017,57 +1048,44 @@ static int deref_l1cache(btree_raw_t *btree)
     uint32_t              keylen;
     char                 *data;
     uint64_t              datalen;
-    int                   ret = 0;
+    int                   ret = 0, txnret = 0;
+
+    btree->txn_cmd_cb(&ret, btree->txn_cmd_cb_data, 1 /* start */);
 
     //  first write out modifications
-    for (it = MapEnum(btree->l1cache_mods);
-         MapNextEnum(btree->l1cache_mods, it, &key, &keylen, &data, &datalen);
-	 )
+    it = MapEnum(btree->l1cache_mods);
+    while(!ret && MapNextEnum(btree->l1cache_mods, it, &key, &keylen, &data, &datalen))
     {
-        // xxxzzz this is temporary!
-	// btree_raw_node_t *n = (btree_raw_node_t *) data;
-	// if (n->flags & LEAF_NODE) {
 #ifdef DEBUG_STUFF
 	if(Verbose)
 	    fprintf(stderr, "%x %s write_node_cb key=%ld data=%p datalen=%ld\n", (int)pthread_self(), __FUNCTION__, (uint64_t)key, data, datalen);
 #endif
-	    btree->write_node_cb(&ret, btree->write_node_cb_data, (uint64_t) key, data, datalen);
-            if (ret)
-                break;
-	// }
+	btree->write_node_cb(&ret, btree->write_node_cb_data, (uint64_t) key, data, datalen);
 	btree->stats.stat[BTSTAT_L1WRITES]++;
-	// break; // xxxzzz limited to 1!
     }
+
     FinishEnum(btree->l1cache_mods, it);
 
+    btree->txn_cmd_cb(&txnret, btree->txn_cmd_cb_data, ret ? 3 /* abort */ : 2 /* commit */);
+
     //  clear reference bits
-    for (it = MapEnum(btree->l1cache_refs);
-         MapNextEnum(btree->l1cache_refs, it, &key, &keylen, &data, &datalen);
-	 )
-    {
-        // xxxzzz this is temporary!
-	// btree_raw_node_t *n = (btree_raw_node_t *) data;
-	// if (n->flags & LEAF_NODE) {
-	    if (!MapRelease(btree->l1cache, (char *) &key, keylen)) {
-		ret = 1;
-	    }
+    it = MapEnum(btree->l1cache_refs);
+    while(MapNextEnum(btree->l1cache_refs, it, &key, &keylen, &data, &datalen) &&
+	    MapRelease(btree->l1cache, (char *) &key, keylen)) {
 #ifdef DEBUG_STUFF
-	fprintf(stderr, "%x %s map_release key=%ld data=%p datalen=%ld refcnt %d\n", (int)pthread_self(), __FUNCTION__, (uint64_t)key, data, datalen, MapGetRefcnt(btree->l1cache, (char*)&key, sizeof(uint64_t)));
+	    fprintf(stderr, "%x %s map_release key=%ld data=%p datalen=%ld refcnt %d\n", (int)pthread_self(), __FUNCTION__, (uint64_t)key, data, datalen, MapGetRefcnt(btree->l1cache, (char*)&key, sizeof(uint64_t)));
 #endif
-	// }
     }
+
     FinishEnum(btree->l1cache_refs, it);
 
     //  clear the hashtables
     MapClear(btree->l1cache_refs);
     MapClear(btree->l1cache_mods);
 
-    // xxxzzz
-    if (MapNEntries(btree->l1cache) > 16 * btree->n_l1cache_buckets) {
-        assert(0);
-    }
+    assert(MapNEntries(btree->l1cache) <= 16 * btree->n_l1cache_buckets);
 
-    return(ret);
+    return txnret ? txnret : ret;
 }
 
 static int add_l1cache(btree_raw_t *btree, btree_raw_node_t *n, plat_rwlock_t** lock)
@@ -1081,7 +1099,7 @@ static int add_l1cache(btree_raw_t *btree, btree_raw_node_t *n, plat_rwlock_t** 
     node->node = n;
     plat_rwlock_init(&node->lock);
 #ifdef DEBUG_STUFF
-    fprintf(stderr, "%x %s %p %p root: %d leaf: %d\n", (int)pthread_self(), __FUNCTION__, n, &node->lock, is_root(btree, n), is_leaf(btree, n));
+    fprintf(stderr, "%x %s %p id %ld lock %p root: %d leaf: %d\n", (int)pthread_self(), __FUNCTION__, n, n->logical_id, &node->lock, is_root(btree, n), is_leaf(btree, n));
 #endif
 
     if(!MapCreate(btree->l1cache, (char *) &(n->logical_id), sizeof(uint64_t), (char *) node, sizeof(uint64_t)))
@@ -1124,7 +1142,7 @@ static btree_raw_node_t *get_l1cache(btree_raw_t *btree, uint64_t logical_id, pl
     if(lock) *lock = &n->lock;
 
 #ifdef DEBUG_STUFF
-    fprintf(stderr, "%x %s n %p node %p lock %p root: %d leaf: %d refcnt %d\n", (int)pthread_self(), __FUNCTION__, n, n->node, &n->lock, is_root(btree, n->node), is_leaf(btree, n->node), MapGetRefcnt(btree->l1cache, (char *) &logical_id, sizeof(uint64_t)));
+    fprintf(stderr, "%x %s n %p node %p id %ld(%ld lock %p root: %d leaf: %d refcnt %d\n", (int)pthread_self(), __FUNCTION__, n, n->node, n->node->logical_id, logical_id, &n->lock, is_root(btree, n->node), is_leaf(btree, n->node), MapGetRefcnt(btree->l1cache, (char *) &logical_id, sizeof(uint64_t)));
 #endif
     return(n->node);
 }
@@ -1195,6 +1213,29 @@ btree_raw_node_t *get_existing_node(int *ret, btree_raw_t *btree, uint64_t logic
     return get_existing_node_low(ret, btree, logical_id, NULL, 1);
 }
 
+static
+btree_raw_node_t *create_new_node(btree_raw_t *btree, uint64_t logical_id, int ref)
+{
+    btree_raw_node_t *n = (btree_raw_node_t *) malloc(btree->nodesize);
+    // n = btree->create_node_cb(ret, btree->create_node_cb_data, logical_id);
+    //  Just malloc the node here.  It will be written
+    //  out at the end of the request by deref_l1cache().
+    if (n != NULL) {
+	n->logical_id = logical_id;
+	int not_exists = add_l1cache(btree, n, NULL);
+	assert(not_exists); /* the tree is exclusively locked */
+	if(ref)
+	{
+	    ref_l1cache(btree, n);
+	    modify_l1cache_node(btree, n);
+	}
+	// xxxzzz SEGFAULT
+	// fprintf(stderr, "SEGFAULT get_new_node: %p [tid=%d]\n", n, tid);
+    }
+
+    return n;
+}
+
 static btree_raw_node_t *get_new_node_low(int *ret, btree_raw_t *btree, uint32_t leaf_flags, int ref)
 {
     btree_raw_node_t  *n;
@@ -1218,26 +1259,11 @@ static btree_raw_node_t *get_new_node_low(int *ret, btree_raw_t *btree, uint32_t
 #endif
     } else {
         logical_id = btree->logical_id_counter++*btree->n_partitions + btree->n_partition;
-        if (! savepersistent( btree)) {
+        if (! savepersistent( btree, 0, ref)) {
             *ret = 1;
             return (NULL);
         }
-	// n = btree->create_node_cb(ret, btree->create_node_cb_data, logical_id);
-	//  Just malloc the node here.  It will be written
-	//  out at the end of the request by deref_l1cache().
-        n = (btree_raw_node_t *) malloc(btree->nodesize);
-	if (n != NULL) {
-	    n->logical_id = logical_id;
-	    int not_exists = add_l1cache(btree, n, NULL);
-            assert(not_exists); /* the tree is exclusively locked */
-	    if(ref)
-	    {
-	    	ref_l1cache(btree, n);
-            	modify_l1cache_node(btree, n);
-	    }
-	    // xxxzzz SEGFAULT
-	    // fprintf(stderr, "SEGFAULT get_new_node: %p [tid=%d]\n", n, tid);
-	}
+	n = create_new_node(btree, logical_id, ref);
     }
     if (n == NULL) {
         *ret = 1;
@@ -1980,7 +2006,7 @@ static int is_node_full(btree_raw_t *bt, btree_raw_node_t *r, char *key, uint32_
 
 static int btree_raw_write_low(btree_raw_t *btree, char *key, uint32_t keylen, uint64_t seqno, uint64_t datalen, char *data, btree_metadata_t *meta, uint64_t syndrome, int write_type, int* pathcnt)
 {
-    int               ret = 0, modify_tree = 0;
+    int               ret = 0, txnret = 0, modify_tree = 0;
     int32_t           nkey_child;
     uint64_t          child_id, child_id_before, child_id_after;
     node_key_t       *pk_insert, *pkrec = NULL;
@@ -2036,7 +2062,7 @@ restart:
             parent->rightmost  = btree->rootid;
             uint64_t saverootid = btree->rootid;
             btree->rootid = parent->logical_id;
-            if (! savepersistent( btree)) {
+            if (! savepersistent( btree, 0, modify_tree)) {
                 btree->rootid = saverootid;
                 goto err_exit;
             }
@@ -2053,10 +2079,14 @@ restart:
     assert(leaf_lock);
 
     if ((write_type != W_UPDATE || pkrec) && (write_type != W_CREATE || !pkrec)) {
+        if(!modify_tree) /* insert key may write overflow nodes, so start transaction before */
+	    btree->txn_cmd_cb(&ret, btree->txn_cmd_cb_data, 1 /* start */);
+
         insert_key_low(&ret, btree, node, key, keylen, seqno, datalen, data, meta, syndrome, pkrec, pk_insert, modify_tree);
 
         if(!modify_tree) {
             btree->write_node_cb(&ret, btree->write_node_cb_data, (uint64_t) key, (char*) node, btree->nodesize);
+            btree->txn_cmd_cb(&txnret, btree->txn_cmd_cb_data, ret ? 3 /* abort */ : 2 /* commit */);
             btree->stats.stat[BTSTAT_L1WRITES]++;
         }
 
@@ -2079,7 +2109,7 @@ restart:
 err_exit:
     plat_rwlock_unlock(&btree->lock);
 
-    return ret;
+    return txnret ? txnret : ret;
 }
 
 
@@ -2209,7 +2239,7 @@ static int is_minimal(btree_raw_t *btree, btree_raw_node_t *n, uint32_t l_balanc
  */
 int btree_raw_delete(struct btree_raw *btree, char *key, uint32_t keylen, btree_metadata_t *meta)
 {
-    int                   ret=0, pathcnt = 0, opt;
+    int                   ret = 0, txnret = 0, pathcnt = 0, opt;
     btree_raw_node_t     *node;
     plat_rwlock_t        *leaf_lock;
     node_key_t           *keyrec;
@@ -2217,13 +2247,18 @@ int btree_raw_delete(struct btree_raw *btree, char *key, uint32_t keylen, btree_
 
     plat_rwlock_rdlock(&btree->lock);
 
-    keyrec = btree_raw_find(btree, key, keylen, syndrome, meta, &node, &leaf_lock, &pathcnt);
+    keyrec = btree_raw_find(btree, key, keylen, syndrome, meta, &node, 1 /* EX */, &leaf_lock, &pathcnt);
 
     /* Check if delete without restructure is possible */
     opt = keyrec && _keybuf && !is_leaf_minimal_after_delete(btree, node, (node_vlkey_t*)keyrec);
 
     if(opt) {
-	delete_key_by_pkrec(&ret, btree, node, keyrec, 0);
+	btree->txn_cmd_cb(&ret, btree->txn_cmd_cb_data, 1 /* start */);
+
+	delete_key_by_pkrec(&ret, btree, node, keyrec, 0 /* !modify_tree */);
+
+	btree->txn_cmd_cb(&txnret, btree->txn_cmd_cb_data, ret ? 3 /* abort */ : 2 /* commit */);
+
 	btree->stats.stat[BTSTAT_DELETE_OPT_CNT]++;
     }
 
@@ -2232,7 +2267,11 @@ int btree_raw_delete(struct btree_raw *btree, char *key, uint32_t keylen, btree_
 
     plat_rwlock_unlock(&btree->lock);
 
-    if(!keyrec || ret) return 1; // key not found
+    if(!keyrec)
+        return 1; // key not found
+
+    if(ret || txnret)
+        return txnret ? txnret : ret;
 
     if(opt) {
 #ifdef BTREE_RAW_CHECK
@@ -2399,7 +2438,7 @@ static void collapse_root(int *ret, btree_raw_t *btree, btree_raw_node_t *old_ro
 	assert(old_root_node->nkeys == 0);
 	assert(old_root_node->rightmost != BAD_CHILD);
 	btree->rootid = old_root_node->rightmost;
-        if (! savepersistent( btree))
+        if (! savepersistent( btree, 0, 1))
                 assert( 0);
 	free_node(ret, btree, old_root_node);
     }

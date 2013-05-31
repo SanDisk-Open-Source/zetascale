@@ -152,7 +152,17 @@ typedef void (msg_cb_t)(int level, void *msg_data, char *filename, int lineno, c
 
 struct btree_raw;
 
-struct btree_raw *btree_raw_init(uint32_t flags, uint32_t n_partition, uint32_t n_partitions, uint32_t max_key_size, uint32_t min_keys_per_node, uint32_t nodesize, uint32_t n_l1cache_buckets, create_node_cb_t *create_node_cb, void *create_node_data, read_node_cb_t *read_node_cb, void *read_node_cb_data, write_node_cb_t *write_node_cb, void *write_node_cb_data, freebuf_cb_t *freebuf_cb, void *freebuf_cb_data, delete_node_cb_t *delete_node_cb, void *delete_node_data, log_cb_t *log_cb, void *log_cb_data, msg_cb_t *msg_cb, void *msg_cb_data, cmp_cb_t *cmp_cb, void * cmp_cb_data);
+struct btree_raw* btree_raw_init(uint32_t flags, uint32_t n_partition, uint32_t n_partitions, uint32_t max_key_size, uint32_t min_keys_per_node, uint32_t nodesize, uint32_t n_l1cache_buckets,
+	create_node_cb_t *create_node_cb, void *create_node_data,
+	read_node_cb_t *read_node_cb, void *read_node_cb_data,
+	write_node_cb_t *write_node_cb, void *write_node_cb_data,
+	freebuf_cb_t *freebuf_cb, void *freebuf_cb_data,
+	delete_node_cb_t *delete_node_cb, void *delete_node_data,
+	log_cb_t *log_cb, void *log_cb_data,
+	msg_cb_t *msg_cb, void *msg_cb_data,
+	cmp_cb_t *cmp_cb, void * cmp_cb_data,
+	txn_cmd_cb_t *txn_cmd_cb, void * txn_cmd_cb_data
+	);
 
 extern int btree_raw_get(struct btree_raw *btree, char *key, uint32_t keylen, char **data, uint64_t *datalen, btree_metadata_t *meta);
 

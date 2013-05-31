@@ -31,8 +31,8 @@ typedef struct btree {
     void              *msg_cb_data;
     cmp_cb_t          *cmp_cb;
     void              *cmp_cb_data;
-    txn_cmd_cb_t      *txn_cmd_cb;
-    void              *txn_cmd_cb_data;
+//    txn_cmd_cb_t      *txn_cmd_cb;
+//    void              *txn_cmd_cb_data;
 
     /* fields unique to btree_t */
     uint32_t           n_partitions;

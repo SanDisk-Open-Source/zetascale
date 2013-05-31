@@ -163,6 +163,13 @@ container_deletes()
 		}
 	}
 exit_container_deletes:
+	pthread_mutex_lock(&mutex);
+	if (0 == x) {
+		x = 1;
+		fprintf(fp, "%s", "Wake up shutdown thread\n");
+		pthread_cond_signal(&cv);
+	}
+	pthread_mutex_unlock(&mutex);
 	return 0;
 }
 

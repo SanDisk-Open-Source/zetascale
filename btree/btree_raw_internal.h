@@ -5,7 +5,7 @@
 #include "platform/rwlock.h"
 
 #define BAD_CHILD       0
-#define META_LOGICAL_ID 0x8000000000000000
+#define META_LOGICAL_ID 0x8000000000000000L
 
 typedef struct node_vkey {
     uint32_t    keylen;
@@ -112,6 +112,9 @@ typedef struct btree_raw {
     cmp_cb_t          *cmp_cb;
     void              *cmp_cb_data;
 
+    txn_cmd_cb_t      *txn_cmd_cb;
+    void              *txn_cmd_cb_data;
+
     btree_stats_t      stats;
 
     plat_rwlock_t      lock;
@@ -119,6 +122,7 @@ typedef struct btree_raw {
 } btree_raw_t;
 
 typedef struct btree_raw_persist {
+    btree_raw_node_t n; // this must be first member
     uint64_t    rootid,
                 logical_id_counter;
 } btree_raw_persist_t;
