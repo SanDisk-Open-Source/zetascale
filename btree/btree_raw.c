@@ -123,7 +123,7 @@ static int Verbose = 0;
     }\
 }
 
-//static void print_key(FILE *f, char* key, int keylen, char *msg, ...);
+//static void print_key(FILE *f, const char* func, int line, char* key, int keylen, char *msg, ...);
 
 static uint64_t get_syndrome(btree_raw_t *bt, char *key, uint32_t keylen);
 static char *dump_key(char *key, uint32_t keylen);
@@ -145,6 +145,7 @@ static int add_l1cache(btree_raw_t *btree, btree_raw_node_t *n, plat_rwlock_t** 
 static void ref_l1cache(btree_raw_t *btree, btree_raw_node_t *n);
 static btree_raw_node_t *get_l1cache(btree_raw_t *btree, uint64_t logical_id, plat_rwlock_t** lock);
 static void delete_l1cache(btree_raw_t *btree, btree_raw_node_t *n);
+static void modify_l1cache_node(btree_raw_t *btree, btree_raw_node_t *n);
 
 static void dump_node(btree_raw_t *bt, FILE *f, btree_raw_node_t *n, char *key, uint32_t keylen);
 static void update_keypos(btree_raw_t *btree, btree_raw_node_t *n, uint32_t n_key_start);
@@ -375,10 +376,13 @@ savepersistent( btree_raw_t *bt, int create, int modify_tree)
 	    r = (btree_raw_persist_t*)get_existing_node_low(&ret, bt,
                     META_LOGICAL_ID+bt->n_partition, NULL, modify_tree);
 
+    //fprintf(stderr, "%x %s:%d ret=%d create=%d modify_tree=%d nodeid=%lx\n", (int)pthread_self(), __FUNCTION__, __LINE__, ret, create, modify_tree, META_LOGICAL_ID+bt->n_partition);
 	if(r)
 	{
             r->logical_id_counter = bt->logical_id_counter;
             r->rootid = bt->rootid;
+
+	    //fprintf(stderr, "%x %s:%d lic=%ld rootid=%ld\n", (int)pthread_self(), __FUNCTION__, __LINE__, r->logical_id_counter, r->rootid);
 
             if(!modify_tree)
             {
@@ -386,6 +390,8 @@ savepersistent( btree_raw_t *bt, int create, int modify_tree)
                 deref_l1cache_node(bt, (btree_raw_node_t*)r);
                 bt->stats.stat[BTSTAT_L1WRITES]++;
             }
+            else if(!create)
+		modify_l1cache_node(bt, (btree_raw_node_t*)r);
 	}
 	else
 		ret = 1;
@@ -411,8 +417,11 @@ loadpersistent( btree_raw_t *bt)
     r = (btree_raw_persist_t*)get_existing_node(&ret, bt,
 	    META_LOGICAL_ID + bt->n_partition);
 
+    //fprintf(stderr, "%x %s:%d ret=%d nodeid=%lx\n", (int)pthread_self(), __FUNCTION__, __LINE__, ret, META_LOGICAL_ID + bt->n_partition);
     if (ret)
 	return (0);
+
+    //fprintf(stderr, "%x %s:%d lic=%ld rootid=%ld\n", (int)pthread_self(), __FUNCTION__, __LINE__, r->logical_id_counter, r->rootid);
 
     bt->logical_id_counter = r->logical_id_counter + 1;
     bt->rootid = r->rootid;
@@ -988,6 +997,8 @@ int btree_raw_get(struct btree_raw *btree, char *key, uint32_t keylen, char **da
 	ret = get_leaf_data(btree, node, keyrec, data, datalen, meta->flags, 0);
 	assert(!ret);
     }
+
+    //print_key(stderr, __FUNCTION__, __LINE__, key, keylen, "ret=%d lic=%ld", ret, btree->logical_id_counter);
 
     deref_l1cache_node(btree, node);
     plat_rwlock_unlock(leaf_lock);
@@ -2086,7 +2097,7 @@ restart:
         insert_key_low(&ret, btree, node, key, keylen, seqno, datalen, data, meta, syndrome, pkrec, pk_insert, modify_tree);
 
         if(!modify_tree) {
-            btree->write_node_cb(&ret, btree->write_node_cb_data, (uint64_t) key, (char*) node, btree->nodesize);
+            btree->write_node_cb(&ret, btree->write_node_cb_data, (uint64_t) node->logical_id, (char*) node, btree->nodesize);
             btree->txn_cmd_cb(&txnret, btree->txn_cmd_cb_data, ret ? 3 /* abort */ : 2 /* commit */);
             btree->stats.stat[BTSTAT_L1WRITES]++;
         }
@@ -2120,19 +2131,9 @@ static int btree_raw_write(struct btree_raw *btree, char *key, uint32_t keylen, 
     int                 pathcnt = 0;
     uint64_t            syndrome = get_syndrome(btree, key, keylen);
 
-    #ifdef notdef
-	if (syndrome == 13133508245666864056ULL) {
-	    fprintf(stderr, "ZZZZZZZZ: AHA write!\n");
-	}
-    #endif
-
-    #ifdef DEBUG_STUFF
-	if (Verbose) {
-	    fprintf(stderr, "%x ********  Before btree_raw_write for key '%s' [syn=%lu]: ret=%d  *******\n", (int)pthread_self(), dump_key(key, keylen), syndrome, ret);
-	}
-    #endif
-
     ret = btree_raw_write_low(btree, key, keylen, meta->seqno, datalen, data, meta, syndrome, write_type, &pathcnt);
+
+    //print_key(stderr, __FUNCTION__, __LINE__, key, keylen, "write_type=%d ret=%d lic=%ld", write_type, ret, btree->logical_id_counter);
 
     //TODO change to atomics
     if (!ret) {
@@ -2267,6 +2268,8 @@ int btree_raw_delete(struct btree_raw *btree, char *key, uint32_t keylen, btree_
     plat_rwlock_unlock(leaf_lock);
 
     plat_rwlock_unlock(&btree->lock);
+
+    //print_key(stderr, __FUNCTION__, __LINE__, key, keylen, "ret=%d keyrec=%d, opt=%d", ret, keyrec, opt);
 
     if(!keyrec)
         return 1; // key not found
@@ -3617,13 +3620,13 @@ void btree_raw_dump(FILE *f, btree_raw_t *bt)
 
 //======================   CHECK   =========================================
 #if 0
-static void print_key(FILE *f, char* key, int keylen, char *msg, ...)
+static void print_key(FILE *f, const char* func, int line, char* key, int keylen, char *msg, ...)
 {
 	int i;
     char     stmp[1024];
     char     stmp1[1024];
     va_list  args;
-return;
+
     va_start(args, msg);
 
     vsprintf(stmp, msg, args);
@@ -3634,9 +3637,10 @@ return;
 	for(i=0;i<keylen;i++)
 		stmp1[i] = key[i] < 32 ? '^' : key[i];
 	stmp1[i] = 0;
-    (void) fprintf(stderr, "%s key=[%s]\n", stmp, stmp1);
+    (void) fprintf(stderr, "%x %s:%d %s key=[%s]\n", (int)pthread_self(), func, line,  stmp, stmp1);
 }
 #endif
+
 static void check_err(FILE *f, char *msg, ...)
 {
     char     stmp[1024];
