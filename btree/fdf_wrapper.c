@@ -387,6 +387,7 @@ FDF_status_t _FDFOpenContainer(
 
     if (bt == NULL) {
         msg("Could not create btree in FDFOpenContainer!");
+        FDFDeleteContainer(fdf_thread_state, *cguid);
         return(FDF_FAILURE);
     }
 
