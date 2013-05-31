@@ -3,7 +3,7 @@
 set -e
 export WD=$(readlink -f $(dirname $0))
 
-[ -n "${FDF_SDK_VERSION}" ] || export FDF_SDK_VERSION=1.2
+[ -n "${FDF_SDK_VERSION}" ] || export FDF_SDK_VERSION=2.0
 [ -n "${BUILD_NUMBER}" ] || export BUILD_NUMBER=$(date +%s)
 #
 if test -d .git; then
