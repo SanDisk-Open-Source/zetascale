@@ -7641,6 +7641,9 @@ mcd_rec_attach_test( int testcmd, int test_arg )
 #include	"mcd_trx.h"
 
 
+#define	TRX_LEVELS	10
+
+
 typedef struct {
 	mcd_logrec_object_t	lr;
 	uint64_t		syn;
@@ -7650,7 +7653,9 @@ typedef struct {
 struct mcd_trx_state {
 	mcd_osd_shard_t		*s;
 	mcd_trx_rec_t		trtab[TRX_LIMIT];
-	uint			n;
+	uint			n,
+				level,
+				nbase[TRX_LEVELS];
 	mcd_trx_t		status;
 	uint64_t		id;
 };
@@ -7679,14 +7684,24 @@ mcd_trx_t
 mcd_trx_start( )
 {
 
-	if (trx)
-		return (MCD_TRX_TRANS_ACTIVE);
-	unless (trx = plat_alloc( sizeof *trx))
-		return (MCD_TRX_NO_MEM);
-	trx->s = 0;
-	trx->n = 0;
-	trx->id = __sync_add_and_fetch( &trx_id, 1);
-	return (trx->status = MCD_TRX_OKAY);
+	if (trx) {
+		unless (trx->status == MCD_TRX_OKAY)
+			return (trx->status);
+		unless (trx->level < TRX_LEVELS-1)
+			return (MCD_TRX_TOO_MANY);
+		++trx->level;
+	}
+	else {
+		unless (trx = plat_alloc( sizeof *trx))
+			return (MCD_TRX_NO_MEM);
+		trx->s = 0;
+		trx->n = 0;
+		trx->id = __sync_add_and_fetch( &trx_id, 1);
+		trx->level = 0;
+		trx->status = MCD_TRX_OKAY;
+	}
+	trx->nbase[trx->level] = trx->n;
+	return (trx->status);
 }
 
 
@@ -7710,9 +7725,13 @@ mcd_trx_commit( void *pai)
 
 	unless (trx)
 		return (MCD_TRX_NO_TRANS);
+	if (trx->level) {
+		--trx->level;
+		return (trx->status);
+	}
 	unless (trx->status == MCD_TRX_OKAY)
 		return (mcd_trx_rollback( pai));
-	if (trx->s) {
+	if (trx->n) {
 		fthWaitEl_t *w = fthLock( &trx->s->log->sync_fill_lock, 1, NULL);
 		if (trx->n > 1) {
 			mcd_rec_log_t *log = trx->s->log;
@@ -7760,7 +7779,12 @@ mcd_trx_rollback( void *pai)
 
 	unless (trx)
 		return (MCD_TRX_NO_TRANS);
-	for (i=0; i<trx->n; ++i) {
+	unless ((trx->level == 0)
+	or (trx->status == MCD_TRX_OKAY)) {
+		--trx->level;
+		return (trx->status);
+	}
+	for (i=0; i<trx->n-trx->nbase[trx->level]; ++i) {
 		mcd_trx_rec_t *r = &trx->trtab[trx->n-i-1];
 		if (r->lr.blocks) {
 			mcd_osd_trx_revert( trx->s, &r->lr, r->syn, &r->e);
@@ -7769,6 +7793,11 @@ mcd_trx_rollback( void *pai)
 		}
 		else unless (mcd_osd_trx_insert( trx->s, r->syn, &r->e))
 			trx->status = MCD_TRX_HASHTABLE_FULL;
+	}
+	trx->n = trx->nbase[trx->level];
+	if (trx->level) {
+		--trx->level;
+		return (trx->status);
 	}
 	unless (trx->status == MCD_TRX_OKAY)
 		mcd_trx_stats.failures++;

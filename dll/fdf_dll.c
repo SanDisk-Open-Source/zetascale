@@ -175,13 +175,7 @@ static char *
 (*ptr_FDFStrError)(FDF_status_t fdf_errno);
 
 static FDF_status_t 
-(*ptr_FDFMiniTransactionStart)(struct FDF_thread_state *fdf_thread_state);
-
-static FDF_status_t 
 (*ptr_FDFTransactionStart)(struct FDF_thread_state *fdf_thread_state);
-
-static FDF_status_t 
-(*ptr_FDFMiniTransactionCommit)(struct FDF_thread_state *fdf_thread_state);
 
 static FDF_status_t 
 (*ptr_FDFTransactionCommit)(struct FDF_thread_state *fdf_thread_state);
@@ -314,9 +308,7 @@ static struct {
     { "FDFGetStats",                   &ptr_FDFGetStats                  },
     { "FDFGetContainerStats",          &ptr_FDFGetContainerStats         },
     { "FDFStrError",                   &ptr_FDFStrError                  },
-    { "FDFMiniTransactionStart",       &ptr_FDFMiniTransactionStart      },
     { "FDFTransactionStart",           &ptr_FDFTransactionStart          },
-    { "FDFMiniTransactionCommit",      &ptr_FDFMiniTransactionCommit     },
     { "FDFTransactionCommit",          &ptr_FDFTransactionCommit         },
     { "FDFTransactionRollback",        &ptr_FDFTransactionRollback       },
     { "FDFGetVersion",                 &ptr_FDFGetVersion                },
@@ -909,19 +901,6 @@ FDFStrError(FDF_status_t fdf_errno)
 
 
 /*
- * FDFMiniTransactionStart
- */
-FDF_status_t 
-FDFMiniTransactionStart(struct FDF_thread_state *fdf_thread_state)
-{
-    if (unlikely(!ptr_FDFMiniTransactionStart))
-        undefined("FDFMiniTransactionStart");
-
-    return (*ptr_FDFMiniTransactionStart)(fdf_thread_state);
-}
-
-
-/*
  * FDFTransactionStart
  */
 FDF_status_t 
@@ -931,19 +910,6 @@ FDFTransactionStart(struct FDF_thread_state *fdf_thread_state)
         undefined("FDFTransactionStart");
 
     return (*ptr_FDFTransactionStart)(fdf_thread_state);
-}
-
-
-/*
- * FDFMiniTransactionCommit
- */
-FDF_status_t 
-FDFMiniTransactionCommit(struct FDF_thread_state *fdf_thread_state)
-{
-    if (unlikely(!ptr_FDFMiniTransactionCommit))
-        undefined("FDFMiniTransactionCommit");
-
-    return (*ptr_FDFMiniTransactionCommit)(fdf_thread_state);
 }
 
 

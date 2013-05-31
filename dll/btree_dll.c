@@ -176,13 +176,7 @@ static char *
 (*ptr_FDFStrError)(FDF_status_t fdf_errno);
 
 static FDF_status_t 
-(*ptr_FDFMiniTransactionStart)(struct FDF_thread_state *fdf_thread_state);
-
-static FDF_status_t 
 (*ptr_FDFTransactionStart)(struct FDF_thread_state *fdf_thread_state);
-
-static FDF_status_t 
-(*ptr_FDFMiniTransactionCommit)(struct FDF_thread_state *fdf_thread_state);
 
 static FDF_status_t 
 (*ptr_FDFTransactionCommit)(struct FDF_thread_state *fdf_thread_state);
@@ -317,9 +311,7 @@ static struct {
     { "_FDFGetStats",                   &ptr_FDFGetStats                  },
     { "_FDFGetContainerStats",          &ptr_FDFGetContainerStats         },
     { "_FDFStrError",                   &ptr_FDFStrError                  },
-    { "_FDFMiniTransactionStart",       &ptr_FDFMiniTransactionStart      },
     { "_FDFTransactionStart",           &ptr_FDFTransactionStart          },
-    { "_FDFMiniTransactionCommit",      &ptr_FDFMiniTransactionCommit     },
     { "_FDFTransactionCommit",          &ptr_FDFTransactionCommit         },
     { "_FDFTransactionRollback",        &ptr_FDFTransactionRollback       },
     { "_FDFGetVersion",                 &ptr_FDFGetVersion                },
@@ -914,19 +906,6 @@ FDFStrError(FDF_status_t fdf_errno)
 
 
 /*
- * FDFMiniTransactionStart
- */
-FDF_status_t 
-FDFMiniTransactionStart(struct FDF_thread_state *fdf_thread_state)
-{
-    if (unlikely(!ptr_FDFMiniTransactionStart))
-        undefined("FDFMiniTransactionStart");
-
-    return (*ptr_FDFMiniTransactionStart)(fdf_thread_state);
-}
-
-
-/*
  * FDFTransactionStart
  */
 FDF_status_t 
@@ -936,19 +915,6 @@ FDFTransactionStart(struct FDF_thread_state *fdf_thread_state)
         undefined("FDFTransactionStart");
 
     return (*ptr_FDFTransactionStart)(fdf_thread_state);
-}
-
-
-/*
- * FDFMiniTransactionCommit
- */
-FDF_status_t 
-FDFMiniTransactionCommit(struct FDF_thread_state *fdf_thread_state)
-{
-    if (unlikely(!ptr_FDFMiniTransactionCommit))
-        undefined("FDFMiniTransactionCommit");
-
-    return (*ptr_FDFMiniTransactionCommit)(fdf_thread_state);
 }
 
 

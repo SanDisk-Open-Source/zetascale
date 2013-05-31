@@ -807,44 +807,11 @@ char *FDFStrError(FDF_status_t fdf_errno);
  *
  * @param fdf_thread_state <IN> The FDF context for which this operation applies
  * @return FDF_SUCCESS on success
- *         FDF_FAILURE_ALREADY_IN_TRANS if thread has active transaction already
- *         FDF_OUT_OF_MEM if memory exhausted
- *         FDF_FAILURE for error unspecified
- *
- * ============================================================
- * DELETE THIS FUNCTION AS SOON AS REGRESSION TESTS ARE UPDATED
- * ============================================================
- */
-FDF_status_t FDFMiniTransactionStart(
-	struct FDF_thread_state	*fdf_thread_state
-	);
-
-/**
- * @brief Start transaction
- *
- * @param fdf_thread_state <IN> The FDF context for which this operation applies
- * @return FDF_SUCCESS on success
- *         FDF_FAILURE_ALREADY_IN_TRANS if thread has active transaction already
+ *         FDF_TRANS_LEVEL_EXCEEDED if transaction is nested too deeply
  *         FDF_OUT_OF_MEM if memory exhausted
  *         FDF_FAILURE for error unspecified
  */
 FDF_status_t FDFTransactionStart(
-	struct FDF_thread_state	*fdf_thread_state
-	);
-
-/**
- * @brief Commit transaction
- *
- * @param fdf_thread_state <IN> The FDF context for which this operation applies
- * @return FDF_SUCCESS on success
- *         FDF_FAILURE_NO_TRANS if there is no active transaction in the current thread
- *         FDF_TRANS_ABORTED if transaction aborted due to excessive size or internal error
- *
- * ============================================================
- * DELETE THIS FUNCTION AS SOON AS REGRESSION TESTS ARE UPDATED
- * ============================================================
- */
-FDF_status_t FDFMiniTransactionCommit(
 	struct FDF_thread_state	*fdf_thread_state
 	);
 

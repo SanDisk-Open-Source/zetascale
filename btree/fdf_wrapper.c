@@ -968,38 +968,6 @@ char *_FDFStrError(FDF_status_t fdf_errno)
     return(FDFStrError(fdf_errno));
 }
 
-/**
- * @brief Start mini transaction
- *
- * @param fdf_thread_state <IN> The SDF context for which this operation applies
- * @return FDF_SUCCESS on success
- *         FDF_FAILURE_ALREADY_IN_TRANS if thread has active transaction already
- */
-FDF_status_t _FDFMiniTransactionStart(
-	struct FDF_thread_state	*fdf_thread_state
-	)
-{
-    my_thd_state = fdf_thread_state;;
-
-    return(FDFMiniTransactionStart(fdf_thread_state));
-}
-
-/**
- * @brief Commit mini transaction
- *
- * @param fdf_thread_state <IN> The SDF context for which this operation applies
- * @return FDF_SUCCESS on success
- *         FDF_FAILURE_NO_TRANS if there is no active transaction in the current thread
- */
-FDF_status_t _FDFMiniTransactionCommit(
-	struct FDF_thread_state	*fdf_thread_state
-	)
-{
-    my_thd_state = fdf_thread_state;;
-
-    return(FDFMiniTransactionCommit(fdf_thread_state));
-}
-
 /*
  * FDFTransactionStart
  */
@@ -1013,7 +981,7 @@ _FDFTransactionStart(struct FDF_thread_state *fdf_thread_state)
 
 
 /*
- * FDFMiniTransactionCommit
+ * FDFTransactionCommit
  */
 FDF_status_t 
 _FDFTransactionCommit(struct FDF_thread_state *fdf_thread_state)
