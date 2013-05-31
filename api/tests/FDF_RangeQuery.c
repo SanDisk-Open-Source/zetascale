@@ -279,7 +279,62 @@ FDF_status_t RangeQuery(FDF_cguid_t cguid,
 	}
 }
 
-FDF_status_t GenerateSerialKeyData(FDF_cguid_t cguid, uint32_t n_objects)
+FDF_status_t ReadSeqno(FDF_cguid_t cguid, uint32_t key_no, uint64_t *seq_no)
+{
+	FDF_range_meta_t  rmeta;
+	FDF_range_data_t *values;
+	struct FDF_cursor *cursor;       // opaque cursor handle
+	FDF_status_t ret;
+	int n_in = 1;
+	int n_out;
+
+	rmeta.flags = FDF_RANGE_START_GE | FDF_RANGE_END_LE;
+
+	rmeta.key_start = (char *)malloc(MAX_KEYLEN);
+	assert(rmeta.key_start);
+	sprintf(rmeta.key_start, "%08d", key_no);
+	rmeta.keylen_start = strlen(rmeta.key_start) + 1;
+
+	rmeta.key_end = (char *)malloc(MAX_KEYLEN);
+	assert(rmeta.key_end);
+	sprintf(rmeta.key_end, "%08d", key_no);
+	rmeta.keylen_end = strlen(rmeta.key_end) + 1;
+
+	ret = FDFGetRange(fdf_thrd_state, 
+	                  cguid,
+	                  FDF_RANGE_PRIMARY_INDEX,
+	                  &cursor, 
+	                  &rmeta);
+	if (ret != FDF_SUCCESS) {
+		fprintf(fp, "FDFStartRangeQuery failed with status=%d\n", ret);
+		return ret;
+	}
+
+	/* Allocate for sufficient values */
+	values = (FDF_range_data_t *) malloc(sizeof(FDF_range_data_t) * n_in);
+	assert(values);
+
+	/* Do the query now */
+	ret = FDFGetNextRange(fdf_thrd_state, 
+	                      cursor,
+	                      n_in,
+	                      &n_out,
+	                      values);
+
+	if ((ret == FDF_SUCCESS) && 
+	    (n_out == n_in) &&
+	    (values[0].status == FDF_SUCCESS)) {
+		*seq_no = values[0].seqno;
+	} else {
+		ret = FDF_FAILURE;
+	}
+
+	FDFGetRangeFinish(fdf_thrd_state, cursor);
+
+	return (ret);
+}
+
+FDF_status_t GenerateSerialKeyData(FDF_cguid_t cguid, uint32_t n_objects, uint32_t flags)
 {
 	FDF_status_t ret = FDF_SUCCESS;
 	char *keytmp;
@@ -299,7 +354,7 @@ FDF_status_t GenerateSerialKeyData(FDF_cguid_t cguid, uint32_t n_objects)
 
 		ret = FDFWriteObject(fdf_thrd_state, cguid, 
 		                     keytmp, strlen(keytmp) + 1, 
-		                     data_arr[i], datalen_arr[i], 0);
+		                     data_arr[i], datalen_arr[i], flags);
 		if (ret != FDF_SUCCESS) {
 			fprintf(fp, "WriteObject failed with status=%s\n", 
 			            FDFStrError(ret));
@@ -416,7 +471,7 @@ int test_basic_check(void)
 		return -1;
 	}
 
-	status = GenerateSerialKeyData(cguid, n_objects);
+	status = GenerateSerialKeyData(cguid, n_objects, 0);
 	if (status != FDF_SUCCESS) {
 		fprintf(fp, "test_basic_check failed. Writing serial key "
 		        "and data has failed. ret=%d\n", status);
@@ -446,6 +501,83 @@ int test_basic_check(void)
 	return 0;
 }
 
+int test_seqno_check(void)
+{
+	int n_objects = 4000;
+//	FDF_range_enums_t flags = 0;
+//	int n_test_iter = 10;
+//	int max_chunks = 10;
+//	int i;
+//	int n_chunks;
+//	int start, end;
+	uint64_t seqno_offset;
+
+	FDF_status_t status;
+	FDF_cguid_t cguid;
+
+	fprintf(fp, "==========================\n");
+	fprintf(fp, "test_seqno_check starting\n");
+	fprintf(fp, "==========================\n");
+	status = OpenContainer("rcheck2", &cguid);
+	if (status != FDF_SUCCESS) {
+		fprintf(fp, "test_seqno_check failed. OpenContainer failed "
+		        "ret=%d\n", status);
+		return -1;
+	}
+
+	status = GenerateSerialKeyData(cguid, n_objects, 0);
+	if (status != FDF_SUCCESS) {
+		fprintf(fp, "test_basic_check failed. Writing serial key "
+		        "and data has failed 1st time. ret=%d\n", status);
+		return -1;
+	}
+
+	/* Get the first range seqno */
+	status = ReadSeqno(cguid, 0, &seqno_offset);
+	if (status != FDF_SUCCESS) {
+		fprintf(fp, "test_basic_check failed. Unable to read"
+		        "seqno for first elemenet. ret=%d\n", status);
+		return -1;
+	}
+	fprintf(fp, "Sequence no of first item (offset) = %"PRIu64"\n", seqno_offset);
+
+	status = GenerateSerialKeyData(cguid, n_objects, FDF_WRITE_MUST_EXIST);
+	if (status != FDF_SUCCESS) {
+		fprintf(fp, "test_basic_check failed. Writing serial key "
+		        "and data has failed 2nd time. ret=%d\n", status);
+		return -1;
+	}
+
+	status = ReadSeqno(cguid, 5, &seqno_offset);
+	if (status != FDF_SUCCESS) {
+		fprintf(fp, "test_basic_check failed. Unable to read"
+		        "seqno for first elemenet. ret=%d\n", status);
+		return -1;
+	}
+	fprintf(fp, "Sequence no of first item (offset) = %"PRIu64"\n", seqno_offset);
+
+/*	for (i = 1; i <= n_test_iter; i++) {
+		first_half  = random() % n_objects;
+		second_half = n_objects + random() % n_objects;
+		n_chunks = (random() % (max_chunks - 1)) + 1;
+
+		status = RangeQuerySeqno(cguid, flags,
+		                         first_half, second_half,
+		                         n_chunks);
+
+		if (status != FDF_SUCCESS) {
+			fprintf(fp, "test_basic_check failed. Range Query "
+			            "failed with ret=%d\n", status);
+			return -1;
+		}
+	} */
+
+	CloseContainer(cguid);
+        (void)DeleteContainer(cguid);
+	discard_data(n_objects);
+	return 0;
+}
+
 /****** main function ******/
 
 int main(int argc, char *argv[])
@@ -462,7 +594,8 @@ int main(int argc, char *argv[])
 		return (1);
 	}
 
-	ret = test_basic_check();
+	//ret = test_basic_check();
+	ret = test_seqno_check();
 
 	fclose(fp);
 	ClearEnvironment();

@@ -29,6 +29,8 @@ uint32_t flags = 0;
 uint64_t begin_value = 0;
 uint64_t end_value = 0;
 int      chunks  = 1;
+uint32_t start_seq = 0;
+uint32_t end_seq = 0;
 
 int btest_range_parse(btest_cfg_t *cfg, int argc, char **argv);
 
@@ -46,16 +48,32 @@ void btest_range_test(btest_cfg_t *cfg)
 
 	/* Initialize rmeta */
 	rmeta.flags = flags;
+	rmeta.key_start = NULL;
+	rmeta.key_end = NULL;
 
-	rmeta.key_start = (char *)malloc(cfg->max_key_size);
-	assert(rmeta.key_start);
-	sprintf(rmeta.key_start, "%08"PRIu64"", (uint64_t)begin_value);
-	rmeta.keylen_start = strlen(rmeta.key_start) + 1;
+	if (begin_value != 0) {
+		rmeta.key_start = (char *)malloc(cfg->max_key_size);
+		assert(rmeta.key_start);
+		sprintf(rmeta.key_start, "%08"PRIu64"", (uint64_t)begin_value);
+		rmeta.keylen_start = strlen(rmeta.key_start) + 1;
+	}
 
-	rmeta.key_end = (char *)malloc(cfg->max_key_size);
-	assert(rmeta.key_end);
-	sprintf(rmeta.key_end, "%08"PRIu64"", (uint64_t)end_value);
-	rmeta.keylen_end = strlen(rmeta.key_end) + 1;
+	if (end_value != 0) {
+		rmeta.key_end = (char *)malloc(cfg->max_key_size);
+		assert(rmeta.key_end);
+		sprintf(rmeta.key_end, "%08"PRIu64"", (uint64_t)end_value);
+		rmeta.keylen_end = strlen(rmeta.key_end) + 1;
+	}
+
+	if (end_seq != 0) {
+		rmeta.end_seq = end_seq;
+		if (start_seq == 0) {
+			rmeta.flags |= RANGE_SEQNO_LE;
+		} else {
+			rmeta.flags |= RANGE_SEQNO_GT_LE;
+			rmeta.start_seq = start_seq;
+		}
+	}
 
 	status = btree_start_range_query(cfg->bt, BTREE_RANGE_PRIMARY_INDEX, &cursor, &rmeta);
 	if (status != BTREE_SUCCESS) {
@@ -64,11 +82,17 @@ void btest_range_test(btest_cfg_t *cfg)
 	}
 
 	/* Allocate for sufficient values */
-	n_in = end_value - begin_value;
-	if (n_in < 0) {
-		n_in = n_in * (-1);
+	if ((begin_value == 0) && (end_value == 0)) {
+		n_in = cfg->n_test_keys;
+	} else if (end_value == 0) {
+		n_in = cfg->n_test_keys - begin_value + 2;
+	} else {
+		n_in = end_value - begin_value;
+		if (n_in < 0) {
+			n_in = n_in * (-1);
+		}
+		n_in += 2; /* count for <= and >= cases */
 	}
-	n_in += 2; /* count for <= and >= cases */
 
 	n_in_chunk = n_in / chunks + n_in % chunks;
 	printf("Each chunk of n_in %d\n", n_in_chunk);
@@ -84,7 +108,7 @@ void btest_range_test(btest_cfg_t *cfg)
 		for (i = 0; i < n_out; i++) {
 			printf("%-4d: status=%d ", i, values[i].status);
 			if (values[i].status == BTREE_RANGE_SUCCESS) {
-				printf("Key=%s Keylen=%d\n", values[i].key, values[i].keylen);
+				printf("Key=%s Keylen=%d Seqno=%"PRIu64"\n", values[i].key, values[i].keylen, values[i].seqno);
 			} else {
 				printf("\n");
 			}
@@ -179,6 +203,15 @@ int btest_range_parse(btest_cfg_t *cfg, int argc, char **argv)
 			if (chunks == 0) {
 				chunks = 1;
 			}
+			break;
+		case 'q':
+			sscanf(argv[i+1], "%u,%u", &start_seq, &end_seq);
+			if (end_seq == 0) {
+				btest_common_usage("btree_range_test");
+				btest_range_usage();
+				return (1);
+			}
+			break;
 		}
 		i++;
 	}

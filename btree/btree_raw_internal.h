@@ -134,4 +134,5 @@ btree_raw_node_t *get_existing_node_low(int *ret, btree_raw_t *btree, uint64_t l
 btree_raw_node_t *get_existing_node(int *ret, btree_raw_t *btree, uint64_t logical_id);
 int is_leaf(btree_raw_t *btree, btree_raw_node_t *node);
 
+void deref_l1cache_node(btree_raw_t* btree, btree_raw_node_t *node);
 #endif // __BTREE_RAW_INTERNAL_H

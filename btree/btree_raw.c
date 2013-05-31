@@ -141,7 +141,6 @@ btree_raw_node_t *get_existing_node_low(int *ret, btree_raw_t *btree, uint64_t l
 
 static int init_l1cache(btree_raw_t *btree, uint32_t n_l1cache_buckets);
 static int deref_l1cache(btree_raw_t *btree);
-static void deref_l1cache_node(btree_raw_t* btree, btree_raw_node_t *node);
 static int add_l1cache(btree_raw_t *btree, btree_raw_node_t *n, plat_rwlock_t** lock);
 static void ref_l1cache(btree_raw_t *btree, btree_raw_node_t *n);
 static btree_raw_node_t *get_l1cache(btree_raw_t *btree, uint64_t logical_id, plat_rwlock_t** lock);
@@ -330,7 +329,9 @@ btree_raw_t *btree_raw_init(uint32_t flags, uint32_t n_partition, uint32_t n_par
             free( bt);
             return (NULL);
         }
-        assert(root_node->logical_id == bt->rootid);
+        if (!(bt->flags & IN_MEMORY)) {
+            assert(root_node->logical_id == bt->rootid);
+        }
     }
     if (deref_l1cache(bt)) {
         ret = 1;
@@ -1028,7 +1029,7 @@ static int init_l1cache(btree_raw_t *bt, uint32_t n_l1cache_buckets)
     return(0);
 }
 
-static void deref_l1cache_node(btree_raw_t* btree, btree_raw_node_t *node)
+void deref_l1cache_node(btree_raw_t* btree, btree_raw_node_t *node)
 {
     if (btree->flags & IN_MEMORY)
         return;

@@ -38,28 +38,48 @@ is_multiple_flags_set(btree_range_flags_t flags, uint32_t f)
 static btree_status_t
 validate_range_query(btree_range_meta_t *rmeta)
 {
-	if (is_multiple_flags_set(rmeta->flags, 
-	       RANGE_START_GT | RANGE_START_GE | RANGE_START_LE | RANGE_START_LT)) {
+	int all_start_flags; 
+	int all_end_flags; 
+
+	all_start_flags = 
+	         RANGE_START_GT | RANGE_START_GE | RANGE_START_LE | RANGE_START_LT;
+
+	all_end_flags = RANGE_END_GT | RANGE_END_GE | RANGE_END_LE | RANGE_END_LT;
+
+	if (is_multiple_flags_set(rmeta->flags, RANGE_SEQNO_LE | RANGE_SEQNO_GT_LE)) {
 		return BTREE_INVALID_QUERY;
 	}
 
-	if (is_multiple_flags_set(rmeta->flags, 
-	       RANGE_END_GT | RANGE_END_GE | RANGE_END_LE | RANGE_END_LT)) {
+	/* There can be only one start flag and one end flag */
+	if (is_multiple_flags_set(rmeta->flags, all_start_flags)) {
 		return BTREE_INVALID_QUERY;
 	}
 
-	/* Now that we know there is only one start or end, ensure there is 
-	 * atleast one start and end */
-	if (!is_multiple_flags_set(rmeta->flags, 
-	       RANGE_START_GT | RANGE_START_GE | RANGE_START_LE | RANGE_START_LT |
-	       RANGE_END_GT | RANGE_END_GE | RANGE_END_LE | RANGE_END_LT)) {
+	if (is_multiple_flags_set(rmeta->flags, all_end_flags)) {
 		return BTREE_INVALID_QUERY;
 	}
 
-	/* TODO: Remove this check, if we need to support both start and end
-	 * are same (say greater) in-order to provide a means for querying all
-	 * data in chunks 
-	 */
+	/* If any start is given, key_start should be non-NULL and converse as well */
+	if ((rmeta->flags & all_start_flags)) {
+		if (rmeta->key_start == NULL) {
+			return BTREE_INVALID_QUERY;
+		}
+	} else {
+		if (rmeta->key_start != NULL) {
+			return BTREE_INVALID_QUERY;
+		}
+	}
+
+	if ((rmeta->flags & all_end_flags)) {
+		if (rmeta->key_end == NULL) {
+			return BTREE_INVALID_QUERY;
+		}
+	} else {
+		if (rmeta->key_end != NULL) {
+			return BTREE_INVALID_QUERY;
+		}
+	}
+
 	/* Incompatible flags. GT or GE start should have LE or LT end and vice versa */
 	if (is_multiple_flags_set(rmeta->flags, 
 	       RANGE_START_GT | RANGE_START_GE | RANGE_END_GT | RANGE_END_GE)) {
@@ -80,8 +100,17 @@ static int range_cmp(btree_raw_t *bt, char *cmp, uint32_t cmplen,
 	int x;
 	int y;
 
-	x = bt->cmp_cb(bt->cmp_cb_data, cmp, cmplen, start, startlen);
-	y = bt->cmp_cb(bt->cmp_cb_data, cmp, cmplen, end, endlen);
+	if (start != NULL) {
+		x = bt->cmp_cb(bt->cmp_cb_data, cmp, cmplen, start, startlen);
+	} else {
+		x = 1;  /* If no lower, then given number is above that */
+	}
+
+	if (end != NULL) {
+		y = bt->cmp_cb(bt->cmp_cb_data, cmp, cmplen, end, endlen);
+	} else {
+		y = -1; /* If no upper bound, number is less than that */
+	}
 
 	if (x == 0) {
 		return (start_incl ? 0 : -1);
@@ -96,6 +125,18 @@ static int range_cmp(btree_raw_t *bt, char *cmp, uint32_t cmplen,
 	}
 }
 
+static int is_seqno_in_range(btree_range_meta_t *rmeta, key_stuff_t *ks)
+{
+	if (rmeta->flags & RANGE_SEQNO_LE) {
+		return (ks->seqno <= rmeta->end_seq);
+	} else if (rmeta->flags & RANGE_SEQNO_GT_LE) {
+		return ((ks->seqno > rmeta->start_seq)) &&
+		        ((ks->seqno <= rmeta->end_seq));
+	} else {
+		return 1; /* No range specified, so its accepted */
+	}
+}
+
 #define PUSH_DATA_TO_LIST(l, rmeta, d1, d2, d3) \
 	if (IS_ASCENDING_QUERY(rmeta)) { \
 		blist_push_node_from_tail(l, (void *)d1, (void *)d2, (void *)d3, (void *)NULL); \
@@ -106,8 +147,8 @@ static int range_cmp(btree_raw_t *bt, char *cmp, uint32_t cmplen,
 /* Marker should always be pushed to the end of the list, irrespective of whatever
  * type the query is 
  */
-#define PUSH_MARKER_TO_LIST(l, m) \
-	blist_push_node_from_tail(l, (void *)NULL, (void *)NULL, (void *)NULL, (void *)m); \
+#define PUSH_MARKER_TO_LIST(l, n, m) \
+	blist_push_node_from_tail(l, (void *)n, (void *)NULL, (void *)NULL, (void *)m); \
 
 /*
  * Find the keys in the node for the range provided. Returns total keys found between the
@@ -171,7 +212,9 @@ static int find_key_range(btree_raw_t *bt,
 		              upper, upper_len, upper_incl);
 
 		if (x == 0) { /* Value in range, push it inside */
-			PUSH_DATA_TO_LIST(key_list, rmeta, n, pk, NULL)
+			if (!is_leaf_node || is_seqno_in_range(rmeta, &ks)) {
+				PUSH_DATA_TO_LIST(key_list, rmeta, n, pk, NULL);
+			}
 		} else if (x > 0) { /* Value beyond upper bound */
 			break;
 		}
@@ -198,12 +241,14 @@ static int find_key_range(btree_raw_t *bt,
 				PUSH_DATA_TO_LIST(key_list, rmeta, n, pk, NULL);
 			}
 		}
+		/* Use node as a dummy marker */
+		PUSH_MARKER_TO_LIST(key_list, n, n); 
 	} else {
 		/* Leaf nodes at the end of it, will not unlock. It will
 		 * be instead added as a marker to the list, which caller will
 		 * use to unlock. This is to provide a contigous locking
 		 * mechanism across the query */
-		PUSH_MARKER_TO_LIST(key_list, leaf_lock);
+		PUSH_MARKER_TO_LIST(key_list, n, leaf_lock);
 	}
 
 	return (key_list->cnt);
@@ -227,11 +272,6 @@ btree_start_range_query(btree_t                 *btree,
 	if (indexid != BTREE_RANGE_PRIMARY_INDEX) {
 		fprintf(stderr, "Index other than primary index is not "
 		                "supported yet\n");
-		return (BTREE_FAILURE);
-	}
-
-	if ((rmeta->flags & RANGE_SEQNO_GT_LE) || (rmeta->flags & RANGE_SEQNO_LE)) {
-		fprintf(stderr, "Seqno level query is not supported yet\n");
 		return (BTREE_FAILURE);
 	}
 
@@ -289,6 +329,7 @@ btree_get_next_range(btree_range_cursor_t *cursor,
 	uint64_t          right;
 	int               key_index;
 	plat_rwlock_t     *leaf_lock;
+	void              *marker;
 
 	/* TODO: Handle non-debug failures */
 	assert(cursor != NULL);
@@ -301,7 +342,7 @@ btree_get_next_range(btree_range_cursor_t *cursor,
 
 	plat_rwlock_rdlock(&bt->lock);
 
-	n = get_existing_node_low(&ret, bt, bt->rootid, &leaf_lock, 1);
+	n = get_existing_node_low(&ret, bt, bt->rootid, &leaf_lock, 0);
 	if (n == NULL) {
 		plat_rwlock_unlock(&bt->lock);
 		return BTREE_FAILURE;
@@ -367,15 +408,31 @@ btree_get_next_range(btree_range_cursor_t *cursor,
 	                               (void **)&n,
 	                               (void **)&keyrec,
 	                               (void **)&right,
-	                               (void **)&leaf_lock)) {
-		/* This is the marker entry from the find_key_range. At
-		 * present use this marker to unlock the leaf lock */
-		if (leaf_lock) {
-			/* Unlock leaf node lock which was locked by find_key_range */
-			plat_rwlock_unlock(leaf_lock);
+	                               (void **)&marker)) {
+
+		if (marker) {
+			if (is_leaf(bt, n)) {
+				leaf_lock = (plat_rwlock_t *)marker;
+
+				/* This is the marker entry from the find_key_range. At
+				 * present use this marker to unlock the leaf lock */
+				if (leaf_lock) {
+					/* Unlock leaf node lock which was locked by find_key_range */
+					plat_rwlock_unlock(leaf_lock);
+				}
+			}
+
+			/* We are done using the node */
+			deref_l1cache_node(bt, n);
 			continue;
 		}
 				
+		/* If we have reached the end of the list, need to continue process
+		 * the markers to unlock the leaf */
+		if (n_in == *n_out) {
+			continue;
+		}
+
 		if (is_leaf(bt, n)) {
 
 			/* Populate the output value with key, value, status 
@@ -401,7 +458,7 @@ btree_get_next_range(btree_range_cursor_t *cursor,
 				status = get_leaf_data(bt, n, (void *)keyrec, 
 				                    &values[*n_out].data,
 				                    &values[*n_out].datalen,
-				                    meta_flags, 1);
+				                    meta_flags, 0);
 
 				if (status != BTREE_SUCCESS) {
 					overall_status = BTREE_FAILURE;
@@ -417,10 +474,6 @@ btree_get_next_range(btree_range_cursor_t *cursor,
 			values[*n_out].syndrome = pvlk->syndrome; 
 
 			(*n_out)++;
-
-			if (n_in == *n_out) {
-				break;
-			}
 		} else {
 			if (keyrec == NULL) {
 				ptr = right;
@@ -434,7 +487,7 @@ btree_get_next_range(btree_range_cursor_t *cursor,
 
 			/* Get the node corresponding to this pointer and leaf
 			 * lock for this node */
-			n = get_existing_node_low(&ret, bt, ptr, &leaf_lock, 1);
+			n = get_existing_node_low(&ret, bt, ptr, &leaf_lock, 0);
 			if (ret) {
 				assert(0);
 				break;
