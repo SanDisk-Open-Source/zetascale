@@ -379,22 +379,22 @@ btree_get_next_range(btree_range_cursor_t *cursor,
 	 * Order should be same order requested (ascending/descending) */
 	key_list = blist_init();
 	if (key_list == NULL) {
-		blist_end(master_list);
+		blist_end(master_list, 1);
 		plat_rwlock_unlock(&bt->lock);
 		return BTREE_FAILURE;
 	}
 
 	key_count = find_key_range(bt, n, &rmeta, key_list, leaf_lock);
 	if ((key_count == 0) || (*n_out == n_in)) {
-		blist_end(key_list);
-		blist_end(master_list);
+		blist_end(key_list, 1);
+		blist_end(master_list, 1);
 		plat_rwlock_unlock(&bt->lock);
 		return BTREE_QUERY_DONE;
 	}
 
 	/* Add the key_list into master_list */
 	blist_push_list_from_head(master_list, key_list);
-	blist_end(key_list);
+	blist_end(key_list, 0);
 
 	/* TODO: Later on try to combine range_meta and btree_meta
 	 * For now, set the meta_flags for get_leaf_data usage */
@@ -495,20 +495,20 @@ btree_get_next_range(btree_range_cursor_t *cursor,
 
 			key_list = blist_init();
 			if (key_list == NULL) {
-				blist_end(master_list);
+				blist_end(master_list, 1);
 				plat_rwlock_unlock(&bt->lock);
 				return BTREE_FAILURE;
 			}
 			key_count = find_key_range(bt, n, &rmeta, key_list, leaf_lock);
 			blist_push_list_from_head(master_list, key_list);
-			blist_end(key_list);
+			blist_end(key_list, 0);
 		}
 		pathcnt++;
 	}
 
 	plat_rwlock_unlock(&bt->lock);
 
-	blist_end(master_list);
+	blist_end(master_list, 1);
 
 	if (key_index != -1) {
 		if (cursor->last_key) {
@@ -521,11 +521,6 @@ btree_get_next_range(btree_range_cursor_t *cursor,
 		       values[key_index].keylen);
 		cursor->last_keylen = values[key_index].keylen;
 	}
-
-	/* TODO: Do we need to deref the L1 cache */
-	/* if (deref_l1cache(bt)) {
-		ret = 1;
-	} */
 
 	bt->stats.stat[BTSTAT_GET_CNT]++;
 	bt->stats.stat[BTSTAT_GET_PATH] += pathcnt;

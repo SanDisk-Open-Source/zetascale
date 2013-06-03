@@ -297,6 +297,7 @@ FDF_status_t _FDFOpenContainer(
     void         *txn_cmd_cb_data;
     read_node_t  *prn;
     int           index = -1;
+    char         *env;
 
     my_thd_state = fdf_thread_state;;
 
@@ -344,12 +345,18 @@ FDF_status_t _FDFOpenContainer(
         flags |= RELOAD;
 
     n_partitions        = DEFAULT_N_PARTITIONS;
-    max_key_size        = DEFAULT_MAX_KEY_SIZE;
+
+    env = getenv("BTREE_MAX_KEY_SIZE");
+    max_key_size = env ? atoi(env) : 0;
+    if (!max_key_size) {
+        max_key_size    = DEFAULT_MAX_KEY_SIZE;
+    }
+
     min_keys_per_node   = DEFAULT_MIN_KEYS_PER_NODE;
     nodesize            = DEFAULT_NODE_SIZE;
 
-    char* b =  getenv("N_L1CACHE_BUCKETS");
-    n_l1cache_buckets = b ? atoi(b) : 0;
+    env = getenv("N_L1CACHE_BUCKETS");
+    n_l1cache_buckets = env ? atoi(env) : 0;
 
     if(!n_l1cache_buckets)
 	n_l1cache_buckets = DEFAULT_N_L1CACHE_BUCKETS;
@@ -551,6 +558,12 @@ FDF_status_t _FDFReadObject(
         return (FDF_FAILURE);
     }
 
+    if (keylen > bt->max_key_size) {
+        msg("btree_insert/update keylen(%d) more than max_key_size(%d)\n",
+                 keylen, bt->max_key_size);
+        return (FDF_KEY_TOO_LONG);
+    }
+
     meta.flags = 0;
 
     ret = btree_get(bt, key, keylen, data, datalen, &meta);
@@ -660,6 +673,12 @@ FDF_status_t _FDFWriteObject(
     }
     if (!bt) 
 	assert(0);
+
+    if (keylen > bt->max_key_size) {
+        msg("btree_insert/update keylen(%d) more than max_key_size(%d)\n",
+                 keylen, bt->max_key_size);
+        return (FDF_KEY_TOO_LONG);
+    }
 
     meta.flags = 0;
     meta.seqno = seqnoalloc( fdf_thread_state);

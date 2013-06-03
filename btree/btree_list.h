@@ -34,6 +34,6 @@ extern btree_status_t blist_push_node_from_head(blist_t *l, void *data1, void *d
 extern btree_status_t blist_push_list_from_head(blist_t *l, blist_t *src_list);
 extern btree_status_t blist_push_node_from_tail(blist_t *l, void *data1, void *data2, void *data3, void *data4);
 extern int blist_pop_node_from_head(blist_t *l, void **data1, void **data2, void **data3, void **data4);
-extern void blist_end(blist_t *l);
+extern void blist_end(blist_t *l, int free_nodes);
 
 #endif // __BTREE_STACK_H

@@ -143,7 +143,7 @@ blist_pop_node_from_head(blist_t *l, void **data1, void **data2, void **data3, v
 }
 
 void 
-blist_end(blist_t *l)
+blist_end(blist_t *l, int free_nodes)
 {
 	blist_node_t *lnode;
 
@@ -151,10 +151,12 @@ blist_end(blist_t *l)
 		return;
 	}
 
-	while (l->head) {
-		lnode = l->head;
-		l->head = lnode->next;
-		free(lnode);
+	if (free_nodes) {
+		while (l->head) {
+			lnode = l->head;
+			l->head = lnode->next;
+			free(lnode);
+		}
 	}
 
 	free(l);

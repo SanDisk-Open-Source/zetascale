@@ -634,9 +634,14 @@ static node_key_t *find_key(btree_raw_t *bt, btree_raw_node_t *n, char *key_in, 
         } else if (x < 0) {
             //  key < pvk->key
             if (i_check == 0) {
-                // key might be in leftmost child
-                *child_id        = id_child;
-		*nkey_child      = i_check;
+                // key might be in leftmost child for non-leaf nodes
+                if (is_leaf(bt, n)) {
+                    *child_id        = BAD_CHILD;
+                    *nkey_child      = -1;
+                } else {
+                    *child_id        = id_child;
+                    *nkey_child      = i_check;
+                }
                 *child_id_before = BAD_CHILD;
 		if (i_check == (n->nkeys-1)) {
 		    *child_id_after = n->rightmost;
