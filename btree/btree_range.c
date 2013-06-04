@@ -322,7 +322,7 @@ btree_get_next_range(btree_range_cursor_t *cursor,
 	uint32_t          meta_flags;
 	btree_status_t    overall_status;
 	btree_status_t    status;
-	int               ret = 0;
+	btree_status_t    ret = BTREE_SUCCESS;
 	int               key_count;
 	node_key_t        *keyrec = NULL;
 	node_vlkey_t      *pvlk;

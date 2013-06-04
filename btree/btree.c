@@ -147,7 +147,7 @@ btree_t *btree_init(uint32_t n_partitions, uint32_t flags, uint32_t max_key_size
     return(bt);
 }
 
-int btree_destroy(struct btree *btree)
+btree_status_t btree_destroy(struct btree *btree)
 {
     // TODO xxxzzz
     return(0);
@@ -158,69 +158,32 @@ static uint64_t hash_key(char *key, uint32_t keylen)
     return(btree_hash((unsigned char *) key, keylen, 0)); // xxxzzz set the salt to something else?
 }
 
-int btree_get(struct btree *btree, char *key, uint32_t keylen, char **data, uint64_t *datalen, btree_metadata_t *meta)
+btree_status_t btree_get(struct btree *btree, char *key, uint32_t keylen, char **data, uint64_t *datalen, btree_metadata_t *meta)
 {
     int        n_partition = hash_key(key, keylen) % btree->n_partitions;
 
     return  btree_raw_get(btree->partitions[n_partition], key, keylen, data, datalen, meta);
 }
 
-int btree_insert(struct btree *btree, char *key, uint32_t keylen, char *data, uint64_t datalen, btree_metadata_t *meta)
+btree_status_t btree_insert(struct btree *btree, char *key, uint32_t keylen, char *data, uint64_t datalen, btree_metadata_t *meta)
 {
     int        n_partition = hash_key(key, keylen) % btree->n_partitions;
 
     return btree_raw_insert(btree->partitions[n_partition], key, keylen, data, datalen, meta);
-#if 0
-    int        ret = 0, txnret = 0;
-
-    btree->txn_cmd_cb(&ret, btree->txn_cmd_cb_data, 1 /* start */);
-
-    if (!ret) {
-	ret = btree_raw_insert(btree->partitions[n_partition], key, keylen, data, datalen, meta);
-	btree->txn_cmd_cb(&txnret, btree->txn_cmd_cb_data, ret ? 3 /* abort */ : 2 /* commit */);
-    }
-
-    return txnret ? txnret : ret;
-#endif
 }
 
-int btree_update(struct btree *btree, char *key, uint32_t keylen, char *data, uint64_t datalen, btree_metadata_t *meta)
+btree_status_t btree_update(struct btree *btree, char *key, uint32_t keylen, char *data, uint64_t datalen, btree_metadata_t *meta)
 {
     int n_partition = hash_key(key, keylen) % btree->n_partitions;
 
     return btree_raw_update(btree->partitions[n_partition], key, keylen, data, datalen, meta);
-#if 0
-    int        ret = 0, txnret = 0;
-
-    btree->txn_cmd_cb(&ret, btree->txn_cmd_cb_data, 1 /* start */);
-
-    if (!ret) {
-	ret = btree_raw_update(btree->partitions[n_partition], key, keylen, data, datalen, meta);
-	btree->txn_cmd_cb(&txnret, btree->txn_cmd_cb_data, ret ? 3 /* abort */ : 2 /* commit */);
-    }
-
-    return txnnet ? txnret : ret;
-#endif
 }
 
-int btree_set(struct btree *btree, char *key, uint32_t keylen, char *data, uint64_t datalen, btree_metadata_t *meta)
+btree_status_t btree_set(struct btree *btree, char *key, uint32_t keylen, char *data, uint64_t datalen, btree_metadata_t *meta)
 {
     int n_partition = hash_key(key, keylen) % btree->n_partitions;
 
     return btree_raw_set(btree->partitions[n_partition], key, keylen, data, datalen, meta);
-#if 0
-    int        ret = 0, txnret = 0;
-
-    btree->txn_cmd_cb(&ret, btree->txn_cmd_cb_data, 1 /* start */);
-
-    if (!ret)
-    {
-	ret = btree_raw_set(btree->partitions[n_partition], key, keylen, data, datalen, meta);
-	btree->txn_cmd_cb(&txnret, btree->txn_cmd_cb_data, ret ? 3 /* abort */ : 2 /* commit */);
-    }
-
-    return txnret ? txnret : ret;
-#endif
 }
 
 /*   delete a key
@@ -228,23 +191,11 @@ int btree_set(struct btree *btree, char *key, uint32_t keylen, char *data, uint6
  *   returns 0: success
  *   returns 1: key not found
  */
-int btree_delete(struct btree *btree, char *key, uint32_t keylen, btree_metadata_t *meta)
+btree_status_t btree_delete(struct btree *btree, char *key, uint32_t keylen, btree_metadata_t *meta)
 {
     int n_partition = hash_key(key, keylen) % btree->n_partitions;
 
     return btree_raw_delete(btree->partitions[n_partition], key, keylen, meta);
-#if 0
-    int        ret = 0, txnret = 0;
-
-    btree->txn_cmd_cb(&ret, btree->txn_cmd_cb_data, 1 /* start */);
-
-    if (!ret) {
-    	ret = btree_raw_delete(btree->partitions[n_partition], key, keylen, meta);
-	btree->txn_cmd_cb(&txnret, btree->txn_cmd_cb_data, ret ? 3 /* abort */ : 2 /* commit */);
-    }
-
-    return txnret ? txnret : ret;
-#endif
 }
 
 /* Like btree_get, but gets next n_in keys after a specified key.

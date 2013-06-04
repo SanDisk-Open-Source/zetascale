@@ -25,11 +25,16 @@
 #define __BTREE_RAW_H
 
 typedef enum btree_status {
-	BTREE_SUCCESS = 0,       /* Fine & Dandy */
-	BTREE_FAILURE = 1,       /* Generic failure */
-	BTREE_BUFFER_TOO_SMALL,  /* Give me more */
-	BTREE_QUERY_DONE,        /* No more queries please */
-	BTREE_INVALID_QUERY      /* Correct questions please */
+	BTREE_SUCCESS = 0,                /* Fine & Dandy */
+	BTREE_FAILURE = 1,                /* Generic failure */
+	BTREE_BUFFER_TOO_SMALL,           /* Give me more */
+	BTREE_QUERY_DONE,                 /* No more queries please */
+	BTREE_INVALID_QUERY,              /* Correct questions please */
+	BTREE_KEY_NOT_FOUND,              /* Cannot find key */
+	BTREE_FAIL_TXN_START,             /* Failed to start transaction */
+	BTREE_FAIL_TXN_COMMIT,            /* Failed to commit transaction */
+	BTREE_FAIL_TXN_ROLLBACK,          /* Failed to rollback transaction */
+	BTREE_OPERATION_DISALLOWED,       /* Shutdown in progress */
 } btree_status_t;
 
 typedef enum node_flags {
@@ -130,14 +135,14 @@ typedef struct btree_stats {
 struct btree_raw;
 struct btree_raw_node;
 
-typedef struct btree_raw_node *(read_node_cb_t)(int *ret, void *data, uint64_t lnodeid);
-typedef void (write_node_cb_t)(int *ret, void *cb_data, uint64_t lnodeid, char *data, uint64_t datalen);
+typedef struct btree_raw_node *(read_node_cb_t)(btree_status_t *ret, void *data, uint64_t lnodeid);
+typedef void (write_node_cb_t)(btree_status_t *ret, void *cb_data, uint64_t lnodeid, char *data, uint64_t datalen);
 typedef int (freebuf_cb_t)(void *data, char *buf);
-typedef struct btree_raw_node *(create_node_cb_t)(int *ret, void *data, uint64_t lnodeid);
+typedef struct btree_raw_node *(create_node_cb_t)(btree_status_t *ret, void *data, uint64_t lnodeid);
 typedef int (delete_node_cb_t)(struct btree_raw_node *node, void *data, uint64_t lnodeid);
-typedef void (log_cb_t)(int *ret, void *data, uint32_t event_type, struct btree_raw *btree, struct btree_raw_node *n);
+typedef void (log_cb_t)(btree_status_t *ret, void *data, uint32_t event_type, struct btree_raw *btree, struct btree_raw_node *n);
 typedef int (cmp_cb_t)(void *data, char *key1, uint32_t keylen1, char *key2, uint32_t keylen2);
-typedef void (txn_cmd_cb_t)(int *ret, void *cb_data, int cmd_type);
+typedef void (txn_cmd_cb_t)(btree_status_t *ret, void *cb_data, int cmd_type);
 
 /****************************************************
  *
@@ -164,24 +169,24 @@ struct btree_raw* btree_raw_init(uint32_t flags, uint32_t n_partition, uint32_t 
 	txn_cmd_cb_t *txn_cmd_cb, void * txn_cmd_cb_data
 	);
 
-extern int btree_raw_get(struct btree_raw *btree, char *key, uint32_t keylen, char **data, uint64_t *datalen, btree_metadata_t *meta);
+extern btree_status_t btree_raw_get(struct btree_raw *btree, char *key, uint32_t keylen, char **data, uint64_t *datalen, btree_metadata_t *meta);
 
-extern int btree_raw_insert(struct btree_raw *btree, char *key, uint32_t keylen, char *data, uint64_t datalen, btree_metadata_t *meta);
+extern btree_status_t btree_raw_insert(struct btree_raw *btree, char *key, uint32_t keylen, char *data, uint64_t datalen, btree_metadata_t *meta);
 
-extern int btree_raw_update(struct btree_raw *btree, char *key, uint32_t keylen, char *data, uint64_t datalen, btree_metadata_t *meta);
+extern btree_status_t btree_raw_update(struct btree_raw *btree, char *key, uint32_t keylen, char *data, uint64_t datalen, btree_metadata_t *meta);
 
-extern int btree_raw_set(struct btree_raw *btree, char *key, uint32_t keylen, char *data, uint64_t datalen, btree_metadata_t *meta);
+extern btree_status_t btree_raw_set(struct btree_raw *btree, char *key, uint32_t keylen, char *data, uint64_t datalen, btree_metadata_t *meta);
 
 /*   delete a key
  *
- *   returns 0: success
- *   returns 1: key not found
- *   returns 2: xxxzzz ???
+ *   returns BTREE_SUCCESS
+ *   returns BTREE_FAILURE
+ *   returns BTREE_KEY_NOT_FOUND
  *
  *   Reference: "Implementing Deletion in B+-trees", Jan Jannink, SIGMOD RECORD,
  *              Vol. 24, No. 1, March 1995
  */
-extern int btree_raw_delete(struct btree_raw *btree, char *key, uint32_t keylen, btree_metadata_t *meta);
+extern btree_status_t btree_raw_delete(struct btree_raw *btree, char *key, uint32_t keylen, btree_metadata_t *meta);
 
 /* Like btree_get, but gets next n_in keys after a specified key.
  * Use key=NULL and keylen=0 for first call in enumeration.

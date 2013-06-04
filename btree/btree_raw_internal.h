@@ -130,8 +130,8 @@ typedef struct btree_raw_persist {
 int get_key_stuff(btree_raw_t *bt, btree_raw_node_t *n, uint32_t nkey, key_stuff_t *pks);
 btree_status_t get_leaf_data(btree_raw_t *bt, btree_raw_node_t *n, void *pkey, char **data, uint64_t *datalen, uint32_t meta_flags, int ref);
 btree_status_t get_leaf_key(btree_raw_t *bt, btree_raw_node_t *n, void *pkey, char **key, uint32_t *keylen, uint32_t meta_flags);
-btree_raw_node_t *get_existing_node_low(int *ret, btree_raw_t *btree, uint64_t logical_id, plat_rwlock_t** lock, int ref);
-btree_raw_node_t *get_existing_node(int *ret, btree_raw_t *btree, uint64_t logical_id);
+btree_raw_node_t *get_existing_node_low(btree_status_t *ret, btree_raw_t *btree, uint64_t logical_id, plat_rwlock_t** lock, int ref);
+btree_raw_node_t *get_existing_node(btree_status_t *ret, btree_raw_t *btree, uint64_t logical_id);
 int is_leaf(btree_raw_t *btree, btree_raw_node_t *node);
 
 void deref_l1cache_node(btree_raw_t* btree, btree_raw_node_t *node);

@@ -38,15 +38,15 @@ typedef struct read_node {
     uint64_t                 nodesize;
 } read_node_t;
 
-static struct btree_raw_node *read_node_cb(int *ret, void *data, uint64_t lnodeid);
-static void write_node_cb(int *ret, void *cb_data, uint64_t lnodeid, char *data, uint64_t datalen);
+static struct btree_raw_node *read_node_cb(btree_status_t *ret, void *data, uint64_t lnodeid);
+static void write_node_cb(btree_status_t *ret, void *cb_data, uint64_t lnodeid, char *data, uint64_t datalen);
 static int freebuf_cb(void *data, char *buf);
 static struct btree_raw_node *create_node_cb(int *ret, void *data, uint64_t lnodeid);
 static int                    delete_node_cb(struct btree_raw_node *node, void *data, uint64_t lnodeid);
 static void                   log_cb(int *ret, void *data, uint32_t event_type, struct btree_raw *btree, struct btree_raw_node *n);
 static int                    cmp_cb(void *data, char *key1, uint32_t keylen1, char *key2, uint32_t keylen2);
 static void                   msg_cb(int level, void *msg_data, char *filename, int lineno, char *msg, ...);
-static void                   txn_cmd_cb(int *ret_out, void *cb_data, int cmd_type);
+static void                   txn_cmd_cb(btree_status_t *ret_out, void *cb_data, int cmd_type);
 static uint64_t               seqnoalloc( struct FDF_thread_state *);
 
 #define Error(msg, args...) \
@@ -379,17 +379,30 @@ FDF_status_t _FDFOpenContainer(
 	return(FDF_FAILURE); // xxxzzz fix me
     }
 
-    bt = btree_init(n_partitions, flags, max_key_size, min_keys_per_node, 
-                    nodesize, n_l1cache_buckets,
-                    create_node_cb, create_node_cb_data, 
-                    read_node_cb, read_node_cb_data, 
-                    write_node_cb, write_node_cb_data, 
-                    freebuf_cb, freebuf_cb_data, 
-                    delete_node_cb, delete_node_cb_data, 
-                    log_cb, log_cb_data, 
-                    msg_cb, msg_cb_data, 
-                    cmp_cb, cmp_cb_data,
-                    txn_cmd_cb, txn_cmd_cb_data
+    bt = btree_init(n_partitions, 
+                    flags, 
+                    max_key_size, 
+                    min_keys_per_node, 
+                    nodesize, 
+                    n_l1cache_buckets,
+                    (create_node_cb_t *)create_node_cb, 
+                    create_node_cb_data, 
+                    (read_node_cb_t *)read_node_cb, 
+                    read_node_cb_data, 
+                    (write_node_cb_t *)write_node_cb, 
+                    write_node_cb_data, 
+                    freebuf_cb, 
+                    freebuf_cb_data, 
+                    delete_node_cb, 
+                    delete_node_cb_data, 
+                    (log_cb_t *)log_cb, 
+                    log_cb_data, 
+                    msg_cb, 
+                    msg_cb_data, 
+                    cmp_cb, 
+                    cmp_cb_data,
+                    txn_cmd_cb, 
+                    txn_cmd_cb_data
 		    );
 
     if (bt == NULL) {
@@ -567,15 +580,19 @@ FDF_status_t _FDFReadObject(
     meta.flags = 0;
 
     ret = btree_get(bt, key, keylen, data, datalen, &meta);
-    if (ret != 0) {
-	msg("btree_get failed for key '%s' with ret=%d!\n", key, ret);
-	if (ret == 2) {
-	    ret = FDF_OBJECT_UNKNOWN;
-	} else {
-	    ret = FDF_FAILURE; // xxxzzz fix this!
-	}
-    } else {
-	ret = FDF_SUCCESS;
+    switch(ret) {
+        case BTREE_SUCCESS:
+            ret = FDF_SUCCESS;
+            break;
+        case BTREE_FAILURE:
+            ret = FDF_FAILURE;
+            break;
+        case BTREE_KEY_NOT_FOUND:
+            ret = FDF_OBJECT_UNKNOWN;
+            break;
+        default:
+            ret = FDF_FAILURE;
+            break;
     }
 
     return(ret);
@@ -694,13 +711,13 @@ FDF_status_t _FDFWriteObject(
     }
 
     switch(ret) {
-        case 0:
+        case BTREE_SUCCESS:
             ret = FDF_SUCCESS;
             break;
-        case 1:
+        case BTREE_FAILURE:
             ret = FDF_FAILURE_STORAGE_WRITE;
             break;
-        case 2:
+        case BTREE_KEY_NOT_FOUND:
 	    if (flags & FDF_WRITE_MUST_NOT_EXIST) {
 	        ret = FDF_OBJECT_EXISTS;
 	    } else if (flags & FDF_WRITE_MUST_EXIST) {
@@ -794,15 +811,19 @@ FDF_status_t _FDFDeleteObject(
     meta.flags = 0;
 
     ret = btree_delete(bt, key, keylen, &meta);
-    if (ret != 0) {
-        msg("btree_delete failed for key '%s' with ret=%d!\n", key, ret);
-        if (ret == 1) {
+    switch(ret) {
+        case BTREE_SUCCESS:
+            ret = FDF_SUCCESS;
+            break;
+        case BTREE_FAILURE:
+            ret = FDF_FAILURE;
+            break;
+        case BTREE_KEY_NOT_FOUND:
             ret = FDF_OBJECT_UNKNOWN;
-        } else {
-            ret = FDF_FAILURE; // xxxzzz fix this!
-        }
-    } else {
-        ret = FDF_SUCCESS;
+            break;
+        default:
+            ret = FDF_FAILURE;
+            break;
     }
 
     return(ret);
@@ -1125,33 +1146,33 @@ _FDFGetRangeFinish(struct FDF_thread_state *fdf_thread_state,
  *
  *****************************************************************/
 
-static struct btree_raw_node *read_node_cb(int *ret, void *data, uint64_t lnodeid)
+static struct btree_raw_node *read_node_cb(btree_status_t *ret, void *data, uint64_t lnodeid)
 {
     read_node_t            *prn = (read_node_t *) data;
     struct btree_raw_node  *n;
     uint64_t                datalen;
-    // pid_t  tid = syscall(SYS_gettid);
+    FDF_status_t            status = FDF_FAILURE;
 
     N_read_node++;
 
-    *ret = FDFReadObject(my_thd_state, prn->cguid, (char *) &lnodeid, sizeof(uint64_t), (char **) &n, &datalen);
+    status = FDFReadObject(my_thd_state, prn->cguid, (char *) &lnodeid, sizeof(uint64_t), (char **) &n, &datalen);
 
-    if (*ret == FDF_SUCCESS) {
-	assert(datalen == prn->nodesize);
-        *ret = 0;
-	// xxxzzz SEGFAULT
-	// fprintf(stderr, "SEGFAULT read_node_cb: %p [tid=%d]\n", n, tid);
-	return(n);
+    if (status == FDF_SUCCESS) {
+	    assert(datalen == prn->nodesize);
+        *ret = BTREE_SUCCESS;
+	    // xxxzzz SEGFAULT
+	    // fprintf(stderr, "SEGFAULT read_node_cb: %p [tid=%d]\n", n, tid);
+	    return(n);
     } else {
-	fprintf(stderr, "ZZZZZZZZ   red_node_cb %lu - %lu failed with ret=%s   ZZZZZZZZZ\n", lnodeid, datalen, FDFStrError(*ret));
-        *ret = 1;
-	return(NULL);
+	    fprintf(stderr, "ZZZZZZZZ   red_node_cb %lu - %lu failed with ret=%s   ZZZZZZZZZ\n", lnodeid, datalen, FDFStrError(*ret));
+        *ret = BTREE_FAILURE;
+	    return(NULL);
     }
 }
 
-static void write_node_cb(int *ret_out, void *cb_data, uint64_t lnodeid, char *data, uint64_t datalen)
+static void write_node_cb(btree_status_t *ret_out, void *cb_data, uint64_t lnodeid, char *data, uint64_t datalen)
 {
-    int                     ret;
+    FDF_status_t            ret;
     read_node_t            *prn = (read_node_t *) cb_data;
 
     N_write_node++;
@@ -1159,15 +1180,23 @@ static void write_node_cb(int *ret_out, void *cb_data, uint64_t lnodeid, char *d
     ret = FDFWriteObject(my_thd_state, prn->cguid, (char *) &lnodeid, sizeof(uint64_t), data, datalen, 0 /* flags */);
     assert(prn->nodesize == datalen);
 
-    if (ret == FDF_SUCCESS) {
-	*ret_out = 0;
-    } else {
-	fprintf(stderr, "ZZZZZZZZ   write_node_cb %lu - %lu failed with ret=%s   ZZZZZZZZZ\n", lnodeid, datalen, FDFStrError(ret));
-	*ret_out = 1;
+    switch(ret) {
+        case FDF_SUCCESS:
+            *ret_out = BTREE_SUCCESS;
+            break;
+        case FDF_FAILURE:
+            *ret_out = BTREE_FAILURE;
+            break;
+        case FDF_FAILURE_OPERATION_DISALLOWED:
+            *ret_out = BTREE_OPERATION_DISALLOWED;
+            break;
+        default:
+            *ret_out = BTREE_FAILURE;
+            break;
     }
 }
 
-static void txn_cmd_cb(int *ret_out, void *cb_data, int cmd_type)
+static void txn_cmd_cb(btree_status_t *ret_out, void *cb_data, int cmd_type)
 {
     FDF_status_t ret = FDF_FAILURE;
 
@@ -1175,24 +1204,30 @@ static void txn_cmd_cb(int *ret_out, void *cb_data, int cmd_type)
         case 1: // start txn
 	    N_txn_cmd_1++;
 	    ret = FDFTransactionStart(my_thd_state);
+            if (FDF_SUCCESS != ret)
+                *ret_out = BTREE_FAIL_TXN_START;
+            else
+                *ret_out = BTREE_SUCCESS;
 	    break;
         case 2: // commit txn
 	    ret = FDFTransactionCommit(my_thd_state);
+            if (FDF_SUCCESS != ret)
+                *ret_out = BTREE_FAIL_TXN_COMMIT;
+            else
+                *ret_out = BTREE_SUCCESS;
 	    N_txn_cmd_2++;
 	    break;
         case 3: // abort txn
 	    ret = FDFTransactionRollback(my_thd_state);
+            if (FDF_SUCCESS != ret)
+                *ret_out = BTREE_FAIL_TXN_ROLLBACK;
+            else
+                *ret_out = BTREE_SUCCESS;
 	    N_txn_cmd_3++;
 	    break;
 	default:
 	    assert(0);
 	    break;
-    }
-
-    if (ret == FDF_SUCCESS) {
-	*ret_out = 0;
-    } else {
-	*ret_out = 1;
     }
 }
 

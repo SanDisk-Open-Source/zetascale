@@ -22,7 +22,7 @@
 
 static char *gendata(uint32_t max_datalen, uint64_t *pdatalen);
 
-static struct btree_raw_node *read_node_cb(int *ret, void *data, uint64_t lnodeid);
+static struct btree_raw_node *read_node_cb(btree_status_t *ret, void *data, uint64_t lnodeid);
 static void write_node_cb(int *ret, void *cb_data, uint64_t lnodeid, char *data, uint64_t datalen);
 static int freebuf_cb(void *data, char *buf);
 static struct btree_raw_node *create_node_cb(int *ret, void *data, uint64_t lnodeid);
@@ -293,15 +293,15 @@ btest_init(int argc, char **argv, char *program, btest_parse_fn parse_fn)
 
 	cfg->bt = btree_init(cfg->n_partitions, cfg->flags, cfg->max_key_size, 
 	                cfg->min_keys_per_node, cfg->nodesize, cfg->n_l1cache_buckets,
-	                create_node_cb, create_node_cb_data, 
-	                read_node_cb, read_node_cb_data, 
-			write_node_cb, write_node_cb_data, 
+	                (create_node_cb_t *)create_node_cb, create_node_cb_data, 
+	                (read_node_cb_t *)read_node_cb, read_node_cb_data, 
+			(write_node_cb_t *)write_node_cb, write_node_cb_data, 
 			freebuf_cb, freebuf_cb_data, 
 			delete_node_cb, delete_node_cb_data, 
-			log_cb, log_cb_data, 
+			(log_cb_t *)log_cb, log_cb_data, 
 			msg_cb, msg_cb_data, 
 			cmp_cb, cmp_cb_data,
-			txn_cmd_cb, txn_cmd_cb_data
+			(txn_cmd_cb_t *)txn_cmd_cb, txn_cmd_cb_data
 	                );
 
 	if (cfg->bt == NULL) {
@@ -665,7 +665,7 @@ static char *gendata(uint32_t max_datalen, uint64_t *pdatalen)
  *
  **********************/
 
-static struct btree_raw_node *read_node_cb(int *ret, void *data, uint64_t lnodeid)
+static struct btree_raw_node *read_node_cb(btree_status_t *ret, void *data, uint64_t lnodeid)
 {
     N_read_node++;
     return(NULL);
