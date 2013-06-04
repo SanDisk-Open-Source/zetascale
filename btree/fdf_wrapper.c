@@ -68,7 +68,7 @@ static uint64_t               seqnoalloc( struct FDF_thread_state *);
 // #define DEFAULT_N_PARTITIONS      4096
 // #define DEFAULT_N_PARTITIONS      512
 // #define DEFAULT_MAX_KEY_SIZE      10
-#define DEFAULT_MAX_KEY_SIZE      100
+#define DEFAULT_MAX_KEY_SIZE      256
 // #define DEFAULT_NODE_SIZE         4000
 // #define DEFAULT_NODE_SIZE         1900
 #define DEFAULT_NODE_SIZE         8100

@@ -61,6 +61,7 @@
 #define BUF_LEN 4096
 #define STATS_API_TEST 1
 
+#define SEQNO_CONTAINER_NAME	"__SanDisk_seqno_container"
 
 /*
 ** Globals
@@ -3693,9 +3694,10 @@ fdf_get_containers(
 
     for ( i = 0; i < MCD_MAX_NUM_CNTRS; i++ ) {
         
-		if ( CtnrMap[i].cguid > LAST_PHYSICAL_CGUID  && 
+		if ( ( CtnrMap[i].cguid > LAST_PHYSICAL_CGUID )  && 
 			 ( CtnrMap[i].state == FDF_CONTAINER_STATE_CLOSED ||
-			   CtnrMap[i].state == FDF_CONTAINER_STATE_OPEN ) ) {
+			   CtnrMap[i].state == FDF_CONTAINER_STATE_OPEN ) &&
+			 ( strcmp( CtnrMap[i].cname, SEQNO_CONTAINER_NAME ) ) ) {
 			cguids[n_containers] = CtnrMap[i].cguid;
             n_containers++;
         }
