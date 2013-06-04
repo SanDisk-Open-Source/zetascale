@@ -1275,7 +1275,7 @@ static btree_raw_node_t *get_new_node_low(int *ret, btree_raw_t *btree, uint32_t
         fprintf(stderr, "%x %s n=%p node=%p flags=%d\n", (int)pthread_self(), __FUNCTION__, n, node, leaf_flags);
 #endif
     } else {
-        logical_id = btree->logical_id_counter++*btree->n_partitions + btree->n_partition;
+        logical_id = __sync_fetch_and_add(&btree->logical_id_counter, 1)*btree->n_partitions + btree->n_partition;
         if (! savepersistent( btree, 0, ref)) {
             *ret = 1;
             return (NULL);
