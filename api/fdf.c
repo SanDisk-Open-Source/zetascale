@@ -47,7 +47,6 @@
 #include "ssd/fifo/slab_gc.h"
 #include <execinfo.h>
 #include <signal.h>
-#include "fdf_range.h"
 
 #define LOG_ID PLAT_LOG_ID_INITIAL
 #define LOG_CAT PLAT_LOG_CAT_SDF_NAMING

@@ -22,7 +22,6 @@
 #include "fdf.h"
 #include "btree.h"
 #include "selftest.h"
-#include "fdf_range.h"
 #include "btree_range.h"
 
 #define MAX_NODE_SIZE   128*1024

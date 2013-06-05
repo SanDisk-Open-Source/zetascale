@@ -10,7 +10,6 @@
 #include <string.h>
 #include <stdio.h>
 #include "fdf.h"
-#include "fdf_range.h"
 
 static FILE                    *fp;
 static struct FDF_state        *fdf_state;
@@ -594,7 +593,7 @@ int main(int argc, char *argv[])
 		return (1);
 	}
 
-	//ret = test_basic_check();
+	ret = test_basic_check();
 	ret = test_seqno_check();
 
 	fclose(fp);
