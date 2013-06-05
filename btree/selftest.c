@@ -25,14 +25,14 @@ static int   Verbose = 0;
 static char *gendata(uint32_t max_datalen, uint64_t *pdatalen);
 
 static struct btree_raw_node *read_node_cb(btree_status_t *ret, void *data, uint64_t lnodeid);
-static void write_node_cb(int *ret, void *cb_data, uint64_t lnodeid, char *data, uint64_t datalen);
+static void write_node_cb(btree_status_t *ret, void *cb_data, uint64_t lnodeid, char *data, uint64_t datalen);
 static int freebuf_cb(void *data, char *buf);
-static struct btree_raw_node *create_node_cb(int *ret, void *data, uint64_t lnodeid);
-static int                    delete_node_cb(struct btree_raw_node *node, void *data, uint64_t lnodeid);
-static void                   log_cb(int *ret, void *data, uint32_t event_type, struct btree_raw *btree, struct btree_raw_node *n);
-static int                    cmp_cb(void *data, char *key1, uint32_t keylen1, char *key2, uint32_t keylen2);
+static struct btree_raw_node *create_node_cb(btree_status_t *ret, void *data, uint64_t lnodeid);
+static btree_status_t delete_node_cb(struct btree_raw_node *node, void *data, uint64_t lnodeid);
+static void log_cb(btree_status_t *ret, void *data, uint32_t event_type, struct btree_raw *btree, struct btree_raw_node *n);
+static int cmp_cb(void *data, char *key1, uint32_t keylen1, char *key2, uint32_t keylen2);
 static void msg_cb(int level, void *msg_data, char *filename, int lineno, char *msg, ...);
-static void                   txn_cmd_cb(int *ret_out, void *cb_data, int cmd_type);
+static void txn_cmd_cb(btree_status_t *ret_out, void *cb_data, int cmd_type);
 
 #define Error(msg, args...) \
     msg_cb(0, NULL, __FILE__, __LINE__, msg, ##args);
@@ -306,7 +306,7 @@ int btree_selftest(int argc, char **argv)
                     (read_node_cb_t *)read_node_cb, read_node_cb_data, 
                     (write_node_cb_t *)write_node_cb, write_node_cb_data, 
                     freebuf_cb, freebuf_cb_data, 
-                    delete_node_cb, delete_node_cb_data, 
+                    (delete_node_cb_t *)delete_node_cb, delete_node_cb_data, 
                     (log_cb_t *)log_cb, log_cb_data, 
                     msg_cb, msg_cb_data, 
                     cmp_cb, cmp_cb_data,
@@ -566,7 +566,7 @@ static struct btree_raw_node *read_node_cb(btree_status_t *ret, void *data, uint
     return(NULL);
 }
 
-static void write_node_cb(int *ret, void *cb_data, uint64_t lnodeid, char *data, uint64_t datalen)
+static void write_node_cb(btree_status_t *ret, void *cb_data, uint64_t lnodeid, char *data, uint64_t datalen)
 {
     N_write_node++;
 }
@@ -577,19 +577,19 @@ static int freebuf_cb(void *data, char *buf)
     return(0);
 }
 
-static struct btree_raw_node *create_node_cb(int *ret, void *data, uint64_t lnodeid)
+static struct btree_raw_node *create_node_cb(btree_status_t *ret, void *data, uint64_t lnodeid)
 {
     N_create_node++;
     return(NULL);
 }
 
-static int delete_node_cb(struct btree_raw_node *node, void *data, uint64_t lnodeid)
+static btree_status_t delete_node_cb(struct btree_raw_node *node, void *data, uint64_t lnodeid)
 {
     N_delete_node++;
     return(0);
 }
 
-static void log_cb(int *ret, void *data, uint32_t event_type, struct btree_raw *btree, struct btree_raw_node *n)
+static void log_cb(btree_status_t *ret, void *data, uint32_t event_type, struct btree_raw *btree, struct btree_raw_node *n)
 {
     N_log++;
 }
@@ -608,7 +608,7 @@ static int cmp_cb(void *data, char *key1, uint32_t keylen1, char *key2, uint32_t
     return(0);
 }
 
-static void txn_cmd_cb(int *ret_out, void *cb_data, int cmd_type)
+static void txn_cmd_cb(btree_status_t *ret_out, void *cb_data, int cmd_type)
 {
     switch (cmd_type) {
         case 1: // start txn

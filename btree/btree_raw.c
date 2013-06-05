@@ -1203,6 +1203,7 @@ retry:
 	} else {
 	    btree->stats.stat[BTSTAT_L1MISSES]++;
 	    //  look for the node the hard way
+	    //  If we don't look at the ret code, why does read_node_cb need one?
 	    n = btree->read_node_cb(ret, btree->read_node_cb_data, logical_id);
 	    if (n == NULL) {
 		*ret = BTREE_FAILURE;
@@ -1317,21 +1318,21 @@ static void free_node(btree_status_t *ret, btree_raw_t *btree, btree_raw_node_t 
     if (*ret) { return; }
 
     if (n->flags & LEAF_NODE) {
-	btree->stats.stat[BTSTAT_LEAVES]--;
+	    btree->stats.stat[BTSTAT_LEAVES]--;
     } else if (n->flags & OVERFLOW_NODE) {
-	btree->stats.stat[BTSTAT_OVERFLOW_NODES]--;
+	    btree->stats.stat[BTSTAT_OVERFLOW_NODES]--;
     } else {
-	btree->stats.stat[BTSTAT_NONLEAVES]--;
+	    btree->stats.stat[BTSTAT_NONLEAVES]--;
     }
 
     if (btree->flags & IN_MEMORY) {
-	// xxxzzz SEGFAULT
-	// fprintf(stderr, "SEGFAULT free_node: %p [tid=%d]\n", n, tid);
+	    // xxxzzz SEGFAULT
+	    // fprintf(stderr, "SEGFAULT free_node: %p [tid=%d]\n", n, tid);
        // fprintf(stderr, "%x %s n=%p node=%p flags=%d", (int)pthread_self(), __FUNCTION__, n, (void*)n - sizeof(btree_raw_mem_node_t), n->flags);
-	free((void*)n - sizeof(btree_raw_mem_node_t));
+	    free((void*)n - sizeof(btree_raw_mem_node_t));
     } else {
-	delete_l1cache(btree, n);
-	*ret = btree->delete_node_cb(n, btree->create_node_cb_data, n->logical_id);
+	    delete_l1cache(btree, n);
+	    *ret = btree->delete_node_cb(n, btree->create_node_cb_data, n->logical_id);
     }
 }
 
@@ -1339,6 +1340,8 @@ static void free_node(btree_status_t *ret, btree_raw_t *btree, btree_raw_node_t 
  *
  *   Returns: pointer to the key at which the split was done
  *            (all keys < key must go in node 'to')
+ *
+ *   THIS FUNCTION DOES NOT SET THE RETURN CODE...DOES ANY LOOK AT IT???
  */
 static void split_copy(btree_status_t *ret, btree_raw_t *btree, btree_raw_node_t *from, btree_raw_node_t *to, char **key_out, uint32_t *keylen_out, uint64_t *split_syndrome_out)
 {
@@ -1364,7 +1367,7 @@ static void split_copy(btree_status_t *ret, btree_raw_t *btree, btree_raw_node_t
 
         nkeys_from   = (from->nkeys - nkeys_to);
         nbytes_from  = nkeys_from*ks.offset;
-	nbytes_fixed = ks.offset;
+	    nbytes_fixed = ks.offset;
 
 	//  last key in 'to' node gets inserted into parent
 	//  For lack of a better place, we stash the split key

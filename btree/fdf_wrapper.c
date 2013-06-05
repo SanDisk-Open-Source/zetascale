@@ -40,9 +40,9 @@ typedef struct read_node {
 static struct btree_raw_node *read_node_cb(btree_status_t *ret, void *data, uint64_t lnodeid);
 static void write_node_cb(btree_status_t *ret, void *cb_data, uint64_t lnodeid, char *data, uint64_t datalen);
 static int freebuf_cb(void *data, char *buf);
-static struct btree_raw_node *create_node_cb(int *ret, void *data, uint64_t lnodeid);
-static int                    delete_node_cb(struct btree_raw_node *node, void *data, uint64_t lnodeid);
-static void                   log_cb(int *ret, void *data, uint32_t event_type, struct btree_raw *btree, struct btree_raw_node *n);
+static struct btree_raw_node *create_node_cb(btree_status_t *ret, void *data, uint64_t lnodeid);
+static btree_status_t delete_node_cb(struct btree_raw_node *node, void *data, uint64_t lnodeid);
+static void                   log_cb(btree_status_t *ret, void *data, uint32_t event_type, struct btree_raw *btree, struct btree_raw_node *n);
 static int                    cmp_cb(void *data, char *key1, uint32_t keylen1, char *key2, uint32_t keylen2);
 static void                   msg_cb(int level, void *msg_data, char *filename, int lineno, char *msg, ...);
 static void                   txn_cmd_cb(btree_status_t *ret_out, void *cb_data, int cmd_type);
@@ -392,7 +392,7 @@ FDF_status_t _FDFOpenContainer(
                     write_node_cb_data, 
                     freebuf_cb, 
                     freebuf_cb_data, 
-                    delete_node_cb, 
+                    (delete_node_cb_t *)delete_node_cb, 
                     delete_node_cb_data, 
                     (log_cb_t *)log_cb, 
                     log_cb_data, 
@@ -448,7 +448,7 @@ FDF_status_t _FDFDeleteContainer(
 	FDF_cguid_t				 cguid
 	)
 {
-    FDF_status_t status;
+    FDF_status_t status = FDF_FAILURE;
     int index = -1;
     my_thd_state = fdf_thread_state;;
 
@@ -552,15 +552,16 @@ FDF_status_t _FDFReadObject(
 	)
 {
     FDF_status_t      ret = FDF_SUCCESS;
+    btree_status_t    btree_ret = BTREE_SUCCESS;
     btree_metadata_t  meta;
     struct btree     *bt;
 
     {
         // xxxzzz this is temporary!
-	__sync_fetch_and_add(&(n_reads), 1);
-//	if ((n_reads % 50000) == 0) {
-//	    dump_btree_stats(stderr, cguid);
-//	}
+	    __sync_fetch_and_add(&(n_reads), 1);
+	    //	if ((n_reads % 50000) == 0) {
+	    //	    dump_btree_stats(stderr, cguid);
+	    //	}
     }
 
     my_thd_state = fdf_thread_state;;
@@ -578,8 +579,8 @@ FDF_status_t _FDFReadObject(
 
     meta.flags = 0;
 
-    ret = btree_get(bt, key, keylen, data, datalen, &meta);
-    switch(ret) {
+    btree_ret = btree_get(bt, key, keylen, data, datalen, &meta);
+    switch(btree_ret) {
         case BTREE_SUCCESS:
             ret = FDF_SUCCESS;
             break;
@@ -622,7 +623,6 @@ FDF_status_t _FDFReadObjectExpiry(
 {
     my_thd_state = fdf_thread_state;;
 
-    //msg("FDFReadObjectExpiry is not currently supported!");
     return(FDFReadObjectExpiry(fdf_thread_state, cguid, robj));
 }
 
@@ -677,7 +677,8 @@ FDF_status_t _FDFWriteObject(
 	uint32_t	     flags
 	)
 {
-    FDF_status_t      ret = FDF_SUCCESS;
+    FDF_status_t      ret = FDF_FAILURE;
+    btree_status_t    btree_ret = BTREE_FAILURE;
     btree_metadata_t  meta;
     struct btree     *bt;
 
@@ -688,7 +689,7 @@ FDF_status_t _FDFWriteObject(
         return (FDF_FAILURE);
     }
     if (!bt) 
-	assert(0);
+		assert(0);
 
     if (keylen > bt->max_key_size) {
         msg("btree_insert/update keylen(%d) more than max_key_size(%d)\n",
@@ -702,14 +703,14 @@ FDF_status_t _FDFWriteObject(
         return (FDF_FAILURE);
 
     if (flags & FDF_WRITE_MUST_NOT_EXIST) {
-	ret = btree_insert(bt, key, keylen, data, datalen, &meta);
+		btree_ret = btree_insert(bt, key, keylen, data, datalen, &meta);
     } else if (flags & FDF_WRITE_MUST_EXIST) {
-	ret = btree_update(bt, key, keylen, data, datalen, &meta);
+		btree_ret = btree_update(bt, key, keylen, data, datalen, &meta);
     } else {
-	ret = btree_set(bt, key, keylen, data, datalen, &meta);
+		btree_ret = btree_set(bt, key, keylen, data, datalen, &meta);
     }
 
-    switch(ret) {
+    switch(btree_ret) {
         case BTREE_SUCCESS:
             ret = FDF_SUCCESS;
             break;
@@ -717,18 +718,18 @@ FDF_status_t _FDFWriteObject(
             ret = FDF_FAILURE_STORAGE_WRITE;
             break;
         case BTREE_KEY_NOT_FOUND:
-	    if (flags & FDF_WRITE_MUST_NOT_EXIST) {
-	        ret = FDF_OBJECT_EXISTS;
-	    } else if (flags & FDF_WRITE_MUST_EXIST) {
-	        ret = FDF_OBJECT_UNKNOWN;
-	    } else {
-	        assert(0); // this should never happen!
-	        ret = FDF_FAILURE; // xxxzzz fix this!
-	    }
+	        if (flags & FDF_WRITE_MUST_NOT_EXIST) {
+	            ret = FDF_OBJECT_EXISTS;
+	        } else if (flags & FDF_WRITE_MUST_EXIST) {
+	            ret = FDF_OBJECT_UNKNOWN;
+	        } else {
+	            assert(0); // this should never happen!
+	            ret = FDF_FAILURE; // xxxzzz fix this!
+	        }
             break;
         default:
-	    msg("btree_insert/update failed for key '%s' with ret=%s!\n", key, FDFStrError(ret));
-	    ret = FDF_FAILURE; // xxxzzz fix this!
+	        msg("btree_insert/update failed for key '%s' with ret=%s!\n", key, FDFStrError(ret));
+	        ret = FDF_FAILURE; // xxxzzz fix this!
             break;
     }
     return(ret);
@@ -792,6 +793,7 @@ FDF_status_t _FDFDeleteObject(
 {
     int               i;
     FDF_status_t      ret = FDF_SUCCESS;
+    btree_status_t    btree_ret = BTREE_SUCCESS;
     btree_metadata_t  meta;
     struct btree     *bt;
 
@@ -809,8 +811,8 @@ FDF_status_t _FDFDeleteObject(
 
     meta.flags = 0;
 
-    ret = btree_delete(bt, key, keylen, &meta);
-    switch(ret) {
+    btree_ret = btree_delete(bt, key, keylen, &meta);
+    switch(btree_ret) {
         case BTREE_SUCCESS:
             ret = FDF_SUCCESS;
             break;
@@ -842,10 +844,7 @@ FDF_status_t _FDFEnumerateContainerObjects(
 	struct FDF_iterator    **iterator
 	)
 {
-    my_thd_state = fdf_thread_state;;
-
-    //msg("FDFEnumerateContainerObjects is not currently supported!");
-    return(FDFEnumerateContainerObjects(fdf_thread_state, cguid, iterator));
+	return(FDFEnumerateContainerObjects(fdf_thread_state, cguid, iterator));
 }
 
 /**
@@ -868,10 +867,7 @@ FDF_status_t _FDFNextEnumeratedObject(
 	char                    **data,
 	uint64_t                *datalen
 	)
-{
-    my_thd_state = fdf_thread_state;;
-
-    //msg("FDFNextEnumeratedObject is not currently supported!");
+{ 
     return(FDFNextEnumeratedObject(fdf_thread_state, iterator, key, keylen, data, datalen));
 }
 
@@ -887,9 +883,6 @@ FDF_status_t _FDFFinishEnumeration(
 	struct FDF_iterator     *iterator
 	)
 {
-    my_thd_state = fdf_thread_state;;
-
-    //msg("FDFFinishEnumeration is not currently supported!");
     return(FDFFinishEnumeration(fdf_thread_state, iterator));
 }
 
@@ -923,7 +916,6 @@ FDF_status_t _FDFFlushObject(
 {
     my_thd_state = fdf_thread_state;;
 
-    //msg("FDFFlushObject is not currently supported!");
     return(FDFFlushObject(fdf_thread_state, cguid, key, keylen));
 }
 
@@ -1241,8 +1233,9 @@ static int freebuf_cb(void *data, char *buf)
     return(0);
 }
 
-static struct btree_raw_node *create_node_cb(int *ret, void *data, uint64_t lnodeid)
+static struct btree_raw_node *create_node_cb(btree_status_t *ret, void *data, uint64_t lnodeid)
 {
+	FDF_status_t			status = FDF_FAILURE;
     read_node_t            *prn = (read_node_t *) data;
     struct btree_raw_node  *n;
     uint64_t                datalen;
@@ -1250,36 +1243,38 @@ static struct btree_raw_node *create_node_cb(int *ret, void *data, uint64_t lnod
 
     N_create_node++;
 
-    *ret = FDFWriteObject(my_thd_state, prn->cguid, (char *) &lnodeid, sizeof(uint64_t), Create_Data, prn->nodesize, FDF_WRITE_MUST_NOT_EXIST  /* flags */);
+    status = FDFWriteObject(my_thd_state, prn->cguid, (char *) &lnodeid, sizeof(uint64_t), Create_Data, prn->nodesize, FDF_WRITE_MUST_NOT_EXIST  /* flags */);
 
-    if (*ret == FDF_SUCCESS) {
-	*ret = FDFReadObject(my_thd_state, prn->cguid, (char *) &lnodeid, sizeof(uint64_t), (char **) &n, &datalen);
-	if (*ret == FDF_SUCCESS) {
-	    assert(datalen == prn->nodesize);
-	    *ret = 0;
-	    // xxxzzz SEGFAULT
-	    // fprintf(stderr, "SEGFAULT create_node_cb: %p [tid=%d]\n", n, tid);
-	    return(n);
-	} else {
-	    *ret = 1;
-	    fprintf(stderr, "ZZZZZZZZ   create_node_cb failed with ret=%d   ZZZZZZZZZ\n", *ret);
-	    return(NULL);
-	}
+    if (status == FDF_SUCCESS) {
+	    status = FDFReadObject(my_thd_state, prn->cguid, (char *) &lnodeid, sizeof(uint64_t), (char **) &n, &datalen);
+	    if (status == FDF_SUCCESS) {
+	        assert(datalen == prn->nodesize);
+	        *ret = BTREE_SUCCESS;
+	        // xxxzzz SEGFAULT
+	        // fprintf(stderr, "SEGFAULT create_node_cb: %p [tid=%d]\n", n, tid);
+	        return(n);
+	    } else {
+	        *ret = BTREE_FAILURE;
+	        fprintf(stderr, "ZZZZZZZZ   create_node_cb failed with ret=%d   ZZZZZZZZZ\n", *ret);
+	        return(NULL);
+	    }
     } else {
-	return(NULL);
+	    return(NULL);
     }
 }
 
-static int delete_node_cb(struct btree_raw_node *node, void *data, uint64_t lnodeid)
+static btree_status_t delete_node_cb(struct btree_raw_node *node, void *data, uint64_t lnodeid)
 {
     N_delete_node++;
     // xxxzzz finish me!
-    return(0);
+    return(BTREE_SUCCESS);
 }
 
-static void log_cb(int *ret, void *data, uint32_t event_type, struct btree_raw *btree, struct btree_raw_node *n)
+// ???
+static void log_cb(btree_status_t *ret, void *data, uint32_t event_type, struct btree_raw *btree, struct btree_raw_node *n)
 {
     N_log++;
+	*ret = BTREE_SUCCESS;
 }
 
 static int cmp_cb(void *data, char *key1, uint32_t keylen1, char *key2, uint32_t keylen2)
