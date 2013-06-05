@@ -7855,12 +7855,9 @@ trx_in_progress( mcd_osd_shard_t *shard, mcd_logrec_object_t *lr, uint64_t syn, 
 
 	unless (trx)
 		return (FALSE);
-	unless (trx->s)
-		trx->s = shard;
-	else unless (trx->s == shard) {
-		trx->status = MCD_TRX_BAD_SHARD;
+	unless (shard->cntr->cguid == VDC_CGUID)
 		return (TRUE);
-	}
+	trx->s = shard;
 	if (trx->n < nel( trx->trtab)) {
 		trx->trtab[trx->n].lr = *lr;
 		trx->trtab[trx->n].syn = syn;
