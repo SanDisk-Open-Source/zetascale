@@ -37,6 +37,7 @@ typedef struct read_node {
     uint64_t                 nodesize;
 } read_node_t;
 
+
 static struct btree_raw_node *read_node_cb(btree_status_t *ret, void *data, uint64_t lnodeid);
 static void write_node_cb(btree_status_t *ret, void *cb_data, uint64_t lnodeid, char *data, uint64_t datalen);
 static int freebuf_cb(void *data, char *buf);
@@ -47,6 +48,25 @@ static int                    cmp_cb(void *data, char *key1, uint32_t keylen1, c
 static void                   msg_cb(int level, void *msg_data, char *filename, int lineno, char *msg, ...);
 static void                   txn_cmd_cb(btree_status_t *ret_out, void *cb_data, int cmd_type);
 static uint64_t               seqnoalloc( struct FDF_thread_state *);
+
+FDF_status_t
+_FDFGetRange(struct FDF_thread_state *fdf_thread_state,
+             FDF_cguid_t              cguid,
+             FDF_indexid_t            indexid,
+             struct FDF_cursor      **cursor,
+             FDF_range_meta_t        *rmeta);
+
+FDF_status_t
+_FDFGetNextRange(struct FDF_thread_state *fdf_thread_state,
+                 struct FDF_cursor       *cursor,
+                 int                      n_in,
+                 int                     *n_out,
+                 FDF_range_data_t        *values);
+
+FDF_status_t
+_FDFGetRangeFinish(struct FDF_thread_state *fdf_thread_state,
+                   struct FDF_cursor *cursor);
+
 
 #define Error(msg, args...) \
     msg_cb(0, NULL, __FILE__, __LINE__, msg, ##args);
@@ -844,7 +864,14 @@ FDF_status_t _FDFEnumerateContainerObjects(
 	struct FDF_iterator    **iterator
 	)
 {
-	return(FDFEnumerateContainerObjects(fdf_thread_state, cguid, iterator));
+    FDF_range_meta_t rmeta;
+
+	bzero(&rmeta, sizeof(FDF_range_meta_t));
+    return _FDFGetRange(fdf_thread_state, 
+	                    cguid, 
+                        FDF_RANGE_PRIMARY_INDEX, 
+                        (struct FDF_cursor **) iterator, 
+                        &rmeta);
 }
 
 /**
@@ -868,7 +895,34 @@ FDF_status_t _FDFNextEnumeratedObject(
 	uint64_t                *datalen
 	)
 { 
-    return(FDFNextEnumeratedObject(fdf_thread_state, iterator, key, keylen, data, datalen));
+	FDF_status_t     status = FDF_FAILURE;
+	int              count = 0;
+	FDF_range_data_t values;
+
+	status = _FDFGetNextRange(fdf_thread_state,
+                              (struct FDF_cursor *) iterator,
+                              1,
+                              &count,
+                              &values);
+
+	if (FDF_SUCCESS == status && FDF_SUCCESS == values.status) {
+	    *key = (char *) malloc(values.keylen);
+	    strncpy(*key, values.key, values.keylen);
+	    *keylen = values.keylen;
+	    *data = (char *) malloc(values.datalen);
+	    strncpy(*data, values.data, values.datalen);
+	    *datalen = values.datalen;
+	    //if (values.primary_key)
+	        //free(values.primary_key);
+	} else {
+	    *key = NULL;
+	    *keylen = 0;
+	    *data = NULL;
+	    *datalen = 0;
+	    status = FDF_FAILURE;
+	}
+
+    return(status);
 }
 
 /**
@@ -883,7 +937,7 @@ FDF_status_t _FDFFinishEnumeration(
 	struct FDF_iterator     *iterator
 	)
 {
-    return(FDFFinishEnumeration(fdf_thread_state, iterator));
+	return(_FDFGetRangeFinish(fdf_thread_state, (struct FDF_cursor *) iterator));
 }
 
 /**
