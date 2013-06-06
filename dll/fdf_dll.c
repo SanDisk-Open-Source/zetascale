@@ -183,6 +183,12 @@ static FDF_status_t
 (*ptr_FDFTransactionRollback)(struct FDF_thread_state *fdf_thread_state);
 
 static FDF_status_t 
+(*ptr_FDFTransactionQuit)(struct FDF_thread_state *fdf_thread_state);
+
+static uint64_t
+(*ptr_FDFTransactionID)(struct FDF_thread_state *fdf_thread_state);
+
+static FDF_status_t 
 (*ptr_FDFGetVersion)(char **str);
 
 static void 
@@ -270,6 +276,27 @@ static FDF_status_t
 static FDF_status_t 
 (*ptr_FDFGetRangeFinish)(struct FDF_thread_state *thrd_state, 
                          struct FDF_cursor *cursor);
+static FDF_status_t
+(*ptr_FDFCreateContainerSnapshot)(
+	struct FDF_thread_state	*fdf_thread_state,
+	FDF_cguid_t		cguid,
+	uint64_t		*snap_seq
+	);
+
+static FDF_status_t
+(*ptr_FDFDeleteContainerSnapshot)(
+	struct FDF_thread_state	*fdf_thread_state,
+	FDF_cguid_t		cguid,
+	uint64_t		snap_seq
+	);
+
+static FDF_status_t
+(*ptr_FDFGetContainerSnapshots)(
+	struct FDF_thread_state	*fdf_thread_state,
+	FDF_cguid_t		cguid,
+	uint32_t		n_snapshots,
+	uint64_t		snap_seqs
+	);
 
 /*
  * Linkage table.
@@ -310,6 +337,8 @@ static struct {
     { "FDFTransactionStart",           &ptr_FDFTransactionStart          },
     { "FDFTransactionCommit",          &ptr_FDFTransactionCommit         },
     { "FDFTransactionRollback",        &ptr_FDFTransactionRollback       },
+    { "FDFTransactionQuit",        &ptr_FDFTransactionQuit       },
+    { "FDFTransactionID",        &ptr_FDFTransactionID       },
     { "FDFGetVersion",                 &ptr_FDFGetVersion                },
     { "FDFTLMapDestroy",               &ptr_FDFTLMapDestroy              },
     { "FDFTLMapClear",                 &ptr_FDFTLMapClear                },
@@ -329,6 +358,9 @@ static struct {
     { "FDFGetRange",                   &ptr_FDFGetRange                  },
     { "FDFGetNextRange",               &ptr_FDFGetNextRange              },
     { "FDFGetRangeFinish",             &ptr_FDFGetRangeFinish            },
+    { "FDFCreateContainerSnapshot",             &ptr_FDFCreateContainerSnapshot            },
+    { "FDFDeleteContainerSnapshot",             &ptr_FDFDeleteContainerSnapshot            },
+    { "FDFGetContainerSnapshots",             &ptr_FDFGetContainerSnapshots            },
 };
 
 
@@ -947,6 +979,34 @@ FDFTransactionRollback(struct FDF_thread_state *fdf_thread_state)
 
     return (*ptr_FDFTransactionRollback)(fdf_thread_state);
 }
+
+
+/*
+ * FDFTransactionQuit
+ */
+FDF_status_t 
+FDFTransactionQuit(struct FDF_thread_state *fdf_thread_state)
+{
+    if (unlikely(!ptr_FDFTransactionQuit))
+        undefined("FDFTransactionQuit");
+
+    return (*ptr_FDFTransactionQuit)(fdf_thread_state);
+}
+
+
+/*
+ * FDFTransactionRollback
+ */
+uint64_t
+FDFTransactionID(struct FDF_thread_state *fdf_thread_state)
+{
+    if (unlikely(!ptr_FDFTransactionID))
+        undefined("FDFTransactionID");
+
+    return (*ptr_FDFTransactionID)(fdf_thread_state);
+}
+
+
 /*
  * FDFTLMapClear
  */
@@ -1211,4 +1271,44 @@ FDFGetRangeFinish(struct FDF_thread_state *fdf_thread_state,
         undefined("FDFGetRangeFinish");
 
     return (*ptr_FDFGetRangeFinish)(fdf_thread_state, cursor);
+}
+
+FDF_status_t
+FDFCreateContainerSnapshot(
+	struct FDF_thread_state	*fdf_thread_state,
+	FDF_cguid_t		cguid,
+	uint64_t		*snap_seq
+	)
+{
+    if (unlikely(!ptr_FDFCreateContainerSnapshot))
+        undefined("FDFCreateContainerSnapshot");
+
+    return (*ptr_FDFCreateContainerSnapshot)(fdf_thread_state, cguid, snap_seq);
+}
+
+FDF_status_t
+FDFDeleteContainerSnapshot(
+	struct FDF_thread_state	*fdf_thread_state,
+	FDF_cguid_t		cguid,
+	uint64_t		snap_seq
+	)
+{
+    if (unlikely(!ptr_FDFDeleteContainerSnapshot))
+        undefined("FDFDeleteContainerSnapshot");
+
+    return (*ptr_FDFDeleteContainerSnapshot)(fdf_thread_state, cguid, snap_seq);
+}
+
+FDF_status_t
+FDFGetContainerSnapshots(
+	struct FDF_thread_state	*fdf_thread_state,
+	FDF_cguid_t		cguid,
+	uint32_t		n_snapshots,
+	uint64_t		snap_seqs
+	)
+{
+    if (unlikely(!ptr_FDFGetContainerSnapshots))
+        undefined("FDFGetContainerSnapshots");
+
+    return (*ptr_FDFGetContainerSnapshots)(fdf_thread_state, cguid, n_snapshots, snap_seqs);
 }

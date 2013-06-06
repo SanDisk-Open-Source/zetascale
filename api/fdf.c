@@ -6272,6 +6272,40 @@ FDF_status_t FDFTransactionRollback(
 
 
 /**
+ * @brief Quit a transaction
+ *
+ * @param fdf_thread_state <IN> The FDF context for which this operation applies
+ * @return FDF_SUCCESS on success
+ *         FDF_FAILURE_NO_TRANS if there is no active transaction in the current thread
+ */
+FDF_status_t FDFTransactionQuit(
+	struct FDF_thread_state	*fdf_thread_state
+	)
+{
+
+	/* code here */
+	return (FDF_FAILURE);
+}
+
+
+/**
+ * @brief ID of current transaction
+ *
+ * @param fdf_thread_state <IN> The FDF context for which this operation applies
+ * @return Non-zero transaction ID on success
+ *         Zero if there is no active transaction in the current thread
+ */
+uint64_t FDFTransactionID(
+	struct FDF_thread_state	*fdf_thread_state
+	)
+{
+
+	/* code here */
+	return (0);
+}
+
+
+/**
  * @brief Return version of FDF
  *
  * @param fdf_thread_state <IN> The FDF context for which this operation applies
@@ -6323,6 +6357,74 @@ FDFGetRangeFinish(struct FDF_thread_state *thrd_state,
 {
 	fprintf(stderr, "FDF: FDFGetRangeFinish without btree is not supported\n");
 	return FDF_FAILURE;
+}
+
+/*
+ * @brief Create a snapshot for a container  
+ * 
+ * @param fdf_thread_state <IN> The FDF context for which this operation applies
+ * @param cguid <IN> container global identifier
+ * @param snap_seq <OUT> sequence number of snapshot
+ * @return FDF_SUCCESS if successful
+ *         FDF_TOO_MANY_SNAPSHOTS if snapshot limit is reached
+ */
+FDF_status_t
+FDFCreateContainerSnapshot(
+	struct FDF_thread_state	*fdf_thread_state,
+	FDF_cguid_t		cguid,
+	uint64_t		*snap_seq
+	)
+{
+
+	/* supported in btree only */
+	return (FDF_FAILURE);
+}
+
+/*
+ * @brief Delete a snapshot
+ * 
+ * @param fdf_thread_state <IN> The FDF context for which this operation applies
+ * @param cguid <IN> container global identifier
+ * @param snap_seq <IN> snapshot to be deleted
+ * @return FDF_SUCCESS if successful
+ *         FDF_SNAPSHOT_NOT_FOUND if no snapshot for snap_seq is found
+ */
+FDF_status_t
+FDFDeleteContainerSnapshot(
+	struct FDF_thread_state	*fdf_thread_state,
+	FDF_cguid_t		cguid,
+	uint64_t		snap_seq
+	)
+{
+
+	/* supported in btree only */
+	return (FDF_FAILURE);
+}
+
+/*
+ * @brief Get a list of all current snapshots
+ *
+ * Array returned in snap_seqs is allocated by FDF and must be freed by
+ * application.
+ * 
+ * @param fdf_thread_state <IN> The FDF context for which this operation applies
+ * @param cguid <IN> container global identifier
+ * @param n_snapshots <OUT> number of snapshots retrieved
+ * @param snap_seqs <OUT> retrieved snapshots
+ * @return FDF_SUCCESS if successful
+ *         FDF_xxxzzz if snap_seqs cannot be allocated
+ */
+FDF_status_t
+FDFGetContainerSnapshots(
+	struct FDF_thread_state	*fdf_thread_state,
+	FDF_cguid_t		cguid,
+	uint32_t		n_snapshots,
+	uint64_t		snap_seqs
+	)
+{
+
+	/* supported in btree only */
+	return (FDF_FAILURE);
 }
 
 
