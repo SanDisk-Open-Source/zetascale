@@ -301,8 +301,33 @@ btree_start_range_query(btree_t                 *btree,
 		free(cr);
 		return BTREE_FAILURE;
 	}
+	memcpy(cr->query_meta, rmeta, sizeof(btree_range_meta_t));
 
-	*cr->query_meta   = *rmeta;
+	if (rmeta->key_start) {
+		cr->query_meta->key_start = (char *)malloc(rmeta->keylen_start);
+		if (cr->query_meta->key_start == NULL) {
+			assert(0);
+			free(cr->query_meta);
+			free(cr);
+			return BTREE_FAILURE;
+		}
+		memcpy(cr->query_meta->key_start, rmeta->key_start, 
+		       rmeta->keylen_start);
+	}
+
+	if (rmeta->key_end) {
+		cr->query_meta->key_end  = (char *)malloc(rmeta->keylen_end);
+		if (cr->query_meta->key_end == NULL) {
+			assert(0);
+			free(cr->query_meta->key_start);
+			free(cr->query_meta);
+			free(cr);
+			return BTREE_FAILURE;
+		}
+		memcpy(cr->query_meta->key_end, rmeta->key_end, 
+		       rmeta->keylen_end);
+	}
+
 	cr->indexid      = indexid;
 	cr->last_key     = NULL;
 	cr->last_keylen = 0;
@@ -546,6 +571,14 @@ btree_end_range_query(btree_range_cursor_t *cursor)
 	}
 
 	if (cursor->query_meta) {
+		if (cursor->query_meta->key_start) {
+			free(cursor->query_meta->key_start);
+		}
+
+		if (cursor->query_meta->key_end) {
+			free(cursor->query_meta->key_end);
+		}
+
 		free(cursor->query_meta);
 	}
 	free(cursor);
