@@ -295,7 +295,14 @@ btree_start_range_query(btree_t                 *btree,
 
 	/* Initialize the cursor, to accomplish further queries */
 	cr->btree        = btree;
-	cr->query_meta   = rmeta;
+	cr->query_meta   = malloc(sizeof(btree_range_meta_t));
+	if (cr->query_meta == NULL) {
+		assert(0);
+		free(cr);
+		return BTREE_FAILURE;
+	}
+
+	*cr->query_meta   = *rmeta;
 	cr->indexid      = indexid;
 	cr->last_key     = NULL;
 	cr->last_keylen = 0;
@@ -538,6 +545,9 @@ btree_end_range_query(btree_range_cursor_t *cursor)
 		free(cursor->last_key);
 	}
 
+	if (cursor->query_meta) {
+		free(cursor->query_meta);
+	}
 	free(cursor);
 
 	return (BTREE_SUCCESS);

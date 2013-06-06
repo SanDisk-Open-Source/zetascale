@@ -135,7 +135,7 @@ FDF_status_t RangeQuery(FDF_cguid_t cguid,
 	int n_out;
 	int exp_start;
 	int exp_end;
-	FDF_range_meta_t  rmeta;
+	FDF_range_meta_t  *rmeta;
 	FDF_range_data_t *values;
 	struct FDF_cursor *cursor;       // opaque cursor handle
 	FDF_status_t ret;
@@ -143,6 +143,9 @@ FDF_status_t RangeQuery(FDF_cguid_t cguid,
 	int failures = 0;
 
 	/* Initialize rmeta */
+	rmeta = (FDF_range_meta_t *)malloc(sizeof(FDF_range_meta_t));
+	assert(rmeta);
+
 	exp_start = start;
 	exp_end   = end;
 
@@ -182,26 +185,28 @@ FDF_status_t RangeQuery(FDF_cguid_t cguid,
 		n_in--;
 	}
 
-	rmeta.flags = flags;
-	rmeta.key_start = (char *)malloc(MAX_KEYLEN);
-	assert(rmeta.key_start);
-	sprintf(rmeta.key_start, "%08d", start);
-	rmeta.keylen_start = strlen(rmeta.key_start) + 1;
+	rmeta->flags = flags;
+	rmeta->key_start = (char *)malloc(MAX_KEYLEN);
+	assert(rmeta->key_start);
+	sprintf(rmeta->key_start, "%08d", start);
+	rmeta->keylen_start = strlen(rmeta->key_start) + 1;
 
-	rmeta.key_end = (char *)malloc(MAX_KEYLEN);
-	assert(rmeta.key_end);
-	sprintf(rmeta.key_end, "%08d", end);
-	rmeta.keylen_end = strlen(rmeta.key_end) + 1;
+	rmeta->key_end = (char *)malloc(MAX_KEYLEN);
+	assert(rmeta->key_end);
+	sprintf(rmeta->key_end, "%08d", end);
+	rmeta->keylen_end = strlen(rmeta->key_end) + 1;
 
 	ret = FDFGetRange(fdf_thrd_state, 
 	                  cguid,
 	                  FDF_RANGE_PRIMARY_INDEX,
 	                  &cursor, 
-	                  &rmeta);
+	                  rmeta);
 	if (ret != FDF_SUCCESS) {
 		fprintf(fp, "FDFStartRangeQuery failed with status=%d\n", ret);
 		return ret;
 	}
+	memset(rmeta, 0, sizeof(FDF_range_meta_t)); /* To test cases where things are freed after getrange */
+	free(rmeta);
 
 	/* Divide into near equal chunks */
 	n_in_max = n_in / chunks + 1;
