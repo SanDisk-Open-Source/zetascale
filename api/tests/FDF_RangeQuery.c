@@ -205,9 +205,9 @@ FDF_status_t RangeQuery(FDF_cguid_t cguid,
 		fprintf(fp, "FDFStartRangeQuery failed with status=%d\n", ret);
 		return ret;
 	}
-	memset(rmeta, 0, sizeof(FDF_range_meta_t)); /* To test cases where things are freed after getrange */
 	memset(rmeta->key_start, 0, MAX_KEYLEN);
 	memset(rmeta->key_end, 0, MAX_KEYLEN);
+	memset(rmeta, 0, sizeof(FDF_range_meta_t)); /* To test cases where things are freed after getrange */
 	free(rmeta->key_start);
 	free(rmeta->key_end);
 	free(rmeta);
