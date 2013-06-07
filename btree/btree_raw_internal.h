@@ -92,9 +92,9 @@ typedef struct btree_raw {
     uint64_t           logical_id_counter;
     uint64_t           rootid;
     uint32_t           n_l1cache_buckets;
-    struct Map   *l1cache;
-    struct Map   *l1cache_refs;
-    struct Map   *l1cache_mods;
+    struct PMap       *l1cache;
+    struct Map        *l1cache_refs;
+    struct Map        *l1cache_mods;
     read_node_cb_t    *read_node_cb;
     void              *read_node_cb_data;
     write_node_cb_t   *write_node_cb;

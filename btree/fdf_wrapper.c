@@ -153,7 +153,7 @@ static btree_t *bt_get_btree_from_cguid(FDF_cguid_t cguid)
 	return (Container_Map[i].btree);
 }
 
-//static void dump_btree_stats(FILE *f, FDF_cguid_t cguid);
+static void dump_btree_stats(FILE *f, FDF_cguid_t cguid);
 
 //  xxxzzz end of temporary stuff!
 
@@ -578,10 +578,10 @@ FDF_status_t _FDFReadObject(
 
     {
         // xxxzzz this is temporary!
-	    __sync_fetch_and_add(&(n_reads), 1);
-	    //	if ((n_reads % 50000) == 0) {
-	    //	    dump_btree_stats(stderr, cguid);
-	    //	}
+	__sync_fetch_and_add(&(n_reads), 1);
+	if (0 && (n_reads % 200000) == 0) {
+	    dump_btree_stats(stderr, cguid);
+	}
     }
 
     my_thd_state = fdf_thread_state;;
@@ -1411,7 +1411,7 @@ static void msg_cb(int level, void *msg_data, char *filename, int lineno, char *
     }
 }
 
-#if 0
+
 static void dump_btree_stats(FILE *f, FDF_cguid_t cguid)
 {
     struct btree     *bt;
@@ -1425,8 +1425,6 @@ static void dump_btree_stats(FILE *f, FDF_cguid_t cguid)
     btree_get_stats(bt, &bt_stats);
     btree_dump_stats(f, &bt_stats);
 }
-#endif
-
 
 /*
  * persistent seqno facility

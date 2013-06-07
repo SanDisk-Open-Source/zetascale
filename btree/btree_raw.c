@@ -67,6 +67,7 @@
 #include "btree_hash.h"
 #include "btree_raw.h"
 #include "btree_map.h"
+#include "btree_pmap.h"
 #include "btree_raw_internal.h"
 
 //  Define this to include detailed debugging code
@@ -1021,7 +1022,7 @@ btree_status_t btree_raw_get(struct btree_raw *btree, char *key, uint32_t keylen
 static int init_l1cache(btree_raw_t *bt, uint32_t n_l1cache_buckets)
 {
     bt->n_l1cache_buckets = n_l1cache_buckets;
-    bt->l1cache = MapInit(n_l1cache_buckets, 16 * n_l1cache_buckets, 1, l1cache_replace, (void *) bt);
+    bt->l1cache = PMapInit(1000, n_l1cache_buckets / 1000 + 1, 16 * n_l1cache_buckets / 1000 + 1, 1, l1cache_replace, (void *) bt);
     if (bt->l1cache == NULL) {
         return(1);
     }
@@ -1043,11 +1044,11 @@ void deref_l1cache_node(btree_raw_t* btree, btree_raw_node_t *node)
     if (btree->flags & IN_MEMORY)
         return;
 
-    if (!MapRelease(btree->l1cache, (char *) &node->logical_id, sizeof(node->logical_id)))
+    if (!PMapRelease(btree->l1cache, (char *) &node->logical_id, sizeof(node->logical_id)))
         assert(0);
 #ifdef DEBUG_STUFF
     if(Verbose)
-	fprintf(stderr, "%x %s node %p id %ld root: %d leaf: %d refcnt %d\n", (int)pthread_self(), __FUNCTION__, node, node->logical_id, is_root(btree, node), is_leaf(btree, node), MapGetRefcnt(btree->l1cache, (char *) &node->logical_id, sizeof(uint64_t)));
+	fprintf(stderr, "%x %s node %p id %ld root: %d leaf: %d refcnt %d\n", (int)pthread_self(), __FUNCTION__, node, node->logical_id, is_root(btree, node), is_leaf(btree, node), PMapGetRefcnt(btree->l1cache, (char *) &node->logical_id, sizeof(uint64_t)));
 #endif
 }
 
@@ -1084,9 +1085,9 @@ static btree_status_t deref_l1cache(btree_raw_t *btree)
     //  clear reference bits
     it = MapEnum(btree->l1cache_refs);
     while(MapNextEnum(btree->l1cache_refs, it, &key, &keylen, &data, &datalen) &&
-	    MapRelease(btree->l1cache, (char *) &key, keylen)) {
+	    PMapRelease(btree->l1cache, (char *) &key, keylen)) {
 #ifdef DEBUG_STUFF
-	    fprintf(stderr, "%x %s map_release key=%ld data=%p datalen=%ld refcnt %d\n", (int)pthread_self(), __FUNCTION__, (uint64_t)key, data, datalen, MapGetRefcnt(btree->l1cache, (char*)&key, sizeof(uint64_t)));
+	    fprintf(stderr, "%x %s map_release key=%ld data=%p datalen=%ld refcnt %d\n", (int)pthread_self(), __FUNCTION__, (uint64_t)key, data, datalen, PMapGetRefcnt(btree->l1cache, (char*)&key, sizeof(uint64_t)));
 #endif
     }
 
@@ -1096,7 +1097,7 @@ static btree_status_t deref_l1cache(btree_raw_t *btree)
     MapClear(btree->l1cache_refs);
     MapClear(btree->l1cache_mods);
 
-    assert(MapNEntries(btree->l1cache) <= 16 * btree->n_l1cache_buckets);
+    assert(PMapNEntries(btree->l1cache) <= 16 * btree->n_l1cache_buckets);
 
     return  BTREE_SUCCESS == ret ? txnret : ret;
 }
@@ -1115,7 +1116,7 @@ static int add_l1cache(btree_raw_t *btree, btree_raw_node_t *n, plat_rwlock_t** 
     fprintf(stderr, "%x %s %p id %ld lock %p root: %d leaf: %d\n", (int)pthread_self(), __FUNCTION__, n, n->logical_id, &node->lock, is_root(btree, n), is_leaf(btree, n));
 #endif
 
-    if(!MapCreate(btree->l1cache, (char *) &(n->logical_id), sizeof(uint64_t), (char *) node, sizeof(uint64_t)))
+    if(!PMapCreate(btree->l1cache, (char *) &(n->logical_id), sizeof(uint64_t), (char *) node, sizeof(uint64_t)))
     {
         plat_rwlock_destroy(&node->lock);
         free(n);
@@ -1125,7 +1126,7 @@ static int add_l1cache(btree_raw_t *btree, btree_raw_node_t *n, plat_rwlock_t** 
 
     if(lock) *lock = &node->lock;
 
-    btree->stats.stat[BTSTAT_L1ENTRIES] = MapNEntries(btree->l1cache);
+    btree->stats.stat[BTSTAT_L1ENTRIES] = PMapNEntries(btree->l1cache);
     return 1;
 }
 
@@ -1148,14 +1149,14 @@ static btree_raw_node_t *get_l1cache(btree_raw_t *btree, uint64_t logical_id, pl
     uint64_t             datalen;
     btree_raw_mem_node_t    *n;
 
-    if (MapGet(btree->l1cache, (char *) &logical_id, sizeof(uint64_t), (char **) &n, &datalen) == NULL) {
+    if (PMapGet(btree->l1cache, (char *) &logical_id, sizeof(uint64_t), (char **) &n, &datalen) == NULL) {
         return(NULL);
     }
 
     if(lock) *lock = &n->lock;
 
 #ifdef DEBUG_STUFF
-    fprintf(stderr, "%x %s n %p node %p id %ld(%ld lock %p root: %d leaf: %d refcnt %d\n", (int)pthread_self(), __FUNCTION__, n, n->node, n->node->logical_id, logical_id, &n->lock, is_root(btree, n->node), is_leaf(btree, n->node), MapGetRefcnt(btree->l1cache, (char *) &logical_id, sizeof(uint64_t)));
+    fprintf(stderr, "%x %s n %p node %p id %ld(%ld lock %p root: %d leaf: %d refcnt %d\n", (int)pthread_self(), __FUNCTION__, n, n->node, n->node->logical_id, logical_id, &n->lock, is_root(btree, n->node), is_leaf(btree, n->node), PMapGetRefcnt(btree->l1cache, (char *) &logical_id, sizeof(uint64_t)));
 #endif
     return(n->node);
 }
@@ -1163,12 +1164,12 @@ static btree_raw_node_t *get_l1cache(btree_raw_t *btree, uint64_t logical_id, pl
 static void delete_l1cache(btree_raw_t *btree, btree_raw_node_t *n)
 {
 #ifdef DEBUG_STUFF
-    fprintf(stderr, "%x %s node %p root: %d leaf: %d refcnt %d\n", (int)pthread_self(), __FUNCTION__, n, is_root(btree, n), is_leaf(btree, n), MapGetRefcnt(btree->l1cache, (char *) &n->logical_id, sizeof(uint64_t)));
+    fprintf(stderr, "%x %s node %p root: %d leaf: %d refcnt %d\n", (int)pthread_self(), __FUNCTION__, n, is_root(btree, n), is_leaf(btree, n), PMapGetRefcnt(btree->l1cache, (char *) &n->logical_id, sizeof(uint64_t)));
 #endif
-    (void) MapDelete(btree->l1cache, (char *) &(n->logical_id), sizeof(uint64_t));
+    (void) PMapDelete(btree->l1cache, (char *) &(n->logical_id), sizeof(uint64_t));
     (void) MapDelete(btree->l1cache_refs, (char *) &(n->logical_id), sizeof(uint64_t));
     (void) MapDelete(btree->l1cache_mods, (char *) &(n->logical_id), sizeof(uint64_t));
-    btree->stats.stat[BTSTAT_L1ENTRIES] = MapNEntries(btree->l1cache);
+    btree->stats.stat[BTSTAT_L1ENTRIES] = PMapNEntries(btree->l1cache);
 }
 
 static void modify_l1cache_node(btree_raw_t *btree, btree_raw_node_t *n)
@@ -2069,6 +2070,8 @@ restart:
             plat_rwlock_unlock(&btree->lock);
             plat_rwlock_wrlock(&btree->lock);
 
+            btree->stats.stat[BTSTAT_EX_TREE_LOCKS]++;
+
             modify_tree = 1;
 
             goto restart;
@@ -2108,6 +2111,7 @@ restart:
             btree->write_node_cb(&ret, btree->write_node_cb_data, (uint64_t) node->logical_id, (char*) node, btree->nodesize);
             btree->txn_cmd_cb(&txnret, btree->txn_cmd_cb_data, ret ? 3 /* abort */ : 2 /* commit */);
             btree->stats.stat[BTSTAT_L1WRITES]++;
+            btree->stats.stat[BTSTAT_NON_EX_TREE_LOCKS]++;
         }
 
         btree->log_cb(&ret, btree->log_cb_data, BTREE_UPDATE_NODE, btree, node);
@@ -2143,7 +2147,7 @@ static btree_status_t btree_raw_write(struct btree_raw *btree, char *key, uint32
     //print_key(stderr, __FUNCTION__, __LINE__, key, keylen, "write_type=%d ret=%d lic=%ld", write_type, ret, btree->logical_id_counter);
 
     //TODO change to atomics
-    if (BTREE_SUCCESS != ret) {
+    if (BTREE_SUCCESS == ret) {
         switch (write_type) {
 	    case W_CREATE:
 		btree->stats.stat[BTSTAT_CREATE_CNT]++;
