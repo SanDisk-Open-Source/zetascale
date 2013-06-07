@@ -363,7 +363,11 @@ FDF_status_t _FDFOpenContainer(
     if ((flags_in&FDF_CTNR_CREATE) == 0)
         flags |= RELOAD;
 
-    n_partitions        = DEFAULT_N_PARTITIONS;
+    env = getenv("N_PARTITIONS");
+    n_partitions = env ? atoi(env) : 0;
+
+    if(!n_partitions)
+        n_partitions = DEFAULT_N_PARTITIONS;
 
     env = getenv("BTREE_MAX_KEY_SIZE");
     max_key_size = env ? atoi(env) : 0;
