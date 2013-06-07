@@ -375,12 +375,16 @@ FDF_status_t _FDFOpenContainer(
         max_key_size    = DEFAULT_MAX_KEY_SIZE;
     }
 
+    env = getenv("BTREE_NODE_SIZE");
+    nodesize = env ? atoi(env) : 0;
+    if (!nodesize) {
+	nodesize            = DEFAULT_NODE_SIZE;
+    }
+
     min_keys_per_node   = DEFAULT_MIN_KEYS_PER_NODE;
-    nodesize            = DEFAULT_NODE_SIZE;
 
     env = getenv("N_L1CACHE_BUCKETS");
     n_l1cache_buckets = env ? atoi(env) : 0;
-
     if(!n_l1cache_buckets)
 	n_l1cache_buckets = DEFAULT_N_L1CACHE_BUCKETS;
 
