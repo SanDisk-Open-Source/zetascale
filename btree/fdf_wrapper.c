@@ -44,7 +44,7 @@ static int freebuf_cb(void *data, char *buf);
 static struct btree_raw_node *create_node_cb(btree_status_t *ret, void *data, uint64_t lnodeid);
 static btree_status_t delete_node_cb(struct btree_raw_node *node, void *data, uint64_t lnodeid);
 static void                   log_cb(btree_status_t *ret, void *data, uint32_t event_type, struct btree_raw *btree, struct btree_raw_node *n);
-static int                    cmp_cb(void *data, char *key1, uint32_t keylen1, char *key2, uint32_t keylen2);
+static int                    lex_cmp_cb(void *data, char *key1, uint32_t keylen1, char *key2, uint32_t keylen2);
 static void                   msg_cb(int level, void *msg_data, char *filename, int lineno, char *msg, ...);
 static void                   txn_cmd_cb(btree_status_t *ret_out, void *cb_data, int cmd_type);
 static uint64_t               seqnoalloc( struct FDF_thread_state *);
@@ -418,7 +418,7 @@ FDF_status_t _FDFOpenContainer(
                     log_cb_data, 
                     msg_cb, 
                     msg_cb_data, 
-                    cmp_cb, 
+                    lex_cmp_cb, 
                     cmp_cb_data,
                     txn_cmd_cb, 
                     txn_cmd_cb_data
@@ -1331,7 +1331,8 @@ static void log_cb(btree_status_t *ret, void *data, uint32_t event_type, struct 
 	*ret = BTREE_SUCCESS;
 }
 
-static int cmp_cb(void *data, char *key1, uint32_t keylen1, char *key2, uint32_t keylen2)
+#if 0
+static int byte_cmp_cb(void *data, char *key1, uint32_t keylen1, char *key2, uint32_t keylen2)
 {
     N_cmp++;
 
@@ -1344,6 +1345,31 @@ static int cmp_cb(void *data, char *key1, uint32_t keylen1, char *key2, uint32_t
     }
     assert(0);
     return(0);
+}
+#endif
+
+static int lex_cmp_cb(void *data, char *key1, uint32_t keylen1, char *key2, uint32_t keylen2)
+{
+    int x;
+    int cmp_len;
+
+    N_cmp++;
+
+    cmp_len = keylen1 < keylen2 ? keylen1: keylen2;
+
+    x = memcmp(key1, key2, cmp_len);
+    if (x != 0) {
+        return x;
+    }
+
+    /* Equal so far, use len to decide */
+    if (keylen1 < keylen2) {
+        return -1;
+    } else if (keylen1 > keylen2) {
+        return 1;
+    } else {
+        return 0;
+    }
 }
 
 /****************************************************
