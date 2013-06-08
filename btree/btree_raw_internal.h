@@ -118,6 +118,7 @@ typedef struct btree_raw {
     btree_stats_t      stats;
 
     plat_rwlock_t      lock;
+    plat_rwlock_t      write_io_lock;
     int modify_tree;
 } btree_raw_t;
 

@@ -147,6 +147,7 @@ static void ref_l1cache(btree_raw_t *btree, btree_raw_node_t *n);
 static btree_raw_node_t *get_l1cache(btree_raw_t *btree, uint64_t logical_id, plat_rwlock_t** lock);
 static void delete_l1cache(btree_raw_t *btree, btree_raw_node_t *n);
 static void modify_l1cache_node(btree_raw_t *btree, btree_raw_node_t *n);
+static void lock_modified_nodes(btree_raw_t *btree, int lock);
 
 static void dump_node(btree_raw_t *bt, FILE *f, btree_raw_node_t *n, char *key, uint32_t keylen);
 static void update_keypos(btree_raw_t *btree, btree_raw_node_t *n, uint32_t n_key_start);
@@ -334,6 +335,7 @@ btree_raw_t *btree_raw_init(uint32_t flags, uint32_t n_partition, uint32_t n_par
         if (!(bt->flags & IN_MEMORY)) {
             assert(root_node->logical_id == bt->rootid);
         }
+        lock_modified_nodes(bt, 1 /* LOCK */);
     }
     if (BTREE_SUCCESS != deref_l1cache(bt)) {
         ret = BTREE_FAILURE;
@@ -346,6 +348,7 @@ btree_raw_t *btree_raw_init(uint32_t flags, uint32_t n_partition, uint32_t n_par
     #endif
 
     plat_rwlock_init(&bt->lock);
+    plat_rwlock_init(&bt->write_io_lock);
 
 #ifdef DEBUG_STUFF
     if(Verbose)
@@ -957,24 +960,29 @@ node_key_t* btree_raw_find(struct btree_raw *btree, char *key, uint32_t keylen, 
     uint64_t          child_id;
 
     *node = get_existing_node_low(&ret, btree, btree->rootid, leaf_lock, 0);
-    assert(*node);
+    assert(*node); //FIME add ret checking here
+
+    plat_rwlock_rdlock(*leaf_lock);
 
     while(!is_leaf(btree, *node)) {
         (void)bsearch_key(btree, *node, key, keylen, &child_id, meta, syndrome);
         assert(child_id != BAD_CHILD);
 
+        plat_rwlock_unlock(*leaf_lock);
         deref_l1cache_node(btree, *node);
 
         *node = get_existing_node_low(&ret, btree, child_id, leaf_lock, 0);
-        assert(BTREE_SUCCESS == ret && *node);
+        assert(BTREE_SUCCESS == ret && *node); //FIXME add correct error checking here
+
+        plat_rwlock_rdlock(*leaf_lock);
 
         (*pathcnt)++;
     }
 
-    if(write_lock)
+    if(write_lock) {
+        plat_rwlock_unlock(*leaf_lock);
         plat_rwlock_wrlock(*leaf_lock);
-    else
-        plat_rwlock_rdlock(*leaf_lock);
+    }
 
     return bsearch_key(btree, *node, key, keylen, &child_id, meta, syndrome);
 }
@@ -1064,7 +1072,10 @@ static btree_status_t deref_l1cache(btree_raw_t *btree)
 
     btree->txn_cmd_cb(&txnret, btree->txn_cmd_cb_data, 1 /* start */);
     if (BTREE_SUCCESS != txnret)
+    {
+        lock_modified_nodes(btree, 0 /* UNLOCK */);
         return txnret;
+    }
 
     //  first write out modifications
     it = MapEnum(btree->l1cache_mods);
@@ -1080,7 +1091,11 @@ static btree_status_t deref_l1cache(btree_raw_t *btree)
 
     FinishEnum(btree->l1cache_mods, it);
 
-    btree->txn_cmd_cb(&txnret, btree->txn_cmd_cb_data, BTREE_SUCCESS == ret ? 2 /* commit */ : 3 /* abort */);
+    btree->txn_cmd_cb(&txnret, btree->txn_cmd_cb_data,
+            BTREE_SUCCESS == ret ? 2 /* commit */ : 3 /* abort */);
+
+    /*TODO L1 cache should be invalidated before releasing node lock in the case of failure */
+    lock_modified_nodes(btree, 0 /* UNLOCK */);
 
     //  clear reference bits
     it = MapEnum(btree->l1cache_refs);
@@ -1137,11 +1152,13 @@ static void ref_l1cache(btree_raw_t *btree, btree_raw_node_t *n)
     uint64_t             datalen;
     btree_raw_node_t    *n2;
 
+    //TODO: Change next two calls MapGet/MapSet to MapCreate
     if (MapGet(btree->l1cache_refs, (char *) &(n->logical_id), sizeof(uint64_t), (char **) &n2, &datalen) != NULL) {
         // already referenced
         return;
     }
-    assert(MapSet(btree->l1cache_refs, (char *) &(n->logical_id), sizeof(uint64_t), (char *) n, sizeof(uint64_t), &old_data, &old_datalen) != NULL);
+    void* ret = MapSet(btree->l1cache_refs, (char *) &(n->logical_id), sizeof(uint64_t), (char *) n, sizeof(uint64_t), &old_data, &old_datalen);
+    assert(ret);
 }
 
 static btree_raw_node_t *get_l1cache(btree_raw_t *btree, uint64_t logical_id, plat_rwlock_t** lock)
@@ -1178,6 +1195,34 @@ static void modify_l1cache_node(btree_raw_t *btree, btree_raw_node_t *n)
     char     *old_data;
 
     (void) MapSet(btree->l1cache_mods, (char *) &(n->logical_id), sizeof(uint64_t), (char *) n, btree->nodesize, &old_data, &old_datalen);
+}
+
+static void lock_modified_nodes(btree_raw_t *btree, int lock)
+{
+    struct Iterator      *it;
+    uint64_t              logical_id;
+    uint32_t              keylen;
+    char                 *data;
+    uint64_t              datalen;
+    plat_rwlock_t        *node_lock;
+    btree_raw_node_t     *node;
+    btree_status_t        ret = BTREE_SUCCESS;
+
+    it = MapEnum(btree->l1cache_mods);
+    while(MapNextEnum(btree->l1cache_mods, it, (char**)&logical_id, &keylen, &data, &datalen))
+    {
+        node = get_existing_node_low(&ret, btree, logical_id, &node_lock, 0);
+        assert(node); // the node is in the cache, hence, get_existing_node_low cannot fail
+
+        if(lock)
+            plat_rwlock_wrlock(node_lock);
+        else
+            plat_rwlock_unlock(node_lock);
+
+        deref_l1cache_node(btree, node);
+    }
+
+    FinishEnum(btree->l1cache_mods, it);
 }
 
 btree_raw_node_t *get_existing_node_low(btree_status_t *ret, btree_raw_t *btree, uint64_t logical_id, plat_rwlock_t** lock, int ref)
@@ -1956,7 +2001,7 @@ static btree_status_t is_full_insert(btree_raw_t *btree, btree_raw_node_t *n, ui
 	}
     }
 
-return (ret);
+    return (ret);
 }
 
 //  Check if a leaf node has enough space for an update of
@@ -2047,6 +2092,11 @@ restart:
 
         if(!modify_tree && is_leaf(btree, node))
             plat_rwlock_wrlock(leaf_lock);
+        else
+        {
+            plat_rwlock_rdlock(leaf_lock);
+            plat_rwlock_unlock(leaf_lock);
+        }
 
         pkrec = find_key(btree, node, key, keylen, &child_id, &child_id_before, &child_id_after, &pk_insert, meta, syndrome, &nkey_child);
 
@@ -2068,6 +2118,8 @@ restart:
             deref_l1cache_node(btree, node);
 
             plat_rwlock_unlock(&btree->lock);
+
+            plat_rwlock_wrlock(&btree->write_io_lock);
             plat_rwlock_wrlock(&btree->lock);
 
             btree->stats.stat[BTSTAT_EX_TREE_LOCKS]++;
@@ -2119,17 +2171,30 @@ restart:
     else //((write_type == W_UPDATE && !pkrec) || (write_type == W_CREATE && pkrec))
 	ret = BTREE_KEY_NOT_FOUND; // key not found for an update! or key was found for an insert!
 
-    if(!modify_tree)
-    {
+    if(!modify_tree) {
         plat_rwlock_unlock(leaf_lock);
+        plat_rwlock_unlock(&btree->lock);
+
         deref_l1cache_node(btree, node);
-        assert(!MapNEntries(btree->l1cache_refs));
-        assert(!MapNEntries(btree->l1cache_mods));
     }
-    else if (BTREE_SUCCESS != deref_l1cache(btree))
-        ret = BTREE_FAILURE;
+    else {
+        lock_modified_nodes(btree, 1 /* LOCK */);
+
+        plat_rwlock_unlock(&btree->lock);
+
+        if (BTREE_SUCCESS != deref_l1cache(btree))
+            ret = BTREE_FAILURE;
+
+        plat_rwlock_unlock(&btree->write_io_lock);
+    }
+
+    return BTREE_SUCCESS == ret ? txnret : ret;
 
 err_exit:
+
+    if(modify_tree)
+        plat_rwlock_unlock(&btree->write_io_lock);
+
     plat_rwlock_unlock(&btree->lock);
 
     return BTREE_SUCCESS == ret ? txnret : ret;
@@ -2298,22 +2363,28 @@ btree_status_t btree_raw_delete(struct btree_raw *btree, char *key, uint32_t key
     }
 
     /* Need tree restructure. Write lock whole tree and retry */
+    plat_rwlock_wrlock(&btree->write_io_lock);
     plat_rwlock_wrlock(&btree->lock);
 
     // make sure that the temporary key buffer has been allocated
     if (check_per_thread_keybuf(btree)) {
         plat_rwlock_unlock(&btree->lock);
+        plat_rwlock_unlock(&btree->write_io_lock);
 
 	return(BTREE_FAILURE); // xxxzzz is this the best I can do?
     }
 
     (void) find_rebalance(&ret, btree, btree->rootid, BAD_CHILD, BAD_CHILD, BAD_CHILD, NULL, BAD_CHILD, NULL, 0, 0, key, keylen, meta, syndrome);
 
+    lock_modified_nodes(btree, 1 /* LOCK */);
+
+    plat_rwlock_unlock(&btree->lock);
+
     if (BTREE_SUCCESS != deref_l1cache(btree)) {
         ret = BTREE_FAILURE;
     }
 
-    plat_rwlock_unlock(&btree->lock);
+    plat_rwlock_unlock(&btree->write_io_lock);
 
     btree->stats.stat[BTSTAT_DELETE_CNT]++;
     btree->stats.stat[BTSTAT_DELETE_PATH] += pathcnt;
