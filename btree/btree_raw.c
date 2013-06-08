@@ -321,7 +321,7 @@ btree_raw_t *btree_raw_init(uint32_t flags, uint32_t n_partition, uint32_t n_par
         }
     }
     else {
-        bt->rootid = bt->logical_id_counter;
+        bt->rootid = bt->logical_id_counter * bt->n_partitions + bt->n_partition;
         if (BTREE_SUCCESS != savepersistent( bt, 1 /* create */, 1 /* modify_tree */)) {
             free( bt);
             return (NULL);
