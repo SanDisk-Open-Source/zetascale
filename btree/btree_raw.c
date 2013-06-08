@@ -2092,8 +2092,8 @@ restart:
 
         if(!modify_tree && is_leaf(btree, node))
             plat_rwlock_wrlock(leaf_lock);
-        else
-        {
+        else {
+            /* Check that node is not locked by write, which released btree->lock already */
             plat_rwlock_rdlock(leaf_lock);
             plat_rwlock_unlock(leaf_lock);
         }
@@ -2153,6 +2153,9 @@ restart:
     assert(is_leaf(btree, node));
     assert(leaf_lock);
 
+    if(!modify_tree)
+        plat_rwlock_unlock(&btree->lock);
+
     if ((write_type != W_UPDATE || pkrec) && (write_type != W_CREATE || !pkrec)) {
         if(!modify_tree) /* insert key may write overflow nodes, so start transaction before */
 	        btree->txn_cmd_cb(&txnret, btree->txn_cmd_cb_data, 1 /* start */);
@@ -2173,8 +2176,6 @@ restart:
 
     if(!modify_tree) {
         plat_rwlock_unlock(leaf_lock);
-        plat_rwlock_unlock(&btree->lock);
-
         deref_l1cache_node(btree, node);
     }
     else {
