@@ -24,7 +24,10 @@
 //  Define this to include detailed debugging code
 #define DEBUG_STUFF
 
-#define IS_ASCENDING_QUERY(meta) ((meta)->flags & (RANGE_START_GT | RANGE_START_GE))
+#define IS_ASCENDING_QUERY(meta) \
+	(((meta)->key_start && ((meta)->flags & (RANGE_START_GT | RANGE_START_GE))) || \
+	 ((meta)->key_end && ((meta)->flags & (RANGE_END_LT | RANGE_END_LE))) || \
+	 (((meta)->key_start == NULL) && ((meta)->key_end == NULL)))
 
 static int is_multiple_flags_set(btree_range_flags_t flags, uint32_t f);
 
@@ -112,16 +115,30 @@ static int range_cmp(btree_raw_t *bt, char *cmp, uint32_t cmplen,
 		y = -1; /* If no upper bound, number is less than that */
 	}
 
-	if (x == 0) {
-		return (start_incl ? 0 : -1);
-	} else if (y == 0) {
+	if ((x > 0) && (y < 0)) {
+		return 0;   /* Value in range */
+	} else if((x == 0) && (y < 0)) {
+		return (start_incl ? 0 : -1); 
+	} else if((x <  0) && (y < 0)) {
+		return -1; /* number is lesser to start and end */
+	} else if((x >  0) && (y == 0)) {
 		return (end_incl ? 0 : 1);
-	} else if (x < 0) {
-		return -1;
-	} else if (y > 0) {
+	} else if((x == 0) && (y == 0)) {
+		/* start and end matches. range only if both has
+		 * inclusive, else it is exclusive */
+		return ((start_incl && end_incl) ? 0: 1);
+	} else if((x <  0) && (y == 0)) {
+		/* Error condition, start is lesser, but matches end */
 		return 1;
-	} else {
-		return 0;
+	} else if((x >  0) && (y > 0)) {
+		return 1; /* genuine case where number is right of range */
+	} else if((x == 0) && (y > 0)) {
+		/* Error condition, start is lesser, but matches end */
+		return 1;
+	} else { /* ((x <  0) && (y > 0)) */
+		/* somehow lower is bigger then upper,
+		 * return 1, so that further walk stops */
+		return 1;
 	}
 }
 
