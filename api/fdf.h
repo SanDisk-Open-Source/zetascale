@@ -977,6 +977,17 @@ typedef uint64_t FDF_indexid_t;    // persistent opaque index handle
 
 #define FDF_RANGE_PRIMARY_INDEX     0
 
+/*
+ * Multiple objs put info.
+ */
+typedef struct {
+    uint32_t flags;
+    uint32_t key_len;
+    uint64_t data_len;
+    char *key;
+    char *data;
+} FDF_obj_t;
+
 /* Start an index query.
  * 
  * Returns: FDF_SUCCESS if successful
@@ -1055,6 +1066,11 @@ FDFGetNextRange(struct FDF_thread_state *thrd_state,  //  client thread FDF cont
 FDF_status_t 
 FDFGetRangeFinish(struct FDF_thread_state *thrd_state, 
                   struct FDF_cursor *cursor);
+FDF_status_t
+FDFMPut(struct FDF_thread_state *fdf_ts,
+        FDF_cguid_t cguid,
+        uint32_t num_objs,
+        FDF_obj_t *objs);
 
 /*
  * @brief Create a snapshot for a container  

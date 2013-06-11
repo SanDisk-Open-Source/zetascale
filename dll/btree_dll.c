@@ -203,6 +203,11 @@ static FDF_status_t
 static FDF_status_t 
 (*ptr_FDFGetRangeFinish)(struct FDF_thread_state *thrd_state, 
                          struct FDF_cursor *cursor);
+static FDF_status_t
+(*ptr_FDFMPut) (struct FDF_thread_state *fdf_ts,
+        FDF_cguid_t cguid,
+        uint32_t num_objs,
+        FDF_obj_t *objs);
 
 #if 0
 static void 
@@ -317,6 +322,7 @@ static struct {
     { "_FDFGetRange",                   &ptr_FDFGetRange                  },
     { "_FDFGetNextRange",               &ptr_FDFGetNextRange              },
     { "_FDFGetRangeFinish",             &ptr_FDFGetRangeFinish            },
+    { "_FDFMPut", 		        &ptr_FDFMPut		          },
 #if 0
     { "_FDFTLMapDestroy",               &ptr_FDFTLMapDestroy              },
     { "_FDFTLMapClear",                 &ptr_FDFTLMapClear                },
@@ -1220,3 +1226,17 @@ FDFTLMapInit(uint64_t nbuckets, uint64_t max_entries, char use_locks, void (*rep
     return (*ptr_FDFTLMapInit)(nbuckets, max_entries, use_locks, replacement_callback, replacement_callback_data);
 }
 #endif
+/*
+ * FDFMPut
+ */
+FDF_status_t 
+FDFMPut(struct FDF_thread_state *fdf_ts,
+        FDF_cguid_t cguid,
+        uint32_t num_objs,
+        FDF_obj_t *objs)
+{
+    if (unlikely(!ptr_FDFMPut))
+        undefined("FDFMPut");
+
+    return (*ptr_FDFMPut)(fdf_ts, cguid, num_objs, objs);
+}

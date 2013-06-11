@@ -283,6 +283,11 @@ static FDF_status_t
 	uint64_t		*snap_seq
 	);
 
+FDF_status_t 
+(*ptr_FDFMPut) (struct FDF_thread_state *fdf_thread_state, 
+	FDF_cguid_t cguid,
+	uint32_t num_objs,
+	FDF_obj_t *objs);
 static FDF_status_t
 (*ptr_FDFDeleteContainerSnapshot)(
 	struct FDF_thread_state	*fdf_thread_state,
@@ -358,9 +363,10 @@ static struct {
     { "FDFGetRange",                   &ptr_FDFGetRange                  },
     { "FDFGetNextRange",               &ptr_FDFGetNextRange              },
     { "FDFGetRangeFinish",             &ptr_FDFGetRangeFinish            },
-    { "FDFCreateContainerSnapshot",             &ptr_FDFCreateContainerSnapshot            },
-    { "FDFDeleteContainerSnapshot",             &ptr_FDFDeleteContainerSnapshot            },
-    { "FDFGetContainerSnapshots",             &ptr_FDFGetContainerSnapshots            },
+    { "FDFCreateContainerSnapshot",    &ptr_FDFCreateContainerSnapshot   },
+    { "FDFDeleteContainerSnapshot",    &ptr_FDFDeleteContainerSnapshot   },
+    { "FDFGetContainerSnapshots",      &ptr_FDFGetContainerSnapshots     },
+    { "FDFMPut",          	       &ptr_FDFMPut			 },
 };
 
 
@@ -1271,6 +1277,22 @@ FDFGetRangeFinish(struct FDF_thread_state *fdf_thread_state,
         undefined("FDFGetRangeFinish");
 
     return (*ptr_FDFGetRangeFinish)(fdf_thread_state, cursor);
+}
+
+/*
+ * FDFGetRangeFinish
+ */
+FDF_status_t 
+FDFMPut(struct FDF_thread_state *fdf_thread_state, 
+	FDF_cguid_t cguid,
+	uint32_t num_objs,
+	FDF_obj_t *objs)
+{
+    if (unlikely(!ptr_FDFMPut))
+        undefined("FDFGetRangeFinish");
+
+    return (* ptr_FDFMPut)(fdf_thread_state, cguid,
+			  num_objs, objs);
 }
 
 FDF_status_t

@@ -1434,6 +1434,59 @@ static void dump_btree_stats(FILE *f, FDF_cguid_t cguid)
     btree_dump_stats(f, &bt_stats);
 }
 
+FDF_status_t
+_FDFMPut(struct FDF_thread_state *fdf_ts,
+        FDF_cguid_t cguid,
+        uint32_t num_objs,
+        FDF_obj_t objs[])
+{
+	int i;
+	FDF_status_t status = FDF_SUCCESS;
+	FDF_status_t status2 = FDF_SUCCESS;
+
+	if (num_objs == 0) {
+		return FDF_SUCCESS;
+	}
+
+	/*
+	 * Start a transaction.
+	 */
+	status = _FDFTransactionStart(fdf_ts);
+	if (status != FDF_SUCCESS) {
+		goto out;
+	}
+
+	for (i = 0; i < num_objs; i++) {
+		if (objs[i].flags != 0) {
+			status = FDF_INVALID_PARAMETER;
+			goto rollback;
+		}	
+		status = _FDFWriteObject(fdf_ts, cguid, 
+					objs[i].key, objs[i].key_len,
+					objs[i].data, objs[i].data_len, 0);
+
+		if (status != FDF_SUCCESS) {
+			goto rollback;
+		}
+
+	}
+
+	status = _FDFTransactionCommit(fdf_ts);
+	if (status != FDF_SUCCESS) {
+		goto out;
+	}
+	return FDF_SUCCESS;
+
+rollback:
+	status2 = _FDFTransactionRollback(fdf_ts);
+	if(status2 != FDF_SUCCESS) {
+		status = status2;
+	}
+out:
+	return status;
+}
+
+
 /*
  * persistent seqno facility
  *

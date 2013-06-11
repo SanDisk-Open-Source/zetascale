@@ -6359,6 +6359,15 @@ FDFGetRangeFinish(struct FDF_thread_state *thrd_state,
 	return FDF_FAILURE;
 }
 
+FDF_status_t 
+FDFMPut(struct FDF_thread_state *fdf_thread_state, 
+	FDF_cguid_t cguid,
+	uint32_t num_objs,
+	FDF_obj_t *objs)
+{
+	fprintf(stderr, "FDF: FDFMPut without btree is not supported\n");
+	return FDF_FAILURE;
+}
 /*
  * @brief Create a snapshot for a container  
  * 
