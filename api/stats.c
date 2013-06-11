@@ -282,18 +282,29 @@ FDF_status_t dump_all_container_stats(struct FDF_thread_state *thd_state,
     int i;
     FILE *fp;
     uint32_t n_cguids;
-    FDF_cguid_t cguids[MCD_MAX_NUM_CNTRS];
+    FDF_cguid_t *cguids = NULL;
+    FDF_status_t ret = FDF_SUCCESS;
+
+
+    cguids = (FDF_cguid_t *) plat_alloc(sizeof(*cguids) * MCD_MAX_NUM_CNTRS);
+    if (cguids == NULL) {
+	return FDF_FAILURE;	
+    }
 
     FDFGetContainers(thd_state,cguids,&n_cguids);
     if( n_cguids <= 0 ) {
         plat_log_msg(160055, LOG_CAT, LOG_DBG,
                            "No container exists");
-        return FDF_FAILURE;
+        ret = FDF_FAILURE;
+	goto out;
     }
+
     fp = open_stats_dump_file();
     if( fp == NULL ) {
-        return FDF_FAILURE;
+        ret = FDF_FAILURE;
+	goto out;
     }
+
     for ( i = 0; i < n_cguids; i++ ) {
         print_container_stats_by_cguid(thd_state,fp,cguids[i],stats_type);
         fflush(fp);
@@ -301,7 +312,10 @@ FDF_status_t dump_all_container_stats(struct FDF_thread_state *thd_state,
     fprintf(fp,"--------\n");
     fflush(fp);
     fclose(fp);
-    return FDF_SUCCESS;
+
+out:
+    plat_free(cguids);
+    return ret;
 }
 
 FDF_status_t print_container_stats_by_name(struct FDF_thread_state *thd_state,

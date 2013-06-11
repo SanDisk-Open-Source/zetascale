@@ -1380,7 +1380,12 @@ static SDF_status_t update_container_map(char *cname, SDF_cguid_t cguid) {
 }
 #endif /* notdef */
 
-SDF_status_t mcd_fth_container_init( void * pai, int system_recovery, int tcp_ports[MCD_MAX_NUM_CNTRS], int udp_ports[MCD_MAX_NUM_CNTRS], char *ctnr_name )
+SDF_status_t mcd_fth_container_init(void * pai, 
+				    int system_recovery,
+				    int *tcp_ports /* [MCD_MAX_NUM_CNTRS */,                                     
+				    int *udp_ports /*[MCD_MAX_NUM_CNTRS] */,
+				    char *ctnr_name )
+
 {
     int                         i;
 

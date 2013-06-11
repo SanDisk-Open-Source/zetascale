@@ -561,7 +561,7 @@ extern void mcd_osd_check_for_stopped_container(mcd_container_t *container);
 extern int mcd_stop_container( void *pai, mcd_container_t * container );
 extern int mcd_stop_container_internal( void * pai, int tcp_port );
 extern int mcd_stop_container_byname_internal( void * pai, char * cname );
-extern SDF_status_t mcd_fth_container_init( void * pai, int system_recovery, int tcp_ports[MCD_MAX_NUM_CNTRS], int udp_ports[MCD_MAX_NUM_CNTRS], char *ctnr_name );
+extern SDF_status_t mcd_fth_container_init( void * pai, int system_recovery, int *tcp_ports, int *udp_ports, char *ctnr_name );
 
 extern int mcd_osd_container_state(mcd_container_t *container);
 extern uint32_t mcd_osd_container_generation(mcd_container_t  *container);
