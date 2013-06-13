@@ -594,6 +594,11 @@ FDF_status_t _FDFReadObject(
 
     my_thd_state = fdf_thread_state;;
 
+    if (FDF_SUCCESS != (ret = FDFOperationAllowed())) {
+        msg("Shutdown in Progress. Read object not allowed\n");
+        return (ret);
+    }
+
     bt = bt_get_btree_from_cguid(cguid);
     if (bt == NULL) {
         return (FDF_FAILURE);

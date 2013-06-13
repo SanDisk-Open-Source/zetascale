@@ -191,6 +191,9 @@ static uint64_t
 static FDF_status_t 
 (*ptr_FDFGetVersion)(char **str);
 
+static FDF_status_t 
+(*ptr_FDFOperationAllowed)();
+
 static void 
 (*ptr_FDFTLMapDestroy)(struct FDFTLMap *pm);
 
@@ -345,6 +348,7 @@ static struct {
     { "FDFTransactionQuit",        &ptr_FDFTransactionQuit       },
     { "FDFTransactionID",        &ptr_FDFTransactionID       },
     { "FDFGetVersion",                 &ptr_FDFGetVersion                },
+    { "FDFOperationAllowed",           &ptr_FDFOperationAllowed          },
     { "FDFTLMapDestroy",               &ptr_FDFTLMapDestroy              },
     { "FDFTLMapClear",                 &ptr_FDFTLMapClear                },
     { "FDFTLMapCreate",                &ptr_FDFTLMapCreate               },
@@ -1038,6 +1042,20 @@ FDFGetVersion(char **str)
 
     return (*ptr_FDFGetVersion)(str);
 }
+
+/*
+ * FDFOperationAllowed
+ */
+FDF_status_t 
+FDFOperationAllowed(void)
+{              
+    parse();   
+    if (unlikely(!ptr_FDFOperationAllowed))
+        undefined("FDFOperationAllowed");
+
+    return (*ptr_FDFOperationAllowed)();
+}       
+
 /*
  * FDFTLMapCreate
  */

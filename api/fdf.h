@@ -1125,6 +1125,14 @@ FDFGetContainerSnapshots(
 	uint64_t		snap_seqs
 	);
 
+/*
+ * @brief Check that FDF operations are allowed (e.g., not in shutdown).
+ *
+ * @return FDF_SUCCESS if operations are allowed.
+*/
+FDF_status_t
+FDFOperationAllowed( void );
+
 #if 0
 /*********************************************************
  *

@@ -6506,6 +6506,11 @@ FDFGetContainerSnapshots(
 	return (FDF_FAILURE);
 }
 
+FDF_status_t
+FDFOperationAllowed( void )
+{
+	return is_fdf_operation_allowed();
+}
 
 #define NUM_BTRACE_ENTRIES 50
 void fdf_print_backtrace() {
