@@ -3734,7 +3734,9 @@ fdf_get_containers_int(
         
 		if ( CtnrMap[i].cguid > LAST_PHYSICAL_CGUID  && 
 			 ( CtnrMap[i].state == FDF_CONTAINER_STATE_CLOSED ||
-			   CtnrMap[i].state == FDF_CONTAINER_STATE_OPEN ) ) {
+			   CtnrMap[i].state == FDF_CONTAINER_STATE_OPEN ) && 
+	         ( strcmp( CtnrMap[i].cname, SEQNO_CONTAINER_NAME ) ) ) {
+
 			cguids[n_containers] = CtnrMap[i].cguid;
             n_containers++;
         }
