@@ -932,7 +932,7 @@ FDF_status_t _FDFNextEnumeratedObject(
 	    *keylen = 0;
 	    *data = NULL;
 	    *datalen = 0;
-	    status = FDF_FAILURE;
+	    status = FDF_OBJECT_UNKNOWN;
 	}
 
     return(status);
