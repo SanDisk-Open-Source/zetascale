@@ -354,6 +354,8 @@ btree_start_range_query(btree_t                 *btree,
 	return (BTREE_SUCCESS);
 }
 
+extern __thread uint64_t dbg_referenced;
+
 btree_status_t
 btree_get_next_range(btree_range_cursor_t *cursor,
                      int                   n_in,
@@ -401,6 +403,8 @@ btree_get_next_range(btree_range_cursor_t *cursor,
 	master_list = blist_init();
 	if (master_list == NULL) {
 		plat_rwlock_unlock(&bt->lock);
+		deref_l1cache_node(bt, n);
+		assert(!dbg_referenced);
 		return BTREE_FAILURE;
 	}
 
@@ -430,6 +434,8 @@ btree_get_next_range(btree_range_cursor_t *cursor,
 	if (key_list == NULL) {
 		blist_end(master_list, 1);
 		plat_rwlock_unlock(&bt->lock);
+		deref_l1cache_node(bt, n);
+		assert(!dbg_referenced);
 		return BTREE_FAILURE;
 	}
 
@@ -438,6 +444,8 @@ btree_get_next_range(btree_range_cursor_t *cursor,
 		blist_end(key_list, 1);
 		blist_end(master_list, 1);
 		plat_rwlock_unlock(&bt->lock);
+		deref_l1cache_node(bt, n);
+		assert(!dbg_referenced);
 		return BTREE_QUERY_DONE;
 	}
 
@@ -549,6 +557,7 @@ btree_get_next_range(btree_range_cursor_t *cursor,
 			if (key_list == NULL) {
 				blist_end(master_list, 1);
 				plat_rwlock_unlock(&bt->lock);
+				assert(!dbg_referenced);
 				return BTREE_FAILURE;
 			}
 			key_count = find_key_range(bt, n, &rmeta, key_list, leaf_lock);
@@ -577,6 +586,7 @@ btree_get_next_range(btree_range_cursor_t *cursor,
 	bt->stats.stat[BTSTAT_GET_CNT]++;
 	bt->stats.stat[BTSTAT_GET_PATH] += pathcnt;
 
+	assert(!dbg_referenced);
 	return(overall_status);
 }
 
