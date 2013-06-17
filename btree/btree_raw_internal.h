@@ -119,7 +119,8 @@ typedef struct btree_raw {
 
     plat_rwlock_t      lock;
     plat_rwlock_t      write_io_lock;
-    int modify_tree;
+
+    uint64_t           modified;
 } btree_raw_t;
 
 typedef struct btree_raw_persist {

@@ -542,6 +542,9 @@ btree_get_next_range(btree_range_cursor_t *cursor,
 				break;
 			}
 
+			plat_rwlock_rdlock(leaf_lock);
+			plat_rwlock_unlock(leaf_lock);
+
 			key_list = blist_init();
 			if (key_list == NULL) {
 				blist_end(master_list, 1);
