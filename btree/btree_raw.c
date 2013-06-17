@@ -1128,7 +1128,7 @@ static btree_status_t deref_l1cache(btree_raw_t *btree)
     referenced_nodes_count = 0;
     deleted_nodes_count = 0;
 
-    assert(PMapNEntries(btree->l1cache) <= 16 * (btree->n_l1cache_buckets / 1000 + 1) * 1000);
+//    assert(PMapNEntries(btree->l1cache) <= 16 * (btree->n_l1cache_buckets / 1000 + 1) * 1000);
 
     return  BTREE_SUCCESS == ret ? txnret : ret;
 }

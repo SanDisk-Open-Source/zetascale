@@ -96,7 +96,7 @@ _FDFGetRangeFinish(struct FDF_thread_state *fdf_thread_state,
 // #define DEFAULT_N_L1CACHE_BUCKETS 1000
 // #define DEFAULT_N_L1CACHE_BUCKETS 1000
 // #define DEFAULT_N_L1CACHE_BUCKETS 9600
-#define DEFAULT_N_L1CACHE_BUCKETS 18000
+#define DEFAULT_N_L1CACHE_BUCKETS 18000 // 2.3G
 #define DEFAULT_MIN_KEYS_PER_NODE 4
 
     // Counts of number of times callbacks are invoked:
@@ -383,8 +383,13 @@ FDF_status_t _FDFOpenContainer(
 
     min_keys_per_node   = DEFAULT_MIN_KEYS_PER_NODE;
 
-    env = getenv("N_L1CACHE_BUCKETS");
+    env = getenv("BTREE_L1CACHE_SIZE");
+
     n_l1cache_buckets = env ? atoi(env) : 0;
+
+    if(n_l1cache_buckets)
+	n_l1cache_buckets = n_l1cache_buckets / 16 / 8192;
+
     if(!n_l1cache_buckets)
 	n_l1cache_buckets = DEFAULT_N_L1CACHE_BUCKETS;
 
