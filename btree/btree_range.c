@@ -586,7 +586,7 @@ btree_get_next_range(btree_range_cursor_t *cursor,
 	bt->stats.stat[BTSTAT_GET_CNT]++;
 	bt->stats.stat[BTSTAT_GET_PATH] += pathcnt;
 
-	assert(!dbg_referenced);
+	//assert(!dbg_referenced);
 	return(overall_status);
 }
 

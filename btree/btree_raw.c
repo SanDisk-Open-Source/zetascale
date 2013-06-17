@@ -135,7 +135,7 @@ static int Verbose = 0;
 
 //#define DBG_PRINT
 #ifdef DBG_PRINT
-#define dbg_print_key(key, keylen, msg, ...) do { print_key_func(stderr, __FUNCTION__, __LINE__, key, keylen, msg, ##__VAR_ARGS__); while(0)
+#define dbg_print_key(key, keylen, msg, ...) do { print_key_func(stderr, __FUNCTION__, __LINE__, key, keylen, msg, ##__VA_ARGS__); } while(0)
 #define dbg_print(msg, ...) do { fprintf(stderr, "%x %s:%d " msg, (int)pthread_self(), __FUNCTION__, __LINE__, ##__VA_ARGS__); } while(0)
 static void print_key_func(FILE *f, const char* func, int line, char* key, int keylen, char *msg, ...);
 #else
@@ -1047,7 +1047,7 @@ btree_status_t btree_raw_get(struct btree_raw *btree, char *key, uint32_t keylen
 static int init_l1cache(btree_raw_t *bt, uint32_t n_l1cache_buckets)
 {
     bt->n_l1cache_buckets = n_l1cache_buckets;
-    bt->l1cache = PMapInit(1000, n_l1cache_buckets / 1000 + 1, 16 * n_l1cache_buckets / 1000 + 1, 1, l1cache_replace, (void *) bt);
+    bt->l1cache = PMapInit(1000, n_l1cache_buckets / 1000 + 1, 16 * (n_l1cache_buckets / 1000 + 1), 1, l1cache_replace, (void *) bt);
     if (bt->l1cache == NULL) {
         return(1);
     }
@@ -1128,7 +1128,7 @@ static btree_status_t deref_l1cache(btree_raw_t *btree)
     referenced_nodes_count = 0;
     deleted_nodes_count = 0;
 
-//    assert(PMapNEntries(btree->l1cache) <= 16 * btree->n_l1cache_buckets);
+    assert(PMapNEntries(btree->l1cache) <= 16 * (btree->n_l1cache_buckets / 1000 + 1) * 1000);
 
     return  BTREE_SUCCESS == ret ? txnret : ret;
 }
@@ -1211,8 +1211,6 @@ void lock_nodes_list(btree_raw_t *btree, int lock, btree_raw_node_t** list, int 
 
     for(i = 0; i < count; i++)
     {
-        dbg_print("list[%d]->logical_id=%ld lock=%d\n", i, list[i]->logical_id, lock);
-
         node = get_l1cache(btree, list[i]->logical_id, &node_lock);
         assert(node); // the node is in the cache, hence, get_l1cache cannot fail
 
@@ -2166,7 +2164,7 @@ restart:
         pkrec = find_key(btree, parent, key, keylen, &child_id, &child_id_before, &child_id_after, &pk_insert, meta, syndrome, &nkey_child);
     }
 
-    dbg_print("before modifiing leaf node is_leaf: %d is_root: %d is_over: %d\n", node->logical_id, is_leaf(btree, node), is_root(btree, node), is_overflow(btree, node));
+    dbg_print("before modifiing leaf node id %ld is_leaf: %d is_root: %d is_over: %d\n", node->logical_id, is_leaf(btree, node), is_root(btree, node), is_overflow(btree, node));
 
     assert(is_leaf(btree, node));
 
@@ -2357,14 +2355,16 @@ btree_status_t btree_raw_delete(struct btree_raw *btree, char *key, uint32_t key
     /* Check if delete without restructure is possible */
     opt = keyrec && _keybuf && !is_leaf_minimal_after_delete(btree, node, (node_vlkey_t*)keyrec);
 
-    ref_l1cache(btree, node);
-
     if(opt) {
+        ref_l1cache(btree, node);
 	delete_key_by_pkrec(&ret, btree, node, keyrec);
 	btree->stats.stat[BTSTAT_DELETE_OPT_CNT]++;
     }
     else
+    {
+        deref_l1cache_node(btree, node);
         plat_rwlock_unlock(leaf_lock);
+    }
 
     plat_rwlock_unlock(&btree->lock);
 
@@ -2385,6 +2385,9 @@ btree_status_t btree_raw_delete(struct btree_raw *btree, char *key, uint32_t key
 #endif
 	return BTREE_SUCCESS; // optimistic delete succeeded
     }
+
+    dbg_print("dbg_referenced %ld\n", dbg_referenced);
+    assert(!dbg_referenced);
 
     /* Need tree restructure. Write lock whole tree and retry */
     plat_rwlock_wrlock(&btree->lock);
