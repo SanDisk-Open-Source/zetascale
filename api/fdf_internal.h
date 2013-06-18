@@ -34,7 +34,6 @@ typedef struct FDF_state {
     uint64_t           cguid_cntr;
 } FDF_state_t;
 
-
 /* Stats and Admin port*/
 typedef enum { 
     FDF_STATS_TYPE_APP_REQ,
@@ -45,7 +44,7 @@ typedef enum {
     FDF_STATS_TYPE_FLASH_RC,
     FDF_STATS_TYPE_FLASH_MANAGER,
     FDF_STATS_TYPE_PER_CACHE,
-	FDF_STATS_TYPE_CONTAINER_FLASH
+    FDF_STATS_TYPE_CONTAINER_FLASH
 }FDF_STATS_TYPE;
 
 

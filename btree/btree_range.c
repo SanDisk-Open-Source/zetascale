@@ -583,8 +583,8 @@ btree_get_next_range(btree_range_cursor_t *cursor,
 		cursor->last_keylen = values[key_index].keylen;
 	}
 
-	bt->stats.stat[BTSTAT_GET_CNT]++;
-	bt->stats.stat[BTSTAT_GET_PATH] += pathcnt;
+	__sync_add_and_fetch(&(bt->stats.stat[BTSTAT_GET_CNT]),1);
+	__sync_add_and_fetch(&(bt->stats.stat[BTSTAT_GET_PATH]),pathcnt);
 
 	//assert(!dbg_referenced);
 	return(overall_status);

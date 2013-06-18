@@ -1026,8 +1026,8 @@ btree_status_t btree_raw_get(struct btree_raw *btree, char *key, uint32_t keylen
 
     plat_rwlock_unlock(&btree->lock);
 
-    btree->stats.stat[BTSTAT_GET_CNT]++;
-    btree->stats.stat[BTSTAT_GET_PATH] += pathcnt;
+    __sync_add_and_fetch(&(btree->stats.stat[BTSTAT_GET_CNT]), 1);
+    __sync_add_and_fetch(&(btree->stats.stat[BTSTAT_GET_PATH]), pathcnt);
 
     #ifdef DEBUG_STUFF
 	if (Verbose) {
@@ -1089,7 +1089,7 @@ static btree_status_t deref_l1cache(btree_raw_t *btree)
         dbg_print("write_node_cb key=%ld data=%p datalen=%d\n", n->logical_id, n, btree->nodesize);
 
 	btree->write_node_cb(&ret, btree->write_node_cb_data, n->logical_id, (char*)n, btree->nodesize);
-	btree->stats.stat[BTSTAT_L1WRITES]++;
+	__sync_add_and_fetch(&(btree->stats.stat[BTSTAT_L1WRITES]),1);
     }
 
     for(i = 0; i < deleted_nodes_count; i++)
@@ -1099,7 +1099,7 @@ static btree_status_t deref_l1cache(btree_raw_t *btree)
         dbg_print("delete_node_cb key=%ld data=%p datalen=%d\n", n->logical_id, n, btree->nodesize);
 
 	ret = btree->delete_node_cb(n, btree->create_node_cb_data, n->logical_id);
-	btree->stats.stat[BTSTAT_L1WRITES]++;
+	__sync_add_and_fetch(&(btree->stats.stat[BTSTAT_L1WRITES]),1);
     }
 
     btree->txn_cmd_cb(&txnret, btree->txn_cmd_cb_data,
@@ -1259,9 +1259,9 @@ retry:
         //  check l1cache first
 	n = get_l1cache(btree, logical_id, lock);
 	if (n != NULL) {
-	    btree->stats.stat[BTSTAT_L1HITS]++;
+	    __sync_add_and_fetch(&(btree->stats.stat[BTSTAT_L1HITS]),1);
 	} else {
-	    btree->stats.stat[BTSTAT_L1MISSES]++;
+	    __sync_add_and_fetch(&(btree->stats.stat[BTSTAT_L1MISSES]),1);
 	    //  look for the node the hard way
 	    //  If we don't look at the ret code, why does read_node_cb need one?
 	    n = btree->read_node_cb(ret, btree->read_node_cb_data, logical_id);
@@ -1354,11 +1354,11 @@ static btree_raw_node_t *get_new_node(btree_status_t *ret, btree_raw_t *btree, u
     n->rightmost  = BAD_CHILD;
 
     if (leaf_flags & LEAF_NODE) {
-	btree->stats.stat[BTSTAT_LEAVES]++;
+	__sync_add_and_fetch(&(btree->stats.stat[BTSTAT_LEAVES]),1);
     } else if (leaf_flags & OVERFLOW_NODE) {
-	btree->stats.stat[BTSTAT_OVERFLOW_NODES]++;
+	__sync_add_and_fetch(&(btree->stats.stat[BTSTAT_OVERFLOW_NODES]),1);
     } else {
-	btree->stats.stat[BTSTAT_NONLEAVES]++;
+	__sync_add_and_fetch(&(btree->stats.stat[BTSTAT_NONLEAVES]),1);
     }
 
     return(n);
@@ -1371,11 +1371,11 @@ static void free_node(btree_status_t *ret, btree_raw_t *btree, btree_raw_node_t 
     if (*ret) { return; }
 
     if (n->flags & LEAF_NODE) {
-	    btree->stats.stat[BTSTAT_LEAVES]--;
+	    __sync_sub_and_fetch(&(btree->stats.stat[BTSTAT_LEAVES]),1);
     } else if (n->flags & OVERFLOW_NODE) {
-	    btree->stats.stat[BTSTAT_OVERFLOW_NODES]--;
+	    __sync_sub_and_fetch(&(btree->stats.stat[BTSTAT_OVERFLOW_NODES]),1);
     } else {
-	    btree->stats.stat[BTSTAT_NONLEAVES]--;
+	    __sync_sub_and_fetch(&(btree->stats.stat[BTSTAT_NONLEAVES]),1);
     }
 
     if (btree->flags & IN_MEMORY) {
@@ -1600,9 +1600,9 @@ static void insert_key_low(btree_status_t *ret, btree_raw_t *btree, btree_raw_no
     if (*ret) { return; }
 
     if (x->flags & LEAF_NODE) {
-	btree->stats.stat[BTSTAT_LEAVE_BYTES] += (keylen + datalen);
+	__sync_add_and_fetch(&(btree->stats.stat[BTSTAT_LEAVE_BYTES]), (keylen + datalen));
     } else {
-	btree->stats.stat[BTSTAT_NONLEAVE_BYTES] += (keylen + datalen);
+	__sync_add_and_fetch(&(btree->stats.stat[BTSTAT_NONLEAVE_BYTES]), (keylen + datalen));
     }
 
     if (pkrec != NULL) {
@@ -1772,6 +1772,10 @@ static void insert_key_low(btree_status_t *ret, btree_raw_t *btree, btree_raw_no
 	assert(datalen == sizeof(uint64_t));
 	pfk->ptr       = *((uint64_t *) data);
     }
+    if (x->flags & LEAF_NODE) {
+        /* A new object has been inserted. increment the count */
+        __sync_add_and_fetch(&(btree->stats.stat[BTSTAT_NUM_OBJS]), 1);
+    }
 
     #ifdef DEBUG_STUFF
 	if (Verbose) {
@@ -1858,9 +1862,9 @@ static void delete_key_by_pkrec(btree_status_t* ret, btree_raw_t *btree, btree_r
     }
 
     if (x->flags & LEAF_NODE) {
-	btree->stats.stat[BTSTAT_LEAVE_BYTES] -= (keylen + datalen_stats);
+	__sync_sub_and_fetch(&(btree->stats.stat[BTSTAT_LEAVE_BYTES]),(keylen + datalen_stats));
     } else {
-	btree->stats.stat[BTSTAT_NONLEAVE_BYTES] -= (keylen + datalen_stats);
+	__sync_sub_and_fetch(&(btree->stats.stat[BTSTAT_NONLEAVE_BYTES]),(keylen + datalen_stats));
     }
 
     nkeys_from = x->nkeys - nkeys_to - 1;
@@ -1943,7 +1947,7 @@ static void btree_split_child(btree_status_t *ret, btree_raw_t *btree, btree_raw
 
     if (*ret) { return; }
 
-    btree->stats.stat[BTSTAT_SPLITS]++;
+    __sync_add_and_fetch(&(btree->stats.stat[BTSTAT_SPLITS]),1);
 
     n_new = get_new_node(ret, btree, is_leaf(btree, n_child) ? LEAF_NODE : 0);
     if (BTREE_SUCCESS != *ret)
@@ -2238,16 +2242,16 @@ static btree_status_t btree_raw_write(struct btree_raw *btree, char *key, uint32
     if (BTREE_SUCCESS == ret) {
         switch (write_type) {
 	    case W_CREATE:
-		btree->stats.stat[BTSTAT_CREATE_CNT]++;
-		btree->stats.stat[BTSTAT_CREATE_PATH] += pathcnt;
+		__sync_add_and_fetch(&(btree->stats.stat[BTSTAT_CREATE_CNT]),1);
+		__sync_add_and_fetch(&(btree->stats.stat[BTSTAT_CREATE_PATH]),pathcnt);
 		break;
 	    case W_SET:
-		btree->stats.stat[BTSTAT_SET_CNT]++;
-		btree->stats.stat[BTSTAT_SET_PATH] += pathcnt;
+		__sync_add_and_fetch(&(btree->stats.stat[BTSTAT_SET_CNT]),1);
+		__sync_add_and_fetch(&(btree->stats.stat[BTSTAT_SET_PATH]), pathcnt);
 		break;
 	    case W_UPDATE:
-		btree->stats.stat[BTSTAT_UPDATE_CNT]++;
-		btree->stats.stat[BTSTAT_UPDATE_PATH] += pathcnt;
+		__sync_add_and_fetch(&(btree->stats.stat[BTSTAT_UPDATE_CNT]),1);
+		__sync_add_and_fetch(&(btree->stats.stat[BTSTAT_UPDATE_PATH]), pathcnt);
 		break;
 	    default:
 	        assert(0);
@@ -2358,7 +2362,7 @@ btree_status_t btree_raw_delete(struct btree_raw *btree, char *key, uint32_t key
     if(opt) {
         ref_l1cache(btree, node);
 	delete_key_by_pkrec(&ret, btree, node, keyrec);
-	btree->stats.stat[BTSTAT_DELETE_OPT_CNT]++;
+	__sync_add_and_fetch(&(btree->stats.stat[BTSTAT_DELETE_OPT_CNT]),1);
     }
     else
     {
@@ -2409,8 +2413,9 @@ btree_status_t btree_raw_delete(struct btree_raw *btree, char *key, uint32_t key
         ret = BTREE_FAILURE;
     }
 
-    btree->stats.stat[BTSTAT_DELETE_CNT]++;
-    btree->stats.stat[BTSTAT_DELETE_PATH] += pathcnt;
+    __sync_add_and_fetch(&(btree->stats.stat[BTSTAT_DELETE_CNT]),1);
+    __sync_sub_and_fetch(&(btree->stats.stat[BTSTAT_NUM_OBJS]), 1);
+    __sync_add_and_fetch(&(btree->stats.stat[BTSTAT_DELETE_PATH]), pathcnt);
 
     dbg_print("dbg_referenced %ld\n", dbg_referenced);
     assert(!dbg_referenced);
@@ -2823,7 +2828,7 @@ static void shift_right(btree_raw_t *btree, btree_raw_node_t *anchor, btree_raw_
     uint64_t       r_seqno;
     uint64_t       r_ptr;
 
-    btree->stats.stat[BTSTAT_RSHIFTS]++;
+    __sync_add_and_fetch(&(btree->stats.stat[BTSTAT_RSHIFTS]),1);
 
     (void) get_key_stuff(btree, from, 0, &ks);
     nbytes_fixed = ks.offset;
@@ -3049,7 +3054,7 @@ static void shift_left(btree_raw_t *btree, btree_raw_node_t *anchor, btree_raw_n
     uint64_t       r_seqno;
     uint64_t       r_ptr;
 
-    btree->stats.stat[BTSTAT_LSHIFTS]++;
+    __sync_add_and_fetch(&(btree->stats.stat[BTSTAT_LSHIFTS]),1);
 
     (void) get_key_stuff(btree, from, 0, &ks);
     nbytes_fixed = ks.offset;
@@ -3276,7 +3281,7 @@ static void merge_right(btree_raw_t *btree, btree_raw_node_t *anchor, btree_raw_
     uint32_t       nbytes_needed;
     key_stuff_t    ks;
 
-    btree->stats.stat[BTSTAT_RMERGES]++;
+    __sync_add_and_fetch(&(btree->stats.stat[BTSTAT_RMERGES]),1);
 
     (void) get_key_stuff(btree, from, 0, &ks);
 
@@ -3390,7 +3395,7 @@ static void merge_left(btree_raw_t *btree, btree_raw_node_t *anchor, btree_raw_n
     uint32_t       nbytes_needed;
     key_stuff_t    ks;
 
-    btree->stats.stat[BTSTAT_LMERGES]++;
+    __sync_add_and_fetch(&(btree->stats.stat[BTSTAT_LMERGES]),1);
 
     (void) get_key_stuff(btree, from, 0, &ks);
 

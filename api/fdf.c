@@ -20,6 +20,7 @@
 #include "sdf_internal.h"
 #include "fdf.h"
 #include "fdf_internal.h"
+#include "fdf_internal_cb.h"
 #include "protocol/protocol_utils.h"
 #include "protocol/protocol_common.h"
 #include "protocol/action/recovery.h"
@@ -71,6 +72,11 @@ static sem_t Mcd_initer_sem;
 
 
 ctnr_map_t CtnrMap[MCD_MAX_NUM_CNTRS];
+
+/* External call backs */
+FDF_ext_cb_t *btree_cbs;
+
+FDF_status_t get_btree_num_objs(FDF_cguid_t cguid, uint64_t *num_objs);
 
 static FDF_status_t
 fdf_write_object(
@@ -475,6 +481,36 @@ fdf_stats_info_t fdf_stats_cache[] = {
     {"async_wrbk_fails","async_wrbk_fails",FDF_STATS_TYPE_CACHE_TO_FLASH},/* FDF_CACHE_STAT_ASYNC_WRBK_FAILS */
     {"cache_misses","cache_misses",FDF_STATS_TYPE_CACHE_TO_FLASH},/* FDF_CACHE_STAT_CACHE_MISSES */
     {"cache_hits","cache_hits",FDF_STATS_TYPE_CACHE_TO_FLASH},/* FDF_CACHE_STAT_CACHE_HITS */
+    //btree related categories
+    {"l1_cache_entries","l1_cache_entries",FDF_STATS_TYPE_CACHE_TO_FLASH},/* FDF_CACHE_STAT_L1_ENTRIES */
+    {"l1_cache_hits","l1_cache_hits",FDF_STATS_TYPE_CACHE_TO_FLASH},/* FDF_CACHE_STAT_L1_HITS */
+    {"l1_cache_misses","l1_cache_misses",FDF_STATS_TYPE_CACHE_TO_FLASH},/* FDF_CACHE_STAT_L1_MISSES */
+    {"l1_cache_writes","l1_cache_writes",FDF_STATS_TYPE_CACHE_TO_FLASH},/* FDF_CACHE_STAT_L1_WRITES */
+    {"l1_cache_objects","l1_cache_objects",FDF_STATS_TYPE_CACHE_TO_FLASH},/* FDF_CACHE_STAT_L1_OBJECTS */
+    {"l1_cache_leaves","l1_cache_leaves",FDF_STATS_TYPE_CACHE_TO_FLASH},/* FDF_CACHE_STAT_L1_LEAVES */
+    {"l1_cache_non_leaves","l1_cache_non_leaves",FDF_STATS_TYPE_CACHE_TO_FLASH},/* FDF_CACHE_STAT_L1_NLEAVES */
+    {"l1_cache_overflow","l1_cache_overflow",FDF_STATS_TYPE_CACHE_TO_FLASH},/* FDF_CACHE_STAT_L1_OVERFLOW */
+    {"l1_cache_bt_num_objs","l1_cache_bt_num_objs",FDF_STATS_TYPE_CACHE_TO_FLASH},/* FDF_CACHE_STAT_BT_NUM_OBJS */
+    {"l1_cache_bt_leaves","l1_cache_bt_leaves",FDF_STATS_TYPE_CACHE_TO_FLASH},/* FDF_CACHE_STAT_BT_LEAVES */
+    {"l1_cache_bt_non_leaves","l1_cache_bt_non_leaves",FDF_STATS_TYPE_CACHE_TO_FLASH},/* FDF_CACHE_STAT_BT_NLEAVES */
+    {"l1_cache_bt_overflow_nodes","l1_cache_bt_overflow_nodes",FDF_STATS_TYPE_CACHE_TO_FLASH},/* FDF_CACHE_STAT_BT_OVERFLOW_NODES */
+    {"l1_cache_bt_leave_bytes","l1_cache_bt_leave_bytes",FDF_STATS_TYPE_CACHE_TO_FLASH},/* FDF_CACHE_STAT_BT_LEAVE_BYTES */
+    {"l1_cache_bt_non_leave_bytes","l1_cache_bt_non_leave_bytes",FDF_STATS_TYPE_CACHE_TO_FLASH},/* FDF_CACHE_STAT_BT_NLEAVE_BYTES */
+    {"l1_cache_bt_overflow_bytes","l1_cache_bt_overflow_bytes",FDF_STATS_TYPE_CACHE_TO_FLASH},/* FDF_CACHE_STAT_BT_OVERFLOW_BYTES */
+    {"l1_cache_bt_evict_bytes","l1_cache_bt_evict_bytes",FDF_STATS_TYPE_CACHE_TO_FLASH},/* FDF_CACHE_STAT_BT_EVICT_BYTES */
+    {"l1_cache_bt_splits","l1_cache_bt_splits",FDF_STATS_TYPE_CACHE_TO_FLASH},/* FDF_CACHE_STAT_BT_SPLITS */
+    {"l1_cache_bt_lmerges","l1_cache_bt_lmerges",FDF_STATS_TYPE_CACHE_TO_FLASH},/* FDF_CACHE_STAT_BT_LMERGES */
+    {"l1_cache_bt_rmerges","l1_cache_bt_rmerges",FDF_STATS_TYPE_CACHE_TO_FLASH},/* FDF_CACHE_STAT_BT_RMERGES */
+    {"l1_cache_bt_lshifts","l1_cache_bt_lshifts",FDF_STATS_TYPE_CACHE_TO_FLASH},/* FDF_CACHE_STAT_BT_LSHIFTS */
+    {"l1_cache_bt_rshifts","l1_cache_bt_rshifts",FDF_STATS_TYPE_CACHE_TO_FLASH},/* FDF_CACHE_STAT_BT_LSHIFTS */
+    {"l1_cache_bt_xtree_locks","l1_cache_bt_xtree_locks",FDF_STATS_TYPE_CACHE_TO_FLASH},/* FDF_CACHE_STAT_BT_EX_TREE_LOCKS */
+    {"l1_cache_bt_non_xtree_locks","l1_cache_bt_non_xtree_locks",FDF_STATS_TYPE_CACHE_TO_FLASH},/* FDF_CACHE_STAT_BT_NON_EX_TREE_LOCKS */
+    {"l1_cache_bt_get_path_len","l1_cache_bt_get_path_len",FDF_STATS_TYPE_CACHE_TO_FLASH},/* FDF_CACHE_STAT_BT_GET_PATH_LEN */
+    {"l1_cache_bt_create_path_len","l1_cache_bt_create_path_len",FDF_STATS_TYPE_CACHE_TO_FLASH},/* FDF_CACHE_STAT_BT_CREATE_PATH_LEN */
+    {"l1_cache_bt_set_path_len","l1_cache_bt_set_path_len",FDF_STATS_TYPE_CACHE_TO_FLASH},/* FDF_CACHE_STAT_BT_SET_PATH_LEN */
+    {"l1_cache_bt_update_path_len","l1_cache_bt_update_path_len",FDF_STATS_TYPE_CACHE_TO_FLASH},/* FDF_CACHE_STAT_BT_UPDATE_PATH_LEN */
+    {"l1_cache_bt_delete_path_len","l1_cache_bt_delete_path_len",FDF_STATS_TYPE_CACHE_TO_FLASH},/* FDF_CACHE_STAT_BT_DELETE_PATH_LEN */
+    {"l1_cache_bt_delete_opt_count","l1_cache_bt_delete_opt_count",FDF_STATS_TYPE_CACHE_TO_FLASH},/* FDF_CACHE_STAT_BT_DELETE_OPT_COUNT */
 
     /* request from cache to flash manager */
     {"AHCOB","num_create_objs",FDF_STATS_TYPE_CACHE_TO_FLASH},/* FDF_CACHE_STAT_AHCOB */
@@ -1083,6 +1119,9 @@ get_cntr_info(cntr_id_t cntr_id,
         *evicting = cmap->evicting;
 
     rel_cntr_map(cmap);
+    /* Get num objs from btree if it is btree container */
+    if(objs) 
+        get_btree_num_objs(cntr_id,objs);
     return 1;
 }
 
@@ -1711,6 +1750,14 @@ void print_configuration(int log_level) {
     if (getProperty_Int("FDF_TEST_MODE", 0)) {
          plat_log_msg(80031, LOG_CAT, log_level,"FDF Testmode enabled");
     }
+}
+FDF_status_t FDFRegisterCallbacks(struct FDF_state *fdf_state, FDF_ext_cb_t *cb) {
+    if( cb == NULL ) {
+        return FDF_FAILURE;
+    }
+    btree_cbs = cb;
+    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, LOG_INFO, "Callback registered"); 
+    return FDF_SUCCESS;
 }
 FDF_status_t FDFInit(
 	struct FDF_state	**fdf_state
@@ -3690,7 +3737,8 @@ char *FDFGetNextContainerName(struct FDF_thread_state *fdf_thread_state,int *ind
         if(CtnrMap[i].cguid != 0){
             /* Skip CMC, VMC and VDC */
             if( (strcmp(CtnrMap[i].cname,"/sdf/VMC") == 0) ||
-                (strcmp(CtnrMap[i].cname,"/sdf/VDC") == 0) ) {
+                (strcmp(CtnrMap[i].cname,"/sdf/VDC") == 0) ||
+                (strcmp(CtnrMap[i].cname,SEQNO_CONTAINER_NAME) == 0) ) {
                 continue;
             }
             /* check if the container is being deleted */
@@ -3733,10 +3781,9 @@ fdf_get_containers_int(
     for ( i = 0; i < MCD_MAX_NUM_CNTRS; i++ ) {
         
 		if ( CtnrMap[i].cguid > LAST_PHYSICAL_CGUID  && 
+                     strcmp(CtnrMap[i].cname,SEQNO_CONTAINER_NAME) &&
 			 ( CtnrMap[i].state == FDF_CONTAINER_STATE_CLOSED ||
-			   CtnrMap[i].state == FDF_CONTAINER_STATE_OPEN ) && 
-	         ( strcmp( CtnrMap[i].cname, SEQNO_CONTAINER_NAME ) ) ) {
-
+			   CtnrMap[i].state == FDF_CONTAINER_STATE_OPEN )  ) {
 			cguids[n_containers] = CtnrMap[i].cguid;
             n_containers++;
         }
@@ -5671,7 +5718,6 @@ FDF_status_t FDFGetStatsStr (
     if (( status = name_service_get_meta( pai, cguid, &meta )) == FDF_SUCCESS ) {
         status = fdf_create_fdf_props( &meta.properties, &pprops );
     }
-
     buf_len = STAT_BUFFER_SIZE;
     temp = stats_str;
     memset( temp, 0, buf_len );
@@ -5767,6 +5813,57 @@ FDF_status_t FDFGetStats(
     return( FDF_SUCCESS );
 }
 
+FDF_status_t update_btree_stats(FDF_cguid_t cguid,FDF_stats_t *stats) {
+    FDF_ext_stat_t *estats;
+    uint32_t n_stats, i;
+    FDF_status_t rc;
+
+    if( btree_cbs == NULL ) {
+        /* Non btree container, return */
+        return FDF_SUCCESS;
+    }
+    rc = btree_cbs->stats_cb(cguid,&estats,&n_stats);
+    if( rc != FDF_SUCCESS ) {
+        return rc;
+    }
+    stats->n_accesses[FDF_ACCESS_TYPES_APCOE] = 0;
+    stats->n_accesses[FDF_ACCESS_TYPES_APPAE] = 0;
+    stats->n_accesses[FDF_ACCESS_TYPES_APSOE] = 0;
+    for ( i = 0; i < n_stats; i++ ) {
+       if( estats[i].ftype == FDF_STATS_TYPE_APP_REQ ) {
+           stats->n_accesses[estats[i].fstat] = estats[i].value;
+       }
+       else if( estats[i].ftype == FDF_STATS_TYPE_CACHE_TO_FLASH ) {
+           stats->cache_stats[estats[i].fstat] = estats[i].value;
+       }
+    }
+    plat_free(estats);
+    return FDF_SUCCESS;
+}
+
+FDF_status_t get_btree_num_objs(FDF_cguid_t cguid, uint64_t *num_objs) {
+    FDF_ext_stat_t *estats;
+    uint32_t n_stats, i;
+    FDF_status_t rc;
+
+    if( btree_cbs == NULL ) {
+        /* Non btree container, return */
+        return FDF_SUCCESS;
+    }  
+    rc = btree_cbs->stats_cb(cguid,&estats,&n_stats);
+    if( rc != FDF_SUCCESS ) {
+        return rc;
+    }
+    for ( i = 0; i < n_stats; i++ ) {
+       if( estats[i].fstat == FDF_CACHE_STAT_BT_NUM_OBJS ) {
+           *num_objs = estats[i].value;
+           
+       }
+    }
+    plat_free(estats);
+    return FDF_SUCCESS;
+}
+
 
 #define MAX_STATS_RETRY 5
 FDF_status_t FDFGetContainerStats(
@@ -5805,6 +5902,7 @@ FDF_status_t FDFGetContainerStats(
     }
     //  no-op in this simple implementation
     slab_gc_get_stats(NULL, stats, NULL);
+    update_btree_stats(cguid,stats);
     return rc;
 }
 

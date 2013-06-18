@@ -85,6 +85,7 @@ typedef struct btree_metadata {
     item(BTSTAT_L1LEAVES, /* default */) \
     item(BTSTAT_L1NONLEAVES, /* default */) \
     item(BTSTAT_L1OVERFLOWS, /* default */) \
+    item(BTSTAT_NUM_OBJS, /* default */) \
     item(BTSTAT_LEAVES, /* default */) \
     item(BTSTAT_NONLEAVES, /* default */) \
     item(BTSTAT_OVERFLOW_NODES, /* default */) \

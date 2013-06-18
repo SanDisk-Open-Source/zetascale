@@ -8,6 +8,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "fdf.h"
+#include "fdf_internal_cb.h"
 
 /*
  * Macros.
@@ -191,6 +192,10 @@ static uint64_t
 static FDF_status_t 
 (*ptr_FDFGetVersion)(char **str);
 
+FDF_status_t
+(*ptr_FDFRegisterCallbacks)(struct FDF_state *fdf_state,
+                            FDF_ext_cb_t *cb);
+
 static FDF_status_t 
 (*ptr_FDFOperationAllowed)();
 
@@ -348,6 +353,7 @@ static struct {
     { "FDFTransactionQuit",        &ptr_FDFTransactionQuit       },
     { "FDFTransactionID",        &ptr_FDFTransactionID       },
     { "FDFGetVersion",                 &ptr_FDFGetVersion                },
+    { "FDFRegisterCallbacks",          &ptr_FDFRegisterCallbacks         },
     { "FDFOperationAllowed",           &ptr_FDFOperationAllowed          },
     { "FDFTLMapDestroy",               &ptr_FDFTLMapDestroy              },
     { "FDFTLMapClear",                 &ptr_FDFTLMapClear                },
@@ -1042,6 +1048,20 @@ FDFGetVersion(char **str)
 
     return (*ptr_FDFGetVersion)(str);
 }
+
+/*
+ * FDFRegisterCallbacks
+ */
+
+FDF_status_t FDFRegisterCallbacks(struct FDF_state *fdf_state, FDF_ext_cb_t *cb)
+{
+    parse();
+    if (unlikely(!ptr_FDFRegisterCallbacks))
+        undefined("FDFGetVersion");
+
+    return (*ptr_FDFRegisterCallbacks)(fdf_state,cb);
+}
+
 
 /*
  * FDFOperationAllowed

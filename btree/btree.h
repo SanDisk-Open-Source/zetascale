@@ -65,5 +65,6 @@ extern int btree_get_snapshots(struct btree *btree, uint32_t *n_snapshots, uint6
 extern int btree_free_buffer(struct btree *btree, char *key, uint32_t keylen, char *buf);
 
 extern void btree_get_stats(struct btree *btree, btree_stats_t *stats);
+struct btree *bt_get_btree_from_cguid(uint64_t cguid);
 
 #endif // __BTREE_H
