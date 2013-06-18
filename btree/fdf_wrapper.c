@@ -124,6 +124,8 @@ typedef struct cmap {
     char           cname[CONTAINER_NAME_MAXLEN];
     uint64_t       cguid;
     struct btree  *btree;
+
+    int            read_by_rquery;
     read_node_t    node_data;
 } ctrmap_t;
 
@@ -148,16 +150,18 @@ static int bt_get_ctnr_from_cguid(
     return i_ctnr;
 }
 
-btree_t *bt_get_btree_from_cguid(FDF_cguid_t cguid)
+static btree_t *bt_get_btree_from_cguid(FDF_cguid_t cguid, int *index)
 {
-	int i;
+    int i;
 
-	i = bt_get_ctnr_from_cguid(cguid);
-	if (i >= N_Open_Containers) {
-		return(NULL); // xxxzzz fix this!
-	}
+    i = bt_get_ctnr_from_cguid(cguid);
+    if (i >= N_Open_Containers) {
+        if (index) *index = -1;
+            return(NULL); // xxxzzz fix this!
+    }
 
-	return (Container_Map[i].btree);
+    if (index) *index = i;
+    return (Container_Map[i].btree);
 }
 
 static void dump_btree_stats(FILE *f, FDF_cguid_t cguid);
@@ -464,6 +468,13 @@ FDF_status_t _FDFOpenContainer(
         return(FDF_FAILURE);
     }
 
+    env = getenv("BTREE_READ_BY_RQUERY");
+    if (env && (atoi(env) == 1)) {
+        Container_Map[index].read_by_rquery = 1;
+    } else {
+        Container_Map[index].read_by_rquery = 0;
+    }
+
     // xxxzzz we should remember the btree info in a persistent place
     // xxxzzz for now, for performance testing, just use a hank
 
@@ -609,6 +620,11 @@ FDF_status_t _FDFReadObject(
     btree_status_t    btree_ret = BTREE_SUCCESS;
     btree_metadata_t  meta;
     struct btree     *bt;
+    int index;
+    btree_range_meta_t   rmeta;
+    btree_range_cursor_t *cursor;
+    btree_range_data_t   values[1];
+    int n_out;
 
     {
         // xxxzzz this is temporary!
@@ -625,7 +641,7 @@ FDF_status_t _FDFReadObject(
         return (ret);
     }
 
-    bt = bt_get_btree_from_cguid(cguid);
+    bt = bt_get_btree_from_cguid(cguid, &index);
     if (bt == NULL) {
         return (FDF_FAILURE);
     }
@@ -638,7 +654,36 @@ FDF_status_t _FDFReadObject(
 
     meta.flags = 0;
 
-    btree_ret = btree_get(bt, key, keylen, data, datalen, &meta);
+    if (Container_Map[index].read_by_rquery) {
+        rmeta.key_start    = key;
+        rmeta.keylen_start = keylen;
+        rmeta.key_end      = key;
+        rmeta.keylen_end   = keylen;
+        rmeta.flags        = RANGE_START_GE | RANGE_END_LE;
+
+        btree_ret = btree_start_range_query(bt, BTREE_RANGE_PRIMARY_INDEX,
+                                            &cursor, &rmeta);
+	if (btree_ret != BTREE_SUCCESS) {
+            msg("Could not create start range query in FDFReadObject!");
+            goto done;
+	}
+
+        btree_ret = btree_get_next_range(cursor, 1, &n_out, &values[0]);
+        if (btree_ret == BTREE_SUCCESS) {
+            *data    = values[0].data;
+            *datalen = values[0].datalen;
+        } else if (n_out != 1) {
+            msg("btree_get_next_range: Failed to return object. Status=%d\n",
+                 btree_ret);
+            btree_ret = BTREE_FAILURE;
+        }
+
+        (void)btree_end_range_query(cursor);
+    } else {
+        btree_ret = btree_get(bt, key, keylen, data, datalen, &meta);
+    }
+
+done:
     switch(btree_ret) {
         case BTREE_SUCCESS:
             ret = FDF_SUCCESS;
@@ -743,7 +788,7 @@ FDF_status_t _FDFWriteObject(
 
     my_thd_state = fdf_thread_state;;
 
-    bt = bt_get_btree_from_cguid(cguid);
+    bt = bt_get_btree_from_cguid(cguid, NULL);
     if (bt == NULL) {
         return (FDF_FAILURE);
     }
@@ -1151,7 +1196,7 @@ _FDFGetRange(struct FDF_thread_state *fdf_thread_state,
 
 	my_thd_state = fdf_thread_state;
 
-	bt = bt_get_btree_from_cguid(cguid);
+	bt = bt_get_btree_from_cguid(cguid, NULL);
 	if (bt == NULL) {
 		return (FDF_FAILURE);
 	}
@@ -1495,7 +1540,7 @@ FDF_status_t btree_get_all_stats(FDF_cguid_t cguid,
     btree_stats_t     bt_stats;
     uint64_t         *stats;
 
-    bt = bt_get_btree_from_cguid(cguid);
+    bt = bt_get_btree_from_cguid(cguid, NULL);
     if (bt == NULL) {
         return FDF_FAILURE;
     }
@@ -1542,7 +1587,7 @@ static void dump_btree_stats(FILE *f, FDF_cguid_t cguid)
     struct btree     *bt;
     btree_stats_t     bt_stats;
 
-    bt = bt_get_btree_from_cguid(cguid);
+    bt = bt_get_btree_from_cguid(cguid, NULL);
     if (bt == NULL) {
         return;
     }

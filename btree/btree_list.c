@@ -24,7 +24,7 @@ blist_init(void)
 }
 
 btree_status_t
-blist_push_node_from_head(blist_t *l, void *data1, void *data2, void *data3, void *data4)
+blist_push_node_from_head(blist_t *l, void *data)
 {
 	blist_node_t *lnode;
 
@@ -39,10 +39,7 @@ blist_push_node_from_head(blist_t *l, void *data1, void *data2, void *data3, voi
 		return BTREE_FAILURE;
 	}
 
-	lnode->data1 = data1;
-	lnode->data2 = data2;
-	lnode->data3 = data3;
-	lnode->data4 = data4;
+	lnode->data = data;
 	lnode->next  = l->head;
 
 	l->head = lnode;
@@ -80,7 +77,7 @@ blist_push_list_from_head(blist_t *l, blist_t *src_list)
 }
 
 btree_status_t
-blist_push_node_from_tail(blist_t *l, void *data1, void *data2, void *data3, void *data4)
+blist_push_node_from_tail(blist_t *l, void *data) 
 {
 	blist_node_t *lnode;
 
@@ -95,10 +92,7 @@ blist_push_node_from_tail(blist_t *l, void *data1, void *data2, void *data3, voi
 		return BTREE_FAILURE;
 	}
 
-	lnode->data1 = data1;
-	lnode->data2 = data2;
-	lnode->data3 = data3;
-	lnode->data4 = data4;
+	lnode->data = data;
 	lnode->next = NULL;
 
 	if (l->tail == NULL) {
@@ -119,7 +113,7 @@ blist_push_node_from_tail(blist_t *l, void *data1, void *data2, void *data3, voi
 }
 
 int
-blist_pop_node_from_head(blist_t *l, void **data1, void **data2, void **data3, void **data4)
+blist_pop_node_from_head(blist_t *l, void **data)
 {
 	blist_node_t *lnode;
 	if ((l == NULL) || (l->head == NULL)) {
@@ -127,10 +121,9 @@ blist_pop_node_from_head(blist_t *l, void **data1, void **data2, void **data3, v
 	}
 
 	lnode = l->head;
-	*data1 = lnode->data1;
-	*data2 = lnode->data2;
-	*data3 = lnode->data3;
-	*data4 = lnode->data4;
+	if (data) {
+		*data = lnode->data;
+	}
 
 	l->head = lnode->next;
 	if (l->tail == lnode) {
@@ -139,6 +132,17 @@ blist_pop_node_from_head(blist_t *l, void **data1, void **data2, void **data3, v
 	free(lnode);
 
 	l->cnt--;
+	return (1);
+}
+
+int
+blist_get_head_node_data(blist_t *l, void **data)
+{
+	if ((l == NULL) || (l->head == NULL)) {
+		return 0;
+	}
+
+	*data = l->head->data;
 	return (1);
 }
 

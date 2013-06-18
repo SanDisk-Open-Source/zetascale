@@ -25,11 +25,21 @@
 #define DEBUG_STUFF
 
 #define IS_ASCENDING_QUERY(meta) \
-	(((meta)->key_start && ((meta)->flags & (RANGE_START_GT | RANGE_START_GE))) || \
-	 ((meta)->key_end && ((meta)->flags & (RANGE_END_LT | RANGE_END_LE))) || \
-	 (((meta)->key_start == NULL) && ((meta)->key_end == NULL)))
+             (((meta)->key_start && ((meta)->flags & (RANGE_START_GT | RANGE_START_GE))) || \
+              ((meta)->key_end && ((meta)->flags & (RANGE_END_LT | RANGE_END_LE))) || \
+              (((meta)->key_start == NULL) && ((meta)->key_end == NULL)))
 
-static int is_multiple_flags_set(btree_range_flags_t flags, uint32_t f);
+#define LEFT_EDGE     1
+#define RIGHT_EDGE    2
+
+typedef struct range_key_list {
+	btree_raw_node_t *n;
+	plat_rwlock_t    *leaf_lock;
+	int              key_count;
+	int              next_read_ind;         
+	int              pos_flag;
+	node_key_t       *keyrecs[0];
+} range_key_list_t;
 
 static int 
 is_multiple_flags_set(btree_range_flags_t flags, uint32_t f)
@@ -96,6 +106,7 @@ validate_range_query(btree_range_meta_t *rmeta)
 	return (BTREE_SUCCESS);
 }
 
+#if 0
 static int range_cmp(btree_raw_t *bt, char *cmp, uint32_t cmplen, 
                      char *start, uint32_t startlen, int start_incl, 
                      char *end, uint32_t endlen, int end_incl)
@@ -141,6 +152,7 @@ static int range_cmp(btree_raw_t *bt, char *cmp, uint32_t cmplen,
 		return 1;
 	}
 }
+#endif
 
 static int is_seqno_in_range(btree_range_meta_t *rmeta, key_stuff_t *ks)
 {
@@ -154,18 +166,284 @@ static int is_seqno_in_range(btree_range_meta_t *rmeta, key_stuff_t *ks)
 	}
 }
 
-#define PUSH_DATA_TO_LIST(l, rmeta, d1, d2, d3) \
-	if (IS_ASCENDING_QUERY(rmeta)) { \
-		blist_push_node_from_tail(l, (void *)d1, (void *)d2, (void *)d3, (void *)NULL); \
-	} else { \
-		blist_push_node_from_head(l, (void *)d1, (void *)d2, (void *)d3, (void *)NULL); \
-	} \
+static int
+find_first_greater_key_index(btree_raw_t *bt, 
+                             btree_raw_node_t *n,
+                             char *key, uint32_t keylen, 
+                             int match, node_key_t **match_pk)
+{
+	int i_start, i_end, i_centre;
+	int x;
+	int first_index;
+	node_key_t    *pk = NULL;
+	key_stuff_t    ks;
 
-/* Marker should always be pushed to the end of the list, irrespective of whatever
- * type the query is 
- */
-#define PUSH_MARKER_TO_LIST(l, n, m) \
-	blist_push_node_from_tail(l, (void *)n, (void *)NULL, (void *)NULL, (void *)m); \
+	i_start = 0;
+	i_end   = n->nkeys - 1;
+	first_index = n->nkeys;
+
+	if (match_pk) *match_pk = NULL;
+
+	while (i_start <= i_end) {
+		i_centre = (i_start + i_end)/2;
+
+		(void) get_key_stuff(bt, n, i_centre, &ks);
+		pk  = ks.pkey_struct;
+
+		x = bt->cmp_cb(bt->cmp_cb_data, key, keylen,
+		                    ks.pkey_val, ks.keylen);
+		if (x == 0) {
+			if (match) {
+				if (match_pk) *match_pk = pk;
+				return (i_centre);
+			}
+
+			/* non-match, key should be considered
+			 * right of given centre */
+			x = 1;
+		}
+
+		if (x < 0) {
+			first_index = i_centre;
+			i_end = i_centre - 1;
+		} else { /* x > 0 */
+			i_start = i_centre + 1;
+		}
+	}
+
+	return (first_index);
+}
+
+#define GET_PTR_FROM_KEY(flags, pk) \
+	(flags & SYNDROME_INDEX) ? \
+	    (node_key_t *)(uint64_t)(((node_fkey_t *)pk)->ptr): \
+	    (node_key_t *)(uint64_t)(((node_vkey_t *)pk)->ptr)
+
+static void
+add_to_key_list(btree_raw_t *bt,
+                btree_raw_node_t *n,
+                btree_range_meta_t *rmeta,
+                key_stuff_t *pks,
+                range_key_list_t *klist,
+                int index)
+{
+	node_key_t *pk = NULL;
+
+	if (pks != NULL) {
+		pk  = pks->pkey_struct;
+	}
+
+	if (!is_leaf(bt, n)) {
+		if (index == n->nkeys) {
+			klist->keyrecs[klist->key_count++] = 
+			                    (node_key_t *)n->rightmost;
+		} else {
+			assert(pk);
+			klist->keyrecs[klist->key_count++] = 
+		                  GET_PTR_FROM_KEY(bt->flags, pk);
+		}
+	} else if (is_seqno_in_range(rmeta, pks)) {
+		assert(pk);
+		klist->keyrecs[klist->key_count++] = pk;
+	}
+}
+
+static void 
+add_all_keys_to_list(btree_raw_t *bt,
+                     btree_raw_node_t *n,
+                     btree_range_meta_t *rmeta,
+                     range_key_list_t *klist,
+                     int max_keys,
+                     int lo_to_hi)
+{
+	int i_cur;
+	key_stuff_t ks;
+
+	if (lo_to_hi) {
+		for (i_cur = 0; i_cur < n->nkeys; i_cur++) {
+			if (klist->key_count == max_keys) return;
+			(void) get_key_stuff(bt, n, i_cur, &ks);
+			add_to_key_list(bt, n, rmeta, &ks, klist, i_cur);
+		}
+
+		if (!is_leaf(bt, n)) {
+			if (klist->key_count == max_keys) return;
+			add_to_key_list(bt, n, rmeta, NULL, klist, n->nkeys);
+		}
+	} else {
+		if (!is_leaf(bt, n)) {
+			if (klist->key_count == max_keys) return;
+			add_to_key_list(bt, n, rmeta, NULL, klist, n->nkeys);
+		}
+
+		for (i_cur = n->nkeys-1; i_cur >=0; i_cur--) {
+			if (klist->key_count == max_keys) return;
+			(void) get_key_stuff(bt, n, i_cur, &ks);
+			add_to_key_list(bt, n, rmeta, &ks, klist, i_cur);
+		}
+	}
+}
+
+static void
+find_key_range_asc(btree_raw_t *bt, 
+                   btree_raw_node_t *n, 
+                   btree_range_meta_t *rmeta,
+                   range_key_list_t *klist,
+                   int max_keys)
+{
+	int            x = 0;
+	int            i_cur;
+	key_stuff_t    ks;
+	int           is_leaf_node;
+	int           push_last_node;
+	int           first_index;
+
+	/* Already reached the max keys needed, return */
+	if (klist->key_count >= max_keys) {
+		return;
+	} 
+
+	is_leaf_node = is_leaf(bt, n);
+
+	/* Find the start of the range */
+	if (rmeta->key_start) {
+		first_index = find_first_greater_key_index(bt, n, 
+		                                rmeta->key_start, 
+		                                rmeta->keylen_start,
+		                                rmeta->flags & RANGE_START_GE,
+		                                NULL);
+	} else {
+		first_index = 0;
+	}
+
+	/* lower key is beyond this node's range, it could be in the rightmost for
+	 * non-leaf nodes */
+	if (first_index == n->nkeys) {
+		if (!is_leaf_node) {
+			add_to_key_list(bt, n, rmeta, &ks, klist, first_index);
+		}
+		return;
+	}
+
+	/* Start searching for end condition from start index onwards */
+	i_cur = first_index;
+	push_last_node = 1;
+
+	while (i_cur < n->nkeys) {
+		if (klist->key_count >= max_keys) {
+			break;
+		} 
+
+		(void) get_key_stuff(bt, n, i_cur, &ks);
+
+		if (rmeta->key_end) {
+			x = bt->cmp_cb(bt->cmp_cb_data, 
+			               rmeta->key_end, rmeta->keylen_end,
+			               ks.pkey_val, ks.keylen);
+		} else {
+			x = 1; /* end is null - all keys are left to it */
+		}
+
+		/* Either key less than range end or equal with incl set */
+		if ((x > 0) || ((x == 0) && (rmeta->flags & RANGE_END_LE))) {
+			add_to_key_list(bt, n, rmeta, &ks, klist, i_cur);
+
+			/* If exact matches, non-leaf nodes need not write last node*/
+			if (x == 0) {
+				push_last_node = 0;
+				break;
+			}
+		} else { /* End condition: key greater or equal nonincl reached */
+			break;
+		}
+		i_cur++;
+	}
+
+	if ((!is_leaf_node) && push_last_node &&
+	     (klist->key_count < max_keys)) {
+		add_to_key_list(bt, n, rmeta, &ks, klist, i_cur);
+	}
+}
+
+static void
+find_key_range_des(btree_raw_t *bt, 
+                   btree_raw_node_t *n, 
+                   btree_range_meta_t *rmeta,
+                   range_key_list_t *klist,
+                   int max_keys)
+{
+	int            x = 0;
+	int            i_cur;
+	node_key_t    *pk = NULL;
+	key_stuff_t    ks;
+	int           is_leaf_node;
+	int           first_index;
+
+	is_leaf_node = is_leaf(bt, n);
+
+	/* Already reached the max keys needed, return */
+	if (klist->key_count >= max_keys) {
+		return;
+	} 
+
+	/* Find the start of the range */
+	if (rmeta->key_start) {
+		first_index = find_first_greater_key_index(bt, n, 
+		                                       rmeta->key_start, 
+		                                       rmeta->keylen_start,
+		                                       1, &pk);
+	} else {
+		first_index = n->nkeys;
+	}
+
+	if (is_leaf_node) {
+		/* Unless there is an exact match and start condition
+		 * says we need less than or equal to, leaf node should
+		 * skip the bigger node, which is returned in
+		 * find_first_greater call. */
+		if ((pk == NULL) || !(rmeta->flags & RANGE_START_LE)) {
+			first_index--;
+		}
+	}
+
+	/* If this is beyond last key, then this key is valid (rightmost)
+	 * only for non-leaf nodes */
+	if (first_index == n->nkeys) {
+		/* If there is an exact match, only include the rightmost
+		 * if explicitly asked for */
+		if ((pk && (rmeta->flags & RANGE_START_LE)) || (!pk)) {
+			add_to_key_list(bt, n, rmeta, NULL, klist, first_index);
+		}
+		first_index--; /* Start with the last key */
+	}
+
+	i_cur = first_index;
+	while (i_cur >= 0) {
+#if 0
+		if (klist->key_count >= max_keys) {
+			break;
+		} 
+#endif
+
+		(void) get_key_stuff(bt, n, i_cur, &ks);
+		pk  = ks.pkey_struct;
+
+		if (rmeta->key_end) {
+			x = bt->cmp_cb(bt->cmp_cb_data, 
+			               rmeta->key_end, rmeta->keylen_end,
+			               ks.pkey_val, ks.keylen);
+		} else {
+			x = -1;
+		}
+
+		if ((x < 0) || ((x == 0) && (rmeta->flags & RANGE_END_GE))) {
+			add_to_key_list(bt, n, rmeta, &ks, klist, i_cur);
+		} else { /* End condition: key lesser or equal nonincl reached */
+			break;
+		}
+		i_cur--;
+	}
+}
 
 /*
  * Find the keys in the node for the range provided. Returns total keys found between the
@@ -174,101 +452,63 @@ static int is_seqno_in_range(btree_range_meta_t *rmeta, key_stuff_t *ks)
  *
  * The leaf_lock is the lock corresponding to the node, in case it is a leaf node.
  */
-static int find_key_range(btree_raw_t *bt,
-                          btree_raw_node_t *n,
-                          btree_range_meta_t *rmeta,
-                          blist_t *key_list,
-                          plat_rwlock_t *leaf_lock)
+static range_key_list_t *
+find_key_range(btree_raw_t *bt,
+               btree_raw_node_t *n,
+               btree_range_meta_t *rmeta,
+               plat_rwlock_t *leaf_lock,
+               int max_keys,
+               int all_keys)
 {
-	int            x;
-	int            i_cur;
-	node_key_t    *pk = NULL;
-	key_stuff_t    ks;
-	char          *lower;
-	char          *upper;
-	int           lower_incl, upper_incl;
-	uint32_t      lower_len, upper_len;
-	int           is_leaf_node;
-
-	/* Easy denotions to avoid confusions and checks inside the logic */
-	if (IS_ASCENDING_QUERY(rmeta)) {
-		lower      = rmeta->key_start;
-		lower_len  = rmeta->keylen_start;
-		lower_incl = (rmeta->flags & RANGE_START_GE);
-		upper      = rmeta->key_end;
-		upper_len  = rmeta->keylen_end;
-		upper_incl = (rmeta->flags & RANGE_END_LE);
-	} else {
-		lower      = rmeta->key_end;
-		lower_len  = rmeta->keylen_end;
-		lower_incl = (rmeta->flags & RANGE_END_GE);
-		upper      = rmeta->key_start;
-		upper_len  = rmeta->keylen_start;
-		upper_incl = (rmeta->flags & RANGE_START_LE);
-	}
+	range_key_list_t *klist;
+	int is_leaf_node;
 
 	is_leaf_node = is_leaf(bt, n);
 
 	/* Leaf node could get modified without global btree lock. */
- 	 /* TODO: Leaf lock could possibly be combined with node structure 
-	  * itself if possible or use the mem_node everywhere */
 	if (is_leaf_node) plat_rwlock_rdlock(leaf_lock);
 
 	if (n->nkeys == 0) {
 		if (is_leaf_node) plat_rwlock_unlock(leaf_lock);
-		return 0;
+		return NULL;
 	}
 
-	i_cur = 0;
-	while (i_cur < n->nkeys) {
-		(void) get_key_stuff(bt, n, i_cur, &ks);
-		pk  = ks.pkey_struct;
-
-		x = range_cmp(bt, ks.pkey_val, ks.keylen, 
-		              lower, lower_len, lower_incl,
-		              upper, upper_len, upper_incl);
-
-		if (x == 0) { /* Value in range, push it inside */
-			if (!is_leaf_node || is_seqno_in_range(rmeta, &ks)) {
-				PUSH_DATA_TO_LIST(key_list, rmeta, n, pk, NULL);
-			}
-		} else if (x > 0) { /* Value beyond upper bound */
-			break;
-		}
-		i_cur++;
+	if (!IS_ASCENDING_QUERY(rmeta) && !all_keys) {
+		max_keys = -1;
+	}
+		
+	if ((max_keys == -1) || (max_keys > (n->nkeys + 1))) {
+		max_keys = n->nkeys + 1;
 	}
 
-	if (!is_leaf_node) {
-		int push_last_node = 1;
+	/* Allocate for header portion and all nodes which will comprise
+	 * the keys */
+	klist = (range_key_list_t *)malloc(sizeof(range_key_list_t) + 
+	                                   sizeof(node_key_t *) * max_keys);
+	if (klist == NULL) {
+		assert(0);
+		return NULL;
+	}
+	klist->n = n;
+	klist->leaf_lock = leaf_lock;
+	klist->key_count = 0;
+	klist->next_read_ind = 0;
+	klist->pos_flag = 0;
 
-		/* For non-leaf nodes, the non-matched one need to be pushed 
-		 * as well except the cases where, it matches the end condition
-		 * of previous check exactly */
-		if ((x == 0) &&
-		    (bt->cmp_cb(bt->cmp_cb_data, upper, upper_len,
-		                ks.pkey_val, ks.keylen) == 0)) {
-			push_last_node = 0;
+	if (IS_ASCENDING_QUERY(rmeta)) {
+		if (all_keys) {
+			add_all_keys_to_list(bt, n, rmeta, klist, max_keys, 1);
+		} else {
+			find_key_range_asc(bt, n, rmeta, klist, max_keys);
 		}
-			
-		if (push_last_node) {
-			if (i_cur == n->nkeys) {
-				PUSH_DATA_TO_LIST(key_list, rmeta, n, NULL, 
-				                  n->rightmost);
-			} else {
-				PUSH_DATA_TO_LIST(key_list, rmeta, n, pk, NULL);
-			}
-		}
-		/* Use node as a dummy marker */
-		PUSH_MARKER_TO_LIST(key_list, n, n); 
 	} else {
-		/* Leaf nodes at the end of it, will not unlock. It will
-		 * be instead added as a marker to the list, which caller will
-		 * use to unlock. This is to provide a contigous locking
-		 * mechanism across the query */
-		PUSH_MARKER_TO_LIST(key_list, n, leaf_lock);
+		if (all_keys) {
+			add_all_keys_to_list(bt, n, rmeta, klist, max_keys, 0);
+		} else {
+			find_key_range_des(bt, n, rmeta, klist, max_keys);
+		}
 	}
-
-	return (key_list->cnt);
+	return klist;
 }
 
 /* Start an index query.
@@ -354,6 +594,61 @@ btree_start_range_query(btree_t                 *btree,
 	return (BTREE_SUCCESS);
 }
 
+/* Populate the values with key/value details for given rec */
+static btree_status_t
+fill_key_range(btree_raw_t         *bt,
+               btree_raw_node_t     *n, 
+               void                 *keyrec, 
+               btree_range_meta_t   *rmeta,
+               int                  meta_flags, 
+               btree_range_data_t   *values,
+               int                  *n_out)
+{
+	node_vlkey_t      *pvlk;
+	btree_status_t status;
+	btree_status_t ret = BTREE_SUCCESS;
+
+	values[*n_out].status = 0;
+
+	status = get_leaf_key(bt, n, keyrec, 
+	                      &values[*n_out].key,
+	                      &values[*n_out].keylen,
+	                      meta_flags);
+	if (status != BTREE_SUCCESS) {
+		/* TODO: Consider introducing BTREE_WARNING */
+		ret = BTREE_FAILURE;
+
+		values[*n_out].status |= 
+		                    (status == BTREE_BUFFER_TOO_SMALL) ?
+		                      BTREE_KEY_BUFFER_TOO_SMALL: BTREE_FAILURE;
+	}
+
+	if (!(rmeta->flags & RANGE_KEYS_ONLY)) {
+		status = get_leaf_data(bt, n, keyrec, 
+		                       &values[*n_out].data,
+		                       &values[*n_out].datalen,
+		                       meta_flags, 0);
+
+		if (status != BTREE_SUCCESS) {
+			ret = BTREE_FAILURE;
+	
+			values[*n_out].status |= 
+			           (status == BTREE_BUFFER_TOO_SMALL) ?
+				     BTREE_DATA_BUFFER_TOO_SMALL: BTREE_FAILURE;
+		}
+	}
+
+	pvlk = (node_vlkey_t *) keyrec;
+	values[*n_out].seqno    = pvlk->seqno; 
+	values[*n_out].syndrome = pvlk->syndrome; 
+
+	if (ret == BTREE_SUCCESS) {
+		values[*n_out].status = BTREE_RANGE_SUCCESS;
+	}
+
+	return ret;
+}
+
 extern __thread uint64_t dbg_referenced;
 
 btree_status_t
@@ -366,21 +661,22 @@ btree_get_next_range(btree_range_cursor_t *cursor,
 	uint64_t          ptr;
 	btree_raw_t      *bt;
 	btree_raw_node_t *n;
+	btree_raw_node_t *child_n;
 	blist_t          *master_list;
-	blist_t          *key_list;
+	range_key_list_t *klist;
+	range_key_list_t *child_klist;
 	int               pathcnt = 1;
 	btree_range_meta_t rmeta;
 	uint32_t          meta_flags;
 	btree_status_t    overall_status;
 	btree_status_t    status;
 	btree_status_t    ret = BTREE_SUCCESS;
-	int               key_count;
 	node_key_t        *keyrec = NULL;
-	node_vlkey_t      *pvlk;
-	uint64_t          right;
 	int               key_index;
 	plat_rwlock_t     *leaf_lock;
-	void              *marker;
+	int               cur_key_ind;
+	int               all_keys;
+	int               left_edge, right_edge;
 
 	/* TODO: Handle non-debug failures */
 	assert(cursor != NULL);
@@ -396,15 +692,6 @@ btree_get_next_range(btree_range_cursor_t *cursor,
 	n = get_existing_node_low(&ret, bt, bt->rootid, &leaf_lock, 0);
 	if (n == NULL) {
 		plat_rwlock_unlock(&bt->lock);
-		return BTREE_FAILURE;
-	}
-
-	/* Stack to hold all the node keys */
-	master_list = blist_init();
-	if (master_list == NULL) {
-		plat_rwlock_unlock(&bt->lock);
-		deref_l1cache_node(bt, n);
-		assert(!dbg_referenced);
 		return BTREE_FAILURE;
 	}
 
@@ -430,18 +717,25 @@ btree_get_next_range(btree_range_cursor_t *cursor,
 
 	/* Find all the key range provided in the meta into the stack.
 	 * Order should be same order requested (ascending/descending) */
-	key_list = blist_init();
-	if (key_list == NULL) {
-		blist_end(master_list, 1);
+	master_list = blist_init();
+	if (master_list == NULL) {
 		plat_rwlock_unlock(&bt->lock);
 		deref_l1cache_node(bt, n);
 		assert(!dbg_referenced);
 		return BTREE_FAILURE;
 	}
 
-	key_count = find_key_range(bt, n, &rmeta, key_list, leaf_lock);
-	if ((key_count == 0) || (*n_out == n_in)) {
-		blist_end(key_list, 1);
+	klist = find_key_range(bt, n, &rmeta, leaf_lock, n_in, 0);
+	if (klist == NULL) {
+		blist_end(master_list, 1);
+		plat_rwlock_unlock(&bt->lock);
+		deref_l1cache_node(bt, n);
+		assert(!dbg_referenced);
+		return BTREE_FAILURE;
+	}
+		
+	if ((klist->key_count == 0) || (*n_out == n_in)) {
+		free(klist);
 		blist_end(master_list, 1);
 		plat_rwlock_unlock(&bt->lock);
 		deref_l1cache_node(bt, n);
@@ -449,9 +743,8 @@ btree_get_next_range(btree_range_cursor_t *cursor,
 		return BTREE_QUERY_DONE;
 	}
 
-	/* Add the key_list into master_list */
-	blist_push_list_from_head(master_list, key_list);
-	blist_end(key_list, 0);
+	left_edge = right_edge = 1;
+	klist->pos_flag = LEFT_EDGE | RIGHT_EDGE;
 
 	/* TODO: Later on try to combine range_meta and btree_meta
 	 * For now, set the meta_flags for get_leaf_data usage */
@@ -459,116 +752,119 @@ btree_get_next_range(btree_range_cursor_t *cursor,
 	overall_status = BTREE_SUCCESS;
 
 	key_index = -1;
+	blist_push_node_from_head(master_list, (void *)klist);
 
 	/* Need to remove elements from head, to maintain order */
-	while (blist_pop_node_from_head(master_list, 
-	                               (void **)&n,
-	                               (void **)&keyrec,
-	                               (void **)&right,
-	                               (void **)&marker)) {
+	while (blist_get_head_node_data(master_list, (void *)&klist)) {
+		assert(klist);
 
-		if (marker) {
+		/* Initialize loop variants */
+		n = klist->n;
+		child_klist = NULL;
+
+		/* By default put all keys in range query (middle node) */
+		all_keys = 1;
+
+		if (klist->key_count == 0) {
+			/* Nothing to process, clean it up */
+			goto key_cleanup;
+		}
+
+		cur_key_ind = klist->next_read_ind++;
+		if (is_leaf(bt, n)) {
+			keyrec = klist->keyrecs[cur_key_ind];
+
+			status = fill_key_range(bt, n, 
+			                        (void *)keyrec,
+			                        &rmeta,
+			                        meta_flags, 
+			                        values, 
+			                        n_out);
+			if (status != BTREE_SUCCESS) {
+				overall_status = BTREE_FAILURE;
+			} else {
+				key_index = *n_out;
+			}
+			(*n_out)++;
+		} else {
+			left_edge = right_edge = 0;
+
+			ptr = (uint64_t)klist->keyrecs[cur_key_ind];
+			ret = 0;
+
+			/* Get the node corresponding to this pointer and leaf
+			 * lock for this node */
+			child_n = get_existing_node_low(&ret, bt, ptr,
+			                                &leaf_lock, 0);
+			if (ret) {
+				assert(0);
+				goto key_cleanup;
+			}
+
+			/* If we are at the edge, should do range check */
+			if ((cur_key_ind == 0) && 
+			    (klist->pos_flag & LEFT_EDGE)) {
+				left_edge = 1;
+				all_keys = 0;
+			}
+
+			if ((cur_key_ind == klist->key_count - 1) && 
+			    (klist->pos_flag & RIGHT_EDGE)) {
+				right_edge = 1;
+				all_keys = 0;
+			}
+
+			child_klist = find_key_range(bt, child_n,
+			                                &rmeta, leaf_lock,
+			                                (n_in - (*n_out)), 
+			                                all_keys);
+		}
+
+key_cleanup:
+		/* If we have read all data for this key or if we have filled
+		 * enough data, cleanup the key and remove it from the list */
+		if ((n_in == *n_out) || 
+		    (klist->next_read_ind == klist->key_count)) {
 			if (is_leaf(bt, n)) {
-				leaf_lock = (plat_rwlock_t *)marker;
-
-				/* This is the marker entry from the find_key_range. At
-				 * present use this marker to unlock the leaf lock */
-				if (leaf_lock) {
-					/* Unlock leaf node lock which was locked by find_key_range */
-					plat_rwlock_unlock(leaf_lock);
-				}
+				/* Unlock leaf node lock which was locked by 
+				 * find_key_range */
+				plat_rwlock_unlock(klist->leaf_lock);
 			}
 
 			/* We are done using the node */
 			deref_l1cache_node(bt, n);
-			continue;
+
+			(void)blist_pop_node_from_head(master_list, NULL);
+			free(klist);
 		}
-				
-		/* If we have reached the end of the list, need to continue process
-		 * the markers to unlock the leaf */
+
 		if (n_in == *n_out) {
-			continue;
+			break;
 		}
 
-		if (is_leaf(bt, n)) {
+		/* Time to add the child node to the list */
+		if (child_klist != NULL) {
+			/* Propogate the left/right edge property to the
+			 * child */
+			if (left_edge) child_klist->pos_flag |= LEFT_EDGE;
+			if (right_edge) child_klist->pos_flag |= RIGHT_EDGE;
 
-			/* Populate the output value with key, value, status 
-			 * syndrome information */
-			values[*n_out].status = BTREE_RANGE_SUCCESS;
-
-			status = get_leaf_key(bt, n, (void *)keyrec, 
-			                      &values[*n_out].key,
-			                      &values[*n_out].keylen,
-			                      meta_flags);
-			if (status != BTREE_SUCCESS) {
-				/* TODO: Consider introducing BTREE_WARNING */
-				overall_status = BTREE_FAILURE;
-
-				values[*n_out].status |= 
-				   (status == BTREE_BUFFER_TOO_SMALL) ?
-				      BTREE_KEY_BUFFER_TOO_SMALL: BTREE_FAILURE;
-			} else {
-				key_index = *n_out;
-			}
-
-			if (!(rmeta.flags & RANGE_KEYS_ONLY)) {
-				status = get_leaf_data(bt, n, (void *)keyrec, 
-				                    &values[*n_out].data,
-				                    &values[*n_out].datalen,
-				                    meta_flags, 0);
-
-				if (status != BTREE_SUCCESS) {
-					overall_status = BTREE_FAILURE;
-
-					values[*n_out].status |= 
-					   (status == BTREE_BUFFER_TOO_SMALL) ?
-					      BTREE_DATA_BUFFER_TOO_SMALL: BTREE_FAILURE;
-				}
-			}
-
-			pvlk = (node_vlkey_t *) keyrec;
-			values[*n_out].seqno    = pvlk->seqno; 
-			values[*n_out].syndrome = pvlk->syndrome; 
-
-			(*n_out)++;
-		} else {
-			if (keyrec == NULL) {
-				ptr = right;
-			} else {
-				if (bt->flags & SYNDROME_INDEX) {
-					ptr = ((node_fkey_t *) keyrec)->ptr;
-				} else {
-					ptr = ((node_vkey_t *) keyrec)->ptr;
-				}
-			}
-
-			/* Get the node corresponding to this pointer and leaf
-			 * lock for this node */
-			n = get_existing_node_low(&ret, bt, ptr, &leaf_lock, 0);
-			if (ret) {
-				assert(0);
-				break;
-			}
-
-			plat_rwlock_rdlock(leaf_lock);
-			plat_rwlock_unlock(leaf_lock);
-
-			key_list = blist_init();
-			if (key_list == NULL) {
-				blist_end(master_list, 1);
-				plat_rwlock_unlock(&bt->lock);
-				assert(!dbg_referenced);
-				return BTREE_FAILURE;
-			}
-			key_count = find_key_range(bt, n, &rmeta, key_list, leaf_lock);
-			blist_push_list_from_head(master_list, key_list);
-			blist_end(key_list, 0);
+			blist_push_node_from_head(master_list, 
+			                          (void *)child_klist);
 		}
-		pathcnt++;
 	}
 
-	plat_rwlock_unlock(&bt->lock);
+	/* deref all touched nodes, in case we broke the earlier loop */
+	while (blist_pop_node_from_head(master_list, (void *)&klist)) {
+		assert(klist);
 
+		/* Initialize loop variants */
+		n = klist->n;
+		deref_l1cache_node(bt, n);
+	}
+
+	pathcnt++;
+	plat_rwlock_unlock(&bt->lock);
 	blist_end(master_list, 1);
 
 	if (key_index != -1) {
@@ -580,13 +876,13 @@ btree_get_next_range(btree_range_cursor_t *cursor,
 
 		memcpy(cursor->last_key, values[key_index].key, 
 		       values[key_index].keylen);
-		cursor->last_keylen = values[key_index].keylen;
+		cursor->last_keylen = values[key_index].keylen; 
 	}
 
 	__sync_add_and_fetch(&(bt->stats.stat[BTSTAT_GET_CNT]),1);
 	__sync_add_and_fetch(&(bt->stats.stat[BTSTAT_GET_PATH]),pathcnt);
 
-	//assert(!dbg_referenced);
+	assert(!dbg_referenced);
 	return(overall_status);
 }
 
