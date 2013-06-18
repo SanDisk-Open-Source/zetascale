@@ -63,7 +63,7 @@ void* worker(void *arg)
 
     t(fdf_finish_enumeration(cguid, _fdf_iterator), FDF_SUCCESS);
 
-    //t(fdf_delete_container(cguid), FDF_SUCCESS);
+    t(fdf_delete_container(cguid), FDF_SUCCESS);
 
 	sleep(1);
 
@@ -100,7 +100,6 @@ int main(int argc, char *argv[])
 		pthread_join(thread_id[i], NULL);
 
     fprintf(stderr, "DONE\n");
-    scanf("%d",&i);
 
 	fdf_shutdown();
 
