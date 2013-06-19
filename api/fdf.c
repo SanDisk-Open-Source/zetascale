@@ -6468,8 +6468,7 @@ uint64_t FDFTransactionID(
 	)
 {
 
-	/* code here */
-	return (0);
+	return (mcd_trx_id( ));
 }
 
 

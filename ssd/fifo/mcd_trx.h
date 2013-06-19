@@ -16,9 +16,9 @@ typedef struct {
 			failures;
 } mcd_trx_stats_t;
 
-uint64_t	mcd_trx_id( );
-mcd_trx_t	mcd_trx_start( ),
+uint64_t	mcd_trx_id( void);
+mcd_trx_t	mcd_trx_start( void),
 		mcd_trx_commit( void *),
 		mcd_trx_rollback( void *);
-mcd_trx_stats_t	mcd_trx_get_stats( );
+mcd_trx_stats_t	mcd_trx_get_stats( void);
 void		mcd_trx_print_stats( FILE *);

@@ -350,8 +350,8 @@ static struct {
     { "FDFTransactionStart",           &ptr_FDFTransactionStart          },
     { "FDFTransactionCommit",          &ptr_FDFTransactionCommit         },
     { "FDFTransactionRollback",        &ptr_FDFTransactionRollback       },
-    { "FDFTransactionQuit",        &ptr_FDFTransactionQuit       },
-    { "FDFTransactionID",        &ptr_FDFTransactionID       },
+    { "FDFTransactionQuit",            &ptr_FDFTransactionQuit           },
+    { "FDFTransactionID",              &ptr_FDFTransactionID             },
     { "FDFGetVersion",                 &ptr_FDFGetVersion                },
     { "FDFRegisterCallbacks",          &ptr_FDFRegisterCallbacks         },
     { "FDFOperationAllowed",           &ptr_FDFOperationAllowed          },
@@ -1011,7 +1011,7 @@ FDFTransactionQuit(struct FDF_thread_state *fdf_thread_state)
 
 
 /*
- * FDFTransactionRollback
+ * FDFTransactionID
  */
 uint64_t
 FDFTransactionID(struct FDF_thread_state *fdf_thread_state)

@@ -24,6 +24,7 @@
 #include "btree.h"
 #include "selftest.h"
 #include "btree_range.h"
+#include "trx.h"
 
 #define MAX_NODE_SIZE   128*1024
 typedef enum {false = 0, true = 1} bool;
@@ -1185,7 +1186,7 @@ _FDFTransactionStart(struct FDF_thread_state *fdf_thread_state)
 {
     my_thd_state = fdf_thread_state;
 
-    return(FDFTransactionStart(fdf_thread_state));
+    return (trxstart( fdf_thread_state));
 }
 
 
@@ -1197,7 +1198,7 @@ _FDFTransactionCommit(struct FDF_thread_state *fdf_thread_state)
 {
     my_thd_state = fdf_thread_state;
 
-    return(FDFTransactionCommit(fdf_thread_state));
+    return (trxcommit( fdf_thread_state));
 }
 
 /*
@@ -1208,7 +1209,29 @@ _FDFTransactionRollback(struct FDF_thread_state *fdf_thread_state)
 {
     my_thd_state = fdf_thread_state;
 
-    return(FDFTransactionRollback(fdf_thread_state));
+    return (trxrollback( fdf_thread_state));
+}
+
+/*
+ * FDFTransactionQuit
+ */
+FDF_status_t 
+_FDFTransactionQuit(struct FDF_thread_state *fdf_thread_state)
+{
+    my_thd_state = fdf_thread_state;
+
+    return (trxquit( fdf_thread_state));
+}
+
+/*
+ * FDFTransactionID
+ */
+uint64_t
+_FDFTransactionID(struct FDF_thread_state *fdf_thread_state)
+{
+    my_thd_state = fdf_thread_state;
+
+    return (trxid( fdf_thread_state));
 }
 
 /*
@@ -1397,7 +1420,7 @@ static void txn_cmd_cb(btree_status_t *ret_out, void *cb_data, int cmd_type)
     switch (cmd_type) {
         case 1: // start txn
 	    N_txn_cmd_1++;
-	    ret = FDFTransactionStart(my_thd_state);
+	    ret = trxstart(my_thd_state);
             if (FDF_SUCCESS != ret)
                 *ret_out = BTREE_FAIL_TXN_START;
             else
@@ -1678,7 +1701,7 @@ _FDFMPut(struct FDF_thread_state *fdf_ts,
 	/*
 	 * Start a transaction.
 	 */
-	status = _FDFTransactionStart(fdf_ts);
+	status = trxstart(fdf_ts);
 	if (status != FDF_SUCCESS) {
 		goto out;
 	}

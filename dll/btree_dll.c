@@ -184,6 +184,12 @@ static FDF_status_t
 (*ptr_FDFTransactionRollback)(struct FDF_thread_state *fdf_thread_state);
 
 static FDF_status_t 
+(*ptr_FDFTransactionQuit)(struct FDF_thread_state *fdf_thread_state);
+
+static uint64_t
+(*ptr_FDFTransactionID)(struct FDF_thread_state *fdf_thread_state);
+
+static FDF_status_t 
 (*ptr_FDFGetVersion)(char **str);
 
 static FDF_status_t 
@@ -318,6 +324,8 @@ static struct {
     { "_FDFTransactionStart",           &ptr_FDFTransactionStart          },
     { "_FDFTransactionCommit",          &ptr_FDFTransactionCommit         },
     { "_FDFTransactionRollback",        &ptr_FDFTransactionRollback       },
+    { "_FDFTransactionQuit",            &ptr_FDFTransactionQuit           },
+    { "_FDFTransactionID",              &ptr_FDFTransactionID             },
     { "_FDFGetVersion",                 &ptr_FDFGetVersion                },
     { "_FDFGetRange",                   &ptr_FDFGetRange                  },
     { "_FDFGetNextRange",               &ptr_FDFGetNextRange              },
@@ -945,6 +953,30 @@ FDFTransactionRollback(struct FDF_thread_state *fdf_thread_state)
         undefined("FDFTransactionRollback");
 
     return (*ptr_FDFTransactionRollback)(fdf_thread_state);
+}
+
+/*
+ * FDFTransactionQuit
+ */
+FDF_status_t 
+FDFTransactionQuit(struct FDF_thread_state *fdf_thread_state)
+{
+    if (unlikely(!ptr_FDFTransactionQuit))
+        undefined("FDFTransactionQuit");
+
+    return (*ptr_FDFTransactionQuit)(fdf_thread_state);
+}
+
+/*
+ * FDFTransactionID
+ */
+uint64_t
+FDFTransactionID(struct FDF_thread_state *fdf_thread_state)
+{
+    if (unlikely(!ptr_FDFTransactionID))
+        undefined("FDFTransactionID");
+
+    return (*ptr_FDFTransactionID)(fdf_thread_state);
 }
 
 /*
