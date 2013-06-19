@@ -735,11 +735,14 @@ btree_get_next_range(btree_range_cursor_t *cursor,
 	}
 		
 	if ((klist->key_count == 0) || (*n_out == n_in)) {
-		free(klist);
+		if (is_leaf(bt, klist->n)) {
+			plat_rwlock_unlock(klist->leaf_lock);
+		}
 		blist_end(master_list, 1);
 		plat_rwlock_unlock(&bt->lock);
 		deref_l1cache_node(bt, n);
 		assert(!dbg_referenced);
+		free(klist);
 		return BTREE_QUERY_DONE;
 	}
 
