@@ -45,6 +45,7 @@ typedef struct read_node {
 
 static struct btree_raw_node *read_node_cb(btree_status_t *ret, void *data, uint64_t lnodeid);
 static void write_node_cb(btree_status_t *ret, void *cb_data, uint64_t lnodeid, char *data, uint64_t datalen);
+static void flush_node_cb(btree_status_t *ret, void *cb_data, uint64_t lnodeid);
 static int freebuf_cb(void *data, char *buf);
 static struct btree_raw_node *create_node_cb(btree_status_t *ret, void *data, uint64_t lnodeid);
 static btree_status_t delete_node_cb(struct btree_raw_node *node, void *data, uint64_t lnodeid);
@@ -109,6 +110,7 @@ _FDFGetRangeFinish(struct FDF_thread_state *fdf_thread_state,
     // Counts of number of times callbacks are invoked:
 static uint64_t N_read_node   = 0;
 static uint64_t N_write_node  = 0;
+static uint64_t N_flush_node  = 0;
 static uint64_t N_freebuf     = 0;
 static uint64_t N_create_node = 0;
 static uint64_t N_delete_node = 0;
@@ -332,6 +334,7 @@ FDF_status_t _FDFOpenContainer(
     void         *create_node_cb_data;
     void         *read_node_cb_data;
     void         *write_node_cb_data;
+    void         *flush_node_cb_data;
     void         *freebuf_cb_data;
     void         *delete_node_cb_data;
     void         *log_cb_data;
@@ -374,6 +377,7 @@ FDF_status_t _FDFOpenContainer(
     create_node_cb_data = (void *) prn;
     read_node_cb_data   = (void *) prn;
     write_node_cb_data  = (void *) prn;
+    flush_node_cb_data  = (void *) prn;
     freebuf_cb_data     = (void *) prn;
     delete_node_cb_data = (void *) prn;
     log_cb_data         = (void *) prn;
@@ -448,6 +452,8 @@ FDF_status_t _FDFOpenContainer(
                     read_node_cb_data, 
                     (write_node_cb_t *)write_node_cb, 
                     write_node_cb_data, 
+                    (flush_node_cb_t *)flush_node_cb, 
+                    flush_node_cb_data, 
                     freebuf_cb, 
                     freebuf_cb_data, 
                     (delete_node_cb_t *)delete_node_cb, 
@@ -1052,9 +1058,43 @@ FDF_status_t _FDFFlushObject(
 	uint32_t                  keylen
 	)
 {
+    FDF_status_t      ret = FDF_FAILURE;
+    btree_status_t    btree_ret = BTREE_FAILURE;
+    struct btree     *bt;
+
     my_thd_state = fdf_thread_state;;
 
-    return(FDFFlushObject(fdf_thread_state, cguid, key, keylen));
+    bt = bt_get_btree_from_cguid(cguid, NULL);
+    if (bt == NULL) {
+        return (FDF_FAILURE);
+    }
+    if (!bt) 
+		assert(0);
+
+    if (keylen > bt->max_key_size) {
+        msg("btree_insert/update keylen(%d) more than max_key_size(%d)\n",
+                 keylen, bt->max_key_size);
+        return (FDF_KEY_TOO_LONG);
+    }
+
+	btree_ret = btree_flush(bt, key, keylen);
+
+    switch(btree_ret) {
+        case BTREE_SUCCESS:
+            ret = FDF_SUCCESS;
+            break;
+        case BTREE_FAILURE:
+            ret = FDF_FAILURE_STORAGE_WRITE;
+            break;
+        case BTREE_KEY_NOT_FOUND:
+	        ret = FDF_OBJECT_UNKNOWN;
+            break;
+        default:
+	        msg("btree_flush failed for key '%s' with ret=%s!\n", key, FDFStrError(ret));
+	        ret = FDF_FAILURE; // xxxzzz fix this!
+            break;
+    }
+    return(ret);
 }
 
 /**
@@ -1308,6 +1348,31 @@ static void write_node_cb(btree_status_t *ret_out, void *cb_data, uint64_t lnode
 
     ret = FDFWriteObject(my_thd_state, prn->cguid, (char *) &lnodeid, sizeof(uint64_t), data, datalen, 0 /* flags */);
     assert(prn->nodesize == datalen);
+
+    switch(ret) {
+        case FDF_SUCCESS:
+            *ret_out = BTREE_SUCCESS;
+            break;
+        case FDF_FAILURE:
+            *ret_out = BTREE_FAILURE;
+            break;
+        case FDF_FAILURE_OPERATION_DISALLOWED:
+            *ret_out = BTREE_OPERATION_DISALLOWED;
+            break;
+        default:
+            *ret_out = BTREE_FAILURE;
+            break;
+    }
+}
+
+static void flush_node_cb(btree_status_t *ret_out, void *cb_data, uint64_t lnodeid)
+{
+    FDF_status_t            ret;
+    read_node_t            *prn = (read_node_t *) cb_data;
+
+    N_flush_node++;
+
+    ret = FDFFlushObject(my_thd_state, prn->cguid, (char *) &lnodeid, sizeof(uint64_t));
 
     switch(ret) {
         case FDF_SUCCESS:

@@ -110,7 +110,8 @@ typedef struct btree_metadata {
     item(BTSTAT_DELETE_OPT_CNT, /* default */) \
     item(BTSTAT_EX_TREE_LOCKS, /* default */) \
     item(BTSTAT_NON_EX_TREE_LOCKS, /* default */) \
-    item(BTSTAT_DELETE_PATH, /* default */) 
+    item(BTSTAT_DELETE_PATH, /* default */) \
+    item(BTSTAT_FLUSH_CNT, /* default */) 
 
 typedef enum {
 #define item(caps, value) \
@@ -140,6 +141,7 @@ struct btree_raw_node;
 
 typedef struct btree_raw_node *(read_node_cb_t)(btree_status_t *ret, void *data, uint64_t lnodeid);
 typedef void (write_node_cb_t)(btree_status_t *ret, void *cb_data, uint64_t lnodeid, char *data, uint64_t datalen);
+typedef void (flush_node_cb_t)(btree_status_t *ret, void *cb_data, uint64_t lnodeid);
 typedef int (freebuf_cb_t)(void *data, char *buf);
 typedef struct btree_raw_node *(create_node_cb_t)(btree_status_t *ret, void *data, uint64_t lnodeid);
 typedef int (delete_node_cb_t)(struct btree_raw_node *node, void *data, uint64_t lnodeid);
@@ -164,6 +166,7 @@ struct btree_raw* btree_raw_init(uint32_t flags, uint32_t n_partition, uint32_t 
 	create_node_cb_t *create_node_cb, void *create_node_data,
 	read_node_cb_t *read_node_cb, void *read_node_cb_data,
 	write_node_cb_t *write_node_cb, void *write_node_cb_data,
+	flush_node_cb_t *flush_node_cb, void *flush_node_cb_data,
 	freebuf_cb_t *freebuf_cb, void *freebuf_cb_data,
 	delete_node_cb_t *delete_node_cb, void *delete_node_data,
 	log_cb_t *log_cb, void *log_cb_data,
@@ -179,6 +182,8 @@ extern btree_status_t btree_raw_insert(struct btree_raw *btree, char *key, uint3
 extern btree_status_t btree_raw_update(struct btree_raw *btree, char *key, uint32_t keylen, char *data, uint64_t datalen, btree_metadata_t *meta);
 
 extern btree_status_t btree_raw_set(struct btree_raw *btree, char *key, uint32_t keylen, char *data, uint64_t datalen, btree_metadata_t *meta);
+
+extern btree_status_t btree_raw_flush(struct btree_raw *btree, char *key, uint32_t keylen);
 
 /*   delete a key
  *

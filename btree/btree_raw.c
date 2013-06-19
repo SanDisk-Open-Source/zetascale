@@ -253,7 +253,7 @@ static void l1cache_replace(void *callback_data, char *key, uint32_t keylen, cha
     free(n);
 }
 
-btree_raw_t *btree_raw_init(uint32_t flags, uint32_t n_partition, uint32_t n_partitions, uint32_t max_key_size, uint32_t min_keys_per_node, uint32_t nodesize, uint32_t n_l1cache_buckets, create_node_cb_t *create_node_cb, void *create_node_data, read_node_cb_t *read_node_cb, void *read_node_cb_data, write_node_cb_t *write_node_cb, void *write_node_cb_data, freebuf_cb_t *freebuf_cb, void *freebuf_cb_data, delete_node_cb_t *delete_node_cb, void *delete_node_data, log_cb_t *log_cb, void *log_cb_data, msg_cb_t *msg_cb, void *msg_cb_data, cmp_cb_t *cmp_cb, void * cmp_cb_data, txn_cmd_cb_t *txn_cmd_cb, void * txn_cmd_cb_data)
+btree_raw_t *btree_raw_init(uint32_t flags, uint32_t n_partition, uint32_t n_partitions, uint32_t max_key_size, uint32_t min_keys_per_node, uint32_t nodesize, uint32_t n_l1cache_buckets, create_node_cb_t *create_node_cb, void *create_node_data, read_node_cb_t *read_node_cb, void *read_node_cb_data, write_node_cb_t *write_node_cb, void *write_node_cb_data, flush_node_cb_t *flush_node_cb, void *flush_node_cb_data, freebuf_cb_t *freebuf_cb, void *freebuf_cb_data, delete_node_cb_t *delete_node_cb, void *delete_node_data, log_cb_t *log_cb, void *log_cb_data, msg_cb_t *msg_cb, void *msg_cb_data, cmp_cb_t *cmp_cb, void * cmp_cb_data, txn_cmd_cb_t *txn_cmd_cb, void * txn_cmd_cb_data)
 {
     btree_raw_t      *bt;
     uint32_t          nbytes_meta;
@@ -292,6 +292,8 @@ btree_raw_t *btree_raw_init(uint32_t flags, uint32_t n_partition, uint32_t n_par
     bt->read_node_cb_data    = read_node_cb_data;
     bt->write_node_cb        = write_node_cb;
     bt->write_node_cb_data   = write_node_cb_data;
+    bt->flush_node_cb        = flush_node_cb;
+    bt->flush_node_cb_data   = flush_node_cb_data;
     bt->freebuf_cb           = freebuf_cb;
     bt->freebuf_cb_data      = freebuf_cb_data;
     bt->delete_node_cb       = delete_node_cb;
@@ -2220,7 +2222,6 @@ err_exit:
     return BTREE_SUCCESS == ret ? txnret : ret;
 }
 
-
 static btree_status_t btree_raw_write(struct btree_raw *btree, char *key, uint32_t keylen, char *data, uint64_t datalen, btree_metadata_t *meta, int write_type)
 {
     btree_status_t      ret = BTREE_SUCCESS;
@@ -2260,11 +2261,57 @@ static btree_status_t btree_raw_write(struct btree_raw *btree, char *key, uint32
     }
 
 #ifdef BTREE_RAW_CHECK
-    btree_raw_check(btree, __FUNCTION__, dump_key(key, keylen));
+    btree_raw_check(btree, (char *) __FUNCTION__, dump_key(key, keylen));
 #endif
 
     return(ret);
 }
+
+static btree_status_t btree_raw_flush_low(btree_raw_t *btree, char *key, uint32_t keylen, uint64_t syndrome)
+{
+	btree_status_t    ret = BTREE_SUCCESS;
+	node_key_t       *pkrec = NULL;
+	plat_rwlock_t    *leaf_lock;
+	btree_raw_node_t *node = NULL;
+	int				  pathcnt = 0;
+	btree_metadata_t  meta;
+
+	meta.flags = 0;
+
+    plat_rwlock_rdlock(&btree->lock);
+
+    pkrec = btree_raw_find(btree, key, keylen, syndrome, &meta, &node, 1 /* EX */, &leaf_lock, &pathcnt);
+
+    plat_rwlock_unlock(&btree->lock);
+
+    if (pkrec)
+      btree->flush_node_cb(&ret, btree->flush_node_cb_data, (uint64_t) node->logical_id);
+
+    deref_l1cache_node(btree, node);
+    plat_rwlock_unlock(leaf_lock);
+
+    return ret;
+}
+
+//======================   FLUSH   =========================================
+btree_status_t btree_raw_flush(struct btree_raw *btree, char *key, uint32_t keylen)
+{
+    btree_status_t      ret = BTREE_FAILURE;
+    uint64_t            syndrome = get_syndrome(btree, key, keylen);
+
+    ret = btree_raw_flush_low(btree, key, keylen, syndrome);
+
+    //TODO change to atomics
+    if (BTREE_SUCCESS == ret) 
+        btree->stats.stat[BTSTAT_FLUSH_CNT]++;
+
+#ifdef BTREE_RAW_CHECK
+    btree_raw_check(btree, (char *) __FUNCTION__, dump_key(key, keylen));
+#endif
+
+    return(ret);
+}
+
 //======================   INSERT  =========================================
 
 btree_status_t btree_raw_insert(struct btree_raw *btree, char *key, uint32_t keylen, char *data, uint64_t datalen, btree_metadata_t *meta)
@@ -2385,7 +2432,7 @@ btree_status_t btree_raw_delete(struct btree_raw *btree, char *key, uint32_t key
 
     if(opt) {
 #ifdef BTREE_RAW_CHECK
-	btree_raw_check(btree, __FUNCTION__, dump_key(key, keylen));
+    btree_raw_check(btree, (char *) __FUNCTION__, dump_key(key, keylen));
 #endif
 	return BTREE_SUCCESS; // optimistic delete succeeded
     }
@@ -2421,7 +2468,7 @@ btree_status_t btree_raw_delete(struct btree_raw *btree, char *key, uint32_t key
     assert(!dbg_referenced);
 
 #ifdef BTREE_RAW_CHECK
-    btree_raw_check(btree, __FUNCTION__, dump_key(key, keylen));
+    btree_raw_check(btree, (char *) __FUNCTION__, dump_key(key, keylen));
 #endif
 
     return(ret);
@@ -3637,7 +3684,7 @@ static void dump_node(btree_raw_t *bt, FILE *f, btree_raw_node_t *n, char *key, 
 static
 void btree_raw_dump(FILE *f, btree_raw_t *bt)
 {
-    btree_status_t     ret = 0;
+    btree_status_t     ret = BTREE_SUCCESS;
     btree_raw_node_t  *n;
     char               sflags[1000];
 
@@ -3657,7 +3704,7 @@ void btree_raw_dump(FILE *f, btree_raw_t *bt)
     fprintf(f, "B-Tree: flags:(%s), node:%dB, maxkey:%dB, minkeys:%d, bigobj:%dB\n", sflags, bt->nodesize, bt->max_key_size, bt->min_keys_per_node, bt->big_object_size);
 
     n = get_existing_node(&ret, bt, bt->rootid); 
-    if (ret || (n == NULL)) {
+    if (BTREE_SUCCESS != ret || (n == NULL)) {
 	fprintf(f, "*********************************************\n");
 	fprintf(f, "    *****  Could not get root node!!!!  *****\n");
 	fprintf(f, "*********************************************\n");

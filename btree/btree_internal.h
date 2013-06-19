@@ -19,6 +19,8 @@ typedef struct btree {
     void              *read_node_cb_data;
     write_node_cb_t   *write_node_cb;
     void              *write_node_cb_data;
+    flush_node_cb_t   *flush_node_cb;
+    void              *flush_node_cb_data;
     freebuf_cb_t      *freebuf_cb;
     void              *freebuf_cb_data;
     create_node_cb_t  *create_node_cb;

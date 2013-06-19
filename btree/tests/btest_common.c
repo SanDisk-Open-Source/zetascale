@@ -24,6 +24,7 @@ static char *gendata(uint32_t max_datalen, uint64_t *pdatalen);
 
 static struct btree_raw_node *read_node_cb(btree_status_t *ret, void *data, uint64_t lnodeid);
 static void write_node_cb(btree_status_t *ret, void *cb_data, uint64_t lnodeid, char *data, uint64_t datalen);
+static void flush_node_cb(btree_status_t *ret, void *cb_data, uint64_t lnodeid);
 static int freebuf_cb(void *data, char *buf);
 static struct btree_raw_node *create_node_cb(btree_status_t *ret, void *data, uint64_t lnodeid);
 static btree_status_t delete_node_cb(struct btree_raw_node *node, void *data, uint64_t lnodeid);
@@ -79,6 +80,7 @@ static uint32_t   n_char_array;
     // Counts of number of times callbacks are invoked:
 static uint64_t N_read_node   = 0;
 static uint64_t N_write_node  = 0;
+static uint64_t N_flush_node  = 0;
 static uint64_t N_freebuf     = 0;
 static uint64_t N_create_node = 0;
 static uint64_t N_delete_node = 0;
@@ -218,6 +220,7 @@ btest_init(int argc, char **argv, char *program, btest_parse_fn parse_fn)
 	void         *create_node_cb_data;
 	void         *read_node_cb_data;
 	void         *write_node_cb_data;
+	void         *flush_node_cb_data;
 	void         *freebuf_cb_data;
 	void         *delete_node_cb_data;
 	void         *log_cb_data;
@@ -230,6 +233,7 @@ btest_init(int argc, char **argv, char *program, btest_parse_fn parse_fn)
 	create_node_cb_data = NULL;
 	read_node_cb_data   = NULL;
 	write_node_cb_data  = NULL;
+	flush_node_cb_data  = NULL;
 	freebuf_cb_data     = NULL;
 	delete_node_cb_data = NULL;
 	log_cb_data         = NULL;
@@ -296,6 +300,7 @@ btest_init(int argc, char **argv, char *program, btest_parse_fn parse_fn)
 	                (create_node_cb_t *)create_node_cb, create_node_cb_data, 
 	                (read_node_cb_t *)read_node_cb, read_node_cb_data, 
 			(write_node_cb_t *)write_node_cb, write_node_cb_data, 
+			(flush_node_cb_t *)flush_node_cb, flush_node_cb_data, 
 			freebuf_cb, freebuf_cb_data, 
 			(delete_node_cb_t *)delete_node_cb, delete_node_cb_data, 
 			(log_cb_t *)log_cb, log_cb_data, 
@@ -674,6 +679,11 @@ static struct btree_raw_node *read_node_cb(btree_status_t *ret, void *data, uint
 static void write_node_cb(btree_status_t *ret, void *cb_data, uint64_t lnodeid, char *data, uint64_t datalen)
 {
     N_write_node++;
+}
+
+static void flush_node_cb(btree_status_t *ret, void *cb_data, uint64_t lnodeid)
+{
+    N_flush_node++;
 }
 
 static int freebuf_cb(void *data, char *buf)

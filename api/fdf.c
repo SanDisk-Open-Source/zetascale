@@ -1756,7 +1756,7 @@ FDF_status_t FDFRegisterCallbacks(struct FDF_state *fdf_state, FDF_ext_cb_t *cb)
         return FDF_FAILURE;
     }
     btree_cbs = cb;
-    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, LOG_INFO, "Callback registered"); 
+    plat_log_msg(150113, LOG_CAT, LOG_INFO, "Callback registered"); 
     return FDF_SUCCESS;
 }
 FDF_status_t FDFInit(

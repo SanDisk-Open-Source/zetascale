@@ -229,7 +229,7 @@ FDF_status_t fdf_set (
 	)
 {
     FDF_status_t  	ret;
-	uint32_t		flags	= 0;
+	uint32_t		flags	= 1;
 
     //fprintf(stderr, "%x sdf_set before: key=%s, keylen=%d, data=%s, datalen=%ld\n", (int)pthread_self(), key, keylen, data, datalen);
 
@@ -264,6 +264,24 @@ FDF_status_t fdf_delete(
     return ret;
 }
 
+FDF_status_t fdf_flush(
+    FDF_cguid_t              cguid,
+    char                    *key,
+    uint32_t                 keylen
+    )
+{
+    FDF_status_t  ret;
+
+    ret = FDFFlushObject(
+            _fdf_thd_state,
+            cguid,
+            key,
+            keylen
+            );
+
+    return ret;
+}
+
 FDF_status_t fdf_get_container_stats(FDF_cguid_t cguid, FDF_stats_t *stats)
 {
     FDF_status_t  ret;
@@ -287,6 +305,22 @@ FDF_status_t fdf_get_stats(FDF_stats_t *stats)
 			);
 
     return ret;
+}
+
+FDF_status_t fdf_get_containers(
+    FDF_cguid_t              *cguids,
+    uint32_t                 *n_cguids
+    )
+{
+	FDF_status_t	ret;
+
+	ret = FDFGetContainers(
+			_fdf_thd_state,
+			cguids,
+			n_cguids
+			);
+
+	return ret;
 }
 
 void
