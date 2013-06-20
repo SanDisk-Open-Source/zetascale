@@ -31,7 +31,7 @@ static btree_status_t delete_node_cb(struct btree_raw_node *node, void *data, ui
 static void log_cb(btree_status_t *ret, void *data, uint32_t event_type, struct btree_raw *btree, struct btree_raw_node *n);
 static int cmp_cb(void *data, char *key1, uint32_t keylen1, char *key2, uint32_t keylen2);
 static void msg_cb(int level, void *msg_data, char *filename, int lineno, char *msg, ...);
-static void txn_cmd_cb(btree_status_t *ret_out, void *cb_data, int cmd_type);
+static void trx_cmd_cb(btree_status_t *ret_out, void *cb_data, int cmd_type);
 
 #define Error(msg, args...) \
     msg_cb(0, NULL, __FILE__, __LINE__, msg, ##args);
@@ -86,9 +86,9 @@ static uint64_t N_create_node = 0;
 static uint64_t N_delete_node = 0;
 static uint64_t N_log         = 0;
 static uint64_t N_cmp         = 0;
-static uint64_t N_txn_cmd_1   = 0;
-static uint64_t N_txn_cmd_2   = 0;
-static uint64_t N_txn_cmd_3   = 0;
+static uint64_t N_trx_cmd_1   = 0;
+static uint64_t N_trx_cmd_2   = 0;
+static uint64_t N_trx_cmd_3   = 0;
 
 void btest_common_usage(char *program)
 {
@@ -226,7 +226,7 @@ btest_init(int argc, char **argv, char *program, btest_parse_fn parse_fn)
 	void         *log_cb_data;
 	void         *msg_cb_data;
 	void         *cmp_cb_data;
-	void         *txn_cmd_cb_data;
+	void         *trx_cmd_cb_data;
 	int          error;
 	btest_cfg_t *cfg;
 
@@ -239,7 +239,7 @@ btest_init(int argc, char **argv, char *program, btest_parse_fn parse_fn)
 	log_cb_data         = NULL;
 	msg_cb_data         = NULL;
 	cmp_cb_data         = NULL;
-	txn_cmd_cb_data     = NULL;
+	trx_cmd_cb_data     = NULL;
 
 	cfg = (btest_cfg_t *)malloc(sizeof(btest_cfg_t));
 	if (cfg == NULL) {
@@ -306,7 +306,7 @@ btest_init(int argc, char **argv, char *program, btest_parse_fn parse_fn)
 			(log_cb_t *)log_cb, log_cb_data, 
 			msg_cb, msg_cb_data, 
 			cmp_cb, cmp_cb_data,
-			(txn_cmd_cb_t *)txn_cmd_cb, txn_cmd_cb_data
+			(trx_cmd_cb_t *)trx_cmd_cb, trx_cmd_cb_data
 	                );
 
 	if (cfg->bt == NULL) {
@@ -723,17 +723,17 @@ static int cmp_cb(void *data, char *key1, uint32_t keylen1, char *key2, uint32_t
     return(0);
 }
 
-static void txn_cmd_cb(btree_status_t *ret_out, void *cb_data, int cmd_type)
+static void trx_cmd_cb(btree_status_t *ret_out, void *cb_data, int cmd_type)
 {
     switch (cmd_type) {
         case 1: // start txn
-            N_txn_cmd_1++;
+            N_trx_cmd_1++;
             break;
         case 2: // commit txn
-            N_txn_cmd_2++;
+            N_trx_cmd_2++;
             break;
         case 3: // abort txn
-            N_txn_cmd_3++;
+            N_trx_cmd_3++;
             break;
         default:
             assert(0);

@@ -147,7 +147,7 @@ typedef struct btree_raw_node *(create_node_cb_t)(btree_status_t *ret, void *dat
 typedef int (delete_node_cb_t)(struct btree_raw_node *node, void *data, uint64_t lnodeid);
 typedef void (log_cb_t)(btree_status_t *ret, void *data, uint32_t event_type, struct btree_raw *btree, struct btree_raw_node *n);
 typedef int (cmp_cb_t)(void *data, char *key1, uint32_t keylen1, char *key2, uint32_t keylen2);
-typedef void (txn_cmd_cb_t)(btree_status_t *ret, void *cb_data, int cmd_type);
+typedef void (trx_cmd_cb_t)(void *cb_data, int cmd_type);
 
 /****************************************************
  *
@@ -172,7 +172,7 @@ struct btree_raw* btree_raw_init(uint32_t flags, uint32_t n_partition, uint32_t 
 	log_cb_t *log_cb, void *log_cb_data,
 	msg_cb_t *msg_cb, void *msg_cb_data,
 	cmp_cb_t *cmp_cb, void * cmp_cb_data,
-	txn_cmd_cb_t *txn_cmd_cb, void * txn_cmd_cb_data
+	trx_cmd_cb_t *trx_cmd_cb, void * trx_cmd_cb_data
 	);
 
 extern btree_status_t btree_raw_get(struct btree_raw *btree, char *key, uint32_t keylen, char **data, uint64_t *datalen, btree_metadata_t *meta);

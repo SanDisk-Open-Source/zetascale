@@ -253,7 +253,7 @@ static void l1cache_replace(void *callback_data, char *key, uint32_t keylen, cha
     free(n);
 }
 
-btree_raw_t *btree_raw_init(uint32_t flags, uint32_t n_partition, uint32_t n_partitions, uint32_t max_key_size, uint32_t min_keys_per_node, uint32_t nodesize, uint32_t n_l1cache_buckets, create_node_cb_t *create_node_cb, void *create_node_data, read_node_cb_t *read_node_cb, void *read_node_cb_data, write_node_cb_t *write_node_cb, void *write_node_cb_data, flush_node_cb_t *flush_node_cb, void *flush_node_cb_data, freebuf_cb_t *freebuf_cb, void *freebuf_cb_data, delete_node_cb_t *delete_node_cb, void *delete_node_data, log_cb_t *log_cb, void *log_cb_data, msg_cb_t *msg_cb, void *msg_cb_data, cmp_cb_t *cmp_cb, void * cmp_cb_data, txn_cmd_cb_t *txn_cmd_cb, void * txn_cmd_cb_data)
+btree_raw_t *btree_raw_init(uint32_t flags, uint32_t n_partition, uint32_t n_partitions, uint32_t max_key_size, uint32_t min_keys_per_node, uint32_t nodesize, uint32_t n_l1cache_buckets, create_node_cb_t *create_node_cb, void *create_node_data, read_node_cb_t *read_node_cb, void *read_node_cb_data, write_node_cb_t *write_node_cb, void *write_node_cb_data, flush_node_cb_t *flush_node_cb, void *flush_node_cb_data, freebuf_cb_t *freebuf_cb, void *freebuf_cb_data, delete_node_cb_t *delete_node_cb, void *delete_node_data, log_cb_t *log_cb, void *log_cb_data, msg_cb_t *msg_cb, void *msg_cb_data, cmp_cb_t *cmp_cb, void * cmp_cb_data, trx_cmd_cb_t *trx_cmd_cb, void * trx_cmd_cb_data)
 {
     btree_raw_t      *bt;
     uint32_t          nbytes_meta;
@@ -313,8 +313,8 @@ btree_raw_t *btree_raw_init(uint32_t flags, uint32_t n_partition, uint32_t n_par
 	bt->cmp_cb_data      = NULL;
     }
 
-    bt->txn_cmd_cb           = txn_cmd_cb;
-    bt->txn_cmd_cb_data      = txn_cmd_cb_data;
+    bt->trx_cmd_cb           = trx_cmd_cb;
+    bt->trx_cmd_cb_data      = trx_cmd_cb_data;
 
     if (min_keys_per_node < 4) {
 	bt_err("min_keys_per_node must be >= 4");
@@ -1077,13 +1077,6 @@ static btree_status_t deref_l1cache(btree_raw_t *btree)
     btree_status_t        ret = BTREE_SUCCESS;
     btree_status_t        txnret = BTREE_SUCCESS;
 
-    btree->txn_cmd_cb(&txnret, btree->txn_cmd_cb_data, 1 /* start */);
-    if (BTREE_SUCCESS != txnret)
-    {
-        unlock_modified_nodes(btree);
-        return txnret;
-    }
-
     for(i = 0; i < modified_nodes_count; i++)
     {
         n = modified_nodes[i];
@@ -1103,9 +1096,6 @@ static btree_status_t deref_l1cache(btree_raw_t *btree)
 	ret = btree->delete_node_cb(n, btree->create_node_cb_data, n->logical_id);
 	__sync_add_and_fetch(&(btree->stats.stat[BTSTAT_L1WRITES]),1);
     }
-
-    btree->txn_cmd_cb(&txnret, btree->txn_cmd_cb_data,
-            BTREE_SUCCESS == ret ? 2 /* commit */ : 3 /* abort */);
 
     //TODO
     //if(ret || txnret)

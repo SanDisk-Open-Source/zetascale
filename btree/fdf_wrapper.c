@@ -53,7 +53,6 @@ static btree_status_t delete_node_cb(struct btree_raw_node *node, void *data, ui
 static void                   log_cb(btree_status_t *ret, void *data, uint32_t event_type, struct btree_raw *btree, struct btree_raw_node *n);
 static int                    lex_cmp_cb(void *data, char *key1, uint32_t keylen1, char *key2, uint32_t keylen2);
 static void                   msg_cb(int level, void *msg_data, char *filename, int lineno, char *msg, ...);
-static void                   txn_cmd_cb(btree_status_t *ret_out, void *cb_data, int cmd_type);
 static uint64_t               seqnoalloc( struct FDF_thread_state *);
 FDF_status_t btree_get_all_stats(FDF_cguid_t cguid,
                                 FDF_ext_stat_t **estat, uint32_t *n_stats) ;
@@ -117,9 +116,6 @@ static uint64_t N_create_node = 0;
 static uint64_t N_delete_node = 0;
 static uint64_t N_log         = 0;
 static uint64_t N_cmp         = 0;
-static uint64_t N_txn_cmd_1   = 0;
-static uint64_t N_txn_cmd_2   = 0;
-static uint64_t N_txn_cmd_3   = 0;
 
 //  xxxzzz these are temporary:
 
@@ -341,7 +337,7 @@ FDF_status_t _FDFOpenContainer(
     void         *log_cb_data;
     void         *msg_cb_data;
     void         *cmp_cb_data;
-    void         *txn_cmd_cb_data;
+    void         *trx_cmd_cb_data;
     read_node_t  *prn;
     int           index = -1;
     char         *env;
@@ -384,7 +380,7 @@ FDF_status_t _FDFOpenContainer(
     log_cb_data         = (void *) prn;
     msg_cb_data         = (void *) prn;
     cmp_cb_data         = (void *) prn;
-    txn_cmd_cb_data     = (void *) prn;
+    trx_cmd_cb_data     = (void *) prn;
 
     //flags = SYNDROME_INDEX;
     // flags |= IN_MEMORY; // use in-memory b-tree for this test
@@ -465,8 +461,8 @@ FDF_status_t _FDFOpenContainer(
                     msg_cb_data, 
                     lex_cmp_cb, 
                     cmp_cb_data,
-                    txn_cmd_cb, 
-                    txn_cmd_cb_data
+                    trx_cmd_cb, 
+                    trx_cmd_cb_data
 		    );
 
     if (bt == NULL) {
@@ -1370,6 +1366,7 @@ static void write_node_cb(btree_status_t *ret_out, void *cb_data, uint64_t lnode
     N_write_node++;
 
     ret = FDFWriteObject(my_thd_state, prn->cguid, (char *) &lnodeid, sizeof(uint64_t), data, datalen, 0 /* flags */);
+    trxtrack( prn->cguid, lnodeid, data);
     assert(prn->nodesize == datalen);
 
     switch(ret) {
@@ -1413,41 +1410,6 @@ static void flush_node_cb(btree_status_t *ret_out, void *cb_data, uint64_t lnode
     }
 }
 
-static void txn_cmd_cb(btree_status_t *ret_out, void *cb_data, int cmd_type)
-{
-    FDF_status_t ret = FDF_FAILURE;
-
-    switch (cmd_type) {
-        case 1: // start txn
-	    N_txn_cmd_1++;
-	    ret = trxstart(my_thd_state);
-            if (FDF_SUCCESS != ret)
-                *ret_out = BTREE_FAIL_TXN_START;
-            else
-                *ret_out = BTREE_SUCCESS;
-	    break;
-        case 2: // commit txn
-	    ret = FDFTransactionCommit(my_thd_state);
-            if (FDF_SUCCESS != ret)
-                *ret_out = BTREE_FAIL_TXN_COMMIT;
-            else
-                *ret_out = BTREE_SUCCESS;
-	    N_txn_cmd_2++;
-	    break;
-        case 3: // abort txn
-	    ret = FDFTransactionRollback(my_thd_state);
-            if (FDF_SUCCESS != ret)
-                *ret_out = BTREE_FAIL_TXN_ROLLBACK;
-            else
-                *ret_out = BTREE_SUCCESS;
-	    N_txn_cmd_3++;
-	    break;
-	default:
-	    assert(0);
-	    break;
-    }
-}
-
 static int freebuf_cb(void *data, char *buf)
 {
     // pid_t  tid = syscall(SYS_gettid);
@@ -1470,6 +1432,7 @@ static struct btree_raw_node *create_node_cb(btree_status_t *ret, void *data, ui
     N_create_node++;
 
     status = FDFWriteObject(my_thd_state, prn->cguid, (char *) &lnodeid, sizeof(uint64_t), Create_Data, prn->nodesize, FDF_WRITE_MUST_NOT_EXIST  /* flags */);
+    trxtrack( prn->cguid, lnodeid, data);
 
     if (status == FDF_SUCCESS) {
 	    status = FDFReadObject(my_thd_state, prn->cguid, (char *) &lnodeid, sizeof(uint64_t), (char **) &n, &datalen);
