@@ -1647,6 +1647,7 @@ static void dump_btree_stats(FILE *f, FDF_cguid_t cguid)
     btree_dump_stats(f, &bt_stats);
 }
 
+//#define NEED_TXN_IN_MPUT
 FDF_status_t
 _FDFMPut(struct FDF_thread_state *fdf_ts,
         FDF_cguid_t cguid,
@@ -1655,12 +1656,15 @@ _FDFMPut(struct FDF_thread_state *fdf_ts,
 {
 	int i;
 	FDF_status_t status = FDF_SUCCESS;
+#ifdef NEED_TXN_IN_MPUT
 	FDF_status_t status2 = FDF_SUCCESS;
+#endif 
 
 	if (num_objs == 0) {
 		return FDF_SUCCESS;
 	}
 
+#ifdef NEED_TXN_IN_MPUT
 	/*
 	 * Start a transaction.
 	 */
@@ -1668,33 +1672,47 @@ _FDFMPut(struct FDF_thread_state *fdf_ts,
 	if (status != FDF_SUCCESS) {
 		goto out;
 	}
+#endif 
 
 	for (i = 0; i < num_objs; i++) {
 		if (objs[i].flags != 0) {
 			status = FDF_INVALID_PARAMETER;
+#ifdef NEED_TXN_IN_MPUT
 			goto rollback;
+#else	
+			goto out;
+#endif 
 		}	
 		status = _FDFWriteObject(fdf_ts, cguid, 
 					objs[i].key, objs[i].key_len,
 					objs[i].data, objs[i].data_len, 0);
 
 		if (status != FDF_SUCCESS) {
+#ifdef NEED_TXN_IN_MPUT
 			goto rollback;
+#else
+			goto out;
+#endif 
 		}
 
 	}
 
+#ifdef NEED_TXN_IN_MPUT
 	status = _FDFTransactionCommit(fdf_ts);
 	if (status != FDF_SUCCESS) {
 		goto out;
 	}
+#endif 
 	return FDF_SUCCESS;
 
+#ifdef NEED_TXN_IN_MPUT
 rollback:
 	status2 = _FDFTransactionRollback(fdf_ts);
 	if(status2 != FDF_SUCCESS) {
 		status = status2;
 	}
+#endif 
+
 out:
 	return status;
 }
