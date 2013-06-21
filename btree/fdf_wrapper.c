@@ -244,6 +244,7 @@ FDF_status_t _FDFInit(
     }
     memset(cbs,0,sizeof(FDF_ext_cb_t));
     cbs->stats_cb = btree_get_all_stats;
+    trxinit( );
     ret = FDFRegisterCallbacks(*fdf_state, cbs);
     return(ret);
 }
@@ -520,6 +521,7 @@ FDF_status_t _FDFDeleteContainer(
     int index = -1;
     my_thd_state = fdf_thread_state;;
 
+    trxdeletecontainer( fdf_thread_state, cguid);
     status = FDFDeleteContainer(fdf_thread_state, cguid);
     index = bt_get_ctnr_from_cguid(cguid);
     if (index >= 0) {
@@ -664,6 +666,7 @@ FDF_status_t _FDFReadObject(
         rmeta.keylen_end   = keylen;
         rmeta.flags        = RANGE_START_GE | RANGE_END_LE;
 
+	trxenter( cguid);
         btree_ret = btree_start_range_query(bt, BTREE_RANGE_PRIMARY_INDEX,
                                             &cursor, &rmeta);
 	if (btree_ret != BTREE_SUCCESS) {
@@ -683,10 +686,12 @@ FDF_status_t _FDFReadObject(
 
         (void)btree_end_range_query(cursor);
     } else {
+	trxenter( cguid);
         btree_ret = btree_get(bt, key, keylen, data, datalen, &meta);
     }
 
 done:
+    trxleave( cguid);
     switch(btree_ret) {
         case BTREE_SUCCESS:
             ret = FDF_SUCCESS;
@@ -809,6 +814,7 @@ FDF_status_t _FDFWriteObject(
     if (meta.seqno == -1)
         return (FDF_FAILURE);
 
+    trxenter( cguid);
     if (flags & FDF_WRITE_MUST_NOT_EXIST) {
 		btree_ret = btree_insert(bt, key, keylen, data, datalen, &meta);
     } else if (flags & FDF_WRITE_MUST_EXIST) {
@@ -816,6 +822,7 @@ FDF_status_t _FDFWriteObject(
     } else {
 		btree_ret = btree_set(bt, key, keylen, data, datalen, &meta);
     }
+    trxleave( cguid);
 
     switch(btree_ret) {
         case BTREE_SUCCESS:
@@ -918,7 +925,9 @@ FDF_status_t _FDFDeleteObject(
 
     meta.flags = 0;
 
+    trxenter( cguid);
     btree_ret = btree_delete(bt, key, keylen, &meta);
+    trxleave( cguid);
     switch(btree_ret) {
         case BTREE_SUCCESS:
             ret = FDF_SUCCESS;
@@ -1074,7 +1083,9 @@ FDF_status_t _FDFFlushObject(
         return (FDF_KEY_TOO_LONG);
     }
 
-	btree_ret = btree_flush(bt, key, keylen);
+    trxenter( cguid);
+    btree_ret = btree_flush(bt, key, keylen);
+    trxleave( cguid);
 
     switch(btree_ret) {
         case BTREE_SUCCESS:
@@ -1291,10 +1302,13 @@ _FDFGetNextRange(struct FDF_thread_state *fdf_thread_state,
 	 * whatever the user of btree needs (in this case fdf_wrapper).
 	 * At present, the status numbers are matched, but thats not
 	 * good for maintanability */
+	const FDF_cguid_t cguid = ((read_node_t *)(((btree_range_cursor_t *)cursor)->btree->read_node_cb_data))->cguid;
+	trxenter( cguid);
 	status = btree_get_next_range((btree_range_cursor_t *)cursor,
 	                              n_in,
 	                              n_out,
 	                              (btree_range_data_t *)values);
+	trxleave( cguid);
 
 	if (status == BTREE_SUCCESS) {
 		ret = FDF_SUCCESS;

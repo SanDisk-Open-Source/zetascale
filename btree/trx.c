@@ -11,6 +11,7 @@
 #include	<assert.h>
 #include	<pthread.h>
 #include	"fdf.h"
+#include	"platform/rwlock.h"
 #include	"btree_hash.h"
 #include	"btree_raw.h"
 #include	"utils/rico.h"
@@ -31,6 +32,7 @@ typedef struct {
 	FDF_cguid_t	c;
 	uint64_t	nid;
 	uchar		type;	
+	listelem_t	*l;
 } item_t;
 typedef struct {
 	struct FDF_thread_state	*ts;
@@ -42,34 +44,73 @@ typedef struct {
 
 
 static pthread_spinlock_t
-			listlock		= 1;
+			entrysl		= 1,
+			listsl		= 1;
 static listelem_t	*listpool,
 			*listbase;
+static plat_rwlock_t	entrylock;
+static uint		entrycounter;
 static __thread trx_t	*trx;
 
 static listelem_t	*listfind( listelem_t *, FDF_cguid_t, uint64_t),
 			*listadd( listelem_t *, FDF_cguid_t, uint64_t),
 			*listdel( listelem_t *, listelem_t *),
 			*listalloc( );
-static void		listfree( listelem_t *),
+static void		trackfree( ),
+			listfree( listelem_t *),
 			trxdump( char *);
 
 
+void
+trxinit( )
+{
+
+	plat_rwlock_init( &entrylock);
+}
+
+
+void
+trxenter( FDF_cguid_t c)
+{
+
+	plat_rwlock_rdlock( &entrylock);
+	__sync_add_and_fetch( &entrycounter, 1);
+}
+
+
+void
+trxleave( FDF_cguid_t c)
+{
+
+	__sync_add_and_fetch( &entrycounter, -1);
+	plat_rwlock_unlock( &entrylock);
+}
+
+
+/*
+ * (No nested support right now)
+ */
 FDF_status_t
 trxstart( struct FDF_thread_state *t)
 {
 
-	unless (trx) {
-		unless (trx = malloc( sizeof *trx))
-			abort( );
-		trx->ts = t;
-		trx->level = 0;
-		trx->status = OKAY;
-		trx->nitem = 0;
+	if (trx) {
+		++trx->level;
+		return (FDF_SUCCESS);
 	}
+	unless (trx = malloc( sizeof *trx))
+		return (FDF_OUT_OF_MEM);
+	trx->ts = t;
+	trx->level = 0;
+	trx->status = OKAY;
+	trx->nitem = 0;
 	FDF_status_t s = FDFTransactionStart( t);
 	if (s == FDF_SUCCESS)
 		++trx->level;
+	else {
+		free( trx);
+		trx = 0;
+	}
 	trxdump( "trxstart");
 	return (s);
 }
@@ -82,11 +123,11 @@ trxcommit( struct FDF_thread_state *t)
 	unless (trx)
 		return (FDF_FAILURE);
 	trxdump( "trxcommit");
+	if (--trx->level)
+		return (FDF_SUCCESS);
 	FDF_status_t s = FDFTransactionCommit( t);
-	unless (--trx->level) {
-		free( trx);
-		trx = 0;
-	}
+	trackfree( );
+	trx = 0;
 	return (s);
 }
 
@@ -98,11 +139,11 @@ trxrollback( struct FDF_thread_state *t)
 	unless (trx)
 		return (FDF_FAILURE);
 	trxdump( "trxrollback");
+	if (--trx->level)
+		return (FDF_SUCCESS);
 	FDF_status_t s = FDFTransactionRollback( t);
-	unless (--trx->level) {
-		free( trx);
-		trx = 0;
-	}
+	trackfree( );
+	trx = 0;
 	return (s);
 }
 
@@ -124,6 +165,13 @@ trxid( struct FDF_thread_state *t)
 
 
 void
+trxdeletecontainer( struct FDF_thread_state *t, FDF_cguid_t c)
+{
+
+}
+
+
+void
 trxtrack( FDF_cguid_t c, uint64_t nid, void *d)
 {
 
@@ -132,18 +180,19 @@ trxtrack( FDF_cguid_t c, uint64_t nid, void *d)
 		uint i = 0;
 		loop {
 			if (i == trx->nitem) {
-				trx->items[i].c = c;
-				trx->items[i].nid = nid;
-				trx->items[i].type = 0;	
-				++trx->nitem;
-				pthread_spin_lock( &listlock);
+				pthread_spin_lock( &listsl);
 				listelem_t *l = listfind( listbase, c, nid);
 				unless (l) {
 					listbase = listadd( listbase, c, nid);
 					l = listbase;
 				}
 				++l->refc;
-				pthread_spin_unlock( &listlock);
+				trx->items[i].c = c;
+				trx->items[i].nid = nid;
+				trx->items[i].type = 0;	
+				trx->items[i].l = l;	
+				++trx->nitem;
+				pthread_spin_unlock( &listsl);
 				break;
 			}
 			if ((trx->items[i].c == c)
@@ -152,8 +201,21 @@ trxtrack( FDF_cguid_t c, uint64_t nid, void *d)
 			++i;
 		}
 	}
-	if (0)
-		listdel( 0, 0);
+}
+
+
+static void
+trackfree( )
+{
+	uint	i;
+
+	for (i=0; i<trx->nitem; ++i) {
+		listelem_t *l = trx->items[i].l;
+		pthread_spin_lock( &listsl);
+		unless (--l->refc)
+			listbase = listdel( listbase, l);
+		pthread_spin_unlock( &listsl);
+	}
 }
 
 
@@ -254,7 +316,7 @@ trxdump( char *label)
 	if (trx) {
 		printf( "%9s: trxid=%ld level=%d status=%d nitem=%d", label, trxid( trx->ts), trx->level, trx->status, trx->nitem);
 		for (i=0; i<trx->nitem; ++i)
-			printf( " (%d,%d,%d)", trx->items[i].c, trx->items[i].nid, trx->items[i].type);
+			printf( " (%ld,%ld,%d)", trx->items[i].c, trx->items[i].nid, trx->items[i].type);
 		printf( "\n");
 	}
 	else
