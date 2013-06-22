@@ -29,15 +29,11 @@
 #include "private.h"
 #include "cmc.h"
 
-#ifdef SDFAPI
 #include <netinet/in.h>
 #include "ssd/fifo/mcd_osd_internal.h"
 #include "api/sdf_internal.h"
 #include "api/fdf_internal.h"
 extern mcd_container_t Mcd_containers[MCD_MAX_NUM_CNTRS];
-extern ctnr_map_t CtnrMap[MCD_MAX_NUM_CNTRS];
-
-#endif /* SDFAPI */
 
 extern SDF_cmc_t *theCMC; // Global CMC object
 extern struct SDF_shared_state sdf_shared_state;
@@ -235,22 +231,6 @@ cmc_create(
 {
     SDF_cmc_t *cmc = NULL;
 
-#ifdef SDFAPI
-    //  Initialize the container map
-    int i;
-    for (i=0; i<MCD_MAX_NUM_CNTRS; i++) {
-        CtnrMap[i].cname[0]      						= '\0';
-        CtnrMap[i].io_count      						= 0;
-        CtnrMap[i].cguid         						= FDF_NULL_CGUID;
-        CtnrMap[i].sdf_container 						= containerNull;
-        CtnrMap[i].size_kb  	 						= 0;
-        CtnrMap[i].current_size  						= 0;
-        CtnrMap[i].state		 						= FDF_CONTAINER_STATE_UNINIT;
-        CtnrMap[i].evicting  	 						= FDF_FALSE;
-        CtnrMap[i].container_stats.num_evictions  		= 0;
-    }
-#endif /* SDFAPI */
-
     // Init the first TL meta map
     int buckets = getProperty_Int("SDF_CMC_BUCKETS", 10000);
     plat_log_msg(21492, PLAT_LOG_CAT_PRINT_ARGS, PLAT_LOG_LEVEL_DEBUG, 
@@ -370,38 +350,11 @@ cmc_initialize(SDF_internal_ctxt_t *pai, const char *cmc_path) {
     	} else { 
 			// Fill in the rest of the CMC (meta has been filled in create container) 
 			memcpy(&theCMC->cmc_path, cmc_path, strlen(cmc_path)); 
-			//theCMC->c = internal_serverToClientContainer(CtnrMap[0].sdf_container); 
 			log_level = LOG_TRACE; 
 			status = SDF_SUCCESS;
 		}
 #else
 	plat_assert(0);
-#if 0
-    	SDF_container_props_t p;
-    	memset(&p, 0, sizeof(p));
-    	p.container_type.type = SDF_OBJECT_CONTAINER;
-    	p.container_type.persistence = SDF_TRUE;
-    	p.container_type.caching_container = SDF_FALSE;
-    	p.shard.num_shards = SDF_SHARD_DEFAULT_SHARD_COUNT;
-    	p.cache.writethru = SDF_TRUE;
-    	#ifdef ENABLE_MULTIPLE_FLASH_SUBSYSTEMS
-    	p.container_id.size = 1024; // kB
-    	#endif
-
-		if ((status = cmc_create_object_container(pai, cmc_path, p)) == SDF_SUCCESS) {
-	    	c = cmc_open_object_container(pai, cmc_path, SDF_READ_WRITE_MODE, &container);
-	    	if (isContainerNull(c)) {
-				status = SDF_FAILURE_CONTAINER_OPEN;
-	    	} else {
-				// Fill in the rest of the CMC (meta has been filled in create container)
-				memcpy(&theCMC->cmc_path, cmc_path, strlen(cmc_path));
-				theCMC->c = container;
-				log_level = LOG_TRACE;
-	    	}
-        } else {
-            plat_log_msg(150060, LOG_CAT, LOG_TRACE, "Failed status = %d...\n", status);
-        }
-#endif
 #endif /* SDFAPI */
     }
 
@@ -508,7 +461,6 @@ cmc_recover(SDF_internal_ctxt_t *pai, const char *cmc_path) {
 		meta = container_meta_create(cmc_path, p, CMC_CGUID, generate_shard_ids(CMC_HOME, CMC_CGUID, 1));
 		init_cmc(meta);
 		theCMC->initialized = SDF_TRUE;
-#ifdef SDFAPI
         FDF_container_props_t   fdf_p;
         FDF_cguid_t             cguid       = FDF_NULL_CGUID;
         int                     flags       = 0;
@@ -536,21 +488,9 @@ cmc_recover(SDF_internal_ctxt_t *pai, const char *cmc_path) {
         } else { 
             // Fill in the rest of the CMC (meta has been filled in create container)
             memcpy(&theCMC->cmc_path, cmc_path, strlen(cmc_path));
-            //theCMC->c = internal_serverToClientContainer(CtnrMap[0].sdf_container);
             log_level = LOG_TRACE;
             status = SDF_SUCCESS;
         }
-#else
-		c = cmc_open_object_container(pai, cmc_path, SDF_READ_WRITE_MODE, &container);
-		if (isContainerNull(c)) {
-		    status = SDF_FAILURE_CONTAINER_OPEN;
-		} else {
-		    memcpy(&theCMC->cmc_path, cmc_path, strlen(cmc_path));
-		    theCMC->c = container;
-		    log_level = LOG_TRACE;
-		    status = SDF_SUCCESS;
-		}
-#endif /* SDFAPI */
 	}
 
     // Recovery hack - we must rebuild the CMC from metadata kept in shard...
@@ -603,15 +543,19 @@ cmc_recover(SDF_internal_ctxt_t *pai, const char *cmc_path) {
 
 #ifdef SDFAPIONLY
 					//  Initialize the container map
-					//  Also recover the cid_counter to the largest recovered cid + 1
+	                status = fdf_cmap_create( blob->meta.cname, 
+	                                          blob->meta.cguid, 
+	                                          blob->meta.properties.container_id.size,
+	                                          FDF_CONTAINER_STATE_CLOSED, 
+	                                          blob->meta.properties.container_type.caching_container
+                                            );
+
+                     if ( FDF_SUCCESS != status ) 
+                         goto out;
+
 					for (int i=0; i<MCD_MAX_NUM_CNTRS; i++) {
-						if (CtnrMap[i].cguid == 0) {
+						if (Mcd_containers[i].cguid == FDF_NULL_CGUID) {
 							// this is an unused map entry
-							strcpy(CtnrMap[i].cname, blob->meta.cname);
-							CtnrMap[i].cguid         		= blob->meta.cguid;
-							CtnrMap[i].sdf_container 		= containerNull;
-							CtnrMap[i].size_kb				= blob->meta.properties.container_id.size;
-							CtnrMap[i].current_size 		= 0;
 					    	Mcd_containers[i].cguid 		= blob->meta.cguid;
 					    	Mcd_containers[i].container_id  = blob->meta.properties.container_id.container_id;
 							strcpy(Mcd_containers[i].cname, blob->meta.cname);
@@ -628,6 +572,7 @@ cmc_recover(SDF_internal_ctxt_t *pai, const char *cmc_path) {
     fthLockInit(&meta_lock);
     fthLockInit(&metamap_lock);
 
+out:
     plat_log_msg(21504, LOG_CAT, log_level, "Node: %d - %s",
 		 init_get_my_node_id(), SDF_Status_Strings[status]);
 

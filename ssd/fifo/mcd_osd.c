@@ -126,11 +126,6 @@ extern uint64_t rep_seqno_get(struct shard * shard);
 void
 flog_close(struct shard *shard);
 
-#ifdef notdef
-// from sdf.c
-extern ctnr_map_t CtnrMap[MCD_MAX_NUM_CNTRS];
-#endif /* notdef */
-
 /*
  * reserved blocks
  */
@@ -1061,16 +1056,6 @@ static int mcd_fth_do_try_container_internal( void * pai, int index,
         rc = 1;
     }
     else {
-#ifdef notdef
-		int map_index = get_ctnr_from_cname(cname);
-		if (map_index >= 0) {
-	    	container = CtnrMap[map_index].sdf_container;
-			if ( isContainerNull( container ) ) {
-            	mcd_log_msg( 150035, PLAT_LOG_LEVEL_ERROR, "Open container structure is NULL - %s", cname);
-				plat_abort();
-			}
-		}
-#endif /* notdef */
         local_SDF_CONTAINER lc = getLocalContainer(&lc, container);
         SDF_time_t time;
 
@@ -1359,26 +1344,6 @@ static int mcd_fth_try_container( void * pai, int index, int system_recovery, in
 
 // from mcd_rec.c
 extern int recovery_reclaim_space( void );
-
-#ifdef notdef
-static SDF_status_t update_container_map(char *cname, SDF_cguid_t cguid) {
-    int 	 i;
-    SDF_status_t status = SDF_FAILURE;
-
-    for (i=0; i<MCD_MAX_NUM_CNTRS; i++) {
-        if (CtnrMap[i].cguid == 0) {
-            // this is an unused map entry
-            strcpy(CtnrMap[i].cname, cname);
-            CtnrMap[i].cguid         = cguid;
-            CtnrMap[i].sdf_container = containerNull;
-            status = SDF_SUCCESS;
-            break;
-        }
-    }
-
-    return(status);
-}
-#endif /* notdef */
 
 SDF_status_t mcd_fth_container_init(void * pai, 
 				    int system_recovery,

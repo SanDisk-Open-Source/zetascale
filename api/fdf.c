@@ -71,8 +71,6 @@ static sem_t Mcd_fsched_sem;
 static sem_t Mcd_initer_sem;
 
 
-ctnr_map_t CtnrMap[MCD_MAX_NUM_CNTRS];
-
 /* External call backs */
 FDF_ext_cb_t *btree_cbs;
 
@@ -282,6 +280,7 @@ fdf_get_containers(
 		FDF_cguid_t             *cguids,
 		uint32_t                *n_cguids
 		);
+
 static FDF_status_t
 fdf_get_containers_int(
 		struct FDF_thread_state	*fdf_thread_state,
@@ -289,13 +288,13 @@ fdf_get_containers_int(
 		uint32_t                *n_cguids
 		);
 
-
 static FDF_status_t
 fdf_get_container_props(
 		struct FDF_thread_state	*fdf_thread_state, 
 		FDF_cguid_t 		  	 cguid, 
 		FDF_container_props_t	*pprops
 		);
+
 static FDF_status_t
 fdf_get_container_props_int(
 		struct FDF_thread_state	*fdf_thread_state, 
@@ -1058,29 +1057,24 @@ is_fdf_operation_allowed(void)
 /*
  * Get the container map for a given container id.
  */
-ctnr_map_t *
+cntr_map_t *
 get_cntr_map(cntr_id_t cntr_id)
 {
-    int           n = MCD_MAX_NUM_CNTRS;
-    ctnr_map_t *cmap = CtnrMap;
+    cntr_map_t *cmap = NULL;
 
-    for (; n-- > 0; cmap++)
-        if (cmap->cguid == cntr_id)
-            break;
+	cmap = fdf_cmap_get_by_cguid( cntr_id );
 
-    if (n < 0)
-        return NULL;
+	if ( cmap )
+    	atomic_inc( cmap->io_count );
 
-    atomic_inc(cmap->io_count);
     return cmap;
 }
-
 
 /*
  * Release the container map.
  */
 void
-rel_cntr_map(ctnr_map_t *cmap)
+rel_cntr_map(cntr_map_t *cmap)
 {
     atomic_dec(cmap->io_count);
 }
@@ -1097,7 +1091,7 @@ get_cntr_info(cntr_id_t cntr_id,
               uint64_t *size,
               FDF_boolean_t *evicting)
 {
-    ctnr_map_t *cmap = get_cntr_map(cntr_id);
+    cntr_map_t *cmap = get_cntr_map(cntr_id);
     if (!cmap)
         return 0;
 
@@ -1138,7 +1132,7 @@ inc_cntr_map(cntr_id_t cntr_id, int64_t objs, int64_t blks, int check)
 {
     int          ret = 1;
     int64_t     size = blks * MCD_OSD_BLK_SIZE;
-    ctnr_map_t *cmap = get_cntr_map(cntr_id);
+    cntr_map_t *cmap = get_cntr_map(cntr_id);
 
     if (!cmap)
         return 1;
@@ -1169,112 +1163,44 @@ inc_cntr_map(cntr_id_t cntr_id, int64_t objs, int64_t blks, int check)
     return ret;
 }
 
-
-#ifdef notdef
-static int count_containers() {
-    int i = 0;
-    int count = 0;
-
-    for (i = 0; i < MCD_MAX_NUM_CNTRS; i++ ) {
-        if ( CtnrMap[i].cguid != 0 ) {
-            ++count;
-        }
-    }
-
-    return count;
-}
-#endif /* notdef */
-
-#ifdef notdef
-void dump_map() {
-    for (int i=0; i<MCD_MAX_NUM_CNTRS; i++) {
-        if (CtnrMap[i].cguid != 0) {
-            fprintf(stderr, ">>>index        								= %d\n", i);
-            fprintf(stderr, ">>>CtnrMap[%d].io_count        				= %d\n", i, CtnrMap[i].io_count);
-            fprintf(stderr, ">>>CtnrMap[%d].cname           				= %s\n", i, CtnrMap[i].cname);
-            fprintf(stderr, ">>>CtnrMap[%d].cguid           				= %lu\n", i, CtnrMap[i].cguid);
-            fprintf(stderr, ">>>CtnrMap[%d].sdf_container   				= %d\n", i, !isContainerNull(CtnrMap[i].sdf_container));
-			fprintf(stderr, ">>>CtnrMap[%d].size_kb 						= %lu\n", i, CtnrMap[i].size_kb);
-            fprintf(stderr, ">>>CtnrMap[%d].num_obj 						= %lu\n", i, CtnrMap[i].num_obj);
-            fprintf(stderr, ">>>CtnrMap[%d].current_size 					= %lu\n", i, CtnrMap[i].current_size);
-            fprintf(stderr, ">>>CtnrMap[%d].state 							= %d\n", i, CtnrMap[i].state);
-            fprintf(stderr, ">>>CtnrMap[%d].evicting 						= %d\n", i, CtnrMap[i].evicting);
-            fprintf(stderr, ">>>CtnrMap[%d].container_stats.num_evictions	= %lu\n", i, CtnrMap[i].container_stats.num_evictions);
-        }
-    }
-}
-#endif /* notdef */
-
-int fdf_get_ctnr_from_cguid(
-	FDF_cguid_t cguid
-	)
-{
-    int i;
-    int i_ctnr = -1;
-
-    for ( i = 0; i < MCD_MAX_NUM_CNTRS; i++ ) {
-        if ( CtnrMap[i].cguid == cguid ) {
-	    	i_ctnr = i;
-	    	break;
-		}
-    }
-
-    return i_ctnr;
-}
-
-int fdf_get_ctnr_from_cname(
-	char *cname
-	)
-{
-    int i;
-    int i_ctnr = -1;
-
-    for ( i = 0; i < MCD_MAX_NUM_CNTRS; i++ ) {
-	if ( (NULL != CtnrMap[i].cname) && (0 == strcmp( CtnrMap[i].cname, cname )) ) {
-            i_ctnr = i;
-            break;
-        }
-    }
-
-    return i_ctnr;
-}
-
 FDF_status_t fdf_get_ctnr_status(FDF_cguid_t cguid, int delete_ok) {
-    int i = 0;
-	FDF_status_t status = FDF_FAILURE_CONTAINER_NOT_OPEN;
+    cntr_map_t   *cmap   = NULL;
+	FDF_status_t  status = FDF_FAILURE_CONTAINER_NOT_OPEN;
 
-    i = fdf_get_ctnr_from_cguid( cguid );
-    if ( i < 0 ) {
+    cmap = fdf_cmap_get_by_cguid( cguid );
+    if ( !cmap ) {
         return FDF_FAILURE_CONTAINER_NOT_FOUND;
-    }
-    if ( i >= 0 ) {
-        if ( !isContainerNull(CtnrMap[i].sdf_container) ) {
+    } else {
+        if ( !isContainerNull( cmap->sdf_container ) ) {
             status = FDF_CONTAINER_OPEN;
         }
-        if ( FDF_CONTAINER_STATE_OPEN != CtnrMap[i].state ) {
+        if ( FDF_CONTAINER_STATE_OPEN != cmap->state ) {
             status = FDF_FAILURE_CONTAINER_NOT_OPEN;
         }
-        if ( delete_ok && FDF_CONTAINER_STATE_DELETE_OPEN == CtnrMap[i].state ) {
+        if ( delete_ok && FDF_CONTAINER_STATE_DELETE_OPEN == cmap->state ) {
             status = FDF_CONTAINER_OPEN;
         }
-    }
+	}
+
     return status;
 }
 
 inline void fdf_incr_io_count( FDF_cguid_t cguid )
 {
-	int index = -1;
-	index = fdf_get_ctnr_from_cguid( cguid );
-	if ( index >= 0 )
-    	atomic_inc( CtnrMap[ index ].io_count );
+	cntr_map_t *cmap = NULL;
+
+	cmap = fdf_cmap_get_by_cguid( cguid );
+	if ( cmap )
+    	atomic_inc( cmap->io_count );
 }
 
 inline void fdf_decr_io_count( FDF_cguid_t cguid )
 {
-	int index = -1;
-	index = fdf_get_ctnr_from_cguid( cguid );
-	if ( index >= 0 )
-    	atomic_dec( CtnrMap[ index ].io_count );
+	cntr_map_t *cmap = NULL;
+
+	cmap = fdf_cmap_get_by_cguid( cguid );
+	if ( cmap )
+    	atomic_dec( cmap->io_count );
 }
 
 // Return 0 - not open, 1 - open
@@ -1282,16 +1208,15 @@ int fdf_is_ctnr_open(
     FDF_cguid_t cguid
     )
 {
-    int i		= -1;
-    int result	= 0;
+    int         result = 0;
+	cntr_map_t *cmap   = NULL;
 
-	i = fdf_get_ctnr_from_cguid( cguid );
-
-	if ( i >= 0 ) {
-		if ( !isContainerNull(CtnrMap[i].sdf_container) ) {
+	cmap = fdf_cmap_get_by_cguid( cguid );
+	if ( cmap ) {
+		if ( !isContainerNull( cmap->sdf_container ) ) {
 			result = 1;
 		}
-        if( FDF_CONTAINER_STATE_OPEN != CtnrMap[i].state ) {
+        if ( FDF_CONTAINER_STATE_OPEN != cmap->state ) {
             result = 0;
         }
 	}
@@ -1300,22 +1225,22 @@ int fdf_is_ctnr_open(
 }
 
 FDF_status_t fdf_ctnr_set_state(
-	int					index,
+	cntr_map_t          *cmap,
     FDF_CONTAINER_STATE	new_state
     )
 {
 	FDF_status_t status = FDF_FAILURE_INVALID_CONTAINER_STATE;
 	FDF_CONTAINER_STATE	current_state;
 
-	if ( index < 0 )
+	if ( !cmap )
 		return status;
 
-	if ( CtnrMap[ index ].cguid <= LAST_PHYSICAL_CGUID ) {
+	if ( cmap->cguid <= LAST_PHYSICAL_CGUID ) {
 		status = FDF_SUCCESS;
 		goto out;
 	}
 
-	current_state = CtnrMap[ index ].state;
+	current_state = cmap->state;
 	switch ( new_state ) {
 		case FDF_CONTAINER_STATE_UNINIT:
 			if ( FDF_CONTAINER_STATE_DELETE_CLOSED != current_state ) 
@@ -1355,7 +1280,7 @@ FDF_status_t fdf_ctnr_set_state(
 
 out:
 	barrier();
-	CtnrMap[ index ].state = new_state; 
+	cmap->state = new_state; 
 	status = FDF_SUCCESS;
 
 err:
@@ -1365,14 +1290,13 @@ err:
 					  LOG_CAT, 
 					  LOG_ERR, 
 					  "Failed to change container %lu state: %d to %d", 
-					  CtnrMap[ index ].cguid, 
+					  cmap->cguid, 
 					  current_state, 
 					  new_state);
 	}
 
     return status;
 }
-
 
 static void fdf_fth_initer(uint64_t arg)
 {
@@ -1799,6 +1723,10 @@ FDF_status_t FDFInit(
         return FDF_FAILURE;
     } 
     
+	// Initialize the container metadata map
+	if ( FDF_SUCCESS != fdf_cmap_init() )
+	    return FDF_FAILURE;
+
     mcd_aio_register_ops();
     mcd_osd_register_ops();
 
@@ -1903,7 +1831,7 @@ FDF_status_t FDFInit(
 		if ( FDF_SUCCESS != props_rc ) {
 			mcd_log_msg( 50030, PLAT_LOG_LEVEL_ERROR,
 	                     "failed to get SDF properties, status=%s",
-	                     SDF_Status_Strings[props_rc] );
+	                     FDFStrError(props_rc) );
 	        plat_abort();
 		}
 
@@ -2304,6 +2232,7 @@ FDF_status_t FDFOpenContainer(
 				FDF_VIRTUAL_CNTR );
 	}
 
+
 	if ( FDF_SUCCESS == status ) {
 		status = fdf_open_container( fdf_thread_state,
 				cname,
@@ -2318,6 +2247,7 @@ out:
 	if (thd_ctx_locked) {
 		fdf_unlock_thd_ctxt(fdf_thread_state);
 	}
+
 	return status;
 }
 
@@ -2362,22 +2292,23 @@ static FDF_status_t fdf_create_container(
         FDF_container_mode_t     mode
         )
 {
-    int                                    i                            = 0;
-    struct SDF_shared_state            *state                         = &sdf_shared_state;
-    FDF_status_t                        status                     = FDF_FAILURE;
-    SDF_shardid_t                        shardid                     = SDF_SHARDID_INVALID;
-    SDF_container_meta_t             *meta                         = NULL;
-    SDF_CONTAINER_PARENT               parent                     = containerParentNull;
-    local_SDF_CONTAINER_PARENT           lparent                     = NULL;
-    SDF_boolean_t                        isCMC                        = SDF_FALSE;
-    uint32_t                            in_shard_count                = 0;
-    uint32_t                            num_objs                     = 0;
-    const char                         *writeback_enabled_string    = NULL;
-    SDF_internal_ctxt_t                *pai                         = (SDF_internal_ctxt_t *) fdf_thread_state;
-    SDF_container_props_t             *sdf_properties                = NULL;
+	int                               i                             = 0;
+    struct SDF_shared_state          *state                         = &sdf_shared_state;
+    FDF_status_t                      status                        = FDF_FAILURE;
+    SDF_shardid_t                     shardid                       = SDF_SHARDID_INVALID;
+    SDF_container_meta_t             *meta                          = NULL;
+    SDF_CONTAINER_PARENT              parent                        = containerParentNull;
+    local_SDF_CONTAINER_PARENT        lparent                       = NULL;
+    SDF_boolean_t                     isCMC                         = SDF_FALSE;
+    uint32_t                          in_shard_count                = 0;
+    uint32_t                          num_objs                      = 0;
+    const char                       *writeback_enabled_string      = NULL;
+    SDF_internal_ctxt_t              *pai                           = (SDF_internal_ctxt_t *) fdf_thread_state;
+    SDF_container_props_t            *sdf_properties                = NULL;
 #if 0
-	FDF_internal_container_props_t   iproperties;
+	FDF_internal_container_props_t    iproperties;
 #endif
+
 
 	if ( !properties || !cguid || !fdf_thread_state ||
 			ISEMPTY( cname ) ) {
@@ -2439,7 +2370,7 @@ static FDF_status_t fdf_create_container(
 	} else {
 		// Make sure we have not gone over the container limit
 		for ( i = 0; i < MCD_MAX_NUM_CNTRS; i++ ) {
-			if ( CtnrMap[i].cguid == 0 ) { 
+			if ( Mcd_containers[i].cguid == 0 ) { 
 				// this is an unused map entry
 				break;
 			}
@@ -2465,6 +2396,16 @@ static FDF_status_t fdf_create_container(
 			return status;
 		}
 
+        status = fdf_cmap_create( cname, 
+	                              *cguid, 
+	                              properties->size_kb, 
+	                              FDF_CONTAINER_STATE_CLOSED, 
+	                              properties->evicting
+	                            );
+
+	    if ( FDF_SUCCESS != status ) 
+			goto out;
+
 		isCMC = SDF_FALSE;
 		init_get_my_node_id();
 
@@ -2476,7 +2417,7 @@ static FDF_status_t fdf_create_container(
 					LOG_CAT,
 					LOG_ERR,
 					"Failed to save cguid state: %s",
-					SDF_Status_Strings[status] );
+					FDFStrError(status) );
 
 			status = FDF_PUT_METADATA_FAILED;
 			goto out;
@@ -2676,7 +2617,7 @@ static FDF_status_t fdf_create_container(
 		}
 	}
 
-	plat_log_msg( 21511, LOG_CAT, LOG_TRACE, "%s - %s", cname, SDF_Status_Strings[status] );
+	plat_log_msg( 21511, LOG_CAT, LOG_TRACE, "%s - %s", cname, FDFStrError(status) );
 
 	if ( status != FDF_SUCCESS && status != FDF_CONTAINER_EXISTS ) {
 		plat_log_msg( 21538, LOG_CAT, LOG_ERR, "cname=%s, function returned status = %u", cname, status );
@@ -2701,23 +2642,14 @@ static FDF_status_t fdf_create_container(
 
 	if ( FDF_SUCCESS == status && CMC_CGUID != *cguid ) {
 		for ( i = 0; i < MCD_MAX_NUM_CNTRS; i++ ) {
-			if ( CtnrMap[i].cguid == 0 ) {
-                                memset(&CtnrMap[i], 0, sizeof(ctnr_map_t));
-				strcpy( CtnrMap[i].cname, cname );
-				CtnrMap[i].cguid         = *cguid;
-				CtnrMap[i].sdf_container = containerNull;
-				CtnrMap[i].size_kb     	 = properties->size_kb;
-				CtnrMap[i].current_size	 = 0;
-				CtnrMap[i].evicting    	 = properties->evicting;
-				if ( FDF_SUCCESS != ( status = fdf_ctnr_set_state( i, FDF_CONTAINER_STATE_CLOSED ) ) )
-					break;
 #ifdef SDFAPIONLY
+	        if ( Mcd_containers[i].cguid == FDF_NULL_CGUID ) {
 				Mcd_containers[i].cguid = *cguid;
 				strcpy( Mcd_containers[i].cname, cname );
 #endif /* SDfAPIONLY */
 				break;
-			}           
-		}
+	        }
+	    }
 	}
 
 out:
@@ -2726,7 +2658,7 @@ out:
 
 	SDFEndSerializeContainerOp( pai );
 
-	plat_log_msg(160034, LOG_CAT, LOG_DBG, "%s(cguid=%lu) - %s", cname, *cguid, SDF_Status_Strings[status]);
+	plat_log_msg(160034, LOG_CAT, LOG_DBG, "%s(cguid=%lu) - %s", cname, *cguid, FDFStrError(status));
 
 	return status;
 }
@@ -2754,7 +2686,7 @@ static FDF_status_t fdf_open_container(
 	struct shard				*shard		= NULL;
 #endif /* SDFAPIONLY */
 	SDF_container_meta_t		 meta;
-
+	cntr_map_t                  *cmap       = NULL;
 
 	if ( serialize )
 		SDFStartSerializeContainerOp( pai );
@@ -2766,31 +2698,32 @@ static FDF_status_t fdf_open_container(
 	}
 
     if ( ISEMPTY( cname ) ) { 
-        status = SDF_INVALID_PARAMETER;
-		*cguid = SDF_NULL_CGUID;
+        status = FDF_INVALID_PARAMETER;
+		*cguid = FDF_NULL_CGUID;
 		goto out;
 	}
 
     plat_log_msg( 20819, LOG_CAT, LOG_DBG, "%s", cname);
 
     if ( strcmp( cname, CMC_PATH ) != 0 ) {
-		i_ctnr = fdf_get_ctnr_from_cname( cname );
-
-    	if (i_ctnr == -1) {
-        	status = SDF_INVALID_PARAMETER;
-    	} else {
-			*cguid = CtnrMap[i_ctnr].cguid;
-    	}
-
+	    if ( NULL == ( cmap = fdf_cmap_get_by_cname( cname ) ) ) {
+	        status = FDF_INVALID_PARAMETER;
+	        *cguid = FDF_NULL_CGUID;
+	        goto out;
+	    }
+	        
+	    *cguid = cmap->cguid;
     } else {
 		i_ctnr = 0;
 		*cguid = CMC_CGUID;
     }
 
-    if ( FDF_CONTAINER_STATE_OPEN == CtnrMap[i_ctnr].state || FDF_CONTAINER_STATE_DELETE_OPEN == CtnrMap[ i_ctnr ].state) {
-        plat_log_msg( 160032, LOG_CAT, LOG_DBG, "Already opened or error: %s - %s", cname, SDF_Status_Strings[status] );
-		goto out;
-    }
+    if ( strcmp( cname, CMC_PATH ) != 0 ) {
+        if ( FDF_CONTAINER_STATE_OPEN == cmap->state || FDF_CONTAINER_STATE_DELETE_OPEN == cmap->state) {
+            plat_log_msg( 160032, LOG_CAT, LOG_DBG, "Already opened or error: %s - %s", cname, FDFStrError(status) );
+		    goto out;
+        }
+	}
 
     if ( !isContainerParentNull( parent = isParentContainerOpened( cname ) ) ) {
                 
@@ -2816,12 +2749,12 @@ static FDF_status_t fdf_open_container(
         if ( CMC_CGUID == *cguid ) {
             theCMC->c = internal_serverToClientContainer( container );
         } else {
-            CtnrMap[i_ctnr].sdf_container = container;
-        	if ( FDF_CONTAINER_STATE_DELETE_PROG == CtnrMap[ i_ctnr ].state ) {
-            	if ( FDF_SUCCESS != ( status = fdf_ctnr_set_state( i_ctnr, FDF_CONTAINER_STATE_DELETE_OPEN ) ) ) 
+            cmap->sdf_container = container;
+        	if ( FDF_CONTAINER_STATE_DELETE_PROG == cmap->state ) {
+            	if ( FDF_SUCCESS != ( status = fdf_ctnr_set_state( cmap, FDF_CONTAINER_STATE_DELETE_OPEN ) ) ) 
 					goto out;
         	} else {
-            	if ( FDF_SUCCESS != ( status = fdf_ctnr_set_state( i_ctnr, FDF_CONTAINER_STATE_OPEN ) ) )
+            	if ( FDF_SUCCESS != ( status = fdf_ctnr_set_state( cmap, FDF_CONTAINER_STATE_OPEN ) ) )
 					goto out;
         	}
 		}
@@ -2882,11 +2815,11 @@ static FDF_status_t fdf_open_container(
                 plat_log_msg(80034,LOG_CAT,LOG_DIAG,"Container %s does not exist",cname);
             }
             else {
-		        plat_log_msg( 21511, LOG_CAT, LOG_DIAG, "%s - %s", cname, SDF_Status_Strings[status] );
+		        plat_log_msg( 21511, LOG_CAT, LOG_DIAG, "%s - %s", cname, FDFStrError(status) );
             }
         }
     } else {
-		plat_log_msg( 150024, LOG_CAT, log_level, "NULL - %s", SDF_Status_Strings[status] );
+		plat_log_msg( 150024, LOG_CAT, log_level, "NULL - %s", FDFStrError(status) );
     }
 
  out:
@@ -2978,16 +2911,16 @@ FDF_status_t FDFClosePhysicalContainer(
 static bool 
 is_container_being_deleted(FDF_cguid_t cguid)
 {
-	int i_ctnr = -1;
+	cntr_map_t *cmap = NULL;
 	bool ret = FDF_TRUE;
 
 	/*
-	 * Check if the cguid is present in CtnrMap. If not,
+	 * Check if the cguid is present in cmap. If not,
 	 * the container for given cguid has been deleted.
 	 */
-	i_ctnr = fdf_get_ctnr_from_cguid(cguid);
+	cmap = fdf_cmap_get_by_cguid(cguid);
 
-	if ( i_ctnr < 0 ) {
+	if ( !cmap ) {
 		plat_log_msg(160138, LOG_CAT, LOG_DIAG,
 				"Container %lu is not found", cguid);
 		return ret;
@@ -2996,9 +2929,9 @@ is_container_being_deleted(FDF_cguid_t cguid)
 	/*
 	 * Check if container is being deleted, if so return error
 	 */
-	if ( FDF_CONTAINER_STATE_DELETE_PROG == CtnrMap[i_ctnr].state ||
-		 FDF_CONTAINER_STATE_DELETE_OPEN == CtnrMap[i_ctnr].state ||
-		 FDF_CONTAINER_STATE_DELETE_CLOSED == CtnrMap[i_ctnr].state ) {
+	if ( FDF_CONTAINER_STATE_DELETE_PROG == cmap->state ||
+		 FDF_CONTAINER_STATE_DELETE_OPEN == cmap->state ||
+		 FDF_CONTAINER_STATE_DELETE_CLOSED == cmap->state ) {
 		plat_log_msg(160139, LOG_CAT, LOG_DIAG,
 				"Container %lu deletion is in progress", cguid);
 
@@ -3029,7 +2962,6 @@ static FDF_status_t fdf_close_container(
     struct SDF_shared_state *state			= &sdf_shared_state;
 #endif
     FDF_status_t			 status			= SDF_FAILURE;
-    int						 i_ctnr;
     SDF_CONTAINER			 container		= containerNull;
     SDF_internal_ctxt_t     *pai			= (SDF_internal_ctxt_t *) fdf_thread_state;
     int						 ok_to_delete	= 0;
@@ -3042,14 +2974,15 @@ static FDF_status_t fdf_close_container(
 	if ( serialize )
 	    SDFStartSerializeContainerOp(pai);
 
-    i_ctnr = fdf_get_ctnr_from_cguid(cguid);
+	cntr_map_t *cmap = fdf_cmap_get_by_cguid( cguid );
 
-    if (i_ctnr == -1) {
-		status = FDF_FAILURE_CONTAINER_NOT_FOUND;
-		goto out;
-	} else {
-		container = CtnrMap[i_ctnr].sdf_container;
+	if ( !cmap ) { 
+	    if ( serialize )
+	        SDFEndSerializeContainerOp(pai);
+	    return FDF_FAILURE_CONTAINER_NOT_FOUND;
 	}
+	    
+	container = cmap->sdf_container;
 
 	/*
 	 * Check if container is/being deleted, if so return error
@@ -3067,21 +3000,22 @@ static FDF_status_t fdf_close_container(
 		return status;
 	}
 
-    if ( ( FDF_CONTAINER_STATE_OPEN != CtnrMap[ i_ctnr ].state && 
-		   FDF_CONTAINER_STATE_DELETE_OPEN != CtnrMap[ i_ctnr ].state ) || 	
+    if ( ( FDF_CONTAINER_STATE_OPEN != cmap->state && 
+		   FDF_CONTAINER_STATE_DELETE_OPEN != cmap->state ) || 	
 		 isContainerNull(container) ) {
         status = FDF_FAILURE_CONTAINER_NOT_OPEN;
     } else {
 
-    	if ( FDF_CONTAINER_STATE_DELETE_OPEN == CtnrMap[ i_ctnr ].state ) {
-   			if ( FDF_SUCCESS != ( status = fdf_ctnr_set_state( i_ctnr, FDF_CONTAINER_STATE_DELETE_CLOSED ) ) )
+    	if ( FDF_CONTAINER_STATE_DELETE_OPEN == cmap->state ) {
+   			if ( FDF_SUCCESS != ( status = fdf_ctnr_set_state( cmap, FDF_CONTAINER_STATE_DELETE_CLOSED ) ) )
 				goto out;
 		} else {
-   			if ( FDF_SUCCESS != ( status = fdf_ctnr_set_state( i_ctnr, FDF_CONTAINER_STATE_CLOSED ) ) )
+   			if ( FDF_SUCCESS != ( status = fdf_ctnr_set_state( cmap, FDF_CONTAINER_STATE_CLOSED ) ) )
 				goto out;
 		}
+
      	// Allow any outstanding IO to drain
-    	fdf_cntr_drain_io( CtnrMap[ i_ctnr ].io_count );
+    	fdf_cntr_drain_io( cmap->io_count );
 
         // Delete the container if there are no outstanding opens and a delete is pending
         local_SDF_CONTAINER lcontainer = getLocalContainer(&lcontainer, container);
@@ -3145,20 +3079,14 @@ static FDF_status_t fdf_close_container(
 #endif
 
         if ( status == FDF_SUCCESS ) {
-    		CtnrMap[i_ctnr].sdf_container = containerNull;
+    		cmap->sdf_container = containerNull;
 
 			if (ok_to_delete) {
 				// Is this path used???
 			    plat_log_msg(160031, LOG_CAT, LOG_DBG, "Delete request pending. Deleting... cguid=%lu", cguid);
 
 		    	status = delete_container_internal_low(pai, path, SDF_FALSE, mode == FDF_PHYSICAL_CNTR ? SDF_TRUE:SDF_FALSE, NULL);
-
-	    		CtnrMap[i_ctnr].cguid           = 0;
-	    		CtnrMap[i_ctnr].cname[0]		= '\0';
-	    		CtnrMap[i_ctnr].size_kb			= 0;
-	    		CtnrMap[i_ctnr].current_size	= 0;
-   				if ( FDF_SUCCESS != ( status = fdf_ctnr_set_state( i_ctnr, FDF_CONTAINER_STATE_UNINIT ) ) )
-					goto out;
+	            fdf_cmap_delete( cguid, path );
 			}
         }
     }
@@ -3284,17 +3212,18 @@ FDF_status_t fdf_delete_container_async_end(
                                 struct FDF_thread_state *fdf_thread_state,
                                                          FDF_cguid_t cguid){
     FDF_status_t status;
-    int i_ctnr,ok_to_delete;
+    int ok_to_delete;
     FDF_cguid_t mycguid;
     SDF_container_meta_t meta;
     SDF_internal_ctxt_t *pai;
     FDF_container_mode_t mode;
+	cntr_map_t *cmap = NULL;
 
     pai = (SDF_internal_ctxt_t *) fdf_thread_state;
     /* Serializing container operation not required here. Because 
        it is protected by flag delete under progress */
-    i_ctnr = fdf_get_ctnr_from_cguid( cguid );  
-    if ( i_ctnr < 0 ) {
+    cmap = fdf_cmap_get_by_cguid( cguid );  
+    if ( !cmap ) {
         plat_log_msg( 160074, LOG_CAT, LOG_DBG,
                         "Container does not exist. Delete can not proceed" );
         return FDF_FAILURE;
@@ -3307,7 +3236,7 @@ FDF_status_t fdf_delete_container_async_end(
     //sleep(15);
 
     /* Open container and delete */
-    status = fdf_open_container( fdf_thread_state,CtnrMap[ i_ctnr ].cname,
+    status = fdf_open_container( fdf_thread_state,cmap->cname,
                                   NULL,0,&mycguid,mode,FDF_TRUE);
     if( status != FDF_SUCCESS ) {
         plat_log_msg(160075,LOG_CAT,LOG_ERR,
@@ -3330,17 +3259,11 @@ FDF_status_t fdf_delete_container_async_end(
 
     /* All objects got deleted. Just cleanup metaadata */
     SDFStartSerializeContainerOp(pai);
-	status = delete_container_internal_low( pai, CtnrMap[i_ctnr].cname, 
+	status = delete_container_internal_low( pai, cmap->cname, 
 				SDF_FALSE,  (mode == FDF_PHYSICAL_CNTR ? SDF_TRUE:SDF_FALSE), 
 													&ok_to_delete );
 	if ( FDF_SUCCESS == status && ok_to_delete) {
-	    CtnrMap[i_ctnr].cname[0]		= '\0';
-	    CtnrMap[i_ctnr].cguid         	= 0;
-	    CtnrMap[i_ctnr].sdf_container 	= containerNull;
-	    CtnrMap[i_ctnr].size_kb			= 0;
-	    CtnrMap[i_ctnr].current_size  	= 0;
-		if ( FDF_SUCCESS != ( status = fdf_ctnr_set_state( i_ctnr, FDF_CONTAINER_STATE_UNINIT ) ) )
-			goto out;
+	    fdf_cmap_delete( cguid, cmap->cname );
 		if ( FDF_VIRTUAL_CNTR == mode ) {
             fdf_flush_container( fdf_thread_state, VMC_CGUID );
         }
@@ -3367,7 +3290,6 @@ FDF_status_t fdf_delete_container_async_end(
                     "Container %lu is not cleanedup completly", cguid );
     }
 
-out:
     SDFEndSerializeContainerOp( pai );
     return status;
 }
@@ -3378,17 +3300,17 @@ out:
                                  SDFStartSerializeContainerOp(pai) lock */
 FDF_status_t fdf_rename_container(struct FDF_thread_state *fdf_thread_state,
                                                          FDF_cguid_t cguid ) {
-    int i_ctnr;
     time_t t;
     FDF_status_t status;
     SDF_container_meta_t meta;
     char cname[CONTAINER_NAME_MAXLEN];
     SDF_internal_ctxt_t *pai;
+	cntr_map_t *cmap = NULL;
 
     pai = (SDF_internal_ctxt_t *) fdf_thread_state;
 
-    i_ctnr = fdf_get_ctnr_from_cguid( cguid );
-    if ( i_ctnr < 0 ) {
+    cmap = fdf_cmap_get_by_cguid( cguid );
+    if ( !cmap ) {
         plat_log_msg( 160110, LOG_CAT, LOG_DBG,
                         "Container does not exist. Can not rename" );
         return FDF_FAILURE;
@@ -3422,7 +3344,11 @@ FDF_status_t fdf_rename_container(struct FDF_thread_state *fdf_thread_state,
          plat_abort();
     }
     snprintf(meta.cname,CONTAINER_NAME_MAXLEN,"%s",cname);
-    snprintf(CtnrMap[i_ctnr].cname,CONTAINER_NAME_MAXLEN,"%s",cname);
+    snprintf(cmap->cname,CONTAINER_NAME_MAXLEN,"%s",cname);
+	if ( FDF_SUCCESS != ( status = fdf_cmap_update( cmap ) ) ) {
+	    plat_log_msg( 150115, LOG_CAT, LOG_ERR, "Unable to create metadata cache for %lu. Cannot rename", cguid );
+	    return status;
+	}
     status = name_service_put_meta( pai, cguid, &meta );
     if ( status != FDF_SUCCESS ) {
         plat_log_msg( 160115, LOG_CAT, LOG_ERR,
@@ -3449,10 +3375,10 @@ FDF_status_t fdf_delete_container_async_start(
                                 struct FDF_thread_state *fdf_thread_state,
                                 FDF_cguid_t cguid, FDF_container_mode_t mode ){
 
-    int i_ctnr;
     FDF_status_t status;
     SDF_container_meta_t meta;
     SDF_internal_ctxt_t *pai;
+	cntr_map_t *cmap = NULL;
 
     plat_log_msg(160091,LOG_CAT, LOG_DBG,
                                      "Deleting container %lu",cguid);
@@ -3465,8 +3391,8 @@ FDF_status_t fdf_delete_container_async_start(
     pai = (SDF_internal_ctxt_t *) fdf_thread_state;
 
     SDFStartSerializeContainerOp(pai);
-    i_ctnr = fdf_get_ctnr_from_cguid( cguid );
-    if ( i_ctnr < 0 ) {
+    cmap = fdf_cmap_get_by_cguid( cguid );
+    if ( !cmap ) {
         plat_log_msg( 160074, LOG_CAT, LOG_WARN,
                         "Container does not exist. Delete can not proceed" );
         SDFEndSerializeContainerOp(pai);
@@ -3484,9 +3410,9 @@ FDF_status_t fdf_delete_container_async_start(
     if ( meta.delete_in_progress == SDF_TRUE ) {
         /* Check if we have initiated the async command. While doing 
            Recovery, we have to make sure we are sending the command */
-        if ( FDF_CONTAINER_STATE_DELETE_PROG == CtnrMap[i_ctnr].state ||
-        	 FDF_CONTAINER_STATE_DELETE_OPEN == CtnrMap[i_ctnr].state ||
-        	 FDF_CONTAINER_STATE_DELETE_CLOSED == CtnrMap[i_ctnr].state ) {
+        if ( FDF_CONTAINER_STATE_DELETE_PROG == cmap->state ||
+        	 FDF_CONTAINER_STATE_DELETE_OPEN == cmap->state ||
+        	 FDF_CONTAINER_STATE_DELETE_CLOSED == cmap->state ) {
             plat_log_msg( 80023, LOG_CAT, LOG_DIAG,
                       "Delete already under progress for container %lu",cguid);
             SDFEndSerializeContainerOp(pai);
@@ -3544,7 +3470,7 @@ FDF_status_t fdf_delete_container_async_start(
         return FDF_FAILURE;
     }
     /* Set the state that async delete is under progress */
-	if ( FDF_SUCCESS != ( status = fdf_ctnr_set_state( i_ctnr, FDF_CONTAINER_STATE_DELETE_PROG ) ) ) {
+	if ( FDF_SUCCESS != ( status = fdf_ctnr_set_state( cmap, FDF_CONTAINER_STATE_DELETE_PROG ) ) ) {
     	SDFEndSerializeContainerOp(pai);
     	return status;
 	}
@@ -3561,11 +3487,11 @@ static FDF_status_t fdf_delete_container_1(
 {  
     FDF_status_t 	 	 	 status 		= FDF_FAILURE;
     FDF_status_t 	 	 	 del_status 	= FDF_FAILURE;
-    int  			 	 	 i_ctnr			= -1;
 	int				  	 	 ok_to_delete	= 0;
 	SDF_container_meta_t	 meta;
 	FDF_cguid_t	 			 mycguid		= 0;
     SDF_internal_ctxt_t 	*pai 			= (SDF_internal_ctxt_t *) fdf_thread_state;
+	cntr_map_t              *cmap           = NULL;
 
     plat_log_msg( 21630, 
 				  LOG_CAT, 
@@ -3579,9 +3505,9 @@ static FDF_status_t fdf_delete_container_1(
 
     SDFStartSerializeContainerOp(pai);
 
-    i_ctnr = fdf_get_ctnr_from_cguid( cguid );
+    cmap = fdf_cmap_get_by_cguid( cguid );
 
-	if ( i_ctnr < 0 ) {
+	if ( !cmap ) {
 		plat_log_msg( 150099,
 					  LOG_CAT,
 					  LOG_DIAG,
@@ -3611,86 +3537,74 @@ static FDF_status_t fdf_delete_container_1(
 		plat_log_msg( 150086, LOG_CAT, LOG_DIAG, "Could not mark delete in progress for container %lu\n", cguid );
 	} 
 
-    i_ctnr = fdf_get_ctnr_from_cguid( cguid );
+	if ( ( status = fdf_open_container( fdf_thread_state,  
+	                                    cmap->cname, 
+	                                    NULL, 
+	                                    0, 
+	                                    &mycguid, 
+	                                    mode, 
+	                                    FDF_FALSE ) ) != FDF_SUCCESS ) {
+		plat_log_msg( 150091,
+					  LOG_CAT,
+					  LOG_ERR,
+					  "Cannot open container %lu to delete it",
+					  cguid );
+		goto out;
+	}
 
-    if ( i_ctnr >= 0 && !ISEMPTY( CtnrMap[i_ctnr].cname ) ) {
+	if ( ( del_status = fdf_delete_objects( fdf_thread_state, cguid ) ) != FDF_SUCCESS ) {
+		plat_log_msg( 150092,
+					  LOG_CAT,
+					  LOG_ERR,
+					  "Failed to delete container objects" );
+	} 
 
-		if ( ( status = fdf_open_container( fdf_thread_state,  
-   											CtnrMap[ i_ctnr ].cname,
-   											NULL,
-   											0,
-   											&mycguid,
-											mode,
-											FDF_FALSE ) ) != FDF_SUCCESS ) {
-			plat_log_msg( 150091,
-						  LOG_CAT,
-						  LOG_ERR,
-						  "Cannot open container %lu to delete it",
-						  cguid );
-			goto out;
-		}
+	if ( ( status = fdf_close_container( fdf_thread_state,  
+   										 mycguid,
+										 mode,
+										 FDF_FALSE, FDF_TRUE ) ) != FDF_SUCCESS ) {
+		plat_log_msg( 150093,
+				  	  LOG_CAT,
+					  LOG_WARN,
+					  "Cannot close container %lu to delete it",
+					  cguid );
 
-		if ( ( del_status = fdf_delete_objects( fdf_thread_state, cguid ) ) != FDF_SUCCESS ) {
-			plat_log_msg( 150092,
-						  LOG_CAT,
-						  LOG_ERR,
-						  "Failed to delete container objects" );
-		} 
+		if ( FDF_SUCCESS != del_status )
+			status = del_status;
+		goto out;
+	} else {
 
-		if ( ( status = fdf_close_container( fdf_thread_state,  
-   											 mycguid,
-											 mode,
-											 FDF_FALSE, FDF_TRUE ) ) != FDF_SUCCESS ) {
-			plat_log_msg( 150093,
-					  	  LOG_CAT,
-						  LOG_WARN,
-						  "Cannot close container %lu to delete it",
-						  cguid );
+        status = delete_container_internal_low( pai, 
+												cmap->cname, 
+												SDF_FALSE,  mode == FDF_PHYSICAL_CNTR ? SDF_TRUE:SDF_FALSE, 
+												&ok_to_delete );
 
-			if ( FDF_SUCCESS != del_status )
-				status = del_status;
-			goto out;
-		} else {
+        if ( FDF_SUCCESS == status && ok_to_delete) {
 
-	        status = delete_container_internal_low( pai, 
-													CtnrMap[i_ctnr].cname, 
-													SDF_FALSE,  mode == FDF_PHYSICAL_CNTR ? SDF_TRUE:SDF_FALSE, 
-													&ok_to_delete );
+	        fdf_cmap_delete( cguid, cmap->cname );
 
-	        if ( FDF_SUCCESS == status && ok_to_delete) {
+			// Make sure the metadata container is in sync
+			if ( FDF_VIRTUAL_CNTR == mode )
+				fdf_flush_container( fdf_thread_state, VMC_CGUID );
+			else
+				fdf_flush_container( fdf_thread_state, CMC_CGUID );
 
-	        	CtnrMap[i_ctnr].cname[0]		= '\0';
-	            CtnrMap[i_ctnr].cguid         	= 0;
-	            CtnrMap[i_ctnr].sdf_container 	= containerNull;
-	            CtnrMap[i_ctnr].size_kb			= 0;
-	            CtnrMap[i_ctnr].current_size  	= 0;
-        		if ( FDF_SUCCESS != ( status = fdf_ctnr_set_state( i_ctnr, FDF_CONTAINER_STATE_UNINIT ) ) )
-            		goto out;
+        } else {
+	        if ( FDF_SUCCESS == status )
+				status = FDF_FAILURE;
 
-				// Make sure the metadata container is in sync
-				if ( FDF_VIRTUAL_CNTR == mode )
-					fdf_flush_container( fdf_thread_state, VMC_CGUID );
-				else
-					fdf_flush_container( fdf_thread_state, CMC_CGUID );
+			meta.delete_in_progress = FDF_FALSE;
 
-	        } else {
-	            if ( FDF_SUCCESS == status )
-					status = FDF_FAILURE;
+			if ( name_service_put_meta( pai, cguid, &meta ) != SDF_SUCCESS ) {
+				plat_log_msg( 150087, LOG_CAT, LOG_WARN, "Could not clear delete in progress for container %lu\n", cguid );
+			} 
 
-				meta.delete_in_progress = FDF_FALSE;
-
-				if ( name_service_put_meta( pai, cguid, &meta ) != SDF_SUCCESS ) {
-					plat_log_msg( 150087, LOG_CAT, LOG_WARN, "Could not clear delete in progress for container %lu\n", cguid );
-				} 
-
-	            plat_log_msg( 160030, 
-							  LOG_CAT, 
-							  LOG_ERR, 
-							  "Container is not deleted (busy or error): cguid=%lu(%d), status=%s", 
-							  cguid, 
-							  i_ctnr, 
-							  SDF_Status_Strings[status] );
-			}
+           plat_log_msg( 150041,
+	                     LOG_CAT, 
+	                     LOG_ERR, 
+	                     "Container is not deleted (busy or error): cguid=%lu, status=%s", 
+	                     cguid, 
+	                     FDFStrError(status) );
         }
     }
 
@@ -3698,7 +3612,7 @@ static FDF_status_t fdf_delete_container_1(
 				  LOG_CAT, 
 				  LOG_DBG, 
 				  "%s", 
-				  SDF_Status_Strings[status] );
+				  FDFStrError(status) );
  out:
     SDFEndSerializeContainerOp(pai);
 
@@ -3706,43 +3620,57 @@ static FDF_status_t fdf_delete_container_1(
 }
 
 FDF_cguid_t FDFGetCguid (char *cname ) {
-    int i;
-    for ( i = 0; i < MCD_MAX_NUM_CNTRS; i++ ) {
-        if((CtnrMap[i].cguid != 0) && (!strcmp(CtnrMap[i].cname,cname))){
-            return CtnrMap[i].cguid;
-        }
-    }
-    return SDF_NULL_CGUID;
+	FDF_cguid_t cguid = FDF_NULL_CGUID;
+
+	if ( cname ) {
+	    cntr_map_t *cmap = fdf_cmap_get_by_cname( cname );
+	    if ( cmap )
+	        cguid = cmap->cguid;
+	}
+
+	return cguid;
 }
 
 char *FDFGetContainerName(FDF_cguid_t cguid) {
-    int i;
-    for ( i = 0; i < MCD_MAX_NUM_CNTRS; i++ ) {
-        if((CtnrMap[i].cguid != 0) && (CtnrMap[i].cguid == cguid)){
-            return CtnrMap[i].cname;
-        }
-    }
-    return "";
+	cntr_map_t *cmap = NULL;
+
+	cmap = fdf_cmap_get_by_cguid( cguid );
+	if ( !cmap || !cmap->cname )
+	    return "";
+	else {
+	    return cmap->cname;
+	}
 }
 
-
-char *FDFGetNextContainerName(struct FDF_thread_state *fdf_thread_state,int *index) {
-    int i;
+char *FDFGetNextContainerName(struct FDF_thread_state *fdf_thread_state, struct FDFCMapIterator **iterator) {
     SDF_container_meta_t meta;
     SDF_internal_ctxt_t *pai;
+	char *key = NULL;
+	uint32_t keylen = 0;
+	cntr_map_t *cmap = NULL;
+	uint64_t cmaplen = 0;
 
     pai = (SDF_internal_ctxt_t *) fdf_thread_state;
     SDFStartSerializeContainerOp(pai);
-    for ( i = *index ; i < MCD_MAX_NUM_CNTRS; i++ ) {
-        if(CtnrMap[i].cguid != 0){
+
+	// See if we are just starting the enum
+	if ( NULL == *iterator ) {
+	    *iterator = (struct FDFCMapIterator *) fdf_cmap_enum();
+	    if ( NULL == *iterator )
+	        return NULL;
+	}
+
+	// Get the next container name
+	while ( fdf_cmap_next_enum( (struct cmap_iterator *) iterator, &key, &keylen, (char **) &cmap, &cmaplen ) ) {
+        if ( cmap->cguid != FDF_NULL_CGUID ) {
             /* Skip CMC, VMC and VDC */
-            if( (strcmp(CtnrMap[i].cname,"/sdf/VMC") == 0) ||
-                (strcmp(CtnrMap[i].cname,"/sdf/VDC") == 0) ||
-                (strcmp(CtnrMap[i].cname,SEQNO_CONTAINER_NAME) == 0) ) {
+            if ( ( strcmp( cmap->cname,"/sdf/VMC" ) == 0 ) ||
+                 ( strcmp( cmap->cname,"/sdf/VDC") == 0 ) ||
+                 ( strcmp( cmap->cname, SEQNO_CONTAINER_NAME ) == 0 ) ) {
                 continue;
-            }
+}
             /* check if the container is being deleted */
-            if (name_service_get_meta( pai, CtnrMap[i].cguid, &meta ) != SDF_SUCCESS ) {
+            if ( name_service_get_meta( pai, cmap->cguid, &meta ) != SDF_SUCCESS ) {
                 //plat_log_msg( 160087, LOG_CAT, LOG_ERR,
                 //   "Could not read metadata for %lu. skipping this container from list",
                 //                                                        CtnrMap[i].cguid );
@@ -3754,13 +3682,16 @@ char *FDFGetNextContainerName(struct FDF_thread_state *fdf_thread_state,int *ind
                 //                                                        CtnrMap[i].cguid);
                 continue;
             }
-            *index = i+1;
             SDFEndSerializeContainerOp( pai );
-            return CtnrMap[i].cname;
+            return cmap->cname;
         }
     }
+
+	// Must have reached the end of the enum
+	fdf_cmap_finish_enum( ( struct cmap_iterator * ) iterator );
+	*iterator = NULL;
     SDFEndSerializeContainerOp( pai );
-    return "";
+    return NULL;
 }
 
 /*
@@ -3772,23 +3703,32 @@ fdf_get_containers_int(
 		FDF_cguid_t             *cguids,
 		uint32_t                *n_cguids)
 {
-    int i = 0;
-    int n_containers = 0;
-    if (!cguids || !n_cguids) {
-	return FDF_INVALID_PARAMETER;
-    }
+    int                   n_containers = 0;
+	char                 *key          = NULL;
+	uint32_t              keylen       = 0;
+	cntr_map_t           *cmap         = NULL;
+	uint64_t              cmaplen      = 0;
+	struct cmap_iterator *iterator     = NULL;
 
-    for ( i = 0; i < MCD_MAX_NUM_CNTRS; i++ ) {
-        
-		if ( CtnrMap[i].cguid > LAST_PHYSICAL_CGUID  && 
-                     strcmp(CtnrMap[i].cname,SEQNO_CONTAINER_NAME) &&
-			 ( CtnrMap[i].state == FDF_CONTAINER_STATE_CLOSED ||
-			   CtnrMap[i].state == FDF_CONTAINER_STATE_OPEN )  ) {
-			cguids[n_containers] = CtnrMap[i].cguid;
+    if (!cguids || !n_cguids) 
+	    return FDF_INVALID_PARAMETER;
+
+	iterator = fdf_cmap_enum();
+
+	if ( !iterator )
+	    return FDF_FAILURE;
+
+	while ( fdf_cmap_next_enum( iterator, &key, &keylen, (char **) &cmap, &cmaplen ) ) {
+		if ( cmap->cguid > LAST_PHYSICAL_CGUID  && 
+             strcmp( cmap->cname,SEQNO_CONTAINER_NAME ) &&
+			 ( cmap->state == FDF_CONTAINER_STATE_CLOSED ||
+			   cmap->state == FDF_CONTAINER_STATE_OPEN )  ) {
+			cguids[n_containers] = cmap->cguid;
             n_containers++;
         }
     }
 
+	fdf_cmap_finish_enum( iterator );
     *n_cguids = n_containers;
     return FDF_SUCCESS;
 }
@@ -3976,7 +3916,7 @@ fdf_set_container_props(
     FDF_status_t             status = FDF_SUCCESS;
     SDF_container_meta_t     meta;
     SDF_internal_ctxt_t     *pai 	= (SDF_internal_ctxt_t *) fdf_thread_state;
-	int						 index	= -1;
+	cntr_map_t              *cmap   = NULL;
 
 	if ( !cguid || !pprops )
 		return FDF_INVALID_PARAMETER;
@@ -4016,10 +3956,14 @@ fdf_set_container_props(
 
         status = name_service_put_meta( pai, cguid, &meta );
 
-		index = fdf_get_ctnr_from_cguid( cguid );
+		cmap = fdf_cmap_get_by_cguid( cguid );
 
-		if ( index >= 0 )
-			CtnrMap[index].evicting = pprops->evicting;
+		if ( cmap ) {
+			cmap->evicting = pprops->evicting;
+	        status = fdf_cmap_update( cmap );
+	    } else {
+			status = FDF_CONTAINER_UNKNOWN;
+		}
     }
 
  out:
@@ -4940,23 +4884,34 @@ fdf_flush_cache(
 		struct FDF_thread_state  *fdf_thread_state
 		)
 {
-	FDF_status_t	status	= FDF_FAILURE;
-    int				i;
+	FDF_status_t          status       = FDF_SUCCESS;
+    char                 *key          = NULL;
+    uint32_t              keylen       = 0;
+    cntr_map_t           *cmap         = NULL;
+    uint64_t              cmaplen      = 0;
+    struct cmap_iterator *iterator     = NULL;
 
-    for ( i = 0; i < MCD_MAX_NUM_CNTRS; i++ ) {
+    iterator = fdf_cmap_enum();
 
-        if ( (CtnrMap[i].cguid != 0 ) && 
-			 (CtnrMap[i].state != FDF_CONTAINER_STATE_DELETE_PROG) &&
-			 (CtnrMap[i].state != FDF_CONTAINER_STATE_DELETE_OPEN) &&
-			 (CtnrMap[i].state != FDF_CONTAINER_STATE_DELETE_CLOSED) ) {
-			status = fdf_flush_container( fdf_thread_state, CtnrMap[i].cguid );
+    if ( !iterator )
+        return FDF_FAILURE;
 
-			if ( status != FDF_SUCCESS )
-				return status;
+    while ( fdf_cmap_next_enum( iterator, &key, &keylen, (char **) &cmap, &cmaplen ) ) {
+
+        if ( (cmap->cguid != FDF_NULL_CGUID ) && 
+			 (cmap->state != FDF_CONTAINER_STATE_DELETE_PROG) &&
+			 (cmap->state != FDF_CONTAINER_STATE_DELETE_OPEN) &&
+			 (cmap->state != FDF_CONTAINER_STATE_DELETE_CLOSED) ) {
+			status = fdf_flush_container( fdf_thread_state, cmap->cguid );
+
+			if ( status != FDF_SUCCESS ) 
+				goto out;
         }
     }
 
-    return FDF_SUCCESS;
+out:
+    fdf_cmap_finish_enum( iterator );
+    return status;
 }
 
 
@@ -5111,18 +5066,19 @@ static void fdf_get_fth_stats(SDF_internal_ctxt_t *pai, char ** ppos, int * lenp
 
 void fdf_get_flash_map(struct FDF_thread_state *thd_state, FDF_cguid_t cguid, 
                        char *buf, int *size){
-    int rc, i_ctnr;
+    int rc;
     uint64_t *stats_ptr;
     SDF_internal_ctxt_t *pai ;
     SDF_CONTAINER sdf_container = containerNull;
+	cntr_map_t *cmap = NULL;
 
     *size = 0;
     stats_ptr = NULL;
     pai  = (SDF_internal_ctxt_t *)thd_state;
     SDFStartSerializeContainerOp(pai);
 
-    i_ctnr = fdf_get_ctnr_from_cguid(cguid);
-    if (i_ctnr == -1) {
+    cmap = fdf_cmap_get_by_cguid(cguid);
+    if (!cmap) {
         *size = sprintf(buf,"Unable to get container from cguid\n");
         SDFEndSerializeContainerOp(pai);
         return;
@@ -5132,7 +5088,7 @@ void fdf_get_flash_map(struct FDF_thread_state *thd_state, FDF_cguid_t cguid,
         return;
     }
 
-    sdf_container = CtnrMap[i_ctnr].sdf_container;
+    sdf_container = cmap->sdf_container;
     FDFContainerStat( pai, sdf_container,
                              FLASH_SLAB_CLASS_SEGS,
                              (uint64_t *)&stats_ptr );
@@ -5678,7 +5634,6 @@ FDF_status_t FDFGetStatsStr (
     //SDF_status_t lock_status = FDF_SUCCESS;
     //SDF_cguid_t parent_cguid = SDF_NULL_CGUID;
     //int log_level = LOG_ERR;
-    int  i_ctnr;
     uint64_t space_used = 0;
     uint64_t maxbytes = 0;
     uint64_t num_evictions = 0;
@@ -5688,6 +5643,8 @@ FDF_status_t FDFGetStatsStr (
     char *temp;
     char * pos;
     FDF_container_props_t       dummy_prop;
+	cntr_map_t *cmap = NULL;
+
     memset( (void *)&dummy_prop, 0, sizeof(dummy_prop) );
 
 	if(!cguid) {
@@ -5696,21 +5653,21 @@ FDF_status_t FDFGetStatsStr (
 
     SDFStartSerializeContainerOp(pai);
 
-    i_ctnr = fdf_get_ctnr_from_cguid(cguid);
-    if (i_ctnr == -1) {
+    cmap = fdf_cmap_get_by_cguid(cguid);
+    if (!cmap) {
         status = SDF_INVALID_PARAMETER;
         goto out;
     }
     else {
-        sdf_container = CtnrMap[i_ctnr].sdf_container;
+        sdf_container = cmap->sdf_container;
     }
     if ( (status = fdf_get_ctnr_status(cguid, 0)) != FDF_CONTAINER_OPEN ) {
         goto out;
     }
     /* Check if this container is being deleted */
-    if( CtnrMap[i_ctnr].state == FDF_CONTAINER_STATE_DELETE_PROG ||
-        CtnrMap[i_ctnr].state == FDF_CONTAINER_STATE_DELETE_OPEN ||
-        CtnrMap[i_ctnr].state == FDF_CONTAINER_STATE_DELETE_CLOSED ) {
+    if( cmap->state == FDF_CONTAINER_STATE_DELETE_PROG ||
+        cmap->state == FDF_CONTAINER_STATE_DELETE_OPEN ||
+        cmap->state == FDF_CONTAINER_STATE_DELETE_CLOSED ) {
         SDFEndSerializeContainerOp(pai);
         return FDF_FAILURE_CONTAINER_DELETED;     
     }
@@ -5730,10 +5687,10 @@ FDF_status_t FDFGetStatsStr (
     if ( status == FDF_SUCCESS ) {
         //Add container properties to the list
         plat_snprintfcat( &pos, &buf_len, "STAT Container Name %s size:%lukb FIFO:%d persistence:%d eviction:%d writethru:%d\r\n", 
-                                           CtnrMap[i_ctnr].cname, pprops.size_kb, /*pprops.fifo_mode*/ 0, pprops.persistent, pprops.evicting, pprops.writethru );
+                                           cmap->cname, pprops.size_kb, /*pprops.fifo_mode*/ 0, pprops.persistent, pprops.evicting, pprops.writethru );
     }
     else {
-        plat_snprintfcat( &pos, &buf_len, "STAT Container Name %s\r\n", CtnrMap[i_ctnr].cname );
+        plat_snprintfcat( &pos, &buf_len, "STAT Container Name %s\r\n", cmap->cname );
     }
     plat_snprintfcat( &pos, &buf_len, "STAT CGUID %lu\r\n", cguid );
     FDFContainerStat( pai, sdf_container, SDF_N_CURR_ITEMS, &n );
@@ -5752,7 +5709,7 @@ FDF_status_t FDFGetStatsStr (
                               maxbytes );
 
     plat_snprintfcat( &pos, &buf_len, "STAT container_num_evictions %lu\r\n",
-                              CtnrMap[ i_ctnr ].container_stats.num_evictions );
+                              cmap->container_stats.num_evictions );
 
 	// Get server-wide flash stats
     fdf_get_flash_stats( pai, &pos, &buf_len, sdf_container,stats);
@@ -5776,7 +5733,7 @@ FDF_status_t FDFGetStatsStr (
     get_proc_stats(&pos, &buf_len);
 out:
 
-    //plat_log_msg(20819, LOG_CAT, log_level, "%s", SDF_Status_Strings[status]);
+    //plat_log_msg(20819, LOG_CAT, log_level, "%s", FDFStrError(status));
     SDFEndSerializeContainerOp(pai);
 
     return (status);
@@ -6066,9 +6023,9 @@ FDF_status_t fdf_resize_container(
     )
 {   
     FDF_status_t                 status     = FDF_FAILURE;
-    int                          index      = -1;
     SDF_internal_ctxt_t         *pai        = (SDF_internal_ctxt_t *) fdf_thread_state;
     SDF_container_meta_t         meta;
+	cntr_map_t                  *cmap       = NULL;
         
     // Cannot change physical container size
     if ( CMC_CGUID == cguid || VMC_CGUID == cguid || VDC_CGUID == cguid ) {
@@ -6076,12 +6033,12 @@ FDF_status_t fdf_resize_container(
         return FDF_CANNOT_REDUCE_CONTAINER_SIZE;
     }
     
-    index = fdf_get_ctnr_from_cguid( cguid );
-    if ( index < 0 ) {
+    cmap = fdf_cmap_get_by_cguid( cguid );
+    if ( !cmap ) {
         plat_log_msg( 150082, LOG_CAT, LOG_ERR, "Cannnot find container id %lu", cguid );
         status = FDF_CONTAINER_UNKNOWN;
 		goto out;
-    } else if ( size < CtnrMap[ index ].size_kb ) {
+    } else if ( size < cmap->size_kb ) {
             plat_log_msg( 150079, LOG_CAT, LOG_DIAG, "Cannnot reduce container size" );
             status = FDF_CANNOT_REDUCE_CONTAINER_SIZE;
 			goto out;
@@ -6100,7 +6057,7 @@ FDF_status_t fdf_resize_container(
 											   &meta ) ) != FDF_SUCCESS ) {
            	plat_log_msg( 150081, LOG_CAT, LOG_ERR, "Cannnot write container metadata for %lu", cguid );
        	} else {
-           	CtnrMap[ index ].size_kb = size;
+           	cmap->size_kb = size;
 			status = FDF_SUCCESS;
 		}
     }
@@ -6139,7 +6096,7 @@ static void *fdf_vc_thread(
 
 
 	if ( state->config.system_recovery == SYS_FLASH_RECOVERY )
-	flags = 0;  // Just open the VMC/VDC
+	    flags = 0;  // Just open the VMC/VDC
 	if ( ( status = fdf_vc_init( fdf_thread_state, flags ) ) != FDF_SUCCESS ) {
 	    plat_log_msg(150076,
 			 LOG_CAT, LOG_ERR,
@@ -6169,26 +6126,28 @@ static void *fdf_vc_thread(
 						 &datalen
 					       )) == FDF_SUCCESS) {
 
+	    status = fdf_cmap_create( meta->cname,
+	                              meta->cguid,
+	                              meta->properties.container_id.size,
+	                              FDF_CONTAINER_STATE_CLOSED,
+	                              meta->properties.container_type.caching_container
+	                            );
+
+	    if ( FDF_SUCCESS != status )
+	        break;
+
+		name_service_create_cguid_map( fdf_thread_state, 
+	                                   meta->cname, 
+	                                   meta->cguid
+	                                 );
 		for ( j = 0; j < MCD_MAX_NUM_CNTRS; j++ ) {
-			if (CtnrMap[j].cguid == 0) {
-				// this is an unused map entry
-				memset(&CtnrMap[j], 0, sizeof(ctnr_map_t));
-				memcpy( CtnrMap[j].cname, meta->cname, strlen( meta->cname ) );
-				CtnrMap[j].io_count             = 0;
-				CtnrMap[j].cguid                = meta->cguid;
-				CtnrMap[j].sdf_container        = containerNull;
-				CtnrMap[j].size_kb              = meta->properties.container_id.size;
-				CtnrMap[j].state                = fdf_ctnr_set_state( j, FDF_CONTAINER_STATE_CLOSED );
-				CtnrMap[j].evicting             = meta->properties.container_type.caching_container;
+			if (Mcd_containers[j].cguid == 0) {
 				Mcd_containers[j].cguid         = meta->cguid;
 				Mcd_containers[j].container_id  = meta->properties.container_id.container_id;
 				memcpy( Mcd_containers[j].cname, meta->cname, strlen( meta->cname ) );
-				name_service_create_cguid_map( fdf_thread_state,
-							   meta->cname,
-							   meta->cguid);
-			break;
+			    break;
+	        }
 		}
-	}
 
 		if ( meta->delete_in_progress ) {
 			deletes[k] = meta->cguid;
@@ -6263,10 +6222,10 @@ fdf_vc_init(
                           get_bool_str(p.fifo_mode),get_bool_str(p.async_writes),
                           get_durability_str(p.durability_level));
 
-	fdf_ctnr_set_state( 0, FDF_CONTAINER_STATE_CLOSED );
+	//fdf_ctnr_set_state( 0, FDF_CONTAINER_STATE_CLOSED );
 
     if ((status = FDFOpenPhysicalContainer(pai, VMC_PATH, &p, flags, &cguid)) != SDF_SUCCESS) {
-        plat_log_msg(150057, LOG_CAT, LOG_ERR, "Failed to create VMC container - %s\n", SDF_Status_Strings[status]);
+        plat_log_msg(150057, LOG_CAT, LOG_ERR, "Failed to create VMC container - %s\n", FDFStrError(status));
         return status;
     }
 
@@ -6290,14 +6249,14 @@ fdf_vc_init(
                            get_bool_str(p.fifo_mode),get_bool_str(p.async_writes),
                            get_durability_str(p.durability_level));
 
-	fdf_ctnr_set_state( 1, FDF_CONTAINER_STATE_CLOSED );
+	//fdf_ctnr_set_state( 1, FDF_CONTAINER_STATE_CLOSED );
 
     if ((status = FDFOpenPhysicalContainer(pai, VDC_PATH, &p, flags, &cguid)) != SDF_SUCCESS) {
-        plat_log_msg(150057, LOG_CAT, LOG_ERR, "Failed to create VMC container - %s\n", SDF_Status_Strings[status]);
+        plat_log_msg(150114, LOG_CAT, LOG_ERR, "Failed to create VDC container - %s\n", FDFStrError(status));
         return status;
     }
 
-    plat_log_msg(20168, LOG_CAT, LOG_DBG, "%s\n", SDF_Status_Strings[status]);
+    plat_log_msg(20168, LOG_CAT, LOG_DBG, "%s\n", FDFStrError(status));
 
     return status;
 }

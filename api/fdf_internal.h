@@ -146,7 +146,7 @@ void disable_stats_auto_dump() ;
 int is_auto_dump_enabled() ;
 void set_stats_autodump_interval(int interval);
 int get_autodump_interval();
-char *FDFGetNextContainerName(struct FDF_thread_state *fdf_thread_state,int *index);
+char *FDFGetNextContainerName(struct FDF_thread_state *fdf_thread_state, struct FDFCMapIterator **iterator);
 FDF_status_t async_command_delete_container(FDF_cguid_t cguid);
 void get_async_delete_stats( uint32_t *num_deletes,uint32_t *num_prog);
 FDF_status_t fdf_delete_container_async_end(

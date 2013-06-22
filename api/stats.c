@@ -50,14 +50,6 @@
 #include "fdf_internal.h"
 
 /*
- * Externals
- */
-extern ctnr_map_t CtnrMap[MCD_MAX_NUM_CNTRS];
-extern int fdf_get_ctnr_from_cguid(
-    FDF_cguid_t cguid
-    );
-
-/*
  * Functions defined in fdf.c
  */
 
@@ -288,21 +280,24 @@ FDF_status_t dump_all_container_stats(struct FDF_thread_state *thd_state,
 
     cguids = (FDF_cguid_t *) plat_alloc(sizeof(*cguids) * MCD_MAX_NUM_CNTRS);
     if (cguids == NULL) {
-	return FDF_FAILURE;	
+	    return FDF_FAILURE;	
     }
 
-    FDFGetContainers(thd_state,cguids,&n_cguids);
+    ret = FDFGetContainers(thd_state,cguids,&n_cguids);
+	if ( FDF_SUCCESS != ret )
+	    goto out;
+
     if( n_cguids <= 0 ) {
         plat_log_msg(160055, LOG_CAT, LOG_DBG,
                            "No container exists");
         ret = FDF_FAILURE;
-	goto out;
+	    goto out;
     }
 
     fp = open_stats_dump_file();
     if( fp == NULL ) {
         ret = FDF_FAILURE;
-	goto out;
+	    goto out;
     }
 
     for ( i = 0; i < n_cguids; i++ ) {
@@ -365,7 +360,7 @@ FDF_status_t print_container_stats_by_cguid( struct FDF_thread_state *thd_state,
     FDF_container_props_t props;
     uint64_t num_objs = 0;
     uint64_t used_space = 0;   
-	int index = -1;
+	cntr_map_t *cmap = NULL;
 
     /* Get container name */
     cname = FDFGetContainerName(cguid);
@@ -413,10 +408,10 @@ FDF_status_t print_container_stats_by_cguid( struct FDF_thread_state *thd_state,
     print_stats(fp,&stats);
 
 	// Output per container evictions 
-	index = fdf_get_ctnr_from_cguid( cguid ); 
-	if ( index >= 0 && CtnrMap[index].container_stats.num_evictions > 0 ) {
+	cmap = fdf_cmap_get_by_cguid( cguid ); 
+	if ( cmap && cmap->container_stats.num_evictions > 0 ) {
 		fprintf(fp,"  %s:\n", get_stats_catogory_desc_str(FDF_STATS_TYPE_CONTAINER_FLASH));
-		fprintf(fp,"    %s = %lu\n", "num_evictions", CtnrMap[index].container_stats.num_evictions);
+		fprintf(fp,"    %s = %lu\n", "num_evictions", cmap->container_stats.num_evictions);
 	}
 
     if( stats_type != STATS_PRINT_TYPE_DETAILED ) {   
@@ -572,14 +567,16 @@ static void process_container_cmd(struct FDF_thread_state *thd_state,
         }
     }
     else if( strcmp(tokens[1].value,"list" ) == 0 ) {
-        for( i = 0; i < MCD_MAX_NUM_CNTRS;  ) {
-            cname = FDFGetNextContainerName(thd_state,&i);
-            if ( strcmp(cname,"") != 0) {     
-                fprintf(fp,"%s\n",cname);
-                continue;
-            }
-            break;
-        }
+	    struct FDFCMapIterator *iterator = NULL; 
+	    for ( i = 0; i < MCD_MAX_NUM_CNTRS; i++ ) {
+	        cname = FDFGetNextContainerName(thd_state, &iterator); 
+	        if ( cname ) {     
+	            fprintf(fp,"%s\n",cname); 
+	            fprintf(stderr,"stats: %s\n",cname); 
+	            continue; 
+	        }
+	        break;
+	    } 
     }
     else {
         //fprintf(stderr,"Command:(%s)\n",tokens[1].value);

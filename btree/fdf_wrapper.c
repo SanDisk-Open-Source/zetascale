@@ -1783,10 +1783,10 @@ seqnoalloc( struct FDF_thread_state *t)
 			/* flash corruption likely, but consider recovery by tree search */
 			FDFCloseContainer( t, cguid);
 		default:
-			fprintf( stderr, "seqnoalloc: cannot initialize seqnolimit\n");
+			fprintf( stderr, "seqnoalloc: cannot initialize seqnolimit - %s\n", FDFStrError(s));
 			pthread_mutex_unlock( &seqnolock);
 			return (-1);
-		case FDF_INVALID_PARAMETER:		/* schizo FDF/SDF return */
+		case FDF_INVALID_PARAMETER:	       /* schizo FDF/SDF return */
 			p.size_kb = 1 * 1024 * 1024;
 			p.fifo_mode = FDF_FALSE;
 			p.persistent = FDF_TRUE;

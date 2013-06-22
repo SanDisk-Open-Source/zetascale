@@ -36,7 +36,6 @@
 // Externals
 extern SDF_cmc_t *theCMC; // Global CMC object
 extern void UTStartDebugger(char *s); /* XXXZZZ */
-extern ctnr_map_t CtnrMap[MCD_MAX_NUM_CNTRS];
 
 // Forwards
 SDFContainer
@@ -44,12 +43,6 @@ name_service_metadata_container_from_cguid( SDF_cguid_t cguid );
 
 SDFContainer
 name_service_metadata_container_from_cname( char *cname );
-
-static int
-name_service_ctnr_from_cguid( FDF_cguid_t cguid );
-
-static int
-name_service_ctnr_from_cname( char *cname );
 
 // =============================================================
 SDF_status_t
@@ -65,7 +58,7 @@ name_service_create_meta(SDF_internal_ctxt_t *pai, const char *cname, SDF_cguid_
     if (ISEMPTY(cname)) {
 		status = SDF_INVALID_PARAMETER;
     } else {
-		c = name_service_metadata_container_from_cguid( cguid );
+	    c = name_service_metadata_container_from_cguid( cguid );
 		if ( c && (status = cmc_create_meta( pai, c, cname, cguid, meta ) ) == SDF_SUCCESS) 
 			log_level = LOG_TRACE;
     }
@@ -418,17 +411,14 @@ name_service_delete_shards(SDF_internal_ctxt_t *pai, const char *cname) {
     SDF_status_t 	status 		= SDF_FAILURE;
     int 			log_level 	= LOG_ERR;
 	SDFContainer	c			= NULL;
-	int				index		= -1;
 
     plat_log_msg(20819, LOG_CAT, LOG_TRACE, "%s", cname);
 
-	if (( index = name_service_ctnr_from_cname( (char *) cname )) != -1 ) {
-		c = name_service_metadata_container_from_cguid( CtnrMap[index].cguid );
-		if ( NULL == c ) {
-			status = SDF_FAILURE;
-		} else if ((status = cmc_delete_shards(pai, c, cname) == SDF_SUCCESS)) {
-			log_level = LOG_TRACE;
-    	}
+ 	c = name_service_metadata_container_from_cname( (char *) cname );
+	if ( NULL == c ) {
+		status = SDF_FAILURE;
+	} else if ((status = cmc_delete_shards(pai, c, cname) == SDF_SUCCESS)) {
+		log_level = LOG_TRACE;
 	}
 
     plat_log_msg(21511, LOG_CAT, log_level, "%s - %s",
@@ -700,81 +690,40 @@ name_service_inval_object_container(SDF_internal_ctxt_t *pai, const char *cname)
 
 SDFContainer
 name_service_metadata_container_from_cguid( SDF_cguid_t cguid ) {
-    SDFContainer    c       = NULL; 
-    int             index   = -1;
-
-    if ( cguid <= LAST_PHYSICAL_CGUID ) { 
-         
-        c = theCMC->c;
+    SDFContainer    c       = NULL;
+    cntr_map_t     *cmap    = NULL;
     
-    } else {
-
-        index = name_service_ctnr_from_cguid( VMC_CGUID );
-        if ( index == -1 || isContainerNull( CtnrMap[index].sdf_container ) ) {
+    if ( cguid <= LAST_PHYSICAL_CGUID ) {
+        c = theCMC->c;
+    } else { 
+	    cmap = fdf_cmap_get_by_cguid( VMC_CGUID );
+	    if ( cmap && !isContainerNull( cmap->sdf_container )) { 
+	        c = internal_serverToClientContainer( cmap->sdf_container );
+        } else {
             plat_log_msg( 150058, LOG_CAT, LOG_ERR, "Failed to find metadata container for %lu", cguid);
-        } else {    
-            c = internal_serverToClientContainer( CtnrMap[index].sdf_container );
-        }           
+        }
     }
-
+    
     return c;
 }
 
 SDFContainer
 name_service_metadata_container_from_cname( char *cname ) {
-    SDFContainer	c		= NULL;
-	int				index	= -1;
+    SDFContainer    c       = NULL;
+    cntr_map_t     *cmap    = NULL;
 
-	if ( strcmp( CMC_PATH, cname ) == 0 || 
-	 	 strcmp( VMC_PATH, cname ) == 0 || 
-		 strcmp( VDC_PATH, cname ) == 0 ) { 
-
-		c = theCMC->c; 
-
-	} else { 
-
-		index = name_service_ctnr_from_cname( VMC_PATH ); 
-		if ( index == -1 || isContainerNull( CtnrMap[index].sdf_container ) ) {
-			plat_log_msg( 150063, LOG_CAT, LOG_ERR, "Failed to find metadata container for %s", cname);
-		} else {
-			c = internal_serverToClientContainer( CtnrMap[index].sdf_container );
-		}
-	}
-
-	return c;
-}
-
-static int name_service_ctnr_from_cguid(
-    FDF_cguid_t cguid
-    )
-{
-    int i;
-    int i_ctnr = -1;
-
-    for ( i = 0; i < MCD_MAX_NUM_CNTRS; i++ ) {
-        if ( CtnrMap[i].cguid == cguid ) {
-            i_ctnr = i;
-            break;
+    if ( strcmp( CMC_PATH, cname ) == 0 ||
+         strcmp( VMC_PATH, cname ) == 0 ||
+         strcmp( VDC_PATH, cname ) == 0 ) {
+        c = theCMC->c;
+    } else {
+	    cmap = fdf_cmap_get_by_cname( VMC_PATH );
+	    if ( cmap && !isContainerNull( cmap->sdf_container )) { 
+	        c = internal_serverToClientContainer( cmap->sdf_container );
+        } else {
+            plat_log_msg( 150063, LOG_CAT, LOG_ERR, "Failed to find metadata container for %s", cname);
         }
     }
 
-    return i_ctnr;
+    return c;
 }
-
-static int name_service_ctnr_from_cname(
-    char *cname
-    )
-{
-    int i;
-    int i_ctnr = -1;
-
-    for ( i = 0; i < MCD_MAX_NUM_CNTRS; i++ ) {
-    	if ( (NULL != CtnrMap[i].cname) && (0 == strcmp( CtnrMap[i].cname, cname )) ) {
-            i_ctnr = i;
-            break;
-        }
-    }
-
-    return i_ctnr;
-}
-

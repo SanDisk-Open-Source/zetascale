@@ -3171,6 +3171,12 @@
 150111 Failed to change container state: %d to %d
 150112 Failed to change container %lu state: %d to %d
 150113 Callback registered
+150114 Failed to create VDC container - %s\n
+150115 Unable to create metadata cache for %lu. Cannot rename
+150116 Failed to create cguid hash entry for %s - %lu
+150117 Failed to create cname hash entry for %s - %lu
+150118 Failed to update %s - %lu
+150119 %lu - not found
 
 
 # root

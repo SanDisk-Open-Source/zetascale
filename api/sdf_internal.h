@@ -42,7 +42,7 @@ typedef enum {
     FDF_CONTAINER_STATE_DELETE_CLOSED, /* Container submitted for async delete */
 }FDF_CONTAINER_STATE;
 
-typedef struct ctnr_map {
+typedef struct cntr_map {
     char            	 	cname[CONTAINER_NAME_MAXLEN];	/* Container name */
 	int     			 	io_count;						/* IO in flight count */
     FDF_cguid_t     	 	cguid;							/* Container ID */
@@ -54,8 +54,7 @@ typedef struct ctnr_map {
 	FDF_boolean_t   	 	evicting;						/* Eviction mode */
     enum_stats_t 		 	enum_stats;						/* Enumeration stats */
     FDF_container_stats_t 	container_stats;				/* Container stats */
-} ctnr_map_t;
-
+} cntr_map_t;
 
 typedef struct SDF_state {
     uint64_t           cguid_cntr;
@@ -73,119 +72,9 @@ typedef struct SDF_iterator {
 extern int get_ctnr_from_cguid(FDF_cguid_t cguid);
 extern int get_ctnr_from_cname(char *cname);
 
-void rel_cntr_map(ctnr_map_t *cmap);
-ctnr_map_t *get_cntr_map(cntr_id_t cntr_id);
+void rel_cntr_map(cntr_map_t *cmap);
+cntr_map_t *get_cntr_map(cntr_id_t cntr_id);
 int inc_cntr_map(cntr_id_t cntr_id, int64_t objs, int64_t blks, int check);
-
-// Container metadata map API
-
-/**
- * @brief Allocate a metadata map entry
- *
- * @param cguid <IN> container id
- * @param cname <IN> container name
- * @param size_kb <IN> max size in kb
- * @return FDF_SUCCESS on success
- *		   FDF_FAILURE on failure
- */
-FDF_status_t fdf_cmap_allocate(
-	FDF_cguid_t		 cguid,
-	char			*cname,
-	uint64_t		size_kb
-	);
-
-/**
- * @brief Deallocate a metadata map entry
- *
- * @param cguid <IN> container id
- * @return FDF_SUCCESS on success
- *		   FDF_FAILURE on failure
- */
-FDF_status_t fdf_cmap_deallocate(
-	FDF_cguid_t	cguid 
-	);
-
-/**
- * @brief Find a metadata map entry by cguid
- *
- * @param cguid <IN> container id
- * @return pointer to copy of map (caller must free)
- *		   
- */
-ctnr_map_t *fdf_cmap_find_by_cguid(
-	FDF_cguid_t	 cguid
-	);
-
-/**
- * @brief Find a metadata map entry by cname
- *
- * @param cname <IN> container name
- * @return pointer to copy of map (caller must free)
- */
-ctnr_map_t *fdf_cmap_find_by_cname(
-	char *cname
-	);
-
-/**
- * @brief Free a metadata map copy
- *
- * @param map <IN> metadata map copy
- */
-void fdf_cmap_free_copy(
-	ctnr_map_t *map
-	);
-
-/**
- * @brief Update a metadata map entry open container handle
- *
- * @param cguid <IN> container id
- * @param sdf_container <IN> open container handle 
- * @return FDF_SUCCESS on success
- *		   FDF_FAILURE on failure
- */
-FDF_status_t fdf_cmap_set_container(
-	FDF_cguid_t		cguid,
-	SDF_CONTAINER	sdf_container
-	);
-
-/**
- * @brief Update a metadata map entry max size field
- *
- * @param cguid <IN> container id
- * @param size <IN> max size in kb
- * @return FDF_SUCCESS on success
- *		   FDF_FAILURE on failure
- */
-FDF_status_t fdf_cmap_set_max_size(
-	FDF_cguid_t	cguid,
-	uint64_t	size_kb
-	);
-
-/**
- * @brief Update a metadata map entry current size field
- *
- * @param cguid <IN> container id
- * @param current_size <IN> current size in bytes
- * @return FDF_SUCCESS on success
- *		   FDF_FAILURE on failure
- */
-FDF_status_t fdf_cmap_set_current_size(
-	FDF_cguid_t	cguid,
-	uint64_t	current_size
-	);
-
-/**
- * @brief Update a metadata map entry current num objects field
- *
- * @param cguid <IN> container id
- * @param num_obj <IN> current number of objects
- * @return FDF_SUCCESS on success
- *		   FDF_FAILURE on failure
- */
-FDF_status_t fdf_cmap_set_num_obj(
-	FDF_cguid_t	cguid,
-	uint64_t	num_obj
-	);
 
 /*
  * Get information about a container.  Returns 1 on success and 0 on error.
@@ -200,4 +89,67 @@ get_cntr_info(cntr_id_t cntr_id,
               uint64_t *used,
               uint64_t *size,
 			  FDF_boolean_t *evicting);
+
+/*
+ * Container metadata cache
+*/
+struct cmap_iterator;
+
+FDF_status_t fdf_cmap_init( void );
+
+FDF_status_t fdf_cmap_destroy( void );
+
+/**
+ * @brief Create a metadata map entry
+ *
+ * @param cname <IN> container name
+ * @param cguid <IN> container id
+ * @param size_kb <IN> max size in kb
+ * @param state <IN> container state
+ * @param evicting <IN> container eviction mode
+ * @return FDF_SUCCESS on success
+ *		   FDF_FAILURE on failure
+ */
+FDF_status_t fdf_cmap_create(
+    char                    *cname,
+    FDF_cguid_t              cguid,
+    uint64_t                 size_kb,
+	FDF_CONTAINER_STATE      state,
+    FDF_boolean_t            evicting
+	);
+
+FDF_status_t fdf_cmap_update(
+    cntr_map_t *cmap
+    );
+
+cntr_map_t *fdf_cmap_get_by_cguid(
+    FDF_cguid_t cguid
+    );
+
+cntr_map_t *fdf_cmap_get_by_cname(
+    char *cname
+    );
+
+char *fdf_cmap_get_cname(
+    FDF_cguid_t cguid;
+    );
+
+FDF_status_t fdf_cmap_delete(
+    FDF_cguid_t cguid;
+    );
+
+void fdf_cmap_destroy_map(
+	cntr_map_t *cmap
+	);
+	
+struct cmap_iterator *fdf_cmap_enum(void);
+
+int fdf_cmap_next_enum( struct cmap_iterator *iterator,
+	                    char **key,
+	                    uint32_t *keylen,
+	                    char **data,
+	                    uint64_t *datalen
+	                  );
+
+void fdf_cmap_finish_enum( struct cmap_iterator *iterator );
 #endif // __SDF_INTERNAL_H

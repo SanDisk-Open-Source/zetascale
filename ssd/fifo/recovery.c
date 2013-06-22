@@ -4363,7 +4363,7 @@ lba_to_use(mshard_t *shard, uint64_t lba)
 void
 enumerate_stats(enum_stats_t *s, FDF_cguid_t cguid)
 {
-    ctnr_map_t *cmap = get_cntr_map(cguid);
+    cntr_map_t *cmap = get_cntr_map(cguid);
     if (cmap) {
         memcpy(s, &cmap->enum_stats, sizeof(enum_stats_t));
         rel_cntr_map(cmap);
@@ -4508,7 +4508,7 @@ enumerate_next(pai_t *pai, e_state_t *es, char **key, uint64_t *keylen,
                                ehash->bkt_i, hash->syndrome,
                               key, keylen, data, datalen);
         if (s) {
-            ctnr_map_t *cmap = get_cntr_map(cntr_id);
+            cntr_map_t *cmap = get_cntr_map(cntr_id);
             if (cmap) {
                 atomic_inc(cmap->enum_stats.num_objects);
                 atomic_inc(cmap->enum_stats.num_cached_objects);
@@ -4532,7 +4532,7 @@ enumerate_next(pai_t *pai, e_state_t *es, char **key, uint64_t *keylen,
         if (s != FDF_SUCCESS)
             return s;
 
-        ctnr_map_t *cmap = get_cntr_map(cntr_id);
+        cntr_map_t *cmap = get_cntr_map(cntr_id);
         if (cmap) {
             atomic_inc(cmap->enum_stats.num_objects);
             rel_cntr_map(cmap);
@@ -4548,7 +4548,7 @@ enumerate_next(pai_t *pai, e_state_t *es, char **key, uint64_t *keylen,
 FDF_status_t
 enumerate_done(pai_t *pai, e_state_t *es)
 {
-    ctnr_map_t *cmap = get_cntr_map(es->cguid);
+    cntr_map_t *cmap = get_cntr_map(es->cguid);
     if (cmap) {
         atomic_dec(cmap->enum_stats.num_active);
         rel_cntr_map(cmap);
@@ -4609,7 +4609,7 @@ enumerate_init(pai_t *pai, shard_t *sshard, FDF_cguid_t cguid, e_state_t **esp)
     es->cguid = cguid;
     *((e_state_t **) esp) = es;
 
-    ctnr_map_t *cmap = get_cntr_map(cguid);
+    cntr_map_t *cmap = get_cntr_map(cguid);
     if (cmap) {
         atomic_inc(cmap->enum_stats.num_total);
         atomic_inc(cmap->enum_stats.num_active);
@@ -4925,7 +4925,7 @@ evict_object(mshard_t *shard, cguid_t cguid, uint64_t nblks)
 
         fthUnlock(wait);
         if (s > 0) {
-    		ctnr_map_t *cmap = get_cntr_map(cguid);
+    		cntr_map_t *cmap = get_cntr_map(cguid);
     		if (cmap) {
                 atomic_inc( cmap->container_stats.num_evictions );
         		rel_cntr_map(cmap);

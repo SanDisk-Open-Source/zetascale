@@ -904,6 +904,8 @@ FDF_status_t FDFGetVersion(
 #define N_ENTRIES_TO_MALLOC    100
 #define N_ITERATORS_TO_MALLOC  100
 
+struct FDFCMapIterator;
+
 struct FDFTLMapBucket;
 
 typedef struct FDFTLMapEntry {

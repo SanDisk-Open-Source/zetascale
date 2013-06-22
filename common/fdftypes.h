@@ -91,7 +91,7 @@ typedef uint64_t FDF_cguid_t;
     item(FDF_UNKNOWN_REQUEST, /* default */) \
     item(FDF_BAD_PBUF_POINTER, /* default */) \
     item(FDF_BAD_PDATA_POINTER, /* default */) \
-   item(FDF_BAD_SUCCESS_POINTER, /* default */) \
+    item(FDF_BAD_SUCCESS_POINTER, /* default */) \
     item(FDF_NOT_PINNED, /* default */) \
     item(FDF_NOT_READ_LOCKED, /* default */) \
     item(FDF_NOT_WRITE_LOCKED, /* default */) \
@@ -208,6 +208,7 @@ typedef uint64_t FDF_cguid_t;
     item(FDF_FAILURE_INVALID_CONTAINER_STATE, /* default */) \
     item(FDF_FAILURE_CONTAINER_DELETED, /* default */) \
     item(FDF_QUERY_DONE, /* Completion of the FDF Range Query */) \
+    item(FDF_FAILURE_CANNOT_CREATE_METADATA_CACHE, /* default */) \
 
 typedef enum {
 #define item(caps, value) \
