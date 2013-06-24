@@ -1060,8 +1060,16 @@ btree_status_t btree_raw_get(struct btree_raw *btree, char *key, uint32_t keylen
 //  return 0 if success, 1 otherwise
 static int init_l1cache(btree_raw_t *bt, uint32_t n_l1cache_buckets)
 {
+	int n = 0;
     bt->n_l1cache_buckets = n_l1cache_buckets;
-    bt->l1cache = PMapInit(1000, n_l1cache_buckets / 1000 + 1, 16 * (n_l1cache_buckets / 1000 + 1), 1, l1cache_replace, (void *) bt);
+
+    char *p = getenv("N_L1CACHE_PARTITIONS");
+    if(p)
+        n = atoi(p);
+    if(n <=0 || n > 10000000)
+        n = 256;
+
+    bt->l1cache = PMapInit(n, n_l1cache_buckets / n + 1, 16 * (n_l1cache_buckets / n + 1), 1, l1cache_replace, (void *) bt);
     if (bt->l1cache == NULL) {
         return(1);
     }
