@@ -13,43 +13,56 @@
 #include	"fdf.h"
 #include	"platform/rwlock.h"
 #include	"btree_hash.h"
-#include	"btree_raw.h"
 #include	"utils/rico.h"
 #include	"trx.h"
 
 
-enum {
-	OKAY
+enum trxstate {
+	PROGRESSING,
+	COMMITTING,
+	ROLLINGBACK,
+	SUCCESSFUL,
+	FAILED
 };
 
-typedef struct {
-	void		*next;
+typedef struct listelem		listelem_t;
+typedef struct itemstructure	item_t;
+typedef struct trxstructure	trx_t;
+typedef pthread_spinlock_t	spinlock_t;
+typedef pthread_mutex_t		mutex_t;
+typedef struct FDF_thread_state	thread_state_t;
+
+struct listelem {
+	listelem_t	*next;
 	uint		refc;
 	FDF_cguid_t	c;
 	uint64_t	nid;
-} listelem_t;
-typedef struct {
+};
+struct itemstructure {
 	FDF_cguid_t	c;
 	uint64_t	nid;
 	uchar		type;	
 	listelem_t	*l;
-} item_t;
-typedef struct {
-	struct FDF_thread_state	*ts;
-	uchar			level,
-				status;
-	uint			nitem;
-	item_t			items[100000];
-} trx_t;
+};
+struct trxstructure {
+	thread_state_t	*ts;
+	ushort		level;
+	enum trxstate	state;
+	uint		nitem;
+	item_t		items[100000];
+	trx_t		*anext;
+	mutex_t		endlock;
+};
 
 
-static pthread_spinlock_t
-			entrysl		= 1,
-			listsl		= 1;
+static spinlock_t	listsl		= 1;
 static listelem_t	*listpool,
 			*listbase;
 static plat_rwlock_t	entrylock;
-static uint		entrycounter;
+static mutex_t		activetrxlock		= PTHREAD_MUTEX_INITIALIZER;
+static trx_t		*activetrxlist;
+static uint		activetrxtotal,
+			activetrxconcluding;
 static __thread trx_t	*trx;
 
 static listelem_t	*listfind( listelem_t *, FDF_cguid_t, uint64_t),
@@ -58,13 +71,19 @@ static listelem_t	*listfind( listelem_t *, FDF_cguid_t, uint64_t),
 			*listalloc( );
 static void		trackfree( ),
 			listfree( listelem_t *),
-			trxdump( char *);
+			dump( char *);
+static FDF_status_t	conclude( ),
+			concludeself( );
+static uint64_t		reltime( );
+static trx_t		*activetrxlistadd( trx_t *, trx_t *),
+			*activetrxlistdel( trx_t *, trx_t *);
 
 
 void
 trxinit( )
 {
 
+	reltime( );
 	plat_rwlock_init( &entrylock);
 }
 
@@ -74,7 +93,6 @@ trxenter( FDF_cguid_t c)
 {
 
 	plat_rwlock_rdlock( &entrylock);
-	__sync_add_and_fetch( &entrycounter, 1);
 }
 
 
@@ -82,16 +100,12 @@ void
 trxleave( FDF_cguid_t c)
 {
 
-	__sync_add_and_fetch( &entrycounter, -1);
 	plat_rwlock_unlock( &entrylock);
 }
 
 
-/*
- * (No nested support right now)
- */
 FDF_status_t
-trxstart( struct FDF_thread_state *t)
+trxstart( thread_state_t *ts)
 {
 
 	if (trx) {
@@ -100,72 +114,84 @@ trxstart( struct FDF_thread_state *t)
 	}
 	unless (trx = malloc( sizeof *trx))
 		return (FDF_OUT_OF_MEM);
-	trx->ts = t;
+	trx->ts = ts;
 	trx->level = 0;
-	trx->status = OKAY;
+	trx->state = PROGRESSING;
 	trx->nitem = 0;
-	FDF_status_t s = FDFTransactionStart( t);
-	if (s == FDF_SUCCESS)
+	pthread_mutex_init( &trx->endlock, 0);
+	pthread_mutex_lock( &trx->endlock);
+	FDF_status_t s = FDFTransactionStart( ts);
+	if (s == FDF_SUCCESS) {
 		++trx->level;
+		pthread_mutex_lock( &activetrxlock);
+		activetrxlist = activetrxlistadd( activetrxlist, trx);
+		++activetrxtotal;
+		pthread_mutex_unlock( &activetrxlock);
+	}
 	else {
 		free( trx);
 		trx = 0;
 	}
-	trxdump( "trxstart");
+	dump( "trxstart");
 	return (s);
 }
 
 
 FDF_status_t 
-trxcommit( struct FDF_thread_state *t)
+trxcommit( thread_state_t *ts)
 {
 
 	unless (trx)
 		return (FDF_FAILURE);
-	trxdump( "trxcommit");
+	dump( "trxcommit");
 	if (--trx->level)
 		return (FDF_SUCCESS);
-	FDF_status_t s = FDFTransactionCommit( t);
-	trackfree( );
+	trx->state = COMMITTING;
+	FDF_status_t s = conclude( );
+	free( trx);
+	trx = 0;
+	return (s);
+}
+
+
+/*
+ * (No nested rollback right now)
+ */
+FDF_status_t 
+trxrollback( thread_state_t *ts)
+{
+
+	unless (trx)
+		return (FDF_FAILURE);
+	dump( "trxrollback");
+	if (--trx->level)
+		return (FDF_SUCCESS);
+	trx->state = ROLLINGBACK;
+	FDF_status_t s = conclude( );
+	free( trx);
 	trx = 0;
 	return (s);
 }
 
 
 FDF_status_t 
-trxrollback( struct FDF_thread_state *t)
+trxquit( thread_state_t *ts)
 {
 
-	unless (trx)
-		return (FDF_FAILURE);
-	trxdump( "trxrollback");
-	if (--trx->level)
-		return (FDF_SUCCESS);
-	FDF_status_t s = FDFTransactionRollback( t);
-	trackfree( );
-	trx = 0;
-	return (s);
-}
-
-
-FDF_status_t 
-trxquit( struct FDF_thread_state *t)
-{
-
-	return (FDFTransactionQuit( t));
+	return (FDFTransactionQuit( ts));
 }
 
 
 uint64_t
-trxid( struct FDF_thread_state *t)
+trxid( thread_state_t *ts)
 {
 
-	return (FDFTransactionID( t));
+	return (FDFTransactionID( ts));
 }
 
 
 void
-trxdeletecontainer( struct FDF_thread_state *t, FDF_cguid_t c)
+trxdeletecontainer( thread_state_t *ts, FDF_cguid_t c)
 {
 
 }
@@ -204,6 +230,43 @@ trxtrack( FDF_cguid_t c, uint64_t nid, void *d)
 }
 
 
+static FDF_status_t
+conclude( )
+{
+	trx_t	*t;
+
+	pthread_mutex_lock( &activetrxlock);
+	if (++activetrxconcluding < activetrxtotal) {
+		pthread_mutex_unlock( &activetrxlock);
+		return (concludeself( ));
+	}
+	plat_rwlock_wrlock( &entrylock);
+	while (t = activetrxlist) {
+		activetrxlist = activetrxlistdel( activetrxlist, t);
+		pthread_mutex_unlock( &t->endlock);
+	}
+	FDF_status_t s = concludeself( );
+	plat_rwlock_unlock( &entrylock);
+	pthread_mutex_unlock( &activetrxlock);
+	return (s);
+}
+
+
+static FDF_status_t
+concludeself( )
+{
+	FDF_status_t	s;
+
+	pthread_mutex_lock( &trx->endlock);
+	if (trx->state == COMMITTING)
+		s = FDFTransactionCommit( trx->ts);
+	else
+		s = FDFTransactionRollback( trx->ts);
+	trackfree( );
+	return (s);
+}
+
+
 static void
 trackfree( )
 {
@@ -216,6 +279,35 @@ trackfree( )
 			listbase = listdel( listbase, l);
 		pthread_spin_unlock( &listsl);
 	}
+}
+
+
+static trx_t	*
+activetrxlistadd( trx_t *alist, trx_t *a)
+{
+
+	a->anext = alist;
+	return (a);
+}
+
+
+static trx_t	*
+activetrxlistdel( trx_t *alist, trx_t *a)
+{
+
+	if (a == alist)
+		alist = alist->anext;
+	else {
+		trx_t *al = alist;
+		while (al->anext) {
+			if (al->anext == a) {
+				al->anext = a->anext;
+				break;
+			}
+			al = al->anext;
+		}
+	}
+	return (alist);
 }
 
 
@@ -293,9 +385,22 @@ listfree( listelem_t *l)
 
 
 void
-trx_cmd_cb( void *cb_data, int cmd_type)
+trx_cmd_cb( int cmd, void *v0, void *v1)
 {
 
+}
+
+
+/*
+ * relative time (ns)
+ */
+static uint64_t
+reltime( )
+{
+	struct timespec	ts;
+
+	clock_gettime( CLOCK_MONOTONIC, &ts);
+	return (ts.tv_sec*1000000000L + ts.tv_nsec);
 }
 
 
@@ -308,18 +413,18 @@ trx_cmd_cb( void *cb_data, int cmd_type)
 
 
 static void
-trxdump( char *label)
+dump( char *label)
 {
-#if 0
+#if 0//Rico
 	uint	i;
 
 	if (trx) {
-		printf( "%9s: trxid=%ld level=%d status=%d nitem=%d", label, trxid( trx->ts), trx->level, trx->status, trx->nitem);
+		printf( "%9s: trxid=%ld level=%d state=%d nitem=%d", label, trxid( trx->ts), trx->level, trx->state, trx->nitem);
 		for (i=0; i<trx->nitem; ++i)
-			printf( " (%ld,%ld,%d)", trx->items[i].c, trx->items[i].nid, trx->items[i].type);
+			printf( " (%ld,%lu,%d)", trx->items[i].c, trx->items[i].nid, trx->items[i].type);
 		printf( "\n");
 	}
 	else
-		printf( "trxdump: no active trx\n");
+		printf( "%9s: no active trx\n", label);
 #endif
 }

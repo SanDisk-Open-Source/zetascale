@@ -69,7 +69,7 @@ static int default_cmp_cb(void *data, char *key1, uint32_t keylen1, char *key2, 
     return(0);
 }
 
-btree_t *btree_init(uint32_t n_partitions, uint32_t flags, uint32_t max_key_size, uint32_t min_keys_per_node, uint32_t nodesize, uint32_t n_l1cache_buckets, create_node_cb_t *create_node_cb, void *create_node_data, read_node_cb_t *read_node_cb, void *read_node_cb_data, write_node_cb_t *write_node_cb, void *write_node_cb_data, flush_node_cb_t *flush_node_cb, void *flush_node_cb_data, freebuf_cb_t *freebuf_cb, void *freebuf_cb_data, delete_node_cb_t *delete_node_cb, void *delete_node_data, log_cb_t *log_cb, void *log_cb_data, msg_cb_t *msg_cb, void *msg_cb_data, cmp_cb_t *cmp_cb, void * cmp_cb_data, trx_cmd_cb_t *trx_cmd_cb, void *trx_cmd_cb_data)
+btree_t *btree_init(uint32_t n_partitions, uint32_t flags, uint32_t max_key_size, uint32_t min_keys_per_node, uint32_t nodesize, uint32_t n_l1cache_buckets, create_node_cb_t *create_node_cb, void *create_node_data, read_node_cb_t *read_node_cb, void *read_node_cb_data, write_node_cb_t *write_node_cb, void *write_node_cb_data, flush_node_cb_t *flush_node_cb, void *flush_node_cb_data, freebuf_cb_t *freebuf_cb, void *freebuf_cb_data, delete_node_cb_t *delete_node_cb, void *delete_node_data, log_cb_t *log_cb, void *log_cb_data, msg_cb_t *msg_cb, void *msg_cb_data, cmp_cb_t *cmp_cb, void * cmp_cb_data, trx_cmd_cb_t *trx_cmd_cb)
 {
     int          i;
     btree_t     *bt;
@@ -112,9 +112,6 @@ btree_t *btree_init(uint32_t n_partitions, uint32_t flags, uint32_t max_key_size
 	bt->cmp_cb_data      = NULL;
     }
 
-//    bt->trx_cmd_cb           = trx_cmd_cb;
-//    bt->trx_cmd_cb_data      = trx_cmd_cb_data;
-
     if (min_keys_per_node < 4) {
 	bt_err("min_keys_per_node must be >= 4");
         free(bt);
@@ -132,7 +129,7 @@ btree_t *btree_init(uint32_t n_partitions, uint32_t flags, uint32_t max_key_size
     }
 
     for (i=0; i<n_partitions; i++) {
-	   bt->partitions[i] = btree_raw_init(flags, i, n_partitions, max_key_size, min_keys_per_node, nodesize, n_l1cache_buckets, create_node_cb, create_node_data, read_node_cb, read_node_cb_data, write_node_cb, write_node_cb_data, flush_node_cb, flush_node_cb_data, freebuf_cb, freebuf_cb_data, delete_node_cb, delete_node_data, log_cb, log_cb_data, msg_cb, msg_cb_data, cmp_cb, cmp_cb_data, trx_cmd_cb, trx_cmd_cb_data);
+	   bt->partitions[i] = btree_raw_init(flags, i, n_partitions, max_key_size, min_keys_per_node, nodesize, n_l1cache_buckets, create_node_cb, create_node_data, read_node_cb, read_node_cb_data, write_node_cb, write_node_cb_data, flush_node_cb, flush_node_cb_data, freebuf_cb, freebuf_cb_data, delete_node_cb, delete_node_data, log_cb, log_cb_data, msg_cb, msg_cb_data, cmp_cb, cmp_cb_data, trx_cmd_cb);
 	   if (bt->partitions[i] == NULL) {
 		   bt_warn("Failed to allocate a btree partition!");
 		   /* cleanup */

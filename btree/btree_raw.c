@@ -69,6 +69,7 @@
 #include "btree_map.h"
 #include "btree_pmap.h"
 #include "btree_raw_internal.h"
+#include "trxcmd.h"
 
 //  Define this to include detailed debugging code
 //#define DEBUG_STUFF
@@ -253,7 +254,7 @@ static void l1cache_replace(void *callback_data, char *key, uint32_t keylen, cha
     free(n);
 }
 
-btree_raw_t *btree_raw_init(uint32_t flags, uint32_t n_partition, uint32_t n_partitions, uint32_t max_key_size, uint32_t min_keys_per_node, uint32_t nodesize, uint32_t n_l1cache_buckets, create_node_cb_t *create_node_cb, void *create_node_data, read_node_cb_t *read_node_cb, void *read_node_cb_data, write_node_cb_t *write_node_cb, void *write_node_cb_data, flush_node_cb_t *flush_node_cb, void *flush_node_cb_data, freebuf_cb_t *freebuf_cb, void *freebuf_cb_data, delete_node_cb_t *delete_node_cb, void *delete_node_data, log_cb_t *log_cb, void *log_cb_data, msg_cb_t *msg_cb, void *msg_cb_data, cmp_cb_t *cmp_cb, void * cmp_cb_data, trx_cmd_cb_t *trx_cmd_cb, void * trx_cmd_cb_data)
+btree_raw_t *btree_raw_init(uint32_t flags, uint32_t n_partition, uint32_t n_partitions, uint32_t max_key_size, uint32_t min_keys_per_node, uint32_t nodesize, uint32_t n_l1cache_buckets, create_node_cb_t *create_node_cb, void *create_node_data, read_node_cb_t *read_node_cb, void *read_node_cb_data, write_node_cb_t *write_node_cb, void *write_node_cb_data, flush_node_cb_t *flush_node_cb, void *flush_node_cb_data, freebuf_cb_t *freebuf_cb, void *freebuf_cb_data, delete_node_cb_t *delete_node_cb, void *delete_node_data, log_cb_t *log_cb, void *log_cb_data, msg_cb_t *msg_cb, void *msg_cb_data, cmp_cb_t *cmp_cb, void * cmp_cb_data, trx_cmd_cb_t *trx_cmd_cb)
 {
     btree_raw_t      *bt;
     uint32_t          nbytes_meta;
@@ -314,7 +315,6 @@ btree_raw_t *btree_raw_init(uint32_t flags, uint32_t n_partition, uint32_t n_par
     }
 
     bt->trx_cmd_cb           = trx_cmd_cb;
-    bt->trx_cmd_cb_data      = trx_cmd_cb_data;
 
     if (min_keys_per_node < 4) {
 	bt_err("min_keys_per_node must be >= 4");

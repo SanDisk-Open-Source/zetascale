@@ -338,7 +338,6 @@ FDF_status_t _FDFOpenContainer(
     void         *log_cb_data;
     void         *msg_cb_data;
     void         *cmp_cb_data;
-    void         *trx_cmd_cb_data;
     read_node_t  *prn;
     int           index = -1;
     char         *env;
@@ -381,7 +380,6 @@ FDF_status_t _FDFOpenContainer(
     log_cb_data         = (void *) prn;
     msg_cb_data         = (void *) prn;
     cmp_cb_data         = (void *) prn;
-    trx_cmd_cb_data     = (void *) prn;
 
     //flags = SYNDROME_INDEX;
     // flags |= IN_MEMORY; // use in-memory b-tree for this test
@@ -462,8 +460,7 @@ FDF_status_t _FDFOpenContainer(
                     msg_cb_data, 
                     lex_cmp_cb, 
                     cmp_cb_data,
-                    trx_cmd_cb, 
-                    trx_cmd_cb_data
+                    trx_cmd_cb 
 		    );
 
     if (bt == NULL) {

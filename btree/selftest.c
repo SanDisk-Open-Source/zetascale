@@ -141,7 +141,6 @@ int btree_selftest(int argc, char **argv)
     void         *log_cb_data;
     void         *msg_cb_data;
     void         *cmp_cb_data;
-    void         *txn_cmd_cb_data;
 
     struct Map *kmap;
     uint64_t         i;
@@ -184,7 +183,6 @@ int btree_selftest(int argc, char **argv)
     log_cb_data         = NULL;
     msg_cb_data         = NULL;
     cmp_cb_data         = NULL;
-    txn_cmd_cb_data     = NULL;
 
     /* initialization */
 
@@ -315,7 +313,7 @@ int btree_selftest(int argc, char **argv)
                     (log_cb_t *)log_cb, log_cb_data, 
                     msg_cb, msg_cb_data, 
                     cmp_cb, cmp_cb_data,
-		    (trx_cmd_cb_t *)txn_cmd_cb, txn_cmd_cb_data
+		    (trx_cmd_cb_t *)txn_cmd_cb
 		    );
 
     if (bt == NULL) {

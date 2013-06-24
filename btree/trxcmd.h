@@ -1,0 +1,7 @@
+
+
+enum trx_cmd {
+	TRX_CACHE_ADD,
+	TRX_CACHE_QUERY,
+	TRX_CACHE_DEL
+};

@@ -226,7 +226,6 @@ btest_init(int argc, char **argv, char *program, btest_parse_fn parse_fn)
 	void         *log_cb_data;
 	void         *msg_cb_data;
 	void         *cmp_cb_data;
-	void         *trx_cmd_cb_data;
 	int          error;
 	btest_cfg_t *cfg;
 
@@ -239,7 +238,6 @@ btest_init(int argc, char **argv, char *program, btest_parse_fn parse_fn)
 	log_cb_data         = NULL;
 	msg_cb_data         = NULL;
 	cmp_cb_data         = NULL;
-	trx_cmd_cb_data     = NULL;
 
 	cfg = (btest_cfg_t *)malloc(sizeof(btest_cfg_t));
 	if (cfg == NULL) {
@@ -306,7 +304,7 @@ btest_init(int argc, char **argv, char *program, btest_parse_fn parse_fn)
 			(log_cb_t *)log_cb, log_cb_data, 
 			msg_cb, msg_cb_data, 
 			cmp_cb, cmp_cb_data,
-			(trx_cmd_cb_t *)trx_cmd_cb, trx_cmd_cb_data
+			(trx_cmd_cb_t *)trx_cmd_cb
 	                );
 
 	if (cfg->bt == NULL) {
