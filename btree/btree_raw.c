@@ -144,12 +144,15 @@ static void print_key_func(FILE *f, const char* func, int line, char* key, int k
 #define dbg_print_key(key, keylen, msg, ...)
 #endif
 
+#ifdef DEBUG_STUFF
+static void dump_node(btree_raw_t *bt, FILE *f, btree_raw_node_t *n, char *key, uint32_t keylen);
+static char *dump_key(char *key, uint32_t keylen);
+#endif
 
 #define vlnode_bytes_free(x) ((x)->insert_ptr - sizeof(btree_raw_node_t) - (x)->nkeys * sizeof(node_vlkey_t))
 #define vnode_bytes_free(x) ((x)->insert_ptr - sizeof(btree_raw_node_t) - (x)->nkeys * sizeof(node_vkey_t))
 
 static uint64_t get_syndrome(btree_raw_t *bt, char *key, uint32_t keylen);
-static char *dump_key(char *key, uint32_t keylen);
 
 static btree_status_t savepersistent( btree_raw_t *bt, int create);
 static btree_status_t loadpersistent( btree_raw_t *);
@@ -172,7 +175,6 @@ static void lock_modified_nodes_func(btree_raw_t *btree, int lock);
 #define lock_modified_nodes(btree) lock_modified_nodes_func(btree, 1)
 #define unlock_modified_nodes(btree) lock_modified_nodes_func(btree, 0)
 
-static void dump_node(btree_raw_t *bt, FILE *f, btree_raw_mem_node_t *n, char *key, uint32_t keylen);
 static void update_keypos(btree_raw_t *btree, btree_raw_node_t *n, uint32_t n_key_start);
 
 typedef struct deldata {
@@ -973,13 +975,23 @@ node_key_t* btree_raw_find(struct btree_raw *btree, char *key, uint32_t keylen, 
     btree_status_t    ret = BTREE_SUCCESS;
     uint64_t          child_id;
 
-    *node = get_existing_node_low(&ret, btree, btree->rootid, 0);
+restart:
+    child_id = btree->rootid;
+
+    *node = get_existing_node_low(&ret, btree, child_id, 0);
     assert(*node); //FIME add ret checking here
 
     if(is_leaf(btree, (*node)->pnode) && write_lock)
         plat_rwlock_wrlock(&(*node)->lock);
     else
         plat_rwlock_rdlock(&(*node)->lock);
+
+    if(child_id != btree->rootid)
+    {
+        plat_rwlock_unlock(&(*node)->lock);
+        deref_l1cache_node(btree, *node);
+        goto restart;
+    }
 
     while(!is_leaf(btree, (*node)->pnode)) {
         (void)bsearch_key(btree, (*node)->pnode, key, keylen, &child_id, meta, syndrome);
@@ -1004,6 +1016,8 @@ node_key_t* btree_raw_find(struct btree_raw *btree, char *key, uint32_t keylen, 
     return bsearch_key(btree, (*node)->pnode, key, keylen, &child_id, meta, syndrome);
 }
 
+extern __thread long long locked;
+
 btree_status_t btree_raw_get(struct btree_raw *btree, char *key, uint32_t keylen, char **data, uint64_t *datalen, btree_metadata_t *meta)
 {
     btree_status_t    ret = BTREE_KEY_NOT_FOUND;
@@ -1013,6 +1027,8 @@ btree_status_t btree_raw_get(struct btree_raw *btree, char *key, uint32_t keylen
     uint64_t          syndrome = get_syndrome(btree, key, keylen);
 
     dbg_print_key(key, keylen, "before ret=%d lic=%ld", ret, btree->logical_id_counter);
+
+    assert(locked == 1);
 
     plat_rwlock_rdlock(&btree->lock);
 
@@ -1025,7 +1041,7 @@ btree_status_t btree_raw_get(struct btree_raw *btree, char *key, uint32_t keylen
 	assert(BTREE_SUCCESS == ret);
     }
 
-    dbg_print_key(key, keylen, "after ret=%d lic=%ld", ret, btree->logical_id_counter);
+    dbg_print_key(key, keylen, "after ret=%d lic=%ld keyrec %p", ret, btree->logical_id_counter, keyrec);
 
     plat_rwlock_unlock(&node->lock);
     deref_l1cache_node(btree, node);
@@ -1033,6 +1049,7 @@ btree_status_t btree_raw_get(struct btree_raw *btree, char *key, uint32_t keylen
     __sync_add_and_fetch(&(btree->stats.stat[BTSTAT_GET_CNT]), 1);
     __sync_add_and_fetch(&(btree->stats.stat[BTSTAT_GET_PATH]), pathcnt);
 
+    assert(locked == 1);
     assert(!dbg_referenced);
 
     return(ret);
@@ -1067,7 +1084,7 @@ void deref_l1cache_node(btree_raw_t* btree, btree_raw_mem_node_t *node)
 
 static btree_status_t deref_l1cache(btree_raw_t *btree)
 {
-    uint64_t i;
+    uint64_t i, j;
     btree_raw_mem_node_t *n;
     btree_status_t        ret = BTREE_SUCCESS;
     btree_status_t        txnret = BTREE_SUCCESS;
@@ -1078,7 +1095,14 @@ static btree_status_t deref_l1cache(btree_raw_t *btree)
 
         dbg_print("write_node_cb key=%ld data=%p datalen=%d\n", n->pnode->logical_id, n, btree->nodesize);
 
+        j = 0;
+        while(j < i && modified_nodes[j] != modified_nodes[i])
+            j++;
+
+        if(j >= i)
 	btree->write_node_cb(&ret, btree->write_node_cb_data, n->pnode->logical_id, (char*)n->pnode, btree->nodesize);
+
+        n->dirty = 0;
 	__sync_add_and_fetch(&(btree->stats.stat[BTSTAT_L1WRITES]),1);
     }
 
@@ -1130,6 +1154,9 @@ static btree_raw_mem_node_t* add_l1cache(btree_raw_t *btree, btree_raw_node_t *n
 
     node->pnode = n;
     node->modified = 0;
+#ifdef DEBUG_STUFF
+    node->last_dump_modified = 0;
+#endif
     plat_rwlock_init(&node->lock);
 
     dbg_print("%p id %ld lock %p root: %d leaf: %d over: %d\n", n, n->logical_id, &node->lock, is_root(btree, n), is_leaf(btree, n), is_overflow(btree, n));
@@ -1184,6 +1211,8 @@ static void modify_l1cache_node(btree_raw_t *btree, btree_raw_mem_node_t *node)
 {
     dbg_print("node %p id %ld root: %d leaf: %d refcnt %d dbg_referenced: %lx mpnode %ld refs %ld\n", node, node->pnode->logical_id, is_root(btree, node->pnode), is_leaf(btree, node->pnode), PMapGetRefcnt(btree->l1cache, (char *) &node->pnode->logical_id, sizeof(uint64_t)), dbg_referenced, modified_nodes_count, referenced_nodes_count);
     assert(modified_nodes_count < MAX_BTREE_HEIGHT);
+    node->modified++;
+    node->dirty=1;
     modified_nodes[modified_nodes_count++] = node;
 }
 
@@ -1198,13 +1227,13 @@ void lock_nodes_list(btree_raw_t *btree, int lock, btree_raw_mem_node_t** list, 
         node = get_l1cache(btree, list[i]->pnode->logical_id);
         assert(node); // the node is in the cache, hence, get_l1cache cannot fail
 
-        dbg_print("list[%d]->logical_id=%ld lock=%p lock=%d\n", i, list[i]->pnode->logical_id, &node->lock, lock);
-
         j = 0;
         while(j < i && list[j] != list[i])
             j++;
 
-        if(j >= i && !is_overflow(btree, node->pnode)) {
+        if(j >= i && !is_overflow(btree, node->pnode) && node->pnode->logical_id != META_LOGICAL_ID+btree->n_partition) {
+        dbg_print("list[%d]->logical_id=%ld lock=%p lock=%d\n", i, list[i]->pnode->logical_id, &node->lock, lock);
+
             if(lock)
                 plat_rwlock_wrlock(&node->lock);
             else
@@ -1774,10 +1803,12 @@ static void insert_key_low(btree_status_t *ret, btree_raw_t *btree, btree_raw_me
 		strncpy(stmp, key, keylen);
 		len = keylen;
 	    }
-#
+
+            uint64_t ddd = dbg_referenced;
 	    fprintf(stderr, "%x ********  After insert_key '%s' [syn %lu], datalen=%ld, node %p BEGIN:  *******\n", (int)pthread_self(), dump_key(stmp, len), syndrome, datalen, x);
 	    btree_raw_dump(stderr, btree);
 	    fprintf(stderr, "%x ********  After insert_key '%s' [syn %lu], datalen=%ld, NODE:  *******\n", (int)pthread_self(), dump_key(stmp, len), syndrome, datalen);
+            assert(ddd == dbg_referenced);
 	    (void) get_key_stuff(btree, x, 0, &ks);
 	    if ((btree->flags & SYNDROME_INDEX) && !(x->flags & LEAF_NODE)) {
 	        sprintf(stmp, "%p", ks.pkey_val);
@@ -1785,6 +1816,7 @@ static void insert_key_low(btree_status_t *ret, btree_raw_t *btree, btree_raw_me
 	    } else {
 		dump_node(btree, stderr, x, ks.pkey_val, ks.keylen);
 	    }
+            assert(ddd == dbg_referenced);
 	    fprintf(stderr, "%x ********  After insert_key '%s' [syn %lu], datalen=%ld, node %p END  *******\n", (int)pthread_self(), dump_key(stmp, len), syndrome, datalen, x);
 	}
     #endif
@@ -1926,24 +1958,25 @@ static void delete_key(btree_status_t *ret, btree_raw_t *btree, btree_raw_mem_no
     delete_key_by_pkrec(ret, btree, node, pk_delete);
 }
 
-static void btree_split_child(btree_status_t *ret, btree_raw_t *btree, btree_raw_mem_node_t *n_parent, btree_raw_mem_node_t *n_child, uint64_t seqno, btree_metadata_t *meta, uint64_t syndrome)
+static btree_raw_mem_node_t* btree_split_child(btree_status_t *ret, btree_raw_t *btree, btree_raw_mem_node_t *n_parent, btree_raw_mem_node_t *n_child, uint64_t seqno, btree_metadata_t *meta, uint64_t syndrome)
 {
     btree_raw_mem_node_t     *n_new;
     uint32_t              keylen = 0;
     char                 *key = NULL;
     uint64_t              split_syndrome = 0;
 
-    if (*ret) { return; }
+    if (*ret) { return NULL; }
 
     __sync_add_and_fetch(&(btree->stats.stat[BTSTAT_SPLITS]),1);
 
     n_new = get_new_node(ret, btree, is_leaf(btree, n_child->pnode) ? LEAF_NODE : 0);
     if (BTREE_SUCCESS != *ret)
-        return;
+        return NULL;
 
     // n_parent will be marked modified by insert_key()
     // n_new was marked in get_new_node()
     dbg_print("n_child=%ld n_parent=%ld\n", n_child->pnode->logical_id, n_parent->pnode->logical_id);
+
     modify_l1cache_node(btree, n_child);
 
     split_copy(ret, btree, n_child->pnode, n_new->pnode, &key, &keylen, &split_syndrome);
@@ -1957,14 +1990,14 @@ static void btree_split_child(btree_status_t *ret, btree_raw_t *btree, btree_raw
 	btree->log_cb(ret, btree->log_cb_data, BTREE_CREATE_NODE, btree, n_new);
     }
 
-	//fprintf(stderr, "%x %s ret=%d\n", (int)pthread_self(), __FUNCTION__, *ret);
-
     #ifdef DEBUG_STUFF
 	if (Verbose) {
-	    fprintf(stderr, "********  After btree_split_child (id_child='%ld'):  *******\n", n_child->logical_id);
+	    fprintf(stderr, "********  After btree_split_child (id_child='%ld'):  *******\n", n_child->pnode->logical_id);
 	    btree_raw_dump(stderr, btree);
 	}
     #endif
+
+    return n_new;
 }
 
 //  Check if a node has enough space for insertion
@@ -2074,7 +2107,7 @@ static int is_node_full(btree_raw_t *bt, btree_raw_node_t *r, char *key, uint32_
 
 static btree_status_t btree_raw_write_low(btree_raw_t *btree, char *key, uint32_t keylen, uint64_t seqno, uint64_t datalen, char *data, btree_metadata_t *meta, uint64_t syndrome, int write_type, int* pathcnt)
 {
-    int               modify_tree = 0;
+    int               split_pending = 0, parent_write_locked = 0;
     int32_t           nkey_child;
     uint64_t          child_id, child_id_before, child_id_after;
     node_key_t       *pk_insert, *pkrec = NULL;
@@ -2082,6 +2115,8 @@ static btree_status_t btree_raw_write_low(btree_raw_t *btree, char *key, uint32_
     btree_status_t    txnret = BTREE_SUCCESS;
     btree_raw_node_t *node = NULL;
     btree_raw_mem_node_t *mem_node = NULL, *parent = NULL;
+
+    assert(locked == 1);
 
 //    plat_rwlock_wrlock(&btree->lock);
     plat_rwlock_rdlock(&btree->lock);
@@ -2094,68 +2129,107 @@ restart:
             goto err_exit;
 
         node = mem_node->pnode;
-
+mini_restart:
         (*pathcnt)++;
-//#if 0
-        if(!modify_tree && is_leaf(btree, node))
+
+        if(is_leaf(btree, node) || split_pending)
             plat_rwlock_wrlock(&mem_node->lock);
-        else {
-//#endif
-            /* Check that node is not locked by write, which released btree->lock already */
+        else
             plat_rwlock_rdlock(&mem_node->lock);
+
+        if(!parent && child_id != btree->rootid)
+        {
             plat_rwlock_unlock(&mem_node->lock);
+            goto restart;
         }
 
         pkrec = find_key(btree, node, key, keylen, &child_id, &child_id_before, &child_id_after, &pk_insert, meta, syndrome, &nkey_child);
 
         if (!is_node_full(btree, node, key, keylen, datalen, meta, syndrome, write_type, pkrec)) {
+            if(parent && (!parent_write_locked || !parent->dirty))
+                plat_rwlock_unlock(&parent->lock);
+
             parent = mem_node;
+            parent_write_locked = is_leaf(btree, node) || split_pending;
+            split_pending = 0;
             continue;
         }
 
-//#if 0
         /* Handle tree restructure case */
-        if(!modify_tree) {
-            if(is_leaf(btree, node))
-                plat_rwlock_unlock(&mem_node->lock);
+        if(!split_pending && (!is_leaf(btree, node) ||
+                    (parent && !parent_write_locked)))
+        {
+            plat_rwlock_unlock(&mem_node->lock);
 
-            uint64_t save_modified = btree->modified;
-            plat_rwlock_unlock(&btree->lock);
-            plat_rwlock_wrlock(&btree->lock);
+            if(parent) {
+                uint64_t save_modified = parent->modified;
 
-            modify_tree = 1;
-            btree->modified++;
-            if(btree->modified != save_modified + 1)
-            {
-                restart_cnt++;
-                goto restart;
+                plat_rwlock_unlock(&parent->lock);
+                plat_rwlock_wrlock(&parent->lock);
+
+                if(parent->modified != save_modified) {
+                    restart_cnt++;
+                    plat_rwlock_unlock(&parent->lock);
+                    parent = NULL;
+
+                    if (BTREE_SUCCESS != deref_l1cache(btree))
+                        assert(0);
+
+                    assert(locked == 2);
+                    goto restart;
+                }
+                parent_write_locked = 1;
             }
+
             no_restart++;
+
+            split_pending = 1;
+            goto mini_restart;
         }
-//#endif
 
         if(is_root(btree, node)) {
             parent = get_new_node(&ret, btree, 0 /* flags */);
-            modified_nodes_count--;
+
             if(!parent)
                 goto err_exit;
 
+            plat_rwlock_wrlock(&parent->lock);
+            parent_write_locked = 1;
+
+            dbg_print("root split %ld new root %ld\n", btree->rootid, parent->pnode->logical_id);
             parent->pnode->rightmost  = btree->rootid;
             uint64_t saverootid = btree->rootid;
             btree->rootid = parent->pnode->logical_id;
             if (BTREE_SUCCESS != savepersistent( btree, 0)) {
+                assert(0);
                 btree->rootid = saverootid;
                 goto err_exit;
             }
         }
 
-		splits_cnt++;
+        splits_cnt++;
 
-        btree_split_child(&ret, btree, parent, mem_node, seqno, meta, syndrome);
+        btree_raw_mem_node_t *new_node = btree_split_child(&ret, btree, parent, mem_node, seqno, meta, syndrome);
         if(BTREE_SUCCESS != ret)
             goto err_exit;
 
+        plat_rwlock_wrlock(&new_node->lock);
+
+        split_pending = 0;
+
         pkrec = find_key(btree, parent->pnode, key, keylen, &child_id, &child_id_before, &child_id_after, &pk_insert, meta, syndrome, &nkey_child);
+
+        assert(child_id != BAD_CHILD);
+
+        if(mem_node->pnode->logical_id != child_id)
+            mem_node = new_node;
+
+        node = mem_node->pnode;
+        parent = mem_node;
+
+        (*pathcnt)++;
+
+        pkrec = find_key(btree, node, key, keylen, &child_id, &child_id_before, &child_id_after, &pk_insert, meta, syndrome, &nkey_child);
     }
 
     dbg_print("before modifiing leaf node id %ld is_leaf: %d is_root: %d is_over: %d\n", node->logical_id, is_leaf(btree, node), is_root(btree, node), is_overflow(btree, node));
@@ -2164,18 +2238,19 @@ restart:
 
     sets_cnt++;
 
+    plat_rwlock_unlock(&btree->lock);
+
     if ((write_type != W_UPDATE || pkrec) && (write_type != W_CREATE || !pkrec)) {
         insert_key_low(&ret, btree, mem_node, key, keylen, seqno, datalen, data, meta, syndrome, pkrec, pk_insert);
 
         btree->log_cb(&ret, btree->log_cb_data, BTREE_UPDATE_NODE, btree, mem_node);
     }
     else //((write_type == W_UPDATE && !pkrec) || (write_type == W_CREATE && pkrec))
+    {
+        if(!mem_node->dirty)
+            plat_rwlock_unlock(&mem_node->lock);
 	ret = BTREE_KEY_NOT_FOUND; // key not found for an update! or key was found for an insert!
-
-    if(modify_tree)
-        lock_modified_nodes(btree);
-
-    plat_rwlock_unlock(&btree->lock);
+    }
 
     dbg_print("before dereferencing\n");
 
@@ -2183,6 +2258,8 @@ restart:
         ret = BTREE_FAILURE;
 
     dbg_print("before return\n");
+
+    assert(locked == 1);
 
     return BTREE_SUCCESS == ret ? txnret : ret;
 
@@ -2374,6 +2451,8 @@ btree_status_t btree_raw_delete(struct btree_raw *btree, char *key, uint32_t key
     node_key_t           *keyrec;
     uint64_t              syndrome = get_syndrome(btree, key, keylen);
 
+    assert(locked == 1);
+
     plat_rwlock_rdlock(&btree->lock);
 
     keyrec = btree_raw_find(btree, key, keylen, syndrome, meta, &node, 1 /* EX */, &pathcnt);
@@ -2413,6 +2492,7 @@ btree_status_t btree_raw_delete(struct btree_raw *btree, char *key, uint32_t key
     }
 
     dbg_print("dbg_referenced %ld\n", dbg_referenced);
+    assert(locked == 1);
     assert(!dbg_referenced);
 
     /* Need tree restructure. Write lock whole tree and retry */
@@ -2440,6 +2520,7 @@ btree_status_t btree_raw_delete(struct btree_raw *btree, char *key, uint32_t key
     __sync_add_and_fetch(&(btree->stats.stat[BTSTAT_DELETE_PATH]), pathcnt);
 
     dbg_print("dbg_referenced %ld\n", dbg_referenced);
+    assert(locked == 1);
     assert(!dbg_referenced);
 
 #ifdef BTREE_RAW_CHECK
@@ -3551,14 +3632,14 @@ int btree_raw_fast_build(btree_raw_t *btree)
 }
 
 //======================   DUMP  =========================================
-
+#ifdef DEBUG_STUFF
 static char *dump_key(char *key, uint32_t keylen)
 {
-    static char  stmp[100];
+    static char  stmp[200];
 
     stmp[0] = '\0';
-    if (keylen > 10) {
-	strncat(stmp, key, 10);
+    if (keylen > 100) {
+	strncat(stmp, key, 100);
 	strcat(stmp, "...");
     } else {
 	strncat(stmp, key, keylen);
@@ -3575,9 +3656,8 @@ static void dump_line(FILE *f, char *key, uint32_t keylen)
     }
 }
 
-static void dump_node(btree_raw_t *bt, FILE *f, btree_raw_mem_node_t *node, char *key, uint32_t keylen)
+static void dump_node(btree_raw_t *bt, FILE *f, btree_raw_node_t *n, char *key, uint32_t keylen)
 {
-    btree_raw_node_t *n = node->pnode;
     int             i;
     char           *sflags;
     int             nfreebytes;
@@ -3650,22 +3730,31 @@ static void dump_node(btree_raw_t *bt, FILE *f, btree_raw_mem_node_t *node, char
 	// non-leaf
 	for (i=0; i<n->nkeys; i++) {
 	    assert(!get_key_stuff(bt, n, i, &ks));
-	    n_child = get_existing_node(&ret, bt, ks.ptr); 
+	    n_child = get_existing_node_low(&ret, bt, ks.ptr, 0); 
+            if(n_child->modified != n_child->last_dump_modified)
+            {
 	    if (bt->flags & SYNDROME_INDEX) {
 	        sprintf(stmp, "%p", ks.pkey_val);
-		dump_node(bt, f, n_child, stmp, strlen(stmp));
+		dump_node(bt, f, n_child->pnode, stmp, strlen(stmp));
 	    } else {
-		dump_node(bt, f, n_child, ks.pkey_val, ks.keylen);
+		dump_node(bt, f, n_child->pnode, ks.pkey_val, ks.keylen);
 	    }
+            n_child->last_dump_modified = n_child->modified;
+            }
+            deref_l1cache_node(bt, n_child);
 	}
 	if (n->rightmost != 0) {
-	    n_child = get_existing_node(&ret, bt, n->rightmost); 
-	    dump_node(bt, f, n_child, "==RIGHT==", 9);
+	    n_child = get_existing_node_low(&ret, bt, n->rightmost, 0); 
+            if(n_child->modified != n_child->last_dump_modified)
+            {
+	    dump_node(bt, f, n_child->pnode, "==RIGHT==", 9);
+            n_child->last_dump_modified = n_child->modified;
+            }
+            deref_l1cache_node(bt, n_child);
 	}
     }
 }
 
-#ifdef DEBUG_STUFF
 static
 void btree_raw_dump(FILE *f, btree_raw_t *bt)
 {
@@ -3688,17 +3777,22 @@ void btree_raw_dump(FILE *f, btree_raw_t *bt)
 
     fprintf(f, "B-Tree: flags:(%s), node:%dB, maxkey:%dB, minkeys:%d, bigobj:%dB\n", sflags, bt->nodesize, bt->max_key_size, bt->min_keys_per_node, bt->big_object_size);
 
-    n = get_existing_node(&ret, bt, bt->rootid); 
+    n = get_existing_node_low(&ret, bt, bt->rootid, 0); 
     if (BTREE_SUCCESS != ret || (n == NULL)) {
 	fprintf(f, "*********************************************\n");
 	fprintf(f, "    *****  Could not get root node!!!!  *****\n");
 	fprintf(f, "*********************************************\n");
     }
     
-    dump_node(bt, f, n, "===ROOT===", 10);
+    if(n->modified != n->last_dump_modified)
+    {
+        dump_node(bt, f, n->pnode, "===ROOT===", 10);
+        n->last_dump_modified = n->modified;
+    }
 
     dump_line(f, NULL, 0);
-    deref_l1cache(bt);
+    deref_l1cache_node(bt, n);
+//    deref_l1cache(bt);
 }
 #endif
 

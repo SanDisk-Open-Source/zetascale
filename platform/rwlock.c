@@ -18,7 +18,12 @@
  */
 
 #include "platform/rwlock.h"
+#include "stdio.h"
 
+__thread long long locked = 0;
+
+//#define dbg_print(msg, ...) do { fprintf(stderr, "%x %s:%d " msg, (int)pthread_self(), __FUNCTION__, __LINE__, ##__VA_ARGS__); } while(0)
+#define dbg_print(msg, ...)
 int
 plat_rwlock_init(plat_rwlock_t *rwlock) {
     int ret;
@@ -44,16 +49,21 @@ plat_rwlock_destroy(plat_rwlock_t *rwlock) {
 
 int
 plat_rwlock_rdlock(plat_rwlock_t *rwlock) {
+    dbg_print("rwlock=%p\n", rwlock);
+    locked++;
     return (pthread_rwlock_rdlock(rwlock));
 }
 
 int
 plat_rwlock_tryrdlock(plat_rwlock_t *rwlock) {
+    dbg_print("rwlock=%p\n", rwlock);
     return (pthread_rwlock_tryrdlock(rwlock));
 }
 
 int
 plat_rwlock_wrlock(plat_rwlock_t *rwlock) {
+    dbg_print("rwlock=%p\n", rwlock);
+    locked++;
     return (pthread_rwlock_wrlock(rwlock));
 }
 
@@ -64,5 +74,7 @@ plat_rwlock_trywrlock(plat_rwlock_t *rwlock) {
 
 int
 plat_rwlock_unlock(plat_rwlock_t *rwlock) {
+    dbg_print("rwlock=%p\n", rwlock);
+    locked--;
     return (pthread_rwlock_unlock(rwlock));
 }
