@@ -137,15 +137,15 @@ typedef struct btree_stats {
 } btree_stats_t;
 
 struct btree_raw;
-struct btree_raw_node;
+struct btree_raw_mem_node;
 
-typedef struct btree_raw_node *(read_node_cb_t)(btree_status_t *ret, void *data, uint64_t lnodeid);
+typedef struct btree_raw_mem_node *(read_node_cb_t)(btree_status_t *ret, void *data, uint64_t lnodeid);
 typedef void (write_node_cb_t)(btree_status_t *ret, void *cb_data, uint64_t lnodeid, char *data, uint64_t datalen);
 typedef void (flush_node_cb_t)(btree_status_t *ret, void *cb_data, uint64_t lnodeid);
 typedef int (freebuf_cb_t)(void *data, char *buf);
-typedef struct btree_raw_node *(create_node_cb_t)(btree_status_t *ret, void *data, uint64_t lnodeid);
-typedef int (delete_node_cb_t)(struct btree_raw_node *node, void *data, uint64_t lnodeid);
-typedef void (log_cb_t)(btree_status_t *ret, void *data, uint32_t event_type, struct btree_raw *btree, struct btree_raw_node *n);
+typedef struct btree_raw_mem_node *(create_node_cb_t)(btree_status_t *ret, void *data, uint64_t lnodeid);
+typedef int (delete_node_cb_t)(struct btree_raw_mem_node *node, void *data, uint64_t lnodeid);
+typedef void (log_cb_t)(btree_status_t *ret, void *data, uint32_t event_type, struct btree_raw *btree, struct btree_raw_mem_node *n);
 typedef int (cmp_cb_t)(void *data, char *key1, uint32_t keylen1, char *key2, uint32_t keylen2);
 typedef void (trx_cmd_cb_t)( int, void *, void *);
 

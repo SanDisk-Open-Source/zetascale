@@ -44,13 +44,13 @@ typedef struct read_node {
 } read_node_t;
 
 
-static struct btree_raw_node *read_node_cb(btree_status_t *ret, void *data, uint64_t lnodeid);
+static void* read_node_cb(btree_status_t *ret, void *data, uint64_t lnodeid);
 static void write_node_cb(btree_status_t *ret, void *cb_data, uint64_t lnodeid, char *data, uint64_t datalen);
 static void flush_node_cb(btree_status_t *ret, void *cb_data, uint64_t lnodeid);
 static int freebuf_cb(void *data, char *buf);
-static struct btree_raw_node *create_node_cb(btree_status_t *ret, void *data, uint64_t lnodeid);
-static btree_status_t delete_node_cb(struct btree_raw_node *node, void *data, uint64_t lnodeid);
-static void                   log_cb(btree_status_t *ret, void *data, uint32_t event_type, struct btree_raw *btree, struct btree_raw_node *n);
+static void* create_node_cb(btree_status_t *ret, void *data, uint64_t lnodeid);
+static btree_status_t delete_node_cb(void *data, uint64_t lnodeid);
+static void                   log_cb(btree_status_t *ret, void *data, uint32_t event_type, struct btree_raw *btree);
 static int                    lex_cmp_cb(void *data, char *key1, uint32_t keylen1, char *key2, uint32_t keylen2);
 static void                   msg_cb(int level, void *msg_data, char *filename, int lineno, char *msg, ...);
 static uint64_t               seqnoalloc( struct FDF_thread_state *);
@@ -999,10 +999,13 @@ FDF_status_t _FDFNextEnumeratedObject(
                               &values);
 
 	if (FDF_SUCCESS == status && FDF_SUCCESS == values.status) {
+            assert(count);
 	    *key = (char *) malloc(values.keylen);
+            assert(*key);
 	    strncpy(*key, values.key, values.keylen);
 	    *keylen = values.keylen;
 	    *data = (char *) malloc(values.datalen);
+            assert(*data);
 	    strncpy(*data, values.data, values.datalen);
 	    *datalen = values.datalen;
 	    //if (values.primary_key)
@@ -1345,7 +1348,7 @@ _FDFGetRangeFinish(struct FDF_thread_state *fdf_thread_state,
  *
  *****************************************************************/
 
-static struct btree_raw_node *read_node_cb(btree_status_t *ret, void *data, uint64_t lnodeid)
+static void* read_node_cb(btree_status_t *ret, void *data, uint64_t lnodeid)
 {
     read_node_t            *prn = (read_node_t *) data;
     struct btree_raw_node  *n;
@@ -1432,7 +1435,7 @@ static int freebuf_cb(void *data, char *buf)
     return(0);
 }
 
-static struct btree_raw_node *create_node_cb(btree_status_t *ret, void *data, uint64_t lnodeid)
+static void* create_node_cb(btree_status_t *ret, void *data, uint64_t lnodeid)
 {
 	FDF_status_t			status = FDF_FAILURE;
     read_node_t            *prn = (read_node_t *) data;
@@ -1463,7 +1466,7 @@ static struct btree_raw_node *create_node_cb(btree_status_t *ret, void *data, ui
     }
 }
 
-static btree_status_t delete_node_cb(struct btree_raw_node *node, void *data, uint64_t lnodeid)
+static btree_status_t delete_node_cb(void *data, uint64_t lnodeid)
 {
     N_delete_node++;
     // xxxzzz finish me!
@@ -1471,7 +1474,7 @@ static btree_status_t delete_node_cb(struct btree_raw_node *node, void *data, ui
 }
 
 // ???
-static void log_cb(btree_status_t *ret, void *data, uint32_t event_type, struct btree_raw *btree, struct btree_raw_node *n)
+static void log_cb(btree_status_t *ret, void *data, uint32_t event_type, struct btree_raw *btree)
 {
     N_log++;
 	*ret = BTREE_SUCCESS;

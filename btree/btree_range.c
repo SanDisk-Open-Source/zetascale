@@ -33,7 +33,7 @@
 #define RIGHT_EDGE    2
 
 typedef struct range_key_list {
-	btree_raw_node_t *n;
+	btree_raw_mem_node_t *n;
 	plat_rwlock_t    *leaf_lock;
 	int              key_count;
 	int              next_read_ind;         
@@ -454,12 +454,13 @@ find_key_range_des(btree_raw_t *bt,
  */
 static range_key_list_t *
 find_key_range(btree_raw_t *bt,
-               btree_raw_node_t *n,
+               btree_raw_mem_node_t *node,
                btree_range_meta_t *rmeta,
                plat_rwlock_t *leaf_lock,
                int max_keys,
                int all_keys)
 {
+	btree_raw_node_t *n = node->pnode;
 	range_key_list_t *klist;
 	int is_leaf_node;
 
@@ -489,7 +490,7 @@ find_key_range(btree_raw_t *bt,
 		assert(0);
 		return NULL;
 	}
-	klist->n = n;
+	klist->n = node;
 	klist->leaf_lock = leaf_lock;
 	klist->key_count = 0;
 	klist->next_read_ind = 0;
@@ -597,10 +598,10 @@ btree_start_range_query(btree_t                 *btree,
 /* Populate the values with key/value details for given rec */
 static btree_status_t
 fill_key_range(btree_raw_t         *bt,
-               btree_raw_node_t     *n, 
-               void                 *keyrec, 
+               btree_raw_mem_node_t     *n,
+               void                 *keyrec,
                btree_range_meta_t   *rmeta,
-               int                  meta_flags, 
+               int                  meta_flags,
                btree_range_data_t   *values,
                int                  *n_out)
 {
@@ -610,7 +611,7 @@ fill_key_range(btree_raw_t         *bt,
 
 	values[*n_out].status = 0;
 
-	status = get_leaf_key(bt, n, keyrec, 
+	status = get_leaf_key(bt, n->pnode, keyrec,
 	                      &values[*n_out].key,
 	                      &values[*n_out].keylen,
 	                      meta_flags);
@@ -624,7 +625,7 @@ fill_key_range(btree_raw_t         *bt,
 	}
 
 	if (!(rmeta->flags & RANGE_KEYS_ONLY)) {
-		status = get_leaf_data(bt, n, keyrec, 
+		status = get_leaf_data(bt, n->pnode, keyrec,
 		                       &values[*n_out].data,
 		                       &values[*n_out].datalen,
 		                       meta_flags, 0);
@@ -650,6 +651,8 @@ fill_key_range(btree_raw_t         *bt,
 }
 
 extern __thread uint64_t dbg_referenced;
+//#define dbg_print(msg, ...) do { fprintf(stderr, "%x %s:%d " msg, (int)pthread_self(), __FUNCTION__, __LINE__, ##__VA_ARGS__); } while(0)
+#define dbg_print(msg, ...)
 
 btree_status_t
 btree_get_next_range(btree_range_cursor_t *cursor,
@@ -660,8 +663,8 @@ btree_get_next_range(btree_range_cursor_t *cursor,
 
 	uint64_t          ptr;
 	btree_raw_t      *bt;
-	btree_raw_node_t *n;
-	btree_raw_node_t *child_n;
+	btree_raw_mem_node_t *n;
+	btree_raw_mem_node_t *child_n;
 	blist_t          *master_list;
 	range_key_list_t *klist;
 	range_key_list_t *child_klist;
@@ -673,7 +676,6 @@ btree_get_next_range(btree_range_cursor_t *cursor,
 	btree_status_t    ret = BTREE_SUCCESS;
 	node_key_t        *keyrec = NULL;
 	int               key_index;
-	plat_rwlock_t     *leaf_lock;
 	int               cur_key_ind;
 	int               all_keys;
 	int               left_edge, right_edge;
@@ -689,7 +691,7 @@ btree_get_next_range(btree_range_cursor_t *cursor,
 
 	plat_rwlock_rdlock(&bt->lock);
 
-	n = get_existing_node_low(&ret, bt, bt->rootid, &leaf_lock, 0);
+	n = get_existing_node_low(&ret, bt, bt->rootid, 0);
 	if (n == NULL) {
 		plat_rwlock_unlock(&bt->lock);
 		return BTREE_FAILURE;
@@ -725,7 +727,7 @@ btree_get_next_range(btree_range_cursor_t *cursor,
 		return BTREE_FAILURE;
 	}
 
-	klist = find_key_range(bt, n, &rmeta, leaf_lock, n_in, 0);
+	klist = find_key_range(bt, n, &rmeta, &n->lock, n_in, 0);
 	if (klist == NULL) {
 		blist_end(master_list, 1);
 		plat_rwlock_unlock(&bt->lock);
@@ -735,7 +737,7 @@ btree_get_next_range(btree_range_cursor_t *cursor,
 	}
 		
 	if ((klist->key_count == 0) || (*n_out == n_in)) {
-		if (is_leaf(bt, klist->n)) {
+		if (is_leaf(bt, klist->n->pnode)) {
 			plat_rwlock_unlock(klist->leaf_lock);
 		}
 		blist_end(master_list, 1);
@@ -774,7 +776,7 @@ btree_get_next_range(btree_range_cursor_t *cursor,
 		}
 
 		cur_key_ind = klist->next_read_ind++;
-		if (is_leaf(bt, n)) {
+		if (is_leaf(bt, n->pnode)) {
 			keyrec = klist->keyrecs[cur_key_ind];
 
 			status = fill_key_range(bt, n, 
@@ -797,8 +799,7 @@ btree_get_next_range(btree_range_cursor_t *cursor,
 
 			/* Get the node corresponding to this pointer and leaf
 			 * lock for this node */
-			child_n = get_existing_node_low(&ret, bt, ptr,
-			                                &leaf_lock, 0);
+			child_n = get_existing_node_low(&ret, bt, ptr, 0);
 			if (ret) {
 				assert(0);
 				goto key_cleanup;
@@ -818,7 +819,7 @@ btree_get_next_range(btree_range_cursor_t *cursor,
 			}
 
 			child_klist = find_key_range(bt, child_n,
-			                                &rmeta, leaf_lock,
+			                                &rmeta, &child_n->lock,
 			                                (n_in - (*n_out)), 
 			                                all_keys);
 		}
@@ -828,7 +829,7 @@ key_cleanup:
 		 * enough data, cleanup the key and remove it from the list */
 		if ((n_in == *n_out) || 
 		    (klist->next_read_ind == klist->key_count)) {
-			if (is_leaf(bt, n)) {
+			if (is_leaf(bt, n->pnode)) {
 				/* Unlock leaf node lock which was locked by 
 				 * find_key_range */
 				plat_rwlock_unlock(klist->leaf_lock);

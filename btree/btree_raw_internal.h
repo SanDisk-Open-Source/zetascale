@@ -72,10 +72,14 @@ typedef struct btree_raw_node {
     node_key_t    keys[0];
 } btree_raw_node_t;
 
-typedef struct btree_raw_mem_node {
+typedef struct btree_raw_mem_node btree_raw_mem_node_t;
+
+struct btree_raw_mem_node {
+	uint64_t modified;
 	plat_rwlock_t lock;
-	btree_raw_node_t* node;
-} btree_raw_mem_node_t;
+	btree_raw_mem_node_t *next; // dirty list
+	btree_raw_node_t *pnode;
+};
 
 #define BTREE_RAW_L1CACHE_LIST_MAX 10000
 
@@ -93,8 +97,6 @@ typedef struct btree_raw {
     uint64_t           rootid;
     uint32_t           n_l1cache_buckets;
     struct PMap       *l1cache;
-    struct Map        *l1cache_refs;
-    struct Map        *l1cache_mods;
     read_node_cb_t    *read_node_cb;
     void              *read_node_cb_data;
     write_node_cb_t   *write_node_cb;
@@ -118,7 +120,6 @@ typedef struct btree_raw {
     btree_stats_t      stats;
 
     plat_rwlock_t      lock;
-    plat_rwlock_t      write_io_lock;
 
     uint64_t           modified;
 } btree_raw_t;
@@ -132,9 +133,9 @@ typedef struct btree_raw_persist {
 int get_key_stuff(btree_raw_t *bt, btree_raw_node_t *n, uint32_t nkey, key_stuff_t *pks);
 btree_status_t get_leaf_data(btree_raw_t *bt, btree_raw_node_t *n, void *pkey, char **data, uint64_t *datalen, uint32_t meta_flags, int ref);
 btree_status_t get_leaf_key(btree_raw_t *bt, btree_raw_node_t *n, void *pkey, char **key, uint32_t *keylen, uint32_t meta_flags);
-btree_raw_node_t *get_existing_node_low(btree_status_t *ret, btree_raw_t *btree, uint64_t logical_id, plat_rwlock_t** lock, int ref);
-btree_raw_node_t *get_existing_node(btree_status_t *ret, btree_raw_t *btree, uint64_t logical_id);
+btree_raw_mem_node_t *get_existing_node_low(btree_status_t *ret, btree_raw_t *btree, uint64_t logical_id, int ref);
+btree_raw_mem_node_t *get_existing_node(btree_status_t *ret, btree_raw_t *btree, uint64_t logical_id);
 int is_leaf(btree_raw_t *btree, btree_raw_node_t *node);
 
-void deref_l1cache_node(btree_raw_t* btree, btree_raw_node_t *node);
+void deref_l1cache_node(btree_raw_t* btree, btree_raw_mem_node_t *node);
 #endif // __BTREE_RAW_INTERNAL_H
