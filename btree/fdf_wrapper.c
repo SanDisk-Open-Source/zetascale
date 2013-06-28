@@ -1358,6 +1358,7 @@ static void* read_node_cb(btree_status_t *ret, void *data, uint64_t lnodeid)
     N_read_node++;
 
     status = FDFReadObject(my_thd_state, prn->cguid, (char *) &lnodeid, sizeof(uint64_t), (char **) &n, &datalen);
+    trxtrackread( prn->cguid, lnodeid);
 
     if (status == FDF_SUCCESS) {
 	    assert(datalen == prn->nodesize);
@@ -1374,13 +1375,13 @@ static void* read_node_cb(btree_status_t *ret, void *data, uint64_t lnodeid)
 
 static void write_node_cb(btree_status_t *ret_out, void *cb_data, uint64_t lnodeid, char *data, uint64_t datalen)
 {
-    FDF_status_t            ret;
-    read_node_t            *prn = (read_node_t *) cb_data;
+    FDF_status_t    ret;
+    read_node_t     *prn = (read_node_t *) cb_data;
 
     N_write_node++;
 
     ret = FDFWriteObject(my_thd_state, prn->cguid, (char *) &lnodeid, sizeof(uint64_t), data, datalen, 0 /* flags */);
-    trxtrack( prn->cguid, lnodeid, data);
+    trxtrackwrite( prn->cguid, lnodeid);
     assert(prn->nodesize == datalen);
 
     switch(ret) {
@@ -1437,46 +1438,43 @@ static int freebuf_cb(void *data, char *buf)
 
 static void* create_node_cb(btree_status_t *ret, void *data, uint64_t lnodeid)
 {
-	FDF_status_t			status = FDF_FAILURE;
-    read_node_t            *prn = (read_node_t *) data;
-    struct btree_raw_node  *n;
-    uint64_t                datalen;
-    // pid_t  tid = syscall(SYS_gettid);
+	struct btree_raw_node	*n;
+	FDF_status_t		status = FDF_FAILURE;
+	read_node_t		*prn = (read_node_t *) data;
+	uint64_t		datalen;
 
-    N_create_node++;
-
-    status = FDFWriteObject(my_thd_state, prn->cguid, (char *) &lnodeid, sizeof(uint64_t), Create_Data, prn->nodesize, FDF_WRITE_MUST_NOT_EXIST  /* flags */);
-    trxtrack( prn->cguid, lnodeid, data);
-
-    if (status == FDF_SUCCESS) {
-	    status = FDFReadObject(my_thd_state, prn->cguid, (char *) &lnodeid, sizeof(uint64_t), (char **) &n, &datalen);
-	    if (status == FDF_SUCCESS) {
-	        assert(datalen == prn->nodesize);
-	        *ret = BTREE_SUCCESS;
-	        // xxxzzz SEGFAULT
-	        // fprintf(stderr, "SEGFAULT create_node_cb: %p [tid=%d]\n", n, tid);
-	        return(n);
-	    } else {
-	        *ret = BTREE_FAILURE;
-	        fprintf(stderr, "ZZZZZZZZ   create_node_cb failed with ret=%d   ZZZZZZZZZ\n", *ret);
-	        return(NULL);
-	    }
-    } else {
-	    return(NULL);
-    }
+	N_create_node++;
+	status = FDFWriteObject(my_thd_state, prn->cguid, (char *) &lnodeid, sizeof(uint64_t), Create_Data, prn->nodesize, FDF_WRITE_MUST_NOT_EXIST  /* flags */);
+	trxtrackwrite( prn->cguid, lnodeid);
+	if (status == FDF_SUCCESS) {
+		status = FDFReadObject(my_thd_state, prn->cguid, (char *) &lnodeid, sizeof(uint64_t), (char **) &n, &datalen);
+		if (status == FDF_SUCCESS) {
+			assert(datalen == prn->nodesize);
+			*ret = BTREE_SUCCESS;
+			return(n);
+		}
+		*ret = BTREE_FAILURE;
+		fprintf(stderr, "ZZZZZZZZ   create_node_cb failed with ret=%d   ZZZZZZZZZ\n", *ret);
+	}
+	return(NULL);
 }
 
 static btree_status_t delete_node_cb(void *data, uint64_t lnodeid)
 {
-    N_delete_node++;
-    // xxxzzz finish me!
-    return(BTREE_SUCCESS);
+	read_node_t	*prn	= (read_node_t *) data;
+
+	N_delete_node++;
+	FDF_status_t status = FDFDeleteObject(my_thd_state, prn->cguid, (char *) &lnodeid, sizeof(uint64_t));
+	trxtrackwrite( prn->cguid, lnodeid);
+	if (status == FDF_SUCCESS)
+		return (BTREE_SUCCESS);
+	return (BTREE_SUCCESS);		// return success until btree logic is fixed
 }
 
 // ???
 static void log_cb(btree_status_t *ret, void *data, uint32_t event_type, struct btree_raw *btree)
 {
-    N_log++;
+	N_log++;
 	*ret = BTREE_SUCCESS;
 }
 

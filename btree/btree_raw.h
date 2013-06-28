@@ -147,7 +147,7 @@ typedef struct btree_raw_mem_node *(create_node_cb_t)(btree_status_t *ret, void 
 typedef int (delete_node_cb_t)(struct btree_raw_mem_node *node, void *data, uint64_t lnodeid);
 typedef void (log_cb_t)(btree_status_t *ret, void *data, uint32_t event_type, struct btree_raw *btree, struct btree_raw_mem_node *n);
 typedef int (cmp_cb_t)(void *data, char *key1, uint32_t keylen1, char *key2, uint32_t keylen2);
-typedef void (trx_cmd_cb_t)( int, void *, void *);
+typedef int (trx_cmd_cb_t)( int, void *, void *);
 
 /****************************************************
  *
