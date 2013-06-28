@@ -469,11 +469,6 @@ find_key_range(btree_raw_t *bt,
 	/* Leaf node could get modified without global btree lock. */
 	if (is_leaf_node) plat_rwlock_rdlock(leaf_lock);
 
-	if (n->nkeys == 0) {
-		if (is_leaf_node) plat_rwlock_unlock(leaf_lock);
-		return NULL;
-	}
-
 	if (!IS_ASCENDING_QUERY(rmeta) && !all_keys) {
 		max_keys = -1;
 	}
@@ -488,13 +483,19 @@ find_key_range(btree_raw_t *bt,
 	                                   sizeof(node_key_t *) * max_keys);
 	if (klist == NULL) {
 		assert(0);
+		if (is_leaf_node) plat_rwlock_unlock(leaf_lock);
 		return NULL;
 	}
+
 	klist->n = node;
 	klist->leaf_lock = leaf_lock;
 	klist->key_count = 0;
 	klist->next_read_ind = 0;
 	klist->pos_flag = 0;
+
+	if (n->nkeys == 0) {
+		return klist;
+	}
 
 	if (IS_ASCENDING_QUERY(rmeta)) {
 		if (all_keys) {
@@ -597,46 +598,55 @@ btree_start_range_query(btree_t                 *btree,
 
 /* Populate the values with key/value details for given rec */
 static btree_status_t
-fill_key_range(btree_raw_t         *bt,
-               btree_raw_mem_node_t     *n,
+fill_key_range(btree_raw_t          *bt,
+               btree_raw_mem_node_t *n,
                void                 *keyrec,
                btree_range_meta_t   *rmeta,
-               int                  meta_flags,
                btree_range_data_t   *values,
                int                  *n_out)
 {
 	node_vlkey_t      *pvlk;
 	btree_status_t status;
 	btree_status_t ret = BTREE_SUCCESS;
+	uint32_t keybuf_size;
+	uint64_t databuf_size;
+	uint32_t meta_flags;
 
 	values[*n_out].status = 0;
 
+	/* TODO: Later on try to combine range_meta and btree_meta
+	 * For now, set the meta_flags for get_leaf_data usage */
+	meta_flags = rmeta->flags & (RANGE_BUFFER_PROVIDED | RANGE_ALLOC_IF_TOO_SMALL);
+	if (rmeta->flags & RANGE_BUFFER_PROVIDED) {
+		keybuf_size  = rmeta->keybuf_size;
+		databuf_size = rmeta->databuf_size;
+	}
+
 	status = get_leaf_key(bt, n->pnode, keyrec,
 	                      &values[*n_out].key,
-	                      &values[*n_out].keylen,
+	                      &keybuf_size,
 	                      meta_flags);
 	if (status != BTREE_SUCCESS) {
 		/* TODO: Consider introducing BTREE_WARNING */
 		ret = BTREE_FAILURE;
-
-		values[*n_out].status |= 
-		                    (status == BTREE_BUFFER_TOO_SMALL) ?
+		values[*n_out].status |= (status == BTREE_BUFFER_TOO_SMALL) ?
 		                      BTREE_KEY_BUFFER_TOO_SMALL: BTREE_FAILURE;
 	}
+	values[*n_out].keylen = keybuf_size;
 
 	if (!(rmeta->flags & RANGE_KEYS_ONLY)) {
 		status = get_leaf_data(bt, n->pnode, keyrec,
 		                       &values[*n_out].data,
-		                       &values[*n_out].datalen,
+		                       &databuf_size,
 		                       meta_flags, 0);
 
 		if (status != BTREE_SUCCESS) {
 			ret = BTREE_FAILURE;
-	
 			values[*n_out].status |= 
 			           (status == BTREE_BUFFER_TOO_SMALL) ?
 				     BTREE_DATA_BUFFER_TOO_SMALL: BTREE_FAILURE;
 		}
+		values[*n_out].datalen = databuf_size;
 	}
 
 	pvlk = (node_vlkey_t *) keyrec;
@@ -670,7 +680,6 @@ btree_get_next_range(btree_range_cursor_t *cursor,
 	range_key_list_t *child_klist;
 	int               pathcnt = 1;
 	btree_range_meta_t rmeta;
-	uint32_t          meta_flags;
 	btree_status_t    overall_status;
 	btree_status_t    status;
 	btree_status_t    ret = BTREE_SUCCESS;
@@ -751,9 +760,6 @@ btree_get_next_range(btree_range_cursor_t *cursor,
 	left_edge = right_edge = 1;
 	klist->pos_flag = LEFT_EDGE | RIGHT_EDGE;
 
-	/* TODO: Later on try to combine range_meta and btree_meta
-	 * For now, set the meta_flags for get_leaf_data usage */
-	meta_flags = rmeta.flags & (RANGE_BUFFER_PROVIDED | RANGE_ALLOC_IF_TOO_SMALL);
 	overall_status = BTREE_SUCCESS;
 
 	key_index = -1;
@@ -782,7 +788,6 @@ btree_get_next_range(btree_range_cursor_t *cursor,
 			status = fill_key_range(bt, n, 
 			                        (void *)keyrec,
 			                        &rmeta,
-			                        meta_flags, 
 			                        values, 
 			                        n_out);
 			if (status != BTREE_SUCCESS) {

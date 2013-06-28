@@ -123,78 +123,127 @@ FDF_status_t DeleteObject(FDF_cguid_t cguid, char *key, uint32_t keylen)
 	return ret;
 }
 
+
+static FDF_range_meta_t *
+get_start_end_params(uint32_t n_objects, uint32_t start, uint32_t end,
+                     int start_incl, int end_incl, int flags, int lo_to_hi,
+                     int *n_in, uint32_t *exp_start, uint32_t *exp_end)
+{
+	FDF_range_meta_t *rmeta;
+
+	/* Initialize rmeta */
+	rmeta = (FDF_range_meta_t *)malloc(sizeof(FDF_range_meta_t));
+	assert(rmeta);
+
+	*exp_start = start;
+	*exp_end   = end;
+
+	if (start == 0) {
+		*exp_start = lo_to_hi ? 1 : n_objects;
+		start_incl = -1; /* Don't add anything to start flags */
+	} else if (start == (n_objects + 1)) {
+		*exp_start = n_objects;
+		start_incl = -1; /* Don't add anything to start */
+	}
+
+	if (end == 0) {
+		*exp_end = lo_to_hi ? n_objects : 1;
+		end_incl = -1;  /* Don't add anything to end */
+	} else if (end == (n_objects + 1)) {
+		*exp_end = n_objects;
+		end_incl = -1;  /* Don't add anything to end */
+	}
+
+
+	if (start > end) {
+		*n_in = *exp_start - *exp_end + 1; /* All inclusive */
+
+		if (start_incl == 1) {
+			flags |= FDF_RANGE_START_LE;
+		} else if (start_incl == 0) {
+			flags |= FDF_RANGE_START_LT;
+			*exp_start = start - 1;
+			(*n_in)--;
+		}
+
+		if (end_incl >= 1) {
+			flags |= FDF_RANGE_END_GE;
+		} else if (end_incl == 0) {
+			flags |= FDF_RANGE_END_GT;
+			*exp_end = end + 1;
+			(*n_in)--;
+		}
+	} else {
+		*n_in = *exp_end - *exp_start + 1;
+
+		if (start_incl == 1) {
+			flags |= FDF_RANGE_START_GE;
+		} else if (start_incl == 0) {
+			flags |= FDF_RANGE_START_GT;
+			*exp_start = start + 1;
+			(*n_in)--;
+		}
+		if (end_incl >= 1) {
+			flags |= FDF_RANGE_END_LE;
+		} else if (end_incl == 0) {
+			flags |= FDF_RANGE_END_LT;
+			*exp_end = end - 1;
+			(*n_in)--;
+		}
+	}
+
+	rmeta->flags = flags;
+
+	if ((start == 0) || (start == (n_objects+1))) {
+		rmeta->key_start = NULL;
+		rmeta->keylen_start = 0;
+	} else {
+		rmeta->key_start = (char *)malloc(MAX_KEYLEN);
+		assert(rmeta->key_start);
+		sprintf(rmeta->key_start, "%08d", start);
+		rmeta->keylen_start = strlen(rmeta->key_start) + 1;
+	}
+
+	if ((end == 0) || (end == (n_objects+1))) {
+		rmeta->key_end = NULL;
+		rmeta->keylen_end = 0;
+	} else {
+		rmeta->key_end = (char *)malloc(MAX_KEYLEN);
+		assert(rmeta->key_end);
+		sprintf(rmeta->key_end, "%08d", end);
+		rmeta->keylen_end = strlen(rmeta->key_end) + 1;
+	}
+
+	return (rmeta);
+}
+
 /* Does a range query for start to end keys which will get encoded to string. 
  * The query will be split into "chunks" of equal chunk */
 FDF_status_t RangeQuery(FDF_cguid_t cguid, 
                         FDF_range_enums_t flags,
+                        uint32_t n_objects,
                         uint32_t start, int start_incl, 
                         uint32_t end, int end_incl, 
-                        int chunks)
+                        int lo_to_hi, int chunks)
 {
 	int n_in, n_in_chunk, n_in_max;
 	int n_out;
-	int exp_start;
-	int exp_end;
+	uint32_t exp_start;
+	uint32_t exp_end;
 	FDF_range_meta_t  *rmeta;
 	FDF_range_data_t *values;
 	struct FDF_cursor *cursor;       // opaque cursor handle
 	FDF_status_t ret;
 	int i;
 	int failures = 0;
+	int success = 0;
 
-	/* Initialize rmeta */
-	rmeta = (FDF_range_meta_t *)malloc(sizeof(FDF_range_meta_t));
-	assert(rmeta);
+	rmeta = get_start_end_params(n_objects, start, end, start_incl,
+	                             end_incl, flags, lo_to_hi, 
+	                             &n_in, &exp_start, &exp_end);
 
-	exp_start = start;
-	exp_end   = end;
-
-	if (start > end) {
-		n_in = start - end;
-
-		if (start_incl) {
-			flags |= FDF_RANGE_START_LE;
-		} else {
-			flags |= FDF_RANGE_START_LT;
-			exp_start = start - 1;
-		}
-		if (end_incl) {
-			flags |= FDF_RANGE_END_GE;
-		} else {
-			flags |= FDF_RANGE_END_GT;
-			exp_end = end + 1;
-		}
-	} else {
-		n_in = end - start;
-		if (start_incl) {
-			flags |= FDF_RANGE_START_GE;
-		} else {
-			exp_start = start + 1;
-			flags |= FDF_RANGE_START_GT;
-		}
-		if (end_incl) {
-			flags |= FDF_RANGE_END_LE;
-		} else {
-			flags |= FDF_RANGE_END_LT;
-			exp_end = end - 1;
-		}
-	}
-	if (start_incl && end_incl) {
-		n_in++;
-	} else if (!start_incl && !end_incl) {
-		n_in--;
-	}
-
-	rmeta->flags = flags;
-	rmeta->key_start = (char *)malloc(MAX_KEYLEN);
-	assert(rmeta->key_start);
-	sprintf(rmeta->key_start, "%08d", start);
-	rmeta->keylen_start = strlen(rmeta->key_start) + 1;
-
-	rmeta->key_end = (char *)malloc(MAX_KEYLEN);
-	assert(rmeta->key_end);
-	sprintf(rmeta->key_end, "%08d", end);
-	rmeta->keylen_end = strlen(rmeta->key_end) + 1;
+	fprintf(fp, "RangeQuery params: (%d-%d) split into %d chunks:\n",
+	            start, end, chunks);
 
 	ret = FDFGetRange(fdf_thrd_state, 
 	                  cguid,
@@ -205,18 +254,27 @@ FDF_status_t RangeQuery(FDF_cguid_t cguid,
 		fprintf(fp, "FDFStartRangeQuery failed with status=%d\n", ret);
 		return ret;
 	}
-	memset(rmeta->key_start, 0, MAX_KEYLEN);
-	memset(rmeta->key_end, 0, MAX_KEYLEN);
-	memset(rmeta, 0, sizeof(FDF_range_meta_t)); /* To test cases where things are freed after getrange */
-	free(rmeta->key_start);
-	free(rmeta->key_end);
+
+	/* Following 3 blocks of code is to test cases where things are freed 
+	 * after start range is clalled */
+	if (rmeta->key_start) {
+		memset(rmeta->key_start, 0, MAX_KEYLEN);
+		free(rmeta->key_start);
+	}
+
+	if (rmeta->key_end) {
+		memset(rmeta->key_end, 0, MAX_KEYLEN);
+		free(rmeta->key_end);
+	}
+
+	memset(rmeta, 0, sizeof(FDF_range_meta_t)); 
 	free(rmeta);
 
 	/* Divide into near equal chunks */
 	n_in_max = n_in / chunks + 1;
-	fprintf(fp, "RangeQuery (%d-%d) split into %d chunks, with each "
-	            "chunk expecting %d objects is about to start\n",
-	            start, end, chunks, n_in_max);
+	fprintf(fp, "RangeQuery (%d-%d) n_in=%d split into %d chunks, each "
+	            "chunk expecting %d objects\n",
+	            exp_start, exp_end, n_in, chunks, n_in_max);
 
 	while (n_in > 0) {
 		n_in_chunk = n_in < n_in_max? n_in: n_in_max;
@@ -242,10 +300,15 @@ FDF_status_t RangeQuery(FDF_cguid_t cguid,
 				fprintf(fp, "ERROR: VerifyRangeQuery failed "
 				        "for start key %d, n_in=%d n_out=%d\n",
 				        exp_start, n_in_chunk, n_out);
-				return FDF_FAILURE;
+				failures++;
+				break;
 			}
-			fprintf(fp, "VerifyRangeQuery for a chunk start key "
-				        "%d success\n", exp_start);
+
+			if (chunks <= 10) {
+				fprintf(fp, "VerifyRangeQuery for a chunk start key "
+					        "%d success\n", exp_start);
+			}
+			success++;
 		} else if (ret != FDF_QUERY_DONE) {
 			fprintf(fp, "ERROR: FDFGetNextRange failed with "
 			            "error %d\n", ret);
@@ -279,10 +342,10 @@ FDF_status_t RangeQuery(FDF_cguid_t cguid,
 	}
 
 	if (failures) {
-		fprintf(fp, "ERROR: RangeQuery completed with %d failures\n", failures);
+		fprintf(fp, "ERROR: RangeQuery completed with %d failures and %d success\n", failures, success);
 		return (FDF_FAILURE);
 	} else {
-		fprintf(fp, "SUCCESS: RangeQuery completed successfully\n");
+		fprintf(fp, "SUCCESS: RangeQuery completed successfully in %d chunks\n", success);
 		return (FDF_SUCCESS);
 	}
 }
@@ -351,10 +414,10 @@ FDF_status_t GenerateSerialKeyData(FDF_cguid_t cguid, uint32_t n_objects, uint32
 	keytmp = malloc(MAX_KEYLEN);
 	assert(keytmp);
 
-	data_arr    = (char **)malloc(sizeof(char *) * n_objects); 
-	datalen_arr = (uint32_t *)malloc(sizeof(uint32_t) * n_objects); 
+	data_arr    = (char **)malloc(sizeof(char *) * (n_objects + 1)); 
+	datalen_arr = (uint32_t *)malloc(sizeof(uint32_t) * (n_objects + 1)); 
 
-	for (i = 0; i < n_objects; i++) {
+	for (i = 1; i <= n_objects; i++) {
 
 		/* generate serial key and data */
 		(void) sprintf(keytmp, "%08d", i);
@@ -400,7 +463,7 @@ static char *gen_data(uint32_t max_datalen, uint32_t *pdatalen)
 static void discard_data(uint32_t n_objects)
 {
 	int i;
-	for (i = 0; i < n_objects; i++) {
+	for (i = 0; i <= n_objects; i++) {
 		free(data_arr[i]);
 	}
 	free(datalen_arr);
@@ -446,9 +509,9 @@ static int verify_range_query_data(FDF_range_data_t *values,
 		if (strncmp(data_arr[exp_start],
 		            values[i].data, 
 		            values[i].datalen) != 0) {
-			fprintf(fp, "Error: Key mismatch Expected Key %s, "
-			            "Read Key %s for index(%d)\n", keytmp, 
-			            values[i].key, i);
+			fprintf(fp, "Error: Data mismatch for key %s, Expected "
+			            "data: '%s' Read data '%s' for index(%d)\n", keytmp, 
+			            data_arr[exp_start], values[i].data, i);
 			return -1;
 		}
 
@@ -458,15 +521,40 @@ static int verify_range_query_data(FDF_range_data_t *values,
 	return 0;
 }
 
-/***************** test ******************/
-int test_basic_check(void)
+static void do_range_query_in_chunks(FDF_cguid_t cguid, 
+                                     FDF_range_enums_t flags,
+                                     uint32_t n_objects,
+                                     uint32_t start, int start_incl, 
+                                     uint32_t end, int end_incl, 
+                                     int lo_to_hi, int test_id)
 {
-	int n_objects = 4000;
-	FDF_range_enums_t flags = 0;
-	int n_test_iter = 10;
 	int max_chunks = 10;
-	int i;
-	int start, end, n_chunks;
+
+	fprintf(fp, "-----------Test:%d.1: No_of_chunks=1--------------\n",test_id);
+	RangeQuery(cguid, flags, n_objects, start, start_incl, end, end_incl, lo_to_hi, 1);
+
+	fprintf(fp, "-----------Test:%d.2: No_of_chunks=%u--------------\n",
+	            test_id, n_objects);
+	RangeQuery(cguid, flags, n_objects, start, start_incl, end, end_incl, lo_to_hi, n_objects);
+
+	int rand_chunks = (random() % (max_chunks - 1)) + 1;
+	fprintf(fp, "-----------Test:%d.3: No_of_chunks=%u--------------\n",
+	            test_id, rand_chunks);
+	RangeQuery(cguid, flags, n_objects, start, start_incl, end, end_incl, lo_to_hi, rand_chunks);
+}
+
+#define MAX  n_objects+1
+
+/***************** test ******************/
+int test_basic_check(uint32_t n_objects)
+{
+	FDF_range_enums_t flags = 0;
+//	int n_test_iter = 10;
+//	int i;
+//	int start, end, n_chunks;
+	int test_id = 1;
+	int rand_n1;
+	int rand_n2;
 
 	FDF_status_t status;
 	FDF_cguid_t cguid;
@@ -486,22 +574,194 @@ int test_basic_check(void)
 		return -1;
 	}
 
-	for (i = 1; i <= n_test_iter; i++) {
-		start = random() % n_objects;
-		end   = random() % n_objects;
+/*	for (i = 1; i <= n_test_iter; i++) {
+		start = random() % (n_objects+1);
+		end   = random() % (n_objects+1);
 		n_chunks = (random() % (max_chunks - 1)) + 1;
+	} */
 
-		status = RangeQuery(cguid, flags, 
-		                    start, i % 2,
-		                    end, i % 3,
-		                    n_chunks);
+	fprintf(fp, "================ Ascending Order Tests ===================\n");
+	fprintf(fp, "\n######### Test %d: Start and End NULL #########\n\n", test_id);
+	do_range_query_in_chunks(cguid, flags, n_objects, 0, 0, MAX, 0, 1, test_id++);
 
-		if (status != FDF_SUCCESS) {
-			fprintf(fp, "test_basic_check failed. Range Query "
-			            "failed with ret=%d\n", status);
-			return -1;
-		}
-	}
+	/* start is higher than 1 - edge condition */
+	fprintf(fp, "\n######### Test %d: Start >1 and end NULL #########\n\n", test_id);
+	do_range_query_in_chunks(cguid, flags, n_objects, 1, 0, MAX, 0, 1, test_id++);
+
+	fprintf(fp, "\n######### Test %d: Start >=1 and end NULL #########\n\n", test_id);
+	do_range_query_in_chunks(cguid, flags, n_objects, 1, 1, MAX, 0, 1, test_id++);
+
+	/* start higher than random number */
+	rand_n1 = random() % n_objects;
+	fprintf(fp, "\n######### Test %d: Start > %d(rand) and end NULL #########\n\n",
+	         test_id, rand_n1);
+	do_range_query_in_chunks(cguid, flags, n_objects, rand_n1, 0, MAX, 0, 1, test_id++);
+
+	rand_n1 = random() % n_objects;
+	fprintf(fp, "\n######### Test %d: Start >= %d(rand) and end NULL #########\n\n",
+	         test_id, rand_n1);
+	do_range_query_in_chunks(cguid, flags, n_objects, rand_n1, 1, MAX, 0, 1, test_id++);
+
+	/* start higher than last but one number */
+	fprintf(fp, "\n######### Test %d: Start >%d and end NULL #########\n\n", 
+	         test_id, n_objects-1);
+	do_range_query_in_chunks(cguid, flags, n_objects, n_objects-1, 0, MAX, 0, 1, test_id++);
+
+	fprintf(fp, "\n######### Test %d: Start >=%d and end NULL #########\n\n", 
+	         test_id, n_objects-1);
+	do_range_query_in_chunks(cguid, flags, n_objects, n_objects-1, 1, MAX, 0, 1, test_id++);
+
+	/* start higher than random number and end less than bigger random number */
+	rand_n1 = random() % n_objects/2;
+	rand_n2 = rand_n1 + random() % n_objects/2;
+	fprintf(fp, "\n######### Test %d: Start > %d(rand) and end < %d(rand)#########\n", 
+	         test_id, rand_n1, rand_n2);
+	do_range_query_in_chunks(cguid, flags, n_objects, rand_n1, 0, rand_n2, 0, 1, test_id++);
+
+	rand_n1 = random() % n_objects/2;
+	rand_n2 = rand_n1 + random() % n_objects/2;
+	fprintf(fp, "\n######### Test %d: Start >= %d(rand) and end < %d(rand)#########\n", 
+	         test_id, rand_n1, rand_n2);
+	do_range_query_in_chunks(cguid, flags, n_objects, rand_n1, 1, rand_n2, 0, 1, test_id++);
+
+	rand_n1 = random() % n_objects/2;
+	rand_n2 = rand_n1 + random() % n_objects/2;
+	fprintf(fp, "\n######### Test %d: Start > %d(rand) and end <= %d(rand)#########\n", 
+	         test_id, rand_n1, rand_n2);
+	do_range_query_in_chunks(cguid, flags, n_objects, rand_n1, 0, rand_n2, 1, 1, test_id++);
+
+	rand_n1 = random() % n_objects/2;
+	rand_n2 = rand_n1 + random() % n_objects/2;
+	fprintf(fp, "\n######### Test %d: Start >= %d(rand) and end <= %d(rand)#########\n", 
+	         test_id, rand_n1, rand_n2);
+	do_range_query_in_chunks(cguid, flags, n_objects, rand_n1, 1, rand_n2, 1, 1, test_id++);
+
+	/* start and end <= & >= on same number */
+	rand_n1 = random() % n_objects;
+	fprintf(fp, "\n######### Test %d: Start >= %d(rand) and end <= %d(rand)#########\n", 
+	         test_id, rand_n1, rand_n1);
+	do_range_query_in_chunks(cguid, flags, n_objects, rand_n1, 1, rand_n1, 1, 1, test_id++);
+
+	/* Range: start NULL till end last but one */
+	fprintf(fp, "\n######### Test %d: Start = NULL and end < (last-1) #########\n\n", 
+	         test_id);
+	do_range_query_in_chunks(cguid, flags, n_objects, 0, 0, n_objects-1, 0, 1, test_id++);
+
+	fprintf(fp, "\n######### Test %d: Start = NULL and end <= (last-1) #########\n\n", 
+	         test_id);
+	do_range_query_in_chunks(cguid, flags, n_objects, 0, 0, n_objects-1, 1, 1, test_id++);
+
+	/* Range: start NULL till end random number */
+	rand_n1 = random() % n_objects;
+	fprintf(fp, "\n######### Test %d: Start = NULL and end < %d(rand)#########\n", 
+	         test_id, rand_n1);
+	do_range_query_in_chunks(cguid, flags, n_objects, 0, 0, rand_n1, 0, 1, test_id++);
+
+	rand_n1 = random() % n_objects;
+	fprintf(fp, "\n######### Test %d: Start = NULL and end <= %d(rand)#########\n", 
+	         test_id, rand_n1);
+	do_range_query_in_chunks(cguid, flags, n_objects, 0, 0, rand_n1, 1, 1, test_id++);
+
+	/* Range: start NULL till end second number */
+	fprintf(fp, "\n######### Test %d: Start = NULL and end < 2 #########\n\n", 
+	         test_id);
+	do_range_query_in_chunks(cguid, flags, n_objects, 0, 0, 2, 0, 1, test_id++);
+
+	fprintf(fp, "\n######### Test %d: Start = NULL and end <= 2 #########\n\n", 
+	         test_id);
+	do_range_query_in_chunks(cguid, flags, n_objects, 0, 0, 2, 1, 1, test_id++);
+
+
+	/**************** Descending Order ********************/
+	fprintf(fp, "================ Descending Order Tests ===================\n");
+
+	/* range last-1 till NULL - edge condition */
+	fprintf(fp, "\n######### Test %d: Start <(last-1) and end NULL #########\n\n", test_id);
+	do_range_query_in_chunks(cguid, flags, n_objects, n_objects-1, 0, 0, 0, 0, test_id++);
+
+	fprintf(fp, "\n######### Test %d: Start <=(last-1) and end NULL #########\n\n", test_id);
+	do_range_query_in_chunks(cguid, flags, n_objects, n_objects-1, 1, 0, 0, 0, test_id++);
+
+	/* start lesser than random number */
+	rand_n1 = random() % n_objects;
+	fprintf(fp, "\n######### Test %d: Start < %d(rand) and end NULL #########\n\n",
+	         test_id, rand_n1);
+	do_range_query_in_chunks(cguid, flags, n_objects, rand_n1, 0, 0, 0, 0, test_id++);
+
+	rand_n1 = random() % n_objects;
+	fprintf(fp, "\n######### Test %d: Start <= %d(rand) and end NULL #########\n\n",
+	         test_id, rand_n1);
+	do_range_query_in_chunks(cguid, flags, n_objects, rand_n1, 1, 0, 0, 0, test_id++);
+
+	/* start lesser than second number */
+	fprintf(fp, "\n######### Test %d: Start <2 and end NULL #########\n\n", 
+	         test_id);
+	do_range_query_in_chunks(cguid, flags, n_objects, 2, 0, 0, 0, 0, test_id++);
+
+	fprintf(fp, "\n######### Test %d: Start <=%d and end NULL #########\n\n", 
+	         test_id, n_objects-1);
+	do_range_query_in_chunks(cguid, flags, n_objects, 2, 1, 0, 0, 0, test_id++);
+
+	/* start lesser than random number and end greater than lower random number */
+	rand_n1 = random() % n_objects/2;
+	rand_n2 = rand_n1 + random() % n_objects/2;
+	fprintf(fp, "\n######### Test %d: Start < %d(rand) and end > %d(rand)#########\n", 
+	         test_id, rand_n2, rand_n1);
+	do_range_query_in_chunks(cguid, flags, n_objects, rand_n2, 0, rand_n1, 0, 0, test_id++);
+
+	rand_n1 = random() % n_objects/2;
+	rand_n2 = rand_n1 + random() % n_objects/2;
+	fprintf(fp, "\n######### Test %d: Start <= %d(rand) and end > %d(rand)#########\n", 
+	         test_id, rand_n2, rand_n1);
+	do_range_query_in_chunks(cguid, flags, n_objects, rand_n2, 1, rand_n1, 0, 0, test_id++);
+
+	rand_n1 = random() % n_objects/2;
+	rand_n2 = rand_n1 + random() % n_objects/2;
+	fprintf(fp, "\n######### Test %d: Start < %d(rand) and end >= %d(rand)#########\n", 
+	         test_id, rand_n2, rand_n1);
+	do_range_query_in_chunks(cguid, flags, n_objects, rand_n2, 0, rand_n1, 1, 0, test_id++);
+
+	rand_n1 = random() % n_objects/2;
+	rand_n2 = rand_n1 + random() % n_objects/2;
+	fprintf(fp, "\n######### Test %d: Start <= %d(rand) and end >= %d(rand)#########\n", 
+	         test_id, rand_n2, rand_n1);
+	do_range_query_in_chunks(cguid, flags, n_objects, rand_n2, 1, rand_n1, 1, 0, test_id++);
+
+	/* start and end <= & >= on same number */
+	/* TODO: This does not check accurately with FDFGetRange. Find a way */
+	rand_n1 = random() % n_objects;
+	fprintf(fp, "\n######### Test %d: Start <= %d(rand) and end >= %d(rand)#########\n\n", 
+	         test_id, rand_n1, rand_n1);
+	do_range_query_in_chunks(cguid, flags, n_objects, rand_n1, 1, rand_n1, 1, 0, test_id++);
+
+	/* Range: start NULL till end last but one */
+	fprintf(fp, "\n######### Test %d: Start = NULL and end > (last-1) #########\n\n", 
+	         test_id);
+	do_range_query_in_chunks(cguid, flags, n_objects, 0, 0, n_objects-1, 0, 0, test_id++);
+
+	fprintf(fp, "\n######### Test %d: Start = NULL and end >= (last-1) #########\n\n", 
+	         test_id);
+	do_range_query_in_chunks(cguid, flags, n_objects, 0, 0, n_objects-1, 1, 0, test_id++);
+
+	/* Range: start NULL till end random number */
+	rand_n1 = random() % n_objects;
+	fprintf(fp, "\n######### Test %d: Start = NULL and end > %d(rand)#########\n\n", 
+	         test_id, rand_n1);
+	do_range_query_in_chunks(cguid, flags, n_objects, 0, 0, rand_n1, 0, 0, test_id++);
+
+	rand_n1 = random() % n_objects;
+	fprintf(fp, "\n######### Test %d: Start = NULL and end >= %d(rand)#########\n\n", 
+	         test_id, rand_n1);
+	do_range_query_in_chunks(cguid, flags, n_objects, 0, 0, rand_n1, 1, 0, test_id++);
+
+	/* Range: start NULL till end second number */
+	fprintf(fp, "\n######### Test %d: Start = NULL and end > 2 #########\n\n", 
+	         test_id);
+	do_range_query_in_chunks(cguid, flags, n_objects, 0, 0, 2, 0, 0, test_id++);
+
+	fprintf(fp, "\n######### Test %d: Start = NULL and end >= 2 #########\n\n", 
+	         test_id);
+	do_range_query_in_chunks(cguid, flags, n_objects, 0, 0, 2, 1, 0, test_id++);
 
 	CloseContainer(cguid);
         (void)DeleteContainer(cguid);
@@ -602,8 +862,8 @@ int main(int argc, char *argv[])
 		return (1);
 	}
 
-	ret = test_basic_check();
-	ret = test_seqno_check();
+	ret = test_basic_check(50000);
+//	ret = test_seqno_check();
 
 	fclose(fp);
 	ClearEnvironment();
