@@ -170,10 +170,10 @@ static mutex_t		activetrxlock		= PTHREAD_MUTEX_INITIALIZER,
 static trx_t		*activetrxlist;
 static uint		ntrxstarted,
 			ntrxconcluded;
-static spinlock_t	nodetablesl		= 1;
+static mutex_t		nodetablelock		= PTHREAD_MUTEX_INITIALIZER;
 static trx_t		*trxpool;
 static trxnode_t	*trxnodepool;
-static node_t		*nodetable[1<<20],
+static node_t		*nodetable[1<<23],
 			*nodepool;
 static nodetrx_t	*nodetrxpool;
 static __thread trx_t	*trx;
@@ -360,15 +360,12 @@ track( FDF_cguid_t c, uint64_t nid, bool written)
 {
 
 	if (trx) {
-		pthread_spin_lock( &nodetablesl);
+		pthread_mutex_lock( &nodetablelock);
 		node_t *n = nsearch( c, nid);
 		nodetrx_t *nt = ntsearch( n);
 		nt->written |= written;
 		nt->hi = timestamp( );
-#if 0//Rico
-putchar((nt->written?'*':'.'));
-#endif
-		pthread_spin_unlock( &nodetablesl);
+		pthread_mutex_unlock( &nodetablelock);
 	}
 }
 
@@ -432,11 +429,6 @@ concludeself( )
 	default:
 		abort( );
 	}
-#if 0//Rico
-uint64_t e = reltime() + 32000L;
-while (reltime() < e)
-	;
-#endif
 	tdestroy( );
 	pthread_mutex_unlock( &endlock);
 	return (s);
@@ -766,18 +758,23 @@ ndel( node_t *head, node_t *n)
 /*
  * return fresh node from pool, or malloc
  *
- * Locking assumed.
+ * Space from malloc is chunked for performance.  Locking assumed.
  */
 static node_t	*
 nalloc( )
 {
+	node_t	*n;
+	uint	i;
 
-	node_t *n = nodepool;
-	if (n)
+	if (n = nodepool) {
 		nodepool = n->next;
-	else
-		n = malloc( sizeof *n);
-	return (n);
+		return (n);
+	}
+	const uint chunksize = 30;		// tuned
+	n = malloc( chunksize * sizeof *n);
+	for (i=0; i<chunksize; ++i)
+		nfree( n++);
+	return (nalloc( ));
 }
 
 
@@ -901,7 +898,7 @@ trx_cmd_cb( int cmd, void *v0, void *v1)
 	node_t	*n;
 
 	int r = 0;
-	pthread_spin_lock( &nodetablesl);
+	pthread_mutex_lock( &nodetablelock);
 	switch (cmd) {
 	case TRX_CACHE_ADD:
 		n = nsearch( *(FDF_cguid_t *)v0, (uint64_t)v1);
@@ -929,7 +926,7 @@ trx_cmd_cb( int cmd, void *v0, void *v1)
 	default:
 		abort( );
 	}
-	pthread_spin_unlock( &nodetablesl);
+	pthread_mutex_unlock( &nodetablelock);
 	return (r);
 }
 
