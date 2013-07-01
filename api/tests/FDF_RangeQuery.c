@@ -285,11 +285,20 @@ FDF_status_t RangeQuery(FDF_cguid_t cguid,
 		assert(values);
 
 		/* Do the query now */
+#ifdef FDF_ROW_RANGE
+		ret = FDFGetNextRange(fdf_thrd_state, 
+		                      cursor,
+		                      n_in_chunk,
+		                      &n_out,
+		                      values, NULL, 0);
+#else
 		ret = FDFGetNextRange(fdf_thrd_state, 
 		                      cursor,
 		                      n_in_chunk,
 		                      &n_out,
 		                      values);
+#endif
+
 
 		if (ret == FDF_SUCCESS) {
 			if (verify_range_query_data(values,
@@ -386,11 +395,19 @@ FDF_status_t ReadSeqno(FDF_cguid_t cguid, uint32_t key_no, uint64_t *seq_no)
 	assert(values);
 
 	/* Do the query now */
+#ifdef FDF_ROW_RANGE
+	ret = FDFGetNextRange(fdf_thrd_state, 
+	                      cursor,
+	                      n_in,
+	                      &n_out,
+	                      values, NULL, 0);
+#else
 	ret = FDFGetNextRange(fdf_thrd_state, 
 	                      cursor,
 	                      n_in,
 	                      &n_out,
 	                      values);
+#endif
 
 	if ((ret == FDF_SUCCESS) && 
 	    (n_out == n_in) &&

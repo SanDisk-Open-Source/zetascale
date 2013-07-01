@@ -381,6 +381,25 @@ typedef struct {
     FDF_time_t       expiry;
 } FDF_writeobject_t;
 
+/*
+ *  Function used to compare keys
+ *  to determine ordering in the index.
+ *
+ *  Returns: -1 if key1 comes before key2
+ *            0 if key1 is the same as key2
+ *            1 if key1 comes after key2
+ */
+typedef int (FDF_cmp_fn_t)(void     *index_data, //  opaque user data
+                           char     *key1,       //  first secondary key
+                           uint32_t  keylen1,    //  length of first secondary key
+                           char     *key2,       //  second secondary key
+                           uint32_t  keylen2);   //  length of second secondary key
+
+typedef struct FDF_container_meta_s {
+	FDF_cmp_fn_t   *sort_cmp_fn;             // compare function for key
+	void           *cmp_data;                // Any data to provide for cmp
+} FDF_container_meta_t;
+
 struct FDF_state;
 struct FDF_thread_state;
 struct FDF_iterator;
@@ -485,6 +504,26 @@ FDF_status_t FDFOpenContainer(
 	uint32_t			 	 flags,
 	FDF_cguid_t				*cguid
 	);
+
+ /**
+ * @brief Create and open a virtual container.
+ *
+ * @param fdf_thread_state <IN> The FDF context for which this operation applies
+ * @param cname <IN> container name
+ * @param properties <IN> container properties
+ * @param flags <IN> container open options
+ * @param cguid <OUT> container GUID
+ * @return FDF_SUCCESS on success
+ */
+FDF_status_t FDFOpenContainerSpecial(
+	struct FDF_thread_state	  *fdf_thread_state, 
+	char                      *cname, 
+	FDF_container_props_t     *properties, 
+	uint32_t                  flags,
+	FDF_container_meta_t      *cmeta,
+	FDF_cguid_t               *cguid
+	);
+
 /**
  * @brief Close a virtual container.
  *
@@ -991,6 +1030,17 @@ typedef enum {
 	                                        // is derived from object data
 } FDF_range_enums_t;
 
+/*
+ *
+ * Type definition for function that determines if we are allowed to return
+ * this key as part of a range query.
+ *
+ * Return true (1) if the key is allowed and false (0) otherwise.
+ */
+typedef int (FDF_allowed_fn_t)(void *context_data,  // context data (opaque)
+                               char *key,           // key to check if allowed
+                               uint32_t len);       // length of the key
+
 typedef struct FDF_range_meta {
 	FDF_range_enums_t flags;         // flags controlling type of range query (see above)
 	uint32_t          keybuf_size;   // size of application provided key buffers (if applicable)
@@ -1001,6 +1051,9 @@ typedef struct FDF_range_meta {
 	uint32_t          keylen_end;    // length of end key
 	uint64_t          start_seq;     // starting sequence number (if applicable)
 	uint64_t          end_seq;       // ending sequence number (if applicable)
+	FDF_cmp_fn_t      *class_cmp_fn; // Fn to cmp two keys are in same equivalence class
+	FDF_allowed_fn_t  *allowed_fn;   // Fn to check if this key is allowed to put in range result
+	void              *cb_data;      // Any data to be passed for this function
 } FDF_range_meta_t;
 
 struct           FDF_cursor;       // opaque cursor handle
@@ -1037,15 +1090,15 @@ typedef enum {
 } FDF_range_status_t;
 
 typedef struct FDF_range_data {
-    FDF_status_t  status;           // status
-    char         *key;              // index key value
-    uint32_t      keylen;           // index key length
-    char         *data;             // data
-    uint64_t      datalen;          // data length
-    uint64_t      seqno;            // sequence number for last update
-    uint64_t      syndrome;         // syndrome for key
-    char         *primary_key;      // primary key value (if required)
-    uint32_t      primary_keylen;   // primary key length (if required)
+	FDF_status_t  status;           // status
+	char         *key;              // index key value
+	uint32_t      keylen;           // index key length
+	char         *data;             // data
+	uint64_t      datalen;          // data length
+	uint64_t      seqno;            // sequence number for last update
+	uint64_t      syndrome;         // syndrome for key
+	char         *primary_key;      // primary key value (if required)
+	uint32_t      primary_keylen;   // primary key length (if required)
 } FDF_range_data_t;
 
 /* Gets next n_in keys in the indexed query.
@@ -1081,12 +1134,23 @@ typedef struct FDF_range_data {
  * statuses[i] returns: FDF_SUCCESS if the i'th data item was retrieved successfully
  *                      FDF_BUFFER_TOO_SMALL  if the i'th buffer was too small to retrieve the object
  */
+#ifdef FDF_ROW_RANGE
+FDF_status_t
+FDFGetNextRange(struct FDF_thread_state *thrd_state,  //  client thread FDF context
+                struct FDF_cursor       *cursor,      //  cursor for this indexed search
+                int                      n_in,        //  size of 'values' array
+                int                     *n_out,       //  number of items returned
+                FDF_range_data_t        *values,      //  array of returned key/data values
+                char                    **paused_key, //  Which key the range was not allowed
+                uint32_t                paused_key_len); // paused key's len
+#else
 FDF_status_t
 FDFGetNextRange(struct FDF_thread_state *thrd_state,  //  client thread FDF context
                 struct FDF_cursor       *cursor,      //  cursor for this indexed search
                 int                      n_in,        //  size of 'values' array
                 int                     *n_out,       //  number of items returned
                 FDF_range_data_t        *values);     //  array of returned key/data values
+#endif
 
 
 /* End an index query.
@@ -1195,20 +1259,6 @@ typedef int (FDF_index_fn_t)(void     *index_data,        //  opaque user data
  *  Returns NULL if a buffer cannot be allocated.
  */
 char * FDFGetSecondaryKeyBuffer(uint32_t len);
-
-/*
- *  Function used to compare secondary index values
- *  to determine ordering in the index.
- *
- *  Returns: -1 if key1 comes before key2
- *            0 if key1 is the same as key2
- *            1 if key1 comes after key2
- */
-typedef int (FDF_cmp_fn_t)(void     *index_data, //  opaque user data
-                           char     *key1,       //  first secondary key
-                           uint32_t  keylen1,    //  length of first secondary key
-                           char     *key2,       //  second secondary key
-                           uint32_t  keylen2);   //  length of second secondary key
 
 typedef struct FDF_index_meta {
     uint32_t        flags;       //  flags (see FDF_range_enums_t)

@@ -57,6 +57,10 @@ typedef enum {
 
 #define BTREE_RANGE_PRIMARY_INDEX   0
 
+typedef int (btree_allowed_fn_t)(void *context_data,  // context data (opaque)
+                                 char *key,           // key to check if allowed
+                                 uint32_t len);       // length of the key
+
 typedef struct btree_range_meta {
 	btree_range_flags_t  flags;        // flags controlling type of range query (see above)
 	uint32_t             keybuf_size;  // size of application provided key buffers (if applicable)
@@ -67,6 +71,9 @@ typedef struct btree_range_meta {
 	uint32_t             keylen_end;   // length of end key
 	uint64_t             start_seq;    // starting sequence number (if applicable)
 	uint64_t             end_seq;      // ending sequence number (if applicable)
+	cmp_cb_t            *class_cmp_fn; // Fn to cmp two keys are in same equivalence class
+	btree_allowed_fn_t  *allowed_fn;   // Fn to check if this key is allowed to put in range result
+	void                *cb_data;      // Any data to be passed for this function
 } btree_range_meta_t;
 
 typedef struct {

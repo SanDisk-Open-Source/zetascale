@@ -69,7 +69,9 @@ _FDFGetNextRange(struct FDF_thread_state *fdf_thread_state,
                  struct FDF_cursor       *cursor,
                  int                      n_in,
                  int                     *n_out,
-                 FDF_range_data_t        *values);
+                 FDF_range_data_t        *values,
+                 char                    **paused_key,
+                 uint32_t                paused_key_len);
 
 FDF_status_t
 _FDFGetRangeFinish(struct FDF_thread_state *fdf_thread_state,
@@ -310,15 +312,17 @@ FDF_status_t _FDFLoadCntrPropDefaults(
  * @param cname <IN> container name
  * @param properties <IN> container properties
  * @param flags <IN> container open options
+ * @param cmeta <IN> container open meta
  * @param cguid <OUT> container GUID
  * @return FDF_SUCCESS on success
  */
-FDF_status_t _FDFOpenContainer(
-	struct FDF_thread_state	*fdf_thread_state, 
-	char					*cname, 
-	FDF_container_props_t 	*properties, 
-	uint32_t			 	 flags_in,
-	FDF_cguid_t				*cguid
+FDF_status_t _FDFOpenContainerSpecial(
+	struct FDF_thread_state	  *fdf_thread_state, 
+	char                      *cname, 
+	FDF_container_props_t 	  *properties, 
+	uint32_t                  flags_in,
+	FDF_container_meta_t      *cmeta,
+	FDF_cguid_t               *cguid
 	)
 {
     FDF_status_t  ret;
@@ -337,6 +341,7 @@ FDF_status_t _FDFOpenContainer(
     void         *delete_node_cb_data;
     void         *log_cb_data;
     void         *msg_cb_data;
+    cmp_cb_t     *cmp_cb;
     void         *cmp_cb_data;
     read_node_t  *prn;
     int           index = -1;
@@ -436,6 +441,12 @@ FDF_status_t _FDFOpenContainer(
 	return(FDF_FAILURE); // xxxzzz fix me
     }
 
+    cmp_cb = lex_cmp_cb;
+    if (cmeta) {
+        if (cmeta->sort_cmp_fn) cmp_cb = (cmp_cb_t *)cmeta->sort_cmp_fn;
+        if (cmeta->cmp_data) cmp_cb_data = cmeta->cmp_data;
+    }
+
     bt = btree_init(n_partitions, 
                     flags, 
                     max_key_size, 
@@ -458,7 +469,7 @@ FDF_status_t _FDFOpenContainer(
                     log_cb_data, 
                     msg_cb, 
                     msg_cb_data, 
-                    lex_cmp_cb, 
+                    cmp_cb, 
                     cmp_cb_data,
                     trx_cmd_cb 
 		    );
@@ -482,6 +493,22 @@ FDF_status_t _FDFOpenContainer(
     Container_Map[index].btree = bt;
 
     return(ret);
+}
+
+FDF_status_t _FDFOpenContainer(
+	struct FDF_thread_state	*fdf_thread_state, 
+	char                    *cname, 
+	FDF_container_props_t 	*properties, 
+	uint32_t                flags_in,
+	FDF_cguid_t             *cguid
+	)
+{
+    return (_FDFOpenContainerSpecial(fdf_thread_state,
+                                     cname,
+                                     properties,
+                                     flags_in,
+                                     NULL,
+                                     cguid));
 }
 
 /**
@@ -996,7 +1023,7 @@ FDF_status_t _FDFNextEnumeratedObject(
                               (struct FDF_cursor *) iterator,
                               1,
                               &count,
-                              &values);
+                              &values, NULL, 0);
 
 	if (FDF_SUCCESS == status && FDF_SUCCESS == values.status) {
             assert(count);
@@ -1290,7 +1317,9 @@ _FDFGetNextRange(struct FDF_thread_state *fdf_thread_state,
                  struct FDF_cursor       *cursor,
                  int                      n_in,
                  int                     *n_out,
-                 FDF_range_data_t        *values)
+                 FDF_range_data_t        *values,
+                 char                    **paused_key,
+                 uint32_t                paused_key_len)
 {
 	FDF_status_t      ret = FDF_SUCCESS;
 	btree_status_t    status;
@@ -1307,7 +1336,8 @@ _FDFGetNextRange(struct FDF_thread_state *fdf_thread_state,
 	status = btree_get_next_range((btree_range_cursor_t *)cursor,
 	                              n_in,
 	                              n_out,
-	                              (btree_range_data_t *)values);
+	                              (btree_range_data_t *)values
+	                              );
 	trxleave( cguid);
 
 	if (status == BTREE_SUCCESS) {

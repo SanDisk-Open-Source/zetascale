@@ -274,12 +274,23 @@ static FDF_status_t
                   struct FDF_cursor      **cursor,
                   FDF_range_meta_t        *rmeta);
 
+#ifdef FDF_ROW_RANGE
+static FDF_status_t
+(*ptr_FDFGetNextRange)(struct FDF_thread_state *thrd_state,  
+                       struct FDF_cursor       *cursor,
+                       int                      n_in, 
+                       int                     *n_out,
+                       FDF_range_data_t        *values,
+                       char                    **paused_key, 
+                       uint32_t                paused_key_len);
+#else
 static FDF_status_t
 (*ptr_FDFGetNextRange)(struct FDF_thread_state *thrd_state,  
                        struct FDF_cursor       *cursor,
                        int                      n_in, 
                        int                     *n_out,
                        FDF_range_data_t        *values);
+#endif
 
 static FDF_status_t 
 (*ptr_FDFGetRangeFinish)(struct FDF_thread_state *thrd_state, 
@@ -1291,6 +1302,23 @@ FDFGetRange(struct FDF_thread_state *fdf_thread_state,
 /*
  * FDFGetNextRange
  */
+#ifdef FDF_ROW_RANGE
+FDF_status_t
+FDFGetNextRange(struct FDF_thread_state *fdf_thread_state,  
+                struct FDF_cursor       *cursor,
+                int                      n_in, 
+                int                     *n_out,
+                FDF_range_data_t        *values,
+                char                    **paused_key, 
+                uint32_t                paused_key_len)
+{
+    if (unlikely(!ptr_FDFGetNextRange))
+        undefined("FDFGetNextRange");
+
+    return (*ptr_FDFGetNextRange)(fdf_thread_state, cursor, n_in, n_out, values,
+                                  paused_key, paused_key_len);
+}
+#else
 FDF_status_t
 FDFGetNextRange(struct FDF_thread_state *fdf_thread_state,  
                 struct FDF_cursor       *cursor,
@@ -1303,6 +1331,7 @@ FDFGetNextRange(struct FDF_thread_state *fdf_thread_state,
 
     return (*ptr_FDFGetNextRange)(fdf_thread_state, cursor, n_in, n_out, values);
 }
+#endif
 
 /*
  * FDFGetRangeFinish

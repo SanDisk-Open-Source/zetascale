@@ -73,6 +73,14 @@ static FDF_status_t
                         FDF_cguid_t *cguid);
 
 static FDF_status_t 
+(*ptr_FDFOpenContainerSpecial)(struct FDF_thread_state *fdf_thread_state,
+                               char *cname,
+                               FDF_container_props_t *properties,
+                               uint32_t flags,
+                               FDF_container_meta_t *cmeta,
+                               FDF_cguid_t *cguid);
+
+static FDF_status_t 
 (*ptr_FDFCloseContainer)(struct FDF_thread_state *fdf_thread_state,
                          FDF_cguid_t cguid);
 
@@ -204,7 +212,9 @@ static FDF_status_t
                        struct FDF_cursor       *cursor,
                        int                      n_in, 
                        int                     *n_out,
-                       FDF_range_data_t        *values);
+                       FDF_range_data_t        *values,
+                       char                    **paused_key, 
+                       uint32_t                paused_key_len);
 
 static FDF_status_t 
 (*ptr_FDFGetRangeFinish)(struct FDF_thread_state *thrd_state, 
@@ -301,6 +311,7 @@ static struct {
     { "_FDFShutdown",                   &ptr_FDFShutdown                  },
     { "_FDFLoadCntrPropDefaults",       &ptr_FDFLoadCntrPropDefaults      },
     { "_FDFOpenContainer",              &ptr_FDFOpenContainer             },
+    { "_FDFOpenContainerSpecial",       &ptr_FDFOpenContainerSpecial      },
     { "_FDFCloseContainer",             &ptr_FDFCloseContainer            },
     { "_FDFDeleteContainer",            &ptr_FDFDeleteContainer           },
     { "_FDFGetContainers",              &ptr_FDFGetContainers             },
@@ -598,6 +609,27 @@ FDFOpenContainer(struct FDF_thread_state *fdf_thread_state,
                                    cguid);
 }
 
+/*
+ * FDFOpenContainerSpecial
+ */
+FDF_status_t 
+FDFOpenContainerSpecial(struct FDF_thread_state *fdf_thread_state,
+                        char *cname,
+                        FDF_container_props_t *properties,
+                        uint32_t flags,
+                        FDF_container_meta_t *cmeta,
+                        FDF_cguid_t *cguid)
+{
+    if (unlikely(!ptr_FDFOpenContainerSpecial))
+        undefined("FDFOpenContainerSpecial");
+
+    return (*ptr_FDFOpenContainerSpecial)(fdf_thread_state,
+                                          cname,
+                                          properties,
+                                          flags,
+                                          cmeta,
+                                          cguid);
+}
 
 /*
  * FDFCloseContainer
@@ -1011,6 +1043,17 @@ FDFGetRange(struct FDF_thread_state *fdf_thread_state,
 /*
  * FDFGetNextRange
  */
+#ifdef FDF_ROW_RANGE
+FDF_status_t
+FDFGetNextRange(struct FDF_thread_state *fdf_thread_state,  
+                struct FDF_cursor       *cursor,
+                int                      n_in, 
+                int                     *n_out,
+                FDF_range_data_t        *values,
+                char                    **paused_key, 
+                uint32_t                paused_key_len)
+{
+#else
 FDF_status_t
 FDFGetNextRange(struct FDF_thread_state *fdf_thread_state,  
                 struct FDF_cursor       *cursor,
@@ -1018,10 +1061,14 @@ FDFGetNextRange(struct FDF_thread_state *fdf_thread_state,
                 int                     *n_out,
                 FDF_range_data_t        *values)
 {
+    char **paused_key = NULL;
+    uint32_t paused_key_len = 0;
+#endif
     if (unlikely(!ptr_FDFGetNextRange))
         undefined("FDFGetNextRange");
 
-    return (*ptr_FDFGetNextRange)(fdf_thread_state, cursor, n_in, n_out, values);
+    return (*ptr_FDFGetNextRange)(fdf_thread_state, cursor, n_in, n_out, values,
+                                  paused_key, paused_key_len);
 }
 
 /*
