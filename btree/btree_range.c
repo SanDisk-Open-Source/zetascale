@@ -34,7 +34,7 @@
 
 typedef struct range_key_list {
 	btree_raw_mem_node_t *n;
-	plat_rwlock_t    *leaf_lock;
+	plat_rwlock_t    *node_lock;
 	int              key_count;
 	int              next_read_ind;         
 	int              pos_flag;
@@ -449,26 +449,18 @@ find_key_range_des(btree_raw_t *bt,
  * Find the keys in the node for the range provided. Returns total keys found between the
  * the range. The resulted key structures are put in the key_list structure. It will be
  * put in the same order as it is requested for.
- *
- * The leaf_lock is the lock corresponding to the node, in case it is a leaf node.
  */
 static range_key_list_t *
 find_key_range(btree_raw_t *bt,
                btree_raw_mem_node_t *node,
                btree_range_meta_t *rmeta,
-               plat_rwlock_t *leaf_lock,
                int max_keys,
                int all_keys)
 {
-	btree_raw_node_t *n = node->pnode;
+	btree_raw_node_t *n;
 	range_key_list_t *klist;
-	int is_leaf_node;
 
-	is_leaf_node = is_leaf(bt, n);
-
-	/* Leaf node could get modified without global btree lock. */
-	if (is_leaf_node) plat_rwlock_rdlock(leaf_lock);
-
+	n = node->pnode;
 	if (!IS_ASCENDING_QUERY(rmeta) && !all_keys) {
 		max_keys = -1;
 	}
@@ -483,12 +475,11 @@ find_key_range(btree_raw_t *bt,
 	                                   sizeof(node_key_t *) * max_keys);
 	if (klist == NULL) {
 		assert(0);
-		if (is_leaf_node) plat_rwlock_unlock(leaf_lock);
 		return NULL;
 	}
 
 	klist->n = node;
-	klist->leaf_lock = leaf_lock;
+	klist->node_lock = &node->lock;
 	klist->key_count = 0;
 	klist->next_read_ind = 0;
 	klist->pos_flag = 0;
@@ -589,7 +580,7 @@ btree_start_range_query(btree_t                 *btree,
 
 	cr->indexid      = indexid;
 	cr->last_key     = NULL;
-	cr->last_keylen = 0;
+	cr->last_keylen  = 0;
 	cr->last_status  = BTREE_SUCCESS;
 
 	*cursor = cr;
@@ -664,6 +655,31 @@ extern __thread uint64_t dbg_referenced;
 //#define dbg_print(msg, ...) do { fprintf(stderr, "%x %s:%d " msg, (int)pthread_self(), __FUNCTION__, __LINE__, ##__VA_ARGS__); } while(0)
 #define dbg_print(msg, ...)
 
+static btree_raw_mem_node_t *
+get_root_node_locked_low(btree_raw_t *bt, int ref)
+{
+	uint64_t child_id;
+	btree_raw_mem_node_t *n;
+	btree_status_t ret = BTREE_SUCCESS;
+
+restart:
+	child_id = bt->rootid;
+	n = get_existing_node_low(&ret, bt, child_id, ref);
+	if (n == NULL) {
+		assert(0);
+		return NULL;
+	}
+
+	plat_rwlock_rdlock(&n->lock);
+	if (child_id != bt->rootid) {
+		plat_rwlock_unlock(&n->lock);
+		deref_l1cache_node(bt, n);
+		goto restart;
+	}
+
+	return n;
+}
+
 btree_status_t
 btree_get_next_range(btree_range_cursor_t *cursor,
                      int                   n_in,
@@ -698,14 +714,6 @@ btree_get_next_range(btree_range_cursor_t *cursor,
 	bt = cursor->btree->partitions[n_partition];
 	*n_out = 0;
 
-	plat_rwlock_rdlock(&bt->lock);
-
-	n = get_existing_node_low(&ret, bt, bt->rootid, 0);
-	if (n == NULL) {
-		plat_rwlock_unlock(&bt->lock);
-		return BTREE_FAILURE;
-	}
-
 	rmeta = *(cursor->query_meta);
 
 	/* If last key is there, we need to search for next onwards.
@@ -726,44 +734,39 @@ btree_get_next_range(btree_range_cursor_t *cursor,
 		}
 	}
 
-	/* Find all the key range provided in the meta into the stack.
-	 * Order should be same order requested (ascending/descending) */
+	key_index = -1;
+
 	master_list = blist_init();
 	if (master_list == NULL) {
-		plat_rwlock_unlock(&bt->lock);
-		deref_l1cache_node(bt, n);
-		assert(!dbg_referenced);
-		return BTREE_FAILURE;
+		overall_status = BTREE_FAILURE;
+		goto done;
 	}
 
-	klist = find_key_range(bt, n, &rmeta, &n->lock, n_in, 0);
+	plat_rwlock_rdlock(&bt->lock);
+
+	n = get_root_node_locked_low(bt, 0);
+	if (n == NULL) {
+		overall_status = BTREE_FAILURE;
+		goto done;
+	}
+
+	klist = find_key_range(bt, n, &rmeta, n_in, 0);
 	if (klist == NULL) {
-		blist_end(master_list, 1);
-		plat_rwlock_unlock(&bt->lock);
+		plat_rwlock_unlock(&n->lock);
 		deref_l1cache_node(bt, n);
-		assert(!dbg_referenced);
-		return BTREE_FAILURE;
+		overall_status = BTREE_FAILURE;
+		goto done;
 	}
 		
+	blist_push_node_from_head(master_list, (void *)klist);
 	if ((klist->key_count == 0) || (*n_out == n_in)) {
-		if (is_leaf(bt, klist->n->pnode)) {
-			plat_rwlock_unlock(klist->leaf_lock);
-		}
-		blist_end(master_list, 1);
-		plat_rwlock_unlock(&bt->lock);
-		deref_l1cache_node(bt, n);
-		assert(!dbg_referenced);
-		free(klist);
-		return BTREE_QUERY_DONE;
+		overall_status = BTREE_QUERY_DONE;
+		goto done;
 	}
 
 	left_edge = right_edge = 1;
 	klist->pos_flag = LEFT_EDGE | RIGHT_EDGE;
-
 	overall_status = BTREE_SUCCESS;
-
-	key_index = -1;
-	blist_push_node_from_head(master_list, (void *)klist);
 
 	/* Need to remove elements from head, to maintain order */
 	while (blist_get_head_node_data(master_list, (void *)&klist)) {
@@ -823,32 +826,34 @@ btree_get_next_range(btree_range_cursor_t *cursor,
 				all_keys = 0;
 			}
 
+			plat_rwlock_rdlock(&child_n->lock);
 			child_klist = find_key_range(bt, child_n,
-			                                &rmeta, &child_n->lock,
-			                                (n_in - (*n_out)), 
-			                                all_keys);
+			                             &rmeta,
+			                             (n_in - (*n_out)), 
+			                             all_keys);
+			if (child_klist == NULL) {
+				plat_rwlock_unlock(&child_n->lock);
+			}
 		}
 
 key_cleanup:
-		/* If we have read all data for this key or if we have filled
-		 * enough data, cleanup the key and remove it from the list */
-		if ((n_in == *n_out) || 
-		    (klist->next_read_ind == klist->key_count)) {
-			if (is_leaf(bt, n->pnode)) {
-				/* Unlock leaf node lock which was locked by 
-				 * find_key_range */
-				plat_rwlock_unlock(klist->leaf_lock);
-			}
+		if (n_in == *n_out) {
+			break;
+		}
+
+		/* If we have read all data from this node, we no longer 
+		 * need it and hence can be unlocked and derefed */
+		if (klist->next_read_ind == klist->key_count) {
+			assert(n == klist->n);
+
+			/* Unlock nodelock which was locked by find_key_range */
+			plat_rwlock_unlock(&klist->n->lock);
 
 			/* We are done using the node */
 			deref_l1cache_node(bt, n);
 
 			(void)blist_pop_node_from_head(master_list, NULL);
 			free(klist);
-		}
-
-		if (n_in == *n_out) {
-			break;
 		}
 
 		/* Time to add the child node to the list */
@@ -863,18 +868,26 @@ key_cleanup:
 		}
 	}
 
-	/* deref all touched nodes, in case we broke the earlier loop */
-	while (blist_pop_node_from_head(master_list, (void *)&klist)) {
-		assert(klist);
+done:
+	if (master_list) {
+		/* deref all touched nodes, in case we broke the earlier loop */
+		while (blist_pop_node_from_head(master_list, (void *)&klist)) {
+			assert(klist);
 
-		/* Initialize loop variants */
-		n = klist->n;
-		deref_l1cache_node(bt, n);
+			/* Initialize loop variants */
+			n = klist->n;
+			plat_rwlock_unlock(&n->lock);
+
+			deref_l1cache_node(bt, n);
+			free(klist);
+		}
+		blist_end(master_list, 1);
+		plat_rwlock_unlock(&bt->lock);
+
+		pathcnt++;
+		__sync_add_and_fetch(&(bt->stats.stat[BTSTAT_GET_CNT]),1);
+		__sync_add_and_fetch(&(bt->stats.stat[BTSTAT_GET_PATH]),pathcnt);
 	}
-
-	pathcnt++;
-	plat_rwlock_unlock(&bt->lock);
-	blist_end(master_list, 1);
 
 	if (key_index != -1) {
 		if (cursor->last_key) {
@@ -888,10 +901,10 @@ key_cleanup:
 		cursor->last_keylen = values[key_index].keylen; 
 	}
 
-	__sync_add_and_fetch(&(bt->stats.stat[BTSTAT_GET_CNT]),1);
-	__sync_add_and_fetch(&(bt->stats.stat[BTSTAT_GET_PATH]),pathcnt);
-
 	assert(!dbg_referenced);
+	if ((overall_status == BTREE_SUCCESS) && ((*n_out) == 0)) {
+		overall_status = BTREE_QUERY_DONE;
+	}
 	return(overall_status);
 }
 

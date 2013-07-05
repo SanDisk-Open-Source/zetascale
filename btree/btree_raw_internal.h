@@ -74,6 +74,7 @@ typedef struct btree_raw_node {
 
 typedef struct btree_raw_mem_node btree_raw_mem_node_t;
 
+//#define DEBUG_STUFF
 struct btree_raw_mem_node {
 	uint64_t modified;
 #ifdef DEBUG_STUFF

@@ -491,6 +491,7 @@ FDF_status_t _FDFOpenContainerSpecial(
     env = getenv("BTREE_READ_BY_RQUERY");
     if (env && (atoi(env) == 1)) {
         Container_Map[index].read_by_rquery = 1;
+        fprintf(stderr,"Reads will be done through range query\n");
     } else {
         Container_Map[index].read_by_rquery = 0;
     }
@@ -711,9 +712,10 @@ FDF_status_t _FDFReadObject(
             *data    = values[0].data;
             *datalen = values[0].datalen;
         } else if (n_out != 1) {
-            msg("btree_get_next_range: Failed to return object. Status=%d\n",
-                 btree_ret);
-            btree_ret = BTREE_FAILURE;
+            msg("btree_get_next_range: Failed to return object for key %s keylen=%d. Status=%d\n",
+                 key, keylen, btree_ret);
+            btree_ret = (btree_ret == BTREE_QUERY_DONE) ? 
+                         BTREE_KEY_NOT_FOUND: BTREE_FAILURE;
         }
 
         (void)btree_end_range_query(cursor);

@@ -145,6 +145,7 @@ static void print_key_func(FILE *f, const char* func, int line, char* key, int k
 #define dbg_print_key(key, keylen, msg, ...)
 #endif
 
+//#define DEBUG_STUFF
 #ifdef DEBUG_STUFF
 static void dump_node(btree_raw_t *bt, FILE *f, btree_raw_node_t *n, char *key, uint32_t keylen);
 static char *dump_key(char *key, uint32_t keylen);
