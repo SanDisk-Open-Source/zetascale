@@ -1,0 +1,17 @@
+add_definitions(-std=gnu99 -fgnu89-inline)
+#SET(testname_param 1 8 10000)
+
+file( GLOB TEST_SOURCES *.c )
+foreach( test_src_file ${TEST_SOURCES} )
+	IF(NOT ${test_src_file} MATCHES "/test.c")
+		get_filename_component(testname ${test_src_file} NAME_WE)
+		add_executable(${testname} ${test_src_file} ../test.c)
+		add_dependencies(${testname} fdf)
+        SET(param ${testname}_param)
+		add_test(${testname} ${CMAKE_CURRENT_BINARY_DIR}/${testname} ${${testname}_param})
+		Message(${${testname}_param})
+		#target_link_libraries( ${testname} fdfdll dl pthread aio event)
+		target_link_libraries( ${testname} btreedll dl pthread aio event)
+	endif (NOT ${test_src_file} MATCHES "/test.c")
+endforeach(test_src_file ${TEST_SOURCES})
+
