@@ -185,6 +185,14 @@ btree_status_t btree_set(struct btree *btree, char *key, uint32_t keylen, char *
     return btree_raw_set(btree->partitions[n_partition], key, keylen, data, datalen, meta);
 }
 
+btree_status_t
+btree_mput(struct btree *btree, btree_mput_obj_t *objs,
+	   uint32_t num_objs, btree_metadata_t *meta, uint32_t *objs_written)
+{
+    int n_partition = hash_key(objs[0].key, objs[0].key_len) % btree->n_partitions;
+    return btree_raw_mput(btree->partitions[n_partition], objs, num_objs, meta, objs_written);
+}
+
 btree_status_t btree_flush(struct btree *btree, char *key, uint32_t keylen)
 {
     int        n_partition = hash_key(key, keylen) % btree->n_partitions;

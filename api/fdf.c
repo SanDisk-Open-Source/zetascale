@@ -501,7 +501,7 @@ fdf_stats_info_t fdf_stats_cache[] = {
     {"l1_cache_bt_lmerges","l1_cache_bt_lmerges",FDF_STATS_TYPE_CACHE_TO_FLASH},/* FDF_CACHE_STAT_BT_LMERGES */
     {"l1_cache_bt_rmerges","l1_cache_bt_rmerges",FDF_STATS_TYPE_CACHE_TO_FLASH},/* FDF_CACHE_STAT_BT_RMERGES */
     {"l1_cache_bt_lshifts","l1_cache_bt_lshifts",FDF_STATS_TYPE_CACHE_TO_FLASH},/* FDF_CACHE_STAT_BT_LSHIFTS */
-    {"l1_cache_bt_rshifts","l1_cache_bt_rshifts",FDF_STATS_TYPE_CACHE_TO_FLASH},/* FDF_CACHE_STAT_BT_LSHIFTS */
+    {"l1_cache_bt_rshifts","l1_cache_bt_rshifts",FDF_STATS_TYPE_CACHE_TO_FLASH},/* FDF_CACHE_STAT_BT_RSHIFTS */
     {"l1_cache_bt_xtree_locks","l1_cache_bt_xtree_locks",FDF_STATS_TYPE_CACHE_TO_FLASH},/* FDF_CACHE_STAT_BT_EX_TREE_LOCKS */
     {"l1_cache_bt_non_xtree_locks","l1_cache_bt_non_xtree_locks",FDF_STATS_TYPE_CACHE_TO_FLASH},/* FDF_CACHE_STAT_BT_NON_EX_TREE_LOCKS */
     {"l1_cache_bt_get_path_len","l1_cache_bt_get_path_len",FDF_STATS_TYPE_CACHE_TO_FLASH},/* FDF_CACHE_STAT_BT_GET_PATH_LEN */
@@ -509,7 +509,10 @@ fdf_stats_info_t fdf_stats_cache[] = {
     {"l1_cache_bt_set_path_len","l1_cache_bt_set_path_len",FDF_STATS_TYPE_CACHE_TO_FLASH},/* FDF_CACHE_STAT_BT_SET_PATH_LEN */
     {"l1_cache_bt_update_path_len","l1_cache_bt_update_path_len",FDF_STATS_TYPE_CACHE_TO_FLASH},/* FDF_CACHE_STAT_BT_UPDATE_PATH_LEN */
     {"l1_cache_bt_delete_path_len","l1_cache_bt_delete_path_len",FDF_STATS_TYPE_CACHE_TO_FLASH},/* FDF_CACHE_STAT_BT_DELETE_PATH_LEN */
+    {"l1_cache_bt_flush_count","l1_cache_bt_flush_count",FDF_STATS_TYPE_CACHE_TO_FLASH},/* FDF_CACHE_STAT_BT_FLUSH_CNT */
     {"l1_cache_bt_delete_opt_count","l1_cache_bt_delete_opt_count",FDF_STATS_TYPE_CACHE_TO_FLASH},/* FDF_CACHE_STAT_BT_DELETE_OPT_COUNT */
+    {"l1_cache_bt_mput_io_saved","l1_cache_bt_mput_io_saved",FDF_STATS_TYPE_CACHE_TO_FLASH},/* FDF_CACHE_STAT_BT_MPUT_IO_SAVED */
+
 
     /* request from cache to flash manager */
     {"AHCOB","num_create_objs",FDF_STATS_TYPE_CACHE_TO_FLASH},/* FDF_CACHE_STAT_AHCOB */
@@ -6500,7 +6503,8 @@ FDF_status_t
 FDFMPut(struct FDF_thread_state *fdf_thread_state, 
 	FDF_cguid_t cguid,
 	uint32_t num_objs,
-	FDF_obj_t *objs)
+	FDF_obj_t *objs,
+	uint32_t *objs_written)
 {
 	fprintf(stderr, "FDF: FDFMPut without btree is not supported\n");
 	return FDF_FAILURE;

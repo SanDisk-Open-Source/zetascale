@@ -78,6 +78,14 @@ _FDFGetRangeFinish(struct FDF_thread_state *fdf_thread_state,
                    struct FDF_cursor *cursor);
 
 
+FDF_status_t
+_FDFMPut(struct FDF_thread_state *fdf_ts,
+        FDF_cguid_t cguid,
+        uint32_t num_objs,
+        FDF_obj_t *objs,
+	uint32_t *objs_done);
+
+
 #define Error(msg, args...) \
     msg_cb(0, NULL, __FILE__, __LINE__, msg, ##args);
 
@@ -1025,8 +1033,8 @@ FDF_status_t _FDFNextEnumeratedObject(
                               &count,
                               &values, NULL, 0);
 
-	if (FDF_SUCCESS == status && FDF_SUCCESS == values.status) {
-            assert(count);
+	if (FDF_SUCCESS == status && FDF_SUCCESS == values.status && count) {
+            assert(count); // Hack
 	    *key = (char *) malloc(values.keylen);
             assert(*key);
 	    strncpy(*key, values.key, values.keylen);
@@ -1611,6 +1619,8 @@ FDF_ext_stat_t btree_to_fdf_stats_map[] = {
     {BTSTAT_RMERGES,FDF_CACHE_STAT_BT_RMERGES,FDF_STATS_TYPE_CACHE_TO_FLASH,0},
     {BTSTAT_LSHIFTS,FDF_CACHE_STAT_BT_LSHIFTS,FDF_STATS_TYPE_CACHE_TO_FLASH,0},
     {BTSTAT_RSHIFTS,FDF_CACHE_STAT_BT_RSHIFTS,FDF_STATS_TYPE_CACHE_TO_FLASH,0},
+    {BTSTAT_EX_TREE_LOCKS,FDF_CACHE_STAT_BT_EX_TREE_LOCKS,FDF_STATS_TYPE_CACHE_TO_FLASH,0},
+    {BTSTAT_NON_EX_TREE_LOCKS,FDF_CACHE_STAT_BT_NON_EX_TREE_LOCKS,FDF_STATS_TYPE_CACHE_TO_FLASH,0},
     {BTSTAT_GET_CNT,FDF_ACCESS_TYPES_APGRD,FDF_STATS_TYPE_APP_REQ,0},
     {BTSTAT_GET_PATH,FDF_CACHE_STAT_BT_GET_PATH_LEN,FDF_STATS_TYPE_CACHE_TO_FLASH,0},
     {BTSTAT_CREATE_CNT,FDF_ACCESS_TYPES_APCOP,FDF_STATS_TYPE_APP_REQ,0},
@@ -1620,10 +1630,10 @@ FDF_ext_stat_t btree_to_fdf_stats_map[] = {
     {BTSTAT_UPDATE_CNT,FDF_ACCESS_TYPES_APPTA,FDF_STATS_TYPE_APP_REQ,0},
     {BTSTAT_UPDATE_PATH,FDF_CACHE_STAT_BT_UPDATE_PATH_LEN,FDF_STATS_TYPE_CACHE_TO_FLASH,0},
     {BTSTAT_DELETE_CNT,FDF_ACCESS_TYPES_APDOB,FDF_STATS_TYPE_APP_REQ,0},
-    {BTSTAT_DELETE_OPT_CNT,FDF_CACHE_STAT_BT_DELETE_OPT_COUNT,FDF_STATS_TYPE_CACHE_TO_FLASH,0},
-    {BTSTAT_EX_TREE_LOCKS,FDF_CACHE_STAT_BT_EX_TREE_LOCKS,FDF_STATS_TYPE_CACHE_TO_FLASH,0},
-    {BTSTAT_NON_EX_TREE_LOCKS,FDF_CACHE_STAT_BT_NON_EX_TREE_LOCKS,FDF_STATS_TYPE_CACHE_TO_FLASH,0},
     {BTSTAT_DELETE_PATH,FDF_CACHE_STAT_BT_DELETE_PATH_LEN,FDF_STATS_TYPE_CACHE_TO_FLASH,0},
+    {BTSTAT_FLUSH_CNT,FDF_CACHE_STAT_BT_FLUSH_CNT,FDF_STATS_TYPE_CACHE_TO_FLASH,0},
+    {BTSTAT_DELETE_OPT_CNT,FDF_CACHE_STAT_BT_DELETE_OPT_COUNT,FDF_STATS_TYPE_CACHE_TO_FLASH,0},
+    {BTSTAT_MPUT_IO_SAVED, FDF_CACHE_STAT_BT_MPUT_IO_SAVED, FDF_STATS_TYPE_CACHE_TO_FLASH,0},
 };
 
 FDF_status_t btree_get_all_stats(FDF_cguid_t cguid, 
@@ -1689,76 +1699,77 @@ static void dump_btree_stats(FILE *f, FDF_cguid_t cguid)
     btree_dump_stats(f, &bt_stats);
 }
 
-//#define NEED_TXN_IN_MPUT
 FDF_status_t
 _FDFMPut(struct FDF_thread_state *fdf_ts,
         FDF_cguid_t cguid,
         uint32_t num_objs,
-        FDF_obj_t objs[])
+        FDF_obj_t *objs,
+	uint32_t *objs_done)
 {
 	int i;
-	FDF_status_t status = FDF_SUCCESS;
-#ifdef NEED_TXN_IN_MPUT
-	FDF_status_t status2 = FDF_SUCCESS;
-#endif 
+	FDF_status_t ret = FDF_SUCCESS;
+	btree_status_t btree_ret = BTREE_FAILURE;
+	btree_metadata_t meta;
+	struct btree *bt = NULL;
+	uint32_t objs_written = 0;
+	uint32_t objs_to_write = num_objs;
+
+	my_thd_state = fdf_ts;;
 
 	if (num_objs == 0) {
 		return FDF_SUCCESS;
 	}
 
-#ifdef NEED_TXN_IN_MPUT
-	/*
-	 * Start a transaction.
-	 */
-	status = trxstart(fdf_ts);
-	if (status != FDF_SUCCESS) {
-		goto out;
+	bt = bt_get_btree_from_cguid(cguid, NULL);
+	if (bt == NULL) {
+		return FDF_FAILURE;
 	}
-#endif 
 
 	for (i = 0; i < num_objs; i++) {
 		if (objs[i].flags != 0) {
-			status = FDF_INVALID_PARAMETER;
-#ifdef NEED_TXN_IN_MPUT
-			goto rollback;
-#else	
-			goto out;
-#endif 
-		}	
-		status = _FDFWriteObject(fdf_ts, cguid, 
-					objs[i].key, objs[i].key_len,
-					objs[i].data, objs[i].data_len, 0);
-
-		if (status != FDF_SUCCESS) {
-#ifdef NEED_TXN_IN_MPUT
-			goto rollback;
-#else
-			goto out;
-#endif 
+			return FDF_INVALID_PARAMETER;
 		}
 
+		if (objs[i].key_len > bt->max_key_size) {
+			return FDF_INVALID_PARAMETER;
+		}
 	}
 
-#ifdef NEED_TXN_IN_MPUT
-	status = _FDFTransactionCommit(fdf_ts);
-	if (status != FDF_SUCCESS) {
-		goto out;
-	}
-#endif 
-	return FDF_SUCCESS;
 
-#ifdef NEED_TXN_IN_MPUT
-rollback:
-	status2 = _FDFTransactionRollback(fdf_ts);
-	if(status2 != FDF_SUCCESS) {
-		status = status2;
+	meta.flags = 0;
+	meta.seqno = seqnoalloc(fdf_ts);
+	if (meta.seqno == -1) {
+		return (FDF_FAILURE);
 	}
-#endif 
 
-out:
-	return status;
+	objs_written = 0;
+	objs_to_write = num_objs;
+	do {
+		objs_to_write -= objs_written;
+		objs_written = 0;
+		btree_ret = btree_mput(bt, (btree_mput_obj_t *)&objs[num_objs - objs_to_write],
+				       objs_to_write, &meta, &objs_written);
+	} while ((btree_ret == BTREE_SUCCESS) && objs_written < objs_to_write);
+
+	*objs_done = num_objs - (objs_to_write - objs_written);
+
+	switch(btree_ret) {
+		case BTREE_SUCCESS:
+			ret = FDF_SUCCESS;
+			break;
+		case BTREE_FAILURE:
+			ret = FDF_FAILURE_STORAGE_WRITE;
+			break;
+		case BTREE_KEY_NOT_FOUND:
+			ret = FDF_OBJECT_UNKNOWN;
+			break;
+		default:
+			ret = FDF_FAILURE;
+			break;
+	}
+
+	return ret;
 }
-
 
 /*
  * persistent seqno facility

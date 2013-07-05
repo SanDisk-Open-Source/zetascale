@@ -122,7 +122,10 @@ typedef enum {
     FDF_CACHE_STAT_BT_SET_PATH_LEN,
     FDF_CACHE_STAT_BT_UPDATE_PATH_LEN,
     FDF_CACHE_STAT_BT_DELETE_PATH_LEN,
+    FDF_CACHE_STAT_BT_FLUSH_CNT,
     FDF_CACHE_STAT_BT_DELETE_OPT_COUNT,
+    FDF_CACHE_STAT_BT_MPUT_IO_SAVED,
+
     /* request from cache to flash manager */
     FDF_CACHE_STAT_AHCOB,
     FDF_CACHE_STAT_AHCOP,
@@ -1165,7 +1168,8 @@ FDF_status_t
 FDFMPut(struct FDF_thread_state *fdf_ts,
         FDF_cguid_t cguid,
         uint32_t num_objs,
-        FDF_obj_t *objs);
+        FDF_obj_t *objs,
+	uint32_t *objs_written);
 
 /*
  * @brief Create a snapshot for a container  

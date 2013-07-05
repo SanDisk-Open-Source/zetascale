@@ -223,7 +223,8 @@ static FDF_status_t
 (*ptr_FDFMPut) (struct FDF_thread_state *fdf_ts,
         FDF_cguid_t cguid,
         uint32_t num_objs,
-        FDF_obj_t *objs);
+        FDF_obj_t *objs,
+	uint32_t *objs_written);
 
 #if 0
 static void 
@@ -1312,10 +1313,11 @@ FDF_status_t
 FDFMPut(struct FDF_thread_state *fdf_ts,
         FDF_cguid_t cguid,
         uint32_t num_objs,
-        FDF_obj_t *objs)
+        FDF_obj_t *objs,
+	uint32_t * objs_written)
 {
     if (unlikely(!ptr_FDFMPut))
         undefined("FDFMPut");
 
-    return (*ptr_FDFMPut)(fdf_ts, cguid, num_objs, objs);
+    return (*ptr_FDFMPut)(fdf_ts, cguid, num_objs, objs, objs_written);
 }

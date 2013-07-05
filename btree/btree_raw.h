@@ -98,6 +98,8 @@ typedef struct btree_metadata {
     item(BTSTAT_RMERGES, /* default */) \
     item(BTSTAT_LSHIFTS, /* default */) \
     item(BTSTAT_RSHIFTS, /* default */) \
+    item(BTSTAT_EX_TREE_LOCKS, /* default */) \
+    item(BTSTAT_NON_EX_TREE_LOCKS, /* default */) \
     item(BTSTAT_GET_CNT, /* default */) \
     item(BTSTAT_GET_PATH, /* default */) \
     item(BTSTAT_CREATE_CNT, /* default */) \
@@ -107,11 +109,10 @@ typedef struct btree_metadata {
     item(BTSTAT_UPDATE_CNT, /* default */) \
     item(BTSTAT_UPDATE_PATH, /* default */) \
     item(BTSTAT_DELETE_CNT, /* default */) \
-    item(BTSTAT_DELETE_OPT_CNT, /* default */) \
-    item(BTSTAT_EX_TREE_LOCKS, /* default */) \
-    item(BTSTAT_NON_EX_TREE_LOCKS, /* default */) \
     item(BTSTAT_DELETE_PATH, /* default */) \
-    item(BTSTAT_FLUSH_CNT, /* default */) 
+    item(BTSTAT_FLUSH_CNT, /* default */) \
+    item(BTSTAT_DELETE_OPT_CNT, /* default */) \
+    item(BTSTAT_MPUT_IO_SAVED, /* default */) 
 
 typedef enum {
 #define item(caps, value) \
@@ -138,6 +139,16 @@ typedef struct btree_stats {
 
 struct btree_raw;
 struct btree_raw_mem_node;
+/*
+ * Multiple objs put info.
+ */
+typedef struct {
+    uint32_t flags;
+    uint32_t key_len;
+    uint64_t data_len;
+    char *key;
+    char *data;
+} btree_mput_obj_t;
 
 typedef struct btree_raw_mem_node *(read_node_cb_t)(btree_status_t *ret, void *data, uint64_t lnodeid);
 typedef void (write_node_cb_t)(btree_status_t *ret, void *cb_data, uint64_t lnodeid, char *data, uint64_t datalen);
@@ -182,6 +193,8 @@ extern btree_status_t btree_raw_insert(struct btree_raw *btree, char *key, uint3
 extern btree_status_t btree_raw_update(struct btree_raw *btree, char *key, uint32_t keylen, char *data, uint64_t datalen, btree_metadata_t *meta);
 
 extern btree_status_t btree_raw_set(struct btree_raw *btree, char *key, uint32_t keylen, char *data, uint64_t datalen, btree_metadata_t *meta);
+btree_status_t
+btree_raw_mput(struct btree_raw *btree, btree_mput_obj_t *objs, uint32_t num_objs, btree_metadata_t *meta, uint32_t *objs_written);
 
 extern btree_status_t btree_raw_flush(struct btree_raw *btree, char *key, uint32_t keylen);
 
@@ -217,5 +230,10 @@ extern int btree_raw_free_buffer(struct btree_raw *btree, char *buf);
 extern void btree_raw_get_stats(struct btree_raw *btree, btree_stats_t *stats);
 extern char *btree_stat_name(btree_stat_t stat_type);
 extern void btree_dump_stats(FILE *f, btree_stats_t *stats);
+extern btree_status_t
+btree_raw_mwrite_low(struct btree_raw *btree, btree_mput_obj_t *objs, uint32_t num_objs,
+		    btree_metadata_t *meta, uint64_t syndrome, 
+		   int write_type, int* pathcnt,
+		   uint32_t *objs_written);
 
 #endif // __BTREE_RAW_H
