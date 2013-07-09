@@ -26,9 +26,15 @@ static int verify_range_query_data(FDF_range_data_t *values,
                                    int exp_end,
                                    int n_in_chunk, 
                                    int n_out);
+static int is_range_query_allowed(void *data, char *key, uint32_t len);
 
 #define  MAX_KEYLEN             20
 #define  MAX_DATALEN           500
+
+typedef struct eq_class_info_s {
+	uint32_t cur_class;
+	uint32_t max_keys_per_class;
+} eq_class_info_t;
 
 FDF_status_t PreEnvironment()
 {
@@ -123,6 +129,30 @@ FDF_status_t DeleteObject(FDF_cguid_t cguid, char *key, uint32_t keylen)
 	return ret;
 }
 
+
+static int is_range_query_allowed(void *data, char *key, uint32_t len)
+{
+	eq_class_info_t *eq = (eq_class_info_t *)data;
+	char fmt[100];
+	uint32_t int_key;
+
+	sprintf(fmt, "%%0%dd", len);
+	sscanf(key, fmt, &int_key);
+
+	if (int_key == 0) {
+		return 0;
+	}
+
+	uint32_t cur_class = (int_key-1)/eq->max_keys_per_class + 1;
+	if (eq->cur_class == cur_class) {
+		/* No change in class */
+		return 1;
+	}
+
+	/* Start of a new class */
+	eq->cur_class = cur_class;
+	return 0;
+}
 
 static FDF_range_meta_t *
 get_start_end_params(uint32_t n_objects, uint32_t start, uint32_t end,
@@ -224,7 +254,8 @@ FDF_status_t RangeQuery(FDF_cguid_t cguid,
                         uint32_t n_objects,
                         uint32_t start, int start_incl, 
                         uint32_t end, int end_incl, 
-                        int lo_to_hi, int chunks)
+                        int lo_to_hi, int chunks,
+                        int keys_per_class)
 {
 	int n_in, n_in_chunk, n_in_max;
 	int n_out;
@@ -237,10 +268,25 @@ FDF_status_t RangeQuery(FDF_cguid_t cguid,
 	int i;
 	int failures = 0;
 	int success = 0;
+	eq_class_info_t eq;
+	uint32_t exp_keys_in_class;
 
 	rmeta = get_start_end_params(n_objects, start, end, start_incl,
 	                             end_incl, flags, lo_to_hi, 
 	                             &n_in, &exp_start, &exp_end);
+
+	if (keys_per_class != -1) {
+		eq.cur_class = 0;
+		eq.max_keys_per_class = 10;
+
+		rmeta->class_cmp_fn = NULL;
+		rmeta->allowed_fn = is_range_query_allowed;
+		rmeta->cb_data = &eq;
+	} else {
+		rmeta->class_cmp_fn = NULL;
+		rmeta->allowed_fn = NULL;
+		rmeta->cb_data = NULL;
+	}
 
 	fprintf(fp, "RangeQuery params: (%d-%d) split into %d chunks:\n",
 	            start, end, chunks);
@@ -285,22 +331,39 @@ FDF_status_t RangeQuery(FDF_cguid_t cguid,
 		assert(values);
 
 		/* Do the query now */
-#ifdef FDF_ROW_RANGE
-		ret = FDFGetNextRange(fdf_thrd_state, 
-		                      cursor,
-		                      n_in_chunk,
-		                      &n_out,
-		                      values, NULL, 0);
-#else
 		ret = FDFGetNextRange(fdf_thrd_state, 
 		                      cursor,
 		                      n_in_chunk,
 		                      &n_out,
 		                      values);
-#endif
 
+		if ((ret == FDF_SUCCESS) || (ret == FDF_QUERY_PAUSED)) {
+			if (ret == FDF_QUERY_PAUSED) {
+				if (values[n_out-1].status != FDF_RANGE_PAUSED) {
+					fprintf(fp, "ERROR: Expected last (%d) status as "
+					            "%d (FDF_RANGE_PAUSED), instead it is %d",
+					            n_out-1, FDF_RANGE_PAUSED, 
+					            values[n_out-1].status); 
+					failures++;
+					break;
+				}
 
-		if (ret == FDF_SUCCESS) {
+				/* This is just a switch to new class. No key/val to verify */
+				if (n_out == 1)
+					continue;
+
+				n_out--;
+
+				if (exp_start < exp_end) {
+					exp_keys_in_class = (eq.max_keys_per_class - (exp_start % eq.max_keys_per_class) + 1);
+				} else {
+					exp_keys_in_class = ((exp_start-1) % eq.max_keys_per_class) + 1;
+				}
+//				fprintf(fp, "exp_start=%d exp_end=%d exp_keys_in_class=%d n_in_chunk=%d, n_out=%d\n", exp_start, exp_end, exp_keys_in_class, n_in_chunk, n_out);
+				if (exp_keys_in_class < n_in_chunk)
+					n_in_chunk = exp_keys_in_class;
+			}
+
 			if (verify_range_query_data(values,
 			                            exp_start,
 			                            exp_end,
@@ -313,10 +376,10 @@ FDF_status_t RangeQuery(FDF_cguid_t cguid,
 				break;
 			}
 
-			if (chunks <= 10) {
+/*			if (chunks <= 10) {
 				fprintf(fp, "VerifyRangeQuery for a chunk start key "
 					        "%d success\n", exp_start);
-			}
+			} */
 			success++;
 		} else if (ret != FDF_QUERY_DONE) {
 			fprintf(fp, "ERROR: FDFGetNextRange failed with "
@@ -395,19 +458,11 @@ FDF_status_t ReadSeqno(FDF_cguid_t cguid, uint32_t key_no, uint64_t *seq_no)
 	assert(values);
 
 	/* Do the query now */
-#ifdef FDF_ROW_RANGE
-	ret = FDFGetNextRange(fdf_thrd_state, 
-	                      cursor,
-	                      n_in,
-	                      &n_out,
-	                      values, NULL, 0);
-#else
 	ret = FDFGetNextRange(fdf_thrd_state, 
 	                      cursor,
 	                      n_in,
 	                      &n_out,
 	                      values);
-#endif
 
 	if ((ret == FDF_SUCCESS) && 
 	    (n_out == n_in) &&
@@ -547,17 +602,28 @@ static void do_range_query_in_chunks(FDF_cguid_t cguid,
 {
 	int max_chunks = 10;
 
-	fprintf(fp, "-----------Test:%d.1: No_of_chunks=1--------------\n",test_id);
-	RangeQuery(cguid, flags, n_objects, start, start_incl, end, end_incl, lo_to_hi, 1);
+	fprintf(fp, "-----------Test:%d.1: No_of_chunks=1, 1 class--------------\n",test_id);
+	RangeQuery(cguid, flags, n_objects, start, start_incl, end, end_incl, lo_to_hi, 1, -1);
 
-	fprintf(fp, "-----------Test:%d.2: No_of_chunks=%u--------------\n",
+	fprintf(fp, "-----------Test:%d.2: No_of_chunks=%u, 1 class --------------\n",
 	            test_id, n_objects);
-	RangeQuery(cguid, flags, n_objects, start, start_incl, end, end_incl, lo_to_hi, n_objects);
+	RangeQuery(cguid, flags, n_objects, start, start_incl, end, end_incl, lo_to_hi, n_objects, -1);
 
 	int rand_chunks = (random() % (max_chunks - 1)) + 1;
-	fprintf(fp, "-----------Test:%d.3: No_of_chunks=%u--------------\n",
+	fprintf(fp, "-----------Test:%d.3: No_of_chunks=%u, 1 class--------------\n",
 	            test_id, rand_chunks);
-	RangeQuery(cguid, flags, n_objects, start, start_incl, end, end_incl, lo_to_hi, rand_chunks);
+	RangeQuery(cguid, flags, n_objects, start, start_incl, end, end_incl, lo_to_hi, rand_chunks, -1);
+
+	fprintf(fp, "-----------Test:%d.4: No_of_chunks=1, multi-class with keys_per_class=%d--------------\n",test_id, 10);
+	RangeQuery(cguid, flags, n_objects, start, start_incl, end, end_incl, lo_to_hi, 1, 10);
+
+	fprintf(fp, "-----------Test:%d.5: No_of_chunks=%u, multi-class with keys_per_class=%d--------------\n",
+	            test_id, n_objects, 10);
+	RangeQuery(cguid, flags, n_objects, start, start_incl, end, end_incl, lo_to_hi, n_objects, 10);
+
+	fprintf(fp, "-----------Test:%d.6: No_of_chunks=%u, multi-class with keys_per_class=%d--------------\n",
+	            test_id, rand_chunks, 10);
+	RangeQuery(cguid, flags, n_objects, start, start_incl, end, end_incl, lo_to_hi, rand_chunks, 10);
 }
 
 #define MAX  n_objects+1
