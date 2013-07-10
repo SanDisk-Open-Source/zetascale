@@ -35,6 +35,8 @@ typedef enum btree_status {
 	BTREE_FAIL_TXN_COMMIT,            /* Failed to commit transaction */
 	BTREE_FAIL_TXN_ROLLBACK,          /* Failed to rollback transaction */
 	BTREE_OPERATION_DISALLOWED,       /* Shutdown in progress */
+	BTREE_WARNING,                    /* Any partial success */
+	BTREE_QUERY_PAUSED,               /* Range query passed by callback */
 } btree_status_t;
 
 typedef enum node_flags {

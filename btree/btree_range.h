@@ -29,9 +29,11 @@
 typedef uint64_t btree_indexid_t;          // persistent opaque index handle
 
 typedef enum btree_range_status {
+	BTREE_RANGE_STATUS_NONE     = 0,
 	BTREE_RANGE_SUCCESS         = 1,   // Kept as 1 to align with FDF for now
 	BTREE_KEY_BUFFER_TOO_SMALL  = 2,
-	BTREE_DATA_BUFFER_TOO_SMALL = 4
+	BTREE_DATA_BUFFER_TOO_SMALL = 4,
+	BTREE_RANGE_PAUSED          = 8
 } btree_range_status_t;
 
 typedef enum {

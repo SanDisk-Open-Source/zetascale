@@ -506,8 +506,8 @@ find_key_range(btree_raw_t *bt,
 
 /* Start an index query.
  * 
- * Returns: FDF_SUCCESS if successful
- *          FDF_FAILURE if unsuccessful
+ * Returns: BTREE_SUCCESS if successful
+ *          BTREE_FAILURE if unsuccessful
  */
 btree_status_t
 btree_start_range_query(btree_t                 *btree, 
@@ -603,8 +603,6 @@ fill_key_range(btree_raw_t          *bt,
 	uint64_t databuf_size;
 	uint32_t meta_flags;
 
-	values[*n_out].status = 0;
-
 	/* TODO: Later on try to combine range_meta and btree_meta
 	 * For now, set the meta_flags for get_leaf_data usage */
 	meta_flags = rmeta->flags & (RANGE_BUFFER_PROVIDED | RANGE_ALLOC_IF_TOO_SMALL);
@@ -613,17 +611,33 @@ fill_key_range(btree_raw_t          *bt,
 		databuf_size = rmeta->databuf_size;
 	}
 
+	values[*n_out].status = BTREE_RANGE_STATUS_NONE; 
 	status = get_leaf_key(bt, n->pnode, keyrec,
 	                      &values[*n_out].key,
 	                      &keybuf_size,
 	                      meta_flags);
-	if (status != BTREE_SUCCESS) {
-		/* TODO: Consider introducing BTREE_WARNING */
-		ret = BTREE_FAILURE;
-		values[*n_out].status |= (status == BTREE_BUFFER_TOO_SMALL) ?
-		                      BTREE_KEY_BUFFER_TOO_SMALL: BTREE_FAILURE;
+	switch (status) {
+	case BTREE_SUCCESS:
+		break;
+	case BTREE_BUFFER_TOO_SMALL:
+		ret = BTREE_WARNING;
+		values[*n_out].status |= BTREE_KEY_BUFFER_TOO_SMALL;
+		break;
+	case BTREE_FAILURE:
+	default:
+		values[*n_out].status |= BTREE_FAILURE;
+		return (BTREE_FAILURE);
 	}
 	values[*n_out].keylen = keybuf_size;
+
+	/* Check if we need to pause at this key */
+	if (rmeta->allowed_fn) {
+		if (!rmeta->allowed_fn(rmeta->cb_data, values[*n_out].key,
+		                       values[*n_out].keylen)) {
+			values[*n_out].status |= BTREE_RANGE_PAUSED;
+			return (BTREE_QUERY_PAUSED);
+		}
+	}
 
 	if (!(rmeta->flags & RANGE_KEYS_ONLY)) {
 		status = get_leaf_data(bt, n->pnode, keyrec,
@@ -631,11 +645,17 @@ fill_key_range(btree_raw_t          *bt,
 		                       &databuf_size,
 		                       meta_flags, 0);
 
-		if (status != BTREE_SUCCESS) {
-			ret = BTREE_FAILURE;
-			values[*n_out].status |= 
-			           (status == BTREE_BUFFER_TOO_SMALL) ?
-				     BTREE_DATA_BUFFER_TOO_SMALL: BTREE_FAILURE;
+		switch (status) {
+		case BTREE_SUCCESS:
+			break;
+		case BTREE_BUFFER_TOO_SMALL:
+			ret = BTREE_WARNING;
+			values[*n_out].status |= BTREE_DATA_BUFFER_TOO_SMALL;
+			break;
+		case BTREE_FAILURE:
+		default:
+			values[*n_out].status |= BTREE_FAILURE;
+			return (BTREE_FAILURE);
 		}
 		values[*n_out].datalen = databuf_size;
 	}
@@ -680,6 +700,30 @@ restart:
 	return n;
 }
 
+/* Get the next set of range from cursor.
+ *
+ * Input:
+ * cursor: Cursor where it is last range query left off. 
+ *         Initialized by btree_start_range_query
+ * n_in:   Number of entries needed  
+ *
+ * Output:
+ * n_out:  Number of entries actually returned
+ * values: Array of Key/Value pair and other details for the given range
+ *
+ * Returns:
+ * Either one of the following status
+ * BTREE_SUCCESS      = All successfully done. Output is in values.
+ * BTREE_FAILURE      = Error while getting the data.
+ * BTREE_QUERY_DONE   = Query is done.
+ * BTREE_QUERY_PAUSED = Range Query is paused by callback
+ * BTREE_WARNING      = Successfully read, but there are some errors on the way
+ *                      that the caller needs to pay attention to.
+ *
+ * For every return status, the caller needs to check the status is each
+ * values[] entry and free up the memory if its status is not 
+ * BTREE_RANGE_STATUS_NONE for all n_in values.
+ */
 btree_status_t
 btree_get_next_range(btree_range_cursor_t *cursor,
                      int                   n_in,
@@ -793,12 +837,20 @@ btree_get_next_range(btree_range_cursor_t *cursor,
 			                        &rmeta,
 			                        values, 
 			                        n_out);
-			if (status != BTREE_SUCCESS) {
-				overall_status = BTREE_FAILURE;
-			} else {
+			switch (status) {
+			case BTREE_WARNING:
+				overall_status = status; /* Fallthrough */
+			case BTREE_SUCCESS:
 				key_index = *n_out;
+				(*n_out)++;
+				break;
+			case BTREE_FAILURE:
+			case BTREE_QUERY_PAUSED:
+			default:
+				overall_status = status;
+				(*n_out)++;
+				goto done;
 			}
-			(*n_out)++;
 		} else {
 			left_edge = right_edge = 0;
 

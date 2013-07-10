@@ -1056,7 +1056,7 @@ typedef struct FDF_range_meta {
 	uint64_t          end_seq;       // ending sequence number (if applicable)
 	FDF_cmp_fn_t      *class_cmp_fn; // Fn to cmp two keys are in same equivalence class
 	FDF_allowed_fn_t  *allowed_fn;   // Fn to check if this key is allowed to put in range result
-	void              *cb_data;      // Any data to be passed for this function
+	void              *cb_data;      // Any data to be passed for allowed function
 } FDF_range_meta_t;
 
 struct           FDF_cursor;       // opaque cursor handle
@@ -1087,13 +1087,15 @@ FDF_status_t FDFGetRange(struct FDF_thread_state *thrd_state, //  client thread 
                          FDF_range_meta_t        *meta);      //  query attributes (see above)
 
 typedef enum {
+	FDF_RANGE_STATUS_NONE       = 0,
 	FDF_RANGE_DATA_SUCCESS      = 1,
 	FDF_KEY_BUFFER_TOO_SMALL    = 2,
-	FDF_DATA_BUFFER_TOO_SMALL   = 4
+	FDF_DATA_BUFFER_TOO_SMALL   = 4,
+	FDF_RANGE_PAUSED            = 8
 } FDF_range_status_t;
 
 typedef struct FDF_range_data {
-	FDF_status_t  status;           // status
+	FDF_range_status_t  status;           // status
 	char         *key;              // index key value
 	uint32_t      keylen;           // index key length
 	char         *data;             // data
@@ -1137,24 +1139,12 @@ typedef struct FDF_range_data {
  * statuses[i] returns: FDF_SUCCESS if the i'th data item was retrieved successfully
  *                      FDF_BUFFER_TOO_SMALL  if the i'th buffer was too small to retrieve the object
  */
-#ifdef FDF_ROW_RANGE
-FDF_status_t
-FDFGetNextRange(struct FDF_thread_state *thrd_state,  //  client thread FDF context
-                struct FDF_cursor       *cursor,      //  cursor for this indexed search
-                int                      n_in,        //  size of 'values' array
-                int                     *n_out,       //  number of items returned
-                FDF_range_data_t        *values,      //  array of returned key/data values
-                char                    **paused_key, //  Which key the range was not allowed
-                uint32_t                paused_key_len); // paused key's len
-#else
 FDF_status_t
 FDFGetNextRange(struct FDF_thread_state *thrd_state,  //  client thread FDF context
                 struct FDF_cursor       *cursor,      //  cursor for this indexed search
                 int                      n_in,        //  size of 'values' array
                 int                     *n_out,       //  number of items returned
                 FDF_range_data_t        *values);     //  array of returned key/data values
-#endif
-
 
 /* End an index query.
  * 

@@ -69,9 +69,7 @@ _FDFGetNextRange(struct FDF_thread_state *fdf_thread_state,
                  struct FDF_cursor       *cursor,
                  int                      n_in,
                  int                     *n_out,
-                 FDF_range_data_t        *values,
-                 char                    **paused_key,
-                 uint32_t                paused_key_len);
+                 FDF_range_data_t        *values);
 
 FDF_status_t
 _FDFGetRangeFinish(struct FDF_thread_state *fdf_thread_state,
@@ -1033,7 +1031,7 @@ FDF_status_t _FDFNextEnumeratedObject(
                               (struct FDF_cursor *) iterator,
                               1,
                               &count,
-                              &values, NULL, 0);
+                              &values);
 
 	if (FDF_SUCCESS == status && FDF_SUCCESS == values.status && count) {
             assert(count); // Hack
@@ -1327,9 +1325,7 @@ _FDFGetNextRange(struct FDF_thread_state *fdf_thread_state,
                  struct FDF_cursor       *cursor,
                  int                      n_in,
                  int                     *n_out,
-                 FDF_range_data_t        *values,
-                 char                    **paused_key,
-                 uint32_t                paused_key_len)
+                 FDF_range_data_t        *values)
 {
 	FDF_status_t      ret = FDF_SUCCESS;
 	btree_status_t    status;
@@ -1354,6 +1350,10 @@ _FDFGetNextRange(struct FDF_thread_state *fdf_thread_state,
 		ret = FDF_SUCCESS;
 	} else if (status == BTREE_QUERY_DONE) {
 		ret = FDF_QUERY_DONE;
+	} else if (status == BTREE_QUERY_PAUSED) {
+		ret = FDF_QUERY_PAUSED;
+	} else if (status == BTREE_WARNING) {
+		ret = FDF_WARNING;
 	} else {
 		ret = FDF_FAILURE;
 	}

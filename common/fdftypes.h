@@ -209,6 +209,8 @@ typedef uint64_t FDF_cguid_t;
     item(FDF_FAILURE_CONTAINER_DELETED, /* default */) \
     item(FDF_QUERY_DONE, /* Completion of the FDF Range Query */) \
     item(FDF_FAILURE_CANNOT_CREATE_METADATA_CACHE, /* default */) \
+    item(FDF_WARNING, /* default */) \
+    item(FDF_QUERY_PAUSED, /* Query is paused by callback */) \
 
 typedef enum {
 #define item(caps, value) \

@@ -374,6 +374,8 @@ typedef struct {
     item(SDF_FAILURE_CONTAINER_DELETED, /* default */) \
     item(SDF_QUERY_DONE, /* Completion of the FDF Range Query */) \
     item(SDF_FAILURE_CANNOT_CREATE_METADATA_CACHE, /* default */) \
+    item(SDF_WARNING, /* default */) \
+    item(SDF_QUERY_PAUSED, /* Query is paused by callback */) \
 
 typedef enum {
 #define item(caps, value) \

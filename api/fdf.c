@@ -6469,23 +6469,12 @@ FDF_status_t FDFGetRange(struct FDF_thread_state *thrd_state,
 	return FDF_FAILURE;
 }
 
-#ifdef FDF_ROW_RANGE
-FDF_status_t
-FDFGetNextRange(struct FDF_thread_state *thrd_state, 
-                struct FDF_cursor       *cursor,
-                int                      n_in, 
-                int                     *n_out,
-                FDF_range_data_t        *values,
-                char                    **paused_key,
-                uint32_t                paused_key_len)
-#else
 FDF_status_t
 FDFGetNextRange(struct FDF_thread_state *thrd_state, 
                 struct FDF_cursor       *cursor,
                 int                      n_in, 
                 int                     *n_out,
                 FDF_range_data_t        *values)
-#endif
 {
 	fprintf(stderr, "FDF: FDFGetNextRange without btree is not supported\n");
 	return FDF_FAILURE;
