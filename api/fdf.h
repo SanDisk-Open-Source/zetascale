@@ -1159,6 +1159,7 @@ FDFMPut(struct FDF_thread_state *fdf_ts,
         FDF_cguid_t cguid,
         uint32_t num_objs,
         FDF_obj_t *objs,
+	uint32_t flags,
 	uint32_t *objs_written);
 
 /*

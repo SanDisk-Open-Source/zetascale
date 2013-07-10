@@ -81,6 +81,7 @@ _FDFMPut(struct FDF_thread_state *fdf_ts,
         FDF_cguid_t cguid,
         uint32_t num_objs,
         FDF_obj_t *objs,
+	uint32_t flags,
 	uint32_t *objs_done);
 
 
@@ -1706,6 +1707,7 @@ _FDFMPut(struct FDF_thread_state *fdf_ts,
         FDF_cguid_t cguid,
         uint32_t num_objs,
         FDF_obj_t *objs,
+	uint32_t flags,
 	uint32_t *objs_done)
 {
 	int i;
@@ -1737,7 +1739,6 @@ _FDFMPut(struct FDF_thread_state *fdf_ts,
 		}
 	}
 
-
 	meta.flags = 0;
 	meta.seqno = seqnoalloc(fdf_ts);
 	if (meta.seqno == -1) {
@@ -1750,7 +1751,7 @@ _FDFMPut(struct FDF_thread_state *fdf_ts,
 		objs_to_write -= objs_written;
 		objs_written = 0;
 		btree_ret = btree_mput(bt, (btree_mput_obj_t *)&objs[num_objs - objs_to_write],
-				       objs_to_write, &meta, &objs_written);
+				       objs_to_write, flags, &meta, &objs_written);
 	} while ((btree_ret == BTREE_SUCCESS) && objs_written < objs_to_write);
 
 	*objs_done = num_objs - (objs_to_write - objs_written);

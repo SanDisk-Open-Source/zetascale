@@ -71,6 +71,7 @@
 #include "btree_pmap.h"
 #include "btree_raw_internal.h"
 #include "trxcmd.h"
+#include <api/fdf.h>
 
 //  Define this to include detailed debugging code
 //#define DEBUG_STUFF
@@ -1033,7 +1034,6 @@ btree_status_t btree_raw_get(struct btree_raw *btree, char *key, uint32_t keylen
 
     dbg_print_key(key, keylen, "before ret=%d lic=%ld", ret, btree->logical_id_counter);
 
-    assert(locked == 1);
 
     plat_rwlock_rdlock(&btree->lock);
 
@@ -1054,8 +1054,6 @@ btree_status_t btree_raw_get(struct btree_raw *btree, char *key, uint32_t keylen
     __sync_add_and_fetch(&(btree->stats.stat[BTSTAT_GET_CNT]), 1);
     __sync_add_and_fetch(&(btree->stats.stat[BTSTAT_GET_PATH]), pathcnt);
 
-    assert(locked == 1);
-    assert(!dbg_referenced);
 
     return(ret);
 }
@@ -1649,8 +1647,9 @@ static void insert_key_low(btree_status_t *ret, btree_raw_t *btree, btree_raw_me
 	assert((*ret) == BTREE_SUCCESS);
 	pkrec = find_key(btree, x, key, keylen, &child_id, &child_id_before, &child_id_after, &pk_insert, meta, syndrome, &nkey_child);
 	assert(pkrec == NULL);
-    } else
+    } else {
         modify_l1cache_node(btree, node);
+    }
 
     (void) get_key_stuff(btree, x, 0, &ks);
 
@@ -2153,15 +2152,22 @@ get_keys_less_than(btree_raw_t *btree, char *key, uint32_t keylen,
 	        x = btree->cmp_cb(NULL, key, keylen,
 				 objs[i_center].key, objs[i_center].key_len);
 		if (x < 0) {
+			/*
+			 * We are smaller than i_center,
+			 * So the last closest to our key 
+			 * and largest seen is i_center so far.
+			 */
 			i_largest = i_center;
 			i_end = i_center - 1;
 		} else if (x > 0) {
 			i_start = i_center + 1;
 		} else {
 			/*
-			 * Got a match.
+			 * Got a match. Our btree stores the matching
+			 * key on left node. So this keys is inclusive.
 			 */
-			i_largest = i_center;
+			i_largest = i_center + 1;
+			break;
 		}
 	}
 
@@ -2193,7 +2199,7 @@ get_keys_less_than(btree_raw_t *btree, char *key, uint32_t keylen,
 
 /*
  * Return true if there is a key > the given key, false otherwise.
- * The returned key is set in 
+ * The returned key is set in ks.
  */
 static inline bool 
 find_right_key_in_node(btree_raw_t *bt, 
@@ -2207,7 +2213,7 @@ find_right_key_in_node(btree_raw_t *bt,
 	int i_largest = 0;
 
 	i_start = 0;
-	i_end   = n->nkeys - 1;
+	i_end = n->nkeys - 1;
 	i_largest = -1;
 
 	while (i_start <= i_end) {
@@ -2224,9 +2230,14 @@ find_right_key_in_node(btree_raw_t *bt,
 			i_start = i_center + 1;
 		} else {
 			/*
-			 * Got a match.
+			 * Got a match for reference key.
+			 * Also this is the last key in the
+			 * the left child node. So our largest
+			 * key that can follow this path is this key
+			 * itself.
 			 */
-			i_largest = i_center + 1;
+			i_largest = i_center;
+			break;
 		}
 	}
 
@@ -2385,6 +2396,7 @@ restart:
 		}
 
 		node = mem_node->pnode;
+
 mini_restart:
 		(*pathcnt)++;
 
@@ -2720,14 +2732,24 @@ btree_status_t btree_raw_set(struct btree_raw *btree, char *key, uint32_t keylen
 }
 
 btree_status_t
-btree_raw_mput(struct btree_raw *btree, btree_mput_obj_t *objs, uint32_t num_objs, btree_metadata_t *meta, uint32_t *objs_written)
+btree_raw_mput(struct btree_raw *btree, btree_mput_obj_t *objs, uint32_t num_objs,
+	       uint32_t flags, btree_metadata_t *meta, uint32_t *objs_written)
 {
 	btree_status_t      ret = BTREE_SUCCESS;
 	int                 pathcnt = 0;
 	uint64_t            syndrome = 0;  //no use of syndrome in variable keys
+	int write_type = 0;
+
+	if (flags & FDF_WRITE_MUST_NOT_EXIST) {
+		write_type = W_CREATE;
+	} else if (flags & FDF_WRITE_MUST_EXIST) {
+		write_type = W_UPDATE;
+	} else {
+		write_type = W_SET;
+	}
 
 	ret = btree_raw_mwrite_low(btree, objs, num_objs, meta, syndrome, 
-				   W_CREATE, &pathcnt, objs_written);
+				   write_type, &pathcnt, objs_written);
 	return ret;
 }
 

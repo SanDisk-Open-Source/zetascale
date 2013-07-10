@@ -296,6 +296,7 @@ FDF_status_t
 	FDF_cguid_t cguid,
 	uint32_t num_objs,
 	FDF_obj_t *objs,
+	uint32_t flags,
 	uint32_t *objs_written);
 
 static FDF_status_t
@@ -1327,13 +1328,15 @@ FDFMPut(struct FDF_thread_state *fdf_thread_state,
 	FDF_cguid_t cguid,
 	uint32_t num_objs,
 	FDF_obj_t *objs,
+	uint32_t flags,
 	uint32_t * objs_written)
 {
     if (unlikely(!ptr_FDFMPut))
         undefined("FDFGetRangeFinish");
 
     return (* ptr_FDFMPut)(fdf_thread_state, cguid,
-			  num_objs, objs, objs_written);
+			  num_objs, objs,
+			  flags, objs_written);
 }
 
 FDF_status_t

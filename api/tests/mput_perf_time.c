@@ -18,6 +18,7 @@ int num_objs = NUM_OBJS;
 int use_mput = 1;
 int test_run = 1;
 uint64_t total_ops = 0;
+uint32_t flags = 0;
 
 
 inline uint64_t
@@ -84,7 +85,7 @@ do_mput(struct FDF_thread_state *thd_state, FDF_cguid_t cguid)
         k += num_objs;
 
 		if (use_mput) {
-			status = FDFMPut(thd_state, cguid, num_objs, &objs[0], &objs_written);
+			status = FDFMPut(thd_state, cguid, num_objs, &objs[0], flags, &objs_written);
 			if (status != FDF_SUCCESS) {
 				printf("Failed to write objects using FDFMPut, status = %d.\n",
 					status);

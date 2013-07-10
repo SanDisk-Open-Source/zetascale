@@ -70,6 +70,7 @@ extern void btree_get_stats(struct btree *btree, btree_stats_t *stats);
 
 btree_status_t
 btree_mput(struct btree *btree, btree_mput_obj_t *objs,
-	   uint32_t num_objs, btree_metadata_t *meta, uint32_t *objs_written);
+	   uint32_t num_objs, uint32_t flags,
+	   btree_metadata_t *meta, uint32_t *objs_written);
 
 #endif // __BTREE_H

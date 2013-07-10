@@ -1,4 +1,5 @@
 #include <fdf.h>
+#include <api/fdf.h>
 #include <string.h>
 #include <unistd.h>
 #include <stdlib.h>
@@ -17,6 +18,10 @@ struct FDF_state *fdf_state;
 int num_mputs =  NUM_MPUTS;
 int num_objs = NUM_OBJS;
 int use_mput = 1;
+uint32_t flags_global = 0;
+int num_thds = 1;
+
+int cnt_id = 0;
 
 
 inline uint64_t
@@ -29,9 +34,10 @@ get_time_usecs(void)
 
 
 void
-do_mput(struct FDF_thread_state *thd_state, FDF_cguid_t cguid)
+do_mput(struct FDF_thread_state *thd_state, FDF_cguid_t cguid,
+	uint32_t flags, int key_seed)
 {
-	int i, k;
+	int i, j, k;
 	FDF_status_t status;
 	FDF_obj_t *objs = NULL; 
 	uint64_t start_time;
@@ -72,7 +78,7 @@ do_mput(struct FDF_thread_state *thd_state, FDF_cguid_t cguid)
 			sprintf(objs[i].key, "key_%d_%06"PRId64"", my_thdid, key_num);
 			sprintf(objs[i].data, "key_%d_%06"PRId64"", my_thdid, key_num);
 
-			key_num++;
+			key_num += key_seed;
 			objs[i].key_len = strlen(objs[i].key) + 1;
 			objs[i].data_len = strlen(objs[i].data) + 1;
 			objs[i].flags = 0;
@@ -89,7 +95,8 @@ do_mput(struct FDF_thread_state *thd_state, FDF_cguid_t cguid)
 		}
 
 		if (use_mput) {
-			status = FDFMPut(thd_state, cguid, num_objs, &objs[0], &objs_written);
+			status = FDFMPut(thd_state, cguid, num_objs,
+					 &objs[0], flags, &objs_written);
 			if (status != FDF_SUCCESS) {
 				printf("Failed to write objects using FDFMPut, status = %d.\n",
 					status);
@@ -103,8 +110,11 @@ do_mput(struct FDF_thread_state *thd_state, FDF_cguid_t cguid)
 	}
 
 
-	printf("Reading all objects put in thread = %d.\n", my_thdid);
+
 	num_fdf_reads = 0;
+	
+	j = 0;
+	printf("Reading all objects put in thread = %d.\n", my_thdid);
 	key_num = 0;
 	for (k = 1; k <= num_mputs; k++) {
 
@@ -113,7 +123,8 @@ do_mput(struct FDF_thread_state *thd_state, FDF_cguid_t cguid)
 
 			sprintf(objs[i].key, "key_%d_%06"PRId64"", my_thdid, key_num);
 			sprintf(objs[i].data, "key_%d_%06"PRId64"", my_thdid, key_num);
-			key_num++;
+
+			key_num += key_seed;
 
 			objs[i].key_len = strlen(objs[i].key) + 1;
 			objs[i].data_len = strlen(objs[i].data) + 1;
@@ -123,9 +134,9 @@ do_mput(struct FDF_thread_state *thd_state, FDF_cguid_t cguid)
 					       objs[i].key, objs[i].key_len,
 						&data, &data_len);
 			if (status != FDF_SUCCESS) {
-				printf("Read failed with %d errror.\n", status);
-				assert(0);
-				exit(0);
+					printf("Read failed with %d errror.\n", status);
+					assert(0);
+					exit(0);
 			}
 
 			if (data_len != objs[i].data_len) {
@@ -135,10 +146,10 @@ do_mput(struct FDF_thread_state *thd_state, FDF_cguid_t cguid)
 			}
 			num_fdf_reads++;
 		}
-
 	}
 
 	printf("Verified the mput objects using reads, mismatch = %"PRId64".\n", mismatch);
+
 
 
 #if 0
@@ -179,21 +190,84 @@ write_stress(void *t)
 	my_thdid = __sync_fetch_and_add(&cur_thd_id, 1);
 	FDFInitPerThreadState(fdf_state, &thd_state);	
 
-	do_mput(thd_state, cguid);
+	if (flags_global & FDF_WRITE_MUST_EXIST) {
+		do_mput(thd_state, cguid, FDF_WRITE_MUST_NOT_EXIST, 1); //populate data if it is update case.
+	}
+
+	if (flags_global == 0) {
+		do_mput(thd_state, cguid, FDF_WRITE_MUST_NOT_EXIST, 2); //sparsely populate for set case
+	}
+
+	do_mput(thd_state, cguid, flags_global, 1);
 
 	return NULL;
+}
+
+
+void launch_thds()
+{
+	int i;
+	pthread_t thread_id[128];
+
+	sleep(1);
+	for(i = 0; i < num_thds; i++) {
+		fprintf(stderr,"Creating thread %i\n",i );
+		if( pthread_create(&thread_id[i], NULL, write_stress, NULL)!= 0 ) {
+		    perror("pthread_create: ");
+		    exit(1);
+		}
+	}
+
+	for(i = 0; i < num_thds; i++) {
+		if( pthread_join(thread_id[i], NULL) != 0 ) {
+			perror("pthread_join: ");
+			exit(1);
+		} 
+	}
+
+}
+void
+do_op(uint32_t flags_in) 
+{
+	FDF_container_props_t props;
+	struct FDF_thread_state *thd_state;
+	FDF_status_t status;
+
+	char cnt_name[100] = {0};
+
+	sprintf(cnt_name, "cntr_%d", cnt_id++);
+
+
+	FDFInitPerThreadState(fdf_state, &thd_state);	
+
+	FDFLoadCntrPropDefaults(&props);
+
+	props.persistent = 1;
+	props.evicting = 0;
+	props.writethru = 1;
+	props.durability_level= 0;
+	props.fifo_mode = 0;
+	props.size_kb = (1024 * 1024 * 10);;
+
+	status = FDFOpenContainer(thd_state, cnt_name, &props, FDF_CTNR_CREATE, &cguid);
+	if (status != FDF_SUCCESS) {
+		printf("Open Cont failed with error=%x.\n", status);
+		exit(-1);
+	}
+
+	flags_global = flags_in;
+	launch_thds(); //actual operations
+
+	FDFCloseContainer(thd_state, cguid);
+	FDFDeleteContainer(thd_state, cguid);
+
+	FDFReleasePerThreadState(&thd_state);
 }
 
 int 
 main(int argc, char *argv[])
 {
-	FDF_container_props_t props;
-	struct FDF_thread_state *thd_state;
-	FDF_status_t	status;
-	int num_thds = 1;
-	pthread_t thread_id[128];
 	int n, m;
-	int i;
 
 	if (argc < 5) {
 		printf("Usage: ./run 0/1(use mput)  num_mputs num_objs_each_mputi num_thds.\n");
@@ -215,44 +289,22 @@ main(int argc, char *argv[])
 		num_thds = n;
 	}
 
-	printf("Running with mput (y/n) = %d, mputs = %d, num objs each mput = %d, num threads = %d.\n",use_mput, num_mputs, num_objs, num_thds);
+	printf("Running with mput (y/n) = %d, mputs = %d, num objs each mput = %d, num threads = %d.\n",
+		use_mput, num_mputs, num_objs, num_thds);
 
 	FDFInit(&fdf_state);
-	FDFInitPerThreadState(fdf_state, &thd_state);	
 
-	FDFLoadCntrPropDefaults(&props);
+	printf(" ======================== Doing test for set case. ===================\n");
+	do_op(0);// set
+	printf(" ******************  Done test for set case.***********************\n");
 
-	props.persistent = 1;
-	props.evicting = 0;
-	props.writethru = 1;
-	props.durability_level= 0;
-	props.fifo_mode = 0;
-	props.size_kb = (1024 * 1024 * 10);;
-	
-	status = FDFOpenContainer(thd_state, "cntr", &props, FDF_CTNR_CREATE, &cguid);
-	if (status != FDF_SUCCESS) {
-		printf("Open Cont failed with error=%x.\n", status);
-		return -1;	
-	}
+	printf(" ======================== Doing test for create case. ===================\n");
+	do_op(FDF_WRITE_MUST_NOT_EXIST); //create
+	printf(" ******************  Done test for create  case.***********************\n");
 
-	sleep(10);
-	for(i = 0; i < num_thds; i++) {
-		fprintf(stderr,"Creating thread %i\n",i );
-		if( pthread_create(&thread_id[i], NULL, write_stress, NULL)!= 0 ) {
-		    perror("pthread_create: ");
-		    exit(1);
-		}
-	}
-
-	for(i = 0; i < num_thds; i++) {
-		if( pthread_join(thread_id[i], NULL) != 0 ) {
-			perror("pthread_join: ");
-			exit(1);
-		} 
-	}
-
-	FDFCloseContainer(thd_state, cguid);
-	FDFReleasePerThreadState(&thd_state);
+	printf(" ======================== Doing test for update case. ===================\n");
+	do_op(FDF_WRITE_MUST_EXIST); //update
+	printf(" ******************  Done test for update  case.***********************\n");
 
 	FDFShutdown(fdf_state);
 	return 0;

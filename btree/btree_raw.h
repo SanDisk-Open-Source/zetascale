@@ -195,8 +195,9 @@ extern btree_status_t btree_raw_insert(struct btree_raw *btree, char *key, uint3
 extern btree_status_t btree_raw_update(struct btree_raw *btree, char *key, uint32_t keylen, char *data, uint64_t datalen, btree_metadata_t *meta);
 
 extern btree_status_t btree_raw_set(struct btree_raw *btree, char *key, uint32_t keylen, char *data, uint64_t datalen, btree_metadata_t *meta);
+
 btree_status_t
-btree_raw_mput(struct btree_raw *btree, btree_mput_obj_t *objs, uint32_t num_objs, btree_metadata_t *meta, uint32_t *objs_written);
+btree_raw_mput(struct btree_raw *btree, btree_mput_obj_t *objs, uint32_t num_objs, uint32_t flags, btree_metadata_t *meta, uint32_t *objs_written);
 
 extern btree_status_t btree_raw_flush(struct btree_raw *btree, char *key, uint32_t keylen);
 
