@@ -26,11 +26,13 @@ NCPU=$((NCPU*12/10))
 
 DBG=OFF
 PKG_NAME=fdf_sdk-$VERSION
+PKG_TEST=fdf_sdk_test_package-$VERSION
 
-[ -n "$BRANCH" ] && PKG_NAME=$PKG_NAME-$BRANCH
+[ -n "$BRANCH" ] && PKG_NAME=$PKG_NAME-$BRANCH && PKG_TEST=$PKG_TEST-$BRANCH
 
-if [ "$1" != "--optimize" ] && [ "$2" != "--optimize" ]; then
+if [ "$1" != "--optimize" ] && [ "$2" != "--optimize" ] && [ "$3" != "--optimize" ]; then
 	PKG_NAME=$PKG_NAME-dbg
+	PKG_TEST=$PKG_TEST-dbg
 	DBG=ON
 fi
 
@@ -58,12 +60,20 @@ cp -a $WD/api/tests/conf/fdf_sample.prop $SDK_DIR/config/
 #
 cd $SDK_DIR/..
 tar --exclude=.svn --exclude=.git --exclude=libfdf.a -czf $WD/$PKG_NAME.tar.gz $PKG_NAME
-rm -fr $PKG_NAME
+if [ "$1" == "--pkg" ] || [ "$2" == "--pkg" ] || [ "$3" == "--pkg" ]; then
+    rm -fr $PKG_TEST 
+    mkdir -p $PKG_TEST/FDF_SDK_Test_Package/FDF_test/FDF_unit_test
+    cp -av $WD/api/tests/* $PKG_TEST/FDF_SDK_Test_Package/FDF_test/FDF_unit_test
+    cp -r $SDK_DIR $PKG_TEST/FDF_SDK_Test_Package/FDF_SDK
+    cd $PKG_TEST
+    tar --exclude=.svn --exclude=.git --exclude=libfdf.a -czf $WD/$PKG_TEST.tar.gz FDF_SDK_Test_Package
+fi
+#rm -fr $PKG_NAME $PKG_TEST
 
 echo -e "\n** BUILD SUCCESSFUL **\n"
 
 #Running tests
-if [ "$1" == "--test" ] || [ "$2" == "--test" ]; then
+if [ "$1" == "--test" ] || [ "$2" == "--test" ] || [ "$3" == "--test" ]; then
 	cd $WD
 
 	export BTREE_LIB=$WD/output/lib/libbtree.so
