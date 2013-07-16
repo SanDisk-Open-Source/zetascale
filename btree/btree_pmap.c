@@ -58,12 +58,16 @@ uint64_t PMapNEntries(struct PMap *pm)
     return n_entries;
 }
 
-void PMapDestroy(struct PMap *pm)
+void PMapDestroy(struct PMap **pm)
 {
     uint64_t i;
 
-    for (i = 0; i < pm->nparts; i++)
-        MapDestroy(pm->parts[i]);
+    for (i = 0; i < (*pm)->nparts; i++) {
+        MapDestroy((*pm)->parts[i]);
+	}
+	free((*pm)->parts);
+	free(*pm);
+	*pm = NULL;
 }
 
 inline static

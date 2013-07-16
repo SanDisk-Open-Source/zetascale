@@ -57,22 +57,32 @@ static MapEntry_t *create_pme(Map_t *pm, char *pkey, uint32_t keylen, char *pdat
 // static MapEntry_t *copy_pme(Map_t *pm, MapEntry_t *pme);
 // static MapEntry_t *copy_pme_list(Map_t *pm, MapEntry_t *pme);
 static void free_pme(Map_t *pm, MapEntry_t *pme);
-static void free_pme_list(Map_t *pm, MapEntry_t *pme);
+//static void free_pme_list(Map_t *pm, MapEntry_t *pme);
+//static void destroy_pme_list(Map_t *pm, MapEntry_t *pme);
 
 
-static MapEntry_t *get_entry(Map_t *pm)
+static MapEntry_t *
+get_entry(Map_t *pm)
 {
-    int                i;
-    MapEntry_t  *e;
+    int					i;
+    MapEntry_t 			*e;
+	MapEntryBlock_t		*b;
 
     if (pm->FreeEntries == NULL) {
+		b = (MapEntryBlock_t *)malloc(sizeof(MapEntryBlock_t));
         e = (MapEntry_t *) malloc(N_ENTRIES_TO_MALLOC*sizeof(MapEntry_t));
-	map_assert(e);
+		map_assert(b);
+		map_assert(e);
 
-	for (i=0; i<N_ENTRIES_TO_MALLOC; i++) {
-	    e[i].next = pm->FreeEntries;
-	    pm->FreeEntries = &(e[i]);
-	}
+		b->e = e;
+		b->next = pm->EntryBlocks;
+		pm->EntryBlocks = b;
+
+		for (i=0; i<N_ENTRIES_TO_MALLOC; i++) {
+			e[i].contents = NULL;
+			e[i].next = pm->FreeEntries;
+			pm->FreeEntries = &(e[i]);
+		}
         pm->NEntries += N_ENTRIES_TO_MALLOC;
     }
     e = pm->FreeEntries;
@@ -139,12 +149,13 @@ struct Map *MapInit(uint64_t nbuckets, uint64_t max_entries, char use_locks, voi
     pm->NIterators     = 0;
     pm->NUsedIterators = 0;
     pm->FreeIterators  = NULL;
+	pm->EntryBlocks		= NULL;
 
     pm->buckets       = (MapBucket_t *) malloc(nbuckets*(sizeof(MapBucket_t)));
     map_assert(pm->buckets);
 
     for (i=0; i<nbuckets; i++) {
-	pm->buckets[i].entry = NULL;
+		pm->buckets[i].entry = NULL;
     }
 
     pthread_mutex_init(&(pm->mutex), NULL);
@@ -166,15 +177,27 @@ uint64_t MapNEntries(struct Map *pm)
 
 void MapDestroy(struct Map *pm)
 {
-    uint64_t          i;
+	MapEntryBlock_t	*b, *bnext;
+	MapEntry_t		*e;
+	int				i;
+
+	b = pm->EntryBlocks;
+	while (b != NULL) {
+		bnext = b->next;
+		e = b->e;
+		for (i=0; i<N_ENTRIES_TO_MALLOC; i++) {
+			if (e[i].contents) {
+				free(e[i].contents);
+			}
+		}
+		free(b->e);
+		free(b);
+		b = bnext;
+	}
 
     #ifdef SANDISK_PRINTSTUFF
 	fprintf(stderr, "MapDestroy: pm=%p\n", pm);
     #endif
-
-    for (i=0; i<pm->nbuckets; i++) {
-        free_pme_list(pm, pm->buckets[i].entry);
-    }
 
     free(pm->buckets);
     pthread_mutex_destroy(&(pm->mutex));
@@ -752,6 +775,7 @@ static void free_pme(Map_t *pm, MapEntry_t *pme)
     free_entry(pm, pme);
 }
 
+#if 0
 static void free_pme_list(Map_t *pm, MapEntry_t *pme_in)
 {
     MapEntry_t  *pme, *pme_next;
@@ -761,6 +785,23 @@ static void free_pme_list(Map_t *pm, MapEntry_t *pme_in)
         free_pme(pm, pme);
     }
 }
+
+static void destroy_pme_list(Map_t *pm, MapEntry_t *pme_in)
+{
+    MapEntry_t  *pme, *pme_next;
+	pme = pm->FreeEntries;
+	while (pme != NULL) {
+		pme_next = pme->next;
+		free(pme);
+		pm->NUsedEntries--;
+		pme = pme_next;
+	}	
+    for (pme = pme_in; pme != NULL; pme = pme_next) {
+        pme_next = pme->next;
+		free(pme);
+    }
+}
+#endif
 
 static void insert_lru(struct Map *pm, MapEntry_t *pme)
 {

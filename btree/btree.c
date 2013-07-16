@@ -146,9 +146,18 @@ btree_t *btree_init(uint32_t n_partitions, uint32_t flags, uint32_t max_key_size
     return(bt);
 }
 
-btree_status_t btree_destroy(struct btree *btree)
+btree_status_t btree_destroy(struct btree *bt)
 {
-    // TODO xxxzzz
+	int			i;
+
+	for (i = 0; i < bt->n_partitions; i++) {
+		if (bt->partitions[i]) {
+			btree_raw_destroy(&(bt->partitions[i]));
+		}
+	}
+	free(bt->partitions);
+	free(bt);
+
     return(0);
 }
 

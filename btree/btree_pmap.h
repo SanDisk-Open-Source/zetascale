@@ -22,7 +22,7 @@ struct Iterator;
 struct PMap;
 
 extern struct PMap *PMapInit(uint32_t nparts, uint64_t nbuckets, uint64_t max_entries, char use_locks, void (*replacement_callback)(void *callback_data, char *key, uint32_t keylen, char *pdata, uint64_t datalen), void *replacement_callback_data);
-extern void PMapDestroy(struct PMap *pm);
+extern void PMapDestroy(struct PMap **pm);
 extern void PMapClear(struct PMap *pm);
 extern struct MapEntry *PMapCreate(struct PMap *pm, char *pkey, uint32_t keylen, char *pdata, uint64_t datalen);
 extern struct MapEntry *PMapUpdate(struct PMap *pm, char *pkey, uint32_t keylen, char *pdata, uint64_t datalen);

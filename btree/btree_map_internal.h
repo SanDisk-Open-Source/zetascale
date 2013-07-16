@@ -30,6 +30,11 @@ typedef struct MapEntry {
     struct MapBucket *bucket;
 } MapEntry_t;
 
+typedef struct MapEntryBlock {
+	struct MapEntryBlock	*next;
+	struct MapEntry			*e;
+} MapEntryBlock_t;
+
 typedef struct MapBucket {
     struct MapEntry *entry;
 } MapBucket_t;
@@ -57,6 +62,7 @@ typedef struct Map {
     MapEntry_t  *FreeEntries;
     uint32_t          NIterators;
     uint32_t          NUsedIterators;
+	MapEntryBlock_t		*EntryBlocks;
     struct Iterator *FreeIterators;
 } Map_t;
 

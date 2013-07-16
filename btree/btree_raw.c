@@ -169,6 +169,8 @@ static btree_raw_mem_node_t *get_new_node(btree_status_t *ret, btree_raw_t *btre
 btree_raw_mem_node_t *get_existing_node_low(btree_status_t *ret, btree_raw_t *btree, uint64_t logical_id, int ref);
 
 static int init_l1cache(btree_raw_t *btree, uint32_t n_l1cache_buckets);
+static void destroy_l1cache(btree_raw_t *bt);
+
 static btree_status_t deref_l1cache(btree_raw_t *btree);
 static void ref_l1cache(btree_raw_t *btree, btree_raw_mem_node_t *n);
 static void delete_l1cache(btree_raw_t *btree, btree_raw_mem_node_t *n);
@@ -246,7 +248,8 @@ static int default_cmp_cb(void *data, char *key1, uint32_t keylen1, char *key2, 
 
 //======================   INIT  =========================================
 
-static void l1cache_replace(void *callback_data, char *key, uint32_t keylen, char *pdata, uint64_t datalen)
+static void
+l1cache_replace(void *callback_data, char *key, uint32_t keylen, char *pdata, uint64_t datalen)
 {
     btree_raw_mem_node_t *n = (btree_raw_mem_node_t*)pdata;
 
@@ -259,7 +262,8 @@ static void l1cache_replace(void *callback_data, char *key, uint32_t keylen, cha
     free(n);
 }
 
-btree_raw_t *btree_raw_init(uint32_t flags, uint32_t n_partition, uint32_t n_partitions, uint32_t max_key_size, uint32_t min_keys_per_node, uint32_t nodesize, uint32_t n_l1cache_buckets, create_node_cb_t *create_node_cb, void *create_node_data, read_node_cb_t *read_node_cb, void *read_node_cb_data, write_node_cb_t *write_node_cb, void *write_node_cb_data, flush_node_cb_t *flush_node_cb, void *flush_node_cb_data, freebuf_cb_t *freebuf_cb, void *freebuf_cb_data, delete_node_cb_t *delete_node_cb, void *delete_node_data, log_cb_t *log_cb, void *log_cb_data, msg_cb_t *msg_cb, void *msg_cb_data, cmp_cb_t *cmp_cb, void * cmp_cb_data, trx_cmd_cb_t *trx_cmd_cb)
+btree_raw_t *
+btree_raw_init(uint32_t flags, uint32_t n_partition, uint32_t n_partitions, uint32_t max_key_size, uint32_t min_keys_per_node, uint32_t nodesize, uint32_t n_l1cache_buckets, create_node_cb_t *create_node_cb, void *create_node_data, read_node_cb_t *read_node_cb, void *read_node_cb_data, write_node_cb_t *write_node_cb, void *write_node_cb_data, flush_node_cb_t *flush_node_cb, void *flush_node_cb_data, freebuf_cb_t *freebuf_cb, void *freebuf_cb_data, delete_node_cb_t *delete_node_cb, void *delete_node_data, log_cb_t *log_cb, void *log_cb_data, msg_cb_t *msg_cb, void *msg_cb_data, cmp_cb_t *cmp_cb, void * cmp_cb_data, trx_cmd_cb_t *trx_cmd_cb)
 {
     btree_raw_t      *bt;
     uint32_t          nbytes_meta;
@@ -386,6 +390,14 @@ btree_raw_t *btree_raw_init(uint32_t flags, uint32_t n_partition, uint32_t n_par
     dbg_print("bt %p lock %p n_part %d\n", bt, &bt->lock, n_partition);
 
     return(bt);
+}
+
+void
+btree_raw_destroy (struct btree_raw **bt)
+{
+		destroy_l1cache(*bt);
+		free(*bt);
+		*bt = NULL;
 }
 
 #define META_COUNTER_SAVE_INTERVAL 100000
@@ -1061,7 +1073,8 @@ btree_status_t btree_raw_get(struct btree_raw *btree, char *key, uint32_t keylen
 //======================   INSERT/UPDATE/UPSERT  =========================================
 
 //  return 0 if success, 1 otherwise
-static int init_l1cache(btree_raw_t *bt, uint32_t n_l1cache_buckets)
+static int
+init_l1cache(btree_raw_t *bt, uint32_t n_l1cache_buckets)
 {
 	int n = 0;
     bt->n_l1cache_buckets = n_l1cache_buckets;
@@ -1079,7 +1092,14 @@ static int init_l1cache(btree_raw_t *bt, uint32_t n_l1cache_buckets)
     return(0);
 }
 
-void deref_l1cache_node(btree_raw_t* btree, btree_raw_mem_node_t *node)
+void
+destroy_l1cache(btree_raw_t *bt)
+{
+		PMapDestroy(&(bt->l1cache));
+}
+
+void
+deref_l1cache_node(btree_raw_t* btree, btree_raw_mem_node_t *node)
 {
     if (btree->flags & IN_MEMORY)
         return;

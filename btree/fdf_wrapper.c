@@ -129,44 +129,78 @@ static uint64_t N_cmp         = 0;
 //  xxxzzz these are temporary:
 
 typedef struct cmap {
-    char           cname[CONTAINER_NAME_MAXLEN];
-    uint64_t       cguid;
-    struct btree  *btree;
-
-    int            read_by_rquery;
-    read_node_t    node_data;
+    char			cname[CONTAINER_NAME_MAXLEN];
+    uint64_t		cguid;
+    struct btree	*btree;
+    int				read_by_rquery;
+    read_node_t		node_data;
 } ctrmap_t;
 
-#define MAX_OPEN_CONTAINERS   UINT16_MAX - 1 - 9
-static ctrmap_t Container_Map[MAX_OPEN_CONTAINERS];
-static int N_Open_Containers = 0;
+#define MAX_OPEN_CONTAINERS   (UINT16_MAX - 1 - 9)
+static ctrmap_t 	Container_Map[MAX_OPEN_CONTAINERS];
+static int 			N_Open_Containers = 0;
+pthread_rwlock_t	ctnrmap_rwlock = PTHREAD_RWLOCK_INITIALIZER;
 
-static int bt_get_ctnr_from_cguid( 
+static int
+bt_add_cguid(FDF_cguid_t cguid)
+{
+    int i, empty_slot = -1;
+    int i_ctnr = -1;
+
+	pthread_rwlock_wrlock(&ctnrmap_rwlock);
+	if (N_Open_Containers < MAX_OPEN_CONTAINERS) {
+		for ( i = 0; i < MAX_OPEN_CONTAINERS; i++ ) {
+			if ( Container_Map[i].cguid == cguid ) { 
+				i_ctnr = i; 
+				break; 
+			} else if ((empty_slot == -1) && 
+							(Container_Map[i].cguid == FDF_NULL_CGUID)) {
+				//save empty slot, so that we need not search again	
+				empty_slot = i;
+			}
+		}
+
+		if (i_ctnr == -1) {
+			assert(empty_slot >= 0);
+			i_ctnr = empty_slot;	
+			Container_Map[i_ctnr].cguid = cguid;
+			N_Open_Containers++;
+		}
+	}
+	pthread_rwlock_unlock(&ctnrmap_rwlock);
+
+    return i_ctnr;
+}
+
+static int
+bt_get_ctnr_from_cguid( 
     FDF_cguid_t cguid
     )
 {
     int i;
     int i_ctnr = -1;
 
+	pthread_rwlock_rdlock(&ctnrmap_rwlock);
     for ( i = 0; i < MAX_OPEN_CONTAINERS; i++ ) {
         if ( Container_Map[i].cguid == cguid ) { 
             i_ctnr = i; 
             break; 
         }
     }
+	pthread_rwlock_unlock(&ctnrmap_rwlock);
 
     return i_ctnr;
 }
 
-static btree_t *bt_get_btree_from_cguid(FDF_cguid_t cguid, int *index)
+static btree_t *
+bt_get_btree_from_cguid(FDF_cguid_t cguid, int *index)
 {
     int i;
 
     i = bt_get_ctnr_from_cguid(cguid);
-    if (i >= N_Open_Containers) {
-        if (index) *index = -1;
-            return(NULL); // xxxzzz fix this!
-    }
+	if (i == -1) {
+		return NULL;
+	}
 
     if (index) *index = i;
     return (Container_Map[i].btree);
@@ -359,27 +393,24 @@ FDF_status_t _FDFOpenContainerSpecial(
     if (!cname)
         return(FDF_INVALID_PARAMETER);
 
+	pthread_rwlock_rdlock(&ctnrmap_rwlock);
     if (N_Open_Containers >= MAX_OPEN_CONTAINERS) {
         msg("Exceeded size of Container_Map array in FDFOpenContainer!");
+		pthread_rwlock_unlock(&ctnrmap_rwlock);
         return(FDF_FAILURE);
     }
+	pthread_rwlock_unlock(&ctnrmap_rwlock);
 
     ret = FDFOpenContainer(fdf_thread_state, cname, properties, flags_in, cguid);
     if (ret != FDF_SUCCESS)
         return(ret);
 
     // See if metadata exists (recovered container or opened already)
-    index = bt_get_ctnr_from_cguid(*cguid);
-    if (index >= 0) {
-        // Metadata exists, just return if btree is not empty
-        if (Container_Map[index].btree)
-            return(FDF_SUCCESS);
-    } else {
-        // Need to fill in metadata map
-        index = N_Open_Containers;
-        N_Open_Containers++;
-        Container_Map[index].cguid = *cguid;
-    } 
+    index = bt_add_cguid(*cguid);
+    // Metadata exists, just return if btree is not empty
+    if (Container_Map[index].btree) {
+    	return(FDF_SUCCESS);
+	}
     
     prn = &(Container_Map[index].node_data);
 
@@ -549,17 +580,27 @@ FDF_status_t _FDFDeleteContainer(
 	FDF_cguid_t				 cguid
 	)
 {
-    FDF_status_t status = FDF_FAILURE;
-    int index = -1;
-    my_thd_state = fdf_thread_state;;
+    int				i;
+    FDF_status_t 	status = FDF_FAILURE;
+    my_thd_state 	= fdf_thread_state;;
+	struct btree	*btree = NULL;
 
     trxdeletecontainer( fdf_thread_state, cguid);
     status = FDFDeleteContainer(fdf_thread_state, cguid);
-    index = bt_get_ctnr_from_cguid(cguid);
-    if (index >= 0) {
-        btree_destroy(Container_Map[index].btree);
-        Container_Map[index].cguid = FDF_NULL_CGUID;
-        Container_Map[index].btree = NULL;
+
+	pthread_rwlock_wrlock(&ctnrmap_rwlock);
+	for ( i = 0; i < MAX_OPEN_CONTAINERS; i++ ) {
+		if ( Container_Map[i].cguid == cguid ) { 
+			btree = Container_Map[i].btree;
+			Container_Map[i].cguid = FDF_NULL_CGUID;
+			Container_Map[i].btree = NULL;
+			N_Open_Containers--;
+			break; 
+		}
+	}
+	pthread_rwlock_unlock(&ctnrmap_rwlock);
+    if (btree) {
+        btree_destroy(btree);
     }
     return(status);
 }
@@ -946,11 +987,13 @@ FDF_status_t _FDFDeleteObject(
 
     my_thd_state = fdf_thread_state;;
 
+	pthread_rwlock_rdlock(&ctnrmap_rwlock);
     for (i=0; i<N_Open_Containers; i++) {
         if (Container_Map[i].cguid == cguid) {
             break;
         }
     }
+	pthread_rwlock_unlock(&ctnrmap_rwlock);
     if (i >= N_Open_Containers) {
         return(FDF_FAILURE); // xxxzzz fix this!
     }
