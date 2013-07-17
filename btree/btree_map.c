@@ -73,13 +73,13 @@ get_entry(Map_t *pm)
         e = (MapEntry_t *) malloc(N_ENTRIES_TO_MALLOC*sizeof(MapEntry_t));
 		map_assert(b);
 		map_assert(e);
+		bzero(e, N_ENTRIES_TO_MALLOC*sizeof(MapEntry_t));
 
 		b->e = e;
 		b->next = pm->EntryBlocks;
 		pm->EntryBlocks = b;
 
 		for (i=0; i<N_ENTRIES_TO_MALLOC; i++) {
-			e[i].contents = NULL;
 			e[i].next = pm->FreeEntries;
 			pm->FreeEntries = &(e[i]);
 		}
@@ -87,7 +87,6 @@ get_entry(Map_t *pm)
     }
     e = pm->FreeEntries;
     pm->FreeEntries = e->next;
-
     pm->NUsedEntries++;
     return(e);
 }
@@ -95,6 +94,10 @@ get_entry(Map_t *pm)
 static void free_entry(Map_t *pm, MapEntry_t *e)
 {
     e->next     = pm->FreeEntries;
+	e->contents = NULL;
+	e->refcnt = e->keylen = e->datalen = 0;
+	e->next_lru = e->prev_lru = NULL;
+	e->key = NULL;
     pm->FreeEntries = e;
     pm->NUsedEntries--;
 }
@@ -187,7 +190,9 @@ void MapDestroy(struct Map *pm)
 		e = b->e;
 		for (i=0; i<N_ENTRIES_TO_MALLOC; i++) {
 			if (e[i].contents) {
-				free(e[i].contents);
+				(pm->replacement_callback)(pm->replacement_callback_data,
+								e[i].key, e[i].keylen, e[i].contents,
+							   	e[i].datalen);
 			}
 		}
 		free(b->e);
@@ -269,7 +274,7 @@ struct MapEntry *MapCreate(struct Map *pm, char *pkey, uint32_t keylen, char *pd
 	    fprintf(stderr, "pme=%p\n", pme);
 	#endif
 
-	do_unlock(&(pm->mutex));
+		do_unlock(&(pm->mutex));
         return(NULL);
     }
 
@@ -292,10 +297,10 @@ struct MapEntry *MapCreate(struct Map *pm, char *pkey, uint32_t keylen, char *pd
     {
         insert_lru(pm, pme);
 
-	if ((pm->max_entries > 0) && (pm->n_entries > pm->max_entries)) {
-	    // do an LRU replacement
-	    replace_lru(pm, pme);
-	}
+		if ((pm->max_entries > 0) && (pm->n_entries > pm->max_entries)) {
+	    	// do an LRU replacement
+	    	replace_lru(pm, pme);
+		}
     }
 
     do_unlock(&(pm->mutex));
@@ -320,7 +325,7 @@ struct MapEntry *MapUpdate(struct Map *pm, char *pkey, uint32_t keylen, char *pd
     pme = find_pme(pm, pkey, keylen, NULL);
 
     if (pme == NULL) {
-	do_unlock(&(pm->mutex));
+		do_unlock(&(pm->mutex));
         return(NULL);
     }
 
@@ -328,12 +333,12 @@ struct MapEntry *MapUpdate(struct Map *pm, char *pkey, uint32_t keylen, char *pd
 
     // update the LRU list if necessary
     if (pm->max_entries != 0) {
-	update_lru(pm, pme);
+		update_lru(pm, pme);
     }
 
     if (pm->replacement_callback) {
         //  return NULL for key so that it is not freed!
-	(pm->replacement_callback)(pm->replacement_callback_data, pme->key, pme->keylen, pme->contents, pme->datalen);
+		(pm->replacement_callback)(pm->replacement_callback_data, pme->key, pme->keylen, pme->contents, pme->datalen);
     }
 
     pme->contents = pdata;
@@ -359,53 +364,53 @@ struct MapEntry *MapSet(struct Map *pm, char *pkey, uint32_t keylen, char *pdata
 
     if (pme != NULL) {
 
-	/* Update an existing entry. */
+		/* Update an existing entry. */
 
-	if (pm->replacement_callback) {
-	    //  return NULL for key so that it is not freed!
-	    (pm->replacement_callback)(pm->replacement_callback_data, NULL, 0, pme->contents, pme->datalen);
-	}
+		if (pm->replacement_callback) {
+			//  return NULL for key so that it is not freed!
+			(pm->replacement_callback)(pm->replacement_callback_data, NULL, 0, pme->contents, pme->datalen);
+		}
 
-	*old_pdata   = pme->contents;
-	*old_datalen = pme->datalen;
+		*old_pdata   = pme->contents;
+		*old_datalen = pme->datalen;
 
-	pme->contents = pdata;
-	pme->datalen  = datalen;
+		pme->contents = pdata;
+		pme->datalen  = datalen;
 
-	/* update the lru list if necessary */
-	if (pm->max_entries != 0) {
-	    update_lru(pm, pme);
-	}
+		/* update the lru list if necessary */
+		if (pm->max_entries != 0) {
+	    	update_lru(pm, pme);
+		}
 
     } else {
 
-	/* Create a new entry. */
+		/* Create a new entry. */
 
-	pme = create_pme(pm, pkey, keylen, pdata, datalen);
+		pme = create_pme(pm, pkey, keylen, pdata, datalen);
 
-	*old_pdata   = NULL;
-	*old_datalen = 0;
+		*old_pdata   = NULL;
+		*old_datalen = 0;
 
-	/* put myself on the bucket list */
-	pme->refcnt = 1;
-	pme->bucket = pb;
-	pme->next = pb->entry;
-	pb->entry = pme;
-	#ifdef LISTCHECK
+		/* put myself on the bucket list */
+		pme->refcnt = 1;
+		pme->bucket = pb;
+		pme->next = pb->entry;
+		pb->entry = pme;
+		#ifdef LISTCHECK
 	    check_list(pb, pme);
-	#endif
+		#endif
 
-	pm->n_entries++;
+		pm->n_entries++;
 
-	/* put myself on the lru list */
-	{
-	    insert_lru(pm, pme);
+		/* put myself on the lru list */
+		{
+	    	insert_lru(pm, pme);
 
-	    if ((pm->max_entries != 0) && (pm->n_entries > pm->max_entries)) {
-		// do an LRU replacement
-		replace_lru(pm, pme);
-	    }
-	}
+	    	if ((pm->max_entries != 0) && (pm->n_entries > pm->max_entries)) {
+				// do an LRU replacement
+				replace_lru(pm, pme);
+	    	}
+		}
     }
 
     do_unlock(&(pm->mutex));
@@ -541,7 +546,7 @@ int MapRelease(struct Map *pm, char *key, uint32_t keylen)
 	#endif
         (pme->refcnt)--; //xxxzzz check this!
         //pme->refcnt = 0;
-	rc = 1;
+		rc = 1;
     } else {
 	#ifdef SANDISK_PRINTSTUFF
 	    fprintf(stderr, " (KEY NOT FOUND!)\n");
@@ -565,7 +570,7 @@ int MapReleaseEntry(struct Map *pm, struct MapEntry *pme)
 
     if (pme != NULL) {
         (pme->refcnt)--;
-	rc = 1;
+		rc = 1;
     }
 
     do_unlock(&(pm->mutex));
@@ -694,16 +699,18 @@ int MapDelete(struct Map *pm, char *key, uint32_t keylen)
     map_assert(keylen == 8); // remove this! xxxzzz
 
     for (ppme = &(pb->entry); (*ppme) != NULL; ppme = &((*ppme)->next)) {
-	pme = *ppme;
-	if (pme->key == key2) {
+		pme = *ppme;
+		if (pme->key == key2) {
 
-	    //  Remove from the LRU list if necessary
-	    remove_lru(pm, pme);
-	    pm->n_entries--;
+	    	//  Remove from the LRU list if necessary
+			remove_lru(pm, pme);
+	    	pm->n_entries--;
 
             *ppme = pme->next;
+			(pm->replacement_callback)(pm->replacement_callback_data, pme->key, pme->keylen, 
+											pme->contents, pme->datalen);
             free_pme(pm, pme);
-	    do_unlock(&(pm->mutex));
+	    	do_unlock(&(pm->mutex));
             return (0);
         }
     }
@@ -718,7 +725,7 @@ static MapEntry_t *create_pme(Map_t *pm, char *pkey, uint32_t keylen, char *pdat
     pme = get_entry(pm);
 
     if (keylen == 8) {
-	pme->key = (char *) *((uint64_t *) pkey);
+		pme->key = (char *) *((uint64_t *) pkey);
     } else {
         map_assert(0);
     }
@@ -763,8 +770,8 @@ static MapEntry_t *copy_pme_list(Map_t *pm, MapEntry_t *pme_in)
     pme_out = NULL;
     for (pme = pme_in; pme != NULL; pme = pme->next) {
         pme2 = copy_pme(pm, pme);
-	pme2->next = pme_out;
-	pme_out = pme2;
+		pme2->next = pme_out;
+		pme_out = pme2;
     }
     return(pme_out);
 }
@@ -812,23 +819,23 @@ static void insert_lru(struct Map *pm, MapEntry_t *pme)
     pme->prev_lru = NULL;
     pm->lru_head = pme;
     if (pm->lru_tail == NULL) {
-	pm->lru_tail = pme;
+		pm->lru_tail = pme;
     }
 }
 
 static void remove_lru(struct Map *pm, MapEntry_t *pme)
 {
     if (pme->next_lru == NULL) {
-	map_assert(pm->lru_tail == pme); // xxxzzz remove this!
-	pm->lru_tail = pme->prev_lru;
+		map_assert(pm->lru_tail == pme); // xxxzzz remove this!
+		pm->lru_tail = pme->prev_lru;
     } else {
-	pme->next_lru->prev_lru = pme->prev_lru;
+		pme->next_lru->prev_lru = pme->prev_lru;
     }
     if (pme->prev_lru == NULL) {
-	map_assert(pm->lru_head == pme); // xxxzzz remove this!
-	pm->lru_head = pme->next_lru;
+		map_assert(pm->lru_head == pme); // xxxzzz remove this!
+		pm->lru_head = pme->next_lru;
     } else {
-	pme->prev_lru->next_lru = pme->next_lru;
+		pme->prev_lru->next_lru = pme->next_lru;
     }
 }
 
@@ -849,12 +856,12 @@ static void replace_lru(struct Map *pm, MapEntry_t *pme_in)
     for (pme=pm->lru_tail; pme != NULL; pme = pme->prev_lru) {
         map_assert(pme->refcnt >= 0); // xxxzzz remove this!
         if ((pme->refcnt == 0) && (pme != pme_in)) {
-	    break;
-	}
+	    	break;
+		}
     }
     if (pme == NULL) {
-	fprintf(stderr, "replace_lru could not find a victim!!!!\n");
-	map_assert(0);
+		fprintf(stderr, "replace_lru could not find a victim!!!!\n");
+		map_assert(0);
     }
     #ifdef SANDISK_PRINTSTUFF
 	fprintf(stderr, "replace_lru found a victim: %p\n", pme);
@@ -863,11 +870,11 @@ static void replace_lru(struct Map *pm, MapEntry_t *pme_in)
     //  Remove from bucket list
     found_it = 0;
     for (ppme = &(pme->bucket->entry); (*ppme) != NULL; ppme = &((*ppme)->next)) {
-	if (pme == (*ppme)) {
-	    *ppme = pme->next;
-	    found_it = 1;
-	    break;
-	}
+		if (pme == (*ppme)) {
+			*ppme = pme->next;
+			found_it = 1;
+			break;
+		}
     }
     map_assert(found_it);
 

@@ -1381,7 +1381,7 @@ static void *fdf_stats_thread(void *arg) {
     FDF_cguid_t *cguids = NULL;
     uint32_t n_cguids;
     char stats_str[STAT_BUFFER_SIZE];
-    FILE *stats_log;
+    FILE *stats_log = NULL;
     int i;
     struct FDF_thread_state *thd_state;
     FDF_stats_t stats;
@@ -1391,8 +1391,8 @@ static void *fdf_stats_thread(void *arg) {
 
     cguids = (FDF_cguid_t *) plat_alloc(sizeof(*cguids) * MCD_MAX_NUM_CNTRS);
     if (cguids == NULL) {
-	fprintf(stderr, "Could not allocate memory for CGUIDs.\n");
-	return NULL;	
+		fprintf(stderr, "Could not allocate memory for CGUIDs.\n");
+		return NULL;	
     }
 
     if ( FDF_SUCCESS != FDFInitPerThreadState( ( struct FDF_state * ) arg, ( struct FDF_thread_state ** ) &thd_state )) {
@@ -1404,6 +1404,10 @@ static void *fdf_stats_thread(void *arg) {
     stats_dump = 1;
     dump_interval = getProperty_Int( "FDF_STATS_DUMP_INTERVAL", 10 ); 
     while(1) {
+		if (agent_state.op_access.is_shutdown_in_progress) {
+			break;
+		}
+
         if( (stats_dump == 0) || ( dump_interval <= 0) ) {
             /* Auto dump has been disabled. sleep 5 secs and check again */
             sleep(5);
@@ -1430,7 +1434,7 @@ static void *fdf_stats_thread(void *arg) {
         stats_log = fopen(getProperty_String("FDF_STATS_FILE","/tmp/fdfstats.log"),"a+");
         if( stats_log == NULL ) {
             fprintf(stderr,"Stats Thread:Unable to open the log file /tmp/fdf_stats.log. Exiting\n");
-	    plat_free(cguids);
+	    	plat_free(cguids);
             return NULL;
         }
 
@@ -1462,7 +1466,11 @@ static void *fdf_stats_thread(void *arg) {
         sleep(dump_interval);
     }
 
-    fclose(stats_log);
+	if (stats_log) {
+		fclose(stats_log);
+	}
+	plat_free(cguids);
+	return NULL;
 }
 
 static void *fdf_scheduler_thread(void *arg)

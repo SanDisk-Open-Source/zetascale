@@ -780,12 +780,12 @@ static void free_buffer(btree_raw_t *btree, char *buf)
 
     if (btree->freebuf_cb != NULL) {
         if (btree->freebuf_cb(btree->freebuf_cb_data, buf)) {
-	    assert(0); // xxxzzz remove this!
-	}
+	    	assert(0); // xxxzzz remove this!
+		}
     } else {
-	// xxxzzz SEGFAULT
-	// fprintf(stderr, "SEGFAULT free_buffer: %p [tid=%d]\n", buf, tid);
-	free(buf);
+		// xxxzzz SEGFAULT
+		// fprintf(stderr, "SEGFAULT free_buffer: %p [tid=%d]\n", buf, tid);
+		free(buf);
     }
 }
 
@@ -1227,8 +1227,8 @@ static btree_raw_mem_node_t *get_l1cache(btree_raw_t *btree, uint64_t logical_id
     if (PMapGet(btree->l1cache, (char *) &logical_id, sizeof(uint64_t), (char **) &n, &datalen) == NULL)
         return NULL;
     if (btree->trx_cmd_cb( TRX_CACHE_QUERY, btree->write_node_cb_data, (void *)logical_id) == 0) {
-	PMapDelete( btree->l1cache, (char *)&logical_id, sizeof logical_id);
-	return (NULL);
+		PMapDelete( btree->l1cache, (char *)&logical_id, sizeof logical_id);
+		return (NULL);
     }
 
     dbg_referenced++;
@@ -1242,8 +1242,8 @@ static void delete_l1cache(btree_raw_t *btree, btree_raw_mem_node_t *n)
 {
     dbg_print("node %p root: %d leaf: %d refcnt %d\n", n, is_root(btree, n->pnode), is_leaf(btree, n->pnode), PMapGetRefcnt(btree->l1cache, (char *) &n->pnode->logical_id, sizeof(uint64_t)));
 
-    (void) PMapDelete(btree->l1cache, (char *) &(n->pnode->logical_id), sizeof(uint64_t));
     btree->trx_cmd_cb( TRX_CACHE_DEL, btree->write_node_cb_data, (void *)n->pnode->logical_id);
+    (void) PMapDelete(btree->l1cache, (char *) &(n->pnode->logical_id), sizeof(uint64_t));
 
     btree->stats.stat[BTSTAT_L1ENTRIES] = PMapNEntries(btree->l1cache);
 }
