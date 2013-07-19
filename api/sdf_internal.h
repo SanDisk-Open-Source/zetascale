@@ -54,6 +54,7 @@ typedef struct cntr_map {
 	FDF_boolean_t   	 	evicting;						/* Eviction mode */
     enum_stats_t 		 	enum_stats;						/* Enumeration stats */
     FDF_container_stats_t 	container_stats;				/* Container stats */
+	FDF_boolean_t			read_only;						/* Set if Read-Only */
 } cntr_map_t;
 
 typedef struct SDF_state {

@@ -487,7 +487,7 @@ int FDFEnumerateContainerObjects_Open_CreateObj_close1()
     }
     else flag = 0;
     
-    if(FDF_SUCCESS != DeleteObject(cguid,"key1",5)) flag = -3; 
+    if(FDF_FAILURE != DeleteObject(cguid,"key1",5)) flag = -3; 
     return flag;
 }
 

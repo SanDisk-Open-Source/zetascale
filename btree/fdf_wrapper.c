@@ -134,6 +134,7 @@ typedef struct cmap {
     struct btree	*btree;
     int				read_by_rquery;
     read_node_t		node_data;
+	bool			read_only;
 } ctrmap_t;
 
 #define MAX_OPEN_CONTAINERS   (UINT16_MAX - 1 - 9)
@@ -407,6 +408,15 @@ FDF_status_t _FDFOpenContainerSpecial(
 
     // See if metadata exists (recovered container or opened already)
     index = bt_add_cguid(*cguid);
+
+	if (flags_in & FDF_CTNR_RO_MODE) {
+		Container_Map[index].read_only = true;
+	} else if (flags_in & FDF_CTNR_RW_MODE) {
+		Container_Map[index].read_only = false;
+	} else {
+		Container_Map[index].read_only = false;
+	}
+
     // Metadata exists, just return if btree is not empty
     if (Container_Map[index].btree) {
     	return(FDF_SUCCESS);
@@ -867,10 +877,15 @@ FDF_status_t _FDFWriteObject(
     btree_status_t    btree_ret = BTREE_FAILURE;
     btree_metadata_t  meta;
     struct btree     *bt;
+	int				  index;
 
     my_thd_state = fdf_thread_state;;
 
-    bt = bt_get_btree_from_cguid(cguid, NULL);
+    bt = bt_get_btree_from_cguid(cguid, &index);
+	if (Container_Map[index].read_only == true) {
+		return FDF_FAILURE;
+	}
+
     if (bt == NULL) {
         return (FDF_FAILURE);
     }
@@ -997,6 +1012,11 @@ FDF_status_t _FDFDeleteObject(
     if (i >= N_Open_Containers) {
         return(FDF_FAILURE); // xxxzzz fix this!
     }
+
+	if (Container_Map[i].read_only == true) {
+		return FDF_FAILURE;
+	}
+
     bt = Container_Map[i].btree;
 
     meta.flags = 0;

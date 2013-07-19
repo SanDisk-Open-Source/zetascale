@@ -1197,6 +1197,33 @@ inline void fdf_incr_io_count( FDF_cguid_t cguid )
     	atomic_inc( cmap->io_count );
 }
 
+inline int fdf_incr_wr_io_count( FDF_cguid_t cguid )
+{
+	cntr_map_t *cmap = NULL;
+
+	cmap = fdf_cmap_get_by_cguid( cguid );
+	if ( cmap ) {
+		if (cmap->read_only == FDF_TRUE) {
+			return 0;
+		} else {
+			atomic_inc( cmap->io_count );
+			return 1;
+		}
+	}
+	return 0;
+}
+
+inline int fdf_is_opened_ro( FDF_cguid_t cguid )
+{
+	cntr_map_t *cmap = NULL;
+
+	cmap = fdf_cmap_get_by_cguid( cguid );
+	if ( cmap ) {
+		return ((cmap->read_only == FDF_TRUE) ? 1 : 0);
+	}
+	return 0;
+}
+
 inline void fdf_decr_io_count( FDF_cguid_t cguid )
 {
 	cntr_map_t *cmap = NULL;
@@ -1225,6 +1252,22 @@ int fdf_is_ctnr_open(
 	}
 
     return result;
+}
+
+void
+fdf_cntr_set_readonly(
+		cntr_map_t		*cmap
+		)
+{
+	cmap->read_only = FDF_TRUE;
+}
+
+void
+fdf_cntr_set_readwrite(
+		cntr_map_t		*cmap
+		)
+{
+	cmap->read_only = FDF_FALSE;
 }
 
 FDF_status_t fdf_ctnr_set_state(
@@ -2768,6 +2811,15 @@ static FDF_status_t fdf_open_container(
             	if ( FDF_SUCCESS != ( status = fdf_ctnr_set_state( cmap, FDF_CONTAINER_STATE_OPEN ) ) )
 					goto out;
         	}
+
+			if (flags & FDF_CTNR_RO_MODE) {
+				fdf_cntr_set_readonly(cmap);
+			} else if (flags & FDF_CTNR_RW_MODE) {
+				fdf_cntr_set_readwrite(cmap);
+			} else { /*default */
+				fdf_cntr_set_readwrite(cmap);
+			}
+
 		}
 
         if ( !isContainerNull( container ) ) {
@@ -4309,7 +4361,9 @@ fdf_write_object(
  	if ( !cguid || !key )
  		return FDF_INVALID_PARAMETER;
  
-    fdf_incr_io_count( cguid );
+	if (fdf_incr_wr_io_count(cguid) == 0) {
+		return FDF_FAILURE;
+	}
 
     if ( (status = fdf_get_ctnr_status(cguid, 0)) != FDF_CONTAINER_OPEN ) {
     	plat_log_msg( 160040, LOG_CAT, LOG_DIAG, "Container must be open to execute a write object" );
@@ -4576,7 +4630,9 @@ fdf_delete_object(
     if ( !cguid || !key )
         return FDF_INVALID_PARAMETER;
 
-    fdf_incr_io_count( cguid );
+    if (fdf_incr_wr_io_count( cguid ) == 0) {
+		return FDF_FAILURE;
+	}
 
     if ( (status = fdf_get_ctnr_status(cguid, 0)) != FDF_CONTAINER_OPEN ) {
         plat_log_msg( 160041, LOG_CAT, LOG_DIAG, "Container must be open to execute a delete object" );

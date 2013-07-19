@@ -441,7 +441,7 @@ int test_write_doubleopen(uint32_t aw)
             if(FDF_SUCCESS == ret)
             {
                 (void)CloseContainer(cguid);
-                ret = OpenContainer("c8", 2, aw, i);
+                ret = OpenContainer("c8", 4, aw, i);
                 if(FDF_SUCCESS == ret)
                 {
                     ret = WriteObject(cguid, "kkk", 4, "hhhh", 5, FDF_WRITE_MUST_NOT_EXIST);

@@ -94,6 +94,7 @@ FDF_status_t fdf_cmap_create(
         cmap->num_obj = 0;
         cmap->state = state;
         cmap->evicting = evicting;
+		cmap->read_only = FDF_FALSE;
         bzero( (void *) &cmap->enum_stats, sizeof( enum_stats_t ) );
         bzero( (void *) &cmap->container_stats, sizeof( FDF_container_stats_t ) );
 	}

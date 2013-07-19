@@ -317,9 +317,10 @@ int FDFOpenContainer_openCloseMore_createObj(int count)
 {
     FDF_status_t           ret,ret_obj;
     FDF_cguid_t            cguid;
-    int                    flag;
+    int                    flag, i;
     char                   key[6]="key_a";
     uint32_t               flags[2]={FDF_CTNR_RO_MODE,FDF_CTNR_RW_MODE};
+	int						tmp = 0;
 
     // FDF + btree minimum container size is 8KB.
     p.size_kb = 32;
@@ -331,20 +332,28 @@ int FDFOpenContainer_openCloseMore_createObj(int count)
     ret_obj = CreateObject(cguid,key,6,"data",5);
     CloseContainer(cguid);
 
-    for(int i = 0;i < count; i++){
+    for(i = 0;i < count; i++){
         key[4]++;
         ret = OpenContainer("test6",&p,flags[i%2],&cguid);
         ret_obj = CreateObject(cguid,key,6,"data",5);
         CloseContainer(cguid);
-        if(FDF_SUCCESS != ret || FDF_SUCCESS != ret_obj)
+        if(FDF_SUCCESS != ret) {
             break;
+		} else if ((i%2 == 0) && (ret_obj == FDF_SUCCESS)) {
+			tmp = 1;
+			break;
+		} else if ((i%2 != 0) && (ret_obj != FDF_SUCCESS)) {
+			tmp = 1;
+			break;
+		}
+
     }
 
-    if(FDF_SUCCESS == ret && FDF_SUCCESS == ret_obj){
+    if(i == count) {
         fprintf(fp,"OpenContainer OpenCloseMore to create obj  success.\n");
         flag = 1;
     }
-    else if(FDF_SUCCESS != ret_obj){
+    else if(tmp == 1) {
         fprintf(fp,"OpenContainer OpenCloseMore to create obj  failed:%s.\n",FDFStrError(ret));
         flag = -2;
     }
@@ -356,8 +365,12 @@ int FDFOpenContainer_openCloseMore_createObj(int count)
     if(FDF_SUCCESS != ret)
         return -1;
     for(int i = count;i >=0; i--){
-        if(FDF_SUCCESS != DeleteObject(cguid,key,6))
+		ret = DeleteObject(cguid,key,6);
+        if((i%2 == 0) && (ret != FDF_SUCCESS)) {
             flag = -2;
+		} else if ((i%2 != 0) && (ret == FDF_SUCCESS)) {
+			flag = -2;
+		}
         key[4]--;
     }
     CloseContainer(cguid);
