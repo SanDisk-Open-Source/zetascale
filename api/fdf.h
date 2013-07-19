@@ -20,6 +20,7 @@ extern "C" {
 #include <inttypes.h>
 #include <stdint.h>
 #include <pthread.h>
+#include <stdbool.h>
 
 #include "common/fdftypes.h"
 
@@ -1075,6 +1076,12 @@ typedef struct {
     char *data;
 } FDF_obj_t;
 
+/*
+ * FDFRangeUpdate Callback.
+ */
+typedef bool (* FDF_range_update_cb_t) (char *key, uint32_t keylen, char *data, uint32_t datalen,
+				        void *callback_args, char **new_data, uint32_t *new_datalen);
+
 /* Start an index query.
  * 
  * Returns: FDF_SUCCESS if successful
@@ -1161,6 +1168,15 @@ FDFMPut(struct FDF_thread_state *fdf_ts,
         FDF_obj_t *objs,
 	uint32_t flags,
 	uint32_t *objs_written);
+
+FDF_status_t
+FDFRangeUpdate(struct FDF_thread_state *fdf_thread_state, 
+	       FDF_cguid_t cguid,
+	       char *range_key,
+	       uint32_t range_key_len,
+	       FDF_range_update_cb_t callback_func,
+	       void * callback_args,	
+	       uint32_t *objs_updated);
 
 /*
  * @brief Create a snapshot for a container  

@@ -299,6 +299,15 @@ FDF_status_t
 	uint32_t flags,
 	uint32_t *objs_written);
 
+FDF_status_t
+(*ptr_FDFRangeUpdate) (struct FDF_thread_state *fdf_thread_state, 
+	       FDF_cguid_t cguid,
+	       char *range_key,
+	       uint32_t range_key_len,
+	       FDF_range_update_cb_t callback_func,
+	       void * callback_args,	
+	       uint32_t *objs_updated);
+
 static FDF_status_t
 (*ptr_FDFDeleteContainerSnapshot)(
 	struct FDF_thread_state	*fdf_thread_state,
@@ -380,6 +389,7 @@ static struct {
     { "FDFDeleteContainerSnapshot",    &ptr_FDFDeleteContainerSnapshot   },
     { "FDFGetContainerSnapshots",      &ptr_FDFGetContainerSnapshots     },
     { "FDFMPut",          	       &ptr_FDFMPut			 },
+    { "FDFRangeUpdate",		       &ptr_FDFRangeUpdate		 },
 };
 
 
@@ -1321,7 +1331,7 @@ FDFGetRangeFinish(struct FDF_thread_state *fdf_thread_state,
 }
 
 /*
- * FDFGetRangeFinish
+ * FDFMPut
  */
 FDF_status_t 
 FDFMPut(struct FDF_thread_state *fdf_thread_state, 
@@ -1337,6 +1347,27 @@ FDFMPut(struct FDF_thread_state *fdf_thread_state,
     return (* ptr_FDFMPut)(fdf_thread_state, cguid,
 			  num_objs, objs,
 			  flags, objs_written);
+}
+
+/*
+ * FDFRangeUpdate.
+ */
+FDF_status_t
+FDFRangeUpdate(struct FDF_thread_state *fdf_thread_state, 
+	       FDF_cguid_t cguid,
+	       char *range_key,
+	       uint32_t range_key_len,
+	       FDF_range_update_cb_t callback_func,
+	       void * callback_args,	
+	       uint32_t *objs_updated)
+{
+    if (unlikely(!ptr_FDFRangeUpdate))
+        undefined("FDFRangeUpdate");
+
+    return (*ptr_FDFRangeUpdate) (fdf_thread_state, cguid, range_key,
+				  range_key_len, callback_func, callback_args,
+				  objs_updated);
+
 }
 
 FDF_status_t

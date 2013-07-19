@@ -201,7 +201,6 @@ btree_mput(struct btree *btree, btree_mput_obj_t *objs,
 {
     int n_partition = hash_key(objs[0].key, objs[0].key_len) % btree->n_partitions;
 
-
     return btree_raw_mput(btree->partitions[n_partition], objs, num_objs, flags, meta, objs_written);
 }
 

@@ -6563,6 +6563,20 @@ FDFMPut(struct FDF_thread_state *fdf_thread_state,
 	fprintf(stderr, "FDF: FDFMPut without btree is not supported\n");
 	return FDF_FAILURE;
 }
+
+FDF_status_t
+FDFRangeUpdate(struct FDF_thread_state *fdf_thread_state, 
+	       FDF_cguid_t cguid,
+	       char *range_key,
+	       uint32_t range_key_len,
+	       FDF_range_update_cb_t callback_func,
+	       void * callback_args,	
+	       uint32_t *objs_updated)
+{
+	fprintf(stderr, "FDF: FDFRangeUpdate without btree is not supported\n");
+	return FDF_FAILURE;
+}
+
 /*
  * @brief Create a snapshot for a container  
  * 

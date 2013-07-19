@@ -19,6 +19,7 @@
 #include <unistd.h>
 #include <inttypes.h>
 #include <stdint.h>
+#include <stdbool.h>
 
 
 #ifndef __BTREE_RAW_H
@@ -161,6 +162,8 @@ typedef int (delete_node_cb_t)(struct btree_raw_mem_node *node, void *data, uint
 typedef void (log_cb_t)(btree_status_t *ret, void *data, uint32_t event_type, struct btree_raw *btree, struct btree_raw_mem_node *n);
 typedef int (cmp_cb_t)(void *data, char *key1, uint32_t keylen1, char *key2, uint32_t keylen2);
 typedef int (trx_cmd_cb_t)( int, void *, void *);
+
+typedef bool (* btree_range_update_cb_t) (char *key, uint32_t keylen, char *data, uint32_t datalen, void * callback_args, char **new_data, uint32_t *new_data_len);
 
 /****************************************************
  *

@@ -27,7 +27,7 @@
 #include "trx.h"
 
 #define MAX_NODE_SIZE   128*1024
-typedef enum {false = 0, true = 1} bool;
+
 #include "fdf_internal.h"
 
 static char Create_Data[MAX_NODE_SIZE];
@@ -83,6 +83,15 @@ _FDFMPut(struct FDF_thread_state *fdf_ts,
         FDF_obj_t *objs,
 	uint32_t flags,
 	uint32_t *objs_done);
+
+FDF_status_t
+_FDFRangeUpdate(struct FDF_thread_state *fdf_thread_state, 
+	       FDF_cguid_t cguid,
+	       char *range_key,
+	       uint32_t range_key_len,
+	       FDF_range_update_cb_t callback_func,
+	       void * callback_args,	
+	       uint32_t *objs_updated);
 
 
 #define Error(msg, args...) \
@@ -1832,6 +1841,269 @@ _FDFMPut(struct FDF_thread_state *fdf_ts,
 		default:
 			ret = FDF_FAILURE;
 			break;
+	}
+
+	return ret;
+}
+
+#define NUM_IN_CHUNK 500
+#define MAX_KEYLEN 256 //Must change to btree property.
+
+static bool
+key_in_range(struct btree *bt, char *range_key, uint32_t range_key_len,
+	     char *key, uint32_t keylen)
+{
+	int x = 0;
+	
+	if (keylen < range_key_len) {
+		return false;
+	}
+
+	x = bt->cmp_cb(bt->cmp_cb_data, range_key, range_key_len,
+		       key, range_key_len);
+
+	// TBD: we should have a range check function passed from user for
+	// Btree
+
+	if (x != 0) {
+		return false;
+	}	
+	return true;
+}
+
+typedef struct {
+	char *key;
+	char *data;
+} btree_range_update_data_t;
+
+FDF_status_t
+_FDFRangeUpdate(struct FDF_thread_state *fdf_ts, 
+	       FDF_cguid_t cguid,
+	       char *range_key,
+	       uint32_t range_key_len,
+	       FDF_range_update_cb_t callback_func,
+	       void * callback_args,	
+	       uint32_t *objs_updated)
+{
+	FDF_status_t ret = FDF_SUCCESS;
+	struct btree *bt = NULL;
+	btree_range_update_cb_t cb_func = 
+			(btree_range_update_cb_t) callback_func;
+	FDF_range_meta_t rmeta;
+	FDF_range_data_t *values = NULL;
+	struct FDF_cursor *cursor = NULL;
+	btree_range_update_data_t *tmp_data = NULL;
+	FDF_obj_t *objs = NULL;
+	uint32_t objs_written = 0;
+	uint32_t objs_to_update = 0;
+	uint32_t objs_in_range = 0;
+	char *new_data = NULL;
+	uint32_t new_data_len;
+	int n_out = 0;
+	int i = 0;
+
+	*objs_updated = 0;
+
+	bt = bt_get_btree_from_cguid(cguid, NULL);
+	if (bt == NULL) {
+		return FDF_FAILURE;
+	}
+
+	objs = (FDF_obj_t *) malloc(sizeof(FDF_obj_t) * NUM_IN_CHUNK);
+        if (objs == NULL) {
+		return FDF_FAILURE_MEMORY_ALLOC;
+        }
+
+	tmp_data = (btree_range_update_data_t *) malloc(sizeof(*tmp_data) * NUM_IN_CHUNK);
+	if (tmp_data == NULL) {
+		ret = FDF_FAILURE_MEMORY_ALLOC;
+		goto exit;
+	}
+
+	values = (FDF_range_data_t *)
+		   malloc(sizeof(FDF_range_data_t) * NUM_IN_CHUNK);
+	if (values == NULL) {
+		ret = FDF_FAILURE_MEMORY_ALLOC;
+		goto exit;
+	}
+
+	rmeta.key_start = (char *) malloc(MAX_KEYLEN);
+	if (rmeta.key_start == NULL) {
+		ret = FDF_FAILURE_MEMORY_ALLOC;
+		goto exit;
+	}
+
+	memcpy(rmeta.key_start, range_key, range_key_len);
+	rmeta.keylen_start = range_key_len;
+
+	rmeta.flags = FDF_RANGE_START_GE;
+	rmeta.key_end = NULL;
+	rmeta.keylen_end = 0;
+	rmeta.cb_data = NULL;
+	rmeta.keybuf_size = 0;
+	rmeta.databuf_size = 0;
+
+	rmeta.allowed_fn = NULL;
+
+	ret = _FDFGetRange(fdf_ts, cguid, FDF_RANGE_PRIMARY_INDEX,
+			  &cursor, &rmeta);
+	if (ret != FDF_SUCCESS) {
+		goto exit;
+	}
+
+	/*
+	 * Start TXN
+	 */
+#if RANGE_UPDATE_TXN
+	ret = _FDFTransactionStart(fdf_ts);
+	if (ret != FDF_SUCCESS) {
+		assert(0);
+		goto exit;	
+	}
+#endif 
+
+	do {
+		ret = _FDFGetNextRange(fdf_ts, cursor, NUM_IN_CHUNK, &n_out, values);
+		if (ret != FDF_SUCCESS && ret != FDF_QUERY_DONE) {
+			/*
+			 * Return error.
+			 */
+			assert(0);
+			goto rollback;
+		}
+
+		objs_to_update = 0;
+		for (i = 0; i < n_out; i++) {
+
+			assert(values[i].status == FDF_SUCCESS);
+
+			if (key_in_range(bt, range_key, range_key_len,
+					 values[i].key, values[i].keylen) != true) {
+				/*
+				 * Found end of range. We must update only
+				 * objects that are in range.
+				 */
+				break;
+			}
+
+			objs[i].key = values[i].key;	
+			objs[i].key_len = values[i].keylen;	
+			objs[i].flags = 0;
+
+			/*
+			 * Call the user provided callback.
+			 */
+			new_data_len = 0;
+			new_data = NULL;
+
+			tmp_data[i].key = values[i].key;
+			tmp_data[i].data = values[i].data;
+
+			if (cb_func != NULL) {
+				if ((*cb_func) (values[i].key, values[i].keylen,
+						values[i].data, values[i].datalen,
+						callback_args, &new_data, &new_data_len) == false) {
+					/*
+					 * object data not changed, no need to update.
+					 */
+					continue;
+				}
+			}
+
+			assert(values[i].datalen != 0);
+			if (new_data_len != 0) {
+				/*
+				 * Callback has changed the data size.
+				 */
+				objs[i].data = new_data;
+				objs[i].data_len = new_data_len;
+
+				/*
+				 * Free older data and take new one in account.
+				 */
+				free(tmp_data[i].data);
+				tmp_data[i].data = new_data;
+			} else {
+				/*
+				 * Data size is not changed.
+				 */
+				objs[i].data = values[i].data;
+				objs[i].data_len = values[i].datalen;
+			}
+			objs_to_update++;
+
+		}
+
+		objs_in_range = i;
+	
+		objs_written = 0;
+		ret = _FDFMPut(fdf_ts, cguid, objs_to_update, objs, 0, &objs_written);
+
+		/*
+		 * Free up the used memory.
+		 */
+		for (i = 0; i < objs_in_range; i++) {
+			free(tmp_data[i].key);
+			free(tmp_data[i].data);
+		}
+
+		for (i = objs_in_range; i < n_out; i++) {
+			free(values[i].key);
+			free(values[i].data);
+		}
+		
+		(*objs_updated) += objs_written;
+
+		if ((ret != FDF_SUCCESS) || (objs_written != objs_to_update)) {
+			assert(0);
+			goto rollback;
+		}	
+
+	} while (n_out > 0);
+
+	_FDFGetRangeFinish(fdf_ts, cursor);
+	
+	/*
+	 *  commit txn
+	 */
+#if RANGE_UPDATE_TXN
+	ret = _FDFTransactionCommit(fdf_ts);
+	if (ret == FDF_SUCCESS) {
+		/*
+		 * Successfully committed the txn.
+		 */
+		goto exit;
+	}
+
+#endif 
+	
+rollback:
+	/*
+	 * Rollback txn
+	 */
+#if RANGE_UPDATE_TXN
+	assert(0);
+	FDFTransactionRollback(fdf_ts);
+	assert(ret != FDF_SUCCESS);
+	(*objs_updated) = 0;
+#endif 
+
+exit:
+
+	if (tmp_data) {
+		free(tmp_data);
+	}
+
+	if (rmeta.key_start) {
+		free(rmeta.key_start);
+	}
+
+	if (values) {
+		free(values);
+	}
+
+	if (objs) {
+		free(objs);
 	}
 
 	return ret;
