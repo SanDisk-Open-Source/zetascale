@@ -143,6 +143,10 @@ FDF_status_t fdf_cmap_update(
 	struct CMapEntry *entry             = NULL;
 	char             *replace_status    = NULL;
 
+	if (!cmap) {
+		return FDF_FAILURE;
+	}
+
     if ( NULL == ( cname_key = (char *) plat_alloc( strlen( cmap->cname ) + 1) ) ) {
         return FDF_FAILURE_MEMORY_ALLOC;
     }
@@ -158,12 +162,14 @@ FDF_status_t fdf_cmap_update(
 
     replace_status = HashMap_replace( cmap_cname_hash, cname_key, (void *) cmap->cguid );
 	
-	if ( !cmap || NULL == replace_status ) {
+	plat_free(cname_key);
+
+	if (NULL == replace_status ) {
 		plat_log_msg( 150118, 
 	                  LOG_CAT, 
 	                  LOG_DBG,
 	                  "Failed to update %s - %lu", 
-	                  cname_key, 
+	                  cmap->cname, 
 	                  cmap->cguid
 	                );
         return FDF_FAILURE;

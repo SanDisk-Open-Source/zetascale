@@ -432,6 +432,11 @@ void *HashMap_genericOp(HashMap map, const char *key, void* value, uint16_t keyL
                     __sync_fetch_and_sub(&(map->numElements), 1);
                     break;
                 case REPLACE: // replace
+					/* 
+					 * IMPORTANT: 
+					 * Dont save key, its memory is freed in caller.
+					 * If saving key, take a look at callers.
+					 */
                     ret = list->value;
                     list->value = value;
                     break;
@@ -461,6 +466,11 @@ void *HashMap_genericOp(HashMap map, const char *key, void* value, uint16_t keyL
                 case REMOVE: // no-op
                     break;
                 case REPLACE: // no-op
+					/* 
+					 * IMPORTANT: 
+					 * Dont save key, its memory is freed in caller.
+					 * If saving key, take a look at callers.
+					 */
                     break;
                 default: plat_assert(0 == 1);
             }

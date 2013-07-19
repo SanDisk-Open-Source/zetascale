@@ -1100,6 +1100,7 @@ FDF_status_t _FDFNextEnumeratedObject(
 	int              count = 0;
 	FDF_range_data_t values;
 
+	bzero(&values, sizeof(FDF_range_data_t));
 	status = _FDFGetNextRange(fdf_thread_state,
                               (struct FDF_cursor *) iterator,
                               1,
@@ -1108,14 +1109,14 @@ FDF_status_t _FDFNextEnumeratedObject(
 
 	if (FDF_SUCCESS == status && FDF_SUCCESS == values.status && count) {
             assert(count); // Hack
-	    *key = (char *) malloc(values.keylen);
+	    	*key = (char *) malloc(values.keylen);
             assert(*key);
-	    strncpy(*key, values.key, values.keylen);
-	    *keylen = values.keylen;
-	    *data = (char *) malloc(values.datalen);
+	    	strncpy(*key, values.key, values.keylen);
+	    	*keylen = values.keylen;
+	    	*data = (char *) malloc(values.datalen);
             assert(*data);
-	    strncpy(*data, values.data, values.datalen);
-	    *datalen = values.datalen;
+	    	strncpy(*data, values.data, values.datalen);
+	    	*datalen = values.datalen;
 	    //if (values.primary_key)
 	        //free(values.primary_key);
 	} else {
@@ -1124,6 +1125,13 @@ FDF_status_t _FDFNextEnumeratedObject(
 	    *data = NULL;
 	    *datalen = 0;
 	    status = FDF_OBJECT_UNKNOWN;
+	}
+
+	if (values.key) {
+		free(values.key);
+	}
+	if (values.data) {
+		free(values.data);
 	}
 
     return(status);
