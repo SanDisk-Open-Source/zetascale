@@ -1,6 +1,6 @@
 add_definitions(-std=gnu99 -fgnu89-inline)
 #add parameter here as SET(testname_param arg1 arg2 ...)
-#SET(default_param 1 8 10000)
+SET(default_param 1 8 10000)
 SET(fdf_multi_test_param 1 8 1000)
 SET(fdf_mput_param 1000 100 10)
 
