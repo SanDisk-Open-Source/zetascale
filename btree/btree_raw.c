@@ -2169,7 +2169,7 @@ get_keys_less_than(btree_raw_t *btree, char *key, uint32_t keylen,
 	while (i_start <= i_end) {
 		i_center = (i_start + i_end) / 2;
 
-	        x = btree->cmp_cb(NULL, key, keylen,
+	        x = btree->cmp_cb(btree->cmp_cb_data, key, keylen,
 				 objs[i_center].key, objs[i_center].key_len);
 		if (x < 0) {
 			/*
