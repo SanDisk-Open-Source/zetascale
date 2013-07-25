@@ -137,16 +137,29 @@ static uint64_t N_cmp         = 0;
 
 //  xxxzzz these are temporary:
 
+typedef enum {
+	 BT_CNTR_UNUSED,		/* cguid will be NULL for unused entries */
+	 BT_CNTR_INIT,			/* Initializing */
+	 BT_CNTR_OPEN,			/* Opened */
+	 BT_CNTR_CLOSING,		/* Closing in progress */
+	 BT_CNTR_CLOSED,		/* Closed */
+	 BT_CNTR_DELETING,		/* Deletion in progress */
+} BT_CNTR_STATE;
+
 typedef struct cmap {
-    char			cname[CONTAINER_NAME_MAXLEN];
-    uint64_t		cguid;
-    struct btree	*btree;
-    int				read_by_rquery;
-    read_node_t		node_data;
-	bool			read_only;
+    char				cname[CONTAINER_NAME_MAXLEN];
+    uint64_t			cguid;
+    struct btree		*btree;
+    int					read_by_rquery;
+    read_node_t			node_data;
+	bool				read_only;
+	BT_CNTR_STATE		bt_state;
+	int					bt_io_count;
+	pthread_rwlock_t	bt_cm_rwlock;
 } ctrmap_t;
 
 #define MAX_OPEN_CONTAINERS   (UINT16_MAX - 1 - 9)
+#define FIRST_VALID_CGUID		3
 static ctrmap_t 	Container_Map[MAX_OPEN_CONTAINERS];
 static int 			N_Open_Containers = 0;
 pthread_rwlock_t	ctnrmap_rwlock = PTHREAD_RWLOCK_INITIALIZER;
@@ -174,7 +187,8 @@ bt_add_cguid(FDF_cguid_t cguid)
 			assert(empty_slot >= 0);
 			i_ctnr = empty_slot;	
 			Container_Map[i_ctnr].cguid = cguid;
-			N_Open_Containers++;
+			Container_Map[i_ctnr].bt_state = BT_CNTR_INIT;
+			(void) __sync_add_and_fetch(&N_Open_Containers, 1);
 		}
 	}
 	pthread_rwlock_unlock(&ctnrmap_rwlock);
@@ -202,18 +216,63 @@ bt_get_ctnr_from_cguid(
     return i_ctnr;
 }
 
+/*
+ * I M P O R T A N T:
+ * This routine returns the index and btree with READ LOCK of the entry
+ * held. Caller need to release the lock using bt_rel_entry() routine.
+ */
 static btree_t *
-bt_get_btree_from_cguid(FDF_cguid_t cguid, int *index)
+bt_get_btree_from_cguid(FDF_cguid_t cguid, int *index, FDF_status_t *error)
 {
     int i;
+	FDF_status_t	err = FDF_SUCCESS;
+	btree_t			*bt = NULL;
+
+	assert(index);
+	assert(error);
 
     i = bt_get_ctnr_from_cguid(cguid);
 	if (i == -1) {
+		*error = FDF_FAILURE_CONTAINER_NOT_FOUND;
 		return NULL;
 	}
 
-    if (index) *index = i;
-    return (Container_Map[i].btree);
+	pthread_rwlock_rdlock(&(Container_Map[i].bt_cm_rwlock));
+	/* There could be a delete when we were trying to acquire lock */
+	if ((Container_Map[i].cguid == cguid) &&
+			(Container_Map[i].bt_state == BT_CNTR_OPEN)) {
+		*index = i;
+		bt = Container_Map[i].btree;
+		(void) __sync_add_and_fetch(&(Container_Map[i].bt_io_count), 1);
+	} else {
+		pthread_rwlock_unlock(&(Container_Map[i].bt_cm_rwlock));
+		/* The container has been deleted while we were acquiring the lock */
+		if (Container_Map[i].cguid != cguid) {
+			err = FDF_FAILURE_CONTAINER_NOT_FOUND;
+		} else {
+			err = FDF_FAILURE_CONTAINER_NOT_OPEN;
+		}
+	}
+	*error = err;
+	return bt;
+}
+
+static void
+bt_rel_entry(int i)
+{
+	(void) __sync_sub_and_fetch(&(Container_Map[i].bt_io_count), 1);
+	pthread_rwlock_unlock(&(Container_Map[i].bt_cm_rwlock));
+	return;
+}
+
+static FDF_status_t
+bt_is_valid_cguid(FDF_cguid_t cguid)
+{
+	if (cguid <= FIRST_VALID_CGUID) {
+		return FDF_FAILURE_ILLEGAL_CONTAINER_ID;
+	} else {
+		return FDF_SUCCESS;
+	}
 }
 
 static void dump_btree_stats(FILE *f, FDF_cguid_t cguid);
@@ -276,9 +335,10 @@ FDF_status_t _FDFInit(
     FDF_ext_cb_t  *cbs;
 
     // Initialize the map
-    for (i=0; i<N_Open_Containers; i++) {
+    for (i=0; i<MAX_OPEN_CONTAINERS; i++) {
         Container_Map[i].cguid = FDF_NULL_CGUID;
         Container_Map[i].btree = NULL;
+		pthread_rwlock_init(&(Container_Map[i].bt_cm_rwlock), NULL);
     }
 
     stest = getenv("FDF_RUN_BTREE_SELFTEST");
@@ -411,12 +471,31 @@ FDF_status_t _FDFOpenContainerSpecial(
     }
 	pthread_rwlock_unlock(&ctnrmap_rwlock);
 
+restart:
     ret = FDFOpenContainer(fdf_thread_state, cname, properties, flags_in, cguid);
     if (ret != FDF_SUCCESS)
         return(ret);
 
     // See if metadata exists (recovered container or opened already)
     index = bt_add_cguid(*cguid);
+
+	/* This shouldnt happen, how FDF could create container but we exhausted map */
+	if (index == -1) {
+		FDFCloseContainer(fdf_thread_state, *cguid);
+		return FDF_TOO_MANY_CONTAINERS;
+	}
+
+	pthread_rwlock_wrlock(&(Container_Map[index].bt_cm_rwlock));
+
+	/* Some one deleted the container which we were re-opening */
+	if (Container_Map[index].cguid != *cguid) {
+		pthread_rwlock_unlock(&(Container_Map[index].bt_cm_rwlock));
+		goto restart;
+	}
+
+	assert ((Container_Map[index].bt_state == BT_CNTR_INIT) || /* Create/First Open */
+			(Container_Map[index].bt_state == BT_CNTR_OPEN) || /* Re-open */
+			(Container_Map[index].bt_state == BT_CNTR_CLOSED)); /* Opening closed one */
 
 	if (flags_in & FDF_CTNR_RO_MODE) {
 		Container_Map[index].read_only = true;
@@ -427,7 +506,9 @@ FDF_status_t _FDFOpenContainerSpecial(
 	}
 
     // Metadata exists, just return if btree is not empty
-    if (Container_Map[index].btree) {
+    if (Container_Map[index].btree) {	
+		Container_Map[index].bt_state = BT_CNTR_OPEN;
+		pthread_rwlock_unlock(&(Container_Map[index].bt_cm_rwlock));
     	return(FDF_SUCCESS);
 	}
     
@@ -494,8 +575,8 @@ FDF_status_t _FDFOpenContainerSpecial(
 #endif
 
     if (nodesize > MAX_NODE_SIZE) {
-	msg("nodesize must <= %d\n", MAX_NODE_SIZE);
-	return(FDF_FAILURE); // xxxzzz fix me
+		msg("nodesize must <= %d\n", MAX_NODE_SIZE);
+		goto fail;
     }
 
     cmp_cb = lex_cmp_cb;
@@ -533,8 +614,9 @@ FDF_status_t _FDFOpenContainerSpecial(
 
     if (bt == NULL) {
         msg("Could not create btree in FDFOpenContainer!");
-        FDFDeleteContainer(fdf_thread_state, *cguid);
-        return(FDF_FAILURE);
+        //FDFDeleteContainer(fdf_thread_state, *cguid);
+		FDFCloseContainer(fdf_thread_state, *cguid);
+		goto fail;
     }
 
     env = getenv("BTREE_READ_BY_RQUERY");
@@ -549,8 +631,17 @@ FDF_status_t _FDFOpenContainerSpecial(
     // xxxzzz for now, for performance testing, just use a hank
 
     Container_Map[index].btree = bt;
+	Container_Map[index].bt_state = BT_CNTR_OPEN;
+	pthread_rwlock_unlock(&(Container_Map[index].bt_cm_rwlock));
 
-    return(ret);
+    return(FDF_SUCCESS);
+
+fail:
+	if (Container_Map[index].bt_state == BT_CNTR_INIT) {
+		Container_Map[index].bt_state = BT_CNTR_CLOSED;
+	}
+	pthread_rwlock_unlock(&(Container_Map[index].bt_cm_rwlock));
+	return(ret);
 }
 
 FDF_status_t _FDFOpenContainer(
@@ -582,9 +673,49 @@ FDF_status_t _FDFCloseContainer(
 	)
 {
     my_thd_state = fdf_thread_state;;
+	FDF_status_t	status = FDF_FAILURE;
+	int				index;
+
+restart:
+	if ((status = bt_is_valid_cguid(cguid)) != FDF_SUCCESS) {
+		return status;
+	}
+
+	if ((index = bt_get_ctnr_from_cguid(cguid)) == -1) {
+		return FDF_FAILURE_CONTAINER_NOT_FOUND;
+	}
+
+	pthread_rwlock_wrlock(&(Container_Map[index].bt_cm_rwlock));
+
+	/* Some one might have deleted it, while we were trying to acquire lock */
+	if (Container_Map[index].cguid != cguid) {
+		pthread_rwlock_unlock(&(Container_Map[index].bt_cm_rwlock));
+		return FDF_FAILURE_CONTAINER_NOT_FOUND;
+	}
+	
+	if (Container_Map[index].bt_state != BT_CNTR_OPEN) {
+		pthread_rwlock_unlock(&(Container_Map[index].bt_cm_rwlock));
+		return FDF_FAILURE_CONTAINER_NOT_OPEN;
+	}
+
+	/* Lets block further IOs */
+	Container_Map[index].bt_state = BT_CNTR_CLOSING;
+
+	/* IO might have started on this container. Lets wait and retry */
+	if (Container_Map[index].bt_io_count) {
+		pthread_rwlock_unlock(&(Container_Map[index].bt_cm_rwlock));
+		while (Container_Map[index].bt_io_count) {
+			pthread_yield();
+		}
+		goto restart;
+	}
 
     //msg("FDFCloseContainer is not currently supported!"); // xxxzzz
-    return(FDFCloseContainer(fdf_thread_state, cguid));
+    status = FDFCloseContainer(fdf_thread_state, cguid);
+	
+	Container_Map[index].bt_state = BT_CNTR_CLOSED;
+	pthread_rwlock_unlock(&(Container_Map[index].bt_cm_rwlock));
+	return status;
 }
 
 /**
@@ -599,25 +730,54 @@ FDF_status_t _FDFDeleteContainer(
 	FDF_cguid_t				 cguid
 	)
 {
-    int				i;
+    int				index;
     FDF_status_t 	status = FDF_FAILURE;
     my_thd_state 	= fdf_thread_state;;
 	struct btree	*btree = NULL;
 
+restart:
+	if ((status = bt_is_valid_cguid(cguid)) != FDF_SUCCESS) {
+		return status;
+	}
+
+	if ((index = bt_get_ctnr_from_cguid(cguid)) == -1) {
+		return FDF_FAILURE_CONTAINER_NOT_FOUND;
+	}
+
+	pthread_rwlock_wrlock(&(Container_Map[index].bt_cm_rwlock));
+
+	/* Some one might have deleted it, while we were trying to acquire lock */
+	if (Container_Map[index].cguid != cguid) {
+		pthread_rwlock_unlock(&(Container_Map[index].bt_cm_rwlock));
+		return FDF_FAILURE_CONTAINER_NOT_FOUND;
+	}
+	
+	/* Lets block further IOs */
+	Container_Map[index].bt_state = BT_CNTR_DELETING;
+
+	/* IO might have started on this container. Lets wait and retry */
+	if (Container_Map[index].bt_io_count) {
+		pthread_rwlock_unlock(&(Container_Map[index].bt_cm_rwlock));
+		while (Container_Map[index].bt_io_count) {
+			pthread_yield();
+		}
+		goto restart;
+	}
+
+	/* Let us mark the entry NULL and then delete, so that we dont get the same
+	   cguid if there is a create container happening */
+
+	btree = Container_Map[index].btree;
+
+	Container_Map[index].cguid = FDF_NULL_CGUID;
+	Container_Map[index].btree = NULL;
+	Container_Map[index].bt_state = BT_CNTR_UNUSED;
+	(void) __sync_sub_and_fetch(&N_Open_Containers, 1);
+	pthread_rwlock_unlock(&(Container_Map[index].bt_cm_rwlock));
+
     trxdeletecontainer( fdf_thread_state, cguid);
     status = FDFDeleteContainer(fdf_thread_state, cguid);
 
-	pthread_rwlock_wrlock(&ctnrmap_rwlock);
-	for ( i = 0; i < MAX_OPEN_CONTAINERS; i++ ) {
-		if ( Container_Map[i].cguid == cguid ) { 
-			btree = Container_Map[i].btree;
-			Container_Map[i].cguid = FDF_NULL_CGUID;
-			Container_Map[i].btree = NULL;
-			N_Open_Containers--;
-			break; 
-		}
-	}
-	pthread_rwlock_unlock(&ctnrmap_rwlock);
     if (btree) {
         btree_destroy(btree);
     }
@@ -658,6 +818,10 @@ FDF_status_t _FDFGetContainerProps(
 	)
 {
     my_thd_state = fdf_thread_state;;
+	FDF_status_t	ret;
+	if ((ret= bt_is_valid_cguid(cguid)) != FDF_SUCCESS) {
+		return ret;
+	}
 
     return(FDFGetContainerProps(fdf_thread_state, cguid, pprops));
 }
@@ -677,6 +841,10 @@ FDF_status_t _FDFSetContainerProps(
 	)
 {
     my_thd_state = fdf_thread_state;;
+	FDF_status_t	ret;
+	if ((ret= bt_is_valid_cguid(cguid)) != FDF_SUCCESS) {
+		return ret;
+	}
 
     return(FDFSetContainerProps(fdf_thread_state, cguid, pprops));
 }
@@ -723,6 +891,10 @@ FDF_status_t _FDFReadObject(
     btree_range_data_t   values[1];
     int n_out;
 
+	if ((ret= bt_is_valid_cguid(cguid)) != FDF_SUCCESS) {
+		return ret;
+	}
+
     {
         // xxxzzz this is temporary!
 	__sync_fetch_and_add(&(n_reads), 1);
@@ -738,14 +910,15 @@ FDF_status_t _FDFReadObject(
         return (ret);
     }
 
-    bt = bt_get_btree_from_cguid(cguid, &index);
+    bt = bt_get_btree_from_cguid(cguid, &index, &ret);
     if (bt == NULL) {
-        return (FDF_FAILURE);
+        return (ret);
     }
 
     if (keylen > bt->max_key_size) {
         msg("btree_insert/update keylen(%d) more than max_key_size(%d)\n",
                  keylen, bt->max_key_size);
+		bt_rel_entry(index);
         return (FDF_KEY_TOO_LONG);
     }
 
@@ -758,13 +931,13 @@ FDF_status_t _FDFReadObject(
         rmeta.keylen_end   = keylen;
         rmeta.flags        = RANGE_START_GE | RANGE_END_LE;
 
-	trxenter( cguid);
+		trxenter( cguid);
         btree_ret = btree_start_range_query(bt, BTREE_RANGE_PRIMARY_INDEX,
                                             &cursor, &rmeta);
-	if (btree_ret != BTREE_SUCCESS) {
-            msg("Could not create start range query in FDFReadObject!");
-            goto done;
-	}
+		if (btree_ret != BTREE_SUCCESS) {
+				msg("Could not create start range query in FDFReadObject!");
+				goto done;
+		}
 
         btree_ret = btree_get_next_range(cursor, 1, &n_out, &values[0]);
         if (btree_ret == BTREE_SUCCESS) {
@@ -779,7 +952,7 @@ FDF_status_t _FDFReadObject(
 
         (void)btree_end_range_query(cursor);
     } else {
-	trxenter( cguid);
+		trxenter( cguid);
         btree_ret = btree_get(bt, key, keylen, data, datalen, &meta);
     }
 
@@ -800,6 +973,7 @@ done:
             break;
     }
 
+	bt_rel_entry(index);
     return(ret);
 }
 
@@ -827,6 +1001,10 @@ FDF_status_t _FDFReadObjectExpiry(
     )
 {
     my_thd_state = fdf_thread_state;;
+	FDF_status_t	ret;
+	if ((ret= bt_is_valid_cguid(cguid)) != FDF_SUCCESS) {
+		return ret;
+	}
 
     return(FDFReadObjectExpiry(fdf_thread_state, cguid, robj));
 }
@@ -890,27 +1068,35 @@ FDF_status_t _FDFWriteObject(
 
     my_thd_state = fdf_thread_state;;
 
-    bt = bt_get_btree_from_cguid(cguid, &index);
+	if ((ret= bt_is_valid_cguid(cguid)) != FDF_SUCCESS) {
+		return ret;
+	}
+    bt = bt_get_btree_from_cguid(cguid, &index, &ret);
+    if (bt == NULL) {
+        return (ret);
+    }
+
 	if (Container_Map[index].read_only == true) {
+		bt_rel_entry(index);
 		return FDF_FAILURE;
 	}
 
-    if (bt == NULL) {
-        return (FDF_FAILURE);
-    }
     if (!bt) 
 		assert(0);
 
     if (keylen > bt->max_key_size) {
         msg("btree_insert/update keylen(%d) more than max_key_size(%d)\n",
                  keylen, bt->max_key_size);
+		pthread_rwlock_unlock(&(Container_Map[index].bt_cm_rwlock));
         return (FDF_KEY_TOO_LONG);
     }
 
     meta.flags = 0;
     meta.seqno = seqnoalloc( fdf_thread_state);
-    if (meta.seqno == -1)
+    if (meta.seqno == -1) {
+		bt_rel_entry(index);
         return (FDF_FAILURE);
+	}
 
     trxenter( cguid);
     if (flags & FDF_WRITE_MUST_NOT_EXIST) {
@@ -944,6 +1130,7 @@ FDF_status_t _FDFWriteObject(
 	        ret = FDF_FAILURE; // xxxzzz fix this!
             break;
     }
+	bt_rel_entry(index);
     return(ret);
 }
 
@@ -975,6 +1162,10 @@ FDF_status_t _FDFWriteObjectExpiry(
     )
 {
     my_thd_state = fdf_thread_state;;
+	FDF_status_t	ret;
+	if ((ret= bt_is_valid_cguid(cguid)) != FDF_SUCCESS) {
+		return ret;
+	}
 
     //msg("FDFWriteObjectExpiry is not currently supported!");
     return(FDFWriteObjectExpiry(fdf_thread_state, cguid, wobj, flags));
@@ -1003,30 +1194,28 @@ FDF_status_t _FDFDeleteObject(
 	uint32_t                  keylen
 	)
 {
-    int               i;
     FDF_status_t      ret = FDF_SUCCESS;
     btree_status_t    btree_ret = BTREE_SUCCESS;
     btree_metadata_t  meta;
     struct btree     *bt;
+	int				index;
 
     my_thd_state = fdf_thread_state;;
+	if ((ret= bt_is_valid_cguid(cguid)) != FDF_SUCCESS) {
+		return ret;
+	}
 
-	pthread_rwlock_rdlock(&ctnrmap_rwlock);
-    for (i=0; i<N_Open_Containers; i++) {
-        if (Container_Map[i].cguid == cguid) {
-            break;
-        }
-    }
-	pthread_rwlock_unlock(&ctnrmap_rwlock);
-    if (i >= N_Open_Containers) {
-        return(FDF_FAILURE); // xxxzzz fix this!
+    bt = bt_get_btree_from_cguid(cguid, &index, &ret);
+    if (bt == NULL) {
+        return (ret);
     }
 
-	if (Container_Map[i].read_only == true) {
+	if (Container_Map[index].read_only == true) {
+		bt_rel_entry(index);
 		return FDF_FAILURE;
 	}
 
-    bt = Container_Map[i].btree;
+    bt = Container_Map[index].btree;
 
     meta.flags = 0;
 
@@ -1048,6 +1237,7 @@ FDF_status_t _FDFDeleteObject(
             break;
     }
 
+	bt_rel_entry(index);
     return(ret);
 }
 
@@ -1066,6 +1256,10 @@ FDF_status_t _FDFEnumerateContainerObjects(
 	)
 {
     FDF_range_meta_t rmeta;
+	FDF_status_t	ret;
+	if ((ret= bt_is_valid_cguid(cguid)) != FDF_SUCCESS) {
+		return ret;
+	}
 
 	bzero(&rmeta, sizeof(FDF_range_meta_t));
     return _FDFGetRange(fdf_thread_state, 
@@ -1183,12 +1377,17 @@ FDF_status_t _FDFFlushObject(
     FDF_status_t      ret = FDF_FAILURE;
     btree_status_t    btree_ret = BTREE_FAILURE;
     struct btree     *bt;
+	int				  index;
 
+
+	if ((ret= bt_is_valid_cguid(cguid)) != FDF_SUCCESS) {
+		return ret;
+	}
     my_thd_state = fdf_thread_state;;
 
-    bt = bt_get_btree_from_cguid(cguid, NULL);
+    bt = bt_get_btree_from_cguid(cguid, &index, &ret);
     if (bt == NULL) {
-        return (FDF_FAILURE);
+        return (ret);
     }
     if (!bt) 
 		assert(0);
@@ -1196,6 +1395,7 @@ FDF_status_t _FDFFlushObject(
     if (keylen > bt->max_key_size) {
         msg("btree_insert/update keylen(%d) more than max_key_size(%d)\n",
                  keylen, bt->max_key_size);
+		bt_rel_entry(index);
         return (FDF_KEY_TOO_LONG);
     }
 
@@ -1218,6 +1418,7 @@ FDF_status_t _FDFFlushObject(
 	        ret = FDF_FAILURE; // xxxzzz fix this!
             break;
     }
+	bt_rel_entry(index);
     return(ret);
 }
 
@@ -1233,8 +1434,12 @@ FDF_status_t _FDFFlushContainer(
 	FDF_cguid_t               cguid
 	)
 {
+	FDF_status_t	ret;
     my_thd_state = fdf_thread_state;;
 
+	if ((ret= bt_is_valid_cguid(cguid)) != FDF_SUCCESS) {
+		return ret;
+	}
     return(FDFFlushContainer(fdf_thread_state, cguid));
 }
 
@@ -1286,6 +1491,10 @@ FDF_status_t _FDFGetContainerStats(
 	)
 {
     my_thd_state = fdf_thread_state;;
+	FDF_status_t	ret;
+	if ((ret= bt_is_valid_cguid(cguid)) != FDF_SUCCESS) {
+		return ret;
+	}
 
     return(FDFGetContainerStats(fdf_thread_state, cguid, stats));
 }
@@ -1379,12 +1588,16 @@ _FDFGetRange(struct FDF_thread_state *fdf_thread_state,
 	FDF_status_t      ret = FDF_SUCCESS;
 	btree_status_t    status;
 	struct btree     *bt;
+	int				  index;
 
 	my_thd_state = fdf_thread_state;
 
-	bt = bt_get_btree_from_cguid(cguid, NULL);
-	if (bt == NULL) {
-		return (FDF_FAILURE);
+	if ((ret= bt_is_valid_cguid(cguid)) != FDF_SUCCESS) {
+		return ret;
+	}
+    bt = bt_get_btree_from_cguid(cguid, &index, &ret);
+    if (bt == NULL) {
+        return (ret);
 	}
 
 	status = btree_start_range_query(bt, 
@@ -1397,7 +1610,7 @@ _FDFGetRange(struct FDF_thread_state *fdf_thread_state,
 	} else {
 		ret = FDF_FAILURE;
 	}
-
+	bt_rel_entry(index);
 	return(ret);
 }
 
@@ -1410,6 +1623,9 @@ _FDFGetNextRange(struct FDF_thread_state *fdf_thread_state,
 {
 	FDF_status_t      ret = FDF_SUCCESS;
 	btree_status_t    status;
+	int				  index;
+	btree_t			  *bt;
+
 
 	my_thd_state = fdf_thread_state;;
 
@@ -1419,6 +1635,13 @@ _FDFGetNextRange(struct FDF_thread_state *fdf_thread_state,
 	 * At present, the status numbers are matched, but thats not
 	 * good for maintanability */
 	const FDF_cguid_t cguid = ((read_node_t *)(((btree_range_cursor_t *)cursor)->btree->read_node_cb_data))->cguid;
+	if ((ret= bt_is_valid_cguid(cguid)) != FDF_SUCCESS) {
+		return ret;
+	}
+    bt = bt_get_btree_from_cguid(cguid, &index, &ret);
+    if (bt == NULL) {
+        return (ret);
+	}
 	trxenter( cguid);
 	status = btree_get_next_range((btree_range_cursor_t *)cursor,
 	                              n_in,
@@ -1438,7 +1661,7 @@ _FDFGetNextRange(struct FDF_thread_state *fdf_thread_state,
 	} else {
 		ret = FDF_FAILURE;
 	}
-
+	bt_rel_entry(index);
 	return(ret);
 }
 
@@ -1725,13 +1948,16 @@ FDF_status_t btree_get_all_stats(FDF_cguid_t cguid,
     struct btree     *bt;
     btree_stats_t     bt_stats;
     uint64_t         *stats;
+	FDF_status_t	  ret;
+	int				  index;	
 
-    bt = bt_get_btree_from_cguid(cguid, NULL);
+    bt = bt_get_btree_from_cguid(cguid, &index, &ret);
     if (bt == NULL) {
-        return FDF_FAILURE;
+        return ret;
     }
     stats = malloc( N_BTSTATS * sizeof(uint64_t));
     if( stats == NULL ) {
+		bt_rel_entry(index);
         return FDF_FAILURE;
     }
     memset(stats, 0, N_BTSTATS * sizeof(uint64_t));
@@ -1753,6 +1979,7 @@ FDF_status_t btree_get_all_stats(FDF_cguid_t cguid,
     pstat_arr = malloc(N_BTSTATS * sizeof(FDF_ext_stat_t));
     if( pstat_arr == NULL ) {
         free(stats);
+		bt_rel_entry(index);
         return FDF_FAILURE;
     }
     for (i=0; i<N_BTSTATS; i++) {
@@ -1764,6 +1991,7 @@ FDF_status_t btree_get_all_stats(FDF_cguid_t cguid,
     free(stats);
     *estat = pstat_arr;
     *n_stats = N_BTSTATS;
+	bt_rel_entry(index);
     return FDF_SUCCESS;
 }
 
@@ -1772,8 +2000,10 @@ static void dump_btree_stats(FILE *f, FDF_cguid_t cguid)
 {
     struct btree     *bt;
     btree_stats_t     bt_stats;
+	int				  index;
+	FDF_status_t	  ret;
 
-    bt = bt_get_btree_from_cguid(cguid, NULL);
+    bt = bt_get_btree_from_cguid(cguid, &index, &ret);
     if (bt == NULL) {
         return;
     }
@@ -1797,24 +2027,31 @@ _FDFMPut(struct FDF_thread_state *fdf_ts,
 	struct btree *bt = NULL;
 	uint32_t objs_written = 0;
 	uint32_t objs_to_write = num_objs;
+	int		index;
+
 
 	my_thd_state = fdf_ts;;
 
+	if ((ret= bt_is_valid_cguid(cguid)) != FDF_SUCCESS) {
+		return ret;
+	}
 	if (num_objs == 0) {
 		return FDF_SUCCESS;
 	}
 
-	bt = bt_get_btree_from_cguid(cguid, NULL);
+	bt = bt_get_btree_from_cguid(cguid, &index, &ret );
 	if (bt == NULL) {
-		return FDF_FAILURE;
+		return ret;
 	}
 
 	for (i = 0; i < num_objs; i++) {
 		if (objs[i].flags != 0) {
+			bt_rel_entry(index);
 			return FDF_INVALID_PARAMETER;
 		}
 
 		if (objs[i].key_len > bt->max_key_size) {
+			bt_rel_entry(index);
 			return FDF_INVALID_PARAMETER;
 		}
 	}
@@ -1822,6 +2059,7 @@ _FDFMPut(struct FDF_thread_state *fdf_ts,
 	meta.flags = 0;
 	meta.seqno = seqnoalloc(fdf_ts);
 	if (meta.seqno == -1) {
+		bt_rel_entry(index);
 		return (FDF_FAILURE);
 	}
 
@@ -1851,6 +2089,7 @@ _FDFMPut(struct FDF_thread_state *fdf_ts,
 			break;
 	}
 
+	bt_rel_entry(index);
 	return ret;
 }
 
@@ -1909,18 +2148,23 @@ _FDFRangeUpdate(struct FDF_thread_state *fdf_ts,
 	uint32_t new_data_len;
 	int n_out = 0;
 	int i = 0;
+	int	index;
 
 	*objs_updated = 0;
 
-	bt = bt_get_btree_from_cguid(cguid, NULL);
+	if ((ret= bt_is_valid_cguid(cguid)) != FDF_SUCCESS) {
+		return ret;
+	}
+	bt = bt_get_btree_from_cguid(cguid, &index, &ret);
 	if (bt == NULL) {
-		return FDF_FAILURE;
+		return ret;
 	}
 
 	objs = (FDF_obj_t *) malloc(sizeof(FDF_obj_t) * NUM_IN_CHUNK);
-        if (objs == NULL) {
+    if (objs == NULL) {
+		bt_rel_entry(index);
 		return FDF_FAILURE_MEMORY_ALLOC;
-        }
+    }
 
 	tmp_data = (btree_range_update_data_t *) malloc(sizeof(*tmp_data) * NUM_IN_CHUNK);
 	if (tmp_data == NULL) {
@@ -2113,6 +2357,7 @@ exit:
 	if (objs) {
 		free(objs);
 	}
+	bt_rel_entry(index);
 
 	return ret;
 }

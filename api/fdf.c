@@ -875,7 +875,6 @@ static FDF_status_t
 fdf_validate_container(uint64_t cguid)
 {
 	switch (cguid) {
-		case         -1:
 		case          0:
 		case  CMC_CGUID:
 		case  VMC_CGUID:
@@ -1188,6 +1187,10 @@ FDF_status_t fdf_get_ctnr_status(FDF_cguid_t cguid, int delete_ok) {
     return status;
 }
 
+/* 
+ * IMPORTANT:
+ * If opening for write/delete objects, use incr_wr_io_count API
+ */
 inline void fdf_incr_io_count( FDF_cguid_t cguid )
 {
 	cntr_map_t *cmap = NULL;
@@ -2902,6 +2905,14 @@ FDF_status_t FDFCloseContainer(
 	FDF_status_t status = FDF_SUCCESS;
 	bool thd_ctx_locked = false;
 
+	status = fdf_validate_container(cguid);
+	if (FDF_SUCCESS != status) {
+		plat_log_msg(160125, LOG_CAT,
+				LOG_ERR, "Failed due to an illegal container ID:%s",
+				FDF_Status_Strings[status]);
+		goto out;
+	}
+
 	/*
 	 * Check if operation can begin
 	 */
@@ -3031,6 +3042,13 @@ static FDF_status_t fdf_close_container(
 
     plat_log_msg( 21630, LOG_CAT, LOG_DBG, "%lu", cguid);
 
+	status = fdf_validate_container(cguid);
+	if (FDF_SUCCESS != status) {
+		plat_log_msg(160125, LOG_CAT,
+				LOG_ERR, "Failed due to an illegal container ID:%s",
+				FDF_Status_Strings[status]);
+		return status;
+	}
 	if ( !cguid )
 		return FDF_INVALID_PARAMETER;
 
@@ -3198,6 +3216,13 @@ FDF_status_t FDFDeleteContainer(
 	bool thd_ctx_locked = false;
 
 	plat_log_msg(21630, LOG_CAT, LOG_DBG, "%lu", cguid);
+	status = fdf_validate_container(cguid);
+	if (FDF_SUCCESS != status) {
+		plat_log_msg(160125, LOG_CAT,
+				LOG_ERR, "Failed due to an illegal container ID:%s",
+				FDF_Status_Strings[status]);
+		goto out;
+	}
 
 	/*
 	 * Check if operation can begin
@@ -3575,7 +3600,7 @@ static FDF_status_t fdf_delete_container_1(
 					  LOG_CAT,
 					  LOG_DIAG,
 					  "Container does not exist" );
-		status = FDF_FAILURE;
+		status = FDF_FAILURE_CONTAINER_NOT_FOUND;
 		goto out;
 	}
 
@@ -3923,6 +3948,14 @@ FDF_status_t FDFGetContainerProps(
 	FDF_status_t status = FDF_SUCCESS;
 	bool thd_ctx_locked = false;
 
+	status = fdf_validate_container(cguid);
+	if (FDF_SUCCESS != status) {
+		plat_log_msg(160125, LOG_CAT,
+				LOG_ERR, "Failed due to an illegal container ID:%s",
+				FDF_Status_Strings[status]);
+		goto out;
+	}
+
 	/*
 	 * Check if operation can begin
 	 */
@@ -4045,6 +4078,13 @@ FDF_status_t FDFSetContainerProps(
 	FDF_status_t  status = FDF_SUCCESS;
 	bool thd_ctx_locked = false;
 
+	status = fdf_validate_container(cguid);
+	if (FDF_SUCCESS != status) {
+		plat_log_msg(160125, LOG_CAT,
+				LOG_ERR, "Failed due to an illegal container ID:%s",
+				FDF_Status_Strings[status]);
+		goto out;
+	}
 	/*
 	 * Check if operation can begin
 	 */
@@ -4166,6 +4206,13 @@ FDF_status_t FDFReadObject(
 	FDF_status_t status = FDF_SUCCESS;
 	bool thd_ctx_locked = false;
 
+	status = fdf_validate_container(cguid);
+	if (FDF_SUCCESS != status) {
+		plat_log_msg(160125, LOG_CAT,
+				LOG_ERR, "Failed due to an illegal container ID:%s",
+				FDF_Status_Strings[status]);
+		goto out;
+	}
 	/*
 	 * Check if operation can begin
 	 */
@@ -4280,6 +4327,13 @@ FDF_status_t FDFReadObjectExpiry(
 	FDF_status_t status = FDF_SUCCESS;
 	bool thd_ctx_locked = false;
 
+	status = fdf_validate_container(cguid);
+	if (FDF_SUCCESS != status) {
+		plat_log_msg(160125, LOG_CAT,
+				LOG_ERR, "Failed due to an illegal container ID:%s",
+				FDF_Status_Strings[status]);
+		goto out;
+	}
 	/*
 	 * Check if operation can begin
 	 */
@@ -4420,6 +4474,13 @@ FDF_status_t FDFWriteObject(
 	FDF_status_t status = FDF_SUCCESS;
 	bool thd_ctx_locked = false;
 
+	status = fdf_validate_container(cguid);
+	if (FDF_SUCCESS != status) {
+		plat_log_msg(160125, LOG_CAT,
+				LOG_ERR, "Failed due to an illegal container ID:%s",
+				FDF_Status_Strings[status]);
+		goto out;
+	}
 	/*
 	 * Check if operation can begin
 	 */
@@ -4553,6 +4614,13 @@ FDF_status_t FDFWriteObjectExpiry(
     FDF_status_t        status	= FDF_SUCCESS;
 	bool thd_ctx_locked = false;
 
+	status = fdf_validate_container(cguid);
+	if (FDF_SUCCESS != status) {
+		plat_log_msg(160125, LOG_CAT,
+				LOG_ERR, "Failed due to an illegal container ID:%s",
+				FDF_Status_Strings[status]);
+		goto out;
+	}
 	/*
 	 * Check if operation can begin
 	 */
@@ -4675,6 +4743,13 @@ FDF_status_t FDFDeleteObject(
     FDF_status_t        status	= FDF_FAILURE;
 	bool thd_ctx_locked = false;
 
+	status = fdf_validate_container(cguid);
+	if (FDF_SUCCESS != status) {
+		plat_log_msg(160125, LOG_CAT,
+				LOG_ERR, "Failed due to an illegal container ID:%s",
+				FDF_Status_Strings[status]);
+		goto out;
+	}
 	/*
 	 * Check if operation can begin
 	 */
@@ -4781,6 +4856,13 @@ FDF_status_t FDFFlushObject(
     FDF_status_t        status	= FDF_FAILURE;
 	bool thd_ctx_locked = false;
 
+	status = fdf_validate_container(cguid);
+	if (FDF_SUCCESS != status) {
+		plat_log_msg(160125, LOG_CAT,
+				LOG_ERR, "Failed due to an illegal container ID:%s",
+				FDF_Status_Strings[status]);
+		goto out;
+	}
 	/*
 	 * Check if operation can begin
 	 */
@@ -4905,6 +4987,13 @@ FDF_status_t FDFFlushContainer(
 	FDF_status_t status = FDF_SUCCESS;
 	bool thd_ctx_locked = false;
 
+	status = fdf_validate_container(cguid);
+	if (FDF_SUCCESS != status) {
+		plat_log_msg(160125, LOG_CAT,
+				LOG_ERR, "Failed due to an illegal container ID:%s",
+				FDF_Status_Strings[status]);
+		goto out;
+	}
 	/*
 	 * Check if operation can begin
 	 */
@@ -5712,11 +5801,14 @@ FDF_status_t FDFGetStatsStr (
     FDF_container_props_t       dummy_prop;
 	cntr_map_t *cmap = NULL;
 
+	status = fdf_validate_container(cguid);
+	if (FDF_SUCCESS != status) {
+		plat_log_msg(160125, LOG_CAT,
+				LOG_ERR, "Failed due to an illegal container ID:%s",
+				FDF_Status_Strings[status]);
+		return status;
+	}
     memset( (void *)&dummy_prop, 0, sizeof(dummy_prop) );
-
-	if(!cguid) {
-		return SDF_INVALID_PARAMETER;
-    }
 
     SDFStartSerializeContainerOp(pai);
 
@@ -5899,6 +5991,13 @@ FDF_status_t FDFGetContainerStats(
     char stats_str[STAT_BUFFER_SIZE];
     FDF_status_t rc;
 
+	rc = fdf_validate_container(cguid);
+	if (FDF_SUCCESS != rc) {
+		plat_log_msg(160125, LOG_CAT,
+				LOG_ERR, "Failed due to an illegal container ID:%s",
+				FDF_Status_Strings[rc]);
+		return rc;
+	}
     if ( !fdf_thread_state || !cguid || !stats ) {
         if ( !fdf_thread_state ) {
             plat_log_msg(80049,LOG_CAT,LOG_DBG,
@@ -6099,7 +6198,13 @@ FDF_status_t fdf_resize_container(
         plat_log_msg( 150078, LOG_CAT, LOG_ERR, "Cannnot change container size" );
         return FDF_CANNOT_REDUCE_CONTAINER_SIZE;
     }
-    
+	status = fdf_validate_container(cguid);
+	if (FDF_SUCCESS != status) {
+		plat_log_msg(160125, LOG_CAT,
+				LOG_ERR, "Failed due to an illegal container ID:%s",
+				FDF_Status_Strings[status]);
+		goto out;
+	}
     cmap = fdf_cmap_get_by_cguid( cguid );
     if ( !cmap ) {
         plat_log_msg( 150082, LOG_CAT, LOG_ERR, "Cannnot find container id %lu", cguid );
