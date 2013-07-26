@@ -224,14 +224,14 @@ bt_get_ctnr_from_cguid(
 static btree_t *
 bt_get_btree_from_cguid(FDF_cguid_t cguid, int *index, FDF_status_t *error)
 {
-    int i;
+	int i;
 	FDF_status_t	err = FDF_SUCCESS;
 	btree_t			*bt = NULL;
 
 	assert(index);
 	assert(error);
 
-    i = bt_get_ctnr_from_cguid(cguid);
+	i = bt_get_ctnr_from_cguid(cguid);
 	if (i == -1) {
 		*error = FDF_FAILURE_CONTAINER_NOT_FOUND;
 		return NULL;
@@ -2096,6 +2096,8 @@ _FDFMPut(struct FDF_thread_state *fdf_ts,
 	return ret;
 }
 
+#if 0
+
 #define NUM_IN_CHUNK 500
 #define MAX_KEYLEN 256 //Must change to btree property.
 
@@ -2124,7 +2126,7 @@ key_in_range(struct btree *bt, char *range_key, uint32_t range_key_len,
 typedef struct {
 	char *key;
 	char *data;
-} btree_range_update_data_t;
+} btree_rupdate_data_t;
 
 FDF_status_t
 _FDFRangeUpdate(struct FDF_thread_state *fdf_ts, 
@@ -2137,12 +2139,12 @@ _FDFRangeUpdate(struct FDF_thread_state *fdf_ts,
 {
 	FDF_status_t ret = FDF_SUCCESS;
 	struct btree *bt = NULL;
-	btree_range_update_cb_t cb_func = 
-			(btree_range_update_cb_t) callback_func;
+	btree_rupdate_cb_t cb_func = 
+			(btree_rupdate_cb_t) callback_func;
 	FDF_range_meta_t rmeta;
 	FDF_range_data_t *values = NULL;
 	struct FDF_cursor *cursor = NULL;
-	btree_range_update_data_t *tmp_data = NULL;
+	btree_rupdate_data_t *tmp_data = NULL;
 	FDF_obj_t *objs = NULL;
 	uint32_t objs_written = 0;
 	uint32_t objs_to_update = 0;
@@ -2364,6 +2366,110 @@ exit:
 
 	return ret;
 }
+
+#else 
+FDF_status_t
+_FDFRangeUpdate(struct FDF_thread_state *fdf_ts, 
+	       FDF_cguid_t cguid,
+	       char *range_key,
+	       uint32_t range_key_len,
+	       FDF_range_update_cb_t callback_func,
+	       void * callback_args,	
+	       uint32_t *objs_updated)
+{
+	btree_rupdate_marker_t *markerp = NULL;
+	FDF_status_t ret = FDF_SUCCESS;
+	btree_status_t btree_ret = BTREE_FAILURE;
+	btree_rupdate_cb_t cb_func = 
+			(btree_rupdate_cb_t) callback_func;
+	btree_metadata_t meta;
+	struct btree *bt = NULL;
+	uint32_t objs_done = 0;
+	int index = -1;
+	FDF_status_t error = FDF_SUCCESS;
+
+	(*objs_updated) = 0;
+
+
+	bt = bt_get_btree_from_cguid(cguid, &index, &error);
+	if (bt == NULL) {
+		return FDF_FAILURE;
+	}
+
+	if (Container_Map[index].read_only == true) {
+		ret = FDF_FAILURE;
+		goto out;
+	}
+
+	markerp = btree_alloc_rupdate_marker(bt);
+	if (markerp == NULL) {
+		ret = FDF_OUT_OF_MEM;
+		goto out;
+	}
+
+	meta.flags = 0;
+	meta.seqno = seqnoalloc(fdf_ts);
+	if (meta.seqno == -1) {
+		ret = FDF_FAILURE;
+		goto out;
+	}
+
+	do {
+		objs_done = 0;
+		btree_ret = btree_range_update(bt, &meta, range_key, range_key_len,
+					cb_func, callback_args, &objs_done, &markerp); 
+
+		(*objs_updated) += objs_done;
+		if (btree_ret == BTREE_RANGE_UPDATE_NEEDS_SPACE) {
+			/*
+			 * In place update failed due to node being full.
+			 * Insert this individually so that the node
+			 * splits and it makes space for insert.
+			 */	
+			assert( markerp->retry_keylen && markerp->retry_datalen);
+			btree_ret = btree_update(bt, markerp->retry_key, markerp->retry_keylen,
+						     markerp->retry_data, markerp->retry_datalen, &meta);	
+
+			if (btree_ret == BTREE_SUCCESS) {
+				/*
+				 * Maker will not be updated in btree_update call, we have to set
+				 * it here.
+				 */
+				memcpy(markerp->last_key, markerp->retry_key, markerp->retry_keylen);
+				markerp->last_key_len = markerp->retry_keylen;
+				markerp->set = true;
+				(*objs_updated)++;
+			}
+
+			free(markerp->retry_key);
+			free(markerp->retry_data);
+		}
+	} while ((btree_ret == BTREE_SUCCESS) && (markerp->set == true));
+	
+	switch(btree_ret) {
+		case BTREE_SUCCESS:
+			ret = FDF_SUCCESS;
+			break;
+		case BTREE_FAILURE:
+			ret = FDF_FAILURE_STORAGE_WRITE;
+			break;
+		case BTREE_KEY_NOT_FOUND:
+			ret = FDF_OBJECT_UNKNOWN;
+			break;
+		default:
+			ret = FDF_FAILURE;
+			break;
+	}
+
+out:
+	if (markerp) {
+		btree_free_rupdate_marker(bt, markerp);
+	}
+
+	bt_rel_entry(index);
+	return ret;
+}
+#endif 
 
 /*
  * persistent seqno facility

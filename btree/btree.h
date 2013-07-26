@@ -73,4 +73,19 @@ btree_mput(struct btree *btree, btree_mput_obj_t *objs,
 	   uint32_t num_objs, uint32_t flags,
 	   btree_metadata_t *meta, uint32_t *objs_written);
 
+btree_status_t
+btree_range_update(struct btree *btree, 
+	       	   btree_metadata_t *meta,
+		   char *range_key,
+		   uint32_t range_key_len,
+		   btree_rupdate_cb_t callback_func,
+		   void * callback_args,	
+		   uint32_t *objs_updated,
+		   btree_rupdate_marker_t **marker);
+
+btree_rupdate_marker_t *
+btree_alloc_rupdate_marker(struct btree * bt);
+void
+btree_free_rupdate_marker(struct btree *btree, btree_rupdate_marker_t *marker);
+
 #endif // __BTREE_H

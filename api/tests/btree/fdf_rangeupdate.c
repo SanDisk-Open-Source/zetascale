@@ -7,11 +7,13 @@
 
 
 #define FDF_MAX_KEY_LEN 256
-#define NUM_OBJS 10000 //max mput in single operation
-#define NUM_MPUTS 1000000 
+#define NUM_OBJS 10 //max mput in single operation
+#define NUM_MPUTS 10 
 
 static int cur_thd_id = 0;
 static __thread int my_thdid = 0;
+static __thread int objs_processed = 0;
+
 FDF_cguid_t cguid;
 struct FDF_state *fdf_state;
 int num_mputs =  NUM_MPUTS;
@@ -44,11 +46,17 @@ bool range_update_cb(char *key, uint32_t keylen, char *data, uint32_t datalen,
 	
 	*new_datalen = 0;
 	(*new_data) = NULL;
+
+//	printf("Thread id %d got update on key = %s.\n", my_thdid, key);
+
+	objs_processed++; 
+
 	if (!change_data) {
 		return false;
 	}
 
 	if (length_incr) {
+		assert((datalen + length_incr) > 0);
 		(*new_data) = (char *) malloc(datalen + length_incr);
 		if (*new_data == NULL) {
 			return false;
@@ -110,8 +118,8 @@ do_range_update(struct FDF_thread_state *thd_state, FDF_cguid_t cguid,
 
 		for (i = 0; i < num_objs; i++) {
 			memset(objs[i].key, 0, FDF_MAX_KEY_LEN);
-			sprintf(objs[i].key, "key_%d_%06"PRId64"", my_thdid, key_num);
-			sprintf(objs[i].data, "key_%d_%06"PRId64"", my_thdid, key_num);
+			sprintf(objs[i].key, "key_%02d_%06"PRId64"", my_thdid, key_num);
+			sprintf(objs[i].data, "key_%02d_%06"PRId64"", my_thdid, key_num);
 
 			key_num += key_seed;
 			objs[i].key_len = strlen(objs[i].key) + 1;
@@ -130,7 +138,7 @@ do_range_update(struct FDF_thread_state *thd_state, FDF_cguid_t cguid,
 		num_fdf_mputs++;
 	}
 
-
+	printf("Written %"PRId64" objs in thread %d.\n", num_fdf_mputs * num_objs, my_thdid);
 
 	num_fdf_reads = 0;
 	
@@ -142,8 +150,8 @@ do_range_update(struct FDF_thread_state *thd_state, FDF_cguid_t cguid,
 		for (i = 0; i < num_objs; i++) {
 			memset(objs[i].key, 0, FDF_MAX_KEY_LEN);
 
-			sprintf(objs[i].key, "key_%d_%06"PRId64"", my_thdid, key_num);
-			sprintf(objs[i].data, "key_%d_%06"PRId64"", my_thdid, key_num);
+			sprintf(objs[i].key, "key_%02d_%06"PRId64"", my_thdid, key_num);
+			sprintf(objs[i].data, "key_%02d_%06"PRId64"", my_thdid, key_num);
 
 			key_num += key_seed;
 
@@ -170,11 +178,13 @@ do_range_update(struct FDF_thread_state *thd_state, FDF_cguid_t cguid,
 		}
 	}
 
-	printf("Verified the mput objects using reads, mismatch = %"PRId64".\n", mismatch);
+	printf("Verified the %"PRId64" mput objects using reads, mismatch = %"PRId64".\n", num_fdf_reads, mismatch);
 
 	printf("Doing range update on all objects........\n");
 
-	sprintf(range_key, "key_%d_", my_thdid);
+	objs_processed = 0;
+
+	sprintf(range_key, "key_%02d_", my_thdid);
 	range_key_len = strlen(range_key);
 
 	status = FDFRangeUpdate(thd_state, cguid, range_key, range_key_len,
@@ -184,6 +194,8 @@ do_range_update(struct FDF_thread_state *thd_state, FDF_cguid_t cguid,
 		assert(0);
 		exit(-1);
 	}
+
+	assert(objs_processed == num_fdf_reads);
 
 	printf("Done range update on %d objects.\n", objs_updated);
 
@@ -195,8 +207,8 @@ do_range_update(struct FDF_thread_state *thd_state, FDF_cguid_t cguid,
 		for (i = 0; i < num_objs; i++) {
 			memset(objs[i].key, 0, FDF_MAX_KEY_LEN);
 
-			sprintf(objs[i].key, "key_%d_%06"PRId64"", my_thdid, key_num);
-			sprintf(objs[i].data, "key_%d_%06"PRId64"", my_thdid, key_num); //Changed k to j in range update
+			sprintf(objs[i].key, "key_%02d_%06"PRId64"", my_thdid, key_num);
+			sprintf(objs[i].data, "key_%02d_%06"PRId64"", my_thdid, key_num); //Changed k to j in range update
 
 			key_num += key_seed;
 
@@ -317,7 +329,7 @@ main(int argc, char *argv[])
 
 	use_mput = atoi(argv[1]);
 	m = atoi(argv[1]);
-	if (m > 1000) {
+	if (m > NUM_OBJS) {
 		total_objs = m;	
 	}
 	n = atoi(argv[2]);
@@ -336,7 +348,9 @@ main(int argc, char *argv[])
 
 	do_op(0, 0);// set
 	do_op(0, 3);// set
+	do_op(0, 30);// set
 	do_op(0, -3);// set
+	do_op(0, -10);// set
 
 	FDFShutdown(fdf_state);
 	return 0;

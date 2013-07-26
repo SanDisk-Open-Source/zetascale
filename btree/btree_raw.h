@@ -38,6 +38,7 @@ typedef enum btree_status {
 	BTREE_OPERATION_DISALLOWED,       /* Shutdown in progress */
 	BTREE_WARNING,                    /* Any partial success */
 	BTREE_QUERY_PAUSED,               /* Range query passed by callback */
+	BTREE_RANGE_UPDATE_NEEDS_SPACE,	  /* Range update need space for update */
 } btree_status_t;
 
 typedef enum node_flags {
@@ -153,6 +154,25 @@ typedef struct {
     char *data;
 } btree_mput_obj_t;
 
+typedef struct btree_rupdate_marker {
+	char *last_key;
+	uint32_t last_key_len;	
+
+	/*
+	 * Index of the marker key in a node.
+	 */
+	int index;
+	bool set;
+
+	/*
+	 * Data for retry for space in other node
+	 */
+	char *retry_key;
+	uint32_t retry_keylen;
+	char *retry_data;
+	char retry_datalen;
+} btree_rupdate_marker_t;
+
 typedef struct btree_raw_mem_node *(read_node_cb_t)(btree_status_t *ret, void *data, uint64_t lnodeid);
 typedef void (write_node_cb_t)(btree_status_t *ret, void *cb_data, uint64_t lnodeid, char *data, uint64_t datalen);
 typedef void (flush_node_cb_t)(btree_status_t *ret, void *cb_data, uint64_t lnodeid);
@@ -163,7 +183,7 @@ typedef void (log_cb_t)(btree_status_t *ret, void *data, uint32_t event_type, st
 typedef int (cmp_cb_t)(void *data, char *key1, uint32_t keylen1, char *key2, uint32_t keylen2);
 typedef int (trx_cmd_cb_t)( int, void *, void *);
 
-typedef bool (* btree_range_update_cb_t) (char *key, uint32_t keylen, char *data, uint32_t datalen, void * callback_args, char **new_data, uint32_t *new_data_len);
+typedef bool (* btree_rupdate_cb_t) (char *key, uint32_t keylen, char *data, uint64_t datalen, void * callback_args, char **new_data, uint64_t *new_data_len);
 
 /****************************************************
  *
@@ -243,5 +263,22 @@ btree_raw_mwrite_low(struct btree_raw *btree, btree_mput_obj_t *objs, uint32_t n
 		    btree_metadata_t *meta, uint64_t syndrome, 
 		   int write_type, int* pathcnt,
 		   uint32_t *objs_written);
+
+btree_status_t
+btree_raw_rupdate(
+		struct btree_raw *btree, 
+		btree_metadata_t *meta,
+	        char *range_key,
+	        uint32_t range_key_len,
+	        btree_rupdate_cb_t callback_func,
+	        void * callback_args,	
+	        uint32_t *objs_updated,
+	        btree_rupdate_marker_t **marker);
+#if 0
+btree_rupdate_marker_t *
+btree_alloc_rupdate_marker(struct btree * bt);
+void
+btree_free_rupdate_marker(struct btree *btree, btree_rupdate_marker_t *marker);
+#endif
 
 #endif // __BTREE_RAW_H

@@ -614,7 +614,7 @@ static node_key_t *find_key(btree_raw_t *bt, btree_raw_node_t *n, char *key_in, 
     while (1) {
 
         (void) get_key_stuff(bt, n, i_check, &ks);
-	pk       = ks.pkey_struct;
+	pk = ks.pkey_struct;
 	id_child = ks.ptr;
 
         if (ks.fixed) {
@@ -2222,11 +2222,9 @@ get_keys_less_than(btree_raw_t *btree, char *key, uint32_t keylen,
  * The returned key is set in ks.
  */
 static inline bool 
-find_right_key_in_node(btree_raw_t *bt, 
-		     btree_raw_node_t *n,
-		     char *key, uint32_t keylen, 
-		     uint32_t count,
-		     key_stuff_t *ks)
+find_right_key_in_node(btree_raw_t *bt, btree_raw_node_t *n,
+		      char *key, uint32_t keylen, 
+		      key_stuff_t *ks, int *index, bool inclusive)
 {
 	int i_start, i_end, i_center;
 	int x;
@@ -2235,6 +2233,10 @@ find_right_key_in_node(btree_raw_t *bt,
 	i_start = 0;
 	i_end = n->nkeys - 1;
 	i_largest = -1;
+
+	if (index) {
+		(*index) = -1;
+	}
 
 	while (i_start <= i_end) {
 		i_center = (i_start + i_end) / 2;
@@ -2251,18 +2253,24 @@ find_right_key_in_node(btree_raw_t *bt,
 		} else {
 			/*
 			 * Got a match for reference key.
-			 * Also this is the last key in the
-			 * the left child node. So our largest
-			 * key that can follow this path is this key
-			 * itself.
+			 * Our right key is same key if asked for
+			 * inclusive or it will be next if not asked
+			 * for inclusive.
 			 */
-			i_largest = i_center;
+			if (inclusive) {
+				i_largest = i_center;
+			} else {
+				i_largest = i_center + 1;
+			}
 			break;
 		}
 	}
 
 	if (i_largest >= 0 && i_largest <= (n->nkeys - 1)) {
 		(void) get_key_stuff(bt, n, i_largest, ks);
+		if (index != NULL) {
+			(*index) = i_largest;
+		}
 		return true;
 	}
 
@@ -2294,7 +2302,8 @@ get_adjusted_num_objs(btree_raw_t *bt, btree_raw_node_t *n,
 	}
 	
 	has_right_key = find_right_key_in_node(bt, n, key,
-					       keylen, count, &ks);
+					       keylen, &ks,
+					       NULL, true);
 	if (has_right_key == true) {
 		new_count = get_keys_less_than(bt, ks.pkey_val,
 						ks.keylen, objs, count);
@@ -2621,6 +2630,571 @@ err_exit:
 
 	plat_rwlock_unlock(&btree->lock);
 	return BTREE_SUCCESS == ret ? txnret : ret;
+}
+
+#if 0
+/*
+ * Allocate and deallocate range up date marker.
+ */
+btree_rupdate_marker_t *
+btree_alloc_rupdate_marker(struct btree * bt)
+{
+	btree_rupdate_marker_t *marker = NULL;
+	marker = (btree_rupdate_marker_t *)
+			malloc(sizeof(*marker));
+	if (marker) {
+		memset(marker, 0, sizeof(*marker));
+		marker->last_key = (char *) malloc(bt->max_key_size);
+		if (marker->last_key == NULL) {
+			free(marker);
+			marker = NULL;
+		}
+	}
+	return marker;
+}
+
+void
+btree_free_rupdate_marker(struct btree *bt, btree_rupdate_marker_t *marker)
+{
+	assert(marker->set == false);
+	free(marker->last_key);
+	free(marker);
+}
+#endif 
+
+/*
+ * return 0 if key falls in range
+ * returns -1 if range_key is less than key.
+ * returns +1 if range_key is greater than key.
+ */
+static int 
+btree_key_in_range(btree_raw_t *bt, 
+	     char *range_key, uint32_t range_key_len,
+	     char *key, uint32_t keylen)
+{
+	int x = 0;
+
+	if (keylen < range_key_len) {
+		return 1;
+	}
+
+	x = bt->cmp_cb(bt->cmp_cb_data, range_key, range_key_len,
+		       key, range_key_len); //adjust length
+
+	// TBD: we should have a range check function passed from user.
+
+	return x;
+}
+
+static inline bool
+find_first_key_in_range(btree_raw_t *bt,
+			btree_raw_node_t *n,
+			char *range_key,
+			uint32_t range_key_len,
+			key_stuff_t *ks,
+			int *index)
+{
+	int i_start, i_end, i_center;
+	int i_last_match = -1;
+	key_stuff_t ks_last_match = {0};
+	key_stuff_t ks_tmp;
+	int x = 0;
+
+	if (index) {
+		(*index) = -1;
+	}
+
+	i_start = 0;
+	i_end = n->nkeys - 1;
+
+	while (i_start <= i_end) {
+		i_center = (i_start + i_end) / 2;
+
+		(void) get_key_stuff(bt, n, i_center, &ks_tmp);
+		x = btree_key_in_range(bt, range_key, range_key_len,
+				       ks_tmp.pkey_val, ks_tmp.keylen);
+
+		if (x <= 0) {
+			/*
+			 * Got first greater than or equal to range_key.
+			 */	
+			i_last_match = i_center;
+			i_end = i_center - 1;
+			ks_last_match = ks_tmp;
+		} else if (x > 0) {
+			i_start = i_center + 1;	
+		}
+	}
+
+	if (i_last_match >= 0 && i_last_match <= (n->nkeys - 1)) {
+		*ks = ks_last_match;
+		(*index) = i_last_match;
+		assert(!ks->fixed); //Not supprted for fixed keys yet
+		return true;
+	} else if (!is_leaf(bt, n)) {
+		/*
+		 * Range is greater than the last key in non leaf node.
+		 * Only path we can follow is the rightmost child.
+		 */
+		ks->ptr = n->rightmost;
+		(*index) = n->nkeys - 1;
+		assert(i_start > (n->nkeys - 1));
+		return true;
+
+	}
+	return false;
+}
+
+/*
+ * Search the new key that applies to the given range.
+ *
+ * If Marker is set to NULL, this is the first key search, so search
+ * first key that falls in the range. If marker is not null, search the next
+ * key that falls in the range according to marker.
+ *
+ * Returns: if non-leaf node, the child_id is set to child that we must
+ * 	    traverse to find the next range key to update.
+ *	    If leaf node, the ks is set to next key that falls in range.
+ */
+static bool
+find_next_rupdate_key(btree_raw_t *bt, btree_raw_node_t *n, char *range_key,
+			   uint32_t range_key_len, key_stuff_t *ks,
+			   uint64_t *child_id, btree_rupdate_marker_t **marker)
+{
+	bool res = false;
+	int index = -1;
+
+	*child_id = BAD_CHILD;
+
+	if ((*marker)->set) {
+		/*
+		 * Get next key from the marker.
+		 */
+		res = find_right_key_in_node(bt, n,
+					     (*marker)->last_key, (*marker)->last_key_len,
+					     ks, &index, false);
+
+		assert(res == false || bt->cmp_cb(bt->cmp_cb_data, ks->pkey_val, ks->keylen,
+					     (*marker)->last_key, (*marker)->last_key_len) == 1);
+				     	
+		/*
+		 * Search end at end of the node, consider righmost key as well
+		 */
+		if ((res == false) && !is_leaf(bt, n)) {
+			ks->ptr = n->rightmost;
+			res = true;
+		}
+	} else {
+		/*
+		 * First key in the range.
+		 */
+		res = find_first_key_in_range(bt, n, range_key,
+					      range_key_len, ks,
+					      &index);
+	}
+
+	if (res == true) {
+		/*
+		 * Init or update the marker.
+		 * Marker is across calls, need to do a deep copy.
+		 */
+		if (is_leaf(bt, n)) {
+			/*
+			 * Marker get updated only for leaf nodes.
+			 */
+			if (btree_key_in_range(bt, 
+					       range_key, range_key_len,
+					       ks->pkey_val, ks->keylen) != 0) {
+				/*
+				 * Got a key out of range key in leaf.
+				 */
+				(*marker)->set = false;
+				res = false;
+			} else {
+				memcpy((*marker)->last_key, ks->pkey_val, ks->keylen);
+				(*marker)->last_key[ks->keylen] = 0;
+				(*marker)->last_key_len = ks->keylen;
+				(*marker)->index = index;
+				(*marker)->set = true;
+			}
+		}
+
+		/*
+		 * Set the child id as well.
+		 */
+		*child_id = ks->ptr;
+	}
+
+	return res;
+}
+
+/*
+ * Given a range and a leaf node, update all keys falling in that range.
+ * Caller must hold lock and ref on this leaf.
+ */
+static btree_status_t
+btree_rupdate_raw_leaf(
+		struct btree_raw *btree, 
+		btree_raw_mem_node_t *node,
+	        char *range_key,
+	        uint32_t range_key_len,
+		btree_metadata_t *meta,
+	        btree_rupdate_cb_t callback_func,
+	        void * callback_args,	
+	        uint32_t *objs_updated,
+	        btree_rupdate_marker_t **marker)
+{
+	btree_status_t ret = BTREE_SUCCESS;
+	key_stuff_t ks;
+	node_vlkey_t  *pvlk;
+	btree_rupdate_cb_t cb_func = 
+			(btree_rupdate_cb_t) callback_func;
+	char *new_data = NULL;
+	uint64_t datalen = 0;
+	uint64_t new_data_len = 0;
+	int count = 0;
+	uint32_t objs_done = 0;
+	char **bufs = NULL;
+	int i = 0;
+	bool no_modify = true;
+	uint64_t child_id = BAD_CHILD;
+	uint64_t seqno = meta->seqno;
+	char *key_local = NULL;
+	uint32_t key_local_len = 0;;
+
+	assert(is_leaf(btree, node->pnode));
+
+	(*objs_updated) = 0;
+
+	bufs = (char **) malloc(sizeof(char *) * node->pnode->nkeys);
+	if (bufs == NULL) {
+		ret = BTREE_FAILURE;
+		goto exit;
+	}
+	
+	while (find_next_rupdate_key(btree, node->pnode, range_key,
+				         range_key_len, &ks, &child_id, marker) == true) {
+
+		pvlk = (node_vlkey_t *) ks.pkey_struct;
+		ret = get_leaf_data(btree, node->pnode, pvlk,
+				    &bufs[count], &datalen, 0, 0);
+		if (ret != BTREE_SUCCESS) {
+			goto done;
+		}
+
+		new_data_len = 0;
+		new_data = NULL;
+
+		if (cb_func != NULL) {
+			if ((*cb_func) (ks.pkey_val, ks.keylen,
+					bufs[count], datalen,
+					callback_args, &new_data, &new_data_len) == false) {
+				/*
+				 * object data not changed, no need to update.
+				 */
+				count++;
+				continue;
+			}
+		}
+
+		if (new_data_len != 0) {
+			/*
+			 * The callback has set new data in new_data.
+			 */
+			free(bufs[count]);		
+			bufs[count] = new_data;
+			datalen = new_data_len;
+		}
+
+		/*
+		 * Copy the key to local structure.
+		 */
+		key_local = (char *) malloc(ks.keylen + 1);
+		if (key_local == NULL) {
+			count++;
+			goto done;
+		}
+		memcpy(key_local, ks.pkey_val, ks.keylen);
+		key_local_len = ks.keylen;
+		
+		if (is_full_update(btree, node->pnode, pvlk, ks.keylen, datalen)) {
+			/*
+			 * Node does not have space for new data.
+			 */
+			ret = BTREE_RANGE_UPDATE_NEEDS_SPACE;
+
+			/*
+			 * Set this key and data in marker to retry single key update
+			 * for this key.
+			 */
+			(*marker)->retry_key = key_local;
+			(*marker)->retry_keylen = key_local_len;
+				
+			(*marker)->retry_data = bufs[count];
+			(*marker)->retry_datalen = datalen;
+			goto done;
+		}
+
+
+		/*
+		 * Update the key.
+		 */
+		insert_key(&ret, btree, node, key_local, key_local_len,
+			   seqno, datalen, bufs[count], meta, 0);
+
+		no_modify = false;
+
+		free(key_local);
+		key_local = NULL;
+		key_local_len = 0;
+
+		count++;
+		objs_done++;
+	}
+
+done:
+	if (count == 0) {
+		/*
+		 * Got the end, set marker to invalid
+		 */
+		(*marker)->set = false;
+	}
+
+	/*
+	 * Flush this node to disk.
+	 */
+	(*objs_updated) = objs_done;
+
+exit:
+	/*
+	 * Could not modify anything in node,
+	 * so release the lock explicitly.
+	 */
+	if (no_modify) {
+		plat_rwlock_unlock(&node->lock);
+	}
+
+	/*
+	 * the deref_l1cache will release the lock of modified nodes.
+         * Also the references of looked up nodes.
+	 */
+	if (BTREE_SUCCESS != deref_l1cache(btree)) {
+		ret = BTREE_FAILURE;
+	}
+
+	/*
+	 * Free the temporary buffers.
+	 */
+	if (bufs) {
+		for (i = 0 ; i < count; i++) {
+			free(bufs[i]);
+		}
+		free(bufs);
+	}
+
+	assert(referenced_nodes_count == 0);
+	return ret;
+}
+
+static btree_status_t
+btree_raw_rupdate_low(
+		struct btree_raw *btree, 
+		uint64_t node_id,
+		btree_metadata_t *meta,
+	        char *range_key,
+	        uint32_t range_key_len,
+	        btree_rupdate_cb_t callback_func,
+	        void * callback_args,	
+	        uint32_t *objs_updated,
+	        btree_rupdate_marker_t **marker,
+		btree_raw_mem_node_t *parent);
+
+static btree_status_t
+btree_rupdate_raw_non_leaf(
+		struct btree_raw *btree, 
+		btree_raw_mem_node_t *mem_node,
+	        char *range_key,
+	        uint32_t range_key_len,
+		btree_metadata_t *meta,
+	        btree_rupdate_cb_t callback_func,
+	        void * callback_args,	
+	        uint32_t *objs_updated,
+	        btree_rupdate_marker_t **marker)
+{
+	key_stuff_t ks;
+	uint64_t child_id = BAD_CHILD;
+	btree_status_t ret = BTREE_SUCCESS;
+	bool res = false;
+
+	assert(!is_leaf(btree, mem_node->pnode));
+
+	/*
+	 * Not at leaf yet, keep on seraching down the tree.
+	 */
+	res = find_next_rupdate_key(btree, mem_node->pnode, 
+					 range_key, range_key_len, 
+					 &ks, &child_id, marker);
+
+	/*
+	 * Search cannot end at non-leaf.
+	 */
+	assert(res);
+	if (res == true) {
+		ret = btree_raw_rupdate_low(btree, child_id, meta, 
+						 range_key, range_key_len, callback_func,
+						 callback_args, objs_updated,
+						 marker, mem_node);
+	}
+
+	return ret;
+}
+
+/*
+ * Do range update for a subtree starting with other than root node.
+ */
+static btree_status_t
+btree_raw_rupdate_low(
+		struct btree_raw *btree, 
+		uint64_t node_id,
+		btree_metadata_t *meta,
+	        char *range_key,
+	        uint32_t range_key_len,
+	        btree_rupdate_cb_t callback_func,
+	        void * callback_args,	
+	        uint32_t *objs_updated,
+	        btree_rupdate_marker_t **marker,
+		btree_raw_mem_node_t *parent)
+{
+	btree_raw_mem_node_t *mem_node = NULL;
+	btree_status_t ret = BTREE_SUCCESS;
+
+	mem_node = get_existing_node_low(&ret, btree, node_id, 1);
+	if (ret != BTREE_SUCCESS) {
+		plat_rwlock_unlock(&parent->lock);
+		return ret;
+	}
+
+	/*
+	 * Take write lock on leaf nodes and read on other nodes.
+	 */
+	if (is_leaf(btree, mem_node->pnode)) {
+		plat_rwlock_wrlock(&mem_node->lock);
+	} else {
+		plat_rwlock_rdlock(&mem_node->lock);
+	}
+
+	plat_rwlock_unlock(&parent->lock);
+
+	if (!is_leaf(btree, mem_node->pnode)) {
+		/*
+		 * Not at leaf yet, keep on seraching down the tree.
+		 */
+		ret = btree_rupdate_raw_non_leaf(btree, mem_node, range_key, range_key_len,
+					  	      meta, callback_func, callback_args,
+						      objs_updated, marker);
+
+	}  else {
+
+		/*
+		 * Found the leaf, update the keys in range.
+		 */
+		ret = btree_rupdate_raw_leaf(btree, mem_node, range_key, range_key_len,
+						  meta, callback_func, callback_args,
+						  objs_updated, marker);	
+	}
+
+	return ret;
+}
+
+/*
+ * Do range update for Btree tree.
+ */
+static btree_status_t
+btree_raw_rupdate_low_root(
+		struct btree_raw *btree, 
+		btree_metadata_t *meta,
+	        char *range_key,
+	        uint32_t range_key_len,
+	        btree_rupdate_cb_t callback_func,
+	        void * callback_args,	
+	        uint32_t *objs_updated,
+	        btree_rupdate_marker_t **marker)
+{
+	btree_raw_mem_node_t *mem_node = NULL;
+	btree_status_t ret = BTREE_SUCCESS;
+	uint64_t node_id;
+
+	plat_rwlock_rdlock(&btree->lock);
+
+restart:
+	node_id = btree->rootid;
+
+	mem_node = get_existing_node_low(&ret, btree, node_id, 1);
+	if (ret != BTREE_SUCCESS) {
+		goto out;	
+	}
+
+	/*
+	 * Take write lock on leaf nodes and read on other nodes.
+	 */
+	if (is_leaf(btree, mem_node->pnode)) {
+		plat_rwlock_wrlock(&mem_node->lock);
+	} else {
+		plat_rwlock_rdlock(&mem_node->lock);
+	}
+
+
+	if (btree->rootid != node_id) {
+		/*
+		 * By the time we take lock on root node, tree
+		 * got split and created another root node.
+		 */
+		plat_rwlock_unlock(&mem_node->lock);
+		goto restart;
+	}
+
+
+	if (!is_leaf(btree, mem_node->pnode)) {
+		/*
+		 * Not at leaf yet, keep on seraching down the tree.
+		 */
+		ret = btree_rupdate_raw_non_leaf(btree, mem_node, range_key, range_key_len,
+					  	      meta, callback_func, callback_args,
+						      objs_updated, marker);
+	}  else {
+
+		/*
+		 * Found the leaf, update the keys in range.
+		 */
+		ret = btree_rupdate_raw_leaf(btree, mem_node, range_key, range_key_len,
+						  meta, callback_func, callback_args,
+						  objs_updated, marker);	
+	}
+
+out:
+	plat_rwlock_unlock(&btree->lock);
+	return ret;
+}
+
+btree_status_t
+btree_raw_rupdate(
+		struct btree_raw *btree, 
+		btree_metadata_t *meta,
+	        char *range_key,
+	        uint32_t range_key_len,
+	        btree_rupdate_cb_t callback_func,
+	        void * callback_args,	
+	        uint32_t *objs_updated,
+	        btree_rupdate_marker_t **marker)
+{
+
+	btree_status_t ret = BTREE_SUCCESS;
+
+	ret = btree_raw_rupdate_low_root(btree, meta,
+					 range_key, range_key_len, 
+					 callback_func, callback_args,
+					 objs_updated, marker);
+	return ret;
 }
 
 static btree_status_t 

@@ -211,6 +211,60 @@ btree_status_t btree_flush(struct btree *btree, char *key, uint32_t keylen)
     return btree_raw_flush(btree->partitions[n_partition], key, keylen);
 }
 
+/*
+ * Allocate and deallocate range up date marker.
+ */
+btree_rupdate_marker_t *
+btree_alloc_rupdate_marker(struct btree * bt)
+{
+	btree_rupdate_marker_t *marker = NULL;
+	marker = (btree_rupdate_marker_t *)
+			malloc(sizeof(*marker));
+	if (marker) {
+		memset(marker, 0, sizeof(*marker));
+		marker->last_key = (char *) malloc(bt->max_key_size);
+		if (marker->last_key == NULL) {
+			free(marker);
+			marker = NULL;
+		}
+	}
+	return marker;
+}
+
+void
+btree_free_rupdate_marker(struct btree *bt, btree_rupdate_marker_t *marker)
+{
+	assert(marker->set == false);
+	free(marker->last_key);
+	free(marker);
+}
+
+btree_status_t
+btree_range_update(struct btree *btree, 
+	       btree_metadata_t *meta,
+	       char *range_key,
+	       uint32_t range_key_len,
+	       btree_rupdate_cb_t callback_func,
+	       void * callback_args,	
+	       uint32_t *objs_updated,
+	       btree_rupdate_marker_t **marker)
+{
+
+    int partitions= btree->n_partitions; 
+    int n_partition = 0;
+    btree_status_t ret = BTREE_FAILURE;
+
+    for (n_partition = 0; n_partition < partitions; n_partition++) {
+
+	    ret = btree_raw_rupdate(btree->partitions[n_partition], meta,
+			       	    range_key, range_key_len,
+			            callback_func, callback_args,	
+			            objs_updated, marker);
+    }
+
+    return ret;
+}
+
 /*   delete a key
  *
  *   returns 0: success
