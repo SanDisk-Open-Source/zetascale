@@ -2390,6 +2390,7 @@ _FDFRangeUpdate(struct FDF_thread_state *fdf_ts,
 
 	(*objs_updated) = 0;
 
+	my_thd_state = fdf_thread_state;;
 
 	bt = bt_get_btree_from_cguid(cguid, &index, &error);
 	if (bt == NULL) {
