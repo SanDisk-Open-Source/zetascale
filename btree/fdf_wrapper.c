@@ -698,10 +698,8 @@ restart:
 		return FDF_FAILURE_CONTAINER_NOT_OPEN;
 	}
 
-	/* Lets block further IOs */
-	Container_Map[index].bt_state = BT_CNTR_CLOSING;
-
-	/* IO might have started on this container. Lets wait and retry */
+	/* IO must not exist on this entry since we have write lock now */
+	assert(Container_Map[index].bt_io_count == 0);
 	if (Container_Map[index].bt_io_count) {
 		pthread_rwlock_unlock(&(Container_Map[index].bt_cm_rwlock));
 		while (Container_Map[index].bt_io_count) {
@@ -709,6 +707,10 @@ restart:
 		}
 		goto restart;
 	}
+
+	/* Lets block further IOs */
+	Container_Map[index].bt_state = BT_CNTR_CLOSING;
+
 
     //msg("FDFCloseContainer is not currently supported!"); // xxxzzz
     status = FDFCloseContainer(fdf_thread_state, cguid);
@@ -752,10 +754,8 @@ restart:
 		return FDF_FAILURE_CONTAINER_NOT_FOUND;
 	}
 	
-	/* Lets block further IOs */
-	Container_Map[index].bt_state = BT_CNTR_DELETING;
-
 	/* IO might have started on this container. Lets wait and retry */
+	assert(Container_Map[index].bt_io_count == 0);
 	if (Container_Map[index].bt_io_count) {
 		pthread_rwlock_unlock(&(Container_Map[index].bt_cm_rwlock));
 		while (Container_Map[index].bt_io_count) {
@@ -763,6 +763,9 @@ restart:
 		}
 		goto restart;
 	}
+
+	/* Lets block further IOs */
+	Container_Map[index].bt_state = BT_CNTR_DELETING;
 
 	/* Let us mark the entry NULL and then delete, so that we dont get the same
 	   cguid if there is a create container happening */
