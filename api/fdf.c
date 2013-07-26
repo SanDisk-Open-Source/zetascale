@@ -480,22 +480,26 @@ fdf_stats_info_t fdf_stats_cache[] = {
     {"async_wrbk_fails","async_wrbk_fails",FDF_STATS_TYPE_CACHE_TO_FLASH},/* FDF_CACHE_STAT_ASYNC_WRBK_FAILS */
     {"cache_misses","cache_misses",FDF_STATS_TYPE_CACHE_TO_FLASH},/* FDF_CACHE_STAT_CACHE_MISSES */
     {"cache_hits","cache_hits",FDF_STATS_TYPE_CACHE_TO_FLASH},/* FDF_CACHE_STAT_CACHE_HITS */
-    //btree related categories
+    // btree related categories
     {"l1_cache_entries","l1_cache_entries",FDF_STATS_TYPE_CACHE_TO_FLASH},/* FDF_CACHE_STAT_L1_ENTRIES */
-    {"l1_cache_hits","l1_cache_hits",FDF_STATS_TYPE_CACHE_TO_FLASH},/* FDF_CACHE_STAT_L1_HITS */
-    {"l1_cache_misses","l1_cache_misses",FDF_STATS_TYPE_CACHE_TO_FLASH},/* FDF_CACHE_STAT_L1_MISSES */
-    {"l1_cache_writes","l1_cache_writes",FDF_STATS_TYPE_CACHE_TO_FLASH},/* FDF_CACHE_STAT_L1_WRITES */
     {"l1_cache_objects","l1_cache_objects",FDF_STATS_TYPE_CACHE_TO_FLASH},/* FDF_CACHE_STAT_L1_OBJECTS */
-    {"l1_cache_leaves","l1_cache_leaves",FDF_STATS_TYPE_CACHE_TO_FLASH},/* FDF_CACHE_STAT_L1_LEAVES */
-    {"l1_cache_non_leaves","l1_cache_non_leaves",FDF_STATS_TYPE_CACHE_TO_FLASH},/* FDF_CACHE_STAT_L1_NLEAVES */
-    {"l1_cache_overflow","l1_cache_overflow",FDF_STATS_TYPE_CACHE_TO_FLASH},/* FDF_CACHE_STAT_L1_OVERFLOW */
-    {"l1_cache_bt_num_objs","l1_cache_bt_num_objs",FDF_STATS_TYPE_CACHE_TO_FLASH},/* FDF_CACHE_STAT_BT_NUM_OBJS */
-    {"l1_cache_bt_leaves","l1_cache_bt_leaves",FDF_STATS_TYPE_CACHE_TO_FLASH},/* FDF_CACHE_STAT_BT_LEAVES */
-    {"l1_cache_bt_non_leaves","l1_cache_bt_non_leaves",FDF_STATS_TYPE_CACHE_TO_FLASH},/* FDF_CACHE_STAT_BT_NLEAVES */
+    {"l1_cache_leaf_hits","l1_cache_leaf_hits",FDF_STATS_TYPE_CACHE_TO_FLASH},/* FDF_CACHE_STAT_LEAF_L1_HITS */
+    {"l1_cache_nonleaf_hits","l1_cache_nonleaf_hits",FDF_STATS_TYPE_CACHE_TO_FLASH},/* FDF_CACHE_STAT_NONLEAF_L1_HITS */
+    {"l1_cache_overflow_hits","l1_cache_overflow_hits",FDF_STATS_TYPE_CACHE_TO_FLASH},/* FDF_CACHE_STAT_OVERFLOW_L1_HITS */
+    {"l1_cache_leaf_misses","l1_cache_leaf_misses",FDF_STATS_TYPE_CACHE_TO_FLASH},/* FDF_CACHE_STAT_LEAF_L1_MISSES */
+    {"l1_cache_nonleaf_misses","l1_cache_nonleaf_misses",FDF_STATS_TYPE_CACHE_TO_FLASH},/* FDF_CACHE_STAT_NONLEAF_L1_MISSES */
+    {"l1_cache_overflow_misses","l1_cache_overflow_misses",FDF_STATS_TYPE_CACHE_TO_FLASH},/* FDF_CACHE_STAT_OVERFLOW_L1_MISSES */
+    {"l1_cache_leaf_writes","l1_cache_leaf_writes",FDF_STATS_TYPE_CACHE_TO_FLASH},/* FDF_CACHE_STAT_LEAF_L1_WRITES */
+    {"l1_cache_nonleaf_writes","l1_cache_nonleaf_writes",FDF_STATS_TYPE_CACHE_TO_FLASH},/* FDF_CACHE_STAT_NONLEAF_L1_WRITES */
+    {"l1_cache_overflow_writes","l1_cache_overflow_writes",FDF_STATS_TYPE_CACHE_TO_FLASH},/* FDF_CACHE_STAT_OVERFLOW_L1_WRITES */
+
+    {"l1_cache_bt_leaf_nodes","l1_cache_bt_leaf_nodes",FDF_STATS_TYPE_CACHE_TO_FLASH},/* FDF_CACHE_STAT_BT_LEAF_NODES */
+    {"l1_cache_bt_nonleaf_nodes","l1_cache_bt_nonleaf_nodes",FDF_STATS_TYPE_CACHE_TO_FLASH},/* FDF_CACHE_STAT_BT_NONLEAF_NODES */
     {"l1_cache_bt_overflow_nodes","l1_cache_bt_overflow_nodes",FDF_STATS_TYPE_CACHE_TO_FLASH},/* FDF_CACHE_STAT_BT_OVERFLOW_NODES */
-    {"l1_cache_bt_leave_bytes","l1_cache_bt_leave_bytes",FDF_STATS_TYPE_CACHE_TO_FLASH},/* FDF_CACHE_STAT_BT_LEAVE_BYTES */
-    {"l1_cache_bt_non_leave_bytes","l1_cache_bt_non_leave_bytes",FDF_STATS_TYPE_CACHE_TO_FLASH},/* FDF_CACHE_STAT_BT_NLEAVE_BYTES */
+    {"l1_cache_bt_leaf_bytes","l1_cache_bt_leaf_bytes",FDF_STATS_TYPE_CACHE_TO_FLASH},/* FDF_CACHE_STAT_BT_LEAF_BYTES */
+    {"l1_cache_bt_non_leaf_bytes","l1_cache_bt_nonleaf_bytes",FDF_STATS_TYPE_CACHE_TO_FLASH},/* FDF_CACHE_STAT_BT_NONLEAF_BYTES */
     {"l1_cache_bt_overflow_bytes","l1_cache_bt_overflow_bytes",FDF_STATS_TYPE_CACHE_TO_FLASH},/* FDF_CACHE_STAT_BT_OVERFLOW_BYTES */
+    {"l1_cache_bt_num_objs","l1_cache_bt_num_objs",FDF_STATS_TYPE_CACHE_TO_FLASH},/* FDF_CACHE_STAT_BT_NUM_OBJS */
     {"l1_cache_bt_evict_bytes","l1_cache_bt_evict_bytes",FDF_STATS_TYPE_CACHE_TO_FLASH},/* FDF_CACHE_STAT_BT_EVICT_BYTES */
     {"l1_cache_bt_splits","l1_cache_bt_splits",FDF_STATS_TYPE_CACHE_TO_FLASH},/* FDF_CACHE_STAT_BT_SPLITS */
     {"l1_cache_bt_lmerges","l1_cache_bt_lmerges",FDF_STATS_TYPE_CACHE_TO_FLASH},/* FDF_CACHE_STAT_BT_LMERGES */
@@ -512,6 +516,8 @@ fdf_stats_info_t fdf_stats_cache[] = {
     {"l1_cache_bt_flush_count","l1_cache_bt_flush_count",FDF_STATS_TYPE_CACHE_TO_FLASH},/* FDF_CACHE_STAT_BT_FLUSH_CNT */
     {"l1_cache_bt_delete_opt_count","l1_cache_bt_delete_opt_count",FDF_STATS_TYPE_CACHE_TO_FLASH},/* FDF_CACHE_STAT_BT_DELETE_OPT_COUNT */
     {"l1_cache_bt_mput_io_saved","l1_cache_bt_mput_io_saved",FDF_STATS_TYPE_CACHE_TO_FLASH},/* FDF_CACHE_STAT_BT_MPUT_IO_SAVED */
+    {"l1_cache_bt_put_restart_cnt","l1_cache_bt_put_restart_cnt",FDF_STATS_TYPE_CACHE_TO_FLASH},/*
+FDF_CACHE_STAT_BT_PUT_RESTART_CNT */
 
 
     /* request from cache to flash manager */

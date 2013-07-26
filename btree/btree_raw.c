@@ -136,6 +136,26 @@ static int Verbose = 0;
     }\
 }
 
+#define add_node_stats(bt, pn, s, c) \
+{ \
+    if (pn->flags & OVERFLOW_NODE) \
+        __sync_add_and_fetch(&(bt->stats.stat[BTSTAT_OVERFLOW_##s]),c); \
+    else if (pn->flags & LEAF_NODE) \
+        __sync_add_and_fetch(&(bt->stats.stat[BTSTAT_LEAF_##s]),c); \
+    else \
+        __sync_add_and_fetch(&(bt->stats.stat[BTSTAT_NONLEAF_##s]),c); \
+}
+
+#define sub_node_stats(bt, pn, s, c) \
+{ \
+    if (pn->flags & OVERFLOW_NODE) \
+        __sync_sub_and_fetch(&(bt->stats.stat[BTSTAT_OVERFLOW_##s]),c); \
+    else if (pn->flags & LEAF_NODE) \
+        __sync_sub_and_fetch(&(bt->stats.stat[BTSTAT_LEAF_##s]),c); \
+    else \
+        __sync_sub_and_fetch(&(bt->stats.stat[BTSTAT_NONLEAF_##s]),c); \
+}
+
 //#define DBG_PRINT
 #ifdef DBG_PRINT
 #define dbg_print_key(key, keylen, msg, ...) do { print_key_func(stderr, __FUNCTION__, __LINE__, key, keylen, msg, ##__VA_ARGS__); } while(0)
@@ -361,12 +381,14 @@ btree_raw_init(uint32_t flags, uint32_t n_partition, uint32_t n_partitions, uint
             free( bt);
             return (NULL);
         }
+
         btree_raw_mem_node_t *root_node = get_new_node( &ret, bt, LEAF_NODE);
         if (BTREE_SUCCESS != ret) {
             bt_warn( "Could not allocate root node! %p", root_node);
             free( bt);
             return (NULL);
         }
+
         if (!(bt->flags & IN_MEMORY)) {
             assert(root_node->pnode->logical_id == bt->rootid);
         }
@@ -930,6 +952,7 @@ static void delete_overflow_data(btree_status_t *ret, btree_raw_t *bt, uint64_t 
 	    bt_err("Failed to free an existing overflow node in delete_overflow_data!");
 	}
     }
+    __sync_sub_and_fetch(&(bt->stats.stat[BTSTAT_OVERFLOW_BYTES]), datalen);
 }
 
 static uint64_t allocate_overflow_data(btree_raw_t *bt, uint64_t datalen, char *data, btree_metadata_t *meta)
@@ -962,6 +985,8 @@ static uint64_t allocate_overflow_data(btree_raw_t *bt, uint64_t datalen, char *
 	nbytes -= b;
 	n_last = n;
 
+        __sync_add_and_fetch(&(bt->stats.stat[BTSTAT_OVERFLOW_BYTES]), 
+                               b + sizeof(btree_raw_node_t));
 	if(nbytes)
 	    n = get_new_node(&ret, bt, OVERFLOW_NODE);
     }
@@ -1138,7 +1163,7 @@ static btree_status_t deref_l1cache(btree_raw_t *btree)
 	btree->write_node_cb(&ret, btree->write_node_cb_data, n->pnode->logical_id, (char*)n->pnode, btree->nodesize);
 
         n->dirty = 0;
-	__sync_add_and_fetch(&(btree->stats.stat[BTSTAT_L1WRITES]),1);
+        add_node_stats(btree, n->pnode, L1WRITES, 1);
     }
 
     for(i = 0; i < deleted_nodes_count; i++)
@@ -1147,8 +1172,8 @@ static btree_status_t deref_l1cache(btree_raw_t *btree)
 
         dbg_print("delete_node_cb key=%ld data=%p datalen=%d\n", n->pnode->logical_id, n, btree->nodesize);
 
-	ret = btree->delete_node_cb(n, btree->create_node_cb_data, n->pnode->logical_id);
-	__sync_add_and_fetch(&(btree->stats.stat[BTSTAT_L1WRITES]),1);
+        ret = btree->delete_node_cb(n, btree->create_node_cb_data, n->pnode->logical_id);
+        add_node_stats(btree, n->pnode, L1WRITES, 1);
     }
 
     //TODO
@@ -1308,11 +1333,10 @@ btree_raw_mem_node_t *get_existing_node_low(btree_status_t *ret, btree_raw_t *bt
     } else {
 retry:
         //  check l1cache first
-	n = get_l1cache(btree, logical_id);
-	if (n != NULL) {
-	    __sync_add_and_fetch(&(btree->stats.stat[BTSTAT_L1HITS]),1);
+        n = get_l1cache(btree, logical_id);
+        if (n != NULL) {
+            add_node_stats(btree, n->pnode, L1HITS, 1);
 	} else {
-	    __sync_add_and_fetch(&(btree->stats.stat[BTSTAT_L1MISSES]),1);
 	    //  look for the node the hard way
 	    //  If we don't look at the ret code, why does read_node_cb need one?
 	    pnode = (btree_raw_node_t*)btree->read_node_cb(ret, btree->read_node_cb_data, logical_id);
@@ -1320,6 +1344,8 @@ retry:
 		*ret = BTREE_FAILURE;
 		return(NULL);
 	    }
+            add_node_stats(btree, pnode, L1MISSES, 1);
+
             // already in the cache retry get
 	    n = add_l1cache(btree, pnode);
 	    if(!n)
@@ -1408,13 +1434,9 @@ static btree_raw_mem_node_t *get_new_node(btree_status_t *ret, btree_raw_t *btre
     n->next       = 0; // used for chaining nodes for large objects
     n->rightmost  = BAD_CHILD;
 
-    if (leaf_flags & LEAF_NODE) {
-	__sync_add_and_fetch(&(btree->stats.stat[BTSTAT_LEAVES]),1);
-    } else if (leaf_flags & OVERFLOW_NODE) {
-	__sync_add_and_fetch(&(btree->stats.stat[BTSTAT_OVERFLOW_NODES]),1);
-    } else {
-	__sync_add_and_fetch(&(btree->stats.stat[BTSTAT_NONLEAVES]),1);
-    }
+    /* Update relevent node types, total count and bytes used in node */
+    add_node_stats(btree, n, NODES, 1);
+    add_node_stats(btree, n, BYTES, sizeof(btree_raw_node_t));
 
     return node;
 }
@@ -1425,13 +1447,8 @@ static void free_node(btree_status_t *ret, btree_raw_t *btree, btree_raw_mem_nod
 
     if (*ret) { return; }
 
-    if (is_leaf(btree, n->pnode)) {
-	    __sync_sub_and_fetch(&(btree->stats.stat[BTSTAT_LEAVES]),1);
-    } else if (is_overflow(btree, n->pnode)) {
-	    __sync_sub_and_fetch(&(btree->stats.stat[BTSTAT_OVERFLOW_NODES]),1);
-    } else {
-	    __sync_sub_and_fetch(&(btree->stats.stat[BTSTAT_NONLEAVES]),1);
-    }
+    sub_node_stats(btree, n->pnode, NODES, 1);
+    sub_node_stats(btree, n->pnode, BYTES, sizeof(btree_raw_node_t));
 
     if (btree->flags & IN_MEMORY) {
 	    // xxxzzz SEGFAULT
@@ -1650,16 +1667,13 @@ static void insert_key_low(btree_status_t *ret, btree_raw_t *btree, btree_raw_me
     uint32_t       nbytes_split = 0;
     uint32_t       nbytes_free;
     int32_t        nkey_child;
+    uint64_t       nbytes_stats;
 
     dbg_print("node: %p id %ld\n", x, x->logical_id);
 
     if (*ret) { return; }
 
-    if (x->flags & LEAF_NODE) {
-	__sync_add_and_fetch(&(btree->stats.stat[BTSTAT_LEAVE_BYTES]), (keylen + datalen));
-    } else {
-	__sync_add_and_fetch(&(btree->stats.stat[BTSTAT_NONLEAVE_BYTES]), (keylen + datalen));
-    }
+    nbytes_stats = keylen;
 
     if (pkrec != NULL) {
         // delete existing key first
@@ -1686,6 +1700,7 @@ static void insert_key_low(btree_status_t *ret, btree_raw_t *btree, btree_raw_me
 		nkeys_to     = (((char *) pk_insert) - ((char *) x->keys))/ks.offset;
 		pos_split    = pvlk_insert->keypos;
 		nbytes_split = pvlk_insert->keypos - x->insert_ptr;
+                nbytes_stats += sizeof(node_vlkey_t);
 	    }
 	} else {
 	    pvk_insert  = (node_vkey_t *) pk_insert;
@@ -1693,6 +1708,7 @@ static void insert_key_low(btree_status_t *ret, btree_raw_t *btree, btree_raw_me
 		nkeys_to     = (((char *) pk_insert) - ((char *) x->keys))/ks.offset;
 		pos_split    = pvk_insert->keypos;
 		nbytes_split = pvk_insert->keypos - x->insert_ptr;
+		nbytes_stats += sizeof(node_vkey_t);
 	    }
 	}
         fixed_bytes = ks.offset;
@@ -1700,6 +1716,7 @@ static void insert_key_low(btree_status_t *ret, btree_raw_t *btree, btree_raw_me
         fixed_bytes = ks.offset;
 	if (pk_insert != NULL) {
 	    nkeys_to = (((char *) pk_insert) - ((char *) x->keys))/ks.offset;
+            nbytes_stats += sizeof(node_fkey_t);
 	}
     }
     nkeys_from = x->nkeys - nkeys_to;
@@ -1809,6 +1826,7 @@ static void insert_key_low(btree_status_t *ret, btree_raw_t *btree, btree_raw_me
 	    } else {
 	        //  data is in this node
 		pvlk->ptr = 0;
+                nbytes_stats += datalen;
 	    }
 	} else {
 	    pvk          = (node_vkey_t *) ((char *) (x->keys) + nkeys_to*fixed_bytes);
@@ -1829,9 +1847,13 @@ static void insert_key_low(btree_status_t *ret, btree_raw_t *btree, btree_raw_me
 	assert(datalen == sizeof(uint64_t));
 	pfk->ptr       = *((uint64_t *) data);
     }
+
     if (x->flags & LEAF_NODE) {
         /* A new object has been inserted. increment the count */
         __sync_add_and_fetch(&(btree->stats.stat[BTSTAT_NUM_OBJS]), 1);
+	__sync_add_and_fetch(&(btree->stats.stat[BTSTAT_LEAF_BYTES]), nbytes_stats);
+    } else {
+	__sync_add_and_fetch(&(btree->stats.stat[BTSTAT_NONLEAF_BYTES]), nbytes_stats);
     }
 
     #ifdef DEBUG_STUFF
@@ -1884,7 +1906,7 @@ static void delete_key_by_pkrec(btree_status_t* ret, btree_raw_t *btree, btree_r
     uint32_t       fixed_bytes;
     uint64_t       datalen = 0;
     uint64_t       keylen = 0;
-    uint64_t       datalen_stats = 0;
+    uint64_t       nbytes_stats = 0;
     node_vkey_t   *pvk_delete = NULL;
     node_vlkey_t  *pvlk_delete = NULL;
     key_stuff_t    ks;
@@ -1900,7 +1922,7 @@ static void delete_key_by_pkrec(btree_status_t* ret, btree_raw_t *btree, btree_r
     if (!ks.fixed) {
         if (x->flags & LEAF_NODE) {
 	    pvlk_delete = (node_vlkey_t *) pk_delete;
-	    datalen_stats = pvlk_delete->datalen;
+
 	    keylen = pvlk_delete->keylen;
 	    if ((pvlk_delete->keylen + pvlk_delete->datalen) >= btree->big_object_size) {
 	        // data NOT stored in the node
@@ -1910,23 +1932,25 @@ static void delete_key_by_pkrec(btree_status_t* ret, btree_raw_t *btree, btree_r
 	        // data IS stored in the node
 		datalen = pvlk_delete->datalen;
 	    }
+            nbytes_stats = sizeof(node_vlkey_t) + datalen;
 	} else {
 	    pvk_delete = (node_vkey_t *) pk_delete;
 	    keylen = pvk_delete->keylen;
-	    datalen_stats = 0;
+            nbytes_stats = sizeof(node_vkey_t);
 	}
 	fixed_bytes = ks.offset;
 	nkeys_to = (((char *) pk_delete) - ((char *) x->keys))/ks.offset;
+        nbytes_stats += keylen;
     } else {
         fixed_bytes = sizeof(node_fkey_t);
 	nkeys_to = (((char *) pk_delete) - ((char *) x->keys))/sizeof(node_fkey_t);
-	datalen_stats = 0;
+        nbytes_stats = sizeof(node_fkey_t);
     }
 
     if (x->flags & LEAF_NODE) {
-	__sync_sub_and_fetch(&(btree->stats.stat[BTSTAT_LEAVE_BYTES]),(keylen + datalen_stats));
+	__sync_sub_and_fetch(&(btree->stats.stat[BTSTAT_LEAF_BYTES]), nbytes_stats);
     } else {
-	__sync_sub_and_fetch(&(btree->stats.stat[BTSTAT_NONLEAVE_BYTES]),(keylen + datalen_stats));
+	__sync_sub_and_fetch(&(btree->stats.stat[BTSTAT_NONLEAF_BYTES]), nbytes_stats);
     }
 
     nkeys_from = x->nkeys - nkeys_to - 1;
@@ -2439,6 +2463,7 @@ mini_restart:
 			/*
 			 * While we reach here it is possible that root got changed.
 			 */
+			__sync_add_and_fetch(&(btree->stats.stat[BTSTAT_PUT_RESTART_CNT]), 1);
 			plat_rwlock_unlock(&mem_node->lock);
 			goto restart;
 		}
@@ -2489,6 +2514,7 @@ mini_restart:
 
 				if(parent->modified != save_modified) {
 					restart_cnt++;
+					__sync_add_and_fetch(&(btree->stats.stat[BTSTAT_PUT_RESTART_CNT]), 1);
 					plat_rwlock_unlock(&parent->lock);
 					parent = NULL;
 

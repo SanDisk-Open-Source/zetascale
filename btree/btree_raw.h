@@ -82,20 +82,24 @@ typedef struct btree_metadata {
 
 #define BTSTATS_ITEMS() \
     item(BTSTAT_L1ENTRIES, =0) \
-    item(BTSTAT_L1HITS, /* default */) \
-    item(BTSTAT_L1MISSES, /* default */) \
-    item(BTSTAT_L1WRITES, /* default */) \
     item(BTSTAT_L1OBJECTS, /* default */) \
-    item(BTSTAT_L1LEAVES, /* default */) \
-    item(BTSTAT_L1NONLEAVES, /* default */) \
-    item(BTSTAT_L1OVERFLOWS, /* default */) \
-    item(BTSTAT_NUM_OBJS, /* default */) \
-    item(BTSTAT_LEAVES, /* default */) \
-    item(BTSTAT_NONLEAVES, /* default */) \
+    item(BTSTAT_LEAF_L1HITS, /* default */) \
+    item(BTSTAT_NONLEAF_L1HITS, /* default */) \
+    item(BTSTAT_OVERFLOW_L1HITS, /* default */) \
+    item(BTSTAT_LEAF_L1MISSES, /* default */) \
+    item(BTSTAT_NONLEAF_L1MISSES, /* default */) \
+    item(BTSTAT_OVERFLOW_L1MISSES, /* default */) \
+    item(BTSTAT_LEAF_L1WRITES, /* default */) \
+    item(BTSTAT_NONLEAF_L1WRITES, /* default */) \
+    item(BTSTAT_OVERFLOW_L1WRITES, /* default */) \
+    \
+    item(BTSTAT_LEAF_NODES, /* default */) \
+    item(BTSTAT_NONLEAF_NODES, /* default */) \
     item(BTSTAT_OVERFLOW_NODES, /* default */) \
-    item(BTSTAT_LEAVE_BYTES, /* default */) \
-    item(BTSTAT_NONLEAVE_BYTES, /* default */) \
+    item(BTSTAT_LEAF_BYTES, /* default */) \
+    item(BTSTAT_NONLEAF_BYTES, /* default */) \
     item(BTSTAT_OVERFLOW_BYTES, /* default */) \
+    item(BTSTAT_NUM_OBJS, /* default */) \
     item(BTSTAT_EVICT_BYTES, /* default */) \
     item(BTSTAT_SPLITS, /* default */) \
     item(BTSTAT_LMERGES, /* default */) \
@@ -116,7 +120,8 @@ typedef struct btree_metadata {
     item(BTSTAT_DELETE_PATH, /* default */) \
     item(BTSTAT_FLUSH_CNT, /* default */) \
     item(BTSTAT_DELETE_OPT_CNT, /* default */) \
-    item(BTSTAT_MPUT_IO_SAVED, /* default */) 
+    item(BTSTAT_MPUT_IO_SAVED, /* default */)  \
+    item(BTSTAT_PUT_RESTART_CNT, /* default */)
 
 typedef enum {
 #define item(caps, value) \
