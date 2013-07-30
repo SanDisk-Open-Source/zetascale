@@ -1172,7 +1172,7 @@ static btree_status_t deref_l1cache(btree_raw_t *btree)
 
         dbg_print("delete_node_cb key=%ld data=%p datalen=%d\n", n->pnode->logical_id, n, btree->nodesize);
 
-        ret = btree->delete_node_cb(n, btree->create_node_cb_data, n->pnode->logical_id);
+        ret = btree->delete_node_cb(btree->create_node_cb_data, n->pnode->logical_id);
         add_node_stats(btree, n->pnode, L1WRITES, 1);
     }
 
