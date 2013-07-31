@@ -655,9 +655,19 @@ FDF_status_t _FDFOpenContainer(
 	FDF_cguid_t             *cguid
 	)
 {
-	if (properties->writethru == FDF_FALSE) {
-		properties->writethru = FDF_TRUE;
-		Notice("WriteBack Mode is not supported, Mode has been reset to Writethrough for Container %s\n",cname);
+	if (!cname) {
+		return(FDF_INVALID_PARAMETER);
+	}
+
+	if (properties) {
+		if (properties->writethru == FDF_FALSE) {
+			properties->writethru = FDF_TRUE;
+			Notice("WriteBack Mode is not supported, writethru is set to true for Container %s\n",cname);
+		}
+		if (properties->evicting == FDF_TRUE) {
+			Notice("Eviction is not supported, evicting is reset to false for container %s\n", cname);
+			properties->evicting = FDF_FALSE;
+		}
 	}
 
 	return (_FDFOpenContainerSpecial(fdf_thread_state,
@@ -1305,7 +1315,8 @@ FDF_status_t _FDFNextEnumeratedObject(
 	int              count = 0;
 	FDF_range_data_t values;
 
-	bzero(&values, sizeof(FDF_range_data_t));
+	values.key = NULL;
+	values.data = NULL;
 	status = _FDFGetNextRange(fdf_thread_state,
                               (struct FDF_cursor *) iterator,
                               1,
