@@ -95,10 +95,13 @@ _FDFRangeUpdate(struct FDF_thread_state *fdf_thread_state,
 
 
 #define Error(msg, args...) \
-    msg_cb(0, NULL, __FILE__, __LINE__, msg, ##args);
+	msg_cb(0, NULL, __FILE__, __LINE__, msg, ##args);
 
 #define msg(msg, args...) \
-    msg_cb(2, NULL, __FILE__, __LINE__, msg, ##args);
+	msg_cb(2, NULL, __FILE__, __LINE__, msg, ##args);
+
+#define Notice(msg, args...) \
+	msg_cb(4, NULL, __FILE__, __LINE__, msg, ##args);
 
 #ifdef notdef
     #define DEFAULT_N_PARTITIONS      100
@@ -652,12 +655,17 @@ FDF_status_t _FDFOpenContainer(
 	FDF_cguid_t             *cguid
 	)
 {
-    return (_FDFOpenContainerSpecial(fdf_thread_state,
-                                     cname,
-                                     properties,
-                                     flags_in,
-                                     NULL,
-                                     cguid));
+	if (properties->writethru == FDF_FALSE) {
+		properties->writethru = FDF_TRUE;
+		Notice("WriteBack Mode is not supported, Mode has been reset to Writethrough for Container %s\n",cname);
+	}
+
+	return (_FDFOpenContainerSpecial(fdf_thread_state,
+				cname,
+				properties,
+				flags_in,
+				NULL,
+				cguid));
 }
 
 /**
@@ -1890,12 +1898,13 @@ static void msg_cb(int level, void *msg_data, char *filename, int lineno, char *
     va_end(args);
 
     switch (level) {
-        case 0:  prefix = "ERROR";                quit = 1; break;
-        case 1:  prefix = "WARNING";              quit = 0; break;
-        case 2:  prefix = "INFO";                 quit = 0; break;
-        case 3:  prefix = "DEBUG";                quit = 0; break;
-        default: prefix = "PROBLEM WITH MSG_CB!"; quit = 1; break;
-	    break;
+	    case 0:  prefix = "ERROR";                quit = 1; break;
+	    case 1:  prefix = "WARNING";              quit = 0; break;
+	    case 2:  prefix = "INFO";                 quit = 0; break;
+	    case 3:  prefix = "DEBUG";                quit = 0; break;
+	    case 4:  prefix = "NOTICE";		      quit = 0; break;
+	    default: prefix = "PROBLEM WITH MSG_CB!"; quit = 1; break;
+		     break;
     } 
 
     (void) fprintf(stderr, "%s: %s", prefix, stmp);
