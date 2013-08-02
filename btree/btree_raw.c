@@ -1700,24 +1700,24 @@ static void insert_key_low(btree_status_t *ret, btree_raw_t *btree, btree_raw_me
 		nkeys_to     = (((char *) pk_insert) - ((char *) x->keys))/ks.offset;
 		pos_split    = pvlk_insert->keypos;
 		nbytes_split = pvlk_insert->keypos - x->insert_ptr;
-                nbytes_stats += sizeof(node_vlkey_t);
 	    }
+            nbytes_stats += sizeof(node_vlkey_t);
 	} else {
 	    pvk_insert  = (node_vkey_t *) pk_insert;
 	    if (pvk_insert != NULL) {
 		nkeys_to     = (((char *) pk_insert) - ((char *) x->keys))/ks.offset;
 		pos_split    = pvk_insert->keypos;
 		nbytes_split = pvk_insert->keypos - x->insert_ptr;
-		nbytes_stats += sizeof(node_vkey_t);
 	    }
+            nbytes_stats += sizeof(node_vkey_t);
 	}
         fixed_bytes = ks.offset;
     } else {
         fixed_bytes = ks.offset;
 	if (pk_insert != NULL) {
 	    nkeys_to = (((char *) pk_insert) - ((char *) x->keys))/ks.offset;
-            nbytes_stats += sizeof(node_fkey_t);
 	}
+        nbytes_stats += sizeof(node_fkey_t);
     }
     nkeys_from = x->nkeys - nkeys_to;
 
@@ -1948,6 +1948,7 @@ static void delete_key_by_pkrec(btree_status_t* ret, btree_raw_t *btree, btree_r
     }
 
     if (x->flags & LEAF_NODE) {
+        __sync_sub_and_fetch(&(btree->stats.stat[BTSTAT_NUM_OBJS]), 1);
 	__sync_sub_and_fetch(&(btree->stats.stat[BTSTAT_LEAF_BYTES]), nbytes_stats);
     } else {
 	__sync_sub_and_fetch(&(btree->stats.stat[BTSTAT_NONLEAF_BYTES]), nbytes_stats);
@@ -3349,6 +3350,24 @@ btree_raw_mput(struct btree_raw *btree, btree_mput_obj_t *objs, uint32_t num_obj
 
 	ret = btree_raw_mwrite_low(btree, objs, num_objs, meta, syndrome, 
 				   write_type, &pathcnt, objs_written);
+	if (BTREE_SUCCESS == ret) {
+		switch (write_type) {
+		case W_CREATE:
+			__sync_add_and_fetch(&(btree->stats.stat[BTSTAT_CREATE_CNT]),*objs_written);
+			__sync_add_and_fetch(&(btree->stats.stat[BTSTAT_CREATE_PATH]),pathcnt);
+			break;
+		case W_SET:
+			__sync_add_and_fetch(&(btree->stats.stat[BTSTAT_SET_CNT]),*objs_written);
+			__sync_add_and_fetch(&(btree->stats.stat[BTSTAT_SET_PATH]), pathcnt);
+			break;
+		case W_UPDATE:
+			__sync_add_and_fetch(&(btree->stats.stat[BTSTAT_UPDATE_CNT]),*objs_written);
+			__sync_add_and_fetch(&(btree->stats.stat[BTSTAT_UPDATE_PATH]), pathcnt);
+			break;
+		default:
+			assert(0);
+		}
+	}
 	return ret;
 }
 
@@ -3482,7 +3501,6 @@ btree_status_t btree_raw_delete(struct btree_raw *btree, char *key, uint32_t key
     }
 
     __sync_add_and_fetch(&(btree->stats.stat[BTSTAT_DELETE_CNT]),1);
-    __sync_sub_and_fetch(&(btree->stats.stat[BTSTAT_NUM_OBJS]), 1);
     __sync_add_and_fetch(&(btree->stats.stat[BTSTAT_DELETE_PATH]), pathcnt);
 
     dbg_print("dbg_referenced %ld\n", dbg_referenced);
