@@ -2179,7 +2179,7 @@ _FDFRangeUpdate(struct FDF_thread_state *fdf_ts,
 	uint32_t objs_to_update = 0;
 	uint32_t objs_in_range = 0;
 	char *new_data = NULL;
-	uint32_t new_data_len;
+	uint64_t new_data_len;
 	int n_out = 0;
 	int i = 0;
 	int	index;
@@ -2195,12 +2195,12 @@ _FDFRangeUpdate(struct FDF_thread_state *fdf_ts,
 	}
 
 	objs = (FDF_obj_t *) malloc(sizeof(FDF_obj_t) * NUM_IN_CHUNK);
-    if (objs == NULL) {
+	if (objs == NULL) {
 		bt_rel_entry(index);
 		return FDF_FAILURE_MEMORY_ALLOC;
-    }
+	}
 
-	tmp_data = (btree_range_update_data_t *) malloc(sizeof(*tmp_data) * NUM_IN_CHUNK);
+	tmp_data = (btree_rupdate_data_t *) malloc(sizeof(*tmp_data) * NUM_IN_CHUNK);
 	if (tmp_data == NULL) {
 		ret = FDF_FAILURE_MEMORY_ALLOC;
 		goto exit;

@@ -2439,12 +2439,14 @@ btree_raw_mwrite_low(btree_raw_t *btree, btree_mput_obj_t *objs, uint32_t num_ob
 
 	*objs_written = 0;
 	plat_rwlock_rdlock(&btree->lock);
+	assert(referenced_nodes_count == 0);
 
 restart:
 	child_id = btree->rootid;
 
 	while(child_id != BAD_CHILD) {
 		if(!(mem_node = get_existing_node_low(&ret, btree, child_id, 1))) {
+			ret = BTREE_FAILURE;
 			goto err_exit;
 		}
 
@@ -2465,6 +2467,9 @@ mini_restart:
 			 */
 			__sync_add_and_fetch(&(btree->stats.stat[BTSTAT_PUT_RESTART_CNT]), 1);
 			plat_rwlock_unlock(&mem_node->lock);
+			if (BTREE_SUCCESS != deref_l1cache(btree)) {
+				assert(0);
+			}
 			goto restart;
 		}
 
@@ -2546,8 +2551,8 @@ mini_restart:
 			 * needs to allocate two new nodes.
 			 */
 			parent = get_new_node(&ret, btree, 0 /* flags */);
-
 			if(!parent) {
+				ret = BTREE_FAILURE;
 				goto err_exit;
 			}
 
@@ -2562,6 +2567,7 @@ mini_restart:
 			if (BTREE_SUCCESS != savepersistent( btree, 0)) {
 				assert(0);
 				btree->rootid = saverootid;
+				ret = BTREE_FAILURE;
 				goto err_exit;
 			}
 		}
@@ -2571,6 +2577,7 @@ mini_restart:
 		btree_raw_mem_node_t *new_node = btree_split_child(&ret, btree, parent,
 							   mem_node, seqno, meta, syndrome);
 		if(BTREE_SUCCESS != ret) {
+			ret = BTREE_FAILURE;
 			goto err_exit;
 		}
 
@@ -2640,7 +2647,7 @@ mini_restart:
 	}
 
 	/*
-	 * the deref_l1cache will release the lock of modified nodes.
+	 * the deref_l1cache will release the references and lock of modified nodes.
 	 */
 	if (BTREE_SUCCESS != deref_l1cache(btree)) {
 		ret = BTREE_FAILURE;
@@ -2650,43 +2657,15 @@ mini_restart:
 	    __sync_add_and_fetch(&(btree->stats.stat[BTSTAT_MPUT_IO_SAVED]), written - 1);
 	}
 
+	assert(referenced_nodes_count == 0);
 	return BTREE_SUCCESS == ret ? txnret : ret;
 
 err_exit:
 
 	plat_rwlock_unlock(&btree->lock);
+	assert(referenced_nodes_count == 0);
 	return BTREE_SUCCESS == ret ? txnret : ret;
 }
-
-#if 0
-/*
- * Allocate and deallocate range up date marker.
- */
-btree_rupdate_marker_t *
-btree_alloc_rupdate_marker(struct btree * bt)
-{
-	btree_rupdate_marker_t *marker = NULL;
-	marker = (btree_rupdate_marker_t *)
-			malloc(sizeof(*marker));
-	if (marker) {
-		memset(marker, 0, sizeof(*marker));
-		marker->last_key = (char *) malloc(bt->max_key_size);
-		if (marker->last_key == NULL) {
-			free(marker);
-			marker = NULL;
-		}
-	}
-	return marker;
-}
-
-void
-btree_free_rupdate_marker(struct btree *bt, btree_rupdate_marker_t *marker)
-{
-	assert(marker->set == false);
-	free(marker->last_key);
-	free(marker);
-}
-#endif 
 
 /*
  * return 0 if key falls in range

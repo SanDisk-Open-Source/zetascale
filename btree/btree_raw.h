@@ -279,11 +279,4 @@ btree_raw_rupdate(
 	        void * callback_args,	
 	        uint32_t *objs_updated,
 	        btree_rupdate_marker_t **marker);
-#if 0
-btree_rupdate_marker_t *
-btree_alloc_rupdate_marker(struct btree * bt);
-void
-btree_free_rupdate_marker(struct btree *btree, btree_rupdate_marker_t *marker);
-#endif
-
 #endif // __BTREE_RAW_H
