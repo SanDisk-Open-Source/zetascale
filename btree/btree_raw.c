@@ -82,6 +82,7 @@
 #define W_SET     3
 
 #define MODIFY_TREE 1
+#define META_COUNTER_SAVE_INTERVAL 100000
 
 //  used to count depth of btree traversal for writes/deletes
 __thread int _pathcnt;
@@ -317,6 +318,7 @@ btree_raw_init(uint32_t flags, uint32_t n_partition, uint32_t n_partitions, uint
     bt->big_object_size      = bt->nodesize_less_hdr / 4 - sizeof(node_vlkey_t); // xxxzzz check this
     dbg_print("nodesize_less_hdr=%d nodezie=%d raw_node_size=%ld\n", bt->nodesize_less_hdr, nodesize, sizeof(btree_raw_node_t));
     bt->logical_id_counter   = 1;
+    bt->next_logical_id	     = META_COUNTER_SAVE_INTERVAL; 
     bt->create_node_cb       = create_node_cb;
     bt->create_node_cb_data  = create_node_data;
     bt->read_node_cb         = read_node_cb;
@@ -422,7 +424,6 @@ btree_raw_destroy (struct btree_raw **bt)
 		*bt = NULL;
 }
 
-#define META_COUNTER_SAVE_INTERVAL 100000
 
 /*
  * save persistent btree metadata
@@ -451,9 +452,16 @@ savepersistent( btree_raw_t *bt, int create)
 
         dbg_print("ret=%d create=%d nodeid=%lx lic=%ld rootid=%ld save=%d\n", ret, create, META_LOGICAL_ID+bt->n_partition, bt->logical_id_counter, bt->rootid, r->rootid != bt->rootid || !(bt->logical_id_counter % META_COUNTER_SAVE_INTERVAL));
 
-        if(!create && (r->rootid != bt->rootid || !(bt->logical_id_counter %
-                        META_COUNTER_SAVE_INTERVAL)))
-            modify_l1cache_node(bt, mem_node);
+        if (!create && (r->rootid != bt->rootid || (bt->logical_id_counter >= r->next_logical_id))) {
+
+	   	/* If META_COUNTER_SAVE_INTERVAL limit is hit during current operation we need to update
+		 the next limit. These limits are useful to assign the unique id after restart */
+	    	if (bt->logical_id_counter >= r->next_logical_id) {
+		 	bt->next_logical_id = r->next_logical_id + META_COUNTER_SAVE_INTERVAL;
+			r->next_logical_id =  bt->next_logical_id;
+		}
+		modify_l1cache_node(bt, mem_node);
+	}
 
         r->logical_id_counter = bt->logical_id_counter;
         r->rootid = bt->rootid;
@@ -488,7 +496,7 @@ loadpersistent( btree_raw_t *bt)
 
     dbg_print("ret=%d nodeid=%lx r->lic %ld r->rootid %ld bt->logical_id_counter %ld\n", ret, META_LOGICAL_ID + bt->n_partition, r->logical_id_counter, r->rootid, r->logical_id_counter + META_COUNTER_SAVE_INTERVAL);
 
-    bt->logical_id_counter = r->logical_id_counter + META_COUNTER_SAVE_INTERVAL;
+    bt->logical_id_counter = r->next_logical_id;	//next_logical_id is stored before the restart and is used to determine the logical_id_counter value after restart.
     bt->rootid = r->rootid;
 
     return (BTREE_FAILURE);

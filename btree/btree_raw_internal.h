@@ -127,12 +127,13 @@ typedef struct btree_raw {
     plat_rwlock_t      lock;
 
     uint64_t           modified;
+uint64_t		next_logical_id;
 } btree_raw_t;
 
 typedef struct btree_raw_persist {
     btree_raw_node_t n; // this must be first member
     uint64_t    rootid,
-                logical_id_counter;
+                logical_id_counter,next_logical_id;
 } btree_raw_persist_t;
 
 int get_key_stuff(btree_raw_t *bt, btree_raw_node_t *n, uint32_t nkey, key_stuff_t *pks);
