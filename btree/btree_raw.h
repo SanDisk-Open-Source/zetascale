@@ -203,7 +203,7 @@ typedef void (msg_cb_t)(int level, void *msg_data, char *filename, int lineno, c
 
 struct btree_raw;
 
-struct btree_raw* btree_raw_init(uint32_t flags, uint32_t n_partition, uint32_t n_partitions, uint32_t max_key_size, uint32_t min_keys_per_node, uint32_t nodesize, uint32_t n_l1cache_buckets,
+struct btree_raw* btree_raw_init(uint32_t flags, uint32_t n_partition, uint32_t n_partitions, uint32_t max_key_size, uint32_t min_keys_per_node, uint32_t nodesize,
 	create_node_cb_t *create_node_cb, void *create_node_data,
 	read_node_cb_t *read_node_cb, void *read_node_cb_data,
 	write_node_cb_t *write_node_cb, void *write_node_cb_data,
@@ -213,7 +213,7 @@ struct btree_raw* btree_raw_init(uint32_t flags, uint32_t n_partition, uint32_t 
 	log_cb_t *log_cb, void *log_cb_data,
 	msg_cb_t *msg_cb, void *msg_cb_data,
 	cmp_cb_t *cmp_cb, void * cmp_cb_data,
-	trx_cmd_cb_t *trx_cmd_cb
+	trx_cmd_cb_t *trx_cmd_cb, uint64_t cguid
 	);
 
 void btree_raw_destroy(struct btree_raw **);

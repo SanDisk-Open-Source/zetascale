@@ -303,7 +303,7 @@ int btree_selftest(int argc, char **argv)
     msg("max_datalen = %lld",     max_datalen);
     msg("iterations = %lld",     n_test_iters);
 
-    bt = btree_init(n_partitions, flags, max_key_size, min_keys_per_node, nodesize, n_l1cache_buckets,
+    bt = btree_init(n_partitions, flags, max_key_size, min_keys_per_node, nodesize,
                     (create_node_cb_t *)create_node_cb, create_node_cb_data, 
                     (read_node_cb_t *)read_node_cb, read_node_cb_data, 
                     (write_node_cb_t *)write_node_cb, write_node_cb_data, 
@@ -313,7 +313,7 @@ int btree_selftest(int argc, char **argv)
                     (log_cb_t *)log_cb, log_cb_data, 
                     msg_cb, msg_cb_data, 
                     cmp_cb, cmp_cb_data,
-		    (trx_cmd_cb_t *)txn_cmd_cb
+		    (trx_cmd_cb_t *)txn_cmd_cb, 4 
 		    );
 
     if (bt == NULL) {
@@ -322,7 +322,7 @@ int btree_selftest(int argc, char **argv)
 
     /* generate some random keys and data and stash in a hashtable and array */
 
-    kmap = MapInit(n_test_keys, 0, 0, NULL, NULL);
+    kmap = MapInit(n_test_keys, 0, 0, NULL);
     if (kmap == NULL) {
         Error("Could not create key map!");
     }
@@ -361,7 +361,7 @@ int btree_selftest(int argc, char **argv)
 	keylens[nsuccess]  = keylen;
 	datas[nsuccess] = pdata;
 	datalens[nsuccess] = datalen;
-	if (!MapCreate(kmap, (char *) &key, sizeof(uint64_t), pdata, datalen)) {
+	if (!MapCreate(kmap, (char *) &key, sizeof(uint64_t), pdata, datalen, 4, (void *)bt)) {
 	    // Error("MapCreate failed for data item %d", nsuccess);
 	    nconflict++;
 	} else {
@@ -467,7 +467,7 @@ int btree_selftest(int argc, char **argv)
 	    datalens[nkey] = datalen;
 
 	    meta.flags = 0;
-	    (void) MapSet(kmap, (char *) &(keys[nkey]), sizeof(uint64_t), datas[nkey], datalens[nkey], &old_pdata, &old_datalen);
+	    (void) MapSet(kmap, (char *) &(keys[nkey]), sizeof(uint64_t), datas[nkey], datalens[nkey], &old_pdata, &old_datalen, 4, (void *)bt);
 
 	    ret = btree_set(bt, keytmp, strlen(keytmp) + 1, datas[nkey], datalens[nkey], &meta);
 	    if (ret != 0) {
@@ -484,7 +484,7 @@ int btree_selftest(int argc, char **argv)
 	    datalens[nkey] = datalen;
 
 	    meta.flags = 0;
-	    if (!MapUpdate(kmap, (char *) &(keys[nkey]), sizeof(uint64_t), datas[nkey], datalens[nkey])) {
+	    if (!MapUpdate(kmap, (char *) &(keys[nkey]), sizeof(uint64_t), datas[nkey], datalens[nkey], 4, (void *)bt)) {
 	        Error("Inconsistency with MapUpdate for key %lld (i=%lld)", keys[nkey], i);
 	    }
 

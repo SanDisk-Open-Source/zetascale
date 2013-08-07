@@ -294,7 +294,7 @@ btest_init(int argc, char **argv, char *program, btest_parse_fn parse_fn)
 	msg("iterations = %lld",         cfg->n_test_iters);
 
 	cfg->bt = btree_init(cfg->n_partitions, cfg->flags, cfg->max_key_size, 
-	                cfg->min_keys_per_node, cfg->nodesize, cfg->n_l1cache_buckets,
+	                cfg->min_keys_per_node, cfg->nodesize,
 	                (create_node_cb_t *)create_node_cb, create_node_cb_data, 
 	                (read_node_cb_t *)read_node_cb, read_node_cb_data, 
 			(write_node_cb_t *)write_node_cb, write_node_cb_data, 
@@ -304,7 +304,7 @@ btest_init(int argc, char **argv, char *program, btest_parse_fn parse_fn)
 			(log_cb_t *)log_cb, log_cb_data, 
 			msg_cb, msg_cb_data, 
 			cmp_cb, cmp_cb_data,
-			(trx_cmd_cb_t *)trx_cmd_cb
+			(trx_cmd_cb_t *)trx_cmd_cb, 4
 	                );
 
 	if (cfg->bt == NULL) {
@@ -312,7 +312,7 @@ btest_init(int argc, char **argv, char *program, btest_parse_fn parse_fn)
 	}
 
 	/* generate some random keys and data and stash in a hashtable and array */
-	cfg->kmap = MapInit(cfg->n_test_keys, 0, 0, NULL, NULL);
+	cfg->kmap = MapInit(cfg->n_test_keys, 0, 0, NULL);
 	if (cfg->kmap == NULL) {
 		Error("Could not create key map!");
 	}
@@ -375,7 +375,7 @@ btest_serial_data_gen(btest_cfg_t *cfg)
 		cfg->datas[nsuccess] = pdata;
 		cfg->datalens[nsuccess] = datalen;
 
-		if (!MapCreate(cfg->kmap, (char *) &key, sizeof(uint64_t), pdata, datalen)) {
+		if (!MapCreate(cfg->kmap, (char *) &key, sizeof(uint64_t), pdata, datalen, 4, (void *)cfg->bt)) {
 			// Error("MapCreate failed for data item %d", nsuccess);
 			nconflict++;
 		} else {
@@ -456,7 +456,7 @@ btest_rand_data_gen(btest_cfg_t *cfg)
 		cfg->datas[nsuccess] = pdata;
 		cfg->datalens[nsuccess] = datalen;
 
-		if (!MapCreate(cfg->kmap, (char *) &key, sizeof(uint64_t), pdata, datalen)) {
+		if (!MapCreate(cfg->kmap, (char *) &key, sizeof(uint64_t), pdata, datalen, 4, (void *)cfg->bt)) {
 			// Error("MapCreate failed for data item %d", nsuccess);
 			nconflict++;
 		} else {
@@ -569,7 +569,7 @@ btest_life_cycle(btest_cfg_t *cfg)
 			(void) MapSet(cfg->kmap, (char *) &(cfg->keys[nkey]), 
 			              sizeof(uint64_t), 
 			              cfg->datas[nkey], cfg->datalens[nkey],
-			              &old_pdata, &old_datalen);
+			              &old_pdata, &old_datalen, 4, (void *)cfg->bt);
 
 		    	ret = btree_set(cfg->bt, 
 			                keytmp, strlen(keytmp) + 1, 
@@ -591,7 +591,7 @@ btest_life_cycle(btest_cfg_t *cfg)
 			meta.flags = 0;
 			if (!MapUpdate(cfg->kmap, 
 			               (char *) &(cfg->keys[nkey]), sizeof(uint64_t),
-			               cfg->datas[nkey], cfg->datalens[nkey])) {
+			               cfg->datas[nkey], cfg->datalens[nkey], 4, (void *)cfg->bt)) {
 				Error("Inconsistency with MapUpdate for key %lld "
 				      "(i=%lld)", cfg->keys[nkey], i);
 	    		}

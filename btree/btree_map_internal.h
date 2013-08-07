@@ -28,6 +28,7 @@ typedef struct MapEntry {
     struct MapEntry  *next_lru;
     struct MapEntry  *prev_lru;
     struct MapBucket *bucket;
+	uint64_t cguid;
 } MapEntry_t;
 
 typedef struct MapEntryBlock {

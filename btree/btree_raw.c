@@ -84,6 +84,9 @@
 #define MODIFY_TREE 1
 #define META_COUNTER_SAVE_INTERVAL 100000
 
+extern uint64_t n_global_l1cache_buckets;
+extern struct PMap *global_l1cache;
+
 //  used to count depth of btree traversal for writes/deletes
 __thread int _pathcnt;
 
@@ -189,8 +192,9 @@ static btree_raw_mem_node_t *get_new_node(btree_status_t *ret, btree_raw_t *btre
 //static btree_raw_mem_node_t *get_new_node_low(btree_status_t *ret, btree_raw_t *btree, uint32_t leaf_flags, int ref);
 btree_raw_mem_node_t *get_existing_node_low(btree_status_t *ret, btree_raw_t *btree, uint64_t logical_id, int ref);
 
-static int init_l1cache(btree_raw_t *btree, uint32_t n_l1cache_buckets);
-static void destroy_l1cache(btree_raw_t *bt);
+int init_l1cache();
+void destroy_l1cache();
+void clean_l1cache(btree_raw_t* btree);
 
 static btree_status_t deref_l1cache(btree_raw_t *btree);
 static void ref_l1cache(btree_raw_t *btree, btree_raw_mem_node_t *n);
@@ -284,7 +288,7 @@ l1cache_replace(void *callback_data, char *key, uint32_t keylen, char *pdata, ui
 }
 
 btree_raw_t *
-btree_raw_init(uint32_t flags, uint32_t n_partition, uint32_t n_partitions, uint32_t max_key_size, uint32_t min_keys_per_node, uint32_t nodesize, uint32_t n_l1cache_buckets, create_node_cb_t *create_node_cb, void *create_node_data, read_node_cb_t *read_node_cb, void *read_node_cb_data, write_node_cb_t *write_node_cb, void *write_node_cb_data, flush_node_cb_t *flush_node_cb, void *flush_node_cb_data, freebuf_cb_t *freebuf_cb, void *freebuf_cb_data, delete_node_cb_t *delete_node_cb, void *delete_node_data, log_cb_t *log_cb, void *log_cb_data, msg_cb_t *msg_cb, void *msg_cb_data, cmp_cb_t *cmp_cb, void * cmp_cb_data, trx_cmd_cb_t *trx_cmd_cb)
+btree_raw_init(uint32_t flags, uint32_t n_partition, uint32_t n_partitions, uint32_t max_key_size, uint32_t min_keys_per_node, uint32_t nodesize, create_node_cb_t *create_node_cb, void *create_node_data, read_node_cb_t *read_node_cb, void *read_node_cb_data, write_node_cb_t *write_node_cb, void *write_node_cb_data, flush_node_cb_t *flush_node_cb, void *flush_node_cb_data, freebuf_cb_t *freebuf_cb, void *freebuf_cb_data, delete_node_cb_t *delete_node_cb, void *delete_node_data, log_cb_t *log_cb, void *log_cb_data, msg_cb_t *msg_cb, void *msg_cb_data, cmp_cb_t *cmp_cb, void * cmp_cb_data, trx_cmd_cb_t *trx_cmd_cb, uint64_t cguid)
 {
     btree_raw_t      *bt;
     uint32_t          nbytes_meta;
@@ -297,9 +301,16 @@ btree_raw_init(uint32_t flags, uint32_t n_partition, uint32_t n_partitions, uint
         return(NULL);
     }
 
-    if (init_l1cache(bt, n_l1cache_buckets)) {
-        return(NULL);
-    }
+    if(global_l1cache){
+		bt->l1cache = global_l1cache;
+	} else {
+		return NULL;
+	}
+
+	if(n_global_l1cache_buckets)
+		bt->n_l1cache_buckets = n_global_l1cache_buckets;
+	
+	bt->cguid = cguid;
 
     if (flags & VERBOSE_DEBUG) {
         Verbose = 1;
@@ -419,7 +430,7 @@ btree_raw_init(uint32_t flags, uint32_t n_partition, uint32_t n_partitions, uint
 void
 btree_raw_destroy (struct btree_raw **bt)
 {
-		destroy_l1cache(*bt);
+		clean_l1cache(*bt);
 		free(*bt);
 		*bt = NULL;
 }
@@ -1106,11 +1117,10 @@ btree_status_t btree_raw_get(struct btree_raw *btree, char *key, uint32_t keylen
 //======================   INSERT/UPDATE/UPSERT  =========================================
 
 //  return 0 if success, 1 otherwise
-static int
-init_l1cache(btree_raw_t *bt, uint32_t n_l1cache_buckets)
+int
+init_l1cache()
 {
 	int n = 0;
-    bt->n_l1cache_buckets = n_l1cache_buckets;
 
     char *p = getenv("N_L1CACHE_PARTITIONS");
     if(p)
@@ -1118,17 +1128,25 @@ init_l1cache(btree_raw_t *bt, uint32_t n_l1cache_buckets)
     if(n <=0 || n > 10000000)
         n = 256;
 
-    bt->l1cache = PMapInit(n, n_l1cache_buckets / n + 1, 16 * (n_l1cache_buckets / n + 1), 1, l1cache_replace, (void *) bt);
-    if (bt->l1cache == NULL) {
+    global_l1cache = PMapInit(n, n_global_l1cache_buckets / n + 1, 16 * (n_global_l1cache_buckets / n + 1), 1, l1cache_replace);
+    if (global_l1cache == NULL) {
         return(1);
     }
     return(0);
 }
 
 void
-destroy_l1cache(btree_raw_t *bt)
+destroy_l1cache()
 {
-		PMapDestroy(&(bt->l1cache));
+	if( global_l1cache ){
+		PMapDestroy(&global_l1cache);
+	}
+}
+
+void
+clean_l1cache(btree_raw_t* btree)
+{
+	PMapClean(&(btree->l1cache), btree->cguid, (void *)btree);
 }
 
 void
@@ -1139,7 +1157,7 @@ deref_l1cache_node(btree_raw_t* btree, btree_raw_mem_node_t *node)
 
     dbg_print("node %p id %ld root: %d leaf: %d refcnt %d dbg_referenced: %lx mpnode %ld refs %ld\n", node, node->pnode->logical_id, is_root(btree, node->pnode), is_leaf(btree, node->pnode), PMapGetRefcnt(btree->l1cache, (char *) &node->pnode->logical_id, sizeof(uint64_t)), dbg_referenced, modified_nodes_count, referenced_nodes_count);
 
-    if (!PMapRelease(btree->l1cache, (char *) &node->pnode->logical_id, sizeof(node->pnode->logical_id)))
+    if (!PMapRelease(btree->l1cache, (char *) &node->pnode->logical_id, sizeof(node->pnode->logical_id), btree->cguid))
         assert(0);
 
     assert(dbg_referenced);
@@ -1229,7 +1247,7 @@ static btree_raw_mem_node_t* add_l1cache(btree_raw_t *btree, btree_raw_node_t *n
 
     dbg_print("%p id %ld lock %p root: %d leaf: %d over: %d\n", n, n->logical_id, &node->lock, is_root(btree, n), is_leaf(btree, n), is_overflow(btree, n));
 
-    if(!PMapCreate(btree->l1cache, (char *) &(n->logical_id), sizeof(uint64_t), (char *) node, sizeof(uint64_t)))
+    if(!PMapCreate(btree->l1cache, (char *) &(n->logical_id), sizeof(uint64_t), (char *) node, sizeof(uint64_t), btree->cguid, (void *)btree))
     {
         plat_rwlock_destroy(&node->lock);
         free(node);
@@ -1257,10 +1275,10 @@ static btree_raw_mem_node_t *get_l1cache(btree_raw_t *btree, uint64_t logical_id
     btree_raw_mem_node_t *n;
     uint64_t datalen;
 
-    if (PMapGet(btree->l1cache, (char *) &logical_id, sizeof(uint64_t), (char **) &n, &datalen) == NULL)
+    if (PMapGet(btree->l1cache, (char *) &logical_id, sizeof(uint64_t), (char **) &n, &datalen, btree->cguid) == NULL)
         return NULL;
     if (btree->trx_cmd_cb( TRX_CACHE_QUERY, btree->write_node_cb_data, (void *)logical_id) == 0) {
-		PMapDelete( btree->l1cache, (char *)&logical_id, sizeof logical_id);
+		PMapDelete( btree->l1cache, (char *)&logical_id, sizeof logical_id, btree->cguid, (void *)btree);
 		return (NULL);
     }
 
@@ -1276,7 +1294,7 @@ static void delete_l1cache(btree_raw_t *btree, btree_raw_mem_node_t *n)
     dbg_print("node %p root: %d leaf: %d refcnt %d\n", n, is_root(btree, n->pnode), is_leaf(btree, n->pnode), PMapGetRefcnt(btree->l1cache, (char *) &n->pnode->logical_id, sizeof(uint64_t)));
 
     btree->trx_cmd_cb( TRX_CACHE_DEL, btree->write_node_cb_data, (void *)n->pnode->logical_id);
-    (void) PMapDelete(btree->l1cache, (char *) &(n->pnode->logical_id), sizeof(uint64_t));
+    (void) PMapDelete(btree->l1cache, (char *) &(n->pnode->logical_id), sizeof(uint64_t), btree->cguid, (void *)btree);
 
     btree->stats.stat[BTSTAT_L1ENTRIES] = PMapNEntries(btree->l1cache);
 }

@@ -127,6 +127,7 @@ typedef struct btree_raw {
     plat_rwlock_t      lock;
 
     uint64_t           modified;
+	uint64_t           cguid;
 uint64_t		next_logical_id;
 } btree_raw_t;
 

@@ -51,9 +51,9 @@ void check_list(MapBucket_t *pb, MapEntry_t *pme);
 static void insert_lru(struct Map *pm, MapEntry_t *pme);
 static void remove_lru(struct Map *pm, MapEntry_t *pme);
 static void update_lru(struct Map *pm, MapEntry_t *pme);
-static void replace_lru(struct Map *pm, MapEntry_t *pme);
-static MapEntry_t *find_pme(struct Map *pm, char *pkey, uint32_t keylen, MapBucket_t **pb);
-static MapEntry_t *create_pme(Map_t *pm, char *pkey, uint32_t keylen, char *pdata, uint64_t datalen);
+static void replace_lru(struct Map *pm, MapEntry_t *pme, void *replacement_callback_data);
+static MapEntry_t *find_pme(struct Map *pm, char *pkey, uint32_t keylen, MapBucket_t **pb, uint64_t cguid);
+static MapEntry_t *create_pme(Map_t *pm, char *pkey, uint32_t keylen, char *pdata, uint64_t datalen, uint64_t cguid);
 // static MapEntry_t *copy_pme(Map_t *pm, MapEntry_t *pme);
 // static MapEntry_t *copy_pme_list(Map_t *pm, MapEntry_t *pme);
 static void free_pme(Map_t *pm, MapEntry_t *pme);
@@ -98,6 +98,7 @@ static void free_entry(Map_t *pm, MapEntry_t *e)
 	e->refcnt = e->keylen = e->datalen = 0;
 	e->next_lru = e->prev_lru = NULL;
 	e->key = NULL;
+	e->cguid = 0;
     pm->FreeEntries = e;
     pm->NUsedEntries--;
 }
@@ -131,7 +132,7 @@ static void free_iterator(Map_t *pm, struct Iterator *it)
     pm->NUsedIterators--;
 }
 
-struct Map *MapInit(uint64_t nbuckets, uint64_t max_entries, char use_locks, void (*replacement_callback)(void *callback_data, char *key, uint32_t keylen, char *pdata, uint64_t datalen), void *replacement_callback_data)
+struct Map *MapInit(uint64_t nbuckets, uint64_t max_entries, char use_locks, void (*replacement_callback)(void *callback_data, char *key, uint32_t keylen, char *pdata, uint64_t datalen))
 {
     uint64_t          i;
     Map_t       *pm;
@@ -141,7 +142,7 @@ struct Map *MapInit(uint64_t nbuckets, uint64_t max_entries, char use_locks, voi
     pm->lru_head       = NULL;
     pm->lru_tail       = NULL;
     pm->replacement_callback       = replacement_callback;
-    pm->replacement_callback_data  = replacement_callback_data;
+    //pm->replacement_callback_data  = replacement_callback_data;
     pm->use_locks      = use_locks;
     pm->max_entries    = max_entries;
     pm->n_entries      = 0;
@@ -182,19 +183,11 @@ void MapDestroy(struct Map *pm)
 {
 	MapEntryBlock_t	*b, *bnext;
 	MapEntry_t		*e;
-	int				i;
 
 	b = pm->EntryBlocks;
 	while (b != NULL) {
 		bnext = b->next;
 		e = b->e;
-		for (i=0; i<N_ENTRIES_TO_MALLOC; i++) {
-			if (e[i].contents) {
-				(pm->replacement_callback)(pm->replacement_callback_data,
-								e[i].key, e[i].keylen, e[i].contents,
-							   	e[i].datalen);
-			}
-		}
 		free(b->e);
 		free(b);
 		b = bnext;
@@ -207,6 +200,28 @@ void MapDestroy(struct Map *pm)
     free(pm->buckets);
     pthread_mutex_destroy(&(pm->mutex));
     free(pm);
+}
+
+void MapClean(struct Map *pm, uint64_t cguid, void *replacement_callback_data)
+{
+#if 0
+	MapEntryBlock_t *b, *bnext;
+	MapEntry_t      *e;
+	int             i;
+
+	b = pm->EntryBlocks;
+	while (b != NULL) {
+		bnext = b->next;
+		e = b->e;
+		for (i=0; i<N_ENTRIES_TO_MALLOC; i++) {
+			if (e[i].contents && (e[i].cguid == cguid)){
+				(pm->replacement_callback)(replacement_callback_data,
+						e[i].key, e[i].keylen, e[i].contents,
+						e[i].datalen);
+			}
+		}
+	}
+#endif
 }
 
 void MapClear(struct Map *pm)
@@ -256,7 +271,7 @@ void MapCheckRefcnts(struct Map *pm)
 }
 
 //  Return non-NULL if success, NULL if object exists
-struct MapEntry *MapCreate(struct Map *pm, char *pkey, uint32_t keylen, char *pdata, uint64_t datalen)
+struct MapEntry *MapCreate(struct Map *pm, char *pkey, uint32_t keylen, char *pdata, uint64_t datalen, uint64_t cguid, void *replacement_callback_data)
 {
     MapEntry_t   *pme;
     MapBucket_t  *pb;
@@ -267,7 +282,7 @@ struct MapEntry *MapCreate(struct Map *pm, char *pkey, uint32_t keylen, char *pd
 	fprintf(stderr, "MapCreate: pm=%p, key=0x%lx, keylen=%d, pdata=%p, datalen=%ld, ", pm, *((uint64_t *) pkey), keylen, pdata, datalen);
     #endif
 
-    pme = find_pme(pm, pkey, keylen, &pb);
+    pme = find_pme(pm, pkey, keylen, &pb, cguid);
 
     if (pme != NULL) {
 	#ifdef SANDISK_PRINTSTUFF
@@ -280,7 +295,7 @@ struct MapEntry *MapCreate(struct Map *pm, char *pkey, uint32_t keylen, char *pd
 
     /* Create a new entry. */
 
-    pme = create_pme(pm, pkey, keylen, pdata, datalen);
+    pme = create_pme(pm, pkey, keylen, pdata, datalen, cguid);
 
     /* put myself on the bucket list */
     pme->refcnt = 1;
@@ -299,7 +314,7 @@ struct MapEntry *MapCreate(struct Map *pm, char *pkey, uint32_t keylen, char *pd
 
 		if ((pm->max_entries > 0) && (pm->n_entries > pm->max_entries)) {
 	    	// do an LRU replacement
-	    	replace_lru(pm, pme);
+	    	replace_lru(pm, pme, replacement_callback_data);
 		}
     }
 
@@ -312,7 +327,7 @@ struct MapEntry *MapCreate(struct Map *pm, char *pkey, uint32_t keylen, char *pd
 }
 
 //  Return non-NULL if success, NULL if object does not exist
-struct MapEntry *MapUpdate(struct Map *pm, char *pkey, uint32_t keylen, char *pdata, uint64_t datalen)
+struct MapEntry *MapUpdate(struct Map *pm, char *pkey, uint32_t keylen, char *pdata, uint64_t datalen, uint64_t cguid, void *replacement_callback_data)
 {
     MapEntry_t   *pme;
 
@@ -322,7 +337,7 @@ struct MapEntry *MapUpdate(struct Map *pm, char *pkey, uint32_t keylen, char *pd
 	fprintf(stderr, "MapUpdate: pm=%p, key=0x%lx, keylen=%d, pdata=%p, datalen=%ld\n", pm, *((uint64_t *) pkey), keylen, pdata, datalen);
     #endif
 
-    pme = find_pme(pm, pkey, keylen, NULL);
+    pme = find_pme(pm, pkey, keylen, NULL, cguid);
 
     if (pme == NULL) {
 		do_unlock(&(pm->mutex));
@@ -338,7 +353,7 @@ struct MapEntry *MapUpdate(struct Map *pm, char *pkey, uint32_t keylen, char *pd
 
     if (pm->replacement_callback) {
         //  return NULL for key so that it is not freed!
-		(pm->replacement_callback)(pm->replacement_callback_data, pme->key, pme->keylen, pme->contents, pme->datalen);
+		(pm->replacement_callback)(replacement_callback_data, pme->key, pme->keylen, pme->contents, pme->datalen);
     }
 
     pme->contents = pdata;
@@ -349,7 +364,7 @@ struct MapEntry *MapUpdate(struct Map *pm, char *pkey, uint32_t keylen, char *pd
 }
 
 //  Return non-NULL if success, NULL if object exists
-struct MapEntry *MapSet(struct Map *pm, char *pkey, uint32_t keylen, char *pdata, uint64_t datalen, char **old_pdata, uint64_t *old_datalen)
+struct MapEntry *MapSet(struct Map *pm, char *pkey, uint32_t keylen, char *pdata, uint64_t datalen, char **old_pdata, uint64_t *old_datalen, uint64_t cguid, void *replacement_callback_data)
 {
     MapEntry_t   *pme;
     MapBucket_t  *pb;
@@ -360,7 +375,7 @@ struct MapEntry *MapSet(struct Map *pm, char *pkey, uint32_t keylen, char *pdata
 	fprintf(stderr, "MapSet: pm=%p, key=0x%lx, keylen=%d, pdata=%p, datalen=%ld\n", pm, *((uint64_t *) pkey), keylen, pdata, datalen);
     #endif
 
-    pme = find_pme(pm, pkey, keylen, &pb);
+    pme = find_pme(pm, pkey, keylen, &pb, cguid);
 
     if (pme != NULL) {
 
@@ -368,7 +383,7 @@ struct MapEntry *MapSet(struct Map *pm, char *pkey, uint32_t keylen, char *pdata
 
 		if (pm->replacement_callback) {
 			//  return NULL for key so that it is not freed!
-			(pm->replacement_callback)(pm->replacement_callback_data, NULL, 0, pme->contents, pme->datalen);
+			(pm->replacement_callback)(replacement_callback_data, NULL, 0, pme->contents, pme->datalen);
 		}
 
 		*old_pdata   = pme->contents;
@@ -386,7 +401,7 @@ struct MapEntry *MapSet(struct Map *pm, char *pkey, uint32_t keylen, char *pdata
 
 		/* Create a new entry. */
 
-		pme = create_pme(pm, pkey, keylen, pdata, datalen);
+		pme = create_pme(pm, pkey, keylen, pdata, datalen, cguid);
 
 		*old_pdata   = NULL;
 		*old_datalen = 0;
@@ -408,7 +423,7 @@ struct MapEntry *MapSet(struct Map *pm, char *pkey, uint32_t keylen, char *pdata
 
 	    	if ((pm->max_entries != 0) && (pm->n_entries > pm->max_entries)) {
 				// do an LRU replacement
-				replace_lru(pm, pme);
+				replace_lru(pm, pme, replacement_callback_data);
 	    	}
 		}
     }
@@ -418,7 +433,7 @@ struct MapEntry *MapSet(struct Map *pm, char *pkey, uint32_t keylen, char *pdata
 }
 
 //  Returns non-NULL if successful, NULL otherwise
-struct MapEntry *MapGet(struct Map *pm, char *key, uint32_t keylen, char **pdata, uint64_t *pdatalen)
+struct MapEntry *MapGet(struct Map *pm, char *key, uint32_t keylen, char **pdata, uint64_t *pdatalen, uint64_t cguid)
 {
     uint64_t           datalen;
     MapEntry_t   *pme;
@@ -426,7 +441,7 @@ struct MapEntry *MapGet(struct Map *pm, char *key, uint32_t keylen, char **pdata
 
     do_lock(&(pm->mutex));
 
-    pme = find_pme(pm, key, keylen, NULL);
+    pme = find_pme(pm, key, keylen, NULL, cguid);
 
     if (pme != NULL) {
         data    = pme->contents;
@@ -477,14 +492,14 @@ struct MapEntry *MapGet(struct Map *pm, char *key, uint32_t keylen, char **pdata
 
 //  Increment the reference count for this entry
 //  rc=1 if entry is found, rc=0 otherwise
-int MapGetRefcnt(struct Map *pm, char *key, uint32_t keylen)
+int MapGetRefcnt(struct Map *pm, char *key, uint32_t keylen, uint64_t cguid)
 {
     MapEntry_t   *pme;
     int res;
 
     do_lock(&(pm->mutex));
 
-    pme = find_pme(pm, key, keylen, NULL);
+    pme = find_pme(pm, key, keylen, NULL, cguid);
 
     assert(pme);
     res = (pme->refcnt);
@@ -494,7 +509,7 @@ int MapGetRefcnt(struct Map *pm, char *key, uint32_t keylen)
 }
 //  Increment the reference count for this entry
 //  rc=1 if entry is found, rc=0 otherwise
-int MapIncrRefcnt(struct Map *pm, char *key, uint32_t keylen)
+int MapIncrRefcnt(struct Map *pm, char *key, uint32_t keylen, uint64_t cguid)
 {
     MapEntry_t   *pme;
     int                rc = 0;
@@ -505,7 +520,7 @@ int MapIncrRefcnt(struct Map *pm, char *key, uint32_t keylen)
 	fprintf(stderr, "MapIncrRefcnt: pm=%p, key=0x%lx, keylen=%d", pm, *((uint64_t *) key), keylen);
     #endif
 
-    pme = find_pme(pm, key, keylen, NULL);
+    pme = find_pme(pm, key, keylen, NULL, cguid);
 
     if (pme != NULL) {
 // fprintf(stderr, ", after incr refcnt [0x%lx] =%d\n", *((uint64_t *) key), pme->refcnt + 1);
@@ -526,7 +541,7 @@ int MapIncrRefcnt(struct Map *pm, char *key, uint32_t keylen)
 
 //  Decrement the reference count for this entry
 //  rc=1 if entry is found, rc=0 otherwise
-int MapRelease(struct Map *pm, char *key, uint32_t keylen)
+int MapRelease(struct Map *pm, char *key, uint32_t keylen, uint64_t cguid)
 {
     MapEntry_t   *pme;
     int                rc = 0;
@@ -537,7 +552,7 @@ int MapRelease(struct Map *pm, char *key, uint32_t keylen)
 	fprintf(stderr, "MapRelease: pm=%p, key=0x%lx, keylen=%d", pm, *((uint64_t *) key), keylen);
     #endif
 
-    pme = find_pme(pm, key, keylen, NULL);
+    pme = find_pme(pm, key, keylen, NULL, cguid);
 
     if (pme != NULL) {
 // fprintf(stderr, ", after release [0x%lx] =%d\n", *((uint64_t *) key), pme->refcnt - 1);
@@ -618,7 +633,7 @@ void FinishEnum(struct Map *pm, struct Iterator *iterator)
 
 //  Returns 1 if successful, 0 otherwise
 //  Caller is responsible for freeing key and data
-int MapNextEnum(struct Map *pm, struct Iterator *iterator, char **key, uint32_t *keylen, char **data, uint64_t *datalen) 
+int MapNextEnum(struct Map *pm, struct Iterator *iterator, char **key, uint32_t *keylen, char **data, uint64_t *datalen, uint64_t cguid) 
 {
     MapEntry_t    *pme_return;
 
@@ -642,9 +657,13 @@ int MapNextEnum(struct Map *pm, struct Iterator *iterator, char **key, uint32_t 
 	*datalen = 0;
         return(0);
     }
-    pme_return = iterator->enum_entry;
 
-    iterator->enum_entry = pme_return->next_lru;
+    while(pme_return = iterator->enum_entry){
+		iterator->enum_entry = pme_return->next_lru;
+		if( pme_return->cguid == cguid){
+			break;
+		}
+	}
 
     if (pme_return != NULL) {
 	*key     = pme_return->key;
@@ -677,7 +696,7 @@ int MapNextEnum(struct Map *pm, struct Iterator *iterator, char **key, uint32_t 
 
 /*   Return 0 if succeeds, 1 if object doesn't exist.
  */
-int MapDelete(struct Map *pm, char *key, uint32_t keylen)
+int MapDelete(struct Map *pm, char *key, uint32_t keylen, uint64_t cguid, void *replacement_callback_data)
 {
     uint64_t            h;
     MapEntry_t   **ppme;
@@ -700,14 +719,14 @@ int MapDelete(struct Map *pm, char *key, uint32_t keylen)
 
     for (ppme = &(pb->entry); (*ppme) != NULL; ppme = &((*ppme)->next)) {
 		pme = *ppme;
-		if (pme->key == key2) {
+		if ((pme->key == key2) && (pme->cguid == cguid)) {
 
 	    	//  Remove from the LRU list if necessary
 			remove_lru(pm, pme);
 	    	pm->n_entries--;
 
             *ppme = pme->next;
-			(pm->replacement_callback)(pm->replacement_callback_data, pme->key, pme->keylen, 
+			(pm->replacement_callback)(replacement_callback_data, pme->key, pme->keylen, 
 											pme->contents, pme->datalen);
             free_pme(pm, pme);
 	    	do_unlock(&(pm->mutex));
@@ -718,7 +737,7 @@ int MapDelete(struct Map *pm, char *key, uint32_t keylen)
     return (1);
 }
 
-static MapEntry_t *create_pme(Map_t *pm, char *pkey, uint32_t keylen, char *pdata, uint64_t datalen)
+static MapEntry_t *create_pme(Map_t *pm, char *pkey, uint32_t keylen, char *pdata, uint64_t datalen, uint64_t cguid)
 {
     MapEntry_t   *pme;
 
@@ -735,6 +754,7 @@ static MapEntry_t *create_pme(Map_t *pm, char *pkey, uint32_t keylen, char *pdat
     pme->contents  = pdata;
     pme->datalen   = datalen;
 
+    pme->cguid     = cguid;
     pme->next      = NULL;
 
     return(pme);
@@ -759,6 +779,7 @@ static MapEntry_t *copy_pme(Map_t *pm, MapEntry_t *pme)
 
     pme2->next   = NULL;
     pme2->bucket = pme->bucket;
+    pme2->cguid  = pme->cguid;
 
     return(pme2);
 }
@@ -847,7 +868,7 @@ static void update_lru(struct Map *pm, MapEntry_t *pme)
     insert_lru(pm, pme);
 }
 
-static void replace_lru(struct Map *pm, MapEntry_t *pme_in)
+static void replace_lru(struct Map *pm, MapEntry_t *pme_in, void *replacement_callback_data)
 {
     MapEntry_t **ppme;
     MapEntry_t  *pme;
@@ -880,12 +901,12 @@ static void replace_lru(struct Map *pm, MapEntry_t *pme_in)
 
     remove_lru(pm, pme);
     pm->n_entries--;
-    (pm->replacement_callback)(pm->replacement_callback_data, pme->key, pme->keylen, pme->contents, pme->datalen);
+    (pm->replacement_callback)(replacement_callback_data, pme->key, pme->keylen, pme->contents, pme->datalen);
     free_pme(pm, pme);
 
 }
 
-static MapEntry_t *find_pme(struct Map *pm, char *pkey, uint32_t keylen, MapBucket_t **pb_out)
+static MapEntry_t *find_pme(struct Map *pm, char *pkey, uint32_t keylen, MapBucket_t **pb_out, uint64_t cguid)
 {
     uint64_t           h;
     MapBucket_t  *pb;
@@ -898,7 +919,7 @@ static MapEntry_t *find_pme(struct Map *pm, char *pkey, uint32_t keylen, MapBuck
 
     if (keylen == 8) {
 	for (pme = pb->entry; pme != NULL; pme = pme->next) {
-	    if (pme->key == key2) {
+	    if ((pme->key == key2) && (pme->cguid == cguid)) {
 		break;
 	    }
 	}

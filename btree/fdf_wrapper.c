@@ -32,6 +32,10 @@
 
 static char Create_Data[MAX_NODE_SIZE];
 
+uint64_t n_global_l1cache_buckets;
+struct PMap *global_l1cache;
+extern int init_l1cache();
+extern void destroy_l1cache();
 
 // xxxzzz temporary: used for dumping btree stats
 static uint64_t  n_reads = 0;
@@ -354,6 +358,23 @@ FDF_status_t _FDFInit(
     if ( ret == FDF_FAILURE ) {
         return FDF_FAILURE;
     }
+
+	char *env;
+	env = getenv("BTREE_L1CACHE_SIZE");
+	n_global_l1cache_buckets = env ? (uint64_t)atoll(env) : 0;
+	if ( n_global_l1cache_buckets ){
+		n_global_l1cache_buckets = n_global_l1cache_buckets / 16 / 8192;
+	} else {
+		n_global_l1cache_buckets = DEFAULT_N_L1CACHE_BUCKETS;
+	}
+
+	fprintf(stderr,"Number of cache buckets:%lu\n",n_global_l1cache_buckets);
+
+	if( init_l1cache() ){
+		fprintf(stderr, "Coundn't init global l1 cache.\n");
+		return FDF_FAILURE;
+	}
+
     cbs = malloc(sizeof(FDF_ext_cb_t));
     if( cbs == NULL ) {
         return FDF_FAILURE;
@@ -446,7 +467,6 @@ FDF_status_t _FDFOpenContainerSpecial(
     uint32_t      max_key_size;
     uint32_t      min_keys_per_node;
     uint32_t      nodesize;
-    uint64_t      n_l1cache_buckets;
     void         *create_node_cb_data;
     void         *read_node_cb_data;
     void         *write_node_cb_data;
@@ -553,17 +573,6 @@ restart:
 
     min_keys_per_node   = DEFAULT_MIN_KEYS_PER_NODE;
 
-    env = getenv("BTREE_L1CACHE_SIZE");
-
-    n_l1cache_buckets = env ? (uint64_t)atoll(env) : 0;
-
-    if(n_l1cache_buckets)
-	n_l1cache_buckets = n_l1cache_buckets / 16 / 8192;
-
-    if(!n_l1cache_buckets)
-	n_l1cache_buckets = DEFAULT_N_L1CACHE_BUCKETS;
-
-    fprintf(stderr,"Number of cache buckets:%lu\n",n_l1cache_buckets);
     prn->cguid            = *cguid;
     prn->nodesize         = nodesize;
 
@@ -574,7 +583,6 @@ restart:
     msg("max_key_size = %d\n",      max_key_size);
     msg("min_keys_per_node = %d\n", min_keys_per_node);
     msg("nodesize = %d\n",          nodesize);
-    msg("n_l1cache_buckets = %d\n", n_l1cache_buckets);
 #endif
 
     if (nodesize > MAX_NODE_SIZE) {
@@ -593,7 +601,6 @@ restart:
                     max_key_size, 
                     min_keys_per_node, 
                     nodesize, 
-                    n_l1cache_buckets,
                     (create_node_cb_t *)create_node_cb, 
                     create_node_cb_data, 
                     (read_node_cb_t *)read_node_cb, 
@@ -612,7 +619,8 @@ restart:
                     msg_cb_data, 
                     cmp_cb, 
                     cmp_cb_data,
-                    trx_cmd_cb 
+                    trx_cmd_cb,
+					*cguid
 		    );
 
     if (bt == NULL) {
