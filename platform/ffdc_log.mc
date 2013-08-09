@@ -2948,6 +2948,8 @@
 70127 Programming error: Numbers of stats defined in FDF_access_types_t(%d) does not match array fdf_stats_access_type(%d)
 70128 Programming error: Numbers of stats defined in FDF_cache_stat_t(%d) does not match array fdf_stats_cache(%d)
 70129 Programming error: Numbers of stats defined in fdf_stats_flash(%d) does not match array fdf_stats_flash(%d)
+70130 %ld asynchronous %ss have failed; status %d
+70131 async_puts_shutdown not implemented
 
 
 # mkrishnan

@@ -35,10 +35,10 @@ typedef enum {
     ASYNC_WRITEBACK,
     ASYNC_FLUSH,
     ASYNC_BACKGROUND_FLUSH,
-    ASYNC_DRAIN
+	ASYNC_COMMIT
 } SDF_async_rqst_type_t;
 
-typedef struct SDF_async_put_request {
+typedef struct FDF_async_rqst {
     SDF_async_rqst_type_t rtype;
     SDF_action_state_t   *pas;
     SDF_boolean_t         skip_for_wrbk;
@@ -67,7 +67,10 @@ typedef struct SDF_async_put_request {
     fthMbox_t            *drain_complete_mbx;
     SDF_container_meta_t *pmeta;
     struct SDF_action_thrd_state *pts;
-} SDF_async_put_request_t;
+	uint64_t              rqst_id;
+	uint64_t              trx_id;
+	uint64_t              syndrome;
+} FDF_async_rqst_t;
 
 /**
  * @brief Asynchronous puts/replication thread pool initialization
@@ -109,6 +112,14 @@ typedef struct SDF_async_puts_init {
 #endif
     uint32_t flash_dev_count;
 } SDF_async_puts_init_t;
+
+/*
+ * Asynchronous thread information.
+ */
+typedef struct {
+	uint64_t rqst_id;
+	uint64_t syndrome;
+} async_thr_info_t;
 
 /**
  * @brief Async puts thread pool state shared by all worker threads.
@@ -158,6 +169,14 @@ typedef struct SDF_async_puts_state {
     /** @brief Closure applied on shutdown completion */
     async_puts_shutdown_t shutdown_closure;
 
+	/* Asynchronous thread information and locks */
+	uint64_t           q_r;
+	uint64_t           q_w;
+	uint64_t           q_size;
+	pthread_cond_t     q_cond;
+	pthread_mutex_t    q_lock;
+	FDF_async_rqst_t **q_rqsts;
+	async_thr_info_t  *thr_info;
 } SDF_async_puts_state_t;
 
 __BEGIN_DECLS
@@ -181,13 +200,10 @@ async_puts_alloc(struct SDF_async_puts_init *papi, struct SDF_action_state *pas)
 void async_puts_shutdown(struct SDF_async_puts_state *paps,
                          async_puts_shutdown_t shutdown_closure);
 
-/**
- * @brief Start processing.
- *
- * @param paps <IN> async puts thread pool common state
- * @return 0 on success, non-zero on failure
- */
-int async_puts_start(struct SDF_async_puts_state *paps);
+int  async_start(struct SDF_async_puts_state *paps);
+void async_commit(void *vpai, uint64_t trx_id);
+void async_drain(SDF_async_puts_state_t *aps, uint64_t rqst_id);
+void async_qpost(SDF_action_state_t *as, FDF_async_rqst_t *rqst, int wait);
 
 __END_DECLS
 

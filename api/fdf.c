@@ -66,6 +66,8 @@
 /*
 ** Globals
 */
+static int Force_async_writes;
+static int Enable_async_writes;
 static struct sdf_agent_state agent_state;
 static sem_t Mcd_fsched_sem;
 static sem_t Mcd_initer_sem;
@@ -1907,6 +1909,8 @@ FDF_status_t FDFInit(
     mcd_log_msg( 20131, PLAT_LOG_LEVEL_TRACE,
                  "next container id %lu", Mcd_next_cntr_id );
 #endif
+	Force_async_writes  = getProperty_Int("FORCE_ASYNC_WRITES", 0);
+	Enable_async_writes = getProperty_Int("ENABLE_ASYNC_WRITES", 0);
 
     return FDF_SUCCESS;
 }
@@ -2382,7 +2386,10 @@ static FDF_status_t fdf_create_container(
 
 	properties->persistent			= SDF_TRUE;
 	//properties->evicting			= SDF_FALSE;
-	properties->async_writes		= FDF_FALSE;
+	if (Force_async_writes)
+		properties->async_writes = FDF_TRUE;
+	else if (!Enable_async_writes)
+		properties->async_writes = FDF_FALSE;
 #if 0
 	iproperties.current_size		= 0;
 	iproperties.num_obj				= 0;
@@ -6532,8 +6539,24 @@ FDF_status_t FDFTransactionCommit(
 	struct FDF_thread_state	*fdf_thread_state
 	)
 {
-        if (fdf_thread_state == 0)
-		plat_log_msg( 80049, LOG_CAT, LOG_DBG, "FDF Thread state is NULL");
+	if (fdf_thread_state == 0) {
+		plat_log_msg( 80049, LOG_CAT, LOG_DBG,
+						"FDF Thread state is NULL");
+	}
+	if (Enable_async_writes) {
+		uint64_t trx_id = mcd_trx_id();
+		if (!trx_id)
+			return FDF_FAILURE_NO_TRANS;
+
+		mcd_trx_t s = mcd_trx_detach();
+		if (s == MCD_TRX_NO_TRANS)
+			return (FDF_FAILURE_NO_TRANS);
+		if (s != MCD_TRX_OKAY)
+			return FDF_FAILURE;
+
+		async_commit(fdf_thread_state, trx_id);
+		return FDF_SUCCESS;
+	}
 
 	switch (mcd_trx_commit( fdf_thread_state)) {
 	case MCD_TRX_NO_TRANS:

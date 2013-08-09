@@ -96,6 +96,7 @@ typedef struct {
     int64_t               n_async_put_fails;
     int64_t               n_async_flush_fails;
     int64_t               n_async_wrbk_fails;
+	int64_t               n_async_commit_fails;
 } SDF_cache_ctnr_stats_t;
 
 typedef struct SDF_action_stats_new {

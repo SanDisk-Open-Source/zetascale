@@ -42,6 +42,7 @@
 #include "fth/fthMbox.h"
 #include "sdfmsg/sdf_fth_mbx.h"
 #include "sdftcp/msg_map.h"
+#include "sdftcp/trace.h"
 #include "flash/flash.h"
 
 #include "protocol/protocol_utils.h"
@@ -345,7 +346,8 @@ init_action_home(struct sdf_agent_state *state)
     }
 
     papi->paps            = async_puts_alloc(papi, pai->pcs);
-    plat_assert(papi->paps);
+    if (!papi->paps)
+		fatal("async_puts_alloc failed");
 
     return (SDF_TRUE);
 }
@@ -750,11 +752,11 @@ SDF_boolean_t agent_engine_post_init(struct sdf_agent_state * state )
      * Initialize the async put threads.
      */
     if (success) {
-	success = async_puts_start( state->AsyncPutsInitState.paps );
+	success = async_start( state->AsyncPutsInitState.paps );
 	/*
 	 * FIXME: async_puts_start returns 0 as success
 	 */
-	success = ( 0 == success ) ? SDF_TRUE : SDF_FALSE;
+	success = success ? SDF_TRUE : SDF_FALSE;
 	plat_log_msg(20856, LOG_CAT, 
 		     success ?  LOG_LEV : PLAT_LOG_LEVEL_DEBUG,
 		     "async_puts_start = %u", success);

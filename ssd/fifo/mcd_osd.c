@@ -2605,29 +2605,13 @@ mcd_fth_osd_remove_entry( mcd_osd_shard_t * shard,
 	bool delayed,
 	bool remove_entry)
 {
-	mcd_osd_slab_class_t* class;
-
     mcd_log_msg( 20000, PLAT_LOG_LEVEL_TRACE, "ENTERING" );
 
     if ( 0 == hash_entry->used || 0 == hash_entry->blocks ) {
         plat_assert_always( 0 == 1 );
     }
 
-    if (delayed)
-	{
-        class = shard->slab_classes +
-            shard->class_table[mcd_osd_lba_to_blk(hash_entry->blocks)];
-
-        uint64_t slabs = atomic_add_get(class->dealloc_pending, 1);
-        uint64_t blks  = atomic_add_get(shard->blk_dealloc_pending, class->slab_blksize);
-        // insert a clever algorithm here to determine if too
-        // much space is pending deallocation
-        if ( blks * 100 / shard->blk_allocated > 15 ||
-             ( class->used_slabs * 100 / (class->total_slabs + 1) > 40 &&
-               slabs * 100 / (class->used_slabs + 1) > 50 ) ) {
-            log_sync( shard );
-        }
-    } else
+    if (!delayed)
 		mcd_fth_osd_slab_dealloc(shard, hash_entry->address, false);
 
     atomic_sub(shard->blk_consumed, mcd_osd_lba_to_blk(hash_entry->blocks));

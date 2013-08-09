@@ -7632,76 +7632,114 @@ mcd_rec_attach_test( int testcmd, int test_arg )
     return 0;
 }
 
-
 /*
- * Section to support transactions
+ * Section to support transactions (Mongo Edition)
+ *
+ * A thread can be associated with one transaction, or be unassociated.
+ * An association is formed by creating a new transaction with
+ * mcd_trx_start(), or by attaching to an existing one with mcd_trx_attach().
+ * A transaction may have zero or more associated threads, as regulated
+ * by calls to mcd_trx_start(), mcd_trx_attach() and mcd_trx_detach().
+ * Exactly one thread can conclude a transaction with mcd_trx_commit()
+ * or mcd_trx_rollback( ), after which all associated threads are detached.
+ *
+ * A unique 64-bit ID is provided for each new transaction.  This
+ * identification scheme enables race conditions to be safely handled
+ * when a transaction with multiple associations is concluded by one of
+ * those associated threads.  Memory allocated for the transaction is
+ * freed immediately even as the other threads retain linkage through the
+ * (retired) ID.
+ *
+ * Internal organization.  All transactions are tracked with mcd_trx_state
+ * objects which are linked into hash table trxtable.  trxtable is
+ * accessed under a lock, one per bucket.  The lock also controls access
+ * to mcd_trx_state objects in that bucket.  The thread is associated if
+ * its trxid matches a transaction in trxtable.
  */
 
 #include	"protocol/action/action_new.h"
 #include	"mcd_trx.h"
 
 
-#define	TRX_LEVELS	10
+#define	trxindex( id)	((id) % nel( trxtable))
 
 
-typedef struct {
+typedef struct mcd_trx_bucket_structure	mcd_trx_bucket_t;
+typedef struct mcd_trx_state_structure	mcd_trx_state_t;
+typedef struct mcd_trx_rec_structure	mcd_trx_rec_t;
+typedef pthread_mutex_t			mutex_t;
+
+struct mcd_trx_rec_structure {
 	mcd_logrec_object_t	lr;
 	uint64_t		syn;
 	mcd_osd_hash_t		e;
-} mcd_trx_rec_t;
-
-struct mcd_trx_state {
+};
+struct mcd_trx_state_structure {
+	mcd_trx_state_t		*next;
 	mcd_osd_shard_t		*s;
 	mcd_trx_rec_t		trtab[TRX_LIMIT];
-	uint			n,
-				level,
-				nbase[TRX_LEVELS];
+	uint			n;
 	mcd_trx_t		status;
 	uint64_t		id;
 };
+struct mcd_trx_bucket_structure {
+	mcd_trx_state_t		*trx;
+	mutex_t			lock;
+};
 
 
-void	mcd_osd_trx_revert( mcd_osd_shard_t *, mcd_logrec_object_t *, uint64_t, mcd_osd_hash_t *);
-bool	mcd_osd_trx_insert( mcd_osd_shard_t *, uint64_t, mcd_osd_hash_t *);
+void			mcd_osd_trx_revert( mcd_osd_shard_t *, mcd_logrec_object_t *, uint64_t, mcd_osd_hash_t *);
+bool			mcd_osd_trx_insert( mcd_osd_shard_t *, uint64_t, mcd_osd_hash_t *);
+static mcd_trx_t	mcd_trx_commit_internal( void *, mcd_trx_state_t *),
+			mcd_trx_rollback_internal( void *, mcd_trx_state_t *);
+static mcd_trx_state_t	*trx_find( uint64_t),
+			*trx_del( uint64_t);
+static void		trx_add( mcd_trx_state_t *),
+			trx_lock( uint64_t),
+			trx_unlock( uint64_t);
 
-static __thread struct mcd_trx_state	*trx;
-static mcd_trx_stats_t			mcd_trx_stats;
-static uint64_t				trx_id;
+static __thread uint64_t
+			trxid;
+static mcd_trx_bucket_t	trxtable[256];
+static mcd_trx_stats_t	mcd_trx_stats;
 
 
 /*
  * start transaction
  *
- * Callable from FDF top-level.  Concurrent transactions are supported, one
- * per thread.  Activity on objects will be deferred in the log; activity on
- * containers is not defined during a transaction.  Incremental changes are
- * visible to all threads, meaning poor (ACID) isolation.  Transactions in
- * progress are forgotten after a crash.
+ * Callable from FDF top-level.  Concurrent transactions are supported.
+ * Activity on objects will be deferred in the log; activity on containers
+ * is not defined during a transaction.  Incremental changes are visible
+ * to all threads, meaning poor (ACID) isolation.  Transactions in progress
+ * are forgotten after a crash.
  *
- * Fails if memory exhausted or transaction already active.
+ * Fails if memory exhausted, or a transaction is already associated.
  */
 mcd_trx_t
 mcd_trx_start( )
 {
+	static uint64_t	next_trx_id;
+	mcd_trx_state_t	*t;
 
-	if (trx) {
-		unless (trx->status == MCD_TRX_OKAY)
-			return (trx->status);
-		unless (trx->level < TRX_LEVELS-1)
-			return (MCD_TRX_TOO_MANY);
-		++trx->level;
+	if (trxid) {
+		trx_lock( trxid);
+		if (trx_find( trxid)) {
+			trx_unlock( trxid);
+			return (MCD_TRX_TRANS_ACTIVE);
+		}
+		trx_unlock( trxid);
 	}
-	else {
-		unless (trx = plat_alloc( sizeof *trx))
-			return (MCD_TRX_NO_MEM);
-		trx->s = 0;
-		trx->n = 0;
-		trx->id = __sync_add_and_fetch( &trx_id, 1);
-		trx->level = 0;
-		trx->status = MCD_TRX_OKAY;
-	}
-	trx->nbase[trx->level] = trx->n;
-	return (trx->status);
+	unless (t = plat_alloc( sizeof *t))
+		return (MCD_TRX_NO_MEM);
+	t->s = 0;
+	t->n = 0;
+	t->status = MCD_TRX_OKAY;
+	t->id = __sync_add_and_fetch( &next_trx_id, 1);
+	trxid = t->id;
+	trx_lock( trxid);
+	trx_add( t);
+	trx_unlock( trxid);
+	return (MCD_TRX_OKAY);
 }
 
 
@@ -7714,51 +7752,21 @@ mcd_trx_start( )
  * avoided by padding the remaindered log with no-op entries (CAS type).
  *
  * Fails if transaction limit was exceeded, transaction referenced multiple
- * (physical) shards, or no transaction active.  In the first two cases,
+ * (physical) shards, or no attached transaction.  In the first two cases,
  * the transaction is rolled back automatically (see mcd_trx_rollback for
  * those details).
  */
 mcd_trx_t
 mcd_trx_commit( void *pai)
 {
-	uint	i;
 
-	unless (trx)
+	trx_lock( trxid);
+	mcd_trx_state_t *t = trx_del( trxid);
+	trx_unlock( trxid);
+	unless (t)
 		return (MCD_TRX_NO_TRANS);
-	if (trx->level) {
-		--trx->level;
-		return (trx->status);
-	}
-	unless (trx->status == MCD_TRX_OKAY)
-		return (mcd_trx_rollback( pai));
-	if (trx->n) {
-		fthWaitEl_t *w = fthLock( &trx->s->log->sync_fill_lock, 1, NULL);
-		if (trx->n > 1) {
-			mcd_rec_log_t *log = trx->s->log;
-			uint n = __sync_fetch_and_add( &log->write_buffer_seqno, 0);
-			n = log->total_slots - n%log->total_slots;
-			if (n < trx->n*MCD_REC_LOGBUF_SLOTS/MCD_REC_LOGBUF_RECS+1+2*MCD_REC_LOGBUF_RECS) {
-				mcd_logrec_object_t z;
-				memset( &z, 0, sizeof z);
-				z.blk_offset = 0xffffffffu;	/* CAS type */
-				for (i=0; i<n*MCD_REC_LOGBUF_RECS/MCD_REC_LOGBUF_SLOTS; ++i)
-					log_write_internal( trx->s, &z);
-			}
-		}
-		for (i=0; i<trx->n-1; ++i) {
-			trx->trtab[i].lr.trx = TRX_OP;
-			log_write_internal( trx->s, &trx->trtab[i].lr);
-		}
-		trx->trtab[i].lr.trx = TRX_OP_LAST;
-		log_write_internal( trx->s, &trx->trtab[i].lr);
-		fthUnlock( w);
-		mcd_trx_stats.operations += trx->n;
-	}
-	mcd_trx_stats.transactions++;
-	mcd_trx_t status = trx->status;
-	plat_free( trx);
-	trx = 0;
-	return (status);
+	trxid = 0;
+	return (mcd_trx_commit_internal( pai, t));
 }
 
 
@@ -7770,55 +7778,116 @@ mcd_trx_commit( void *pai)
  * Accumulated log entries not written, but pitched.  Objects created by
  * the transaction are purged from the object cache.
  *
- * Fails if hash table is unexpectedly full, or no transaction active.
+ * Fails if hash table is unexpectedly full, or no attached transaction.
  */
 mcd_trx_t
 mcd_trx_rollback( void *pai)
 {
-	uint	i;
 
-	unless (trx)
+	trx_lock( trxid);
+	mcd_trx_state_t *t = trx_del( trxid);
+	trx_unlock( trxid);
+	unless (t)
 		return (MCD_TRX_NO_TRANS);
-	unless ((trx->level == 0)
-	or (trx->status == MCD_TRX_OKAY)) {
-		--trx->level;
-		return (trx->status);
-	}
-	for (i=0; i<trx->n-trx->nbase[trx->level]; ++i) {
-		mcd_trx_rec_t *r = &trx->trtab[trx->n-i-1];
-		if (r->lr.blocks) {
-			mcd_osd_trx_revert( trx->s, &r->lr, r->syn, &r->e);
-			uint64_t bi = r->syn%trx->s->hash_size / Mcd_osd_bucket_size;
-			cache_inval_by_mhash( pai, &trx->s->shard, r->lr.blk_offset, bi, r->syn>>OSD_HASH_SYN_SHIFT);
-		}
-		else unless (mcd_osd_trx_insert( trx->s, r->syn, &r->e))
-			trx->status = MCD_TRX_HASHTABLE_FULL;
-	}
-	trx->n = trx->nbase[trx->level];
-	if (trx->level) {
-		--trx->level;
-		return (trx->status);
-	}
-	unless (trx->status == MCD_TRX_OKAY)
-		mcd_trx_stats.failures++;
-	mcd_trx_stats.transactions++;
-	mcd_trx_t status = trx->status;
-	plat_free( trx);
-	trx = 0;
-	return (status);
+	trxid = 0;
+	return (mcd_trx_rollback_internal( pai, t));
 }
 
 
 /*
- * id of transaction
+ * ID of transaction
  *
- * Return ID of current transaction, or 0 if none active.
-*/
+ * Return ID of the current transaction, or 0 if no transaction is attached
+ * to this thread.
+ */
 uint64_t
 mcd_trx_id( )
 {
 
-	return (trx? trx->id: 0);
+	if (trxid) {
+		trx_lock( trxid);
+		unless (trx_find( trxid))
+			trxid = 0;
+		trx_unlock( trxid);
+	}
+	return (trxid);
+}
+
+
+/*
+ * detach from current transaction
+ *
+ * Callable from FDF top-level.  On return, thread has no associated
+ * transaction.  Transaction remains active and can be concluded by other
+ * associated threads, or by any thread with mcd_trx_commit_id().
+ *
+ * Fails if no attached transaction.  Note that detaching from a transaction
+ * that has just been concluded by another thread is not an error.
+ */
+mcd_trx_t
+mcd_trx_detach( )
+{
+
+	unless (trxid)
+		return (MCD_TRX_NO_TRANS);
+	trxid = 0;
+	return (MCD_TRX_OKAY);
+}
+
+
+/*
+ * attach to transaction
+ *
+ * Callable from FDF top-level.  On return, caller's thread is now associated
+ * with the transaction specified by the given ID.
+ *
+ * Fails if transaction doesn't exist, or caller has a transaction already.
+ */
+mcd_trx_t
+mcd_trx_attach( uint64_t id)
+{
+	mcd_trx_state_t	*t;
+
+	if (trxid) {
+		trx_lock( trxid);
+		if (trx_find( trxid)) {
+			trx_unlock( trxid);
+			return (MCD_TRX_TRANS_ACTIVE);
+		}
+		trx_unlock( trxid);
+	}
+	trx_lock( id);
+	unless (t = trx_find( id)) {
+		trx_unlock( id);
+		return (MCD_TRX_NO_TRANS);
+	}
+	trxid = t->id;
+	trx_unlock( id);
+	return (MCD_TRX_OKAY);
+}
+
+
+/*
+ * commit transaction by ID
+ *
+ * Callable from FDF top-level.  On return, specified transaction has been
+ * committed to persistent storage.
+ *
+ * Fails if transaction limit was exceeded, transaction referenced multiple
+ * (physical) shards, or no such transaction exists.  In the first two cases,
+ * the transaction is rolled back automatically - see mcd_trx_rollback()
+ * for details.
+ */
+mcd_trx_t
+mcd_trx_commit_id( void *pai, uint64_t id)
+{
+
+	trx_lock( id);
+	mcd_trx_state_t *t = trx_del( id);
+	trx_unlock( id);
+	unless (t)
+		return (MCD_TRX_NO_TRANS);
+	return (mcd_trx_commit_internal( pai, t));
 }
 
 
@@ -7840,11 +7909,138 @@ mcd_trx_print_stats( FILE *f)
 }
 
 
+static mcd_trx_t
+mcd_trx_commit_internal( void *pai, mcd_trx_state_t *t)
+{
+	uint	i;
+
+	unless (t->status == MCD_TRX_OKAY)
+		return (mcd_trx_rollback_internal( pai, t));
+	if (t->n) {
+		fthWaitEl_t *w = fthLock( &t->s->log->sync_fill_lock, 1, NULL);
+		if (t->n > 1) {
+			mcd_rec_log_t *log = t->s->log;
+			uint n = __sync_fetch_and_add( &log->write_buffer_seqno, 0);
+			n = log->total_slots - n%log->total_slots;
+			if (n < t->n*MCD_REC_LOGBUF_SLOTS/MCD_REC_LOGBUF_RECS+1+2*MCD_REC_LOGBUF_RECS) {
+				mcd_logrec_object_t z;
+				memset( &z, 0, sizeof z);
+				z.blk_offset = 0xffffffffu;	/* CAS type */
+				for (i=0; i<n*MCD_REC_LOGBUF_RECS/MCD_REC_LOGBUF_SLOTS; ++i)
+					log_write_internal( t->s, &z);
+			}
+		}
+		for (i=0; i<t->n-1; ++i) {
+			t->trtab[i].lr.trx = TRX_OP;
+			log_write_internal( t->s, &t->trtab[i].lr);
+		}
+		t->trtab[i].lr.trx = TRX_OP_LAST;
+		log_write_internal( t->s, &t->trtab[i].lr);
+		fthUnlock( w);
+		mcd_trx_stats.operations += t->n;
+	}
+	mcd_trx_stats.transactions++;
+	mcd_trx_t status = t->status;
+	plat_free( t);
+	return (status);
+}
+
+
+static mcd_trx_t
+mcd_trx_rollback_internal( void *pai, mcd_trx_state_t *t)
+{
+	uint	i;
+
+	for (i=0; i<t->n; ++i) {
+		mcd_trx_rec_t *r = &t->trtab[t->n-i-1];
+		if (r->lr.blocks) {
+			mcd_osd_trx_revert( t->s, &r->lr, r->syn, &r->e);
+			uint64_t bi = r->syn%t->s->hash_size / Mcd_osd_bucket_size;
+			cache_inval_by_mhash( pai, &t->s->shard, r->lr.blk_offset, bi, r->syn>>OSD_HASH_SYN_SHIFT);
+		}
+		else unless (mcd_osd_trx_insert( t->s, r->syn, &r->e))
+			t->status = MCD_TRX_HASHTABLE_FULL;
+	}
+	unless (t->status == MCD_TRX_OKAY)
+		mcd_trx_stats.failures++;
+	mcd_trx_stats.transactions++;
+	mcd_trx_t status = t->status;
+	plat_free( t);
+	return (status);
+}
+
+
+/*
+ * find trx in trxtable
+ *
+ * Return matching trx given by ID, otherwise 0.  Locking assumed.
+ */
+static mcd_trx_state_t	*
+trx_find( uint64_t id)
+{
+	mcd_trx_state_t	*t;
+
+	if (id) {
+		uint h = trxindex( id);
+		for (t=trxtable[h].trx; t; t=t->next)
+			if (t->id == id)
+				return (t);
+	}
+	return (0);
+}
+
+
+/*
+ * add trx to trxtable
+ *
+ * The trx must not already be present in the table.  Locking assumed.
+ */
+static void
+trx_add( mcd_trx_state_t *t)
+{
+
+	uint h = trxindex( t->id);
+	t->next = trxtable[h].trx;
+	trxtable[h].trx = t;
+}
+
+
+/*
+ * delete trx from trxtable
+ *
+ * Find trx given by ID, delete from trxtable, and return it.  If not found,
+ * return 0.  Locking assumed.
+ */
+static mcd_trx_state_t	*
+trx_del( uint64_t id)
+{
+	mcd_trx_state_t	*t,
+			*tnext;
+
+	uint h = trxindex( id);
+	if ((t = trxtable[h].trx)) {
+		if (t->id == id) {
+			trxtable[h].trx = t->next;
+			return (t);
+		}
+		while ((tnext = t->next)) {
+			if (tnext->id == id) {
+				t->next = tnext->next;
+				return (tnext);
+			}
+			t = tnext;
+		}
+	}
+	return (0);
+}
+
+
 /*
  * capture transaction ops
  *
  * For transacting threads, corral outbound log entries.  Entries from
- * other threads should proceed to the log writer.
+ * other threads should proceed to the log writer.  Attempts to operate
+ * with a concluded transaction are silently ignored.
  *
  * Errors effectively terminate the transaction, and will be reported by
  * mcd_trx_commit/mcd_trx_rollback.
@@ -7852,25 +8048,48 @@ mcd_trx_print_stats( FILE *f)
 static bool
 trx_in_progress( mcd_osd_shard_t *shard, mcd_logrec_object_t *lr, uint64_t syn, mcd_osd_hash_t *e)
 {
+	mcd_trx_state_t	*t;
 
-	unless (trx)
+	unless (trxid)
 		return (FALSE);
-#if 0 // learn about this change from Darryl
-	unless (shard->cntr->cguid == VDC_CGUID)
+	trx_lock( trxid);
+	unless (t = trx_find( trxid)) {
+		trx_unlock( trxid);
+		trxid = 0;
+		return (FALSE);
+	}
+	unless (t->s)
+		t->s = shard;
+	else unless (t->s == shard) {
+		t->status = MCD_TRX_BAD_SHARD;
+		trx_unlock( trxid);
 		return (TRUE);
-#else
-	unless (shard->cntr->cguid == 0x20000)
-		return (TRUE);
-#endif
-	trx->s = shard;
-	if (trx->n < nel( trx->trtab)) {
-		trx->trtab[trx->n].lr = *lr;
-		trx->trtab[trx->n].syn = syn;
+	}
+	if (t->n < nel( t->trtab)) {
+		t->trtab[t->n].lr = *lr;
+		t->trtab[t->n].syn = syn;
 		if (e)
-			trx->trtab[trx->n].e = *e;
-		++trx->n;
+			t->trtab[t->n].e = *e;
+		++t->n;
 	}
 	else
-		trx->status = MCD_TRX_TOO_BIG;
+		t->status = MCD_TRX_TOO_BIG;
+	trx_unlock( trxid);
 	return (TRUE);
+}
+
+
+static void
+trx_lock( uint64_t id)
+{
+
+	pthread_mutex_lock( &trxtable[trxindex( id)].lock);
+}
+
+
+static void
+trx_unlock( uint64_t id)
+{
+
+	pthread_mutex_unlock( &trxtable[trxindex( id)].lock);
 }

@@ -66,6 +66,7 @@
 
 #include "appbuf_pool.h"
 #include "async_puts.h"
+#include "ssd/fifo/mcd_trx.h"
 
     /*  Uncomment this macro definition to compile in
      *  trace collection code.  It is only used if
@@ -316,7 +317,7 @@ static int flashPut_wrapper(SDF_trans_state_t *ptrans, struct shard *pshard, str
 static int shardSync_wrapper(SDF_trans_state_t *ptrans, struct shard *pshard);
 static SDF_status_t flush_inval_wrapper(SDF_trans_state_t *ptrans, struct shard *pshard, SDF_boolean_t flush_flag, SDF_boolean_t inval_flag);
 static void drain_store_pipe(SDF_action_thrd_state_t *pts);
-int do_put(SDF_async_put_request_t *pap, SDF_boolean_t unlock_slab);
+int do_put(FDF_async_rqst_t *pap, SDF_boolean_t unlock_slab);
 static SDF_status_t process_prefix_delete(SDF_trans_state_t *ptrans);
 
 #ifdef INCLUDE_TRACE_CODE
@@ -4214,6 +4215,10 @@ static void sum_sched_stats(SDF_action_state_t *pas)
                 pas->stats_new_per_sched[nsched].ctnr_stats[used_ctnr[i]].n_async_wrbk_fails;
             pas->stats_new.ctnr_stats[0].n_async_wrbk_fails += 
                 pas->stats_new_per_sched[nsched].ctnr_stats[used_ctnr[i]].n_async_wrbk_fails;
+			pas->stats_per_ctnr.ctnr_stats[used_ctnr[i]].n_async_commit_fails +=
+				pas->stats_new_per_sched[nsched].ctnr_stats[used_ctnr[i]].n_async_commit_fails;
+			pas->stats_new.ctnr_stats[0].n_async_commit_fails +=
+				pas->stats_new_per_sched[nsched].ctnr_stats[used_ctnr[i]].n_async_commit_fails;
         }
     }
 }
@@ -4374,6 +4379,7 @@ static int cache_stats_cguid(SDF_internal_ctxt_t *pac, SDF_action_state_t *pas, 
     i += snprintf(str+i, size-i, ", %s=%"PRIu64, "async_flush_fails", pas->stats_per_ctnr.ctnr_stats[index].n_async_flush_fails);
     i += snprintf(str+i, size-i, ", %s=%"PRIu64, "async_wrbks", pas->stats_per_ctnr.ctnr_stats[index].n_async_wrbks);
     i += snprintf(str+i, size-i, ", %s=%"PRIu64, "async_wrbk_fails", pas->stats_per_ctnr.ctnr_stats[index].n_async_wrbk_fails);
+	i += snprintf(str+i, size-i, ", %s=%"PRIu64, "async_commit_fails", pas->stats_per_ctnr.ctnr_stats[index].n_async_commit_fails);
 
     i += snprintf(str+i, size-i, "]\n");
     // plat_assert(i < size); xxxzzz FIX ME
@@ -4587,7 +4593,7 @@ static void flush_wrbk_fn_wrapper(SDFNewCacheEntry_t *pce, void *wrbk_arg, SDF_a
 {
     // uint32_t                   h;
     SDF_trans_state_t         *ptrans;
-    SDF_async_put_request_t    rqst;
+    FDF_async_rqst_t           rqst;
     SDF_simple_key_t           simple_key;
     SDF_cache_ctnr_metadata_t *pmeta;
 
@@ -4634,6 +4640,7 @@ static void flush_wrbk_fn_wrapper(SDFNewCacheEntry_t *pce, void *wrbk_arg, SDF_a
     rqst.req_mbx      = NULL;
     rqst.req_resp_mbx = NULL;
     rqst.pmeta        = &(pmeta->meta);
+	rqst.trx_id       = mcd_trx_id();
 
     if (add_locker) {
         /*  The slab must remain locked until the asynchronous put
@@ -4648,17 +4655,7 @@ static void flush_wrbk_fn_wrapper(SDFNewCacheEntry_t *pce, void *wrbk_arg, SDF_a
             "===========  START async wrbk (cguid=%"PRIu64",key='%s'):  ===========", ptrans->par->ctnr, simple_key.key);
     #endif
 
-    // h = (pce->syndrome) % (ptrans->pts->phs->async_puts_state->config.nthreads);
-    // fthMboxPost(&(ptrans->pts->phs->async_puts_state->inbound_fth_mbx[h]), (uint64_t) &rqst);
-    fthMboxPost(&(ptrans->pts->phs->async_puts_state->inbound_fth_mbx[0]), (uint64_t) &rqst);
-
-    /*  This handshake via a mailbox does two things:
-     *     - Allows the async put thread to copy the key and data.
-     *     - Provides flow control, so that the async put threads
-     *       don't get hopelessly behind processing async put
-     *       requests.
-     */
-    (void) fthMboxWait(rqst.ack_mbx);
+    async_qpost(ptrans->pts->phs, &rqst, 1);
 }
 
 static void wrbk_fn(SDFNewCacheEntry_t *pce, void *wrbk_arg)
@@ -4694,7 +4691,7 @@ static int flashPut_wrapper(SDF_trans_state_t *ptrans, struct shard *pshard, str
     // uint32_t                 h;
     int                      ret = 0; // default is success
     SDF_action_init_t  __attribute__((unused)) *pai = ptrans->pts->pai;
-    SDF_async_put_request_t  rqst;
+    FDF_async_rqst_t  rqst;
 
     //  Force write-thru if we suppress loading the cache!
     if (ptrans->pas->always_miss) {
@@ -4780,6 +4777,7 @@ static int flashPut_wrapper(SDF_trans_state_t *ptrans, struct shard *pshard, str
         rqst.req_resp_mbx  = &(ptrans->pts->req_resp_fthmbx);
         rqst.pmeta         = &(ptrans->meta->meta);
 	rqst.pts           = ptrans->pts;
+	    rqst.trx_id        = mcd_trx_id();
 
         if (ptrans->meta->meta.properties.container_type.async_writes) {
 
@@ -4790,23 +4788,15 @@ static int flashPut_wrapper(SDF_trans_state_t *ptrans, struct shard *pshard, str
             SDFNewCacheAddLocker(ptrans->pbucket);
 
             #ifdef INCLUDE_TRACE_CODE
-                    plat_log_msg(21126, PLAT_LOG_CAT_SDF_PROT, PLAT_LOG_LEVEL_TRACE,
-                    "===========  START async put (cguid=%"PRIu64",key='%s'):  ===========", ptrans->par->ctnr, ptrans->par->key.key);
+				plat_log_msg(21126, PLAT_LOG_CAT_SDF_PROT,
+					PLAT_LOG_LEVEL_TRACE,
+					"===========  START async put (cguid=%"PRIu64",key='%s'):"
+					"  ===========", ptrans->par->ctnr, ptrans->par->key.key);
             #endif
 
-            // h = (ptrans->entry->syndrome) % (ptrans->pts->phs->async_puts_state->config.nthreads);
-            // fthMboxPost(&(ptrans->pts->phs->async_puts_state->inbound_fth_mbx[h]), (uint64_t) &rqst);
-            fthMboxPost(&(ptrans->pts->phs->async_puts_state->inbound_fth_mbx[0]), (uint64_t) &rqst);
+			async_qpost(ptrans->pts->phs, &rqst, 1);
 
-            /*  This handshake via a mailbox does two things:
-             *     - Allows the async put thread to copy the key and data.
-             *     - Provides flow control, so that the async put threads
-             *       don't get hopelessly behind processing async put
-             *       requests.
-             */
-            (void) fthMboxWait(rqst.ack_mbx);
-
-            ret = 0; // success by default
+			ret = 0; // success by default
         } else {
 	    ret = do_put(&rqst, SDF_FALSE /* unlock slab */);
 	    finish_write_in_flight(ptrans->pas);
@@ -4817,7 +4807,7 @@ static int flashPut_wrapper(SDF_trans_state_t *ptrans, struct shard *pshard, str
     return(ret);
 }
 
-static int delete_local_object(SDF_async_put_request_t *pap)
+static int delete_local_object(FDF_async_rqst_t *pap)
 {
     int                ret;
     SDF_action_init_t  __attribute__((unused)) *pai = pap->pai;
@@ -4842,7 +4832,7 @@ static int delete_local_object(SDF_async_put_request_t *pap)
  *
  * Used in error recovery paths.
  */
-static SDF_status_t delete_remote_object(SDF_async_put_request_t *pap)
+static SDF_status_t delete_remote_object(FDF_async_rqst_t *pap)
 {
     SDF_status_t             error;
     SDF_size_t               msize;
@@ -4962,7 +4952,7 @@ static SDF_status_t delete_remote_object(SDF_async_put_request_t *pap)
     return ret;
 }
 
-static SDF_status_t set_remote_object_new(SDF_async_put_request_t *pap)
+static SDF_status_t set_remote_object_new(FDF_async_rqst_t *pap)
 {
     SDF_status_t             error;
     SDF_size_t               msize;
@@ -5060,7 +5050,7 @@ static SDF_status_t set_remote_object_new(SDF_async_put_request_t *pap)
     return ret;
 }
 
-static SDF_status_t set_remote_object_old(SDF_async_put_request_t *pap)
+static SDF_status_t set_remote_object_old(FDF_async_rqst_t *pap)
 {
     SDF_action_init_t  __attribute__((unused)) *pai = pap->pai;
     SDF_status_t             error;
@@ -5193,7 +5183,7 @@ static SDF_status_t set_remote_object_old(SDF_async_put_request_t *pap)
     return ret;
 }
 
-int do_put(SDF_async_put_request_t *pap, SDF_boolean_t unlock_slab)
+int do_put(FDF_async_rqst_t *pap, SDF_boolean_t unlock_slab)
 {
     int                      ret = FLASH_EOK;
     int                      ret_cleanup = FLASH_EOK;
@@ -5596,7 +5586,7 @@ int do_put(SDF_async_put_request_t *pap, SDF_boolean_t unlock_slab)
     return(ret);
 }
 
-int do_writeback(SDF_async_put_request_t *pap)
+int do_writeback(FDF_async_rqst_t *pap)
 {
     int                      ret = FLASH_EOK;
     SDF_action_init_t       *pai = pap->pai;
@@ -5623,7 +5613,7 @@ int do_writeback(SDF_async_put_request_t *pap)
     return(ret);
 }
 
-int do_flush(SDF_async_put_request_t *pap)
+int do_flush(FDF_async_rqst_t *pap)
 {
     int                      ret = FLASH_EOK;
     SDF_action_init_t       *pai = pap->pai;
@@ -5660,64 +5650,7 @@ int do_flush(SDF_async_put_request_t *pap)
      */
 static void drain_store_pipe(SDF_action_thrd_state_t *pts)
 {
-    int                      i;
-    fthMbox_t               *mbx_final[MAX_ASYNC_PUTS_THREADS];
-    fthWaitEl_t             *wait;
-
-    /*  To make this reentrant, we use a second mailbox in which to
-     *  to stash the mailbox to which the async_put_threads must
-     *  respond for the drain barrier.  We use a lock here to ensure
-     *  that all "config.nthreads" copies of the barrier mailbox
-     *  are contiguous.  We use this second mailbox so that normal
-     *  async_put operations won't have the overhead of an additional
-     *  lock operation.
-     *
-     *  Without this second mailbox, concurrent drain operations would
-     *  interleave their requests and the system would deadlock.
-     *  This is because some of the barrier mbox posts would go to
-     *  to one drain thread, and some would go to another, and neither
-     *  would get enough posts to complete the barrier operation.
-     */
-    
-    wait = fthLock(&(pts->phs->async_puts_state->drain_mbx_lock), 1, NULL);
-    for (i=0; i<pts->phs->async_puts_state->config.nthreads; i++) {
-        fthMboxPost(&(pts->phs->async_puts_state->drain_fth_mbx), (uint64_t) &(pts->async_put_ack_mbox));
-    }
-    fthUnlock(wait);
-
-    for (i=0; i<pts->phs->async_puts_state->config.nthreads; i++) {
-
-        /*  I have to use a non-stack request structure here because
-	 *  concurrent drain operations can result in the interleaving 
-	 *  of request mails (see comment above on re-entrancy).  
-	 *  Consequently, the request structure has to remain valid
-	 *  even after this function returns.  I use a request structure
-	 *  that is allocated in the per-thread state.  This is ok,
-	 *  because the only request content that is used for a drain
-	 *  operation is the rtype, which is always set to ASYNC_DRAIN.  
-	 *  It therefore doesn't matter if the
-	 *  pts request structure is used in a subsequent drain operation
-	 *  before all prior mailbox posts have been received.
-	 *  This was done to fix TRAC4791 for the America release.
-	 */
-
-        pts->drain_request.rtype        = ASYNC_DRAIN;
-        fthMboxPost(&(pts->phs->async_puts_state->inbound_fth_mbx[0]), (uint64_t) &(pts->drain_request));
-    }
-
-    for (i=0; i<pts->phs->async_puts_state->config.nthreads; i++) {
-        /*  Wait for all async put threads to respond that they have drained.
-         */
-        mbx_final[i] = (fthMbox_t *) fthMboxWait(&(pts->async_put_ack_mbox));
-    }
-
-    for (i=0; i<pts->phs->async_puts_state->config.nthreads; i++) {
-        fthMboxPost(mbx_final[i], (uint64_t) 0);
-    }
-
-    /*  At this point all writes before drain_store_pipe() was
-     *  called will have been completed.
-     */
+	async_drain(pts->phs->async_puts_state, 0);
 }
 
 static sdf_msg_t *load_msg(SDF_tag_t tag,
