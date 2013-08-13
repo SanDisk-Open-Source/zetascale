@@ -2757,6 +2757,8 @@ static FDF_status_t fdf_open_container(
 #endif /* SDFAPIONLY */
 	SDF_container_meta_t		 meta;
 	cntr_map_t                  *cmap       = NULL;
+	FDF_cguid_t					tcguid = -1;
+	int							i;
 
 	if ( serialize )
 		SDFStartSerializeContainerOp( pai );
@@ -2781,11 +2783,17 @@ static FDF_status_t fdf_open_container(
 	        *cguid = FDF_NULL_CGUID;
 	        goto out;
 	    }
-	        
-	    *cguid = cmap->cguid;
+	    *cguid = tcguid = cmap->cguid;
+		for ( i = 0; i < MCD_MAX_NUM_CNTRS; i++ ) {
+			if (Mcd_containers[i].cguid == tcguid) {
+				i_ctnr = i;
+				break;
+			}
+		}
+		plat_assert(i_ctnr != -1);
     } else {
 		i_ctnr = 0;
-		*cguid = CMC_CGUID;
+		*cguid = tcguid = CMC_CGUID;
     }
 
     if ( strcmp( cname, CMC_PATH ) != 0 ) {
@@ -2870,6 +2878,7 @@ static FDF_status_t fdf_open_container(
                 shard = container_to_shard( pai, lc );
                 if ( NULL != shard ) {
                     mcd_shard = (mcd_osd_shard_t *)shard;
+					plat_assert(i_ctnr >= 0);
                     mcd_shard->cntr = &Mcd_containers[i_ctnr];
                     if( 1 == mcd_shard->persistent ) {
                         shard_recover_phase2( mcd_shard );

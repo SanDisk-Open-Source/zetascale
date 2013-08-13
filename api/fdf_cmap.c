@@ -76,6 +76,7 @@ FDF_status_t fdf_cmap_create(
 {
 	char        *cname_key		= NULL;
     cntr_map_t  *cmap           = NULL;
+	int			len;
     
     if ( !cname || FDF_NULL_CGUID == cguid )
         return FDF_INVALID_PARAMETER;
@@ -98,12 +99,14 @@ FDF_status_t fdf_cmap_create(
         bzero( (void *) &cmap->enum_stats, sizeof( enum_stats_t ) );
         bzero( (void *) &cmap->container_stats, sizeof( FDF_container_stats_t ) );
 	}
-
-	if ( NULL == ( cname_key = (char *) plat_alloc( strlen( cname ) ) ) ) {
+	
+	len = strlen( cname ) + 1;
+	if ( NULL == ( cname_key = (char *) plat_alloc(len))) {
 	    plat_free( cmap );
 		return FDF_FAILURE_MEMORY_ALLOC;
 	} else {
 	    strcpy( cname_key, cname );
+		cname_key[len-1]= '\0';
 	}
 
 	if ( !CMapCreate( cmap_cguid_hash, (char *) &cguid, sizeof( FDF_cguid_t ), (char *) cmap, sizeof( cntr_map_t ) ) ) {
