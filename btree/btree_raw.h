@@ -178,6 +178,12 @@ typedef struct btree_rupdate_marker {
 	char retry_datalen;
 } btree_rupdate_marker_t;
 
+typedef int (* btree_range_cmp_cb_t)(void     *data, 	//  opaque user data
+                                 char     *range_key,       
+                                 uint32_t  range_keylen,   
+                                 char     *key1,       
+                                 uint32_t  keylen1); 
+
 typedef struct btree_raw_mem_node *(read_node_cb_t)(btree_status_t *ret, void *data, uint64_t lnodeid);
 typedef void (write_node_cb_t)(btree_status_t *ret, void *cb_data, uint64_t lnodeid, char *data, uint64_t datalen);
 typedef void (flush_node_cb_t)(btree_status_t *ret, void *cb_data, uint64_t lnodeid);
@@ -277,6 +283,8 @@ btree_raw_rupdate(
 	        uint32_t range_key_len,
 	        btree_rupdate_cb_t callback_func,
 	        void * callback_args,	
+		btree_range_cmp_cb_t range_cmp_cb,
+		void *range_cmp_cb_args,
 	        uint32_t *objs_updated,
 	        btree_rupdate_marker_t **marker);
 #endif // __BTREE_RAW_H

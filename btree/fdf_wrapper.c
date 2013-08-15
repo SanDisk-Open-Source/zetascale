@@ -95,6 +95,8 @@ _FDFRangeUpdate(struct FDF_thread_state *fdf_thread_state,
 	       uint32_t range_key_len,
 	       FDF_range_update_cb_t callback_func,
 	       void * callback_args,	
+	       FDF_range_cmp_cb_t range_cmp_cb,
+	       void *range_cmp_cb_args,
 	       uint32_t *objs_updated);
 
 
@@ -2412,6 +2414,8 @@ _FDFRangeUpdate(struct FDF_thread_state *fdf_ts,
 	       uint32_t range_key_len,
 	       FDF_range_update_cb_t callback_func,
 	       void * callback_args,	
+	       FDF_range_cmp_cb_t range_cmp_cb,
+	       void *range_cmp_cb_args,
 	       uint32_t *objs_updated)
 {
 	btree_rupdate_marker_t *markerp = NULL;
@@ -2424,6 +2428,7 @@ _FDFRangeUpdate(struct FDF_thread_state *fdf_ts,
 	uint32_t objs_done = 0;
 	int index = -1;
 	FDF_status_t error = FDF_SUCCESS;
+	btree_range_cmp_cb_t bt_range_cmp_cb = range_cmp_cb;
 
 	(*objs_updated) = 0;
 
@@ -2455,7 +2460,8 @@ _FDFRangeUpdate(struct FDF_thread_state *fdf_ts,
 	do {
 		objs_done = 0;
 		btree_ret = btree_range_update(bt, &meta, range_key, range_key_len,
-					cb_func, callback_args, &objs_done, &markerp); 
+					       cb_func, callback_args, bt_range_cmp_cb,
+					       range_cmp_cb_args, &objs_done, &markerp); 
 
 		(*objs_updated) += objs_done;
 		if (btree_ret == BTREE_RANGE_UPDATE_NEEDS_SPACE) {

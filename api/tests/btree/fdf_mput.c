@@ -175,7 +175,6 @@ do_mput(struct FDF_thread_state *thd_state, FDF_cguid_t cguid,
 
 	}
 
-
 	printf("Deleted objects successfully for thread = %d.\n", my_thdid);
 #endif 
 }
@@ -269,7 +268,7 @@ main(int argc, char *argv[])
 	int n, m;
 
 	if (argc < 5) {
-		printf("Usage: ./run 0/1(use mput)  num_mputs num_objs_each_mputi num_thds.\n");
+		printf("Usage: ./run 0/1(use mput)  num_mputs num_objs_each_mput num_thds.\n");
 		exit(0);
 	}
 

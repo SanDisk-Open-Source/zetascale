@@ -232,6 +232,8 @@ FDF_status_t
 	       uint32_t range_key_len,
 	       FDF_range_update_cb_t callback_func,
 	       void * callback_args,	
+	       FDF_range_cmp_cb_t range_cmp_callback,
+	       void *range_cmp_callback_args,
 	       uint32_t *objs_updated);
 
 #if 0
@@ -1328,6 +1330,8 @@ FDFRangeUpdate(struct FDF_thread_state *fdf_thread_state,
 	       uint32_t range_key_len,
 	       FDF_range_update_cb_t callback_func,
 	       void * callback_args,	
+	       FDF_range_cmp_cb_t range_cmp_callback,
+	       void *range_cmp_callback_args,
 	       uint32_t *objs_updated)
 {
 
@@ -1337,5 +1341,6 @@ FDFRangeUpdate(struct FDF_thread_state *fdf_thread_state,
 
     return (*ptr_FDFRangeUpdate) (fdf_thread_state, cguid, range_key,
 				  range_key_len, callback_func, callback_args,
+				  range_cmp_callback, range_cmp_callback_args,
 				  objs_updated);
 }

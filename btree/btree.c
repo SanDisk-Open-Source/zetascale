@@ -246,6 +246,8 @@ btree_range_update(struct btree *btree,
 	       uint32_t range_key_len,
 	       btree_rupdate_cb_t callback_func,
 	       void * callback_args,	
+	       btree_range_cmp_cb_t range_cmp_cb,
+	       void *range_cmp_cb_args,
 	       uint32_t *objs_updated,
 	       btree_rupdate_marker_t **marker)
 {
@@ -259,7 +261,8 @@ btree_range_update(struct btree *btree,
 	    ret = btree_raw_rupdate(btree->partitions[n_partition], meta,
 			       	    range_key, range_key_len,
 			            callback_func, callback_args,	
-			            objs_updated, marker);
+			            range_cmp_cb, range_cmp_cb_args,
+				    objs_updated, marker);
     }
 
     return ret;

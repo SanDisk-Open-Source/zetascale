@@ -80,6 +80,8 @@ btree_range_update(struct btree *btree,
 		   uint32_t range_key_len,
 		   btree_rupdate_cb_t callback_func,
 		   void * callback_args,	
+		   btree_range_cmp_cb_t range_cmp_cb,
+		   void *range_cmp_cb_args,
 		   uint32_t *objs_updated,
 		   btree_rupdate_marker_t **marker);
 

@@ -416,6 +416,11 @@ struct FDF_state;
 struct FDF_thread_state;
 struct FDF_iterator;
 
+typedef int (* FDF_range_cmp_cb_t)(void     *data, 	//  opaque user data
+                                 char     *range_key,       
+                                 uint32_t  range_keylen,   
+                                 char     *key1,       
+                                 uint32_t  keylen1); 
 
 /*
  * Get a FDF property.
@@ -1184,6 +1189,8 @@ FDFRangeUpdate(struct FDF_thread_state *fdf_thread_state,
 	       uint32_t range_key_len,
 	       FDF_range_update_cb_t callback_func,
 	       void * callback_args,	
+	       FDF_range_cmp_cb_t range_cmp_callback,
+	       void *range_cmp_cb_args,
 	       uint32_t *objs_updated);
 
 /*

@@ -137,7 +137,8 @@ do_range_update(struct FDF_thread_state *thd_state, FDF_cguid_t cguid)
 		range_key_len = strlen(range_key);
 
 		status = FDFRangeUpdate(thd_state, cguid, range_key, range_key_len,
-					callback_func, callback_args, &objs_updated);
+					callback_func, callback_args, NULL,
+					NULL, &objs_updated);
 		if (status != FDF_SUCCESS) {
 			assert(objs_updated == 0);
 			printf("Failed to do range update.\n");

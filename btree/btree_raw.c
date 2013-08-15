@@ -2465,6 +2465,9 @@ btree_raw_mwrite_low(btree_raw_t *btree, btree_mput_obj_t *objs, uint32_t num_ob
 	uint64_t seqno = meta->seqno;
 
 	*objs_written = 0;
+
+
+	assert(referenced_nodes_count == 0);
 	plat_rwlock_rdlock(&btree->lock);
 	assert(referenced_nodes_count == 0);
 
@@ -2700,20 +2703,16 @@ err_exit:
  * returns +1 if range_key is greater than key.
  */
 static int 
-btree_key_in_range(btree_raw_t *bt, 
-	     char *range_key, uint32_t range_key_len,
-	     char *key, uint32_t keylen)
+btree_key_in_range(void *args, 
+		   char *range_key, uint32_t range_key_len,
+		   char *key, uint32_t keylen)
 {
 	int x = 0;
 
 	if (keylen < range_key_len) {
 		return 1;
 	}
-
-	x = bt->cmp_cb(bt->cmp_cb_data, range_key, range_key_len,
-		       key, range_key_len); //adjust length
-
-	// TBD: we should have a range check function passed from user.
+	x = memcmp(range_key, key, range_key_len);
 
 	return x;
 }
@@ -2724,6 +2723,8 @@ find_first_key_in_range(btree_raw_t *bt,
 			char *range_key,
 			uint32_t range_key_len,
 			key_stuff_t *ks,
+			btree_range_cmp_cb_t range_cmp_cb, 
+			void *range_cmp_cb_args,
 			int *index)
 {
 	int i_start, i_end, i_center;
@@ -2743,9 +2744,9 @@ find_first_key_in_range(btree_raw_t *bt,
 		i_center = (i_start + i_end) / 2;
 
 		(void) get_key_stuff(bt, n, i_center, &ks_tmp);
-		x = btree_key_in_range(bt, range_key, range_key_len,
-				       ks_tmp.pkey_val, ks_tmp.keylen);
-
+		x = (*range_cmp_cb) (bt, range_key, range_key_len,
+				     ks_tmp.pkey_val, ks_tmp.keylen);
+					 
 		if (x <= 0) {
 			/*
 			 * Got first greater than or equal to range_key.
@@ -2753,6 +2754,7 @@ find_first_key_in_range(btree_raw_t *bt,
 			i_last_match = i_center;
 			i_end = i_center - 1;
 			ks_last_match = ks_tmp;
+
 		} else if (x > 0) {
 			i_start = i_center + 1;	
 		}
@@ -2772,10 +2774,11 @@ find_first_key_in_range(btree_raw_t *bt,
 		(*index) = n->nkeys - 1;
 		assert(i_start > (n->nkeys - 1));
 		return true;
-
 	}
+
 	return false;
 }
+
 
 /*
  * Search the new key that applies to the given range.
@@ -2790,8 +2793,9 @@ find_first_key_in_range(btree_raw_t *bt,
  */
 static bool
 find_next_rupdate_key(btree_raw_t *bt, btree_raw_node_t *n, char *range_key,
-			   uint32_t range_key_len, key_stuff_t *ks,
-			   uint64_t *child_id, btree_rupdate_marker_t **marker)
+		      uint32_t range_key_len, key_stuff_t *ks, uint64_t *child_id,
+		      btree_range_cmp_cb_t range_cmp_cb, void *range_cmp_cb_args,
+		      btree_rupdate_marker_t **marker)
 {
 	bool res = false;
 	int index = -1;
@@ -2822,6 +2826,7 @@ find_next_rupdate_key(btree_raw_t *bt, btree_raw_node_t *n, char *range_key,
 		 */
 		res = find_first_key_in_range(bt, n, range_key,
 					      range_key_len, ks,
+					      range_cmp_cb, range_cmp_cb_args,
 					      &index);
 	}
 
@@ -2834,9 +2839,9 @@ find_next_rupdate_key(btree_raw_t *bt, btree_raw_node_t *n, char *range_key,
 			/*
 			 * Marker get updated only for leaf nodes.
 			 */
-			if (btree_key_in_range(bt, 
-					       range_key, range_key_len,
-					       ks->pkey_val, ks->keylen) != 0) {
+			if ((*range_cmp_cb)(bt, 
+					    range_key, range_key_len,
+					    ks->pkey_val, ks->keylen) != 0) {
 				/*
 				 * Got a key out of range key in leaf.
 				 */
@@ -2873,6 +2878,8 @@ btree_rupdate_raw_leaf(
 		btree_metadata_t *meta,
 	        btree_rupdate_cb_t callback_func,
 	        void * callback_args,	
+		btree_range_cmp_cb_t range_cmp_cb,
+		void *range_cmp_cb_args,
 	        uint32_t *objs_updated,
 	        btree_rupdate_marker_t **marker)
 {
@@ -2905,7 +2912,9 @@ btree_rupdate_raw_leaf(
 	}
 	
 	while (find_next_rupdate_key(btree, node->pnode, range_key,
-				         range_key_len, &ks, &child_id, marker) == true) {
+				     range_key_len, &ks, &child_id, 
+				     range_cmp_cb, range_cmp_cb_args,
+				     marker) == true) {
 
 		pvlk = (node_vlkey_t *) ks.pkey_struct;
 		ret = get_leaf_data(btree, node->pnode, pvlk,
@@ -3037,6 +3046,8 @@ btree_raw_rupdate_low(
 	        uint32_t range_key_len,
 	        btree_rupdate_cb_t callback_func,
 	        void * callback_args,	
+		btree_range_cmp_cb_t range_cmp_cb,
+		void *range_cmp_cb_args,
 	        uint32_t *objs_updated,
 	        btree_rupdate_marker_t **marker,
 		btree_raw_mem_node_t *parent);
@@ -3050,6 +3061,8 @@ btree_rupdate_raw_non_leaf(
 		btree_metadata_t *meta,
 	        btree_rupdate_cb_t callback_func,
 	        void * callback_args,	
+		btree_range_cmp_cb_t range_cmp_cb,
+		void *range_cmp_cb_args,
 	        uint32_t *objs_updated,
 	        btree_rupdate_marker_t **marker)
 {
@@ -3064,8 +3077,9 @@ btree_rupdate_raw_non_leaf(
 	 * Not at leaf yet, keep on seraching down the tree.
 	 */
 	res = find_next_rupdate_key(btree, mem_node->pnode, 
-					 range_key, range_key_len, 
-					 &ks, &child_id, marker);
+				    range_key, range_key_len, 
+				    &ks, &child_id, range_cmp_cb,
+				    range_cmp_cb_args, marker);
 
 	/*
 	 * Search cannot end at non-leaf.
@@ -3073,9 +3087,9 @@ btree_rupdate_raw_non_leaf(
 	assert(res);
 	if (res == true) {
 		ret = btree_raw_rupdate_low(btree, child_id, meta, 
-						 range_key, range_key_len, callback_func,
-						 callback_args, objs_updated,
-						 marker, mem_node);
+					    range_key, range_key_len, callback_func,
+					    callback_args, range_cmp_cb, range_cmp_cb_args,
+					    objs_updated, marker, mem_node);
 	}
 
 	return ret;
@@ -3093,6 +3107,8 @@ btree_raw_rupdate_low(
 	        uint32_t range_key_len,
 	        btree_rupdate_cb_t callback_func,
 	        void * callback_args,	
+		btree_range_cmp_cb_t range_cmp_cb,
+		void *range_cmp_cb_args,
 	        uint32_t *objs_updated,
 	        btree_rupdate_marker_t **marker,
 		btree_raw_mem_node_t *parent)
@@ -3122,8 +3138,9 @@ btree_raw_rupdate_low(
 		 * Not at leaf yet, keep on seraching down the tree.
 		 */
 		ret = btree_rupdate_raw_non_leaf(btree, mem_node, range_key, range_key_len,
-					  	      meta, callback_func, callback_args,
-						      objs_updated, marker);
+					  	 meta, callback_func, callback_args,
+						 range_cmp_cb, range_cmp_cb_args, objs_updated,
+						 marker);
 
 	}  else {
 
@@ -3131,8 +3148,9 @@ btree_raw_rupdate_low(
 		 * Found the leaf, update the keys in range.
 		 */
 		ret = btree_rupdate_raw_leaf(btree, mem_node, range_key, range_key_len,
-						  meta, callback_func, callback_args,
-						  objs_updated, marker);	
+					     meta, callback_func, callback_args,
+					     range_cmp_cb, range_cmp_cb_args,
+					     objs_updated, marker);	
 	}
 
 	return ret;
@@ -3149,6 +3167,8 @@ btree_raw_rupdate_low_root(
 	        uint32_t range_key_len,
 	        btree_rupdate_cb_t callback_func,
 	        void * callback_args,	
+		btree_range_cmp_cb_t range_cmp_cb,
+		void *range_cmp_cb_args,
 	        uint32_t *objs_updated,
 	        btree_rupdate_marker_t **marker)
 {
@@ -3190,17 +3210,19 @@ restart:
 		/*
 		 * Not at leaf yet, keep on seraching down the tree.
 		 */
-		ret = btree_rupdate_raw_non_leaf(btree, mem_node, range_key, range_key_len,
-					  	      meta, callback_func, callback_args,
-						      objs_updated, marker);
+		ret = btree_rupdate_raw_non_leaf(btree, mem_node, range_key,
+						 range_key_len, meta, callback_func,
+						 callback_args, range_cmp_cb, range_cmp_cb_args,
+						 objs_updated, marker);
 	}  else {
 
 		/*
 		 * Found the leaf, update the keys in range.
 		 */
-		ret = btree_rupdate_raw_leaf(btree, mem_node, range_key, range_key_len,
-						  meta, callback_func, callback_args,
-						  objs_updated, marker);	
+		ret = btree_rupdate_raw_leaf(btree, mem_node, range_key, 
+					     range_key_len, meta, callback_func,
+					     callback_args, range_cmp_cb, range_cmp_cb_args,
+					     objs_updated, marker);	
 	}
 
 out:
@@ -3216,15 +3238,22 @@ btree_raw_rupdate(
 	        uint32_t range_key_len,
 	        btree_rupdate_cb_t callback_func,
 	        void * callback_args,	
+		btree_range_cmp_cb_t range_cmp_cb,
+		void *range_cmp_cb_args,
 	        uint32_t *objs_updated,
 	        btree_rupdate_marker_t **marker)
 {
 
 	btree_status_t ret = BTREE_SUCCESS;
+	if (range_cmp_cb == NULL) {
+		range_cmp_cb = btree_key_in_range;
+		range_cmp_cb_args = btree;
+	}
 
 	ret = btree_raw_rupdate_low_root(btree, meta,
 					 range_key, range_key_len, 
 					 callback_func, callback_args,
+					 range_cmp_cb, range_cmp_cb_args, 
 					 objs_updated, marker);
 	return ret;
 }
