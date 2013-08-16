@@ -143,7 +143,7 @@ flog_close(struct shard *shard);
  * size of the write staging buffers
  */
 #define MCD_OSD_WBUF_SIZE       (16 * 1048576)
-#define MCD_OSD_WBUF_BLKS       (MCD_OSD_WBUF_SIZE / MCD_OSD_BLK_SIZE)
+#define MCD_OSD_WBUF_BLKS       (MCD_OSD_WBUF_SIZE / Mcd_osd_blk_size)
 
 #define MCD_OSD_MAGIC_NUMBER    MCD_OSD_META_MAGIC
 
@@ -202,8 +202,8 @@ int			        Mcd_osd_rand_blksize;
 /*
  * local globals
  */
+uint64_t    			Mcd_osd_total_blks      = 0;
 static uint64_t                 Mcd_osd_total_size      = 0;
-static uint64_t                 Mcd_osd_total_blks      = 0;
 static uint64_t                 Mcd_osd_free_blks       = 0;
 
 static fthMbox_t                Mcd_osd_writer_mbox;
@@ -322,7 +322,8 @@ mcd_osd_blk_to_lba( uint32_t blocks )
 {
     uint32_t    temp;
 
-    if ( MCD_OSD_MAX_BLKS_OLD >= blocks ) {
+    return blocks;
+    if ((MCD_FTH_OSD_BUF_SIZE / Mcd_osd_blk_size) >= blocks ) {
         return blocks;
     }
     else {
@@ -345,7 +346,8 @@ mcd_osd_lba_to_blk( uint32_t blocks )
 {
     uint32_t    temp;
 
-    if ( MCD_OSD_MAX_BLKS_OLD >= blocks ) {
+    return blocks;
+    if ((MCD_FTH_OSD_BUF_SIZE / Mcd_osd_blk_size) >= blocks ) {
         return blocks;
     }
     else {
@@ -368,7 +370,7 @@ mcd_osd_rand_address(mcd_osd_shard_t *shard, uint64_t offset)
 
 typedef struct mcd_osd_buf_hdr {
     uint64_t            magic;
-    uint16_t            offset;
+    uint32_t            offset;
     uint64_t            size;
 } mcd_osd_buf_hdr_t;
 
@@ -382,19 +384,19 @@ void * mcd_fth_osd_iobuf_alloc( size_t size, bool is_static )
     char                      * temp;
     mcd_osd_buf_hdr_t         * buf_hdr;
 
-    buf = plat_alloc( size + 2 * Mcd_osd_blk_size - 1 );
+    buf = plat_alloc( size + 2 * MCD_OSD_BLK_SIZE_MAX - 1 );
     if ( NULL == buf ) {
         return NULL;
     }
 
-    temp = (char *)( ( (uint64_t)buf + Mcd_osd_blk_size - 1 )
-                     & Mcd_osd_blk_mask );
+    temp = (char *)( ( (uint64_t)buf + MCD_OSD_BLK_SIZE_MAX - 1 )
+                     & MCD_OSD_BLK_MASK_MAX);
     buf_hdr = (mcd_osd_buf_hdr_t *)temp;
     buf_hdr->magic = is_static ? MCD_OSD_BUF_STA_MAGIC : MCD_OSD_BUF_DYN_MAGIC;
 
-    temp += Mcd_osd_blk_size;
+    temp += MCD_OSD_BLK_SIZE_MAX;
     buf_hdr->offset = temp - buf;
-    buf_hdr->size = size + 2 * Mcd_osd_blk_size - 1;
+    buf_hdr->size = size + 2 * MCD_OSD_BLK_SIZE_MAX - 1;
     (void) __sync_fetch_and_add( &Mcd_osd_iobuf_total, buf_hdr->size );
 
     mcd_log_msg( 50038, PLAT_LOG_LEVEL_TRACE,
@@ -408,7 +410,7 @@ mcd_fth_osd_iobuf_free( void * buf )
 {
     mcd_osd_buf_hdr_t         * buf_hdr;
 
-    buf_hdr = (mcd_osd_buf_hdr_t *)(buf - Mcd_osd_blk_size);
+    buf_hdr = (mcd_osd_buf_hdr_t *)(buf - MCD_OSD_BLK_SIZE_MAX);
     if ( MCD_OSD_BUF_STA_MAGIC != buf_hdr->magic &&
          MCD_OSD_BUF_DYN_MAGIC != buf_hdr->magic ) {
         mcd_log_msg( 50039, PLAT_LOG_LEVEL_FATAL,
@@ -429,7 +431,7 @@ mcd_fth_osd_slab_free( void * buf )
 {
     mcd_osd_buf_hdr_t         * buf_hdr;
 
-    buf_hdr = (mcd_osd_buf_hdr_t *)(buf - Mcd_osd_blk_size);
+    buf_hdr = (mcd_osd_buf_hdr_t *)(buf - MCD_OSD_BLK_SIZE_MAX);
     if ( MCD_OSD_BUF_STA_MAGIC == buf_hdr->magic ) {
         return 0;
     }
@@ -1497,8 +1499,9 @@ mcd_osd_fifo_shard_init( mcd_osd_shard_t * shard, uint64_t shard_id,
     shard->total_blks = shard->total_segments * Mcd_osd_segment_blks;
 
     if ( 4294967296ULL < shard->total_blks ) {
-        mcd_log_msg( 20294, PLAT_LOG_LEVEL_ERROR,
-                     "shard size greater than 2TB, not supported yet" );
+	mcd_log_msg( 160164, PLAT_LOG_LEVEL_FATAL,
+			"shard size greater than maximum device size (%dTB) for block size %d, not supported yet",
+			(int)(Mcd_osd_blk_size/MCD_OSD_BLK_SIZE_MIN) * 2, (int)Mcd_osd_blk_size);
         return FLASH_EINVAL;
     }
 
@@ -2244,7 +2247,7 @@ retry:
 
 
 uint32_t mcd_osd_get_lba_minsize( void ) {
-    return MCD_OSD_LBA_MIN_BLKS * MCD_OSD_BLK_SIZE;
+    return MCD_OSD_LBA_MIN_BLKS * Mcd_osd_blk_size;
 }
 
 
@@ -2319,7 +2322,7 @@ mcd_fth_osd_fifo_get( void * context, mcd_osd_shard_t * shard, char * key,
                 return FLASH_EOK;
             }
 
-                if ( MCD_OSD_MAX_BLKS_OLD >= hash_entry->blocks ) {
+                if ((MCD_FTH_OSD_BUF_SIZE / Mcd_osd_blk_size) >= hash_entry->blocks ) {
                     data_buf = ((osd_state_t *)context)->osd_buf;
                 }
                 else {
@@ -2349,7 +2352,7 @@ mcd_fth_osd_fifo_get( void * context, mcd_osd_shard_t * shard, char * key,
         /*
          * ok, read the data from flash
          */
-            if ( MCD_OSD_MAX_BLKS_OLD >= hash_entry->blocks ) {
+            if ((MCD_FTH_OSD_BUF_SIZE / Mcd_osd_blk_size) >= hash_entry->blocks ) {
                 data_buf = ((osd_state_t *)context)->osd_buf;
             }
             else {
@@ -3045,7 +3048,7 @@ mcd_fth_osd_fifo_set( void * context, mcd_osd_shard_t * shard, char * key,
     wbuf = &shard->fifo.wbufs[
         ( blk_offset / MCD_OSD_WBUF_BLKS ) % MCD_OSD_NUM_WBUFS ];
 
-    buf = wbuf->buf + (blk_offset % MCD_OSD_WBUF_BLKS) * MCD_OSD_BLK_SIZE;
+    buf = wbuf->buf + (blk_offset % MCD_OSD_WBUF_BLKS) * Mcd_osd_blk_size;
 
     meta = (mcd_osd_meta_t *)buf;
     meta->magic    = MCD_OSD_MAGIC_NUMBER;
@@ -3190,14 +3193,16 @@ out:
 #define MCD_OSD_SCAN_TBSIZE     4093
 #define MCD_OSD_CACHE_SIZE      (32ULL * 1073741824)
 
-int                     Mcd_osd_max_nclasses    = MCD_OSD_MAX_NCLASSES;
+int                     Mcd_osd_max_nclasses;
 
-uint64_t                Mcd_osd_blk_size        = MCD_OSD_BLK_SIZE;
-uint64_t                Mcd_osd_blk_mask        = 0xfffffffffffffe00ULL;
+uint64_t                Mcd_osd_blk_size;
+uint64_t                Mcd_osd_blk_mask;
 
 uint64_t                Mcd_osd_segment_size    = MCD_OSD_SEGMENT_SIZE;
-uint64_t                Mcd_osd_segment_blks    = MCD_OSD_SEGMENT_BLKS;
+uint64_t                Mcd_osd_segment_blks;
 fthLock_t               Mcd_osd_segment_lock;
+
+uint64_t		Mcd_rec_list_items_per_blk;
 
 uint64_t                Mcd_osd_bucket_size     = MCD_OSD_BUCKET_SIZE;
 uint64_t                Mcd_osd_bucket_mask     = MCD_OSD_BUCKET_MASK;
@@ -3205,7 +3210,7 @@ uint64_t                Mcd_osd_bucket_mask     = MCD_OSD_BUCKET_MASK;
 uint64_t                Mcd_osd_overflow_depth  = MCD_OSD_OVERFLOW_DEPTH;
 
 uint64_t                Mcd_osd_free_seg_curr;
-uint64_t                Mcd_osd_free_segments[MCD_OSD_MAX_SEGMENTS];
+uint64_t                *Mcd_osd_free_segments;
 
 mcd_osd_shard_t       * Mcd_osd_slab_shards[MCD_OSD_MAX_NUM_SHARDS];
 
@@ -3254,7 +3259,7 @@ mcd_osd_slab_shard_init_free_segments( mcd_osd_shard_t * shard )
 
 #define iBITS (8 * sizeof(int))
 
-    for ( i = 0; i < MCD_OSD_MAX_NCLASSES; i++ )
+    for ( i = 0; i < Mcd_osd_max_nclasses; i++ )
     {
         for(j = 0; j < shard->slab_classes[i].num_segments; j++)
         {
@@ -3328,8 +3333,9 @@ mcd_osd_slab_shard_init( mcd_osd_shard_t * shard, uint64_t shard_id,
 	shard->blk_allocated = 0;
 
     if ( 4294967296ULL < shard->total_blks ) {
-        mcd_log_msg( 20294, PLAT_LOG_LEVEL_FATAL,
-                     "shard size greater than 2TB, not supported yet" );
+        mcd_log_msg( 160165, PLAT_LOG_LEVEL_FATAL,
+                     "shard size greater than maximum device size (%dTB) for this block size, not supported yet",
+		  	(int)(Mcd_osd_blk_size/MCD_OSD_BLK_SIZE_MIN) * 2);
         return FLASH_EINVAL;
     }
 
@@ -3382,7 +3388,7 @@ mcd_osd_slab_shard_init( mcd_osd_shard_t * shard, uint64_t shard_id,
 
     shard->base_segments = segments;
 
-    for ( i = 0, blksize = 1; i < MCD_OSD_MAX_NCLASSES; i++ ) {
+    for ( i = 0, blksize = 1; i < Mcd_osd_max_nclasses; i++ ) {
 
 		memset(shard->slab_classes + i, 0, sizeof(shard->slab_classes[i]));
 
@@ -3550,35 +3556,16 @@ mcd_osd_slab_shard_init( mcd_osd_shard_t * shard, uint64_t shard_id,
                  sizeof(uint32_t) );
 
     /*
-     * allocate the bucket table
-     */
-    shard->hash_buckets = (mcd_osd_bucket_t *)plat_alloc_large(
-        shard->hash_size / Mcd_osd_bucket_size * sizeof(mcd_osd_bucket_t) );
-    if ( NULL == shard->hash_buckets ) {
-        mcd_log_msg( 20298, PLAT_LOG_LEVEL_ERROR,
-                     "failed to allocate hash buckets" );
-        return FLASH_ENOMEM;
-    }
-
-    memset( (void *)shard->hash_buckets, 0,
-        shard->hash_size / Mcd_osd_bucket_size * sizeof(mcd_osd_bucket_t) );
-    total_alloc +=
-        shard->hash_size / Mcd_osd_bucket_size * sizeof(mcd_osd_bucket_t);
-    mcd_log_msg( 20299, PLAT_LOG_LEVEL_DEBUG,
-                 "hash buckets allocated, size=%lu",
-                 shard->hash_size /
-                 Mcd_osd_bucket_size * sizeof(mcd_osd_bucket_t) );
-
-    /*
      * initialize the lock buckets
      */
     shard->lock_bktsize = MCD_OSD_LOCKBKT_MINSIZE;
-    shard->lock_buckets = shard->hash_size / shard->lock_bktsize;
+    shard->lock_buckets = (shard->hash_size + shard->lock_bktsize - 1)
+	    					/shard->lock_bktsize;
     while ( MCD_OSD_LOCK_BUCKETS < shard->lock_buckets ) {
         shard->lock_bktsize *= 2;
         shard->lock_buckets /= 2;
     }
-    while ( 32768 > shard->lock_buckets ) {
+    while ( 32768 > shard->lock_buckets && ((shard->lock_bktsize/2) >= Mcd_osd_bucket_size)) {
         shard->lock_bktsize /= 2;
         shard->lock_buckets *= 2;
     }
@@ -3600,6 +3587,30 @@ mcd_osd_slab_shard_init( mcd_osd_shard_t * shard, uint64_t shard_id,
                  "lock_buckets=%lu lock_bktsize=%d, total lock size=%lu",
                  shard->lock_buckets, shard->lock_bktsize,
                  shard->lock_buckets * sizeof(fthLock_t) );
+    if (shard->hash_size < (shard->lock_bktsize * shard->lock_buckets)) {
+	    shard->hash_size = shard->lock_bktsize * shard->lock_buckets;
+    }
+
+    /*
+     * allocate the bucket table
+     */
+    shard->hash_buckets = (mcd_osd_bucket_t *)plat_alloc_large(
+        shard->hash_size / Mcd_osd_bucket_size * sizeof(mcd_osd_bucket_t) );
+    if ( NULL == shard->hash_buckets ) {
+        mcd_log_msg( 20298, PLAT_LOG_LEVEL_ERROR,
+                     "failed to allocate hash buckets" );
+        return FLASH_ENOMEM;
+    }
+
+    memset( (void *)shard->hash_buckets, 0,
+        shard->hash_size / Mcd_osd_bucket_size * sizeof(mcd_osd_bucket_t) );
+    total_alloc +=
+        shard->hash_size / Mcd_osd_bucket_size * sizeof(mcd_osd_bucket_t);
+    mcd_log_msg( 20299, PLAT_LOG_LEVEL_DEBUG,
+                 "hash buckets allocated, size=%lu",
+                 shard->hash_size /
+                 Mcd_osd_bucket_size * sizeof(mcd_osd_bucket_t) );
+
 
     /*
      * initialize hash table and its overflow area
@@ -3659,7 +3670,7 @@ mcd_osd_slab_shard_init( mcd_osd_shard_t * shard, uint64_t shard_id,
     for ( i = 0, j = 0; i <= MCD_OSD_OBJ_MAX_BLKS; i++ ) {
         while ( i > shard->slab_classes[j].slab_blksize ) {
             j++;
-            plat_assert_always( MCD_OSD_MAX_NCLASSES > j );
+            plat_assert_always( Mcd_osd_max_nclasses > j );
         }
         shard->class_table[i] = j;
     }
@@ -3705,6 +3716,24 @@ static int mcd_osd_slab_init()
     int                 i;
     uint64_t            mask;
 
+    if ((Mcd_osd_blk_size < MCD_OSD_BLK_SIZE_MIN) ||
+		   (Mcd_osd_blk_size > MCD_OSD_BLK_SIZE_MAX)) {
+	mcd_log_msg(160166, PLAT_LOG_LEVEL_FATAL,
+			"Block size is not in supported range" );
+	plat_abort();
+    }
+
+    if ((Mcd_osd_blk_size & (Mcd_osd_blk_size - 1)) != 0) {
+	mcd_log_msg(160167, PLAT_LOG_LEVEL_FATAL,
+			"Block size on device needs to be power of 2" );
+	plat_abort();
+    } else {
+	    Mcd_osd_blk_mask = 0xffffffffffffffffULL ^ ((uint64_t)Mcd_osd_blk_size - 1);
+    }
+
+    //Mcd_osd_max_nclasses = MCD_OSD_MAX_NCLASSES - (log2i(Mcd_osd_blk_size)
+//							- log2i(MCD_OSD_BLK_SIZE_MIN));
+    Mcd_osd_max_nclasses = MCD_OSD_MAX_NCLASSES;
     Mcd_osd_total_size = Mcd_aio_total_size;
     Mcd_osd_total_blks = Mcd_osd_total_size / Mcd_osd_blk_size;
     Mcd_osd_free_blks  = Mcd_osd_total_blks;
@@ -3714,16 +3743,20 @@ static int mcd_osd_slab_init()
 
     plat_assert_always(sizeof(mcd_osd_hash_t) == OSD_HASH_ENTRY_HOPED_SIZE);
 
-    if ( MCD_OSD_MAX_SSDSIZE < Mcd_osd_total_size ) {
-        mcd_log_msg( 20348, PLAT_LOG_LEVEL_FATAL,
-                     "maximum storage size supported is 2TB" );
-        plat_abort();
+    if ( 4294967296ULL < Mcd_osd_total_blks) {
+        mcd_log_msg( 160168, PLAT_LOG_LEVEL_FATAL,
+                     "maximum storage size supported with block size, %d is %dTB",
+		     		(int)Mcd_osd_blk_size, 
+				((int)(Mcd_osd_blk_size/MCD_OSD_BLK_SIZE_MIN)) * 2);
+	return FLASH_EINVAL;
     }
 
+    Mcd_osd_segment_blks = Mcd_osd_segment_size / Mcd_osd_blk_size;
     Mcd_osd_rand_blksize = Mcd_osd_segment_blks / Mcd_aio_num_files;
     mcd_log_msg( 20349, PLAT_LOG_LEVEL_DEBUG, "rand_blksize set to %d",
                  Mcd_osd_rand_blksize );
 
+    Mcd_rec_list_items_per_blk = ((Mcd_osd_blk_size/ sizeof(uint64_t)) - 1);
     /*
      * set AIO strip size, verify that number of aio files is power of 2
      */
@@ -3768,12 +3801,19 @@ static int mcd_osd_slab_init()
      * initialize the free segment list
      * FIXME: need to integrate with recovery code
      */
+    Mcd_osd_free_segments = plat_alloc(sizeof(uint64_t) * (Mcd_osd_total_size / Mcd_osd_segment_size));
+    if ( NULL == Mcd_osd_free_segments) {
+	mcd_log_msg( 160169, PLAT_LOG_LEVEL_ERROR,
+			"failed to allocate memory for free segments" );
+	plat_abort();
+    }
+
     for ( i = 0; i < Mcd_osd_total_size / Mcd_osd_segment_size; i++ ) {
         Mcd_osd_free_segments[i] =
             ( Mcd_osd_total_size / Mcd_osd_segment_size - i - 1 )
             * Mcd_osd_segment_blks;
     }
-    Mcd_osd_free_seg_curr = i;
+    Mcd_osd_free_seg_curr = i - 1;
     mcd_log_msg( 150028, PLAT_LOG_LEVEL_DEBUG,
                  "segment free list set up, %d segments, %lu bytes/segment", i, Mcd_osd_segment_size );
 
@@ -4979,7 +5019,7 @@ mcd_fth_osd_slab_set( void * context, mcd_osd_shard_t * shard, char * key,
     /*
      * re-alloc the buffer for large objects
      */     
-    if ( MCD_OSD_MAX_BLKS_OLD < blocks ) {
+    if ( (MCD_FTH_OSD_BUF_SIZE / Mcd_osd_blk_size) < blocks ) {
         buf = mcd_fth_osd_iobuf_alloc( blocks * Mcd_osd_blk_size, false );
         if ( NULL == buf ) {
             rc = FLASH_ENOMEM;
@@ -5043,7 +5083,7 @@ mcd_fth_osd_slab_set( void * context, mcd_osd_shard_t * shard, char * key,
     /*
      * FIXME: pad the object if size < 128KB
      */
-    if ( blocks < 256 ) {
+    if ((blocks * Mcd_osd_blk_size) < (128 * 1024)) {
         rc = mcd_fth_aio_blk_write_low(
                 context, buf, offset,
                 (1 << shard->class_table[blocks]) * Mcd_osd_blk_size,
@@ -5442,7 +5482,7 @@ mcd_fth_osd_slab_get( void * context, mcd_osd_shard_t * shard, char *key,
                 mcd_osd_lba_to_blk( hash_entry->blocks ) * Mcd_osd_blk_size;
         }
 
-            if ( MCD_OSD_MAX_BLKS_OLD >= ( nbytes / Mcd_osd_blk_size ) ) {
+            if ((MCD_FTH_OSD_BUF_SIZE / Mcd_osd_blk_size) >= ( nbytes / Mcd_osd_blk_size ) ) {
                 data_buf = ((osd_state_t *)context)->osd_buf;
             }
             else {
@@ -5909,26 +5949,17 @@ struct flashDev * mcd_osd_flash_open( char * name, flash_settings_t *flash_setti
     mcd_log_msg( 20374, PLAT_LOG_LEVEL_DEBUG,
                  "ENTERING, initializing mcd osd" );
 
-    if ( 0 != mcd_osd_slab_init() ) {
-        mcd_log_msg( 20375, PLAT_LOG_LEVEL_FATAL, "failed to init mcd osd" );
-        plat_abort();
-    }
-
     // format persistent structures in flash
     if ( ( (flags & FLASH_OPEN_REFORMAT_DEVICE) ||
            (flags & FLASH_OPEN_FORMAT_VIRGIN_DEVICE) ||
            (flags & FLASH_OPEN_REVIRGINIZE_DEVICE) ))
 	{
 		if(0 != flash_format( Mcd_aio_total_size )) {
-        	mcd_log_msg( 20376, PLAT_LOG_LEVEL_FATAL,
-                     "failed to format flash rec area" );
-	        plat_abort();
-    	}
+			mcd_log_msg( 20376, PLAT_LOG_LEVEL_FATAL,
+			     "failed to format flash rec area" );
+			plat_abort();
+		}
 	}
-#ifdef SDFAPIONLY
-	else
-    	Mcd_osd_free_seg_curr--;
-#endif
 
     // initialize recovery
     if ( 0 != recovery_init() ) {
@@ -6002,6 +6033,7 @@ mcd_osd_shard_create( struct flashDev * dev, uint64_t shard_id,
     /*
      * allocate segments for the shard and initialize the address table
      */
+    quota = (quota / Mcd_osd_segment_size)* Mcd_osd_segment_size;
     if ( quota > ((uint64_t)Mcd_osd_free_seg_curr) * Mcd_osd_segment_size ) {
         mcd_log_msg( 150027, PLAT_LOG_LEVEL_ERROR, "not enough space: quota=%lu - free_seg=%lu - seg_size=%lu",
 		     quota, (uint64_t)Mcd_osd_free_seg_curr, Mcd_osd_segment_size );
@@ -6170,7 +6202,7 @@ mcd_osd_shard_uninit( mcd_osd_shard_t * shard )
             total_alloc += shard->total_segments * sizeof(mcd_osd_segment_t *);
         }
 
-        for ( i = 0, blksize = 1; i < MCD_OSD_MAX_NCLASSES; i++ ) {
+        for ( i = 0, blksize = 1; i < Mcd_osd_max_nclasses; i++ ) {
             // free slabs
             for ( j = 0; j < MCD_OSD_MAX_PTHREADS; j++ ) {
                 if ( shard->slab_classes[i].free_slabs[j] ) {

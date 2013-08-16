@@ -16,6 +16,8 @@
 #include "protocol/action/recovery.h"
 
 extern inline uint32_t mcd_osd_lba_to_blk( uint32_t blocks );
+extern int              Mcd_osd_max_nclasses;
+
 
 void *
 context_alloc( int category ); /* mcd_rec.c */
@@ -220,7 +222,7 @@ slab_gc_least_used_class(mcd_osd_shard_t* shard)
 	uint32_t min = INT_MAX;
 	int i;
 
-	for(i = 0; i < MCD_OSD_MAX_NCLASSES; i++ )
+	for(i = 0; i < Mcd_osd_max_nclasses; i++ )
 	{
 		uint32_t used = shard->slab_classes[i].used_slabs - shard->slab_classes[i].dealloc_pending;
 		if(used && slab_gc_able(shard, &shard->slab_classes[i], true) && min > used)
@@ -390,7 +392,7 @@ bool slab_gc_init(mcd_osd_shard_t* shard, int threshold /* % of used slabs */)
 
 	fthResume(fthSpawn(slab_gc_worker_thread, 81920), (uint64_t)shard);
 
-	for(i = 0; i < MCD_OSD_MAX_NCLASSES; i++ )
+	for(i = 0; i < Mcd_osd_max_nclasses; i++ )
 	{
 		mcd_osd_slab_class_t *class = &shard->slab_classes[i];
 
@@ -465,7 +467,7 @@ void slab_gc_end(mcd_osd_shard_t* shard)
 	fthMboxTerm(&shard->gc->mbox);
 	fthMboxTerm(&shard->gc->killed_mbox);
 
-	for(i = 0; i < MCD_OSD_MAX_NCLASSES; i++ )
+	for(i = 0; i < Mcd_osd_max_nclasses; i++ )
 	{
 		mcd_osd_slab_class_t *class = &shard->slab_classes[i];
 

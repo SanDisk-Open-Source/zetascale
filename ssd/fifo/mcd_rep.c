@@ -232,15 +232,15 @@ static int logs_iterate(struct shard *shard, resume_cursor_t * resume_cursor,
 
     num_cursors = 0;
 
-    logbuf_buf_unaligned = plat_alloc(MCD_REC_LOGBUF_SIZE + MCD_OSD_BLK_SIZE - 1);
+    logbuf_buf_unaligned = plat_alloc(MCD_REC_LOGBUF_SIZE + Mcd_osd_blk_size - 1);
     if (!logbuf_buf_unaligned) {
         mcd_log_msg(20573,PLAT_LOG_LEVEL_FATAL, "failed to alloc buffer");
         plat_abort();
     }
 
     // Align the logbuf
-    logbuf_buf = (char *)(((uint64_t)logbuf_buf_unaligned + MCD_OSD_BLK_SIZE - 1) 
-                    & MCD_OSD_BLK_MASK);
+    logbuf_buf = (char *)(((uint64_t)logbuf_buf_unaligned + Mcd_osd_blk_size - 1)  
+                    & Mcd_osd_blk_mask);
 
     // Get the pshard
     osd_shard = (mcd_osd_shard_t *)shard;
@@ -249,7 +249,7 @@ static int logs_iterate(struct shard *shard, resume_cursor_t * resume_cursor,
     // Persistence must be enabled
     plat_assert(osd_shard->persistent == 1);
 
-    num_logbuf = pshard->rec_log_blks / MCD_REC_LOGBUF_BLKS;
+    num_logbuf = VAR_BLKS_TO_META_BLKS(pshard->rec_log_blks)/ MCD_REC_LOGBUF_BLKS;
 #if notyet
     logbuf_seqno_cache = osd_shard->logbuf_seqno_cache;
 #endif
@@ -370,7 +370,7 @@ static int object_table_iterate(struct shard *shard, resume_cursor_t * resume_cu
 
     // Setup our loop
 #if notyet
-    total_num_blks = pshard->rec_log_blks / sizeof(mcd_rec_flash_object_t);
+    total_num_blks = VAR_BLKS_TO_META_BLKS(pshard->rec_log_blks) / sizeof(mcd_rec_flash_object_t);
     cursors_left = seqno_len;
 #endif
     context = mcd_fth_init_aio_ctxt( SSD_AIO_CTXT_MCD_REP_ITER );
@@ -378,22 +378,22 @@ static int object_table_iterate(struct shard *shard, resume_cursor_t * resume_cu
     num_cursors = 0;
 
     read_size = MCD_REC_UPDATE_IOSIZE;
-    data_buf = plat_alloc(read_size + MCD_OSD_BLK_SIZE - 1);
+    data_buf = plat_alloc(read_size + Mcd_osd_blk_size - 1);
     if (!data_buf) {
         mcd_log_msg(20561,PLAT_LOG_LEVEL_FATAL, "failed to allocate buffer");
         plat_abort();
     }
 
     // Align the buffer
-    data = (char *)(((uint64_t)data_buf + MCD_OSD_BLK_SIZE - 1) 
-                    & MCD_OSD_BLK_MASK);
+    data = (char *)(((uint64_t)data_buf + Mcd_osd_blk_size - 1)  
+                    & Mcd_osd_blk_mask);
 
     // Outer loop reads in big chunks of data
-    for (i = resume_cursor->cursor1; i < pshard->rec_table_blks;) {
+    for (i = resume_cursor->cursor1; i < VAR_BLKS_TO_META_BLKS(pshard->rec_table_blks);) {
         offset = i; 
 
         // Read from flash
-        rc = table_chunk_op(context, osd_shard, TABLE_READ, offset, read_size / MCD_OSD_BLK_SIZE, data);
+        rc = table_chunk_op(context, osd_shard, TABLE_READ, offset, read_size / MCD_OSD_META_BLK_SIZE, data);
         if (rc != FLASH_EOK) {
             mcd_log_msg(20574,PLAT_LOG_LEVEL_FATAL,
                         "failed to read buffer, rc=%d", rc);
@@ -413,7 +413,7 @@ static int object_table_iterate(struct shard *shard, resume_cursor_t * resume_cu
                 cursors[num_cursors].syndrome = rec->syndrome;
                 cursors[num_cursors].blocks = rec->blocks;
                 cursors[num_cursors].tombstone = rec->tombstone;
-                cursors[num_cursors].blk_offset = (i * MCD_OSD_BLK_SIZE / sizeof(mcd_rec_flash_object_t)) + j;
+                cursors[num_cursors].blk_offset = (i * MCD_OSD_META_BLK_SIZE/ sizeof(mcd_rec_flash_object_t)) + j; 
                 
                 num_cursors++;
 
@@ -425,7 +425,7 @@ static int object_table_iterate(struct shard *shard, resume_cursor_t * resume_cu
 
         resume_cursor->cursor2 = 0;
 
-        i += min(read_size / MCD_OSD_BLK_SIZE, 1);
+        i += min(read_size / Mcd_osd_blk_size, 1); 
     }
 
 out:
@@ -686,8 +686,8 @@ int rep_get_by_cursor(struct shard *shard, int cursor_len, const void *cursor,
 
     // If its been deleted or evicted just return that it doesn't exist
 
-    data_buf = (char *)plat_alloc(rep_cursor->blocks * MCD_OSD_BLK_SIZE  + 
-                                  MCD_OSD_BLK_SIZE - 1 );
+    data_buf = (char *)plat_alloc(rep_cursor->blocks * Mcd_osd_blk_size +
+                                  Mcd_osd_blk_size - 1 );
     if (!data_buf) {
         mcd_log_msg(20328,PLAT_LOG_LEVEL_ERROR, 
                     "failed to allocate data buffer" );
@@ -695,8 +695,8 @@ int rep_get_by_cursor(struct shard *shard, int cursor_len, const void *cursor,
     }
 
     // Align the buffer
-    buf = (char *)(((uint64_t)data_buf + MCD_OSD_BLK_SIZE - 1) 
-                    & MCD_OSD_BLK_MASK);
+    buf = (char *)(((uint64_t)data_buf + Mcd_osd_blk_size - 1) 
+                    & Mcd_osd_blk_mask);
 
     // Lock bucket
     wait = rep_lock_bucket(shard, rep_cursor);
@@ -713,7 +713,7 @@ int rep_get_by_cursor(struct shard *shard, int cursor_len, const void *cursor,
 
     // Read the object from flash
     blocks_to_read = max(rep_cursor->blocks, 1);
-    obj_read(shard, rep_cursor->blk_offset, blocks_to_read * MCD_OSD_BLK_SIZE, (void **)&buf, &wbuf);
+    obj_read(shard, rep_cursor->blk_offset, blocks_to_read * Mcd_osd_blk_size, (void **)&buf, &wbuf); 
 
     // Unlock bucket
     rep_unlock_bucket(wait);
@@ -877,7 +877,7 @@ int seqno_cache_init(struct shard *shard) {
     pshard = ((mcd_osd_shard_t *)shard)->pshard;
     osd_shard = (mcd_osd_shard_t *)shard;
 
-    num_logbuf = pshard->rec_log_blks / MCD_REC_LOGBUF_BLKS;
+    num_logbuf = VAR_BLKS_TO_META_BLKS(pshard->rec_log_blks) / MCD_REC_LOGBUF_BLKS;
     
     // Create a seqno cache per shard
     osd_shard->logbuf_seqno_cache = plat_alloc(sizeof(seqno_logbuf_cache_t) * num_logbuf);
@@ -955,7 +955,7 @@ static int logbuf_read(struct shard * shard, int logbuf_number, char * logbuf_bu
     context = mcd_fth_init_aio_ctxt( SSD_AIO_CTXT_MCD_REP_LGRD );
     
     // Figure out how many logbufs we have total
-    num_logbuf = pshard->rec_log_blks / MCD_REC_LOGBUF_BLKS;
+    num_logbuf = VAR_BLKS_TO_META_BLKS(pshard->rec_log_blks) / MCD_REC_LOGBUF_BLKS;
 
     // Figure out which log the requested logbuf is in
     lognum = logbuf_number / (num_logbuf / MCD_REC_NUM_LOGS);
@@ -1039,11 +1039,11 @@ int rep_iterate_cursors_progress(struct shard * shard, resume_cursor_t * cursor)
         pshard = ((mcd_osd_shard_t *)shard)->pshard;
         
         logbuf_inner = MCD_REC_LOGBUF_SLOTS;
-        logbuf_outer = pshard->rec_log_blks / MCD_REC_LOGBUF_BLKS;
+        logbuf_outer = VAR_BLKS_TO_META_BLKS(pshard->rec_log_blks) / MCD_REC_LOGBUF_BLKS;
         logbuf_ops = logbuf_inner * logbuf_outer;
         
         object_table_inner = MCD_REC_UPDATE_IOSIZE / sizeof(mcd_rec_flash_object_t);
-        object_table_outer = pshard->rec_table_blks;
+        object_table_outer = VAR_BLKS_TO_META_BLKS(pshard->rec_table_blks);
         object_table_ops = object_table_inner * object_table_outer;
         
         total_ops = logbuf_ops + object_table_ops;

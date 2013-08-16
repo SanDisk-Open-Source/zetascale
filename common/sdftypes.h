@@ -475,7 +475,7 @@ typedef struct flashsettings {
     int (*cntr_update_callback)( struct mcd_container * container, int version );
     time_t    *pcurrent_time;
     int        sdf_log_level;
-
+	int			os_blk_size;
 } flash_settings_t;
 #endif // SDF_APP
 

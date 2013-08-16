@@ -37,20 +37,31 @@
 #define MCD_OSD_MAX_NCLASSES    16
 
 /*
+ * Block size in segment 0 (flash descriptor)
+ */
+#define MCD_OSD_SEG0_BLK_SIZE		512
+#define MCD_OSD_SEG0_BLK_MASK		0xfffffffffffffe00ULL
+
+/*
  * minimum allocation size
  */
-#define MCD_OSD_BLK_SIZE        512
-#define MCD_OSD_BLK_MASK        0xfffffffffffffe00ULL
+#define MCD_OSD_BLK_SIZE_MIN	512
+#define MCD_OSD_BLK_SIZE_MAX	8192
+#define MCD_OSD_BLK_MASK_MAX	0xffffffffffffe000ULL
 
 #define MCD_OSD_SEGMENT_SIZE    (32 * 1024 * 1024)
-#define MCD_OSD_SEGMENT_BLKS    (MCD_OSD_SEGMENT_SIZE / MCD_OSD_BLK_SIZE)
-
-#define MCD_OSD_MAX_SSDSIZE     (2048ULL * 1024 * 1048576)      // 2TB
-#define MCD_OSD_MAX_SEGMENTS    (MCD_OSD_MAX_SSDSIZE / MCD_OSD_SEGMENT_SIZE)
 
 #define MCD_OSD_BUCKET_SIZE     16
 #define MCD_OSD_BUCKET_MASK     (0xffffffffffffffffULL ^ (MCD_OSD_BUCKET_SIZE - 1))
 
+/*
+ * Block size for doing IO in log and object table
+ */
+#define MCD_OSD_META_BLK_SIZE		512
+#define MCD_OSD_META_BLK_MASK		0xfffffffffffffe00ULL
+#define MCD_OSD_META_SEGMENT_BLKS	((MCD_OSD_SEGMENT_SIZE)/(MCD_OSD_META_BLK_SIZE))
+
+#define VAR_BLKS_TO_META_BLKS(blks)	(((blks) * (Mcd_osd_blk_size)) / (MCD_OSD_META_BLK_SIZE))
 /*
  * FIXME_8MB
  *
@@ -63,7 +74,8 @@
 #define MCD_OSD_LBA_SHIFT_MASK  0x7ff
 #define MCD_OSD_MAX_BLKS_OLD    (2048 + 1)
 #define MCD_OSD_OBJ_MAX_SIZE    (8 * 1024 * 1024)
-#define MCD_OSD_OBJ_MAX_BLKS    (MCD_OSD_OBJ_MAX_SIZE / MCD_OSD_BLK_SIZE + MCD_OSD_LBA_MIN_BLKS)
+#define MCD_OSD_OBJ_MAX_BLKS    ((MCD_OSD_OBJ_MAX_SIZE / Mcd_osd_blk_size) + \
+		(MCD_OSD_LBA_MIN_BLKS * MCD_OSD_BLK_SIZE_MIN + Mcd_osd_blk_size - 1)/ Mcd_osd_blk_size)
 
 /*
  * add one for cmc shard
@@ -268,7 +280,7 @@ typedef struct mcd_osd_shard {
 
     int                         num_classes;
     mcd_osd_slab_class_t        slab_classes[MCD_OSD_MAX_NCLASSES];
-    int                         class_table[MCD_OSD_OBJ_MAX_BLKS + 1];
+    int                         class_table[(MCD_OSD_OBJ_MAX_SIZE / MCD_OSD_BLK_SIZE_MIN + MCD_OSD_LBA_MIN_BLKS) + 1];
     uint16_t                  * overflow_index;
     mcd_osd_hash_t            * overflow_table;
     mcd_container_t	      * cntr;
@@ -479,6 +491,10 @@ typedef struct mcd_cntr_props {
 extern uint64_t         Mcd_osd_blk_size;
 extern uint64_t         Mcd_osd_blk_mask;
 
+extern uint64_t		Mcd_rec_list_items_per_blk;
+
+extern uint64_t		Mcd_osd_total_blks;
+
 extern uint64_t         Mcd_osd_segment_size;
 extern uint64_t         Mcd_osd_segment_blks;
 extern fthLock_t        Mcd_osd_segment_lock;
@@ -487,7 +503,7 @@ extern uint64_t         Mcd_osd_bucket_size;
 extern uint64_t         Mcd_osd_bucket_mask;
 
 extern uint64_t         Mcd_osd_free_seg_curr;
-extern uint64_t         Mcd_osd_free_segments[];
+extern uint64_t         *Mcd_osd_free_segments;
 
 extern uint64_t         Mcd_osd_bitmap_masks[];
 

@@ -3335,6 +3335,27 @@
 160161 Could not get thread context lock
 160162 Starting Licensing Daemon (license path: %s)...
 160163 Data inconsistency found in cguid = %d, object block addr = %"PRIu64".\n
+160164 shard size greater than maximum device size (%dTB) for block size %d, not supported yet
+160165 shard size greater than maximum device size (%dTB) for this block size, not supported yet
+160166 Block size is not in supported range
+160167 Block size on device needs to be power of 2
+160168 maximum storage size supported with block size, %d is %dTB
+160169 failed to allocate memory for free segments
+160170 Block size is not power of two
+160171 Block size = %llu
+160172 blob verification failure, shardID=%lu, segment=%lu, offset=%lu
+160173 blob read failure, shardID=%lu, segment=%lu, offset=%lu, rc=%d
+160174 failed to read seg list, shardID=%lu, blk_offset=%lu, blks=%lu, rc=%d
+160175 failed to write seg list blk, shardID=%lu, blk_offset=%lu (blksize=%lu), off/slot=%d/%d, rc=%d
+160176 cannot alloc pclass
+160177 reading log buffer off=%lu, blks=%lu, buf=%p
+160178 failed to read log, shardID=%lu, offset=%lu, blks=%lu, rc=%d
+160179 Read less than a full log segment: buf=%p, blk_count=%d, logblks=%lu, soff=%lu, io=%lu, off=%lu, LSN1=%lu, LSN2=%lu
+160180 failed to %s table, start=%lu, count=%lu, offset=%lu, count=%lu, rc=%d
+160181 =========================================
+160182 slot_seqno:%lu lsn:%lu
+160183 log_blk:%lu log_num:%d start_blk:%lu start_seg:%lu
+160184 shard_blk:%lu shard_off:%d flush_blk:%lu
 
 
 # rico

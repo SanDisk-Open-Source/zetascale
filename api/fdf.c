@@ -48,6 +48,8 @@
 #include "ssd/fifo/slab_gc.h"
 #include <execinfo.h>
 #include <signal.h>
+#include <sys/mman.h>
+#include <sys/types.h>
 
 #define LOG_ID PLAT_LOG_ID_INITIAL
 #define LOG_CAT PLAT_LOG_CAT_SDF_NAMING
@@ -100,6 +102,7 @@ int fdf_instance_id;
 static time_t 			current_time 	= 0;
 static int stats_dump = 0;
 static SDF_shardid_t	vdc_shardid		= SDF_SHARDID_INVALID;
+SDF_shardid_t       cmc_shardid = SDF_SHARDID_INVALID;
 static int dump_interval = 0;
 
 /* Id used to uniquely differenciate 
@@ -960,6 +963,7 @@ static void fdf_load_settings(flash_settings_t *osd_settings)
     osd_settings->is_node_independent = 1;
     osd_settings->ips_per_cntr	    = 1;
     osd_settings->rec_log_size_factor = 0;
+	osd_settings->os_blk_size = getProperty_Int("FDF_BLOCK_SIZE", MCD_OSD_BLK_SIZE_MIN);
 }
 
 /*
@@ -990,6 +994,20 @@ fdf_check_settings(flash_settings_t *osd_settings)
 	if (osd_settings->aio_total_size < FDF_MIN_FLASH_SIZE) {
 		plat_log_msg(160124, LOG_CAT, LOG_ERR,	
 			"Device size is less than minimum required");
+		return false;
+	}
+	
+	if ((osd_settings->os_blk_size < MCD_OSD_BLK_SIZE_MIN) ||
+		(osd_settings->os_blk_size > MCD_OSD_BLK_SIZE_MAX)) {
+		plat_log_msg(160166, LOG_CAT, LOG_ERR,
+			"Block size is not in supported range");
+		return false;
+	}
+
+	if (osd_settings->os_blk_size &
+		(osd_settings->os_blk_size - 1)) {
+		plat_log_msg(160170, LOG_CAT, LOG_ERR,
+			"Block size is not power of two");
 		return false;
 	}
 	return true;
@@ -1141,7 +1159,7 @@ int
 inc_cntr_map(cntr_id_t cntr_id, int64_t objs, int64_t blks, int check)
 {
     int          ret = 1;
-    int64_t     size = blks * MCD_OSD_BLK_SIZE;
+    int64_t     size = blks * Mcd_osd_blk_size;
     cntr_map_t *cmap = get_cntr_map(cntr_id);
 
     if (!cmap)
@@ -1736,6 +1754,8 @@ void print_configuration(int log_level) {
         getProperty_Int("FDF_REFORMAT", 0 )?"yes":"no",
         getProperty_uLongLong("FDF_CACHE_SIZE", 100000000ULL),
         getProperty_uLongLong("SDF_MAX_OBJ_SIZE", SDF_MAX_OBJ_SIZE));
+	plat_log_msg(160171, LOG_CAT, log_level,"Block size = %llu",
+		getProperty_uLongLong("FDF_BLOCK_SIZE", MCD_OSD_BLK_SIZE_MIN));
     if (getProperty_Int("FDF_TEST_MODE", 0)) {
          plat_log_msg(80031, LOG_CAT, log_level,"FDF Testmode enabled");
     }
@@ -2283,13 +2303,14 @@ FDF_status_t FDFOpenContainer(
 	}
 
 	if ( flags & FDF_CTNR_CREATE ) {
-                uint64_t vdc_size = getProperty_Int("FDF_FLASH_SIZE", FDF_MIN_FLASH_SIZE) * 1024 * 1024 -
+                uint64_t vdc_size = ((uint64_t)getProperty_Int("FDF_FLASH_SIZE", FDF_MIN_FLASH_SIZE)) * 1024 * 1024 -
                                                                        (2 * FDF_DEFAULT_CONTAINER_SIZE_KB);
                 if( properties->size_kb >  vdc_size) {
                     plat_log_msg(80063, LOG_CAT, LOG_DBG,
                          "Container size %lu kb greater than the flash size %lu kb",
                               properties->size_kb,vdc_size);
-                    return FDF_FAILURE_INVALID_CONTAINER_SIZE;
+                    status =FDF_FAILURE_INVALID_CONTAINER_SIZE;
+					goto out;
                 }
 		status = fdf_create_container( fdf_thread_state,
 				cname,
@@ -2633,8 +2654,11 @@ static FDF_status_t fdf_create_container(
 			if ( ( shardid = build_shard( state, pai, cname, num_objs,
 							in_shard_count, *sdf_properties, *cguid,
 							isCMC ? BUILD_SHARD_CMC : BUILD_SHARD_OTHER, cname ) ) <= SDF_SHARDID_LIMIT ) {
-				if ( VDC_CGUID == *cguid )
+				if ( VDC_CGUID == *cguid ) {
 					vdc_shardid = shardid;
+				} else if (CMC_CGUID == *cguid ) {
+					cmc_shardid = shardid;
+				}
 			}
 		} else {
 			shardid = vdc_shardid;
@@ -2748,7 +2772,7 @@ static FDF_status_t fdf_open_container(
 	SDF_CONTAINER_PARENT 		 parent;
 	local_SDF_CONTAINER_PARENT 	 lparent 	= NULL;
 	int 						 log_level 	= LOG_ERR;
-	int  						 i_ctnr 	= -1;
+	int  						 i_ctnr 	= -1, i;
 	SDF_CONTAINER 				 container 	= containerNull;
 	SDF_internal_ctxt_t     	*pai 		= (SDF_internal_ctxt_t *) fdf_thread_state;
 #ifdef SDFAPIONLY
@@ -2758,7 +2782,6 @@ static FDF_status_t fdf_open_container(
 	SDF_container_meta_t		 meta;
 	cntr_map_t                  *cmap       = NULL;
 	FDF_cguid_t					tcguid = -1;
-	int							i;
 
 	if ( serialize )
 		SDFStartSerializeContainerOp( pai );
@@ -2865,6 +2888,9 @@ static FDF_status_t fdf_open_container(
 				if ( lc->cguid == VDC_CGUID ) {
     				name_service_get_meta(pai, lc->cguid, &meta);
 					vdc_shardid = meta.shard;
+				} else if (lc->cguid == CMC_CGUID ) {
+					name_service_get_meta(pai, lc->cguid, &meta);
+					cmc_shardid = meta.shard;
 				}
 			}
 
@@ -4192,10 +4218,11 @@ fdf_read_object(
     ar.internal_request = SDF_TRUE;
     ar.internal_thread = fthSelf();
     if ((status=SDFObjnameToKey(&(ar.key), (char *) key, keylen)) != FDF_SUCCESS) {
-        return(status);
+        goto out;
     }
     if (data == NULL) {
-        return(FDF_BAD_PBUF_POINTER);
+       	status = FDF_BAD_PBUF_POINTER;
+		goto out; 
     }
     ar.ppbuf_in = (void **)data;
 
@@ -6426,13 +6453,15 @@ fdf_vc_init(
     // Create the VDC
     FDFLoadCntrPropDefaults(&p);
     p.durability_level      = FDF_DURABILITY_HW_CRASH_SAFE;
-    p.size_kb               = getProperty_Int("FDF_FLASH_SIZE", FDF_MIN_FLASH_SIZE) * 1024 * 1024 -
+    p.size_kb               = ((uint64_t)getProperty_Int("FDF_FLASH_SIZE", FDF_MIN_FLASH_SIZE)) * 1024 * 1024 -
                               (2 * FDF_DEFAULT_CONTAINER_SIZE_KB) - (32 * 1024); // Minus CMC/VMC allocation & super block;
+#if 0
     if ( (getProperty_Int("FDF_VDC_SIZE_CHECK", 1) && (p.size_kb > MAX_PHYSICAL_CONT_SIZE) ) ) {
         plat_log_msg(80036,LOG_CAT, LOG_ERR, "Unsupported size(%lu bytes) for VDC. Maximum supported size is 2TB",
                                                             p.size_kb * 1024);
         return FDF_FAILURE;
     }
+#endif
     plat_log_msg(80037,LOG_CAT, LOG_DBG, "%s Virtual Data Container"
                            " (name = %s,size = %lu kbytes,"
                            "persistence = %s,eviction = %s,writethrough = %s,fifo = %s,"

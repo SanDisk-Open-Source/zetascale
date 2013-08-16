@@ -22,7 +22,7 @@
 #define MCD_REC_UPDATE_BUFSIZE_CHICKEN      (256 * MEGABYTE)
 #define MCD_REC_UPDATE_SEGMENT_SIZE_CHICKEN MCD_REC_UPDATE_BUFSIZE_CHICKEN
 #define MCD_REC_UPDATE_SEGMENT_BLKS_CHICKEN                     \
-    (MCD_REC_UPDATE_SEGMENT_SIZE_CHICKEN / MCD_OSD_BLK_SIZE)
+    (MCD_REC_UPDATE_SEGMENT_SIZE_CHICKEN / Mcd_osd_blk_size)
 
 #define MCD_REC_UPDATE_YIELD        128  // from empirical data
 #define MCD_REC_UPDATE_MAX_CHUNKS   64
@@ -58,10 +58,10 @@
 #define MCD_REC_UPDATE_BUFSIZE      (1024 * MEGABYTE)
 #define MCD_REC_UPDATE_SEGMENT_SIZE (1 * MEGABYTE)
 #define MCD_REC_UPDATE_SEGMENT_BLKS (MCD_REC_UPDATE_SEGMENT_SIZE /      \
-                                     MCD_OSD_BLK_SIZE)
+                                     MCD_OSD_META_BLK_SIZE)
 
 #define MCD_REC_LOG_SEGMENT_SIZE (1 * MEGABYTE)
-#define MCD_REC_LOG_SEGMENT_BLKS (MCD_REC_LOG_SEGMENT_SIZE / MCD_OSD_BLK_SIZE)
+#define MCD_REC_LOG_SEGMENT_BLKS (MCD_REC_LOG_SEGMENT_SIZE / MCD_OSD_META_BLK_SIZE)
 
 #define MCD_REC_UPDATE_IOSIZE    (1 * MEGABYTE)   // <= upd seg size, power 2
 #define MCD_REC_UPDATE_LGIOSIZE  (1 * MEGABYTE)   // <= log seg size, power 2
@@ -72,17 +72,17 @@
 #define MCD_REC_NUM_LOGBUFS      2
 #define MCD_REC_LOGBUF_SIZE      (16 * KILOBYTE)
 
-#define MCD_REC_LOGBUF_BLKS      (MCD_REC_LOGBUF_SIZE / MCD_OSD_BLK_SIZE)
+#define MCD_REC_LOGBUF_BLKS      (MCD_REC_LOGBUF_SIZE / MCD_OSD_META_BLK_SIZE)
 #define MCD_REC_LOGBUF_SLOTS     (MCD_REC_LOGBUF_SIZE /                 \
                                   sizeof( mcd_logrec_object_t ))
 #define MCD_REC_LOGBUF_RECS      (MCD_REC_LOGBUF_SLOTS - MCD_REC_LOGBUF_BLKS)
-#define MCD_REC_LOGBUF_BLK_SLOTS (MCD_OSD_BLK_SIZE /                    \
+#define MCD_REC_LOGBUF_BLK_SLOTS (MCD_OSD_META_BLK_SIZE/                    \
                                   sizeof( mcd_logrec_object_t ))
 
 #define MCD_REC_LOG_BLK_SLOTS    MCD_REC_LOGBUF_BLK_SLOTS
 #define MCD_REC_LOG_BLK_RECS     (MCD_REC_LOG_BLK_SLOTS - 1)
 
-#define MCD_REC_LIST_ITEMS_PER_BLK ((MCD_OSD_BLK_SIZE / sizeof(uint64_t)) - 1)
+#define MCD_REC_LIST_ITEMS_PER_BLK ((MCD_OSD_BLK_SIZE_MAX/ sizeof(uint64_t)) - 1)
 
 // -----------------------------------------------------
 //    Persistent recovery structures
@@ -521,7 +521,8 @@ typedef struct mcd_rec_superblock {
 // that fits in a MCD_OSD_BLK_SIZE page.
 typedef struct mcd_rec_list_block {
     uint64_t                checksum;
-    uint64_t                data[ MCD_REC_LIST_ITEMS_PER_BLK ];
+    uint64_t                data[MCD_REC_LIST_ITEMS_PER_BLK];
+    					///data has to be more than MCD_REC_LIST_ITEMS_PER_BLK
 } mcd_rec_list_block_t;
 
 enum trx_rec {

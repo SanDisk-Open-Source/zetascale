@@ -43,6 +43,8 @@
 #include "protocol/action/recovery.h"
 #include "protocol/action/action_new.h"
 #include "protocol/replication/key_lock.h"
+#include <sys/mman.h>
+#include <sys/types.h>
 
 
 /*
@@ -101,7 +103,7 @@
 /*
  * Names.
  */
-#define BLK_SIZE MCD_OSD_BLK_SIZE
+#define BLK_SIZE 		Mcd_osd_blk_size
 #define get_prop_ulong getProperty_uLongInt
 
 
@@ -4313,7 +4315,8 @@ chash_bits(shard_t *sshard)
 uint64_t
 blk_to_lba(uint64_t blk)
 {
-    if (blk <= MCD_OSD_MAX_BLKS_OLD)
+	return blk;
+    if (blk <= (MCD_FTH_OSD_BUF_SIZE / Mcd_osd_blk_size))
         return blk;
 
     int rem = blk % MCD_OSD_LBA_MIN_BLKS;
@@ -4329,7 +4332,8 @@ blk_to_lba(uint64_t blk)
 uint64_t
 lba_to_blk(uint64_t lba)
 {
-    if (lba <= MCD_OSD_MAX_BLKS_OLD)
+	return lba;
+    if (lba <= (MCD_FTH_OSD_BUF_SIZE / Mcd_osd_blk_size))
         return lba;
     return (lba & MCD_OSD_LBA_SHIFT_MASK) << MCD_OSD_LBA_SHIFT_BITS;
 }
@@ -4518,7 +4522,7 @@ enumerate_next(pai_t *pai, e_state_t *es, char **key, uint64_t *keylen,
         }
 
         uint64_t nb = lba_to_blk(hash->blocks);
-        if (nb > MCD_OSD_SEGMENT_BLKS)
+        if (nb > Mcd_osd_segment_blks)
             return FDF_FLASH_EINVAL;
 
         s = read_disk(shard, (aioctx_t *)&pai->ctxt,
