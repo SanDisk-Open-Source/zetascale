@@ -141,6 +141,8 @@ extern int loadProperties(
 	const char *path_arg;
 	);
 
+extern void destroy_per_thread_state(SDF_action_thrd_state_t *pts);
+
 extern 
 SDF_container_meta_t * build_meta(
 	const char 				*path, 
@@ -2004,7 +2006,7 @@ FDF_status_t FDFReleasePerThreadState(
 	pts = (SDF_action_thrd_state_t *)pai->pts;
 	if( pts != NULL ) {
 		wait = fthLock(&(pts->phs->context_lock), 1, NULL);
-		(pts->phs->n_context)--;
+		(pts->phs->contextcount)--;
 		fthUnlock(wait);
 	}
 	ssdaio_free_ctxt(pts->pai->paio_ctxt, SSD_AIO_CTXT_ACTION_INIT);
@@ -2024,12 +2026,23 @@ FDF_status_t FDFReleasePerThreadState(
 	}
 	pts->next = NULL;
     fthUnlock(wait);
+    destroy_per_thread_state(pts);
+    if ( pts->free_shard_map_entries_alloc_ptr != NULL ) {
+        plat_free(pts->free_shard_map_entries_alloc_ptr);
+    }
+    if ( pts->pai->paio_ctxt != NULL ) {
+        //fprintf(stderr,"freeing up paio_ctxt\n");  
+        plat_free(pts->pai->paio_ctxt); 
+    }
+    if( pts->shardmap.buckets != NULL ) {
+        plat_free(pts->shardmap.buckets);
+    }
     plat_free(pts);
 
-	plat_free( *thd_state );
-	*thd_state = NULL;
-
-	return FDF_SUCCESS;
+	fthReleasePthread();
+    plat_free( *thd_state );
+    *thd_state = NULL;
+    return FDF_SUCCESS;
 }
 
 

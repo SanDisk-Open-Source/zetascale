@@ -8883,6 +8883,8 @@ int mcd_fth_free_aio_ctxt( osd_state_t * osd_state, int category )
 
     wait = fthLock( &Mcd_aio_ctxt_lock, 1, NULL );
     mcd_aio_free_state(osd_state->osd_aio_state);
+	plat_free(osd_state->osd_aio_state);	
+	osd_state->osd_aio_state = NULL;
     Mcd_aio_states[osd_state->index] = NULL;
     fthUnlock( wait );
     mcd_osd_free_state(osd_state);

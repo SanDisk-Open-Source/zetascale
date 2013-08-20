@@ -103,6 +103,7 @@ void fthInitMultiQ(int numArgs, ...)
     fth->allHead             = NULL;
     fth->allTail             = NULL;
     fth->nthrds              = 0;
+    pthread_mutex_init(&(fth->list_mutex), NULL);
 
     /*  These are used to gate fthread starting until at least one
      *  scheduler starts.
@@ -264,7 +265,6 @@ fthThread_t *fthSpawnPthread()
     fthrd = plat_alloc(sizeof(fthThread_t));
     plat_assert(fthrd);
     pthread_mutex_init(&(fthrd->mutex), NULL);
-    pthread_mutex_lock(&(fthrd->mutex));
     fthrd->id         = fth->nthrds;
 	fthrd->is_waiting = 0;
 	fthrd->do_resume  = 0;
@@ -280,6 +280,7 @@ fthThread_t *fthSpawnPthread()
 
 	pthread_cond_init(&(fthrd->condvar), NULL);
 
+	pthread_mutex_lock(&(fth->list_mutex));
 	if (fth->allHead == NULL) {
 	    fth->allHead = fthrd;
 	    fth->allTail = fthrd;
@@ -289,13 +290,39 @@ fthThread_t *fthSpawnPthread()
 	    fth->allHead = fthrd;
 	}
 	(fth->nthrds)++;
-	pthread_mutex_unlock(&(fthrd->mutex));
+	pthread_mutex_unlock(&(fth->list_mutex));
 
     selfFthread = fthrd;
 
     return fthrd;
 }
 
+void
+fthReleasePthread()
+{
+	fthThread_t         *fthrd = fthSelf();
+	
+	pthread_mutex_lock(&(fth->list_mutex));
+	if (fthrd->next) {
+		fthrd->next->prev = fthrd->prev;
+		plat_assert(fth->allTail != fthrd);
+	}
+	if (fthrd->prev) {
+		fthrd->prev->next = fthrd->next;
+		plat_assert(fth->allHead != fthrd);
+	}
+	if (fth->allHead == fthrd) {
+		fth->allHead = fthrd->next;
+	}
+	if (fth->allTail == fthrd) {
+		fth->allTail = fthrd->prev;
+	}
+	(fth->nthrds)--;
+	pthread_mutex_unlock(&(fth->list_mutex));
+	plat_free(fthrd);
+
+	selfFthread = NULL;
+}
 /**
  * @brief Spawn a new thread.  Thread is not dispatchable until resumed.
  *

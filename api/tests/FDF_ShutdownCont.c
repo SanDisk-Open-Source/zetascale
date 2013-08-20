@@ -16,7 +16,7 @@
 
 FILE                           *fp             = NULL;
 static struct FDF_state        *fdf_state      = NULL;
-static struct FDF_thread_state *fdf_thrd_state = NULL;
+static struct FDF_thread_state *fdf_thrd_state1 = NULL;
 
 FDF_cguid_t                    cguid[MAX_ITERATION] = {0};
 
@@ -36,7 +36,7 @@ pre_env()
 	} else {
 		fprintf(fp, "FDF initialization succeed!\n");
 
-		ret = FDFInitPerThreadState(fdf_state, &fdf_thrd_state);
+		ret = FDFInitPerThreadState(fdf_state, &fdf_thrd_state1);
 		if( FDF_SUCCESS == ret) {
 			fprintf(fp, "FDF thread initialization succeed!\n");
 		}
@@ -52,8 +52,8 @@ clear_env()
 
 	FDF_status_t ret = FDF_SUCCESS;
 
+	(void)FDFReleasePerThreadState(&fdf_thrd_state1);
 	ret = FDFShutdown(fdf_state);
-	(void)FDFReleasePerThreadState(&fdf_thrd_state);
 
 	fprintf(fp,"OUT: clear env!\n");
 
@@ -62,7 +62,7 @@ clear_env()
 
 
 static FDF_status_t
-OpenContainer(char *cname, uint32_t flag, uint32_t dura, uint64_t *cguid)
+OpenContainer(struct FDF_thread_state *fdf_thrd_state, char *cname, uint32_t flag, uint32_t dura, uint64_t *cguid)
 {
 	fprintf(fp, "%s", "IN: FDFOpenContainer\n");
 	FDF_status_t          ret;
@@ -88,7 +88,7 @@ OpenContainer(char *cname, uint32_t flag, uint32_t dura, uint64_t *cguid)
 
 
 static FDF_status_t
-DeleteContainer(FDF_cguid_t cid)
+DeleteContainer(struct FDF_thread_state *fdf_thrd_state, FDF_cguid_t cid)
 {
 	FDF_status_t ret;
 	ret = FDFDeleteContainer(fdf_thrd_state, cid);
@@ -113,6 +113,7 @@ static void*
 container_deletes()
 {
 	FDF_status_t ret = FDF_SUCCESS;
+	struct FDF_thread_state *fdf_thrd_state2 = NULL;
 
 	fprintf(fp, "%s", "Inside container_deletes\n");
 
@@ -122,6 +123,10 @@ container_deletes()
 
 	char cname[1024] = {'\0'};
 
+	ret = FDFInitPerThreadState(fdf_state, &fdf_thrd_state2);
+	if( FDF_SUCCESS == ret) {
+		fprintf(fp, "FDF thread initialization succeed!\n");
+	}
 	/*
 	 * Create  containers
 	 */
@@ -130,7 +135,7 @@ container_deletes()
 		 * Create a new container
 		 */
 		sprintf(cname, "test_%d", i);
-		ret = OpenContainer(cname, flag, dura, &cguid[i]);
+		ret = OpenContainer(fdf_thrd_state2, cname, flag, dura, &cguid[i]);
 		if (FDF_SUCCESS != ret) {
 			fprintf(fp, "io failed with err=%s\n", FDFStrError(ret));
 			goto exit_container_deletes;
@@ -156,7 +161,7 @@ container_deletes()
 		}
 
 		sprintf(cname, "test_%d", i);
-		ret = DeleteContainer(cguid[i]);
+		ret = DeleteContainer(fdf_thrd_state2, cguid[i]);
 		if (FDF_SUCCESS != ret) {
 			fprintf(fp, "DeleteContainer failed with err=%s\n", FDFStrError(ret));
 			goto exit_container_deletes;

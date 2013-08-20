@@ -135,6 +135,7 @@ typedef struct fth {
     struct fthCpuInfo  cpuInfo;               // CPU information for init
     struct fthThread  *allHead, *allTail;     // Chain of all threads for debug
     uint32_t           nthrds;
+	pthread_mutex_t		list_mutex;
 
     /*  These are used to keep new fthread pthreads from running 
      *  until at least one scheduler is running.
@@ -176,6 +177,7 @@ void fthKill(int kill);
 inline fth_t *fthBase(void);
 inline fthThread_t *fthSelf(void);
 
+void fthReleasePthread();
 fthThread_t *fthSpawn(void (*startRoutine)(uint64_t), long minStackSize);
 fthThread_t *fthSpawnPthread();
 void fthResume(fthThread_t *thread, uint64_t rv);

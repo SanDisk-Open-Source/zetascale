@@ -312,7 +312,7 @@ SDF_status_t get_status(int retcode);
 int get_retcode(SDF_status_t status);
 static void finish_up(SDF_trans_state_t *ptrans);
 static void load_return_values(SDF_trans_state_t *ptrans);
-static void destroy_per_thread_state(SDF_action_thrd_state_t *pts);
+void destroy_per_thread_state(SDF_action_thrd_state_t *pts);
 static int flashPut_wrapper(SDF_trans_state_t *ptrans, struct shard *pshard, struct objMetaData *pmeta, char *pkey, char *pdata, int flags, SDF_boolean_t skip_for_writeback);
 static int shardSync_wrapper(SDF_trans_state_t *ptrans, struct shard *pshard);
 static SDF_status_t flush_inval_wrapper(SDF_trans_state_t *ptrans, struct shard *pshard, SDF_boolean_t flush_flag, SDF_boolean_t inval_flag);
@@ -576,6 +576,7 @@ void InitActionProtocolCommonState(SDF_action_state_t *pas, SDF_action_init_t *p
     fthLockInit(&pas->sync_ctnr_lock);  // used to serialize sync_container operations
     fthLockInit(&pas->context_lock);
     pas->n_context = 100; /* the first 100 are reserved */
+    pas->contextcount = 100; /* the first 100 are reserved */
 
     /* new stuff for action_new.c */
 
@@ -2695,8 +2696,9 @@ SDF_context_t ActionGetContext(SDF_action_thrd_state_t *pts)
     wait = fthLock(&(pts->phs->context_lock), 1, NULL);
     context = pts->phs->n_context;
     (pts->phs->n_context)++;
+    (pts->phs->contextcount)++;
     fthUnlock(wait);
-    if (pts->phs->n_context >= SDF_RESERVED_CONTEXTS) {
+    if (pts->phs->contextcount >= SDF_RESERVED_CONTEXTS) {
         plat_log_msg(21112, PLAT_LOG_CAT_SDF_PROT, PLAT_LOG_LEVEL_ERROR,
                      "Used up all SDF_RESERVED_CONTEXTS!");
     }
@@ -3361,7 +3363,9 @@ static void init_free_home_flash_map_entries(SDF_action_thrd_state_t *pts)
 
     // Initialize the array of free shard map entries
     pts->free_shard_map_entries = NULL;
+    pts->free_shard_map_entries_alloc_ptr = NULL;
     phfe = plat_alloc(SDF_MAX_CONTAINERS*sizeof(SDF_home_flash_entry_t));
+    pts->free_shard_map_entries_alloc_ptr = phfe; 
     #ifdef MALLOC_TRACE
         UTMallocTrace("init_free_home_flash_map_entries", SDF_TRUE, SDF_FALSE, SDF_FALSE, (void *) phfe, SDF_MAX_CONTAINERS*sizeof(SDF_home_flash_entry_t));
     #endif // MALLOC_TRACE
@@ -3913,7 +3917,7 @@ void InitActionAgentPerThreadState(SDF_action_state_t *pcs, SDF_action_thrd_stat
     init_free_home_flash_map_entries(pts);
 }
 
-static void destroy_per_thread_state(SDF_action_thrd_state_t *pts)
+void destroy_per_thread_state(SDF_action_thrd_state_t *pts)
 {
     SDF_trans_state_t  *ptrans;
     SDF_trans_state_t  *ptrans_next;

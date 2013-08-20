@@ -178,6 +178,7 @@ typedef struct SDF_action_state {
     fthMbox_t                mbox_request; /* for "messages" to self-node */
     fthMbox_t                mbox_response; /* for "messages" from self-node */
     uint64_t                 n_context;
+    uint64_t                 contextcount;
     fthLock_t                context_lock;
     fthLock_t                flush_all_lock;
     fthLock_t                flush_ctnr_lock;

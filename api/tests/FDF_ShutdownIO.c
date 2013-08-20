@@ -53,8 +53,8 @@ clear_env()
 
 	FDF_status_t ret = FDF_SUCCESS;
 
-	ret = FDFShutdown(fdf_state);
 	(void)FDFReleasePerThreadState(&fdf_thrd_state);
+	ret = FDFShutdown(fdf_state);
 
 	fprintf(fp,"OUT: clear env!\n");
 

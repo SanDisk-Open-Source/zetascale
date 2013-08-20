@@ -81,6 +81,7 @@ typedef struct SDF_action_thrd_state {
     char                     *pobj;
     uint64_t                  obj_size;
     SDF_home_flash_entry_t   *free_shard_map_entries;
+    SDF_home_flash_entry_t   *free_shard_map_entries_alloc_ptr;
 
     /** @brief Fth mbox for req_fthmbx */
     fthMbox_t                 req_resp_fthmbx;

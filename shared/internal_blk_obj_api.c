@@ -17,6 +17,8 @@ int SDFSimpleReplicationEnabled()
 SDF_status_t
 SDF_I_NewContext( void * pai, SDF_context_t * context )
 {
+	//context initialization is done correctly. They would conflict.
+	plat_assert(0);
     *context = __sync_fetch_and_add( &SDF_Next_Context, 1 );
     return SDF_SUCCESS;
 }
