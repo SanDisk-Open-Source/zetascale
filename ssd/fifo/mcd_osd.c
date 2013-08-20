@@ -8815,6 +8815,7 @@ osd_state_t *mcd_fth_init_aio_ctxt( int category )
         plat_abort();
     }
 
+    wait = fthLock( &Mcd_aio_ctxt_lock, 1, NULL );
     for ( int i = 0; i < AIO_MAX_CTXTS; i++ ) {
         if (!Mcd_aio_states[i]) {
             /*  This slot has been assigned, but the pointer
@@ -8825,6 +8826,7 @@ osd_state_t *mcd_fth_init_aio_ctxt( int category )
         if ( self == Mcd_aio_states[i]->osd_aio_state->aio_self) {
             mcd_log_msg( 20176, PLAT_LOG_LEVEL_TRACE,
                          "self found, use context %d", i );
+			fthUnlock( wait );
             return (void *) Mcd_aio_states[i];
         }
     }
@@ -8832,7 +8834,6 @@ osd_state_t *mcd_fth_init_aio_ctxt( int category )
     /*
      * ok, unknown fthread, need a new context
      */
-    wait = fthLock( &Mcd_aio_ctxt_lock, 1, NULL );
     for ( next = 0; next < AIO_MAX_CTXTS; next++ ) {
         if (Mcd_aio_states[next] == NULL ) {
             break;
@@ -8847,6 +8848,7 @@ osd_state_t *mcd_fth_init_aio_ctxt( int category )
                          "aio context category %s count=%d",
                          Ssd_aio_ctxt_names[i], Mcd_fth_aio_ctxts[i] );
         }
+		fthUnlock( wait );
         plat_abort();
     }
 
