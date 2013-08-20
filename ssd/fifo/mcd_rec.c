@@ -2316,8 +2316,8 @@ meta_more_than_seg:
     // get aligned buffer
     data_buf = plat_alloc( buf_size + Mcd_osd_blk_size );
     if ( data_buf == NULL ) {
-	mcd_log_msg( 20561, PLAT_LOG_LEVEL_ERROR, "failed to allocate buffer" );
-	return FLASH_ENOMEM;
+		mcd_log_msg( 20561, PLAT_LOG_LEVEL_ERROR, "failed to allocate buffer" );
+		return FLASH_ENOMEM;
     }
     buf = (char *)( ( (uint64_t)data_buf + Mcd_osd_blk_size - 1 ) & 
 		    					Mcd_osd_blk_mask );
@@ -2387,30 +2387,30 @@ meta_more_than_seg:
 	buf_offset = 0;
     }
     for ( int b = 0; b < pshard->map_blks; b++, buf_offset++) {
-	if (buf_offset == len) {
-	    rc = mcd_fth_aio_blk_read( context,
+		if (buf_offset == len) {
+			rc = mcd_fth_aio_blk_read( context,
 					buf,
 					Mcd_osd_blk_size *
 					(shard->segments[seg] + offset),
 					len * Mcd_osd_blk_size );
-	    if ( FLASH_EOK != rc ) {
-		mcd_log_msg( 20564, PLAT_LOG_LEVEL_ERROR,
-			"failed to format shard metadata, shardID=%lu, "
-				"blk_offset=%lu, count=%lu, rc=%d",
-				shard->id, (shard->segments[seg] + offset), len, rc ); 
-		plat_free( data_buf );
-		return rc;
-	    }
-	    // clear the buffer
-	    memset( buf, 0, len * Mcd_osd_blk_size);
-	    offset = 0; buf_offset = 0;
-	    seg++;
-	    len = ((seg_list_blks - b) > Mcd_osd_segment_blks) ? 
-		    Mcd_osd_segment_blks : (seg_list_blks - b);
-	}
+			if ( FLASH_EOK != rc ) {
+				mcd_log_msg( 20564, PLAT_LOG_LEVEL_ERROR,
+				"failed to format shard metadata, shardID=%lu, "
+					"blk_offset=%lu, count=%lu, rc=%d",
+					shard->id, (shard->segments[seg] + offset), len, rc ); 
+				plat_free( data_buf );
+				return rc;
+			}
+			// clear the buffer
+			memset( buf, 0, len * Mcd_osd_blk_size);
+			offset = 0; buf_offset = 0;
+			seg++;
+			len = ((seg_list_blks - b) > Mcd_osd_segment_blks) ? 
+				Mcd_osd_segment_blks : (seg_list_blks - b);
+		}
 
-	seg_list = (mcd_rec_list_block_t *)
-			(buf + buf_offset * Mcd_osd_blk_size);
+		seg_list = (mcd_rec_list_block_t *)
+				(buf + buf_offset * Mcd_osd_blk_size);
 
         // check the checksum
         checksum           = seg_list->checksum;
@@ -2477,7 +2477,7 @@ meta_more_than_seg:
                      "blk_offset=%lu (blksize=%lu), off/slot=%d/%d, rc=%d",
                      shard->id, (shard->segments[seg] + offset), Mcd_osd_blk_size,
                      seg_blk_offset, seg_slot, rc );
-	plat_free(data_buf);
+		plat_free(data_buf);
         return rc;
     }
 
@@ -2487,6 +2487,7 @@ meta_more_than_seg:
                                      Mcd_osd_blk_size );
     plat_assert_rc( rc );
 
+	plat_free(data_buf);
     return 0;
 
 }
@@ -3257,18 +3258,18 @@ meta_more_than_seg:
     // get aligned buffer
     data_buf = plat_alloc( buf_size + Mcd_osd_blk_size );
     if ( data_buf == NULL ) {
-	mcd_log_msg( 20561, PLAT_LOG_LEVEL_ERROR, "failed to allocate buffer" );
-	return FLASH_ENOMEM;
+		mcd_log_msg( 20561, PLAT_LOG_LEVEL_ERROR, "failed to allocate buffer" );
+		return FLASH_ENOMEM;
     }
     shard->ps_alloc += buf_size + Mcd_osd_blk_size;
     buf = (char *)( ( (uint64_t)data_buf + Mcd_osd_blk_size - 1 ) &
 				                    Mcd_osd_blk_mask );
     // recover shard classes
     for ( c = 0; c < Mcd_osd_max_nclasses; c++ ) {
-	class_offset  = pshard->class_offset[ c ];
+		class_offset  = pshard->class_offset[ c ];
 
-	seg = class_offset / Mcd_osd_segment_blks;
-	offset = class_offset % Mcd_osd_segment_blks;
+		seg = class_offset / Mcd_osd_segment_blks;
+		offset = class_offset % Mcd_osd_segment_blks;
 
         // read class desc + segment table for each class
         rc = mcd_fth_aio_blk_read( context,
@@ -3281,8 +3282,8 @@ meta_more_than_seg:
                          "failed to read class metadata, shardID=%lu, "
                          "blk_offset=%lu, blks=%d, rc=%d",
                          shard->id, class_offset, (1 + pshard->map_blks), rc );
-	    plat_free(data_buf);
-	    shard->ps_alloc -= buf_size + Mcd_osd_blk_size;
+			plat_free(data_buf);
+			shard->ps_alloc -= buf_size + Mcd_osd_blk_size;
             return rc;
         }
 
@@ -3304,8 +3305,8 @@ meta_more_than_seg:
             snap_dump( buf, Mcd_osd_blk_size );
             plat_abort();
         }
-	slab_blksize = pclass->slab_blksize;
-	seg_list_offset = pclass->seg_list_offset;
+		slab_blksize = pclass->slab_blksize;
+		seg_list_offset = pclass->seg_list_offset;
 #if 0
 	pclass = plat_alloc( sizeof(mcd_rec_class_t));
 	if (pclass == NULL) {
@@ -3327,11 +3328,11 @@ meta_more_than_seg:
             plat_assert_always( class->slab_blksize == slab_blksize );
         }
 
-	memset( buf, 0, Mcd_osd_blk_size);
-	buf_offset = 0;
-	offset = (pshard->class_offset[c] + seg_list_offset) % Mcd_osd_segment_blks;
-	seg = (pshard->class_offset[c] + seg_list_offset) / Mcd_osd_segment_blks;
-	len = (pshard->map_blks > (Mcd_osd_segment_blks - offset)) ?
+		memset( buf, 0, Mcd_osd_blk_size);
+		buf_offset = 0;
+		offset = (pshard->class_offset[c] + seg_list_offset) % Mcd_osd_segment_blks;
+		seg = (pshard->class_offset[c] + seg_list_offset) / Mcd_osd_segment_blks;
+		len = (pshard->map_blks > (Mcd_osd_segment_blks - offset)) ?
 				(Mcd_osd_segment_blks - offset) :
 				pshard->map_blks;
 
@@ -3346,37 +3347,37 @@ meta_more_than_seg:
                          "failed to read class metadata, shardID=%lu, "
                          "blk_offset=%lu, blks=%d, rc=%d",
                          shard->id, class_offset, (1 + pshard->map_blks), rc );
-	    plat_free(data_buf);
-	    shard->ps_alloc -= buf_size + Mcd_osd_blk_size;
+			plat_free(data_buf);
+			shard->ps_alloc -= buf_size + Mcd_osd_blk_size;
             return rc;
         }
 
         // recover segment list for class
         for ( b = 0; b < pshard->map_blks; b++, buf_offset++ ) {
-	    if (buf_offset == len) {
-		memset(buf, 0, len * Mcd_osd_blk_size);
-		len = ((pshard->map_blks - b) > Mcd_osd_segment_blks) ?
-				Mcd_osd_segment_blks :
-				(pshard->map_blks - b);
-		seg++;
-		offset = 0; buf_offset = 0;
+			if (buf_offset == len) {
+				memset(buf, 0, len * Mcd_osd_blk_size);
+				len = ((pshard->map_blks - b) > Mcd_osd_segment_blks) ?
+					Mcd_osd_segment_blks :
+					(pshard->map_blks - b);
+				seg++;
+				offset = 0; buf_offset = 0;
 
-		// read class segment table for each class
-		rc = mcd_fth_aio_blk_read( context,
+				// read class segment table for each class
+				rc = mcd_fth_aio_blk_read( context,
 					   buf,
 					   Mcd_osd_blk_size *
 					   (shard->segments[seg] + offset),
 					   len * Mcd_osd_blk_size);
-		if ( FLASH_EOK != rc ) {
-		    mcd_log_msg( 20479, PLAT_LOG_LEVEL_ERROR,
-				 "failed to read class metadata, shardID=%lu, "
-				 "blk_offset=%lu, blks=%d, rc=%d",
-				 shard->id, class_offset, (1 + pshard->map_blks), rc );
-		    plat_free(data_buf);
-		    shard->ps_alloc -= buf_size + Mcd_osd_blk_size;
-		    return rc;
-		}
-	    }
+				if ( FLASH_EOK != rc ) {
+					mcd_log_msg( 20479, PLAT_LOG_LEVEL_ERROR,
+					 "failed to read class metadata, shardID=%lu, "
+					 "blk_offset=%lu, blks=%d, rc=%d",
+					 shard->id, class_offset, (1 + pshard->map_blks), rc );
+					plat_free(data_buf);
+					shard->ps_alloc -= buf_size + Mcd_osd_blk_size;
+					return rc;
+				}
+			}
 
             seg_list = (mcd_rec_list_block_t *)
                 (buf + buf_offset * Mcd_osd_blk_size);
@@ -3463,10 +3464,10 @@ read_checkpoint:
                      "failed to read ckpt, shardID=%lu, blk_offset=%lu, rc=%d",
                      shard->id, pshard->blk_offset + pshard->rec_md_blks - 1, 
                      rc );
-	if (data_buf) {
-		plat_free(data_buf);
-		shard->ps_alloc -= buf_size + Mcd_osd_blk_size;
-	}
+		if (data_buf) {
+			plat_free(data_buf);
+			shard->ps_alloc -= buf_size + Mcd_osd_blk_size;
+		}
         return rc;
     }
 
@@ -3494,6 +3495,10 @@ read_checkpoint:
     if ( shard->ckpt == NULL ) {
         mcd_log_msg( 20483, PLAT_LOG_LEVEL_ERROR,
                      "failed to alloc shard ckpt, shardID=%lu", shard->id );
+		if (data_buf) {
+			plat_free(data_buf);
+			shard->ps_alloc -= buf_size + Mcd_osd_blk_size;
+		}
         return FLASH_ENOMEM;
     }
     shard->ps_alloc += sizeof( mcd_rec_ckpt_t );
@@ -3506,6 +3511,10 @@ read_checkpoint:
     if ( rc != 0 ) {
         mcd_log_msg( 20484, PLAT_LOG_LEVEL_ERROR,
                      "failed to init tombstones, shardID=%lu", shard->id );
+		if (data_buf) {
+			plat_free(data_buf);
+			shard->ps_alloc -= buf_size + Mcd_osd_blk_size;
+		}
         return rc;
     }
 #endif
@@ -3515,6 +3524,10 @@ read_checkpoint:
     if ( rc != 0 ) {
         mcd_log_msg( 20485, PLAT_LOG_LEVEL_ERROR,
                      "failed to pre-alloc log, shardID=%lu", shard->id );
+		if (data_buf) {
+			plat_free(data_buf);
+			shard->ps_alloc -= buf_size + Mcd_osd_blk_size;
+		}
         return rc;
     }
 
@@ -3539,6 +3552,10 @@ read_checkpoint:
                     sleep(1);
     }
 
+	if (data_buf) {
+		plat_free(data_buf);
+		shard->ps_alloc -= buf_size + Mcd_osd_blk_size;
+	}
     return 0;
 }
 

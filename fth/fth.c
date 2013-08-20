@@ -319,6 +319,7 @@ fthReleasePthread()
 	}
 	(fth->nthrds)--;
 	pthread_mutex_unlock(&(fth->list_mutex));
+	plat_attr_uthread_free(fthrd->local);
 	plat_free(fthrd);
 
 	selfFthread = NULL;

@@ -5914,17 +5914,6 @@ void mcd_osd_free_state(osd_state_t *osd_state)
 
 int mcd_osd_init( void )
 {
-    int   i;
-
-    for (i=0; i<SSD_AIO_CTXT_MAX_COUNT; i++) {
-        Mcd_fth_aio_ctxts[i] = 0;
-    }
-    for (i=0; i< AIO_MAX_CTXTS; i++) {
-        Mcd_aio_states[i] = 0;
-    }
-    fthLockInit( &Mcd_aio_ctxt_lock );
-
-    fthMboxInit( &Mcd_fth_admin_mbox );
     return mcd_osd_slab_init();
 }
 
