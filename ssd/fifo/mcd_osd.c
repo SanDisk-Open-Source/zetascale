@@ -86,7 +86,6 @@ init_get_my_node_id();
  */
 #define AIO_MAX_CTXTS   2000
 static osd_state_t    *Mcd_aio_states[AIO_MAX_CTXTS];
-static uint32_t        Mcd_aio_state_next = 0;
 static fthLock_t       Mcd_aio_ctxt_lock;
 
 /*
@@ -5873,9 +5872,10 @@ static osd_state_t *mcd_osd_init_state(int aio_category)
     
     osd_mbox = (fthMbox_t *)plat_alloc( sizeof(fthMbox_t) );
     if ( NULL == osd_mbox ) {
-	mcd_log_msg( 20066, PLAT_LOG_LEVEL_ERROR, "plat_alloc failed" );
-	plat_assert_always( 0 == 1 );
+		mcd_log_msg( 20066, PLAT_LOG_LEVEL_ERROR, "plat_alloc failed" );
+		plat_assert_always( 0 == 1 );
     }
+	bzero(osd_state, sizeof(osd_state_t));
     osd_state->osd_mbox = osd_mbox;
     fthMboxInit( osd_state->osd_mbox );
     osd_state->osd_blocks = 0;
@@ -5900,14 +5900,14 @@ static osd_state_t *mcd_osd_init_state(int aio_category)
     return(osd_state);
 }
 
-static void mcd_osd_free_state(osd_state_t *osd_state)
+void mcd_osd_free_state(osd_state_t *osd_state)
 {
     if ( osd_state->osd_mbox ) {
         fthMboxTerm( osd_state->osd_mbox );
-	plat_free(osd_state->osd_mbox);
+		plat_free(osd_state->osd_mbox);
     }
     if ( osd_state->osd_buf) {
-	plat_free(osd_state->osd_buf);
+		mcd_fth_osd_iobuf_free(osd_state->osd_buf);
     }
     memset( (void *)osd_state, 0, sizeof(osd_state_t) );
 }
@@ -8815,7 +8815,7 @@ osd_state_t *mcd_fth_init_aio_ctxt( int category )
         plat_abort();
     }
 
-    for ( int i = 0; i < Mcd_aio_state_next; i++ ) {
+    for ( int i = 0; i < AIO_MAX_CTXTS; i++ ) {
         if (!Mcd_aio_states[i]) {
             /*  This slot has been assigned, but the pointer
              *  hasn't been set yet.
@@ -8832,10 +8832,12 @@ osd_state_t *mcd_fth_init_aio_ctxt( int category )
     /*
      * ok, unknown fthread, need a new context
      */
-    next = __sync_fetch_and_add( &Mcd_aio_state_next, 1 );
-
     wait = fthLock( &Mcd_aio_ctxt_lock, 1, NULL );
-
+    for ( next = 0; next < AIO_MAX_CTXTS; next++ ) {
+        if (Mcd_aio_states[next] == NULL ) {
+            break;
+        }
+    }
     if ((next >= AIO_MAX_CTXTS) || ( next >= flash_settings.aio_queue_len ))
     {
         mcd_log_msg( 20172, PLAT_LOG_LEVEL_FATAL,
@@ -8868,6 +8870,7 @@ osd_state_t *mcd_fth_init_aio_ctxt( int category )
 
 int mcd_fth_free_aio_ctxt( osd_state_t * osd_state, int category )
 {
+    fthWaitEl_t        *wait;
     mcd_log_msg( 50078, PLAT_LOG_LEVEL_TRACE,
                  "ENTERING category=%d", category );
 
@@ -8878,8 +8881,10 @@ int mcd_fth_free_aio_ctxt( osd_state_t * osd_state, int category )
     }
     (void) __sync_fetch_and_sub( &Mcd_fth_aio_ctxts[category], 1 );
 
+    wait = fthLock( &Mcd_aio_ctxt_lock, 1, NULL );
     mcd_aio_free_state(osd_state->osd_aio_state);
     Mcd_aio_states[osd_state->index] = NULL;
+    fthUnlock( wait );
     mcd_osd_free_state(osd_state);
 
     return 0;   /* SUCCESS */

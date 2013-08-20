@@ -1092,8 +1092,8 @@ aio_state_t *mcd_aio_init_state()
 
     aio_mbox = (fthMbox_t *)plat_alloc( sizeof(fthMbox_t) );
     if ( NULL == aio_mbox ) {
-	mcd_log_msg( 20066, PLAT_LOG_LEVEL_ERROR, "plat_alloc failed" );
-	plat_assert_always( 0 == 1 );
+		mcd_log_msg( 20066, PLAT_LOG_LEVEL_ERROR, "plat_alloc failed" );
+		plat_assert_always( 0 == 1 );
     }
     aio_state->aio_mbox = aio_mbox;
     fthMboxInit( aio_state->aio_mbox );

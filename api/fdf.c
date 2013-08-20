@@ -45,6 +45,7 @@
 #include "ssd/fifo/mcd_bak.h"
 #include "ssd/fifo/mcd_trx.h"
 #include "utils/properties.h"
+#include "ssd/ssd_aio.h"
 #include "ssd/fifo/slab_gc.h"
 #include <execinfo.h>
 #include <signal.h>
@@ -1957,6 +1958,7 @@ FDF_status_t FDFInitPerThreadState(
 
     pai_new = (SDF_action_init_t *) plat_alloc( sizeof( SDF_action_init_t ) );
     plat_assert_always( NULL != pai_new );
+	bzero(pai_new, sizeof( SDF_action_init_t )); 
     memcpy( pai_new, pai, (size_t) sizeof( SDF_action_init_t ));
 
     //==================================================
@@ -1987,12 +1989,42 @@ FDF_status_t FDFReleasePerThreadState(
     struct FDF_thread_state **thd_state
     )
 {
+	SDF_action_thrd_state_t *pts, *pts_check;
+	SDF_action_init_t *pai;
+	SDF_action_state_t	*pcs;
+	fthWaitEl_t              *wait;
+
 	if (NULL == *thd_state) {
     	plat_log_msg(160098, LOG_CAT, LOG_ERR, 
                      "Thread state is null");
 		plat_assert(*thd_state);
 		// return FDF_FAILURE 
 	}
+	pai = (SDF_action_init_t *)*thd_state;
+	pts = (SDF_action_thrd_state_t *)pai->pts;
+	if( pts != NULL ) {
+		wait = fthLock(&(pts->phs->context_lock), 1, NULL);
+		(pts->phs->n_context)--;
+		fthUnlock(wait);
+	}
+	ssdaio_free_ctxt(pts->pai->paio_ctxt, SSD_AIO_CTXT_ACTION_INIT);
+	pcs = pai->pcs;
+    wait = fthLock(&(pcs->nthrds_lock), 1, NULL);
+	if (pcs->threadstates == pts) {
+		pcs->threadstates = pts->next;
+	} else {
+		pts_check = pcs->threadstates;
+		while (pts_check->next != pts) {
+			pts_check = pts_check->next;
+			plat_assert(pts_check);
+		}
+		if (pts_check) {
+			pts_check->next = pts->next;
+		}
+	}
+	pts->next = NULL;
+    fthUnlock(wait);
+    plat_free(pts);
 
 	plat_free( *thd_state );
 	*thd_state = NULL;
