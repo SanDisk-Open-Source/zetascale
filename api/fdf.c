@@ -2035,7 +2035,9 @@ FDF_status_t FDFReleasePerThreadState(
         plat_free(pts->pai->paio_ctxt); 
     }
     if( pts->shardmap.buckets != NULL ) {
+		SDFTLMap2Destroy(&(pts->shardmap));
         plat_free(pts->shardmap.buckets);
+		pts->shardmap.buckets = NULL;
     }
     plat_free(pts);
 

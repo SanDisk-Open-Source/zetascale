@@ -35,6 +35,7 @@ typedef struct SDFTLMap2 {
 
 extern void SDFTLMap2Init(SDFTLMap2_t *pc, uint64_t nbuckets, 
      int (*print_fn)(SDFTLMap2Entry_t *pce, char *sout, int max_len));
+extern void SDFTLMap2Destroy(SDFTLMap2_t *pc);
 extern SDFTLMap2Entry_t *SDFTLMap2Create(SDFTLMap2_t *pc, uint64_t key);
 extern int SDFTLMap2Delete(SDFTLMap2_t *pc, uint64_t key);
 extern SDFTLMap2Entry_t *SDFTLMap2Get(SDFTLMap2_t *pc, uint64_t key);

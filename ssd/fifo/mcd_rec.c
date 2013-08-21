@@ -1117,7 +1117,7 @@ recovery_init( void )
     uint64_t                    blk_offset;
     uint64_t                    stripe_offset;
     uint64_t                    seg_count;
-    char                      * data_buf = NULL;
+    char                      * data_buf = NULL, *mmsdata_buf = NULL, *mmsbuf = NULL;
     char                      * buf;
     osd_state_t               * context =
         mcd_fth_init_aio_ctxt( SSD_AIO_CTXT_MCD_REC_INIT );
@@ -1206,7 +1206,7 @@ recovery_init( void )
 
     // read and validate flash descriptor on each device
     for ( ssd = 0; ssd < Mcd_rec_sb_data_copies; ssd++ ) {
-
+		// get aligned buffer
         source[ ssd ]    = buf + (ssd * MCD_OSD_SEG0_BLK_SIZE);
         good_copy[ ssd ] = 0;
 
@@ -1255,7 +1255,7 @@ recovery_init( void )
             continue;
         }
 
-	Mcd_osd_blk_size = (uint64_t)(fd->blk_size);
+		Mcd_osd_blk_size = (uint64_t)(fd->blk_size);
 
         // check structure version
         if ( fd->version != MCD_REC_FLASH_VERSION ) {
@@ -1672,40 +1672,41 @@ recovery_init( void )
 
 				Mcd_osd_free_seg_curr--;
 #endif
-            }
-        }
+			}
+		}
 	
-	goto remaining;
+		goto remaining;
 
 meta_more_than_seg:
-	/******************************************************
-	 *                                                    *
-	 *   IF THE METADATA CROSSES THE SEGMENT BOUNDARY     *
-	 *                                                    *
-	 ******************************************************/
-	// get aligned buffer
-	data_buf = plat_alloc( buf_size + Mcd_osd_blk_size );
-	if ( data_buf == NULL ) {
-		mcd_log_msg( 20561, PLAT_LOG_LEVEL_ERROR, "failed to allocate buffer" );
-		return FLASH_ENOMEM;
-	}
-	shard->ps_alloc += buf_size + Mcd_osd_blk_size;
-	buf = (char *)( ( (uint64_t)data_buf + Mcd_osd_blk_size - 1 ) &
-					Mcd_osd_blk_mask );
+		/******************************************************
+		 *                                                    *
+		 *   IF THE METADATA CROSSES THE SEGMENT BOUNDARY     *
+		 *                                                    *
+		 ******************************************************/
+		// get aligned buffer
+		mmsdata_buf = plat_alloc( buf_size + Mcd_osd_blk_size );
+		if ( mmsdata_buf == NULL ) {
+			mcd_log_msg( 20561, PLAT_LOG_LEVEL_ERROR, "failed to allocate buffer" );
+			return FLASH_ENOMEM;
+		}
+		shard->ps_alloc += buf_size + Mcd_osd_blk_size;
+		mmsbuf = (char *)( ( (uint64_t)mmsdata_buf + Mcd_osd_blk_size - 1 ) &
+						Mcd_osd_blk_mask );
 
-        // calculate number of segments reserved for metadata
-        metadata_segs = ( (pshard->reserved_blks + Mcd_osd_segment_blks - 1) /
+		// calculate number of segments reserved for metadata
+		metadata_segs = ( (pshard->reserved_blks + Mcd_osd_segment_blks - 1) /
                           Mcd_osd_segment_blks );
-        actual_segs   = pshard->total_blks / Mcd_osd_segment_blks;
-        seg_list_size = actual_segs * sizeof( uint32_t ); // yes, uint32_t
+		actual_segs   = pshard->total_blks / Mcd_osd_segment_blks;
+		seg_list_size = actual_segs * sizeof( uint32_t ); // yes, uint32_t
 
         // create the segment table for this shard
-        shard->segments = plat_alloc( seg_list_size );
-        if ( shard->segments == NULL ) {
-            mcd_log_msg( 20463, PLAT_LOG_LEVEL_ERROR,
-                         "failed to allocate segment list" );
+		shard->segments = plat_alloc( seg_list_size );
+		if ( shard->segments == NULL ) {
+			mcd_log_msg( 20463, PLAT_LOG_LEVEL_ERROR,
+							"failed to allocate segment list" );
             plat_free( pshard );
             plat_free( shard );
+			plat_free(mmsdata_buf);
             return FLASH_ENOMEM;
         }
 
@@ -1714,93 +1715,99 @@ meta_more_than_seg:
         shard->data_blk_offset = metadata_segs * Mcd_osd_segment_blks;
 
         // install the segment mapping table
-	buf_offset = 0; len = 0;
-	offset = pshard->seg_list_offset;
-	plat_assert_always(offset < Mcd_osd_segment_blks);
-	seg = 0;
-	len = (pshard->map_blks > (Mcd_osd_segment_blks - offset)) ?
-		(Mcd_osd_segment_blks - offset) : pshard->map_blks;
+		buf_offset = 0; len = 0;
+		offset = pshard->seg_list_offset;
+		plat_assert_always(offset < Mcd_osd_segment_blks);
+		seg = 0;
+		len = (pshard->map_blks > (Mcd_osd_segment_blks - offset)) ?
+				(Mcd_osd_segment_blks - offset) : pshard->map_blks;
 
-	// read class segment table for each class
-	rc = mcd_fth_aio_blk_read( context,
-				   buf,
+		// read class segment table for each class
+		rc = mcd_fth_aio_blk_read( context,
+				   mmsbuf,
 				   Mcd_osd_blk_size *
 				   (pshard->blk_offset + offset),
 				   len * Mcd_osd_blk_size);
-	if ( FLASH_EOK != rc ) {
-		mcd_log_msg( 160174, PLAT_LOG_LEVEL_ERROR,
-		     "failed to read seg list, shardID=%lu, blk_offset=%lu, "
-		     "blks=%lu, rc=%d", shard->id, (shard->segments[seg] + offset),
-		     len, rc );
-		return rc;
-	}
+		if ( FLASH_EOK != rc ) {
+			mcd_log_msg( 160174, PLAT_LOG_LEVEL_ERROR,
+				 "failed to read seg list, shardID=%lu, blk_offset=%lu, "
+				 "blks=%lu, rc=%d", shard->id, (shard->segments[seg] + offset),
+				 len, rc );
+            plat_free( pshard );
+            plat_free( shard );
+			plat_free(mmsdata_buf);
+			return rc;
+		}
 
         seg_count = 0;
         for ( i = 0;
               i < pshard->map_blks && seg_count < actual_segs;
               i++, buf_offset++) {
-		if (buf_offset == len) {
-			memset(buf, 0, len * Mcd_osd_blk_size);
-			len = ((pshard->map_blks - i) > Mcd_osd_segment_blks) ?
-					Mcd_osd_segment_blks :
-					(pshard->map_blks - i);
-			seg++;
-			offset = 0; buf_offset = 0;
-			plat_assert_always(shard->segments[seg]);
-			// read class segment table for each class
-			rc = mcd_fth_aio_blk_read( context,
-						buf,
-						Mcd_osd_blk_size *
-						(shard->segments[seg] + offset),
-						len * Mcd_osd_blk_size);
-			if ( FLASH_EOK != rc ) {
-				mcd_log_msg( 160174, PLAT_LOG_LEVEL_ERROR,
-				     "failed to read seg list, shardID=%lu, blk_offset=%lu, "
-				     "blks=%lu, rc=%d", shard->id, (shard->segments[seg] + offset),
-				     len, rc );
-				return rc;
+			if (buf_offset == len) {
+				memset(mmsbuf, 0, len * Mcd_osd_blk_size);
+				len = ((pshard->map_blks - i) > Mcd_osd_segment_blks) ?
+						Mcd_osd_segment_blks :
+						(pshard->map_blks - i);
+				seg++;
+				offset = 0; buf_offset = 0;
+				plat_assert_always(shard->segments[seg]);
+				// read class segment table for each class
+				rc = mcd_fth_aio_blk_read( context,
+							mmsbuf,
+							Mcd_osd_blk_size *
+							(shard->segments[seg] + offset),
+							len * Mcd_osd_blk_size);
+				if ( FLASH_EOK != rc ) {
+					mcd_log_msg( 160174, PLAT_LOG_LEVEL_ERROR,
+						 "failed to read seg list, shardID=%lu, blk_offset=%lu, "
+						 "blks=%lu, rc=%d", shard->id, (shard->segments[seg] + offset),
+						 len, rc );
+					plat_free( pshard );
+					plat_free( shard );
+					plat_free(mmsdata_buf);
+					return rc;
+				}
+			}
+
+			seg_list = (mcd_rec_list_block_t *)
+						(mmsbuf + buf_offset * Mcd_osd_blk_size);
+			// verify class segment block checksum
+			checksum           = seg_list->checksum;
+			seg_list->checksum = 0;
+			seg_list->checksum = hashb((unsigned char *)seg_list,
+								   Mcd_osd_blk_size, 0);
+			if ( seg_list->checksum != checksum ) {
+				mcd_log_msg( 20464, PLAT_LOG_LEVEL_FATAL,
+						 "invalid class seglist checksum, "
+						 "shard_offset=%lu, offset=%lu",
+						 seg ? shard->segments[seg] : pshard->blk_offset, pshard->seg_list_offset + i);
+				seg_list->checksum = checksum;   // restore original contents
+				snap_dump( (char *)seg_list, Mcd_osd_blk_size );
+				plat_abort();
+			}
+
+			for ( j = 0;
+				  j < Mcd_rec_list_items_per_blk && seg_count < actual_segs;
+				  j++ ) {
+				shard->segments[ seg_count++ ] = (uint32_t)seg_list->data[ j ];
+				mcd_log_msg( 40064, PLAT_LOG_LEVEL_TRACE,
+						 "recovered segment[%lu]: blk_offset=%u",
+						 seg_count - 1, shard->segments[seg_count - 1] );
+#ifdef SDFAPIONLY
+				/*EF: Remove recovered segment from the list of free segments */
+
+				int k = Mcd_osd_free_seg_curr;
+				while(--k >= 0 && Mcd_osd_free_segments[k] != shard->segments[seg_count - 1]);
+
+				plat_assert(k >= 0); /*EF: Recovered segment MUST be in the list of free, so far, segments */
+
+				if(k + 1 < Mcd_osd_free_seg_curr)
+					memmove(Mcd_osd_free_segments + k, Mcd_osd_free_segments + k + 1, Mcd_osd_free_seg_curr - k - 1);
+
+				Mcd_osd_free_seg_curr--;
+#endif
 			}
 		}
-
-		seg_list = (mcd_rec_list_block_t *)
-					(buf + buf_offset * Mcd_osd_blk_size);
-		// verify class segment block checksum
-		checksum           = seg_list->checksum;
-		seg_list->checksum = 0;
-		seg_list->checksum = hashb((unsigned char *)seg_list,
-					       Mcd_osd_blk_size, 0);
-		if ( seg_list->checksum != checksum ) {
-			mcd_log_msg( 20464, PLAT_LOG_LEVEL_FATAL,
-				     "invalid class seglist checksum, "
-				     "shard_offset=%lu, offset=%lu",
-				     seg ? shard->segments[seg] : pshard->blk_offset, pshard->seg_list_offset + i);
-			seg_list->checksum = checksum;   // restore original contents
-			snap_dump( (char *)seg_list, Mcd_osd_blk_size );
-			plat_abort();
-		}
-
-		for ( j = 0;
-		      j < Mcd_rec_list_items_per_blk && seg_count < actual_segs;
-		      j++ ) {
-			shard->segments[ seg_count++ ] = (uint32_t)seg_list->data[ j ];
-			mcd_log_msg( 40064, PLAT_LOG_LEVEL_TRACE,
-				     "recovered segment[%lu]: blk_offset=%u",
-				     seg_count - 1, shard->segments[seg_count - 1] );
-#ifdef SDFAPIONLY
-					/*EF: Remove recovered segment from the list of free segments */
-
-					int k = Mcd_osd_free_seg_curr;
-					while(--k >= 0 && Mcd_osd_free_segments[k] != shard->segments[seg_count - 1]);
-
-					plat_assert(k >= 0); /*EF: Recovered segment MUST be in the list of free, so far, segments */
-
-					if(k + 1 < Mcd_osd_free_seg_curr)
-						memmove(Mcd_osd_free_segments + k, Mcd_osd_free_segments + k + 1, Mcd_osd_free_seg_curr - k - 1);
-
-					Mcd_osd_free_seg_curr--;
-#endif
-		}
-	}
 
 remaining:
         // initialize parts of public shard descriptor
@@ -2337,7 +2344,7 @@ meta_more_than_seg:
     // read persistent class desc and segment array for this class
     rc = mcd_fth_aio_blk_read( context,
                                buf,
-			       Mcd_osd_blk_size *
+							   Mcd_osd_blk_size *
                                (shard->segments[seg] + offset),
                                len * Mcd_osd_blk_size );
     if ( FLASH_EOK != rc ) {
@@ -2345,7 +2352,7 @@ meta_more_than_seg:
                      "failed to read seg list, shardID=%lu, blk_offset=%lu, "
                      "blks=%lu, rc=%d", shard->id, shard->segments[seg] + offset,
                      len, rc );
-	plat_free(data_buf);
+		plat_free(data_buf);
         return rc;
     }
     pclass = (mcd_rec_class_t *)buf;
@@ -2376,15 +2383,15 @@ meta_more_than_seg:
      * This would have huge performance impact. Better avoid this.
      */
     if (len != 1) {
-	buf_offset++;
+		buf_offset++;
     } else {
-	memset( buf, 0, Mcd_osd_blk_size);
-	offset = (pclass_offset + seg_list_offset)
-				% Mcd_osd_segment_blks;
-	seg = (pclass_offset + seg_list_offset) / Mcd_osd_segment_blks;
-	len = (seg_list_blks > (Mcd_osd_segment_blks - offset)) ?
-				(Mcd_osd_segment_blks - offset) : seg_list_blks;
-	buf_offset = 0;
+		memset( buf, 0, Mcd_osd_blk_size);
+		offset = (pclass_offset + seg_list_offset)
+					% Mcd_osd_segment_blks;
+		seg = (pclass_offset + seg_list_offset) / Mcd_osd_segment_blks;
+		len = (seg_list_blks > (Mcd_osd_segment_blks - offset)) ?
+					(Mcd_osd_segment_blks - offset) : seg_list_blks;
+		buf_offset = 0;
     }
     for ( int b = 0; b < pshard->map_blks; b++, buf_offset++) {
 		if (buf_offset == len) {
@@ -2443,7 +2450,7 @@ meta_more_than_seg:
                      "failed to read seg list, shardID=%lu, blk_offset=%lu, "
                      "blks=%d, rc=%d", shard->id, pclass_offset,
                      (1 + pshard->map_blks), rc );
-	plat_free(data_buf);
+		plat_free(data_buf);
         return rc;
     }
     // map list structure on to buffer
@@ -3275,7 +3282,7 @@ meta_more_than_seg:
         rc = mcd_fth_aio_blk_read( context,
                                    buf,
                                    Mcd_osd_blk_size *
-				   (shard->segments[seg] + offset),
+								   (shard->segments[seg] + offset),
                                    Mcd_osd_blk_size );
         if ( FLASH_EOK != rc ) {
             mcd_log_msg( 20479, PLAT_LOG_LEVEL_ERROR,
@@ -3340,7 +3347,7 @@ meta_more_than_seg:
         rc = mcd_fth_aio_blk_read( context,
                                    buf,
                                    Mcd_osd_blk_size *
-				   (shard->segments[seg] + offset),
+								   (shard->segments[seg] + offset),
                                    len * Mcd_osd_blk_size);
         if ( FLASH_EOK != rc ) {
             mcd_log_msg( 20479, PLAT_LOG_LEVEL_ERROR,
