@@ -248,21 +248,31 @@ static void *pthread_func_wrapper(void *arg)
     pthread_exit(NULL);
 }
 
-fthThread_t *fthSpawnPthread()
+fthThread_t *fthSpawnPthread(int shutdown_thread)
 {
     fthThread_t           *fthrd;
 
     cpu_set_t              mask;
     int i;
 
+	/* 
+	 * Already thread state initialized, return error if it is
+	 * not shutdown thread
+	 */
+	if (selfFthread && !shutdown_thread) {
+		return NULL;
+	}
+
     for (i = 0; i < 32; ++i) {
-	CPU_SET(i, &mask);
+		CPU_SET(i, &mask);
     }
     // sched_setaffinity(0, sizeof(mask), &mask);
 
     fthrd = NULL;
 
-    fthrd = plat_alloc(sizeof(fthThread_t));
+    if ((fthrd = plat_alloc(sizeof(fthThread_t))) == NULL) {
+		return NULL;
+	}
     plat_assert(fthrd);
     pthread_mutex_init(&(fthrd->mutex), NULL);
     fthrd->id         = fth->nthrds;
@@ -302,6 +312,11 @@ fthReleasePthread()
 {
 	fthThread_t         *fthrd = fthSelf();
 	
+	/* Thread sstate already freed, return */
+	if (fthrd == NULL) {
+		return;
+	}
+
 	pthread_mutex_lock(&(fth->list_mutex));
 	if (fthrd->next) {
 		fthrd->next->prev = fthrd->prev;

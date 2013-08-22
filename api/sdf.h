@@ -490,6 +490,7 @@ typedef struct {
 
 typedef struct FDF_operational_states_t_ {
     SDF_boolean_t is_shutdown_in_progress;
+	void		  *shutdown_thread;
     /*
      * Add more flags if needed.
      */

@@ -158,17 +158,6 @@ void SDFTLMap2Destroy(SDFTLMap2_t *pm)
 		}
 		pb->entry = NULL;
 	}
-#if 0
-		for (ppme = &(pb->entry); (*ppme) != NULL; ppme = &((*ppme)->next)) {
-			pme = *ppme;
-            *ppme = pme->next;
-			plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT_FLASH, PLAT_LOG_LEVEL_TRACE,
-                         "\nHash Table Delete ppme %p key %"PRIu64" contents %p\n",
-                         ppme, pme->key, *ppme);
-            plat_free(pme);
-        }
-    }
-#endif
 }
 
 

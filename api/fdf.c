@@ -1080,7 +1080,17 @@ is_fdf_operation_allowed(void)
 		plat_log_msg(160097, LOG_CAT, LOG_DBG, 
 				"Operation denied: Shutdown in progress %s",
 				FDF_Status_Strings[status]);
+	} else if (NULL == fthSelf()) {
+		/*
+		 * Disallow further operation
+		 */
+		status = FDF_FAILURE_OPERATION_DISALLOWED;
+
+		plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, LOG_DBG, 
+				"Operation denied: Thread state already released, %s",
+				FDF_Status_Strings[status]);
 	}
+
 	return status;
 }
 
@@ -1946,6 +1956,7 @@ FDF_status_t FDFInitPerThreadState(
     SDF_action_init_t       *pai;
     SDF_action_init_t       *pai_new;
     SDF_action_thrd_state_t *pts;
+	int						shutdown_thread = 0;
 
     if ( !fdf_state ) {
         plat_log_msg(80052,LOG_CAT,LOG_DBG,
@@ -1954,7 +1965,13 @@ FDF_status_t FDFInitPerThreadState(
     }
     struct sdf_agent_state    *state = &agent_state;
 
-    fthSpawnPthread();
+	/* Thread already initialized or failed*/
+	if (agent_state.op_access.shutdown_thread == fthSelf()) {
+		shutdown_thread = 1;
+	}
+    if (fthSpawnPthread(shutdown_thread) == NULL) {
+		return FDF_FAILURE;
+	}
 
     pai = &state->ActionInitState;
 
@@ -1999,8 +2016,14 @@ FDF_status_t FDFReleasePerThreadState(
 	if (NULL == *thd_state) {
     	plat_log_msg(160098, LOG_CAT, LOG_ERR, 
                      "Thread state is null");
-		plat_assert(*thd_state);
-		// return FDF_FAILURE 
+		return FDF_FAILURE;
+	}
+	/* Thread state already freed, application issue, single thread 
+	 * releasing thread context multiple times. */
+	if (NULL == fthSelf()) {
+    	plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, LOG_ERR, 
+                     "Thread state already released");
+		return FDF_FAILURE;
 	}
 	pai = (SDF_action_init_t *)*thd_state;
 	pts = (SDF_action_thrd_state_t *)pai->pts;
@@ -2248,6 +2271,7 @@ FDF_status_t FDFShutdown(struct FDF_state *fdf_state)
 
 			return FDF_FAILURE;
 		}
+		agent_state.op_access.shutdown_thread = fthSelf();
 
 		/*
 		 * Phase 1: Process containers
@@ -2317,8 +2341,8 @@ FDF_status_t FDFOpenContainer(
 	 * Check if operation can begin
 	 */
 	if (FDF_SUCCESS != (status = is_fdf_operation_allowed())) {
-		plat_log_msg(160129, LOG_CAT,
-		       LOG_WARN, "Shutdown in Progress. Operation not allowed");
+		plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT,
+		       LOG_WARN, "Operation not allowed");
 		goto out;
 	}
 	if (is_license_valid() == false) {
@@ -3323,8 +3347,8 @@ FDF_status_t FDFDeleteContainer(
 	 * Check if operation can begin
 	 */
 	if (FDF_SUCCESS != (status = is_fdf_operation_allowed())) {
-	       plat_log_msg(80022, LOG_CAT,
-               LOG_DBG, "Shutdown in Progress. Operation not allowed ");
+	       plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT,
+               LOG_DBG, "Operation not allowed ");
 		goto out;
 	}
 	if (is_license_valid() == false) {
@@ -3946,8 +3970,8 @@ FDF_status_t FDFGetContainers(
 	 * Check if operation can begin
 	 */
 	if (FDF_SUCCESS != (status = is_fdf_operation_allowed())) {
-		plat_log_msg(160129, LOG_CAT,
-			LOG_WARN, "Shutdown in Progress. Operation not allowed");
+		plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT,
+			LOG_WARN, "Operation not allowed");
 		goto out;
 	}
 	if (is_license_valid() == false) {
@@ -4055,8 +4079,8 @@ FDF_status_t FDFGetContainerProps(
 	 * Check if operation can begin
 	 */
 	if (FDF_SUCCESS != (status = is_fdf_operation_allowed())) {
-		plat_log_msg(160129, LOG_CAT,
-			LOG_WARN, "Shutdown in Progress. Operation not allowed");
+		plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT,
+			LOG_WARN, "Operation not allowed");
 		goto out;
 	}
 	if (is_license_valid() == false) {
@@ -4184,8 +4208,8 @@ FDF_status_t FDFSetContainerProps(
 	 * Check if operation can begin
 	 */
 	if (FDF_SUCCESS != (status = is_fdf_operation_allowed())) {
-        plat_log_msg(80022, LOG_CAT,
-               LOG_WARN, "Shutdown in Progress. Operation not allowed ");
+        plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT,
+               LOG_WARN, "Operation not allowed ");
 		goto out;
 	}
 	if (is_license_valid() == false) {
@@ -4313,8 +4337,8 @@ FDF_status_t FDFReadObject(
 	 * Check if operation can begin
 	 */
 	if (FDF_SUCCESS != (status = is_fdf_operation_allowed())) {
-        plat_log_msg(80022, LOG_CAT,
-               LOG_WARN, "Shutdown in Progress. Operation not allowed ");
+        plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT,
+		   LOG_WARN, "Operation not allowed ");
 		goto out;
 	}
 	if (is_license_valid() == false) {
