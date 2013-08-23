@@ -6,7 +6,7 @@
 #include <assert.h>
 
 
-#define FDF_MAX_KEY_LEN 256
+#define FDF_MAX_KEY_LEN 1979
 #define NUM_OBJS 10000 //max mput in single operation
 #define NUM_MPUTS 1000000 
 

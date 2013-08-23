@@ -1086,7 +1086,7 @@ is_fdf_operation_allowed(void)
 		 */
 		status = FDF_FAILURE_OPERATION_DISALLOWED;
 
-		plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, LOG_DBG, 
+		plat_log_msg(160185, LOG_CAT, LOG_DBG, 
 				"Operation denied: Thread state already released, %s",
 				FDF_Status_Strings[status]);
 	}
@@ -2021,7 +2021,7 @@ FDF_status_t FDFReleasePerThreadState(
 	/* Thread state already freed, application issue, single thread 
 	 * releasing thread context multiple times. */
 	if (NULL == fthSelf()) {
-    	plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, LOG_ERR, 
+    	plat_log_msg(160186, LOG_CAT, LOG_ERR, 
                      "Thread state already released");
 		return FDF_FAILURE;
 	}
@@ -2341,7 +2341,7 @@ FDF_status_t FDFOpenContainer(
 	 * Check if operation can begin
 	 */
 	if (FDF_SUCCESS != (status = is_fdf_operation_allowed())) {
-		plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT,
+		plat_log_msg(160187, LOG_CAT,
 		       LOG_WARN, "Operation not allowed");
 		goto out;
 	}
@@ -3347,7 +3347,7 @@ FDF_status_t FDFDeleteContainer(
 	 * Check if operation can begin
 	 */
 	if (FDF_SUCCESS != (status = is_fdf_operation_allowed())) {
-	       plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT,
+	       plat_log_msg(160188, LOG_CAT,
                LOG_DBG, "Operation not allowed ");
 		goto out;
 	}
@@ -3970,7 +3970,7 @@ FDF_status_t FDFGetContainers(
 	 * Check if operation can begin
 	 */
 	if (FDF_SUCCESS != (status = is_fdf_operation_allowed())) {
-		plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT,
+		plat_log_msg(160187, LOG_CAT,
 			LOG_WARN, "Operation not allowed");
 		goto out;
 	}
@@ -4079,7 +4079,7 @@ FDF_status_t FDFGetContainerProps(
 	 * Check if operation can begin
 	 */
 	if (FDF_SUCCESS != (status = is_fdf_operation_allowed())) {
-		plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT,
+		plat_log_msg(160187, LOG_CAT,
 			LOG_WARN, "Operation not allowed");
 		goto out;
 	}
@@ -4208,7 +4208,7 @@ FDF_status_t FDFSetContainerProps(
 	 * Check if operation can begin
 	 */
 	if (FDF_SUCCESS != (status = is_fdf_operation_allowed())) {
-        plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT,
+        plat_log_msg(160188, LOG_CAT,
                LOG_WARN, "Operation not allowed ");
 		goto out;
 	}
@@ -4337,7 +4337,7 @@ FDF_status_t FDFReadObject(
 	 * Check if operation can begin
 	 */
 	if (FDF_SUCCESS != (status = is_fdf_operation_allowed())) {
-        plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT,
+        plat_log_msg(160188, LOG_CAT,
 		   LOG_WARN, "Operation not allowed ");
 		goto out;
 	}

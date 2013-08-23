@@ -3356,6 +3356,10 @@
 160182 slot_seqno:%lu lsn:%lu
 160183 log_blk:%lu log_num:%d start_blk:%lu start_seg:%lu
 160184 shard_blk:%lu shard_off:%d flush_blk:%lu
+160185 Operation denied: Thread state already released, %s
+160186 Thread state already released
+160187 Operation not allowed
+160188 Operation not allowed 
 
 
 # rico

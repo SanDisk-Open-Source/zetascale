@@ -25,6 +25,7 @@
 #include "selftest.h"
 #include "btree_range.h"
 #include "trx.h"
+#include "btree_raw_internal.h"
 
 #define MAX_NODE_SIZE   128*1024
 
@@ -466,7 +467,7 @@ FDF_status_t _FDFOpenContainerSpecial(
     struct btree *bt;
     uint32_t      flags;
     uint32_t      n_partitions;
-    uint32_t      max_key_size;
+    uint32_t      max_key_size, node_meta;
     uint32_t      min_keys_per_node;
     uint32_t      nodesize;
     void         *create_node_cb_data;
@@ -561,12 +562,6 @@ restart:
     if(!n_partitions)
         n_partitions = DEFAULT_N_PARTITIONS;
 
-    env = getenv("BTREE_MAX_KEY_SIZE");
-    max_key_size = env ? atoi(env) : 0;
-    if (!max_key_size) {
-        max_key_size    = DEFAULT_MAX_KEY_SIZE;
-    }
-
     env = getenv("BTREE_NODE_SIZE");
     nodesize = env ? atoi(env) : 0;
     if (!nodesize) {
@@ -574,6 +569,16 @@ restart:
     }
 
     min_keys_per_node   = DEFAULT_MIN_KEYS_PER_NODE;
+
+    env = getenv("BTREE_MAX_KEY_SIZE");
+    max_key_size = env ? atoi(env) : 0;
+    if (!max_key_size) {
+	node_meta =  sizeof(node_vkey_t);
+	if (node_meta < sizeof(node_vlkey_t)) {
+		node_meta =  sizeof(node_vlkey_t);
+	}
+	max_key_size = ((nodesize - sizeof(btree_raw_node_t))/min_keys_per_node) - node_meta;
+    }
 
     prn->cguid            = *cguid;
     prn->nodesize         = nodesize;
