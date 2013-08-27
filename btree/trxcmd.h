@@ -21,6 +21,8 @@
  *		If 1 is returned, the object in L1 is valid.
  */
 
+extern int trx_enabled;
+
 enum trx_cmd {
 	TRX_CACHE_ADD,
 	TRX_CACHE_QUERY,

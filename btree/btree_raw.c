@@ -279,7 +279,9 @@ l1cache_replace(void *callback_data, char *key, uint32_t keylen, char *pdata, ui
     btree_raw_mem_node_t *n = (btree_raw_mem_node_t*)pdata;
 
     btree_raw_t *bt = callback_data;
-    bt->trx_cmd_cb( TRX_CACHE_DEL, bt->write_node_cb_data, key);
+	if (trx_enabled) {
+		bt->trx_cmd_cb( TRX_CACHE_DEL, bt->write_node_cb_data, key);
+	}
 
     free_buffer((btree_raw_t *) callback_data, (void*)n->pnode);
 
@@ -1253,7 +1255,9 @@ static btree_raw_mem_node_t* add_l1cache(btree_raw_t *btree, btree_raw_node_t *n
         free(node);
         return NULL;
     }
-    btree->trx_cmd_cb( TRX_CACHE_ADD, btree->write_node_cb_data, (void *)n->logical_id);
+	if (trx_enabled) {
+		btree->trx_cmd_cb( TRX_CACHE_ADD, btree->write_node_cb_data, (void *)n->logical_id);
+	}
 
     dbg_referenced++;
 
@@ -1277,7 +1281,7 @@ static btree_raw_mem_node_t *get_l1cache(btree_raw_t *btree, uint64_t logical_id
 
     if (PMapGet(btree->l1cache, (char *) &logical_id, sizeof(uint64_t), (char **) &n, &datalen, btree->cguid) == NULL)
         return NULL;
-    if (btree->trx_cmd_cb( TRX_CACHE_QUERY, btree->write_node_cb_data, (void *)logical_id) == 0) {
+    if (trx_enabled && (btree->trx_cmd_cb( TRX_CACHE_QUERY, btree->write_node_cb_data, (void *)logical_id) == 0)) {
 		PMapDelete( btree->l1cache, (char *)&logical_id, sizeof logical_id, btree->cguid, (void *)btree);
 		return (NULL);
     }
@@ -1293,7 +1297,10 @@ static void delete_l1cache(btree_raw_t *btree, btree_raw_mem_node_t *n)
 {
     dbg_print("node %p root: %d leaf: %d refcnt %d\n", n, is_root(btree, n->pnode), is_leaf(btree, n->pnode), PMapGetRefcnt(btree->l1cache, (char *) &n->pnode->logical_id, sizeof(uint64_t)));
 
-    btree->trx_cmd_cb( TRX_CACHE_DEL, btree->write_node_cb_data, (void *)n->pnode->logical_id);
+	if (trx_enabled) {
+		btree->trx_cmd_cb( TRX_CACHE_DEL, btree->write_node_cb_data, (void *)n->pnode->logical_id);
+	}
+
     (void) PMapDelete(btree->l1cache, (char *) &(n->pnode->logical_id), sizeof(uint64_t), btree->cguid, (void *)btree);
 
     btree->stats.stat[BTSTAT_L1ENTRIES] = PMapNEntries(btree->l1cache);
@@ -3494,7 +3501,9 @@ btree_status_t btree_raw_delete(struct btree_raw *btree, char *key, uint32_t key
     node_key_t           *keyrec;
     uint64_t              syndrome = get_syndrome(btree, key, keylen);
 
-    assert(locked == 1);
+	if (trx_enabled) {
+		assert(locked == 1);
+	}
 
     plat_rwlock_rdlock(&btree->lock);
 
@@ -3535,7 +3544,9 @@ btree_status_t btree_raw_delete(struct btree_raw *btree, char *key, uint32_t key
     }
 
     dbg_print("dbg_referenced %ld\n", dbg_referenced);
-    assert(locked == 1);
+	if (trx_enabled) {
+		assert(locked == 1);
+	}
     assert(!dbg_referenced);
 
     /* Need tree restructure. Write lock whole tree and retry */
@@ -3562,7 +3573,9 @@ btree_status_t btree_raw_delete(struct btree_raw *btree, char *key, uint32_t key
     __sync_add_and_fetch(&(btree->stats.stat[BTSTAT_DELETE_PATH]), pathcnt);
 
     dbg_print("dbg_referenced %ld\n", dbg_referenced);
-    assert(locked == 1);
+	if (trx_enabled) {
+		assert(locked == 1);
+	}
     assert(!dbg_referenced);
 
 #ifdef BTREE_RAW_CHECK

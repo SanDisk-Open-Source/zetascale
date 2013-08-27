@@ -1,54 +1,54 @@
 
 
 /*
- * transaction support for btree
- *
- * Full isolation between trx is provided; solo writes are wrapped in a trx.
- * When outside of a bracketing trx, point queries and range queries may
- * return "dirty reads".
- *
- * Data Structures
- *
- * trx_t
- * 	holds main per-trx info
- * 	allocated at trx start by the thread
- * 	deallocated by thread at end of trx
- * 	referenced by:
- * 		owning thread only (before trx resolution)
- * 		scheduler during trx resolution
- * 	linked to other trx_t headed by "activetrxlist"
- * 	"trx" points to per-thread trx_t
- * 	"ntrxstarted" is # trx started (monotonically increasing)
- * 	"ntrxconcluded" is # trx concluded (monotonically increasing)
- * 	ntrxstarted-ntrxconcluded is # trx underway
- * 	has list of trxnode_t to reach all referenced nodes
- * trxnode_t
- * 	list element used by trx_t to identify those node_t accessed
- * 	allocated by thread incoming from btree
- * 	deallocated by thread at trx end
- * 	referenced by:
- * 		owning thread only (before trx resolution)
- * 		scheduler (during trx resolution)
- * node_t
- * 	holds per-node info
- * 	allocated by threads incoming from btree
- * 	deallocated by btree cache purge/invalidation, or trx end 
- * 	organized in a global hashtable
- * 	referenced by:
- *		any thread incoming from btree
- * 		scheduler during trx resolution
- *		any thread at end of trx
- * 	has linked list to reach nodetrx_t
- * nodetrx_t
- * 	list element used by node_t to record node usage by this trx
- * 	allocated by thread incoming from btree when not found
- * 	deallocated by thread at end of trx
- * 	referenced by:
- * 		incoming thread from btree to record usage
- * 		scheduler during trx resolution
- *		any thread at end of trx
- * 	has pointer to reach trx_t
- *
+* transaction support for btree
+*
+* Full isolation between trx is provided; solo writes are wrapped in a trx.
+* When outside of a bracketing trx, point queries and range queries may
+* return "dirty reads".
+*
+* Data Structures
+*
+* trx_t
+* 	holds main per-trx info
+* 	allocated at trx start by the thread
+* 	deallocated by thread at end of trx
+* 	referenced by:
+* 		owning thread only (before trx resolution)
+* 		scheduler during trx resolution
+* 	linked to other trx_t headed by "activetrxlist"
+* 	"trx" points to per-thread trx_t
+* 	"ntrxstarted" is # trx started (monotonically increasing)
+* 	"ntrxconcluded" is # trx concluded (monotonically increasing)
+* 	ntrxstarted-ntrxconcluded is # trx underway
+* 	has list of trxnode_t to reach all referenced nodes
+* trxnode_t
+* 	list element used by trx_t to identify those node_t accessed
+* 	allocated by thread incoming from btree
+* 	deallocated by thread at trx end
+* 	referenced by:
+* 		owning thread only (before trx resolution)
+* 		scheduler (during trx resolution)
+* node_t
+* 	holds per-node info
+* 	allocated by threads incoming from btree
+* 	deallocated by btree cache purge/invalidation, or trx end 
+* 	organized in a global hashtable
+* 	referenced by:
+*		any thread incoming from btree
+* 		scheduler during trx resolution
+*		any thread at end of trx
+* 	has linked list to reach nodetrx_t
+* nodetrx_t
+* 	list element used by node_t to record node usage by this trx
+* 	allocated by thread incoming from btree when not found
+* 	deallocated by thread at end of trx
+* 	referenced by:
+* 		incoming thread from btree to record usage
+* 		scheduler during trx resolution
+*		any thread at end of trx
+* 	has pointer to reach trx_t
+*
  * Main Data Access Paths
  *
  * 	btree callback:		     (cguid,nid)     (trx)
@@ -106,6 +106,7 @@
 
 #include	<assert.h>
 #include	<pthread.h>
+#include	<string.h>
 #include	"fdf.h"
 #include	"platform/rwlock.h"
 #include	"btree_hash.h"
@@ -208,36 +209,59 @@ static void		purgecache( ),
 static uint		hash( FDF_cguid_t, uint64_t);
 static timestamp_t	timestamp( );
 
+int trx_enabled = 0;
 
 void
 trxinit( )
 {
+	char *p = getenv("BTREE_TRX_ENABLE");
+	if (p) {
+		if (strcmp(p, "0") == 0) {
+			fprintf(stderr, "Transaction disabled\n");
+			trx_enabled = 0;
+		} else {
+			fprintf(stderr, "Transaction enabled\n");
+			trx_enabled = 1;
+			reltime( );
+			pthread_mutex_lock( &endlock);
+			plat_rwlock_init( &entrylock);
+		}
+	} else {
+		fprintf(stderr, "Transaction disabled\n");
+		trx_enabled = 0;
+	}
 
-	reltime( );
-	pthread_mutex_lock( &endlock);
-	plat_rwlock_init( &entrylock);
 }
 
 
 void
 trxenter( FDF_cguid_t c)
 {
-
-	plat_rwlock_rdlock( &entrylock);
+	if (trx_enabled) {
+		plat_rwlock_rdlock( &entrylock);
+	} else {
+	//	locked++;
+	}
 }
 
 
 void
 trxleave( FDF_cguid_t c)
 {
-
-	plat_rwlock_unlock( &entrylock);
+	if (trx_enabled) {
+		plat_rwlock_unlock( &entrylock);
+	} else {
+	//	locked--;
+	}
 }
 
 
 FDF_status_t
 trxstart( thread_state_t *ts)
 {
+	if (!trx_enabled) {
+		return FDF_SUCCESS;
+	}
 
 	if (trx) {
 		++trx->level;
@@ -271,6 +295,9 @@ trxstart( thread_state_t *ts)
 FDF_status_t 
 trxcommit( thread_state_t *ts)
 {
+	if (!trx_enabled) {
+		return FDF_SUCCESS;
+	}
 
 	unless (trx)
 		return (FDF_FAILURE);
@@ -292,6 +319,9 @@ FDF_status_t
 trxrollback( thread_state_t *ts)
 {
 
+	if (!trx_enabled) {
+		return FDF_SUCCESS;
+	}
 	unless (trx)
 		return (FDF_FAILURE);
 	dump( "trxrollback");
@@ -308,6 +338,9 @@ trxrollback( thread_state_t *ts)
 FDF_status_t 
 trxquit( thread_state_t *ts)
 {
+	if (!trx_enabled) {
+		return FDF_SUCCESS;
+	}
 
 	return (FDFTransactionQuit( ts));
 }
@@ -316,7 +349,9 @@ trxquit( thread_state_t *ts)
 uint64_t
 trxid( thread_state_t *ts)
 {
-
+	if (!trx_enabled) {
+		return 0;
+	}
 	return (FDFTransactionID( ts));
 }
 
@@ -342,7 +377,9 @@ trxdeletecontainer( thread_state_t *ts, FDF_cguid_t c)
 void
 trxtrackread( FDF_cguid_t c, uint64_t nid)
 {
-
+	if (!trx_enabled) {
+		return;
+	}
 	track( c, nid, FALSE);
 }
 
@@ -350,6 +387,9 @@ trxtrackread( FDF_cguid_t c, uint64_t nid)
 void
 trxtrackwrite( FDF_cguid_t c, uint64_t nid)
 {
+	if (!trx_enabled) {
+		return;
+	}
 
 	track( c, nid, TRUE);
 }
@@ -358,6 +398,9 @@ trxtrackwrite( FDF_cguid_t c, uint64_t nid)
 static void
 track( FDF_cguid_t c, uint64_t nid, bool written)
 {
+	if (!trx_enabled) {
+		return;
+	}
 
 	if (trx) {
 		pthread_mutex_lock( &nodetablelock);
@@ -380,6 +423,9 @@ conclude( )
 {
 	trx_t	*t;
 
+	if (!trx_enabled) {
+		return FDF_SUCCESS;
+	}
 	pthread_mutex_lock( &activetrxlock);
 	if (++ntrxconcluded < ntrxstarted) {
 		pthread_mutex_unlock( &activetrxlock);
@@ -409,6 +455,9 @@ concludeself( )
 {
 	FDF_status_t	s;
 
+	if (!trx_enabled) {
+		return FDF_SUCCESS;
+	}
 	pthread_mutex_lock( &trx->endlock);
 	switch (trx->state) {
 	case COMMITTING:
@@ -898,6 +947,8 @@ trx_cmd_cb( int cmd, void *v0, void *v1)
 	node_t	*n;
 
 	int r = 0;
+
+	assert(trx_enabled != 0);
 	pthread_mutex_lock( &nodetablelock);
 	switch (cmd) {
 	case TRX_CACHE_ADD:

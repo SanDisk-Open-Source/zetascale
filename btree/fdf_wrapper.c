@@ -25,6 +25,7 @@
 #include "selftest.h"
 #include "btree_range.h"
 #include "trx.h"
+#include "trxcmd.h"
 #include "btree_raw_internal.h"
 
 #define MAX_NODE_SIZE   128*1024
@@ -488,14 +489,6 @@ FDF_status_t _FDFOpenContainerSpecial(
 
     if (!cname)
         return(FDF_INVALID_PARAMETER);
-
-	pthread_rwlock_rdlock(&ctnrmap_rwlock);
-    if (N_Open_Containers >= MAX_OPEN_CONTAINERS) {
-        msg("Exceeded size of Container_Map array in FDFOpenContainer!");
-		pthread_rwlock_unlock(&ctnrmap_rwlock);
-        return(FDF_FAILURE);
-    }
-	pthread_rwlock_unlock(&ctnrmap_rwlock);
 
 restart:
     ret = FDFOpenContainer(fdf_thread_state, cname, properties, flags_in, cguid);
@@ -967,7 +960,7 @@ FDF_status_t _FDFReadObject(
         rmeta.keylen_end   = keylen;
         rmeta.flags        = RANGE_START_GE | RANGE_END_LE;
 
-		trxenter( cguid);
+		if (trx_enabled) { trxenter( cguid); }
         btree_ret = btree_start_range_query(bt, BTREE_RANGE_PRIMARY_INDEX,
                                             &cursor, &rmeta);
 		if (btree_ret != BTREE_SUCCESS) {
@@ -988,12 +981,12 @@ FDF_status_t _FDFReadObject(
 
         (void)btree_end_range_query(cursor);
     } else {
-		trxenter( cguid);
+		if (trx_enabled) { trxenter( cguid); }
         btree_ret = btree_get(bt, key, keylen, data, datalen, &meta);
     }
 
 done:
-    trxleave( cguid);
+    if (trx_enabled) { trxleave( cguid); }
     switch(btree_ret) {
         case BTREE_SUCCESS:
             ret = FDF_SUCCESS;
@@ -1134,7 +1127,7 @@ FDF_status_t _FDFWriteObject(
         return (FDF_FAILURE);
 	}
 
-    trxenter( cguid);
+	if (trx_enabled) { trxenter( cguid); }
     if (flags & FDF_WRITE_MUST_NOT_EXIST) {
 		btree_ret = btree_insert(bt, key, keylen, data, datalen, &meta);
     } else if (flags & FDF_WRITE_MUST_EXIST) {
@@ -1142,7 +1135,7 @@ FDF_status_t _FDFWriteObject(
     } else {
 		btree_ret = btree_set(bt, key, keylen, data, datalen, &meta);
     }
-    trxleave( cguid);
+    if (trx_enabled) { trxleave( cguid); }
 
     switch(btree_ret) {
         case BTREE_SUCCESS:
@@ -1255,9 +1248,9 @@ FDF_status_t _FDFDeleteObject(
 
     meta.flags = 0;
 
-    trxenter( cguid);
+	if (trx_enabled) { trxenter( cguid); }
     btree_ret = btree_delete(bt, key, keylen, &meta);
-    trxleave( cguid);
+    if (trx_enabled) { trxleave( cguid); }
     switch(btree_ret) {
         case BTREE_SUCCESS:
             ret = FDF_SUCCESS;
@@ -1436,9 +1429,9 @@ FDF_status_t _FDFFlushObject(
         return (FDF_KEY_TOO_LONG);
     }
 
-    trxenter( cguid);
+	if (trx_enabled) { trxenter( cguid); }
     btree_ret = btree_flush(bt, key, keylen);
-    trxleave( cguid);
+    if (trx_enabled) { trxleave( cguid); }
 
     switch(btree_ret) {
         case BTREE_SUCCESS:
@@ -1679,13 +1672,13 @@ _FDFGetNextRange(struct FDF_thread_state *fdf_thread_state,
     if (bt == NULL) {
         return (ret);
 	}
-	trxenter( cguid);
+	if (trx_enabled) { trxenter( cguid); }
 	status = btree_get_next_range((btree_range_cursor_t *)cursor,
 	                              n_in,
 	                              n_out,
 	                              (btree_range_data_t *)values
 	                              );
-	trxleave( cguid);
+    if (trx_enabled) { trxleave( cguid); }
 
 	if (status == BTREE_SUCCESS) {
 		ret = FDF_SUCCESS;
