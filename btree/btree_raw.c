@@ -4528,6 +4528,13 @@ static int rebalance(btree_status_t *ret, btree_raw_t *btree, btree_raw_mem_node
 
 	    shift_right(btree, anchor_node, balance_node, this_node, s_key, s_keylen, s_syndrome, s_seqno, &r_key, &r_keylen, &r_syndrome, &r_seqno);
 
+	   /*
+	    * Along with "this_node", balance_node will also get modified. Hence need to flush the balance_node.
+	    * "this_node" is added to modified l1 cache list in find_rebalance function as a part of delete key call.
+            * Anchor node will also be added to modified l1 cache as a part of delete key call in this function
+	    */
+	    modify_l1cache_node(btree,balance_mem_node);
+
             if (r_key != NULL) {
 		// update keyrec in anchor
 		delete_key(ret, btree, anchor_mem_node, s_key, s_keylen, meta, s_syndrome);
@@ -4544,6 +4551,13 @@ static int rebalance(btree_status_t *ret, btree_raw_t *btree, btree_raw_mem_node
 	    s_ptr      = r_anchor_stuff->ptr;
 
 	    shift_left(btree, anchor_node, balance_node, this_node, s_key, s_keylen, s_syndrome, s_seqno, &r_key, &r_keylen, &r_syndrome, &r_seqno);
+
+           /*
+            * Along with "this_node", balance_node will also get modified. Hence need to flush the balance_node.
+            * "this_node" is added to modified l1 cache list in find_rebalance function as a part of delete key call.
+            * Anchor node will also be added to modified l1 cache as a part of delete key call in this function
+            */
+            modify_l1cache_node(btree,balance_mem_node);
 
             if (r_key != NULL) {
 		// update keyrec in anchor
@@ -4566,6 +4580,15 @@ static int rebalance(btree_status_t *ret, btree_raw_t *btree, btree_raw_mem_node
 	    s_seqno    = l_anchor_stuff->seqno;
 
 	    merge_left(btree, anchor_node, this_node, merge_node, s_key, s_keylen, s_syndrome, s_seqno);
+
+           /*
+            * Along with "this_node", merge_node will also get modified. Hence need to flush the merge_node.
+            * "this_node" is added to modified l1 cache list in find_rebalance function as a part of delete key call.
+            * Anchor node will also be added to modified l1 cache as a part of delete key call in this function
+	    * merge_node in this case is left_node.
+            */
+	    modify_l1cache_node(btree,left_mem_node);
+	
 
 	    //  update the anchor
 	    //  cases:
@@ -4610,6 +4633,14 @@ static int rebalance(btree_status_t *ret, btree_raw_t *btree, btree_raw_mem_node
 	    s_seqno    = r_anchor_stuff->seqno;
 
 	    merge_right(btree, anchor_node, this_node, merge_node, s_key, s_keylen, s_syndrome, s_seqno);
+
+           /*
+            * Along with "this_node", merge_node will also get modified. Hence need to flush the merge_node.
+            * "this_node" is added to modified l1 cache list in find_rebalance function as a part of delete key call.
+            * Anchor node will also be added to modified l1 cache as a part of delete key call in this function
+            * merge_node in this case is right_node.
+            */
+	    modify_l1cache_node(btree,right_mem_node);
 
 	    //  update the anchor
 	    // 
