@@ -43,7 +43,7 @@ static char *fdflibs[] ={
 static const char *
 (*ptr_FDFGetProperty)(const char *key, const char *def);
 
-static void 
+static FDF_status_t
 (*ptr_FDFSetProperty)(const char *property, const char *value);
 
 static FDF_status_t 
@@ -528,7 +528,7 @@ FDFGetProperty(const char *key, const char *def)
 /*
  * FDFSetProperty
  */
-void 
+FDF_status_t
 FDFSetProperty(const char *property, const char *value)
 {
     parse();

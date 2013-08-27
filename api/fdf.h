@@ -433,9 +433,10 @@ const char *FDFGetProperty(const char *key, const char *def);
  *
  * @param propery <IN> property name
  * @param value <IN> pointer to value
+ * @return FDF_SUCCESS on success
  * 
  */
-void FDFSetProperty(
+FDF_status_t FDFSetProperty(
 	const char* property,
 	const char* value
 	);

@@ -1675,17 +1675,24 @@ FDFGetProperty(const char *key, const char *def)
 /*
 ** API
 */
-void FDFSetProperty(const char* property, const char* value)
+FDF_status_t FDFSetProperty(const char* property, const char* value)
 {
+    int ret = 0;
+
     value = strndup(value, 256);
     if (value)
-        setProperty(property, (void*) value);
+        ret = setProperty(property, (void*) value);
 
     if (FDF_log_level <= PLAT_LOG_LEVEL_INFO) {
         plat_log_msg(180021, PLAT_LOG_CAT_PRINT_ARGS, PLAT_LOG_LEVEL_INFO,
                      "FDFSetProperty ('%s', '%s'). Old value: %s",
                      property, value, getProperty_String(property, "NULL"));
     }
+
+    if ( ret )
+        return FDF_FAILURE;
+    else
+        return FDF_SUCCESS;
 }
 
 FDF_status_t FDFLoadProperties(const char *prop_file)
