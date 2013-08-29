@@ -247,6 +247,7 @@ extern btree_status_t btree_raw_flush(struct btree_raw *btree, char *key, uint32
  *              Vol. 24, No. 1, March 1995
  */
 extern btree_status_t btree_raw_delete(struct btree_raw *btree, char *key, uint32_t keylen, btree_metadata_t *meta);
+extern void release_per_thread_keybuf();
 
 /* Like btree_get, but gets next n_in keys after a specified key.
  * Use key=NULL and keylen=0 for first call in enumeration.

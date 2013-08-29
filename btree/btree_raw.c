@@ -4708,6 +4708,14 @@ static int check_per_thread_keybuf(btree_raw_t *btree)
     return(0);
 }
 
+void release_per_thread_keybuf()
+{
+	if (_keybuf) {
+		free(_keybuf);
+		_keybuf = NULL;
+	}
+}
+
 
 //======================   FAST_BUILD  =========================================
 

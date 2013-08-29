@@ -20,7 +20,8 @@ struct CMapIterator;
 struct CMap;
 struct CMapEntry;
 
-extern struct CMap *CMapInit(uint64_t nbuckets, uint64_t max_entries, char use_locks, void (*replacement_callback)(void *callback_data, char *key, uint32_t keylen, char *pdata, uint64_t datalen), void *replacement_callback_data);
+extern struct CMap *CMapInit(uint64_t nbuckets, uint64_t max_entries, char use_locks, void (*replacement_callback)(void *callback_data, char *key, uint32_t keylen, char *pdata, uint64_t datalen), void *replacement_callback_data, 
+								void (*delete_callback)(void *));
 extern void CMapDestroy(struct CMap *pm);
 extern void CMapClear(struct CMap *pm);
 extern struct CMapEntry *CMapCreate(struct CMap *pm, char *pkey, uint32_t keylen, char *pdata, uint64_t datalen);

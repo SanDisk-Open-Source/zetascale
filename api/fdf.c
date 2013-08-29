@@ -3478,6 +3478,7 @@ FDF_status_t fdf_delete_container_async_end(
 													&ok_to_delete );
 	if ( FDF_SUCCESS == status && ok_to_delete) {
 	    fdf_cmap_delete( cguid, cmap->cname );
+		cmap = NULL;
 		if ( FDF_VIRTUAL_CNTR == mode ) {
             fdf_flush_container( fdf_thread_state, VMC_CGUID );
         }
@@ -3796,6 +3797,7 @@ static FDF_status_t fdf_delete_container_1(
         if ( FDF_SUCCESS == status && ok_to_delete) {
 
 	        fdf_cmap_delete( cguid, cmap->cname );
+			cmap = NULL;
 
 			// Make sure the metadata container is in sync
 			if ( FDF_VIRTUAL_CNTR == mode )

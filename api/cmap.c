@@ -120,7 +120,8 @@ static void free_iterator(CMap_t *pm, struct CMapIterator *it)
     pm->NUsedIterators--;
 }
 
-struct CMap *CMapInit(uint64_t nbuckets, uint64_t max_entries, char use_locks, void (*replacement_callback)(void *callback_data, char *key, uint32_t keylen, char *pdata, uint64_t datalen), void *replacement_callback_data)
+struct CMap *CMapInit(uint64_t nbuckets, uint64_t max_entries, char use_locks, void (*replacement_callback)(void *callback_data, char *key, uint32_t keylen, char *pdata, uint64_t datalen), void *replacement_callback_data, 
+						void (*delete_callback)(void *))
 {
     uint64_t          i;
     CMap_t       *pm;
@@ -131,6 +132,7 @@ struct CMap *CMapInit(uint64_t nbuckets, uint64_t max_entries, char use_locks, v
     pm->lru_tail       = NULL;
     pm->replacement_callback       = replacement_callback;
     pm->replacement_callback_data  = replacement_callback_data;
+    pm->delete_callback = delete_callback;
     pm->use_locks      = use_locks;
     pm->max_entries    = max_entries;
     pm->n_entries      = 0;
@@ -408,44 +410,44 @@ struct CMapEntry *CMapGet(struct CMap *pm, char *key, uint32_t keylen, char **pd
 
     if (pme != NULL) {
         data    = pme->contents;
-	datalen = pme->datalen;
-	assert(pme->refcnt < 10000);
-	(pme->refcnt)++;
+		datalen = pme->datalen;
+		assert(pme->refcnt < 10000);
+		(pme->refcnt)++;
 
-	// update the LRU list if necessary
-	if (pm->max_entries != 0) {
-	    update_lru(pm, pme);
-	}
+		// update the LRU list if necessary
+		if (pm->max_entries != 0) {
+			update_lru(pm, pme);
+		}
 
     } else {
         data    = NULL;
-	datalen = 0;
+		datalen = 0;
     }
 
-    #ifdef SANDISK_PRINTSTUFF
-        if (pme != NULL) {
+#ifdef SANDISK_PRINTSTUFF
+	if (pme != NULL) {
 	    fprintf(stderr, "CMapGet: pm=%p, key=0x%lx, keylen=%d, pdata=%p, datalen=%ld, refcnt=%d, pme=%p\n", pm, *((uint64_t *) key), keylen, data, datalen, pme->refcnt, pme);
 	} else {
 	    fprintf(stderr, "CMapGet: pm=%p, key=0x%lx, keylen=%d, pdata=%p, datalen=%ld, pme=%p\n", pm, *((uint64_t *) key), keylen, data, datalen, pme);
 	}
 
-	#ifdef notdef
-	    void* tracePtrs[100];
-	    int count = backtrace( tracePtrs, 100 );
+#ifdef notdef
+	void* tracePtrs[100];
+	int count = backtrace( tracePtrs, 100 );
 
-	    char** funcNames = backtrace_symbols( tracePtrs, count );
+	char** funcNames = backtrace_symbols( tracePtrs, count );
 
-	    // Print the stack trace
-	    printf("---------------------------------------------------------------------------\n");
-	    for( int ii = 0; ii < count; ii++ ) {
+	// Print the stack trace
+	printf("---------------------------------------------------------------------------\n");
+	for( int ii = 0; ii < count; ii++ ) {
 		printf( "%s\n", funcNames[ii] );
-	    }
-	    printf("---------------------------------------------------------------------------\n");
+	}
+	printf("---------------------------------------------------------------------------\n");
 
-	    // Free the string pointers
-	    free( funcNames );
-	#endif
-    #endif
+	// Free the string pointers
+	free( funcNames );
+#endif
+#endif
 
     do_unlock(&(pm->mutex));
     *pdatalen = datalen;
@@ -524,7 +526,7 @@ int CMapRelease(struct CMap *pm, char *key, uint32_t keylen)
 	#endif
         (pme->refcnt)--; //xxxzzz check this!
         //pme->refcnt = 0;
-	rc = 1;
+		rc = 1;
     } else {
 	#ifdef SANDISK_PRINTSTUFF
 	    fprintf(stderr, " (KEY NOT FOUND!)\n");
@@ -755,6 +757,10 @@ static CMapEntry_t *copy_pme_list(CMap_t *pm, CMapEntry_t *pme_in)
 
 static void free_pme(CMap_t *pm, CMapEntry_t *pme)
 {
+	if (pme->contents) {
+		pm->delete_callback(pme->contents);
+		pme->contents = NULL;
+	}
     free_entry(pm, pme);
 }
 

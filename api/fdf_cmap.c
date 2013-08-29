@@ -15,7 +15,6 @@
 #include "cmap.h"
 
 #define CMAP_BUCKETS	 1000
-#define CMAP_MAX_ENTRIES 1024*64
 
 #define LOG_ID PLAT_LOG_ID_INITIAL
 #define LOG_CAT PLAT_LOG_CAT_SDF_NAMING
@@ -27,6 +26,7 @@
 #define LOG_WARN PLAT_LOG_LEVEL_WARN
 #define LOG_FATAL PLAT_LOG_LEVEL_FATAL
 
+static void fdf_cmap_del_cb(void *data);
 
 HashMap cmap_cname_hash;           // cname -> cguid
 struct CMap *cmap_cguid_hash;      // cguid -> cntr_map_t
@@ -48,7 +48,7 @@ FDF_status_t fdf_cmap_init( void )
     bzero( (void *) &cmc_map.enum_stats, sizeof( enum_stats_t ) );
     bzero( (void *) &cmc_map.container_stats, sizeof( FDF_container_stats_t ) );
 	
-	cmap_cguid_hash = CMapInit( CMAP_BUCKETS, CMAP_MAX_ENTRIES, 1, NULL, NULL );
+	cmap_cguid_hash = CMapInit( CMAP_BUCKETS, MCD_MAX_NUM_CNTRS, 1, NULL, NULL, fdf_cmap_del_cb );
     cmap_cname_hash = HashMap_create( CMAP_BUCKETS, FTH_BUCKET_RW );
 
 	if ( !cmap_cguid_hash || !cmap_cname_hash ) {
@@ -195,6 +195,7 @@ cntr_map_t *fdf_cmap_get_by_cguid(
 	    return &cmc_map;
 
     if ( CMapGet( cmap_cguid_hash, (char *) &cguid, sizeof( FDF_cguid_t ), (char **) &cmap, &cmaplen ) ) {
+		//MAx entries is same as max no. of containers, so it can not get replaced
         CMapRelease( cmap_cguid_hash, (char *) &cguid, sizeof( FDF_cguid_t ) );
 	    return cmap;
 	} else {
@@ -208,6 +209,28 @@ cntr_map_t *fdf_cmap_get_by_cguid(
 	}
 }
 
+void fdf_cmap_rel(
+	cntr_map_t *cmap	
+    )
+{
+
+	if ( cmap == &cmc_map)
+	    return;
+
+	CMapRelease( cmap_cguid_hash, (char *) &(cmap->cguid), sizeof( FDF_cguid_t ) );
+}
+void fdf_cmap_rel_by_cguid(
+	FDF_cguid_t cguid	
+    )
+{
+	if ( FDF_NULL_CGUID == cguid )
+	    return;
+
+	if ( CMC_CGUID == cguid )
+	    return;
+
+	CMapRelease( cmap_cguid_hash, (char *) &cguid, sizeof( FDF_cguid_t ) );
+}
 FDF_cguid_t fdf_cmap_get_cguid(
     char *cname
     )
@@ -252,6 +275,14 @@ cntr_map_t *fdf_cmap_get_by_cname(
 	    return NULL;
 }
 
+static void
+fdf_cmap_del_cb(void *data)
+{
+    cntr_map_t  *cmap           = (cntr_map_t *)data;
+	plat_free(cmap);
+}
+
+
 FDF_status_t fdf_cmap_delete(
     FDF_cguid_t  cguid,
 	char        *cname
@@ -262,9 +293,10 @@ FDF_status_t fdf_cmap_delete(
 	if ( FDF_NULL_CGUID == cguid || !cname )
 	    return FDF_INVALID_PARAMETER;
 
+    HashMap_remove( cmap_cname_hash, cname );
+
     status_cguid = CMapDelete( cmap_cguid_hash, (char *) &cguid, sizeof( FDF_cguid_t ) );
 
-    HashMap_remove( cmap_cname_hash, cname );
 
 	if ( status_cguid == 1 )
 	    return FDF_OBJECT_UNKNOWN;

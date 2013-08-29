@@ -127,6 +127,10 @@ cntr_map_t *fdf_cmap_get_by_cguid(
     FDF_cguid_t cguid
     );
 
+void fdf_cmap_rel(
+    cntr_map_t *
+    );
+
 cntr_map_t *fdf_cmap_get_by_cname(
     char *cname
     );

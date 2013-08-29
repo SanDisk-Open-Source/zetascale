@@ -415,6 +415,7 @@ FDF_status_t _FDFReleasePerThreadState(
 	struct FDF_thread_state	**thd_state
 	)
 {
+	release_per_thread_keybuf();
     return(FDFReleasePerThreadState(thd_state));
 }
 

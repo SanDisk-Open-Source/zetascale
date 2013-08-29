@@ -52,6 +52,7 @@ typedef struct CMap {
     CMapEntry_t  *lru_tail;
     void              (*replacement_callback)(void *callback_data, char *key, uint32_t keylen, char *pdata, uint64_t datalen);
     void             *replacement_callback_data;
+    void              (*delete_callback)(void *callback_data);
     uint32_t          NEntries;
     uint32_t          NUsedEntries;
     CMapEntry_t  *FreeEntries;
