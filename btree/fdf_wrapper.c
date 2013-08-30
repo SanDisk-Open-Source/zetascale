@@ -646,6 +646,10 @@ restart:
 	Container_Map[index].bt_state = BT_CNTR_OPEN;
 	pthread_rwlock_unlock(&(Container_Map[index].bt_cm_rwlock));
 
+	//Flush root node, so that it exists irrespective of durability level
+	if (flags_in&FDF_CTNR_CREATE) {
+		FDFFlushContainer(fdf_thread_state, *cguid);
+	}
     return(FDF_SUCCESS);
 
 fail:
