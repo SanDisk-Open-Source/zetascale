@@ -21,6 +21,11 @@
 #include "btree_range.h"
 #include "btree_list.h"
 
+#ifdef _OPTIMIZE
+#undef assert
+#define assert(a)
+#endif
+
 //  Define this to include detailed debugging code
 #define DEBUG_STUFF
 

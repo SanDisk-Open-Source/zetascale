@@ -50,7 +50,7 @@ plat_rwlock_destroy(plat_rwlock_t *rwlock) {
 int
 plat_rwlock_rdlock(plat_rwlock_t *rwlock) {
     dbg_print("rwlock=%p\n", rwlock);
-    locked++;
+//    locked++;
     return (pthread_rwlock_rdlock(rwlock));
 }
 
@@ -63,7 +63,7 @@ plat_rwlock_tryrdlock(plat_rwlock_t *rwlock) {
 int
 plat_rwlock_wrlock(plat_rwlock_t *rwlock) {
     dbg_print("rwlock=%p\n", rwlock);
-    locked++;
+//    locked++;
     return (pthread_rwlock_wrlock(rwlock));
 }
 
@@ -75,6 +75,6 @@ plat_rwlock_trywrlock(plat_rwlock_t *rwlock) {
 int
 plat_rwlock_unlock(plat_rwlock_t *rwlock) {
     dbg_print("rwlock=%p\n", rwlock);
-    locked--;
+//    locked--;
     return (pthread_rwlock_unlock(rwlock));
 }

@@ -73,6 +73,10 @@
 #include "trxcmd.h"
 #include <api/fdf.h>
 
+#ifdef _OPTIMIZE
+#undef assert
+#define assert(a)
+#endif
 //  Define this to include detailed debugging code
 //#define DEBUG_STUFF
 //#define BTREE_RAW_CHECK

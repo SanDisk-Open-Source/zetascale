@@ -32,6 +32,11 @@
 
 #include "fdf_internal.h"
 
+#ifdef _OPTIMIZE
+#undef assert
+#define assert(a)
+#endif
+
 static char Create_Data[MAX_NODE_SIZE];
 
 uint64_t n_global_l1cache_buckets;
