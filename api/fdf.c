@@ -3877,7 +3877,7 @@ char *FDFGetNextContainerName(struct FDF_thread_state *fdf_thread_state, struct 
 	}
 
 	// Get the next container name
-	while ( fdf_cmap_next_enum( (struct cmap_iterator *) iterator, &key, &keylen, (char **) &cmap, &cmaplen ) ) {
+	while ( fdf_cmap_next_enum( (struct cmap_iterator *)(*iterator), &key, &keylen, (char **) &cmap, &cmaplen ) ) {
         if ( cmap->cguid != FDF_NULL_CGUID ) {
             /* Skip CMC, VMC and VDC */
             if ( ( strcmp( cmap->cname,"/sdf/VMC" ) == 0 ) ||
@@ -3904,7 +3904,7 @@ char *FDFGetNextContainerName(struct FDF_thread_state *fdf_thread_state, struct 
     }
 
 	// Must have reached the end of the enum
-	fdf_cmap_finish_enum( ( struct cmap_iterator * ) iterator );
+	fdf_cmap_finish_enum( ( struct cmap_iterator * ) (*iterator) );
 	*iterator = NULL;
     SDFEndSerializeContainerOp( pai );
     return NULL;
