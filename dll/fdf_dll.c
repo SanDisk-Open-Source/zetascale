@@ -190,6 +190,9 @@ static uint64_t
 (*ptr_FDFTransactionID)(struct FDF_thread_state *fdf_thread_state);
 
 static FDF_status_t 
+(*ptr_FDFTransactionService)(struct FDF_thread_state *fdf_thread_state, int, void *);
+
+static FDF_status_t 
 (*ptr_FDFGetVersion)(char **str);
 
 FDF_status_t
@@ -364,6 +367,7 @@ static struct {
     { "FDFTransactionRollback",        &ptr_FDFTransactionRollback       },
     { "FDFTransactionQuit",            &ptr_FDFTransactionQuit           },
     { "FDFTransactionID",              &ptr_FDFTransactionID             },
+    { "FDFTransactionService",         &ptr_FDFTransactionService        },
     { "FDFGetVersion",                 &ptr_FDFGetVersion                },
     { "FDFRegisterCallbacks",          &ptr_FDFRegisterCallbacks         },
     { "FDFOperationAllowed",           &ptr_FDFOperationAllowed          },
@@ -1033,6 +1037,19 @@ FDFTransactionID(struct FDF_thread_state *fdf_thread_state)
         undefined("FDFTransactionID");
 
     return (*ptr_FDFTransactionID)(fdf_thread_state);
+}
+
+
+/*
+ * FDFTransactionService
+ */
+FDF_status_t 
+FDFTransactionService(struct FDF_thread_state *fdf_thread_state, int cmd, void *arg)
+{
+    if (unlikely(!ptr_FDFTransactionService))
+        undefined("FDFTransactionService");
+
+    return (*ptr_FDFTransactionService)(fdf_thread_state, cmd, arg);
 }
 
 

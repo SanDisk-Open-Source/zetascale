@@ -554,8 +554,9 @@ typedef struct mcd_rec_obj_state {
     int                   seg_count;     // # object table segments
     char               ** segments;      // list of object table segments
 
-    mcd_logrec_object_t * trxbuf;        // trx accumulator
-    uint                  trxnum;        // trx count of log records
+    mcd_logrec_object_t  *trxbuf;        // trx log-record accumulator
+    uint                  trxmax;        // trx record maximum
+    uint                  trxnum;        // trx record current count
     enum trx_rec          trxstatus;     // status of accumulation
 } mcd_rec_obj_state_t;
 

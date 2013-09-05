@@ -6751,6 +6751,31 @@ uint64_t FDFTransactionID(
 
 
 /**
+ * @brief Perform internal transaction service
+ *
+ * @param fdf_thread_state <IN> The FDF context for which this operation applies
+ * @return FDF_SUCCESS on success
+ *         FDF_FAILURE_OPERATION_DISALLOWED for unbalanced/nested rollback brackets
+ *         FDF_FAILURE for error unspecified
+ */
+FDF_status_t FDFTransactionService(
+	struct FDF_thread_state	*fdf_thread_state,
+	int			cmd,
+	void			*arg
+	)
+{
+
+	switch (mcd_trx_service( fdf_thread_state, cmd, arg)) {
+	case MCD_TRX_OKAY:
+		return (FDF_SUCCESS);
+	case MCD_TRX_BAD_CMD:
+		return (FDF_FAILURE_OPERATION_DISALLOWED);
+	}
+	return (FDF_FAILURE);
+}
+
+
+/**
  * @brief Return version of FDF
  *
  * @param fdf_thread_state <IN> The FDF context for which this operation applies

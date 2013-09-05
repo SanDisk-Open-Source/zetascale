@@ -4312,7 +4312,9 @@ update_hash_table( void * context, mcd_osd_shard_t * shard,
 
 enum {
 	TRX_OP		= 1,
-	TRX_OP_LAST	= 2
+	TRX_OP_LAST	= 2,
+
+	TRX_OP_CLUSTER  = 3
 };
 
 
@@ -4429,11 +4431,23 @@ reapply:
 }
 
 
-
 /*
- * Free trx resources.  Must be called after applying a log.  Errors may
- * be deemed fatal, or not.
+ * compare seqno with ascending sense
  */
+static int
+trxseqnocompar( const void *v0, const void *v1)
+{
+
+	mcd_logrec_object_t * const a = (mcd_logrec_object_t *)v0;
+	mcd_logrec_object_t * const b = (mcd_logrec_object_t *)v1;
+	if (a->seqno < b->seqno)
+		return (-1);
+	if (a->seqno > b->seqno)
+		return (1);
+	return (0);
+}
+
+
 static void
 apply_log_record_cleanup( mcd_rec_obj_state_t *state)
 {
@@ -4442,70 +4456,84 @@ apply_log_record_cleanup( mcd_rec_obj_state_t *state)
 	case TRX_REC_NOMEM:
 		mcd_log_msg( 170007, PLAT_LOG_LEVEL_FATAL, "TRX cannot be applied due to insufficient memory");
 		plat_abort( );
-		break;
-	case TRX_REC_OVERFLOW:
-		mcd_log_msg( 170008, PLAT_LOG_LEVEL_FATAL, "TRX too big to apply");
-		plat_abort( );
-		break;
 	case TRX_REC_BAD_SEQ:
-		mcd_log_msg( 170009, PLAT_LOG_LEVEL_ERROR, "TRX sequence anomaly");
+		mcd_log_msg( 170011, PLAT_LOG_LEVEL_ERROR, "TRX sequence error");
 	}
-	if (state->trxbuf)
-		plat_free( state->trxbuf);
-	state->trxbuf = 0;
 	state->trxnum = 0;
 	state->trxstatus = TRX_REC_OKAY;
 }
 
 
-/*
- * Gather complete transactions.  If 'trxfailed' is set then a botched
- * transaction is being discarded.  Otherwise, a successful transaction is
- * being accumulated if 'trxbuf' is set.  Transactions will only be applied
- * if the TRX_OP_LAST record is reached successfully.
- */
+static bool
+store_trx_logrec( mcd_rec_obj_state_t *state, mcd_logrec_object_t *rec)
+{
+
+	unless (state->trxnum < state->trxmax) {
+		state->trxmax = max( 2*state->trxmax, 1);
+		unless (state->trxbuf = plat_realloc( state->trxbuf, state->trxmax*sizeof( *state->trxbuf))) {
+			state->trxmax = 0;
+			state->trxstatus = TRX_REC_NOMEM;
+			return (FALSE);
+		}
+	}
+	state->trxbuf[state->trxnum++] = *rec;
+	return (TRUE);
+}
+
+
 static int
 apply_log_record( mcd_osd_shard_t *shard, char *data, mcd_rec_obj_state_t *state, uint64_t *high_offset, uint64_t *low_offset)
 {
-	uint	i;
+	static uint64_t	z;
+	uint		i;
 
 	mcd_logrec_object_t *rec = (mcd_logrec_object_t *)data;
-	uint a = 0;
-	switch (rec->trx) {
-	case TRX_OP:
-		unless (state->trxstatus == TRX_REC_OKAY)
-			break;
-		unless ((state->trxbuf)
-		or (state->trxbuf = plat_alloc( TRX_LIMIT*sizeof( *state->trxbuf)))) {
-			state->trxstatus = TRX_REC_NOMEM;
-			break;
+	int a = 0;
+	unless (rec) {
+		if ((state->trxmax)
+		and (state->trxbuf[0].seqno != z)) {
+			mcd_log_msg( 170014, PLAT_LOG_LEVEL_DIAGNOSTIC, "trxmax=%u trxnum=%u", state->trxmax, state->trxnum);
+			z = state->trxbuf[0].seqno;
 		}
-		if (state->trxnum < TRX_LIMIT)
-			state->trxbuf[state->trxnum++] = *rec;
-		else
-			state->trxstatus = TRX_REC_OVERFLOW;
-		break;
-	case TRX_OP_LAST:
-		unless (state->trxstatus == TRX_REC_OKAY) {
+		unless ((state->trxstatus == TRX_REC_OKAY)
+		and (state->trxnum)) {
 			apply_log_record_cleanup( state);
-			break;
+			return (a);
 		}
-		if (state->trxbuf) {
-			for (i=0; i<state->trxnum; ++i)
-				a += apply_log_record_internal( shard, &state->trxbuf[i], state, high_offset, low_offset);
-			apply_log_record_cleanup( state);
-		}
-		a += apply_log_record_internal( shard, rec, state, high_offset, low_offset);
-		break;
-	default:
-		unless (state->trxstatus == TRX_REC_OKAY)
-			apply_log_record_cleanup( state);
-		else if (state->trxbuf) {
-			state->trxstatus = TRX_REC_BAD_SEQ;
-			apply_log_record_cleanup( state);
-		}
-		a += apply_log_record_internal( shard, rec, state, high_offset, low_offset);
+		mcd_log_msg( 170015, PLAT_LOG_LEVEL_WARN, "trx log overrun, increase FDF_TRX_GROUP_SIZE");
+		return (a);
 	}
+	else if (rec->seqno)
+		switch (rec->trx) {
+		case TRX_OP:
+		case TRX_OP_LAST:
+			if (state->trxstatus == TRX_REC_OKAY)
+				store_trx_logrec( state, rec);
+			return (a);
+		case TRX_OP_CLUSTER:
+			unless ((state->trxstatus == TRX_REC_OKAY)
+			and (store_trx_logrec( state, rec))) {
+				apply_log_record_cleanup( state);
+				return (a);
+			}
+			break;
+		default:
+			unless (state->trxstatus == TRX_REC_OKAY)
+				apply_log_record_cleanup( state);
+			else if (state->trxnum) {
+				state->trxstatus = TRX_REC_BAD_SEQ;
+				apply_log_record_cleanup( state);
+			}
+			a += apply_log_record_internal( shard, rec, state, high_offset, low_offset);
+			return (a);
+		}
+	else
+		return (a);
+
+	qsort( state->trxbuf, state->trxnum, sizeof *state->trxbuf, trxseqnocompar);
+	for (i=0; i<state->trxnum; ++i)
+		a += apply_log_record_internal( shard, &state->trxbuf[i], state, high_offset, low_offset);
+	apply_log_record_cleanup( state);
 	return (a);
 }
 
@@ -4849,7 +4877,7 @@ process_log( void * context, mcd_osd_shard_t * shard,
             }
         }
     }
-    apply_log_record_cleanup( state);
+    applied += apply_log_record( shard, 0, state, &log_state->high_obj_offset, &log_state->low_obj_offset);
 
     plat_assert_always( blk_count == log_state->num_blks || end_of_log );
 
@@ -7315,7 +7343,6 @@ log_write_postprocess( mcd_osd_shard_t * shard, mcd_rec_logbuf_t * logbuf,
                  "shardID=%lu, seqno=%lu, prev=%u, curr=%u, left=%lu, "
                  "hiseq=%lu", shard->id, logbuf->seqno, pp->fill_count,
                  s - pp->fill_count, MCD_REC_LOGBUF_SLOTS - s, *high_seqno );
-//fprintf(stderr, "log_write_postprocess: slot_count=%d total_slots=%ld s=%d\n", pp->slot_count, MCD_REC_LOGBUF_SLOTS, s);
     pp->slot_count = s;
     return;
 }
@@ -8611,6 +8638,13 @@ static void		trx_add( mcd_trx_state_t *),
 static __thread uint64_t
 			trxid;
 static mcd_trx_bucket_t	trxtable[256];
+static bool		trx_bracket;
+static mcd_trx_state_t	*detached;
+static pthread_mutex_t	detachedlock	= PTHREAD_MUTEX_INITIALIZER;
+#if 1//Rico
+static bool		cluster;
+static mcd_osd_shard_t	*clustershard;
+#endif
 static mcd_trx_stats_t	mcd_trx_stats;
 
 
@@ -8819,6 +8853,161 @@ mcd_trx_print_stats( FILE *f)
 }
 
 
+static mcd_trx_rec_t	*trxrollbacktab[10000];
+
+static int
+compar( const void *v0, const void *v1)
+{
+
+	const mcd_trx_rec_t *a = *(mcd_trx_rec_t **)v0;
+	const mcd_trx_rec_t *b = *(mcd_trx_rec_t **)v1;
+	if (a->lr.seqno < b->lr.seqno)
+		return (1);
+	if (a->lr.seqno > b->lr.seqno)
+		return (-1);
+	return (0);
+}
+
+static uint
+aggregationsize( )
+{
+	mcd_trx_state_t	*t;
+
+	uint n = 0;
+	for (t=detached; t; t=t->next)
+		n += t->n;
+	return (n);
+}
+
+static mcd_trx_t
+rollbackdetached( void *pai)
+{
+	mcd_trx_state_t	*t;
+	mcd_osd_shard_t	*s;
+	uint		i;
+
+	unless (detached)
+		return (MCD_TRX_NO_TRANS);
+	unless (s = detached->s)
+		return (MCD_TRX_BAD_SHARD);
+	pthread_mutex_lock( &detachedlock);
+	uint j = 0;
+	for (t=detached; t; t=t->next) {
+		unless (j+t->n <= nel( trxrollbacktab)) {
+			printf( "aggregated roll back too big (have %lu, need %u)", nel( trxrollbacktab), aggregationsize( ));
+			plat_abort( );
+		}
+		for (i=0; i<t->n; ++i)
+			trxrollbacktab[j++] = &t->trtab[i];
+	}
+	qsort( trxrollbacktab, j, sizeof *trxrollbacktab, compar);
+	mcd_trx_t e = MCD_TRX_OKAY;
+	for (i=0; i<j; ++i) {
+		mcd_trx_rec_t *r = trxrollbacktab[i];
+		if (r->lr.blocks) {
+			mcd_osd_trx_revert( s, &r->lr, r->syn, &r->e);
+			uint64_t bi = r->syn%s->hash_size / Mcd_osd_bucket_size;
+			cache_inval_by_mhash( pai, &s->shard, r->lr.blk_offset, bi, r->syn>>OSD_HASH_SYN_SHIFT);
+		}
+		else unless (mcd_osd_trx_insert( s, r->syn, &r->e))
+			e = MCD_TRX_HASHTABLE_FULL;
+	}
+	while (t = detached) {
+		detached = t->next;
+		plat_free( t);
+	}
+	pthread_mutex_unlock( &detachedlock);
+	return (e);
+}
+
+
+/*
+ * miscellaneous services
+ *
+ * A commitment bracket defers enclosed calls to mcd_trx_commit().
+ * The trx are detached from the owning threads, which are then free to
+ * continue execution - even to initiate new trx.  Meanwhile, the detached
+ * trx wait until the bracket closes, at which point the aggregated trx is
+ * performed.  Note: this feature is not currently compatible with nesting,
+ * or with roll back.
+ */
+mcd_trx_t
+mcd_trx_service( void *pai, int cmd, void *arg)
+{
+	static bool	initialized;
+	static uint	trxgroupsize;		// average ops/trx
+
+	unless (initialized) {
+		initialized = TRUE;
+		trxgroupsize = max( 1, getProperty_Int( "FDF_TRX_GROUP_SIZE", 3));
+	}
+	switch (cmd) {
+	/*
+	 * open commitment bracket
+	 */
+	case 0:
+		if (trx_bracket)
+			return (MCD_TRX_BAD_CMD);
+		trx_bracket = TRUE;
+		return (MCD_TRX_OKAY);
+	/*
+	 * close commitment bracket
+	 */
+	case 1:
+		unless (trx_bracket)
+			return (MCD_TRX_BAD_CMD);
+		trx_bracket = FALSE;
+		return (rollbackdetached( pai));
+#if 1//Rico
+	/*
+	 * start cluster
+	 */
+	case 2:
+		if (clustershard) {
+			mcd_osd_shard_t *s = clustershard;
+			mcd_rec_log_t *log = s->log;
+			loop {
+				uint n = __sync_fetch_and_add( &log->write_buffer_seqno, 0);
+				n = log->total_slots - n%log->total_slots;
+				const uint N = 4 * MCD_REC_LOGBUF_RECS;
+				if (n < N) {
+					mcd_logrec_object_t z;
+					memset( &z, 0, sizeof z);
+					z.blk_offset = 0xffffffffu;	/* CAS type */
+					uint i;
+					for (i=0; i<N; ++i)
+						log_write_internal( s, &z);
+				}
+				else {
+					n = n/trxgroupsize / 2;
+					*(uint *)arg = min( 500000, n);
+					break;
+				}
+			}
+		}
+		else
+			/* VDC shard not yet known, use a small default 
+			 */
+			*(uint *)arg = 1;
+		break;
+	/*
+	 * next trx commit is end of cluster
+	 */
+	case 3:
+		cluster = TRUE;
+		break;
+	/*
+	 * print status of trx service
+	 */
+	case 4:
+		mcd_log_msg( 170016, PLAT_LOG_LEVEL_INFO, "trx log service is %senabled", arg? "": "not ");
+		break;
+#endif
+	}
+	return (MCD_TRX_BAD_CMD);
+}
+
+
 static mcd_trx_t
 mcd_trx_commit_internal( void *pai, mcd_trx_state_t *t)
 {
@@ -8845,6 +9034,13 @@ mcd_trx_commit_internal( void *pai, mcd_trx_state_t *t)
 			log_write_internal( t->s, &t->trtab[i].lr);
 		}
 		t->trtab[i].lr.trx = TRX_OP_LAST;
+#if 1//Rico
+		clustershard = t->s;
+		if (cluster) {
+			t->trtab[i].lr.trx = TRX_OP_CLUSTER;
+			cluster = FALSE;
+		}
+#endif
 		log_write_internal( t->s, &t->trtab[i].lr);
 		fthUnlock( w);
 		mcd_trx_stats.operations += t->n;
@@ -8861,6 +9057,13 @@ mcd_trx_rollback_internal( void *pai, mcd_trx_state_t *t)
 {
 	uint	i;
 
+	if (trx_bracket) {
+		pthread_mutex_lock( &detachedlock);
+		t->next = detached;
+		detached = t;
+		pthread_mutex_unlock( &detachedlock);
+		return (MCD_TRX_OKAY);
+	}
 	for (i=0; i<t->n; ++i) {
 		mcd_trx_rec_t *r = &t->trtab[t->n-i-1];
 		if (r->lr.blocks) {

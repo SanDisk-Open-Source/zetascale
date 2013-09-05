@@ -11,4 +11,4 @@ add_library(fifo OBJECT fifo.c
 	recovery.c
 	slab_gc.c )
 add_dependencies(fifo ffdc)
-add_definitions(-Wno-switch)
+add_definitions(-Wno-switch -Wno-parentheses)

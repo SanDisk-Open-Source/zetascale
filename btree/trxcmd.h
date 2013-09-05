@@ -6,6 +6,10 @@
  * These commands are used by btree to coordinate with the transaction
  * facility.
  *
+ *	TRX_ENABLED
+ *		If the trx facility is enabled, 1 is returned, otherwise
+ *		0.  The setting is controlled by FDF integer property
+ *		"FDF_TRX", bit 0.
  *	TRX_CACHE_ADD
  *		Inform the trx facility that the object specified
  *		by cguid/node is being entered into the L1 cache.
@@ -21,9 +25,8 @@
  *		If 1 is returned, the object in L1 is valid.
  */
 
-extern int trx_enabled;
-
 enum trx_cmd {
+	TRX_ENABLED,
 	TRX_CACHE_ADD,
 	TRX_CACHE_QUERY,
 	TRX_CACHE_DEL

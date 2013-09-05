@@ -25,7 +25,6 @@
 #include "selftest.h"
 #include "btree_range.h"
 #include "trx.h"
-#include "trxcmd.h"
 #include "btree_raw_internal.h"
 
 #define MAX_NODE_SIZE   128*1024
@@ -970,7 +969,7 @@ FDF_status_t _FDFReadObject(
         rmeta.keylen_end   = keylen;
         rmeta.flags        = RANGE_START_GE | RANGE_END_LE;
 
-		if (trx_enabled) { trxenter( cguid); }
+	trxenter( cguid);
         btree_ret = btree_start_range_query(bt, BTREE_RANGE_PRIMARY_INDEX,
                                             &cursor, &rmeta);
 		if (btree_ret != BTREE_SUCCESS) {
@@ -991,12 +990,12 @@ FDF_status_t _FDFReadObject(
 
         (void)btree_end_range_query(cursor);
     } else {
-		if (trx_enabled) { trxenter( cguid); }
+	trxenter( cguid);
         btree_ret = btree_get(bt, key, keylen, data, datalen, &meta);
     }
 
 done:
-    if (trx_enabled) { trxleave( cguid); }
+    trxleave( cguid);
     switch(btree_ret) {
         case BTREE_SUCCESS:
             ret = FDF_SUCCESS;
@@ -1137,7 +1136,8 @@ FDF_status_t _FDFWriteObject(
         return (FDF_FAILURE);
 	}
 
-	if (trx_enabled) { trxenter( cguid); }
+    trxenter( cguid);
+    trxstart( fdf_thread_state);
     if (flags & FDF_WRITE_MUST_NOT_EXIST) {
 		btree_ret = btree_insert(bt, key, keylen, data, datalen, &meta);
     } else if (flags & FDF_WRITE_MUST_EXIST) {
@@ -1145,7 +1145,8 @@ FDF_status_t _FDFWriteObject(
     } else {
 		btree_ret = btree_set(bt, key, keylen, data, datalen, &meta);
     }
-    if (trx_enabled) { trxleave( cguid); }
+    trxcommit( fdf_thread_state);
+    trxleave( cguid);
 
     switch(btree_ret) {
         case BTREE_SUCCESS:
@@ -1258,9 +1259,9 @@ FDF_status_t _FDFDeleteObject(
 
     meta.flags = 0;
 
-	if (trx_enabled) { trxenter( cguid); }
+    trxenter( cguid);
     btree_ret = btree_delete(bt, key, keylen, &meta);
-    if (trx_enabled) { trxleave( cguid); }
+    trxleave( cguid);
     switch(btree_ret) {
         case BTREE_SUCCESS:
             ret = FDF_SUCCESS;
@@ -1439,9 +1440,9 @@ FDF_status_t _FDFFlushObject(
         return (FDF_KEY_TOO_LONG);
     }
 
-	if (trx_enabled) { trxenter( cguid); }
+    trxenter( cguid);
     btree_ret = btree_flush(bt, key, keylen);
-    if (trx_enabled) { trxleave( cguid); }
+    trxleave( cguid);
 
     switch(btree_ret) {
         case BTREE_SUCCESS:
@@ -1556,7 +1557,6 @@ char *_FDFStrError(FDF_status_t fdf_errno)
 FDF_status_t 
 _FDFTransactionStart(struct FDF_thread_state *fdf_thread_state)
 {
-    my_thd_state = fdf_thread_state;
 
     return (trxstart( fdf_thread_state));
 }
@@ -1568,7 +1568,6 @@ _FDFTransactionStart(struct FDF_thread_state *fdf_thread_state)
 FDF_status_t 
 _FDFTransactionCommit(struct FDF_thread_state *fdf_thread_state)
 {
-    my_thd_state = fdf_thread_state;
 
     return (trxcommit( fdf_thread_state));
 }
@@ -1579,7 +1578,6 @@ _FDFTransactionCommit(struct FDF_thread_state *fdf_thread_state)
 FDF_status_t 
 _FDFTransactionRollback(struct FDF_thread_state *fdf_thread_state)
 {
-    my_thd_state = fdf_thread_state;
 
     return (trxrollback( fdf_thread_state));
 }
@@ -1590,7 +1588,6 @@ _FDFTransactionRollback(struct FDF_thread_state *fdf_thread_state)
 FDF_status_t 
 _FDFTransactionQuit(struct FDF_thread_state *fdf_thread_state)
 {
-    my_thd_state = fdf_thread_state;
 
     return (trxquit( fdf_thread_state));
 }
@@ -1601,7 +1598,6 @@ _FDFTransactionQuit(struct FDF_thread_state *fdf_thread_state)
 uint64_t
 _FDFTransactionID(struct FDF_thread_state *fdf_thread_state)
 {
-    my_thd_state = fdf_thread_state;
 
     return (trxid( fdf_thread_state));
 }
@@ -1682,13 +1678,13 @@ _FDFGetNextRange(struct FDF_thread_state *fdf_thread_state,
     if (bt == NULL) {
         return (ret);
 	}
-	if (trx_enabled) { trxenter( cguid); }
+	trxenter( cguid);
 	status = btree_get_next_range((btree_range_cursor_t *)cursor,
 	                              n_in,
 	                              n_out,
 	                              (btree_range_data_t *)values
 	                              );
-    if (trx_enabled) { trxleave( cguid); }
+	trxleave( cguid);
 
 	if (status == BTREE_SUCCESS) {
 		ret = FDF_SUCCESS;
