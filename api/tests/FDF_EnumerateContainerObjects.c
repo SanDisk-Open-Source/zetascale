@@ -487,7 +487,11 @@ int FDFEnumerateContainerObjects_Open_CreateObj_close1()
     }
     else flag = 0;
     
+#ifdef RO_MODE_SUPPORTED
     if(FDF_FAILURE != DeleteObject(cguid,"key1",5)) flag = -3; 
+#else 
+    if(FDF_SUCCESS != DeleteObject(cguid,"key1",5)) flag = -3; 
+#endif
     return flag;
 }
 

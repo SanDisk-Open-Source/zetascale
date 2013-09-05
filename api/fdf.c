@@ -2357,7 +2357,7 @@ FDF_status_t FDFOpenContainer(
 		status = FDF_LICENSE_CHK_FAILED;
 		goto out;
 	}
-        if ( !fdf_thread_state || !cguid || ISEMPTY(cname) ) {
+        if ( !fdf_thread_state || !cguid || ISEMPTY(cname) || !properties ) {
             if ( !fdf_thread_state ) {
                 plat_log_msg(80049,LOG_CAT,LOG_DBG,
                              "FDF Thread state is NULL");
@@ -2938,7 +2938,8 @@ static FDF_status_t fdf_open_container(
         	}
 
 			if (flags & FDF_CTNR_RO_MODE) {
-				fdf_cntr_set_readonly(cmap);
+				//fdf_cntr_set_readonly(cmap);
+				fdf_cntr_set_readwrite(cmap);
 			} else if (flags & FDF_CTNR_RW_MODE) {
 				fdf_cntr_set_readwrite(cmap);
 			} else { /*default */

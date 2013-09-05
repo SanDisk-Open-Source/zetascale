@@ -522,7 +522,7 @@ restart:
 			(Container_Map[index].bt_state == BT_CNTR_CLOSED)); /* Opening closed one */
 
 	if (flags_in & FDF_CTNR_RO_MODE) {
-		Container_Map[index].read_only = true;
+		Container_Map[index].read_only = false;
 	} else if (flags_in & FDF_CTNR_RW_MODE) {
 		Container_Map[index].read_only = false;
 	} else {
@@ -685,6 +685,18 @@ FDF_status_t _FDFOpenContainer(
 			Notice("Eviction is not supported, evicting is reset to false for container %s\n", cname);
 			properties->evicting = FDF_FALSE;
 		}
+		if (properties->durability_level == FDF_DURABILITY_PERIODIC) {
+			Notice("PERIODIC durability is not supported, set to SW_CRASH_SAFE for %s\n", cname);
+			properties->durability_level = FDF_DURABILITY_SW_CRASH_SAFE;
+		}
+	} else {
+		return(FDF_INVALID_PARAMETER);
+	}
+
+	if (flags_in & FDF_CTNR_RO_MODE) {
+		Notice("Read-only is not supported, set to read-write mode for container %s\n", cname);
+		flags_in &= ~FDF_CTNR_RO_MODE;
+		flags_in |= FDF_CTNR_RW_MODE;
 	}
 
 	return (_FDFOpenContainerSpecial(fdf_thread_state,

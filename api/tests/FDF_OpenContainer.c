@@ -313,6 +313,8 @@ int FDFOpenContainer_openCloseMore2(int count)
     return flag;
 }
 
+/* On enabling RO containers, define this MACRO */
+#undef RO_MODE_SUPPORTED
 int FDFOpenContainer_openCloseMore_createObj(int count)
 {
     FDF_status_t           ret,ret_obj;
@@ -337,6 +339,7 @@ int FDFOpenContainer_openCloseMore_createObj(int count)
         ret = OpenContainer("test6",&p,flags[i%2],&cguid);
         ret_obj = CreateObject(cguid,key,6,"data",5);
         CloseContainer(cguid);
+#ifdef RO_MODE_SUPPORTED
         if(FDF_SUCCESS != ret) {
             break;
 		} else if ((i%2 == 0) && (ret_obj == FDF_SUCCESS)) {
@@ -346,7 +349,12 @@ int FDFOpenContainer_openCloseMore_createObj(int count)
 			tmp = 1;
 			break;
 		}
-
+#else
+		if (FDF_SUCCESS != ret || FDF_SUCCESS != ret_obj) {
+			tmp = 1;
+			break;
+		}
+#endif
     }
 
     if(i == count) {
@@ -366,11 +374,17 @@ int FDFOpenContainer_openCloseMore_createObj(int count)
         return -1;
     for(int i = count;i >=0; i--){
 		ret = DeleteObject(cguid,key,6);
+#ifdef RO_MODE_SUPPORTED
         if((i%2 == 0) && (ret != FDF_SUCCESS)) {
             flag = -2;
 		} else if ((i%2 != 0) && (ret == FDF_SUCCESS)) {
 			flag = -2;
 		}
+#else
+		if (ret != FDF_SUCCESS) {
+			flag = -2;
+		}
+#endif
         key[4]--;
     }
     CloseContainer(cguid);
