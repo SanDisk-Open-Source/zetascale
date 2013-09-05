@@ -557,7 +557,7 @@ int get_key_stuff(btree_raw_t *bt, btree_raw_node_t *n, uint32_t nkey, key_stuff
 	    pks->datalen       = pvlk->datalen;
 	    pks->fkeys_per_node = 0;
 	    pks->seqno         = pvlk->seqno;
-	    pks->syndrome      = pvlk->syndrome;
+	    pks->syndrome      = 0;
 	} else {
 	    pvk                = ((node_vkey_t *) n->keys) + nkey;
 	    pks->ptr           = pvk->ptr;
@@ -584,7 +584,7 @@ int get_key_stuff(btree_raw_t *bt, btree_raw_node_t *n, uint32_t nkey, key_stuff
 	    pks->datalen       = pvlk->datalen;
 	    pks->fkeys_per_node = 0;
 	    pks->seqno         = pvlk->seqno;
-	    pks->syndrome      = pvlk->syndrome;
+            pks->syndrome      = 0;
 	} else {
 	    pfk                = ((node_fkey_t *) n->keys) + nkey;
 	    pks->fixed         = 1;
@@ -1856,7 +1856,6 @@ static void insert_key_low(btree_status_t *ret, btree_raw_t *btree, btree_raw_me
 	    pvlk->keypos   = pos_new_key;
 	    pvlk->datalen  = datalen;
 	    pvlk->seqno    = seqno;
-	    pvlk->syndrome = syndrome;
 	    if ((keylen + datalen) >= btree->big_object_size) { // xxxzzz check this!
 	        //  data is in overflow nodes
 		pvlk->ptr = ptr_overflow;
@@ -3848,7 +3847,7 @@ static void shift_right(btree_raw_t *btree, btree_raw_node_t *anchor, btree_raw_
 	    memcpy(_keybuf, (char *) from + pvlk->keypos, pvlk->keylen);
 	    r_key      = _keybuf;
 	    r_keylen   = pvlk->keylen;
-	    r_syndrome = pvlk->syndrome;
+            r_syndrome = 0;
 	    r_seqno    = pvlk->seqno;
 	    r_ptr      = pvlk->ptr;
 	} else {
@@ -4073,7 +4072,7 @@ static void shift_left(btree_raw_t *btree, btree_raw_node_t *anchor, btree_raw_n
 	    memcpy(_keybuf, (char *) from + pvlk->keypos, pvlk->keylen);
 	    r_key      = _keybuf;
 	    r_keylen   = pvlk->keylen;
-	    r_syndrome = pvlk->syndrome;
+            r_syndrome = 0;
 	    r_seqno    = pvlk->seqno;
 	    r_ptr      = pvlk->ptr;
 	} else {
@@ -4083,7 +4082,7 @@ static void shift_left(btree_raw_t *btree, btree_raw_node_t *anchor, btree_raw_n
 	    memcpy(_keybuf, (char *) from + pvk->keypos, pvk->keylen);
 	    r_key      = _keybuf;
 	    r_keylen   = pvk->keylen;
-	    r_syndrome = 0;
+            r_syndrome = 0;
 	    r_seqno    = pvk->seqno;
 	    r_ptr      = pvk->ptr;
 	}

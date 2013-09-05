@@ -14,14 +14,23 @@ typedef struct node_vkey {
     uint64_t    seqno;
 } node_vkey_t;
 
+#ifdef BIG_NODES
+typedef uint32_t keylen_t;
+typedef uint32_t keypos_t;
+#else
+typedef uint16_t keylen_t;
+typedef uint16_t keypos_t;
+#endif
+
 typedef struct node_vlkey {
-    uint32_t    keylen;
-    uint32_t    keypos;
+    keylen_t    keylen;
+    keypos_t    keypos;
     uint64_t    datalen;
     uint64_t    ptr;
     uint64_t    seqno;
-    uint64_t    syndrome;
-} node_vlkey_t;
+} 
+__attribute__ ((__packed__))
+node_vlkey_t;
 
 typedef struct node_fkey {
     uint64_t    key;
@@ -52,7 +61,7 @@ typedef struct key_stuff {
     uint32_t  offset;
     void     *pkey_struct;
     char     *pkey_val;
-    uint32_t  keylen;
+    keylen_t  keylen;
     uint64_t  datalen;
     uint32_t  fkeys_per_node;
     uint64_t  seqno;

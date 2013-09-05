@@ -667,7 +667,7 @@ fill_key_range(btree_raw_t          *bt,
 
 	pvlk = (node_vlkey_t *) keyrec;
 	values[*n_out].seqno    = pvlk->seqno; 
-	values[*n_out].syndrome = pvlk->syndrome; 
+	values[*n_out].syndrome = 0;
 
 	if (ret == BTREE_SUCCESS) {
 		values[*n_out].status = BTREE_RANGE_SUCCESS;
