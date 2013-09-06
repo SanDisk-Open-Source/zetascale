@@ -3370,6 +3370,10 @@
 170008 TRX too big to apply
 170009 TRX sequence anomaly
 170010 hash bucket corrupt
+170011 TRX sequence error
+170014 trxmax=%u trxnum=%u
+170015 trx log overrun, increase FDF_TRX_GROUP_SIZE
+170016 trx log service is %senabled
 
 
 # efirsov
