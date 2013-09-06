@@ -4077,13 +4077,18 @@ static void sum_sched_stats(SDF_action_state_t *pas)
 {
     int                       nsched;
     int                       i, j, n;
-    int                       used_ctnr[SDF_MAX_CONTAINERS+1];
+	int							*used_ctnr;
 
     init_stats(&(pas->stats_new));
     init_stats(&(pas->stats_per_ctnr));
 
-    // determine which containers are used
+	used_ctnr = (int *)plat_malloc(sizeof(int) * (SDF_MAX_CONTAINERS + 1));
+	if (used_ctnr == NULL) {
+		plat_log_msg(160189, PLAT_LOG_CAT_PRINT_ARGS, PLAT_LOG_LEVEL_DEBUG, "Memory allocation failed to collect stats\n");
+		return;
+	}
 
+    // determine which containers are used
     n = 0;
     for (i=0; i<SDF_MAX_CONTAINERS; i++) {
         if (pas->ctnr_meta[i].valid) {
@@ -4225,6 +4230,7 @@ static void sum_sched_stats(SDF_action_state_t *pas)
 				pas->stats_new_per_sched[nsched].ctnr_stats[used_ctnr[i]].n_async_commit_fails;
         }
     }
+	plat_free(used_ctnr);
 }
 
 static void sum_fthread_stats(SDF_action_state_t *pas, int64_t *pnappbufs, int64_t *pntrans_states, int64_t *pnflashbufs, int64_t *pnmsg_resp_bufs)
