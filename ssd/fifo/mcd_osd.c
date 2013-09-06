@@ -3078,6 +3078,9 @@ mcd_fth_osd_fifo_set( void * context, mcd_osd_shard_t * shard, char * key,
     new_entry.syndrome   = (uint16_t)(syndrome >> 48);
     new_entry.address    = blk_offset % shard->total_blks;
     new_entry.cntr_id    = meta_data->cguid;
+#ifdef BTREE_HACK
+    new_entry.key = 0;
+#endif
 
     new_entry.deleted    = 0;
     if ( &Mcd_osd_cmc_cntr != shard->cntr ) {
@@ -4621,7 +4624,7 @@ mcd_fth_osd_slab_set( void * context, mcd_osd_shard_t * shard, char * key,
     uint64_t                    target_seqno = 0;
     uint64_t                    num_puts;
     uint16_t                  * index;
-    mcd_osd_meta_t            * meta;
+    mcd_osd_meta_t            * meta = NULL;
     mcd_osd_hash_t              new_entry;
     mcd_osd_hash_t            * hash_entry;
     mcd_osd_hash_t            * bucket_head;
@@ -4749,6 +4752,16 @@ mcd_fth_osd_slab_set( void * context, mcd_osd_shard_t * shard, char * key,
             /*
              * syndrome collision, read the key
              */
+
+#ifdef BTREE_HACK
+            if(key_len == 8)
+            {
+                if(*((uint64_t*)key) != hash_entry->key)
+                    continue;
+            }
+            else
+            {
+#endif
             blk_offset = hash_entry->address;
 
             offset = mcd_osd_rand_address(shard, blk_offset);
@@ -4789,6 +4802,9 @@ mcd_fth_osd_slab_set( void * context, mcd_osd_shard_t * shard, char * key,
             }
 
             target_seqno = meta->seqno;
+#ifdef BTREE_HACK
+            }
+#endif
             obj_exists = true;
             mcd_log_msg( 20331, PLAT_LOG_LEVEL_TRACE, "object exists" );
 
@@ -4801,17 +4817,20 @@ mcd_fth_osd_slab_set( void * context, mcd_osd_shard_t * shard, char * key,
              * complete this put only if the sequence number for the put
              * is newer than the existing object's sequence number
              */
+#ifndef BTREE_HACK
             if ( ( FLASH_PUT_IF_NEWER & flags ) &&
                  meta->seqno >= meta_data->sequence ) {
                 rc = FLASH_EEXIST;
                 goto out;
             }
+#endif
 
             /*
              * FIXME: write in place if possible?
              */
             if ( NULL == data ) {
 
+#ifndef BTREE_HACK
                 if ( ( FLASH_PUT_DEL_EXPIRED & flags ) &&
                      ( 0 == meta->expiry_time ||
                        meta->expiry_time > (*(flash_settings.pcurrent_time)) ) ) {
@@ -4824,6 +4843,7 @@ mcd_fth_osd_slab_set( void * context, mcd_osd_shard_t * shard, char * key,
                     rc = FLASH_ENOENT;
                     goto out;
                 }
+#endif
 
                 // explicit delete case
                 if ( 1 == shard->persistent ) {
@@ -5127,6 +5147,10 @@ mcd_fth_osd_slab_set( void * context, mcd_osd_shard_t * shard, char * key,
     new_entry.syndrome   = (uint16_t)(syndrome >> 48);
     new_entry.address    = blk_offset;
     new_entry.cntr_id    = cntr_id;
+#ifdef BTREE_HACK
+    if(key_len == 8)
+        new_entry.key = *(uint64_t*)key;
+#endif
 
     new_entry.deleted    = 0;
     if ( &Mcd_osd_cmc_cntr != shard->cntr ) {

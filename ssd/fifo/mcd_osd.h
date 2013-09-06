@@ -95,13 +95,18 @@ enum cntr_states {
 
 //struct mcd_container;
 
+#define BTREE_HACK
 
 /*
  * Relevant to in-core hash table.
  */
 #define OSD_HASH_SYN_SIZE         16
 #define OSD_HASH_SYN_SHIFT        48
+#ifdef BTREE_HACK
+#define OSD_HASH_ENTRY_HOPED_SIZE 18
+#else
 #define OSD_HASH_ENTRY_HOPED_SIZE 10
+#endif
 
 
 /*
@@ -116,6 +121,9 @@ typedef struct mcd_osd_hash_entry {
     hashsyn_t    syndrome;
     baddr_t      address;
     cntr_id_t    cntr_id;
+#ifdef BTREE_HACK
+    uint64_t key;
+#endif
 }
      __attribute__ ((packed))
      __attribute__ ((aligned (2)))
