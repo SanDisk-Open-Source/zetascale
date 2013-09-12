@@ -3360,6 +3360,7 @@
 160186 Thread state already released
 160187 Operation not allowed
 160188 Operation not allowed 
+160189 Memory allocation failed to collect stats\n
 
 
 # rico
