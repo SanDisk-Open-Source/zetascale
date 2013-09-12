@@ -689,6 +689,8 @@ FDF_status_t _FDFOpenContainer(
 			Notice("PERIODIC durability is not supported, set to SW_CRASH_SAFE for %s\n", cname);
 			properties->durability_level = FDF_DURABILITY_SW_CRASH_SAFE;
 		}
+	} else {
+		return(FDF_INVALID_PARAMETER);
 	}
 
 	if (flags_in & FDF_CTNR_RO_MODE) {
