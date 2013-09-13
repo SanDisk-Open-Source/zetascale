@@ -29,6 +29,8 @@
 #include "btree_hash.h"
 #include <assert.h>
 
+#define META_LOGICAL_ID 0x8000000000000000L
+
 //  Define this to turn on detailed list checking
 // #define LISTCHECK
 
@@ -446,7 +448,21 @@ struct MapEntry *MapGet(struct Map *pm, char *key, uint32_t keylen, char **pdata
     if (pme != NULL) {
         data    = pme->contents;
 	datalen = pme->datalen;
-	assert(pme->refcnt < 10000);
+	
+	/*
+	 * META_LOGICAL_ID is constant which is used to assign a logical id to a special btree node in which btree metadata is stored.
+	 * This Special node is used during recovery. During creation of each btree node, we refer (take a refcount) this special node
+	 * and compare if any metadata has changed or not. Whenever there is a change in btree root or some btree related (refer
+	 * "savepersistent()" funtion for more details), this special node is updated. Irrespective of change in btree metadata related
+	 * information, we refer this special node during a btree node creation. In cassandra if total number of columns are 'c', each
+	 * column size is 's' and total number of threads are 't'. Then in worst case at max t * c * (s/(sizeofbtreenode)) times refcount
+	 * will be taken on this special node at a particular point of time. For example if total number of threads are 50, total number
+	 * of columns are 40 and size of column is 64k and size of btreenode is 8k, then in worstcase refcount of this special node will
+	 * be 50 * 40 * (64k/8k) = 16000. In above example 64k/8k denotes overflow data nodes for a key.
+	 */
+	if (!((*((uint64_t *) key)) & META_LOGICAL_ID)) {
+		assert(pme->refcnt < 10000);
+	}
 	(pme->refcnt)++;
 
 	// update the LRU list if necessary
