@@ -834,7 +834,7 @@ btree_status_t get_leaf_data(btree_raw_t *bt, btree_raw_node_t *n, void *pkey, c
 {
     node_vlkey_t       *pvlk;
     btree_raw_node_t   *z;
-    btree_status_t      ret=BTREE_SUCCESS;
+    btree_status_t      ret=BTREE_SUCCESS, ret2 = BTREE_SUCCESS;
     char               *buf;
     char               *p;
     int                 buf_alloced=0;
@@ -846,62 +846,61 @@ btree_status_t get_leaf_data(btree_raw_t *bt, btree_raw_node_t *n, void *pkey, c
 
     if (meta_flags & BUFFER_PROVIDED) {
         if (*datalen < pvlk->datalen) {
-	    ret = BTREE_BUFFER_TOO_SMALL;
-	    if (meta_flags & ALLOC_IF_TOO_SMALL) {
-		buf = get_buffer(bt, pvlk->datalen);
-		if (buf == NULL) {
-		    bt_err("Failed to allocate a buffer of size %lld in get_leaf_data!", pvlk->datalen);
-		    return(BTREE_FAILURE);
+			ret = BTREE_BUFFER_TOO_SMALL;
+			if (meta_flags & ALLOC_IF_TOO_SMALL) {
+				buf = get_buffer(bt, pvlk->datalen);
+				if (buf == NULL) {
+					bt_err("Failed to allocate a buffer of size %lld in get_leaf_data!", pvlk->datalen);
+					return(BTREE_FAILURE);
+				}
+				buf_alloced = 1;
+			} else {
+				return(BTREE_BUFFER_TOO_SMALL);
+			}
+		} else {
+			buf = *data;
 		}
-		buf_alloced = 1;
-	    } else {
-	        return(BTREE_BUFFER_TOO_SMALL);
-	    }
-	} else {
-	    buf = *data;
-	}
     } else {
         buf = get_buffer(bt, pvlk->datalen);
-	if (buf == NULL) {
-	    bt_err("Failed to allocate a buffer of size %lld in get_leaf_data!", pvlk->datalen);
-	    return(BTREE_FAILURE);
-	}
-	buf_alloced = 1;
+		if (buf == NULL) {
+			bt_err("Failed to allocate a buffer of size %lld in get_leaf_data!", pvlk->datalen);
+			return(BTREE_FAILURE);
+		}
+		buf_alloced = 1;
     }
 
     if ((pvlk->keylen + pvlk->datalen) < bt->big_object_size) {
         //  key and data are in this btree node
-	memcpy(buf, (char *) n + pvlk->keypos + pvlk->keylen, pvlk->datalen);
+		memcpy(buf, (char *) n + pvlk->keypos + pvlk->keylen, pvlk->datalen);
     } else {
         //  data is in overflow btree nodes
 
         if (pvlk->datalen > 0) {
-	    nbytes = pvlk->datalen;
-	    p      = buf;
-	    z_next = pvlk->ptr;
-	    while(nbytes > 0 && z_next)
-	    {
-		btree_raw_mem_node_t *node = get_existing_node_low(&ret, bt, z_next, ref);
-		if(!node)
-		    break;
-		z = node->pnode;
-                copybytes = nbytes >= bt->nodesize_less_hdr ? bt->nodesize_less_hdr : nbytes;
-		memcpy(p, ((char *) z + sizeof(btree_raw_node_t)), copybytes);
-		nbytes -= copybytes;
-		p      += copybytes;
-		z_next  = z->next;
-		if(!ref)
-		    deref_l1cache_node(bt, node);
-	    }
-	    if (nbytes) {
-		bt_err("Failed to get overflow node (logical_id=%lld)(nbytes=%ld) in get_leaf_data!", z_next, nbytes);
-		if (buf_alloced) {
-		    free_buffer(bt, buf);
+			nbytes = pvlk->datalen;
+			p      = buf;
+			z_next = pvlk->ptr;
+			while(nbytes > 0 && z_next) {
+				btree_raw_mem_node_t *node = get_existing_node_low(&ret2, bt, z_next, ref);
+				if(!node)
+					break;
+				z = node->pnode;
+				copybytes = nbytes >= bt->nodesize_less_hdr ? bt->nodesize_less_hdr : nbytes;
+				memcpy(p, ((char *) z + sizeof(btree_raw_node_t)), copybytes);
+				nbytes -= copybytes;
+				p      += copybytes;
+				z_next  = z->next;
+				if(!ref)
+					deref_l1cache_node(bt, node);
+			}
+			if (nbytes) {
+				bt_err("Failed to get overflow node (logical_id=%lld)(nbytes=%ld) in get_leaf_data!", z_next, nbytes);
+				if (buf_alloced) {
+					free_buffer(bt, buf);
+				}
+				return(ret2);
+			}
+			assert(z_next == 0);
 		}
-		return(BTREE_FAILURE);
-	    }
-	    assert(z_next == 0);
-	}
     }
     *datalen = pvlk->datalen;
     *data    = buf;
@@ -1356,30 +1355,29 @@ retry:
         n = get_l1cache(btree, logical_id);
         if (n != NULL) {
             add_node_stats(btree, n->pnode, L1HITS, 1);
-	} else {
+		} else {
 	    //  look for the node the hard way
-	    //  If we don't look at the ret code, why does read_node_cb need one?
-	    pnode = (btree_raw_node_t*)btree->read_node_cb(ret, btree->read_node_cb_data, logical_id);
-	    if (pnode == NULL) {
-		*ret = BTREE_FAILURE;
-		return(NULL);
-	    }
+			//  If we don't look at the ret code, why does read_node_cb need one?
+			pnode = (btree_raw_node_t*)btree->read_node_cb(ret, btree->read_node_cb_data, logical_id);
+			if (pnode == NULL) {
+				*ret = BTREE_FAILURE;
+				return(NULL);
+			}
             add_node_stats(btree, pnode, L1MISSES, 1);
 
             // already in the cache retry get
-	    n = add_l1cache(btree, pnode);
-	    if(!n)
-            {
+			n = add_l1cache(btree, pnode);
+			if(!n) {
                 free(pnode);
                 goto retry;
             }
-	}
+		}
         if(ref)
             ref_l1cache(btree, n);
     }
     if (n == NULL) {
         *ret = BTREE_FAILURE;
-	return(NULL);
+		return(NULL);
     }
     
     return(n);
