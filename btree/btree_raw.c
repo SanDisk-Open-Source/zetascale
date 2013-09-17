@@ -1342,7 +1342,7 @@ btree_raw_mem_node_t *get_existing_node_low(btree_status_t *ret, btree_raw_t *bt
     btree_raw_node_t  *pnode;
     btree_raw_mem_node_t  *n = NULL;
 
-    if (*ret) { return(NULL); }
+    if (*ret != BTREE_SUCCESS) { return(NULL); }
 
     *ret = BTREE_SUCCESS;
 
@@ -1695,10 +1695,10 @@ static void insert_key_low(btree_status_t *ret, btree_raw_t *btree, btree_raw_me
 
     if (pkrec != NULL) {
         // delete existing key first
-	delete_key_by_pkrec(ret, btree, node, pkrec);
-	assert((*ret) == BTREE_SUCCESS);
-	pkrec = find_key(btree, x, key, keylen, &child_id, &child_id_before, &child_id_after, &pk_insert, meta, syndrome, &nkey_child);
-	assert(pkrec == NULL);
+		delete_key_by_pkrec(ret, btree, node, pkrec);
+		assert((*ret) == BTREE_SUCCESS);
+		pkrec = find_key(btree, x, key, keylen, &child_id, &child_id_before, &child_id_after, &pk_insert, meta, syndrome, &nkey_child);
+		assert(pkrec == NULL);
     } else {
         modify_l1cache_node(btree, node);
     }
@@ -1706,108 +1706,107 @@ static void insert_key_low(btree_status_t *ret, btree_raw_t *btree, btree_raw_me
     (void) get_key_stuff(btree, x, 0, &ks);
 
     if (pk_insert == NULL) {
-	nkeys_to     = x->nkeys;
-	pos_split    = btree->nodesize;
-	nbytes_split = btree->nodesize - x->insert_ptr;
+		nkeys_to     = x->nkeys;
+		pos_split    = btree->nodesize;
+		nbytes_split = btree->nodesize - x->insert_ptr;
     }
 
     if (!ks.fixed) {
         if (x->flags & LEAF_NODE) {
-	    pvlk_insert = (node_vlkey_t *) pk_insert;
-	    if (pvlk_insert != NULL) {
-		nkeys_to     = (((char *) pk_insert) - ((char *) x->keys))/ks.offset;
-		pos_split    = pvlk_insert->keypos;
-		nbytes_split = pvlk_insert->keypos - x->insert_ptr;
-	    }
+			pvlk_insert = (node_vlkey_t *) pk_insert;
+			if (pvlk_insert != NULL) {
+				nkeys_to     = (((char *) pk_insert) - ((char *) x->keys))/ks.offset;
+				pos_split    = pvlk_insert->keypos;
+				nbytes_split = pvlk_insert->keypos - x->insert_ptr;
+			}
             nbytes_stats += sizeof(node_vlkey_t);
-	} else {
-	    pvk_insert  = (node_vkey_t *) pk_insert;
-	    if (pvk_insert != NULL) {
-		nkeys_to     = (((char *) pk_insert) - ((char *) x->keys))/ks.offset;
-		pos_split    = pvk_insert->keypos;
-		nbytes_split = pvk_insert->keypos - x->insert_ptr;
-	    }
+		} else {
+			pvk_insert  = (node_vkey_t *) pk_insert;
+			if (pvk_insert != NULL) {
+				nkeys_to     = (((char *) pk_insert) - ((char *) x->keys))/ks.offset;
+				pos_split    = pvk_insert->keypos;
+				nbytes_split = pvk_insert->keypos - x->insert_ptr;
+			}
             nbytes_stats += sizeof(node_vkey_t);
-	}
+		}
         fixed_bytes = ks.offset;
     } else {
         fixed_bytes = ks.offset;
-	if (pk_insert != NULL) {
-	    nkeys_to = (((char *) pk_insert) - ((char *) x->keys))/ks.offset;
-	}
+		if (pk_insert != NULL) {
+			nkeys_to = (((char *) pk_insert) - ((char *) x->keys))/ks.offset;
+		}
         nbytes_stats += sizeof(node_fkey_t);
     }
     nkeys_from = x->nkeys - nkeys_to;
 
     if ((!ks.fixed) && 
         (x->flags & LEAF_NODE) && 
-	((keylen + datalen) >= btree->big_object_size)) // xxxzzz check this!
-    { 
-	//  Allocate nodes for overflowed objects first, in case
-	//  something goes wrong.
+		((keylen + datalen) >= btree->big_object_size)) { // xxxzzz check this!
+		//  Allocate nodes for overflowed objects first, in case
+		//  something goes wrong.
         
-	ptr_overflow = allocate_overflow_data(btree, datalen, data, meta);
-	if ((ptr_overflow == 0) && (datalen != 0)) {
-	    // something went wrong with the allocation
-	    *ret = BTREE_FAILURE;
-	    return;
-	}
+		ptr_overflow = allocate_overflow_data(btree, datalen, data, meta);
+		if ((ptr_overflow == 0) && (datalen != 0)) {
+			// something went wrong with the allocation
+			*ret = BTREE_FAILURE;
+			return;
+		}
     }
 
     if (ks.fixed) {
-	// check that there is enough space!
-	assert(x->nkeys < (btree->fkeys_per_node));
+		// check that there is enough space!
+		assert(x->nkeys < (btree->fkeys_per_node));
     } else {
         if (x->flags & LEAF_NODE) {
 
-	    //  insert variable portion of new key (and possibly data) in
-	    //  sorted key order at end of variable data stack in node
+			//  insert variable portion of new key (and possibly data) in
+			//  sorted key order at end of variable data stack in node
 
-	    if ((keylen + datalen) >= btree->big_object_size) { // xxxzzz check this!
-	        //  put key in this node, data in overflow nodes
-		vbytes_this_node = keylen;
-	    } else {
-	        //  put key and data in this node
-		vbytes_this_node = keylen + datalen;
-	    }
-	    // check that there is enough space!
-	    nbytes_free = vlnode_bytes_free(x);
-	    assert(nbytes_free >= (sizeof(node_vlkey_t) + vbytes_this_node));
+			if ((keylen + datalen) >= btree->big_object_size) { // xxxzzz check this!
+				//  put key in this node, data in overflow nodes
+				vbytes_this_node = keylen;
+			} else {
+				//  put key and data in this node
+				vbytes_this_node = keylen + datalen;
+			}
+			// check that there is enough space!
+			nbytes_free = vlnode_bytes_free(x);
+			assert(nbytes_free >= (sizeof(node_vlkey_t) + vbytes_this_node));
 
-	    //  make space for variable portion of new key/data
+			//  make space for variable portion of new key/data
 
-	    memmove((char *) x + pos_split - nbytes_split - vbytes_this_node,
-		    (char *) x + pos_split - nbytes_split, 
-		    nbytes_split);
+			memmove((char *) x + pos_split - nbytes_split - vbytes_this_node,
+				(char *) x + pos_split - nbytes_split, 
+				nbytes_split);
 
-	    pos_new_key = pos_split - vbytes_this_node;
+			pos_new_key = pos_split - vbytes_this_node;
 
-	    //  insert variable portion of new key
+			//  insert variable portion of new key
 
-	    memcpy((char *) x + pos_new_key, key, keylen);
-	    if (vbytes_this_node > keylen) {
-		//  insert data
-		memcpy((char *) x + pos_new_key + keylen, data, datalen);
-	    }
-	} else {
-	    vbytes_this_node = keylen;
+			memcpy((char *) x + pos_new_key, key, keylen);
+			if (vbytes_this_node > keylen) {
+				//  insert data
+				memcpy((char *) x + pos_new_key + keylen, data, datalen);
+			}
+		} else {
+			vbytes_this_node = keylen;
 
-	    // check that there is enough space!
-	    nbytes_free = vnode_bytes_free(x);
-	    assert(nbytes_free >= (sizeof(node_vkey_t) + vbytes_this_node));
+			// check that there is enough space!
+			nbytes_free = vnode_bytes_free(x);
+			assert(nbytes_free >= (sizeof(node_vkey_t) + vbytes_this_node));
 
-	    //  make space for variable portion of new key/data
+			//  make space for variable portion of new key/data
 
-	    memmove((char *) x + pos_split - nbytes_split - vbytes_this_node,
-		    (char *) x + pos_split - nbytes_split, 
-		    nbytes_split);
+			memmove((char *) x + pos_split - nbytes_split - vbytes_this_node,
+				(char *) x + pos_split - nbytes_split, 
+				nbytes_split);
 
-	    pos_new_key = pos_split - vbytes_this_node;
+			pos_new_key = pos_split - vbytes_this_node;
 
-	    //  insert variable portion of new key
+			//  insert variable portion of new key
 
-	    memcpy((char *) x + pos_new_key, key, keylen);
-	}
+			memcpy((char *) x + pos_new_key, key, keylen);
+		}
     }
 
     //  Make space for fixed portion of new key.
@@ -1817,13 +1816,13 @@ static void insert_key_low(btree_status_t *ret, btree_raw_t *btree, btree_raw_me
     //
 
     if (nkeys_from != 0) {
-	memmove((char *) (x->keys) + (nkeys_to + 1)*fixed_bytes, (char *) (x->keys) + nkeys_to*fixed_bytes, nkeys_from*fixed_bytes);
+		memmove((char *) (x->keys) + (nkeys_to + 1)*fixed_bytes, (char *) (x->keys) + nkeys_to*fixed_bytes, nkeys_from*fixed_bytes);
     }
 
     if (!ks.fixed) {
-	x->insert_ptr -= vbytes_this_node;
+		x->insert_ptr -= vbytes_this_node;
     } else {
-	x->insert_ptr = 0; // xxxzzz this should be redundant!
+		x->insert_ptr = 0; // xxxzzz this should be redundant!
     }
 
     //  Do this here because update_keypos() requires it!
@@ -1832,75 +1831,75 @@ static void insert_key_low(btree_status_t *ret, btree_raw_t *btree, btree_raw_me
     //  insert fixed portion of new key
     if (!ks.fixed) {
         if (x->flags & LEAF_NODE) {
-	    pvlk           = (node_vlkey_t *) ((char *) (x->keys) + nkeys_to*fixed_bytes);
-	    pvlk->keylen   = keylen;
-	    pvlk->keypos   = pos_new_key;
-	    pvlk->datalen  = datalen;
-	    pvlk->seqno    = seqno;
-	    if ((keylen + datalen) >= btree->big_object_size) { // xxxzzz check this!
-	        //  data is in overflow nodes
-		pvlk->ptr = ptr_overflow;
-	    } else {
-	        //  data is in this node
-		pvlk->ptr = 0;
+			pvlk           = (node_vlkey_t *) ((char *) (x->keys) + nkeys_to*fixed_bytes);
+			pvlk->keylen   = keylen;
+			pvlk->keypos   = pos_new_key;
+			pvlk->datalen  = datalen;
+			pvlk->seqno    = seqno;
+			if ((keylen + datalen) >= btree->big_object_size) { // xxxzzz check this!
+				//  data is in overflow nodes
+				pvlk->ptr = ptr_overflow;
+			} else {
+				//  data is in this node
+				pvlk->ptr = 0;
                 nbytes_stats += datalen;
-	    }
-	} else {
-	    pvk          = (node_vkey_t *) ((char *) (x->keys) + nkeys_to*fixed_bytes);
-	    pvk->keylen  = keylen;
-	    pvk->keypos  = pos_new_key;
-	    pvk->seqno   = seqno;
-	    assert(datalen == sizeof(uint64_t));
-	    pvk->ptr     = *((uint64_t *) data);
-	}
+			}
+		} else {
+			pvk          = (node_vkey_t *) ((char *) (x->keys) + nkeys_to*fixed_bytes);
+			pvk->keylen  = keylen;
+			pvk->keypos  = pos_new_key;
+			pvk->seqno   = seqno;
+			assert(datalen == sizeof(uint64_t));
+			pvk->ptr     = *((uint64_t *) data);
+		}
 
-	//  update all of the 'keypos' fields in the fixed portion
-	update_keypos(btree, x, 0);
+		//  update all of the 'keypos' fields in the fixed portion
+		update_keypos(btree, x, 0);
 
     } else {
         pfk            = (node_fkey_t *) ((char *) (x->keys) + nkeys_to*fixed_bytes);
-	pfk->key       = syndrome;
-	pfk->seqno     = seqno;
-	assert(datalen == sizeof(uint64_t));
-	pfk->ptr       = *((uint64_t *) data);
+		pfk->key       = syndrome;
+		pfk->seqno     = seqno;
+		assert(datalen == sizeof(uint64_t));
+		pfk->ptr       = *((uint64_t *) data);
     }
 
     if (x->flags & LEAF_NODE) {
         /* A new object has been inserted. increment the count */
         __sync_add_and_fetch(&(btree->stats.stat[BTSTAT_NUM_OBJS]), 1);
-	__sync_add_and_fetch(&(btree->stats.stat[BTSTAT_LEAF_BYTES]), nbytes_stats);
+		__sync_add_and_fetch(&(btree->stats.stat[BTSTAT_LEAF_BYTES]), nbytes_stats);
     } else {
-	__sync_add_and_fetch(&(btree->stats.stat[BTSTAT_NONLEAF_BYTES]), nbytes_stats);
+		__sync_add_and_fetch(&(btree->stats.stat[BTSTAT_NONLEAF_BYTES]), nbytes_stats);
     }
 
-    #ifdef DEBUG_STUFF
+#ifdef DEBUG_STUFF
 	if (Verbose) {
 	    char  stmp[10000];
 	    int   len;
 	    if ((btree->flags & SYNDROME_INDEX) && !(x->flags & LEAF_NODE)) {
 	        sprintf(stmp, "%p", key);
-		len = strlen(stmp);
+			len = strlen(stmp);
 	    } else {
-		strncpy(stmp, key, keylen);
-		len = keylen;
+			strncpy(stmp, key, keylen);
+			len = keylen;
 	    }
 
-            uint64_t ddd = dbg_referenced;
+        uint64_t ddd = dbg_referenced;
 	    fprintf(stderr, "%x ********  After insert_key '%s' [syn %lu], datalen=%ld, node %p BEGIN:  *******\n", (int)pthread_self(), dump_key(stmp, len), syndrome, datalen, x);
 	    btree_raw_dump(stderr, btree);
 	    fprintf(stderr, "%x ********  After insert_key '%s' [syn %lu], datalen=%ld, NODE:  *******\n", (int)pthread_self(), dump_key(stmp, len), syndrome, datalen);
-            assert(ddd == dbg_referenced);
+        assert(ddd == dbg_referenced);
 	    (void) get_key_stuff(btree, x, 0, &ks);
 	    if ((btree->flags & SYNDROME_INDEX) && !(x->flags & LEAF_NODE)) {
 	        sprintf(stmp, "%p", ks.pkey_val);
-		dump_node(btree, stderr, x, stmp, strlen(stmp));
+			dump_node(btree, stderr, x, stmp, strlen(stmp));
 	    } else {
-		dump_node(btree, stderr, x, ks.pkey_val, ks.keylen);
+			dump_node(btree, stderr, x, ks.pkey_val, ks.keylen);
 	    }
-            assert(ddd == dbg_referenced);
+        assert(ddd == dbg_referenced);
 	    fprintf(stderr, "%x ********  After insert_key '%s' [syn %lu], datalen=%ld, node %p END  *******\n", (int)pthread_self(), dump_key(stmp, len), syndrome, datalen, x);
 	}
-    #endif
+#endif
 }
 
 static void insert_key(btree_status_t *ret, btree_raw_t *btree, btree_raw_mem_node_t *node, char *key, uint32_t keylen, uint64_t seqno, uint64_t datalen, char *data, btree_metadata_t *meta, uint64_t syndrome)
@@ -2094,29 +2093,29 @@ static btree_status_t is_full_insert(btree_raw_t *btree, btree_raw_node_t *n, ui
     if (n->flags & LEAF_NODE) {
         // vlkey
         nbytes_free = vlnode_bytes_free(n);
-	if ((keylen + datalen) >= btree->big_object_size) { // xxxzzz check this!
-	    //  don't include datalen because object data is kept
-	    //  in overflow btree nodes
-	    if (nbytes_free < (sizeof(node_vlkey_t) + keylen)) {
-		ret = BTREE_FAILURE;
-	    }
-	} else {
-	    if (nbytes_free < (sizeof(node_vlkey_t) + keylen + datalen)) {
-		ret = BTREE_FAILURE;
-	    }
-	}
+		if ((keylen + datalen) >= btree->big_object_size) { // xxxzzz check this!
+			//  don't include datalen because object data is kept
+			//  in overflow btree nodes
+			if (nbytes_free < (sizeof(node_vlkey_t) + keylen)) {
+				ret = BTREE_FAILURE;
+			}
+		} else {
+			if (nbytes_free < (sizeof(node_vlkey_t) + keylen + datalen)) {
+				ret = BTREE_FAILURE;
+			}
+		}
     } else if (btree->flags & SECONDARY_INDEX) {
         // vkey
         nbytes_free = vnode_bytes_free(n);
-	// if (nbytes_free < (sizeof(node_vkey_t) + keylen)) {
-	if (nbytes_free < (sizeof(node_vkey_t) + btree->max_key_size)) {
-	    ret = BTREE_FAILURE;
-	}
+		// if (nbytes_free < (sizeof(node_vkey_t) + keylen)) {
+		if (nbytes_free < (sizeof(node_vkey_t) + btree->max_key_size)) {
+			ret = BTREE_FAILURE;
+		}
     } else {
         // fkey
-	if (n->nkeys > (btree->fkeys_per_node-1)) {
-	    ret = BTREE_FAILURE;
-	}
+		if (n->nkeys > (btree->fkeys_per_node-1)) {
+			ret = BTREE_FAILURE;
+		}
     }
 
     dbg_print("nbytes_free: %d keylen %d datalen %ld nkeys %d vkey_t %ld raw_node_t %ld insert_ptr %d ret %d\n", nbytes_free, keylen, datalen, n->nkeys, sizeof(node_vkey_t), sizeof(btree_raw_mem_node_t), n->insert_ptr, ret);
@@ -2167,24 +2166,24 @@ static int is_node_full(btree_raw_t *bt, btree_raw_node_t *r, char *key, uint32_
 
     if (is_leaf(bt, r)) {
         pvlk = (node_vlkey_t *) pkrec;
-	if (pvlk == NULL) {
-	    full = is_full_insert(bt, r, keylen, datalen);
-	} else {
-	  // key found for update or set
-	  full = is_full_update(bt, r, pvlk, keylen, datalen);
-	}
+		if (pvlk == NULL) {
+			full = is_full_insert(bt, r, keylen, datalen);
+		} else {
+		  // key found for update or set
+		  full = is_full_update(bt, r, pvlk, keylen, datalen);
+		}
     } else {
         //  non-leaf nodes
-	if (pkrec == NULL) {
-	    full = is_full_insert(bt, r, keylen, datalen);
-	} else if (bt->flags & SECONDARY_INDEX) {
-	    // must be enough room for max sized key in case child is split!
-	    full = is_full_insert(bt, r, keylen, datalen);
-	} else {
-	    // SYNDROME_INDEX
-	    // must be enough room for max sized key in case child is split!
-	    full = is_full_insert(bt, r, keylen, datalen);
-	}
+		if (pkrec == NULL) {
+			full = is_full_insert(bt, r, keylen, datalen);
+		} else if (bt->flags & SECONDARY_INDEX) {
+			// must be enough room for max sized key in case child is split!
+			full = is_full_insert(bt, r, keylen, datalen);
+		} else {
+			// SYNDROME_INDEX
+			// must be enough room for max sized key in case child is split!
+			full = is_full_insert(bt, r, keylen, datalen);
+		}
     }
     return full;
 }
@@ -3493,12 +3492,10 @@ btree_status_t btree_raw_delete(struct btree_raw *btree, char *key, uint32_t key
     opt = keyrec && _keybuf && !is_leaf_minimal_after_delete(btree, node->pnode, (node_vlkey_t*)keyrec);
 
     if(opt) {
-        ref_l1cache(btree, node);
-	delete_key_by_pkrec(&ret, btree, node, keyrec);
-	__sync_add_and_fetch(&(btree->stats.stat[BTSTAT_DELETE_OPT_CNT]),1);
-    }
-    else
-    {
+		ref_l1cache(btree, node);
+		delete_key_by_pkrec(&ret, btree, node, keyrec);
+		__sync_add_and_fetch(&(btree->stats.stat[BTSTAT_DELETE_OPT_CNT]),1);
+    } else {
         deref_l1cache_node(btree, node);
         plat_rwlock_unlock(&node->lock);
     }
@@ -3518,9 +3515,9 @@ btree_status_t btree_raw_delete(struct btree_raw *btree, char *key, uint32_t key
 
     if(opt) {
 #ifdef BTREE_RAW_CHECK
-    btree_raw_check(btree, (char *) __FUNCTION__, dump_key(key, keylen));
+		btree_raw_check(btree, (char *) __FUNCTION__, dump_key(key, keylen));
 #endif
-	return BTREE_SUCCESS; // optimistic delete succeeded
+		return BTREE_SUCCESS; // optimistic delete succeeded
     }
 
     dbg_print("dbg_referenced %ld\n", dbg_referenced);
@@ -3533,7 +3530,7 @@ btree_status_t btree_raw_delete(struct btree_raw *btree, char *key, uint32_t key
     if (check_per_thread_keybuf(btree)) {
         plat_rwlock_unlock(&btree->lock);
 
-	return(BTREE_FAILURE); // xxxzzz is this the best I can do?
+		return(BTREE_FAILURE); // xxxzzz is this the best I can do?
     }
 
     (void) find_rebalance(&ret, btree, btree->rootid, BAD_CHILD, BAD_CHILD, BAD_CHILD, NULL, BAD_CHILD, NULL, 0, 0, key, keylen, meta, syndrome);
@@ -3565,7 +3562,13 @@ btree_status_t btree_raw_delete(struct btree_raw *btree, char *key, uint32_t key
  *   ret = 1: rebalance this level if necessary
  *
  */
-static int find_rebalance(btree_status_t *ret, btree_raw_t *btree, uint64_t this_id, uint64_t left_id, uint64_t right_id, uint64_t l_anchor_id, key_stuff_t *l_anchor_stuff, uint64_t r_anchor_id, key_stuff_t *r_anchor_stuff, int l_this_parent_in, int r_this_parent_in, char *key, uint32_t keylen, btree_metadata_t *meta, uint64_t syndrome)
+static int 
+find_rebalance(btree_status_t *ret, btree_raw_t *btree, 
+		uint64_t this_id, uint64_t left_id, uint64_t right_id, 
+		uint64_t l_anchor_id, key_stuff_t *l_anchor_stuff, 
+		uint64_t r_anchor_id, key_stuff_t *r_anchor_stuff, 
+		int l_this_parent_in, int r_this_parent_in, 
+		char *key, uint32_t keylen, btree_metadata_t *meta, uint64_t syndrome)
 {
     node_key_t         *keyrec;
     node_key_t         *pk_insert;
@@ -3602,82 +3605,82 @@ static int find_rebalance(btree_status_t *ret, btree_raw_t *btree, uint64_t this
             // remove entry from a leaf node
             delete_key(ret, btree, this_mem_node, key, keylen, meta, syndrome);
             btree->log_cb(ret, btree->log_cb_data, BTREE_UPDATE_NODE, btree, this_mem_node);
-	} else {
-	    // key NOT found at leaf
-	    *ret = 1;
-	}
+		} else {
+			// key NOT found at leaf
+			*ret = 1;
+		}
     } else {
         //   this node is internal
 
 	    // calculate neighbor and anchor nodes
-	if (child_id_before == BAD_CHILD) {
-	    // next_node is least entry in this_node
-	    if (left_id != BAD_CHILD) {
-		left_mem_node = get_existing_node(ret, btree, left_id);
+		if (child_id_before == BAD_CHILD) {
+			// next_node is least entry in this_node
+			if (left_id != BAD_CHILD) {
+				left_mem_node = get_existing_node(ret, btree, left_id);
                 left_node = left_mem_node->pnode;
-		next_left = left_node->rightmost;
-	    } else {
-		next_left = BAD_CHILD;
-	    }
-	    next_l_anchor       = l_anchor_id;
-	    next_l_anchor_stuff = l_anchor_stuff;
-	    l_this_parent       = 0;
-	    if (l_anchor_stuff == NULL) {
-	        l_balance_keylen = 0;
-	    } else {
-	        l_balance_keylen = l_anchor_stuff->keylen;
-	    }
-	} else {
-	    next_left           = child_id_before;
-	    next_l_anchor       = this_node->logical_id;
-	    (void) get_key_stuff(btree, this_node, nkey_child - 1, &ks_l);
-	    next_l_anchor_stuff = &ks_l;
-	    l_this_parent       = 1;
-	    l_balance_keylen    = ks_l.keylen;
-	}
+				next_left = left_node->rightmost;
+			} else {
+				next_left = BAD_CHILD;
+			}
+			next_l_anchor       = l_anchor_id;
+			next_l_anchor_stuff = l_anchor_stuff;
+			l_this_parent       = 0;
+			if (l_anchor_stuff == NULL) {
+				l_balance_keylen = 0;
+			} else {
+				l_balance_keylen = l_anchor_stuff->keylen;
+			}
+		} else {
+			next_left           = child_id_before;
+			next_l_anchor       = this_node->logical_id;
+			(void) get_key_stuff(btree, this_node, nkey_child - 1, &ks_l);
+			next_l_anchor_stuff = &ks_l;
+			l_this_parent       = 1;
+			l_balance_keylen    = ks_l.keylen;
+		}
 
-	if (child_id_after == BAD_CHILD) {
-	    // next_node is greatest entry in this_node
-	    if (right_id != BAD_CHILD) {
-		right_mem_node = get_existing_node(ret, btree, right_id);
-                right_node = right_mem_node->pnode;
-		assert(right_node); // xxxzzz fix this!
-		(void) get_key_stuff(btree, right_node, 0, &ks);
-		next_right = ks.ptr;
-	    } else {
-		next_right = BAD_CHILD;
-	    }
-	    next_r_anchor       = r_anchor_id;
-	    next_r_anchor_stuff = r_anchor_stuff;
-	    r_this_parent       = 0;
-	    if (r_anchor_stuff == NULL) {
-	        r_balance_keylen = 0;
-	    } else {
-	        r_balance_keylen = r_anchor_stuff->keylen;
-	    }
-	} else {
-	    next_right          = child_id_after;
-	    next_r_anchor       = this_node->logical_id;
-	    (void) get_key_stuff(btree, this_node, nkey_child, &ks_r);
-	    next_r_anchor_stuff = &ks_r;
-	    r_this_parent       = 1;
-	    r_balance_keylen    = ks_r.keylen;
-	}
+		if (child_id_after == BAD_CHILD) {
+			// next_node is greatest entry in this_node
+			if (right_id != BAD_CHILD) {
+				right_mem_node = get_existing_node(ret, btree, right_id);
+				right_node = right_mem_node->pnode;
+				assert(right_node); // xxxzzz fix this!
+				(void) get_key_stuff(btree, right_node, 0, &ks);
+				next_right = ks.ptr;
+			} else {
+				next_right = BAD_CHILD;
+			}
+			next_r_anchor       = r_anchor_id;
+			next_r_anchor_stuff = r_anchor_stuff;
+			r_this_parent       = 0;
+			if (r_anchor_stuff == NULL) {
+				r_balance_keylen = 0;
+			} else {
+				r_balance_keylen = r_anchor_stuff->keylen;
+			}
+		} else {
+			next_right          = child_id_after;
+			next_r_anchor       = this_node->logical_id;
+			(void) get_key_stuff(btree, this_node, nkey_child, &ks_r);
+			next_r_anchor_stuff = &ks_r;
+			r_this_parent       = 1;
+			r_balance_keylen    = ks_r.keylen;
+		}
 
 	    // recursive call
-	do_rebalance = find_rebalance(ret, btree, next_node, next_left, next_right, next_l_anchor, next_l_anchor_stuff, next_r_anchor, next_r_anchor_stuff, l_this_parent, r_this_parent, key, keylen, meta, syndrome);
+		do_rebalance = find_rebalance(ret, btree, next_node, next_left, next_right, next_l_anchor, next_l_anchor_stuff, next_r_anchor, next_r_anchor_stuff, l_this_parent, r_this_parent, key, keylen, meta, syndrome);
     }
 
 	//  does this node need to be rebalanced?
     if ((!do_rebalance) || (!is_minimal(btree, this_node, l_balance_keylen, r_balance_keylen)))
-	return 0;
+		return 0;
 
     if (this_id == btree->rootid) {
         collapse_root(ret, btree, this_mem_node);
-	return 0;
+		return 0;
     }
 
-    return rebalance(ret, btree, this_mem_node, left_id, right_id, l_anchor_id, l_anchor_stuff, r_anchor_id, r_anchor_stuff, l_this_parent_in, r_this_parent_in, meta);
+	return rebalance(ret, btree, this_mem_node, left_id, right_id, l_anchor_id, l_anchor_stuff, r_anchor_id, r_anchor_stuff, l_this_parent_in, r_this_parent_in, meta);
 }
 
 static void collapse_root(btree_status_t *ret, btree_raw_t *btree, btree_raw_mem_node_t *old_root_mem_node)
@@ -3739,6 +3742,7 @@ static void shift_right(btree_raw_t *btree, btree_raw_node_t *anchor, btree_raw_
     uint32_t       nbytes_f;
     uint32_t       nbytes_t;
     uint32_t       nbytes;
+	uint32_t	   max_key_size;
 
     char          *r_key;
     uint32_t       r_keylen;
@@ -3746,176 +3750,209 @@ static void shift_right(btree_raw_t *btree, btree_raw_node_t *anchor, btree_raw_
     uint64_t       r_seqno;
     uint64_t       r_ptr;
 
+
     __sync_add_and_fetch(&(btree->stats.stat[BTSTAT_RSHIFTS]),1);
+
+	//Get the maximum key size that can be accomodated in parent on moving keys
+	max_key_size = vnode_bytes_free(anchor) + s_keylen;
 
     (void) get_key_stuff(btree, from, 0, &ks);
     nbytes_fixed = ks.offset;
 
     if (ks.fixed) {
         if (from->nkeys <= to->nkeys) {
-	    *r_key_out = NULL;
-	    return;
-	}
-	// xxxzzz should the following takes into account the inclusion of the anchor separator key?
+			*r_key_out = NULL;
+			return;
+		}
+		// xxxzzz should the following takes into account the inclusion of the anchor separator key?
         nkeys_shift = (from->nkeys - to->nkeys)/2;
-	if (nkeys_shift == 0) {
-	    nkeys_shift = 1;
-	}
+		if (nkeys_shift == 0) {
+			nkeys_shift = 1;
+		}
         nbytes_shift = nkeys_shift*ks.offset;
-	pfk = (node_fkey_t *) ((char *) from->keys + (from->nkeys - nkeys_shift)*nbytes_fixed);
-	r_key      = (char *) pfk->key;
-	r_keylen   = sizeof(uint64_t);
-	r_syndrome = pfk->key;
-	r_seqno    = pfk->seqno;
-	r_ptr      = pfk->ptr;
+		pfk = (node_fkey_t *) ((char *) from->keys + (from->nkeys - nkeys_shift)*nbytes_fixed);
+		r_key      = (char *) pfk->key;
+		r_keylen   = sizeof(uint64_t);
+		r_syndrome = pfk->key;
+		r_seqno    = pfk->seqno;
+		r_ptr      = pfk->ptr;
 
     } else {
 
         nkeys_shift  = 0;
-	nbytes_shift = 0;
-	nbytes_f     = (btree->nodesize - from->insert_ptr) + from->nkeys*nbytes_fixed;
-	nbytes_t     = (btree->nodesize - to->insert_ptr)   + to->nkeys*nbytes_fixed;
-	if ((nbytes_f <= nbytes_t) || (from->nkeys <= 1)) {
-	    *r_key_out = NULL;
-	    return;
-	}
+		nbytes_shift = 0;
+		nbytes_f     = (btree->nodesize - from->insert_ptr) + from->nkeys*nbytes_fixed;
+		nbytes_t     = (btree->nodesize - to->insert_ptr)   + to->nkeys*nbytes_fixed;
+		if ((nbytes_f <= nbytes_t) || (from->nkeys <= 1)) {
+			*r_key_out = NULL;
+			return;
+		}
         threshold    = (nbytes_f - nbytes_t)/2;
 
         nbytes_shift_old = 0;
-	for (i=0; i<from->nkeys; i++) {
-	    (void) get_key_stuff(btree, from, from->nkeys - 1 - i, &ks);
-	    nbytes = ks.keylen;
-	    if (ks.leaf) {
-		if ((ks.keylen + ks.datalen) < btree->big_object_size) { // xxxzzz check this!
-		    nbytes += ks.datalen;
+		for (i=0; i<from->nkeys; i++) {
+			(void) get_key_stuff(btree, from, from->nkeys - 1 - i, &ks);
+			nbytes = ks.keylen;
+			if (ks.leaf) {
+				if ((ks.keylen + ks.datalen) < btree->big_object_size) { // xxxzzz check this!
+					nbytes += ks.datalen;
+				}
+			}
+			nbytes_shift_old = nbytes_shift;
+			nbytes_shift += nbytes;
+			nkeys_shift++;
+			if (ks.leaf) {
+				if ((nbytes_shift + nkeys_shift*nbytes_fixed) >= threshold) {
+					break;
+				}
+			} else {
+				// the following takes into account the inclusion of the anchor separator key!
+				if ((nbytes_shift + nkeys_shift*nbytes_fixed + (s_keylen - ks.keylen)) >= threshold) {
+					break;
+				}
+			}
 		}
-	    }
-	    nbytes_shift_old = nbytes_shift;
-	    nbytes_shift += nbytes;
-	    nkeys_shift++;
-	    if (ks.leaf) {
-		if ((nbytes_shift + nkeys_shift*nbytes_fixed) >= threshold) {
-		    break;
-		}
-	    } else {
-		// the following takes into account the inclusion of the anchor separator key!
-		if ((nbytes_shift + nkeys_shift*nbytes_fixed + (s_keylen - ks.keylen)) >= threshold) {
-		    break;
-		}
-	    }
-	}
-	assert(i < from->nkeys); // xxxzzz remove this!
+		assert(i < from->nkeys); // xxxzzz remove this!
 
-	if (nkeys_shift >= from->nkeys) {
-	    nkeys_shift--;
-	    nbytes_shift = nbytes_shift_old;
-	}
+		if (nkeys_shift >= from->nkeys) {
+			nkeys_shift--;
+			nbytes_shift = nbytes_shift_old;
+		}
 
-	if (ks.leaf) {
-	    pvlk = (node_vlkey_t *) ((char *) from->keys + (from->nkeys - nkeys_shift - 1)*nbytes_fixed);
-	    // copy the key into the non-volatile per-thread buffer
-	    assert(_keybuf);
-	    memcpy(_keybuf, (char *) from + pvlk->keypos, pvlk->keylen);
-	    r_key      = _keybuf;
-	    r_keylen   = pvlk->keylen;
+		/*
+		 * Check whether the new rightmost in from, can be added in "parent".
+		 * If it doesn't keep reverting till we get the key at least which can be 
+		 * put in parent.
+		 */
+		for(i = nkeys_shift;i > 0;i--) {
+			(void) get_key_stuff(btree, from, from->nkeys - i-1, &ks);
+			if (ks.keylen > max_key_size) {
+				nkeys_shift--;
+				if (nkeys_shift == 0) {
+					break;
+				}
+				(void) get_key_stuff(btree, from, from->nkeys - i, &ks);
+				nbytes_shift -= ks.keylen;
+				if (ks.leaf) {
+					if ((ks.keylen + ks.datalen) < btree->big_object_size) { // xxxzzz check this!
+						nbytes_shift -= ks.datalen;
+					}
+				}
+			} else {
+				break;
+			}
+		}
+		if (nkeys_shift == 0) {
+			*r_key_out = NULL;
+			return;
+		}
+
+
+		if (ks.leaf) {
+			pvlk = (node_vlkey_t *) ((char *) from->keys + (from->nkeys - nkeys_shift - 1)*nbytes_fixed);
+			// copy the key into the non-volatile per-thread buffer
+			assert(_keybuf);
+			memcpy(_keybuf, (char *) from + pvlk->keypos, pvlk->keylen);
+			r_key      = _keybuf;
+			r_keylen   = pvlk->keylen;
             r_syndrome = 0;
-	    r_seqno    = pvlk->seqno;
-	    r_ptr      = pvlk->ptr;
-	} else {
-	    pvk = (node_vkey_t *) ((char *) from->keys + (from->nkeys - nkeys_shift)*nbytes_fixed);
-	    // copy the key into the non-volatile per-thread buffer
-	    assert(_keybuf);
-	    memcpy(_keybuf, (char *) from + pvk->keypos, pvk->keylen);
-	    r_key      = _keybuf;
-	    r_keylen   = pvk->keylen;
-	    r_syndrome = 0;
-	    r_seqno    = pvk->seqno;
-	    r_ptr      = pvk->ptr;
-	}
+			r_seqno    = pvlk->seqno;
+			r_ptr      = pvlk->ptr;
+		} else {
+			pvk = (node_vkey_t *) ((char *) from->keys + (from->nkeys - nkeys_shift)*nbytes_fixed);
+			// copy the key into the non-volatile per-thread buffer
+			assert(_keybuf);
+			memcpy(_keybuf, (char *) from + pvk->keypos, pvk->keylen);
+			r_key      = _keybuf;
+			r_keylen   = pvk->keylen;
+			r_syndrome = 0;
+			r_seqno    = pvk->seqno;
+			r_ptr      = pvk->ptr;
+		}
     }
 
     if (ks.leaf) {
         nbytes_free    = vlnode_bytes_free(to);
-	nbytes_needed  = nbytes_shift + nkeys_shift*sizeof(node_vlkey_t);
-	assert(nbytes_free >= nbytes_needed); // xxxzzz remove this!
-	// make room for the lower fixed keys
-	memmove((char *) to->keys + nkeys_shift*nbytes_fixed, (char *) to->keys, to->nkeys*nbytes_fixed);
+		nbytes_needed  = nbytes_shift + nkeys_shift*sizeof(node_vlkey_t);
+		assert(nbytes_free >= nbytes_needed); // xxxzzz remove this!
+		// make room for the lower fixed keys
+		memmove((char *) to->keys + nkeys_shift*nbytes_fixed, (char *) to->keys, to->nkeys*nbytes_fixed);
 
-	// copy the fixed size portion of the keys
-	memcpy(to->keys, (char *) from->keys + (from->nkeys - nkeys_shift)*nbytes_fixed, nkeys_shift*nbytes_fixed);
-	to->nkeys   = to->nkeys + nkeys_shift;
-	from->nkeys = from->nkeys - nkeys_shift;
+		// copy the fixed size portion of the keys
+		memcpy(to->keys, (char *) from->keys + (from->nkeys - nkeys_shift)*nbytes_fixed, nkeys_shift*nbytes_fixed);
+		to->nkeys   = to->nkeys + nkeys_shift;
+		from->nkeys = from->nkeys - nkeys_shift;
 
     } else {
-	if (ks.fixed) {
-	    assert((to->nkeys + nkeys_shift) <= btree->fkeys_per_node); // xxxzzz remove this!
-	} else {
+		if (ks.fixed) {
+			assert((to->nkeys + nkeys_shift) <= btree->fkeys_per_node); // xxxzzz remove this!
+		} else {
             nbytes_free    = vnode_bytes_free(to);
-	    nbytes_needed  = (nbytes_shift - r_keylen + s_keylen) + nkeys_shift*sizeof(node_vkey_t);
-	    assert(nbytes_free >= nbytes_needed); // xxxzzz remove this!
-	}
+			nbytes_needed  = (nbytes_shift - r_keylen + s_keylen) + nkeys_shift*sizeof(node_vkey_t);
+			assert(nbytes_free >= nbytes_needed); // xxxzzz remove this!
+		}
 
-	// make room for the lower fixed keys, plus the separator from the anchor
-	memmove((char *) to->keys + nkeys_shift*nbytes_fixed, (char *) to->keys, to->nkeys*nbytes_fixed);
-	// copy the fixed size portion of the keys
-	memcpy(to->keys, (char *) from->keys + (from->nkeys - nkeys_shift + 1)*nbytes_fixed, (nkeys_shift - 1)*nbytes_fixed);
-	to->nkeys   = to->nkeys + nkeys_shift;
-	from->nkeys = from->nkeys - nkeys_shift; // convert last key to rightmost pointer
+		// make room for the lower fixed keys, plus the separator from the anchor
+		memmove((char *) to->keys + nkeys_shift*nbytes_fixed, (char *) to->keys, to->nkeys*nbytes_fixed);
+		// copy the fixed size portion of the keys
+		memcpy(to->keys, (char *) from->keys + (from->nkeys - nkeys_shift + 1)*nbytes_fixed, (nkeys_shift - 1)*nbytes_fixed);
+		to->nkeys   = to->nkeys + nkeys_shift;
+		from->nkeys = from->nkeys - nkeys_shift; // convert last key to rightmost pointer
 
-	// copy 'from' rightmost pointer
-	if (ks.fixed) {
-	    pfk = (node_fkey_t *) ((char *) to->keys + (nkeys_shift - 1)*nbytes_fixed);
-	    pfk->key   = (uint64_t) s_key;
-	    pfk->ptr   = from->rightmost;
-	    pfk->seqno = s_seqno;
-	} else {
-	    pvk = (node_vkey_t *) ((char *) to->keys + (nkeys_shift - 1)*nbytes_fixed);
-	    pvk->keylen = s_keylen;
-	    pvk->keypos = 0; // will be set in update_keypos below
-	    pvk->ptr    = from->rightmost;
-	    pvk->seqno  = s_seqno;
-	}
+		// copy 'from' rightmost pointer
+		if (ks.fixed) {
+			pfk = (node_fkey_t *) ((char *) to->keys + (nkeys_shift - 1)*nbytes_fixed);
+			pfk->key   = (uint64_t) s_key;
+			pfk->ptr   = from->rightmost;
+			pfk->seqno = s_seqno;
+		} else {
+			pvk = (node_vkey_t *) ((char *) to->keys + (nkeys_shift - 1)*nbytes_fixed);
+			pvk->keylen = s_keylen;
+			pvk->keypos = 0; // will be set in update_keypos below
+			pvk->ptr    = from->rightmost;
+			pvk->seqno  = s_seqno;
+		}
     }
 
     // copy variable sized stuff
 
     if (ks.fixed) {
-	to->insert_ptr = 0;
+		to->insert_ptr = 0;
     } else {
-	// for variable sized keys, copy the variable sized portion
-	//  For leaf nodes, copy the data too
+		// for variable sized keys, copy the variable sized portion
+		//  For leaf nodes, copy the data too
 
         if (ks.leaf) {
-	    memcpy(((char *) to) + to->insert_ptr - nbytes_shift, 
-		   ((char *) from) + btree->nodesize - nbytes_shift,
-		   nbytes_shift);
-	    // clean up 'from' variable stuff
-	    memmove(((char *) from) + from->insert_ptr + nbytes_shift, 
-		    ((char *) from) + from->insert_ptr,
-		    (btree->nodesize - from->insert_ptr) - nbytes_shift);
+			memcpy(((char *) to) + to->insert_ptr - nbytes_shift, 
+			   ((char *) from) + btree->nodesize - nbytes_shift,
+			   nbytes_shift);
+			// clean up 'from' variable stuff
+			memmove(((char *) from) + from->insert_ptr + nbytes_shift, 
+				((char *) from) + from->insert_ptr,
+				(btree->nodesize - from->insert_ptr) - nbytes_shift);
 
-	    to->insert_ptr   = to->insert_ptr   - nbytes_shift;
-	    from->insert_ptr = from->insert_ptr + nbytes_shift;
-	} else {
-	    //  for non-leaves, include the 'right' pointer from the 'from' node
+			to->insert_ptr   = to->insert_ptr   - nbytes_shift;
+			from->insert_ptr = from->insert_ptr + nbytes_shift;
+		} else {
+			//  for non-leaves, include the 'right' pointer from the 'from' node
 
-	    memcpy(((char *) to) + to->insert_ptr - (nbytes_shift - r_keylen) - s_keylen, 
-		   ((char *) from) + btree->nodesize - (nbytes_shift - r_keylen),
-		   nbytes_shift - r_keylen);
-	    memcpy(((char *) to) + to->insert_ptr - s_keylen, s_key, s_keylen);
+			memcpy(((char *) to) + to->insert_ptr - (nbytes_shift - r_keylen) - s_keylen, 
+			   ((char *) from) + btree->nodesize - (nbytes_shift - r_keylen),
+			   nbytes_shift - r_keylen);
+			memcpy(((char *) to) + to->insert_ptr - s_keylen, s_key, s_keylen);
 
-	    // clean up 'from' variable stuff
-	    memmove(((char *) from) + from->insert_ptr + nbytes_shift, 
-		    ((char *) from) + from->insert_ptr,
-		    btree->nodesize - from->insert_ptr - nbytes_shift);
+			// clean up 'from' variable stuff
+			memmove(((char *) from) + from->insert_ptr + nbytes_shift, 
+				((char *) from) + from->insert_ptr,
+				btree->nodesize - from->insert_ptr - nbytes_shift);
 
-	    to->insert_ptr   = to->insert_ptr   - (nbytes_shift - r_keylen) - s_keylen;
-	    from->insert_ptr = from->insert_ptr + (nbytes_shift - r_keylen) + r_keylen;
-	}
+			to->insert_ptr   = to->insert_ptr   - (nbytes_shift - r_keylen) - s_keylen;
+			from->insert_ptr = from->insert_ptr + (nbytes_shift - r_keylen) + r_keylen;
+		}
 	
-	//  update the keypos pointers
-        update_keypos(btree, to,   0);
-        update_keypos(btree, from, 0);
+		//  update the keypos pointers
+		update_keypos(btree, to,   0);
+		update_keypos(btree, from, 0);
     }
 
     // update the rightmost pointer of the 'from' node
@@ -3932,10 +3969,10 @@ static void shift_right(btree_raw_t *btree, btree_raw_node_t *anchor, btree_raw_
 	    int  len;
 	    if (btree->flags & SYNDROME_INDEX) {
 	        sprintf(stmp, "%p", s_key);
-		len = strlen(stmp);
+			len = strlen(stmp);
 	    } else {
-		strncpy(stmp, s_key, s_keylen);
-		len = s_keylen;
+			strncpy(stmp, s_key, s_keylen);
+			len = s_keylen;
 	    }
 	    fprintf(stderr, "********  After shift_right for key '%s' [syn=%lu] (from=%p, to=%p) B-Tree:  *******\n", dump_key(stmp, len), s_syndrome, from, to);
 	    btree_raw_dump(stderr, btree);
@@ -3965,6 +4002,7 @@ static void shift_left(btree_raw_t *btree, btree_raw_node_t *anchor, btree_raw_n
     uint32_t       nbytes_t;
     uint32_t       nbytes_to;
     uint32_t       nbytes;
+	uint32_t	   max_key_size;
 
     char          *r_key;
     uint32_t       r_keylen;
@@ -3974,191 +4012,223 @@ static void shift_left(btree_raw_t *btree, btree_raw_node_t *anchor, btree_raw_n
 
     __sync_add_and_fetch(&(btree->stats.stat[BTSTAT_LSHIFTS]),1);
 
+	//Get the maximum key size that can be accomodated in parent on moving keys
+	max_key_size = vnode_bytes_free(anchor) + s_keylen;
+
     (void) get_key_stuff(btree, from, 0, &ks);
     nbytes_fixed = ks.offset;
 
     if (ks.fixed) {
         if (from->nkeys <= to->nkeys) {
-	    *r_key_out = NULL;
-	    return;
-	}
-	// xxxzzz should the following takes into account the inclusion of the anchor separator key?
+			*r_key_out = NULL;
+			return;
+		}
+		// xxxzzz should the following takes into account the inclusion of the anchor separator key?
         nkeys_shift = (from->nkeys - to->nkeys)/2;
-	if (nkeys_shift == 0) {
-	    nkeys_shift = 1; // always shift at least one key!
-	}
+		if (nkeys_shift == 0) {
+			nkeys_shift = 1; // always shift at least one key!
+		}
         nbytes_shift = nkeys_shift*ks.offset;
-	pfk = (node_fkey_t *) ((char *) from->keys + (nkeys_shift - 1)*nbytes_fixed);
-	r_key      = (char *) pfk->key;
-	r_keylen   = sizeof(uint64_t);
-	r_syndrome = pfk->key;
-	r_seqno    = pfk->seqno;
-	r_ptr      = pfk->ptr;
+		pfk = (node_fkey_t *) ((char *) from->keys + (nkeys_shift - 1)*nbytes_fixed);
+		r_key      = (char *) pfk->key;
+		r_keylen   = sizeof(uint64_t);
+		r_syndrome = pfk->key;
+		r_seqno    = pfk->seqno;
+		r_ptr      = pfk->ptr;
 
     } else {
 
         nkeys_shift  = 0;
-	nbytes_shift = 0;
-	nbytes_f     = (btree->nodesize - from->insert_ptr) + from->nkeys*nbytes_fixed;
-	nbytes_t     = (btree->nodesize - to->insert_ptr)   + to->nkeys*nbytes_fixed;
-	if ((nbytes_f <= nbytes_t) || (from->nkeys <= 1)) {
-	    *r_key_out = NULL;
-	    return;
-	}
+		nbytes_shift = 0;
+		nbytes_f     = (btree->nodesize - from->insert_ptr) + from->nkeys*nbytes_fixed;
+		nbytes_t     = (btree->nodesize - to->insert_ptr)   + to->nkeys*nbytes_fixed;
+		if ((nbytes_f <= nbytes_t) || (from->nkeys <= 1)) {
+			*r_key_out = NULL;
+			return;
+		}
         threshold    = (nbytes_f - nbytes_t)/2;
 
         nbytes_shift_old = 0;
-	for (i=0; i<from->nkeys; i++) {
-	    (void) get_key_stuff(btree, from, i, &ks);
-	    nbytes = ks.keylen;
-	    if (ks.leaf) {
-		if ((ks.keylen + ks.datalen) < btree->big_object_size) { // xxxzzz check this!
-		    nbytes += ks.datalen;
+		for (i=0; i<from->nkeys; i++) {
+			(void) get_key_stuff(btree, from, i, &ks);
+			nbytes = ks.keylen;
+			if (ks.leaf) {
+				if ((ks.keylen + ks.datalen) < btree->big_object_size) { // xxxzzz check this!
+					nbytes += ks.datalen;
+				}
+			}
+			nbytes_shift_old = nbytes_shift;
+			nbytes_shift    += nbytes;
+			nkeys_shift++;
+			if (ks.leaf) {
+				if ((nbytes_shift + nkeys_shift*nbytes_fixed) >= threshold) {
+					break;
+				}
+			} else {
+				// the following takes into account the inclusion of the anchor separator key!
+				if ((nbytes_shift + nkeys_shift*nbytes_fixed + (s_keylen - ks.keylen)) >= threshold) {
+					break;
+				}
+			}
 		}
-	    }
-	    nbytes_shift_old = nbytes_shift;
-	    nbytes_shift    += nbytes;
-	    nkeys_shift++;
-	    if (ks.leaf) {
-		if ((nbytes_shift + nkeys_shift*nbytes_fixed) >= threshold) {
-		    break;
+		assert(i < from->nkeys); // xxxzzz remove this!
+		if (nkeys_shift >= from->nkeys) {
+			nkeys_shift--;
+			nbytes_shift = nbytes_shift_old;
 		}
-	    } else {
-		// the following takes into account the inclusion of the anchor separator key!
-		if ((nbytes_shift + nkeys_shift*nbytes_fixed + (s_keylen - ks.keylen)) >= threshold) {
-		    break;
-		}
-	    }
-	}
-	assert(i < from->nkeys); // xxxzzz remove this!
-	if (nkeys_shift >= from->nkeys) {
-	    nkeys_shift--;
-	    nbytes_shift = nbytes_shift_old;
-	}
 
-	if (ks.leaf) {
-	    pvlk = (node_vlkey_t *) ((char *) from->keys + (nkeys_shift - 1)*nbytes_fixed);
-	    // copy the key into the non-volatile per-thread buffer
-	    assert(_keybuf);
-	    memcpy(_keybuf, (char *) from + pvlk->keypos, pvlk->keylen);
-	    r_key      = _keybuf;
-	    r_keylen   = pvlk->keylen;
+		/*
+		 * Check whether the new rightmost in from, can be added in "parent".
+		 * If it doesn't keep reverting till we get the key at least which can be 
+		 * put in parent.
+		 */
+		for(i = nkeys_shift;i > 0;i--) {
+			(void) get_key_stuff(btree, from, i-1, &ks);
+			if (ks.keylen > max_key_size) {
+				nkeys_shift--;
+				if (nkeys_shift ==0) {
+					break;
+				}
+				(void) get_key_stuff(btree, from, i-2, &ks);
+				nbytes_shift -= ks.keylen;
+				if (ks.leaf) {
+					if ((ks.keylen + ks.datalen) < btree->big_object_size) { // xxxzzz check this!
+						nbytes_shift -= ks.datalen;
+					}
+				}
+			} else {
+				break;
+			}
+		}
+
+		if (nkeys_shift == 0) {
+			*r_key_out = NULL;
+			return;
+		}
+
+		if (ks.leaf) {
+			pvlk = (node_vlkey_t *) ((char *) from->keys + (nkeys_shift - 1)*nbytes_fixed);
+			// copy the key into the non-volatile per-thread buffer
+			assert(_keybuf);
+			memcpy(_keybuf, (char *) from + pvlk->keypos, pvlk->keylen);
+			r_key      = _keybuf;
+			r_keylen   = pvlk->keylen;
             r_syndrome = 0;
-	    r_seqno    = pvlk->seqno;
-	    r_ptr      = pvlk->ptr;
-	} else {
-	    pvk = (node_vkey_t *) ((char *) from->keys + (nkeys_shift - 1)*nbytes_fixed);
-	    // copy the key into the non-volatile per-thread buffer
-	    assert(_keybuf);
-	    memcpy(_keybuf, (char *) from + pvk->keypos, pvk->keylen);
-	    r_key      = _keybuf;
-	    r_keylen   = pvk->keylen;
+			r_seqno    = pvlk->seqno;
+			r_ptr      = pvlk->ptr;
+		} else {
+			pvk = (node_vkey_t *) ((char *) from->keys + (nkeys_shift - 1)*nbytes_fixed);
+			// copy the key into the non-volatile per-thread buffer
+			assert(_keybuf);
+			memcpy(_keybuf, (char *) from + pvk->keypos, pvk->keylen);
+			r_key      = _keybuf;
+			r_keylen   = pvk->keylen;
             r_syndrome = 0;
-	    r_seqno    = pvk->seqno;
-	    r_ptr      = pvk->ptr;
-	}
+			r_seqno    = pvk->seqno;
+			r_ptr      = pvk->ptr;
+		}
     }
 
     if (ks.leaf) {
         nbytes_free    = vlnode_bytes_free(to);
-	nbytes_needed  = nbytes_shift + nkeys_shift*sizeof(node_vlkey_t);
-	assert(nbytes_free >= nbytes_needed); // xxxzzz remove this!
+		nbytes_needed  = nbytes_shift + nkeys_shift*sizeof(node_vlkey_t);
+		assert(nbytes_free >= nbytes_needed); // xxxzzz remove this!
 
-	// copy the fixed size portion of the keys
-	memcpy((char *) to->keys + to->nkeys*nbytes_fixed, from->keys, nkeys_shift*nbytes_fixed);
+		// copy the fixed size portion of the keys
+		memcpy((char *) to->keys + to->nkeys*nbytes_fixed, from->keys, nkeys_shift*nbytes_fixed);
 
-	// remove keys from 'from' node
-	memmove(from->keys, (char *) from->keys + nkeys_shift*nbytes_fixed, (from->nkeys - nkeys_shift)*nbytes_fixed);
+		// remove keys from 'from' node
+		memmove(from->keys, (char *) from->keys + nkeys_shift*nbytes_fixed, (from->nkeys - nkeys_shift)*nbytes_fixed);
 
-	to->nkeys   = to->nkeys + nkeys_shift;
-	from->nkeys = from->nkeys - nkeys_shift;
+		to->nkeys   = to->nkeys + nkeys_shift;
+		from->nkeys = from->nkeys - nkeys_shift;
 
     } else {
-	if (ks.fixed) {
-	    //  this allows for the conversion of the 'to' right ptr to a regular key:
-	    assert((to->nkeys + nkeys_shift) <= btree->fkeys_per_node); // xxxzzz remove this!
-	} else {
+		if (ks.fixed) {
+			//  this allows for the conversion of the 'to' right ptr to a regular key:
+			assert((to->nkeys + nkeys_shift) <= btree->fkeys_per_node); // xxxzzz remove this!
+		} else {
             nbytes_free    = vnode_bytes_free(to);
-	    nbytes_needed  = (nbytes_shift - r_keylen + s_keylen) + nkeys_shift*sizeof(node_vkey_t);
-	    assert(nbytes_free >= nbytes_needed); // xxxzzz remove this!
-	}
+			nbytes_needed  = (nbytes_shift - r_keylen + s_keylen) + nkeys_shift*sizeof(node_vkey_t);
+			assert(nbytes_free >= nbytes_needed); // xxxzzz remove this!
+		}
 
-	// copy the fixed size portion of the keys
+		// copy the fixed size portion of the keys
 	    //  this allows for the conversion of the 'to' right ptr to a regular key:
-	memcpy((char *) to->keys + (to->nkeys + 1)*nbytes_fixed, from->keys, (nkeys_shift - 1)*nbytes_fixed);
+		memcpy((char *) to->keys + (to->nkeys + 1)*nbytes_fixed, from->keys, (nkeys_shift - 1)*nbytes_fixed);
 
-	// remove keys from 'from' node
-	memmove(from->keys, (char *) from->keys + nkeys_shift*nbytes_fixed, (from->nkeys - nkeys_shift)*nbytes_fixed);
+		// remove keys from 'from' node
+		memmove(from->keys, (char *) from->keys + nkeys_shift*nbytes_fixed, (from->nkeys - nkeys_shift)*nbytes_fixed);
 
-	// convert 'to' rightmost pointer into a regular key
-	if (ks.fixed) {
-	    pfk = (node_fkey_t *) ((char *) to->keys + to->nkeys*nbytes_fixed);
-	    pfk->key   = (uint64_t) s_key;
-	    pfk->ptr   = to->rightmost;
-	    pfk->seqno = s_seqno;
-	} else {
-	    pvk = (node_vkey_t *) ((char *) to->keys + to->nkeys*nbytes_fixed);
-	    pvk->keylen = s_keylen;
-	    pvk->keypos = 0; // will be set in update_keypos below
-	    pvk->ptr    = to->rightmost;
-	    pvk->seqno  = s_seqno;
-	}
+		// convert 'to' rightmost pointer into a regular key
+		if (ks.fixed) {
+			pfk = (node_fkey_t *) ((char *) to->keys + to->nkeys*nbytes_fixed);
+			pfk->key   = (uint64_t) s_key;
+			pfk->ptr   = to->rightmost;
+			pfk->seqno = s_seqno;
+		} else {
+			pvk = (node_vkey_t *) ((char *) to->keys + to->nkeys*nbytes_fixed);
+			pvk->keylen = s_keylen;
+			pvk->keypos = 0; // will be set in update_keypos below
+			pvk->ptr    = to->rightmost;
+			pvk->seqno  = s_seqno;
+		}
 	
-	//  Update nkeys AFTER converting rightmost pointer so that nkeys math
-	//  above is correct!
+		//  Update nkeys AFTER converting rightmost pointer so that nkeys math
+		//  above is correct!
 
-	to->nkeys   = to->nkeys + nkeys_shift;
-	from->nkeys = from->nkeys - nkeys_shift; // convert last key to rightmost pointer
-    }
+		to->nkeys   = to->nkeys + nkeys_shift;
+		from->nkeys = from->nkeys - nkeys_shift; // convert last key to rightmost pointer
+	}
 
     // copy variable sized stuff
 
     if (ks.fixed) {
-	to->insert_ptr = 0;
+		to->insert_ptr = 0;
     } else {
-	// for variable sized keys, copy the variable sized portion
-	//  For leaf nodes, copy the data too
+		// for variable sized keys, copy the variable sized portion
+		//  For leaf nodes, copy the data too
 
         if (ks.leaf) {
-	    //  Move existing 'to' stuff to make room for 'from' stuff.
-	    nbytes_to = btree->nodesize - to->insert_ptr;
-	    memmove(((char *) to) + to->insert_ptr - nbytes_shift, 
-		   ((char *) to) + to->insert_ptr,
-		   nbytes_to);
+			//  Move existing 'to' stuff to make room for 'from' stuff.
+			nbytes_to = btree->nodesize - to->insert_ptr;
+			memmove(((char *) to) + to->insert_ptr - nbytes_shift, 
+			   ((char *) to) + to->insert_ptr,
+			   nbytes_to);
 
             //  Copy over the 'from' stuff.
-	    memcpy(((char *) to) + to->insert_ptr - nbytes_shift + nbytes_to, 
-		   ((char *) from) + from->insert_ptr,
-		   nbytes_shift);
+			memcpy(((char *) to) + to->insert_ptr - nbytes_shift + nbytes_to, 
+			   ((char *) from) + from->insert_ptr,
+			   nbytes_shift);
 
-	    to->insert_ptr   = to->insert_ptr   - nbytes_shift;
-	    from->insert_ptr = from->insert_ptr + nbytes_shift;
+			to->insert_ptr   = to->insert_ptr   - nbytes_shift;
+			from->insert_ptr = from->insert_ptr + nbytes_shift;
 
-	} else {
+		} else {
 
-	    //  Move existing 'to' stuff to make room for 'from' stuff.
-	    //  For non-leaves, include the 'right' pointer from the 'to' node.
-	    nbytes_to = btree->nodesize - to->insert_ptr;
-	    memmove(((char *) to) + to->insert_ptr - (nbytes_shift - r_keylen + s_keylen), 
-		   ((char *) to) + to->insert_ptr,
-		   nbytes_to);
+			//  Move existing 'to' stuff to make room for 'from' stuff.
+			//  For non-leaves, include the 'right' pointer from the 'to' node.
+			nbytes_to = btree->nodesize - to->insert_ptr;
+			memmove(((char *) to) + to->insert_ptr - (nbytes_shift - r_keylen + s_keylen), 
+			   ((char *) to) + to->insert_ptr,
+			   nbytes_to);
 
             //  Copy key that converts 'right' pointer of 'to' node to a regular key.
-	    memcpy(((char *) to) + to->insert_ptr - (nbytes_shift - r_keylen + s_keylen) + nbytes_to, s_key, s_keylen);
+			memcpy(((char *) to) + to->insert_ptr - (nbytes_shift - r_keylen + s_keylen) + nbytes_to, s_key, s_keylen);
 
             //  Copy over the 'from' stuff.
-	    memcpy(((char *) to) + to->insert_ptr - (nbytes_shift - r_keylen + s_keylen) + nbytes_to + s_keylen, 
-		   ((char *) from) + from->insert_ptr,
-		   nbytes_shift - r_keylen);
+			memcpy(((char *) to) + to->insert_ptr - (nbytes_shift - r_keylen + s_keylen) + nbytes_to + s_keylen, 
+			   ((char *) from) + from->insert_ptr,
+			   nbytes_shift - r_keylen);
 
-	    to->insert_ptr   = to->insert_ptr   - (nbytes_shift - r_keylen + s_keylen);
-	    from->insert_ptr = from->insert_ptr + nbytes_shift;
-	}
+			to->insert_ptr   = to->insert_ptr   - (nbytes_shift - r_keylen + s_keylen);
+			from->insert_ptr = from->insert_ptr + nbytes_shift;
+		}
 	
-	//  update the keypos pointers
-        update_keypos(btree, to,   0);
-        update_keypos(btree, from, 0);
-    }
+		//  update the keypos pointers
+			update_keypos(btree, to,   0);
+			update_keypos(btree, from, 0);
+	}
 
     // update the rightmost pointer of the 'to' node
     to->rightmost = r_ptr;
@@ -4168,21 +4238,21 @@ static void shift_left(btree_raw_t *btree, btree_raw_node_t *anchor, btree_raw_n
     *r_syndrome_out = r_syndrome;
     *r_seqno_out    = r_seqno;
 
-    #ifdef DEBUG_STUFF
+#ifdef DEBUG_STUFF
 	if (Verbose) {
 	    char stmp[10000];
 	    int  len;
 	    if (btree->flags & SYNDROME_INDEX) {
 	        sprintf(stmp, "%p", s_key);
-		len = strlen(stmp);
+			len = strlen(stmp);
 	    } else {
-		strncpy(stmp, s_key, s_keylen);
-		len = s_keylen;
+			strncpy(stmp, s_key, s_keylen);
+			len = s_keylen;
 	    }
 	    fprintf(stderr, "********  After shift_left for key '%s' [syn=%lu], B-Tree:  *******\n", dump_key(stmp, len), s_syndrome);
 	    btree_raw_dump(stderr, btree);
 	}
-    #endif
+#endif
 
     return;
 }
@@ -4454,7 +4524,7 @@ static int rebalance(btree_status_t *ret, btree_raw_t *btree, btree_raw_mem_node
         left_node = NULL;
         left_mem_node = NULL;
     } else {
-	left_mem_node = get_existing_node(ret, btree, left_id);
+		left_mem_node = get_existing_node(ret, btree, left_id);
         left_node = left_mem_node->pnode;
     }
 
@@ -4462,37 +4532,37 @@ static int rebalance(btree_status_t *ret, btree_raw_t *btree, btree_raw_mem_node
         right_node = NULL;
         right_mem_node = NULL;
     } else {
-	right_mem_node = get_existing_node(ret, btree, right_id);
+		right_mem_node = get_existing_node(ret, btree, right_id);
         right_node = right_mem_node->pnode;
     }
 
     if (left_node == NULL) {
         balance_node   = right_node;
         balance_mem_node   = right_mem_node;
-	balance_keylen = r_anchor_stuff->keylen;
+		balance_keylen = r_anchor_stuff->keylen;
     } else if (right_node == NULL) {
         balance_node   = left_node;
         balance_mem_node   = left_mem_node;
-	balance_keylen = l_anchor_stuff->keylen;
+		balance_keylen = l_anchor_stuff->keylen;
     } else {
         // give siblings preference
-	if (l_this_parent && (!r_this_parent)) {
-	    balance_node   = left_node;
+		if (l_this_parent && (!r_this_parent)) {
+			balance_node   = left_node;
             balance_mem_node   = left_mem_node;
-	    balance_keylen = l_anchor_stuff->keylen;
-	} else if (r_this_parent && (!l_this_parent)) {
-	    balance_node   = right_node;
+			balance_keylen = l_anchor_stuff->keylen;
+		} else if (r_this_parent && (!l_this_parent)) {
+			balance_node   = right_node;
             balance_mem_node   = right_mem_node;
-	    balance_keylen = r_anchor_stuff->keylen;
+			balance_keylen = r_anchor_stuff->keylen;
         } else if (left_node->insert_ptr > right_node->insert_ptr) {
-	    balance_node   = right_node;
+			balance_node   = right_node;
             balance_mem_node   = right_mem_node;
-	    balance_keylen = r_anchor_stuff->keylen;
-	} else {
-	    balance_node   = left_node;
+			balance_keylen = r_anchor_stuff->keylen;
+		} else {
+			balance_node   = left_node;
             balance_mem_node   = left_mem_node;
-	    balance_keylen = l_anchor_stuff->keylen;
-	}
+			balance_keylen = l_anchor_stuff->keylen;
+		}
     }
 
     balance_node_is_sibling = balance_node == left_node ? l_this_parent : r_this_parent;
@@ -4500,44 +4570,43 @@ static int rebalance(btree_status_t *ret, btree_raw_t *btree, btree_raw_mem_node
     assert(balance_node != NULL);
 
     if ((!is_minimal(btree, balance_node, balance_keylen, 0)) ||
-        (!balance_node_is_sibling))
-    {
+        (!balance_node_is_sibling)) {
         next_do_rebalance = 0;
         if (balance_node == left_node) {
-	    anchor_mem_node    = get_existing_node(ret, btree, l_anchor_id);
+			anchor_mem_node    = get_existing_node(ret, btree, l_anchor_id);
             anchor_node = anchor_mem_node->pnode;
 
-	    s_key      = l_anchor_stuff->pkey_val;
-	    s_keylen   = l_anchor_stuff->keylen;
-	    s_syndrome = l_anchor_stuff->syndrome;
-	    s_seqno    = l_anchor_stuff->seqno;
-	    s_ptr      = l_anchor_stuff->ptr;
+			s_key      = l_anchor_stuff->pkey_val;
+			s_keylen   = l_anchor_stuff->keylen;
+			s_syndrome = l_anchor_stuff->syndrome;
+			s_seqno    = l_anchor_stuff->seqno;
+			s_ptr      = l_anchor_stuff->ptr;
 
-	    shift_right(btree, anchor_node, balance_node, this_node, s_key, s_keylen, s_syndrome, s_seqno, &r_key, &r_keylen, &r_syndrome, &r_seqno);
+			shift_right(btree, anchor_node, balance_node, this_node, s_key, s_keylen, s_syndrome, s_seqno, &r_key, &r_keylen, &r_syndrome, &r_seqno);
 
-	   /*
-	    * Along with "this_node", balance_node will also get modified. Hence need to flush the balance_node.
-	    * "this_node" is added to modified l1 cache list in find_rebalance function as a part of delete key call.
-            * Anchor node will also be added to modified l1 cache as a part of delete key call in this function
-	    */
-	    modify_l1cache_node(btree,balance_mem_node);
+		   /*
+			* Along with "this_node", balance_node will also get modified. Hence need to flush the balance_node.
+			* "this_node" is added to modified l1 cache list in find_rebalance function as a part of delete key call.
+			* Anchor node will also be added to modified l1 cache as a part of delete key call in this function
+			*/
+			modify_l1cache_node(btree,balance_mem_node);
 
             if (r_key != NULL) {
-		// update keyrec in anchor
-		delete_key(ret, btree, anchor_mem_node, s_key, s_keylen, meta, s_syndrome);
-		insert_key(ret, btree, anchor_mem_node, r_key, r_keylen, r_seqno, sizeof(uint64_t), (char *) &s_ptr, meta, r_syndrome);
-	    }
-	} else {
-	    anchor_mem_node = get_existing_node(ret, btree, r_anchor_id);
+				// update keyrec in anchor
+				delete_key(ret, btree, anchor_mem_node, s_key, s_keylen, meta, s_syndrome);
+				insert_key(ret, btree, anchor_mem_node, r_key, r_keylen, r_seqno, sizeof(uint64_t), (char *) &s_ptr, meta, r_syndrome);
+			}
+		} else {
+			anchor_mem_node = get_existing_node(ret, btree, r_anchor_id);
             anchor_node = anchor_mem_node->pnode;
 
-	    s_key      = r_anchor_stuff->pkey_val;
-	    s_keylen   = r_anchor_stuff->keylen;
-	    s_syndrome = r_anchor_stuff->syndrome;
-	    s_seqno    = r_anchor_stuff->seqno;
-	    s_ptr      = r_anchor_stuff->ptr;
+			s_key      = r_anchor_stuff->pkey_val;
+			s_keylen   = r_anchor_stuff->keylen;
+			s_syndrome = r_anchor_stuff->syndrome;
+			s_seqno    = r_anchor_stuff->seqno;
+			s_ptr      = r_anchor_stuff->ptr;
 
-	    shift_left(btree, anchor_node, balance_node, this_node, s_key, s_keylen, s_syndrome, s_seqno, &r_key, &r_keylen, &r_syndrome, &r_seqno);
+			shift_left(btree, anchor_node, balance_node, this_node, s_key, s_keylen, s_syndrome, s_seqno, &r_key, &r_keylen, &r_syndrome, &r_seqno);
 
            /*
             * Along with "this_node", balance_node will also get modified. Hence need to flush the balance_node.
@@ -4547,79 +4616,78 @@ static int rebalance(btree_status_t *ret, btree_raw_t *btree, btree_raw_mem_node
             modify_l1cache_node(btree,balance_mem_node);
 
             if (r_key != NULL) {
-		// update keyrec in anchor
-		delete_key(ret, btree, anchor_mem_node, s_key, s_keylen, meta, s_syndrome);
-		insert_key(ret, btree, anchor_mem_node, r_key, r_keylen, r_seqno, sizeof(uint64_t), (char *) &s_ptr, meta, r_syndrome);
-	    }
-	}
+				// update keyrec in anchor
+				delete_key(ret, btree, anchor_mem_node, s_key, s_keylen, meta, s_syndrome);
+				insert_key(ret, btree, anchor_mem_node, r_key, r_keylen, r_seqno, sizeof(uint64_t), (char *) &s_ptr, meta, r_syndrome);
+			}
+		}
 
     } else {
         next_do_rebalance = 1;
         if (balance_node == left_node) {
-	    //  left anchor is parent of this_node
-	    anchor_mem_node    = get_existing_node(ret, btree, l_anchor_id);
+			//  left anchor is parent of this_node
+			anchor_mem_node    = get_existing_node(ret, btree, l_anchor_id);
             anchor_node = anchor_mem_node->pnode;
-	    merge_node     = left_node;
+			merge_node     = left_node;
 
-	    s_key      = l_anchor_stuff->pkey_val;
-	    s_keylen   = l_anchor_stuff->keylen;
-	    s_syndrome = l_anchor_stuff->syndrome;
-	    s_seqno    = l_anchor_stuff->seqno;
+			s_key      = l_anchor_stuff->pkey_val;
+			s_keylen   = l_anchor_stuff->keylen;
+			s_syndrome = l_anchor_stuff->syndrome;
+			s_seqno    = l_anchor_stuff->seqno;
 
-	    merge_left(btree, anchor_node, this_node, merge_node, s_key, s_keylen, s_syndrome, s_seqno);
+			merge_left(btree, anchor_node, this_node, merge_node, s_key, s_keylen, s_syndrome, s_seqno);
 
            /*
             * Along with "this_node", merge_node will also get modified. Hence need to flush the merge_node.
             * "this_node" is added to modified l1 cache list in find_rebalance function as a part of delete key call.
             * Anchor node will also be added to modified l1 cache as a part of delete key call in this function
-	    * merge_node in this case is left_node.
+			* merge_node in this case is left_node.
             */
-	    modify_l1cache_node(btree,left_mem_node);
+			modify_l1cache_node(btree,left_mem_node);
 	
 
-	    //  update the anchor
-	    //  cases:
-	    //       1) this_node is the rightmost pointer
-	    //       2) this_node is NOT a rightmost pointer
-	    //
+			//  update the anchor
+			//  cases:
+			//       1) this_node is the rightmost pointer
+			//       2) this_node is NOT a rightmost pointer
+			//
 
             if (this_node->logical_id == anchor_node->rightmost) {
-		//  child is the rightmost pointer
-		// 
-	        //  Make the 'rightmost' point to the merge_node,
-		//  then delete the key for the merge_node.
-		anchor_node->rightmost = l_anchor_stuff->ptr;
-	    } else {
-	        //  Make the key for 'this_node' point to the merge_node,
-		//  then delete the key for the merge_node.
-		//  Note that this_node corresponds to l_anchor_stuff->nkey+1!
-		// 
-	        update_ptr(btree, anchor_node, l_anchor_stuff->nkey+1, l_anchor_stuff->ptr);
-	    }
-	    delete_key(ret, btree, anchor_mem_node, l_anchor_stuff->pkey_val, l_anchor_stuff->keylen, meta, l_anchor_stuff->syndrome);
-	    btree->log_cb(ret, btree->log_cb_data, BTREE_UPDATE_NODE, btree, anchor_mem_node);
+				//  child is the rightmost pointer
+				// 
+				//  Make the 'rightmost' point to the merge_node,
+				//  then delete the key for the merge_node.
+				anchor_node->rightmost = l_anchor_stuff->ptr;
+			} else {
+				//  Make the key for 'this_node' point to the merge_node,
+				//  then delete the key for the merge_node.
+				//  Note that this_node corresponds to l_anchor_stuff->nkey+1!
+				// 
+				update_ptr(btree, anchor_node, l_anchor_stuff->nkey+1, l_anchor_stuff->ptr);
+			}
+			delete_key(ret, btree, anchor_mem_node, l_anchor_stuff->pkey_val, l_anchor_stuff->keylen, meta, l_anchor_stuff->syndrome);
+			btree->log_cb(ret, btree->log_cb_data, BTREE_UPDATE_NODE, btree, anchor_mem_node);
 
-	    // free this_node
-	    if (!(*ret)) {
-		free_node(ret, btree, this_mem_node);
-	    }
+			// free this_node
+			if (!(*ret)) {
+				free_node(ret, btree, this_mem_node);
+			}
+		} else {
+			//  Since the left anchor is not the parent of this_node,
+			//  the right anchor MUST be parent of this_node.
+			//  Also, this_node must be key number 0.
 
-	} else {
-	    //  Since the left anchor is not the parent of this_node,
-	    //  the right anchor MUST be parent of this_node.
-	    //  Also, this_node must be key number 0.
-
-	    assert(r_this_parent);
-	    anchor_mem_node    = get_existing_node(ret, btree, r_anchor_id);
+			assert(r_this_parent);
+			anchor_mem_node    = get_existing_node(ret, btree, r_anchor_id);
             anchor_node = anchor_mem_node->pnode;
-	    merge_node     = right_node;
+			merge_node     = right_node;
 
-	    s_key      = r_anchor_stuff->pkey_val;
-	    s_keylen   = r_anchor_stuff->keylen;
-	    s_syndrome = r_anchor_stuff->syndrome;
-	    s_seqno    = r_anchor_stuff->seqno;
+			s_key      = r_anchor_stuff->pkey_val;
+			s_keylen   = r_anchor_stuff->keylen;
+			s_syndrome = r_anchor_stuff->syndrome;
+			s_seqno    = r_anchor_stuff->seqno;
 
-	    merge_right(btree, anchor_node, this_node, merge_node, s_key, s_keylen, s_syndrome, s_seqno);
+			merge_right(btree, anchor_node, this_node, merge_node, s_key, s_keylen, s_syndrome, s_seqno);
 
            /*
             * Along with "this_node", merge_node will also get modified. Hence need to flush the merge_node.
@@ -4627,38 +4695,38 @@ static int rebalance(btree_status_t *ret, btree_raw_t *btree, btree_raw_mem_node
             * Anchor node will also be added to modified l1 cache as a part of delete key call in this function
             * merge_node in this case is right_node.
             */
-	    modify_l1cache_node(btree,right_mem_node);
+			modify_l1cache_node(btree,right_mem_node);
 
-	    //  update the anchor
-	    // 
-	    //  Just delete this_node.  
-	    //  Whether or not the merge_node is the rightmost pointer,
-	    //  the separator for the merge key is still valid after the
-	    //  'this_key' is deleted.
-	    //  
+			//  update the anchor
+			// 
+			//  Just delete this_node.  
+			//  Whether or not the merge_node is the rightmost pointer,
+			//  the separator for the merge key is still valid after the
+			//  'this_key' is deleted.
+			//  
 
-	    //  If anchor is 'rightmost', r_anchor_stuff holds data for 'this_node'.
-	    //  Otherwise, r_anchor_stuff holds data for the node to the
-	    //  immediate right of 'this_node'.
+			//  If anchor is 'rightmost', r_anchor_stuff holds data for 'this_node'.
+			//  Otherwise, r_anchor_stuff holds data for the node to the
+			//  immediate right of 'this_node'.
 
             //  Get data for 'this_node'.
             if (r_anchor_stuff->ptr == this_node->logical_id) {
-	        //  Anchor is 'rightmost' node.
-		//  Delete key for 'this_node'.
-		delete_key(ret, btree, anchor_mem_node, r_anchor_stuff->pkey_val, r_anchor_stuff->keylen, meta, r_anchor_stuff->syndrome);
-	    } else {
-	        //  Anchor is NOT 'rightmost' node.
-		//  Delete key for 'this_node'.
-		(void) get_key_stuff(btree, anchor_node, r_anchor_stuff->nkey-1, &ks);
-		delete_key(ret, btree, anchor_mem_node, ks.pkey_val, ks.keylen, meta, ks.syndrome);
-	    }
-	    btree->log_cb(ret, btree->log_cb_data, BTREE_UPDATE_NODE, btree, anchor_mem_node);
+				//  Anchor is 'rightmost' node.
+				//  Delete key for 'this_node'.
+				delete_key(ret, btree, anchor_mem_node, r_anchor_stuff->pkey_val, r_anchor_stuff->keylen, meta, r_anchor_stuff->syndrome);
+			} else {
+				//  Anchor is NOT 'rightmost' node.
+				//  Delete key for 'this_node'.
+				(void) get_key_stuff(btree, anchor_node, r_anchor_stuff->nkey-1, &ks);
+				delete_key(ret, btree, anchor_mem_node, ks.pkey_val, ks.keylen, meta, ks.syndrome);
+			}
+			btree->log_cb(ret, btree->log_cb_data, BTREE_UPDATE_NODE, btree, anchor_mem_node);
 
-	    // free this_node
-	    if (!(*ret)) {
-		free_node(ret, btree, this_mem_node);
-	    }
-	}
+			// free this_node
+			if (!(*ret)) {
+				free_node(ret, btree, this_mem_node);
+			}
+		}
     }
 
     return(next_do_rebalance);
