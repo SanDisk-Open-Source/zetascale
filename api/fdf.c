@@ -2357,7 +2357,7 @@ FDF_status_t FDFOpenContainer(
 		status = FDF_LICENSE_CHK_FAILED;
 		goto out;
 	}
-        if ( !fdf_thread_state || !cguid || ISEMPTY(cname) || !properties ) {
+        if ( !fdf_thread_state || !cguid || ISEMPTY(cname)) {
             if ( !fdf_thread_state ) {
                 plat_log_msg(80049,LOG_CAT,LOG_DBG,
                              "FDF Thread state is NULL");
@@ -2381,15 +2381,18 @@ FDF_status_t FDFOpenContainer(
 	}
 
 	if ( flags & FDF_CTNR_CREATE ) {
-                uint64_t vdc_size = ((uint64_t)getProperty_Int("FDF_FLASH_SIZE", FDF_MIN_FLASH_SIZE)) * 1024 * 1024 -
+		uint64_t vdc_size = ((uint64_t)getProperty_Int("FDF_FLASH_SIZE", FDF_MIN_FLASH_SIZE)) * 1024 * 1024 -
                                                                        (2 * FDF_DEFAULT_CONTAINER_SIZE_KB);
-                if( properties->size_kb >  vdc_size) {
-                    plat_log_msg(80063, LOG_CAT, LOG_DBG,
+		if (!properties) {
+			return FDF_INVALID_PARAMETER;
+		}
+		if( properties->size_kb >  vdc_size) {
+			plat_log_msg(80063, LOG_CAT, LOG_DBG,
                          "Container size %lu kb greater than the flash size %lu kb",
                               properties->size_kb,vdc_size);
-                    status =FDF_FAILURE_INVALID_CONTAINER_SIZE;
-					goto out;
-                }
+			status =FDF_FAILURE_INVALID_CONTAINER_SIZE;
+			goto out;
+		}
 		status = fdf_create_container( fdf_thread_state,
 				cname,
 				properties,
@@ -4178,7 +4181,6 @@ fdf_set_container_props(
 	    	meta.properties.durability_level = SDF_FULL_DURABILITY;
 		else if ( pprops->durability_level == FDF_DURABILITY_SW_CRASH_SAFE )
 	    	meta.properties.durability_level = SDF_RELAXED_DURABILITY;
-
         status = name_service_put_meta( pai, cguid, &meta );
 
 		cmap = fdf_cmap_get_by_cguid( cguid );
