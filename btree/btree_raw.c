@@ -4089,7 +4089,6 @@ static void shift_left(btree_raw_t *btree, btree_raw_node_t *anchor, btree_raw_n
 				if (nkeys_shift ==0) {
 					break;
 				}
-				(void) get_key_stuff(btree, from, i-2, &ks);
 				nbytes_shift -= ks.keylen;
 				if (ks.leaf) {
 					if ((ks.keylen + ks.datalen) < btree->big_object_size) { // xxxzzz check this!
