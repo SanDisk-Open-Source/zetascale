@@ -297,6 +297,13 @@ fdf_get_containers_int(
 		);
 
 static FDF_status_t
+fdf_get_open_containers_int(
+                struct FDF_thread_state *fdf_thread_state,
+                FDF_cguid_t             *cguids,
+                uint32_t                *n_cguids
+                );
+
+static FDF_status_t
 fdf_get_container_props(
 		struct FDF_thread_state	*fdf_thread_state, 
 		FDF_cguid_t 		  	 cguid, 
@@ -2175,7 +2182,7 @@ fdf_containers_cleanup(struct FDF_state *fdf_state)
 	 * We will get all containers but physical containers (CMC, VMC and VDC).
 	 * This API do _not_ list a container that's marked for deletion.
 	 */
-	status = fdf_get_containers_int(fdf_thread_state, cguids, &n_cguids);
+	status = fdf_get_open_containers_int(fdf_thread_state, cguids, &n_cguids);
 
 	if (0 == n_cguids) {
 		plat_log_msg(160055, LOG_CAT, LOG_DBG, 
@@ -2246,6 +2253,43 @@ out:
 	return status;
 }
 
+/*
+ * Gets the list of open containers
+ */
+static FDF_status_t
+fdf_get_open_containers_int(
+                struct FDF_thread_state *fdf_thread_state,
+                FDF_cguid_t             *cguids,
+                uint32_t                *n_cguids)
+{
+		int                   n_containers = 0;
+        char                 *key          = NULL;
+        uint32_t              keylen       = 0;
+        cntr_map_t           *cmap         = NULL;
+        uint64_t              cmaplen      = 0;
+        struct cmap_iterator *iterator     = NULL;
+
+    if (!cguids || !n_cguids)
+            return FDF_INVALID_PARAMETER;
+
+        iterator = fdf_cmap_enum();
+
+        if ( !iterator )
+            return FDF_FAILURE;
+
+        while ( fdf_cmap_next_enum( iterator, &key, &keylen, (char **) &cmap, &cmaplen ) ) {
+                if ( cmap->cguid > LAST_PHYSICAL_CGUID  &&
+             strcmp( cmap->cname,SEQNO_CONTAINER_NAME ) &&
+                         ( cmap->state == FDF_CONTAINER_STATE_OPEN )  ) {
+                        cguids[n_containers] = cmap->cguid;
+            n_containers++;
+        }
+    }
+
+    fdf_cmap_finish_enum( iterator );
+    *n_cguids = n_containers;
+    return FDF_SUCCESS;
+}
 
 /*
  * The FDF shutdown process. This function should get called once.
