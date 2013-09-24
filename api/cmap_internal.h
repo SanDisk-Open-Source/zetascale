@@ -13,7 +13,7 @@
 #ifndef _CMAP_INTERNAL_H
 #define _CMAP_INTERNAL_H
 
-#define N_ENTRIES_TO_MALLOC    100
+#define N_ENTRIES_TO_MALLOC    10000
 #define N_ITERATORS_TO_MALLOC  100
 
 struct CMapBucket;
@@ -24,6 +24,7 @@ typedef struct CMapEntry {
     int32_t                refcnt;
     char                  *key;
     uint32_t               keylen;
+    char                   ref;
     struct CMapEntry  *next;
     struct CMapEntry  *next_lru;
     struct CMapEntry  *prev_lru;
@@ -46,10 +47,11 @@ typedef struct CMap {
     uint64_t          n_entries;
     char              use_locks;
     CMapBucket_t *buckets;
-    pthread_mutex_t   mutex;
+    pthread_rwlock_t   lock;
     pthread_mutex_t   enum_mutex;
     CMapEntry_t  *lru_head;
     CMapEntry_t  *lru_tail;
+    CMapEntry_t  *clock_hand;
     void              (*replacement_callback)(void *callback_data, char *key, uint32_t keylen, char *pdata, uint64_t datalen);
     void             *replacement_callback_data;
     void              (*delete_callback)(void *callback_data);

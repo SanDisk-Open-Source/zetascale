@@ -1255,7 +1255,7 @@ static btree_raw_mem_node_t* add_l1cache(btree_raw_t *btree, btree_raw_node_t *n
 
     dbg_referenced++;
 
-    btree->stats.stat[BTSTAT_L1ENTRIES] = PMapNEntries(btree->l1cache);
+    //btree->stats.stat[BTSTAT_L1ENTRIES] = PMapNEntries(btree->l1cache);
 
     return node;
 }

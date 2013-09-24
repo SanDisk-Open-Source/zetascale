@@ -43,8 +43,15 @@ static void _map_assert(int x) {
 }
 #define map_assert(x) _map_assert((x) == 0)
 
-#define do_lock(x)  {if (pm->use_locks) { pthread_mutex_lock(x); }}
-#define do_unlock(x) {if (pm->use_locks) { pthread_mutex_unlock(x); }}
+//#define do_lock(x)  {if (pm->use_locks) { pthread_mutex_lock(x); }}
+//#define do_unlock(x) {if (pm->use_locks) { pthread_mutex_unlock(x); }}
+
+#define atomic_inc(x) (void)__sync_fetch_and_add(&(x), 1);
+#define atomic_dec(x) (void)__sync_fetch_and_sub(&(x), 1);
+
+#define do_lock_read(x)  {if (pm->use_locks) { pthread_rwlock_rdlock(&(x)->lock); }}
+#define do_lock_write(x)  {if (pm->use_locks) { pthread_rwlock_wrlock(&(x)->lock); }}
+#define do_unlock(x) {if (pm->use_locks) { pthread_rwlock_unlock(&(x)->lock); }}
 
 //  Predeclarations
 #ifdef LISTCHECK
@@ -130,6 +137,7 @@ struct CMap *CMapInit(uint64_t nbuckets, uint64_t max_entries, char use_locks, v
     map_assert(pm);
     pm->lru_head       = NULL;
     pm->lru_tail       = NULL;
+    pm->clock_hand     = NULL;
     pm->replacement_callback       = replacement_callback;
     pm->replacement_callback_data  = replacement_callback_data;
     pm->delete_callback = delete_callback;
@@ -151,7 +159,7 @@ struct CMap *CMapInit(uint64_t nbuckets, uint64_t max_entries, char use_locks, v
 	pm->buckets[i].entry = NULL;
     }
 
-    pthread_mutex_init(&(pm->mutex), NULL);
+    pthread_rwlock_init(&pm->lock, NULL);
 
     // xxxzzz only one enumeration can be done at a time per Map!
     pthread_mutex_init(&(pm->enum_mutex), NULL);
@@ -181,7 +189,7 @@ void CMapDestroy(struct CMap *pm)
     }
 
     free(pm->buckets);
-    pthread_mutex_destroy(&(pm->mutex));
+    pthread_rwlock_destroy(&(pm->lock));
     free(pm);
 }
 
@@ -189,7 +197,7 @@ void CMapClear(struct CMap *pm)
 {
     CMapEntry_t   *pme, *pme_next;
 
-    do_lock(&(pm->mutex));
+    do_lock_write(pm);
 
     #ifdef SANDISK_PRINTSTUFF
 	fprintf(stderr, "CMapClear: pm=%p\n", pm);
@@ -207,7 +215,7 @@ void CMapClear(struct CMap *pm)
     pm->n_entries     = 0;
     pm->lru_head      = NULL;
     pm->lru_tail      = NULL;
-    do_unlock(&(pm->mutex));
+    do_unlock(pm);
 }
 
 void CMapCheckRefcnts(struct CMap *pm)
@@ -215,7 +223,7 @@ void CMapCheckRefcnts(struct CMap *pm)
     uint64_t           i;
     CMapEntry_t   *pme;
 
-    do_lock(&(pm->mutex));
+    do_lock_write(pm);
 
     #ifdef SANDISK_PRINTSTUFF
 	fprintf(stderr, "CMapCheckRefcnts: pm=%p\n", pm);
@@ -228,7 +236,7 @@ void CMapCheckRefcnts(struct CMap *pm)
 	    }
 	}
     }
-    do_unlock(&(pm->mutex));
+    do_unlock(pm);
 }
 
 //  Return non-NULL if success, NULL if object exists
@@ -237,7 +245,7 @@ struct CMapEntry *CMapCreate(struct CMap *pm, char *pkey, uint32_t keylen, char 
     CMapEntry_t   *pme;
     CMapBucket_t  *pb;
 
-    do_lock(&(pm->mutex));
+    do_lock_write(pm);
 
     #ifdef SANDISK_PRINTSTUFF
 	fprintf(stderr, "CMapCreate: pm=%p, key=0x%lx, keylen=%d, pdata=%p, datalen=%ld, ", pm, *((uint64_t *) pkey), keylen, pdata, datalen);
@@ -252,7 +260,7 @@ struct CMapEntry *CMapCreate(struct CMap *pm, char *pkey, uint32_t keylen, char 
 
 fprintf(stderr, "CMapCreate: entry exists!\n");
 
-	    do_unlock(&(pm->mutex));
+	    do_unlock(pm);
         return(NULL);
     }
 
@@ -283,7 +291,7 @@ assert(pme != NULL);
 	    }
     }
 
-    do_unlock(&(pm->mutex));
+    do_unlock(pm);
     #ifdef SANDISK_PRINTSTUFF
 	fprintf(stderr, "pme=%p\n", pme);
     #endif
@@ -296,7 +304,7 @@ struct CMapEntry *CMapUpdate(struct CMap *pm, char *pkey, uint32_t keylen, char 
 {
     CMapEntry_t   *pme;
 
-    do_lock(&(pm->mutex));
+    do_lock_write(pm);
 
     #ifdef SANDISK_PRINTSTUFF
 	fprintf(stderr, "CMapUpdate: pm=%p, key=0x%lx, keylen=%d, pdata=%p, datalen=%ld\n", pm, *((uint64_t *) pkey), keylen, pdata, datalen);
@@ -305,7 +313,7 @@ struct CMapEntry *CMapUpdate(struct CMap *pm, char *pkey, uint32_t keylen, char 
     pme = find_pme(pm, pkey, keylen, NULL);
 
     if (pme == NULL) {
-	do_unlock(&(pm->mutex));
+	do_unlock(pm);
         return(NULL);
     }
 
@@ -324,7 +332,7 @@ struct CMapEntry *CMapUpdate(struct CMap *pm, char *pkey, uint32_t keylen, char 
     pme->contents = pdata;
     pme->datalen  = datalen;
 
-    do_unlock(&(pm->mutex));
+    do_unlock(pm);
     return(pme);
 }
 
@@ -334,7 +342,7 @@ struct CMapEntry *CMapSet(struct CMap *pm, char *pkey, uint32_t keylen, char *pd
     CMapEntry_t   *pme;
     CMapBucket_t  *pb;
 
-    do_lock(&(pm->mutex));
+    do_lock_write(pm);
 
     #ifdef SANDISK_PRINTSTUFF
 	fprintf(stderr, "CMapSet: pm=%p, key=0x%lx, keylen=%d, pdata=%p, datalen=%ld\n", pm, *((uint64_t *) pkey), keylen, pdata, datalen);
@@ -393,7 +401,7 @@ struct CMapEntry *CMapSet(struct CMap *pm, char *pkey, uint32_t keylen, char *pd
 	}
     }
 
-    do_unlock(&(pm->mutex));
+    do_unlock(pm);
     return(pme);
 }
 
@@ -404,7 +412,7 @@ struct CMapEntry *CMapGet(struct CMap *pm, char *key, uint32_t keylen, char **pd
     CMapEntry_t   *pme;
     char              *data;
 
-    do_lock(&(pm->mutex));
+    do_lock_read(pm);
 
     pme = find_pme(pm, key, keylen, NULL);
 
@@ -412,7 +420,7 @@ struct CMapEntry *CMapGet(struct CMap *pm, char *key, uint32_t keylen, char **pd
         data    = pme->contents;
 		datalen = pme->datalen;
 		assert(pme->refcnt < 10000);
-		(pme->refcnt)++;
+		atomic_inc(pme->refcnt);
 
 		// update the LRU list if necessary
 		if (pm->max_entries != 0) {
@@ -449,7 +457,7 @@ struct CMapEntry *CMapGet(struct CMap *pm, char *key, uint32_t keylen, char **pd
 #endif
 #endif
 
-    do_unlock(&(pm->mutex));
+    do_unlock(pm);
     *pdatalen = datalen;
     *pdata    = data;
     return(pme);
@@ -462,14 +470,14 @@ int CMapGetRefcnt(struct CMap *pm, char *key, uint32_t keylen)
     CMapEntry_t   *pme;
     int res;
 
-    do_lock(&(pm->mutex));
+    do_lock_read(pm);
 
     pme = find_pme(pm, key, keylen, NULL);
 
     assert(pme);
     res = (pme->refcnt);
 
-    do_unlock(&(pm->mutex));
+    do_unlock(pm);
     return(res);
 }
 //  Increment the reference count for this entry
@@ -479,7 +487,7 @@ int CMapIncrRefcnt(struct CMap *pm, char *key, uint32_t keylen)
     CMapEntry_t   *pme;
     int                rc = 0;
 
-    do_lock(&(pm->mutex));
+    do_lock_read(pm);
 
     #ifdef SANDISK_PRINTSTUFF
 	fprintf(stderr, "CMapIncrRefcnt: pm=%p, key=0x%lx, keylen=%d", pm, *((uint64_t *) key), keylen);
@@ -492,7 +500,7 @@ int CMapIncrRefcnt(struct CMap *pm, char *key, uint32_t keylen)
 	#ifdef SANDISK_PRINTSTUFF
 	    fprintf(stderr, ", after incr refcnt=%d\n", pme->refcnt + 1);
 	#endif
-        (pme->refcnt)++;
+        atomic_inc(pme->refcnt);
 	rc = 1;
     } else {
 	#ifdef SANDISK_PRINTSTUFF
@@ -500,7 +508,7 @@ int CMapIncrRefcnt(struct CMap *pm, char *key, uint32_t keylen)
 	#endif
     }
 
-    do_unlock(&(pm->mutex));
+    do_unlock(pm);
     return(rc);
 }
 
@@ -511,7 +519,7 @@ int CMapRelease(struct CMap *pm, char *key, uint32_t keylen)
     CMapEntry_t   *pme;
     int                rc = 0;
 
-    do_lock(&(pm->mutex));
+    do_lock_read(pm);
 
     #ifdef SANDISK_PRINTSTUFF
 	fprintf(stderr, "CMapRelease: pm=%p, key=0x%lx, keylen=%d", pm, *((uint64_t *) key), keylen);
@@ -524,7 +532,7 @@ int CMapRelease(struct CMap *pm, char *key, uint32_t keylen)
 	#ifdef SANDISK_PRINTSTUFF
 	    fprintf(stderr, ", after release refcnt=%d\n", pme->refcnt - 1);
 	#endif
-        (pme->refcnt)--; //xxxzzz check this!
+        atomic_dec(pme->refcnt); //xxxzzz check this!
         //pme->refcnt = 0;
 		rc = 1;
     } else {
@@ -533,16 +541,17 @@ int CMapRelease(struct CMap *pm, char *key, uint32_t keylen)
 	#endif
     }
 
-    do_unlock(&(pm->mutex));
+    do_unlock(pm);
     return(rc);
 }
 
+#if 0
 //  Decrement the reference count for this entry
 int CMapReleaseEntry(struct CMap *pm, struct CMapEntry *pme)
 {
     int rc = 0;
 
-    do_lock(&(pm->mutex));
+    do_lock_read(pm);
 
     #ifdef SANDISK_PRINTSTUFF
 	fprintf(stderr, "CMapReleaseEntry: pm=%p, pme=%p\n", pm, pme);
@@ -553,9 +562,10 @@ int CMapReleaseEntry(struct CMap *pm, struct CMapEntry *pme)
 	rc = 1;
     }
 
-    do_unlock(&(pm->mutex));
+    do_unlock(pm);
     return(rc);
 }
+#endif
 
 struct CMapIterator *CMapEnum(struct CMap *pm)
 {
@@ -563,7 +573,7 @@ struct CMapIterator *CMapEnum(struct CMap *pm)
 
     pthread_mutex_lock(&(pm->enum_mutex));
 
-    do_lock(&(pm->mutex));
+    do_lock_read(pm);
 
     iterator = get_iterator(pm);
     map_assert(iterator);
@@ -578,14 +588,14 @@ struct CMapIterator *CMapEnum(struct CMap *pm)
 	fprintf(stderr, "pme=%p, enum_entry=%p\n", pm, iterator->enum_entry);
     #endif
 
-    do_unlock(&(pm->mutex));
+    do_unlock(pm);
 
     return(iterator);
 }
 
 void CMapFinishEnum(struct CMap *pm, struct CMapIterator *iterator)
 {
-    do_lock(&(pm->mutex));
+    do_lock_read(pm);
 
     #ifdef SANDISK_PRINTSTUFF
 	fprintf(stderr, "CMapFinishEnum: pm=%p, iterator=%p\n", pm, iterator);
@@ -593,7 +603,7 @@ void CMapFinishEnum(struct CMap *pm, struct CMapIterator *iterator)
 
     free_iterator(pm, iterator);
     pthread_mutex_unlock(&(pm->enum_mutex));
-    do_unlock(&(pm->mutex));
+    do_unlock(pm);
 }
 
 //  Returns 1 if successful, 0 otherwise
@@ -602,14 +612,14 @@ int CMapNextEnum(struct CMap *pm, struct CMapIterator *iterator, char **key, uin
 {
     CMapEntry_t    *pme_return;
 
-    do_lock(&(pm->mutex));
+    do_lock_read(pm);
 
     #ifdef SANDISK_PRINTSTUFF
 	fprintf(stderr, "CMapNextEnum: pm=%p, iterator=%p, ", pm, iterator);
     #endif
 
     if (iterator->enum_entry == NULL) {
-	do_unlock(&(pm->mutex));
+	do_unlock(pm);
 	CMapFinishEnum(pm, iterator);
 
 	#ifdef SANDISK_PRINTSTUFF
@@ -637,7 +647,7 @@ int CMapNextEnum(struct CMap *pm, struct CMapIterator *iterator, char **key, uin
 	    fprintf(stderr, "key=%p, keylen=%d, pdata=%p, datalen=%ld, pme_return=%p\n", *key, *keylen, *data, *datalen, pme_return);
 	#endif
 
-	do_unlock(&(pm->mutex));
+	do_unlock(pm);
 	return(1);
     } else {
 	CMapFinishEnum(pm, iterator);
@@ -650,7 +660,7 @@ int CMapNextEnum(struct CMap *pm, struct CMapIterator *iterator, char **key, uin
 	*keylen  = 0;
         *data    = NULL;
 	*datalen = 0;
-	do_unlock(&(pm->mutex));
+	do_unlock(pm);
 	return(0);
     }
 }
@@ -667,7 +677,7 @@ int CMapDelete(struct CMap *pm, char *key, uint32_t keylen)
 
     key2 = (char *) *((uint64_t *) key);
 
-    do_lock(&(pm->mutex));
+    do_lock_write(pm);
 
     #ifdef SANDISK_PRINTSTUFF
 	fprintf(stderr, "CMapDelete: pm=%p, key=0x%lx, keylen=%d\n", pm, *((uint64_t *) key), keylen);
@@ -688,11 +698,11 @@ int CMapDelete(struct CMap *pm, char *key, uint32_t keylen)
 
             *ppme = pme->next;
             free_pme(pm, pme);
-	    do_unlock(&(pm->mutex));
+	    do_unlock(pm);
             return (0);
         }
     }
-    do_unlock(&(pm->mutex));
+    do_unlock(pm);
     return (1);
 }
 
@@ -714,6 +724,8 @@ static CMapEntry_t *create_pme(CMap_t *pm, char *pkey, uint32_t keylen, char *pd
     pme->datalen   = datalen;
 
     pme->next      = NULL;
+
+    pme->ref       = 0;
 
     return(pme);
 }
@@ -789,6 +801,9 @@ static void insert_lru(struct CMap *pm, CMapEntry_t *pme)
 
 static void remove_lru(struct CMap *pm, CMapEntry_t *pme)
 {
+    if(pm->clock_hand == pme)
+        pm->clock_hand = pme->next_lru;
+
     if (pme->next_lru == NULL) {
 	map_assert(pm->lru_tail == pme); // xxxzzz remove this!
 	pm->lru_tail = pme->prev_lru;
@@ -805,10 +820,11 @@ static void remove_lru(struct CMap *pm, CMapEntry_t *pme)
 
 static void update_lru(struct CMap *pm, CMapEntry_t *pme)
 {
+    pme->ref = 1;
     //  remove pme from list
-    remove_lru(pm, pme);
+    //remove_lru(pm, pme);
     //  insert_lru(pm, pme)
-    insert_lru(pm, pme);
+    //insert_lru(pm, pme);
 }
 
 static void replace_lru(struct CMap *pm, CMapEntry_t *pme_in)
@@ -817,12 +833,19 @@ static void replace_lru(struct CMap *pm, CMapEntry_t *pme_in)
     CMapEntry_t  *pme;
     int               found_it;
 
-    for (pme=pm->lru_tail; pme != NULL; pme = pme->prev_lru) {
-        map_assert(pme->refcnt >= 0); // xxxzzz remove this!
-        if ((pme->refcnt == 0) && (pme != pme_in)) {
-	    break;
-	}
+     pme = pm->clock_hand;
+     if(!pme)
+ 	pme = pm->lru_head;
+ 
+     while(pme->ref || pme->refcnt) {
+ 	pme->ref = 0;
+ 	pme = pme->next_lru;
+ 	if(!pme)
+ 	    pme = pm->lru_head;
     }
+ 
+     pm->clock_hand = pme->next_lru;
+ 
     if (pme == NULL) {
 	fprintf(stderr, "replace_lru could not find a victim!!!!\n");
 	map_assert(0);
