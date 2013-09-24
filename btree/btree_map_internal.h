@@ -13,7 +13,7 @@
 #ifndef _BTREE_MAP_INTERNAL_H
 #define _BTREE_MAP_INTERNAL_H
 
-#define N_ENTRIES_TO_MALLOC    100
+#define N_ENTRIES_TO_MALLOC    10000
 #define N_ITERATORS_TO_MALLOC  100
 
 struct MapBucket;
@@ -24,6 +24,7 @@ typedef struct MapEntry {
     int32_t                refcnt;
     char                  *key;
     uint32_t               keylen;
+    char                   ref;
     struct MapEntry  *next;
     struct MapEntry  *next_lru;
     struct MapEntry  *prev_lru;
@@ -52,10 +53,11 @@ typedef struct Map {
     uint64_t          n_entries;
     char              use_locks;
     MapBucket_t *buckets;
-    pthread_mutex_t   mutex;
-    pthread_mutex_t   enum_mutex;
+    pthread_rwlock_t   lock;
+    //pthread_mutex_t   enum_mutex;
     MapEntry_t  *lru_head;
     MapEntry_t  *lru_tail;
+    MapEntry_t  *clock_hand;
     void              (*replacement_callback)(void *callback_data, char *key, uint32_t keylen, char *pdata, uint64_t datalen);
     void             *replacement_callback_data;
     uint32_t          NEntries;

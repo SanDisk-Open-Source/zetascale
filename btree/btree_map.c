@@ -45,8 +45,15 @@ static void _map_assert(int x) {
 }
 #define map_assert(x) _map_assert((x) == 0)
 
-#define do_lock(x)  {if (pm->use_locks) { pthread_mutex_lock(x); }}
-#define do_unlock(x) {if (pm->use_locks) { pthread_mutex_unlock(x); }}
+//#define do_lock(x)  {if (pm->use_locks) { pthread_mutex_lock(x); }}
+//#define do_unlock(x) {if (pm->use_locks) { pthread_mutex_unlock(x); }}
+
+#define atomic_inc(x) (void)__sync_fetch_and_add(&(x), 1);
+#define atomic_dec(x) (void)__sync_fetch_and_sub(&(x), 1);
+
+#define do_lock_read(x)  {if (pm->use_locks) { pthread_rwlock_rdlock(&(x)->lock); }}
+#define do_lock_write(x)  {if (pm->use_locks) { pthread_rwlock_wrlock(&(x)->lock); }}
+#define do_unlock(x) {if (pm->use_locks) { pthread_rwlock_unlock(&(x)->lock); }}
 
 //  Predeclarations
 void check_list(MapBucket_t *pb, MapEntry_t *pme);
@@ -105,6 +112,7 @@ static void free_entry(Map_t *pm, MapEntry_t *e)
     pm->NUsedEntries--;
 }
 
+#if 0
 static struct Iterator *get_iterator(Map_t *pm)
 {
     int                   i;
@@ -133,6 +141,7 @@ static void free_iterator(Map_t *pm, struct Iterator *it)
     pm->FreeIterators = it;
     pm->NUsedIterators--;
 }
+#endif
 
 struct Map *MapInit(uint64_t nbuckets, uint64_t max_entries, char use_locks, void (*replacement_callback)(void *callback_data, char *key, uint32_t keylen, char *pdata, uint64_t datalen))
 {
@@ -143,6 +152,7 @@ struct Map *MapInit(uint64_t nbuckets, uint64_t max_entries, char use_locks, voi
     map_assert(pm);
     pm->lru_head       = NULL;
     pm->lru_tail       = NULL;
+    pm->clock_hand     = NULL;
     pm->replacement_callback       = replacement_callback;
     //pm->replacement_callback_data  = replacement_callback_data;
     pm->use_locks      = use_locks;
@@ -164,10 +174,10 @@ struct Map *MapInit(uint64_t nbuckets, uint64_t max_entries, char use_locks, voi
 		pm->buckets[i].entry = NULL;
     }
 
-    pthread_mutex_init(&(pm->mutex), NULL);
+    pthread_rwlock_init(&pm->lock, NULL);
 
     // xxxzzz only one enumeration can be done at a time per Map!
-    pthread_mutex_init(&(pm->enum_mutex), NULL);
+//    pthread_mutex_init(&(pm->enum_mutex), NULL);
 
     #ifdef SANDISK_PRINTSTUFF
 	fprintf(stderr, "MapInit: pm=%p\n", pm);
@@ -200,7 +210,7 @@ void MapDestroy(struct Map *pm)
     #endif
 
     free(pm->buckets);
-    pthread_mutex_destroy(&(pm->mutex));
+    pthread_rwlock_destroy(&(pm->lock));
     free(pm);
 }
 
@@ -230,7 +240,7 @@ void MapClear(struct Map *pm)
 {
     MapEntry_t   *pme, *pme_next;
 
-    do_lock(&(pm->mutex));
+    do_lock_write(pm);
 
     #ifdef SANDISK_PRINTSTUFF
 	fprintf(stderr, "MapClear: pm=%p\n", pm);
@@ -248,7 +258,7 @@ void MapClear(struct Map *pm)
     pm->n_entries     = 0;
     pm->lru_head      = NULL;
     pm->lru_tail      = NULL;
-    do_unlock(&(pm->mutex));
+    do_unlock(pm);
 }
 
 void MapCheckRefcnts(struct Map *pm)
@@ -256,7 +266,7 @@ void MapCheckRefcnts(struct Map *pm)
     uint64_t           i;
     MapEntry_t   *pme;
 
-    do_lock(&(pm->mutex));
+    do_lock_read(pm);
 
     #ifdef SANDISK_PRINTSTUFF
 	fprintf(stderr, "MapCheckRefcnts: pm=%p\n", pm);
@@ -269,7 +279,7 @@ void MapCheckRefcnts(struct Map *pm)
 	    }
 	}
     }
-    do_unlock(&(pm->mutex));
+    do_unlock(pm);
 }
 
 //  Return non-NULL if success, NULL if object exists
@@ -278,7 +288,7 @@ struct MapEntry *MapCreate(struct Map *pm, char *pkey, uint32_t keylen, char *pd
     MapEntry_t   *pme;
     MapBucket_t  *pb;
 
-    do_lock(&(pm->mutex));
+    do_lock_write(pm);
 
     #ifdef SANDISK_PRINTSTUFF
 	fprintf(stderr, "MapCreate: pm=%p, key=0x%lx, keylen=%d, pdata=%p, datalen=%ld, ", pm, *((uint64_t *) pkey), keylen, pdata, datalen);
@@ -291,7 +301,7 @@ struct MapEntry *MapCreate(struct Map *pm, char *pkey, uint32_t keylen, char *pd
 	    fprintf(stderr, "pme=%p\n", pme);
 	#endif
 
-		do_unlock(&(pm->mutex));
+	do_unlock(pm);
         return(NULL);
     }
 
@@ -320,7 +330,7 @@ struct MapEntry *MapCreate(struct Map *pm, char *pkey, uint32_t keylen, char *pd
 		}
     }
 
-    do_unlock(&(pm->mutex));
+    do_unlock(pm);
     #ifdef SANDISK_PRINTSTUFF
 	fprintf(stderr, "pme=%p\n", pme);
     #endif
@@ -333,7 +343,7 @@ struct MapEntry *MapUpdate(struct Map *pm, char *pkey, uint32_t keylen, char *pd
 {
     MapEntry_t   *pme;
 
-    do_lock(&(pm->mutex));
+    do_lock_write(pm);
 
     #ifdef SANDISK_PRINTSTUFF
 	fprintf(stderr, "MapUpdate: pm=%p, key=0x%lx, keylen=%d, pdata=%p, datalen=%ld\n", pm, *((uint64_t *) pkey), keylen, pdata, datalen);
@@ -342,7 +352,7 @@ struct MapEntry *MapUpdate(struct Map *pm, char *pkey, uint32_t keylen, char *pd
     pme = find_pme(pm, pkey, keylen, NULL, cguid);
 
     if (pme == NULL) {
-		do_unlock(&(pm->mutex));
+	do_unlock(pm);
         return(NULL);
     }
 
@@ -361,7 +371,7 @@ struct MapEntry *MapUpdate(struct Map *pm, char *pkey, uint32_t keylen, char *pd
     pme->contents = pdata;
     pme->datalen  = datalen;
 
-    do_unlock(&(pm->mutex));
+    do_unlock(pm);
     return(pme);
 }
 
@@ -371,7 +381,7 @@ struct MapEntry *MapSet(struct Map *pm, char *pkey, uint32_t keylen, char *pdata
     MapEntry_t   *pme;
     MapBucket_t  *pb;
 
-    do_lock(&(pm->mutex));
+    do_lock_write(pm);
 
     #ifdef SANDISK_PRINTSTUFF
 	fprintf(stderr, "MapSet: pm=%p, key=0x%lx, keylen=%d, pdata=%p, datalen=%ld\n", pm, *((uint64_t *) pkey), keylen, pdata, datalen);
@@ -430,7 +440,7 @@ struct MapEntry *MapSet(struct Map *pm, char *pkey, uint32_t keylen, char *pdata
 		}
     }
 
-    do_unlock(&(pm->mutex));
+    do_unlock(pm);
     return(pme);
 }
 
@@ -441,14 +451,14 @@ struct MapEntry *MapGet(struct Map *pm, char *key, uint32_t keylen, char **pdata
     MapEntry_t   *pme;
     char              *data;
 
-    do_lock(&(pm->mutex));
+    do_lock_read(pm);
 
     pme = find_pme(pm, key, keylen, NULL, cguid);
 
     if (pme != NULL) {
         data    = pme->contents;
 	datalen = pme->datalen;
-	
+
 	/*
 	 * META_LOGICAL_ID is constant which is used to assign a logical id to a special btree node in which btree metadata is stored.
 	 * This Special node is used during recovery. During creation of each btree node, we refer (take a refcount) this special node
@@ -463,7 +473,7 @@ struct MapEntry *MapGet(struct Map *pm, char *key, uint32_t keylen, char **pdata
 	if (!((*((uint64_t *) key)) & META_LOGICAL_ID)) {
 		assert(pme->refcnt < 10000);
 	}
-	(pme->refcnt)++;
+	atomic_inc(pme->refcnt);
 
 	// update the LRU list if necessary
 	if (pm->max_entries != 0) {
@@ -500,7 +510,7 @@ struct MapEntry *MapGet(struct Map *pm, char *key, uint32_t keylen, char **pdata
 	#endif
     #endif
 
-    do_unlock(&(pm->mutex));
+    do_unlock(pm);
     *pdatalen = datalen;
     *pdata    = data;
     return(pme);
@@ -513,14 +523,14 @@ int MapGetRefcnt(struct Map *pm, char *key, uint32_t keylen, uint64_t cguid)
     MapEntry_t   *pme;
     int res;
 
-    do_lock(&(pm->mutex));
+    do_lock_read(pm);
 
     pme = find_pme(pm, key, keylen, NULL, cguid);
 
     assert(pme);
     res = (pme->refcnt);
 
-    do_unlock(&(pm->mutex));
+    do_unlock(pm);
     return(res);
 }
 //  Increment the reference count for this entry
@@ -530,7 +540,7 @@ int MapIncrRefcnt(struct Map *pm, char *key, uint32_t keylen, uint64_t cguid)
     MapEntry_t   *pme;
     int                rc = 0;
 
-    do_lock(&(pm->mutex));
+    do_lock_read(pm);
 
     #ifdef SANDISK_PRINTSTUFF
 	fprintf(stderr, "MapIncrRefcnt: pm=%p, key=0x%lx, keylen=%d", pm, *((uint64_t *) key), keylen);
@@ -543,7 +553,7 @@ int MapIncrRefcnt(struct Map *pm, char *key, uint32_t keylen, uint64_t cguid)
 	#ifdef SANDISK_PRINTSTUFF
 	    fprintf(stderr, ", after incr refcnt=%d\n", pme->refcnt + 1);
 	#endif
-        (pme->refcnt)++;
+        atomic_inc(pme->refcnt);
 	rc = 1;
     } else {
 	#ifdef SANDISK_PRINTSTUFF
@@ -551,7 +561,7 @@ int MapIncrRefcnt(struct Map *pm, char *key, uint32_t keylen, uint64_t cguid)
 	#endif
     }
 
-    do_unlock(&(pm->mutex));
+    do_unlock(pm);
     return(rc);
 }
 
@@ -562,7 +572,7 @@ int MapRelease(struct Map *pm, char *key, uint32_t keylen, uint64_t cguid)
     MapEntry_t   *pme;
     int                rc = 0;
 
-    do_lock(&(pm->mutex));
+    do_lock_read(pm);
 
     #ifdef SANDISK_PRINTSTUFF
 	fprintf(stderr, "MapRelease: pm=%p, key=0x%lx, keylen=%d", pm, *((uint64_t *) key), keylen);
@@ -575,7 +585,7 @@ int MapRelease(struct Map *pm, char *key, uint32_t keylen, uint64_t cguid)
 	#ifdef SANDISK_PRINTSTUFF
 	    fprintf(stderr, ", after release refcnt=%d\n", pme->refcnt - 1);
 	#endif
-        (pme->refcnt)--; //xxxzzz check this!
+        atomic_dec(pme->refcnt);
         //pme->refcnt = 0;
 		rc = 1;
     } else {
@@ -584,10 +594,11 @@ int MapRelease(struct Map *pm, char *key, uint32_t keylen, uint64_t cguid)
 	#endif
     }
 
-    do_unlock(&(pm->mutex));
+    do_unlock(pm);
     return(rc);
 }
 
+#if 0
 //  Decrement the reference count for this entry
 int MapReleaseEntry(struct Map *pm, struct MapEntry *pme)
 {
@@ -607,7 +618,8 @@ int MapReleaseEntry(struct Map *pm, struct MapEntry *pme)
     do_unlock(&(pm->mutex));
     return(rc);
 }
-
+#endif
+#if 0
 struct Iterator *MapEnum(struct Map *pm)
 {
     Iterator_t    *iterator;
@@ -709,6 +721,7 @@ int MapNextEnum(struct Map *pm, struct Iterator *iterator, char **key, uint32_t 
 	return(0);
     }
 }
+#endif
 
 /*   Return 0 if succeeds, 1 if object doesn't exist.
  */
@@ -722,7 +735,7 @@ int MapDelete(struct Map *pm, char *key, uint32_t keylen, uint64_t cguid, void *
 
     key2 = (char *) *((uint64_t *) key);
 
-    do_lock(&(pm->mutex));
+    do_lock_write(pm);
 
     #ifdef SANDISK_PRINTSTUFF
 	fprintf(stderr, "MapDelete: pm=%p, key=0x%lx, keylen=%d\n", pm, *((uint64_t *) key), keylen);
@@ -745,11 +758,11 @@ int MapDelete(struct Map *pm, char *key, uint32_t keylen, uint64_t cguid, void *
 			(pm->replacement_callback)(replacement_callback_data, pme->key, pme->keylen, 
 											pme->contents, pme->datalen);
             free_pme(pm, pme);
-	    	do_unlock(&(pm->mutex));
+	    do_unlock(pm);
             return (0);
         }
     }
-    do_unlock(&(pm->mutex));
+    do_unlock(pm);
     return (1);
 }
 
@@ -772,6 +785,8 @@ static MapEntry_t *create_pme(Map_t *pm, char *pkey, uint32_t keylen, char *pdat
 
     pme->cguid     = cguid;
     pme->next      = NULL;
+
+    pme->ref       = 0;
 
     return(pme);
 }
@@ -862,6 +877,9 @@ static void insert_lru(struct Map *pm, MapEntry_t *pme)
 
 static void remove_lru(struct Map *pm, MapEntry_t *pme)
 {
+    if(pm->clock_hand == pme)
+        pm->clock_hand = pme->next_lru;
+
     if (pme->next_lru == NULL) {
 		map_assert(pm->lru_tail == pme); // xxxzzz remove this!
 		pm->lru_tail = pme->prev_lru;
@@ -878,10 +896,11 @@ static void remove_lru(struct Map *pm, MapEntry_t *pme)
 
 static void update_lru(struct Map *pm, MapEntry_t *pme)
 {
+    pme->ref = 1;
     //  remove pme from list
-    remove_lru(pm, pme);
+    //remove_lru(pm, pme);
     //  insert_lru(pm, pme)
-    insert_lru(pm, pme);
+    //insert_lru(pm, pme);
 }
 
 static void replace_lru(struct Map *pm, MapEntry_t *pme_in, void *replacement_callback_data)
@@ -890,12 +909,19 @@ static void replace_lru(struct Map *pm, MapEntry_t *pme_in, void *replacement_ca
     MapEntry_t  *pme;
     int               found_it;
 
-    for (pme=pm->lru_tail; pme != NULL; pme = pme->prev_lru) {
-        map_assert(pme->refcnt >= 0); // xxxzzz remove this!
-        if ((pme->refcnt == 0) && (pme != pme_in)) {
-	    	break;
-		}
+    pme = pm->clock_hand;
+    if(!pme)
+	pme = pm->lru_head;
+
+    while(pme->ref || pme->refcnt) {
+	pme->ref = 0;
+	pme = pme->next_lru;
+	if(!pme)
+	    pme = pm->lru_head;
     }
+
+    pm->clock_hand = pme->next_lru;
+
     if (pme == NULL) {
 		fprintf(stderr, "replace_lru could not find a victim!!!!\n");
 		map_assert(0);
