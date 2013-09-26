@@ -32,7 +32,7 @@ extern struct MapEntry *PMapGet(struct PMap *pc, char *key, uint32_t keylen, cha
 extern int PMapIncrRefcnt(struct PMap *pm, char *key, uint32_t keylen, uint64_t cguid);
 extern int PMapGetRefcnt(struct PMap *pm, char *key, uint32_t keylen, uint64_t cguid);
 extern void PMapCheckRefcnts(struct PMap *pm);
-extern int PMapRelease(struct PMap *pm, char *key, uint32_t keylen, uint64_t cguid);
+extern int PMapRelease(struct PMap *pm, char *key, uint32_t keylen, uint64_t cguid, void *replacement_callback_data);
 #if 0
 extern int PMapReleaseEntry(struct PMap *pm, struct MapEntry *pme);
 extern struct Iterator *PMapEnum(struct PMap *pm);

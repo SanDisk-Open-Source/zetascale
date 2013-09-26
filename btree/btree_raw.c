@@ -1109,6 +1109,7 @@ btree_status_t btree_raw_get(struct btree_raw *btree, char *key, uint32_t keylen
     __sync_add_and_fetch(&(btree->stats.stat[BTSTAT_GET_CNT]), 1);
     __sync_add_and_fetch(&(btree->stats.stat[BTSTAT_GET_PATH]), pathcnt);
 
+	assert(!dbg_referenced);
 
     return(ret);
 }
@@ -1156,7 +1157,7 @@ deref_l1cache_node(btree_raw_t* btree, btree_raw_mem_node_t *node)
 
     dbg_print("node %p id %ld root: %d leaf: %d refcnt %d dbg_referenced: %lx mpnode %ld refs %ld\n", node, node->pnode->logical_id, is_root(btree, node->pnode), is_leaf(btree, node->pnode), PMapGetRefcnt(btree->l1cache, (char *) &node->pnode->logical_id, sizeof(uint64_t)), dbg_referenced, modified_nodes_count, referenced_nodes_count);
 
-    if (!PMapRelease(btree->l1cache, (char *) &node->pnode->logical_id, sizeof(node->pnode->logical_id), btree->cguid))
+    if (!PMapRelease(btree->l1cache, (char *) &node->pnode->logical_id, sizeof(node->pnode->logical_id), btree->cguid, (void *)btree))
         assert(0);
 
     assert(dbg_referenced);
@@ -1187,7 +1188,8 @@ static btree_status_t deref_l1cache(btree_raw_t *btree)
         if(j >= i)
 	btree->write_node_cb(&ret, btree->write_node_cb_data, n->pnode->logical_id, (char*)n->pnode, btree->nodesize);
 
-        n->dirty = 0;
+        mark_node_clean(n);
+        deref_l1cache_node(btree, n);
         add_node_stats(btree, n->pnode, L1WRITES, 1);
     }
 
@@ -1239,6 +1241,7 @@ static btree_raw_mem_node_t* add_l1cache(btree_raw_t *btree, btree_raw_node_t *n
 
     node->pnode = n;
     node->modified = 0;
+    node->flag = 0;
 #ifdef DEBUG_STUFF
     node->last_dump_modified = 0;
 #endif
@@ -1288,6 +1291,7 @@ static void delete_l1cache(btree_raw_t *btree, btree_raw_mem_node_t *n)
     dbg_print("node %p root: %d leaf: %d refcnt %d\n", n, is_root(btree, n->pnode), is_leaf(btree, n->pnode), PMapGetRefcnt(btree->l1cache, (char *) &n->pnode->logical_id, sizeof(uint64_t)));
 
     (void) PMapDelete(btree->l1cache, (char *) &(n->pnode->logical_id), sizeof(uint64_t), btree->cguid, (void *)btree);
+    dbg_referenced--;
 
     btree->stats.stat[BTSTAT_L1ENTRIES] = PMapNEntries(btree->l1cache);
 }
@@ -1297,8 +1301,10 @@ static void modify_l1cache_node(btree_raw_t *btree, btree_raw_mem_node_t *node)
     dbg_print("node %p id %ld root: %d leaf: %d refcnt %d dbg_referenced: %lx mpnode %ld refs %ld\n", node, node->pnode->logical_id, is_root(btree, node->pnode), is_leaf(btree, node->pnode), PMapGetRefcnt(btree->l1cache, (char *) &node->pnode->logical_id, sizeof(uint64_t)), dbg_referenced, modified_nodes_count, referenced_nodes_count);
     assert(modified_nodes_count < MAX_BTREE_HEIGHT);
     node->modified++;
-    node->dirty=1;
+    mark_node_dirty(node);
     modified_nodes[modified_nodes_count++] = node;
+	PMapIncrRefcnt(btree->l1cache,(char *) &(node->pnode->logical_id), sizeof(uint64_t), btree->cguid);
+    dbg_referenced++;
 }
 
 inline static
@@ -1354,6 +1360,11 @@ retry:
         //  check l1cache first
         n = get_l1cache(btree, logical_id);
         if (n != NULL) {
+			//Got a deleted node?? Parent referring to deleted child??
+			//Check the locking of btree/nodes
+			if (is_node_deleted(n)) {
+				assert(0);
+			}
             add_node_stats(btree, n->pnode, L1HITS, 1);
 		} else {
 	    //  look for the node the hard way
@@ -1477,6 +1488,9 @@ static void free_node(btree_status_t *ret, btree_raw_t *btree, btree_raw_mem_nod
         //delete_l1cache(btree, n);
         assert(deleted_nodes_count < MAX_BTREE_HEIGHT);
         deleted_nodes[deleted_nodes_count++] = n;
+		mark_node_deleted(n);
+		PMapIncrRefcnt(btree->l1cache,(char *) &(n->pnode->logical_id), sizeof(uint64_t), btree->cguid);
+		dbg_referenced++;
         //*ret = btree->delete_node_cb(n, btree->create_node_cb_data, n->logical_id);
     }
 }
@@ -2501,7 +2515,7 @@ mini_restart:
 		if (!is_node_full(btree, node, objs[0].key, objs[0].key_len,
 				 objs[0].data_len, meta, syndrome, write_type, pkrec)) {
 
-			if(parent && (!parent_write_locked || !parent->dirty)) {
+			if(parent && (!parent_write_locked || !is_node_dirty(parent))) {
 				plat_rwlock_unlock(&parent->lock);
 			}
 
@@ -2661,7 +2675,7 @@ mini_restart:
 	 * If we could not insert in to node , it might be unchanged.
 	 * So no point of keeping it locked.
 	 */
-	if (ret != BTREE_SUCCESS && !mem_node->dirty) {
+	if (ret != BTREE_SUCCESS && !is_node_dirty(mem_node)) {
 		plat_rwlock_unlock(&mem_node->lock);
 		
 	}

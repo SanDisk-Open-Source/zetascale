@@ -19,17 +19,18 @@
 struct MapBucket;
 
 typedef struct MapEntry {
-    char                  *contents;
-    uint64_t               datalen;
-    int32_t                refcnt;
-    char                  *key;
-    uint32_t               keylen;
-    char                   ref;
-    struct MapEntry  *next;
-    struct MapEntry  *next_lru;
-    struct MapEntry  *prev_lru;
-    struct MapBucket *bucket;
-	uint64_t cguid;
+    char					ref;
+	char					deleted;
+    int32_t					refcnt;
+    uint32_t				keylen;
+    uint64_t				datalen;
+	uint64_t				cguid;
+    char					*key;
+    char					*contents;
+    struct MapEntry			*next;
+    struct MapEntry			*next_lru;
+    struct MapEntry			*prev_lru;
+    struct MapBucket		*bucket;
 } MapEntry_t;
 
 typedef struct MapEntryBlock {

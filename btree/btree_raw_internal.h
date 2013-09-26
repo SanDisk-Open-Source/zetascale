@@ -83,13 +83,23 @@ typedef struct btree_raw_node {
 
 typedef struct btree_raw_mem_node btree_raw_mem_node_t;
 
+#define	NODE_DIRTY		0x1
+#define NODE_DELETED	0x2
+
+#define	mark_node_dirty(n)		((n)->flag |= (char)NODE_DIRTY)
+#define mark_node_clean(n)		((n)->flag &= (char)(~((char)NODE_DIRTY)))
+#define is_node_dirty(n)		((n)->flag & NODE_DIRTY)
+#define	mark_node_deleted(n)	((n)->flag |= (char)NODE_DELETED)
+#define	is_node_deleted(n)		((n)->flag & NODE_DELETED)
+
+
 //#define DEBUG_STUFF
 struct btree_raw_mem_node {
+	char     flag;
 	uint64_t modified;
 #ifdef DEBUG_STUFF
 	uint64_t last_dump_modified;
 #endif
-	char     dirty;
 	plat_rwlock_t lock;
 	btree_raw_mem_node_t *next; // dirty list
 	btree_raw_node_t *pnode;

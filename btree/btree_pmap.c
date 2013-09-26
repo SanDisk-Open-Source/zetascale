@@ -124,11 +124,10 @@ int PMapIncrRefcnt(struct PMap *pm, char *key, uint32_t keylen, uint64_t cguid)
     return MapIncrRefcnt(p(pm, key, keylen), key, keylen, cguid);
 }
 
-//  Decrement the reference count for this entry
 //  rc=1 if entry is found, rc=0 otherwise
-int PMapRelease(struct PMap *pm, char *key, uint32_t keylen, uint64_t cguid)
+int PMapRelease(struct PMap *pm, char *key, uint32_t keylen, uint64_t cguid, void *replacement_callback_data)
 {
-    return MapRelease(p(pm, key, keylen), key, keylen, cguid);
+    return MapRelease(p(pm, key, keylen), key, keylen, cguid, replacement_callback_data);
 }
 
 /*   Return 0 if succeeds, 1 if object doesn't exist.

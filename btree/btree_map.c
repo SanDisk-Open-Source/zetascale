@@ -103,6 +103,7 @@ get_entry(Map_t *pm)
 static void free_entry(Map_t *pm, MapEntry_t *e)
 {
     e->next     = pm->FreeEntries;
+	e->deleted = 0;
 	e->contents = NULL;
 	e->refcnt = e->keylen = e->datalen = 0;
 	e->next_lru = e->prev_lru = NULL;
@@ -251,7 +252,7 @@ void MapClear(struct Map *pm)
 
     for (pme=pm->lru_head; pme != NULL; pme = pme_next) {
         pme_next = pme->next_lru;
-	pme->bucket->entry = NULL;
+		pme->bucket->entry = NULL;
         free_pme(pm, pme);
     }
 
@@ -567,9 +568,12 @@ int MapIncrRefcnt(struct Map *pm, char *key, uint32_t keylen, uint64_t cguid)
 
 //  Decrement the reference count for this entry
 //  rc=1 if entry is found, rc=0 otherwise
-int MapRelease(struct Map *pm, char *key, uint32_t keylen, uint64_t cguid)
+int MapRelease(struct Map *pm, char *key, uint32_t keylen, uint64_t cguid, void *replacement_callback_data)
 {
-    MapEntry_t   *pme;
+    uint64_t            h;
+    MapEntry_t   **ppme;
+    MapEntry_t    *pme;
+    MapBucket_t   *pb;
     int                rc = 0;
 
     do_lock_read(pm);
@@ -581,12 +585,34 @@ int MapRelease(struct Map *pm, char *key, uint32_t keylen, uint64_t cguid)
     pme = find_pme(pm, key, keylen, NULL, cguid);
 
     if (pme != NULL) {
-// fprintf(stderr, ", after release [0x%lx] =%d\n", *((uint64_t *) key), pme->refcnt - 1);
 	#ifdef SANDISK_PRINTSTUFF
 	    fprintf(stderr, ", after release refcnt=%d\n", pme->refcnt - 1);
 	#endif
         atomic_dec(pme->refcnt);
-        //pme->refcnt = 0;
+		if ((pme->refcnt == 0) && pme->deleted) {
+			do_unlock(pm);
+			do_lock_write(pm);
+			h = btree_hash((const unsigned char *) key, sizeof(uint64_t), 0) % pm->nbuckets;
+			pb = &(pm->buckets[h]);
+
+			map_assert(keylen == 8); // remove this! xxxzzz
+
+			for (ppme = &(pb->entry); (*ppme) != NULL; ppme = &((*ppme)->next)) {
+				pme = *ppme;
+				if ((pme->key == key) && (pme->cguid == cguid)) {
+					if ((pme->refcnt == 0) && pme->deleted) {
+						remove_lru(pm, pme);
+						pm->n_entries--;
+
+						*ppme = pme->next;
+						(pm->replacement_callback)(replacement_callback_data, pme->key, pme->keylen, 
+											pme->contents, pme->datalen);
+						free_pme(pm, pme);
+					}
+					break;
+				}
+			}
+		}
 		rc = 1;
     } else {
 	#ifdef SANDISK_PRINTSTUFF
@@ -751,14 +777,20 @@ int MapDelete(struct Map *pm, char *key, uint32_t keylen, uint64_t cguid, void *
 		if ((pme->key == key2) && (pme->cguid == cguid)) {
 
 	    	//  Remove from the LRU list if necessary
-			remove_lru(pm, pme);
-	    	pm->n_entries--;
+			pme->refcnt--;
+			if (pme->refcnt == 0) {
+				remove_lru(pm, pme);
+				pm->n_entries--;
 
-            *ppme = pme->next;
-			(pm->replacement_callback)(replacement_callback_data, pme->key, pme->keylen, 
+				*ppme = pme->next;
+				(pm->replacement_callback)(replacement_callback_data, pme->key, pme->keylen, 
 											pme->contents, pme->datalen);
-            free_pme(pm, pme);
-	    do_unlock(pm);
+				free_pme(pm, pme);
+			} else {
+				pme->deleted = 1;
+			}
+			do_unlock(pm);
+
             return (0);
         }
     }
@@ -779,6 +811,7 @@ static MapEntry_t *create_pme(Map_t *pm, char *pkey, uint32_t keylen, char *pdat
     }
     pme->keylen   = keylen;
     pme->refcnt   = 0;
+    pme->deleted  = 0;
 
     pme->contents  = pdata;
     pme->datalen   = datalen;
