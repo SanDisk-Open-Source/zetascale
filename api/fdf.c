@@ -1958,6 +1958,12 @@ FDF_status_t FDFInit(
 #endif
 	Force_async_writes  = getProperty_Int("FORCE_ASYNC_WRITES", 0);
 	Enable_async_writes = getProperty_Int("ENABLE_ASYNC_WRITES", 0);
+        /* Disabling Async writes permanently for now due to the following reasons
+         * Bugs
+         * we do not need for Cassandra layer */
+        plat_log_msg(160190,LOG_CAT,LOG_INFO,"NOTICE: Async Writes feature is not supported");
+        Force_async_writes  = 0;
+        Enable_async_writes = 0;
 
     return FDF_SUCCESS;
 }

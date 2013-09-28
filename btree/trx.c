@@ -290,7 +290,13 @@ trxinit( )
 #else
 	startcluster( );
 #endif
-	trxproperty = atoi( FDFGetProperty( "FDF_TRX", "1"));
+        /* Disabling the transaction since it breaks dev test suite
+           Rico to enable it back once all existing bugs in trx/recovery 
+           issues resolved */
+	/* trxproperty = atoi( FDFGetProperty( "FDF_TRX", "1")); */
+        fprintf(stderr,"NOTICE: ******Disabling Transaction Support Temporarily. To be re-enabled after transaction support is completed******\n");
+	trxproperty = 0; 
+
 	trxenabled = trxproperty & 1<<0;
 	trxverbose = trxproperty & 1<<1;
 	FDFTransactionService( 0, 4, (void *)(long)trxenabled);
