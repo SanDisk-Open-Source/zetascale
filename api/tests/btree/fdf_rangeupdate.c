@@ -73,10 +73,9 @@ void
 do_range_update(struct FDF_thread_state *thd_state, FDF_cguid_t cguid,
 		uint32_t flags, int key_seed)
 {
-	int i, j, k;
+	int i, k;
 	FDF_status_t status;
 	FDF_obj_t *objs = NULL; 
-	uint64_t start_time;
 	uint64_t num_fdf_reads = 0;
 	uint64_t num_fdf_mputs = 0;
 	uint32_t objs_written = 0;
@@ -111,7 +110,6 @@ do_range_update(struct FDF_thread_state *thd_state, FDF_cguid_t cguid,
 
 	num_mputs = total_objs / num_objs;
 	printf("Doing Mput in threads %d.\n", my_thdid);
-	start_time = get_time_usecs();
 	for (k = 1; k <= num_mputs; k++) {
 
 		for (i = 0; i < num_objs; i++) {
@@ -140,7 +138,6 @@ do_range_update(struct FDF_thread_state *thd_state, FDF_cguid_t cguid,
 
 	num_fdf_reads = 0;
 	
-	j = 0;
 	printf("Reading all objects put in thread = %d.\n", my_thdid);
 	key_num = 0;
 	for (k = 1; k <= num_mputs; k++) {
@@ -199,7 +196,6 @@ do_range_update(struct FDF_thread_state *thd_state, FDF_cguid_t cguid,
 	printf("Done range update on %d objects.\n", objs_updated);
 
 	printf("Reading all objects updated in thread = %d.\n", my_thdid);
-	j = 0;
 	key_num = 0;
 	for (k = 1; k <= num_mputs; k++) {
 

@@ -466,7 +466,7 @@ FDF_status_t ReadSeqno(FDF_cguid_t cguid, uint32_t key_no, uint64_t *seq_no)
 
 	if ((ret == FDF_SUCCESS) && 
 	    (n_out == n_in) &&
-	    (values[0].status == FDF_SUCCESS)) {
+	    (values[0].status == FDF_RANGE_DATA_SUCCESS)) {
 		*seq_no = values[0].seqno;
 	} else {
 		ret = FDF_FAILURE;
@@ -557,7 +557,7 @@ static int verify_range_query_data(FDF_range_data_t *values,
 	}
 
 	for (i = 0; i < n_out; i++) {
-		if (values[i].status != FDF_SUCCESS) {
+		if (values[i].status != FDF_RANGE_DATA_SUCCESS) {
 			fprintf(fp, "Error: Values[%d] status=%d\n", 
 			            i, values[i].status);
 			return -1;

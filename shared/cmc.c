@@ -550,7 +550,7 @@ cmc_recover(SDF_internal_ctxt_t *pai, const char *cmc_path) {
 	                                          blob->meta.properties.container_type.caching_container
                                             );
 
-                     if ( FDF_SUCCESS != status ) 
+                     if ( SDF_SUCCESS != status ) 
                          goto out;
 
 					for (int i=0; i<MCD_MAX_NUM_CNTRS; i++) {

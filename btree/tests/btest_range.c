@@ -216,7 +216,7 @@ int btest_range_parse(btest_cfg_t *cfg, int argc, char **argv)
 		i++;
 	}
 	
-	printf(str);
+	printf("%s", str);
 	printf("----------------------------\n");
 	return (0);
 }

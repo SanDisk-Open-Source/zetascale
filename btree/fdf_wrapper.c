@@ -1360,7 +1360,9 @@ FDF_status_t _FDFNextEnumeratedObject(
                               &count,
                               &values);
 
-	if (FDF_SUCCESS == status && FDF_SUCCESS == values.status && count) {
+	if (FDF_SUCCESS == status &&
+            FDF_RANGE_DATA_SUCCESS == values.status && count)
+        {
             assert(count); // Hack
 	    	*key = (char *) malloc(values.keylen);
             assert(*key);

@@ -122,7 +122,7 @@ FDF_status_t fdf_cmap_create(
 	    return FDF_FAILURE_CANNOT_CREATE_METADATA_CACHE;
 	}
 	    
-	if ( FDF_TRUE != ( HashMap_put( cmap_cname_hash, cname_key, (void *) cguid ) ) ) {
+	if ( SDF_TRUE != ( HashMap_put( cmap_cname_hash, cname_key, (void *) cguid ) ) ) {
 	    plat_free( cname_key );
         CMapDelete( cmap_cguid_hash, (char *) &cguid, sizeof( FDF_cguid_t) );
 	    plat_log_msg( 150117,
@@ -143,7 +143,6 @@ FDF_status_t fdf_cmap_update(
     )
 {
     char             *cname_key         = NULL;
-	struct CMapEntry *entry             = NULL;
 	char             *replace_status    = NULL;
 
 	if (!cmap) {
@@ -156,7 +155,7 @@ FDF_status_t fdf_cmap_update(
     else
         sprintf( cname_key, "%s", cmap->cname );
 
-    entry = CMapUpdate( cmap_cguid_hash,
+    CMapUpdate( cmap_cguid_hash,
                         (char *) &cmap->cguid,
                         sizeof( FDF_cguid_t ),
                         (char *) cmap,
