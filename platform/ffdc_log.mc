@@ -3362,6 +3362,9 @@
 160188 Operation not allowed 
 160189 Memory allocation failed to collect stats\n
 160190 NOTICE: Async Writes feature is not supported
+160191 FDFReadObject flash_only.
+160192 FDFWriteObject flash_only.
+160193 FDFDeleteObject flash_only.
 
 
 # rico

@@ -26,6 +26,7 @@
 #include "protocol/action/recovery.h"
 #include "protocol/home/home_flash.h"
 #include "protocol/action/async_puts.h"
+#include "protocol/action/action_new.h"
 #include "protocol/action/action_thread.h"
 #include "protocol/replication/replicator.h"
 #include "protocol/replication/copy_replicator.h"
@@ -2370,6 +2371,8 @@ FDF_status_t FDFLoadCntrPropDefaults(
 	props->cguid = 0;
 	props->cid = 0;
 	props->num_shards = 1;
+	props->flash_only = FDF_FALSE;
+	props->cache_only = FDF_FALSE;
 	return FDF_SUCCESS;
 }
 
@@ -4231,6 +4234,10 @@ fdf_set_container_props(
 	    	meta.properties.durability_level = SDF_FULL_DURABILITY;
 		else if ( pprops->durability_level == FDF_DURABILITY_SW_CRASH_SAFE )
 	    	meta.properties.durability_level = SDF_RELAXED_DURABILITY;
+
+ 		meta.properties.flash_only = pprops->flash_only;
+ 		meta.properties.cache_only = pprops->cache_only;
+
         status = name_service_put_meta( pai, cguid, &meta );
 
 		cmap = fdf_cmap_get_by_cguid( cguid );
@@ -4342,7 +4349,39 @@ fdf_read_object(
     }
 
     pac = (SDF_action_init_t *) fdf_thread_state;
-   
+
+	SDF_cache_ctnr_metadata_t *meta;
+	meta = get_container_metadata(pac, cguid);
+    if (meta == NULL) {
+		goto out;
+	}
+    
+	if (meta->meta.properties.flash_only == FDF_TRUE) {
+		char* tdata;
+	
+		plat_log_msg(160191, LOG_CAT,
+                    LOG_DBG, "FDFReadObject flash_only.");
+		struct objMetaData metaData;
+		metaData.keyLen = keylen;
+		metaData.cguid  = cguid;
+
+		status = ssd_flashGet(pac->paio_ctxt, meta->pshard, &metaData, key, &tdata, FLASH_GET_NO_TEST);
+		*datalen = metaData.dataLen;
+		if (status == FLASH_EOK) {
+
+			status = FDF_SUCCESS;
+			*data = malloc(*datalen);
+			if(!data)
+				status = FDF_FAILURE;
+			else
+				memcpy(*data, tdata, *datalen);
+		} else {
+			status = FDF_FAILURE;
+		}
+		goto out;
+
+	} else {
+
     ar.reqtype = APGRX;
     ar.curtime = 0;
     ar.ctxt = pac->ctxt;
@@ -4367,6 +4406,7 @@ fdf_read_object(
     *datalen = ar.destLen;
 
 	status = ar.respStatus;
+	}
 
 out:
 
@@ -4608,6 +4648,29 @@ fdf_write_object(
 
     pac = (SDF_action_init_t *) fdf_thread_state;
 
+	SDF_cache_ctnr_metadata_t *meta;
+	meta = get_container_metadata(pac, cguid);
+	if (meta == NULL) {
+		goto out;
+	}
+
+	if (meta->meta.properties.flash_only == FDF_TRUE) {
+		plat_log_msg(160192, LOG_CAT,
+			LOG_DBG, "FDFWriteObject flash_only.");
+		struct objMetaData metaData;
+		metaData.keyLen = keylen;
+		metaData.cguid  = cguid;
+		metaData.dataLen = datalen;
+
+		status = ssd_flashPut(pac->paio_ctxt, meta->pshard, &metaData, key, data, FLASH_PUT_NO_TEST);
+		if (status == FLASH_EOK) {
+			status = FDF_SUCCESS;
+		} else {
+			status = FDF_FAILURE;
+		}
+		goto out;
+
+	} else {
 	if ( flags & FDF_WRITE_MUST_EXIST ) {
     	ar.reqtype = APPAE;
 	} else if( flags & FDF_WRITE_MUST_NOT_EXIST ) {
@@ -4635,6 +4698,7 @@ fdf_write_object(
     ActionProtocolAgentNew(pac, &ar);
 
 	status = ar.respStatus;
+	}	
 out:
 
     fdf_decr_io_count( cguid );
@@ -4891,6 +4955,28 @@ fdf_delete_object(
 
     pac = (SDF_action_init_t *) fdf_thread_state;
 
+	SDF_cache_ctnr_metadata_t *meta;
+	meta = get_container_metadata(pac, cguid);
+	if (meta == NULL) {
+		goto out;
+	}
+
+	if (meta->meta.properties.flash_only == FDF_TRUE) {
+		plat_log_msg(160193, LOG_CAT,
+			LOG_DBG, "FDFDeleteObject flash_only.");
+		struct objMetaData metaData;
+		metaData.keyLen = keylen;
+		metaData.cguid  = cguid;
+		metaData.dataLen = 0;
+		status=ssd_flashPut(pac->paio_ctxt, meta->pshard, &metaData, key, NULL, FLASH_PUT_TEST_NONEXIST);
+		if (status == FLASH_EOK) {
+			status = FDF_SUCCESS;
+		} else {
+			status = FDF_FAILURE;
+		}
+		goto out;
+	} else {
+
     ar.reqtype = APDBE;
     ar.prefix_delete = 0;
     ar.curtime = 0;
@@ -4906,6 +4992,7 @@ fdf_delete_object(
     ActionProtocolAgentNew(pac, &ar);
 
 	status = ar.respStatus;
+	}	
 
 out:
 
@@ -6277,6 +6364,9 @@ static SDF_container_props_t *fdf_create_sdf_props(
 			sdf_properties->durability_level = SDF_FULL_DURABILITY;
     	else if ( fdf_properties->durability_level == FDF_DURABILITY_SW_CRASH_SAFE )
         	sdf_properties->durability_level = SDF_RELAXED_DURABILITY;
+
+		sdf_properties->flash_only                              = fdf_properties->flash_only;
+		sdf_properties->cache_only                              = fdf_properties->cache_only;
     }
 
     return sdf_properties;
@@ -6357,7 +6447,8 @@ static FDF_status_t fdf_create_fdf_props(
 	    	fdf_properties->durability_level = FDF_DURABILITY_HW_CRASH_SAFE;
 		else if ( sdf_properties->durability_level == SDF_RELAXED_DURABILITY )
 	    	fdf_properties->durability_level = FDF_DURABILITY_SW_CRASH_SAFE;
-
+		fdf_properties->flash_only = sdf_properties->flash_only;
+		fdf_properties->cache_only = sdf_properties->cache_only;
 		status												= FDF_SUCCESS;
     }
 

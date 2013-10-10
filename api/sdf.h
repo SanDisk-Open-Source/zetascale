@@ -437,6 +437,8 @@ typedef struct {
     
     // Mcd index
     int                         mcd_index;
+	uint32_t					flash_only;
+	uint32_t					cache_only;
 
 } SDF_container_props_t;
 

@@ -362,6 +362,8 @@ typedef struct {
     FDF_cguid_t             cguid;
     uint64_t                cid;
     uint32_t                num_shards;
+	FDF_boolean_t			flash_only;
+	FDF_boolean_t			cache_only;
 } FDF_container_props_t;
 #endif
 

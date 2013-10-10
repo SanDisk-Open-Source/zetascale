@@ -471,6 +471,9 @@ FDF_status_t _FDFOpenContainerSpecial(
         return(FDF_INVALID_PARAMETER);
 
 restart:
+	if(getenv("FDF_BYPASS_CACHE"))
+		properties->flash_only = FDF_TRUE;
+
     ret = FDFOpenContainer(fdf_thread_state, cname, properties, flags_in, cguid);
     if (ret != FDF_SUCCESS)
         return(ret);
