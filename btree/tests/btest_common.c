@@ -20,6 +20,8 @@
 #include "../btree.h"
 #include "btest_common.h"
 
+extern int init_l1cache();
+
 static char *gendata(uint32_t max_datalen, uint64_t *pdatalen);
 
 static struct btree_raw_node *read_node_cb(btree_status_t *ret, void *data, uint64_t lnodeid);
@@ -245,6 +247,11 @@ btest_init(int argc, char **argv, char *program, btest_parse_fn parse_fn)
 		return NULL;
 	}
 
+	if( init_l1cache() ){
+		fprintf(stderr, "Coundn't init global l1 cache.\n");
+		return NULL;
+	}
+
 	/* All default values */
 	cfg->program = program;
 	cfg->n_partitions        = DEFAULT_N_PARTITIONS;
@@ -280,7 +287,7 @@ btest_init(int argc, char **argv, char *program, btest_parse_fn parse_fn)
 		cfg->flags |= SYNDROME_INDEX;
 	}
 
-	cfg->flags |= IN_MEMORY; // use in-memory b-tree for this test
+//	cfg->flags |= IN_MEMORY; // use in-memory b-tree for this test
 
 	msg("Starting btree test %s...", cfg->program);
 	msg("n_partitions = %d",         cfg->n_partitions);

@@ -84,8 +84,10 @@ typedef struct {
 	struct btree_raw              *btree;       // BTree we are operating on. We might need this for joins??
 	btree_range_meta_t   *query_meta;  // Metadata for this current search
 	struct btree_raw_mem_node *node;
-	int cur_idx;
-	int end_idx;
+	int16_t cur_idx;
+	int16_t end_idx;
+	int16_t start_idx;
+	char dir;
 } btree_range_cursor_t;
 
 /* Start an index query.
@@ -94,7 +96,7 @@ typedef struct {
  *          FDF_FAILURE if unsuccessful
  */
 btree_status_t
-btree_start_range_query(btree_t                 *btree,    //  Btree to query for
+btree_range_query_start(btree_t                 *btree,    //  Btree to query for
                         btree_indexid_t         indexid,   //  handle for index to use (use PRIMARY_INDEX for primary)
                         btree_range_cursor_t    **cursor,  //  returns opaque cursor for this query
                         btree_range_meta_t      *meta);
@@ -145,7 +147,7 @@ typedef struct btree_range_data {
  *                      FDF_BUFFER_TOO_SMALL  if the i'th buffer was too small to retrieve the object
  */
 btree_status_t
-btree_get_next_range(btree_range_cursor_t *cursor,   //  cursor for this indexed search
+btree_range_get_next(btree_range_cursor_t *cursor,   //  cursor for this indexed search
                      int                   n_in,     //  size of 'values' array
                      int                  *n_out,    //  number of items returned
                      btree_range_data_t   *values);  //  array of returned key/data values
@@ -156,6 +158,6 @@ btree_get_next_range(btree_range_cursor_t *cursor,   //  cursor for this indexed
  *          FDF_UNKNOWN_CURSOR if the cursor is invalid
  */
 btree_status_t
-btree_end_range_query(btree_range_cursor_t *cursor);
+btree_range_query_end(btree_range_cursor_t *cursor);
 
 #endif

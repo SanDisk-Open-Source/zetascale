@@ -401,8 +401,11 @@ FDF_status_t RangeQuery(FDF_cguid_t cguid,
 		}
 
 		for (i = 0; i < n_out; i++) {
-			free(values[i].key);
-			free(values[i].data);
+			/* FDF_WARNING and BUFFER_TOO_SMALL should be checked here */
+			if(!(flags & FDF_RANGE_INPLACE_POINTERS)) {
+				free(values[i].key);
+				free(values[i].data);
+			}
 		}
 		free(values);
 	}
@@ -663,6 +666,18 @@ int test_basic_check(uint32_t n_objects)
 		n_chunks = (random() % (max_chunks - 1)) + 1;
 	} */
 
+	flags |= FDF_RANGE_INPLACE_POINTERS;
+	flags =0;
+
+	for(int i = 0; i < 1; i++)
+	{
+		if(flags)
+			fprintf(fp, "================ Inplace range queries ===================\n");
+		else
+			fprintf(fp, "================ Fast range queries ===================\n");
+
+		test_id = 1;
+
 	fprintf(fp, "================ Ascending Order Tests ===================\n");
 	fprintf(fp, "\n######### Test %d: Start and End NULL #########\n\n", test_id);
 	do_range_query_in_chunks(cguid, flags, n_objects, 0, 0, MAX, 0, 1, test_id++);
@@ -754,6 +769,8 @@ int test_basic_check(uint32_t n_objects)
 	         test_id);
 	do_range_query_in_chunks(cguid, flags, n_objects, 0, 0, 2, 1, 1, test_id++);
 
+	flags = 0;
+	}
 
 	/**************** Descending Order ********************/
 	fprintf(fp, "================ Descending Order Tests ===================\n");

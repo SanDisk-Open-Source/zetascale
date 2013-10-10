@@ -31,9 +31,11 @@
 //  Define this to turn on detailed list checking
 // #define LISTCHECK
 
+//disable messages in debug trace by default
 #ifdef DBG_PRINT
 #undef DBG_PRINT
 #endif
+
 #ifdef DBG_PRINT
 #define dbg_print(msg, ...) do { fprintf(stderr, "%x %s:%d " msg, (int)pthread_self(), __FUNCTION__, __LINE__, ##__VA_ARGS__); } while(0)
 #else

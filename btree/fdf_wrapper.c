@@ -356,17 +356,6 @@ FDF_status_t _FDFInit(
 		pthread_rwlock_init(&(Container_Map[i].bt_cm_rwlock), NULL);
     }
 
-    stest = getenv("FDF_RUN_BTREE_SELFTEST");
-    if (stest != NULL) {
-	(void) btree_selftest(0, NULL);
-        exit(0);
-    }
-
-    ret = FDFInit(fdf_state);
-    if ( ret == FDF_FAILURE ) {
-        return FDF_FAILURE;
-    }
-
 	char *env;
 	env = getenv("BTREE_L1CACHE_SIZE");
 	n_global_l1cache_buckets = env ? (uint64_t)atoll(env) : 0;
@@ -382,6 +371,17 @@ FDF_status_t _FDFInit(
 		fprintf(stderr, "Coundn't init global l1 cache.\n");
 		return FDF_FAILURE;
 	}
+
+    stest = getenv("FDF_RUN_BTREE_SELFTEST");
+    if (stest != NULL) {
+	(void) btree_selftest(0, NULL);
+        exit(0);
+    }
+
+    ret = FDFInit(fdf_state);
+    if ( ret == FDF_FAILURE ) {
+        return FDF_FAILURE;
+    }
 
     cbs = malloc(sizeof(FDF_ext_cb_t));
     if( cbs == NULL ) {
@@ -988,14 +988,14 @@ FDF_status_t _FDFReadObject(
         rmeta.flags        = RANGE_START_GE | RANGE_END_LE;
 
 	trxenter( cguid);
-        btree_ret = btree_start_range_query(bt, BTREE_RANGE_PRIMARY_INDEX,
+        btree_ret = btree_range_query_start(bt, BTREE_RANGE_PRIMARY_INDEX,
                                             &cursor, &rmeta);
 		if (btree_ret != BTREE_SUCCESS) {
 				msg("Could not create start range query in FDFReadObject!");
 				goto done;
 		}
 
-        btree_ret = btree_get_next_range(cursor, 1, &n_out, &values[0]);
+        btree_ret = btree_range_get_next(cursor, 1, &n_out, &values[0]);
         if (btree_ret == BTREE_SUCCESS) {
             *data    = values[0].data;
             *datalen = values[0].datalen;
@@ -1006,7 +1006,7 @@ FDF_status_t _FDFReadObject(
                          BTREE_KEY_NOT_FOUND: BTREE_FAILURE;
         }
 
-        (void)btree_end_range_query(cursor);
+        (void)btree_range_query_end(cursor);
     } else {
 	trxenter( cguid);
         btree_ret = btree_get(bt, key, keylen, data, datalen, &meta);
@@ -1656,7 +1656,7 @@ _FDFGetRange(struct FDF_thread_state *fdf_thread_state,
         return (ret);
 	}
 
-	status = btree_start_range_query(bt, 
+	status = btree_range_query_start(bt, 
 	                                (btree_indexid_t) indexid, 
 	                                (btree_range_cursor_t **)cursor,
 	                                (btree_range_meta_t *)rmeta);
@@ -1699,7 +1699,7 @@ _FDFGetNextRange(struct FDF_thread_state *fdf_thread_state,
         return (ret);
 	}
 	trxenter( cguid);
-	status = btree_get_next_range((btree_range_cursor_t *)cursor,
+	status = btree_range_get_next((btree_range_cursor_t *)cursor,
 	                              n_in,
 	                              n_out,
 	                              (btree_range_data_t *)values
@@ -1730,7 +1730,7 @@ _FDFGetRangeFinish(struct FDF_thread_state *fdf_thread_state,
 
 	my_thd_state = fdf_thread_state;;
 
-	status = btree_end_range_query((btree_range_cursor_t *)cursor);
+	status = btree_range_query_end((btree_range_cursor_t *)cursor);
 	if (status == BTREE_SUCCESS) {
 		ret = FDF_SUCCESS;
 	} else if (status == BTREE_QUERY_DONE) {

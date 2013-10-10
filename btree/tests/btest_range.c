@@ -75,7 +75,7 @@ void btest_range_test(btest_cfg_t *cfg)
 		}
 	}
 
-	status = btree_start_range_query(cfg->bt, BTREE_RANGE_PRIMARY_INDEX, &cursor, &rmeta);
+	status = btree_range_query_start(cfg->bt, BTREE_RANGE_PRIMARY_INDEX, &cursor, &rmeta);
 	if (status != BTREE_SUCCESS) {
 		fprintf(stderr, "start range query failed with status = %d\n", status);
 		exit(1);
@@ -101,7 +101,7 @@ void btest_range_test(btest_cfg_t *cfg)
 		assert(values);
 
 		/* Do the query now */
-		status = btree_get_next_range(cursor, n_in_chunk, &n_out, values);
+		status = btree_range_get_next(cursor, n_in_chunk, &n_out, values);
 		printf("Status of range query: %d\n", status);
 		printf("n_out = %d\n", n_out);
 
@@ -116,7 +116,7 @@ void btest_range_test(btest_cfg_t *cfg)
 		n_in_iter += n_in_chunk;
 	}
 
-	status = btree_end_range_query(cursor);
+	status = btree_range_query_end(cursor);
 }
 
 static void btest_range_usage(void)

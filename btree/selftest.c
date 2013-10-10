@@ -290,7 +290,7 @@ int btree_selftest(int argc, char **argv)
 
     // flags |= VERBOSE_DEBUG;
 
-    flags |= IN_MEMORY; // use in-memory b-tree for this test
+    //flags |= IN_MEMORY; // use in-memory b-tree for this test
 
     msg("Starting btree test...");
     msg("n_partitions = %d",      n_partitions);
@@ -565,6 +565,7 @@ static char *gendata(uint32_t max_datalen, uint64_t *pdatalen)
 
 static struct btree_raw_node *read_node_cb(btree_status_t *ret, void *data, uint64_t lnodeid)
 {
+	assert(0);
     N_read_node++;
     return(NULL);
 }
@@ -604,16 +605,29 @@ static void log_cb(btree_status_t *ret, void *data, uint32_t event_type, struct 
 
 static int cmp_cb(void *data, char *key1, uint32_t keylen1, char *key2, uint32_t keylen2)
 {
+    int x;
+    int cmp_len;
+
     N_cmp++;
 
-    if (keylen1 < keylen2) {
-        return(-1);
-    } else if (keylen1 > keylen2) {
-        return(1);
-    } else if (keylen1 == keylen2) {
-        return(memcmp(key1, key2, keylen1));
+    /* Handle open-left-end of a query */
+    if(!key1) return -1;
+
+    cmp_len = keylen1 < keylen2 ? keylen1: keylen2;
+
+    x = memcmp(key1, key2, cmp_len);
+    if (x != 0) {
+        return x;
     }
-    return(0);
+
+    /* Equal so far, use len to decide */
+    if (keylen1 < keylen2) {
+        return -1;
+    } else if (keylen1 > keylen2) {
+        return 1;
+    } else {
+        return 0;
+    }
 }
 
 static void txn_cmd_cb(btree_status_t *ret_out, void *cb_data, int cmd_type)
@@ -666,7 +680,7 @@ static void msg_cb(int level, void *msg_data, char *filename, int lineno, char *
 	    break;
     } 
 
-    (void) fprintf(stderr, "%s: %s", prefix, stmp);
+    (void) fprintf(stderr, "%s(%s:%d): %s", prefix, basename(filename), lineno, stmp);
     if (quit) {
         assert(0);
         exit(1);
