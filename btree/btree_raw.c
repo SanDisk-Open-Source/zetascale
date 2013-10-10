@@ -1091,11 +1091,19 @@ init_l1cache()
 {
 	int n = 0;
 
+	char *env = getenv("BTREE_L1CACHE_SIZE");
+	n_global_l1cache_buckets = env ? (uint64_t)atoll(env) : 0;
+	if ( n_global_l1cache_buckets ){
+		n_global_l1cache_buckets = n_global_l1cache_buckets / 16 / 8192;
+	} else {
+		n_global_l1cache_buckets = DEFAULT_N_L1CACHE_BUCKETS;
+	}
+
     char *p = getenv("N_L1CACHE_PARTITIONS");
     if(p)
         n = atoi(p);
     if(n <=0 || n > 10000000)
-        n = 256;
+        n = DEFAULT_N_L1CACHE_PARTITIONS;
 
     global_l1cache = PMapInit(n, n_global_l1cache_buckets / n + 1, 16 * (n_global_l1cache_buckets / n + 1), 1, l1cache_replace);
     if (global_l1cache == NULL) {

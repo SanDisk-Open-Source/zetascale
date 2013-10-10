@@ -289,4 +289,8 @@ btree_raw_rupdate(
 		void *range_cmp_cb_args,
 	        uint32_t *objs_updated,
 	        btree_rupdate_marker_t **marker);
+
+#define DEFAULT_N_L1CACHE_BUCKETS 5000
+#define DEFAULT_N_L1CACHE_PARTITIONS 256
+
 #endif // __BTREE_RAW_H

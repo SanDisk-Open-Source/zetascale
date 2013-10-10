@@ -22,7 +22,6 @@
 #include "fdf.h"
 #include "fdf_internal_cb.h"
 #include "btree.h"
-#include "selftest.h"
 #include "btree_range.h"
 #include "trx.h"
 #include "btree_raw_internal.h"
@@ -115,14 +114,6 @@ _FDFRangeUpdate(struct FDF_thread_state *fdf_thread_state,
 #define Notice(msg, args...) \
 	msg_cb(4, NULL, __FILE__, __LINE__, msg, ##args);
 
-#ifdef notdef
-    #define DEFAULT_N_PARTITIONS      100
-    #define DEFAULT_MAX_KEY_SIZE      100
-    #define DEFAULT_NODE_SIZE         8192
-    #define DEFAULT_N_L1CACHE_BUCKETS 1000
-    #define DEFAULT_MIN_KEYS_PER_NODE 4
-#endif
-
 #define DEFAULT_N_PARTITIONS      1
 // #define DEFAULT_N_PARTITIONS      128
 // #define DEFAULT_N_PARTITIONS      4096
@@ -137,7 +128,6 @@ _FDFRangeUpdate(struct FDF_thread_state *fdf_thread_state,
 // #define DEFAULT_N_L1CACHE_BUCKETS 1000
 // #define DEFAULT_N_L1CACHE_BUCKETS 1000
 // #define DEFAULT_N_L1CACHE_BUCKETS 9600
-#define DEFAULT_N_L1CACHE_BUCKETS 18000 // 2.3G
 #define DEFAULT_MIN_KEYS_PER_NODE 4
 
     // Counts of number of times callbacks are invoked:
@@ -356,27 +346,12 @@ FDF_status_t _FDFInit(
 		pthread_rwlock_init(&(Container_Map[i].bt_cm_rwlock), NULL);
     }
 
-	char *env;
-	env = getenv("BTREE_L1CACHE_SIZE");
-	n_global_l1cache_buckets = env ? (uint64_t)atoll(env) : 0;
-	if ( n_global_l1cache_buckets ){
-		n_global_l1cache_buckets = n_global_l1cache_buckets / 16 / 8192;
-	} else {
-		n_global_l1cache_buckets = DEFAULT_N_L1CACHE_BUCKETS;
-	}
-
 	fprintf(stderr,"Number of cache buckets:%lu\n",n_global_l1cache_buckets);
 
 	if( init_l1cache() ){
 		fprintf(stderr, "Coundn't init global l1 cache.\n");
 		return FDF_FAILURE;
 	}
-
-    stest = getenv("FDF_RUN_BTREE_SELFTEST");
-    if (stest != NULL) {
-	(void) btree_selftest(0, NULL);
-        exit(0);
-    }
 
     ret = FDFInit(fdf_state);
     if ( ret == FDF_FAILURE ) {

@@ -47,18 +47,6 @@ static uint32_t   n_char_array;
 // Must allow for a 64-bit integer in decimal form plus a trailing NULL
 #define MIN_KEY_SIZE      21
 
-#ifdef notdef
-    #define DEFAULT_N_PARTITIONS      100
-    #define DEFAULT_MIN_KEY_SIZE      17
-    #define DEFAULT_MAX_KEY_SIZE      100
-    #define DEFAULT_MAX_DATA_SIZE     100000
-    #define DEFAULT_NODE_SIZE         8192
-    #define DEFAULT_N_L1CACHE_BUCKETS 1000
-    #define DEFAULT_MIN_KEYS_PER_NODE 4
-    #define DEFAULT_N_TEST_KEYS       1000
-    #define DEFAULT_N_TEST_ITERATIONS 1000000
-#endif
-
 #define DEFAULT_N_PARTITIONS      1
 // #define DEFAULT_MAX_KEY_SIZE      10
 // #define DEFAULT_MAX_KEY_SIZE      100
@@ -69,15 +57,14 @@ static uint32_t   n_char_array;
 #define DEFAULT_NODE_SIZE         8100
 // #define DEFAULT_NODE_SIZE         2100
 // #define DEFAULT_NODE_SIZE         900
-#define DEFAULT_N_L1CACHE_BUCKETS 1000
 #define DEFAULT_MIN_KEYS_PER_NODE 4
 // #define DEFAULT_N_TEST_KEYS       6000
 // #define DEFAULT_N_TEST_KEYS       20
-#define DEFAULT_N_TEST_KEYS       4000000
+#define DEFAULT_N_TEST_KEYS       80000
 // #define DEFAULT_N_TEST_KEYS       1000000
 // #define DEFAULT_N_TEST_ITERATIONS 1000000
 // #define DEFAULT_N_TEST_ITERATIONS 10000
-#define DEFAULT_N_TEST_ITERATIONS 10000000
+#define DEFAULT_N_TEST_ITERATIONS 1000
 
     // Counts of number of times callbacks are invoked:
 static uint64_t N_read_node   = 0;
