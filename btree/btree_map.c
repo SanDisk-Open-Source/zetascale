@@ -31,15 +31,23 @@
 
 #define META_LOGICAL_ID 0x8000000000000000L
 
+//disable messages in debug trace by default
+#ifdef DBG_PRINT
+#undef DBG_PRINT
+#endif
+
+#ifdef DBG_PRINT
+#define dbg_print(msg, ...) do { fprintf(stderr, "%x %s:%d " msg, (int)pthread_self(), __FUNCTION__, __LINE__, ##__VA_ARGS__); } while(0)
+#else
+#define dbg_print(msg, ...)
+#endif
+
 //  Define this to turn on detailed list checking
 // #define LISTCHECK
 
-//  Define this to turn on debug messages
-//#define SANDISK_PRINTSTUFF
-
 static void _map_assert(int x) {
     if (x) {
-        fprintf(stderr, "Assertion failure in fdf_tlmap!\n");
+        dbg_print("Assertion failure in fdf_tlmap!\n");
 	assert(0);
     }
 }
@@ -184,9 +192,7 @@ struct Map *MapInit(uint64_t nbuckets, uint64_t max_entries, char use_locks, voi
     // xxxzzz only one enumeration can be done at a time per Map!
 //    pthread_mutex_init(&(pm->enum_mutex), NULL);
 
-    #ifdef SANDISK_PRINTSTUFF
-	fprintf(stderr, "MapInit: pm=%p\n", pm);
-    #endif
+	dbg_print("MapInit: pm=%p nbuckets=%ld max_entries=%ld\n", pm, nbuckets, max_entries);
 
     return(pm);
 }
@@ -210,9 +216,7 @@ void MapDestroy(struct Map *pm)
 		b = bnext;
 	}
 
-    #ifdef SANDISK_PRINTSTUFF
-	fprintf(stderr, "MapDestroy: pm=%p\n", pm);
-    #endif
+	dbg_print("MapDestroy: pm=%p\n", pm);
 
     free(pm->buckets);
     pthread_rwlock_destroy(&(pm->lock));
@@ -247,9 +251,7 @@ void MapClear(struct Map *pm)
 
     do_lock_write(pm);
 
-    #ifdef SANDISK_PRINTSTUFF
-	fprintf(stderr, "MapClear: pm=%p\n", pm);
-    #endif
+	dbg_print("MapClear: pm=%p\n", pm);
 
     //  Go through LRU list and free entries
     //  This is much faster than examining all of the buckets!
@@ -273,14 +275,12 @@ void MapCheckRefcnts(struct Map *pm)
 
     do_lock_read(pm);
 
-    #ifdef SANDISK_PRINTSTUFF
-	fprintf(stderr, "MapCheckRefcnts: pm=%p\n", pm);
-    #endif
+	dbg_print("MapCheckRefcnts: pm=%p\n", pm);
 
     for (i=0; i<pm->nbuckets; i++) {
 	for (pme = pm->buckets[i].entry; pme != NULL; pme = pme->next) {
 	    if (pme->refcnt != 0) {
-		fprintf(stderr, "*****************   MapCheckRefcnts: [pm=%p]: key 0x%lx refcnt=%d!\n", pm, *((uint64_t *) pme->key), pme->refcnt);
+		dbg_print("*****************   MapCheckRefcnts: [pm=%p]: key 0x%lx refcnt=%d!\n", pm, *((uint64_t *) pme->key), pme->refcnt);
 	    }
 	}
     }
@@ -295,16 +295,12 @@ struct MapEntry *MapCreate(struct Map *pm, char *pkey, uint32_t keylen, char *pd
 
     do_lock_write(pm);
 
-    #ifdef SANDISK_PRINTSTUFF
-	fprintf(stderr, "MapCreate: pm=%p, key=0x%lx, keylen=%d, pdata=%p, datalen=%ld, ", pm, *((uint64_t *) pkey), keylen, pdata, datalen);
-    #endif
+	dbg_print("MapCreate: pm=%p, key=0x%lx, keylen=%d, pdata=%p, datalen=%ld, ", pm, *((uint64_t *) pkey), keylen, pdata, datalen);
 
     pme = find_pme(pm, pkey, keylen, &pb, cguid);
 
     if (pme != NULL) {
-	#ifdef SANDISK_PRINTSTUFF
-	    fprintf(stderr, "pme=%p\n", pme);
-	#endif
+	    dbg_print("pme=%p\n", pme);
 
 	do_unlock(pm);
         return(NULL);
@@ -330,15 +326,15 @@ struct MapEntry *MapCreate(struct Map *pm, char *pkey, uint32_t keylen, char *pd
         insert_lru(pm, pme);
 
 		if ((pm->max_entries > 0) && (pm->n_entries > pm->max_entries)) {
+			dbg_print("pm %p max_entries %ld n_entries %ld\n", pm, pm->max_entries, pm->n_entries);
 	    	// do an LRU replacement
 	    	replace_lru(pm, pme, replacement_callback_data);
 		}
     }
 
     do_unlock(pm);
-    #ifdef SANDISK_PRINTSTUFF
-	fprintf(stderr, "pme=%p\n", pme);
-    #endif
+
+	dbg_print("pme=%p\n", pme);
 
     return(pme);
 }
@@ -350,9 +346,7 @@ struct MapEntry *MapUpdate(struct Map *pm, char *pkey, uint32_t keylen, char *pd
 
     do_lock_write(pm);
 
-    #ifdef SANDISK_PRINTSTUFF
-	fprintf(stderr, "MapUpdate: pm=%p, key=0x%lx, keylen=%d, pdata=%p, datalen=%ld\n", pm, *((uint64_t *) pkey), keylen, pdata, datalen);
-    #endif
+	dbg_print("MapUpdate: pm=%p, key=0x%lx, keylen=%d, pdata=%p, datalen=%ld\n", pm, *((uint64_t *) pkey), keylen, pdata, datalen);
 
     pme = find_pme(pm, pkey, keylen, NULL, cguid);
 
@@ -388,9 +382,7 @@ struct MapEntry *MapSet(struct Map *pm, char *pkey, uint32_t keylen, char *pdata
 
     do_lock_write(pm);
 
-    #ifdef SANDISK_PRINTSTUFF
-	fprintf(stderr, "MapSet: pm=%p, key=0x%lx, keylen=%d, pdata=%p, datalen=%ld\n", pm, *((uint64_t *) pkey), keylen, pdata, datalen);
-    #endif
+	dbg_print("MapSet: pm=%p, key=0x%lx, keylen=%d, pdata=%p, datalen=%ld\n", pm, *((uint64_t *) pkey), keylen, pdata, datalen);
 
     pme = find_pme(pm, pkey, keylen, &pb, cguid);
 
@@ -490,11 +482,10 @@ struct MapEntry *MapGet(struct Map *pm, char *key, uint32_t keylen, char **pdata
 	datalen = 0;
     }
 
-    #ifdef SANDISK_PRINTSTUFF
         if (pme != NULL) {
-	    fprintf(stderr, "MapGet: pm=%p, key=0x%lx, keylen=%d, pdata=%p, datalen=%ld, refcnt=%d, pme=%p\n", pm, *((uint64_t *) key), keylen, data, datalen, pme->refcnt, pme);
+	    dbg_print("MapGet: pm=%p, key=0x%lx, keylen=%d, pdata=%p, datalen=%ld, refcnt=%d, pme=%p\n", pm, *((uint64_t *) key), keylen, data, datalen, pme->refcnt, pme);
 	} else {
-	    fprintf(stderr, "MapGet: pm=%p, key=0x%lx, keylen=%d, pdata=%p, datalen=%ld, pme=%p\n", pm, *((uint64_t *) key), keylen, data, datalen, pme);
+	    dbg_print("MapGet: pm=%p, key=0x%lx, keylen=%d, pdata=%p, datalen=%ld, pme=%p\n", pm, *((uint64_t *) key), keylen, data, datalen, pme);
 	}
 
 	#ifdef notdef
@@ -513,7 +504,6 @@ struct MapEntry *MapGet(struct Map *pm, char *key, uint32_t keylen, char **pdata
 	    // Free the string pointers
 	    free( funcNames );
 	#endif
-    #endif
 
     do_unlock(pm);
     *pdatalen = datalen;
@@ -547,23 +537,17 @@ int MapIncrRefcnt(struct Map *pm, char *key, uint32_t keylen, uint64_t cguid)
 
     do_lock_read(pm);
 
-    #ifdef SANDISK_PRINTSTUFF
-	fprintf(stderr, "MapIncrRefcnt: pm=%p, key=0x%lx, keylen=%d", pm, *((uint64_t *) key), keylen);
-    #endif
+	dbg_print("MapIncrRefcnt: pm=%p, key=0x%lx, keylen=%d", pm, *((uint64_t *) key), keylen);
 
     pme = find_pme(pm, key, keylen, NULL, cguid);
 
     if (pme != NULL) {
-// fprintf(stderr, ", after incr refcnt [0x%lx] =%d\n", *((uint64_t *) key), pme->refcnt + 1);
-	#ifdef SANDISK_PRINTSTUFF
-	    fprintf(stderr, ", after incr refcnt=%d\n", pme->refcnt + 1);
-	#endif
+// dbg_print(", after incr refcnt [0x%lx] =%d\n", *((uint64_t *) key), pme->refcnt + 1);
+	    dbg_print(", after incr refcnt=%d\n", pme->refcnt + 1);
         atomic_inc(pme->refcnt);
 	rc = 1;
     } else {
-	#ifdef SANDISK_PRINTSTUFF
-	    fprintf(stderr, " (KEY NOT FOUND!)\n");
-	#endif
+	    dbg_print(" (KEY NOT FOUND!)\n");
     }
 
     do_unlock(pm);
@@ -582,16 +566,13 @@ int MapRelease(struct Map *pm, char *key, uint32_t keylen, uint64_t cguid, void 
 
     do_lock_read(pm);
 
-    #ifdef SANDISK_PRINTSTUFF
-	fprintf(stderr, "MapRelease: pm=%p, key=0x%lx, keylen=%d", pm, *((uint64_t *) key), keylen);
-    #endif
+	dbg_print("MapRelease: pm=%p, key=0x%lx, keylen=%d", pm, *((uint64_t *) key), keylen);
 
     pme = find_pme(pm, key, keylen, NULL, cguid);
 
     if (pme != NULL) {
-	#ifdef SANDISK_PRINTSTUFF
-	    fprintf(stderr, ", after release refcnt=%d\n", pme->refcnt - 1);
-	#endif
+// dbg_print(", after release [0x%lx] =%d\n", *((uint64_t *) key), pme->refcnt - 1);
+	    dbg_print(", after release refcnt=%d\n", pme->refcnt - 1);
         atomic_dec(pme->refcnt);
 		if ((pme->refcnt == 0) && pme->deleted) {
 			do_unlock(pm);
@@ -619,9 +600,7 @@ int MapRelease(struct Map *pm, char *key, uint32_t keylen, uint64_t cguid, void 
 		}
 		rc = 1;
     } else {
-	#ifdef SANDISK_PRINTSTUFF
-	    fprintf(stderr, " (KEY NOT FOUND!)\n");
-	#endif
+	    dbg_print(" (KEY NOT FOUND!)\n");
     }
 
     do_unlock(pm);
@@ -636,9 +615,7 @@ int MapReleaseEntry(struct Map *pm, struct MapEntry *pme)
 
     do_lock(&(pm->mutex));
 
-    #ifdef SANDISK_PRINTSTUFF
-	fprintf(stderr, "MapReleaseEntry: pm=%p, pme=%p\n", pm, pme);
-    #endif
+	dbg_print("MapReleaseEntry: pm=%p, pme=%p\n", pm, pme);
 
     if (pme != NULL) {
         (pme->refcnt)--;
@@ -661,15 +638,11 @@ struct Iterator *MapEnum(struct Map *pm)
     iterator = get_iterator(pm);
     map_assert(iterator);
 
-    #ifdef SANDISK_PRINTSTUFF
-	fprintf(stderr, "MapEnum: pm=%p, iterator=%p, ", pm, iterator);
-    #endif
+	dbg_print("MapEnum: pm=%p, iterator=%p, ", pm, iterator);
 
     iterator->enum_entry = pm->lru_head;
 
-    #ifdef SANDISK_PRINTSTUFF
-	fprintf(stderr, "pme=%p, enum_entry=%p\n", pm, iterator->enum_entry);
-    #endif
+	dbg_print("pme=%p, enum_entry=%p\n", pm, iterator->enum_entry);
 
     do_unlock(&(pm->mutex));
 
@@ -680,9 +653,7 @@ void FinishEnum(struct Map *pm, struct Iterator *iterator)
 {
     do_lock(&(pm->mutex));
 
-    #ifdef SANDISK_PRINTSTUFF
-	fprintf(stderr, "FinishEnum: pm=%p, iterator=%p\n", pm, iterator);
-    #endif
+	dbg_print("FinishEnum: pm=%p, iterator=%p\n", pm, iterator);
 
     free_iterator(pm, iterator);
     pthread_mutex_unlock(&(pm->enum_mutex));
@@ -697,17 +668,13 @@ int MapNextEnum(struct Map *pm, struct Iterator *iterator, char **key, uint32_t 
 
     do_lock(&(pm->mutex));
 
-    #ifdef SANDISK_PRINTSTUFF
-	fprintf(stderr, "MapNextEnum: pm=%p, iterator=%p, ", pm, iterator);
-    #endif
+	dbg_print("MapNextEnum: pm=%p, iterator=%p, ", pm, iterator);
 
     if (iterator->enum_entry == NULL) {
 	do_unlock(&(pm->mutex));
 	FinishEnum(pm, iterator);
 
-	#ifdef SANDISK_PRINTSTUFF
-	    fprintf(stderr, "pdata=NULL, datalen=0\n");
-	#endif
+	    dbg_print("pdata=NULL, datalen=0\n");
 
         *key     = NULL;
 	*keylen  = 0;
@@ -730,18 +697,14 @@ int MapNextEnum(struct Map *pm, struct Iterator *iterator, char **key, uint32_t 
 	*data    = (char *) pme_return->contents;
 	*datalen = pme_return->datalen;
 
-	#ifdef SANDISK_PRINTSTUFF
-	    fprintf(stderr, "key=%p, keylen=%d, pdata=%p, datalen=%ld, pme_return=%p\n", *key, *keylen, *data, *datalen, pme_return);
-	#endif
+	    dbg_print("key=%p, keylen=%d, pdata=%p, datalen=%ld, pme_return=%p\n", *key, *keylen, *data, *datalen, pme_return);
 
 	do_unlock(&(pm->mutex));
 	return(1);
     } else {
 	FinishEnum(pm, iterator);
 
-	#ifdef SANDISK_PRINTSTUFF
-	    fprintf(stderr, "pdata=NULL, datalen=0\n");
-	#endif
+	    dbg_print("pdata=NULL, datalen=0\n");
 
         *key     = NULL;
 	*keylen  = 0;
@@ -767,9 +730,7 @@ int MapDelete(struct Map *pm, char *key, uint32_t keylen, uint64_t cguid, void *
 
     do_lock_write(pm);
 
-    #ifdef SANDISK_PRINTSTUFF
-	fprintf(stderr, "MapDelete: pm=%p, key=0x%lx, keylen=%d\n", pm, *((uint64_t *) key), keylen);
-    #endif
+	dbg_print("MapDelete: pm=%p, key=0x%lx, keylen=%d\n", pm, *((uint64_t *) key), keylen);
 
     h = btree_hash((const unsigned char *) key, sizeof(uint64_t), 0) % pm->nbuckets;
     pb = &(pm->buckets[h]);
@@ -841,9 +802,7 @@ static MapEntry_t *copy_pme(Map_t *pm, MapEntry_t *pme)
     pme2->contents = pme->contents;
     pme2->datalen  = pme->datalen;
 
-    #ifdef SANDISK_PRINTSTUFF
-        fprintf(stderr, "copy_pme [from pme %p to %p] key=%p, keylen=%d, data=%p, datalen=%ld\n", pme, pme2, pme->key, pme->keylen, pme->contents, pme->datalen);
-    #endif
+	dbg_print("copy_pme [from pme %p to %p] key=%p, keylen=%d, data=%p, datalen=%ld\n", pme, pme2, pme->key, pme->keylen, pme->contents, pme->datalen);
 
     pme2->next   = NULL;
     pme2->bucket = pme->bucket;
@@ -960,12 +919,10 @@ static void replace_lru(struct Map *pm, MapEntry_t *pme_in, void *replacement_ca
     pm->clock_hand = pme->next_lru;
 
     if (pme == NULL) {
-		fprintf(stderr, "replace_lru could not find a victim!!!!\n");
+		dbg_print("replace_lru could not find a victim!!!!\n");
 		map_assert(0);
     }
-    #ifdef SANDISK_PRINTSTUFF
-	fprintf(stderr, "replace_lru found a victim: %p\n", pme);
-    #endif
+	dbg_print("replace_lru found a victim: %p\n", pme);
 
     //  Remove from bucket list
     found_it = 0;
@@ -1019,7 +976,7 @@ void check_list(MapBucket_t *pb, MapEntry_t *pme_in)
     for (pme = pb->entry; pme != NULL; pme = pme->next) {
 	for (pme2 = pme->next; pme2 != NULL; pme2 = pme2->next) {
 	    if (pme2 == pme) {
-                fprintf(stderr, "Circular pme list!\n");
+                dbg_print("Circular pme list!\n");
 		map_assert(0);
 	    }
 	}
