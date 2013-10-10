@@ -164,4 +164,6 @@ btree_raw_mem_node_t *get_existing_node(btree_status_t *ret, btree_raw_t *btree,
 int is_leaf(btree_raw_t *btree, btree_raw_node_t *node);
 
 void deref_l1cache_node(btree_raw_t* btree, btree_raw_mem_node_t *node);
+btree_raw_mem_node_t* root_get_and_lock(btree_raw_t* btree, int write_lock);
+
 #endif // __BTREE_RAW_INTERNAL_H

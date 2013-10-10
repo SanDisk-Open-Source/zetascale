@@ -1029,6 +1029,47 @@ static uint64_t get_syndrome(btree_raw_t *bt, char *key, uint32_t keylen)
     return(syndrome);
 }
 
+inline static
+void node_lock(btree_raw_mem_node_t* node, int write_lock) 
+{
+	if(write_lock)
+		plat_rwlock_wrlock(&node->lock);
+	else
+		plat_rwlock_rdlock(&node->lock);
+}
+
+inline static
+void node_unlock(btree_raw_mem_node_t* node)
+{
+	plat_rwlock_unlock(&node->lock);
+}
+
+btree_raw_mem_node_t*
+root_get_and_lock(btree_raw_t* btree, int write_lock)
+{
+	btree_status_t ret = BTREE_SUCCESS;
+	uint64_t child_id;
+	btree_raw_mem_node_t *node;
+
+	while(1) {
+		child_id = btree->rootid;
+
+		node = get_existing_node_low(&ret, btree, child_id, 0);
+		if(!node)
+			return NULL;
+
+		node_lock(node, is_leaf(btree, node->pnode) && write_lock);
+
+		if(child_id == btree->rootid)
+			break;
+
+		node_unlock(node);
+		deref_l1cache_node(btree, node);
+	}
+
+	return node;
+}
+
 /* Caller is responsible for leaf_lock unlock and node dereferencing */
 node_key_t* btree_raw_find(struct btree_raw *btree, char *key, uint32_t keylen, uint64_t syndrome, btree_metadata_t *meta, btree_raw_mem_node_t** node, int write_lock, int* pathcnt)
 {
@@ -1036,23 +1077,8 @@ node_key_t* btree_raw_find(struct btree_raw *btree, char *key, uint32_t keylen, 
     btree_status_t    ret = BTREE_SUCCESS;
     uint64_t          child_id;
 
-restart:
-    child_id = btree->rootid;
-
-    *node = get_existing_node_low(&ret, btree, child_id, 0);
-    assert(*node); //FIME add ret checking here
-
-    if(is_leaf(btree, (*node)->pnode) && write_lock)
-        plat_rwlock_wrlock(&(*node)->lock);
-    else
-        plat_rwlock_rdlock(&(*node)->lock);
-
-    if(child_id != btree->rootid)
-    {
-        plat_rwlock_unlock(&(*node)->lock);
-        deref_l1cache_node(btree, *node);
-        goto restart;
-    }
+	*node = root_get_and_lock(btree, write_lock);
+	assert(*node);
 
     while(!is_leaf(btree, (*node)->pnode)) {
         (void)bsearch_key(btree, (*node)->pnode, key, keylen, &child_id, meta, syndrome);
@@ -1063,12 +1089,9 @@ restart:
         *node = get_existing_node_low(&ret, btree, child_id, 0);
         assert(BTREE_SUCCESS == ret && *node); //FIXME add correct error checking here
 
-        if(is_leaf(btree, (*node)->pnode) && write_lock)
-            plat_rwlock_wrlock(&(*node)->lock);
-        else
-            plat_rwlock_rdlock(&(*node)->lock);
+        node_lock(*node, is_leaf(btree, (*node)->pnode) && write_lock);
 
-        plat_rwlock_unlock(&parent->lock);
+        node_unlock(parent);
         deref_l1cache_node(btree, parent);
 
         (*pathcnt)++;
@@ -1325,10 +1348,10 @@ void lock_nodes_list(btree_raw_t *btree, int lock, btree_raw_mem_node_t** list, 
         if(j >= i && !is_overflow(btree, node->pnode) && node->pnode->logical_id != META_LOGICAL_ID+btree->n_partition) {
         dbg_print("list[%d]->logical_id=%ld lock=%p lock=%d\n", i, list[i]->pnode->logical_id, &node->lock, lock);
 
-            if(lock)
-                plat_rwlock_wrlock(&node->lock);
-            else
-                plat_rwlock_unlock(&node->lock);
+        if(lock)
+            node_lock(node, 1);
+        else
+            node_unlock(node);
         }
 
         deref_l1cache_node(btree, node);
@@ -2470,10 +2493,8 @@ btree_raw_mwrite_low(btree_raw_t *btree, btree_mput_obj_t *objs, uint32_t num_ob
 
 	*objs_written = 0;
 
-
 	assert(referenced_nodes_count == 0);
 	plat_rwlock_rdlock(&btree->lock);
-	assert(referenced_nodes_count == 0);
 
 restart:
 	child_id = btree->rootid;
@@ -2489,11 +2510,7 @@ restart:
 mini_restart:
 		(*pathcnt)++;
 
-		if(is_leaf(btree, node) || split_pending) {
-			plat_rwlock_wrlock(&mem_node->lock);
-		} else {
-			plat_rwlock_rdlock(&mem_node->lock);
-		}
+		node_lock(mem_node, is_leaf(btree, node) || split_pending);
 
 		if(!parent && child_id != btree->rootid) {
 			/*
@@ -3130,11 +3147,7 @@ btree_raw_rupdate_low(
 	/*
 	 * Take write lock on leaf nodes and read on other nodes.
 	 */
-	if (is_leaf(btree, mem_node->pnode)) {
-		plat_rwlock_wrlock(&mem_node->lock);
-	} else {
-		plat_rwlock_rdlock(&mem_node->lock);
-	}
+	node_lock(mem_node, is_leaf(btree, mem_node->pnode));
 
 	plat_rwlock_unlock(&parent->lock);
 
@@ -3179,37 +3192,12 @@ btree_raw_rupdate_low_root(
 {
 	btree_raw_mem_node_t *mem_node = NULL;
 	btree_status_t ret = BTREE_SUCCESS;
-	uint64_t node_id;
 
 	plat_rwlock_rdlock(&btree->lock);
 
-restart:
-	node_id = btree->rootid;
-
-	mem_node = get_existing_node_low(&ret, btree, node_id, 1);
-	if (ret != BTREE_SUCCESS) {
-		goto out;	
-	}
-
-	/*
-	 * Take write lock on leaf nodes and read on other nodes.
-	 */
-	if (is_leaf(btree, mem_node->pnode)) {
-		plat_rwlock_wrlock(&mem_node->lock);
-	} else {
-		plat_rwlock_rdlock(&mem_node->lock);
-	}
-
-
-	if (btree->rootid != node_id) {
-		/*
-		 * By the time we take lock on root node, tree
-		 * got split and created another root node.
-		 */
-		plat_rwlock_unlock(&mem_node->lock);
-		goto restart;
-	}
-
+	mem_node = root_get_and_lock(btree, 1);
+	assert(mem_node);
+	ref_l1cache(btree, mem_node);
 
 	if (!is_leaf(btree, mem_node->pnode)) {
 		/*
