@@ -166,4 +166,71 @@ int is_leaf(btree_raw_t *btree, btree_raw_node_t *node);
 void deref_l1cache_node(btree_raw_t* btree, btree_raw_mem_node_t *node);
 btree_raw_mem_node_t* root_get_and_lock(btree_raw_t* btree, int write_lock);
 
+btree_status_t deref_l1cache(btree_raw_t *btree);
+
+node_key_t* btree_raw_find(struct btree_raw *btree, char *key, uint32_t keylen, uint64_t syndrome, btree_metadata_t *meta, btree_raw_mem_node_t** node, int write_lock, int* pathcnt, int match);
+
+void ref_l1cache(btree_raw_t *btree, btree_raw_mem_node_t *n);
+void unlock_and_unreference();
+#define unlock_and_unreference_all_but_last(b) unlock_and_unreference(b, 1)
+#define unlock_and_unreference_all(b) unlock_and_unreference(b, 0)
+
+static inline int key_idx(struct btree_raw *btree, btree_raw_node_t* node, node_key_t* key)
+{
+	int size = sizeof(node_fkey_t);
+
+	if(node->flags & LEAF_NODE)
+		size = sizeof(node_vlkey_t);
+	else if(btree->flags & SECONDARY_INDEX)
+		size = sizeof(node_vkey_t);
+
+	return ((void*)key - (void*)node->keys) / size;
+}
+
+static inline node_key_t* key_offset(struct btree_raw *btree, btree_raw_node_t* node, int nkey)
+{
+	if(node->flags & LEAF_NODE)
+		return (node_key_t*)(((node_vlkey_t *) node->keys) + nkey);
+	else if(btree->flags & SECONDARY_INDEX)
+		return (node_key_t*)(((node_vkey_t *) node->keys) + nkey);
+
+	return ((node_key_t*)((node_vkey_t *) node->keys) + nkey);
+}
+
+inline static
+void get_key_val(btree_raw_t *bt, btree_raw_node_t *n, uint32_t nkey, char** key, int* keylen)
+{
+	if (n->flags & LEAF_NODE) {
+		node_vlkey_t* pvlk = ((node_vlkey_t *) n->keys) + nkey;
+		*key               = (char *) n + pvlk->keypos;
+		*keylen            = pvlk->keylen;
+	}
+	else if (bt->flags & SECONDARY_INDEX) {
+		node_vkey_t* pvk   = ((node_vkey_t *) n->keys) + nkey;
+		*key      = (char *) n + pvk->keypos;
+		*keylen        = pvk->keylen;
+	} else if (bt->flags & SYNDROME_INDEX) {
+		node_fkey_t *pfk   = ((node_fkey_t *) n->keys) + nkey;
+		*key      = (char *) (pfk->key);
+		*keylen        = sizeof(uint64_t);
+	} else {
+		assert(0);
+	}
+}
+
+#ifdef DBG_PRINT
+#define dbg_print(msg, ...) do { fprintf(stderr, "%x %s:%d " msg, (int)pthread_self(), __FUNCTION__, __LINE__, ##__VA_ARGS__); } while(0)
+#define dbg_print_key(key, keylen, msg, ...) do { print_key_func(stderr, __FUNCTION__, __LINE__, key, keylen, msg, ##__VA_ARGS__); } while(0)
+#else
+#define dbg_print(msg, ...)
+#define dbg_print_key(key, keylen, msg, ...)
+#endif
+extern void print_key_func(FILE *f, const char* func, int line, char* key, int keylen, char *msg, ...);
+extern __thread uint64_t dbg_referenced;
+
+#ifdef _OPTIMIZE
+#undef assert
+#define assert(a)
+#endif
+
 #endif // __BTREE_RAW_INTERNAL_H

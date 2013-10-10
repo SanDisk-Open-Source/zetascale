@@ -66,7 +66,8 @@ typedef enum btree_meta_flags {
     OLD_SEQNO_MUST_MATCH = 4,
     UPDATE_IF_NEWER      = 8,
     READ_SEQNO_LE        = 16,
-    READ_SEQNO_GT_LE     = 32
+    READ_SEQNO_GT_LE     = 32,
+    INPLACE_POINTERS      = 1<<18
 } btree_meta_flags_t;
 
 typedef struct btree_metadata {
