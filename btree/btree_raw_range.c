@@ -25,7 +25,7 @@
 #include "btree_raw_internal.h"
 
 //  Define this to include detailed debugging code
-#define DEBUG_STUFF
+//#define DEBUG_STUFF
 
 
 /*********************************************************

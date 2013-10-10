@@ -1059,6 +1059,7 @@ typedef enum {
 	FDF_RANGE_PRIMARY_KEY          = 1<<16, // return primary keys in secondary index query
 	FDF_RANGE_INDEX_USES_DATA      = 1<<17, // Indicates that secondary index key 
 	                                        // is derived from object data
+	FDF_RANGE_INPLACE_POINTERS      = 1<<18,  // 
 } FDF_range_enums_t;
 
 /*

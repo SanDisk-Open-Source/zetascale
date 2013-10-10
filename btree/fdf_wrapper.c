@@ -1902,6 +1902,9 @@ static int lex_cmp_cb(void *data, char *key1, uint32_t keylen1, char *key2, uint
 
     N_cmp++;
 
+    /* Handle open-left-end of a query */
+    if(!key1) return -1;
+
     cmp_len = keylen1 < keylen2 ? keylen1: keylen2;
 
     x = memcmp(key1, key2, cmp_len);

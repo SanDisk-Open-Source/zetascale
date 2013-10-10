@@ -55,6 +55,8 @@ typedef enum {
 	RANGE_KEYS_ONLY            = 1<<15, // only return keys (data is not required)
 
 	RANGE_PRIMARY_KEY          = 1<<16, // return primary keys in secondary index query
+
+	RANGE_INPLACE_POINTERS     = 1<<18, // Return inplace pointers to key and data in the node
 } btree_range_flags_t;
 
 #define BTREE_RANGE_PRIMARY_INDEX   0
@@ -79,12 +81,11 @@ typedef struct btree_range_meta {
 } btree_range_meta_t;
 
 typedef struct {
-	btree_t              *btree;       // BTree we are operating on. We might need this for joins??
+	struct btree_raw              *btree;       // BTree we are operating on. We might need this for joins??
 	btree_range_meta_t   *query_meta;  // Metadata for this current search
-	btree_indexid_t      indexid;      // Index ID of the search
-	char                 *last_key;    // Key where we left off
-	uint32_t             last_keylen;  // Keylen of previous key
-        btree_status_t       last_status;  // Status of last query
+	struct btree_raw_mem_node *node;
+	int cur_idx;
+	int end_idx;
 } btree_range_cursor_t;
 
 /* Start an index query.
