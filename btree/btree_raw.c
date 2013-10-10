@@ -87,6 +87,9 @@ static int Verbose = 0;
 #define RIGHT 0
 #define LEFT 1
 
+#define READ 0
+#define WRITE 1
+
 #define MODIFY_TREE 1
 #define META_COUNTER_SAVE_INTERVAL 100000
 
@@ -982,11 +985,18 @@ void node_lock(btree_raw_mem_node_t* node, int write_lock)
 		plat_rwlock_wrlock(&node->lock);
 	else
 		plat_rwlock_rdlock(&node->lock);
+#ifdef DEBUF_STUFF
+	if(write_lock)
+		node->lock_id = pthread_self();
+#endif
 }
 
 inline static
 void node_unlock(btree_raw_mem_node_t* node)
 {
+#ifdef DEBUF_STUFF
+	node->lock_id = 0;
+#endif
 	plat_rwlock_unlock(&node->lock);
 }
 
@@ -1072,7 +1082,7 @@ btree_status_t btree_raw_get(struct btree_raw *btree, char *key, uint32_t keylen
 
     dbg_print_key(key, keylen, "after ret=%d lic=%ld keyrec %p", ret, btree->logical_id_counter, keyrec);
 
-    plat_rwlock_unlock(&node->lock);
+	node_unlock(node);
     deref_l1cache_node(btree, node);
 
     __sync_add_and_fetch(&(btree->stats.stat[BTSTAT_GET_CNT]), 1);
@@ -1163,7 +1173,14 @@ btree_status_t deref_l1cache(btree_raw_t *btree)
             j++;
 
         if(j >= i)
+		{
+			uint64_t logical_id = n->pnode->logical_id;
 	btree->write_node_cb(&ret, btree->write_node_cb_data, n->pnode->logical_id, (char*)n->pnode, btree->nodesize);
+	assert(logical_id == n->pnode->logical_id);
+#ifdef DEBUF_STUFF
+	assert(n->lock_id == pthread_self() || logical_id == META_LOGICAL_ID+btree->n_partition);
+#endif
+		}
 
         mark_node_clean(n);
         deref_l1cache_node(btree, n);
@@ -1217,7 +1234,7 @@ void unlock_and_unreference(btree_raw_t* btree, int last)
 	for(i = 0; i < referenced_nodes_count - last; i++)
 	{
 		n = referenced_nodes[i];
-		plat_rwlock_unlock(&n->lock);
+		node_unlock(n);
 		deref_l1cache_node(btree, n);
 	}
 
@@ -1323,7 +1340,7 @@ void lock_nodes_list(btree_raw_t *btree, int lock, btree_raw_mem_node_t** list, 
         dbg_print("list[%d]->logical_id=%ld lock=%p lock=%d\n", i, list[i]->pnode->logical_id, &node->lock, lock);
 
         if(lock)
-            node_lock(node, 1);
+            node_lock(node, WRITE);
         else
             node_unlock(node);
         }
@@ -1367,6 +1384,7 @@ retry:
 	    //  look for the node the hard way
 			//  If we don't look at the ret code, why does read_node_cb need one?
 			pnode = (btree_raw_node_t*)btree->read_node_cb(ret, btree->read_node_cb_data, logical_id);
+			assert(logical_id == pnode->logical_id);
 			if (pnode == NULL) {
 				*ret = BTREE_FAILURE;
 				return(NULL);
@@ -2520,7 +2538,7 @@ mini_restart:
 			 * While we reach here it is possible that root got changed.
 			 */
 			__sync_add_and_fetch(&(btree->stats.stat[BTSTAT_PUT_RESTART_CNT]), 1);
-			plat_rwlock_unlock(&mem_node->lock);
+			node_unlock(mem_node);
 			if (BTREE_SUCCESS != deref_l1cache(btree)) {
 				assert(0);
 			}
@@ -2536,7 +2554,7 @@ mini_restart:
 				 objs[0].data_len, meta, syndrome, write_type, pkrec)) {
 
 			if(parent && (!parent_write_locked || !is_node_dirty(parent))) {
-				plat_rwlock_unlock(&parent->lock);
+				node_unlock(parent);
 			}
 
 			/*
@@ -2559,7 +2577,7 @@ mini_restart:
 		if(!split_pending && (!is_leaf(btree, node) ||
 			    (parent && !parent_write_locked))) {
 
-			plat_rwlock_unlock(&mem_node->lock);
+			node_unlock(mem_node);
 
 			if(parent) {
 				uint64_t save_modified = parent->modified;
@@ -2569,12 +2587,12 @@ mini_restart:
 				 * parent->modified state used to check if anything
 				 * changed during that promotion.
 				 */
-				plat_rwlock_unlock(&parent->lock);
-				plat_rwlock_wrlock(&parent->lock);
+				node_unlock(parent);
+				node_lock(parent, WRITE);
 
 				if(parent->modified != save_modified) {
 					__sync_add_and_fetch(&(btree->stats.stat[BTSTAT_PUT_RESTART_CNT]), 1);
-					plat_rwlock_unlock(&parent->lock);
+					node_unlock(parent);
 					parent = NULL;
 					parent_nkey_child = -1;
 
@@ -2610,7 +2628,7 @@ mini_restart:
 				goto err_exit;
 			}
 
-			plat_rwlock_wrlock(&parent->lock);
+			node_lock(parent, WRITE);
 			parent_write_locked = 1;
 
 			dbg_print("root split %ld new root %ld\n",
@@ -2634,7 +2652,7 @@ mini_restart:
 			goto err_exit;
 		}
 
-		plat_rwlock_wrlock(&new_node->lock);
+		node_lock(new_node, WRITE);
 
 		split_pending = 0;
 
@@ -2697,8 +2715,7 @@ mini_restart:
 	 * So no point of keeping it locked.
 	 */
 	if (ret != BTREE_SUCCESS && !is_node_dirty(mem_node)) {
-		plat_rwlock_unlock(&mem_node->lock);
-		
+		node_unlock(mem_node);
 	}
 
 	/*
@@ -3038,7 +3055,7 @@ exit:
 	 * so release the lock explicitly.
 	 */
 	if (no_modify) {
-		plat_rwlock_unlock(&node->lock);
+		node_unlock(node);
 	}
 
 	/*
@@ -3144,7 +3161,7 @@ btree_raw_rupdate_low(
 
 	mem_node = get_existing_node_low(&ret, btree, node_id, 1);
 	if (ret != BTREE_SUCCESS) {
-		plat_rwlock_unlock(&parent->lock);
+		node_unlock(parent);
 		return ret;
 	}
 
@@ -3153,7 +3170,7 @@ btree_raw_rupdate_low(
 	 */
 	node_lock(mem_node, is_leaf(btree, mem_node->pnode));
 
-	plat_rwlock_unlock(&parent->lock);
+	node_unlock(parent);
 
 	if (!is_leaf(btree, mem_node->pnode)) {
 		/*
@@ -3334,7 +3351,7 @@ static btree_status_t btree_raw_flush_low(btree_raw_t *btree, char *key, uint32_
       btree->flush_node_cb(&ret, btree->flush_node_cb_data, (uint64_t) node->pnode->logical_id);
 
     deref_l1cache_node(btree, node);
-    plat_rwlock_unlock(&node->lock);
+	node_unlock(node);
 
     return ret;
 }
@@ -3503,7 +3520,7 @@ btree_status_t btree_raw_delete(struct btree_raw *btree, char *key, uint32_t key
 		__sync_add_and_fetch(&(btree->stats.stat[BTSTAT_DELETE_OPT_CNT]),1);
     } else {
         deref_l1cache_node(btree, node);
-        plat_rwlock_unlock(&node->lock);
+		node_unlock(node);
     }
 
     plat_rwlock_unlock(&btree->lock);
@@ -3528,6 +3545,10 @@ btree_status_t btree_raw_delete(struct btree_raw *btree, char *key, uint32_t key
 
     dbg_print("dbg_referenced %ld\n", dbg_referenced);
     assert(!dbg_referenced);
+
+    dbg_print_key(key, keylen, "pessimistic ret=%d keyrec=%d, opt=%d", ret, keyrec, opt);
+
+	//assert(0);
 
     /* Need tree restructure. Write lock whole tree and retry */
     plat_rwlock_wrlock(&btree->lock);

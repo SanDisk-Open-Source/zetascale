@@ -99,6 +99,7 @@ struct btree_raw_mem_node {
 	uint64_t modified;
 #ifdef DEBUG_STUFF
 	uint64_t last_dump_modified;
+	pthread_t lock_id;
 #endif
 	plat_rwlock_t lock;
 	btree_raw_mem_node_t *next; // dirty list
