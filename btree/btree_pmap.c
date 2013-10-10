@@ -19,7 +19,11 @@
 #include "btree_hash.h"
 #include <assert.h>
 
+#ifndef _OPTIMIZE
 #define map_assert(x) assert(x)
+#else
+#define map_assert(x)
+#endif
 
 struct PMap {
     struct Map** parts;

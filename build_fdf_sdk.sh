@@ -3,6 +3,14 @@
 set -e
 export WD=$(readlink -f $(dirname $0))
 
+while [ $# -gt 0 ]; do
+	[ "$1" == "--optimize" ] && optimize=$1
+	[ "$1" == "--test" ] && run_tests=$1
+	[ "$1" == "--pkg" ] && pkg=$1
+	[ "$1" == "--trace" ] && TRACE=ON
+	shift
+done
+
 [ -n "${FDF_SDK_VERSION}" ] || export FDF_SDK_VERSION=2.0
 [ -n "${BUILD_NUMBER}" ] || export BUILD_NUMBER=$(date +%s)
 #
@@ -30,7 +38,7 @@ PKG_TEST=fdf_sdk_test_package-$VERSION
 
 [ -n "$BRANCH" ] && PKG_NAME=$PKG_NAME-$BRANCH && PKG_TEST=$PKG_TEST-$BRANCH
 
-if [ "$1" != "--optimize" ] && [ "$2" != "--optimize" ] && [ "$3" != "--optimize" ]; then
+if [ -z "$optimize" ]; then
 	PKG_NAME=$PKG_NAME-dbg
 	PKG_TEST=$PKG_TEST-dbg
 	DBG=ON
@@ -44,7 +52,7 @@ mkdir -p $SDK_DIR/{config,lib,include,samples}
 
 echo "Building DEBUG=$DBG shared lib"
 rm -f CMakeCache.txt
-cmake $WD -DNCPU=$NCPU -DDEBUG=$DBG -DFDF_REVISION="$VERSION"
+cmake $WD -DNCPU=$NCPU -DDEBUG=$DBG -DFDF_REVISION="$VERSION" -DTRACE=$TRACE
 make -j $NCPU
 
 #Packaging
@@ -60,7 +68,7 @@ cp -a $WD/api/tests/conf/fdf_sample.prop $SDK_DIR/config/
 #
 cd $SDK_DIR/..
 tar --exclude=.svn --exclude=.git --exclude=libfdf.a -czf $WD/$PKG_NAME.tar.gz $PKG_NAME
-if [ "$1" == "--pkg" ] || [ "$2" == "--pkg" ] || [ "$3" == "--pkg" ]; then
+if [ -n "$pkg" ]; then
     rm -fr $PKG_TEST 
     mkdir -p $PKG_TEST/FDF_SDK_Test_Package/FDF_test/FDF_unit_test
     cp -av $WD/api/tests/* $PKG_TEST/FDF_SDK_Test_Package/FDF_test/FDF_unit_test
@@ -73,15 +81,15 @@ fi
 echo -e "\n** BUILD SUCCESSFUL **\n"
 
 #Running tests
-if [ "$1" == "--test" ] || [ "$2" == "--test" ] || [ "$3" == "--test" ]; then
+if [ -n "$run_tests" ]; then
 	cd $WD
 
 	export BTREE_LIB=$WD/output/lib/libbtree.so
 	export FDF_LIB=$WD/output/lib/libfdf.so
 	export FDF_PROPERTY_FILE=$WD/api/tests/conf/fdf.prop
 
-	ctest
-	#ctest -j$NCPU
+#ctest
+	ctest -j$NCPU
 fi
 
 echo -e "\nVariables:\nexport BTREE_LIB=$WD/output/lib/libbtree.so\nexport FDF_LIB=$WD/output/lib/libfdf.so\nexport FDF_PROPERTY_FILE=$WD/api/tests/conf/fdf.prop\n"

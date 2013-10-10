@@ -43,7 +43,11 @@ static void _map_assert(int x) {
 	assert(0);
     }
 }
+#ifndef _OPTIMIZE
 #define map_assert(x) _map_assert((x) == 0)
+#else
+#define map_assert(x)
+#endif
 
 //#define do_lock(x)  {if (pm->use_locks) { pthread_mutex_lock(x); }}
 //#define do_unlock(x) {if (pm->use_locks) { pthread_mutex_unlock(x); }}
