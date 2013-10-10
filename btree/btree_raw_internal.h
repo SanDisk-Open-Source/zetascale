@@ -218,6 +218,13 @@ void get_key_val(btree_raw_t *bt, btree_raw_node_t *n, uint32_t nkey, char** key
 	}
 }
 
+int bsearch_key_low(btree_raw_t *bt, btree_raw_node_t *n, char *key_in,
+		uint32_t keylen_in, uint64_t syndrome, int i_start, int i_end, int *found, int flags);
+
+#define BSF_LEFT 1
+#define BSF_RIGHT 2
+#define BSF_MATCH 4
+
 #ifdef DBG_PRINT
 #define dbg_print(msg, ...) do { fprintf(stderr, "%x %s:%d " msg, (int)pthread_self(), __FUNCTION__, __LINE__, ##__VA_ARGS__); } while(0)
 #define dbg_print_key(key, keylen, msg, ...) do { print_key_func(stderr, __FUNCTION__, __LINE__, key, keylen, msg, ##__VA_ARGS__); } while(0)

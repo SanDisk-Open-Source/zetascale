@@ -591,6 +591,80 @@ int get_key_stuff(btree_raw_t *bt, btree_raw_node_t *n, uint32_t nkey, key_stuff
     return(leaf);
 }
 
+/* Returns an index of key_in in the node.
+   Return negative value when key_in is not found. Absolute value of the
+   return value signifies position where the key_in would be inserted.
+   Flags can be one of:
+       BSF_MATCH - find first matching value
+       BSF_LEFT  - find leftmost key_in if there are several of them
+       BSF_RIGHT - return an index of the first value greater then key_in
+*/
+
+int bsearch_key_low(btree_raw_t *bt, btree_raw_node_t *n, char *key_in,
+		uint32_t keylen_in, uint64_t syndrome, int i_start, int i_end, int *found, int flags)
+{
+	int i_check, x, i_start_x = -1, i_end_x = -1;
+	key_stuff_t ks;
+
+	if(found) *found = 1;
+
+	while (i_end - i_start > 1)
+	{
+		i_check = i_start + (i_end - i_start) / 2;
+
+		(void) get_key_stuff(bt, n, i_check, &ks);
+
+		if (!ks.fixed && !(bt->flags & SYNDROME_INDEX))
+			x = bt->cmp_cb(bt->cmp_cb_data, key_in, keylen_in, ks.pkey_val, ks.keylen);
+		else
+			x = syndrome - ks.syndrome;
+
+		if(!x && (flags & BSF_MATCH))
+			return i_check;
+
+		if (x < 0 || ((flags & BSF_LEFT) && !x))
+		{
+			i_end = i_check;
+			i_end_x = x;
+		}
+		else
+		{
+			i_start = i_check;
+			i_start_x = x;
+		}
+	}
+
+	if((flags & BSF_LEFT) && i_end < n->nkeys && !i_end_x)
+		return i_end;
+
+	if(!(flags & BSF_LEFT) && i_start >= 0 && !i_start_x)
+		return (flags & BSF_RIGHT) ? i_start + 1 : i_start;
+
+	if(found) *found = 0;
+
+	return i_end;
+}
+
+static node_key_t *bsearch_key(btree_raw_t *bt, btree_raw_node_t *n, char *key_in, uint32_t keylen_in, uint64_t *child_id, uint64_t syndrome, int flags)
+{
+	int x, found;
+	key_stuff_t ks;
+
+	x = bsearch_key_low(bt, n, key_in, keylen_in, syndrome, -1, n->nkeys, &found, flags);
+
+	*child_id = BAD_CHILD;
+
+	if(x < n->nkeys)
+		get_key_stuff(bt, n, x, &ks);
+
+	if(is_leaf(bt, n))
+		return (((flags & BSF_MATCH) && !found) || x == n->nkeys) ? NULL : ks.pkey_struct;
+
+    *child_id = x == n->nkeys ? n->rightmost : ks.ptr;
+
+	return found ? ks.pkey_struct : NULL;
+}
+
 /*
  *  Returns: key structure which matches 'key', if one is found; NULL otherwise
  *           'pk_insert' returns a pointer to the key struct that would FOLLOW 'key' on 
@@ -610,389 +684,59 @@ int get_key_stuff(btree_raw_t *bt, btree_raw_node_t *n, uint32_t nkey, key_stuff
  *    set to n->nkeys.  If there is no valid child_id (nonleaf) or matching record (leaf),
  *    nkey_child is set to -1.
  */
-
 static node_key_t *find_key(btree_raw_t *bt, btree_raw_node_t *n, char *key_in, uint32_t keylen_in, uint64_t *child_id, uint64_t *child_id_before, uint64_t *child_id_after, node_key_t **pk_insert, btree_metadata_t *meta, uint64_t syndrome, int32_t *nkey_child)
 {
-    int            i_start, i_end, i_check, x;
-    int            i_check_old;
-    node_key_t    *pk = NULL;
-    uint64_t       id_child;
-    key_stuff_t    ks;
-    int            key_found = 0;
+	int x, found;
+	node_key_t    *pk = NULL;
+	uint64_t       id_child;
+	key_stuff_t    ks;
 
-    if (n->nkeys == 0) {
-        if (n->rightmost == 0) {
-	    *child_id        = BAD_CHILD;
-	    *nkey_child      = -1;
-	    *child_id_before = BAD_CHILD;
-	    *child_id_after  = BAD_CHILD;
-	    *pk_insert       = NULL;
-	} else {
-	    // YES, this is really possible!
-	    // For example, when the root is a leaf and overflows on an insert.
-	    *child_id        = n->rightmost;
-	    *nkey_child      = 0;
-	    *child_id_before = BAD_CHILD;
-	    *child_id_after  = BAD_CHILD;
-	    *pk_insert       = NULL;
-	}
-        assert(!is_leaf(bt, n) || *child_id == BAD_CHILD);
-        return(NULL);
-    }
+	*child_id_before = *child_id = *child_id_after = BAD_CHILD;
+	*nkey_child      = -1;
+	*pk_insert       = NULL;
 
-    i_start     = 0;
-    i_end       = n->nkeys - 1;
-    i_check     = (i_start + i_end)/2;
-    i_check_old = i_check;
-    while (1) {
+	assert(n->nkeys || is_root(bt, n));
 
-        (void) get_key_stuff(bt, n, i_check, &ks);
-	pk = ks.pkey_struct;
-	id_child = ks.ptr;
-
-        if (ks.fixed) {
-	    if (syndrome < ks.syndrome) {
-		x = -1;
-	    } else if (syndrome > ks.syndrome) {
-		x = 1;
-	    } else {
-		x = 0;
-	    }
-	} else {
-	    if (bt->flags & SYNDROME_INDEX) {
-		if (syndrome < ks.syndrome) {
-		    x = -1;
-		} else if (syndrome > ks.syndrome) {
-		    x = 1;
-		} else {
-		    x = 0;
-		}
-	    } else {
-		x = bt->cmp_cb(bt->cmp_cb_data, key_in, keylen_in, ks.pkey_val, ks.keylen);
-	    }
+	if (n->nkeys == 0 && n->rightmost != 0) {
+		// YES, this is really possible!
+		// For example, when the root is a leaf and overflows on an insert.
+		*child_id = n->rightmost;
+		*nkey_child = 0;
+		return(NULL);
 	}
 
-        if ((x == 0) &&
-            ((meta->flags & READ_SEQNO_LE) || 
-             (meta->flags & READ_SEQNO_GT_LE)))
-        {
-            //  Must take sequence numbers into account
+	x = bsearch_key_low(bt, n, key_in, keylen_in, syndrome, -1, n->nkeys, &found, BSF_MATCH);
 
-            if (meta->flags & READ_SEQNO_LE) {
-                if (ks.seqno > meta->seqno_le) {
-                    x = -1; // higher sequence numbers go BEFORE lower ones!
-                }
-            } else if (meta->flags & READ_SEQNO_LE) {
-                if (ks.seqno > meta->seqno_le) {
-                    x = -1; // higher sequence numbers go BEFORE lower ones!
-                } else if (ks.seqno <= meta->seqno_gt) {
-                    x = 1; // lower sequence numbers go AFTER lower ones!
-                }
-            } else {
-                assert(0);
-            }
-        }
-
-        if (x > 0) {
-            //  key > pvk->key
-            if (i_check == (n->nkeys-1)) {
-                // key might be in rightmost child
-                if(is_leaf(bt, n))
-                    *child_id        = BAD_CHILD;
-                else
-                    *child_id        = n->rightmost;
-		*nkey_child      = n->nkeys;
-		*child_id_before = id_child;
-                *child_id_after  = BAD_CHILD;
-                *pk_insert       = NULL;
-                assert(!is_leaf(bt, n) || *child_id == BAD_CHILD);
-                return(NULL);
-            }
-            i_start     = i_check + 1;
-        } else if (x < 0) {
-            //  key < pvk->key
-            if (i_check == 0) {
-                // key might be in leftmost child for non-leaf nodes
-                if (is_leaf(bt, n)) {
-                    *child_id        = BAD_CHILD;
-                    *nkey_child      = -1;
-                } else {
-                    *child_id        = id_child;
-                    *nkey_child      = i_check;
-                }
-                *child_id_before = BAD_CHILD;
-		if (i_check == (n->nkeys-1)) {
-		    *child_id_after = n->rightmost;
-		} else {
-		    (void) get_key_stuff(bt, n, i_check+1, &ks);
-		    *child_id_after = ks.ptr;
-		}
-                *pk_insert      = (node_key_t *) n->keys;
-                assert(!is_leaf(bt, n) || *child_id == BAD_CHILD);
-                return(NULL);
-            }
-            i_end       = i_check;
-        } else {
-            //  key == pvk->key
-	    key_found = 1;
-        }
-
-	i_check_old = i_check;
-	i_check     = (i_start + i_end)/2;
-
-	if (key_found || 
-	    (i_check_old == i_check)) 
-	{
-	    //  this is the end of the search
-
-	    *child_id   = id_child;
-	    *nkey_child = i_check;
-	    *pk_insert  = pk;
-
-	    if (i_check == 0) {
-		*child_id_before = BAD_CHILD;
-	    } else {
-		get_key_stuff(bt, n, i_check-1, &ks);
-		*child_id_before = ks.ptr;
-	    }
-
-	    if (i_check >= (n->nkeys-1)) {
-		if (x > 0) {
-		    *child_id        = n->rightmost;
-		    *child_id_after  = BAD_CHILD;
-		    *nkey_child      = n->nkeys;
-		    *pk_insert       = NULL;
-		} else {
-		    *child_id_after  = n->rightmost;
-		}
-	    } else {
-		get_key_stuff(bt, n, i_check+1, &ks);
-		*child_id_after = ks.ptr;
-	    }
-
-            if (n->flags & LEAF_NODE) {
-                *child_id_before = BAD_CHILD;
-                *child_id_after  = BAD_CHILD;
-                *child_id  = BAD_CHILD;
-	    }
-
-            if (!key_found) {
-		pk = NULL;
-	    }
-
-            assert(!is_leaf(bt, n) || *child_id == BAD_CHILD);
-	    return(pk);
+	if(x < n->nkeys) {
+		get_key_stuff(bt, n, x, &ks);
+		*pk_insert  = ks.pkey_struct;
 	}
-    }
-    assert(0);  // we should never get here!
-}
-/*
-static node_key_t *find_key(btree_raw_t *bt, btree_raw_node_t *n, char *key_in, uint32_t keylen_in, uint64_t *child_id, uint64_t *child_id_before, uint64_t *child_id_after, node_key_t **pk_insert, btree_metadata_t *meta, uint64_t syndrome, int32_t *nkey_child)
-{
-    int            i_start, i_end, i_check, x;
-    node_key_t    *pk = NULL;
-    uint64_t       id_child;
-    key_stuff_t    ks;
-    int            key_found = 0;
 
-    if (n->nkeys == 0) {
-        if (n->rightmost == 0) {
-	    *child_id        = BAD_CHILD;
-	    *nkey_child      = -1;
-	    *child_id_before = BAD_CHILD;
-	    *child_id_after  = BAD_CHILD;
-	    *pk_insert       = NULL;
-	} else {
-	    // YES, this is really possible!
-	    // For example, when the root is a leaf and overflows on an insert.
-	    *child_id        = n->rightmost;
-	    *nkey_child      = 0;
-	    *child_id_before = BAD_CHILD;
-	    *child_id_after  = BAD_CHILD;
-	    *pk_insert       = NULL;
+	if(is_leaf(bt, n))
+		return !found ? NULL : *pk_insert;
+
+	if(x < n->nkeys) {
+		*child_id = ks.ptr;
+		*nkey_child = x;
+	} else /*if (x == n->nkeys) */ {
+		*child_id = n->rightmost;
+		*nkey_child = n->nkeys;
 	}
-        assert(!is_leaf(bt, n) || *child_id == BAD_CHILD);
-        return(NULL);
-    }
 
-    i_start     = 0;
-    i_end       = n->nkeys - 1;
-    i_check_old = i_check;
-    while (i_start <= i_end)
-    {
-	i_check = (i_start + i_end)/2;
-
-        (void) get_key_stuff(bt, n, i_check, &ks);
-	pk = ks.pkey_struct;
-	id_child = ks.ptr;
-
-	if (ks.fixed || bt->flags & SYNDROME_INDEX) {
-	    if (syndrome < ks.syndrome) {
-		x = -1;
-	    } else if (syndrome > ks.syndrome) {
-		x = 1;
-	    } else {
-		x = 0;
-	    }
-	} else
-	    x = bt->cmp_cb(bt->cmp_cb_data, key_in, keylen_in, ks.pkey_val, ks.keylen);
-
-        if ((x == 0) &&
-            ((meta->flags & READ_SEQNO_LE) || 
-             (meta->flags & READ_SEQNO_GT_LE)))
-        {
-            //  Must take sequence numbers into account
-
-            if (meta->flags & READ_SEQNO_LE) {
-                if (ks.seqno > meta->seqno_le) {
-                    x = -1; // higher sequence numbers go BEFORE lower ones!
-                }
-            } else if (meta->flags & READ_SEQNO_LE) {
-                if (ks.seqno > meta->seqno_le) {
-                    x = -1; // higher sequence numbers go BEFORE lower ones!
-                } else if (ks.seqno <= meta->seqno_gt) {
-                    x = 1; // lower sequence numbers go AFTER lower ones!
-                }
-            } else {
-                assert(0);
-            }
-        }
-
-        if (x > 0)
-            i_start = i_check + 1;
-        else
-            i_end = i_check - 1;
-    }
-
-    if (i_check == 0) {
-	*child_id_before = BAD_CHILD;
-    } else {
-	get_key_stuff(bt, n, i_check - 1, &ks);
-	*child_id_before = ks.ptr;
-    }
-
-    if (i_check == (n->nkeys-1)) {
 	if (x > 0) {
-	    *child_id        = n->rightmost;
-	    *child_id_after  = BAD_CHILD;
-	    *nkey_child      = n->nkeys;
-	    *pk_insert       = NULL;
-	} else {
-	    *child_id_after  = n->rightmost;
-	}
-    } else {
-	get_key_stuff(bt, n, i_check + 1, &ks);
-	*child_id_after = ks.ptr;
-    }
-
-        if (x > 0) {
-            //  key > pvk->key
-            if (i_check == (n->nkeys-1)) {
-                // key might be in rightmost child
-                if(is_leaf(bt, n))
-                    *child_id        = BAD_CHILD;
-                else
-                    *child_id        = n->rightmost;
-		*nkey_child      = n->nkeys;
-		*child_id_before = id_child;
-                *child_id_after  = BAD_CHILD;
-                *pk_insert       = NULL;
-                assert(!is_leaf(bt, n) || *child_id == BAD_CHILD);
-                return(NULL);
-            }
-            i_start     = i_check + 1;
-        } else if (x < 0) {
-            //  key < pvk->key
-            if (i_check == 0) {
-                // key might be in leftmost child for non-leaf nodes
-                if (is_leaf(bt, n)) {
-                    *child_id        = BAD_CHILD;
-                    *nkey_child      = -1;
-                } else {
-                    *child_id        = id_child;
-                    *nkey_child      = i_check;
-                }
-                *child_id_before = BAD_CHILD;
-		if (i_check == (n->nkeys-1)) {
-		    *child_id_after = n->rightmost;
-		} else {
-		    (void) get_key_stuff(bt, n, i_check+1, &ks);
-		    *child_id_after = ks.ptr;
-		}
-                *pk_insert      = (node_key_t *) n->keys;
-                assert(!is_leaf(bt, n) || *child_id == BAD_CHILD);
-                return(NULL);
-            }
-            i_end       = i_check;
-        } else {
-            //  key == pvk->key
-	    key_found = 1;
-        }
-
-	i_check_old = i_check;
-	i_check     = (i_start + i_end)/2;
-
-	if (key_found || 
-	    (i_check_old == i_check)) 
-	{
-	    //  this is the end of the search
-
-	    *child_id   = id_child;
-	    *nkey_child = i_check;
-	    *pk_insert  = pk;
-
-	    if (i_check == 0) {
-		*child_id_before = BAD_CHILD;
-	    } else {
-		get_key_stuff(bt, n, i_check-1, &ks);
+		get_key_stuff(bt, n, x - 1, &ks);
 		*child_id_before = ks.ptr;
-	    }
-
-	    if (i_check >= (n->nkeys-1)) {
-		if (x > 0) {
-		    *child_id        = n->rightmost;
-		    *child_id_after  = BAD_CHILD;
-		    *nkey_child      = n->nkeys;
-		    *pk_insert       = NULL;
-		} else {
-		    *child_id_after  = n->rightmost;
-		}
-	    } else {
-		get_key_stuff(bt, n, i_check+1, &ks);
-		*child_id_after = ks.ptr;
-	    }
-
-            if (n->flags & LEAF_NODE) {
-                *child_id_before = BAD_CHILD;
-                *child_id_after  = BAD_CHILD;
-                *child_id  = BAD_CHILD;
-	    }
-
-            if (!key_found) {
-		pk = NULL;
-	    }
-
-            assert(!is_leaf(bt, n) || *child_id == BAD_CHILD);
-	    return(pk);
 	}
-    }
-    assert(0);  // we should never get here!
+
+	if(x < n->nkeys - 1) {
+		get_key_stuff(bt, n, x + 1, &ks);
+		*child_id_after = ks.ptr;
+	}
+	else if (x == n->nkeys - 1)
+		*child_id_after  = n->rightmost;
+
+	return !found ? NULL : *pk_insert;
 }
-*/
-
-static node_key_t *bsearch_key(btree_raw_t *bt, btree_raw_node_t *n, char *key_in, uint32_t keylen_in, uint64_t *child_id, btree_metadata_t *meta, uint64_t syndrome, int match)
-{
-    node_key_t       *pk_insert, *key;
-    uint64_t          child_id_before, child_id_after;
-    int32_t           nkey_child;
-
-    key = find_key(bt, n, key_in, keylen_in, child_id, &child_id_before, &child_id_after, &pk_insert, meta, syndrome, &nkey_child);
-
-    /* Return position, where the key would be inserted, if key
-       is not found and no exact match requested */
-    return (key || match) ? key : pk_insert;
-}
-
 
 static char *get_buffer(btree_raw_t *btree, uint64_t nbytes)
 {
@@ -1273,7 +1017,7 @@ root_get_and_lock(btree_raw_t* btree, int write_lock)
 }
 
 /* Caller is responsible for leaf_lock unlock and node dereferencing */
-node_key_t* btree_raw_find(struct btree_raw *btree, char *key, uint32_t keylen, uint64_t syndrome, btree_metadata_t *meta, btree_raw_mem_node_t** node, int write_lock, int* pathcnt, int match)
+node_key_t* btree_raw_find(struct btree_raw *btree, char *key, uint32_t keylen, uint64_t syndrome, btree_metadata_t *meta, btree_raw_mem_node_t** node, int write_lock, int* pathcnt, int flags)
 {
     btree_raw_mem_node_t *parent;
     btree_status_t    ret = BTREE_SUCCESS;
@@ -1283,7 +1027,7 @@ node_key_t* btree_raw_find(struct btree_raw *btree, char *key, uint32_t keylen, 
 	assert(*node);
 
     while(!is_leaf(btree, (*node)->pnode)) {
-        (void)bsearch_key(btree, (*node)->pnode, key, keylen, &child_id, meta, syndrome, match);
+        (void)bsearch_key(btree, (*node)->pnode, key, keylen, &child_id, syndrome, flags);
         assert(child_id != BAD_CHILD);
 
         parent = *node;
@@ -1299,7 +1043,7 @@ node_key_t* btree_raw_find(struct btree_raw *btree, char *key, uint32_t keylen, 
         (*pathcnt)++;
     }
 
-    return bsearch_key(btree, (*node)->pnode, key, keylen, &child_id, meta, syndrome, match);
+    return bsearch_key(btree, (*node)->pnode, key, keylen, &child_id, syndrome, flags);
 }
 
 extern __thread long long locked;
@@ -1317,7 +1061,7 @@ btree_status_t btree_raw_get(struct btree_raw *btree, char *key, uint32_t keylen
 
     plat_rwlock_rdlock(&btree->lock);
 
-    keyrec = btree_raw_find(btree, key, keylen, syndrome, meta, &node, 0 /* shared */, &pathcnt, 1 /* Exact match */);
+    keyrec = btree_raw_find(btree, key, keylen, syndrome, meta, &node, 0 /* shared */, &pathcnt, BSF_MATCH);
 
     plat_rwlock_unlock(&btree->lock);
 
@@ -2301,7 +2045,7 @@ static void delete_key(btree_status_t *ret, btree_raw_t *btree, btree_raw_mem_no
 
     if (*ret) { return; }
 
-    pk_delete = bsearch_key(btree, node->pnode, key, keylen, &child_id, meta, syndrome, 1);
+    pk_delete = bsearch_key(btree, node->pnode, key, keylen, &child_id, syndrome, BSF_MATCH);
 
     if (pk_delete == NULL) {
 	*ret = BTREE_KEY_NOT_FOUND; 
@@ -3574,7 +3318,7 @@ static btree_status_t btree_raw_flush_low(btree_raw_t *btree, char *key, uint32_
 
     plat_rwlock_rdlock(&btree->lock);
 
-    pkrec = btree_raw_find(btree, key, keylen, syndrome, &meta, &node, 1 /* EX */, &pathcnt, 1 /* Exact match */);
+    pkrec = btree_raw_find(btree, key, keylen, syndrome, &meta, &node, 1 /* EX */, &pathcnt, BSF_MATCH);
 
     plat_rwlock_unlock(&btree->lock);
 
@@ -3740,7 +3484,7 @@ btree_status_t btree_raw_delete(struct btree_raw *btree, char *key, uint32_t key
 
     plat_rwlock_rdlock(&btree->lock);
 
-    keyrec = btree_raw_find(btree, key, keylen, syndrome, meta, &node, 1 /* EX */, &pathcnt, 1 /* Exact match */);
+    keyrec = btree_raw_find(btree, key, keylen, syndrome, meta, &node, 1 /* EX */, &pathcnt, BSF_MATCH);
 
     /* Check if delete without restructure is possible */
     opt = keyrec && _keybuf && !is_leaf_minimal_after_delete(btree, node->pnode, (node_vlkey_t*)keyrec);
