@@ -369,7 +369,10 @@ btree_range_get_next_fast(btree_range_cursor_t *c,
 			if(*n_out >= n_in)
 				break;
 
-			ret = populate_output_array(c, cur->node, &cur->cur_idx, cur->end_idx, n_in, n_out, values);
+			if(cur->cur_idx * c->dir > cur->end_idx * c->dir)
+				ret = BTREE_FAILURE;
+			else
+				ret = populate_output_array(c, cur->node, &cur->cur_idx, cur->end_idx, n_in, n_out, values);
 		} else if(cur->cur_idx != cur->end_idx) {
 			uint64_t logical_id = cur->node->pnode->rightmost;
 			if(cur->cur_idx < cur->node->pnode->nkeys) {
