@@ -5576,7 +5576,7 @@ mcd_fth_osd_slab_get( void * context, mcd_osd_shard_t * shard, char *key,
             continue;
         }
 
-        if ( 0 != strncmp( buf + sizeof(mcd_osd_meta_t), key, key_len ) ) {
+        if ( 0 != memcmp( buf + sizeof(mcd_osd_meta_t), key, key_len ) ) {
             mcd_log_msg( 20006, MCD_OSD_LOG_LVL_TRACE,
                          "key mismatch, req %s", key );
             (void) __sync_fetch_and_add( &shard->get_hash_collisions, 1 );
