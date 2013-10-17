@@ -196,7 +196,6 @@ void destroy_l1cache();
 void clean_l1cache(btree_raw_t* btree);
 
 btree_status_t deref_l1cache(btree_raw_t *btree);
-static void delete_l1cache(btree_raw_t *btree, btree_raw_mem_node_t *n);
 static void modify_l1cache_node(btree_raw_t *btree, btree_raw_mem_node_t *n);
 
 static void lock_modified_nodes_func(btree_raw_t *btree, int lock);
@@ -1151,6 +1150,14 @@ deref_l1cache_node(btree_raw_t* btree, btree_raw_mem_node_t *node)
     dbg_referenced--;
 }
 
+static void delete_l1cache(btree_raw_t *btree, uint64_t logical_id)
+{
+    (void) PMapDelete(btree->l1cache, (char *) &logical_id, sizeof(uint64_t), btree->cguid, (void *)btree);
+    dbg_referenced--;
+
+    btree->stats.stat[BTSTAT_L1ENTRIES] = PMapNEntries(btree->l1cache);
+}
+
 /*
  * Flush the modified and deleted nodes, unlock those nodes, cleare the reference
  * for such nodes.
@@ -1213,7 +1220,7 @@ btree_status_t deref_l1cache(btree_raw_t *btree)
     for(i = 0; i < deleted_nodes_count; i++)
     {
         n = deleted_nodes[i];
-        delete_l1cache(btree, n);
+        delete_l1cache(btree, n->pnode->logical_id);
     }
 
     modified_nodes_count = 0;
@@ -1244,7 +1251,7 @@ void unlock_and_unreference(btree_raw_t* btree, int last)
 	referenced_nodes_count = last;
 }
 
-static btree_raw_mem_node_t* add_l1cache(btree_raw_t *btree, btree_raw_node_t *n)
+static btree_raw_mem_node_t* add_l1cache(btree_raw_t *btree, uint64_t logical_id)
 {
     btree_raw_mem_node_t *node;
 
@@ -1252,7 +1259,7 @@ static btree_raw_mem_node_t* add_l1cache(btree_raw_t *btree, btree_raw_node_t *n
     assert(node);
     assert(n);
 
-    node->pnode = n;
+    node->pnode = NULL;
     node->modified = 0;
     node->flag = 0;
 #ifdef DEBUG_STUFF
@@ -1260,10 +1267,13 @@ static btree_raw_mem_node_t* add_l1cache(btree_raw_t *btree, btree_raw_node_t *n
 #endif
     plat_rwlock_init(&node->lock);
 
-    dbg_print("%p id %ld lock %p root: %d leaf: %d over: %d\n", n, n->logical_id, &node->lock, is_root(btree, n), is_leaf(btree, n), is_overflow(btree, n));
+	node_lock(node, WRITE);
 
-    if(!PMapCreate(btree->l1cache, (char *) &(n->logical_id), sizeof(uint64_t), (char *) node, sizeof(uint64_t), btree->cguid, (void *)btree))
+    //dbg_print("%p id %ld lock %p root: %d leaf: %d over: %d\n", n, n->logical_id, &node->lock, is_root(btree, n), is_leaf(btree, n), is_overflow(btree, n));
+
+    if(!PMapCreate(btree->l1cache, (char *) &logical_id, sizeof(uint64_t), (char *) node, sizeof(uint64_t), btree->cguid, (void *)btree))
     {
+		node_unlock(node);
         plat_rwlock_destroy(&node->lock);
         free(node);
         return NULL;
@@ -1298,16 +1308,6 @@ static btree_raw_mem_node_t *get_l1cache(btree_raw_t *btree, uint64_t logical_id
     dbg_print("n %p node %p id %ld(%ld) lock %p root: %d leaf: %d over %d refcnt %d\n", n, n->pnode, n->pnode->logical_id, logical_id, &n->lock, is_root(btree, n->pnode), is_leaf(btree, n->pnode), is_overflow(btree, n->pnode), PMapGetRefcnt(btree->l1cache, (char *) &logical_id, sizeof(uint64_t), btree->cguid));
 
     return n;
-}
-
-static void delete_l1cache(btree_raw_t *btree, btree_raw_mem_node_t *n)
-{
-    dbg_print("node %p root: %d leaf: %d refcnt %d\n", n, is_root(btree, n->pnode), is_leaf(btree, n->pnode), PMapGetRefcnt(btree->l1cache, (char *) &n->pnode->logical_id, sizeof(uint64_t), btree->cguid));
-
-    (void) PMapDelete(btree->l1cache, (char *) &(n->pnode->logical_id), sizeof(uint64_t), btree->cguid, (void *)btree);
-    dbg_referenced--;
-
-    btree->stats.stat[BTSTAT_L1ENTRIES] = PMapNEntries(btree->l1cache);
 }
 
 static void modify_l1cache_node(btree_raw_t *btree, btree_raw_mem_node_t *node)
@@ -1379,24 +1379,35 @@ retry:
 			if (is_node_deleted(n)) {
 				assert(0);
 			}
+			/* Below lock doesn't allow get_existing node return before pnode is really in the cache */
+			node_lock(n, READ);
             add_node_stats(btree, n->pnode, L1HITS, 1);
+			node_unlock(n);
 		} else {
+            // already in the cache retry get
+			n = add_l1cache(btree, logical_id);
+			if(!n) {
+				static uint64_t read_conflicts = 0;
+				read_conflicts++;
+				if(!(read_conflicts % 10000))
+					fprintf(stderr, "%d read_conflicts %ld\n", (int)time(NULL), read_conflicts);
+                goto retry;
+            }
+
 	    //  look for the node the hard way
 			//  If we don't look at the ret code, why does read_node_cb need one?
 			pnode = (btree_raw_node_t*)btree->read_node_cb(ret, btree->read_node_cb_data, logical_id);
 			assert(logical_id == pnode->logical_id);
 			if (pnode == NULL) {
 				*ret = BTREE_FAILURE;
+				delete_l1cache(btree, logical_id);
 				return(NULL);
 			}
             add_node_stats(btree, pnode, L1MISSES, 1);
 
-            // already in the cache retry get
-			n = add_l1cache(btree, pnode);
-			if(!n) {
-                free(pnode);
-                goto retry;
-            }
+			n->pnode = pnode;
+
+			plat_rwlock_unlock(&n->lock);
 		}
         if(ref)
             ref_l1cache(btree, n);
@@ -1424,7 +1435,9 @@ btree_raw_mem_node_t *create_new_node(btree_raw_t *btree, uint64_t logical_id)
     //  out at the end of the request by deref_l1cache().
     if (pnode != NULL) {
         pnode->logical_id = logical_id;
-        n = add_l1cache(btree, pnode);
+        n = add_l1cache(btree, logical_id);
+		n->pnode = pnode;
+		node_unlock(n);
         assert(n); /* the tree is exclusively locked */
         ref_l1cache(btree, n);
         modify_l1cache_node(btree, n);
