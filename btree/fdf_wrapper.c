@@ -472,7 +472,10 @@ FDF_status_t _FDFOpenContainerSpecial(
 
 restart:
 	if(getenv("FDF_BYPASS_CACHE"))
+	{
 		properties->flash_only = FDF_TRUE;
+		fprintf(stderr, "Bypass FDF cache for container: %s\n", cname);
+	}
 
     ret = FDFOpenContainer(fdf_thread_state, cname, properties, flags_in, cguid);
     if (ret != FDF_SUCCESS)
