@@ -1257,7 +1257,6 @@ static btree_raw_mem_node_t* add_l1cache(btree_raw_t *btree, uint64_t logical_id
 
     node = malloc(sizeof(btree_raw_mem_node_t));
     assert(node);
-    assert(n);
 
     node->pnode = NULL;
     node->modified = 0;
