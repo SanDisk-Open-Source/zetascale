@@ -421,7 +421,11 @@ FDF_status_t _FDFLoadCntrPropDefaults(
 	FDF_container_props_t *props
 	)
 {
-    return(FDFLoadCntrPropDefaults(props));
+	FDF_status_t status = FDFLoadCntrPropDefaults(props);
+
+	props->flash_only = FDF_TRUE;
+
+	return status;
 }
 
  /**
@@ -471,11 +475,10 @@ FDF_status_t _FDFOpenContainerSpecial(
         return(FDF_INVALID_PARAMETER);
 
 restart:
-	if(getenv("FDF_BYPASS_CACHE"))
-	{
-		properties->flash_only = FDF_TRUE;
-		fprintf(stderr, "Bypass FDF cache for container: %s\n", cname);
-	}
+	if(getenv("FDF_CACHE_FORCE_ENABLE"))
+		properties->flash_only = FDF_FALSE;
+
+	fprintf(stderr, "FDF cache %s for container: %s\n", properties->flash_only ? "disabled" : "enabled", cname);
 
     ret = FDFOpenContainer(fdf_thread_state, cname, properties, flags_in, cguid);
     if (ret != FDF_SUCCESS)

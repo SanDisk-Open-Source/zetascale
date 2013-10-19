@@ -55,6 +55,7 @@ FDF_status_t OpenContainer(char *cname, uint32_t flag, uint32_t asyncwrite,
 
     ret = FDF_FAILURE;
     (void)FDFLoadCntrPropDefaults(&p);
+    p.flash_only = 0;
     p.async_writes = asyncwrite;
     p.durability_level = 0;
     p.fifo_mode = fifo;
