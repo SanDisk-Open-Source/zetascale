@@ -1385,13 +1385,8 @@ retry:
 		} else {
             // already in the cache retry get
 			n = add_l1cache(btree, logical_id);
-			if(!n) {
-				static uint64_t read_conflicts = 0;
-				read_conflicts++;
-				if(!(read_conflicts % 10000))
-					fprintf(stderr, "%d read_conflicts %ld\n", (int)time(NULL), read_conflicts);
+			if(!n)
                 goto retry;
-            }
 
 	    //  look for the node the hard way
 			//  If we don't look at the ret code, why does read_node_cb need one?
