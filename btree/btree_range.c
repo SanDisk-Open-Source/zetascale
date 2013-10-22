@@ -20,8 +20,8 @@
 #include "btree_raw_internal.h"
 #include "btree_range.h"
 
-static __thread btree_range_cursor_t __thread_cursor;
-static __thread btree_range_meta_t __thread_meta;
+#define N_CURSOR_MAX 3
+static __thread btree_range_cursor_t __thread_cursor[N_CURSOR_MAX];
 
 #define IS_ASCENDING_QUERY(meta) \
              (((meta)->key_start && ((meta)->flags & (RANGE_START_GT | RANGE_START_GE))) || \
@@ -184,7 +184,7 @@ fill_key_range(btree_raw_t          *bt,
 
 static inline
 int bsearch_end(btree_range_cursor_t *c, btree_raw_mem_node_t *node) {
-	btree_range_meta_t* meta = c->query_meta;
+	btree_range_meta_t* meta = &c->query_meta;
 	int found;
 	if(!meta->key_end)
 		return c->dir > 0 ? node->pnode->nkeys : 0;
@@ -197,7 +197,7 @@ int bsearch_end(btree_range_cursor_t *c, btree_raw_mem_node_t *node) {
 
 static inline
 int bsearch_start(btree_range_cursor_t *c, btree_raw_mem_node_t *node) {
-	btree_range_meta_t* meta = c->query_meta;
+	btree_range_meta_t* meta = &c->query_meta;
 	int found;
 	if(!meta->key_start)
 		return c->dir > 0 ? 0 : node->pnode->nkeys;
@@ -214,7 +214,7 @@ btree_range_find_diversion(btree_range_cursor_t* c)
 {
 	int x;
 	key_stuff_t ks;
-	btree_range_meta_t *meta = c->query_meta;
+	btree_range_meta_t *meta = &c->query_meta;
 	btree_raw_mem_node_t *parent, *node;
 	btree_raw_node_t* pnode;
 	btree_status_t ret = BTREE_SUCCESS;
@@ -293,7 +293,7 @@ populate_output_array(btree_range_cursor_t *c,
 	while (*cur_idx != end_idx && *n_out < n_in && !fatal(status))
 	{
 		ret = fill_key_range(c->btree, node, key_offset(c->btree,
-						node->pnode, *cur_idx), c->query_meta, values + *n_out);
+						node->pnode, *cur_idx), &c->query_meta, values + *n_out);
 
 		if(ret != BTREE_SUCCESS)
 			status = ret;
@@ -341,7 +341,7 @@ btree_range_get_next_fast(btree_range_cursor_t *c,
 	} stack[TREE_DEPTH_MAX], *cur, *child;
 
 	key_stuff_t ks;
-	btree_range_meta_t *meta = c->query_meta;
+	btree_range_meta_t *meta = &c->query_meta;
 	btree_status_t ret = BTREE_SUCCESS, r = BTREE_SUCCESS;
 	int sp = 0;
 
@@ -453,7 +453,7 @@ btree_range_query_start_fast(btree_t            *btree,
 
 	c->dir = IS_ASCENDING_QUERY(rmeta) ? 1 : -1;
 
-	if(!store_key(&c->query_meta->key_start, &c->query_meta->keylen_start,
+	if(!store_key(&c->query_meta.key_start, &c->query_meta.keylen_start,
 			rmeta->key_start, rmeta->keylen_start))
 		return BTREE_FAILURE;
 
@@ -466,14 +466,14 @@ btree_range_query_end_fast(btree_range_cursor_t *c)
 {
 	assert(c != NULL && c->btree != NULL);
 
-	if (c->query_meta->key_start) {
-		free(c->query_meta->key_start);
-		c->query_meta->key_start = NULL;
+	if (c->query_meta.key_start) {
+		free(c->query_meta.key_start);
+		c->query_meta.key_start = NULL;
 	}
 
-	if (c->query_meta->key_end) {
-		free(c->query_meta->key_end);
-		c->query_meta->key_end = NULL;
+	if (c->query_meta.key_end) {
+		free(c->query_meta.key_end);
+		c->query_meta.key_end = NULL;
 	}
 
 	assert(!dbg_referenced);
@@ -545,7 +545,7 @@ btree_range_get_next_inplace_low(btree_range_cursor_t *c,
                      btree_status_t       *status)
 {
 	btree_raw_mem_node_t *node = c->node;
-	btree_range_meta_t* rmeta = c->query_meta;
+	btree_range_meta_t* rmeta = &c->query_meta;
 	btree_status_t ret = BTREE_SUCCESS;
 
 	ret = populate_output_array(c, node, &c->cur_idx, c->end_idx, n_in, n_out,
@@ -606,8 +606,8 @@ btree_range_query_end_inplace(btree_range_cursor_t *c)
 
 	unlock_and_unreference_all(c->btree);
 
-	if (c->query_meta->key_end)
-		free(c->query_meta->key_end);
+	if (c->query_meta.key_end)
+		free(c->query_meta.key_end);
 
 	assert(!dbg_referenced);
 
@@ -648,20 +648,28 @@ btree_range_query_start(btree_t                 *btree,
 		return status;
 	}
 
-	c = &__thread_cursor;
+	int i = 0;
+	while(i < N_CURSOR_MAX && __thread_cursor[i].btree)
+		i++;
+
+	if(i >= N_CURSOR_MAX) {
+		fprintf(stderr, "Limit(%d) on number of concurrent range queries exceeded\n", N_CURSOR_MAX);
+		return BTREE_FAILURE;
+	}
+
+	c = &__thread_cursor[i];
 
 	/* Initialize the cursor, to accomplish further queries */
 	int n_partition = 0;
 	c->btree = btree->partitions[n_partition];
 
-	c->query_meta = &__thread_meta;
-	memcpy(c->query_meta, rmeta, sizeof(btree_range_meta_t));
+	memcpy(&c->query_meta, rmeta, sizeof(btree_range_meta_t));
 
-	c->query_meta->key_end = NULL;
-	c->query_meta->key_start = NULL;
+	c->query_meta.key_end = NULL;
+	c->query_meta.key_start = NULL;
 	c->dir = 1;
 
-	store_key(&c->query_meta->key_end, &c->query_meta->keylen_end,
+	store_key(&c->query_meta.key_end, &c->query_meta.keylen_end,
 			rmeta->key_end, rmeta->keylen_end);
 
 	*cursor = c;
@@ -708,7 +716,7 @@ btree_range_get_next(btree_range_cursor_t *c,
                      int                  *n_out,
                      btree_range_data_t   *values)
 {
-	if(c->query_meta->flags & RANGE_INPLACE_POINTERS)
+	if(c->query_meta.flags & RANGE_INPLACE_POINTERS)
 		return btree_range_get_next_inplace(c, n_in, n_out, values);
 
 	return btree_range_get_next_fast(c, n_in, n_out, values);
@@ -717,9 +725,15 @@ btree_range_get_next(btree_range_cursor_t *c,
 btree_status_t
 btree_range_query_end(btree_range_cursor_t *c)
 {
-	if(c->query_meta->flags & RANGE_INPLACE_POINTERS)
-		return btree_range_query_end_inplace(c);
+	btree_status_t status;
 
-	return btree_range_query_end_fast(c);
+	if(c->query_meta.flags & RANGE_INPLACE_POINTERS)
+		status = btree_range_query_end_inplace(c);
+
+	status = btree_range_query_end_fast(c);
+
+	c->btree = NULL; // free the cursor
+
+	return status;
 }
 

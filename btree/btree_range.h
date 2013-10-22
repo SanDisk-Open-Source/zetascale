@@ -82,7 +82,7 @@ typedef struct btree_range_meta {
 
 typedef struct {
 	struct btree_raw              *btree;       // BTree we are operating on. We might need this for joins??
-	btree_range_meta_t   *query_meta;  // Metadata for this current search
+	btree_range_meta_t   query_meta;  // Metadata for this current search
 	struct btree_raw_mem_node *node;
 	int16_t cur_idx;
 	int16_t end_idx;
