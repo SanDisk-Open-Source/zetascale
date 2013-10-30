@@ -353,6 +353,7 @@ typedef struct {
 #else
 typedef struct {
     uint64_t                size_kb;
+    char                    name[CONTAINER_NAME_MAXLEN];
     FDF_boolean_t           fifo_mode;
     FDF_boolean_t           persistent;
     FDF_boolean_t           evicting;

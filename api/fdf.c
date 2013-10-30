@@ -4101,6 +4101,7 @@ fdf_get_container_props_int(
 
 	if (( status = name_service_get_meta( pai, cguid, &meta )) == FDF_SUCCESS ) {
 		status = fdf_create_fdf_props( &meta.properties, pprops );
+                strncpy(pprops->name, meta.cname, CONTAINER_NAME_MAXLEN);
     }              
                    
     return status;

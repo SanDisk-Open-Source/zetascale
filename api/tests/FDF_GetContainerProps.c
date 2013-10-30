@@ -7,6 +7,7 @@
 #include <stdlib.h>
 #include <assert.h>
 #include <unistd.h>
+#include <string.h>
 #include "fdf.h"
 static struct FDF_state     *fdf_state;
 struct FDF_thread_state     *_fdf_thd_state;
@@ -247,8 +248,13 @@ int FDFGetContainerProps_TwoContainerGet1()
     ret = GetContainerProps(cguid2,&props2);
     if(FDF_SUCCESS != ret)
         flag = -1;
+    /* check name of the congainer */
+    else if ( strcmp(props2.name,"test2") ) {
+        fprintf(fp,"Name in prop(%s) does not match container name (%s)\n",props2.name,"test2");
+        flag = -1;
+    }
     else  flag = CheckProps(cguid2,props2);
-
+    
     if(FDF_SUCCESS != CloseContainer(cguid1 ))flag = -3;
     if(FDF_SUCCESS != DeleteContainer(cguid1))flag = -3;
     if(FDF_SUCCESS != CloseContainer(cguid2 ))flag = -3;
