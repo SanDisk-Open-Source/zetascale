@@ -140,6 +140,10 @@ typedef struct btree_raw {
     void              *msg_cb_data;
     cmp_cb_t          *cmp_cb;
     void              *cmp_cb_data;
+
+    bt_mput_cmp_cb_t mput_cmp_cb;
+    void *mput_cmp_cb_data;
+
     trx_cmd_cb_t      *trx_cmd_cb;
 
     btree_stats_t      stats;

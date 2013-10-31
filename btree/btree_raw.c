@@ -282,7 +282,7 @@ l1cache_replace(void *callback_data, char *key, uint32_t keylen, char *pdata, ui
 }
 
 btree_raw_t *
-btree_raw_init(uint32_t flags, uint32_t n_partition, uint32_t n_partitions, uint32_t max_key_size, uint32_t min_keys_per_node, uint32_t nodesize, create_node_cb_t *create_node_cb, void *create_node_data, read_node_cb_t *read_node_cb, void *read_node_cb_data, write_node_cb_t *write_node_cb, void *write_node_cb_data, flush_node_cb_t *flush_node_cb, void *flush_node_cb_data, freebuf_cb_t *freebuf_cb, void *freebuf_cb_data, delete_node_cb_t *delete_node_cb, void *delete_node_data, log_cb_t *log_cb, void *log_cb_data, msg_cb_t *msg_cb, void *msg_cb_data, cmp_cb_t *cmp_cb, void * cmp_cb_data, trx_cmd_cb_t *trx_cmd_cb, uint64_t cguid)
+btree_raw_init(uint32_t flags, uint32_t n_partition, uint32_t n_partitions, uint32_t max_key_size, uint32_t min_keys_per_node, uint32_t nodesize, create_node_cb_t *create_node_cb, void *create_node_data, read_node_cb_t *read_node_cb, void *read_node_cb_data, write_node_cb_t *write_node_cb, void *write_node_cb_data, flush_node_cb_t *flush_node_cb, void *flush_node_cb_data, freebuf_cb_t *freebuf_cb, void *freebuf_cb_data, delete_node_cb_t *delete_node_cb, void *delete_node_data, log_cb_t *log_cb, void *log_cb_data, msg_cb_t *msg_cb, void *msg_cb_data, cmp_cb_t *cmp_cb, void * cmp_cb_data, bt_mput_cmp_cb_t mput_cmp_cb, void *mput_cmp_cb_data, trx_cmd_cb_t *trx_cmd_cb, uint64_t cguid)
 {
     btree_raw_t      *bt;
     uint32_t          nbytes_meta;
@@ -350,6 +350,11 @@ btree_raw_init(uint32_t flags, uint32_t n_partition, uint32_t n_partitions, uint
 	bt->cmp_cb           = default_cmp_cb;
 	bt->cmp_cb_data      = NULL;
     }
+  
+    bt->mput_cmp_cb = mput_cmp_cb;
+    bt->mput_cmp_cb_data = mput_cmp_cb_data;
+
+    assert(mput_cmp_cb != NULL);
 
     bt->trx_cmd_cb           = trx_cmd_cb;
 
@@ -2419,6 +2424,44 @@ get_adjusted_num_objs(btree_raw_t *bt, btree_raw_node_t *n,
 }
 
 /*
+ * Check if an update is allowed or not by calling mput callback with old and new data
+ * for an object.
+ */
+bool
+mput_update_allowed(btree_raw_t *bt, btree_raw_mem_node_t *mem_node,
+	  	    char *key, uint32_t keylen, char *new_data, uint64_t new_datalen,
+		    node_key_t *pk_insert, bool key_exists)
+{
+	int ret = 0;
+	node_vlkey_t *pvlk = NULL;
+	char *old_data = NULL;
+	uint64_t old_datalen = 0;
+
+	if (key_exists) {
+		/*
+		 * It is an update for existing objs.
+		 */
+		pvlk = (node_vlkey_t *) pk_insert;
+		old_data = (char *) ((uint64_t) mem_node->pnode + pvlk->keypos + pvlk->keylen);
+		old_datalen = pvlk->datalen;
+	} else {
+		old_data = NULL;
+		old_datalen = 0;
+	}
+
+	ret = (*bt->mput_cmp_cb) (bt->mput_cmp_cb_data, 
+				  key, keylen,
+				  old_data, old_datalen,
+				  new_data, new_datalen);
+
+	if (ret == 1) {
+		return true;
+	} else {
+		return false;
+	}
+}
+
+/*
  * Insert a set of kyes to a leaf node. It takes are of finiding proper position of
  * key within leaf and also check for space in leaf.
  * Caller must make sure that this is the correct leat to insert.
@@ -2451,10 +2494,18 @@ btree_insert_keys_leaf(btree_raw_t *btree, btree_metadata_t *meta, uint64_t synd
 		if ((write_type != W_UPDATE || pkrec) &&
 		    (write_type != W_CREATE || !pkrec)) {
 
-			insert_key_low(&ret, btree, mem_node, objs[written].key,
-				       objs[written].key_len, seqno,
-				       objs[written].data_len, objs[written].data,
-				       meta, syndrome, pkrec, pk_insert);
+			/*
+			 * Check if an update is allowed or required.
+			 */
+			if (mput_update_allowed(btree, mem_node, objs[written].key, objs[written].key_len,
+						objs[written].data, objs[written].data_len, pk_insert, 
+						pkrec == NULL? false: true) == true) {
+					
+				insert_key_low(&ret, btree, mem_node, objs[written].key,
+					       objs[written].key_len, seqno,
+					       objs[written].data_len, objs[written].data,
+					       meta, syndrome, pkrec, pk_insert);
+			}
 
 			written++;
 			/*

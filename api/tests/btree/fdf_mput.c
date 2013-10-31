@@ -83,7 +83,7 @@ do_mput(struct FDF_thread_state *thd_state, FDF_cguid_t cguid,
 			if (!use_mput) {
 				status = FDFWriteObject(thd_state, cguid,
 						        objs[i].key, objs[i].key_len,
-							objs[i].data, objs[i].data_len, 0);
+							objs[i].data, objs[i].data_len, flags);
 				if (status != FDF_SUCCESS) {
 					printf("Write failed with %d errror.\n", status);
 					assert(0);

@@ -185,6 +185,14 @@ typedef int (* btree_range_cmp_cb_t)(void     *data, 	//  opaque user data
                                  char     *key1,       
                                  uint32_t  keylen1); 
 
+typedef int (* bt_mput_cmp_cb_t)(void  *data, 	//  opaque user data
+				 char *key,
+				 uint32_t keylen,
+				 char *old_data,
+				 uint64_t old_datalen,
+				 char *new_data,
+				 uint64_t new_datalen);
+					
 typedef struct btree_raw_mem_node *(read_node_cb_t)(btree_status_t *ret, void *data, uint64_t lnodeid);
 typedef void (write_node_cb_t)(btree_status_t *ret, void *cb_data, uint64_t lnodeid, char *data, uint64_t datalen);
 typedef void (flush_node_cb_t)(btree_status_t *ret, void *cb_data, uint64_t lnodeid);
@@ -220,6 +228,7 @@ struct btree_raw* btree_raw_init(uint32_t flags, uint32_t n_partition, uint32_t 
 	log_cb_t *log_cb, void *log_cb_data,
 	msg_cb_t *msg_cb, void *msg_cb_data,
 	cmp_cb_t *cmp_cb, void * cmp_cb_data,
+	bt_mput_cmp_cb_t mput_cmp_cb, void *mput_cmp_cb_data,
 	trx_cmd_cb_t *trx_cmd_cb, uint64_t cguid
 	);
 

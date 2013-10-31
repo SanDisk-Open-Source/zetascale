@@ -53,6 +53,10 @@ typedef struct read_node {
 } read_node_t;
 
 
+static int mput_default_cmp_cb(void *data, char *key, uint32_t keylen,
+			    char *old_data, uint64_t old_datalen,
+			    char *new_data, uint64_t new_datalen);
+
 static void* read_node_cb(btree_status_t *ret, void *data, uint64_t lnodeid);
 static void write_node_cb(btree_status_t *ret, void *cb_data, uint64_t lnodeid, char *data, uint64_t datalen);
 static void flush_node_cb(btree_status_t *ret, void *cb_data, uint64_t lnodeid);
@@ -465,6 +469,8 @@ FDF_status_t _FDFOpenContainerSpecial(
     void         *msg_cb_data;
     cmp_cb_t     *cmp_cb;
     void         *cmp_cb_data;
+    bt_mput_cmp_cb_t mput_cmp_cb;
+    void *mput_cmp_cb_data;
     read_node_t  *prn;
     int           index = -1;
     char         *env;
@@ -531,6 +537,7 @@ restart:
     log_cb_data         = (void *) prn;
     msg_cb_data         = (void *) prn;
     cmp_cb_data         = (void *) prn;
+    mput_cmp_cb_data	= (void *) prn;
 
     //flags = SYNDROME_INDEX;
     // flags |= IN_MEMORY; // use in-memory b-tree for this test
@@ -585,6 +592,12 @@ restart:
         if (cmeta->cmp_data) cmp_cb_data = cmeta->cmp_data;
     }
 
+    mput_cmp_cb = mput_default_cmp_cb;
+    if (cmeta) {
+        if (cmeta->mput_cmp_fn) mput_cmp_cb = (bt_mput_cmp_cb_t) cmeta->mput_cmp_fn;
+        if (cmeta->mput_cmp_cb_data) mput_cmp_cb_data = cmeta->mput_cmp_cb_data;
+    }
+
     bt = btree_init(n_partitions, 
                     flags, 
                     max_key_size, 
@@ -608,8 +621,10 @@ restart:
                     msg_cb_data, 
                     cmp_cb, 
                     cmp_cb_data,
+		    mput_cmp_cb,
+		    mput_cmp_cb_data,
                     trx_cmd_cb,
-					*cguid
+		    *cguid
 		    );
 
     if (bt == NULL) {
@@ -1904,6 +1919,18 @@ static int lex_cmp_cb(void *data, char *key1, uint32_t keylen1, char *key2, uint
     } else {
         return 0;
     }
+}
+
+/*
+ * Default comparator to check if an update is required.
+ * It returns 1 always and that means all update are required.
+ */
+int
+mput_default_cmp_cb(void *data, char *key, uint32_t keylen,
+		    char *old_data, uint64_t old_datalen,
+		    char *new_data, uint64_t new_datalen)
+{
+	return 1;
 }
 
 /****************************************************

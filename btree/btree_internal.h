@@ -34,6 +34,9 @@ typedef struct btree {
     cmp_cb_t          *cmp_cb;
     void              *cmp_cb_data;
 
+    bt_mput_cmp_cb_t mput_cmp_cb;
+    void *mput_cmp_cb_data;
+
     /* fields unique to btree_t */
     uint32_t           n_partitions;
     struct btree_raw  **partitions;

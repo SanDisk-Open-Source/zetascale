@@ -410,9 +410,22 @@ typedef int (FDF_cmp_fn_t)(void     *index_data, //  opaque user data
                            char     *key2,       //  second secondary key
                            uint32_t  keylen2);   //  length of second secondary key
 
+typedef int (* FDF_mput_cmp_cb_t)(void     *data, 	//  opaque user data
+                                 char     *key,       
+                                 uint32_t  keylen,
+				 char *old_data,
+				 uint64_t old_datalen,
+				 char *new_data,
+				 uint64_t new_datalen); 
+
+
+
 typedef struct FDF_container_meta_s {
 	FDF_cmp_fn_t   *sort_cmp_fn;             // compare function for key
 	void           *cmp_data;                // Any data to provide for cmp
+
+	FDF_mput_cmp_cb_t mput_cmp_fn;
+	void *mput_cmp_cb_data;
 } FDF_container_meta_t;
 
 struct FDF_state;

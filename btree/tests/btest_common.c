@@ -298,6 +298,7 @@ btest_init(int argc, char **argv, char *program, btest_parse_fn parse_fn)
 			(log_cb_t *)log_cb, log_cb_data, 
 			msg_cb, msg_cb_data, 
 			cmp_cb, cmp_cb_data,
+			NULL, NULL,
 			(trx_cmd_cb_t *)trx_cmd_cb, 4
 	                );
 
