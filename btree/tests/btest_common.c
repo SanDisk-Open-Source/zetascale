@@ -203,6 +203,14 @@ btest_basic_parse(btest_cfg_t *cfg, int argc, char **argv)
 	return (0);
 }
 
+static int
+mput_default_cmp_cb(void *data, char *key, uint32_t keylen,
+                    char *old_data, uint64_t old_datalen,
+                    char *new_data, uint64_t new_datalen)
+{
+        return 1;
+}
+
 btest_cfg_t *
 btest_init(int argc, char **argv, char *program, btest_parse_fn parse_fn)
 {
@@ -298,7 +306,7 @@ btest_init(int argc, char **argv, char *program, btest_parse_fn parse_fn)
 			(log_cb_t *)log_cb, log_cb_data, 
 			msg_cb, msg_cb_data, 
 			cmp_cb, cmp_cb_data,
-			NULL, NULL,
+			mput_default_cmp_cb, NULL,
 			(trx_cmd_cb_t *)trx_cmd_cb, 4
 	                );
 
