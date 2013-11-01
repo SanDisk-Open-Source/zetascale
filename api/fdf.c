@@ -4495,6 +4495,8 @@ fdf_read_object(
 				status = FDF_FAILURE;
 			else
 				memcpy(*data, tdata, *datalen);
+
+			ssd_flashFreeBuf(tdata);
 		} else {
 			status = FDF_FAILURE;
 		}
