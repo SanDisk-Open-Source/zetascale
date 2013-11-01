@@ -65,6 +65,10 @@
 #define BUF_LEN 4096
 #define STATS_API_TEST 1
 
+#include <snappy-c.h>
+__thread char *compression_buf = NULL; 
+__thread int compression_buf_len = 0 ; 
+
 #define SEQNO_CONTAINER_NAME	"__SanDisk_seqno_container"
 
 /*
@@ -469,6 +473,7 @@ fdf_stats_info_t fdf_stats_flash[] = {
     {"SEGMENTS_CANCELLED","slab_gc_segments_cancelled",FDF_STATS_TYPE_FLASH}, 
 
     {"FREE_SEGMENTS","slab_free_segments",FDF_STATS_TYPE_FLASH}, 
+    {"COMPRESSED_BYTES","flash_compressed_bytes",FDF_STATS_TYPE_FLASH}, 
 };
 
 char *get_flash_type_stats_desc(int stat ) {
@@ -974,7 +979,7 @@ static void fdf_load_settings(flash_settings_t *osd_settings)
     osd_settings->is_node_independent = 1;
     osd_settings->ips_per_cntr	    = 1;
     osd_settings->rec_log_size_factor = 0;
-	osd_settings->os_blk_size = getProperty_Int("FDF_BLOCK_SIZE", MCD_OSD_BLK_SIZE_MIN);
+	osd_settings->os_blk_size = getProperty_Int("FDF_BLOCK_SIZE", 2048);
 }
 
 /*
@@ -1783,7 +1788,7 @@ void print_configuration(int log_level) {
         getProperty_uLongLong("FDF_CACHE_SIZE", 100000000ULL),
         getProperty_uLongLong("SDF_MAX_OBJ_SIZE", SDF_MAX_OBJ_SIZE));
 	plat_log_msg(160171, LOG_CAT, log_level,"Block size = %llu",
-		getProperty_uLongLong("FDF_BLOCK_SIZE", MCD_OSD_BLK_SIZE_MIN));
+		getProperty_uLongLong("FDF_BLOCK_SIZE", 2048));
     if (getProperty_Int("FDF_TEST_MODE", 0)) {
          plat_log_msg(80031, LOG_CAT, log_level,"FDF Testmode enabled");
     }
@@ -1969,6 +1974,99 @@ FDF_status_t FDFInit(
     return FDF_SUCCESS;
 }
 
+char *fdf_get_per_thd_comp_buf(size_t len) {
+   int btree_node_size;
+   /* Initialize per thread compression/decompression buffer */
+   if( getProperty_Int("FDF_COMPRESSION", 1) == 0 ) {
+       return NULL;
+   }
+
+   if( compression_buf != NULL ) {
+       return compression_buf;
+   }
+   btree_node_size = getProperty_Int("FDF_BTREE_NODE_SIZE",8100);
+   /* Add a delta to btree_node_size top accomdate any meta data in the flash layer */
+   compression_buf_len = snappy_max_compressed_length(
+          getProperty_Int("FDF_COMPRESSION_MAX_OBJECT_SIZE", btree_node_size + 1024));
+   if( compression_buf_len < len ) {
+       compression_buf_len = snappy_max_compressed_length(len);    
+   }
+   compression_buf = plat_alloc(compression_buf_len);
+   if( compression_buf == NULL ) {
+       plat_log_msg(160071,LOG_CAT,LOG_ERR,
+                                   "Memory allocation failed");
+       return NULL;
+   }
+   return compression_buf;
+}
+
+char *fdf_compress_data(char *src, size_t src_len, 
+                            char *comp_buf, size_t *comp_len) {
+     char *cbuf;
+     snappy_status rc;
+     cbuf = comp_buf;
+     if( cbuf == NULL ) {
+         /* Use per thread compression buffer */
+         cbuf = compression_buf;
+         if( compression_buf == NULL ) {
+             cbuf = fdf_get_per_thd_comp_buf(src_len+1024); /* initializes per thread compression buffer */
+         }
+         else if( compression_buf_len < src_len ) {
+             plat_free(compression_buf);
+             compression_buf = NULL;
+             cbuf = fdf_get_per_thd_comp_buf(src_len+1024); 
+         }  
+     } 
+     if ( cbuf == NULL ) {
+        /* No buffer available to put compressed data. return error*/
+        plat_log_msg(160194,LOG_CAT,LOG_ERR,"Unable to get temporary buffer for compression ");
+        return NULL;
+     }
+     *comp_len = compression_buf_len;
+     rc = snappy_compress(src,src_len,cbuf,comp_len);
+     if ( rc != SNAPPY_OK ) {
+         plat_log_msg(160195,LOG_CAT,LOG_ERR,"Snappy compression failed(%d)\n",rc);
+         return NULL;
+     }
+     return cbuf; 
+}
+
+int fdf_uncompress_data(char *data, size_t datalen, size_t *uncomp_len) {
+    int btree_node_size;
+    snappy_status rc;
+
+    if ( *uncomp_len == 0 ) {
+        /* Given uncompressed length is 0, so get default one */
+        btree_node_size = getProperty_Int("FDF_BTREE_NODE_SIZE",8100);
+        *uncomp_len = snappy_max_compressed_length(getProperty_Int("FDF_COMPRESSION_MAX_OBJECT_SIZE", 
+                                                                                btree_node_size + 1024));
+    }
+    /* copy the data in to comp buffer */
+    if( compression_buf == NULL ) {
+        fdf_get_per_thd_comp_buf(datalen);
+    }
+    else if(compression_buf_len < datalen) {
+        plat_free(compression_buf);
+        compression_buf = NULL;
+        fdf_get_per_thd_comp_buf(datalen);
+    }
+    *uncomp_len = compression_buf_len; 
+    if ( datalen > compression_buf_len ) {
+        plat_log_msg(160196,LOG_CAT,LOG_FATAL,
+                     "Compression buffer not enough to hold data datalen:%d  comp_buf_len:%d",
+                     (int)datalen,(int)compression_buf_len);
+        return -1;
+    }
+    memcpy(compression_buf,data,datalen);
+    rc = snappy_uncompress(compression_buf,datalen,data,uncomp_len);
+    if( rc != SNAPPY_OK ) {
+        plat_log_msg(160197,LOG_CAT,LOG_FATAL,
+                      "Uncompression failed(%d)",rc);
+        return -1;
+    }
+    return (int)*uncomp_len;
+}
+
 FDF_status_t FDFInitPerThreadState(
 	struct FDF_state 		 *fdf_state,
     struct FDF_thread_state **thd_state
@@ -2021,6 +2119,8 @@ FDF_status_t FDFInitPerThreadState(
     pai_new->ctxt = ActionGetContext( pts );
 
     *thd_state = (struct FDF_thread_state *) pai_new;
+    /* Initialize per thread compression/decompression buffer */
+    fdf_get_per_thd_comp_buf(0);
 
     return FDF_SUCCESS;
 }
@@ -2088,6 +2188,13 @@ FDF_status_t FDFReleasePerThreadState(
 	fthReleasePthread();
     plat_free( *thd_state );
     *thd_state = NULL;
+    /* Free compression buffer */
+    if( getProperty_Int("FDF_COMPRESSION", 1) ) {
+        if ( compression_buf != NULL ) {
+            plat_free(compression_buf);
+        }
+        compression_buf = NULL;
+    }
     return FDF_SUCCESS;
 }
 
@@ -2397,6 +2504,13 @@ FDF_status_t FDFOpenContainer(
 	FDF_status_t status		= FDF_SUCCESS;
 	bool thd_ctx_locked = false;
 
+         if( getProperty_Int("FDF_ENABLE_COMPRESSION_ALL_CONTAINERS", 1) && 
+                  getProperty_Int("FDF_COMPRESSION", 1) ) {
+             if(properties) {
+                 properties->compression = FDF_TRUE;
+             }
+         }
+
 	/*
 	 * Check if operation can begin
 	 */
@@ -2420,6 +2534,10 @@ FDF_status_t FDFOpenContainer(
                              "Invalid container name");
             }
             return FDF_INVALID_PARAMETER;
+        }
+        if( properties ) {
+             plat_log_msg(160199,LOG_CAT, LOG_DBG, "Compression %s for Container %s",
+                               properties->compression?"enabled":"disabled",cname);
         }
 
 	thd_ctx_locked = fdf_lock_thd_ctxt(fdf_thread_state);
@@ -2933,6 +3051,9 @@ static FDF_status_t fdf_open_container(
 	}
 
     plat_log_msg( 20819, LOG_CAT, LOG_DBG, "%s", cname);
+    if ( props != NULL ) {
+    plat_log_msg( 160200, LOG_CAT, LOG_DBG, "compression enabled %d", props->compression);
+    }
 
     if ( strcmp( cname, CMC_PATH ) != 0 ) {
 	    if ( NULL == ( cmap = fdf_cmap_get_by_cname( cname ) ) ) {
@@ -3764,7 +3885,6 @@ static FDF_status_t fdf_delete_container_1(
 	FDF_cguid_t	 			 mycguid		= 0;
     SDF_internal_ctxt_t 	*pai 			= (SDF_internal_ctxt_t *) fdf_thread_state;
 	cntr_map_t              *cmap           = NULL;
-
     plat_log_msg( 21630, 
 				  LOG_CAT, 
 				  LOG_DBG, 
@@ -3823,7 +3943,6 @@ static FDF_status_t fdf_delete_container_1(
 					  cguid );
 		goto out;
 	}
-
 	if ( ( del_status = fdf_delete_objects( fdf_thread_state, cguid ) ) != FDF_SUCCESS ) {
 		plat_log_msg( 150092,
 					  LOG_CAT,
@@ -3888,7 +4007,6 @@ static FDF_status_t fdf_delete_container_1(
 				  FDFStrError(status) );
  out:
     SDFEndSerializeContainerOp(pai);
-
     return status;
 }
 
@@ -4238,6 +4356,7 @@ fdf_set_container_props(
 
  		meta.properties.flash_only = pprops->flash_only;
  		meta.properties.cache_only = pprops->cache_only;
+                meta.properties.compression = pprops->compression;
 
         status = name_service_put_meta( pai, cguid, &meta );
 
@@ -4359,9 +4478,9 @@ fdf_read_object(
     
 	if (meta->meta.properties.flash_only == FDF_TRUE) {
 		char* tdata;
-	
+
 		plat_log_msg(160191, LOG_CAT,
-                    LOG_DBG, "FDFReadObject flash_only.");
+                    LOG_TRACE, "FDFReadObject flash_only.");
 		struct objMetaData metaData;
 		metaData.keyLen = keylen;
 		metaData.cguid  = cguid;
@@ -4656,14 +4775,17 @@ fdf_write_object(
 	}
 
 	if (meta->meta.properties.flash_only == FDF_TRUE) {
+                int flags = 0;
 		plat_log_msg(160192, LOG_CAT,
-			LOG_DBG, "FDFWriteObject flash_only.");
+			LOG_TRACE, "FDFWriteObject flash_only.");
 		struct objMetaData metaData;
 		metaData.keyLen = keylen;
 		metaData.cguid  = cguid;
 		metaData.dataLen = datalen;
-
-		status = ssd_flashPut(pac->paio_ctxt, meta->pshard, &metaData, key, data, FLASH_PUT_NO_TEST);
+                if( meta->meta.properties.compression == FDF_TRUE ) {
+                    flags = FLASH_PUT_COMPRESS;	
+                }
+		status = ssd_flashPut(pac->paio_ctxt, meta->pshard, &metaData, key, data, FLASH_PUT_NO_TEST|flags);
 		if (status == FLASH_EOK) {
 			status = FDF_SUCCESS;
 		} else {
@@ -4964,7 +5086,7 @@ fdf_delete_object(
 
 	if (meta->meta.properties.flash_only == FDF_TRUE) {
 		plat_log_msg(160193, LOG_CAT,
-			LOG_DBG, "FDFDeleteObject flash_only.");
+			LOG_TRACE, "FDFDeleteObject flash_only.");
 		struct objMetaData metaData;
 		metaData.keyLen = keylen;
 		metaData.cguid  = cguid;
@@ -5557,6 +5679,30 @@ void fdf_get_flash_map(struct FDF_thread_state *thd_state, FDF_cguid_t cguid,
                                                         "   flash_slab_map" );
         *size = *size + rc;
     }
+
+    stats_ptr = NULL;
+    FDFContainerStat( pai, sdf_container,
+                             FLASH_SPACE_COMP_HISTOGRAM,
+                             (uint64_t *)&stats_ptr );
+    if( stats_ptr != NULL ) {
+        rc = snprintf(buf+ (*size),(STATS_BUFFER_SIZE - (*size)),
+                                                       "   compression_histogram" );
+        *size = *size + rc;
+        for ( int i = 0; i < MCD_OSD_MAX_COMP_HIST; i++ ) {
+            rc = snprintf(buf+ (*size),(STATS_BUFFER_SIZE - (*size)),
+                                                       " %lu", stats_ptr[i] );
+            *size = *size + rc;
+        }    
+        rc = snprintf(buf+ (*size),(STATS_BUFFER_SIZE - (*size)),"\n" );
+        *size = *size + rc;
+    }    
+    else {
+        rc = snprintf(buf+ (*size),(STATS_BUFFER_SIZE - (*size)), 
+                                                        "   compression_histogram" );
+        *size = *size + rc;
+    }    
+
+
     SDFEndSerializeContainerOp(pai);
 }
 
@@ -5581,6 +5727,7 @@ static void fdf_get_flash_stats( SDF_internal_ctxt_t *pai, char ** ppos, int * l
     uint64_t            num_get_ops = 0;
     uint64_t            num_put_ops = 0;
     uint64_t            num_del_ops = 0;
+    uint64_t            comp_bytes  = 0;
     uint64_t            num_ext_checks = 0;
     uint64_t            num_full_buckets = 0;
     uint64_t            val = 0;
@@ -5751,6 +5898,13 @@ static void fdf_get_flash_stats( SDF_internal_ctxt_t *pai, char ** ppos, int * l
                       num_put_ops );
     if (stats != NULL)
         stats->flash_stats[FDF_FLASH_STATS_NUM_PUT_OPS] = num_put_ops;
+
+    FDFContainerStat( pai, sdf_container,
+                             FLASH_SPACE_COMP_BYTES,
+                             &comp_bytes );
+    if(stats != NULL) 
+        stats->flash_stats[FDF_FLASH_STATS_COMP_BYTES] = comp_bytes;
+
 
     FDFContainerStat( pai, sdf_container,
                              FLASH_NUM_DELETE_OPS,
@@ -6368,6 +6522,7 @@ static SDF_container_props_t *fdf_create_sdf_props(
 
 		sdf_properties->flash_only                              = fdf_properties->flash_only;
 		sdf_properties->cache_only                              = fdf_properties->cache_only;
+                sdf_properties->compression = fdf_properties->compression;
     }
 
     return sdf_properties;
@@ -6450,6 +6605,7 @@ static FDF_status_t fdf_create_fdf_props(
 	    	fdf_properties->durability_level = FDF_DURABILITY_SW_CRASH_SAFE;
 		fdf_properties->flash_only = sdf_properties->flash_only;
 		fdf_properties->cache_only = sdf_properties->cache_only;
+                fdf_properties->compression = sdf_properties->compression;
 		status												= FDF_SUCCESS;
     }
 

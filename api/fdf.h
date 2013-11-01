@@ -320,6 +320,7 @@ typedef enum {
     FDF_FLASH_STATS_SLAB_GC_WAIT_SYNC,
     FDF_FLASH_STATS_SLAB_GC_SEGMENTS_CANCELLED,
     FDF_FLASH_STATS_NUM_FREE_SEGMENTS,
+    FDF_FLASH_STATS_COMP_BYTES,
 
     FDF_N_FLASH_STATS
 } FDF_flash_stat_t;
@@ -365,6 +366,7 @@ typedef struct {
     uint32_t                num_shards;
 	FDF_boolean_t			flash_only;
 	FDF_boolean_t			cache_only;
+    FDF_boolean_t compression; /* Flag to enable/disable compression */
 } FDF_container_props_t;
 #endif
 

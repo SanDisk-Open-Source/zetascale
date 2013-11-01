@@ -35,6 +35,7 @@
 // #define MCD_OSD_MAX_PTHREADS    16
 #define MCD_OSD_MAX_PTHREADS    128
 #define MCD_OSD_MAX_NCLASSES    16
+#define MCD_OSD_MAX_COMP_HIST   16
 
 /*
  * Block size in segment 0 (flash descriptor)
@@ -336,6 +337,9 @@ typedef struct mcd_osd_shard {
     uint64_t                    auto_del_prefix;
     uint64_t                    class_segments[MCD_OSD_MAX_NCLASSES];
     uint64_t                    class_slabs[MCD_OSD_MAX_NCLASSES];
+    uint64_t                    comp_bytes; /*Total number of compressed bytes. comp_bytes/num_puts gives 
+                                              average compresstion ratio*/
+    uint64_t                    comp_hist[MCD_OSD_MAX_COMP_HIST];  /*Compression histogram*/
 
 #ifdef  MCD_ENABLE_SLAB_CACHE
     char                      * slab_cache;
@@ -354,6 +358,8 @@ typedef struct mcd_osd_meta {
     uint64_t            cguid;
     uint64_t            seqno;
     uint64_t            checksum;
+    uint32_t            uncomp_datalen;
+    
 } mcd_osd_meta_t;
 
 enum {

@@ -439,6 +439,7 @@ typedef struct {
     int                         mcd_index;
 	uint32_t					flash_only;
 	uint32_t					cache_only;
+    SDF_boolean_t compression;  /*Flag to enable/disable compression */
 
 } SDF_container_props_t;
 

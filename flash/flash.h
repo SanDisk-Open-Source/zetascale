@@ -39,7 +39,8 @@ enum flashPutFlags {
     FLASH_PUT_PREFIX_DELETE   = 0x80,  // Perform a prefix-based delete on this shard
     FLASH_PUT_PREFIX_DO_DEL   = 0x180, // Prefix-based object deletion
     FLASH_PUT_DURA_SW_CRASH   = 0x200, // Request elevated durability
-    FLASH_PUT_DURA_HW_CRASH   = 0x400  // Request maximum durability
+    FLASH_PUT_DURA_HW_CRASH   = 0x400, // Request maximum durability
+    FLASH_PUT_COMPRESS        = 0x800  // Compress data portion before writing to flash
 };
 
 enum flashGetFlags {

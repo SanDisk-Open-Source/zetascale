@@ -390,12 +390,14 @@ FDF_status_t print_container_stats_by_cguid( struct FDF_thread_state *thd_state,
                           "    fifo         = %s\n"
                           "    async_writes = %s\n"
                           "    durability   = %s\n"
+                          "    compression  = %s\n"
                           "    num_objs     = %lu\n"
                           "    used_space   = %lu\n",ctime(&t),
             cname,cguid, props.size_kb, get_bool_str(props.persistent),
             get_bool_str(props.evicting),get_bool_str(props.writethru),
             get_bool_str(props.fifo_mode),get_bool_str(props.async_writes),
-            get_durability_str(props.durability_level), num_objs, used_space);
+            get_durability_str(props.durability_level),
+            get_bool_str(props.compression), num_objs, used_space);
 
     /* Get Per container stats */
     memset(&stats,0,sizeof(FDF_stats_t));

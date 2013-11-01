@@ -4708,6 +4708,14 @@ static int flashPut_wrapper(SDF_trans_state_t *ptrans, struct shard *pshard, str
         skip_for_writeback = SDF_FALSE;
     }
 
+    /* Check if compression has been enabled for this container. If so 
+       Set flag to enable compression so that low level function will compress data 
+       Before writing to flash*/
+    if( getProperty_Int("FDF_COMPRESSION", 1) && (ptrans->par->ctnr > LAST_PHYSICAL_CGUID ) &&
+                ptrans->meta->meta.properties.compression == FDF_TRUE ) {
+        flags = flags|FLASH_PUT_COMPRESS;     
+    } 
+
     #ifdef RR_ITERATION_TEST
     {
         // from replication/rpc.c

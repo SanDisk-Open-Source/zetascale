@@ -3365,6 +3365,16 @@
 160191 FDFReadObject flash_only.
 160192 FDFWriteObject flash_only.
 160193 FDFDeleteObject flash_only.
+160194 Unable to get temporary buffer for compression 
+160195 Snappy compression failed(%d)\n
+160196 Compression buffer not enough to hold data datalen:%d  comp_buf_len:%d
+160197 Uncompression failed(%d)
+160198 Input buffer is not enough to hold uncompressed data
+160199 Compression %s for Container %s
+160200 compression enabled %d
+160201 Compression failed
+160202 Data uncompression failed:%d
+160203 Memory allocation failed\n
 
 
 # rico

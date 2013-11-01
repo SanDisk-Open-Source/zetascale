@@ -21,8 +21,10 @@ foreach( test_src_file ${TEST_SOURCES} )
 		    add_test(${testname} ${CMAKE_CURRENT_BINARY_DIR}/${testname} ${${testname}_param})
 		    add_test(${testname}_btree ${CMAKE_CURRENT_BINARY_DIR}/${testname}_btree ${${testname}_param})
         ENDIF(NOT ${testname}_param)
-		target_link_libraries( ${testname} fdfdll dl pthread aio event)
-		target_link_libraries( ${testname}_btree btreedll dl pthread aio event)
+		target_link_libraries( ${testname} fdfdll dl pthread aio event
+snappy)
+		target_link_libraries( ${testname}_btree btreedll dl pthread
+aio event snappy)
 	endif (NOT ${test_src_file} MATCHES "/test.c")
 endforeach(test_src_file ${TEST_SOURCES})
 

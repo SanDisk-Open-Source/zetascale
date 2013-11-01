@@ -496,6 +496,7 @@ parse(void)
 
     dlo("librt.so");
     dlo("libaio.so");
+    dlo("libsnappy.so");
 
     char *lib = getenv("FDF_LIB");
     if (lib) {

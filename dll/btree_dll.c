@@ -473,6 +473,7 @@ parse(void)
 
     dlo("librt.so");
     dlo("libaio.so");
+    dlo("libsnappy.so");
 
     char *lib = getenv("BTREE_LIB");
     if (lib) {

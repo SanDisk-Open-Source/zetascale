@@ -71,6 +71,9 @@ SDF_cguid_t generate_cguid(
         );
 extern uint32_t
 init_get_my_node_id();
+extern char *fdf_compress_data(char *src, size_t src_len, 
+                            char *comp_buf, size_t *comp_len);
+extern int fdf_uncompress_data(char *data, size_t datalen,size_t *uncomp_len);
 #endif
 
 
@@ -4634,6 +4637,7 @@ mcd_fth_osd_slab_set( void * context, mcd_osd_shard_t * shard, char * key,
     int64_t                     plus_blks = 0;
     cntr_id_t                   cntr_id = meta_data->cguid;
 	FDF_boolean_t				vc_evict = FDF_FALSE;
+    uint32_t uncomp_datalen = 0; /* Uncompressed data length */
 
     mcd_log_msg( 20000, PLAT_LOG_LEVEL_TRACE, "ENTERING" );
 
@@ -4657,6 +4661,35 @@ mcd_fth_osd_slab_set( void * context, mcd_osd_shard_t * shard, char * key,
 
     if ( FLASH_PUT_PREFIX_DELETE == flags ) {
         return mcd_osd_prefix_delete( shard, key, key_len );
+    }
+
+    /* Check if object needs to be compressed */
+    if( getProperty_Int("FDF_COMPRESSION", 1) && (data_len > 0) &&
+                                          (flags & FLASH_PUT_COMPRESS) ) {
+        size_t comp_len;
+        char *comp_data;
+        int hist_index;
+        /* Compression enabled. Lets compress the data */
+        comp_data = fdf_compress_data(data, (size_t)data_len,NULL,&comp_len);
+        if ( comp_data == NULL ) {
+            mcd_log_msg(160201,PLAT_LOG_LEVEL_ERROR, "Compression failed");
+            return FLASH_ENOENT;
+        }
+        /* Update stats and histogram
+           Histogram is tracks 1k,2k ...15K and >15K*/
+        __sync_fetch_and_add(&shard->comp_bytes,comp_len);
+        hist_index = comp_len/1000;
+        if( hist_index >= (MCD_OSD_MAX_COMP_HIST-1) ) {
+            atomic_inc(shard->comp_hist[MCD_OSD_MAX_COMP_HIST-1]);
+        }
+        else {
+            atomic_inc(shard->comp_hist[hist_index]);
+        }
+        /* overwrite data pointer & len so rest of the function refers 
+           compressed data */
+        uncomp_datalen = data_len; 
+        data = comp_data;
+        data_len = comp_len;
     }
 
     num_puts = __sync_add_and_fetch( &shard->num_puts, 1 );
@@ -5078,6 +5111,7 @@ mcd_fth_osd_slab_set( void * context, mcd_osd_shard_t * shard, char * key,
         meta->expiry_time = meta_data->expTime;
         meta->seqno       = meta_data->sequence;
     }
+    meta->uncomp_datalen = uncomp_datalen;
 
     memcpy( buf + sizeof(mcd_osd_meta_t), key, key_len );
     memcpy( buf + sizeof(mcd_osd_meta_t) + key_len, data, data_len );
@@ -5430,6 +5464,8 @@ mcd_fth_osd_slab_get( void * context, mcd_osd_shard_t * shard, char *key,
     uint32_t                    checksum32 = 0;
     uint64_t                    checksum_read_data = 0;
     uint32_t                    checksum_read_meta = 0;
+    uint32_t                    databuf_len;
+    uint32_t                    uncomp_datalen = 0;
 
     mcd_log_msg( 20000, PLAT_LOG_LEVEL_TRACE, "ENTERING" );
     (void) __sync_fetch_and_add( &shard->num_gets, 1 );
@@ -5507,11 +5543,14 @@ mcd_fth_osd_slab_get( void * context, mcd_osd_shard_t * shard, char *key,
 
             if ((MCD_FTH_OSD_BUF_SIZE / Mcd_osd_blk_size) >= ( nbytes / Mcd_osd_blk_size ) ) {
                 data_buf = ((osd_state_t *)context)->osd_buf;
+                databuf_len = MCD_FTH_OSD_BUF_SIZE;
             }
             else {
+                databuf_len = mcd_osd_lba_to_blk( hash_entry->blocks ) * Mcd_osd_blk_size;
                 data_buf = mcd_fth_osd_iobuf_alloc(
                     mcd_osd_lba_to_blk( hash_entry->blocks ) *
                     Mcd_osd_blk_size, false );
+
                 if ( NULL == data_buf ) {
                     return FLASH_ENOMEM;
                 }
@@ -5670,8 +5709,41 @@ mcd_fth_osd_slab_get( void * context, mcd_osd_shard_t * shard, char *key,
         /*
          * meta can no longer be accessed after this
          */
+        uncomp_datalen = meta->uncomp_datalen;
         memmove( data_buf, buf + sizeof(mcd_osd_meta_t) + meta->key_len,
                  meta->data_len );
+
+        /* Uncompress the data here */
+        //if( getProperty_Int("FDF_COMPRESSION", 1) &&
+                                          //(flags & FLASH_GET_DECOMPRESS) ) {
+        if( uncomp_datalen > 0 ) {
+            /* Data is compressed. So decompress before sending it to upper layer */
+            size_t uncomp_len = uncomp_datalen;
+            int rc; 
+            char *data_buf_new;
+            /* check if current data buffer can hold uncompressed data
+               for all the btree node and object < 1MB cased, the default databuf_len 
+               can hold the data*/
+            if( databuf_len < uncomp_datalen ) {
+                data_buf_new = mcd_fth_osd_iobuf_alloc(uncomp_datalen,false);
+                if(data_buf_new == NULL ) { 
+                    mcd_log_msg(160203,PLAT_LOG_LEVEL_FATAL,
+                                 "Memory allocation failed\n");
+                    return FLASH_ENOMEM;
+                }
+                memcpy(data_buf_new,data_buf,*pactual_size);
+                mcd_fth_osd_slab_free(data_buf);
+                data_buf = data_buf_new;
+                *ppdata = data_buf;                
+            }
+            /* the fdf uncompress function decompresses the data in same input buffer*/
+            rc = fdf_uncompress_data(data_buf,*pactual_size, &uncomp_len);
+            if( rc < 0 ) {
+                mcd_log_msg(160202,PLAT_LOG_LEVEL_FATAL, "Data uncompression failed:%d",rc);
+                return FLASH_ENOENT;
+            }
+            *pactual_size = uncomp_len; 
+        }
 
         meta_data->blockaddr = hash_entry->address;
         return FLASH_EOK;
@@ -5741,6 +5813,10 @@ uint64_t mcd_osd_shard_get_stats( struct shard * shard, int stat_key )
         stat = (uint64_t)mcd_shard->class_slabs;
         break;
 
+    case FLASH_SPACE_COMP_HISTOGRAM:
+        stat = (uint64_t)mcd_shard->comp_hist;
+        break;
+
     case FLASH_NUM_OBJECTS:
         stat = mcd_shard->num_objects;
         break;
@@ -5799,6 +5875,10 @@ uint64_t mcd_osd_shard_get_stats( struct shard * shard, int stat_key )
 
     case FLASH_NUM_PUT_OPS:
         stat = mcd_shard->num_puts;
+        break;
+
+    case FLASH_SPACE_COMP_BYTES:
+        stat = mcd_shard->comp_bytes;
         break;
 
     case FLASH_NUM_DELETE_OPS:
