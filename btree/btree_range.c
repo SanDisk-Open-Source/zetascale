@@ -279,24 +279,24 @@ btree_range_find_diversion(btree_range_cursor_t* c)
 	c->node = node;
 }
 
-static
-btree_status_t
+static void
 populate_output_array(btree_range_cursor_t *c,
 		btree_raw_mem_node_t* node,
 		int16_t *cur_idx, int16_t end_idx, int n_in, int *n_out,
-		btree_range_data_t* values)
+		btree_range_data_t* values,
+		btree_status_t* status)
 {
-	btree_status_t ret = BTREE_SUCCESS, status = BTREE_SUCCESS;
+	btree_status_t ret;
 
 	dbg_print("cur_idx=%d end_idx=%d n_in=%d n_out=%d\n", (int)*cur_idx, (int)end_idx, n_in, *n_out);
 
-	while (*cur_idx != end_idx && *n_out < n_in && !fatal(status))
+	while (*cur_idx != end_idx && *n_out < n_in && !fatal(*status))
 	{
 		ret = fill_key_range(c->btree, node, key_offset(c->btree,
 						node->pnode, *cur_idx), &c->query_meta, values + *n_out);
 
 		if(ret != BTREE_SUCCESS)
-			status = ret;
+			*status = ret;
 
 		if(ret != BTREE_FAILURE) {
 			(*n_out)++;
@@ -305,9 +305,7 @@ populate_output_array(btree_range_cursor_t *c,
 		}
 	}
 
-	dbg_print("return cur_idx=%d end_idx=%d n_in=%d n_out=%d status=%d\n", (int)*cur_idx, (int)end_idx, n_in, *n_out, status);
-
-	return status;
+	dbg_print("return cur_idx=%d end_idx=%d n_in=%d n_out=%d status=%d\n", (int)*cur_idx, (int)end_idx, n_in, *n_out, *status);
 }
 
 int store_key(char **to, uint32_t *tolen, char* from, uint32_t fromlen) {
@@ -372,7 +370,7 @@ btree_range_get_next_fast(btree_range_cursor_t *c,
 			if(cur->cur_idx * c->dir > cur->end_idx * c->dir)
 				ret = BTREE_FAILURE;
 			else
-				ret = populate_output_array(c, cur->node, &cur->cur_idx, cur->end_idx, n_in, n_out, values);
+				populate_output_array(c, cur->node, &cur->cur_idx, cur->end_idx, n_in, n_out, values, &ret);
 		} else if(cur->cur_idx != cur->end_idx) {
 			uint64_t logical_id = cur->node->pnode->rightmost;
 			if(cur->cur_idx < cur->node->pnode->nkeys) {
@@ -537,7 +535,7 @@ btree_range_query_start_inplace(btree_t                 *btree,
 }
 
 static
-btree_status_t
+int
 btree_range_get_next_inplace_low(btree_range_cursor_t *c,
                      int                   n_in,
                      int                  *n_out,
@@ -546,15 +544,13 @@ btree_range_get_next_inplace_low(btree_range_cursor_t *c,
 {
 	btree_raw_mem_node_t *node = c->node;
 	btree_range_meta_t* rmeta = &c->query_meta;
-	btree_status_t ret = BTREE_SUCCESS;
+	btree_status_t ret;
 
-	ret = populate_output_array(c, node, &c->cur_idx, c->end_idx, n_in, n_out,
-			values);
+	populate_output_array(c, node, &c->cur_idx, c->end_idx, n_in, n_out,
+			values, status);
 
-	if(fatal(ret)) {
-		*status = ret;
+	if(fatal(*status))
 		return 0;
-	}
 
 	if(c->cur_idx >= c->end_idx && (c->end_idx < c->node->pnode->nkeys - 1 ||
 			!c->node->pnode->next))
