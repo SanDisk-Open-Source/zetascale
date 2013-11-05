@@ -435,6 +435,7 @@ struct FDF_thread_state;
 struct FDF_iterator;
 
 typedef int (* FDF_range_cmp_cb_t)(void     *data, 	//  opaque user data
+			         void     *range_data,
                                  char     *range_key,       
                                  uint32_t  range_keylen,   
                                  char     *key1,       

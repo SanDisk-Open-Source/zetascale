@@ -180,6 +180,7 @@ typedef struct btree_rupdate_marker {
 } btree_rupdate_marker_t;
 
 typedef int (* btree_range_cmp_cb_t)(void     *data, 	//  opaque user data
+                                 void     *range_data,
                                  char     *range_key,       
                                  uint32_t  range_keylen,   
                                  char     *key1,       

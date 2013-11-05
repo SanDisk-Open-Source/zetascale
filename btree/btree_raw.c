@@ -2803,7 +2803,7 @@ err_exit:
  * returns +1 if range_key is greater than key.
  */
 static int 
-btree_key_in_range(void *args, 
+btree_key_in_range(void *args, void *range_args,
 		   char *range_key, uint32_t range_key_len,
 		   char *key, uint32_t keylen)
 {
@@ -2844,7 +2844,7 @@ find_first_key_in_range(btree_raw_t *bt,
 		i_center = (i_start + i_end) / 2;
 
 		(void) get_key_stuff(bt, n, i_center, &ks_tmp);
-		x = (*range_cmp_cb) (range_cmp_cb_args,
+		x = (*range_cmp_cb) (bt->cmp_cb_data, range_cmp_cb_args,
 				     range_key, range_key_len,
 				     ks_tmp.pkey_val, ks_tmp.keylen);
 					 
@@ -2940,7 +2940,7 @@ find_next_rupdate_key(btree_raw_t *bt, btree_raw_node_t *n, char *range_key,
 			/*
 			 * Marker get updated only for leaf nodes.
 			 */
-			if ((*range_cmp_cb)(range_cmp_cb_args, 
+			if ((*range_cmp_cb)(bt->cmp_cb_data, range_cmp_cb_args, 
 					    range_key, range_key_len,
 					    ks->pkey_val, ks->keylen) != 0) {
 				/*
@@ -3322,7 +3322,7 @@ btree_raw_rupdate(
 	}
 	// Hard coded for now, should change it to be a configurable
 	// parameter per btree
-	range_cmp_cb_args = btree->cmp_cb_data;
+	//range_cmp_cb_args = btree->cmp_cb_data;
 
 	ret = btree_raw_rupdate_low_root(btree, meta,
 					 range_key, range_key_len, 
