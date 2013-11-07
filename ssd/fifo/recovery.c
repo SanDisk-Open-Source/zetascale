@@ -33,6 +33,7 @@
 #include <time.h>
 #include <ctype.h>
 #include <libaio.h>
+#include "hash.h"
 #include "mcd_osd.h"
 #include "utils/hash.h"
 #include "ssd/ssd_aio.h"
@@ -119,14 +120,14 @@ typedef fthWaitEl_t wait_t;
 typedef unsigned int uint_t;
 typedef FDF_cguid_t cguid_t;
 typedef unsigned char uchar_t;
-typedef mcd_osd_hash_t mhash_t;
+typedef hash_entry_t mhash_t;
 typedef struct flashDev flash_t;
 typedef SDF_action_init_t pai_t;
 typedef SDF_shardid_t shardid_t;
 typedef mcd_osd_meta_t mo_meta_t;
 typedef mcd_osd_shard_t mshard_t;
 typedef SDF_action_state_t pas_t;
-typedef mcd_osd_bucket_t bucket_t;
+typedef bucket_entry_t bucket_t;
 typedef mcd_osd_fifo_wbuf_t wbuf_t;
 typedef struct rklc_get rklc_get_t;
 typedef struct ssdaio_ctxt aioctx_t;
@@ -2003,59 +2004,6 @@ mkmsg_fbmap(sur_t *sur)
     return msg;
 }
 
-
-/*
- * Unlock a fth lock and return an integer.
- */
-static int
-unlock_iret(wait_t *wait, int ret)
-{
-    fthUnlock(wait);
-    return ret;
-}
-
-
-/*
- * Determine if an object is valid.
- */
-static int
-obj_valid(mshard_t *shard, mo_meta_t *meta, addr_t addr)
-{
-    int n;
-    uchar_t      *key = (void *) &meta[1];
-    uint64_t syndrome = hashck(key, meta->key_len, 0, meta->cguid);
-    hashsyn_t hashsyn = syndrome >> OSD_HASH_SYN_SHIFT;
-    uint64_t       hi = syndrome % shard->hash_size;
-    bucket_t  *bucket = &shard->hash_buckets[hi / Mcd_osd_bucket_size];
-    mhash_t     *hash = &shard->hash_table[hi & Mcd_osd_bucket_mask];
-    fthLock_t   *lock = &shard->bucket_locks[hi / shard->lock_bktsize];
-    wait_t      *wait = fthLock(lock, 0, NULL);
-
-    for (n = bucket->next_item; n--; hash++) {
-        if (hash->syndrome != hashsyn)
-            continue;
-        if (hash->address != addr)
-            continue;
-        return unlock_iret(wait, 1);
-    }
-
-    if (shard->use_fifo || !bucket->overflowed)
-        return unlock_iret(wait, 0);
-
-    n = Mcd_osd_overflow_depth;
-    hash = &shard->overflow_table[hi/shard->lock_bktsize * n];
-    for (; n--; hash++) {
-        if (hash->syndrome != hashsyn)
-            continue;
-        if (hash->address != addr)
-            continue;
-        return unlock_iret(wait, 1);
-    }
-
-    return unlock_iret(wait, 0);
-}
-
-
 /*
  * Copy an object from its representation in flash to a format suitable for
  * transmitting over the wire.  We have to be a little careful as the source
@@ -2152,7 +2100,7 @@ obj_prep(sur_t *sur, uint_t max_obj)
         addr = sect->index1 * Mcd_osd_segment_blks +
                sect->index2 * slab_blks +
                src_off / BLK_SIZE;
-        if (obj_valid(sur->shard, meta, addr)) {
+        if (obj_valid(sur->shard->hash_handle, meta, addr)) {
             klock_t klock = kl_lock(sur, &buf[key_off], meta->key_len);
             if (klock) {
                 num_obj++;
@@ -3022,6 +2970,8 @@ obj_layout(mobj_t *mobj, char *ptr, int size)
 static int
 coal_puthash(rec_t *rec)
 {
+// TBD: hash changes need to be applied.
+#if 0
     int n;
     mhash_t *h;
     coal_var_t     *v = &rec->v;
@@ -3034,6 +2984,7 @@ coal_puthash(rec_t *rec)
     bucket_t  *bucket = &shard->hash_buckets[hash_off / Mcd_osd_bucket_size];
     mhash_t     *hash = &shard->hash_table[hash_off & Mcd_osd_bucket_mask];
 
+	
     if (bucket->next_item == Mcd_osd_bucket_size) {
         atomic_inc(RV.stats.num_m_overflow);
         return 0;
@@ -3078,6 +3029,8 @@ coal_puthash(rec_t *rec)
     shard->addr_table[blkno] = h - shard->hash_table;
     atomic_add(shard->blk_consumed, v->slab_blks);
     return 1;
+#endif
+    return 0;
 }
 
 
@@ -3188,8 +3141,8 @@ coal_set(rec_t *rec, mobj_t *mobj)
     uint64_t syndrome = hashck((uchar_t *) mobj->data,
                                mobj->key_len, 0, mobj->cguid);
     uint_t  slab_size = v->slab_size;
-    uint64_t hash_off = syndrome % shard->hash_size;
-    uint_t   buck_ind = hash_off / shard->lock_bktsize;
+    uint64_t hash_off = syndrome % shard->hash_handle->hash_size;
+    uint_t   buck_ind = hash_off / shard->hash_handle->lock_bktsize;
     wait_t      *wait = NULL;
 
     if (freq && freq->num_objs == v->max_objs) {
@@ -3204,7 +3157,7 @@ coal_set(rec_t *rec, mobj_t *mobj)
     }
 
     if (!bit_isset(rec->lock_map, buck_ind)) {
-        fthLock_t *lock = &shard->bucket_locks[buck_ind];
+        fthLock_t *lock = &shard->hash_handle->bucket_locks[buck_ind];
         wait = fthTryLock(lock, 1, NULL);
         if (!wait) {
             atomic_inc(RV.stats.num_m_lockfail);
@@ -4024,7 +3977,7 @@ rec_done(rec_t *rec)
 {
     mshard_t   *shard = rec->shard;
     uint_t   buf_size = RV.num_rsx * sizeof(setx_t);
-    uint_t   map_size = bit_bytes(shard->hash_size / Mcd_osd_bucket_size);
+    uint_t   map_size = bit_bytes(shard->hash_handle->hash_size / OSD_HASH_BUCKET_SIZE);
     uint_t group_size = (RV.l2_max_slab_blks+1) * sizeof(obj_group_t);
 
     rsx_done(rec);
@@ -4042,7 +3995,8 @@ static void
 rec_init(rec_t *rec, pai_t *pai, vnode_t rank, shard_t *sshard, sect_t *sect)
 {
     mshard_t   *shard = (mshard_t *) sshard;
-    uint_t   map_size = bit_bytes(shard->hash_size / Mcd_osd_bucket_size);
+    uint_t   map_size = bit_bytes(shard->hash_handle->hash_size / 
+                                    OSD_HASH_BUCKET_SIZE);
     uint_t group_size = (RV.l2_max_slab_blks+1) * sizeof(obj_group_t);
 
     clear(*rec);
@@ -4265,12 +4219,13 @@ chash_index(shard_t *sshard, uint64_t bkt_i,
             hashsyn_t hashsyn, uint64_t num_bkts)
 {
     mshard_t  *shard = (mshard_t *) sshard;
-    uint64_t bkti_l2 = bkt_i & shard->bkti_l2_mask;
+    uint64_t bkti_l2 = bkt_i & shard->hash_handle->bkti_l2_mask;
 
     return ((bkti_l2 << OSD_HASH_SYN_SIZE) | hashsyn) % num_bkts;
 
     int i = (bkt_i + (double) hashsyn / (MAX_HASHSYN + 1)) /
-            (shard->hash_size / Mcd_osd_bucket_size) * num_bkts;
+            (shard->hash_handle->hash_size / OSD_HASH_BUCKET_SIZE) * 
+                num_bkts;
 
     /* should never happen; but just in case of rounding errors */
     if (i >= num_bkts)
@@ -4289,7 +4244,8 @@ chash_key(shard_t *sshard, SDF_cguid_t cguid,
     mshard_t   *shard = (mshard_t *) sshard;
     uint64_t syndrome = hashck((unsigned char *) key, keylen, 0, cguid);
     hashsyn_t hashsyn = syndrome >> OSD_HASH_SYN_SHIFT;
-    uint64_t    bkt_i = (syndrome % shard->hash_size) / Mcd_osd_bucket_size;
+    uint64_t    bkt_i = (syndrome % shard->hash_handle->hash_size / 
+                            OSD_HASH_BUCKET_SIZE);
 
     if (hashsynp)
         *hashsynp = hashsyn;
@@ -4305,7 +4261,7 @@ int
 chash_bits(shard_t *sshard)
 {
     mshard_t *shard = (mshard_t *) sshard;
-    return shard->bkti_l2_size + OSD_HASH_SYN_SIZE;
+    return shard->hash_handle->bkti_l2_size + OSD_HASH_SYN_SIZE;
 }
 
 
@@ -4455,29 +4411,27 @@ copyhash(e_state_t *es, mhash_t *hash, uint64_t bkt_i)
 static void
 e_hash_fill(pai_t *pai, e_state_t *es, int bkt_i)
 {
-    int n;
+    int i;
     mhash_t *hash;
     mshard_t  *shard = es->shard;
-    bucket_t *bucket = &shard->hash_buckets[bkt_i];
-    uint64_t  lock_i = bkt_i / (shard->lock_bktsize / Mcd_osd_bucket_size);
-    fthLock_t  *lock = &shard->bucket_locks[lock_i];
+    hash_handle_t *hdl = shard->hash_handle;
+    bucket_entry_t *bucket;
+    uint32_t bucket_idx  = hdl->hash_buckets[bkt_i];
+    uint64_t  lock_i = bkt_i / (hdl->lock_bktsize / OSD_HASH_BUCKET_SIZE);
+    fthLock_t  *lock = &hdl->bucket_locks[lock_i];
     wait_t     *wait = fthLock(lock, 0, NULL);
 
-    hash = &shard->hash_table[bkt_i * Mcd_osd_bucket_size];
-    for (n = bucket->next_item; n--; hash++)
-        copyhash(es, hash, bkt_i);
+    for(;bucket_idx != 0;bucket_idx = bucket->next){
+        bucket = hdl->hash_table + (bucket_idx - 1);
+        for(i=0;i<OSD_HASH_ENTRY_PER_BUCKET_ENTRY;i++){
+            hash = &bucket->hash_entry[i];
 
-    uint64_t oflow_i = lock_i * Mcd_osd_overflow_depth;
-    uint16_t index_v = bkt_i % shard->lock_bktsize;
-    uint16_t  *index = &shard->overflow_index[oflow_i];
+            if( hash->used == 0){
+                continue;
+            }
 
-    hash = &shard->overflow_table[oflow_i];
-    for (n = Mcd_osd_overflow_depth; n--; hash++, index++) {
-        if (!hash->used)
-            continue;
-        if (*index != index_v)
-            continue;
-        copyhash(es, hash, bkt_i);
+            copyhash(es, hash, bkt_i);
+        }
     }
 
     fthUnlock(wait);
@@ -4599,9 +4553,18 @@ enumerate_init(pai_t *pai, shard_t *sshard, FDF_cguid_t cguid, e_state_t **esp)
         return e_init_fail(pai, es);
     es->data_buf_align = chunk_next_ptr(es->data_buf_alloc, BLK_SIZE);
 
-    es->num_bkts         = shard->hash_size / Mcd_osd_bucket_size;
+    es->num_bkts         = shard->hash_handle->hash_size / 
+                                    OSD_HASH_BUCKET_SIZE;
     es->hash_buf_n       = HASH_CACHE_SIZE;
-    es->max_hash_per_bkt = Mcd_osd_bucket_size + Mcd_osd_overflow_depth;
+    /*
+     * if any hash bucket have more than OSD_HASH_MAX_CHAIN hash_entry
+     * will endup in unexpected behaviour. adjust OSD_HASH_MAX_CHAIN
+     * accordingly. by new hash design chain length can be as long as
+     * complete hash table size, however inorder not to allocate huge 
+     * amount of memory while each enumeration operation, limiting it 
+     * to OSD_HASH_MAX_CHAIN.
+     */
+    es->max_hash_per_bkt = OSD_HASH_MAX_CHAIN;
     if (es->hash_buf_n < es->max_hash_per_bkt)
         es->hash_buf_n = es->max_hash_per_bkt;
 
@@ -4630,6 +4593,8 @@ FDF_cguid_t get_e_cguid(e_state_t *es) {
     return es->cguid;
 }
 
+//TBD: hash changes need to be applied here.
+#if 0
 /*
  * Delete an object given its hash entry.  The appropriate bucket must be
  * locked.
@@ -4731,7 +4696,7 @@ del_obj_hash(mshard_t *shard, mhash_t *hash)
     if (bucket->overflowed)
         fix_overflow(shard, bkt_i, 1);
 }
-
+#endif
 
 /*
  * Delete all objects in a container.
@@ -4739,43 +4704,64 @@ del_obj_hash(mshard_t *shard, mhash_t *hash)
 void
 delete_all_objects(pai_t *pai, shard_t *sshard, cguid_t cguid)
 {
-    uint64_t lock_i;
+    int i;
+    uint32_t lock_i;
+    uint32_t bucket_i;
+    uint32_t *bucket_head, head_bucket_idx, delete_bucket_idx;
+    bucket_entry_t *bucket_entry;
+    hash_entry_t *hash_entry;
     mshard_t        *shard = (mshard_t *) sshard;
-    uint64_t bkts_per_lock = shard->bkts_per_lock;
+    hash_handle_t *hdl = shard->hash_handle;
 
-    for (lock_i = 0; lock_i < shard->lock_buckets; lock_i++) {
-        int i;
-        uint64_t bi;
-        mhash_t *hash;
-        fthLock_t *lock = &shard->bucket_locks[lock_i];
+    for(lock_i = 0; lock_i < hdl->lock_buckets; lock_i++){
+        bucket_i = (lock_i * hdl->lock_bktsize) / OSD_HASH_BUCKET_SIZE;
+        fthLock_t *lock = hdl->bucket_locks + lock_i;
         wait_t    *wait = fthLock(lock, 0, NULL);
 
-        for (bi = 0; bi < bkts_per_lock; bi++) {
-            uint64_t bkt_i = lock_i * bkts_per_lock + bi;
-            bucket_t *bucket = &shard->hash_buckets[bkt_i];
-            hash = &shard->hash_table[bkt_i * Mcd_osd_bucket_size];
-            for (i = bucket->next_item; i--;) {
-                if (cguid != hash[i].cntr_id)
+        bucket_head = hdl->hash_buckets + bucket_i;
+        head_bucket_idx = *bucket_head;
+        delete_bucket_idx = head_bucket_idx;
+        for(;delete_bucket_idx != 0;delete_bucket_idx = bucket_entry->next){
+            bucket_entry = hdl->hash_table + (delete_bucket_idx - 1);
+            for (i=0;i<OSD_HASH_ENTRY_PER_BUCKET_ENTRY;i++){
+                hash_entry = &bucket_entry->hash_entry[i];
+
+                if(hash_entry->used == 0){
                     continue;
-                del_obj_hash(shard, &hash[i]);
+                }
+
+                if(hash_entry->cntr_id != cguid){
+                    continue;
+                }
+
+                // need to delete this entry now
+                baddr_t baddr = hash_entry->address;
+                hdl->addr_table[hash_entry->address] = 0;
+
+                hash_entry->deleted = 1;
+                mcd_logrec_object_t log ={
+                    .syndrome   = hash_entry->syndrome,
+                    .deleted    = 1,
+                    .bucket     = bucket_i,
+                    .blk_offset = baddr,
+                    .old_offset = ~baddr,
+                    .cntr_id    = hash_entry->cntr_id,
+                };
+                log_write(shard, &log);
+
+                bool delayed = shard->replicated ||
+                    (shard->persistent && !shard->evict_to_free);
+                mcd_fth_osd_remove_entry(shard, hash_entry, delayed, true);
+                hash_entry_delete(hdl, hash_entry, 
+                            bucket_i * OSD_HASH_BUCKET_SIZE);
             }
         }
-
-        uint64_t in = lock_i * Mcd_osd_overflow_depth;
-        hash = &shard->overflow_table[in];
-        for (i = 0; i < Mcd_osd_overflow_depth; i++, hash++) {
-            if (!hash->used)
-                continue;
-            if (cguid != hash->cntr_id)
-                continue;
-            del_obj_over(shard, hash);
-        }
-
         fthUnlock(wait);
     }
 }
 
-
+//TBD: hash changes need to be applied here.
+#if 0
 /*
  * See if an object might be available to evict in a given lock index)
  */
@@ -4901,7 +4887,7 @@ evict_obj_hash(mshard_t *shard, cguid_t cguid,
     }
     return overflowed ? 0 : -1;
 }
-
+#endif
 
 /*
  * Evict an object in a certain slab class from the container.
@@ -4909,6 +4895,8 @@ evict_obj_hash(mshard_t *shard, cguid_t cguid,
 int
 evict_object(mshard_t *shard, cguid_t cguid, uint64_t nblks)
 {
+//TBD: hash changes need to be applied
+#if 0
     uint64_t     lo = rand();
     uint64_t   used = blk_to_use(shard, nblks);
     uint64_t lba_lo = blk_to_lba(used >> 1);
@@ -4937,9 +4925,9 @@ evict_object(mshard_t *shard, cguid_t cguid, uint64_t nblks)
             return 1;
 		}
     }
+#endif
     return 0;
 }
-
 
 /*
  * Go through the hash table computing the number of objects and bytes used by
@@ -4948,6 +4936,7 @@ evict_object(mshard_t *shard, cguid_t cguid, uint64_t nblks)
 void
 set_cntr_sizes(pai_t *pai, shard_t *sshard)
 {
+    int i;
     typedef struct {
         uint64_t blks;
         uint64_t objs;
@@ -4964,14 +4953,23 @@ set_cntr_sizes(pai_t *pai, shard_t *sshard)
         fatal("Cannot allocate container information");
     memset(cntr_p, 0, cntr_n * sizeof(info_t));
 
-    mhash_t *hash = shard->hash_table;
-    for (n = shard->hash_size; n--; hash++) {
-        uint64_t blks = lba_to_use(shard, hash->blocks);
-        if (!hash->used)
-            continue;
-        info_t *p = &cntr_p[hash->cntr_id];
-        p->objs++;
-        p->blks += blks;
+    mhash_t *hash = NULL;
+    bucket_entry_t *bucket_entry = shard->hash_handle->hash_table;
+    for (n = ((shard->hash_handle->hash_size/
+                OSD_HASH_ENTRY_PER_BUCKET_ENTRY) + 
+                (shard->hash_handle->hash_size / OSD_HASH_BUCKET_SIZE)); 
+            n--; bucket_entry++){
+        for(i=0;i<OSD_HASH_ENTRY_PER_BUCKET_ENTRY;i++){
+            hash = &bucket_entry->hash_entry[i];
+            uint64_t blks = lba_to_use(shard, hash->blocks);
+
+            if (!hash->used)
+                continue;
+
+            info_t *p = &cntr_p[hash->cntr_id];
+            p->objs++;
+            p->blks += blks;
+        }
     }
 
     info_t *p = cntr_p;
@@ -4989,25 +4987,14 @@ set_cntr_sizes(pai_t *pai, shard_t *sshard)
         else {
             if (size) {
                 fdf_logd(70119, "Container %s: id=%ld objs=%ld used=%ld"
-                                " size=%ld full=%.1f%%",
-                         name, n, objs, used, size, used*100.0/size);
+                        " size=%ld full=%.1f%%",
+                        name, n, objs, used, size, used*100.0/size);
             } else {
                 fdf_logd(70120, "Container %s: id=%ld objs=%ld used=%ld",
-                         name, n, objs, used);
+                        name, n, objs, used);
             }
         }
     }
 
     plat_free(cntr_p);
-}
-
-
-/*
- * Hash the key and the container id.
- */
-uint64_t
-hashck(const unsigned char *key, uint64_t key_len,
-       uint64_t level, cntr_id_t cntr_id)
-{
-    return hashb(key, key_len, level) + cntr_id * Mcd_osd_bucket_size;
 }

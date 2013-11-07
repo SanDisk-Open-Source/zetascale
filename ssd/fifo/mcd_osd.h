@@ -52,9 +52,6 @@
 
 #define MCD_OSD_SEGMENT_SIZE    (32 * 1024 * 1024)
 
-#define MCD_OSD_BUCKET_SIZE     16
-#define MCD_OSD_BUCKET_MASK     (0xffffffffffffffffULL ^ (MCD_OSD_BUCKET_SIZE - 1))
-
 /*
  * Block size for doing IO in log and object table
  */
@@ -98,39 +95,6 @@ enum cntr_states {
 
 #define BTREE_HACK
 
-/*
- * Relevant to in-core hash table.
- */
-#define OSD_HASH_SYN_SIZE         16
-#define OSD_HASH_SYN_SHIFT        48
-#ifdef BTREE_HACK
-#define OSD_HASH_ENTRY_HOPED_SIZE 18
-#else
-#define OSD_HASH_ENTRY_HOPED_SIZE 10
-#endif
-
-
-/*
- * In-core hash table.  Blocks are in 512 byte sectors.
- */
-typedef struct mcd_osd_hash_entry {
-    unsigned int used:1;
-    unsigned int deleted:1;
-    unsigned int referenced:1;
-    unsigned int reserved:1;
-    unsigned int blocks:12;
-    hashsyn_t    syndrome;
-    baddr_t      address;
-    cntr_id_t    cntr_id;
-#ifdef BTREE_HACK
-    uint64_t key;
-#endif
-}
-     __attribute__ ((packed))
-     __attribute__ ((aligned (2)))
-mcd_osd_hash_t;
-
-
 struct mcd_osd_slab_class;
 
 typedef struct mcd_osd_segment {
@@ -169,14 +133,6 @@ typedef struct mcd_osd_slab_class {
 
     slab_gc_class_t           * gc;
 } mcd_osd_slab_class_t;
-
-
-typedef struct mcd_osd_bucket {
-    unsigned int                overflowed:1;
-    unsigned int                next_item:7;
-    uint8_t                     hand;
-} mcd_osd_bucket_t;
-
 
 /*
  * FIFO related
@@ -260,8 +216,6 @@ typedef struct mcd_osd_shard {
     int                         replicated;
     int                         evict_to_free;
     int                         use_fifo;
-    int                         bkti_l2_size;
-    uint64_t                    bkti_l2_mask;
     uint64_t                    total_segments;
     uint64_t                    total_size;
     uint64_t                    total_blks;
@@ -269,15 +223,8 @@ typedef struct mcd_osd_shard {
     uint64_t                    blk_allocated;
     uint64_t                    blk_dealloc_pending;
     uint32_t                  * segments;       /* logical addr -> physical */
-    uint32_t                  * addr_table;
     uint32_t                  * rand_table;
-    uint64_t                    hash_size;
-    mcd_osd_hash_t            * hash_table;
-    mcd_osd_bucket_t          * hash_buckets;
-    int                         lock_bktsize;
-    int                         bkts_per_lock;
-    uint64_t                    lock_buckets;
-    fthLock_t                 * bucket_locks;
+    struct hash_handle        * hash_handle;
     mcd_osd_segment_t        ** segment_table;  /* logical block -> segment */
     mcd_osd_segment_t         * base_segments;
 
@@ -290,8 +237,6 @@ typedef struct mcd_osd_shard {
     int                         num_classes;
     mcd_osd_slab_class_t        slab_classes[MCD_OSD_MAX_NCLASSES];
     int                         class_table[(MCD_OSD_OBJ_MAX_SIZE / MCD_OSD_BLK_SIZE_MIN + MCD_OSD_LBA_MIN_BLKS) + 1];
-    uint16_t                  * overflow_index;
-    mcd_osd_hash_t            * overflow_table;
     mcd_container_t	      * cntr;
 
     union {
@@ -550,7 +495,8 @@ extern int mcd_osd_shard_set_flush_time( struct shard * shard, time_t new_time )
 extern void shard_recovery_stats( mcd_osd_shard_t * shard, char ** ppos,
                                   int * lenp );
 extern void log_write( mcd_osd_shard_t *, mcd_logrec_object_t *);
-extern void log_write_trx( mcd_osd_shard_t *, mcd_logrec_object_t *, uint64_t, mcd_osd_hash_t *);
+struct hash_entry;
+extern void log_write_trx( mcd_osd_shard_t *, mcd_logrec_object_t *, uint64_t, struct hash_entry *);
 extern void log_sync( mcd_osd_shard_t * shard );
 extern void log_wait( mcd_osd_shard_t * shard );
 extern uint64_t tombstone_get_rtg( mcd_osd_shard_t * shard );
@@ -732,7 +678,7 @@ mcd_fth_osd_slab_alloc( void * context, mcd_osd_shard_t * shard, int blocks, uin
  */
 int
 mcd_fth_osd_remove_entry( mcd_osd_shard_t * shard,
-    mcd_osd_hash_t * hash_entry,
+    struct hash_entry* hash_entry,
     bool delayed,
     bool remove_entry);
 
@@ -755,4 +701,7 @@ mcd_osd_segment_lock(mcd_osd_slab_class_t* class, mcd_osd_segment_t* segment);
 
 uint64_t
 mcd_osd_rand_address(mcd_osd_shard_t *shard, uint64_t offset);
+
+int
+mcd_onflash_key_match(void *context, mcd_osd_shard_t * shard, uint32_t addr, char *key, int key_len);
 #endif  /* __MCD_OSD_H__ */

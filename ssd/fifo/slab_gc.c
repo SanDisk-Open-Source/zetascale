@@ -14,6 +14,7 @@
 #include "ssd/ssd_aio.h" /* SSD_AIO_CTXT_MCD_REC_LGWR */
 #include "api/fdf.h" /* Statistics */
 #include "protocol/action/recovery.h"
+#include "hash.h"
 
 extern inline uint32_t mcd_osd_lba_to_blk( uint32_t blocks );
 extern int              Mcd_osd_max_nclasses;
@@ -96,32 +97,50 @@ int slab_gc_relocate_slab(
 	uint64_t src_blk_offset,
 	char* buf)
 {
-	int rc = 0;
-	uint32_t                    hash_index;
-	mcd_osd_hash_t            * hash_entry;
-	uint64_t dst_blk_offset, target_seqno = 0, seqno;
-	uint64_t dst_offset, idx, syndrome = 0;
-	fthWaitEl_t               * wait;
-	mcd_logrec_object_t log_rec;
+    int               i;
+    int               rc = 0;
+    uint32_t          hash_index;
+    hash_entry_t	* hash_entry = NULL;
+    uint32_t        * bucket_head;
+    uint32_t          bucket_idx;
+    hash_handle_t   * hdl = shard->hash_handle;
+    bucket_entry_t  * bucket;
+    uint64_t          dst_blk_offset, target_seqno = 0, seqno;
+    uint64_t          dst_offset, syndrome = 0;
+    fthWaitEl_t     * wait;
 
-	seqno = atomic_inc_get(shard->sequence);
+    mcd_logrec_object_t log_rec;
 
-	hash_index = shard->addr_table[src_blk_offset];
-	hash_entry = shard->hash_table + hash_index;
+    seqno = atomic_inc_get(shard->sequence);
 
-	plat_assert(hash_index < shard->hash_size + shard->lock_buckets * Mcd_osd_overflow_depth);
+    hash_index = hdl->addr_table[src_blk_offset];
 
-	if(hash_index >= shard->hash_size)
-		idx = (hash_index - shard->hash_size) / Mcd_osd_overflow_depth;
-	else
-		idx = hash_index / shard->lock_bktsize;
+    bucket_head = hdl->hash_buckets + (hash_index / OSD_HASH_BUCKET_SIZE);
+    wait = fthLock( hdl->bucket_locks + 
+                    (hash_index / hdl->lock_bktsize), 1, NULL );
+    bucket_idx = *bucket_head;
+    plat_assert( bucket_idx < 
+                (hdl->hash_size/OSD_HASH_ENTRY_PER_BUCKET_ENTRY) + 
+                    (hdl->hash_size / OSD_HASH_BUCKET_SIZE));
+    for(;bucket_idx !=0;bucket_idx = bucket->next){
+        bucket = hdl->hash_table + (bucket_idx - 1);
+        for(i=0;i<OSD_HASH_ENTRY_PER_BUCKET_ENTRY;i++){
+            hash_entry = &bucket->hash_entry[i];
 
-	plat_assert(idx < shard->lock_buckets);
+            if (hash_entry->used == 0)
+                continue;
 
-	wait = fthLock( shard->bucket_locks + idx, 1, NULL );
+            if (hash_entry->address == src_blk_offset)
+                goto found;
+        }
+    }
 
-	/* SLAB is pending deallocation, thats why in alloc_map so far,
-	   but hash_entry points to different place already */
+found:
+
+    /* SLAB is pending deallocation, thats why in alloc_map so far,
+       but hash_entry points to different place already */
+    if(hash_entry == NULL) goto out;
+
 	if(!hash_entry->used || hash_entry->address != src_blk_offset)
 		goto out;
 
@@ -150,7 +169,7 @@ int slab_gc_relocate_slab(
 		log_rec.deleted    = hash_entry->deleted;
 		log_rec.reserved   = 0;
 		log_rec.blocks     = hash_entry->blocks;
-		log_rec.bucket     = syndrome % shard->hash_size;
+		log_rec.bucket     = syndrome % hdl->hash_size;
 		log_rec.blk_offset = dst_blk_offset;
 		log_rec.cntr_id    = hash_entry->cntr_id;
 		log_rec.seqno      = seqno;
@@ -166,7 +185,7 @@ int slab_gc_relocate_slab(
 	atomic_add(shard->blk_consumed, mcd_osd_lba_to_blk(hash_entry->blocks));
 
 	hash_entry->address = dst_blk_offset;
-	shard->addr_table[dst_blk_offset] = hash_entry - shard->hash_table;
+	hdl->addr_table[dst_blk_offset] = syndrome % hdl->hash_size;
 
 out:
 	if(rc)

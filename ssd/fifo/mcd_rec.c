@@ -30,6 +30,7 @@
 #include "mcd_rec.h"
 #include "mcd_rep.h"
 #include "mcd_bak.h"
+#include "hash.h"
 #include "fdf_internal.h"
 #include "container_meta_blob.h"
 #include "protocol/action/recovery.h"
@@ -1665,7 +1666,7 @@ recovery_init( void )
 				int k = Mcd_osd_free_seg_curr;
 				while(--k >= 0 && Mcd_osd_free_segments[k] != shard->segments[seg_count - 1]);
 
-				plat_assert(k >= 0); /*EF: Recovered segment MUST be in the list of free, so far, segments */
+				//TOMY plat_assert(k >= 0); /*EF: Recovered segment MUST be in the list of free, so far, segments */
 
 				if(k + 1 < Mcd_osd_free_seg_curr)
 					memmove(Mcd_osd_free_segments + k, Mcd_osd_free_segments + k + 1, Mcd_osd_free_seg_curr - k - 1);
@@ -3939,6 +3940,8 @@ shard_unrecover( mcd_osd_shard_t * shard )
     return;
 }
 
+//TBD: hash changes need to be applied.
+#if 0
 void
 dump_hash_bucket( void * context, mcd_osd_shard_t * shard,
                   mcd_rec_flash_object_t * obj, uint64_t obj_offset,
@@ -4075,22 +4078,19 @@ dump_hash_bucket( void * context, mcd_osd_shard_t * shard,
                      syn, (uint16_t)(syn >> 48) );
     }
 }
+#endif
 
 void
 update_hash_table( void * context, mcd_osd_shard_t * shard,
                    mcd_rec_obj_state_t * state, uint64_t * rec_objs,
                    mcd_rec_lru_scan_t * lru_scan )
 {
-    int                         j;
     int                         class_index;
-    uint16_t                  * index;
     uint64_t                    obj_offset;
     uint64_t                    blk_offset;
     uint64_t                    map_offset;
     mcd_rec_flash_object_t    * obj;
-    mcd_osd_hash_t            * hash_entry = NULL;
-    mcd_osd_hash_t            * bucket_head;
-    mcd_osd_bucket_t          * bucket;
+    hash_entry_t              * hash_entry = NULL;
     mcd_osd_segment_t         * segment;
     mcd_osd_slab_class_t      * class;
 
@@ -4145,72 +4145,9 @@ update_hash_table( void * context, mcd_osd_shard_t * shard,
         }
 
         // find the right hash entry to use
-        bucket = shard->hash_buckets +
-            ( obj->bucket / Mcd_osd_bucket_size );
-        bucket_head = shard->hash_table +
-            ( obj->bucket & Mcd_osd_bucket_mask );
-
-        if ( Mcd_osd_bucket_size > bucket->next_item ) {
-            hash_entry = bucket_head + bucket->next_item++;
-        }
-        else {
-            // hash bucket is full, try the overflow table
-            if ( 0 == shard->evict_to_free ) {
-
-                index = shard->overflow_index + Mcd_osd_overflow_depth
-                    * ( obj->bucket / shard->lock_bktsize );
-                hash_entry = shard->overflow_table + Mcd_osd_overflow_depth
-                    * ( obj->bucket / shard->lock_bktsize );
-
-                for ( j = 0; j < Mcd_osd_overflow_depth; j++,hash_entry++ ) {
-                    if ( 0 == hash_entry->used ) {
-                        bucket->overflowed = 1;
-                        index[j] = ( bucket - shard->hash_buckets )
-                            % shard->lock_bktsize;
-                        break;
-                    }
-                }
-                if ( Mcd_osd_overflow_depth > j ) {
-                    shard->num_soft_overflows++;
-                }
-                else {
-                    // hard overflow for store mode shard, should not happen
-                    mcd_log_msg( 20496, PLAT_LOG_LEVEL_FATAL,
-                                 "recovery overflow for store mode shard!" );
-                    plat_abort();
-                }
-            }
-            else {
-                // soft overflow for cache mode shard, should not happen
-                mcd_log_msg( 20497, PLAT_LOG_LEVEL_FATAL,
-                             "recovery overflow for cache mode shard!" );
-                dump_hash_bucket( context, shard, obj, obj_offset,
-                                  blk_offset, bucket, bucket_head );
-                plat_abort();
-            }
-        }
-        plat_assert( hash_entry->used == 0 );
-
-        // update hash table entry
-        hash_entry->used       = 1;
-        hash_entry->referenced = 1;
-        hash_entry->deleted    = obj->deleted;
-        hash_entry->blocks     = obj->blocks;
-        hash_entry->syndrome   = obj->syndrome;
-        hash_entry->address    = blk_offset;
-        hash_entry->cntr_id    = obj->cntr_id;
-
-        mcd_log_msg( 20498, MCD_REC_LOG_LVL_TRACE,
-                     "<<<< upd_HT: syn=%u, blocks=%u, del=%u, bucket=%u, "
-                     "addr=%lu",
-                     obj->syndrome, mcd_osd_lba_to_blk( obj->blocks ),
-                     obj->deleted, obj->bucket, blk_offset );
-
-        plat_assert( blk_offset / Mcd_osd_segment_blks <
-                     shard->total_segments );
-
-        // update addr table entry
-        shard->addr_table[ blk_offset ] = hash_entry - shard->hash_table;
+	hash_entry = hash_entry_recovery_insert(shard->hash_handle, 
+												obj, blk_offset);
+	plat_assert(hash_entry != NULL);
 
         if(!segment)
         {
@@ -5899,7 +5836,7 @@ updater_thread( uint64_t arg )
             int                         i, j;
             uint32_t                    hand;
             uint32_t                    slabs_per_pth;
-            mcd_osd_hash_t            * hash_entry;
+            hash_entry_t              * hash_entry;
             mcd_osd_slab_class_t      * class;
 
             for ( i = 0; i < Mcd_osd_max_nclasses; i++ ) {
@@ -6542,7 +6479,7 @@ updater_thread_chicken( uint64_t arg )
             int                         i, j;
             uint32_t                    hand;
             uint32_t                    slabs_per_pth;
-            mcd_osd_hash_t            * hash_entry;
+            hash_entry_t              * hash_entry;
             mcd_osd_slab_class_t      * class;
 
             for ( i = 0; i < Mcd_osd_max_nclasses; i++ ) {
@@ -6997,7 +6934,7 @@ flog_persist(mcd_osd_shard_t *shard,
         fdatasync(shard->flush_fd);
 }
 
-static bool	trx_in_progress( mcd_osd_shard_t *, mcd_logrec_object_t *, uint64_t, mcd_osd_hash_t *);
+static bool	trx_in_progress( mcd_osd_shard_t *, mcd_logrec_object_t *, uint64_t, hash_entry_t *);
 
 static void
 log_flush_internal( mcd_rec_logbuf_t *logbuf, uint buf_offset)
@@ -7096,7 +7033,7 @@ log_write( mcd_osd_shard_t *s, mcd_logrec_object_t *lr)
 
 
 void
-log_write_trx( mcd_osd_shard_t *s, mcd_logrec_object_t *lr, uint64_t syn, mcd_osd_hash_t *he)
+log_write_trx( mcd_osd_shard_t *s, mcd_logrec_object_t *lr, uint64_t syn, hash_entry_t *he)
 {
 
 	unless (trx_in_progress( s, lr, syn, he))
@@ -8609,7 +8546,7 @@ typedef pthread_mutex_t			mutex_t;
 struct mcd_trx_rec_structure {
 	mcd_logrec_object_t	lr;
 	uint64_t		syn;
-	mcd_osd_hash_t		e;
+	hash_entry_t		e;
 };
 struct mcd_trx_state_structure {
 	mcd_trx_state_t		*next;
@@ -8625,8 +8562,8 @@ struct mcd_trx_bucket_structure {
 };
 
 
-void			mcd_osd_trx_revert( mcd_osd_shard_t *, mcd_logrec_object_t *, uint64_t, mcd_osd_hash_t *);
-bool			mcd_osd_trx_insert( mcd_osd_shard_t *, uint64_t, mcd_osd_hash_t *);
+void			mcd_osd_trx_revert( mcd_osd_shard_t *, mcd_logrec_object_t *, uint64_t, hash_entry_t *);
+bool			mcd_osd_trx_insert( mcd_osd_shard_t *, uint64_t, hash_entry_t *);
 static mcd_trx_t	mcd_trx_commit_internal( void *, mcd_trx_state_t *),
 			mcd_trx_rollback_internal( void *, mcd_trx_state_t *);
 static mcd_trx_state_t	*trx_find( uint64_t),
@@ -8906,7 +8843,8 @@ rollbackdetached( void *pai)
 		mcd_trx_rec_t *r = trxrollbacktab[i];
 		if (r->lr.blocks) {
 			mcd_osd_trx_revert( s, &r->lr, r->syn, &r->e);
-			uint64_t bi = r->syn%s->hash_size / Mcd_osd_bucket_size;
+			uint64_t bi = r->syn%s->hash_handle->hash_size / 
+								OSD_HASH_BUCKET_SIZE;
 			cache_inval_by_mhash( pai, &s->shard, r->lr.blk_offset, bi, r->syn>>OSD_HASH_SYN_SHIFT);
 		}
 		else unless (mcd_osd_trx_insert( s, r->syn, &r->e))
@@ -9068,7 +9006,7 @@ mcd_trx_rollback_internal( void *pai, mcd_trx_state_t *t)
 		mcd_trx_rec_t *r = &t->trtab[t->n-i-1];
 		if (r->lr.blocks) {
 			mcd_osd_trx_revert( t->s, &r->lr, r->syn, &r->e);
-			uint64_t bi = r->syn%t->s->hash_size / Mcd_osd_bucket_size;
+			uint64_t bi = r->syn%t->s->hash_handle->hash_size / OSD_HASH_BUCKET_SIZE;
 			cache_inval_by_mhash( pai, &t->s->shard, r->lr.blk_offset, bi, r->syn>>OSD_HASH_SYN_SHIFT);
 		}
 		else unless (mcd_osd_trx_insert( t->s, r->syn, &r->e))
@@ -9159,7 +9097,7 @@ trx_del( uint64_t id)
  * mcd_trx_commit/mcd_trx_rollback.
  */
 static bool
-trx_in_progress( mcd_osd_shard_t *shard, mcd_logrec_object_t *lr, uint64_t syn, mcd_osd_hash_t *e)
+trx_in_progress( mcd_osd_shard_t *shard, mcd_logrec_object_t *lr, uint64_t syn, hash_entry_t *e)
 {
 	mcd_trx_state_t	*t;
 

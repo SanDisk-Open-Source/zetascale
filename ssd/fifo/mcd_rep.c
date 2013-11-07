@@ -47,6 +47,7 @@
 #include "mcd_rep.h"
 //#include "mcd_sdf.h"
 #include "mcd_aio.h"
+#include "hash.h"
 
 #include "ssd/fifo/fifo.h"
 #include "ssd/ssd_aio.h"
@@ -73,7 +74,6 @@ static int volatile_object_table_iterate(struct shard *shard, resume_cursor_t * 
                                          rep_cursor_t * cursors);
 static int obj_read(struct shard * shard, uint64_t blk_offset, uint64_t nbytes, void ** data, mcd_osd_fifo_wbuf_t ** wbuf);
 static int logbuf_read(struct shard * shard, int logbuf_number, char * logbuf_buf);
-static int max_hash_bucket_size();
 
 extern int Mcd_osd_rand_blksize;
 extern uint64_t Mcd_osd_overflow_depth;
@@ -116,7 +116,7 @@ int rep_get_iteration_cursors(struct shard *shard, uint64_t seqno_start,
 
         // For correctness, all entries in a bucket must be grabbed in
         // one iteration
-        if (seqno_len < max_hash_bucket_size()) {
+        if (seqno_len < OSD_HASH_BUCKET_SIZE) {
             return FLASH_EINVAL;
         }
     }
@@ -438,15 +438,6 @@ out:
     return num_cursors;
 }
 
-static int max_hash_bucket_size()
-{
-    if (flash_settings.enable_fifo) {
-        return MCD_OSD_BUCKET_SIZE;
-    } else {
-        return MCD_OSD_BUCKET_SIZE + Mcd_osd_overflow_depth;
-    }
-}
-
 static int volatile_object_table_iterate(struct shard *shard, resume_cursor_t * resume_cursor,
                                          int seqno_start, int seqno_max, int seqno_len,
                                          rep_cursor_t * cursors)
@@ -455,97 +446,65 @@ static int volatile_object_table_iterate(struct shard *shard, resume_cursor_t * 
     struct mcd_rec_shard * pshard;
 #endif
     struct mcd_osd_shard * osd_shard;
-    mcd_osd_bucket_t * bucket;
+    bucket_entry_t * bucket;
     fthLock_t * bucket_lock;
     fthWaitEl_t * wait;
-    mcd_osd_hash_t * entry;
+    hash_entry_t * entry;
+    hash_handle_t * hash_handle;
     uint64_t num_cursors;
-    uint64_t i, j;
-    uint16_t * overflow_index;
-    uint16_t index;
+    uint64_t i, j, k;
+    uint32_t bucket_idx;
 //    int percentage;
 
-    plat_assert(seqno_len > max_hash_bucket_size());
+    plat_assert(seqno_len > OSD_HASH_BUCKET_SIZE);
 
     // Get the pshard
 #ifdef notyet
     pshard = ((mcd_osd_shard_t *)shard)->pshard;
 #endif
     osd_shard = (mcd_osd_shard_t *)shard;
+    hash_handle = osd_shard->hash_handle;
 
     num_cursors = 0;
 
     // Iterate over the table
-    for (i = resume_cursor->cursor1; i < (osd_shard->hash_size / MCD_OSD_BUCKET_SIZE); i++) {
+    for (i = resume_cursor->cursor1; i < (hash_handle->hash_size / 
+                OSD_HASH_BUCKET_SIZE); i++) {
         // Lock bucket
-        bucket_lock = osd_shard->bucket_locks +
-            ((i * MCD_OSD_BUCKET_SIZE) / osd_shard->lock_bktsize);
+        bucket_lock = hash_handle->bucket_locks + 
+            ((i * OSD_HASH_BUCKET_SIZE) / hash_handle->lock_bktsize);
         wait = fthLock(bucket_lock, 0, NULL);
-        
-        bucket = osd_shard->hash_buckets + i;
 
-        // Get the head of the entries in the bucket
-        entry = osd_shard->hash_table + (i * MCD_OSD_BUCKET_SIZE);
+        bucket_idx = *(hash_handle->hash_buckets + i); 
 
         // Walk entries in bucket
-        for (j = 0; j < bucket->next_item; j++, entry++) {
-            plat_assert(entry->used);
+        for(k=0;bucket_idx != 0; bucket_idx = bucket->next, k++){
+            bucket = hash_handle->hash_table + (bucket_idx - 1);
+            for(j=0;j<OSD_HASH_ENTRY_PER_BUCKET_ENTRY;j++){
+                entry = &bucket->hash_entry[j];
 
-            cursors[num_cursors].seqno = 0;
-            cursors[num_cursors].syndrome = entry->syndrome;
-            cursors[num_cursors].blocks = entry->blocks;
-            cursors[num_cursors].tombstone = 0;
-            cursors[num_cursors].blk_offset = entry->address;
-            cursors[num_cursors].bucket = i;
-            
-            num_cursors++;
-            
-            plat_log_msg(20575, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION, PLAT_LOG_LEVEL_TRACE,
-                         "add cursor[%ld][%ld]: syndrome: %x", i, j, entry->syndrome);
-
-            if (num_cursors == seqno_len) {
-                fthUnlock(wait);
-                goto out;
-            }
-        }
-        // Handle overflow here
-        if (bucket->overflowed) {
-
-            // Get first entry of this bucket's overflow table
-            entry = osd_shard->overflow_table +
-                (((i * MCD_OSD_BUCKET_SIZE) / osd_shard->lock_bktsize)
-                 * Mcd_osd_overflow_depth);
-
-            overflow_index  = osd_shard->overflow_index + 
-                (((i * MCD_OSD_BUCKET_SIZE) / osd_shard->lock_bktsize) 
-                * Mcd_osd_overflow_depth);
-
-            // Walk overflow table
-            for (j = 0; j < Mcd_osd_overflow_depth; j++, entry++) {
-                if (!entry->used) {
+                if(entry->used == 0){
                     continue;
                 }
 
-                index = (bucket - osd_shard->hash_buckets)
-                            % osd_shard->lock_bktsize;
+                cursors[num_cursors].seqno = 0;
+                cursors[num_cursors].syndrome = entry->syndrome;
+                cursors[num_cursors].blocks = entry->blocks;
+                cursors[num_cursors].tombstone = 0;
+                cursors[num_cursors].blk_offset = entry->address;
+                cursors[num_cursors].bucket = i;
 
-                // If this entry came from a bucket we are walking,
-                // then add it
-                if (overflow_index[j] == index) {
-                    plat_assert(entry->used);
+                num_cursors++;
 
-                    cursors[num_cursors].seqno = 0;
-                    cursors[num_cursors].syndrome = entry->syndrome;
-                    cursors[num_cursors].blocks = entry->blocks;
-                    cursors[num_cursors].tombstone = 0;
-                    cursors[num_cursors].blk_offset = entry->address;
-            
-                    num_cursors++;
-            
-                    if (num_cursors == seqno_len) {
-                        fthUnlock(wait);
-                        goto out;
-                    }
+                plat_log_msg(20575, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION, 
+                        PLAT_LOG_LEVEL_TRACE,
+                        "add cursor[%ld][%ld]: syndrome: %x", i, 
+                        (k * OSD_HASH_ENTRY_PER_BUCKET_ENTRY) + j, 
+                        entry->syndrome);
+
+                if (num_cursors == seqno_len) {
+                    fthUnlock(wait);
+                    goto out;
                 }
             }
         }
@@ -553,12 +512,12 @@ static int volatile_object_table_iterate(struct shard *shard, resume_cursor_t * 
         fthUnlock(wait);
 
         // Update the data copy progress
-//        percentage = (i * 100) / (osd_shard->hash_size / MCD_OSD_BUCKET_SIZE);
-//        update_data_copy_progress(shard, percentage);
+        //        percentage = (i * 100) / (osd_shard->hash_size / MCD_OSD_BUCKET_SIZE);
+        //        update_data_copy_progress(shard, percentage);
 
         // Make sure we have enough room for another pass, if not send
         // what we have
-        if ((num_cursors + max_hash_bucket_size()) > seqno_len) {
+        if ((num_cursors + OSD_HASH_BUCKET_SIZE) > seqno_len) {
             break;
         }
     }
@@ -581,6 +540,7 @@ fthWaitEl_t * rep_lock_bucket(struct shard * shard, rep_cursor_t * rep_cursor)
     struct mcd_rec_shard * pshard;
 #endif
     struct mcd_osd_shard * osd_shard;
+    hash_handle_t * hash_handle;
     fthLock_t * bucket_lock;
     fthWaitEl_t * wait;
     
@@ -588,9 +548,11 @@ fthWaitEl_t * rep_lock_bucket(struct shard * shard, rep_cursor_t * rep_cursor)
     pshard = ((mcd_osd_shard_t *)shard)->pshard;
 #endif
     osd_shard = (mcd_osd_shard_t *)shard;
+    hash_handle = osd_shard->hash_handle;
 
-    bucket_lock = osd_shard->bucket_locks +
-        ((rep_cursor->bucket * MCD_OSD_BUCKET_SIZE) / osd_shard->lock_bktsize);
+    bucket_lock = hash_handle->bucket_locks +
+        ((rep_cursor->bucket * OSD_HASH_BUCKET_SIZE) / 
+                hash_handle->lock_bktsize);
 
     // Read only
     wait = fthLock(bucket_lock, 0, NULL);
@@ -606,36 +568,24 @@ void rep_unlock_bucket(fthWaitEl_t * wait)
 int check_object_exists(struct shard *shard, rep_cursor_t * rep_cursor)
 {
     struct mcd_osd_shard * osd_shard;
-
-    mcd_osd_bucket_t * bucket;
-    mcd_osd_hash_t * entry;
+    hash_handle_t * hash_handle;
+    uint32_t bucket_idx;
+    bucket_entry_t * bucket;
+    hash_entry_t * entry;
     int i;
-    
+
     osd_shard = (mcd_osd_shard_t *)shard;
+    hash_handle = osd_shard->hash_handle;
 
-    bucket = osd_shard->hash_buckets + rep_cursor->bucket;
-
-    // Get the head of the entries in the bucket
-    entry = osd_shard->hash_table + (rep_cursor->bucket * MCD_OSD_BUCKET_SIZE);
+    bucket_idx = *(hash_handle->hash_buckets + rep_cursor->bucket);
 
     // Walk entries in bucket
-    for (i = 0; i < bucket->next_item; i++, entry++) {
-        plat_assert(entry->used);
+    for(;bucket_idx != 0;bucket_idx = bucket->next){
+        bucket = hash_handle->hash_table + (bucket_idx - 1);
+        for(i=0;i<OSD_HASH_ENTRY_PER_BUCKET_ENTRY;i++){
+            entry = &bucket->hash_entry[i];
 
-        if ( (uint16_t)(rep_cursor->syndrome) == entry->syndrome ) {
-            return 1;
-        }
-    }
-        
-    if (bucket->overflowed) {
-        // Get first entry of this bucket's overflow table
-        entry = osd_shard->overflow_table +
-            (((rep_cursor->bucket * MCD_OSD_BUCKET_SIZE) / osd_shard->lock_bktsize)
-             * Mcd_osd_overflow_depth);
-        
-        // Walk overflow table
-        for (i = 0; i < Mcd_osd_overflow_depth; i++, entry++) {
-            if (!entry->used) {
+            if(entry->used == 0){
                 continue;
             }
 
@@ -1083,7 +1033,8 @@ int rep_iterate_cursors_progress(struct shard * shard, resume_cursor_t * cursor)
         
     } else {
         osd_shard = (mcd_osd_shard_t *)shard;
-        total_ops = osd_shard->hash_size / MCD_OSD_BUCKET_SIZE;
+        total_ops = osd_shard->hash_handle->hash_size / 
+                        OSD_HASH_BUCKET_SIZE;
         finished_ops = cursor->cursor1;
     }
 

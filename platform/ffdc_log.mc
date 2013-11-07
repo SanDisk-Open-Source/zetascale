@@ -3375,6 +3375,8 @@
 160201 Compression failed
 160202 Data uncompression failed:%d
 160203 Memory allocation failed\n
+160204 failed to allocate hash tables
+160205 evicting, pth_id=%d hand=%u address=%u index=%u
 
 
 # rico

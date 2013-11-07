@@ -593,7 +593,7 @@ typedef struct mcd_rec_aio_ctxt {
 // item (seqno) in each slab class for a container
 typedef struct mcd_rec_lru_scan {
     uint64_t                seqno;
-    mcd_osd_hash_t        * hash_entry;
+    struct hash_entry     * hash_entry;
 } mcd_rec_lru_scan_t;
 
 // Read/Write operation

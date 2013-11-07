@@ -9,6 +9,7 @@ add_library(fifo OBJECT fifo.c
  	mcd_osd.c
 # 	mcd_ipf.c
 	recovery.c
-	slab_gc.c )
+	slab_gc.c
+	hash.c )
 add_dependencies(fifo ffdc)
 add_definitions(-Wno-switch -Wno-parentheses)
