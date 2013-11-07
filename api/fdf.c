@@ -707,6 +707,18 @@ int get_cache_type_stats_category(int stat ) {
     return fdf_stats_cache[stat].category;
 }   
 
+fdf_stats_info_t fdf_stats_cntr[] = {
+    {"NUM_OBJS","num_objs",FDF_STATS_TYPE_CONTAINER_FLASH},/*FDF_CNTR_STATS_NUM_OBJS*/
+    {"USED_SPACE","used_space",FDF_STATS_TYPE_CONTAINER_FLASH},/*FDF_CNTR_STATS_USED_SPACE*/
+};
+
+char *get_cntr_type_stats_desc(int stat ) {
+    if( stat >= sizeof(fdf_stats_cntr)/sizeof(fdf_stats_info_t)) {
+        return "Invalid stat";
+    }
+    return fdf_stats_cntr[stat].desc;
+}
+
 FDF_status_t verify_stats_datastruct() {
     int num_stats_array;
     /*Number of stats listed in the corresponding descriptive array fdf_stats_access_type*/
@@ -6416,6 +6428,8 @@ FDF_status_t FDFGetContainerStats(
 {
     char stats_str[STAT_BUFFER_SIZE];
     FDF_status_t rc;
+    uint64_t num_objs = 0;
+    uint64_t used_space = 0;
 
 	rc = fdf_validate_container(cguid);
 	if (FDF_SUCCESS != rc) {
@@ -6449,6 +6463,11 @@ FDF_status_t FDFGetContainerStats(
         plat_log_msg( 80024, LOG_CAT, LOG_DIAG,
                       "Failed to get stats for container:%lu (%s)",cguid,FDF_Status_Strings[rc] );
     }
+
+    get_cntr_info(cguid, NULL, 0, &num_objs, &used_space, NULL, NULL);
+    stats->cntr_stats[FDF_CNTR_STATS_NUM_OBJS] = num_objs;
+    stats->cntr_stats[FDF_CNTR_STATS_USED_SPACE] = used_space;
+
     //  no-op in this simple implementation
     slab_gc_get_stats(NULL, stats, NULL);
     update_btree_stats(cguid,stats);

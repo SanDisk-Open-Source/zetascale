@@ -325,10 +325,18 @@ typedef enum {
     FDF_N_FLASH_STATS
 } FDF_flash_stat_t;
 
+typedef enum {
+    FDF_CNTR_STATS_NUM_OBJS,
+    FDF_CNTR_STATS_USED_SPACE,
+
+    FDF_N_CNTR_STATS
+} FDF_cntr_stat_t;
+
 typedef struct {
 	uint64_t		 n_accesses[FDF_N_ACCESS_TYPES];
 	uint64_t		 flash_stats[FDF_N_FLASH_STATS];
 	uint64_t		 cache_stats[FDF_N_CACHE_STATS];
+	uint64_t		 cntr_stats[FDF_N_CNTR_STATS];
 	FDF_histo_t		 key_size_histo;
 	FDF_histo_t		 data_size_histo;
 	FDF_histo_t		 access_time_histo[FDF_N_ACCESS_TYPES];
