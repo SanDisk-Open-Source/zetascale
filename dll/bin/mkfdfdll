@@ -255,6 +255,16 @@ sub readstr ($) {
 }
 
 
+# Remove comments.
+#
+sub no_comments ($) {
+    my ($data) = @_;
+    $data =~ s:/\*.*?\*/: :gs;
+    $data =~ s://.*$::gm;
+    return $data;
+}
+
+
 # If a symbol contains FDF or SDF, remove it.
 #
 sub rem_sdf ($) {
@@ -464,6 +474,7 @@ sub main () {
     my $data = readstr $path;
     defined $data or
         panic "failed to open file: $path";
+    $data = no_comments $data;
     my $funcs = scan_proto $data;
     make_link $funcs;
 }
