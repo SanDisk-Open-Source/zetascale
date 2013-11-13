@@ -215,6 +215,12 @@ btree_status_t btree_flush(struct btree *btree, char *key, uint32_t keylen)
     return btree_raw_flush(btree->partitions[n_partition], key, keylen);
 }
 
+btree_status_t btree_ioctl(struct btree *btree, uint32_t ioctl_type, void *data)
+{
+	int n_partition = 0;
+	return btree_raw_ioctl(btree->partitions[0], ioctl_type, data);
+}
+
 /*
  * Allocate and deallocate range up date marker.
  */

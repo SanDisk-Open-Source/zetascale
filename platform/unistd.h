@@ -76,10 +76,12 @@
 #define sys_fork fork
 #endif
 
+#if 0 // Sorry, Drew, I need these - Rico
 /* We don't have wrapping code for varatic functions */
 PLAT_WRAP_CPP_POISON(execl execlp execv execvp)
 /* We don't have wrapping code for noreturn() functions */
 PLAT_WRAP_CPP_POISON(_exit)
+#endif
 /* And readlink can return int or ssize_t */
 PLAT_WRAP_CPP_POISON(readline)
 

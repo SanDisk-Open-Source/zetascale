@@ -90,4 +90,6 @@ btree_alloc_rupdate_marker(struct btree * bt);
 void
 btree_free_rupdate_marker(struct btree *btree, btree_rupdate_marker_t *marker);
 
+btree_status_t btree_ioctl(struct btree *btree, uint32_t ioctl_type, void *data);
+
 #endif // __BTREE_H

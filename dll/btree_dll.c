@@ -197,6 +197,9 @@ static FDF_status_t
 static uint64_t
 (*ptr_FDFTransactionID)(struct FDF_thread_state *fdf_thread_state);
 
+static FDF_status_t
+(*ptr_FDFTransactionService)(struct FDF_thread_state *fdf_thread_state, int, void *);
+
 static FDF_status_t 
 (*ptr_FDFGetVersion)(char **str);
 
@@ -235,6 +238,12 @@ FDF_status_t
 	       FDF_range_cmp_cb_t range_cmp_callback,
 	       void *range_cmp_callback_args,
 	       uint32_t *objs_updated);
+FDF_status_t
+(*ptr_FDFIoctl)(struct FDF_thread_state *fdf_thread_state, 
+         FDF_cguid_t cguid,
+         uint32_t ioctl_type,
+         void *data);
+
 
 #if 0
 static void 
@@ -348,12 +357,14 @@ static struct {
     { "_FDFTransactionRollback",        &ptr_FDFTransactionRollback       },
     { "_FDFTransactionQuit",            &ptr_FDFTransactionQuit           },
     { "_FDFTransactionID",              &ptr_FDFTransactionID             },
+    { "_FDFTransactionService",         &ptr_FDFTransactionService        },
     { "_FDFGetVersion",                 &ptr_FDFGetVersion                },
     { "_FDFGetRange",                   &ptr_FDFGetRange                  },
     { "_FDFGetNextRange",               &ptr_FDFGetNextRange              },
     { "_FDFGetRangeFinish",             &ptr_FDFGetRangeFinish            },
     { "_FDFMPut", 		        &ptr_FDFMPut		          },
     { "_FDFRangeUpdate", 		&ptr_FDFRangeUpdate		  },
+    { "_FDFIoctl",                      &ptr_FDFIoctl                     },
 #if 0
     { "_FDFTLMapDestroy",               &ptr_FDFTLMapDestroy              },
     { "_FDFTLMapClear",                 &ptr_FDFTLMapClear                },
@@ -1025,6 +1036,18 @@ FDFTransactionID(struct FDF_thread_state *fdf_thread_state)
 }
 
 /*
+ * FDFTransactionService
+ */
+FDF_status_t
+FDFTransactionService(struct FDF_thread_state *fdf_thread_state, int cmd, void *arg)
+{
+    if (unlikely(!ptr_FDFTransactionService))
+	undefined("FDFTransactionService");
+
+    return ((*ptr_FDFTransactionService)(fdf_thread_state, cmd, arg));
+}
+
+/*
  * FDFGetVersion
  */
 FDF_status_t 
@@ -1344,4 +1367,21 @@ FDFRangeUpdate(struct FDF_thread_state *fdf_thread_state,
 				  range_key_len, callback_func, callback_args,
 				  range_cmp_callback, range_cmp_callback_args,
 				  objs_updated);
+}
+
+/*
+ * FDFIoctl
+ */
+FDF_status_t
+FDFIoctl(struct FDF_thread_state *fdf_thread_state, 
+         FDF_cguid_t cguid,
+         uint32_t ioctl_type,
+         void *data)
+{
+
+    if (unlikely(!ptr_FDFIoctl))
+        undefined("FDFIoctl");
+
+
+    return (*ptr_FDFIoctl) (fdf_thread_state, cguid, ioctl_type, data);
 }

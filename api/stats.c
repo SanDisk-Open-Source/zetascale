@@ -48,6 +48,9 @@
 #include "agent/agent_common.h"
 #include "agent/agent_helper.h"
 #include "fdf_internal.h"
+#ifdef FLIP_ENABLED
+#include "flip/flip.h"
+#endif
 
 /*
  * Functions defined in fdf.c
@@ -626,6 +629,11 @@ static FDF_status_t process_admin_cmd( struct FDF_thread_state *thd_state,
     else if( strcmp(tokens[0].value,"log_level") == 0 ) {
         process_log_level_cmd(thd_state, fp,tokens,ntokens);
     }
+#ifdef FLIP_ENABLED
+    else if (strcmp(tokens[0].value, "flip") == 0) {
+        process_flip_cmd(fp, tokens, ntokens);
+    }
+#endif
     else if( strcmp(tokens[0].value,"quit") == 0 ) {
          return FDF_FAILURE;
     }

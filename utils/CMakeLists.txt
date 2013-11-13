@@ -1,4 +1,6 @@
+enable_language(ASM)
 add_library(utils OBJECT linkedlist.c 
+	crc32.s
 	hash.c 
 	hashmap.c 
 	properties.c 

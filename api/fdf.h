@@ -1235,6 +1235,12 @@ FDFRangeUpdate(struct FDF_thread_state *fdf_thread_state,
 	       void *range_cmp_cb_args,
 	       uint32_t *objs_updated);
 
+FDF_status_t
+FDFIoctl(struct FDF_thread_state *fdf_thread_state, 
+         FDF_cguid_t cguid,
+         uint32_t ioctl_type,
+         void *data);
+
 /*
  * @brief Create a snapshot for a container  
  * 

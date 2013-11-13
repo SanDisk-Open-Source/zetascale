@@ -202,7 +202,7 @@ typedef struct btree_raw_mem_node *(create_node_cb_t)(btree_status_t *ret, void 
 typedef int (delete_node_cb_t)(void *data, uint64_t lnodeid);
 typedef void (log_cb_t)(btree_status_t *ret, void *data, uint32_t event_type, struct btree_raw *btree, struct btree_raw_mem_node *n);
 typedef int (cmp_cb_t)(void *data, char *key1, uint32_t keylen1, char *key2, uint32_t keylen2);
-typedef int (trx_cmd_cb_t)( int, void *, void *);
+typedef int (trx_cmd_cb_t)( int, ...);
 
 typedef bool (* btree_rupdate_cb_t) (char *key, uint32_t keylen, char *data, uint64_t datalen, void * callback_args, char **new_data, uint64_t *new_data_len);
 
@@ -247,6 +247,8 @@ btree_status_t
 btree_raw_mput(struct btree_raw *btree, btree_mput_obj_t *objs, uint32_t num_objs, uint32_t flags, btree_metadata_t *meta, uint32_t *objs_written);
 
 extern btree_status_t btree_raw_flush(struct btree_raw *btree, char *key, uint32_t keylen);
+
+extern btree_status_t btree_raw_ioctl(struct btree_raw *bt, uint32_t ioctl_type, void *data);
 
 /*   delete a key
  *

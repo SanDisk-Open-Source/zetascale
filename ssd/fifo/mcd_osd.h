@@ -297,7 +297,8 @@ typedef struct mcd_osd_meta {
     uint16_t            version;
     uint16_t            key_len;
     uint32_t            data_len;    // NOTE: changed from SDF_size_t (8-bytes)
-    uint32_t            blk1_chksum;
+    uint64_t            blk1_chksum;
+    uint64_t            data_chksum;
     uint32_t            create_time;
     uint32_t            expiry_time;
     uint64_t            cguid;
@@ -399,9 +400,10 @@ typedef struct mcd_logrec_object {
     uint32_t    old_offset;            // old offset within shard (overwrite)
     uint64_t    cntr_id:16;            // seqno of superceded (target) object
     uint64_t    seqno:48;              // sequence number for this record
-    uint64_t    target_seqno;          // seqno of superceded (target) object
+    uint64_t    target_seqno:48;       // seqno of superceded (target) object
                                        //   used when deleting or overwriting,
                                        //   but not during eviction
+    int16_t     bracket_id;            // active btree mput if nonzero
 } mcd_logrec_object_t;
 
 #define MCD_FTH_OSD_BUF_SIZE    (1024 * 1024)

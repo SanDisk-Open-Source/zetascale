@@ -4340,8 +4340,6 @@ mcd_fth_osd_slab_set( void * context, mcd_osd_shard_t * shard, char * key,
     int                         blocks;
     char                      * buf;
     char                      * data_buf = NULL;
-    uint32_t                    chksum32 = 0;
-    uint64_t                    chksum64 = 0;
     uint64_t                    blk_offset;
     uint64_t                    offset;
     uint64_t                    target_seqno = 0;
@@ -4659,19 +4657,19 @@ mcd_fth_osd_slab_set( void * context, mcd_osd_shard_t * shard, char * key,
     memcpy( buf + sizeof(mcd_osd_meta_t), key, key_len );
     memcpy( buf + sizeof(mcd_osd_meta_t) + key_len, data, data_len );
 
+    meta->data_chksum = 0;
     meta->blk1_chksum = 0;
-    meta->checksum    = 0;
-
-    if ( flash_settings.chksum_metadata ) {
-        chksum32 = mcd_hash( (unsigned char *)buf, Mcd_osd_blk_size, 0 );
-    }
-    if ( flash_settings.chksum_data ) {
-        chksum64 = hashb((unsigned char *)buf + sizeof(mcd_osd_meta_t),
-			 key_len + data_len, 0);
-    }
-
-    meta->blk1_chksum = chksum32;
-    meta->checksum    = chksum64;
+    meta->checksum = 0;
+    if (flash_settings.chksum_data)
+        meta->data_chksum = hashb( (uint8_t *)buf+sizeof( mcd_osd_meta_t), key_len+data_len, 0);
+    if (flash_settings.chksum_metadata)
+        meta->blk1_chksum = hashb( (uint8_t *)buf, MCD_OSD_META_BLK_SIZE, 0);
+    if (flash_settings.chksum_object)
+#if 0//Rico - new checksum
+        meta->checksum = hashb( (uint8_t *)buf, blocks*Mcd_osd_blk_size, 0);
+#else
+        meta->checksum = fastcrc32( (uint8_t *)buf, blocks*Mcd_osd_blk_size, 0);
+#endif
 
     offset = mcd_osd_rand_address(shard, blk_offset);
 
@@ -5002,10 +5000,6 @@ mcd_fth_osd_slab_get( void * context, mcd_osd_shard_t * shard, char *key,
     int                         nbytes;
     mcd_osd_meta_t            * meta;
     cntr_id_t                   cntr_id = meta_data->cguid;
-    uint64_t                    checksum64 = 0;
-    uint32_t                    checksum32 = 0;
-    uint64_t                    checksum_read_data = 0;
-    uint32_t                    checksum_read_meta = 0;
     uint32_t                    databuf_len;
     uint32_t                    uncomp_datalen = 0;
     uint32_t                    bucket_idx;
@@ -5195,40 +5189,26 @@ override_retry:
             *pactual_size = meta->data_len;
 
             /*
-             * Verify the data checksums.
+             * verify applicable checksums
              */
-            checksum_read_meta = meta->blk1_chksum;
-            checksum_read_data = meta->checksum;
             meta->checksum = 0;
+            uint64_t blk1_chksum = meta->blk1_chksum;
             meta->blk1_chksum = 0;
-
-            if (flash_settings.chksum_metadata) {
-                checksum32 = mcd_hash((unsigned char *)meta, Mcd_osd_blk_size, 0 );
-                if (checksum32 != checksum_read_meta) {
-#ifdef DEBUG_BUILD
-                    plat_assert(checksum32 == checksum_read_meta);
-#endif
-                    mcd_log_msg(160163, PLAT_LOG_LEVEL_FATAL,
-                            "Data inconsistency found in cguid = %d, object block addr = %"PRIu64".\n",
+            if ((flash_settings.chksum_metadata)
+            && (hashb( (uint8_t *)buf, MCD_OSD_META_BLK_SIZE, 0) != blk1_chksum)) {
+                    mcd_log_msg(170036, PLAT_LOG_LEVEL_FATAL,
+                            "Metadata inconsistency found in cguid = %d, byte offset = %"PRIu64".\n",
                             cntr_id, offset);
                     mcd_fth_osd_slab_free(data_buf);
                     return FLASH_EINCONS;
-                }
             }
-
-            if (flash_settings.chksum_data) {
-                checksum64 = hashb((unsigned char *) buf + sizeof(mcd_osd_meta_t),
-                        meta->key_len + meta->data_len, 0);
-                if (checksum64 != checksum_read_data) {
-#ifdef DEBUG_BUILD
-                    plat_assert(checksum64 == checksum_read_data);
-#endif
-                    mcd_log_msg(160163, PLAT_LOG_LEVEL_FATAL,
-                            "Data inconsistency found in cguid = %d, object block addr = %"PRIu64".\n",
+            if ((flash_settings.chksum_data)
+            && (hashb( (uint8_t *)buf+sizeof( mcd_osd_meta_t), key_len+meta->data_len, 0) != meta->data_chksum)) {
+                    mcd_log_msg(170037, PLAT_LOG_LEVEL_FATAL,
+                            "Data inconsistency found in cguid = %d, byte offset = %"PRIu64".\n",
                             cntr_id, offset);
                     mcd_fth_osd_slab_free(data_buf);
                     return FLASH_EINCONS;
-                }
             }
 
             /*

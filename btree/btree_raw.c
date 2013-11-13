@@ -71,6 +71,9 @@
 #include "btree_pmap.h"
 #include "btree_raw_internal.h"
 #include <api/fdf.h>
+#include "packet.h"
+#include "trxcmd.h"
+#include "flip/flip.h"
 
 //  Define this to include detailed debugging code
 //#define BTREE_RAW_CHECK
@@ -110,6 +113,10 @@ __thread btree_raw_mem_node_t* deleted_nodes[MAX_BTREE_HEIGHT];
 __thread uint64_t modified_nodes_count=0, referenced_nodes_count=0, deleted_nodes_count=0;
 
 __thread uint64_t dbg_referenced = 0;
+
+#ifdef FLIP_ENABLED
+bool recovery_write = false;
+#endif
 
 #define bt_err(msg, args...) \
     (bt->msg_cb)(0, 0, __FILE__, __LINE__, msg, ##args)
@@ -418,10 +425,26 @@ btree_raw_init(uint32_t flags, uint32_t n_partition, uint32_t n_partitions, uint
 
     plat_rwlock_init(&bt->lock);
     bt->modified = 0;
+    bt->trxenabled = (*bt->trx_cmd_cb)( TRX_ENABLED);
 
     dbg_print("dbg_referenced %ld\n", dbg_referenced);
     assert(!dbg_referenced);
     dbg_print("bt %p lock %p n_part %d\n", bt, &bt->lock, n_partition);
+
+    if (flags & RELOAD) {
+        rec_packet_t *r = recovery_packet_open( cguid);
+        if (r) {
+            rec_packet_trx_t *t;
+            while (t = recovery_packet_get_trx( r)) {
+                btree_recovery_process_minipkt( bt, (btree_raw_node_t **)t->oldnodes, t->oldcount, (btree_raw_node_t **)t->newnodes, t->newcount);
+                recovery_packet_free_trx( t);
+            }
+            recovery_packet_close( r);
+            recovery_packet_delete( cguid);
+        }
+    }
+    else
+        recovery_packet_delete( cguid);
 
     return(bt);
 }
@@ -520,7 +543,6 @@ int btree_raw_free_buffer(btree_raw_t *btree, char *buf)
 
 //======================   GET  =========================================
 
-inline static
 int is_overflow(btree_raw_t *btree, btree_raw_node_t *node) { return node->flags & OVERFLOW_NODE; }
 
 int is_leaf(btree_raw_t *btree, btree_raw_node_t *node) { return node->flags & LEAF_NODE; }
@@ -1173,7 +1195,12 @@ btree_status_t deref_l1cache(btree_raw_t *btree)
     btree_raw_mem_node_t *n;
     btree_status_t        ret = BTREE_SUCCESS;
     btree_status_t        txnret = BTREE_SUCCESS;
+#ifdef FLIP_ENABLED
+    static uint32_t node_write_cnt = 0;
+#endif
 
+    if (btree->trxenabled)
+	(*btree->trx_cmd_cb)( TRX_START);
     for(i = 0; i < modified_nodes_count; i++)
     {
         n = modified_nodes[i];
@@ -1187,6 +1214,22 @@ btree_status_t deref_l1cache(btree_raw_t *btree)
         if(j >= i)
 		{
 			uint64_t logical_id = n->pnode->logical_id;
+#ifdef FLIP_ENABLED
+            if (flip_get("sw_crash_on_single_write", 
+                         (uint32_t)n->pnode->flags,
+                         recovery_write,
+                         node_write_cnt)) {
+                exit(0);
+            }
+
+            if (flip_get("set_btree_fdf_write_ret",
+                         (uint32_t)n->pnode->flags,
+                         recovery_write,
+                         node_write_cnt, (uint32_t *)&ret)) {
+                goto write_done;               
+            }
+            __sync_fetch_and_add(&node_write_cnt, 1);
+#endif
 	btree->write_node_cb(&ret, btree->write_node_cb_data, n->pnode->logical_id, (char*)n->pnode, btree->nodesize);
 	assert(logical_id == n->pnode->logical_id);
 #ifdef DEBUF_STUFF
@@ -1206,8 +1249,13 @@ btree_status_t deref_l1cache(btree_raw_t *btree)
         dbg_print("delete_node_cb key=%ld data=%p datalen=%d\n", n->pnode->logical_id, n, btree->nodesize);
 
         ret = btree->delete_node_cb(btree->create_node_cb_data, n->pnode->logical_id);
+#ifdef BTREE_UNDO_TEST
+        btree_rcvry_test_delete(btree, n->pnode);
+#endif
         add_node_stats(btree, n->pnode, L1WRITES, 1);
     }
+    if (btree->trxenabled)
+	(*btree->trx_cmd_cb)( TRX_COMMIT);
 
     //TODO
     //if(ret || txnret)
@@ -3497,6 +3545,24 @@ btree_raw_mput(struct btree_raw *btree, btree_mput_obj_t *objs, uint32_t num_obj
 			assert(0);
 		}
 	}
+	return ret;
+}
+
+btree_status_t 
+btree_raw_ioctl(struct btree_raw *bt, uint32_t ioctl_type, void *data)
+{
+	btree_status_t ret = BTREE_SUCCESS;
+
+	switch (ioctl_type) {
+#ifdef BTREE_UNDO_TEST
+	case BTREE_IOCTL_RECOVERY:
+		ret = btree_recovery_ioctl(bt, ioctl_type, data);
+		break;
+#endif
+	default:
+		break;
+	}
+
 	return ret;
 }
 

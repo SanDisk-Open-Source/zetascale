@@ -52,6 +52,9 @@
 #include <signal.h>
 #include <sys/mman.h>
 #include <sys/types.h>
+#ifdef FLIP_ENABLED
+#include "flip/flip.h"
+#endif
 
 #define LOG_ID PLAT_LOG_ID_INITIAL
 #define LOG_CAT PLAT_LOG_CAT_SDF_NAMING
@@ -961,10 +964,11 @@ static void fdf_load_settings(flash_settings_t *osd_settings)
 
 
     /*
-     * Object metadata and data checksum.
+     * checksum of metadata, data, or entire object
      */
-    osd_settings->chksum_data         = getProperty_Int("SDF_OBJECT_DATA_CHECKSUM", 0);
-    osd_settings->chksum_metadata     = getProperty_Int("SDF_OBJECT_METADATA_CHECKSUM", 0); 
+    osd_settings->chksum_data         = getProperty_Int( "FDF_OBJECT_DATA_CHECKSUM", 0);
+    osd_settings->chksum_metadata     = getProperty_Int( "FDF_OBJECT_METADATA_CHECKSUM", 0); 
+    osd_settings->chksum_object       = getProperty_Int( "FDF_OBJECT_CHECKSUM", 1);
 
     osd_settings->sb_data_copies      = 0; // use default
     osd_settings->multi_fifo_writers  = getProperty_Int("SDF_MULTI_FIFO_WRITERS", 1);
@@ -1876,6 +1880,10 @@ FDF_status_t FDFInit(
         return FDF_FAILURE; 
     }
 
+#ifdef FLIP_ENABLED
+    flip_init();
+#endif
+
     // spawn initer thread (like mcd_fth_initer)
     fthResume( fthSpawn( &fdf_fth_initer, MCD_FTH_STACKSIZE ),
                (uint64_t) &agent_state );
@@ -1979,9 +1987,13 @@ FDF_status_t FDFInit(
         /* Disabling Async writes permanently for now due to the following reasons
          * Bugs
          * we do not need for Cassandra layer */
-        plat_log_msg(160190,LOG_CAT,LOG_INFO,"NOTICE: Async Writes feature is not supported");
-        Force_async_writes  = 0;
-        Enable_async_writes = 0;
+	if (Force_async_writes)
+		mcd_log_msg( 170018, PLAT_LOG_LEVEL_INFO, "property FORCE_ASYNC_WRITES overridden to 0");
+	if (Enable_async_writes)
+		mcd_log_msg( 170019, PLAT_LOG_LEVEL_INFO, "property ENABLE_ASYNC_WRITES overridden to 0");
+
+	Force_async_writes  = 0;
+	Enable_async_writes = 0;
 
     return FDF_SUCCESS;
 }
@@ -7176,6 +7188,24 @@ FDFRangeUpdate(struct FDF_thread_state *fdf_thread_state,
 {
 	fprintf(stderr, "FDF: FDFRangeUpdate without btree is not supported\n");
 	return FDF_FAILURE;
+}
+
+FDF_status_t
+FDFIoctl(struct FDF_thread_state *fdf_thread_state, 
+         FDF_cguid_t cguid,
+         uint32_t ioctl_type,
+         void *data)
+{
+	switch (ioctl_type) {
+#ifdef FLIP_ENABLED
+	case FDF_IOCTL_FLIP:
+		flip_handle_ioctl(data);
+		break;
+#endif
+	default:
+		break;
+	}
+	return FDF_SUCCESS;
 }
 
 /*

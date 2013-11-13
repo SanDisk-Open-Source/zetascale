@@ -145,7 +145,7 @@ typedef struct btree_raw {
     void *mput_cmp_cb_data;
 
     trx_cmd_cb_t      *trx_cmd_cb;
-
+    bool               trxenabled;
     btree_stats_t      stats;
 
     plat_rwlock_t      lock;
@@ -167,6 +167,11 @@ btree_status_t get_leaf_key(btree_raw_t *bt, btree_raw_node_t *n, void *pkey, ch
 btree_raw_mem_node_t *get_existing_node_low(btree_status_t *ret, btree_raw_t *btree, uint64_t logical_id, int ref);
 btree_raw_mem_node_t *get_existing_node(btree_status_t *ret, btree_raw_t *btree, uint64_t logical_id);
 int is_leaf(btree_raw_t *btree, btree_raw_node_t *node);
+int is_overflow(btree_raw_t *btree, btree_raw_node_t *node);
+  
+btree_status_t btree_recovery_process_minipkt(btree_raw_t *bt,
+                               btree_raw_node_t **onodes, uint32_t on_cnt, 
+                               btree_raw_node_t **nnodes, uint32_t nn_cnt);
 
 void deref_l1cache_node(btree_raw_t* btree, btree_raw_mem_node_t *node);
 btree_raw_mem_node_t* root_get_and_lock(btree_raw_t* btree, int write_lock);
@@ -179,6 +184,26 @@ void ref_l1cache(btree_raw_t *btree, btree_raw_mem_node_t *n);
 void unlock_and_unreference();
 #define unlock_and_unreference_all_but_last(b) unlock_and_unreference(b, 1)
 #define unlock_and_unreference_all(b) unlock_and_unreference(b, 0)
+
+#ifdef BTREE_UNDO_TEST
+enum {
+	BTREE_IOCTL_RECOVERY=1,
+};
+
+#define BTREE_IOCTL_RECOVERY_COLLECT_1    1
+#define BTREE_IOCTL_RECOVERY_COLLECT_2    2
+#define BTREE_IOCTL_RECOVERY_START        3
+
+btree_status_t btree_recovery_ioctl(struct btree_raw *bt, uint32_t ioctl_type, void *data);
+
+void btree_rcvry_test_collect(btree_raw_t *bt, btree_raw_node_t *node);
+void btree_rcvry_test_delete(btree_raw_t *bt, btree_raw_node_t *node);
+void btree_rcvry_test_recover(btree_raw_t *bt);
+#endif
+
+#ifdef FLIP_ENABLED
+extern bool recovery_write;
+#endif
 
 static inline int key_idx(struct btree_raw *btree, btree_raw_node_t* node, node_key_t* key)
 {

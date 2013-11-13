@@ -70,6 +70,12 @@ typedef struct fdf_stats_info {
     uint16_t category;
 }fdf_stats_info_t;
 
+#ifdef FLIP_ENABLED
+enum {
+	FDF_IOCTL_FLIP=1,
+};
+#endif
+
 struct FDF_thread_state;
 
 /* Function declaration for Admin and Stats */

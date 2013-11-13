@@ -326,6 +326,12 @@ static FDF_status_t
 	uint64_t		snap_seqs
 	);
 
+FDF_status_t
+(*ptr_FDFIoctl)(struct FDF_thread_state *fdf_thread_state, 
+         FDF_cguid_t cguid,
+         uint32_t ioctl_type,
+         void *data);
+
 /*
  * Linkage table.
  */
@@ -394,6 +400,7 @@ static struct {
     { "FDFGetContainerSnapshots",      &ptr_FDFGetContainerSnapshots     },
     { "FDFMPut",          	       &ptr_FDFMPut			 },
     { "FDFRangeUpdate",		       &ptr_FDFRangeUpdate		 },
+    { "FDFIoctl",		       &ptr_FDFIoctl                     },
 };
 
 
@@ -1428,4 +1435,21 @@ FDFGetContainerSnapshots(
         undefined("FDFGetContainerSnapshots");
 
     return (*ptr_FDFGetContainerSnapshots)(fdf_thread_state, cguid, n_snapshots, snap_seqs);
+}
+
+/*
+ * FDFIoctl
+ */
+FDF_status_t
+FDFIoctl(struct FDF_thread_state *fdf_thread_state, 
+         FDF_cguid_t cguid,
+         uint32_t ioctl_type,
+         void *data)
+{
+
+    if (unlikely(!ptr_FDFIoctl))
+        undefined("FDFIoctl");
+
+
+    return (*ptr_FDFIoctl) (fdf_thread_state, cguid, ioctl_type, data);
 }

@@ -18,7 +18,7 @@
 
 void		trxinit( ),
 		trxdeletecontainer( struct FDF_thread_state *, FDF_cguid_t);
-int		trx_cmd_cb( int, void *, void *);
+int		trx_cmd_cb( int, ...);
 FDF_status_t	_trxenter( FDF_cguid_t),
 		_trxleave( FDF_cguid_t),
 		_trxstart( struct FDF_thread_state *),

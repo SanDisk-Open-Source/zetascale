@@ -66,13 +66,6 @@ typedef struct mcd_container {
     SDFContainer                sdf_container;
     void                      * shard;
 
-#ifndef MCD_REC_NOT_CHICKEN
-    /*
-     * needed by dynamic container support at flash layer
-     */
-    uint32_t                    shard_refcount;
-#endif
-
     /*
      * for ip_addr-per-container support
      */
@@ -94,13 +87,6 @@ typedef struct mcd_container {
      * for fast binary tracing
      */
     bool                        binary_tracing;
-
-#ifndef MCD_REC_NOT_CHICKEN
-    /*
-     * must be LAST!!
-     */
-    fthSem_t                     write_sem[MCD_LOGBUFS_PER_CNTR];
-#endif
 
 } mcd_container_t;
 

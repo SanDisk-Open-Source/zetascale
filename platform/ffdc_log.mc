@@ -3391,6 +3391,27 @@
 170014 trxmax=%u trxnum=%u
 170015 trx log overrun, increase FDF_TRX_GROUP_SIZE
 170016 trx log service is %senabled
+170017 TRX fragment discarded
+170018 property FORCE_ASYNC_WRITES overridden to 0
+170019 property ENABLE_ASYNC_WRITES overridden to 0
+170022 vdc_shard unassigned
+170023 Too many active trx brackets
+170024 Slab deferral exceeded
+170025 unsupported object size of %luB
+170026 freeing %u deferred slabs
+170027 recovery attenuated due to crash damage
+170028 due to crash damage, recovery attenuated by %u log records
+170029 crash damage: %d log records discarded
+170030 simulated hardware crash triggered
+170031 enabled write fault injector %lu/%lu/%u/%u/%u
+170032 enabled write fault injector %lu/%lu/%u/%u
+170033 loading recovery packet %s
+170034 internal error
+170035 enabled with parameters %lu/%lu/%u/%u/%u
+170036 Metadata inconsistency found in cguid = %d, byte offset = %"PRIu64".\n
+170037 Data inconsistency found in cguid = %d, byte offset = %"PRIu64".\n
+170038 cguid=%lu seqno=%lu uncomp_datalen=%u data_len=%lu udlen=%lu\n
+170039 cguid=%lu seqno=%lu uncomp_datalen=%u data_len=%lu udlen=%lu
 
 
 # efirsov

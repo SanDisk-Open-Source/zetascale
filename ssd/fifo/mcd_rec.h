@@ -19,11 +19,6 @@
 
 #define MCD_REC_ALIGN_BOUNDARY   MEGABYTE
 
-#define MCD_REC_UPDATE_BUFSIZE_CHICKEN      (256 * MEGABYTE)
-#define MCD_REC_UPDATE_SEGMENT_SIZE_CHICKEN MCD_REC_UPDATE_BUFSIZE_CHICKEN
-#define MCD_REC_UPDATE_SEGMENT_BLKS_CHICKEN                     \
-    (MCD_REC_UPDATE_SEGMENT_SIZE_CHICKEN / Mcd_osd_blk_size)
-
 #define MCD_REC_UPDATE_YIELD        128  // from empirical data
 #define MCD_REC_UPDATE_MAX_CHUNKS   64
 
@@ -506,6 +501,9 @@ typedef struct mcd_rec_log {
     int                     pp_max_updates;   // max value for sync_recs 
     mcd_rec_pp_state_t      pp_state;         // state for pp logbuf
 
+    fthLock_t               slablock;         // access deferred slab info
+    uint                    nslab;            // # deferred slab deallocs
+    uint32_t                slabtab[10000000]; // deferred-dealloc slabs
 } mcd_rec_log_t;
 
 // Superblock
@@ -528,7 +526,7 @@ typedef struct mcd_rec_list_block {
 enum trx_rec {
 	TRX_REC_OKAY	= 0,
 	TRX_REC_NOMEM,
-	TRX_REC_OVERFLOW,
+	TRX_REC_FRAG,
 	TRX_REC_BAD_SEQ
 };
 
@@ -558,6 +556,14 @@ typedef struct mcd_rec_obj_state {
     uint                  trxmax;        // trx record maximum
     uint                  trxnum;        // trx record current count
     enum trx_rec          trxstatus;     // status of accumulation
+
+    ushort                badstate;      // state of crash recovery
+    bool                  badskip;       // skip all further logrecs
+    uint64_t              badseqno;      // logrec with failing checksum
+    mcd_logrec_object_t  *badbuf;        // ring buffer of last logrecs to defer
+    uint                  badbufsiz,     //     downstream application until
+                          badbufhead,    //     checksums are confirmed: needed
+                          badbuftail;    //     for h/w crash with s/w durability
 } mcd_rec_obj_state_t;
 
 // Log State

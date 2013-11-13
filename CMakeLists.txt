@@ -48,7 +48,7 @@ add_definitions(-O2 -pipe -Wall -fstack-protector-all -fno-strict-aliasing -fno-
 add_definitions( -D_GNU_SOURCE -DMPI_BUILD -DFLASH_SIM_TYPE=5 -DPLAT_LOG_COMPILE_LEVEL=DEVEL -DENABLE_MULTIPLE_FLASH_SUBSYSTEMS
 -DBLD_VERSION=857 -DSDFAPI -DSDFAPIONLY -DSDFAPIREFORMAT -DENABLE_MULTIPLE_FLASH_SUBSYSTEMS)
 IF(NOT PERMISSIVE)
-	add_definitions(-Werror)
+	#add_definitions(-Werror)
 ENDIF(NOT PERMISSIVE)
 #
 add_subdirectory(agent)

@@ -113,6 +113,7 @@
 #include	<string.h>
 #include	<assert.h>
 #include	<pthread.h>
+#include	<stdarg.h>
 #include	"fdf.h"
 #include	"btree_hash.h"
 #include	"utils/properties.h"
@@ -285,18 +286,8 @@ trxinit( )
 	pthread_mutex_init( &trxpoollock, &mutextype);
 	sem_init( &endlock, 0, 0);
 	pthread_rwlock_init( &entrylock, 0);
-#if 0//Rico
 	ntrxlimit += ntrxpermitted;
-#else
-	startcluster( );
-#endif
-        /* Disabling the transaction since it breaks dev test suite
-           Rico to enable it back once all existing bugs in trx/recovery 
-           issues resolved */
-	/* trxproperty = atoi( FDFGetProperty( "FDF_TRX", "1")); */
-        fprintf(stderr,"NOTICE: ******Disabling Transaction Support Temporarily. To be re-enabled after transaction support is completed******\n");
-	trxproperty = 0; 
-
+	trxproperty = atoi( FDFGetProperty( "FDF_TRX", "1"));
 	trxenabled = trxproperty & 1<<0;
 	trxverbose = trxproperty & 1<<1;
 	FDFTransactionService( 0, 4, (void *)(long)trxenabled);
@@ -1109,12 +1100,33 @@ ntfree( nodetrx_t *nt)
 
 
 int
-trx_cmd_cb( int cmd, void *v0, void *v1)
+trx_cmd_cb( int cmd, ...)
 {
-	node_t	*n;
+	extern __thread thread_state_t	*my_thd_state;
+	uint64_t	seqnoalloc( struct FDF_thread_state *);
+	va_list		va;
 
-	if (cmd == TRX_ENABLED)
+	switch (cmd) {
+	case TRX_ENABLED:
 		return (trxenabled);
+	case TRX_START:
+		FDFTransactionStart( my_thd_state);
+		return (1);
+	case TRX_COMMIT:
+		FDFTransactionCommit( my_thd_state);
+		return (1);
+	case TRX_SEQNOALLOC:
+		va_start( va, cmd);
+		uint64_t *n = va_arg( va, uint64_t *);
+		va_end( va);
+		*n = seqnoalloc( my_thd_state);
+		return (1);
+	default:
+		abort( );
+	}
+	return (1);
+#if 0//Rico
+	node_t	*n;
 	int r = 0;
 	pthread_mutex_lock( &nodetablelock);
 	switch (cmd) {
@@ -1149,6 +1161,7 @@ trx_cmd_cb( int cmd, void *v0, void *v1)
 	}
 	pthread_mutex_unlock( &nodetablelock);
 	return (r);
+#endif
 }
 
 

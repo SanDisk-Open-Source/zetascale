@@ -234,8 +234,9 @@ struct settings {
     int indep_clone;            /* start memcached for independent cloning */
     int debug_hang_mcd;         /* make memcached hang, for debugging on */
     int start_vips;             /* starts vips during initialization */
-    int chksum_data;            /* store checksum on object data */
-    int chksum_metadata;        /* store checksum on object metadata */
+    int chksum_object;          /* store checksum for entire object */
+    int chksum_data;            /* store checksum for object data */
+    int chksum_metadata;        /* store checksum for object metadata */
     int sb_data_copies;         /* redundant copies of superblock on raid */
     int static_containers;      /* read container info from properties file */
     int max_aio_errors;         /* max # of EIOs b4 we abort in rep_mode */

@@ -117,6 +117,8 @@ static fthMbox_t        Mcd_aio_device_sync_mbox[MCD_AIO_MAX_NFILES];
 static int              Mcd_aio_sync_enabled    = 0;
 static int              Mcd_aio_sync_all        = 0;
 
+static bool		failenabled;		/* write fault injector enabled */
+
 /*
  * debugging stats
  */
@@ -131,11 +133,11 @@ uint64_t                Mcd_aio_write_ops       = 0;
 uint64_t         Mcd_num_pending_ios = 0;
 uint64_t         Mcd_fth_waiting_io = 0;
 
-/*
- *  Predeclarations
- */
+static SDF_status_t	mcd_aio_paio_init();
+static void		init_write_fault_injector( ),
+			write_fault_injector( int, char *, size_t, off_t);
+static int		write_fault_sync( int, ulong);
 
-static SDF_status_t mcd_aio_paio_init();
 
 int
 mcd_fth_aio_blk_read( osd_state_t * context, char * buf, uint64_t offset, int nbytes )
@@ -417,6 +419,11 @@ mcd_fth_aio_blk_write_low( osd_state_t * context, char * buf, uint64_t offset,
             }
         }
 
+#if 1//Rico - official fault injection
+	if (failenabled)
+		write_fault_injector( aio_fd, buf+submitted, aio_nbytes, aio_offset);
+	else
+#endif
 	if (pwrite(aio_fd, buf+submitted, aio_nbytes, aio_offset) != aio_nbytes) {
             mcd_log_msg(180002, PLAT_LOG_LEVEL_ERROR, "pwrite failed!(%s)", plat_strerror(errno));
 	    plat_exit(1);
@@ -443,8 +450,13 @@ mcd_fth_aio_blk_write_low( osd_state_t * context, char * buf, uint64_t offset,
         }
     } while ( 1 );
 
+#if 1//Rico - official fault injection
+	if (sync)
+		write_fault_sync( aio_fd, -1);
+#else
 	if(sync)
 		fdatasync(aio_fd);
+#endif
 
     return FLASH_EOK;   /* SUCCESS */
 
@@ -851,7 +863,11 @@ mcd_aio_sync_device_thread( uint64_t arg )
         // simulated block device using a file in a fs on a logical volume
         case DEV_TYPE_BLOCK_LVM:
             // issue fdatasync command to file
+#if 1//Rico - official fault injection
+	    rc = write_fault_sync( Mcd_aio_fds[arg], -2);
+#else
             rc = fdatasync( Mcd_aio_fds[arg] );
+#endif
             if ( 0 != rc ) {
                 mcd_log_msg(20042, PLAT_LOG_LEVEL_ERROR,
                              "sync failed, thread %lu, devname=%s: %s",
@@ -1150,6 +1166,8 @@ int mcd_aio_init( void * state, char * dname )
     if ( -1 != flash_settings.aio_sync_enabled ) {
         Mcd_aio_sync_enabled = flash_settings.aio_sync_enabled;
     }
+
+    init_write_fault_injector( );
 
 #ifdef MEMCACHED_DEBUG
     paio_enabled = (flash_settings.aio_wc || flash_settings.aio_error_injection) ? 
@@ -1495,4 +1513,274 @@ mcd_aio_register_ops( void )
     //mcd_log_msg(20062, PLAT_LOG_LEVEL_TRACE, "mcd_aio ops registered" );
 
     return;
+}
+
+
+/*
+ * section for write fault injection
+ * =================================
+ *
+ * Abort FDF with selective device corruption via property.
+ */
+
+#include	<ctype.h>
+#include	"utils/rico.h"
+
+
+static void	dumpsignature( ulong),
+		flushsignature( ),
+		_flushsignature( );
+
+
+static ulong		failstart,
+			failcount;
+static ushort		failfraction,
+			failmode;
+static plat_mutex_t	siglock		= PLAT_MUTEX_INITIALIZER;
+static ulong		sigcurrent;
+static uint		sigcount,
+			writecounter;
+
+
+/*
+ * initialize the write fault injector
+ *
+ * Property AIO_WRITE_FAULT_INJECTOR enables faulty writes, and integer
+ * parameters are loaded from it according to the format
+ *
+ *	start/count/fraction/mode/seed
+ *
+ * Faulty writes can also be enabled by an environmental variable of the
+ * same name, and its parameters take priority.  Parameter 'start' is the
+ * failure point in ops, 'count' is the # of ops under the failure regime,
+ * fraction is the percentage of ops to be corrupted, mode is the type
+ * of corruption to be visited on the data block, and 'seed' sets the
+ * random number generator.  If seed is omitted, the process ID is used.
+ * Settings are reported on FDF startup (PLAT_LOG_LEVEL_INFO).  With the
+ * same seed and a single-threaded app, reproducible crashes are possible.
+ *
+ * Mode settings:
+ *
+ *	0	write normally (no corruption)
+ *	1	write nothing (enterprise-grade SSD crash bahavior)
+ *	2	clear all bits
+ *	3	set all bits
+ *	4	complement all bits
+ *	5	increment a random byte
+ *
+ * Example:
+ * 	AIO_WRITE_FAULT_INJECTOR = 70000/10000/10/5/0
+ * Meaning:
+ * 	Starting at FDF write operation 70000, increment a random
+ * 	byte in 10% of the blocks written, and attempt reproducibility.
+ * 	Crash just before write operation 80000.
+ */
+static void
+init_write_fault_injector( )
+{
+	const char	*s,
+			*s2;
+	uint		seed;
+
+	s = getProperty_String( "AIO_WRITE_FAULT_INJECTOR", "");
+	if (s2 = getenv( "AIO_WRITE_FAULT_INJECTOR"))
+		s = s2;
+	switch (sscanf( s, "%lu/%lu/%hu/%hu/%u", &failstart, &failcount, &failfraction, &failmode, &seed)) {
+	case 4:
+		seed = getpid( );
+	case 5:
+		srandom( seed);
+		mcd_log_msg( 170035, PLAT_LOG_LEVEL_INFO, "enabled with parameters %lu/%lu/%u/%u/%u", failstart, failcount, failfraction, failmode, seed);
+		failenabled = TRUE;
+	}
+}
+
+
+/*
+ * operate the write fault injector
+ *
+ * Corrupt traffic outbound to flash according to the parameters above.
+ * A brief diagnostic is printed to stderr, giving the ASCII signature of
+ * the block or, alternatively, the first word in hex.  When the op stream
+ * reaches failstart+failcount, abort FDF.
+ */
+static void
+write_fault_injector( int fd, char *buf, size_t nbyte, off_t offset)
+{
+
+	char *p = buf;
+	ulong z = __sync_fetch_and_add( &writecounter, 1);
+	unless (z < failstart) {
+		if (z == failstart+failcount) {
+			flushsignature( );
+			mcd_log_msg( 170030, PLAT_LOG_LEVEL_FATAL, "simulated hardware crash triggered");
+			plat_abort( );
+		}
+		static plat_mutex_t l = PLAT_MUTEX_INITIALIZER;
+		plat_mutex_lock( &l);
+		uint r0 = random( );
+		uint r1 = random( );
+		plat_mutex_unlock( &l);
+		if (r0 < RAND_MAX/100*failfraction) {
+			dumpsignature( *(uint *)buf);
+			switch (failmode) {
+			/*
+			 * write normally (no corruption)
+			 */
+			case 0:
+				break;
+			/*
+			 * write nothing (enterprise-grade SSD crash bahavior)
+			 */
+			case 1:
+				return;
+			/*
+			 * clear all bits
+			 */
+			case 2:
+				p = malloc( nbyte);
+				memset( p, 0, nbyte);
+				break;
+			/*
+			 * set all bits
+			 */
+			case 3:
+				p = malloc( nbyte);
+				memset( p, ~0, nbyte);
+				break;
+			/*
+			 * complement all bits
+			 */
+			case 4:
+				p = malloc( nbyte);
+				for (uint i=0; i<nbyte/sizeof( ulong); ++i)
+					((ulong *)p)[i] = ~ ((ulong *)buf)[i];
+				break;
+			/*
+			 * increment a random byte
+			 */
+			case 5:
+				p = malloc( nbyte);
+				memcpy( p, buf, nbyte);
+				++p[r1%nbyte];
+			}
+		}
+	}
+	ssize_t i = pwrite( fd, p, nbyte, offset);
+	unless (i == nbyte) {
+		if (i < 0)
+			mcd_log_msg( 180002, PLAT_LOG_LEVEL_ERROR, "pwrite failed!(%s)", plat_strerror( errno));
+		else
+			mcd_log_msg( 180002, PLAT_LOG_LEVEL_ERROR, "pwrite failed!(%s)", "short write");
+		plat_exit( 1);
+	}
+	unless (p == buf)
+		free( p);
+}
+
+
+/*
+ * sync flash device
+ *
+ * Call fdatasync() on the given descriptor and, if the write stream
+ * lies within the fault-injection range, print an indicator to stderr.
+ * The indicators are (####) and ($$$$) for 'sig' -1 and -2, respectively.
+ * While the injector can corrupt any write range of the FDF run, recovery
+ * from a hardware crash is only defined for corruption after the last device
+ * sync.  Therefore, these indicators should not be seen in the diagnostic
+ * stream during h/w crash simulations.  Adjust AIO_WRITE_FAULT_INJECTOR
+ * accordingly.
+ */
+static int
+write_fault_sync( int fd, ulong sig)
+{
+
+	int i = fdatasync( fd);
+	if (failenabled) {
+		ulong z = __sync_fetch_and_add( &writecounter, 0);
+		if (failstart<=z && z<failstart+failcount)
+			dumpsignature( sig);
+	}
+	return (i);
+}
+
+
+/*
+ * display block type
+ *
+ * Display the "eye catcher" of the block, if present, otherwise the value
+ * in hex of the first 32 bits.  Count a repeating type, typically META for
+ * slab.  Ensure the last repeat is flushed on FDF exit or injector abort.
+ */
+static void
+dumpsignature( ulong sig)
+{
+	static bool	initialized;
+
+	plat_mutex_lock( &siglock);
+	unless (initialized) {
+		initialized = TRUE;
+		atexit( flushsignature);
+	}
+	unless (sig == sigcurrent) {
+		_flushsignature( );
+		sigcurrent = sig;
+		sigcount = 0;
+	}
+	++sigcount;
+	plat_mutex_unlock( &siglock);
+}
+
+
+static void
+flushsignature( )
+{
+
+	plat_mutex_lock( &siglock);
+	_flushsignature( );
+	fprintf( stderr, "\n");
+	plat_mutex_unlock( &siglock);
+}
+
+
+static void
+_flushsignature( )
+{
+
+	if (sigcount) {
+		switch (sigcurrent) {
+		default:;
+			uint i = 0;
+			loop {
+				if (i == sizeof( uint)) {
+					if (sigcount == 1)
+						fprintf( stderr, "(%.4s)", (char *)&sigcurrent);
+					else
+						fprintf( stderr, "(%u\327%.4s)", sigcount, (char *)&sigcurrent);
+					break;
+				}
+				unless (isalnum( ((uchar *)&sigcurrent)[i])) {
+					if (sigcount == 1)
+						fprintf( stderr, "(%04lX)", sigcurrent);
+					else
+						fprintf( stderr, "(%u\327%04lX)", sigcount, sigcurrent);
+					break;
+				}
+				++i;
+			}
+			break;
+		case -1:
+			if (sigcount == 1)
+				fprintf( stderr, "(####)");
+			else
+				fprintf( stderr, "(%u\327####)", sigcount);
+			break;
+		case -2:
+			if (sigcount == 1)
+				fprintf( stderr, "($$$$)");
+			else
+				fprintf( stderr, "(%u\327$$$$)", sigcount);
+		}
+		sigcount = 0;
+	}
 }

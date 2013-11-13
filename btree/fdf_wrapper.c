@@ -25,6 +25,7 @@
 #include "btree_range.h"
 #include "trx.h"
 #include "btree_raw_internal.h"
+#include "flip/flip.h"
 
 #define MAX_NODE_SIZE   128*1024
 
@@ -66,7 +67,7 @@ static btree_status_t delete_node_cb(void *data, uint64_t lnodeid);
 static void                   log_cb(btree_status_t *ret, void *data, uint32_t event_type, struct btree_raw *btree);
 static int                    lex_cmp_cb(void *data, char *key1, uint32_t keylen1, char *key2, uint32_t keylen2);
 static void                   msg_cb(int level, void *msg_data, char *filename, int lineno, char *msg, ...);
-static uint64_t               seqnoalloc( struct FDF_thread_state *);
+uint64_t                      seqnoalloc( struct FDF_thread_state *);
 FDF_status_t btree_get_all_stats(FDF_cguid_t cguid,
                                 FDF_ext_stat_t **estat, uint32_t *n_stats) ;
 
@@ -1154,7 +1155,6 @@ FDF_status_t _FDFWriteObject(
 	}
 
     trxenter( cguid);
-    trxstart( fdf_thread_state);
     if (flags & FDF_WRITE_MUST_NOT_EXIST) {
 		btree_ret = btree_insert(bt, key, keylen, data, datalen, &meta);
     } else if (flags & FDF_WRITE_MUST_EXIST) {
@@ -1162,7 +1162,6 @@ FDF_status_t _FDFWriteObject(
     } else {
 		btree_ret = btree_set(bt, key, keylen, data, datalen, &meta);
     }
-    trxcommit( fdf_thread_state);
     trxleave( cguid);
 
     switch(btree_ret) {
@@ -1577,7 +1576,7 @@ FDF_status_t
 _FDFTransactionStart(struct FDF_thread_state *fdf_thread_state)
 {
 
-    return (trxstart( fdf_thread_state));
+    return (FDF_UNSUPPORTED_REQUEST);
 }
 
 
@@ -1588,7 +1587,7 @@ FDF_status_t
 _FDFTransactionCommit(struct FDF_thread_state *fdf_thread_state)
 {
 
-    return (trxcommit( fdf_thread_state));
+    return (FDF_UNSUPPORTED_REQUEST);
 }
 
 /*
@@ -1598,7 +1597,7 @@ FDF_status_t
 _FDFTransactionRollback(struct FDF_thread_state *fdf_thread_state)
 {
 
-    return (trxrollback( fdf_thread_state));
+    return (FDF_UNSUPPORTED_REQUEST);
 }
 
 /*
@@ -1608,7 +1607,7 @@ FDF_status_t
 _FDFTransactionQuit(struct FDF_thread_state *fdf_thread_state)
 {
 
-    return (trxquit( fdf_thread_state));
+    return (FDF_UNSUPPORTED_REQUEST);
 }
 
 /*
@@ -1618,7 +1617,17 @@ uint64_t
 _FDFTransactionID(struct FDF_thread_state *fdf_thread_state)
 {
 
-    return (trxid( fdf_thread_state));
+    return (FDFTransactionID( fdf_thread_state));
+}
+
+/*
+ * FDFTransactionService
+ */
+FDF_status_t
+_FDFTransactionService(struct FDF_thread_state *fdf_thread_state, int cmd, void *arg)
+{
+
+    return (FDFTransactionService( fdf_thread_state, cmd, arg));
 }
 
 /*
@@ -1766,7 +1775,7 @@ static void* read_node_cb(btree_status_t *ret, void *data, uint64_t lnodeid)
 	    // fprintf(stderr, "SEGFAULT read_node_cb: %p [tid=%d]\n", n, tid);
 	    return(n);
     } else {
-	    fprintf(stderr, "ZZZZZZZZ   red_node_cb %lu - %lu failed with ret=%s   ZZZZZZZZZ\n", lnodeid, datalen, FDFStrError(*ret));
+	    fprintf(stderr, "ZZZZZZZZ   red_node_cb %lu - %lu failed with ret=%s   ZZZZZZZZZ\n", lnodeid, datalen, FDFStrError(status));
         *ret = BTREE_FAILURE;
 	    return(NULL);
     }
@@ -2109,6 +2118,9 @@ _FDFMPut(struct FDF_thread_state *fdf_ts,
 	uint32_t objs_to_write = num_objs;
 	int		index;
 
+#ifdef FLIP_ENABLED
+	uint32_t descend_cnt = 0;
+#endif
 
 	my_thd_state = fdf_ts;;
 
@@ -2145,12 +2157,21 @@ _FDFMPut(struct FDF_thread_state *fdf_ts,
 
 	objs_written = 0;
 	objs_to_write = num_objs;
+	FDFTransactionService( fdf_ts, 0, 0);
 	do {
 		objs_to_write -= objs_written;
 		objs_written = 0;
+
+#ifdef FLIP_ENABLED
+		if (flip_get("sw_crash_on_mput", descend_cnt)) {
+			exit(1);
+		}
+		descend_cnt++;
+#endif
 		btree_ret = btree_mput(bt, (btree_mput_obj_t *)&objs[num_objs - objs_to_write],
 				       objs_to_write, flags, &meta, &objs_written);
 	} while ((btree_ret == BTREE_SUCCESS) && objs_written < objs_to_write);
+	FDFTransactionService( fdf_ts, 1, 0);
 
 	*objs_done = num_objs - (objs_to_write - objs_written);
 
@@ -2553,6 +2574,37 @@ out:
 }
 #endif 
 
+FDF_status_t
+_FDFIoctl(struct FDF_thread_state *fdf_ts, 
+         FDF_cguid_t cguid, uint32_t ioctl_type, void *data)
+{
+	struct btree *bt = NULL;
+	FDF_status_t ret = FDF_SUCCESS;
+	btree_status_t btree_ret = FDF_SUCCESS;
+	int index = -1;
+
+	my_thd_state = fdf_ts;
+	bt = bt_get_btree_from_cguid(cguid, &index, &ret);
+	if (bt == NULL) {
+		bt_rel_entry(index);
+		return ret;
+	}
+
+	btree_ret = btree_ioctl(bt, ioctl_type, data);
+	switch(btree_ret) {
+	case BTREE_SUCCESS:
+		ret = FDF_SUCCESS;
+		break;
+	default:
+		ret = FDF_FAILURE;
+		break;
+	}
+
+	bt_rel_entry(index);
+	return (ret);
+}
+
+
 /*
  * persistent seqno facility
  *
@@ -2574,7 +2626,7 @@ out:
 /*
  * return next seqno, or -1 on error
  */
-static uint64_t
+uint64_t
 seqnoalloc( struct FDF_thread_state *t)
 {
 	static bool		initialized;
@@ -2632,7 +2684,7 @@ seqnoalloc( struct FDF_thread_state *t)
 			pthread_mutex_unlock( &seqnolock);
 			return (-1);
 		}
-		fprintf( stderr, "seqnoalloc (info): new seqnolimit = %ld\n", seqnolimit);
+		//fprintf( stderr, "seqnoalloc (info): new seqnolimit = %ld\n", seqnolimit);
 	}
 	uint64_t z = seqno++;
 	pthread_mutex_unlock( &seqnolock);
