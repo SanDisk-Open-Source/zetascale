@@ -538,7 +538,7 @@ static char *gen_data(uint32_t max_datalen, uint32_t *pdatalen)
 static void discard_data(uint32_t n_objects)
 {
 	int i;
-	for (i = 0; i <= n_objects; i++) {
+	for (i = 1; i <= n_objects; i++) {
 		free(data_arr[i]);
 	}
 	free(datalen_arr);

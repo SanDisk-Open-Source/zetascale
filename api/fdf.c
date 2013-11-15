@@ -542,6 +542,7 @@ fdf_stats_info_t fdf_stats_cache[] = {
     {"l1_cache_bt_mput_io_saved","l1_cache_bt_mput_io_saved",FDF_STATS_TYPE_CACHE_TO_FLASH},/* FDF_CACHE_STAT_BT_MPUT_IO_SAVED */
     {"l1_cache_bt_put_restart_cnt","l1_cache_bt_put_restart_cnt",FDF_STATS_TYPE_CACHE_TO_FLASH},/*
 FDF_CACHE_STAT_BT_PUT_RESTART_CNT */
+     {"l1_cache_bt_space_opt_bytes_saved", "l1_cache_bt_space_opt_bytes_saved", FDF_STATS_TYPE_CACHE_TO_FLASH},/* FDF_CACHE_STAT_BT_SPCOPT_BYTES_SAVED */
 
 
     /* request from cache to flash manager */

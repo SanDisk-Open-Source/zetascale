@@ -22,6 +22,30 @@ int num_thds = 1;
 
 int cnt_id = 0;
 
+#if 0
+static int 
+my_cmp_cb(void *data, char *key1, uint32_t keylen1, char *key2, uint32_t keylen2)
+{
+    int x;
+    int cmp_len;
+
+    cmp_len = keylen1 < keylen2 ? keylen1: keylen2;
+
+    x = memcmp(key1, key2, cmp_len);
+    if (x != 0) {
+        return x;
+    }
+
+    /* Equal so far, use len to decide */
+    if (keylen1 < keylen2) {
+        return -1;
+    } else if (keylen1 > keylen2) {
+        return 1;
+    } else {
+        return 0;
+    }
+}
+#endif 
 
 inline uint64_t
 get_time_usecs(void)
@@ -36,9 +60,10 @@ void
 do_mput(struct FDF_thread_state *thd_state, FDF_cguid_t cguid,
 	uint32_t flags, int key_seed)
 {
-	int i, k;
+	int i, j, k;
 	FDF_status_t status;
 	FDF_obj_t *objs = NULL; 
+	uint64_t start_time;
 	uint64_t num_fdf_writes = 0;
 	uint64_t num_fdf_reads = 0;
 	uint64_t num_fdf_mputs = 0;
@@ -68,7 +93,7 @@ do_mput(struct FDF_thread_state *thd_state, FDF_cguid_t cguid,
 	}
 
 	printf("Doing Mput in threads %d.\n", my_thdid);
-	get_time_usecs();
+	start_time = get_time_usecs();
 	for (k = 1; k <= num_mputs; k++) {
 
 		for (i = 0; i < num_objs; i++) {
@@ -89,6 +114,19 @@ do_mput(struct FDF_thread_state *thd_state, FDF_cguid_t cguid,
 					assert(0);
 				}
 				num_fdf_writes++;
+
+				status = FDFReadObject(thd_state, cguid,
+						       objs[i].key, objs[i].key_len,
+						       &data, &data_len);
+				if (status != FDF_SUCCESS) {
+					printf("Rread failed after write.\n");
+					assert(0);
+				}
+
+				assert(objs[i].data_len == data_len);
+
+				assert(memcmp(objs[i].data, data, data_len) == 0);
+				FDFFreeBuffer(data);
 			}
 		}
 
@@ -111,6 +149,7 @@ do_mput(struct FDF_thread_state *thd_state, FDF_cguid_t cguid,
 
 	num_fdf_reads = 0;
 	
+	j = 0;
 	printf("Reading all objects put in thread = %d.\n", my_thdid);
 	key_num = 0;
 	for (k = 1; k <= num_mputs; k++) {
@@ -142,6 +181,7 @@ do_mput(struct FDF_thread_state *thd_state, FDF_cguid_t cguid,
 				mismatch++;
 			}
 			num_fdf_reads++;
+			FDFFreeBuffer(data);
 		}
 	}
 
@@ -157,7 +197,9 @@ do_mput(struct FDF_thread_state *thd_state, FDF_cguid_t cguid,
 			memset(objs[i].key, 0, FDF_MAX_KEY_LEN);
 
 			sprintf(objs[i].key, "key_%d_%06"PRId64"", my_thdid, key_num);
-			key_num++;
+			sprintf(objs[i].data, "key_%d_%06"PRId64"", my_thdid, key_num);
+
+			key_num += key_seed;
 
 			objs[i].key_len = strlen(objs[i].key) + 1;
 
@@ -185,7 +227,7 @@ write_stress(void *t)
 
 	my_thdid = __sync_fetch_and_add(&cur_thd_id, 1);
 	FDFInitPerThreadState(fdf_state, &thd_state);	
-
+#if 1
 	if (flags_global & FDF_WRITE_MUST_EXIST) {
 		do_mput(thd_state, cguid, FDF_WRITE_MUST_NOT_EXIST, 1); //populate data if it is update case.
 	}
@@ -193,6 +235,7 @@ write_stress(void *t)
 	if (flags_global == 0) {
 		do_mput(thd_state, cguid, FDF_WRITE_MUST_NOT_EXIST, 2); //sparsely populate for set case
 	}
+#endif 
 
 	do_mput(thd_state, cguid, flags_global, 1);
 
@@ -228,6 +271,7 @@ do_op(uint32_t flags_in)
 	FDF_container_props_t props;
 	struct FDF_thread_state *thd_state;
 	FDF_status_t status;
+//	FDF_container_meta_t cmeta = {my_cmp_cb, NULL};
 
 	char cnt_name[100] = {0};
 
@@ -246,6 +290,8 @@ do_op(uint32_t flags_in)
 	props.size_kb = (1024 * 1024 * 10);;
 
 	status = FDFOpenContainer(thd_state, cnt_name, &props, FDF_CTNR_CREATE, &cguid);
+//	status = FDFOpenContainerSpecial(thd_state, cnt_name, &props,
+//					 FDF_CTNR_CREATE, &cmeta, &cguid);
 	if (status != FDF_SUCCESS) {
 		printf("Open Cont failed with error=%x.\n", status);
 		exit(-1);
@@ -293,7 +339,7 @@ main(int argc, char *argv[])
 	printf(" ======================== Doing test for set case. ===================\n");
 	do_op(0);// set
 	printf(" ******************  Done test for set case.***********************\n");
-
+#if 1
 	printf(" ======================== Doing test for create case. ===================\n");
 	do_op(FDF_WRITE_MUST_NOT_EXIST); //create
 	printf(" ******************  Done test for create  case.***********************\n");
@@ -301,6 +347,7 @@ main(int argc, char *argv[])
 	printf(" ======================== Doing test for update case. ===================\n");
 	do_op(FDF_WRITE_MUST_EXIST); //update
 	printf(" ******************  Done test for update  case.***********************\n");
+#endif 
 
 	FDFShutdown(fdf_state);
 	return 0;

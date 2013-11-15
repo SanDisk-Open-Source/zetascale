@@ -162,8 +162,10 @@ typedef struct btree_raw_persist {
 } btree_raw_persist_t;
 
 int get_key_stuff(btree_raw_t *bt, btree_raw_node_t *n, uint32_t nkey, key_stuff_t *pks);
-btree_status_t get_leaf_data(btree_raw_t *bt, btree_raw_node_t *n, void *pkey, char **data, uint64_t *datalen, uint32_t meta_flags, int ref);
-btree_status_t get_leaf_key(btree_raw_t *bt, btree_raw_node_t *n, void *pkey, char **key, uint32_t *keylen, uint32_t meta_flags);
+int 
+get_key_stuff_info2(btree_raw_t *bt, btree_raw_node_t *n, uint32_t nkey, key_stuff_info_t *key_info);
+btree_status_t get_leaf_data_index(btree_raw_t *bt, btree_raw_node_t *n, int index, char **data, uint64_t *datalen, uint32_t meta_flags, int ref);
+btree_status_t get_leaf_key_index(btree_raw_t *bt, btree_raw_node_t *n, int index, char **key, uint32_t *keylen, uint32_t meta_flags);
 btree_raw_mem_node_t *get_existing_node_low(btree_status_t *ret, btree_raw_t *btree, uint64_t logical_id, int ref);
 btree_raw_mem_node_t *get_existing_node(btree_status_t *ret, btree_raw_t *btree, uint64_t logical_id);
 int is_leaf(btree_raw_t *btree, btree_raw_node_t *node);
@@ -175,10 +177,13 @@ btree_status_t btree_recovery_process_minipkt(btree_raw_t *bt,
 
 void deref_l1cache_node(btree_raw_t* btree, btree_raw_mem_node_t *node);
 btree_raw_mem_node_t* root_get_and_lock(btree_raw_t* btree, int write_lock);
+void free_buffer(btree_raw_t *btree, void* buf);
+char *get_buffer(btree_raw_t *btree, uint64_t nbytes);
 
 btree_status_t deref_l1cache(btree_raw_t *btree);
 
-node_key_t* btree_raw_find(struct btree_raw *btree, char *key, uint32_t keylen, uint64_t syndrome, btree_metadata_t *meta, btree_raw_mem_node_t** node, int write_lock, int* pathcnt, int match);
+bool 
+btree_raw_find(struct btree_raw *btree, char *key, uint32_t keylen, uint64_t syndrome, btree_metadata_t *meta, btree_raw_mem_node_t** node, int write_lock, int* pathcnt);
 
 void ref_l1cache(btree_raw_t *btree, btree_raw_mem_node_t *n);
 void unlock_and_unreference();

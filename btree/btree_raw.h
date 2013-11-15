@@ -122,7 +122,8 @@ typedef struct btree_metadata {
     item(BTSTAT_FLUSH_CNT, /* default */) \
     item(BTSTAT_DELETE_OPT_CNT, /* default */) \
     item(BTSTAT_MPUT_IO_SAVED, /* default */)  \
-    item(BTSTAT_PUT_RESTART_CNT, /* default */)
+    item(BTSTAT_PUT_RESTART_CNT, /* default */)	\
+    item(BTSTAT_SPCOPT_BYTES_SAVED, /* default */)  \
 
 typedef enum {
 #define item(caps, value) \
@@ -178,6 +179,20 @@ typedef struct btree_rupdate_marker {
 	char *retry_data;
 	char retry_datalen;
 } btree_rupdate_marker_t;
+typedef struct key_stuff_info {
+    int       fixed;
+    bool      leaf;
+    uint64_t  ptr;
+    char *    key;
+    uint32_t  keylen;
+    uint64_t  datalen;
+    uint32_t  fkeys_per_node;
+    uint64_t  seqno;
+    uint64_t  syndrome;
+
+    int index; // Index of the key in leaf node
+    void *keyrec; // Pointerto key structure for non-leaf nodes
+} key_stuff_info_t;
 
 typedef int (* btree_range_cmp_cb_t)(void     *data, 	//  opaque user data
                                  void     *range_data,

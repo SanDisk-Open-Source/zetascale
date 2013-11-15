@@ -134,6 +134,7 @@ typedef enum {
     FDF_CACHE_STAT_BT_DELETE_OPT_COUNT,
     FDF_CACHE_STAT_BT_MPUT_IO_SAVED,
     FDF_CACHE_STAT_BT_PUT_RESTART_CNT,
+    FDF_CACHE_STAT_BT_SPCOPT_BYTES_SAVED,
 
     /* request from cache to flash manager */
     FDF_CACHE_STAT_AHCOB,

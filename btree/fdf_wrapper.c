@@ -25,6 +25,7 @@
 #include "btree_range.h"
 #include "trx.h"
 #include "btree_raw_internal.h"
+#include "btree_malloc.h"
 #include "flip/flip.h"
 
 #define MAX_NODE_SIZE   128*1024
@@ -1080,7 +1081,9 @@ FDF_status_t _FDFFreeBuffer(
 
     // xxxzzz SEGFAULT
     // fprintf(stderr, "SEGFAULT FDFFreeBuffer: %p [tid=%d]\n", buf, tid);
-    return(FDFFreeBuffer(buf));
+	btree_free(buf);
+
+	return FDF_SUCCESS;
 }
 
 /**
@@ -2029,6 +2032,7 @@ FDF_ext_stat_t btree_to_fdf_stats_map[] = {
     {BTSTAT_DELETE_OPT_CNT,   FDF_CACHE_STAT_BT_DELETE_OPT_COUNT,FDF_STATS_TYPE_CACHE_TO_FLASH, 0},
     {BTSTAT_MPUT_IO_SAVED,    FDF_CACHE_STAT_BT_MPUT_IO_SAVED,   FDF_STATS_TYPE_CACHE_TO_FLASH, 0},
     {BTSTAT_PUT_RESTART_CNT,  FDF_CACHE_STAT_BT_PUT_RESTART_CNT, FDF_STATS_TYPE_CACHE_TO_FLASH, 0},
+    {BTSTAT_SPCOPT_BYTES_SAVED, FDF_CACHE_STAT_BT_SPCOPT_BYTES_SAVED,   FDF_STATS_TYPE_CACHE_TO_FLASH, 0},
 };
 
 FDF_status_t btree_get_all_stats(FDF_cguid_t cguid, 
