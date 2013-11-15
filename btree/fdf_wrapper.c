@@ -1579,7 +1579,7 @@ FDF_status_t
 _FDFTransactionStart(struct FDF_thread_state *fdf_thread_state)
 {
 
-    return (FDF_UNSUPPORTED_REQUEST);
+    return (FDFTransactionService( fdf_thread_state, 0, 0));
 }
 
 
@@ -1590,7 +1590,7 @@ FDF_status_t
 _FDFTransactionCommit(struct FDF_thread_state *fdf_thread_state)
 {
 
-    return (FDF_UNSUPPORTED_REQUEST);
+    return (FDFTransactionService( fdf_thread_state, 1, 0));
 }
 
 /*
