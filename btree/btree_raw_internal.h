@@ -3,6 +3,10 @@
 
 #include "btree_raw.h"
 #include "platform/rwlock.h"
+#include <assert.h>
+#include "fdf.h"
+#include <api/fdf.h>
+
 
 #define BAD_CHILD       0
 #define META_LOGICAL_ID 0x8000000000000000L
@@ -107,6 +111,34 @@ struct btree_raw_mem_node {
 };
 
 #define BTREE_RAW_L1CACHE_LIST_MAX 10000
+#define BT_SYNC_THREADS				32
+
+typedef struct btSyncThread {
+	uint32_t				id;
+	pthread_t				pthread;
+	void					(*startfn)(uint64_t arg);
+	pthread_mutex_t			mutex;
+	pthread_cond_t			condvar;
+	uint64_t				rv_wait;
+	uint32_t				is_waiting;
+	uint32_t				do_resume;
+	struct btSyncThread		*next;
+	struct btSyncThread		*prev;
+} btSyncThread_t;
+
+struct btree_raw;
+
+typedef struct btSyncRequest {
+	struct btSyncRequest	*next, *prev;
+//	struct btree_raw        *bt;
+	btree_raw_mem_node_t    **dir_nodes;
+	btree_raw_mem_node_t    **del_nodes;
+	int						*dir_written, *del_written;
+	int                     ret;
+	int                     dir_count, del_count;
+	int                     dir_index, del_index, total_flush, ref_count;
+	pthread_cond_t			ret_condvar;
+}btSyncRequest_t;
 
 typedef struct btree_raw {
     uint32_t           n_partition;
@@ -152,7 +184,14 @@ typedef struct btree_raw {
 
     uint64_t           modified;
 	uint64_t           cguid;
-uint64_t		next_logical_id;
+	uint64_t			next_logical_id;
+	uint32_t			no_sync_threads;
+	pthread_mutex_t		bt_async_mutex;
+    pthread_cond_t		bt_async_cv;
+	btSyncThread_t		**syncthread;
+	btSyncRequest_t		*sync_first, *sync_last;
+	int					deleting;
+	int					io_threads, io_bufs, worker_threads;
 } btree_raw_t;
 
 typedef struct btree_raw_persist {

@@ -223,8 +223,8 @@ void fthMboxPost(fthMbox_t *mb, uint64_t mail)
     mb->mail   = link;
     (mb->nmails)++;
 
-    pthread_mutex_unlock(&(mb->mutex));
     pthread_cond_signal(&(mb->mail_present_cv));
+    pthread_mutex_unlock(&(mb->mutex));
 }
 
 /**

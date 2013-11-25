@@ -71,6 +71,9 @@
 #include "btree_pmap.h"
 #include "btree_raw_internal.h"
 #include <api/fdf.h>
+#include "btree_sync_th.h"
+#include "fdf.h"
+#include <pthread.h>
 #include "btree_var_leaf.h"
 #include "btree_malloc.h"
 #include "packet.h"
@@ -100,6 +103,8 @@ static int Verbose = 0;
 
 extern uint64_t n_global_l1cache_buckets;
 extern struct PMap *global_l1cache;
+extern int btree_parallel_flush_disabled;
+extern int btree_parallel_flush_minbufs;
 
 //  used to count depth of btree traversal for writes/deletes
 __thread int _pathcnt;
@@ -109,13 +114,18 @@ __thread char      *_keybuf      = NULL;
 __thread uint32_t   _keybuf_size = 0;
 
 #define MAX_BTREE_HEIGHT 6400
+extern __thread struct FDF_thread_state *my_thd_state;
 __thread btree_raw_mem_node_t* modified_nodes[MAX_BTREE_HEIGHT];
 __thread btree_raw_mem_node_t* referenced_nodes[MAX_BTREE_HEIGHT];
 __thread btree_raw_mem_node_t* deleted_nodes[MAX_BTREE_HEIGHT];
+__thread int modified_written[MAX_BTREE_HEIGHT];
+__thread int deleted_written[MAX_BTREE_HEIGHT];
 __thread uint64_t modified_nodes_count=0, referenced_nodes_count=0, deleted_nodes_count=0;
 
 static __thread char tmp_key_buf[8100] = {0};
 __thread uint64_t dbg_referenced = 0;
+
+extern struct FDF_state *FDFState;
 
 #ifdef FLIP_ENABLED
 bool recovery_write = false;
@@ -208,6 +218,8 @@ void destroy_l1cache();
 void clean_l1cache(btree_raw_t* btree);
 
 btree_status_t deref_l1cache(btree_raw_t *btree);
+static void btree_sync_flush_entry(btree_raw_t *btree, struct FDF_thread_state *thd_state, btSyncRequest_t *list);
+static void btree_sync_remove_entry(btree_raw_t *btree, btSyncRequest_t *list);
 static void modify_l1cache_node(btree_raw_t *btree, btree_raw_mem_node_t *n);
 
 static void lock_modified_nodes_func(btree_raw_t *btree, int lock);
@@ -237,6 +249,8 @@ static void btree_raw_dump(FILE *f, struct btree_raw *btree);
 #ifdef BTREE_RAW_CHECK
 static void btree_raw_check(struct btree_raw *btree, char* func, char* key);
 #endif
+
+void btree_sync_thread(uint64_t arg);
 
 static void default_msg_cb(int level, void *msg_data, char *filename, int lineno, char *msg, ...)
 {
@@ -299,6 +313,8 @@ btree_raw_init(uint32_t flags, uint32_t n_partition, uint32_t n_partitions, uint
     btree_raw_t      *bt;
     uint32_t          nbytes_meta;
     btree_status_t    ret = BTREE_SUCCESS;
+	int					i, sync_threads;
+	char				*env;
 
     dbg_print("start dbg_referenced %ld\n", dbg_referenced);
 
@@ -418,6 +434,32 @@ btree_raw_init(uint32_t flags, uint32_t n_partition, uint32_t n_partitions, uint
         }
         lock_modified_nodes(bt);
     }
+
+	bt->no_sync_threads = 0;
+	bt->deleting = 0;
+	bt->sync_first = NULL;
+	bt->sync_last = NULL;
+
+	if (btree_parallel_flush_disabled == 0) {
+		pthread_mutex_init(&(bt->bt_async_mutex), NULL);
+		pthread_cond_init(&(bt->bt_async_cv), NULL);
+		env = (char *)FDFGetProperty("FDF_BTREE_SYNC_THREADS", NULL);
+		sync_threads = env ? (int)atoi(env): 32;
+		assert(sync_threads);
+		bt->syncthread = (btSyncThread_t **)malloc(sync_threads * sizeof(btSyncThread_t *)); 
+
+		bt->worker_threads = sync_threads;
+		bt->io_bufs = bt->io_threads = 0;
+
+		for ( i = 0; i < sync_threads; i++) {
+			btSyncResume( btSyncSpawn(bt, i, &btree_sync_thread), (uint64_t)(bt));
+		}
+		while (bt->no_sync_threads < sync_threads) {
+			sched_yield();
+		}
+	}
+
+
     if (BTREE_SUCCESS != deref_l1cache(bt)) {
         ret = BTREE_FAILURE;
     }
@@ -457,9 +499,24 @@ btree_raw_init(uint32_t flags, uint32_t n_partition, uint32_t n_partitions, uint
 void
 btree_raw_destroy (struct btree_raw **bt)
 {
-		clean_l1cache(*bt);
-		free(*bt);
-		*bt = NULL;
+	int i, syncthreads = (*bt)->no_sync_threads;
+	clean_l1cache(*bt);
+	(*bt)->deleting = 1;
+
+	if (!btree_parallel_flush_disabled) {
+		while ((*bt)->no_sync_threads) {
+			pthread_mutex_lock(&((*bt)->bt_async_mutex));
+			pthread_cond_broadcast(&((*bt)->bt_async_cv));
+			pthread_mutex_unlock(&((*bt)->bt_async_mutex));
+			sched_yield();
+		}
+		for (i = 0; i < syncthreads; i++) {
+			free((*bt)->syncthread[i]);
+		}
+		free((*bt)->syncthread);
+	}
+	free(*bt);
+	*bt = NULL;
 }
 
 
@@ -1462,18 +1519,27 @@ static void delete_l1cache(btree_raw_t *btree, uint64_t logical_id)
  * Flush the modified and deleted nodes, unlock those nodes, cleare the reference
  * for such nodes.
  */
+#define MIN_COUNT_FOR_ASYNC			3
+
 btree_status_t deref_l1cache(btree_raw_t *btree)
 {
-    uint64_t i, j;
+    uint64_t i, j, actual_nodes = 0;
     btree_raw_mem_node_t *n;
     btree_status_t        ret = BTREE_SUCCESS;
     btree_status_t        txnret = BTREE_SUCCESS;
+	btSyncRequest_t			req;
+	int				index;
 #ifdef FLIP_ENABLED
     static uint32_t node_write_cnt = 0;
 #endif
 
-    if (btree->trxenabled)
-	(*btree->trx_cmd_cb)( TRX_START);
+	bzero(modified_written, modified_nodes_count * sizeof(int));
+	bzero(deleted_written, deleted_nodes_count * sizeof(int));
+
+    if (btree->trxenabled) {
+		(*btree->trx_cmd_cb)( TRX_START);
+	}
+
     for(i = 0; i < modified_nodes_count; i++)
     {
         n = modified_nodes[i];
@@ -1487,52 +1553,134 @@ btree_status_t deref_l1cache(btree_raw_t *btree)
         if(j >= i)
 		{
 			uint64_t logical_id = n->pnode->logical_id;
-#ifdef FLIP_ENABLED
-            if (flip_get("sw_crash_on_single_write", 
-                         (uint32_t)n->pnode->flags,
-                         recovery_write,
-                         node_write_cnt)) {
-                exit(0);
-            }
-
-            if (flip_get("set_btree_fdf_write_ret",
-                         (uint32_t)n->pnode->flags,
-                         recovery_write,
-                         node_write_cnt, (uint32_t *)&ret)) {
-                goto write_done;               
-            }
-            __sync_fetch_and_add(&node_write_cnt, 1);
-#endif
-	btree->write_node_cb(&ret, btree->write_node_cb_data, n->pnode->logical_id, (char*)n->pnode, btree->nodesize);
-	assert(logical_id == n->pnode->logical_id);
-#ifdef DEBUF_STUFF
-	assert(n->lock_id == pthread_self() || logical_id == META_LOGICAL_ID+btree->n_partition);
-#endif
+			actual_nodes++;
+		} else {
+			modified_nodes[i] = NULL;
+			deref_l1cache_node(btree, n);
+			add_node_stats(btree, n->pnode, L1WRITES, 1);
 		}
 
-        mark_node_clean(n);
-        deref_l1cache_node(btree, n);
-        add_node_stats(btree, n->pnode, L1WRITES, 1);
     }
 
-    for(i = 0; i < deleted_nodes_count; i++)
-    {
-        n = deleted_nodes[i];
-
-        dbg_print("delete_node_cb key=%ld data=%p datalen=%d\n", n->pnode->logical_id, n, btree->nodesize);
-
-        ret = btree->delete_node_cb(btree->create_node_cb_data, n->pnode->logical_id);
-#ifdef BTREE_UNDO_TEST
-        btree_rcvry_test_delete(btree, n->pnode);
-#endif
-        add_node_stats(btree, n->pnode, L1WRITES, 1);
-    }
-    if (btree->trxenabled)
-	(*btree->trx_cmd_cb)( TRX_COMMIT);
 
     //TODO
     //if(ret || txnret)
     //    invalidate_l1cache(btree);
+	if (!btree_parallel_flush_disabled && (actual_nodes + deleted_nodes_count) > btree_parallel_flush_minbufs) {
+
+		pthread_cond_init(&(req.ret_condvar), NULL);
+		req.dir_nodes = modified_nodes;
+		req.dir_count = modified_nodes_count;
+		req.del_nodes = deleted_nodes;
+		req.del_count = deleted_nodes_count;
+		req.dir_written = modified_written;
+		req.del_written = deleted_written;
+		req.dir_index = 0;
+		req.del_index = 0;
+		req.total_flush = 0;
+		req.ref_count = 0;
+		req.next = NULL;
+		req.prev = NULL;
+		req.ret = BTREE_SUCCESS;
+
+		pthread_mutex_lock(&(btree->bt_async_mutex));
+		if (btree->sync_first == NULL) {
+			btree->sync_first = &req;
+			btree->sync_last = &req;
+		} else {
+			req.prev = btree->sync_last;
+			btree->sync_last->next = &req;
+			btree->sync_last = &req;
+		}
+		btree->io_threads++;
+		btree->io_bufs += ((actual_nodes + deleted_nodes_count));
+#if 0
+		if ((btree->io_bufs) < btree->no_sync_threads) {
+			pthread_cond_signal(&(btree->bt_async_cv));
+		} else {
+			pthread_cond_broadcast(&(btree->bt_async_cv));
+		}
+#endif
+		pthread_cond_broadcast(&(btree->bt_async_cv));
+		pthread_mutex_unlock(&(btree->bt_async_mutex));
+
+		btree_sync_flush_entry(btree, my_thd_state, &req);
+
+		pthread_mutex_lock(&(btree->bt_async_mutex));
+		btree->io_threads--;
+		btree->io_bufs -= ((actual_nodes + deleted_nodes_count));
+
+		if (req.ref_count == 0) {
+			btree_sync_remove_entry(btree, &req);
+		} else {
+			pthread_cond_wait(&(req.ret_condvar), &(btree->bt_async_mutex));
+		}
+		pthread_mutex_unlock(&(btree->bt_async_mutex));
+
+
+		assert(req.total_flush == (req.del_count + req.dir_count));
+		assert(req.ref_count == 0);
+
+		for(i = 0; i < modified_nodes_count; i++)
+		{
+			n = modified_nodes[i];
+			if (n) {
+				assert(modified_written[i] ==1);
+				mark_node_clean(n);
+				deref_l1cache_node(btree, n);
+				add_node_stats(btree, n->pnode, L1WRITES, 1);
+			}
+		}
+	} else {
+		for(i = 0; i < modified_nodes_count; i++)
+		{
+			n = modified_nodes[i];
+			if (n) {
+				uint64_t logical_id = n->pnode->logical_id;
+#ifdef FLIP_ENABLED
+				if (flip_get("sw_crash_on_single_write", 
+							 (uint32_t)n->pnode->flags,
+							 recovery_write,
+							 node_write_cnt)) {
+					exit(0);
+				}
+
+				if (flip_get("set_btree_fdf_write_ret",
+							 (uint32_t)n->pnode->flags,
+							 recovery_write,
+                         node_write_cnt, (uint32_t *)&ret)) {
+					goto write_done;               
+				}
+				__sync_fetch_and_add(&node_write_cnt, 1);
+#endif
+				btree->write_node_cb(my_thd_state, &ret, btree->write_node_cb_data, n->pnode->logical_id, (char*)n->pnode, btree->nodesize);
+				assert(logical_id == n->pnode->logical_id);
+#ifdef DEBUF_STUFF
+				assert(n->lock_id == pthread_self() || logical_id == META_LOGICAL_ID+btree->n_partition);
+#endif
+				mark_node_clean(n);
+				deref_l1cache_node(btree, n);
+				add_node_stats(btree, n->pnode, L1WRITES, 1);
+			}
+		}
+		for(i = 0; i < deleted_nodes_count; i++)
+		{
+			n = deleted_nodes[i];
+
+			dbg_print("delete_node_cb key=%ld data=%p datalen=%d\n", n->pnode->logical_id, n, btree->nodesize);
+
+			ret = btree->delete_node_cb(btree->create_node_cb_data, n->pnode->logical_id);
+#ifdef BTREE_UNDO_TEST
+			btree_rcvry_test_delete(btree, n->pnode);
+#endif
+			add_node_stats(btree, n->pnode, L1WRITES, 1);
+		}
+	}
+
+
+    if (btree->trxenabled) {
+		(*btree->trx_cmd_cb)( TRX_COMMIT);
+	}
 
     unlock_modified_nodes(btree);
 
@@ -1556,6 +1704,165 @@ btree_status_t deref_l1cache(btree_raw_t *btree)
 //    assert(PMapNEntries(btree->l1cache) <= 16 * (btree->n_l1cache_buckets / 1000 + 1) * 1000 + 1);
 
     return  BTREE_SUCCESS == ret ? txnret : ret;
+}
+
+void
+btree_sync_thread(uint64_t arg)
+{
+	btree_raw_t				*btree = (btree_raw_t *)(arg);
+	btSyncRequest_t			*list = NULL;
+	btree_raw_mem_node_t	*n = NULL;
+	btree_status_t			ret = BTREE_SUCCESS;
+	FDF_status_t			fdfret = FDF_SUCCESS;
+	uint64_t				logical_id;
+	struct FDF_thread_state	*thd_state = NULL;
+
+	assert(btree_parallel_flush_disabled == 0);
+
+	fdfret = FDFInitPerThreadState(FDFState, &thd_state);
+	assert(fdfret == FDF_SUCCESS);
+
+
+	pthread_mutex_lock(&(btree->bt_async_mutex));
+	__sync_fetch_and_add(&(btree->no_sync_threads), 1);
+	while (1) {
+		while (list == NULL) {
+			if (btree->deleting) {
+				pthread_mutex_unlock(&(btree->bt_async_mutex));
+				FDFReleasePerThreadState(&thd_state);
+				__sync_fetch_and_sub(&(btree->no_sync_threads), 1);
+				return;
+			}
+			assert((btree->sync_first == NULL) ||
+					((btree->sync_last->del_index == btree->sync_last->del_count)
+					 && (btree->sync_last->dir_index == btree->sync_last->dir_count)));
+			btree->worker_threads--;
+
+			pthread_cond_wait(&(btree->bt_async_cv), &(btree->bt_async_mutex));
+			btree->worker_threads++;
+			list = btree->sync_first;
+		}
+
+		list->ref_count++;
+		if ((list->total_flush == (list->del_count + list->dir_count))
+					|| (list->ret != BTREE_SUCCESS)) {
+			goto next;
+		}
+		pthread_mutex_unlock(&(btree->bt_async_mutex));
+
+		btree_sync_flush_entry(btree, thd_state, list);
+		
+		pthread_mutex_lock(&(btree->bt_async_mutex));
+next:
+		list->ref_count--;
+
+		btree_sync_remove_entry(btree, list);
+
+		if (list->ref_count == 0) {
+			assert((list->total_flush >= (list->del_count + list->dir_count - 1))
+						|| (list->ret != BTREE_SUCCESS));
+			pthread_cond_signal(&(list->ret_condvar));
+		}
+		list = btree->sync_first;
+
+	}
+
+	assert(0);
+
+}
+
+static void
+btree_sync_flush_entry(btree_raw_t *btree, struct FDF_thread_state *thd_state, btSyncRequest_t *list)
+{
+	btree_raw_mem_node_t	*n = NULL;
+	btree_status_t			ret = BTREE_SUCCESS;
+	int						index;
+
+	while ((list->ret == BTREE_SUCCESS) && ((list->dir_index < list->dir_count) ||
+			(list->del_index < list->del_count))) {
+		if (list->dir_index < list->dir_count) {
+			while (list->dir_index < list->dir_count) {
+				index = __sync_fetch_and_add(&(list->dir_index), 1);
+				if (index < list->dir_count) {
+					__sync_fetch_and_add(&(list->total_flush), 1);
+					n = list->dir_nodes[index];
+				} else {
+					n = NULL;
+				}
+				if (n) {
+					uint64_t logical_id = n->pnode->logical_id;
+					__sync_fetch_and_add(&(list->dir_written[index]), 1);
+					assert(list->dir_written[index] == 1);
+					btree->write_node_cb(thd_state, &ret, btree->write_node_cb_data, n->pnode->logical_id, (char*)n->pnode, btree->nodesize);
+					assert(logical_id == n->pnode->logical_id);
+#if 0
+					if (ret != BTREE_SUCCESS) {
+						list->ret = ret;
+						break;
+					}
+#endif
+				}
+
+			}
+		} else if (list->del_index < list->del_count) {
+			while (list->del_index < list->del_count) {
+				index = __sync_fetch_and_add(&(list->del_index), 1);
+				if (index < list->del_count) {
+					__sync_fetch_and_add(&(list->total_flush), 1);
+					n = list->del_nodes[index];
+				} else {
+					n = NULL;
+				}
+				if (n) {
+					assert(list->del_written[index] == 0);
+					list->del_written[index] = 1;
+					ret = btree->delete_node_cb(btree->create_node_cb_data, n->pnode->logical_id);
+					add_node_stats(btree, n->pnode, L1WRITES, 1);
+#if 0
+					if (ret != BTREE_SUCCESS) {
+						list->ret = ret;
+						break;
+					}
+#endif
+				}
+			}
+		}
+	}
+}
+
+static void
+btree_sync_remove_entry(btree_raw_t *btree, btSyncRequest_t *list)
+{
+	btSyncRequest_t		*tmplist;
+
+	if (((list->next == NULL) && (list->prev == NULL) && (btree->sync_first == list) && (btree->sync_last == list)) ||
+		   (list->next || list->prev)) {
+		tmplist = list->next;
+		assert(tmplist != list);
+		if (list->next) {
+			list->next->prev = list->prev;
+		} else {
+			assert(list == btree->sync_last);
+			btree->sync_last = list->prev;
+			if (btree->sync_last) {
+				btree->sync_last->next = NULL;
+			}
+		}
+		if (list->prev) {
+			list->prev->next = list->next;
+		} else {
+			assert(list == btree->sync_first);
+			btree->sync_first = list->next;
+			if ( btree->sync_first) {
+				 btree->sync_first->prev = NULL;
+			}
+		}
+		list->next = NULL;
+		list->prev = NULL;
+		if (btree->sync_first == NULL) {
+			assert(btree->sync_last == NULL);
+		}
+	}
 }
 
 void unlock_and_unreference(btree_raw_t* btree, int last)
@@ -1641,6 +1948,9 @@ static void modify_l1cache_node(btree_raw_t *btree, btree_raw_mem_node_t *node)
     assert(modified_nodes_count < MAX_BTREE_HEIGHT);
     node->modified++;
     mark_node_dirty(node);
+	if ((modified_nodes_count > 0) && (modified_nodes[modified_nodes_count - 1] == node)) {
+		        return;
+	}
     modified_nodes[modified_nodes_count++] = node;
 	PMapIncrRefcnt(btree->l1cache,(char *) &(node->pnode->logical_id), sizeof(uint64_t), btree->cguid);
     dbg_referenced++;
@@ -1654,6 +1964,10 @@ void lock_nodes_list(btree_raw_t *btree, int lock, btree_raw_mem_node_t** list, 
 
     for(i = 0; i < count; i++)
     {
+		if (list[i] == NULL) {
+			assert(lock == 0);
+			continue;
+		}
         node = get_l1cache(btree, list[i]->pnode->logical_id);
         assert(node); // the node is in the cache, hence, get_l1cache cannot fail
 

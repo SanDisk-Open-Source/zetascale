@@ -12,7 +12,7 @@
 #include <pthread.h>
 #include <semaphore.h>
 
-#define MAX_ITERATION  64
+#define MAX_ITERATION  32
 
 FILE                           *fp             = NULL;
 static struct FDF_state        *fdf_state      = NULL;
@@ -27,6 +27,8 @@ pre_env()
 	FDF_status_t ret = FDF_FAILURE;
 
 	FDFSetProperty("SDF_REFORMAT", "1");
+	FDFSetProperty("FDF_BTREE_PARALLEL_FLUSH", "1");
+	FDFSetProperty("FDF_BTREE_SYNC_THREADS", "64");
 
 
 	ret = FDFInit(&fdf_state);

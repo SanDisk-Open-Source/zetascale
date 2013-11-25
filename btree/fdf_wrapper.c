@@ -19,6 +19,8 @@
 #include <string.h>
 #include <stdarg.h>
 #include <assert.h>
+#include <sched.h>
+#include <api/fdf.h>
 #include "fdf.h"
 #include "fdf_internal_cb.h"
 #include "btree.h"
@@ -44,10 +46,14 @@ struct PMap *global_l1cache;
 extern int init_l1cache();
 extern void destroy_l1cache();
 
+int btree_parallel_flush_disabled = 1;
+int btree_parallel_flush_minbufs = 3;
+
 // xxxzzz temporary: used for dumping btree stats
 static uint64_t  n_reads = 0;
 
 __thread struct FDF_thread_state *my_thd_state;
+struct FDF_state *FDFState;
 
 typedef struct read_node {
     FDF_cguid_t              cguid;
@@ -60,7 +66,7 @@ static int mput_default_cmp_cb(void *data, char *key, uint32_t keylen,
 			    char *new_data, uint64_t new_datalen);
 
 static void* read_node_cb(btree_status_t *ret, void *data, uint64_t lnodeid);
-static void write_node_cb(btree_status_t *ret, void *cb_data, uint64_t lnodeid, char *data, uint64_t datalen);
+static void write_node_cb(struct FDF_thread_state *thd_state, btree_status_t *ret, void *cb_data, uint64_t lnodeid, char *data, uint64_t datalen);
 static void flush_node_cb(btree_status_t *ret, void *cb_data, uint64_t lnodeid);
 static int freebuf_cb(void *data, char *buf);
 static void* create_node_cb(btree_status_t *ret, void *data, uint64_t lnodeid);
@@ -340,7 +346,7 @@ FDF_status_t _FDFInit(
 	struct FDF_state	**fdf_state
 	)
 {
-    char         *stest;
+    char         *stest, *fdf_prop;
     int           i = 0;
     FDF_status_t  ret;
     FDF_ext_cb_t  *cbs;
@@ -372,6 +378,21 @@ FDF_status_t _FDFInit(
     cbs->stats_cb = btree_get_all_stats;
     trxinit( );
     ret = FDFRegisterCallbacks(*fdf_state, cbs);
+	FDFState = *fdf_state;
+
+	fdf_prop = (char *)FDFGetProperty("FDF_BTREE_PARALLEL_FLUSH",NULL);
+	if((fdf_prop != NULL) ) {
+		if (atoi(fdf_prop) == 1) {
+			btree_parallel_flush_disabled = 0;
+		}
+	}
+	fdf_prop = (char *)FDFGetProperty("FDF_BTREE_PARALLEL_MINBUFS",NULL);
+	if((fdf_prop != NULL) ) {
+		btree_parallel_flush_minbufs = atoi(fdf_prop);
+	} else {
+		btree_parallel_flush_minbufs = 3;
+	}
+
     return(ret);
 }
 
@@ -753,7 +774,7 @@ restart:
 	if (Container_Map[index].bt_io_count) {
 		pthread_rwlock_unlock(&(Container_Map[index].bt_cm_rwlock));
 		while (Container_Map[index].bt_io_count) {
-			pthread_yield();
+			sched_yield();
 		}
 		goto restart;
 	}
@@ -809,7 +830,7 @@ restart:
 	if (Container_Map[index].bt_io_count) {
 		pthread_rwlock_unlock(&(Container_Map[index].bt_cm_rwlock));
 		while (Container_Map[index].bt_io_count) {
-			pthread_yield();
+			sched_yield();
 		}
 		goto restart;
 	}
@@ -1784,14 +1805,14 @@ static void* read_node_cb(btree_status_t *ret, void *data, uint64_t lnodeid)
     }
 }
 
-static void write_node_cb(btree_status_t *ret_out, void *cb_data, uint64_t lnodeid, char *data, uint64_t datalen)
+static void write_node_cb(struct FDF_thread_state *thd_state, btree_status_t *ret_out, void *cb_data, uint64_t lnodeid, char *data, uint64_t datalen)
 {
     FDF_status_t    ret;
     read_node_t     *prn = (read_node_t *) cb_data;
 
     N_write_node++;
 
-    ret = FDFWriteObject(my_thd_state, prn->cguid, (char *) &lnodeid, sizeof(uint64_t), data, datalen, 0 /* flags */);
+    ret = FDFWriteObject(thd_state, prn->cguid, (char *) &lnodeid, sizeof(uint64_t), data, datalen, 0 /* flags */);
     trxtrackwrite( prn->cguid, lnodeid);
     assert(prn->nodesize == datalen);
 
