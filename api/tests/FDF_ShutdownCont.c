@@ -28,7 +28,7 @@ pre_env()
 
 	FDFSetProperty("SDF_REFORMAT", "1");
 	FDFSetProperty("FDF_BTREE_PARALLEL_FLUSH", "1");
-	FDFSetProperty("FDF_BTREE_SYNC_THREADS", "64");
+	FDFSetProperty("FDF_BTREE_SYNC_THREADS", "2");
 
 
 	ret = FDFInit(&fdf_state);
