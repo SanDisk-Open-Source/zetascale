@@ -2064,6 +2064,7 @@ btree_raw_mem_node_t *create_new_node(btree_raw_t *btree, uint64_t logical_id)
 {
     btree_raw_mem_node_t *n = NULL;
     btree_raw_node_t *pnode = (btree_raw_node_t *) btree_malloc(btree->nodesize);
+//    memset(pnode, 0, btree->nodesize);
     // n = btree->create_node_cb(ret, btree->create_node_cb_data, logical_id);
     //  Just malloc the node here.  It will be written
     //  out at the end of the request by deref_l1cache().
@@ -2092,6 +2093,7 @@ static btree_raw_mem_node_t *get_new_node(btree_status_t *ret, btree_raw_t *btre
     if (btree->flags & IN_MEMORY) {
         node = btree_malloc(sizeof(btree_raw_mem_node_t) + btree->nodesize);
         node->pnode = (btree_raw_node_t*) ((void*)node + sizeof(btree_raw_mem_node_t));
+	memset(node->pnode, 0, btree->nodesize);
         n = node->pnode;
         plat_rwlock_init(&node->lock);
 	logical_id = (uint64_t) node;
@@ -3710,12 +3712,10 @@ mini_restart:
 	*objs_written = written;	
 
 	/*
-	 * If we could not insert in to node , it might be unchanged.
-	 * So no point of keeping it locked.
+	 * If node is unchanged, no point of keeping it locked.
 	 */
-	if (ret != BTREE_SUCCESS && !is_node_dirty(mem_node)) {
+	if (!is_node_dirty(mem_node)) {
 		plat_rwlock_unlock(&mem_node->lock);
-		
 	}
 
 	/*

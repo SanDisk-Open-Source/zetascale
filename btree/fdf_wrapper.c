@@ -1964,6 +1964,7 @@ mput_default_cmp_cb(void *data, char *key, uint32_t keylen,
 		    char *new_data, uint64_t new_datalen)
 {
 	return 1;
+//	return 0;
 }
 
 /****************************************************

@@ -767,6 +767,8 @@ btree_leaf_get_data_nth_key(btree_raw_t *bt, btree_raw_node_t *n, int index,
 	key_meta_t key_meta = {0};
 	entry_header_t *ent_hdr = NULL;
 
+	assert(index >= 0 && index < n->nkeys);
+
 	headers = (entry_header_t *) n->keys;
 	data_ptr = (char *) ((uint64_t )n + n->insert_ptr);
 
