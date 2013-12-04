@@ -40,16 +40,16 @@ FDF_status_t fdf_cmap_init( void )
 	sprintf( cmc_map.cname, "%s", CMC_PATH );
 	cmc_map.cguid = CMC_CGUID;
 	cmc_map.sdf_container = containerNull;
-    cmc_map.size_kb = 1024;
-    cmc_map.current_size = 0;
-    cmc_map.num_obj = 0;
-    cmc_map.state = FDF_CONTAINER_STATE_OPEN;
-    cmc_map.evicting = FDF_FALSE;
-    bzero( (void *) &cmc_map.enum_stats, sizeof( enum_stats_t ) );
-    bzero( (void *) &cmc_map.container_stats, sizeof( FDF_container_stats_t ) );
-	
+	cmc_map.size_kb = CMC_SIZE_KB;
+	cmc_map.current_size = 0;
+	cmc_map.num_obj = 0;
+	cmc_map.state = FDF_CONTAINER_STATE_OPEN;
+	cmc_map.evicting = FDF_FALSE;
+	bzero( (void *) &cmc_map.enum_stats, sizeof( enum_stats_t ) );
+	bzero( (void *) &cmc_map.container_stats, sizeof( FDF_container_stats_t ) );
+
 	cmap_cguid_hash = CMapInit( CMAP_BUCKETS, MCD_MAX_NUM_CNTRS, 1, NULL, NULL, fdf_cmap_del_cb );
-    cmap_cname_hash = HashMap_create( CMAP_BUCKETS, FTH_BUCKET_RW );
+	cmap_cname_hash = HashMap_create( CMAP_BUCKETS, FTH_BUCKET_RW );
 
 	if ( !cmap_cguid_hash || !cmap_cname_hash ) {
 	    return FDF_FAILURE;

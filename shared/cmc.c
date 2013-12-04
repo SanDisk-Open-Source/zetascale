@@ -334,7 +334,7 @@ cmc_initialize(SDF_internal_ctxt_t *pai, const char *cmc_path) {
     	fdf_p.writethru             = FDF_TRUE;
     	//fdf_p.num_shards            = 1;
     	fdf_p.durability_level      = FDF_DURABILITY_HW_CRASH_SAFE;
-    	fdf_p.size_kb               = 1024 * 1024; // kB
+    	fdf_p.size_kb               = CMC_SIZE_KB; // Fixed to 1G right now
         plat_log_msg(80039,LOG_CAT, LOG_DBG, "Creating Container Metadata Container"
                           " (name = %s,size = %lu kbytes,"
                           "persistence = %s,eviction = %s,writethrough = %s,fifo = %s,"

@@ -496,7 +496,9 @@ FDF_status_t _FDFOpenContainerSpecial(
     void *mput_cmp_cb_data;
     read_node_t  *prn;
     int           index = -1;
-    char         *env;
+    char         *env = NULL;
+
+
 
     my_thd_state = fdf_thread_state;;
 

@@ -77,6 +77,8 @@ typedef struct {
 #define VMC_PATH "/sdf/VMC"
 #define VDC_PATH "/sdf/VDC"
 
+#define CMC_SIZE_KB (1024 * 1024) //Min is 1G
+
 /*
  * maximum number of containers supported by one instance of SDF
  */
