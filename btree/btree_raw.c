@@ -2540,11 +2540,12 @@ static void insert_key_low(btree_status_t *ret, btree_raw_t *btree, btree_raw_me
     }
 
     if (x->flags & LEAF_NODE) {
+	assert(0);
         /* A new object has been inserted. increment the count */
-        __sync_add_and_fetch(&(btree->stats.stat[BTSTAT_NUM_OBJS]), 1);
-		__sync_add_and_fetch(&(btree->stats.stat[BTSTAT_LEAF_BYTES]), nbytes_stats);
+	__sync_add_and_fetch(&(btree->stats.stat[BTSTAT_NUM_OBJS]), 1);
+	__sync_add_and_fetch(&(btree->stats.stat[BTSTAT_LEAF_BYTES]), nbytes_stats);
     } else {
-		__sync_add_and_fetch(&(btree->stats.stat[BTSTAT_NONLEAF_BYTES]), nbytes_stats);
+	__sync_add_and_fetch(&(btree->stats.stat[BTSTAT_NONLEAF_BYTES]), nbytes_stats);
     }
 
 #ifdef DEBUG_STUFF
@@ -2606,6 +2607,8 @@ static void delete_key_by_pkrec(btree_status_t* ret, btree_raw_t *btree, btree_r
 
     assert(pk_delete);
 
+    assert(!is_leaf(btree, node->pnode));
+
     if(*ret) return;
 
     (void) get_key_stuff(btree, x, 0, &ks);
@@ -2639,6 +2642,7 @@ static void delete_key_by_pkrec(btree_status_t* ret, btree_raw_t *btree, btree_r
     nkeys_to = (((char *) pk_delete) - ((char *) x->keys))/ks.offset;
 
     if (x->flags & LEAF_NODE) {
+	assert(0);
         __sync_sub_and_fetch(&(btree->stats.stat[BTSTAT_NUM_OBJS]), 1);
 	__sync_sub_and_fetch(&(btree->stats.stat[BTSTAT_LEAF_BYTES]), nbytes_stats);
     } else {
@@ -2737,6 +2741,7 @@ delete_key_by_index_leaf(btree_status_t* ret, btree_raw_t *btree, btree_raw_mem_
 	key_info_t key_info = {0};
 	bool res = false; 
 	uint64_t datalen = 0;
+	int32_t bytes_decreased = 0;
 
 	assert(is_leaf(btree, node->pnode));
 
@@ -2753,11 +2758,12 @@ delete_key_by_index_leaf(btree_status_t* ret, btree_raw_t *btree, btree_raw_mem_
 		datalen = key_info.datalen;
 	}
 
-	res = btree_leaf_remove_key_index(btree, node->pnode, index, &key_info);	
+	res = btree_leaf_remove_key_index(btree, node->pnode, index, &key_info, &bytes_decreased);	
 
 	assert(res == true);
 	if (res == true) {
 		__sync_sub_and_fetch(&(btree->stats.stat[BTSTAT_NUM_OBJS]), 1);
+		__sync_sub_and_fetch(&(btree->stats.stat[BTSTAT_LEAF_BYTES]), bytes_decreased);
 		*ret = BTREE_SUCCESS;
 	} else {
 		*ret = BTREE_FAILURE;
@@ -2841,10 +2847,12 @@ static btree_raw_mem_node_t* btree_split_child(btree_status_t *ret, btree_raw_t 
 	   /*
 	    * If split has increased the used space, then it is loss in our space saving.
 	    */
-	   if (btree->stats.stat[BTSTAT_SPCOPT_BYTES_SAVED] > bytes_increased) {
-		   __sync_sub_and_fetch(&(btree->stats.stat[BTSTAT_SPCOPT_BYTES_SAVED]),
-				        bytes_increased);
-	   }
+	   __sync_add_and_fetch(&(btree->stats.stat[BTSTAT_SPCOPT_BYTES_SAVED]),
+				-bytes_increased);
+	   /*
+	    * Split has increased the space used, so adjust the num leaf bytes counter.
+	    */
+	   __sync_add_and_fetch(&(btree->stats.stat[BTSTAT_LEAF_BYTES]), bytes_increased);
 		
     } else {
 	    split_copy(ret, btree, n_child->pnode, n_new->pnode, &key, &keylen, &split_syndrome);
@@ -3338,7 +3346,6 @@ btree_leaf_insert_low(btree_raw_t *bt, btree_raw_mem_node_t *n, char *key, uint3
 		}
 	}
 
-
 	/*
 	 * Allocate new overflow area if required.
 	 */
@@ -3356,14 +3363,18 @@ btree_leaf_insert_low(btree_raw_t *bt, btree_raw_mem_node_t *n, char *key, uint3
 				    meta, syndrome, index, key_exists,
 				    &bytes_saved, &size_increased);
 #if DEBUG_BUILD
-
 	assert(btree_leaf_find_key2(bt, n->pnode, key, keylen, &index));
 #endif 
 
 	__sync_add_and_fetch(&(bt->stats.stat[BTSTAT_SPCOPT_BYTES_SAVED]), bytes_saved);
 
 	if (res == true) {
-		__sync_add_and_fetch(&(bt->stats.stat[BTSTAT_NUM_OBJS]), 1);
+		if (!key_exists) {
+			__sync_add_and_fetch(&(bt->stats.stat[BTSTAT_NUM_OBJS]), 1);
+		}
+#if DEBUG_BUILD
+		assert(size_increased > 0 || bt->stats.stat[BTSTAT_LEAF_BYTES] > (-size_increased));
+#endif
 		__sync_add_and_fetch(&(bt->stats.stat[BTSTAT_LEAF_BYTES]), size_increased);
 	}
 	
@@ -5147,6 +5158,12 @@ equalize_keys_leaf(btree_raw_t *btree, btree_raw_mem_node_t *anchor_mem, btree_r
 {
 	key_info_t key_info;
         bool res = false;
+	int32_t old_used_space = 0;
+	int32_t new_used_space = 0;
+	int32_t bytes_changed = 0;
+
+	old_used_space = btree_leaf_used_space(btree, from_mem->pnode) +
+			 btree_leaf_used_space(btree, to_mem->pnode);
 
 	if (left) {
 		res = btree_leaf_shift_left(btree, from_mem->pnode, to_mem->pnode, &key_info);
@@ -5155,10 +5172,18 @@ equalize_keys_leaf(btree_raw_t *btree, btree_raw_mem_node_t *anchor_mem, btree_r
 	}
         assert(res == true);
 
+	new_used_space = btree_leaf_used_space(btree, from_mem->pnode) +
+			 btree_leaf_used_space(btree, to_mem->pnode);
+
         *r_key = key_info.key;
         *r_keylen = key_info.keylen;
         *r_syndrome = key_info.syndrome;
         *r_seqno = key_info.seqno;
+
+	bytes_changed = new_used_space - old_used_space;
+
+	__sync_add_and_fetch(&(btree->stats.stat[BTSTAT_LEAF_BYTES]), bytes_changed);
+	__sync_sub_and_fetch(&(btree->stats.stat[BTSTAT_SPCOPT_BYTES_SAVED]), -bytes_changed);
 
 	return res;
 }
@@ -5282,8 +5307,25 @@ merge_nodes_leaf(btree_raw_t *btree, btree_raw_node_t *anchor, btree_raw_node_t 
 		 btree_raw_node_t *to, char *s_key, uint32_t s_keylen, uint64_t s_syndrome, uint64_t s_seqno)
 {
 	bool res = false;
+	int32_t bytes_changed = 0;
+	int32_t old_used_space = 0;
+	int32_t new_used_space = 0;
+
+	old_used_space = btree_leaf_used_space(btree, from) +
+			 btree_leaf_used_space(btree, to);
+
 	res = btree_leaf_merge_left(btree, from, to);
 	assert(res == true);
+
+	new_used_space = btree_leaf_used_space(btree, to);
+
+	bytes_changed = new_used_space - old_used_space;
+#ifdef DEBUG_BUILD
+//	assert(bytes_changed <= 0);
+#endif
+
+	__sync_add_and_fetch(&(btree->stats.stat[BTSTAT_LEAF_BYTES]), bytes_changed);
+	__sync_sub_and_fetch(&(btree->stats.stat[BTSTAT_SPCOPT_BYTES_SAVED]), -bytes_changed);
 }
 
 static void
@@ -5293,7 +5335,7 @@ merge_nodes(btree_raw_t *btree, btree_raw_node_t *anchor, btree_raw_node_t *from
 	if (is_leaf(btree, from)) {
 		merge_nodes_leaf(btree, anchor, from, to, s_key, s_keylen, s_syndrome, s_seqno);
 	} else {
-		merge_nodes_leaf(btree, anchor, from, to, s_key, s_keylen, s_syndrome, s_seqno);
+		merge_nodes_non_leaf(btree, anchor, from, to, s_key, s_keylen, s_syndrome, s_seqno);
 	}
 }
 

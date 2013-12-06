@@ -1372,6 +1372,8 @@ btree_leaf_remove_key_index_int(btree_raw_t *bt, btree_raw_node_t *n,
 	int32_t old_used_space = 0;
 	int32_t new_used_space = 0;
 
+	*bytes_decreased = 0;
+
 #ifdef DEBUG_BUILD
 	if (!dry_run) {
 		tmp_node_mem = (char *) get_buffer(bt, bt->nodesize_less_hdr);
@@ -1545,10 +1547,10 @@ exit:
 
 bool
 btree_leaf_remove_key_index(btree_raw_t *bt, btree_raw_node_t *n,
-			    int index, key_info_t *key_info)
+			    int index, key_info_t *key_info, int32_t *bytes_decreased)
 {
-	int32_t bytes_decreased = 0;
-	return btree_leaf_remove_key_index_int(bt, n, index, key_info, &bytes_decreased, false);
+	*bytes_decreased = 0;
+	return btree_leaf_remove_key_index_int(bt, n, index, key_info, bytes_decreased, false);
 }
 
 bool
@@ -1596,12 +1598,6 @@ btree_leaf_update_key(btree_raw_t *bt, btree_raw_node_t *n, char *key, uint32_t 
 	*bytes_saved = 0;
 	size_expected = BTREE_LEAF_ENTRY_MAX_SIZE(keylen, datalen);
 	*size_increased = bytes_increased - bytes_decreased;
-	if (*size_increased < 0) {
-		/*
-		 * stats do not support negative counter yet
-		 */
-		*size_increased = 0;
-	}
 
 	*bytes_saved = size_expected - *size_increased;
 
@@ -2129,18 +2125,19 @@ btree_leaf_shift_right(btree_raw_t *bt, btree_raw_node_t *from_node,
 }
 
 bool
-btree_leaf_merge_left(btree_raw_t *bt, btree_raw_node_t *from_node,
-		      btree_raw_node_t *to_node)
+btree_leaf_merge_left(btree_raw_t *bt, btree_raw_node_t *from_node, btree_raw_node_t *to_node)
 {
 	int nkeys_from = 0;
 	int nkeys_to = 0;
 	int keys_copied = 0;
 
+	
 	nkeys_from = btree_leaf_num_entries(bt, from_node);
 	nkeys_to = btree_leaf_num_entries(bt, to_node);
 
 	keys_copied = btree_leaf_copy_keys(bt, from_node, 0, to_node, nkeys_to, nkeys_from, 0);
 	dbg_assert(keys_copied == nkeys_from);
+
 
 	from_node->nkeys = 0;
 	from_node->insert_ptr = bt->nodesize;

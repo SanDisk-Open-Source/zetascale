@@ -176,8 +176,7 @@ btree_leaf_get_data_key(btree_raw_t *btree, btree_raw_node_t *n,
 			char **data, uint64_t *datalen);
 bool
 btree_leaf_remove_key_index(btree_raw_t *bt, btree_raw_node_t *n,
-			    int index, key_info_t *key_info);
-
+			    int index, key_info_t *key_info, int32_t *bytes_decreased);
 
 bool
 btree_leaf_shift_left(btree_raw_t *btree, btree_raw_node_t *from_node,
