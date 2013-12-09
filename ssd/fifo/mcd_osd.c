@@ -4464,7 +4464,7 @@ mcd_fth_osd_slab_set( void * context, mcd_osd_shard_t * shard, char * key,
 	 * lookup hash
 	 */
 	hash_entry = hash_table_get( context, shard->hash_handle, 
-                                    key, key_len, cntr_id, 1);
+                                    key, key_len, cntr_id);
 
     if ( hash_entry == NULL ) { // new key
         if ( NULL == data ) {
@@ -4476,8 +4476,10 @@ mcd_fth_osd_slab_set( void * context, mcd_osd_shard_t * shard, char * key,
             goto out;
         }
     } else { //key exists.
+#ifndef BTREE_HACK
         meta = (mcd_osd_meta_t *)buf;
         target_seqno = meta->seqno;
+#endif
         obj_exists = true;
         mcd_log_msg( 20331, 
             PLAT_LOG_LEVEL_TRACE, "object exists" );

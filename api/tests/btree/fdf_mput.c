@@ -99,11 +99,19 @@ do_mput(struct FDF_thread_state *thd_state, FDF_cguid_t cguid,
 		for (i = 0; i < num_objs; i++) {
 			memset(objs[i].key, 0, FDF_MAX_KEY_LEN);
 			sprintf(objs[i].key, "key_%d_%06"PRId64"", my_thdid, key_num);
-			sprintf(objs[i].data, "key_%d_%06"PRId64"", my_thdid, key_num);
+
+			sprintf(objs[i].data, "key_%d_%06"PRId64"_%x", my_thdid, key_num, flags);
+			objs[i].data_len = strlen(objs[i].data) + 1;
+		
+			if (flags == FDF_WRITE_MUST_EXIST) { 
+				strncat(&objs[i].data[objs[i].data_len - 1], objs[i].data, objs[i].data_len - 1);
+			}
+			objs[i].data_len = strlen(objs[i].data) + 1;
+
+
 
 			key_num += key_seed;
 			objs[i].key_len = strlen(objs[i].key) + 1;
-			objs[i].data_len = strlen(objs[i].data) + 1;
 			objs[i].flags = 0;
 			if (!use_mput) {
 				status = FDFWriteObject(thd_state, cguid,
@@ -158,7 +166,13 @@ do_mput(struct FDF_thread_state *thd_state, FDF_cguid_t cguid,
 			memset(objs[i].key, 0, FDF_MAX_KEY_LEN);
 
 			sprintf(objs[i].key, "key_%d_%06"PRId64"", my_thdid, key_num);
-			sprintf(objs[i].data, "key_%d_%06"PRId64"", my_thdid, key_num);
+			sprintf(objs[i].data, "key_%d_%06"PRId64"_%x", my_thdid, key_num, flags);
+			objs[i].data_len = strlen(objs[i].data) + 1;
+		
+			if (flags == FDF_WRITE_MUST_EXIST) { 
+				strncat(&objs[i].data[objs[i].data_len - 1], objs[i].data, objs[i].data_len - 1);
+			}
+			objs[i].data_len = strlen(objs[i].data) + 1;
 
 			key_num += key_seed;
 
@@ -177,6 +191,12 @@ do_mput(struct FDF_thread_state *thd_state, FDF_cguid_t cguid,
 
 			if (data_len != objs[i].data_len) {
 				printf("Object length of read object mismatch.\n");	
+				assert(0);
+				mismatch++;
+			}
+
+			if (memcmp(data, objs[i].data, objs[i].data_len) != 0) {
+				printf("Object data of read object mismatch.\n");	
 				assert(0);
 				mismatch++;
 			}

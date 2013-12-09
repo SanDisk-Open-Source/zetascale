@@ -336,7 +336,7 @@ hash_table_cleanup ( hash_handle_t *hdl)
  * verify key with on-flash meta.
  */
 hash_entry_t *
-hash_table_get (void *context, hash_handle_t *hdl, char *key, int key_len, cntr_id_t cntr_id, int is_write)
+hash_table_get (void *context, hash_handle_t *hdl, char *key, int key_len, cntr_id_t cntr_id)
 {
     uint32_t          bucket_idx;
     uint64_t          syndrome;
@@ -366,28 +366,31 @@ hash_table_get (void *context, hash_handle_t *hdl, char *key, int key_len, cntr_
                 continue;
             }
 
-            if (hash_entry->cntr_id != cntr_id)
+            if (hash_entry->cntr_id != cntr_id){
                 continue;
+            }
 
             if ( (uint16_t)(syndrome >> 48) != hash_entry->syndrome ) {
                 continue;
             }
+
 #ifdef BTREE_HACK
-            if((is_write == 1) && (key_len == 8) && 
-                        (*((uint64_t*)key) != hash_entry->key)) {
-                continue;
+            if(key_len == 8){
+                if(*((uint64_t*)key) != hash_entry->key) {
+                    continue;
+                }
+            } else {
+#endif
+                if (mcd_onflash_key_match(context, hdl->shard,
+                            hash_entry->address, key, key_len) != TRUE){
+                    continue;
+                }
+#ifdef BTREE_HACK
             }
 #endif
-            //found matching entry, now verify with flash key
-            if (mcd_onflash_key_match(context, hdl->shard, 
-                        hash_entry->address, key, key_len) == TRUE){
-                //log_msg( PLAT_LOG_ID_INITIAL, PLAT_LOG_LEVEL_DEBUG,
-                //      "object exists" );
-                return hash_entry;
-            }
+            return hash_entry;
         }
     }
-
     return NULL;
 }
 

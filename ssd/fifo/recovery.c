@@ -35,6 +35,7 @@
 #include <libaio.h>
 #include "hash.h"
 #include "mcd_osd.h"
+#include "mcd_rep.h"
 #include "utils/hash.h"
 #include "ssd/ssd_aio.h"
 #include "flash/flash.h"
@@ -4704,27 +4705,26 @@ del_obj_hash(mshard_t *shard, mhash_t *hash)
 void
 delete_all_objects(pai_t *pai, shard_t *sshard, cguid_t cguid)
 {
-    int i;
-    uint32_t lock_i;
-    uint32_t bucket_i;
-    uint32_t *bucket_head, head_bucket_idx, delete_bucket_idx;
-    bucket_entry_t *bucket_entry;
-    hash_entry_t *hash_entry;
-    mshard_t        *shard = (mshard_t *) sshard;
-    hash_handle_t *hdl = shard->hash_handle;
+    int               i,j;
+    mshard_t        * shard = (mshard_t *) sshard;
+    hash_handle_t   * hdl = shard->hash_handle;
+    uint64_t          num_bkts = hdl->hash_size /  OSD_HASH_BUCKET_SIZE;
+    uint32_t          bucket_idx;
+    uint64_t          lock_i;
+    fthLock_t       * lock;
+    wait_t          * wait;
+    bucket_entry_t  * bucket;
+    hash_entry_t    * hash_entry;
 
-    for(lock_i = 0; lock_i < hdl->lock_buckets; lock_i++){
-        bucket_i = (lock_i * hdl->lock_bktsize) / OSD_HASH_BUCKET_SIZE;
-        fthLock_t *lock = hdl->bucket_locks + lock_i;
-        wait_t    *wait = fthLock(lock, 0, NULL);
-
-        bucket_head = hdl->hash_buckets + bucket_i;
-        head_bucket_idx = *bucket_head;
-        delete_bucket_idx = head_bucket_idx;
-        for(;delete_bucket_idx != 0;delete_bucket_idx = bucket_entry->next){
-            bucket_entry = hdl->hash_table + (delete_bucket_idx - 1);
-            for (i=0;i<OSD_HASH_ENTRY_PER_BUCKET_ENTRY;i++){
-                hash_entry = &bucket_entry->hash_entry[i];
+    for(i=0;i<num_bkts;i++){
+        bucket_idx  = hdl->hash_buckets[i];
+        lock_i      = i / (hdl->lock_bktsize / OSD_HASH_BUCKET_SIZE);
+        lock        = &hdl->bucket_locks[lock_i];
+        wait        = fthLock(lock, 0, NULL);
+        for(;bucket_idx != 0;bucket_idx = bucket->next){
+            bucket = hdl->hash_table + (bucket_idx - 1);
+            for(j=0;j<OSD_HASH_ENTRY_PER_BUCKET_ENTRY;j++){
+                hash_entry = &bucket->hash_entry[j];
 
                 if(hash_entry->used == 0){
                     continue;
@@ -4736,24 +4736,33 @@ delete_all_objects(pai_t *pai, shard_t *sshard, cguid_t cguid)
 
                 // need to delete this entry now
                 baddr_t baddr = hash_entry->address;
+                uint32_t hash_idx = hdl->addr_table[hash_entry->address];
                 hdl->addr_table[hash_entry->address] = 0;
 
                 hash_entry->deleted = 1;
-                mcd_logrec_object_t log ={
-                    .syndrome   = hash_entry->syndrome,
-                    .deleted    = 1,
-                    .bucket     = bucket_i,
-                    .blk_offset = baddr,
-                    .old_offset = ~baddr,
-                    .cntr_id    = hash_entry->cntr_id,
-                };
+                mcd_logrec_object_t log;
+                log.syndrome   = hash_entry->syndrome;
+                log.deleted    = 1;
+                log.reserved   = 0;
+                log.blocks     = 0;
+                log.bucket     = hash_idx;
+                log.blk_offset = baddr;
+                log.old_offset = 0;
+                log.cntr_id    = hash_entry->cntr_id;
+                if ( 1 == shard->replicated ) {
+                    log.seqno = rep_seqno_get((struct shard *)shard);
+                } else {
+                    log.seqno = __sync_add_and_fetch( &shard->sequence, 1 );
+                }
+                log.target_seqno = 0;
+
                 log_write(shard, &log);
 
                 bool delayed = shard->replicated ||
                     (shard->persistent && !shard->evict_to_free);
+
                 mcd_fth_osd_remove_entry(shard, hash_entry, delayed, true);
-                hash_entry_delete(hdl, hash_entry, 
-                            bucket_i * OSD_HASH_BUCKET_SIZE);
+                hash_entry_delete(hdl, hash_entry, hash_idx);
             }
         }
         fthUnlock(wait);

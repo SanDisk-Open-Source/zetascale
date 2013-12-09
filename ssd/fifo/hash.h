@@ -129,7 +129,7 @@ hash_table_cleanup ( hash_handle_t *hdl);
 
 hash_entry_t *
 hash_table_get (void *context, hash_handle_t *hdl, char *key, 
-                    int key_len, cntr_id_t cntr_id, int is_write);
+                    int key_len, cntr_id_t cntr_id);
 
 void
 hash_entry_copy ( hash_entry_t *dst, hash_entry_t *src);

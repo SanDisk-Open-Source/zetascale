@@ -928,6 +928,25 @@ fdf_validate_container(uint64_t cguid)
 	}
 }
 
+/*
+ * same as fdf_validate_container(), for exclusive use
+ * in FDFGetContainerStats() and FDFGetStatsStr()  for
+ * trac #11290
+ */
+static FDF_status_t
+fdf_validate_container_1(uint64_t cguid)
+{
+    switch (cguid) {
+        case          0:
+        case  CMC_CGUID:
+        case  VMC_CGUID:
+        //excluding VDC container.
+        //case  VDC_CGUID:
+            return FDF_FAILURE_ILLEGAL_CONTAINER_ID;
+        default:
+            return FDF_SUCCESS;
+    }
+}
 
 static void fdf_load_settings(flash_settings_t *osd_settings)
 {
@@ -6252,7 +6271,7 @@ FDF_status_t FDFGetStatsStr (
     FDF_container_props_t       dummy_prop;
 	cntr_map_t *cmap = NULL;
 
-	status = fdf_validate_container(cguid);
+	status = fdf_validate_container_1(cguid);
 	if (FDF_SUCCESS != status) {
 		plat_log_msg(160125, LOG_CAT,
 				LOG_ERR, "Failed due to an illegal container ID:%s",
@@ -6355,6 +6374,9 @@ FDF_status_t FDFGetStats(
 	FDF_stats_t             *stats
 	)
 {
+    int i;
+    FDF_status_t rc;
+    FDF_stats_t VDC_flash_stats;
     char buf[BUF_LEN];
     char *ptr;
     if ( stats == NULL ) {
@@ -6371,6 +6393,18 @@ FDF_status_t FDFGetStats(
     ptr = strstr(buf,"<CACHE>"); 
     fdf_parse_access_stats(ptr,stats);
     fdf_parse_cache_stats(ptr,stats);
+
+    /* VDC flash stats */
+    rc = FDFGetContainerStats(fdf_thread_state, VDC_CGUID, &VDC_flash_stats);
+    if ( rc != FDF_SUCCESS ) {
+        plat_log_msg(160206, LOG_CAT, LOG_DBG,
+            "FDFGetContainerStats failed for VDC (error:%s)",FDFStrError(rc));
+        return FDF_FAILURE;
+    }
+    for (i = 0; i < FDF_N_FLASH_STATS; i++ ) {
+        stats->flash_stats[i] = VDC_flash_stats.flash_stats[i];
+    }
+
     /* Async deletes stats */
     uint32_t num_dels, dels_prog;
     uint64_t *p = stats->n_accesses;
@@ -6444,7 +6478,7 @@ FDF_status_t FDFGetContainerStats(
     uint64_t num_objs = 0;
     uint64_t used_space = 0;
 
-	rc = fdf_validate_container(cguid);
+	rc = fdf_validate_container_1(cguid);
 	if (FDF_SUCCESS != rc) {
 		plat_log_msg(160125, LOG_CAT,
 				LOG_ERR, "Failed due to an illegal container ID:%s",
@@ -6466,7 +6500,8 @@ FDF_status_t FDFGetContainerStats(
         }
         return FDF_INVALID_PARAMETER;
     }
-    if (cguid <= VDC_CGUID ) {
+    // excluded VDC, trac #11290
+    if (cguid < VDC_CGUID ) {
         /* The cguid is for physical container. So return error */
         return FDF_FAILURE;
     }

@@ -3377,6 +3377,7 @@
 160203 Memory allocation failed\n
 160204 failed to allocate hash tables
 160205 evicting, pth_id=%d hand=%u address=%u index=%u
+160206 FDFGetContainerStats failed for VDC (error:%s)
 
 
 # rico
