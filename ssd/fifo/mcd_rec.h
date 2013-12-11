@@ -530,40 +530,61 @@ enum trx_rec {
 	TRX_REC_BAD_SEQ
 };
 
+// Ring buffer to process logs
+//
+typedef struct {
+	mcd_logrec_object_t	*rec;
+	uint			size,
+				head,
+				tail;
+} mcd_rec_obj_ring_t;
+
 // Object Table State
 // Used during online object table update and during recovery.
 // Holds state of the object table, e.g. read/write cursor, etc.
 typedef struct mcd_rec_obj_state {
-    int                   in_recovery;   // 1=in recovery; 0=not in recovery
-    int                   pass;          // current pass, 1 or 2
-    int                   passes;        // 1 pass online; 2 passes in recovery
+	mcd_osd_shard_t		*shard;
+	void			*context;
 
-    int                   chunk;         // current "chunk" # of object table
-    int                   num_chunks;    // total number of "chunks"
-    int                   chunk_blks;    // # blks in chunk to read/write
+	int			in_recovery;	// 1=in recovery; 0=not in recovery
+	int			pass;		// current pass, 1 or 2
+	int			passes;		// 1 pass online; 2 passes in recovery
 
-    uint64_t              start_blk;     // blk to start read/write operation
-    uint64_t              num_blks;      // # blks in object table
+	int			chunk;		// current "chunk" # of object table
+	int			num_chunks;	// total number of "chunks"
+	int			chunk_blks;	// # blks in chunk to read/write
 
-    uint64_t              start_obj;     // rel obj num (or blk off) in chunk
-    uint64_t              num_objs;      // # objects in table chunk
+	uint64_t		start_blk;	// blk to start read/write operation
+	uint64_t		num_blks;	// # blks in object table
 
-    int                   seg_objects;   // # objects per segment
-    int                   seg_count;     // # object table segments
-    char               ** segments;      // list of object table segments
+	uint64_t		start_obj;	// rel obj num (or blk off) in chunk
+	uint64_t		num_objs;	// # objects in table chunk
 
-    mcd_logrec_object_t  *trxbuf;        // trx log-record accumulator
-    uint                  trxmax;        // trx record maximum
-    uint                  trxnum;        // trx record current count
-    enum trx_rec          trxstatus;     // status of accumulation
+	int			seg_objects;	// # objects per segment
+	int			seg_count;	// # object table segments
+	char			**segments;	// list of object table segments
 
-    ushort                badstate;      // state of crash recovery
-    bool                  badskip;       // skip all further logrecs
-    uint64_t              badseqno;      // logrec with failing checksum
-    mcd_logrec_object_t  *badbuf;        // ring buffer of last logrecs to defer
-    uint                  badbufsiz,     //     downstream application until
-                          badbufhead,    //     checksums are confirmed: needed
-                          badbuftail;    //     for h/w crash with s/w durability
+	uint64_t		high_obj_offset;// highest obj offset found in log
+	uint64_t		low_obj_offset;	// loweest obj offset found in log
+
+	mcd_logrec_object_t	*trxbuf;	// trx log-record accumulator
+	uint			trxmax;		// trx record maximum
+	uint			trxnum;		// trx record current count
+	enum trx_rec		trxstatus;	// status of accumulation
+
+	ushort			badstate;	// state of crash recovery
+	uint64_t		badseqno;	// logrec with failing checksum
+	mcd_rec_obj_ring_t	badringa,	// ring buffer for 1st log
+				badringb;	// ring buffer for last log
+
+	ushort			statstate;	// state of crash recovery
+	mcd_logrec_object_t	*statbuf;	// ring buffer of last logrecs applied
+	uint			statbufsiz,
+				statbufhead,
+				statbuftail;
+
+	ushort			otstate;	// state of outer trx recovery
+	void			*otpacket;
 } mcd_rec_obj_state_t;
 
 // Log State
@@ -578,8 +599,6 @@ typedef struct mcd_rec_log_state {
     uint64_t         num_blks;           // # blks in this log
 
     uint64_t         high_LSN;           // highest LSN found in log
-    uint64_t         high_obj_offset;    // highest obj offset found in log
-    uint64_t         low_obj_offset;     // loweest obj offset found in log
 
     int              seg_cached;         // # of log segments cached
     int              seg_count;          // # log segments

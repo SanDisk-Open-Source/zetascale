@@ -72,7 +72,26 @@ typedef struct key_stuff {
     uint64_t  syndrome;
 } key_stuff_t;
 
+
+/*
+ * Per node persistent stats
+ */
+typedef struct fdf_pstats_delta_ {
+    uint64_t      seq_num;
+    uint64_t      delta_obj_count;
+    bool          is_positive_delta;
+    uint64_t      seq;
+} fdf_pstats_delta_t;
+
 typedef struct btree_raw_node {
+    /*
+     * stats field should be the first field
+     * in this structure. Recovery of persistent stats
+     * assumes that stats are present in first field of
+     * btree node.
+     */
+    fdf_pstats_delta_t     pstats;
+
     uint32_t      flags;
     uint64_t      logical_id;
     uint64_t      lsn;
@@ -173,8 +192,8 @@ typedef struct btree_raw {
     cmp_cb_t          *cmp_cb;
     void              *cmp_cb_data;
 
-    bt_mput_cmp_cb_t mput_cmp_cb;
-    void *mput_cmp_cb_data;
+    bt_mput_cmp_cb_t   mput_cmp_cb;
+    void              *mput_cmp_cb_data;
 
     trx_cmd_cb_t      *trx_cmd_cb;
     bool               trxenabled;
@@ -183,15 +202,23 @@ typedef struct btree_raw {
     plat_rwlock_t      lock;
 
     uint64_t           modified;
-	uint64_t           cguid;
-	uint64_t			next_logical_id;
-	uint32_t			no_sync_threads;
-	pthread_mutex_t		bt_async_mutex;
-    pthread_cond_t		bt_async_cv;
-	btSyncThread_t		**syncthread;
-	btSyncRequest_t		*sync_first, *sync_last;
-	int					deleting;
-	int					io_threads, io_bufs, worker_threads;
+    uint64_t           cguid;
+    uint64_t           next_logical_id;
+    uint32_t           no_sync_threads;
+    pthread_mutex_t    bt_async_mutex;
+    pthread_cond_t     bt_async_cv;
+    btSyncThread_t   **syncthread;
+    btSyncRequest_t   *sync_first,
+                      *sync_last;
+    int                deleting;
+    int                io_threads, io_bufs, worker_threads;
+
+    /*
+     * Persistent stats related variables
+     */
+    uint64_t           last_flushed_seq_num;
+    uint64_t           pstats_modified;
+    fdf_pstats_t      *pstats; 
 } btree_raw_t;
 
 typedef struct btree_raw_persist {

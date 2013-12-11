@@ -4667,11 +4667,7 @@ mcd_fth_osd_slab_set( void * context, mcd_osd_shard_t * shard, char * key,
     if (flash_settings.chksum_metadata)
         meta->blk1_chksum = hashb( (uint8_t *)buf, MCD_OSD_META_BLK_SIZE, 0);
     if (flash_settings.chksum_object)
-#if 0//Rico - new checksum
-        meta->checksum = hashb( (uint8_t *)buf, blocks*Mcd_osd_blk_size, 0);
-#else
         meta->checksum = fastcrc32( (uint8_t *)buf, blocks*Mcd_osd_blk_size, 0);
-#endif
 
     offset = mcd_osd_rand_address(shard, blk_offset);
 

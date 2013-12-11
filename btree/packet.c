@@ -13,19 +13,30 @@
 #include	"packet.h"
 
 
-#define	RECOVERY_PACKET_LINEMAX	1000000
+#define	PACKET_LINEMAX	1000000
 
 
 struct rec_packet_structure {
 	FILE	*f;
 	char	*lvec[100000],
-		lbuf0[RECOVERY_PACKET_LINEMAX],
-		lbuf1[RECOVERY_PACKET_LINEMAX];
+		lbuf0[PACKET_LINEMAX],
+		lbuf1[PACKET_LINEMAX];
 	bool	lbuf0full;
 	uint	trxid;
 };
+struct stats_packet_structure {
+	FILE	*f;
+	char	lbuf0[PACKET_LINEMAX],
+		lbuf1[PACKET_LINEMAX];
+	uint	nbyte;
+};
+
+
 static char	**readlines( rec_packet_t *, uint *, int),
-		*packetname( uint);
+		*packetname( uint),
+		*statspacketname( uint);
+static bool	statsreadline( stats_packet_t *),
+		badstatsdata( );
 static void	baddata( ),
 		nomem( ),
 		fdfmessage( char, char *, ...);
@@ -111,6 +122,88 @@ recovery_packet_delete( uint cguid)
 	char *file = packetname( cguid);
 	int fd = open( file, O_WRONLY|O_TRUNC);
 	unless (fd < 0) {
+		ftruncate( fd, 0);
+		fdatasync( fd);
+		close( fd);
+	}
+	unlink( file);
+	free( file);
+}
+
+
+stats_packet_t	*
+stats_packet_open( uint cguid)
+{
+
+	stats_packet_t *s = 0;
+	char *file = statspacketname( cguid);
+	unless ((access( file, F_OK) == 0)
+	and (access( file, R_OK|W_OK) == 0)
+	and (access( file, X_OK) < 0))
+		;//fprintf( stderr, "stats packet not found (cguid %u)\n", cguid);
+	else {
+		fdfmessage( 'I', "loading stats packet %s", file);
+		char *cmd;
+		asprintf( &cmd, "gunzip < '%s'", file);
+		unless ((cmd)
+		and (s = malloc( sizeof *s)))
+			nomem( );
+		unless (s->f = popen( cmd, "r")) {
+			fdfmessage( 'E', "failed to load %s", file);
+			free( s);
+			s = 0;
+		}
+		free( cmd);
+	}
+	free( file);
+	return (s);
+}
+
+
+stats_packet_node_t	*
+stats_packet_get_node( stats_packet_t *s)
+{
+
+	unless (statsreadline( s))
+		return (0);
+	stats_packet_node_t *n = malloc( sizeof *n);
+	unless (n)
+		nomem( );
+	n->datalen = s->nbyte;
+	unless (n->data = malloc( n->datalen))
+		nomem( );
+	memcpy( n->data, s->lbuf1, n->datalen);
+	return (n);
+		
+}
+
+
+void
+stats_packet_free_node( stats_packet_node_t *n)
+{
+
+	free( n->data);
+	free( n);
+}
+
+
+void
+stats_packet_close( stats_packet_t *s)
+{
+
+	fclose( s->f);
+	free( s);
+}
+
+
+void
+stats_packet_delete( uint cguid)
+{
+
+	char *file = statspacketname( cguid);
+	int fd = open( file, O_WRONLY|O_TRUNC);
+	unless (fd < 0) {
+		ftruncate( fd, 0);
 		fdatasync( fd);
 		close( fd);
 	}
@@ -154,9 +247,7 @@ readlines( rec_packet_t *r, uint *count, int old)
 			break;
 		char *p = r->lbuf1;
 		char *q = r->lbuf1;
-		loop {
-			unless (*p)
-				break;
+		while (*p)
 			if (*p == '\\') {
 				unless ((p[1])
 				and (p[2])
@@ -169,7 +260,6 @@ readlines( rec_packet_t *r, uint *count, int old)
 			}
 			else
 				*q++ = *p++;
-		}
 		unless (c < nel( r->lvec)) {
 			fdfmessage( 'E', "too many ops in trx");
 			return (0);
@@ -193,6 +283,42 @@ readlines( rec_packet_t *r, uint *count, int old)
 }
 
 
+static bool
+statsreadline( stats_packet_t *s)
+{
+	uint	cguid,
+		bracketid,
+		trxid,
+		lineno,
+		oldflag,
+		i;
+
+	unless (fgets( s->lbuf0, sizeof s->lbuf0, s->f))
+		return (FALSE);
+	unless (s->lbuf0[strlen( s->lbuf0)-1] == '\n') {
+		fdfmessage( 'E', "line too long in stats packet");
+		return (FALSE);
+	}
+	unless (sscanf( s->lbuf0, "%u %s", &cguid, s->lbuf1) == 2)
+		return (badstatsdata( ));
+	char *p = s->lbuf1;
+	char *q = s->lbuf1;
+	while (*p)
+		if (*p == '\\') {
+			unless ((p[1])
+			and (p[2])
+			and (p[3]))
+				return (badstatsdata( ));
+			*q++ = p[1]-'0'<<2*3 | p[2]-'0'<<1*3 | p[3]-'0'<<0*3;
+			p += 4;
+		}
+		else
+			*q++ = *p++;
+	s->nbyte = q - s->lbuf1;
+	return (TRUE);
+}
+
+
 static char	*
 packetname( uint cguid)
 {
@@ -207,11 +333,34 @@ packetname( uint cguid)
 }
 
 
+static char	*
+statspacketname( uint cguid)
+{
+	char	*crashdir,
+		*file;
+
+	FDFTransactionService( 0, 3, &crashdir);
+	asprintf( &file, "%s/stats-cguid-%d.gz", crashdir, cguid);
+	unless (file)
+		nomem( );
+	return (file);
+}
+
+
 static void
 baddata( )
 {
 
 	fdfmessage( 'E', "bad data in recovery packet");
+}
+
+
+static bool
+badstatsdata( )
+{
+
+	fdfmessage( 'E', "bad data in stats packet");
+	return (FALSE);
 }
 
 

@@ -73,6 +73,7 @@ __thread char *compression_buf = NULL;
 __thread int compression_buf_len = 0 ; 
 
 #define SEQNO_CONTAINER_NAME	"__SanDisk_seqno_container"
+#define PSTATS_CONTAINER_NAME	"__SanDisk_pstats_container"
 
 /*
 ** Globals
@@ -2015,6 +2016,13 @@ FDF_status_t FDFInit(
 	Force_async_writes  = 0;
 	Enable_async_writes = 0;
 
+	int check_x86_sse42( void);
+	if ((agent_state.flash_settings.chksum_object)
+	&& (check_x86_sse42( ) == 0)) {
+		agent_state.flash_settings.chksum_object = 0;
+		mcd_log_msg( 170040, PLAT_LOG_LEVEL_ERROR, "No x86 SSE4.2 support, FDF_OBJECT_CHECKSUM disabled");
+	}
+
     return FDF_SUCCESS;
 }
 
@@ -2438,6 +2446,7 @@ fdf_get_open_containers_int(
         while ( fdf_cmap_next_enum( iterator, &key, &keylen, (char **) &cmap, &cmaplen ) ) {
                 if ( cmap->cguid > LAST_PHYSICAL_CGUID  &&
              strcmp( cmap->cname,SEQNO_CONTAINER_NAME ) &&
+             strcmp( cmap->cname,PSTATS_CONTAINER_NAME ) &&
                          ( cmap->state == FDF_CONTAINER_STATE_OPEN )  ) {
                         cguids[n_containers] = cmap->cguid;
             n_containers++;
@@ -4101,7 +4110,8 @@ char *FDFGetNextContainerName(struct FDF_thread_state *fdf_thread_state, struct 
             /* Skip CMC, VMC and VDC */
             if ( ( strcmp( cmap->cname,"/sdf/VMC" ) == 0 ) ||
                  ( strcmp( cmap->cname,"/sdf/VDC") == 0 ) ||
-                 ( strcmp( cmap->cname, SEQNO_CONTAINER_NAME ) == 0 ) ) {
+                 ( strcmp( cmap->cname, SEQNO_CONTAINER_NAME ) == 0 ) ||
+                 ( strcmp( cmap->cname, PSTATS_CONTAINER_NAME ) == 0 ) ) {
                 continue;
 }
             /* check if the container is being deleted */
@@ -4156,6 +4166,7 @@ fdf_get_containers_int(
 	while ( fdf_cmap_next_enum( iterator, &key, &keylen, (char **) &cmap, &cmaplen ) ) {
 		if ( cmap->cguid > LAST_PHYSICAL_CGUID  && 
              strcmp( cmap->cname,SEQNO_CONTAINER_NAME ) &&
+             strcmp( cmap->cname,PSTATS_CONTAINER_NAME ) &&
 			 ( cmap->state == FDF_CONTAINER_STATE_CLOSED ||
 			   cmap->state == FDF_CONTAINER_STATE_OPEN )  ) {
 			cguids[n_containers] = cmap->cguid;

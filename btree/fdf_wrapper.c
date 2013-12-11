@@ -9,6 +9,7 @@
  * 
  ************************************************************************/
 
+#include <sys/time.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -55,6 +56,13 @@ static uint64_t  n_reads = 0;
 __thread struct FDF_thread_state *my_thd_state;
 struct FDF_state *FDFState;
 
+/*
+ * Variables to manage persistent stats
+ */
+char stats_ctnr_name[] = "__SanDisk_pstats_container";
+uint64_t stats_ctnr_cguid = 0;
+
+
 typedef struct read_node {
     FDF_cguid_t              cguid;
     uint64_t                 nodesize;
@@ -77,6 +85,11 @@ static void                   msg_cb(int level, void *msg_data, char *filename, 
 uint64_t                      seqnoalloc( struct FDF_thread_state *);
 FDF_status_t btree_get_all_stats(FDF_cguid_t cguid,
                                 FDF_ext_stat_t **estat, uint32_t *n_stats) ;
+static FDF_status_t fdf_commit_stats_int(struct FDF_thread_state *fdf_thread_state, fdf_pstats_t *s, char *cname);
+static void* pstats_fn(void *parm);
+void FDFInitPstats(struct FDF_thread_state *my_thd_state, char *key, fdf_pstats_t *pstats);
+void FDFLoadPstats(struct FDF_state *fdf_state);
+static bool pstats_prepare_to_flush(struct FDF_thread_state *thd_state);
 
 FDF_status_t
 _FDFGetRange(struct FDF_thread_state *fdf_thread_state,
@@ -351,6 +364,9 @@ FDF_status_t _FDFInit(
     FDF_status_t  ret;
     FDF_ext_cb_t  *cbs;
 
+    pthread_t thr1;
+    int iret;
+
     // Initialize the map
     for (i=0; i<MAX_OPEN_CONTAINERS; i++) {
         Container_Map[i].cguid = FDF_NULL_CGUID;
@@ -374,6 +390,21 @@ FDF_status_t _FDFInit(
     if( cbs == NULL ) {
         return FDF_FAILURE;
     }
+
+    /*
+     * Opens or creates persistent stats container
+     */
+    FDFLoadPstats(*fdf_state);
+
+    /*
+     * Create the flusher thread
+     */
+    iret = pthread_create(&thr1, NULL, pstats_fn, (void *)*fdf_state);
+    if (iret < 0) {
+	fprintf(stderr,"_FDFInit: failed to spawn persistent stats flusher\n");
+        return FDF_FAILURE;
+    }
+
     memset(cbs,0,sizeof(FDF_ext_cb_t));
     cbs->stats_cb = btree_get_all_stats;
     trxinit( );
@@ -396,6 +427,124 @@ FDF_status_t _FDFInit(
     return(ret);
 }
 
+static bool shutdown = false;
+
+/*
+ * Prepare stats to flush
+ */
+static bool
+pstats_prepare_to_flush(struct FDF_thread_state *thd_state)
+{
+    FDF_status_t ret = FDF_SUCCESS;
+    uint64_t idx = 0;
+    int i = 0;
+    bool skip_flush = false;
+    /* 
+     * For each container in container map
+     */
+    for (idx = 0; idx < MAX_OPEN_CONTAINERS; idx++) {
+        (void) pthread_rwlock_rdlock(&(Container_Map[idx].bt_cm_rwlock));
+
+        if ( !Container_Map[idx].btree || (Container_Map[idx].cguid == stats_ctnr_cguid) ) {
+            (void) pthread_rwlock_unlock(&(Container_Map[idx].bt_cm_rwlock));
+            continue;
+        }
+
+        (void) pthread_mutex_lock( &pstats_mutex );
+        fdf_pstats_t pstats = { 0, 0 };
+        pstats.seq_num   = seqnoalloc(thd_state);
+
+        for ( i = 0; i < Container_Map[idx].btree->n_partitions; i++ ) {
+            if ( true == Container_Map[idx].btree->partitions[i]->pstats_modified ) {
+                pstats.obj_count += Container_Map[idx].btree->partitions[i]->stats.stat[BTSTAT_NUM_OBJS];
+
+                /*
+                 * All Btree partitions have same sequence number
+                 */
+                Container_Map[idx].btree->partitions[i]->last_flushed_seq_num = pstats.seq_num;
+                Container_Map[idx].btree->partitions[i]->pstats_modified = false;
+                skip_flush = false;
+#ifdef PSTATS_1
+                fprintf(stderr, "pstats_fn: last_flushed_seq_num= %ld\n", pstats.seq_num);
+#endif
+            } else {
+                skip_flush = true;
+#ifdef PSTATS_1
+                fprintf(stderr, "pstats_fn: let's skip flushing pstats\n");
+#endif
+            }
+        }
+        (void) pthread_mutex_unlock( &pstats_mutex );
+
+        if (true == skip_flush) {
+#ifdef PSTATS_1
+            fprintf(stderr, "pstats_fn: successfully skipped flushing pstats\n");
+#endif
+            pthread_rwlock_unlock( &(Container_Map[idx].bt_cm_rwlock) );
+            continue;
+        }
+
+        char *cname = Container_Map[idx].cname;
+        pthread_rwlock_unlock( &(Container_Map[idx].bt_cm_rwlock) );
+
+        ret = fdf_commit_stats_int(thd_state, &pstats, cname);
+#ifdef PSTATS_1
+        fprintf(stderr, "fdf_commit_stats:cguid=%ld, obj_count=%ld seq_num=%ld ret=%s\n",
+                Container_Map[idx].cguid, pstats.obj_count, pstats.seq_num, FDFStrError(ret));
+#endif
+    }
+    return true;
+} 
+
+
+/*
+ * Thread to periodically flush stats to a logical container.
+ * It runs until shutdown happens.
+ */
+static void*
+pstats_fn(void *parm)
+{
+    assert(parm);
+
+    FDF_status_t ret = FDF_SUCCESS;
+
+    struct FDF_thread_state *thd_state = NULL;
+    struct FDF_state *fdf_state = (struct FDF_state*)parm;
+    struct timespec time_to_wait;
+    struct timeval now;
+
+    bool r = true;
+
+    ret = FDFInitPerThreadState(fdf_state, &thd_state);
+    assert (FDF_SUCCESS == ret);
+
+    while (true == r) {
+        if ( true == shutdown ) {
+            break;
+        }
+
+        gettimeofday( &now, NULL );
+
+        time_to_wait.tv_sec  = now.tv_sec + 1;
+        time_to_wait.tv_nsec = 0;
+
+        // Lock mutex and wait for signal to release mutex
+        (void) pthread_mutex_lock( &pstats_mutex );
+
+        // Wait till system wide writes count reaches 10K or a second passes
+        (void) pthread_cond_timedwait( &pstats_cond_var, &pstats_mutex, &time_to_wait );
+
+        pthread_mutex_unlock( &pstats_mutex );
+
+        r = pstats_prepare_to_flush(thd_state);
+    }
+    ret = FDFReleasePerThreadState(&thd_state);
+    assert (FDF_SUCCESS == ret);
+
+    return NULL;
+}
+
+
 /**
  * @brief FDF per thread state initialization
  *
@@ -408,7 +557,10 @@ FDF_status_t _FDFInitPerThreadState(
 	struct FDF_thread_state	**thd_state
 	)
 {
-    return(FDFInitPerThreadState(fdf_state, thd_state));
+    FDF_status_t ret = FDF_SUCCESS;
+    ret = FDFInitPerThreadState(fdf_state, thd_state);
+    my_thd_state = *thd_state;
+    return ret;
 }
 
 /**
@@ -435,6 +587,39 @@ FDF_status_t _FDFShutdown(
 	struct FDF_state	*fdf_state
 	)
 {
+    struct FDF_thread_state *thd_state = NULL;
+    FDF_status_t ret = FDF_SUCCESS;
+    fdf_pstats_t pstats = { 0, 0 };
+    uint64_t idx;
+
+    /*
+     * If shutdown already happened, just return!
+     */
+    if (true == shutdown) {
+        fprintf(stderr, "_FDFShutdown: shutdown already done!\n"); 
+        return FDF_INVALID_PARAMETER;
+    }
+
+    (void)__sync_fetch_and_or(&shutdown, true);
+
+    /*
+     * Unconditionally try to release global per thread state
+     */
+    ret = FDFReleasePerThreadState(&my_thd_state);
+
+#ifdef PSTATS
+    fprintf(stderr, "_FDFShutdown: Releasing my_thd_state ret=%s\n", FDFStrError(ret)); 
+#endif
+
+    ret = FDFInitPerThreadState(fdf_state, &thd_state);
+    assert (FDF_SUCCESS == ret);
+
+    pstats_prepare_to_flush(thd_state);
+    assert (FDF_SUCCESS == FDFFlushContainer(thd_state, stats_ctnr_cguid));
+
+    ret = FDFReleasePerThreadState(&thd_state);
+    assert (FDF_SUCCESS == ret);
+
     return(FDFShutdown(fdf_state));
 }
 
@@ -497,8 +682,6 @@ FDF_status_t _FDFOpenContainerSpecial(
     read_node_t  *prn;
     int           index = -1;
     char         *env = NULL;
-
-
 
     my_thd_state = fdf_thread_state;;
 
@@ -623,6 +806,13 @@ restart:
         if (cmeta->mput_cmp_cb_data) mput_cmp_cb_data = cmeta->mput_cmp_cb_data;
     }
 
+    /*
+     * Load persistent stats for the container
+     */
+    fdf_pstats_t pstats = { 0, 0 };
+    strcpy(Container_Map[index].cname, cname);
+    FDFInitPstats(fdf_thread_state, cname, &pstats);
+
     bt = btree_init(n_partitions, 
                     flags, 
                     max_key_size, 
@@ -649,7 +839,8 @@ restart:
 		    mput_cmp_cb,
 		    mput_cmp_cb_data,
                     trx_cmd_cb,
-		    *cguid
+		    *cguid,
+                    &pstats
 		    );
 
     if (bt == NULL) {
@@ -2717,4 +2908,81 @@ seqnoalloc( struct FDF_thread_state *t)
 	uint64_t z = seqno++;
 	pthread_mutex_unlock( &seqnolock);
 	return (z);
+}
+
+
+/**
+ * @brief: Create the stats container, open if exists!
+ */
+void
+FDFLoadPstats(struct FDF_state *fdf_state)
+{
+    FDF_container_props_t p;
+    FDF_status_t ret = FDF_SUCCESS;
+    struct FDF_thread_state *thd_state = NULL;
+
+    ret = FDFInitPerThreadState(fdf_state, &thd_state);
+    assert (FDF_SUCCESS == ret);
+
+    ret = FDFOpenContainer(thd_state, stats_ctnr_name, &p, 0, &stats_ctnr_cguid);
+    //fprintf(stderr, "FDFLoadPstats:FDFOpenContainer ret=%s\n", FDFStrError(ret));
+
+    switch(ret) {
+        case FDF_SUCCESS:
+            break;
+        default:
+        case FDF_INVALID_PARAMETER:
+            p.size_kb = 1 * 1024 * 1024;
+            p.fifo_mode = FDF_FALSE;
+            p.persistent = FDF_TRUE;
+            p.evicting = FDF_FALSE;
+            p.writethru = FDF_TRUE;
+            p.durability_level = FDF_DURABILITY_SW_CRASH_SAFE;
+            ret = FDFOpenContainer( thd_state, stats_ctnr_name, &p, FDF_CTNR_CREATE, &stats_ctnr_cguid);
+            assert(FDF_SUCCESS == ret);        
+    }
+
+    ret = FDFReleasePerThreadState(&thd_state);
+    assert (FDF_SUCCESS == ret);
+}
+
+
+/**
+ * @brief: Read persistent stats for a given Btree 
+ *         and init stats in Btree stats
+ */
+void
+FDFInitPstats(struct FDF_thread_state *my_thd_state, char *key, fdf_pstats_t *pstats)
+{
+    FDF_status_t ret = FDF_SUCCESS;
+
+    char *data = NULL;
+    uint64_t len = 0;
+
+    ret = FDFReadObject(my_thd_state, stats_ctnr_cguid, key, strlen(key)+1, &data, &len);
+    if (FDF_SUCCESS == ret) {
+        pstats->seq_num   = ((fdf_pstats_t*)data)->seq_num;
+        pstats->obj_count = ((fdf_pstats_t*)data)->obj_count;
+        //pstats->cntr_sz   = ((fdf_pstats_t*)data)->cntr_sz;
+        //fprintf(stderr, "FDFInitPstats: seq = %ld obcount=%ld\n", pstats->seq_num, pstats->obj_count);
+    } else {
+        pstats->seq_num = 0;
+        pstats->obj_count = 0;
+        //pstats->cntr_sz = 0;
+    }
+    FDFFreeBuffer(data);
+}
+
+
+static FDF_status_t 
+fdf_commit_stats_int(struct FDF_thread_state *thd_state, fdf_pstats_t *s, char *key)
+{
+
+    FDF_status_t ret = FDF_SUCCESS;
+
+    /*   
+     * Write stats to FDF physical container
+     */
+    ret = FDFWriteObject(thd_state, stats_ctnr_cguid, key, strlen(key) + 1, (char*)s, sizeof(fdf_pstats_t), 0);
+    return ret;
 }

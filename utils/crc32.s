@@ -72,3 +72,28 @@ fastcrc32:
 	xor	%rdx, %rax
 3:
 	ret
+
+
+////////
+/
+/ check_x86_sse42 - check for SSE4.2 support
+/
+/ Synposis
+/
+/	int check_x86_sse42( void)
+/
+/ Description
+/
+/	Return non-zero if SSE4.2 is supported on this x86 processor.
+/
+
+	.globl	check_x86_sse42
+	.type   check_x86_sse42, @function
+check_x86_sse42:
+	push	%rcx
+	mov	$1, %rax
+	cpuid
+	mov	%rcx, %rax
+	and	$1<<20, %rax	# Intel feature SSE4.2
+	pop	%rcx
+	ret

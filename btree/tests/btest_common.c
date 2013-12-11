@@ -18,6 +18,7 @@
 #include <assert.h>
 #include "../btree_map.h"
 #include "../btree.h"
+#include "../trxcmd.h"
 #include "btest_common.h"
 
 extern int init_l1cache();
@@ -33,7 +34,7 @@ static btree_status_t delete_node_cb(struct btree_raw_node *node, void *data, ui
 static void log_cb(btree_status_t *ret, void *data, uint32_t event_type, struct btree_raw *btree, struct btree_raw_node *n);
 static int cmp_cb(void *data, char *key1, uint32_t keylen1, char *key2, uint32_t keylen2);
 static void msg_cb(int level, void *msg_data, char *filename, int lineno, char *msg, ...);
-static void trx_cmd_cb(btree_status_t *ret_out, void *cb_data, int cmd_type);
+static int trx_cmd_cb( int, ...);
 
 #define Error(msg, args...) \
     msg_cb(0, NULL, __FILE__, __LINE__, msg, ##args);
@@ -75,9 +76,7 @@ static uint64_t N_create_node = 0;
 static uint64_t N_delete_node = 0;
 static uint64_t N_log         = 0;
 static uint64_t N_cmp         = 0;
-static uint64_t N_trx_cmd_1   = 0;
-static uint64_t N_trx_cmd_2   = 0;
-static uint64_t N_trx_cmd_3   = 0;
+static uint64_t N_trx_cmd     = 0;
 
 void btest_common_usage(char *program)
 {
@@ -241,6 +240,7 @@ btest_init(int argc, char **argv, char *program, btest_parse_fn parse_fn)
 		assert(cfg);
 		return NULL;
 	}
+	fdf_pstats_t *ps = malloc( sizeof *ps);
 
 	if( init_l1cache() ){
 		fprintf(stderr, "Coundn't init global l1 cache.\n");
@@ -307,7 +307,7 @@ btest_init(int argc, char **argv, char *program, btest_parse_fn parse_fn)
 			msg_cb, msg_cb_data, 
 			cmp_cb, cmp_cb_data,
 			mput_default_cmp_cb, NULL,
-			(trx_cmd_cb_t *)trx_cmd_cb, 4
+			(trx_cmd_cb_t *)trx_cmd_cb, 4, ps
 	                );
 
 	if (cfg->bt == NULL) {
@@ -724,23 +724,27 @@ static int cmp_cb(void *data, char *key1, uint32_t keylen1, char *key2, uint32_t
     return(0);
 }
 
-static void trx_cmd_cb(btree_status_t *ret_out, void *cb_data, int cmd_type)
+
+FDF_status_t
+FDFTransactionService( struct FDF_thread_state *t, int cmd, void *arg)
 {
-    switch (cmd_type) {
-        case 1: // start txn
-            N_trx_cmd_1++;
-            break;
-        case 2: // commit txn
-            N_trx_cmd_2++;
-            break;
-        case 3: // abort txn
-            N_trx_cmd_3++;
-            break;
-        default:
-            assert(0);
-            break;
-    }
+
+	return (FDF_SUCCESS);
 }
+
+
+static int
+trx_cmd_cb( int cmd, ...)
+{
+
+	if (cmd < TRX_CMD___END) {
+		++N_trx_cmd;
+		return (1);
+	}
+	fprintf( stderr, "trx_cmd_cb: unknown cmd=%d\n", cmd);
+	abort( );
+}
+
 
 /****************************************************
  *

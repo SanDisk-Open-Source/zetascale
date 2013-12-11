@@ -101,6 +101,8 @@ static int Verbose = 0;
 #define MODIFY_TREE 1
 #define META_COUNTER_SAVE_INTERVAL 100000
 
+#define PERSISTENT_STATS_FLUSH_INTERVAL 100
+
 extern uint64_t n_global_l1cache_buckets;
 extern struct PMap *global_l1cache;
 extern int btree_parallel_flush_disabled;
@@ -241,7 +243,7 @@ static void collapse_root(btree_status_t *ret, btree_raw_t *btree, btree_raw_mem
 static int rebalance(btree_status_t *ret, btree_raw_t *btree, btree_raw_mem_node_t *this_node, uint64_t left_id, uint64_t right_id, uint64_t l_anchor_id, key_stuff_t *l_anchor_stuff, uint64_t r_anchor_id, key_stuff_t *r_anchor_stuff, int l_this_parent, int r_this_parent, btree_metadata_t *meta);
 
 static int check_per_thread_keybuf(btree_raw_t *btree);
-static void btree_raw_init_stats(struct btree_raw *btree, btree_stats_t *stats);
+static void btree_raw_init_stats(struct btree_raw *btree, btree_stats_t *stats, fdf_pstats_t *pstats);
 #ifdef DEBUG_STUFF
 static void btree_raw_dump(FILE *f, struct btree_raw *btree);
 #endif
@@ -251,6 +253,10 @@ static void btree_raw_check(struct btree_raw *btree, char* func, char* key);
 #endif
 
 void btree_sync_thread(uint64_t arg);
+
+static void reset_node_pstats(btree_raw_node_t *pnode);
+static void pstats_flush(struct btree_raw *btree, btree_raw_mem_node_t *n);
+static void set_node_pstats(btree_raw_t *btree, btree_raw_node_t *pnode, uint64_t num_obj, bool is_delta_positive);
 
 static void default_msg_cb(int level, void *msg_data, char *filename, int lineno, char *msg, ...)
 {
@@ -307,8 +313,38 @@ l1cache_replace(void *callback_data, char *key, uint32_t keylen, char *pdata, ui
     free(n);
 }
 
+
+static void
+btree_raw_crash_stats( btree_raw_t* bt, void *data, uint32_t datalen )
+{
+    assert( bt );
+    assert( data );
+    assert( datalen > 0 );
+
+    fdf_pstats_delta_t *pstats_new = (fdf_pstats_delta_t*) data;
+#ifdef PSTATS_3
+    fprintf(stderr, "btree_raw_crash_stats: Last seq num = %ld\n", bt->pstats->seq_num);
+    fprintf(stderr, "btree_raw_crash_stats: record: seq num=%ld d_obj_cnt=%ld is_positive_d=%d unique=%ld\n",
+                 pstats_new->seq_num, pstats_new->delta_obj_count, pstats_new->is_positive_delta, pstats_new->seq); 
+#endif
+
+    if ( pstats_new->seq_num >= bt->pstats->seq_num  &&
+         pstats_new->delta_obj_count > 0 ) {
+#ifdef PSTATS_3
+        static uint64_t count = 0;
+        fprintf(stderr, "btree_raw_crash_stats: Valid object found: count=%ld\n", count++);
+#endif
+        if ( pstats_new->is_positive_delta ) {
+            bt->pstats->obj_count += pstats_new->delta_obj_count;
+        } else {
+            bt->pstats->obj_count -= pstats_new->delta_obj_count;
+        }
+    }
+}
+
+
 btree_raw_t *
-btree_raw_init(uint32_t flags, uint32_t n_partition, uint32_t n_partitions, uint32_t max_key_size, uint32_t min_keys_per_node, uint32_t nodesize, create_node_cb_t *create_node_cb, void *create_node_data, read_node_cb_t *read_node_cb, void *read_node_cb_data, write_node_cb_t *write_node_cb, void *write_node_cb_data, flush_node_cb_t *flush_node_cb, void *flush_node_cb_data, freebuf_cb_t *freebuf_cb, void *freebuf_cb_data, delete_node_cb_t *delete_node_cb, void *delete_node_data, log_cb_t *log_cb, void *log_cb_data, msg_cb_t *msg_cb, void *msg_cb_data, cmp_cb_t *cmp_cb, void * cmp_cb_data, bt_mput_cmp_cb_t mput_cmp_cb, void *mput_cmp_cb_data, trx_cmd_cb_t *trx_cmd_cb, uint64_t cguid)
+btree_raw_init(uint32_t flags, uint32_t n_partition, uint32_t n_partitions, uint32_t max_key_size, uint32_t min_keys_per_node, uint32_t nodesize, create_node_cb_t *create_node_cb, void *create_node_data, read_node_cb_t *read_node_cb, void *read_node_cb_data, write_node_cb_t *write_node_cb, void *write_node_cb_data, flush_node_cb_t *flush_node_cb, void *flush_node_cb_data, freebuf_cb_t *freebuf_cb, void *freebuf_cb_data, delete_node_cb_t *delete_node_cb, void *delete_node_data, log_cb_t *log_cb, void *log_cb_data, msg_cb_t *msg_cb, void *msg_cb_data, cmp_cb_t *cmp_cb, void * cmp_cb_data, bt_mput_cmp_cb_t mput_cmp_cb, void *mput_cmp_cb_data, trx_cmd_cb_t *trx_cmd_cb, uint64_t cguid, fdf_pstats_t *pstats)
 {
     btree_raw_t      *bt;
     uint32_t          nbytes_meta;
@@ -337,8 +373,6 @@ btree_raw_init(uint32_t flags, uint32_t n_partition, uint32_t n_partitions, uint
     if (flags & VERBOSE_DEBUG) {
         Verbose = 1;
     }
-
-    btree_raw_init_stats(bt, &(bt->stats));
 
     bt->n_partition          = n_partition;
     bt->n_partitions         = n_partitions;
@@ -478,7 +512,31 @@ btree_raw_init(uint32_t flags, uint32_t n_partition, uint32_t n_partitions, uint
     assert(!dbg_referenced);
     dbg_print("bt %p lock %p n_part %d\n", bt, &bt->lock, n_partition);
 
+    /*
+     * Persistent stats initialization
+     */
+    assert(pstats);
+    bt->pstats = pstats;
+    bt->last_flushed_seq_num = pstats->seq_num;
+    bt->pstats_modified = false;
+
     if (flags & RELOAD) {
+        /*
+         * first, consolidate persistent stats
+         */
+        stats_packet_t *s = stats_packet_open( cguid);
+        if (s) {
+            stats_packet_node_t *n;
+            while (n = stats_packet_get_node( s)) {
+                btree_raw_crash_stats( bt, n->data, n->datalen);
+                stats_packet_free_node( n);
+            }
+            stats_packet_close( s);
+            stats_packet_delete( cguid);
+        }
+        /*
+         * second, undo all dangling trx
+         */
         rec_packet_t *r = recovery_packet_open( cguid);
         if (r) {
             rec_packet_trx_t *t;
@@ -490,8 +548,11 @@ btree_raw_init(uint32_t flags, uint32_t n_partition, uint32_t n_partitions, uint
             recovery_packet_delete( cguid);
         }
     }
-    else
+    else {
+        stats_packet_delete( cguid);
         recovery_packet_delete( cguid);
+    }
+    btree_raw_init_stats(bt, &(bt->stats), bt->pstats);
 
     return(bt);
 }
@@ -1538,6 +1599,66 @@ static void delete_l1cache(btree_raw_t *btree, uint64_t logical_id)
     btree->stats.stat[BTSTAT_L1ENTRIES] = PMapNEntries(btree->l1cache);
 }
 
+
+static void
+reset_node_pstats(btree_raw_node_t *n)
+{
+    n->pstats.seq_num = 0;
+    n->pstats.delta_obj_count = 0;
+    n->pstats.is_positive_delta = 0;
+    n->pstats.seq = 0;
+#ifdef PSTATS_2
+    fprintf(stderr, "Resetting the node\n");
+#endif
+}
+
+static uint64_t unique;
+
+static void
+set_node_pstats(btree_raw_t *btree, btree_raw_node_t *x, uint64_t num_obj, bool is_delta_positive)
+{
+    //btree_raw_node_t* x = n->pnode;
+    x->pstats.seq_num = btree->last_flushed_seq_num;
+    x->pstats.delta_obj_count += num_obj;
+    x->pstats.is_positive_delta = is_delta_positive;
+    x->pstats.seq = __sync_fetch_and_add( &unique, 1 );
+    btree->pstats_modified = true;
+
+#ifdef PSTATS_2
+    fprintf(stderr, "delta_obj_count=%ld seq_num=%ld is_delta_positive=%d unique=%ld\n",
+            x->pstats.delta_obj_count, x->pstats.seq_num, is_delta_positive, x->pstats.seq);
+#endif
+}
+
+
+static void
+pstats_flush(struct btree_raw *btree, btree_raw_mem_node_t *n)
+{
+    if ( __sync_fetch_and_add( &total_sys_writes, 1 ) >= PERSISTENT_STATS_FLUSH_INTERVAL ) {
+        /*
+         * Signal flusher thread
+         */
+        pthread_mutex_lock( &pstats_mutex );
+
+        total_sys_writes = 0;
+
+        /*
+         * Later on, all nodes will assume this sequence number
+         * till next flush happens.
+         */
+#ifdef PSTATS_2
+    btree_raw_node_t* x = n->pnode;
+    fprintf(stderr, "pstats_flush: obcount=%ld seq_num=%ld unique=%ld\n",
+            x->pstats.delta_obj_count, x->pstats.seq_num, x->pstats.seq);
+#endif
+        //n->pnode->pstats.seq_num = btree->last_flushed_seq_num;
+
+        pthread_cond_signal( &pstats_cond_var );
+        pthread_mutex_unlock( &pstats_mutex );
+    }
+}
+
+
 /*
  * Flush the modified and deleted nodes, unlock those nodes, cleare the reference
  * for such nodes.
@@ -1559,9 +1680,8 @@ btree_status_t deref_l1cache(btree_raw_t *btree)
 	bzero(modified_written, modified_nodes_count * sizeof(int));
 	bzero(deleted_written, deleted_nodes_count * sizeof(int));
 
-    if (btree->trxenabled) {
-		(*btree->trx_cmd_cb)( TRX_START);
-	}
+    if (btree->trxenabled)
+	(*btree->trx_cmd_cb)( TRX_START);
 
     for(i = 0; i < modified_nodes_count; i++)
     {
@@ -1585,10 +1705,6 @@ btree_status_t deref_l1cache(btree_raw_t *btree)
 
     }
 
-
-    //TODO
-    //if(ret || txnret)
-    //    invalidate_l1cache(btree);
 	if (!btree_parallel_flush_disabled && (actual_nodes + deleted_nodes_count) > btree_parallel_flush_minbufs) {
 
 		pthread_cond_init(&(req.ret_condvar), NULL);
@@ -1676,6 +1792,7 @@ btree_status_t deref_l1cache(btree_raw_t *btree)
 				}
 				__sync_fetch_and_add(&node_write_cnt, 1);
 #endif
+                		pstats_flush(btree, n);
 				btree->write_node_cb(my_thd_state, &ret, btree->write_node_cb_data, n->pnode->logical_id, (char*)n->pnode, btree->nodesize);
 				assert(logical_id == n->pnode->logical_id);
 #ifdef DEBUF_STUFF
@@ -1691,19 +1808,19 @@ btree_status_t deref_l1cache(btree_raw_t *btree)
 			n = deleted_nodes[i];
 
 			dbg_print("delete_node_cb key=%ld data=%p datalen=%d\n", n->pnode->logical_id, n, btree->nodesize);
+            		pstats_flush(btree, n);
 
 			ret = btree->delete_node_cb(btree->create_node_cb_data, n->pnode->logical_id);
 #ifdef BTREE_UNDO_TEST
 			btree_rcvry_test_delete(btree, n->pnode);
 #endif
+			reset_node_pstats(n->pnode);
 			add_node_stats(btree, n->pnode, L1WRITES, 1);
 		}
 	}
 
-
-    if (btree->trxenabled) {
-		(*btree->trx_cmd_cb)( TRX_COMMIT);
-	}
+    if (btree->trxenabled)
+	(*btree->trx_cmd_cb)( TRX_COMMIT);
 
     unlock_modified_nodes(btree);
 
@@ -2098,8 +2215,12 @@ btree_raw_mem_node_t *create_new_node(btree_raw_t *btree, uint64_t logical_id)
     if (pnode != NULL) {
         pnode->logical_id = logical_id;
         n = add_l1cache(btree, logical_id);
-		n->pnode = pnode;
-		node_unlock(n);
+        n->pnode = pnode;
+        /*
+         * Zero out pstats for new node
+         */
+        reset_node_pstats(n->pnode);
+        node_unlock(n);
         assert(n); /* the tree is exclusively locked */
         ref_l1cache(btree, n);
         modify_l1cache_node(btree, n);
@@ -2566,6 +2687,11 @@ static void insert_key_low(btree_status_t *ret, btree_raw_t *btree, btree_raw_me
 		pfk->ptr       = *((uint64_t *) data);
     }
 
+    /*
+     * Update node stats
+     */
+    //set_node_pstats(btree, x, 1, true);
+
     if (x->flags & LEAF_NODE) {
 	assert(0);
         /* A new object has been inserted. increment the count */
@@ -2574,6 +2700,17 @@ static void insert_key_low(btree_status_t *ret, btree_raw_t *btree, btree_raw_me
     } else {
 	__sync_add_and_fetch(&(btree->stats.stat[BTSTAT_NONLEAF_BYTES]), nbytes_stats);
     }
+
+#if 0
+    /*
+     * Update node stats
+     */
+    x->pstats.seq_num = btree->last_flushed_seq_num;
+    x->pstats.delta_cntr_sz    += nbytes_stats;
+    x->pstats.delta_obj_count  += 1;
+    x->pstats.is_positive_delta  = true;
+    fprintf(stderr, "Insert delta_obj_count=%ld seq_num=%ld\n", x->pstats.delta_obj_count, x->pstats.seq_num);
+#endif
 
 #ifdef DEBUG_STUFF
 	if (Verbose) {
@@ -2675,6 +2812,11 @@ static void delete_key_by_pkrec(btree_status_t* ret, btree_raw_t *btree, btree_r
     } else {
 	__sync_sub_and_fetch(&(btree->stats.stat[BTSTAT_NONLEAF_BYTES]), nbytes_stats);
     }
+
+    /*
+     * Update node stats
+     */
+    set_node_pstats(btree, x, 1, false);
 
     nkeys_from = x->nkeys - nkeys_to - 1;
 
@@ -2791,6 +2933,10 @@ delete_key_by_index_leaf(btree_status_t* ret, btree_raw_t *btree, btree_raw_mem_
 	if (res == true) {
 		__sync_sub_and_fetch(&(btree->stats.stat[BTSTAT_NUM_OBJS]), 1);
 		__sync_sub_and_fetch(&(btree->stats.stat[BTSTAT_LEAF_BYTES]), bytes_decreased);
+		/*
+		 * Update node stats
+		 */
+		set_node_pstats(btree, node->pnode, 1, false);
 		*ret = BTREE_SUCCESS;
 	} else {
 		*ret = BTREE_FAILURE;
@@ -3403,6 +3549,14 @@ btree_leaf_insert_low(btree_raw_t *bt, btree_raw_mem_node_t *n, char *key, uint3
 		assert(size_increased > 0 || bt->stats.stat[BTSTAT_LEAF_BYTES] > (-size_increased));
 #endif
 		__sync_add_and_fetch(&(bt->stats.stat[BTSTAT_LEAF_BYTES]), size_increased);
+		/*
+		 * Update node stats
+		 */
+		(void) pthread_mutex_lock( &pstats_mutex );
+		set_node_pstats(bt, n->pnode, 1, true);
+		__sync_add_and_fetch(&(bt->stats.stat[BTSTAT_NUM_OBJS]), 1);
+		__sync_add_and_fetch(&(bt->stats.stat[BTSTAT_LEAF_BYTES]), size_increased);
+		(void) pthread_mutex_unlock( &pstats_mutex );
 	}
 	
 
@@ -6068,9 +6222,17 @@ extern int btree_raw_get_snapshots(struct btree_raw *btree, uint32_t *n_snapshot
 
 //======================   STATS   =========================================
 
-static void btree_raw_init_stats(struct btree_raw *btree, btree_stats_t *stats)
+static void
+btree_raw_init_stats(struct btree_raw *btree, btree_stats_t *stats, fdf_pstats_t *pstats)
 {
     memset(stats, 0, sizeof(btree_stats_t));
+    /*
+     * Initialize stats from recovered session
+     */
+    assert(pstats);
+    btree->stats.stat[BTSTAT_NUM_OBJS]    = pstats->obj_count;
+    //fprintf(stderr, "btree_raw_init_stats:BTSTAT_NUM_OBJS= %ld\n",  pstats->obj_count);
+    //btree->stats.stat[BTSTAT_TOTAL_BYTES] = pstats->cntr_sz;
 //  btree->stats.stat[BTSTAT_SPCOPT_BYTES_SAVED] = 0;
 }
 

@@ -16,6 +16,7 @@
 #include <string.h>
 #include "btree_raw.h"
 #include "btree_raw_internal.h"
+#include "btree/btree_var_leaf.h"
 
 #ifdef _OPTIMIZE
 #undef assert
@@ -161,23 +162,26 @@ gen_robj_list(btree_raw_t *bt, btree_raw_node_t **nodes,
 
 				used_cnt = 0;
 			}
+			key_info_t ki;
+			bool b = btree_leaf_get_nth_key_info( bt, nodes[i], j, &ki);
+			char *data;
+			uint64_t datalen;
+			b = btree_leaf_get_data_nth_key( bt, nodes[i], j, &data, &datalen);
 
 			r = &robj_buf[used_cnt++];
-			r->key     = ks.pkey_val;
-			r->keylen  = ks.keylen;
-			r->datalen = ks.datalen;
-			r->seqno   = ks.seqno;
-			r->pvlk    = ks.pkey_struct;
+			r->key     = ki.key;
+			r->keylen  = ki.keylen;
+			r->datalen = ki.datalen;
+			r->seqno   = ki.seqno;
+			r->pvlk    = 0;
 
 			/* TODO: Handle Overflow nodes case */
 			r->data_node_cnt   = 0;
 			if ((r->keylen + r->datalen) < bt->big_object_size) {
-				r->data    = (char *) nodes[i] + 
-				                 r->pvlk->keypos + 
-				                 r->pvlk->keylen;
+				r->data = memcpy( malloc( r->datalen), data, r->datalen);
 				r->data_node_start = NULL;
 			} else {
-				r->data = (char *)r->pvlk->ptr;
+				r->data = (char *)ki.ptr;
 				add_overflow_robj(bt, r, nodes, node_cnt);
 			}
 			r->buf_next = NULL;
@@ -468,6 +472,7 @@ btree_recovery_process_minipkt(btree_raw_t *bt,
 	/* Process all these undo ops */
 	st = do_recovery_op(bt, &op_list);
 
+#if 0//Rico - buggy
 	btree_robj_info_t *buf = or_list.buf_head;
 	while (buf) {
 		btree_robj_info_t *tmpbuf = buf;
@@ -481,6 +486,7 @@ btree_recovery_process_minipkt(btree_raw_t *bt,
 		buf = buf->buf_next;
 		free(tmpbuf);
 	}
+#endif
 
 	return (st);
 }

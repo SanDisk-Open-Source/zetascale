@@ -102,6 +102,7 @@ typedef struct btree_metadata {
     item(BTSTAT_NONLEAF_BYTES, /* default */) \
     item(BTSTAT_OVERFLOW_BYTES, /* default */) \
     item(BTSTAT_NUM_OBJS, /* default */) \
+    item(BTSTAT_TOTAL_BYTES, /* default */) \
     item(BTSTAT_EVICT_BYTES, /* default */) \
     item(BTSTAT_SPLITS, /* default */) \
     item(BTSTAT_LMERGES, /* default */) \
@@ -195,6 +196,20 @@ typedef struct key_stuff_info {
     void *keyrec; // Pointerto key structure for non-leaf nodes
 } key_stuff_info_t;
 
+/*
+ * Variables to support persistent stats
+ */
+typedef struct fdf_pstats_ {
+    uint64_t seq_num;
+    uint64_t obj_count;
+} fdf_pstats_t;
+
+uint64_t total_sys_writes;
+pthread_mutex_t pstats_mutex;
+pthread_cond_t  pstats_cond_var;
+
+/**/
+
 typedef int (* btree_range_cmp_cb_t)(void     *data, 	//  opaque user data
                                  void     *range_data,
                                  char     *range_key,       
@@ -246,7 +261,7 @@ struct btree_raw* btree_raw_init(uint32_t flags, uint32_t n_partition, uint32_t 
 	msg_cb_t *msg_cb, void *msg_cb_data,
 	cmp_cb_t *cmp_cb, void * cmp_cb_data,
 	bt_mput_cmp_cb_t mput_cmp_cb, void *mput_cmp_cb_data,
-	trx_cmd_cb_t *trx_cmd_cb, uint64_t cguid
+	trx_cmd_cb_t *trx_cmd_cb, uint64_t cguid, fdf_pstats_t *pstats
 	);
 
 void btree_raw_destroy(struct btree_raw **);

@@ -3413,6 +3413,7 @@
 170037 Data inconsistency found in cguid = %d, byte offset = %"PRIu64".\n
 170038 cguid=%lu seqno=%lu uncomp_datalen=%u data_len=%lu udlen=%lu\n
 170039 cguid=%lu seqno=%lu uncomp_datalen=%u data_len=%lu udlen=%lu
+170040 No x86 SSE4.2 support, FDF_OBJECT_CHECKSUM disabled
 
 
 # efirsov
