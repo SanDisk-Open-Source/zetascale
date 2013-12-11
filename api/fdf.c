@@ -994,7 +994,7 @@ static void fdf_load_settings(flash_settings_t *osd_settings)
     osd_settings->multi_fifo_writers  = getProperty_Int("SDF_MULTI_FIFO_WRITERS", 1);
     osd_settings->aio_wc              = false;
     osd_settings->aio_error_injection = false;
-    osd_settings->aio_queue_len       = MCD_MAX_NUM_FTHREADS;
+    osd_settings->aio_queue_len       = getProperty_Int( "FDF_AIO_QUEUE_LENGTH", MCD_MAX_NUM_FTHREADS);
 
     // num_threads // legacy--not used
 
