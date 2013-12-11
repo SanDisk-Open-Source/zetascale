@@ -529,20 +529,27 @@ static btree_status_t
 savepersistent( btree_raw_t *bt, int create)
 {
     btree_raw_mem_node_t* mem_node;
-    btree_status_t	ret = BTREE_SUCCESS;
+    btree_status_t ret = BTREE_SUCCESS;
+    bool tb_flushed = false;
 
     if (bt->flags & IN_MEMORY)
         return (BTREE_FAILURE);
 
-    if(create)
+    if(create) {
         mem_node = create_new_node(bt,
                 META_LOGICAL_ID+bt->n_partition);
-    else
+    } else {
         mem_node = get_existing_node_low(&ret, bt,
-                META_LOGICAL_ID+bt->n_partition, 1);
+			META_LOGICAL_ID+bt->n_partition, 1);
+    }
 
     if(mem_node)
     {
+	/*
+	 * Lock the node to change it.
+	 */
+	plat_rwlock_wrlock(&mem_node->lock);
+
         btree_raw_persist_t *r = (btree_raw_persist_t*)mem_node->pnode;
 
         dbg_print("ret=%d create=%d nodeid=%lx lic=%ld rootid=%ld save=%d\n", ret, create, META_LOGICAL_ID+bt->n_partition, bt->logical_id_counter, bt->rootid, r->rootid != bt->rootid || !(bt->logical_id_counter % META_COUNTER_SAVE_INTERVAL));
@@ -555,17 +562,33 @@ savepersistent( btree_raw_t *bt, int create)
 		 	bt->next_logical_id = r->next_logical_id + META_COUNTER_SAVE_INTERVAL;
 			r->next_logical_id =  bt->next_logical_id;
 		}
-		modify_l1cache_node(bt, mem_node);
+		tb_flushed = true;
 	}
 
         r->logical_id_counter = bt->logical_id_counter;
         r->rootid = bt->rootid;
-    }
-    else
-        ret = BTREE_FAILURE;
 
-    if (BTREE_SUCCESS != ret)
+	if (tb_flushed) {
+			ret = BTREE_SUCCESS;
+			if (bt->trxenabled) {
+				(*bt->trx_cmd_cb)( TRX_START);
+			}
+			bt->write_node_cb(my_thd_state, &ret, bt->write_node_cb_data, mem_node->pnode->logical_id, (char*)mem_node->pnode, bt->nodesize);
+			if (bt->trxenabled) {
+				(*bt->trx_cmd_cb)( TRX_COMMIT);
+			}
+	}
+	plat_rwlock_unlock(&mem_node->lock);
+
+    } else {
+        ret = BTREE_FAILURE;
+    }
+
+    if (BTREE_SUCCESS != ret) {
         bt_warn( "Could not persist btree!");
+	// Write now we simply ignore the storage errors.
+	ret = BTREE_SUCCESS;
+     }
 
     return ret;
 }
@@ -1391,8 +1414,8 @@ btree_raw_find(struct btree_raw *btree, char *key, uint32_t keylen, uint64_t syn
     btree_status_t    ret = BTREE_SUCCESS;
     uint64_t          child_id;
 
-	*node = root_get_and_lock(btree, write_lock);
-	assert(*node);
+    *node = root_get_and_lock(btree, write_lock);
+    assert(*node);
 
     while(!is_leaf(btree, (*node)->pnode)) {
         (void) bsearch_key(btree, (*node)->pnode, key, keylen, &child_id, meta, syndrome);
@@ -1964,27 +1987,31 @@ void lock_nodes_list(btree_raw_t *btree, int lock, btree_raw_mem_node_t** list, 
 
     for(i = 0; i < count; i++)
     {
-		if (list[i] == NULL) {
-			assert(lock == 0);
-			continue;
+	if (list[i] == NULL) {
+		assert(lock == 0);
+		continue;
+	}
+
+	node = get_l1cache(btree, list[i]->pnode->logical_id);
+	assert(node); // the node is in the cache, hence, get_l1cache cannot fail
+
+	j = 0;
+	while(j < i && list[j] != list[i]) {
+	    j++;
+	}
+
+	if(j >= i && !is_overflow(btree, node->pnode) && 
+				  node->pnode->logical_id != META_LOGICAL_ID+btree->n_partition) {
+		dbg_print("list[%d]->logical_id=%ld lock=%p lock=%d\n",
+			  i, list[i]->pnode->logical_id, &node->lock, lock);
+
+		if(lock) {
+			node_lock(node, WRITE);
+		} else {
+			node_unlock(node);
 		}
-        node = get_l1cache(btree, list[i]->pnode->logical_id);
-        assert(node); // the node is in the cache, hence, get_l1cache cannot fail
-
-        j = 0;
-        while(j < i && list[j] != list[i])
-            j++;
-
-        if(j >= i && !is_overflow(btree, node->pnode) && node->pnode->logical_id != META_LOGICAL_ID+btree->n_partition) {
-        dbg_print("list[%d]->logical_id=%ld lock=%p lock=%d\n", i, list[i]->pnode->logical_id, &node->lock, lock);
-
-        if(lock)
-            node_lock(node, WRITE);
-        else
-            node_unlock(node);
-        }
-
-        deref_l1cache_node(btree, node);
+	}
+	deref_l1cache_node(btree, node);
     }
 }
 
