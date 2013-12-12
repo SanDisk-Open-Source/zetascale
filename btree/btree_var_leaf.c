@@ -2023,7 +2023,7 @@ btree_leaf_is_full(btree_raw_t *bt, btree_raw_node_t *n, char *key, uint32_t key
 
 	return res;
 }
-//Caller must free the key_info_out->key after use.
+
 bool
 btree_leaf_shift_left(btree_raw_t *bt, btree_raw_node_t *from_node,
 		      btree_raw_node_t *to_node, key_info_t *key_info_out)

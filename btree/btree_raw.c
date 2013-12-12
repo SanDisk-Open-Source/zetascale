@@ -5372,19 +5372,16 @@ equalize_keys_leaf(btree_raw_t *btree, btree_raw_mem_node_t *anchor_mem, btree_r
 static int
 equalize_keys(btree_raw_t *btree, btree_raw_mem_node_t *anchor_mem, btree_raw_mem_node_t *from_mem,
 	      btree_raw_mem_node_t *to_mem, char *s_key, uint32_t s_keylen, uint64_t s_syndrome,
-	      uint64_t s_seqno, char **r_key, uint32_t *r_keylen, uint64_t *r_syndrome, uint64_t *r_seqno,
-	      int left, bool * free_key)
+	      uint64_t s_seqno, char **r_key, uint32_t *r_keylen, uint64_t *r_syndrome, uint64_t *r_seqno, int left)
 {
 	int ret = 0;
 
 	if (is_leaf(btree, from_mem->pnode)) {
 		ret = equalize_keys_leaf(btree, anchor_mem, from_mem, to_mem, s_key, s_keylen, s_syndrome,
 					      s_seqno, r_key, r_keylen, r_syndrome, r_seqno, left);		
-		*free_key = true;
 	} else {
 		ret = equalize_keys_non_leaf(btree, anchor_mem, from_mem, to_mem, s_key, s_keylen, s_syndrome,
 					      s_seqno, r_key, r_keylen, r_syndrome, r_seqno, left);		
-		*free_key = false;
 	}
 	return ret;
 }
@@ -5541,7 +5538,6 @@ static int rebalance(btree_status_t *ret, btree_raw_t *btree, btree_raw_mem_node
     key_stuff_t           ks;
     int                   balance_node_is_sibling;
     int                   next_do_rebalance = 0;
-    bool free_key = false;
 
     if (*ret) { return(0); }
 
@@ -5607,9 +5603,7 @@ static int rebalance(btree_status_t *ret, btree_raw_t *btree, btree_raw_mem_node
 			s_seqno    = l_anchor_stuff->seqno;
 			s_ptr      = l_anchor_stuff->ptr;
 
-			int res = equalize_keys(btree, anchor_mem_node, balance_mem_node, this_mem_node,
-					        s_key, s_keylen, s_syndrome, s_seqno,
-					        &r_key, &r_keylen, &r_syndrome, &r_seqno, RIGHT, &free_key);
+			int res = equalize_keys(btree, anchor_mem_node, balance_mem_node, this_mem_node, s_key, s_keylen, s_syndrome, s_seqno, &r_key, &r_keylen, &r_syndrome, &r_seqno, RIGHT);
 			if(!ret)
 				return next_do_rebalance;
 		} else {
@@ -5622,9 +5616,7 @@ static int rebalance(btree_status_t *ret, btree_raw_t *btree, btree_raw_mem_node
 			s_seqno    = r_anchor_stuff->seqno;
 			s_ptr      = r_anchor_stuff->ptr;
 
-			int res = equalize_keys(btree, anchor_mem_node, balance_mem_node, this_mem_node,
-					        s_key, s_keylen, s_syndrome, s_seqno,
-					        &r_key, &r_keylen, &r_syndrome, &r_seqno, LEFT, &free_key);
+			int res = equalize_keys(btree, anchor_mem_node, balance_mem_node, this_mem_node, s_key, s_keylen, s_syndrome, s_seqno, &r_key, &r_keylen, &r_syndrome, &r_seqno, LEFT);
 			if(!res)
 				return next_do_rebalance;
 		}
@@ -5641,9 +5633,8 @@ static int rebalance(btree_status_t *ret, btree_raw_t *btree, btree_raw_mem_node
 			delete_key(ret, btree, anchor_mem_node, s_key, s_keylen, meta, s_syndrome);
 			insert_key(ret, btree, anchor_mem_node, r_key, r_keylen, r_seqno, sizeof(uint64_t), (char *) &s_ptr, meta, r_syndrome);
 			modify_l1cache_node(btree, anchor_mem_node);
-			if (free_key == true) {
-				free_buffer(btree, r_key);
-			}
+
+			free_buffer(btree, r_key);
 		}
     } else {
         next_do_rebalance = 1;
