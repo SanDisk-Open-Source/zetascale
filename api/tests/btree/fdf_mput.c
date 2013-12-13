@@ -209,7 +209,7 @@ do_mput(struct FDF_thread_state *thd_state, FDF_cguid_t cguid,
 
 
 
-#if 0
+#if 1
 	key_num = 0;
 	for (k = 1; k <= num_mputs; k++) {
 
@@ -247,7 +247,7 @@ write_stress(void *t)
 
 	my_thdid = __sync_fetch_and_add(&cur_thd_id, 1);
 	FDFInitPerThreadState(fdf_state, &thd_state);	
-#if 1
+#if 0
 	if (flags_global & FDF_WRITE_MUST_EXIST) {
 		do_mput(thd_state, cguid, FDF_WRITE_MUST_NOT_EXIST, 1); //populate data if it is update case.
 	}
@@ -355,15 +355,16 @@ main(int argc, char *argv[])
 		use_mput, num_mputs, num_objs, num_thds);
 
 	FDFInit(&fdf_state);
-
+#if 0
 	printf(" ======================== Doing test for set case. ===================\n");
 	do_op(0);// set
 	printf(" ******************  Done test for set case.***********************\n");
-#if 1
+#endif 
 	printf(" ======================== Doing test for create case. ===================\n");
 	do_op(FDF_WRITE_MUST_NOT_EXIST); //create
 	printf(" ******************  Done test for create  case.***********************\n");
 
+#if 0
 	printf(" ======================== Doing test for update case. ===================\n");
 	do_op(FDF_WRITE_MUST_EXIST); //update
 	printf(" ******************  Done test for update  case.***********************\n");
