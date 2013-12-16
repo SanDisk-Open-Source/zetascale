@@ -245,6 +245,7 @@ btree_leaf_get_meta(btree_raw_node_t *n, int index, key_meta_t *key_meta)
 	}
 
 	key_meta->meta_type = ent_hdr->meta_type;
+	key_meta->tombstone = ent_hdr->tombstone;
 
 	dbg_assert(key_meta->keylen != 0);
 	dbg_assert(key_meta->prefix_len <= key_meta->keylen);
@@ -705,6 +706,8 @@ btree_leaf_get_nth_key_info(btree_raw_t *btree, btree_raw_node_t *n, int index,
 	key_info->keylen = key_meta.keylen;
 	key_info->datalen = key_meta.datalen;
 
+	key_info->tombstone = ent_hdr->tombstone;
+
 	return true;
 }
 
@@ -755,7 +758,21 @@ btree_leaf_get_nth_key_info2(btree_raw_t *btree, btree_raw_node_t *n, int index,
 	key_info->keylen = key_meta.keylen;
 	key_info->datalen = key_meta.datalen;
 
+	key_info->tombstone = ent_hdr->tombstone;
+
 	return true;
+}
+
+bool
+btree_leaf_is_key_tombstoned(btree_raw_t *bt, btree_raw_node_t *n, int index)
+{
+	entry_header_t *headers;
+	entry_header_t *ent_hdr;
+
+	headers = (entry_header_t *) n->keys;
+	ent_hdr = &headers[index];
+
+	return (ent_hdr->tombstone ? true: false);
 }
 
 bool
@@ -794,7 +811,8 @@ btree_leaf_get_data_nth_key(btree_raw_t *bt, btree_raw_node_t *n, int index,
  */
 bool
 btree_leaf_get_nth_key(btree_raw_t *btree, btree_raw_node_t *n, int index,
-		       char **key_out, uint32_t *key_out_len)
+                       char **key_out, uint32_t *key_out_len,
+                       uint64_t *key_seqno)
 {
 	key_info_t key_info;
 	bool res = false;
@@ -803,6 +821,7 @@ btree_leaf_get_nth_key(btree_raw_t *btree, btree_raw_node_t *n, int index,
 
 	*key_out = key_info.key;	
 	*key_out_len = key_info.keylen;
+	if (key_seqno) *key_seqno = key_info.seqno;
 
 	return res;
 }
@@ -811,7 +830,7 @@ btree_leaf_get_nth_key(btree_raw_t *btree, btree_raw_node_t *n, int index,
 // buffer provided by caller
 bool
 btree_leaf_get_nth_key2(btree_raw_t *btree, btree_raw_node_t *n, int index,
-		        char **key_out, uint32_t *key_out_len)
+		        char **key_out, uint32_t *key_out_len, uint64_t *seqno_out)
 {
 	key_info_t key_info = {0};
 	bool res = false;
@@ -824,47 +843,22 @@ btree_leaf_get_nth_key2(btree_raw_t *btree, btree_raw_node_t *n, int index,
 	res = btree_leaf_get_nth_key_info2(btree, n, index, &key_info);	
 
 	*key_out_len = key_info.keylen;
+	*seqno_out = key_info.seqno;
+
 	return res;
 }
-
 
 bool
 btree_leaf_find_key2(btree_raw_t *bt, btree_raw_node_t *n, char *key,
 		     uint32_t keylen, int32_t *index)
 {
-	int start = 0;
-	int end = 0;
-	int center = 0;
-	char *tmp_key = NULL;
-	uint32_t tmp_key_len = 0;
-	bool res = false;
-	bool res1 = false;
-	int x = 0;
+	bool found;
+	int i_ret;
 
-	tmp_key = tmp_key_buf;
+	*index = bsearch_key_low(bt, n, key, keylen, NULL, 0,
+	                         -1, n->nkeys, BSF_LATEST, &found);
 
-	end = n->nkeys - 1;
-	*index = n->nkeys;
-
-	while (start <= end) {
-		center = (start + end) / 2;
-		res1 = btree_leaf_get_nth_key2(bt, n, center, &tmp_key, &tmp_key_len);
-		dbg_assert(res1 == true);
-		x = (* (bt->cmp_cb)) (bt->cmp_cb_data, key, keylen,
-				      tmp_key, tmp_key_len);
-		if (x == 0) {
-                        *index = center;
-                        res = true;
-                        break;
-                } else if (x < 0) {
-                        *index = center;
-                        end = center - 1;
-                } else {
-                        start = center + 1;
-                }
-	}
-
-	return res;
+	return (found);
 }
 
 bool
@@ -1103,7 +1097,7 @@ copy_impacted_keys_to_tmp_buf(btree_raw_t *bt, btree_raw_node_t *n, int from,
 bool
 btree_leaf_insert_key_index(btree_raw_t *bt, btree_raw_node_t *n, char *key, uint32_t keylen,
 		      	    char *data, uint64_t datalen, key_info_t *key_info, 
-			    btree_metadata_t *meta, int index, int32_t *bytes_increased, bool dry_run)
+			    int index, int32_t *bytes_increased, bool dry_run)
 {
 	key_meta_t key_meta = {0};
 	entry_header_t *ent_hdr = NULL;
@@ -1179,6 +1173,7 @@ btree_leaf_insert_key_index(btree_raw_t *bt, btree_raw_node_t *n, char *key, uin
 			((uint64_t) tmp_node_mem + (index * sizeof(entry_header_t))); 
 		ent_hdr->meta_type = meta_type;
 		ent_hdr->header_offset = 0; // Will set it later.
+		ent_hdr->tombstone = key_info->tombstone ? 1: 0;
 	}
 
 	/*
@@ -1576,6 +1571,7 @@ btree_leaf_update_key(btree_raw_t *bt, btree_raw_node_t *n, char *key, uint32_t 
 	key_info.keylen = keylen;
 	key_info.datalen = datalen;
 	key_info.key = key;
+	key_info.tombstone = (meta->flags & INSERT_TOMBSTONE) ? true : false;
 
 	if (key_exists) {
 		res = btree_leaf_remove_key_index_int(bt, n, index, 
@@ -1584,7 +1580,7 @@ btree_leaf_update_key(btree_raw_t *bt, btree_raw_node_t *n, char *key, uint32_t 
 	}
 
 	res = btree_leaf_insert_key_index(bt, n, key, keylen, data, datalen,
-					  &key_info, meta, index, &bytes_increased, false);
+					  &key_info, index, &bytes_increased, false);
 #ifdef DEBUG_BUILD
 	res1 = btree_leaf_find_key2(bt, n, key, keylen, &index1);
 	if (res1 == false || index != index1) {
@@ -1651,26 +1647,24 @@ btree_leaf_print(btree_raw_t *bt, btree_raw_node_t *n)
 bool
 btree_leaf_find_right_key(btree_raw_t *bt, btree_raw_node_t *n,
 			  char *key, uint32_t keylen,
-			  char **key_out, uint32_t *keyout_len,
+			  char **key_out, uint32_t *keyout_len, uint64_t *seqno,
 			  int *index, bool inclusive)
 {
 	bool res = false; 
 	int32_t num_entries = n->nkeys;
+	bool found = false;
 
-	res = btree_leaf_find_key2(bt, n, key, keylen, index);
-
-        if ((res == true) && !inclusive) {
-                (*index)++;
-        }
+	*index = bsearch_key_low(bt, n, key, keylen, NULL, 0,
+	                         -1, n->nkeys, BSF_NEXT, &found);
 
 	if (*index >= 0 && *index < num_entries) {
-		btree_leaf_get_nth_key(bt, n, *index, key_out, keyout_len);
+		btree_leaf_get_nth_key(bt, n, *index, key_out, keyout_len, seqno);
 		res = true;
-        } else {
-                res = false;
-        }
+	} else {
+		res = false;
+	}
 
-        return res;
+	return res;
 }
 
 static int 
@@ -1681,7 +1675,6 @@ btree_leaf_copy_keys(btree_raw_t *bt, btree_raw_node_t *from_node, int from_inde
 	key_info_t key_info = {0};
 	char *tmp_data = NULL;
 	uint64_t tmp_datalen = 0;
-	btree_metadata_t *meta = NULL; //unsed right now
 	int32_t bytes_increased = 0; // unused
 	int32_t used_space = 0;
 	bool res = false;
@@ -1696,7 +1689,7 @@ btree_leaf_copy_keys(btree_raw_t *bt, btree_raw_node_t *from_node, int from_inde
 						 &tmp_data, &tmp_datalen);
 		dbg_assert(res == true);
 		res = btree_leaf_insert_key_index(bt, to_node, key_info.key, key_info.keylen,
-					    tmp_data, tmp_datalen, &key_info, meta, to_index + i,
+					    tmp_data, tmp_datalen, &key_info, to_index + i,
 					    &bytes_increased, false);
 		dbg_assert(res == true);
 		free_buffer(bt, key_info.key);
@@ -1715,6 +1708,7 @@ bool
 btree_leaf_split(btree_raw_t *bt, btree_raw_node_t *from_node,
 		 btree_raw_node_t *to_node, char **key_out,
 		 uint32_t *key_out_len, uint64_t *split_syndrome,
+                 uint64_t *split_seqno,
 		 int32_t *bytes_increased)
 {
 	btree_raw_node_t *tmp_node_from = NULL;
@@ -1881,7 +1875,8 @@ done:
 	/*
 	 * fill key out.
 	 */
-	res = btree_leaf_get_nth_key(bt, from_node, middle_index, key_out, key_out_len);
+	res = btree_leaf_get_nth_key(bt, from_node, middle_index,
+	                             key_out, key_out_len, split_seqno);
 
 	/*
 	 * Copy the tmp node back to from_node, except the header fields.
@@ -1970,9 +1965,10 @@ btree_leaf_is_full_index(btree_raw_t *bt, btree_raw_node_t *n, char *key, uint32
 		if (datalen >= bt->big_object_size) {
 			key_info.ptr=0xdeadc0de; //pure hack
 		}
+		key_info.tombstone = (meta->flags & INSERT_TOMBSTONE) ? true: false;
 
 		res = btree_leaf_insert_key_index(bt, n, key, keylen, global_tmp_data,
-						  datalen, &key_info, meta, index, &bytes_increased, true);
+						  datalen, &key_info, index, &bytes_increased, true);
 		dbg_assert(res == true);
 		bytes_needed = bytes_increased - bytes_decreased;
 		if (bytes_needed < 0) {
@@ -1992,8 +1988,10 @@ btree_leaf_is_full_index(btree_raw_t *bt, btree_raw_node_t *n, char *key, uint32
 		if (datalen >= bt->big_object_size) {
 			key_info.ptr=0xdeadc0de; //pure hack
 		}
+		key_info.tombstone = (meta->flags & INSERT_TOMBSTONE) ? true: false;
+
 		res = btree_leaf_insert_key_index(bt, n, key, keylen, global_tmp_data, datalen,
-						  &key_info, meta, index, &bytes_needed, true);
+						  &key_info, index, &bytes_needed, true);
 		dbg_assert(res == true);
 //		dbg_assert(bytes_needed >= bytes_needed1);
 	}
@@ -2138,7 +2136,7 @@ btree_leaf_merge_left(btree_raw_t *bt, btree_raw_node_t *from_node, btree_raw_no
 	keys_copied = btree_leaf_copy_keys(bt, from_node, 0, to_node, nkeys_to, nkeys_from, 0);
 	dbg_assert(keys_copied == nkeys_from);
 
-
+	to_node->next = from_node->next;
 	from_node->nkeys = 0;
 	from_node->insert_ptr = bt->nodesize;
 

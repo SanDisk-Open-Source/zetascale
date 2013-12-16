@@ -211,6 +211,8 @@ typedef uint64_t FDF_cguid_t;
     item(FDF_FAILURE_CANNOT_CREATE_METADATA_CACHE, /* default */) \
     item(FDF_WARNING, /* default */) \
     item(FDF_QUERY_PAUSED, /* Query is paused by callback */) \
+    item(FDF_SNAPSHOT_NOT_FOUND, /* Snapshot not found */) \
+    item(FDF_TOO_MANY_SNAPSHOTS, /* No room for additional snapshots */) \
 
 typedef enum {
 #define item(caps, value) \

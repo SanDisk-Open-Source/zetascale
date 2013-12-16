@@ -35,6 +35,7 @@ static void log_cb(btree_status_t *ret, void *data, uint32_t event_type, struct 
 static int cmp_cb(void *data, char *key1, uint32_t keylen1, char *key2, uint32_t keylen2);
 static void msg_cb(int level, void *msg_data, char *filename, int lineno, char *msg, ...);
 static int trx_cmd_cb( int, ...);
+static uint64_t seqno_alloc_cb(void);
 
 #define Error(msg, args...) \
     msg_cb(0, NULL, __FILE__, __LINE__, msg, ##args);
@@ -307,7 +308,8 @@ btest_init(int argc, char **argv, char *program, btest_parse_fn parse_fn)
 			msg_cb, msg_cb_data, 
 			cmp_cb, cmp_cb_data,
 			mput_default_cmp_cb, NULL,
-			(trx_cmd_cb_t *)trx_cmd_cb, 4, ps
+			(trx_cmd_cb_t *)trx_cmd_cb, 4, ps,
+ 	                (seqno_alloc_cb_t *)seqno_alloc_cb
 	                );
 
 	if (cfg->bt == NULL) {
@@ -745,6 +747,15 @@ trx_cmd_cb( int cmd, ...)
 	abort( );
 }
 
+
+static uint64_t seqno_alloc_cb(void)
+{
+	static uint64_t seqno;
+	uint64_t s;
+
+	s = seqno++;
+	return (s);
+}
 
 /****************************************************
  *

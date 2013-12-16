@@ -4,7 +4,6 @@
 #include "btree_raw.h"
 #include "platform/rwlock.h"
 #include <assert.h>
-#include "fdf.h"
 #include <api/fdf.h>
 
 
@@ -124,10 +123,37 @@ struct btree_raw_mem_node {
 	uint64_t last_dump_modified;
 	pthread_t lock_id;
 #endif
+	bool pinned;
+        bool deref_delete_cache;
 	plat_rwlock_t lock;
 	btree_raw_mem_node_t *next; // dirty list
 	btree_raw_node_t *pnode;
 };
+
+/************** Snapshot related structures *****************/
+#define SNAP_VERSION1			0x98760001
+#define SNAP_VERSION			SNAP_VERSION1
+
+#define SNAP_DELETED		0x01
+typedef struct btree_snap_info_v1 {
+	uint32_t	flag;
+	uint64_t 	seqno;
+	uint64_t 	timestamp;
+} btree_snap_info_v1_t;
+
+typedef struct btree_snap_meta_v1 {
+	btree_snap_info_v1_t snapshots[0];
+} btree_snap_meta_v1_t;
+
+
+typedef struct btree_snap_meta {
+	uint32_t			snap_version;
+	uint32_t			max_snapshots;
+	uint32_t			total_snapshots;
+	union {
+		btree_snap_meta_v1_t	v1_meta;
+	} meta;
+}btree_snap_meta_t;
 
 #define BTREE_RAW_L1CACHE_LIST_MAX 10000
 #define BT_SYNC_THREADS				32
@@ -157,7 +183,7 @@ typedef struct btSyncRequest {
 	int                     dir_count, del_count;
 	int                     dir_index, del_index, total_flush, ref_count;
 	pthread_cond_t			ret_condvar;
-}btSyncRequest_t;
+} btSyncRequest_t;
 
 typedef struct btree_raw {
     uint32_t           n_partition;
@@ -197,6 +223,7 @@ typedef struct btree_raw {
 
     trx_cmd_cb_t      *trx_cmd_cb;
     bool               trxenabled;
+    seqno_alloc_cb_t  *seqno_alloc_cb;
     btree_stats_t      stats;
 
     plat_rwlock_t      lock;
@@ -219,24 +246,50 @@ typedef struct btree_raw {
     uint64_t           last_flushed_seq_num;
     uint64_t           pstats_modified;
     fdf_pstats_t      *pstats; 
+
+    /* Snapshot related variables */
+    pthread_rwlock_t   snap_lock;
+    btree_snap_meta_t  *snap_meta;
 } btree_raw_t;
 
+#define META_VERSION1	0x88880001
+#define META_VERSION	META_VERSION1
+
 typedef struct btree_raw_persist {
-    btree_raw_node_t n; // this must be first member
-    uint64_t    rootid,
-                logical_id_counter,next_logical_id;
+    btree_raw_node_t      n; // this must be first member
+    uint32_t              meta_version;
+    uint64_t              rootid;
+    uint64_t              logical_id_counter;
+    uint64_t              next_logical_id;
+    btree_snap_meta_t     snap_details;
 } btree_raw_persist_t;
+
+void btree_snap_init_meta(btree_raw_t *bt, size_t size);
+btree_status_t btree_snap_create_meta(btree_raw_t *bt, uint64_t seqno);
+btree_status_t btree_snap_delete_meta(btree_raw_t *bt, uint64_t seqno);
+int btree_snap_find_meta_index(btree_raw_t *bt, uint64_t seqno);
+btree_status_t btree_snap_get_meta_list(btree_raw_t *bt, uint32_t *n_snapshots,
+ 		                             FDF_container_snapshots_t **snap_seqs);
+bool btree_snap_seqno_in_snap(btree_raw_t *bt, uint64_t seqno);
+ 
+btree_status_t savepersistent( btree_raw_t *bt, bool create);
+btree_status_t flushpersistent( btree_raw_t *bt);
 
 int get_key_stuff(btree_raw_t *bt, btree_raw_node_t *n, uint32_t nkey, key_stuff_t *pks);
 int 
 get_key_stuff_info2(btree_raw_t *bt, btree_raw_node_t *n, uint32_t nkey, key_stuff_info_t *key_info);
-btree_status_t get_leaf_data_index(btree_raw_t *bt, btree_raw_node_t *n, int index, char **data, uint64_t *datalen, uint32_t meta_flags, int ref);
-btree_status_t get_leaf_key_index(btree_raw_t *bt, btree_raw_node_t *n, int index, char **key, uint32_t *keylen, uint32_t meta_flags);
-btree_raw_mem_node_t *get_existing_node_low(btree_status_t *ret, btree_raw_t *btree, uint64_t logical_id, int ref);
+
+btree_status_t get_leaf_data_index(btree_raw_t *bt, btree_raw_node_t *n, int index, char **data, uint64_t *datalen, uint32_t meta_flags, int ref, bool deref_delete_cache);
+btree_status_t get_leaf_key_index(btree_raw_t *bt, btree_raw_node_t *n, int index, char **key, uint32_t *keylen, uint32_t meta_flags, key_stuff_info_t *pks);
+btree_raw_mem_node_t *get_existing_node_low(btree_status_t *ret, btree_raw_t *btree, uint64_t logical_id, int ref, bool pinned, bool delete_after_deref);
 btree_raw_mem_node_t *get_existing_node(btree_status_t *ret, btree_raw_t *btree, uint64_t logical_id);
 int is_leaf(btree_raw_t *btree, btree_raw_node_t *node);
 int is_overflow(btree_raw_t *btree, btree_raw_node_t *node);
+void delete_key_by_index_non_leaf(btree_status_t* ret, btree_raw_t *btree, btree_raw_mem_node_t *node, int index);
+void delete_key_by_index_leaf(btree_status_t* ret, btree_raw_t *btree, btree_raw_mem_node_t *node, int index);
+void delete_key_by_index(btree_status_t* ret, btree_raw_t *btree, btree_raw_mem_node_t *node, int index);
   
+int is_leaf_minimal_after_delete(btree_raw_t *btree, btree_raw_node_t *n, int index);
 btree_status_t btree_recovery_process_minipkt(btree_raw_t *bt,
                                btree_raw_node_t **onodes, uint32_t on_cnt, 
                                btree_raw_node_t **nnodes, uint32_t nn_cnt);
@@ -248,8 +301,15 @@ char *get_buffer(btree_raw_t *btree, uint64_t nbytes);
 
 btree_status_t deref_l1cache(btree_raw_t *btree);
 
-bool 
-btree_raw_find(struct btree_raw *btree, char *key, uint32_t keylen, uint64_t syndrome, btree_metadata_t *meta, btree_raw_mem_node_t** node, int write_lock, int* pathcnt);
+int
+btree_raw_find(struct btree_raw *btree, char *key, uint32_t keylen, uint64_t syndrome,
+	       btree_metadata_t *meta, btree_raw_mem_node_t** node, int write_lock,
+	       int* pathcnt, bool *found);
+
+int seqno_cmp_range(btree_metadata_t *smeta, uint64_t key_seqno,
+                 bool *exact_match, bool *range_match);
+
+int scavenge_node(struct btree_raw *btree, btree_raw_mem_node_t* node, key_stuff_info_t *ks_prev_key, key_stuff_info_t **key);
 
 void ref_l1cache(btree_raw_t *btree, btree_raw_mem_node_t *n);
 void unlock_and_unreference();
@@ -319,12 +379,16 @@ void get_key_val(btree_raw_t *bt, btree_raw_node_t *n, uint32_t nkey, char** key
 	}
 }
 
-int bsearch_key_low(btree_raw_t *bt, btree_raw_node_t *n, char *key_in,
-		uint32_t keylen_in, uint64_t syndrome, int i_start, int i_end, int *found, int flags);
+int bsearch_key_low(btree_raw_t *bt, btree_raw_node_t *n,
+                    char *key_in, uint32_t keylen_in,
+                    btree_metadata_t *meta, uint64_t syndrome,
+                    int i_start, int i_end, int flags,
+                    bool *found);
 
-#define BSF_LEFT 1
-#define BSF_RIGHT 2
-#define BSF_MATCH 4
+#define BSF_LATEST  1
+#define BSF_OLDEST  2
+#define BSF_NEXT    4
+#define BSF_MATCH   8
 
 #ifdef DBG_PRINT
 #define dbg_print(msg, ...) do { fprintf(stderr, "%x %s:%d " msg, (int)pthread_self(), __FUNCTION__, __LINE__, ##__VA_ARGS__); } while(0)

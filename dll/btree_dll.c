@@ -245,6 +245,25 @@ FDF_status_t
          void *data);
 
 
+FDF_status_t
+(*ptr_FDFCreateContainerSnapshot)(struct FDF_thread_state *ts,
+							FDF_cguid_t cguid,
+							uint64_t *snap_seq);
+
+FDF_status_t
+(*ptr_FDFDeleteContainerSnapshot)(struct FDF_thread_state *ts,
+									FDF_cguid_t cguid,
+									uint64_t snap_seq);
+
+FDF_status_t
+(*ptr_FDFGetContainerSnapshots)(struct FDF_thread_state *ts,
+									FDF_cguid_t cguid,
+									uint32_t *n_snapshots,
+									FDF_container_snapshots_t **snap_seqs);
+FDF_status_t (*ptr_FDFScavenger) (struct FDF_state *fdf_state);
+FDF_status_t (*ptr_FDFScavenge_container) (struct FDF_state *fdf_state, FDF_cguid_t cguid);
+FDF_status_t (*ptr_FDFScavenge_snapshot) (struct FDF_state *fdf_state, FDF_cguid_t cguid, uint64_t snap_seq);
+
 #if 0
 static void 
 (*ptr_FDFTLMapDestroy)(struct FDFTLMap *pm);
@@ -362,9 +381,15 @@ static struct {
     { "_FDFGetRange",                   &ptr_FDFGetRange                  },
     { "_FDFGetNextRange",               &ptr_FDFGetNextRange              },
     { "_FDFGetRangeFinish",             &ptr_FDFGetRangeFinish            },
-    { "_FDFMPut", 		        &ptr_FDFMPut		          },
-    { "_FDFRangeUpdate", 		&ptr_FDFRangeUpdate		  },
+    { "_FDFMPut",                       &ptr_FDFMPut                      },
+    { "_FDFRangeUpdate",                &ptr_FDFRangeUpdate               },
     { "_FDFIoctl",                      &ptr_FDFIoctl                     },
+    { "_FDFCreateContainerSnapshot",    &ptr_FDFCreateContainerSnapshot   },
+    { "_FDFDeleteContainerSnapshot",    &ptr_FDFDeleteContainerSnapshot   },
+    { "_FDFGetContainerSnapshots",      &ptr_FDFGetContainerSnapshots     },
+    { "_FDFScavenger",                  &ptr_FDFScavenger                 },
+    { "_FDFScavenge_container",         &ptr_FDFScavenge_container        },
+    { "_FDFScavenge_snapshot",          &ptr_FDFScavenge_snapshot         },
 #if 0
     { "_FDFTLMapDestroy",               &ptr_FDFTLMapDestroy              },
     { "_FDFTLMapClear",                 &ptr_FDFTLMapClear                },
@@ -1105,6 +1130,40 @@ FDFGetRangeFinish(struct FDF_thread_state *fdf_thread_state,
     return (*ptr_FDFGetRangeFinish)(fdf_thread_state, cursor);
 }
 
+FDF_status_t
+FDFCreateContainerSnapshot(struct FDF_thread_state *ts,
+							FDF_cguid_t cguid,
+							uint64_t *snap_seq)
+{
+    if (unlikely(!ptr_FDFCreateContainerSnapshot))
+        undefined("FDFCreateContainerSnapshot");
+
+    return (*ptr_FDFCreateContainerSnapshot)(ts, cguid, snap_seq);
+}
+
+FDF_status_t
+FDFDeleteContainerSnapshot(struct FDF_thread_state *ts,
+                           FDF_cguid_t cguid,
+                           uint64_t snap_seq)
+{
+    if (unlikely(!ptr_FDFDeleteContainerSnapshot))
+        undefined("FDFDeleteContainerSnapshot");
+
+    return (*ptr_FDFDeleteContainerSnapshot)(ts, cguid, snap_seq);
+}
+
+
+FDF_status_t
+FDFGetContainerSnapshots(struct FDF_thread_state *ts,
+							FDF_cguid_t cguid,
+							uint32_t *n_snapshots,
+							FDF_container_snapshots_t **snap_seqs)
+{
+    if (unlikely(!ptr_FDFGetContainerSnapshots))
+        undefined("FDFGetContainerSnapshots");
+
+    return (*ptr_FDFGetContainerSnapshots)(ts, cguid, n_snapshots, snap_seqs);
+}
 #if 0
 /*
  * FDFTLMapDestroy
@@ -1384,4 +1443,23 @@ FDFIoctl(struct FDF_thread_state *fdf_thread_state,
 
 
     return (*ptr_FDFIoctl) (fdf_thread_state, cguid, ioctl_type, data);
+}
+
+FDF_status_t FDFScavenger(struct FDF_state *fdf_state) {
+	if (unlikely(!ptr_FDFScavenger)) {
+		undefined("FDFScavenger");
+	}
+	return (*ptr_FDFScavenger) (fdf_state);
+}
+FDF_status_t FDFScavenge_container(struct FDF_state *fdf_state, FDF_cguid_t cguid) {
+	if (unlikely(!ptr_FDFScavenge_container)) {
+                undefined("FDFScavenge_contianer");
+        }
+        return (*ptr_FDFScavenge_container) (fdf_state, cguid);
+}
+FDF_status_t FDFScavenge_snapshot(struct FDF_state *fdf_state, FDF_cguid_t cguid, uint64_t snap_seq) {
+	if (unlikely(!ptr_FDFScavenge_snapshot)) {
+                undefined("FDFScavenge_snapshot");
+        }
+        return (*ptr_FDFScavenge_snapshot) (fdf_state, cguid, snap_seq);
 }

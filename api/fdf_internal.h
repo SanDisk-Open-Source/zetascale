@@ -21,7 +21,7 @@ extern "C" {
 #include <stdint.h>
 #include "common/fdftypes.h"
 #include "common/fdfstats.h"
-
+#include "api/fdf_internal_cb.h"
 
 #define STATS_BUFFER_SIZE 1024
 #define MCD_FTH_STACKSIZE 81920
@@ -59,7 +59,7 @@ typedef struct {
     struct FDF_state *fdf_state;
 }admin_config_t;
 
-typedef struct {
+typedef struct cmd_token {
     char *value;
     size_t length;
 } cmd_token_t;
@@ -77,6 +77,9 @@ enum {
 #endif
 
 struct FDF_thread_state;
+
+/* External call backs */
+FDF_ext_cb_t *ext_cbs;
 
 /* Function declaration for Admin and Stats */
 FDF_status_t dump_container_stats_by_cguid(struct FDF_thread_state *thd_state,
@@ -152,7 +155,7 @@ void disable_stats_auto_dump() ;
 int is_auto_dump_enabled() ;
 void set_stats_autodump_interval(int interval);
 int get_autodump_interval();
-char *FDFGetNextContainerName(struct FDF_thread_state *fdf_thread_state, struct FDFCMapIterator **iterator);
+char *FDFGetNextContainerName(struct FDF_thread_state *fdf_thread_state, struct FDFCMapIterator **iterator, FDF_cguid_t *pcguid);
 FDF_status_t async_command_delete_container(FDF_cguid_t cguid);
 void get_async_delete_stats( uint32_t *num_deletes,uint32_t *num_prog);
 FDF_status_t fdf_delete_container_async_end(

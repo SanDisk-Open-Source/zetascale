@@ -19,6 +19,7 @@
 #include "btree_map.h"
 #include "btree_raw_internal.h"
 #include "btree_range.h"
+#include "btree/btree_var_leaf.h"
 
 #define N_CURSOR_MAX 3
 static __thread btree_range_cursor_t __thread_cursor[N_CURSOR_MAX];
@@ -28,6 +29,8 @@ static __thread char tmp_key_buf[8100] = {0};
              (((meta)->key_start && ((meta)->flags & (RANGE_START_GT | RANGE_START_GE))) || \
               ((meta)->key_end && ((meta)->flags & (RANGE_END_LT | RANGE_END_LE))) || \
               (((meta)->key_start == NULL) && ((meta)->key_end == NULL)))
+
+#define is_snapshot_query(meta) (meta->flags & (RANGE_SEQNO_EQ | RANGE_SEQNO_LE | RANGE_SEQNO_GT_LE))
 
 static inline int
 fatal(btree_status_t s) { return s != BTREE_SUCCESS && s != BTREE_WARNING; }
@@ -102,7 +105,8 @@ fill_key_range(btree_raw_t          *bt,
                btree_raw_mem_node_t *n,
 	       int index,
                btree_range_meta_t   *rmeta,
-               btree_range_data_t   *value)
+               btree_range_data_t   *value,
+               btree_range_data_t   *prev_value)
 {
 	node_vlkey_t      *pvlk;
 	btree_status_t status;
@@ -110,8 +114,39 @@ fill_key_range(btree_raw_t          *bt,
 	uint32_t keybuf_size;
 	uint64_t databuf_size;
 	uint32_t meta_flags;
+	key_meta_t key_meta;
+	btree_metadata_t smeta;
+	bool query_match, range_match;
+	key_stuff_info_t ks = {0};
+	key_stuff_info_t *pks = NULL;
 
+	/* Validate if this is in valid seqno range */
+	btree_leaf_get_meta(n->pnode, index, &key_meta);
+	smeta.flags = rmeta->flags;
+	smeta.start_seqno = rmeta->start_seq;
+	smeta.end_seqno = rmeta->end_seq;
+	(void)seqno_cmp_range(&smeta, key_meta.seqno, &query_match, &range_match);
+	if (!query_match && !range_match) {
+		return (BTREE_SKIPPED);
+	}
 
+	if (key_meta.tombstone) {
+		return (BTREE_SKIPPED);
+	}
+
+	/* For seqno based queries, skip putting duplicate keys (even if its
+	 * for different seqnos */
+	if (rmeta->flags & (READ_SEQNO_EQ | READ_SEQNO_LE | READ_SEQNO_GT_LE)) {
+		ks.key = tmp_key_buf;
+		get_key_stuff_info2(bt, n->pnode, index, &ks);
+
+		if (prev_value && 
+		     (bt->cmp_cb(bt->cmp_cb_data, prev_value->key, prev_value->keylen,
+		                 ks.key, ks.keylen) == 0)) {
+			return (BTREE_SKIPPED);
+		}
+		pks = &ks; // Use this key_stuff we already grabbed for future use
+	}
 
 	/* TODO: Later on try to combine range_meta and btree_meta
 	 * For now, set the meta_flags for get_leaf_data usage */
@@ -126,7 +161,7 @@ fill_key_range(btree_raw_t          *bt,
 	status = get_leaf_key_index(bt, n->pnode, index,
 				      &value->key,
 				      &keybuf_size,
-				      meta_flags);
+				      meta_flags, pks);
 
 	dbg_print_key(value->key, keybuf_size, "key");
 
@@ -156,7 +191,8 @@ fill_key_range(btree_raw_t          *bt,
 	if (!(rmeta->flags & RANGE_KEYS_ONLY)) {
 		status = get_leaf_data_index(bt, n->pnode, index,
 					       &value->data, &databuf_size,
-					       meta_flags, 0);
+					       meta_flags, 0,
+		                               is_snapshot_query(rmeta));
 
 		switch (status) {
 		case BTREE_SUCCESS:
@@ -184,29 +220,47 @@ fill_key_range(btree_raw_t          *bt,
 }
 
 static inline
-int bsearch_end(btree_range_cursor_t *c, btree_raw_mem_node_t *node) {
+int bsearch_end(btree_range_cursor_t *c, btree_raw_mem_node_t *node) 
+{
 	btree_range_meta_t* meta = &c->query_meta;
-	int found;
-	if(!meta->key_end)
+	btree_metadata_t smeta;
+	bool found;
+
+	if(!meta->key_end) {
 		return c->dir > 0 ? node->pnode->nkeys : 0;
-	else
+	} else {
+		smeta.flags       = meta->flags;
+		smeta.start_seqno = meta->start_seq;
+		smeta.end_seqno   = meta->end_seq;
+
 		return bsearch_key_low(c->btree, node->pnode, meta->key_end,
-				meta->keylen_end, 0, -1, node->pnode->nkeys, &found,
-				(meta->flags & (RANGE_END_GE | RANGE_END_LT)) ?
-				BSF_LEFT : BSF_RIGHT);
+		                       meta->keylen_end, &smeta, 0, -1, node->pnode->nkeys,
+		                       (meta->flags & (RANGE_END_GE | RANGE_END_LT)) ? 
+		                          BSF_LATEST: BSF_NEXT,
+		                       &found);
+	}
 }
 
 static inline
-int bsearch_start(btree_range_cursor_t *c, btree_raw_mem_node_t *node) {
+int bsearch_start(btree_range_cursor_t *c, btree_raw_mem_node_t *node) 
+{
 	btree_range_meta_t* meta = &c->query_meta;
-	int found;
-	if(!meta->key_start)
+	btree_metadata_t smeta;
+	bool found;
+
+	if(!meta->key_start) {
 		return c->dir > 0 ? 0 : node->pnode->nkeys;
-	else
+	} else {
+		smeta.flags       = meta->flags;
+		smeta.start_seqno = meta->start_seq;
+		smeta.end_seqno   = meta->end_seq;
+
 		return bsearch_key_low(c->btree, node->pnode, meta->key_start,
-				meta->keylen_start, 0, -1, node->pnode->nkeys, &found,
+				meta->keylen_start, &smeta, 0, -1, node->pnode->nkeys,
 				(meta->flags & (RANGE_START_GE | RANGE_START_LT)) ?
-				BSF_LEFT : BSF_RIGHT);
+		                         BSF_LATEST : BSF_NEXT,
+		                &found);
+	}
 }
 
 static
@@ -264,7 +318,8 @@ btree_range_find_diversion(btree_range_cursor_t* c)
 
 		parent = node;
 
-		node = get_existing_node_low(&ret, c->btree, child_id, 0);
+		node = get_existing_node_low(&ret, c->btree, child_id, 0, false, 
+		                             is_snapshot_query(meta));
 		assert(BTREE_SUCCESS == ret && node); //FIXME add correct error checking here
 
 		plat_rwlock_rdlock(&node->lock);
@@ -299,7 +354,14 @@ populate_output_array(btree_range_cursor_t *c,
 	{
 //		ret = fill_key_range(c->btree, node, key_offset(c->btree,
 //						node->pnode, *cur_idx), c->query_meta, values + *n_out);
-		ret = fill_key_range(c->btree, node, (int) *cur_idx, &c->query_meta, values + *n_out);
+		ret = fill_key_range(c->btree, node, (int) *cur_idx, &c->query_meta,
+		                     values + *n_out,
+		                     (*n_out) ? values + (*n_out) - 1: NULL);
+
+		if (ret == BTREE_SKIPPED) {
+			(*cur_idx) += c->dir;
+			continue;
+		}
 
 		if(ret != BTREE_SUCCESS)
 			*status = ret;
@@ -387,7 +449,8 @@ btree_range_get_next_fast(btree_range_cursor_t *c,
 				ks.keylen = 0;
 			}
 
-			child->node = get_existing_node_low(&r, c->btree, logical_id, 0);
+			child->node = get_existing_node_low(&r, c->btree, logical_id, 0, false, 
+			                                    is_snapshot_query(meta));
 			assert(child->node);
 
 			plat_rwlock_rdlock(&child->node->lock);
@@ -495,7 +558,9 @@ int find_end_idx(btree_raw_t* bt, btree_range_cursor_t *c, btree_range_meta_t* r
 {
 	btree_raw_node_t *node = c->node->pnode;
 	char* key;
-	int keylen, found;
+	int keylen;
+	bool found;
+	btree_metadata_t smeta;
 
 	/* Handle open-right-end of a query */
 	if(!rmeta->key_end)
@@ -509,9 +574,14 @@ int find_end_idx(btree_raw_t* bt, btree_range_cursor_t *c, btree_range_meta_t* r
 	if(x > 0 || (x == 0 && (rmeta->flags & RANGE_END_LE)))
 		return node->nkeys;
 
-	x = bsearch_key_low(bt, node, rmeta->key_end, rmeta->keylen_end, 0,
-			c->cur_idx - 1, node->nkeys, &found,
-			(rmeta->flags & RANGE_END_LT) ? BSF_LEFT : BSF_RIGHT);
+	smeta.flags       = rmeta->flags;
+	smeta.start_seqno = rmeta->start_seq;
+	smeta.end_seqno   = rmeta->end_seq;
+
+	x = bsearch_key_low(bt, node, rmeta->key_end, rmeta->keylen_end, &smeta, 0,
+			c->cur_idx - 1, node->nkeys,
+			(rmeta->flags & RANGE_END_LT) ? BSF_LATEST: BSF_NEXT,
+	                &found);
 
 	return x;
 }
@@ -636,7 +706,7 @@ btree_range_query_start(btree_t                 *btree,
                         btree_range_cursor_t    **cursor,
                         btree_range_meta_t      *rmeta)
 {
-    btree_metadata_t  meta;
+	btree_metadata_t  meta;
 	btree_status_t       status;
 	btree_range_cursor_t *c;
 

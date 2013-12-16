@@ -105,6 +105,8 @@ typedef enum {
     FDF_CACHE_STAT_LEAF_L1_MISSES,
     FDF_CACHE_STAT_NONLEAF_L1_MISSES,
     FDF_CACHE_STAT_OVERFLOW_L1_MISSES,
+    FDF_CACHE_STAT_BACKUP_L1_MISSES,
+    FDF_CACHE_STAT_BACKUP_L1_HITS,
     FDF_CACHE_STAT_LEAF_L1_WRITES,
     FDF_CACHE_STAT_NONLEAF_L1_WRITES,
     FDF_CACHE_STAT_OVERFLOW_L1_WRITES,
@@ -135,6 +137,9 @@ typedef enum {
     FDF_CACHE_STAT_BT_MPUT_IO_SAVED,
     FDF_CACHE_STAT_BT_PUT_RESTART_CNT,
     FDF_CACHE_STAT_BT_SPCOPT_BYTES_SAVED,
+    FDF_CACHE_STAT_BT_NUM_SNAP_OBJS,
+    FDF_CACHE_STAT_BT_SNAP_DATA_SIZE,
+    FDF_CACHE_STAT_BT_NUM_SNAPS,
 
     /* request from cache to flash manager */
     FDF_CACHE_STAT_AHCOB,
@@ -343,6 +348,10 @@ typedef struct {
 	FDF_histo_t		 access_time_histo[FDF_N_ACCESS_TYPES];
 } FDF_stats_t;
 
+typedef struct {
+	uint64_t		timestamp;
+	uint64_t		seqno;
+} FDF_container_snapshots_t;
 #if 0
 typedef struct {
 	uint64_t				size_kb;
@@ -1291,9 +1300,13 @@ FDF_status_t
 FDFGetContainerSnapshots(
 	struct FDF_thread_state	*fdf_thread_state,
 	FDF_cguid_t		cguid,
-	uint32_t		n_snapshots,
-	uint64_t		snap_seqs
+	uint32_t		*n_snapshots,
+	FDF_container_snapshots_t	**snap_seqs
 	);
+
+FDF_status_t FDFScavenger(struct FDF_state *fdf_state);
+FDF_status_t FDFScavenge_container(struct FDF_state *fdf_state, FDF_cguid_t cguid);
+FDF_status_t FDFScavenge_snapshot(struct FDF_state *fdf_state, FDF_cguid_t cguid, uint64_t snap_seq);
 
 /*
  * @brief Check that FDF operations are allowed (e.g., not in shutdown).
@@ -1402,6 +1415,7 @@ FDFGetIndexMeta(struct FDF_thread_state *ts,       //  client thread FDF context
                 FDF_cguid_t              cguid,    //  container
                 FDF_indexid_t            indexid,  //  index id
                 FDF_index_meta_t        *meta);    //  attributes of index
+
 
 #endif /* If 0 */
 #ifdef __cplusplus

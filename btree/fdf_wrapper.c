@@ -30,6 +30,8 @@
 #include "btree_raw_internal.h"
 #include "btree_malloc.h"
 #include "flip/flip.h"
+#include "btree_scavenger.h"
+#include "btree_sync_th.h"
 
 #define MAX_NODE_SIZE   128*1024
 
@@ -82,6 +84,7 @@ static btree_status_t delete_node_cb(void *data, uint64_t lnodeid);
 static void                   log_cb(btree_status_t *ret, void *data, uint32_t event_type, struct btree_raw *btree);
 static int                    lex_cmp_cb(void *data, char *key1, uint32_t keylen1, char *key2, uint32_t keylen2);
 static void                   msg_cb(int level, void *msg_data, char *filename, int lineno, char *msg, ...);
+static uint64_t               seqno_alloc_cb(void);
 uint64_t                      seqnoalloc( struct FDF_thread_state *);
 FDF_status_t btree_get_all_stats(FDF_cguid_t cguid,
                                 FDF_ext_stat_t **estat, uint32_t *n_stats) ;
@@ -90,6 +93,10 @@ static void* pstats_fn(void *parm);
 void FDFInitPstats(struct FDF_thread_state *my_thd_state, char *key, fdf_pstats_t *pstats);
 void FDFLoadPstats(struct FDF_state *fdf_state);
 static bool pstats_prepare_to_flush(struct FDF_thread_state *thd_state);
+
+FDF_status_t btree_process_admin_cmd(struct FDF_thread_state *thd_state, 
+                                     FILE *fp, cmd_token_t *tokens, size_t ntokens);
+int bt_get_cguid(FDF_cguid_t cguid);
 
 FDF_status_t
 _FDFGetRange(struct FDF_thread_state *fdf_thread_state,
@@ -184,7 +191,12 @@ typedef struct cmap {
     read_node_t			node_data;
 	bool				read_only;
 	BT_CNTR_STATE		bt_state;
-	int					bt_io_count;
+	int					bt_wr_count, bt_rd_count;
+	int					snap_initiated;
+	bool			scavenger_state;
+	pthread_mutex_t		bt_snap_mutex;
+	pthread_cond_t		bt_snap_wr_cv;
+	pthread_cond_t		bt_snap_cv;
 	pthread_rwlock_t	bt_cm_rwlock;
 } ctrmap_t;
 
@@ -252,7 +264,8 @@ bt_get_ctnr_from_cguid(
  * held. Caller need to release the lock using bt_rel_entry() routine.
  */
 static btree_t *
-bt_get_btree_from_cguid(FDF_cguid_t cguid, int *index, FDF_status_t *error)
+bt_get_btree_from_cguid(FDF_cguid_t cguid, int *index, FDF_status_t *error,
+						bool write)
 {
 	int i;
 	FDF_status_t	err = FDF_SUCCESS;
@@ -273,7 +286,20 @@ bt_get_btree_from_cguid(FDF_cguid_t cguid, int *index, FDF_status_t *error)
 			(Container_Map[i].bt_state == BT_CNTR_OPEN)) {
 		*index = i;
 		bt = Container_Map[i].btree;
-		(void) __sync_add_and_fetch(&(Container_Map[i].bt_io_count), 1);
+		if (write) {
+			pthread_mutex_lock(&(Container_Map[i].bt_snap_mutex));
+			while (Container_Map[i].snap_initiated) {
+				fprintf(stderr, "Snap in progress, writer waiting\n");
+				pthread_cond_wait(&(Container_Map[i].bt_snap_wr_cv),
+									&(Container_Map[i].bt_snap_mutex));
+				fprintf(stderr, "writer wokenup\n");
+			}
+			assert(Container_Map[i].snap_initiated == 0);
+			(void) __sync_add_and_fetch(&(Container_Map[i].bt_wr_count), 1);
+			pthread_mutex_unlock(&(Container_Map[i].bt_snap_mutex));
+		} else {
+			(void) __sync_add_and_fetch(&(Container_Map[i].bt_rd_count), 1);
+		}
 	} else {
 		pthread_rwlock_unlock(&(Container_Map[i].bt_cm_rwlock));
 		/* The container has been deleted while we were acquiring the lock */
@@ -288,9 +314,27 @@ bt_get_btree_from_cguid(FDF_cguid_t cguid, int *index, FDF_status_t *error)
 }
 
 static void
-bt_rel_entry(int i)
+bt_rel_entry(int i, bool write)
 {
-	(void) __sync_sub_and_fetch(&(Container_Map[i].bt_io_count), 1);
+	int cnt;
+	if (write) {
+		cnt = __sync_sub_and_fetch(&(Container_Map[i].bt_wr_count), 1);
+		assert(Container_Map[i].bt_wr_count >= 0);
+		if (cnt == 0) {
+			pthread_mutex_lock(&(Container_Map[i].bt_snap_mutex));
+			if (Container_Map[i].snap_initiated) {
+				if (Container_Map[i].bt_wr_count == 0) {
+					fprintf(stderr, "Writer wakingup snap thread\n");
+					pthread_cond_signal(&(Container_Map[i].bt_snap_cv));
+				}
+			}
+			pthread_mutex_unlock(&(Container_Map[i].bt_snap_mutex));
+		}
+	} else {
+		(void) __sync_sub_and_fetch(&(Container_Map[i].bt_rd_count), 1);
+		assert(Container_Map[i].bt_rd_count >= 0);
+	}
+
 	pthread_rwlock_unlock(&(Container_Map[i].bt_cm_rwlock));
 	return;
 }
@@ -367,10 +411,16 @@ FDF_status_t _FDFInit(
     pthread_t thr1;
     int iret;
 
+	const char *FDF_SCAVENGER_THREADS = "60";
+	int NThreads = 10;
+
     // Initialize the map
     for (i=0; i<MAX_OPEN_CONTAINERS; i++) {
         Container_Map[i].cguid = FDF_NULL_CGUID;
         Container_Map[i].btree = NULL;
+		Container_Map[i].snap_initiated= 0;
+		pthread_mutex_init(&(Container_Map[i].bt_snap_mutex), NULL);
+		pthread_cond_init(&(Container_Map[i].bt_snap_cv), NULL);
 		pthread_rwlock_init(&(Container_Map[i].bt_cm_rwlock), NULL);
     }
 
@@ -384,6 +434,12 @@ FDF_status_t _FDFInit(
     ret = FDFInit(fdf_state);
     if ( ret == FDF_FAILURE ) {
         return FDF_FAILURE;
+    }
+	
+    btSyncMboxInit(&mbox_scavenger);
+    NThreads = atoi(_FDFGetProperty("FDF_SCAVENGER_THREADS",FDF_SCAVENGER_THREADS));
+    for (i = 0;i < NThreads;i++) {
+	btSyncResume(btSyncSpawn(NULL,i,&scavenger_worker),(uint64_t)NULL);
     }
 
     cbs = malloc(sizeof(FDF_ext_cb_t));
@@ -407,6 +463,7 @@ FDF_status_t _FDFInit(
 
     memset(cbs,0,sizeof(FDF_ext_cb_t));
     cbs->stats_cb = btree_get_all_stats;
+    cbs->admin_cb = btree_process_admin_cmd;
     trxinit( );
     ret = FDFRegisterCallbacks(*fdf_state, cbs);
 	FDFState = *fdf_state;
@@ -840,7 +897,8 @@ restart:
 		    mput_cmp_cb_data,
                     trx_cmd_cb,
 		    *cguid,
-                    &pstats
+                    &pstats,
+                    (seqno_alloc_cb_t *)seqno_alloc_cb
 		    );
 
     if (bt == NULL) {
@@ -850,6 +908,7 @@ restart:
 		goto fail;
     }
 
+    pthread_rwlock_init(&(bt->snapop_rwlock), NULL);
     env = getenv("BTREE_READ_BY_RQUERY");
     if (env && (atoi(env) == 1)) {
         Container_Map[index].read_by_rquery = 1;
@@ -963,10 +1022,13 @@ restart:
 	}
 
 	/* IO must not exist on this entry since we have write lock now */
-	assert(Container_Map[index].bt_io_count == 0);
-	if (Container_Map[index].bt_io_count) {
+	assert(Container_Map[index].bt_rd_count == 0);
+	assert(Container_Map[index].bt_wr_count == 0);
+	if (Container_Map[index].bt_rd_count ||
+	    Container_Map[index].bt_wr_count) {
 		pthread_rwlock_unlock(&(Container_Map[index].bt_cm_rwlock));
-		while (Container_Map[index].bt_io_count) {
+		while (Container_Map[index].bt_rd_count ||
+		       Container_Map[index].bt_wr_count) {
 			sched_yield();
 		}
 		goto restart;
@@ -1019,11 +1081,14 @@ restart:
 	}
 	
 	/* IO might have started on this container. Lets wait and retry */
-	assert(Container_Map[index].bt_io_count == 0);
-	if (Container_Map[index].bt_io_count) {
+	assert(Container_Map[index].bt_rd_count == 0);
+	assert(Container_Map[index].bt_wr_count == 0);
+	if (Container_Map[index].bt_rd_count ||
+	    Container_Map[index].bt_wr_count) {
 		pthread_rwlock_unlock(&(Container_Map[index].bt_cm_rwlock));
-		while (Container_Map[index].bt_io_count) {
-			sched_yield();
+		while (Container_Map[index].bt_rd_count ||
+		        Container_Map[index].bt_wr_count) {
+			pthread_yield();
 		}
 		goto restart;
 	}
@@ -1181,7 +1246,7 @@ FDF_status_t _FDFReadObject(
         return (ret);
     }
 
-    bt = bt_get_btree_from_cguid(cguid, &index, &ret);
+    bt = bt_get_btree_from_cguid(cguid, &index, &ret, false);
     if (bt == NULL) {
         return (ret);
     }
@@ -1189,7 +1254,7 @@ FDF_status_t _FDFReadObject(
     if (keylen > bt->max_key_size) {
         msg("btree_insert/update keylen(%d) more than max_key_size(%d)\n",
                  keylen, bt->max_key_size);
-		bt_rel_entry(index);
+		bt_rel_entry(index, false);
         return (FDF_KEY_TOO_LONG);
     }
 
@@ -1244,7 +1309,7 @@ done:
             break;
     }
 
-	bt_rel_entry(index);
+	bt_rel_entry(index, false);
     return(ret);
 }
 
@@ -1271,13 +1336,24 @@ FDF_status_t _FDFReadObjectExpiry(
     FDF_readobject_t         *robj
     )
 {
-    my_thd_state = fdf_thread_state;;
+	my_thd_state = fdf_thread_state;;
 	FDF_status_t	ret;
+	int				index;
+	struct btree	*bt;
+
 	if ((ret= bt_is_valid_cguid(cguid)) != FDF_SUCCESS) {
 		return ret;
 	}
 
-    return(FDFReadObjectExpiry(fdf_thread_state, cguid, robj));
+	bt = bt_get_btree_from_cguid(cguid, &index, &ret, false);
+	if (bt == NULL) {
+		return ret;
+	}
+
+	ret = FDFReadObjectExpiry(fdf_thread_state, cguid, robj);
+	bt_rel_entry(index, false);
+
+	return(ret);
 }
 
 
@@ -1344,32 +1420,24 @@ FDF_status_t _FDFWriteObject(
 	if ((ret= bt_is_valid_cguid(cguid)) != FDF_SUCCESS) {
 		return ret;
 	}
-    bt = bt_get_btree_from_cguid(cguid, &index, &ret);
+    bt = bt_get_btree_from_cguid(cguid, &index, &ret, true);
     if (bt == NULL) {
         return (ret);
     }
 
 	if (Container_Map[index].read_only == true) {
-		bt_rel_entry(index);
+		bt_rel_entry(index, true);
 		return FDF_FAILURE;
 	}
-
-    if (!bt) 
-		assert(0);
 
     if (keylen > bt->max_key_size) {
         msg("btree_insert/update keylen(%d) more than max_key_size(%d)\n",
                  keylen, bt->max_key_size);
-		pthread_rwlock_unlock(&(Container_Map[index].bt_cm_rwlock));
+		bt_rel_entry(index, true);
         return (FDF_KEY_TOO_LONG);
     }
 
     meta.flags = 0;
-    meta.seqno = seqnoalloc( fdf_thread_state);
-    if (meta.seqno == -1) {
-		bt_rel_entry(index);
-        return (FDF_FAILURE);
-	}
 
     trxenter( cguid);
     if (flags & FDF_WRITE_MUST_NOT_EXIST) {
@@ -1403,7 +1471,7 @@ FDF_status_t _FDFWriteObject(
 	        ret = FDF_FAILURE; // xxxzzz fix this!
             break;
     }
-	bt_rel_entry(index);
+	bt_rel_entry(index, true);
     return(ret);
 }
 
@@ -1436,12 +1504,23 @@ FDF_status_t _FDFWriteObjectExpiry(
 {
     my_thd_state = fdf_thread_state;;
 	FDF_status_t	ret;
+	int				index;
+	struct btree	*bt;
+
 	if ((ret= bt_is_valid_cguid(cguid)) != FDF_SUCCESS) {
 		return ret;
 	}
 
+	bt = bt_get_btree_from_cguid(cguid, &index, &ret, true);
+	if (bt == NULL) {
+		return ret;
+	}
+
     //msg("FDFWriteObjectExpiry is not currently supported!");
-    return(FDFWriteObjectExpiry(fdf_thread_state, cguid, wobj, flags));
+    ret = FDFWriteObjectExpiry(fdf_thread_state, cguid, wobj, flags);
+
+	bt_rel_entry(index, true);
+	return(ret);
 }
 
 /**
@@ -1478,13 +1557,13 @@ FDF_status_t _FDFDeleteObject(
 		return ret;
 	}
 
-    bt = bt_get_btree_from_cguid(cguid, &index, &ret);
+    bt = bt_get_btree_from_cguid(cguid, &index, &ret, true);
     if (bt == NULL) {
         return (ret);
     }
 
 	if (Container_Map[index].read_only == true) {
-		bt_rel_entry(index);
+		bt_rel_entry(index, true);
 		return FDF_FAILURE;
 	}
 
@@ -1510,7 +1589,7 @@ FDF_status_t _FDFDeleteObject(
             break;
     }
 
-	bt_rel_entry(index);
+	bt_rel_entry(index, true);
     return(ret);
 }
 
@@ -1530,16 +1609,25 @@ FDF_status_t _FDFEnumerateContainerObjects(
 {
     FDF_range_meta_t rmeta;
 	FDF_status_t	ret;
+    struct btree     *bt;
+	int				index;
+
 	if ((ret= bt_is_valid_cguid(cguid)) != FDF_SUCCESS) {
 		return ret;
 	}
 
+    bt = bt_get_btree_from_cguid(cguid, &index, &ret, false);
+    if (bt == NULL) {
+        return (ret);
+    }
 	bzero(&rmeta, sizeof(FDF_range_meta_t));
-    return _FDFGetRange(fdf_thread_state, 
+    ret = _FDFGetRange(fdf_thread_state, 
 	                    cguid, 
                         FDF_RANGE_PRIMARY_INDEX, 
                         (struct FDF_cursor **) iterator, 
                         &rmeta);
+	bt_rel_entry(index, false);
+    return(ret);
 }
 
 /**
@@ -1661,7 +1749,7 @@ FDF_status_t _FDFFlushObject(
 	}
     my_thd_state = fdf_thread_state;;
 
-    bt = bt_get_btree_from_cguid(cguid, &index, &ret);
+    bt = bt_get_btree_from_cguid(cguid, &index, &ret, false);
     if (bt == NULL) {
         return (ret);
     }
@@ -1671,7 +1759,7 @@ FDF_status_t _FDFFlushObject(
     if (keylen > bt->max_key_size) {
         msg("btree_insert/update keylen(%d) more than max_key_size(%d)\n",
                  keylen, bt->max_key_size);
-		bt_rel_entry(index);
+		bt_rel_entry(index, false);
         return (FDF_KEY_TOO_LONG);
     }
 
@@ -1694,7 +1782,7 @@ FDF_status_t _FDFFlushObject(
 	        ret = FDF_FAILURE; // xxxzzz fix this!
             break;
     }
-	bt_rel_entry(index);
+	bt_rel_entry(index, false);
     return(ret);
 }
 
@@ -1876,7 +1964,7 @@ _FDFGetRange(struct FDF_thread_state *fdf_thread_state,
 	if ((ret= bt_is_valid_cguid(cguid)) != FDF_SUCCESS) {
 		return ret;
 	}
-    bt = bt_get_btree_from_cguid(cguid, &index, &ret);
+    bt = bt_get_btree_from_cguid(cguid, &index, &ret, false);
     if (bt == NULL) {
         return (ret);
 	}
@@ -1891,7 +1979,7 @@ _FDFGetRange(struct FDF_thread_state *fdf_thread_state,
 	} else {
 		ret = FDF_FAILURE;
 	}
-	bt_rel_entry(index);
+	bt_rel_entry(index, false);
 	return(ret);
 }
 
@@ -1919,9 +2007,10 @@ _FDFGetNextRange(struct FDF_thread_state *fdf_thread_state,
 	if ((ret= bt_is_valid_cguid(cguid)) != FDF_SUCCESS) {
 		return ret;
 	}
-    bt = bt_get_btree_from_cguid(cguid, &index, &ret);
-    if (bt == NULL) {
-        return (ret);
+
+        bt = bt_get_btree_from_cguid(cguid, &index, &ret, false);
+        if (bt == NULL) {
+            return (ret);
 	}
 	trxenter( cguid);
 	status = btree_range_get_next((btree_range_cursor_t *)cursor,
@@ -1942,7 +2031,8 @@ _FDFGetNextRange(struct FDF_thread_state *fdf_thread_state,
 	} else {
 		ret = FDF_FAILURE;
 	}
-	bt_rel_entry(index);
+
+        bt_rel_entry(index, false);
 	return(ret);
 }
 
@@ -2096,6 +2186,11 @@ static btree_status_t delete_node_cb(void *data, uint64_t lnodeid)
 	return (BTREE_SUCCESS);		// return success until btree logic is fixed
 }
 
+static uint64_t seqno_alloc_cb(void)
+{
+	return (seqnoalloc(my_thd_state));
+}
+
 // ???
 static void log_cb(btree_status_t *ret, void *data, uint32_t event_type, struct btree_raw *btree)
 {
@@ -2213,6 +2308,9 @@ FDF_ext_stat_t btree_to_fdf_stats_map[] = {
     {BTSTAT_NONLEAF_L1MISSES, FDF_CACHE_STAT_NONLEAF_L1_MISSES,  FDF_STATS_TYPE_CACHE_TO_FLASH,0},
     {BTSTAT_OVERFLOW_L1MISSES,FDF_CACHE_STAT_OVERFLOW_L1_MISSES, FDF_STATS_TYPE_CACHE_TO_FLASH,0},
 
+    {BTSTAT_BACKUP_L1MISSES,  FDF_CACHE_STAT_BACKUP_L1_MISSES,   FDF_STATS_TYPE_CACHE_TO_FLASH,0},
+    {BTSTAT_BACKUP_L1HITS,    FDF_CACHE_STAT_BACKUP_L1_HITS,     FDF_STATS_TYPE_CACHE_TO_FLASH,0},
+
     {BTSTAT_LEAF_L1WRITES,    FDF_CACHE_STAT_LEAF_L1_WRITES,     FDF_STATS_TYPE_CACHE_TO_FLASH,0},
     {BTSTAT_NONLEAF_L1WRITES, FDF_CACHE_STAT_NONLEAF_L1_WRITES,  FDF_STATS_TYPE_CACHE_TO_FLASH,0},
     {BTSTAT_OVERFLOW_L1WRITES,FDF_CACHE_STAT_OVERFLOW_L1_WRITES, FDF_STATS_TYPE_CACHE_TO_FLASH,0},
@@ -2248,6 +2346,10 @@ FDF_ext_stat_t btree_to_fdf_stats_map[] = {
     {BTSTAT_MPUT_IO_SAVED,    FDF_CACHE_STAT_BT_MPUT_IO_SAVED,   FDF_STATS_TYPE_CACHE_TO_FLASH, 0},
     {BTSTAT_PUT_RESTART_CNT,  FDF_CACHE_STAT_BT_PUT_RESTART_CNT, FDF_STATS_TYPE_CACHE_TO_FLASH, 0},
     {BTSTAT_SPCOPT_BYTES_SAVED, FDF_CACHE_STAT_BT_SPCOPT_BYTES_SAVED,   FDF_STATS_TYPE_CACHE_TO_FLASH, 0},
+
+    {BTSTAT_NUM_SNAP_OBJS,    FDF_CACHE_STAT_BT_NUM_SNAP_OBJS,   FDF_STATS_TYPE_CACHE_TO_FLASH,0},
+    {BTSTAT_SNAP_DATA_SIZE,    FDF_CACHE_STAT_BT_SNAP_DATA_SIZE,   FDF_STATS_TYPE_CACHE_TO_FLASH,0},
+    {BTSTAT_NUM_SNAPS,    FDF_CACHE_STAT_BT_NUM_SNAPS,   FDF_STATS_TYPE_CACHE_TO_FLASH,0},
 };
 
 FDF_status_t btree_get_all_stats(FDF_cguid_t cguid, 
@@ -2259,13 +2361,13 @@ FDF_status_t btree_get_all_stats(FDF_cguid_t cguid,
 	FDF_status_t	  ret;
 	int				  index;	
 
-    bt = bt_get_btree_from_cguid(cguid, &index, &ret);
+    bt = bt_get_btree_from_cguid(cguid, &index, &ret, false);
     if (bt == NULL) {
         return ret;
     }
     stats = malloc( N_BTSTATS * sizeof(uint64_t));
     if( stats == NULL ) {
-		bt_rel_entry(index);
+		bt_rel_entry(index, false);
         return FDF_FAILURE;
     }
     memset(stats, 0, N_BTSTATS * sizeof(uint64_t));
@@ -2287,7 +2389,7 @@ FDF_status_t btree_get_all_stats(FDF_cguid_t cguid,
     pstat_arr = malloc(N_BTSTATS * sizeof(FDF_ext_stat_t));
     if( pstat_arr == NULL ) {
         free(stats);
-		bt_rel_entry(index);
+		bt_rel_entry(index, false);
         return FDF_FAILURE;
     }
     for (i=0; i<N_BTSTATS; i++) {
@@ -2299,7 +2401,7 @@ FDF_status_t btree_get_all_stats(FDF_cguid_t cguid,
     free(stats);
     *estat = pstat_arr;
     *n_stats = N_BTSTATS;
-	bt_rel_entry(index);
+	bt_rel_entry(index, false);
     return FDF_SUCCESS;
 }
 
@@ -2311,13 +2413,14 @@ static void dump_btree_stats(FILE *f, FDF_cguid_t cguid)
 	int				  index;
 	FDF_status_t	  ret;
 
-    bt = bt_get_btree_from_cguid(cguid, &index, &ret);
+    bt = bt_get_btree_from_cguid(cguid, &index, &ret, false);
     if (bt == NULL) {
         return;
     }
 
     btree_get_stats(bt, &bt_stats);
     btree_dump_stats(f, &bt_stats);
+	bt_rel_entry(index, false);
 }
 
 FDF_status_t
@@ -2350,29 +2453,24 @@ _FDFMPut(struct FDF_thread_state *fdf_ts,
 		return FDF_SUCCESS;
 	}
 
-	bt = bt_get_btree_from_cguid(cguid, &index, &ret );
+	bt = bt_get_btree_from_cguid(cguid, &index, &ret, true);
 	if (bt == NULL) {
 		return ret;
 	}
 
 	for (i = 0; i < num_objs; i++) {
 		if (objs[i].flags != 0) {
-			bt_rel_entry(index);
+			bt_rel_entry(index, true);
 			return FDF_INVALID_PARAMETER;
 		}
 
 		if (objs[i].key_len > bt->max_key_size) {
-			bt_rel_entry(index);
+			bt_rel_entry(index, true);
 			return FDF_INVALID_PARAMETER;
 		}
 	}
 
 	meta.flags = 0;
-	meta.seqno = seqnoalloc(fdf_ts);
-	if (meta.seqno == -1) {
-		bt_rel_entry(index);
-		return (FDF_FAILURE);
-	}
 
 	objs_written = 0;
 	objs_to_write = num_objs;
@@ -2409,7 +2507,7 @@ _FDFMPut(struct FDF_thread_state *fdf_ts,
 			break;
 	}
 
-	bt_rel_entry(index);
+	bt_rel_entry(index, true);
 	return ret;
 }
 
@@ -2477,7 +2575,7 @@ _FDFRangeUpdate(struct FDF_thread_state *fdf_ts,
 	if ((ret= bt_is_valid_cguid(cguid)) != FDF_SUCCESS) {
 		return ret;
 	}
-	bt = bt_get_btree_from_cguid(cguid, &index, &ret);
+	bt = bt_get_btree_from_cguid(cguid, &index, &ret, true);
 	if (bt == NULL) {
 		return ret;
 	}
@@ -2679,7 +2777,7 @@ exit:
 	if (objs) {
 		free(objs);
 	}
-	bt_rel_entry(index);
+	bt_rel_entry(index, true);
 
 	return ret;
 }
@@ -2712,7 +2810,7 @@ _FDFRangeUpdate(struct FDF_thread_state *fdf_ts,
 
 	my_thd_state = fdf_ts;;
 
-	bt = bt_get_btree_from_cguid(cguid, &index, &error);
+	bt = bt_get_btree_from_cguid(cguid, &index, &error, true);
 	if (bt == NULL) {
 		return FDF_FAILURE;
 	}
@@ -2788,10 +2886,198 @@ out:
 		btree_free_rupdate_marker(bt, markerp);
 	}
 
-	bt_rel_entry(index);
+	bt_rel_entry(index, true);
 	return ret;
 }
 #endif 
+
+/*
+ * Create a snapshot for a container.  
+ * 
+ * Returns: FDF_SUCCESS if successful
+ *          FDF_TOO_MANY_SNAPSHOTS if snapshot limit is reached
+ */
+FDF_status_t
+_FDFCreateContainerSnapshot(struct FDF_thread_state *fdf_thread_state, //  client thread FDF context
+                           FDF_cguid_t cguid,           //  container
+                           uint64_t *snap_seq)         //  returns sequence number of snapshot
+{
+	my_thd_state = fdf_thread_state;
+	FDF_status_t    status = FDF_FAILURE;
+	int				index, i;
+	struct btree	*bt;
+	btree_status_t  btree_ret;
+
+	assert(snap_seq);
+
+	if ((status = bt_is_valid_cguid(cguid)) != FDF_SUCCESS) {
+		return status;
+	}
+
+	bt = bt_get_btree_from_cguid(cguid, &index, &status, false);
+	if (bt == NULL) {
+		return status;
+	}
+
+	pthread_rwlock_wrlock(&(bt->snapop_rwlock));
+	pthread_mutex_lock(&(Container_Map[index].bt_snap_mutex));
+	Container_Map[index].snap_initiated = 1;
+
+	while (Container_Map[index].bt_wr_count) {
+		fprintf(stderr, "Snapshot thread waiting for writers to finish\n");
+		pthread_cond_wait(&(Container_Map[index].bt_snap_cv),
+								&(Container_Map[index].bt_snap_mutex));
+	}	
+	pthread_mutex_unlock(&(Container_Map[index].bt_snap_mutex));
+
+	FDFFlushContainer(fdf_thread_state, cguid);
+
+	fprintf(stderr, "Snapshot initiated\n");
+	assert(bt->n_partitions == 1);
+	for (i = 0; i < bt->n_partitions; i++) {
+		*snap_seq = seqnoalloc(fdf_thread_state);
+		btree_ret = btree_snap_create_meta(bt->partitions[i], *snap_seq);
+		if (btree_ret != BTREE_SUCCESS) {
+			break;
+		}
+		deref_l1cache(bt->partitions[i]);
+	}
+
+	pthread_mutex_lock(&(Container_Map[index].bt_snap_mutex));
+	Container_Map[index].snap_initiated = 0;
+	fprintf(stderr, "Waking writer threads\n");
+	pthread_cond_broadcast(&(Container_Map[index].bt_snap_wr_cv));
+	pthread_mutex_unlock(&(Container_Map[index].bt_snap_mutex));
+	fprintf(stderr, "Snapshot Done\n");
+	pthread_rwlock_unlock(&(bt->snapop_rwlock));
+
+	bt_rel_entry(index, false);
+
+	assert(!dbg_referenced);
+	switch(btree_ret) {
+		case BTREE_SUCCESS:
+			status = FDF_SUCCESS;
+			break;
+		case BTREE_TOO_MANY_SNAPSHOTS:
+			status = FDF_TOO_MANY_SNAPSHOTS;
+			break;
+		case BTREE_FAILURE:
+		default:
+			status = FDF_FAILURE;
+			break;
+	}
+	return(status);
+}
+
+/*
+ * Delete a snapshot.
+ * 
+ * Returns: FDF_SUCCESS if successful
+ *          FDF_SNAPSHOT_NOT_FOUND if no snapshot for snap_seq is found
+ */
+FDF_status_t
+_FDFDeleteContainerSnapshot(struct FDF_thread_state *fdf_thread_state, //  client thread FDF context
+                           FDF_cguid_t cguid,           //  container
+                           uint64_t snap_seq)          //  sequence number of snapshot to delete
+{
+	my_thd_state = fdf_thread_state;
+	btree_status_t	btree_ret;
+	FDF_status_t    status = FDF_FAILURE;
+	int				index, i;
+	struct btree	*bt;
+
+	if ((status = bt_is_valid_cguid(cguid)) != FDF_SUCCESS) {
+		return status;
+	}
+
+	bt = bt_get_btree_from_cguid(cguid, &index, &status, false);
+	if (bt == NULL) {
+		return status;
+	}
+
+	assert(bt->n_partitions == 1);
+	for (i = 0; i < bt->n_partitions; i++) {
+		btree_ret = btree_snap_delete_meta(bt->partitions[i], snap_seq);
+		if (btree_ret != BTREE_SUCCESS) {
+			break;
+		}
+		deref_l1cache(bt->partitions[i]);
+	}
+
+	if (btree_ret != BTREE_SUCCESS) {
+		FDFFlushContainer(fdf_thread_state, cguid); 
+	}
+
+	bt_rel_entry(index, false);
+
+	assert(!dbg_referenced);
+	switch(btree_ret) {
+		case BTREE_SUCCESS:
+			status = FDF_SUCCESS;
+			break;
+		case BTREE_FAILURE:
+		default:
+			status = FDF_SNAPSHOT_NOT_FOUND;
+			break;
+	}
+	return status;
+}
+
+/*
+ * Get a list of all current snapshots.
+ * Array returned in snap_seqs is allocated by FDF and
+ * must be freed by application.
+ * 
+ * Returns: FDF_SUCCESS if successful
+ *          FDF_xxxzzz if snap_seqs cannot be allocated
+ */
+FDF_status_t
+_FDFGetContainerSnapshots(struct FDF_thread_state *ts, //  client thread FDF context
+                         FDF_cguid_t cguid,           //  container
+                         uint32_t *n_snapshots,       //  returns number of snapshots
+                         FDF_container_snapshots_t **snap_seqs)        //  returns array of snapshot sequence numbers
+{
+	my_thd_state = ts;
+	btree_status_t	btree_ret;
+	FDF_status_t    status = FDF_FAILURE;
+	int				index, i;
+	struct btree	*bt;
+
+	if ((status = bt_is_valid_cguid(cguid)) != FDF_SUCCESS) {
+		return status;
+	}
+
+	bt = bt_get_btree_from_cguid(cguid, &index, &status, false);
+	if (bt == NULL) {
+		return status;
+	}
+
+	assert(bt->n_partitions == 1);
+	for (i = 0; i < bt->n_partitions; i++) {
+		btree_ret = btree_snap_get_meta_list(bt->partitions[i], n_snapshots, snap_seqs);
+		if (btree_ret != BTREE_SUCCESS) {
+			break;
+		}
+		deref_l1cache(bt->partitions[i]);
+	}
+	bt_rel_entry(index, false);
+
+	switch(btree_ret) {
+		case BTREE_SUCCESS:
+			status = FDF_SUCCESS;
+			break;
+		case BTREE_FAILURE:
+			status = FDF_FAILURE_STORAGE_WRITE;
+			break;
+		case BTREE_KEY_NOT_FOUND:
+			status = FDF_OBJECT_UNKNOWN;
+			break;
+		default:
+			status = FDF_FAILURE;
+			break;
+	}
+	return(status);
+}
 
 FDF_status_t
 _FDFIoctl(struct FDF_thread_state *fdf_ts, 
@@ -2803,9 +3089,9 @@ _FDFIoctl(struct FDF_thread_state *fdf_ts,
 	int index = -1;
 
 	my_thd_state = fdf_ts;
-	bt = bt_get_btree_from_cguid(cguid, &index, &ret);
+	bt = bt_get_btree_from_cguid(cguid, &index, &ret, false);
 	if (bt == NULL) {
-		bt_rel_entry(index);
+		bt_rel_entry(index, false);
 		return ret;
 	}
 
@@ -2819,7 +3105,7 @@ _FDFIoctl(struct FDF_thread_state *fdf_ts,
 		break;
 	}
 
-	bt_rel_entry(index);
+	bt_rel_entry(index, false);
 	return (ret);
 }
 
@@ -2985,4 +3271,323 @@ fdf_commit_stats_int(struct FDF_thread_state *thd_state, fdf_pstats_t *s, char *
      */
     ret = FDFWriteObject(thd_state, stats_ctnr_cguid, key, strlen(key) + 1, (char*)s, sizeof(fdf_pstats_t), 0);
     return ret;
+}
+
+#define SIMBACKUP_DEFAULT_CHUNK_SIZE     50
+#define SIMBACKUP_DEFAULT_SLEEP_USECS    1000
+#define PROGRESS_PRINT_CHUNKS            1000
+
+static void
+simulate_backup(struct FDF_thread_state *thd_state, FDF_cguid_t cguid, 
+                uint64_t start_seqno, uint64_t end_seqno, int chunk_size, 
+                int sleep_usecs, FILE *fp)
+{
+	FDF_status_t ret;
+	FDF_range_meta_t *rmeta;
+	FDF_range_data_t *rvalues;
+	struct FDF_cursor *cursor;       // opaque cursor handle
+	uint64_t overall_cnt = 0;
+	int n_out;
+	int i;
+
+	/* Initialize rmeta */
+	rmeta = (FDF_range_meta_t *)malloc(sizeof(FDF_range_meta_t));
+	rmeta->key_start = NULL;
+	rmeta->keylen_start = 0;
+	rmeta->key_end   = NULL;
+	rmeta->keylen_end = 0;
+	rmeta->class_cmp_fn = NULL;
+	rmeta->allowed_fn = NULL;
+	rmeta->cb_data = NULL;
+
+	if (start_seqno == -1) {
+		rmeta->flags = FDF_RANGE_SEQNO_LE;
+		rmeta->end_seq = end_seqno;
+	} else {
+		rmeta->flags = FDF_RANGE_SEQNO_GT_LE;
+		rmeta->start_seq = start_seqno;
+		rmeta->end_seq   = end_seqno;
+	}
+
+	ret = _FDFGetRange(thd_state,
+	                  cguid,
+	                  FDF_RANGE_PRIMARY_INDEX,
+	                  &cursor, 
+	                  rmeta);
+	if (ret != FDF_SUCCESS) {
+		fprintf(fp, "FDFStartRangeQuery failed with status=%d\n", ret);
+		return;
+	}
+	free(rmeta);
+
+	if (chunk_size == 0) chunk_size = SIMBACKUP_DEFAULT_CHUNK_SIZE;
+	if (sleep_usecs == 0) sleep_usecs = SIMBACKUP_DEFAULT_SLEEP_USECS;
+	fprintf(fp, "Starting backup simulation with each read of "
+	       "chunk_size: %d every %d usecs", chunk_size, sleep_usecs);
+	fflush(fp);
+
+	do {
+		rvalues = (FDF_range_data_t *)
+		           malloc(sizeof(FDF_range_data_t) * chunk_size);
+		assert(rvalues);
+
+		ret = _FDFGetNextRange(thd_state,
+		                      cursor,
+		                      chunk_size,
+		                      &n_out,
+		                      rvalues);
+
+		if ((ret != FDF_SUCCESS) && (ret != FDF_QUERY_DONE)) {
+			fprintf(fp, "Error: Snapshot read returned %d\n", ret);
+			free(rvalues);
+			break;
+		}
+
+		for (i = 0; i < n_out; i++) {
+			free(rvalues[i].key);
+			free(rvalues[i].data);
+		}
+	
+		overall_cnt += n_out;
+		free(rvalues);
+
+		/* Sleep for every 10 chunks */
+		if (overall_cnt % (chunk_size * PROGRESS_PRINT_CHUNKS) == 0) {
+			fprintf(fp, ".");
+			fflush(fp);
+		}
+
+		usleep(sleep_usecs);
+	} while (ret != FDF_QUERY_DONE);
+	fprintf(fp, "\n");
+
+	ret = _FDFGetRangeFinish(thd_state, cursor);
+	if (ret != FDF_SUCCESS) {
+		fprintf(fp, "ERROR: FDFGetRangeFinish failed ret=%d\n", ret);
+	}
+	fprintf(fp, "Backup of %"PRIu64" objects completed\n", overall_cnt);
+	fflush(fp);
+}
+
+static FDF_status_t btree_process_snapshot_cmd(
+                       struct FDF_thread_state *thd_state, 
+                       FILE *fp, cmd_token_t *tokens, size_t ntokens)
+{
+	FDF_container_snapshots_t *snaps;
+	FDF_cguid_t cguid;
+	FDF_status_t status;
+	uint32_t n_snaps = 0;
+	uint32_t i;
+	uint64_t snap_seqno;
+
+	if ( ntokens < 3 ) {
+		fprintf(fp, "Invalid argument! Type help for more info\n");
+		return FDF_FAILURE;
+	}
+
+	status = FDF_FAILURE;
+	if (strcmp(tokens[1].value, "list") == 0) {
+		cguid = atol(tokens[2].value);
+		status = _FDFGetContainerSnapshots(thd_state, cguid, &n_snaps, &snaps);
+		if ((status != FDF_SUCCESS) || (n_snaps == 0)) {
+			fprintf(fp, "No snapshots for cguid: %"PRIu64"\n", cguid);
+		} else {
+			for (i = 0; i < n_snaps; i++) {
+				fprintf(fp, "\t%d: %"PRIu64"\n", i, snaps[i].seqno);
+			}
+		}
+	} else if (strcmp(tokens[1].value, "create") == 0) {
+		cguid = atol(tokens[2].value);
+		status = _FDFCreateContainerSnapshot(thd_state, cguid, &snap_seqno);
+		if (status == FDF_SUCCESS) {
+			fprintf(fp, "Snapshot created seqno=%"PRIu64
+			            " for cguid=%"PRIu64"\n", snap_seqno, cguid);
+		} else {
+			fprintf(fp, "Snapshot create failed for cguid=%"PRIu64
+			            " Error=%s\n", cguid, FDFStrError(status));
+		}
+	} else if (strcmp(tokens[1].value, "delete") == 0) {
+		if (ntokens < 4) {
+			fprintf(fp, "Invalid argument! Type help for more info\n");
+			return FDF_FAILURE;
+		}
+			
+		cguid = atol(tokens[2].value);
+		snap_seqno = atol(tokens[3].value);
+
+		status = _FDFDeleteContainerSnapshot(thd_state, cguid, snap_seqno);
+		if (status == FDF_SUCCESS) {
+			fprintf(fp, "Snapshot deleted seqno=%"PRIu64
+			            " for cguid=%"PRIu64"\n", snap_seqno, cguid);
+		} else {
+			fprintf(fp, "Snapshot delete failed for cguid=%"PRIu64
+			            " Error=%s\n", cguid, FDFStrError(status));
+		}
+	} else if (strcmp(tokens[1].value, "sim_backup") == 0) {
+		if (ntokens < 5) {
+			fprintf(fp, "Invalid argument! Type help for more info\n");
+			return FDF_FAILURE;
+		}
+
+		cguid = atol(tokens[2].value);
+		uint64_t start_seqno = atol(tokens[3].value);
+		uint64_t end_seqno = atol(tokens[4].value);
+		int chunk_size = (ntokens >= 6) ? atoi(tokens[5].value): 0;
+		int sleep_usecs = (ntokens >= 7) ? atoi(tokens[6].value): 0;
+
+		simulate_backup(thd_state, cguid, start_seqno, end_seqno, chunk_size, sleep_usecs, fp);
+	}
+
+	return status;
+}
+
+FDF_status_t btree_process_admin_cmd(
+                       struct FDF_thread_state *thd_state, 
+                       FILE *fp, cmd_token_t *tokens, size_t ntokens)
+{
+	if (strcmp(tokens[0].value, "snapshot") == 0) {
+		return (btree_process_snapshot_cmd(thd_state, fp, tokens, ntokens));
+	} else if (strcmp(tokens[0].value, "help") == 0) {
+		fprintf(fp, "snapshot create <cguid>\n");
+		fprintf(fp, "snapshot delete <cguid>\n");
+		fprintf(fp, "snapshot list <cguid>\n\n");
+	}
+
+	return (FDF_FAILURE);
+}
+
+FDF_status_t _FDFScavenger(struct FDF_state  *fdf_state) 
+{
+        FDF_status_t                                    ret = FDF_FAILURE;
+        Scavenge_Arg_t s;
+        s.type = 1;
+        ret = btree_scavenge(fdf_state, s);
+        return ret;
+       // invoke and return;
+}
+
+FDF_status_t _FDFScavenge_container(struct FDF_state *fdf_state, FDF_cguid_t cguid) 
+{
+        FDF_status_t    ret = FDF_FAILURE;
+        int             index;
+        struct btree    *bt;
+        Scavenge_Arg_t s;
+	const char *FDF_SCAVENGER_THROTTLE_VALUE = "1";  // 1 milli second
+	s.throttle_value = 1;
+
+        if ((ret = bt_is_valid_cguid(cguid)) != FDF_SUCCESS) {
+                return ret;
+        }
+
+        bt = bt_get_btree_from_cguid(cguid, &index, &ret, false);
+        if (bt == NULL) {
+                return ret;
+        }
+
+        s.type = 2;
+        s.cguid = cguid;
+        s.btree_index = index;
+        s.btree = (struct btree_raw *)(bt->partitions[0]);
+        s.bt = bt;
+	s.throttle_value = atoi(_FDFGetProperty("FDF_SCAVENGER_THROTTLE_VALUE",FDF_SCAVENGER_THROTTLE_VALUE));
+
+        index = bt_get_cguid(s.cguid);
+	pthread_rwlock_wrlock(&ctnrmap_rwlock);
+
+        if (Container_Map[index].scavenger_state == 1) {
+                fprintf(stderr,"savenge operation on this container is already in progress\n");
+		bt_rel_entry(index, false);
+                pthread_rwlock_unlock(&ctnrmap_rwlock);
+                return FDF_FAILURE;
+        } else {
+		Container_Map[index].scavenger_state = 1;
+	}
+        pthread_rwlock_unlock(&ctnrmap_rwlock);
+
+        ret = btree_scavenge(fdf_state, s);
+        return ret;
+}
+
+FDF_status_t _FDFScavenge_snapshot(struct FDF_state *fdf_state, FDF_cguid_t cguid, uint64_t snap_seq) {
+        FDF_status_t    ret = FDF_FAILURE;
+        Scavenge_Arg_t s;
+        s.type = 3;
+        s.cguid = cguid;
+        ret = btree_scavenge(fdf_state, s);
+        return ret;
+}
+void open_container(struct FDF_thread_state *fdf_thread_state, FDF_cguid_t cguid)
+{
+    	int           index = -1;
+        FDF_status_t       ret;
+        FDF_container_props_t   pprops;
+        uint32_t                  flags_in = FDF_CTNR_RW_MODE;
+        FDFLoadCntrPropDefaults(&pprops);
+        ret = FDFGetContainerProps(fdf_thread_state,cguid, &pprops);
+
+        if (ret != FDF_SUCCESS)
+        {
+                fprintf(stderr,"FDFGetContainerProps failed with error %s\n",  FDFStrError(ret));
+		return;
+        }
+
+        ret = FDFOpenContainer(fdf_thread_state, pprops.name, &pprops, flags_in, &cguid);
+	if (ret != FDF_SUCCESS)
+        {
+		fprintf(stderr,"FDFOpenContainer failed with error %s\n",  FDFStrError(ret));
+		return;
+        }
+
+        index = bt_get_cguid(cguid);
+	// Need to add the code (btreeinit) if cguid is added but not retrived
+
+    /* This shouldnt happen, how FDF could create container but we exhausted map */
+        if (index == -1) {
+                FDFCloseContainer(fdf_thread_state, cguid);
+		 fprintf(stderr,"FDF Scavenger failed to open the containte with error FDF_TOO_MANY_CONTAINERS\n");
+        }
+
+        pthread_rwlock_wrlock(&ctnrmap_rwlock);
+
+        if (Container_Map[index].cguid != cguid) {
+                pthread_rwlock_unlock(&ctnrmap_rwlock);
+		fprintf(stderr,"FDF Scavenger failed, error: Container got deleted\n");
+        }
+
+        pthread_rwlock_unlock(&ctnrmap_rwlock);
+}
+
+void close_container(struct FDF_thread_state *fdf_thread_state, Scavenge_Arg_t *S)
+{
+        FDF_status_t       ret = FDF_SUCCESS;
+        int           index = -1;
+
+	bt_rel_entry(S->btree_index, false);
+        index = bt_get_cguid(S->cguid);
+	pthread_rwlock_wrlock(&ctnrmap_rwlock);
+        Container_Map[index].scavenger_state = 0;
+	pthread_rwlock_unlock(&ctnrmap_rwlock);
+/*        ret = FDFCloseContainer(fdf_thread_state, S->cguid);
+        if (ret != FDF_SUCCESS)
+        {
+		fprintf(stderr,"FDFCloseContainer failed with error %s\n",  FDFStrError(ret));
+        }*/
+}
+int
+bt_get_cguid(FDF_cguid_t cguid)
+{
+    int i;
+    int i_ctnr = -1;
+
+        pthread_rwlock_rdlock(&ctnrmap_rwlock);
+                for ( i = 0; i < MAX_OPEN_CONTAINERS; i++ ) {
+                        if ( Container_Map[i].cguid == cguid ) {
+                                i_ctnr = i;
+                                break;
+                        }
+                }
+
+        pthread_rwlock_unlock(&ctnrmap_rwlock);
+
+    return i_ctnr;
 }

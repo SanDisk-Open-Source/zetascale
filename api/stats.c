@@ -573,9 +573,14 @@ static void process_container_cmd(struct FDF_thread_state *thd_state,
     }
     else if( strcmp(tokens[1].value,"list" ) == 0 ) {
 	    struct FDFCMapIterator *iterator = NULL; 
+            FDF_cguid_t cguid;
+            bool verbose = ((ntokens > 2) && 
+                            (strcmp(tokens[2].value, "-v") == 0));
+
 	    for ( i = 0; i < MCD_MAX_NUM_CNTRS; i++ ) {
-	        cname = FDFGetNextContainerName(thd_state, &iterator); 
+	        cname = FDFGetNextContainerName(thd_state, &iterator, &cguid); 
 	        if ( cname ) {     
+                    if (verbose) fprintf(fp, "%"PRIu64": ", cguid);
 	            fprintf(fp,"%s\n",cname); 
 	            fprintf(stderr,"stats: %s\n",cname); 
 	            continue; 
@@ -596,10 +601,10 @@ static void print_admin_command_usage(FILE *fp) {
                    "container stats_dump <container name|all> [v]\n"
                    "container autodump <enable/disable/interval/printcfg>"
                    " [interval in secs]\n"
-                   "container list\n"
+                   "container list [-v]\n"
                    "log_level <set/get> [fatal/error/warning/info/diagnostic/"
                    "debug/trace/trace_low/devel]\n"
-                   "help\nquit\n\n");
+                   "help\nquit\n");
 }
 
 static FDF_status_t process_admin_cmd( struct FDF_thread_state *thd_state, 
@@ -625,6 +630,7 @@ static FDF_status_t process_admin_cmd( struct FDF_thread_state *thd_state,
     }
     else if( strcmp(tokens[0].value,"help") == 0 ) {
         print_admin_command_usage(fp);
+        ext_cbs->admin_cb(thd_state, fp, tokens, ntokens);
     }
     else if( strcmp(tokens[0].value,"log_level") == 0 ) {
         process_log_level_cmd(thd_state, fp,tokens,ntokens);
@@ -634,6 +640,9 @@ static FDF_status_t process_admin_cmd( struct FDF_thread_state *thd_state,
         process_flip_cmd(fp, tokens, ntokens);
     }
 #endif
+    else if (strcmp(tokens[0].value, "snapshot") == 0) {
+        ext_cbs->admin_cb(thd_state, fp, tokens, ntokens);
+    }
     else if( strcmp(tokens[0].value,"quit") == 0 ) {
          return FDF_FAILURE;
     }
@@ -670,6 +679,7 @@ void *FDFStatsDumpThread(void *arg) {
     return NULL;
 }
 
+#define CMD_PROMPT   "fdf> "
 
 void *FDFAdminThread(void *arg) {
     int server_fd, conn_fd, ret,i;
@@ -729,6 +739,9 @@ void *FDFAdminThread(void *arg) {
         }
         /* Process the connection and respond*/
         while (1) {
+            fprintf(fp, CMD_PROMPT);
+            fflush(fp);
+
             ret = read(conn_fd,buffer,CMD_BUFFER_SIZE); 
             if( ret < 0 ) {
                 break;

@@ -85,9 +85,6 @@ static sem_t Mcd_fsched_sem;
 static sem_t Mcd_initer_sem;
 
 
-/* External call backs */
-FDF_ext_cb_t *btree_cbs;
-
 FDF_status_t get_btree_num_objs(FDF_cguid_t cguid, uint64_t *num_objs);
 
 static FDF_status_t
@@ -514,6 +511,9 @@ fdf_stats_info_t fdf_stats_cache[] = {
     {"l1_cache_leaf_misses","l1_cache_leaf_misses",FDF_STATS_TYPE_CACHE_TO_FLASH},/* FDF_CACHE_STAT_LEAF_L1_MISSES */
     {"l1_cache_nonleaf_misses","l1_cache_nonleaf_misses",FDF_STATS_TYPE_CACHE_TO_FLASH},/* FDF_CACHE_STAT_NONLEAF_L1_MISSES */
     {"l1_cache_overflow_misses","l1_cache_overflow_misses",FDF_STATS_TYPE_CACHE_TO_FLASH},/* FDF_CACHE_STAT_OVERFLOW_L1_MISSES */
+    {"l1_cache_backup_misses","l1_cache_backup_misses",FDF_STATS_TYPE_CACHE_TO_FLASH},/* FDF_CACHE_STAT_BACKUP_L1_MISSES */
+    {"l1_cache_backup_hits","l1_cache_backup_hits",FDF_STATS_TYPE_CACHE_TO_FLASH},/* FDF_CACHE_STAT_BACKUP_L1_HITS */
+    
     {"l1_cache_leaf_writes","l1_cache_leaf_writes",FDF_STATS_TYPE_CACHE_TO_FLASH},/* FDF_CACHE_STAT_LEAF_L1_WRITES */
     {"l1_cache_nonleaf_writes","l1_cache_nonleaf_writes",FDF_STATS_TYPE_CACHE_TO_FLASH},/* FDF_CACHE_STAT_NONLEAF_L1_WRITES */
     {"l1_cache_overflow_writes","l1_cache_overflow_writes",FDF_STATS_TYPE_CACHE_TO_FLASH},/* FDF_CACHE_STAT_OVERFLOW_L1_WRITES */
@@ -543,7 +543,10 @@ fdf_stats_info_t fdf_stats_cache[] = {
     {"l1_cache_bt_mput_io_saved","l1_cache_bt_mput_io_saved",FDF_STATS_TYPE_CACHE_TO_FLASH},/* FDF_CACHE_STAT_BT_MPUT_IO_SAVED */
     {"l1_cache_bt_put_restart_cnt","l1_cache_bt_put_restart_cnt",FDF_STATS_TYPE_CACHE_TO_FLASH},/*
 FDF_CACHE_STAT_BT_PUT_RESTART_CNT */
-     {"l1_cache_bt_space_opt_bytes_saved", "l1_cache_bt_space_opt_bytes_saved", FDF_STATS_TYPE_CACHE_TO_FLASH},/* FDF_CACHE_STAT_BT_SPCOPT_BYTES_SAVED */
+    {"l1_cache_bt_space_opt_bytes_saved", "l1_cache_bt_space_opt_bytes_saved", FDF_STATS_TYPE_CACHE_TO_FLASH},/* FDF_CACHE_STAT_BT_SPCOPT_BYTES_SAVED */
+    {"l1_cache_bt_num_snap_objs", "l1_cache_bt_num_snap_objs", FDF_STATS_TYPE_CACHE_TO_FLASH},/* FDF_CACHE_STAT_BT_NUM_SNAP_OBJS */
+    {"SNAP_DATA_SIZE", "snap_data_size", FDF_STATS_TYPE_CACHE_TO_FLASH},/* FDF_CACHE_STAT_BT_SNAP_DATA_SIZE */
+	{"NUM_SNAPS","num_snaps",FDF_STATS_TYPE_CONTAINER_FLASH},/*FDF_CNTR_STATS_BT_NUM_SNAPS*/
 
 
     /* request from cache to flash manager */
@@ -1830,14 +1833,18 @@ void print_configuration(int log_level) {
          plat_log_msg(80031, LOG_CAT, log_level,"FDF Testmode enabled");
     }
 }
-FDF_status_t FDFRegisterCallbacks(struct FDF_state *fdf_state, FDF_ext_cb_t *cb) {
+
+FDF_status_t FDFRegisterCallbacks(struct FDF_state *fdf_state, FDF_ext_cb_t *cb) 
+{
     if( cb == NULL ) {
         return FDF_FAILURE;
     }
-    btree_cbs = cb;
+
+    ext_cbs = cb;
     plat_log_msg(150113, LOG_CAT, LOG_INFO, "Callback registered"); 
     return FDF_SUCCESS;
 }
+
 FDF_status_t FDFInit(
 	struct FDF_state	**fdf_state
 	)
@@ -4086,7 +4093,7 @@ char *FDFGetContainerName(FDF_cguid_t cguid) {
 	}
 }
 
-char *FDFGetNextContainerName(struct FDF_thread_state *fdf_thread_state, struct FDFCMapIterator **iterator) {
+char *FDFGetNextContainerName(struct FDF_thread_state *fdf_thread_state, struct FDFCMapIterator **iterator, FDF_cguid_t *pcguid) {
     SDF_container_meta_t meta;
     SDF_internal_ctxt_t *pai;
 	char *key = NULL;
@@ -4096,6 +4103,7 @@ char *FDFGetNextContainerName(struct FDF_thread_state *fdf_thread_state, struct 
 
     pai = (SDF_internal_ctxt_t *) fdf_thread_state;
     SDFStartSerializeContainerOp(pai);
+    *pcguid = FDF_NULL_CGUID;
 
 	// See if we are just starting the enum
 	if ( NULL == *iterator ) {
@@ -4113,7 +4121,8 @@ char *FDFGetNextContainerName(struct FDF_thread_state *fdf_thread_state, struct 
                  ( strcmp( cmap->cname, SEQNO_CONTAINER_NAME ) == 0 ) ||
                  ( strcmp( cmap->cname, PSTATS_CONTAINER_NAME ) == 0 ) ) {
                 continue;
-}
+            }
+
             /* check if the container is being deleted */
             if ( name_service_get_meta( pai, cmap->cguid, &meta ) != SDF_SUCCESS ) {
                 //plat_log_msg( 160087, LOG_CAT, LOG_ERR,
@@ -4128,6 +4137,7 @@ char *FDFGetNextContainerName(struct FDF_thread_state *fdf_thread_state, struct 
                 continue;
             }
             SDFEndSerializeContainerOp( pai );
+            *pcguid = cmap->cguid;
             return cmap->cname;
         }
     }
@@ -4832,16 +4842,19 @@ fdf_write_object(
 	}
 
 	if (meta->meta.properties.flash_only == FDF_TRUE) {
-                int flags = 0;
+		int flags = 0;
 		plat_log_msg(160192, LOG_CAT,
 			LOG_TRACE, "FDFWriteObject flash_only.");
 		struct objMetaData metaData;
 		metaData.keyLen = keylen;
 		metaData.cguid  = cguid;
 		metaData.dataLen = datalen;
-                if( meta->meta.properties.compression == FDF_TRUE ) {
-                    flags = FLASH_PUT_COMPRESS;	
-                }
+		if (meta->meta.properties.compression)
+			flags |= FLASH_PUT_COMPRESS;	
+		if (meta->meta.properties.durability_level == SDF_RELAXED_DURABILITY)
+			flags |= FLASH_PUT_DURA_SW_CRASH;
+		else if (meta->meta.properties.durability_level == SDF_FULL_DURABILITY)
+			flags |= FLASH_PUT_DURA_HW_CRASH;
 		status = ssd_flashPut(pac->paio_ctxt, meta->pshard, &metaData, key, data, FLASH_PUT_NO_TEST|flags);
 		if (status == FLASH_EOK) {
 			status = FDF_SUCCESS;
@@ -5142,13 +5155,18 @@ fdf_delete_object(
 	}
 
 	if (meta->meta.properties.flash_only == FDF_TRUE) {
+		int flags = 0;
 		plat_log_msg(160193, LOG_CAT,
 			LOG_TRACE, "FDFDeleteObject flash_only.");
 		struct objMetaData metaData;
 		metaData.keyLen = keylen;
 		metaData.cguid  = cguid;
 		metaData.dataLen = 0;
-		status=ssd_flashPut(pac->paio_ctxt, meta->pshard, &metaData, key, NULL, FLASH_PUT_TEST_NONEXIST);
+		if (meta->meta.properties.durability_level == SDF_RELAXED_DURABILITY)
+			flags |= FLASH_PUT_DURA_SW_CRASH;
+		else if (meta->meta.properties.durability_level == SDF_FULL_DURABILITY)
+			flags |= FLASH_PUT_DURA_HW_CRASH;
+		status=ssd_flashPut(pac->paio_ctxt, meta->pshard, &metaData, key, NULL, FLASH_PUT_TEST_NONEXIST|flags);
 		if (status == FLASH_EOK) {
 			status = FDF_SUCCESS;
 		} else {
@@ -6430,11 +6448,11 @@ FDF_status_t update_btree_stats(FDF_cguid_t cguid,FDF_stats_t *stats) {
     uint32_t n_stats, i;
     FDF_status_t rc;
 
-    if( btree_cbs == NULL ) {
+    if( ext_cbs == NULL ) {
         /* Non btree container, return */
         return FDF_SUCCESS;
     }
-    rc = btree_cbs->stats_cb(cguid,&estats,&n_stats);
+    rc = ext_cbs->stats_cb(cguid,&estats,&n_stats);
     if( rc != FDF_SUCCESS ) {
         return rc;
     }
@@ -6458,11 +6476,11 @@ FDF_status_t get_btree_num_objs(FDF_cguid_t cguid, uint64_t *num_objs) {
     uint32_t n_stats, i;
     FDF_status_t rc;
 
-    if( btree_cbs == NULL ) {
+    if( ext_cbs == NULL ) {
         /* Non btree container, return */
         return FDF_SUCCESS;
     }  
-    rc = btree_cbs->stats_cb(cguid,&estats,&n_stats);
+    rc = ext_cbs->stats_cb(cguid,&estats,&n_stats);
     if( rc != FDF_SUCCESS ) {
         return rc;
     }
@@ -7314,13 +7332,30 @@ FDF_status_t
 FDFGetContainerSnapshots(
 	struct FDF_thread_state	*fdf_thread_state,
 	FDF_cguid_t		cguid,
-	uint32_t		n_snapshots,
-	uint64_t		snap_seqs
+	uint32_t		*n_snapshots,
+	FDF_container_snapshots_t **snap_seqs
 	)
 {
-
 	/* supported in btree only */
 	return (FDF_FAILURE);
+}
+
+FDF_status_t (FDFScavenger) (struct FDF_state *fdf_state) 
+{
+	fprintf(stderr, "FDF: FDFScavenger without btree is not supported\n");
+	return FDF_FAILURE;	
+}
+
+FDF_status_t (FDFScavenge_container) (struct FDF_state *fdf_state, FDF_cguid_t cguid) 
+{
+	fprintf(stderr, "FDF: FDFScavenge_container without btree is not supported\n");
+	return FDF_FAILURE;
+}
+
+FDF_status_t (FDFScavenge_snapshot) (struct FDF_state *fdf_state, FDF_cguid_t cguid, uint64_t snap_seq) 
+{
+	fprintf(stderr, "FDF: FDFScavenge_snapshot without btree is not supported\n");
+	return FDF_FAILURE;
 }
 
 FDF_status_t

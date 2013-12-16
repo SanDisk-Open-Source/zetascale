@@ -44,6 +44,7 @@ typedef struct btree {
     uint32_t           n_free_iterators;
     btree_iterator_t  *free_iterators;
     btree_iterator_t  *used_iterators;
+    pthread_rwlock_t  snapop_rwlock;
 
 } btree_t;
 

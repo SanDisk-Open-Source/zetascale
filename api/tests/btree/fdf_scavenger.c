@@ -40,14 +40,14 @@ main( )
 	pthread_t			thread_id[THREADS];
 	char				*version;
 	int				indx;
-	uint32_t		t;
+	//uint32_t		t;
 	uint32_t			ncg;
 	const char			*path;
 	FDF_container_props_t		props;
 	char				cname[32] = {0};
 	FDF_cguid_t			cguid;
-	uint64_t		seq, seq1;
-	FDF_container_snapshots_t *snaps;
+//	uint64_t		seq;
+	//FDF_container_snapshots_t *snaps;
 
 	//Create the container name based on thread id.
 	sprintf(cname, "%s", base);
@@ -112,37 +112,17 @@ main( )
 		return 1;
 	}
 	//Spawn worker threads.
-	for (indx = 0; indx < 0; indx++) {
+	for (indx = 0; indx < THREADS; indx++) {
 		pthread_create(&thread_id[indx], NULL, (void *)worker,
 						(void *)fdf_state);
 	}
 
 	//Wait for worker threads to complete.
-	for (indx = 0; indx < 0; indx++) {
+	for (indx = 0; indx < THREADS; indx++) {
 		pthread_join(thread_id[indx], NULL);
 	}
 	sleep(2);
-	status = FDFWriteObject(thd_state, cguid, "test", 4, "test", 4, 0);
-	fprintf(stderr, "Write data status: %s <--------------\n", FDFStrError(status));
-	for (indx=0; indx < 2; indx++) {
-		FDFCreateContainerSnapshot(thd_state, cguid, &seq);
-		if (indx == 0) {
-			seq1 = seq;
-			status = FDFWriteObject(thd_state, cguid, "test", 4, "testabc", 7, FDF_WRITE_MUST_EXIST);
-			fprintf(stderr, "Update data status: %s <--------------\n", FDFStrError(status));
-		}
-	}
-	FDFGetContainerSnapshots(thd_state, cguid, &t, &snaps);
-	fprintf(stderr, "No of snaps: %d\n", (int)t);
-	for (indx = 0; indx < t; indx++) {
-		fprintf(stderr, "snap[%d]: timestamp:%"PRId64" seqno:%"PRId64"\n", (int)indx, snaps[indx].timestamp, snaps[indx].seqno);
-	}
-	FDFDeleteContainerSnapshot(thd_state, cguid, seq1);
-	FDFGetContainerSnapshots(thd_state, cguid, &t, &snaps);
-	fprintf(stderr, "No of snaps: %d\n", (int)t);
-	for (indx = 0; indx < t; indx++) {
-		fprintf(stderr, "snap[%d]: timestamp:%"PRId64" seqno:%"PRId64"\n", (int)indx, snaps[indx].timestamp, snaps[indx].seqno);
-	}
+//	while(1);
 
 	//Flush all the cache contents created by workers.
 	FDFFlushCache(thd_state);
@@ -178,35 +158,26 @@ worker(void *arg)
 	FDF_status_t			status;
 	FDF_cguid_t			cguid;
 	uint32_t			keylen;
-	//uint64_t			datalen;
 	FDF_container_props_t		props;
 
 
 	//Create the container name based on thread id.
-	sprintf(cname, "%s", base);
+	sprintf(cname, "%s%x", base,(int)pthread_self());
 
 	//Initialize per thread state of FDF for this thread.
 	FDFInitPerThreadState(fdf_state, &thd_state);
 
+	FDFLoadProperties(FDF_PROP_FILE);
+	FDFLoadCntrPropDefaults(&props);
+
+
 	//Create container in read/write mode with properties specified.
-	status = FDFOpenContainer(thd_state, cname, &props, 
-				  FDF_CTNR_RW_MODE, &cguid);
-#if 0
-	if (status == FDF_SUCCESS) {
-		//If created successfully, get the container properties. 
-		FDFGetContainerProps(thd_state, cguid, &props);
-		printf("Container %s (cguid: %ld) created with size: %ldKB.\n", 
-						cname, cguid, props.size_kb);
-	} else {
-		printf("FDFOpenContainer (of %s) failed with %s.\n", 
-						cname, FDFStrError(status));
-		return;
-	}
-#endif
+	status = FDFOpenContainer(thd_state, cname, &props,
+			FDF_CTNR_CREATE | FDF_CTNR_RW_MODE, &cguid);
 
 	keylen = strlen("key") + keynumlen + 1 + 8;
 	keyw = (char *)malloc(keylen);
-	dataw = (char *)malloc(DATA_SIZE);
+	dataw = (char *)malloc(keylen);
 	for (int i=0; i <NUM_OBJS;i++) {
 		sprintf(keyw, "key%07d%x", i, (int)pthread_self());
 		if (strlen(keyw) != (keylen - 1)) {
@@ -220,86 +191,25 @@ worker(void *arg)
 		*/
 		//Create initial data.
 		status = FDFWriteObject(thd_state, cguid, keyw, keylen, dataw, DATA_SIZE, 0);
-		if (status == FDF_SUCCESS) {
-	//		printf("%x: Key, %s, created/modified.\n", (int)pthread_self(), keyw);
-		} else {
-			printf("%x: Key, %s, couldn't be written. %s\n", (int)pthread_self(), keyw, FDFStrError(status));
-			return;
-		}
 	}
 	printf("Write done --- \n");
 	free(dataw);
-#if 0
-	for (int i=0; i <NUM_OBJS;i++) {
-		sprintf(keyw, "key%06d%x", i, (int)pthread_self());
+
+	for (int i=0; i <NUM_OBJS;i=i+1) {
+		sprintf(keyw, "key%07d%x", i, (int)pthread_self());
 		if (strlen(keyw) != (keylen - 1)) {
 			printf("Key format mismatch\n");
 			return;
 		}
-		//Create initial data.
-		status = FDFReadObject(thd_state, cguid, keyw, keylen, &dataw, &datalen);
-		if (status == FDF_SUCCESS) {
-			printf("%x: Key, %s, read.\n", (int)pthread_self(), keyw);
-			FDFFreeBuffer(dataw);
-		} else {
-			printf("%x: Key, %s, couldn't be read.\n", (int)pthread_self(), keyw);
-			return;
-		}
-	}
-	for (int i=0; i <NUM_OBJS;i++) {
-		sprintf(keyw, "key%06d%x", i, (int)pthread_self());
-		if (strlen(keyw) != (keylen - 1)) {
-			printf("Key format mismatch\n");
-			return;
-		}
-		//Create initial data.
 		status = FDFDeleteObject(thd_state, cguid, keyw, keylen);
-		if (status == FDF_SUCCESS) {
-			printf("%x: Key, %s, deleted.\n", (int)pthread_self(), keyw);
-		} else {
-			printf("%x: Key, %s, couldn't be deleted.\n", (int)pthread_self(), keyw);
-			return;
-		}
-	}
+        }
 
-#endif
 #if 0
-	if (status == FDF_OBJECT_EXISTS) {
-		//If data already exists, get the object assocaited with key.
-		printf("cguid %ld: Key, key2, already exists."
-				" Not overwriting.\n", cguid);
-		FDFReadObject(thd_state, cguid, "key2", 5, &data, &datalen);
-		printf("cguid %ld: Contents of key2: data=%s, datalen=%ld\n",
-							cguid, data, datalen);
-		FDFFreeBuffer(data);
-	} else if (status == FDF_SUCCESS) {
-		printf("cguid %ld: Key, key2, was not existing, created now.\n",
-						cguid);
-	} else {
-		printf("cguid %ld: Key, key2, failed with error %d.\n",
-							cguid, status);
-	}
-
-	//FDF_WRITE_MUST_EXIST - Modify only, don't create if doesn't exist.
-	status = FDFWriteObject(thd_state, cguid, "key3", 5, "key3_data", 10,
-				FDF_WRITE_MUST_EXIST);
-	if (status == FDF_OBJECT_UNKNOWN) {
-		printf("cguid %ld: Key, key3, doesn't exists. Not created.\n",
-							cguid);
-	} else if (status == FDF_SUCCESS) {
-		printf("cguid %ld: Key, key3, was existing, object is "
-				"modified.\n", cguid);
-	} else {
-		printf("cguid %ld: Key, key3, failed with error %d.\n",
-							cguid, status);
-	}
+	status = FDFScavenge_container(fdf_state,cguid);
+	if (status == FDF_SUCCESS)
+		printf(" scavenger operation started %s\n", FDFStrError(status));
 #endif
-	//Flush the contents of key only.
-	FDFFlushObject(thd_state, cguid, "key2", 5);
 
-
-	//Close the Container.
-	//FDFCloseContainer(thd_state, cguid);
 
 	//Release/Free per thread state.
 	FDFReleasePerThreadState(&thd_state);

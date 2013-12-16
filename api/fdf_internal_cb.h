@@ -30,9 +30,13 @@ typedef struct FDF_ext_stat {
     uint64_t       value; /* Value */
 }FDF_ext_stat_t;
 
+struct cmd_token;
+
 /* Structure to hold callbacks registered by external modules and FDF apps
    that FDF can call in to external libraries to manage them */
 typedef FDF_status_t (ext_cb_stats_t)(FDF_cguid_t cguid,FDF_ext_stat_t **stats, uint32_t *n_stats );
+typedef FDF_status_t (ext_cb_admin_t)(struct FDF_thread_state *thd_state,
+                                      FILE *fp, struct cmd_token *tokens, size_t ntokens);
 
 typedef enum {
     FDF_EXT_MODULE_BTREE,
@@ -42,6 +46,9 @@ typedef enum {
 typedef struct FDF_ext_cb { 
     /* Call back to get stats from external module */
     ext_cb_stats_t *stats_cb;
+
+    /* Call back to run admin command */
+    ext_cb_admin_t *admin_cb;
 }FDF_ext_cb_t;
 
 FDF_status_t FDFRegisterCallbacks(struct FDF_state *fdf_state, FDF_ext_cb_t *cb);

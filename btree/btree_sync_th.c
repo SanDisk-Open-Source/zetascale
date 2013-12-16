@@ -33,7 +33,6 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <assert.h>
-#include "btree_raw_internal.h"
 #include "btree_sync_th.h"
 #if 0
 #include "valgrind/valgrind.h"
@@ -348,13 +347,13 @@ btSyncReleasePthread()
  * @param minStackSize <IN> Minimum size of stack to allocate.
  * @return btSyncThread structure pointer
  */
-btSyncThread_t *btSyncSpawn(btree_raw_t *btree, int index, void (*startRoutine)(uint64_t))
+btSyncThread_t *btSyncSpawn(void *arg, int index, void (*startRoutine)(uint64_t))
 {
     int                    rc;
     btSyncThread_t           *btSyncrd;
     pthread_t              pthrd;
     pthread_attr_t         attr;
-	btree_raw_t				*bt = (btree_raw_t *)btree;
+    btree_raw_t *btree = (btree_raw_t *)arg;
 
     cpu_set_t              mask;
     int i;
@@ -375,7 +374,12 @@ btSyncThread_t *btSyncSpawn(btree_raw_t *btree, int index, void (*startRoutine)(
     pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_JOINABLE);
     rc = pthread_create(&pthrd, &attr, pthread_func_wrapper, (void *) btSyncrd);
     if (rc == 0) {
-		bt->syncthread[index] = btSyncrd;
+	if (btree != NULL) {
+        	btree->syncthread[index] = btSyncrd;
+	} /*else {
+		btSyncrd->id         = btSync->nthrds; 
+	}*/
+
 	btSyncrd->id         = index;
 	btSyncrd->is_waiting = 0;
 	btSyncrd->do_resume  = 0;

@@ -21,7 +21,8 @@
 
 typedef struct  __attribute__((__packed__)) entry_header {
 //typedef struct entry_header {
-	char meta_type; // Tells type of key_meta_typexx struct
+	uint8_t tombstone:1;
+	uint8_t meta_type:7; // Tells type of key_meta_typexx struct
 #ifdef BIG_NODES
 	uint32_t header_offset; // Offset from data ptr (insert_ptr) in node.
 #else
@@ -47,6 +48,7 @@ typedef struct key_meta {
 
 	uint64_t ptr;
 	uint64_t seqno;
+	uint8_t tombstone;
 
 //	uint64_t key_offset; // Offset to the key in the node relative to insert_ptr
 	key_meta_type_t meta_type;
@@ -100,6 +102,7 @@ typedef struct key_info {
     uint32_t  fkeys_per_node;
     uint64_t  seqno;
     uint64_t syndrome;
+    bool      tombstone;
 } key_info_t;
 
 
@@ -122,13 +125,13 @@ btree_leaf_find_key(btree_raw_t *bt, btree_raw_node_t *n, char *key, uint32_t ke
 bool
 btree_leaf_find_right_key(btree_raw_t *bt, btree_raw_node_t *n,
 			  char *key, uint32_t keylen,
-			  char **key_out, uint32_t *keyout_len,
+			  char **key_out, uint32_t *keyout_len, uint64_t *seqno,
 			  int *index, bool inclusive);
 
 bool
 btree_leaf_insert_key_index(btree_raw_t *bt, btree_raw_node_t *n, char *key, uint32_t keylen,
 		      	    char *data, uint64_t datalen, key_info_t *key_info, 
-			    btree_metadata_t *meta, int index, int32_t *bytes_increased, bool dry_run);
+			    int index, int32_t *bytes_increased, bool dry_run);
 
 bool
 btree_leaf_insert_key(btree_raw_t *bt, btree_raw_node_t *n, char *key, uint32_t keylen,
@@ -144,7 +147,7 @@ btree_leaf_update_key(btree_raw_t *bt, btree_raw_node_t *n, char *key, uint32_t 
 bool
 btree_leaf_split(btree_raw_t *btree, btree_raw_node_t *from_node,
 		 btree_raw_node_t *to_node, char **key_out, uint32_t *keyout_len,
-		 uint64_t *split_syndrome, int32_t *bytes_increased);
+		 uint64_t *split_syndrome, uint64_t *split_seqno, int32_t *bytes_increased);
 
 bool
 btree_leaf_is_full_index(btree_raw_t *bt, btree_raw_node_t *n, char *key, uint32_t keylen,
@@ -157,8 +160,8 @@ btree_leaf_is_full(btree_raw_t *btree, btree_raw_node_t *n, char *key, uint32_t 
 
 bool
 btree_leaf_get_nth_key(btree_raw_t *btree, btree_raw_node_t *n, int index,
-		       char **key_out, uint32_t *key_out_len);
-
+                       char **key_out, uint32_t *key_out_len,
+                       uint64_t *key_seqno);
 
 bool
 btree_leaf_get_nth_key_info2(btree_raw_t *btree, btree_raw_node_t *n, int index,
@@ -166,6 +169,9 @@ btree_leaf_get_nth_key_info2(btree_raw_t *btree, btree_raw_node_t *n, int index,
 bool
 btree_leaf_get_nth_key_info(btree_raw_t *btree, btree_raw_node_t *n, int index,
 		            key_info_t *key_info);
+
+bool
+btree_leaf_is_key_tombstoned(btree_raw_t *bt, btree_raw_node_t *n, int index);
 
 bool
 btree_leaf_get_data_nth_key(btree_raw_t *btree, btree_raw_node_t *n, int index, 

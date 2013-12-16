@@ -40,6 +40,8 @@ typedef enum btree_status {
 	BTREE_WARNING,                    /* Any partial success */
 	BTREE_QUERY_PAUSED,               /* Range query passed by callback */
 	BTREE_RANGE_UPDATE_NEEDS_SPACE,	  /* Range update need space for update */
+	BTREE_SKIPPED,                    /* Generic skip return */
+	BTREE_TOO_MANY_SNAPSHOTS,         /* Too many snapshots, cannot create more */
 } btree_status_t;
 
 typedef enum node_flags {
@@ -61,14 +63,20 @@ typedef enum btree_log_events {
     BTREE_DELETE_NODE
 } btree_log_events_t;
 
+/* This space overlaps with btree_range_flags_t.
+ * Hence please modify this structure and btree_range_flags_t
+ * in unison, so that all entries in both structure are unique */
 typedef enum btree_meta_flags {
-    BUFFER_PROVIDED      = 1,
-    ALLOC_IF_TOO_SMALL   = 2,
-    OLD_SEQNO_MUST_MATCH = 4,
-    UPDATE_IF_NEWER      = 8,
-    READ_SEQNO_LE        = 16,
-    READ_SEQNO_GT_LE     = 32,
-    INPLACE_POINTERS      = 1<<18
+    BUFFER_PROVIDED      = 1<<0,
+    ALLOC_IF_TOO_SMALL   = 1<<1,
+    OLD_SEQNO_MUST_MATCH = 1<<2,
+    UPDATE_USE_SEQNO     = 1<<3,
+    READ_SEQNO_EQ        = 1<<4,
+    READ_SEQNO_LE        = 1<<5,
+    READ_SEQNO_GT_LE     = 1<<6,
+    INPLACE_POINTERS     = 1<<18,
+    INSERT_TOMBSTONE     = 1<<19,
+    FORCE_DELETE         = 1<<20,
 } btree_meta_flags_t;
 
 typedef struct btree_metadata {
@@ -76,9 +84,8 @@ typedef struct btree_metadata {
     uint32_t     keybuf_size;
     uint64_t     databuf_size;
     uint64_t     seqno;
-    uint64_t     seqno_old;
-    uint64_t     seqno_gt;
-    uint64_t     seqno_le;
+    uint64_t     start_seqno;
+    uint64_t     end_seqno;
     uint64_t     checksum;
 } btree_metadata_t;
 
@@ -91,6 +98,8 @@ typedef struct btree_metadata {
     item(BTSTAT_LEAF_L1MISSES, /* default */) \
     item(BTSTAT_NONLEAF_L1MISSES, /* default */) \
     item(BTSTAT_OVERFLOW_L1MISSES, /* default */) \
+    item(BTSTAT_BACKUP_L1MISSES, /* default */) \
+    item(BTSTAT_BACKUP_L1HITS, /* default */) \
     item(BTSTAT_LEAF_L1WRITES, /* default */) \
     item(BTSTAT_NONLEAF_L1WRITES, /* default */) \
     item(BTSTAT_OVERFLOW_L1WRITES, /* default */) \
@@ -126,6 +135,9 @@ typedef struct btree_metadata {
     item(BTSTAT_MPUT_IO_SAVED, /* default */)  \
     item(BTSTAT_PUT_RESTART_CNT, /* default */)	\
     item(BTSTAT_SPCOPT_BYTES_SAVED, /* default */)  \
+    item(BTSTAT_NUM_SNAP_OBJS , /* default */)  \
+    item(BTSTAT_SNAP_DATA_SIZE , /* default */)  \
+    item(BTSTAT_NUM_SNAPS , /* default */)  \
 
 typedef enum {
 #define item(caps, value) \
@@ -172,6 +184,7 @@ typedef struct btree_rupdate_marker {
 	 */
 	int index;
 	bool set;
+	bool skip;
 
 	/*
 	 * Data for retry for space in other node
@@ -179,8 +192,10 @@ typedef struct btree_rupdate_marker {
 	char *retry_key;
 	uint32_t retry_keylen;
 	char *retry_data;
-	char retry_datalen;
+	uint64_t retry_datalen;
+	bool retry_update;
 } btree_rupdate_marker_t;
+
 typedef struct key_stuff_info {
     int       fixed;
     bool      leaf;
@@ -234,6 +249,7 @@ typedef int (delete_node_cb_t)(void *data, uint64_t lnodeid);
 typedef void (log_cb_t)(btree_status_t *ret, void *data, uint32_t event_type, struct btree_raw *btree, struct btree_raw_mem_node *n);
 typedef int (cmp_cb_t)(void *data, char *key1, uint32_t keylen1, char *key2, uint32_t keylen2);
 typedef int (trx_cmd_cb_t)( int, ...);
+typedef uint64_t (seqno_alloc_cb_t)(void);
 
 typedef bool (* btree_rupdate_cb_t) (char *key, uint32_t keylen, char *data, uint64_t datalen, void * callback_args, char **new_data, uint64_t *new_data_len);
 
@@ -261,7 +277,8 @@ struct btree_raw* btree_raw_init(uint32_t flags, uint32_t n_partition, uint32_t 
 	msg_cb_t *msg_cb, void *msg_cb_data,
 	cmp_cb_t *cmp_cb, void * cmp_cb_data,
 	bt_mput_cmp_cb_t mput_cmp_cb, void *mput_cmp_cb_data,
-	trx_cmd_cb_t *trx_cmd_cb, uint64_t cguid, fdf_pstats_t *pstats
+	trx_cmd_cb_t *trx_cmd_cb, uint64_t cguid, fdf_pstats_t *pstats, 
+        seqno_alloc_cb_t *ptr_seqno_alloc_cb
 	);
 
 void btree_raw_destroy(struct btree_raw **);

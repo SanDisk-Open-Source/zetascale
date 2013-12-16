@@ -39,6 +39,8 @@ typedef enum btree_range_status {
 typedef enum {
 	RANGE_BUFFER_PROVIDED      = 1<<0,  // buffers for keys and data provided by application
 	RANGE_ALLOC_IF_TOO_SMALL   = 1<<1,  // if supplied buffers are too small, FDF will allocate
+
+	RANGE_SEQNO_EQ             = 1<<4,  // only return objects = seqno
 	RANGE_SEQNO_LE             = 1<<5,  // only return objects with seqno <= end_seq
 	RANGE_SEQNO_GT_LE          = 1<<6,  // only return objects with start_seq < seqno <= end_seq
 
