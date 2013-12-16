@@ -33,6 +33,7 @@ btree_snap_get_max_snapshot(btree_snap_meta_t *snap_meta, size_t size)
 					return (size / sizeof(btree_snap_info_v1_t));
 		default :	assert(0);
 	}
+        return 0;
 }
 
 void

@@ -1004,6 +1004,7 @@ seqno_cmp_range(btree_metadata_t *smeta, uint64_t key_seqno,
 	}
 
 	assert(0);
+        return(1);
 }
 
 #define DIR_LEFT     -1

@@ -2906,7 +2906,7 @@ _FDFCreateContainerSnapshot(struct FDF_thread_state *fdf_thread_state, //  clien
 	FDF_status_t    status = FDF_FAILURE;
 	int				index, i;
 	struct btree	*bt;
-	btree_status_t  btree_ret;
+	btree_status_t  btree_ret = BTREE_FAILURE;
 
 	assert(snap_seq);
 
@@ -2981,7 +2981,7 @@ _FDFDeleteContainerSnapshot(struct FDF_thread_state *fdf_thread_state, //  clien
                            uint64_t snap_seq)          //  sequence number of snapshot to delete
 {
 	my_thd_state = fdf_thread_state;
-	btree_status_t	btree_ret;
+	btree_status_t	btree_ret = BTREE_FAILURE;
 	FDF_status_t    status = FDF_FAILURE;
 	int				index, i;
 	struct btree	*bt;
@@ -3038,7 +3038,7 @@ _FDFGetContainerSnapshots(struct FDF_thread_state *ts, //  client thread FDF con
                          FDF_container_snapshots_t **snap_seqs)        //  returns array of snapshot sequence numbers
 {
 	my_thd_state = ts;
-	btree_status_t	btree_ret;
+	btree_status_t	btree_ret = BTREE_FAILURE;
 	FDF_status_t    status = FDF_FAILURE;
 	int				index, i;
 	struct btree	*bt;
