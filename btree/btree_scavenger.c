@@ -159,8 +159,9 @@ static int scavenge_node_all_keys(btree_raw_t *btree, btree_raw_mem_node_t *node
 	key_stuff_info_t ks_prev, ks_current;
 	int i = 0;
 	int x;
-	int total_keys = 0;
+	int duplicate_keys = 0;
 	int deleting_keys = 0;
+	int set_start_index = 0;
 	int snap_n1, snap_n2;
 	key_meta_t key_meta;
 	char *tmp_ptr;
@@ -183,29 +184,36 @@ static int scavenge_node_all_keys(btree_raw_t *btree, btree_raw_mem_node_t *node
 		if (x == 0) {
 			snap_n1 = btree_snap_find_meta_index(btree, ks_prev.seqno);
 			snap_n2 = btree_snap_find_meta_index(btree, ks_current.seqno);
-			total_keys++;
+			duplicate_keys++;
 
 			if (snap_n1 == snap_n2) {
 				deleting_keys++;
 
 				if (non_minimal_delete(btree, node, i) != 0) {
-					return i;
+					goto done;
 				}
 				scavenged_keys++;
 				continue; /* Do not incr index if we delete a key */
 			}
 		} else {
-			if (total_keys && (total_keys == deleting_keys)) {
-				btree_leaf_get_meta(node->pnode, i, &key_meta);
+			/* If there were some duplicate keys and all of them are
+			 * deleted, then look if the leader of the set is a 
+			 * tombstone, in that case, delete the tombstone as well */
+			if (duplicate_keys && (duplicate_keys == deleting_keys)) {
+				btree_leaf_get_meta(node->pnode, set_start_index,
+				                    &key_meta);
 				if (key_meta.tombstone) {
-					if (non_minimal_delete(btree, node, i) != 0) {
-						return i;
+					if (non_minimal_delete(btree, node, 
+					                       set_start_index) != 0) {
+						goto done;
 					}
 					scavenged_keys++;
+					duplicate_keys = deleting_keys = 0;
 					continue;
 				}
 			}
-			total_keys = deleting_keys = 0;
+			duplicate_keys = deleting_keys = 0;
+			set_start_index = i; // New set if starting
 		}
 		tmp_ptr = ks_prev.key;
 		ks_prev = ks_current;
@@ -213,6 +221,7 @@ static int scavenge_node_all_keys(btree_raw_t *btree, btree_raw_mem_node_t *node
 		i++;
 	}
 
+done:
 	if (scavenged_keys) {
 		fprintf(stderr, "In-place scavenger deleted %d keys\n", scavenged_keys);
 	}

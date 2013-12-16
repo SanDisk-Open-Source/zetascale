@@ -296,6 +296,19 @@ create_snapshot(struct FDF_thread_state *thd_state, uint32_t snap_ind)
 }
 
 static void
+delete_snapshot(struct FDF_thread_state *thd_state, uint32_t snap_ind)
+{
+	FDF_status_t status;
+	status = FDFDeleteContainerSnapshot(thd_state, cguid, snap_seqnos[snap_ind]);
+
+	if (status != FDF_SUCCESS) {
+		printf("Error %s in deleting snapshots for snap_ind=%u\n",
+		        FDFStrError(status), snap_ind);
+		fflush(stdout);
+	}
+}
+
+static void
 do_read_verify_snapshot(struct FDF_thread_state *thd_state, uint32_t start, uint32_t cnt, 
                         uint32_t snap_ind, int chunk_size)
 {
@@ -513,6 +526,12 @@ do_delete_test(uint32_t num_objs, uint32_t iters, uint32_t num_snaps)
 	/* Do delete on top of tombstone delete and ensure it
 	 * says key not found */
 	do_delete(thd_state, 0, num_objs, FDF_OBJECT_UNKNOWN);
+
+	for (i = 0; i < num_snaps; i++) {
+		printf("Deleting Snapshot %u\n", i+1);
+		fflush(stdout);
+		delete_snapshot(thd_state, i);
+	}
 
 	/* Do another round of insert on top of tombstoned one and
 	 * delete them to see if we still see key not found */
