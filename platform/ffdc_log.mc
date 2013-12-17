@@ -3439,3 +3439,5 @@
 180019 FDF_LOG_O_DIRECT is set
 180020 FDF_O_SYNC is set
 180021 FDFSetProperty ('%s', '%s'). Old value: %s
+180207 Invalid objects count
+180208 cls=%ld addr=%u slabs=%lu, pend=%lu

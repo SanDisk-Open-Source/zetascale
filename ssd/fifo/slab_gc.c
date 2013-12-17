@@ -144,7 +144,7 @@ found:
 	if(!hash_entry->used || hash_entry->address != src_blk_offset)
 		goto out;
 
-	if((rc = mcd_fth_osd_slab_alloc(context, shard, class->slab_blksize, &dst_blk_offset)))
+	if((rc = mcd_fth_osd_slab_alloc(context, shard, class->slab_blksize, 1, &dst_blk_offset)))
 		goto out;
 
 	dst_offset = mcd_osd_rand_address(shard, dst_blk_offset);

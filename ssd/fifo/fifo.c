@@ -217,6 +217,21 @@ int fifo_flashPut( struct ssdaio_ctxt * pctxt, struct shard * shard,
     return Ssd_fifo_ops.flashPut( pctxt, shard, metaData, key, data, flags );
 }
 
+int fifo_flashPutV( struct ssdaio_ctxt * pctxt, struct shard * shard, 
+                   struct objMetaData * metaData, char ** key, char ** data, 
+                   int count,
+                   int flags )
+{
+    if ( NULL == Ssd_fifo_ops.flashPutV ) {
+        plat_log_msg(21701, 
+                      PLAT_LOG_CAT_SDF_APP_MEMCACHED,
+                      PLAT_LOG_LEVEL_FATAL,
+                      "fifo_flashPut not implemented!" );
+        plat_abort();
+    }
+    
+    return Ssd_fifo_ops.flashPutV( pctxt, shard, metaData, key, data, count, flags );
+}
 
 int fifo_flashFreeBuf( void * buf )
 {

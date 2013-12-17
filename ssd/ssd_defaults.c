@@ -88,6 +88,14 @@ int default_flashPut(struct ssdaio_ctxt *pctxt, struct shard *shard, struct objM
     plat_abort();
 }
 
+int default_flashPutV(struct ssdaio_ctxt *pctxt, struct shard *shard, struct objMetaData *metaData, char **key, char **data, int count, int flags) 
+{
+    plat_log_msg(21725, PLAT_LOG_CAT_FLASH, PLAT_LOG_LEVEL_FATAL,
+		 "flashPut is not yet implemented!");
+    plat_abort();
+}
+
+
 
 /**
  * @brief - enumerate all of the objects one at a time

@@ -48,6 +48,7 @@ int preEnvironment()
     }
     fprintf( fp, "FDF thread was initialized successfully!\n" );
 
+    /*
     p.durability_level = 0;
     p.fifo_mode = 0;
     p.size_kb = 1024*1024;
@@ -56,6 +57,8 @@ int preEnvironment()
     p.writethru = FDF_TRUE;
     p.evicting = 0;
     p.async_writes = FDF_TRUE;    
+    */
+    (void)FDFLoadCntrPropDefaults(&p);
     return 1;
 }
 

@@ -1251,6 +1251,17 @@ FDFIoctl(struct FDF_thread_state *fdf_thread_state,
          uint32_t ioctl_type,
          void *data);
 
+FDF_status_t FDFWriteObjects(
+	struct FDF_thread_state  *sdf_thread_state,
+	FDF_cguid_t          cguid,
+	char                **key,
+	uint32_t             keylen,
+	char                **data,
+	uint64_t             datalen,
+	uint32_t             count,
+	uint32_t             flags
+	);
+
 /*
  * @brief Create a snapshot for a container  
  * 

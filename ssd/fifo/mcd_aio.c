@@ -160,6 +160,7 @@ mcd_fth_aio_blk_read( osd_state_t * context, char * buf, uint64_t offset, int nb
     mcd_log_msg(20010, PLAT_LOG_LEVEL_TRACE, "ENTERING, offset=%lu nbytes=%d",
                  offset, nbytes );
 
+
     /*
      * buffer and offset must be at least 512-byte aligned
      */
@@ -365,6 +366,7 @@ mcd_fth_aio_blk_write_low( osd_state_t * context, char * buf, uint64_t offset,
 
     mcd_log_msg(20010, PLAT_LOG_LEVEL_TRACE, "ENTERING, offset=%lu nbytes=%d",
                  offset, nbytes );
+
 
     /*
      * buffer and offset must be at least 512-byte aligned

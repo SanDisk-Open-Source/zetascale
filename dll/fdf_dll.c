@@ -121,6 +121,17 @@ static FDF_status_t
                       uint32_t flags);
 
 static FDF_status_t 
+(*ptr_FDFWriteObjects)(struct FDF_thread_state *sdf_thread_state,
+                      FDF_cguid_t cguid,
+                      char **key,
+                      uint32_t keylen,
+                      char **data,
+                      uint64_t datalen,
+                      uint32_t count,
+                      uint32_t flags);
+
+
+static FDF_status_t 
 (*ptr_FDFWriteObjectExpiry)(struct FDF_thread_state *fdf_thread_state,
                             FDF_cguid_t cguid,
                             FDF_writeobject_t *wobj,
@@ -371,6 +382,7 @@ static struct {
     { "FDFReadObjectExpiry",           &ptr_FDFReadObjectExpiry          },
     { "FDFFreeBuffer",                 &ptr_FDFFreeBuffer                },
     { "FDFWriteObject",                &ptr_FDFWriteObject               },
+    { "FDFWriteObjects",               &ptr_FDFWriteObjects              },
     { "FDFWriteObjectExpiry",          &ptr_FDFWriteObjectExpiry         },
     { "FDFDeleteObject",               &ptr_FDFDeleteObject              },
     { "FDFEnumerateContainerObjects",  &ptr_FDFEnumerateContainerObjects },
@@ -815,6 +827,32 @@ FDFWriteObject(struct FDF_thread_state *sdf_thread_state,
                                  keylen,
                                  data,
                                  datalen,
+                                 flags);
+}
+
+/*
+ * FDFWriteObjects
+ */
+FDF_status_t 
+FDFWriteObjects(struct FDF_thread_state *sdf_thread_state,
+               FDF_cguid_t cguid,
+               char **key,
+               uint32_t keylen,
+               char **data,
+               uint64_t datalen,
+               uint32_t count,
+               uint32_t flags)
+{
+    if (unlikely(!ptr_FDFWriteObjects))
+        undefined("FDFWriteObjects");
+
+    return (*ptr_FDFWriteObjects)(sdf_thread_state,
+                                 cguid,
+                                 key,
+                                 keylen,
+                                 data,
+                                 datalen,
+                                 count,
                                  flags);
 }
 

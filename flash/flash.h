@@ -40,7 +40,8 @@ enum flashPutFlags {
     FLASH_PUT_PREFIX_DO_DEL   = 0x180, // Prefix-based object deletion
     FLASH_PUT_DURA_SW_CRASH   = 0x200, // Request elevated durability
     FLASH_PUT_DURA_HW_CRASH   = 0x400, // Request maximum durability
-    FLASH_PUT_COMPRESS        = 0x800  // Compress data portion before writing to flash
+    FLASH_PUT_COMPRESS        = 0x800,  // Compress data portion before writing to flash
+    FLASH_PUT_SKIP_IO         = 0x1000  // Vectored write does IO before call to slab_set
 };
 
 enum flashGetFlags {

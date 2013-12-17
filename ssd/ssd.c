@@ -67,6 +67,7 @@ void ssd_Init()
 
     psss->flashGet          = default_flashGet;
     psss->flashPut          = default_flashPut;
+    psss->flashPutV         = default_flashPutV;
     psss->flashEnumerate    = default_flashEnumerate;
     psss->flashOpen         = default_flashOpen;
     psss->shardFind         = default_shardFind;
@@ -104,6 +105,7 @@ void ssd_Init()
         case SSD_Fifo:
             psss->flashGet          = fifo_flashGet;
             psss->flashPut          = fifo_flashPut;
+            psss->flashPutV         = fifo_flashPutV;
             psss->flashOpen         = fifo_flashOpen;
             psss->shardCreate       = fifo_shardCreate;
             psss->shardOpen         = fifo_shardOpen;
@@ -141,6 +143,11 @@ int ssd_flashGet(struct ssdaio_ctxt *pctxt, struct shard *shard, struct objMetaD
 int ssd_flashPut(struct ssdaio_ctxt *pctxt, struct shard *shard, struct objMetaData *metaData, char *key, char *data, int flags) 
 {
     return((ssdState.flashPut)(pctxt, shard, metaData, key, data, flags));
+}
+
+int ssd_flashPutV(struct ssdaio_ctxt *pctxt, struct shard *shard, struct objMetaData *metaData, char **key, char **data, int count, int flags) 
+{
+    return((ssdState.flashPutV)(pctxt, shard, metaData, key, data, count, flags));
 }
 
 

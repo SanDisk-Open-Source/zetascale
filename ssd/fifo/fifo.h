@@ -44,6 +44,15 @@ typedef struct ssd_fifo_ops {
                                      char * data, 
                                      int flags);
 
+    int                 (*flashPutV)( struct ssdaio_ctxt * pctxt, 
+                                     struct shard * shard, 
+                                     struct objMetaData * metaData, 
+                                     char ** key, 
+                                     char ** data, 
+                                     int count,
+                                     int flags);
+
+
     int                 (*flashFreeBuf)( void * buf );
 
     uint64_t            (*flashStats)( struct shard * shard, int key );
@@ -86,6 +95,8 @@ extern int fifo_flashGet(struct ssdaio_ctxt *pctxt, struct shard *shard, struct 
 	  char *key, char **dataPtr, int flags);
 extern int fifo_flashPut(struct ssdaio_ctxt *pctxt, struct shard *shard, struct objMetaData *metaData, 
 	  char *key, char *data, int flags);
+extern int fifo_flashPutV(struct ssdaio_ctxt *pctxt, struct shard *shard, struct objMetaData *metaData, 
+	  char **key, char **data, int count, int flags);
 extern int fifo_flashFreeBuf(void *p);
 extern uint64_t fifo_flashStats( struct shard * shard, int key );
 extern void fifo_shardSync(shard_t *shard);

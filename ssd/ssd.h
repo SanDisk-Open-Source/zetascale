@@ -42,6 +42,8 @@ extern int ssd_flashGet(struct ssdaio_ctxt *pctxt, struct shard *shard, struct o
 	  char *key, char **dataPtr, int flags);
 extern int ssd_flashPut(struct ssdaio_ctxt *pctxt, struct shard *shard, struct objMetaData *metaData, 
 	  char *key, char *data, int flags);
+extern int ssd_flashPutV(struct ssdaio_ctxt *pctxt, struct shard *shard, struct objMetaData *metaData, 
+	  char **key, char **data, int count, int flags);
 extern struct objDesc *ssd_flashEnumerate(struct shard *shard, 
 	  struct objDesc *prevObj, int *hashIndex, char **key);
 extern void ssd_setLRUCallback(struct shard *shard, 

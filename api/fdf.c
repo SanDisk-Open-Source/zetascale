@@ -2540,6 +2540,7 @@ FDF_status_t FDFLoadCntrPropDefaults(
 	props->num_shards = 1;
 	props->flash_only = FDF_FALSE;
 	props->cache_only = FDF_FALSE;
+	props->compression = FDF_FALSE;
 	return FDF_SUCCESS;
 }
 
@@ -4805,7 +4806,6 @@ FDF_status_t FDFFreeBuffer(
     return FDF_SUCCESS;
 }
 
-
 static FDF_status_t
 fdf_write_object(
 	struct FDF_thread_state  *fdf_thread_state,
@@ -4862,7 +4862,6 @@ fdf_write_object(
 			status = FDF_FAILURE;
 		}
 		goto out;
-
 	} else {
 	if ( flags & FDF_WRITE_MUST_EXIST ) {
     	ar.reqtype = APPAE;
@@ -4893,12 +4892,65 @@ fdf_write_object(
 	status = ar.respStatus;
 	}	
 out:
-
     fdf_decr_io_count( cguid );
 
     return status;
 }
 
+static FDF_status_t
+fdf_write_objects(
+	struct FDF_thread_state  *fdf_thread_state,
+	FDF_cguid_t          cguid,
+	char                **key,
+	uint32_t             keylen,
+	char                **data,
+	uint64_t             datalen,
+	uint32_t             count,
+	uint32_t             flags
+	)
+{
+	int i;
+    SDF_action_init_t  *pac		= NULL;
+    FDF_status_t        status	= FDF_FAILURE;
+
+ 	plat_assert(cguid && key);
+ 
+	if (fdf_incr_wr_io_count(cguid) == 0) {
+		return FDF_FAILURE;
+	}
+
+    if ( (status = fdf_get_ctnr_status(cguid, 0)) != FDF_CONTAINER_OPEN ) {
+    	plat_log_msg( 160040, LOG_CAT, LOG_DIAG, "Container must be open to execute a write object" );
+        goto out;     
+    }
+
+    pac = (SDF_action_init_t *) fdf_thread_state;
+
+	SDF_cache_ctnr_metadata_t *meta;
+	meta = get_container_metadata(pac, cguid);
+	if (meta == NULL) {
+		goto out;
+	}
+
+	if (meta->meta.properties.flash_only != FDF_TRUE) {
+		status = FLASH_EOK;
+		for(i = 0; i < count && status == FLASH_EOK; i++)
+			status = fdf_write_object(fdf_thread_state, cguid, key[i], keylen, data[i], datalen, flags);
+	} else {
+		struct objMetaData metaData;
+		metaData.keyLen = keylen;
+		metaData.cguid  = cguid;
+		metaData.dataLen = datalen;
+
+		status = ssd_flashPutV(pac->paio_ctxt, meta->pshard, &metaData, key, data, count, FLASH_PUT_NO_TEST);
+		status = status == FLASH_EOK ? FDF_SUCCESS : FDF_FAILURE;
+	}
+
+out:
+    fdf_decr_io_count( cguid );
+
+    return status;
+}
 
 FDF_status_t FDFWriteObject(
 	struct FDF_thread_state  *fdf_thread_state,
@@ -4969,6 +5021,88 @@ FDF_status_t FDFWriteObject(
 	}
 
 	status = fdf_write_object(fdf_thread_state, cguid, key, keylen, data, datalen, flags);
+
+out:
+	if (thd_ctx_locked) {
+		fdf_unlock_thd_ctxt(fdf_thread_state);
+	}
+	return status;
+}
+
+FDF_status_t FDFWriteObjects(
+	struct FDF_thread_state  *fdf_thread_state,
+	FDF_cguid_t          cguid,
+	char                **key,
+	uint32_t             keylen,
+	char                **data,
+	uint64_t             datalen,
+	uint32_t             count,
+	uint32_t             flags
+	)
+{
+	FDF_status_t status = FDF_SUCCESS;
+	bool thd_ctx_locked = false;
+
+	status = fdf_validate_container(cguid);
+	if (FDF_SUCCESS != status) {
+		plat_log_msg(160125, LOG_CAT,
+				LOG_ERR, "Failed due to an illegal container ID:%s",
+				FDF_Status_Strings[status]);
+		goto out;
+	}
+	/*
+	 * Check if operation can begin
+	 */
+	if (FDF_SUCCESS != (status = is_fdf_operation_allowed())) {
+        plat_log_msg(80022, LOG_CAT,
+               LOG_WARN, "Shutdown in Progress. Operation not allowed ");
+		goto out;
+	}
+	if (is_license_valid() == false) {
+		plat_log_msg(160145, LOG_CAT, LOG_WARN, "License check failed.");
+		status = FDF_LICENSE_CHK_FAILED;
+		goto out;
+	}
+        if ( !fdf_thread_state || !cguid || !keylen || !data || !datalen  ) {
+            if ( !fdf_thread_state ) {
+                plat_log_msg(80049,LOG_CAT,LOG_DBG,
+                             "FDF Thread state is NULL");
+            }
+            if ( !cguid ) {
+                plat_log_msg(80050,LOG_CAT,LOG_DBG,
+                             "Invalid container cguid:%lu",cguid);
+            }
+            if ( !keylen ) {
+                plat_log_msg(80056,LOG_CAT,LOG_DBG,
+                             "Invalid key length");
+            }
+            if ( !data ) {
+                plat_log_msg(80058,LOG_CAT,LOG_DBG,
+                             "Invalid data(NULL)");
+            }
+            if ( !datalen ) {
+                plat_log_msg(80059,LOG_CAT,LOG_DBG,
+                             "Invalid data length");
+            }
+            if ( !count ) {
+                plat_log_msg(180207,LOG_CAT,LOG_DBG,
+                             "Invalid objects count");
+            }
+            return FDF_INVALID_PARAMETER;
+        }
+
+	thd_ctx_locked = fdf_lock_thd_ctxt(fdf_thread_state);
+	if (false == thd_ctx_locked) {
+		/*
+		 * Could not get thread context lock, error out.
+		 */
+		status = FDF_THREAD_CONTEXT_BUSY;
+		plat_log_msg(160161, LOG_CAT,
+		       	     LOG_DBG, "Could not get thread context lock");
+		goto out;
+	}
+
+	status = fdf_write_objects(fdf_thread_state, cguid, key, keylen, data, datalen, count, flags);
 
 out:
 	if (thd_ctx_locked) {

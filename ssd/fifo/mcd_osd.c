@@ -55,6 +55,7 @@
 #include "mcd_hash.h"
 #include "hash.h"
 #include "slab_gc.h"
+#include <snappy-c.h>
 
 #include "shared/private.h"
 #ifdef SDFAPI
@@ -113,6 +114,50 @@ static int Mcd_fth_aio_ctxts[SSD_AIO_CTXT_MAX_COUNT];
 
 #ifndef MCD_ENABLE_FIFO
 #  define MCD_ENABLE_SLAB
+#endif
+
+#if 0
+#define SERIAL_BUF_SIZE
+typedef struct {
+	uint64_t generation;
+	void* buf[SERIAL_BUF_SIZE];
+	uint64_t start_address;
+	uint64_t last_address;
+	uint32_t free;
+	pthread_mutex_t mutex;
+	pthread_mutex_t io_mutex;
+} serial_buf;
+
+
+data_ptr write_buf_prepare(size)
+{
+	mutex_lock(serial_buf.mutex);
+	blk_addr = alloc_slab();
+	buf->in_use++;
+	gen = serial_buf.generation;
+	ptr = buf + SERIAL_BUF_SIZE - free;
+	free -= size;
+	mutex_unlock(serial_buf.mutex);
+	return ptr;
+}
+
+memcpy(data_ptr, src);
+
+write_buf()
+{
+	mutex_lock(serial_buf.mutex);
+	buf->in_use--;
+	mutex_lock(serial_buf.io_mutex);
+	mutex_unlock(serial_buf.mutex);
+	while(buf->in_use);
+	if(gen < serial_buf.generation)
+	{
+		mutex_unlock(serial_buf.io_mutex);
+		return;
+	}
+	flush_buffer(serial_buffer);
+	mutex_unlock(serial_buf.io_mutex);
+}
 #endif
 
 /* xxxzzz fix this linkage!
@@ -380,11 +425,14 @@ typedef struct mcd_osd_buf_hdr {
 /*
  * returned buffer is Mcd_osd_blk_size-aligned
  */
-void * mcd_fth_osd_iobuf_alloc( size_t size, bool is_static )
+void * mcd_fth_osd_iobuf_alloc(osd_state_t* context, size_t size, bool is_static )
 {
     char                      * buf;
     char                      * temp;
     mcd_osd_buf_hdr_t         * buf_hdr;
+
+	if(context && size <= MCD_FTH_OSD_BUF_SIZE)
+		return context->osd_buf;
 
     buf = plat_alloc( size + 2 * MCD_OSD_BLK_SIZE_MAX - 1 );
     if ( NULL == buf ) {
@@ -2193,18 +2241,13 @@ mcd_fth_osd_fifo_get( void * context, mcd_osd_shard_t * shard, char * key,
                 return FLASH_EOK;
             }
 
-                if ((MCD_FTH_OSD_BUF_SIZE / Mcd_osd_blk_size) >= hash_entry->blocks ) {
-                    data_buf = ((osd_state_t *)context)->osd_buf;
-                }
-                else {
-                    data_buf = mcd_fth_osd_iobuf_alloc(
-                        mcd_osd_lba_to_blk( hash_entry->blocks ) *
-                        Mcd_osd_blk_size, false );
-                    if ( NULL == data_buf ) {
-                        (void) __sync_fetch_and_sub( &wbuf->ref_count, 1 );
-                        return FLASH_ENOMEM;
-                    }
-                }
+            data_buf = mcd_fth_osd_iobuf_alloc(context,
+                    mcd_osd_lba_to_blk( hash_entry->blocks ) *
+                    Mcd_osd_blk_size, false );
+            if ( NULL == data_buf ) {
+                (void) __sync_fetch_and_sub( &wbuf->ref_count, 1 );
+                return FLASH_ENOMEM;
+            }
 
             memcpy( data_buf, buf + sizeof(mcd_osd_meta_t) + key_len,
                     meta->data_len );
@@ -2223,19 +2266,12 @@ mcd_fth_osd_fifo_get( void * context, mcd_osd_shard_t * shard, char * key,
         /*
          * ok, read the data from flash
          */
-            if ((MCD_FTH_OSD_BUF_SIZE / Mcd_osd_blk_size) >= hash_entry->blocks ) {
-                data_buf = ((osd_state_t *)context)->osd_buf;
-            }
-            else {
-                data_buf = mcd_fth_osd_iobuf_alloc(
-                    mcd_osd_lba_to_blk( hash_entry->blocks ) *
-                    Mcd_osd_blk_size, false );
-                if ( NULL == data_buf ) {
-                    return FLASH_ENOMEM;
-                }
-            }
-        buf = (char *)( ( (uint64_t)data_buf + Mcd_osd_blk_size - 1 )
-                        & Mcd_osd_blk_mask );
+        buf = data_buf = mcd_fth_osd_iobuf_alloc(context,
+                mcd_osd_lba_to_blk( hash_entry->blocks ) *
+                Mcd_osd_blk_size, false );
+        if ( NULL == data_buf ) {
+            return FLASH_ENOMEM;
+        }
 
         blk_offset = hash_entry->address;
 
@@ -2410,6 +2446,21 @@ mcd_fth_osd_shrink_class(mcd_osd_shard_t * shard, mcd_osd_segment_t *segment, bo
     return rc;
 }
 
+void
+mcd_fth_osd_slab_dealloc_low( mcd_osd_segment_t *segment, uint32_t blk_offset, int count)
+{
+    int i, map_offset = (blk_offset - segment->blk_offset) / segment->class->slab_blksize;
+
+    for(i = 0; i < count; i++)
+    {
+        (void) __sync_fetch_and_and( &segment->bitmap[(map_offset + i) / 64],
+                ~Mcd_osd_bitmap_masks[(map_offset + i) % 64] );
+    }
+
+    atomic_sub(segment->class->used_slabs, count);
+    atomic_sub(segment->used_slabs, count);
+}
+
 /*
  * Free slab for deallocated blocks, update bitmap. Called only when
  * object is overwritten in store mode to free space for old object.
@@ -2418,7 +2469,6 @@ void
 mcd_fth_osd_slab_dealloc( mcd_osd_shard_t * shard, uint32_t address, bool async )
 {
     int                 free_slab_curr;
-    int                 map_offset;
     mcd_osd_segment_t * segment;
 
     mcd_log_msg( 20000, PLAT_LOG_LEVEL_TRACE, "ENTERING" );
@@ -2428,14 +2478,7 @@ mcd_fth_osd_slab_dealloc( mcd_osd_shard_t * shard, uint32_t address, bool async 
     if(!segment)
         return;
 
-    map_offset = address - segment->blk_offset;
-    map_offset /= segment->class->slab_blksize;
-
-    (void) __sync_fetch_and_and( &segment->bitmap[map_offset / 64],
-                                 ~Mcd_osd_bitmap_masks[map_offset % 64] );
-
-    atomic_dec(segment->class->used_slabs);
-    atomic_dec(segment->used_slabs);
+	mcd_fth_osd_slab_dealloc_low(segment, address, 1);
 
 	if(async)
 	{
@@ -2457,16 +2500,12 @@ mcd_fth_osd_slab_dealloc( mcd_osd_shard_t * shard, uint32_t address, bool async 
 		slab_gc_signal(shard, segment->class);
 #endif
 
-    mcd_log_msg( 20365, MCD_OSD_LOG_LVL_TRACE,
-                 "cls=%ld addr=%u off=%d map=%.16lx slabs=%lu, pend=%lu",
+    mcd_log_msg(180208, MCD_OSD_LOG_LVL_TRACE,
+                 "cls=%ld addr=%u slabs=%lu, pend=%lu",
                  segment->class - shard->slab_classes,
                  address,
-                 map_offset,
-                 segment->bitmap[map_offset / 64],
                  segment->class->used_slabs,
                  segment->class->dealloc_pending );
-
-    return;
 }
 
 
@@ -3685,7 +3724,7 @@ static inline int
 mcd_fth_osd_grow_class(void* context, mcd_osd_shard_t * shard, mcd_osd_slab_class_t * class )
 {
     uint64_t                    blk_offset;
-    uint32_t                    cnt, seg_idx;
+    uint32_t                    seg_idx;
     mcd_osd_segment_t         * segment;
     osd_state_t               * osd_state = (osd_state_t *)context;
     fthWaitEl_t               * wait = NULL;
@@ -3693,7 +3732,8 @@ mcd_fth_osd_grow_class(void* context, mcd_osd_shard_t * shard, mcd_osd_slab_clas
     // serialize updates to persistent class segment tables
     if ( 1 == shard->persistent ) {
         wait = fthLock( &class->lock, 1, NULL );
-        cnt = class->num_segments; 
+#if 0
+        uint32_t cnt = class->num_segments; 
         if ( cnt > 0 && (segment = mcd_osd_segment_get_and_lock(class, cnt - 1)))
         {
             if (segment->next_slab < class->slabs_per_segment ) {
@@ -3703,6 +3743,7 @@ mcd_fth_osd_grow_class(void* context, mcd_osd_shard_t * shard, mcd_osd_slab_clas
             }
             mcd_osd_segment_unlock(segment);
         }
+#endif
     }
 
     blk_offset =
@@ -4208,15 +4249,16 @@ found:
 
 static inline int
 mcd_fth_osd_slab_alloc_low(mcd_osd_shard_t * shard, mcd_osd_segment_t* segment,
+                        uint32_t count,
                         uint64_t * blk_offset )
 {
 	mcd_osd_slab_class_t* class = segment->class;
-	int next_slab = __sync_fetch_and_add( &segment->next_slab, 1 );
+	int next_slab = __sync_fetch_and_add( &segment->next_slab, count );
 
 	/* oops, segment just became full */
 	if ( next_slab >= class->slabs_per_segment )
 	{
-		atomic_dec(segment->next_slab);
+		atomic_sub(segment->next_slab, count);
 
 		mcd_log_msg( 20363, PLAT_LOG_LEVEL_DIAGNOSTIC, "race detected" );
 
@@ -4235,7 +4277,17 @@ mcd_fth_osd_slab_alloc_low(mcd_osd_shard_t * shard, mcd_osd_segment_t* segment,
 
 	uint32_t map_offset = (*blk_offset - segment->blk_offset) / class->slab_blksize;
 
-	return mcd_osd_slab_slot_alloc(shard, segment, map_offset, NULL);
+	int i = 0;
+	while(i < count && mcd_osd_slab_slot_alloc(shard, segment, map_offset + i, NULL))
+		i++;
+
+	if(i < count)
+	{
+		mcd_fth_osd_slab_dealloc_low(segment, *blk_offset, i);
+		return 0;
+	}
+
+	return 1;
 }
 
 /*
@@ -4243,19 +4295,20 @@ mcd_fth_osd_slab_alloc_low(mcd_osd_shard_t * shard, mcd_osd_segment_t* segment,
  */
 int
 mcd_fth_osd_slab_alloc( void * context, mcd_osd_shard_t * shard, int blocks,
+                        int count,
                         uint64_t * blk_offset )
 {
-    int                         i, idx, count;
+    int                         i, idx, seg_count;
     mcd_osd_segment_t         * segment;
     mcd_osd_slab_class_t* class = shard->slab_classes + shard->class_table[blocks];
     osd_state_t               * osd_state = (osd_state_t *)context;
 
-    if(mcd_fth_osd_get_free_slab(shard, class, blk_offset))
-        return 0;
+    if(count < 2 && mcd_fth_osd_get_free_slab(shard, class, blk_offset))
+        return 1;
 
     do {
         /* first check the last unfilled segment in the class */
-        i = idx = count = class->num_segments;
+        i = idx = seg_count = class->num_segments;
         while(--i >= 0)
         {
             if(!(segment = mcd_osd_segment_get_and_lock(class, i)))
@@ -4265,23 +4318,23 @@ mcd_fth_osd_slab_alloc( void * context, mcd_osd_shard_t * shard, int blocks,
 
             mcd_osd_segment_unlock(segment);
 
-            if (class->slabs_per_segment <= next_slab)
+            if (class->slabs_per_segment < next_slab + count)
                 break;
 
             idx = i;
         }
 
-        if(idx != count) /* partially used segment found */
+        if(idx != seg_count) /* partially used segment found */
         {
             if(!(segment = mcd_osd_segment_get_and_lock(class, idx)))
                 continue;
 
-            int res = class->slabs_per_segment > segment->next_slab && // segment not full
-                    mcd_fth_osd_slab_alloc_low(shard, segment, blk_offset);
+            int res = class->slabs_per_segment >= segment->next_slab + count && // segment not full
+                    mcd_fth_osd_slab_alloc_low(shard, segment, count, blk_offset);
 
             mcd_osd_segment_unlock(segment);
 
-            if(res) return 0;
+            if(res) return count;
 
             if ( class->segments[class->num_segments - 1] != segment )
                 continue;
@@ -4292,14 +4345,18 @@ mcd_fth_osd_slab_alloc( void * context, mcd_osd_shard_t * shard, int blocks,
          * segments before trying to grow the class
          */
         if ( /*class->used_slabs < class->total_slabs * 90 / 100 &&*/
+            count < 2 &&
             !mcd_fth_osd_get_slab( context, shard, class, blocks,
                                             blk_offset ) ) 
-                return 0;   /* SUCCESS */
+                return 1;   /* SUCCESS */
 
         /*EF: prevent call to grow_class from GC thread, which doesn't set osd_wait */
-        if (!osd_state->osd_wait || mcd_fth_osd_grow_class(context, shard, class) == -1)
-            return mcd_fth_osd_get_slab( context, shard, class, blocks,
-                                         blk_offset );
+        if (((!osd_state->osd_wait && count < 2) || mcd_fth_osd_grow_class(context, shard, class) == -1))
+		{
+			if(!mcd_fth_osd_get_slab( context, shard, class, blocks, blk_offset))
+				return 1;
+			return 0;
+		}
     } while ( 1 );
 
     plat_assert(0);
@@ -4327,13 +4384,46 @@ static int mcd_osd_prefix_delete( mcd_osd_shard_t * shard, char * key,
     return FLASH_EOK;
 }
 
-static int
-mcd_fth_osd_slab_set( void * context, mcd_osd_shard_t * shard, char * key,
-                      int key_len, void * data, SDF_size_t data_len, int flags,
-                      struct objMetaData * meta_data, uint64_t syndrome )
+void mcd_osd_slab_set_data(void* buf, char * key, int key_len, void * data,
+        SDF_size_t data_len, SDF_size_t uncomp_datalen, struct objMetaData* meta_data, int copy_data)
 {
-    int                         i = 0;
-    int                         rc = FLASH_EOK;
+    mcd_osd_meta_t*            meta = (mcd_osd_meta_t *)buf;
+
+    meta->magic    = MCD_OSD_META_MAGIC;
+    meta->version  = MCD_OSD_META_VERSION;
+    meta->key_len  = key_len;
+    meta->data_len = data_len;
+    meta->cguid    = meta_data->cguid;
+
+    if ( NULL != meta_data ) {
+        meta->create_time = meta_data->createTime;
+        meta->expiry_time = meta_data->expTime;
+        meta->seqno       = meta_data->sequence;
+    }
+    meta->uncomp_datalen = uncomp_datalen;
+
+    memcpy( buf + sizeof(mcd_osd_meta_t), key, key_len );
+
+    if(copy_data)
+        memcpy( buf + sizeof(mcd_osd_meta_t) + key_len, data, data_len );
+
+    meta->data_chksum = 0;
+    meta->blk1_chksum = 0;
+    meta->checksum = 0;
+    if (flash_settings.chksum_data)
+        meta->data_chksum = hashb( (uint8_t *)buf+sizeof( mcd_osd_meta_t), key_len+data_len, 0);
+    if (flash_settings.chksum_metadata)
+        meta->blk1_chksum = hashb( (uint8_t *)buf, MCD_OSD_META_BLK_SIZE, 0);
+    if (flash_settings.chksum_object)
+        meta->checksum = fastcrc32( (uint8_t *)buf, blocks*Mcd_osd_blk_size, 0);
+}
+
+static int
+mcd_fth_osd_slab_set( void * context, mcd_osd_shard_t * shard,
+        char * key, int key_len, void * data, SDF_size_t data_len, int flags,
+                      struct objMetaData * meta_data, uint64_t syndrome, uint64_t blk_offset )
+{
+    int                         i = 0, rc = FLASH_EOK;
     bool                        obj_exists = false;
     bool                        dyn_buffer = false;
     SDF_size_t                  raw_len;
@@ -4353,8 +4443,6 @@ mcd_fth_osd_slab_set( void * context, mcd_osd_shard_t * shard, char * key,
     cntr_id_t                   cntr_id = meta_data->cguid;
     FDF_boolean_t				vc_evict = FDF_FALSE;
     hash_handle_t             * hdl = shard->hash_handle;
-    uint32_t                    bucket_idx;
-    bucket_entry_t            * bucket;
     uint32_t uncomp_datalen = 0; /* Uncompressed data length */
 
     mcd_log_msg( 20000, PLAT_LOG_LEVEL_TRACE, "ENTERING" );
@@ -4383,31 +4471,18 @@ mcd_fth_osd_slab_set( void * context, mcd_osd_shard_t * shard, char * key,
 
     /* Check if object needs to be compressed */
     if( getProperty_Int("FDF_COMPRESSION", 1) && (data_len > 0) &&
-                                          (flags & FLASH_PUT_COMPRESS) ) {
-        size_t comp_len;
-        char *comp_data;
-        int hist_index;
+        (flags & FLASH_PUT_COMPRESS) && !(flags & FLASH_PUT_SKIP_IO)) {
         /* Compression enabled. Lets compress the data */
-        comp_data = fdf_compress_data(data, (size_t)data_len,NULL,&comp_len);
-        if ( comp_data == NULL ) {
+        uncomp_datalen = data_len;
+        data = fdf_compress_data(data, (size_t)data_len,NULL,&data_len);
+        if ( data == NULL ) {
             mcd_log_msg(160201,PLAT_LOG_LEVEL_ERROR, "Compression failed");
             return FLASH_ENOENT;
         }
         /* Update stats and histogram
            Histogram is tracks 1k,2k ...15K and >15K*/
-        __sync_fetch_and_add(&shard->comp_bytes,comp_len);
-        hist_index = comp_len/1000;
-        if( hist_index >= (MCD_OSD_MAX_COMP_HIST-1) ) {
-            atomic_inc(shard->comp_hist[MCD_OSD_MAX_COMP_HIST-1]);
-        }
-        else {
-            atomic_inc(shard->comp_hist[hist_index]);
-        }
-        /* overwrite data pointer & len so rest of the function refers 
-           compressed data */
-        uncomp_datalen = data_len; 
-        data = comp_data;
-        data_len = comp_len;
+        __sync_fetch_and_add(&shard->comp_bytes,data_len);
+		atomic_inc(shard->comp_hist[data_len/1000 < MCD_OSD_MAX_COMP_HIST ? data_len/1000 : (MCD_OSD_MAX_COMP_HIST - 1)]);
     }
 
     num_puts = __sync_add_and_fetch( &shard->num_puts, 1 );
@@ -4611,19 +4686,23 @@ mcd_fth_osd_slab_set( void * context, mcd_osd_shard_t * shard, char * key,
         plus_blks -= rsvd_blks;
     }
 
+    if(!(flags & FLASH_PUT_SKIP_IO))
+    {
     /*
      * re-alloc the buffer for large objects
      */     
     if ( (MCD_FTH_OSD_BUF_SIZE / Mcd_osd_blk_size) < blocks ) {
-        buf = mcd_fth_osd_iobuf_alloc( blocks * Mcd_osd_blk_size, false );
+        buf = mcd_fth_osd_iobuf_alloc(context, blocks * Mcd_osd_blk_size, false );
         if ( NULL == buf ) {
             rc = FLASH_ENOMEM;
             goto out;
         }
         dyn_buffer = true;
     }
-        
-    if ( 0 != mcd_fth_osd_slab_alloc( context, shard, blocks, &blk_offset ) ) {
+
+    mcd_osd_slab_set_data(buf, key, key_len, data, data_len, uncomp_datalen, meta_data, true);
+
+    if ( 1 != mcd_fth_osd_slab_alloc( context, shard, blocks, 1, &blk_offset ) ) {
         mcd_log_msg( 20367, PLAT_LOG_LEVEL_TRACE, "failed to allocate slab" );
         rc = FLASH_ENOSPC;
         goto out;
@@ -4637,37 +4716,6 @@ mcd_fth_osd_slab_set( void * context, mcd_osd_shard_t * shard, char * key,
         ( shard->segment_table[ blk_offset /
                                 Mcd_osd_segment_blks ]->class->slab_blksize >=
           mcd_osd_lba_to_blk( mcd_osd_blk_to_lba( blocks ) ) );
-                    
-    /*
-     * copy the data over to the aligned buffer
-     * FIXME: this could be optimized away
-     */
-    meta = (mcd_osd_meta_t *)buf;
-    meta->magic    = MCD_OSD_META_MAGIC;
-    meta->version  = MCD_OSD_META_VERSION;
-    meta->key_len  = key_len;
-    meta->data_len = data_len;
-    meta->cguid    = cntr_id;
-
-    if ( NULL != meta_data ) {
-        meta->create_time = meta_data->createTime;
-        meta->expiry_time = meta_data->expTime;
-        meta->seqno       = meta_data->sequence;
-    }
-    meta->uncomp_datalen = uncomp_datalen;
-
-    memcpy( buf + sizeof(mcd_osd_meta_t), key, key_len );
-    memcpy( buf + sizeof(mcd_osd_meta_t) + key_len, data, data_len );
-
-    meta->data_chksum = 0;
-    meta->blk1_chksum = 0;
-    meta->checksum = 0;
-    if (flash_settings.chksum_data)
-        meta->data_chksum = hashb( (uint8_t *)buf+sizeof( mcd_osd_meta_t), key_len+data_len, 0);
-    if (flash_settings.chksum_metadata)
-        meta->blk1_chksum = hashb( (uint8_t *)buf, MCD_OSD_META_BLK_SIZE, 0);
-    if (flash_settings.chksum_object)
-        meta->checksum = fastcrc32( (uint8_t *)buf, blocks*Mcd_osd_blk_size, 0);
 
     offset = mcd_osd_rand_address(shard, blk_offset);
 
@@ -4704,6 +4752,7 @@ mcd_fth_osd_slab_set( void * context, mcd_osd_shard_t * shard, char * key,
     memcpy( shard->slab_cache + offset, buf, blocks * Mcd_osd_blk_size );
     rc = FLASH_EOK;
 #endif
+    } /* !(flags & FLASH_PUT_SKIP_IO) */
 
     plat_log_msg( 20369, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION,
                   PLAT_LOG_LEVEL_TRACE,
@@ -4739,6 +4788,7 @@ mcd_fth_osd_slab_set( void * context, mcd_osd_shard_t * shard, char * key,
      *
      * NOTE: shard->replicated should never be set with simple replication
      */
+#if 0
     if ( 1 == shard->evict_to_free && 1 == shard->replicated ) {
 
         bucket_idx = *(hdl->hash_buckets + ((syndrome % hdl->hash_size) /
@@ -4786,6 +4836,7 @@ mcd_fth_osd_slab_set( void * context, mcd_osd_shard_t * shard, char * key,
             }
         }
     }
+#endif
 
     if ( true == obj_exists && 0 == shard->evict_to_free ) {
         /*
@@ -5058,22 +5109,13 @@ override_retry:
                     mcd_osd_lba_to_blk( hash_entry->blocks ) * Mcd_osd_blk_size;
             }
 
-            if ((MCD_FTH_OSD_BUF_SIZE / Mcd_osd_blk_size) >= ( nbytes / Mcd_osd_blk_size ) ) {
-                data_buf = ((osd_state_t *)context)->osd_buf;
-                databuf_len = MCD_FTH_OSD_BUF_SIZE;
-            }
-            else {
-                databuf_len = mcd_osd_lba_to_blk( hash_entry->blocks ) * Mcd_osd_blk_size;
-                data_buf = mcd_fth_osd_iobuf_alloc(
-                        mcd_osd_lba_to_blk( hash_entry->blocks ) *
-                        Mcd_osd_blk_size, false );
-
-                if ( NULL == data_buf ) {
-                    return FLASH_ENOMEM;
-                }
-            }
-            buf = (char *)( ( (uint64_t)data_buf + Mcd_osd_blk_size - 1 )
-                    & Mcd_osd_blk_mask );
+        databuf_len = MCD_FTH_OSD_BUF_SIZE;
+        buf = data_buf = mcd_fth_osd_iobuf_alloc(context,
+                mcd_osd_lba_to_blk( hash_entry->blocks ) * Mcd_osd_blk_size,
+                false );
+        if ( NULL == data_buf ) {
+            return FLASH_ENOMEM;
+        }
 
 #ifdef  MCD_ENABLE_SLAB_CACHE
             static uint32_t count = 0;
@@ -5228,7 +5270,7 @@ override_retry:
                    for all the btree node and object < 1MB cased, the default databuf_len
                    can hold the data*/
                 if( databuf_len < uncomp_datalen ) {
-                    data_buf_new = mcd_fth_osd_iobuf_alloc(uncomp_datalen,false);
+                    data_buf_new = mcd_fth_osd_iobuf_alloc(context, uncomp_datalen,false);
                     if(data_buf_new == NULL ) {
                         mcd_log_msg(160203,PLAT_LOG_LEVEL_FATAL,
                                 "Memory allocation failed\n");
@@ -5497,7 +5539,7 @@ static osd_state_t *mcd_osd_init_state(int aio_category)
      * the flash layer
      */
     osd_state->osd_buf =
-	mcd_fth_osd_iobuf_alloc( MCD_FTH_OSD_BUF_SIZE + 4096, true );
+	mcd_fth_osd_iobuf_alloc(NULL, MCD_FTH_OSD_BUF_SIZE + 4096, true );
     if ( NULL == osd_state->osd_buf ) {
 	mcd_log_msg( 20173, PLAT_LOG_LEVEL_ERROR,
 		     "failed to alloc osd_buf" );
@@ -6179,6 +6221,149 @@ mcd_osd_flash_get( struct ssdaio_ctxt * pctxt, struct shard * shard,
     return ret;
 }
 
+static inline
+uint64_t mcd_osd_slab_size_get(mcd_osd_shard_t* shard, uint64_t len)
+{
+    uint64_t blocks = ( len + ( Mcd_osd_blk_size - 1 ) ) / Mcd_osd_blk_size;
+	mcd_osd_slab_class_t* class = shard->slab_classes + shard->class_table[blocks];
+	return class->slab_blksize;
+}
+
+int
+mcd_osd_flash_put_v( struct ssdaio_ctxt * pctxt, struct shard * shard,
+                        struct objMetaData * metaData, char ** key,
+                        char ** data, int count, int flags )
+{
+    int                         i, ret = FLASH_EOK;
+    uint64_t                    syndrome;
+    uint64_t                    blk_offset;
+    osd_state_t               * osd_state = (osd_state_t *)pctxt;
+    mcd_osd_shard_t           * mcd_shard = (mcd_osd_shard_t *)shard;
+	int compress = getProperty_Int("FDF_COMPRESSION", 1) && metaData->dataLen;
+
+	uint64_t fixed_size = sizeof(mcd_osd_meta_t) + metaData->keyLen;
+    uint64_t raw_len = fixed_size + (!compress ? metaData->dataLen :
+			snappy_max_compressed_length(metaData->dataLen));
+	uint64_t slab_blksize = mcd_osd_slab_size_get((mcd_osd_shard_t*)shard, raw_len);
+	uint64_t slab_size = slab_blksize * Mcd_osd_blk_size;
+
+    plat_assert ( !mcd_shard->use_fifo );
+
+    mcd_log_msg(20406, PLAT_LOG_LEVEL_TRACE, "ENTERING, context=%p shardID=%lu",
+                 (void *)pctxt, shard->shardID );
+
+
+	char* data_buf = mcd_fth_osd_iobuf_alloc(osd_state, count * slab_size, false);
+	if(!data_buf) {
+		ret = FLASH_ENOMEM;
+		goto out;
+	}
+
+	for(i = 0; i < count; i++)
+		mcd_osd_slab_set_data(data_buf + i * slab_size,
+				key[i], metaData->keyLen, data[i], metaData->dataLen, 0, metaData, !compress);
+
+	if(compress) {
+		size_t max_comp_len = 0, comp_len;
+
+		for(i = 0; i < count; i++) {
+			void* res = fdf_compress_data(data[i], metaData->dataLen, data_buf + i * slab_size + fixed_size, &comp_len);
+			if ( res == NULL ) {
+				mcd_log_msg(160201,PLAT_LOG_LEVEL_ERROR, "Compression failed");
+				return FLASH_ENOENT;
+			}
+
+			mcd_osd_meta_t* meta = (mcd_osd_meta_t *)(data_buf + i * slab_size);
+			meta->uncomp_datalen = metaData->dataLen;
+			meta->data_len = comp_len;
+
+			if(comp_len > max_comp_len)
+				max_comp_len = comp_len;
+
+			atomic_inc(mcd_shard->comp_hist[comp_len/1000 < MCD_OSD_MAX_COMP_HIST ? comp_len/1000 : (MCD_OSD_MAX_COMP_HIST - 1)]);
+		}
+
+		uint64_t comp_slab_blksize = mcd_osd_slab_size_get(mcd_shard,  max_comp_len + fixed_size);
+
+		uint32_t pos = 0;
+		for(i = 0; i < count; i++) {
+			/* Compact slabs to max_comp_len size */
+			if(pos != i * slab_size)
+				memmove(data_buf + pos, data_buf + i * slab_size, max_comp_len + fixed_size);
+
+			pos += comp_slab_blksize * Mcd_osd_blk_size;
+		}
+
+		slab_blksize = comp_slab_blksize;
+		slab_size = slab_blksize * Mcd_osd_blk_size;
+	}
+
+	//alloc_slabs();
+
+	int rest_slabs = count;
+	while(rest_slabs && ret == FLASH_EOK) {
+		int num_slabs = mcd_fth_osd_slab_alloc(osd_state, mcd_shard, slab_blksize, rest_slabs, &blk_offset);
+		if(!num_slabs) {
+			mcd_log_msg( 20367, PLAT_LOG_LEVEL_TRACE, "failed to allocate slab" );
+			return FLASH_ENOSPC;
+		}
+
+		uint64_t offset = mcd_osd_rand_address(mcd_shard, blk_offset);
+
+		ret = mcd_fth_aio_blk_write_low(
+				osd_state, data_buf + (count - rest_slabs) * slab_size , offset,
+				num_slabs * slab_size,
+				mcd_shard->durability_level > SDF_RELAXED_DURABILITY);
+		rest_slabs -= num_slabs;
+
+		//slab_set();
+
+		for(i = 0; i < num_slabs && ret == FLASH_EOK; i++) {
+			syndrome = hashck((unsigned char *)key[i],
+					metaData->keyLen, 0, metaData->cguid);
+
+			osd_state->osd_lock = 
+				(void *) hash_table_find_lock(mcd_shard->hash_handle, syndrome, SYN);
+			osd_state->osd_wait =
+				fthLock( (fthLock_t *)osd_state->osd_lock, 1, NULL );
+
+			plat_assert(osd_state->osd_wait);
+			plat_assert(osd_state->osd_lock == osd_state->osd_wait);
+
+			//            mcd_osd_meta_t* m = (mcd_osd_meta_t *)(data_buf + i * slab_blksize * Mcd_osd_blk_size);
+			//            plat_assert(MCD_OSD_MAGIC_NUMBER == m->magic);
+
+			ret = mcd_fth_osd_slab_set( (void *)pctxt,
+					mcd_shard,
+					key[i], metaData->keyLen,
+					data[i], metaData->dataLen,
+					flags | FLASH_PUT_SKIP_IO,
+					metaData,
+					syndrome,
+					blk_offset + i * slab_blksize);
+
+			if (osd_state->osd_wait)
+				fthUnlock(osd_state->osd_wait);
+		}
+
+		key += num_slabs;
+		data+= num_slabs;
+
+		if ( FLASH_EOK != ret ) {
+//			mcd_log_msg( 20008, PLAT_LOG_LEVEL_ERROR,
+//					"failed to write blocks, rc=%d", ret );
+			mcd_osd_segment_t* segment = mcd_shard->segment_table[blk_offset / Mcd_osd_segment_blks];
+			mcd_fth_osd_slab_dealloc_low(segment, blk_offset, count);
+		}
+	}
+
+out:
+	if(data_buf)
+		mcd_fth_osd_slab_free( data_buf );
+
+    return ret;
+}
+
 
 int
 mcd_osd_flash_put( struct ssdaio_ctxt * pctxt, struct shard * shard,
@@ -6231,7 +6416,7 @@ mcd_osd_flash_put( struct ssdaio_ctxt * pctxt, struct shard * shard,
                                     metaData->dataLen,
                                     flags,
                                     metaData,
-                                    syndrome );
+                                    syndrome, 0 );
 
         if ( (shard->flags & FLASH_SHARD_SEQUENCE_EXTERNAL) != 0 &&
              ret == FLASH_EOK ) {
@@ -7227,6 +7412,7 @@ mcd_osd_register_ops( void )
     Ssd_fifo_ops.shardOpen              = mcd_osd_shard_open;
     Ssd_fifo_ops.flashGet               = mcd_osd_flash_get;
     Ssd_fifo_ops.flashPut               = mcd_osd_flash_put;
+    Ssd_fifo_ops.flashPutV               = mcd_osd_flash_put_v;
     Ssd_fifo_ops.flashFreeBuf           = mcd_osd_release_buf;
     Ssd_fifo_ops.flashStats             = mcd_osd_shard_get_stats;
     Ssd_fifo_ops.shardSync              = mcd_osd_shard_sync;
@@ -7339,7 +7525,7 @@ mcd_osd_raw_set( osd_state_t     *osd_state,
                                meta->data_len,
                                FLASH_PUT_RESTORE | FLASH_PUT_IF_NEWER, // flags
                                &metaData,                     // meta_data
-                               syndrome );
+                               syndrome, 0 );
 
     if (osd_state->osd_wait)
         fthUnlock(osd_state->osd_wait);
@@ -8025,7 +8211,7 @@ mcd_osd_delete_expired( osd_state_t *osd_state, mcd_osd_shard_t * shard )
                                            FLASH_PUT_PREFIX_DO_DEL :
                                            FLASH_PUT_DEL_EXPIRED, // flags
                                            &dummy_meta,           // meta_data
-                                           syndrome );
+                                           syndrome, 0 );
 
                 if (osd_state->osd_wait)
                     fthUnlock(osd_state->osd_wait);
@@ -8686,7 +8872,7 @@ mcd_onflash_key_match(void *context, mcd_osd_shard_t * shard,
         return FALSE;
     }
 
-    if ( 0 != strncmp( buf + sizeof(mcd_osd_meta_t), key, key_len ) ) {
+    if ( 0 != memcmp( buf + sizeof(mcd_osd_meta_t), key, key_len ) ) {
         mcd_log_msg( 20006, MCD_OSD_LOG_LVL_DIAG,
                 "key mismatch, req %s", key );
         (void) __sync_fetch_and_add( &shard->set_hash_collisions, 1 );

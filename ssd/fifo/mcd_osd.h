@@ -672,7 +672,7 @@ extern int mcd_fth_do_try_container( void * pai, mcd_container_t **ppcontainer, 
 
 /* Next functions used in slab_gc.c */
 int
-mcd_fth_osd_slab_alloc( void * context, mcd_osd_shard_t * shard, int blocks, uint64_t * blk_offset );
+mcd_fth_osd_slab_alloc( void * context, mcd_osd_shard_t * shard, int blocks, int count, uint64_t * blk_offset );
 
 /*
  * remove an entry from the hash table, free up its slab and update

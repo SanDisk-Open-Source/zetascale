@@ -111,6 +111,8 @@ typedef struct ssdState {
               char *key, char **dataPtr, int flags);
     int (*flashPut)(struct ssdaio_ctxt *pctxt, struct shard *shard, struct objMetaData *metaData, 
               char *key, char *data, int flags);
+    int (*flashPutV)(struct ssdaio_ctxt *pctxt, struct shard *shard, struct objMetaData *metaData, 
+              char **key, char **data, int count, int flags);
     struct objDesc *(*flashEnumerate)(struct shard *shard, 
               struct objDesc *prevObj, int *hashIndex, char **key);
     void (*setLRUCallback)(struct shard *shard, 
