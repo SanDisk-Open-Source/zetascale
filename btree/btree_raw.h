@@ -137,6 +137,8 @@ typedef struct btree_metadata {
     item(BTSTAT_NUM_SNAP_OBJS , /* default */)  \
     item(BTSTAT_SNAP_DATA_SIZE , /* default */)  \
     item(BTSTAT_NUM_SNAPS , /* default */)  \
+    item(BTSTAT_BULK_INSERT_CNT, /* default */) \
+    item(BTSTAT_BULK_INSERT_FULL_NODES_CNT, /* default */) \
 
 typedef enum {
 #define item(caps, value) \
@@ -240,7 +242,7 @@ typedef int (* bt_mput_cmp_cb_t)(void  *data, 	//  opaque user data
 				 uint64_t new_datalen);
 					
 typedef struct btree_raw_mem_node *(read_node_cb_t)(btree_status_t *ret, void *data, uint64_t lnodeid);
-typedef void (write_node_cb_t)(struct FDF_thread_state *thd_state, btree_status_t *ret, void *cb_data, uint64_t lnodeid, char *data, uint64_t datalen);
+typedef void (write_node_cb_t)(struct FDF_thread_state *thd_state, btree_status_t *ret, void *cb_data, uint64_t **lnodeid, char **data, uint64_t datalen, uint32_t count);
 typedef void (flush_node_cb_t)(btree_status_t *ret, void *cb_data, uint64_t lnodeid);
 typedef int (freebuf_cb_t)(void *data, char *buf);
 typedef struct btree_raw_mem_node *(create_node_cb_t)(btree_status_t *ret, void *data, uint64_t lnodeid);
@@ -326,11 +328,6 @@ extern int btree_raw_free_buffer(struct btree_raw *btree, char *buf);
 extern void btree_raw_get_stats(struct btree_raw *btree, btree_stats_t *stats);
 extern char *btree_stat_name(btree_stat_t stat_type);
 extern void btree_dump_stats(FILE *f, btree_stats_t *stats);
-extern btree_status_t
-btree_raw_mwrite_low(struct btree_raw *btree, btree_mput_obj_t *objs, uint32_t num_objs,
-		    btree_metadata_t *meta, uint64_t syndrome, 
-		   int write_type, int* pathcnt,
-		   uint32_t *objs_written);
 
 btree_status_t
 btree_raw_rupdate(

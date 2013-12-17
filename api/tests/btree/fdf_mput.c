@@ -16,6 +16,7 @@ FDF_cguid_t cguid;
 struct FDF_state *fdf_state;
 int num_mputs =  NUM_MPUTS;
 int num_objs = NUM_OBJS;
+int obj_data_len = 0;
 int use_mput = 1;
 uint32_t flags_global = 0;
 int num_thds = 1;
@@ -184,13 +185,13 @@ do_mput(struct FDF_thread_state *thd_state, FDF_cguid_t cguid,
 					       objs[i].key, objs[i].key_len,
 						&data, &data_len);
 			if (status != FDF_SUCCESS) {
-					printf("Read failed with %d errror.\n", status);
+					printf("Read failed with %d errror. Key=%s.\n", status, objs[i].key);
 					assert(0);
 					exit(0);
 			}
 
 			if (data_len != objs[i].data_len) {
-				printf("Object length of read object mismatch.\n");	
+				printf("Object length of read object mismatch. Key=%s\n", objs[i].key);
 				assert(0);
 				mismatch++;
 			}
@@ -336,6 +337,37 @@ main(int argc, char *argv[])
 		exit(0);
 	}
 
+	n = atoi(argv[4]);
+	if (n > 0) {
+		num_thds = n;
+	}
+
+	FDFInit(&fdf_state);
+
+	/* Test bulk insert */
+	num_mputs = 5;
+	for(num_objs = 500; num_objs < 501; num_objs++) { 
+		for(obj_data_len = 100; obj_data_len < 101; obj_data_len+=3) { 
+			printf("Running with mput (y/n) = %d, mputs = %d, num objs each mput = %d, num threads = %d. data_len=%d\n",
+					use_mput, num_mputs, num_objs, num_thds, obj_data_len);
+
+			printf(" ======================== Doing test for set case. ===================\n");
+			do_op(0);// set
+			printf(" ******************  Done test for set case.***********************\n");
+
+			printf(" ======================== Doing test for create case. ===================\n");
+			do_op(FDF_WRITE_MUST_NOT_EXIST); //create
+			printf(" ******************  Done test for create  case.***********************\n");
+#if 0
+			printf(" ======================== Doing test for update case. ===================\n");
+			do_op(FDF_WRITE_MUST_EXIST); //update
+			printf(" ******************  Done test for update  case.***********************\n");
+#endif
+		}
+	}
+
+	obj_data_len = 0;
+
 	use_mput = atoi(argv[1]);
 	m = atoi(argv[2]);
 	if (m > 0) {
@@ -346,20 +378,13 @@ main(int argc, char *argv[])
 		num_objs = n;
 	}
 
-	n = atoi(argv[4]);
-	if (n > 0) {
-		num_thds = n;
-	}
-
 	printf("Running with mput (y/n) = %d, mputs = %d, num objs each mput = %d, num threads = %d.\n",
 		use_mput, num_mputs, num_objs, num_thds);
 
-	FDFInit(&fdf_state);
-#if 0
 	printf(" ======================== Doing test for set case. ===================\n");
 	do_op(0);// set
 	printf(" ******************  Done test for set case.***********************\n");
-#endif 
+
 	printf(" ======================== Doing test for create case. ===================\n");
 	do_op(FDF_WRITE_MUST_NOT_EXIST); //create
 	printf(" ******************  Done test for create  case.***********************\n");
@@ -368,7 +393,7 @@ main(int argc, char *argv[])
 	printf(" ======================== Doing test for update case. ===================\n");
 	do_op(FDF_WRITE_MUST_EXIST); //update
 	printf(" ******************  Done test for update  case.***********************\n");
-#endif 
+#endif
 
 	FDFShutdown(fdf_state);
 	return 0;

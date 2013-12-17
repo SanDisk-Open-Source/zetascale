@@ -147,7 +147,7 @@ btree_leaf_update_key(btree_raw_t *bt, btree_raw_node_t *n, char *key, uint32_t 
 bool
 btree_leaf_split(btree_raw_t *btree, btree_raw_node_t *from_node,
 		 btree_raw_node_t *to_node, char **key_out, uint32_t *keyout_len,
-		 uint64_t *split_syndrome, uint64_t *split_seqno, int32_t *bytes_increased);
+		 uint64_t *split_syndrome, uint64_t *split_seqno, int32_t *bytes_increased, uint32_t split_key);
 
 bool
 btree_leaf_is_full_index(btree_raw_t *bt, btree_raw_node_t *n, char *key, uint32_t keylen,

@@ -360,8 +360,8 @@ do_recovery_op(btree_raw_t *bt, btree_robj_list_t *op_list)
 			bzero(&meta, sizeof(btree_metadata_t));
 			meta.flags = UPDATE_USE_SEQNO;
 			meta.seqno = cur_obj->seqno;
-			status = btree_raw_set(bt, cur_obj->key, cur_obj->keylen, 
-			                 cur_obj->data, cur_obj->datalen, &meta);
+			status = btree_raw_write(bt, cur_obj->key, cur_obj->keylen, 
+			                 cur_obj->data, cur_obj->datalen, &meta, 0);
 			free(cur_obj->key);
 			free(cur_obj->data);
 

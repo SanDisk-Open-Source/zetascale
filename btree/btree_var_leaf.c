@@ -1709,7 +1709,7 @@ btree_leaf_split(btree_raw_t *bt, btree_raw_node_t *from_node,
 		 btree_raw_node_t *to_node, char **key_out,
 		 uint32_t *key_out_len, uint64_t *split_syndrome,
                  uint64_t *split_seqno,
-		 int32_t *bytes_increased)
+		 int32_t *bytes_increased, uint32_t split_key)
 {
 	btree_raw_node_t *tmp_node_from = NULL;
 	btree_raw_node_t *tmp_node_to = NULL;
@@ -1758,7 +1758,7 @@ btree_leaf_split(btree_raw_t *bt, btree_raw_node_t *from_node,
 
 	btree_leaf_init(bt, tmp_node_to);
 
-	middle_index = from_node->nkeys / 2;
+	middle_index = split_key ? split_key - 1 : from_node->nkeys / 2;
 	end_index = from_node->nkeys - 1;
 
 	src_offset = (char *) from_node->keys;

@@ -4385,7 +4385,8 @@ static int mcd_osd_prefix_delete( mcd_osd_shard_t * shard, char * key,
 }
 
 void mcd_osd_slab_set_data(void* buf, char * key, int key_len, void * data,
-        SDF_size_t data_len, SDF_size_t uncomp_datalen, struct objMetaData* meta_data, int copy_data)
+        SDF_size_t data_len, SDF_size_t uncomp_datalen, int blocks,
+        struct objMetaData* meta_data, int copy_data)
 {
     mcd_osd_meta_t*            meta = (mcd_osd_meta_t *)buf;
 
@@ -4430,11 +4431,9 @@ mcd_fth_osd_slab_set( void * context, mcd_osd_shard_t * shard,
     int                         blocks;
     char                      * buf;
     char                      * data_buf = NULL;
-    uint64_t                    blk_offset;
     uint64_t                    offset;
     uint64_t                    target_seqno = 0;
     uint64_t                    num_puts;
-    mcd_osd_meta_t            * meta = NULL;
     hash_entry_t                new_entry;
     hash_entry_t              * hash_entry;
     mcd_logrec_object_t         log_rec;
@@ -4700,7 +4699,7 @@ mcd_fth_osd_slab_set( void * context, mcd_osd_shard_t * shard,
         dyn_buffer = true;
     }
 
-    mcd_osd_slab_set_data(buf, key, key_len, data, data_len, uncomp_datalen, meta_data, true);
+    mcd_osd_slab_set_data(buf, key, key_len, data, data_len, uncomp_datalen, blocks, meta_data, true);
 
     if ( 1 != mcd_fth_osd_slab_alloc( context, shard, blocks, 1, &blk_offset ) ) {
         mcd_log_msg( 20367, PLAT_LOG_LEVEL_TRACE, "failed to allocate slab" );
@@ -6261,7 +6260,8 @@ mcd_osd_flash_put_v( struct ssdaio_ctxt * pctxt, struct shard * shard,
 
 	for(i = 0; i < count; i++)
 		mcd_osd_slab_set_data(data_buf + i * slab_size,
-				key[i], metaData->keyLen, data[i], metaData->dataLen, 0, metaData, !compress);
+				key[i], metaData->keyLen, data[i], metaData->dataLen, 0, slab_blksize,
+				metaData, !compress);
 
 	if(compress) {
 		size_t max_comp_len = 0, comp_len;

@@ -21,6 +21,19 @@
 #include "stdio.h"
 
 __thread long long locked = 0;
+#if 0
+void print_hex(const char* title, char* buf, int len)
+{
+	static char hex_tab[] = "0123456789ABCDEF";
+	int i;
+	fprintf(stderr, "%x %s %p [", (int)pthread_self(), buf, title);
+	for(i = 0; i < len; i++)
+		fprintf(stderr, "%c%c", hex_tab[(buf[i] >> 4)&0xf], hex_tab[buf[i]&0xf]);
+	fprintf(stderr, "]\n");
+}
+#else
+#define print_hex(t, b, l) do {} while(0);
+#endif
 
 //#define dbg_print(msg, ...) do { fprintf(stderr, "%x %s:%d " msg, (int)pthread_self(), __FUNCTION__, __LINE__, ##__VA_ARGS__); } while(0)
 #define dbg_print(msg, ...)
@@ -50,7 +63,8 @@ plat_rwlock_destroy(plat_rwlock_t *rwlock) {
 int
 plat_rwlock_rdlock(plat_rwlock_t *rwlock) {
     dbg_print("rwlock=%p\n", rwlock);
-//    locked++;
+    locked++;
+	print_hex(__FUNCTION__, (char*)rwlock, sizeof(plat_rwlock_t));
     return (pthread_rwlock_rdlock(rwlock));
 }
 
@@ -63,7 +77,8 @@ plat_rwlock_tryrdlock(plat_rwlock_t *rwlock) {
 int
 plat_rwlock_wrlock(plat_rwlock_t *rwlock) {
     dbg_print("rwlock=%p\n", rwlock);
-//    locked++;
+    locked++;
+	print_hex(__FUNCTION__, (char*)rwlock, sizeof(plat_rwlock_t));
     return (pthread_rwlock_wrlock(rwlock));
 }
 
@@ -75,6 +90,7 @@ plat_rwlock_trywrlock(plat_rwlock_t *rwlock) {
 int
 plat_rwlock_unlock(plat_rwlock_t *rwlock) {
     dbg_print("rwlock=%p\n", rwlock);
-//    locked--;
+    locked--;
+	print_hex(__FUNCTION__, (char*)rwlock, sizeof(plat_rwlock_t));
     return (pthread_rwlock_unlock(rwlock));
 }

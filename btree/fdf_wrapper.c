@@ -76,7 +76,7 @@ static int mput_default_cmp_cb(void *data, char *key, uint32_t keylen,
 			    char *new_data, uint64_t new_datalen);
 
 static void* read_node_cb(btree_status_t *ret, void *data, uint64_t lnodeid);
-static void write_node_cb(struct FDF_thread_state *thd_state, btree_status_t *ret, void *cb_data, uint64_t lnodeid, char *data, uint64_t datalen);
+static void write_node_cb(struct FDF_thread_state *thd_state, btree_status_t *ret, void *cb_data, uint64_t** lnodeid, char **data, uint64_t datalen, int count);
 static void flush_node_cb(btree_status_t *ret, void *cb_data, uint64_t lnodeid);
 static int freebuf_cb(void *data, char *buf);
 static void* create_node_cb(btree_status_t *ret, void *data, uint64_t lnodeid);
@@ -2087,14 +2087,14 @@ static void* read_node_cb(btree_status_t *ret, void *data, uint64_t lnodeid)
     }
 }
 
-static void write_node_cb(struct FDF_thread_state *thd_state, btree_status_t *ret_out, void *cb_data, uint64_t lnodeid, char *data, uint64_t datalen)
+static void write_node_cb(struct FDF_thread_state *thd_state, btree_status_t *ret_out, void *cb_data, uint64_t** lnodeid, char **data, uint64_t datalen, int count)
 {
     FDF_status_t    ret;
     read_node_t     *prn = (read_node_t *) cb_data;
 
     N_write_node++;
 
-    ret = FDFWriteObject(thd_state, prn->cguid, (char *) &lnodeid, sizeof(uint64_t), data, datalen, 0 /* flags */);
+    ret = FDFWriteObjects(thd_state, prn->cguid, (char **) lnodeid, sizeof(uint64_t), data, datalen, count, 0 /* flags */);
     trxtrackwrite( prn->cguid, lnodeid);
     assert(prn->nodesize == datalen);
 
@@ -2349,6 +2349,8 @@ FDF_ext_stat_t btree_to_fdf_stats_map[] = {
     {BTSTAT_NUM_SNAP_OBJS,    FDF_CACHE_STAT_BT_NUM_SNAP_OBJS,   FDF_STATS_TYPE_CACHE_TO_FLASH,0},
     {BTSTAT_SNAP_DATA_SIZE,    FDF_CACHE_STAT_BT_SNAP_DATA_SIZE,   FDF_STATS_TYPE_CACHE_TO_FLASH,0},
     {BTSTAT_NUM_SNAPS,    FDF_CACHE_STAT_BT_NUM_SNAPS,   FDF_STATS_TYPE_CACHE_TO_FLASH,0},
+    {BTSTAT_BULK_INSERT_CNT,  FDF_CACHE_STAT_BT_BULK_INSERT_CNT, FDF_STATS_TYPE_CACHE_TO_FLASH, 0},
+    {BTSTAT_BULK_INSERT_FULL_NODES_CNT,  FDF_CACHE_STAT_BT_BULK_INSERT_FULL_NODES_CNT, FDF_STATS_TYPE_CACHE_TO_FLASH, 0},
 };
 
 FDF_status_t btree_get_all_stats(FDF_cguid_t cguid, 
@@ -2458,10 +2460,12 @@ _FDFMPut(struct FDF_thread_state *fdf_ts,
 	}
 
 	for (i = 0; i < num_objs; i++) {
+#if 0
 		if (objs[i].flags != 0) {
 			bt_rel_entry(index, true);
 			return FDF_INVALID_PARAMETER;
 		}
+#endif
 
 		if (objs[i].key_len > bt->max_key_size) {
 			bt_rel_entry(index, true);
@@ -2471,6 +2475,8 @@ _FDFMPut(struct FDF_thread_state *fdf_ts,
 
 	meta.flags = 0;
 
+	/* The following logic is not required so as btree_raw_mput_recursive
+	 * always write all objects */
 	objs_written = 0;
 	objs_to_write = num_objs;
 	FDFTransactionService( fdf_ts, 0, 0);

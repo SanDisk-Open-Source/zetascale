@@ -541,7 +541,9 @@ fdf_stats_info_t fdf_stats_cache[] = {
     {"l1_cache_bt_flush_count","l1_cache_bt_flush_count",FDF_STATS_TYPE_CACHE_TO_FLASH},/* FDF_CACHE_STAT_BT_FLUSH_CNT */
     {"l1_cache_bt_delete_opt_count","l1_cache_bt_delete_opt_count",FDF_STATS_TYPE_CACHE_TO_FLASH},/* FDF_CACHE_STAT_BT_DELETE_OPT_COUNT */
     {"l1_cache_bt_mput_io_saved","l1_cache_bt_mput_io_saved",FDF_STATS_TYPE_CACHE_TO_FLASH},/* FDF_CACHE_STAT_BT_MPUT_IO_SAVED */
-    {"l1_cache_bt_put_restart_cnt","l1_cache_bt_put_restart_cnt",FDF_STATS_TYPE_CACHE_TO_FLASH},/*
+    {"l1_cache_bt_put_restart_cnt","l1_cache_bt_put_restart_cnt",FDF_STATS_TYPE_CACHE_TO_FLASH},
+    {"l1_cache_bt_bulk_insert_cnt","l1_cache_bt_bulk_insert_cnt",FDF_STATS_TYPE_CACHE_TO_FLASH},
+    {"l1_cache_bt_bulk_insert_full_nodes_cnt","l1_cache_bt_bulk_insert_full_nodes_cnt",FDF_STATS_TYPE_CACHE_TO_FLASH},/*
 FDF_CACHE_STAT_BT_PUT_RESTART_CNT */
     {"l1_cache_bt_space_opt_bytes_saved", "l1_cache_bt_space_opt_bytes_saved", FDF_STATS_TYPE_CACHE_TO_FLASH},/* FDF_CACHE_STAT_BT_SPCOPT_BYTES_SAVED */
     {"l1_cache_bt_num_snap_objs", "l1_cache_bt_num_snap_objs", FDF_STATS_TYPE_CACHE_TO_FLASH},/* FDF_CACHE_STAT_BT_NUM_SNAP_OBJS */
@@ -4932,9 +4934,9 @@ fdf_write_objects(
 		goto out;
 	}
 
-	if (meta->meta.properties.flash_only != FDF_TRUE) {
-		status = FLASH_EOK;
-		for(i = 0; i < count && status == FLASH_EOK; i++)
+	if (meta->meta.properties.flash_only != FDF_TRUE || count < 8) {
+		status = FDF_SUCCESS;
+		for(i = 0; i < count && status == FDF_SUCCESS; i++)
 			status = fdf_write_object(fdf_thread_state, cguid, key[i], keylen, data[i], datalen, flags);
 	} else {
 		struct objMetaData metaData;

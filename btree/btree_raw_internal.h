@@ -92,12 +92,13 @@ typedef struct btree_raw_node {
     fdf_pstats_delta_t     pstats;
 
     uint32_t      flags;
-    uint64_t      logical_id;
-    uint64_t      lsn;
+    uint16_t      level;
     uint32_t      checksum;
     uint32_t      insert_ptr;
     uint32_t      nkeys;
-    uint64_t      prev;
+    uint64_t      logical_id;
+//    uint64_t      lsn;
+//    uint64_t      prev;
     uint64_t      next;
     uint64_t      rightmost;
     node_key_t    keys[0];
@@ -176,7 +177,7 @@ struct btree_raw;
 typedef struct btSyncRequest {
 	struct btSyncRequest	*next, *prev;
 //	struct btree_raw        *bt;
-	btree_raw_mem_node_t    **dir_nodes;
+	btree_raw_node_t    **dir_nodes;
 	btree_raw_mem_node_t    **del_nodes;
 	int						*dir_written, *del_written;
 	int                     ret;
@@ -394,8 +395,8 @@ int bsearch_key_low(btree_raw_t *bt, btree_raw_node_t *n,
 #define dbg_print(msg, ...) do { fprintf(stderr, "%x %s:%d " msg, (int)pthread_self(), __FUNCTION__, __LINE__, ##__VA_ARGS__); } while(0)
 #define dbg_print_key(key, keylen, msg, ...) do { print_key_func(stderr, __FUNCTION__, __LINE__, key, keylen, msg, ##__VA_ARGS__); } while(0)
 #else
-#define dbg_print(msg, ...)
-#define dbg_print_key(key, keylen, msg, ...)
+#define dbg_print(msg, ...) do { } while(0)
+#define dbg_print_key(key, keylen, msg, ...) do { } while(0)
 #endif
 extern void print_key_func(FILE *f, const char* func, int line, char* key, int keylen, char *msg, ...);
 extern __thread uint64_t dbg_referenced;
