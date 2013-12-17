@@ -237,7 +237,6 @@ static btree_status_t writepersistent( btree_raw_t *bt, bool create, bool force_
 
 static void delete_key(btree_status_t *ret, btree_raw_t *btree, btree_raw_mem_node_t *x, char *key, uint32_t keylen, uint64_t seqno, uint64_t syndrome);
 static void delete_key_by_pkrec(btree_status_t *ret, btree_raw_t *btree, btree_raw_mem_node_t *x, node_key_t *pk_delete);
-static btree_status_t btree_raw_write(struct btree_raw *btree, char *key, uint32_t keylen, char *data, uint64_t datalen, btree_metadata_t *meta, int write_type);
 
 static int find_rebalance(btree_status_t *ret, btree_raw_t *btree, uint64_t this_id, uint64_t left_id, uint64_t right_id, uint64_t l_anchor_id, key_stuff_t *l_anchor_stuff, uint64_t r_anchor_id, key_stuff_t *r_anchor_stuff, int l_this_parent_in, int r_this_parent_in, char *key, uint32_t keylen, btree_metadata_t *meta, uint64_t syndrome);
 static void collapse_root(btree_status_t *ret, btree_raw_t *btree, btree_raw_mem_node_t *old_root_node);
@@ -5034,13 +5033,63 @@ btree_raw_rupdate(
 	return ret;
 }
 
-static btree_status_t 
-btree_raw_write(struct btree_raw *btree, char *key, uint32_t keylen,
-		char *data, uint64_t datalen, btree_metadata_t *meta, int write_type)
+btree_status_t
+btree_raw_mput(struct btree_raw *btree, btree_mput_obj_t *objs, uint32_t num_objs,
+	       uint32_t flags, btree_metadata_t *meta, uint32_t *objs_written)
 {
-    btree_status_t      ret = BTREE_SUCCESS;
-    int                 pathcnt = 0;
-    uint64_t            syndrome = get_syndrome(btree, key, keylen);
+	btree_status_t      ret = BTREE_SUCCESS;
+	int                 pathcnt = 0;
+    uint64_t            syndrome = 0; //no use of syndrome in variable keys //get_syndrome(btree, key, keylen);
+	int write_type = W_SET;
+
+	if (flags & FDF_WRITE_MUST_NOT_EXIST)
+		write_type = W_CREATE;
+	else if (flags & FDF_WRITE_MUST_EXIST)
+		write_type = W_UPDATE;
+
+
+    dbg_print_key(key, keylen, "write_type=%d ret=%d lic=%ld", write_type, ret, btree->logical_id_counter);
+
+    dbg_print(" before dbg_referenced %ld\n", dbg_referenced);
+    assert(!dbg_referenced);
+
+	ret = btree_raw_mwrite_low(btree, objs, num_objs, meta, syndrome, 
+				   write_type, &pathcnt, objs_written);
+
+    assert(!dbg_referenced);
+
+    dbg_print_key(key, keylen, "write_type=%d ret=%d lic=%ld", write_type, ret, btree->logical_id_counter);
+
+	if (BTREE_SUCCESS == ret) {
+		switch (write_type) {
+		case W_CREATE:
+			__sync_add_and_fetch(&(btree->stats.stat[BTSTAT_CREATE_CNT]),*objs_written);
+			__sync_add_and_fetch(&(btree->stats.stat[BTSTAT_CREATE_PATH]),pathcnt);
+			break;
+		case W_SET:
+			__sync_add_and_fetch(&(btree->stats.stat[BTSTAT_SET_CNT]),*objs_written);
+			__sync_add_and_fetch(&(btree->stats.stat[BTSTAT_SET_PATH]), pathcnt);
+			break;
+		case W_UPDATE:
+			__sync_add_and_fetch(&(btree->stats.stat[BTSTAT_UPDATE_CNT]),*objs_written);
+			__sync_add_and_fetch(&(btree->stats.stat[BTSTAT_UPDATE_PATH]), pathcnt);
+			break;
+		default:
+			assert(0);
+		}
+	}
+
+#ifdef BTREE_RAW_CHECK
+    btree_raw_check(btree, (char *) __FUNCTION__, dump_key(key, keylen));
+#endif
+
+	return ret;
+}
+
+btree_status_t 
+btree_raw_write(struct btree_raw *btree, char *key, uint32_t keylen,
+		char *data, uint64_t datalen, btree_metadata_t *meta, uint32_t flags)
+{
     btree_mput_obj_t objs; 
     uint32_t objs_done = 0;
 
@@ -5049,45 +5098,7 @@ btree_raw_write(struct btree_raw *btree, char *key, uint32_t keylen,
     objs.data = data;
     objs.data_len = datalen;
 
-
-    dbg_print_key(key, keylen, "write_type=%d ret=%d lic=%ld", write_type, ret, btree->logical_id_counter);
-
-    dbg_print(" before dbg_referenced %ld\n", dbg_referenced);
-
-    ret = btree_raw_mwrite_low(btree, &objs, 1, meta,
-			       syndrome, write_type, &pathcnt, &objs_done);
-
-    dbg_print("after dbg_referenced %ld\n", dbg_referenced);
-    assert(!dbg_referenced);
-
-    dbg_print_key(key, keylen, "write_type=%d ret=%d lic=%ld", write_type, ret, btree->logical_id_counter);
-
-    //TODO change to atomics
-    if (BTREE_SUCCESS == ret) {
-        switch (write_type) {
-	    case W_CREATE:
-		__sync_add_and_fetch(&(btree->stats.stat[BTSTAT_CREATE_CNT]),1);
-		__sync_add_and_fetch(&(btree->stats.stat[BTSTAT_CREATE_PATH]),pathcnt);
-		break;
-	    case W_SET:
-		__sync_add_and_fetch(&(btree->stats.stat[BTSTAT_SET_CNT]),1);
-		__sync_add_and_fetch(&(btree->stats.stat[BTSTAT_SET_PATH]), pathcnt);
-		break;
-	    case W_UPDATE:
-		__sync_add_and_fetch(&(btree->stats.stat[BTSTAT_UPDATE_CNT]),1);
-		__sync_add_and_fetch(&(btree->stats.stat[BTSTAT_UPDATE_PATH]), pathcnt);
-		break;
-	    default:
-	        assert(0);
-		break;
-	}
-    }
-
-#ifdef BTREE_RAW_CHECK
-    btree_raw_check(btree, (char *) __FUNCTION__, dump_key(key, keylen));
-#endif
-
-    return(ret);
+    return btree_raw_mput(btree, &objs, 1, flags, meta, &objs_done);
 }
 
 
@@ -5140,67 +5151,6 @@ btree_status_t btree_raw_flush(struct btree_raw *btree, char *key, uint32_t keyl
     assert(!dbg_referenced);
 
     return(ret);
-}
-
-//======================   INSERT  =========================================
-
-btree_status_t btree_raw_insert(struct btree_raw *btree, char *key, uint32_t keylen, char *data, uint64_t datalen, btree_metadata_t *meta)
-{
-    return(btree_raw_write(btree, key, keylen, data, datalen, meta, W_CREATE));
-}
-
-//======================   UPDATE  =========================================
-
-btree_status_t btree_raw_update(struct btree_raw *btree, char *key, uint32_t keylen, char *data, uint64_t datalen, btree_metadata_t *meta)
-{
-    return(btree_raw_write(btree, key, keylen, data, datalen, meta, W_UPDATE));
-}
-
-//======================   UPSERT (SET)  =========================================
-
-btree_status_t btree_raw_set(struct btree_raw *btree, char *key, uint32_t keylen, char *data, uint64_t datalen, btree_metadata_t *meta)
-{
-    return(btree_raw_write(btree, key, keylen, data, datalen, meta, W_SET));
-}
-
-btree_status_t
-btree_raw_mput(struct btree_raw *btree, btree_mput_obj_t *objs, uint32_t num_objs,
-	       uint32_t flags, btree_metadata_t *meta, uint32_t *objs_written)
-{
-	btree_status_t      ret = BTREE_SUCCESS;
-	int                 pathcnt = 0;
-	uint64_t            syndrome = 0;  //no use of syndrome in variable keys
-	int write_type = 0;
-
-	if (flags & FDF_WRITE_MUST_NOT_EXIST) {
-		write_type = W_CREATE;
-	} else if (flags & FDF_WRITE_MUST_EXIST) {
-		write_type = W_UPDATE;
-	} else {
-		write_type = W_SET;
-	}
-
-	ret = btree_raw_mwrite_low(btree, objs, num_objs, meta, syndrome, 
-	                           write_type, &pathcnt, objs_written);
-	if (BTREE_SUCCESS == ret) {
-		switch (write_type) {
-		case W_CREATE:
-			__sync_add_and_fetch(&(btree->stats.stat[BTSTAT_CREATE_CNT]),*objs_written);
-			__sync_add_and_fetch(&(btree->stats.stat[BTSTAT_CREATE_PATH]),pathcnt);
-			break;
-		case W_SET:
-			__sync_add_and_fetch(&(btree->stats.stat[BTSTAT_SET_CNT]),*objs_written);
-			__sync_add_and_fetch(&(btree->stats.stat[BTSTAT_SET_PATH]), pathcnt);
-			break;
-		case W_UPDATE:
-			__sync_add_and_fetch(&(btree->stats.stat[BTSTAT_UPDATE_CNT]),*objs_written);
-			__sync_add_and_fetch(&(btree->stats.stat[BTSTAT_UPDATE_PATH]), pathcnt);
-			break;
-		default:
-			assert(0);
-		}
-	}
-	return ret;
 }
 
 btree_status_t 
