@@ -3938,6 +3938,7 @@ btree_insert_keys_leaf(btree_raw_t *btree, btree_metadata_t *meta, uint64_t synd
 	 		if (is_node_full(btree, mem_node->pnode, objs[idx].key,
 			                 objs[idx].key_len, objs[idx].data_len,
 			                 meta, syndrome, is_update, index)) {
+				//assert(written > 1);
 				break;
 			}
 		}
@@ -4019,6 +4020,7 @@ btree_insert_keys_leaf(btree_raw_t *btree, btree_metadata_t *meta, uint64_t synd
 	if(last_seqno) *last_seqno = seqno;
 
 	*objs_written = written;
+//	assert(res == true);
 	return ret;
 }
 
@@ -4302,7 +4304,7 @@ btree_raw_mwrite_low(btree_raw_t *btree, btree_mput_obj_t **objs_in_out, uint32_
 
 	assert(!locked);
 
-    dbg_print("write_type=%d num_objs %d key_len=%d\n", write_type, *num_objs, objs[0].key_len);
+	dbg_print("write_type=%d num_objs %d key_len=%d\n", write_type, *num_objs, objs[0].key_len);
 
 #ifdef COLLECT_TIME_STATS 
 	uint64_t start_time = 0;

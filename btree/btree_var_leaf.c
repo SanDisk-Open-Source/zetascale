@@ -631,7 +631,6 @@ btree_leaf_used_space(btree_raw_t *bt, btree_raw_node_t *n)
 {
 	int32_t used_space = 0;
 	used_space = n->nkeys * sizeof(entry_header_t);
-	
 	used_space += bt->nodesize - n->insert_ptr;
 
 	return used_space;
@@ -1704,6 +1703,49 @@ btree_leaf_copy_keys(btree_raw_t *bt, btree_raw_node_t *from_node, int from_inde
 	return i;
 }
 
+/*
+ * Find the index of keys where split can happen.
+ */
+static int
+btree_leaf_find_split_idx(btree_raw_t *bt, btree_raw_node_t *n)
+{
+	int middle_index = n->nkeys / 2;
+	entry_header_t *ent_hdr = NULL;
+	int i = 0;
+	int32_t middle_offset = 0;
+	int32_t half_offset = btree_leaf_used_space(bt, n) / 2;
+
+	ent_hdr = btree_leaf_get_nth_entry(n, middle_index);
+	middle_offset = ent_hdr->header_offset + sizeof(entry_header_t) * middle_index;
+
+	/*
+	 * Start from middle index and find a point from where node can
+	 * be split in to two parts with almost equal size.
+	 */
+	if (middle_offset > half_offset) {
+		while (middle_index > 0) {
+			middle_index--;
+			ent_hdr = btree_leaf_get_nth_entry(n, middle_index);
+			middle_offset = ent_hdr->header_offset;
+			middle_offset -= sizeof(entry_header_t);
+			if (middle_offset <= half_offset) {
+				break;
+			}
+		}
+	} else {
+		while (middle_index < n->nkeys - 2) {		// last index must not be middle index
+			middle_index++;
+			ent_hdr = btree_leaf_get_nth_entry(n, middle_index);
+			middle_offset = ent_hdr->header_offset;
+			middle_offset += sizeof(entry_header_t);
+			if (middle_offset > half_offset) {
+				break;
+			}
+		}
+	}
+	return middle_index;
+}
+
 bool
 btree_leaf_split(btree_raw_t *bt, btree_raw_node_t *from_node,
 		 btree_raw_node_t *to_node, char **key_out,
@@ -1758,7 +1800,7 @@ btree_leaf_split(btree_raw_t *bt, btree_raw_node_t *from_node,
 
 	btree_leaf_init(bt, tmp_node_to);
 
-	middle_index = split_key ? split_key - 1 : from_node->nkeys / 2;
+	middle_index = split_key ? split_key - 1 : btree_leaf_find_split_idx(bt, from_node);
 	end_index = from_node->nkeys - 1;
 
 	src_offset = (char *) from_node->keys;
@@ -1813,7 +1855,7 @@ btree_leaf_split(btree_raw_t *bt, btree_raw_node_t *from_node,
 		goto done;
 	}
 
-	ent_hdr = btree_leaf_get_nth_entry(from_node, j + middle_index + 1); // ??
+	ent_hdr = btree_leaf_get_nth_entry(from_node, j + middle_index + 1);
 	src_offset = (char *)
 			((uint64_t) from_node + from_node->insert_ptr + ent_hdr->header_offset);
 
