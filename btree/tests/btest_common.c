@@ -283,8 +283,6 @@ btest_init(int argc, char **argv, char *program, btest_parse_fn parse_fn)
 		cfg->flags |= SYNDROME_INDEX;
 	}
 
-//	cfg->flags |= IN_MEMORY; // use in-memory b-tree for this test
-
 	msg("Starting btree test %s...", cfg->program);
 	msg("n_partitions = %d",         cfg->n_partitions);
 	msg("flags = %d",                cfg->flags);

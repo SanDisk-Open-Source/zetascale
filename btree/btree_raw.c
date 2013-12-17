@@ -465,9 +465,7 @@ btree_raw_init(uint32_t flags, uint32_t n_partition, uint32_t n_partitions, uint
             return (NULL);
         }
 
-        if (!(bt->flags & IN_MEMORY)) {
-            assert(root_node->pnode->logical_id == bt->rootid);
-        }
+		assert(root_node->pnode->logical_id == bt->rootid);
         lock_modified_nodes(bt);
     }
 
@@ -610,9 +608,6 @@ writepersistent( btree_raw_t *bt, bool create, bool force_write)
     btree_raw_mem_node_t* mem_node;
     btree_status_t ret = BTREE_SUCCESS;
     bool tb_flushed = false;
-
-    if (bt->flags & IN_MEMORY)
-        return (BTREE_FAILURE);
 
     if(create) {
         mem_node = create_new_node(bt,
@@ -1848,9 +1843,6 @@ static void delete_l1cache(btree_raw_t *btree, uint64_t logical_id)
 void
 deref_l1cache_node(btree_raw_t* btree, btree_raw_mem_node_t *node)
 {
-    if (btree->flags & IN_MEMORY)
-        return;
-
     /* Delete the cache instead of deref, if it asked to do so */
     if (node->deref_delete_cache) {
         assert(!node->pinned);
@@ -2411,89 +2403,84 @@ static void lock_modified_nodes_func(btree_raw_t *btree, int lock)
 }
 
 btree_raw_mem_node_t *get_existing_node_low(btree_status_t *ret, btree_raw_t *btree, uint64_t logical_id,
-                                            int ref, bool pinned, bool delete_after_deref)
+		int ref, bool pinned, bool delete_after_deref)
 {
-    btree_raw_node_t  *pnode;
-    btree_raw_mem_node_t  *n = NULL;
+	btree_raw_node_t  *pnode;
+	btree_raw_mem_node_t  *n = NULL;
 
-    if (*ret != BTREE_SUCCESS) { return(NULL); }
+	if (*ret != BTREE_SUCCESS) { return(NULL); }
 
-    *ret = BTREE_SUCCESS;
+	*ret = BTREE_SUCCESS;
 
-    if (btree->flags & IN_MEMORY) {
-        n = (btree_raw_mem_node_t*)logical_id;
-        dbg_print("n=%p flags=%d\n", n, n->pnode->flags);
-    } else {
 retry:
-        //  check l1cache first
-        n = get_l1cache(btree, logical_id);
-        if (n != NULL) {
-            //Got a deleted node?? Parent referring to deleted child??
-            //Check the locking of btree/nodes
-            if (is_node_deleted(n)) {
-                assert(0);
-            }
+	//  check l1cache first
+	n = get_l1cache(btree, logical_id);
+	if (n != NULL) {
+		//Got a deleted node?? Parent referring to deleted child??
+		//Check the locking of btree/nodes
+		if (is_node_deleted(n)) {
+			assert(0);
+		}
 
 #ifndef _OPTIMIZED
-            if (pinned && !n->pinned) {
-                assert(0);
-            }
+		if (pinned && !n->pinned) {
+			assert(0);
+		}
 #endif
 
-            /* Below lock doesn't allow get_existing node return before pnode is really in the cache */
-            node_lock(n, READ);
+		/* Below lock doesn't allow get_existing node return before pnode is really in the cache */
+		node_lock(n, READ);
 
-            /* IO Context has read this node, lets not delete the cache
-             * once we are done using the node. Also not count into hits
-             * stats if we are going to delete after the deref */
-            if (delete_after_deref) {
-                __sync_add_and_fetch(&(btree->stats.stat[BTSTAT_BACKUP_L1HITS]), 1);
-            } else {
-                n->deref_delete_cache = false;
-                add_node_stats(btree, n->pnode, L1HITS, 1);
-            }
-            node_unlock(n);
-        } else {
-            // already in the cache retry get
-            n = add_l1cache(btree, logical_id, pinned);
-            if(!n)
-                goto retry;
+		/* IO Context has read this node, lets not delete the cache
+		 * once we are done using the node. Also not count into hits
+		 * stats if we are going to delete after the deref */
+		if (delete_after_deref) {
+			__sync_add_and_fetch(&(btree->stats.stat[BTSTAT_BACKUP_L1HITS]), 1);
+		} else {
+			n->deref_delete_cache = false;
+			add_node_stats(btree, n->pnode, L1HITS, 1);
+		}
+		node_unlock(n);
+	} else {
+		// already in the cache retry get
+		n = add_l1cache(btree, logical_id, pinned);
+		if(!n)
+			goto retry;
 
-            //  look for the node the hard way
-            //  If we don't look at the ret code, why does read_node_cb need one?
-            pnode = (btree_raw_node_t*)btree->read_node_cb(ret, btree->read_node_cb_data, logical_id);
-            assert(logical_id == pnode->logical_id);
-            if (pnode == NULL) {
-                *ret = BTREE_FAILURE;
-                delete_l1cache(btree, logical_id);
-                return(NULL);
-            }
+		//  look for the node the hard way
+		//  If we don't look at the ret code, why does read_node_cb need one?
+		pnode = (btree_raw_node_t*)btree->read_node_cb(ret, btree->read_node_cb_data, logical_id);
+		assert(logical_id == pnode->logical_id);
+		if (pnode == NULL) {
+			*ret = BTREE_FAILURE;
+			delete_l1cache(btree, logical_id);
+			return(NULL);
+		}
 
-            /* For scavenger and backup context reads, once we are done
-             * with the cache delete it. The PMapDelete already has
-             * the mechanism to avoid delete if someone else is already
-             * referring to the node */
-            if (delete_after_deref) {
-                n->deref_delete_cache = true;
-                __sync_add_and_fetch(&(btree->stats.stat[BTSTAT_BACKUP_L1MISSES]), 1);
-            } else {
-                n->deref_delete_cache = false;
-                add_node_stats(btree, pnode, L1MISSES, 1);
-            }
+		/* For scavenger and backup context reads, once we are done
+		 * with the cache delete it. The PMapDelete already has
+		 * the mechanism to avoid delete if someone else is already
+		 * referring to the node */
+		if (delete_after_deref) {
+			n->deref_delete_cache = true;
+			__sync_add_and_fetch(&(btree->stats.stat[BTSTAT_BACKUP_L1MISSES]), 1);
+		} else {
+			n->deref_delete_cache = false;
+			add_node_stats(btree, pnode, L1MISSES, 1);
+		}
 
-            n->pnode = pnode;
-            plat_rwlock_unlock(&n->lock);
-        }
-        if(ref)
-            ref_l1cache(btree, n);
-    }
+		n->pnode = pnode;
+		plat_rwlock_unlock(&n->lock);
+	}
+	if(ref)
+		ref_l1cache(btree, n);
 
-    if (n == NULL) {
-        *ret = BTREE_FAILURE;
-        return(NULL);
-    }
-    
-    return(n);
+	if (n == NULL) {
+		*ret = BTREE_FAILURE;
+		return(NULL);
+	}
+
+	return(n);
 }
 
 btree_raw_mem_node_t *get_existing_node(btree_status_t *ret, btree_raw_t *btree, uint64_t logical_id)
@@ -2533,80 +2520,55 @@ btree_raw_mem_node_t *create_new_node(btree_raw_t *btree, uint64_t logical_id, b
 
 static btree_raw_mem_node_t *get_new_node(btree_status_t *ret, btree_raw_t *btree, uint32_t leaf_flags)
 {
-    btree_raw_node_t  *n;
-    btree_raw_mem_node_t  *node;
-    uint64_t           logical_id;
-    // pid_t  tid = syscall(SYS_gettid);
+	btree_raw_node_t  *n;
+	btree_raw_mem_node_t  *node;
+	uint64_t           logical_id;
+	// pid_t  tid = syscall(SYS_gettid);
 
-    if (*ret) { return(NULL); }
+	if (*ret) { return(NULL); }
 
-    if (btree->flags & IN_MEMORY) {
-        node = btree_malloc(sizeof(btree_raw_mem_node_t) + btree->nodesize);
-        node->pnode = (btree_raw_node_t*) ((void*)node + sizeof(btree_raw_mem_node_t));
-	memset(node->pnode, 0, btree->nodesize);
-        n = node->pnode;
-        plat_rwlock_init(&node->lock);
-	logical_id = (uint64_t) node;
-	if (n != NULL) {
-	    n->logical_id = logical_id;
+	logical_id = __sync_fetch_and_add(&btree->logical_id_counter, 1)*btree->n_partitions + btree->n_partition;
+	if (BTREE_SUCCESS != savepersistent( btree, false)) {
+		*ret = BTREE_FAILURE;
+		return (NULL);
 	}
-#ifdef DEBUG_STUFF
-	if(Verbose)
-        fprintf(stderr, "%x %s n=%p node=%p flags=%d\n", (int)pthread_self(), __FUNCTION__, n, node, leaf_flags);
-#endif
-    } else {
-        logical_id = __sync_fetch_and_add(&btree->logical_id_counter, 1)*btree->n_partitions + btree->n_partition;
-        if (BTREE_SUCCESS != savepersistent( btree, false)) {
-            *ret = BTREE_FAILURE;
-            return (NULL);
-        }
 	node = create_new_node(btree, logical_id, false /*pinned */);
 	n = node->pnode;
-    }
-    if (n == NULL) {
-        *ret = BTREE_FAILURE;
-	return(NULL);
-    }
 
-    n->flags      = leaf_flags;
-    n->lsn        = 0;
-    n->checksum   = 0;
-    n->insert_ptr = btree->nodesize;
-    n->nkeys      = 0;
-    n->prev       = 0; // used for chaining nodes for large objects
-    n->next       = 0; // used for chaining nodes for large objects
-    n->rightmost  = BAD_CHILD;
+	if (n == NULL) {
+		*ret = BTREE_FAILURE;
+		return(NULL);
+	}
 
-    /* Update relevent node types, total count and bytes used in node */
-    add_node_stats(btree, n, NODES, 1);
-    add_node_stats(btree, n, BYTES, sizeof(btree_raw_node_t));
+	n->flags      = leaf_flags;
+	n->lsn        = 0;
+	n->checksum   = 0;
+	n->insert_ptr = btree->nodesize;
+	n->nkeys      = 0;
+	n->prev       = 0; // used for chaining nodes for large objects
+	n->next       = 0; // used for chaining nodes for large objects
+	n->rightmost  = BAD_CHILD;
 
-    return node;
+	/* Update relevent node types, total count and bytes used in node */
+	add_node_stats(btree, n, NODES, 1);
+	add_node_stats(btree, n, BYTES, sizeof(btree_raw_node_t));
+
+	return node;
 }
 
 static void free_node(btree_status_t *ret, btree_raw_t *btree, btree_raw_mem_node_t *n)
 {
-    // pid_t  tid = syscall(SYS_gettid);
-
-    if (*ret) { return; }
+	if (*ret) { return; }
 
     sub_node_stats(btree, n->pnode, NODES, 1);
     sub_node_stats(btree, n->pnode, BYTES, sizeof(btree_raw_node_t));
 
-    if (btree->flags & IN_MEMORY) {
-	    // xxxzzz SEGFAULT
-	    // fprintf(stderr, "SEGFAULT free_node: %p [tid=%d]\n", n, tid);
-       // fprintf(stderr, "%x %s n=%p node=%p flags=%d", (int)pthread_self(), __FUNCTION__, n, (void*)n - sizeof(btree_raw_mem_node_t), n->flags);
-	    btree_free((void*)n - sizeof(btree_raw_mem_node_t));
-    } else {
-        //delete_l1cache(btree, n);
-        assert(deleted_nodes_count < MAX_BTREE_HEIGHT);
-        deleted_nodes[deleted_nodes_count++] = n;
-		mark_node_deleted(n);
-		PMapIncrRefcnt(btree->l1cache,(char *) &(n->pnode->logical_id), sizeof(uint64_t), btree->cguid);
-		dbg_referenced++;
-        //*ret = btree->delete_node_cb(n, btree->create_node_cb_data, n->logical_id);
-    }
+	assert(deleted_nodes_count < MAX_BTREE_HEIGHT);
+	deleted_nodes[deleted_nodes_count++] = n;
+	mark_node_deleted(n);
+	PMapIncrRefcnt(btree->l1cache,(char *) &(n->pnode->logical_id), sizeof(uint64_t), btree->cguid);
+	dbg_referenced++;
+	//*ret = btree->delete_node_cb(n, btree->create_node_cb_data, n->logical_id);
 }
 
 /*   Split the 'from' node across 'from' and 'to'.
@@ -6440,9 +6402,6 @@ void btree_raw_dump(FILE *f, btree_raw_t *bt)
     }
     if (bt->flags & SECONDARY_INDEX) {
         strcat(sflags, "SEC ");
-    }
-    if (bt->flags & IN_MEMORY) {
-        strcat(sflags, "MEM");
     }
 
     dump_line(f, NULL, 0);

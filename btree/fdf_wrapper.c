@@ -805,7 +805,6 @@ restart:
     mput_cmp_cb_data	= (void *) prn;
 
     //flags = SYNDROME_INDEX;
-    // flags |= IN_MEMORY; // use in-memory b-tree for this test
     flags = SECONDARY_INDEX;
     if ((flags_in&FDF_CTNR_CREATE) == 0)
         flags |= RELOAD;
