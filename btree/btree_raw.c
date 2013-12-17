@@ -3557,152 +3557,6 @@ get_keys_less_than(btree_raw_t *btree, char *key, uint32_t keylen,
 }
 
 /*
- * Return true if there is a key > the given key, false otherwise.
- * The returned key is set in ks.
- */
-static inline bool 
-find_right_key_non_leaf(btree_raw_t *bt, btree_raw_node_t *n,
-		        char *key, uint32_t keylen, 
-		        key_stuff_t *ks, int *index, bool inclusive)
-{
-	int i_start, i_end, i_center;
-	int x;
-	int i_largest = 0;
-
-	assert(!is_leaf(bt, n));
-
-	i_start = 0;
-	i_end = n->nkeys - 1;
-	i_largest = -1;
-
-	if (index) {
-		(*index) = -1;
-	}
-
-	while (i_start <= i_end) {
-		i_center = (i_start + i_end) / 2;
-
-		(void) get_key_stuff(bt, n, i_center, ks);
-		x = bt->cmp_cb(bt->cmp_cb_data, key, keylen,
-		                    ks->pkey_val, ks->keylen);
-
-		if (x < 0) {
-			i_largest = i_center;
-			i_end = i_center - 1;
-		} else if (x > 0) {
-			i_start = i_center + 1;
-		} else {
-			/*
-			 * Got a match for reference key.
-			 * Our right key is same key if asked for
-			 * inclusive or it will be next if not asked
-			 * for inclusive.
-			 */
-			if (inclusive) {
-				i_largest = i_center;
-				/* Get the latest */
-				while ((i_largest - 1) >= 0) {
-					(void) get_key_stuff(bt, n, i_largest - 1, ks);
-					if ((x = bt->cmp_cb(bt->cmp_cb_data, key, keylen,
-					                    ks->pkey_val, ks->keylen)) != 0) {
-						assert(x > 0);
-						break;
-					}
-					i_largest--;
-				}
-			} else {
-				i_largest = i_center + 1;
-				/*
-				 * If subtree/node has only snapshot data, skip complete subtree */
-				while (i_largest < n->nkeys) {
-					(void) get_key_stuff(bt, n, i_largest, ks);
-					if ((x = bt->cmp_cb(bt->cmp_cb_data, key, keylen,
-					                     ks->pkey_val, ks->keylen)) != 0) {
-						assert(x < 0);
-						break;
-					}
-					fprintf(stderr, "Skipping subtree having snap data of key %s\n", key);
-					i_largest++;
-				}
-						
-			}
-			break;
-		}
-	}
-
-	if (i_largest >= 0 && i_largest <= (n->nkeys - 1)) {
-		(void) get_key_stuff(bt, n, i_largest, ks);
-		if (index != NULL) {
-			(*index) = i_largest;
-		}
-		return true;
-	}
-
-	/*
-	 * No key greater than the given key in this node.
-	 */
-	return false;
-}
-
-/*
- * Find right key in a given node.
- *
- * The caller must free the key_out after use.
- */
-static inline bool 
-find_right_key_leaf(btree_raw_t *bt, btree_raw_node_t *n,
-		    char *key, uint32_t keylen, 
-		    char **key_out, uint32_t *keyout_len, uint64_t *seqno,
-		    int *index, bool inclusive)
-{
-	bool res = false;
-
-	res = btree_leaf_find_right_key(bt, n, key, keylen,
-					key_out, keyout_len, seqno,
-					index, inclusive);	
-
-	return res;
-}
-
-static inline bool 
-find_right_key_in_node(btree_raw_t *bt, btree_raw_node_t *n,
-		       char *key, uint32_t keylen, 
-		       key_stuff_t *ks, int *index, bool inclusive,
-		       bool *free_key_mem)
-{
-
-	if (is_leaf(bt, n)) {
-		char *key_out = NULL;
-		uint32_t key_out_len = 0;
-		uint64_t seqno;
-		bool res = 0;
-
-		res = find_right_key_leaf(bt, n, key, keylen,
-					  &key_out, &key_out_len, &seqno,
-					  index, inclusive);
-		if (res == true) {
-			assert(key_out_len != 0);
-			ks->pkey_val = key_out;
-			ks->keylen = key_out_len;
-			ks->seqno = seqno;
-			*free_key_mem = true;	
-		} else {
-			ks->pkey_val = NULL;
-			ks->keylen = 0;
-		}
-		ks->ptr = BAD_CHILD;
-	
-		return res;
-		
-	} else {
-
-		*free_key_mem = false;	
-		return find_right_key_non_leaf(bt, n, key, keylen,
-					       ks, index, inclusive);
-	}
-}
-
-/*
  * Get number of keys that can be taken to child for mput
  * without voilating btree order.
  */
@@ -4500,30 +4354,48 @@ find_first_key_in_range(btree_raw_t *bt,
  *	    If leaf node, the ks is set to next key that falls in range.
  */
 static bool
-find_next_rupdate_key(btree_raw_t *bt, btree_raw_node_t *n, char *range_key,
+find_next_rupdate_key(btree_raw_t *bt, btree_metadata_t *meta, btree_raw_node_t *n, char *range_key,
 		      uint32_t range_key_len, char **key_out, uint32_t *key_out_len,
 		      uint64_t *child_id, btree_range_cmp_cb_t range_cmp_cb, 
 		      void *range_cmp_cb_args, btree_rupdate_marker_t **marker,
 		      bool *free_key_mem, bool *in_snap)
 {
+	key_stuff_t ks = {0,};
 	bool res = false;
 	int index = -1;
-	key_stuff_t ks;
 
 	*child_id = BAD_CHILD;
 	*free_key_mem = false;
 
 	if ((*marker)->set) {
+		key_stuff_info_t ksi;
 		/*
 		 * Get next key from the marker.
 		 */
-		res = find_right_key_in_node(bt, n,
-					     (*marker)->last_key, (*marker)->last_key_len,
-					     &ks, &index, false, free_key_mem);
+		index = bsearch_key_low(bt, n, (*marker)->last_key, (*marker)->last_key_len,
+				meta, 0, -1, n->nkeys, BSF_NEXT, &res);
+
+		res = index < n->nkeys;
+
+		ksi.key = tmp_key_buf;
+
+		if(res)
+		{
+			if (is_leaf(bt, n)) {
+				(void) get_key_stuff_info(bt, n, index, &ksi);
+				*free_key_mem = true;
+			}
+			else
+				(void) get_key_stuff_info2(bt, n, index, &ksi);
+		}
+
+		ks.pkey_val = ksi.key;
+		ks.keylen = ksi.keylen;
+		ks.ptr = ksi.ptr;
 
 		assert(res == false || bt->cmp_cb(bt->cmp_cb_data, ks.pkey_val, ks.keylen,
-					     (*marker)->last_key, (*marker)->last_key_len) == 1);
-				     	
+					     (*marker)->last_key, (*marker)->last_key_len) > 0);
+
 		/*
 		 * Search end at end of the node, consider righmost key as well
 		 */
@@ -4581,9 +4453,10 @@ find_next_rupdate_key(btree_raw_t *bt, btree_raw_node_t *n, char *range_key,
 		*child_id = ks.ptr;
 	}
 
-	assert(is_leaf(bt, n) || *free_key_mem == false);
 	*key_out = ks.pkey_val;
 	*key_out_len = ks.keylen;
+
+	assert(is_leaf(bt, n) || *free_key_mem == false);
 
 	return res;
 }
@@ -4638,7 +4511,7 @@ btree_rupdate_raw_leaf(
 		goto exit;
 	}
 	
-	while (find_next_rupdate_key(btree, node->pnode, range_key,
+	while (find_next_rupdate_key(btree, meta, node->pnode, range_key,
 				      range_key_len, &key_out, &key_out_len,
 				      &child_id, range_cmp_cb, range_cmp_cb_args,
 				      marker, &key_allocated, &in_snap) == true) {
@@ -4834,7 +4707,7 @@ btree_rupdate_raw_non_leaf(
 	/*
 	 * Not at leaf yet, keep on seraching down the tree.
 	 */
-	res = find_next_rupdate_key(btree, mem_node->pnode, 
+	res = find_next_rupdate_key(btree, meta, mem_node->pnode, 
 				    range_key, range_key_len, 
 				    &key_out, &key_out_len,
 				    &child_id, range_cmp_cb,
