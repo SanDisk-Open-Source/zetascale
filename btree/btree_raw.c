@@ -3710,7 +3710,7 @@ static inline uint32_t
 get_adjusted_num_objs(btree_raw_t *bt, btree_raw_node_t *n, uint32_t nkey,
                       btree_mput_obj_t *objs, uint32_t count)
 {
-	key_stuff_t ks;
+	key_stuff_info_t ks;
 	int x;
 
 	/* If we are the rightmost or leaf node, let all of
@@ -3719,7 +3719,8 @@ get_adjusted_num_objs(btree_raw_t *bt, btree_raw_node_t *n, uint32_t nkey,
 		return count;
 	}
 
-	(void) get_key_stuff(bt, n, nkey, &ks);
+ 	ks.key = tmp_key_buf;
+ 	(void) get_key_stuff_info2(bt, n, nkey, &ks); //get key_stuff_info
 
 	/* This comparision eliminates binary search in cases when all
 	 * keys goes to the same node */
