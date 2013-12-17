@@ -88,8 +88,11 @@ if [ -n "$run_tests" ]; then
 	export FDF_LIB=$WD/output/lib/libfdf.so
 	export FDF_PROPERTY_FILE=$WD/api/tests/conf/fdf.prop
 
-ctest
-#	ctest -j$NCPU
+	if [[ "$(hostname)" =~ "xen" ]]; then
+		ctest
+	else
+		ctest -j$NCPU
+	fi
 fi
 
 echo -e "\nVariables:\nexport BTREE_LIB=$WD/output/lib/libbtree.so\nexport FDF_LIB=$WD/output/lib/libfdf.so\nexport FDF_PROPERTY_FILE=$WD/api/tests/conf/fdf.prop\n"
