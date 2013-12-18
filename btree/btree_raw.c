@@ -341,8 +341,8 @@ btree_raw_crash_stats( btree_raw_t* bt, void *data, uint32_t datalen )
     fdf_pstats_delta_t *pstats_new = (fdf_pstats_delta_t*) data;
 #ifdef PSTATS_1
     fprintf(stderr, "btree_raw_crash_stats: Last seq num = %ld\n", bt->pstats.seq_num);
-    fprintf(stderr, "btree_raw_crash_stats: record: seq num=%ld d_obj_cnt=%ld is_positive_d=%d unique=%ld\n",
-                 pstats_new->seq_num, pstats_new->delta_obj_count, pstats_new->is_positive_delta, pstats_new->seq); 
+    fprintf(stderr, "btree_raw_crash_stats: record: seq num=%ld d_obj_cnt=%ld is_positive_d=%d d_num_snap_objs=%ld d_snap_data_size=%ld unique=%ld\n",
+                 pstats_new->seq_num, pstats_new->delta_obj_count, pstats_new->is_positive_delta, pstats_new->delta[PSTAT_NUM_SNAP_OBJS], pstats_new->delta[PSTAT_SNAP_DATA_SIZE], pstats_new->seq); 
 #endif
 
     if ( pstats_new->seq_num >= bt->pstats.seq_num  &&
@@ -576,6 +576,7 @@ btree_raw_init(uint32_t flags, uint32_t n_partition, uint32_t n_partitions, uint
         recovery_packet_delete( cguid);
     }
     btree_raw_init_stats(bt, &(bt->stats), &(bt->pstats));
+	bt->stats.stat[BTSTAT_NUM_SNAPS] = bt->snap_meta->total_snapshots;
 
     return(bt);
 }
@@ -695,10 +696,10 @@ writepersistent( btree_raw_t *bt, bool create, bool force_write)
     }
 
     if (mem_node) {
-	/*
-	 * Lock the node to change it.
-	 */
-	plat_rwlock_wrlock(&mem_node->lock);
+		/*
+		 * Lock the node to change it.
+		 */
+		plat_rwlock_wrlock(&mem_node->lock);
 
         btree_raw_persist_t *r = (btree_raw_persist_t*)mem_node->pnode;
 
@@ -710,25 +711,25 @@ writepersistent( btree_raw_t *bt, bool create, bool force_write)
         if ((force_write == true) ||
             (create == false) && (r->rootid != bt->rootid || (bt->logical_id_counter >= r->next_logical_id))) {
 
-	   	/* If META_COUNTER_SAVE_INTERVAL limit is hit during current operation we need to update
-		 the next limit. These limits are useful to assign the unique id after restart */
+			/* If META_COUNTER_SAVE_INTERVAL limit is hit during current operation we need to update
+			 the next limit. These limits are useful to assign the unique id after restart */
 	    	if (bt->logical_id_counter >= r->next_logical_id) {
-		 	bt->next_logical_id = r->next_logical_id + META_COUNTER_SAVE_INTERVAL;
-			r->next_logical_id =  bt->next_logical_id;
+				bt->next_logical_id = r->next_logical_id + META_COUNTER_SAVE_INTERVAL;
+				r->next_logical_id =  bt->next_logical_id;
+			}
+			tb_flushed = true;
 		}
-		tb_flushed = true;
-	}
 
-        bt->stats.stat[BTSTAT_NUM_SNAPS] = bt->snap_meta->total_snapshots;
-        r->logical_id_counter = bt->logical_id_counter;
-        r->rootid = bt->rootid;
+		bt->stats.stat[BTSTAT_NUM_SNAPS] = bt->snap_meta->total_snapshots;
+		r->logical_id_counter = bt->logical_id_counter;
+		r->rootid = bt->rootid;
 
-        if (tb_flushed) {
-            ret = BTREE_SUCCESS;
+		if (tb_flushed) {
+			ret = BTREE_SUCCESS;
 
-            if (bt->trxenabled) {
-                (*bt->trx_cmd_cb)( TRX_START);
-            }
+			if (bt->trxenabled) {
+				(*bt->trx_cmd_cb)( TRX_START);
+			}
 
 			uint64_t* logical_id = &mem_node->pnode->logical_id;
             bt->write_node_cb(my_thd_state, &ret, bt->write_node_cb_data,
@@ -737,8 +738,8 @@ writepersistent( btree_raw_t *bt, bool create, bool force_write)
             if (bt->trxenabled) {
                 (*bt->trx_cmd_cb)( TRX_COMMIT);
             }
-	}
-	plat_rwlock_unlock(&mem_node->lock);
+		}
+		plat_rwlock_unlock(&mem_node->lock);
 
     } else {
         ret = BTREE_FAILURE;
@@ -780,7 +781,6 @@ loadpersistent( btree_raw_t *bt)
     bt->logical_id_counter = r->next_logical_id;	//next_logical_id is stored before the restart and is used to determine the logical_id_counter value after restart.
     bt->rootid = r->rootid;
     bt->snap_meta = &r->snap_details; /* Keep the pinned snap details node info in btree */
-    bt->stats.stat[BTSTAT_NUM_SNAPS] = bt->snap_meta->total_snapshots;
 
     return (BTREE_FAILURE);
 }
@@ -1908,7 +1908,10 @@ reset_node_pstats(btree_raw_node_t *n)
 {
     n->pstats.seq_num = 0;
     n->pstats.delta_obj_count = 0;
-    n->pstats.is_positive_delta = 0;
+    n->pstats.is_pos_delta = 0;
+	n->pstats.delta[PSTAT_NUM_SNAP_OBJS] = 0;
+	n->pstats.delta[PSTAT_SNAP_DATA_SIZE] = 0;
+
     n->pstats.seq = 0;
 #ifdef PSTATS_2
     fprintf(stderr, "Resetting the node\n");
@@ -1949,6 +1952,23 @@ set_node_pstats(btree_raw_t *btree, btree_raw_node_t *x, uint64_t num_obj, bool 
 #endif
 }
 
+static void
+set_node_snapobjs_pstats(btree_raw_t *btree, btree_raw_node_t *x, uint64_t num_obj, uint64_t data_size, bool is_delta_positive)
+{
+    //btree_raw_node_t* x = n->pnode;
+    x->pstats.seq_num = btree->last_flushed_seq_num;
+    x->pstats.delta[PSTAT_NUM_SNAP_OBJS] += num_obj;
+    x->pstats.delta[PSTAT_SNAP_DATA_SIZE] += data_size;
+	x->pstats.is_pos_delta |= is_delta_positive << PSTAT_NUM_SNAP_OBJS;
+	x->pstats.is_pos_delta |= is_delta_positive << PSTAT_SNAP_DATA_SIZE;
+    x->pstats.seq = __sync_fetch_and_add( &unique, 1 );
+    btree->pstats_modified = true;
+
+#ifdef PSTATS_2
+    fprintf(stderr, "delta_num_obj=%ld delta_snap_data_size=%ld seq_num=%ld is_delta_positive=%d unique=%ld\n",
+           x->pstats.delta[PSTAT_NUM_SNAP_OBJS], x->pstats.delta[PSTAT_SNAP_DATA_SIZE], x->pstats.seq_num, is_delta_positive, x->pstats.seq);
+#endif
+}
 
 /*
  * Conditionally wakes up flusher thread.
@@ -4052,6 +4072,7 @@ btree_insert_keys_leaf(btree_raw_t *btree, btree_metadata_t *meta, uint64_t synd
                             /* Key_exists, but we cannot update, because of snapshots */
 				__sync_add_and_fetch(&(btree->stats.stat[BTSTAT_NUM_SNAP_OBJS]), 1);
 				__sync_add_and_fetch(&(btree->stats.stat[BTSTAT_SNAP_DATA_SIZE]), key_meta.datalen);
+				set_node_snapobjs_pstats(btree, mem_node->pnode, 1, key_meta.datalen, true);
 
 				if (meta->flags & INSERT_TOMBSTONE) {
 					__sync_sub_and_fetch(&(btree->stats.stat[BTSTAT_NUM_OBJS]), 1);
@@ -5023,6 +5044,7 @@ btree_rupdate_raw_leaf(
 			btree_leaf_get_meta(node->pnode, index, &key_meta);
 			__sync_add_and_fetch(&(btree->stats.stat[BTSTAT_NUM_SNAP_OBJS]), 1);
 			__sync_add_and_fetch(&(btree->stats.stat[BTSTAT_SNAP_DATA_SIZE]), key_meta.datalen);
+			set_node_snapobjs_pstats(btree, node->pnode, 1, key_meta.datalen, true);
 		} else {
 			res = btree_leaf_update_low(btree, node, key_out, key_out_len,
 							bufs[count], datalen, seqno, meta, 0);
@@ -5619,6 +5641,7 @@ btree_status_t btree_raw_delete(struct btree_raw *btree, char *key, uint32_t key
 		if (btree_snap_seqno_in_snap(btree, key_meta.seqno) == true) {
 			 __sync_sub_and_fetch(&(btree->stats.stat[BTSTAT_NUM_SNAP_OBJS]), 1);
 			 __sync_sub_and_fetch(&(btree->stats.stat[BTSTAT_SNAP_DATA_SIZE]), key_meta.datalen);
+			 set_node_snapobjs_pstats(btree, node->pnode, 1, key_meta.datalen, false);
 		}
 
 		delete_key_by_index(&ret, btree, node, index);
@@ -5723,6 +5746,7 @@ find_rebalance(btree_status_t *ret, btree_raw_t *btree,
             if (btree_snap_seqno_in_snap(btree, key_meta.seqno) == true) {
                 __sync_sub_and_fetch(&(btree->stats.stat[BTSTAT_NUM_SNAP_OBJS]), 1);
                 __sync_sub_and_fetch(&(btree->stats.stat[BTSTAT_SNAP_DATA_SIZE]), key_meta.datalen);
+				set_node_snapobjs_pstats(btree, this_mem_node->pnode, 1, key_meta.datalen, false);
             }
             delete_key_by_index(ret, btree, this_mem_node, nkey_child);
             btree->log_cb(ret, btree->log_cb_data, BTREE_UPDATE_NODE, btree, this_mem_node);
@@ -6984,6 +7008,8 @@ btree_raw_init_stats(struct btree_raw *btree, btree_stats_t *stats, fdf_pstats_t
      */
     assert(pstats);
     btree->stats.stat[BTSTAT_NUM_OBJS]    = pstats->obj_count;
+    btree->stats.stat[BTSTAT_NUM_SNAP_OBJS]    = pstats->num_snap_objs;
+    btree->stats.stat[BTSTAT_SNAP_DATA_SIZE]    = pstats->snap_data_size;
     fprintf(stderr, "btree_raw_init_stats:BTSTAT_NUM_OBJS= %ld\n",  pstats->obj_count);
     //btree->stats.stat[BTSTAT_TOTAL_BYTES] = pstats->cntr_sz;
 //  btree->stats.stat[BTSTAT_SPCOPT_BYTES_SAVED] = 0;

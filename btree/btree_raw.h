@@ -89,55 +89,54 @@ typedef struct btree_metadata {
 } btree_metadata_t;
 
 #define BTSTATS_ITEMS() \
-    item(BTSTAT_L1ENTRIES, =0) \
-    item(BTSTAT_L1OBJECTS, /* default */) \
-    item(BTSTAT_LEAF_L1HITS, /* default */) \
-    item(BTSTAT_NONLEAF_L1HITS, /* default */) \
-    item(BTSTAT_OVERFLOW_L1HITS, /* default */) \
-    item(BTSTAT_LEAF_L1MISSES, /* default */) \
-    item(BTSTAT_NONLEAF_L1MISSES, /* default */) \
-    item(BTSTAT_OVERFLOW_L1MISSES, /* default */) \
-    item(BTSTAT_BACKUP_L1MISSES, /* default */) \
-    item(BTSTAT_BACKUP_L1HITS, /* default */) \
-    item(BTSTAT_LEAF_L1WRITES, /* default */) \
-    item(BTSTAT_NONLEAF_L1WRITES, /* default */) \
-    item(BTSTAT_OVERFLOW_L1WRITES, /* default */) \
-    \
-    item(BTSTAT_LEAF_NODES, /* default */) \
-    item(BTSTAT_NONLEAF_NODES, /* default */) \
-    item(BTSTAT_OVERFLOW_NODES, /* default */) \
-    item(BTSTAT_LEAF_BYTES, /* default */) \
-    item(BTSTAT_NONLEAF_BYTES, /* default */) \
-    item(BTSTAT_OVERFLOW_BYTES, /* default */) \
-    item(BTSTAT_NUM_OBJS, /* default */) \
-    item(BTSTAT_EVICT_BYTES, /* default */) \
-    item(BTSTAT_SPLITS, /* default */) \
-    item(BTSTAT_LMERGES, /* default */) \
-    item(BTSTAT_RMERGES, /* default */) \
-    item(BTSTAT_LSHIFTS, /* default */) \
-    item(BTSTAT_RSHIFTS, /* default */) \
-    item(BTSTAT_EX_TREE_LOCKS, /* default */) \
-    item(BTSTAT_NON_EX_TREE_LOCKS, /* default */) \
-    item(BTSTAT_GET_CNT, /* default */) \
-    item(BTSTAT_GET_PATH, /* default */) \
-    item(BTSTAT_CREATE_CNT, /* default */) \
-    item(BTSTAT_CREATE_PATH, /* default */) \
-    item(BTSTAT_SET_CNT, /* default */) \
-    item(BTSTAT_SET_PATH, /* default */) \
-    item(BTSTAT_UPDATE_CNT, /* default */) \
-    item(BTSTAT_UPDATE_PATH, /* default */) \
-    item(BTSTAT_DELETE_CNT, /* default */) \
-    item(BTSTAT_DELETE_PATH, /* default */) \
-    item(BTSTAT_FLUSH_CNT, /* default */) \
-    item(BTSTAT_DELETE_OPT_CNT, /* default */) \
-    item(BTSTAT_MPUT_IO_SAVED, /* default */)  \
-    item(BTSTAT_PUT_RESTART_CNT, /* default */)	\
-    item(BTSTAT_SPCOPT_BYTES_SAVED, /* default */)  \
-    item(BTSTAT_NUM_SNAP_OBJS , /* default */)  \
-    item(BTSTAT_SNAP_DATA_SIZE , /* default */)  \
-    item(BTSTAT_NUM_SNAPS , /* default */)  \
-    item(BTSTAT_BULK_INSERT_CNT, /* default */) \
-    item(BTSTAT_BULK_INSERT_FULL_NODES_CNT, /* default */) \
+/* 0 */		item(BTSTAT_L1ENTRIES, =0) \
+			item(BTSTAT_L1OBJECTS, /* default */) \
+			item(BTSTAT_LEAF_L1HITS, /* default */) \
+			item(BTSTAT_NONLEAF_L1HITS, /* default */) \
+			item(BTSTAT_OVERFLOW_L1HITS, /* default */) \
+/* 5 */		item(BTSTAT_LEAF_L1MISSES, /* default */) \
+			item(BTSTAT_NONLEAF_L1MISSES, /* default */) \
+			item(BTSTAT_OVERFLOW_L1MISSES, /* default */) \
+			item(BTSTAT_BACKUP_L1MISSES, /* default */) \
+			item(BTSTAT_BACKUP_L1HITS, /* default */) \
+/* 10 */	item(BTSTAT_LEAF_L1WRITES, /* default */) \
+			item(BTSTAT_NONLEAF_L1WRITES, /* default */) \
+			item(BTSTAT_OVERFLOW_L1WRITES, /* default */) \
+			item(BTSTAT_LEAF_NODES, /* default */) \
+			item(BTSTAT_NONLEAF_NODES, /* default */) \
+/* 15 */    item(BTSTAT_OVERFLOW_NODES, /* default */) \
+			item(BTSTAT_LEAF_BYTES, /* default */) \
+			item(BTSTAT_NONLEAF_BYTES, /* default */) \
+			item(BTSTAT_OVERFLOW_BYTES, /* default */) \
+			item(BTSTAT_NUM_OBJS, /* default */) \
+/* 20 */    item(BTSTAT_EVICT_BYTES, /* default */) \
+			item(BTSTAT_SPLITS, /* default */) \
+			item(BTSTAT_LMERGES, /* default */) \
+			item(BTSTAT_RMERGES, /* default */) \
+			item(BTSTAT_LSHIFTS, /* default */) \
+/* 25 */    item(BTSTAT_RSHIFTS, /* default */) \
+			item(BTSTAT_EX_TREE_LOCKS, /* default */) \
+			item(BTSTAT_NON_EX_TREE_LOCKS, /* default */) \
+			item(BTSTAT_GET_CNT, /* default */) \
+			item(BTSTAT_GET_PATH, /* default */) \
+/* 30 */    item(BTSTAT_CREATE_CNT, /* default */) \
+			item(BTSTAT_CREATE_PATH, /* default */) \
+			item(BTSTAT_SET_CNT, /* default */) \
+			item(BTSTAT_SET_PATH, /* default */) \
+			item(BTSTAT_UPDATE_CNT, /* default */) \
+/* 35 */    item(BTSTAT_UPDATE_PATH, /* default */) \
+			item(BTSTAT_DELETE_CNT, /* default */) \
+			item(BTSTAT_DELETE_PATH, /* default */) \
+			item(BTSTAT_FLUSH_CNT, /* default */) \
+			item(BTSTAT_DELETE_OPT_CNT, /* default */) \
+/* 40 */    item(BTSTAT_MPUT_IO_SAVED, /* default */)  \
+			item(BTSTAT_PUT_RESTART_CNT, /* default */)	\
+			item(BTSTAT_SPCOPT_BYTES_SAVED, /* default */)  \
+			item(BTSTAT_NUM_SNAP_OBJS , /* default */)  \
+			item(BTSTAT_SNAP_DATA_SIZE , /* default */)  \
+/* 45 */    item(BTSTAT_NUM_SNAPS , /* default */)  \
+			item(BTSTAT_BULK_INSERT_CNT, /* default */) \
+			item(BTSTAT_BULK_INSERT_FULL_NODES_CNT, /* default */) \
 
 typedef enum {
 #define item(caps, value) \
@@ -217,6 +216,8 @@ typedef struct key_stuff_info {
 typedef struct fdf_pstats_ {
     uint64_t seq_num;
     uint64_t obj_count;
+	uint64_t num_snap_objs;
+	uint64_t snap_data_size;
 } fdf_pstats_t;
 
 uint64_t total_sys_writes;
