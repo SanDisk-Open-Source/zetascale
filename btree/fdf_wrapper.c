@@ -76,6 +76,8 @@ typedef struct read_node {
 } read_node_t;
 
 
+FDF_status_t BtreeErr_to_FDFErr(btree_status_t b_status);
+btree_status_t FDFErr_to_BtreeErr(FDF_status_t f_status);
 static int mput_default_cmp_cb(void *data, char *key, uint32_t keylen,
 			    char *old_data, uint64_t old_datalen,
 			    char *new_data, uint64_t new_datalen);
@@ -1380,21 +1382,7 @@ FDF_status_t _FDFReadObject(
 
 done:
     trxleave( cguid);
-    switch(btree_ret) {
-        case BTREE_SUCCESS:
-            ret = FDF_SUCCESS;
-            break;
-        case BTREE_FAILURE:
-            ret = FDF_FAILURE;
-            break;
-        case BTREE_KEY_NOT_FOUND:
-            ret = FDF_OBJECT_UNKNOWN;
-            break;
-        default:
-            ret = FDF_FAILURE;
-            break;
-    }
-
+	ret = BtreeErr_to_FDFErr(btree_ret);
 	bt_rel_entry(index, false);
     return(ret);
 }
@@ -1535,28 +1523,15 @@ FDF_status_t _FDFWriteObject(
     }
     trxleave( cguid);
 
-    switch(btree_ret) {
-        case BTREE_SUCCESS:
-            ret = FDF_SUCCESS;
-            break;
-        case BTREE_FAILURE:
-            ret = FDF_FAILURE_STORAGE_WRITE;
-            break;
-        case BTREE_KEY_NOT_FOUND:
-	        if (flags & FDF_WRITE_MUST_NOT_EXIST) {
-	            ret = FDF_OBJECT_EXISTS;
-	        } else if (flags & FDF_WRITE_MUST_EXIST) {
-	            ret = FDF_OBJECT_UNKNOWN;
-	        } else {
-	            assert(0); // this should never happen!
-	            ret = FDF_FAILURE; // xxxzzz fix this!
-	        }
-            break;
-        default:
-	        msg("btree_insert/update failed for key '%s' with ret=%s!\n", key, FDFStrError(ret));
-	        ret = FDF_FAILURE; // xxxzzz fix this!
-            break;
-    }
+	ret = BtreeErr_to_FDFErr(btree_ret);
+	if ((ret == FDF_OBJECT_UNKNOWN) && (flags & FDF_WRITE_MUST_NOT_EXIST))
+	{
+		ret = FDF_OBJECT_EXISTS;
+	}
+	if (ret != FDF_SUCCESS)
+	{
+		msg("btree_insert/update failed for key '%s' with ret=%s!\n", key, FDFStrError(ret));
+	}
 	bt_rel_entry(index, true);
     return(ret);
 }
@@ -1660,21 +1635,7 @@ FDF_status_t _FDFDeleteObject(
     trxenter( cguid);
     btree_ret = btree_delete(bt, key, keylen, &meta);
     trxleave( cguid);
-    switch(btree_ret) {
-        case BTREE_SUCCESS:
-            ret = FDF_SUCCESS;
-            break;
-        case BTREE_FAILURE:
-            ret = FDF_FAILURE;
-            break;
-        case BTREE_KEY_NOT_FOUND:
-            ret = FDF_OBJECT_UNKNOWN;
-            break;
-        default:
-            ret = FDF_FAILURE;
-            break;
-    }
-
+	ret = BtreeErr_to_FDFErr(btree_ret);
 	bt_rel_entry(index, true);
     return(ret);
 }
@@ -1853,21 +1814,11 @@ FDF_status_t _FDFFlushObject(
     btree_ret = btree_flush(bt, key, keylen);
     trxleave( cguid);
 
-    switch(btree_ret) {
-        case BTREE_SUCCESS:
-            ret = FDF_SUCCESS;
-            break;
-        case BTREE_FAILURE:
-            ret = FDF_FAILURE_STORAGE_WRITE;
-            break;
-        case BTREE_KEY_NOT_FOUND:
-	        ret = FDF_OBJECT_UNKNOWN;
-            break;
-        default:
-	        msg("btree_flush failed for key '%s' with ret=%s!\n", key, FDFStrError(ret));
-	        ret = FDF_FAILURE; // xxxzzz fix this!
-            break;
-    }
+	ret = BtreeErr_to_FDFErr(btree_ret);
+	if (ret != FDF_SUCCESS)
+	{
+		msg("btree_flush failed for key '%s' with ret=%s!\n", key, FDFStrError(ret));
+	}
 	bt_rel_entry(index, false);
     return(ret);
 }
@@ -2060,11 +2011,7 @@ _FDFGetRange(struct FDF_thread_state *fdf_thread_state,
 	                                (btree_range_cursor_t **)cursor,
 	                                (btree_range_meta_t *)rmeta);
 
-	if (status == BTREE_SUCCESS) {
-		ret = FDF_SUCCESS;
-	} else {
-		ret = FDF_FAILURE;
-	}
+	ret = BtreeErr_to_FDFErr(status);
 	bt_rel_entry(index, false);
 	return(ret);
 }
@@ -2106,17 +2053,7 @@ _FDFGetNextRange(struct FDF_thread_state *fdf_thread_state,
 	                              );
 	trxleave( cguid);
 
-	if (status == BTREE_SUCCESS) {
-		ret = FDF_SUCCESS;
-	} else if (status == BTREE_QUERY_DONE) {
-		ret = FDF_QUERY_DONE;
-	} else if (status == BTREE_QUERY_PAUSED) {
-		ret = FDF_QUERY_PAUSED;
-	} else if (status == BTREE_WARNING) {
-		ret = FDF_WARNING;
-	} else {
-		ret = FDF_FAILURE;
-	}
+	ret = BtreeErr_to_FDFErr(status);
 
         bt_rel_entry(index, false);
 	return(ret);
@@ -2132,14 +2069,7 @@ _FDFGetRangeFinish(struct FDF_thread_state *fdf_thread_state,
 	my_thd_state = fdf_thread_state;;
 
 	status = btree_range_query_end((btree_range_cursor_t *)cursor);
-	if (status == BTREE_SUCCESS) {
-		ret = FDF_SUCCESS;
-	} else if (status == BTREE_QUERY_DONE) {
-		ret = FDF_QUERY_DONE;
-	} else {
-		ret = FDF_FAILURE;
-	}
-
+	ret = BtreeErr_to_FDFErr(status);
 	return(ret);
 }
 
@@ -2168,9 +2098,10 @@ static void* read_node_cb(btree_status_t *ret, void *data, uint64_t lnodeid)
 	    // fprintf(stderr, "SEGFAULT read_node_cb: %p [tid=%d]\n", n, tid);
 	    return(n);
     } else {
-	    fprintf(stderr, "ZZZZZZZZ   red_node_cb %lu - %lu failed with ret=%s   ZZZZZZZZZ\n", lnodeid, datalen, FDFStrError(status));
-        *ret = BTREE_FAILURE;
-	    return(NULL);
+	fprintf(stderr, "ZZZZZZZZ   red_node_cb %lu - %lu failed with ret=%s   ZZZZZZZZZ\n", lnodeid, datalen, FDFStrError(status));
+        //*ret = BTREE_FAILURE;
+	*ret = FDFErr_to_BtreeErr(status);
+	return(NULL);
     }
 }
 
@@ -2184,21 +2115,7 @@ static void write_node_cb(struct FDF_thread_state *thd_state, btree_status_t *re
     ret = FDFWriteObjects(thd_state, prn->cguid, (char **) lnodeid, sizeof(uint64_t), data, datalen, count, 0 /* flags */);
     trxtrackwrite( prn->cguid, lnodeid);
     assert(prn->nodesize == datalen);
-
-    switch(ret) {
-        case FDF_SUCCESS:
-            *ret_out = BTREE_SUCCESS;
-            break;
-        case FDF_FAILURE:
-            *ret_out = BTREE_FAILURE;
-            break;
-        case FDF_FAILURE_OPERATION_DISALLOWED:
-            *ret_out = BTREE_OPERATION_DISALLOWED;
-            break;
-        default:
-            *ret_out = BTREE_FAILURE;
-            break;
-    }
+	*ret_out = FDFErr_to_BtreeErr(ret);
 }
 
 static void flush_node_cb(btree_status_t *ret_out, void *cb_data, uint64_t lnodeid)
@@ -2209,21 +2126,7 @@ static void flush_node_cb(btree_status_t *ret_out, void *cb_data, uint64_t lnode
     N_flush_node++;
 
     ret = FDFFlushObject(my_thd_state, prn->cguid, (char *) &lnodeid, sizeof(uint64_t));
-
-    switch(ret) {
-        case FDF_SUCCESS:
-            *ret_out = BTREE_SUCCESS;
-            break;
-        case FDF_FAILURE:
-            *ret_out = BTREE_FAILURE;
-            break;
-        case FDF_FAILURE_OPERATION_DISALLOWED:
-            *ret_out = BTREE_OPERATION_DISALLOWED;
-            break;
-        default:
-            *ret_out = BTREE_FAILURE;
-            break;
-    }
+	*ret_out = FDFErr_to_BtreeErr(ret);
 }
 
 static int freebuf_cb(void *data, char *buf)
@@ -2246,6 +2149,7 @@ static void* create_node_cb(btree_status_t *ret, void *data, uint64_t lnodeid)
 
 	N_create_node++;
 	status = FDFWriteObject(my_thd_state, prn->cguid, (char *) &lnodeid, sizeof(uint64_t), Create_Data, prn->nodesize, FDF_WRITE_MUST_NOT_EXIST  /* flags */);
+	*ret = FDFErr_to_BtreeErr(status);
 	trxtrackwrite( prn->cguid, lnodeid);
 	if (status == FDF_SUCCESS) {
 		status = FDFReadObject(my_thd_state, prn->cguid, (char *) &lnodeid, sizeof(uint64_t), (char **) &n, &datalen);
@@ -2254,7 +2158,8 @@ static void* create_node_cb(btree_status_t *ret, void *data, uint64_t lnodeid)
 			*ret = BTREE_SUCCESS;
 			return(n);
 		}
-		*ret = BTREE_FAILURE;
+		//*ret = BTREE_FAILURE;
+		*ret = FDFErr_to_BtreeErr(status);
 		fprintf(stderr, "ZZZZZZZZ   create_node_cb failed with ret=%d   ZZZZZZZZZ\n", *ret);
 	}
 	return(NULL);
@@ -2269,7 +2174,8 @@ static btree_status_t delete_node_cb(void *data, uint64_t lnodeid)
 	trxtrackwrite( prn->cguid, lnodeid);
 	if (status == FDF_SUCCESS)
 		return (BTREE_SUCCESS);
-	return (BTREE_SUCCESS);		// return success until btree logic is fixed
+	//return (BTREE_SUCCESS);		// return success until btree logic is fixed
+	return (FDFErr_to_BtreeErr(status));
 }
 
 static uint64_t seqno_alloc_cb(void)
@@ -2584,21 +2490,7 @@ _FDFMPut(struct FDF_thread_state *fdf_ts,
 
 	*objs_done = num_objs - (objs_to_write - objs_written);
 
-	switch(btree_ret) {
-		case BTREE_SUCCESS:
-			ret = FDF_SUCCESS;
-			break;
-		case BTREE_FAILURE:
-			ret = FDF_FAILURE_STORAGE_WRITE;
-			break;
-		case BTREE_KEY_NOT_FOUND:
-			ret = FDF_OBJECT_UNKNOWN;
-			break;
-		default:
-			ret = FDF_FAILURE;
-			break;
-	}
-
+	ret = BtreeErr_to_FDFErr(btree_ret);
 	bt_rel_entry(index, true);
 	return ret;
 }
@@ -2957,21 +2849,8 @@ _FDFRangeUpdate(struct FDF_thread_state *fdf_ts,
 			free(markerp->retry_data);
 		}
 	} while ((btree_ret == BTREE_SUCCESS) && (markerp->set == true));
-	
-	switch(btree_ret) {
-		case BTREE_SUCCESS:
-			ret = FDF_SUCCESS;
-			break;
-		case BTREE_FAILURE:
-			ret = FDF_FAILURE_STORAGE_WRITE;
-			break;
-		case BTREE_KEY_NOT_FOUND:
-			ret = FDF_OBJECT_UNKNOWN;
-			break;
-		default:
-			ret = FDF_FAILURE;
-			break;
-	}
+
+	ret = BtreeErr_to_FDFErr(btree_ret);	
 
 out:
 	if (markerp) {
@@ -3286,6 +3165,970 @@ seqnoalloc( struct FDF_thread_state *t)
 	uint64_t z = seqno++;
 	pthread_mutex_unlock( &seqnolock);
 	return (z);
+}
+
+FDF_status_t BtreeErr_to_FDFErr(btree_status_t b_status)
+{
+	FDF_status_t    f_status = FDF_SUCCESS;
+	switch (b_status) {
+		case BTREE_SUCCESS:
+			f_status = FDF_SUCCESS;
+			break;
+		case BTREE_INVALID_QUERY:
+		case BTREE_FAILURE:
+			f_status = FDF_FAILURE;
+			break;
+		case BTREE_FAILURE_GENERIC:
+			f_status = FDF_FAILURE_GENERIC;
+			break;
+		case BTREE_FAILURE_CONTAINER_GENERIC:
+			f_status = FDF_FAILURE_CONTAINER_GENERIC;
+			break;
+		case BTREE_FAILURE_CONTAINER_NOT_OPEN:
+			f_status = FDF_FAILURE_CONTAINER_NOT_OPEN;
+			break;
+		case BTREE_FAILURE_INVALID_CONTAINER_TYPE:
+			f_status = FDF_FAILURE_INVALID_CONTAINER_TYPE;
+			break;
+		case BTREE_INVALID_PARAMETER:
+			f_status = FDF_INVALID_PARAMETER;
+			break;
+		case BTREE_CONTAINER_UNKNOWN:
+			f_status = FDF_CONTAINER_UNKNOWN;
+			break;
+		case BTREE_UNPRELOAD_CONTAINER_FAILED:
+			f_status = FDF_UNPRELOAD_CONTAINER_FAILED;
+			break;
+		case BTREE_CONTAINER_EXISTS:
+			f_status = FDF_CONTAINER_EXISTS;
+			break;
+		case BTREE_SHARD_NOT_FOUND:
+			f_status = FDF_SHARD_NOT_FOUND;
+			break;
+		case BTREE_KEY_NOT_FOUND:
+		case BTREE_OBJECT_UNKNOWN:
+			f_status = FDF_OBJECT_UNKNOWN;
+			break;
+		case BTREE_OBJECT_EXISTS:
+			f_status = FDF_OBJECT_EXISTS;
+			break;
+		case BTREE_OBJECT_TOO_BIG:
+			f_status = FDF_OBJECT_TOO_BIG;
+			break;
+		case BTREE_FAILURE_STORAGE_READ:
+			f_status = FDF_FAILURE_STORAGE_READ;
+			break;
+		case BTREE_FAILURE_STORAGE_WRITE:
+			f_status = FDF_FAILURE_STORAGE_WRITE;
+			break;
+		case BTREE_FAILURE_MEMORY_ALLOC:
+			f_status = FDF_FAILURE_MEMORY_ALLOC;
+			break;
+		case BTREE_LOCK_INVALID_OP:
+			f_status = FDF_LOCK_INVALID_OP;
+			break;
+		case BTREE_ALREADY_UNLOCKED:
+			f_status = FDF_ALREADY_UNLOCKED;
+			break;
+		case BTREE_ALREADY_READ_LOCKED:
+			f_status = FDF_ALREADY_READ_LOCKED;
+			break;
+		case BTREE_ALREADY_WRITE_LOCKED:
+			f_status = FDF_ALREADY_WRITE_LOCKED;
+			break;
+		case BTREE_OBJECT_NOT_CACHED:
+			f_status = FDF_OBJECT_NOT_CACHED;
+			break;
+		case BTREE_SM_WAITING:
+			f_status = FDF_SM_WAITING;
+			break;
+		case BTREE_TOO_MANY_OPIDS:
+			f_status = FDF_TOO_MANY_OPIDS;
+			break;
+		case BTREE_TRANS_CONFLICT:
+			f_status = FDF_TRANS_CONFLICT;
+			break;
+		case BTREE_PIN_CONFLICT:
+			f_status = FDF_PIN_CONFLICT;
+			break;
+		case BTREE_OBJECT_DELETED:
+			f_status = FDF_OBJECT_DELETED;
+			break;
+		case BTREE_TRANS_NONTRANS_CONFLICT:
+			f_status = FDF_TRANS_NONTRANS_CONFLICT;
+			break;
+		case BTREE_ALREADY_READ_PINNED:
+			f_status = FDF_ALREADY_READ_PINNED;
+			break;
+		case BTREE_ALREADY_WRITE_PINNED:
+			f_status = FDF_ALREADY_WRITE_PINNED;
+			break;
+		case BTREE_TRANS_PIN_CONFLICT:
+			f_status = FDF_TRANS_PIN_CONFLICT;
+			break;
+		case BTREE_PIN_NONPINNED_CONFLICT:
+			f_status = FDF_PIN_NONPINNED_CONFLICT;
+			break;
+		case BTREE_TRANS_FLUSH:
+			f_status = FDF_TRANS_FLUSH;
+			break;
+		case BTREE_TRANS_LOCK:
+			f_status = FDF_TRANS_LOCK;
+			break;
+		case BTREE_TRANS_UNLOCK:
+			f_status = FDF_TRANS_UNLOCK;
+			break;
+		case BTREE_UNSUPPORTED_REQUEST:
+			f_status = FDF_UNSUPPORTED_REQUEST;
+			break;
+		case BTREE_UNKNOWN_REQUEST:
+			f_status = FDF_UNKNOWN_REQUEST;
+			break;
+		case BTREE_BAD_PBUF_POINTER:
+			f_status = FDF_BAD_PBUF_POINTER;
+			break;
+		case BTREE_BAD_PDATA_POINTER:
+			f_status = FDF_BAD_PDATA_POINTER;
+			break;
+		case BTREE_BAD_SUCCESS_POINTER:
+			f_status = FDF_BAD_SUCCESS_POINTER;
+			break;
+		case BTREE_NOT_PINNED:
+			f_status = FDF_NOT_PINNED;
+			break;
+		case BTREE_NOT_READ_LOCKED:
+			f_status = FDF_NOT_READ_LOCKED;
+			break;
+		case BTREE_NOT_WRITE_LOCKED:
+			f_status = FDF_NOT_WRITE_LOCKED;
+			break;
+		case BTREE_PIN_FLUSH:
+			f_status = FDF_PIN_FLUSH;
+			break;
+		case BTREE_BAD_CONTEXT:
+			f_status = FDF_BAD_CONTEXT;
+			break;
+		case BTREE_IN_TRANS:
+			f_status = FDF_IN_TRANS;
+			break;
+		case BTREE_NONCACHEABLE_CONTAINER:
+			f_status = FDF_NONCACHEABLE_CONTAINER;
+			break;
+		case BTREE_OUT_OF_CONTEXTS:
+			f_status = FDF_OUT_OF_CONTEXTS;
+			break;
+		case BTREE_INVALID_RANGE:
+			f_status = FDF_INVALID_RANGE;
+			break;
+		case BTREE_OUT_OF_MEM:
+			f_status = FDF_OUT_OF_MEM;
+			break;
+		case BTREE_NOT_IN_TRANS:
+			f_status = FDF_NOT_IN_TRANS;
+			break;
+		case BTREE_TRANS_ABORTED:
+			f_status = FDF_TRANS_ABORTED;
+			break;
+		case BTREE_FAILURE_MBOX:
+			f_status = FDF_FAILURE_MBOX;
+			break;
+		case BTREE_FAILURE_MSG_ALLOC:
+			f_status = FDF_FAILURE_MSG_ALLOC;
+			break;
+		case BTREE_FAILURE_MSG_SEND:
+			f_status = FDF_FAILURE_MSG_SEND;
+			break;
+		case BTREE_FAILURE_MSG_RECEIVE:
+			f_status = FDF_FAILURE_MSG_RECEIVE;
+			break;
+		case BTREE_ENUMERATION_END:
+			f_status = FDF_ENUMERATION_END;
+			break;
+		case BTREE_BAD_KEY:
+			f_status = FDF_BAD_KEY;
+			break;
+		case BTREE_FAILURE_CONTAINER_OPEN:
+			f_status = FDF_FAILURE_CONTAINER_OPEN;
+			break;
+		case BTREE_BAD_PEXPTIME_POINTER:
+			f_status = FDF_BAD_PEXPTIME_POINTER;
+			break;
+		case BTREE_BAD_PINVTIME_POINTER:
+			f_status = FDF_BAD_PINVTIME_POINTER;
+			break;
+		case BTREE_BAD_PSTAT_POINTER:
+			f_status = FDF_BAD_PSTAT_POINTER;
+			break;
+		case BTREE_BAD_PPCBUF_POINTER:
+			f_status = FDF_BAD_PPCBUF_POINTER;
+			break;
+		case BTREE_BAD_SIZE_POINTER:
+			f_status = FDF_BAD_SIZE_POINTER;
+			break;
+		case BTREE_EXPIRED:
+			f_status = FDF_EXPIRED;
+			break;
+		case BTREE_EXPIRED_FAIL:
+			f_status = FDF_EXPIRED_FAIL;
+			break;
+		case BTREE_PROTOCOL_ERROR:
+			f_status = FDF_PROTOCOL_ERROR;
+			break;
+		case BTREE_TOO_MANY_CONTAINERS:
+			f_status = FDF_TOO_MANY_CONTAINERS;
+			break;
+		case BTREE_STOPPED_CONTAINER:
+			f_status = FDF_STOPPED_CONTAINER;
+			break;
+		case BTREE_GET_METADATA_FAILED:
+			f_status = FDF_GET_METADATA_FAILED;
+			break;
+		case BTREE_PUT_METADATA_FAILED:
+			f_status = FDF_PUT_METADATA_FAILED;
+			break;
+		case BTREE_GET_DIRENTRY_FAILED:
+			f_status = FDF_GET_DIRENTRY_FAILED;
+			break;
+		case BTREE_EXPIRY_GET_FAILED:
+			f_status = FDF_EXPIRY_GET_FAILED;
+			break;
+		case BTREE_EXPIRY_DELETE_FAILED:
+			f_status = FDF_EXPIRY_DELETE_FAILED;
+			break;
+		case BTREE_EXIST_FAILED:
+			f_status = FDF_EXIST_FAILED;
+			break;
+		case BTREE_NO_PSHARD:
+			f_status = FDF_NO_PSHARD;
+			break;
+		case BTREE_SHARD_DELETE_SERVICE_FAILED:
+			f_status = FDF_SHARD_DELETE_SERVICE_FAILED;
+			break;
+		case BTREE_START_SHARD_MAP_ENTRY_FAILED:
+			f_status = FDF_START_SHARD_MAP_ENTRY_FAILED;
+			break;
+		case BTREE_STOP_SHARD_MAP_ENTRY_FAILED:
+			f_status = FDF_STOP_SHARD_MAP_ENTRY_FAILED;
+			break;
+		case BTREE_DELETE_SHARD_MAP_ENTRY_FAILED:
+			f_status = FDF_DELETE_SHARD_MAP_ENTRY_FAILED;
+			break;
+		case BTREE_CREATE_SHARD_MAP_ENTRY_FAILED:
+			f_status = FDF_CREATE_SHARD_MAP_ENTRY_FAILED;
+			break;
+		case BTREE_FLASH_DELETE_FAILED:
+			f_status = FDF_FLASH_DELETE_FAILED;
+			break;
+		case BTREE_FLASH_EPERM:
+			f_status = FDF_FLASH_EPERM;
+			break;
+		case BTREE_FLASH_ENOENT:
+			f_status = FDF_FLASH_ENOENT;
+			break;
+		case BTREE_FLASH_EAGAIN:
+			f_status = FDF_FLASH_EAGAIN;
+			break;
+		case BTREE_FLASH_ENOMEM:
+			f_status = FDF_FLASH_ENOMEM;
+			break;
+		case BTREE_FLASH_EDATASIZE:
+			f_status = FDF_FLASH_EDATASIZE;
+			break;
+		case BTREE_FLASH_EBUSY:
+			f_status = FDF_FLASH_EBUSY;
+			break;
+		case BTREE_FLASH_EEXIST:
+			f_status = FDF_FLASH_EEXIST;
+			break;
+		case BTREE_FLASH_EACCES:
+			f_status = FDF_FLASH_EACCES;
+			break;
+		case BTREE_FLASH_EINVAL:
+			f_status = FDF_FLASH_EINVAL;
+			break;
+		case BTREE_FLASH_EMFILE:
+			f_status = FDF_FLASH_EMFILE;
+			break;
+		case BTREE_FLASH_ENOSPC:
+			f_status = FDF_FLASH_ENOSPC;
+			break;
+		case BTREE_FLASH_ENOBUFS:
+			f_status = FDF_FLASH_ENOBUFS;
+			break;
+		case BTREE_FLASH_EDQUOT:
+			f_status = FDF_FLASH_EDQUOT;
+			break;
+		case BTREE_FLASH_STALE_CURSOR:
+			f_status = FDF_FLASH_STALE_CURSOR;
+			break;
+		case BTREE_FLASH_EDELFAIL:
+			f_status = FDF_FLASH_EDELFAIL;
+			break;
+		case BTREE_FLASH_EINCONS:
+			f_status = FDF_FLASH_EINCONS;
+			break;
+		case BTREE_STALE_LTIME:
+			f_status = FDF_STALE_LTIME;
+			break;
+		case BTREE_WRONG_NODE:
+			f_status = FDF_WRONG_NODE;
+			break;
+		case BTREE_UNAVAILABLE:
+			f_status = FDF_UNAVAILABLE;
+			break;
+		case BTREE_TEST_FAIL:
+			f_status = FDF_TEST_FAIL;
+			break;
+		case BTREE_TEST_CRASH:
+			f_status = FDF_TEST_CRASH;
+			break;
+		case BTREE_VERSION_CHECK_NO_PEER:
+			f_status = FDF_VERSION_CHECK_NO_PEER;
+			break;
+		case BTREE_VERSION_CHECK_BAD_VERSION:
+			f_status = FDF_VERSION_CHECK_BAD_VERSION;
+			break;
+		case BTREE_VERSION_CHECK_FAILED:
+			f_status = FDF_VERSION_CHECK_FAILED;
+			break;
+		case BTREE_META_DATA_VERSION_TOO_NEW:
+			f_status = FDF_META_DATA_VERSION_TOO_NEW;
+			break;
+		case BTREE_META_DATA_INVALID:
+			f_status = FDF_META_DATA_INVALID;
+			break;
+		case BTREE_BAD_META_SEQNO:
+			f_status = FDF_BAD_META_SEQNO;
+			break;
+		case BTREE_BAD_LTIME:
+			f_status = FDF_BAD_LTIME;
+			break;
+		case BTREE_LEASE_EXISTS:
+			f_status = FDF_LEASE_EXISTS;
+			break;
+		case BTREE_BUSY:
+			f_status = FDF_BUSY;
+			break;
+		case BTREE_SHUTDOWN:
+			f_status = FDF_SHUTDOWN;
+			break;
+		case BTREE_TIMEOUT:
+			f_status = FDF_TIMEOUT;
+			break;
+		case BTREE_NODE_DEAD:
+			f_status = FDF_NODE_DEAD;
+			break;
+		case BTREE_SHARD_DOES_NOT_EXIST:
+			f_status = FDF_SHARD_DOES_NOT_EXIST;
+			break;
+		case BTREE_STATE_CHANGED:
+			f_status = FDF_STATE_CHANGED;
+			break;
+		case BTREE_NO_META:
+			f_status = FDF_NO_META;
+			break;
+		case BTREE_TEST_MODEL_VIOLATION:
+			f_status = FDF_TEST_MODEL_VIOLATION;
+			break;
+		case BTREE_REPLICATION_NOT_READY:
+			f_status = FDF_REPLICATION_NOT_READY;
+			break;
+		case BTREE_REPLICATION_BAD_TYPE:
+			f_status = FDF_REPLICATION_BAD_TYPE;
+			break;
+		case BTREE_REPLICATION_BAD_STATE:
+			f_status = FDF_REPLICATION_BAD_STATE;
+			break;
+		case BTREE_NODE_INVALID:
+			f_status = FDF_NODE_INVALID;
+			break;
+		case BTREE_CORRUPT_MSG:
+			f_status = FDF_CORRUPT_MSG;
+			break;
+		case BTREE_QUEUE_FULL:
+			f_status = FDF_QUEUE_FULL;
+			break;
+		case BTREE_RMT_CONTAINER_UNKNOWN:
+			f_status = FDF_RMT_CONTAINER_UNKNOWN;
+			break;
+		case BTREE_FLASH_RMT_EDELFAIL:
+			f_status = FDF_FLASH_RMT_EDELFAIL;
+			break;
+		case BTREE_LOCK_RESERVED:
+			f_status = FDF_LOCK_RESERVED;
+			break;
+		case BTREE_KEY_TOO_LONG:
+			f_status = FDF_KEY_TOO_LONG;
+			break;
+		case BTREE_NO_WRITEBACK_IN_STORE_MODE:
+			f_status = FDF_NO_WRITEBACK_IN_STORE_MODE;
+			break;
+		case BTREE_WRITEBACK_CACHING_DISABLED:
+			f_status = FDF_WRITEBACK_CACHING_DISABLED;
+			break;
+		case BTREE_UPDATE_DUPLICATE:
+			f_status = FDF_UPDATE_DUPLICATE;
+			break;
+		case BTREE_FAILURE_CONTAINER_TOO_SMALL:
+			f_status = FDF_FAILURE_CONTAINER_TOO_SMALL;
+			break;
+		case BTREE_CONTAINER_FULL:
+			f_status = FDF_CONTAINER_FULL;
+			break;
+		case BTREE_CANNOT_REDUCE_CONTAINER_SIZE:
+			f_status = FDF_CANNOT_REDUCE_CONTAINER_SIZE;
+			break;
+		case BTREE_CANNOT_CHANGE_CONTAINER_SIZE:
+			f_status = FDF_CANNOT_CHANGE_CONTAINER_SIZE;
+			break;
+		case BTREE_OUT_OF_STORAGE_SPACE:
+			f_status = FDF_OUT_OF_STORAGE_SPACE;
+			break;
+		case BTREE_TRANS_LEVEL_EXCEEDED:
+			f_status = FDF_TRANS_LEVEL_EXCEEDED;
+			break;
+		case BTREE_FAILURE_NO_TRANS:
+			f_status = FDF_FAILURE_NO_TRANS;
+			break;
+		case BTREE_CANNOT_DELETE_OPEN_CONTAINER:
+			f_status = FDF_CANNOT_DELETE_OPEN_CONTAINER;
+			break;
+		case BTREE_FAILURE_INVALID_KEY_SIZE:
+			f_status = FDF_FAILURE_INVALID_KEY_SIZE;
+			break;
+		case BTREE_FAILURE_OPERATION_DISALLOWED:
+			f_status = FDF_FAILURE_OPERATION_DISALLOWED;
+			break;
+		case BTREE_FAILURE_ILLEGAL_CONTAINER_ID:
+			f_status = FDF_FAILURE_ILLEGAL_CONTAINER_ID;
+			break;
+		case BTREE_FAILURE_CONTAINER_NOT_FOUND:
+			f_status = FDF_FAILURE_CONTAINER_NOT_FOUND;
+			break;
+		case BTREE_UNLIMITED_CONTAINER_MUST_BE_NON_EVICTING:
+			f_status = FDF_UNLIMITED_CONTAINER_MUST_BE_NON_EVICTING;
+			break;
+		case BTREE_THREAD_CONTEXT_BUSY:
+			f_status = FDF_THREAD_CONTEXT_BUSY;
+			break;
+		case BTREE_LICENSE_CHK_FAILED:
+			f_status = FDF_LICENSE_CHK_FAILED;
+			break;
+		case BTREE_CONTAINER_OPEN:
+			f_status = FDF_CONTAINER_OPEN;
+			break;
+		case BTREE_FAILURE_INVALID_CONTAINER_SIZE:
+			f_status = FDF_FAILURE_INVALID_CONTAINER_SIZE;
+			break;
+		case BTREE_FAILURE_INVALID_CONTAINER_STATE:
+			f_status = FDF_FAILURE_INVALID_CONTAINER_STATE;
+			break;
+		case BTREE_FAILURE_CONTAINER_DELETED:
+			f_status = FDF_FAILURE_CONTAINER_DELETED;
+			break;
+		case BTREE_QUERY_DONE:
+			f_status = FDF_QUERY_DONE;
+			break;
+		case BTREE_FAILURE_CANNOT_CREATE_METADATA_CACHE:
+			f_status = FDF_FAILURE_CANNOT_CREATE_METADATA_CACHE;
+			break;
+		case BTREE_BUFFER_TOO_SMALL:
+		case BTREE_WARNING:
+			f_status = FDF_WARNING;
+			break;
+		case BTREE_QUERY_PAUSED:
+			f_status = FDF_QUERY_PAUSED;
+			break;
+		case BTREE_FAIL_TXN_START:
+		case BTREE_FAIL_TXN_COMMIT:
+		case BTREE_FAIL_TXN_ROLLBACK:
+		case BTREE_OPERATION_DISALLOWED:
+		case BTREE_RANGE_UPDATE_NEEDS_SPACE:
+        case BTREE_SKIPPED:
+        case BTREE_TOO_MANY_SNAPSHOTS:
+			assert(0);
+			break;
+		case BTREE_UNKNOWN_STATUS:
+			f_status = N_FDF_STATUS_STRINGS;
+			break;
+	}
+	return f_status;
+}
+btree_status_t FDFErr_to_BtreeErr(FDF_status_t f_status)
+{
+	btree_status_t b_status;
+	switch (f_status) {
+		case FDF_SUCCESS:
+			b_status = BTREE_SUCCESS;
+			break;
+		case FDF_FAILURE:
+			b_status = BTREE_FAILURE;
+			break;
+		case FDF_FAILURE_GENERIC:
+			b_status = BTREE_FAILURE_GENERIC;
+			break;
+		case FDF_FAILURE_CONTAINER_GENERIC:
+			b_status = BTREE_FAILURE_CONTAINER_GENERIC;
+			break;
+		case FDF_FAILURE_CONTAINER_NOT_OPEN:
+			b_status = BTREE_FAILURE_CONTAINER_NOT_OPEN;
+			break;
+		case FDF_FAILURE_INVALID_CONTAINER_TYPE:
+			b_status = BTREE_FAILURE_INVALID_CONTAINER_TYPE;
+			break;
+		case FDF_INVALID_PARAMETER:
+			b_status = BTREE_INVALID_PARAMETER;
+			break;
+		case FDF_CONTAINER_UNKNOWN:
+			b_status = BTREE_CONTAINER_UNKNOWN;
+			break;
+		case FDF_UNPRELOAD_CONTAINER_FAILED:
+			b_status = BTREE_UNPRELOAD_CONTAINER_FAILED;
+			break;
+		case FDF_CONTAINER_EXISTS:
+			b_status = BTREE_CONTAINER_EXISTS;
+			break;
+		case FDF_SHARD_NOT_FOUND:
+			b_status = BTREE_SHARD_NOT_FOUND;
+			break;
+		case FDF_OBJECT_UNKNOWN:
+			b_status = BTREE_OBJECT_UNKNOWN;
+			break;
+		case FDF_OBJECT_EXISTS:
+			b_status = BTREE_OBJECT_EXISTS;
+			break;
+		case FDF_OBJECT_TOO_BIG:
+			b_status = BTREE_OBJECT_TOO_BIG;
+			break;
+		case FDF_FAILURE_STORAGE_READ:
+			b_status = BTREE_FAILURE_STORAGE_READ;
+			break;
+		case FDF_FAILURE_STORAGE_WRITE:
+			b_status = BTREE_FAILURE_STORAGE_WRITE;
+			break;
+		case FDF_FAILURE_MEMORY_ALLOC:
+			b_status = BTREE_FAILURE_MEMORY_ALLOC;
+			break;
+		case FDF_LOCK_INVALID_OP:
+			b_status = BTREE_LOCK_INVALID_OP;
+			break;
+		case FDF_ALREADY_UNLOCKED:
+			b_status = BTREE_ALREADY_UNLOCKED;
+			break;
+		case FDF_ALREADY_READ_LOCKED:
+			b_status = BTREE_ALREADY_READ_LOCKED;
+			break;
+		case FDF_ALREADY_WRITE_LOCKED:
+			b_status = BTREE_ALREADY_WRITE_LOCKED;
+			break;
+		case FDF_OBJECT_NOT_CACHED:
+			b_status = BTREE_OBJECT_NOT_CACHED;
+			break;
+		case FDF_SM_WAITING:
+			b_status = BTREE_SM_WAITING;
+			break;
+		case FDF_TOO_MANY_OPIDS:
+			b_status = BTREE_TOO_MANY_OPIDS;
+			break;
+		case FDF_TRANS_CONFLICT:
+			b_status = BTREE_TRANS_CONFLICT;
+			break;
+		case FDF_PIN_CONFLICT:
+			b_status = BTREE_PIN_CONFLICT;
+			break;
+		case FDF_OBJECT_DELETED:
+			b_status = BTREE_OBJECT_DELETED;
+			break;
+		case FDF_TRANS_NONTRANS_CONFLICT:
+			b_status = BTREE_TRANS_NONTRANS_CONFLICT;
+			break;
+		case FDF_ALREADY_READ_PINNED:
+			b_status = BTREE_ALREADY_READ_PINNED;
+			break;
+		case FDF_ALREADY_WRITE_PINNED:
+			b_status = BTREE_ALREADY_WRITE_PINNED;
+			break;
+		case FDF_TRANS_PIN_CONFLICT:
+			b_status = BTREE_TRANS_PIN_CONFLICT;
+			break;
+		case FDF_PIN_NONPINNED_CONFLICT:
+			b_status = BTREE_PIN_NONPINNED_CONFLICT;
+			break;
+		case FDF_TRANS_FLUSH:
+			b_status = BTREE_TRANS_FLUSH;
+			break;
+		case FDF_TRANS_LOCK:
+			b_status = BTREE_TRANS_LOCK;
+			break;
+		case FDF_TRANS_UNLOCK:
+			b_status = BTREE_TRANS_UNLOCK;
+			break;
+		case FDF_UNSUPPORTED_REQUEST:
+			b_status = BTREE_UNSUPPORTED_REQUEST;
+			break;
+		case FDF_UNKNOWN_REQUEST:
+			b_status = BTREE_UNKNOWN_REQUEST;
+			break;
+		case FDF_BAD_PBUF_POINTER:
+			b_status = BTREE_BAD_PBUF_POINTER;
+			break;
+		case FDF_BAD_PDATA_POINTER:
+			b_status = BTREE_BAD_PDATA_POINTER;
+			break;
+		case FDF_BAD_SUCCESS_POINTER:
+			b_status = BTREE_BAD_SUCCESS_POINTER;
+			break;
+		case FDF_NOT_PINNED:
+			b_status = BTREE_NOT_PINNED;
+			break;
+		case FDF_NOT_READ_LOCKED:
+			b_status = BTREE_NOT_READ_LOCKED;
+			break;
+		case FDF_NOT_WRITE_LOCKED:
+			b_status = BTREE_NOT_WRITE_LOCKED;
+			break;
+		case FDF_PIN_FLUSH:
+			b_status = BTREE_PIN_FLUSH;
+			break;
+		case FDF_BAD_CONTEXT:
+			b_status = BTREE_BAD_CONTEXT;
+			break;
+		case FDF_IN_TRANS:
+			b_status = BTREE_IN_TRANS;
+			break;
+		case FDF_NONCACHEABLE_CONTAINER:
+			b_status = BTREE_NONCACHEABLE_CONTAINER;
+			break;
+		case FDF_OUT_OF_CONTEXTS:
+			b_status = BTREE_OUT_OF_CONTEXTS;
+			break;
+		case FDF_INVALID_RANGE:
+			b_status = BTREE_INVALID_RANGE;
+			break;
+		case FDF_OUT_OF_MEM:
+			b_status = BTREE_OUT_OF_MEM;
+			break;
+		case FDF_NOT_IN_TRANS:
+			b_status = BTREE_NOT_IN_TRANS;
+			break;
+		case FDF_TRANS_ABORTED:
+			b_status = BTREE_TRANS_ABORTED;
+			break;
+		case FDF_FAILURE_MBOX:
+			b_status = BTREE_FAILURE_MBOX;
+			break;
+		case FDF_FAILURE_MSG_ALLOC:
+			b_status = BTREE_FAILURE_MSG_ALLOC;
+			break;
+		case FDF_FAILURE_MSG_SEND:
+			b_status = BTREE_FAILURE_MSG_SEND;
+			break;
+		case FDF_FAILURE_MSG_RECEIVE:
+			b_status = BTREE_FAILURE_MSG_RECEIVE;
+			break;
+		case FDF_ENUMERATION_END:
+			b_status = BTREE_ENUMERATION_END;
+			break;
+		case FDF_BAD_KEY:
+			b_status = BTREE_BAD_KEY;
+			break;
+		case FDF_FAILURE_CONTAINER_OPEN:
+			b_status = BTREE_FAILURE_CONTAINER_OPEN;
+			break;
+		case FDF_BAD_PEXPTIME_POINTER:
+			b_status = BTREE_BAD_PEXPTIME_POINTER;
+			break;
+		case FDF_BAD_PINVTIME_POINTER:
+			b_status = BTREE_BAD_PINVTIME_POINTER;
+			break;
+		case FDF_BAD_PSTAT_POINTER:
+			b_status = BTREE_BAD_PSTAT_POINTER;
+			break;
+		case FDF_BAD_PPCBUF_POINTER:
+			b_status = BTREE_BAD_PPCBUF_POINTER;
+			break;
+		case FDF_BAD_SIZE_POINTER:
+			b_status = BTREE_BAD_SIZE_POINTER;
+			break;
+		case FDF_EXPIRED:
+			b_status = BTREE_EXPIRED;
+			break;
+		case FDF_EXPIRED_FAIL:
+			b_status = BTREE_EXPIRED_FAIL;
+			break;
+		case FDF_PROTOCOL_ERROR:
+			b_status = BTREE_PROTOCOL_ERROR;
+			break;
+		case FDF_TOO_MANY_CONTAINERS:
+			b_status = BTREE_TOO_MANY_CONTAINERS;
+			break;
+		case FDF_STOPPED_CONTAINER:
+			b_status = BTREE_STOPPED_CONTAINER;
+			break;
+		case FDF_GET_METADATA_FAILED:
+			b_status = BTREE_GET_METADATA_FAILED;
+			break;
+		case FDF_PUT_METADATA_FAILED:
+			b_status = BTREE_PUT_METADATA_FAILED;
+			break;
+		case FDF_GET_DIRENTRY_FAILED:
+			b_status = BTREE_GET_DIRENTRY_FAILED;
+			break;
+		case FDF_EXPIRY_GET_FAILED:
+			b_status = BTREE_EXPIRY_GET_FAILED;
+			break;
+		case FDF_EXPIRY_DELETE_FAILED:
+			b_status = BTREE_EXPIRY_DELETE_FAILED;
+			break;
+		case FDF_EXIST_FAILED:
+			b_status = BTREE_EXIST_FAILED;
+			break;
+		case FDF_NO_PSHARD:
+			b_status = BTREE_NO_PSHARD;
+			break;
+		case FDF_SHARD_DELETE_SERVICE_FAILED:
+			b_status = BTREE_SHARD_DELETE_SERVICE_FAILED;
+			break;
+		case FDF_START_SHARD_MAP_ENTRY_FAILED:
+			b_status = BTREE_START_SHARD_MAP_ENTRY_FAILED;
+			break;
+		case FDF_STOP_SHARD_MAP_ENTRY_FAILED:
+			b_status = BTREE_STOP_SHARD_MAP_ENTRY_FAILED;
+			break;
+		case FDF_DELETE_SHARD_MAP_ENTRY_FAILED:
+			b_status = BTREE_DELETE_SHARD_MAP_ENTRY_FAILED;
+			break;
+		case FDF_CREATE_SHARD_MAP_ENTRY_FAILED:
+			b_status = BTREE_CREATE_SHARD_MAP_ENTRY_FAILED;
+			break;
+		case FDF_FLASH_DELETE_FAILED:
+			b_status = BTREE_FLASH_DELETE_FAILED;
+			break;
+		case FDF_FLASH_EPERM:
+			b_status = BTREE_FLASH_EPERM;
+			break;
+		case FDF_FLASH_ENOENT:
+			b_status = BTREE_FLASH_ENOENT;
+			break;
+		case FDF_FLASH_EAGAIN:
+			b_status = BTREE_FLASH_EAGAIN;
+			break;
+		case FDF_FLASH_ENOMEM:
+			b_status = BTREE_FLASH_ENOMEM;
+			break;
+		case FDF_FLASH_EDATASIZE:
+			b_status = BTREE_FLASH_EDATASIZE;
+			break;
+		case FDF_FLASH_EBUSY:
+			b_status = BTREE_FLASH_EBUSY;
+			break;
+		case FDF_FLASH_EEXIST:
+			b_status = BTREE_FLASH_EEXIST;
+			break;
+		case FDF_FLASH_EACCES:
+			b_status = BTREE_FLASH_EACCES;
+			break;
+		case FDF_FLASH_EINVAL:
+			b_status = BTREE_FLASH_EINVAL;
+			break;
+		case FDF_FLASH_EMFILE:
+			b_status = BTREE_FLASH_EMFILE;
+			break;
+		case FDF_FLASH_ENOSPC:
+			b_status = BTREE_FLASH_ENOSPC;
+			break;
+		case FDF_FLASH_ENOBUFS:
+			b_status = BTREE_FLASH_ENOBUFS;
+			break;
+		case FDF_FLASH_EDQUOT:
+			b_status = BTREE_FLASH_EDQUOT;
+			break;
+		case FDF_FLASH_STALE_CURSOR:
+			b_status = BTREE_FLASH_STALE_CURSOR;
+			break;
+		case FDF_FLASH_EDELFAIL:
+			b_status = BTREE_FLASH_EDELFAIL;
+			break;
+		case FDF_FLASH_EINCONS:
+			b_status = BTREE_FLASH_EINCONS;
+			break;
+		case FDF_STALE_LTIME:
+			b_status = BTREE_STALE_LTIME;
+			break;
+		case FDF_WRONG_NODE:
+			b_status = BTREE_WRONG_NODE;
+			break;
+		case FDF_UNAVAILABLE:
+			b_status = BTREE_UNAVAILABLE;
+			break;
+		case FDF_TEST_FAIL:
+			b_status = BTREE_TEST_FAIL;
+			break;
+		case FDF_TEST_CRASH:
+			b_status = BTREE_TEST_CRASH;
+			break;
+		case FDF_VERSION_CHECK_NO_PEER:
+			b_status = BTREE_VERSION_CHECK_NO_PEER;
+			break;
+		case FDF_VERSION_CHECK_BAD_VERSION:
+			b_status = BTREE_VERSION_CHECK_BAD_VERSION;
+			break;
+		case FDF_VERSION_CHECK_FAILED:
+			b_status = BTREE_VERSION_CHECK_FAILED;
+			break;
+		case FDF_META_DATA_VERSION_TOO_NEW:
+			b_status = BTREE_META_DATA_VERSION_TOO_NEW;
+			break;
+		case FDF_META_DATA_INVALID:
+			b_status = BTREE_META_DATA_INVALID;
+			break;
+		case FDF_BAD_META_SEQNO:
+			b_status = BTREE_BAD_META_SEQNO;
+			break;
+		case FDF_BAD_LTIME:
+			b_status = BTREE_BAD_LTIME;
+			break;
+		case FDF_LEASE_EXISTS:
+			b_status = BTREE_LEASE_EXISTS;
+			break;
+		case FDF_BUSY:
+			b_status = BTREE_BUSY;
+			break;
+		case FDF_SHUTDOWN:
+			b_status = BTREE_SHUTDOWN;
+			break;
+		case FDF_TIMEOUT:
+			b_status = BTREE_TIMEOUT;
+			break;
+		case FDF_NODE_DEAD:
+			b_status = BTREE_NODE_DEAD;
+			break;
+		case FDF_SHARD_DOES_NOT_EXIST:
+			b_status = BTREE_SHARD_DOES_NOT_EXIST;
+			break;
+		case FDF_STATE_CHANGED:
+			b_status = BTREE_STATE_CHANGED;
+			break;
+		case FDF_NO_META:
+			b_status = BTREE_NO_META;
+			break;
+		case FDF_TEST_MODEL_VIOLATION:
+			b_status = BTREE_TEST_MODEL_VIOLATION;
+			break;
+		case FDF_REPLICATION_NOT_READY:
+			b_status = BTREE_REPLICATION_NOT_READY;
+			break;
+		case FDF_REPLICATION_BAD_TYPE:
+			b_status = BTREE_REPLICATION_BAD_TYPE;
+			break;
+		case FDF_REPLICATION_BAD_STATE:
+			b_status = BTREE_REPLICATION_BAD_STATE;
+			break;
+		case FDF_NODE_INVALID:
+			b_status = BTREE_NODE_INVALID;
+			break;
+		case FDF_CORRUPT_MSG:
+			b_status = BTREE_CORRUPT_MSG;
+			break;
+		case FDF_QUEUE_FULL:
+			b_status = BTREE_QUEUE_FULL;
+			break;
+		case FDF_RMT_CONTAINER_UNKNOWN:
+			b_status = BTREE_RMT_CONTAINER_UNKNOWN;
+			break;
+		case FDF_FLASH_RMT_EDELFAIL:
+			b_status = BTREE_FLASH_RMT_EDELFAIL;
+			break;
+		case FDF_LOCK_RESERVED:
+			b_status = BTREE_LOCK_RESERVED;
+			break;
+		case FDF_KEY_TOO_LONG:
+			b_status = BTREE_KEY_TOO_LONG;
+			break;
+		case FDF_NO_WRITEBACK_IN_STORE_MODE:
+			b_status = BTREE_NO_WRITEBACK_IN_STORE_MODE;
+			break;
+		case FDF_WRITEBACK_CACHING_DISABLED:
+			b_status = BTREE_WRITEBACK_CACHING_DISABLED;
+			break;
+		case FDF_UPDATE_DUPLICATE:
+			b_status = BTREE_UPDATE_DUPLICATE;
+			break;
+		case FDF_FAILURE_CONTAINER_TOO_SMALL:
+			b_status = BTREE_FAILURE_CONTAINER_TOO_SMALL;
+			break;
+		case FDF_CONTAINER_FULL:
+			b_status = BTREE_CONTAINER_FULL;
+			break;
+		case FDF_CANNOT_REDUCE_CONTAINER_SIZE:
+			b_status = BTREE_CANNOT_REDUCE_CONTAINER_SIZE;
+			break;
+		case FDF_CANNOT_CHANGE_CONTAINER_SIZE:
+			b_status = BTREE_CANNOT_CHANGE_CONTAINER_SIZE;
+			break;
+		case FDF_OUT_OF_STORAGE_SPACE:
+			b_status = BTREE_OUT_OF_STORAGE_SPACE;
+			break;
+		case FDF_TRANS_LEVEL_EXCEEDED:
+			b_status = BTREE_TRANS_LEVEL_EXCEEDED;
+			break;
+		case FDF_FAILURE_NO_TRANS:
+			b_status = BTREE_FAILURE_NO_TRANS;
+			break;
+		case FDF_CANNOT_DELETE_OPEN_CONTAINER:
+			b_status = BTREE_CANNOT_DELETE_OPEN_CONTAINER;
+			break;
+		case FDF_FAILURE_INVALID_KEY_SIZE:
+			b_status = BTREE_FAILURE_INVALID_KEY_SIZE;
+			break;
+		case FDF_FAILURE_OPERATION_DISALLOWED:
+			b_status = BTREE_FAILURE_OPERATION_DISALLOWED;
+			break;
+		case FDF_FAILURE_ILLEGAL_CONTAINER_ID:
+			b_status = BTREE_FAILURE_ILLEGAL_CONTAINER_ID;
+			break;
+		case FDF_FAILURE_CONTAINER_NOT_FOUND:
+			b_status = BTREE_FAILURE_CONTAINER_NOT_FOUND;
+			break;
+		case FDF_UNLIMITED_CONTAINER_MUST_BE_NON_EVICTING:
+			b_status = BTREE_UNLIMITED_CONTAINER_MUST_BE_NON_EVICTING;
+			break;
+		case FDF_THREAD_CONTEXT_BUSY:
+			b_status = BTREE_THREAD_CONTEXT_BUSY;
+			break;
+		case FDF_LICENSE_CHK_FAILED:
+			b_status = BTREE_LICENSE_CHK_FAILED;
+			break;
+		case FDF_CONTAINER_OPEN:
+			b_status = BTREE_CONTAINER_OPEN;
+			break;
+		case FDF_FAILURE_INVALID_CONTAINER_SIZE:
+			b_status = BTREE_FAILURE_INVALID_CONTAINER_SIZE;
+			break;
+		case FDF_FAILURE_INVALID_CONTAINER_STATE:
+			b_status = BTREE_FAILURE_INVALID_CONTAINER_STATE;
+			break;
+		case FDF_FAILURE_CONTAINER_DELETED:
+			b_status = BTREE_FAILURE_CONTAINER_DELETED;
+			break;
+		case FDF_QUERY_DONE:
+			b_status = BTREE_QUERY_DONE;
+			break;
+		case FDF_FAILURE_CANNOT_CREATE_METADATA_CACHE:
+			b_status = BTREE_FAILURE_CANNOT_CREATE_METADATA_CACHE;
+			break;
+		case FDF_WARNING:
+			b_status = BTREE_WARNING;
+			break;
+		case FDF_QUERY_PAUSED:
+			b_status = BTREE_QUERY_PAUSED;
+			break;
+		case N_FDF_STATUS_STRINGS:
+		default:
+			b_status = BTREE_UNKNOWN_STATUS;
+			break;
+	}
+	return b_status;
 }
 
 

@@ -463,7 +463,7 @@ btree_raw_init(uint32_t flags, uint32_t n_partition, uint32_t n_partitions, uint
     pthread_rwlock_init(&bt->snap_lock, NULL);
 
     if (flags & RELOAD) {
-        if (! loadpersistent( bt)) {
+        if (BTREE_SUCCESS != loadpersistent( bt)) {
             bt_err( "Could not identify root node!");
             free( bt);
             return (NULL);
@@ -771,8 +771,8 @@ loadpersistent( btree_raw_t *bt)
                                      1, true /* pinned */, 
                                      false /* deref_delete */);
 
-    if (ret)
-        return (BTREE_SUCCESS);
+    if (BTREE_SUCCESS != ret)
+        return (ret);
 
     btree_raw_persist_t *r = (btree_raw_persist_t*)mem_node->pnode;
 
@@ -782,7 +782,7 @@ loadpersistent( btree_raw_t *bt)
     bt->rootid = r->rootid;
     bt->snap_meta = &r->snap_details; /* Keep the pinned snap details node info in btree */
 
-    return (BTREE_FAILURE);
+    return (ret);
 }
 
 int btree_raw_free_buffer(btree_raw_t *btree, char *buf)
@@ -1657,6 +1657,7 @@ static void delete_overflow_data(btree_status_t *ret, btree_raw_t *bt, uint64_t 
 
 	ptr_next = n->pnode->next;
 	free_node(ret, bt, n);
+	// current free_node doesn't change value of ret...
 	if (BTREE_SUCCESS != *ret) {
 	    bt_err("Failed to free an existing overflow node in delete_overflow_data!");
 	}
@@ -3369,6 +3370,7 @@ btree_split_child(btree_status_t *ret, btree_raw_t *btree, btree_raw_mem_node_t 
     uint32_t              keylen = 0;
     char                 *key = NULL;
     uint64_t              split_syndrome = 0;
+	btree_status_t ret1 = BTREE_FAILURE;
     uint64_t              split_seqno = 0;
     bool free_key = false;
     bool res = false;
@@ -3958,6 +3960,9 @@ btree_insert_keys_leaf(btree_raw_t *btree, btree_metadata_t *meta, uint64_t synd
                        bool is_update, uint32_t *objs_written, uint64_t* last_seqno, uint32_t *new_inserts)
 {
 	btree_status_t ret = BTREE_SUCCESS;
+	btree_status_t ret1 = BTREE_SUCCESS;
+	uint64_t child_id, child_id_before, child_id_after;
+	int32_t  nkey_child;
 	uint32_t written = 0, idx = (flags & W_DESC) ? count - 1 : 0;
 	uint64_t seqno = -1;
 	bool res = false;
@@ -4382,6 +4387,7 @@ btree_raw_mwrite_low(btree_raw_t *btree, btree_mput_obj_t **objs_in_out, uint32_
 	uint64_t          child_id;
 	btree_status_t    ret = BTREE_SUCCESS;
 	btree_status_t    txnret = BTREE_SUCCESS;
+	btree_status_t    ret1 = BTREE_SUCCESS;
 	btree_raw_node_t *node = NULL;
 	btree_raw_mem_node_t *mem_node = NULL, *parent = NULL;
 	bool key_found = false;
@@ -4578,8 +4584,9 @@ mini_restart:
 	/*
 	 * the deref_l1cache will release the references and lock of modified nodes.
 	 */
-	if (BTREE_SUCCESS != deref_l1cache(btree)) {
-		ret = BTREE_FAILURE;
+	ret1 = deref_l1cache(btree);
+	if (BTREE_SUCCESS != ret1) {
+		ret = ret1;
 	}
 
 	/*
@@ -5087,9 +5094,7 @@ exit:
 	 * the deref_l1cache will release the lock of modified nodes.
          * Also the references of looked up nodes.
 	 */
-	if (BTREE_SUCCESS != deref_l1cache(btree)) {
-		ret = BTREE_FAILURE;
-	}
+	ret = deref_l1cache(btree);
 
 	/*
 	 * Free the temporary buffers.
