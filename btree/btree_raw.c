@@ -193,7 +193,7 @@ bool recovery_write = false;
 }
 
 #define stats_inc(bt, s, val)	(void)__sync_add_and_fetch(&(bt->stats.stat[s]), val);
-#define stats_dec(bt, s, val)	(void)__sync_dec_and_fetch(&(bt->stats.stat[s]), val);
+#define stats_dec(bt, s, val)	(void)__sync_sub_and_fetch(&(bt->stats.stat[s]), val);
 
 #ifdef DEBUG_STUFF
 static void dump_node(btree_raw_t *bt, FILE *f, btree_raw_node_t *n, char *key, uint32_t keylen);
@@ -3133,11 +3133,6 @@ static void delete_key_by_pkrec(btree_status_t* ret, btree_raw_t *btree, btree_r
 	__sync_sub_and_fetch(&(btree->stats.stat[BTSTAT_NONLEAF_BYTES]), nbytes_stats);
     }
 
-    /*
-     * Update node stats
-     */
-    set_node_pstats(btree, x, 1, false);
-
     nkeys_from = x->nkeys - nkeys_to - 1;
 
     if (!ks.fixed) {
@@ -3252,12 +3247,7 @@ delete_key_by_index_leaf(btree_status_t* ret, btree_raw_t *btree, btree_raw_mem_
 
 	assert(res == true);
 	if (res == true) {
-		__sync_sub_and_fetch(&(btree->stats.stat[BTSTAT_NUM_OBJS]), 1);
 		__sync_sub_and_fetch(&(btree->stats.stat[BTSTAT_LEAF_BYTES]), bytes_decreased);
-		/*
-		 * Update node stats
-		 */
-		set_node_pstats(btree, node->pnode, 1, false);
 		*ret = BTREE_SUCCESS;
 	} else {
 		*ret = BTREE_FAILURE;
@@ -4003,6 +3993,11 @@ btree_insert_keys_leaf(btree_raw_t *btree, btree_metadata_t *meta, uint64_t synd
 				/* Key_exists, but we cannot update, because of snapshots */
 				__sync_add_and_fetch(&(btree->stats.stat[BTSTAT_NUM_SNAP_OBJS]), 1);
 				__sync_add_and_fetch(&(btree->stats.stat[BTSTAT_SNAP_DATA_SIZE]), key_meta.datalen);
+
+				if (meta->flags & INSERT_TOMBSTONE) {
+					__sync_sub_and_fetch(&(btree->stats.stat[BTSTAT_NUM_OBJS]), 1);
+					set_node_pstats(btree, mem_node->pnode, 1, false);
+				}
 			}
 		}
 
@@ -4185,6 +4180,7 @@ btree_raw_bulk_insert(struct btree_raw *btree, btree_mput_obj_t **objs_in_out, u
 		deref_l1cache_node(btree, node);
 		referenced_nodes_count--;
 		modified_nodes_count--;
+		stats_dec(btree, BTSTAT_NUM_OBJS, written);
 	}
 
 	*not_written = count;
@@ -5506,6 +5502,8 @@ btree_status_t btree_raw_delete(struct btree_raw *btree, char *key, uint32_t key
 	bool done = false;
 	key_meta_t key_meta;
 
+	__sync_add_and_fetch(&(btree->stats.stat[BTSTAT_DELETE_CNT]),1);
+
 	plat_rwlock_rdlock(&btree->lock);
 
 	index = btree_raw_find(btree, key, keylen, syndrome, meta, &node, 
@@ -5543,10 +5541,12 @@ btree_status_t btree_raw_delete(struct btree_raw *btree, char *key, uint32_t key
 		done = insert_tombstone_optimized(btree, node, index, key, keylen, syndrome);
 
 		/* TODO: Remove these couple of lines */
+#if 0
 		if (!done) {
-			fprintf(stderr, "Optimized tombstone inserted not possible, "
+			fprintf(stderr, "Optimized tombstone insert not possible, "
 			                "will try unoptimized\n");
 		}
+#endif
 	}
 
 	/* If done, deref_l1cache will deref and unlock the nodes after
@@ -5574,7 +5574,6 @@ btree_status_t btree_raw_delete(struct btree_raw *btree, char *key, uint32_t key
 		//fprintf(stderr, "Deleting key %s in-place\n", key);
 		ret = rebalanced_delete(btree, key, keylen, meta, syndrome);
 
-		__sync_add_and_fetch(&(btree->stats.stat[BTSTAT_DELETE_CNT]),1);
 		__sync_add_and_fetch(&(btree->stats.stat[BTSTAT_DELETE_PATH]), pathcnt);
 
 	} else {

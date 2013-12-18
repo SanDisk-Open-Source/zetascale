@@ -542,13 +542,12 @@ fdf_stats_info_t fdf_stats_cache[] = {
     {"l1_cache_bt_delete_opt_count","l1_cache_bt_delete_opt_count",FDF_STATS_TYPE_CACHE_TO_FLASH},/* FDF_CACHE_STAT_BT_DELETE_OPT_COUNT */
     {"l1_cache_bt_mput_io_saved","l1_cache_bt_mput_io_saved",FDF_STATS_TYPE_CACHE_TO_FLASH},/* FDF_CACHE_STAT_BT_MPUT_IO_SAVED */
     {"l1_cache_bt_put_restart_cnt","l1_cache_bt_put_restart_cnt",FDF_STATS_TYPE_CACHE_TO_FLASH},
-    {"l1_cache_bt_bulk_insert_cnt","l1_cache_bt_bulk_insert_cnt",FDF_STATS_TYPE_CACHE_TO_FLASH},
-    {"l1_cache_bt_bulk_insert_full_nodes_cnt","l1_cache_bt_bulk_insert_full_nodes_cnt",FDF_STATS_TYPE_CACHE_TO_FLASH},/*
-FDF_CACHE_STAT_BT_PUT_RESTART_CNT */
     {"l1_cache_bt_space_opt_bytes_saved", "l1_cache_bt_space_opt_bytes_saved", FDF_STATS_TYPE_CACHE_TO_FLASH},/* FDF_CACHE_STAT_BT_SPCOPT_BYTES_SAVED */
     {"l1_cache_bt_num_snap_objs", "l1_cache_bt_num_snap_objs", FDF_STATS_TYPE_CACHE_TO_FLASH},/* FDF_CACHE_STAT_BT_NUM_SNAP_OBJS */
     {"SNAP_DATA_SIZE", "snap_data_size", FDF_STATS_TYPE_CACHE_TO_FLASH},/* FDF_CACHE_STAT_BT_SNAP_DATA_SIZE */
-	{"NUM_SNAPS","num_snaps",FDF_STATS_TYPE_CONTAINER_FLASH},/*FDF_CNTR_STATS_BT_NUM_SNAPS*/
+    {"NUM_SNAPS","num_snaps",FDF_STATS_TYPE_CONTAINER_FLASH},/*FDF_CNTR_STATS_BT_NUM_SNAPS*/
+    {"l1_cache_bt_bulk_insert_cnt","l1_cache_bt_bulk_insert_cnt",FDF_STATS_TYPE_CACHE_TO_FLASH},
+    {"l1_cache_bt_bulk_insert_full_nodes_cnt","l1_cache_bt_bulk_insert_full_nodes_cnt",FDF_STATS_TYPE_CACHE_TO_FLASH},/* FDF_CACHE_STAT_BT_PUT_RESTART_CNT */
 
 
     /* request from cache to flash manager */

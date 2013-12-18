@@ -166,6 +166,7 @@ static int scavenge_node_all_keys(btree_raw_t *btree, btree_raw_mem_node_t *node
 	key_meta_t key_meta;
 	char *tmp_ptr;
 	int scavenged_keys = 0;
+	uint64_t scavenged_bytes = 0;
 	
 	bzero(&ks_prev,sizeof(key_stuff_t));
 	bzero(&ks_current,sizeof(key_stuff_t));
@@ -189,10 +190,12 @@ static int scavenge_node_all_keys(btree_raw_t *btree, btree_raw_mem_node_t *node
 			if (snap_n1 == snap_n2) {
 				deleting_keys++;
 
+				uint64_t bytes = ks_current.datalen;
 				if (non_minimal_delete(btree, node, i) != 0) {
 					goto done;
 				}
 				scavenged_keys++;
+				scavenged_bytes += bytes;
 				continue; /* Do not incr index if we delete a key */
 			}
 		} else {
@@ -203,11 +206,13 @@ static int scavenge_node_all_keys(btree_raw_t *btree, btree_raw_mem_node_t *node
 				btree_leaf_get_meta(node->pnode, set_start_index,
 				                    &key_meta);
 				if (key_meta.tombstone) {
+					uint64_t bytes = ks_current.datalen;
 					if (non_minimal_delete(btree, node, 
 					                       set_start_index) != 0) {
 						goto done;
 					}
 					scavenged_keys++;
+					scavenged_bytes += bytes;
 					duplicate_keys = deleting_keys = 0;
 					continue;
 				}
@@ -223,7 +228,11 @@ static int scavenge_node_all_keys(btree_raw_t *btree, btree_raw_mem_node_t *node
 
 done:
 	if (scavenged_keys) {
+		 __sync_sub_and_fetch(&(btree->stats.stat[BTSTAT_NUM_SNAP_OBJS]), scavenged_keys);
+		 __sync_sub_and_fetch(&(btree->stats.stat[BTSTAT_SNAP_DATA_SIZE]), scavenged_bytes);
+#if 0
 		fprintf(stderr, "In-place scavenger deleted %d keys\n", scavenged_keys);
+#endif
 	}
 	return (scavenged_keys);
 }

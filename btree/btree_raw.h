@@ -110,7 +110,6 @@ typedef struct btree_metadata {
     item(BTSTAT_NONLEAF_BYTES, /* default */) \
     item(BTSTAT_OVERFLOW_BYTES, /* default */) \
     item(BTSTAT_NUM_OBJS, /* default */) \
-    item(BTSTAT_TOTAL_BYTES, /* default */) \
     item(BTSTAT_EVICT_BYTES, /* default */) \
     item(BTSTAT_SPLITS, /* default */) \
     item(BTSTAT_LMERGES, /* default */) \
