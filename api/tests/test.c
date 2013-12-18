@@ -19,6 +19,11 @@ FDF_status_t fdf_init_thread()
     return FDFInitPerThreadState(fdf_state, &_fdf_thd_state);
 }
 
+FDF_status_t fdf_release_thread()
+{
+    return FDFReleasePerThreadState(&_fdf_thd_state);
+}
+
 FDF_status_t fdf_transaction_start()
 {
     return FDFTransactionStart(_fdf_thd_state);

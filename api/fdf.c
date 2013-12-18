@@ -6614,7 +6614,7 @@ FDF_status_t get_btree_num_objs(FDF_cguid_t cguid, uint64_t *num_objs) {
     if( ext_cbs == NULL ) {
         /* Non btree container, return */
         return FDF_SUCCESS;
-    }  
+    }
     rc = ext_cbs->stats_cb(cguid,&estats,&n_stats);
     if( rc != FDF_SUCCESS ) {
         return rc;

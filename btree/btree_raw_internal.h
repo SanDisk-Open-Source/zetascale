@@ -186,6 +186,11 @@ typedef struct btSyncRequest {
 	pthread_cond_t			ret_condvar;
 } btSyncRequest_t;
 
+typedef struct pstat_ckpt_info {
+	int64_t *active_writes;
+	fdf_pstats_t pstat;
+} pstat_ckpt_info_t;
+
 typedef struct btree_raw {
     uint32_t           n_partition;
     uint32_t           n_partitions;
@@ -244,9 +249,15 @@ typedef struct btree_raw {
     /*
      * Persistent stats related variables
      */
+    pthread_mutex_t    pstat_lock;
     uint64_t           last_flushed_seq_num;
     uint64_t           pstats_modified;
-    fdf_pstats_t      *pstats; 
+    fdf_pstats_t       pstats; 
+
+    pstat_ckpt_info_t pstat_ckpt;
+    uint64_t current_active_write_idx;
+    int64_t active_writes[2]; // Current and in-checkpoint active writes counter
+
 
     /* Snapshot related variables */
     pthread_rwlock_t   snap_lock;

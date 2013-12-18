@@ -65,6 +65,8 @@ void* worker(void *arg)
 
     t(fdf_delete_container(cguid), FDF_SUCCESS);
 
+    t(fdf_release_thread(), FDF_SUCCESS);
+
 	sleep(1);
 
     return 0;
@@ -100,6 +102,8 @@ int main(int argc, char *argv[])
 		pthread_join(thread_id[i], NULL);
 
     fprintf(stderr, "DONE\n");
+
+    t(fdf_release_thread(), FDF_SUCCESS);
 
 	fdf_shutdown();
 

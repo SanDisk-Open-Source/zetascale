@@ -4,6 +4,7 @@
 #include     <unistd.h>
 #include     <pthread.h>
 #include    <fdf.h>
+#include    <assert.h>
 
 #define    FDF_PROP_FILE        "conf/fdf.prop"    //Configuration file
 #define DATA_LEN 2048
@@ -71,6 +72,8 @@ main( int argc, char **argv)
          printf("Compression bytes must be a non-zero\n");
          return 1;
     }
+    assert(FDF_SUCCESS == FDFReleasePerThreadState(&thd_state));
+
     printf("Compressed bytes:%lu\n",stats.flash_stats[FDF_FLASH_STATS_COMP_BYTES]);
     /*Get FDF stats and see compressed_bytes */
     //Gracefuly shutdown FDF.
