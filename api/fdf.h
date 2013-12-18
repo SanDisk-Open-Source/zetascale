@@ -1318,8 +1318,8 @@ FDFGetContainerSnapshots(
 	);
 
 FDF_status_t FDFScavenger(struct FDF_state *fdf_state);
-FDF_status_t FDFScavenge_container(struct FDF_state *fdf_state, FDF_cguid_t cguid);
-FDF_status_t FDFScavenge_snapshot(struct FDF_state *fdf_state, FDF_cguid_t cguid, uint64_t snap_seq);
+FDF_status_t FDFScavengeContainer(struct FDF_state *fdf_state, FDF_cguid_t cguid);
+FDF_status_t FDFScavengeSnapshot(struct FDF_state *fdf_state, FDF_cguid_t cguid, uint64_t snap_seq);
 
 /*
  * @brief Check that FDF operations are allowed (e.g., not in shutdown).

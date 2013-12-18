@@ -347,12 +347,12 @@ FDF_status_t
 (*ptr_FDFScavenger) (struct FDF_state *fdf_state);
 
 FDF_status_t 
-(*ptr_FDFScavenge_container) (
+(*ptr_FDFScavengeContainer) (
          struct FDF_state *fdf_state,
          FDF_cguid_t cguid);
 
 FDF_status_t 
-(*ptr_FDFScavenge_snapshot) (
+(*ptr_FDFScavengeSnapshot) (
          struct FDF_state *fdf_state,
          FDF_cguid_t cguid,
          uint64_t snap_seq);
@@ -424,12 +424,12 @@ static struct {
     { "FDFCreateContainerSnapshot",    &ptr_FDFCreateContainerSnapshot   },
     { "FDFDeleteContainerSnapshot",    &ptr_FDFDeleteContainerSnapshot   },
     { "FDFGetContainerSnapshots",      &ptr_FDFGetContainerSnapshots     },
-    { "FDFMPut",          	       &ptr_FDFMPut			 },
-    { "FDFRangeUpdate",		       &ptr_FDFRangeUpdate		 },
-    { "FDFIoctl",		       &ptr_FDFIoctl                     },
+    { "FDFMPut",          	      	   &ptr_FDFMPut						 },
+    { "FDFRangeUpdate",		       	   &ptr_FDFRangeUpdate				 },
+    { "FDFIoctl",		       		   &ptr_FDFIoctl                     },
     { "FDFScavenger",                  &ptr_FDFScavenger                 },
-    { "FDFScavenge_container",         &ptr_FDFScavenge_container        },
-    { "FDFScavenge_snapshot",          &ptr_FDFScavenge_snapshot         },
+    { "FDFScavengeContainer",          &ptr_FDFScavengeContainer         },
+    { "FDFScavengeSnapshot",          &ptr_FDFScavengeSnapshot         },
 };
 
 
@@ -1511,29 +1511,29 @@ FDFIoctl(struct FDF_thread_state *fdf_thread_state,
 
 FDF_status_t FDFScavenger(struct FDF_state *fdf_state) 
 {
-        if (unlikely(!ptr_FDFScavenger)) {
-                undefined("FDFScavenger");
-        }
-        return (*ptr_FDFScavenger) (fdf_state);
+	if (unlikely(!ptr_FDFScavenger)) {
+		undefined("FDFScavenger");
+	}
+	return (*ptr_FDFScavenger) (fdf_state);
 }
 
-FDF_status_t FDFScavenge_container(
+FDF_status_t FDFScavengeContainer(
         struct FDF_state *fdf_state,
         FDF_cguid_t cguid) 
 {
-        if (unlikely(!ptr_FDFScavenge_container)) {
-                undefined("FDFScavenge_contianer");
-        }
-        return (*ptr_FDFScavenge_container) (fdf_state, cguid);
+	if (unlikely(!ptr_FDFScavengeContainer)) {
+		undefined("FDFScavengeContianer");
+	}
+	return (*ptr_FDFScavengeContainer) (fdf_state, cguid);
 }
 
-FDF_status_t FDFScavenge_snapshot(
+FDF_status_t FDFScavengeSnapshot(
         struct FDF_state *fdf_state,
         FDF_cguid_t cguid,
         uint64_t snap_seq) 
 {
-        if (unlikely(!ptr_FDFScavenge_snapshot)) {
-                undefined("FDFScavenge_snapshot");
+        if (unlikely(!ptr_FDFScavengeSnapshot)) {
+                undefined("FDFScavengeSnapshot");
         }
-        return (*ptr_FDFScavenge_snapshot) (fdf_state, cguid, snap_seq);
+        return (*ptr_FDFScavengeSnapshot) (fdf_state, cguid, snap_seq);
 }

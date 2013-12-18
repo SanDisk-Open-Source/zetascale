@@ -139,21 +139,21 @@ struct btree_raw_mem_node {
 #define SNAP_VERSION			SNAP_VERSION1
 
 #define SNAP_DELETED		0x01
-typedef struct btree_snap_info_v1 {
-	uint32_t	flag;
+typedef struct __attribute__((__packed__)) btree_snap_info_v1 {
 	uint64_t 	seqno;
 	uint64_t 	timestamp;
 } btree_snap_info_v1_t;
 
-typedef struct btree_snap_meta_v1 {
+typedef struct __attribute__((__packed__)) btree_snap_meta_v1 {
 	btree_snap_info_v1_t snapshots[0];
 } btree_snap_meta_v1_t;
 
 
-typedef struct btree_snap_meta {
+typedef struct __attribute__((__packed__)) btree_snap_meta {
 	uint32_t			snap_version;
 	uint32_t			max_snapshots;
 	uint32_t			total_snapshots;
+	uint32_t			scavenging_in_progress;
 	union {
 		btree_snap_meta_v1_t	v1_meta;
 	} meta;

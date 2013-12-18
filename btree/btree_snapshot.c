@@ -45,6 +45,7 @@ btree_snap_init_meta(btree_raw_t *bt, size_t size)
 	snap_meta->snap_version = SNAP_VERSION;
 	snap_meta->total_snapshots = 0;
 	snap_meta->max_snapshots = btree_snap_get_max_snapshot(snap_meta, size - offsetof(btree_snap_meta_t, meta));
+	snap_meta->scavenging_in_progress = 0;
 
 }
 
@@ -59,7 +60,6 @@ btree_snap_create_meta_v1(btree_raw_t *bt, uint64_t seqno)
 	}
 
 	info = &bt->snap_meta->meta.v1_meta.snapshots[bt->snap_meta->total_snapshots];
-	info->flag = 0;
 	info->seqno = seqno;
 
 	// get current time in GMT

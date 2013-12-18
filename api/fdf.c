@@ -7481,15 +7481,15 @@ FDF_status_t (FDFScavenger) (struct FDF_state *fdf_state)
 	return FDF_FAILURE;	
 }
 
-FDF_status_t (FDFScavenge_container) (struct FDF_state *fdf_state, FDF_cguid_t cguid) 
+FDF_status_t (FDFScavengeContainer) (struct FDF_state *fdf_state, FDF_cguid_t cguid) 
 {
-	fprintf(stderr, "FDF: FDFScavenge_container without btree is not supported\n");
+	fprintf(stderr, "FDF: FDFScavengeContainer without btree is not supported\n");
 	return FDF_FAILURE;
 }
 
-FDF_status_t (FDFScavenge_snapshot) (struct FDF_state *fdf_state, FDF_cguid_t cguid, uint64_t snap_seq) 
+FDF_status_t (FDFScavengeSnapshot) (struct FDF_state *fdf_state, FDF_cguid_t cguid, uint64_t snap_seq) 
 {
-	fprintf(stderr, "FDF: FDFScavenge_snapshot without btree is not supported\n");
+	fprintf(stderr, "FDF: FDFScavengeSnapshot without btree is not supported\n");
 	return FDF_FAILURE;
 }
 

@@ -61,6 +61,7 @@ int btree_parallel_flush_minbufs = 3;
 static uint64_t  n_reads = 0;
 
 __thread struct FDF_thread_state *my_thd_state;
+__thread struct FDF_state *my_fdf_state;
 struct FDF_state *FDFState;
 
 /*
@@ -144,6 +145,7 @@ _FDFRangeUpdate(struct FDF_thread_state *fdf_thread_state,
 	       void *range_cmp_cb_args,
 	       uint32_t *objs_updated);
 
+FDF_status_t _FDFScavengeContainer(struct FDF_state *fdf_state, FDF_cguid_t cguid);
 
 #define Error(msg, args...) \
 	msg_cb(0, NULL, __FILE__, __LINE__, msg, ##args);
@@ -440,6 +442,7 @@ FDF_status_t _FDFInit(
         return FDF_FAILURE;
     }
 	
+	my_fdf_state = *fdf_state;
     btSyncMboxInit(&mbox_scavenger);
     NThreads = atoi(_FDFGetProperty("FDF_SCAVENGER_THREADS",FDF_SCAVENGER_THREADS));
     for (i = 0;i < NThreads;i++) {
@@ -1009,6 +1012,11 @@ restart:
 	//Flush root node, so that it exists irrespective of durability level
 	if (flags_in&FDF_CTNR_CREATE) {
 		FDFFlushContainer(fdf_thread_state, *cguid);
+	}
+
+	if ((bt->partitions[0])->snap_meta->scavenging_in_progress == 1) {
+		fprintf(stderr,"Before the restart scavenger was terminated ungracefully,  restarting the scavenger on this container\n");
+		_FDFScavengeContainer(my_fdf_state, *cguid);
 	}
     return(FDF_SUCCESS);
 
@@ -4406,7 +4414,7 @@ FDF_status_t _FDFScavenger(struct FDF_state  *fdf_state)
        // invoke and return;
 }
 
-FDF_status_t _FDFScavenge_container(struct FDF_state *fdf_state, FDF_cguid_t cguid) 
+FDF_status_t _FDFScavengeContainer(struct FDF_state *fdf_state, FDF_cguid_t cguid) 
 {
         FDF_status_t    ret = FDF_FAILURE;
         int             index;
@@ -4440,15 +4448,20 @@ FDF_status_t _FDFScavenge_container(struct FDF_state *fdf_state, FDF_cguid_t cgu
                 pthread_rwlock_unlock(&ctnrmap_rwlock);
                 return FDF_FAILURE;
         } else {
+			(s.btree)->snap_meta->scavenging_in_progress = 1;
 		Container_Map[index].scavenger_state = 1;
 	}
         pthread_rwlock_unlock(&ctnrmap_rwlock);
 
+		flushpersistent(s.btree);
+		if (deref_l1cache(s.btree) != BTREE_SUCCESS) {
+			fprintf(stderr," deref_l1_cache failed\n");
+		}
         ret = btree_scavenge(fdf_state, s);
         return ret;
 }
 
-FDF_status_t _FDFScavenge_snapshot(struct FDF_state *fdf_state, FDF_cguid_t cguid, uint64_t snap_seq) {
+FDF_status_t _FDFScavengeSnapshot(struct FDF_state *fdf_state, FDF_cguid_t cguid, uint64_t snap_seq) {
         FDF_status_t    ret = FDF_FAILURE;
         Scavenge_Arg_t s;
         s.type = 3;
@@ -4502,6 +4515,11 @@ void close_container(struct FDF_thread_state *fdf_thread_state, Scavenge_Arg_t *
         FDF_status_t       ret = FDF_SUCCESS;
         int           index = -1;
 
+		(S->bt->partitions[0])->snap_meta->scavenging_in_progress = 0;
+		flushpersistent(S->btree);
+		if (deref_l1cache(S->btree) != BTREE_SUCCESS) {
+			fprintf(stderr,"deref_l1_cache failed\n");
+		}
 	bt_rel_entry(S->btree_index, false);
         index = bt_get_cguid(S->cguid);
 	pthread_rwlock_wrlock(&ctnrmap_rwlock);

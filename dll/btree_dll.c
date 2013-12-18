@@ -261,8 +261,8 @@ FDF_status_t
 									uint32_t *n_snapshots,
 									FDF_container_snapshots_t **snap_seqs);
 FDF_status_t (*ptr_FDFScavenger) (struct FDF_state *fdf_state);
-FDF_status_t (*ptr_FDFScavenge_container) (struct FDF_state *fdf_state, FDF_cguid_t cguid);
-FDF_status_t (*ptr_FDFScavenge_snapshot) (struct FDF_state *fdf_state, FDF_cguid_t cguid, uint64_t snap_seq);
+FDF_status_t (*ptr_FDFScavengeContainer) (struct FDF_state *fdf_state, FDF_cguid_t cguid);
+FDF_status_t (*ptr_FDFScavengeSnapshot) (struct FDF_state *fdf_state, FDF_cguid_t cguid, uint64_t snap_seq);
 
 #if 0
 static void 
@@ -388,8 +388,8 @@ static struct {
     { "_FDFDeleteContainerSnapshot",    &ptr_FDFDeleteContainerSnapshot   },
     { "_FDFGetContainerSnapshots",      &ptr_FDFGetContainerSnapshots     },
     { "_FDFScavenger",                  &ptr_FDFScavenger                 },
-    { "_FDFScavenge_container",         &ptr_FDFScavenge_container        },
-    { "_FDFScavenge_snapshot",          &ptr_FDFScavenge_snapshot         },
+    { "_FDFScavengeContainer",          &ptr_FDFScavengeContainer         },
+    { "_FDFScavengeSnapshot",          &ptr_FDFScavengeSnapshot         },
 #if 0
     { "_FDFTLMapDestroy",               &ptr_FDFTLMapDestroy              },
     { "_FDFTLMapClear",                 &ptr_FDFTLMapClear                },
@@ -1451,15 +1451,15 @@ FDF_status_t FDFScavenger(struct FDF_state *fdf_state) {
 	}
 	return (*ptr_FDFScavenger) (fdf_state);
 }
-FDF_status_t FDFScavenge_container(struct FDF_state *fdf_state, FDF_cguid_t cguid) {
-	if (unlikely(!ptr_FDFScavenge_container)) {
-                undefined("FDFScavenge_contianer");
-        }
-        return (*ptr_FDFScavenge_container) (fdf_state, cguid);
+FDF_status_t FDFScavengeContainer(struct FDF_state *fdf_state, FDF_cguid_t cguid) {
+	if (unlikely(!ptr_FDFScavengeContainer)) {
+		undefined("FDFScavengeContianer");
+	}
+	return (*ptr_FDFScavengeContainer) (fdf_state, cguid);
 }
-FDF_status_t FDFScavenge_snapshot(struct FDF_state *fdf_state, FDF_cguid_t cguid, uint64_t snap_seq) {
-	if (unlikely(!ptr_FDFScavenge_snapshot)) {
-                undefined("FDFScavenge_snapshot");
+FDF_status_t FDFScavengeSnapshot(struct FDF_state *fdf_state, FDF_cguid_t cguid, uint64_t snap_seq) {
+	if (unlikely(!ptr_FDFScavengeSnapshot)) {
+                undefined("FDFScavengeSnapshot");
         }
-        return (*ptr_FDFScavenge_snapshot) (fdf_state, cguid, snap_seq);
+        return (*ptr_FDFScavengeSnapshot) (fdf_state, cguid, snap_seq);
 }

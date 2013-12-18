@@ -23,41 +23,48 @@ extern void get_key_stuff_leaf(btree_raw_t *bt, btree_raw_node_t *n, uint32_t nk
 extern void get_key_stuff_leaf2(btree_raw_t *bt, btree_raw_node_t *n, uint32_t nkey, key_stuff_info_t *key_sinfo);
 extern btree_status_t btree_delete(struct btree *btree, char *key, uint32_t keylen, btree_metadata_t *meta);
 
-void scavenger_worker(uint64_t arg) {
-        Scavenge_Arg_t *s;
+void
+scavenger_worker(uint64_t arg)
+{
+	Scavenge_Arg_t *s;
+	struct FDF_thread_state  *fdf_thread_state;
 	int i;
-        while(1) {
-                uint64_t mail = btSyncMboxWait(&mbox_scavenger);
-                s = (Scavenge_Arg_t *)mail;
-		struct FDF_thread_state  *fdf_thread_state;
-		FDFInitPerThreadState(s->fdf_state,&fdf_thread_state);
-		btree_raw_mem_node_t *parent;
-    		btree_status_t    ret = BTREE_SUCCESS;
-    		uint64_t          child_id,snap_n1,snap_n2,syndrome = 0;
-	 	key_stuff_t    ks_current_1;
-		key_stuff_info_t ks_prev,ks_current,*key,*key1;
+
+	while(1) {
+		uint64_t mail;
+		uint64_t          child_id,snap_n1,snap_n2,syndrome = 0;
 		int write_lock = 0, snap_no,j,total_keys = 0,deleting_keys = -1,nkey_prev = 0;
 		struct btree_raw_mem_node *node;
+		int deletedobjects = 0;
+		btree_raw_mem_node_t *parent;
+		btree_status_t    ret = BTREE_SUCCESS;
+		key_stuff_t    ks_current_1;
+		key_stuff_info_t ks_prev,ks_current,*key,*key1;
 		key_info_t key_info;
-		 btree_metadata_t  meta;
+		btree_metadata_t  meta;
 		btree_status_t    btree_ret = BTREE_SUCCESS;
+
+		mail = btSyncMboxWait(&mbox_scavenger);
+		s = (Scavenge_Arg_t *)mail;
+
+		FDFInitPerThreadState(s->fdf_state,&fdf_thread_state);
 		my_thd_state = fdf_thread_state;
 	 
 		open_container(fdf_thread_state, s->cguid);
 		node = root_get_and_lock(s->btree, write_lock);
 		assert(node);
 
-	    	while(!is_leaf(s->btree, (node)->pnode)) {
+		while(!is_leaf(s->btree, (node)->pnode)) {
      
 			(void) get_key_stuff(s->btree, node->pnode, 0, &ks_current_1);
 			child_id = ks_current_1.ptr;
 			parent = node;
-		        node = get_existing_node_low(&ret, s->btree, child_id, 0, false, true);
+			node = get_existing_node_low(&ret, s->btree, child_id, 0, false, true);
 			plat_rwlock_rdlock(&node->lock);
 			plat_rwlock_unlock(&parent->lock);
-		        deref_l1cache_node(s->btree, parent);
+			deref_l1cache_node(s->btree, parent);
 
-    		}
+		}
 		i = 0;
 		bool found = 0,last_node=0;
 		start_key_in_node = 0;
@@ -67,18 +74,18 @@ void scavenger_worker(uint64_t arg) {
 			key = (key_stuff_info_t *)malloc(16*sizeof(key_stuff_info_t));
 			int temp = 0;
 			i = scavenge_node(s->btree, node, &ks_prev, &key);
-			if((i == 0) || (key_loc == 0)) {
+			//if((i == 0) || (key_loc == 0)) {
+			if(i == 0) {
 				parent = node;
 				child_id = node->pnode->next;
 				node =  get_existing_node_low(&ret, s->btree, child_id, 0, false, true);
-                                plat_rwlock_rdlock(&node->lock);
-                                plat_rwlock_unlock(&parent->lock);
-                                deref_l1cache_node(s->btree, parent);
+				plat_rwlock_rdlock(&node->lock);
+				plat_rwlock_unlock(&parent->lock);
+				deref_l1cache_node(s->btree, parent);
 				start_key_in_node = 0;
-                                continue;
-                        }
-			if (node->pnode->next == 0)
-			{
+         		continue;
+			}
+			if (node->pnode->next == 0) {
 				last_node = 1;
 			}
 			plat_rwlock_unlock(&node->lock);
@@ -86,18 +93,16 @@ void scavenger_worker(uint64_t arg) {
 	
 			j=0;
 			meta.flags = 0;
-			for (j=0;j<key_loc;j++)
-			{
+			for (j = 0;j < key_loc;j++) {
 				meta.seqno = key[j].seqno;
 				meta.flags = FORCE_DELETE | READ_SEQNO_EQ;
 				btree_ret = btree_delete(s->bt, key[j].key, key[j].keylen, &meta);
 				usleep(1000*(s->throttle_value));
-				if (btree_ret != BTREE_SUCCESS);
-				/*{
+				if (btree_ret != BTREE_SUCCESS) {
 					fprintf(stderr,"btree delete failed for the key %s\n", key[j].key);
-					error message and break;
-				}*/
-				
+					//goto end need to add after failure in btree logic is fixed
+				}
+				deletedobjects++;
 			}
 			memcpy(&ks_current, &(key[key_loc-1]), sizeof(key_stuff_t));
 			free(key);
@@ -112,29 +117,29 @@ void scavenger_worker(uint64_t arg) {
 			meta.flags = READ_SEQNO_LE;
 			meta.end_seqno = ks_current.seqno - 1;
 			start_key_in_node = btree_raw_find(s->btree, ks_current.key, ks_current.keylen, syndrome, &meta, &node, write_lock, &pathcnt, &key_exists);
-			if (node->pnode->nkeys == 0)
-				fprintf(stderr," ajit ajit zero keys node %lu\n", node->pnode->logical_id);
 		}
-		fprintf(stderr,"scavenger finished scavenging the container\n\n\n");
+		fprintf(stderr,"Total number of objects scavenged %d \n\n\n",deletedobjects);
 		close_container(fdf_thread_state,s);
 		FDFReleasePerThreadState(&fdf_thread_state);
-        }
+	}
 }
 
-FDF_status_t btree_scavenge(struct FDF_state  *fdf_state, Scavenge_Arg_t S) {
-        Scavenge_Arg_t *s;
+FDF_status_t btree_scavenge(struct FDF_state  *fdf_state, Scavenge_Arg_t S) 
+{
+	Scavenge_Arg_t *s;
 	int index = -1;
-        s = (Scavenge_Arg_t *)malloc(sizeof(Scavenge_Arg_t));
-        s->type = S.type;
-        s->cguid = S.cguid;
-        s->snap_seq = S.snap_seq;
+
+	s = (Scavenge_Arg_t *)malloc(sizeof(Scavenge_Arg_t));
+	s->type = S.type;
+	s->cguid = S.cguid;
+	s->snap_seq = S.snap_seq;
 	s->fdf_state = fdf_state;
 	s->btree_index = S.btree_index;
 	s->btree = S.btree;
 	s->bt = S.bt;
 	s->throttle_value = S.throttle_value;
-        btSyncMboxPost(&mbox_scavenger, (uint64_t)s);
-        return FDF_SUCCESS;
+	btSyncMboxPost(&mbox_scavenger, (uint64_t)s);
+	return FDF_SUCCESS;
 }
 
 static inline int
