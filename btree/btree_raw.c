@@ -341,21 +341,53 @@ btree_raw_crash_stats( btree_raw_t* bt, void *data, uint32_t datalen )
     fdf_pstats_delta_t *pstats_new = (fdf_pstats_delta_t*) data;
 #ifdef PSTATS_1
     fprintf(stderr, "btree_raw_crash_stats: Last seq num = %ld\n", bt->pstats.seq_num);
-    fprintf(stderr, "btree_raw_crash_stats: record: seq num=%ld d_obj_cnt=%ld is_positive_d=%d d_num_snap_objs=%ld d_snap_data_size=%ld unique=%ld\n",
-                 pstats_new->seq_num, pstats_new->delta_obj_count, pstats_new->is_positive_delta, pstats_new->delta[PSTAT_NUM_SNAP_OBJS], pstats_new->delta[PSTAT_SNAP_DATA_SIZE], pstats_new->seq); 
+    fprintf(stderr, "btree_raw_crash_stats: record: seq num=%ld d_obj_cnt=%ld is_positive_d=0x%x d_num_snap_objs=%ld d_snap_data_size=%ld unique=%ld\n",
+                 pstats_new->seq_num, pstats_new->delta[PSTAT_OBJ_COUNT], pstats_new->is_pos_delta, pstats_new->delta[PSTAT_NUM_SNAP_OBJS], pstats_new->delta[PSTAT_SNAP_DATA_SIZE], pstats_new->seq); 
 #endif
 
-    if ( pstats_new->seq_num >= bt->pstats.seq_num  &&
-         pstats_new->delta_obj_count > 0 ) {
+    if ( pstats_new->seq_num >= bt->pstats.seq_num) {
 #ifdef PSTATS_1
-        static uint64_t count = 0;
-        fprintf(stderr, "btree_raw_crash_stats: Valid object found: count=%ld\n", count++);
+		static uint64_t count = 0;
+		int flag =0;
 #endif
-        if ( pstats_new->is_positive_delta ) {
-            bt->pstats.obj_count += pstats_new->delta_obj_count;
-        } else {
-            bt->pstats.obj_count -= pstats_new->delta_obj_count;
-        }
+		if (pstats_new->delta[PSTAT_OBJ_COUNT] > 0 ) {
+#ifdef PSTATS_1
+			fprintf(stderr, "btree_raw_crash_stats: Valid object found: count=%ld\n", count++);
+			flag =1;
+#endif
+			if ((pstats_new->is_pos_delta | (0x1 << PSTAT_OBJ_COUNT)) != 0) {
+				bt->pstats.obj_count += pstats_new->delta[PSTAT_OBJ_COUNT];
+			} else {
+				bt->pstats.obj_count -= pstats_new->delta[PSTAT_OBJ_COUNT];
+			}
+		} 
+		if (pstats_new->delta[PSTAT_NUM_SNAP_OBJS] > 0) {
+#ifdef PSTATS_1
+			if (flag ==0) {
+				fprintf(stderr, "btree_raw_crash_stats: Valid object found: count=%ld\n", count++);
+				flag =1;
+			}
+#endif
+			if ((pstats_new->is_pos_delta | (0x1 << PSTAT_NUM_SNAP_OBJS)) != 0) {
+				bt->pstats.num_snap_objs += pstats_new->delta[PSTAT_NUM_SNAP_OBJS];
+			} else {
+				bt->pstats.num_snap_objs -= pstats_new->delta[PSTAT_NUM_SNAP_OBJS];
+			}
+		}
+		if (pstats_new->delta[PSTAT_SNAP_DATA_SIZE] > 0) {
+#ifdef PSTATS_1
+			if (flag ==0) {
+				fprintf(stderr, "btree_raw_crash_stats: Valid object found: count=%ld\n", count++);
+				flag =1;
+			}
+#endif
+			if ((pstats_new->is_pos_delta | (0x1 << PSTAT_SNAP_DATA_SIZE)) != 0 ) {
+				bt->pstats.snap_data_size += pstats_new->delta[PSTAT_SNAP_DATA_SIZE];
+			} else {
+				bt->pstats.snap_data_size -= pstats_new->delta[PSTAT_SNAP_DATA_SIZE];
+			}
+		}
+
     }
 }
 
@@ -1908,8 +1940,8 @@ static void
 reset_node_pstats(btree_raw_node_t *n)
 {
     n->pstats.seq_num = 0;
-    n->pstats.delta_obj_count = 0;
     n->pstats.is_pos_delta = 0;
+    n->pstats.delta[PSTAT_OBJ_COUNT] = 0;
 	n->pstats.delta[PSTAT_NUM_SNAP_OBJS] = 0;
 	n->pstats.delta[PSTAT_SNAP_DATA_SIZE] = 0;
 
@@ -1930,8 +1962,8 @@ set_node_pstats(btree_raw_t *btree, btree_raw_node_t *x, uint64_t num_obj, bool 
 {
     pthread_mutex_lock(&btree->pstat_lock);
     x->pstats.seq_num = btree->last_flushed_seq_num;
-    x->pstats.delta_obj_count += num_obj;
-    x->pstats.is_positive_delta = is_delta_positive;
+    x->pstats.delta[PSTAT_OBJ_COUNT] += num_obj;
+    x->pstats.is_pos_delta |= is_delta_positive << PSTAT_OBJ_COUNT;
     /*
      * Unique temporary sequence number exists for debugging purposes
      */
@@ -1949,7 +1981,7 @@ set_node_pstats(btree_raw_t *btree, btree_raw_node_t *x, uint64_t num_obj, bool 
 
 #ifdef PSTATS_1
     fprintf(stderr, "set_node_pstats: d_obcount=%ld seq_num=%ld positive=%d unique=%ld\n",
-            x->pstats.delta_obj_count, x->pstats.seq_num, is_delta_positive, x->pstats.seq);
+            x->pstats.delta[PSTAT_OBJ_COUNT], x->pstats.seq_num, is_delta_positive, x->pstats.seq);
 #endif
 }
 
@@ -1996,7 +2028,7 @@ pstats_flush(struct btree_raw *btree, btree_raw_mem_node_t *n)
 #ifdef PSTATS_1
             btree_raw_node_t* x = n->pnode;
             fprintf(stderr, "pstats_flush: obcount=%ld seq_num=%ld unique=%ld\n",
-                    x->pstats.delta_obj_count, x->pstats.seq_num, x->pstats.seq);
+                    x->pstats.delta[PSTAT_OBJ_COUNT], x->pstats.seq_num, x->pstats.seq);
 #endif
             //n->pnode->pstats.seq_num = btree->last_flushed_seq_num;
 

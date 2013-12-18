@@ -75,12 +75,12 @@ typedef struct key_stuff {
 /*
  * Per node persistent stats
  */
-enum delta_indx {PSTAT_NUM_SNAP_OBJS = 1, PSTAT_SNAP_DATA_SIZE, PSTAT_MAX_STATS=8};
+enum delta_indx {PSTAT_OBJ_COUNT, PSTAT_NUM_SNAP_OBJS, PSTAT_SNAP_DATA_SIZE, PSTAT_MAX_STATS=8};
 typedef struct fdf_pstats_delta_ {
     uint64_t		seq_num;
-    uint64_t		delta_obj_count;
+    //uint64_t		delta_obj_count;
     uint64_t		delta[PSTAT_MAX_STATS];
-    bool			is_positive_delta;
+    //bool			is_positive_delta;
 	char			is_pos_delta;
     uint64_t		seq;
 } fdf_pstats_delta_t;
