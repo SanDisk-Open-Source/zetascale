@@ -177,7 +177,8 @@ static int scavenge_node_all_keys(btree_raw_t *btree, btree_raw_mem_node_t *node
 	bzero(&ks_current,sizeof(key_stuff_t));
 
 	ks_prev.key    = (char *) &tmp_key_buf;
-	ks_current.key = (char *) &tmp_key_buf[MAX_KEYLEN];
+	ks_current.key = (char *) &tmp_key_buf + btree->max_key_size;
+	assert((btree->max_key_size * 2) < 8100);
 
 	while (i < node->pnode->nkeys) {
 		(void) get_key_stuff_leaf2(btree, node->pnode, i, &ks_current);

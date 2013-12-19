@@ -90,6 +90,10 @@ typedef struct {
 	int16_t end_idx;
 	int16_t start_idx;
 	char dir;
+
+	char *ts_key;            // Pointer to hold tombstone key
+	uint32_t ts_keylen;
+	bool prior_version_tombstoned; // Used to maintain if leader is a tombstone
 } btree_range_cursor_t;
 
 /* Start an index query.

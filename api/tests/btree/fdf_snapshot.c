@@ -27,6 +27,7 @@ typedef struct vals {
 
 vals_t values[MAX_OBJECTS];
 uint64_t snap_seqnos[MAX_SNAPSHOTS];
+int snapshot_cnt = 0;
 
 static void
 gen_data(char *data, uint64_t datalen, int seed)
@@ -289,9 +290,16 @@ create_snapshot(struct FDF_thread_state *thd_state, uint32_t snap_ind)
 	status = FDFCreateContainerSnapshot(thd_state, cguid, &snap_seqnos[snap_ind]);
 
 	if (status != FDF_SUCCESS) {
+		if (status == FDF_TOO_MANY_SNAPSHOTS) {
+			printf("Hitting too many snapshots\n");
+			fflush(stdout);
+		}
+	
 		printf("Error %s in creating snapshots for snap_ind=%u\n",
 		        FDFStrError(status), snap_ind);
 		fflush(stdout);
+	} else {
+		snapshot_cnt++;
 	}
 }
 
@@ -305,6 +313,8 @@ delete_snapshot(struct FDF_thread_state *thd_state, uint32_t snap_ind)
 		printf("Error %s in deleting snapshots for snap_ind=%u\n",
 		        FDFStrError(status), snap_ind);
 		fflush(stdout);
+	} else {
+		snapshot_cnt--;
 	}
 }
 
@@ -325,6 +335,7 @@ do_read_verify_snapshot(struct FDF_thread_state *thd_state, uint32_t start, uint
 
 	/* Initialize rmeta */
 	rmeta = (FDF_range_meta_t *)malloc(sizeof(FDF_range_meta_t));
+	rmeta->flags = 0;
 	rmeta->key_start = NULL;
 	rmeta->keylen_start = 0;
 	rmeta->key_end   = NULL;
@@ -336,7 +347,7 @@ do_read_verify_snapshot(struct FDF_thread_state *thd_state, uint32_t start, uint
 	if (snap_ind == 0) {
 		rmeta->flags = FDF_RANGE_SEQNO_LE;
 		rmeta->end_seq = snap_seqnos[snap_ind];
-	} else {
+	} else if (snap_ind < snapshot_cnt) {
 		rmeta->flags = FDF_RANGE_SEQNO_GT_LE;
 		rmeta->start_seq = snap_seqnos[snap_ind-1];
 		rmeta->end_seq   = snap_seqnos[snap_ind];
@@ -447,6 +458,8 @@ do_rw_test(uint32_t num_objs, uint32_t iters, uint32_t num_snaps)
 	FDFInitPerThreadState(fdf_state, &thd_state);	
 	open_stuff(thd_state, "cntr_1");
 
+	snapshot_cnt = 0;
+
 	/* Write the contents of snapshots */
 	for (i = 0; i < num_snaps; i++) {
 		printf("Iter: %u: %s %u objects\n", ++iter_print_cnt, 
@@ -458,7 +471,7 @@ do_rw_test(uint32_t num_objs, uint32_t iters, uint32_t num_snaps)
 		} else {
 			do_write(thd_state, 0, num_objs, i, 0);
 		}
-		printf("Creating Snapshot %u\n", i+1);
+		printf("Creating Snapshot %u\n", i);
 		fflush(stdout);
 		create_snapshot(thd_state, i);
 	}
@@ -477,6 +490,9 @@ do_rw_test(uint32_t num_objs, uint32_t iters, uint32_t num_snaps)
 	}
 
 	do_read_verify(thd_state, 0, num_objs, FDF_SUCCESS);
+
+	printf("Doing range query for latest update\n");
+	do_read_verify_snapshot(thd_state, 0, num_objs, iters-1, 20);
 
 	for (i = 0; i < num_snaps; i++) {
 		do_read_verify_snapshot(thd_state, 0, num_objs, i, 20);
@@ -498,6 +514,8 @@ do_delete_test(uint32_t num_objs, uint32_t iters, uint32_t num_snaps)
 	FDFInitPerThreadState(fdf_state, &thd_state);	
 	open_stuff(thd_state, "cntr_2");
 
+	snapshot_cnt = 0;
+
 	/* Write the contents of snapshots */
 	for (i = 0; i < num_snaps; i++) {
 		printf("Iter: %u: Mputting %u objects\n", ++iter_print_cnt, 
@@ -506,7 +524,7 @@ do_delete_test(uint32_t num_objs, uint32_t iters, uint32_t num_snaps)
 
 		do_mput(thd_state, 0, num_objs, i, 0);
 
-		printf("Creating Snapshot %u\n", i+1);
+		printf("Creating Snapshot %u\n", i);
 		fflush(stdout);
 		create_snapshot(thd_state, i);
 	}
@@ -521,7 +539,12 @@ do_delete_test(uint32_t num_objs, uint32_t iters, uint32_t num_snaps)
 	 * not found and earlier snapshot still intact */
 	do_delete(thd_state, 0, num_objs, FDF_SUCCESS);
 	do_read_verify(thd_state, 0, num_objs, FDF_OBJECT_UNKNOWN);
-	do_read_verify_snapshot(thd_state, 0, num_objs, i-1, 20);
+	do_read_verify_snapshot(thd_state, 0, num_objs, num_snaps-1, 20);
+
+	/* Do a range query (read/verify active snapshot) and 
+	 * ensure that no objects are found */
+	printf("Doing range query for latest update\n");
+	do_read_verify_snapshot(thd_state, 0, 0, num_snaps, 20);
 
 	/* Do delete on top of tombstone delete and ensure it
 	 * says key not found */
@@ -601,6 +624,7 @@ do_rangeupdate_test(uint32_t num_objs, uint32_t iters, uint32_t num_snaps)
 	   rangeupdate on all keys, should be able to read updated data for all the keys and read old data
 	   for keys in snapshot */
 	open_stuff(thd_state, "cntr_3");
+	snapshot_cnt = 0;
 
 	do_mput(thd_state, 0, (num_objs + (num_objs % 2))/2, 0, 0);
 	create_snapshot(thd_state, i);
@@ -608,7 +632,7 @@ do_rangeupdate_test(uint32_t num_objs, uint32_t iters, uint32_t num_snaps)
 	FDFRangeUpdate(thd_state, cguid, "key_", strlen("key_"), range_update_cb, NULL, NULL, NULL, &objs_updated);
 	printf("RangeUpdated objs_update: %d\n", objs_updated);
 	if (objs_updated != num_objs) {
-		printf("All objects are not updated\n");
+		printf("ERROR: All objects are not updated\n");
 		return;
 	}
 	key = malloc(FDF_MAX_KEY_LEN);
@@ -619,7 +643,7 @@ do_rangeupdate_test(uint32_t num_objs, uint32_t iters, uint32_t num_snaps)
 		status = FDFReadObject(thd_state, cguid, key, keylen,
 		                       &act_value, &act_vallen);
 		if (status != FDF_SUCCESS) {
-			printf("FDFRead returned status=%s, expected status=%s for "
+			printf("ERROR: FDFRead returned status=%s, expected status=%s for "
 			        "key %d\n", FDFStrError(status), FDFStrError(FDF_SUCCESS), i);
 			error++;
 			fflush(stdout);
@@ -628,7 +652,7 @@ do_rangeupdate_test(uint32_t num_objs, uint32_t iters, uint32_t num_snaps)
 		}
 
 		if (values[i].vallen + length_incr != act_vallen) {
-			fprintf(stdout, "Error: Mismatch: Actual datalen=%u, "
+			fprintf(stdout, "ERROR: Mismatch: Actual datalen=%u, "
 			         "Expected datalen=%u for key %u\n",
 			         (uint32_t)act_vallen, (uint32_t)values[i].vallen + length_incr, i);
 			error++;
@@ -642,7 +666,7 @@ do_rangeupdate_test(uint32_t num_objs, uint32_t iters, uint32_t num_snaps)
 		new_data = (char *) malloc(act_vallen);
 		gen_data(new_data, act_vallen, 1000 + i);
 		if (memcmp(new_data, act_value, act_vallen) != 0) {
-			fprintf(stdout, "Error: Mismatch: Actual data differs "
+			fprintf(stdout, "ERROR: Mismatch: Actual data differs "
 			         "with expected data for key %u\n", i);
 			error++;
 			fflush(stdout);
@@ -687,7 +711,7 @@ do_rangeupdate_test(uint32_t num_objs, uint32_t iters, uint32_t num_snaps)
 	objs_processed = 0;
 	FDFRangeUpdate(thd_state, cguid, "key_", strlen("key_"), range_update_cb, NULL, NULL, NULL, &objs_updated);
 	if (objs_updated != num_objs) {
-		printf("All objects are not updated\n");
+		printf("ERROR: All objects are not updated\n");
 		return;
 	}
 	for (i = 0; i < num_objs; i++) {
@@ -707,7 +731,7 @@ do_rangeupdate_test(uint32_t num_objs, uint32_t iters, uint32_t num_snaps)
 		}
 
 		if (values[i].vallen + length_incr != act_vallen) {
-			fprintf(stdout, "Error: Mismatch: Actual datalen=%u, "
+			fprintf(stdout, "ERROR: Mismatch: Actual datalen=%u, "
 			         "Expected datalen=%u for key %u\n",
 			         (uint32_t)act_vallen, (uint32_t)values[i].vallen + length_incr, i);
 			error++;
@@ -721,7 +745,7 @@ do_rangeupdate_test(uint32_t num_objs, uint32_t iters, uint32_t num_snaps)
 		new_data = (char *) malloc(act_vallen);
 		gen_data(new_data, act_vallen, 1000 + i);
 		if (memcmp(new_data, act_value, act_vallen) != 0) {
-			fprintf(stdout, "Error: Mismatch: Actual data differs "
+			fprintf(stdout, "ERROR: Mismatch: Actual data differs "
 			         "with expected data for key %u\n", i);
 			error++;
 			fflush(stdout);
@@ -765,6 +789,7 @@ do_quiesce_test(uint32_t num_objs, uint32_t iters, uint32_t num_snaps)
 	fflush(stdout);
 	FDFInitPerThreadState(fdf_state, &thd_state);	
 	open_stuff(thd_state, "cntr_4");
+	snapshot_cnt = 0;
 
 	objs_processed = num_objs;
 	pthread_create(&thread_id, NULL, (void *)write_data, (void *)(uint64_t)iters);

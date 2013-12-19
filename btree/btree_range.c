@@ -101,7 +101,7 @@ validate_range_query(btree_range_meta_t *rmeta)
 }
 
 static btree_status_t
-fill_key_range(btree_raw_t          *bt,
+fill_key_range(btree_range_cursor_t *c,
                btree_raw_mem_node_t *n,
 	       int index,
                btree_range_meta_t   *rmeta,
@@ -130,22 +130,36 @@ fill_key_range(btree_raw_t          *bt,
 		return (BTREE_SKIPPED);
 	}
 
-	if (key_meta.tombstone) {
-		return (BTREE_SKIPPED);
-	}
+	ks.key = tmp_key_buf;
+	get_key_stuff_info2(c->btree, n->pnode, index, &ks);
+	pks = &ks;
 
-	/* For seqno based queries, skip putting duplicate keys (even if its
-	 * for different seqnos */
-	if (rmeta->flags & (READ_SEQNO_EQ | READ_SEQNO_LE | READ_SEQNO_GT_LE)) {
-		ks.key = tmp_key_buf;
-		get_key_stuff_info2(bt, n->pnode, index, &ks);
-
+	if (c->prior_version_tombstoned) {
+		/* There is a previous tombstoned key present and this key
+		 * is same as the one tombstoned, so skip it */
+		if (c->btree->cmp_cb(c->btree->cmp_cb_data, c->ts_key,
+		               c->ts_keylen, ks.key, ks.keylen) == 0) {
+			return BTREE_SKIPPED;
+		}
+	} else {
+		/* Previous key is same as current one, previous is the latest, so skip
+		 * this one */
 		if (prev_value && 
-		     (bt->cmp_cb(bt->cmp_cb_data, prev_value->key, prev_value->keylen,
-		                 ks.key, ks.keylen) == 0)) {
+		     (c->btree->cmp_cb(c->btree->cmp_cb_data, prev_value->key,
+		                       prev_value->keylen, ks.key, ks.keylen) == 0)) {
 			return (BTREE_SKIPPED);
 		}
-		pks = &ks; // Use this key_stuff we already grabbed for future use
+	}
+
+	/* If key is tombstoned, apart from skipping, store this key to
+	 * avoid subsequent versions to skip as well */
+	if (key_meta.tombstone) {
+		memcpy(c->ts_key, ks.key, ks.keylen);
+		c->ts_keylen = ks.keylen;
+		c->prior_version_tombstoned = true;
+		return BTREE_SKIPPED;
+	} else {
+		c->prior_version_tombstoned = false;
 	}
 
 	/* TODO: Later on try to combine range_meta and btree_meta
@@ -158,7 +172,7 @@ fill_key_range(btree_raw_t          *bt,
  
 	value->status = BTREE_RANGE_STATUS_NONE; 
 
-	status = get_leaf_key_index(bt, n->pnode, index,
+	status = get_leaf_key_index(c->btree, n->pnode, index,
 				      &value->key,
 				      &keybuf_size,
 				      meta_flags, pks);
@@ -189,7 +203,7 @@ fill_key_range(btree_raw_t          *bt,
 	}
 
 	if (!(rmeta->flags & RANGE_KEYS_ONLY)) {
-		status = get_leaf_data_index(bt, n->pnode, index,
+		status = get_leaf_data_index(c->btree, n->pnode, index,
 					       &value->data, &databuf_size,
 					       meta_flags, 0,
 		                               is_snapshot_query(rmeta));
@@ -354,7 +368,7 @@ populate_output_array(btree_range_cursor_t *c,
 	{
 //		ret = fill_key_range(c->btree, node, key_offset(c->btree,
 //						node->pnode, *cur_idx), c->query_meta, values + *n_out);
-		ret = fill_key_range(c->btree, node, (int) *cur_idx, &c->query_meta,
+		ret = fill_key_range(c, node, (int) *cur_idx, &c->query_meta,
 		                     values + *n_out,
 		                     (*n_out) ? values + (*n_out) - 1: NULL);
 
@@ -412,6 +426,10 @@ btree_range_get_next_fast(btree_range_cursor_t *c,
 	int sp = 0;
 
 	*n_out = 0;
+
+	/* Right now it is not required to keep track of tombstone
+	 * across two chunks of range queries */
+	c->prior_version_tombstoned = false;
 
 	plat_rwlock_rdlock(&c->btree->lock);
 
@@ -523,6 +541,14 @@ btree_range_query_start_fast(btree_t            *btree,
 
 	c->dir = IS_ASCENDING_QUERY(rmeta) ? 1 : -1;
 
+	c->ts_key = malloc(btree->max_key_size);
+	if (c->ts_key == NULL) {
+		assert(0);
+		c->ts_key = NULL;
+		return BTREE_FAILURE;
+	}
+	c->ts_keylen = 0;
+
 	if(!store_key(&c->query_meta.key_start, &c->query_meta.keylen_start,
 			rmeta->key_start, rmeta->keylen_start))
 		return BTREE_FAILURE;
@@ -546,6 +572,10 @@ btree_range_query_end_fast(btree_range_cursor_t *c)
 		c->query_meta.key_end = NULL;
 	}
 
+	if (c->ts_key) {
+		free(c->ts_key);
+		c->ts_key = NULL;
+	}
 	assert(!dbg_referenced);
 
 	return (BTREE_SUCCESS);

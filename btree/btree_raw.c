@@ -4135,7 +4135,7 @@ btree_insert_keys_leaf(btree_raw_t *btree, btree_metadata_t *meta, uint64_t synd
                             fprintf(stderr, "total=%ld BTSTAT_NUM_OBJS=%ld, new_inserts=%d\n", total_count++, btree->stats.stat[BTSTAT_NUM_OBJS], *new_inserts);
 #endif
                         } else if (!is_update) {
-                            /* Key_exists, but we cannot update, because of snapshots */
+				/* Key_exists, but we cannot update, because of snapshots */
 				__sync_add_and_fetch(&(btree->stats.stat[BTSTAT_NUM_SNAP_OBJS]), 1);
 				__sync_add_and_fetch(&(btree->stats.stat[BTSTAT_SNAP_DATA_SIZE]), key_meta.datalen);
 				set_node_snapobjs_pstats(btree, mem_node->pnode, 1, key_meta.datalen, true);
@@ -5615,9 +5615,15 @@ insert_tombstone_optimized(btree_raw_t *bt, btree_raw_mem_node_t *mnode,
 {
 	btree_status_t ret;
 	btree_metadata_t tmp_meta = {0};
+	btree_metadata_t search_meta = {0};
 	uint32_t objs_written = 0;
 	btree_mput_obj_t obj;
+	uint32_t scavenged_cnt;
+	uint64_t  child_id;
+	bool found;
         uint32_t new_inserts = 0;
+
+	assert(is_leaf(bt, mnode->pnode));
 
 	tmp_meta.flags = INSERT_TOMBSTONE;
 	obj.key = key;
@@ -5631,6 +5637,15 @@ insert_tombstone_optimized(btree_raw_t *bt, btree_raw_mem_node_t *mnode,
 		return (false);
 	}
 	                 
+	scavenged_cnt = scavenge_node(bt, mnode, NULL, NULL);
+	if (scavenged_cnt != 0) {
+		/* If we have scavenged some keys, tombstone key's index would have
+		 * changed, do find again */
+    		index = bsearch_key(bt, mnode->pnode, key, keylen, &search_meta,
+		                    syndrome, BSF_LATEST, &found, &child_id);
+
+	}
+
 	ret = btree_insert_keys_leaf(bt, &tmp_meta, syndrome, mnode, W_SET,
 	                             &obj, 1, index, true, /* key exists */
 	                             false, /* is_update */ &objs_written, NULL, &new_inserts);

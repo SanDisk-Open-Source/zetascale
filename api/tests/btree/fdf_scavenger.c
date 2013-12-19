@@ -204,11 +204,9 @@ worker(void *arg)
 		status = FDFDeleteObject(thd_state, cguid, keyw, keylen);
         }
 
-#if 0
-	status = FDFScavenge_container(fdf_state,cguid);
+	status = FDFScavengeContainer(fdf_state,cguid);
 	if (status == FDF_SUCCESS)
 		printf(" scavenger operation started %s\n", FDFStrError(status));
-#endif
 
 
 	//Release/Free per thread state.
