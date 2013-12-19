@@ -260,34 +260,51 @@ typedef struct btree_metadata {
 			item(BTSTAT_NONLEAF_BYTES, /* default */) \
 			item(BTSTAT_OVERFLOW_BYTES, /* default */) \
 			item(BTSTAT_NUM_OBJS, /* default */) \
-/* 20 */    item(BTSTAT_EVICT_BYTES, /* default */) \
+/* 20 */    item(BTSTAT_TOTAL_BYTES, /* default */) \
+                        item(BTSTAT_EVICT_BYTES, /* default */) \
 			item(BTSTAT_SPLITS, /* default */) \
 			item(BTSTAT_LMERGES, /* default */) \
 			item(BTSTAT_RMERGES, /* default */) \
-			item(BTSTAT_LSHIFTS, /* default */) \
-/* 25 */    item(BTSTAT_RSHIFTS, /* default */) \
+/* 25 */    item(BTSTAT_LSHIFTS, /* default */) \
+                        item(BTSTAT_RSHIFTS, /* default */) \
 			item(BTSTAT_EX_TREE_LOCKS, /* default */) \
 			item(BTSTAT_NON_EX_TREE_LOCKS, /* default */) \
 			item(BTSTAT_GET_CNT, /* default */) \
-			item(BTSTAT_GET_PATH, /* default */) \
-/* 30 */    item(BTSTAT_CREATE_CNT, /* default */) \
+/* 30 */    item(BTSTAT_GET_PATH, /* default */) \
+                        item(BTSTAT_CREATE_CNT, /* default */) \
 			item(BTSTAT_CREATE_PATH, /* default */) \
 			item(BTSTAT_SET_CNT, /* default */) \
 			item(BTSTAT_SET_PATH, /* default */) \
-			item(BTSTAT_UPDATE_CNT, /* default */) \
-/* 35 */    item(BTSTAT_UPDATE_PATH, /* default */) \
+/* 35 */    item(BTSTAT_UPDATE_CNT, /* default */) \
+                        item(BTSTAT_UPDATE_PATH, /* default */) \
 			item(BTSTAT_DELETE_CNT, /* default */) \
 			item(BTSTAT_DELETE_PATH, /* default */) \
 			item(BTSTAT_FLUSH_CNT, /* default */) \
-			item(BTSTAT_DELETE_OPT_CNT, /* default */) \
-/* 40 */    item(BTSTAT_MPUT_IO_SAVED, /* default */)  \
+/* 40 */    item(BTSTAT_DELETE_OPT_CNT, /* default */) \
+                        item(BTSTAT_MPUT_IO_SAVED, /* default */)  \
 			item(BTSTAT_PUT_RESTART_CNT, /* default */)	\
 			item(BTSTAT_SPCOPT_BYTES_SAVED, /* default */)  \
+                        item(BTSTAT_MPUT_CNT, /* default */)  \
+/* 45 */    item(BTSTAT_MSET_CNT, /* default */)  \
+                        item(BTSTAT_RANGE_CNT, /* default */)  \
+                        item(BTSTAT_RANGE_NEXT_CNT, /* default */)  \
+                        item(BTSTAT_RANGE_FINISH_CNT, /* default */)  \
+                        item(BTSTAT_RANGE_UPDATE_CNT, /* default */)  \
+/* 50 */    item(BTSTAT_CREATE_SNAPSHOT_CNT, /* default */)  \
+                        item(BTSTAT_DELETE_SNAPSHOT_CNT, /* default */)  \
+                        item(BTSTAT_LIST_SNAPSHOT_CNT, /* default */)  \
+                        item(BTSTAT_TRX_START_CNT, /* default */)  \
+                        item(BTSTAT_TRX_COMMIT_CNT, /* default */)  \
+/* 55 */    item(BTSTAT_NUM_MPUT_OBJS, /* default */)  \
+                        item(BTSTAT_NUM_RANGE_NEXT_OBJS, /* default */)  \
+                        item(BTSTAT_NUM_RANGE_UPDATE_OBJS, /* default */)  \
 			item(BTSTAT_NUM_SNAP_OBJS , /* default */)  \
 			item(BTSTAT_SNAP_DATA_SIZE , /* default */)  \
-/* 45 */    item(BTSTAT_NUM_SNAPS , /* default */)  \
-			item(BTSTAT_BULK_INSERT_CNT, /* default */) \
+/* 60 */    item(BTSTAT_NUM_SNAPS , /* default */)  \
+                        item(BTSTAT_BULK_INSERT_CNT, /* default */) \
 			item(BTSTAT_BULK_INSERT_FULL_NODES_CNT, /* default */) \
+                        item(BTSTAT_READ_CNT, /* default */)  \
+                        item(BTSTAT_WRITE_CNT, /* default */)  \
 
 typedef enum {
 #define item(caps, value) \

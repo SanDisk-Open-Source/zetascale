@@ -163,7 +163,7 @@ SDF_boolean_t fdf_agent_engine_pre_init(struct sdf_agent_state *state)
 
     agent_config_set_defaults(&state->config);
     /* Set the log file if configured*/
-    getPropertyFromFile(state->config.propertyFileName, "SDF_LOG_FILE",log_file);
+    getPropertyFromFile(state->config.propertyFileName, "FDF_LOG_FILE",log_file);
     if( strcmp(log_file,"") ) {
         plat_log_set_file(log_file, PLAT_LOG_REDIRECT_STDERR|PLAT_LOG_REDIRECT_STDOUT);
     }

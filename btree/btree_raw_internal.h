@@ -9,6 +9,7 @@
 
 #define BAD_CHILD       0
 #define META_LOGICAL_ID 0x8000000000000000L
+#define BTREE_VERSION   0
 
 typedef struct node_vkey {
     uint32_t    keylen;
@@ -195,6 +196,7 @@ typedef struct pstat_ckpt_info {
 } pstat_ckpt_info_t;
 
 typedef struct btree_raw {
+    uint64_t           version;
     uint32_t           n_partition;
     uint32_t           n_partitions;
     uint32_t           flags;

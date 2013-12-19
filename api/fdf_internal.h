@@ -44,7 +44,8 @@ typedef enum {
     FDF_STATS_TYPE_FLASH_RC,
     FDF_STATS_TYPE_FLASH_MANAGER,
     FDF_STATS_TYPE_PER_CACHE,
-    FDF_STATS_TYPE_CONTAINER_FLASH
+    FDF_STATS_TYPE_CONTAINER_FLASH,
+    FDF_STATS_TYPE_BTREE,
 }FDF_STATS_TYPE;
 
 
@@ -147,6 +148,7 @@ void fdf_get_flash_map(struct FDF_thread_state *thd_state, FDF_cguid_t cguid,
 FDF_cguid_t FDFGetCguid (char *cname );
 char *FDFGetContainerName(FDF_cguid_t cguid);
 char *get_access_type_stats_desc(int stat );
+char *get_btree_stats_desc(int stat );
 char *get_flash_type_stats_desc(int stat );
 char *get_cache_type_stats_desc(int stat );
 int get_cache_type_stats_category(int stat );
@@ -155,6 +157,7 @@ void disable_stats_auto_dump() ;
 int is_auto_dump_enabled() ;
 void set_stats_autodump_interval(int interval);
 int get_autodump_interval();
+bool is_btree_loaded();
 char *FDFGetNextContainerName(struct FDF_thread_state *fdf_thread_state, struct FDFCMapIterator **iterator, FDF_cguid_t *pcguid);
 FDF_status_t async_command_delete_container(FDF_cguid_t cguid);
 void get_async_delete_stats( uint32_t *num_deletes,uint32_t *num_prog);

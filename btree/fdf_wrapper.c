@@ -49,7 +49,12 @@ struct cmap;
 
 static char Create_Data[MAX_NODE_SIZE];
 
-uint64_t n_global_l1cache_buckets;
+uint64_t n_global_l1cache_buckets = 0;
+uint64_t l1cache_size = 0;
+uint64_t l1cache_partitions = 0;
+uint32_t node_size = 8192; /* Btree node size, Default 8K */
+uint32_t btree_partitions = 1;
+
 struct PMap *global_l1cache;
 extern int init_l1cache();
 extern void destroy_l1cache();
@@ -403,6 +408,118 @@ FDF_status_t _FDFLoadProperties(
 }
 
 
+uint32_t get_btree_node_size() {
+    char *fdf_prop, *env;
+    uint32_t nodesize;
+
+    fdf_prop = (char *)FDFGetProperty("FDF_BTREE_NODE_SIZE",NULL);
+    if( fdf_prop != NULL ) {
+        nodesize = (atoi(fdf_prop) < 0)?0:atoi(fdf_prop);
+    }
+    else {
+        env = getenv("BTREE_NODE_SIZE");
+        nodesize = env ? atoi(env) : 0;
+    }
+
+    if ( !nodesize ) {
+        nodesize = DEFAULT_NODE_SIZE;
+    }    
+
+    return nodesize;
+}
+
+uint32_t get_btree_min_keys_per_node() {
+    return DEFAULT_MIN_KEYS_PER_NODE;
+}
+
+uint32_t get_btree_max_key_size() {
+    char *fdf_prop, *env;
+    uint32_t max_key_size, node_meta, nodesize, min_keys_per_node;
+    
+    fdf_prop = (char *)FDFGetProperty("FDF_BTREE_MAX_KEY_SIZE",NULL);
+    if( fdf_prop != NULL ) {
+        max_key_size = (atoi(fdf_prop) < 0)?0:atoi(fdf_prop);
+    }
+    else {
+        env = getenv("BTREE_MAX_KEY_SIZE");
+        max_key_size = env ? atoi(env) : 0;
+    }    
+ 
+
+    if (!max_key_size) {
+        nodesize = get_btree_node_size();
+        min_keys_per_node = get_btree_min_keys_per_node();
+        node_meta =  sizeof(node_vkey_t);
+        if (node_meta < sizeof(node_vlkey_t)) {
+                node_meta =  sizeof(node_vlkey_t);
+        }
+        max_key_size = ((nodesize - sizeof(btree_raw_node_t))/min_keys_per_node) - node_meta;
+    }
+    return max_key_size;
+}
+
+uint32_t get_btree_num_partitions() {
+    char * fdf_prop, *env;
+    uint32_t n_partitions;
+
+    fdf_prop = (char *)FDFGetProperty("FDF_BTREE_NUM_PARTITIONS",NULL);
+    n_partitions = 0; 
+    if( fdf_prop != NULL ) {
+        n_partitions = (atoi(fdf_prop) < 0)?0:atoi(fdf_prop);
+    }    
+    else {
+        env = getenv("N_PARTITIONS");
+        n_partitions = env ? atoi(env) : 0; 
+    }    
+
+    if(!n_partitions)
+        n_partitions = DEFAULT_N_PARTITIONS;
+
+    return n_partitions;
+}
+
+/** @brief Print Btree configuration 
+ *@return None
+ */
+void print_fdf_btree_configuration() {
+    char * fdf_prop, *env;
+    int fdf_cache_enabled = 0, read_by_rquery = 0;
+
+    fdf_prop = (char *)FDFGetProperty("FDF_CACHE_FORCE_ENABLE",NULL);
+    if( fdf_prop != NULL ) {
+        if( atoi(fdf_prop) == 1 ) {
+            fdf_cache_enabled = FDF_TRUE;
+        }     
+    }    
+    else {
+       if(getenv("FDF_CACHE_FORCE_ENABLE")) {
+            fdf_cache_enabled = FDF_TRUE;
+       }    
+    }  
+
+    env = getenv("BTREE_READ_BY_RQUERY");
+    fdf_prop = (char *)FDFGetProperty("FDF_BTREE_READ_BY_RQUERY",NULL);
+    if( fdf_prop != NULL ) {
+        read_by_rquery = atoi(fdf_prop);
+    }
+    else if(env && (atoi(env) == 1)) {
+        read_by_rquery = 1;
+    }
+
+    fprintf(stderr,"Btree configuration:: Partitions:%d, L1 Cache Size:%ld bytes,"
+                   " L1 cache buckets:%ld, L1 Cache Partitions:%ld,"
+                   " FDF Cache enabled:%d, Node size:%d bytes,"
+                   " Max key size:%d bytes, Min keys per node:%d"
+                   " Parallel flush enabled:%d Parallel flush Min Nodes:%d"
+                   " Reads by query:%d\n",
+                   get_btree_num_partitions(), l1cache_size, n_global_l1cache_buckets, l1cache_partitions,
+                   fdf_cache_enabled, get_btree_node_size(), get_btree_max_key_size(), 
+                   get_btree_min_keys_per_node(),
+                   !btree_parallel_flush_disabled, btree_parallel_flush_minbufs,
+                   read_by_rquery
+                  );
+}
+
 /**
  * @brief FDF initialization
  *
@@ -435,12 +552,6 @@ FDF_status_t _FDFInit(
 		pthread_rwlock_init(&(Container_Map[i].bt_cm_rwlock), NULL);
     }
 
-    fprintf(stderr,"Number of cache buckets:%lu\n",n_global_l1cache_buckets);
-
-    if( init_l1cache() ){
-        fprintf(stderr, "Coundn't init global l1 cache.\n");
-        return FDF_FAILURE;
-    }
 	
 	my_fdf_state = *fdf_state;
     btSyncMboxInit(&mbox_scavenger);
@@ -460,6 +571,12 @@ FDF_status_t _FDFInit(
     ret = FDFInit(fdf_state);
     if ( ret == FDF_FAILURE ) {
         return ret;
+    }
+
+    fprintf(stderr,"Number of cache buckets:%lu\n",n_global_l1cache_buckets);
+    if( init_l1cache() ){
+        fprintf(stderr, "Coundn't init global l1 cache.\n");
+        return FDF_FAILURE;
     }
 
     ret = FDFRegisterCallbacks(*fdf_state, cbs);
@@ -501,7 +618,7 @@ FDF_status_t _FDFInit(
     } else {
         btree_parallel_flush_minbufs = 3;
     }
-
+    print_fdf_btree_configuration();
     return(ret);
 }
 
@@ -824,7 +941,7 @@ FDF_status_t _FDFOpenContainerSpecial(
     void *mput_cmp_cb_data;
     read_node_t  *prn;
     int           index = -1;
-    char         *env = NULL;
+    char         *env = NULL, *fdf_prop;
 
     my_thd_state = fdf_thread_state;;
 
@@ -832,10 +949,18 @@ FDF_status_t _FDFOpenContainerSpecial(
         return(FDF_INVALID_PARAMETER);
 
 restart:
-	if(getenv("FDF_CACHE_FORCE_ENABLE"))
-		properties->flash_only = FDF_FALSE;
-
-	fprintf(stderr, "FDF cache %s for container: %s\n", properties->flash_only ? "disabled" : "enabled", cname);
+        fdf_prop = (char *)FDFGetProperty("FDF_CACHE_FORCE_ENABLE",NULL);
+        if( fdf_prop != NULL ) {
+            if( atoi(fdf_prop) == 1 ) {
+                properties->flash_only = FDF_FALSE;
+            }
+        }
+        else {
+           if(getenv("FDF_CACHE_FORCE_ENABLE")) {
+               properties->flash_only = FDF_FALSE;
+            }
+        }
+        //fprintf(stderr, "FDF cache %s for container: %s\n", properties->flash_only ? "disabled" : "enabled", cname);
 
     ret = FDFOpenContainer(fdf_thread_state, cname, properties, flags_in, cguid);
     if (ret != FDF_SUCCESS)
@@ -895,22 +1020,46 @@ restart:
     if ((flags_in&FDF_CTNR_CREATE) == 0)
         flags |= RELOAD;
 
-    env = getenv("N_PARTITIONS");
-    n_partitions = env ? atoi(env) : 0;
+    /* Check first the fdf.prop */
+    fdf_prop = (char *)FDFGetProperty("FDF_BTREE_NUM_PARTITIONS",NULL);
+    n_partitions = 0;
+    if( fdf_prop != NULL ) {
+        n_partitions = (atoi(fdf_prop) < 0)?0:atoi(fdf_prop);
+    } 
+    else {
+        env = getenv("N_PARTITIONS");
+        n_partitions = env ? atoi(env) : 0;
+    }
 
     if(!n_partitions)
         n_partitions = DEFAULT_N_PARTITIONS;
 
-    env = getenv("BTREE_NODE_SIZE");
-    nodesize = env ? atoi(env) : 0;
+    /* Check first the fdf.prop */
+    fdf_prop = (char *)FDFGetProperty("FDF_BTREE_NODE_SIZE",NULL);
+    if( fdf_prop != NULL ) {
+        nodesize = (atoi(fdf_prop) < 0)?0:atoi(fdf_prop);
+    }
+    else {
+        env = getenv("BTREE_NODE_SIZE");
+        nodesize = env ? atoi(env) : 0;
+    }
+
     if (!nodesize) {
 	nodesize            = DEFAULT_NODE_SIZE;
     }
 
     min_keys_per_node   = DEFAULT_MIN_KEYS_PER_NODE;
 
-    env = getenv("BTREE_MAX_KEY_SIZE");
-    max_key_size = env ? atoi(env) : 0;
+    /* Check first the fdf.prop */
+    fdf_prop = (char *)FDFGetProperty("FDF_BTREE_MAX_KEY_SIZE",NULL);
+    if( fdf_prop != NULL ) {
+        max_key_size = (atoi(fdf_prop) < 0)?0:atoi(fdf_prop); 
+    }
+    else {
+        env = getenv("BTREE_MAX_KEY_SIZE");
+        max_key_size = env ? atoi(env) : 0;
+    }
+
     if (!max_key_size) {
 	node_meta =  sizeof(node_vkey_t);
 	if (node_meta < sizeof(node_vlkey_t)) {
@@ -995,11 +1144,17 @@ restart:
 
     pthread_rwlock_init(&(bt->snapop_rwlock), NULL);
     env = getenv("BTREE_READ_BY_RQUERY");
-    if (env && (atoi(env) == 1)) {
+    Container_Map[index].read_by_rquery = 0;
+    fdf_prop = (char *)FDFGetProperty("FDF_BTREE_READ_BY_RQUERY",NULL);
+    if( fdf_prop != NULL ) {
+        Container_Map[index].read_by_rquery = atoi(fdf_prop); 
+    }
+    else if(env && (atoi(env) == 1)) {
         Container_Map[index].read_by_rquery = 1;
+    }
+    if( Container_Map[index].read_by_rquery != 0 ) {
         fprintf(stderr,"Reads will be done through range query\n");
-    } else {
-        Container_Map[index].read_by_rquery = 0;
+        Container_Map[index].read_by_rquery = 1;
     }
 
     // xxxzzz we should remember the btree info in a persistent place
@@ -1355,7 +1510,7 @@ FDF_status_t _FDFReadObject(
     }
 
     meta.flags = 0;
-
+    __sync_add_and_fetch(&(bt->partitions[0]->stats.stat[BTSTAT_READ_CNT]),1);
     if (Container_Map[index].read_by_rquery) {
         rmeta.key_start    = key;
         rmeta.keylen_start = keylen;
@@ -1520,7 +1675,7 @@ FDF_status_t _FDFWriteObject(
     }
 
     meta.flags = 0;
-
+    __sync_add_and_fetch(&(bt->partitions[0]->stats.stat[BTSTAT_WRITE_CNT]),1);
     trxenter( cguid);
     if (flags & FDF_WRITE_MUST_NOT_EXIST) {
 		btree_ret = btree_insert(bt, key, keylen, data, datalen, &meta);
@@ -2018,7 +2173,9 @@ _FDFGetRange(struct FDF_thread_state *fdf_thread_state,
 	                                (btree_indexid_t) indexid, 
 	                                (btree_range_cursor_t **)cursor,
 	                                (btree_range_meta_t *)rmeta);
-
+        if (status == BTREE_SUCCESS) {
+            __sync_add_and_fetch(&(((btree_range_cursor_t *)*cursor)->btree->stats.stat[BTSTAT_RANGE_CNT]), 1);
+        }
 	ret = BtreeErr_to_FDFErr(status);
 	bt_rel_entry(index, false);
 	return(ret);
@@ -2053,6 +2210,7 @@ _FDFGetNextRange(struct FDF_thread_state *fdf_thread_state,
         if (bt == NULL) {
             return (ret);
 	}
+        __sync_add_and_fetch(&(((btree_range_cursor_t *)cursor)->btree->stats.stat[BTSTAT_RANGE_NEXT_CNT]), 1);
 	trxenter( cguid);
 	status = btree_range_get_next((btree_range_cursor_t *)cursor,
 	                              n_in,
@@ -2060,6 +2218,11 @@ _FDFGetNextRange(struct FDF_thread_state *fdf_thread_state,
 	                              (btree_range_data_t *)values
 	                              );
 	trxleave( cguid);
+        if (status == BTREE_SUCCESS) {
+             __sync_add_and_fetch(&(((btree_range_cursor_t *)cursor)->btree->stats.stat[BTSTAT_NUM_RANGE_NEXT_OBJS]), *n_out);
+        } else if (status == BTREE_QUERY_DONE) {
+             __sync_add_and_fetch(&(((btree_range_cursor_t *)cursor)->btree->stats.stat[BTSTAT_NUM_RANGE_NEXT_OBJS]), *n_out);
+        }
 
 	ret = BtreeErr_to_FDFErr(status);
 
@@ -2075,7 +2238,7 @@ _FDFGetRangeFinish(struct FDF_thread_state *fdf_thread_state,
 	btree_status_t    status;
 
 	my_thd_state = fdf_thread_state;;
-
+        __sync_add_and_fetch(&(((btree_range_cursor_t *)cursor)->btree->stats.stat[BTSTAT_RANGE_FINISH_CNT]), 1);
 	status = btree_range_query_end((btree_range_cursor_t *)cursor);
 	ret = BtreeErr_to_FDFErr(status);
 	return(ret);
@@ -2297,61 +2460,84 @@ static void msg_cb(int level, void *msg_data, char *filename, int lineno, char *
 
 FDF_ext_stat_t btree_to_fdf_stats_map[] = {
     /*{Btree stat, corresponding fdf stat, fdf stat type, NOP}*/
-    {BTSTAT_L1ENTRIES,        FDF_CACHE_STAT_L1_ENTRIES,         FDF_STATS_TYPE_CACHE_TO_FLASH,0}, /* 0 */
-    {BTSTAT_L1OBJECTS,        FDF_CACHE_STAT_L1_OBJECTS,         FDF_STATS_TYPE_CACHE_TO_FLASH,0},
+    /*{Btree stat, corresponding fdf stat, fdf stat type, NOP}*/
+    {BTSTAT_L1ENTRIES,        FDF_BTREE_L1_ENTRIES,         FDF_STATS_TYPE_BTREE,0},
+    {BTSTAT_L1OBJECTS,        FDF_BTREE_L1_OBJECTS,         FDF_STATS_TYPE_BTREE,0},
+    {BTSTAT_LEAF_L1HITS,      FDF_BTREE_LEAF_L1_HITS,       FDF_STATS_TYPE_BTREE,0},
+    {BTSTAT_NONLEAF_L1HITS,   FDF_BTREE_NONLEAF_L1_HITS,    FDF_STATS_TYPE_BTREE,0},
+    {BTSTAT_OVERFLOW_L1HITS,  FDF_BTREE_OVERFLOW_L1_HITS,   FDF_STATS_TYPE_BTREE,0},
 
-    {BTSTAT_LEAF_L1HITS,      FDF_CACHE_STAT_LEAF_L1_HITS,       FDF_STATS_TYPE_CACHE_TO_FLASH,0}, 
-    {BTSTAT_NONLEAF_L1HITS,   FDF_CACHE_STAT_NONLEAF_L1_HITS,    FDF_STATS_TYPE_CACHE_TO_FLASH,0},
-    {BTSTAT_OVERFLOW_L1HITS,  FDF_CACHE_STAT_OVERFLOW_L1_HITS,   FDF_STATS_TYPE_CACHE_TO_FLASH,0},
+    {BTSTAT_LEAF_L1MISSES,    FDF_BTREE_LEAF_L1_MISSES,     FDF_STATS_TYPE_BTREE,0},
+    {BTSTAT_NONLEAF_L1MISSES, FDF_BTREE_NONLEAF_L1_MISSES,  FDF_STATS_TYPE_BTREE,0},
+    {BTSTAT_OVERFLOW_L1MISSES,FDF_BTREE_OVERFLOW_L1_MISSES, FDF_STATS_TYPE_BTREE,0},
+    {BTSTAT_BACKUP_L1MISSES,  FDF_BTREE_BACKUP_L1_MISSES,   FDF_STATS_TYPE_BTREE,0},
+    {BTSTAT_BACKUP_L1HITS,    FDF_BTREE_BACKUP_L1_HITS,     FDF_STATS_TYPE_BTREE,0},
 
-    {BTSTAT_LEAF_L1MISSES,    FDF_CACHE_STAT_LEAF_L1_MISSES,     FDF_STATS_TYPE_CACHE_TO_FLASH,0}, /* 5 */
-    {BTSTAT_NONLEAF_L1MISSES, FDF_CACHE_STAT_NONLEAF_L1_MISSES,  FDF_STATS_TYPE_CACHE_TO_FLASH,0},
-    {BTSTAT_OVERFLOW_L1MISSES,FDF_CACHE_STAT_OVERFLOW_L1_MISSES, FDF_STATS_TYPE_CACHE_TO_FLASH,0},
+    {BTSTAT_LEAF_L1WRITES,    FDF_BTREE_LEAF_L1_WRITES,     FDF_STATS_TYPE_BTREE,0},
+    {BTSTAT_NONLEAF_L1WRITES, FDF_BTREE_NONLEAF_L1_WRITES,  FDF_STATS_TYPE_BTREE,0},
+    {BTSTAT_OVERFLOW_L1WRITES,FDF_BTREE_OVERFLOW_L1_WRITES, FDF_STATS_TYPE_BTREE,0},
+    {BTSTAT_LEAF_NODES,       FDF_BTREE_LEAF_NODES,      FDF_STATS_TYPE_BTREE,0},
+    {BTSTAT_NONLEAF_NODES,    FDF_BTREE_NONLEAF_NODES,   FDF_STATS_TYPE_BTREE,0},
 
-    {BTSTAT_BACKUP_L1MISSES,  FDF_CACHE_STAT_BACKUP_L1_MISSES,   FDF_STATS_TYPE_CACHE_TO_FLASH,0},
-    {BTSTAT_BACKUP_L1HITS,    FDF_CACHE_STAT_BACKUP_L1_HITS,     FDF_STATS_TYPE_CACHE_TO_FLASH,0},
+    {BTSTAT_OVERFLOW_NODES,   FDF_BTREE_OVERFLOW_NODES,  FDF_STATS_TYPE_BTREE,0},
+    {BTSTAT_LEAF_BYTES,       FDF_BTREE_LEAF_BYTES,      FDF_STATS_TYPE_BTREE,0},
+    {BTSTAT_NONLEAF_BYTES,    FDF_BTREE_NONLEAF_BYTES,   FDF_STATS_TYPE_BTREE,0},
+    {BTSTAT_OVERFLOW_BYTES,   FDF_BTREE_OVERFLOW_BYTES,  FDF_STATS_TYPE_BTREE,0},
+    {BTSTAT_NUM_OBJS,         FDF_BTREE_NUM_OBJS,        FDF_STATS_TYPE_BTREE,0},
 
-    {BTSTAT_LEAF_L1WRITES,    FDF_CACHE_STAT_LEAF_L1_WRITES,     FDF_STATS_TYPE_CACHE_TO_FLASH,0}, /* 10 */
-    {BTSTAT_NONLEAF_L1WRITES, FDF_CACHE_STAT_NONLEAF_L1_WRITES,  FDF_STATS_TYPE_CACHE_TO_FLASH,0},
-    {BTSTAT_OVERFLOW_L1WRITES,FDF_CACHE_STAT_OVERFLOW_L1_WRITES, FDF_STATS_TYPE_CACHE_TO_FLASH,0},
+    {BTSTAT_TOTAL_BYTES,      FDF_BTREE_TOTAL_BYTES,     FDF_STATS_TYPE_BTREE,0},
+    {BTSTAT_EVICT_BYTES,      FDF_BTREE_EVICT_BYTES,     FDF_STATS_TYPE_BTREE,0},
+    {BTSTAT_SPLITS,           FDF_BTREE_SPLITS,          FDF_STATS_TYPE_BTREE,0},
+    {BTSTAT_LMERGES,          FDF_BTREE_LMERGES,         FDF_STATS_TYPE_BTREE,0},
+    {BTSTAT_RMERGES,          FDF_BTREE_RMERGES,         FDF_STATS_TYPE_BTREE,0},
 
-    {BTSTAT_LEAF_NODES,       FDF_CACHE_STAT_BT_LEAF_NODES,      FDF_STATS_TYPE_CACHE_TO_FLASH,0},
-    {BTSTAT_NONLEAF_NODES,    FDF_CACHE_STAT_BT_NONLEAF_NODES,   FDF_STATS_TYPE_CACHE_TO_FLASH,0},
-    {BTSTAT_OVERFLOW_NODES,   FDF_CACHE_STAT_BT_OVERFLOW_NODES,  FDF_STATS_TYPE_CACHE_TO_FLASH,0}, /* 15 */
-    {BTSTAT_LEAF_BYTES,       FDF_CACHE_STAT_BT_LEAF_BYTES,      FDF_STATS_TYPE_CACHE_TO_FLASH,0},
-    {BTSTAT_NONLEAF_BYTES,    FDF_CACHE_STAT_BT_NONLEAF_BYTES,   FDF_STATS_TYPE_CACHE_TO_FLASH,0},
-    {BTSTAT_OVERFLOW_BYTES,   FDF_CACHE_STAT_BT_OVERFLOW_BYTES,  FDF_STATS_TYPE_CACHE_TO_FLASH,0},
+    {BTSTAT_LSHIFTS,          FDF_BTREE_LSHIFTS,         FDF_STATS_TYPE_BTREE,0},
+    {BTSTAT_RSHIFTS,          FDF_BTREE_RSHIFTS,         FDF_STATS_TYPE_BTREE,0},
+    {BTSTAT_EX_TREE_LOCKS,    FDF_BTREE_EX_TREE_LOCKS,   FDF_STATS_TYPE_BTREE,0},
+    {BTSTAT_NON_EX_TREE_LOCKS,FDF_BTREE_NON_EX_TREE_LOCKS,FDF_STATS_TYPE_BTREE,0},
+    {BTSTAT_GET_CNT,          FDF_BTREE_GET,            FDF_STATS_TYPE_BTREE,0},
 
-    {BTSTAT_NUM_OBJS,         FDF_CACHE_STAT_BT_NUM_OBJS,        FDF_STATS_TYPE_CACHE_TO_FLASH,0},
-    {BTSTAT_EVICT_BYTES,      FDF_CACHE_STAT_BT_EVICT_BYTES,     FDF_STATS_TYPE_CACHE_TO_FLASH,0}, /* 20 */
-    {BTSTAT_SPLITS,           FDF_CACHE_STAT_BT_SPLITS,          FDF_STATS_TYPE_CACHE_TO_FLASH,0},
-    {BTSTAT_LMERGES,          FDF_CACHE_STAT_BT_LMERGES,         FDF_STATS_TYPE_CACHE_TO_FLASH,0},
-    {BTSTAT_RMERGES,          FDF_CACHE_STAT_BT_RMERGES,         FDF_STATS_TYPE_CACHE_TO_FLASH,0},
-    {BTSTAT_LSHIFTS,          FDF_CACHE_STAT_BT_LSHIFTS,         FDF_STATS_TYPE_CACHE_TO_FLASH,0},
-    {BTSTAT_RSHIFTS,          FDF_CACHE_STAT_BT_RSHIFTS,         FDF_STATS_TYPE_CACHE_TO_FLASH,0}, /* 25 */
-    {BTSTAT_EX_TREE_LOCKS,    FDF_CACHE_STAT_BT_EX_TREE_LOCKS,   FDF_STATS_TYPE_CACHE_TO_FLASH,0},
-    {BTSTAT_NON_EX_TREE_LOCKS,FDF_CACHE_STAT_BT_NON_EX_TREE_LOCKS,FDF_STATS_TYPE_CACHE_TO_FLASH,0},
-    {BTSTAT_GET_CNT,          FDF_ACCESS_TYPES_APGRD,            FDF_STATS_TYPE_APP_REQ,0},
-    {BTSTAT_GET_PATH,         FDF_CACHE_STAT_BT_GET_PATH_LEN,    FDF_STATS_TYPE_CACHE_TO_FLASH,0},
-    {BTSTAT_CREATE_CNT,       FDF_ACCESS_TYPES_APCOP,            FDF_STATS_TYPE_APP_REQ,0},		  /* 30 */
-    {BTSTAT_CREATE_PATH,      FDF_CACHE_STAT_BT_CREATE_PATH_LEN, FDF_STATS_TYPE_CACHE_TO_FLASH,0},
-    {BTSTAT_SET_CNT,          FDF_ACCESS_TYPES_APSOB,            FDF_STATS_TYPE_APP_REQ,0},
-    {BTSTAT_SET_PATH,         FDF_CACHE_STAT_BT_SET_PATH_LEN,    FDF_STATS_TYPE_CACHE_TO_FLASH,0},
-    {BTSTAT_UPDATE_CNT,       FDF_ACCESS_TYPES_APPTA,            FDF_STATS_TYPE_APP_REQ,0},
-    {BTSTAT_UPDATE_PATH,      FDF_CACHE_STAT_BT_UPDATE_PATH_LEN, FDF_STATS_TYPE_CACHE_TO_FLASH, 0}, /* 35 */
-    {BTSTAT_DELETE_CNT,       FDF_ACCESS_TYPES_APDOB,            FDF_STATS_TYPE_APP_REQ, 0},
-    {BTSTAT_DELETE_PATH,      FDF_CACHE_STAT_BT_DELETE_PATH_LEN, FDF_STATS_TYPE_CACHE_TO_FLASH, 0},
-    {BTSTAT_FLUSH_CNT,        FDF_CACHE_STAT_BT_FLUSH_CNT,       FDF_STATS_TYPE_CACHE_TO_FLASH, 0},
-    {BTSTAT_DELETE_OPT_CNT,   FDF_CACHE_STAT_BT_DELETE_OPT_COUNT,FDF_STATS_TYPE_CACHE_TO_FLASH, 0},
-    {BTSTAT_MPUT_IO_SAVED,    FDF_CACHE_STAT_BT_MPUT_IO_SAVED,   FDF_STATS_TYPE_CACHE_TO_FLASH, 0}, /* 40 */
-    {BTSTAT_PUT_RESTART_CNT,  FDF_CACHE_STAT_BT_PUT_RESTART_CNT, FDF_STATS_TYPE_CACHE_TO_FLASH, 0},
-    {BTSTAT_SPCOPT_BYTES_SAVED, FDF_CACHE_STAT_BT_SPCOPT_BYTES_SAVED,   FDF_STATS_TYPE_CACHE_TO_FLASH, 0},
+    {BTSTAT_GET_PATH,         FDF_BTREE_GET_PATH_LEN,    FDF_STATS_TYPE_BTREE,0},
+    {BTSTAT_CREATE_CNT,       FDF_BTREE_CREATE,            FDF_STATS_TYPE_BTREE,0},
+    {BTSTAT_CREATE_PATH,      FDF_BTREE_CREATE_PATH_LEN, FDF_STATS_TYPE_BTREE,0},
+    {BTSTAT_SET_CNT,          FDF_BTREE_SET,            FDF_STATS_TYPE_BTREE,0},
+    {BTSTAT_SET_PATH,         FDF_BTREE_SET_PATH_LEN,    FDF_STATS_TYPE_BTREE,0},
 
-    {BTSTAT_NUM_SNAP_OBJS,    FDF_CACHE_STAT_BT_NUM_SNAP_OBJS,   FDF_STATS_TYPE_CACHE_TO_FLASH,0},
-    {BTSTAT_SNAP_DATA_SIZE,    FDF_CACHE_STAT_BT_SNAP_DATA_SIZE,   FDF_STATS_TYPE_CACHE_TO_FLASH,0},
-    {BTSTAT_NUM_SNAPS,    FDF_CACHE_STAT_BT_NUM_SNAPS,   FDF_STATS_TYPE_CACHE_TO_FLASH,0},			/* 45 */
-    {BTSTAT_BULK_INSERT_CNT,  FDF_CACHE_STAT_BT_BULK_INSERT_CNT, FDF_STATS_TYPE_CACHE_TO_FLASH, 0},
-    {BTSTAT_BULK_INSERT_FULL_NODES_CNT,  FDF_CACHE_STAT_BT_BULK_INSERT_FULL_NODES_CNT, FDF_STATS_TYPE_CACHE_TO_FLASH, 0},
+    {BTSTAT_UPDATE_CNT,       FDF_BTREE_UPDATE,            FDF_STATS_TYPE_BTREE,0},
+    {BTSTAT_UPDATE_PATH,      FDF_BTREE_UPDATE_PATH_LEN, FDF_STATS_TYPE_BTREE, 0},
+    {BTSTAT_DELETE_CNT,       FDF_ACCESS_TYPES_DELETE,            FDF_STATS_TYPE_APP_REQ, 0},
+    {BTSTAT_DELETE_PATH,      FDF_BTREE_DELETE_PATH_LEN, FDF_STATS_TYPE_BTREE, 0},
+    {BTSTAT_FLUSH_CNT,        FDF_BTREE_FLUSH_CNT,       FDF_STATS_TYPE_BTREE, 0},
+
+    {BTSTAT_DELETE_OPT_CNT,   FDF_BTREE_DELETE_OPT_COUNT,FDF_STATS_TYPE_BTREE, 0},
+    {BTSTAT_MPUT_IO_SAVED,    FDF_BTREE_MPUT_IO_SAVED,   FDF_STATS_TYPE_BTREE, 0},
+    {BTSTAT_PUT_RESTART_CNT,  FDF_BTREE_PUT_RESTART_CNT, FDF_STATS_TYPE_BTREE, 0},
+    {BTSTAT_SPCOPT_BYTES_SAVED, FDF_BTREE_SPCOPT_BYTES_SAVED,   FDF_STATS_TYPE_BTREE, 0},
+    {BTSTAT_MPUT_CNT,         FDF_ACCESS_TYPES_MPUT,            FDF_STATS_TYPE_APP_REQ, 0},
+
+    {BTSTAT_MSET_CNT,         FDF_ACCESS_TYPES_MSET,            FDF_STATS_TYPE_APP_REQ, 0},
+    {BTSTAT_RANGE_CNT,        FDF_ACCESS_TYPES_RANGE,            FDF_STATS_TYPE_APP_REQ, 0},
+    {BTSTAT_RANGE_NEXT_CNT,   FDF_ACCESS_TYPES_RANGE_NEXT,            FDF_STATS_TYPE_APP_REQ, 0},
+    {BTSTAT_RANGE_FINISH_CNT, FDF_ACCESS_TYPES_RANGE_FINISH,            FDF_STATS_TYPE_APP_REQ, 0},
+    {BTSTAT_RANGE_UPDATE_CNT, FDF_ACCESS_TYPES_RANGE_UPDATE,            FDF_STATS_TYPE_APP_REQ, 0},
+
+    {BTSTAT_CREATE_SNAPSHOT_CNT, FDF_ACCESS_TYPES_CREATE_SNAPSHOT,         FDF_STATS_TYPE_APP_REQ, 0},
+    {BTSTAT_DELETE_SNAPSHOT_CNT, FDF_ACCESS_TYPES_DELETE_SNAPSHOT,         FDF_STATS_TYPE_APP_REQ, 0},
+    {BTSTAT_LIST_SNAPSHOT_CNT,   FDF_ACCESS_TYPES_LIST_SNAPSHOT,         FDF_STATS_TYPE_APP_REQ, 0},
+    {BTSTAT_TRX_START_CNT,       FDF_ACCESS_TYPES_TRX_START,         FDF_STATS_TYPE_APP_REQ, 0},
+    {BTSTAT_TRX_COMMIT_CNT,      FDF_ACCESS_TYPES_TRX_START,         FDF_STATS_TYPE_APP_REQ, 0},
+
+    {BTSTAT_NUM_MPUT_OBJS,       FDF_BTREE_NUM_MPUT_OBJS,         FDF_STATS_TYPE_BTREE, 0},
+    {BTSTAT_NUM_RANGE_NEXT_OBJS,      FDF_BTREE_NUM_RANGE_NEXT_OBJS,         FDF_STATS_TYPE_BTREE, 0},
+    {BTSTAT_NUM_RANGE_UPDATE_OBJS,      FDF_BTREE_NUM_RANGE_UPDATE_OBJS,     FDF_STATS_TYPE_BTREE, 0},
+    {BTSTAT_NUM_SNAP_OBJS,    FDF_BTREE_NUM_SNAP_OBJS,   FDF_STATS_TYPE_BTREE,0},
+    {BTSTAT_SNAP_DATA_SIZE,    FDF_BTREE_SNAP_DATA_SIZE,   FDF_STATS_TYPE_BTREE,0},
+
+    {BTSTAT_NUM_SNAPS,    FDF_BTREE_NUM_SNAPS,   FDF_STATS_TYPE_BTREE,0},
+    {BTSTAT_BULK_INSERT_CNT,  FDF_BTREE_NUM_BULK_INSERT_CNT, FDF_STATS_TYPE_BTREE, 0},
+    {BTSTAT_BULK_INSERT_FULL_NODES_CNT,  FDF_BTREE_NUM_BULK_INSERT_FULL_NODES_CNT, FDF_STATS_TYPE_BTREE, 0},
+    {BTSTAT_READ_CNT, FDF_ACCESS_TYPES_READ,         FDF_STATS_TYPE_APP_REQ, 0},
+    {BTSTAT_WRITE_CNT, FDF_ACCESS_TYPES_WRITE,         FDF_STATS_TYPE_APP_REQ, 0},
 };
 
 FDF_status_t btree_get_all_stats(FDF_cguid_t cguid, 
@@ -2480,6 +2666,8 @@ _FDFMPut(struct FDF_thread_state *fdf_ts,
 	 * always write all objects */
 	objs_written = 0;
 	objs_to_write = num_objs;
+
+         __sync_add_and_fetch(&(bt->partitions[0]->stats.stat[BTSTAT_MPUT_CNT]),1);
 	FDFTransactionService( fdf_ts, 0, 0);
 	do {
 		objs_to_write -= objs_written;
@@ -2497,7 +2685,9 @@ _FDFMPut(struct FDF_thread_state *fdf_ts,
 	FDFTransactionService( fdf_ts, 1, 0);
 
 	*objs_done = num_objs - (objs_to_write - objs_written);
-
+        if( btree_ret == BTREE_SUCCESS ) {
+             __sync_add_and_fetch(&(bt->partitions[0]->stats.stat[BTSTAT_NUM_MPUT_OBJS]),num_objs);
+        }
 	ret = BtreeErr_to_FDFErr(btree_ret);
 	bt_rel_entry(index, true);
 	return ret;
@@ -2824,7 +3014,7 @@ _FDFRangeUpdate(struct FDF_thread_state *fdf_ts,
 		ret = FDF_FAILURE;
 		goto out;
 	}
-
+        __sync_add_and_fetch(&(bt->partitions[0]->stats.stat[BTSTAT_RANGE_UPDATE_CNT]),1);
 	do {
 		objs_done = 0;
 		btree_ret = btree_range_update(bt, &meta, range_key, range_key_len,
@@ -2858,6 +3048,10 @@ _FDFRangeUpdate(struct FDF_thread_state *fdf_ts,
 		}
 	} while ((btree_ret == BTREE_SUCCESS) && (markerp->set == true));
 
+        if( btree_ret == BTREE_SUCCESS ) {
+            __sync_add_and_fetch(&(bt->partitions[0]->stats.stat[BTSTAT_NUM_RANGE_UPDATE_OBJS]),
+                                                                                     *objs_updated);
+        }
 	ret = BtreeErr_to_FDFErr(btree_ret);	
 
 out:

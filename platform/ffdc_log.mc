@@ -3378,6 +3378,8 @@
 160204 failed to allocate hash tables
 160205 evicting, pth_id=%d hand=%u address=%u index=%u
 160206 FDFGetContainerStats failed for VDC (error:%s)
+160207 Programming error: Numbers of stats defined in FDF_flash_stat_t(%d) does not match array fdf_stats_flash(%d)
+160208 Programming error: Numbers of stats defined in FDF_Btree_stat_t(%d) does not match array fdf_stats_btree(%d)
 
 
 # rico

@@ -194,22 +194,54 @@ char *get_stats_catogory_desc_str(FDF_STATS_TYPE type) {
     else if( type == FDF_STATS_TYPE_CONTAINER_FLASH )  {
         return "Container evictions";;
     }
+    else if(type == FDF_STATS_TYPE_BTREE ) {
+        return "Btree layer statistics";
+    }
     return "Unknown type:";
 }
 
-void print_stats(FILE *fp, FDF_stats_t *stats) {
-    int i, stats_type, category;
+
+void print_stats_btree(FILE *fp, FDF_stats_t *stats) {
+    int i;
 
     fprintf(fp,"  %s:\n",get_stats_catogory_desc_str(FDF_STATS_TYPE_APP_REQ));
-    for (i = 0; i < FDF_N_ACCESS_TYPES; i++ ) {
-        if( stats->n_accesses[i] == 0 ) {
+    for (i = 0; i < FDF_N_ACCESS_TYPES; i++ ) { 
+        if( (stats->n_accesses[i] == 0) || ( i < FDF_ACCESS_TYPES_READ ) ){ 
+            continue;
+        }   
+        fprintf(fp,"    %s = %lu\n",get_access_type_stats_desc(i), 
+                                                          stats->n_accesses[i]);
+    }   
+    fprintf(fp,"  %s:\n",get_stats_catogory_desc_str(FDF_STATS_TYPE_BTREE));
+    for (i = 0; i < FDF_N_BTREE_STATS; i++ ) {
+        if( stats->btree_stats[i] == 0 ) {
             continue;
         }
-        fprintf(fp,"    %s = %lu\n",get_access_type_stats_desc(i), 
+        fprintf(fp,"    %s = %lu\n",get_btree_stats_desc(i),
+                                                      stats->btree_stats[i]);
+    }
+}
+
+void print_stats(FILE *fp, FDF_stats_t *stats, int cntr_stat) {
+    int i, stats_type, category;
+    char space[8] = "  ";
+
+    if( is_btree_loaded() && (cntr_stat == 1 ) ) { 
+        /* Btree enabled and function is called to print per cont. stats */
+        print_stats_btree(fp,stats);
+        fprintf(fp,"  %s:\n","FDF Layer statistics");
+        snprintf(space,5,"%s","    ");
+    }
+    fprintf(fp,"%s%s:\n",space,get_stats_catogory_desc_str(FDF_STATS_TYPE_APP_REQ));
+    for (i = 0; i < FDF_N_ACCESS_TYPES; i++ ) {
+        if( (stats->n_accesses[i] == 0 ) || ( i >= FDF_ACCESS_TYPES_READ ) ) {
+            continue;
+        }
+        fprintf(fp,"%s  %s = %lu\n",space,get_access_type_stats_desc(i), 
                                                           stats->n_accesses[i]);
     }
     stats_type = FDF_STATS_TYPE_OVERWRITES; 
-    fprintf(fp,"  %s:\n",
+    fprintf(fp,"%s%s:\n",space,
                         get_stats_catogory_desc_str(FDF_STATS_TYPE_OVERWRITES));
     for (i = 0; i < FDF_N_CACHE_STATS; i++ ) {
         if( (i != FDF_CACHE_STAT_CACHE_MISSES) &&
@@ -217,12 +249,18 @@ void print_stats(FILE *fp, FDF_stats_t *stats) {
             (stats->cache_stats[i] == 0 )  ) {
             continue;
         }
+        /* Do not print 0 stats for cache miss and hit in the container section */
+        if( (stats->cache_stats[i] == 0 ) && (cntr_stat == 1) && 
+            ((i == FDF_CACHE_STAT_CACHE_MISSES) || (i == FDF_CACHE_STAT_CACHE_HITS)))
+        {
+            continue;
+        }
         category = get_cache_type_stats_category(i); 
         if ( category != stats_type )  {
-            fprintf(fp,"  %s:\n", get_stats_catogory_desc_str(category));
+            fprintf(fp,"%s%s:\n",space, get_stats_catogory_desc_str(category));
             stats_type = category;
         }
-        fprintf(fp,"    %s = %lu\n",get_cache_type_stats_desc(i),
+        fprintf(fp,"%s  %s = %lu\n",space,get_cache_type_stats_desc(i),
                                                         stats->cache_stats[i]);
     }
 }
@@ -384,23 +422,25 @@ FDF_status_t print_container_stats_by_cguid( struct FDF_thread_state *thd_state,
     get_cntr_info(cguid,NULL, 0, &num_objs, &used_space, NULL, NULL);
     fprintf(fp,"Timestamp:%sPer Container Statistics\n"
                           "  Container Properties:\n"
-                          "    name         = %s\n"
-                          "    cguid        = %lu\n"
-                          "    Size         = %lu kbytes\n"
-                          "    persistence  = %s\n"
-                          "    eviction     = %s\n"
-                          "    writethrough = %s\n"
-                          "    fifo         = %s\n"
-                          "    async_writes = %s\n"
-                          "    durability   = %s\n"
-                          "    compression  = %s\n"
-                          "    num_objs     = %lu\n"
-                          "    used_space   = %lu\n",ctime(&t),
+                          "    name             = %s\n"
+                          "    cguid            = %lu\n"
+                          "    Size             = %lu kbytes\n"
+                          "    persistence      = %s\n"
+                          "    eviction         = %s\n"
+                          "    writethrough     = %s\n"
+                          "    fifo             = %s\n"
+                          "    async_writes     = %s\n"
+                          "    durability       = %s\n"
+                          "    compression      = %s\n"
+                          "    bypass_fdf_cache = %s\n"
+                          "    num_objs         = %lu\n"
+                          "    used_space       = %lu\n",ctime(&t),
             cname,cguid, props.size_kb, get_bool_str(props.persistent),
             get_bool_str(props.evicting),get_bool_str(props.writethru),
             get_bool_str(props.fifo_mode),get_bool_str(props.async_writes),
             get_durability_str(props.durability_level),
-            get_bool_str(props.compression), num_objs, used_space);
+            get_bool_str(props.compression), get_bool_str(props.flash_only), 
+            num_objs, used_space);
 
     /* Get Per container stats */
     memset(&stats,0,sizeof(FDF_stats_t));
@@ -410,7 +450,7 @@ FDF_status_t print_container_stats_by_cguid( struct FDF_thread_state *thd_state,
         	fprintf(fp,"FDFGetContainerStats failed for %s(error:%s)",cname,FDFStrError(rc));
         return FDF_FAILURE;
     }
-    print_stats(fp,&stats);
+    print_stats(fp,&stats, 1);
 
 	// Output per container evictions 
 	cmap = fdf_cmap_get_by_cguid( cguid ); 
@@ -443,7 +483,7 @@ FDF_status_t print_container_stats_by_cguid( struct FDF_thread_state *thd_state,
         	fprintf(fp,"FDFGetStats failed for %s(error:%s)", cname,FDFStrError(rc));
         return FDF_FAILURE;
     }
-    print_stats(fp,&stats);
+    print_stats(fp,&stats, 0);
     fflush(fp);
     return FDF_SUCCESS;
 }

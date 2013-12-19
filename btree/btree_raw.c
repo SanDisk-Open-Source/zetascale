@@ -111,6 +111,8 @@ extern struct PMap *global_l1cache;
 extern int btree_parallel_flush_disabled;
 extern int btree_parallel_flush_minbufs;
 extern uint64_t fdf_flush_pstats_frequency;
+extern uint64_t l1cache_size;
+extern uint64_t l1cache_partitions;
 
 //  used to count depth of btree traversal for writes/deletes
 __thread int _pathcnt;
@@ -226,6 +228,7 @@ static btree_raw_mem_node_t *create_new_node(btree_raw_t *btree, uint64_t logica
 int init_l1cache();
 void destroy_l1cache();
 void clean_l1cache(btree_raw_t* btree);
+uint32_t get_btree_node_size();
 
 btree_status_t deref_l1cache(btree_raw_t *btree);
 static void btree_sync_flush_entry(btree_raw_t *btree, struct FDF_thread_state *thd_state, btSyncRequest_t *list);
@@ -407,6 +410,7 @@ btree_raw_init(uint32_t flags, uint32_t n_partition, uint32_t n_partitions, uint
     if (bt == NULL) {
         return(NULL);
     }
+    bt->version = BTREE_VERSION;
 
     if(global_l1cache){
         bt->l1cache = global_l1cache;
@@ -1869,22 +1873,47 @@ btree_status_t btree_raw_get(struct btree_raw *btree, char *key, uint32_t keylen
 int
 init_l1cache()
 {
-	int n = 0;
+    int n = 0;
+    char *fdf_prop = NULL;
 
-	char *env = getenv("BTREE_L1CACHE_SIZE");
-	n_global_l1cache_buckets = env ? (uint64_t)atoll(env) : 0;
-	if ( n_global_l1cache_buckets ){
-		n_global_l1cache_buckets = n_global_l1cache_buckets / 16 / 8192;
-	} else {
-		n_global_l1cache_buckets = DEFAULT_N_L1CACHE_BUCKETS;
-	}
+    n_global_l1cache_buckets = 0;
+    /* Check if cache size is configured through fdf property file  */
+    fdf_prop = (char *)FDFGetProperty("FDF_BTREE_L1CACHE_SIZE",NULL);
+    if( fdf_prop != NULL ) {
+         n_global_l1cache_buckets = (uint64_t)atoll(fdf_prop);
+    }
+    else {
+         /* Check if the size is set through env. variable */
+         char *env = getenv("BTREE_L1CACHE_SIZE");
+         n_global_l1cache_buckets = env ? (uint64_t)atoll(env) : 0;
+    }
+    l1cache_size = n_global_l1cache_buckets;
 
-    char *p = getenv("N_L1CACHE_PARTITIONS");
-    if(p)
-        n = atoi(p);
+    if ( n_global_l1cache_buckets ){
+        n_global_l1cache_buckets = n_global_l1cache_buckets / 16 / get_btree_node_size();
+    } else {
+        n_global_l1cache_buckets = DEFAULT_N_L1CACHE_BUCKETS;
+    }
+    if ( !l1cache_size ) {
+        l1cache_size = n_global_l1cache_buckets * 16 * 8192;
+    }
+
+    /* check if cache partitions is configured through fdf property */
+    fdf_prop = (char *)FDFGetProperty("FDF_N_L1CACHE_PARTITIONS",NULL);
+    if( fdf_prop != NULL ) {
+        n = atoi(fdf_prop);
+    }
+    else {
+        /* check if cache partitions is configured through env */
+        char *p = getenv("N_L1CACHE_PARTITIONS");
+        if(p)
+            n = atoi(p);
+    }
+
     if(n <=0 || n > 10000000)
         n = DEFAULT_N_L1CACHE_PARTITIONS;
 
+    l1cache_partitions = n;
     global_l1cache = PMapInit(n, n_global_l1cache_buckets / n + 1, 16 * (n_global_l1cache_buckets / n + 1), 1, l1cache_replace);
     if (global_l1cache == NULL) {
         return(1);
@@ -5339,7 +5368,6 @@ btree_raw_rupdate(
 	// Hard coded for now, should change it to be a configurable
 	// parameter per btree
 	//range_cmp_cb_args = btree->cmp_cb_data;
-
 	ret = btree_raw_rupdate_low_root(btree, meta,
 					 range_key, range_key_len, 
 					 callback_func, callback_args,

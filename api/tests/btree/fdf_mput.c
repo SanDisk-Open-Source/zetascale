@@ -22,6 +22,7 @@ uint32_t flags_global = 0;
 int num_thds = 1;
 
 int cnt_id = 0;
+void verify_stats(struct FDF_thread_state *thd_state, FDF_cguid_t cguid);
 
 #if 0
 static int 
@@ -207,10 +208,7 @@ do_mput(struct FDF_thread_state *thd_state, FDF_cguid_t cguid,
 	}
 
 	printf("Verified the mput objects using reads, mismatch = %"PRId64".\n", mismatch);
-
-
-
-#if 1
+#if 0
 	key_num = 0;
 	for (k = 1; k <= num_mputs; k++) {
 
@@ -286,6 +284,30 @@ void launch_thds()
 	}
 
 }
+
+void verify_stats(struct FDF_thread_state *thd_state, FDF_cguid_t cguid) {
+    FDF_stats_t stats;
+    fprintf( stderr, "Verifying stats \n");
+    /* Check FDF container stats */
+    FDFGetContainerStats(thd_state,cguid,&stats);  
+    if( (use_mput) && (
+        (stats.n_accesses[FDF_ACCESS_TYPES_MPUT] != ( num_mputs * num_thds )) ||
+        (stats.btree_stats[FDF_BTREE_NUM_MPUT_OBJS] != (num_mputs * num_thds * num_objs) ) ||
+        (stats.cntr_stats[FDF_CNTR_STATS_NUM_OBJS] != (num_mputs * num_thds * num_objs) )  ||
+        (stats.cntr_stats[FDF_CNTR_STATS_USED_SPACE] == 0 ) ) ){
+        fprintf( stderr, "Stats Verification failed:\n"
+                         "num_puts     :Expected:%d Actual:%lu\n"
+                         "num_mput_objs:Expected:%d Actual:%lu\n"
+                         "num_objs     :Expected:%d Actual:%lu\n"
+                         "used_space   :Expected:>0 Actual:%lu\n",
+                         num_mputs * num_thds, stats.n_accesses[FDF_ACCESS_TYPES_MPUT],
+                         num_mputs * num_thds * num_objs, stats.btree_stats[FDF_BTREE_NUM_MPUT_OBJS],
+                         num_mputs * num_thds * num_objs, stats.cntr_stats[FDF_CNTR_STATS_NUM_OBJS],
+                         stats.cntr_stats[FDF_CNTR_STATS_USED_SPACE]);
+        exit(-1);
+    }  
+}
+
 void
 do_op(uint32_t flags_in) 
 {
@@ -320,7 +342,7 @@ do_op(uint32_t flags_in)
 
 	flags_global = flags_in;
 	launch_thds(); //actual operations
-
+        verify_stats(thd_state,cguid);
 	FDFCloseContainer(thd_state, cguid);
 	FDFDeleteContainer(thd_state, cguid);
 
