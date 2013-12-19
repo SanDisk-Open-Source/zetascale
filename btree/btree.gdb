@@ -11,24 +11,32 @@ define  bt_leaf_print_meta1
 set $meta = (key_meta_type1_t *) $arg0
 #printf "Called meta print1"
 p *$meta
+set $key=(char *)$meta + sizeof(key_meta_type1_t)
+p $key
 end
 
 define  bt_leaf_print_meta2
 set $meta = (key_meta_type2_t *) $arg0
 #printf "Called meta print2"
 p *$meta
+set $key=(char *)$meta + sizeof(key_meta_type2_t)
+p $key
 end
 
 define  bt_leaf_print_meta3
 set $meta = (key_meta_type3_t *) $arg0
 #printf "Called meta print3"
 p *$meta
+set $key=(char *)$meta + sizeof(key_meta_type3_t)
+p $key
 end
 
 define  bt_leaf_print_meta4
-set $meta = (key_meta_type3_t *) $arg0
+set $meta = (key_meta_type4_t *) $arg0
 #printf "Called meta print4"
 p *$meta
+set $key=(char *)$meta + sizeof(key_meta_type4_t)
+p $key
 end
 
 #print metadata of a key 
@@ -48,7 +56,7 @@ if ($type == BTREE_KEY_META_TYPE3)
 	bt_leaf_print_meta3 $meta
 end
 if ($type == BTREE_KEY_META_TYPE4) 
-	bt_leaf_print_meta4 $meta;
+	bt_leaf_print_meta4 $meta
 end
 end
 
@@ -94,6 +102,7 @@ set $pvk = ((node_vkey_t *)$node->keys) + $num
 set $key_len = $pvk->keylen
 set $key = (char *)$node + $pvk->keypos
 set $ptr = $pvk->ptr
+p $key
 printf "Key Len = %d, Key = %s, Child ID = %ld.\n", $key_len, $key, $ptr
 end
 

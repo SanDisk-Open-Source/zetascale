@@ -1258,11 +1258,11 @@ done:
 	dst_index = items_copied;
 	dst_nkeys = n->nkeys + 1;	
 
-	new_used_space = (n->nkeys + 1) * sizeof(entry_header_t) +
-			 dst_offset - ((uint64_t) tmp_node_mem +
-				       (n->nkeys + 1) * sizeof(entry_header_t));
+	new_used_space = dst_offset - (uint64_t) tmp_node_mem;
 
 	dbg_assert(new_used_space > old_used_space);
+	dbg_assert(dry_run || new_used_space <= bt->nodesize_less_hdr);
+
 	*bytes_increased = new_used_space - old_used_space;
 
 	if (dry_run) {
@@ -1547,6 +1547,10 @@ btree_leaf_remove_key_index(btree_raw_t *bt, btree_raw_node_t *n,
 	return btree_leaf_remove_key_index_int(bt, n, index, key_info, bytes_decreased, false);
 }
 
+#ifdef DEBUG_BUILD
+static __thread char tmp_node1[8200];
+#endif 
+
 bool
 btree_leaf_update_key(btree_raw_t *bt, btree_raw_node_t *n, char *key, uint32_t keylen,
 	      char *data, uint64_t datalen, uint64_t seqno, uint64_t ptr,
@@ -1558,7 +1562,9 @@ btree_leaf_update_key(btree_raw_t *bt, btree_raw_node_t *n, char *key, uint32_t 
 	int32_t bytes_increased = 0;
 	int32_t bytes_decreased = 0;
 	int32_t size_expected = 0;
+
 #ifdef DEBUG_BUILD
+	btree_raw_node_t *tmp_node = (btree_raw_node_t *) tmp_node1;
 	bool res1 = false;
 	int index1 = -1;
 #endif
@@ -1571,6 +1577,11 @@ btree_leaf_update_key(btree_raw_t *bt, btree_raw_node_t *n, char *key, uint32_t 
 	key_info.datalen = datalen;
 	key_info.key = key;
 	key_info.tombstone = (meta->flags & INSERT_TOMBSTONE) ? true : false;
+
+
+#ifdef DEBUG_BUILD
+	memcpy(tmp_node, n, bt->nodesize);
+#endif
 
 	if (key_exists) {
 		res = btree_leaf_remove_key_index_int(bt, n, index, 
@@ -1972,14 +1983,12 @@ btree_leaf_is_full_index(btree_raw_t *bt, btree_raw_node_t *n, char *key, uint32
 	used_space = btree_leaf_used_space(bt, n);
 	bytes_free = bt->nodesize_less_hdr - used_space;
 
-#if 1
 	if (index >= n->nkeys) {
 		max_bytes_needed = BTREE_LEAF_ENTRY_MAX_SIZE(keylen, datalen);
 		if (max_bytes_needed < bytes_free) {
 			return false;
 		}
 	}
-#endif 
 
 #ifdef COLLECT_TIME_STATS
 	uint64_t start_time = 0;
@@ -1990,29 +1999,39 @@ btree_leaf_is_full_index(btree_raw_t *bt, btree_raw_node_t *n, char *key, uint32
 	if (key_exists) {
 		int32_t bytes_increased = 0;
 		int32_t bytes_decreased = 0;
+		key_meta_t key_meta = {0};
+		uint64_t old_datalen = 0;
+		uint64_t new_datalen = 0;
 
 #ifdef DEBUG_BUILD
 		res = btree_leaf_find_key2(bt, n ,key, keylen, &index1);
 		dbg_assert(res == true);
 		dbg_assert(index1 == index);
 #endif
-
-		res = btree_leaf_remove_key_index_int(bt, n, index, &key_info,
-						      &bytes_decreased, true);
-		dbg_assert(res == true);
-
-		key_info.key = key;
-		key_info.keylen = keylen;
-		key_info.datalen = datalen;
+		/*
+		 * The space required for update must be equal to
+		 * difference in data length + difference due to change in prefix length +
+		 * difference due to change in meta type.
+		 * the first is is calculated, the second is not supposed to change.
+		 * In order to accomodate 3rd, we calculate max size for meta type of this
+		 * object with new data.
+		 */
+		btree_leaf_get_meta(n, index, &key_meta);
+		key_meta.compact_meta = false;
+		key_meta.meta_type = get_key_meta_type(bt, &key_meta);
+		
+		new_datalen = datalen;
+		old_datalen = key_meta.datalen;
 		if (datalen >= bt->big_object_size) {
-			key_info.ptr=0xdeadc0de; //pure hack
+			new_datalen = 0;
 		}
-		key_info.tombstone = (meta->flags & INSERT_TOMBSTONE) ? true: false;
 
-		res = btree_leaf_insert_key_index(bt, n, key, keylen, global_tmp_data,
-						  datalen, &key_info, index, &bytes_increased, true);
-		dbg_assert(res == true);
-		bytes_needed = bytes_increased - bytes_decreased;
+		if (key_meta.datalen >= bt->big_object_size) {
+			old_datalen = 0;
+		}
+
+		bytes_needed = new_datalen - old_datalen + get_meta_type_to_size(key_meta.meta_type); 
+
 		if (bytes_needed < 0) {
 			bytes_needed = 0;
 		}

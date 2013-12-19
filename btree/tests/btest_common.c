@@ -20,6 +20,7 @@
 #include "../btree.h"
 #include "../trxcmd.h"
 #include "btest_common.h"
+#include "../btree_malloc.h"
 
 extern int init_l1cache();
 
@@ -557,7 +558,7 @@ btest_life_cycle(btest_cfg_t *cfg)
 			if (memcmp(cfg->datas[nkey], pdata, datalen)) {
 				Error("Data mismatch on btree_get for key '%s' (i=%lld)!", keytmp, i);
 			}
-			free(pdata);
+			btree_free(pdata);
 		} else if (p == 2) {
 
 			// do a set operation

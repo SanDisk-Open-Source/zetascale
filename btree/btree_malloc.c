@@ -42,11 +42,6 @@ btree_memcpy(void *dst, const void *src, size_t length, bool dry_run)
 {
 
 	void *p = NULL;
-
-	if (length == 0) {
-		return;
-	}
-
 #ifdef COLLECT_TIME_STATS 
 	if (!dry_run) {
 		uint64_t start_time = 0;
@@ -66,7 +61,6 @@ btree_memcpy(void *dst, const void *src, size_t length, bool dry_run)
 #endif 
 
 }
-
 
 void *
 btree_malloc(size_t nbytes)
