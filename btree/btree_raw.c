@@ -4988,7 +4988,7 @@ btree_rupdate_raw_leaf(
 	        uint32_t *objs_updated,
 	        btree_rupdate_marker_t **marker)
 {
-	btree_status_t ret = BTREE_SUCCESS;
+	btree_status_t ret1 = BTREE_SUCCESS, ret2 = BTREE_SUCCESS;
 	btree_rupdate_cb_t cb_func = 
 			(btree_rupdate_cb_t) callback_func;
 	char *new_data = NULL;
@@ -5016,7 +5016,7 @@ btree_rupdate_raw_leaf(
 	bufs = (char **) malloc(sizeof(char *) * 
 				btree_leaf_num_entries(btree, node->pnode));
 	if (bufs == NULL) {
-		ret = BTREE_FAILURE;
+		ret1 = BTREE_FAILURE;
 		goto exit;
 	}
 	
@@ -5038,10 +5038,10 @@ btree_rupdate_raw_leaf(
 			continue;
 		}
 
-		ret = get_leaf_data(btree, node->pnode, key_out, key_out_len,
+		ret1 = get_leaf_data(btree, node->pnode, key_out, key_out_len,
 				     meta, 0, &bufs[count], &datalen, &index, 0);
 
-		if (ret != BTREE_SUCCESS) {
+		if (ret1 != BTREE_SUCCESS) {
 			goto done;
 		}
 
@@ -5077,7 +5077,7 @@ btree_rupdate_raw_leaf(
 			/*
 			 * Node does not have space for new data.
 			 */
-			ret = BTREE_RANGE_UPDATE_NEEDS_SPACE;
+			ret1 = BTREE_RANGE_UPDATE_NEEDS_SPACE;
 
 			/*
 			 * Set this key and data in marker to retry single key update
@@ -5099,7 +5099,7 @@ btree_rupdate_raw_leaf(
 		}
 		
 		if (seqno == -1) {
-			ret = BTREE_FAILURE;
+			ret1 = BTREE_FAILURE;
 			break;
 		}
 
@@ -5155,7 +5155,7 @@ exit:
 	 * the deref_l1cache will release the lock of modified nodes.
          * Also the references of looked up nodes.
 	 */
-	ret = deref_l1cache(btree);
+	ret2 = deref_l1cache(btree);
 
 	/*
 	 * Free the temporary buffers.
@@ -5170,7 +5170,11 @@ exit:
 	}
 
 	assert(referenced_nodes_count == 0);
-	return ret;
+	if (ret2 == BTREE_SUCCESS) {
+		return(ret1);
+	} else {
+		return(ret2);
+	}
 }
 
 static btree_status_t
