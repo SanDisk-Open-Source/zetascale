@@ -5922,7 +5922,7 @@ recovery_packet_dump( FILE *f, uint32_t blkno, uint32_t nblock, size_t ocount, v
 	char *data = buf + sizeof( mcd_osd_meta_t) + meta->key_len;
 	char *data2 = 0;
 	if (meta->uncomp_datalen) {
-		data2 = malloc( meta->uncomp_datalen);
+		data2 = malloc( max( dlen, meta->uncomp_datalen));
 		memcpy( data2, data, dlen);
 		data = data2;
 		size_t udlen;
@@ -5938,11 +5938,17 @@ recovery_packet_dump( FILE *f, uint32_t blkno, uint32_t nblock, size_t ocount, v
 		ocount = dlen;
 	for (uint i=0; i<ocount; ++i) {
 		uint c = ((uchar *)data)[i];
-		if ((' '<c && c<0177)
-		and (c != '\\'))
+		unless (c)
+			putc_unlocked( '@', f);
+		else if ((' '<c && c<0177)
+		and (c != '\\')
+		and (c != '@'))
 			putc_unlocked( c, f);
-		else
-			fprintf( f, "\\%03o", c);
+		else {
+			putc_unlocked( '\\', f);
+			putc_unlocked( "0123456789ABCDEF"[(c>>1*4)%16], f);
+			putc_unlocked( "0123456789ABCDEF"[(c>>0*4)%16], f);
+		}
 	}
 	fputc( '\n', f);
 	if (data2)
@@ -5986,7 +5992,7 @@ recovery_packet_save( packet_t *r, void *context, mcd_osd_shard_t *shard)
 		j;
 
 	char *SAVE_COMMAND = "sort -k 1,1 -k 3,3nr -k 5,5 -k 4,4n |"
-		"awk '{print | \"gzip >\"ENVIRON[\"FDFRECOVERYDIR\"]\"/cguid-\"$1\".gz\"}'";
+		"awk '{print | \"gzip -1 >\"ENVIRON[\"FDFRECOVERYDIR\"]\"/cguid-\"$1\".gz\"}'";
 	fflush( stdout);
 	for (i=0; i<nel( r->btab); ++i)
 		while ((j = r->btab[i].nrec)

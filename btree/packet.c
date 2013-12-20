@@ -250,14 +250,16 @@ readlines( rec_packet_t *r, uint *count, int old)
 		while (*p)
 			if (*p == '\\') {
 				unless ((p[1])
-				and (p[2])
-				and (p[3])) {
+				and (p[2])) {
 					baddata( );
 					return (0);
 				}
-				*q++ = p[1]-'0'<<2*3 | p[2]-'0'<<1*3 | p[3]-'0'<<0*3;
-				p += 4;
+				static char HEX[] = "0123456789ABCDEF";
+				*q++ = strchr( HEX, p[1])-HEX<<4 | strchr( HEX, p[2])-HEX;
+				p += 3;
 			}
+			else if (*p == '@')
+				*q++ = 0;
 			else
 				*q++ = *p++;
 		unless (c < nel( r->lvec)) {
@@ -306,12 +308,16 @@ statsreadline( stats_packet_t *s)
 	while (*p)
 		if (*p == '\\') {
 			unless ((p[1])
-			and (p[2])
-			and (p[3]))
-				return (badstatsdata( ));
-			*q++ = p[1]-'0'<<2*3 | p[2]-'0'<<1*3 | p[3]-'0'<<0*3;
-			p += 4;
+			and (p[2])) {
+				baddata( );
+				return (0);
+			}
+			static char HEX[] = "0123456789ABCDEF";
+			*q++ = strchr( HEX, p[1])-HEX<<4 | strchr( HEX, p[2])-HEX;
+			p += 3;
 		}
+		else if (*p == '@')
+			*q++ = 0;
 		else
 			*q++ = *p++;
 	s->nbyte = q - s->lbuf1;

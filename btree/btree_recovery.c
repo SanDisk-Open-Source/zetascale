@@ -113,7 +113,6 @@ gen_robj_list(btree_raw_t *bt, btree_raw_node_t **nodes,
 	uint32_t alloc_cnt = 0;
 	uint32_t used_cnt = 0;
 	btree_robj_info_t *robj_buf = NULL;
-	key_stuff_t ks;
 	btree_robj_info_t *r;
 	btree_robj_info_t *e;
 	btree_robj_info_t *prev_e;
@@ -145,8 +144,6 @@ gen_robj_list(btree_raw_t *bt, btree_raw_node_t **nodes,
 		}
 
 		for (j = nodes[i]->nkeys - 1; j >= 0; j--) {
-			(void) get_key_stuff(bt, nodes[i], j, &ks);
-
 			if (used_cnt == alloc_cnt) {
 				btree_robj_info_t *tmp_buf = robj_buf;
 
@@ -157,7 +154,7 @@ gen_robj_list(btree_raw_t *bt, btree_raw_node_t **nodes,
 				robj_buf = malloc(node_cnt * AVG_KEY_COUNT 
 				                  * sizeof(btree_robj_info_t));
 				assert(robj_buf);
-				alloc_cnt += node_cnt * AVG_KEY_COUNT;
+				//alloc_cnt += node_cnt * AVG_KEY_COUNT;
 				tmp_buf->buf_next = robj_buf;
 
 				used_cnt = 0;
@@ -338,7 +335,9 @@ do_recovery_op(btree_raw_t *bt, btree_robj_list_t *op_list)
 				exit(0);
 			}
 
+#if 0//Rico - buggy?
 			free(cur_obj->key);
+#endif
 			break;
 
 		case RCVR_OP_SET:
@@ -362,8 +361,10 @@ do_recovery_op(btree_raw_t *bt, btree_robj_list_t *op_list)
 			meta.seqno = cur_obj->seqno;
 			status = btree_raw_write(bt, cur_obj->key, cur_obj->keylen, 
 			                 cur_obj->data, cur_obj->datalen, &meta, 0);
+#if 0//Rico - buggy?
 			free(cur_obj->key);
 			free(cur_obj->data);
+#endif
 
 			if (status == BTREE_SUCCESS) {
 				stats_set_cnt++;
