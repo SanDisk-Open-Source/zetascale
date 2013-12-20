@@ -2692,16 +2692,19 @@ FDF_status_t FDFOpenContainer(
 				FDF_VIRTUAL_CNTR );
 	}
 
-
-	if ( FDF_SUCCESS == status ) {
-		status = fdf_open_container( fdf_thread_state,
-				cname,
-				properties,
-				flags,
-				cguid,
-				FDF_VIRTUAL_CNTR,
-				FDF_TRUE );
-	}
+    /*
+     * Container could exist, if so, just open it!
+     */
+    if ( (FDF_FAILURE_CANNOT_CREATE_METADATA_CACHE == status) ||
+            (FDF_SUCCESS == status) ) {
+        status = fdf_open_container( fdf_thread_state,
+                cname,
+                properties,
+                flags,
+                cguid,
+                FDF_VIRTUAL_CNTR,
+                FDF_TRUE );
+    }
 
 out:
 	if (thd_ctx_locked) {
