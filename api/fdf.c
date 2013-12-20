@@ -4286,19 +4286,21 @@ FDF_status_t FDFGetContainers(
 			LOG_WARN, "Operation not allowed");
 		goto out;
 	}
+
 	if (is_license_valid() == false) {
 		plat_log_msg(160145, LOG_CAT, LOG_WARN, "License check failed.");
 		status = FDF_LICENSE_CHK_FAILED;
 		goto out;
 	}
-       if ( !fdf_thread_state ) {
-            plat_log_msg(80049,LOG_CAT,LOG_DBG,
-                         "FDF Thread state is NULL");
-            return FDF_INVALID_PARAMETER;
-        }
 
+    if ( !fdf_thread_state ) {
+        plat_log_msg(80049,LOG_CAT,LOG_DBG, "FDF Thread state is NULL");
+        status = FDF_INVALID_PARAMETER;
+        goto out;
+    }
 
 	thd_ctx_locked = fdf_lock_thd_ctxt(fdf_thread_state);
+
 	if (false == thd_ctx_locked) {
 		/*
 		 * Could not get thread context lock, error out.
