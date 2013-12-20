@@ -42,7 +42,7 @@ main( )
 	int				indx;
 	//uint32_t		t;
 	uint32_t			ncg;
-	const char			*path;
+//	const char			*path;
 	FDF_container_props_t		props;
 	char				cname[32] = {0};
 	FDF_cguid_t			cguid;
@@ -58,6 +58,7 @@ main( )
 		FDFFreeBuffer(version);
 	}
 
+#if 0
 	if (FDFLoadProperties(FDF_PROP_FILE) != FDF_SUCCESS) {
 		printf("Couldn't load properties from %s. FDFInit()"
 			" will use default properties or from file specified"
@@ -76,6 +77,7 @@ main( )
 		printf("License will be searched at: %s\n", path);
 		FDFFreeBuffer((char *)path);
 	}
+#endif
 
 	//Initialize FDF state.
 	if ((status = FDFInit(&fdf_state)) != FDF_SUCCESS) {
