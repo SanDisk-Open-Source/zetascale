@@ -39,18 +39,9 @@ main()
     //	props.fifo_mode = 1;
     props.fifo_mode = 0;
 
-    status = FDFOpenContainer(thd_state, "cntr", &props, FDF_CTNR_CREATE|FDF_CTNR_RW_MODE, &cguid);
+    status = FDFOpenContainer(thd_state, "cntr", &props, FDF_CTNR_CREATE, &cguid);
     if (status != FDF_SUCCESS) {
         printf("Open Cont failed with error=%x.\n", status);
-        return -1;	
-    }
-
-    /*
-     * Test: Just to make sure that an existing container gets opened
-     */
-    status = FDFOpenContainer(thd_state, "cntr", &props, FDF_CTNR_CREATE|FDF_CTNR_RW_MODE, &cguid);
-    if (status != FDF_SUCCESS) {
-        printf("Open Cont failed with error=%s.\n", FDFStrError(status));
         return -1;	
     }
 
