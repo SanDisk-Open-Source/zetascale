@@ -4487,7 +4487,6 @@ mini_restart:
 
 		node_lock(mem_node, is_leaf(btree, node) || split_pending ||
 				(count > 1 && node->level == 1));
-		assert(!is_node_dirty(mem_node));
 
 		//if(!parent && mem_node->pnode->logical_id != btree->rootid) {
 		if(!parent && child_id != btree->rootid) {
