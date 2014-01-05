@@ -36,7 +36,7 @@ main( )
 	struct FDF_state		*fdf_state;
 	struct FDF_thread_state		*thd_state;
 	FDF_cguid_t			cguid_list[THREADS] = {0};
-	FDF_status_t			status;
+	FDF_status_t			status, status2;
 	pthread_t			thread_id[THREADS];
 	char				*version;
 	int				indx;
@@ -125,23 +125,25 @@ main( )
 	status = FDFWriteObject(thd_state, cguid, "test", 4, "test", 4, 0);
 	fprintf(stderr, "Write data status: %s <--------------\n", FDFStrError(status));
 	for (indx=0; indx < 2; indx++) {
-		FDFCreateContainerSnapshot(thd_state, cguid, &seq);
-		if (indx == 0) {
+		status2 = FDFCreateContainerSnapshot(thd_state, cguid, &seq);
+		if ((status2 == FDF_SUCCESS) && indx == 0) {
 			seq1 = seq;
 			status = FDFWriteObject(thd_state, cguid, "test", 4, "testabc", 7, FDF_WRITE_MUST_EXIST);
 			fprintf(stderr, "Update data status: %s <--------------\n", FDFStrError(status));
 		}
 	}
-	FDFGetContainerSnapshots(thd_state, cguid, &t, &snaps);
-	fprintf(stderr, "No of snaps: %d\n", (int)t);
-	for (indx = 0; indx < t; indx++) {
-		fprintf(stderr, "snap[%d]: timestamp:%"PRId64" seqno:%"PRId64"\n", (int)indx, snaps[indx].timestamp, snaps[indx].seqno);
-	}
-	FDFDeleteContainerSnapshot(thd_state, cguid, seq1);
-	FDFGetContainerSnapshots(thd_state, cguid, &t, &snaps);
-	fprintf(stderr, "No of snaps: %d\n", (int)t);
-	for (indx = 0; indx < t; indx++) {
-		fprintf(stderr, "snap[%d]: timestamp:%"PRId64" seqno:%"PRId64"\n", (int)indx, snaps[indx].timestamp, snaps[indx].seqno);
+	if (status2 == FDF_SUCCESS) {
+		FDFGetContainerSnapshots(thd_state, cguid, &t, &snaps);
+		fprintf(stderr, "No of snaps: %d\n", (int)t);
+		for (indx = 0; indx < t; indx++) {
+			fprintf(stderr, "snap[%d]: timestamp:%"PRId64" seqno:%"PRId64"\n", (int)indx, snaps[indx].timestamp, snaps[indx].seqno);
+		}
+		FDFDeleteContainerSnapshot(thd_state, cguid, seq1);
+		FDFGetContainerSnapshots(thd_state, cguid, &t, &snaps);
+		fprintf(stderr, "No of snaps: %d\n", (int)t);
+		for (indx = 0; indx < t; indx++) {
+			fprintf(stderr, "snap[%d]: timestamp:%"PRId64" seqno:%"PRId64"\n", (int)indx, snaps[indx].timestamp, snaps[indx].seqno);
+		}
 	}
 
 	//Flush all the cache contents created by workers.

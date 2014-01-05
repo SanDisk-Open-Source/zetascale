@@ -3034,7 +3034,7 @@ _FDFRangeUpdate(struct FDF_thread_state *fdf_ts,
 
 			if (btree_ret == BTREE_SUCCESS) {
 				/*
-				 * Maker will not be updated in btree_update call, we have to set
+				 * Marker will not be updated in btree_update call, we have to set
 				 * it here.
 				 */
 				memcpy(markerp->last_key, markerp->retry_key, markerp->retry_keylen);
@@ -3048,10 +3048,14 @@ _FDFRangeUpdate(struct FDF_thread_state *fdf_ts,
 		}
 	} while ((btree_ret == BTREE_SUCCESS) && (markerp->set == true));
 
-        if( btree_ret == BTREE_SUCCESS ) {
-            __sync_add_and_fetch(&(bt->partitions[0]->stats.stat[BTSTAT_NUM_RANGE_UPDATE_OBJS]),
-                                                                                     *objs_updated);
-        }
+	if( btree_ret == BTREE_SUCCESS ) {
+		__sync_add_and_fetch(&(bt->partitions[0]->stats.stat[BTSTAT_NUM_RANGE_UPDATE_OBJS]),
+																				 *objs_updated);
+	} else {
+		//Unset/invalidate the marker
+		markerp->set = false;
+	}
+
 	ret = BtreeErr_to_FDFErr(btree_ret);	
 
 out:

@@ -5694,6 +5694,7 @@ btree_status_t btree_raw_delete(struct btree_raw *btree, char *key, uint32_t key
 		REBALANCE_NEEDED,
 	};
 	bool done = false;
+	key_info_t key_info;
 	key_meta_t key_meta;
 
 	__sync_add_and_fetch(&(btree->stats.stat[BTSTAT_DELETE_CNT]),1);
@@ -5713,7 +5714,44 @@ btree_status_t btree_raw_delete(struct btree_raw *btree, char *key, uint32_t key
 				del_type = REBALANCE_NEEDED;
 			}
 		} else {
-			del_type = NEED_TOMBSTONE;
+			/*
+			 * Check whether we can remove the entry instead of adding tombstone entry.
+			 * If the key belongs to active container and not to any snapshot, we can remove it.
+			 * But if this is last key, there could be records of this key in the next node,
+			 * so lets add tombstone for last key.
+			 */
+			if (index < (node->pnode->nkeys - 1)) {
+
+				btree_leaf_get_meta(node->pnode, index, &key_meta);
+				/* Try to remove only if key belongs to active container */
+				if (btree_snap_seqno_in_snap(btree, key_meta.seqno) == false) {
+					key_info.key = tmp_key_buf;
+					btree_leaf_get_nth_key_info2(btree, node->pnode, index + 1, &key_info);
+
+					/*
+					 * If the next record is of different key or tombstone for same key
+					 * exists, we can remove the entry.
+					 */
+					if ((btree->cmp_cb(btree->cmp_cb_data, key, keylen, key_info.key, key_info.keylen) != 0) ||
+							(key_info.tombstone == true)) {
+						if (_keybuf &&
+							!is_leaf_minimal_after_delete(btree, node->pnode, index)) {
+							del_type = OPTIMISTIC;
+						} else {
+							del_type = REBALANCE_NEEDED;
+						}
+					} else {
+						/* Next record is of same key we are deleting. So, lets add tombstone. */
+						del_type = NEED_TOMBSTONE;
+					}
+				} else {
+					/* The key belongs to snapshot, need to add tombstone. */
+					del_type = NEED_TOMBSTONE;
+				}
+			} else {
+				/* This is the last key in node, need to add tombstone */
+				del_type = NEED_TOMBSTONE;
+			}
 		}
 	} else {
 		del_type = KEY_NOT_FOUND;
