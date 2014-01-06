@@ -1693,7 +1693,10 @@ FDF_status_t _FDFWriteObject(
 	}
 	if (ret != FDF_SUCCESS)
 	{
-		msg("btree_insert/update failed for key '%s' with ret=%s!\n", key, FDFStrError(ret));
+		char key1[256];
+		strncpy(key1,key,255);
+		key1[255] = '\0';
+		msg("btree_insert/update failed for key '%s' with ret=%s!\n", key1, FDFStrError(ret));
 	}
 	bt_rel_entry(index, true);
     return(ret);
