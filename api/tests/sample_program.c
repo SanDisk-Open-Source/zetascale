@@ -46,7 +46,8 @@ main( )
 	FDF_container_props_t		props;
 	char				cname[32] = {0};
 	FDF_cguid_t			cguid;
-	uint64_t		seq, seq1;
+	uint64_t		seq = 0;
+	uint64_t		seq1 = 0;
 	FDF_container_snapshots_t *snaps;
 
 	//Create the container name based on thread id.
