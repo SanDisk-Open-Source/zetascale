@@ -259,7 +259,7 @@ readlines( rec_packet_t *r, uint *count, int old)
 				p += 3;
 			}
 			else if (*p == '@')
-				*q++ = 0;
+				*q++ = 0, p++;
 			else
 				*q++ = *p++;
 		unless (c < nel( r->lvec)) {
@@ -317,7 +317,7 @@ statsreadline( stats_packet_t *s)
 			p += 3;
 		}
 		else if (*p == '@')
-			*q++ = 0;
+			*q++ = 0, p++;
 		else
 			*q++ = *p++;
 	s->nbyte = q - s->lbuf1;
