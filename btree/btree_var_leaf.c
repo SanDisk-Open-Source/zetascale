@@ -1261,7 +1261,7 @@ done:
 	new_used_space = dst_offset - (uint64_t) tmp_node_mem;
 
 	dbg_assert(new_used_space > old_used_space);
-	dbg_assert(dry_run || new_used_space <= bt->nodesize_less_hdr);
+	assert(dry_run || new_used_space <= bt->nodesize_less_hdr);
 
 	*bytes_increased = new_used_space - old_used_space;
 
@@ -1744,16 +1744,18 @@ btree_leaf_find_split_idx(btree_raw_t *bt, btree_raw_node_t *n)
 			}
 		}
 	} else {
-		while (middle_index < n->nkeys - 2) {		// last index must not be middle index
+		while (middle_index < n->nkeys - 1) {
 			middle_index++;
 			ent_hdr = btree_leaf_get_nth_entry(n, middle_index);
 			middle_offset = ent_hdr->header_offset;
 			middle_offset += sizeof(entry_header_t);
 			if (middle_offset > half_offset) {
+				middle_index--;
 				break;
 			}
 		}
 	}
+
 	return middle_index;
 }
 
