@@ -6472,7 +6472,7 @@ static int rebalance(btree_status_t *ret, btree_raw_t *btree, btree_raw_mem_node
 			int res = equalize_keys(btree, anchor_mem_node, balance_mem_node, this_mem_node,
 					        s_key, s_keylen, s_syndrome, s_seqno,
 					        &r_key, &r_keylen, &r_syndrome, &r_seqno, RIGHT, &free_key);
-			if(!ret)
+			if(!res)
 				return next_do_rebalance;
 		} else {
 			anchor_mem_node = get_existing_node(ret, btree, r_anchor_id);
