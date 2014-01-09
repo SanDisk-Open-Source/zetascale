@@ -830,8 +830,11 @@ FDF_status_t _FDFReleasePerThreadState(
 	struct FDF_thread_state	**thd_state
 	)
 {
+    FDF_status_t status = FDF_SUCCESS;
 	release_per_thread_keybuf();
-    return(FDFReleasePerThreadState(thd_state));
+    status = FDFReleasePerThreadState(thd_state);
+    my_thd_state = NULL;
+    return status;
 }
 
 
@@ -861,13 +864,14 @@ FDF_status_t _FDFShutdown(
     (void)__sync_fetch_and_or(&shutdown, true);
 
     /*
-     * Unconditionally try to release global per thread state
+     * Try to release global per thread state
      */
-    ret = FDFReleasePerThreadState(&my_thd_state);
-
+    if (NULL != my_thd_state) { 
+        ret = FDFReleasePerThreadState(&my_thd_state);
 #ifdef PSTATS
-    fprintf(stderr, "_FDFShutdown: Releasing my_thd_state ret=%s\n", FDFStrError(ret)); 
+        fprintf(stderr, "_FDFShutdown: Releasing my_thd_state ret=%s\n", FDFStrError(ret)); 
 #endif
+    }
 
     ret = FDFInitPerThreadState(fdf_state, &thd_state);
     assert (FDF_SUCCESS == ret);
