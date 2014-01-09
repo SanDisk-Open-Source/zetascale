@@ -375,7 +375,7 @@ hash_table_get (void *context, hash_handle_t *hdl, char *key, int key_len, cntr_
             }
 
 #ifdef BTREE_HACK
-            if(key_len == 8){
+            if((key_len == 8) && (hash_entry->key != 0)) {
                 if(*((uint64_t*)key) != hash_entry->key) {
                     continue;
                 }

@@ -277,7 +277,6 @@ typedef struct btree_raw_persist {
     uint32_t              meta_version;
     uint64_t              rootid;
     uint64_t              logical_id_counter;
-    uint64_t              next_logical_id;
     btree_snap_meta_t     snap_details;
 } btree_raw_persist_t;
 

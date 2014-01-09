@@ -695,7 +695,6 @@ savepersistent(btree_raw_t *bt, bool create)
 btree_status_t
 flushpersistent(btree_raw_t *bt)
 {
-	btree_status_t  ret = BTREE_SUCCESS;
 	return writepersistent( bt, false , true);
 }
 
@@ -735,26 +734,17 @@ writepersistent( btree_raw_t *bt, bool create, bool force_write)
 		/*
 		 * Lock the node to change it.
 		 */
-		plat_rwlock_wrlock(&mem_node->lock);
+		node_lock(mem_node, WRITE);
 
         btree_raw_persist_t *r = (btree_raw_persist_t*)mem_node->pnode;
 
+        tb_flushed = force_write ||
+            r->rootid != bt->rootid || !(bt->logical_id_counter % META_COUNTER_SAVE_INTERVAL);
         dbg_print("ret=%d create=%d nodeid=%lx lic=%ld rootid=%ld save=%d\n",
                   ret, create, META_LOGICAL_ID+bt->n_partition, bt->logical_id_counter,
                   bt->rootid,
-                  r->rootid != bt->rootid || !(bt->logical_id_counter % META_COUNTER_SAVE_INTERVAL));
+                  tb_flushed);
 
-        if ((force_write == true) ||
-            (create == false) && (r->rootid != bt->rootid || (bt->logical_id_counter >= r->next_logical_id))) {
-
-			/* If META_COUNTER_SAVE_INTERVAL limit is hit during current operation we need to update
-			 the next limit. These limits are useful to assign the unique id after restart */
-	    	if (bt->logical_id_counter >= r->next_logical_id) {
-				bt->next_logical_id = r->next_logical_id + META_COUNTER_SAVE_INTERVAL;
-				r->next_logical_id =  bt->next_logical_id;
-			}
-			tb_flushed = true;
-		}
 
 		bt->stats.stat[BTSTAT_NUM_SNAPS] = bt->snap_meta->total_snapshots;
 		r->logical_id_counter = bt->logical_id_counter;
@@ -775,7 +765,7 @@ writepersistent( btree_raw_t *bt, bool create, bool force_write)
                 (*bt->trx_cmd_cb)( TRX_COMMIT);
             }
 		}
-		plat_rwlock_unlock(&mem_node->lock);
+		node_unlock(mem_node);
 
     } else {
         ret = BTREE_FAILURE;
@@ -812,13 +802,13 @@ loadpersistent( btree_raw_t *bt)
 
     btree_raw_persist_t *r = (btree_raw_persist_t*)mem_node->pnode;
 
-    //dbg_print("ret=%d nodeid=%lx r->lic %ld r->rootid %ld bt->logical_id_counter %ld\n", ret, META_LOGICAL_ID + bt->n_partition, r->logical_id_counter, r->rootid, r->logical_id_counter + META_COUNTER_SAVE_INTERVAL);
+    dbg_print("ret=%d nodeid=%lx r->lic %ld r->rootid %ld bt->logical_id_counter %ld\n", ret, META_LOGICAL_ID + bt->n_partition, r->logical_id_counter, r->rootid, r->logical_id_counter + META_COUNTER_SAVE_INTERVAL);
 
-    bt->logical_id_counter = r->next_logical_id;	//next_logical_id is stored before the restart and is used to determine the logical_id_counter value after restart.
+    bt->logical_id_counter = r->logical_id_counter + META_COUNTER_SAVE_INTERVAL;
     bt->rootid = r->rootid;
     bt->snap_meta = &r->snap_details; /* Keep the pinned snap details node info in btree */
 
-    return (ret);
+	return flushpersistent(bt);
 }
 
 int btree_raw_free_buffer(btree_raw_t *btree, char *buf)
@@ -2605,12 +2595,13 @@ retry:
 		//  look for the node the hard way
 		//  If we don't look at the ret code, why does read_node_cb need one?
 		pnode = (btree_raw_node_t*)btree->read_node_cb(ret, btree->read_node_cb_data, logical_id);
-		assert(logical_id == pnode->logical_id);
 		if (pnode == NULL) {
 			*ret = BTREE_FAILURE;
 			delete_l1cache(btree, logical_id);
+			node_unlock(n);
 			return(NULL);
 		}
+		assert(logical_id == pnode->logical_id);
 
 		/* For scavenger and backup context reads, once we are done
 		 * with the cache delete it. The PMapDelete already has
