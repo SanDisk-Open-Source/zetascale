@@ -4971,9 +4971,8 @@ filter_cs_rewind_log( mcd_rec_obj_state_t *state)
 				mcd_osd_meta_t *meta = (typeof( meta))buf;
 				uint64_t cs = meta->checksum;
 				meta->checksum = 0;
-				if(meta->seqno != rec->seqno)
-					fprintf(stderr, "%s seqno mismatch blk_offset=%ld meta->seqno=%d rec->seqno=%d\n", __FUNCTION__, offset, (int)meta->seqno, (int)rec->seqno);
-				unless ((cs == fastcrc32( (unsigned char *)buf, nblock*Mcd_osd_blk_size, 0))) {
+				unless ((cs == fastcrc32( (unsigned char *)buf, nblock*Mcd_osd_blk_size, 0))
+				and (meta->seqno == rec->seqno)) {
 					mcd_log_msg( 170029, PLAT_LOG_LEVEL_ERROR, "crash damage: %d log records discarded", n-i);
 					plat_free( buffer);
 					state->badseqno = rec->seqno;
