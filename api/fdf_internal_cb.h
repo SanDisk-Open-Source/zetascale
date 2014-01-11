@@ -37,7 +37,8 @@ struct cmd_token;
 typedef FDF_status_t (ext_cb_stats_t)(FDF_cguid_t cguid,FDF_ext_stat_t **stats, uint32_t *n_stats );
 typedef FDF_status_t (ext_cb_admin_t)(struct FDF_thread_state *thd_state,
                                       FILE *fp, struct cmd_token *tokens, size_t ntokens);
-
+typedef FDF_status_t (ext_cb_flash_stats_t)(uint64_t *alloc_blks, uint64_t *free_segs, uint64_t *consumed_blks, 
+                                            uint64_t blk_size, uint64_t seg_size);
 typedef enum {
     FDF_EXT_MODULE_BTREE,
     FDF_EXT_MODULE_APP
@@ -49,6 +50,10 @@ typedef struct FDF_ext_cb {
 
     /* Call back to run admin command */
     ext_cb_admin_t *admin_cb;
+
+    /* Callback command to initialize fdf buffers that hold flash stats */
+    ext_cb_flash_stats_t *flash_stats_buf_cb;
+    
 }FDF_ext_cb_t;
 
 FDF_status_t FDFRegisterCallbacks(struct FDF_state *fdf_state, FDF_ext_cb_t *cb);

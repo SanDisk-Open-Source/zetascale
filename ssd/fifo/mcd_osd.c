@@ -4621,8 +4621,6 @@ mcd_fth_osd_slab_set( void * context, mcd_osd_shard_t * shard,
             plus_objs--;
             plus_blks -= lba_to_use(shard, hash_entry->blocks);
             mcd_fth_osd_remove_entry(shard, hash_entry, delayed, true);
-
-            mcd_fth_osd_remove_entry(shard, hash_entry, delayed, true);
             hash_entry_delete(hdl, hash_entry, 
                                 (syndrome % hdl->hash_size));
 

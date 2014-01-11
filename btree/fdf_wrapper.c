@@ -69,6 +69,17 @@ __thread struct FDF_thread_state *my_thd_state;
 __thread struct FDF_state *my_fdf_state;
 struct FDF_state *FDFState;
 
+uint64_t *flash_blks_allocated;
+uint64_t *flash_segs_free;
+uint64_t *flash_blks_consumed;
+uint64_t flash_segment_size;
+uint64_t flash_block_size;
+uint64_t flash_space;
+uint64_t flash_space_soft_limit;
+bool flash_space_soft_limit_check = true;
+bool flash_space_limit_log_flag = false;
+
+
 /*
  * Variables to manage persistent stats
  */
@@ -107,6 +118,7 @@ void FDFInitPstats(struct FDF_thread_state *my_thd_state, char *key, fdf_pstats_
 void FDFLoadPstats(struct FDF_state *fdf_state);
 static bool pstats_prepare_to_flush(struct FDF_thread_state *thd_state);
 static void pstats_prepare_to_flush_single(struct FDF_thread_state *thd_state, struct cmap *cmap_entry);
+FDF_status_t set_flash_stats_buffer(uint64_t *alloc_blks, uint64_t *free_segs, uint64_t *consumed_blks, uint64_t blk_size, uint64_t seg_size);
 
 FDF_status_t btree_process_admin_cmd(struct FDF_thread_state *thd_state, 
                                      FILE *fp, cmd_token_t *tokens, size_t ntokens);
@@ -511,12 +523,13 @@ void print_fdf_btree_configuration() {
                    " FDF Cache enabled:%d, Node size:%d bytes,"
                    " Max key size:%d bytes, Min keys per node:%d"
                    " Parallel flush enabled:%d Parallel flush Min Nodes:%d"
-                   " Reads by query:%d\n",
+                   " Reads by query:%d Total flash space:%lu Flash space softlimit:%lu"
+                   " Flash space softlimit check:%d\n",
                    get_btree_num_partitions(), l1cache_size, n_global_l1cache_buckets, l1cache_partitions,
                    fdf_cache_enabled, get_btree_node_size(), get_btree_max_key_size(), 
                    get_btree_min_keys_per_node(),
                    !btree_parallel_flush_disabled, btree_parallel_flush_minbufs,
-                   read_by_rquery
+                   read_by_rquery, flash_space, flash_space_soft_limit, flash_space_soft_limit_check
                   );
 }
 
@@ -567,6 +580,9 @@ FDF_status_t _FDFInit(
 
     memset(cbs, 0, sizeof(FDF_ext_cb_t));
     cbs->stats_cb = btree_get_all_stats;
+    cbs->flash_stats_buf_cb = set_flash_stats_buffer;
+    ret = FDFRegisterCallbacks(*fdf_state, cbs);
+    assert(FDF_SUCCESS == ret);
 
     ret = FDFInit(fdf_state);
     if ( ret == FDF_FAILURE ) {
@@ -579,13 +595,13 @@ FDF_status_t _FDFInit(
         return FDF_FAILURE;
     }
 
-    ret = FDFRegisterCallbacks(*fdf_state, cbs);
-    assert(FDF_SUCCESS == ret);
 
     /*
      * Opens or creates persistent stats container
      */
     FDFLoadPstats(*fdf_state);
+
+     
 
     /*
      * Create the flusher thread
@@ -597,6 +613,25 @@ FDF_status_t _FDFInit(
     }
 
     char buf[32];
+
+    sprintf(buf, "%u",FDF_MIN_FLASH_SIZE);
+    flash_space = atoi(FDFGetProperty("FDF_FLASH_SIZE", buf));
+    flash_space = flash_space * 1024 * 1024 * 1024;
+    sprintf(buf,"%u", 0 );
+    flash_space_soft_limit = atoi(FDFGetProperty("FDF_FLASH_SIZE_SOFT_LIMIT", buf));
+    if ( flash_space_soft_limit == 0 ) {
+        /* soft limit not configured. use default */
+        /* Discount the cmc and vnc size for calculating the 15% reserved space */
+        flash_space_soft_limit = (flash_space - ((uint64_t)(FDF_DEFAULT_CONTAINER_SIZE_KB * 1024) * 2))  * 0.85 +
+                                 ((uint64_t)(FDF_DEFAULT_CONTAINER_SIZE_KB * 1024) * 2);
+    }
+    else {
+        flash_space_soft_limit = flash_space_soft_limit * 1024 * 1024 * 1024;
+    }
+
+    sprintf(buf,"%u", 0 );
+    flash_space_soft_limit_check = !atoi(FDFGetProperty("FDF_DISABLE_SOFT_LIMIT_CHECK", buf));
+
     sprintf(buf, "%d", PERSISTENT_STATS_FLUSH_INTERVAL);
     fdf_flush_pstats_frequency = atoi(FDFGetProperty("FDF_FLUSH_PSTATS_FREQUENCY", buf));
     fprintf(stderr, "FDFInit: fdf_flush_pstats_frequency = %ld\n", fdf_flush_pstats_frequency);
@@ -1653,6 +1688,7 @@ FDF_status_t _FDFWriteObject(
     FDF_status_t      ret = FDF_FAILURE;
     btree_status_t    btree_ret = BTREE_FAILURE;
     btree_metadata_t  meta;
+    uint64_t flash_space_used;
     struct btree     *bt;
 	int				  index;
 
@@ -1678,6 +1714,19 @@ FDF_status_t _FDFWriteObject(
         return (FDF_KEY_TOO_LONG);
     }
 
+    flash_space_used = ((uint64_t)(FDF_DEFAULT_CONTAINER_SIZE_KB * 1024) * 2) + 
+                                         (*flash_blks_consumed * flash_block_size);
+    if ( flash_space_soft_limit_check && 
+         (  flash_space_used > flash_space_soft_limit ) ){
+        if ( __sync_fetch_and_add(&flash_space_limit_log_flag,1) == 0 ) {
+            fprintf( stderr,"Write failed: out of storage(flash space used:%lu flash space limit:%lu)\n",
+                                       flash_space_used, flash_space_soft_limit);
+        }
+        bt_rel_entry(index, true);
+        return FDF_OUT_OF_STORAGE_SPACE;
+    }
+
+    flash_space_limit_log_flag = 0;
     meta.flags = 0;
     __sync_add_and_fetch(&(bt->partitions[0]->stats.stat[BTSTAT_WRITE_CNT]),1);
     trxenter( cguid);
@@ -2547,6 +2596,18 @@ FDF_ext_stat_t btree_to_fdf_stats_map[] = {
     {BTSTAT_WRITE_CNT, FDF_ACCESS_TYPES_WRITE,         FDF_STATS_TYPE_APP_REQ, 0},
 };
 
+FDF_status_t set_flash_stats_buffer(uint64_t *alloc_blks, uint64_t *free_segs, uint64_t *consumed_blks, uint64_t blk_size, uint64_t seg_size) {
+    flash_blks_allocated = alloc_blks;
+    flash_segs_free      = free_segs;
+    flash_blks_consumed  = consumed_blks;
+    flash_block_size     = blk_size;
+    flash_segment_size   = seg_size;
+
+    fprintf(stderr,"Flash Space consumed:%lu flash_blocks_alloc:%lu free_segs:%lu blk_size:%lu seg_size:%lu\n",
+             *consumed_blks * flash_block_size, *alloc_blks, *free_segs, blk_size, seg_size);
+    return FDF_SUCCESS;
+}
+
 FDF_status_t btree_get_all_stats(FDF_cguid_t cguid, 
                                 FDF_ext_stat_t **estat, uint32_t *n_stats) {
     int i, j;
@@ -2634,6 +2695,7 @@ _FDFMPut(struct FDF_thread_state *fdf_ts,
 	uint32_t objs_written = 0;
 	uint32_t objs_to_write = num_objs;
 	int		index;
+        uint64_t flash_space_used;
 
 #ifdef FLIP_ENABLED
 	uint32_t descend_cnt = 0;
@@ -2652,6 +2714,17 @@ _FDFMPut(struct FDF_thread_state *fdf_ts,
 	if (bt == NULL) {
 		return ret;
 	}
+        flash_space_used = ((uint64_t)(FDF_DEFAULT_CONTAINER_SIZE_KB * 1024) * 2) + 
+                                         (*flash_blks_consumed * flash_block_size);
+        if ( flash_space_soft_limit_check && 
+             (  flash_space_used > flash_space_soft_limit ) ){ 
+            if ( __sync_fetch_and_add(&flash_space_limit_log_flag,1) == 0 ) {
+                fprintf( stderr,"Mput failed: out of storage(flash space used:%lu flash space limit:%lu)\n",
+                                       flash_space_used, flash_space_soft_limit);
+            }    
+            bt_rel_entry(index, true);
+            return FDF_OUT_OF_STORAGE_SPACE;
+        }   
 
 	for (i = 0; i < num_objs; i++) {
 #if 0
@@ -2994,6 +3067,7 @@ _FDFRangeUpdate(struct FDF_thread_state *fdf_ts,
 	int index = -1;
 	FDF_status_t error = FDF_SUCCESS;
 	btree_range_cmp_cb_t bt_range_cmp_cb = range_cmp_cb;
+        uint64_t flash_space_used;
 
 	(*objs_updated) = 0;
 
@@ -3003,6 +3077,17 @@ _FDFRangeUpdate(struct FDF_thread_state *fdf_ts,
 	if (bt == NULL) {
 		return FDF_FAILURE;
 	}
+        flash_space_used = ((uint64_t)(FDF_DEFAULT_CONTAINER_SIZE_KB * 1024) * 2) +
+                                         (*flash_blks_consumed * flash_block_size);
+        if ( flash_space_soft_limit_check &&
+             (  flash_space_used > flash_space_soft_limit ) ){
+            if ( __sync_fetch_and_add(&flash_space_limit_log_flag,1) == 0 ) {
+                fprintf( stderr,"RangeUpdate failed: out of storage(flash space used:%lu flash space limit:%lu)\n",
+                                       flash_space_used, flash_space_soft_limit);
+            }
+            bt_rel_entry(index, true);
+            return FDF_OUT_OF_STORAGE_SPACE;
+        }
 
 	if (Container_Map[index].read_only == true) {
 		ret = FDF_FAILURE;
@@ -3091,6 +3176,7 @@ _FDFCreateContainerSnapshot(struct FDF_thread_state *fdf_thread_state, //  clien
 	int				index, i;
 	struct btree	*bt;
 	btree_status_t  btree_ret = BTREE_FAILURE;
+        uint64_t flash_space_used;
 
 	assert(snap_seq);
 
@@ -3102,6 +3188,17 @@ _FDFCreateContainerSnapshot(struct FDF_thread_state *fdf_thread_state, //  clien
 	if (bt == NULL) {
 		return status;
 	}
+        flash_space_used = ((uint64_t)(FDF_DEFAULT_CONTAINER_SIZE_KB * 1024) * 2) +
+                                         (*flash_blks_consumed * flash_block_size);
+        if ( flash_space_soft_limit_check &&
+             (  flash_space_used > flash_space_soft_limit ) ){
+            if ( __sync_fetch_and_add(&flash_space_limit_log_flag,1) == 0 ) {
+                fprintf( stderr,"Create snapshot failed: out of storage(flash space used:%lu flash space limit:%lu)\n",
+                                       flash_space_used, flash_space_soft_limit);
+            }
+            bt_rel_entry(index, true);
+            return FDF_OUT_OF_STORAGE_SPACE;
+        }
 
 	pthread_rwlock_wrlock(&(bt->snapop_rwlock));
 	pthread_mutex_lock(&(Container_Map[index].bt_snap_mutex));

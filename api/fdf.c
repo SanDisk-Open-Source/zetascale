@@ -2036,6 +2036,13 @@ FDF_status_t FDFInit(
 	if (s != FDF_SUCCESS) 
 		return s; 
 	set_cntr_sizes((SDF_action_init_t *) fdf_state, shard);
+        mcd_osd_shard_t *mcd_shard;
+        mcd_shard = (mcd_osd_shard_t *)shard;
+        if ( is_btree_loaded() ) {
+            ext_cbs->flash_stats_buf_cb( &(mcd_shard->blk_allocated), 
+                 &(mcd_shard->free_segments_count), &(mcd_shard->blk_consumed), 
+                 Mcd_osd_blk_size, Mcd_osd_segment_size);
+        }
 
 #if 0
     /*
