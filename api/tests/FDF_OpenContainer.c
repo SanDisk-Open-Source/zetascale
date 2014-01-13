@@ -576,15 +576,15 @@ int FDFOpenContainer_flags_check()
     ret = OpenContainer("test11",&p,FDF_CTNR_CREATE,&cguid_tmp);    
     
     if(FDF_SUCCESS != ret){
+        fprintf(fp,"FDFOpenContainer create twice failed.\n");
+        if(flag==1)flag = 1;
+    }
+    else{
+        fprintf(fp,"FDFOpenContainer create twice succeed:%s.\n",FDFStrError(ret));
         flag = 0;
         CloseContainer(cguid_tmp);
         if(FDF_SUCCESS != DeleteContainer(cguid_tmp))
             flag = -2;
-        fprintf(fp,"FDFOpenContainer create twice failed.\n");
-    }
-    else{
-        fprintf(fp,"FDFOpenContainer create twice succeed:%s.\n",FDFStrError(ret));
-        if(flag==1)flag = 1;
     }
 
     CloseContainer(cguid);

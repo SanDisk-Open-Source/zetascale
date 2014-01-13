@@ -2699,7 +2699,7 @@ FDF_status_t FDFOpenContainer(
 				FDF_VIRTUAL_CNTR );
 	}
 
-    if ( (FDF_SUCCESS == status) || (FDF_FAILURE_CANNOT_CREATE_METADATA_CACHE == status) ) {
+    if ( (FDF_SUCCESS == status)) {
 		status = fdf_open_container( fdf_thread_state,
 				cname,
 				properties,
