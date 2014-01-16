@@ -4769,6 +4769,7 @@ find_first_key_in_range_leaf(btree_raw_t *bt, btree_raw_node_t *n,
 	uint32_t tmp_key_len = 0;
 	int x = 0;
 	bool res = false;
+	bool res1 = false;
 	bool in_snap;
 
 	*key_out = NULL;
@@ -4777,8 +4778,9 @@ find_first_key_in_range_leaf(btree_raw_t *bt, btree_raw_node_t *n,
 	num_keys = btree_leaf_num_entries(bt, n);
 
 	for (i = 0; i < num_keys; i++) {
-		res = btree_leaf_get_nth_key(bt, n, i, 
+		res1 = btree_leaf_get_nth_key(bt, n, i, 
 					     &tmp_key, &tmp_key_len, seqno);
+		assert(res1 == true);
 		x = (*range_cmp_cb) (bt->cmp_cb_data, range_cmp_cb_args,
 					 range_key, range_key_len,
 					 tmp_key, tmp_key_len);
