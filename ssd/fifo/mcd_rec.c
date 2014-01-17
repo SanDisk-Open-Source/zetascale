@@ -4971,14 +4971,15 @@ filter_cs_rewind_log( mcd_rec_obj_state_t *state)
 				mcd_osd_meta_t *meta = (typeof( meta))buf;
 				uint64_t cs = meta->checksum;
 				meta->checksum = 0;
-				unless ((cs == fastcrc32( (unsigned char *)buf, nblock*Mcd_osd_blk_size, 0))
-				and (meta->seqno == rec->seqno)) {
+				unless (cs == fastcrc32( (unsigned char *)buf, nblock*Mcd_osd_blk_size, 0)) {
 					mcd_log_msg( 170029, PLAT_LOG_LEVEL_ERROR, "crash damage: %d log records discarded", n-i);
 					plat_free( buffer);
 					state->badseqno = rec->seqno;
 					state->badstate = 7;
 					break;
 				}
+				unless (meta->seqno == rec->seqno)
+					mcd_log_msg( 170041, PLAT_LOG_LEVEL_DIAGNOSTIC, "seqno mismatch, meta=%lu, rec=%lu", (ulong)meta->seqno, (ulong)rec->seqno);
 				plat_free( buffer);
 			}
 			a += filter_it_apply_logrec( state, rec);
@@ -7099,9 +7100,6 @@ log_write_internal( mcd_osd_shard_t *s, mcd_logrec_object_t *lr)
 		fthSemUp( logbuf->write_sem, 1);
 	rep_logbuf_seqno_update( (struct shard *)s, nth_buffer, lr->seqno);
 	(void)__sync_fetch_and_sub( &s->refcount, 1);
-
-	if(s->durability_level == SDF_NO_DURABILITY)
-		return;
 
 	if (s->flush_fd > 0)
 		flog_persist( s, slot_seqno, log->curr_LSN, lr, s->durability_level == SDF_FULL_DURABILITY);
