@@ -2754,6 +2754,7 @@ tombstone_prune( mcd_osd_shard_t * shard )
  *                                                                      *
  ************************************************************************/
 
+#include	"utils/rico.h"
 
 /*
  * Show a buffer.  Used for debugging.
@@ -2856,7 +2857,8 @@ fbio_write(flog_bio_t *fbio, flog_rec_t *frec)
         fbio->lsn = frec->lsn;
     else if (fbio->lsn > frec->lsn)
         return 1;
-    else if (fbio->lsn < frec->lsn)
+    if ((fbio->lsn < frec->lsn)
+    or (frec->shard_off == sizeof( mcd_logrec_object_t)))
         memset(fbio->abuf, 0, MCD_OSD_META_BLK_SIZE);
 
     *(mcd_logrec_object_t *)(&fbio->abuf[frec->shard_off]) = frec->logrec_obj;
@@ -4272,8 +4274,6 @@ update_hash_table( void * context, mcd_osd_shard_t * shard,
  *		Merging of all logs completed.	Only meaningful for
  *		recovery.
  */
-
-#include	"utils/rico.h"
 
 
 #define	BRACKET_LIMIT	1000		/* max # of open trx brackets */
