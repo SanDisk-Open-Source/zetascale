@@ -4503,7 +4503,7 @@ FDFInitPstats(struct FDF_thread_state *my_thd_state, char *key, fdf_pstats_t *ps
         pstats->obj_count = 0;
 		pstats->num_snap_objs = 0;
 		pstats->snap_data_size = 0;
-        fprintf(stderr, "Error: FDFInitPstats failed to read stats for cname %s\n", key);
+        //fprintf(stderr, "Error: FDFInitPstats failed to read stats for cname %s\n", key);
         //pstats->cntr_sz = 0;
     }
     FDFFreeBuffer(data);
