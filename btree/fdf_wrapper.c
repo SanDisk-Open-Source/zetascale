@@ -1369,7 +1369,7 @@ restart:
 		pthread_rwlock_unlock(&(Container_Map[index].bt_cm_rwlock));
 		return FDF_FAILURE_CONTAINER_NOT_FOUND;
 	}
-	
+
 	/* IO might have started on this container. Lets wait and retry */
 	assert(Container_Map[index].bt_rd_count == 0);
 	assert(Container_Map[index].bt_wr_count == 0);
@@ -3196,7 +3196,7 @@ _FDFCreateContainerSnapshot(struct FDF_thread_state *fdf_thread_state, //  clien
                 fprintf( stderr,"Create snapshot failed: out of storage(flash space used:%lu flash space limit:%lu)\n",
                                        flash_space_used, flash_space_soft_limit);
             }
-            bt_rel_entry(index, true);
+            bt_rel_entry(index, false);
             return FDF_OUT_OF_STORAGE_SPACE;
         }
 
@@ -3205,7 +3205,7 @@ _FDFCreateContainerSnapshot(struct FDF_thread_state *fdf_thread_state, //  clien
 	Container_Map[index].snap_initiated = 1;
 
 	while (Container_Map[index].bt_wr_count) {
-		fprintf(stderr, "Snapshot thread waiting for writers to finish\n");
+		fprintf(stderr, "Snapshot thread waiting for writers to finish: count=%d\n", Container_Map[index].bt_wr_count);
 		pthread_cond_wait(&(Container_Map[index].bt_snap_cv),
 								&(Container_Map[index].bt_snap_mutex));
 	}	
