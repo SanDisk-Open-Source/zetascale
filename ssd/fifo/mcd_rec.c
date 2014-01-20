@@ -4539,7 +4539,6 @@ filter_st_initialize( mcd_rec_obj_state_t *state)
 		mcd_log_msg( 20561, PLAT_LOG_LEVEL_FATAL, "failed to allocate buffer");
 		plat_abort( );
 	}
-	fprintf( stderr, "state->statbufsiz=%u\n",state->statbufsiz);
 	filter_ot_initialize( state);
 }
 
@@ -9017,6 +9016,7 @@ mcd_trx_commit_internal( mcd_trx_state_t *t, int op_last)
 		fthWaitEl_t *w = fthLock( &t->s->log->sync_fill_lock, 1, NULL);
 		if (t->n > 1) {
 			mcd_rec_log_t *log = t->s->log;
+#if 0//Rico - #11113 fix
 			uint n = __sync_fetch_and_add( &log->write_buffer_seqno, 0);
 			n = log->total_slots - n%log->total_slots;
 			if (n < t->n*MCD_REC_LOGBUF_SLOTS/MCD_REC_LOGBUF_RECS+1+2*MCD_REC_LOGBUF_RECS) {
@@ -9026,6 +9026,16 @@ mcd_trx_commit_internal( mcd_trx_state_t *t, int op_last)
 				for (i=0; i<n*MCD_REC_LOGBUF_RECS/MCD_REC_LOGBUF_SLOTS; ++i)
 					log_write_internal( t->s, &z);
 			}
+#else
+			uint n = log->total_slots - log->next_fill%log->total_slots;
+			if (n < t->n*MCD_REC_LOGBUF_SLOTS/MCD_REC_LOGBUF_RECS) {
+				mcd_logrec_object_t z;
+				memset( &z, 0, sizeof z);
+				z.blk_offset = 0xffffffffu;	/* CAS type */
+				for (i=0; i<n; ++i)
+					log_write_internal( t->s, &z);
+			}
+#endif
 		}
 		for (i=0; i<t->n-1; ++i) {
 			t->trtab[i].lr.trx = TRX_OP;
