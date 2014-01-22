@@ -2084,25 +2084,61 @@ btree_leaf_is_full(btree_raw_t *bt, btree_raw_node_t *n, char *key, uint32_t key
 
 	return res;
 }
+
+/*
+ * Remove a key from one node and insert to another.
+ * tmp_key_buf: temp mempry that is used to hold the keys for transfer.
+ */
+static void
+btree_leaf_move_key(btree_raw_t *bt, btree_raw_node_t *from, int from_idx,
+		    btree_raw_node_t *to, int to_idx, char *tmp_key_buf)
+{
+	key_info_t key_info = {0};
+	char *tmp_data = NULL;
+	uint64_t tmp_datalen = 0;
+	bool res = false;
+	int32_t bytes_increased = 0;
+	int32_t bytes_decreased = 0;
+
+	key_info.key = tmp_key_buf;
+	assert(key_info.key != NULL);
+
+	res = btree_leaf_get_nth_key_info2(bt, from, from_idx, &key_info);
+	assert(res == true);
+	res = btree_leaf_get_data_nth_key(bt, from, from_idx, &tmp_data, &tmp_datalen);	
+	assert(res == true);
+
+	res = btree_leaf_insert_key_index(bt, to, key_info.key, key_info.keylen,
+					  tmp_data, tmp_datalen, &key_info, to_idx,
+					  &bytes_increased, false);	
+	assert(res == true);
+
+	res = btree_leaf_remove_key_index(bt, from, from_idx, &key_info, &bytes_decreased);
+	assert(res == true);
+}
+
 //Caller must free the key_info_out->key after use.
 bool
 btree_leaf_shift_left(btree_raw_t *bt, btree_raw_node_t *from_node,
-		      btree_raw_node_t *to_node, key_info_t *key_info_out)
+		      btree_raw_node_t *to_node, key_info_t *key_info_out,
+		      uint32_t max_keylen)
 {
-	btree_raw_node_t *tmp_node = NULL;
+	btree_raw_node_t *tmp_node_from = NULL;
 	int nkeys_from = 0;
 	int nkeys_to = 0;
 	int keys_copied = 0;
 	int32_t avg_size = 0;
+	key_info_t key_info = {0};
+	int shift_index = -1;
 
 
-	tmp_node = (btree_raw_node_t *) get_buffer(bt, bt->nodesize);
-	if (tmp_node == NULL) {
+	tmp_node_from = (btree_raw_node_t *) get_buffer(bt, bt->nodesize);
+	if (tmp_node_from == NULL) {
 		dbg_assert(0);
 		return false;
 	}
 
-	btree_leaf_init(bt, tmp_node);
+	btree_leaf_init(bt, tmp_node_from);
 
 	avg_size = (btree_leaf_used_space(bt, from_node) + btree_leaf_used_space(bt, to_node)) / 2;
 
@@ -2111,23 +2147,48 @@ btree_leaf_shift_left(btree_raw_t *bt, btree_raw_node_t *from_node,
 
 	keys_copied = btree_leaf_copy_keys(bt, from_node, 0, to_node, nkeys_to, nkeys_from, avg_size);
 
-	(void) btree_leaf_copy_keys(bt, from_node, keys_copied, tmp_node, 0, nkeys_from - keys_copied, 0);
+	(void) btree_leaf_copy_keys(bt, from_node, keys_copied, tmp_node_from, 0, nkeys_from - keys_copied, 0);
 
+	/*
+	 * Check if rightmost key in to node can accmodate in parent, if not 
+	 * we need to find another key as right most node and sacrifice some of
+	 * balancing.
+	 */
+	key_info.key = (char *) btree_malloc(bt->max_key_size);
+	(void) btree_leaf_get_nth_key_info2(bt, to_node, to_node->nkeys - 1, &key_info);	
+	if (key_info.keylen > max_keylen) {
+		/*
+		 * The right most key is bigger than parent can accmodate,
+		 * Find another one.
+		 */
+		while (key_info.keylen > max_keylen) {
+			/*
+			 * Move keys back to from node till we find smaller key.
+			 */
+			btree_leaf_move_key(bt, to_node, to_node->nkeys - 1,
+					    tmp_node_from, 0, key_info.key);
+			(void) btree_leaf_get_nth_key_info2(bt, to_node,
+							    to_node->nkeys - 1, &key_info);
+		}
+	}
 
-	btree_memcpy(from_node->keys, tmp_node->keys, bt->nodesize_less_hdr, false);
-	from_node->nkeys = tmp_node->nkeys;
-	from_node->insert_ptr = tmp_node->insert_ptr;
+	btree_free(key_info.key);
+	
+	btree_memcpy(from_node->keys, tmp_node_from->keys, bt->nodesize_less_hdr, false);
+	from_node->nkeys = tmp_node_from->nkeys;
+	from_node->insert_ptr = tmp_node_from->insert_ptr;
 
 	btree_leaf_get_nth_key_info(bt, to_node, to_node->nkeys - 1, key_info_out);
 
-	free_buffer(bt, tmp_node);
+	free_buffer(bt, tmp_node_from);
 
 	return true;
 }
 
 bool
 btree_leaf_shift_right(btree_raw_t *bt, btree_raw_node_t *from_node,
-		       btree_raw_node_t *to_node, key_info_t *key_info_out)
+		       btree_raw_node_t *to_node, key_info_t *key_info_out,
+		       uint32_t max_keylen)
 {
 	btree_raw_node_t *tmp_node_to = NULL;
 	btree_raw_node_t *tmp_node_from = NULL;
@@ -2135,6 +2196,7 @@ btree_leaf_shift_right(btree_raw_t *bt, btree_raw_node_t *from_node,
 	int nkeys_to = 0;
 	int keys_copied = 0;
 	int32_t avg_size = 0;
+	key_info_t key_info = {0};
 
 
 	tmp_node_to = (btree_raw_node_t *) get_buffer(bt, bt->nodesize);
@@ -2168,6 +2230,30 @@ btree_leaf_shift_right(btree_raw_t *bt, btree_raw_node_t *from_node,
 	keys_copied = btree_leaf_copy_keys(bt, to_node, 0, tmp_node_to, keys_copied, nkeys_to, 0);
 	dbg_assert(keys_copied == nkeys_to);
 
+	/*
+	 * Check if rightmost key in from node can accmodate in parent, if not 
+	 * we need to find another key as right most node and sacrifice some of
+	 * balancing.
+	 */
+	key_info.key = (char *) btree_malloc(bt->max_key_size);
+	(void) btree_leaf_get_nth_key_info2(bt, tmp_node_from, tmp_node_from->nkeys - 1, &key_info);	
+	if (key_info.keylen > max_keylen) {
+		/*
+		 * The right most key is bigger than parent can accmodate,
+		 * Find another one.
+		 */
+		while (key_info.keylen > max_keylen) {
+			/*
+			 * Move keys back to from node till we find smaller key.
+			 */
+			btree_leaf_move_key(bt, tmp_node_to, 0,
+					    tmp_node_from, tmp_node_from->nkeys, key_info.key);
+			(void) btree_leaf_get_nth_key_info2(bt, tmp_node_from,
+							    tmp_node_from->nkeys - 1, &key_info);
+		}
+	}
+
+	btree_free(key_info.key);
 
 	btree_memcpy(from_node->keys, tmp_node_from->keys, bt->nodesize_less_hdr, false);
 	from_node->nkeys = tmp_node_from->nkeys;

@@ -6201,16 +6201,21 @@ equalize_keys_leaf(btree_raw_t *btree, btree_raw_mem_node_t *anchor_mem, btree_r
 	int32_t old_used_space = 0;
 	int32_t new_used_space = 0;
 	int32_t bytes_changed = 0;
+	uint32_t max_anchor_keylen = 0;
 
 	dbg_print("from_id=%ld to_id=%ld left=%d\n", from_mem->pnode->logical_id, to_mem->pnode->logical_id, left);
 
 	old_used_space = btree_leaf_used_space(btree, from_mem->pnode) +
 			 btree_leaf_used_space(btree, to_mem->pnode);
 
+	max_anchor_keylen = vnode_bytes_free(anchor_mem->pnode) + 
+			    s_keylen;
 	if (left) {
-		res = btree_leaf_shift_left(btree, from_mem->pnode, to_mem->pnode, &key_info);
+		res = btree_leaf_shift_left(btree, from_mem->pnode, to_mem->pnode,
+					    &key_info, max_anchor_keylen);
 	} else {
-		res = btree_leaf_shift_right(btree, from_mem->pnode, to_mem->pnode, &key_info);
+		res = btree_leaf_shift_right(btree, from_mem->pnode, to_mem->pnode,
+					     &key_info, max_anchor_keylen);
 	}
         assert(res == true);
 

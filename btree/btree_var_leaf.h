@@ -186,11 +186,11 @@ btree_leaf_remove_key_index(btree_raw_t *bt, btree_raw_node_t *n,
 
 bool
 btree_leaf_shift_left(btree_raw_t *btree, btree_raw_node_t *from_node,
-		      btree_raw_node_t *to_node, key_info_t *key_info_out);
+		      btree_raw_node_t *to_node, key_info_t *key_info_out, uint32_t max_keylen);
 
 bool
 btree_leaf_shift_right(btree_raw_t *btree, btree_raw_node_t *from_node,
-		       btree_raw_node_t *to_node, key_info_t *key_info_out);
+		      btree_raw_node_t *to_node, key_info_t *key_info_out, uint32_t max_keylen);
 bool
 btree_leaf_merge_left(btree_raw_t *btree, btree_raw_node_t *from_node,
 		      btree_raw_node_t *to_node);
