@@ -6168,6 +6168,7 @@ updater_thread( uint64_t arg )
     // Main processing loop
     // -----------------------------------------------------
 
+    int real_log = 0;
     while ( 1 ) {
 
         // wait on mailbox
@@ -6190,6 +6191,12 @@ updater_thread( uint64_t arg )
             }
             continue;
         }
+	unless (mail->in_recovery) {
+		unless (mail->log == real_log)
+			mcd_log_msg( 170042, PLAT_LOG_LEVEL_DIAGNOSTIC, "Bogus log # from log_writer");
+		mail->log = real_log;			// always gnore incoming log #
+		real_log = (real_log+1) % MCD_REC_NUM_LOGS;
+	}
 
         plat_assert( mail->log >= 0 );
         plat_assert( mail->log < MCD_REC_NUM_LOGS );
