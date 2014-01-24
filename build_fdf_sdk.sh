@@ -66,7 +66,7 @@ cp -a $WD/api/tests/Makefile.sample $SDK_DIR/samples/Makefile
 mkdir -p $SDK_DIR/include/common
 cp -a $WD/common/fdftypes.h $SDK_DIR/include/common
 cp -a $WD/api/tests/conf/fdf_sample.prop $SDK_DIR/config/
-#
+#check withjni option
 #when withjni=true, get jni code and compiling
 if [ "is$WITHJNI" == "isON" ]
 then
