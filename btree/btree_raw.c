@@ -3804,7 +3804,7 @@ get_keys_less_than(btree_raw_t *btree, char *key, uint32_t keylen,
 	 */
 	int i = 0;
 	for (i = 0; i < count - 1; i++) {
-		if (btree->cmp_cb(NULL, objs[i].key, objs[i].key_len,
+		if (btree->cmp_cb(btree->cmp_cb_data, objs[i].key, objs[i].key_len,
 				  objs[i + 1].key, objs[i + 1].key_len) >= 0) {
 			/*
 			 * Found key out of place.
@@ -3976,7 +3976,7 @@ btree_leaf_insert_low(btree_raw_t *bt, btree_raw_mem_node_t *n, char *key, uint3
 
 	if (res == true) {
 #if DEBUG_BUILD
-		assert(size_increased > 0 || bt->stats.stat[BTSTAT_LEAF_BYTES] > (-size_increased));
+//		assert(size_increased > 0 || bt->stats.stat[BTSTAT_LEAF_BYTES] > (-size_increased));
 #endif
 		__sync_add_and_fetch(&(bt->stats.stat[BTSTAT_LEAF_BYTES]), size_increased);
 	}

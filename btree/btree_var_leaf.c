@@ -883,6 +883,10 @@ btree_leaf_adjust_offsets(btree_raw_t *bt, btree_raw_node_t *n)
 	uint32_t meta_size = 0;
 	uint64_t meta_offset = (uint64_t) n + n->insert_ptr;
 
+#ifdef DEBUG_BUILD
+	uint32_t prev_prefix_len = 0;
+#endif
+
 	for (i = 0; i <= end; i++) {
 		/*
 		 * Get entry header.
@@ -896,6 +900,13 @@ btree_leaf_adjust_offsets(btree_raw_t *bt, btree_raw_node_t *n)
 		 */
 		key_metax_to_key_meta(n, (void *) meta_offset, ent_hdr->meta_type,
 				      &key_meta, i);
+
+#ifdef DEBUG_BUILD
+		dbg_assert(prev_prefix_len == 0 ||
+			   key_meta.prefix_len <= prev_prefix_len);
+		prev_prefix_len = key_meta.prefix_len;
+#endif
+
 		dbg_assert(key_meta.keylen != 0);
 
 		meta_size = get_meta_type_to_size(ent_hdr->meta_type);
@@ -1040,11 +1051,18 @@ copy_impacted_keys_to_tmp_buf(btree_raw_t *bt, btree_raw_node_t *n, int from,
 
 		dbg_assert(new_key_meta.prefix_idx < n->nkeys);
 
+#if 0
 		if (old_key_meta.meta_type != BTREE_KEY_META_TYPE1 &&
 		    ((new_key_meta.prefix_len == 0 &&
 		      old_key_meta.prefix_len == 0) ||
 		     (old_key_meta.prefix_len != 0 &&
 		      old_key_meta.prefix_idx < impacted_index))) { /// Check this again ??
+
+#endif
+
+		if (old_key_meta.meta_type != BTREE_KEY_META_TYPE1 &&
+		    ((new_key_meta.prefix_len == 0 &&
+		      old_key_meta.prefix_len == 0))) {
 
 			/*
 			 * Either this entry points to index before the impacted
@@ -1260,7 +1278,7 @@ done:
 
 	new_used_space = dst_offset - (uint64_t) tmp_node_mem;
 
-	dbg_assert(new_used_space > old_used_space);
+	//dbg_assert(dry_run || new_used_space > old_used_space);
 	assert(dry_run || new_used_space <= bt->nodesize_less_hdr);
 
 	*bytes_increased = new_used_space - old_used_space;
