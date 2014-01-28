@@ -3859,18 +3859,38 @@ mput_update_allowed(btree_raw_t *bt, btree_raw_mem_node_t *mem_node,
 		    int index, bool key_exists)
 {
 	int ret = 0;
+	btree_status_t bt_ret = BTREE_SUCCESS;
 	bool res = false;
 	char *old_data = NULL;
 	uint64_t old_datalen = 0;
 	key_info_t key_info = {0};
+	bool free_data = false;
+
 
 	if (key_exists) {
 		/*
 		 * It is an update for existing obj.
 		 */
-		res = btree_leaf_get_data_nth_key(bt, mem_node->pnode, 
-						  index, &old_data, &old_datalen);
+
+		key_info.key = &tmp_key_buf[0];
+		res = btree_leaf_get_nth_key_info2(bt, mem_node->pnode, index, &key_info);
 		assert(res == true);
+
+		if(big_object_kd(bt, keylen, key_info.datalen)) {
+		
+
+			bt_ret = get_leaf_data_index(bt, mem_node->pnode, index, &old_data,
+					    &old_datalen, 0, 0, 0);
+			assert(bt_ret == BTREE_SUCCESS);
+
+			assert(old_datalen == key_info.datalen);
+			free_data = true;
+		} else {
+			res = btree_leaf_get_data_nth_key(bt, mem_node->pnode, 
+							  index, &old_data, &old_datalen);
+			assert(res == true);
+			assert(old_datalen == key_info.datalen);
+		}
 	} else {
 		old_data = NULL;
 		old_datalen = 0;
@@ -3880,6 +3900,10 @@ mput_update_allowed(btree_raw_t *bt, btree_raw_mem_node_t *mem_node,
 				  key, keylen,
 				  old_data, old_datalen,
 				  new_data, new_datalen);
+
+	if (free_data) {
+		free_buffer(bt, old_data);
+	}
 
 	if (ret == 1) {
 		return true;
