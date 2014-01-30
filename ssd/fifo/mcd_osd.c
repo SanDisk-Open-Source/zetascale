@@ -4384,6 +4384,23 @@ static int mcd_osd_prefix_delete( mcd_osd_shard_t * shard, char * key,
     return FLASH_EOK;
 }
 
+void mcd_osd_slab_checksum(void* buf, int blocks)
+{
+    mcd_osd_meta_t* meta = (mcd_osd_meta_t *)buf;
+
+    meta->data_chksum = 0;
+    meta->blk1_chksum = 0;
+    meta->checksum = 0;
+
+    if (flash_settings.chksum_data)
+        meta->data_chksum = hashb( (uint8_t *)buf + sizeof( mcd_osd_meta_t),
+                meta->key_len + meta->data_len, 0);
+    if (flash_settings.chksum_metadata)
+        meta->blk1_chksum = hashb( (uint8_t *)buf, MCD_OSD_META_BLK_SIZE, 0);
+    if (flash_settings.chksum_object)
+        meta->checksum = fastcrc32( (uint8_t *)buf, blocks * Mcd_osd_blk_size, 0);
+}
+
 void mcd_osd_slab_set_data(void* buf, char * key, int key_len, void * data,
         SDF_size_t data_len, SDF_size_t uncomp_datalen, int blocks,
         struct objMetaData* meta_data, int copy_data)
@@ -4405,18 +4422,10 @@ void mcd_osd_slab_set_data(void* buf, char * key, int key_len, void * data,
 
     memcpy( buf + sizeof(mcd_osd_meta_t), key, key_len );
 
-    if(copy_data)
+    if(copy_data) {
         memcpy( buf + sizeof(mcd_osd_meta_t) + key_len, data, data_len );
-
-    meta->data_chksum = 0;
-    meta->blk1_chksum = 0;
-    meta->checksum = 0;
-    if (flash_settings.chksum_data)
-        meta->data_chksum = hashb( (uint8_t *)buf+sizeof( mcd_osd_meta_t), key_len+data_len, 0);
-    if (flash_settings.chksum_metadata)
-        meta->blk1_chksum = hashb( (uint8_t *)buf, MCD_OSD_META_BLK_SIZE, 0);
-    if (flash_settings.chksum_object)
-        meta->checksum = fastcrc32( (uint8_t *)buf, blocks*Mcd_osd_blk_size, 0);
+        mcd_osd_slab_checksum(buf, blocks);
+    }
 }
 
 static int
@@ -6288,6 +6297,8 @@ mcd_osd_flash_put_v( struct ssdaio_ctxt * pctxt, struct shard * shard,
 			/* Compact slabs to max_comp_len size */
 			if(pos != i * slab_size)
 				memmove(data_buf + pos, data_buf + i * slab_size, max_comp_len + fixed_size);
+
+			mcd_osd_slab_checksum(data_buf + pos, comp_slab_blksize);
 
 			pos += comp_slab_blksize * Mcd_osd_blk_size;
 		}
