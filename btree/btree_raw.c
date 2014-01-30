@@ -734,12 +734,23 @@ writepersistent( btree_raw_t *bt, bool create, bool force_write)
 		/*
 		 * Lock the node to change it.
 		 */
-		node_lock(mem_node, WRITE);
-
         btree_raw_persist_t *r = (btree_raw_persist_t*)mem_node->pnode;
 
         tb_flushed = force_write ||
-            r->rootid != bt->rootid || !(bt->logical_id_counter % META_COUNTER_SAVE_INTERVAL);
+            bt->logical_id_counter - r->logical_id_counter >= META_COUNTER_SAVE_INTERVAL ||
+            r->rootid != bt->rootid;
+
+		if(!tb_flushed)
+			goto done;
+
+		node_lock(mem_node, WRITE);
+
+        r = (btree_raw_persist_t*)mem_node->pnode;
+
+        tb_flushed = force_write ||
+            bt->logical_id_counter - r->logical_id_counter >= META_COUNTER_SAVE_INTERVAL ||
+            r->rootid != bt->rootid;
+
         dbg_print("ret=%d create=%d nodeid=%lx lic=%ld rootid=%ld save=%d\n",
                   ret, create, META_LOGICAL_ID+bt->n_partition, bt->logical_id_counter,
                   bt->rootid,
