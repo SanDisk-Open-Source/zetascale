@@ -2022,6 +2022,8 @@ btree_leaf_is_full_index(btree_raw_t *bt, btree_raw_node_t *n, char *key, uint32
 		key_meta_t key_meta = {0};
 		uint64_t old_datalen = 0;
 		uint64_t new_datalen = 0;
+		key_meta_type_t new_meta_type;
+		
 
 #ifdef DEBUG_BUILD
 		res = btree_leaf_find_key2(bt, n ,key, keylen, &index1);
@@ -2038,10 +2040,16 @@ btree_leaf_is_full_index(btree_raw_t *bt, btree_raw_node_t *n, char *key, uint32
 		 */
 		btree_leaf_get_meta(n, index, &key_meta);
 		key_meta.compact_meta = false;
-		key_meta.meta_type = get_key_meta_type(bt, &key_meta);
-		
+
 		new_datalen = datalen;
 		old_datalen = key_meta.datalen;
+
+		/*
+		 * Calculate new meta type with new data size.
+		 */	
+		key_meta.datalen = new_datalen;
+		new_meta_type = get_key_meta_type(bt, &key_meta);
+
 		if (datalen >= bt->big_object_size) {
 			new_datalen = 0;
 		}
@@ -2050,8 +2058,7 @@ btree_leaf_is_full_index(btree_raw_t *bt, btree_raw_node_t *n, char *key, uint32
 			old_datalen = 0;
 		}
 
-		bytes_needed = new_datalen - old_datalen + get_meta_type_to_size(key_meta.meta_type); 
-
+		bytes_needed = new_datalen - old_datalen + get_meta_type_to_size(new_meta_type); 
 		if (bytes_needed < 0) {
 			bytes_needed = 0;
 		}
