@@ -6389,7 +6389,9 @@ merge_nodes_non_leaf(btree_raw_t *btree, btree_raw_node_t *anchor, btree_raw_nod
 	return;
 }
 
-static void
+static __thread char _tmp_node1[8200];
+
+static bool 
 merge_nodes_leaf(btree_raw_t *btree, btree_raw_node_t *anchor, btree_raw_node_t *from,
 		 btree_raw_node_t *to, char *s_key, uint32_t s_keylen, uint64_t s_syndrome, uint64_t s_seqno)
 {
@@ -6397,12 +6399,26 @@ merge_nodes_leaf(btree_raw_t *btree, btree_raw_node_t *anchor, btree_raw_node_t 
 	int32_t bytes_changed = 0;
 	int32_t old_used_space = 0;
 	int32_t new_used_space = 0;
+	btree_raw_node_t *tmp_node = (btree_raw_node_t *)&_tmp_node1[0];
 
 	old_used_space = btree_leaf_used_space(btree, from) +
 			 btree_leaf_used_space(btree, to);
 
-	res = btree_leaf_merge_left(btree, from, to);
+	/*
+	 * Copy to node to temp node.
+	 */
+	btree_memcpy(tmp_node, to, btree->nodesize, false);
+
+	res = btree_leaf_merge_left(btree, from, tmp_node);
+	if (res == false) {
+		return false;
+	}
 	assert(res == true);
+
+	/*
+	 * Merge was successful, we can copy data to to node.
+	 */
+	btree_memcpy(to, tmp_node, btree->nodesize, false);
 
 	new_used_space = btree_leaf_used_space(btree, to);
 
@@ -6413,16 +6429,19 @@ merge_nodes_leaf(btree_raw_t *btree, btree_raw_node_t *anchor, btree_raw_node_t 
 
 	__sync_add_and_fetch(&(btree->stats.stat[BTSTAT_LEAF_BYTES]), bytes_changed);
 	__sync_sub_and_fetch(&(btree->stats.stat[BTSTAT_SPCOPT_BYTES_SAVED]), -bytes_changed);
+
+	return true;
 }
 
-static void
+static bool 
 merge_nodes(btree_raw_t *btree, btree_raw_node_t *anchor, btree_raw_node_t *from,
 	    btree_raw_node_t *to, char *s_key, uint32_t s_keylen, uint64_t s_syndrome, uint64_t s_seqno)
 {
 	if (is_leaf(btree, from)) {
-		merge_nodes_leaf(btree, anchor, from, to, s_key, s_keylen, s_syndrome, s_seqno);
+		return merge_nodes_leaf(btree, anchor, from, to, s_key, s_keylen, s_syndrome, s_seqno);
 	} else {
 		merge_nodes_non_leaf(btree, anchor, from, to, s_key, s_keylen, s_syndrome, s_seqno);
+		return true;
 	}
 }
 
@@ -6500,10 +6519,13 @@ static int rebalance(btree_status_t *ret, btree_raw_t *btree, btree_raw_mem_node
 
     if ((!is_minimal(btree, balance_node, balance_keylen, 0)) ||
         (!balance_node_is_sibling)) {
+
+equalize_path:
+
         next_do_rebalance = 0;
         if (balance_node == left_node) {
 			anchor_mem_node    = get_existing_node(ret, btree, l_anchor_id);
-            anchor_node = anchor_mem_node->pnode;
+			anchor_node = anchor_mem_node->pnode;
 
 			s_key      = l_anchor_stuff->pkey_val;
 			s_keylen   = l_anchor_stuff->keylen;
@@ -6518,7 +6540,7 @@ static int rebalance(btree_status_t *ret, btree_raw_t *btree, btree_raw_mem_node
 				return next_do_rebalance;
 		} else {
 			anchor_mem_node = get_existing_node(ret, btree, r_anchor_id);
-            anchor_node = anchor_mem_node->pnode;
+			anchor_node = anchor_mem_node->pnode;
 
 			s_key      = r_anchor_stuff->pkey_val;
 			s_keylen   = r_anchor_stuff->keylen;
@@ -6553,9 +6575,10 @@ static int rebalance(btree_status_t *ret, btree_raw_t *btree, btree_raw_mem_node
     } else {
         next_do_rebalance = 1;
         if (balance_node == left_node) {
+			bool res = false;
 			//  left anchor is parent of this_node
 			anchor_mem_node    = get_existing_node(ret, btree, l_anchor_id);
-		    anchor_node = anchor_mem_node->pnode;
+			anchor_node = anchor_mem_node->pnode;
 			merge_node     = left_node;
 
 			s_key      = l_anchor_stuff->pkey_val;
@@ -6563,12 +6586,15 @@ static int rebalance(btree_status_t *ret, btree_raw_t *btree, btree_raw_mem_node
 			s_syndrome = l_anchor_stuff->syndrome;
 			s_seqno    = l_anchor_stuff->seqno;
 
-			merge_nodes(btree, anchor_node, this_node, merge_node, s_key, s_keylen, s_syndrome, s_seqno);
+			res = merge_nodes(btree, anchor_node, this_node, merge_node, s_key, s_keylen, s_syndrome, s_seqno);
+			if (res == false) {
+				goto equalize_path;
+			}
 
-           /*
-            * Along with "this_node", merge_node will also get modified. Hence need to flush the merge_node.
-            * "this_node" is added to modified l1 cache list in find_rebalance function as a part of delete key call.
-            * Anchor node will also be added to modified l1 cache as a part of delete key call in this function
+			/*
+			* Along with "this_node", merge_node will also get modified. Hence need to flush the merge_node.
+			* "this_node" is added to modified l1 cache list in find_rebalance function as a part of delete key call.
+			* Anchor node will also be added to modified l1 cache as a part of delete key call in this function
 			* merge_node in this case is left_node.
             */
 			modify_l1cache_node(btree,left_mem_node);
@@ -6579,7 +6605,7 @@ static int rebalance(btree_status_t *ret, btree_raw_t *btree, btree_raw_mem_node
 			//       2) this_node is NOT a rightmost pointer
 			//
 
-            if (this_node->logical_id == anchor_node->rightmost) {
+		    if (this_node->logical_id == anchor_node->rightmost) {
 				//  child is the rightmost pointer
 				// 
 				//  Make the 'rightmost' point to the merge_node,
@@ -6603,9 +6629,11 @@ static int rebalance(btree_status_t *ret, btree_raw_t *btree, btree_raw_mem_node
 			//  the right anchor MUST be parent of this_node.
 			//  Also, this_node must be key number 0.
 
+			bool res = false;
+
 			assert(r_this_parent);
 			anchor_mem_node    = get_existing_node(ret, btree, r_anchor_id);
-            anchor_node = anchor_mem_node->pnode;
+			anchor_node = anchor_mem_node->pnode;
 			merge_node     = right_node;
 
 			s_key      = r_anchor_stuff->pkey_val;
@@ -6613,16 +6641,21 @@ static int rebalance(btree_status_t *ret, btree_raw_t *btree, btree_raw_mem_node
 			s_syndrome = r_anchor_stuff->syndrome;
 			s_seqno    = r_anchor_stuff->seqno;
 
-			merge_nodes(btree, anchor_node, merge_node, this_node, s_key, s_keylen, s_syndrome, s_seqno);
+			res = merge_nodes(btree, anchor_node, merge_node, this_node, s_key, s_keylen, s_syndrome, s_seqno);
+			if (res == false) {
+				goto equalize_path;
+			}
+			
+
 
 #if 0
 			//EF: this_node should be marked modified here if it not yet, otherwise remove this
-           /*
-            * Along with "this_node", merge_node will also get modified. Hence need to flush the merge_node.
-            * "this_node" is added to modified l1 cache list in find_rebalance function as a part of delete key call.
-            * Anchor node will also be added to modified l1 cache as a part of delete key call in this function
-            * merge_node in this case is right_node.
-            */
+			/*
+			* Along with "this_node", merge_node will also get modified. Hence need to flush the merge_node.
+			* "this_node" is added to modified l1 cache list in find_rebalance function as a part of delete key call.
+			* Anchor node will also be added to modified l1 cache as a part of delete key call in this function
+			* merge_node in this case is right_node.
+			*/
 			modify_l1cache_node(btree,right_mem_node);
 #endif
 
@@ -6632,8 +6665,8 @@ static int rebalance(btree_status_t *ret, btree_raw_t *btree, btree_raw_mem_node
 			//  Otherwise, r_anchor_stuff holds data for the node to the
 			//  immediate right of 'this_node'.
 
-            //  Get data for 'this_node'.
-            if (anchor_node->rightmost== merge_node->logical_id) {
+			//  Get data for 'this_node'.
+			if (anchor_node->rightmost== merge_node->logical_id) {
 				//  Anchor is 'rightmost' node.
 				//  Delete key for 'this_node'.
 				anchor_node->rightmost = this_node->logical_id;
@@ -6642,7 +6675,8 @@ static int rebalance(btree_status_t *ret, btree_raw_t *btree, btree_raw_mem_node
 				//  Delete key for 'this_node'.
 				update_ptr(btree, anchor_node, r_anchor_stuff->nkey + 1, this_node->logical_id);
 			}
-				delete_key(ret, btree, anchor_mem_node, r_anchor_stuff->pkey_val, r_anchor_stuff->keylen, r_anchor_stuff->seqno, r_anchor_stuff->syndrome);
+
+			delete_key(ret, btree, anchor_mem_node, r_anchor_stuff->pkey_val, r_anchor_stuff->keylen, r_anchor_stuff->seqno, r_anchor_stuff->syndrome);
 
 			// free this_node
 			if (!(*ret)) {

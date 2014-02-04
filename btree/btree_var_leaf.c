@@ -1051,15 +1051,6 @@ copy_impacted_keys_to_tmp_buf(btree_raw_t *bt, btree_raw_node_t *n, int from,
 
 		dbg_assert(new_key_meta.prefix_idx < n->nkeys);
 
-#if 0
-		if (old_key_meta.meta_type != BTREE_KEY_META_TYPE1 &&
-		    ((new_key_meta.prefix_len == 0 &&
-		      old_key_meta.prefix_len == 0) ||
-		     (old_key_meta.prefix_len != 0 &&
-		      old_key_meta.prefix_idx < impacted_index))) { /// Check this again ??
-
-#endif
-
 		if (old_key_meta.meta_type != BTREE_KEY_META_TYPE1 &&
 		    ((new_key_meta.prefix_len == 0 &&
 		      old_key_meta.prefix_len == 0))) {
@@ -1706,6 +1697,9 @@ btree_leaf_copy_keys(btree_raw_t *bt, btree_raw_node_t *from_node, int from_inde
 	int32_t bytes_increased = 0; // unused
 	int32_t used_space = 0;
 	bool res = false;
+	btree_metadata_t meta = {0};
+
+	meta.flags = 0; //Default flags
 
 	key_info.key = tmp_key_buf;
 
@@ -1716,6 +1710,14 @@ btree_leaf_copy_keys(btree_raw_t *bt, btree_raw_node_t *from_node, int from_inde
 		res = btree_leaf_get_data_nth_key(bt, from_node, from_index + i,
 						 &tmp_data, &tmp_datalen);
 		dbg_assert(res == true);
+
+		res = btree_leaf_is_full_index(bt, to_node, key_info.key, key_info.keylen,
+					       key_info.datalen, &meta, key_info.syndrome,
+					       false, to_index + i);
+		if (res == true) {
+			break;
+		}
+
 		res = btree_leaf_insert_key_index(bt, to_node, key_info.key, key_info.keylen,
 					    tmp_data, tmp_datalen, &key_info, to_index + i,
 					    &bytes_increased, false);
@@ -2004,7 +2006,12 @@ btree_leaf_is_full_index(btree_raw_t *bt, btree_raw_node_t *n, char *key, uint32
 	bytes_free = bt->nodesize_less_hdr - used_space;
 
 	if (index >= n->nkeys) {
-		max_bytes_needed = BTREE_LEAF_ENTRY_MAX_SIZE(keylen, datalen);
+		uint64_t new_datalen = datalen;
+		if (datalen >= bt->big_object_size) {
+			new_datalen = 0;
+		}
+
+		max_bytes_needed = BTREE_LEAF_ENTRY_MAX_SIZE(keylen, new_datalen);
 		if (max_bytes_needed < bytes_free) {
 			return false;
 		}
@@ -2307,7 +2314,11 @@ btree_leaf_merge_left(btree_raw_t *bt, btree_raw_node_t *from_node, btree_raw_no
 	nkeys_from = btree_leaf_num_entries(bt, from_node);
 	nkeys_to = btree_leaf_num_entries(bt, to_node);
 
-	keys_copied = btree_leaf_copy_keys(bt, from_node, 0, to_node, nkeys_to, nkeys_from, 0);
+	keys_copied = btree_leaf_copy_keys(bt, from_node, 0, to_node, nkeys_to, nkeys_from, bt->nodesize_less_hdr);
+	if (keys_copied != nkeys_from) {
+		return false;
+	}
+
 	dbg_assert(keys_copied == nkeys_from);
 
 	to_node->next = from_node->next;
