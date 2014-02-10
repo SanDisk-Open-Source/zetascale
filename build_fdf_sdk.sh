@@ -3,12 +3,14 @@
 set -e
 export WD=$(readlink -f $(dirname $0))
 
+WITHBTREE=ON
 while [ $# -gt 0 ]; do
 	[ "$1" == "--optimize" ] && optimize=$1
 	[ "$1" == "--test" ] && run_tests=$1
 	[ "$1" == "--pkg" ] && pkg=$1
 	[ "$1" == "--trace" ] && TRACE=ON
 	[ "$1" == "--with-jni" ] && WITHJNI=ON
+	[ "$1" == "--without-btreehack" ] && WITHBTREE=OFF
 	shift
 done
 
@@ -39,6 +41,9 @@ PKG_TEST=fdf_sdk_test_package-$VERSION
 
 [ -n "$BRANCH" ] && PKG_NAME=$PKG_NAME-$BRANCH && PKG_TEST=$PKG_TEST-$BRANCH
 
+if [ "D$WITHBTREE" == "DOFF" ]; then
+    PKG_NAME=$PKG_NAME-core
+fi
 if [ -z "$optimize" ]; then
 	PKG_NAME=$PKG_NAME-dbg
 	PKG_TEST=$PKG_TEST-dbg
@@ -53,7 +58,7 @@ mkdir -p $SDK_DIR/{config,lib,include,samples}
 
 echo "Building DEBUG=$DBG shared lib"
 rm -f CMakeCache.txt
-cmake $WD -DNCPU=$NCPU -DDEBUG=$DBG -DFDF_REVISION="$VERSION" -DTRACE=$TRACE
+cmake $WD -DNCPU=$NCPU -DDEBUG=$DBG  -DBTREEHACK=$WITHBTREE -DFDF_REVISION="$VERSION" -DTRACE=$TRACE
 make -j $NCPU
 
 #Packaging
