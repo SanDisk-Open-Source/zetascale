@@ -15,7 +15,7 @@
 #include <fth/fthLock.h>
 #include <platform/alloc.h>
 
-#define BTREE_HACK
+//#define BTREE_HACK
 
 /*
  * Macros to print messages.

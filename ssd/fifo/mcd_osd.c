@@ -4452,6 +4452,10 @@ mcd_fth_osd_slab_set( void * context, mcd_osd_shard_t * shard,
     FDF_boolean_t				vc_evict = FDF_FALSE;
     hash_handle_t             * hdl = shard->hash_handle;
     uint32_t uncomp_datalen = 0; /* Uncompressed data length */
+    
+    #ifndef BTREE_HACK
+	mcd_osd_meta_t                     *meta;
+    #endif
 
     mcd_log_msg( 20000, PLAT_LOG_LEVEL_TRACE, "ENTERING" );
 

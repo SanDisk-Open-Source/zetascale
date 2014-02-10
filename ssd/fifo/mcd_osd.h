@@ -93,7 +93,7 @@ enum cntr_states {
 
 //struct mcd_container;
 
-#define BTREE_HACK
+//#define BTREE_HACK
 
 struct mcd_osd_slab_class;
 
