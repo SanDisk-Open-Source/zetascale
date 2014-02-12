@@ -84,6 +84,7 @@ static struct sdf_agent_state agent_state;
 static sem_t Mcd_fsched_sem;
 static sem_t Mcd_initer_sem;
 
+extern HashMap cmap_cname_hash;           // cname -> cguid
 
 FDF_status_t get_btree_num_objs(FDF_cguid_t cguid, uint64_t *num_objs);
 void update_container_stats(SDF_action_init_t *pai, SDF_appreq_t *par, SDF_cache_ctnr_metadata_t *meta);
@@ -974,6 +975,8 @@ fdf_validate_container(uint64_t cguid)
 		case  VMC_CGUID:
 		case  VDC_CGUID:
 			return FDF_FAILURE_ILLEGAL_CONTAINER_ID;
+        case         -1:
+            return FDF_FAILURE_CONTAINER_NOT_FOUND;
 		default:
 			return FDF_SUCCESS;
 	}
@@ -3680,19 +3683,6 @@ FDF_status_t FDFDeleteContainer(
         }
 
 
-	/*
-	 * Application can only perform operations on a virtual container.
-	 */
-	status = fdf_validate_container(cguid);
-
-	if (FDF_SUCCESS != status) {
-
-		plat_log_msg(160125, LOG_CAT,
-				LOG_ERR, "Failed due to an illegal container ID:%s",
-				FDF_Status_Strings[status]);
-		goto out;
-	}
-
 	thd_ctx_locked = fdf_lock_thd_ctxt(fdf_thread_state);
 	if (false == thd_ctx_locked) {
 		/*
@@ -3757,8 +3747,8 @@ FDF_status_t fdf_delete_container_async_end(
     status = fdf_open_container( fdf_thread_state,cmap->cname,
                                   NULL,0,&mycguid,mode,FDF_TRUE);
     if( status != FDF_SUCCESS ) {
-        plat_log_msg(160075,LOG_CAT,LOG_ERR,
-                    "Unable to open container %lu for deleting",cguid);
+        plat_log_msg(160209, LOG_CAT,LOG_ERR,
+                    "Unable to open container %lu for deleting err=%s",cguid, FDFStrError(status));
         return FDF_FAILURE;
     }
     status = fdf_delete_objects( fdf_thread_state, cguid );
@@ -3847,6 +3837,7 @@ FDF_status_t fdf_rename_container(struct FDF_thread_state *fdf_thread_state,
           "Container %lu is already renamed. \n", cguid );
         return FDF_SUCCESS;
     }
+
     time(&t);
     snprintf(cname,CONTAINER_NAME_MAXLEN,"%s_%x_%s",CONTAINER_RENAME_PREFIX,
                                  atomic_add_get(delete_prefix,1),meta.cname);
@@ -3862,18 +3853,29 @@ FDF_status_t fdf_rename_container(struct FDF_thread_state *fdf_thread_state,
     if ( getProperty_Int("ASYNC_DEL_CONT_TEST_ABORT_AFTER_REM_MAP", 0) == 1 ){
          plat_abort();
     }
+
+    /*
+     * Delete entry from hashmap. We cannot update the entry for cname since 
+     * cname acts as the key and now we have a new key (i.e. the new cname).
+     */
+    HashMap_remove( cmap_cname_hash, meta.cname );
+
     snprintf(meta.cname,CONTAINER_NAME_MAXLEN,"%s",cname);
     snprintf(cmap->cname,CONTAINER_NAME_MAXLEN,"%s",cname);
-	if ( FDF_SUCCESS != ( status = fdf_cmap_update( cmap ) ) ) {
+
+	status = fdf_cmap_update(cmap);
+
+	if (FDF_SUCCESS != status) {
 	    plat_log_msg( 150115, LOG_CAT, LOG_ERR, "Unable to create metadata cache for %lu. Cannot rename", cguid );
 	    return status;
 	}
+
     status = name_service_put_meta( pai, cguid, &meta );
     if ( status != FDF_SUCCESS ) {
         plat_log_msg( 160115, LOG_CAT, LOG_ERR,
                       "Unable to write metadata for %lu. Can not rename ",
                                                                       cguid );
-        return FDF_FAILURE;
+        return status;
     }
     if ( getProperty_Int("ASYNC_DEL_CONT_TEST_ABORT_BEF_CMAP", 0) == 1 ){
          plat_abort();
@@ -3885,8 +3887,9 @@ FDF_status_t fdf_rename_container(struct FDF_thread_state *fdf_thread_state,
         plat_log_msg( 160116,LOG_CAT, LOG_ERR,
              "Unable to create cguid map for container %lu."
              "Can not rename",meta.cguid);
-        return FDF_FAILURE;
+        return status;
     }
+
     return FDF_SUCCESS;
 }
 
@@ -3912,8 +3915,8 @@ FDF_status_t fdf_delete_container_async_start(
     SDFStartSerializeContainerOp(pai);
     cmap = fdf_cmap_get_by_cguid( cguid );
     if ( !cmap ) {
-        plat_log_msg( 160074, LOG_CAT, LOG_WARN,
-                        "Container does not exist. Delete can not proceed" );
+        plat_log_msg(160210, LOG_CAT, LOG_WARN,
+                        "Container cguid=%lu does not exist. Delete can not proceed\n", cguid );
         SDFEndSerializeContainerOp(pai);
         return FDF_FAILURE;
     }
@@ -3932,8 +3935,8 @@ FDF_status_t fdf_delete_container_async_start(
         if ( FDF_CONTAINER_STATE_DELETE_PROG == cmap->state ||
         	 FDF_CONTAINER_STATE_DELETE_OPEN == cmap->state ||
         	 FDF_CONTAINER_STATE_DELETE_CLOSED == cmap->state ) {
-            plat_log_msg( 80023, LOG_CAT, LOG_DIAG,
-                      "Delete already under progress for container %lu",cguid);
+            plat_log_msg(160211, LOG_CAT, LOG_DIAG,
+                      "Delete already under progress for container %lu with state=%d",cguid, cmap->state);
             SDFEndSerializeContainerOp(pai);
             return FDF_FAILURE_CONTAINER_DELETED; 
         }
@@ -3953,8 +3956,8 @@ FDF_status_t fdf_delete_container_async_start(
             status = fdf_close_container(fdf_thread_state, cguid,
                                                mode, FDF_FALSE,FDF_TRUE);
             if ( status != FDF_SUCCESS ) {
-                plat_log_msg( 160082, LOG_CAT, LOG_ERR,
-                          "Failed to close container during delete" );
+                plat_log_msg(160212, LOG_CAT, LOG_ERR,
+                          "Failed to close container during delete status=%s", FDFStrError(status) );
                 SDFEndSerializeContainerOp(pai);
                 return FDF_FAILURE;
             }
@@ -4492,15 +4495,16 @@ fdf_set_container_props(
                 meta.properties.compression = pprops->compression;
 
         status = name_service_put_meta( pai, cguid, &meta );
-
 		cmap = fdf_cmap_get_by_cguid( cguid );
 
-		if ( cmap ) {
-			cmap->evicting = pprops->evicting;
-	        status = fdf_cmap_update( cmap );
-	    } else {
-			status = FDF_CONTAINER_UNKNOWN;
-		}
+        if ( cmap ) {
+            cmap->evicting = pprops->evicting;
+            /*
+             * These maps are immutable except for container deletion.
+             * We should never update them.
+             */
+            //status = fdf_cmap_update( cmap );
+        }
     }
 
  out:
@@ -5727,7 +5731,7 @@ fdf_flush_cache(
         return FDF_FAILURE;
 
     while ( fdf_cmap_next_enum( iterator, &key, &keylen, (char **) &cmap, &cmaplen ) ) {
-
+        plat_assert(cmap);
         if ( (cmap->cguid != FDF_NULL_CGUID ) && 
 			 (cmap->state != FDF_CONTAINER_STATE_DELETE_PROG) &&
 			 (cmap->state != FDF_CONTAINER_STATE_DELETE_OPEN) &&

@@ -143,7 +143,8 @@ FDF_status_t fdf_cmap_update(
     )
 {
     char             *cname_key         = NULL;
-	char             *replace_status    = NULL;
+	FDF_status_t ret = FDF_SUCCESS;
+	SDF_status_t status = SDF_SUCCESS;
 
 	if (!cmap) {
 		return FDF_FAILURE;
@@ -152,33 +153,59 @@ FDF_status_t fdf_cmap_update(
     if ( NULL == ( cname_key = (char *) plat_alloc( strlen( cmap->cname ) + 1) ) ) {
         return FDF_FAILURE_MEMORY_ALLOC;
     }
-    else
+    else {
         sprintf( cname_key, "%s", cmap->cname );
+    }
 
-    CMapUpdate( cmap_cguid_hash,
+    /*
+     * Update mapping of cguid to cmap entry
+     */
+    struct CMapEntry *ptr = CMapUpdate( cmap_cguid_hash,
                         (char *) &cmap->cguid,
                         sizeof( FDF_cguid_t ),
                         (char *) cmap,
                         sizeof( cntr_map_t )
 	                  );
-
-    replace_status = HashMap_replace( cmap_cname_hash, cname_key, (void *) cmap->cguid );
-	
-	plat_free(cname_key);
-
-	if (NULL == replace_status ) {
-		plat_log_msg( 150118, 
-	                  LOG_CAT, 
-	                  LOG_DBG,
-	                  "Failed to update %s - %lu", 
-	                  cmap->cname, 
-	                  cmap->cguid
-	                );
+    if (NULL == ptr) {
+        plat_log_msg(160213,
+                LOG_CAT,
+                LOG_DBG,
+                "CMapUpdate: Failed to update %s - %lu",
+                cmap->cname, 
+                cmap->cguid
+                );
+        plat_free(cname_key);
         return FDF_FAILURE;
-	} else {
-        return FDF_SUCCESS;
-	}
+    }
+
+    /*
+     * Update mapping of key:cname to value:cguid
+     */
+    status  = HashMap_put(cmap_cname_hash, (const char*)cname_key, (void *) cmap->cguid );
+    if (SDF_FALSE == status) {
+        plat_log_msg(160214,
+                LOG_CAT, 
+                LOG_DBG,
+                "Entry exist: Failed to create %s - %lu, trying to replace",
+                cmap->cname,
+                cmap->cguid
+                );
+
+        void *old_cguid = HashMap_replace(cmap_cname_hash, (const char*)cname_key, (void *) cmap->cguid);
+        if (cmap->cguid == (long int)old_cguid) {
+            plat_log_msg(160215,
+                    LOG_CAT,
+                    LOG_DBG,
+                    "Entry exist: Failed to replace %s - %lu",
+                    cmap->cname,
+                    cmap->cguid
+                    );
+            ret = FDF_FAILURE;
+        }
+    }
+    return ret;
 }
+
 
 cntr_map_t *fdf_cmap_get_by_cguid(
 	FDF_cguid_t cguid
@@ -261,6 +288,7 @@ cntr_map_t *fdf_cmap_get_by_cname(
 	)
 {
 	FDF_cguid_t cguid = FDF_NULL_CGUID;
+    cntr_map_t *entry = NULL;
 
 	if ( !cname )
 	    return NULL;
@@ -268,10 +296,13 @@ cntr_map_t *fdf_cmap_get_by_cname(
 	if ( strcmp( CMC_PATH, cname ) == 0 )
 	    return &cmc_map;
 
-	if ( FDF_NULL_CGUID != ( cguid = fdf_cmap_get_cguid( cname ) ) ) 
-	    return fdf_cmap_get_by_cguid( cguid );
-	else
-	    return NULL;
+	cguid = fdf_cmap_get_cguid(cname);
+
+    if (FDF_NULL_CGUID != cguid) {
+	    entry = fdf_cmap_get_by_cguid( cguid );
+    }
+
+    return entry;
 }
 
 static void

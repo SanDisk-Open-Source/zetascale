@@ -3380,6 +3380,14 @@
 160206 FDFGetContainerStats failed for VDC (error:%s)
 160207 Programming error: Numbers of stats defined in FDF_flash_stat_t(%d) does not match array fdf_stats_flash(%d)
 160208 Programming error: Numbers of stats defined in FDF_Btree_stat_t(%d) does not match array fdf_stats_btree(%d)
+160209 Unable to open container %lu for deleting err=%s
+160210 Container cguid=%lu does not exist. Delete can not proceed\n
+160211 Delete already under progress for container %lu with state=%d
+160212 Failed to close container during delete status=%s
+160213 CMapUpdate: Failed to update %s - %lu
+160214 Entry exist: Failed to create %s - %lu, trying to replace
+160215 Entry exist: Failed to replace %s - %lu
+160216 Old fthSpawnPthread: ID=%d TID=%ld\n
 
 
 # rico

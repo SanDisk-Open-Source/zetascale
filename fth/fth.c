@@ -248,6 +248,8 @@ static void *pthread_func_wrapper(void *arg)
     pthread_exit(NULL);
 }
 
+extern int getProperty_Int(const char *key, const int defaultVal);
+
 fthThread_t *fthSpawnPthread(int shutdown_thread)
 {
     fthThread_t           *fthrd;
@@ -255,11 +257,23 @@ fthThread_t *fthSpawnPthread(int shutdown_thread)
     cpu_set_t              mask;
     int i;
 
+    
+    int async_thread = 0;
+    if ( getProperty_Int( "ASYNC_DELETE_CONTAINERS", 0) == 1 ) {
+        async_thread = 1;
+    }
+
 	/* 
 	 * Already thread state initialized, return error if it is
 	 * not shutdown thread
 	 */
-	if (selfFthread && !shutdown_thread) {
+	if (!async_thread && selfFthread && !shutdown_thread) {
+        if (NULL != selfFthread) {
+            plat_log_msg(160216,
+                    PLAT_LOG_CAT_SDF_NAMING,
+                    PLAT_LOG_LEVEL_ERROR,
+                    "Old fthSpawnPthread: ID=%d TID=%ld\n", selfFthread->id, (uint64_t)pthread_self());
+        }
 		return NULL;
 	}
 
@@ -303,6 +317,7 @@ fthThread_t *fthSpawnPthread(int shutdown_thread)
 	pthread_mutex_unlock(&(fth->list_mutex));
 
     selfFthread = fthrd;
+    //printf("Fresh fthSpawnPthread: ID=%d TID=%u\n", selfFthread->id, pthread_self());
 
     return fthrd;
 }
