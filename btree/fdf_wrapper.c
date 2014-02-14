@@ -66,7 +66,8 @@ int btree_parallel_flush_minbufs = 3;
 static uint64_t  n_reads = 0;
 
 __thread struct FDF_thread_state *my_thd_state;
-__thread struct FDF_state *my_fdf_state;
+struct FDF_state *my_global_fdf_state;
+uint64_t invoke_scavenger_per_n_obj_del = 10000;
 
 __thread bool bad_container = 0;
 struct FDF_state *FDFState;
@@ -81,6 +82,7 @@ uint64_t flash_space_soft_limit;
 bool flash_space_soft_limit_check = true;
 bool flash_space_limit_log_flag = false;
 
+__thread FDF_cguid_t my_thrd_cguid;
 
 /*
  * Variables to manage persistent stats
@@ -555,6 +557,7 @@ FDF_status_t _FDFInit(
     int iret;
 
 	const char *FDF_SCAVENGER_THREADS = "60";
+	const char *FDF_SCAVENGE_PER_OBJECTS = "10000";
 	int NThreads = 10;
 
     // Initialize the map
@@ -567,8 +570,9 @@ FDF_status_t _FDFInit(
 		pthread_rwlock_init(&(Container_Map[i].bt_cm_rwlock), NULL);
     }
 
-	
-	my_fdf_state = *fdf_state;
+	invoke_scavenger_per_n_obj_del	= atoi(_FDFGetProperty("FDF_SCAVENGE_PER_OBJECTS",FDF_SCAVENGE_PER_OBJECTS));
+	my_global_fdf_state = *fdf_state;
+
     btSyncMboxInit(&mbox_scavenger);
     NThreads = atoi(_FDFGetProperty("FDF_SCAVENGER_THREADS",FDF_SCAVENGER_THREADS));
     for (i = 0;i < NThreads;i++) {
@@ -1223,7 +1227,7 @@ restart:
 
 	if ((bt->partitions[0])->snap_meta->scavenging_in_progress == 1) {
 		fprintf(stderr,"Before the restart scavenger was terminated ungracefully,  restarting the scavenger on this container\n");
-		_FDFScavengeContainer(my_fdf_state, *cguid);
+		_FDFScavengeContainer(my_global_fdf_state, *cguid);
 	}
     return(FDF_SUCCESS);
 
@@ -1869,7 +1873,7 @@ FDF_status_t _FDFDeleteObject(
     bt = Container_Map[index].btree;
 
     meta.flags = 0;
-
+	my_thrd_cguid = cguid;
     trxenter( cguid);
     btree_ret = btree_delete(bt, key, keylen, &meta);
     trxleave( cguid);
@@ -3314,6 +3318,7 @@ _FDFDeleteContainerSnapshot(struct FDF_thread_state *fdf_thread_state, //  clien
 	switch(btree_ret) {
 		case BTREE_SUCCESS:
 			status = FDF_SUCCESS;
+			 _FDFScavengeContainer(my_global_fdf_state, cguid);
 			break;
 		case BTREE_FAILURE:
 		default:

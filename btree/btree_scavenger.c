@@ -13,6 +13,7 @@
 #define MAX_OPEN_CONTAINERS   (UINT16_MAX - 1 - 9)
 
 extern  __thread struct FDF_thread_state *my_thd_state;
+ extern __thread FDF_cguid_t my_thrd_cguid;
 __thread int key_loc = 0;
 __thread int start_key_in_node = 0;
 static __thread char tmp_key_buf[8100] = {0};
@@ -49,7 +50,7 @@ scavenger_worker(uint64_t arg)
 
 		FDFInitPerThreadState(s->fdf_state,&fdf_thread_state);
 		my_thd_state = fdf_thread_state;
-	 
+	  	my_thrd_cguid = 0;
 		open_container(fdf_thread_state, s->cguid);
 		node = root_get_and_lock(s->btree, write_lock);
 		assert(node);
