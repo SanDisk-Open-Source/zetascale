@@ -3426,6 +3426,7 @@
 170040 No x86 SSE4.2 support, FDF_OBJECT_CHECKSUM disabled
 170041 seqno mismatch, meta=%lu, rec=%lu
 170042 Bogus log # from log_writer
+170043 Outer trx is unrecoverable (too long)
 
 
 # efirsov

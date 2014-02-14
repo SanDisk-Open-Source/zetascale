@@ -4459,6 +4459,13 @@ filter_ot_apply_logrec( mcd_rec_obj_state_t *state, mcd_logrec_object_t *rec)
 			bracket_t *b = &r->btab[rec->bracket_id];
 			if (b->nrec < nel( b->record)) {
 				bracketlogrec_t *l = &b->record[b->nrec++];
+				if (b->nrec == nel( b->record)) {
+					if (state->shard->log->errors_fatal) {
+						mcd_log_msg( 170043, PLAT_LOG_LEVEL_FATAL, "Outer trx is unrecoverable (too long)");
+						plat_abort( );
+					}
+					mcd_log_msg( 170043, PLAT_LOG_LEVEL_ERROR, "Outer trx is unrecoverable (too long)");
+				}
 				l->cguid = rec->cntr_id;
 				l->blkno = rec->blk_offset;
 				l->oldblkno = rec->old_offset;
@@ -6361,6 +6368,11 @@ updater_thread( uint64_t arg )
                 else {
                     old_merged = false; // new_merged = false;
                 }
+		/*
+		 * #11425 - scan 1st log regardless so the "st" filter works
+		 */
+		ckpt->LSN = 0;
+		old_merged = false;
             }
 
             mcd_log_msg( 40088, PLAT_LOG_LEVEL_DEBUG,
@@ -6724,6 +6736,7 @@ log_init( mcd_osd_shard_t * shard )
     shard->ps_alloc += sizeof( mcd_rec_log_t );
 
     memset( log, 0, sizeof( mcd_rec_log_t ) );
+    log->errors_fatal         = getProperty_Int( "FDF_LOG_FATAL", 0);
     log->curr_LSN             = 0; // must be initialized after recovery
     log->next_fill            = 0;
     log->total_slots          = log_slots;
@@ -7080,12 +7093,16 @@ log_write_internal( mcd_osd_shard_t *s, mcd_logrec_object_t *lr)
 	uint64_t	slot_seqno;
 
 	if ((lr->bracket_id = trx_bracket_id)
-	and (lr->old_offset)) {
-		unless (trx_bracket_nslab < nel( trx_bracket_slabs)) {
-			mcd_log_msg( 170024, PLAT_LOG_LEVEL_FATAL, "Slab deferral exceeded");
-			plat_abort( );
-		}
+	and (lr->old_offset)
+	and (trx_bracket_nslab < nel( trx_bracket_slabs))) {
 		trx_bracket_slabs[trx_bracket_nslab++] = ~ lr->old_offset;
+		if (trx_bracket_nslab == nel( trx_bracket_slabs)) {
+			if (s->log->errors_fatal) {
+				mcd_log_msg( 170024, PLAT_LOG_LEVEL_FATAL, "Slab deferral exceeded");
+				plat_abort( );
+			}
+			mcd_log_msg( 170024, PLAT_LOG_LEVEL_ERROR, "Slab deferral exceeded");
+		}
 	}
 	(void)__sync_fetch_and_add( &s->refcount, 1);
 	mcd_rec_log_t *log = s->log;
@@ -7193,8 +7210,15 @@ void
 log_sync_postprocess( mcd_osd_shard_t *shard, mcd_rec_pp_state_t *pp_state)
 {
 
-	for (uint d=0; d<pp_state->dealloc_count; ++d)
-		mcd_fth_osd_slab_dealloc( shard, pp_state->dealloc_list[d], true);
+	for (uint d=0; d<pp_state->dealloc_count; ++d) {
+		pp_state->dealloc_ring[pp_state->dealloc_head] = pp_state->dealloc_list[d];
+		pp_state->dealloc_head = (pp_state->dealloc_head+1) % nel( pp_state->dealloc_ring);
+		if (pp_state->dealloc_head == pp_state->dealloc_tail) {
+			uint o = pp_state->dealloc_ring[pp_state->dealloc_tail];
+			pp_state->dealloc_tail = (pp_state->dealloc_tail+1) % nel( pp_state->dealloc_ring);
+			mcd_fth_osd_slab_dealloc( shard, o, true);
+		}
+	}
 	pp_state->dealloc_count = 0;
 	mcd_rec_log_t *l = shard->log;
 	if (l->nslab) {

@@ -447,6 +447,9 @@ typedef struct mcd_rec_pp_state {
     int                     slot_count;    // slots in logbuf already pp'd
     int                     dealloc_count; // number of dealloc block addresses
     uint32_t              * dealloc_list;  // list of dealloc block addresses
+    uint                    dealloc_head,  // ring buffer to delay slab reuse
+                            dealloc_tail;  //          by a guaranteed amount
+    uint32_t                dealloc_ring[80000];
 } mcd_rec_pp_state_t;
 
 // Log buffer
@@ -488,7 +491,7 @@ typedef struct mcd_rec_log {
     int                     segment_count; // number of segments
     char                 ** segments;      // array of log buffers used
                                            //   during object table merge
-
+    int                     errors_fatal;  // abort on too many deferred slabs
     // log <-> updater interaction
 
     int                     updater_started;  // 1=updater started
