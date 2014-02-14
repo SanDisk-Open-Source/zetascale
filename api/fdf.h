@@ -424,6 +424,7 @@ typedef struct {
 	FDF_boolean_t			flash_only;
 	FDF_boolean_t			cache_only;
     FDF_boolean_t compression; /* Flag to enable/disable compression */
+	FDF_boolean_t Fault_Injec_ConatinerFail; /*Flag to inject fault to fail contianer before btree is initialized*/
 } FDF_container_props_t;
 #endif
 

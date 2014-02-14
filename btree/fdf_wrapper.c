@@ -67,6 +67,8 @@ static uint64_t  n_reads = 0;
 
 __thread struct FDF_thread_state *my_thd_state;
 __thread struct FDF_state *my_fdf_state;
+
+__thread bool bad_container = 0;
 struct FDF_state *FDFState;
 
 uint64_t *flash_blks_allocated;
@@ -1143,6 +1145,10 @@ restart:
     strcpy(Container_Map[index].cname, cname);
     FDFInitPstats(fdf_thread_state, cname, &pstats);
 
+	if (properties->Fault_Injec_ConatinerFail == 1) {
+		goto fail;
+	}
+
     bt = btree_init(n_partitions, 
                     flags, 
                     max_key_size, 
@@ -1175,6 +1181,13 @@ restart:
 		    );
 
     if (bt == NULL) {
+	if (bad_container == 1) {
+		ret = FDF_CONTAINER_UNKNOWN;
+		bad_container = 0; 
+		FDFCloseContainer(fdf_thread_state, *cguid);
+		FDFDeleteContainer(fdf_thread_state, *cguid);
+		goto fail;
+	}
         msg("Could not create btree in FDFOpenContainer!");
         //FDFDeleteContainer(fdf_thread_state, *cguid);
 		FDFCloseContainer(fdf_thread_state, *cguid);
@@ -1230,6 +1243,8 @@ FDF_status_t _FDFOpenContainer(
 	FDF_cguid_t             *cguid
 	)
 {
+	FDF_status_t        status = FDF_FAILURE;
+
 	if (!cname) {
 		return(FDF_INVALID_PARAMETER);
 	}
@@ -1259,12 +1274,16 @@ FDF_status_t _FDFOpenContainer(
 		flags_in |= FDF_CTNR_RW_MODE;
 	}
 
-	return (_FDFOpenContainerSpecial(fdf_thread_state,
-				cname,
-				properties,
-				flags_in,
-				NULL,
-				cguid));
+       status = _FDFOpenContainerSpecial(fdf_thread_state, cname, properties, flags_in, NULL, cguid);
+
+       if (status == FDF_FAILURE_CANNOT_CREATE_METADATA_CACHE) {
+               if ((flags_in & FDF_CTNR_RW_MODE) && (flags_in & FDF_CTNR_CREATE)) {
+                       flags_in &= ~FDF_CTNR_CREATE;
+                       status = _FDFOpenContainerSpecial(fdf_thread_state, cname, properties, flags_in, NULL, cguid);
+               }
+       }
+       return (status);
+
 }
 
 /**
