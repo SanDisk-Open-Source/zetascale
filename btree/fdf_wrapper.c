@@ -3424,13 +3424,18 @@ seqnoalloc( struct FDF_thread_state *t)
 	static pthread_mutex_t	seqnolock		= PTHREAD_MUTEX_INITIALIZER;
 	static FDF_cguid_t	cguid;
 	static uint64_t		seqnolimit,
-				seqno;
+				seqno = 0;
 	static char		SEQNO_CONTAINER[]	= "__SanDisk_seqno_container";
 	static char		SEQNO_KEY[]		= "__SanDisk_seqno_key";
 	FDF_container_props_t	p;
 	FDF_status_t		s;
 	char			*data;
-	uint64_t		dlen;
+	uint64_t		dlen, z;
+
+	z = __sync_fetch_and_add(&seqno, 1);
+
+	if(initialized && z < seqnolimit)
+		return z;
 
 	pthread_mutex_lock( &seqnolock);
 	unless (initialized) {
@@ -3440,7 +3445,7 @@ seqnoalloc( struct FDF_thread_state *t)
 			if ((FDFReadObject( t, cguid, SEQNO_KEY, sizeof SEQNO_KEY, &data, &dlen) == FDF_SUCCESS)
 			and (dlen == sizeof seqnolimit)) {
 				seqnolimit = *(uint64_t *)data;
-				seqno = seqnolimit;
+				z = seqno = seqnolimit;
 				FDFFreeBuffer( data);
 				break;
 			}
@@ -3466,8 +3471,8 @@ seqnoalloc( struct FDF_thread_state *t)
 		}
 		initialized = TRUE;
 	}
-	unless (seqno < seqnolimit) {
-		seqnolimit = seqno + SEQNO_SYNC_INTERVAL;
+	unless (z < seqnolimit) {
+		seqnolimit = z + SEQNO_SYNC_INTERVAL;
 		s = FDFWriteObject( t, cguid, SEQNO_KEY, sizeof SEQNO_KEY, (char *)&seqnolimit, sizeof seqnolimit, 0);
 		unless (s == FDF_SUCCESS) {
 			seqnolimit = 0;
@@ -3477,7 +3482,6 @@ seqnoalloc( struct FDF_thread_state *t)
 		}
 		//fprintf( stderr, "seqnoalloc (info): new seqnolimit = %ld\n", seqnolimit);
 	}
-	uint64_t z = seqno++;
 	pthread_mutex_unlock( &seqnolock);
 	return (z);
 }
