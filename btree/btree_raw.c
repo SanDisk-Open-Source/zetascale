@@ -139,8 +139,6 @@ __thread uint64_t dbg_referenced = 0;
 
 static __thread uint64_t _pstats_ckpt_index = 0;
 
-extern  __thread bool bad_container;
-
 extern struct FDF_state *FDFState;
 
 #ifdef FLIP_ENABLED
@@ -506,8 +504,7 @@ btree_raw_init(uint32_t flags, uint32_t n_partition, uint32_t n_partitions, uint
 
     if (flags & RELOAD) {
         if (BTREE_SUCCESS != loadpersistent( bt)) {
-	    bad_container = 1;
-            bt_warn( "Could not identify root node!");
+            bt_err( "Could not identify root node!");
             free( bt);
             return (NULL);
         }
@@ -1447,7 +1444,7 @@ get_leaf_data_index(btree_raw_t *bt, btree_raw_node_t *n, int index, char **data
 			if (meta_flags & ALLOC_IF_TOO_SMALL) {
 				buf = get_buffer(bt, key_info.datalen);
 				if (buf == NULL) {
-					bt_warn("Failed to allocate a buffer of size %lld in get_leaf_data!", key_info.datalen);
+					bt_err("Failed to allocate a buffer of size %lld in get_leaf_data!", key_info.datalen);
 					return(BTREE_FAILURE);
 				}
 				buf_alloced = 1;
@@ -1460,7 +1457,7 @@ get_leaf_data_index(btree_raw_t *bt, btree_raw_node_t *n, int index, char **data
     } else {
         buf = get_buffer(bt, key_info.datalen);
 		if (buf == NULL) {
-			bt_warn("Failed to allocate a buffer of size %lld in get_leaf_data!", key_info.datalen);
+			bt_err("Failed to allocate a buffer of size %lld in get_leaf_data!", key_info.datalen);
 			return(BTREE_FAILURE);
 		}
 		buf_alloced = 1;
@@ -1493,8 +1490,7 @@ get_leaf_data_index(btree_raw_t *bt, btree_raw_node_t *n, int index, char **data
 					deref_l1cache_node(bt, node);
 			}
 			if (nbytes) {
-				*data = NULL;
-				bt_warn("Failed to get overflow node (logical_id=%lld)(nbytes=%ld) in get_leaf_data!", z_next, nbytes);
+				bt_err("Failed to get overflow node (logical_id=%lld)(nbytes=%ld) in get_leaf_data!", z_next, nbytes);
 				if (buf_alloced) {
 					free_buffer(bt, buf);
 				}
@@ -1546,7 +1542,7 @@ get_leaf_data_nth_key(btree_raw_t *bt, btree_raw_node_t *n, int index,
 	    if (meta_flags & ALLOC_IF_TOO_SMALL) {
 		buf = get_buffer(bt, key_info.datalen);
 		if (buf == NULL) {
-		    bt_warn("Failed to allocate a buffer of size %lld in get_leaf_data!", key_info.datalen);
+		    bt_err("Failed to allocate a buffer of size %lld in get_leaf_data!", key_info.datalen);
 		    return(BTREE_FAILURE);
 		}
 		buf_alloced = 1;
@@ -1559,7 +1555,7 @@ get_leaf_data_nth_key(btree_raw_t *bt, btree_raw_node_t *n, int index,
     } else {
         buf = get_buffer(bt, key_info.datalen);
 	if (buf == NULL) {
-	    bt_warn("Failed to allocate a buffer of size %lld in get_leaf_data!", key_info.datalen);
+	    bt_err("Failed to allocate a buffer of size %lld in get_leaf_data!", key_info.datalen);
 	    return(BTREE_FAILURE);
 	}
 	buf_alloced = 1;
@@ -1595,8 +1591,7 @@ get_leaf_data_nth_key(btree_raw_t *bt, btree_raw_node_t *n, int index,
 		    deref_l1cache_node(bt, node);
 	    }
 	    if (nbytes) {
-		*data = NULL;
-		bt_warn("Failed to get overflow node (logical_id=%lld)(nbytes=%ld) in get_leaf_data!", z_next, nbytes);
+		bt_err("Failed to get overflow node (logical_id=%lld)(nbytes=%ld) in get_leaf_data!", z_next, nbytes);
 		if (buf_alloced) {
 		    free_buffer(bt, buf);
 		}
