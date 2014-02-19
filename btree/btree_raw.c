@@ -5416,35 +5416,48 @@ btree_raw_mput_recursive(struct btree_raw *btree, btree_mput_obj_t *objs, uint32
 	       uint32_t write_type, btree_metadata_t *meta, uint32_t *objs_written, int* pathcnt)
 {
 	btree_status_t ret = BTREE_SUCCESS;
-	btree_mput_obj_t* s_objs = objs;
-	uint32_t written, count = num_objs;
+	btree_mput_obj_t* s_objs;
+	uint32_t written = 0, count = num_objs;
+
+#ifdef FLIP_ENABLED
+	static uint32_t descend_cnt = 0;
+#endif
 
 	if(!num_objs) return BTREE_SUCCESS;
 
-//	dbg_print("1objs=%p num_objs=%d objs_written=%d write_type=%d\n", objs, num_objs, *objs_written, write_type);
-	dbg_print_key(objs[0].key, objs[0].key_len, "objs=%p num_objs=%d objs_written=%d write_type=%d", objs, num_objs, *objs_written, write_type);
+	do {
+#ifdef FLIP_ENABLED
+		if (flip_get("sw_crash_on_mput", descend_cnt)) {
+			exit(1);
+		}
+		descend_cnt++;
+#endif
 
-	ret = btree_raw_mwrite_low(btree, &objs, &num_objs, meta, 0,
-			write_type, pathcnt, &written);
+		count -= written;
+		s_objs = objs;
+		num_objs = count;
 
-	*objs_written += written;
+		//	dbg_print("1objs=%p num_objs=%d objs_written=%d write_type=%d\n", objs, num_objs, *objs_written, write_type);
+		//dbg_print_key(objs[0].key, objs[0].key_len, "objs=%p num_objs=%d objs_written=%d write_type=%d", objs, num_objs, *objs_written, write_type);
+		ret = btree_raw_mwrite_low(btree, &objs, &num_objs, meta, 0,
+				write_type, pathcnt, &written);
+
+		*objs_written += written;
+
+	} while(!ret && count - written && objs - s_objs == written); // there is something yet to write and no hole
 
 	if(!ret && count - written) // there is something yet to write
 	{
-		dbg_print_key(objs[0].key, objs[0].key_len, "middle objs=%p s_objs=%p objs-s_objs=%d num_objs=%d objs_written=%d written=%d count=%d", objs, s_objs, objs - s_objs, num_objs, *objs_written, written, count);
+		//dbg_print_key(objs[0].key, objs[0].key_len, "middle objs=%p s_objs=%p objs-s_objs=%d num_objs=%d objs_written=%d written=%d count=%d", objs, s_objs, objs - s_objs, num_objs, *objs_written, written, count);
 
-		if(objs - s_objs != written) // hole
-		{
-			ret = btree_raw_mput_recursive(btree, s_objs + written + num_objs,
-					count - written - num_objs, write_type, meta, objs_written,
-					pathcnt);
-			if(!ret)
-				ret = btree_raw_mput_recursive(btree, objs, num_objs, write_type,
+		assert(objs - s_objs != written); // hole
+
+		ret = btree_raw_mput_recursive(btree, s_objs + written + num_objs,
+				count - written - num_objs, write_type, meta, objs_written,
+				pathcnt);
+		if(!ret && num_objs)
+			ret = btree_raw_mput_recursive(btree, objs, num_objs, write_type,
 					meta, objs_written, pathcnt);
-		}
-		else // no hole
-			ret = btree_raw_mput_recursive(btree, s_objs + written, count -
-					written, write_type, meta, objs_written, pathcnt);
 	}
 
 	return ret;

@@ -2696,14 +2696,8 @@ _FDFMPut(struct FDF_thread_state *fdf_ts,
 	btree_status_t btree_ret = BTREE_FAILURE;
 	btree_metadata_t meta;
 	struct btree *bt = NULL;
-	uint32_t objs_written = 0;
-	uint32_t objs_to_write = num_objs;
 	int		index;
         uint64_t flash_space_used;
-
-#ifdef FLIP_ENABLED
-	uint32_t descend_cnt = 0;
-#endif
 
 	my_thd_state = fdf_ts;;
 
@@ -2746,32 +2740,16 @@ _FDFMPut(struct FDF_thread_state *fdf_ts,
 
 	meta.flags = 0;
 
-	/* The following logic is not required so as btree_raw_mput_recursive
-	 * always write all objects */
-	objs_written = 0;
-	objs_to_write = num_objs;
-
-         __sync_add_and_fetch(&(bt->partitions[0]->stats.stat[BTSTAT_MPUT_CNT]),1);
+	__sync_add_and_fetch(&(bt->partitions[0]->stats.stat[BTSTAT_MPUT_CNT]),1);
 	FDFTransactionService( fdf_ts, 0, 0);
-	do {
-		objs_to_write -= objs_written;
-		objs_written = 0;
-
-#ifdef FLIP_ENABLED
-		if (flip_get("sw_crash_on_mput", descend_cnt)) {
-			exit(1);
-		}
-		descend_cnt++;
-#endif
-		btree_ret = btree_mput(bt, (btree_mput_obj_t *)&objs[num_objs - objs_to_write],
-				       objs_to_write, flags, &meta, &objs_written);
-	} while ((btree_ret == BTREE_SUCCESS) && objs_written < objs_to_write);
+	btree_ret = btree_mput(bt, (btree_mput_obj_t *)objs,
+			num_objs, flags, &meta, objs_done);
 	FDFTransactionService( fdf_ts, 1, 0);
+	assert(*objs_done == num_objs);
 
-	*objs_done = num_objs - (objs_to_write - objs_written);
-        if( btree_ret == BTREE_SUCCESS ) {
-             __sync_add_and_fetch(&(bt->partitions[0]->stats.stat[BTSTAT_NUM_MPUT_OBJS]),num_objs);
-        }
+	if( btree_ret == BTREE_SUCCESS ) {
+		__sync_add_and_fetch(&(bt->partitions[0]->stats.stat[BTSTAT_NUM_MPUT_OBJS]),num_objs);
+	}
 	ret = BtreeErr_to_FDFErr(btree_ret);
 	bt_rel_entry(index, true);
 	return ret;
