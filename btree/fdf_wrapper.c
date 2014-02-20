@@ -99,7 +99,7 @@ static int mput_default_cmp_cb(void *data, char *key, uint32_t keylen,
 			    char *old_data, uint64_t old_datalen,
 			    char *new_data, uint64_t new_datalen);
 
-static void* read_node_cb(btree_status_t *ret, void *data, uint64_t lnodeid);
+static void read_node_cb(btree_status_t *ret, void *data, void *pnode, uint64_t lnodeid);
 static void write_node_cb(struct FDF_thread_state *thd_state, btree_status_t *ret, void *cb_data, uint64_t** lnodeid, char **data, uint64_t datalen, int count);
 static void flush_node_cb(btree_status_t *ret, void *cb_data, uint64_t lnodeid);
 static int freebuf_cb(void *data, char *buf);
@@ -2306,16 +2306,15 @@ _FDFGetRangeFinish(struct FDF_thread_state *fdf_thread_state,
  *
  *****************************************************************/
 
-static void* read_node_cb(btree_status_t *ret, void *data, uint64_t lnodeid)
+static void read_node_cb(btree_status_t *ret, void *data, void *pnode, uint64_t lnodeid)
 {
     read_node_t            *prn = (read_node_t *) data;
-    struct btree_raw_node  *n;
-    uint64_t                datalen;
+    uint64_t                datalen = prn->nodesize;
     FDF_status_t            status = FDF_FAILURE;
 
     N_read_node++;
 
-    status = FDFReadObject(my_thd_state, prn->cguid, (char *) &lnodeid, sizeof(uint64_t), (char **) &n, &datalen);
+    status = FDFReadObject2(my_thd_state, prn->cguid, (char *) &lnodeid, sizeof(uint64_t), (char **) &pnode, &datalen);
     trxtrackread( prn->cguid, lnodeid);
 
     if (status == FDF_SUCCESS) {
@@ -2323,12 +2322,10 @@ static void* read_node_cb(btree_status_t *ret, void *data, uint64_t lnodeid)
         *ret = BTREE_SUCCESS;
 	    // xxxzzz SEGFAULT
 	    // fprintf(stderr, "SEGFAULT read_node_cb: %p [tid=%d]\n", n, tid);
-	    return(n);
     } else {
 	fprintf(stderr, "ZZZZZZZZ   red_node_cb %lu - %lu failed with ret=%s   ZZZZZZZZZ\n", lnodeid, datalen, FDFStrError(status));
         //*ret = BTREE_FAILURE;
 	*ret = FDFErr_to_BtreeErr(status);
-	return(NULL);
     }
 }
 

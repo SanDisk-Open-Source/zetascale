@@ -122,6 +122,8 @@ typedef struct btree_raw_mem_node btree_raw_mem_node_t;
 
 //#define DEBUG_STUFF
 struct btree_raw_mem_node {
+	struct btree_raw_mem_node  *free_next; // free list   
+	bool     malloced;       // Is it pool alloced or malloced
 	char     flag;
 	uint64_t modified;
 #ifdef DEBUG_STUFF
@@ -134,6 +136,27 @@ struct btree_raw_mem_node {
 	btree_raw_mem_node_t *next; // dirty list
 	btree_raw_node_t *pnode;
 };
+
+/* Memory alloc functions */
+#define MEM_NODE_SIZE  (sizeof(btree_raw_mem_node_t) + get_btree_node_size())  
+
+typedef struct {
+	btree_raw_mem_node_t *head;
+	uint64_t size;
+	uint64_t n_entries;
+	uint64_t n_free_entries;
+	pthread_mutex_t mem_mgmt_lock;
+
+#ifdef MEM_SIZE_DEBUG
+	uint64_t n_threshold_entries;
+	uint64_t min_free_entries;
+#endif
+} btree_node_list_t;
+
+btree_node_list_t *btree_node_list_init(uint64_t n_entries, uint64_t size);
+btree_status_t btree_node_list_alloc(btree_node_list_t *l, uint64_t n_entries, uint64_t size);
+btree_raw_mem_node_t *btree_node_alloc(btree_node_list_t *l);
+void btree_node_free(btree_node_list_t *l, btree_raw_mem_node_t *mnode);
 
 /************** Snapshot related structures *****************/
 #define SNAP_VERSION1			0x98760001

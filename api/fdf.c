@@ -4588,12 +4588,14 @@ fdf_read_object(
 	char                      *key,
 	uint32_t                   keylen,
 	char                     **data,
-	uint64_t                  *datalen
+	uint64_t                  *datalen,
+        bool                      app_buf
 	)
 {
     SDF_appreq_t        ar;
     SDF_action_init_t  *pac;
     FDF_status_t        status  = FDF_SUCCESS;
+    char *app_buf_data_ptr = NULL;
 
     if ( !cguid || !key ) {
         return FDF_INVALID_PARAMETER;
@@ -4615,7 +4617,7 @@ fdf_read_object(
 	}
     
 	if (meta->meta.properties.flash_only == FDF_TRUE) {
-		char* tdata;
+		char* tdata = (char *)0x1; // Make sure its not NULL
 
 		plat_log_msg(160191, LOG_CAT,
                     LOG_TRACE, "FDFReadObject flash_only.");
@@ -4626,11 +4628,20 @@ fdf_read_object(
                 ar.reqtype = APGRX;
                 update_container_stats(pac, &ar,meta);
 		status = ssd_flashGet(pac->paio_ctxt, meta->pshard, &metaData, key, &tdata, FLASH_GET_NO_TEST);
-		*datalen = metaData.dataLen;
+
+		/* If app buf, copied len should be min of datalen and metaData.dataLen */
+		if (app_buf) {
+			*datalen = (*datalen > metaData.dataLen) ? metaData.dataLen: *datalen;
+		} else {
+			*datalen = metaData.dataLen;
+		}
+
 		if (status == FLASH_EOK) {
 
 			status = FDF_SUCCESS;
-			*data = malloc(*datalen);
+			if (!app_buf) {
+				*data = malloc(*datalen);
+			}
 			if(!data)
 				status = FDF_FAILURE;
 			else
@@ -4658,6 +4669,12 @@ fdf_read_object(
        	status = FDF_BAD_PBUF_POINTER;
 		goto out; 
     }
+
+    if (app_buf) {
+        /* data ptr gets modified lower layer. Keep a copy of it */
+        app_buf_data_ptr = *data;
+    }
+
     ar.ppbuf_in = (void **)data;
 
     ActionProtocolAgentNew(pac, &ar);
@@ -4665,9 +4682,21 @@ fdf_read_object(
     if (datalen == NULL) {
         return(FDF_BAD_SIZE_POINTER);
     }
-    *datalen = ar.destLen;
 
-	status = ar.respStatus;
+    /* TODO: This is sub-optimal way of reading from app buf,
+     * however, there is no application use case so far and used
+     * only for test app, hence its fine for now. When it needs
+     * to support widely, need to put this in ActionProtocol code */
+    if (app_buf) {
+        *datalen = (*datalen > ar.destLen) ? ar.destLen: *datalen;
+        memcpy(app_buf_data_ptr, *data, *datalen);
+        free(*data);
+        *data = app_buf_data_ptr;
+    } else {
+        *datalen = ar.destLen;
+    }
+
+    status = ar.respStatus;
 	}
 
 out:
@@ -4737,7 +4766,7 @@ FDF_status_t FDFReadObject(
 		goto out;
 	}
 
-	status = fdf_read_object(fdf_thread_state, cguid, key, keylen, data, datalen);
+	status = fdf_read_object(fdf_thread_state, cguid, key, keylen, data, datalen, false);
 
 out:
 	if (thd_ctx_locked) {
@@ -4746,6 +4775,74 @@ out:
 	return status; 
 }
 
+
+FDF_status_t FDFReadObject2(
+	struct FDF_thread_state   *fdf_thread_state,
+	FDF_cguid_t                cguid,
+	char                      *key,
+	uint32_t                   keylen,
+	char                     **data,
+	uint64_t                  *datalen
+	)
+{
+	FDF_status_t status = FDF_SUCCESS;
+	bool thd_ctx_locked = false;
+
+	status = fdf_validate_container(cguid);
+	if (FDF_SUCCESS != status) {
+		plat_log_msg(160125, LOG_CAT,
+				LOG_ERR, "Failed due to an illegal container ID:%s",
+				FDF_Status_Strings[status]);
+		goto out;
+	}
+	/*
+	 * Check if operation can begin
+	 */
+	if (FDF_SUCCESS != (status = is_fdf_operation_allowed())) {
+        plat_log_msg(160188, LOG_CAT,
+		   LOG_WARN, "Operation not allowed ");
+		goto out;
+	}
+	if (is_license_valid() == false) {
+		plat_log_msg(160145, LOG_CAT, LOG_WARN, "License check failed.");
+		status = FDF_LICENSE_CHK_FAILED;
+		goto out;
+	}
+        if ( !fdf_thread_state || !cguid || !keylen ) {
+            if ( !fdf_thread_state ) {
+                plat_log_msg(80049,LOG_CAT,LOG_DBG,
+                             "FDF Thread state is NULL");
+            }
+            if ( !cguid ) {
+                plat_log_msg(80050,LOG_CAT,LOG_DBG,
+                             "Invalid container cguid:%lu",cguid);
+            }
+            if ( !keylen ) {
+                plat_log_msg(80056,LOG_CAT,LOG_DBG,
+                             "Invalid key length");
+            }
+            return FDF_INVALID_PARAMETER;
+        }
+
+	thd_ctx_locked = fdf_lock_thd_ctxt(fdf_thread_state);
+	if (false == thd_ctx_locked) {
+		/*
+		 * Could not get thread context lock, error out.
+		 */
+		status = FDF_THREAD_CONTEXT_BUSY;
+		plat_log_msg(160161, LOG_CAT,
+		       	     LOG_DBG, "Could not get thread context lock");
+		goto out;
+	}
+
+	status = fdf_read_object(fdf_thread_state, cguid, key, keylen, data, datalen, true);
+
+out:
+	if (thd_ctx_locked) {
+		fdf_unlock_thd_ctxt(fdf_thread_state);
+	}
+	return status; 
+}
 
 static FDF_status_t
 fdf_read_object_expiry(

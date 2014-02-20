@@ -104,6 +104,14 @@ static FDF_status_t
                      uint64_t *datalen);
 
 static FDF_status_t 
+(*ptr_FDFReadObject2)(struct FDF_thread_state *fdf_thread_state,
+                     FDF_cguid_t cguid,
+                     char *key,
+                     uint32_t keylen,
+                     char **data,
+                     uint64_t *datalen);
+
+static FDF_status_t 
 (*ptr_FDFReadObjectExpiry)(struct FDF_thread_state *fdf_thread_state,
                            FDF_cguid_t cguid,
                            FDF_readobject_t *robj);
@@ -379,6 +387,7 @@ static struct {
     { "FDFGetContainerProps",          &ptr_FDFGetContainerProps         },
     { "FDFSetContainerProps",          &ptr_FDFSetContainerProps         },
     { "FDFReadObject",                 &ptr_FDFReadObject                },
+    { "FDFReadObject2",                &ptr_FDFReadObject2               },
     { "FDFReadObjectExpiry",           &ptr_FDFReadObjectExpiry          },
     { "FDFFreeBuffer",                 &ptr_FDFFreeBuffer                },
     { "FDFWriteObject",                &ptr_FDFWriteObject               },
@@ -777,6 +786,27 @@ FDFReadObject(struct FDF_thread_state *fdf_thread_state,
                                 datalen);
 }
 
+/*
+ * FDFReadObject2
+ */
+FDF_status_t 
+FDFReadObject2(struct FDF_thread_state *fdf_thread_state,
+              FDF_cguid_t cguid,
+              char *key,
+              uint32_t keylen,
+              char **data,
+              uint64_t *datalen)
+{
+    if (unlikely(!ptr_FDFReadObject2))
+        undefined("FDFReadObject2");
+
+    return (*ptr_FDFReadObject2)(fdf_thread_state,
+                                cguid,
+                                key,
+                                keylen,
+                                data,
+                                datalen);
+}
 
 /*
  * FDFReadObjectExpiry

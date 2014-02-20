@@ -716,6 +716,15 @@ FDF_status_t FDFReadObject(
 	uint64_t                 *datalen
 	);
 
+FDF_status_t FDFReadObject2(
+	struct FDF_thread_state  *fdf_thread_state,
+	FDF_cguid_t               cguid,
+	char                     *key,
+	uint32_t                  keylen,
+	char                     **data,
+	uint64_t                 *datalen
+	);
+
 /**
  *  @brief Get a copy of an object for read-only  access. Return its current expiry time.
  *

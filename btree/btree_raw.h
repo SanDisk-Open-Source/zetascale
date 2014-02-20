@@ -409,7 +409,7 @@ typedef int (* bt_mput_cmp_cb_t)(void  *data, 	//  opaque user data
 				 char *new_data,
 				 uint64_t new_datalen);
 					
-typedef struct btree_raw_mem_node *(read_node_cb_t)(btree_status_t *ret, void *data, uint64_t lnodeid);
+typedef void (read_node_cb_t)(btree_status_t *ret, void *data, void *pnode, uint64_t lnodeid);
 typedef void (write_node_cb_t)(struct FDF_thread_state *thd_state, btree_status_t *ret, void *cb_data, uint64_t **lnodeid, char **data, uint64_t datalen, uint32_t count);
 typedef void (flush_node_cb_t)(btree_status_t *ret, void *cb_data, uint64_t lnodeid);
 typedef int (freebuf_cb_t)(void *data, char *buf);

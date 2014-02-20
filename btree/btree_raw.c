@@ -137,6 +137,8 @@ static __thread uint64_t _pstats_ckpt_index = 0;
 
 extern struct FDF_state *FDFState;
 
+btree_node_list_t *free_node_list;
+
 #ifdef FLIP_ENABLED
 bool recovery_write = false;
 #endif
@@ -323,10 +325,9 @@ l1cache_replace(void *callback_data, char *key, uint32_t keylen, char *pdata, ui
 {
     btree_raw_mem_node_t *n = (btree_raw_mem_node_t*)pdata;
 
-    free_buffer((btree_raw_t *) callback_data, (void*)n->pnode);
 
     plat_rwlock_destroy(&n->lock);
-    free(n);
+    btree_node_free(free_node_list, n);
 }
 
 
@@ -730,57 +731,59 @@ writepersistent( btree_raw_t *bt, bool create, bool force_write)
                                          1, true /* pinned */, false /* deref_delete */);
     }
 
-    if (mem_node) {
-		/*
-		 * Lock the node to change it.
-		 */
-        btree_raw_persist_t *r = (btree_raw_persist_t*)mem_node->pnode;
-
-        tb_flushed = force_write ||
-            bt->logical_id_counter - r->logical_id_counter >= META_COUNTER_SAVE_INTERVAL ||
-            r->rootid != bt->rootid;
-
-		if(!tb_flushed)
-			goto done;
-
-		node_lock(mem_node, WRITE);
-
-        r = (btree_raw_persist_t*)mem_node->pnode;
-
-        tb_flushed = force_write ||
-            bt->logical_id_counter - r->logical_id_counter >= META_COUNTER_SAVE_INTERVAL ||
-            r->rootid != bt->rootid;
-
-        dbg_print("ret=%d create=%d nodeid=%lx lic=%ld rootid=%ld save=%d\n",
-                  ret, create, META_LOGICAL_ID+bt->n_partition, bt->logical_id_counter,
-                  bt->rootid,
-                  tb_flushed);
-
-
-		bt->stats.stat[BTSTAT_NUM_SNAPS] = bt->snap_meta->total_snapshots;
-		r->logical_id_counter = bt->logical_id_counter;
-		r->rootid = bt->rootid;
-
-		if (tb_flushed) {
-			ret = BTREE_SUCCESS;
-
-			if (bt->trxenabled) {
-				(*bt->trx_cmd_cb)( TRX_START);
-			}
-
-			uint64_t* logical_id = &mem_node->pnode->logical_id;
-            bt->write_node_cb(my_thd_state, &ret, bt->write_node_cb_data,
-                              &logical_id, (char**)&mem_node->pnode,
-                              bt->nodesize, 1);
-            if (bt->trxenabled) {
-                (*bt->trx_cmd_cb)( TRX_COMMIT);
-            }
-		}
-		node_unlock(mem_node);
-
-    } else {
+    if (mem_node == NULL) {
         ret = BTREE_FAILURE;
+        goto done;
     }
+
+    /*
+     * Lock the node to change it.
+     */
+    btree_raw_persist_t *r = (btree_raw_persist_t*)mem_node->pnode;
+
+    tb_flushed = force_write ||
+                 ((bt->logical_id_counter - r->logical_id_counter) >= META_COUNTER_SAVE_INTERVAL) ||
+                 r->rootid != bt->rootid;
+
+    if(!tb_flushed)
+        goto done;
+
+    node_lock(mem_node, WRITE);
+
+    r = (btree_raw_persist_t*)mem_node->pnode;
+
+    tb_flushed = force_write ||
+                 ((bt->logical_id_counter - r->logical_id_counter) >= META_COUNTER_SAVE_INTERVAL) ||
+                 r->rootid != bt->rootid;
+
+    dbg_print("ret=%d create=%d nodeid=%lx lic=%ld rootid=%ld save=%d\n",
+              ret, create, META_LOGICAL_ID+bt->n_partition, bt->logical_id_counter,
+              bt->rootid,
+              tb_flushed);
+
+
+    bt->stats.stat[BTSTAT_NUM_SNAPS] = bt->snap_meta->total_snapshots;
+    r->logical_id_counter = bt->logical_id_counter;
+    r->rootid = bt->rootid;
+
+    if (tb_flushed) {
+        ret = BTREE_SUCCESS;
+
+
+        if (bt->trxenabled) {
+            (*bt->trx_cmd_cb)( TRX_START);
+        }
+
+        uint64_t* logical_id = &mem_node->pnode->logical_id;
+        bt->write_node_cb(my_thd_state, &ret, bt->write_node_cb_data,
+                          &logical_id, (char**)&mem_node->pnode,
+                          bt->nodesize, 1);
+
+        if (bt->trxenabled) {
+            (*bt->trx_cmd_cb)( TRX_COMMIT);
+        }
+    }
+    node_unlock(mem_node);
 
 done:
     if (BTREE_SUCCESS != ret) {
@@ -1914,6 +1917,10 @@ init_l1cache()
     if(n <=0 || n > 10000000)
         n = DEFAULT_N_L1CACHE_PARTITIONS;
 
+    // Allocate extra 1% for boundary conditions.
+    uint64_t buffer_count = ((n_global_l1cache_buckets * 16) + (n + 1)) * 1.01;
+    free_node_list = btree_node_list_init(buffer_count, MEM_NODE_SIZE);
+
     l1cache_partitions = n;
     global_l1cache = PMapInit(n, n_global_l1cache_buckets / n + 1, 16 * (n_global_l1cache_buckets / n + 1), 1, l1cache_replace);
     if (global_l1cache == NULL) {
@@ -2454,10 +2461,10 @@ static btree_raw_mem_node_t* add_l1cache(btree_raw_t *btree, uint64_t logical_id
 {
     btree_raw_mem_node_t *node;
 
-    node = malloc(sizeof(btree_raw_mem_node_t));
+    node = btree_node_alloc(free_node_list);
     assert(node);
 
-    node->pnode = NULL;
+    node->pnode = (btree_raw_node_t *)(((void *)node) + sizeof(btree_raw_mem_node_t));
     node->modified = 0;
     node->flag = 0;
 #ifdef DEBUG_STUFF
@@ -2471,7 +2478,7 @@ static btree_raw_mem_node_t* add_l1cache(btree_raw_t *btree, uint64_t logical_id
     if(!PMapCreate(btree->l1cache, (char *) &logical_id, sizeof(uint64_t), (char *) node, sizeof(uint64_t), btree->cguid, (void *)btree)) {
         node_unlock(node);
         plat_rwlock_destroy(&node->lock);
-        free(node);
+        btree_node_free(free_node_list, node);
         return NULL;
     }
 
@@ -2561,7 +2568,6 @@ static void lock_modified_nodes_func(btree_raw_t *btree, int lock)
 btree_raw_mem_node_t *get_existing_node_low(btree_status_t *ret, btree_raw_t *btree, uint64_t logical_id,
 		int ref, bool pinned, bool delete_after_deref)
 {
-	btree_raw_node_t  *pnode;
 	btree_raw_mem_node_t  *n = NULL;
 
 	if (*ret != BTREE_SUCCESS) { return(NULL); }
@@ -2605,14 +2611,14 @@ retry:
 
 		//  look for the node the hard way
 		//  If we don't look at the ret code, why does read_node_cb need one?
-		pnode = (btree_raw_node_t*)btree->read_node_cb(ret, btree->read_node_cb_data, logical_id);
-		if (pnode == NULL) {
+		btree->read_node_cb(ret, btree->read_node_cb_data, (void *)n->pnode, logical_id);
+		if (*ret != BTREE_SUCCESS) {
 			*ret = BTREE_FAILURE;
 			delete_l1cache(btree, logical_id);
 			node_unlock(n);
 			return(NULL);
 		}
-		assert(logical_id == pnode->logical_id);
+		assert(logical_id == n->pnode->logical_id);
 
 		/* For scavenger and backup context reads, once we are done
 		 * with the cache delete it. The PMapDelete already has
@@ -2623,10 +2629,9 @@ retry:
 			__sync_add_and_fetch(&(btree->stats.stat[BTSTAT_BACKUP_L1MISSES]), 1);
 		} else {
 			n->deref_delete_cache = false;
-			add_node_stats(btree, pnode, L1MISSES, 1);
+			add_node_stats(btree, n->pnode, L1MISSES, 1);
 		}
 
-		n->pnode = pnode;
 		plat_rwlock_unlock(&n->lock);
 	}
 	if(ref)
@@ -2650,28 +2655,24 @@ static
 btree_raw_mem_node_t *create_new_node(btree_raw_t *btree, uint64_t logical_id, bool ref, bool pinned)
 {
     btree_raw_mem_node_t *n = NULL;
-    btree_raw_node_t *pnode = (btree_raw_node_t *) btree_malloc(btree->nodesize);
 //    memset(pnode, 0, btree->nodesize);
     // n = btree->create_node_cb(ret, btree->create_node_cb_data, logical_id);
     //  Just malloc the node here.  It will be written
     //  out at the end of the request by deref_l1cache().
-    if (pnode != NULL) {
-        pnode->logical_id = logical_id;
-        n = add_l1cache(btree, logical_id, pinned);
+    n = add_l1cache(btree, logical_id, pinned);
 
-        n->deref_delete_cache = false; /* New node should be in l1cache. Its for writes */
-        n->pnode = pnode;
+    n->deref_delete_cache = false; /* New node should be in l1cache. Its for writes */
+    n->pnode->logical_id = logical_id;
 
-        /*
-         * Zero out pstats for new node
-         */
-        reset_node_pstats(n->pnode);
-        node_unlock(n);
-        assert(n); /* the tree is exclusively locked */
-		if(ref) {
-			ref_l1cache(btree, n);
-			modify_l1cache_node(btree, n);
-		}
+    /*
+     * Zero out pstats for new node
+     */
+    reset_node_pstats(n->pnode);
+    node_unlock(n);
+    assert(n); /* the tree is exclusively locked */
+    if(ref) {
+        ref_l1cache(btree, n);
+        modify_l1cache_node(btree, n);
     }
 
     return n;
