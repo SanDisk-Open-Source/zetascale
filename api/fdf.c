@@ -2685,7 +2685,8 @@ FDF_status_t FDFOpenContainer(
 		uint64_t vdc_size = ((uint64_t)getProperty_Int("FDF_FLASH_SIZE", FDF_MIN_FLASH_SIZE)) * 1024 * 1024 -
                                                                        (2 * FDF_DEFAULT_CONTAINER_SIZE_KB);
 		if (!properties) {
-			return FDF_INVALID_PARAMETER;
+            status = FDF_INVALID_PARAMETER;
+            goto out;
 		}
 		if( properties->size_kb >  vdc_size) {
 			plat_log_msg(80063, LOG_CAT, LOG_DBG,
