@@ -78,6 +78,12 @@ scavenger_worker(uint64_t arg)
 			//if(i == 0) {
 				parent = node;
 				child_id = node->pnode->next;
+				if (child_id == 0)
+				{
+					plat_rwlock_unlock(&parent->lock);
+					deref_l1cache_node(s->btree, parent);
+					break;
+				}
 				node =  get_existing_node_low(&ret, s->btree, child_id, 0, false, true);
 				plat_rwlock_rdlock(&node->lock);
 				plat_rwlock_unlock(&parent->lock);
