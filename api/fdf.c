@@ -2045,6 +2045,7 @@ FDF_status_t FDFInit(
             ext_cbs->flash_stats_buf_cb( &(mcd_shard->blk_allocated), 
                  &(mcd_shard->free_segments_count), &(mcd_shard->blk_consumed), 
                  Mcd_osd_blk_size, Mcd_osd_segment_size);
+           ext_cbs->fdf_funcs_cb((void *)plat_log_msg_helper);
         }
 
 #if 0

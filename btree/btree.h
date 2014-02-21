@@ -27,7 +27,24 @@
 #ifndef __BTREE_H
 #define __BTREE_H
 
+typedef void (*fdf_log_func) (const char *file, unsigned line, const char *function,
+                              int logid, int category, int level, const char *format, ...);
+extern fdf_log_func fdf_log_func_ptr;
+
+#define LOG_CATAGORY_SDF_NAMING 12   
+#define LOG_LEVEL_INFO 5   
+#define PLAT_LOG_ID 160146
+
+#define fprintf(fd,format,...) \
+    if( fdf_log_func_ptr != NULL ) { \
+        fdf_log_func_ptr(basename(__FILE__),__LINE__, __FUNCTION__, PLAT_LOG_ID,LOG_CATAGORY_SDF_NAMING,LOG_LEVEL_INFO, format,##__VA_ARGS__); \
+    }\
+    else { \
+        fprintf(stderr,format,##__VA_ARGS__);\
+    }\
+
 struct btree;
+
 
 extern struct btree *btree_init(uint32_t n_partitions, uint32_t flags, uint32_t max_key_size, uint32_t min_keys_per_node, uint32_t nodesize, 
 				create_node_cb_t *create_node_cb, void *create_node_data, read_node_cb_t *read_node_cb, void *read_node_cb_data, 

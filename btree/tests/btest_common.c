@@ -22,6 +22,8 @@
 #include "btest_common.h"
 #include "../btree_malloc.h"
 
+extern fdf_log_func fdf_log_func_ptr;
+
 extern int init_l1cache();
 
 static char *gendata(uint32_t max_datalen, uint64_t *pdatalen);
@@ -787,7 +789,7 @@ static void msg_cb(int level, void *msg_data, char *filename, int lineno, char *
 	    break;
     } 
 
-    (void) fprintf(stderr, "%s: %s", prefix, stmp);
+    fprintf(stderr, "%s: %s", prefix, stmp);
     if (quit) {
         assert(0);
         exit(1);

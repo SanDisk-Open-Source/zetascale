@@ -119,6 +119,7 @@ void FDFLoadPstats(struct FDF_state *fdf_state);
 static bool pstats_prepare_to_flush(struct FDF_thread_state *thd_state);
 static void pstats_prepare_to_flush_single(struct FDF_thread_state *thd_state, struct cmap *cmap_entry);
 FDF_status_t set_flash_stats_buffer(uint64_t *alloc_blks, uint64_t *free_segs, uint64_t *consumed_blks, uint64_t blk_size, uint64_t seg_size);
+FDF_status_t set_fdf_function_ptrs( void *log_func);
 
 FDF_status_t btree_process_admin_cmd(struct FDF_thread_state *thd_state, 
                                      FILE *fp, cmd_token_t *tokens, size_t ntokens);
@@ -163,6 +164,8 @@ _FDFRangeUpdate(struct FDF_thread_state *fdf_thread_state,
 	       uint32_t *objs_updated);
 
 FDF_status_t _FDFScavengeContainer(struct FDF_state *fdf_state, FDF_cguid_t cguid);
+
+fdf_log_func fdf_log_func_ptr = NULL; 
 
 #define Error(msg, args...) \
 	msg_cb(0, NULL, __FILE__, __LINE__, msg, ##args);
@@ -581,6 +584,7 @@ FDF_status_t _FDFInit(
     memset(cbs, 0, sizeof(FDF_ext_cb_t));
     cbs->stats_cb = btree_get_all_stats;
     cbs->flash_stats_buf_cb = set_flash_stats_buffer;
+    cbs->fdf_funcs_cb = set_fdf_function_ptrs;
     ret = FDFRegisterCallbacks(*fdf_state, cbs);
     assert(FDF_SUCCESS == ret);
 
@@ -588,6 +592,9 @@ FDF_status_t _FDFInit(
     if ( ret == FDF_FAILURE ) {
         return ret;
     }
+
+    fprintf(stderr,"Flash Space consumed:%lu flash_blocks_alloc:%lu free_segs:%lu blk_size:%lu seg_size:%lu\n",
+             *flash_blks_consumed * flash_block_size, *flash_blks_allocated, *flash_segs_free, flash_block_size, flash_segment_size);
 
     fprintf(stderr,"Number of cache buckets:%lu\n",n_global_l1cache_buckets);
     if( init_l1cache() ){
@@ -2504,7 +2511,7 @@ static void msg_cb(int level, void *msg_data, char *filename, int lineno, char *
 		     break;
     } 
 
-    (void) fprintf(stderr, "%s: %s", prefix, stmp);
+    fprintf(stderr, "%s: %s", prefix, stmp);
     if (quit) {
         assert(0);
         exit(1);
@@ -2600,8 +2607,11 @@ FDF_status_t set_flash_stats_buffer(uint64_t *alloc_blks, uint64_t *free_segs, u
     flash_block_size     = blk_size;
     flash_segment_size   = seg_size;
 
-    fprintf(stderr,"Flash Space consumed:%lu flash_blocks_alloc:%lu free_segs:%lu blk_size:%lu seg_size:%lu\n",
-             *consumed_blks * flash_block_size, *alloc_blks, *free_segs, blk_size, seg_size);
+    return FDF_SUCCESS;
+}
+
+FDF_status_t set_fdf_function_ptrs( void *log_func) {
+    fdf_log_func_ptr = (fdf_log_func) log_func;
     return FDF_SUCCESS;
 }
 

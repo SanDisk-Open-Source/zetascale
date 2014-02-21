@@ -51,7 +51,7 @@ static void default_msg_cb(int level, void *msg_data, char *filename, int lineno
 	    break;
     } 
 
-    (void) fprintf(stderr, "%s: %s", prefix, stmp);
+    fprintf(stderr, "%s: %s", prefix, stmp);
     if (quit) {
         exit(1);
     }
