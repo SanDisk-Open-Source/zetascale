@@ -136,6 +136,7 @@ __thread uint64_t dbg_referenced = 0;
 static __thread uint64_t _pstats_ckpt_index = 0;
 
 extern struct FDF_state *FDFState;
+extern  __thread bool bad_container;
 
 btree_node_list_t *free_node_list;
 
@@ -501,7 +502,7 @@ btree_raw_init(uint32_t flags, uint32_t n_partition, uint32_t n_partitions, uint
 
     if (flags & RELOAD) {
         if (BTREE_SUCCESS != loadpersistent( bt)) {
-            bt_err( "Could not identify root node!");
+	    bad_container = 1;
             free( bt);
             return (NULL);
         }

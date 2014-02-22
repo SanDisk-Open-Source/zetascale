@@ -66,7 +66,10 @@ int btree_parallel_flush_minbufs = 3;
 static uint64_t  n_reads = 0;
 
 __thread struct FDF_thread_state *my_thd_state;
-__thread struct FDF_state *my_fdf_state;
+struct FDF_state *my_global_fdf_state;
+__thread bool bad_container = 0;
+
+
 struct FDF_state *FDFState;
 
 uint64_t *flash_blks_allocated;
@@ -569,7 +572,6 @@ FDF_status_t _FDFInit(
     }
 
 	
-	my_fdf_state = *fdf_state;
     btSyncMboxInit(&mbox_scavenger);
     NThreads = atoi(_FDFGetProperty("FDF_SCAVENGER_THREADS",FDF_SCAVENGER_THREADS));
     for (i = 0;i < NThreads;i++) {
@@ -593,6 +595,7 @@ FDF_status_t _FDFInit(
         return ret;
     }
 
+    my_global_fdf_state = *fdf_state;
     fprintf(stderr,"Flash Space consumed:%lu flash_blocks_alloc:%lu free_segs:%lu blk_size:%lu seg_size:%lu\n",
              *flash_blks_consumed * flash_block_size, *flash_blks_allocated, *flash_segs_free, flash_block_size, flash_segment_size);
 
@@ -1182,6 +1185,14 @@ restart:
 		    );
 
     if (bt == NULL) {
+	if (bad_container == 1) {
+		msg("FDFOpenContainer failed with Error: FDF_CONTAINER_UNKNOWN");
+		ret = FDF_CONTAINER_UNKNOWN;
+		bad_container = 0;
+		FDFCloseContainer(fdf_thread_state, *cguid);
+		FDFDeleteContainer(fdf_thread_state, *cguid);
+                goto fail;
+	}
         msg("Could not create btree in FDFOpenContainer!");
         //FDFDeleteContainer(fdf_thread_state, *cguid);
 		FDFCloseContainer(fdf_thread_state, *cguid);
@@ -1217,7 +1228,7 @@ restart:
 
 	if ((bt->partitions[0])->snap_meta->scavenging_in_progress == 1) {
 		fprintf(stderr,"Before the restart scavenger was terminated ungracefully,  restarting the scavenger on this container\n");
-		_FDFScavengeContainer(my_fdf_state, *cguid);
+		_FDFScavengeContainer(my_global_fdf_state, *cguid);
 	}
     return(FDF_SUCCESS);
 
