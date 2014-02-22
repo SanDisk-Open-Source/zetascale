@@ -4688,8 +4688,9 @@ fdf_read_object(
      * however, there is no application use case so far and used
      * only for test app, hence its fine for now. When it needs
      * to support widely, need to put this in ActionProtocol code */
-    if (app_buf) {
+    if (app_buf && (ar.respStatus == FDF_SUCCESS)) {
         *datalen = (*datalen > ar.destLen) ? ar.destLen: *datalen;
+	plat_assert(app_buf_data_ptr != *data); // Don't want to free app buf by mistake
         memcpy(app_buf_data_ptr, *data, *datalen);
         free(*data);
         *data = app_buf_data_ptr;
