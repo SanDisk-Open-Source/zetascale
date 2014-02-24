@@ -85,6 +85,11 @@ scavenger_worker(uint64_t arg)
 					break;
 				}
 				node =  get_existing_node_low(&ret, s->btree, child_id, 0, false, true);
+				if (node == NULL)
+				{
+					// Need to replace this with assert(0) once the broken leaf node chain in btree is fixed
+					break;
+				}
 				plat_rwlock_rdlock(&node->lock);
 				plat_rwlock_unlock(&parent->lock);
 				deref_l1cache_node(s->btree, parent);
