@@ -13,6 +13,8 @@
 #define MAX_OPEN_CONTAINERS   (UINT16_MAX - 1 - 9)
 
 extern  __thread struct FDF_thread_state *my_thd_state;
+extern __thread FDF_cguid_t my_thrd_cguid;
+
 __thread int key_loc = 0;
 __thread int start_key_in_node = 0;
 static __thread char tmp_key_buf[8100] = {0};
@@ -49,6 +51,8 @@ scavenger_worker(uint64_t arg)
 
 		FDFInitPerThreadState(s->fdf_state,&fdf_thread_state);
 		my_thd_state = fdf_thread_state;
+
+		my_thrd_cguid = 0; /* To avoid recurrence triggering of scavenger from btree_delete rouinte after FDF_SCAVENGE_PER_OBJECTS deletes*/
 	 
 		open_container(fdf_thread_state, s->cguid);
 		node = root_get_and_lock(s->btree, write_lock);
@@ -263,14 +267,21 @@ int scavenge_node(struct btree_raw *btree, btree_raw_mem_node_t* node, key_stuff
 	btree_status_t	ret;
 	key_info_t key_info;
 	key_stuff_info_t *key1;
-	
+/*	uint64_t          syndrome;
+	bool found = false;
+	btree_metadata_t meta;
+	btree_raw_mem_node_t *leader_node;
+	int	pathcnt = 0;
+	int index;*/
+
+		
 	if (key == NULL) {
 		return (scavenge_node_all_keys(btree, node));
 	}
 
 	key_loc = 0;
 	i = start_key_in_node;
-
+	//meta.flags = 0;
 	key1 = *key;
 
 	memcpy(&ks_prev,ks_prev_key,sizeof(key_stuff_t));
@@ -295,7 +306,15 @@ int scavenge_node(struct btree_raw *btree, btree_raw_mem_node_t* node, key_stuff
 			continue;
 		} else {
 			if (total_keys == deleting_keys) {
-				(void) btree_leaf_get_nth_key_info(btree, node->pnode, nkey_prev, &key_info);
+			(void) btree_leaf_get_nth_key_info(btree, node->pnode, nkey_prev, &key_info);
+
+/*
+				// This logic is hitting assert(!dbg_referenced) in rebalanced_delete routine correct the logic
+				syndrome = btree_hash((const unsigned char *) ks_prev.key, ks_prev.keylen, 0);
+				index = btree_raw_find(btree, ks_prev.key, ks_prev.keylen, syndrome, &meta, &leader_node, 0 , &pathcnt, &found);
+				(void) btree_leaf_get_nth_key_info(btree, leader_node->pnode, index, &key_info);
+				plat_rwlock_unlock(&leader_node->lock);
+*/
 				if(key_info.tombstone == 1)
 				{
 					if (key_loc >= 16 && ((key_loc & key_loc-1)==0)) {

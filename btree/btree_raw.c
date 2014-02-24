@@ -136,7 +136,12 @@ __thread uint64_t dbg_referenced = 0;
 static __thread uint64_t _pstats_ckpt_index = 0;
 
 extern struct FDF_state *FDFState;
+
 extern  __thread bool bad_container;
+extern uint64_t invoke_scavenger_per_n_obj_del;
+extern struct FDF_state *my_global_fdf_state;
+extern FDF_status_t _FDFScavengeContainer(struct FDF_state *fdf_state, FDF_cguid_t cguid);
+extern __thread FDF_cguid_t my_thrd_cguid;
 
 btree_node_list_t *free_node_list;
 
@@ -5741,6 +5746,16 @@ btree_status_t btree_raw_delete(struct btree_raw *btree, char *key, uint32_t key
 	key_meta_t key_meta;
 
 	__sync_add_and_fetch(&(btree->stats.stat[BTSTAT_DELETE_CNT]),1);
+
+	if ((btree->stats.stat[BTSTAT_DELETE_CNT]%invoke_scavenger_per_n_obj_del) == 0) {
+		if(my_thrd_cguid != 0) { 
+			/* my_thrd_cguid is used to give cguid
+			 * my_thrd_cguid will be passed as 0 if btree_delete is called from scavenger
+			 * thus we wont inkove scavenger if my_thrd_cguid is 0
+			 */
+			_FDFScavengeContainer(my_global_fdf_state, my_thrd_cguid);
+		}
+	}
 
 	plat_rwlock_rdlock(&btree->lock);
 

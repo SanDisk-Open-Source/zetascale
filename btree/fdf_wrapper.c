@@ -68,7 +68,8 @@ static uint64_t  n_reads = 0;
 __thread struct FDF_thread_state *my_thd_state;
 struct FDF_state *my_global_fdf_state;
 __thread bool bad_container = 0;
-
+uint64_t invoke_scavenger_per_n_obj_del = 10000;
+__thread FDF_cguid_t my_thrd_cguid;
 
 struct FDF_state *FDFState;
 
@@ -558,8 +559,9 @@ FDF_status_t _FDFInit(
     pthread_t thr1;
     int iret;
 
-	const char *FDF_SCAVENGER_THREADS = "60";
-	int NThreads = 10;
+    const char *FDF_SCAVENGER_THREADS = "60";
+    const char *FDF_SCAVENGE_PER_OBJECTS = "10000";
+    int NThreads = 10;
 
     // Initialize the map
     for (i=0; i<MAX_OPEN_CONTAINERS; i++) {
@@ -595,6 +597,7 @@ FDF_status_t _FDFInit(
         return ret;
     }
 
+    invoke_scavenger_per_n_obj_del  = atoi(_FDFGetProperty("FDF_SCAVENGE_PER_OBJECTS",FDF_SCAVENGE_PER_OBJECTS));
     my_global_fdf_state = *fdf_state;
     fprintf(stderr,"Flash Space consumed:%lu flash_blocks_alloc:%lu free_segs:%lu blk_size:%lu seg_size:%lu\n",
              *flash_blks_consumed * flash_block_size, *flash_blks_allocated, *flash_segs_free, flash_block_size, flash_segment_size);
@@ -1872,6 +1875,7 @@ FDF_status_t _FDFDeleteObject(
 
     bt = Container_Map[index].btree;
 
+    my_thrd_cguid = cguid;
     meta.flags = 0;
 
     trxenter( cguid);
@@ -3296,6 +3300,7 @@ _FDFDeleteContainerSnapshot(struct FDF_thread_state *fdf_thread_state, //  clien
 	switch(btree_ret) {
 		case BTREE_SUCCESS:
 			status = FDF_SUCCESS;
+			_FDFScavengeContainer(my_global_fdf_state, cguid);
 			break;
 		case BTREE_FAILURE:
 		default:
@@ -4750,7 +4755,7 @@ FDF_status_t _FDFScavengeContainer(struct FDF_state *fdf_state, FDF_cguid_t cgui
 	pthread_rwlock_wrlock(&ctnrmap_rwlock);
 
         if (Container_Map[index].scavenger_state == 1) {
-                fprintf(stderr,"savenge operation on this container is already in progress\n");
+                fprintf(stderr,"scavenge operation on this container is already in progress\n");
 		bt_rel_entry(index, false);
                 pthread_rwlock_unlock(&ctnrmap_rwlock);
                 return FDF_FAILURE;
