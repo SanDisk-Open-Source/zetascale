@@ -82,6 +82,8 @@ typedef struct {
 /*
  * Static variables.
  */
+static mcd_osd_shard_t	*vdc_shard;
+
 
 /*
  * turns out plat_alloc allocates outside of guma for requests above
@@ -3618,6 +3620,8 @@ shard_recover_phase2( mcd_osd_shard_t * shard )
                      "failed to init log, rc=%d", rc );
         plat_abort();
     }
+    if (shard->cntr->cguid == VDC_CGUID)
+	vdc_shard = shard;
 
     // recover cas id and add a "safe" value to it
     // don't persist the update here
@@ -7094,6 +7098,7 @@ log_write_internal( mcd_osd_shard_t *s, mcd_logrec_object_t *lr)
 
 	if ((lr->bracket_id = trx_bracket_id)
 	and (lr->old_offset)
+	and (s == vdc_shard)
 	and (trx_bracket_nslab < nel( trx_bracket_slabs))) {
 		trx_bracket_slabs[trx_bracket_nslab++] = ~ lr->old_offset;
 		if (trx_bracket_nslab == nel( trx_bracket_slabs)) {
@@ -8705,7 +8710,6 @@ static mcd_trx_bucket_t	trxtable[256];
 static mutex_t		trxlock		= PTHREAD_MUTEX_INITIALIZER;
 static mcd_trx_state_t	*trxpool;
 static mcd_trx_stats_t	mcd_trx_stats;
-static mcd_osd_shard_t	*vdc_shard;
 
 
 /*
