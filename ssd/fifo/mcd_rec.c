@@ -7096,9 +7096,9 @@ log_write_internal( mcd_osd_shard_t *s, mcd_logrec_object_t *lr)
 	mcd_rec_logpage_hdr_t     * hdr;
 	uint64_t	slot_seqno;
 
-	if ((lr->bracket_id = trx_bracket_id)
+	if ((s == vdc_shard)
+	and (lr->bracket_id = trx_bracket_id)
 	and (lr->old_offset)
-	and (s == vdc_shard)
 	and (trx_bracket_nslab < nel( trx_bracket_slabs))) {
 		trx_bracket_slabs[trx_bracket_nslab++] = ~ lr->old_offset;
 		if (trx_bracket_nslab == nel( trx_bracket_slabs)) {
