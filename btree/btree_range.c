@@ -773,6 +773,7 @@ btree_range_query_start(btree_t                 *btree,
 	/* Initialize the cursor, to accomplish further queries */
 	int n_partition = 0;
 	c->btree = btree->partitions[n_partition];
+	c->cguid = c->btree->cguid;
 
 	memcpy(&c->query_meta, rmeta, sizeof(btree_range_meta_t));
 

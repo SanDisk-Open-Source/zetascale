@@ -2284,16 +2284,28 @@ _FDFGetNextRange(struct FDF_thread_state *fdf_thread_state,
 	 * whatever the user of btree needs (in this case fdf_wrapper).
 	 * At present, the status numbers are matched, but thats not
 	 * good for maintanability */
-	const FDF_cguid_t cguid = ((read_node_t *)(((btree_range_cursor_t *)cursor)->btree->read_node_cb_data))->cguid;
+	const FDF_cguid_t cguid = ((btree_range_cursor_t *)cursor)->cguid;
 	if ((ret= bt_is_valid_cguid(cguid)) != FDF_SUCCESS) {
 		return ret;
 	}
 
-        bt = bt_get_btree_from_cguid(cguid, &index, &ret, false);
-        if (bt == NULL) {
-            return (ret);
+	bt = bt_get_btree_from_cguid(cguid, &index, &ret, false);
+	if (bt == NULL) {
+		return (ret);
 	}
-        __sync_add_and_fetch(&(((btree_range_cursor_t *)cursor)->btree->stats.stat[BTSTAT_RANGE_NEXT_CNT]), 1);
+
+	/*
+	 * If either container was deleted and cguid is resued or
+	 * FDF was restarted. So, information maintained is not valid.
+	 * Then application has to do RangeStart() again.
+	 */
+	assert(bt->n_partitions == 1);
+	if (bt->partitions[0] != ((btree_range_cursor_t *)cursor)->btree) {
+		ret = FDF_STATE_CHANGED;
+		goto out;
+	}
+
+	__sync_add_and_fetch(&(((btree_range_cursor_t *)cursor)->btree->stats.stat[BTSTAT_RANGE_NEXT_CNT]), 1);
 	trxenter( cguid);
 	status = btree_range_get_next((btree_range_cursor_t *)cursor,
 	                              n_in,
@@ -2301,15 +2313,15 @@ _FDFGetNextRange(struct FDF_thread_state *fdf_thread_state,
 	                              (btree_range_data_t *)values
 	                              );
 	trxleave( cguid);
-        if (status == BTREE_SUCCESS) {
-             __sync_add_and_fetch(&(((btree_range_cursor_t *)cursor)->btree->stats.stat[BTSTAT_NUM_RANGE_NEXT_OBJS]), *n_out);
-        } else if (status == BTREE_QUERY_DONE) {
-             __sync_add_and_fetch(&(((btree_range_cursor_t *)cursor)->btree->stats.stat[BTSTAT_NUM_RANGE_NEXT_OBJS]), *n_out);
-        }
+	if (status == BTREE_SUCCESS) {
+		__sync_add_and_fetch(&(((btree_range_cursor_t *)cursor)->btree->stats.stat[BTSTAT_NUM_RANGE_NEXT_OBJS]), *n_out);
+	} else if (status == BTREE_QUERY_DONE) {
+		__sync_add_and_fetch(&(((btree_range_cursor_t *)cursor)->btree->stats.stat[BTSTAT_NUM_RANGE_NEXT_OBJS]), *n_out);
+   	}
 
 	ret = BtreeErr_to_FDFErr(status);
-
-        bt_rel_entry(index, false);
+out:
+    bt_rel_entry(index, false);
 	return(ret);
 }
 
