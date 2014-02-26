@@ -288,7 +288,13 @@ int scavenge_node(struct btree_raw *btree, btree_raw_mem_node_t* node, key_stuff
 	for(;i<node->pnode->nkeys;i++)
 	{
 		(void) get_key_stuff_leaf(btree, node->pnode, i, &ks_current);
-		temp = btree->cmp_cb(btree->cmp_cb_data, ks_current.key, ks_current.keylen, ks_prev.key, ks_prev.keylen);
+		if (ks_current.key == NULL || ks_current.keylen == 0) {
+			temp = -1;
+		} else if (ks_prev.key == NULL || ks_prev.keylen == 0) {
+			temp = -1;
+		} else {
+			temp = btree->cmp_cb(btree->cmp_cb_data, ks_current.key, ks_current.keylen, ks_prev.key, ks_prev.keylen);
+		}
 		if (!temp)
 		{
 			snap_n1 = btree_snap_find_meta_index(btree, ks_prev.seqno);
