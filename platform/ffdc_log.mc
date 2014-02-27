@@ -3427,6 +3427,7 @@
 170041 seqno mismatch, meta=%lu, rec=%lu
 170042 Bogus log # from log_writer
 170043 Outer trx is unrecoverable (too long)
+170044 Shard %lu usage: consumed=%lu delayed=%lu
 
 
 # efirsov

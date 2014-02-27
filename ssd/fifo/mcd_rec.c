@@ -7096,6 +7096,7 @@ log_write_internal( mcd_osd_shard_t *s, mcd_logrec_object_t *lr)
 	mcd_rec_logpage_hdr_t     * hdr;
 	uint64_t	slot_seqno;
 
+	lr->bracket_id = 0;
 	if ((s == vdc_shard)
 	and (lr->bracket_id = trx_bracket_id)
 	and (lr->old_offset)
@@ -7214,13 +7215,23 @@ log_get_buffer_seqno( mcd_osd_shard_t * shard )
 void
 log_sync_postprocess( mcd_osd_shard_t *shard, mcd_rec_pp_state_t *pp_state)
 {
+	static ulong	high_water_mark;
 
+	uint64_t c = __sync_fetch_and_add( &shard->blk_consumed, 0);
+	if ((high_water_mark < c)
+	and (shard == vdc_shard)) {
+		mcd_log_msg( 170044, PLAT_LOG_LEVEL_DIAGNOSTIC, "shardID=%lu, high-water-mark blocks consumed=%lu, delayed=%lu", shard->id, shard->blk_consumed, shard->blk_delayed);
+		high_water_mark = c;
+	}
 	for (uint d=0; d<pp_state->dealloc_count; ++d) {
 		pp_state->dealloc_ring[pp_state->dealloc_head] = pp_state->dealloc_list[d];
 		pp_state->dealloc_head = (pp_state->dealloc_head+1) % nel( pp_state->dealloc_ring);
 		if (pp_state->dealloc_head == pp_state->dealloc_tail) {
 			uint o = pp_state->dealloc_ring[pp_state->dealloc_tail];
 			pp_state->dealloc_tail = (pp_state->dealloc_tail+1) % nel( pp_state->dealloc_ring);
+                	uint i = mcd_osd_lba_to_blk( slabsize( shard, o));
+                	shard->blk_delayed -= i;
+                	__sync_fetch_and_sub( &shard->blk_consumed, i);
 			mcd_fth_osd_slab_dealloc( shard, o, true);
 		}
 	}
@@ -7352,9 +7363,11 @@ log_write_postprocess( mcd_osd_shard_t * shard, mcd_rec_logbuf_t * logbuf,
         // no replication, process overwrite record
         else if ((rec->old_offset)
 	and (rec->bracket_id == 0)) {
-
-            // add to dealloc list
-            pp->dealloc_list[ pp->dealloc_count++ ] = ~(rec->old_offset);
+	    uint o = ~ rec->old_offset;
+	    pp->dealloc_list[pp->dealloc_count++] = o;
+	    uint i = mcd_osd_lba_to_blk( slabsize( shard, o));
+	    shard->blk_delayed += i;
+	    __sync_fetch_and_add( &shard->blk_consumed, i);
             mcd_rlg_msg( 40124, PLAT_LOG_LEVEL_TRACE,
                          "Pending dealloc[%d]: %d",
                          pp->dealloc_count - 1,

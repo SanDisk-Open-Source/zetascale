@@ -250,6 +250,7 @@ typedef struct mcd_osd_shard {
     uint64_t                    num_objects;
     uint64_t                    total_objects;
     uint64_t                    blk_consumed;
+    uint64_t                    blk_delayed;
     uint64_t                    invalid_evictions;
     uint64_t                    num_slab_evictions;
     uint64_t                    num_hash_evictions;
