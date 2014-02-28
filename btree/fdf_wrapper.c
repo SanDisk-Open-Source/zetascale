@@ -1001,23 +1001,24 @@ FDF_status_t _FDFOpenContainerSpecial(
         return(FDF_INVALID_PARAMETER);
 
 restart:
-#if 0
-        fdf_prop = (char *)FDFGetProperty("FDF_CACHE_FORCE_ENABLE",NULL);
-        if( fdf_prop != NULL ) {
-            if( atoi(fdf_prop) == 1 ) {
-                properties->flash_only = FDF_FALSE;
-            }
+    /* Always bypass cache for btree by default */
+    fdf_prop = (char *)FDFGetProperty("FDF_CACHE_FORCE_ENABLE",NULL);
+    if( fdf_prop != NULL ) {
+        if( atoi(fdf_prop) == 1 ) {
+            properties->flash_only = FDF_FALSE;
         }
-        else {
-           if(getenv("FDF_CACHE_FORCE_ENABLE")) {
-               properties->flash_only = FDF_FALSE;
-            }
+    } else {
+        if(getenv("FDF_CACHE_FORCE_ENABLE")) {
+            properties->flash_only = FDF_FALSE;
         }
+    }
         //fprintf(stderr, "FDF cache %s for container: %s\n", properties->flash_only ? "disabled" : "enabled", cname);
-#endif
 
-    /* Always bypass cache for btree */
-    properties->flash_only = FDF_FALSE;
+    if (properties->flash_only == FDF_FALSE) {
+         fprintf(stderr, "WARNING: Container '%s' is opened with flash_only "
+	                 "(enabling FDF cache) with libbtree. This could impact "
+	                 "the performance\n", cname);
+    }
 
     ret = FDFOpenContainer(fdf_thread_state, cname, properties, flags_in, cguid);
     if (ret != FDF_SUCCESS)
