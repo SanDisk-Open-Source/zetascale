@@ -5772,6 +5772,7 @@ btree_status_t btree_raw_delete(struct btree_raw *btree, char *key, uint32_t key
 				del_type = REBALANCE_NEEDED;
 			}
 		} else {
+#ifdef ENABLED_OPTIMAL_DELETES
 			/*
 			 * Check whether we can remove the entry instead of adding tombstone entry.
 			 * If the key belongs to active container and not to any snapshot, we can remove it.
@@ -5806,7 +5807,9 @@ btree_status_t btree_raw_delete(struct btree_raw *btree, char *key, uint32_t key
 					/* The key belongs to snapshot, need to add tombstone. */
 					del_type = NEED_TOMBSTONE;
 				}
-			} else {
+			} else
+#endif
+			{
 				/* This is the last key in node, need to add tombstone */
 				del_type = NEED_TOMBSTONE;
 			}

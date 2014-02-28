@@ -92,13 +92,15 @@ scavenger_worker(uint64_t arg)
 				if (node == NULL)
 				{
 					// Need to replace this with assert(0) once the broken leaf node chain in btree is fixed
+					plat_rwlock_unlock(&parent->lock);
+					deref_l1cache_node(s->btree, parent);
 					break;
 				}
 				plat_rwlock_rdlock(&node->lock);
 				plat_rwlock_unlock(&parent->lock);
 				deref_l1cache_node(s->btree, parent);
 				start_key_in_node = 0;
-         		continue;
+         			continue;
 			}
 			if (node->pnode->next == 0) {
 				last_node = 1;
