@@ -4682,6 +4682,7 @@ mcd_fth_osd_slab_set( void * context, mcd_osd_shard_t * shard,
         }
     }
 
+#ifndef BTREE_HACK
     /*
      * See if there is enough space.
      */
@@ -4690,11 +4691,12 @@ mcd_fth_osd_slab_set( void * context, mcd_osd_shard_t * shard,
         if (obj_exists)
             rsvd_blks -= lba_to_use(shard, hash_entry->blocks);
         if (!inc_cntr_map(cntr_id, 0, rsvd_blks, 1)) {
-            rc = FDF_CONTAINER_FULL;
+            rc = FLASH_ENOSPC;
             goto out;
         }
         plus_blks -= rsvd_blks;
     }
+#endif
 
     if(!(flags & FLASH_PUT_SKIP_IO))
     {
