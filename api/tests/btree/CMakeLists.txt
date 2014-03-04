@@ -4,6 +4,7 @@ SET(fdf_mput_param 1 1000 100 10)
 SET(fdf_mput_pstats_param 1 1000 100 10)
 SET(fdf_rangeupdate_param 1000 10)
 SET(fdf_snapshot_param 1000 10 15)
+SET(FDF_Write_mthreads_param 1000 1 1450 1024 1 1)
 
 file( GLOB TEST_SOURCES *.c )
 foreach( test_src_file ${TEST_SOURCES} )
@@ -18,4 +19,6 @@ foreach( test_src_file ${TEST_SOURCES} )
 		target_link_libraries( ${testname} btreedll dl pthread aio event)
 	endif (NOT ${test_src_file} MATCHES "/test.c")
 endforeach(test_src_file ${TEST_SOURCES})
+
+add_test(FDF_Write_mthreads2k ${CMAKE_CURRENT_BINARY_DIR}/FDF_Write_mthreads 1000 1 1960 1024 1 1)
 

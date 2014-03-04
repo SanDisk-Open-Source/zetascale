@@ -12,3 +12,4 @@ target_link_libraries( btest_range btree fdfdll dl pthread aio event)
 target_link_libraries( query_perf_comp btreedll dl pthread aio event)
 
 add_test(btree_self_test btest_life_cycle)
+add_test(btree_self_test2K btest_life_cycle -k 1960)
