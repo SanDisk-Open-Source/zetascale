@@ -133,7 +133,7 @@ struct btree_raw_mem_node {
 	bool pinned;
         bool deref_delete_cache;
 	plat_rwlock_t lock;
-	btree_raw_mem_node_t *next; // dirty list
+	btree_raw_mem_node_t *dirty_next; // dirty list
 	btree_raw_node_t *pnode;
 };
 

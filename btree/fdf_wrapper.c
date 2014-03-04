@@ -529,12 +529,14 @@ void print_fdf_btree_configuration() {
                    " L1 cache buckets:%ld, L1 Cache Partitions:%ld,"
                    " FDF Cache enabled:%d, Node size:%d bytes,"
                    " Max key size:%d bytes, Min keys per node:%d"
+                   " Max data size: %"PRIu64" bytes"
                    " Parallel flush enabled:%d Parallel flush Min Nodes:%d"
                    " Reads by query:%d Total flash space:%lu Flash space softlimit:%lu"
                    " Flash space softlimit check:%d\n",
                    get_btree_num_partitions(), l1cache_size, n_global_l1cache_buckets, l1cache_partitions,
                    fdf_cache_enabled, get_btree_node_size(), get_btree_max_key_size(), 
                    get_btree_min_keys_per_node(),
+                   (uint64_t)BTREE_MAX_DATA_SIZE_SUPPORTED,
                    !btree_parallel_flush_disabled, btree_parallel_flush_minbufs,
                    read_by_rquery, flash_space, flash_space_soft_limit, flash_space_soft_limit_check
                   );
@@ -1741,6 +1743,14 @@ FDF_status_t _FDFWriteObject(
         return (FDF_KEY_TOO_LONG);
     }
 
+    if (datalen > BTREE_MAX_DATA_SIZE_SUPPORTED) {
+        msg("btree_insert/update datalen(%"PRIu64") more than max supported "
+            "datalen(%"PRIu64")\n", datalen, BTREE_MAX_DATA_SIZE_SUPPORTED);
+
+        bt_rel_entry(index, true);
+        return (FDF_OBJECT_TOO_BIG);
+    }
+
     flash_space_used = ((uint64_t)(FDF_DEFAULT_CONTAINER_SIZE_KB * 1024) * 2) + 
                                          (*flash_blks_consumed * flash_block_size);
     if ( flash_space_soft_limit_check && 
@@ -2771,6 +2781,14 @@ _FDFMPut(struct FDF_thread_state *fdf_ts,
 		if (objs[i].key_len > bt->max_key_size) {
 			bt_rel_entry(index, true);
 			return FDF_INVALID_PARAMETER;
+		}
+
+		if (objs[i].data_len > BTREE_MAX_DATA_SIZE_SUPPORTED) {
+			msg("btree_insert/update datalen(%"PRIu64") more than "
+			    "max supported datalen(%"PRIu64")\n",
+			    objs[i].data_len, BTREE_MAX_DATA_SIZE_SUPPORTED);
+			bt_rel_entry(index, true);
+			return FDF_OBJECT_TOO_BIG;
 		}
 	}
 

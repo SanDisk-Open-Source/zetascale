@@ -239,6 +239,8 @@ typedef struct btree_metadata {
     uint64_t     checksum;
 } btree_metadata_t;
 
+#define BTREE_MAX_DATA_SIZE_SUPPORTED           (25 * 1024 * 1024)   // 25 MB
+
 #define BTSTATS_ITEMS() \
 /* 0 */		item(BTSTAT_L1ENTRIES, =0) \
 			item(BTSTAT_L1OBJECTS, /* default */) \
