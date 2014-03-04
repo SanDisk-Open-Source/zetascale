@@ -5955,6 +5955,9 @@ btree_status_t btree_raw_delete(struct btree_raw *btree, char *key, uint32_t key
 	} else if (del_type == NEED_TOMBSTONE) {
 		done = insert_tombstone_optimized(btree, node, index, key, keylen, syndrome);
 
+		if(done)
+			modify_l1cache_node(btree, node);
+
 		/* TODO: Remove these couple of lines */
 #if 0
 		if (!done) {
@@ -5978,8 +5981,8 @@ btree_status_t btree_raw_delete(struct btree_raw *btree, char *key, uint32_t key
 #endif
 		return (ret);
 	} else {
+		node_unlock(node);
 		deref_l1cache_node(btree, node);
-		plat_rwlock_unlock(&node->lock);
 		plat_rwlock_unlock(&btree->lock);
 	}
 
