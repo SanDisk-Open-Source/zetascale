@@ -2573,7 +2573,9 @@ static void modify_l1cache_node(btree_raw_t *btree, btree_raw_mem_node_t *node)
 }
 
 inline static
-void lock_nodes_list(btree_raw_t *btree, int lock, btree_raw_mem_node_t** list, int count)
+void lock_nodes_list(btree_raw_t *btree, int lock,
+		btree_raw_mem_node_t** list, int count,
+		btree_raw_mem_node_t** olist, int ocount)
 {
     int i, j;
     btree_raw_mem_node_t     *node;
@@ -2583,6 +2585,16 @@ void lock_nodes_list(btree_raw_t *btree, int lock, btree_raw_mem_node_t** list, 
         node = list[i];
         assert(node); // the node is in the cache, hence, get_l1cache cannot fail
 
+		if(olist) {
+			j = 0;
+			while(j < ocount && olist[j] != list[i]) {
+				j++;
+			}
+			if(j < ocount)
+				continue;
+		}
+
+#ifdef DEBUG_STUFF
 		j = 0;
 		while(j < i && list[j] != list[i]) {
 			j++;
@@ -2591,6 +2603,7 @@ void lock_nodes_list(btree_raw_t *btree, int lock, btree_raw_mem_node_t** list, 
 		assert(j >= i);
         //if(j >= i && !is_overflow(btree, node->pnode) && node->pnode->logical_id != META_LOGICAL_ID+btree->n_partition) {
         dbg_print("list[%d]->logical_id=%ld lock=%p lock=%d locked=%lld\n", i, list[i]->pnode->logical_id, &node->lock, lock, locked);
+#endif
 
 		if(is_overflow(btree, node->pnode) || node->pnode->logical_id == META_LOGICAL_ID+btree->n_partition)
 			continue;
@@ -2606,8 +2619,9 @@ void lock_nodes_list(btree_raw_t *btree, int lock, btree_raw_mem_node_t** list, 
 static void lock_modified_nodes_func(btree_raw_t *btree, int lock)
 {
     dbg_print("lock %d start\n", lock);
-    lock_nodes_list(btree, lock, modified_nodes, modified_nodes_count);
-    lock_nodes_list(btree, lock, deleted_nodes, deleted_nodes_count);
+    lock_nodes_list(btree, lock, modified_nodes, modified_nodes_count, NULL, 0);
+    dbg_print("lock %d middle\n", lock);
+    lock_nodes_list(btree, lock, deleted_nodes, deleted_nodes_count, modified_nodes, modified_nodes_count);
     dbg_print("lock %d finish\n", lock);
 }
 
