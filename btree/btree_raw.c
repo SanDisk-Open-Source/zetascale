@@ -6451,7 +6451,7 @@ equalize_keys(btree_raw_t *btree, btree_raw_mem_node_t *anchor_mem, btree_raw_me
 
 /*   Copy keys from 'from' node to 'to' node, given that 'to' is to left of 'from'.
  */
-static void
+static bool
 merge_nodes_non_leaf(btree_raw_t *btree, btree_raw_node_t *anchor, btree_raw_node_t *from, btree_raw_node_t *to, char *s_key, uint32_t s_keylen, uint64_t s_syndrome, uint64_t s_seqno)
 {
     node_fkey_t   *pfk;
@@ -6474,15 +6474,16 @@ merge_nodes_non_leaf(btree_raw_t *btree, btree_raw_node_t *anchor, btree_raw_nod
 
 	if(ks.leaf) s_keylen = 0;
 
-#ifdef DEBUG_STUFF
 	if (ks.leaf) {
-		assert(vlnode_bytes_free(to) >= btree->nodesize - from->insert_ptr + from->nkeys*sizeof(node_vlkey_t) ); // xxxzzz remove this!
+		if(vlnode_bytes_free(to) < btree->nodesize - from->insert_ptr + from->nkeys*sizeof(node_vlkey_t) )
+		    return false;
 	} else if (ks.fixed) {
-			assert((to->nkeys + from->nkeys + 1) <= btree->fkeys_per_node); // xxxzzz remove this!
+	    abort();
+	    assert((to->nkeys + from->nkeys + 1) <= btree->fkeys_per_node); // xxxzzz remove this!
 	} else {
-			assert(vnode_bytes_free(to) >=btree->nodesize - from->insert_ptr + from->nkeys*sizeof(node_vkey_t) + s_keylen + nbytes_fixed); // xxxzzz remove this!
+		if(vnode_bytes_free(to) < btree->nodesize - from->insert_ptr + from->nkeys*sizeof(node_vkey_t) + s_keylen + nbytes_fixed)
+		    return false;
 	}
-#endif
 
 	//  Copy the fixed size portion of the keys, leaving space for the
 	//  converting the 'to' right pointer to a regular key for non leaves.
@@ -6543,7 +6544,7 @@ merge_nodes_non_leaf(btree_raw_t *btree, btree_raw_node_t *anchor, btree_raw_nod
 	}
 #endif
 
-	return;
+	return true;
 }
 
 static __thread char _tmp_node1[8200];
@@ -6597,8 +6598,7 @@ merge_nodes(btree_raw_t *btree, btree_raw_node_t *anchor, btree_raw_node_t *from
 	if (is_leaf(btree, from)) {
 		return merge_nodes_leaf(btree, anchor, from, to, s_key, s_keylen, s_syndrome, s_seqno);
 	} else {
-		merge_nodes_non_leaf(btree, anchor, from, to, s_key, s_keylen, s_syndrome, s_seqno);
-		return true;
+		return merge_nodes_non_leaf(btree, anchor, from, to, s_key, s_keylen, s_syndrome, s_seqno);
 	}
 }
 
@@ -6674,7 +6674,8 @@ static int rebalance(btree_status_t *ret, btree_raw_t *btree, btree_raw_mem_node
 
     assert(balance_node != NULL);
 
-    if ((!is_minimal(btree, balance_node, balance_keylen, 0)) ||
+    if ((!is_minimal(btree, balance_node, balance_keylen, 0) &&
+        !is_minimal(btree, this_node, 0, 0)) ||
         (!balance_node_is_sibling)) {
 
 equalize_path:
