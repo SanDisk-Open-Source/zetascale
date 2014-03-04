@@ -7063,8 +7063,8 @@ no_lock = 0;
 void print_key_func(FILE *f, const char* func, int line, char* key, int keylen, char *msg, ...)
 {
 	int i;
-    char     stmp[1024];
-    char     stmp1[1024];
+    char     stmp[128];
+    char     stmp1[128];
     va_list  args;
 
     va_start(args, msg);
@@ -7074,8 +7074,7 @@ void print_key_func(FILE *f, const char* func, int line, char* key, int keylen, 
     va_end(args);
 
 	if(key) {
-		assert(keylen + 1 < sizeof(stmp1));
-		for(i=0;i<keylen;i++)
+		for(i=0;i<keylen && i < sizeof(stmp1);i++)
 			stmp1[i] = key[i] < 32 ? '.' : key[i];
 		stmp1[i] = 0;
 		(void) fprintf(stderr, "%x %s:%d %s key=[%lx][%s] len=%d\n", (int)pthread_self(), func, line,  stmp, *((uint64_t*)key), stmp1, keylen);
