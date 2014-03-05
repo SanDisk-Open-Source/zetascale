@@ -117,7 +117,7 @@ btree_leaf_used_space(btree_raw_t *bt, btree_raw_node_t *n);
 
 bool
 btree_leaf_find_key2(btree_raw_t *bt, btree_raw_node_t *n, char *key,
-		     uint32_t keylen, int32_t *index);
+		     uint32_t keylen, btree_metadata_t *meta, int32_t *index);
 bool
 btree_leaf_find_key(btree_raw_t *bt, btree_raw_node_t *n, char *key, uint32_t keylen,
 		    btree_metadata_t *meta, uint64_t syndrome, int32_t *index);

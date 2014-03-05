@@ -4065,7 +4065,7 @@ btree_leaf_insert_low(btree_raw_t *bt, btree_raw_mem_node_t *n, char *key, uint3
 				    &bytes_saved, &size_increased);
 #if DEBUG_BUILD
 	assert(res == true);
-	assert(btree_leaf_find_key2(bt, n->pnode, key, keylen, &index));
+	assert(btree_leaf_find_key2(bt, n->pnode, key, keylen, meta, &index));
 #endif 
 
 	__sync_add_and_fetch(&(bt->stats.stat[BTSTAT_SPCOPT_BYTES_SAVED]), bytes_saved);

@@ -849,12 +849,12 @@ btree_leaf_get_nth_key2(btree_raw_t *btree, btree_raw_node_t *n, int index,
 
 bool
 btree_leaf_find_key2(btree_raw_t *bt, btree_raw_node_t *n, char *key,
-		     uint32_t keylen, int32_t *index)
+		     uint32_t keylen, btree_metadata_t *meta, int32_t *index)
 {
 	bool found;
 	int i_ret;
 
-	*index = bsearch_key_low(bt, n, key, keylen, NULL, 0,
+	*index = bsearch_key_low(bt, n, key, keylen, meta, 0,
 	                         -1, n->nkeys, BSF_LATEST, &found);
 
 	return (found);
@@ -864,7 +864,7 @@ bool
 btree_leaf_find_key(btree_raw_t *bt, btree_raw_node_t *n, char *key, uint32_t keylen,
 		    btree_metadata_t *meta, uint64_t syndrome, int32_t *index)
 {
-	return btree_leaf_find_key2(bt, n, key, keylen,index);
+	return btree_leaf_find_key2(bt, n, key, keylen, meta, index);
 }
 
 //#define MAX_META_SIZE 100
@@ -1601,9 +1601,9 @@ btree_leaf_update_key(btree_raw_t *bt, btree_raw_node_t *n, char *key, uint32_t 
 	res = btree_leaf_insert_key_index(bt, n, key, keylen, data, datalen,
 					  &key_info, index, &bytes_increased, false);
 #ifdef DEBUG_BUILD
-	res1 = btree_leaf_find_key2(bt, n, key, keylen, &index1);
+	res1 = btree_leaf_find_key2(bt, n, key, keylen, meta, &index1);
 	if (res1 == false || index != index1) {
-		(void) btree_leaf_find_key2(bt, n, key, keylen, &index1);
+		(void) btree_leaf_find_key2(bt, n, key, keylen, meta, &index1);
 		btree_leaf_print(bt, n);
 	}
 	dbg_assert(res1 == true && index1 == index);
@@ -2033,7 +2033,7 @@ btree_leaf_is_full_index(btree_raw_t *bt, btree_raw_node_t *n, char *key, uint32
 		
 
 #ifdef DEBUG_BUILD
-		res = btree_leaf_find_key2(bt, n ,key, keylen, &index1);
+		res = btree_leaf_find_key2(bt, n ,key, keylen, meta, &index1);
 		dbg_assert(res == true);
 		dbg_assert(index1 == index);
 #endif
@@ -2073,7 +2073,7 @@ btree_leaf_is_full_index(btree_raw_t *bt, btree_raw_node_t *n, char *key, uint32
 	} else {
 
 #ifdef DEBUG_BUILD
-		(void) btree_leaf_find_key2(bt, n, key, keylen, &index1);	
+		(void) btree_leaf_find_key2(bt, n, key, keylen, meta, &index1);	
 		dbg_assert(index == index1);
 #endif
 
@@ -2109,7 +2109,7 @@ btree_leaf_is_full(btree_raw_t *bt, btree_raw_node_t *n, char *key, uint32_t key
 	int index = -1;
 	bool res = false;
 
-	(void) btree_leaf_find_key2(bt, n, key, keylen, &index);	
+	(void) btree_leaf_find_key2(bt, n, key, keylen, meta, &index);	
 
 	res = btree_leaf_is_full_index(bt, n, key, keylen, datalen, meta,
 				       syndrome, key_exists, index);
