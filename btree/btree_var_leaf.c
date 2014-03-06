@@ -66,11 +66,16 @@ static __thread char tmp_key_buf[8100] = {0};
 #define dbg_assert(x) ;
 #endif
 
+#define big_object_kd(bt, k, d) ((k + d) >= (bt)->big_object_size)
 
 bool
 btree_leaf_get_nth_key_info2(btree_raw_t *btree, btree_raw_node_t *n, int index,
 		       	    key_info_t *key_info);
 
+static bool
+btree_leaf_update_key_index_int(btree_raw_t *bt, btree_raw_node_t *n, char *key, uint32_t keylen,
+				char *data, uint64_t datalen, key_info_t *key_info, 
+				int index, int32_t *bytes_increased, bool dry_run);
 /*
  * Get common part of two keys.
  *
@@ -950,12 +955,13 @@ append_entry_to_tmp_buf(btree_raw_t *bt, btree_raw_node_t *n, key_meta_t *key_me
 	buf_ptr += metalen;
 
 	btree_memcpy(buf_ptr, (char *)(key_info->key + key_meta->prefix_len), 
-	key_meta->keylen - key_meta->prefix_len, dry_run);
+		key_meta->keylen - key_meta->prefix_len, dry_run);
 
 	buf_ptr += (key_meta->keylen - key_meta->prefix_len);
 
 	if (key_meta->ptr == 0) {
-		dbg_assert(datalen < bt->big_object_size);
+		//dbg_assert(datalen < bt->big_object_size);
+		dbg_assert(!big_object_kd(bt, key_meta->keylen, datalen));
 		btree_memcpy(buf_ptr, data, datalen, dry_run);
 		buf_ptr += datalen;
 	 }
@@ -1130,6 +1136,8 @@ btree_leaf_insert_key_index(btree_raw_t *bt, btree_raw_node_t *n, char *key, uin
 	key_meta.ptr = key_info->ptr;
 
 	dbg_assert(key_info->keylen == keylen);
+
+	assert(keylen < bt->max_key_size);
 
 #ifdef COLLECT_TIME_STATS 
 	uint64_t start_time = 0;
@@ -1577,6 +1585,7 @@ btree_leaf_update_key(btree_raw_t *bt, btree_raw_node_t *n, char *key, uint32_t 
 	bool res1 = false;
 	int index1 = -1;
 #endif
+	assert(keylen < bt->max_key_size);
 
 	dbg_assert(index >= 0);
 	key_info.ptr = ptr;
@@ -1737,7 +1746,7 @@ btree_leaf_copy_keys(btree_raw_t *bt, btree_raw_node_t *from_node, int from_inde
 /*
  * Find the index of keys where split can happen.
  */
-static int
+int
 btree_leaf_find_split_idx(btree_raw_t *bt, btree_raw_node_t *n)
 {
 	int middle_index = n->nkeys / 2;
@@ -2007,7 +2016,7 @@ btree_leaf_is_full_index(btree_raw_t *bt, btree_raw_node_t *n, char *key, uint32
 
 	if (index >= n->nkeys) {
 		uint64_t new_datalen = datalen;
-		if (datalen >= bt->big_object_size) {
+		if (big_object_kd(bt, keylen, datalen)) {
 			new_datalen = 0;
 		}
 
@@ -2057,11 +2066,11 @@ btree_leaf_is_full_index(btree_raw_t *bt, btree_raw_node_t *n, char *key, uint32
 		key_meta.datalen = new_datalen;
 		new_meta_type = get_key_meta_type(bt, &key_meta);
 
-		if (datalen >= bt->big_object_size) {
+		if (big_object_kd(bt, keylen, datalen)) {
 			new_datalen = 0;
 		}
 
-		if (key_meta.datalen >= bt->big_object_size) {
+		if (big_object_kd(bt, keylen, old_datalen)) {
 			old_datalen = 0;
 		}
 
@@ -2071,8 +2080,8 @@ btree_leaf_is_full_index(btree_raw_t *bt, btree_raw_node_t *n, char *key, uint32
 		}
 	
 	} else {
-
-#ifdef DEBUG_BUILD
+#if 0
+//#ifdef DEBUG_BUILD
 		(void) btree_leaf_find_key2(bt, n, key, keylen, meta, &index1);	
 		dbg_assert(index == index1);
 #endif
@@ -2080,7 +2089,8 @@ btree_leaf_is_full_index(btree_raw_t *bt, btree_raw_node_t *n, char *key, uint32
 		key_info.key = key;
 		key_info.keylen = keylen;
 		key_info.datalen = datalen;
-		if (datalen >= bt->big_object_size) {
+//		key_info.seqno = seqno;
+		if (big_object_kd(bt, keylen, key_info.datalen)) {
 			key_info.ptr=0xdeadc0de; //pure hack
 		}
 		key_info.tombstone = (meta->flags & INSERT_TOMBSTONE) ? true: false;
@@ -2088,7 +2098,6 @@ btree_leaf_is_full_index(btree_raw_t *bt, btree_raw_node_t *n, char *key, uint32
 		res = btree_leaf_insert_key_index(bt, n, key, keylen, global_tmp_data, datalen,
 						  &key_info, index, &bytes_needed, true);
 		dbg_assert(res == true);
-//		dbg_assert(bytes_needed >= bytes_needed1);
 	}
 
 #ifdef COLLECT_TIME_STATS
@@ -2224,51 +2233,51 @@ btree_leaf_shift_right(btree_raw_t *bt, btree_raw_node_t *from_node,
 {
 	btree_raw_node_t *tmp_node_to = NULL;
 	btree_raw_node_t *tmp_node_from = NULL;
-	int nkeys_from = 0;
-	int nkeys_to = 0;
-	int keys_copied = 0;
 	int32_t avg_size = 0;
 	key_info_t key_info = {0};
+	char *tmp_key_buf = NULL;
+	int copy_idx = 0;
+	uint32_t used_space = 0;
+	btree_metadata_t meta = {0};
 
-
-	tmp_node_to = (btree_raw_node_t *) get_buffer(bt, bt->nodesize);
-	if (tmp_node_to == NULL) {
-		dbg_assert(0);
-		return false;
-	}
-
-	btree_leaf_init(bt, tmp_node_to);
-
-	tmp_node_from = (btree_raw_node_t *) get_buffer(bt, bt->nodesize);
-	if (tmp_node_from == NULL) {
-		dbg_assert(0);
-		free_buffer(bt, tmp_node_to);
-		return false;
-	}
-
-	btree_leaf_init(bt, tmp_node_from);
-
+	meta.flags = 0; //Default flags
+	
 
 	avg_size = (btree_leaf_used_space(bt, from_node) + btree_leaf_used_space(bt, to_node)) / 2;
 
-	nkeys_from = btree_leaf_num_entries(bt, from_node);
-	nkeys_to = btree_leaf_num_entries(bt, to_node);
 
-	keys_copied = btree_leaf_copy_keys(bt, from_node, 0, tmp_node_from, 0, nkeys_from, avg_size);
+	tmp_key_buf = (char *) btree_malloc(bt->max_key_size);
 
-	keys_copied = btree_leaf_copy_keys(bt, from_node, keys_copied, tmp_node_to, 0, nkeys_from - keys_copied, 0);
+	copy_idx = from_node->nkeys - 1;
+	key_info.key = tmp_key_buf;
+	while (copy_idx > 0) {
 
-	
-	keys_copied = btree_leaf_copy_keys(bt, to_node, 0, tmp_node_to, keys_copied, nkeys_to, 0);
-	dbg_assert(keys_copied == nkeys_to);
+		btree_leaf_get_nth_key_info2(bt, from_node, copy_idx, &key_info);
+
+		if (btree_leaf_is_full_index(bt, to_node, key_info.key, key_info.keylen,
+					     key_info.datalen, &meta, 0, false, 0)) {
+			/*
+			 * The to node cannot take more keys.
+			 */
+			break;
+		}
+
+		btree_leaf_move_key(bt, from_node, copy_idx, to_node, 0, tmp_key_buf);
+
+		used_space = btree_leaf_used_space(bt, to_node);
+
+		if (used_space > avg_size) {
+			break;
+		}		
+		copy_idx--;
+	}	
 
 	/*
 	 * Check if rightmost key in from node can accmodate in parent, if not 
 	 * we need to find another key as right most node and sacrifice some of
 	 * balancing.
 	 */
-	key_info.key = (char *) btree_malloc(bt->max_key_size);
-	(void) btree_leaf_get_nth_key_info2(bt, tmp_node_from, tmp_node_from->nkeys - 1, &key_info);	
+	(void) btree_leaf_get_nth_key_info2(bt, from_node, from_node->nkeys - 1, &key_info);	
 	if (key_info.keylen > max_keylen) {
 		/*
 		 * The right most key is bigger than parent can accmodate,
@@ -2278,27 +2287,15 @@ btree_leaf_shift_right(btree_raw_t *bt, btree_raw_node_t *from_node,
 			/*
 			 * Move keys back to from node till we find smaller key.
 			 */
-			btree_leaf_move_key(bt, tmp_node_to, 0,
-					    tmp_node_from, tmp_node_from->nkeys, key_info.key);
-			(void) btree_leaf_get_nth_key_info2(bt, tmp_node_from,
-							    tmp_node_from->nkeys - 1, &key_info);
+			btree_leaf_move_key(bt, to_node, 0,
+					    from_node, from_node->nkeys, key_info.key);
+			(void) btree_leaf_get_nth_key_info2(bt, from_node,
+							    from_node->nkeys - 1, &key_info);
 		}
 	}
 
-	btree_free(key_info.key);
-
-	btree_memcpy(from_node->keys, tmp_node_from->keys, bt->nodesize_less_hdr, false);
-	from_node->nkeys = tmp_node_from->nkeys;
-	from_node->insert_ptr = tmp_node_from->insert_ptr;
-
-	btree_memcpy(to_node->keys, tmp_node_to->keys, bt->nodesize_less_hdr, false);
-	to_node->nkeys = tmp_node_to->nkeys;
-	to_node->insert_ptr = tmp_node_to->insert_ptr;
-
+	btree_free(tmp_key_buf);
 	btree_leaf_get_nth_key_info(bt, from_node, from_node->nkeys - 1, key_info_out);
-
-	free_buffer(bt, tmp_node_from);
-	free_buffer(bt, tmp_node_to);
 
 	return true;
 }
