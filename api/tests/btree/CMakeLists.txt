@@ -4,6 +4,7 @@ SET(fdf_mput_param 1 1000 100 10)
 SET(fdf_mput_pstats_param 1 1000 100 10)
 SET(fdf_rangeupdate_param 1000 10)
 SET(fdf_snapshot_param 1000 10 15)
+SET(fdf_big_writes_param 100 1000 1 1048576)
 SET(FDF_Write_mthreads_param 1000 1 1450 1024 1 1)
 
 file( GLOB TEST_SOURCES *.c )

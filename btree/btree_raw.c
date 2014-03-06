@@ -4166,7 +4166,7 @@ btree_insert_keys_leaf(btree_raw_t *btree, btree_metadata_t *meta, uint64_t synd
 
 		/* Key_exists, but we cannot update, because of snapshots, collect 
 		 * metadata to update stats */
-		if (key_exists && !is_update) {
+		if (key_exists) {
 			btree_leaf_get_meta(mem_node->pnode, index, &key_meta);
 		}
 
@@ -4198,6 +4198,11 @@ btree_insert_keys_leaf(btree_raw_t *btree, btree_metadata_t *meta, uint64_t synd
 			int required_nodes = 1;
 			if ((objs[idx].key_len + objs[idx].data_len) >= btree->big_object_size) {
 				required_nodes += objs[idx].data_len / btree->nodesize_less_hdr + 1;
+			}
+			if (key_exists) {
+				if ((key_meta.keylen + key_meta.datalen) >= btree->big_object_size) {
+					required_nodes += key_meta.datalen / btree->nodesize_less_hdr + 1;
+				}
 			}
 
 			if (!is_nodes_available(required_nodes)) {
@@ -4385,7 +4390,7 @@ btree_raw_bulk_insert(struct btree_raw *btree, btree_mput_obj_t **objs_in_out, u
 
 	if(((left_minimal = is_minimal(btree, left->pnode, 0, 0)) ||
 				is_minimal(btree, right->pnode, 0, 0))) {
-		assert(!count || x >= 0);
+		assert(!count || x >= 0 || (leaf_ret == BTREE_OBJECT_TOO_BIG));
 		(void) equalize_keys(btree, parent, left, right, r_key, r_keylen, 0,
 				r_seqno, &r_key, &r_keylen, &r_syndrome, &r_seqno, left_minimal
 				? LEFT : RIGHT, &free_key);
@@ -4398,7 +4403,7 @@ btree_raw_bulk_insert(struct btree_raw *btree, btree_mput_obj_t **objs_in_out, u
 	if(free_key)
 		free_buffer(btree, r_key);
 
-	if(!count || x >= 0 || (ret == BTREE_OBJECT_TOO_BIG)) {
+	if(!count || x >= 0 || (leaf_ret == BTREE_OBJECT_TOO_BIG)) {
 		*not_written = count;
 		*objs_in_out = objs;
 		return ret;

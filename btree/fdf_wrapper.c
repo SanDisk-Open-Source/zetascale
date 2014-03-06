@@ -2790,6 +2790,9 @@ _FDFMPut(struct FDF_thread_state *fdf_ts,
 			bt_rel_entry(index, true);
 			return FDF_OBJECT_TOO_BIG;
 		}
+
+		assert((i == 0) || (bt->cmp_cb(bt->cmp_cb_data, objs[i-1].key, objs[i-1].key_len, 
+		                               objs[i].key, objs[i].key_len) <= 0));
 	}
 
 	meta.flags = 0;
