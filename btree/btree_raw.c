@@ -4327,7 +4327,7 @@ btree_raw_bulk_insert(struct btree_raw *btree, btree_mput_obj_t **objs_in_out, u
 			meta, 0, &child_id, &child_id_before, &child_id_after,
 			&split_key);
 
-	assert(!found || index > 0);
+	assert(!found || (split_key > 0));
 
 	dbg_print_key(objs[0].key, objs[0].key_len, "bulk_insert count=%d parent_id=%ld left=%ld split_key=%d locked=%lld\n", count, parent->pnode->logical_id, left->pnode->logical_id, split_key, locked);
 
