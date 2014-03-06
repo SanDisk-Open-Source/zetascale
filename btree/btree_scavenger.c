@@ -18,7 +18,6 @@ extern  __thread struct FDF_thread_state *my_thd_state;
 extern __thread FDF_cguid_t my_thrd_cguid;
 
 __thread int key_loc = 0;
-__thread int nkey_prev_tombstone = 0;
 __thread int start_key_in_node = 0;
 static __thread char tmp_key_buf[8100] = {0};
 
@@ -81,7 +80,6 @@ scavenger_worker(uint64_t arg)
 		i = 0;
 		bool found = 0,last_node=0;
 		start_key_in_node = 0;
-		nkey_prev_tombstone = 0;
 		bzero(&ks_prev,sizeof(key_stuff_t));
 		while (1)
 		{
@@ -297,8 +295,8 @@ int scavenge_node(struct btree_raw *btree, btree_raw_mem_node_t* node, key_stuff
     }
 
 	int i = 0, temp;
-	key_stuff_info_t ks_prev,ks_current,temp1;
-	int  total_keys = 0,deleting_keys = 0,nkey_prev = 0;
+	key_stuff_info_t ks_prev,ks_current;
+	int  total_keys = 0,deleting_keys = -1,nkey_prev = 0;
 	uint64_t         snap_n1,snap_n2;
 	btree_status_t	ret;
 	key_info_t key_info;
@@ -319,10 +317,8 @@ int scavenge_node(struct btree_raw *btree, btree_raw_mem_node_t* node, key_stuff
 	i = start_key_in_node;
 	//meta.flags = 0;
 	key1 = *key;
-	
-	bzero(&temp1,sizeof(key_stuff_info_t));
+
 	memcpy(&ks_prev,ks_prev_key,sizeof(key_stuff_t));
-	(void) get_key_stuff_leaf(btree, node->pnode, i, &ks_current);
 	for(;i<node->pnode->nkeys;i++)
 	{
 		(void) get_key_stuff_leaf(btree, node->pnode, i, &ks_current);
@@ -335,28 +331,22 @@ int scavenge_node(struct btree_raw *btree, btree_raw_mem_node_t* node, key_stuff
 		}
 		if (!temp)
 		{
-			if (ks_prev.seqno != ks_current.seqno) {
-				snap_n1 = btree_snap_find_meta_index(btree, ks_prev.seqno);
-				snap_n2 = btree_snap_find_meta_index(btree, ks_current.seqno);
-				total_keys++;
-				if (snap_n1 == snap_n2)
-				{
-					deleting_keys++;
-					if (key_loc >= 16 && ((key_loc & key_loc-1)==0)) {
-						key1 = (key_stuff_info_t *)realloc(key1,2*key_loc*sizeof(key_stuff_info_t));
-						*key = key1;
-					}
-					memcpy(&(key1[key_loc++]),&ks_current,sizeof(key_stuff_t));
-					temp1 = ks_current;
+			snap_n1 = btree_snap_find_meta_index(btree, ks_prev.seqno);
+			snap_n2 = btree_snap_find_meta_index(btree, ks_current.seqno);
+			total_keys++;
+			if (snap_n1 == snap_n2)
+			{
+				deleting_keys++;
+				if (key_loc >= 16 && ((key_loc & key_loc-1)==0)) {
+					key1 = (key_stuff_info_t *)realloc(key1,2*key_loc*sizeof(key_stuff_info_t));
+					*key = key1;
 				}
+				memcpy(&(key1[key_loc++]),&ks_current,sizeof(key_stuff_t));
 			}
 			continue;
 		} else {
 			if (total_keys == deleting_keys) {
-			if(temp1.keylen != 0)
-				temp = btree->cmp_cb(btree->cmp_cb_data, temp1.key, temp1.keylen, ks_prev.key, ks_prev.keylen);
-			else 
-				temp = 1;
+			(void) btree_leaf_get_nth_key_info(btree, node->pnode, nkey_prev, &key_info);
 
 /*
 				// This logic is hitting assert(!dbg_referenced) in rebalanced_delete routine correct the logic
@@ -365,7 +355,7 @@ int scavenge_node(struct btree_raw *btree, btree_raw_mem_node_t* node, key_stuff
 				(void) btree_leaf_get_nth_key_info(btree, leader_node->pnode, index, &key_info);
 				plat_rwlock_unlock(&leader_node->lock);
 */
-				if (!temp && nkey_prev_tombstone == 1)
+				if(key_info.tombstone == 1)
 				{
 					if (key_loc >= 16 && ((key_loc & key_loc-1)==0)) {
 						key1 = (key_stuff_info_t *)realloc(key1,2*key_loc*sizeof(key_stuff_info_t));
@@ -376,8 +366,6 @@ int scavenge_node(struct btree_raw *btree, btree_raw_mem_node_t* node, key_stuff
 			}
 			total_keys = deleting_keys = 0;
 		}
-		(void) btree_leaf_get_nth_key_info(btree, node->pnode,i, &key_info);
-		nkey_prev_tombstone = key_info.tombstone;
 		nkey_prev = i;
 		ks_prev = ks_current;
 	}
