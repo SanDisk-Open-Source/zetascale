@@ -119,6 +119,7 @@ extern uint64_t fdf_flush_pstats_frequency;
 extern uint64_t l1cache_size;
 extern uint64_t l1cache_partitions;
 
+extern int astats_done;
 //  used to count depth of btree traversal for writes/deletes
 __thread int _pathcnt;
 
@@ -1722,19 +1723,20 @@ static void delete_overflow_data(btree_status_t *ret, btree_raw_t *bt, uint64_t 
     if (*ret) { return; }
 
     for (ptr = ptr_in; ptr != 0; ptr = ptr_next) {
-	n = get_existing_node(ret, bt, ptr);
-	if (BTREE_SUCCESS != *ret) {
-	    bt_err("Failed to find an existing overflow node in delete_overflow_data!");
-	    return;
-	}
+        n = get_existing_node(ret, bt, ptr);
+        if (BTREE_SUCCESS != *ret) {
+            bt_err("Failed to find an existing overflow node in delete_overflow_data!");
+            return;
+        }
 
-	ptr_next = n->pnode->next;
-	free_node(ret, bt, n);
-	// current free_node doesn't change value of ret...
-	if (BTREE_SUCCESS != *ret) {
-	    bt_err("Failed to free an existing overflow node in delete_overflow_data!");
-	}
+        ptr_next = n->pnode->next;
+        free_node(ret, bt, n);
+        // current free_node doesn't change value of ret...
+        if (BTREE_SUCCESS != *ret) {
+            bt_err("Failed to free an existing overflow node in delete_overflow_data!");
+        }
     }
+    //fprintf(stderr, "delete_overflow_data called: cur=%ld len=%ld\n", (bt->stats.stat[BTSTAT_OVERFLOW_BYTES]), datalen);
     __sync_sub_and_fetch(&(bt->stats.stat[BTSTAT_OVERFLOW_BYTES]), datalen);
 }
 
@@ -1773,22 +1775,22 @@ static uint64_t allocate_overflow_data(btree_raw_t *bt, uint64_t datalen, char *
             n_last->dirty_next = n;
         }
 
-	int b = nbytes < bt->nodesize_less_hdr ? nbytes : bt->nodesize_less_hdr;
+        int b = nbytes < bt->nodesize_less_hdr ? nbytes : bt->nodesize_less_hdr;
 
-	memcpy(((char *) n->pnode + sizeof(btree_raw_node_t)), p, b);
+        memcpy(((char *) n->pnode + sizeof(btree_raw_node_t)), p, b);
 
-	p += b;
-	nbytes -= b;
-	n_last = n;
+        p += b;
+        nbytes -= b;
+        n_last = n;
 
         __sync_add_and_fetch(&(bt->stats.stat[BTSTAT_OVERFLOW_BYTES]), 
-                               b + sizeof(btree_raw_node_t));
-	if(nbytes)
-	    n = get_new_node(&ret, bt, OVERFLOW_NODE, 0);
+                b + sizeof(btree_raw_node_t));
+        if(nbytes)
+            n = get_new_node(&ret, bt, OVERFLOW_NODE, 0);
     }
 
     if(BTREE_SUCCESS == ret) 
-	return n_first->pnode->logical_id;
+        return n_first->pnode->logical_id;
 
 
     if(n_first) {
@@ -2783,9 +2785,11 @@ btree_raw_mem_node_t *get_new_node(btree_status_t *ret, btree_raw_t *btree, uint
 	return get_new_node_low(ret, btree, leaf_flags, level, 1);
 }
 
-static void free_node(btree_status_t *ret, btree_raw_t *btree, btree_raw_mem_node_t *n)
+
+static void
+free_node(btree_status_t *ret, btree_raw_t *btree, btree_raw_mem_node_t *n)
 {
-	if (*ret) { return; }
+    if (*ret) { return; }
 
     sub_node_stats(btree, n->pnode, NODES, 1);
     sub_node_stats(btree, n->pnode, BYTES, sizeof(btree_raw_node_t));
@@ -2797,6 +2801,7 @@ static void free_node(btree_status_t *ret, btree_raw_t *btree, btree_raw_mem_nod
 	dbg_referenced++;
 	//*ret = btree->delete_node_cb(n, btree->create_node_cb_data, n->logical_id);
 }
+
 
 /*   Split the 'from' node across 'from' and 'to'.
  *
@@ -3420,42 +3425,42 @@ void delete_key_by_index_non_leaf(btree_status_t* ret, btree_raw_t *btree, btree
 void 
 delete_key_by_index_leaf(btree_status_t* ret, btree_raw_t *btree, btree_raw_mem_node_t *node, int index)
 {
-	key_info_t key_info = {0};
-	bool res = false; 
-	uint64_t datalen = 0;
-	int32_t bytes_decreased = 0;
+    key_info_t key_info = {0};
+    bool res = false; 
+    uint64_t datalen = 0;
+    int32_t bytes_decreased = 0;
 
-	assert(is_leaf(btree, node->pnode));
+    assert(is_leaf(btree, node->pnode));
 
-	modify_l1cache_node(btree, node);
+    modify_l1cache_node(btree, node);
 
-	res = btree_leaf_get_nth_key_info(btree, node->pnode, index, &key_info);
-	assert(res == true);
+    res = btree_leaf_get_nth_key_info(btree, node->pnode, index, &key_info);
+    assert(res == true);
 
-	if ((key_info.keylen + key_info.datalen) >=
-	    btree->big_object_size) {
-		datalen = 0;
-                delete_overflow_data(ret, btree, key_info.ptr, key_info.datalen);
-	} else {
-		datalen = key_info.datalen;
-	}
+    if ((key_info.keylen + key_info.datalen) >=
+            btree->big_object_size) {
+        datalen = 0;
+        delete_overflow_data(ret, btree, key_info.ptr, key_info.datalen);
+    } else {
+        datalen = key_info.datalen;
+    }
 
-	res = btree_leaf_remove_key_index(btree, node->pnode, index, &key_info, &bytes_decreased);	
+    res = btree_leaf_remove_key_index(btree, node->pnode, index, &key_info, &bytes_decreased);	
 
-	assert(res == true);
-	if (res == true) {
-		__sync_sub_and_fetch(&(btree->stats.stat[BTSTAT_LEAF_BYTES]), bytes_decreased);
-		*ret = BTREE_SUCCESS;
-	} else {
-		*ret = BTREE_FAILURE;
-	}
-	free_buffer(btree, key_info.key);
+    assert(res == true);
+
+    __sync_sub_and_fetch(&(btree->stats.stat[BTSTAT_LEAF_BYTES]), bytes_decreased);
+    *ret = BTREE_SUCCESS;
+    free_buffer(btree, key_info.key);
 }
 
 void
 delete_key_by_index(btree_status_t* ret, btree_raw_t *btree,
 		    btree_raw_mem_node_t *node, int index)
 {
+    while (astats_done == 0) {
+       sleep(1);
+    }
 	if (is_leaf(btree, node->pnode)) {
 		delete_key_by_index_leaf(ret, btree, node, index);
 	} else {

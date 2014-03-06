@@ -44,8 +44,12 @@
 #endif
 
 #define PERSISTENT_STATS_FLUSH_INTERVAL 100000
+#define FDF_ASYNC_STATS_THREADS 8
+#define ASYNC_STATS_SUSPEND_NODE_COUNT 10
+#define ASYNC_STATS_SUSPEND_DURATION 5
 
 struct cmap;
+extern int astats_done;
 
 static char Create_Data[MAX_NODE_SIZE];
 
@@ -168,6 +172,7 @@ _FDFRangeUpdate(struct FDF_thread_state *fdf_thread_state,
 	       uint32_t *objs_updated);
 
 FDF_status_t _FDFScavengeContainer(struct FDF_state *fdf_state, FDF_cguid_t cguid);
+FDF_status_t FDFStartAstats(struct FDF_state *fdf_state, FDF_cguid_t cguid);
 
 fdf_log_func fdf_log_func_ptr = NULL; 
 
@@ -577,9 +582,21 @@ FDF_status_t _FDFInit(
 
 	
     btSyncMboxInit(&mbox_scavenger);
-    NThreads = atoi(_FDFGetProperty("FDF_SCAVENGER_THREADS",FDF_SCAVENGER_THREADS));
+    btSyncMboxInit(&mbox_astats);
+
+    NThreads = atoi(_FDFGetProperty("FDF_SCAVENGER_THREADS", FDF_SCAVENGER_THREADS));
+
     for (i = 0;i < NThreads;i++) {
 	btSyncResume(btSyncSpawn(NULL,i,&scavenger_worker),(uint64_t)NULL);
+    }
+
+
+    char buf[32];
+    sprintf(buf, "%u", FDF_ASYNC_STATS_THREADS);
+    int num_astats_threads = atoi(_FDFGetProperty("FDF_ASYNC_STATS_THREADS", buf));
+
+    for (i = 0; i < num_astats_threads; i++) {
+        btSyncResume(btSyncSpawn(NULL, i, &astats_worker),(uint64_t)NULL);
     }
 
     cbs = malloc(sizeof(FDF_ext_cb_t));
@@ -627,7 +644,6 @@ FDF_status_t _FDFInit(
         return FDF_FAILURE;
     }
 
-    char buf[32];
 
     sprintf(buf, "%u",FDF_MIN_FLASH_SIZE);
     flash_space = atoi(FDFGetProperty("FDF_FLASH_SIZE", buf));
@@ -1241,6 +1257,23 @@ restart:
 		fprintf(stderr,"Before the restart scavenger was terminated ungracefully,  restarting the scavenger on this container\n");
 		_FDFScavengeContainer(my_global_fdf_state, *cguid);
 	}
+
+    /*   
+     * Check if a session is restarted
+     */
+    char *reformat = (char*)FDFGetProperty("FDF_REFORMAT", NULL);
+    char *astats_enable = (char*)FDFGetProperty("FDF_ASYNC_STATS_ENABLE", NULL);
+
+    if (reformat && reformat[0] != '0') {
+        fprintf(stderr, "FDFOpenContainer: Disabling async stats workers\n");
+        astats_done = 1;
+    } else {
+        if (reformat && astats_enable[0] == '1') {
+            fprintf(stderr, "FDFOpenContainer: Starting async thread\n");
+            FDFStartAstats(FDFState, *cguid);
+        }
+    }
+
     return(FDF_SUCCESS);
 
 fail:
@@ -1311,6 +1344,11 @@ FDF_status_t _FDFCloseContainer(
     my_thd_state = fdf_thread_state;;
     FDF_status_t	status = FDF_FAILURE;
     int				index;
+
+#ifdef ASTATS_DEBUG
+    while (astats_done == 0) sleep(1);
+    dump_btree_stats(stderr, cguid);
+#endif
 
 restart:
     if ((status = bt_is_valid_cguid(cguid)) != FDF_SUCCESS) {
@@ -2343,7 +2381,7 @@ _FDFGetRangeFinish(struct FDF_thread_state *fdf_thread_state,
 	FDF_status_t      ret = FDF_SUCCESS;
 	btree_status_t    status;
 
-	my_thd_state = fdf_thread_state;;
+	my_thd_state = fdf_thread_state;
         __sync_add_and_fetch(&(((btree_range_cursor_t *)cursor)->btree->stats.stat[BTSTAT_RANGE_FINISH_CNT]), 1);
 	status = btree_range_query_end((btree_range_cursor_t *)cursor);
 	ret = BtreeErr_to_FDFErr(status);
@@ -2356,13 +2394,19 @@ _FDFGetRangeFinish(struct FDF_thread_state *fdf_thread_state,
  *
  *****************************************************************/
 
-static void read_node_cb(btree_status_t *ret, void *data, void *pnode, uint64_t lnodeid)
+static void
+read_node_cb(btree_status_t *ret, void *data, void *pnode, uint64_t lnodeid)
 {
     read_node_t            *prn = (read_node_t *) data;
     uint64_t                datalen = prn->nodesize;
     FDF_status_t            status = FDF_FAILURE;
 
     N_read_node++;
+
+    assert(ret);
+    assert(my_thd_state);
+    assert(data);
+    assert(pnode);
 
     status = FDFReadObject2(my_thd_state, prn->cguid, (char *) &lnodeid, sizeof(uint64_t), (char **) &pnode, &datalen);
     trxtrackread( prn->cguid, lnodeid);
@@ -2373,7 +2417,7 @@ static void read_node_cb(btree_status_t *ret, void *data, void *pnode, uint64_t 
 	    // xxxzzz SEGFAULT
 	    // fprintf(stderr, "SEGFAULT read_node_cb: %p [tid=%d]\n", n, tid);
     } else {
-	fprintf(stderr, "ZZZZZZZZ   red_node_cb %lu - %lu failed with ret=%s   ZZZZZZZZZ\n", lnodeid, datalen, FDFStrError(status));
+	fprintf(stderr, "ZZZZZZZZ   read_node_cb %lu - %lu failed with ret=%s   ZZZZZZZZZ\n", lnodeid, datalen, FDFStrError(status));
         //*ret = BTREE_FAILURE;
 	*ret = FDFErr_to_BtreeErr(status);
     }
@@ -2398,6 +2442,10 @@ static void flush_node_cb(btree_status_t *ret_out, void *cb_data, uint64_t lnode
     read_node_t            *prn = (read_node_t *) cb_data;
 
     N_flush_node++;
+
+    assert(ret_out);
+    assert(cb_data);
+    assert(my_thd_state);
 
     ret = FDFFlushObject(my_thd_state, prn->cguid, (char *) &lnodeid, sizeof(uint64_t));
 	*ret_out = FDFErr_to_BtreeErr(ret);
@@ -4762,49 +4810,57 @@ FDF_status_t _FDFScavenger(struct FDF_state  *fdf_state)
 
 FDF_status_t _FDFScavengeContainer(struct FDF_state *fdf_state, FDF_cguid_t cguid) 
 {
-        FDF_status_t    ret = FDF_FAILURE;
-        int             index;
-        struct btree    *bt;
-        Scavenge_Arg_t s;
-	const char *FDF_SCAVENGER_THROTTLE_VALUE = "1";  // 1 milli second
-	s.throttle_value = 1;
+    FDF_status_t    ret = FDF_FAILURE;
+    int             index;
+    struct btree    *bt;
+    Scavenge_Arg_t s;
+    const char *FDF_SCAVENGER_THROTTLE_VALUE = "1";  // 1 milli second
+    s.throttle_value = 1;
 
-        if ((ret = bt_is_valid_cguid(cguid)) != FDF_SUCCESS) {
-                return ret;
-        }
+#if 0
+    char *p = _FDFGetProperty("FDF_SCAVENGER_ENABLE", NULL);
+    if (!p) {
+        fprintf(stderr, "Disbaling scavenger\n");
+        return FDF_SUCCESS;
+    }
+#endif
 
-        bt = bt_get_btree_from_cguid(cguid, &index, &ret, false);
-        if (bt == NULL) {
-                return ret;
-        }
-
-        s.type = 2;
-        s.cguid = cguid;
-        s.btree_index = index;
-        s.btree = (struct btree_raw *)(bt->partitions[0]);
-        s.bt = bt;
-	s.throttle_value = atoi(_FDFGetProperty("FDF_SCAVENGER_THROTTLE_VALUE",FDF_SCAVENGER_THROTTLE_VALUE));
-
-        index = bt_get_cguid(s.cguid);
-	pthread_rwlock_wrlock(&ctnrmap_rwlock);
-
-        if (Container_Map[index].scavenger_state == 1) {
-                fprintf(stderr,"scavenge operation on this container is already in progress\n");
-		bt_rel_entry(index, false);
-                pthread_rwlock_unlock(&ctnrmap_rwlock);
-                return FDF_FAILURE;
-        } else {
-			(s.btree)->snap_meta->scavenging_in_progress = 1;
-		Container_Map[index].scavenger_state = 1;
-	}
-        pthread_rwlock_unlock(&ctnrmap_rwlock);
-
-		flushpersistent(s.btree);
-		if (deref_l1cache(s.btree) != BTREE_SUCCESS) {
-			fprintf(stderr," deref_l1_cache failed\n");
-		}
-        ret = btree_scavenge(fdf_state, s);
+    if ((ret = bt_is_valid_cguid(cguid)) != FDF_SUCCESS) {
         return ret;
+    }
+
+    bt = bt_get_btree_from_cguid(cguid, &index, &ret, false);
+    if (bt == NULL) {
+        return ret;
+    }
+
+    s.type = 2;
+    s.cguid = cguid;
+    s.btree_index = index;
+    s.btree = (struct btree_raw *)(bt->partitions[0]);
+    s.bt = bt;
+    s.throttle_value = atoi(_FDFGetProperty("FDF_SCAVENGER_THROTTLE_VALUE",FDF_SCAVENGER_THROTTLE_VALUE));
+
+    index = bt_get_cguid(s.cguid);
+    pthread_rwlock_wrlock(&ctnrmap_rwlock);
+
+    if (Container_Map[index].scavenger_state == 1) {
+        fprintf(stderr,"scavenge operation on this container is already in progress\n");
+        bt_rel_entry(index, false);
+        pthread_rwlock_unlock(&ctnrmap_rwlock);
+        return FDF_FAILURE;
+    } else {
+        (s.btree)->snap_meta->scavenging_in_progress = 1;
+        Container_Map[index].scavenger_state = 1;
+    }
+    pthread_rwlock_unlock(&ctnrmap_rwlock);
+
+    flushpersistent(s.btree);
+    if (deref_l1cache(s.btree) != BTREE_SUCCESS) {
+        fprintf(stderr," deref_l1_cache failed\n");
+    }
+    ret = btree_scavenge(fdf_state, s);
+    return ret;
 }
 
 FDF_status_t _FDFScavengeSnapshot(struct FDF_state *fdf_state, FDF_cguid_t cguid, uint64_t snap_seq) {
@@ -4815,68 +4871,181 @@ FDF_status_t _FDFScavengeSnapshot(struct FDF_state *fdf_state, FDF_cguid_t cguid
         ret = btree_scavenge(fdf_state, s);
         return ret;
 }
-void open_container(struct FDF_thread_state *fdf_thread_state, FDF_cguid_t cguid)
+
+FDF_status_t
+FDFStartAstats(struct FDF_state *fdf_state, FDF_cguid_t cguid)
 {
-    	int           index = -1;
-        FDF_status_t       ret;
-        FDF_container_props_t   pprops;
-        uint32_t                  flags_in = FDF_CTNR_RW_MODE;
-        FDFLoadCntrPropDefaults(&pprops);
-        ret = FDFGetContainerProps(fdf_thread_state,cguid, &pprops);
+    assert(fdf_state);
 
-        if (ret != FDF_SUCCESS)
-        {
-                fprintf(stderr,"FDFGetContainerProps failed with error %s\n",  FDFStrError(ret));
-		return;
-        }
+    FDF_status_t    ret = FDF_FAILURE;
+    int             index;
+    struct btree    *bt;
+    astats_arg_t    s;
+    char buf[64]; 
 
-        ret = FDFOpenContainer(fdf_thread_state, pprops.name, &pprops, flags_in, &cguid);
-	if (ret != FDF_SUCCESS)
-        {
-		fprintf(stderr,"FDFOpenContainer failed with error %s\n",  FDFStrError(ret));
-		return;
-        }
+    if ((ret = bt_is_valid_cguid(cguid)) != FDF_SUCCESS) {
+        return ret;
+    }
 
-        index = bt_get_cguid(cguid);
-	// Need to add the code (btreeinit) if cguid is added but not retrived
+    bt = bt_get_btree_from_cguid(cguid, &index, &ret, false);
+    if (bt == NULL) {
+        return ret;
+    }
+
+    s.cguid = cguid;
+    s.btree = (struct btree_raw *)(bt->partitions[0]);
+    s.bt = bt;
+    s.btree_index = index;
+
+    sprintf(buf, "%u", ASYNC_STATS_SUSPEND_NODE_COUNT);
+    s.suspend_duration= atoi(FDFGetProperty("FDF_ASYNC_STATS_SUSPEND_NODE_COUNT", buf));
+
+    sprintf(buf, "%u", ASYNC_STATS_SUSPEND_DURATION);
+    s.suspend_after_node_count = atoi(FDFGetProperty("FDF_ASYNC_STATS_SUSPEND_DURATION", buf));
+
+    ret = btree_start_astats(fdf_state, s);
+
+    index = bt_get_cguid(s.cguid);
+    bt_rel_entry(index, false);
+
+    return ret;
+}
+
+
+FDF_status_t
+open_container(struct FDF_thread_state *fdf_thread_state, FDF_cguid_t cguid)
+{
+    int           index = -1;
+    FDF_status_t       ret = FDF_SUCCESS;
+    FDF_container_props_t   pprops;
+    uint32_t                  flags_in = FDF_CTNR_RW_MODE;
+    FDFLoadCntrPropDefaults(&pprops);
+    ret = FDFGetContainerProps(fdf_thread_state,cguid, &pprops);
+
+    if (ret != FDF_SUCCESS)
+    {
+        fprintf(stderr,"FDFGetContainerProps failed with error %s\n",  FDFStrError(ret));
+        return ret;
+    }
+
+    ret = FDFOpenContainer(fdf_thread_state, pprops.name, &pprops, flags_in, &cguid);
+    if (ret != FDF_SUCCESS)
+    {
+        fprintf(stderr,"FDFOpenContainer failed with error %s\n",  FDFStrError(ret));
+        return ret;
+    }
+
+    index = bt_get_cguid(cguid);
+    // Need to add the code (btreeinit) if cguid is added but not retrived
 
     /* This shouldnt happen, how FDF could create container but we exhausted map */
-        if (index == -1) {
-                FDFCloseContainer(fdf_thread_state, cguid);
-		 fprintf(stderr,"FDF Scavenger failed to open the containte with error FDF_TOO_MANY_CONTAINERS\n");
-        }
+    if (index == -1) {
+        FDFCloseContainer(fdf_thread_state, cguid);
+        fprintf(stderr,"FDF Scavenger failed to open the containte with error FDF_TOO_MANY_CONTAINERS\n");
+    }
 
-        pthread_rwlock_wrlock(&ctnrmap_rwlock);
+    pthread_rwlock_rdlock(&ctnrmap_rwlock);
 
-        if (Container_Map[index].cguid != cguid) {
-                pthread_rwlock_unlock(&ctnrmap_rwlock);
-		fprintf(stderr,"FDF Scavenger failed, error: Container got deleted\n");
-        }
-
+    if (Container_Map[index].cguid != cguid) {
         pthread_rwlock_unlock(&ctnrmap_rwlock);
+        fprintf(stderr,"FDF Scavenger failed, error: Container got deleted\n");
+        return FDF_FAILURE;
+    }
+
+    pthread_rwlock_unlock(&ctnrmap_rwlock);
+    return ret;
 }
 
-void close_container(struct FDF_thread_state *fdf_thread_state, Scavenge_Arg_t *S)
+
+FDF_status_t
+astats_open_container(struct FDF_thread_state *fdf_thread_state, FDF_cguid_t cguid, astats_arg_t *s)
 {
-        FDF_status_t       ret = FDF_SUCCESS;
-        int           index = -1;
+    int           index = -1;
+    FDF_status_t       ret = FDF_SUCCESS;
+    struct btree    *bt;
 
-		(S->bt->partitions[0])->snap_meta->scavenging_in_progress = 0;
-		flushpersistent(S->btree);
-		if (deref_l1cache(S->btree) != BTREE_SUCCESS) {
-			fprintf(stderr,"deref_l1_cache failed\n");
-		}
-	bt_rel_entry(S->btree_index, false);
-        index = bt_get_cguid(S->cguid);
-	pthread_rwlock_wrlock(&ctnrmap_rwlock);
-        Container_Map[index].scavenger_state = 0;
-	pthread_rwlock_unlock(&ctnrmap_rwlock);
-/*        ret = FDFCloseContainer(fdf_thread_state, S->cguid);
-        if (ret != FDF_SUCCESS)
-        {
-		fprintf(stderr,"FDFCloseContainer failed with error %s\n",  FDFStrError(ret));
-        }*/
+    FDF_container_props_t   pprops;
+    uint32_t                  flags_in = FDF_CTNR_RW_MODE;
+
+    FDFLoadCntrPropDefaults(&pprops);
+
+    ret = FDFGetContainerProps(fdf_thread_state,cguid, &pprops);
+    if (ret != FDF_SUCCESS) {
+        fprintf(stderr,"FDFGetContainerProps failed with error %s\n",  FDFStrError(ret));
+        return ret;
+    }
+
+    ret = FDFOpenContainer(fdf_thread_state, pprops.name, &pprops, flags_in, &cguid);
+    if (ret != FDF_SUCCESS) {
+        fprintf(stderr,"FDFOpenContainer failed with error %s\n",  FDFStrError(ret));
+        return ret;
+    }
+
+    index = bt_get_cguid(cguid);
+    // Need to add the code (btreeinit) if cguid is added but not retrived
+
+    /* This shouldnt happen, how FDF could create container but we exhausted map */
+    if (index == -1) {
+        FDFCloseContainer(fdf_thread_state, cguid);
+        fprintf(stderr,"FDF Scavenger failed to open the containte with error FDF_TOO_MANY_CONTAINERS\n");
+    }
+
+    bt = bt_get_btree_from_cguid(cguid, &index, &ret, false);
+    if (bt == NULL) {
+        ret = FDF_FAILURE;
+        return ret;
+    }
+
+    index = bt_get_cguid(cguid);
+    s->cguid = cguid;
+    s->btree = (struct btree_raw *)(bt->partitions[0]);
+    s->bt = bt;
+    s->btree_index = index;
+
+    pthread_rwlock_rdlock(&ctnrmap_rwlock);
+
+    if (Container_Map[index].cguid != cguid) {
+        pthread_rwlock_unlock(&ctnrmap_rwlock);
+        fprintf(stderr,"FDF Async stats failed, error: Container got deleted\n");
+        return FDF_FAILURE;
+    }
+    pthread_rwlock_unlock(&ctnrmap_rwlock);
+
+    return ret;
 }
+
+
+void
+close_container(struct FDF_thread_state *fdf_thread_state, Scavenge_Arg_t *S)
+{
+    FDF_status_t       ret = FDF_SUCCESS;
+    int           index = -1;
+
+    (S->bt->partitions[0])->snap_meta->scavenging_in_progress = 0;
+    flushpersistent(S->btree);
+    if (deref_l1cache(S->btree) != BTREE_SUCCESS) {
+        fprintf(stderr,"deref_l1_cache failed\n");
+    }
+    bt_rel_entry(S->btree_index, false);
+    index = bt_get_cguid(S->cguid);
+    pthread_rwlock_wrlock(&ctnrmap_rwlock);
+    Container_Map[index].scavenger_state = 0;
+    pthread_rwlock_unlock(&ctnrmap_rwlock);
+    /*        ret = FDFCloseContainer(fdf_thread_state, S->cguid);
+              if (ret != FDF_SUCCESS)
+              {
+              fprintf(stderr,"FDFCloseContainer failed with error %s\n",  FDFStrError(ret));
+              }*/
+}
+
+
+void
+astats_deref_container(astats_arg_t *S)
+{
+    bt_rel_entry(S->btree_index, false);
+}
+
+
 int
 bt_get_cguid(FDF_cguid_t cguid)
 {

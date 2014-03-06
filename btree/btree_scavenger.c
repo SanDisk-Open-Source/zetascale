@@ -12,6 +12,8 @@
 #define MAX_KEYLEN 2000
 #define MAX_OPEN_CONTAINERS   (UINT16_MAX - 1 - 9)
 
+int astats_done = 0;
+
 extern  __thread struct FDF_thread_state *my_thd_state;
 extern __thread FDF_cguid_t my_thrd_cguid;
 
@@ -19,11 +21,17 @@ __thread int key_loc = 0;
 __thread int start_key_in_node = 0;
 static __thread char tmp_key_buf[8100] = {0};
 
-extern void open_container(struct FDF_thread_state *fdf_thread_state, FDF_cguid_t cguid);
+extern FDF_status_t astats_open_container(struct FDF_thread_state *fdf_thread_state, FDF_cguid_t cguid, astats_arg_t *s);
+extern FDF_status_t open_container(struct FDF_thread_state *fdf_thread_state, FDF_cguid_t cguid);
 extern void close_container(struct FDF_thread_state *fdf_thread_state, Scavenge_Arg_t *S);
+
+extern void astats_deref_container(astats_arg_t *S);
+
 extern void get_key_stuff_leaf(btree_raw_t *bt, btree_raw_node_t *n, uint32_t nkey, key_stuff_info_t *key_sinfo);
 extern void get_key_stuff_leaf2(btree_raw_t *bt, btree_raw_node_t *n, uint32_t nkey, key_stuff_info_t *key_sinfo);
 extern btree_status_t btree_delete(struct btree *btree, char *key, uint32_t keylen, btree_metadata_t *meta);
+
+static void update_leaf_bytes_count(btree_raw_t *btree, btree_raw_mem_node_t *node);
 
 void
 scavenger_worker(uint64_t arg)
@@ -141,6 +149,7 @@ scavenger_worker(uint64_t arg)
 	}
 }
 
+
 FDF_status_t btree_scavenge(struct FDF_state  *fdf_state, Scavenge_Arg_t S) 
 {
 	Scavenge_Arg_t *s;
@@ -158,6 +167,25 @@ FDF_status_t btree_scavenge(struct FDF_state  *fdf_state, Scavenge_Arg_t S)
 	btSyncMboxPost(&mbox_scavenger, (uint64_t)s);
 	return FDF_SUCCESS;
 }
+
+
+FDF_status_t
+btree_start_astats(struct FDF_state  *fdf_state, astats_arg_t S) 
+{
+	astats_arg_t *s;
+
+	s = (astats_arg_t*)malloc(sizeof(astats_arg_t));
+	s->cguid = S.cguid;
+	s->fdf_state = fdf_state;
+	s->btree = S.btree;
+	s->bt = S.bt;
+	s->btree_index = S.btree_index;
+    s->suspend_duration = S.suspend_duration;
+    s->suspend_after_node_count = S.suspend_after_node_count;
+	btSyncMboxPost(&mbox_astats, (uint64_t)s);
+	return FDF_SUCCESS;
+}
+
 
 static inline int
 non_minimal_delete(btree_raw_t *btree, btree_raw_mem_node_t *mnode, int index)
@@ -262,6 +290,10 @@ done:
 
 int scavenge_node(struct btree_raw *btree, btree_raw_mem_node_t* node, key_stuff_info_t *ks_prev_key, key_stuff_info_t **key)
 {
+    if (0 == astats_done) {
+        return 0;
+    }
+
 	int i = 0, temp;
 	key_stuff_info_t ks_prev,ks_current;
 	int  total_keys = 0,deleting_keys = -1,nkey_prev = 0;
@@ -339,4 +371,233 @@ int scavenge_node(struct btree_raw *btree, btree_raw_mem_node_t* node, key_stuff
 	}
 	memcpy(ks_prev_key,&ks_prev,sizeof(key_stuff_t));
 	return i;
+}
+
+
+#define big_object1(bt, x) (((x)->keylen + (x)->datalen) >= (bt)->big_object_size)
+
+static void
+update_leaf_bytes_count(btree_raw_t *btree, btree_raw_mem_node_t *node)
+{
+    assert(btree);
+    assert(node);
+
+    uint32_t used_space = 0;
+    int i = 0;
+    key_stuff_info_t ks_current;
+    btree_status_t      ret=BTREE_SUCCESS, ret2 = BTREE_SUCCESS;
+
+    used_space = sizeof(btree_raw_node_t) + btree_leaf_used_space(btree, node->pnode);
+    __sync_add_and_fetch(&(btree->stats.stat[BTSTAT_LEAF_BYTES]), used_space);
+
+    char buffer[8192];
+    uint64_t            nbytes;
+    uint64_t            copybytes;
+    bzero(&ks_current, sizeof(key_stuff_t));
+    ks_current.key = (char *) buffer; 
+    bool ref = 0;
+    uint64_t            z_next;
+    btree_raw_node_t   *z;
+    uint64_t onodes = 0, obytes = 0;
+    key_info_t 	key_info = {0};
+    key_info.key = buffer;
+
+    while (i < node->pnode->nkeys) {
+        key_info.key = buffer;
+        assert(btree_leaf_get_nth_key_info2(btree, node->pnode, i, &key_info));
+
+        obytes += key_info.datalen;
+
+        if (big_object1(btree, (&key_info))) {
+            z_next = key_info.ptr;
+
+            while(z_next) {
+                btree_raw_mem_node_t *node1 = get_existing_node_low(&ret2, btree, z_next, ref, false, true);
+
+                if(!node1) {
+                    break;
+                }
+
+                ++onodes;
+
+                z = node1->pnode;
+                obytes += sizeof(btree_raw_node_t);
+                z_next  = z->next;
+
+                if (!ref) {
+                    deref_l1cache_node(btree, node1);
+                }
+            }
+        }
+        ++i;
+    }
+    //fprintf(stderr, "Overflow nodes=%ld bytes=%ld\n", onodes, obytes);
+    __sync_add_and_fetch(&(btree->stats.stat[BTSTAT_OVERFLOW_NODES]), onodes);
+    __sync_add_and_fetch(&(btree->stats.stat[BTSTAT_OVERFLOW_BYTES]), obytes); 
+}
+
+
+void
+astats_worker(uint64_t arg)
+{
+    astats_arg_t *s;
+    struct FDF_thread_state  *fdf_thread_state;
+    int i;
+
+    while (1) {
+        uint64_t mail;
+        uint64_t child_id;
+
+        int write_lock = 0, j;
+        struct btree_raw_mem_node *node;
+        btree_raw_mem_node_t *parent;
+
+        btree_status_t    ret = BTREE_SUCCESS;
+        key_stuff_t    ks_current_1;
+        btree_metadata_t  meta;
+
+        mail = btSyncMboxWait(&mbox_astats);
+        s = (astats_arg_t*)mail;
+
+        FDFInitPerThreadState(s->fdf_state, &fdf_thread_state);
+        my_thd_state = fdf_thread_state;
+
+        /*
+         * Open the container
+         */
+        if (FDF_SUCCESS != astats_open_container(fdf_thread_state, s->cguid, s)) {
+            goto astats_worker_exit;
+        }
+
+        /*
+         * Acquire read lock on root
+         */
+        node = root_get_and_lock(s->btree, write_lock);
+        assert(node);
+
+        while(!is_leaf(s->btree, (node)->pnode)) {
+            (void) get_key_stuff(s->btree, node->pnode, 0, &ks_current_1);
+            child_id = ks_current_1.ptr;
+            parent = node;
+            node = get_existing_node_low(&ret, s->btree, child_id, 0, false, false);
+
+            plat_rwlock_rdlock(&node->lock);
+            plat_rwlock_unlock(&parent->lock);
+            deref_l1cache_node(s->btree, parent);
+        }
+
+        int count = 0;
+        int duplicate = 0;
+
+        while (1) {
+            parent = node;
+            child_id = node->pnode->next;
+
+#ifdef ASTATS_DEBUG
+            //fprintf(stderr, "Async stats: leaf child_id=%ld uid=%ld\n", child_id, node->pnode->pstats.seq);
+#endif
+
+            /*
+             * Only if the node is part of old session
+             */
+            if (parent->pnode->logical_id < s->btree->logical_id_counter) {
+                if (duplicate) {
+                    duplicate = 0;
+                } else {
+                    __sync_add_and_fetch(&(s->btree->stats.stat[BTSTAT_LEAF_NODES]), 1);
+                    update_leaf_bytes_count(s->btree, parent);
+                }
+            }
+
+            if (0 == child_id) {
+                //fprintf(stderr, "Async stats: null child total leaves= %ld\n", s->btree->stats.stat[BTSTAT_LEAF_NODES]);
+                break;
+            }
+
+            node =  get_existing_node_low(&ret, s->btree, child_id, 0, false, true);
+            if (NULL == node) { 
+                fprintf(stderr, "Async stats: error null node total leaves= %ld\n", s->btree->stats.stat[BTSTAT_LEAF_NODES]);
+                break;
+            }
+
+            if (count++ == s->suspend_after_node_count) {
+                key_stuff_info_t ks_info;
+                struct timespec tim, tim2;
+
+                tim.tv_sec = 0;
+                tim.tv_nsec = s->suspend_duration*1000000;
+
+                bzero(&ks_info, sizeof(key_stuff_info_t));
+
+                ks_info.key = (char *) &tmp_key_buf;
+
+                (void) get_key_stuff_leaf2(s->btree, parent->pnode, parent->pnode->nkeys - 1, &ks_info);
+
+                uint64_t pre_sleep_child_id = parent->pnode->logical_id;
+
+                deref_l1cache_node(s->btree, node);
+                plat_rwlock_unlock(&parent->lock);
+                deref_l1cache_node(s->btree, parent);
+
+                parent = node = NULL;
+
+                astats_deref_container(s);
+
+                if (nanosleep(&tim , &tim2) < 0 )   
+                {
+                    fprintf(stderr, "Nano sleep system call failed \n");
+                    break;
+                }
+
+                count = 0;
+
+                /*
+                 * Re-open the container
+                 */
+                if (FDF_SUCCESS != astats_open_container(fdf_thread_state, s->cguid, s)) {
+                    goto astats_worker_exit;
+                }
+
+                /*
+                 * Get the node that has next key
+                 */
+                uint64_t syndrome = btree_hash((const unsigned char *) ks_info.key, ks_info.keylen, 0); 
+                int pathcnt = 0;
+                bool key_exists = false;
+                meta.flags = 0;
+
+                int start_key_in_node = btree_raw_find(s->btree, ks_info.key, ks_info.keylen,
+                        syndrome, &meta, &node, write_lock, &pathcnt, &key_exists);
+                if (NULL == node) {
+                    fprintf(stderr, "astats_worker: btree_raw_find failed \n");
+                    break;
+                }
+
+                uint64_t post_sleep_child_id = node->pnode->logical_id;
+#ifdef ASTATS_DEBUG
+                fprintf(stderr, "astats_worker: pre = %ld post = %ld\n", pre_sleep_child_id, post_sleep_child_id);
+#endif
+                if (pre_sleep_child_id == post_sleep_child_id) {
+                    duplicate = 1; 
+                }
+                continue;
+            }
+
+            plat_rwlock_rdlock(&node->lock);
+            plat_rwlock_unlock(&parent->lock);
+            deref_l1cache_node(s->btree, parent);
+        }
+
+        if (parent) {
+            plat_rwlock_unlock(&parent->lock);
+            deref_l1cache_node(s->btree, parent);
+        }
+
+        astats_deref_container(s);
+
+astats_worker_exit:
+        FDFReleasePerThreadState(&fdf_thread_state);
+        fprintf(stderr, "astats worker is done\n");
+        astats_done = 1;
+    }
 }
