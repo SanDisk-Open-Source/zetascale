@@ -193,9 +193,6 @@ typedef enum btree_status {
 	BTREE_UNKNOWN_STATUS,
 	BTREE_SKIPPED,                    /* Generic skip return */
 	BTREE_TOO_MANY_SNAPSHOTS,         /* Too many snapshots, cannot create more */
-	BTREE_PARENT_FULL_FOR_SPLIT,	 /* Parent is full and need split before next split of leaf */
-	BTREE_NO_NODE_REFS,		/* No more reference availabed for modified nodes. */
-
 } btree_status_t;
 
 typedef enum node_flags {

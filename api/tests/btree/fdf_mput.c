@@ -150,22 +150,6 @@ do_mput(struct FDF_thread_state *thd_state, FDF_cguid_t cguid,
 				return ;
 			}
 			num_fdf_mputs++;
-			for (i = 0; i < num_objs; i++) {
-				status = FDFReadObject(thd_state, cguid,
-						       objs[i].key, objs[i].key_len,
-						       &data, &data_len);
-				if (status != FDF_SUCCESS) {
-					printf("Rread failed after write.\n");
-					assert(0);
-				}
-
-				assert(objs[i].data_len == data_len);
-
-				assert(memcmp(objs[i].data, data, data_len) == 0);
-				FDFFreeBuffer(data);
-
-
-			}
 		}
 
 

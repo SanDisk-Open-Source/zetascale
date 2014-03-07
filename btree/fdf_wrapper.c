@@ -4048,15 +4048,13 @@ FDF_status_t BtreeErr_to_FDFErr(btree_status_t b_status)
 		case BTREE_FAIL_TXN_ROLLBACK:
 		case BTREE_OPERATION_DISALLOWED:
 		case BTREE_RANGE_UPDATE_NEEDS_SPACE:
-		case BTREE_SKIPPED:
-		case BTREE_TOO_MANY_SNAPSHOTS:
-				assert(0);
+        case BTREE_SKIPPED:
+        case BTREE_TOO_MANY_SNAPSHOTS:
+			assert(0);
 			break;
 		case BTREE_UNKNOWN_STATUS:
 			f_status = N_FDF_STATUS_STRINGS;
 			break;
-		default:
-			assert(0);
 	}
 	return f_status;
 }

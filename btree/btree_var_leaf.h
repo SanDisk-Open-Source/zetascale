@@ -219,9 +219,6 @@ build_key_prefix(btree_raw_t *bt, btree_raw_node_t *n,
 		 int index, char *key,
 	   	 uint32_t keylen, key_meta_t *key_meta);
 
-int
-btree_leaf_find_split_idx(btree_raw_t *bt, btree_raw_node_t *n);
-
 #endif  // End if file
 
 
