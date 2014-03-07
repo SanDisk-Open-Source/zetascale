@@ -4304,6 +4304,7 @@ btree_insert_keys_leaf(btree_raw_t *btree, btree_metadata_t *meta, uint64_t synd
 		 * metadata to update stats */
 		if (key_exists) {
 			btree_leaf_get_meta(mem_node->pnode, index, &key_meta);
+			key_exists = !btree_leaf_is_key_tombstoned(btree, mem_node->pnode, index);
 		}
 
 		if (((flags & W_UPDATE) && !key_exists) ||
