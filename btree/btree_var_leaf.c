@@ -66,6 +66,7 @@ static __thread char tmp_key_buf[8100] = {0};
 #define dbg_assert(x) ;
 #endif
 
+#define big_object_kd(bt, k, d) ((k + d) >= (bt)->big_object_size)
 
 bool
 btree_leaf_get_nth_key_info2(btree_raw_t *btree, btree_raw_node_t *n, int index,
@@ -955,7 +956,8 @@ append_entry_to_tmp_buf(btree_raw_t *bt, btree_raw_node_t *n, key_meta_t *key_me
 	buf_ptr += (key_meta->keylen - key_meta->prefix_len);
 
 	if (key_meta->ptr == 0) {
-		dbg_assert(datalen < bt->big_object_size);
+//		dbg_assert(datalen < bt->big_object_size);
+		dbg_assert(!big_object_kd(bt, key_meta->keylen, datalen));
 		btree_memcpy(buf_ptr, data, datalen, dry_run);
 		buf_ptr += datalen;
 	 }
@@ -2007,7 +2009,7 @@ btree_leaf_is_full_index(btree_raw_t *bt, btree_raw_node_t *n, char *key, uint32
 
 	if (index >= n->nkeys) {
 		uint64_t new_datalen = datalen;
-		if (datalen >= bt->big_object_size) {
+		if (big_object_kd(bt, keylen, datalen)) {
 			new_datalen = 0;
 		}
 
@@ -2057,11 +2059,11 @@ btree_leaf_is_full_index(btree_raw_t *bt, btree_raw_node_t *n, char *key, uint32
 		key_meta.datalen = new_datalen;
 		new_meta_type = get_key_meta_type(bt, &key_meta);
 
-		if (datalen >= bt->big_object_size) {
+		if (big_object_kd(bt, keylen, datalen)) {
 			new_datalen = 0;
 		}
 
-		if (key_meta.datalen >= bt->big_object_size) {
+		if (big_object_kd(bt, keylen, old_datalen)) {
 			old_datalen = 0;
 		}
 
@@ -2072,7 +2074,8 @@ btree_leaf_is_full_index(btree_raw_t *bt, btree_raw_node_t *n, char *key, uint32
 	
 	} else {
 
-#ifdef DEBUG_BUILD
+#if 0
+//#ifdef DEBUG_BUILD
 		(void) btree_leaf_find_key2(bt, n, key, keylen, meta, &index1);	
 		dbg_assert(index == index1);
 #endif
@@ -2080,7 +2083,7 @@ btree_leaf_is_full_index(btree_raw_t *bt, btree_raw_node_t *n, char *key, uint32
 		key_info.key = key;
 		key_info.keylen = keylen;
 		key_info.datalen = datalen;
-		if (datalen >= bt->big_object_size) {
+		if (big_object_kd(bt, keylen, key_info.datalen)) {
 			key_info.ptr=0xdeadc0de; //pure hack
 		}
 		key_info.tombstone = (meta->flags & INSERT_TOMBSTONE) ? true: false;
