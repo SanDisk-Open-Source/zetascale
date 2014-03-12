@@ -1268,10 +1268,12 @@ restart:
         fprintf(stderr, "FDFOpenContainer: Disabling async stats workers\n");
         astats_done = 1;
     } else {
-        if (reformat && astats_enable[0] == '1') {
+        if (astats && astats_enable[0] == '1') {
             fprintf(stderr, "FDFOpenContainer: Starting async thread\n");
             FDFStartAstats(FDFState, *cguid);
-        }
+        } else {
+			astats_done = 1;
+		}
     }
 
     return(FDF_SUCCESS);
