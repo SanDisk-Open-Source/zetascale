@@ -3508,8 +3508,113 @@ static void delete_key(btree_status_t *ret, btree_raw_t *btree, btree_raw_mem_no
     delete_key_by_index(ret, btree, node, index);
 }
 
+
+static btree_raw_mem_node_t *
+btree_split_child(btree_status_t *ret, btree_raw_t *btree, btree_raw_mem_node_t *n_parent,
+                  btree_raw_mem_node_t *n_child, btree_metadata_t *meta,
+                  uint64_t syndrome, int child_nkey, int split_key)
+{
+    btree_raw_mem_node_t     *n_new;
+    uint32_t              keylen = 0;
+    char                 *key = NULL;
+    uint64_t              split_syndrome = 0;
+	btree_status_t ret1 = BTREE_FAILURE;
+    uint64_t              split_seqno = 0;
+    bool free_key = false;
+    bool res = false;
+    int32_t bytes_increased = 0;
+    btree_metadata_t tmp_meta;
+
+    if (*ret) { return NULL; }
+
+    __sync_add_and_fetch(&(btree->stats.stat[BTSTAT_SPLITS]),1);
+
+    n_new = get_new_node(ret, btree, is_leaf(btree, n_child->pnode) ? LEAF_NODE : 0, n_child->pnode->level);
+    if (BTREE_SUCCESS != *ret)
+        return NULL;
+
+	dbg_print("split_key=%d n_child_nkeys=%d n_new_nkeys=%d\n", split_key, n_child->pnode->nkeys, n_new->pnode->nkeys);
+    // n_parent will be marked modified by insert_key()
+    // n_new was marked in get_new_node()
+    dbg_print("n_child=%ld n_parent=%ld n_new=%ld\n", n_child->pnode->logical_id, n_parent->pnode->logical_id, n_new->pnode->logical_id);
+
+    modify_l1cache_node(btree, n_child);
+
+	if(split_key < n_child->pnode->nkeys)
+ 	{
+		if (is_leaf(btree, n_child->pnode)) {
+			/*
+			 *  split btree leaf node
+			 */
+			res =  btree_leaf_split(btree, n_child->pnode, n_new->pnode, &key,
+					&keylen, &split_syndrome, &split_seqno, &bytes_increased, split_key);
+			if (res == false) {
+				*ret = BTREE_FAILURE;
+			} else {
+				*ret = BTREE_SUCCESS;
+			}
+			free_key = true;
+			/*
+			 * If split has increased the used space, then it is loss in our space saving.
+			 */
+			__sync_add_and_fetch(&(btree->stats.stat[BTSTAT_SPCOPT_BYTES_SAVED]),
+					-bytes_increased);
+			/*
+			 * Split has increased the space used, so adjust the num leaf bytes counter.
+			 */
+			__sync_add_and_fetch(&(btree->stats.stat[BTSTAT_LEAF_BYTES]), bytes_increased);
+
+		} else {
+			split_copy(ret, btree, n_child->pnode, n_new->pnode, &key, &keylen, &split_syndrome, &split_seqno, split_key);
+		}
+	}
+    
+    if (BTREE_SUCCESS == *ret) {
+	//  Add the split key in the parent
+	/* Update old record in parent to point to newly created right node */
+	assert(child_nkey != -1);
+	assert(n_parent->pnode->rightmost != 0);
+        dbg_print("child_nkey=%d n_child->pnode->nkeys=%d !!!\n", child_nkey, n_parent->pnode->nkeys);
+	if(child_nkey == n_parent->pnode->nkeys)
+	    n_parent->pnode->rightmost = n_new->pnode->logical_id;
+	else
+	    update_ptr(btree, n_parent->pnode, child_nkey, n_new->pnode->logical_id);
+
+	/* Insert new record in parent for the updated left child. If its not
+	 * bulk insert split */
+	if(!split_key)
+		insert_key(ret, btree, n_parent, key, keylen, split_seqno, 
+				sizeof(uint64_t), (char *) &(n_child->pnode->logical_id), split_syndrome);
+
+	assert(n_parent->pnode->rightmost != 0);
+
+	btree->log_cb(ret, btree->log_cb_data, BTREE_UPDATE_NODE, btree, n_parent);
+	btree->log_cb(ret, btree->log_cb_data, BTREE_UPDATE_NODE, btree, n_child);
+	btree->log_cb(ret, btree->log_cb_data, BTREE_CREATE_NODE, btree, n_new);
+    }
+
+    #ifdef DEBUG_STUFF
+	if (Verbose) {
+		dump_node(btree, stderr, n_child->pnode, key, keylen);
+		dump_node(btree, stderr, n_new->pnode, NULL, 0);
+		dump_node(btree, stderr, n_parent->pnode, NULL, 0);
+	}
+    #endif
+
+    /* Link nodes of one level with next pointers */
+    n_new->pnode->next = n_child->pnode->next;
+    n_child->pnode->next = n_new->pnode->logical_id;
+    dbg_print("nextptr after n_child=%ld n_parent=%ld n_new=%ld\n", n_child->pnode->next, n_parent->pnode->next, n_new->pnode->next);
+
+    if (free_key) {	
+	free_buffer(btree, key);
+    }	
+
+    return n_new;
+}
+
 btree_status_t
-btree_split_child(btree_raw_t *btree, btree_raw_mem_node_t *n_parent,
+btree_msplit_child(btree_raw_t *btree, btree_raw_mem_node_t *n_parent,
                   btree_raw_mem_node_t **n_child, char *new_key, uint32_t new_keylen, uint64_t datalen,
 		  btree_metadata_t *meta, uint64_t syndrome, int child_nkey, int split_key,
 		  bool new_key_exists, btree_raw_mem_node_t **new_node, bool bulk_insert)
@@ -4443,6 +4548,193 @@ int split_root(btree_raw_t* btree, btree_raw_mem_node_t** parent_out, int* paren
 	return 1;
 }
 
+
+btree_status_t
+btree_raw_bulk_insert(struct btree_raw *btree, btree_mput_obj_t **objs_in_out, uint32_t count,
+		uint32_t write_type, btree_metadata_t *meta, btree_raw_mem_node_t* parent,
+		btree_raw_mem_node_t* left, int parent_nkey_child, uint32_t* not_written)
+{
+	btree_status_t ret = BTREE_SUCCESS;
+	bool free_key = false;
+	int x = 0;
+	int32_t nkey_child, split_key;
+	uint32_t j, i = 0, written = 0, r_keylen, left_minimal;
+	uint64_t child_id_before, child_id_after, child_id, r_seqno, r_syndrome;
+	char* r_key;
+	node_key_t *pk_insert_not_used;
+	btree_mput_obj_t* objs = *objs_in_out;
+	btree_raw_mem_node_t *right, *node;
+	key_stuff_info_t ksi;
+        uint32_t new_inserts;
+	btree_status_t leaf_ret;
+	uint64_t ref_start_index;
+	uint64_t mod_start_index;
+
+	stats_inc(btree, BTSTAT_BULK_INSERT_CNT, 1);
+
+	int found = find_key(btree, left->pnode, objs->key, objs->key_len,
+			meta, 0, &child_id, &child_id_before, &child_id_after,
+			&split_key);
+
+	assert(!found || (split_key > 0));
+
+	dbg_print_key(objs[0].key, objs[0].key_len, "bulk_insert count=%d parent_id=%ld left=%ld split_key=%d locked=%lld\n", count, parent->pnode->logical_id, left->pnode->logical_id, split_key, locked);
+
+	*not_written = count;
+
+	/* Btree split needs 3 nodes */
+	if (!is_nodes_available(3)) {
+		return BTREE_SUCCESS;
+	}
+
+	/* Split the node by the key where first object of the batch would be inserted */
+	if(!(right = btree_split_child(&ret, btree, parent,
+			left, meta, 0, parent_nkey_child, split_key)))
+		return BTREE_FAILURE;
+
+	node_lock(right, WRITE);
+
+	/* Fill right node */
+	leaf_ret = btree_insert_keys_leaf(btree, meta, 0, right, write_type | W_DESC,
+				objs, count, -1, false, false, &written, NULL, &new_inserts);
+	if ((leaf_ret != BTREE_SUCCESS) && (leaf_ret != BTREE_OBJECT_TOO_BIG)) {
+#ifdef PSTATS_1
+        fprintf(stderr, "btree_raw_bulk_insert:right : new_inserts=%d\n", new_inserts);
+#endif
+		return leaf_ret;
+        }
+
+	count -= written;
+
+        if(count && (leaf_ret != BTREE_OBJECT_TOO_BIG)) {
+		/* Check if last key from the remaning batch should still
+		 * go to the right node. */
+		ksi.key = tmp_key_buf;
+		(void) get_key_stuff_info2(btree, right->pnode, 0, &ksi);
+		x = btree->cmp_cb(btree->cmp_cb_data, objs[count-1].key, objs[count-1].key_len,
+		                  ksi.key, ksi.keylen);
+
+		if(x < 0) {
+			/* Fill left node */
+			leaf_ret = btree_insert_keys_leaf(btree, meta, 0, left, W_CREATE | W_ASC | W_APPEND,
+			                objs, count, -1, false, false, &written, NULL, &new_inserts);
+			if ((leaf_ret != BTREE_SUCCESS) && (leaf_ret != BTREE_OBJECT_TOO_BIG)) {
+#ifdef PSTATS_1
+				fprintf(stderr, "btree_raw_bulk_insert:left : new_inserts=%d\n", new_inserts);
+#endif
+				return leaf_ret;
+			}
+
+			objs += written;
+			count -= written;
+		}
+        }
+
+	/* Find the last key of the left node */
+	ksi.key = tmp_key_buf;
+	(void) get_key_stuff_info2(btree, left->pnode, left->pnode->nkeys - 1, &ksi);
+	r_key = ksi.key;
+	r_keylen = ksi.keylen;
+	r_seqno = ksi.seqno;
+
+	if(((left_minimal = is_minimal(btree, left->pnode, 0, 0)) ||
+				is_minimal(btree, right->pnode, 0, 0))) {
+		assert(!count || x >= 0 || (leaf_ret == BTREE_OBJECT_TOO_BIG));
+		(void) equalize_keys(btree, parent, left, right, r_key, r_keylen, 0,
+				r_seqno, &r_key, &r_keylen, &r_syndrome, &r_seqno, left_minimal
+				? LEFT : RIGHT, &free_key);
+	}
+
+	/* Put anchor key of the left node to the parent */
+	insert_key(&ret, btree, parent, r_key, r_keylen, r_seqno,
+			sizeof(uint64_t), (char *) &(left->pnode->logical_id), 0);
+
+	if(free_key)
+		free_buffer(btree, r_key);
+
+	if(!count || x >= 0 || (leaf_ret == BTREE_OBJECT_TOO_BIG)) {
+		*not_written = count;
+		*objs_in_out = objs;
+		return ret;
+	}
+
+	/* Fill the node and insert an anchor for as many nodes as possible */
+	while(count && (node = get_new_node(&ret, btree, LEAF_NODE, 0)))
+	{
+		node_lock(node, WRITE);
+
+		/* Keep track of the position of ref and mod starting for
+		 * this node insert, to help rollback the entries if we
+		 * have to stop the bulk insert. Need to keep track
+		 * of entries created by get_new_node (hence -1) */
+		ref_start_index = referenced_nodes_count - 1;
+		mod_start_index = modified_nodes_count - 1;
+
+		if (btree_insert_keys_leaf(btree, meta, 0, node, W_CREATE | W_ASC | W_APPEND,
+				objs, count, -1, false, false, &written, &r_seqno, &new_inserts)) {
+#ifdef PSTATS_1
+                    fprintf(stderr, "btree_raw_bulk_insert:anchor : new_inserts=%d\n", new_inserts);
+#endif
+			break;
+                }
+
+		assert(count || !is_minimal(btree, node->pnode, 0, 0));
+		assert(written > 0);
+		assert(r_seqno >=0 );
+
+		if(is_minimal(btree, node->pnode, 0, 0) || is_node_full(btree,
+				parent->pnode, objs[written - 1].key, objs[written - 1].key_len,
+				sizeof(uint64_t), meta, 0, false, -1))
+			break;
+
+		objs += written - 1;
+
+		insert_key(&ret, btree, parent, objs->key, objs->key_len, r_seqno,
+				sizeof(uint64_t), (char *) &(node->pnode->logical_id), 0);
+
+		count -= written;
+		objs++;
+
+		stats_inc(btree, BTSTAT_BULK_INSERT_FULL_NODES_CNT, 1);
+	}
+
+	/* Last node is minimal or parent is full. Delete last node */
+	if(count && node)
+	{
+		node_unlock(node);
+		mark_node_clean(node);
+
+		for (i = mod_start_index; i < modified_nodes_count; i++) {
+			/* Rollback the stats */
+			sub_node_stats(btree, modified_nodes[i]->pnode, NODES, 1);
+			uint64_t rolledback_bytes = sizeof(btree_raw_node_t);
+			if (is_leaf(btree, modified_nodes[i]->pnode)) {
+				rolledback_bytes += btree_leaf_used_space(btree, modified_nodes[i]->pnode);
+			}
+			sub_node_stats(btree, modified_nodes[i]->pnode, BYTES, rolledback_bytes);
+
+			/* Should not flush any of these nodes while deref_l1cache */
+			deref_l1cache_node(btree, modified_nodes[i]);
+		}
+
+		for (i = ref_start_index; i < referenced_nodes_count; i++) {
+			deref_l1cache_node(btree, referenced_nodes[i]);
+		}
+		referenced_nodes_count = ref_start_index;
+		modified_nodes_count = mod_start_index;
+
+		stats_dec(btree, BTSTAT_NUM_OBJS, written);
+	}
+
+	*not_written = count;
+	*objs_in_out = objs;
+
+	dbg_print("not_written=%d objs=%p locked=%lld\n", *not_written, objs, locked);
+
+	return BTREE_SUCCESS;
+}
+
+#if 0
 btree_status_t
 btree_raw_bulk_insert(struct btree_raw *btree, btree_mput_obj_t **objs_in_out, uint32_t actual_count,
 		uint32_t write_type, btree_metadata_t *meta, btree_raw_mem_node_t* parent,
@@ -4511,7 +4803,7 @@ btree_raw_bulk_insert(struct btree_raw *btree, btree_mput_obj_t **objs_in_out, u
 		 * Node has become full, split it and find the new node
 		 * to be filled from parent.
 		 */
-		ret = btree_split_child(btree, parent, &current, objs->key,
+		ret = btree_msplit_child(btree, parent, &current, objs->key,
 					objs->key_len, objs->data_len, meta,
 					0, parent_nkey_child, 0, found, &right, false);
 
@@ -4558,6 +4850,7 @@ btree_raw_bulk_insert(struct btree_raw *btree, btree_mput_obj_t **objs_in_out, u
 
 	return BTREE_SUCCESS;
 }
+#endif 
 
 static inline
 int relock_parent_write(btree_raw_t* btree, btree_raw_mem_node_t** parent_out, int* parent_write_locked,
@@ -4782,7 +5075,7 @@ mini_restart:
 			goto err_exit;
 		}
 
-		ret = btree_split_child(btree, parent, &mem_node,
+		ret = btree_msplit_child(btree, parent, &mem_node,
 					objs[0].key, objs[0].key_len, 
 				        objs[0].data_len, meta, syndrome,
 				        parent_nkey_child, 0, key_found,

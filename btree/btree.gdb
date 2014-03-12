@@ -146,3 +146,58 @@ document btree_print_node
 Prints info about a Btree Node.
 Usage: btree_print_node (btree_raw_node *)
 end
+
+
+# Macro for fetching a btree node from cache
+
+define btree_get_node_pmap_part 
+set $map = $arg0
+set $cguid = $arg1
+set $key = $arg2
+set $nbuckets = $map->nbuckets
+while ($nbuckets)
+	set $bucket = $map->buckets[$nbuckets]
+	set $entry = $bucket->entry
+#	if ($bucket != 0)
+		while ($entry != 0)
+#			printf  "Entry ==.\n"
+#			p/u $entry->key
+#			p $entry->cguid
+			if $key == $entry->key && $cguid == $entry->cguid 
+				printf "==== Found the key ====\n"
+				printf "Logical Id  = %lu, Cguid = %d.\n",  $entry->key, $entry->cguid
+	#			p/u $entry->key
+	#			p $entry->cguid
+			
+				p (btree_raw_mem_node_t *) $entry->contents
+			end 
+			set $entry = $entry->next
+		end
+#	end
+	set $nbuckets--
+end
+end
+
+define btree_get_node
+set $pmap=$arg0->l1cache
+set $cguid = $arg1
+set $key = $arg2
+set $nparts = $pmap->nparts
+
+printf "Searching for the node with logical id = %lu, cguid = %d.\n", $key, $cguid
+
+while ($nparts) 
+	if ($pmap->parts[$nparts] != 0) 
+	    btree_get_node_pmap_part $pmap->parts[$nparts] $cguid $key
+	end 
+	set $nparts--
+end
+
+printf "======= Search finished ===.\n"
+end 
+
+
+document btree_get_node
+Fetches a pointer of btree_raw_mem_node_t from btree cache.
+Usage:  btree_get_node (btree_raw_t *) cguid node_logical_id
+end
