@@ -1263,12 +1263,11 @@ restart:
      */
     char *reformat = (char*)FDFGetProperty("FDF_REFORMAT", NULL);
     char *astats_enable = (char*)FDFGetProperty("FDF_ASYNC_STATS_ENABLE", NULL);
-
     if (reformat && reformat[0] != '0') {
         fprintf(stderr, "FDFOpenContainer: Disabling async stats workers\n");
         astats_done = 1;
     } else {
-        if (astats && astats_enable[0] == '1') {
+        if (astats_enable && astats_enable[0] == '1') {
             fprintf(stderr, "FDFOpenContainer: Starting async thread\n");
             FDFStartAstats(FDFState, *cguid);
         } else {
