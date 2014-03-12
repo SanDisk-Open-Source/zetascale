@@ -12,7 +12,7 @@
 #define MAX_KEYLEN 2000
 #define MAX_OPEN_CONTAINERS   (UINT16_MAX - 1 - 9)
 
-int astats_done = 0;
+int astats_done = 1;
 
 extern  __thread struct FDF_thread_state *my_thd_state;
 extern __thread FDF_cguid_t my_thrd_cguid;

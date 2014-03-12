@@ -1258,6 +1258,7 @@ restart:
 		_FDFScavengeContainer(my_global_fdf_state, *cguid);
 	}
 
+#if 0
     /*   
      * Check if a session is restarted
      */
@@ -1274,7 +1275,7 @@ restart:
 			astats_done = 1;
 		}
     }
-
+#endif
     return(FDF_SUCCESS);
 
 fail:
