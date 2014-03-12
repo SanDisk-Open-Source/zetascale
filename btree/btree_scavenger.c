@@ -87,7 +87,12 @@ scavenger_worker(uint64_t arg)
 		{
 			key = (key_stuff_info_t *)malloc(16*sizeof(key_stuff_info_t));
 			int temp = 0;
-			i = scavenge_node(s->btree, node, &ks_prev, &key);
+			assert(node);
+			if (start_key_in_node < node->pnode->nkeys) {
+				i = scavenge_node(s->btree, node, &ks_prev, &key);
+			} else {
+				i = 0;
+			}
 			if((i == 0) || (key_loc == 0)) {
 			//if(i == 0) {
 				parent = node;
