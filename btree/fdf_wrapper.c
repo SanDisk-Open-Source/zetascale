@@ -5035,11 +5035,6 @@ close_container(struct FDF_thread_state *fdf_thread_state, Scavenge_Arg_t *S)
     pthread_rwlock_wrlock(&ctnrmap_rwlock);
     Container_Map[index].scavenger_state = 0;
     pthread_rwlock_unlock(&ctnrmap_rwlock);
-    /*        ret = FDFCloseContainer(fdf_thread_state, S->cguid);
-              if (ret != FDF_SUCCESS)
-              {
-              fprintf(stderr,"FDFCloseContainer failed with error %s\n",  FDFStrError(ret));
-              }*/
 }
 
 
@@ -5068,3 +5063,22 @@ bt_get_cguid(FDF_cguid_t cguid)
 
     return i_ctnr;
 }
+void bt_cntr_unlock_scavenger(Scavenge_Arg_t *s)
+{
+	 bt_rel_entry(s->btree_index, false);
+}
+FDF_status_t bt_cntr_lock_scavenger(Scavenge_Arg_t *s)
+{
+	FDF_status_t       fdf_ret = FDF_SUCCESS;
+	struct btree    *bt;
+	bt = bt_get_btree_from_cguid(s->cguid, &(s->btree_index), &fdf_ret, false);
+	if (bt == NULL) {
+		s->bt = NULL;
+		s->btree = NULL;
+		return fdf_ret;
+	}
+	s->bt = bt;
+	s->btree = (struct btree_raw *)(bt->partitions[0]);
+	return fdf_ret;
+}
+

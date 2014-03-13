@@ -25,6 +25,8 @@ static __thread char tmp_key_buf[8100] = {0};
 extern FDF_status_t astats_open_container(struct FDF_thread_state *fdf_thread_state, FDF_cguid_t cguid, astats_arg_t *s);
 extern FDF_status_t open_container(struct FDF_thread_state *fdf_thread_state, FDF_cguid_t cguid);
 extern void close_container(struct FDF_thread_state *fdf_thread_state, Scavenge_Arg_t *S);
+ extern void bt_cntr_unlock_scavenger(Scavenge_Arg_t *s);
+ extern FDF_status_t bt_cntr_lock_scavenger(Scavenge_Arg_t *s);
 
 extern void astats_deref_container(astats_arg_t *S);
 
@@ -54,6 +56,7 @@ scavenger_worker(uint64_t arg)
 		key_info_t key_info;
 		btree_metadata_t  meta;
 		btree_status_t    btree_ret = BTREE_SUCCESS;
+		FDF_status_t    fdf_ret;
 
 		mail = btSyncMboxWait(&mbox_scavenger);
 		s = (Scavenge_Arg_t *)mail;
@@ -129,7 +132,17 @@ scavenger_worker(uint64_t arg)
 				meta.seqno = key[j].seqno;
 				meta.flags = FORCE_DELETE | READ_SEQNO_EQ;
 				btree_ret = btree_delete(s->bt, key[j].key, key[j].keylen, &meta);
+				bt_cntr_unlock_scavenger(s);
 				usleep(1000*(s->throttle_value));
+				fdf_ret = bt_cntr_lock_scavenger(s);
+				if (s->btree == NULL)
+				{
+					fprintf(stderr,"bt_get_btree_from_cguid failed with error: %s\n", FDFStrError(fdf_ret));
+					free(key);
+					free(s);
+					FDFReleasePerThreadState(&fdf_thread_state);
+					return;
+				}
 				if (btree_ret != BTREE_SUCCESS) {
 					fprintf(stderr,"btree delete failed for the key %s\n", key[j].key);
 					//goto end need to add after failure in btree logic is fixed
@@ -152,6 +165,7 @@ scavenger_worker(uint64_t arg)
 		}
 		fprintf(stderr,"Total number of objects scavenged %d \n\n\n",deletedobjects);
 		close_container(fdf_thread_state,s);
+		free(s);
 		FDFReleasePerThreadState(&fdf_thread_state);
 	}
 }
