@@ -37,6 +37,7 @@ typedef struct btree_robj_info {
 	uint32_t               keylen;
 	char                   *data;
 	uint64_t               datalen;
+	bool                   tombstone;
 	btree_raw_node_t       **data_node_start;
 	uint32_t               data_node_cnt;
 
@@ -171,6 +172,8 @@ gen_robj_list(btree_raw_t *bt, btree_raw_node_t **nodes,
 			r->datalen = ki.datalen;
 			r->seqno   = ki.seqno;
 			r->pvlk    = 0;
+			r->tombstone = btree_leaf_is_key_tombstoned(bt, nodes[i], j);
+			assert(!r->tombstone || !r->datalen);
 
 			/* TODO: Handle Overflow nodes case */
 			r->data_node_cnt   = 0;
@@ -322,6 +325,9 @@ do_recovery_op(btree_raw_t *bt, btree_robj_list_t *op_list)
 			 * TODO: Handle its return status */
 			bzero(&meta, sizeof(btree_metadata_t));
 			meta.flags = 0;
+			if (cur_obj->tombstone) {
+				meta.flags = FORCE_DELETE | READ_SEQNO_EQ;
+			}
 			status = btree_raw_delete(bt, cur_obj->key, 
 			                     cur_obj->keylen, &meta);
 			if (status == BTREE_SUCCESS) {
@@ -359,6 +365,9 @@ do_recovery_op(btree_raw_t *bt, btree_robj_list_t *op_list)
 			bzero(&meta, sizeof(btree_metadata_t));
 			meta.flags = UPDATE_USE_SEQNO;
 			meta.seqno = cur_obj->seqno;
+			if (cur_obj->tombstone) {
+				meta.flags |= INSERT_TOMBSTONE;
+			}
 			status = btree_raw_write(bt, cur_obj->key, cur_obj->keylen, 
 			                 cur_obj->data, cur_obj->datalen, &meta, 0);
 #if 0//Rico - buggy?

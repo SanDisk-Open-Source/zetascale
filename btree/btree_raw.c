@@ -118,7 +118,6 @@ extern int btree_parallel_flush_minbufs;
 extern uint64_t fdf_flush_pstats_frequency;
 extern uint64_t l1cache_size;
 extern uint64_t l1cache_partitions;
-
 extern int astats_done;
 //  used to count depth of btree traversal for writes/deletes
 __thread int _pathcnt;
@@ -1123,7 +1122,7 @@ seqno_cmp_range(btree_metadata_t *smeta, uint64_t key_seqno,
 			*exact_match = true;
 			return (0);
 		} else {
-			return ((key_seqno > smeta->start_seqno) ? 1 : -1);
+			return ((key_seqno > smeta->seqno) ? 1 : -1);
 		}
 	}
 

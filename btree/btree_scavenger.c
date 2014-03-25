@@ -34,6 +34,8 @@ extern void get_key_stuff_leaf(btree_raw_t *bt, btree_raw_node_t *n, uint32_t nk
 extern void get_key_stuff_leaf2(btree_raw_t *bt, btree_raw_node_t *n, uint32_t nkey, key_stuff_info_t *key_sinfo);
 extern btree_status_t btree_delete(struct btree *btree, char *key, uint32_t keylen, btree_metadata_t *meta);
 
+extern  FDF_status_t BtreeErr_to_FDFErr(btree_status_t b_status);
+
 static void update_leaf_bytes_count(btree_raw_t *btree, btree_raw_mem_node_t *node);
 
 void
@@ -139,17 +141,17 @@ scavenger_worker(uint64_t arg)
 				{
 					fprintf(stderr,"bt_get_btree_from_cguid failed with error: %s\n", FDFStrError(fdf_ret));
 					free(key);
-					free(s);
+				free(s);
 					FDFReleasePerThreadState(&fdf_thread_state);
 					return;
 				}
 				if (btree_ret != BTREE_SUCCESS) {
-					fprintf(stderr,"btree delete failed for the key %s\n", key[j].key);
+					//fprintf(stderr,"btree delete failed for the key %s and error is %s\n", key[j].key,FDFStrError(BtreeErr_to_FDFErr(btree_ret)));
 					//goto end need to add after failure in btree logic is fixed
 				}
 				deletedobjects++;
 			}
-			memcpy(&ks_current, &(key[key_loc-1]), sizeof(key_stuff_t));
+			memcpy(&ks_current, &ks_prev, sizeof(key_stuff_t));
 			free(key);
 			if (last_node) {
 				break;
@@ -322,12 +324,6 @@ int scavenge_node(struct btree_raw *btree, btree_raw_mem_node_t* node, key_stuff
 	btree_status_t	ret;
 	key_info_t key_info;
 	key_stuff_info_t *key1;
-/*	uint64_t          syndrome;
-	bool found = false;
-	btree_metadata_t meta;
-	btree_raw_mem_node_t *leader_node;
-	int	pathcnt = 0;
-	int index;*/
 
 		
 	if (key == NULL) {
@@ -358,6 +354,10 @@ int scavenge_node(struct btree_raw *btree, btree_raw_mem_node_t* node, key_stuff
 				snap_n1 = btree_snap_find_meta_index(btree, ks_prev.seqno);
 				snap_n2 = btree_snap_find_meta_index(btree, ks_current.seqno);
 				total_keys++;
+				(void) btree_leaf_get_nth_key_info(btree, node->pnode,i, &key_info);
+				if (key_info.tombstone == 1) {
+					assert(0);
+				}
 				if (snap_n1 == snap_n2)
 				{
 					deleting_keys++;
@@ -372,18 +372,12 @@ int scavenge_node(struct btree_raw *btree, btree_raw_mem_node_t* node, key_stuff
 			continue;
 		} else {
 			if (total_keys == deleting_keys) {
-			if(temp1.keylen != 0)
-				temp = btree->cmp_cb(btree->cmp_cb_data, temp1.key, temp1.keylen, ks_prev.key, ks_prev.keylen);
-			else 
-				temp = 1;
+				if(temp1.keylen != 0) {
+					temp = btree->cmp_cb(btree->cmp_cb_data, temp1.key, temp1.keylen, ks_prev.key, ks_prev.keylen);
+				} else { 
+					temp = 1;
+				}
 
-/*
-				// This logic is hitting assert(!dbg_referenced) in rebalanced_delete routine correct the logic
-				syndrome = btree_hash((const unsigned char *) ks_prev.key, ks_prev.keylen, 0);
-				index = btree_raw_find(btree, ks_prev.key, ks_prev.keylen, syndrome, &meta, &leader_node, 0 , &pathcnt, &found);
-				(void) btree_leaf_get_nth_key_info(btree, leader_node->pnode, index, &key_info);
-				plat_rwlock_unlock(&leader_node->lock);
-*/
 				if (!temp && nkey_prev_tombstone == 1)
 				{
 					if (key_loc >= 16 && ((key_loc & key_loc-1)==0)) {
