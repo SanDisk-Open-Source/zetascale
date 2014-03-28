@@ -3844,19 +3844,6 @@ void InitActionAgentPerThreadState(SDF_action_state_t *pcs, SDF_action_thrd_stat
 
     pts->thrdnum          = __sync_fetch_and_add(&pcs->nthrds, 1);
 
-    wait = fthLock(&(pcs->nthrds_lock), 1, NULL);
-    for (pts_check = pcs->threadstates; pts_check != NULL; pts_check = pts_check->next) {
-        if (pts == pts_check) {
-            break;
-        }
-    }
-    if (pts_check == NULL) {
-        // make sure only one entry in list per pts
-        pts->next             = pcs->threadstates;
-        pcs->threadstates     = pts;
-    }
-    fthUnlock(wait);
-
     pts->mynode           = pcs->mynode;
     pts->nnodes           = pcs->nnodes;
     pts->phs              = pcs;
@@ -3915,6 +3902,21 @@ void InitActionAgentPerThreadState(SDF_action_state_t *pcs, SDF_action_thrd_stat
     fthMboxInit(&(pts->async_put_ack_mbox));
 
     init_free_home_flash_map_entries(pts);
+
+
+    wait = fthLock(&(pcs->nthrds_lock), 1, NULL);
+    for (pts_check = pcs->threadstates; pts_check != NULL; pts_check = pts_check->next) {
+        if (pts == pts_check) {
+            break;
+        }
+    }
+    if (pts_check == NULL) {
+        // make sure only one entry in list per pts
+        pts->next             = pcs->threadstates;
+        pcs->threadstates     = pts;
+    }
+    fthUnlock(wait);
+
 }
 
 void destroy_per_thread_state(SDF_action_thrd_state_t *pts)
@@ -4242,11 +4244,14 @@ static void sum_fthread_stats(SDF_action_state_t *pas, int64_t *pnappbufs, int64
     uint64_t                   nget;
     uint64_t                   nfree;
     SDF_action_thrd_state_t   *pts;
+    fthWaitEl_t              *wait;
 
     nappbufs   = 0;
     ntrans     = 0;
     nresp      = 0;
     nflashbufs = 0;
+
+    wait = fthLock(&(pas->nthrds_lock), 1, NULL);
     for (pts = pas->threadstates; pts != NULL; pts = pts->next) {
 	get_app_buf_pool_stats(pts->pappbufstate, &nget, &nfree);
 	nappbufs     += (nget - nfree);
@@ -4254,6 +4259,7 @@ static void sum_fthread_stats(SDF_action_state_t *pas, int64_t *pnappbufs, int64
 	nresp        += pts->nresp_msgs;
 	nflashbufs   += pts->nflash_bufs;
     }
+    fthUnlock(wait);
     *pnappbufs       = nappbufs;
     *pntrans_states  = ntrans;
     *pnflashbufs     = nflashbufs;
