@@ -1472,9 +1472,6 @@ get_leaf_data_index(btree_raw_t *bt, btree_raw_node_t *n, int index, char **data
     char *datap = NULL;
     uint64_t datalen1 = 0;
 
-    *data = NULL;
-    *datalen = 0; 
-
     key_info.key = tmp_key_buf;
     res = btree_leaf_get_nth_key_info2(bt, n, index, &key_info); 
     assert(res == true);
