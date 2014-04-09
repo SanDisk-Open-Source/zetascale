@@ -611,6 +611,8 @@ FDF_status_t _FDFInit(
     ret = FDFRegisterCallbacks(*fdf_state, cbs);
     assert(FDF_SUCCESS == ret);
 
+    FDFSetProperty ("FDF_KEY_CACHE", FDFGetProperty("FDF_KEY_CACHE", "1"));
+
     ret = FDFInit(fdf_state);
     if ( ret == FDF_FAILURE ) {
         return ret;

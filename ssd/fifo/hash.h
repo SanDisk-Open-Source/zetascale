@@ -50,11 +50,7 @@
 #define OSD_HASH_SYN_SIZE 16
 #define OSD_HASH_SYN_SHIFT 48
 
-#ifdef BTREE_HACK
-#define OSD_HASH_ENTRY_HOPED_SIZE 18
-#else
 #define OSD_HASH_ENTRY_HOPED_SIZE 10
-#endif
 
 #define OSD_HASH_LOCK_BUCKETS 262144
 #define OSD_HASH_LOCKBKT_MINSIZE 256
@@ -88,9 +84,6 @@ typedef struct hash_entry {
     hashsyn_t    syndrome;
     baddr_t      address;
     cntr_id_t    cntr_id;
-#ifdef BTREE_HACK
-    uint64_t	 key;
-#endif
 }
     __attribute__ ((packed))
     __attribute__ ((aligned (2)))
@@ -119,10 +112,11 @@ typedef struct hash_handle {
     uint32_t                * bucket_locks_free_list;
     uint64_t                * bucket_locks_free_map;
     uint64_t                  total_alloc;
+    uint64_t                * key_cache;
 } hash_handle_t;
 
 hash_handle_t *
-hash_table_init ( uint64_t total_size, uint64_t max_nobjs, int mode);
+hash_table_init ( uint64_t total_size, uint64_t max_nobjs, int mode, int key_cache);
 
 void
 hash_table_cleanup ( hash_handle_t *hdl);

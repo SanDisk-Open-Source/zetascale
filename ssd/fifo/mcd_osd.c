@@ -1589,7 +1589,7 @@ mcd_osd_fifo_shard_init( mcd_osd_shard_t * shard, uint64_t shard_id,
     /*
      * initialize hash table.
      */
-    shard->hash_handle = hash_table_init( shard->total_size, max_nobjs, FIFO);
+    shard->hash_handle = hash_table_init( shard->total_size, max_nobjs, FIFO, 0);
     if ( !shard->hash_handle ) {
         mcd_log_msg( 160204, PLAT_LOG_LEVEL_ERROR,
                 "failed to allocate hash tables");
@@ -2529,6 +2529,8 @@ mcd_fth_osd_remove_entry( mcd_osd_shard_t * shard,
 		mcd_fth_osd_slab_dealloc(shard, hash_entry->address, false);
 
     atomic_sub(shard->blk_consumed, mcd_osd_lba_to_blk(hash_entry->blocks));
+	if(shard->hash_handle->key_cache)
+		shard->hash_handle->key_cache[hash_entry->address] = 0;
 
 #if 0
 	//use hash_entry_delete()
@@ -2995,9 +2997,6 @@ mcd_fth_osd_fifo_set( void * context, mcd_osd_shard_t * shard, char * key,
     new_entry.syndrome   = (uint16_t)(syndrome >> 48);
     new_entry.address    = blk_offset % shard->total_blks;
     new_entry.cntr_id    = meta_data->cguid;
-#ifdef BTREE_HACK
-    new_entry.key = 0;
-#endif
 
     new_entry.deleted    = 0;
     if ( &Mcd_osd_cmc_cntr != shard->cntr ) {
@@ -3441,7 +3440,8 @@ mcd_osd_slab_shard_init( mcd_osd_shard_t * shard, uint64_t shard_id,
 	 * initialize hash tables.
 	 */
 	shard->hash_handle = hash_table_init( shard->total_size, 
-                                            max_nobjs, SLAB);
+                                            max_nobjs, SLAB,
+                                            getProperty_Int("FDF_KEY_CACHE", 0));
     if ( !shard->hash_handle ) {
         mcd_log_msg( 160204, PLAT_LOG_LEVEL_ERROR,
                 "failed to allocate hash tables");
@@ -3479,6 +3479,10 @@ mcd_osd_slab_shard_init( mcd_osd_shard_t * shard, uint64_t shard_id,
 
     mcd_log_msg( 20309, PLAT_LOG_LEVEL_DEBUG,
                  "shard initialized, total allocated bytes=%lu", total_alloc );
+
+	plat_assert(getProperty_Int("FDF_KEY_CACHE", 0) && shard->hash_handle->key_cache ||
+			!getProperty_Int("FDF_KEY_CACHE", 0) && !shard->hash_handle->key_cache);
+
     return 0;   /* SUCCESS */
 
 out_failed:
@@ -4451,9 +4455,7 @@ mcd_fth_osd_slab_set( void * context, mcd_osd_shard_t * shard,
     hash_handle_t             * hdl = shard->hash_handle;
     uint32_t uncomp_datalen = 0; /* Uncompressed data length */
     
-    #ifndef BTREE_HACK
-	mcd_osd_meta_t                     *meta;
-    #endif
+	mcd_osd_meta_t                     *meta = NULL;
 
     mcd_log_msg( 20000, PLAT_LOG_LEVEL_TRACE, "ENTERING" );
 
@@ -4568,10 +4570,11 @@ mcd_fth_osd_slab_set( void * context, mcd_osd_shard_t * shard,
             goto out;
         }
     } else { //key exists.
-#ifndef BTREE_HACK
-        meta = (mcd_osd_meta_t *)buf;
-        target_seqno = meta->seqno;
-#endif
+        if(!hdl->key_cache) {
+            meta = (mcd_osd_meta_t *)buf;
+            target_seqno = meta->seqno;
+        }
+
         obj_exists = true;
         mcd_log_msg( 20331, 
             PLAT_LOG_LEVEL_TRACE, "object exists" );
@@ -4585,33 +4588,31 @@ mcd_fth_osd_slab_set( void * context, mcd_osd_shard_t * shard,
          * complete this put only if the sequence number for the put
          * is newer than the existing object's sequence number
          */
-#ifndef BTREE_HACK
-        if ( ( FLASH_PUT_IF_NEWER & flags ) &&
+        if (!hdl->key_cache && ( FLASH_PUT_IF_NEWER & flags ) &&
                 meta->seqno >= meta_data->sequence ) {
             rc = FLASH_EEXIST;
             goto out;
         }
-#endif
 
         /*
          * FIXME: write in place if possible?
          */
         if ( NULL == data ) {
 
-#ifndef BTREE_HACK
-            if ( ( FLASH_PUT_DEL_EXPIRED & flags ) &&
-                    ( 0 == meta->expiry_time ||
-                      meta->expiry_time > (*(flash_settings.pcurrent_time)) ) ) {
-                rc = FLASH_ENOENT;
-                goto out;
-            }
+            if(!hdl->key_cache) {
+                if ( ( FLASH_PUT_DEL_EXPIRED & flags ) &&
+                        ( 0 == meta->expiry_time ||
+                          meta->expiry_time > (*(flash_settings.pcurrent_time)) ) ) {
+                    rc = FLASH_ENOENT;
+                    goto out;
+                }
 
-            if ( ( FLASH_PUT_PREFIX_DO_DEL == flags ) &&
-                    meta_data->createTime != meta->create_time ) {
-                rc = FLASH_ENOENT;
-                goto out;
+                if ( ( FLASH_PUT_PREFIX_DO_DEL == flags ) &&
+                        meta_data->createTime != meta->create_time ) {
+                    rc = FLASH_ENOENT;
+                    goto out;
+                }
             }
-#endif
 
             // explicit delete case
             if ( 1 == shard->persistent ) {
@@ -4786,10 +4787,9 @@ mcd_fth_osd_slab_set( void * context, mcd_osd_shard_t * shard,
     new_entry.syndrome   = (uint16_t)(syndrome >> 48);
     new_entry.address    = blk_offset;
     new_entry.cntr_id    = cntr_id;
-#ifdef BTREE_HACK
-    if(key_len == 8)
-        new_entry.key = *(uint64_t*)key;
-#endif
+
+    if(key_len == 8 && hdl->key_cache)
+        hdl->key_cache[new_entry.address] = *(uint64_t*)key;
 
     new_entry.deleted    = 0;
     if ( &Mcd_osd_cmc_cntr != shard->cntr ) {

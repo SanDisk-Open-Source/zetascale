@@ -63,7 +63,7 @@ map_bit_isset(uint64_t *map, uint32_t pos);
  * on error, do graceful backout and return NULL.
  */
 hash_handle_t *
-hash_table_init ( uint64_t total_size, uint64_t max_nobjs, int mode)
+hash_table_init ( uint64_t total_size, uint64_t max_nobjs, int mode, int key_cache)
 {
     int               i = 0;
     uint64_t          curr_alloc_sz = 0;
@@ -139,6 +139,26 @@ hash_table_init ( uint64_t total_size, uint64_t max_nobjs, int mode)
             "address lookup table initialized, size=%lu", curr_alloc_sz);
 
     hdl->total_alloc += curr_alloc_sz;
+
+    /* Initialize key cache (B-tree 8 byte node logical id cache) */
+    hdl->key_cache = NULL;
+    if(key_cache) {
+        curr_alloc_sz = total_size / Mcd_osd_blk_size * sizeof(uint64_t);
+
+        hdl->key_cache = (uint64_t *) plat_alloc_large(curr_alloc_sz);
+
+        if (!hdl->key_cache) {
+            log_msg ( PLAT_LOG_ID_INITIAL, PLAT_LOG_LEVEL_ERROR,
+                    "failed to allocate key cache");
+            goto bad;
+        }
+        memset( (void *) hdl->key_cache, 0, curr_alloc_sz);
+
+        hdl->total_alloc += curr_alloc_sz;
+
+        log_msg ( PLAT_LOG_ID_INITIAL, PLAT_LOG_LEVEL_INFO,
+            "key cache initialized, size=%lu", curr_alloc_sz);
+    }
 
     /*
      * initialize the bucket lock.
@@ -374,20 +394,17 @@ hash_table_get (void *context, hash_handle_t *hdl, char *key, int key_len, cntr_
                 continue;
             }
 
-#ifdef BTREE_HACK
-            if((key_len == 8) && (hash_entry->key != 0)) {
-                if(*((uint64_t*)key) != hash_entry->key) {
+            if(key_len == 8 && hdl->key_cache &&
+                    hdl->key_cache[hash_entry->address] != 0) {
+                if(*((uint64_t*)key) != hdl->key_cache[hash_entry->address]) {
                     continue;
                 }
             } else {
-#endif
                 if (mcd_onflash_key_match(context, hdl->shard,
                             hash_entry->address, key, key_len) != TRUE){
                     continue;
                 }
-#ifdef BTREE_HACK
             }
-#endif
             return hash_entry;
         }
     }
@@ -412,9 +429,6 @@ hash_entry_copy ( hash_entry_t *dst, hash_entry_t *src)
             dst->syndrome   = 0;
             dst->address    = 0;
             dst->cntr_id    = 0;
-#ifdef BTREE_HACK
-            dst->key        = 0;
-#endif
         } else {
             dst->used       = src->used;
             dst->deleted    = src->deleted;
@@ -424,9 +438,6 @@ hash_entry_copy ( hash_entry_t *dst, hash_entry_t *src)
             dst->syndrome   = src->syndrome;
             dst->address    = src->address;
             dst->cntr_id    = src->cntr_id;
-#ifdef BTREE_HACK
-            dst->key        = src->key;
-#endif
         }
     }
 }
@@ -733,9 +744,6 @@ found:
     hash_entry->syndrome   = obj->syndrome;
     hash_entry->address    = blk_offset;
     hash_entry->cntr_id    = obj->cntr_id;
-#ifdef BTREE_HACK
-    hash_entry->key        = 0;
-#endif
 
     log_msg( PLAT_LOG_ID_INITIAL, PLAT_LOG_LEVEL_TRACE,
             "<<<< upd_HT: syn=%u, blocks=%u, del=%u, bucket=%u, "
