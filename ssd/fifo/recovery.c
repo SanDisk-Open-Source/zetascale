@@ -4699,6 +4699,9 @@ del_obj_hash(mshard_t *shard, mhash_t *hash)
 }
 #endif
 
+SDF_status_t
+name_service_get_meta(SDF_internal_ctxt_t *pai, SDF_cguid_t cguid, SDF_container_meta_t *meta);
+
 /*
  * Delete all objects in a container.
  */
@@ -4716,6 +4719,14 @@ delete_all_objects(pai_t *pai, shard_t *sshard, cguid_t cguid)
     bucket_entry_t  * bucket;
     hash_entry_t    * hash_entry;
 
+    SDF_container_meta_t meta;
+    SDF_status_t s;
+    if (cguid > 3) {
+        if ( ( s = name_service_get_meta( pai, cguid, &meta ) ) != FDF_SUCCESS ) {
+            return;
+        }
+        shard->durability_level = meta.properties.durability_level;
+    }
     for(i=0;i<num_bkts;i++){
         bucket_idx  = hdl->hash_buckets[i];
         lock_i      = i / (hdl->lock_bktsize / OSD_HASH_BUCKET_SIZE);

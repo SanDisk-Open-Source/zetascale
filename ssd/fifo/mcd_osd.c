@@ -4459,6 +4459,11 @@ mcd_fth_osd_slab_set( void * context, mcd_osd_shard_t * shard,
 
     mcd_log_msg( 20000, PLAT_LOG_LEVEL_TRACE, "ENTERING" );
 
+    /*
+     * FIXME: Shard durability is incorrectly used for a shared shard.
+     * It assumes durability of the given contaner here, risking durability
+     * setting of other logical containers.
+     */
     shard->durability_level = SDF_NO_DURABILITY;
     if (flags & FLASH_PUT_DURA_SW_CRASH)
         shard->durability_level = SDF_RELAXED_DURABILITY;
