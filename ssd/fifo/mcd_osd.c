@@ -4431,13 +4431,11 @@ void mcd_osd_slab_set_data(void* buf, char * key, int key_len, void * data,
 static int
 mcd_fth_osd_slab_set( void * context, mcd_osd_shard_t * shard,
         char * key, int key_len, void * data, SDF_size_t data_len, int flags,
-                      struct objMetaData * meta_data, uint64_t syndrome, uint64_t blk_offset )
+                      struct objMetaData * meta_data, uint64_t syndrome, uint64_t blk_offset, int blocks )
 {
     int                         i = 0, rc = FLASH_EOK;
     bool                        obj_exists = false;
     bool                        dyn_buffer = false;
-    SDF_size_t                  raw_len;
-    int                         blocks;
     char                      * buf;
     char                      * data_buf = NULL;
     uint64_t                    offset;
@@ -4536,13 +4534,15 @@ mcd_fth_osd_slab_set( void * context, mcd_osd_shard_t * shard,
     }
 #endif
 
-    raw_len = sizeof(mcd_osd_meta_t) + key_len + data_len;
-    blocks = ( raw_len + ( Mcd_osd_blk_size - 1 ) ) / Mcd_osd_blk_size;
+    if(!(flags & FLASH_PUT_SKIP_IO)) {
+        uint64_t raw_len = sizeof(mcd_osd_meta_t) + key_len + data_len;
+        blocks = ( raw_len + ( Mcd_osd_blk_size - 1 ) ) / Mcd_osd_blk_size;
 
-    if ( MCD_OSD_OBJ_MAX_BLKS <= blocks ) {
-        mcd_log_msg( 20330, PLAT_LOG_LEVEL_ERROR,
-                     "object size beyond limit, raw_len=%lu", raw_len );
-        return FLASH_EINVAL;
+        if ( MCD_OSD_OBJ_MAX_BLKS <= blocks ) {
+            mcd_log_msg( 20330, PLAT_LOG_LEVEL_ERROR,
+                    "object size beyond limit, raw_len=%lu", raw_len );
+            return FLASH_EINVAL;
+        }
     }
 
     /*
@@ -6360,7 +6360,8 @@ mcd_osd_flash_put_v( struct ssdaio_ctxt * pctxt, struct shard * shard,
 					flags | FLASH_PUT_SKIP_IO,
 					metaData,
 					syndrome,
-					blk_offset + i * slab_blksize);
+					blk_offset + i * slab_blksize,
+					slab_blksize);
 
 			if (osd_state->osd_wait)
 				fthUnlock(osd_state->osd_wait);
@@ -6436,7 +6437,7 @@ mcd_osd_flash_put( struct ssdaio_ctxt * pctxt, struct shard * shard,
                                     metaData->dataLen,
                                     flags,
                                     metaData,
-                                    syndrome, 0 );
+                                    syndrome, 0, 0 );
 
         if ( (shard->flags & FLASH_SHARD_SEQUENCE_EXTERNAL) != 0 &&
              ret == FLASH_EOK ) {
@@ -7545,7 +7546,7 @@ mcd_osd_raw_set( osd_state_t     *osd_state,
                                meta->data_len,
                                FLASH_PUT_RESTORE | FLASH_PUT_IF_NEWER, // flags
                                &metaData,                     // meta_data
-                               syndrome, 0 );
+                               syndrome, 0, 0 );
 
     if (osd_state->osd_wait)
         fthUnlock(osd_state->osd_wait);
@@ -8231,7 +8232,7 @@ mcd_osd_delete_expired( osd_state_t *osd_state, mcd_osd_shard_t * shard )
                                            FLASH_PUT_PREFIX_DO_DEL :
                                            FLASH_PUT_DEL_EXPIRED, // flags
                                            &dummy_meta,           // meta_data
-                                           syndrome, 0 );
+                                           syndrome, 0, 0 );
 
                 if (osd_state->osd_wait)
                     fthUnlock(osd_state->osd_wait);
