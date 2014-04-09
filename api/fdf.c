@@ -6603,7 +6603,7 @@ FDF_status_t FDFGetStatsStr (
     FDF_status_t status = SDF_FAILURE;
     SDF_CONTAINER sdf_container = containerNull;
     SDF_internal_ctxt_t *pai = (SDF_internal_ctxt_t *) fdf_thread_state;
-    FDF_container_props_t   pprops;
+    FDF_container_props_t   pprops = {0};
     SDF_container_meta_t    meta;
     time_t t;
     //SDF_status_t lock_status = FDF_SUCCESS;

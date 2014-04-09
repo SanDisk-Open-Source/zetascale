@@ -90,10 +90,12 @@ fastcrc32:
 	.globl	check_x86_sse42
 	.type   check_x86_sse42, @function
 check_x86_sse42:
+	push	%rbx
 	push	%rcx
 	mov	$1, %rax
 	cpuid
 	mov	%rcx, %rax
 	and	$1<<20, %rax	# Intel feature SSE4.2
 	pop	%rcx
+	pop	%rbx
 	ret
