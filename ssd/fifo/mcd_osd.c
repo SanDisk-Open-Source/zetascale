@@ -4260,7 +4260,7 @@ mcd_fth_osd_slab_alloc_low(mcd_osd_shard_t * shard, mcd_osd_segment_t* segment,
 	int next_slab = __sync_fetch_and_add( &segment->next_slab, count );
 
 	/* oops, segment just became full */
-	if ( next_slab >= class->slabs_per_segment )
+	if ( next_slab + count > class->slabs_per_segment )
 	{
 		atomic_sub(segment->next_slab, count);
 
