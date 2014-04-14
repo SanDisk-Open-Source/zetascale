@@ -324,10 +324,13 @@ void btree_dump(FILE *f, struct btree *btree)
     // TODO xxxzzz
 }
 
+#if 0
 void btree_check(struct btree *btree)
 {
     // TODO xxxzzz
 }
+
+#endif 
 
 void btree_test(struct btree *btree)
 {
@@ -373,3 +376,25 @@ void btree_get_stats(struct btree *bt, btree_stats_t *stats_all)
     }
 }
 
+
+
+/*
+ * Functions related to btree consistency check.
+ */
+bool
+btree_check(struct btree *btree)
+{
+
+	bool final_res = true;
+	bool res = true;	
+	int i = 0 ;
+	for (i = 0; i < btree->n_partitions; i++) {
+		res = btree_raw_check(btree->partitions[i]);
+		if (res == false) {
+			final_res = false;
+			break;
+		}
+	}
+
+	return final_res;
+}

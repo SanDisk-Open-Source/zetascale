@@ -222,6 +222,11 @@ build_key_prefix(btree_raw_t *bt, btree_raw_node_t *n,
 int
 btree_leaf_find_split_idx(btree_raw_t *bt, btree_raw_node_t *n);
 
+#if 0
+bool 
+btree_leaf_node_check(btree_raw_t *btree, btree_raw_node_t *node,
+		      char *left_anchor_key, uint32_t left_anchor_keylen, 
+		      char *right_anchor_key, uint32_t right_anchor_keylen);
+	
+#endif 
 #endif  // End if file
-
-

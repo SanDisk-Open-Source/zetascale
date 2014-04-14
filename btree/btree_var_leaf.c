@@ -2357,3 +2357,93 @@ btree_leaf_merge_right(btree_raw_t *bt, btree_raw_node_t *from_node,
 	free_buffer(bt, tmp_node);
 	return true;
 }
+
+#if 0
+/*
+ * Function for consistency check for leaf node.
+ */
+bool 
+btree_leaf_node_check(btree_raw_t *btree, btree_raw_node_t *node,
+		      char *left_anchor_key, uint32_t left_anchor_keylen, 
+		      char *right_anchor_key, uint32_t right_anchor_keylen)
+{
+
+	char *prev_key = NULL;
+	uint32_t prev_keylen = 0;
+	int i = 0;
+	int end = nnode->nkeys - 1;
+	key_info_t key_info = {0};
+	key_meta_t key_meta = {0};
+	entry_header_t *ent_hdr = NULL;
+
+	/*
+	 * for all keys, check keys are in order and withing the anchor keys range
+	 */
+	for (i = 0; i <= end; i++) {
+		btree_leaf_get_nth_key_info(bt, n, i, &key_info);
+		btree_leaf_get_meta(n, i, &key_meta);
+		ent_hdr = btree_leaf_get_nth_entry(n, i);
+
+		/*
+		 * Check that this key is > prev anchor key and <= next anchor key.
+		 */
+		if (left_anchor_keylen != 0) {
+			x = btree->cmp_cb(btree->cmb_cb_data, left_anchor_key, left_anchor_keylen,
+					  key_info.key, key_info.keylen);
+
+			if (x >= 0) {
+				/*
+				 * Left anchor key is greater than the current key.
+				 */
+				return false;
+			}
+		}
+
+		if (right_anchor_keylen != 0) {
+			x = btree->cmp_cb(btree->cmb_cb_data, right_anchor_key, right_anchor_keylen,
+					  key_info.key, key_info.keylen);
+
+			if (x < 0) {
+				/*
+				 * Right anchor key is less than the current key.
+				 */
+				return false;
+			}
+		}
+		
+		
+		/*
+		 * Check that key is > then the previous key in the node.
+		 */
+		if (prev_keylen != 0) {
+			x = btree->cmp_cb(btree->cmb_cb_data, prev_key, prev_keylen,
+					  key_info.key, key_info.keylen);
+
+			if (x >= 0) {
+				/*
+				 * previous key is greater than the current key.
+				 */
+				return false;
+			}
+		}
+
+		if (prev_keylen != 0) {
+			free_buffer(prev_key);
+			prev_keylen = 0;
+		}
+
+		prev_key = key_info.key;
+		prev_keylen = key_info.keylen;
+
+	}
+
+	free_buffer(prev_key);
+	prev_keylen = 0;
+
+	/*
+	 * Everything went fine in check.
+	 */
+	return true;
+}
+
+#endif 

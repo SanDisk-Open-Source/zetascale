@@ -79,7 +79,7 @@ extern int btree_fast_build(struct btree *btree);
 
 extern void btree_dump(FILE *f, struct btree *btree);
 
-extern void btree_check(struct btree *btree);
+//extern void btree_check(struct btree *btree);
 
 extern void btree_test(struct btree *btree);
 
@@ -113,5 +113,7 @@ void
 btree_free_rupdate_marker(struct btree *btree, btree_rupdate_marker_t *marker);
 
 btree_status_t btree_ioctl(struct btree *btree, uint32_t ioctl_type, void *data);
+bool
+btree_check(struct btree *btree);
 
 #endif // __BTREE_H

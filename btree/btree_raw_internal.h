@@ -444,4 +444,19 @@ extern __thread uint64_t dbg_referenced;
 #define assert(a)
 #endif
 
+#if 0
+bool 
+btree_raw_node_check(struct btree_raw *btree, btree_raw_node_t *node,
+		  char *prev_anchor_key, uint32_t prev_anchor_keylen,
+		  char *next_anchor_key, uint32_t next_anchor_keylen);
+
+bool
+btree_raw_check_node_subtree(struct btree_raw *btree, btree_raw_node_t *node,
+			  char *prev_anchor_key, uint32_t prev_anchor_keylen,
+			  char *next_anchor_key, uint32_t next_anchor_keylen);
+
+bool
+btree_raw_check(struct btree_raw *btree);
+#endif 
+
 #endif // __BTREE_RAW_INTERNAL_H

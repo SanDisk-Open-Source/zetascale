@@ -127,7 +127,7 @@ __thread char      *_keybuf      = NULL;
 __thread uint32_t   _keybuf_size = 0;
 
 #define MAX_BTREE_HEIGHT            100
-#define MAX_NODES_PER_OBJECT        6700
+#define MAX_NODES_PER_OBJECT        67000
 #define MAX_PER_THREAD_NODES        (MAX_BTREE_HEIGHT + MAX_NODES_PER_OBJECT)
 
 extern __thread struct FDF_thread_state *my_thd_state;
@@ -4960,6 +4960,12 @@ btree_raw_mwrite_low(btree_raw_t *btree, btree_mput_obj_t **objs_in_out, uint32_
 
 	assert(!locked);
 
+
+#ifdef DEBUG_BUILD
+//	assert(btree_raw_check(btree));
+#endif 
+
+
 	dbg_print("write_type=%d num_objs %d key_len=%d\n", write_type, *num_objs, objs[0].key_len);
 
 #ifdef COLLECT_TIME_STATS 
@@ -7811,4 +7817,271 @@ void btree_dump_stats(FILE *f, btree_stats_t *stats)
         fprintf(stderr, "%-23s = %"PRIu64"\n", btree_stat_name(j), stats->stat[j]);
     }
     fprintf(stderr, "==============================================================\n");
+}
+
+
+/*
+ * Functions related to btree consistency check.
+ */
+bool 
+btree_raw_node_check(btree_raw_t *btree, btree_raw_node_t *node,
+		  char *left_anchor_key, uint32_t left_anchor_keylen,
+		  char *right_anchor_key, uint32_t right_anchor_keylen)
+{
+	char *prev_key = NULL;
+	uint32_t prev_keylen = 0;
+	int i = 0;
+	int end = node->nkeys - 1;
+	key_stuff_info_t key_info = {0};
+	int x = 0;
+	bool leaf_node = is_leaf(btree, node);
+	uint64_t prev_key_seqno = 0;
+
+	/*
+	 * for all keys, check keys are in order and withing the anchor keys range
+	 */
+	for (i = 0; i <= end; i++) {
+		(void) get_key_stuff_info(btree, node, i, &key_info);
+
+		/*
+		 * Check that this key is > prev anchor key and <= next anchor key.
+		 */
+		if (left_anchor_keylen != 0) {
+			x = btree->cmp_cb(btree->cmp_cb_data, left_anchor_key, left_anchor_keylen,
+					  key_info.key, key_info.keylen);
+
+			if (x >= 0) {
+				/*
+				 * Left anchor key is greater than the current key.
+				 */
+				assert(0);
+				return false;
+			}
+		}
+
+		if (right_anchor_keylen != 0) {
+			x = btree->cmp_cb(btree->cmp_cb_data, right_anchor_key, right_anchor_keylen,
+					  key_info.key, key_info.keylen);
+
+			if (x < 0) {
+				/*
+				 * Right anchor key is less than the current key.
+				 */
+				assert(0);
+				return false;
+			}
+		}
+		
+		
+		/*
+		 * Check that key is > then the previous key in the node.
+		 */
+		if (prev_keylen != 0) {
+			x = btree->cmp_cb(btree->cmp_cb_data, prev_key, prev_keylen,
+					  key_info.key, key_info.keylen);
+
+			if (x > 0) {
+				/*
+				 * previous key is greater than the current key.
+				 */
+				assert(0);
+				return false;
+			}
+
+			if (x == 0 && prev_key_seqno < key_info.seqno) {
+				assert(0);
+				return false;
+			}
+		}
+
+		if (prev_keylen != 0 && leaf_node) {
+			free_buffer(btree, prev_key);
+			prev_keylen = 0;
+		}
+
+		prev_key = key_info.key;
+		prev_keylen = key_info.keylen;
+		prev_key_seqno = key_info.seqno;
+
+	}
+
+	if (leaf_node) {
+		free_buffer(btree, prev_key);
+	}
+	prev_keylen = 0;
+
+	/*
+	 * Everything went fine in check.
+	 */
+	return true;
+}
+
+bool
+btree_raw_check_node_subtree(btree_raw_t *btree, btree_raw_node_t *node,
+			  char *prev_anchor_key, uint32_t prev_anchor_keylen,
+			  char *next_anchor_key, uint32_t next_anchor_keylen,
+			  uint64_t *num_leaves)
+{
+
+	bool res = false;
+	int end = node->nkeys - 1;
+	char *p_anchor = NULL;
+	uint32_t p_anchor_keylen = 0;
+	char *n_anchor = NULL;
+	uint32_t n_anchor_keylen = 0;
+	key_stuff_info_t key_info = {0};
+	int i = 0;
+	btree_raw_mem_node_t *child_node = NULL;
+	btree_status_t ret = BTREE_SUCCESS;
+
+	res = btree_raw_node_check(btree, node, prev_anchor_key, prev_anchor_keylen,
+				   next_anchor_key, next_anchor_keylen);
+
+	if (res == false) {
+		return false;
+	}
+
+	if (is_leaf(btree, node)) {
+		(*num_leaves)++;
+		return true;
+	}
+
+	for (i = 0; i <= end; i++) {
+		(void) get_key_stuff_info(btree, node, i, &key_info);
+		n_anchor = key_info.key;
+		n_anchor_keylen = key_info.keylen;
+
+		child_node = get_existing_node_low(&ret, btree, key_info.ptr, 1, 0, 0);	
+		res = btree_raw_check_node_subtree(btree, child_node->pnode, p_anchor, p_anchor_keylen,
+						   n_anchor, n_anchor_keylen, num_leaves);
+		if (res == false) {
+			return false;
+		}
+
+		p_anchor = key_info.key;
+		p_anchor_keylen = key_info.keylen;
+	}
+
+
+	/*
+	 * Go for branch from rightmost keys
+	 */
+	n_anchor = NULL;
+	n_anchor_keylen = 0;
+
+	child_node = get_existing_node_low(&ret, btree, node->rightmost, 1, 0, 0);	
+	res = btree_raw_check_node_subtree(btree, child_node->pnode, p_anchor, p_anchor_keylen,
+					   n_anchor, n_anchor_keylen, num_leaves);
+	if (res == false) {
+		return false;
+	}
+		
+	return true;
+}
+
+bool
+btree_raw_check_leaves_chain(btree_raw_t *btree, uint64_t num_leaves)
+{
+
+	btree_raw_mem_node_t *left_node = NULL;
+	btree_raw_mem_node_t *right_node = NULL;
+	btree_raw_mem_node_t *mnode = NULL;
+	uint64_t nodeid = BAD_CHILD;
+	key_stuff_info_t key_info = {0};
+	int i = 0;
+	uint64_t num_leaves_found = 0;
+	bool res = true;
+	btree_status_t ret = BTREE_SUCCESS;
+
+	/*
+	 * Find left most leaf node
+	 */
+	nodeid = btree->rootid;
+	mnode = get_existing_node_low(&ret, btree, nodeid, 1, 0, 0);	
+	while (!is_leaf(btree, mnode->pnode)) {
+		
+		(void) get_key_stuff_info(btree, mnode->pnode,
+					  0, &key_info);
+		nodeid = key_info.ptr;
+
+		mnode = get_existing_node_low(&ret, btree, nodeid, 1, 0, 0);	
+		assert(mnode != NULL);
+	}
+
+	left_node = mnode;
+
+	/*
+	 * Find rightmost leaf node
+	 */
+	nodeid = btree->rootid;
+	mnode = get_existing_node_low(&ret, btree, nodeid, 1, 0, 0);	
+	while (!is_leaf(btree, mnode->pnode)) {
+		
+		mnode = get_existing_node_low(&ret, btree, mnode->pnode->rightmost,
+					      1, 0, 0);	
+		assert(mnode != NULL);
+	}
+
+	right_node = mnode;
+
+	/*
+	 * Traverse from left most to rightmost using next ptr
+	 */
+	num_leaves_found = 2; //never counted leftmost and rightmost in the loop
+	mnode = left_node;
+	while (mnode->pnode->next != right_node->pnode->logical_id) {
+
+		mnode = get_existing_node_low(&ret, btree, mnode->pnode->next,
+					      1, 0, 0);	
+		assert(mnode != NULL);
+		
+		num_leaves_found++;
+
+		if (num_leaves_found > num_leaves) {
+			res = false;
+	//		break;
+		}
+	}
+
+	
+	if (num_leaves != num_leaves_found) {
+		assert(0);
+		res = false;
+	}
+
+exit:
+
+	deref_l1cache(btree);
+	return res;
+}
+
+
+bool
+btree_raw_check(btree_raw_t *btree)
+{
+	btree_raw_mem_node_t *root_node = NULL;
+	btree_status_t ret = BTREE_SUCCESS;
+	bool res = false;
+	uint64_t num_leaves = 0;
+
+	plat_rwlock_wrlock(&btree->lock);
+
+	/*
+	 * Get root node 
+	 */
+	root_node = get_existing_node_low(&ret, btree, btree->rootid, 1, 0, 0);	
+
+	res = btree_raw_check_node_subtree(btree, root_node->pnode, NULL, 0, NULL, 0, &num_leaves);
+
+	deref_l1cache(btree);
+
+
+	/*
+	 * Check that all leaf nodes are connected together through next pointer.
+	 */
+	res = btree_raw_check_leaves_chain(btree, num_leaves);
+
+	plat_rwlock_unlock(&btree->lock);
+
+	return res;
 }

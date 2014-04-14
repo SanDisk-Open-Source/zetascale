@@ -21,7 +21,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <api/fdf.h>
-
+//#include "btree_raw_internal.h"
 
 #ifndef __BTREE_RAW_H
 #define __BTREE_RAW_H
@@ -517,5 +517,19 @@ btree_raw_rupdate(
 
 #define DEFAULT_N_L1CACHE_BUCKETS 5000
 #define DEFAULT_N_L1CACHE_PARTITIONS 256
+#if 0
+bool 
+btree_raw_node_check(struct btree_raw *btree, btree_raw_node_t *node,
+		  char *prev_anchor_key, uint32_t prev_anchor_keylen,
+		  char *next_anchor_key, uint32_t next_anchor_keylen);
+
+bool
+btree_raw_check_node_subtree(struct btree_raw *btree, btree_raw_node_t *node,
+			  char *prev_anchor_key, uint32_t prev_anchor_keylen,
+			  char *next_anchor_key, uint32_t next_anchor_keylen);
+
+#endif 
+bool
+btree_raw_check(struct btree_raw *btree);
 
 #endif // __BTREE_RAW_H
