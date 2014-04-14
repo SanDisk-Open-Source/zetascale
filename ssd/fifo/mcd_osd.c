@@ -4688,11 +4688,10 @@ mcd_fth_osd_slab_set( void * context, mcd_osd_shard_t * shard,
         }
     }
 
-#ifndef BTREE_HACK
     /*
      * See if there is enough space.
      */
-    if (!vc_evict) {
+    if (!vc_evict && !is_btree_loaded()) {
         uint64_t rsvd_blks = blk_to_use(shard, blocks);
         if (obj_exists)
             rsvd_blks -= lba_to_use(shard, hash_entry->blocks);
@@ -4702,7 +4701,6 @@ mcd_fth_osd_slab_set( void * context, mcd_osd_shard_t * shard,
         }
         plus_blks -= rsvd_blks;
     }
-#endif
 
     if(!(flags & FLASH_PUT_SKIP_IO))
     {
