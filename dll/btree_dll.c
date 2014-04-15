@@ -238,6 +238,14 @@ FDF_status_t
 	       FDF_range_cmp_cb_t range_cmp_callback,
 	       void *range_cmp_callback_args,
 	       uint32_t *objs_updated);
+
+/*
+ * FDFCheckBtree: internal api for testing purpose.
+ */
+FDF_status_t
+(*ptr_FDFCheckBtree) (struct FDF_thread_state *fdf_thread_state, 
+	       FDF_cguid_t cguid);
+
 FDF_status_t
 (*ptr_FDFIoctl)(struct FDF_thread_state *fdf_thread_state, 
          FDF_cguid_t cguid,
@@ -383,6 +391,7 @@ static struct {
     { "_FDFGetRangeFinish",             &ptr_FDFGetRangeFinish            },
     { "_FDFMPut",                       &ptr_FDFMPut                      },
     { "_FDFRangeUpdate",                &ptr_FDFRangeUpdate               },
+    { "_FDFCheckBtree",                 &ptr_FDFCheckBtree                },
     { "_FDFIoctl",                      &ptr_FDFIoctl                     },
     { "_FDFCreateContainerSnapshot",    &ptr_FDFCreateContainerSnapshot   },
     { "_FDFDeleteContainerSnapshot",    &ptr_FDFDeleteContainerSnapshot   },
@@ -1427,6 +1436,21 @@ FDFRangeUpdate(struct FDF_thread_state *fdf_thread_state,
 				  range_cmp_callback, range_cmp_callback_args,
 				  objs_updated);
 }
+
+/*
+ * FDFCheckBtree: internal api for testing purpose.
+ */
+FDF_status_t
+FDFCheckBtree(struct FDF_thread_state *fdf_thread_state, 
+	       FDF_cguid_t cguid)
+{
+
+    if (unlikely(!ptr_FDFCheckBtree))
+        undefined("FDFCheckBtree");
+
+    return (*ptr_FDFCheckBtree) (fdf_thread_state, cguid);
+}
+
 
 /*
  * FDFIoctl

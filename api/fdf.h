@@ -1293,6 +1293,11 @@ FDFRangeUpdate(struct FDF_thread_state *fdf_thread_state,
 	       void *range_cmp_cb_args,
 	       uint32_t *objs_updated);
 
+
+FDF_status_t
+FDFCheckBtree(struct FDF_thread_state *fdf_thread_state, 
+	       FDF_cguid_t cguid);
+
 FDF_status_t
 FDFIoctl(struct FDF_thread_state *fdf_thread_state, 
          FDF_cguid_t cguid,
@@ -1374,6 +1379,7 @@ FDF_status_t FDFScavengeSnapshot(struct FDF_state *fdf_state, FDF_cguid_t cguid,
 */
 FDF_status_t
 FDFOperationAllowed( void );
+
 
 #if 0
 /*********************************************************

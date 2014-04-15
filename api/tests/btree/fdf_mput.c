@@ -358,7 +358,9 @@ do_op(uint32_t flags_in)
 
 	flags_global = flags_in;
 	launch_thds(); //actual operations
-        verify_stats(thd_state,cguid);
+//        verify_stats(thd_state,cguid);
+
+//	FDFCheckBtree(thd_state, cguid);
 	FDFCloseContainer(thd_state, cguid);
 	FDFDeleteContainer(thd_state, cguid);
 

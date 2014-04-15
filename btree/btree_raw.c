@@ -108,7 +108,7 @@ static int Verbose = 0;
 
 #define min(a, b) ((a) < (b) ? (a) : (b))
 #define is_nodes_available(node_cnt) \
-                 (node_cnt <= min(MAX_PER_THREAD_NODES - referenced_nodes_count, \
+                 (node_cnt <= min(MAX_PER_THREAD_NODES_REF - referenced_nodes_count, \
                                   MAX_PER_THREAD_NODES - modified_nodes_count))
 
 extern uint64_t n_global_l1cache_buckets;
@@ -129,10 +129,11 @@ __thread uint32_t   _keybuf_size = 0;
 #define MAX_BTREE_HEIGHT            100
 #define MAX_NODES_PER_OBJECT        67000
 #define MAX_PER_THREAD_NODES        (MAX_BTREE_HEIGHT + MAX_NODES_PER_OBJECT)
+#define MAX_PER_THREAD_NODES_REF (MAX_PER_THREAD_NODES * 10) //btree check reference all most all nodes
 
 extern __thread struct FDF_thread_state *my_thd_state;
 __thread btree_raw_mem_node_t* modified_nodes[MAX_PER_THREAD_NODES];
-__thread btree_raw_mem_node_t* referenced_nodes[MAX_PER_THREAD_NODES];
+__thread btree_raw_mem_node_t* referenced_nodes[MAX_PER_THREAD_NODES_REF];
 __thread btree_raw_mem_node_t* deleted_nodes[MAX_PER_THREAD_NODES];
 __thread int modified_written[MAX_PER_THREAD_NODES];
 __thread int deleted_written[MAX_PER_THREAD_NODES];
@@ -2553,7 +2554,7 @@ static btree_raw_mem_node_t* add_l1cache(btree_raw_t *btree, uint64_t logical_id
 
 void ref_l1cache(btree_raw_t *btree, btree_raw_mem_node_t *n)
 {
-    assert(referenced_nodes_count < MAX_PER_THREAD_NODES);
+    assert(referenced_nodes_count < MAX_PER_THREAD_NODES_REF);
     assert(n);
     dbg_print("%p id %ld root: %d leaf: %d over: %d dbg_referenced %lx\n", n, n->pnode->logical_id, is_root(btree, n->pnode), is_leaf(btree, n->pnode), is_overflow(btree, n->pnode), dbg_referenced);
     referenced_nodes[referenced_nodes_count++] = n;
@@ -7987,6 +7988,7 @@ btree_raw_check_leaves_chain(btree_raw_t *btree, uint64_t num_leaves)
 	btree_raw_mem_node_t *right_node = NULL;
 	btree_raw_mem_node_t *mnode = NULL;
 	uint64_t nodeid = BAD_CHILD;
+	uint64_t last_nodeid = BAD_CHILD;
 	key_stuff_info_t key_info = {0};
 	int i = 0;
 	uint64_t num_leaves_found = 0;
@@ -8024,14 +8026,22 @@ btree_raw_check_leaves_chain(btree_raw_t *btree, uint64_t num_leaves)
 
 	right_node = mnode;
 
-	/*
-	 * Traverse from left most to rightmost using next ptr
-	 */
-	num_leaves_found = 2; //never counted leftmost and rightmost in the loop
-	mnode = left_node;
-	while (mnode->pnode->next != right_node->pnode->logical_id) {
 
-		mnode = get_existing_node_low(&ret, btree, mnode->pnode->next,
+	/*
+	 * Traverse the leaf nodes using next pointer.
+	 */
+	mnode = left_node;
+	nodeid = left_node->pnode->logical_id;
+	last_nodeid = right_node->pnode->logical_id;
+
+	if (nodeid != BAD_CHILD) {
+		num_leaves_found = 1;
+	}
+
+	while (nodeid != last_nodeid) {
+		nodeid = mnode->pnode->next;
+
+		mnode = get_existing_node_low(&ret, btree, nodeid,
 					      1, 0, 0);	
 		assert(mnode != NULL);
 		
@@ -8043,7 +8053,6 @@ btree_raw_check_leaves_chain(btree_raw_t *btree, uint64_t num_leaves)
 		}
 	}
 
-	
 	if (num_leaves != num_leaves_found) {
 		assert(0);
 		res = false;
@@ -8074,7 +8083,6 @@ btree_raw_check(btree_raw_t *btree)
 	res = btree_raw_check_node_subtree(btree, root_node->pnode, NULL, 0, NULL, 0, &num_leaves);
 
 	deref_l1cache(btree);
-
 
 	/*
 	 * Check that all leaf nodes are connected together through next pointer.

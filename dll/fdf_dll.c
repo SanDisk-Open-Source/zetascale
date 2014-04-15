@@ -330,6 +330,10 @@ FDF_status_t
 	       void * callback_args,	
 	       uint32_t *objs_updated);
 
+FDF_status_t
+(*ptr_FDFCheckBtree) (struct FDF_thread_state *fdf_thread_state, 
+	       FDF_cguid_t cguid);
+
 static FDF_status_t
 (*ptr_FDFDeleteContainerSnapshot)(
 	struct FDF_thread_state	*fdf_thread_state,
@@ -433,9 +437,10 @@ static struct {
     { "FDFCreateContainerSnapshot",    &ptr_FDFCreateContainerSnapshot   },
     { "FDFDeleteContainerSnapshot",    &ptr_FDFDeleteContainerSnapshot   },
     { "FDFGetContainerSnapshots",      &ptr_FDFGetContainerSnapshots     },
-    { "FDFMPut",          	      	   &ptr_FDFMPut						 },
-    { "FDFRangeUpdate",		       	   &ptr_FDFRangeUpdate				 },
-    { "FDFIoctl",		       		   &ptr_FDFIoctl                     },
+    { "FDFMPut",          	      	   &ptr_FDFMPut			},
+    { "FDFRangeUpdate",		       	   &ptr_FDFRangeUpdate		},
+    { "FDFCheckBtree",		       	   &ptr_FDFCheckBtree		},
+    { "FDFIoctl",		       		   &ptr_FDFIoctl       },
     { "FDFScavenger",                  &ptr_FDFScavenger                 },
     { "FDFScavengeContainer",          &ptr_FDFScavengeContainer         },
     { "FDFScavengeSnapshot",          &ptr_FDFScavengeSnapshot         },
@@ -1480,6 +1485,20 @@ FDFRangeUpdate(struct FDF_thread_state *fdf_thread_state,
 				  range_key_len, callback_func, callback_args,
 				  objs_updated);
 
+}
+
+/*
+ * FDFCheckBtree: internal api for testing purpose.
+ */
+FDF_status_t
+FDFCheckBtree(struct FDF_thread_state *fdf_thread_state, 
+	       FDF_cguid_t cguid)
+{
+
+    if (unlikely(!ptr_FDFCheckBtree))
+        undefined("FDFCheckBtree");
+
+    return (*ptr_FDFCheckBtree) (fdf_thread_state, cguid);
 }
 
 FDF_status_t

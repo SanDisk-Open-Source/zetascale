@@ -7584,6 +7584,15 @@ FDFRangeUpdate(struct FDF_thread_state *fdf_thread_state,
 }
 
 FDF_status_t
+FDFCheckBtree(struct FDF_thread_state *fdf_thread_state, 
+	       FDF_cguid_t cguid)
+{
+
+	fprintf(stderr, "FDF: FDFCheckBtree without btree is not supported\n");
+	return FDF_FAILURE;
+}
+
+FDF_status_t
 FDFIoctl(struct FDF_thread_state *fdf_thread_state, 
          FDF_cguid_t cguid,
          uint32_t ioctl_type,

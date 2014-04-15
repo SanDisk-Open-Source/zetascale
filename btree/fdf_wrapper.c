@@ -171,6 +171,10 @@ _FDFRangeUpdate(struct FDF_thread_state *fdf_thread_state,
 	       void *range_cmp_cb_args,
 	       uint32_t *objs_updated);
 
+FDF_status_t
+_FDFCheckBtree(struct FDF_thread_state *fdf_thread_state, 
+	       FDF_cguid_t cguid);
+
 FDF_status_t _FDFScavengeContainer(struct FDF_state *fdf_state, FDF_cguid_t cguid);
 FDF_status_t FDFStartAstats(struct FDF_state *fdf_state, FDF_cguid_t cguid);
 
@@ -2864,6 +2868,37 @@ _FDFMPut(struct FDF_thread_state *fdf_ts,
 	return ret;
 }
 
+
+/*
+ * FDFCheckBtree: internal api for testing purpose.
+ */
+FDF_status_t
+_FDFCheckBtree(struct FDF_thread_state *fdf_thread_state, 
+	       FDF_cguid_t cguid)
+{
+	FDF_status_t ret = FDF_SUCCESS;
+	my_thd_state = fdf_thread_state;;
+	struct btree *bt = NULL;
+	int index;
+
+	if ((ret= bt_is_valid_cguid(cguid)) != FDF_SUCCESS) {
+		return ret;
+	}
+
+	bt = bt_get_btree_from_cguid(cguid, &index, &ret, false);
+	if (bt == NULL) {
+		return ret;
+	}
+
+	if (btree_check(bt) == false) {
+		ret = FDF_FAILURE;
+	} else {
+		ret = FDF_SUCCESS;
+	}
+
+	bt_rel_entry(index, false);
+	return ret;
+}
 #if 0
 
 #define NUM_IN_CHUNK 500
