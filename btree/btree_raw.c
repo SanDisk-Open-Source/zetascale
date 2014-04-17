@@ -4560,7 +4560,7 @@ btree_raw_bulk_insert(struct btree_raw *btree, btree_mput_obj_t **objs_in_out, u
 	char* r_key;
 	node_key_t *pk_insert_not_used;
 	btree_mput_obj_t* objs = *objs_in_out;
-	btree_raw_mem_node_t *right, *node;
+	btree_raw_mem_node_t *right, *node, *prev;
 	key_stuff_info_t ksi;
         uint32_t new_inserts;
 	btree_status_t leaf_ret;
@@ -4655,6 +4655,8 @@ btree_raw_bulk_insert(struct btree_raw *btree, btree_mput_obj_t **objs_in_out, u
 		return ret;
 	}
 
+	prev = left;
+
 	/* Fill the node and insert an anchor for as many nodes as possible */
 	while(count && (node = get_new_node(&ret, btree, LEAF_NODE, 0)))
 	{
@@ -4688,6 +4690,9 @@ btree_raw_bulk_insert(struct btree_raw *btree, btree_mput_obj_t **objs_in_out, u
 
 		insert_key(&ret, btree, parent, objs->key, objs->key_len, r_seqno,
 				sizeof(uint64_t), (char *) &(node->pnode->logical_id), 0);
+
+		prev->pnode->next = node->pnode->logical_id;
+		prev = node;
 
 		count -= written;
 		objs++;
@@ -4723,6 +4728,7 @@ btree_raw_bulk_insert(struct btree_raw *btree, btree_mput_obj_t **objs_in_out, u
 		stats_dec(btree, BTSTAT_NUM_OBJS, written);
 	}
 
+	prev->pnode->next = right->pnode->logical_id;
 	*not_written = count;
 	*objs_in_out = objs;
 
