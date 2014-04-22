@@ -4318,7 +4318,7 @@ enum {
 	TRX_OP_LAST		= 2
 };
 
-extern int	fdf_uncompress_data( char *, size_t, size_t *);
+extern int	fdf_uncompress_data( char *, size_t, size_t, size_t *);
 
 
 static int
@@ -5942,7 +5942,7 @@ recovery_packet_dump( FILE *f, uint32_t blkno, uint32_t nblock, size_t ocount, v
 		memcpy( data2, data, dlen);
 		data = data2;
 		size_t udlen;
-		if (fdf_uncompress_data( data, dlen, &udlen) < 0) {
+		if (fdf_uncompress_data( data, dlen, max( dlen, meta->uncomp_datalen), &udlen) < 0) {
 			mcd_log_msg( 170039, PLAT_LOG_LEVEL_FATAL, "cguid=%lu seqno=%lu uncomp_datalen=%u data_len=%lu udlen=%lu", meta->cguid, meta->seqno, meta->uncomp_datalen, (ulong)dlen, udlen);
 			plat_abort( );
 		}

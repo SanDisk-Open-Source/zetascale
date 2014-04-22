@@ -2103,96 +2103,157 @@ FDF_status_t FDFInit(
     return FDF_SUCCESS;
 }
 
-char *fdf_get_per_thd_comp_buf(size_t len) {
-   int btree_node_size;
-   /* Initialize per thread compression/decompression buffer */
-   if( getProperty_Int("FDF_COMPRESSION", 1) == 0 ) {
-       return NULL;
-   }
+char *fdf_init_per_thd_comp_buf(size_t len) {
+	size_t tmp_len = len;
 
-   if( compression_buf != NULL ) {
-       return compression_buf;
+	if( getProperty_Int("FDF_COMPRESSION", 1) == 0 ) {
+		return NULL;
+	}
+
+	if (len == 0) {
+		tmp_len = snappy_max_compressed_length(
+						getProperty_Int("FDF_COMPRESSION_MAX_OBJECT_SIZE",
+							getProperty_Int("FDF_BTREE_NODE_SIZE",8100) + 1024));
+	} else {
+		tmp_len = snappy_max_compressed_length(len + 1024);
+	}
+
+	compression_buf = plat_alloc(tmp_len);
+	if (compression_buf) {
+		compression_buf_len = tmp_len;
+	}
+	return(compression_buf);
+}
+
+char *fdf_get_per_thd_comp_buf(size_t len) {
+
+	if (compression_buf_len == 0) {
+		fdf_init_per_thd_comp_buf(0);
+	}
+
+   if( compression_buf_len < len) {
+	   if (compression_buf) {
+		   plat_free(compression_buf);
+	   }
+	  compression_buf = plat_alloc(len);
    }
-   btree_node_size = getProperty_Int("FDF_BTREE_NODE_SIZE",8100);
-   /* Add a delta to btree_node_size top accomdate any meta data in the flash layer */
-   compression_buf_len = snappy_max_compressed_length(
-          getProperty_Int("FDF_COMPRESSION_MAX_OBJECT_SIZE", btree_node_size + 1024));
-   if( compression_buf_len < len ) {
-       compression_buf_len = snappy_max_compressed_length(len);    
-   }
-   compression_buf = plat_alloc(compression_buf_len);
    if( compression_buf == NULL ) {
        plat_log_msg(160071,LOG_CAT,LOG_ERR,
                                    "Memory allocation failed");
+	   compression_buf_len = 0;
        return NULL;
    }
+   compression_buf_len = len;
    return compression_buf;
 }
 
 char *fdf_compress_data(char *src, size_t src_len, 
-                            char *comp_buf, size_t *comp_len) {
-     char *cbuf;
-     snappy_status rc;
+                            char *comp_buf, size_t memsz, size_t *comp_len) {
+	char *cbuf;
+	snappy_status rc;
+	size_t len;
+	size_t btree_node_size = snappy_max_compressed_length(
+			 							getProperty_Int("FDF_COMPRESSION_MAX_OBJECT_SIZE", 
+											getProperty_Int("FDF_BTREE_NODE_SIZE",8100)));
+
+	if( getProperty_Int("FDF_COMPRESSION", 1) == 0 ) {
+		return NULL;
+	}
+
+	 len = snappy_max_compressed_length(src_len);
      cbuf = comp_buf;
      if( cbuf == NULL ) {
          /* Use per thread compression buffer */
-         cbuf = compression_buf;
-         if( compression_buf == NULL ) {
-             cbuf = fdf_get_per_thd_comp_buf(src_len+1024); /* initializes per thread compression buffer */
-         }
-         else if( compression_buf_len < src_len ) {
-             plat_free(compression_buf);
-             compression_buf = NULL;
-             cbuf = fdf_get_per_thd_comp_buf(src_len+1024); 
-         }  
-     } 
+		 if (len < btree_node_size) { 
+			 len = btree_node_size;
+		 }
+         cbuf = fdf_get_per_thd_comp_buf(len); /* initializes per thread compression buffer */
+		 *comp_len = compression_buf_len;
+     } else {
+		 if (len > memsz) {
+			 plat_log_msg(160230, LOG_CAT, LOG_ERR,
+					 "Compression buffer size passed is not sufficient len:%d memsz:%d", (int)len, (int)memsz);
+			 return NULL;
+		 }
+		 *comp_len = memsz;
+	 }
+
      if ( cbuf == NULL ) {
         /* No buffer available to put compressed data. return error*/
         plat_log_msg(160194,LOG_CAT,LOG_ERR,"Unable to get temporary buffer for compression ");
         return NULL;
      }
-     *comp_len = compression_buf_len;
-     rc = snappy_compress(src,src_len,cbuf,comp_len);
+
+     rc = snappy_compress(src, src_len, cbuf, comp_len);
      if ( rc != SNAPPY_OK ) {
          plat_log_msg(160195,LOG_CAT,LOG_ERR,"Snappy compression failed(%d)\n",rc);
          return NULL;
      }
+#if 0
+	 if (*comp_len > src_len) {
+		 plat_log_msg(160217,LOG_CAT,LOG_DBG, "Niranjan(compression) compl_len:%d src_len:%d", (int)*comp_len, (int)src_len);
+	 }
+#endif
      return cbuf; 
 }
 
-int fdf_uncompress_data(char *data, size_t datalen, size_t *uncomp_len) {
-    int btree_node_size;
+/*
+ * Uncompress the data compressed by snappy
+ *
+ * data		IN/OUT	pointer having compressed data and will have uncompressed data
+ * datalen	IN		size of compressed data
+ * memsz	IN		amount of memory pointed by data
+ * uncomp_len OUT	size of uncompressed data/
+ *
+ * IMPORTANT: Make sure space allocated in data (of size memsz), is big enough
+ * to store uncompressed data. snappy could increase the size of data instead of reducing it.
+ *
+ */
+
+int fdf_uncompress_data(char *data, size_t datalen, size_t memsz, size_t *uncomp_len) {
+	size_t len;
     snappy_status rc;
 
-    if ( *uncomp_len == 0 ) {
-        /* Given uncompressed length is 0, so get default one */
-        btree_node_size = getProperty_Int("FDF_BTREE_NODE_SIZE",8100);
-        *uncomp_len = snappy_max_compressed_length(getProperty_Int("FDF_COMPRESSION_MAX_OBJECT_SIZE", 
-                                                                                btree_node_size + 1024));
-    }
-    /* copy the data in to comp buffer */
-    if( compression_buf == NULL ) {
-        fdf_get_per_thd_comp_buf(datalen);
-    }
-    else if(compression_buf_len < datalen) {
-        plat_free(compression_buf);
-        compression_buf = NULL;
-        fdf_get_per_thd_comp_buf(datalen);
-    }
-    *uncomp_len = compression_buf_len; 
+	if ((rc = snappy_uncompressed_length(data, datalen, &len)) != SNAPPY_OK) {
+		plat_log_msg(160231,LOG_CAT,LOG_FATAL,
+				"Could not get size of uncompressed data(%d)", rc);
+		return -1;
+	}
+
+	/* Memory allocated is not sufficient to store uncompressed data */
+	if (len > memsz) {
+        plat_log_msg(160232,LOG_CAT,LOG_FATAL,
+                     "Data buffer not enough to hold uncompressed data memsz:%d len:%d",
+                     (int)memsz,(int)len);
+        return -1;
+	}
+
+	len = memsz;
+
+    /* Get per thread comp buffer to store compresssed data*/
+	if (fdf_get_per_thd_comp_buf(datalen) == NULL) {
+		plat_log_msg(160233, LOG_CAT,LOG_FATAL,
+				"Uncompression failed, couldn't allocate buffer");
+	}
+	plat_assert(compression_buf != NULL);
+
     if ( datalen > compression_buf_len ) {
         plat_log_msg(160196,LOG_CAT,LOG_FATAL,
                      "Compression buffer not enough to hold data datalen:%d  comp_buf_len:%d",
                      (int)datalen,(int)compression_buf_len);
         return -1;
     }
-    memcpy(compression_buf,data,datalen);
-    rc = snappy_uncompress(compression_buf,datalen,data,uncomp_len);
+    memcpy(compression_buf, data, datalen);
+
+    rc = snappy_uncompress(compression_buf, datalen, data, &len);
+
     if( rc != SNAPPY_OK ) {
         plat_log_msg(160197,LOG_CAT,LOG_FATAL,
                       "Uncompression failed(%d)",rc);
         return -1;
     }
+	/* len will have true size of uncompressed data now */
+	*uncomp_len = len;
     return (int)*uncomp_len;
 }
 
@@ -2249,7 +2310,7 @@ FDF_status_t FDFInitPerThreadState(
 
     *thd_state = (struct FDF_thread_state *) pai_new;
     /* Initialize per thread compression/decompression buffer */
-    fdf_get_per_thd_comp_buf(0);
+    fdf_init_per_thd_comp_buf(0);
 
     return FDF_SUCCESS;
 }

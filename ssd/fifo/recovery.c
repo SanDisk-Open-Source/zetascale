@@ -671,6 +671,7 @@ struct sdf_rec_funcs Funcs ={
  * External function prototypes.
  */
 int mcd_fth_osd_grow_class_x(mshard_t *shard, mo_slab_class_t *class);
+extern int fdf_uncompress_data( char *, size_t, size_t, size_t *);
 
 
 /*
@@ -4344,6 +4345,9 @@ e_extr_obj(e_state_t *es, time_t now, char **key, uint64_t *keylen,
     const uint64_t mlen = sizeof(*meta);
     const uint64_t klen = meta->key_len;
     const uint64_t dlen = meta->data_len;
+    size_t tlen, uncomp_len;
+	int rc;
+
 
     if (mlen + klen + dlen > MCD_OSD_SEGMENT_SIZE)
         return FDF_OBJECT_UNKNOWN;
@@ -4361,19 +4365,49 @@ e_extr_obj(e_state_t *es, time_t now, char **key, uint64_t *keylen,
     if (!kptr)
         return FDF_FAILURE_MEMORY_ALLOC;
 
-    char *dptr = plat_malloc(dlen);
-    if (!dptr) {
-        plat_free(kptr);
-        return FDF_FAILURE_MEMORY_ALLOC;
-    }
+	//If compressed, return uncompressed data
+	if (meta->uncomp_datalen) {
+		/* Few cases snappy would have expanded the data instead of compressing it.
+		  Allocate the max of memory. */
+		if (meta->uncomp_datalen > dlen) {
+			tlen = meta->uncomp_datalen;
+		} else {
+			tlen = dlen;
+		}
 
-    memcpy(kptr, es->data_buf_align + mlen, klen);
-    memcpy(dptr, es->data_buf_align + mlen + klen, dlen);
+		char *dptr = plat_malloc(tlen);
+		if (!dptr) {
+			plat_free(kptr);
+			return FDF_FAILURE_MEMORY_ALLOC;
+		}
 
-    *key = kptr;
-    *keylen = klen;
-    *data = dptr;
-    *datalen = dlen;
+		memcpy(dptr, es->data_buf_align + mlen + klen, dlen);
+		if( fdf_uncompress_data(dptr, (size_t)dlen, tlen, &uncomp_len) < 0) {
+			mcd_log_msg(160202, PLAT_LOG_LEVEL_FATAL,
+									"Data uncompression failed:%d", rc);
+			return FLASH_ENOENT;
+		}
+
+		memcpy(kptr, es->data_buf_align + mlen, klen);
+		*key = kptr;
+		*keylen = klen;
+		*data = dptr;
+		*datalen = meta->uncomp_datalen;
+	} else {
+		char *dptr = plat_malloc(dlen);
+		if (!dptr) {
+			plat_free(kptr);
+			return FDF_FAILURE_MEMORY_ALLOC;
+		}
+
+		memcpy(kptr, es->data_buf_align + mlen, klen);
+		memcpy(dptr, es->data_buf_align + mlen + klen, dlen);
+
+		*key = kptr;
+		*keylen = klen;
+		*data = dptr;
+		*datalen = dlen;
+	}
     return FDF_SUCCESS;
 }
 

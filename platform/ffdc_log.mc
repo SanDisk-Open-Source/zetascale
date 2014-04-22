@@ -3388,6 +3388,11 @@
 160214 Entry exist: Failed to create %s - %lu, trying to replace
 160215 Entry exist: Failed to replace %s - %lu
 160216 Old fthSpawnPthread: ID=%d TID=%ld\n
+160217 Niranjan(compression) compl_len:%d src_len:%d
+160230 Compression buffer size passed is not sufficient len:%d memsz:%d
+160231 Could not get size of uncompressed data(%d)
+160232 Data buffer not enough to hold uncompressed data memsz:%d len:%d
+160233 Uncompression failed, couldn't allocate buffer
 
 
 # rico

@@ -72,9 +72,9 @@ SDF_cguid_t generate_cguid(
         );
 extern uint32_t
 init_get_my_node_id();
-extern char *fdf_compress_data(char *src, size_t src_len, 
-                            char *comp_buf, size_t *comp_len);
-extern int fdf_uncompress_data(char *data, size_t datalen,size_t *uncomp_len);
+extern char *fdf_compress_data(char *src, size_t src_len,
+                            char *comp_buf, size_t memsz, size_t *comp_len);
+extern int fdf_uncompress_data(char *data, size_t datalen,size_t memsz, size_t *uncomp_len);
 #endif
 
 
@@ -4491,7 +4491,7 @@ mcd_fth_osd_slab_set( void * context, mcd_osd_shard_t * shard,
         (flags & FLASH_PUT_COMPRESS) && !(flags & FLASH_PUT_SKIP_IO)) {
         /* Compression enabled. Lets compress the data */
         uncomp_datalen = data_len;
-        data = fdf_compress_data(data, (size_t)data_len,NULL,&data_len);
+        data = fdf_compress_data(data, (size_t)data_len,NULL,0, &data_len);
         if ( data == NULL ) {
             mcd_log_msg(160201,PLAT_LOG_LEVEL_ERROR, "Compression failed");
             return FLASH_ENOENT;
@@ -5279,25 +5279,34 @@ override_retry:
             if( uncomp_datalen > 0 ) {
                 /* Data is compressed. So decompress before sending it to upper layer */
                 size_t uncomp_len = uncomp_datalen;
+				size_t tmp_len = databuf_len;
                 int rc;
                 char *data_buf_new;
                 /* check if current data buffer can hold uncompressed data
                    for all the btree node and object < 1MB cased, the default databuf_len
                    can hold the data*/
                 if( databuf_len < uncomp_datalen ) {
-                    data_buf_new = mcd_fth_osd_iobuf_alloc(context, uncomp_datalen,false);
+					/* Few cases snappy would have expanded the data instead of compressing it.
+					   Allocate the max of memory. */
+					if (uncomp_datalen > *pactual_size) {
+						tmp_len = uncomp_datalen;
+					} else {
+						tmp_len = *pactual_size;
+					}
+					data_buf_new = mcd_fth_osd_iobuf_alloc(context, tmp_len, false);
                     if(data_buf_new == NULL ) {
                         mcd_log_msg(160203,PLAT_LOG_LEVEL_FATAL,
                                 "Memory allocation failed\n");
                         return FLASH_ENOMEM;
                     }
-                    memcpy(data_buf_new,data_buf,*pactual_size);
+                    memcpy(data_buf_new, data_buf, *pactual_size);
                     mcd_fth_osd_slab_free(data_buf);
                     data_buf = data_buf_new;
+					databuf_len = tmp_len;
                     *ppdata = data_buf;
                 }
                 /* the fdf uncompress function decompresses the data in same input buffer*/
-                rc = fdf_uncompress_data(data_buf,*pactual_size, &uncomp_len);
+                rc = fdf_uncompress_data(data_buf, *pactual_size, tmp_len, &uncomp_len);
                 if( rc < 0 ) {
                     mcd_log_msg(160202,PLAT_LOG_LEVEL_FATAL, "Data uncompression failed:%d",rc);
                     return FLASH_ENOENT;
@@ -6282,8 +6291,9 @@ mcd_osd_flash_put_v( struct ssdaio_ctxt * pctxt, struct shard * shard,
 	if(compress) {
 		size_t max_comp_len = 0, comp_len;
 
+		plat_assert(slab_size >= fixed_size);
 		for(i = 0; i < count; i++) {
-			void* res = fdf_compress_data(data[i], metaData->dataLen, data_buf + i * slab_size + fixed_size, &comp_len);
+			void* res = fdf_compress_data(data[i], metaData->dataLen, data_buf + i * slab_size + fixed_size, slab_size - fixed_size, &comp_len);
 			if ( res == NULL ) {
 				mcd_log_msg(160201,PLAT_LOG_LEVEL_ERROR, "Compression failed");
 				return FLASH_ENOENT;
