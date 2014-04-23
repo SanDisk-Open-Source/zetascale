@@ -4540,7 +4540,7 @@ mcd_fth_osd_slab_set( void * context, mcd_osd_shard_t * shard,
         uint64_t raw_len = sizeof(mcd_osd_meta_t) + key_len + data_len;
         blocks = ( raw_len + ( Mcd_osd_blk_size - 1 ) ) / Mcd_osd_blk_size;
 
-        if ( MCD_OSD_OBJ_MAX_BLKS <= blocks ) {
+        if (blocks > MCD_OSD_OBJ_MAX_BLKS) {
             mcd_log_msg( 20330, PLAT_LOG_LEVEL_ERROR,
                     "object size beyond limit, raw_len=%lu", raw_len );
             return FLASH_EINVAL;
