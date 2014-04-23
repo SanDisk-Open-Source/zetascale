@@ -5017,17 +5017,6 @@ mini_restart:
 			goto restart;
 		}
 
-		/* In case of leaf node, before finding where this new key has to go
-		 * in, scavenge the node to see if any duplicate entries can be removed.
-		 * This can help more keys to insert in the node */
-		if (is_leaf(btree, node)) {
-			scavenge_node(btree, mem_node, NULL, NULL);
-
-			/* TODO: Do we need to set modify_l1cache_node. It will be set
-			 * when we insert the object. But in erronoues case it is not
-			 * set, is it better not to write the scavenged node as well */
-		}
-
 		key_found = get_child_id_and_count(btree, node, &child_id, objs, &count,
 				meta, syndrome, &nkey_child);
 
@@ -5160,6 +5149,15 @@ mini_restart:
 
 	dbg_print("before modifiing leaf node id %ld is_leaf: %d is_root: %d is_over: %d\n",
 		  node->logical_id, is_leaf(btree, node), is_root(btree, node), is_overflow(btree, node));
+
+	/* In case of leaf node, before finding where this new key has to go
+	 * in, scavenge the node to see if any duplicate entries can be removed.
+	 * This can help more keys to insert in the node */
+	if (is_leaf(btree, node)) {
+		if(scavenge_node(btree, mem_node, NULL, NULL))
+			key_found = get_child_id_and_count(btree, mem_node->pnode, &child_id, objs, &count,
+				meta, syndrome, &nkey_child);
+	}
 
 	if (key_found) {
 		key_found = !btree_leaf_is_key_tombstoned(btree, mem_node->pnode, nkey_child);
@@ -7857,7 +7855,7 @@ btree_raw_node_check(btree_raw_t *btree, btree_raw_node_t *node,
 			x = btree->cmp_cb(btree->cmp_cb_data, left_anchor_key, left_anchor_keylen,
 					  key_info.key, key_info.keylen);
 
-			if (x >= 0) {
+			if (x > 0) {
 				/*
 				 * Left anchor key is greater than the current key.
 				 */
