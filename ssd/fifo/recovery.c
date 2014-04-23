@@ -4382,7 +4382,7 @@ e_extr_obj(e_state_t *es, time_t now, char **key, uint64_t *keylen,
 		}
 
 		memcpy(dptr, es->data_buf_align + mlen + klen, dlen);
-		if( fdf_uncompress_data(dptr, (size_t)dlen, tlen, &uncomp_len) < 0) {
+		if((rc = fdf_uncompress_data(dptr, (size_t)dlen, tlen, &uncomp_len)) < 0) {
 			mcd_log_msg(160202, PLAT_LOG_LEVEL_FATAL,
 									"Data uncompression failed:%d", rc);
 			return FLASH_ENOENT;
