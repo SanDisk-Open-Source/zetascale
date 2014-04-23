@@ -543,8 +543,6 @@ struct CMapIterator *CMapEnum(struct CMap *pm)
 {
     CMapIterator_t    *iterator;
 
-    pthread_mutex_lock(&(pm->enum_mutex));
-
     do_lock_read(pm);
 
     iterator = get_iterator(pm);
@@ -556,19 +554,15 @@ struct CMapIterator *CMapEnum(struct CMap *pm)
 
 	dbg_print("pme=%p, enum_entry=%p\n", pm, iterator->enum_entry);
 
-    do_unlock(pm);
-
     return(iterator);
 }
 
 void CMapFinishEnum(struct CMap *pm, struct CMapIterator *iterator)
 {
-    do_lock_read(pm);
-
 	dbg_print("pm=%p, iterator=%p\n", pm, iterator);
 
     free_iterator(pm, iterator);
-    pthread_mutex_unlock(&(pm->enum_mutex));
+
     do_unlock(pm);
 }
 
@@ -578,13 +572,9 @@ int CMapNextEnum(struct CMap *pm, struct CMapIterator *iterator, char **key, uin
 {
     CMapEntry_t    *pme_return;
 
-    do_lock_read(pm);
-
 	dbg_print("pm=%p, iterator=%p, ", pm, iterator);
 
     if (iterator->enum_entry == NULL) {
-	do_unlock(pm);
-	CMapFinishEnum(pm, iterator);
 
 	dbg_print("pdata=NULL, datalen=0\n");
 
@@ -607,11 +597,8 @@ int CMapNextEnum(struct CMap *pm, struct CMapIterator *iterator, char **key, uin
 
 	dbg_print("key=%p, keylen=%d, pdata=%p, datalen=%ld, pme_return=%p\n", *key, *keylen, *data, *datalen, pme_return);
 
-	do_unlock(pm);
 	return(1);
     } else {
-	do_unlock(pm);
-	CMapFinishEnum(pm, iterator);
 
 	dbg_print("pdata=NULL, datalen=0\n");
 
