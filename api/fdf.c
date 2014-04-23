@@ -2106,7 +2106,7 @@ FDF_status_t FDFInit(
 char *fdf_init_per_thd_comp_buf(size_t len) {
 	size_t tmp_len = len;
 
-	if( getProperty_Int("FDF_COMPRESSION", 1) == 0 ) {
+	if( getProperty_Int("FDF_COMPRESSION", 0) == 0 ) {
 		return NULL;
 	}
 
@@ -2156,7 +2156,7 @@ char *fdf_compress_data(char *src, size_t src_len,
 			 							getProperty_Int("FDF_COMPRESSION_MAX_OBJECT_SIZE", 
 											getProperty_Int("FDF_BTREE_NODE_SIZE",8100)));
 
-	if( getProperty_Int("FDF_COMPRESSION", 1) == 0 ) {
+	if( getProperty_Int("FDF_COMPRESSION", 0) == 0 ) {
 		return NULL;
 	}
 
@@ -2379,7 +2379,7 @@ FDF_status_t FDFReleasePerThreadState(
     plat_free( *thd_state );
     *thd_state = NULL;
     /* Free compression buffer */
-    if( getProperty_Int("FDF_COMPRESSION", 1) ) {
+    if( getProperty_Int("FDF_COMPRESSION", 0) ) {
         if ( compression_buf != NULL ) {
             plat_free(compression_buf);
         }
@@ -2697,7 +2697,7 @@ FDF_status_t FDFOpenContainer(
 	bool thd_ctx_locked = false;
 
          if( getProperty_Int("FDF_ENABLE_COMPRESSION_ALL_CONTAINERS", 1) && 
-                  getProperty_Int("FDF_COMPRESSION", 1) ) {
+                  getProperty_Int("FDF_COMPRESSION", 0) ) {
              if(properties) {
                  properties->compression = FDF_TRUE;
              }

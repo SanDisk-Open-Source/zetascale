@@ -553,7 +553,7 @@ void InitActionProtocolCommonState(SDF_action_state_t *pas, SDF_action_init_t *p
         UTMallocTrace("actiondir", SDF_TRUE, SDF_FALSE, SDF_FALSE, (void *) pas->new_actiondir, sizeof(SDFNewCache_t));
     #endif // MALLOC_TRACE
 
-    page_size = getProperty_uLongInt("FDF_CACHE_CHUNK_SIZE", 8300);
+    page_size = getProperty_uLongInt("FDF_CACHE_CHUNK_SIZE", 0);
 
     max_key_size = 256; // includes room for trailing NULL!
     SDFNewCacheInit(pas->new_actiondir, buckets, page_size, nslabs, cacheSize,
@@ -4717,7 +4717,7 @@ static int flashPut_wrapper(SDF_trans_state_t *ptrans, struct shard *pshard, str
     /* Check if compression has been enabled for this container. If so 
        Set flag to enable compression so that low level function will compress data 
        Before writing to flash*/
-    if( getProperty_Int("FDF_COMPRESSION", 1) && (ptrans->par->ctnr > LAST_PHYSICAL_CGUID ) &&
+    if( getProperty_Int("FDF_COMPRESSION", 0) && (ptrans->par->ctnr > LAST_PHYSICAL_CGUID ) &&
                 ptrans->meta->meta.properties.compression == FDF_TRUE ) {
         flags = flags|FLASH_PUT_COMPRESS;     
     } 

@@ -4487,7 +4487,7 @@ mcd_fth_osd_slab_set( void * context, mcd_osd_shard_t * shard,
     }
 
     /* Check if object needs to be compressed */
-    if( getProperty_Int("FDF_COMPRESSION", 1) && (data_len > 0) &&
+    if( getProperty_Int("FDF_COMPRESSION", 0) && (data_len > 0) &&
         (flags & FLASH_PUT_COMPRESS) && !(flags & FLASH_PUT_SKIP_IO)) {
         /* Compression enabled. Lets compress the data */
         uncomp_datalen = data_len;
@@ -5274,7 +5274,7 @@ override_retry:
                     meta->data_len );
 
             /* Uncompress the data here */
-            //if( getProperty_Int("FDF_COMPRESSION", 1) &&
+            //if( getProperty_Int("FDF_COMPRESSION", 0) &&
             //(flags & FLASH_GET_DECOMPRESS) ) {
             if( uncomp_datalen > 0 ) {
                 /* Data is compressed. So decompress before sending it to upper layer */
@@ -6263,7 +6263,7 @@ mcd_osd_flash_put_v( struct ssdaio_ctxt * pctxt, struct shard * shard,
     uint64_t                    blk_offset;
     osd_state_t               * osd_state = (osd_state_t *)pctxt;
     mcd_osd_shard_t           * mcd_shard = (mcd_osd_shard_t *)shard;
-	int compress = getProperty_Int("FDF_COMPRESSION", 1) && metaData->dataLen;
+	int compress = getProperty_Int("FDF_COMPRESSION", 0) && metaData->dataLen;
 
 	uint64_t fixed_size = sizeof(mcd_osd_meta_t) + metaData->keyLen;
     uint64_t raw_len = fixed_size + (!compress ? metaData->dataLen :
