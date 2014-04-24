@@ -55,6 +55,7 @@
 #ifdef FLIP_ENABLED
 #include "flip/flip.h"
 #endif
+#include <ssd/fifo/scavenger.h>
 
 #define LOG_ID PLAT_LOG_ID_INITIAL
 #define LOG_CAT PLAT_LOG_CAT_SDF_NAMING
@@ -562,6 +563,9 @@ fdf_stats_info_t fdf_stats_flash[] = {
     {"FREE_SEGMENTS","slab_free_segments",FDF_STATS_TYPE_FLASH}, 
     {"COMPRESSED_BYTES","flash_compressed_bytes",FDF_STATS_TYPE_FLASH}, 
     {"FDF_FLASH_STATS_THD_CONTEXTS","fdf_thd_contexts",FDF_STATS_TYPE_FLASH}, 
+    {"ESCVN_OBJ_DEL","scavenged_object_count",FDF_STATS_TYPE_FLASH},
+    {"ESCVN_YLD_SCAN_CMPLTE","scavenger_scans_completed",FDF_STATS_TYPE_FLASH},
+    {"ESCVN_YLD_SCAN_RATE","scavenger_yields",FDF_STATS_TYPE_FLASH},
 };
 
 char *get_flash_type_stats_desc(int stat ) {
@@ -1907,7 +1911,7 @@ FDF_status_t FDFInit(
     pthread_attr_t       attr;
     uint64_t             num_sched;
     struct timeval		 timer;
-	const char			*prop_file;
+    const char			*prop_file;
 
     char log_file[2048]="";
 
@@ -1934,16 +1938,16 @@ FDF_status_t FDFInit(
     if (prop_file)
         loadProperties(prop_file);
 
-   
+
     //  Initialize a crap-load of settings
     fdf_load_settings( &(agent_state.flash_settings) );
     if (fdf_check_settings(&(agent_state.flash_settings)) == false) {
         return FDF_FAILURE;
     } 
-    
-	// Initialize the container metadata map
-	if ( FDF_SUCCESS != fdf_cmap_init() )
-	    return FDF_FAILURE;
+
+    // Initialize the container metadata map
+    if ( FDF_SUCCESS != fdf_cmap_init() )
+        return FDF_FAILURE;
 
     mcd_aio_register_ops();
     mcd_osd_register_ops();
@@ -1957,10 +1961,10 @@ FDF_status_t FDFInit(
         plat_log_set_file(log_file, PLAT_LOG_REDIRECT_STDERR|PLAT_LOG_REDIRECT_STDOUT);
     } 
 
-    #ifdef FDF_REVISION
+#ifdef FDF_REVISION
     plat_log_msg(160146, LOG_CAT, LOG_INFO,
             "Initializing %s (Rev:%s)", FDF_PRODUCT_NAME, FDF_REVISION);
-    #endif
+#endif
     if ( prop_file != NULL ) {
         plat_log_msg(80032, LOG_CAT, LOG_INFO, "Property file: %s",prop_file);
         log_properties_file(prop_file,LOG_INFO);
@@ -1976,16 +1980,16 @@ FDF_status_t FDFInit(
 
     // spawn initer thread (like mcd_fth_initer)
     fthResume( fthSpawn( &fdf_fth_initer, MCD_FTH_STACKSIZE ),
-               (uint64_t) &agent_state );
+            (uint64_t) &agent_state );
     //Start License daemon
     if (!licd_start(getProperty_String("FDF_LICENSE_PATH", FDF_LICENSE_PATH),
-    		    getProperty_Int("FDF_LICENSE_CHECK_PERIOD", FDF_LICENSE_CHECK_PERIOD),
-		    *fdf_state)) {
-	    mcd_log_msg(160147, PLAT_LOG_LEVEL_FATAL, 
-			    "Creation of license daemon failed\n");
-	    return FDF_FAILURE;
+                getProperty_Int("FDF_LICENSE_CHECK_PERIOD", FDF_LICENSE_CHECK_PERIOD),
+                *fdf_state)) {
+        mcd_log_msg(160147, PLAT_LOG_LEVEL_FATAL, 
+                "Creation of license daemon failed\n");
+        return FDF_FAILURE;
     }
-    
+
     //ipf_set_active( 1 );
 
     // spawn scheduler startup process
@@ -1994,31 +1998,31 @@ FDF_status_t FDFInit(
 
     num_sched = agent_state.flash_settings.num_cores;
     rc = pthread_create( &run_sched_pthread, 
-						 &attr, 
-						 fdf_run_schedulers,
-			 			 (void *) num_sched );
+            &attr, 
+            fdf_run_schedulers,
+            (void *) num_sched );
     if ( 0 != rc ) {
-		mcd_log_msg( 20163, 
-					 PLAT_LOG_LEVEL_FATAL,
-		     		 "pthread_create() failed, rc=%d", 
-					 rc );
-		return rc;
+        mcd_log_msg( 20163, 
+                PLAT_LOG_LEVEL_FATAL,
+                "pthread_create() failed, rc=%d", 
+                rc );
+        return rc;
     }
     mcd_log_msg( 150022, PLAT_LOG_LEVEL_TRACE, "scheduler startup process created" );
-    
-    
+
+
     wait_for_licd_start();
     if (is_license_valid() == false) {
-	plat_log_msg(160145, LOG_CAT, LOG_WARN, "License check failed.");
-	return FDF_LICENSE_CHK_FAILED;
+        plat_log_msg(160145, LOG_CAT, LOG_WARN, "License check failed.");
+        return FDF_LICENSE_CHK_FAILED;
     }	
 
     // Wait until mcd_fth_initer is done
     do {
-		rc = sem_wait( &Mcd_initer_sem );
+        rc = sem_wait( &Mcd_initer_sem );
     } while (rc == -1 && errno == EINTR);
 
-   	plat_assert( 0 == rc );
+    plat_assert( 0 == rc );
     if(getProperty_String("FDF_STATS_FILE","")[0])
     {
         fdf_start_stats_thread( *fdf_state );
@@ -2031,7 +2035,7 @@ FDF_status_t FDFInit(
         init_async_cmd_handler(getProperty_Int("ASYNC_DELETE_CONTAINERS_THREADS",5),*fdf_state);
     }
 
-	fdf_start_vc_thread ( *fdf_state );
+    fdf_start_vc_thread ( *fdf_state );
 
 	shard_t *shard; 
 	SDF_action_init_t *pai = (SDF_action_init_t *) fdf_state; 
@@ -2047,6 +2051,15 @@ FDF_status_t FDFInit(
                  Mcd_osd_blk_size, Mcd_osd_segment_size);
            ext_cbs->fdf_funcs_cb((void *)plat_log_msg_helper);
         }
+
+    if ( getProperty_Int( "FDF_EXPIRY_SCAVENGER_ENABLE", 1 ) == 1 ) {
+        mcd_log_msg( 160234, PLAT_LOG_LEVEL_DEBUG, 
+                "expired object scavenging enabled.");
+        fdf_start_scavenger_thread( *fdf_state );
+    } else {
+        mcd_log_msg( 160235, PLAT_LOG_LEVEL_DEBUG,
+                "expired object scavenging disabled.");
+    }
 
 #if 0
     /*
@@ -2615,6 +2628,11 @@ FDF_status_t FDFShutdown(struct FDF_state *fdf_state)
 	if (1 == getProperty_Int("GRACEFUL_SHUTDOWN", 1)) {
 		plat_log_msg(20819, PLAT_LOG_CAT_SDF_PROT,
 				PLAT_LOG_LEVEL_DEBUG, "%s", "Starting graceful shutdown");
+
+        /*
+         * stop scavenger thread.
+         */
+        fdf_stop_scavenger_thread();
 
 		/*
 		 * Mark shutdown in progress
@@ -6391,6 +6409,16 @@ static void fdf_get_flash_stats( SDF_internal_ctxt_t *pai, char ** ppos, int * l
     }
     if (stats != NULL) 
         stats->flash_stats[FDF_FLASH_STATS_NUM_FREE_SEGMENTS] = val;
+
+    if (stats != NULL) {
+        extern uint64_t num_objs_expired;
+        extern uint64_t num_scav_scan_yld;
+        extern uint64_t num_scav_scan_complete;
+
+        stats->flash_stats[FDF_FLASH_STATS_ESCVN_OBJ_DEL] = num_objs_expired;
+        stats->flash_stats[FDF_FLASH_STATS_ESCVN_YLD_SCAN_CMPLTE] = num_scav_scan_complete;
+        stats->flash_stats[FDF_FLASH_STATS_ESCVN_YLD_SCAN_RATE] = num_scav_scan_yld;
+    }
 
     //mcd_osd_recovery_stats( mcd_osd_container_shard(c->mcd_container), ppos, lenp );
 

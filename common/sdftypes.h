@@ -380,6 +380,7 @@ typedef struct {
     item(SDF_QUERY_PAUSED, /* Query is paused by callback */) \
     item(SDF_SNAPSHOT_NOT_FOUND, /* Snapshot not found */) \
     item(SDF_TOO_MANY_SNAPSHOTS, /* No room for additional snapshots */) \
+    item(SDF_SCAN_DONE, /*Scavenger scan done flag */) \
 
 typedef enum {
 #define item(caps, value) \
