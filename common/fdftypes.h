@@ -213,7 +213,6 @@ typedef uint64_t FDF_cguid_t;
     item(FDF_QUERY_PAUSED, /* Query is paused by callback */) \
     item(FDF_SNAPSHOT_NOT_FOUND, /* Snapshot not found */) \
     item(FDF_TOO_MANY_SNAPSHOTS, /* No room for additional snapshots */) \
-    item(FDF_SCAN_DONE, /*Scavenger scan done flag */) \
 
 typedef enum {
 #define item(caps, value) \

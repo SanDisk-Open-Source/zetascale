@@ -3393,28 +3393,6 @@
 160231 Could not get size of uncompressed data(%d)
 160232 Data buffer not enough to hold uncompressed data memsz:%d len:%d
 160233 Uncompression failed, couldn't allocate buffer
-160234 expired object scavenging enabled.
-160235 expired object scavenging disabled.
-160236 FDF_EXPIRY_SCAVENGER_ENABLE is incompatible with FDF_TRX. Disabling FDF_EXPIRY_SCAVENGER_ENABLE.
-160237 invalid fdf state.
-160238 scavenger thread create success.
-160239 scavenger thread create failed.
-160240 woke up scavenger.
-160241 scavenger wakeup failed.
-160242 stoping scavenger thread.
-160243 scavenger thread state init failed.
-160244 scavenger bad shard.
-160245 scavenger scan init failed.
-160246 scavenger scan init successful.\n
-160247 scavenger paused.
-160248 scavenger resuming.
-160249 scavenger yielding, scan rate reached.
-160250 scavenger resuming from scan rate yield.
-160251 scavenger expiry delete failed.
-160252 scavenger expiry delete success.
-160253 scavenger scan completed.
-160254 scavenger yielding, scan complete.
-160255 scavenger scan resuming.
 
 
 # rico
