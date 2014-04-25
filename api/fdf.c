@@ -1311,6 +1311,40 @@ inc_cntr_map(cntr_id_t cntr_id, int64_t objs, int64_t blks, int check)
     return ret;
 }
 
+int
+inc_cntr_map_by_map(cntr_map_t *cmap, cntr_id_t cntr_id, int64_t objs, int64_t blks, int check)
+{
+    int          ret = 1;
+    int64_t     size = blks * Mcd_osd_blk_size;
+
+    if (!cmap)
+        return 1;
+
+    int64_t t_objs = atomic_add_get(cmap->num_obj, objs);
+    int64_t t_size = atomic_add_get(cmap->current_size, size);
+    int64_t  limit = cmap->size_kb * 1024;
+
+    if (limit && t_size > limit) {
+        if (!check)
+            ret = 0;
+        else if (size > 0) {
+            atomic_sub(cmap->num_obj, objs);
+            atomic_sub(cmap->current_size, size);
+            ret = 0;
+        }
+    }
+
+    if (t_objs < 0)
+        fdf_loge(70115, "container %d would have %ld objects", cntr_id, objs);
+
+    if (t_size < 0) {
+        fdf_loge(70116, "container %d would have a size of %ld bytes",
+                 cntr_id, size);
+    }
+
+    return ret;
+}
+
 FDF_status_t fdf_get_ctnr_status(FDF_cguid_t cguid, int delete_ok) {
     cntr_map_t   *cmap   = NULL;
 	FDF_status_t  status = FDF_FAILURE_CONTAINER_NOT_OPEN;
@@ -1336,21 +1370,21 @@ FDF_status_t fdf_get_ctnr_status(FDF_cguid_t cguid, int delete_ok) {
 FDF_status_t
 fdf_get_ctnr_status_cmap(cntr_map_t *cmap, FDF_cguid_t cguid, int delete_ok)
 {
-	    FDF_status_t  status = FDF_FAILURE_CONTAINER_NOT_OPEN;
+	FDF_status_t  status = FDF_FAILURE_CONTAINER_NOT_OPEN;
 
-		    plat_assert(cmap && (cmap->cguid == cguid));
+	plat_assert(cmap && (cmap->cguid == cguid));
 
-			    if ( !isContainerNull( cmap->sdf_container ) ) {
-					        status = FDF_CONTAINER_OPEN;
-							    }
-				    if ( FDF_CONTAINER_STATE_OPEN != cmap->state ) {
-						        status = FDF_FAILURE_CONTAINER_NOT_OPEN;
-								    }
-					    if ( delete_ok && FDF_CONTAINER_STATE_DELETE_OPEN == cmap->state ) {
-							        status = FDF_CONTAINER_OPEN;
-									    }
+	if ( !isContainerNull( cmap->sdf_container ) ) {
+		status = FDF_CONTAINER_OPEN;
+	}
+	if ( FDF_CONTAINER_STATE_OPEN != cmap->state ) {
+		status = FDF_FAILURE_CONTAINER_NOT_OPEN;
+	}
+	if ( delete_ok && FDF_CONTAINER_STATE_DELETE_OPEN == cmap->state ) {
+		status = FDF_CONTAINER_OPEN;
+	}
 
-						    return status;
+	return status;
 }
 
 /* 
@@ -5101,15 +5135,17 @@ fdf_write_object(
     SDF_appreq_t        ar;
     SDF_action_init_t  *pac		= NULL;
     FDF_status_t        status	= FDF_FAILURE;
+	cntr_map_t *cmap = NULL;
 
  	if ( !cguid || !key )
  		return FDF_INVALID_PARAMETER;
  
-	if (fdf_incr_wr_io_count(cguid) == 0) {
-		return FDF_FAILURE;
+	cmap = get_cntr_map(cguid);
+	if (!cmap) {
+		return(FDF_CONTAINER_UNKNOWN);
 	}
 
-    if ( (status = fdf_get_ctnr_status(cguid, 0)) != FDF_CONTAINER_OPEN ) {
+    if ( (status = fdf_get_ctnr_status_cmap(cmap, cguid, 0)) != FDF_CONTAINER_OPEN ) {
     	plat_log_msg( 160040, LOG_CAT, LOG_DIAG, "Container must be open to execute a write object" );
         goto out;     
     }
@@ -5168,7 +5204,8 @@ fdf_write_object(
     ar.pbuf_out = (void *) data;
     ar.exptime = 0;
     if (data == NULL) {
-        return(FDF_BAD_PBUF_POINTER);
+        status = FDF_BAD_PBUF_POINTER;
+		goto out;
     }
 
     ActionProtocolAgentNew(pac, &ar);
@@ -5176,7 +5213,7 @@ fdf_write_object(
 	status = ar.respStatus;
 	}	
 out:
-    fdf_decr_io_count( cguid );
+	rel_cntr_map(cmap);
 
     return status;
 }
@@ -5196,14 +5233,16 @@ fdf_write_objects(
 	int i;
     SDF_action_init_t  *pac		= NULL;
     FDF_status_t        status	= FDF_FAILURE;
+	cntr_map_t *cmap = NULL;
 
  	plat_assert(cguid && key);
  
-	if (fdf_incr_wr_io_count(cguid) == 0) {
-		return FDF_FAILURE;
+	cmap = get_cntr_map(cguid);
+	if (!cmap) {
+		return(FDF_CONTAINER_UNKNOWN);
 	}
 
-    if ( (status = fdf_get_ctnr_status(cguid, 0)) != FDF_CONTAINER_OPEN ) {
+    if ( (status = fdf_get_ctnr_status_cmap(cmap, cguid, 0)) != FDF_CONTAINER_OPEN ) {
     	plat_log_msg( 160040, LOG_CAT, LOG_DIAG, "Container must be open to execute a write object" );
         goto out;     
     }
@@ -5231,8 +5270,7 @@ fdf_write_objects(
 	}
 
 out:
-    fdf_decr_io_count( cguid );
-
+	rel_cntr_map(cmap);
     return status;
 }
 
@@ -5555,15 +5593,17 @@ fdf_delete_object(
     SDF_appreq_t        ar;
     SDF_action_init_t  *pac		= NULL;
     FDF_status_t        status	= FDF_SUCCESS;
+	cntr_map_t *cmap = NULL;
 
     if ( !cguid || !key )
         return FDF_INVALID_PARAMETER;
 
-    if (fdf_incr_wr_io_count( cguid ) == 0) {
-		return FDF_FAILURE;
+	cmap = get_cntr_map(cguid);
+	if (!cmap) {
+		return(FDF_CONTAINER_UNKNOWN);
 	}
 
-    if ( (status = fdf_get_ctnr_status(cguid, 0)) != FDF_CONTAINER_OPEN ) {
+    if ( (status = fdf_get_ctnr_status_cmap(cmap, cguid, 0)) != FDF_CONTAINER_OPEN ) {
         plat_log_msg( 160041, LOG_CAT, LOG_DIAG, "Container must be open to execute a delete object" );
         goto out;     
     }
@@ -5606,7 +5646,7 @@ fdf_delete_object(
     ar.internal_request = SDF_TRUE;    
 	ar.internal_thread = fthSelf();
     if ((status=SDFObjnameToKey(&(ar.key), (char *) key, keylen)) != FDF_SUCCESS) {
-        return(status); 
+		goto out;
     }
 
     ActionProtocolAgentNew(pac, &ar);
@@ -5616,7 +5656,7 @@ fdf_delete_object(
 
 out:
 
-    fdf_decr_io_count( cguid );
+	rel_cntr_map(cmap);
 
     return status;
 }

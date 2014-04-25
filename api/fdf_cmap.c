@@ -213,6 +213,7 @@ cntr_map_t *fdf_cmap_get_by_cguid(
 {
 	cntr_map_t *cmap    = NULL;
 	uint64_t    cmaplen = 0;
+	struct CMapEntry *pme;
 
 	if ( FDF_NULL_CGUID == cguid )
 	    return NULL;
@@ -220,9 +221,10 @@ cntr_map_t *fdf_cmap_get_by_cguid(
 	if ( CMC_CGUID == cguid )
 	    return &cmc_map;
 
-    if ( CMapGet( cmap_cguid_hash, (char *) &cguid, sizeof( FDF_cguid_t ), (char **) &cmap, &cmaplen ) ) {
+    if ((pme = CMapGet( cmap_cguid_hash, (char *) &cguid, sizeof( FDF_cguid_t ), (char **) &cmap, &cmaplen )) != NULL ) {
 		//MAx entries is same as max no. of containers, so it can not get replaced
-        CMapRelease( cmap_cguid_hash, (char *) &cguid, sizeof( FDF_cguid_t ) );
+        //CMapRelease( cmap_cguid_hash, (char *) &cguid, sizeof( FDF_cguid_t ) );
+        CMapRelease_fix(pme);
 	    return cmap;
 	} else {
 	    plat_log_msg( 150119,

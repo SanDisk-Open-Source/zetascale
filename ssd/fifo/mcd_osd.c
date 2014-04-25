@@ -4454,6 +4454,7 @@ mcd_fth_osd_slab_set( void * context, mcd_osd_shard_t * shard,
     FDF_boolean_t				vc_evict = FDF_FALSE;
     hash_handle_t             * hdl = shard->hash_handle;
     uint32_t uncomp_datalen = 0; /* Uncompressed data length */
+	cntr_map_t					*cmap = NULL;
     
 	mcd_osd_meta_t                     *meta = NULL;
 
@@ -4476,11 +4477,17 @@ mcd_fth_osd_slab_set( void * context, mcd_osd_shard_t * shard,
         return FLASH_EACCES;
     }
 
-	if ( cntr_id > LAST_PHYSICAL_CGUID && !get_cntr_info( cntr_id, NULL, 0, NULL, NULL, NULL, &vc_evict ) ) 
-		mcd_log_msg( 150108,
-					 PLAT_LOG_LEVEL_ERROR,
-					 "Could not determine eviction type for container %u\n",
-					 cntr_id );
+	cmap = get_cntr_map(cntr_id);
+	if ( cntr_id > LAST_PHYSICAL_CGUID) {
+		if (!cmap) {
+			mcd_log_msg( 150108,
+						 PLAT_LOG_LEVEL_ERROR,
+						 "Could not determine eviction type for container %u\n",
+						 cntr_id );
+		} else {
+			vc_evict = cmap->evicting;
+		}
+	}
 
     if ( FLASH_PUT_PREFIX_DELETE == flags ) {
         return mcd_osd_prefix_delete( shard, key, key_len );
@@ -4695,7 +4702,7 @@ mcd_fth_osd_slab_set( void * context, mcd_osd_shard_t * shard,
         uint64_t rsvd_blks = blk_to_use(shard, blocks);
         if (obj_exists)
             rsvd_blks -= lba_to_use(shard, hash_entry->blocks);
-        if (!inc_cntr_map(cntr_id, 0, rsvd_blks, 1)) {
+        if (cmap && !inc_cntr_map_by_map(cmap, cntr_id, 0, rsvd_blks, 1)) {
             rc = FLASH_ENOSPC;
             goto out;
         }
@@ -5027,7 +5034,11 @@ out:
         mcd_fth_osd_iobuf_free( buf );
     }
 
-    int room = inc_cntr_map(cntr_id, plus_objs, plus_blks, 0);
+    int room = 1;
+	if (cmap) {
+		room = inc_cntr_map_by_map(cmap, cntr_id, plus_objs, plus_blks, 0);
+	}
+
     if (vc_evict && (!room || rc == FLASH_ENOSPC)) {
         osd_state_t *osd_state = (osd_state_t *) context;
         fthUnlock(osd_state->osd_wait);
@@ -5038,14 +5049,22 @@ out:
             if (evict_object(shard, cntr_id, blocks)) {
                 uint64_t used = blk_to_use(shard, blocks);
                 (void) __sync_fetch_and_sub( &shard->num_objects, 1 );
-                if (inc_cntr_map(cntr_id, -1, -used, 0))
-                    break;
+				if (cmap) {
+					if (inc_cntr_map_by_map(cmap, cntr_id, -1, -used, 0))
+						break;
+				} else {
+					break;
+				}
             }
         }
 
         if (rc == FLASH_ENOSPC)
             rc = FLASH_EOK;
     }
+
+	if (cmap) {
+		rel_cntr_map(cmap);
+	}
 
     return rc;
 }

@@ -7134,6 +7134,10 @@ log_write_internal( mcd_osd_shard_t *s, mcd_logrec_object_t *lr)
 	rep_logbuf_seqno_update( (struct shard *)s, nth_buffer, lr->seqno);
 	(void)__sync_fetch_and_sub( &s->refcount, 1);
 
+	if(s->durability_level == SDF_NO_DURABILITY) {
+		return;
+	}
+
 	if (s->flush_fd > 0)
 		flog_persist( s, slot_seqno, log->curr_LSN, lr, s->durability_level == SDF_FULL_DURABILITY);
 	else if (s->durability_level == SDF_FULL_DURABILITY)

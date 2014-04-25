@@ -517,6 +517,11 @@ int CMapRelease(struct CMap *pm, char *key, uint32_t keylen)
     return(rc);
 }
 
+int CMapRelease_fix(struct CMapEntry *pme)
+{
+	atomic_dec(pme->refcnt);
+	return (1);
+}
 #if 0
 //  Decrement the reference count for this entry
 int CMapReleaseEntry(struct CMap *pm, struct CMapEntry *pme)

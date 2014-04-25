@@ -76,6 +76,7 @@ extern int get_ctnr_from_cname(char *cname);
 void rel_cntr_map(cntr_map_t *cmap);
 cntr_map_t *get_cntr_map(cntr_id_t cntr_id);
 int inc_cntr_map(cntr_id_t cntr_id, int64_t objs, int64_t blks, int check);
+int inc_cntr_map_by_map(cntr_map_t *cmap, cntr_id_t cntr_id, int64_t objs, int64_t blks, int check);
 
 /*
  * Get information about a container.  Returns 1 on success and 0 on error.

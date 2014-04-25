@@ -32,6 +32,7 @@ extern int CMapIncrRefcnt(struct CMap *pm, char *key, uint32_t keylen);
 extern int CMapGetRefcnt(struct CMap *pm, char *key, uint32_t keylen);
 extern void CMapCheckRefcnts(struct CMap *pm);
 extern int CMapRelease(struct CMap *pm, char *key, uint32_t keylen);
+extern int CMapRelease_fix(struct CMapEntry *pme);
 extern int CMapReleaseEntry(struct CMap *pm, struct CMapEntry *pme);
 extern struct CMapIterator *CMapEnum(struct CMap *pm);
 extern void CMapFinishEnum(struct CMap *pm, struct CMapIterator *iterator);
