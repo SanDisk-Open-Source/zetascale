@@ -450,6 +450,7 @@ typedef struct mcd_rec_pp_state {
     uint                    dealloc_head,  // ring buffer to delay slab reuse
                             dealloc_tail;  //          by a guaranteed amount
     uint32_t                dealloc_ring[80000];
+	bool                    dealloc_ring_enabled;
 } mcd_rec_pp_state_t;
 
 // Log buffer

@@ -6783,6 +6783,8 @@ log_init( mcd_osd_shard_t * shard )
     log->pp_state.dealloc_count = 0;
     log->pp_state.dealloc_list  = NULL; // allocated below
 
+    log->pp_state.dealloc_ring_enabled   = getProperty_Int( "FDF_TRX", 0);
+
     fthMboxInit( &log->update_mbox );
     fthMboxInit( &log->update_stop_mbox );
     fthSemInit( &log->fill_sem, MCD_REC_LOGBUF_RECS * MCD_REC_NUM_LOGBUFS );
@@ -7248,14 +7250,21 @@ log_sync_postprocess( mcd_osd_shard_t *shard, mcd_rec_pp_state_t *pp_state)
 		high_water_mark = c;
 	}
 	for (uint d=0; d<pp_state->dealloc_count; ++d) {
-		pp_state->dealloc_ring[pp_state->dealloc_head] = pp_state->dealloc_list[d];
-		pp_state->dealloc_head = (pp_state->dealloc_head+1) % nel( pp_state->dealloc_ring);
-		if (pp_state->dealloc_head == pp_state->dealloc_tail) {
-			uint o = pp_state->dealloc_ring[pp_state->dealloc_tail];
-			pp_state->dealloc_tail = (pp_state->dealloc_tail+1) % nel( pp_state->dealloc_ring);
-                	uint i = mcd_osd_lba_to_blk( slabsize( shard, o));
-                	shard->blk_delayed -= i;
-                	__sync_fetch_and_sub( &shard->blk_consumed, i);
+		if (pp_state->dealloc_ring_enabled) {
+			pp_state->dealloc_ring[pp_state->dealloc_head] = pp_state->dealloc_list[d];
+			pp_state->dealloc_head = (pp_state->dealloc_head+1) % nel( pp_state->dealloc_ring);
+			if (pp_state->dealloc_head == pp_state->dealloc_tail) {
+				uint o = pp_state->dealloc_ring[pp_state->dealloc_tail];
+				pp_state->dealloc_tail = (pp_state->dealloc_tail+1) % nel( pp_state->dealloc_ring);
+				uint i = mcd_osd_lba_to_blk( slabsize( shard, o));
+				shard->blk_delayed -= i;
+				__sync_fetch_and_sub( &shard->blk_consumed, i);
+				mcd_fth_osd_slab_dealloc( shard, o, true);
+			}
+		} else {
+			uint o = pp_state->dealloc_list[d];
+			uint i = mcd_osd_lba_to_blk( slabsize( shard, o));
+			shard->blk_delayed -= i;
 			mcd_fth_osd_slab_dealloc( shard, o, true);
 		}
 	}
