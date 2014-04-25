@@ -478,7 +478,7 @@ extern int  recovery_report_version( char ** bufp, int * lenp );
 extern int  recovery_init( void );
 extern int  update_class( mcd_osd_shard_t * shard,
                           mcd_osd_slab_class_t * class,
-                          uint32_t segment_num );
+                          mcd_osd_segment_t* segment );
 extern int  flash_format( uint64_t total_size );
 extern int  shard_format( uint64_t shard_id, int flags, uint64_t quota,
                           unsigned max_objs, mcd_osd_shard_t * shard );

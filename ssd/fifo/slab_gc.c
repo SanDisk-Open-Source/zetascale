@@ -144,8 +144,10 @@ found:
 	if(!hash_entry->used || hash_entry->address != src_blk_offset)
 		goto out;
 
-	if((rc = mcd_fth_osd_slab_alloc(context, shard, class->slab_blksize, 1, &dst_blk_offset)))
+	if(!(rc = mcd_fth_osd_slab_alloc(context, shard, class->slab_blksize, 1, &dst_blk_offset)))
 		goto out;
+
+	plat_assert(src_blk_offset != dst_blk_offset);
 
 	dst_offset = mcd_osd_rand_address(shard, dst_blk_offset);
 
@@ -163,30 +165,30 @@ found:
 
 	stat_inc(shard, SLABS_RELOCATED);
 
-	if(shard->persistent)
-	{
-		log_rec.syndrome   = hash_entry->syndrome;
-		log_rec.deleted    = hash_entry->deleted;
-		log_rec.reserved   = 0;
-		log_rec.blocks     = hash_entry->blocks;
-		log_rec.bucket     = syndrome % hdl->hash_size;
-		log_rec.blk_offset = dst_blk_offset;
-		log_rec.cntr_id    = hash_entry->cntr_id;
-		log_rec.seqno      = seqno;
-		log_rec.old_offset   = ~(hash_entry->address);
-		log_rec.target_seqno = target_seqno;
-		log_write(shard, &log_rec);
-	}
+	log_rec.syndrome   = hash_entry->syndrome;
+	log_rec.deleted    = hash_entry->deleted;
+	log_rec.reserved   = 0;
+	log_rec.blocks     = hash_entry->blocks;
+	log_rec.bucket     = syndrome % hdl->hash_size;
+	log_rec.blk_offset = dst_blk_offset;
+	log_rec.cntr_id    = hash_entry->cntr_id;
+	log_rec.seqno      = seqno;
+	log_rec.old_offset   = ~(hash_entry->address);
+	log_rec.target_seqno = target_seqno;
 
-	bool delayed = shard->replicated || (shard->persistent && !shard->evict_to_free);
+	mcd_fth_osd_remove_entry(shard, hash_entry, true, false);
 
-	mcd_fth_osd_remove_entry(shard, hash_entry, delayed, false);
+	log_write(shard, &log_rec);
 
 	atomic_add(shard->blk_consumed, mcd_osd_lba_to_blk(hash_entry->blocks));
 
+	plat_assert(hash_entry->address == src_blk_offset);
 	hash_entry->address = dst_blk_offset;
 	hdl->addr_table[dst_blk_offset] = syndrome % hdl->hash_size;
 
+	plat_assert(shard->slab_classes + shard->class_table[mcd_osd_lba_to_blk(hash_entry->blocks)] == class);
+
+	plat_assert(hash_entry->address == dst_blk_offset);
 out:
 	if(rc)
 		stat_inc(shard, RELOCATE_ERRORS);
@@ -303,7 +305,7 @@ void slab_gc_compact_class(
 		goto out;
 
 	/* Make bitmap snapshot */
-	memcpy(shard->gc->bitmap, segment->alloc_map, Mcd_osd_segment_blks / 8);
+	memcpy(shard->gc->bitmap, segment->bitmap, Mcd_osd_segment_blks / 8);
 
 	/* Read whole segment at once */
 	if((mcd_fth_aio_blk_read(context,
@@ -313,7 +315,7 @@ void slab_gc_compact_class(
 		goto out;
 
 	/* Run through all used slabs of the segment */
-	while (map_offset < Mcd_osd_segment_blks / class->slab_blksize / 64)
+	while (map_offset < (Mcd_osd_segment_blks / class->slab_blksize + 63) / 64)
 	{
 		map_value = shard->gc->bitmap[map_offset];
 

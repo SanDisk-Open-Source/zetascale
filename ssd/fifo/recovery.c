@@ -4641,6 +4641,9 @@ delete_object(mshard_t *shard, mhash_t *hash, uint64_t bkt_i)
     baddr_t baddr = hash->address;
 
     hash->deleted = 1;
+
+    mcd_fth_osd_remove_entry(shard, hash, true, false);
+
     mcd_logrec_object_t log ={
         .syndrome   = hash->syndrome,
         .deleted    = 1,
@@ -4650,10 +4653,6 @@ delete_object(mshard_t *shard, mhash_t *hash, uint64_t bkt_i)
         .cntr_id    = hash->cntr_id,
     };
     log_write(shard, &log);
-
-    bool delayed = shard->replicated ||
-                   (shard->persistent && !shard->evict_to_free);
-    mcd_fth_osd_remove_entry(shard, hash, delayed, true);
 }
 
 
@@ -4706,7 +4705,7 @@ del_obj_over(mshard_t *shard, mhash_t *hash)
                       shard->overflow_index[ho] % shard->bkts_per_lock;
 
     delete_object(shard, hash, bkt_i);
-    memset(hash, 0, sizeof(*hash));
+    hash_entry_set_unused(hash);
     fix_overflow(shard, bkt_i, 0);
 }
 
@@ -4728,7 +4727,12 @@ del_obj_hash(mshard_t *shard, mhash_t *hash)
         fatal("misplaced hash entry bi=%d next=%d", bi, bucket->next_item);
 
     delete_object(shard, hash, bkt_i);
-    *hash = hashb[--bucket->next_item];
+    bucket->next_item--;
+    if(hash != hashb + bucket->next_item)
+    {
+        *hash = hashb[bucket->next_item];
+        shard->addr_table[hash->address] = hash - shard->hash_table;
+    }
     if (bucket->overflowed)
         fix_overflow(shard, bkt_i, 1);
 }
@@ -4802,12 +4806,13 @@ delete_all_objects(pai_t *pai, shard_t *sshard, cguid_t cguid)
                 }
                 log.target_seqno = 0;
 
-                log_write(shard, &log);
-
                 bool delayed = shard->replicated ||
                     (shard->persistent && !shard->evict_to_free);
 
                 mcd_fth_osd_remove_entry(shard, hash_entry, delayed, true);
+
+                log_write(shard, &log);
+
                 hash_entry_delete(hdl, hash_entry, hash_idx);
             }
         }

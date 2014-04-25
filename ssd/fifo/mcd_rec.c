@@ -2149,8 +2149,7 @@ recovery_halt( flashDev_t * flashDev )
 }
 
 int
-update_class( mcd_osd_shard_t * shard, mcd_osd_slab_class_t * class,
-              uint32_t segment_num )
+update_class( mcd_osd_shard_t * shard, mcd_osd_slab_class_t * class, mcd_osd_segment_t* segment)
 {
     int                         bs, rc;
     int                         class_index;
@@ -2254,8 +2253,13 @@ update_class( mcd_osd_shard_t * shard, mcd_osd_slab_class_t * class,
     }
 
     // calculate where the new segment goes
-    seg_blk_offset = segment_num / Mcd_rec_list_items_per_blk;
-    seg_slot       = segment_num % Mcd_rec_list_items_per_blk;
+//    seg_blk_offset = segment_num / Mcd_rec_list_items_per_blk;
+//    seg_slot       = segment_num % Mcd_rec_list_items_per_blk;
+
+    seg_blk_offset = (segment - shard->base_segments) / MCD_REC_LIST_ITEMS_PER_BLK;
+    seg_slot       = (segment - shard->base_segments) % MCD_REC_LIST_ITEMS_PER_BLK;
+
+    plat_assert(seg_blk_offset < pshard->map_blks);
 
     // map list structure on to buffer
     seg_list = (mcd_rec_list_block_t *)
@@ -2266,8 +2270,9 @@ update_class( mcd_osd_shard_t * shard, mcd_osd_slab_class_t * class,
     // Note: since block offset 0 is a valid segment address, the offset
     // is bitwise inverted when stored so it can be found in recovery
     seg_list->data[ seg_slot ] = 0;
-    if(class->segments[ segment_num ])
-       seg_list->data[ seg_slot ] = ~(class->segments[ segment_num ]->blk_offset);
+
+    if(class->segments[ segment->idx ])
+       seg_list->data[ seg_slot ] = ~(segment->blk_offset);
 
     // install new checksum
     seg_list->checksum = 0;
@@ -2275,10 +2280,12 @@ update_class( mcd_osd_shard_t * shard, mcd_osd_slab_class_t * class,
 
     offset = pclass_offset + pclass->seg_list_offset + seg_blk_offset;
 
+#if 0
     mcd_log_msg( 40065, PLAT_LOG_LEVEL_TRACE,
                  "class[%d], blksize=%d: new_seg[%d], blk_offset=%lu",
                  class_index, class->slab_blksize, segment_num,
                 ~seg_list->data[ seg_slot ]);
+#endif
 
     // write persistent segment list (single updated block)
     rc = mcd_fth_aio_blk_write( context,
@@ -2316,8 +2323,8 @@ meta_more_than_seg:
 		    					Mcd_osd_blk_mask );
 
     // calculate where the new segment goes
-    seg_blk_offset = segment_num / Mcd_rec_list_items_per_blk;
-    seg_slot       = segment_num % Mcd_rec_list_items_per_blk;
+    seg_blk_offset = segment->idx / Mcd_rec_list_items_per_blk;
+    seg_slot       = segment->idx % Mcd_rec_list_items_per_blk;
 
     pclass_offset = pshard->class_offset[ class_index ];
     offset = pclass_offset % Mcd_osd_segment_blks;
@@ -2446,8 +2453,8 @@ meta_more_than_seg:
     // Note: since block offset 0 is a valid segment address, the offset
     // is bitwise inverted when stored so it can be found in recovery
     seg_list->data[ seg_slot ] = 0;
-    if(class->segments[ segment_num ])
-       seg_list->data[ seg_slot ] = ~(class->segments[ segment_num ]->blk_offset);
+    if(class->segments[ segment->idx ])
+       seg_list->data[ seg_slot ] = ~(class->segments[ segment->idx ]->blk_offset);
 
     // install new checksum
     seg_list->checksum = 0;
@@ -2455,7 +2462,7 @@ meta_more_than_seg:
 
     mcd_log_msg( 40065, PLAT_LOG_LEVEL_TRACE,
                  "class[%d], blksize=%d: new_seg[%d], blk_offset=%lu",
-                 class_index, class->slab_blksize, segment_num,
+                 class_index, class->slab_blksize, segment->idx,
                 ~seg_list->data[ seg_slot ]);
 
     // write persistent segment list (single updated block)
@@ -3196,7 +3203,7 @@ shard_recover( mcd_osd_shard_t * shard )
                 plat_abort();
             }
 
-            for ( s = 0; s < Mcd_rec_list_items_per_blk && !list_end; s++ ) {
+            for ( s = 0; s < Mcd_rec_list_items_per_blk && s < shard->total_blks/Mcd_osd_segment_blks && !list_end; s++ ) {
                 //Segment removed or never allocated
                 if ( seg_list->data[ s ] == 0 ) {
                     continue;
@@ -6622,6 +6629,8 @@ updater_thread( uint64_t arg )
                 slabs_per_pth = class->slabs_per_segment / (flash_settings.num_sdf_threads*flash_settings.num_cores);
 
                 for ( j = 0; j < class->num_segments; j++ ) {
+                    if(!class->segments[j])
+                        continue;
                     if ( class->segments[j]->blk_offset <= hash_entry->address
                          && class->segments[j]->blk_offset +
                          Mcd_osd_segment_blks > hash_entry->address ) {

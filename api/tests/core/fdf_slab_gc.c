@@ -4,7 +4,7 @@
 #include <pthread.h>
 #include <string.h>
 #include "fdf.h"
-#include "test.h"
+#include "../test.h"
 
 static FDF_cguid_t  cguid_shared;
 static long size = 1024 * 1024 * 1024;
@@ -205,6 +205,8 @@ int main(int argc, char *argv[])
 	FDFSetProperty("FDF_SLAB_GC", "On");
 	FDFSetProperty("FDF_SLAB_GC_THRESHOLD", "70");
 	FDFSetProperty("FDF_FLASH_SIZE", "3");
+	FDFSetProperty("FDF_COMPRESSION", "0");
+	FDFSetProperty("FDF_BLOCK_SIZE", "512");
 	FDFSetProperty("FDF_FLASH_FILENAME", "/dev/shm/schooner%d");
 	FDFSetProperty("FDF_LOG_FLUSH_DIR", "/dev/shm");
 	FDFSetProperty("SYNC_DATA", "0");
@@ -230,7 +232,7 @@ int main(int argc, char *argv[])
 	start_id = 0;
 	step = 1;
 	op = SET;
-	obj_size = 440;
+	obj_size = 400;
 	fprintf(stderr, "SET(before): count=%d\n", threads * count / step);
 	start_threads(threads, worker);
 	fprintf(stderr, "SET(after): count=%d\n", threads * count / step);
@@ -244,8 +246,8 @@ int main(int argc, char *argv[])
 	fprintf(stderr, "GET(after): count=%d\n", threads * count / step);
 
 	/* Both set should fail, there is no space in container */
-	t(set_objs(cguid_shared, 1, 950, 10000000, 1, 1), 0);
-	t(set_objs(cguid_shared, 1, 440, 10000000, 1, 1), 0);
+	t(set_objs(cguid_shared, 1, 900, 10000000, 1, 1), 0);
+	t(set_objs(cguid_shared, 1, 400, 10000000, 1, 1), 0);
 
 	/* Delete 50% of SLABS using 16 threads */
 	count = max_512 / threads; /* Delete 50% */
@@ -264,7 +266,7 @@ int main(int argc, char *argv[])
 
 	/* This should cause synchronous GC */
 	fprintf(stderr, "SET(before): slab size=1024\n");
-	t(set_objs(cguid_shared, 1, 950, 100000000, 393216, 1),393216);
+	t(set_objs(cguid_shared, 1, 900, 100000000, 393216, 1),393216);
 	fprintf(stderr, "SET(after): slab size=1024\n");
 
 	check_stat(FDF_FLASH_STATS_SLAB_GC_WAIT_SYNC, 3);
@@ -321,7 +323,7 @@ int main(int argc, char *argv[])
 
 	print_stat();
 
-	wait_free_segments(29, 300);
+	wait_free_segments(29, 400);
 
 	fprintf(stderr, "All tests passed\n");
 
