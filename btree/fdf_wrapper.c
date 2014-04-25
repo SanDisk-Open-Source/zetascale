@@ -619,6 +619,8 @@ FDF_status_t _FDFInit(
     FDFSetProperty ("FDF_CACHE_CHUNK_SIZE", FDFGetProperty("FDF_CACHE_CHUNK_SIZE", "8300"));
     FDFSetProperty ("FDF_COMPRESSION", FDFGetProperty("FDF_COMPRESSION", "1"));
 
+    FDFSetProperty ("FDF_TRX", FDFGetProperty("FDF_TRX", "1"));
+
     ret = FDFInit(fdf_state);
     if ( ret == FDF_FAILURE ) {
         return ret;

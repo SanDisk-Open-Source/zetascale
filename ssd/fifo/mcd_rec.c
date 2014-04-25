@@ -34,6 +34,7 @@
 #include "fdf_internal.h"
 #include "container_meta_blob.h"
 #include "protocol/action/recovery.h"
+#include "ssd/fifo/slab_gc.h"
 
 
 /*
@@ -3567,6 +3568,7 @@ meta_more_than_seg:
     return 0;
 }
 
+extern bool slab_gc_enabled;
 
 void
 shard_recover_phase2( mcd_osd_shard_t * shard )
@@ -3648,6 +3650,9 @@ shard_recover_phase2( mcd_osd_shard_t * shard )
                  "Recovered persistent shard, id=%lu, objects=%lu, seqno=%lu, "
                  "cas_id=%lu, bytes allocated=%lu", shard->id, recovered_objs,
                  shard->sequence, shard->cntr->cas_id, shard->ps_alloc );
+
+    if(slab_gc_enabled && shard->cntr->cguid == VDC_CGUID)
+        slab_gc_init(shard, getProperty_Int("FDF_SLAB_GC_THRESHOLD", 70 /* % */));
 
     return;
 }

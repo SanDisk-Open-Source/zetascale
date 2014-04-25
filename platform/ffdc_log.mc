@@ -3481,3 +3481,4 @@
 180021 FDFSetProperty ('%s', '%s'). Old value: %s
 180207 Invalid objects count
 180208 cls=%ld addr=%u slabs=%lu, pend=%lu
+180209 FDF_SLAB_GC is incompatible with FDF_TRX. Disabling FDF_SLAB_GC.

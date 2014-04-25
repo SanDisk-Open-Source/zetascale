@@ -287,7 +287,7 @@ trxinit( )
 	sem_init( &endlock, 0, 0);
 	pthread_rwlock_init( &entrylock, 0);
 	ntrxlimit += ntrxpermitted;
-	trxproperty = atoi( FDFGetProperty( "FDF_TRX", "1"));
+	trxproperty = atoi( FDFGetProperty( "FDF_TRX", "0"));
 	trxenabled = trxproperty & 1<<0;
 	trxverbose = trxproperty & 1<<1;
 	FDFTransactionService( 0, 4, (void *)(long)trxenabled);

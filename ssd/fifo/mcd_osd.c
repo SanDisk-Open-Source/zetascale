@@ -276,7 +276,7 @@ extern uint64_t                 Mcd_aio_real_size;
 extern uint64_t                 Mcd_aio_read_ops;
 extern uint64_t                 Mcd_aio_write_ops;
 
-static bool slab_gc_enabled = false;
+bool slab_gc_enabled = false;
 
 /*
  *  Unique pthread id.
@@ -6152,9 +6152,6 @@ mcd_osd_shard_open( struct flashDev * dev, uint64_t shard_id )
         mcd_osd_shard_uninit( mcd_shard );
         return NULL;
     }
-
-    if(slab_gc_enabled)
-        slab_gc_init(mcd_shard, getProperty_Int("FDF_SLAB_GC_THRESHOLD", 70 /* % */));
 
     mcd_shard->opened = 1;
 

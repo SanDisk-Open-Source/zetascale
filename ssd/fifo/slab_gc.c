@@ -398,6 +398,12 @@ bool slab_gc_init(mcd_osd_shard_t* shard, int threshold /* % of used slabs */)
 
 	mcd_log_msg(180018, PLAT_LOG_LEVEL_TRACE, "ENTERING, shard->id=%ld, gc threshold=%d", shard->id, threshold);
 
+	if(getProperty_Int("FDF_TRX", 0)) {
+		plat_log_msg(180209, PLAT_LOG_CAT_PRINT_ARGS, PLAT_LOG_LEVEL_WARN,
+				"FDF_SLAB_GC is incompatible with FDF_TRX. Disabling FDF_SLAB_GC.");
+		return false;
+	}
+
 	if(!(shard->gc = plat_alloc(sizeof(slab_gc_shard_t))))
 		return false;
 
