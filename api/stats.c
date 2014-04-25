@@ -51,6 +51,7 @@
 #ifdef FLIP_ENABLED
 #include "flip/flip.h"
 #endif
+#include <ssd/fifo/scavenger.h>
 
 /*
  * Functions defined in fdf.c
@@ -512,6 +513,33 @@ static void process_log_level_cmd(struct FDF_thread_state *thd_state,
     }
 }
 
+static void process_scavenger_cmd(struct FDF_thread_state *thd_state,
+                            FILE *fp, cmd_token_t *tokens, size_t ntokens)
+{
+    if ( ntokens < 2 ) {
+        fprintf(fp,"Invalid argument! Type help for more info\n");
+        return;
+    }
+
+    if ( 0 == getProperty_uLongInt("FDF_EXPIRY_SCAVENGER_ENABLE", 1)) {
+        fprintf(fp,"scavenger not enabled, use FDF_EXPIRY_SCAVENGER_ENABLE\n");
+        return;
+    }
+
+    if ( strcmp(tokens[1].value,"start" ) == 0 ){
+        if(FDF_SUCCESS == fdf_start_scavenger_thread(
+                    (struct FDF_state *)0xdeadbeef)){
+            fprintf(fp,"scavenger started\n");
+        } else {
+            fprintf(fp,"scavenger start failed\n");   
+        }
+    } else if (strcmp(tokens[1].value,"stop" ) == 0 ){
+        if(FDF_SUCCESS == fdf_stop_scavenger_thread()){
+            fprintf(fp,"scavenger stopped\n");
+        }
+    }
+}
+
 static void process_container_cmd(struct FDF_thread_state *thd_state, 
                        FILE *fp, cmd_token_t *tokens, size_t ntokens){
     int rc,i;
@@ -686,6 +714,9 @@ static FDF_status_t process_admin_cmd( struct FDF_thread_state *thd_state,
     else if( strcmp(tokens[0].value,"quit") == 0 ) {
          return FDF_FAILURE;
     }
+    else if( strcmp(tokens[0].value,"scavenger") == 0 ) {
+        process_scavenger_cmd(thd_state, fp, tokens, ntokens);
+    }
     else {
         fprintf(fp,"Invalid command:(%s)." 
                           "Type help for list of commands\n",cmd);
@@ -834,3 +865,4 @@ FDF_status_t fdf_stop_admin_thread(uint16_t admin_port, uint16_t num_thds ) {
     /* Create Admin thread */  
     return FDF_SUCCESS;
 }
+

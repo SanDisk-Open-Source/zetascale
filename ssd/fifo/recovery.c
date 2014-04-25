@@ -4411,17 +4411,18 @@ e_extr_obj(e_state_t *es, time_t now, char **key, uint64_t *keylen,
     return FDF_SUCCESS;
 }
 
-
 /*
  * Copy a hash entry if it belongs to our container.
  */
 static inline void
-copyhash(e_state_t *es, mhash_t *hash, uint64_t bkt_i)
+copyhash(e_state_t *es, mhash_t *hash, uint64_t bkt_i, int flag)
 {
-    cntr_id_t cntr_id = es->cguid;
+    if( flag ){
+        cntr_id_t cntr_id = es->cguid;
 
-    if (hash->cntr_id != cntr_id)
-        return;
+        if (hash->cntr_id != cntr_id)
+            return;
+    }
 
     if (es->hash_buf_i >= es->hash_buf_n) {
         if (!es->enum_error) {
@@ -4444,7 +4445,7 @@ copyhash(e_state_t *es, mhash_t *hash, uint64_t bkt_i)
  * current bucket; we check anyway in copyhash.
  */
 static void
-e_hash_fill(pai_t *pai, e_state_t *es, int bkt_i)
+e_hash_fill(pai_t *pai, e_state_t *es, int bkt_i, int flag)
 {
     int i;
     mhash_t *hash;
@@ -4465,7 +4466,7 @@ e_hash_fill(pai_t *pai, e_state_t *es, int bkt_i)
                 continue;
             }
 
-            copyhash(es, hash, bkt_i);
+            copyhash(es, hash, bkt_i, flag);
         }
     }
 
@@ -4488,7 +4489,7 @@ enumerate_next(pai_t *pai, e_state_t *es, char **key, uint64_t *keylen,
         while (!es->hash_buf_i) {
             if (es->hash_bkt_i >= es->num_bkts)
                 return FDF_OBJECT_UNKNOWN;
-            e_hash_fill(pai, es, es->hash_bkt_i++);
+            e_hash_fill(pai, es, es->hash_bkt_i++, 1);
         }
 
         int s;
@@ -5051,4 +5052,136 @@ set_cntr_sizes(pai_t *pai, shard_t *sshard)
     }
 
     plat_free(cntr_p);
+}
+
+/* Scavenger Scan Routines */
+
+static FDF_status_t
+ss_extr_obj(e_state_t *es, time_t now, uint64_t *cguid, char **key, 
+                uint64_t *keylen)
+{
+    mo_meta_t     *meta = (mo_meta_t *) es->data_buf_align;
+    const uint64_t mlen = sizeof(*meta);
+    const uint64_t klen = meta->key_len;
+    const uint64_t dlen = meta->data_len;
+    const uint64_t cid = meta->cguid;
+
+    if (mlen + klen + dlen > MCD_OSD_SEGMENT_SIZE)
+        return FDF_OBJECT_UNKNOWN;
+
+    if (meta->magic != MCD_OSD_META_MAGIC)
+        return FDF_OBJECT_UNKNOWN;
+
+    if (meta->version != MCD_OSD_META_VERSION)
+        return FDF_OBJECT_UNKNOWN;
+
+    if (meta->expiry_time && meta->expiry_time <= now){
+
+        char *kptr = plat_malloc(klen);
+        if (!kptr)
+            return FDF_FAILURE_MEMORY_ALLOC;
+
+        memcpy(kptr, es->data_buf_align + mlen, klen);
+
+        *key = kptr;
+        *keylen = klen;
+        *cguid = cid;
+        return FDF_EXPIRED;
+    }
+
+    return FDF_SUCCESS;
+}
+
+FDF_status_t
+scavenger_scan_next(pai_t *pai, e_state_t *es, uint64_t *cguid, 
+                        char **key, uint64_t *keylen)
+{
+    time_t        now = time(NULL);
+    mshard_t   *shard = es->shard;
+
+    while(1){
+        while (!es->hash_buf_i) {
+            if (es->hash_bkt_i >= es->num_bkts)
+                return FDF_SCAN_DONE;
+            e_hash_fill(pai, es, es->hash_bkt_i++, 0);
+        }
+
+        int s;
+        e_hash_t *ehash = &es->hash_buf[--es->hash_buf_i];
+        mhash_t   *hash = &ehash->h;
+        if (!hash->used)
+            continue;
+
+        //reading all blocks will be heavy
+        uint64_t nb = lba_to_blk(hash->blocks);
+        if (nb > Mcd_osd_segment_blks)
+            return FDF_FLASH_EINVAL;
+
+        s = read_disk(shard, (aioctx_t *)&pai->ctxt,
+                es->data_buf_align, hash->address, nb);
+        if (!s)
+            return FDF_FLASH_EINVAL;
+
+        s = ss_extr_obj(es, now, cguid, key, keylen);
+        if(s == FDF_OBJECT_UNKNOWN) continue;
+        return s;
+    }
+}
+
+FDF_status_t
+scavenger_scan_done(pai_t *pai, e_state_t *es)
+{
+    if (es->data_buf_alloc)
+        plat_free(es->data_buf_alloc);
+    if (es->hash_buf)
+        plat_free(es->hash_buf);
+    plat_free(es);
+    return FDF_SUCCESS;
+}
+
+static FDF_status_t
+ss_init_fail(pai_t *pai, e_state_t *es)
+{
+    if (es)
+        scavenger_scan_done(pai, (void *)es);
+    return FDF_FAILURE_MEMORY_ALLOC;
+}
+
+FDF_status_t
+scavenger_scan_init(pai_t *pai, shard_t *sshard, e_state_t **esp)
+{
+    mshard_t *shard = (mshard_t *) sshard;
+
+    e_state_t *es = plat_malloc(sizeof(*es));
+    if (!es)
+        return ss_init_fail(pai, es);
+    memset(es, 0, sizeof(*es));
+
+    es->data_buf_alloc = plat_malloc(MCD_OSD_SEGMENT_SIZE + BLK_SIZE-1);
+    if (!es->data_buf_alloc)
+        return ss_init_fail(pai, es);
+    es->data_buf_align = chunk_next_ptr(es->data_buf_alloc, BLK_SIZE);
+
+    es->num_bkts         = shard->hash_handle->hash_size /
+        OSD_HASH_BUCKET_SIZE;
+    es->hash_buf_n       = HASH_CACHE_SIZE;
+    /*
+     * if any hash bucket have more than OSD_HASH_MAX_CHAIN hash_entry
+     * will endup in unexpected behaviour. adjust OSD_HASH_MAX_CHAIN
+     * accordingly. by new hash design chain length can be as long as
+     * complete hash table size, however inorder not to allocate huge
+     * amount of memory while each enumeration operation, limiting it
+     * to OSD_HASH_MAX_CHAIN.
+     */
+    es->max_hash_per_bkt = OSD_HASH_MAX_CHAIN;
+    if (es->hash_buf_n < es->max_hash_per_bkt)
+        es->hash_buf_n = es->max_hash_per_bkt;
+
+    es->hash_buf = plat_malloc(es->hash_buf_n * sizeof(mhash_t));
+    if (!es->hash_buf)
+        return ss_init_fail(pai, es);
+
+    es->shard = shard;
+    *((e_state_t **) esp) = es;
+    return FDF_SUCCESS;
 }
