@@ -2427,8 +2427,11 @@ mcd_fth_osd_shrink_class(mcd_osd_shard_t * shard, mcd_osd_segment_t *segment, bo
 
     /* The segment may be already removed from the segments list by GC thread.
        Proceed if its GC thread, go out in all other cases */
-    if(!mcd_osd_slab_segments_free_slot(class, segment) && !gc)
-    {
+	if(gc) {
+		plat_assert(class->segments[segment->idx] == (void*)-1);
+		class->segments[segment->idx] = NULL;
+	}
+	else if(!mcd_osd_slab_segments_free_slot(class, segment, NULL)) {
         fthUnlock( wait );
         return 1;
     }
@@ -3723,7 +3726,7 @@ mcd_osd_segment_get_and_lock(mcd_osd_slab_class_t* class, int i)
 {
     mcd_osd_segment_t* segment = class->segments[i];
 
-    return segment ? mcd_osd_segment_lock(class, segment) : NULL;
+    return segment && segment != (void*)-1 ? mcd_osd_segment_lock(class, segment) : NULL;
 }
 
 uint64_t mcd_osd_get_free_segments_count(mcd_osd_shard_t* shard)
@@ -3766,12 +3769,12 @@ int mcd_osd_slab_segments_get_free_slot(mcd_osd_slab_class_t* class)
     return seg_idx;
 }
 
-int mcd_osd_slab_segments_free_slot(mcd_osd_slab_class_t* class, mcd_osd_segment_t *segment)
+int mcd_osd_slab_segments_free_slot(mcd_osd_slab_class_t* class, mcd_osd_segment_t *segment, void* value)
 {
     if(class->segments[segment->idx] != segment)
         return 0;
 
-    class->segments[segment->idx] = NULL;
+    class->segments[segment->idx] = value;
 
     return 1;
 }
@@ -4262,6 +4265,9 @@ found:
                 Mcd_pthread_id, hand,
                 hash_entry->address, hash_index );
 
+        if(shard->replicated)
+            mcd_fth_osd_remove_entry(shard, hash_entry, true, false);
+
         // eviction case
         if ( 1 == shard->persistent ) {
             log_rec.syndrome     = hash_entry->syndrome;
@@ -4282,9 +4288,6 @@ found:
             log_rec.target_seqno = 0;
             log_write( shard, &log_rec );
         }
-
-        if(shard->replicated)
-            mcd_fth_osd_remove_entry(shard, hash_entry, true, false);
 
         evictions = __sync_fetch_and_add( &shard->num_slab_evictions, 1 );
         if ( 0 == evictions % MCD_OSD_EVAGE_FEQUENCY ) {
@@ -5023,6 +5026,8 @@ mcd_fth_osd_slab_set( void * context, mcd_osd_shard_t * shard,
                     bucket->hand++;
                 } while ( ++n );
 
+                mcd_fth_osd_remove_entry(shard, hash_entry, shard->replicated, true);
+
                 // hash eviction in cache mode
                 if ( 1 == shard->persistent ) {
                     log_rec.syndrome     = hash_entry->syndrome;
@@ -5042,8 +5047,6 @@ mcd_fth_osd_slab_set( void * context, mcd_osd_shard_t * shard,
                     log_rec.target_seqno = 0;
                     log_write( shard, &log_rec );
                 }
-
-                mcd_fth_osd_remove_entry(shard, hash_entry, shard->replicated, true);
 
                 (void) __sync_fetch_and_add( &shard->num_hash_evictions, 1 );
             }

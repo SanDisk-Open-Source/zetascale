@@ -2191,6 +2191,7 @@ update_class( mcd_osd_shard_t * shard, mcd_osd_slab_class_t * class, mcd_osd_seg
 		    (pclass_offset + blks - 1) / Mcd_osd_segment_blks)) {
 	    goto meta_more_than_seg;
     }
+#if 0 //EF: Unreacheable code. Disable it to not confuse.
     // this read should not cross a segment boundary
     plat_assert( pclass_offset / Mcd_osd_segment_blks ==
                  (pclass_offset + blks - 1) / Mcd_osd_segment_blks );
@@ -2306,6 +2307,7 @@ update_class( mcd_osd_shard_t * shard, mcd_osd_slab_class_t * class, mcd_osd_seg
                                      Mcd_osd_blk_size );
     plat_assert_rc( rc );
     return 0;
+#endif
 
 meta_more_than_seg:
     /******************************************************
@@ -3131,6 +3133,7 @@ shard_recover( mcd_osd_shard_t * shard )
     if (1 || (pshard->rec_md_blks > Mcd_osd_segment_blks)) {
 	    goto meta_more_than_seg;
     }
+#if 0 //EF: Unreacheable code. Disable it to not confuse.
     // recover shard classes
     for ( c = 0; c < Mcd_osd_max_nclasses; c++ ) {
 
@@ -3250,6 +3253,7 @@ shard_recover( mcd_osd_shard_t * shard )
     }
 
     goto read_checkpoint;
+#endif
 
 meta_more_than_seg:
     /******************************************************
@@ -3402,6 +3406,8 @@ meta_more_than_seg:
             for ( s = 0; s < Mcd_rec_list_items_per_blk && !list_end; s++ ) {
                 //Segment removed or never allocated
                 if ( seg_list->data[ s ] == 0 ) {
+                    if(class->segments)
+                        c_seg++;
                     continue;
                 }
 
@@ -3419,7 +3425,7 @@ meta_more_than_seg:
                         0,
                         class->slabs_per_segment / 8 );
 
-                class->num_segments  += 1;
+                class->num_segments   = c_seg + 1;
                 class->total_slabs   += class->slabs_per_segment;
 
                 if(class->segments[ c_seg ]->blk_offset + Mcd_osd_segment_blks > shard->blk_allocated)
@@ -3445,7 +3451,7 @@ meta_more_than_seg:
         }
     }
 
-read_checkpoint:
+//read_checkpoint:
     // -----------------------------------------------------
     // Retrieve the checkpoint record for this shard, and
     // find which log to apply (or which order for both)

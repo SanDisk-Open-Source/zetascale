@@ -278,7 +278,7 @@ void slab_gc_compact_class(
 
 	/* Prevent SLAB allocations from this segment */
 	if(segment)
-		mcd_osd_slab_segments_free_slot(class, segment);
+		mcd_osd_slab_segments_free_slot(class, segment, (void*)-1);
 
 	fthUnlock(wait);
 
@@ -358,9 +358,7 @@ out:
 	/* Put segment back to segment list if we were unable to free it */
 	wait = fthLock( &class->lock, 1, NULL );
 
-	int seg_idx = mcd_osd_slab_segments_get_free_slot(class);
-	class->segments[seg_idx] = segment;
-	segment->idx = seg_idx;
+	class->segments[segment->idx] = segment;
 
 	stat_inc(shard, SEGMENTS_CANCELLED);
 

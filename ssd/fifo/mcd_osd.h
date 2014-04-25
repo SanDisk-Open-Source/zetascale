@@ -691,7 +691,7 @@ int
 mcd_osd_slab_segments_get_free_slot(mcd_osd_slab_class_t* class);
 
 int
-mcd_osd_slab_segments_free_slot(mcd_osd_slab_class_t* class, mcd_osd_segment_t* segment);
+mcd_osd_slab_segments_free_slot(mcd_osd_slab_class_t* class, mcd_osd_segment_t* segment, void* value);
 
 uint64_t mcd_osd_get_free_segments_count(mcd_osd_shard_t* shard);
 
