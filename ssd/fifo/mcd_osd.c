@@ -2535,7 +2535,7 @@ mcd_fth_osd_slab_dealloc( mcd_osd_shard_t * shard, uint32_t address, bool async 
     	}
 	}
 
-	if(!segment->used_slabs)
+	if(!segment->used_slabs && shard->gc)
 		mcd_fth_osd_shrink_class(shard, segment, false);
 	else if(shard->gc)
 		slab_gc_signal(shard, segment->class);
