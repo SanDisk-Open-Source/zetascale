@@ -5050,7 +5050,7 @@ FDF_status_t FDFReadObjectExpiry(
 {
 	FDF_status_t status = FDF_SUCCESS;
 	bool thd_ctx_locked = false;
-        return FDF_UNSUPPORTED_REQUEST;
+//        return FDF_UNSUPPORTED_REQUEST;
 
 	status = fdf_validate_container(cguid);
 	if (FDF_SUCCESS != status) {
@@ -5512,7 +5512,7 @@ FDF_status_t FDFWriteObjectExpiry(
 {
     FDF_status_t        status	= FDF_SUCCESS;
 	bool thd_ctx_locked = false;
-        return FDF_UNSUPPORTED_REQUEST;
+//        return FDF_UNSUPPORTED_REQUEST;
 	status = fdf_validate_container(cguid);
 	if (FDF_SUCCESS != status) {
 		plat_log_msg(160125, LOG_CAT,
