@@ -23,6 +23,7 @@
 #include "ssd/fifo/mcd_osd_internal.h"
 #include "ssd/fifo/mcd_aio.h"
 #include "api/sdf_internal.h"
+#include "platform/rwlock.h"
 #ifdef SDFAPI
 #include "api/sdf.h"
 #else
@@ -232,6 +233,7 @@ typedef struct mcd_osd_shard {
     uint64_t                  * free_segments;  /* logical block -> segment */
 
     slab_gc_shard_t           * gc;
+    plat_rwlock_t               slab_gc_mgmt_lock;
 
     int                         num_classes;
     mcd_osd_slab_class_t        slab_classes[MCD_OSD_MAX_NCLASSES];

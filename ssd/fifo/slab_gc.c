@@ -51,21 +51,28 @@ void slab_gc_get_stats(mcd_osd_shard_t* shard, FDF_stats_t* stats, FILE* log)
 		stats->flash_stats[STAT(SEGMENTS_COMPACTED) + i] = gc_stat[i];
 }
 
-void slab_gc_update_threshold(mcd_osd_shard_t *shard, int threshold)
+bool slab_gc_update_threshold(mcd_osd_shard_t *shard, int threshold)
 {
 	int gt = threshold;
+
+	if(!shard->gc)
+		return false;
 
 	if(gt > 100 || gt < 0)
 	{
 		if(gt > 100) gt = 100;
 		if(gt < 0) gt = 0;
 
-		mcd_log_msg(180005, PLAT_LOG_LEVEL_TRACE,
+		mcd_log_msg(180005, PLAT_LOG_LEVEL_WARN,
 			"shard=%p GC threshold adjusted from %d %% to %d %%",
 			shard, threshold, gt);
 	}
 
+	mcd_log_msg(180211, PLAT_LOG_LEVEL_INFO, "Slab GC threshold set to %d%%", threshold);
+
 	shard->gc->threshold = gt;
+
+	return true;
 }
 
 /* With sync set to true check for free space only, e.g. gisregard for threshold */
@@ -404,8 +411,18 @@ bool slab_gc_init(mcd_osd_shard_t* shard, int threshold /* % of used slabs */)
 		return false;
 	}
 
-	if(!(shard->gc = plat_alloc(sizeof(slab_gc_shard_t))))
+	plat_rwlock_wrlock(&shard->slab_gc_mgmt_lock);
+
+	if(shard->gc) {
+		mcd_log_msg(180212, PLAT_LOG_LEVEL_INFO, "Slab GC already initialized. shardID=%ld. Threshold=%d%%", shard->id, threshold);
+		plat_rwlock_unlock(&shard->slab_gc_mgmt_lock);
+		return true;
+	}
+
+	if(!(shard->gc = plat_alloc(sizeof(slab_gc_shard_t)))) {
+		plat_rwlock_unlock(&shard->slab_gc_mgmt_lock);
 		return false;
+	}
 
 	fthMboxInit(&shard->gc->mbox);
 	fthMboxInit(&shard->gc->killed_mbox);
@@ -414,8 +431,6 @@ bool slab_gc_init(mcd_osd_shard_t* shard, int threshold /* % of used slabs */)
 	shard->gc->bitmap = NULL;
 
 	slab_gc_update_threshold(shard, threshold);
-
-	fthResume(fthSpawn(slab_gc_worker_thread, 81920), (uint64_t)shard);
 
 	for(i = 0; i < Mcd_osd_max_nclasses; i++ )
 	{
@@ -426,6 +441,11 @@ bool slab_gc_init(mcd_osd_shard_t* shard, int threshold /* % of used slabs */)
 			for(j = 0; j < i; j++)
 				plat_free(shard->slab_classes[j].gc);
 
+			plat_free(shard->gc);
+			shard->gc = NULL;
+
+			plat_rwlock_unlock(&shard->slab_gc_mgmt_lock);
+
 			return false;
 		}
 
@@ -434,6 +454,12 @@ bool slab_gc_init(mcd_osd_shard_t* shard, int threshold /* % of used slabs */)
 
 		class->gc->pending = 0;
 	}
+
+	fthResume(fthSpawn(slab_gc_worker_thread, 81920), (uint64_t)shard);
+
+	mcd_log_msg(180213, PLAT_LOG_LEVEL_INFO, "Slab GC initialized. shardID=%ld. Threshold=%d%%", shard->id, threshold);
+
+	plat_rwlock_unlock(&shard->slab_gc_mgmt_lock);
 
 	return true;
 }
@@ -444,11 +470,15 @@ void slab_gc_signal(
 {
 	bool sync = !class;
 
+	plat_rwlock_rdlock(&shard->slab_gc_mgmt_lock);
+
 	if(sync)
 		class = slab_gc_least_used_class(shard);
 
-	if(!class)
+	if(!class || !shard->gc) {
+		plat_rwlock_unlock(&shard->slab_gc_mgmt_lock);
 		return;
+	}
 
 	if(!class->gc->pending && slab_gc_able(shard, class, sync) &&
 			atomic_cmp_swap_bool(class->gc->pending, 0, 1))
@@ -477,11 +507,20 @@ void slab_gc_signal(
 
 		pthread_mutex_unlock(&class->gc->mutex);
 	}
+
+	plat_rwlock_unlock(&shard->slab_gc_mgmt_lock);
 }
 
 void slab_gc_end(mcd_osd_shard_t* shard)
 {
 	int i;
+
+	plat_rwlock_wrlock(&shard->slab_gc_mgmt_lock);
+
+	if(!shard->gc) {
+		plat_rwlock_unlock(&shard->slab_gc_mgmt_lock);
+		return;
+	}
 
 	mcd_log_msg(180006, PLAT_LOG_LEVEL_TRACE, "ENTERING, shardID=%p", shard);
 
@@ -509,5 +548,11 @@ void slab_gc_end(mcd_osd_shard_t* shard)
 	}
 
 	plat_free(shard->gc);
+
+	shard->gc = NULL;
+
+	mcd_log_msg(180214, PLAT_LOG_LEVEL_INFO, "Slab GC stopped. shardID=%ld", shard->id);
+
+	plat_rwlock_unlock(&shard->slab_gc_mgmt_lock);
 }
 

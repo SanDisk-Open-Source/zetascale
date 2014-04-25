@@ -52,6 +52,7 @@
 #include "flip/flip.h"
 #endif
 #include <ssd/fifo/scavenger.h>
+#include "ssd/fifo/slab_gc.h"
 
 /*
  * Functions defined in fdf.c
@@ -663,6 +664,57 @@ static void process_container_cmd(struct FDF_thread_state *thd_state,
     }
 }
 
+/* From enumerate.c */
+FDF_status_t cguid_to_shard(
+        SDF_action_init_t *pai, 
+        FDF_cguid_t cguid, 
+        shard_t **shard_ptr, 
+        int delete_ok);
+
+static void process_slab_gc_cmd(struct FDF_thread_state *thd_state, 
+                       FILE *fp, cmd_token_t *tokens, size_t ntokens){
+    if ( ntokens < 2 ) {
+        fprintf(fp,"Invalid argument! Type help for more info\n");
+        return;
+    }
+
+    shard_t *shard; 
+    SDF_action_init_t *pai = (SDF_action_init_t *) thd_state; 
+    int s = cguid_to_shard(pai, VDC_CGUID, &shard, 0); 
+    if (s != FDF_SUCCESS) {
+        fprintf(fp, "Error getting shard from cguid.\n");
+        return;
+    }
+    mcd_osd_shard_t *mcd_shard = (mcd_osd_shard_t *)shard;
+
+    if( strcmp(tokens[1].value,"enable") == 0 )
+        slab_gc_init(mcd_shard, getProperty_Int("FDF_SLAB_GC_THRESHOLD", 70 ));
+    else if( strcmp(tokens[1].value,"disable") == 0 )
+        slab_gc_end(mcd_shard);
+    else if( strcmp(tokens[1].value,"threshold") == 0 ) {
+        if ( ntokens < 3 ) {
+            fprintf(fp,"Invalid arguments. Slab GC threshold. "
+                    "Type help for more info\n");
+            return;
+        }
+        int t = atoi(tokens[2].value);
+        if (t < 0 || t > 100 || (!t && tokens[2].value[0] !='0') || strlen(tokens[2].value) > 5) {
+            fprintf(fp,"Invalid slab GC threshold: %.5s\n", tokens[2].value);
+            return;
+        }
+        slab_gc_update_threshold(mcd_shard, t);
+
+        char* val = strndup(tokens[2].value, 6);
+        if(val)
+            setProperty("FDF_SLAB_GC_THRESHOLD", val);
+    }
+    else {
+        fprintf(fp,"Invalid arguments. Type help for more info\n");
+        return;
+    }
+    fprintf(fp, "OK\n");
+}
+
 static void print_admin_command_usage(FILE *fp) {
     fprintf(fp,"\nSupported commands:\n" 
                    "container stats <container name> [v]\n"
@@ -695,6 +747,9 @@ static FDF_status_t process_admin_cmd( struct FDF_thread_state *thd_state,
     } */
     if( strcmp(tokens[0].value,"container") == 0 ) {
         process_container_cmd(thd_state, fp,tokens,ntokens);
+    }
+    if( strcmp(tokens[0].value,"gc") == 0 ) {
+        process_slab_gc_cmd(thd_state, fp, tokens, ntokens);
     }
     else if( strcmp(tokens[0].value,"help") == 0 ) {
         print_admin_command_usage(fp);

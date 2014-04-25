@@ -9,7 +9,7 @@ void slab_gc_signal(mcd_osd_shard_t* shard, mcd_osd_slab_class_t* class);
 
 void slab_gc_end(mcd_osd_shard_t* shard);
 
-void slab_gc_update_threshold(mcd_osd_shard_t *shard, int threshold);
+bool slab_gc_update_threshold(mcd_osd_shard_t *shard, int threshold);
 
 void slab_gc_get_stats(mcd_osd_shard_t* shard, FDF_stats_t* stats, FILE* log);
 

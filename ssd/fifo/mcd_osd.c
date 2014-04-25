@@ -6153,6 +6153,8 @@ mcd_osd_shard_open( struct flashDev * dev, uint64_t shard_id )
         return NULL;
     }
 
+    plat_rwlock_init(&mcd_shard->slab_gc_mgmt_lock);
+
     mcd_shard->opened = 1;
 
 #if 0 /* Do not preallocated one segment for each class. */
@@ -6209,6 +6211,8 @@ mcd_osd_shard_close( struct shard * _shard )
 
 	if(shard->gc)
 		slab_gc_end(shard);
+
+	plat_rwlock_destroy(&shard->slab_gc_mgmt_lock);
 
 	shard->opened = 0;
 
