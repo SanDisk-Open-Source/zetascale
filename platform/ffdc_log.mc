@@ -3482,3 +3482,4 @@
 180207 Invalid objects count
 180208 cls=%ld addr=%u slabs=%lu, pend=%lu
 180209 FDF_SLAB_GC is incompatible with FDF_TRX. Disabling FDF_SLAB_GC.
+180210 FDF_EXPIRY_SCAVENGER_ENABLE is incompatible with FDF_TRX. Disabling FDF_EXPIRY_SCAVENGER_ENABLE.

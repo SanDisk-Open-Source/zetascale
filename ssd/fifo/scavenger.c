@@ -21,6 +21,7 @@
 #include <fdf_internal.h>
 #include <protocol/action/action_internal_ctxt.h>
 #include <protocol/action/recovery.h>
+#include <utils/properties.h>
 
 uint64_t num_objs_expired = 0;
 uint64_t num_scav_scan_yld = 0;
@@ -62,6 +63,12 @@ extern FDF_status_t scavenger_scan_init(pai_t *pai, shard_t *sshard,
 FDF_status_t fdf_start_scavenger_thread(struct FDF_state *fdf_state )
 {
     stop_scavenger = false;
+
+    if(getProperty_Int("FDF_TRX", 0)) {
+        plat_log_msg(180210, PLAT_LOG_CAT_PRINT_ARGS, PLAT_LOG_LEVEL_WARN,
+                "FDF_EXPIRY_SCAVENGER_ENABLE is incompatible with FDF_TRX. Disabling FDF_EXPIRY_SCAVENGER_ENABLE.");
+        return FDF_FAILURE;
+    }
 
     if( fdf_state == NULL ) {
         plat_log_msg(160236, LOG_CAT, LOG_ERR, 
