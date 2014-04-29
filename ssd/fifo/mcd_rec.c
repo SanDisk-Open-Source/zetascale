@@ -4713,11 +4713,14 @@ filter_it_apply_logrec( mcd_rec_obj_state_t *state, mcd_logrec_object_t *rec)
 static int
 filter_it_rewind_log( mcd_rec_obj_state_t *state)
 {
-
 	if ((state->trxstatus == TRX_REC_OKAY)
-	and (state->trxnum))
+	and (state->trxnum)
+	and state->badstate == 4)
 		state->trxstatus = TRX_REC_FRAG;
-	apply_log_record_cleanup( state);
+
+	if (state->trxstatus != TRX_REC_OKAY)
+		apply_log_record_cleanup( state);
+
 	return (filter_st_rewind_log( state));
 }
 
