@@ -1548,7 +1548,7 @@ FDF_status_t _FDFSetContainerProps(
 	}
 
 	if (pprops && (pprops->durability_level == FDF_DURABILITY_PERIODIC)) {
-		pprops->durability_level == FDF_DURABILITY_SW_CRASH_SAFE;
+		pprops->durability_level = FDF_DURABILITY_SW_CRASH_SAFE;
 	}
 
     return(FDFSetContainerProps(fdf_thread_state, cguid, pprops));
