@@ -88,18 +88,10 @@ static sem_t Mcd_initer_sem;
 extern HashMap cmap_cname_hash;           // cname -> cguid
 
 FDF_status_t get_btree_num_objs(FDF_cguid_t cguid, uint64_t *num_objs);
-void update_container_stats(SDF_action_init_t *pai, SDF_appreq_t *par, SDF_cache_ctnr_metadata_t *meta);
 
-static FDF_status_t
-fdf_write_object(
-	struct FDF_thread_state  *fdf_thread_state,
-	FDF_cguid_t          cguid,
-	char                *key,
-	uint32_t             keylen,
-	char                *data,
-	uint64_t             datalen,
-	uint32_t             flags
-	);
+void update_container_stats(SDF_action_init_t *pai, int reqtype, SDF_cache_ctnr_metadata_t *meta, int count) {
+    atomic_add(pai->pcs->stats_new_per_sched[curSchedNum].ctnr_stats[meta->n].appreq_counts[reqtype], count);
+}
 
 /*
  * maximum number of containers supported by one instance of memcached
@@ -4762,9 +4754,9 @@ fdf_read_object(
 		struct objMetaData metaData;
 		metaData.keyLen = keylen;
 		metaData.cguid  = cguid;
-		/* Update the stats */
-		ar.reqtype = APGRX;
-		update_container_stats(pac, &ar,meta);
+
+		update_container_stats(pac, APGRX, meta, 1);
+
 		status = ssd_flashGet(pac->paio_ctxt, meta->pshard, &metaData, key, &tdata, FLASH_GET_NO_TEST);
 
 		/* If app buf, copied len should be min of datalen and metaData.dataLen */
@@ -5167,14 +5159,14 @@ fdf_write_object(
 		metaData.cguid  = cguid;
 		metaData.dataLen = datalen;
 		if (meta->meta.properties.compression)
-			flags |= FLASH_PUT_COMPRESS;	
+			flags |= FLASH_PUT_COMPRESS;
 		if (meta->meta.properties.durability_level == SDF_RELAXED_DURABILITY)
 			flags |= FLASH_PUT_DURA_SW_CRASH;
 		else if (meta->meta.properties.durability_level == SDF_FULL_DURABILITY)
 			flags |= FLASH_PUT_DURA_HW_CRASH;
-                /* Update the stats */
-                ar.reqtype = APSOE;
-                update_container_stats(pac, &ar,meta);                
+
+		update_container_stats(pac, APSOE, meta, 1);
+
 		status = ssd_flashPut(pac->paio_ctxt, meta->pshard, &metaData, key, data, FLASH_PUT_NO_TEST|flags);
 		if (status == FLASH_EOK) {
 			status = FDF_SUCCESS;
@@ -5265,7 +5257,16 @@ fdf_write_objects(
 		metaData.cguid  = cguid;
 		metaData.dataLen = datalen;
 
-		status = ssd_flashPutV(pac->paio_ctxt, meta->pshard, &metaData, key, data, count, FLASH_PUT_NO_TEST);
+		if (meta->meta.properties.compression)
+			flags |= FLASH_PUT_COMPRESS;
+		if (meta->meta.properties.durability_level == SDF_RELAXED_DURABILITY)
+			flags |= FLASH_PUT_DURA_SW_CRASH;
+		else if (meta->meta.properties.durability_level == SDF_FULL_DURABILITY)
+			flags |= FLASH_PUT_DURA_HW_CRASH;
+
+		update_container_stats(pac, APSOE, meta, count);
+
+		status = ssd_flashPutV(pac->paio_ctxt, meta->pshard, &metaData, key, data, count, FLASH_PUT_NO_TEST | flags);
 		status = status == FLASH_EOK ? FDF_SUCCESS : FDF_FAILURE;
 	}
 
@@ -6613,10 +6614,6 @@ fdf_parse_stats( char * stat_buf, int stat_key, uint64_t * pstat)
     *pstat = stats[stat_key];
 
     return FDF_SUCCESS;
-}
-#define incr(x) __sync_fetch_and_add(&(x), 1)
-void update_container_stats(SDF_action_init_t *pai, SDF_appreq_t *par, SDF_cache_ctnr_metadata_t *meta) {
-    incr(pai->pcs->stats_new_per_sched[curSchedNum].ctnr_stats[meta->n].appreq_counts[par->reqtype]);
 }
 
 
