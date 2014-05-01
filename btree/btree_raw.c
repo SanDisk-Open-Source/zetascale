@@ -3682,8 +3682,8 @@ btree_msplit_child(btree_raw_t *btree, btree_raw_mem_node_t *n_parent,
 		 */
 		node_lock(n_new, WRITE);
 
-		dbg_print("split_key=%d n_child_nkeys=%d n_new_nkeys=%d\n", split_key, *n_child->pnode->nkeys, n_new->pnode->nkeys);
-		dbg_print("n_child=%ld n_parent=%ld n_new=%ld\n", *n_child->pnode->logical_id, n_parent->pnode->logical_id, n_new->pnode->logical_id);
+		dbg_print("split_key=%d n_child_nkeys=%d n_new_nkeys=%d\n", split_key, (*n_child)->pnode->nkeys, n_new->pnode->nkeys);
+		dbg_print("n_child=%ld n_parent=%ld n_new=%ld\n", (*n_child)->pnode->logical_id, n_parent->pnode->logical_id, n_new->pnode->logical_id);
 
 		if(split_key < (*n_child)->pnode->nkeys) {
 			if (is_leaf(btree, (*n_child)->pnode)) {
@@ -3759,7 +3759,7 @@ btree_msplit_child(btree_raw_t *btree, btree_raw_mem_node_t *n_parent,
 
 		#ifdef DEBUG_STUFF
 		if (Verbose) {
-			dump_node(btree, stderr, *n_child->pnode, key, keylen);
+			dump_node(btree, stderr, (*n_child)->pnode, key, keylen);
 			dump_node(btree, stderr, n_new->pnode, NULL, 0);
 			dump_node(btree, stderr, n_parent->pnode, NULL, 0);
 		}
