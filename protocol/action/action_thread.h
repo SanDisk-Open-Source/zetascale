@@ -43,7 +43,7 @@ extern "C" {
 struct SDF_trans_state;
 struct SDFNewCache;
 
-#define SDF_MAX_OBJ_SIZE   (8 * 1024*1024 - 72)
+#define SDF_MAX_OBJ_SIZE   (8 * 1024 * 1024)
 
 typedef struct SDF_home_flash_entry {
     struct shard                 *pshard;

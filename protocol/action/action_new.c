@@ -469,8 +469,15 @@ void InitActionProtocolCommonState(SDF_action_state_t *pas, SDF_action_init_t *p
     max_obj_size = getProperty_uLongLong("SDF_MAX_OBJ_SIZE", SDF_MAX_OBJ_SIZE);
     max_obj_size = getProperty_uLongLong("FDF_MAX_OBJ_SIZE", max_obj_size);
 
-    plat_log_msg(21071, PLAT_LOG_CAT_PRINT_ARGS, PLAT_LOG_LEVEL_DEBUG, "PROP: SDF_MAX_OBJ_SIZE=%"PRIu64, max_obj_size);
-    max_obj_size += 20; // allow extra bytes for secret memcached metadata
+    uint64_t max_size = Mcd_osd_blk_size * MCD_OSD_OBJ_MAX_BLKS - 72 - 20 - 256;
+    if(max_obj_size > max_size) {
+        plat_log_msg(PLAT_LOG_ID_INITIAL, PLAT_LOG_CAT_PRINT_ARGS, PLAT_LOG_LEVEL_DEBUG, "PROP: SDF_MAX_OBJ_SIZE=%"PRIu64" (adjusted from %"PRIu64")", max_size, max_obj_size);
+        max_obj_size = max_size;
+    }
+    else
+        plat_log_msg(21071, PLAT_LOG_CAT_PRINT_ARGS, PLAT_LOG_LEVEL_DEBUG, "PROP: SDF_MAX_OBJ_SIZE=%"PRIu64, max_obj_size);
+    /*EF: Below 20 bytes accounted in SDF_MAX_OBJ_SIZE now */
+    //max_obj_size += 20; // allow extra bytes for secret memcached metadata
 
 #ifdef SDFAPIONLY
     uint64_t cacheSize = getProperty_uLongLong("FDF_CACHE_SIZE", 100000000ULL);

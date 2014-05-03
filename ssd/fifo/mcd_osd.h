@@ -72,8 +72,8 @@
 #define MCD_OSD_LBA_SHIFT_FLAG  0x800
 #define MCD_OSD_LBA_SHIFT_MASK  0x7ff
 #define MCD_OSD_MAX_BLKS_OLD    (2048 + 1)
-#define MCD_OSD_OBJ_MAX_SIZE    (8 * 1024 * 1024 - 72) /* - key_size */
-#define MCD_OSD_OBJ_MAX_BLKS    4095
+#define MCD_OSD_OBJ_MAX_SIZE    (8 * 1024 * 1024)
+#define MCD_OSD_OBJ_MAX_BLKS    4095 /* Limited by 12 bits of blocks field in hash_entry_t */
 
 /*
  * add one for cmc shard
