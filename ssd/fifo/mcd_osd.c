@@ -4551,7 +4551,8 @@ mcd_fth_osd_slab_set( void * context, mcd_osd_shard_t * shard,
 	}
 
     if ( FLASH_PUT_PREFIX_DELETE == flags ) {
-        return mcd_osd_prefix_delete( shard, key, key_len );
+        rc = mcd_osd_prefix_delete( shard, key, key_len );
+        goto out;
     }
 
     /* Check if object needs to be compressed */
@@ -4562,7 +4563,8 @@ mcd_fth_osd_slab_set( void * context, mcd_osd_shard_t * shard,
         data = fdf_compress_data(data, (size_t)data_len,NULL,0, &data_len);
         if ( data == NULL ) {
             mcd_log_msg(160201,PLAT_LOG_LEVEL_ERROR, "Compression failed");
-            return FLASH_ENOENT;
+            rc = FLASH_ENOENT;
+            goto out;
         }
         /* Update stats and histogram
            Histogram is tracks 1k,2k ...15K and >15K*/
@@ -4611,7 +4613,8 @@ mcd_fth_osd_slab_set( void * context, mcd_osd_shard_t * shard,
         if (blocks > MCD_OSD_OBJ_MAX_BLKS) {
             mcd_log_msg( 20330, PLAT_LOG_LEVEL_ERROR,
                     "object size beyond limit, raw_len=%lu", raw_len );
-            return FLASH_EINVAL;
+            rc = FLASH_EINVAL;
+            goto out;
         }
     }
 
