@@ -4259,7 +4259,7 @@ btree_leaf_insert_low(btree_raw_t *bt, btree_raw_mem_node_t *n, char *key, uint3
 	int32_t bytes_saved = 0;
 	int32_t size_increased = 0;
 
-    dbg_print_key(key, keylen, "node: %p id %ld keylen: %d datalen: %ld index: %ld key_exists %ld", n, n->pnode->logical_id, keylen, datalen, index, key_exists);
+	dbg_print_key(key, keylen, "node: %p id %ld keylen: %d datalen: %ld index: %ld key_exists %ld", n, n->pnode->logical_id, keylen, datalen, index, key_exists);
 
 	assert(is_leaf(bt, n->pnode));
 
@@ -5154,10 +5154,16 @@ mini_restart:
 	 * in, scavenge the node to see if any duplicate entries can be removed.
 	 * This can help more keys to insert in the node */
 	if (is_leaf(btree, node)) {
-		if(scavenge_node(btree, mem_node, NULL, NULL))
+		if(scavenge_node(btree, mem_node, NULL, NULL)) {
 			key_found = get_child_id_and_count(btree, mem_node->pnode, &child_id, objs, &count,
 				meta, syndrome, &nkey_child);
+			if (key_found == false) {
+				is_update = false;	
+			}
+		}
+		
 	}
+
 
 	if (key_found) {
 		key_found = !btree_leaf_is_key_tombstoned(btree, mem_node->pnode, nkey_child);

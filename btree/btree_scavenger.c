@@ -7,6 +7,7 @@
 #include "btree_raw_internal.h"
 #include "btree_var_leaf.h"
 #include "btree_hash.h"
+#include "btree_malloc.h"
 
 #define NUM_IN_CHUNK 100
 #define MAX_KEYLEN 2000
@@ -265,6 +266,12 @@ static int scavenge_node_all_keys(btree_raw_t *btree, btree_raw_mem_node_t *node
 				deleting_keys++;
 
 				uint64_t bytes = ks_current.datalen;
+#ifdef DEBUG_BUILD
+				btree_leaf_get_meta(node->pnode, i,
+				                    &key_meta);
+				assert(key_meta.tombstone == 0);
+#endif 
+
 				if (non_minimal_delete(btree, node, i) != 0) {
 					goto done;
 				}
@@ -281,10 +288,25 @@ static int scavenge_node_all_keys(btree_raw_t *btree, btree_raw_mem_node_t *node
 				                    &key_meta);
 				if (key_meta.tombstone) {
 					uint64_t bytes = ks_current.datalen;
+
+#ifdef DEBUG_BUILD 
+					key_info_t key_info1 = {0};
+					key_info_t key_info2 = {0};
+					btree_leaf_get_nth_key_info(btree, node->pnode, set_start_index, &key_info1);
+#endif 
 					if (non_minimal_delete(btree, node, 
 					                       set_start_index) != 0) {
 						goto done;
 					}
+#ifdef DEBUG_BUILD 
+					btree_leaf_get_nth_key_info(btree, node->pnode, set_start_index, &key_info2);
+
+					assert(btree->cmp_cb(btree->cmp_cb_data, key_info1.key, key_info1.keylen,
+							     key_info2.key, key_info2.keylen) < 0);	
+					btree_free(key_info1.key);
+					btree_free(key_info2.key);
+#endif 
+
 					scavenged_keys++;
 					scavenged_bytes += bytes;
 					duplicate_keys = deleting_keys = 0;
@@ -313,9 +335,9 @@ done:
 
 int scavenge_node(struct btree_raw *btree, btree_raw_mem_node_t* node, key_stuff_info_t *ks_prev_key, key_stuff_info_t **key)
 {
-    if (0 == astats_done) {
-        return 0;
-    }
+	if (0 == astats_done) {
+		return 0;
+	}
 
 	int i = 0, temp;
 	key_stuff_info_t ks_prev,ks_current,temp1;

@@ -1598,6 +1598,14 @@ btree_leaf_update_key(btree_raw_t *bt, btree_raw_node_t *n, char *key, uint32_t 
 #endif
 
 	if (key_exists) {
+#ifdef DEBUG_BUILD 
+		key_info_t key_info_tmp = {0};
+		btree_leaf_get_nth_key_info(bt, n, index, &key_info_tmp);
+		assert(bt->cmp_cb(bt->cmp_cb_data, key_info_tmp.key, key_info_tmp.keylen,
+				  key, keylen) == 0);
+		btree_free(key_info_tmp.key);
+#endif 
+		
 		res = btree_leaf_remove_key_index_int(bt, n, index, 
 						      &key_info, &bytes_decreased, false);	
 		dbg_assert(res == true);
