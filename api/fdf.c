@@ -1964,14 +1964,6 @@ FDF_status_t FDFInit(
     if (verify_datastruct_consistency() != FDF_SUCCESS ) {
         return FDF_FAILURE;
     }
-    if ( getProperty_Int( "FDF_SIGNAL_HANDLERS", 0 ) == 1 ) {
-        /* Initialize signal handler */
-        signal(SIGSEGV, fdf_signal_handler);  
-        signal(SIGABRT, fdf_signal_handler);    
-        signal(SIGBUS, fdf_signal_handler);     
-        signal(SIGFPE, fdf_signal_handler); 
-    }
-
     sem_init( &Mcd_initer_sem, 0, 0 );
 
     gettimeofday( &timer, NULL );
@@ -2023,6 +2015,14 @@ FDF_status_t FDFInit(
 #ifdef FLIP_ENABLED
     flip_init();
 #endif
+    if ( getProperty_Int( "FDF_SIGNAL_HANDLERS", 0 ) == 1 ) {
+        /* Initialize signal handler */
+        signal(SIGSEGV, fdf_signal_handler);  
+        signal(SIGABRT, fdf_signal_handler);    
+        signal(SIGBUS, fdf_signal_handler);     
+        signal(SIGFPE, fdf_signal_handler); 
+    }
+
 
     // spawn initer thread (like mcd_fth_initer)
     fthResume( fthSpawn( &fdf_fth_initer, MCD_FTH_STACKSIZE ),
@@ -7864,7 +7864,7 @@ FDFOperationAllowed( void )
 {
 	return is_fdf_operation_allowed();
 }
-
+#if 0
 #define NUM_BTRACE_ENTRIES 50
 void fdf_print_backtrace() {
     void *array[NUM_BTRACE_ENTRIES];
@@ -7880,6 +7880,31 @@ void fdf_print_backtrace() {
     plat_free(strings);
     return;
 }
+#else
+
+char pstack_out_file[100] = "stack_at_crach.info" ;
+
+void fdf_print_backtrace()
+{
+
+	pid_t pid = 0;
+	char cmd[300];
+	char *filename = NULL;
+
+	filename = getenv("PSTACK_OUT_FILE");
+	if (filename == NULL) {
+		filename = pstack_out_file;
+	}
+
+	pid = getpid();
+
+	snprintf(cmd, 200, "pstack %d | tee %s", pid, filename);
+	system(cmd);
+
+	return;
+}
+
+#endif 
 
 void fdf_signal_handler(int signum) { 
     plat_log_msg(80064, LOG_CAT, LOG_ERR,
