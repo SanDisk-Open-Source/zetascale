@@ -1125,9 +1125,9 @@ aio_state_t *mcd_aio_init_state()
 int mcd_aio_init( void * state, char * dname )
 {
     int                         rc = -1;
-    int                         fbase = 0;
+    //int                         fbase = 0;
     int                         open_flags;
-    char                      * first;
+    //char                      * first;
     char                        fname[PATH_MAX + 1];
     struct stat                 st;
     struct ssdaio_state       * aio_state = (struct ssdaio_state *)state;
@@ -1202,7 +1202,9 @@ int mcd_aio_init( void * state, char * dname )
 
     /*
      * open the aio backing files
+     * only one flash file supported.
      */
+#if 0
     if ( 0 != flash_settings.aio_base[0] ) {
         first = strchr(flash_settings.aio_base, '%');
         if (!first) {
@@ -1229,6 +1231,12 @@ int mcd_aio_init( void * state, char * dname )
                      "too many aio files, max is %d", MCD_AIO_MAX_NFILES );
         plat_abort();
     }
+#endif
+
+    if ( 0 != flash_settings.aio_base[0] ) {
+        strncpy( Mcd_aio_base, flash_settings.aio_base, sizeof (Mcd_aio_base) - 1 );
+    }
+
     if ( 0 != flash_settings.aio_num_files ) {
         Mcd_aio_num_files = flash_settings.aio_num_files;
     }
@@ -1238,7 +1246,7 @@ int mcd_aio_init( void * state, char * dname )
             "Incorrect value(%d) for Mcd_aio_num_files. It must be set to 1",Mcd_aio_num_files);
         plat_abort();
     }
-
+#if 0
     if ( MCD_AIO_MAX_NSUBFILES < flash_settings.aio_sub_files ) {
         mcd_log_msg(20055, PLAT_LOG_LEVEL_FATAL,
                      "too many sub files, max is %d", MCD_AIO_MAX_NSUBFILES );
@@ -1251,7 +1259,7 @@ int mcd_aio_init( void * state, char * dname )
     } else if ( 1 < Mcd_aio_num_files ) {
         fbase = 1;
     }
-
+#endif
     open_flags = O_RDWR;
 
     if ( 0 == flash_settings.no_direct_io ) {
@@ -1267,12 +1275,15 @@ int mcd_aio_init( void * state, char * dname )
         mcd_log_msg(180020, PLAT_LOG_LEVEL_TRACE,
                     "FDF_O_SYNC is set");
     }
-
+#if 0
     for ( int i = 0; i < Mcd_aio_num_files; i++ ) {
 
         if ( 0 == Mcd_aio_sub_files ) {
 
             sprintf( fname, Mcd_aio_base, fbase + i );
+#endif
+        int i = 0;
+        strncpy( fname, Mcd_aio_base, sizeof (Mcd_aio_base));
 
 			if(fdf_instance_id)
 			{
@@ -1323,6 +1334,7 @@ int mcd_aio_init( void * state, char * dname )
                 fthMboxInit( &Mcd_aio_device_sync_mbox[i] );
                 fthResume( fthSpawn( &mcd_aio_sync_device_thread, 40960 ), i );
             }
+#if 0
         }
         else {
             for ( int j = 0; j < Mcd_aio_sub_files; j++ ) {
@@ -1370,6 +1382,7 @@ int mcd_aio_init( void * state, char * dname )
             }
         }
     }
+#endif
 
     Mcd_aio_strip_size = Mcd_aio_total_size / Mcd_aio_num_files;
 
