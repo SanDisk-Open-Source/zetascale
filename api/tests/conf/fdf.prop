@@ -22,7 +22,6 @@ ASYNC_STATS_SUSPEND_DURATION=5
 #Stats related
 FDF_STATS_FILE = /tmp/fdfstats.log
 FDF_STATS_DUMP_INTERVAL = 5
-FDF_LICENSE_PATH=/root/DEMO
 #FDF_BLOCK_SIZE = 8192
 FDF_FLUSH_PSTATS_FREQUENCY = 100000
 # To enable data checksum, default is disabled

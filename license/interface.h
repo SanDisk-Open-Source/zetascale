@@ -14,7 +14,7 @@ extern "C" {
 #endif
 
 //This is the type of installation
-enum lic_inst_type {
+enum lic_install_type {
 	LIT_INVAL,
 	LIT_STAND_ALONE = 1,	//Only one machine can be installed
 	LIT_MULTI_INST,		//Multiple m/cs can have same license
@@ -29,7 +29,8 @@ enum lic_per_type {
 	LPT_PERPETUAL,		//Permanent license
 };
 
-typedef	char	lic_type;
+typedef	int		lic_type;
+typedef	int		lic_inst_type;
 
 #define GET_INST_TYPE(_X) 		((_X) & 0x0f)
 #define GET_PER_TYPE(_X)		(((_X) >> 4) & 0x0f)
@@ -57,12 +58,17 @@ enum lic_state {
 
 //This is the index for the array of pointers returned.
 enum lic_data_indx {
+	LDI_CUST_NAME,
+	LDI_CUST_COMPANY,
+	LDI_CUST_MAIL,
 	LDI_PROD_NAME,		//Product Name
 	LDI_PROD_MAJ,		//Major version of product
 	LDI_PROD_MIN,		//Minor version of product
+	LDI_INST_TYPE,		//License type
 	LDI_LIC_TYPE,		//License type
 	LDI_DIFF_FROM,		//Current time - Validity start time
 	LDI_DIFF_TO,		//Validity end time - Current time
+	LDI_GRACE_PRD,			//Grace period
 	LDI_MAX_INDX,		//This has to be last field
 };
 

@@ -44,7 +44,7 @@ IF(FDF_REVISION)
 	ADD_DEFINITIONS(-DFDF_REVISION="${FDF_REVISION}")
 ENDIF(FDF_REVISION)
 
-add_definitions(-O2 -pipe -Wall -fstack-protector-all -fno-strict-aliasing -fno-omit-frame-pointer)
+add_definitions(-g -pipe -Wall -fstack-protector-all -fno-strict-aliasing -fno-omit-frame-pointer)
 #add_definitions(-pipe -Wall -fstack-protector-all -fno-strict-aliasing -fno-omit-frame-pointer)
 add_definitions( -D_GNU_SOURCE -DMPI_BUILD -DFLASH_SIM_TYPE=5 -DPLAT_LOG_COMPILE_LEVEL=DEVEL -DENABLE_MULTIPLE_FLASH_SUBSYSTEMS
 -DBLD_VERSION=857 -DSDFAPI -DSDFAPIONLY -DSDFAPIREFORMAT -DENABLE_MULTIPLE_FLASH_SUBSYSTEMS)

@@ -42,8 +42,42 @@ extern "C" {
  * messages provided back from the util to display or print in audit/debug logs.
  * @return 0 for success, other values on failure
  */
-int GenerateLicense_v1_0(char *clear_license, unsigned clear_len,
+int GenerateLicense_v2_0(char *clear_license, unsigned clear_len,
         unsigned encr_len, char *encr_license, char *message_out);
+
+
+/**
+ * Check to see if the license provided in the arguments is valid. A license is
+ * valid if the ciphertext (encrypted portion) is found valid && when the
+ * current time (GMT) is between the begin and end date/time specified in the
+ * license.<br>
+ * For enhancements, checks can be put in either the licensed software or this
+ * utility. The encryption will ensure that content of the text has not been
+ * tampered with. Here are some samples:<br>
+ * (1) In order to require a separate licenses for a different product, add
+ * text "Schooner MemStore" to the text section, and check if it exists in
+ * the software being licensed.<br>
+ * (2) In order to require a separate license per node, add a field like
+ * "Mac address: xxx-yyy-zzz" to the text section, and check it in the software
+ * being licensed.<br>
+ *
+ * @param clear_license IN text containing from and to dates (see above)
+ * @param encr_license IN buffer to hold the generated ciphertext.
+ * @param message_out OUT a text buffer of atleast 256 char capacity to hold 
+ * messages provided back from the util to display or print in audit/debug logs.
+ * Even when license is valid, consider using this message as it display time
+ * left in the license.
+ * @return 0 for success, other values on failure
+ */
+#if 0
+#ifdef __cplusplus
+extern "C" 
+#else
+extern
+#endif
+#endif
+//enum lic_state isLicenseValid(char *clear_license, char *encr_license,
+//        char *message_out);
 
 /**
  * See above for usage.
@@ -59,9 +93,27 @@ int GenerateLicense_v1_0(char *clear_license, unsigned clear_len,
  * left in the license.
  * @return 0 for success, other values on failure
  */
-enum lic_state isLicenseValid2_v1_0(char *clear_license, char *encr_license, char *product,
+#if 0
+#ifdef __cplusplus
+extern "C" 
+#else
+extern
+#endif
+#endif
+enum lic_state isLicenseValid2_v2_0(char *clear_license, char *encr_license, char *product,
+
 			char *version, int check_mac_addr, char *message_out);
 
+#if 0
+#ifdef __cplusplus
+extern "C" 
+#else
+extern
+#endif
+#endif
+enum lic_state verifyDates(char *, char *, char *);
+int getTimeDiff(char *, char *, double *, double *);
+enum lic_state mac_addr_matches(char *);
 #ifdef __cplusplus
 }
 #endif

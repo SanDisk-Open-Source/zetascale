@@ -56,30 +56,28 @@
  *
  */
 
-#ifndef _FDFVER_1_0
-#define _FDFVER_1_0
+#ifndef _FDFVER_2_0
+#define _FDFVER_2_0
 #include <stdio.h>
 #include "license/versions.h"
 #include "license/interface.h"
 
-#if 0
-extern const char contact_header[];
-extern const char particulars_header[];
-extern const char key_header[];
-extern const char *contact_section[];
-#endif
-extern const char *particulars_section[];
+//extern const char contact_header_v2_0[];
+extern const char *contact_section_v2_0[];
+//extern const char particulars_header_v2_0[];
+extern const char *particulars_section_v2_0[];
+//extern const char key_header_v2_0[];
 
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-extern int		flf_gen_blank_file_v1_0(FILE *);
-extern enum lic_state	flf_gen_lic_file_v1_0(char *, char **);
-extern enum lic_state	flf_val_lic_file_v1_0(char *);
-extern int		flf_check_lic_comp_v1_0(char *, char *, char *, int);
-extern void		flf_get_license_details_v1_0(char *, lic_data_t *);
+extern int		flf_gen_blank_file_v2_0(FILE *);
+extern enum lic_state	flf_gen_lic_file_v2_0(char *, char **);
+extern enum lic_state	flf_val_lic_file_v2_0(char *);
+extern int		flf_check_lic_comp_v2_0(char *, char *, char *, int);
+extern void		flf_get_license_details_v2_0(char *, lic_data_t *);
 #ifdef __cplusplus
 }
 #endif

@@ -66,7 +66,7 @@
 #define HOUR	(3600)
 #define DAY	(86400)
 
-#define FDF_INVAL_GPRD		(3 * DAY)
+#define FDF_INVAL_GPRD		(0 * DAY)
 #define FDF_EXP_GPRD		(30 * DAY)
 
 /*
@@ -75,6 +75,7 @@
 double 		fdf_chk_prd = HOUR;
 int		fdf_chk_prd_option;
 
+char 		*fdf_version;
 char		*license_path;	/* License file path */
 char		*ld_prod;	/* Product Name */
 double		ld_frm_diff;	/* Current time - Start of license */
@@ -101,7 +102,7 @@ static struct FDF_state *licd_fdf_state = NULL;
 static void licd_handler_thread(uint64_t);
 void update_lic_info(lic_data_t *, bool);
 void check_time_left(double, double, bool);
-void check_validity_left(lic_data_t *, lic_type, bool);
+void check_validity_left(lic_data_t *, lic_inst_type, lic_type, bool);
 void adjust_chk_prd(double);
 void free_details(lic_data_t *);
 
@@ -118,6 +119,17 @@ licd_start(const char *lic_path, int period, struct FDF_state *fdf_state)
 	plat_assert(lic_path);
 	plat_assert(fdf_state);
 
+#ifdef FDF_REVISION
+	fdf_version = malloc(strlen(FDF_REVISION) + 1);
+	if (fdf_version) {
+		bzero(fdf_version, strlen(FDF_REVISION) + 1);
+		strncpy(fdf_version, FDF_REVISION, strlen(FDF_REVISION));
+	} else {
+		plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, LOG_WARN,
+				"Memory allocation failed");
+		goto out;
+	}
+#endif
 	//Checking period cannot be beyond an hour. Atleast once an hour needed
 	if ((period > 0) && (period < HOUR)) {
 		fdf_chk_prd_option = period;
@@ -215,12 +227,18 @@ licd_handler_thread(uint64_t arg)
 
 		if (licd_init == false) {
 			// If running for first time, wake up waiting threads.
-			plat_log_msg(80068, LOG_CAT, LOG_DBG,
-					"LIC: License daemon initialized.");
-			pthread_mutex_lock(&licd_mutex);
-			licd_init = true;
-			pthread_cond_broadcast(&licd_cv);
-			pthread_mutex_unlock(&licd_mutex);
+			if (ld_state != LS_INTERNAL_ERR) { 
+				plat_log_msg(80068, LOG_CAT, LOG_DBG,
+						"LIC: License daemon initialized.");
+				pthread_mutex_lock(&licd_mutex);
+				licd_init = true;
+				pthread_cond_broadcast(&licd_cv);
+				pthread_mutex_unlock(&licd_mutex);
+			} else {
+				plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, LOG_WARN,
+						"LIC: License daemon initialization failed, restarting.");
+			}
+
 		}
 
 		free_details(&data);
@@ -271,6 +289,7 @@ update_lic_info(lic_data_t *data, bool daemon)
 	char		*prod;
 	char		*maj = NULL;
 	lic_type	type = 0;
+	lic_inst_type inst_type = 0;
 
 	clock_gettime(CLOCK_REALTIME, &abstime);
 
@@ -281,7 +300,8 @@ update_lic_info(lic_data_t *data, bool daemon)
 	 */
 	ld_state = data->fld_state;
 	if (daemon && (data->fld_state == LS_INTERNAL_ERR)) {
-		adjust_chk_prd(0);
+		ld_valid = true;
+		adjust_chk_prd(-1);
 		return;
 	}
 
@@ -296,6 +316,15 @@ update_lic_info(lic_data_t *data, bool daemon)
 		plat_assert(p);
 		if (p) {
 			type = getas(p, lic_type);
+		} else {
+			ld_state = LS_INVALID;
+			goto print;
+		}
+
+		p = getptr(data, LDI_INST_TYPE);
+		plat_assert(p);
+		if (p) {
+			inst_type = getas(p, lic_inst_type);
 		} else {
 			ld_state = LS_INVALID;
 			goto print;
@@ -316,10 +345,33 @@ update_lic_info(lic_data_t *data, bool daemon)
 			if (!strcmp(prod, FDF_PRODUCT_NAME)) {
 #ifdef FDF_REVISION
 				if (p1) {
-					char ver[32] = {0};
-					sprintf(ver, "%s.", maj);
-					if (!strstr(FDF_REVISION, ver)){
-						ld_state = LS_VER_MISMATCH;
+					if (strncmp(p1, "all", strlen(p1))) {
+						char	*tmp;
+						if (!fdf_version) {
+							fdf_version = malloc(strlen(FDF_REVISION) + 1);
+						}
+
+						if (fdf_version) {
+							bzero(fdf_version, strlen(FDF_REVISION) + 1);
+							strncpy(fdf_version, FDF_REVISION, strlen(FDF_REVISION));
+							tmp = strstr(fdf_version, ".");
+
+							if (tmp) {
+								int len = tmp - fdf_version;
+								if (len) {
+									if (strncmp(fdf_version, maj, len)){
+										ld_state = LS_VER_MISMATCH;
+									}
+								} else {
+									if (strncmp(fdf_version, maj, strlen(fdf_version))){
+										ld_state = LS_VER_MISMATCH;
+									}
+								}
+							}
+						} else {
+							plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, LOG_WARN,
+									"Internal error, skipped version check");
+						}
 					}
 				} else {
 					ld_state = LS_PROD_MISMATCH;
@@ -346,10 +398,10 @@ print:
 
 	if (ld_state == LS_VALID) {
 		// Print any warning, if we are near to expiry.
-		check_validity_left(data, type, daemon);
+		check_validity_left(data, inst_type, type, daemon);
 	} else if (ld_state == LS_EXPIRED) {
 		// If license has expired, then it has to be periodic.
-		plat_assert(GET_PER_TYPE(type) != LPT_PERPETUAL);
+		plat_assert(type != LPT_PERPETUAL);
 		if (daemon) {
 			plat_log_msg(160155, LOG_CAT, LOG_WARN, 
 				"License has expired. Renew the license.");
@@ -360,8 +412,15 @@ print:
 			exptime = getas(p, double);
 			plat_assert(exptime < 0);
 			exptime = -exptime;
+
+			//Get the grce period of license file supports
 			//Print warning & find period we need to make next check
-			check_time_left(exptime, FDF_EXP_GPRD, daemon);
+			p = getptr(data, LDI_GRACE_PRD);
+			if (p) {
+				check_time_left(exptime, getas(p, double), daemon);
+			} else {
+				check_time_left(exptime, FDF_EXP_GPRD, daemon);
+			}
 		}
 	} else {
 		//All other cases, license is invalid.
@@ -393,15 +452,28 @@ check_time_left(double time, double grace, bool warn)
 	int 		days, hrs, mins, secs;
 	
 	plat_assert(ld_state != LS_VALID);
-	if (time >= grace) {
+
+	if (grace == -1) {
+		/*
+		 * Grace period is unlimited. So, warn that license has expired.
+		 */
+		plat_assert(ld_state == LS_EXPIRED);
+		if (warn) {
+			plat_log_msg( PLAT_LOG_ID_INITIAL, LOG_CAT, LOG_WARN, 
+			"License has expired, however FDF will continue to run. Renew the license.");
+		}
+		ld_valid = true;
+		adjust_chk_prd(0);
+	} else if (time >= grace) {
 		/*
 		 * If we are beyond grace period, mark license validity as
 		 * false and increase the rate at which we check the 
 		 * validity of license.
 		 */
 		if (warn) {
-			plat_log_msg( 160157, LOG_CAT, LOG_WARN, 
-			"License invalid beyond grace period. FDF will fail.");
+			plat_log_msg( PLAT_LOG_ID_INITIAL, LOG_CAT, LOG_WARN, 
+					"License %s beyond grace period. FDF will fail. Renew the license.", 
+						(ld_state == LS_EXPIRED) ? "expired" : "invalid");
 		}
 		ld_valid = false;
 		adjust_chk_prd(0);
@@ -434,7 +506,7 @@ check_time_left(double time, double grace, bool warn)
  *	grace	Period in which user needs to be warned about expiry.
  */
 void
-check_validity_left(lic_data_t *data, lic_type type, bool warn)
+check_validity_left(lic_data_t *data, lic_inst_type inst_type, lic_type type, bool warn)
 {
 	void		*p;
 	double		exptime;
@@ -444,8 +516,13 @@ check_validity_left(lic_data_t *data, lic_type type, bool warn)
 	if (ld_valid == false) {
 		plat_log_msg(160159, LOG_CAT, LOG_INFO, 
 				"Valid license found (%s/%s).",
-				lic_installation_type[GET_INST_TYPE(type)],
-				lic_period_type[GET_PER_TYPE(type)]);
+				lic_installation_type[inst_type],
+				lic_period_type[type]);
+		plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, LOG_INFO,
+				"Customer details: %s, %s, %s.",
+				data->fld_data[LDI_CUST_NAME] ? (char *)data->fld_data[LDI_CUST_NAME]: "(null)",
+				data->fld_data[LDI_CUST_COMPANY] ? (char *)data->fld_data[LDI_CUST_COMPANY]: "(null)",
+				data->fld_data[LDI_CUST_MAIL] ? (char *)data->fld_data[LDI_CUST_MAIL]: "(null)");
 	}
 	ld_valid = true;
 
@@ -461,7 +538,7 @@ check_validity_left(lic_data_t *data, lic_type type, bool warn)
 		hrs = mins / 60; mins = mins - hrs * 60; 
 		days = hrs / 24; hrs = hrs - days * 24;
 		if (warn) {
-			plat_log_msg(160160, LOG_CAT, LOG_WARN, 
+			plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, LOG_WARN, 
 				"License will expire in next %d days, %d "
 				"hours and %d minutes.", days, hrs, mins);
 		}
@@ -484,6 +561,12 @@ check_validity_left(lic_data_t *data, lic_type type, bool warn)
 void
 adjust_chk_prd(double secs)
 {
+
+	if (secs == -1) {
+		fdf_chk_prd = 1;
+		return;
+	}
+
 	if (fdf_chk_prd_option > 0) {
 		fdf_chk_prd = fdf_chk_prd_option;
 	} else {

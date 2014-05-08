@@ -10,6 +10,7 @@
 #include "interface.h"
 #include "versions.h"
 #include "version_1_0/interface.h"
+#include "version_2_0/interface.h"
 
 /*
  * This array has the details of each format. For introducing new file 
@@ -25,6 +26,13 @@ lic_fmt_t lic_list[] =
 	  flf_val_lic_file_v1_0,
 	  flf_check_lic_comp_v1_0,
 	  flf_get_license_details_v1_0,
+	},
+	{ 2, 0,
+	  flf_gen_blank_file_v2_0,
+	  flf_gen_lic_file_v2_0,
+	  flf_val_lic_file_v2_0,
+	  flf_check_lic_comp_v2_0,
+	  flf_get_license_details_v2_0,
 	},
 };
 

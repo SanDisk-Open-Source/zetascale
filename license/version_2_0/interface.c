@@ -14,69 +14,70 @@
 #include "interface.h"
 #include "license.h"
 #include "license/interface.h"
-#include "license/utils.h"
 
 #define NO_OF_CONTACT_FIELDS	3
-#define NO_OF_PART_FIELDS	7
+#define NO_OF_PART_FIELDS	9
 
 
-static const char contact_header[]= "@@CONTACT@@\n";
-static const char *contact_section[]= {"Contact:", "Company:", "Email:"};
-static const char particulars_header[]= "@@PARTICULARS@@\n";
+const char contact_header_v2_0[]= "@@CONTACT@@\n";
+const char *contact_section_v2_0[]= {"Contact:", "Company:", "Email:"};
+const char particulars_header_v2_0[]= "@@PARTICULARS@@\n";
 /*
  * IMPORTANT:
- * On adding new element to particulars_section, update corresponding index
- * in comments_section and mandatory_field.
+ * On adding new element to particulars_section_v2_0, update corresponding index
+ * in comments_section_v2_0 and mandatory_field.
  * In addition, also update index enum, to reflect the location of fields.
  */
-const char *particulars_section[]= {"Product:", "Version:", "Type:",
+const char *particulars_section_v2_0[]= {"Product:", "Version:", "Scope:", "Type:",
        				"MAC Address:", "License ID:",
-				"Date valid from (GMT):", "Date valid to (GMT):"};
+				"Date valid from (GMT):", "Date valid to (GMT):", "Grace period (in days):"};
 
-const char *comments_section[]= {NULL, NULL, " Permanent/Periodic", 
-			 " Use 'ifconfig or ip addr' to get HWaddr of eth0",
+const char *comments_section_v2_0[]= {"Flash Data Fabric", "<major>.<minor>", " Single/Multiple (Valid on only one machine or multiple)", " Permanent/Periodic", 
+			 " 00:00:00:00:00:00 (Use 'ifconfig or ip addr' to get HWaddr of eth0)",
 			 " Optional identifier",
 			 " mm/dd/yyyy HH:MM:SS",
-			 " mm/dd/yyyy HH:MM:SS"};
+			 " mm/dd/yyyy HH:MM:SS",
+			 " -1 for Forever or specify number of days"};
 
-static const int mandatory_field[]={1, 1, 1, 1, 0, 0, 0};
+const int mandatory_field_v2_0[]={1, 1, 1, 1, 0, 0, 0, 0, 0};
 
-enum index {PRD_INDX, VER_INDX, TYPE_INDX, MAC_INDX, ID_INDX, FROM_INDX, TO_INDX};
-static const char key_header[]= "@@CIPHERTEXT@@\n";
+enum index {PRD_INDX, VER_INDX, INST_INDX, TYPE_INDX, MAC_INDX, ID_INDX, FROM_INDX, TO_INDX, GRACE_INDX};
+static const char key_header_v2_0[]= "@@CIPHERTEXT@@\n";
 
 static int getstring(char *in, char *field, char **value);
 static lic_type get_license_type(char *);
+static lic_type get_installation_type(char *);
 
 /*
  * Generate blank license file. Write contents to file pointed by fd.
  */
 int
-flf_gen_blank_file_v1_0(FILE *fd)
+flf_gen_blank_file_v2_0(FILE *fd)
 {
 	int	i;
 
-	if (fwrite(contact_header, strlen(contact_header), 1, fd) < 1) {
+	if (fwrite(contact_header_v2_0, strlen(contact_header_v2_0), 1, fd) < 1) {
 		return -1;
 	}
 	for (i = 0; i < NO_OF_CONTACT_FIELDS; i++) {
-		if (fwrite(contact_section[i], strlen(contact_section[i]), 1, fd) < 1) {
+		if (fwrite(contact_section_v2_0[i], strlen(contact_section_v2_0[i]), 1, fd) < 1) {
 			return -1;
 		}
 		if (fwrite("\n", sizeof(char), 1, fd) < 1) {
 			return -1;
 		}
 	}
-	if (fwrite(particulars_header, strlen(particulars_header), 1, fd) < 1) {
+	if (fwrite(particulars_header_v2_0, strlen(particulars_header_v2_0), 1, fd) < 1) {
 		return -1;
 	}
 	for (i = 0; i < NO_OF_PART_FIELDS; i++) {
-		if (fwrite(particulars_section[i], 
-					strlen(particulars_section[i]), 1, fd) < 1) {
+		if (fwrite(particulars_section_v2_0[i], 
+					strlen(particulars_section_v2_0[i]), 1, fd) < 1) {
 			return -1;
 		}
-		if (comments_section[i] != NULL) {
-			if (fwrite(comments_section[i], 
-					strlen(comments_section[i]), 1, fd) < 1) {
+		if (comments_section_v2_0[i] != NULL) {
+			if (fwrite(comments_section_v2_0[i], 
+					strlen(comments_section_v2_0[i]), 1, fd) < 1) {
 				return -1;
 			}
 		}
@@ -96,7 +97,7 @@ flf_gen_blank_file_v1_0(FILE *fd)
  */
 
 enum lic_state
-flf_gen_lic_file_v1_0(char *in, char **out)
+flf_gen_lic_file_v2_0(char *in, char **out)
 {
 	int		i, j, outlen = 0;
 	char		*cnt_hdr, *prt_hdr;
@@ -109,36 +110,42 @@ flf_gen_lic_file_v1_0(char *in, char **out)
 	enum lic_state	ret = LS_VALID;
 	double		from, to;
 	lic_type	type;
+	lic_type inst_type;
+	int			grace_days;
 
-	cnt_hdr = strstr(in, contact_header);
+	cnt_hdr = strstr(in, contact_header_v2_0);
 	if (NULL == cnt_hdr || in != cnt_hdr) {
+		printf("License file is not in valid format\n");
 		return LS_FORMAT_INVALID;
 	}
-	i = strlen(contact_header);
+	i = strlen(contact_header_v2_0);
 	cnt_hdr += i;
 	outlen = i;
-	if (NULL == (prt_hdr = strstr(in, particulars_header))) {
+	if (NULL == (prt_hdr = strstr(in, particulars_header_v2_0))) {
+		printf("License file is not in valid format\n");
 		return LS_FORMAT_INVALID;
 	}
-	i = strlen(particulars_header);
+	i = strlen(particulars_header_v2_0);
 	outlen += i;
 	for ( i = 0; i < NO_OF_CONTACT_FIELDS; i++) {
-		if ((ret = getstring(in, (char *)contact_section[i], &cnt_ent[i])) != LS_VALID) {
+		if ((ret = getstring(in, (char *)contact_section_v2_0[i], &cnt_ent[i])) != LS_VALID) {
+			printf("Value for field %s, not spcified\n", contact_section_v2_0[i]);
 			goto out;
 		}
-		outlen += strlen(contact_section[i]);
+		outlen += strlen(contact_section_v2_0[i]);
 		outlen += strlen(cnt_ent[i]) + 1;
 	}
 	j = 0;	
 	for ( i = 0; i < NO_OF_PART_FIELDS; i++) {
-		ret = getstring(in, (char *)particulars_section[i], &prt_ent[i]);
+		ret = getstring(in, (char *)particulars_section_v2_0[i], &prt_ent[i]);
 		if (ret == LS_VALID) {
-			outlen += strlen(particulars_section[i]);
+			outlen += strlen(particulars_section_v2_0[i]);
 			outlen += strlen(prt_ent[i]) + 1;
-			j += strlen(particulars_section[i]);
+			j += strlen(particulars_section_v2_0[i]);
 			j += strlen(prt_ent[i]) + 1;
 		} else if (ret == LS_DATA_MISSING) {
-			if (mandatory_field[i]) {
+			if (mandatory_field_v2_0[i]) {
+				printf("Value for field %s, not spcified\n", particulars_section_v2_0[i]);
 				goto out;
 			}
 		} else {
@@ -146,29 +153,6 @@ flf_gen_lic_file_v1_0(char *in, char **out)
 		}
 	}
 	j += 8;
-
-	type = get_license_type(prt_ent[TYPE_INDX]);
-	if (type == LPT_INVAL) {
-		ret = LS_FORMAT_INVALID;
-		goto out;
-	}
-	if (type != LPT_PERPETUAL) {
-		if (!prt_ent[FROM_INDX] || !prt_ent[TO_INDX]) {
-			ret = LS_DATA_MISSING;
-			goto out;
-		}
-		if (getTimeDiff(prt_ent[FROM_INDX], prt_ent[TO_INDX], &from,
-							&to) == -1) {
-			ret = LS_FORMAT_INVALID;
-			goto out;
-		}
-	}
-	if (sscanf(prt_ent[MAC_INDX], "%x:%x:%x:%x:%x:%x",
-			&mac_license[0], &mac_license[1], &mac_license[2],
-			&mac_license[3], &mac_license[4], &mac_license[5]) != 6) {
-		ret = LS_FORMAT_INVALID;
-		goto out;
-	}
 	tmp =  (char *)malloc(sizeof(char) * j);
 	if (!tmp) {
 		ret = LS_INTERNAL_ERR;
@@ -176,23 +160,73 @@ flf_gen_lic_file_v1_0(char *in, char **out)
 	}
 	bzero(tmp, sizeof(char) * j);
 
+	type = get_license_type(prt_ent[TYPE_INDX]);
+	if (type == LPT_INVAL) {
+		printf("Value for license type must be Permanent or Periodic");
+		ret = LS_FORMAT_INVALID;
+		goto out;
+	}
+	if (type != LPT_PERPETUAL) {
+		if (!prt_ent[FROM_INDX] || !prt_ent[TO_INDX]) {
+			printf("Validity period not entered\n");
+			ret = LS_DATA_MISSING;
+			goto out;
+		}
+		if (getTimeDiff(prt_ent[FROM_INDX], prt_ent[TO_INDX], &from,
+							&to) == -1) {
+			printf("Validitiy period is not entered in valid format\n");
+			ret = LS_FORMAT_INVALID;
+			goto out;
+		}
+	}
+
+	inst_type = get_installation_type(prt_ent[INST_INDX]);
+	if (inst_type == LIT_INVAL) {
+		printf("Value for license scope must be Single or Multiple");
+		ret = LS_FORMAT_INVALID;
+		goto out;
+	}
+	if (inst_type == LIT_STAND_ALONE) {
+		if (sscanf(prt_ent[MAC_INDX], "%x:%x:%x:%x:%x:%x",
+				&mac_license[0], &mac_license[1], &mac_license[2],
+				&mac_license[3], &mac_license[4], &mac_license[5]) != 6) {
+			printf("MAC address must be specified in xx:xx:xx:xx:xx:xx format\n");
+			ret = LS_FORMAT_INVALID;
+			goto out;
+		}
+	}
+
+	if (type != LPT_PERPETUAL) {
+		if (prt_ent[GRACE_INDX] == NULL) {
+			printf("Grace period not entered\n");
+			ret = LS_DATA_MISSING;
+			goto out;
+		}
+		if (sscanf(prt_ent[GRACE_INDX], "%d", &grace_days) != 1) {
+			printf("Value for grace period must be -1 or positive integer\n");
+			ret = LS_FORMAT_INVALID;
+			goto out;
+		}
+	}
+
+
 	j = 0;
 	for ( i = 0; i < NO_OF_PART_FIELDS; i++) {
 		if (prt_ent[i] == NULL) {
 			continue;
 		}
-		strcpy(tmp + j, particulars_section[i]);
-		j += strlen(particulars_section[i]);
+		strcpy(tmp + j, particulars_section_v2_0[i]);
+		j += strlen(particulars_section_v2_0[i]);
 		strcpy(tmp + j, prt_ent[i]);
 		j += strlen(prt_ent[i]);
 		strcpy(tmp + j, "\n");
 		j += 1;
 	}
 	strcpy(tmp + j, "\0");
-	if ((ret = GenerateLicense_v1_0(tmp, j, 4096, encr_lic, msg)) != LS_VALID) {
+	if ((ret = GenerateLicense_v2_0(tmp, j, 4096, encr_lic, msg)) != LS_VALID) {
 		goto out;
 	}
-	outlen += (int)strlen(key_header) + (int)strlen(encr_lic) + 8;
+	outlen += (int)strlen(key_header_v2_0) + (int)strlen(encr_lic) + 8;
 	*out = (char *)malloc(outlen);
 	if (*out == NULL) {
 		ret = LS_INTERNAL_ERR;
@@ -207,15 +241,15 @@ flf_gen_lic_file_v1_0(char *in, char **out)
 	(i) += strlen((in));			\
 } while (0)
 
-	COPY_AT(*out, j, contact_header);
+	COPY_AT(*out, j, contact_header_v2_0);
 	for ( i = 0; i < NO_OF_CONTACT_FIELDS; i++) {
-		COPY_AT(*out, j, contact_section[i]);
+		COPY_AT(*out, j, contact_section_v2_0[i]);
 		COPY_AT(*out, j, cnt_ent[i]);
 		COPY_AT(*out, j, "\n");
 	}
-	COPY_AT(*out, j, particulars_header); 
+	COPY_AT(*out, j, particulars_header_v2_0); 
 	COPY_AT(*out, j, tmp); 
-	COPY_AT(*out, j, key_header); 
+	COPY_AT(*out, j, key_header_v2_0); 
 	COPY_AT(*out, j, encr_lic); 
 	COPY_AT(*out, j, "\n"); 
 	strcpy(*out + j, "\0");
@@ -236,7 +270,7 @@ out:
  * Validate the license file. This will not compare MAC address.
  */
 enum lic_state
-flf_val_lic_file_v1_0(char *in)
+flf_val_lic_file_v2_0(char *in)
 {
 	char	*prtstart, *keystart, *end;
 	char 	*decr, *key;
@@ -245,11 +279,11 @@ flf_val_lic_file_v1_0(char *in)
 	int	ret;
 	int	len;
 
-	if ((prtstart = strstr(in, particulars_header)) == NULL) {
+	if ((prtstart = strstr(in, particulars_header_v2_0)) == NULL) {
 		return LS_FORMAT_INVALID;
 	}
-	prtstart += strlen(particulars_header);
-	if ((keystart = strstr(in, key_header)) == NULL) {
+	prtstart += strlen(particulars_header_v2_0);
+	if ((keystart = strstr(in, key_header_v2_0)) == NULL) {
 		return LS_FORMAT_INVALID;
 	}
 
@@ -261,7 +295,7 @@ flf_val_lic_file_v1_0(char *in)
 	bzero(decr, len);
 	strncpy(decr, prtstart, (int)(keystart - prtstart));
 
-	keystart += strlen(key_header);
+	keystart += strlen(key_header_v2_0);
 	end = strstr(keystart, "\n");
 	end--;
 	len = (int)(end - keystart) + 8;
@@ -272,7 +306,7 @@ flf_val_lic_file_v1_0(char *in)
 	bzero(key, len);
 	strncpy(key, keystart, (int)(end - keystart) + 1);
 
-	if ((ret = GenerateLicense_v1_0(decr, strlen(decr), 4096, encr_lic, msg)) != LS_VALID) {
+	if ((ret = GenerateLicense_v2_0(decr, strlen(decr), 4096, encr_lic, msg)) != LS_VALID) {
 		goto out;
 	}
 	if (strcmp(key, encr_lic) == 0) {
@@ -286,7 +320,7 @@ out:
 	return ret;
 }	
 int
-flf_check_lic_comp_v1_0(char *in, char *prod, char *version, int check_mac_addr)
+flf_check_lic_comp_v2_0(char *in, char *prod, char *version, int check_mac_addr)
 {
 	enum lic_state	ret = LS_VALID;
 #if 0
@@ -295,8 +329,8 @@ flf_check_lic_comp_v1_0(char *in, char *prod, char *version, int check_mac_addr)
 	int	len;
 	char 	*msg;
 
-	prtstart = strstr(in, particulars_header) + strlen(particulars_header);
-	keystart = strstr(in, key_header);
+	prtstart = strstr(in, particulars_header_v2_0) + strlen(particulars_header_v2_0);
+	keystart = strstr(in, key_header_v2_0);
 
 	len = (int)(keystart - prtstart) + 8;
 	if ((decr = (char *)malloc(sizeof(char) * len))  ///1
@@ -306,7 +340,7 @@ flf_check_lic_comp_v1_0(char *in, char *prod, char *version, int check_mac_addr)
 	bzero(decr, len);
 	strncpy(decr, prtstart, (int)(keystart - prtstart));
 
-	keystart += strlen(key_header);
+	keystart += strlen(key_header_v2_0);
 	end = strstr(keystart, "\n");
 	end--;
 	len = (int)(end - keystart) + 8;
@@ -337,43 +371,50 @@ flf_check_lic_comp_v1_0(char *in, char *prod, char *version, int check_mac_addr)
  * Return details of license only if it is valid.
  */
 void
-flf_get_license_details_v1_0(char *in, lic_data_t *data)
+flf_get_license_details_v2_0(char *in, lic_data_t *data)
 {
-	int		i;
-	char		*cnt_hdr;
-	char		*prt_ent[NO_OF_PART_FIELDS] = {0};
-	int		len;
-	char		*prtstart, *keystart, *end;
-	char 		*decr = NULL, *key = NULL, *msg = NULL;
-	char		maj[32]={0}, min[32] = {0};
-	int		check_mac_addr = 0;
+	int				i;
+	char			*cnt_hdr;
+	char			*cnt_ent[NO_OF_CONTACT_FIELDS] = {0};
+	char			*prt_ent[NO_OF_PART_FIELDS] = {0};
+	int				len;
+	char			*prtstart, *keystart, *end;
+	char 			*decr = NULL, *key = NULL, *msg = NULL;
+	char			maj[32]={0}, min[32] = {0};
+	int				check_mac_addr = 0;
 	enum lic_state	ret = LS_VALID;
-	double		from, to;
-	lic_type	type;
-	lic_inst_type inst_type;
+	double			from, to;
+	lic_type		type;
+	lic_inst_type	inst_type;
+	int				grace_prd;
 
 
-	cnt_hdr = strstr(in, contact_header);
+	cnt_hdr = strstr(in, contact_header_v2_0);
 	if (NULL == cnt_hdr || in != cnt_hdr) {
 		data->fld_state = LS_FORMAT_INVALID;
 		goto out;
 	}
 
-	if ((prtstart = strstr(in, particulars_header)) == NULL) {
+	if ((prtstart = strstr(in, particulars_header_v2_0)) == NULL) {
 		data->fld_state = LS_FORMAT_INVALID;
 		goto out;
 	}
-	prtstart += strlen(particulars_header);
-	if ((keystart = strstr(in, key_header)) == NULL) {
+	prtstart += strlen(particulars_header_v2_0);
+	if ((keystart = strstr(in, key_header_v2_0)) == NULL) {
 		data->fld_state = LS_FORMAT_INVALID;
 		goto out;
 	}
 
+	for ( i = 0; i < NO_OF_CONTACT_FIELDS; i++) {
+		if ((ret = getstring(in, (char *)contact_section_v2_0[i], &cnt_ent[i])) != LS_VALID) {
+			goto out;
+		}
+	}
 	for ( i = 0; i < NO_OF_PART_FIELDS; i++) {
-		ret = getstring(in, (char *)particulars_section[i], 
+		ret = getstring(in, (char *)particulars_section_v2_0[i], 
 				&prt_ent[i]);
 		if (ret == LS_DATA_MISSING) {
-			if (mandatory_field[i]) {
+			if (mandatory_field_v2_0[i]) {
 				goto out;
 			}
 		} else if (ret != LS_VALID) {
@@ -389,7 +430,7 @@ flf_get_license_details_v1_0(char *in, lic_data_t *data)
 	bzero(decr, len);
 	strncpy(decr, prtstart, (int)(keystart - prtstart));
 
-	keystart += strlen(key_header);
+	keystart += strlen(key_header_v2_0);
 	if ((end = strstr(keystart, "\n")) == NULL) {
 		data->fld_state = LS_FORMAT_INVALID;
 		goto out;
@@ -409,48 +450,50 @@ flf_get_license_details_v1_0(char *in, lic_data_t *data)
 		data->fld_state = LS_INTERNAL_ERR;
 		goto out;
 	}
-	data->fld_state = ret = (int)isLicenseValid2_v1_0(
+	data->fld_state = ret = (int)isLicenseValid2_v2_0(
 				decr, key, NULL, NULL, check_mac_addr, msg);
-	if ((ret == LS_VALID) || (ret == LS_EXPIRED)) {
-		ret = mac_addr_matches(prt_ent[MAC_INDX]);
-		if (ret != LS_VALID) {
-			data->fld_state = ret;
-		}
-	}
 
 
 	cnt_hdr = strstr(prt_ent[1], "."); 	
 	if (cnt_hdr) {
 		len = (int)(cnt_hdr - prt_ent[1]);
-		strncpy(maj, prt_ent[1], len);
-		data->fld_data[LDI_PROD_MAJ] = (void *)strdup(maj);
-		strncpy(min, cnt_hdr + 1, strlen(prt_ent[1]) - len - 1);
-		data->fld_data[LDI_PROD_MIN] = (void *)strdup(min);
-
+		if (len > 0) {
+			strncpy(maj, prt_ent[1], len);
+			data->fld_data[LDI_PROD_MAJ] = (void *)strdup(maj);
+		} 
+		if ((strlen(prt_ent[1]) - len - 1) > 0) {
+			strncpy(min, cnt_hdr + 1, strlen(prt_ent[1]) - len - 1);
+			data->fld_data[LDI_PROD_MIN] = (void *)strdup(min);
+		}
 	} else {
 		strcpy(maj, prt_ent[1]);
 		data->fld_data[LDI_PROD_MAJ] = (void *)strdup(maj);
 	}
 
-
-
 	type = get_license_type(prt_ent[TYPE_INDX]);
+	inst_type = get_installation_type(prt_ent[INST_INDX]);
 	
-	data->fld_data[LDI_PROD_NAME] = (void *)strdup(prt_ent[0]);
+	if (inst_type == LIT_STAND_ALONE) {
+		if ((ret == LS_VALID) || (ret == LS_EXPIRED)) {
+			ret = mac_addr_matches(prt_ent[MAC_INDX]);
+			if (ret != LS_VALID) {
+				data->fld_state = ret;
+			}
+		}
+	}
 
+	data->fld_data[LDI_PROD_NAME] = (void *)strdup(prt_ent[0]);
 #define copyas(indx, type, val) do {				\
 	data->fld_data[indx] = malloc(sizeof(type));		\
 	if (data->fld_data[indx]) {				\
 		*((type *)(data->fld_data[indx])) = val;	\
 	} else {						\
-		data->fld_state = LS_FORMAT_INVALID;		\
+		data->fld_state = LS_INTERNAL_ERR;		\
 		goto out;					\
 	}							\
 }while (0)						
 
 	copyas(LDI_LIC_TYPE, lic_type, type);
-
-	inst_type = LIT_STAND_ALONE;
 	copyas(LDI_INST_TYPE, lic_inst_type, inst_type);
 
 	if ((data->fld_state == LS_VALID) && (type != LPT_PERPETUAL)) {
@@ -465,7 +508,27 @@ flf_get_license_details_v1_0(char *in, lic_data_t *data)
 		} else {
 			data->fld_state = LS_FORMAT_INVALID;
 		}
+
+		if (prt_ent[GRACE_INDX] == NULL) {
+			ret = LS_FORMAT_INVALID;
+			goto out;
+		}
+
+		if (sscanf(prt_ent[GRACE_INDX], "%d", &grace_prd) != 1) {
+			ret = LS_FORMAT_INVALID;
+			goto out;
+		}
+
+		if (grace_prd != -1) {
+			grace_prd = grace_prd * 60 * 60 * 24;
+		}
+		copyas(LDI_GRACE_PRD, double, grace_prd);
 	}
+
+	
+	data->fld_data[LDI_CUST_NAME] = (void *)strdup(cnt_ent[0]);
+	data->fld_data[LDI_CUST_COMPANY] = (void *)strdup(cnt_ent[1]);
+	data->fld_data[LDI_CUST_MAIL] = (void *)strdup(cnt_ent[2]);
 
 out:
 	if (decr) free(decr);
@@ -492,6 +555,21 @@ get_license_type(char *s)
 	return (type);
 }		
 
+static lic_type
+get_installation_type(char *s)
+{
+	lic_inst_type type;
+
+	if (strncmp(s, "Multiple", strlen("Multiple")) == 0) {
+		type = LIT_MULTI_INST;
+	} else if (strncmp(s, "Single", strlen("Single")) == 0) {
+		type = LIT_STAND_ALONE;
+	} else {
+		type = LIT_INVAL;
+	}
+	return (type);
+}		
+
 static int 
 getstring(char *in, char *field, char **value)
 {
@@ -511,8 +589,9 @@ getstring(char *in, char *field, char **value)
 
 	if ((p > q) ||
 			((p == q) && (*p == ' ' || *p == '\n'))) {
-		return LS_DATA_MISSING; /* It has been left blank */
+		return LS_DATA_MISSING;	/* It has been left blank */
 	}
+
 
 	if ((*value = (char *)malloc(sizeof(char) * (int)(q - p + 2))) == NULL) {
 		return LS_INTERNAL_ERR;

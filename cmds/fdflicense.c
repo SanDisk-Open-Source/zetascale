@@ -99,7 +99,7 @@ main(int argc, char **argv)
 		if (version) {
 			if (sscanf(version, "%d.%d", &major, &minor) < 2) {
 				fprintf(stderr, "Version parameter is not \
-								in valid format\n");
+								in valid (<major>.<minor>) format\n");
 				return -1;
 			}
 		}

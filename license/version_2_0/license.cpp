@@ -173,6 +173,132 @@ error_exit:
 }
 ////////////////////////////////////////////////////////////////////////////////
 
+#if 0
+/**
+ *
+ * @param buff
+ * @return
+ */
+time_t convertDateTime(const char *buff) {
+    int yy, mm, dd, hour, min, sec;
+    struct tm when;
+    time_t tme;
+
+    if (sscanf(buff, "%d/%d/%d %d:%d:%d", &mm, &dd, &yy, &hour, &min, &sec) != 6) {
+        return(0);
+    }
+
+    if (yy > 1900) {
+	    int CC = (yy / 100) * 100;
+	    if ((yy - CC) < 70) {
+		    yy = yy - (CC - 100);
+	    } else {
+		    yy = yy - CC;
+	    }
+    } else if (yy > 100) {
+	return 0;
+    } else {
+	    if (yy < 70) {
+		    yy += 100;
+	    }
+    }
+
+    time(&tme);
+    when = *gmtime(&tme);
+    when.tm_year = yy;
+    when.tm_mon = mm - 1;
+    when.tm_mday = dd;
+    when.tm_hour = hour;
+    when.tm_min = min;
+    when.tm_sec = sec;
+    return ( mktime(&when));
+}
+
+/**
+ *
+ * @param validfrom_gmt
+ * @param validto_gmt
+ * @param message_out
+ * @return
+ */
+int
+getTimeDiff(char * validfrom_gmt, char * validto_gmt, double *from, double *to)
+{
+    time_t from_gmt = convertDateTime(validfrom_gmt);
+    time_t to_gmt = convertDateTime(validto_gmt);
+
+
+    // get current time in GMT
+    time_t now = time(NULL);
+    tm *n = gmtime(&now);
+    time_t nowgmt = mktime(n);
+
+    if (from_gmt == 0) {
+        return -1;
+    } else {
+	    // do the diff and verify if now is before validfrom
+	    *from = difftime(nowgmt, from_gmt);
+    }
+    if (to_gmt == 0) {
+        return -1;
+    } else {
+	    // do the diff and verify if now is after validto
+	    *to = difftime(to_gmt, nowgmt);
+    }
+
+	return 0;
+}
+
+lic_state
+verifyDates(char * validfrom_gmt, char * validto_gmt, char *message_out) {
+    int nmsg = 0; // count number of chars written to message_out
+    time_t from_gmt = convertDateTime(validfrom_gmt);
+    time_t to_gmt = convertDateTime(validto_gmt);
+
+    if (from_gmt == 0) {
+        nmsg = sprintf(message_out + nmsg, "Invalid 'from' time.");
+        return LS_FORMAT_INVALID;
+    }
+    if (to_gmt == 0) {
+        nmsg = sprintf(message_out + nmsg, "Invalid 'to' time.");
+        return LS_FORMAT_INVALID;
+    }
+
+    // get current time in GMT
+    time_t now = time(NULL);
+    tm *n = gmtime(&now);
+    time_t nowgmt = mktime(n);
+
+    // do the diff and verify if now is after validto
+    double diff = difftime(to_gmt, nowgmt);
+    if (diff < 0) {
+        nmsg = sprintf(message_out + nmsg, "License has expired.");
+        return LS_EXPIRED;
+    } else {
+        float hours = diff / 3600;
+        nmsg = sprintf(message_out + nmsg, "Time left: %.0lf hours", floor(hours));
+        float mins = 60 * (hours - floor(hours));
+        nmsg += sprintf(message_out + nmsg, " %.0lf mins", floor(mins));
+        float sec = 60 * (mins - floor(mins));
+        nmsg += sprintf(message_out + nmsg, " %.0lf secs. ", floor(sec));
+    }
+
+    // do the diff and verify if now is before validfrom
+    diff = difftime(nowgmt, from_gmt);
+    if (diff < 0) { // allow start dates in the future
+        nmsg = sprintf(message_out + nmsg, "License period has not begun.");
+        return LS_NOTBEGUN;
+    } else {
+        float hours = diff / 3600;
+        nmsg += sprintf(message_out + nmsg, "Time passed: %.0lf hours", floor(hours));
+        float mins = 60 * (hours - floor(hours));
+        nmsg += sprintf(message_out + nmsg, " %.0lf mins", floor(mins));
+        float sec = 60 * (mins - floor(mins));
+        nmsg += sprintf(message_out + nmsg, " %.0lf secs\n", floor(sec));
+    }
+    return LS_VALID;
+}
+#endif
 /*
  * @param clear_license IN
  * @param validfrom_gmt OUT
@@ -180,11 +306,11 @@ error_exit:
  * @return
  */
 lic_state
-parseDates(char *clear_license, char *validfrom_gmt, char *validto_gmt) {
+parseDates_v2_0(char *clear_license, char *validfrom_gmt, char *validto_gmt) {
     char *p = NULL, *q = NULL;
 
     ////////
-    if (!(p = strstr(clear_license, particulars_section[3]))) {
+    if (!(p = strstr(clear_license, particulars_section_v2_0[3]))) {
         //fprintf(stderr, "License format incorrect, missing tag: %s\n", text_valid_from);
         return LS_FORMAT_INVALID;
     }
@@ -193,7 +319,7 @@ parseDates(char *clear_license, char *validfrom_gmt, char *validto_gmt) {
         //fprintf(stderr, "License format incorrect, new line not found after tag: %s\n", text_valid_from);
         return LS_FORMAT_INVALID;
     }
-    p += strlen(particulars_section[3]);
+    p += strlen(particulars_section_v2_0[3]);
     while (*p == ' ') p++; // remove beginning whitespaces
     strncpy(validfrom_gmt, p, q - p);
     strcpy(validfrom_gmt + (q - p), "\0");
@@ -201,7 +327,7 @@ parseDates(char *clear_license, char *validfrom_gmt, char *validto_gmt) {
     for (; *q == ' '; q--) *q = '\0'; // remove ending whitespaces
     ////////
     p = q = NULL;
-    if (!(p = strstr(clear_license, particulars_section[4]))) {
+    if (!(p = strstr(clear_license, particulars_section_v2_0[4]))) {
         //fprintf(stderr, "License format incorrect, missing tag: %s\n", text_valid_to);
         return LS_FORMAT_INVALID;
     }
@@ -209,7 +335,7 @@ parseDates(char *clear_license, char *validfrom_gmt, char *validto_gmt) {
         //fprintf(stderr, "License format incorrect, new line not found after tag: %s\n", text_valid_to);
         return LS_FORMAT_INVALID;
     }
-    p += strlen(particulars_section[4]);
+    p += strlen(particulars_section_v2_0[4]);
     while (*p == ' ') p++; // remove beginning whitespaces
     strncpy(validto_gmt, p, q - p);
     strcpy(validto_gmt + (q - p), "\0");
@@ -236,7 +362,7 @@ parseDates(char *clear_license, char *validfrom_gmt, char *validto_gmt) {
  * @param message_out OUT
  * @return
  */
-extern "C" int GenerateLicense_v1_0(char *clear_license, unsigned clear_len, unsigned encr_len, char *encr_license, char *message_out) {
+extern "C" int GenerateLicense_v2_0(char *clear_license, unsigned clear_len, unsigned encr_len, char *encr_license, char *message_out) {
 
     if (!clear_license || !encr_license || !message_out) {
         strncpy(message_out, STR_GENLIC_NULL_PARAMS, N_STR_GENLIC_NULL_PARAMS);
@@ -319,7 +445,105 @@ static lic_state isLicenseValid(char *clear_license, char *encr_license, char *m
     return LS_VALID;
 }
 
-extern "C" lic_state  isLicenseValid2_v1_0(char *clear_license, char *encr_license,
+#if 0 
+enum lic_state mac_addr_matches(char *clear_license)
+{
+    int    i;
+    int    itmp;
+    enum lic_state    ret = LS_MAC_MISMATCH;
+    int    sysret;
+    int    match;
+    char   fname[128];
+    char   syscmd[256];
+    char   line[1024];
+    int    linelen = 1024;
+    int    mac[6];
+    int    mac_license[6];
+    FILE  *f;
+    char  *s;
+
+    /* get the MAC address from the license */
+#if 0
+    s = strstr(clear_license, particulars_section_v2_0[2]);
+    if (s == NULL) {
+	(void) fprintf(stderr, "License does not include a MAC address:\n%s\n", clear_license);
+	return LS_FORMAT_INVALID;
+    } else {
+	    char *t = strstr(s, "\n");
+	            s += strlen(particulars_section_v2_0[2]);
+		            strncpy(line, s, (int)(t-s));
+			    	
+	if (sscanf(line, "%x:%x:%x:%x:%x:%x",
+	    &mac_license[0], &mac_license[1], &mac_license[2], 
+	    &mac_license[3], &mac_license[4], &mac_license[5]) != 6)
+	{
+	    (void) fprintf(stderr, "License has an improperly formatted MAC address:\n%s\n", clear_license);
+	    return LS_FORMAT_INVALID;
+	}
+    }
+#endif
+	if (sscanf(clear_license, "%x:%x:%x:%x:%x:%x",
+	    &mac_license[0], &mac_license[1], &mac_license[2], 
+	    &mac_license[3], &mac_license[4], &mac_license[5]) != 6)
+	{
+	    //(void) fprintf(stderr, "License has an improperly formatted MAC address:%s\n", clear_license);
+	    return LS_FORMAT_INVALID;
+	}
+
+    /* check it against all MAC addresses in this system */
+
+    sprintf(fname, "/tmp/mbmacXXXXXX");
+
+    itmp = mkstemp(fname);
+    if (itmp != -1) {
+        sprintf(syscmd, "ip addr > %s", fname);
+	sysret = system(syscmd);
+	if (sysret == -1) {
+	    //(void) fprintf(stderr, "'system' command failed to execute 'ip addr' to check MAC address\n");
+	} else {
+	    /*   The system command succeeded, so
+	     *   open the file and compare MAC addresses against
+	     *   the one provided in the license.
+	     */
+	    f = fdopen(itmp, "r");
+
+	    while (fgets(line, linelen, f) != NULL) {
+	        s = strstr(line, "link/ether");
+		if (s != NULL) {
+		    if (sscanf(s, "link/ether %x:%x:%x:%x:%x:%x",
+		        &mac[0], &mac[1], &mac[2], 
+			&mac[3], &mac[4], &mac[5]) == 6)
+		    {
+		        match = 1;
+		        for (i=0; i<6; i++) {
+			    if (mac[i] != mac_license[i]) {
+			        match = 0;
+				break;
+			    }
+			}
+			if (match) {
+			    ret = LS_VALID;
+			    break;
+			} else {
+				ret = LS_MAC_MISMATCH;
+			}
+		    }
+		}
+	    }
+
+	    if (unlink(fname) != 0) {
+	        //(void) fprintf(stderr, "Could not unlink mac address check file '%s' (errno=%d, '%s')\n", fname, errno, strerror(errno));
+	    }
+
+	    if (fclose(f) != 0) {
+	        //(void) fprintf(stderr, "Could not close mac address check file '%s' (errno=%d, '%s')\n", fname, errno, strerror(errno));
+	    }
+	}
+    }
+    return(ret);
+}
+#endif
+extern "C" lic_state  isLicenseValid2_v2_0(char *clear_license, char *encr_license,
 			char *product, char *version, int check_mac_addr,
 			char *message_out) 
 {

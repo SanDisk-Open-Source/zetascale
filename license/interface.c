@@ -126,7 +126,7 @@ generate_license_file(char *ver, char *path)
 	 * Write version specific information using the interface
 	 * exported.
 	 */
-	if (lic_list[0].flf_gen_lic_file(fd) == -1) {
+	if (lic_list[indx].flf_gen_lic_file(fd) == -1) {
 		fprintf(stderr, "Could not write contents to file\n");
 		return -1;
 	}
@@ -368,7 +368,7 @@ get_license_details(char *input_file, lic_data_t *data)
 	data->fld_major = major;
 	data->fld_minor = minor;
 	lic_list[indx].flf_get_license_details(input, data);
-        goto out;
+	goto out;
 fmt_out:
 	data->fld_state = LS_FORMAT_INVALID;
 out:
