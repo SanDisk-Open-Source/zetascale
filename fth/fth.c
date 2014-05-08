@@ -31,7 +31,9 @@
 #include <sys/mman.h>
 #include <stdio.h>
 
+#ifdef VALGRIND
 #include "valgrind/valgrind.h"
+#endif
 
 #include "platform/alloc_stack.h"
 #include "platform/attr.h"

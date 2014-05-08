@@ -34,7 +34,9 @@
 
 #include <sys/ioctl.h>
 
+#ifdef VALGRIND
 #include "valgrind/valgrind.h"
+#endif
 
 #include "platform/assert.h"
 #include "platform/attr.h"
@@ -328,8 +330,10 @@ plat_shmem_prototype_init(const struct plat_shmem_config *config) {
 #else
     if (config->address_space != 0) {
         init_state.address_space = config->address_space;
+#ifdef VALGRIND
     } else if (RUNNING_ON_VALGRIND) {
         init_state.address_space = PLAT_SHMEM_DEFAULT_VALGRIND_ADDRESS_SPACE;
+#endif
     } else {
         tmp = plat_get_address_space_size();
         if (tmp < 0) {

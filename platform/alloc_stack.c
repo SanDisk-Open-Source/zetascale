@@ -9,7 +9,9 @@
  *
  * $Id: alloc_stack.c 10527 2009-12-12 01:55:08Z drew $
  */
+#ifdef VALGRIND
 #include "valgrind/valgrind.h"
+#endif
 
 #include "platform/alloc_stack.h"
 #include "platform/errno.h"
@@ -37,8 +39,10 @@ struct stack_control {
     /** @brief Pointer to pass to malloc for free */
     void *malloc_ptr;
 
+#ifdef VALGRIND
     /** @brief Id for valgrind (default when run normally) */
     unsigned valgrind_id;
+#endif
 
     /** @brief Is this stack protected?  Huge page stacks are not */
     int is_protected;
@@ -83,7 +87,9 @@ plat_alloc_stack(int len) {
         stack_control->magic.integer = STACK_MAGIC;
         stack_control->malloc_ptr = malloc_ptr;
         end = (char *)ret + len;
+#ifdef VALGRIND
         stack_control->valgrind_id = VALGRIND_STACK_REGISTER(ret, end);
+#endif
         stack_control->is_protected = 1;
 
         /* Protection doesn't work for stacks in huge pages */
@@ -127,7 +133,9 @@ plat_free_stack(void *stack) {
                  "free stack red %p data %p",
                  low_page, stack);
 
+#ifdef VALGRIND
     VALGRIND_STACK_DEREGISTER(stack_control->valgrind_id);
+#endif
 
     if (stack_control->is_protected) {
         status = plat_mprotect(low_page, (size_t)pagesize,
