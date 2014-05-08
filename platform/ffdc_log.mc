@@ -3487,3 +3487,4 @@
 180212 Slab GC already initialized. shardID=%ld. Threshold=%d%%
 180213 Slab GC initialized. shardID=%ld. Threshold=%d%%
 180214 Slab GC stopped. shardID=%ld
+180215 PROP: SDF_MAX_OBJ_SIZE=%"PRIu64" (adjusted from %"PRIu64")

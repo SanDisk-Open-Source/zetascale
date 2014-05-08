@@ -471,7 +471,7 @@ void InitActionProtocolCommonState(SDF_action_state_t *pas, SDF_action_init_t *p
 
     uint64_t max_size = Mcd_osd_blk_size * MCD_OSD_OBJ_MAX_BLKS - 72 - 20 - 256;
     if(max_obj_size > max_size) {
-        plat_log_msg(PLAT_LOG_ID_INITIAL, PLAT_LOG_CAT_PRINT_ARGS, PLAT_LOG_LEVEL_DEBUG, "PROP: SDF_MAX_OBJ_SIZE=%"PRIu64" (adjusted from %"PRIu64")", max_size, max_obj_size);
+        plat_log_msg(180215, PLAT_LOG_CAT_PRINT_ARGS, PLAT_LOG_LEVEL_DEBUG, "PROP: SDF_MAX_OBJ_SIZE=%"PRIu64" (adjusted from %"PRIu64")", max_size, max_obj_size);
         max_obj_size = max_size;
     }
     else
