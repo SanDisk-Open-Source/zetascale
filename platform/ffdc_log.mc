@@ -3459,11 +3459,6 @@
 170042 Bogus log # from log_writer
 170043 Outer trx is unrecoverable (too long)
 170044 shardID=%lu, high-water-mark blocks consumed=%lu, delayed=%lu
-170045 LIC: License daemon initialization failed, restarting.
-170046 Internal error, skipped version check
-170047 License has expired, however FDF will continue to run. Renew the license.
-170048 License %s beyond grace period. FDF will fail. Renew the license.
-170049 Customer details: %s, %s, %s.
 
 
 # efirsov
