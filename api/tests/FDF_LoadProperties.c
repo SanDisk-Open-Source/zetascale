@@ -119,7 +119,9 @@ int main()
         count += test_property_is_wrong();
         count += test_basic_check();
         clear_env();
-    }
+    } else {
+		return -1;
+	}
     fclose(fp);
    
     fprintf(stderr, "Test Result:\n");
