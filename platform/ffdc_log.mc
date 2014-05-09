@@ -3414,6 +3414,11 @@
 160252 scavenger scan completed.
 160253 scavenger yielding, scan complete.
 160254 scavenger scan resuming.
+160255 LIC: License daemon initialization failed, restarting.
+160256 Internal error, skipped version check
+160257 License has expired, however FDF will continue to run. Renew the license.
+160258 License %s beyond grace period. FDF will fail. Renew the license.
+160259 Customer details: %s, %s, %s.
 
 
 # rico

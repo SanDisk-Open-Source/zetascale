@@ -1,7 +1,7 @@
 FDF_LOG_LEVEL =info
 FDF_FLASH_SIZE=16
-#FDF_FLASH_FILENAME=/schooner/data/schooner0
-FDF_FLASH_FILENAME=/dev/shm/schooner0
+FDF_FLASH_FILENAME=/schooner/data/schooner0
+#FDF_FLASH_FILENAME=/dev/shm/schooner0
 FDF_LOG_FLUSH_DIR=/dev/shm
 FDF_O_DIRECT=0
 FDF_REFORMAT=1

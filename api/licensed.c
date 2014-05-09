@@ -125,7 +125,7 @@ licd_start(const char *lic_path, int period, struct FDF_state *fdf_state)
 		bzero(fdf_version, strlen(FDF_REVISION) + 1);
 		strncpy(fdf_version, FDF_REVISION, strlen(FDF_REVISION));
 	} else {
-		plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, LOG_WARN,
+		plat_log_msg(160071, LOG_CAT, LOG_WARN,
 				"Memory allocation failed");
 		goto out;
 	}
@@ -235,7 +235,7 @@ licd_handler_thread(uint64_t arg)
 				pthread_cond_broadcast(&licd_cv);
 				pthread_mutex_unlock(&licd_mutex);
 			} else {
-				plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, LOG_WARN,
+				plat_log_msg(160255, LOG_CAT, LOG_WARN,
 						"LIC: License daemon initialization failed, restarting.");
 			}
 
@@ -369,7 +369,7 @@ update_lic_info(lic_data_t *data, bool daemon)
 								}
 							}
 						} else {
-							plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, LOG_WARN,
+							plat_log_msg(160256, LOG_CAT, LOG_WARN,
 									"Internal error, skipped version check");
 						}
 					}
@@ -459,7 +459,7 @@ check_time_left(double time, double grace, bool warn)
 		 */
 		plat_assert(ld_state == LS_EXPIRED);
 		if (warn) {
-			plat_log_msg( PLAT_LOG_ID_INITIAL, LOG_CAT, LOG_WARN, 
+			plat_log_msg( 160257, LOG_CAT, LOG_WARN, 
 			"License has expired, however FDF will continue to run. Renew the license.");
 		}
 		ld_valid = true;
@@ -471,7 +471,7 @@ check_time_left(double time, double grace, bool warn)
 		 * validity of license.
 		 */
 		if (warn) {
-			plat_log_msg( PLAT_LOG_ID_INITIAL, LOG_CAT, LOG_WARN, 
+			plat_log_msg( 160258, LOG_CAT, LOG_WARN, 
 					"License %s beyond grace period. FDF will fail. Renew the license.", 
 						(ld_state == LS_EXPIRED) ? "expired" : "invalid");
 		}
@@ -518,7 +518,7 @@ check_validity_left(lic_data_t *data, lic_inst_type inst_type, lic_type type, bo
 				"Valid license found (%s/%s).",
 				lic_installation_type[inst_type],
 				lic_period_type[type]);
-		plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, LOG_INFO,
+		plat_log_msg(160259, LOG_CAT, LOG_INFO,
 				"Customer details: %s, %s, %s.",
 				data->fld_data[LDI_CUST_NAME] ? (char *)data->fld_data[LDI_CUST_NAME]: "(null)",
 				data->fld_data[LDI_CUST_COMPANY] ? (char *)data->fld_data[LDI_CUST_COMPANY]: "(null)",
@@ -538,7 +538,7 @@ check_validity_left(lic_data_t *data, lic_inst_type inst_type, lic_type type, bo
 		hrs = mins / 60; mins = mins - hrs * 60; 
 		days = hrs / 24; hrs = hrs - days * 24;
 		if (warn) {
-			plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, LOG_WARN, 
+			plat_log_msg(160160, LOG_CAT, LOG_WARN, 
 				"License will expire in next %d days, %d "
 				"hours and %d minutes.", days, hrs, mins);
 		}
