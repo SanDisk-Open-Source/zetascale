@@ -239,7 +239,7 @@ mgr1()
 
 	if (FDF_SUCCESS != ret) {
 		fprintf(fp, "pre_env failed with err=%s\n", FDFStrError(ret));
-		goto exit_mgr1;
+		return -1;
 	}
 
 	/*

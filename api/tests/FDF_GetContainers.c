@@ -191,7 +191,9 @@ int main()
             count += test_get_with_nocontainer(aw);
             count += test_basic_check(aw);
         }
-    }
+    } else {
+		return -1;
+	}
     clear_env();
     fclose(fp);
    

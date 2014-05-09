@@ -22,7 +22,9 @@ main()
     char key_var[FDF_MAX_KEY_LEN] ={0};
 
     FDFSetProperty("FDF_REFORMAT", "1");
-    FDFInit(&fdf_state);
+    if (FDFInit(&fdf_state) != FDF_SUCCESS) {
+		return -1;
+	}
     FDFInitPerThreadState(fdf_state, &thd_state);	
 
     FDFLoadCntrPropDefaults(&props);
