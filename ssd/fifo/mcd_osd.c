@@ -2578,7 +2578,9 @@ mcd_fth_osd_remove_entry( mcd_osd_shard_t * shard,
 		if ( blks * 100 / shard->blk_allocated > 15 ||
 				( class->used_slabs * 100 / (class->total_slabs + 1) > 40 &&
 				  slabs * 100 / (class->used_slabs + 1) > 50 ) ) {
+#if 0//Rico - debug
 			log_sync( shard );
+#endif
 		}
 	} else
 		mcd_fth_osd_slab_dealloc(shard, hash_entry->address, false);

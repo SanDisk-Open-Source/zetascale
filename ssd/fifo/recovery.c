@@ -4745,79 +4745,59 @@ name_service_get_meta(SDF_internal_ctxt_t *pai, SDF_cguid_t cguid, SDF_container
  * Delete all objects in a container.
  */
 void
-delete_all_objects(pai_t *pai, shard_t *sshard, cguid_t cguid)
+delete_all_objects( pai_t *pai, shard_t *sshard, cguid_t cguid)
 {
-    int               i,j;
-    mshard_t        * shard = (mshard_t *) sshard;
-    hash_handle_t   * hdl = shard->hash_handle;
-    uint64_t          num_bkts = hdl->hash_size /  OSD_HASH_BUCKET_SIZE;
-    uint32_t          bucket_idx;
-    uint64_t          lock_i;
-    fthLock_t       * lock;
-    wait_t          * wait;
-    bucket_entry_t  * bucket;
-    hash_entry_t    * hash_entry;
 
-    SDF_container_meta_t meta;
-    SDF_status_t s;
-    if (cguid > 3) {
-        if ( ( s = name_service_get_meta( pai, cguid, &meta ) ) != FDF_SUCCESS ) {
-            return;
-        }
-        shard->durability_level = meta.properties.durability_level;
-    }
-    for(i=0;i<num_bkts;i++){
-        bucket_idx  = hdl->hash_buckets[i];
-        lock_i      = i / (hdl->lock_bktsize / OSD_HASH_BUCKET_SIZE);
-        lock        = &hdl->bucket_locks[lock_i];
-        wait        = fthLock(lock, 0, NULL);
-        for(;bucket_idx != 0;bucket_idx = bucket->next){
-            bucket = hdl->hash_table + (bucket_idx - 1);
-            for(j=0;j<OSD_HASH_ENTRY_PER_BUCKET_ENTRY;j++){
-                hash_entry = &bucket->hash_entry[j];
-
-                if(hash_entry->used == 0){
-                    continue;
-                }
-
-                if(hash_entry->cntr_id != cguid){
-                    continue;
-                }
-
-                // need to delete this entry now
-                baddr_t baddr = hash_entry->address;
-                uint32_t hash_idx = hdl->addr_table[hash_entry->address];
-                hdl->addr_table[hash_entry->address] = 0;
-
-                hash_entry->deleted = 1;
-                mcd_logrec_object_t log;
-                log.syndrome   = hash_entry->syndrome;
-                log.deleted    = 1;
-                log.reserved   = 0;
-                log.blocks     = 0;
-                log.bucket     = hash_idx;
-                log.blk_offset = baddr;
-                log.old_offset = 0;
-                log.cntr_id    = hash_entry->cntr_id;
-                if ( 1 == shard->replicated ) {
-                    log.seqno = rep_seqno_get((struct shard *)shard);
-                } else {
-                    log.seqno = __sync_add_and_fetch( &shard->sequence, 1 );
-                }
-                log.target_seqno = 0;
-
-                bool delayed = shard->replicated ||
-                    (shard->persistent && !shard->evict_to_free);
-
-                mcd_fth_osd_remove_entry(shard, hash_entry, delayed, true);
-
-                log_write(shard, &log);
-
-                hash_entry_delete(hdl, hash_entry, hash_idx);
-            }
-        }
-        fthUnlock(wait);
-    }
+	mshard_t *shard = (mshard_t *) sshard;
+	if (cguid > 3) {
+		SDF_container_meta_t meta;
+		if (name_service_get_meta( pai, cguid, &meta ) != FDF_SUCCESS)
+			return;
+		shard->durability_level = meta.properties.durability_level;
+	}
+	hash_handle_t *hdl = shard->hash_handle;
+	const ulong num_bkts = hdl->hash_size / OSD_HASH_BUCKET_SIZE;
+	for (uint i=0; i<num_bkts; ++i){
+		ulong lock_i = i / (hdl->lock_bktsize / OSD_HASH_BUCKET_SIZE);
+		fthLock_t *lock = &hdl->bucket_locks[lock_i];
+		wait_t *wait = fthLock( lock, 0, NULL);
+		while (TRUE) {
+			ulong n = 0;
+			ulong bucket_idx = hdl->hash_buckets[i];
+			while (bucket_idx) {
+				bucket_entry_t *bucket = hdl->hash_table + (bucket_idx - 1);
+				for (uint j=0; j<OSD_HASH_ENTRY_PER_BUCKET_ENTRY; ++j){
+					hash_entry_t *hash_entry = &bucket->hash_entry[j];
+					if (hash_entry->used && hash_entry->cntr_id == cguid) {
+						baddr_t baddr = hash_entry->address;
+						ulong hash_idx = hdl->addr_table[hash_entry->address];
+						hdl->addr_table[hash_entry->address] = 0;
+						hash_entry->deleted = 1;
+						mcd_logrec_object_t log;
+						memset( &log, 0, sizeof log);
+						log.syndrome = hash_entry->syndrome;
+						log.deleted = 1;
+						log.bucket = hash_idx;
+						log.blk_offset = baddr;
+						log.old_offset = ~ baddr;
+						log.cntr_id= hash_entry->cntr_id;
+						if (1 == shard->replicated)
+							log.seqno = rep_seqno_get((struct shard *)shard);
+						else
+							log.seqno = __sync_add_and_fetch( &shard->sequence, 1);
+						mcd_fth_osd_remove_entry( shard, hash_entry, TRUE, true);
+						log_write( shard, &log);
+						hash_entry_delete( hdl, hash_entry, hash_idx);
+						++n;
+					}
+				}
+				bucket_idx = bucket->next;
+			}
+			if (n == 0)
+				break;
+		}
+		fthUnlock(wait);
+	}
 }
 
 //TBD: hash changes need to be applied here.
