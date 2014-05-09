@@ -622,7 +622,7 @@ FDF_status_t _FDFInit(
     FDFSetProperty ("FDF_TRX", FDFGetProperty("FDF_TRX", "1"));
 
     ret = FDFInit(fdf_state);
-    if ( ret == FDF_FAILURE ) {
+    if ( ret != FDF_SUCCESS) {
         return ret;
     }
 
