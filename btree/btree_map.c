@@ -577,7 +577,58 @@ int MapRelease(struct Map *pm, char *key, uint32_t keylen, uint64_t cguid, void 
 		if ((pme->refcnt == 0) && pme->deleted) {
 			do_unlock(pm);
 			do_lock_write(pm);
-			h = btree_hash((const unsigned char *) key, sizeof(uint64_t), 0) % pm->nbuckets;
+			h = btree_hash((const unsigned char *) key, sizeof(uint64_t), 0, cguid) % pm->nbuckets;
+			pb = &(pm->buckets[h]);
+
+			map_assert(keylen == 8); // remove this! xxxzzz
+
+			for (ppme = &(pb->entry); (*ppme) != NULL; ppme = &((*ppme)->next)) {
+				pme = *ppme;
+				if ((pme->key == key) && (pme->cguid == cguid)) {
+					if ((pme->refcnt == 0) && pme->deleted) {
+						remove_lru(pm, pme);
+						pm->n_entries--;
+
+						*ppme = pme->next;
+						(pm->replacement_callback)(replacement_callback_data, pme->key, pme->keylen, 
+											pme->contents, pme->datalen);
+						free_pme(pm, pme);
+					}
+					break;
+				}
+			}
+		}
+		rc = 1;
+    } else {
+	    dbg_print(" (KEY NOT FOUND!)\n");
+    }
+
+    do_unlock(pm);
+    return(rc);
+}
+
+int MapReleaseAll(struct Map *pm, char *key, uint32_t keylen, uint64_t cguid, void *replacement_callback_data)
+{
+    uint64_t            h;
+    MapEntry_t   **ppme;
+    MapEntry_t    *pme;
+    MapBucket_t   *pb;
+    int                rc = 0;
+
+    do_lock_read(pm);
+
+	dbg_print("MapRelease: pm=%p, key=0x%lx, keylen=%d", pm, *((uint64_t *) key), keylen);
+
+    pme = find_pme(pm, key, keylen, NULL, cguid);
+
+    if (pme != NULL) {
+// dbg_print(", after release [0x%lx] =%d\n", *((uint64_t *) key), pme->refcnt - 1);
+	    dbg_print(", after release refcnt=%d\n", pme->refcnt - 1);
+		pme->refcnt = 0;
+		if ((pme->refcnt == 0) && pme->deleted) {
+			do_unlock(pm);
+			do_lock_write(pm);
+			h = btree_hash((const unsigned char *) key, sizeof(uint64_t), 0, cguid) % pm->nbuckets;
 			pb = &(pm->buckets[h]);
 
 			map_assert(keylen == 8); // remove this! xxxzzz
@@ -732,7 +783,7 @@ int MapDelete(struct Map *pm, char *key, uint32_t keylen, uint64_t cguid, void *
 
 	dbg_print("MapDelete: pm=%p, key=0x%lx, keylen=%d\n", pm, *((uint64_t *) key), keylen);
 
-    h = btree_hash((const unsigned char *) key, sizeof(uint64_t), 0) % pm->nbuckets;
+    h = btree_hash((const unsigned char *) key, sizeof(uint64_t), 0, cguid) % pm->nbuckets;
     pb = &(pm->buckets[h]);
 
     map_assert(keylen == 8); // remove this! xxxzzz
@@ -950,7 +1001,7 @@ static MapEntry_t *find_pme(struct Map *pm, char *pkey, uint32_t keylen, MapBuck
     char              *key2;
     key2 = (char *) *((uint64_t *) pkey);
 
-    h = btree_hash((const unsigned char *) pkey, keylen, 0) % pm->nbuckets;
+    h = btree_hash((const unsigned char *) pkey, keylen, 0, cguid) % pm->nbuckets;
     pb = &(pm->buckets[h]);
 
     if (keylen == 8) {

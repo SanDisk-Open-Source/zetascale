@@ -84,9 +84,9 @@ void PMapClean(struct PMap **pm, uint64_t cguid, void *replacement_callback_data
 }
 
 inline static
-struct Map* p(struct PMap *pm, char* pkey, uint32_t keylen)
+struct Map* p(struct PMap *pm, char* pkey, uint32_t keylen, uint64_t cguid)
 {
-    uint64_t idx = btree_hash((const unsigned char *) pkey, keylen, 0) % pm->nparts;
+    uint64_t idx = btree_hash((const unsigned char *) pkey, keylen, 0, cguid) % pm->nparts;
 
     return pm->parts[idx];
 }
@@ -94,51 +94,56 @@ struct Map* p(struct PMap *pm, char* pkey, uint32_t keylen)
 //  Return non-NULL if success, NULL if object exists
 struct MapEntry *PMapCreate(struct PMap *pm, char *pkey, uint32_t keylen, char *pdata, uint64_t datalen, uint64_t cguid, void *replacement_callback_data)
 {
-    return MapCreate(p(pm, pkey, keylen), pkey, keylen, pdata, datalen, cguid, replacement_callback_data);
+    return MapCreate(p(pm, pkey, keylen, cguid), pkey, keylen, pdata, datalen, cguid, replacement_callback_data);
 }
 
 //  Return non-NULL if success, NULL if object does not exist
 struct MapEntry *PMapUpdate(struct PMap *pm, char *pkey, uint32_t keylen, char *pdata, uint64_t datalen, uint64_t cguid, void *replacement_callback_data)
 {
-    return MapUpdate(p(pm, pkey, keylen), pkey, keylen, pdata, datalen, cguid, replacement_callback_data);
+    return MapUpdate(p(pm, pkey, keylen, cguid), pkey, keylen, pdata, datalen, cguid, replacement_callback_data);
 }
 
 //  Return non-NULL if success, NULL if object exists
 struct MapEntry *PMapSet(struct PMap *pm, char *pkey, uint32_t keylen, char *pdata, uint64_t datalen, char **old_pdata, uint64_t *old_datalen, uint64_t cguid, void *replacement_callback_data)
 {
-    return MapSet(p(pm, pkey, keylen), pkey, keylen, pdata, datalen, old_pdata, old_datalen, cguid, replacement_callback_data);
+    return MapSet(p(pm, pkey, keylen, cguid), pkey, keylen, pdata, datalen, old_pdata, old_datalen, cguid, replacement_callback_data);
 }
 
 //  Returns non-NULL if successful, NULL otherwise
 struct MapEntry *PMapGet(struct PMap *pm, char *key, uint32_t keylen, char **pdata, uint64_t *pdatalen, uint64_t cguid)
 {
-    return MapGet(p(pm, key, keylen), key, keylen, pdata, pdatalen, cguid);
+    return MapGet(p(pm, key, keylen, cguid), key, keylen, pdata, pdatalen, cguid);
 }
 
 //  Increment the reference count for this entry
 //  rc=1 if entry is found, rc=0 otherwise
 int PMapGetRefcnt(struct PMap *pm, char *key, uint32_t keylen, uint64_t cguid)
 {
-    return MapGetRefcnt(p(pm, key, keylen), key, keylen, cguid);
+    return MapGetRefcnt(p(pm, key, keylen, cguid), key, keylen, cguid);
 }
 //  Increment the reference count for this entry
 //  rc=1 if entry is found, rc=0 otherwise
 int PMapIncrRefcnt(struct PMap *pm, char *key, uint32_t keylen, uint64_t cguid)
 {
-    return MapIncrRefcnt(p(pm, key, keylen), key, keylen, cguid);
+    return MapIncrRefcnt(p(pm, key, keylen, cguid), key, keylen, cguid);
 }
 
 //  rc=1 if entry is found, rc=0 otherwise
 int PMapRelease(struct PMap *pm, char *key, uint32_t keylen, uint64_t cguid, void *replacement_callback_data)
 {
-    return MapRelease(p(pm, key, keylen), key, keylen, cguid, replacement_callback_data);
+    return MapRelease(p(pm, key, keylen, cguid), key, keylen, cguid, replacement_callback_data);
+}
+
+int PMapReleaseAll(struct PMap *pm, char *key, uint32_t keylen, uint64_t cguid, void *replacement_callback_data)
+{
+    return MapReleaseAll(p(pm, key, keylen, cguid), key, keylen, cguid, replacement_callback_data);
 }
 
 /*   Return 0 if succeeds, 1 if object doesn't exist.
  */
 int PMapDelete(struct PMap *pm, char *key, uint32_t keylen, uint64_t cguid, void *replacement_callback_data)
 {
-    return MapDelete(p(pm, key, keylen), key, keylen, cguid, replacement_callback_data);
+    return MapDelete(p(pm, key, keylen, cguid), key, keylen, cguid, replacement_callback_data);
 }
 
 #if 0

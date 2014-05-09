@@ -334,6 +334,7 @@ btree_status_t btree_recovery_process_minipkt(btree_raw_t *bt,
                                btree_raw_node_t **nnodes, uint32_t nn_cnt);
 
 void deref_l1cache_node(btree_raw_t* btree, btree_raw_mem_node_t *node);
+void deref_l1cache_node_all(btree_raw_t* btree, btree_raw_mem_node_t *node);
 btree_raw_mem_node_t* root_get_and_lock(btree_raw_t* btree, int write_lock);
 void free_buffer(btree_raw_t *btree, void* buf);
 char *get_buffer(btree_raw_t *btree, uint64_t nbytes);

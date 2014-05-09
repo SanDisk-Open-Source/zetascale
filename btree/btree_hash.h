@@ -25,6 +25,7 @@
 //
 
 // Level is an arbitrary salt for the hash.
-uint64_t btree_hash(const unsigned char *key, uint64_t keyLength, uint64_t level);
+uint64_t btree_hash_int(const unsigned char *key, uint64_t keyLength, uint64_t level);
+uint64_t btree_hash(const unsigned char *key, uint64_t keyLength, uint64_t level, uint64_t cguid);
 
 #endif

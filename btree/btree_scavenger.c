@@ -158,7 +158,7 @@ scavenger_worker(uint64_t arg)
 				break;
 			}
 
-			uint64_t syndrome = btree_hash((const unsigned char *) ks_current.key, ks_current.keylen, 0); 
+			uint64_t syndrome = btree_hash_int((const unsigned char *) ks_current.key, ks_current.keylen, 0); 
 			int                   pathcnt = 0;
 			bool key_exists = false;
 			
@@ -608,7 +608,7 @@ astats_worker(uint64_t arg)
                 /*
                  * Get the node that has next key
                  */
-                uint64_t syndrome = btree_hash((const unsigned char *) ks_info.key, ks_info.keylen, 0); 
+                uint64_t syndrome = btree_hash_int((const unsigned char *) ks_info.key, ks_info.keylen, 0); 
                 int pathcnt = 0;
                 bool key_exists = false;
                 meta.flags = 0;

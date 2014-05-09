@@ -1816,7 +1816,7 @@ static uint64_t get_syndrome(btree_raw_t *bt, char *key, uint32_t keylen)
 {
     uint64_t   syndrome;
 
-    syndrome = btree_hash((const unsigned char *) key, keylen, 0);
+    syndrome = btree_hash_int((const unsigned char *) key, keylen, 0);
     return(syndrome);
 }
 
@@ -2033,6 +2033,19 @@ deref_l1cache_node(btree_raw_t* btree, btree_raw_mem_node_t *node)
 
     assert(dbg_referenced);
     dbg_referenced--;
+}
+
+/*
+ * Special interfaces to release all ref count of a node.
+ * Be aware before using that this does not honor any ref taken by any threads and
+ * abruptly releases all ref counts that might lead to issues if some thread is using this node.
+ */
+void
+deref_l1cache_node_all(btree_raw_t* btree, btree_raw_mem_node_t *node)
+{
+        if (!PMapReleaseAll(btree->l1cache, (char *) &node->pnode->logical_id, sizeof(node->pnode->logical_id), btree->cguid, (void *)btree)) {
+            assert(0);
+	    }
 }
 
 static void

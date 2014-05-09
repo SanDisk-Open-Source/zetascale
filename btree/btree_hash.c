@@ -89,7 +89,7 @@ is acceptable.  Do NOT use for cryptographic purposes.
 --------------------------------------------------------------------
 */
 
-ub8 btree_hash( k, length, level)
+ub8 btree_hash_int( k, length, level)
 register const ub1 *k;        /* the key */
 register ub8  length;   /* the length of the key */
 register ub8  level;    /* the previous hash, or an arbitrary value */
@@ -163,3 +163,13 @@ register ub8  level;    /* the previous hash, or an arbitrary value */
   return c;
 }
 
+ub8 btree_hash( k, length, level, cguid)
+register const ub1 *k;        /* the key */
+register ub8  length;   /* the length of the key */
+register ub8  level;    /* the previous hash, or an arbitrary value */
+register uint64_t cguid;
+{
+
+	return btree_hash_int(k, length, level) + cguid;
+
+}

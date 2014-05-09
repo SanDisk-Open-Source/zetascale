@@ -32,6 +32,7 @@ extern int MapIncrRefcnt(struct Map *pm, char *key, uint32_t keylen, uint64_t cg
 extern int MapGetRefcnt(struct Map *pm, char *key, uint32_t keylen, uint64_t cguid);
 extern void MapCheckRefcnts(struct Map *pm);
 extern int MapRelease(struct Map *pm, char *key, uint32_t keylen, uint64_t cguid, void *replacement_callback_data);
+extern int MapReleaseAll(struct Map *pm, char *key, uint32_t keylen, uint64_t cguid, void *replacement_callback_data);
 extern int MapReleaseEntry(struct Map *pm, struct MapEntry *pme);
 extern struct Iterator *MapEnum(struct Map *pm);
 extern void FinishEnum(struct Map *pm, struct Iterator *iterator);

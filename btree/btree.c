@@ -168,7 +168,7 @@ btree_status_t btree_destroy(struct btree *bt)
 
 static uint64_t hash_key(char *key, uint32_t keylen)
 {
-    return(btree_hash((unsigned char *) key, keylen, 0)); // xxxzzz set the salt to something else?
+    return(btree_hash_int((unsigned char *) key, keylen, 0)); // xxxzzz set the salt to something else?
 }
 
 btree_status_t btree_get(struct btree *btree, char *key, uint32_t keylen, char **data, uint64_t *datalen, btree_metadata_t *meta)
