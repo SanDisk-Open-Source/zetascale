@@ -2767,6 +2767,11 @@ FDF_status_t FDFOpenContainer(
              }
          }
 
+	if (properties->durability_level == FDF_DURABILITY_PERIODIC) {
+		plat_log_msg(180216, LOG_CAT, LOG_WARN, "PERIODIC durability is not supported, set to SW_CRASH_SAFE for %s\n", cname);
+		properties->durability_level = FDF_DURABILITY_SW_CRASH_SAFE;
+	}
+
 	/*
 	 * Check if operation can begin
 	 */
@@ -4649,6 +4654,10 @@ FDF_status_t FDFSetContainerProps(
 {
 	FDF_status_t  status = FDF_SUCCESS;
 	bool thd_ctx_locked = false;
+
+	if (pprops->durability_level == FDF_DURABILITY_PERIODIC) {
+		pprops->durability_level = FDF_DURABILITY_SW_CRASH_SAFE;
+	}
 
 	status = fdf_validate_container(cguid);
 	if (FDF_SUCCESS != status) {

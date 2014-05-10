@@ -3493,3 +3493,4 @@
 180213 Slab GC initialized. shardID=%ld. Threshold=%d%%
 180214 Slab GC stopped. shardID=%ld
 180215 PROP: SDF_MAX_OBJ_SIZE=%"PRIu64" (adjusted from %"PRIu64")
+180216 PERIODIC durability is not supported, set to SW_CRASH_SAFE for %s\n
