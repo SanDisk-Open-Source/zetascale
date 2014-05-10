@@ -324,14 +324,12 @@ void verify_stats(struct FDF_thread_state *thd_state, FDF_cguid_t cguid) {
     }  
 }
 
-FDF_cguid_t cguids[10000];
 void
 do_op(uint32_t flags_in) 
 {
 	FDF_container_props_t props;
 	struct FDF_thread_state *thd_state;
 	FDF_status_t status;
-	int i = 0;
 //	FDF_container_meta_t cmeta = {my_cmp_cb, NULL};
 
 	char cnt_name[100] = {0};
@@ -350,27 +348,21 @@ do_op(uint32_t flags_in)
 	props.fifo_mode = 0;
 	props.size_kb = (1024 * 1024 * 10);;
 
-	for (i = 0; i < 10000; i++) {
-		sprintf(cnt_name, "cntr_%d", i);
-		status = FDFOpenContainer(thd_state, cnt_name, &props, FDF_CTNR_CREATE, &cguids[i]);
-	//	status = FDFOpenContainerSpecial(thd_state, cnt_name, &props,
-	//					 FDF_CTNR_CREATE, &cmeta, &cguid);
-		if (status != FDF_SUCCESS) {
-			printf("Open Cont failed with error=%x.\n", status);
-			exit(-1);
-		}
-
+	status = FDFOpenContainer(thd_state, cnt_name, &props, FDF_CTNR_CREATE, &cguid);
+//	status = FDFOpenContainerSpecial(thd_state, cnt_name, &props,
+//					 FDF_CTNR_CREATE, &cmeta, &cguid);
+	if (status != FDF_SUCCESS) {
+		printf("Open Cont failed with error=%x.\n", status);
+		exit(-1);
 	}
 
 	flags_global = flags_in;
-//	launch_thds(); //actual operations
+	launch_thds(); //actual operations
 //        verify_stats(thd_state,cguid);
 
 //	FDFCheckBtree(thd_state, cguid);
-	for (i = 0; i < 10000; i++) {
-		FDFCloseContainer(thd_state, cguids[0]);
-		FDFDeleteContainer(thd_state, cguids[0]);
-	}
+	FDFCloseContainer(thd_state, cguid);
+	FDFDeleteContainer(thd_state, cguid);
 
 	FDFReleasePerThreadState(&thd_state);
 }
