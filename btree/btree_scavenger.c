@@ -13,7 +13,7 @@
 #define MAX_KEYLEN 2000
 #define MAX_OPEN_CONTAINERS   (UINT16_MAX - 1 - 9)
 
-extern int astats_enable;
+int astats_done = 1;
 
 extern  __thread struct FDF_thread_state *my_thd_state;
 extern __thread FDF_cguid_t my_thrd_cguid;
@@ -35,14 +35,6 @@ extern void get_key_stuff_leaf(btree_raw_t *bt, btree_raw_node_t *n, uint32_t nk
 extern void get_key_stuff_leaf2(btree_raw_t *bt, btree_raw_node_t *n, uint32_t nkey, key_stuff_info_t *key_sinfo);
 extern btree_status_t btree_delete(struct btree *btree, char *key, uint32_t keylen, btree_metadata_t *meta);
 
-extern int get_astats_state(int index);
-extern void set_astats_state(int index, int state);
-extern void set_astats_meta_key(int index, char *p, uint64_t len);
-extern void reset_astats_meta_key(int index, bool flag);
-extern bool is_astats_ready(int btree_index);
-extern int astats_is_valid_key(btree_raw_t *btree, int btree_index, char *key, uint64_t keylen);
-extern void suspend_scavenger_worker(int btree_index);
-
 extern  FDF_status_t BtreeErr_to_FDFErr(btree_status_t b_status);
 
 static void update_leaf_bytes_count(btree_raw_t *btree, btree_raw_mem_node_t *node);
@@ -53,7 +45,6 @@ scavenger_worker(uint64_t arg)
 	Scavenge_Arg_t *s;
 	struct FDF_thread_state  *fdf_thread_state;
 	int i;
-    FDF_status_t status = FDF_SUCCESS;
 
 	while(1) {
 		uint64_t mail;
@@ -67,30 +58,18 @@ scavenger_worker(uint64_t arg)
 		key_stuff_info_t ks_prev,ks_current,*key,*key1;
 		key_info_t key_info;
 		btree_metadata_t  meta;
-        btree_status_t    btree_ret = BTREE_SUCCESS;
-        my_thd_state = NULL;
+		btree_status_t    btree_ret = BTREE_SUCCESS;
 		FDF_status_t    fdf_ret;
 
-        mail = btSyncMboxWait(&mbox_scavenger);
-        s = (Scavenge_Arg_t *)mail;
+		mail = btSyncMboxWait(&mbox_scavenger);
+		s = (Scavenge_Arg_t *)mail;
 
-        status = FDFInitPerThreadState(s->fdf_state, &fdf_thread_state);
-        if (FDF_SUCCESS != status) {
-            my_thd_state = NULL;
-            fprintf(stderr, "Error:%s:%s", "FDFInitPerThreadState", FDFStrError(status));
-            goto exit_scavenger_worker;
-        }
+		FDFInitPerThreadState(s->fdf_state,&fdf_thread_state);
+		my_thd_state = fdf_thread_state;
 
-        my_thd_state = fdf_thread_state;
-
-        my_thrd_cguid = 0; /* To avoid recurrence triggering of scavenger from btree_delete rouinte after FDF_SCAVENGE_PER_OBJECTS deletes*/
-
-        status = open_container(fdf_thread_state, s->cguid);
-        if (FDF_SUCCESS != status) {
-            fprintf(stderr, "Error: %s:%s", "open_container", FDFStrError(status));
-            goto exit_scavenger_worker;
-        }
-
+		my_thrd_cguid = 0; /* To avoid recurrence triggering of scavenger from btree_delete rouinte after FDF_SCAVENGE_PER_OBJECTS deletes*/
+	 
+		open_container(fdf_thread_state, s->cguid);
 		node = root_get_and_lock(s->btree, write_lock);
 		assert(node);
 
@@ -121,6 +100,7 @@ scavenger_worker(uint64_t arg)
 				i = 0;
 			}
 			if((i == 0) || (key_loc == 0)) {
+			//if(i == 0) {
 				parent = node;
 				child_id = node->pnode->next;
 				if (child_id == 0)
@@ -151,43 +131,10 @@ scavenger_worker(uint64_t arg)
 	
 			j=0;
 			meta.flags = 0;
-
-            int t;
-
-            for (j = 0;j < key_loc;j++) {
-                meta.seqno = key[j].seqno;
-                meta.flags = FORCE_DELETE | READ_SEQNO_EQ;
-
-                /*
-                 * Check if async stats thread is enabled and not
-                 . completed.
-                 */
-wait_for_astats_signal:
-                if (true == astats_enable
-                     && (2 != get_astats_state(s->btree_index)) ) {
-                    /*
-                     * Wait till signalled by the async stats thread
-                     */
-                    if (false == is_astats_ready(s->btree_index)) {
-#ifdef ASTATS_DEBUG
-                        fprintf(stderr, "Async thread is yet to start. Suspend_scavenger_worker\n");
-#endif
-                        suspend_scavenger_worker(s->btree_index);
-                    }
-
-                    t = astats_is_valid_key(s->btree, s->btree_index, key[j].key, key[j].keylen);
-                    // for t > 0 means we got a smaller key
-                    if (t <= 0) {
-                        reset_astats_meta_key(s->btree_index, false);
-                        goto wait_for_astats_signal;
-                    }
-                }
-
-                btree_ret = btree_delete(s->bt, key[j].key, key[j].keylen, &meta);
-                if (btree_ret != BTREE_SUCCESS) {
-                    fprintf(stderr,"btree delete failed for the key %s\n", key[j].key);
-                    //goto end need to add after failure in btree logic is fixed
-                }
+			for (j = 0;j < key_loc;j++) {
+				meta.seqno = key[j].seqno;
+				meta.flags = FORCE_DELETE | READ_SEQNO_EQ;
+				btree_ret = btree_delete(s->bt, key[j].key, key[j].keylen, &meta);
 				bt_cntr_unlock_scavenger(s);
 				usleep(1000*(s->throttle_value));
 				fdf_ret = bt_cntr_lock_scavenger(s);
@@ -218,13 +165,12 @@ wait_for_astats_signal:
 			meta.flags = READ_SEQNO_LE;
 			meta.end_seqno = ks_current.seqno - 1;
 			start_key_in_node = btree_raw_find(s->btree, ks_current.key, ks_current.keylen, syndrome, &meta, &node, write_lock, &pathcnt, &key_exists);
-        }
-exit_scavenger_worker:
-        fprintf(stderr,"Total number of objects scavenged %d \n\n\n",deletedobjects);
-        close_container(fdf_thread_state,s);
-        free(s);
-        FDFReleasePerThreadState(&fdf_thread_state);
-    }
+		}
+		fprintf(stderr,"Total number of objects scavenged %d \n\n\n",deletedobjects);
+		close_container(fdf_thread_state,s);
+		free(s);
+		FDFReleasePerThreadState(&fdf_thread_state);
+	}
 }
 
 
@@ -282,14 +228,8 @@ non_minimal_delete(btree_raw_t *btree, btree_raw_mem_node_t *mnode, int index)
 	return 0;
 }
 
-
-static int
-scavenge_node_all_keys(btree_raw_t *btree, btree_raw_mem_node_t *node)
+static int scavenge_node_all_keys(btree_raw_t *btree, btree_raw_mem_node_t *node)
 {
-    if (true == astats_in_progress(btree)) {
-        return 0;
-    }
-
 	key_stuff_info_t ks_prev, ks_current;
 	int i = 0;
 	int x;
@@ -393,9 +333,12 @@ done:
 	return (scavenged_keys);
 }
 
-int
-scavenge_node(struct btree_raw *btree, btree_raw_mem_node_t* node, key_stuff_info_t *ks_prev_key, key_stuff_info_t **key)
+int scavenge_node(struct btree_raw *btree, btree_raw_mem_node_t* node, key_stuff_info_t *ks_prev_key, key_stuff_info_t **key)
 {
+	if (0 == astats_done) {
+		return 0;
+	}
+
 	int i = 0, temp;
 	key_stuff_info_t ks_prev,ks_current,temp1;
 	int  total_keys = 0,deleting_keys = 0,nkey_prev = 0;
@@ -541,15 +484,11 @@ update_leaf_bytes_count(btree_raw_t *btree, btree_raw_mem_node_t *node)
 }
 
 
-#define ASTATS_DEBUG 0
-
 void
 astats_worker(uint64_t arg)
 {
     astats_arg_t *s;
     struct FDF_thread_state  *fdf_thread_state;
-    FDF_status_t ret = FDF_SUCCESS;
-
     int i;
 
     while (1) {
@@ -577,8 +516,6 @@ astats_worker(uint64_t arg)
             goto astats_worker_exit;
         }
 
-        reset_astats_meta_key(s->btree_index, false);
-
         /*
          * Acquire read lock on root
          */
@@ -603,8 +540,6 @@ astats_worker(uint64_t arg)
             parent = node;
             child_id = node->pnode->next;
 
-            ret = BTREE_SUCCESS;
-
 #ifdef ASTATS_DEBUG
             //fprintf(stderr, "Async stats: leaf child_id=%ld uid=%ld\n", child_id, node->pnode->pstats.seq);
 #endif
@@ -622,17 +557,13 @@ astats_worker(uint64_t arg)
             }
 
             if (0 == child_id) {
-#ifdef ASTATS_DEBUG
-                fprintf(stderr, "Async stats: null child total leaves= %ld\n", s->btree->stats.stat[BTSTAT_LEAF_NODES]);
-#endif
+                //fprintf(stderr, "Async stats: null child total leaves= %ld\n", s->btree->stats.stat[BTSTAT_LEAF_NODES]);
                 break;
             }
 
             node =  get_existing_node_low(&ret, s->btree, child_id, 0, false, true);
             if (NULL == node) { 
-#ifdef ASTATS_DEBUG
                 fprintf(stderr, "Async stats: error null node total leaves= %ld\n", s->btree->stats.stat[BTSTAT_LEAF_NODES]);
-#endif
                 break;
             }
 
@@ -659,41 +590,20 @@ astats_worker(uint64_t arg)
 
                 astats_deref_container(s);
 
-                /*
-                 * Checkpoint key is ready, signal scavenger thread
-                 */
-                if (1 == get_astats_state(s->btree_index)) {
-#ifdef ASTATS_DEBUG
-                    fprintf(stderr, "set_astats_meta_key=%s\n", ks_info.key);
-#endif
-                    set_astats_meta_key(s->btree_index, ks_info.key, ks_info.keylen);
-                } else {
-                    assert(0);
-                }
-
                 if (nanosleep(&tim , &tim2) < 0 )   
                 {
                     fprintf(stderr, "Nano sleep system call failed \n");
                     break;
                 }
 
-#ifdef ASTATS_DEBUG
-                fprintf(stderr, "astats: woke up after Nano sleep system call\n");
-#endif
-
                 count = 0;
 
                 /*
                  * Re-open the container
                  */
-                ret = astats_open_container(fdf_thread_state, s->cguid, s);
-                if (ret != FDF_SUCCESS) {
-                    fprintf(stderr, "Error: async worker failed with %s after wakeup\n", FDFStrError(ret));
+                if (FDF_SUCCESS != astats_open_container(fdf_thread_state, s->cguid, s)) {
                     goto astats_worker_exit;
                 }
-#ifdef ASTATS_DEBUG
-                fprintf(stderr, "astats: astats_open_container successful\n");
-#endif
 
                 /*
                  * Get the node that has next key
@@ -701,8 +611,7 @@ astats_worker(uint64_t arg)
                 uint64_t syndrome = btree_hash_int((const unsigned char *) ks_info.key, ks_info.keylen, 0); 
                 int pathcnt = 0;
                 bool key_exists = false;
-			    meta.flags = READ_SEQNO_LE;
-			    meta.end_seqno = ks_info.seqno - 1;
+                meta.flags = 0;
 
                 int start_key_in_node = btree_raw_find(s->btree, ks_info.key, ks_info.keylen,
                         syndrome, &meta, &node, write_lock, &pathcnt, &key_exists);
@@ -730,17 +639,12 @@ astats_worker(uint64_t arg)
             plat_rwlock_unlock(&parent->lock);
             deref_l1cache_node(s->btree, parent);
         }
-#ifdef ASTATS_DEBUG
-        fprintf(stderr, "astats worker state=2\n");
-#endif
 
-        set_astats_state(s->btree_index, 2);
         astats_deref_container(s);
+
 astats_worker_exit:
-        free(s);
         FDFReleasePerThreadState(&fdf_thread_state);
-#ifdef ASTATS_DEBUG
         fprintf(stderr, "astats worker is done\n");
-#endif
+        astats_done = 1;
     }
 }

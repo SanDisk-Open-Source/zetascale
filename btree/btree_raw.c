@@ -118,6 +118,7 @@ extern int btree_parallel_flush_minbufs;
 extern uint64_t fdf_flush_pstats_frequency;
 extern uint64_t l1cache_size;
 extern uint64_t l1cache_partitions;
+extern int astats_done;
 //  used to count depth of btree traversal for writes/deletes
 __thread int _pathcnt;
 
@@ -246,8 +247,6 @@ bool
 get_child_id_and_count(btree_raw_t* btree, btree_raw_node_t* pnode,
 		uint64_t* child_id, btree_mput_obj_t* objs, uint32_t* num_objs,
 		btree_metadata_t *meta, uint64_t syndrome, int32_t* nkey_child);
-
-extern bool astats_in_progress(btree_raw_t *btree);
 
 int init_l1cache();
 void destroy_l1cache();
@@ -3487,6 +3486,9 @@ void
 delete_key_by_index(btree_status_t* ret, btree_raw_t *btree,
 		    btree_raw_mem_node_t *node, int index)
 {
+    while (astats_done == 0) {
+       sleep(1);
+    }
 	if (is_leaf(btree, node->pnode)) {
 		delete_key_by_index_leaf(ret, btree, node, index);
 	} else {

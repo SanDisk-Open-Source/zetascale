@@ -45,13 +45,11 @@
 
 #define PERSISTENT_STATS_FLUSH_INTERVAL 100000
 #define FDF_ASYNC_STATS_THREADS 8
-#define ASYNC_STATS_SUSPEND_NODE_COUNT 64
+#define ASYNC_STATS_SUSPEND_NODE_COUNT 10
 #define ASYNC_STATS_SUSPEND_DURATION 5
 
-#define ASTATS_DEBUG 0
-
 struct cmap;
-int astats_enable = 0;
+extern int astats_done;
 
 static char Create_Data[MAX_NODE_SIZE];
 
@@ -228,14 +226,6 @@ typedef enum {
 	 BT_CNTR_DELETING,		/* Deletion in progress */
 } BT_CNTR_STATE;
 
-typedef struct astats_meta_ {
-	pthread_mutex_t		mutex;
-	pthread_cond_t		cv;
-    char key[8100];
-    uint64_t keylen;
-    bool is_key_set;
-} astats_meta_t;
-
 typedef struct cmap {
     char				cname[CONTAINER_NAME_MAXLEN];
     uint64_t			cguid;
@@ -246,13 +236,11 @@ typedef struct cmap {
 	BT_CNTR_STATE		bt_state;
 	int					bt_wr_count, bt_rd_count;
 	int					snap_initiated;
-	bool			    scavenger_state;
-	int			        astats_state;
+	bool			scavenger_state;
 	pthread_mutex_t		bt_snap_mutex;
 	pthread_cond_t		bt_snap_wr_cv;
 	pthread_cond_t		bt_snap_cv;
 	pthread_rwlock_t	bt_cm_rwlock;
-    astats_meta_t       astats_meta; 
 } ctrmap_t;
 
 #define MAX_OPEN_CONTAINERS   (UINT16_MAX - 1 - 9)
@@ -260,97 +248,6 @@ typedef struct cmap {
 static ctrmap_t 	Container_Map[MAX_OPEN_CONTAINERS];
 static int 			N_Open_Containers = 0;
 pthread_rwlock_t	ctnrmap_rwlock = PTHREAD_RWLOCK_INITIALIZER;
-
-
-int
-get_astats_state(int btree_index)
-{
-    int state;
-    pthread_rwlock_rdlock(&ctnrmap_rwlock);
-    state = Container_Map[btree_index].astats_state;
-    pthread_rwlock_unlock(&ctnrmap_rwlock);
-
-    return state;
-}
-
-
-void
-set_astats_state(int index, int state)
-{
-    pthread_rwlock_wrlock(&ctnrmap_rwlock);
-    Container_Map[index].astats_state = state;
-    pthread_rwlock_unlock(&ctnrmap_rwlock);
-}
-
-void
-set_astats_meta_key(int index, char *p, uint64_t len)
-{
-    pthread_mutex_lock(&Container_Map[index].astats_meta.mutex);
-    strncpy(Container_Map[index].astats_meta.key, p, len);
-    Container_Map[index].astats_meta.keylen = len;
-    Container_Map[index].astats_meta.is_key_set = true;
-     
-    pthread_cond_signal(&Container_Map[index].astats_meta.cv);
-    pthread_mutex_unlock(&Container_Map[index].astats_meta.mutex);
-}
-
-void
-reset_astats_meta_key(int index, bool flag)
-{
-    pthread_mutex_lock(&Container_Map[index].astats_meta.mutex);
-    Container_Map[index].astats_meta.is_key_set = false;
-    if (flag) {
-        pthread_cond_signal(&Container_Map[index].astats_meta.cv);
-    }
-    pthread_mutex_unlock(&Container_Map[index].astats_meta.mutex);
-}
-
-
-bool
-is_astats_ready(int btree_index)
-{
-    bool ret = true;
-    pthread_rwlock_rdlock(&ctnrmap_rwlock);
-
-    /*
-     * Async stats thread is started/ complete, so just move on
-     */
-    if (2 == Container_Map[btree_index].astats_state) {
-        ret = true;
-    } else if ( (0 == Container_Map[btree_index].astats_state)
-               || (false == Container_Map[btree_index].astats_meta.is_key_set) ) {
-        ret = false;
-    }
-    pthread_rwlock_unlock(&ctnrmap_rwlock);
-
-    return ret;
-}
-
-
-int
-astats_is_valid_key(btree_raw_t *btree, int btree_index, char *key, uint64_t keylen)
-{
-    int temp;
-    pthread_rwlock_rdlock(&ctnrmap_rwlock);
-
-    temp = btree->cmp_cb(btree->cmp_cb_data, Container_Map[btree_index].astats_meta.key, Container_Map[btree_index].astats_meta.keylen, key, keylen);
-#ifdef ASTATS_DEBUG
-    fprintf(stderr, "res=%d astats_is_valid_key key_astats=%s key_in=%s\n", temp, Container_Map[btree_index].astats_meta.key, key);
-#endif
-    pthread_rwlock_unlock(&ctnrmap_rwlock);
-    return temp;
-}
-
-
-
-void
-suspend_scavenger_worker(int btree_index)
-{
-    pthread_mutex_lock(&Container_Map[btree_index].astats_meta.mutex);
-    pthread_cond_wait(&Container_Map[btree_index].astats_meta.cv, &Container_Map[btree_index].astats_meta.mutex);
-    pthread_mutex_unlock(&Container_Map[btree_index].astats_meta.mutex);
-}
-
 
 static int
 bt_add_cguid(FDF_cguid_t cguid)
@@ -1371,25 +1268,24 @@ restart:
 		_FDFScavengeContainer(my_global_fdf_state, *cguid);
 	}
 
+#if 0
     /*   
      * Check if a session is restarted
      */
     char *reformat = (char*)FDFGetProperty("FDF_REFORMAT", NULL);
-    char *astats_set = (char*)FDFGetProperty("FDF_ASYNC_STATS_ENABLE", NULL);
+    char *astats_enable = (char*)FDFGetProperty("FDF_ASYNC_STATS_ENABLE", NULL);
     if (reformat && reformat[0] != '0') {
         fprintf(stderr, "FDFOpenContainer: Disabling async stats workers\n");
+        astats_done = 1;
     } else {
-        /*
-         * It is a restarted session
-         */
-        if (astats_set && astats_set[0] == '0') {
-            fprintf(stderr, "FDFOpenContainer: Disabling async stats workers\n");
-        } else {
+        if (astats_enable && astats_enable[0] == '1') {
             fprintf(stderr, "FDFOpenContainer: Starting async thread\n");
-            astats_enable = 1;
             FDFStartAstats(FDFState, *cguid);
-        }
+        } else {
+			astats_done = 1;
+		}
     }
+#endif
     return(FDF_SUCCESS);
 
 fail:
@@ -1462,7 +1358,7 @@ FDF_status_t _FDFCloseContainer(
     int				index;
 
 #ifdef ASTATS_DEBUG
-    //while (astats_done == 0) sleep(1);
+    while (astats_done == 0) sleep(1);
     dump_btree_stats(stderr, cguid);
 #endif
 
@@ -4966,8 +4862,6 @@ FDF_status_t _FDFScavengeContainer(struct FDF_state *fdf_state, FDF_cguid_t cgui
     const char *FDF_SCAVENGER_THROTTLE_VALUE = "1";  // 1 milli second
     s.throttle_value = 1;
 
-    assert(fdf_state);
-
 #if 0
     char *p = _FDFGetProperty("FDF_SCAVENGER_ENABLE", NULL);
     if (!p) {
@@ -5023,36 +4917,10 @@ FDF_status_t _FDFScavengeSnapshot(struct FDF_state *fdf_state, FDF_cguid_t cguid
         return ret;
 }
 
-
-bool
-astats_in_progress(btree_raw_t *btree)
-{
-    assert(btree);
-
-    bool ret = false;
-    int index = -1;
-
-    if (0 == astats_enable) {
-        return false;
-    }
-
-    index = bt_get_cguid(btree->cguid);
-
-    pthread_rwlock_rdlock(&ctnrmap_rwlock);
-    if (Container_Map[index].astats_state != 2) {
-        ret = true;
-    }
-    pthread_rwlock_unlock(&ctnrmap_rwlock);
-
-    return ret;   
-}
-
-
 FDF_status_t
 FDFStartAstats(struct FDF_state *fdf_state, FDF_cguid_t cguid)
 {
     assert(fdf_state);
-    assert(cguid >= 0);
 
     FDF_status_t    ret = FDF_FAILURE;
     int             index;
@@ -5075,26 +4943,13 @@ FDFStartAstats(struct FDF_state *fdf_state, FDF_cguid_t cguid)
     s.btree_index = index;
 
     sprintf(buf, "%u", ASYNC_STATS_SUSPEND_NODE_COUNT);
-    s.suspend_after_node_count = atoi(FDFGetProperty("FDF_ASYNC_STATS_SUSPEND_NODE_COUNT", buf));
+    s.suspend_duration= atoi(FDFGetProperty("FDF_ASYNC_STATS_SUSPEND_NODE_COUNT", buf));
 
     sprintf(buf, "%u", ASYNC_STATS_SUSPEND_DURATION);
-    s.suspend_duration = atoi(FDFGetProperty("FDF_ASYNC_STATS_SUSPEND_DURATION", buf));
-
-    /*
-     * Mark astats in progress.
-     * There should be a single astats worker on a container!
-     */
-    if (1 == get_astats_state(index)) {
-        ret = FDF_FAILURE;
-        fprintf(stderr, "FDFStartAstats: Async stats already in progress!\n");
-        goto exit_FDFStartAstats;
-    }
-
-    set_astats_state(index, 1);
+    s.suspend_after_node_count = atoi(FDFGetProperty("FDF_ASYNC_STATS_SUSPEND_DURATION", buf));
 
     ret = btree_start_astats(fdf_state, s);
 
-exit_FDFStartAstats:
     index = bt_get_cguid(s.cguid);
     bt_rel_entry(index, false);
 
@@ -5182,7 +5037,6 @@ astats_open_container(struct FDF_thread_state *fdf_thread_state, FDF_cguid_t cgu
 
     bt = bt_get_btree_from_cguid(cguid, &index, &ret, false);
     if (bt == NULL) {
-        fprintf(stderr,"bt_get_btree_from_cguid failed err=%s\n", FDFStrError(ret));
         ret = FDF_FAILURE;
         return ret;
     }
@@ -5212,9 +5066,6 @@ close_container(struct FDF_thread_state *fdf_thread_state, Scavenge_Arg_t *S)
     FDF_status_t       ret = FDF_SUCCESS;
     int           index = -1;
 
-    assert(S);
-    assert(fdf_thread_state);
-
     (S->bt->partitions[0])->snap_meta->scavenging_in_progress = 0;
     flushpersistent(S->btree);
     if (deref_l1cache(S->btree) != BTREE_SUCCESS) {
@@ -5231,7 +5082,6 @@ close_container(struct FDF_thread_state *fdf_thread_state, Scavenge_Arg_t *S)
 void
 astats_deref_container(astats_arg_t *S)
 {
-    assert(S);
     bt_rel_entry(S->btree_index, false);
 }
 

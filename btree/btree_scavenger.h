@@ -14,14 +14,11 @@ struct Scavenge_Arg {
         struct btree_raw        *btree;
         struct btree *bt;
         struct FDF_state        *fdf_state;
-        pthread_mutex_t mutex;
-        pthread_cond_t cond_var;
 };
 typedef struct Scavenge_Arg Scavenge_Arg_t;
 
 void scavenger_worker(uint64_t arg);
 FDF_status_t btree_scavenge(struct FDF_state  *fdf_state, Scavenge_Arg_t S);
-bool astats_in_progress(struct btree_raw *btree);
 
 typedef struct astats_arg_ {
     FDF_cguid_t     cguid;
