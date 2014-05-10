@@ -132,11 +132,13 @@ async_puts_alloc(struct SDF_async_puts_init *papi,
 		return async_puts_free(aps);
 
 	pthread_cond_init(&aps->q_cond, NULL);
+	pthread_cond_init(&aps->q_drain, NULL);
 	pthread_mutex_init(&aps->q_lock, NULL);
 
 	aps->config           = *papi;
 	aps->p_action_state   = pas;
 	aps->num_threads      = 0;
+	aps->drain_threads      = 0;
 	aps->shutdown_count   = 0;
 	aps->shutdown_closure = async_puts_shutdown_null;
 	aps->max_flushes_in_progress = papi->max_flushes_in_progress;
@@ -258,6 +260,10 @@ async_qget(SDF_async_puts_state_t *aps, int thr_id)
 	tinfo->syndrome = rqst->syndrome;
 	pthread_cond_signal(&aps->q_cond);
 
+	if (aps->drain_threads) {
+		pthread_cond_broadcast(&aps->q_drain);
+	}
+
 	if (rqst->rtype == ASYNC_PUT || rqst->rtype == ASYNC_WRITEBACK)
 		while (clashes(aps, thr_id))
 			pthread_cond_wait(&aps->q_cond, &aps->q_lock);
@@ -340,8 +346,11 @@ async_drain(SDF_async_puts_state_t *aps, uint64_t rqst_id)
 		rqst_id = aps->q_w;
 
 	pthread_mutex_lock(&aps->q_lock);
-	while (!completed(aps, rqst_id))
-		pthread_cond_wait(&aps->q_cond, &aps->q_lock);
+	while (!completed(aps, rqst_id)) {
+		aps->drain_threads++;
+		pthread_cond_wait(&aps->q_drain, &aps->q_lock);
+		aps->drain_threads--;
+	}
 	pthread_mutex_unlock(&aps->q_lock);
 }
 

@@ -155,7 +155,7 @@ typedef struct SDF_async_puts_state {
     struct SDF_action_state *p_action_state;
 
     /** @brief Number of threads.  Included in ref count */
-    int num_threads;
+    int num_threads, drain_threads;
 
     /** @brief Limit on number of flushes in progress.  */
     uint32_t max_flushes_in_progress;
@@ -174,6 +174,7 @@ typedef struct SDF_async_puts_state {
 	uint64_t           q_w;
 	uint64_t           q_size;
 	pthread_cond_t     q_cond;
+	pthread_cond_t     q_drain;
 	pthread_mutex_t    q_lock;
 	FDF_async_rqst_t **q_rqsts;
 	async_thr_info_t  *thr_info;
