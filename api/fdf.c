@@ -106,6 +106,7 @@ static int stats_dump = 0;
 static SDF_shardid_t	vdc_shardid		= SDF_SHARDID_INVALID;
 SDF_shardid_t       cmc_shardid = SDF_SHARDID_INVALID;
 static int dump_interval = 0;
+int fdf_dump_core = 0;
 
 /* Id used to uniquely differenciate 
    parallel container deletes with same name */
@@ -2015,7 +2016,7 @@ FDF_status_t FDFInit(
 #ifdef FLIP_ENABLED
     flip_init();
 #endif
-    if ( getProperty_Int( "FDF_SIGNAL_HANDLERS", 0 ) == 1 ) {
+    if (getProperty_Int( "FDF_SIGNAL_HANDLERS", 1) == 1 ) {
         /* Initialize signal handler */
         signal(SIGSEGV, fdf_signal_handler);  
         signal(SIGABRT, fdf_signal_handler);    
@@ -2023,6 +2024,9 @@ FDF_status_t FDFInit(
         signal(SIGFPE, fdf_signal_handler); 
     }
 
+    if (getProperty_Int( "FDF_CORE_DUMP", 1) == 1) {
+		fdf_dump_core = 1;	
+    }
 
     // spawn initer thread (like mcd_fth_initer)
     fthResume( fthSpawn( &fdf_fth_initer, MCD_FTH_STACKSIZE ),
@@ -7915,9 +7919,17 @@ void fdf_print_backtrace()
 
 #endif 
 
+
 void fdf_signal_handler(int signum) { 
     plat_log_msg(80064, LOG_CAT, LOG_ERR,
                 "Got signal %d(%s):",signum,strsignal(signum)); 
     fdf_print_backtrace(); 
-    plat_exit(1); 
+
+    signal(SIGABRT, SIG_DFL);
+
+    if (fdf_dump_core) {
+	plat_abort();
+    } else {
+	plat_exit(1); 
+    }
 } 
