@@ -4657,7 +4657,7 @@ static void flush_wrbk_fn_wrapper(SDFNewCacheEntry_t *pce, void *wrbk_arg, SDF_a
     rqst.pkey_simple  = &simple_key;
     rqst.pce          = pce;
     rqst.pdata        = NULL;
-    rqst.flash_flags  = FLASH_PUT_NO_TEST; // do a flash set
+    rqst.flash_flags  = FLASH_PUT_NO_TEST | FLASH_PUT_DURA_SW_CRASH; // do a flash set
 
     rqst.ack_mbx      = &(ptrans->pts->async_put_ack_mbox);
     rqst.req_mbx      = NULL;
