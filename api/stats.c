@@ -748,7 +748,7 @@ static FDF_status_t process_admin_cmd( struct FDF_thread_state *thd_state,
     if( strcmp(tokens[0].value,"container") == 0 ) {
         process_container_cmd(thd_state, fp,tokens,ntokens);
     }
-    if( strcmp(tokens[0].value,"gc") == 0 ) {
+    else if( strcmp(tokens[0].value,"gc") == 0 ) {
         process_slab_gc_cmd(thd_state, fp, tokens, ntokens);
     }
     else if( strcmp(tokens[0].value,"help") == 0 ) {

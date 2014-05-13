@@ -2,27 +2,31 @@
 
 set -ex
 
-at_exit() { kill $CHLD; rm $PF; }
+at_exit() { kill $CHLD; rm $PF; rm /tmp/fdf_listen_pid.$CHLD; }
 trap at_exit EXIT
 
 WD=$(readlink -f $(dirname $0))
+PORT=55555
 
-[ -n $FDF_PROPERTY_FILE ] || FDF_PROPERTY_FILE=$WD/../conf/fdf.prop
+[ -n "$FDF_PROPERTY_FILE" ] || FDF_PROPERTY_FILE=$WD/../conf/fdf.prop
 
 PF=/tmp/fdf.prop.$$
 sed -e '/FDF_ADMIN_PORT/d' \
 	-e '/FDF_SLAB_GC/d' \
 	-e '/FDF_SLAB_GC_THRESHOLD/d' \
 		$FDF_PROPERTY_FILE >$PF
-echo "FDF_ADMIN_PORT=55555" >>$PF
+echo "FDF_ADMIN_PORT=$PORT" >>$PF
 
-FDF_PROPERTY_FILE=$PF
+export FDF_PROPERTY_FILE=$PF
 $WD/FDF_Listen&
 
 CHLD=$!
-sleep 10
 
-admin_cmd() { OK=$(echo $1|nc localhost 55555); [[ $OK == *$2* ]] || exit 1;}
+while ! [ -f /tmp/fdf_listen_pid.$CHLD ] && [ $((i++ < 120)) ]; do
+	sleep 1
+done
+
+admin_cmd() { OK=$(echo $1|nc localhost $PORT); [[ $OK == *$2* ]] || exit 1;}
 
 admin_cmd "gc enable" "OK"
 admin_cmd "gc disable" "OK"
