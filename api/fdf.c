@@ -2016,7 +2016,7 @@ FDF_status_t FDFInit(
 #ifdef FLIP_ENABLED
     flip_init();
 #endif
-    if (getProperty_Int( "FDF_SIGNAL_HANDLERS", 1) == 1 ) {
+    if (getProperty_Int( "FDF_SIGNAL_HANDLERS", 0) == 1 ) {
         /* Initialize signal handler */
         signal(SIGSEGV, fdf_signal_handler);  
         signal(SIGABRT, fdf_signal_handler);    
