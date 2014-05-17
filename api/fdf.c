@@ -3862,6 +3862,7 @@ FDF_status_t fdf_delete_container_async_end(
     SDF_internal_ctxt_t *pai;
     FDF_container_mode_t mode;
 	cntr_map_t *cmap = NULL;
+    int j = 0;
 
     pai = (SDF_internal_ctxt_t *) fdf_thread_state;
     /* Serializing container operation not required here. Because 
@@ -3934,6 +3935,20 @@ FDF_status_t fdf_delete_container_async_end(
         plat_log_msg( 160090, LOG_CAT, LOG_ERR, 
                     "Container %lu is not cleanedup completly", cguid );
     }
+
+    /*
+     * Clear the map entry for cguid.
+     */
+	for ( j = 0; j < MCD_MAX_NUM_CNTRS; j++ ) {
+		if (Mcd_containers[j].cguid == cguid) {
+			Mcd_containers[j].cguid = 0;
+			Mcd_containers[j].container_id  = 0;
+			memcpy( Mcd_containers[j].cname, "none", strlen("none") );
+		    break;
+		}
+	}
+    
+
 
     SDFEndSerializeContainerOp( pai );
     return status;
@@ -4145,7 +4160,7 @@ static FDF_status_t fdf_delete_container_1(
 {  
     FDF_status_t 	 	 	 status 		= FDF_FAILURE;
     FDF_status_t 	 	 	 del_status 	= FDF_FAILURE;
-	int				  	 	 ok_to_delete	= 0;
+	int				  	 	 ok_to_delete	= 0, j = 0;
 	SDF_container_meta_t	 meta;
 	FDF_cguid_t	 			 mycguid		= 0;
     SDF_internal_ctxt_t 	*pai 			= (SDF_internal_ctxt_t *) fdf_thread_state;
@@ -4264,6 +4279,19 @@ static FDF_status_t fdf_delete_container_1(
 	                     FDFStrError(status) );
         }
     }
+
+    /*
+     * Clear the map entry for cguid.
+     */
+	for ( j = 0; j < MCD_MAX_NUM_CNTRS; j++ ) {
+		if (Mcd_containers[j].cguid == cguid) {
+			Mcd_containers[j].cguid = 0;
+			Mcd_containers[j].container_id  = 0;
+			memcpy( Mcd_containers[j].cname, "none", strlen("none") );
+		    break;
+		}
+	}
+    
 
     plat_log_msg( 20819, 
 				  LOG_CAT, 
