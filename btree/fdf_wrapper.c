@@ -87,6 +87,7 @@ uint64_t flash_space_soft_limit;
 bool flash_space_soft_limit_check = true;
 bool flash_space_limit_log_flag = false;
 
+static bool shutdown = false;
 
 /*
  * Variables to manage persistent stats
@@ -256,6 +257,11 @@ bt_add_cguid(FDF_cguid_t cguid)
     int i_ctnr = -1;
 
 	pthread_rwlock_wrlock(&ctnrmap_rwlock);
+	if (shutdown == true) {
+		pthread_rwlock_unlock(&ctnrmap_rwlock);
+		fprintf(stderr, "Shutdown in progress, OpenContainer failed\n");
+		return -2;
+	}
 	if (N_Open_Containers < MAX_OPEN_CONTAINERS) {
 		for ( i = 0; i < MAX_OPEN_CONTAINERS; i++ ) {
 			if ( Container_Map[i].cguid == cguid ) { 
@@ -290,6 +296,10 @@ bt_get_ctnr_from_cguid(
     int i_ctnr = -1;
 
 	pthread_rwlock_rdlock(&ctnrmap_rwlock);
+	if (shutdown == true) {
+		pthread_rwlock_unlock(&ctnrmap_rwlock);
+		return -2;
+	}
     for ( i = 0; i < MAX_OPEN_CONTAINERS; i++ ) {
         if ( Container_Map[i].cguid == cguid ) { 
             i_ctnr = i; 
@@ -321,9 +331,17 @@ bt_get_btree_from_cguid(FDF_cguid_t cguid, int *index, FDF_status_t *error,
 	if (i == -1) {
 		*error = FDF_FAILURE_CONTAINER_NOT_FOUND;
 		return NULL;
+	} else if (i == -2) {
+		*error = FDF_FAILURE_OPERATION_DISALLOWED;
+		return NULL;
 	}
 
 	pthread_rwlock_rdlock(&(Container_Map[i].bt_cm_rwlock));
+	if (shutdown == true) {
+		pthread_rwlock_unlock(&(Container_Map[i].bt_cm_rwlock));
+		*error = FDF_FAILURE_OPERATION_DISALLOWED;
+		return NULL;
+	}
 	/* There could be a delete when we were trying to acquire lock */
 	if ((Container_Map[i].cguid == cguid) &&
 			(Container_Map[i].bt_state == BT_CNTR_OPEN)) {
@@ -699,7 +717,6 @@ FDF_status_t _FDFInit(
 }
 
 
-static bool shutdown = false;
 
 static void
 pstats_prepare_to_flush_single(struct FDF_thread_state *thd_state, struct cmap *cmap_entry)
@@ -928,7 +945,13 @@ FDF_status_t _FDFShutdown(
     FDF_status_t ret = FDF_SUCCESS;
     fdf_pstats_t pstats = { 0, 0 };
     uint64_t idx;
+	int			i; 
+	struct btree *btree;
 
+	if ( !fdf_state ) {
+		fprintf(stderr, "FDF state is NULL");
+		return FDF_INVALID_PARAMETER;
+	}
     /*
      * If shutdown already happened, just return!
      */
@@ -937,7 +960,11 @@ FDF_status_t _FDFShutdown(
         return FDF_INVALID_PARAMETER;
     }
 
+	pthread_rwlock_wrlock(&ctnrmap_rwlock);
     (void)__sync_fetch_and_or(&shutdown, true);
+	pthread_rwlock_unlock(&ctnrmap_rwlock);
+
+	sched_yield();
 
     /*
      * Try to release global per thread state
@@ -951,6 +978,35 @@ FDF_status_t _FDFShutdown(
 
     ret = FDFInitPerThreadState(fdf_state, &thd_state);
     assert (FDF_SUCCESS == ret);
+
+	for (i=0; i < MAX_OPEN_CONTAINERS; i++) {
+		pthread_rwlock_wrlock(&(Container_Map[i].bt_cm_rwlock));
+		if (Container_Map[i].bt_state == BT_CNTR_OPEN) {
+			pstats_prepare_to_flush_single(thd_state, &Container_Map[i]);
+			(void) FDFCloseContainer(thd_state, Container_Map[i].cguid);
+			Container_Map[i].bt_state = BT_CNTR_UNUSED;
+			Container_Map[i].cguid = FDF_NULL_CGUID;
+			btree = Container_Map[i].btree;
+			Container_Map[i].btree = NULL;
+			pthread_rwlock_unlock(&(Container_Map[i].bt_cm_rwlock));
+			if (btree) {
+				btree_destroy(btree);
+			}
+			(void) __sync_sub_and_fetch(&N_Open_Containers, 1);
+		} else if (Container_Map[i].bt_state == BT_CNTR_CLOSED) {
+			Container_Map[i].bt_state = BT_CNTR_UNUSED;
+			Container_Map[i].cguid = FDF_NULL_CGUID;
+			btree = Container_Map[i].btree;
+			Container_Map[i].btree = NULL;
+			pthread_rwlock_unlock(&(Container_Map[i].bt_cm_rwlock));
+			if (btree) {
+				btree_destroy(btree);
+			}
+			(void) __sync_sub_and_fetch(&N_Open_Containers, 1);
+		} else {
+			pthread_rwlock_unlock(&(Container_Map[i].bt_cm_rwlock));
+		}
+	}
 
     pstats_prepare_to_flush(thd_state);
     assert (FDF_SUCCESS == FDFFlushContainer(thd_state, stats_ctnr_cguid));
@@ -1059,9 +1115,20 @@ restart:
 	if (index == -1) {
 		FDFCloseContainer(fdf_thread_state, *cguid);
 		return FDF_TOO_MANY_CONTAINERS;
+	} else if (index == -2) {
+		FDFCloseContainer(fdf_thread_state, *cguid);
+		return FDF_FAILURE_OPERATION_DISALLOWED;
 	}
 
+
 	pthread_rwlock_wrlock(&(Container_Map[index].bt_cm_rwlock));
+
+	if (shutdown == true) {
+		pthread_rwlock_unlock(&(Container_Map[index].bt_cm_rwlock));
+		FDFCloseContainer(fdf_thread_state, *cguid);
+		return FDF_FAILURE_OPERATION_DISALLOWED;
+	}
+
 
 	/* Some one deleted the container which we were re-opening */
 	if (Container_Map[index].cguid != *cguid) {
@@ -1369,9 +1436,18 @@ restart:
 
     if ((index = bt_get_ctnr_from_cguid(cguid)) == -1) {
         return FDF_FAILURE_CONTAINER_NOT_FOUND;
-    }
+    } else if (index == -2) {
+		fprintf(stderr, "Shutdown in progress, CloseContainer failed\n");
+		return FDF_FAILURE_OPERATION_DISALLOWED;
+	}
 
     pthread_rwlock_wrlock(&(Container_Map[index].bt_cm_rwlock));
+
+	if (shutdown == true) {
+		pthread_rwlock_unlock(&(Container_Map[index].bt_cm_rwlock));
+		fprintf(stderr, "Shutdown in progress, CloseContainer failed\n");
+		return FDF_FAILURE_OPERATION_DISALLOWED;
+	}
 
     /* Some one might have deleted it, while we were trying to acquire lock */
     if (Container_Map[index].cguid != cguid) {
@@ -1439,9 +1515,18 @@ restart:
 
     if ((index = bt_get_ctnr_from_cguid(cguid)) == -1) {
         return FDF_FAILURE_CONTAINER_NOT_FOUND;
-    }
+    } else if (index == -2) {
+		fprintf(stderr, "Shutdown in progress, DeleteContainer failed\n");
+		return FDF_FAILURE_OPERATION_DISALLOWED;
+	}
 
     pthread_rwlock_wrlock(&(Container_Map[index].bt_cm_rwlock));
+
+	if (shutdown == true) {
+		pthread_rwlock_unlock(&(Container_Map[index].bt_cm_rwlock));
+		fprintf(stderr, "Shutdown in progress, DeleteContainer failed\n");
+		return FDF_FAILURE_OPERATION_DISALLOWED;
+	}
 
 	/* Some one might have deleted it, while we were trying to acquire lock */
 	if (Container_Map[index].cguid != cguid) {
@@ -4847,6 +4932,7 @@ FDF_status_t _FDFScavenger(struct FDF_state  *fdf_state)
 {
         FDF_status_t                                    ret = FDF_FAILURE;
         Scavenge_Arg_t s;
+		//Check for shutdown is not handled
         s.type = 1;
         ret = btree_scavenge(fdf_state, s);
         return ret;
@@ -4911,10 +4997,12 @@ FDF_status_t _FDFScavengeContainer(struct FDF_state *fdf_state, FDF_cguid_t cgui
 FDF_status_t _FDFScavengeSnapshot(struct FDF_state *fdf_state, FDF_cguid_t cguid, uint64_t snap_seq) {
         FDF_status_t    ret = FDF_FAILURE;
         Scavenge_Arg_t s;
+
+		//Check for shutdown is not handled
         s.type = 3;
         s.cguid = cguid;
-        ret = btree_scavenge(fdf_state, s);
         return ret;
+        ret = btree_scavenge(fdf_state, s);
 }
 
 FDF_status_t
