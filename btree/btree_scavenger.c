@@ -266,11 +266,6 @@ static int scavenge_node_all_keys(btree_raw_t *btree, btree_raw_mem_node_t *node
 				deleting_keys++;
 
 				uint64_t bytes = ks_current.datalen;
-#ifdef DEBUG_BUILD
-				btree_leaf_get_meta(node->pnode, i,
-				                    &key_meta);
-				assert(key_meta.tombstone == 0);
-#endif 
 
 				if (non_minimal_delete(btree, node, i) != 0) {
 					goto done;
@@ -376,10 +371,6 @@ int scavenge_node(struct btree_raw *btree, btree_raw_mem_node_t* node, key_stuff
 				snap_n1 = btree_snap_find_meta_index(btree, ks_prev.seqno);
 				snap_n2 = btree_snap_find_meta_index(btree, ks_current.seqno);
 				total_keys++;
-				(void) btree_leaf_get_nth_key_info(btree, node->pnode,i, &key_info);
-				if (key_info.tombstone == 1) {
-					assert(0);
-				}
 				if (snap_n1 == snap_n2)
 				{
 					deleting_keys++;
