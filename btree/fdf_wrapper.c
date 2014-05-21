@@ -576,8 +576,9 @@ void print_fdf_btree_configuration() {
  * @param prop_file <IN> FDF property file or NULL
  * @return FDF_SUCCESS on success
  */
-FDF_status_t _FDFInit(
-	struct FDF_state	**fdf_state
+FDF_status_t _FDFInitVersioned(
+	struct FDF_state	**fdf_state,
+	uint32_t                api_version
 	)
 {
     char         *stest, *fdf_prop;
@@ -587,6 +588,13 @@ FDF_status_t _FDFInit(
 
     pthread_t thr1;
     int iret;
+
+    if (api_version != FDF_API_VERSION) {
+        fprintf(stderr, "Error: Incompatibile FDF API Version. FDFInit called "
+                        "with version '%u', FDF API verion is '%u'\n", 
+                        api_version, FDF_API_VERSION);
+        return FDF_VERSION_CHECK_FAILED;       
+    }
 
     const char *FDF_SCAVENGER_THREADS = "60";
     const char *FDF_SCAVENGE_PER_OBJECTS = "10000";

@@ -3317,7 +3317,7 @@
 160143 Zero or negative size key is provided
 160144 Unlimited containers must be non-evicting.
 160145 License check failed.
-160146 Initializing %s (Rev:%s)
+160146 Initializing %s (Rev:%s API version:%u)
 160147 Creation of license daemon failed\n
 160148 License path not specified
 160149 Starting Licensing daemon failed.
@@ -3419,6 +3419,7 @@
 160257 License has expired, however FDF will continue to run. Renew the license.
 160258 License %s beyond grace period. FDF will fail. Renew the license.
 160259 Customer details: %s, %s, %s.
+160260 Error: Incompatibile FDF API Version. FDFInit called with version '%u', FDF API version is '%u'\n
 
 
 # rico

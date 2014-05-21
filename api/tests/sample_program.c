@@ -19,7 +19,7 @@
 #include 	<pthread.h>
 #include	<fdf.h>
 
-#define	FDF_PROP_FILE		"conf/fdf.prop"	//Configuration file
+#define	FDF_PROP_FILE		"config/fdf_sample.prop"	//Configuration file
 #define	THREADS			1 //Number of threads
 #define CNTR_SIZE 		1	/* GB */
 #define DATA_SIZE		20
@@ -96,7 +96,7 @@ main( )
 	FDFLoadCntrPropDefaults(&props);
 
 	//Set size of container to 256MB and retain other values.
-	props.size_kb = CNTR_SIZE*10*1024 *1024;
+	props.size_kb = CNTR_SIZE*6*1024 *1024;
 
 	//Create container in read/write mode with properties specified.
 	status = FDFOpenContainer(thd_state, cname, &props, 
@@ -210,7 +210,8 @@ worker(void *arg)
 	keylen = strlen("key") + keynumlen + 1 + 8;
 	keyw = (char *)malloc(keylen);
 	dataw = (char *)malloc(DATA_SIZE);
-	for (int i=0; i <NUM_OBJS;i++) {
+	int i;
+	for (i=0; i <NUM_OBJS;i++) {
 		sprintf(keyw, "key%07d%x", i, (int)pthread_self());
 		if (strlen(keyw) != (keylen - 1)) {
 			printf("Key format mismatch\n");

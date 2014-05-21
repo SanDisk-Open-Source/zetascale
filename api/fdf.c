@@ -1949,8 +1949,9 @@ void agent_config_set_defaults(struct plat_opts_config_sdf_agent *config);
 bool is_btree_loaded() {
     return (ext_cbs != NULL)?1:0;
 }
-FDF_status_t FDFInit(
-	struct FDF_state	**fdf_state
+FDF_status_t FDFInitVersioned(
+	struct FDF_state	**fdf_state,
+	uint32_t                api_version
 	)
 {
     int                  rc;
@@ -1961,6 +1962,14 @@ FDF_status_t FDFInit(
     const char			*prop_file;
 
     char log_file[2048]="";
+
+    if (api_version != FDF_API_VERSION) {
+        mcd_log_msg(160260, PLAT_LOG_LEVEL_FATAL, 
+                    "Error: Incompatibile FDF API Version. FDFInit called "
+                    "with version '%u', FDF API version is '%u'\n",
+                    api_version, FDF_API_VERSION);
+        return FDF_VERSION_CHECK_FAILED;       
+    }
 
     if (verify_datastruct_consistency() != FDF_SUCCESS ) {
         return FDF_FAILURE;
@@ -2002,7 +2011,7 @@ FDF_status_t FDFInit(
 
 #ifdef FDF_REVISION
     plat_log_msg(160146, LOG_CAT, LOG_INFO,
-            "Initializing %s (Rev:%s)", FDF_PRODUCT_NAME, FDF_REVISION);
+            "Initializing %s (Rev:%s API version:%u)", FDF_PRODUCT_NAME, FDF_REVISION, FDF_API_VERSION);
 #endif
     if ( prop_file != NULL ) {
         plat_log_msg(80032, LOG_CAT, LOG_INFO, "Property file: %s",prop_file);

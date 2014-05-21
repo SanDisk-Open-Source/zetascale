@@ -26,6 +26,8 @@ extern "C" {
 
 #define fdf_cntr_drain_io( v )  while ( unlikely( v > 0 ) ) fthYield(0)
 
+#define FDF_API_VERSION                 1
+
 #define CONTAINER_NAME_MAXLEN		64
 #define FDF_DEFAULT_CONTAINER_SIZE_KB	(1024 * 1024)	//1GB
 #define FDF_MIN_FLASH_SIZE		3		//3GB
@@ -535,12 +537,15 @@ FDF_status_t FDFLoadProperties(
  * @brief FDF initialization
  *
  * @param fdf_state <OUT> FDF state variable
- * @param prop_file <IN> FDF property file or NULL
+ * @param api_version <IN> FDF API version
  * @return FDF_SUCCESS on success
  */
-FDF_status_t FDFInit(
-	struct FDF_state	**fdf_state
+FDF_status_t FDFInitVersioned(
+	struct FDF_state	**fdf_state,
+	uint32_t                api_version
 	);
+
+#define FDFInit(state)       FDFInitVersioned(state, FDF_API_VERSION)
 
 /**
  * @brief FDF per thread state initialization

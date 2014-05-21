@@ -50,7 +50,7 @@ static FDF_status_t
 (*ptr_FDFLoadProperties)(const char *prop_file);
 
 static FDF_status_t 
-(*ptr_FDFInit)(struct FDF_state **fdf_state);
+(*ptr_FDFInitVersioned)(struct FDF_state **fdf_state, uint32_t api_version);
 
 static FDF_status_t 
 (*ptr_FDFInitPerThreadState)(struct FDF_state *fdf_state,
@@ -379,7 +379,7 @@ static struct {
     { "FDFGetProperty",                &ptr_FDFGetProperty               },
     { "FDFSetProperty",                &ptr_FDFSetProperty               },
     { "FDFLoadProperties",             &ptr_FDFLoadProperties            },
-    { "FDFInit",                       &ptr_FDFInit                      },
+    { "FDFInitVersioned",              &ptr_FDFInitVersioned             },
     { "FDFInitPerThreadState",         &ptr_FDFInitPerThreadState        },
     { "FDFReleasePerThreadState",      &ptr_FDFReleasePerThreadState     },
     { "FDFShutdown",                   &ptr_FDFShutdown                  },
@@ -612,13 +612,13 @@ FDFLoadProperties(const char *prop_file)
  * FDFInit
  */
 FDF_status_t 
-FDFInit(struct FDF_state **fdf_state)
+FDFInitVersioned(struct FDF_state **fdf_state, uint32_t api_version)
 {
     parse();
-    if (unlikely(!ptr_FDFInit))
-        undefined("FDFInit");
+    if (unlikely(!ptr_FDFInitVersioned))
+        undefined("FDFInitVersioned");
 
-    return (*ptr_FDFInit)(fdf_state);
+    return (*ptr_FDFInitVersioned)(fdf_state, api_version);
 }
 
 
