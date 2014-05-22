@@ -79,6 +79,7 @@ then
 	export BTREE_LIB=$PWD/fdf_sdk/lib/libbtree.so
 	export FDF_LIB=$PWD/fdf_sdk/lib/libfdf.so
     mvn clean && mvn install -Dmaven.test.skip=true
+    cp target/fdf-*.jar fdf_sdk/lib/
     rm -fr $SDK_DIR && mv fdf_sdk $SDK_DIR
     cd - 
     cd ..
