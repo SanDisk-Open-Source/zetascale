@@ -71,13 +71,15 @@ cp -a $WD/api/tests/conf/fdf_sample.prop $SDK_DIR/config/
 if [ "is$WITHJNI" == "isON" ]
 then
     rm -fr fdfjni_2.0
-    jniurl=http://svn.schoonerinfotech.net/svn/schooner-trunk/ht_delivery/rd/fdfjni/branches/fdfcassandra_2.0
-    svn co $jniurl fdfjni_2.0
-    cd fdfjni_2.0
+    jniurl=http://svn.schoonerinfotech.net/svn/schooner-trunk/ht_delivery/rd/fdfjni/trunk
+    svn co $jniurl FDFJNI 
+    cd FDFJNI
+    sed -i "/sdk$/d" bin/update_sdk
     cp -r $SDK_DIR ./fdf_sdk
 	export BTREE_LIB=$PWD/fdf_sdk/lib/libbtree.so
 	export FDF_LIB=$PWD/fdf_sdk/lib/libfdf.so
-    cd src/main/c/Release/ && make clean && make && cp libfdfjni.so $SDK_DIR/lib/
+    mvn clean && mvn install -Dmaven.test.skip=true
+    rm -fr $WD/$PKG_NAME && mv fdf_sdk $WD/$PKG_NAME
     cd - 
     cd ..
 fi
