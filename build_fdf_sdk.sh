@@ -74,7 +74,7 @@ then
     jniurl=http://svn.schoonerinfotech.net/svn/schooner-trunk/ht_delivery/rd/fdfjni/trunk
     svn co $jniurl FDFJNI 
     cd FDFJNI
-    sed -i "/sdk$/d" bin/update_sdk
+    sed -i "/sdk$/d" bin/prepare_fdfsdk.sh 
     cp -r $SDK_DIR ./fdf_sdk
 	export BTREE_LIB=$PWD/fdf_sdk/lib/libbtree.so
 	export FDF_LIB=$PWD/fdf_sdk/lib/libfdf.so
