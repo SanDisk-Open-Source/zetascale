@@ -7111,9 +7111,8 @@ log_sync_internal( mcd_osd_shard_t *s)
 static __thread uint	trx_bracket_id,
 			trx_bracket_level,
 			trx_bracket_nslab;
-static __thread uint32_t
-			trx_bracket_slabs[1000000];
 
+__thread uint32_t *trx_bracket_slabs = NULL;
 
 static void
 log_write_internal( mcd_osd_shard_t *s, mcd_logrec_object_t *lr)
@@ -7121,13 +7120,21 @@ log_write_internal( mcd_osd_shard_t *s, mcd_logrec_object_t *lr)
 	mcd_rec_logpage_hdr_t     * hdr;
 	uint64_t	slot_seqno;
 
+	if (trx_bracket_slabs == NULL) {
+		trx_bracket_slabs = plat_alloc(MAX_TRX_BRACKET_SLAB_CNT * sizeof(uint32_t));
+		if (trx_bracket_slabs == NULL) {
+			mcd_log_msg(20001, PLAT_LOG_LEVEL_FATAL, "failed to allocate memory");
+			plat_abort( );
+		}
+	}
+
 	lr->bracket_id = 0;
 	if ((s == vdc_shard)
 	and (lr->bracket_id = trx_bracket_id)
 	and (lr->old_offset)
-	and (trx_bracket_nslab < nel( trx_bracket_slabs))) {
+	and (trx_bracket_nslab < MAX_TRX_BRACKET_SLAB_CNT)) {
 		trx_bracket_slabs[trx_bracket_nslab++] = ~ lr->old_offset;
-		if (trx_bracket_nslab == nel( trx_bracket_slabs)) {
+		if (trx_bracket_nslab == MAX_TRX_BRACKET_SLAB_CNT) {
 			if (s->log->errors_fatal) {
 				mcd_log_msg( 170024, PLAT_LOG_LEVEL_FATAL, "Slab deferral exceeded");
 				plat_abort( );

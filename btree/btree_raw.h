@@ -501,6 +501,8 @@ extern int btree_raw_free_buffer(struct btree_raw *btree, char *buf);
 extern void btree_raw_get_stats(struct btree_raw *btree, btree_stats_t *stats);
 extern char *btree_stat_name(btree_stat_t stat_type);
 extern void btree_dump_stats(FILE *f, btree_stats_t *stats);
+extern void btree_raw_alloc_thread_bufs(void);
+extern void btree_raw_free_thread_bufs(void);
 
 btree_status_t
 btree_raw_rupdate(

@@ -916,6 +916,8 @@ FDF_status_t _FDFInitPerThreadState(
 {
     FDF_status_t ret = FDF_SUCCESS;
     ret = FDFInitPerThreadState(fdf_state, thd_state);
+    btree_raw_alloc_thread_bufs();
+
     my_thd_state = *thd_state;
     return ret;
 }
@@ -934,6 +936,8 @@ FDF_status_t _FDFReleasePerThreadState(
     FDF_status_t status = FDF_SUCCESS;
 	release_per_thread_keybuf();
     status = FDFReleasePerThreadState(thd_state);
+    btree_raw_free_thread_bufs();
+
     my_thd_state = NULL;
     return status;
 }
