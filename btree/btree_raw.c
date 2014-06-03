@@ -1914,12 +1914,12 @@ btree_status_t btree_raw_get(struct btree_raw *btree, char *key, uint32_t keylen
 
     index = btree_raw_find(btree, key, keylen, syndrome, meta, &node, 0 /* shared */, &pathcnt, &found);
 
-    plat_rwlock_unlock(&btree->lock);
-
     if(found) {
         ret = get_leaf_data_nth_key(btree, node->pnode, index, meta, syndrome, data, datalen, 0);
 	assert(BTREE_SUCCESS == ret);
     }
+
+    plat_rwlock_unlock(&btree->lock);
 
     node_unlock(node);
     deref_l1cache_node(btree, node);
@@ -5210,11 +5210,6 @@ mini_restart:
 		ret = BTREE_SUCCESS;
 	}
 
-	/*
-	 * We dont have to lock any more nodes, so release node on btree.
-	 */
-	plat_rwlock_unlock(&btree->lock);
-
 	if(count + *written > 1 && parent && !is_node_dirty(parent))
 		node_unlock(parent);
 
@@ -5236,6 +5231,8 @@ mini_restart:
 	if (BTREE_SUCCESS != ret1) {
 		ret = ret1;
 	}
+
+	plat_rwlock_unlock(&btree->lock);
 
 	/*
 	 * Writes are flushed, decrement pending write count.
