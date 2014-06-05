@@ -181,9 +181,6 @@ bool licd_start(const char *, int, struct FDF_state *);
 void wait_for_licd_start();
 bool is_license_valid();
 
-/* Keep track of max bracket slab count */
-#define MAX_TRX_BRACKET_SLAB_CNT 1000000
-
 #ifdef __cplusplus
 }
 #endif

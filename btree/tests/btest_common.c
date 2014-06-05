@@ -297,7 +297,6 @@ btest_init(int argc, char **argv, char *program, btest_parse_fn parse_fn)
 	msg("max_datalen = %lld",        cfg->max_datalen);
 	msg("iterations = %lld",         cfg->n_test_iters);
 
-	btree_raw_alloc_thread_bufs();
 	cfg->bt = btree_init(cfg->n_partitions, cfg->flags, cfg->max_key_size, 
 	                cfg->min_keys_per_node, cfg->nodesize,
 	                (create_node_cb_t *)create_node_cb, create_node_cb_data, 
@@ -649,7 +648,6 @@ btest_life_cycle(btest_cfg_t *cfg)
 	btree_check(cfg->bt);
 	/* delete the btree */
 	btree_destroy(cfg->bt);
-	btree_raw_free_thread_bufs();
 
 	msg("Ending btree test...  TEST PASSED!");
 

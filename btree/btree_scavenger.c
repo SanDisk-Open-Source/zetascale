@@ -28,8 +28,6 @@ extern FDF_status_t open_container(struct FDF_thread_state *fdf_thread_state, FD
 extern void close_container(struct FDF_thread_state *fdf_thread_state, Scavenge_Arg_t *S);
  extern void bt_cntr_unlock_scavenger(Scavenge_Arg_t *s);
  extern FDF_status_t bt_cntr_lock_scavenger(Scavenge_Arg_t *s);
-extern FDF_status_t _FDFInitPerThreadState(struct FDF_state  *fdf_state, struct FDF_thread_state **thd_state);
-extern FDF_status_t _FDFReleasePerThreadState(struct FDF_thread_state **thd_state);
 
 extern void astats_deref_container(astats_arg_t *S);
 
@@ -66,7 +64,7 @@ scavenger_worker(uint64_t arg)
 		mail = btSyncMboxWait(&mbox_scavenger);
 		s = (Scavenge_Arg_t *)mail;
 
-		_FDFInitPerThreadState(s->fdf_state, &fdf_thread_state);
+		FDFInitPerThreadState(s->fdf_state,&fdf_thread_state);
 		my_thd_state = fdf_thread_state;
 
 		my_thrd_cguid = 0; /* To avoid recurrence triggering of scavenger from btree_delete rouinte after FDF_SCAVENGE_PER_OBJECTS deletes*/
@@ -145,7 +143,7 @@ scavenger_worker(uint64_t arg)
 					fprintf(stderr,"bt_get_btree_from_cguid failed with error: %s\n", FDFStrError(fdf_ret));
 					free(key);
 				free(s);
-					_FDFReleasePerThreadState(&fdf_thread_state);
+					FDFReleasePerThreadState(&fdf_thread_state);
 					return;
 				}
 				if (btree_ret != BTREE_SUCCESS) {
@@ -171,7 +169,7 @@ scavenger_worker(uint64_t arg)
 		fprintf(stderr,"Total number of objects scavenged %d \n\n\n",deletedobjects);
 		close_container(fdf_thread_state,s);
 		free(s);
-		_FDFReleasePerThreadState(&fdf_thread_state);
+		FDFReleasePerThreadState(&fdf_thread_state);
 	}
 }
 
@@ -499,7 +497,7 @@ astats_worker(uint64_t arg)
         mail = btSyncMboxWait(&mbox_astats);
         s = (astats_arg_t*)mail;
 
-        _FDFInitPerThreadState(s->fdf_state, &fdf_thread_state);
+        FDFInitPerThreadState(s->fdf_state, &fdf_thread_state);
         my_thd_state = fdf_thread_state;
 
         /*
@@ -636,7 +634,7 @@ astats_worker(uint64_t arg)
         astats_deref_container(s);
 
 astats_worker_exit:
-        _FDFReleasePerThreadState(&fdf_thread_state);
+        FDFReleasePerThreadState(&fdf_thread_state);
         fprintf(stderr, "astats worker is done\n");
         astats_done = 1;
     }

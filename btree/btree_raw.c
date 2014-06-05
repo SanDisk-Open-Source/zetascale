@@ -131,15 +131,12 @@ __thread uint32_t   _keybuf_size = 0;
 #define MAX_PER_THREAD_NODES        (MAX_BTREE_HEIGHT + MAX_NODES_PER_OBJECT)
 #define MAX_PER_THREAD_NODES_REF (MAX_PER_THREAD_NODES * 10) //btree check reference all most all nodes
 
-extern FDF_status_t _FDFInitPerThreadState(struct FDF_state  *fdf_state, struct FDF_thread_state **thd_state);
-extern FDF_status_t _FDFReleasePerThreadState(struct FDF_thread_state **thd_state);
-
 extern __thread struct FDF_thread_state *my_thd_state;
-__thread btree_raw_mem_node_t **modified_nodes = NULL;
-__thread btree_raw_mem_node_t **referenced_nodes = NULL;
-__thread btree_raw_mem_node_t **deleted_nodes = NULL;
-__thread int *modified_written = NULL;
-__thread int *deleted_written = NULL;
+__thread btree_raw_mem_node_t* modified_nodes[MAX_PER_THREAD_NODES];
+__thread btree_raw_mem_node_t* referenced_nodes[MAX_PER_THREAD_NODES_REF];
+__thread btree_raw_mem_node_t* deleted_nodes[MAX_PER_THREAD_NODES];
+__thread int modified_written[MAX_PER_THREAD_NODES];
+__thread int deleted_written[MAX_PER_THREAD_NODES];
 __thread uint64_t modified_nodes_count=0, referenced_nodes_count=0, deleted_nodes_count=0;
 
 static __thread char tmp_key_buf[8100] = {0};
@@ -2370,7 +2367,7 @@ btree_sync_thread(uint64_t arg)
 
 	assert(btree_parallel_flush_disabled == 0);
 
-	fdfret = _FDFInitPerThreadState(FDFState, &thd_state);
+	fdfret = FDFInitPerThreadState(FDFState, &thd_state);
 	assert(fdfret == FDF_SUCCESS);
 
 
@@ -2380,7 +2377,7 @@ btree_sync_thread(uint64_t arg)
 		while (list == NULL) {
 			if (btree->deleting) {
 				pthread_mutex_unlock(&(btree->bt_async_mutex));
-				_FDFReleasePerThreadState(&thd_state);
+				FDFReleasePerThreadState(&thd_state);
 				__sync_fetch_and_sub(&(btree->no_sync_threads), 1);
 				return;
 			}
@@ -8116,40 +8113,3 @@ btree_raw_check(btree_raw_t *btree)
 
 	return res;
 }
-
-#define thread_buf_alloc_helper(ptr, type, size) \
-{ \
-	if (ptr == NULL) { \
-		ptr = (type) btree_malloc((size)); \
-		assert(ptr != NULL); \
-	} \
-}
-
-#define thread_buf_free_helper(ptr) \
-{ \
-	if (ptr) { \
-		free(ptr); \
-		ptr = NULL; \
-	} \
-}
-
-void
-btree_raw_alloc_thread_bufs(void)
-{
-	thread_buf_alloc_helper(modified_nodes, btree_raw_mem_node_t **, sizeof(btree_raw_mem_node_t *) * MAX_PER_THREAD_NODES);
-	thread_buf_alloc_helper(referenced_nodes, btree_raw_mem_node_t **, sizeof(btree_raw_mem_node_t *) * MAX_PER_THREAD_NODES_REF);
-	thread_buf_alloc_helper(deleted_nodes, btree_raw_mem_node_t **, sizeof(btree_raw_mem_node_t *) * MAX_PER_THREAD_NODES);
-	thread_buf_alloc_helper(modified_written, int *, sizeof(int) * MAX_PER_THREAD_NODES);
-	thread_buf_alloc_helper(deleted_written, int *, sizeof(int) * MAX_PER_THREAD_NODES);
-}
-
-void
-btree_raw_free_thread_bufs(void)
-{
-	thread_buf_free_helper(modified_nodes);
-	thread_buf_free_helper(referenced_nodes);
-	thread_buf_free_helper(deleted_nodes);
-	thread_buf_free_helper(modified_written);
-	thread_buf_free_helper(deleted_written);
-}
-

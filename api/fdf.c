@@ -86,7 +86,6 @@ static sem_t Mcd_fsched_sem;
 static sem_t Mcd_initer_sem;
 
 extern HashMap cmap_cname_hash;           // cname -> cguid
-extern __thread uint32_t *trx_bracket_slabs;
 
 FDF_status_t get_btree_num_objs(FDF_cguid_t cguid, uint64_t *num_objs);
 
@@ -2385,15 +2384,6 @@ FDF_status_t FDFInitPerThreadState(
     /* Initialize per thread compression/decompression buffer */
     fdf_init_per_thd_comp_buf(0);
 
-    if (trx_bracket_slabs == NULL) {
-        trx_bracket_slabs = plat_alloc(MAX_TRX_BRACKET_SLAB_CNT * sizeof(uint32_t));
-
-        if (trx_bracket_slabs == NULL) {
-            mcd_log_msg(20001, PLAT_LOG_LEVEL_FATAL, "failed to allocate memory");
-            plat_abort( );
-        }
-    }
-
     return FDF_SUCCESS;
 }
 
@@ -2467,12 +2457,6 @@ FDF_status_t FDFReleasePerThreadState(
         }
         compression_buf = NULL;
     }
-
-    if (trx_bracket_slabs) {
-        plat_free(trx_bracket_slabs);
-        trx_bracket_slabs = NULL;
-    }
-
     return FDF_SUCCESS;
 }
 
