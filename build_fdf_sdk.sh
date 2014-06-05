@@ -71,9 +71,9 @@ cp -a $WD/api/tests/conf/fdf_sample.prop $SDK_DIR/config/
 #when withjni=true, get jni code and compiling
 if [ "is$WITHJNI" == "isON" ]
 then
-    #rm -fr FDFJNI 
+    rm -fr FDFJNI 
     jniurl=http://svn.schoonerinfotech.net/svn/schooner-trunk/ht_delivery/rd/fdfjni/trunk
-    #svn co $jniurl FDFJNI 
+    svn co $jniurl FDFJNI 
     cd FDFJNI
     sed -i "/sdk$/d" bin/prepare_fdfsdk.sh 
     cp -r $SDK_DIR ./fdf_sdk
