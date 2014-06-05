@@ -735,11 +735,13 @@ static int cmp_cb(void *data, char *key1, uint32_t keylen1, char *key2, uint32_t
 }
 
 
+#if 0
 FDF_status_t
 FDFTransactionService( struct FDF_thread_state *t, int cmd, void *arg)
 {
 	return (FDF_SUCCESS);
 }
+#endif
 
 
 static int

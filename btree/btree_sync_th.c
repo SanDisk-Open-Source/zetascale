@@ -63,8 +63,11 @@
  *  attempt to make them contiguous in memory.
  */
 
-__thread int              totalScheds     = 1;  // this is never changed
+#if 0
+__thread int              btree_totalScheds     = 1;  // this is never changed
 __thread int              curSchedNum     = 0;  // this is never changed
+#endif
+
 
 uint64_t                  btSyncReverses     = 0;
 uint64_t                  btSyncFloatMax     = 0;

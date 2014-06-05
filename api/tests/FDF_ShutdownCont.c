@@ -102,8 +102,8 @@ DeleteContainer(struct FDF_thread_state *fdf_thrd_state, FDF_cguid_t cid)
 
 /***************** test ******************/
 
-pthread_cond_t cv = PTHREAD_COND_INITIALIZER;
-pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
+pthread_cond_t pcv = PTHREAD_COND_INITIALIZER;
+pthread_mutex_t pmutex = PTHREAD_MUTEX_INITIALIZER;
 
 /*
  * Flag to manage wait between threads
@@ -153,13 +153,13 @@ container_deletes()
 		 * requested to get deleted
 		 */
 		if (MAX_ITERATION/2 == i) {
-			pthread_mutex_lock(&mutex);
+			pthread_mutex_lock(&pmutex);
 			if (0 == x) {
 				x = 1;
 				fprintf(fp, "%s", "Wake up shutdown thread\n");
-				pthread_cond_signal(&cv);
+				pthread_cond_signal(&pcv);
 			}
-			pthread_mutex_unlock(&mutex);
+			pthread_mutex_unlock(&pmutex);
 		}
 
 		sprintf(cname, "test_%d", i);
@@ -170,13 +170,13 @@ container_deletes()
 		}
 	}
 exit_container_deletes:
-	pthread_mutex_lock(&mutex);
+	pthread_mutex_lock(&pmutex);
 	if (0 == x) {
 		x = 1;
 		fprintf(fp, "%s", "Wake up shutdown thread\n");
-		pthread_cond_signal(&cv);
+		pthread_cond_signal(&pcv);
 	}
-	pthread_mutex_unlock(&mutex);
+	pthread_mutex_unlock(&pmutex);
 	return 0;
 }
 
@@ -203,12 +203,12 @@ mgr2()
 
 	ret1 = pthread_create(&cont_thread, NULL, container_deletes, NULL);
 
-	pthread_mutex_lock(&mutex);
+	pthread_mutex_lock(&pmutex);
 	if (0 == x) {
-		pthread_cond_wait(&cv, &mutex);
+		pthread_cond_wait(&pcv, &pmutex);
 		fprintf(fp, "%s", "Shutdown thread got signal from deletion thread\n");
 	}
-	pthread_mutex_unlock(&mutex);
+	pthread_mutex_unlock(&pmutex);
 
 	/*
 	 * Start graceful shutdown

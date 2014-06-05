@@ -506,7 +506,12 @@ typedef int (* FDF_range_cmp_cb_t)(void     *data, 	//  opaque user data
 /*
  * Get a FDF property.
  */
+#ifdef BTREE_MODE
+const char *_FDFGetProperty(const char *key, const char *def);
+#define FDFGetProperty           _FDFGetProperty
+#else
 const char *FDFGetProperty(const char *key, const char *def);
+#endif
 
 
 /**
@@ -517,10 +522,18 @@ const char *FDFGetProperty(const char *key, const char *def);
  * @return FDF_SUCCESS on success
  * 
  */
+#ifdef BTREE_MODE
+FDF_status_t _FDFSetProperty(
+	const char* property,
+	const char* value
+	);
+#define FDFSetProperty           _FDFSetProperty
+#else
 FDF_status_t FDFSetProperty(
 	const char* property,
 	const char* value
 	);
+#endif
 
 /**
  * @brief Load properties from specified file
@@ -529,9 +542,16 @@ FDF_status_t FDFSetProperty(
  * @return FDF_SUCCESS on success
  * 
  */
+#ifdef BTREE_MODE
+FDF_status_t _FDFLoadProperties(
+	const char *prop_file
+	);
+#define FDFLoadProperties        _FDFLoadProperties
+#else
 FDF_status_t FDFLoadProperties(
 	const char *prop_file
 	);
+#endif
 
 /**
  * @brief FDF initialization
@@ -540,12 +560,20 @@ FDF_status_t FDFLoadProperties(
  * @param api_version <IN> FDF API version
  * @return FDF_SUCCESS on success
  */
+#ifdef BTREE_MODE
+FDF_status_t _FDFInitVersioned(
+	struct FDF_state	**fdf_state,
+	uint32_t                api_version
+	);
+#define FDFInitVersioned         _FDFInitVersioned
+#define FDFInit(state)           _FDFInitVersioned(state, FDF_API_VERSION)
+#else
 FDF_status_t FDFInitVersioned(
 	struct FDF_state	**fdf_state,
 	uint32_t                api_version
 	);
-
-#define FDFInit(state)       FDFInitVersioned(state, FDF_API_VERSION)
+#define FDFInit(state)           FDFInitVersioned(state, FDF_API_VERSION)
+#endif
 
 /**
  * @brief FDF per thread state initialization
@@ -554,10 +582,18 @@ FDF_status_t FDFInitVersioned(
  * @param thd_state <OUT> FDF per thread state variable
  * @return FDF_SUCCESS on success
  */
+#ifdef BTREE_MODE
+FDF_status_t _FDFInitPerThreadState(
+	struct FDF_state		 *fdf_state,
+	struct FDF_thread_state	**thd_state
+	);
+#define FDFInitPerThreadState   _FDFInitPerThreadState
+#else
 FDF_status_t FDFInitPerThreadState(
 	struct FDF_state		 *fdf_state,
 	struct FDF_thread_state	**thd_state
 	);
+#endif
 
 /**
  * @brief FDF release per thread state initialization
@@ -565,9 +601,16 @@ FDF_status_t FDFInitPerThreadState(
  * @param fdf_thread_state <IN> The FDF context for which this operation applies
  * @return FDF_SUCCESS on success
  */
+#ifdef BTREE_MODE
+FDF_status_t _FDFReleasePerThreadState(
+	struct FDF_thread_state	**thd_state
+	);
+#define FDFReleasePerThreadState  _FDFReleasePerThreadState
+#else
 FDF_status_t FDFReleasePerThreadState(
 	struct FDF_thread_state	**thd_state
 	);
+#endif
 
 /**
  * @brief FDF shutdown
@@ -575,9 +618,16 @@ FDF_status_t FDFReleasePerThreadState(
  * @param fdf_state <IN> FDF state variable
  * @return FDF_SUCCESS on success
  */
+#ifdef BTREE_MODE
+FDF_status_t _FDFShutdown(
+	struct FDF_state	*fdf_state
+	);
+#define FDFShutdown              _FDFShutdown
+#else
 FDF_status_t FDFShutdown(
 	struct FDF_state	*fdf_state
 	);
+#endif
 
 /**
  * @brief FDF load default container properties
@@ -585,9 +635,16 @@ FDF_status_t FDFShutdown(
  * @param props <IN> FDF container properties pointer
  * @return FDF_SUCCESS on success
  */
+#ifdef BTREE_MODE
+FDF_status_t _FDFLoadCntrPropDefaults(
+	FDF_container_props_t *props
+	);
+#define FDFLoadCntrPropDefaults _FDFLoadCntrPropDefaults
+#else
 FDF_status_t FDFLoadCntrPropDefaults(
 	FDF_container_props_t *props
 	);
+#endif
 
  /**
  * @brief Create and open a virtual container.
@@ -599,6 +656,16 @@ FDF_status_t FDFLoadCntrPropDefaults(
  * @param cguid <OUT> container GUID
  * @return FDF_SUCCESS on success
  */
+#ifdef BTREE_MODE
+FDF_status_t _FDFOpenContainer(
+	struct FDF_thread_state	*fdf_thread_state, 
+	char					*cname, 
+	FDF_container_props_t 	*properties, 
+	uint32_t			 	 flags,
+	FDF_cguid_t				*cguid
+	);
+#define FDFOpenContainer    _FDFOpenContainer
+#else
 FDF_status_t FDFOpenContainer(
 	struct FDF_thread_state	*fdf_thread_state, 
 	char					*cname, 
@@ -606,6 +673,7 @@ FDF_status_t FDFOpenContainer(
 	uint32_t			 	 flags,
 	FDF_cguid_t				*cguid
 	);
+#endif
 
  /**
  * @brief Create and open a virtual container.
@@ -617,6 +685,17 @@ FDF_status_t FDFOpenContainer(
  * @param cguid <OUT> container GUID
  * @return FDF_SUCCESS on success
  */
+#ifdef BTREE_MODE
+FDF_status_t _FDFOpenContainerSpecial(
+	struct FDF_thread_state	  *fdf_thread_state, 
+	char                      *cname, 
+	FDF_container_props_t     *properties, 
+	uint32_t                  flags,
+	FDF_container_meta_t      *cmeta,
+	FDF_cguid_t               *cguid
+	);
+#define FDFOpenContainerSpecial    _FDFOpenContainerSpecial
+#else
 FDF_status_t FDFOpenContainerSpecial(
 	struct FDF_thread_state	  *fdf_thread_state, 
 	char                      *cname, 
@@ -625,6 +704,7 @@ FDF_status_t FDFOpenContainerSpecial(
 	FDF_container_meta_t      *cmeta,
 	FDF_cguid_t               *cguid
 	);
+#endif
 
 /**
  * @brief Close a virtual container.
@@ -633,10 +713,18 @@ FDF_status_t FDFOpenContainerSpecial(
  * @param cguid <IN> container CGUID
  * @return FDF_SUCCESS on success
  */
+#ifdef BTREE_MODE
+FDF_status_t _FDFCloseContainer(
+	struct FDF_thread_state *fdf_thread_state,
+	FDF_cguid_t				 cguid
+	);
+#define FDFCloseContainer   _FDFCloseContainer
+#else
 FDF_status_t FDFCloseContainer(
 	struct FDF_thread_state *fdf_thread_state,
 	FDF_cguid_t				 cguid
 	);
+#endif
 
 /**
  * @brief Delete a virtual container
@@ -645,10 +733,18 @@ FDF_status_t FDFCloseContainer(
  * @param cguid <IN> container CGUID
  * @return FDF_SUCCESS on success
  */
+#ifdef BTREE_MODE
+FDF_status_t _FDFDeleteContainer(
+	struct FDF_thread_state *fdf_thread_state,
+	FDF_cguid_t				 cguid
+	);
+#define FDFDeleteContainer   _FDFDeleteContainer
+#else
 FDF_status_t FDFDeleteContainer(
 	struct FDF_thread_state *fdf_thread_state,
 	FDF_cguid_t				 cguid
 	);
+#endif
 
 /**
  * @brief Get container list
@@ -658,11 +754,20 @@ FDF_status_t FDFDeleteContainer(
  * @param n_cguids <OUT> pointer to container GUID count
  * @return FDF_SUCCESS on success
  */
+#ifdef BTREE_MODE
+FDF_status_t _FDFGetContainers(
+	struct FDF_thread_state	*fdf_thread_state,
+	FDF_cguid_t             *cguids,
+	uint32_t                *n_cguids
+	);
+#define FDFGetContainers   _FDFGetContainers
+#else
 FDF_status_t FDFGetContainers(
 	struct FDF_thread_state	*fdf_thread_state,
 	FDF_cguid_t             *cguids,
 	uint32_t                *n_cguids
 	);
+#endif
 
 /**
  * @brief Get container properties
@@ -672,11 +777,20 @@ FDF_status_t FDFGetContainers(
  * @param pprops <IN> pointer to structure into which to copy properties
  * @return FDF_SUCCESS on success
  */
+#ifdef BTREE_MODE
+FDF_status_t _FDFGetContainerProps(
+	struct FDF_thread_state	*fdf_thread_state,
+	FDF_cguid_t            	 cguid,
+	FDF_container_props_t	*pprops
+	);
+#define FDFGetContainerProps  _FDFGetContainerProps
+#else
 FDF_status_t FDFGetContainerProps(
 	struct FDF_thread_state	*fdf_thread_state,
 	FDF_cguid_t            	 cguid,
 	FDF_container_props_t	*pprops
 	);
+#endif
 
 /**
  * @brief Set container properties
@@ -686,11 +800,20 @@ FDF_status_t FDFGetContainerProps(
  * @param pprops <IN> pointer to structure into which to copy properties
  * @return FDF_SUCCESS on success
  */
+#ifdef BTREE_MODE
+FDF_status_t _FDFSetContainerProps(
+	struct FDF_thread_state 	*fdf_thread_state,
+	FDF_cguid_t              	 cguid,
+	FDF_container_props_t   	*pprops
+	);
+#define FDFSetContainerProps   _FDFSetContainerProps
+#else
 FDF_status_t FDFSetContainerProps(
 	struct FDF_thread_state 	*fdf_thread_state,
 	FDF_cguid_t              	 cguid,
 	FDF_container_props_t   	*pprops
 	);
+#endif
 
 /**
  *  @brief Get a copy of an object for read-only  access. Return its current expiry time.
@@ -715,6 +838,17 @@ FDF_status_t FDFSetContainerProps(
  *          FDF_IN_TRANS: this operation cannot be done inside a transaction.
  *          FDF_FAILURE: operation failed.
  */
+#ifdef BTREE_MODE
+FDF_status_t _FDFReadObject(
+	struct FDF_thread_state  *fdf_thread_state,
+	FDF_cguid_t               cguid,
+	char                     *key,
+	uint32_t                  keylen,
+	char                     **data,
+	uint64_t                 *datalen
+	);
+#define FDFReadObject   _FDFReadObject
+#else
 FDF_status_t FDFReadObject(
 	struct FDF_thread_state  *fdf_thread_state,
 	FDF_cguid_t               cguid,
@@ -723,7 +857,19 @@ FDF_status_t FDFReadObject(
 	char                     **data,
 	uint64_t                 *datalen
 	);
+#endif
 
+#ifdef BTREE_MODE
+FDF_status_t _FDFReadObject2(
+	struct FDF_thread_state  *fdf_thread_state,
+	FDF_cguid_t               cguid,
+	char                     *key,
+	uint32_t                  keylen,
+	char                     **data,
+	uint64_t                 *datalen
+	);
+#define FDFReadObject2   _FDFReadObject2
+#else
 FDF_status_t FDFReadObject2(
 	struct FDF_thread_state  *fdf_thread_state,
 	FDF_cguid_t               cguid,
@@ -732,6 +878,7 @@ FDF_status_t FDFReadObject2(
 	char                     **data,
 	uint64_t                 *datalen
 	);
+#endif
 
 /**
  *  @brief Get a copy of an object for read-only  access. Return its current expiry time.
@@ -750,12 +897,20 @@ FDF_status_t FDFReadObject2(
  *          FDF_IN_TRANS: this operation cannot be done inside a transaction.
  *          FDF_FAILURE: operation failed.
  */
+#ifdef BTREE_MODE
+FDF_status_t _FDFReadObjectExpiry(
+    struct FDF_thread_state  *fdf_thread_state,
+    FDF_cguid_t               cguid,
+    FDF_readobject_t         *robj
+    );
+#define FDFReadObjectExpiry   _FDFReadObjectExpiry
+#else
 FDF_status_t FDFReadObjectExpiry(
     struct FDF_thread_state  *fdf_thread_state,
     FDF_cguid_t               cguid,
     FDF_readobject_t         *robj
     );
-
+#endif
 
 /**
  * @brief Free an object buffer
@@ -763,9 +918,16 @@ FDF_status_t FDFReadObjectExpiry(
  * @param buf <IN> object buffer
  * @return FDF_SUCCESS on success
  */
+#ifdef BTREE_MODE
+FDF_status_t _FDFFreeBuffer(
+	char *buf
+	);
+#define FDFFreeBuffer   _FDFFreeBuffer
+#else
 FDF_status_t FDFFreeBuffer(
 	char *buf
 	);
+#endif
 
 /**
  *  @brief Write entire object, creating it if necessary.  
@@ -790,6 +952,18 @@ FDF_status_t FDFFreeBuffer(
  *          FDF_IN_TRANS: this operation cannot be done inside a transaction.
  *          FDF_FAILURE: operation failed.
  */
+#ifdef BTREE_MODE
+FDF_status_t _FDFWriteObject(
+	struct FDF_thread_state  *sdf_thread_state,
+	FDF_cguid_t          cguid,
+	char                *key,
+	uint32_t             keylen,
+	char                *data,
+	uint64_t             datalen,
+	uint32_t			 flags
+	);
+#define FDFWriteObject     _FDFWriteObject
+#else
 FDF_status_t FDFWriteObject(
 	struct FDF_thread_state  *sdf_thread_state,
 	FDF_cguid_t          cguid,
@@ -799,6 +973,7 @@ FDF_status_t FDFWriteObject(
 	uint64_t             datalen,
 	uint32_t			 flags
 	);
+#endif
 
 /**
  *  @brief Write entire object, creating it if necessary.  
@@ -820,12 +995,22 @@ FDF_status_t FDFWriteObject(
  *          FDF_IN_TRANS: this operation cannot be done inside a transaction.
  *          FDF_FAILURE: operation failed.
  */
+#ifdef BTREE_MODE
+FDF_status_t _FDFWriteObjectExpiry(
+    struct FDF_thread_state  *fdf_thread_state,
+    FDF_cguid_t               cguid,
+    FDF_writeobject_t        *wobj,
+    uint32_t                  flags
+    );
+#define FDFWriteObjectExpiry   _FDFWriteObjectExpiry
+#else
 FDF_status_t FDFWriteObjectExpiry(
     struct FDF_thread_state  *fdf_thread_state,
     FDF_cguid_t               cguid,
     FDF_writeobject_t        *wobj,
     uint32_t                  flags
     );
+#endif
 
 /**
  *  @brief Delete an object, but check for expiry first.
@@ -843,12 +1028,22 @@ FDF_status_t FDFWriteObjectExpiry(
  *          FDF_OBJECT_UNKNOWN: the object does not exist.
  *          FDF_FAILURE: operation failed.
  */
+#ifdef BTREE_MODE
+FDF_status_t _FDFDeleteObject(
+	struct FDF_thread_state  *fdf_thread_state,
+	FDF_cguid_t               cguid,
+	char                     *key,
+	uint32_t                  keylen
+	);
+#define FDFDeleteObject    _FDFDeleteObject
+#else
 FDF_status_t FDFDeleteObject(
 	struct FDF_thread_state  *fdf_thread_state,
 	FDF_cguid_t               cguid,
 	char                     *key,
 	uint32_t                  keylen
 	);
+#endif
 
 /**
  * @brief Enumerate container objects
@@ -858,11 +1053,20 @@ FDF_status_t FDFDeleteObject(
  * @param iterator <IN> enumeration iterator
  * @return FDF_SUCCESS on success
  */
+#ifdef BTREE_MODE
+FDF_status_t _FDFEnumerateContainerObjects(
+	struct FDF_thread_state *fdf_thread_state,
+	FDF_cguid_t              cguid,
+	struct FDF_iterator    **iterator
+	);
+#define FDFEnumerateContainerObjects   _FDFEnumerateContainerObjects
+#else
 FDF_status_t FDFEnumerateContainerObjects(
 	struct FDF_thread_state *fdf_thread_state,
 	FDF_cguid_t              cguid,
 	struct FDF_iterator    **iterator
 	);
+#endif
 
 /**
  * @brief Container object enumration iterator
@@ -876,6 +1080,17 @@ FDF_status_t FDFEnumerateContainerObjects(
  * @param datalen <OUT> pointer to data length variable
  * @return FDF_SUCCESS on success
  */
+#ifdef BTREE_MODE
+FDF_status_t _FDFNextEnumeratedObject(
+	struct FDF_thread_state *fdf_thread_state,
+	struct FDF_iterator     *iterator,
+	char                    **key,
+	uint32_t                *keylen,
+	char                    **data,
+	uint64_t                *datalen
+	);
+#define FDFNextEnumeratedObject     _FDFNextEnumeratedObject
+#else
 FDF_status_t FDFNextEnumeratedObject(
 	struct FDF_thread_state *fdf_thread_state,
 	struct FDF_iterator     *iterator,
@@ -884,6 +1099,7 @@ FDF_status_t FDFNextEnumeratedObject(
 	char                    **data,
 	uint64_t                *datalen
 	);
+#endif
 
 /**
  * @brief Terminate enumeration
@@ -892,10 +1108,18 @@ FDF_status_t FDFNextEnumeratedObject(
  * @param iterator <IN> enumeration iterator
  * @return FDF_SUCCESS on success
  */
+#ifdef BTREE_MODE
+FDF_status_t _FDFFinishEnumeration(
+	struct FDF_thread_state *fdf_thread_state,
+	struct FDF_iterator     *iterator
+	);
+#define FDFFinishEnumeration    _FDFFinishEnumeration
+#else
 FDF_status_t FDFFinishEnumeration(
 	struct FDF_thread_state *fdf_thread_state,
 	struct FDF_iterator     *iterator
 	);
+#endif
 
 /**
  *  @brief Force modifications of an object to primary storage.
@@ -918,12 +1142,22 @@ FDF_status_t FDFFinishEnumeration(
  *          FDF_IN_TRANS: this operation cannot be done inside a transaction.
  *          FDF_FAILURE: operation failed.
  */
+#ifdef BTREE_MODE
+FDF_status_t _FDFFlushObject(
+	struct FDF_thread_state  *fdf_thread_state,
+	FDF_cguid_t               cguid,
+	char                     *key,
+	uint32_t                  keylen
+	);
+#define FDFFlushObject  _FDFFlushObject
+#else
 FDF_status_t FDFFlushObject(
 	struct FDF_thread_state  *fdf_thread_state,
 	FDF_cguid_t               cguid,
 	char                     *key,
 	uint32_t                  keylen
 	);
+#endif
 
 /**
  * @brief Flush container
@@ -932,10 +1166,18 @@ FDF_status_t FDFFlushObject(
  * @param cguid  <IN> container global identifier
  * @return FDF_SUCCESS on success
  */
+#ifdef BTREE_MODE
+FDF_status_t _FDFFlushContainer(
+	struct FDF_thread_state  *fdf_thread_state,
+	FDF_cguid_t               cguid
+	);
+#define FDFFlushContainer   _FDFFlushContainer
+#else
 FDF_status_t FDFFlushContainer(
 	struct FDF_thread_state  *fdf_thread_state,
 	FDF_cguid_t               cguid
 	);
+#endif
 
 /**
  * @brief Flush the cache
@@ -943,9 +1185,16 @@ FDF_status_t FDFFlushContainer(
  * @param fdf_thread_state <IN> The FDF context for which this operation applies.
  * @return FDF_SUCCESS on success
  */
+#ifdef BTREE_MODE
+FDF_status_t _FDFFlushCache(
+	struct FDF_thread_state  *fdf_thread_state
+	);
+#define FDFFlushCache  _FDFFlushCache
+#else
 FDF_status_t FDFFlushCache(
 	struct FDF_thread_state  *fdf_thread_state
 	);
+#endif
 
 /**
  * @brief Get FDF statistics
@@ -954,10 +1203,18 @@ FDF_status_t FDFFlushCache(
  * @param stats <OUT> pointer to statistics return structure
  * @return FDF_SUCCESS on success
  */
+#ifdef BTREE_MODE
+FDF_status_t _FDFGetStats(
+	struct FDF_thread_state *fdf_thread_state,
+	FDF_stats_t             *stats
+	);
+#define FDFGetStats  _FDFGetStats
+#else
 FDF_status_t FDFGetStats(
 	struct FDF_thread_state *fdf_thread_state,
 	FDF_stats_t             *stats
 	);
+#endif
 
 /**
  * @brief Get per container statistics
@@ -967,11 +1224,20 @@ FDF_status_t FDFGetStats(
  * @param stats <OUT> pointer to statistics return structure
  * @return FDF_SUCCESS on success
  */
+#ifdef BTREE_MODE
+FDF_status_t _FDFGetContainerStats(
+	struct FDF_thread_state	*fdf_thread_state,
+	FDF_cguid_t				 cguid,
+	FDF_stats_t     		*stats
+	);
+#define FDFGetContainerStats _FDFGetContainerStats
+#else
 FDF_status_t FDFGetContainerStats(
 	struct FDF_thread_state	*fdf_thread_state,
 	FDF_cguid_t				 cguid,
 	FDF_stats_t     		*stats
 	);
+#endif
 
 /**
  * @brief Get error string for given error code
@@ -979,7 +1245,12 @@ FDF_status_t FDFGetContainerStats(
  * @param errno FDF error number
  * @return  error string
  */
+#ifdef BTREE_MODE
+char *_FDFStrError(FDF_status_t fdf_errno);
+#define FDFStrError       _FDFStrError 
+#else
 char *FDFStrError(FDF_status_t fdf_errno);
+#endif
 
 /**
  * @brief Start transaction
@@ -990,9 +1261,16 @@ char *FDFStrError(FDF_status_t fdf_errno);
  *         FDF_OUT_OF_MEM if memory exhausted
  *         FDF_FAILURE for error unspecified
  */
+#ifdef BTREE_MODE
+FDF_status_t _FDFTransactionStart(
+	struct FDF_thread_state	*fdf_thread_state
+	);
+#define FDFTransactionStart  _FDFTransactionStart
+#else
 FDF_status_t FDFTransactionStart(
 	struct FDF_thread_state	*fdf_thread_state
 	);
+#endif
 
 /**
  * @brief Commit transaction
@@ -1002,9 +1280,16 @@ FDF_status_t FDFTransactionStart(
  *         FDF_FAILURE_NO_TRANS if there is no active transaction in the current thread
  *         FDF_TRANS_ABORTED if transaction aborted due to excessive size or internal error
  */
+#ifdef BTREE_MODE
+FDF_status_t _FDFTransactionCommit(
+	struct FDF_thread_state	*fdf_thread_state
+	);
+#define FDFTransactionCommit  _FDFTransactionCommit
+#else
 FDF_status_t FDFTransactionCommit(
 	struct FDF_thread_state	*fdf_thread_state
 	);
+#endif
 
 /**
  * @brief Roll back transaction
@@ -1014,9 +1299,16 @@ FDF_status_t FDFTransactionCommit(
  *         FDF_FAILURE_NO_TRANS if there is no active transaction in the current thread
  *         FDF_TRANS_ABORTED if transaction aborted due to excessive size or internal error
  */
+#ifdef BTREE_MODE
+FDF_status_t _FDFTransactionRollback(
+	struct FDF_thread_state	*fdf_thread_state
+	);
+#define FDFTransactionRollback   _FDFTransactionRollback
+#else
 FDF_status_t FDFTransactionRollback(
 	struct FDF_thread_state	*fdf_thread_state
 	);
+#endif
 
 /**
  * @brief Quit a transaction
@@ -1025,9 +1317,16 @@ FDF_status_t FDFTransactionRollback(
  * @return FDF_SUCCESS on success
  *         FDF_FAILURE_NO_TRANS if there is no active transaction in the current thread
  */
+#ifdef BTREE_MODE
+FDF_status_t _FDFTransactionQuit(
+	struct FDF_thread_state	*fdf_thread_state
+	);
+#define FDFTransactionQuit  _FDFTransactionQuit
+#else
 FDF_status_t FDFTransactionQuit(
 	struct FDF_thread_state	*fdf_thread_state
 	);
+#endif
 
 /**
  * @brief ID of current transaction
@@ -1036,9 +1335,16 @@ FDF_status_t FDFTransactionQuit(
  * @return Non-zero transaction ID on success
  *         Zero if there is no active transaction in the current thread
  */
+#ifdef BTREE_MODE
+uint64_t _FDFTransactionID(
+	struct FDF_thread_state	*fdf_thread_state
+	);
+#define FDFTransactionID   _FDFTransactionID
+#else
 uint64_t FDFTransactionID(
 	struct FDF_thread_state	*fdf_thread_state
 	);
+#endif
 
 /**
  * @brief Perform internal transaction service
@@ -1047,11 +1353,20 @@ uint64_t FDFTransactionID(
  * @return FDF_SUCCESS on success
  *         FDF_FAILURE for error unspecified
  */
+#ifdef BTREE_MODE
+FDF_status_t _FDFTransactionService(
+	struct FDF_thread_state	*fdf_thread_state,
+	int			cmd,
+	void			*arg
+	);
+#define FDFTransactionService  _FDFTransactionService
+#else
 FDF_status_t FDFTransactionService(
 	struct FDF_thread_state	*fdf_thread_state,
 	int			cmd,
 	void			*arg
 	);
+#endif
 
 /**
  * @brief Return version of FDF
@@ -1060,9 +1375,16 @@ FDF_status_t FDFTransactionService(
  * @return String having the versions
  *         NULL if failed internally
  */
+#ifdef BTREE_MODE
+FDF_status_t _FDFGetVersion(
+	char **str
+	);
+#define FDFGetVersion   _FDFGetVersion
+#else
 FDF_status_t FDFGetVersion(
 	char **str
 	);
+#endif
 
 #define N_ENTRIES_TO_MALLOC    100
 #define N_ITERATORS_TO_MALLOC  100
@@ -1208,11 +1530,20 @@ typedef bool (* FDF_range_update_cb_t) (char *key, uint32_t keylen, char *data, 
  * Returns: FDF_SUCCESS if successful
  *          FDF_FAILURE if unsuccessful
  */
+#ifdef BTREE_MODE
+FDF_status_t _FDFGetRange(struct FDF_thread_state *thrd_state, //  client thread FDF context
+                         FDF_cguid_t              cguid,      //  container
+                         FDF_indexid_t            indexid,    //  handle for index to use (use PRIMARY_INDEX for primary)
+                         struct FDF_cursor      **cursor,     //  returns opaque cursor for this query
+                         FDF_range_meta_t        *meta);      //  query attributes (see above)
+#define FDFGetRange  _FDFGetRange
+#else
 FDF_status_t FDFGetRange(struct FDF_thread_state *thrd_state, //  client thread FDF context
                          FDF_cguid_t              cguid,      //  container
                          FDF_indexid_t            indexid,    //  handle for index to use (use PRIMARY_INDEX for primary)
                          struct FDF_cursor      **cursor,     //  returns opaque cursor for this query
                          FDF_range_meta_t        *meta);      //  query attributes (see above)
+#endif
 
 typedef enum {
 	FDF_RANGE_STATUS_NONE       = 0,
@@ -1267,21 +1598,49 @@ typedef struct FDF_range_data {
  * statuses[i] returns: FDF_SUCCESS if the i'th data item was retrieved successfully
  *                      FDF_BUFFER_TOO_SMALL  if the i'th buffer was too small to retrieve the object
  */
+#ifdef BTREE_MODE
+FDF_status_t
+_FDFGetNextRange(struct FDF_thread_state *thrd_state,  //  client thread FDF context
+                struct FDF_cursor       *cursor,      //  cursor for this indexed search
+                int                      n_in,        //  size of 'values' array
+                int                     *n_out,       //  number of items returned
+                FDF_range_data_t        *values);     //  array of returned key/data values
+#define FDFGetNextRange  _FDFGetNextRange
+#else
 FDF_status_t
 FDFGetNextRange(struct FDF_thread_state *thrd_state,  //  client thread FDF context
                 struct FDF_cursor       *cursor,      //  cursor for this indexed search
                 int                      n_in,        //  size of 'values' array
                 int                     *n_out,       //  number of items returned
                 FDF_range_data_t        *values);     //  array of returned key/data values
+#endif
 
 /* End an index query.
  * 
  * Returns: FDF_SUCCESS if successful
  *          FDF_UNKNOWN_CURSOR if the cursor is invalid
  */
+#ifdef BTREE_MODE
+FDF_status_t 
+_FDFGetRangeFinish(struct FDF_thread_state *thrd_state, 
+                  struct FDF_cursor *cursor);
+#define FDFGetRangeFinish  _FDFGetRangeFinish
+#else
 FDF_status_t 
 FDFGetRangeFinish(struct FDF_thread_state *thrd_state, 
                   struct FDF_cursor *cursor);
+#endif
+
+#ifdef BTREE_MODE
+FDF_status_t
+_FDFMPut(struct FDF_thread_state *fdf_ts,
+        FDF_cguid_t cguid,
+        uint32_t num_objs,
+        FDF_obj_t *objs,
+	uint32_t flags,
+	uint32_t *objs_written);
+#define FDFMPut    _FDFMPut
+#else
 FDF_status_t
 FDFMPut(struct FDF_thread_state *fdf_ts,
         FDF_cguid_t cguid,
@@ -1289,7 +1648,21 @@ FDFMPut(struct FDF_thread_state *fdf_ts,
         FDF_obj_t *objs,
 	uint32_t flags,
 	uint32_t *objs_written);
+#endif
 
+#ifdef BTREE_MODE
+FDF_status_t
+_FDFRangeUpdate(struct FDF_thread_state *fdf_thread_state, 
+	       FDF_cguid_t cguid,
+	       char *range_key,
+	       uint32_t range_key_len,
+	       FDF_range_update_cb_t callback_func,
+	       void * callback_args,	
+	       FDF_range_cmp_cb_t range_cmp_callback,
+	       void *range_cmp_cb_args,
+	       uint32_t *objs_updated);
+#define FDFRangeUpdate   _FDFRangeUpdate
+#else
 FDF_status_t
 FDFRangeUpdate(struct FDF_thread_state *fdf_thread_state, 
 	       FDF_cguid_t cguid,
@@ -1300,18 +1673,35 @@ FDFRangeUpdate(struct FDF_thread_state *fdf_thread_state,
 	       FDF_range_cmp_cb_t range_cmp_callback,
 	       void *range_cmp_cb_args,
 	       uint32_t *objs_updated);
+#endif
 
-
+#ifdef BTREE_MODE
+FDF_status_t
+_FDFCheckBtree(struct FDF_thread_state *fdf_thread_state, 
+	       FDF_cguid_t cguid);
+#define FDFCheckBtree     _FDFCheckBtree
+#else
 FDF_status_t
 FDFCheckBtree(struct FDF_thread_state *fdf_thread_state, 
 	       FDF_cguid_t cguid);
+#endif
 
+#ifdef BTREE_MODE
+FDF_status_t
+_FDFIoctl(struct FDF_thread_state *fdf_thread_state, 
+         FDF_cguid_t cguid,
+         uint32_t ioctl_type,
+         void *data);
+#define FDFIoctl  _FDFIoctl
+#else
 FDF_status_t
 FDFIoctl(struct FDF_thread_state *fdf_thread_state, 
          FDF_cguid_t cguid,
          uint32_t ioctl_type,
          void *data);
+#endif
 
+#ifndef BTREE_MODE
 FDF_status_t FDFWriteObjects(
 	struct FDF_thread_state  *sdf_thread_state,
 	FDF_cguid_t          cguid,
@@ -1322,6 +1712,7 @@ FDF_status_t FDFWriteObjects(
 	uint32_t             count,
 	uint32_t             flags
 	);
+#endif
 
 /*
  * @brief Create a snapshot for a container  
@@ -1332,12 +1723,22 @@ FDF_status_t FDFWriteObjects(
  * @return FDF_SUCCESS if successful
  *         FDF_TOO_MANY_SNAPSHOTS if snapshot limit is reached
  */
+#ifdef BTREE_MODE
+FDF_status_t
+_FDFCreateContainerSnapshot(
+	struct FDF_thread_state	*fdf_thread_state,
+	FDF_cguid_t		cguid,
+	uint64_t		*snap_seq
+	);
+#define FDFCreateContainerSnapshot   _FDFCreateContainerSnapshot
+#else
 FDF_status_t
 FDFCreateContainerSnapshot(
 	struct FDF_thread_state	*fdf_thread_state,
 	FDF_cguid_t		cguid,
 	uint64_t		*snap_seq
 	);
+#endif
 
 /*
  * @brief Delete a snapshot
@@ -1348,12 +1749,22 @@ FDFCreateContainerSnapshot(
  * @return FDF_SUCCESS if successful
  *         FDF_SNAPSHOT_NOT_FOUND if no snapshot for snap_seq is found
  */
+#ifdef BTREE_MODE
+FDF_status_t
+_FDFDeleteContainerSnapshot(
+	struct FDF_thread_state	*fdf_thread_state,
+	FDF_cguid_t		cguid,
+	uint64_t		snap_seq
+	);
+#define FDFDeleteContainerSnapshot   _FDFDeleteContainerSnapshot
+#else
 FDF_status_t
 FDFDeleteContainerSnapshot(
 	struct FDF_thread_state	*fdf_thread_state,
 	FDF_cguid_t		cguid,
 	uint64_t		snap_seq
 	);
+#endif
 
 /*
  * @brief Get a list of all current snapshots
@@ -1368,6 +1779,25 @@ FDFDeleteContainerSnapshot(
  * @return FDF_SUCCESS if successful
  *         FDF_xxxzzz if snap_seqs cannot be allocated
  */
+#ifdef BTREE_MODE
+FDF_status_t
+_FDFGetContainerSnapshots(
+	struct FDF_thread_state	*fdf_thread_state,
+	FDF_cguid_t		cguid,
+	uint32_t		*n_snapshots,
+	FDF_container_snapshots_t	**snap_seqs
+	);
+#define FDFGetContainerSnapshots _FDFGetContainerSnapshots
+
+FDF_status_t _FDFScavenger(struct FDF_state *fdf_state);
+#define FDFScavenger  _FDFScavenger
+
+FDF_status_t _FDFScavengeContainer(struct FDF_state *fdf_state, FDF_cguid_t cguid);
+#define FDFScavengeContainer  _FDFScavengeContainer
+
+FDF_status_t _FDFScavengeSnapshot(struct FDF_state *fdf_state, FDF_cguid_t cguid, uint64_t snap_seq);
+#define FDFScavengeSnapshot  _FDFScavengeSnapshot
+#else
 FDF_status_t
 FDFGetContainerSnapshots(
 	struct FDF_thread_state	*fdf_thread_state,
@@ -1379,14 +1809,21 @@ FDFGetContainerSnapshots(
 FDF_status_t FDFScavenger(struct FDF_state *fdf_state);
 FDF_status_t FDFScavengeContainer(struct FDF_state *fdf_state, FDF_cguid_t cguid);
 FDF_status_t FDFScavengeSnapshot(struct FDF_state *fdf_state, FDF_cguid_t cguid, uint64_t snap_seq);
+#endif
 
 /*
  * @brief Check that FDF operations are allowed (e.g., not in shutdown).
  *
  * @return FDF_SUCCESS if operations are allowed.
 */
+#ifdef BTREE_MODE
+FDF_status_t
+_FDFOperationAllowed( void );
+#define FDFOperationAllowed   _FDFOperationAllowed
+#else
 FDF_status_t
 FDFOperationAllowed( void );
+#endif
 
 
 #if 0

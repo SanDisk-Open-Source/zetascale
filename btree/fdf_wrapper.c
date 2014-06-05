@@ -431,12 +431,12 @@ const char *_FDFGetProperty(const char *key, const char *def)
  * @param value <IN> pointer to value
  * 
  */
-void _FDFSetProperty(
+FDF_status_t _FDFSetProperty(
 	const char* property,
 	const char* value
 	)
 {
-    FDFSetProperty(property, value);
+    return(FDFSetProperty(property, value));
 }
 
 /**

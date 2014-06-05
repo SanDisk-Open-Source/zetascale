@@ -2881,6 +2881,18 @@ out:
 	return status;
 }
 
+FDF_status_t FDFOpenContainerSpecial(
+	struct FDF_thread_state	  *fdf_thread_state, 
+	char                      *cname, 
+	FDF_container_props_t     *properties, 
+	uint32_t                  flags,
+	FDF_container_meta_t      *cmeta,
+	FDF_cguid_t               *cguid
+	)
+{
+	return (FDFOpenContainer(fdf_thread_state, cname, properties, flags, cguid));
+}
+
 FDF_status_t FDFOpenPhysicalContainer(
 		struct FDF_thread_state *fdf_thread_state,
 		char                    *cname,

@@ -58,6 +58,7 @@ make -j $NCPU
 
 #Packaging
 cp -f $WD/output/lib/* $SDK_DIR/lib
+cp -f $WD/output/lib/libfdfdll.a $SDK_DIR/lib/libbtreedll.a
 cp -a $WD/api/fdf.h $SDK_DIR/include
 cp -a $WD/api/tests/sample_program.c $SDK_DIR/samples
 cp -a $WD/api/tests/Makefile.sample $SDK_DIR/samples/Makefile
