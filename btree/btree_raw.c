@@ -830,10 +830,12 @@ done:
 	if (create) {
             deref_l1cache_node(bt, mem_node);
         }
-        if (modified_nodes[modified_nodes_count-1] == mem_node) {
+        if ((modified_nodes_count) && 
+            (modified_nodes[modified_nodes_count-1] == mem_node)) {
             modified_nodes_count--;
         }
-        if (referenced_nodes[referenced_nodes_count-1] == mem_node) {
+        if ((referenced_nodes_count) && 
+             (referenced_nodes[referenced_nodes_count-1] == mem_node)) {
             referenced_nodes_count--;
         }
     }
