@@ -2005,7 +2005,7 @@ FDF_status_t FDFInitVersioned(
     set_log_level( agent_state.flash_settings.sdf_log_level );
     agent_config_set_defaults(& (agent_state.config));
     /* Set the log file if configured*/
-    getPropertyFromFile(agent_state.config.propertyFileName, "FDF_LOG_FILE",log_file);
+    strncpy(log_file,getProperty_String("FDF_LOG_FILE",log_file),sizeof(log_file)-1);
     if( strcmp(log_file,"") ) { 
         plat_log_set_file(log_file, PLAT_LOG_REDIRECT_STDERR|PLAT_LOG_REDIRECT_STDOUT);
     } 
