@@ -821,7 +821,7 @@ typedef enum {
     MCD_STAT_GET_TIME,
     MCD_STAT_SET_TIME,
     MCD_STAT_MAX_COUNT,
-} mcd_fth_stat_t;
+} mcd_stat_t;
 
 typedef enum {
     FDF_DRAM_CACHE_HITS = 0,
@@ -1541,7 +1541,7 @@ err:
     return status;
 }
 
-static void fdf_fth_initer(uint64_t arg)
+static void fdf_initer(uint64_t arg)
 {
     struct sdf_agent_state    	*state 		= (struct sdf_agent_state *) arg;
 
@@ -1562,7 +1562,7 @@ static void fdf_fth_initer(uint64_t arg)
         plat_assert_always( 0 == 1 );
     }
 
-    mcd_fth_start_osd_writers();
+    mcd_start_osd_writers();
 
 out:
     /*
@@ -2039,7 +2039,7 @@ FDF_status_t FDFInitVersioned(
     }
 
     // spawn initer thread (like mcd_fth_initer)
-    fthResume( fthSpawn( &fdf_fth_initer, MCD_FTH_STACKSIZE ),
+    fthResume( fthSpawn( &fdf_initer, MCD_FTH_STACKSIZE ),
             (uint64_t) &agent_state );
     //Start License daemon
     if (!licd_start(getProperty_String("FDF_LICENSE_PATH", FDF_LICENSE_PATH),

@@ -670,7 +670,7 @@ struct sdf_rec_funcs Funcs ={
 /*
  * External function prototypes.
  */
-int mcd_fth_osd_grow_class_x(mshard_t *shard, mo_slab_class_t *class);
+int mcd_osd_grow_class_x(mshard_t *shard, mo_slab_class_t *class);
 extern int fdf_uncompress_data( char *, size_t, size_t, size_t *);
 
 
@@ -1684,7 +1684,7 @@ sf_next(slab_free_t *sf)
 
     atomic_add(class->used_slabs, seg_slabs);
     while (sf->seg_ci >= class->num_segments) {
-        if (almost_full(shard) || !mcd_fth_osd_grow_class_x(shard, class)) {
+        if (almost_full(shard) || !mcd_osd_grow_class_x(shard, class)) {
             atomic_sub(class->used_slabs, seg_slabs);
             return 0;
         }
@@ -2252,10 +2252,10 @@ read_disk(mshard_t *shard, aioctx_t *aioctx,
         blkno_t mapblk = rand_map(shard, blkno, nblks, &n);
 
         fdf_logt(70023, "recovery read %ld:%ld (%ld)", blkno, n, mapblk);
-        s = mcd_fth_aio_blk_read((osd_state_t *) aioctx,
+        s = mcd_aio_blk_read((osd_state_t *) aioctx,
                                  p, mapblk*BLK_SIZE, n*BLK_SIZE);
         if (s != FLASH_EOK) {
-            fdf_loge(70024, "mcd_fth_aio_blk_read failed: "
+            fdf_loge(70024, "mcd_aio_blk_read failed: "
                      "st=%d blkno=%ld mapblk=%ld nb=%ld", s, blkno, mapblk, n);
             return 0;
         }
@@ -2712,7 +2712,7 @@ fth_req_big(freq_big_t *freq, aioctx_t  *aioctx)
         blkno_t mapblk = rand_map(shard, blkno, nblks, &n);
 
         fdf_logt(70018, "recovery write %ld:%ld (%ld)", blkno, n, mapblk);
-        s = mcd_fth_aio_blk_write((osd_state_t *) aioctx, p,
+        s = mcd_aio_blk_write((osd_state_t *) aioctx, p,
                                   mapblk*BLK_SIZE, n*BLK_SIZE);
         if (s == FLASH_EOK)
             atomic_inc(RV.stats.num_m_writes);
@@ -4642,7 +4642,7 @@ delete_object(mshard_t *shard, mhash_t *hash, uint64_t bkt_i)
 
     hash->deleted = 1;
 
-    mcd_fth_osd_remove_entry(shard, hash, true, false);
+    mcd_osd_remove_entry(shard, hash, true, false);
 
     mcd_logrec_object_t log ={
         .syndrome   = hash->syndrome,
@@ -4781,11 +4781,13 @@ delete_all_objects( pai_t *pai, shard_t *sshard, cguid_t cguid)
 						log.blk_offset = baddr;
 						log.old_offset = ~ baddr;
 						log.cntr_id= hash_entry->cntr_id;
+#ifdef REPLICATION_SUPPORT
 						if (1 == shard->replicated)
 							log.seqno = rep_seqno_get((struct shard *)shard);
 						else
+#endif
 							log.seqno = __sync_add_and_fetch( &shard->sequence, 1);
-						mcd_fth_osd_remove_entry( shard, hash_entry, TRUE, true);
+						mcd_osd_remove_entry( shard, hash_entry, TRUE, true);
 						log_write( shard, &log);
 						hash_entry_delete( hdl, hash_entry, hash_idx);
 						++n;

@@ -104,7 +104,7 @@ $<TARGET_OBJECTS:sdfmsg>
 $<TARGET_OBJECTS:utils> 
 $<TARGET_OBJECTS:ssd> 
 $<TARGET_OBJECTS:shared> 
-$<TARGET_OBJECTS:clipper> 
+#$<TARGET_OBJECTS:clipper> 
 $<TARGET_OBJECTS:fifo> 
 )
 add_dependencies(${LIBRARY} ffdc)

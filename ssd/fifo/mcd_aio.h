@@ -30,57 +30,6 @@
 #define MCD_AIO_MAX_NFILES      8
 #define MCD_AIO_MAX_NSUBFILES   16
 
-/*
- * aio related
- */
-typedef enum {
-    MCD_AIO_READ = 1,
-    MCD_AIO_WRITE,
-} mcd_aio_type_t;
-
-typedef struct mcd_aio_cb {
-    /* XXX: this must be first because of the event->obj cast */
-    struct iocb         iocb;
-    mcd_aio_type_t      type;
-    int                 bytes;
-    int                 error;
-    void              * ctxt;
-} mcd_aio_cb_t;
-
-typedef struct mcd_aio_ctxt {
-    io_context_t        io_ctxt;
-
-    /* Platform aio state */
-    struct {
-        /** @brief api parent for all context instantiations */
-        struct paio_api *api;
-
-        /** @brief Underlying api for write-combining test */
-        struct paio_api *wrapped_api;
-
-        /** @brief platform/aio_api context used in place of io_ctxt */
-        struct paio_context *ctxt;
-
-#ifdef MEMCACHED_DEBUG
-        /** @brief Error injection api */
-        struct paio_api *error_api;
-
-        /** @brief Side-band interface for error injection */
-        struct paio_error_control *error_control;
-#endif /* def MEMCACHED_DEBUG */
-    } paio;
-
-    unsigned use_paio : 1;
-} mcd_aio_ctxt_t;
-
-typedef struct aio_state {
-    void              * aio_mbox;
-    int                 aio_ready;
-    uint32_t            aio_pending;
-    int                 aio_error;
-    fthThread_t       * aio_self;
-} aio_state_t;
-
 /************************************************************************
  *                                                                      *
  *                      MCD AIO globals                                 *
@@ -92,7 +41,6 @@ extern int                      Mcd_aio_raid_device;
 extern uint64_t                 Mcd_aio_total_size;
 extern uint64_t                 Mcd_aio_real_size;
 extern uint64_t                 Mcd_aio_strip_size;
-extern mcd_aio_ctxt_t           Mcd_aio_ctxt;
 
 
 /************************************************************************
@@ -101,24 +49,17 @@ extern mcd_aio_ctxt_t           Mcd_aio_ctxt;
  *                                                                      *
  ************************************************************************/
 
-extern aio_state_t *mcd_aio_init_state();
-extern void mcd_aio_free_state(aio_state_t *aio_state);
-
 extern int mcd_aio_init( void * state, char * dname );
 
 struct osd_state;
-extern int mcd_fth_aio_blk_read( struct osd_state * context, char * buf, uint64_t offset, int nbytes );
+extern int mcd_aio_blk_read(struct osd_state *context, char * buf, uint64_t offset, int nbytes );
 
-extern int mcd_fth_aio_blk_write( struct osd_state * context, char * buf, uint64_t offset, int nbytes );
-extern int mcd_fth_aio_blk_write_low( struct osd_state * context, char * buf, uint64_t offset, int nbytes, char sync );
+extern int mcd_aio_blk_write(struct osd_state *context, char * buf, uint64_t offset, int nbytes );
+extern int mcd_aio_blk_write_low(struct osd_state *context, char * buf, uint64_t offset, int nbytes, char sync );
 
 extern void mcd_aio_set_fds( int order[] );
 
 extern void mcd_aio_register_ops( void );
-
-extern int mcd_aio_sync_device_offset( uint64_t offset, int nbytes );
-
-extern int mcd_aio_sync_devices( void );
 
 extern int mcd_aio_get_fd( uint64_t offset, uint64_t bytes );
 

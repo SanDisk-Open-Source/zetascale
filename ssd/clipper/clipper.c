@@ -46,6 +46,8 @@
 /*================================================================*/
 #endif
 
+#ifdef CLIPPER
+
 /*================================================================*/
     /*  Define this to use the local clipper aio functions (for debug)
      *  instead of those in ssd_aio.c.
@@ -2293,3 +2295,4 @@ static void lock_trace(char *fmt, ...)
 
 #endif
 
+#endif // CLIPPER

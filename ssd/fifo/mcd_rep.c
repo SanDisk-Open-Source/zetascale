@@ -55,6 +55,8 @@
 #define min(a, b) ((a) <= (b) ? (a) : (b))
 #define max(a, b) ((a) >= (b) ? (a) : (b))
 
+#ifdef REPLICATION_SUPPORT
+
 #undef  mcd_log_msg
 #define mcd_log_msg(id, args...)                                           \
                    plat_log_msg( id,                                       \
@@ -870,7 +872,7 @@ static int obj_read(struct shard * shard, uint64_t blk_offset, uint64_t nbytes, 
         + (blk_offset % Mcd_osd_rand_blksize);
     offset = tmp_offset * Mcd_osd_blk_size;
 
-    rc = mcd_fth_aio_blk_read((void *)context,
+    rc = mcd_aio_blk_read((void *)context,
                               *data,
                               offset,
                               nbytes);
@@ -928,7 +930,7 @@ static int logbuf_read(struct shard * shard, int logbuf_number, char * logbuf_bu
         (log_blk_offset % Mcd_osd_segment_blks);
 
     // read the logbuf buffer
-    rc = mcd_fth_aio_blk_read((void *)context,
+    rc = mcd_aio_blk_read((void *)context,
                               logbuf_buf,
                               offset * Mcd_osd_blk_size,
                               MCD_REC_LOGBUF_BLKS * Mcd_osd_blk_size);
@@ -1062,3 +1064,5 @@ int reconstruct_seqno_cache() {
     return 0;
 }
 #endif // notyet
+
+#endif

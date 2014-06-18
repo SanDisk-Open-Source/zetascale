@@ -57,12 +57,13 @@ typedef struct ssd_fifo_ops {
 
     uint64_t            (*flashStats)( struct shard * shard, int key );
 
-    void                (*shardSync)( struct shard * shard );
-
     void                 (*shardClose)( struct shard * shard );
 
     int                 (*shardDelete)( struct shard * shard );
 
+    void                (*shardSync)( struct shard * shard );
+
+#ifdef DYNAMIC_SHARD
     int                 (*shardStart)( struct shard * shard );
 
     int                 (*shardStop)( struct shard * shard );
@@ -80,6 +81,7 @@ typedef struct ssd_fifo_ops {
 					    struct objMetaData *metaData, char **key, void **data, int flags, time_t flush_time);
     uint64_t            (*flashGetRetainedTombstoneGuarantee)(struct shard *shard);
     void                (*flashRegisterSetRetainedTombstoneGuaranteeCallback)(void (*callback)(uint64_t shardID, uint64_t seqno));
+#endif
 
 } ssd_fifo_ops_t;
 
@@ -99,9 +101,10 @@ extern int fifo_flashPutV(struct ssdaio_ctxt *pctxt, struct shard *shard, struct
 	  char **key, char **data, int count, int flags);
 extern int fifo_flashFreeBuf(void *p);
 extern uint64_t fifo_flashStats( struct shard * shard, int key );
-extern void fifo_shardSync(shard_t *shard);
 extern void  fifo_shardClose(shard_t *shard);
 extern int  fifo_shardDelete(shard_t *shard);
+extern void fifo_shardSync(shard_t *shard);
+#ifdef DYNAMIC_SHARD
 extern int  fifo_shardStart(shard_t *shard);
 extern int  fifo_shardStop(shard_t *shard);
 extern uint64_t fifo_flashGetHighSequence(shard_t *shard);
@@ -114,6 +117,7 @@ extern int fifo_flashGetByCursor(struct shard *shard, int cursor_len, const void
 				 struct objMetaData *metaData, char **key, void **data, int flags, time_t flush_time);
 extern uint64_t fifo_flashGetRetainedTombstoneGuarantee(struct shard *shard);
     extern void fifo_flashRegisterSetRetainedTombstoneGuaranteeCallback(void (*callback)(uint64_t shardID, uint64_t seqno));
+#endif
 
 
 #ifdef	__cplusplus

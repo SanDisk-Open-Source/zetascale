@@ -95,6 +95,7 @@ void ssd_Init()
     /* override defaults as necessary */
 
     switch (scheme) {
+#ifdef CLIPPER
         case SSD_Clipper:
 	    psss->flashGet          = clipper_flashGet;
 	    psss->flashPut          = clipper_flashPut;
@@ -102,6 +103,7 @@ void ssd_Init()
 	    psss->shardCreate       = clipper_shardCreate;
 	    psss->flashFreeBuf      = default_flashFreeBuf;
 	    break;
+#endif
         case SSD_Fifo:
             psss->flashGet          = fifo_flashGet;
             psss->flashPut          = fifo_flashPut;
@@ -111,9 +113,10 @@ void ssd_Init()
             psss->shardOpen         = fifo_shardOpen;
             psss->flashFreeBuf      = fifo_flashFreeBuf;
             psss->flashStats        = fifo_flashStats;
-            psss->shardSync         = fifo_shardSync;
             psss->shardClose       = fifo_shardClose;
             psss->shardDelete       = fifo_shardDelete;
+            psss->shardSync         = fifo_shardSync;
+#ifdef DYNAMIC_SHARD
             psss->shardStart        = fifo_shardStart;
             psss->shardStop         = fifo_shardStop;
             psss->flashGetIterationCursors = fifo_flashGetIterationCursors;
@@ -122,6 +125,7 @@ void ssd_Init()
             psss->flashSetSyncedSequence = fifo_flashSetSyncedSequence;
             psss->flashGetRetainedTombstoneGuarantee = fifo_flashGetRetainedTombstoneGuarantee;
             psss->flashRegisterSetRetainedTombstoneGuaranteeCallback = fifo_flashRegisterSetRetainedTombstoneGuaranteeCallback;
+#endif
 	    break;
 	default:
 	    plat_log_msg(21723, PLAT_LOG_CAT_FLASH, PLAT_LOG_LEVEL_FATAL,

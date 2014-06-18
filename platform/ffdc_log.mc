@@ -2855,7 +2855,7 @@
 70021 mkmsg_flash: read error
 70022 mkmsg_flash: recovering node died
 70023 recovery read %ld:%ld (%ld)
-70024 mcd_fth_aio_blk_read failed: st=%d blkno=%ld mapblk=%ld nb=%ld
+70024 mcd_aio_blk_read failed: st=%d blkno=%ld mapblk=%ld nb=%ld
 70025 bad set index: %ld head=%ld tail=%ld
 70026 null set index: %ld head=%ld tail=%ld
 70027 recovery: found buffer, size=%ld

@@ -852,5 +852,3 @@ SDF_status_t SDF_I_InvalidateContainerObjects(SDF_internal_ctxt_t *pai, SDF_cgui
 
     return(ar.respStatus);
 }
-
-

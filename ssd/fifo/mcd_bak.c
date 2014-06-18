@@ -9,6 +9,8 @@
  *
  * $Id: mcd_bak.c 15035 2010-11-12 16:50:11Z briano $
  */
+/**** Code Disabled for now */
+#ifdef BACKUP_SUPPORT
 
 #include <stdio.h>
 #include <signal.h>
@@ -453,3 +455,4 @@ restore_requires_conversion( mcd_osd_shard_t * shard )
     }
     return 1;
 }
+#endif // BACKUP_SUPPORT
