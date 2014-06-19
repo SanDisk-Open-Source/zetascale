@@ -58,6 +58,10 @@ make -j $NCPU
 
 #Packaging
 cp -f $WD/output/lib/* $SDK_DIR/lib
+#cp fdf lib to zs lib
+cp -f $WD/output/lib/libfdf.so $SDK_DIR/lib/libzs.so
+cp -f $WD/output/lib/libfdfdll.a $SDK_DIR/lib/libzsdll.a
+
 #cp -f $WD/output/lib/libfdfdll.a $SDK_DIR/lib/libbtreedll.a
 cp -a $WD/api/fdf.h $SDK_DIR/include
 cp -a $WD/api/tests/sample_program.c $SDK_DIR/samples
