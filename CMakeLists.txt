@@ -7,7 +7,7 @@ ELSE()
 ENDIF()
 #
 OPTION(DEBUG "Generate debug build" ON)
-OPTION(BUILD_SHARED "Generate shared libs" OFF)
+OPTION(BUILD_SHARED "Generate shared libs" ON)
 OPTION(PERMISSIVE "Omit -Werror for build" OFF)
 #
 ENABLE_TESTING()
@@ -33,7 +33,7 @@ ELSE(DEBUG)
 	ADD_DEFINITIONS(-g -D_OPTIMIZE)
 ENDIF(DEBUG)
 #
-SET(LIBRARY fdfdll)
+SET(LIBRARY fdf)
 #
 IF(BUILD_SHARED)
 	ADD_DEFINITIONS(-fPIC)
@@ -77,7 +77,7 @@ add_subdirectory(sdfmsg)
 add_subdirectory(utils)
 add_subdirectory(ssd)
 add_subdirectory(shared)
-#add_subdirectory(dll)
+add_subdirectory(dll)
 IF(EXISTS test_suite/)
 add_subdirectory(test_suite)
 ENDIF(EXISTS test_suite/)
@@ -88,7 +88,7 @@ ENDIF(EXISTS fdf_slap/)
 ADD_LIBRARY(${LIBRARY} ${LIB_TYPE} 
 $<TARGET_OBJECTS:agent>
 $<TARGET_OBJECTS:api>
-$<TARGET_OBJECTS:btree> 
+#$<TARGET_OBJECTS:btree> 
 $<TARGET_OBJECTS:ecc> 
 $<TARGET_OBJECTS:fth> 
 $<TARGET_OBJECTS:hotkey> 
