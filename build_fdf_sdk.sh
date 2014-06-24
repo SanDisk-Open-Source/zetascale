@@ -51,15 +51,38 @@ SDK_DIR=$WD/fdf-build/$PKG_NAME
 rm -fr $SDK_DIR
 mkdir -p $SDK_DIR/{config,lib,include,samples}
 
+rm -fr $WD/../sdf-zs
+cp -r $WD $WD/../sdf-zs
+
 echo "Building DEBUG=$DBG shared lib"
 rm -f CMakeCache.txt
 cmake $WD -DNCPU=$NCPU -DDEBUG=$DBG -DFDF_REVISION="$VERSION" -DTRACE=$TRACE
 make -j $NCPU
 
+cd $WD/../sdf-zs
+#build zs lib
+sed -i "s/SHARED/OBJECT/g" btree/CMakeLists.txt
+sed -i "s/^target_link_libraries(btree fdfdll)/#target_link_libraries(btree fdfdll)/g" btree/CMakeLists.txt
+sed -i "s/LIBRARY fdf/LIBRARY zs/g" CMakeLists.txt
+sed -i "s/#\$<TARGET_OBJECTS:btree>/\$<TARGET_OBJECTS:btree>/g" CMakeLists.txt
+sed -i "s/^add_subdirectory(dll)/#add_subdirectory(dll)/g" CMakeLists.txt
+sed -i "s/^add_subdirectory(btree\/tests)/#add_subdirectory(btree\/tests)/g" CMakeLists.txt
+sed -i "s/^add_subdirectory(api\/tests/#add_subdirectory(api\/tests/g" CMakeLists.txt
+# remove double linking of rwlock.c in btree/CMakeLists.txt
+sed -i "s/..\/platform\/rwlock.c//g" btree/CMakeLists.txt
+
+echo "Building DEBUG=$DBG shared ZS lib"
+rm -f CMakeCache.txt
+cmake $WD/../sdf-zs -DNCPU=$NCPU -DDEBUG=$DBG -DFDF_REVISION="$VERSION" -DTRACE=$TRACE
+make -j $NCPU
+
 #Packaging
 cp -f $WD/output/lib/* $SDK_DIR/lib
+
+#cp libzs.so
+cp -f $WD/../sdf-zs/output/lib/* $SDK_DIR/lib
 #cp fdf lib to zs lib
-cp -f $WD/output/lib/libfdf.so $SDK_DIR/lib/libzs.so
+#cp -f $WD/output/lib/libfdf.so $SDK_DIR/lib/libzs.so
 cp -f $WD/output/lib/libfdfdll.a $SDK_DIR/lib/libzsdll.a
 
 #cp -f $WD/output/lib/libfdfdll.a $SDK_DIR/lib/libbtreedll.a

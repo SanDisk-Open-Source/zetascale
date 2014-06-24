@@ -44,7 +44,9 @@ static void _fdftlmap_assert(int x) {
 #define do_unlock(x) {if (pm->use_locks) { pthread_mutex_unlock(x); }}
 
 //  Predeclarations
-void check_list(FDFTLMapBucket_t *pb, FDFTLMapEntry_t *pme);
+#ifdef LISTCHECK
+static void check_list(FDFTLMapBucket_t *pb, FDFTLMapEntry_t *pme);
+#endif
 static void insert_lru(struct FDFTLMap *pm, FDFTLMapEntry_t *pme);
 static void remove_lru(struct FDFTLMap *pm, FDFTLMapEntry_t *pme);
 static void update_lru(struct FDFTLMap *pm, FDFTLMapEntry_t *pme);
@@ -833,7 +835,8 @@ static FDFTLMapEntry_t *find_pme(struct FDFTLMap *pm, char *pkey, uint32_t keyle
     return(pme);
 }
 
-void check_list(FDFTLMapBucket_t *pb, FDFTLMapEntry_t *pme_in)
+#ifdef LISTCHECK
+static void check_list(FDFTLMapBucket_t *pb, FDFTLMapEntry_t *pme_in)
 {
     FDFTLMapEntry_t *pme, *pme2;
     //  check for a circular list
@@ -847,6 +850,6 @@ void check_list(FDFTLMapBucket_t *pb, FDFTLMapEntry_t *pme_in)
 	}
     }
 }
-
+#endif
 
 
