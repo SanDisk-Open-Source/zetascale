@@ -302,6 +302,9 @@ update_lic_info(lic_data_t *data, bool daemon)
 	if (daemon && (data->fld_state == LS_INTERNAL_ERR)) {
 		ld_valid = true;
 		adjust_chk_prd(-1);
+		if (is_btree_loaded()) {
+			ext_cbs->fdf_lic_cb((ld_valid == true) ? 1 : 0);
+		}
 		return;
 	}
 
@@ -433,6 +436,9 @@ print:
 		check_time_left(abstime.tv_sec - ld_vtime, FDF_INVAL_GPRD,
 				daemon);
 
+	}
+	if (is_btree_loaded()) {
+		ext_cbs->fdf_lic_cb((ld_valid == true) ? 1 : 0);
 	}
 }
 
@@ -584,7 +590,7 @@ adjust_chk_prd(double secs)
  * Returns state of license to calling thread/APIs.
  */
 bool
-is_license_valid()
+is_license_valid(bool btree_loaded)
 {
 	lic_data_t	data;
 	struct timespec abstime;
@@ -657,7 +663,13 @@ start:
 			pthread_cond_broadcast(&licstate_cv);
 		}
 		pthread_mutex_unlock(&licstate_mutex); 
+
 	}
+
+	if (btree_loaded) {
+		return true;
+	}
+
 	return ld_valid;
 }
 

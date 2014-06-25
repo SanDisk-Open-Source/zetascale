@@ -218,6 +218,9 @@ FDF_status_t
 (*ptr_FDFRegisterCallbacks)(struct FDF_state *fdf_state,
                             FDF_ext_cb_t *cb);
 
+FDF_status_t
+(*ptr_FDFLicenseCheck)(int *state);
+
 static FDF_status_t 
 (*ptr_FDFOperationAllowed)();
 
@@ -415,6 +418,7 @@ static struct {
     { "FDFTransactionService",         &ptr_FDFTransactionService        },
     { "FDFGetVersion",                 &ptr_FDFGetVersion                },
     { "FDFRegisterCallbacks",          &ptr_FDFRegisterCallbacks         },
+    { "FDFLicenseCheck",         	   &ptr_FDFLicenseCheck		         },
     { "FDFOperationAllowed",           &ptr_FDFOperationAllowed          },
     { "FDFTLMapDestroy",               &ptr_FDFTLMapDestroy              },
     { "FDFTLMapClear",                 &ptr_FDFTLMapClear                },
@@ -1190,6 +1194,14 @@ FDF_status_t FDFRegisterCallbacks(struct FDF_state *fdf_state, FDF_ext_cb_t *cb)
     return (*ptr_FDFRegisterCallbacks)(fdf_state,cb);
 }
 
+FDF_status_t FDFLicenseCheck(int *state)
+{
+    parse();
+    if (unlikely(!ptr_FDFLicenseCheck))
+        undefined("FDFGetVersion");
+
+    return (*ptr_FDFLicenseCheck)(state);
+}
 
 /*
  * FDFOperationAllowed

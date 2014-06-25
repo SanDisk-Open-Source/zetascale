@@ -40,6 +40,7 @@ typedef FDF_status_t (ext_cb_admin_t)(struct FDF_thread_state *thd_state,
 typedef FDF_status_t (ext_cb_flash_stats_t)(uint64_t *alloc_blks, uint64_t *free_segs, uint64_t *consumed_blks, 
                                             uint64_t blk_size, uint64_t seg_size);
 typedef FDF_status_t (ext_cb_functions_t)(void *log_func);
+typedef FDF_status_t (ext_cb_licvalid_t)(int state);
 
 typedef enum {
     FDF_EXT_MODULE_BTREE,
@@ -59,9 +60,12 @@ typedef struct FDF_ext_cb {
    /* Call back function to pass function pointers to Btree layer */
    ext_cb_functions_t *fdf_funcs_cb;
     
+   /* Call back function to pass function pointers to Btree layer */
+   ext_cb_licvalid_t *fdf_lic_cb;
 }FDF_ext_cb_t;
 
 FDF_status_t FDFRegisterCallbacks(struct FDF_state *fdf_state, FDF_ext_cb_t *cb);
+FDF_status_t FDFLicenseCheck(int *state);
 
 #ifdef __cplusplus
 }

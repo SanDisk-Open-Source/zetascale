@@ -26,6 +26,7 @@ char *lic_state_msg[] = {
 	"License period has not started",
 	"Internal error",
 	"I/O error",
+	"File operation failed",
 	"License file format not supported",
 	"License file is not in valid format",
 	"Data is not entered for one of the fields",
@@ -344,11 +345,11 @@ get_license_details(char *input_file, lic_data_t *data)
 	}
 
 	if (NULL == (in_fd = fopen(input_file, "r"))) {
-		data->fld_state = LS_INVALID;
+		data->fld_state = LS_FILE_IO_ERR;
 		return;
 	}
 	if (fread((void *) license, license_size, 1, in_fd) < 1) {
-		data->fld_state = LS_INVALID;
+		data->fld_state = LS_FILE_IO_ERR;
 		goto out;
 	}
 	retval = get_version_specific_contents(license, &input, &major, &minor);

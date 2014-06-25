@@ -46,6 +46,7 @@ enum lic_state {
 	LS_NOTBEGUN,		//Invalid as license time is for future dates
 	LS_INTERNAL_ERR,	//Invalid due to internal error
 	LS_IO_ERR,		//Invalid due to IO error
+	LS_FILE_IO_ERR,
 	LS_UNSUPPORTED_FMT,	//Invalid as unsupported license file format
 	LS_FORMAT_INVALID,	//Invalid as unexpected format
 	LS_DATA_MISSING,	//Invalid as data is missing

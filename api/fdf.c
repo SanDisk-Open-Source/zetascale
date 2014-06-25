@@ -1548,9 +1548,9 @@ static void fdf_fth_initer(uint64_t arg)
 
 
     wait_for_licd_start();
-    if (is_license_valid() == false) {
-	plat_log_msg(160145, LOG_CAT, LOG_WARN, "License check failed.");
-	goto out;
+    if (is_license_valid(is_btree_loaded()) == false) {
+		plat_log_msg(160145, LOG_CAT, LOG_WARN, "License check failed.");
+		goto out;
     }	
 
     /*
@@ -1946,6 +1946,11 @@ FDF_status_t FDFRegisterCallbacks(struct FDF_state *fdf_state, FDF_ext_cb_t *cb)
     plat_log_msg(150113, LOG_CAT, LOG_INFO, "Callback registered"); 
     return FDF_SUCCESS;
 }
+FDF_status_t FDFLicenseCheck(int *state)
+{
+	*state = (is_license_valid(false) == true) ? 1 : 0;
+	return FDF_SUCCESS;
+}
 void agent_config_set_defaults(struct plat_opts_config_sdf_agent *config);
 bool is_btree_loaded() {
     return (ext_cbs != NULL)?1:0;
@@ -2072,7 +2077,7 @@ FDF_status_t FDFInitVersioned(
 
 
     wait_for_licd_start();
-    if (is_license_valid() == false) {
+    if (is_license_valid(false) == false) {
         plat_log_msg(160145, LOG_CAT, LOG_WARN, "License check failed.");
         return FDF_LICENSE_CHK_FAILED;
     }	
@@ -2809,7 +2814,7 @@ FDF_status_t FDFOpenContainer(
 		       LOG_WARN, "Operation not allowed");
 		goto out;
 	}
-	if (is_license_valid() == false) {
+	if (is_license_valid(is_btree_loaded()) == false) {
 		plat_log_msg(160145, LOG_CAT, LOG_WARN, "License check failed.");
 		status = FDF_LICENSE_CHK_FAILED;
 		goto out;
@@ -3838,7 +3843,7 @@ FDF_status_t FDFDeleteContainer(
                LOG_DBG, "Operation not allowed ");
 		goto out;
 	}
-	if (is_license_valid() == false) {
+	if (is_license_valid(is_btree_loaded()) == false) {
 		plat_log_msg(160145, LOG_CAT, LOG_WARN, "License check failed.");
 		status = FDF_LICENSE_CHK_FAILED;
 		goto out;
@@ -4494,7 +4499,7 @@ FDF_status_t FDFGetContainers(
 		goto out;
 	}
 
-	if (is_license_valid() == false) {
+	if (is_license_valid(is_btree_loaded()) == false) {
 		plat_log_msg(160145, LOG_CAT, LOG_WARN, "License check failed.");
 		status = FDF_LICENSE_CHK_FAILED;
 		goto out;
@@ -4605,7 +4610,7 @@ FDF_status_t FDFGetContainerProps(
 			LOG_WARN, "Operation not allowed");
 		goto out;
 	}
-	if (is_license_valid() == false) {
+	if (is_license_valid(is_btree_loaded()) == false) {
 		plat_log_msg(160145, LOG_CAT, LOG_WARN, "License check failed.");
 		status = FDF_LICENSE_CHK_FAILED;
 		goto out;
@@ -4743,7 +4748,7 @@ FDF_status_t FDFSetContainerProps(
                LOG_WARN, "Operation not allowed ");
 		goto out;
 	}
-	if (is_license_valid() == false) {
+	if (is_license_valid(is_btree_loaded()) == false) {
 		plat_log_msg(160145, LOG_CAT, LOG_WARN, "License check failed.");
 		status = FDF_LICENSE_CHK_FAILED;
 		goto out;
@@ -4943,7 +4948,7 @@ FDF_status_t FDFReadObject(
 		   LOG_WARN, "Operation not allowed ");
 		goto out;
 	}
-	if (is_license_valid() == false) {
+	if (is_license_valid(is_btree_loaded()) == false) {
 		plat_log_msg(160145, LOG_CAT, LOG_WARN, "License check failed.");
 		status = FDF_LICENSE_CHK_FAILED;
 		goto out;
@@ -5012,7 +5017,7 @@ FDF_status_t FDFReadObject2(
 		   LOG_WARN, "Operation not allowed ");
 		goto out;
 	}
-	if (is_license_valid() == false) {
+	if (is_license_valid(is_btree_loaded()) == false) {
 		plat_log_msg(160145, LOG_CAT, LOG_WARN, "License check failed.");
 		status = FDF_LICENSE_CHK_FAILED;
 		goto out;
@@ -5137,7 +5142,7 @@ FDF_status_t FDFReadObjectExpiry(
                LOG_WARN, "Shutdown in Progress. Operation not allowed ");
 		goto out;
 	}
-	if (is_license_valid() == false) {
+	if (is_license_valid(is_btree_loaded()) == false) {
 		plat_log_msg(160145, LOG_CAT, LOG_WARN, "License check failed.");
 		status = FDF_LICENSE_CHK_FAILED;
 		goto out;
@@ -5381,7 +5386,7 @@ FDF_status_t FDFWriteObject(
                LOG_WARN, "Shutdown in Progress. Operation not allowed ");
 		goto out;
 	}
-	if (is_license_valid() == false) {
+	if (is_license_valid(is_btree_loaded()) == false) {
 		plat_log_msg(160145, LOG_CAT, LOG_WARN, "License check failed.");
 		status = FDF_LICENSE_CHK_FAILED;
 		goto out;
@@ -5459,7 +5464,7 @@ FDF_status_t FDFWriteObjects(
                LOG_WARN, "Shutdown in Progress. Operation not allowed ");
 		goto out;
 	}
-	if (is_license_valid() == false) {
+	if (is_license_valid(is_btree_loaded()) == false) {
 		plat_log_msg(160145, LOG_CAT, LOG_WARN, "License check failed.");
 		status = FDF_LICENSE_CHK_FAILED;
 		goto out;
@@ -5607,7 +5612,7 @@ FDF_status_t FDFWriteObjectExpiry(
                LOG_WARN, "Shutdown in Progress. Operation not allowed ");
 		goto out;
 	}
-	if (is_license_valid() == false) {
+	if (is_license_valid(is_btree_loaded()) == false) {
 		plat_log_msg(160145, LOG_CAT, LOG_WARN, "License check failed.");
 		status = FDF_LICENSE_CHK_FAILED;
 		goto out;
@@ -5766,7 +5771,7 @@ FDF_status_t FDFDeleteObject(
                LOG_WARN, "Shutdown in Progress. Operation not allowed ");
 		goto out;
 	}
-	if (is_license_valid() == false) {
+	if (is_license_valid(is_btree_loaded()) == false) {
 		plat_log_msg(160145, LOG_CAT, LOG_WARN, "License check failed.");
 		status = FDF_LICENSE_CHK_FAILED;
 		goto out;

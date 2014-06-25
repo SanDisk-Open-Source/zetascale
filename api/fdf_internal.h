@@ -179,7 +179,7 @@ char *get_log_level();
 
 bool licd_start(const char *, int, struct FDF_state *);
 void wait_for_licd_start();
-bool is_license_valid();
+bool is_license_valid(bool);
 
 /* Keep track of max bracket slab count */
 #define MAX_TRX_BRACKET_SLAB_CNT 1000000

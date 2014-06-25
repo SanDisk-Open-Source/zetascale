@@ -86,6 +86,7 @@ uint64_t flash_space;
 uint64_t flash_space_soft_limit;
 bool flash_space_soft_limit_check = true;
 bool flash_space_limit_log_flag = false;
+int btree_ld_valid = true;
 
 static bool shutdown = false;
 
@@ -129,6 +130,7 @@ static bool pstats_prepare_to_flush(struct FDF_thread_state *thd_state);
 static void pstats_prepare_to_flush_single(struct FDF_thread_state *thd_state, struct cmap *cmap_entry);
 FDF_status_t set_flash_stats_buffer(uint64_t *alloc_blks, uint64_t *free_segs, uint64_t *consumed_blks, uint64_t blk_size, uint64_t seg_size);
 FDF_status_t set_fdf_function_ptrs( void *log_func);
+FDF_status_t btree_check_license_ptr(int lic_state);
 
 FDF_status_t btree_process_admin_cmd(struct FDF_thread_state *thd_state, 
                                      FILE *fp, cmd_token_t *tokens, size_t ntokens);
@@ -410,6 +412,20 @@ bt_is_valid_cguid(FDF_cguid_t cguid)
 	}
 }
 
+static bool
+bt_is_license_valid()
+{
+	int state;
+	if (btree_ld_valid == false) {
+		FDFLicenseCheck(&state);
+		return ((state == 1) ? true : false);
+	}
+
+	assert(btree_ld_valid == true);
+	return (true);
+}
+
+
 static void dump_btree_stats(FILE *f, FDF_cguid_t cguid);
 
 //  xxxzzz end of temporary stuff!
@@ -638,6 +654,7 @@ FDF_status_t _FDFInitVersioned(
     cbs->stats_cb = btree_get_all_stats;
     cbs->flash_stats_buf_cb = set_flash_stats_buffer;
     cbs->fdf_funcs_cb = set_fdf_function_ptrs;
+    cbs->fdf_lic_cb = btree_check_license_ptr;
     ret = FDFRegisterCallbacks(*fdf_state, cbs);
     assert(FDF_SUCCESS == ret);
 
@@ -1097,6 +1114,10 @@ FDF_status_t _FDFOpenContainerSpecial(
         return(FDF_INVALID_PARAMETER);
 
 restart:
+	if (bt_is_license_valid() == false) {
+		return (FDF_LICENSE_CHK_FAILED);
+	}
+
     /* Always bypass cache for btree by default */
     fdf_prop = (char *)FDFGetProperty("FDF_CACHE_FORCE_ENABLE",NULL);
     if( fdf_prop != NULL ) {
@@ -1386,6 +1407,9 @@ FDF_status_t _FDFOpenContainer(
 	if (!cname) {
 		return(FDF_INVALID_PARAMETER);
 	}
+	if (bt_is_license_valid() == false) {
+		return (FDF_LICENSE_CHK_FAILED);
+	}
 
 	if (properties) {
 		if (properties->writethru == FDF_FALSE) {
@@ -1521,6 +1545,9 @@ FDF_status_t _FDFDeleteContainer(
     struct btree	*btree = NULL;
 
 restart:
+	if (bt_is_license_valid() == false) {
+		return (FDF_LICENSE_CHK_FAILED);
+	}
     if ((status = bt_is_valid_cguid(cguid)) != FDF_SUCCESS) {
         return status;
     }
@@ -1597,6 +1624,9 @@ FDF_status_t _FDFGetContainers(
 	)
 {
     my_thd_state = fdf_thread_state;;
+	if (bt_is_license_valid() == false) {
+		return (FDF_LICENSE_CHK_FAILED);
+	}
 
     return(FDFGetContainers(fdf_thread_state, cguids, n_cguids));
 }
@@ -1617,6 +1647,9 @@ FDF_status_t _FDFGetContainerProps(
 {
     my_thd_state = fdf_thread_state;;
 	FDF_status_t	ret;
+	if (bt_is_license_valid() == false) {
+		return (FDF_LICENSE_CHK_FAILED);
+	}
 	if ((ret= bt_is_valid_cguid(cguid)) != FDF_SUCCESS) {
 		return ret;
 	}
@@ -1640,6 +1673,9 @@ FDF_status_t _FDFSetContainerProps(
 {
     my_thd_state = fdf_thread_state;;
 	FDF_status_t	ret;
+	if (bt_is_license_valid() == false) {
+		return (FDF_LICENSE_CHK_FAILED);
+	}
 	if ((ret= bt_is_valid_cguid(cguid)) != FDF_SUCCESS) {
 		return ret;
 	}
@@ -1693,6 +1729,9 @@ FDF_status_t _FDFReadObject(
     btree_range_data_t   values[1];
     int n_out;
 
+	if (bt_is_license_valid() == false) {
+		return (FDF_LICENSE_CHK_FAILED);
+	}
 	if ((ret= bt_is_valid_cguid(cguid)) != FDF_SUCCESS) {
 		return ret;
 	}
@@ -1793,6 +1832,9 @@ FDF_status_t _FDFReadObjectExpiry(
 	int				index;
 	struct btree	*bt;
 
+	if (bt_is_license_valid() == false) {
+		return (FDF_LICENSE_CHK_FAILED);
+	}
 	if ((ret= bt_is_valid_cguid(cguid)) != FDF_SUCCESS) {
 		return ret;
 	}
@@ -1870,6 +1912,9 @@ FDF_status_t _FDFWriteObject(
 
     my_thd_state = fdf_thread_state;;
 
+	if (bt_is_license_valid() == false) {
+		return (FDF_LICENSE_CHK_FAILED);
+	}
 	if ((ret= bt_is_valid_cguid(cguid)) != FDF_SUCCESS) {
 		return ret;
 	}
@@ -1971,6 +2016,9 @@ FDF_status_t _FDFWriteObjectExpiry(
 	int				index;
 	struct btree	*bt;
 
+	if (bt_is_license_valid() == false) {
+		return (FDF_LICENSE_CHK_FAILED);
+	}
 	if ((ret= bt_is_valid_cguid(cguid)) != FDF_SUCCESS) {
 		return ret;
 	}
@@ -2017,6 +2065,9 @@ FDF_status_t _FDFDeleteObject(
 	int				index;
 
     my_thd_state = fdf_thread_state;;
+	if (bt_is_license_valid() == false) {
+		return (FDF_LICENSE_CHK_FAILED);
+	}
 	if ((ret= bt_is_valid_cguid(cguid)) != FDF_SUCCESS) {
 		return ret;
 	}
@@ -2322,6 +2373,9 @@ FDF_status_t
 _FDFTransactionStart(struct FDF_thread_state *fdf_thread_state)
 {
 
+	if (bt_is_license_valid() == false) {
+		return (FDF_LICENSE_CHK_FAILED);
+	}
     return (FDFTransactionService( fdf_thread_state, 0, 0));
 }
 
@@ -2333,6 +2387,9 @@ FDF_status_t
 _FDFTransactionCommit(struct FDF_thread_state *fdf_thread_state)
 {
 
+	if (bt_is_license_valid() == false) {
+		return (FDF_LICENSE_CHK_FAILED);
+	}
     return (FDFTransactionService( fdf_thread_state, 1, 0));
 }
 
@@ -2343,6 +2400,9 @@ FDF_status_t
 _FDFTransactionRollback(struct FDF_thread_state *fdf_thread_state)
 {
 
+	if (bt_is_license_valid() == false) {
+		return (FDF_LICENSE_CHK_FAILED);
+	}
     return (FDF_UNSUPPORTED_REQUEST);
 }
 
@@ -2353,6 +2413,9 @@ FDF_status_t
 _FDFTransactionQuit(struct FDF_thread_state *fdf_thread_state)
 {
 
+	if (bt_is_license_valid() == false) {
+		return (FDF_LICENSE_CHK_FAILED);
+	}
     return (FDF_UNSUPPORTED_REQUEST);
 }
 
@@ -2815,6 +2878,11 @@ FDF_status_t set_fdf_function_ptrs( void *log_func) {
     return FDF_SUCCESS;
 }
 
+FDF_status_t btree_check_license_ptr(int lic_state) {
+	btree_ld_valid = lic_state;
+	return FDF_SUCCESS;
+}
+
 FDF_status_t btree_get_all_stats(FDF_cguid_t cguid, 
                                 FDF_ext_stat_t **estat, uint32_t *n_stats) {
     int i, j;
@@ -2904,6 +2972,9 @@ _FDFMPut(struct FDF_thread_state *fdf_ts,
 
 	my_thd_state = fdf_ts;;
 
+	if (bt_is_license_valid() == false) {
+		return (FDF_LICENSE_CHK_FAILED);
+	}
 	if ((ret= bt_is_valid_cguid(cguid)) != FDF_SUCCESS) {
 		return ret;
 	}
@@ -3300,6 +3371,9 @@ _FDFRangeUpdate(struct FDF_thread_state *fdf_ts,
 
 	my_thd_state = fdf_ts;;
 
+	if (bt_is_license_valid() == false) {
+		return (FDF_LICENSE_CHK_FAILED);
+	}
 	bt = bt_get_btree_from_cguid(cguid, &index, &error, true);
 	if (bt == NULL) {
 		return FDF_FAILURE;
@@ -3407,6 +3481,9 @@ _FDFCreateContainerSnapshot(struct FDF_thread_state *fdf_thread_state, //  clien
 
 	assert(snap_seq);
 
+	if (bt_is_license_valid() == false) {
+		return (FDF_LICENSE_CHK_FAILED);
+	}
 	if ((status = bt_is_valid_cguid(cguid)) != FDF_SUCCESS) {
 		return status;
 	}
@@ -3494,6 +3571,9 @@ _FDFDeleteContainerSnapshot(struct FDF_thread_state *fdf_thread_state, //  clien
 	int				index, i;
 	struct btree	*bt;
 
+	if (bt_is_license_valid() == false) {
+		return (FDF_LICENSE_CHK_FAILED);
+	}
 	if ((status = bt_is_valid_cguid(cguid)) != FDF_SUCCESS) {
 		return status;
 	}
@@ -3597,6 +3677,9 @@ _FDFIoctl(struct FDF_thread_state *fdf_ts,
 	btree_status_t btree_ret = FDF_SUCCESS;
 	int index = -1;
 
+	if (bt_is_license_valid() == false) {
+		return (FDF_LICENSE_CHK_FAILED);
+	}
 	my_thd_state = fdf_ts;
 	bt = bt_get_btree_from_cguid(cguid, &index, &ret, false);
 	if (bt == NULL) {
@@ -4944,6 +5027,9 @@ FDF_status_t _FDFScavenger(struct FDF_state  *fdf_state)
 {
         FDF_status_t                                    ret = FDF_FAILURE;
         Scavenge_Arg_t s;
+		if (bt_is_license_valid() == false) {
+			return (FDF_LICENSE_CHK_FAILED);
+		}
 		//Check for shutdown is not handled
         s.type = 1;
         ret = btree_scavenge(fdf_state, s);
@@ -4968,6 +5054,9 @@ FDF_status_t _FDFScavengeContainer(struct FDF_state *fdf_state, FDF_cguid_t cgui
     }
 #endif
 
+	if (bt_is_license_valid() == false) {
+		return (FDF_LICENSE_CHK_FAILED);
+	}
     if ((ret = bt_is_valid_cguid(cguid)) != FDF_SUCCESS) {
         return ret;
     }
