@@ -180,6 +180,7 @@ _FDFCheckBtree(struct FDF_thread_state *fdf_thread_state,
 
 FDF_status_t _FDFScavengeContainer(struct FDF_state *fdf_state, FDF_cguid_t cguid);
 FDF_status_t FDFStartAstats(struct FDF_state *fdf_state, FDF_cguid_t cguid);
+int getFDFVersion();
 
 fdf_log_func fdf_log_func_ptr = NULL; 
 
@@ -244,6 +245,8 @@ typedef struct cmap {
 	pthread_cond_t		bt_snap_wr_cv;
 	pthread_cond_t		bt_snap_cv;
 	pthread_rwlock_t	bt_cm_rwlock;
+    uint64_t            flags;
+    void                *iter;
 } ctrmap_t;
 
 #define MAX_OPEN_CONTAINERS   (UINT16_MAX - 1 - 9)
@@ -251,40 +254,40 @@ typedef struct cmap {
 static ctrmap_t 	Container_Map[MAX_OPEN_CONTAINERS];
 static int 			N_Open_Containers = 0;
 pthread_rwlock_t	ctnrmap_rwlock = PTHREAD_RWLOCK_INITIALIZER;
+uint32_t            g_api_version;
+
 
 static int
 bt_add_cguid(FDF_cguid_t cguid)
 {
-    int i, empty_slot = -1;
     int i_ctnr = -1;
 
-	pthread_rwlock_wrlock(&ctnrmap_rwlock);
-	if (shutdown == true) {
-		pthread_rwlock_unlock(&ctnrmap_rwlock);
-		fprintf(stderr, "Shutdown in progress, OpenContainer failed\n");
-		return -2;
-	}
-	if (N_Open_Containers < MAX_OPEN_CONTAINERS) {
-		for ( i = 0; i < MAX_OPEN_CONTAINERS; i++ ) {
-			if ( Container_Map[i].cguid == cguid ) { 
-				i_ctnr = i; 
-				break; 
-			} else if ((empty_slot == -1) && 
-							(Container_Map[i].cguid == FDF_NULL_CGUID)) {
-				//save empty slot, so that we need not search again	
-				empty_slot = i;
-			}
-		}
+    /*
+     * TODO: This lock is replaceable with container entry lock
+     */
+    pthread_rwlock_wrlock(&ctnrmap_rwlock);
+    if (shutdown == true) {
+        pthread_rwlock_unlock(&ctnrmap_rwlock);
+        fprintf(stderr, "Shutdown in progress, OpenContainer failed\n");
+        return -2;
+    }
 
-		if (i_ctnr == -1) {
-			assert(empty_slot >= 0);
-			i_ctnr = empty_slot;	
-			Container_Map[i_ctnr].cguid = cguid;
-			Container_Map[i_ctnr].bt_state = BT_CNTR_INIT;
-			(void) __sync_add_and_fetch(&N_Open_Containers, 1);
-		}
-	}
-	pthread_rwlock_unlock(&ctnrmap_rwlock);
+    if (N_Open_Containers < MAX_OPEN_CONTAINERS) {
+        if (0 == Container_Map[cguid].cguid) {
+            Container_Map[cguid].cguid = cguid;
+            Container_Map[cguid].bt_state = BT_CNTR_INIT;
+            (void) __sync_add_and_fetch(&N_Open_Containers, 1);
+            i_ctnr = cguid;
+        } else {
+            /*
+             * If Container_Map has non zero value for cguid, the container is already open
+             */
+            i_ctnr = cguid;
+        }
+    } else {
+        i_ctnr = -1;
+    }
+    pthread_rwlock_unlock(&ctnrmap_rwlock);
 
     return i_ctnr;
 }
@@ -294,22 +297,16 @@ bt_get_ctnr_from_cguid(
     FDF_cguid_t cguid
     )
 {
-    int i;
     int i_ctnr = -1;
-
-	pthread_rwlock_rdlock(&ctnrmap_rwlock);
-	if (shutdown == true) {
-		pthread_rwlock_unlock(&ctnrmap_rwlock);
-		return -2;
-	}
-    for ( i = 0; i < MAX_OPEN_CONTAINERS; i++ ) {
-        if ( Container_Map[i].cguid == cguid ) { 
-            i_ctnr = i; 
-            break; 
-        }
+    pthread_rwlock_rdlock(&ctnrmap_rwlock);
+    if (shutdown == true) {
+        pthread_rwlock_unlock(&ctnrmap_rwlock);
+        return -2;
     }
-	pthread_rwlock_unlock(&ctnrmap_rwlock);
-
+    if (Container_Map[cguid].cguid > 0) {
+        i_ctnr = cguid;
+    }
+    pthread_rwlock_unlock(&ctnrmap_rwlock);
     return i_ctnr;
 }
 
@@ -344,6 +341,13 @@ bt_get_btree_from_cguid(FDF_cguid_t cguid, int *index, FDF_status_t *error,
 		*error = FDF_FAILURE_OPERATION_DISALLOWED;
 		return NULL;
 	}
+
+    if (Container_Map[i].flags & (1 << 0)) {
+		pthread_rwlock_unlock(&(Container_Map[i].bt_cm_rwlock));
+		*error = FDF_FAILURE_INVALID_CONTAINER_TYPE;
+		return NULL;
+    }
+
 	/* There could be a delete when we were trying to acquire lock */
 	if ((Container_Map[i].cguid == cguid) &&
 			(Container_Map[i].bt_state == BT_CNTR_OPEN)) {
@@ -585,6 +589,14 @@ void print_fdf_btree_configuration() {
                   );
 }
 
+#define IS_FDF_HASH_CONTAINER(FLAGS) (FLAGS & (1 << 0))
+
+int getFDFVersion()
+{
+    return g_api_version;
+}
+
+
 /**
  * @brief FDF initialization
  *
@@ -611,6 +623,7 @@ FDF_status_t _FDFInitVersioned(
                         api_version, FDF_API_VERSION);
         return FDF_VERSION_CHECK_FAILED;       
     }
+    g_api_version = api_version;
 
     const char *FDF_SCAVENGER_THREADS = "60";
     const char *FDF_SCAVENGE_PER_OBJECTS = "10000";
@@ -626,7 +639,7 @@ FDF_status_t _FDFInitVersioned(
 		pthread_rwlock_init(&(Container_Map[i].bt_cm_rwlock), NULL);
     }
 
-	
+
     btSyncMboxInit(&mbox_scavenger);
     btSyncMboxInit(&mbox_astats);
 
@@ -686,8 +699,6 @@ FDF_status_t _FDFInitVersioned(
      */
     FDFLoadPstats(*fdf_state);
 
-     
-
     /*
      * Create the flusher thread
      */
@@ -696,7 +707,6 @@ FDF_status_t _FDFInitVersioned(
         fprintf(stderr,"_FDFInit: failed to spawn persistent stats flusher\n");
         return FDF_FAILURE;
     }
-
 
     sprintf(buf, "%u",FDF_MIN_FLASH_SIZE);
     flash_space = atoi(FDFGetProperty("FDF_FLASH_SIZE", buf));
@@ -814,7 +824,8 @@ pstats_prepare_to_flush(struct FDF_thread_state *thd_state)
     for (idx = 0; idx < MAX_OPEN_CONTAINERS; idx++) {
         (void) pthread_rwlock_rdlock(&(Container_Map[idx].bt_cm_rwlock));
 
-        if ( !Container_Map[idx].btree || (Container_Map[idx].cguid == stats_ctnr_cguid) ) {
+        if ( !Container_Map[idx].btree || (Container_Map[idx].cguid == stats_ctnr_cguid)
+              || (IS_FDF_HASH_CONTAINER(Container_Map[idx].flags)) ) {
             (void) pthread_rwlock_unlock(&(Container_Map[idx].bt_cm_rwlock));
             continue;
         }
@@ -1113,28 +1124,35 @@ FDF_status_t _FDFOpenContainerSpecial(
     if (!cname)
         return(FDF_INVALID_PARAMETER);
 
+     if (getFDFVersion() < 2 && (1 == IS_FDF_HASH_CONTAINER(properties->flags))) {
+         msg("Hash containers are supported on Version 2 and higher\n");
+         return FDF_FAILURE;
+     }
+
 restart:
 	if (bt_is_license_valid() == false) {
 		return (FDF_LICENSE_CHK_FAILED);
 	}
 
-    /* Always bypass cache for btree by default */
-    fdf_prop = (char *)FDFGetProperty("FDF_CACHE_FORCE_ENABLE",NULL);
-    if( fdf_prop != NULL ) {
-        if( atoi(fdf_prop) == 1 ) {
-            properties->flash_only = FDF_FALSE;
+    if ( 0 == (IS_FDF_HASH_CONTAINER(properties->flags)) ) {
+        /* Always bypass cache for btree by default */
+        fdf_prop = (char *)FDFGetProperty("FDF_CACHE_FORCE_ENABLE",NULL);
+        if( fdf_prop != NULL ) {
+            if( atoi(fdf_prop) == 1 ) {
+                properties->flash_only = FDF_FALSE;
+            }
+        } else {
+            if(getenv("FDF_CACHE_FORCE_ENABLE")) {
+                properties->flash_only = FDF_FALSE;
+            }
         }
-    } else {
-        if(getenv("FDF_CACHE_FORCE_ENABLE")) {
-            properties->flash_only = FDF_FALSE;
-        }
-    }
         //fprintf(stderr, "FDF cache %s for container: %s\n", properties->flash_only ? "disabled" : "enabled", cname);
 
-    if (properties->flash_only == FDF_FALSE) {
-         fprintf(stderr, "WARNING: Container '%s' is opened with flash_only "
-	                 "(enabling FDF cache) with libbtree. This could impact "
-	                 "the performance\n", cname);
+        if (properties->flash_only == FDF_FALSE) {
+            fprintf(stderr, "WARNING: Container '%s' is opened with flash_only "
+                    "(enabling FDF cache) with libbtree. This could impact "
+                    "the performance\n", cname);
+        }
     }
 
     ret = FDFOpenContainer(fdf_thread_state, cname, properties, flags_in, cguid);
@@ -1153,7 +1171,6 @@ restart:
 		return FDF_FAILURE_OPERATION_DISALLOWED;
 	}
 
-
 	pthread_rwlock_wrlock(&(Container_Map[index].bt_cm_rwlock));
 
 	if (shutdown == true) {
@@ -1162,12 +1179,23 @@ restart:
 		return FDF_FAILURE_OPERATION_DISALLOWED;
 	}
 
-
 	/* Some one deleted the container which we were re-opening */
 	if (Container_Map[index].cguid != *cguid) {
 		pthread_rwlock_unlock(&(Container_Map[index].bt_cm_rwlock));
 		goto restart;
 	}
+
+    if (IS_FDF_HASH_CONTAINER(properties->flags)) {
+        Container_Map[index].flags |= (1 << 0);
+        Container_Map[index].btree = NULL;
+	    Container_Map[index].bt_state = BT_CNTR_UNUSED;
+
+		pthread_rwlock_unlock(&(Container_Map[index].bt_cm_rwlock));
+        fprintf(stderr, "Creating/opening a HASH container\n");
+        return ret;
+    }
+
+    Container_Map[index].flags &= ~(1 << 0);
 
 	assert ((Container_Map[index].bt_state == BT_CNTR_INIT) || /* Create/First Open */
 			(Container_Map[index].bt_state == BT_CNTR_OPEN) || /* Re-open */
@@ -1423,12 +1451,18 @@ FDF_status_t _FDFOpenContainer(
 		if (properties->durability_level == FDF_DURABILITY_PERIODIC) {
 			Notice("PERIODIC durability is not supported, set to SW_CRASH_SAFE for %s\n", cname);
 			properties->durability_level = FDF_DURABILITY_SW_CRASH_SAFE;
-		}
-		if (properties->async_writes == 1) {
-		    Notice("Async Writes feature is not supported. So disabling it for the container %s\n", cname);
-                    properties->async_writes = 0; 
-                }
-	}
+        }
+        if (properties->async_writes == 1) {
+            if (1 == (IS_FDF_HASH_CONTAINER(properties->flags))) {
+                properties->async_writes = 1;
+                Notice("Async Writes feature is supported on only hash ctnr. So enabling it for the container %s\n", cname);
+            } else {
+
+                Notice("Async Writes feature is not supported. So disabling it for the container %s\n", cname);
+                properties->async_writes = 0; 
+            }
+        }
+    }
 
 	if (flags_in & FDF_CTNR_RO_MODE) {
 		Notice("Read-only is not supported, set to read-write mode for container %s\n", cname);
@@ -1491,6 +1525,18 @@ restart:
         return FDF_FAILURE_CONTAINER_NOT_FOUND;
     }
 
+    /*
+     * Handle hash container case
+     */
+    if (true == IS_FDF_HASH_CONTAINER(Container_Map[index].flags)) {
+        status = FDFCloseContainer(fdf_thread_state, cguid);
+		pthread_rwlock_unlock(&(Container_Map[index].bt_cm_rwlock));
+#ifdef UNIFIED_CNTR_DEBUG
+        fprintf(stderr, "Closing HASH container\n");
+#endif
+        return status;
+    }
+
     if (Container_Map[index].bt_state != BT_CNTR_OPEN) {
         pthread_rwlock_unlock(&(Container_Map[index].bt_cm_rwlock));
         return FDF_FAILURE_CONTAINER_NOT_OPEN;
@@ -1511,9 +1557,6 @@ restart:
 
     /* Lets block further IOs */
     Container_Map[index].bt_state = BT_CNTR_CLOSING;
-
-
-    //msg("FDFCloseContainer is not currently supported!"); // xxxzzz
 
     /*
      * Flush persistent stats
@@ -1572,6 +1615,16 @@ restart:
 		pthread_rwlock_unlock(&(Container_Map[index].bt_cm_rwlock));
 		return FDF_FAILURE_CONTAINER_NOT_FOUND;
 	}
+
+    if (true == IS_FDF_HASH_CONTAINER(Container_Map[index].flags)) {
+        status = FDFDeleteContainer(fdf_thread_state, cguid);
+        Container_Map[index].cguid = 0;
+		pthread_rwlock_unlock(&(Container_Map[index].bt_cm_rwlock));
+#ifdef UNIFIED_CNTR_DEBUG
+        fprintf(stderr, "Deleting a HASH container\n");
+#endif
+        return status;
+    }
 
 	/* IO might have started on this container. Lets wait and retry */
 	assert(Container_Map[index].bt_rd_count == 0);
@@ -1738,18 +1791,33 @@ FDF_status_t _FDFReadObject(
 
     {
         // xxxzzz this is temporary!
-	__sync_fetch_and_add(&(n_reads), 1);
-	if (0 && (n_reads % 200000) == 0) {
-	    dump_btree_stats(stderr, cguid);
-	}
+        __sync_fetch_and_add(&(n_reads), 1);
+        if (0 && (n_reads % 200000) == 0) {
+            dump_btree_stats(stderr, cguid);
+        }
     }
 
-    my_thd_state = fdf_thread_state;;
+    my_thd_state = fdf_thread_state;
 
     if (FDF_SUCCESS != (ret = FDFOperationAllowed())) {
         msg("Shutdown in Progress. Read object not allowed\n");
         return (ret);
     }
+
+    if ((index = bt_get_ctnr_from_cguid(cguid)) == -1) {
+        return FDF_FAILURE_CONTAINER_NOT_FOUND;
+    }
+
+    pthread_rwlock_rdlock(&(Container_Map[cguid].bt_cm_rwlock));
+    if (true == IS_FDF_HASH_CONTAINER(Container_Map[cguid].flags) ) {
+        ret = FDFReadObject(fdf_thread_state, cguid, key, keylen, data, datalen);
+        pthread_rwlock_unlock(&(Container_Map[cguid].bt_cm_rwlock));
+#ifdef UNIFIED_CNTR_DEBUG
+        fprintf(stderr, "Reading objectfrom a HASH container\n");
+#endif
+        return ret;
+    }
+    pthread_rwlock_unlock(&(Container_Map[cguid].bt_cm_rwlock));
 
     bt = bt_get_btree_from_cguid(cguid, &index, &ret, false);
     if (bt == NULL) {
@@ -1918,6 +1986,18 @@ FDF_status_t _FDFWriteObject(
 	if ((ret= bt_is_valid_cguid(cguid)) != FDF_SUCCESS) {
 		return ret;
 	}
+
+    pthread_rwlock_rdlock(&(Container_Map[cguid].bt_cm_rwlock));
+    if (true == IS_FDF_HASH_CONTAINER(Container_Map[cguid].flags) ) {
+        ret = FDFWriteObject(my_thd_state, cguid, key, keylen, data, datalen, flags);
+#ifdef UNIFIED_CONTAINER_DEBUG
+        fprintf(stderr, "Writing object to a HASH container\n");
+#endif
+        pthread_rwlock_unlock(&(Container_Map[cguid].bt_cm_rwlock));
+        return ret;
+    }
+    pthread_rwlock_unlock(&(Container_Map[cguid].bt_cm_rwlock));
+
     bt = bt_get_btree_from_cguid(cguid, &index, &ret, true);
     if (bt == NULL) {
         return (ret);
@@ -2072,6 +2152,15 @@ FDF_status_t _FDFDeleteObject(
 		return ret;
 	}
 
+    pthread_rwlock_rdlock(&(Container_Map[cguid].bt_cm_rwlock));
+    if (true == IS_FDF_HASH_CONTAINER(Container_Map[cguid].flags)) {
+        ret = FDFDeleteObject(my_thd_state, cguid, key, keylen);
+        //fprintf(stderr, "Deleting object from a HASH container\n");
+        pthread_rwlock_unlock(&(Container_Map[cguid].bt_cm_rwlock));
+        return ret;
+    }
+    pthread_rwlock_unlock(&(Container_Map[cguid].bt_cm_rwlock));
+
     bt = bt_get_btree_from_cguid(cguid, &index, &ret, true);
     if (bt == NULL) {
         return (ret);
@@ -2118,6 +2207,19 @@ FDF_status_t _FDFEnumerateContainerObjects(
 		return ret;
 	}
 
+    /*
+     * Handle hashed container case
+     */
+    pthread_rwlock_rdlock(&(Container_Map[cguid].bt_cm_rwlock));
+    if (true == IS_FDF_HASH_CONTAINER(Container_Map[cguid].flags)) {
+        ret = FDFEnumerateContainerObjects(fdf_thread_state, cguid, iterator);
+        //fprintf(stderr, "Calling FDFEnumerateContainerObjects on a hash container\n");
+        Container_Map[cguid].iter = *iterator;
+        pthread_rwlock_unlock(&(Container_Map[cguid].bt_cm_rwlock));
+        return ret;
+    }
+    pthread_rwlock_unlock(&(Container_Map[cguid].bt_cm_rwlock));
+
     bt = bt_get_btree_from_cguid(cguid, &index, &ret, false);
     if (bt == NULL) {
         return (ret);
@@ -2129,6 +2231,7 @@ FDF_status_t _FDFEnumerateContainerObjects(
                         (struct FDF_cursor **) iterator, 
                         &rmeta);
 	bt_rel_entry(index, false);
+    Container_Map[cguid].iter = *iterator;
     return(ret);
 }
 
@@ -2146,16 +2249,40 @@ FDF_status_t _FDFEnumerateContainerObjects(
  */
 FDF_status_t _FDFNextEnumeratedObject(
 	struct FDF_thread_state *fdf_thread_state,
-	struct FDF_iterator     *iterator,
+	struct FDF_iterator  *iterator,
 	char                    **key,
 	uint32_t                *keylen,
 	char                    **data,
 	uint64_t                *datalen
 	)
-{ 
+{
 	FDF_status_t     status = FDF_FAILURE;
 	int              count = 0;
 	FDF_range_data_t values;
+
+    FDF_cguid_t cguid = 0;
+    uint64_t i;
+
+    for (i = 0; i < MAX_OPEN_CONTAINERS; i++) {
+        if (iterator == Container_Map[i].iter) {
+            cguid = i;
+            break;
+        }
+    }
+
+    //const FDF_cguid_t cguid = ((btree_range_cursor_t *)iterator)->cguid;
+
+    /*
+     * Handle hashed container case
+     */
+    pthread_rwlock_rdlock(&((Container_Map[cguid]).bt_cm_rwlock));
+    if (true == IS_FDF_HASH_CONTAINER(Container_Map[cguid].flags)) {
+        status = FDFNextEnumeratedObject(fdf_thread_state, iterator, key, keylen, data, datalen);
+        fprintf(stderr, "Calling FDFEnumerateContainerObjects on a hash container\n");
+        pthread_rwlock_unlock(&(Container_Map[cguid].bt_cm_rwlock));
+        return status;
+    }
+    pthread_rwlock_unlock(&(Container_Map[cguid].bt_cm_rwlock));
 
 	values.key = NULL;
 	values.data = NULL;
@@ -2209,7 +2336,31 @@ FDF_status_t _FDFFinishEnumeration(
 	struct FDF_iterator     *iterator
 	)
 {
-	return(_FDFGetRangeFinish(fdf_thread_state, (struct FDF_cursor *) iterator));
+    FDF_cguid_t cguid = 0;
+    FDF_status_t ret = FDF_SUCCESS;
+    uint64_t i;
+
+    for (i = 0; i < MAX_OPEN_CONTAINERS; i++) {
+        if (iterator == Container_Map[i].iter) {
+            cguid = i;
+            break;
+        }
+    }
+
+    //const FDF_cguid_t cguid = ((btree_range_cursor_t *)iterator)->cguid;
+
+    /*
+     * Handle hashed container case
+     */
+    pthread_rwlock_rdlock(&((Container_Map[cguid]).bt_cm_rwlock));
+    if (true == IS_FDF_HASH_CONTAINER(Container_Map[cguid].flags)) {
+        ret = (FDFFinishEnumeration(fdf_thread_state, iterator));
+    } else {
+	ret = (_FDFGetRangeFinish(fdf_thread_state, (struct FDF_cursor *) iterator));
+    }
+    pthread_rwlock_unlock(&(Container_Map[cguid].bt_cm_rwlock));
+
+    return ret;
 }
 
 /**
@@ -2249,7 +2400,19 @@ FDF_status_t _FDFFlushObject(
 	if ((ret= bt_is_valid_cguid(cguid)) != FDF_SUCCESS) {
 		return ret;
 	}
-    my_thd_state = fdf_thread_state;;
+    my_thd_state = fdf_thread_state;
+
+    /*
+     * Handle hashed container case
+     */
+    pthread_rwlock_rdlock(&(Container_Map[cguid].bt_cm_rwlock));
+    if (true == IS_FDF_HASH_CONTAINER(Container_Map[cguid].flags)) {
+        ret = FDFFlushObject(my_thd_state, cguid, key, keylen);
+        //fprintf(stderr, "Flushing object to a HASH container\n");
+        pthread_rwlock_unlock(&(Container_Map[cguid].bt_cm_rwlock));
+        return ret;
+    }
+    pthread_rwlock_unlock(&(Container_Map[cguid].bt_cm_rwlock));
 
     bt = bt_get_btree_from_cguid(cguid, &index, &ret, false);
     if (bt == NULL) {
@@ -2982,6 +3145,14 @@ _FDFMPut(struct FDF_thread_state *fdf_ts,
 		return FDF_SUCCESS;
 	}
 
+    pthread_rwlock_rdlock(&(Container_Map[cguid].bt_cm_rwlock));
+    if (true == IS_FDF_HASH_CONTAINER(Container_Map[cguid].flags) ) {
+        pthread_rwlock_unlock(&(Container_Map[cguid].bt_cm_rwlock));
+        msg("_FDFMPut is not supported on a HASH container\n");
+        return FDF_FAILURE_INVALID_CONTAINER_TYPE;
+    }
+    pthread_rwlock_unlock(&(Container_Map[cguid].bt_cm_rwlock));
+
 	bt = bt_get_btree_from_cguid(cguid, &index, &ret, true);
 	if (bt == NULL) {
 		return ret;
@@ -3373,7 +3544,16 @@ _FDFRangeUpdate(struct FDF_thread_state *fdf_ts,
 
 	if (bt_is_license_valid() == false) {
 		return (FDF_LICENSE_CHK_FAILED);
-	}
+    }
+
+    pthread_rwlock_rdlock(&(Container_Map[cguid].bt_cm_rwlock));
+    if (true == IS_FDF_HASH_CONTAINER(Container_Map[cguid].flags) ) {
+        pthread_rwlock_unlock(&(Container_Map[cguid].bt_cm_rwlock));
+        msg("FDFRangeUpdate is not supported on a HASH container\n");
+        return FDF_FAILURE_INVALID_CONTAINER_TYPE;
+    }
+    pthread_rwlock_unlock(&(Container_Map[cguid].bt_cm_rwlock));
+
 	bt = bt_get_btree_from_cguid(cguid, &index, &error, true);
 	if (bt == NULL) {
 		return FDF_FAILURE;
@@ -3488,6 +3668,14 @@ _FDFCreateContainerSnapshot(struct FDF_thread_state *fdf_thread_state, //  clien
 		return status;
 	}
 
+    pthread_rwlock_rdlock(&(Container_Map[cguid].bt_cm_rwlock));
+    if (true == IS_FDF_HASH_CONTAINER(Container_Map[cguid].flags) ) {
+        pthread_rwlock_unlock(&(Container_Map[cguid].bt_cm_rwlock));
+        msg("FDFCreateContainerSnapshot is not supported on a HASH container\n");
+        return FDF_FAILURE_INVALID_CONTAINER_TYPE;
+    }
+    pthread_rwlock_unlock(&(Container_Map[cguid].bt_cm_rwlock));
+
 	bt = bt_get_btree_from_cguid(cguid, &index, &status, false);
 	if (bt == NULL) {
 		return status;
@@ -3577,6 +3765,14 @@ _FDFDeleteContainerSnapshot(struct FDF_thread_state *fdf_thread_state, //  clien
 	if ((status = bt_is_valid_cguid(cguid)) != FDF_SUCCESS) {
 		return status;
 	}
+
+    pthread_rwlock_rdlock(&(Container_Map[cguid].bt_cm_rwlock));
+    if (true == IS_FDF_HASH_CONTAINER(Container_Map[cguid].flags) ) {
+        pthread_rwlock_unlock(&(Container_Map[cguid].bt_cm_rwlock));
+        msg("FDFDeleteContainerSnapshot is not supported on a HASH container\n");
+        return FDF_FAILURE;
+    }
+    pthread_rwlock_unlock(&(Container_Map[cguid].bt_cm_rwlock));
 
 	bt = bt_get_btree_from_cguid(cguid, &index, &status, false);
 	if (bt == NULL) {
@@ -3680,7 +3876,17 @@ _FDFIoctl(struct FDF_thread_state *fdf_ts,
 	if (bt_is_license_valid() == false) {
 		return (FDF_LICENSE_CHK_FAILED);
 	}
-	my_thd_state = fdf_ts;
+
+    my_thd_state = fdf_ts;
+
+    pthread_rwlock_rdlock(&(Container_Map[cguid].bt_cm_rwlock));
+    if (true == IS_FDF_HASH_CONTAINER(Container_Map[cguid].flags) ) {
+        ret = FDFIoctl(fdf_ts, cguid, ioctl_type, data);
+        pthread_rwlock_unlock(&(Container_Map[cguid].bt_cm_rwlock));
+        return ret;
+    }
+    pthread_rwlock_unlock(&(Container_Map[cguid].bt_cm_rwlock));
+
 	bt = bt_get_btree_from_cguid(cguid, &index, &ret, false);
 	if (bt == NULL) {
 		bt_rel_entry(index, false);
@@ -4780,12 +4986,16 @@ FDFLoadPstats(struct FDF_state *fdf_state)
             break;
         default:
         case FDF_INVALID_PARAMETER:
-            p.size_kb = 1 * 1024 * 1024;
+            p.size_kb = 0;
             p.fifo_mode = FDF_FALSE;
             p.persistent = FDF_TRUE;
             p.evicting = FDF_FALSE;
             p.writethru = FDF_TRUE;
             p.durability_level = FDF_DURABILITY_SW_CRASH_SAFE;
+            /*
+             * We will use a hash container
+             */
+            p.flags |= (1 << 0);
             ret = FDFOpenContainer( thd_state, stats_ctnr_name, &p, FDF_CTNR_CREATE, &stats_ctnr_cguid);
             assert(FDF_SUCCESS == ret);        
     }

@@ -272,7 +272,6 @@ FDF_status_t (*ptr_FDFScavenger) (struct FDF_state *fdf_state);
 FDF_status_t (*ptr_FDFScavengeContainer) (struct FDF_state *fdf_state, FDF_cguid_t cguid);
 FDF_status_t (*ptr_FDFScavengeSnapshot) (struct FDF_state *fdf_state, FDF_cguid_t cguid, uint64_t snap_seq);
 
-#if 0
 static void 
 (*ptr_FDFTLMapDestroy)(struct FDFTLMap *pm);
 
@@ -340,7 +339,6 @@ static int
 
 struct FDFTLMap*
 (*ptr_FDFTLMapInit)(uint64_t nbuckets, uint64_t max_entries, char use_locks, void (*replacement_callback)(void *callback_data, char *key, uint32_t keylen, char *pdata, uint64_t datalen), void *replacement_callback_data);
-#endif
 
 /*
  * Linkage table.
@@ -399,23 +397,21 @@ static struct {
     { "_FDFScavenger",                  &ptr_FDFScavenger                 },
     { "_FDFScavengeContainer",          &ptr_FDFScavengeContainer         },
     { "_FDFScavengeSnapshot",          &ptr_FDFScavengeSnapshot         },
-#if 0
-    { "_FDFTLMapDestroy",               &ptr_FDFTLMapDestroy              },
-    { "_FDFTLMapClear",                 &ptr_FDFTLMapClear                },
-    { "_FDFTLMapCreate",                &ptr_FDFTLMapCreate               },
-    { "_FDFTLMapUpdate",                &ptr_FDFTLMapUpdate               },
-    { "_FDFTLMapSet",                   &ptr_FDFTLMapSet                  },
-    { "_FDFTLMapGet",                   &ptr_FDFTLMapGet                  },
-    { "_FDFTLMapIncrRefcnt",            &ptr_FDFTLMapIncrRefcnt           },
-    { "_FDFTLMapCheckRefcnts",          &ptr_FDFTLMapCheckRefcnts         },
-    { "_FDFTLMapRelease",               &ptr_FDFTLMapRelease              },
-    { "_FDFTLMapReleaseEntry",          &ptr_FDFTLMapReleaseEntry         },
-    { "_FDFTLMapEnum",                  &ptr_FDFTLMapEnum                 },
-    { "_FDFTLFinishEnum",               &ptr_FDFTLFinishEnum              },
-    { "_FDFTLMapNextEnum",              &ptr_FDFTLMapNextEnum             },
-    { "_FDFTLMapDelete",                &ptr_FDFTLMapDelete               },
-    { "_FDFTLMapInit",                  &ptr_FDFTLMapInit                 },
-#endif
+    { "FDFTLMapDestroy",               &ptr_FDFTLMapDestroy              },
+    { "FDFTLMapClear",                 &ptr_FDFTLMapClear                },
+    { "FDFTLMapCreate",                &ptr_FDFTLMapCreate               },
+    { "FDFTLMapUpdate",                &ptr_FDFTLMapUpdate               },
+    { "FDFTLMapSet",                   &ptr_FDFTLMapSet                  },
+    { "FDFTLMapGet",                   &ptr_FDFTLMapGet                  },
+    { "FDFTLMapIncrRefcnt",            &ptr_FDFTLMapIncrRefcnt           },
+    { "FDFTLMapCheckRefcnts",          &ptr_FDFTLMapCheckRefcnts         },
+    { "FDFTLMapRelease",               &ptr_FDFTLMapRelease              },
+    { "FDFTLMapReleaseEntry",          &ptr_FDFTLMapReleaseEntry         },
+    { "FDFTLMapEnum",                  &ptr_FDFTLMapEnum                 },
+    { "FDFTLFinishEnum",               &ptr_FDFTLFinishEnum              },
+    { "FDFTLMapNextEnum",              &ptr_FDFTLMapNextEnum             },
+    { "FDFTLMapDelete",                &ptr_FDFTLMapDelete               },
+    { "FDFTLMapInit",                  &ptr_FDFTLMapInit                 },
 };
 
 
@@ -1173,7 +1169,7 @@ FDFGetContainerSnapshots(struct FDF_thread_state *ts,
 
     return (*ptr_FDFGetContainerSnapshots)(ts, cguid, n_snapshots, snap_seqs);
 }
-#if 0
+
 /*
  * FDFTLMapDestroy
  */
@@ -1393,7 +1389,7 @@ FDFTLMapInit(uint64_t nbuckets, uint64_t max_entries, char use_locks, void (*rep
 
     return (*ptr_FDFTLMapInit)(nbuckets, max_entries, use_locks, replacement_callback, replacement_callback_data);
 }
-#endif
+
 /*
  * FDFMPut
  */

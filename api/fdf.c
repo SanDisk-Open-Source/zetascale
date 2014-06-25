@@ -2770,6 +2770,10 @@ FDF_status_t FDFLoadCntrPropDefaults(
 	props->flash_only = FDF_FALSE;
 	props->cache_only = FDF_FALSE;
 	props->compression = FDF_FALSE;
+    /*
+     * By default all containers are Btree enabled
+     */
+	props->flags = 0;
 	return FDF_SUCCESS;
 }
 
@@ -2860,6 +2864,7 @@ FDF_status_t FDFOpenContainer(
 			status =FDF_FAILURE_INVALID_CONTAINER_SIZE;
 			goto out;
 		}
+
 		status = fdf_create_container( fdf_thread_state,
 				cname,
 				properties,
@@ -7122,7 +7127,12 @@ FDF_status_t FDFGetContainerStats(
 
     //  no-op in this simple implementation
     slab_gc_get_stats(NULL, stats, NULL);
-    update_btree_stats(cguid,stats);
+
+    FDF_container_props_t props;
+    rc = FDFGetContainerProps(fdf_thread_state, cguid, &props);
+    if (!props.flags & (1 << 0)) {
+        update_btree_stats(cguid,stats);
+    }
     return rc;
 }
 

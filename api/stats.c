@@ -393,6 +393,7 @@ char *get_durability_str(FDF_durability_level_t dura) {
     }
 }
 
+#define IS_FDF_HASH_CONTAINER(FLAGS) (FLAGS & (1 << 0))
 FDF_status_t print_container_stats_by_cguid( struct FDF_thread_state *thd_state,
                                    FILE *fp, FDF_cguid_t cguid, int stats_type) {
     int len,i;
@@ -404,6 +405,7 @@ FDF_status_t print_container_stats_by_cguid( struct FDF_thread_state *thd_state,
     uint64_t num_objs = 0;
     uint64_t used_space = 0;   
 	cntr_map_t *cmap = NULL;
+    char *type = NULL;
 
     /* Get container name */
     cname = FDFGetContainerName(cguid);
@@ -419,6 +421,13 @@ FDF_status_t print_container_stats_by_cguid( struct FDF_thread_state *thd_state,
 			fprintf(fp,"Unable to get container properties for %s(error:%s)\n",cname,FDFStrError(rc)); 
 		return FDF_FAILURE;
     }
+
+    if (props.flags & (1 << 0)) {
+        type = "hash";
+    } else {
+        type = "btree";
+    }
+
     time(&t);
     /* Print the container properties */
     get_cntr_info(cguid,NULL, 0, &num_objs, &used_space, NULL, NULL);
@@ -436,13 +445,15 @@ FDF_status_t print_container_stats_by_cguid( struct FDF_thread_state *thd_state,
                           "    compression      = %s\n"
                           "    bypass_fdf_cache = %s\n"
                           "    num_objs         = %lu\n"
-                          "    used_space       = %lu\n",ctime(&t),
-            cname,cguid, props.size_kb, get_bool_str(props.persistent),
+                          "    used_space       = %lu\n"
+                          "    type             = %s\n",
+            ctime(&t),
+            cname, cguid, props.size_kb, get_bool_str(props.persistent),
             get_bool_str(props.evicting),get_bool_str(props.writethru),
             get_bool_str(props.fifo_mode),get_bool_str(props.async_writes),
             get_durability_str(props.durability_level),
             get_bool_str(props.compression), get_bool_str(props.flash_only), 
-            num_objs, used_space);
+            num_objs, used_space, type);
 
     /* Get Per container stats */
     memset(&stats,0,sizeof(FDF_stats_t));

@@ -26,7 +26,7 @@ extern "C" {
 
 #define fdf_cntr_drain_io( v )  while ( unlikely( v > 0 ) ) fthYield(0)
 
-#define FDF_API_VERSION                 1
+#define FDF_API_VERSION                 2
 
 #define CONTAINER_NAME_MAXLEN		64
 #define FDF_DEFAULT_CONTAINER_SIZE_KB	(1024 * 1024)	//1GB
@@ -429,6 +429,7 @@ typedef struct {
 	FDF_boolean_t			flash_only;
 	FDF_boolean_t			cache_only;
     FDF_boolean_t compression; /* Flag to enable/disable compression */
+    uint64_t                flags;
 } FDF_container_props_t;
 #endif
 
