@@ -44,9 +44,9 @@ typedef struct {
 /*
  * Global references that for some reason are not defined in a header file.
  */
-extern int  do_flush(FDF_async_rqst_t *pap);
-extern int  do_writeback(FDF_async_rqst_t *pap);
-extern int  do_put(FDF_async_rqst_t *pap, SDF_boolean_t unlock_slab);
+extern int  do_flush(ZS_async_rqst_t *pap);
+extern int  do_writeback(ZS_async_rqst_t *pap);
+extern int  do_put(ZS_async_rqst_t *pap, SDF_boolean_t unlock_slab);
 extern void finish_write_in_flight(SDF_action_state_t *pas);
 
 /*
@@ -60,7 +60,7 @@ error(char *op, int s, int64_t *cntr)
 	if ((n & (n-1)) != 0)
 		return;
 
-	fdf_loge(70130, "%ld asynchronous %ss have failed; status %d", n, op, s);
+	zs_loge(70130, "%ld asynchronous %ss have failed; status %d", n, op, s);
 }
 
 /*
@@ -127,7 +127,7 @@ async_puts_alloc(struct SDF_async_puts_init *papi,
 		return async_puts_free(aps);
 
 	aps->q_size = papi->nthreads;
-	aps->q_rqsts = alloc_nc_clr(aps->q_size * sizeof(FDF_async_rqst_t *));
+	aps->q_rqsts = alloc_nc_clr(aps->q_size * sizeof(ZS_async_rqst_t *));
 	if (!aps->thr_info)
 		return async_puts_free(aps);
 
@@ -162,7 +162,7 @@ async_puts_alloc(struct SDF_async_puts_init *papi,
  void async_puts_shutdown(SDF_async_puts_state_t *aps,
  						async_puts_shutdown_t shutdown_closure)
 {
-	fdf_loge(70131, "async_puts_shutdown not implemented");
+	zs_loge(70131, "async_puts_shutdown not implemented");
 }
 
 /*
@@ -243,10 +243,10 @@ clashes(SDF_async_puts_state_t *aps, int thr_id)
 /*
  * Get the next entry from the asynchronous queue.
  */
-FDF_async_rqst_t *
+ZS_async_rqst_t *
 async_qget(SDF_async_puts_state_t *aps, int thr_id)
 {
-	FDF_async_rqst_t *rqst;
+	ZS_async_rqst_t *rqst;
 	async_thr_info_t *tinfo = &aps->thr_info[thr_id];
 
 	pthread_mutex_lock(&aps->q_lock);
@@ -276,7 +276,7 @@ async_qget(SDF_async_puts_state_t *aps, int thr_id)
  * Set the syndrome.
  */
 static void
-set_syndrome(FDF_async_rqst_t *rqst)
+set_syndrome(ZS_async_rqst_t *rqst)
 {
 	uint64_t syn = 0;
 	int      req = rqst->rtype;
@@ -293,7 +293,7 @@ set_syndrome(FDF_async_rqst_t *rqst)
  * Post to the asynchronous queue.
  */
 void
-async_qpost(SDF_action_state_t *as, FDF_async_rqst_t *rqst, int wait)
+async_qpost(SDF_action_state_t *as, ZS_async_rqst_t *rqst, int wait)
 {
 	SDF_async_puts_state_t *aps = as->async_puts_state;
 
@@ -363,7 +363,7 @@ async_commit(void *vpai, uint64_t trx_id)
 	SDF_action_init_t *pai = vpai;
 	struct SDF_action_thrd_state *pts = pai->pts;
 
-	FDF_async_rqst_t rqst ={
+	ZS_async_rqst_t rqst ={
 		.rtype   = ASYNC_COMMIT,
 		.trx_id  = trx_id,
 		.ack_mbx = &pts->async_put_ack_mbox
@@ -376,9 +376,9 @@ async_commit(void *vpai, uint64_t trx_id)
  * Perform an asynchronous write or writeback.
  */
 static void
-async_do(async_thr_t *pts, FDF_async_rqst_t *rqstp)
+async_do(async_thr_t *pts, ZS_async_rqst_t *rqstp)
 {
-	FDF_async_rqst_t   rqst = *rqstp;
+	ZS_async_rqst_t   rqst = *rqstp;
 	SDF_action_state_t *pas = pts->aps->p_action_state;
 	int                 req = rqst.rtype;
 
@@ -446,9 +446,9 @@ async_do(async_thr_t *pts, FDF_async_rqst_t *rqstp)
  * Perform an asynchronous commit.
  */
 static void
-async_do_commit(async_thr_t *pts, FDF_async_rqst_t *rqstp)
+async_do_commit(async_thr_t *pts, ZS_async_rqst_t *rqstp)
 {
-	FDF_async_rqst_t rqst = *rqstp;
+	ZS_async_rqst_t rqst = *rqstp;
 	fthMboxPost(rqst.ack_mbx, 0);
 	async_drain(pts->aps, 0);
 	mcd_trx_t s = mcd_trx_commit_id(pts->pai, rqst.trx_id);
@@ -472,7 +472,7 @@ async_main(uint64_t arg)
 	fthMboxPost(&pts->aps->startup_mbx, (uint64_t) 1);
 
 	for (;;) {
-		FDF_async_rqst_t *rqst = async_qget(pts->aps, pts->nthread);
+		ZS_async_rqst_t *rqst = async_qget(pts->aps, pts->nthread);
 		if (!rqst)
 			break;
 		int req = rqst->rtype;

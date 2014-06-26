@@ -3,7 +3,7 @@
 #include <unistd.h>
 #include <pthread.h>
 #include <string.h>
-#include "fdf.h"
+#include "zs.h"
 #include "test.h"
 
 static char *base = "container";
@@ -20,24 +20,24 @@ void* worker(void *arg)
 {
     int i;
 
-    FDF_cguid_t  				 cguid;
+    ZS_cguid_t  				 cguid;
     char 						 cname[32] 			= "cntr0";
     char        				*data;
     uint64_t     				 datalen;
     char 						 key_str[24] 		= "key00";
     char 						 key_data[24] 		= "key00_data";
 
-    t(fdf_init_thread(), FDF_SUCCESS);
+    t(zs_init_thread(), ZS_SUCCESS);
 
     sprintf(cname, "%s-%x", base, (int)pthread_self());
-    t(fdf_create_container(cname, size, &cguid), FDF_SUCCESS);
+    t(zs_create_container(cname, size, &cguid), ZS_SUCCESS);
 
     for(i = 0; i < iterations; i++)
     {
         sprintf(key_str, "key%04d-%08d", 0, i);
         sprintf(key_data, "key%04ld-%08d_data", (long) arg, i);
 
-        t(fdf_set(cguid, key_str, strlen(key_str) + 1, key_data, strlen(key_data) + 1), FDF_SUCCESS);
+        t(zs_set(cguid, key_str, strlen(key_str) + 1, key_data, strlen(key_data) + 1), ZS_SUCCESS);
 
         advance_spinner();
     }
@@ -47,7 +47,7 @@ void* worker(void *arg)
         sprintf(key_str, "key%04d-%08d", 0, i);
         sprintf(key_data, "key%04ld-%08d_data", (long) arg, i);
 
-        t(fdf_get(cguid, key_str, strlen(key_str) + 1, &data, &datalen), FDF_SUCCESS);
+        t(zs_get(cguid, key_str, strlen(key_str) + 1, &data, &datalen), ZS_SUCCESS);
 
         assert(!memcmp(data, key_data, datalen));	
         advance_spinner();
@@ -63,9 +63,9 @@ void* worker(void *arg)
     }
     pthread_mutex_unlock(&count_mutex);
 
-    t(fdf_delete_container(cguid), FDF_SUCCESS);
+    t(zs_delete_container(cguid), ZS_SUCCESS);
 
-    t(fdf_release_thread(), FDF_SUCCESS);
+    t(zs_release_thread(), ZS_SUCCESS);
 
     sleep(1);
 
@@ -75,7 +75,7 @@ void* worker(void *arg)
 void writer() {
     int i;
 
-    FDF_cguid_t  				 cguid;
+    ZS_cguid_t  				 cguid;
     char 						 cname[32] 			= "cntr0";
     char        				*data;
     uint64_t     				 datalen;
@@ -83,17 +83,17 @@ void writer() {
     char 						 key_data[24] 		= "key00_data";
     long int arg = 1234;
 
-    t(fdf_init_thread(), FDF_SUCCESS);
+    t(zs_init_thread(), ZS_SUCCESS);
 
     sprintf(cname, "%s-%x", base, (int)pthread_self());
-    t(fdf_create_container(cname, size, &cguid), FDF_SUCCESS);
+    t(zs_create_container(cname, size, &cguid), ZS_SUCCESS);
 
     for(i = 0; i < iterations; i++)
     {
         sprintf(key_str, "key%04d-%08d", 0, i);
         sprintf(key_data, "key%04ld-%08d_data", (long) arg, i);
 
-        t(fdf_set(cguid, key_str, strlen(key_str) + 1, key_data, strlen(key_data) + 1), FDF_SUCCESS);
+        t(zs_set(cguid, key_str, strlen(key_str) + 1, key_data, strlen(key_data) + 1), ZS_SUCCESS);
 
         advance_spinner();
     }
@@ -103,7 +103,7 @@ void writer() {
         sprintf(key_str, "key%04d-%08d", 0, i);
         sprintf(key_data, "key%04ld-%08d_data", (long) arg, i);
 
-        t(fdf_get(cguid, key_str, strlen(key_str) + 1, &data, &datalen), FDF_SUCCESS);
+        t(zs_get(cguid, key_str, strlen(key_str) + 1, &data, &datalen), ZS_SUCCESS);
 
         assert(!memcmp(data, key_data, datalen));	
         advance_spinner();
@@ -111,9 +111,9 @@ void writer() {
 
     fprintf(stderr, "\n");
 
-    t(fdf_delete_container(cguid), FDF_SUCCESS);
+    t(zs_delete_container(cguid), ZS_SUCCESS);
 
-    t(fdf_release_thread(), FDF_SUCCESS);
+    t(zs_release_thread(), ZS_SUCCESS);
 }
 
 
@@ -125,7 +125,7 @@ main(int argc, char *argv[])
 
     sprintf(name, "%s-foo", base);
 
-    t(fdf_init(),  FDF_SUCCESS);
+    t(zs_init(),  ZS_SUCCESS);
 
     pthread_t thread_id[threads];
 
@@ -152,7 +152,7 @@ main(int argc, char *argv[])
 
     fprintf(stderr, "DONE\n");
 
-    fdf_shutdown();
+    zs_shutdown();
 
     return(0);
 }

@@ -4,7 +4,7 @@ PROG = sample_program
 
 TESTS = $(PROG)
 
-LIBS_SDF = $(TOP)/lib/libfdfdll.a \
+LIBS_SDF = $(TOP)/lib/libzsdll.a \
         -lpthread -ldl -laio -levent -lsnappy
 
 LIBS = $(LIBS_FTH) $(LIBS_SDF) $(LIBS_SDF) 

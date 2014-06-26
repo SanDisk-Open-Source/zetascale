@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 2.8 FATAL_ERROR)
 #
-IF($ENV{FDF_SDK_VERSION})
-	SET(VERSION $ENV{FDF_SDK_VERSION})
+IF($ENV{ZS_SDK_VERSION})
+	SET(VERSION $ENV{ZS_SDK_VERSION})
 ELSE()
 	SET(VERSION 1.0)
 ENDIF()
@@ -33,7 +33,7 @@ ELSE(DEBUG)
 	ADD_DEFINITIONS(-g -D_OPTIMIZE)
 ENDIF(DEBUG)
 #
-SET(LIBRARY fdf)
+SET(LIBRARY zs)
 #
 IF(BUILD_SHARED)
 	ADD_DEFINITIONS(-fPIC)
@@ -43,9 +43,9 @@ ELSE(BUILD_SHARED)
 	SET(LIB_TYPE STATIC)
 ENDIF(BUILD_SHARED)
 #
-IF(FDF_REVISION)
-	ADD_DEFINITIONS(-DFDF_REVISION="${FDF_REVISION}")
-ENDIF(FDF_REVISION)
+IF(ZS_REVISION)
+	ADD_DEFINITIONS(-DZS_REVISION="${ZS_REVISION}")
+ENDIF(ZS_REVISION)
 
 #add_definitions(-O2 -pipe -Wall -fstack-protector-all -fno-strict-aliasing -fno-omit-frame-pointer)
 add_definitions(-pipe -Wall -fstack-protector-all -fno-strict-aliasing -fno-omit-frame-pointer)
@@ -81,9 +81,9 @@ add_subdirectory(dll)
 IF(EXISTS test_suite/)
 add_subdirectory(test_suite)
 ENDIF(EXISTS test_suite/)
-IF(EXISTS fdf_slap/)
-add_subdirectory(fdf_slap)
-ENDIF(EXISTS fdf_slap/)
+IF(EXISTS zs_slap/)
+add_subdirectory(zs_slap)
+ENDIF(EXISTS zs_slap/)
 #
 ADD_LIBRARY(${LIBRARY} ${LIB_TYPE} 
 $<TARGET_OBJECTS:agent>

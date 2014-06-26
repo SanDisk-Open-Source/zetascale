@@ -1,4 +1,4 @@
-#include <fdf.h>
+#include <zs.h>
 #include <string.h>
 #include <unistd.h>
 #include <stdlib.h>
@@ -6,7 +6,7 @@
 #include <assert.h>
 
 
-#define FDF_MAX_KEY_LEN 256
+#define ZS_MAX_KEY_LEN 256
 #define NUM_OBJS 10 //max mput in single operation
 #define NUM_MPUTS 10 
 
@@ -14,8 +14,8 @@ static int cur_thd_id = 0;
 static __thread int my_thdid = 0;
 static __thread int objs_processed = 0;
 
-FDF_cguid_t cguid;
-struct FDF_state *fdf_state;
+ZS_cguid_t cguid;
+struct ZS_state *zs_state;
 int num_mputs =  NUM_MPUTS;
 int num_objs = NUM_OBJS;
 int use_mput = 1;
@@ -70,14 +70,14 @@ bool range_update_cb(char *key, uint32_t keylen, char *data, uint32_t datalen,
 }
 
 void
-do_range_update(struct FDF_thread_state *thd_state, FDF_cguid_t cguid,
+do_range_update(struct ZS_thread_state *thd_state, ZS_cguid_t cguid,
 		uint32_t flags, int key_seed)
 {
 	int i, k;
-	FDF_status_t status;
-	FDF_obj_t *objs = NULL; 
-	uint64_t num_fdf_reads = 0;
-	uint64_t num_fdf_mputs = 0;
+	ZS_status_t status;
+	ZS_obj_t *objs = NULL; 
+	uint64_t num_zs_reads = 0;
+	uint64_t num_zs_mputs = 0;
 	uint32_t objs_written = 0;
 	char *data;
 	uint64_t data_len;
@@ -85,18 +85,18 @@ do_range_update(struct FDF_thread_state *thd_state, FDF_cguid_t cguid,
 	uint64_t mismatch = 0;
 	char range_key[MAX_KEYLEN] = {0};
 	uint32_t range_key_len = 0;
-	FDF_range_update_cb_t callback_func = range_update_cb;
+	ZS_range_update_cb_t callback_func = range_update_cb;
 	void *callback_args = NULL;
 	uint32_t objs_updated = 0;
 
-	objs = (FDF_obj_t *) malloc(sizeof(FDF_obj_t) * num_objs);
+	objs = (ZS_obj_t *) malloc(sizeof(ZS_obj_t) * num_objs);
 	if (objs == NULL) {
 		printf("Cannot allocate memory.\n");
 		exit(0);
 	}
-	memset(objs, 0, sizeof(FDF_obj_t) * num_objs);
+	memset(objs, 0, sizeof(ZS_obj_t) * num_objs);
 	for (i = 0; i < num_objs; i++) {
-		objs[i].key = malloc(FDF_MAX_KEY_LEN);
+		objs[i].key = malloc(ZS_MAX_KEY_LEN);
 		if (objs[i].key == NULL) {
 			printf("Cannot allocate memory.\n");
 			exit(0);
@@ -113,7 +113,7 @@ do_range_update(struct FDF_thread_state *thd_state, FDF_cguid_t cguid,
 	for (k = 1; k <= num_mputs; k++) {
 
 		for (i = 0; i < num_objs; i++) {
-			memset(objs[i].key, 0, FDF_MAX_KEY_LEN);
+			memset(objs[i].key, 0, ZS_MAX_KEY_LEN);
 			sprintf(objs[i].key, "key_%02d_%06"PRId64"", my_thdid, key_num);
 			sprintf(objs[i].data, "key_%02d_%06"PRId64"", my_thdid, key_num);
 
@@ -123,27 +123,27 @@ do_range_update(struct FDF_thread_state *thd_state, FDF_cguid_t cguid,
 			objs[i].flags = 0;
 		}
 
-		status = FDFMPut(thd_state, cguid, num_objs,
+		status = ZSMPut(thd_state, cguid, num_objs,
 				 &objs[0], flags, &objs_written);
-		if (status != FDF_SUCCESS) {
-			printf("Failed to write objects using FDFMPut, status = %d.\n",
+		if (status != ZS_SUCCESS) {
+			printf("Failed to write objects using ZSMPut, status = %d.\n",
 				status);
 			assert(0);
 			return ;
 		}
-		num_fdf_mputs++;
+		num_zs_mputs++;
 	}
 
-	printf("Written %"PRId64" objs in thread %d.\n", num_fdf_mputs * num_objs, my_thdid);
+	printf("Written %"PRId64" objs in thread %d.\n", num_zs_mputs * num_objs, my_thdid);
 
-	num_fdf_reads = 0;
+	num_zs_reads = 0;
 	
 	printf("Reading all objects put in thread = %d.\n", my_thdid);
 	key_num = 0;
 	for (k = 1; k <= num_mputs; k++) {
 
 		for (i = 0; i < num_objs; i++) {
-			memset(objs[i].key, 0, FDF_MAX_KEY_LEN);
+			memset(objs[i].key, 0, ZS_MAX_KEY_LEN);
 
 			sprintf(objs[i].key, "key_%02d_%06"PRId64"", my_thdid, key_num);
 			sprintf(objs[i].data, "key_%02d_%06"PRId64"", my_thdid, key_num);
@@ -154,10 +154,10 @@ do_range_update(struct FDF_thread_state *thd_state, FDF_cguid_t cguid,
 			objs[i].data_len = strlen(objs[i].data) + 1;
 			objs[i].flags = 0;
 
-			status = FDFReadObject(thd_state, cguid,
+			status = ZSReadObject(thd_state, cguid,
 					       objs[i].key, objs[i].key_len,
 						&data, &data_len);
-			if (status != FDF_SUCCESS) {
+			if (status != ZS_SUCCESS) {
 					printf("Read failed with %d errror.\n", status);
 					assert(0);
 					exit(0);
@@ -169,11 +169,11 @@ do_range_update(struct FDF_thread_state *thd_state, FDF_cguid_t cguid,
 				assert(0);
 				mismatch++;
 			}
-			num_fdf_reads++;
+			num_zs_reads++;
 		}
 	}
 
-	printf("Verified the %"PRId64" mput objects using reads, mismatch = %"PRId64".\n", num_fdf_reads, mismatch);
+	printf("Verified the %"PRId64" mput objects using reads, mismatch = %"PRId64".\n", num_zs_reads, mismatch);
 
 	printf("Doing range update on all objects........\n");
 
@@ -182,16 +182,16 @@ do_range_update(struct FDF_thread_state *thd_state, FDF_cguid_t cguid,
 	sprintf(range_key, "key_%02d_", my_thdid);
 	range_key_len = strlen(range_key);
 
-	status = FDFRangeUpdate(thd_state, cguid, range_key, range_key_len,
+	status = ZSRangeUpdate(thd_state, cguid, range_key, range_key_len,
 				callback_func, callback_args, NULL,
 				NULL, &objs_updated);
-	if (status != FDF_SUCCESS) {
+	if (status != ZS_SUCCESS) {
 		printf("Failed to do range update.\n");
 		assert(0);
 		exit(-1);
 	}
 
-	assert(objs_processed == num_fdf_reads);
+	assert(objs_processed == num_zs_reads);
 
 	printf("Done range update on %d objects.\n", objs_updated);
 
@@ -200,7 +200,7 @@ do_range_update(struct FDF_thread_state *thd_state, FDF_cguid_t cguid,
 	for (k = 1; k <= num_mputs; k++) {
 
 		for (i = 0; i < num_objs; i++) {
-			memset(objs[i].key, 0, FDF_MAX_KEY_LEN);
+			memset(objs[i].key, 0, ZS_MAX_KEY_LEN);
 
 			sprintf(objs[i].key, "key_%02d_%06"PRId64"", my_thdid, key_num);
 			sprintf(objs[i].data, "key_%02d_%06"PRId64"", my_thdid, key_num); //Changed k to j in range update
@@ -211,10 +211,10 @@ do_range_update(struct FDF_thread_state *thd_state, FDF_cguid_t cguid,
 			objs[i].data_len = strlen(objs[i].data) + 1;
 			objs[i].flags = 0;
 
-			status = FDFReadObject(thd_state, cguid,
+			status = ZSReadObject(thd_state, cguid,
 					       objs[i].key, objs[i].key_len,
 					       &data, &data_len);
-			if (status != FDF_SUCCESS) {
+			if (status != ZS_SUCCESS) {
 					printf("Read failed with %d errror.\n", status);
 					assert(0);
 					exit(0);
@@ -225,7 +225,7 @@ do_range_update(struct FDF_thread_state *thd_state, FDF_cguid_t cguid,
 				assert(0);
 				mismatch++;
 			}
-			num_fdf_reads++;
+			num_zs_reads++;
 		}
 	}
 
@@ -236,14 +236,14 @@ do_range_update(struct FDF_thread_state *thd_state, FDF_cguid_t cguid,
 void *
 range_update_stress(void *t)
 {
-	struct FDF_thread_state *thd_state;
+	struct ZS_thread_state *thd_state;
 
 	my_thdid = __sync_fetch_and_add(&cur_thd_id, 1);
-	FDFInitPerThreadState(fdf_state, &thd_state);	
+	ZSInitPerThreadState(zs_state, &thd_state);	
 
-	do_range_update(thd_state, cguid, FDF_WRITE_MUST_NOT_EXIST, 1);
+	do_range_update(thd_state, cguid, ZS_WRITE_MUST_NOT_EXIST, 1);
 
-	FDFReleasePerThreadState(&thd_state);
+	ZSReleasePerThreadState(&thd_state);
 
 	return NULL;
 }
@@ -277,15 +277,15 @@ void launch_thds()
 void
 do_op(uint32_t flags_in, int length) 
 {
-	FDF_container_props_t props;
-	struct FDF_thread_state *thd_state;
-	FDF_status_t status;
+	ZS_container_props_t props;
+	struct ZS_thread_state *thd_state;
+	ZS_status_t status;
 	char cnt_name[100] = {0};
 	sprintf(cnt_name, "cntr_%d", cnt_id++);
 
 
-	FDFInitPerThreadState(fdf_state, &thd_state);	
-	FDFLoadCntrPropDefaults(&props);
+	ZSInitPerThreadState(zs_state, &thd_state);	
+	ZSLoadCntrPropDefaults(&props);
 
 	props.persistent = 1;
 	props.evicting = 0;
@@ -294,8 +294,8 @@ do_op(uint32_t flags_in, int length)
 	props.fifo_mode = 0;
 	props.size_kb = (1024 * 1024 * 10);;
 
-	status = FDFOpenContainer(thd_state, cnt_name, &props, FDF_CTNR_CREATE, &cguid);
-	if (status != FDF_SUCCESS) {
+	status = ZSOpenContainer(thd_state, cnt_name, &props, ZS_CTNR_CREATE, &cguid);
+	if (status != ZS_SUCCESS) {
 		printf("Open Cont failed with error=%x.\n", status);
 		exit(-1);
 	}
@@ -306,10 +306,10 @@ do_op(uint32_t flags_in, int length)
 	length_incr = length;
 	launch_thds(); //actual operations that keeps object size sameA
 
-	FDFCloseContainer(thd_state, cguid);
-	FDFDeleteContainer(thd_state, cguid);
+	ZSCloseContainer(thd_state, cguid);
+	ZSDeleteContainer(thd_state, cguid);
 
-	FDFReleasePerThreadState(&thd_state);
+	ZSReleasePerThreadState(&thd_state);
 }
 
 int 
@@ -335,7 +335,7 @@ main(int argc, char *argv[])
 	printf("Running with total_objs = %d, num threads = %d.\n",
 		total_objs, num_thds);
 
-	FDFInit(&fdf_state);
+	ZSInit(&zs_state);
 
 	do_op(0, 0);// set
 
@@ -347,7 +347,7 @@ main(int argc, char *argv[])
 	do_op(0, -3);// set
 	do_op(0, -10);// set
 
-	FDFShutdown(fdf_state);
+	ZSShutdown(zs_state);
 	return 0;
 }
 

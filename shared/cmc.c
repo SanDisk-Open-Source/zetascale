@@ -323,28 +323,28 @@ cmc_initialize(SDF_internal_ctxt_t *pai, const char *cmc_path) {
 		}
 
 #ifdef SDFAPI
-    	FDF_container_props_t   fdf_p;
-    	FDF_cguid_t             cguid       = FDF_NULL_CGUID;
-		int						flags		= FDF_CTNR_CREATE;
+    	ZS_container_props_t   zs_p;
+    	ZS_cguid_t             cguid       = ZS_NULL_CGUID;
+		int						flags		= ZS_CTNR_CREATE;
 
     	// Create the CMC
-    	//fdf_p.fifo_mode             = FDF_FALSE;
-    	fdf_p.persistent            = FDF_TRUE;
-    	fdf_p.evicting              = FDF_FALSE;
-    	fdf_p.writethru             = FDF_TRUE;
-    	//fdf_p.num_shards            = 1;
-    	fdf_p.durability_level      = FDF_DURABILITY_HW_CRASH_SAFE;
-    	fdf_p.size_kb               = CMC_SIZE_KB; // Fixed to 1G right now
+    	//zs_p.fifo_mode             = ZS_FALSE;
+    	zs_p.persistent            = ZS_TRUE;
+    	zs_p.evicting              = ZS_FALSE;
+    	zs_p.writethru             = ZS_TRUE;
+    	//zs_p.num_shards            = 1;
+    	zs_p.durability_level      = ZS_DURABILITY_HW_CRASH_SAFE;
+    	zs_p.size_kb               = CMC_SIZE_KB; // Fixed to 1G right now
         plat_log_msg(80039,LOG_CAT, LOG_DBG, "Creating Container Metadata Container"
                           " (name = %s,size = %lu kbytes,"
                           "persistence = %s,eviction = %s,writethrough = %s,fifo = %s,"
                           "async_writes = %s,durability = %s)",
-                          cmc_path,fdf_p.size_kb, get_bool_str(fdf_p.persistent),
-                          get_bool_str(fdf_p.evicting),get_bool_str(fdf_p.writethru),
-                          get_bool_str(fdf_p.fifo_mode),get_bool_str(fdf_p.async_writes),
-                          get_durability_str(fdf_p.durability_level));
+                          cmc_path,zs_p.size_kb, get_bool_str(zs_p.persistent),
+                          get_bool_str(zs_p.evicting),get_bool_str(zs_p.writethru),
+                          get_bool_str(zs_p.fifo_mode),get_bool_str(zs_p.async_writes),
+                          get_durability_str(zs_p.durability_level));
 
-    	if ((status = FDFOpenPhysicalContainer(pai, (char *) cmc_path, &fdf_p, flags, &cguid)) != SDF_SUCCESS) {
+    	if ((status = ZSOpenPhysicalContainer(pai, (char *) cmc_path, &zs_p, flags, &cguid)) != SDF_SUCCESS) {
         	plat_log_msg(150059, LOG_CAT, LOG_ERR, "Failed to create CMC container - %s\n", SDF_Status_Strings[status]);
 			status = SDF_FAILURE_CONTAINER_OPEN;
     	} else { 
@@ -461,28 +461,28 @@ cmc_recover(SDF_internal_ctxt_t *pai, const char *cmc_path) {
 		meta = container_meta_create(cmc_path, p, CMC_CGUID, generate_shard_ids(CMC_HOME, CMC_CGUID, 1));
 		init_cmc(meta);
 		theCMC->initialized = SDF_TRUE;
-        FDF_container_props_t   fdf_p;
-        FDF_cguid_t             cguid       = FDF_NULL_CGUID;
+        ZS_container_props_t   zs_p;
+        ZS_cguid_t             cguid       = ZS_NULL_CGUID;
         int                     flags       = 0;
 
         // Create the CMC
-        //fdf_p.fifo_mode             = FDF_FALSE;
-        fdf_p.persistent            = FDF_TRUE;
-        fdf_p.evicting              = FDF_FALSE;
-        fdf_p.writethru             = FDF_TRUE;
-        //fdf_p.num_shards            = 1;
-        fdf_p.durability_level      = FDF_DURABILITY_HW_CRASH_SAFE;
-        fdf_p.size_kb               = 1024 * 1024; // kB
+        //zs_p.fifo_mode             = ZS_FALSE;
+        zs_p.persistent            = ZS_TRUE;
+        zs_p.evicting              = ZS_FALSE;
+        zs_p.writethru             = ZS_TRUE;
+        //zs_p.num_shards            = 1;
+        zs_p.durability_level      = ZS_DURABILITY_HW_CRASH_SAFE;
+        zs_p.size_kb               = 1024 * 1024; // kB
         plat_log_msg(80040,LOG_CAT, LOG_INFO, "Opening Container Metadata Container"
                           " (name = %s,size = %lu kbytes,"
                           "persistence = %s,eviction = %s,writethrough = %s,fifo = %s,"
                           "async_writes = %s,durability = %s)",
-                          cmc_path,fdf_p.size_kb, get_bool_str(fdf_p.persistent),
-                          get_bool_str(fdf_p.evicting),get_bool_str(fdf_p.writethru),
-                          get_bool_str(fdf_p.fifo_mode),get_bool_str(fdf_p.async_writes),
-                          get_durability_str(fdf_p.durability_level));
+                          cmc_path,zs_p.size_kb, get_bool_str(zs_p.persistent),
+                          get_bool_str(zs_p.evicting),get_bool_str(zs_p.writethru),
+                          get_bool_str(zs_p.fifo_mode),get_bool_str(zs_p.async_writes),
+                          get_durability_str(zs_p.durability_level));
         
-        if ((status = FDFOpenPhysicalContainer(pai, (char *) cmc_path, &fdf_p, flags, &cguid)) != SDF_SUCCESS) {
+        if ((status = ZSOpenPhysicalContainer(pai, (char *) cmc_path, &zs_p, flags, &cguid)) != SDF_SUCCESS) {
             plat_log_msg(150059, LOG_CAT, LOG_ERR, "Failed to create CMC container - %s\n", SDF_Status_Strings[status]);
             status = SDF_FAILURE_CONTAINER_OPEN;
         } else { 
@@ -543,10 +543,10 @@ cmc_recover(SDF_internal_ctxt_t *pai, const char *cmc_path) {
 
 #ifdef SDFAPIONLY
 					//  Initialize the container map
-	                status = fdf_cmap_create( blob->meta.cname, 
+	                status = zs_cmap_create( blob->meta.cname, 
 	                                          blob->meta.cguid, 
 	                                          blob->meta.properties.container_id.size,
-	                                          FDF_CONTAINER_STATE_CLOSED, 
+	                                          ZS_CONTAINER_STATE_CLOSED, 
 	                                          blob->meta.properties.container_type.caching_container
                                             );
 
@@ -554,7 +554,7 @@ cmc_recover(SDF_internal_ctxt_t *pai, const char *cmc_path) {
                          goto out;
 
 					for (int i=0; i<MCD_MAX_NUM_CNTRS; i++) {
-						if (Mcd_containers[i].cguid == FDF_NULL_CGUID) {
+						if (Mcd_containers[i].cguid == ZS_NULL_CGUID) {
 							// this is an unused map entry
 					    	Mcd_containers[i].cguid 		= blob->meta.cguid;
 					    	Mcd_containers[i].container_id  = blob->meta.properties.container_id.container_id;

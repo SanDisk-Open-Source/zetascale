@@ -981,7 +981,7 @@ home_flash_test_kv_wrapper(struct replication_test_flash *test_flash,
 #endif
             }
             break;
-        case HFDFF: /* flash delete */
+        case HZSF: /* flash delete */
             /* construct a wrapper and response to node */
             plat_log_msg(LOG_ID, LOG_CAT_FLASH, LOG_DBG,
                          "node_id %"PRIu32" Hashmap delete key:%s ",
@@ -1043,9 +1043,9 @@ home_flash_test_kv_wrapper(struct replication_test_flash *test_flash,
 
     /* xxxzzz remove me! */
 #if 0
-    if (pm->msgtype == HFDFF) {
+    if (pm->msgtype == HZSF) {
     plat_log_msg(LOG_ID, LOG_CAT_FLASH, LOG_ERR,
-                 "===============> node_id %"PRIu32" shard_id:%"PRIu64" HFDFF response=%s, key=%s, mkey=%s",
+                 "===============> node_id %"PRIu32" shard_id:%"PRIu64" HZSF response=%s, key=%s, mkey=%s",
                  test_flash->node_id, shard_id,
                  SDF_Protocol_Msg_Info[new_mtype].shortname,
                  pm->key.key,

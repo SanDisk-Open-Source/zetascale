@@ -119,7 +119,7 @@ typedef uint32_t slab_t;
 typedef uint64_t bitmap_t;
 typedef fthWaitEl_t wait_t;
 typedef unsigned int uint_t;
-typedef FDF_cguid_t cguid_t;
+typedef ZS_cguid_t cguid_t;
 typedef unsigned char uchar_t;
 typedef hash_entry_t mhash_t;
 typedef struct flashDev flash_t;
@@ -134,7 +134,7 @@ typedef struct rklc_get rklc_get_t;
 typedef struct ssdaio_ctxt aioctx_t;
 typedef mcd_osd_segment_t mo_segment_t;
 typedef SDF_cache_enum_t s_cache_enum_t;
-typedef struct FDF_thread_state fdf_ts_t;
+typedef struct ZS_thread_state zs_ts_t;
 typedef struct replicator_key_lock *klock_t;
 typedef mcd_osd_slab_class_t mo_slab_class_t;
 typedef SDF_protocol_msg_tiny_t sp_msg_tiny_t;
@@ -619,9 +619,9 @@ typedef struct {
 /*
  * Container enumeration state information.
  */
-typedef struct FDF_iterator {
+typedef struct ZS_iterator {
     mshard_t   *shard;
-    FDF_cguid_t cguid;
+    ZS_cguid_t cguid;
     int         enum_error;
     void       *data_buf_alloc;
     void       *data_buf_align;
@@ -671,7 +671,7 @@ struct sdf_rec_funcs Funcs ={
  * External function prototypes.
  */
 int mcd_fth_osd_grow_class_x(mshard_t *shard, mo_slab_class_t *class);
-extern int fdf_uncompress_data( char *, size_t, size_t, size_t *);
+extern int zs_uncompress_data( char *, size_t, size_t, size_t *);
 
 
 /*
@@ -753,13 +753,13 @@ malloc_nfw(size_t size, char *desc)
 
         if (ptr) {
             if (said)
-                fdf_logi(70027, "recovery: found buffer, size=%ld", size);
+                zs_logi(70027, "recovery: found buffer, size=%ld", size);
             return ptr;
         }
 
         if (!said) {
             said = 1;
-            fdf_logi(70028, "recovery: waiting for buffer, size=%ld", size);
+            zs_logi(70028, "recovery: waiting for buffer, size=%ld", size);
         }
         fthYield(0);
     }
@@ -1513,7 +1513,7 @@ ssx_del(cntr_t *cntr, setx_t setx)
     klock_t *buf = cntr->ssx_buf;
 
     if (setx < tail || setx >= head) {
-        fdf_loge(70025,
+        zs_loge(70025,
                  "bad set index: %ld head=%ld tail=%ld", setx, head, tail);
         return;
     }
@@ -1521,7 +1521,7 @@ ssx_del(cntr_t *cntr, setx_t setx)
     n = setx % num;
     klock = buf[n];
     if (!klock) {
-        fdf_loge(70026,
+        zs_loge(70026,
                  "null set index: %ld head=%ld tail=%ld", setx, head, tail);
     } else {
         kl_unlock(klock);
@@ -2251,11 +2251,11 @@ read_disk(mshard_t *shard, aioctx_t *aioctx,
         blkno_t n;
         blkno_t mapblk = rand_map(shard, blkno, nblks, &n);
 
-        fdf_logt(70023, "recovery read %ld:%ld (%ld)", blkno, n, mapblk);
+        zs_logt(70023, "recovery read %ld:%ld (%ld)", blkno, n, mapblk);
         s = mcd_fth_aio_blk_read((osd_state_t *) aioctx,
                                  p, mapblk*BLK_SIZE, n*BLK_SIZE);
         if (s != FLASH_EOK) {
-            fdf_loge(70024, "mcd_fth_aio_blk_read failed: "
+            zs_loge(70024, "mcd_fth_aio_blk_read failed: "
                      "st=%d blkno=%ld mapblk=%ld nb=%ld", s, blkno, mapblk, n);
             return 0;
         }
@@ -2449,13 +2449,13 @@ mkmsg_flash(sur_t *sur)
     for (i = 0; i < 2; i++) {
         sect_alloc(sect, meta_size, min_slabs, BLK_SIZE, 1, "sdf_msg");
         if (!sect_read(sur)) {
-            fdf_logi(70021, "mkmsg_flash: read error");
+            zs_logi(70021, "mkmsg_flash: read error");
             return mkmsg_sect_null(sect, ERR_READ);
         }
         n = ssx_lock(sur->cntr, min_slabs);
         if (n < min_slabs) {
             ssx_unlock(sur->cntr);
-            fdf_logi(70022, "mkmsg_flash: recovering node died");
+            zs_logi(70022, "mkmsg_flash: recovering node died");
             return mkmsg_sect_null(sect, ERR_DEAD);
         }
         if (cntr->ssx_mdel)
@@ -2649,7 +2649,7 @@ mrep_sect_show(mrep_sect_t *msg_sect)
         char *obj_end = obj_beg + mobj->key_len + mobj->data_len;
 
         if (obj_end > end) {
-            fdf_loge(70020, "bad recovery meta data");
+            zs_loge(70020, "bad recovery meta data");
             return;
         }
         obj_show(NULL, mobj->cguid, obj_beg, mobj->key_len,
@@ -2711,14 +2711,14 @@ fth_req_big(freq_big_t *freq, aioctx_t  *aioctx)
         blkno_t n;
         blkno_t mapblk = rand_map(shard, blkno, nblks, &n);
 
-        fdf_logt(70018, "recovery write %ld:%ld (%ld)", blkno, n, mapblk);
+        zs_logt(70018, "recovery write %ld:%ld (%ld)", blkno, n, mapblk);
         s = mcd_fth_aio_blk_write((osd_state_t *) aioctx, p,
                                   mapblk*BLK_SIZE, n*BLK_SIZE);
         if (s == FLASH_EOK)
             atomic_inc(RV.stats.num_m_writes);
         else {
             atomic_inc(RV.stats.num_m_errors);
-            fdf_loge(70019, "write failed bo=%ld nb=%ld", mapblk, n);
+            zs_loge(70019, "write failed bo=%ld nb=%ld", mapblk, n);
         }
 
         blkno += n;
@@ -3344,11 +3344,11 @@ mrep_sect_obj_ready(mrep_sect_t *mrep_sect)
 
         n2h_mobj(mobj);
         if (mobj->magic != MOBJ_MAGIC) {
-            fdf_loge(70014, "recovery: mrep_sect: invalid magic %x",
+            zs_loge(70014, "recovery: mrep_sect: invalid magic %x",
                      mobj->magic);
             break;
         } else if (count >= num_obj) {
-            fdf_loge(70015, "recovery: mrep_sect: invalid num_obj %d",
+            zs_loge(70015, "recovery: mrep_sect: invalid num_obj %d",
                      num_obj);
             break;
         }
@@ -3366,12 +3366,12 @@ mrep_sect_obj_ready(mrep_sect_t *mrep_sect)
         goto err;
 
     if (count != num_obj) {
-        fdf_loge(70016,
+        zs_loge(70016,
                  "recovery: mrep_sect: invalid num_obj (%d) should be %d",
                  num_obj, count);
         goto err;
     } else if (ptr != end) {
-        fdf_loge(70017, "recovery: mrep_sect: bad object list");
+        zs_loge(70017, "recovery: mrep_sect: bad object list");
         goto err;
     }
 
@@ -3414,14 +3414,14 @@ mreq_sect(sur_t *sur, mrep_type_t type, sdf_msg_t *req_msg)
     uint       len = req_msg->msg_len - sizeof(sdf_msg_t);
 
     if (len < sizeof(mreq_sect_t)) {
-        fdf_logi(70011, "bad mreq_sect msg: bad length");
+        zs_logi(70011, "bad mreq_sect msg: bad length");
         return mkmsg_null(type, ERR_INVAL);
     }
     n2h_mreq_sect(m);
 
     shard = (mshard_t *) shardFind(sur->flash, m->shard_id);
     if (!shard) {
-        fdf_logi(70012, "bad mreq_sect msg: bad shard");
+        zs_logi(70012, "bad mreq_sect msg: bad shard");
         return mkmsg_null(type, ERR_SHARD);
     }
 
@@ -3437,7 +3437,7 @@ mreq_sect(sur_t *sur, mrep_type_t type, sdf_msg_t *req_msg)
 
     wait = cntr_lock(sur, 1);
     if (!wait) {
-        fdf_logi(70013, "mreq_sect: recovering node died");
+        zs_logi(70013, "mreq_sect: recovering node died");
         return mkmsg_null(type, ERR_DEAD);
     }
 
@@ -3500,7 +3500,7 @@ mreq_setix(sur_t *sur, sdf_msg_t *req_msg)
     msg_setn2h(m->num_setx);
     n = m->num_setx;
     if (n * sizeof(setx_t) != len - sizeof(mreq_setx_t)) {
-        fdf_loge(70010, "bad HFFSX message: num_setx=%d len=%d", n, len);
+        zs_loge(70010, "bad HFFSX message: num_setx=%d len=%d", n, len);
         return NULL;
     }
 
@@ -3549,14 +3549,14 @@ mreq_fbmap(sur_t *sur, sdf_msg_t *req_msg)
     uint len       = req_msg->msg_len - sizeof(sdf_msg_t);
 
     if (len < sizeof(mreq_bmap_t)) {
-        fdf_logi(70008, "bad mreq_fbmap msg: bad length");
+        zs_logi(70008, "bad mreq_fbmap msg: bad length");
         return mkmsg_null(MREP_FBMAP, ERR_INVAL);
     }
     n2h_mreq_bmap(m);
 
     sur->shard = (mshard_t *) shardFind(sur->flash, m->shard_id);
     if (!sur->shard) {
-        fdf_logi(70009, "bad mreq_fbmap msg: bad shard");
+        zs_logi(70009, "bad mreq_fbmap msg: bad shard");
         return mkmsg_null(MREP_FBMAP, ERR_SHARD);
     }
     return mkmsg_fbmap(sur);
@@ -3655,7 +3655,7 @@ msg_rep_check(sdf_msg_t *msg, mrep_type_t type, int size)
 
     msg_size = msg->msg_len - sizeof(sdf_msg_t);
     if (msg_size < sizeof(mrep_t)) {
-        fdf_loge(70004, "%s: msg size too small: %d", s, msg_size);
+        zs_loge(70004, "%s: msg size too small: %d", s, msg_size);
         return 0;
     }
 
@@ -3663,11 +3663,11 @@ msg_rep_check(sdf_msg_t *msg, mrep_type_t type, int size)
     n2h_mrep_h(&h);
 
     if (h.type != type)
-        fdf_loge(70005, "%s: wrong type: %d != %d", s, h.type, type);
+        zs_loge(70005, "%s: wrong type: %d != %d", s, h.type, type);
     else if (h.error != ERR_NONE)
-        fdf_loge(70006, "%s: error: %d", s, h.error);
+        zs_loge(70006, "%s: error: %d", s, h.error);
     else if (msg_size < size)
-        fdf_loge(70007, "%s: wrong msg size: %d < %d", s, msg_size, size);
+        zs_loge(70007, "%s: wrong msg size: %d < %d", s, msg_size, size);
     else
         return 1;
     return 0;
@@ -3695,7 +3695,7 @@ msg_rep_sect_check(sdf_msg_t *msg)
 
     len = msg->msg_len - sizeof(sdf_msg_t) - sizeof(mrep_sect_t);
     if (m->size != len) {
-        fdf_loge(70003, "recovery: mrep_sect: bad size: %ld != %d",
+        zs_loge(70003, "recovery: mrep_sect: bad size: %ld != %d",
                  m->size, len);
         return 0;
     }
@@ -3726,7 +3726,7 @@ msg_rep_bmap_check(sdf_msg_t *msg)
     nsegs = m->nsegs;
     n = chunk_div(nsegs, BMAP_BITS) * sizeof(bitmap_t);
     if (n != msg->msg_len - sizeof(sdf_msg_t) - sizeof(mrep_bmap_t)) {
-        fdf_loge(70002, "recovery: mrep_bmap: bitmap too small: nsegs=%d",
+        zs_loge(70002, "recovery: mrep_bmap: bitmap too small: nsegs=%d",
                  nsegs);
         return 0;
     }
@@ -4034,7 +4034,7 @@ ctr_copy(vnode_t rank, shard_t *sshard, pai_t *pai)
 
     if (AV.no_fast)
         return -1;
-    fdf_logi(70001, "using fast recovery");
+    zs_logi(70001, "using fast recovery");
 
     rec_init(&rec, pai, rank, sshard, &sect);
     msg_mrep_bmap = get_remote_bmap(&rec);
@@ -4323,7 +4323,7 @@ lba_to_use(mshard_t *shard, uint64_t lba)
  * Return enumeration statistics.
  */
 void
-enumerate_stats(enum_stats_t *s, FDF_cguid_t cguid)
+enumerate_stats(enum_stats_t *s, ZS_cguid_t cguid)
 {
     cntr_map_t *cmap = get_cntr_map(cguid);
     if (cmap) {
@@ -4337,7 +4337,7 @@ enumerate_stats(enum_stats_t *s, FDF_cguid_t cguid)
 /*
  * Given a data block, extract the key and data and return it.
  */
-static FDF_status_t
+static ZS_status_t
 e_extr_obj(e_state_t *es, time_t now, char **key, uint64_t *keylen,
            char **data, uint64_t  *datalen)
 {
@@ -4350,20 +4350,20 @@ e_extr_obj(e_state_t *es, time_t now, char **key, uint64_t *keylen,
 
 
     if (mlen + klen + dlen > MCD_OSD_SEGMENT_SIZE)
-        return FDF_OBJECT_UNKNOWN;
+        return ZS_OBJECT_UNKNOWN;
 
     if (meta->magic != MCD_OSD_META_MAGIC)
-        return FDF_OBJECT_UNKNOWN;
+        return ZS_OBJECT_UNKNOWN;
 
     if (meta->version != MCD_OSD_META_VERSION)
-        return FDF_OBJECT_UNKNOWN;
+        return ZS_OBJECT_UNKNOWN;
 
     if (meta->expiry_time && meta->expiry_time <= now)
-        return FDF_OBJECT_UNKNOWN;
+        return ZS_OBJECT_UNKNOWN;
 
     char *kptr = plat_malloc(klen);
     if (!kptr)
-        return FDF_FAILURE_MEMORY_ALLOC;
+        return ZS_FAILURE_MEMORY_ALLOC;
 
 	//If compressed, return uncompressed data
 	if (meta->uncomp_datalen) {
@@ -4378,11 +4378,11 @@ e_extr_obj(e_state_t *es, time_t now, char **key, uint64_t *keylen,
 		char *dptr = plat_malloc(tlen);
 		if (!dptr) {
 			plat_free(kptr);
-			return FDF_FAILURE_MEMORY_ALLOC;
+			return ZS_FAILURE_MEMORY_ALLOC;
 		}
 
 		memcpy(dptr, es->data_buf_align + mlen + klen, dlen);
-		if((rc = fdf_uncompress_data(dptr, (size_t)dlen, tlen, &uncomp_len)) < 0) {
+		if((rc = zs_uncompress_data(dptr, (size_t)dlen, tlen, &uncomp_len)) < 0) {
 			mcd_log_msg(160202, PLAT_LOG_LEVEL_FATAL,
 									"Data uncompression failed:%d", rc);
 			return FLASH_ENOENT;
@@ -4397,7 +4397,7 @@ e_extr_obj(e_state_t *es, time_t now, char **key, uint64_t *keylen,
 		char *dptr = plat_malloc(dlen);
 		if (!dptr) {
 			plat_free(kptr);
-			return FDF_FAILURE_MEMORY_ALLOC;
+			return ZS_FAILURE_MEMORY_ALLOC;
 		}
 
 		memcpy(kptr, es->data_buf_align + mlen, klen);
@@ -4408,7 +4408,7 @@ e_extr_obj(e_state_t *es, time_t now, char **key, uint64_t *keylen,
 		*data = dptr;
 		*datalen = dlen;
 	}
-    return FDF_SUCCESS;
+    return ZS_SUCCESS;
 }
 
 /*
@@ -4427,7 +4427,7 @@ copyhash(e_state_t *es, mhash_t *hash, uint64_t bkt_i, int flag)
     if (es->hash_buf_i >= es->hash_buf_n) {
         if (!es->enum_error) {
             es->enum_error = 1;
-            fdf_loge(70121, "enumeration internal error %ld >= %ld",
+            zs_loge(70121, "enumeration internal error %ld >= %ld",
                      es->hash_buf_i, es->hash_buf_n);
         }
         return;
@@ -4477,7 +4477,7 @@ e_hash_fill(pai_t *pai, e_state_t *es, int bkt_i, int flag)
 /*
  * Return the next enumerated object in a container.
  */
-FDF_status_t
+ZS_status_t
 enumerate_next(pai_t *pai, e_state_t *es, char **key, uint64_t *keylen,
                char **data, uint64_t  *datalen)
 {
@@ -4488,7 +4488,7 @@ enumerate_next(pai_t *pai, e_state_t *es, char **key, uint64_t *keylen,
     for (;;) {
         while (!es->hash_buf_i) {
             if (es->hash_bkt_i >= es->num_bkts)
-                return FDF_OBJECT_UNKNOWN;
+                return ZS_OBJECT_UNKNOWN;
             e_hash_fill(pai, es, es->hash_bkt_i++, 1);
         }
 
@@ -4508,22 +4508,22 @@ enumerate_next(pai_t *pai, e_state_t *es, char **key, uint64_t *keylen,
                 atomic_inc(cmap->enum_stats.num_cached_objects);
                 rel_cntr_map(cmap);
             }
-            return FDF_SUCCESS;
+            return ZS_SUCCESS;
         }
 
         uint64_t nb = lba_to_blk(hash->blocks);
         if (nb > Mcd_osd_segment_blks)
-            return FDF_FLASH_EINVAL;
+            return ZS_FLASH_EINVAL;
 
         s = read_disk(shard, (aioctx_t *)&pai->ctxt,
                       es->data_buf_align, hash->address, nb);
         if (!s)
-            return FDF_FLASH_EINVAL;
+            return ZS_FLASH_EINVAL;
 
         s = e_extr_obj(es, now, key, keylen, data, datalen);
-        if (s == FDF_OBJECT_UNKNOWN)
+        if (s == ZS_OBJECT_UNKNOWN)
             continue;
-        if (s != FDF_SUCCESS)
+        if (s != ZS_SUCCESS)
             return s;
 
         cntr_map_t *cmap = get_cntr_map(cntr_id);
@@ -4531,7 +4531,7 @@ enumerate_next(pai_t *pai, e_state_t *es, char **key, uint64_t *keylen,
             atomic_inc(cmap->enum_stats.num_objects);
             rel_cntr_map(cmap);
         }
-        return FDF_SUCCESS;
+        return ZS_SUCCESS;
     }
 }
 
@@ -4539,7 +4539,7 @@ enumerate_next(pai_t *pai, e_state_t *es, char **key, uint64_t *keylen,
 /*
  * Finish enumeration of a container.
  */
-FDF_status_t
+ZS_status_t
 enumerate_done(pai_t *pai, e_state_t *es)
 {
     cntr_map_t *cmap = get_cntr_map(es->cguid);
@@ -4547,7 +4547,7 @@ enumerate_done(pai_t *pai, e_state_t *es)
         atomic_dec(cmap->enum_stats.num_active);
         rel_cntr_map(cmap);
     }
-    fdf_logd(70117, "enumeration ended for container %ld", es->cguid);
+    zs_logd(70117, "enumeration ended for container %ld", es->cguid);
 
     if (es->data_buf_alloc)
         plat_free(es->data_buf_alloc);
@@ -4562,20 +4562,20 @@ enumerate_done(pai_t *pai, e_state_t *es)
  * Return an error indicating we could not allocate memory while initializing
  * and clean up.
  */
-static FDF_status_t
+static ZS_status_t
 e_init_fail(pai_t *pai, e_state_t *es)
 {
     if (es)
         enumerate_done(pai, (void *)es);
-    return FDF_FAILURE_MEMORY_ALLOC;
+    return ZS_FAILURE_MEMORY_ALLOC;
 }
 
 
 /*
  * Prepare for the enumeration of all objects in a container.
  */
-FDF_status_t
-enumerate_init(pai_t *pai, shard_t *sshard, FDF_cguid_t cguid, e_state_t **esp)
+ZS_status_t
+enumerate_init(pai_t *pai, shard_t *sshard, ZS_cguid_t cguid, e_state_t **esp)
 {
     mshard_t *shard = (mshard_t *) sshard;
 
@@ -4618,14 +4618,14 @@ enumerate_init(pai_t *pai, shard_t *sshard, FDF_cguid_t cguid, e_state_t **esp)
         atomic_inc(cmap->enum_stats.num_active);
         rel_cntr_map(cmap);
     }
-    fdf_logd(70111, "enumeration started for container %ld", es->cguid);
+    zs_logd(70111, "enumeration started for container %ld", es->cguid);
     return 0;
 }
 
 /*
  * Get cguid from a given iterator
  */
-FDF_cguid_t get_e_cguid(e_state_t *es) {
+ZS_cguid_t get_e_cguid(e_state_t *es) {
     return es->cguid;
 }
 
@@ -4751,7 +4751,7 @@ delete_all_objects( pai_t *pai, shard_t *sshard, cguid_t cguid)
 	mshard_t *shard = (mshard_t *) sshard;
 	if (cguid > 3) {
 		SDF_container_meta_t meta;
-		if (name_service_get_meta( pai, cguid, &meta ) != FDF_SUCCESS)
+		if (name_service_get_meta( pai, cguid, &meta ) != ZS_SUCCESS)
 			return;
 		shard->durability_level = meta.properties.durability_level;
 	}
@@ -5023,14 +5023,14 @@ set_cntr_sizes(pai_t *pai, shard_t *sshard)
         uint64_t size;
         char name[256];
         if (!get_cntr_info(n, name, sizeof(name), &objs, &used, &size, NULL))
-            fdf_loge(70118, "Failed on get_cntr_info for container %ld", n);
+            zs_loge(70118, "Failed on get_cntr_info for container %ld", n);
         else {
             if (size) {
-                fdf_logd(70119, "Container %s: id=%ld objs=%ld used=%ld"
+                zs_logd(70119, "Container %s: id=%ld objs=%ld used=%ld"
                         " size=%ld full=%.1f%%",
                         name, n, objs, used, size, used*100.0/size);
             } else {
-                fdf_logd(70120, "Container %s: id=%ld objs=%ld used=%ld",
+                zs_logd(70120, "Container %s: id=%ld objs=%ld used=%ld",
                         name, n, objs, used);
             }
         }
@@ -5041,7 +5041,7 @@ set_cntr_sizes(pai_t *pai, shard_t *sshard)
 
 /* Scavenger Scan Routines */
 
-static FDF_status_t
+static ZS_status_t
 ss_extr_obj(e_state_t *es, time_t now, uint64_t *cguid, char **key, 
                 uint64_t *keylen)
 {
@@ -5052,32 +5052,32 @@ ss_extr_obj(e_state_t *es, time_t now, uint64_t *cguid, char **key,
     const uint64_t cid = meta->cguid;
 
     if (mlen + klen + dlen > MCD_OSD_SEGMENT_SIZE)
-        return FDF_OBJECT_UNKNOWN;
+        return ZS_OBJECT_UNKNOWN;
 
     if (meta->magic != MCD_OSD_META_MAGIC)
-        return FDF_OBJECT_UNKNOWN;
+        return ZS_OBJECT_UNKNOWN;
 
     if (meta->version != MCD_OSD_META_VERSION)
-        return FDF_OBJECT_UNKNOWN;
+        return ZS_OBJECT_UNKNOWN;
 
     if (meta->expiry_time && meta->expiry_time <= now){
 
         char *kptr = plat_malloc(klen);
         if (!kptr)
-            return FDF_FAILURE_MEMORY_ALLOC;
+            return ZS_FAILURE_MEMORY_ALLOC;
 
         memcpy(kptr, es->data_buf_align + mlen, klen);
 
         *key = kptr;
         *keylen = klen;
         *cguid = cid;
-        return FDF_EXPIRED;
+        return ZS_EXPIRED;
     }
 
-    return FDF_SUCCESS;
+    return ZS_SUCCESS;
 }
 
-FDF_status_t
+ZS_status_t
 scavenger_scan_next(pai_t *pai, e_state_t *es, uint64_t *cguid, 
                         char **key, uint64_t *keylen)
 {
@@ -5087,7 +5087,7 @@ scavenger_scan_next(pai_t *pai, e_state_t *es, uint64_t *cguid,
     while(1){
         while (!es->hash_buf_i) {
             if (es->hash_bkt_i >= es->num_bkts)
-                return FDF_SCAN_DONE;
+                return ZS_SCAN_DONE;
             e_hash_fill(pai, es, es->hash_bkt_i++, 0);
         }
 
@@ -5100,20 +5100,20 @@ scavenger_scan_next(pai_t *pai, e_state_t *es, uint64_t *cguid,
         //reading all blocks will be heavy
         uint64_t nb = lba_to_blk(hash->blocks);
         if (nb > Mcd_osd_segment_blks)
-            return FDF_FLASH_EINVAL;
+            return ZS_FLASH_EINVAL;
 
         s = read_disk(shard, (aioctx_t *)&pai->ctxt,
                 es->data_buf_align, hash->address, nb);
         if (!s)
-            return FDF_FLASH_EINVAL;
+            return ZS_FLASH_EINVAL;
 
         s = ss_extr_obj(es, now, cguid, key, keylen);
-        if(s == FDF_OBJECT_UNKNOWN) continue;
+        if(s == ZS_OBJECT_UNKNOWN) continue;
         return s;
     }
 }
 
-FDF_status_t
+ZS_status_t
 scavenger_scan_done(pai_t *pai, e_state_t *es)
 {
     if (es->data_buf_alloc)
@@ -5121,18 +5121,18 @@ scavenger_scan_done(pai_t *pai, e_state_t *es)
     if (es->hash_buf)
         plat_free(es->hash_buf);
     plat_free(es);
-    return FDF_SUCCESS;
+    return ZS_SUCCESS;
 }
 
-static FDF_status_t
+static ZS_status_t
 ss_init_fail(pai_t *pai, e_state_t *es)
 {
     if (es)
         scavenger_scan_done(pai, (void *)es);
-    return FDF_FAILURE_MEMORY_ALLOC;
+    return ZS_FAILURE_MEMORY_ALLOC;
 }
 
-FDF_status_t
+ZS_status_t
 scavenger_scan_init(pai_t *pai, shard_t *sshard, e_state_t **esp)
 {
     mshard_t *shard = (mshard_t *) sshard;
@@ -5168,5 +5168,5 @@ scavenger_scan_init(pai_t *pai, shard_t *sshard, e_state_t **esp)
 
     es->shard = shard;
     *((e_state_t **) esp) = es;
-    return FDF_SUCCESS;
+    return ZS_SUCCESS;
 }

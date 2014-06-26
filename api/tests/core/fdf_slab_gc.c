@@ -3,10 +3,10 @@
 #include <unistd.h>
 #include <pthread.h>
 #include <string.h>
-#include "fdf.h"
+#include "zs.h"
 #include "../test.h"
 
-static FDF_cguid_t  cguid_shared;
+static ZS_cguid_t  cguid_shared;
 static long size = 1024 * 1024 * 1024;
 /* Following used to pass parameter to threads */
 static int threads = 1, count, start_id, step = 1, obj_size, op;
@@ -17,7 +17,7 @@ enum {
 	ENUM
 };
 
-int set_objs(FDF_cguid_t cguid, long thr, int size, int start_id, int count, int step)
+int set_objs(ZS_cguid_t cguid, long thr, int size, int start_id, int count, int step)
 {
 	int i;
 	char key_str[24] = "key00";
@@ -32,7 +32,7 @@ int set_objs(FDF_cguid_t cguid, long thr, int size, int start_id, int count, int
 		sprintf(key_str, "key%04ld-%08d", thr, start_id + i);
 		sprintf(key_data, "key%04ld-%08d_data", thr, start_id + i);
 
-		if(fdf_set(cguid, key_str, strlen(key_str) + 1, key_data, size) != FDF_SUCCESS)
+		if(zs_set(cguid, key_str, strlen(key_str) + 1, key_data, size) != ZS_SUCCESS)
 			break;
     }
 
@@ -41,7 +41,7 @@ int set_objs(FDF_cguid_t cguid, long thr, int size, int start_id, int count, int
 	return i;
 }
 
-int del_objs(FDF_cguid_t cguid, long thr, int start_id, int count, int step)
+int del_objs(ZS_cguid_t cguid, long thr, int start_id, int count, int step)
 {
 	int i;
 	char key_str[24] = "key00";
@@ -50,7 +50,7 @@ int del_objs(FDF_cguid_t cguid, long thr, int start_id, int count, int step)
 	{
 		sprintf(key_str, "key%04ld-%08d", thr, start_id + i);
 
-		if(fdf_delete(cguid, key_str, strlen(key_str) + 1) != FDF_SUCCESS)
+		if(zs_delete(cguid, key_str, strlen(key_str) + 1) != ZS_SUCCESS)
 			break;
     }
 
@@ -58,7 +58,7 @@ int del_objs(FDF_cguid_t cguid, long thr, int start_id, int count, int step)
 	return i;
 }
 
-int get_objs(FDF_cguid_t cguid, long thr, int start_id, int count, int step)
+int get_objs(ZS_cguid_t cguid, long thr, int start_id, int count, int step)
 {
 	int i;
 	char key_str[24] = "key00";
@@ -75,7 +75,7 @@ int get_objs(FDF_cguid_t cguid, long thr, int start_id, int count, int step)
 		sprintf(key_str, "key%04ld-%08d", thr, start_id + i);
 		sprintf(key_data, "key%04ld-%08d_data", thr, start_id + i);
 
-		t(fdf_get(cguid_shared, key_str, strlen(key_str) + 1, &data, &datalen), FDF_SUCCESS);
+		t(zs_get(cguid_shared, key_str, strlen(key_str) + 1, &data, &datalen), ZS_SUCCESS);
 
 		assert(!memcmp(data, key_data, datalen));	
     }
@@ -85,25 +85,25 @@ int get_objs(FDF_cguid_t cguid, long thr, int start_id, int count, int step)
 	return i;
 }
 
-int enum_objs(FDF_cguid_t cguid)
+int enum_objs(ZS_cguid_t cguid)
 {
 	int cnt = 0;
 	char* key = "key00";
 	char     *data;
 	uint64_t datalen;
 	uint32_t keylen;
-	struct FDF_iterator* _fdf_iterator;
+	struct ZS_iterator* _zs_iterator;
 
-    t(fdf_enumerate(cguid, &_fdf_iterator), FDF_SUCCESS);
+    t(zs_enumerate(cguid, &_zs_iterator), ZS_SUCCESS);
 
-    while (fdf_next_enumeration(cguid, _fdf_iterator, &key, &keylen, &data, &datalen) == FDF_SUCCESS) {
+    while (zs_next_enumeration(cguid, _zs_iterator, &key, &keylen, &data, &datalen) == ZS_SUCCESS) {
 		cnt++;
 		
 		//fprintf(stderr, "%x sdf_enum: key=%s, keylen=%d, data=%s, datalen=%ld\n", (int)pthread_self(), key, keylen, data, datalen);
 		//advance_spinner();
     }
 
-    t(fdf_finish_enumeration(cguid, _fdf_iterator), FDF_SUCCESS);
+    t(zs_finish_enumeration(cguid, _zs_iterator), ZS_SUCCESS);
 
 	fprintf(stderr, "cguid: %ld enumerated count: %d\n", cguid, cnt);
 	return cnt;
@@ -111,7 +111,7 @@ int enum_objs(FDF_cguid_t cguid)
 
 void* worker(void *arg)
 {
-	t(fdf_init_thread(), FDF_SUCCESS);
+	t(zs_init_thread(), ZS_SUCCESS);
 
 	switch(op)
 	{
@@ -133,49 +133,49 @@ void* worker(void *arg)
 }
 void print_stat()
 {
-	FDF_stats_t stats;
+	ZS_stats_t stats;
 
-	fdf_get_container_stats(cguid_shared, &stats);
+	zs_get_container_stats(cguid_shared, &stats);
 
 #define PRINT_STAT(a) \
 	fprintf(stderr, "slab_gc_stat: " #a "(%d) = %ld\n", a, stats.flash_stats[a]);
 
-	PRINT_STAT(FDF_FLASH_STATS_SLAB_GC_SEGMENTS_COMPACTED);
-	PRINT_STAT(FDF_FLASH_STATS_SLAB_GC_SEGMENTS_FREED);
-	PRINT_STAT(FDF_FLASH_STATS_SLAB_GC_SLABS_RELOCATED);
-	PRINT_STAT(FDF_FLASH_STATS_SLAB_GC_BLOCKS_RELOCATED);
-	PRINT_STAT(FDF_FLASH_STATS_SLAB_GC_RELOCATE_ERRORS);
-	PRINT_STAT(FDF_FLASH_STATS_SLAB_GC_SIGNALLED);
-	PRINT_STAT(FDF_FLASH_STATS_SLAB_GC_SIGNALLED_SYNC);
-	PRINT_STAT(FDF_FLASH_STATS_SLAB_GC_WAIT_SYNC);
-	PRINT_STAT(FDF_FLASH_STATS_SLAB_GC_SEGMENTS_CANCELLED);
+	PRINT_STAT(ZS_FLASH_STATS_SLAB_GC_SEGMENTS_COMPACTED);
+	PRINT_STAT(ZS_FLASH_STATS_SLAB_GC_SEGMENTS_FREED);
+	PRINT_STAT(ZS_FLASH_STATS_SLAB_GC_SLABS_RELOCATED);
+	PRINT_STAT(ZS_FLASH_STATS_SLAB_GC_BLOCKS_RELOCATED);
+	PRINT_STAT(ZS_FLASH_STATS_SLAB_GC_RELOCATE_ERRORS);
+	PRINT_STAT(ZS_FLASH_STATS_SLAB_GC_SIGNALLED);
+	PRINT_STAT(ZS_FLASH_STATS_SLAB_GC_SIGNALLED_SYNC);
+	PRINT_STAT(ZS_FLASH_STATS_SLAB_GC_WAIT_SYNC);
+	PRINT_STAT(ZS_FLASH_STATS_SLAB_GC_SEGMENTS_CANCELLED);
 
-	PRINT_STAT(FDF_FLASH_STATS_NUM_READ_OPS);
-	PRINT_STAT(FDF_FLASH_STATS_NUM_GET_OPS);
-	PRINT_STAT(FDF_FLASH_STATS_NUM_PUT_OPS);
-	PRINT_STAT(FDF_FLASH_STATS_NUM_DEL_OPS);
-	PRINT_STAT(FDF_FLASH_STATS_NUM_CREATED_OBJS);
-	PRINT_STAT(FDF_FLASH_STATS_NUM_FREE_SEGMENTS);
+	PRINT_STAT(ZS_FLASH_STATS_NUM_READ_OPS);
+	PRINT_STAT(ZS_FLASH_STATS_NUM_GET_OPS);
+	PRINT_STAT(ZS_FLASH_STATS_NUM_PUT_OPS);
+	PRINT_STAT(ZS_FLASH_STATS_NUM_DEL_OPS);
+	PRINT_STAT(ZS_FLASH_STATS_NUM_CREATED_OBJS);
+	PRINT_STAT(ZS_FLASH_STATS_NUM_FREE_SEGMENTS);
 }
 
 void check_stat(int stat, long value)
 {
-	FDF_stats_t stats;
+	ZS_stats_t stats;
 
-	fdf_get_container_stats(cguid_shared, &stats);
+	zs_get_container_stats(cguid_shared, &stats);
 
 	assert(stats.flash_stats[stat] == value);
 }
 void wait_free_segments(int num, int timeout)
 {
-	FDF_stats_t stats;
+	ZS_stats_t stats;
 
-	fdf_get_container_stats(cguid_shared, &stats);
+	zs_get_container_stats(cguid_shared, &stats);
 
 	fprintf(stderr, "wait_free_segments: %d, timeout %d\n", num, timeout);
-	while(stats.flash_stats[FDF_FLASH_STATS_NUM_FREE_SEGMENTS] != num &&timeout)
+	while(stats.flash_stats[ZS_FLASH_STATS_NUM_FREE_SEGMENTS] != num &&timeout)
 	{
-		fdf_get_container_stats(cguid_shared, &stats);
+		zs_get_container_stats(cguid_shared, &stats);
 		sleep(1);
 		timeout--;
 	}
@@ -201,26 +201,26 @@ void start_threads(int count, void* (*worker)(void*))
 
 int main(int argc, char *argv[])
 {
-	FDFLoadProperties(getenv("FDF_PROPERTY_FILE"));
-	FDFSetProperty("FDF_SLAB_GC", "On");
-	FDFSetProperty("FDF_SLAB_GC_THRESHOLD", "70");
-	FDFSetProperty("FDF_FLASH_SIZE", "3");
-	FDFSetProperty("FDF_COMPRESSION", "0");
-	FDFSetProperty("FDF_BLOCK_SIZE", "512");
-	FDFSetProperty("FDF_FLASH_FILENAME", "/dev/shm/schooner%d");
-	FDFSetProperty("FDF_LOG_FLUSH_DIR", "/dev/shm");
-	FDFSetProperty("SYNC_DATA", "0");
-	FDFSetProperty("FDF_O_DIRECT", "0");
+	ZSLoadProperties(getenv("ZS_PROPERTY_FILE"));
+	ZSSetProperty("ZS_SLAB_GC", "On");
+	ZSSetProperty("ZS_SLAB_GC_THRESHOLD", "70");
+	ZSSetProperty("ZS_FLASH_SIZE", "3");
+	ZSSetProperty("ZS_COMPRESSION", "0");
+	ZSSetProperty("ZS_BLOCK_SIZE", "512");
+	ZSSetProperty("ZS_FLASH_FILENAME", "/dev/shm/schooner%d");
+	ZSSetProperty("ZS_LOG_FLUSH_DIR", "/dev/shm");
+	ZSSetProperty("SYNC_DATA", "0");
+	ZSSetProperty("ZS_O_DIRECT", "0");
 
-	unsetenv("FDF_PROPERTY_FILE");
+	unsetenv("ZS_PROPERTY_FILE");
 
 	size = 1 * 1024 * 1024 * 1024;
 
-	t(fdf_init(), FDF_SUCCESS);
+	t(zs_init(), ZS_SUCCESS);
 
-	t(fdf_init_thread(), FDF_SUCCESS);
+	t(zs_init_thread(), ZS_SUCCESS);
 
-	t(fdf_create_container("container-slab-gc", size, &cguid_shared), FDF_SUCCESS);
+	t(zs_create_container("container-slab-gc", size, &cguid_shared), ZS_SUCCESS);
 
 //	int max_512 = 2 * 1024 * 1024; /* Maximum number of 512 SLABS in 1G */
 	int max_512 = 1900544; /* Maximum number of 512 SLABS in 1G */
@@ -258,7 +258,7 @@ int main(int argc, char *argv[])
 	start_threads(threads, worker);
 	fprintf(stderr, "DEL(after): count=%d\n", threads * count / step);
 
-	fdf_flush_container(cguid_shared);
+	zs_flush_container(cguid_shared);
 
 	wait_free_segments(9, 300);
 
@@ -269,7 +269,7 @@ int main(int argc, char *argv[])
 	t(set_objs(cguid_shared, 1, 900, 100000000, 393216, 1),393216);
 	fprintf(stderr, "SET(after): slab size=1024\n");
 
-	check_stat(FDF_FLASH_STATS_SLAB_GC_WAIT_SYNC, 3);
+	check_stat(ZS_FLASH_STATS_SLAB_GC_WAIT_SYNC, 3);
 
 	print_stat();
 
@@ -298,7 +298,7 @@ int main(int argc, char *argv[])
 	start_threads(threads, worker);
 	fprintf(stderr, "DEL(after): count=%d\n", threads * count / step);
 
-	fdf_flush_container(cguid_shared);
+	zs_flush_container(cguid_shared);
 
 	wait_free_segments(17, 300);
 
@@ -319,7 +319,7 @@ int main(int argc, char *argv[])
 	t(del_objs(cguid_shared, 1, 100000001, 393216, 2),393216);
 	fprintf(stderr, "DEL(after): slab size=1024\n");
 
-	fdf_flush_container(cguid_shared);
+	zs_flush_container(cguid_shared);
 
 	print_stat();
 
@@ -327,7 +327,7 @@ int main(int argc, char *argv[])
 
 	fprintf(stderr, "All tests passed\n");
 
-	fdf_shutdown();
+	zs_shutdown();
 
 	return(0);
 }

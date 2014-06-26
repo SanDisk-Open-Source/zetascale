@@ -12,7 +12,7 @@
 #include "utils/properties.h" /* getProperty_int */
 #include "sdftcp/locks.h" /* atomic_inc */
 #include "ssd/ssd_aio.h" /* SSD_AIO_CTXT_MCD_REC_LGWR */
-#include "api/fdf.h" /* Statistics */
+#include "api/zs.h" /* Statistics */
 #include "protocol/action/recovery.h"
 #include "hash.h"
 
@@ -43,7 +43,7 @@ struct slab_gc_class_struct {
 
 #define stat_inc(s, a) atomic_inc(gc_stat[STAT(a) - STAT(SEGMENTS_COMPACTED)])
 
-void slab_gc_get_stats(mcd_osd_shard_t* shard, FDF_stats_t* stats, FILE* log)
+void slab_gc_get_stats(mcd_osd_shard_t* shard, ZS_stats_t* stats, FILE* log)
 { 
 	int i, cnt = STAT(SEGMENTS_CANCELLED) - STAT(SEGMENTS_COMPACTED) + 1;
 
@@ -405,9 +405,9 @@ bool slab_gc_init(mcd_osd_shard_t* shard, int threshold /* % of used slabs */)
 
 	mcd_log_msg(180018, PLAT_LOG_LEVEL_TRACE, "ENTERING, shard->id=%ld, gc threshold=%d", shard->id, threshold);
 
-	if(getProperty_Int("FDF_TRX", 0)) {
+	if(getProperty_Int("ZS_TRX", 0)) {
 		plat_log_msg(180209, PLAT_LOG_CAT_PRINT_ARGS, PLAT_LOG_LEVEL_WARN,
-				"FDF_SLAB_GC is incompatible with FDF_TRX. Disabling FDF_SLAB_GC.");
+				"ZS_SLAB_GC is incompatible with ZS_TRX. Disabling ZS_SLAB_GC.");
 		return false;
 	}
 

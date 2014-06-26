@@ -1,8 +1,8 @@
-Running FDF As A DLL
+Running ZS As A DLL
 ====================
 
 
-Building libfdfdll.a
+Building libzsdll.a
 --------------------
 After checking out membrain-4.3 (or whatever this branch currently is), cd to
 the appropriate directory and type make:
@@ -13,10 +13,10 @@ the appropriate directory and type make:
 
 Compiling
 ---------
-When compiling, instead of specifying libfdf.a as the FDF library, instead use
-libfdfdll.a.
+When compiling, instead of specifying libzs.a as the ZS library, instead use
+libzsdll.a.
 
-    gcc -o test test.c libfdfdll.a
+    gcc -o test test.c libzsdll.a
 
 
 Running
@@ -24,12 +24,12 @@ Running
 Once loaded, the executable will look for the library in several fixed
 locations; in the following order:
 
-    /usr/lib64/fdf/libfdf.so
-    /usr/lib/fdf/libfdf.so
-    /lib64/libfdf.so
-    /lib/libfdf.so
-    /usr/local/lib64/libfdf.so
-    /usr/local/lib/libfdf.so
+    /usr/lib64/zs/libzs.so
+    /usr/lib/zs/libzs.so
+    /lib64/libzs.so
+    /lib/libzs.so
+    /usr/local/lib64/libzs.so
+    /usr/local/lib/libzs.so
 
 So if it is placed in one of these locations, one can run the executable as
 expected and the library will automatically be found:
@@ -37,15 +37,15 @@ expected and the library will automatically be found:
     ./test hello
 
 If it is not in one of the above locations, LD_LIBRARY_PATH is searched to find
-libfdf.so.  So you could place libfdf.so in /usr/local/fdf/libfdf.so and then
+libzs.so.  So you could place libzs.so in /usr/local/zs/libzs.so and then
 run it as follows:
 
-    export LD_LIBRARY_PATH=/usr/local/fdf
+    export LD_LIBRARY_PATH=/usr/local/zs
     ./test hello
 
-Finally, if you set the environment variable FDF_LIB, it will only look for the
-library there.  If you want to use /tmp/libfdfdbg.so as your library, you can
+Finally, if you set the environment variable ZS_LIB, it will only look for the
+library there.  If you want to use /tmp/libzsdbg.so as your library, you can
 run it as follows:
 
-    export FDF_LIB=/tmp/libfdfdbg.so
+    export ZS_LIB=/tmp/libzsdbg.so
     ./test hello

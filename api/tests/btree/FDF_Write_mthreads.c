@@ -1,18 +1,18 @@
 
 #include <unistd.h>
 #include <string.h>
-#include "fdf.h"
+#include "zs.h"
 #include <stdlib.h>
 #include <assert.h>
 
-static struct FDF_state     *fdf_state;
+static struct ZS_state     *zs_state;
 #define MAX_KEY_LEN 2000
 #define MAX_DATA_LEN 2048000
 #define MAX_KEYS 1000000
 
 char cname[64]="Container1";
 int key_len, data_len, num_objs;
-FDF_cguid_t cguid;
+ZS_cguid_t cguid;
 
 typedef struct thd_cfg {
     int id;
@@ -32,20 +32,20 @@ keys_t keys[MAX_KEYS];
 int preEnvironment(bool reformat)
 {
     if (!reformat) {
-        FDFSetProperty("FDF_REFORMAT", "0");
+        ZSSetProperty("ZS_REFORMAT", "0");
     }
 
-    if(FDFInit( &fdf_state) != FDF_SUCCESS ) {
-        fprintf( stderr, "FDF initialization failed!\n" );
+    if(ZSInit( &zs_state) != ZS_SUCCESS ) {
+        fprintf( stderr, "ZS initialization failed!\n" );
         return 0 ;
     }
     return 1;
 }
 
-void CleanEnvironment(struct FDF_thread_state *thd_state)
+void CleanEnvironment(struct ZS_thread_state *thd_state)
 {
-    FDFReleasePerThreadState(&thd_state);
-    FDFShutdown(fdf_state);
+    ZSReleasePerThreadState(&thd_state);
+    ZSShutdown(zs_state);
 }
 
 void rand_str(char *dest, size_t length) {
@@ -66,19 +66,19 @@ void rand_str(char *dest, size_t length) {
 
 
 void *worker(void *arg) {
-    //FDF_container_props_t p;
+    //ZS_container_props_t p;
     uint32_t i;
-    struct FDF_thread_state *fdf_thd_state;
+    struct ZS_thread_state *zs_thd_state;
     char key[MAX_KEY_LEN], value[MAX_DATA_LEN];
-    FDF_status_t ret;
+    ZS_status_t ret;
     thd_cfg_t *cfg = (thd_cfg_t*)arg;
     char *outval;
     uint64_t outlen;
     int data_len, j, key_len;
 
     fprintf(stderr,"Starting thread: %d  key_len:%d datalen:%d\n",cfg->id, cfg->key_len,cfg->data_len);
-    if(FDF_SUCCESS != FDFInitPerThreadState( fdf_state, &fdf_thd_state ) ) {
-        fprintf( stderr, "FDF thread initialization failed!\n" );
+    if(ZS_SUCCESS != ZSInitPerThreadState( zs_state, &zs_thd_state ) ) {
+        fprintf( stderr, "ZS thread initialization failed!\n" );
         return 0;
     }
 
@@ -99,9 +99,9 @@ void *worker(void *arg) {
             memcpy(keys[i].key,key,cfg->key_len);
             keys[i].key_len = key_len;
             //fprintf(stderr,"datalen:%d key_len:%d\n",data_len,key_len);
-            ret = FDFWriteObject(fdf_thd_state, cguid, key, key_len, value, data_len, 1);
-            if( ret != FDF_SUCCESS ) {
-                //fprintf( stderr, "Write failed %s\n",FDFStrError(ret));
+            ret = ZSWriteObject(zs_thd_state, cguid, key, key_len, value, data_len, 1);
+            if( ret != ZS_SUCCESS ) {
+                //fprintf( stderr, "Write failed %s\n",ZSStrError(ret));
                 //return NULL;
             }
         }
@@ -113,8 +113,8 @@ void *worker(void *arg) {
             data_len = rand()%cfg->data_len;
             memcpy(keys[i].key,key,cfg->key_len);
             //fprintf(stderr,"datalen:%d\n",data_len);
-            ret = FDFWriteObject(fdf_thd_state, cguid, key, cfg->key_len, value, 300, 0); 
-            if( ret != FDF_SUCCESS ) { 
+            ret = ZSWriteObject(zs_thd_state, cguid, key, cfg->key_len, value, 300, 0); 
+            if( ret != ZS_SUCCESS ) { 
                 fprintf( stderr, "Write failed\n");
                 return NULL;
             }   
@@ -125,8 +125,8 @@ void *worker(void *arg) {
 #if 0
         fprintf(stderr,"READ %d objects\n",num_objs);
         for ( i = 0; i < num_objs; i++ ) {
-            ret = FDFReadObject(fdf_thd_state, cguid, keys[i].key, cfg->key_len, &outval, &outlen);
-            if (ret != FDF_SUCCESS) {
+            ret = ZSReadObject(zs_thd_state, cguid, keys[i].key, cfg->key_len, &outval, &outlen);
+            if (ret != ZS_SUCCESS) {
                 fprintf( stderr, "Read failed\n");
                 assert(0);
                 return NULL;
@@ -139,15 +139,15 @@ void *worker(void *arg) {
         outlen = 0; 
         fprintf(stderr,"DELETE %d objects\n",num_objs/2);
         for ( i = 0; i < num_objs/2; i++ ) {
-            ret = FDFDeleteObject(fdf_thd_state, cguid, keys[i].key, keys[i].key_len);
-            if (ret != FDF_SUCCESS) {
+            ret = ZSDeleteObject(zs_thd_state, cguid, keys[i].key, keys[i].key_len);
+            if (ret != ZS_SUCCESS) {
                 //fprintf( stderr, "delete failed\n");
                 //assert(0);
         //        return NULL;
             }
         }
     }
-    FDFReleasePerThreadState(&fdf_thd_state);
+    ZSReleasePerThreadState(&zs_thd_state);
     fprintf(stderr, "Released per thread\n");
 
     return NULL;
@@ -156,10 +156,10 @@ void *worker(void *arg) {
 int main(int argc, char *argv[])
 {
     int num_threads;
-    FDF_container_props_t p;
+    ZS_container_props_t p;
     uint32_t flag;
-    struct FDF_thread_state *fdf_thd_state;
-    FDF_status_t ret;
+    struct ZS_thread_state *zs_thd_state;
+    ZS_status_t ret;
     int i, iter;
     bool reformat;
 
@@ -180,19 +180,19 @@ int main(int argc, char *argv[])
         return 1;
     }
 
-    if(FDF_SUCCESS != FDFInitPerThreadState( fdf_state, &fdf_thd_state ) ) {
-        fprintf( stderr, "FDF thread initialization failed!\n" );
+    if(ZS_SUCCESS != ZSInitPerThreadState( zs_state, &zs_thd_state ) ) {
+        fprintf( stderr, "ZS thread initialization failed!\n" );
         return 0;
     }
 
-    FDFLoadCntrPropDefaults(&p);
+    ZSLoadCntrPropDefaults(&p);
     //p.size_kb = 102400;
     p.size_kb = 0;
     fprintf( stderr, "Creating/Opening container: %s\n",cname);
-    ret = FDFOpenContainer(fdf_thd_state,cname,&p,flag,&cguid);
-    if( ret != FDF_SUCCESS ) {
+    ret = ZSOpenContainer(zs_thd_state,cname,&p,flag,&cguid);
+    if( ret != ZS_SUCCESS ) {
         fprintf( stderr, "Container open failed\n");
-        return FDF_FAILURE;
+        return ZS_FAILURE;
     } 
 
     pthread_t thread_id[1024];
@@ -214,10 +214,10 @@ int main(int argc, char *argv[])
     }
 
     fprintf(stderr, "Threads joined\n");
-    FDFCloseContainer(fdf_thd_state, cguid);
+    ZSCloseContainer(zs_thd_state, cguid);
     fprintf(stderr, "Containers closed\n");
 
-    CleanEnvironment(fdf_thd_state);
+    CleanEnvironment(zs_thd_state);
 
     fprintf( stderr, "Test completed\n");
 }

@@ -6,7 +6,7 @@
  */
 #ifndef _RECOVERY_H
 #define _RECOVERY_H
-#include "fdf.h"
+#include "zs.h"
 #include "fdf_internal.h"
 #include "shared/private.h"
 #include "ssd/fifo/mcd_osd.h"
@@ -67,20 +67,20 @@ struct sdf_rec_funcs {
 /*
  * Enumeration.
  */
-void enumerate_stats(enum_stats_t *s, FDF_cguid_t cguid);
+void enumerate_stats(enum_stats_t *s, ZS_cguid_t cguid);
 
-FDF_status_t
+ZS_status_t
 enumerate_init(SDF_action_init_t *pai, struct shard *shard,
-               FDF_cguid_t cguid, struct FDF_iterator **iter);
+               ZS_cguid_t cguid, struct ZS_iterator **iter);
 
-FDF_status_t
-enumerate_done(SDF_action_init_t *pai, struct FDF_iterator *iter);
+ZS_status_t
+enumerate_done(SDF_action_init_t *pai, struct ZS_iterator *iter);
 
-FDF_status_t
-enumerate_next(SDF_action_init_t *pai, struct FDF_iterator *iter,
+ZS_status_t
+enumerate_next(SDF_action_init_t *pai, struct ZS_iterator *iter,
                char **key, uint64_t *keylen, char **data, uint64_t *datalen);
 
-FDF_cguid_t get_e_cguid(struct FDF_iterator *iter);
+ZS_cguid_t get_e_cguid(struct ZS_iterator *iter);
 
 
 
@@ -109,10 +109,10 @@ uint64_t blk_to_use(mcd_osd_shard_t *shard, uint64_t blk);
 uint64_t lba_to_use(mcd_osd_shard_t *shard, uint64_t lba);
 
 void set_cntr_sizes(SDF_action_init_t *pai, shard_t *sshard);
-int  evict_object(mcd_osd_shard_t *shard, FDF_cguid_t cguid, uint64_t nblks);
+int  evict_object(mcd_osd_shard_t *shard, ZS_cguid_t cguid, uint64_t nblks);
 
 void
-delete_all_objects(SDF_action_init_t *pai, shard_t *sshard, FDF_cguid_t cguid);
+delete_all_objects(SDF_action_init_t *pai, shard_t *sshard, ZS_cguid_t cguid);
 
 uint64_t
 hashck(const unsigned char *key, uint64_t key_len,

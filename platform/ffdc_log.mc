@@ -2943,11 +2943,11 @@
 70122 Async thread started...
 70123 Initializing the async threads...
 70124 Read from properties file '%s'
-70125 Bad setting of FDF_LOG_LEVEL: %s
+70125 Bad setting of ZS_LOG_LEVEL: %s
 70126 PROP: SDF_MSG_ON=%u
-70127 Programming error: Numbers of stats defined in FDF_access_types_t(%d) does not match array fdf_stats_access_type(%d)
-70128 Programming error: Numbers of stats defined in FDF_cache_stat_t(%d) does not match array fdf_stats_cache(%d)
-70129 Programming error: Numbers of stats defined in fdf_stats_flash(%d) does not match array fdf_stats_flash(%d)
+70127 Programming error: Numbers of stats defined in ZS_access_types_t(%d) does not match array zs_stats_access_type(%d)
+70128 Programming error: Numbers of stats defined in ZS_cache_stat_t(%d) does not match array zs_stats_cache(%d)
+70129 Programming error: Numbers of stats defined in zs_stats_flash(%d) does not match array zs_stats_flash(%d)
 70130 %ld asynchronous %ss have failed; status %d
 70131 async_puts_shutdown not implemented
 
@@ -2979,11 +2979,11 @@
 80024 Failed to get stats for container:%lu (%s)
 80025 %s Virtual Metadata Container (name = %s,size = %lu kbytes,persistence = %s,eviction = %s,writethrough = %s,fifo = %sasync_writes = %s,durability = %s)
 80026 %s Virtual Data Container (name = %s,size = %lu kbytes,persistence = %s,eviction = %s,writethrough = %s,fifo = %sasync_writes = %s,durability = %s)
-80027 Starting FDF admin on TCP Port:%u
+80027 Starting ZS admin on TCP Port:%u
 80028 Unable to start admin on TCP Port:%u
 80029 Staring asynchronous command handler
-80030 FDF Configuration: Storage size = %d GB,Reformat the storage = %s,Cache size = %llu,Maximum object size = %llu
-80031 FDF Testmode enabled
+80030 ZS Configuration: Storage size = %d GB,Reformat the storage = %s,Cache size = %llu,Maximum object size = %llu
+80031 ZS Testmode enabled
 80032 Property file: %s
 80033 Shutdown completed
 80034 Container %s does not exist
@@ -2999,22 +2999,22 @@
 80044 hash table overflow area full: num_hard_overflows=%lu
 80045 compact_class(async) before\n
 80046 compact_class(async) after\n
-80047 Data structure SDF_status_t(size:%d) and FDF_status_t(size:%d) is not consistent.
+80047 Data structure SDF_status_t(size:%d) and ZS_status_t(size:%d) is not consistent.
 80048 Failed to flush before closing the container %lu
-80049 FDF Thread state is NULL
+80049 ZS Thread state is NULL
 80050 Invalid container cguid:%lu
-80051 The argument FDF_iterator is NULL
-80052 FDF state is NULL
+80051 The argument ZS_iterator is NULL
+80052 ZS state is NULL
 80053 Invalid container name
 80054 Container property is NULL
 80055 Invalid key
 80056 Invalid key length
-80057 Invalid container FDF_readobject_t
+80057 Invalid container ZS_readobject_t
 80058 Invalid data(NULL)
 80059 Invalid data length
-80060 Invalid FDF_writeobject_t
+80060 Invalid ZS_writeobject_t
 80061 Invalid data (NULL)
-80062 Invalid FDF_stats_t(NULL)
+80062 Invalid ZS_stats_t(NULL)
 80063 Container size %lu kb greater than the flash size %lu kb
 80064 Got signal %d(%s):
 80065 LIC: Starting Licensing Daemon (license path: %s)...
@@ -3030,13 +3030,13 @@
 80075 LIC: API updating license in progress.
 80076 LIC: API updating license done.
 80077 Number of DRAM cache slabs %"PRIu64"
-80078 FDF_MAX_OUTSTANDING_BACKGROUND_FLUSHES must be less than or equal to the number of async put threads; setting to %d
-80079 FDF_MAX_OUTSTANDING_BACKGROUND_FLUSHES = %d
-80080 FDF_BACKGROUND_FLUSH_SLEEP_MSEC must be >= %d; defaulting to minimum value
-80081 FDF_BACKGROUND_FLUSH_SLEEP_MSEC = %d
-80082 PROP: FDF_MAX_FLUSHES_PER_MOD_CHECK=%d
-80083 PROP: FDF_MODIFIED_FRACTION is out of range; using default of %g
-80084 PROP: FDF_MODIFIED_FRACTION=%g
+80078 ZS_MAX_OUTSTANDING_BACKGROUND_FLUSHES must be less than or equal to the number of async put threads; setting to %d
+80079 ZS_MAX_OUTSTANDING_BACKGROUND_FLUSHES = %d
+80080 ZS_BACKGROUND_FLUSH_SLEEP_MSEC must be >= %d; defaulting to minimum value
+80081 ZS_BACKGROUND_FLUSH_SLEEP_MSEC = %d
+80082 PROP: ZS_MAX_FLUSHES_PER_MOD_CHECK=%d
+80083 PROP: ZS_MODIFIED_FRACTION is out of range; using default of %g
+80084 PROP: ZS_MODIFIED_FRACTION=%g
 
 
 # kcai
@@ -3119,7 +3119,7 @@
 150029 failed to allocate hash table: %lu
 150031 pread failed - %s
 150032 Failed to find meta data for %lu -  %s
-150033 FDFCreateContainer failed for container %s because 128 containers have already been created.
+150033 ZSCreateContainer failed for container %s because 128 containers have already been created.
 150034 Failed to save cguid state: %s
 150035 Open container structure is NULL - %s
 150036 Set to %s
@@ -3150,7 +3150,7 @@
 150085 Could not read metadata for %lu\n
 150086 Could not mark delete in progress for container %lu\n
 150087 Could not clear delete in progress for container %lu\n
-150088 Unable to initialize FDF thread state, exiting
+150088 Unable to initialize ZS thread state, exiting
 150089 Unable to start the virtual container initialization thread.
 150090 Incorrect value(%d) for Mcd_aio_num_files. It must be set to 1
 150091 Cannot open container %lu to delete it
@@ -3230,7 +3230,7 @@
 160046 ENTERING, shard_id=%lu durability_level=%u
 160047 Failed to get container metadata for VMC
 160048 Metadata for cguid %"PRIu64" has already been loaded!
-160050 Container %ld has only %d hash bits while the FDF cache uses %d hash bits!
+160050 Container %ld has only %d hash bits while the ZS cache uses %d hash bits!
 160051 hash_fn must be non-NULL!
 160052 failed to allocate key buffer
 160053 Unable to write string %s
@@ -3242,9 +3242,9 @@
 160059 Unable to accept new connections
 160060 Admin thread exiting...
 160061 Using writeback caching with store mode containers can result in lost data if the system crashes
-160062 FDFCreateContainer failed for container %s because %d containers have already been created.
-160063 PROP: FDF_CACHE_ALWAYS_MISS=%s
-160064 PROP: FDF_STRICT_WRITEBACK=%s
+160062 ZSCreateContainer failed for container %s because %d containers have already been created.
+160063 PROP: ZS_CACHE_ALWAYS_MISS=%s
+160064 PROP: ZS_STRICT_WRITEBACK=%s
 160065 Using writeback caching for store mode container %"PRIu64" may result in data loss if system crashes.
 160066 %ld asynchronous writes have failed!  This message is displayed only every %d failures.
 160067 %ld asynchronous writebacks have failed!  This message is displayed only every %d failures.
@@ -3252,7 +3252,7 @@
 160069 %p
 160070 Invalid command(%d) received
 160071 Memory allocation failed
-160072 Invalid FDF state
+160072 Invalid ZS state
 160073 Unable to initialize thread state\n
 160074 Container does not exist. Delete can not proceed
 160075 Unable to open container %lu for deleting
@@ -3288,7 +3288,7 @@
 160105 Closed container id %ld with %s
 160106 Closed %d containers
 160107 Shutdown phase 1 returns :%s
-160108 is_fdf_operation_allowed:%s
+160108 is_zs_operation_allowed:%s
 160109 Unable to get stats for container:%lu
 160110 Container does not exist. Can not rename
 160111 Could not read metadata for %lu. Can not rename\n
@@ -3328,8 +3328,8 @@
 160154 Woken up by License daemon
 160155 License has expired. Renew the license.
 160156 License is invalid. %s Install valid license.
-160157 License invalid beyond grace period. FDF will fail.
-160158 FDF will be functional for next %d days, %d hours and %d minutes only.
+160157 License invalid beyond grace period. ZS will fail.
+160158 ZS will be functional for next %d days, %d hours and %d minutes only.
 160159 Valid license found (%s/%s).
 160160 License will expire in next %d days, %d hours and %d minutes.
 160161 Could not get thread context lock
@@ -3362,9 +3362,9 @@
 160188 Operation not allowed 
 160189 Memory allocation failed to collect stats\n
 160190 NOTICE: Async Writes feature is not supported
-160191 FDFReadObject flash_only.
-160192 FDFWriteObject flash_only.
-160193 FDFDeleteObject flash_only.
+160191 ZSReadObject flash_only.
+160192 ZSWriteObject flash_only.
+160193 ZSDeleteObject flash_only.
 160194 Unable to get temporary buffer for compression 
 160195 Snappy compression failed(%d)\n
 160196 Compression buffer not enough to hold data datalen:%d  comp_buf_len:%d
@@ -3377,9 +3377,9 @@
 160203 Memory allocation failed\n
 160204 failed to allocate hash tables
 160205 evicting, pth_id=%d hand=%u address=%u index=%u
-160206 FDFGetContainerStats failed for VDC (error:%s)
-160207 Programming error: Numbers of stats defined in FDF_flash_stat_t(%d) does not match array fdf_stats_flash(%d)
-160208 Programming error: Numbers of stats defined in FDF_Btree_stat_t(%d) does not match array fdf_stats_btree(%d)
+160206 ZSGetContainerStats failed for VDC (error:%s)
+160207 Programming error: Numbers of stats defined in ZS_flash_stat_t(%d) does not match array zs_stats_flash(%d)
+160208 Programming error: Numbers of stats defined in ZS_Btree_stat_t(%d) does not match array zs_stats_btree(%d)
 160209 Unable to open container %lu for deleting err=%s
 160210 Container cguid=%lu does not exist. Delete can not proceed\n
 160211 Delete already under progress for container %lu with state=%d
@@ -3395,7 +3395,7 @@
 160233 Uncompression failed, couldn't allocate buffer
 160234 expired object scavenging enabled.
 160235 expired object scavenging disabled.
-160236 invalid fdf state.
+160236 invalid zs state.
 160237 scavenger thread create success.
 160238 scavenger thread create failed.
 160239 woke up scavenger.
@@ -3416,10 +3416,10 @@
 160254 scavenger scan resuming.
 160255 LIC: License daemon initialization failed, restarting.
 160256 Internal error, skipped version check
-160257 License has expired, however FDF will continue to run. Renew the license.
-160258 License %s beyond grace period. FDF will fail. Renew the license.
+160257 License has expired, however ZS will continue to run. Renew the license.
+160258 License %s beyond grace period. ZS will fail. Renew the license.
 160259 Customer details: %s, %s, %s.
-160260 Error: Incompatibile FDF API Version. FDFInit called with version '%u', FDF API version is '%u'\n
+160260 Error: Incompatibile ZS API Version. ZSInit called with version '%u', ZS API version is '%u'\n
 
 
 # rico
@@ -3432,7 +3432,7 @@
 170010 hash bucket corrupt
 170011 TRX sequence error
 170014 trxmax=%u trxnum=%u
-170015 trx log overrun, increase FDF_TRX_GROUP_SIZE
+170015 trx log overrun, increase ZS_TRX_GROUP_SIZE
 170016 trx log service is %senabled
 170017 TRX fragment discarded
 170018 property FORCE_ASYNC_WRITES overridden to 0
@@ -3455,7 +3455,7 @@
 170037 Data inconsistency found in cguid = %d, byte offset = %"PRIu64".\n
 170038 cguid=%lu seqno=%lu uncomp_datalen=%u data_len=%lu udlen=%lu\n
 170039 cguid=%lu seqno=%lu uncomp_datalen=%u data_len=%lu udlen=%lu
-170040 No x86 SSE4.2 support, FDF_OBJECT_CHECKSUM disabled
+170040 No x86 SSE4.2 support, ZS_OBJECT_CHECKSUM disabled
 170041 seqno mismatch, meta=%lu, rec=%lu
 170042 Bogus log # from log_writer
 170043 Outer trx is unrecoverable (too long)
@@ -3466,7 +3466,7 @@
 180000 Removing log file %s
 180001 Flush log sync: cannot unlink sync log file %s error=%d
 180002 pwrite failed!(%s)
-180003 PROP: FDF_SLAB_GC=%s
+180003 PROP: ZS_SLAB_GC=%s
 180004 shard free segments list init failed, shardID=%lu
 180005 shard=%p GC threshold adjusted from %d %% to %d %%
 180006 ENTERING, shardID=%p
@@ -3482,13 +3482,13 @@
 180016 shard->id=%ld. signalling gc thread to gc class->slab_blksize=%d class->total_slabs=%ld class->used_slabs=%ld
 180017 Couldn't allocate space for shard->id=%ld class=%p blocks=%d
 180018 ENTERING, shard->id=%ld, gc threshold=%d
-180019 FDF_LOG_O_DIRECT is set
-180020 FDF_O_SYNC is set
-180021 FDFSetProperty ('%s', '%s'). Old value: %s
+180019 ZS_LOG_O_DIRECT is set
+180020 ZS_O_SYNC is set
+180021 ZSSetProperty ('%s', '%s'). Old value: %s
 180207 Invalid objects count
 180208 cls=%ld addr=%u slabs=%lu, pend=%lu
-180209 FDF_SLAB_GC is incompatible with FDF_TRX. Disabling FDF_SLAB_GC.
-180210 FDF_EXPIRY_SCAVENGER_ENABLE is incompatible with FDF_TRX. Disabling FDF_EXPIRY_SCAVENGER_ENABLE.
+180209 ZS_SLAB_GC is incompatible with ZS_TRX. Disabling ZS_SLAB_GC.
+180210 ZS_EXPIRY_SCAVENGER_ENABLE is incompatible with ZS_TRX. Disabling ZS_EXPIRY_SCAVENGER_ENABLE.
 180211 Slab GC threshold set to %d%%
 180212 Slab GC already initialized. shardID=%ld. Threshold=%d%%
 180213 Slab GC initialized. shardID=%ld. Threshold=%d%%

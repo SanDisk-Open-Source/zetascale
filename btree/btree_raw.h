@@ -20,7 +20,7 @@
 #include <inttypes.h>
 #include <stdint.h>
 #include <stdbool.h>
-#include <api/fdf.h>
+#include <api/zs.h>
 //#include "btree_raw_internal.h"
 
 #ifndef __BTREE_RAW_H
@@ -386,12 +386,12 @@ typedef struct key_stuff_info {
 /*
  * Variables to support persistent stats
  */
-typedef struct fdf_pstats_ {
+typedef struct zs_pstats_ {
     uint64_t seq_num;
     uint64_t obj_count;
 	uint64_t num_snap_objs;
 	uint64_t snap_data_size;
-} fdf_pstats_t;
+} zs_pstats_t;
 
 uint64_t total_sys_writes;
 pthread_mutex_t pstats_mutex;
@@ -415,7 +415,7 @@ typedef int (* bt_mput_cmp_cb_t)(void  *data, 	//  opaque user data
 				 uint64_t new_datalen);
 					
 typedef void (read_node_cb_t)(btree_status_t *ret, void *data, void *pnode, uint64_t lnodeid);
-typedef void (write_node_cb_t)(struct FDF_thread_state *thd_state, btree_status_t *ret, void *cb_data, uint64_t **lnodeid, char **data, uint64_t datalen, uint32_t count);
+typedef void (write_node_cb_t)(struct ZS_thread_state *thd_state, btree_status_t *ret, void *cb_data, uint64_t **lnodeid, char **data, uint64_t datalen, uint32_t count);
 typedef void (flush_node_cb_t)(btree_status_t *ret, void *cb_data, uint64_t lnodeid);
 typedef int (freebuf_cb_t)(void *data, char *buf);
 typedef struct btree_raw_mem_node *(create_node_cb_t)(btree_status_t *ret, void *data, uint64_t lnodeid);
@@ -451,7 +451,7 @@ struct btree_raw* btree_raw_init(uint32_t flags, uint32_t n_partition, uint32_t 
 	msg_cb_t *msg_cb, void *msg_cb_data,
 	cmp_cb_t *cmp_cb, void * cmp_cb_data,
 	bt_mput_cmp_cb_t mput_cmp_cb, void *mput_cmp_cb_data,
-	trx_cmd_cb_t *trx_cmd_cb, uint64_t cguid, fdf_pstats_t *pstats, 
+	trx_cmd_cb_t *trx_cmd_cb, uint64_t cguid, zs_pstats_t *pstats, 
         seqno_alloc_cb_t *ptr_seqno_alloc_cb
 	);
 

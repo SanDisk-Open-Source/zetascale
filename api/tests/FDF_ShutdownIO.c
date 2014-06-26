@@ -1,5 +1,5 @@
 /****************************
-#function : FDFShutdown
+#function : ZSShutdown
 #author   : Vishal Kanaujia
 #date     : 2013
  *****************************/
@@ -8,53 +8,53 @@
 #include <assert.h>
 #include <unistd.h>
 #include <string.h>
-#include "fdf.h"
+#include "zs.h"
 #include <string.h>
 #include <semaphore.h>
 
 #define MAX_ITERATION 256
 
 FILE                           *fp             = NULL;
-static struct FDF_state        *fdf_state      = NULL;
-static struct FDF_thread_state *fdf_thrd_state = NULL;
+static struct ZS_state        *zs_state      = NULL;
+static struct ZS_thread_state *zs_thrd_state = NULL;
 
-FDF_cguid_t cguid = 0;
+ZS_cguid_t cguid = 0;
 
 
-static FDF_status_t
+static ZS_status_t
 pre_env()
 {
-	FDF_status_t ret = FDF_FAILURE;
+	ZS_status_t ret = ZS_FAILURE;
 
-	FDFSetProperty("SDF_REFORMAT", "1");
+	ZSSetProperty("SDF_REFORMAT", "1");
 
-	ret = FDFInit(&fdf_state);
+	ret = ZSInit(&zs_state);
 
-	if (FDF_SUCCESS != ret)
+	if (ZS_SUCCESS != ret)
 	{
-		fprintf(fp, "FDF initialization failed!\n");
+		fprintf(fp, "ZS initialization failed!\n");
 	} else {
-		fprintf(fp, "FDF initialization succeed!\n");
+		fprintf(fp, "ZS initialization succeed!\n");
 
-		ret = FDFInitPerThreadState(fdf_state, &fdf_thrd_state);
-		if (FDF_SUCCESS == ret)
+		ret = ZSInitPerThreadState(zs_state, &zs_thrd_state);
+		if (ZS_SUCCESS == ret)
 		{
-			fprintf(fp, "FDF thread initialization succeed!\n");
+			fprintf(fp, "ZS thread initialization succeed!\n");
 		}
 	}
 	return ret;
 }
 
 
-static FDF_status_t
+static ZS_status_t
 clear_env()
 {
 	fprintf(fp,"IN: clear env!\n");
 
-	FDF_status_t ret = FDF_SUCCESS;
+	ZS_status_t ret = ZS_SUCCESS;
 
-	(void)FDFReleasePerThreadState(&fdf_thrd_state);
-	ret = FDFShutdown(fdf_state);
+	(void)ZSReleasePerThreadState(&zs_thrd_state);
+	ret = ZSShutdown(zs_state);
 
 	fprintf(fp,"OUT: clear env!\n");
 
@@ -62,78 +62,78 @@ clear_env()
 }
 
 
-static FDF_status_t
+static ZS_status_t
 OpenContainer(char *cname, uint32_t flag, uint32_t dura, uint64_t *cguid)
 {
-	fprintf(fp, "%s", "IN: FDFOpenContainer\n");
-	FDF_status_t          ret;
-	FDF_container_props_t p;
+	fprintf(fp, "%s", "IN: ZSOpenContainer\n");
+	ZS_status_t          ret;
+	ZS_container_props_t p;
 
-	ret = FDF_FAILURE;      
-	(void)FDFLoadCntrPropDefaults(&p);
+	ret = ZS_FAILURE;      
+	(void)ZSLoadCntrPropDefaults(&p);
 
 	p.durability_level = 0;
-	p.fifo_mode = FDF_FALSE;
+	p.fifo_mode = ZS_FALSE;
 	p.num_shards = 1;
-	p.persistent = FDF_TRUE;
-	p.writethru = FDF_TRUE;
-	p.evicting = FDF_TRUE;
-	p.async_writes = FDF_TRUE;
+	p.persistent = ZS_TRUE;
+	p.writethru = ZS_TRUE;
+	p.evicting = ZS_TRUE;
+	p.async_writes = ZS_TRUE;
 	p.size_kb = 1024*1024;
 
-	ret = FDFOpenContainer(fdf_thrd_state, cname, &p, flag,	cguid);
+	ret = ZSOpenContainer(zs_thrd_state, cname, &p, flag,	cguid);
 
-	fprintf(fp, "%s", "OUT: FDFOpenContainer\n");
+	fprintf(fp, "%s", "OUT: ZSOpenContainer\n");
 	return ret;
 }
 
 
-static FDF_status_t
-CloseContainer(FDF_cguid_t cid)
+static ZS_status_t
+CloseContainer(ZS_cguid_t cid)
 {
-	FDF_status_t ret;
-	ret = FDFCloseContainer(fdf_thrd_state, cid);
-	fprintf(fp,"FDFCloseContainer : %s\n",FDFStrError(ret));
+	ZS_status_t ret;
+	ret = ZSCloseContainer(zs_thrd_state, cid);
+	fprintf(fp,"ZSCloseContainer : %s\n",ZSStrError(ret));
 	return ret;
 }
 
 
-static FDF_status_t
-DeleteContainer(FDF_cguid_t cid)
+static ZS_status_t
+DeleteContainer(ZS_cguid_t cid)
 {
-	FDF_status_t ret;
-	ret = FDFDeleteContainer(fdf_thrd_state, cid);
-	fprintf(fp,"FDFDeleteContainer : %s\n",FDFStrError(ret));
+	ZS_status_t ret;
+	ret = ZSDeleteContainer(zs_thrd_state, cid);
+	fprintf(fp,"ZSDeleteContainer : %s\n",ZSStrError(ret));
 	return ret;
 }
 
 
-static FDF_status_t
-WriteObject(FDF_cguid_t cid, char *key,char *data, uint32_t flags)
+static ZS_status_t
+WriteObject(ZS_cguid_t cid, char *key,char *data, uint32_t flags)
 {
-	FDF_status_t ret;
-	ret = FDFWriteObject(fdf_thrd_state, cid, key, strlen(key)+1, data, strlen(data)+1, flags);
-	fprintf(fp,"FDFWriteObject : %s\n",FDFStrError(ret));
+	ZS_status_t ret;
+	ret = ZSWriteObject(zs_thrd_state, cid, key, strlen(key)+1, data, strlen(data)+1, flags);
+	fprintf(fp,"ZSWriteObject : %s\n",ZSStrError(ret));
 	return ret;
 }
 
 
-static FDF_status_t
-ReadObject(FDF_cguid_t cid, char *key, char **data, uint64_t *datalen)
+static ZS_status_t
+ReadObject(ZS_cguid_t cid, char *key, char **data, uint64_t *datalen)
 {
-	FDF_status_t ret;
-	ret = FDFReadObject(fdf_thrd_state, cid, key, strlen(key)+1, data, datalen);
-	fprintf(fp,"FDFReadObject : %s\n",FDFStrError(ret));
+	ZS_status_t ret;
+	ret = ZSReadObject(zs_thrd_state, cid, key, strlen(key)+1, data, datalen);
+	fprintf(fp,"ZSReadObject : %s\n",ZSStrError(ret));
 	return ret;
 }
 
 
-static FDF_status_t
-FlushObject(FDF_cguid_t cid,char *key)
+static ZS_status_t
+FlushObject(ZS_cguid_t cid,char *key)
 {
-	FDF_status_t ret;
-	ret = FDFFlushObject(fdf_thrd_state,cid,key,strlen(key)+1);
-	fprintf(fp,"FDFFlushObject : %s\n",FDFStrError(ret));
+	ZS_status_t ret;
+	ret = ZSFlushObject(zs_thrd_state,cid,key,strlen(key)+1);
+	fprintf(fp,"ZSFlushObject : %s\n",ZSStrError(ret));
 	return ret;
 }
 
@@ -141,20 +141,20 @@ FlushObject(FDF_cguid_t cid,char *key)
 /***************** test ******************/
 
 
-static FDF_status_t
+static ZS_status_t
 container_ops(char *cname, uint64_t flag, uint64_t dura)
 {
-	FDF_status_t ret = FDF_SUCCESS;
+	ZS_status_t ret = ZS_SUCCESS;
 
 	ret = OpenContainer(cname, flag, dura, &cguid);
-	if (FDF_SUCCESS != ret) {
-		fprintf(fp, "Open container failed with: %s\n", FDFStrError(ret));
+	if (ZS_SUCCESS != ret) {
+		fprintf(fp, "Open container failed with: %s\n", ZSStrError(ret));
 		goto exit_container_ops;
 	}
 
 	ret = CloseContainer(cguid);
-	if (FDF_SUCCESS != ret) {
-		fprintf(fp, "Close container failed with: %s\n", FDFStrError(ret));
+	if (ZS_SUCCESS != ret) {
+		fprintf(fp, "Close container failed with: %s\n", ZSStrError(ret));
 		goto exit_container_ops;
 	}
 
@@ -163,10 +163,10 @@ exit_container_ops:
 }
 
 
-static FDF_status_t
+static ZS_status_t
 io()
 {
-	FDF_status_t ret;
+	ZS_status_t ret;
 
 	uint32_t wr_flags = 0;
 	uint32_t i = 0;
@@ -183,11 +183,11 @@ io()
 	for (i = 0; i < MAX_ITERATION; i++) {
 		snprintf(key, 255, "%s_%d", "key", i);
 		snprintf(value, 255, "%s_%d", "value", i);
-		if(FDF_SUCCESS == (ret = WriteObject(cguid, key, value, wr_flags)))
+		if(ZS_SUCCESS == (ret = WriteObject(cguid, key, value, wr_flags)))
 		{
 			fprintf(fp,"write sucessful: key%s\n", key);
 		} else {
-			fprintf(fp,"write failed: key=%s error=%s\n", key, FDFStrError(ret));
+			fprintf(fp,"write failed: key=%s error=%s\n", key, ZSStrError(ret));
 			goto exit_io;
 		}
 
@@ -195,11 +195,11 @@ io()
 		 * Flush few object
 		 */
 		if (0 == (i % 2)) {
-			if(FDF_SUCCESS == (ret = FlushObject(cguid, key)))
+			if(ZS_SUCCESS == (ret = FlushObject(cguid, key)))
 			{
 				fprintf(fp,"flush sucessful: key%s\n", key);
 			} else {
-				fprintf(fp,"flush failed: key=%s error=%s\n", key, FDFStrError(ret));
+				fprintf(fp,"flush failed: key=%s error=%s\n", key, ZSStrError(ret));
 				goto exit_io;
 			}
 		}
@@ -212,11 +212,11 @@ io()
 
 	for (i = 0; i < MAX_ITERATION; i++) {
 		snprintf(key, 255, "%s_%d", "key", i);
-		if(FDF_SUCCESS == (ret = ReadObject(cguid, key, &data, &len)))
+		if(ZS_SUCCESS == (ret = ReadObject(cguid, key, &data, &len)))
 		{
 			fprintf(fp,"read successful: key=%s data=%s\n", key, data);
 		} else {
-			fprintf(fp,"read failed: read key= %s error=%s\n", key, FDFStrError(ret));
+			fprintf(fp,"read failed: read key= %s error=%s\n", key, ZSStrError(ret));
 			goto exit_io;
 		}
 	}
@@ -228,25 +228,25 @@ exit_io:
 static int32_t
 mgr1()
 {
-	FDF_status_t ret = FDF_SUCCESS;
+	ZS_status_t ret = ZS_SUCCESS;
 
 	fprintf(fp, "%s", "****** Test 1 *****\n");
 
 	/*
-	 * Init FDF
+	 * Init ZS
 	 */
 	ret = pre_env();
 
-	if (FDF_SUCCESS != ret) {
-		fprintf(fp, "pre_env failed with err=%s\n", FDFStrError(ret));
+	if (ZS_SUCCESS != ret) {
+		fprintf(fp, "pre_env failed with err=%s\n", ZSStrError(ret));
 		return -1;
 	}
 
 	/*
 	 * Create a container
 	 */
-	uint32_t flag = FDF_CTNR_CREATE; //FDF_CTNR_RO_MODE
-	uint32_t dura = FDF_DURABILITY_PERIODIC;
+	uint32_t flag = ZS_CTNR_CREATE; //ZS_CTNR_RO_MODE
+	uint32_t dura = ZS_DURABILITY_PERIODIC;
 	char cname[1024] = {'\0'};
 
 	uint32_t i;
@@ -270,15 +270,15 @@ mgr1()
 			}
 
 			ret = io();
-			if (FDF_SUCCESS != ret) {
-				fprintf(fp, "io failed with err=%s\n", FDFStrError(ret));
+			if (ZS_SUCCESS != ret) {
+				fprintf(fp, "io failed with err=%s\n", ZSStrError(ret));
 				goto exit_mgr1;
 			}
 		}
 
 		ret = DeleteContainer(cguid);
-		if (FDF_SUCCESS != ret) {
-			fprintf(fp, "DeleteContainer failed with err=%s\n", FDFStrError(ret));
+		if (ZS_SUCCESS != ret) {
+			fprintf(fp, "DeleteContainer failed with err=%s\n", ZSStrError(ret));
 			goto exit_mgr1;
 		}
 
@@ -291,9 +291,9 @@ exit_mgr1:
 	 */
 	fprintf(fp, "%s", "Starting graceful shutdown\n");
 	ret = clear_env();
-	fprintf(fp, "Shutdown returned %s:\n", FDFStrError(ret));
+	fprintf(fp, "Shutdown returned %s:\n", ZSStrError(ret));
 
-	if (FDF_SUCCESS != ret) {
+	if (ZS_SUCCESS != ret) {
 		fprintf(fp, "%s", "Graceful shutdown test1 failed\n");
 		return 1;
 	}
@@ -302,10 +302,10 @@ exit_mgr1:
 	 * Attempt another shutdown
 	 */
 	fprintf(fp, "%s", "Attempt another shutdown\n");
-	ret = FDFShutdown(fdf_state);
-	fprintf(fp, "Next shutdown returned %s:\n", FDFStrError(ret));
+	ret = ZSShutdown(zs_state);
+	fprintf(fp, "Next shutdown returned %s:\n", ZSStrError(ret));
 
-	if (FDF_SUCCESS == ret) {
+	if (ZS_SUCCESS == ret) {
 		fprintf(fp, "%s", "Next shutdown test2 failed\n");	
 		return 1;
 	}
@@ -315,9 +315,9 @@ exit_mgr1:
 	 * It should fail
 	 */
 	ret = io();
-	fprintf(fp, "Post shutdown: I/O failed with %s\n", FDFStrError(ret));
+	fprintf(fp, "Post shutdown: I/O failed with %s\n", ZSStrError(ret));
 
-	if (FDF_SUCCESS == ret) {
+	if (ZS_SUCCESS == ret) {
 		fprintf(fp, "%s", "Post shutdown: I/O test3 failed\n");	
 		return 1;
 	}
@@ -326,9 +326,9 @@ exit_mgr1:
 	 * Perform container ops: It should fail
 	 */
 	ret = container_ops(cname, flag, dura);
-	fprintf(fp, "Post shutdown: container ops returns %s\n", FDFStrError(ret));
+	fprintf(fp, "Post shutdown: container ops returns %s\n", ZSStrError(ret));
 
-	if (FDF_SUCCESS == ret) {
+	if (ZS_SUCCESS == ret) {
 		fprintf(fp, "%s", "Post shutdown: container ops test4 failed\n");	
 		return 1;
 	}
@@ -344,14 +344,14 @@ main(int argc, char *argv[])
 {
 	int32_t ret = 0;
 
-	if((fp = fopen("FDF_ShutdownIO.log", "w+")) == 0)
+	if((fp = fopen("ZS_ShutdownIO.log", "w+")) == 0)
 	{
 		fprintf(stderr, "open log file failed!.\n");
 		return -1;
 	}
 
 	/*
-	 * Init FDF, creates containers, performs I/O and 
+	 * Init ZS, creates containers, performs I/O and 
 	 * random graceful shutdown.
 	 */
 	ret = mgr1();

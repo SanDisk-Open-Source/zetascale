@@ -1,5 +1,5 @@
 /****************************
-#function : FDF_RangeQuery.c
+#function : ZS_RangeQuery.c
 #author   : Harihara Kadayam
 #date     : May 24 2013
 *****************************/
@@ -9,11 +9,11 @@
 #include <unistd.h>
 #include <string.h>
 #include <stdio.h>
-#include "fdf.h"
+#include "zs.h"
 
 static FILE                    *fp;
-static struct FDF_state        *fdf_state;
-static struct FDF_thread_state *fdf_thrd_state;
+static struct ZS_state        *zs_state;
+static struct ZS_thread_state *zs_thrd_state;
 
 static char *char_array = "abcdefghijklmnopqrstuvwxyz0123456789_-.";
 static char **data_arr;     
@@ -21,7 +21,7 @@ static uint32_t *datalen_arr;
 
 static char *gen_data(uint32_t max_datalen, uint32_t *pdatalen);
 static void discard_data(uint32_t n_objects);
-static int verify_range_query_data(FDF_range_data_t *values, 
+static int verify_range_query_data(ZS_range_data_t *values, 
                                    int exp_start,
                                    int exp_end,
                                    int n_in_chunk, 
@@ -36,44 +36,44 @@ typedef struct eq_class_info_s {
 	uint32_t max_keys_per_class;
 } eq_class_info_t;
 
-FDF_status_t PreEnvironment()
+ZS_status_t PreEnvironment()
 {
-	FDF_status_t ret;
+	ZS_status_t ret;
     
-	ret = FDFInit(&fdf_state);
-	if (ret != FDF_SUCCESS) {
-		fprintf(fp, "FDF initialization failed. Status = %d\n", ret);
+	ret = ZSInit(&zs_state);
+	if (ret != ZS_SUCCESS) {
+		fprintf(fp, "ZS initialization failed. Status = %d\n", ret);
 		return (ret);
 	}
 
-	fprintf(fp, "FDF initialization succeed!\n");
-	ret = FDFInitPerThreadState(fdf_state, &fdf_thrd_state);
-        if( ret != FDF_SUCCESS) {
-		fprintf(fp, "FDF thread initialization failed!\n");
+	fprintf(fp, "ZS initialization succeed!\n");
+	ret = ZSInitPerThreadState(zs_state, &zs_thrd_state);
+        if( ret != ZS_SUCCESS) {
+		fprintf(fp, "ZS thread initialization failed!\n");
 		return (ret);
 	}
 
-	fprintf(fp, "FDF thread initialization succeed!\n");
+	fprintf(fp, "ZS thread initialization succeed!\n");
 	return ret;
 }
 
 void ClearEnvironment()
 {
-	(void)FDFReleasePerThreadState(&fdf_thrd_state);
-	(void)FDFShutdown(fdf_state);
+	(void)ZSReleasePerThreadState(&zs_thrd_state);
+	(void)ZSShutdown(zs_state);
 
 	fprintf(fp, "clear env completed.\n");
 }
 
-static FDF_status_t OpenContainer(char *cname, FDF_cguid_t *pcguid)
+static ZS_status_t OpenContainer(char *cname, ZS_cguid_t *pcguid)
 {
-	FDF_status_t          ret;
-	FDF_container_props_t p;
+	ZS_status_t          ret;
+	ZS_container_props_t p;
 	uint32_t flag;
 
-	ret = FDF_FAILURE;        
+	ret = ZS_FAILURE;        
 
-	(void)FDFLoadCntrPropDefaults(&p);
+	(void)ZSLoadCntrPropDefaults(&p);
 	p.async_writes = 0;
 	p.durability_level = 0;
 	p.fifo_mode = 0;
@@ -83,49 +83,49 @@ static FDF_status_t OpenContainer(char *cname, FDF_cguid_t *pcguid)
 	p.num_shards = 1;
 	p.evicting = 0;
  
-	flag = FDF_CTNR_CREATE;
-	fprintf(fp, "FDFOpenContainer: Attempting to create with "
+	flag = ZS_CTNR_CREATE;
+	fprintf(fp, "ZSOpenContainer: Attempting to create with "
 	                         "Writeback mode of size 2GB\n");
 
-	ret = FDFOpenContainer(fdf_thrd_state,
+	ret = ZSOpenContainer(zs_thrd_state,
 	                       cname,
 	                       &p,
 	                       flag,
 	                       pcguid);
 
-	fprintf(fp, "FDFOpenContainer : %s\n",FDFStrError(ret));
+	fprintf(fp, "ZSOpenContainer : %s\n",ZSStrError(ret));
 	return ret;
 }
 
-FDF_status_t CloseContainer(FDF_cguid_t cguid)
+ZS_status_t CloseContainer(ZS_cguid_t cguid)
 {
-	FDF_status_t ret;
-	ret = FDFCloseContainer(fdf_thrd_state, cguid);
+	ZS_status_t ret;
+	ret = ZSCloseContainer(zs_thrd_state, cguid);
 
-	fprintf(fp,"FDFCloseContainer : ");
-	fprintf(fp,"%s\n",FDFStrError(ret));
-
-	return ret;
-}
-
-FDF_status_t DeleteContainer(FDF_cguid_t cguid)
-{
-	FDF_status_t ret;
-	ret = FDFDeleteContainer(fdf_thrd_state, cguid);
-
-	fprintf(fp,"FDFDeleteContainer : ");
-	fprintf(fp,"%s\n",FDFStrError(ret));
+	fprintf(fp,"ZSCloseContainer : ");
+	fprintf(fp,"%s\n",ZSStrError(ret));
 
 	return ret;
 }
 
-FDF_status_t DeleteObject(FDF_cguid_t cguid, char *key, uint32_t keylen)
+ZS_status_t DeleteContainer(ZS_cguid_t cguid)
 {
-	FDF_status_t ret;
-	ret = FDFDeleteObject(fdf_thrd_state, cguid, key, keylen);
+	ZS_status_t ret;
+	ret = ZSDeleteContainer(zs_thrd_state, cguid);
 
-	fprintf(fp,"FDFDeleteObject : ");
-	fprintf(fp,"%s\n",FDFStrError(ret));
+	fprintf(fp,"ZSDeleteContainer : ");
+	fprintf(fp,"%s\n",ZSStrError(ret));
+
+	return ret;
+}
+
+ZS_status_t DeleteObject(ZS_cguid_t cguid, char *key, uint32_t keylen)
+{
+	ZS_status_t ret;
+	ret = ZSDeleteObject(zs_thrd_state, cguid, key, keylen);
+
+	fprintf(fp,"ZSDeleteObject : ");
+	fprintf(fp,"%s\n",ZSStrError(ret));
 	return ret;
 }
 
@@ -154,15 +154,15 @@ static int is_range_query_allowed(void *data, char *key, uint32_t len)
 	return 0;
 }
 
-static FDF_range_meta_t *
+static ZS_range_meta_t *
 get_start_end_params(uint32_t n_objects, uint32_t start, uint32_t end,
                      int start_incl, int end_incl, int flags, int lo_to_hi,
                      int *n_in, uint32_t *exp_start, uint32_t *exp_end)
 {
-	FDF_range_meta_t *rmeta;
+	ZS_range_meta_t *rmeta;
 
 	/* Initialize rmeta */
-	rmeta = (FDF_range_meta_t *)malloc(sizeof(FDF_range_meta_t));
+	rmeta = (ZS_range_meta_t *)malloc(sizeof(ZS_range_meta_t));
 	assert(rmeta);
 
 	*exp_start = start;
@@ -189,17 +189,17 @@ get_start_end_params(uint32_t n_objects, uint32_t start, uint32_t end,
 		*n_in = *exp_start - *exp_end + 1; /* All inclusive */
 
 		if (start_incl == 1) {
-			flags |= FDF_RANGE_START_LE;
+			flags |= ZS_RANGE_START_LE;
 		} else if (start_incl == 0) {
-			flags |= FDF_RANGE_START_LT;
+			flags |= ZS_RANGE_START_LT;
 			*exp_start = start - 1;
 			(*n_in)--;
 		}
 
 		if (end_incl >= 1) {
-			flags |= FDF_RANGE_END_GE;
+			flags |= ZS_RANGE_END_GE;
 		} else if (end_incl == 0) {
-			flags |= FDF_RANGE_END_GT;
+			flags |= ZS_RANGE_END_GT;
 			*exp_end = end + 1;
 			(*n_in)--;
 		}
@@ -207,16 +207,16 @@ get_start_end_params(uint32_t n_objects, uint32_t start, uint32_t end,
 		*n_in = *exp_end - *exp_start + 1;
 
 		if (start_incl == 1) {
-			flags |= FDF_RANGE_START_GE;
+			flags |= ZS_RANGE_START_GE;
 		} else if (start_incl == 0) {
-			flags |= FDF_RANGE_START_GT;
+			flags |= ZS_RANGE_START_GT;
 			*exp_start = start + 1;
 			(*n_in)--;
 		}
 		if (end_incl >= 1) {
-			flags |= FDF_RANGE_END_LE;
+			flags |= ZS_RANGE_END_LE;
 		} else if (end_incl == 0) {
-			flags |= FDF_RANGE_END_LT;
+			flags |= ZS_RANGE_END_LT;
 			*exp_end = end - 1;
 			(*n_in)--;
 		}
@@ -249,8 +249,8 @@ get_start_end_params(uint32_t n_objects, uint32_t start, uint32_t end,
 
 /* Does a range query for start to end keys which will get encoded to string. 
  * The query will be split into "chunks" of equal chunk */
-FDF_status_t RangeQuery(FDF_cguid_t cguid, 
-                        FDF_range_enums_t flags,
+ZS_status_t RangeQuery(ZS_cguid_t cguid, 
+                        ZS_range_enums_t flags,
                         uint32_t n_objects,
                         uint32_t start, int start_incl, 
                         uint32_t end, int end_incl, 
@@ -261,10 +261,10 @@ FDF_status_t RangeQuery(FDF_cguid_t cguid,
 	int n_out;
 	uint32_t exp_start;
 	uint32_t exp_end;
-	FDF_range_meta_t  *rmeta;
-	FDF_range_data_t *values;
-	struct FDF_cursor *cursor;       // opaque cursor handle
-	FDF_status_t ret;
+	ZS_range_meta_t  *rmeta;
+	ZS_range_data_t *values;
+	struct ZS_cursor *cursor;       // opaque cursor handle
+	ZS_status_t ret;
 	int i;
 	int failures = 0;
 	int success = 0;
@@ -291,13 +291,13 @@ FDF_status_t RangeQuery(FDF_cguid_t cguid,
 	fprintf(fp, "RangeQuery params: (%d-%d) split into %d chunks:\n",
 	            start, end, chunks);
 
-	ret = FDFGetRange(fdf_thrd_state, 
+	ret = ZSGetRange(zs_thrd_state, 
 	                  cguid,
-	                  FDF_RANGE_PRIMARY_INDEX,
+	                  ZS_RANGE_PRIMARY_INDEX,
 	                  &cursor, 
 	                  rmeta);
-	if (ret != FDF_SUCCESS) {
-		fprintf(fp, "FDFStartRangeQuery failed with status=%d\n", ret);
+	if (ret != ZS_SUCCESS) {
+		fprintf(fp, "ZSStartRangeQuery failed with status=%d\n", ret);
 		return ret;
 	}
 
@@ -313,7 +313,7 @@ FDF_status_t RangeQuery(FDF_cguid_t cguid,
 		free(rmeta->key_end);
 	}
 
-	memset(rmeta, 0, sizeof(FDF_range_meta_t)); 
+	memset(rmeta, 0, sizeof(ZS_range_meta_t)); 
 	free(rmeta);
 
 	/* Divide into near equal chunks */
@@ -326,23 +326,23 @@ FDF_status_t RangeQuery(FDF_cguid_t cguid,
 		n_in_chunk = n_in < n_in_max? n_in: n_in_max;
 
 		/* Allocate for sufficient values */
-		values = (FDF_range_data_t *)
-		           malloc(sizeof(FDF_range_data_t) * n_in_chunk);
+		values = (ZS_range_data_t *)
+		           malloc(sizeof(ZS_range_data_t) * n_in_chunk);
 		assert(values);
 
 		/* Do the query now */
-		ret = FDFGetNextRange(fdf_thrd_state, 
+		ret = ZSGetNextRange(zs_thrd_state, 
 		                      cursor,
 		                      n_in_chunk,
 		                      &n_out,
 		                      values);
 
-		if ((ret == FDF_SUCCESS) || (ret == FDF_QUERY_PAUSED)) {
-			if (ret == FDF_QUERY_PAUSED) {
-				if (values[n_out-1].status != FDF_RANGE_PAUSED) {
+		if ((ret == ZS_SUCCESS) || (ret == ZS_QUERY_PAUSED)) {
+			if (ret == ZS_QUERY_PAUSED) {
+				if (values[n_out-1].status != ZS_RANGE_PAUSED) {
 					fprintf(fp, "ERROR: Expected last (%d) status as "
-					            "%d (FDF_RANGE_PAUSED), instead it is %d",
-					            n_out-1, FDF_RANGE_PAUSED, 
+					            "%d (ZS_RANGE_PAUSED), instead it is %d",
+					            n_out-1, ZS_RANGE_PAUSED, 
 					            values[n_out-1].status); 
 					failures++;
 					break;
@@ -381,8 +381,8 @@ FDF_status_t RangeQuery(FDF_cguid_t cguid,
 					        "%d success\n", exp_start);
 			} */
 			success++;
-		} else if (ret != FDF_QUERY_DONE) {
-			fprintf(fp, "ERROR: FDFGetNextRange failed with "
+		} else if (ret != ZS_QUERY_DONE) {
+			fprintf(fp, "ERROR: ZSGetNextRange failed with "
 			            "error %d\n", ret);
 			failures++;
 		}
@@ -391,18 +391,18 @@ FDF_status_t RangeQuery(FDF_cguid_t cguid,
 		exp_start = (start > end) ? exp_start - n_in_chunk : 
 		                            exp_start + n_in_chunk;
 
-		if (ret == FDF_QUERY_DONE) {
+		if (ret == ZS_QUERY_DONE) {
 			if (n_in == 0) {
-				fprintf(fp, "FDF Reports QueryDone\n");
+				fprintf(fp, "ZS Reports QueryDone\n");
 			} else {
-				fprintf(fp, "ERROR: FDF Reports QueryDone, "
+				fprintf(fp, "ERROR: ZS Reports QueryDone, "
 				   "prematurely.%d yet to be returned\n", n_in);
 			}
 		}
 
 		for (i = 0; i < n_out; i++) {
-			/* FDF_WARNING and BUFFER_TOO_SMALL should be checked here */
-			if(!(flags & FDF_RANGE_INPLACE_POINTERS)) {
+			/* ZS_WARNING and BUFFER_TOO_SMALL should be checked here */
+			if(!(flags & ZS_RANGE_INPLACE_POINTERS)) {
 				free(values[i].key);
 				free(values[i].data);
 			}
@@ -410,31 +410,31 @@ FDF_status_t RangeQuery(FDF_cguid_t cguid,
 		free(values);
 	}
 
-	ret = FDFGetRangeFinish(fdf_thrd_state, cursor);
-	if (ret != FDF_SUCCESS) {
-		fprintf(fp, "ERROR: FDFGetRangeFinish failed ret=%d\n", ret);
+	ret = ZSGetRangeFinish(zs_thrd_state, cursor);
+	if (ret != ZS_SUCCESS) {
+		fprintf(fp, "ERROR: ZSGetRangeFinish failed ret=%d\n", ret);
 		failures++;
 	}
 
 	if (failures) {
 		fprintf(fp, "ERROR: RangeQuery completed with %d failures and %d success\n", failures, success);
-		return (FDF_FAILURE);
+		return (ZS_FAILURE);
 	} else {
 		fprintf(fp, "SUCCESS: RangeQuery completed successfully in %d chunks\n", success);
-		return (FDF_SUCCESS);
+		return (ZS_SUCCESS);
 	}
 }
 
-FDF_status_t ReadSeqno(FDF_cguid_t cguid, uint32_t key_no, uint64_t *seq_no)
+ZS_status_t ReadSeqno(ZS_cguid_t cguid, uint32_t key_no, uint64_t *seq_no)
 {
-	FDF_range_meta_t  rmeta;
-	FDF_range_data_t *values;
-	struct FDF_cursor *cursor;       // opaque cursor handle
-	FDF_status_t ret;
+	ZS_range_meta_t  rmeta;
+	ZS_range_data_t *values;
+	struct ZS_cursor *cursor;       // opaque cursor handle
+	ZS_status_t ret;
 	int n_in = 1;
 	int n_out;
 
-	rmeta.flags = FDF_RANGE_START_GE | FDF_RANGE_END_LE;
+	rmeta.flags = ZS_RANGE_START_GE | ZS_RANGE_END_LE;
 
 	rmeta.key_start = (char *)malloc(MAX_KEYLEN);
 	assert(rmeta.key_start);
@@ -446,43 +446,43 @@ FDF_status_t ReadSeqno(FDF_cguid_t cguid, uint32_t key_no, uint64_t *seq_no)
 	sprintf(rmeta.key_end, "%08d", key_no);
 	rmeta.keylen_end = strlen(rmeta.key_end) + 1;
 
-	ret = FDFGetRange(fdf_thrd_state, 
+	ret = ZSGetRange(zs_thrd_state, 
 	                  cguid,
-	                  FDF_RANGE_PRIMARY_INDEX,
+	                  ZS_RANGE_PRIMARY_INDEX,
 	                  &cursor, 
 	                  &rmeta);
-	if (ret != FDF_SUCCESS) {
-		fprintf(fp, "FDFStartRangeQuery failed with status=%d\n", ret);
+	if (ret != ZS_SUCCESS) {
+		fprintf(fp, "ZSStartRangeQuery failed with status=%d\n", ret);
 		return ret;
 	}
 
 	/* Allocate for sufficient values */
-	values = (FDF_range_data_t *) malloc(sizeof(FDF_range_data_t) * n_in);
+	values = (ZS_range_data_t *) malloc(sizeof(ZS_range_data_t) * n_in);
 	assert(values);
 
 	/* Do the query now */
-	ret = FDFGetNextRange(fdf_thrd_state, 
+	ret = ZSGetNextRange(zs_thrd_state, 
 	                      cursor,
 	                      n_in,
 	                      &n_out,
 	                      values);
 
-	if ((ret == FDF_SUCCESS) && 
+	if ((ret == ZS_SUCCESS) && 
 	    (n_out == n_in) &&
-	    (values[0].status == FDF_RANGE_DATA_SUCCESS)) {
+	    (values[0].status == ZS_RANGE_DATA_SUCCESS)) {
 		*seq_no = values[0].seqno;
 	} else {
-		ret = FDF_FAILURE;
+		ret = ZS_FAILURE;
 	}
 
-	FDFGetRangeFinish(fdf_thrd_state, cursor);
+	ZSGetRangeFinish(zs_thrd_state, cursor);
 
 	return (ret);
 }
 
-FDF_status_t GenerateSerialKeyData(FDF_cguid_t cguid, uint32_t n_objects, uint32_t flags)
+ZS_status_t GenerateSerialKeyData(ZS_cguid_t cguid, uint32_t n_objects, uint32_t flags)
 {
-	FDF_status_t ret = FDF_SUCCESS;
+	ZS_status_t ret = ZS_SUCCESS;
 	char *keytmp;
 	int i;
 
@@ -498,12 +498,12 @@ FDF_status_t GenerateSerialKeyData(FDF_cguid_t cguid, uint32_t n_objects, uint32
 		(void) sprintf(keytmp, "%08d", i);
 		data_arr[i] = gen_data(MAX_DATALEN, &datalen_arr[i]);
 
-		ret = FDFWriteObject(fdf_thrd_state, cguid, 
+		ret = ZSWriteObject(zs_thrd_state, cguid, 
 		                     keytmp, strlen(keytmp) + 1, 
 		                     data_arr[i], datalen_arr[i], flags);
-		if (ret != FDF_SUCCESS) {
+		if (ret != ZS_SUCCESS) {
 			fprintf(fp, "WriteObject failed with status=%s\n", 
-			            FDFStrError(ret));
+			            ZSStrError(ret));
 			return ret;
 		}
 	}
@@ -544,7 +544,7 @@ static void discard_data(uint32_t n_objects)
 	free(datalen_arr);
 }
 
-static int verify_range_query_data(FDF_range_data_t *values, 
+static int verify_range_query_data(ZS_range_data_t *values, 
                                    int exp_start,
                                    int exp_end,
                                    int n_in_chunk, 
@@ -560,7 +560,7 @@ static int verify_range_query_data(FDF_range_data_t *values,
 	}
 
 	for (i = 0; i < n_out; i++) {
-		if (values[i].status != FDF_RANGE_DATA_SUCCESS) {
+		if (values[i].status != ZS_RANGE_DATA_SUCCESS) {
 			fprintf(fp, "Error: Values[%d] status=%d\n", 
 			            i, values[i].status);
 			return -1;
@@ -596,8 +596,8 @@ static int verify_range_query_data(FDF_range_data_t *values,
 	return 0;
 }
 
-static void do_range_query_in_chunks(FDF_cguid_t cguid, 
-                                     FDF_range_enums_t flags,
+static void do_range_query_in_chunks(ZS_cguid_t cguid, 
+                                     ZS_range_enums_t flags,
                                      uint32_t n_objects,
                                      uint32_t start, int start_incl, 
                                      uint32_t end, int end_incl, 
@@ -634,7 +634,7 @@ static void do_range_query_in_chunks(FDF_cguid_t cguid,
 /***************** test ******************/
 int test_basic_check(uint32_t n_objects)
 {
-	FDF_range_enums_t flags = 0;
+	ZS_range_enums_t flags = 0;
 //	int n_test_iter = 10;
 //	int i;
 //	int start, end, n_chunks;
@@ -642,19 +642,19 @@ int test_basic_check(uint32_t n_objects)
 	int rand_n1;
 	int rand_n2;
 
-	FDF_status_t status;
-	FDF_cguid_t cguid;
+	ZS_status_t status;
+	ZS_cguid_t cguid;
 
 	fprintf(fp, "test_basic_check starting\n");
 	status = OpenContainer("rcheck1", &cguid);
-	if (status != FDF_SUCCESS) {
+	if (status != ZS_SUCCESS) {
 		fprintf(fp, "test_basic_check failed. OpenContainer failed "
 		        "ret=%d\n", status);
 		return -1;
 	}
 
 	status = GenerateSerialKeyData(cguid, n_objects, 0);
-	if (status != FDF_SUCCESS) {
+	if (status != ZS_SUCCESS) {
 		fprintf(fp, "test_basic_check failed. Writing serial key "
 		        "and data has failed. ret=%d\n", status);
 		return -1;
@@ -666,7 +666,7 @@ int test_basic_check(uint32_t n_objects)
 		n_chunks = (random() % (max_chunks - 1)) + 1;
 	} */
 
-	flags |= FDF_RANGE_INPLACE_POINTERS;
+	flags |= ZS_RANGE_INPLACE_POINTERS;
 	flags =0;
 
 	for(int i = 0; i < 1; i++)
@@ -828,7 +828,7 @@ int test_basic_check(uint32_t n_objects)
 	do_range_query_in_chunks(cguid, flags, n_objects, rand_n2, 1, rand_n1, 1, 0, test_id++);
 
 	/* start and end <= & >= on same number */
-	/* TODO: This does not check accurately with FDFGetRange. Find a way */
+	/* TODO: This does not check accurately with ZSGetRange. Find a way */
 	rand_n1 = random() % n_objects;
 	fprintf(fp, "\n######### Test %d: Start <= %d(rand) and end >= %d(rand)#########\n\n", 
 	         test_id, rand_n1, rand_n1);
@@ -872,7 +872,7 @@ int test_basic_check(uint32_t n_objects)
 int test_seqno_check(void)
 {
 	int n_objects = 4000;
-//	FDF_range_enums_t flags = 0;
+//	ZS_range_enums_t flags = 0;
 //	int n_test_iter = 10;
 //	int max_chunks = 10;
 //	int i;
@@ -880,21 +880,21 @@ int test_seqno_check(void)
 //	int start, end;
 	uint64_t seqno_offset;
 
-	FDF_status_t status;
-	FDF_cguid_t cguid;
+	ZS_status_t status;
+	ZS_cguid_t cguid;
 
 	fprintf(fp, "==========================\n");
 	fprintf(fp, "test_seqno_check starting\n");
 	fprintf(fp, "==========================\n");
 	status = OpenContainer("rcheck2", &cguid);
-	if (status != FDF_SUCCESS) {
+	if (status != ZS_SUCCESS) {
 		fprintf(fp, "test_seqno_check failed. OpenContainer failed "
 		        "ret=%d\n", status);
 		return -1;
 	}
 
 	status = GenerateSerialKeyData(cguid, n_objects, 0);
-	if (status != FDF_SUCCESS) {
+	if (status != ZS_SUCCESS) {
 		fprintf(fp, "test_basic_check failed. Writing serial key "
 		        "and data has failed 1st time. ret=%d\n", status);
 		return -1;
@@ -902,22 +902,22 @@ int test_seqno_check(void)
 
 	/* Get the first range seqno */
 	status = ReadSeqno(cguid, 0, &seqno_offset);
-	if (status != FDF_SUCCESS) {
+	if (status != ZS_SUCCESS) {
 		fprintf(fp, "test_basic_check failed. Unable to read"
 		        "seqno for first elemenet. ret=%d\n", status);
 		return -1;
 	}
 	fprintf(fp, "Sequence no of first item (offset) = %"PRIu64"\n", seqno_offset);
 
-	status = GenerateSerialKeyData(cguid, n_objects, FDF_WRITE_MUST_EXIST);
-	if (status != FDF_SUCCESS) {
+	status = GenerateSerialKeyData(cguid, n_objects, ZS_WRITE_MUST_EXIST);
+	if (status != ZS_SUCCESS) {
 		fprintf(fp, "test_basic_check failed. Writing serial key "
 		        "and data has failed 2nd time. ret=%d\n", status);
 		return -1;
 	}
 
 	status = ReadSeqno(cguid, 5, &seqno_offset);
-	if (status != FDF_SUCCESS) {
+	if (status != ZS_SUCCESS) {
 		fprintf(fp, "test_basic_check failed. Unable to read"
 		        "seqno for first elemenet. ret=%d\n", status);
 		return -1;
@@ -933,7 +933,7 @@ int test_seqno_check(void)
 		                         first_half, second_half,
 		                         n_chunks);
 
-		if (status != FDF_SUCCESS) {
+		if (status != ZS_SUCCESS) {
 			fprintf(fp, "test_basic_check failed. Range Query "
 			            "failed with ret=%d\n", status);
 			return -1;
@@ -951,13 +951,13 @@ int test_seqno_check(void)
 int main(int argc, char *argv[])
 {
 	int ret;
-/*	if((fp = fopen("FDF_RangeQuery.log", "w+"))== 0) {
-		fprintf(stderr, "Open FDF_RangeQuery.log failed!\n");
+/*	if((fp = fopen("ZS_RangeQuery.log", "w+"))== 0) {
+		fprintf(stderr, "Open ZS_RangeQuery.log failed!\n");
 		return (1);
 	}   */
 	fp = stderr;
 
-	if (PreEnvironment() != FDF_SUCCESS) {
+	if (PreEnvironment() != ZS_SUCCESS) {
 		fprintf(fp, "ERROR: PreEnvironment failed\n");
 		return (1);
 	}
@@ -982,13 +982,13 @@ int main(int argc, char *argv[])
 fprintf(stderr,"count is %d\n", count);
     if(3*2 == count)
     {
-        fprintf(stderr, "#Test of FDFWriteObject pass!\n");
-	fprintf(stderr, "#The related test script is FDF_WriteObject.c\n");
-	fprintf(stderr, "#If you want, you can check test details in FDF_WriteObject.log\n");
+        fprintf(stderr, "#Test of ZSWriteObject pass!\n");
+	fprintf(stderr, "#The related test script is ZS_WriteObject.c\n");
+	fprintf(stderr, "#If you want, you can check test details in ZS_WriteObject.log\n");
     }else{
-        fprintf(stderr, "#Test of FDFWriteObject fail!\n");
-	fprintf(stderr, "#The related test script is FDF_WriteObject.c\n");
-	fprintf(stderr, "#If you want, you can check test details in FDF_WriteObject.log\n");
+        fprintf(stderr, "#Test of ZSWriteObject fail!\n");
+	fprintf(stderr, "#The related test script is ZS_WriteObject.c\n");
+	fprintf(stderr, "#If you want, you can check test details in ZS_WriteObject.log\n");
     }
     return (!(3*2 == count));
 #endif

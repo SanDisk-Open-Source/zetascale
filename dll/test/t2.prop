@@ -1,2 +1,2 @@
-FDF_FLASH_SIZE      = 4G
-FDF_FLASH_FILENAME  = /tmp/fdf_disk%d
+ZS_FLASH_SIZE      = 4G
+ZS_FLASH_FILENAME  = /tmp/zs_disk%d

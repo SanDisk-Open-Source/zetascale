@@ -72,9 +72,9 @@ SDF_cguid_t generate_cguid(
         );
 extern uint32_t
 init_get_my_node_id();
-extern char *fdf_compress_data(char *src, size_t src_len,
+extern char *zs_compress_data(char *src, size_t src_len,
                             char *comp_buf, size_t memsz, size_t *comp_len);
-extern int fdf_uncompress_data(char *data, size_t datalen,size_t memsz, size_t *uncomp_len);
+extern int zs_uncompress_data(char *data, size_t datalen,size_t memsz, size_t *uncomp_len);
 #endif
 
 
@@ -3501,7 +3501,7 @@ mcd_osd_slab_shard_init( mcd_osd_shard_t * shard, uint64_t shard_id,
 	 */
 	shard->hash_handle = hash_table_init( shard->total_size, 
                                             max_nobjs, SLAB,
-                                            getProperty_Int("FDF_KEY_CACHE", 0));
+                                            getProperty_Int("ZS_KEY_CACHE", 0));
     if ( !shard->hash_handle ) {
         mcd_log_msg( 160204, PLAT_LOG_LEVEL_ERROR,
                 "failed to allocate hash tables");
@@ -3540,8 +3540,8 @@ mcd_osd_slab_shard_init( mcd_osd_shard_t * shard, uint64_t shard_id,
     mcd_log_msg( 20309, PLAT_LOG_LEVEL_DEBUG,
                  "shard initialized, total allocated bytes=%lu", total_alloc );
 
-	plat_assert(getProperty_Int("FDF_KEY_CACHE", 0) && shard->hash_handle->key_cache ||
-			!getProperty_Int("FDF_KEY_CACHE", 0) && !shard->hash_handle->key_cache);
+	plat_assert(getProperty_Int("ZS_KEY_CACHE", 0) && shard->hash_handle->key_cache ||
+			!getProperty_Int("ZS_KEY_CACHE", 0) && !shard->hash_handle->key_cache);
 
     return 0;   /* SUCCESS */
 
@@ -3675,10 +3675,10 @@ static int mcd_osd_slab_init()
                              1024 * 1048576 );                  // max_nobjs
 #endif
 
-	slab_gc_enabled = !strcmp(getProperty_String("FDF_SLAB_GC", "Off"), "On");
+	slab_gc_enabled = !strcmp(getProperty_String("ZS_SLAB_GC", "Off"), "On");
 
 	plat_log_msg(180003, PLAT_LOG_CAT_PRINT_ARGS, PLAT_LOG_LEVEL_DEBUG,
-		"PROP: FDF_SLAB_GC=%s", slab_gc_enabled ? "On" : "Off");
+		"PROP: ZS_SLAB_GC=%s", slab_gc_enabled ? "On" : "Off");
 
     return 0;   /* SUCCESS */
 }
@@ -4514,7 +4514,7 @@ mcd_fth_osd_slab_set( void * context, mcd_osd_shard_t * shard,
     int64_t                     plus_objs = 0;
     int64_t                     plus_blks = 0;
     cntr_id_t                   cntr_id = meta_data->cguid;
-    FDF_boolean_t				vc_evict = FDF_FALSE;
+    ZS_boolean_t				vc_evict = ZS_FALSE;
     hash_handle_t             * hdl = shard->hash_handle;
     uint32_t uncomp_datalen = 0; /* Uncompressed data length */
 	cntr_map_t					*cmap = NULL;
@@ -4558,11 +4558,11 @@ mcd_fth_osd_slab_set( void * context, mcd_osd_shard_t * shard,
     }
 
     /* Check if object needs to be compressed */
-    if( getProperty_Int("FDF_COMPRESSION", 0) && (data_len > 0) &&
+    if( getProperty_Int("ZS_COMPRESSION", 0) && (data_len > 0) &&
         (flags & FLASH_PUT_COMPRESS) && !(flags & FLASH_PUT_SKIP_IO)) {
         /* Compression enabled. Lets compress the data */
         uncomp_datalen = data_len;
-        data = fdf_compress_data(data, (size_t)data_len,NULL,0, &data_len);
+        data = zs_compress_data(data, (size_t)data_len,NULL,0, &data_len);
         if ( data == NULL ) {
             mcd_log_msg(160201,PLAT_LOG_LEVEL_ERROR, "Compression failed");
             rc = FLASH_ENOENT;
@@ -5363,7 +5363,7 @@ override_retry:
                     meta->data_len );
 
             /* Uncompress the data here */
-            //if( getProperty_Int("FDF_COMPRESSION", 0) &&
+            //if( getProperty_Int("ZS_COMPRESSION", 0) &&
             //(flags & FLASH_GET_DECOMPRESS) ) {
             if( uncomp_datalen > 0 ) {
                 /* Data is compressed. So decompress before sending it to upper layer */
@@ -5394,8 +5394,8 @@ override_retry:
 					databuf_len = tmp_len;
                     *ppdata = data_buf;
                 }
-                /* the fdf uncompress function decompresses the data in same input buffer*/
-                rc = fdf_uncompress_data(data_buf, *pactual_size, tmp_len, &uncomp_len);
+                /* the zs uncompress function decompresses the data in same input buffer*/
+                rc = zs_uncompress_data(data_buf, *pactual_size, tmp_len, &uncomp_len);
                 if( rc < 0 ) {
                     mcd_log_msg(160202,PLAT_LOG_LEVEL_FATAL, "Data uncompression failed:%d",rc);
                     return FLASH_ENOENT;
@@ -6353,7 +6353,7 @@ mcd_osd_flash_put_v( struct ssdaio_ctxt * pctxt, struct shard * shard,
     uint64_t                    blk_offset;
     osd_state_t               * osd_state = (osd_state_t *)pctxt;
     mcd_osd_shard_t           * mcd_shard = (mcd_osd_shard_t *)shard;
-	int compress = getProperty_Int("FDF_COMPRESSION", 0) && metaData->dataLen;
+	int compress = getProperty_Int("ZS_COMPRESSION", 0) && metaData->dataLen;
 
 	uint64_t fixed_size = sizeof(mcd_osd_meta_t) + metaData->keyLen;
     uint64_t raw_len = fixed_size + (!compress ? metaData->dataLen :
@@ -6383,7 +6383,7 @@ mcd_osd_flash_put_v( struct ssdaio_ctxt * pctxt, struct shard * shard,
 
 		plat_assert(slab_size >= fixed_size);
 		for(i = 0; i < count; i++) {
-			void* res = fdf_compress_data(data[i], metaData->dataLen, data_buf + i * slab_size + fixed_size, slab_size - fixed_size, &comp_len);
+			void* res = zs_compress_data(data[i], metaData->dataLen, data_buf + i * slab_size + fixed_size, slab_size - fixed_size, &comp_len);
 			if ( res == NULL ) {
 				mcd_log_msg(160201,PLAT_LOG_LEVEL_ERROR, "Compression failed");
 				return FLASH_ENOENT;

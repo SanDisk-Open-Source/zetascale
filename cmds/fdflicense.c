@@ -1,5 +1,5 @@
 /* 
- * File:   fdflicense.c
+ * File:   zslicense.c
  * Author: Niranjan Neelakanta
  * Description: Command to generate license files.
  *
@@ -16,7 +16,7 @@
 #include <limits.h>
 #include "license/interface.h"
 
-#define FDF_LICENSE_OUTFILE	"license"	/* Default license file */
+#define ZS_LICENSE_OUTFILE	"license"	/* Default license file */
 
 static int Gflag;
 static int Cflag;
@@ -116,7 +116,7 @@ main(int argc, char **argv)
 						input_file);
 				return generate_license_for_file(input_file, 
 						  output_file ? output_file :
-						  	FDF_LICENSE_OUTFILE);
+						  	ZS_LICENSE_OUTFILE);
 			} else if (output_file) {
 				printf("Generating blank license file\n");
 				return generate_license_file(version, output_file);
@@ -146,7 +146,7 @@ void
 usage()
 {
 	fprintf(stderr, 
-	"Usage: fdflicense --generate [-v format-version] -o output-file\n");
+	"Usage: zslicense --generate [-v format-version] -o output-file\n");
 	fprintf(stderr,
 	"                  --generate -i input-file [-o output-file]\n");
 	fprintf(stderr,

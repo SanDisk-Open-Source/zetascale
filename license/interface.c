@@ -70,7 +70,7 @@ generate_license_file(char *ver, char *path)
 {
 	int		major, minor, indx;
 	FILE		*fd;
-	const char 	license_blank_header[] = "NOTE: Machine-generated content. \n© Copyright SanDisk Inc. 2013. All rights reserved.\nhttp://www.sandisk.com\n\nThis is template file for generating license. Input the details in CONTACT and PARTICULARS section. Use fdflicense command to generate license.\n";
+	const char 	license_blank_header[] = "NOTE: Machine-generated content. \n© Copyright SanDisk Inc. 2013. All rights reserved.\nhttp://www.sandisk.com\n\nThis is template file for generating license. Input the details in CONTACT and PARTICULARS section. Use zslicense command to generate license.\n";
 	char		version[32] = {0};
 
 	if (path) {

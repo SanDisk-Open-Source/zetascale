@@ -1,5 +1,5 @@
 /*
- * FDF Async command handling
+ * ZS Async command handling
  *
  * Author: Manavalan Krishnan
  *
@@ -15,7 +15,7 @@
 #include <string.h>
 #include <sys/types.h>
 #include <time.h> 
-#include "fdf.h"
+#include "zs.h"
 #include <stdio.h>
 #include <stdint.h>
 #include <unistd.h>
@@ -24,7 +24,7 @@
 
 #include "sdf.h"
 #include "sdf_internal.h"
-#include "fdf.h"
+#include "zs.h"
 #include "utils/properties.h"
 #include "protocol/protocol_utils.h"
 #include "protocol/protocol_common.h"
@@ -65,13 +65,13 @@ static uint32_t num_deletes_prog;
 static uint32_t num_threads;
 
 typedef enum {
-    FDF_ASYNC_CMD_DELETE_CTNR,    
-    FDF_ASYNC_CMD_EXIT
-}FDF_ASYNC_CMD;
+    ZS_ASYNC_CMD_DELETE_CTNR,    
+    ZS_ASYNC_CMD_EXIT
+}ZS_ASYNC_CMD;
 
 typedef struct {
-    FDF_ASYNC_CMD cmd;
-    FDF_cguid_t cguid;
+    ZS_ASYNC_CMD cmd;
+    ZS_cguid_t cguid;
     uint32_t    size_free;
 } async_cmd_req_t;
 
@@ -126,14 +126,14 @@ wait_for_container_del()
 
 static void async_handler_thread(uint64_t arg){
     int rc;
-    struct FDF_state *fdf_state;
+    struct ZS_state *zs_state;
     async_cmd_req_t *req;
-    struct FDF_thread_state *thd_state;
+    struct ZS_thread_state *thd_state;
 
-    fdf_state = (struct FDF_state *)arg;
+    zs_state = (struct ZS_state *)arg;
     /*Create thread state */
-    rc = FDFInitPerThreadState(fdf_state,&thd_state);
-    if( rc != FDF_SUCCESS ) {
+    rc = ZSInitPerThreadState(zs_state,&thd_state);
+    if( rc != ZS_SUCCESS ) {
         plat_log_msg(160073,LOG_CAT, LOG_ERR,
                                        "Unable to initialize thread state\n");
         return;
@@ -142,10 +142,10 @@ static void async_handler_thread(uint64_t arg){
                  "Async thread started...");
     while (1) {
         req = (async_cmd_req_t *)fthMboxWait(&async_cmds_hdr_mbox);
-        if( req->cmd == FDF_ASYNC_CMD_DELETE_CTNR) {
+        if( req->cmd == ZS_ASYNC_CMD_DELETE_CTNR) {
             /* Delete the containers */
             atomic_add(num_deletes_prog,1); 
-            fdf_delete_container_async_end(thd_state,req->cguid);
+            zs_delete_container_async_end(thd_state,req->cguid);
             /*Delete completed */
             atomic_sub(num_deletes_prog,1); 
             atomic_sub(num_deletes_pend,1);
@@ -156,7 +156,7 @@ static void async_handler_thread(uint64_t arg){
 			 */			
 			check_if_zero_num_deletes_pend();
         }
-        else if( req->cmd == FDF_ASYNC_CMD_EXIT ) {
+        else if( req->cmd == ZS_ASYNC_CMD_EXIT ) {
             plat_free(req);
             break; 
         } 
@@ -174,45 +174,45 @@ void get_async_delete_stats( uint32_t *num_deletes,uint32_t *num_prog) {
     *num_prog    = num_deletes_prog;
 }
 
-FDF_status_t async_command_delete_container(FDF_cguid_t cguid) {
+ZS_status_t async_command_delete_container(ZS_cguid_t cguid) {
     async_cmd_req_t *req;    
 
     req = (async_cmd_req_t *)plat_alloc(sizeof( async_cmd_req_t));
     if ( req == NULL ) {
         plat_log_msg(160071,LOG_CAT, LOG_ERR,
                                          "Memory allocation failed");
-        return FDF_FAILURE;
+        return ZS_FAILURE;
     } 
-    req->cmd = FDF_ASYNC_CMD_DELETE_CTNR;
+    req->cmd = ZS_ASYNC_CMD_DELETE_CTNR;
     req->cguid = cguid;
     atomic_add(num_deletes_pend,1);
     fthMboxPost(&async_cmds_hdr_mbox,(uint64_t)req);
-    return FDF_SUCCESS; 
+    return ZS_SUCCESS; 
 }
 
-struct FDF_state *my_fdf_state = NULL;
+struct ZS_state *my_zs_state = NULL;
 
-FDF_status_t async_command_exit() {
+ZS_status_t async_command_exit() {
     async_cmd_req_t *req;
 
     req = (async_cmd_req_t *)plat_alloc(sizeof( async_cmd_req_t));
     if ( req == NULL ) {
         plat_log_msg(160071,LOG_CAT, LOG_ERR,
                                          "Memory allocation failed");
-        return FDF_FAILURE;
+        return ZS_FAILURE;
     } 
-    req->cmd = FDF_ASYNC_CMD_EXIT;
+    req->cmd = ZS_ASYNC_CMD_EXIT;
     fthMboxPost(&async_cmds_hdr_mbox,(uint64_t)req);
-    return FDF_SUCCESS;
+    return ZS_SUCCESS;
 }
 
-void init_async_cmd_handler(int num_thds, struct FDF_state *fdf_state) {
+void init_async_cmd_handler(int num_thds, struct ZS_state *zs_state) {
     int i;
 
-	my_fdf_state = fdf_state;
+	my_zs_state = zs_state;
 
-    if( fdf_state == NULL ) {
-        plat_log_msg(160072,LOG_CAT, LOG_ERR,"Invalid FDF state");
+    if( zs_state == NULL ) {
+        plat_log_msg(160072,LOG_CAT, LOG_ERR,"Invalid ZS state");
         return;
     }
     plat_log_msg(80029,LOG_CAT, LOG_DBG,
@@ -226,7 +226,7 @@ void init_async_cmd_handler(int num_thds, struct FDF_state *fdf_state) {
         plat_log_msg(70123, LOG_CAT, LOG_DBG,
                      "Initializing the async threads...");
         fthResume( fthSpawn( &async_handler_thread, MCD_FTH_STACKSIZE ),
-                                                   (uint64_t)fdf_state);
+                                                   (uint64_t)zs_state);
     }
 }
 

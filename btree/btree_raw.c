@@ -29,7 +29,7 @@
  *     - optimize updates to manipulate btree node in a single operation
  *     - if updates decrease node size below a threshold, must coalesce nodes!!!
  *     - stash overflow key in overflow node(s)!
- *     - use "right-sized" FDF objects for overflow objects, without chaining fixed
+ *     - use "right-sized" ZS objects for overflow objects, without chaining fixed
  *       sized nodes!
  *     - add 'leftmost' pointers for use with leaf nodes for reverse scans and
  *       simplified update of 'rightmost' pointers
@@ -70,9 +70,9 @@
 #include "btree_map.h"
 #include "btree_pmap.h"
 #include "btree_raw_internal.h"
-#include <api/fdf.h>
+#include <api/zs.h>
 #include "btree_sync_th.h"
-#include "fdf.h"
+#include "zs.h"
 #include <pthread.h>
 #include "btree_var_leaf.h"
 #include "btree_malloc.h"
@@ -115,7 +115,7 @@ extern uint64_t n_global_l1cache_buckets;
 extern struct PMap *global_l1cache;
 extern int btree_parallel_flush_disabled;
 extern int btree_parallel_flush_minbufs;
-extern uint64_t fdf_flush_pstats_frequency;
+extern uint64_t zs_flush_pstats_frequency;
 extern uint64_t l1cache_size;
 extern uint64_t l1cache_partitions;
 extern int astats_done;
@@ -131,10 +131,10 @@ __thread uint32_t   _keybuf_size = 0;
 #define MAX_PER_THREAD_NODES        (MAX_BTREE_HEIGHT + MAX_NODES_PER_OBJECT)
 #define MAX_PER_THREAD_NODES_REF (MAX_PER_THREAD_NODES * 10) //btree check reference all most all nodes
 
-extern FDF_status_t _FDFInitPerThreadState(struct FDF_state  *fdf_state, struct FDF_thread_state **thd_state);
-extern FDF_status_t _FDFReleasePerThreadState(struct FDF_thread_state **thd_state);
+extern ZS_status_t _ZSInitPerThreadState(struct ZS_state  *zs_state, struct ZS_thread_state **thd_state);
+extern ZS_status_t _ZSReleasePerThreadState(struct ZS_thread_state **thd_state);
 
-extern __thread struct FDF_thread_state *my_thd_state;
+extern __thread struct ZS_thread_state *my_thd_state;
 __thread btree_raw_mem_node_t **modified_nodes = NULL;
 __thread btree_raw_mem_node_t **referenced_nodes = NULL;
 __thread btree_raw_mem_node_t **deleted_nodes = NULL;
@@ -147,13 +147,13 @@ __thread uint64_t dbg_referenced = 0;
 
 static __thread uint64_t _pstats_ckpt_index = 0;
 
-extern struct FDF_state *FDFState;
+extern struct ZS_state *ZSState;
 
 extern  __thread bool bad_container;
 extern uint64_t invoke_scavenger_per_n_obj_del;
-extern struct FDF_state *my_global_fdf_state;
-extern FDF_status_t _FDFScavengeContainer(struct FDF_state *fdf_state, FDF_cguid_t cguid);
-extern __thread FDF_cguid_t my_thrd_cguid;
+extern struct ZS_state *my_global_zs_state;
+extern ZS_status_t _ZSScavengeContainer(struct ZS_state *zs_state, ZS_cguid_t cguid);
+extern __thread ZS_cguid_t my_thrd_cguid;
 
 btree_node_list_t *free_node_list;
 
@@ -258,7 +258,7 @@ void delete_l1cache(btree_raw_t *btree, uint64_t logical_id);
 uint32_t get_btree_node_size();
 
 btree_status_t deref_l1cache(btree_raw_t *btree);
-static void btree_sync_flush_entry(btree_raw_t *btree, struct FDF_thread_state *thd_state, btSyncRequest_t *list);
+static void btree_sync_flush_entry(btree_raw_t *btree, struct ZS_thread_state *thd_state, btSyncRequest_t *list);
 static void btree_sync_remove_entry(btree_raw_t *btree, btSyncRequest_t *list);
 static void modify_l1cache_node(btree_raw_t *btree, btree_raw_mem_node_t *n);
 
@@ -293,7 +293,7 @@ equalize_keys(btree_raw_t *btree, btree_raw_mem_node_t *anchor_mem, btree_raw_me
 	      uint64_t s_seqno, char **r_key, uint32_t *r_keylen, uint64_t *r_syndrome, uint64_t *r_seqno,
 	      int left, bool * free_key);
 static int check_per_thread_keybuf(btree_raw_t *btree);
-static void btree_raw_init_stats(struct btree_raw *btree, btree_stats_t *stats, fdf_pstats_t *pstats);
+static void btree_raw_init_stats(struct btree_raw *btree, btree_stats_t *stats, zs_pstats_t *pstats);
 #ifdef DEBUG_STUFF
 static void btree_raw_dump(FILE *f, struct btree_raw *btree);
 #endif
@@ -374,7 +374,7 @@ btree_raw_crash_stats( btree_raw_t* bt, void *data, uint32_t datalen )
     assert( data );
     assert( datalen > 0 );
 
-    fdf_pstats_delta_t *pstats_new = (fdf_pstats_delta_t*) data;
+    zs_pstats_delta_t *pstats_new = (zs_pstats_delta_t*) data;
 #ifdef PSTATS_1
     fprintf(stderr, "btree_raw_crash_stats: Last seq num = %ld\n", bt->pstats.seq_num);
     fprintf(stderr, "btree_raw_crash_stats: record: seq num=%ld d_obj_cnt=%ld is_positive_d=0x%x d_num_snap_objs=%ld d_snap_data_size=%ld unique=%ld\n",
@@ -429,7 +429,7 @@ btree_raw_crash_stats( btree_raw_t* bt, void *data, uint32_t datalen )
 
 
 btree_raw_t *
-btree_raw_init(uint32_t flags, uint32_t n_partition, uint32_t n_partitions, uint32_t max_key_size, uint32_t min_keys_per_node, uint32_t nodesize, create_node_cb_t *create_node_cb, void *create_node_data, read_node_cb_t *read_node_cb, void *read_node_cb_data, write_node_cb_t *write_node_cb, void *write_node_cb_data, flush_node_cb_t *flush_node_cb, void *flush_node_cb_data, freebuf_cb_t *freebuf_cb, void *freebuf_cb_data, delete_node_cb_t *delete_node_cb, void *delete_node_data, log_cb_t *log_cb, void *log_cb_data, msg_cb_t *msg_cb, void *msg_cb_data, cmp_cb_t *cmp_cb, void * cmp_cb_data, bt_mput_cmp_cb_t mput_cmp_cb, void *mput_cmp_cb_data, trx_cmd_cb_t *trx_cmd_cb, uint64_t cguid, fdf_pstats_t *pstats, seqno_alloc_cb_t *ptr_seqno_alloc_cb)
+btree_raw_init(uint32_t flags, uint32_t n_partition, uint32_t n_partitions, uint32_t max_key_size, uint32_t min_keys_per_node, uint32_t nodesize, create_node_cb_t *create_node_cb, void *create_node_data, read_node_cb_t *read_node_cb, void *read_node_cb_data, write_node_cb_t *write_node_cb, void *write_node_cb_data, flush_node_cb_t *flush_node_cb, void *flush_node_cb_data, freebuf_cb_t *freebuf_cb, void *freebuf_cb_data, delete_node_cb_t *delete_node_cb, void *delete_node_data, log_cb_t *log_cb, void *log_cb_data, msg_cb_t *msg_cb, void *msg_cb_data, cmp_cb_t *cmp_cb, void * cmp_cb_data, bt_mput_cmp_cb_t mput_cmp_cb, void *mput_cmp_cb_data, trx_cmd_cb_t *trx_cmd_cb, uint64_t cguid, zs_pstats_t *pstats, seqno_alloc_cb_t *ptr_seqno_alloc_cb)
 {
     btree_raw_t      *bt;
     uint32_t          nbytes_meta;
@@ -568,7 +568,7 @@ btree_raw_init(uint32_t flags, uint32_t n_partition, uint32_t n_partitions, uint
 	if (btree_parallel_flush_disabled == 0) {
 		pthread_mutex_init(&(bt->bt_async_mutex), NULL);
 		pthread_cond_init(&(bt->bt_async_cv), NULL);
-		env = (char *)FDFGetProperty("FDF_BTREE_SYNC_THREADS", NULL);
+		env = (char *)ZSGetProperty("ZS_BTREE_SYNC_THREADS", NULL);
 		sync_threads = env ? (int)atoi(env): 32;
 		assert(sync_threads);
 		bt->syncthread = (btSyncThread_t **)malloc(sync_threads * sizeof(btSyncThread_t *)); 
@@ -608,7 +608,7 @@ btree_raw_init(uint32_t flags, uint32_t n_partition, uint32_t n_partitions, uint
      */
     pthread_mutex_init(&bt->pstat_lock, NULL);
     assert(pstats);
-    memcpy( &(bt->pstats), pstats, sizeof(fdf_pstats_t) );
+    memcpy( &(bt->pstats), pstats, sizeof(zs_pstats_t) );
     bt->last_flushed_seq_num = pstats->seq_num;
     bt->pstats_modified = false;
     bt->pstat_ckpt.pstat.obj_count = 0;
@@ -1944,13 +1944,13 @@ int
 init_l1cache()
 {
     int n = 0;
-    char *fdf_prop = NULL;
+    char *zs_prop = NULL;
 
     n_global_l1cache_buckets = 0;
-    /* Check if cache size is configured through fdf property file  */
-    fdf_prop = (char *)FDFGetProperty("FDF_BTREE_L1CACHE_SIZE",NULL);
-    if( fdf_prop != NULL ) {
-         n_global_l1cache_buckets = (uint64_t)atoll(fdf_prop);
+    /* Check if cache size is configured through zs property file  */
+    zs_prop = (char *)ZSGetProperty("ZS_BTREE_L1CACHE_SIZE",NULL);
+    if( zs_prop != NULL ) {
+         n_global_l1cache_buckets = (uint64_t)atoll(zs_prop);
     }
     else {
          /* Check if the size is set through env. variable */
@@ -1968,10 +1968,10 @@ init_l1cache()
         l1cache_size = n_global_l1cache_buckets * 16 * 8192;
     }
 
-    /* check if cache partitions is configured through fdf property */
-    fdf_prop = (char *)FDFGetProperty("FDF_N_L1CACHE_PARTITIONS",NULL);
-    if( fdf_prop != NULL ) {
-        n = atoi(fdf_prop);
+    /* check if cache partitions is configured through zs property */
+    zs_prop = (char *)ZSGetProperty("ZS_N_L1CACHE_PARTITIONS",NULL);
+    if( zs_prop != NULL ) {
+        n = atoi(zs_prop);
     }
     else {
         /* check if cache partitions is configured through env */
@@ -2129,8 +2129,8 @@ pstats_flush(struct btree_raw *btree, btree_raw_mem_node_t *n)
     assert( btree );
     assert( n );
 
-    if ( fdf_flush_pstats_frequency > 0 ) {
-        if ( __sync_fetch_and_add( &total_sys_writes, 1 ) >= fdf_flush_pstats_frequency ) {
+    if ( zs_flush_pstats_frequency > 0 ) {
+        if ( __sync_fetch_and_add( &total_sys_writes, 1 ) >= zs_flush_pstats_frequency ) {
             /*
              * Signal flusher thread
              */
@@ -2285,7 +2285,7 @@ btree_status_t deref_l1cache(btree_raw_t *btree)
         exit(0);
     }
 
-    if (flip_get("set_btree_fdf_write_ret",
+    if (flip_get("set_btree_zs_write_ret",
                 (uint32_t)n->pnode->flags,
                 recovery_write,
                 node_write_cnt, (uint32_t *)&ret)) {
@@ -2366,14 +2366,14 @@ btree_sync_thread(uint64_t arg)
 	btSyncRequest_t			*list = NULL;
 	btree_raw_mem_node_t	*n = NULL;
 	btree_status_t			ret = BTREE_SUCCESS;
-	FDF_status_t			fdfret = FDF_SUCCESS;
+	ZS_status_t			zsret = ZS_SUCCESS;
 	uint64_t				logical_id;
-	struct FDF_thread_state	*thd_state = NULL;
+	struct ZS_thread_state	*thd_state = NULL;
 
 	assert(btree_parallel_flush_disabled == 0);
 
-	fdfret = _FDFInitPerThreadState(FDFState, &thd_state);
-	assert(fdfret == FDF_SUCCESS);
+	zsret = _ZSInitPerThreadState(ZSState, &thd_state);
+	assert(zsret == ZS_SUCCESS);
 
 
 	pthread_mutex_lock(&(btree->bt_async_mutex));
@@ -2382,7 +2382,7 @@ btree_sync_thread(uint64_t arg)
 		while (list == NULL) {
 			if (btree->deleting) {
 				pthread_mutex_unlock(&(btree->bt_async_mutex));
-				_FDFReleasePerThreadState(&thd_state);
+				_ZSReleasePerThreadState(&thd_state);
 				__sync_fetch_and_sub(&(btree->no_sync_threads), 1);
 				return;
 			}
@@ -2425,7 +2425,7 @@ next:
 }
 
 static void
-btree_sync_flush_entry(btree_raw_t *btree, struct FDF_thread_state *thd_state, btSyncRequest_t *list)
+btree_sync_flush_entry(btree_raw_t *btree, struct ZS_thread_state *thd_state, btSyncRequest_t *list)
 {
 	btree_raw_mem_node_t	*n = NULL;
 	btree_raw_node_t		*pnode = NULL;
@@ -6055,9 +6055,9 @@ btree_raw_mput(struct btree_raw *btree, btree_mput_obj_t *objs, uint32_t num_obj
     uint64_t            syndrome = 0; //no use of syndrome in variable keys //get_syndrome(btree, key, keylen);
 	int write_type = W_SET;
 
-	if (flags & FDF_WRITE_MUST_NOT_EXIST)
+	if (flags & ZS_WRITE_MUST_NOT_EXIST)
 		write_type = W_CREATE;
-	else if (flags & FDF_WRITE_MUST_EXIST)
+	else if (flags & ZS_WRITE_MUST_EXIST)
 		write_type = W_UPDATE;
 
     dbg_print_key(objs[0].key, objs[0].key_len, "flags=%d count=%d key_len=%d lic=%ld", flags, num_objs, objs[0].key_len, btree->logical_id_counter);
@@ -6333,7 +6333,7 @@ btree_status_t btree_raw_delete(struct btree_raw *btree, char *key, uint32_t key
 			 * my_thrd_cguid will be passed as 0 if btree_delete is called from scavenger
 			 * thus we wont inkove scavenger if my_thrd_cguid is 0
 			 */
-			_FDFScavengeContainer(my_global_fdf_state, my_thrd_cguid);
+			_ZSScavengeContainer(my_global_zs_state, my_thrd_cguid);
 		}
 	}
 
@@ -7803,7 +7803,7 @@ extern int btree_raw_get_snapshots(struct btree_raw *btree, uint32_t *n_snapshot
 //======================   STATS   =========================================
 
 static void
-btree_raw_init_stats(struct btree_raw *btree, btree_stats_t *stats, fdf_pstats_t *pstats)
+btree_raw_init_stats(struct btree_raw *btree, btree_stats_t *stats, zs_pstats_t *pstats)
 {
     memset(stats, 0, sizeof(btree_stats_t));
 

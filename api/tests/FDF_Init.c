@@ -1,18 +1,18 @@
 /****************************
-#function : FDFInit
+#function : ZSInit
 #author   : AliceXu
 *****************************/
 
 #include <stdlib.h>
 #include <assert.h>
 #include <unistd.h>
-#include "fdf.h"
+#include "zs.h"
 
 FILE *fp;
-static struct FDF_state        *fdf_state1,*fdf_state2;
-static struct FDF_thread_state *fdf_thrd_state;
-//FDF_config_t                   *fdf_config;
-FDF_cguid_t                    cguid;
+static struct ZS_state        *zs_state1,*zs_state2;
+static struct ZS_thread_state *zs_thrd_state;
+//ZS_config_t                   *fdf.config;
+ZS_cguid_t                    cguid;
 char *testname[10] = {NULL};
 int result[10] = {0};
 
@@ -20,13 +20,13 @@ int result[10] = {0};
 /*
 int test_invalid_output()
 {
-    FDF_status_t ret = FDF_FAILURE;
-    testname[0] = "#test0: test with out-parameter 'fdf_state' is NULL.";
+    ZS_status_t ret = ZS_FAILURE;
+    testname[0] = "#test0: test with out-parameter 'zs_state' is NULL.";
     fprintf(fp,"%s\n",testname[0]);
     
-    ret = FDFInit(NULL);
-    fprintf(fp,"FDFInit(NULL): %s\n",FDFStrError(ret));
-    if(FDF_FAILURE == ret)
+    ret = ZSInit(NULL);
+    fprintf(fp,"ZSInit(NULL): %s\n",ZSStrError(ret));
+    if(ZS_FAILURE == ret)
     {
         result[0] = 1;
         return 1;
@@ -38,24 +38,24 @@ int test_invalid_output()
 
 int test_basic_check()
 {
-    FDF_status_t ret = FDF_FAILURE;
+    ZS_status_t ret = ZS_FAILURE;
     int tag = 0;
-    testname[1] = "#test1: FDFInit / basic FDF operation / close FDF.";
+    testname[1] = "#test1: ZSInit / basic ZS operation / close ZS.";
     fprintf(fp,"%s\n",testname[1]);
     
-    ret = FDFInit(&fdf_state1);  
-    fprintf(fp,"FDFInit: %s\n",FDFStrError(ret));
-    if(FDF_SUCCESS == ret)
+    ret = ZSInit(&zs_state1);  
+    fprintf(fp,"ZSInit: %s\n",ZSStrError(ret));
+    if(ZS_SUCCESS == ret)
     {
         tag += 1;
-        ret = FDFInitPerThreadState(fdf_state1, &fdf_thrd_state);
-        fprintf(fp,"FDFInitPerThreadState: %s\n",FDFStrError(ret));
-        if(FDF_SUCCESS == ret)
+        ret = ZSInitPerThreadState(zs_state1, &zs_thrd_state);
+        fprintf(fp,"ZSInitPerThreadState: %s\n",ZSStrError(ret));
+        if(ZS_SUCCESS == ret)
         {
             tag += 1;
-            (void)FDFReleasePerThreadState(&fdf_thrd_state);
+            (void)ZSReleasePerThreadState(&zs_thrd_state);
         }
-        (void)FDFShutdown(fdf_state1);
+        (void)ZSShutdown(zs_state1);
     }
     if(2 == tag)
     {
@@ -68,23 +68,23 @@ int test_basic_check()
 
 int test_double_init()
 {
-    FDF_status_t ret = FDF_FAILURE;
-    testname[2] = "#test2: Double FDFInit and check whether it succedd.";
+    ZS_status_t ret = ZS_FAILURE;
+    testname[2] = "#test2: Double ZSInit and check whether it succedd.";
     fprintf(fp,"%s\n",testname[2]);
 
-    ret = FDFInit(&fdf_state1);
-    fprintf(fp,"-step1:%s\n",FDFStrError(ret));
-    if(FDF_SUCCESS == ret)
+    ret = ZSInit(&zs_state1);
+    fprintf(fp,"-step1:%s\n",ZSStrError(ret));
+    if(ZS_SUCCESS == ret)
     {
-        ret = FDFInit(&fdf_state2);
-        fprintf(fp,"-step2:%s\n",FDFStrError(ret));
-        if(FDF_FAILURE == ret)
+        ret = ZSInit(&zs_state2);
+        fprintf(fp,"-step2:%s\n",ZSStrError(ret));
+        if(ZS_FAILURE == ret)
         {
             result[2] = 1;
         }
     }
-    (void)FDFShutdown(fdf_state1);
-    (void)FDFShutdown(fdf_state2);
+    (void)ZSShutdown(zs_state1);
+    (void)ZSShutdown(zs_state2);
 
     return result[2];
 }
@@ -96,7 +96,7 @@ int main()
     int testnumber = 2;
 	int count      = 0;
 
-    if((fp = fopen("FDF_Init.log", "w+")) == 0)
+    if((fp = fopen("ZS_Init.log", "w+")) == 0)
     {
         fprintf(stderr, " open log file failed!.\n");
         return -1;
@@ -125,13 +125,13 @@ int main()
 
     if(1 == count)
     {
-        fprintf(stderr, "#Test of FDFInit pass!\n");
-	fprintf(stderr, "#The related test script is FDF_Init.c\n");
-	fprintf(stderr, "#If you want, you can check test details in FDF_Init.log\n");
+        fprintf(stderr, "#Test of ZSInit pass!\n");
+	fprintf(stderr, "#The related test script is ZS_Init.c\n");
+	fprintf(stderr, "#If you want, you can check test details in ZS_Init.log\n");
     }else{
-        fprintf(stderr, "#Test of FDFInit fail!\n");
-	fprintf(stderr, "#The related test script is FDF_Init.c\n");
-	fprintf(stderr, "#If you want, you can check test details in FDF_Init.log\n");
+        fprintf(stderr, "#Test of ZSInit fail!\n");
+	fprintf(stderr, "#The related test script is ZS_Init.c\n");
+	fprintf(stderr, "#If you want, you can check test details in ZS_Init.log\n");
     }
 
 

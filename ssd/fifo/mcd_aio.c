@@ -36,7 +36,7 @@
 #include "fth/fthMbox.h"
 #include "utils/properties.h"
 
-extern int fdf_instance_id;
+extern int zs_instance_id;
 
 #include "fth/fth.h"
 #include "ssd/ssd_aio.h"
@@ -1270,10 +1270,10 @@ int mcd_aio_init( void * state, char * dname )
         open_flags |= O_CREAT;
     }
 
-    if (getProperty_Int("FDF_O_SYNC", 0)) {
+    if (getProperty_Int("ZS_O_SYNC", 0)) {
         open_flags |= O_SYNC;
         mcd_log_msg(180020, PLAT_LOG_LEVEL_TRACE,
-                    "FDF_O_SYNC is set");
+                    "ZS_O_SYNC is set");
     }
 #if 0
     for ( int i = 0; i < Mcd_aio_num_files; i++ ) {
@@ -1285,13 +1285,13 @@ int mcd_aio_init( void * state, char * dname )
         int i = 0;
         strncpy( fname, Mcd_aio_base, sizeof (Mcd_aio_base));
 
-			if(fdf_instance_id)
+			if(zs_instance_id)
 			{
 				char temp[PATH_MAX + 1];
-				sprintf(temp, "%s.%d", fname, fdf_instance_id);
+				sprintf(temp, "%s.%d", fname, zs_instance_id);
 				Mcd_aio_fds[i] = open( temp, open_flags, 00600 );
 				/* Remove from FS name space immediately, e.g. limit lifetime by this process */
-				if(getProperty_Int("FDF_TEST_MODE", 0))
+				if(getProperty_Int("ZS_TEST_MODE", 0))
 					unlink(temp);
 			}
 			else
@@ -1535,7 +1535,7 @@ mcd_aio_register_ops( void )
  * section for write fault injection
  * =================================
  *
- * Abort FDF with selective device corruption via property.
+ * Abort ZS with selective device corruption via property.
  */
 
 #include	<ctype.h>
@@ -1571,7 +1571,7 @@ static uint		sigcount,
  * fraction is the percentage of ops to be corrupted, mode is the type
  * of corruption to be visited on the data block, and 'seed' sets the
  * random number generator.  If seed is omitted, the process ID is used.
- * Settings are reported on FDF startup (PLAT_LOG_LEVEL_INFO).  With the
+ * Settings are reported on ZS startup (PLAT_LOG_LEVEL_INFO).  With the
  * same seed and a single-threaded app, reproducible crashes are possible.
  *
  * Mode settings:
@@ -1586,7 +1586,7 @@ static uint		sigcount,
  * Example:
  * 	AIO_WRITE_FAULT_INJECTOR = 70000/10000/10/5/0
  * Meaning:
- * 	Starting at FDF write operation 70000, increment a random
+ * 	Starting at ZS write operation 70000, increment a random
  * 	byte in 10% of the blocks written, and attempt reproducibility.
  * 	Crash just before write operation 80000.
  */
@@ -1617,7 +1617,7 @@ init_write_fault_injector( )
  * Corrupt traffic outbound to flash according to the parameters above.
  * A brief diagnostic is printed to stderr, giving the ASCII signature of
  * the block or, alternatively, the first word in hex.  When the op stream
- * reaches failstart+failcount, abort FDF.
+ * reaches failstart+failcount, abort ZS.
  */
 static void
 write_fault_injector( int fd, char *buf, size_t nbyte, off_t offset)
@@ -1700,7 +1700,7 @@ write_fault_injector( int fd, char *buf, size_t nbyte, off_t offset)
  * Call fdatasync() on the given descriptor and, if the write stream
  * lies within the fault-injection range, print an indicator to stderr.
  * The indicators are (####) and ($$$$) for 'sig' -1 and -2, respectively.
- * While the injector can corrupt any write range of the FDF run, recovery
+ * While the injector can corrupt any write range of the ZS run, recovery
  * from a hardware crash is only defined for corruption after the last device
  * sync.  Therefore, these indicators should not be seen in the diagnostic
  * stream during h/w crash simulations.  Adjust AIO_WRITE_FAULT_INJECTOR
@@ -1725,7 +1725,7 @@ write_fault_sync( int fd, ulong sig)
  *
  * Display the "eye catcher" of the block, if present, otherwise the value
  * in hex of the first 32 bits.  Count a repeating type, typically META for
- * slab.  Ensure the last repeat is flushed on FDF exit or injector abort.
+ * slab.  Ensure the last repeat is flushed on ZS exit or injector abort.
  */
 static void
 dumpsignature( ulong sig)

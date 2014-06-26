@@ -1,113 +1,113 @@
-#ifndef __FDF_TEST__
-#define __FDF_TEST__
+#ifndef __ZS_TEST__
+#define __ZS_TEST__
 
-FDF_status_t
-fdf_init();
+ZS_status_t
+zs_init();
 
-FDF_status_t fdf_shutdown();
+ZS_status_t zs_shutdown();
 
-FDF_status_t fdf_init_thread();
+ZS_status_t zs_init_thread();
 
-FDF_status_t fdf_release_thread();
+ZS_status_t zs_release_thread();
 
-FDF_status_t fdf_transaction_start();
-FDF_status_t fdf_transaction_commit();
+ZS_status_t zs_transaction_start();
+ZS_status_t zs_transaction_commit();
 
-FDF_status_t fdf_create_container (
+ZS_status_t zs_create_container (
 	char                    *cname,
 	uint64_t				size,
-	FDF_cguid_t             *cguid
+	ZS_cguid_t             *cguid
 	);
 
-FDF_status_t fdf_open_container (
+ZS_status_t zs_open_container (
 	char                    *cname,
 	uint64_t				size,
-	FDF_cguid_t             *cguid
+	ZS_cguid_t             *cguid
 	);
 
-FDF_status_t fdf_close_container (
-	FDF_cguid_t             cguid
+ZS_status_t zs_close_container (
+	ZS_cguid_t             cguid
 	);
 
-FDF_status_t fdf_delete_container (
-	FDF_cguid_t             cguid
+ZS_status_t zs_delete_container (
+	ZS_cguid_t             cguid
 	);
 
-FDF_status_t fdf_flush_container (
-    FDF_cguid_t                cguid
+ZS_status_t zs_flush_container (
+    ZS_cguid_t                cguid
        );
 
-FDF_status_t fdf_get (
-	FDF_cguid_t                cguid,
+ZS_status_t zs_get (
+	ZS_cguid_t                cguid,
 	char                      *key,
 	uint32_t                   keylen,
 	char                     **data,
 	uint64_t                  *datalen
 	   );
 
-FDF_status_t fdf_free_buffer(
+ZS_status_t zs_free_buffer(
 	char 					*data
 	);
 
-FDF_status_t fdf_enumerate (
-	FDF_cguid_t 			  cguid,
-	struct FDF_iterator		**_fdf_iterator
+ZS_status_t zs_enumerate (
+	ZS_cguid_t 			  cguid,
+	struct ZS_iterator		**_zs_iterator
 	);
 
-FDF_status_t fdf_next_enumeration(
-	FDF_cguid_t               cguid,
-	struct FDF_iterator		 *_fdf_iterator,
+ZS_status_t zs_next_enumeration(
+	ZS_cguid_t               cguid,
+	struct ZS_iterator		 *_zs_iterator,
 	char                     **key,
 	uint32_t                  *keylen,
 	char                     **data,
 	uint64_t                  *datalen
 	);
 
-FDF_status_t fdf_finish_enumeration (
-	FDF_cguid_t  			 cguid,
-	struct FDF_iterator		*_fdf_iterator
+ZS_status_t zs_finish_enumeration (
+	ZS_cguid_t  			 cguid,
+	struct ZS_iterator		*_zs_iterator
 	);
 
-FDF_status_t fdf_set (
-	FDF_cguid_t              cguid,
+ZS_status_t zs_set (
+	ZS_cguid_t              cguid,
 	char					*key,
 	uint32_t				 keylen,
 	char					*data,
 	uint64_t				 datalen
 	);
 
-FDF_status_t fdf_delete(
-	FDF_cguid_t              cguid,
+ZS_status_t zs_delete(
+	ZS_cguid_t              cguid,
 	char					*key,
 	uint32_t				 keylen
 	);
 
-FDF_status_t fdf_flush(
-	FDF_cguid_t              cguid,
+ZS_status_t zs_flush(
+	ZS_cguid_t              cguid,
 	char					*key,
 	uint32_t				 keylen
 	);
 
-FDF_status_t fdf_get_containers(
-	FDF_cguid_t              *cguids,
+ZS_status_t zs_get_containers(
+	ZS_cguid_t              *cguids,
 	uint32_t				 *n_cguids
 	);
 
-FDF_status_t fdf_get_stats(FDF_stats_t *stats);
-FDF_status_t fdf_get_container_stats(FDF_cguid_t cguid, FDF_stats_t *stats);
+ZS_status_t zs_get_stats(ZS_stats_t *stats);
+ZS_status_t zs_get_container_stats(ZS_cguid_t cguid, ZS_stats_t *stats);
 
 void
 advance_spinner();
 
 #define t(func, res) ({ \
-	FDF_status_t r = func; \
+	ZS_status_t r = func; \
 	if(r != res) \
 		fprintf(stderr, "%x %s:%d %s %s=%s - Expected: %s - %s\n", \
 		(int)pthread_self(), basename(__FILE__), __LINE__, __FUNCTION__, \
-		#func, FDFStrError(r), #res, r == res ? "OK": "FAILED"); \
+		#func, ZSStrError(r), #res, r == res ? "OK": "FAILED"); \
 	if(r != res) \
 		exit(1); \
 	r; })
 
-#endif /* __FDF_TEST__ */
+#endif /* __ZS_TEST__ */
 

@@ -664,7 +664,7 @@ rtfw_read_sync(struct replication_test_framework *framework,
  *
  * This is a thin wrapper which invokes the node's replicator
  * #sdf_replicator_get_op_meta function, starts the operation in the
- * model with #rtm_start_write, and sends an HFDFF message to the
+ * model with #rtm_start_write, and sends an HZSF message to the
  * replicator.
  *
  * On completion, the FHDEC (success) or FHDEF (failure) message will

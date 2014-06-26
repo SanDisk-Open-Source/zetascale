@@ -27,17 +27,17 @@
 #ifndef __BTREE_H
 #define __BTREE_H
 
-typedef void (*fdf_log_func) (const char *file, unsigned line, const char *function,
+typedef void (*zs_log_func) (const char *file, unsigned line, const char *function,
                               int logid, int category, int level, const char *format, ...);
-extern fdf_log_func fdf_log_func_ptr;
+extern zs_log_func zs_log_func_ptr;
 
 #define LOG_CATAGORY_SDF_NAMING 12   
 #define LOG_LEVEL_INFO 5   
 #define PLAT_LOG_ID 160146
 
 #define fprintf(fd,format,...) \
-    if( fdf_log_func_ptr != NULL ) { \
-        fdf_log_func_ptr(basename(__FILE__),__LINE__, __FUNCTION__, PLAT_LOG_ID,LOG_CATAGORY_SDF_NAMING,LOG_LEVEL_INFO, format,##__VA_ARGS__); \
+    if( zs_log_func_ptr != NULL ) { \
+        zs_log_func_ptr(basename(__FILE__),__LINE__, __FUNCTION__, PLAT_LOG_ID,LOG_CATAGORY_SDF_NAMING,LOG_LEVEL_INFO, format,##__VA_ARGS__); \
     }\
     else { \
         fprintf(stderr,format,##__VA_ARGS__);\
@@ -51,7 +51,7 @@ extern struct btree *btree_init(uint32_t n_partitions, uint32_t flags, uint32_t 
  				write_node_cb_t *write_node_cb, void *write_node_cb_data, flush_node_cb_t *flush_node_cb, void *flush_node_cb_data, 
 				freebuf_cb_t *freebuf_cb, void *freebuf_cb_data, delete_node_cb_t *delete_node_cb, void *delete_node_data, log_cb_t *log_cb, 
 				void *log_cb_data, msg_cb_t *msg_cb, void *msg_cb_data, cmp_cb_t *cmp_cb, void * cmp_cb_data, bt_mput_cmp_cb_t mput_cmp_cb, 
-				void *mput_cmp_cb_data, trx_cmd_cb_t *trx_cmd_cb, uint64_t cguid, fdf_pstats_t *pstats, seqno_alloc_cb_t *ptr_seqno_alloc_cb);
+				void *mput_cmp_cb_data, trx_cmd_cb_t *trx_cmd_cb, uint64_t cguid, zs_pstats_t *pstats, seqno_alloc_cb_t *ptr_seqno_alloc_cb);
 
 extern btree_status_t btree_destroy(struct btree *btree);
 

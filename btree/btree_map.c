@@ -8,7 +8,7 @@
  * http://www.sandisk.com
  *
  * IMPORTANT NOTES:
- *    - Unlike tlmap in the fdf directory, fdf_tlmap does NOT
+ *    - Unlike tlmap in the zs directory, zs_tlmap does NOT
  *      automatically malloc and free the key and contest of
  *      a hashtable entry!
  *
@@ -47,7 +47,7 @@
 
 static void _map_assert(int x) {
     if (x) {
-        dbg_print("Assertion failure in fdf_tlmap!\n");
+        dbg_print("Assertion failure in zs_tlmap!\n");
 	assert(0);
     }
 }

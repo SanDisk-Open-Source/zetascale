@@ -7,8 +7,8 @@
  * Created on March 25, 2013.
  */
 
-#ifndef __FDFLICVERSIONS_H
-#define __FDFLICVERSIONS_H
+#ifndef __ZSLICVERSIONS_H
+#define __ZSLICVERSIONS_H
 #include <stdio.h>
 #include "interface.h"
 

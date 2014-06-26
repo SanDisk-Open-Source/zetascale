@@ -17,12 +17,12 @@ static char *Desc = "test 5";
  * A test.
  */
 static void
-test(fdf_t *fdf)
+test(zs_t *zs)
 {
-    /* Initialize FDF */
-    test_init(fdf, Name);
+    /* Initialize ZS */
+    test_init(zs, Name);
 
-    fdf_ctr_t *ctr = open_ctr(fdf, "C0", FDF_CTNR_CREATE);
+    fdf.ctr_t *ctr = open_ctr(zs, "C0", ZS_CTNR_CREATE);
 
     show_obj(ctr, "0000000000000000", "");
     show_obj(ctr, "0000000000000001", "");
@@ -37,10 +37,10 @@ test(fdf_t *fdf)
 
     show_objs(ctr);
 
-    fdf_ctr_close(ctr, NULL);
+    fdf.ctr_close(ctr, NULL);
 
-    /* Close FDF */
-    fdf_done(fdf);
+    /* Close ZS */
+    zs_done(zs);
 }
 
 

@@ -2229,7 +2229,7 @@ rtfw_read_sync(struct replication_test_framework *test_framework,
  *
  * This is a thin wrapper which invokes the node's replicator
  * #sdf_replicator_get_op_meta function, starts the operation in the
- * model with #rtm_start_write, and sends an HFDFF message to the
+ * model with #rtm_start_write, and sends an HZSF message to the
  * replicator.
  *
  * @param test_model <IN> Test model
@@ -2280,7 +2280,7 @@ rtfw_delete_async(struct replication_test_framework *test_framework,
             response_msg->msg_src_vnode = node;
 
             pm = (SDF_protocol_msg_t *)response_msg->msg_payload;
-            pm->msgtype = HFDFF;
+            pm->msgtype = HZSF;
             pm->key.len = key_len;
             pm->shard = shard;
             snprintf(pm->key.key, key_len+1, "%s", (char *)key);

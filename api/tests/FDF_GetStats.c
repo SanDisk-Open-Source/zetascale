@@ -1,61 +1,61 @@
 /*********************************************
 **********   Author:  Lisa
 
-**********   Function: FDFGetStats
+**********   Function: ZSGetStats
 ***********************************************/
 #include <stdlib.h>
 #include <assert.h>
 #include <unistd.h>
 #include <string.h>
-#include "fdf.h"
-static struct FDF_state     *fdf_state;
-struct FDF_thread_state     *_fdf_thd_state;
+#include "zs.h"
+static struct ZS_state     *zs_state;
+struct ZS_thread_state     *_zs_thd_state;
 
 
 int preEnvironment()
 {
-    if(FDFInit( &fdf_state) != FDF_SUCCESS ) {
-        fprintf( stderr, "FDF initialization failed!\n" );
+    if(ZSInit( &zs_state) != ZS_SUCCESS ) {
+        fprintf( stderr, "ZS initialization failed!\n" );
         return 0 ;
     }
 
-    fprintf( stderr, "FDF was initialized successfully!\n" );
+    fprintf( stderr, "ZS was initialized successfully!\n" );
 
-    if(FDF_SUCCESS != FDFInitPerThreadState( fdf_state, &_fdf_thd_state ) ) {
-        fprintf( stderr, "FDF thread initialization failed!\n" );
+    if(ZS_SUCCESS != ZSInitPerThreadState( zs_state, &_zs_thd_state ) ) {
+        fprintf( stderr, "ZS thread initialization failed!\n" );
         return 0;
     }
 
-    fprintf( stderr, "FDF thread was initialized successfully!\n" );
+    fprintf( stderr, "ZS thread was initialized successfully!\n" );
     return 1;
 }
 
 void CleanEnvironment()
 {
-    FDFReleasePerThreadState(&_fdf_thd_state);
-    FDFShutdown(fdf_state);
+    ZSReleasePerThreadState(&_zs_thd_state);
+    ZSShutdown(zs_state);
 }
 
-FDF_status_t GetStats(FDF_stats_t *stats)
+ZS_status_t GetStats(ZS_stats_t *stats)
 {
-    FDF_status_t           ret;
+    ZS_status_t           ret;
 
-    ret = FDFGetStats(_fdf_thd_state,stats);
-    if(FDF_SUCCESS == ret){
-        fprintf( stderr, "FDFGetStats return success.\n");
+    ret = ZSGetStats(_zs_thd_state,stats);
+    if(ZS_SUCCESS == ret){
+        fprintf( stderr, "ZSGetStats return success.\n");
     }
-    else fprintf( stderr, "FDFGetStats return failed:%s.\n",FDFStrError(ret));
+    else fprintf( stderr, "ZSGetStats return failed:%s.\n",ZSStrError(ret));
     return ret;
 }
 
 
 int GetStats_basic_check1()
 {
-    FDF_stats_t            stats;
-    FDF_status_t           ret;
+    ZS_stats_t            stats;
+    ZS_status_t           ret;
 
     ret = GetStats(&stats);
-    if(FDF_SUCCESS == ret)
+    if(ZS_SUCCESS == ret)
         return 1;
     return 0;
 }
@@ -63,14 +63,14 @@ int GetStats_basic_check1()
 
 int GetStats_basic_check2()
 {
-    FDF_status_t           ret;
+    ZS_status_t           ret;
 
     ret = GetStats(NULL);
-    if(FDF_SUCCESS == ret){
-        fprintf( stderr, "FDFGetStats use stats = NULL, success.\n");
+    if(ZS_SUCCESS == ret){
+        fprintf( stderr, "ZSGetStats use stats = NULL, success.\n");
         return 1;
     }
-    else fprintf( stderr, "FDFGetStats use stats = NULL, failed.\n");
+    else fprintf( stderr, "ZSGetStats use stats = NULL, failed.\n");
     return 0;
 }
 
@@ -96,17 +96,17 @@ int main(int argc, char *argv[])
     for(int j = 0; j < 2; j++){
         if(result[j] == 1){
             num++;
-            fprintf( stderr, "FDFGetStats test %drd success.\n",j+1);
+            fprintf( stderr, "ZSGetStats test %drd success.\n",j+1);
         }
-        else fprintf( stderr, "FDFGetStats test %drd failed.\n",j+1);
+        else fprintf( stderr, "ZSGetStats test %drd failed.\n",j+1);
     }
     if(resultCount == num){
         fprintf(stderr, "************ test pass!******************\n");
-	fprintf(stderr, "#The related test script is FDF_GetStats.c\n");
+	fprintf(stderr, "#The related test script is ZS_GetStats.c\n");
         return 0;
     }
     else 
         fprintf(stderr, "************%d test failed!******************\n",resultCount-num);
-	fprintf(stderr, "#The related test script is FDF_GetStats.c\n");
+	fprintf(stderr, "#The related test script is ZS_GetStats.c\n");
         return 1;
 }

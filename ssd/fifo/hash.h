@@ -1,5 +1,5 @@
 /** @file hash.h
- *  @brief FDF translation(key <-> addr) module.
+ *  @brief ZS translation(key <-> addr) module.
  *
  *  This contains function declarations and datastructures for 
  *  key to addr translation and vice-versa
@@ -10,7 +10,7 @@
  */
 
 #include <sdftcp/locks.h>
-#include <common/fdftypes.h>
+#include <common/zstypes.h>
 #include <platform/logging.h>
 #include <fth/fthLock.h>
 #include <platform/alloc.h>

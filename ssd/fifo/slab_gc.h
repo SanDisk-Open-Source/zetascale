@@ -1,5 +1,5 @@
-#ifndef __FDF_SLAB_GC_H__
-#define __FDF_SLAB_GC_H__
+#ifndef __ZS_SLAB_GC_H__
+#define __ZS_SLAB_GC_H__
 
 #include "mcd_osd.h"
 
@@ -11,9 +11,9 @@ void slab_gc_end(mcd_osd_shard_t* shard);
 
 bool slab_gc_update_threshold(mcd_osd_shard_t *shard, int threshold);
 
-void slab_gc_get_stats(mcd_osd_shard_t* shard, FDF_stats_t* stats, FILE* log);
+void slab_gc_get_stats(mcd_osd_shard_t* shard, ZS_stats_t* stats, FILE* log);
 
 #define STAT(A) \
-    FDF_FLASH_STATS_SLAB_GC_ ## A
+    ZS_FLASH_STATS_SLAB_GC_ ## A
 
-#endif /* __FDF_SLAB_GC_H__ */
+#endif /* __ZS_SLAB_GC_H__ */

@@ -1,5 +1,5 @@
 /****************************
-#function : FDFGetContainers
+#function : ZSGetContainers
 #author   : AliceXu
 #date     : 2012.11.08
 *****************************/
@@ -7,33 +7,33 @@
 #include <stdlib.h>
 #include <assert.h>
 #include <unistd.h>
-#include "fdf.h"
+#include "zs.h"
 
 FILE *fp;
-static struct FDF_state        *fdf_state;
-static struct FDF_thread_state *fdf_thrd_state;
-//FDF_config_t                   *fdf_config;
-FDF_cguid_t                    cguid;
+static struct ZS_state        *zs_state;
+static struct ZS_thread_state *zs_thrd_state;
+//ZS_config_t                   *fdf.config;
+ZS_cguid_t                    cguid;
 char *testname[10] = {NULL};
 int result[2][10][3] = {{{0}}};
 //uint32_t mode[6][4] = {{0,0,0,1},{0,1,0,1},{0,1,1,0},{0,1,1,1},{1,0,1,0},{1,0,1,1}};
 
 
-FDF_status_t pre_env()
+ZS_status_t pre_env()
 {
-     FDF_status_t ret = FDF_FAILURE;
-   //(void)FDFLoadConfigDefaults(fdf_config, NULL);
-   //  if (FDFInit(&fdf_state, fdf_config) != FDF_SUCCESS) {
-     ret = FDFInit(&fdf_state);
-     if (FDF_SUCCESS != ret)
+     ZS_status_t ret = ZS_FAILURE;
+   //(void)ZSLoadConfigDefaults(fdf.config, NULL);
+   //  if (ZSInit(&zs_state, fdf.config) != ZS_SUCCESS) {
+     ret = ZSInit(&zs_state);
+     if (ZS_SUCCESS != ret)
      {
-        fprintf(fp, "FDF initialization failed!\n");
+        fprintf(fp, "ZS initialization failed!\n");
      }else {
-        fprintf(fp, "FDF initialization succeed!\n");
-        ret = FDFInitPerThreadState(fdf_state, &fdf_thrd_state);
-        if( FDF_SUCCESS == ret)
+        fprintf(fp, "ZS initialization succeed!\n");
+        ret = ZSInitPerThreadState(zs_state, &zs_thrd_state);
+        if( ZS_SUCCESS == ret)
         {
-            fprintf(fp, "FDF thread initialization succeed!\n");
+            fprintf(fp, "ZS thread initialization succeed!\n");
         }
      }
      return ret;
@@ -41,18 +41,18 @@ FDF_status_t pre_env()
 
 void clear_env()
 {
-    (void)FDFReleasePerThreadState(&fdf_thrd_state);
-    (void)FDFShutdown(fdf_state);
+    (void)ZSReleasePerThreadState(&zs_thrd_state);
+    (void)ZSShutdown(zs_state);
     fprintf(fp, "clear env!\n");
 }                       
 
-FDF_status_t OpenContainer(char *cname, uint32_t flag, uint32_t asyncwrite,uint32_t dura)
+ZS_status_t OpenContainer(char *cname, uint32_t flag, uint32_t asyncwrite,uint32_t dura)
 {
-    FDF_status_t          ret;
-    FDF_container_props_t p;
+    ZS_status_t          ret;
+    ZS_container_props_t p;
 
-    ret = FDF_FAILURE;  
-    (void)FDFLoadCntrPropDefaults(&p);
+    ret = ZS_FAILURE;  
+    (void)ZSLoadCntrPropDefaults(&p);
     p.async_writes = asyncwrite;
     p.durability_level = dura;
     p.fifo_mode = 0;
@@ -62,8 +62,8 @@ FDF_status_t OpenContainer(char *cname, uint32_t flag, uint32_t asyncwrite,uint3
     p.num_shards = 1;
     p.evicting = 0;
  
-    ret = FDFOpenContainer(
-                        fdf_thrd_state,
+    ret = ZSOpenContainer(
+                        zs_thrd_state,
                         cname,
                         &p,
                         flag,
@@ -71,34 +71,34 @@ FDF_status_t OpenContainer(char *cname, uint32_t flag, uint32_t asyncwrite,uint3
                         );
     fprintf(fp, "Open container:");
     fprintf(fp, "durability type = %d\n",dura);
-    fprintf(fp,"result:%s\n",FDFStrError(ret));
+    fprintf(fp,"result:%s\n",ZSStrError(ret));
     return ret;
 }
 
-FDF_status_t CloseContainer(FDF_cguid_t cid)
+ZS_status_t CloseContainer(ZS_cguid_t cid)
 {
-    FDF_status_t ret;
-    ret = FDFCloseContainer(fdf_thrd_state, cid);
-    fprintf(fp,"FDFCloseContainer : ");
-    fprintf(fp,"%s\n",FDFStrError(ret));
+    ZS_status_t ret;
+    ret = ZSCloseContainer(zs_thrd_state, cid);
+    fprintf(fp,"ZSCloseContainer : ");
+    fprintf(fp,"%s\n",ZSStrError(ret));
     return ret;
 }
 
-FDF_status_t DeleteContainer(FDF_cguid_t cid)
+ZS_status_t DeleteContainer(ZS_cguid_t cid)
 {
-    FDF_status_t ret;
-    ret = FDFDeleteContainer(fdf_thrd_state, cid);
-    fprintf(fp,"FDFDeleteContainer : ");
-    fprintf(fp,"%s\n",FDFStrError(ret));
+    ZS_status_t ret;
+    ret = ZSDeleteContainer(zs_thrd_state, cid);
+    fprintf(fp,"ZSDeleteContainer : ");
+    fprintf(fp,"%s\n",ZSStrError(ret));
     return ret;
 }
 
-FDF_status_t GetContainers(FDF_cguid_t *cid, uint32_t *n_cguids)
+ZS_status_t GetContainers(ZS_cguid_t *cid, uint32_t *n_cguids)
 {
-    FDF_status_t ret;
-    ret = FDFGetContainers(fdf_thrd_state, cid, n_cguids);
+    ZS_status_t ret;
+    ret = ZSGetContainers(zs_thrd_state, cid, n_cguids);
     fprintf(fp,"GetContainers : ");
-    fprintf(fp,"%s\n",FDFStrError(ret));
+    fprintf(fp,"%s\n",ZSStrError(ret));
     return ret;
 }
 
@@ -106,16 +106,16 @@ FDF_status_t GetContainers(FDF_cguid_t *cid, uint32_t *n_cguids)
 
 int test_get_with_nocontainer(uint32_t aw)
 {
-    FDF_status_t  ret;
+    ZS_status_t  ret;
     int tag = 0;
-    FDF_cguid_t   cguid_out[1] = {0};
+    ZS_cguid_t   cguid_out[1] = {0};
     uint32_t      number;
     testname[0] = "#test:get container with no container exists.";
     fprintf(fp, "****** async write = %d ******\n",aw);
     fprintf(fp, "%s\n",testname[0]);
 
     ret = GetContainers(cguid_out, &number);
-    if((FDF_SUCCESS ==ret) && (0 == number) && (0 == cguid_out[0]))
+    if((ZS_SUCCESS ==ret) && (0 == number) && (0 == cguid_out[0]))
     {
         tag += 1;
         result[aw][0][0] = 1;
@@ -130,10 +130,10 @@ int test_get_with_nocontainer(uint32_t aw)
 
 int test_basic_check(uint32_t aw)
 {
-    FDF_status_t  ret;
+    ZS_status_t  ret;
     int tag = 0;
     uint32_t      number;
-    FDF_cguid_t   cguid_out[1];
+    ZS_cguid_t   cguid_out[1];
     testname[1] = "#test1: basic check.";
     fprintf(fp, "****** async write = %d ******\n",aw);
     fprintf(fp, "%s\n",testname[1]);
@@ -141,12 +141,12 @@ int test_basic_check(uint32_t aw)
     for(int i = 0; i < 3; i++)
     {
         ret = OpenContainer("test1", 1, aw, i);
-        if(FDF_SUCCESS == ret)
+        if(ZS_SUCCESS == ret)
         {
             cguid_out[0] = 0;
             number = 0;
             ret = GetContainers(cguid_out, &number);
-            if((FDF_SUCCESS == ret) && (1 == number) && (cguid == cguid_out[0]))
+            if((ZS_SUCCESS == ret) && (1 == number) && (cguid == cguid_out[0]))
             {
                 result[aw][1][i] += 1;
             }
@@ -156,7 +156,7 @@ int test_basic_check(uint32_t aw)
         cguid_out[0] = 0;
         number = 0;
         ret = GetContainers(cguid_out, &number);
-        if((FDF_SUCCESS == ret) && (0 == number) && (0 == cguid_out[0]))
+        if((ZS_SUCCESS == ret) && (0 == number) && (0 == cguid_out[0]))
         {
             result[aw][1][i] += 1;
         }
@@ -180,11 +180,11 @@ int main()
     int testnumber = 2;
 	int count      = 0;
 
-    if((fp = fopen("FDF_GetContainers.log", "w+")) == 0){
+    if((fp = fopen("ZS_GetContainers.log", "w+")) == 0){
         fprintf(stderr, " open failed!.\n");
         return -1;
     }
-    if(FDF_SUCCESS == pre_env())
+    if(ZS_SUCCESS == pre_env())
     {
         for(uint32_t aw = 0; aw < 2; aw++)
         {
@@ -225,9 +225,9 @@ int main()
     }
     if(testnumber*2 == count)
     {
-       fprintf(stderr, "#Test of FDFGetContainers pass!\n");
+       fprintf(stderr, "#Test of ZSGetContainers pass!\n");
     }else{
-       fprintf(stderr, "#Test of FDFGetContainers fail!\n");
+       fprintf(stderr, "#Test of ZSGetContainers fail!\n");
     }
     return (!(testnumber*2 == count));
 }

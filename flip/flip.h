@@ -5,14 +5,14 @@
 
 #include <stdbool.h>
 #include <inttypes.h>
-#include "api/fdf.h"
+#include "api/zs.h"
 #include "api/fdf_internal.h"
 
 #define MAX_FLIP_LINE_LEN   1000
 #define MAX_FLIP_CMD_WORDS  100
 #define MAX_FLIP_NAME_LEN   256
 #define MAX_PARAMS          10
-#define FLIP_FILE  "/var/lib/fdf/btree.flip"
+#define FLIP_FILE  "/var/lib/zs/btree.flip"
 
 
 typedef enum {
@@ -86,14 +86,14 @@ int flip_set(char *name, ...);
 
 #include <stdbool.h>
 #include <inttypes.h>
-#include "api/fdf.h"
+#include "api/zs.h"
 #include "api/fdf_internal.h"
 
 #define MAX_FLIP_LINE_LEN   1000
 #define MAX_FLIP_CMD_WORDS  100
 #define MAX_FLIP_NAME_LEN   256
 #define MAX_PARAMS          10
-#define FLIP_FILE  "/var/lib/fdf/btree.flip"
+#define FLIP_FILE  "/var/lib/zs/btree.flip"
 
 
 typedef enum {

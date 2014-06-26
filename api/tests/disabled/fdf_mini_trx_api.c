@@ -3,10 +3,10 @@
 #include <unistd.h>
 #include <pthread.h>
 #include <string.h>
-#include "fdf.h"
+#include "zs.h"
 #include "test.h"
 
-static FDF_cguid_t  cguid_shared;
+static ZS_cguid_t  cguid_shared;
 static char *base = "container";
 static int iterations = 1000;
 static int threads = 1;
@@ -16,9 +16,9 @@ void* worker(void *arg)
 {
     int i;
 
-    struct FDF_iterator*		_fdf_iterator;
+    struct ZS_iterator*		_zs_iterator;
 
-    FDF_cguid_t  				 cguid;
+    ZS_cguid_t  				 cguid;
     char 						 cname[32] 			= "cntr0";
     char        				*data;
     uint64_t     				 datalen;
@@ -27,75 +27,75 @@ void* worker(void *arg)
     char 						 key_str[24] 		= "key00";
     char 						 key_data[24] 		= "key00_data";
 
-    t(fdf_init_thread(), FDF_SUCCESS);
+    t(zs_init_thread(), ZS_SUCCESS);
 
     sprintf(cname, "%s-%x-mini-trx", base, (int)pthread_self());
 
-    t(fdf_create_container(cname, size, &cguid), FDF_SUCCESS);
+    t(fdf.create_container(cname, size, &cguid), ZS_SUCCESS);
 
-    t(fdf_enumerate(cguid, &_fdf_iterator), FDF_SUCCESS);
+    t(zs_enumerate(cguid, &_zs_iterator), ZS_SUCCESS);
 
-    while (fdf_next_enumeration(cguid, _fdf_iterator, &key, &keylen, &data, &datalen) == FDF_SUCCESS) {
+    while (zs_next_enumeration(cguid, _zs_iterator, &key, &keylen, &data, &datalen) == ZS_SUCCESS) {
 		fprintf(stderr, "%x sdf_enum: key=%s, keylen=%d, data=%s, datalen=%ld\n", (int)pthread_self(), key, keylen, data, datalen);
 		//advance_spinner();
     }
 
     fprintf(stderr, "\n");
 
-    t(fdf_finish_enumeration(cguid, _fdf_iterator), FDF_SUCCESS);
+    t(zs_finish_enumeration(cguid, _zs_iterator), ZS_SUCCESS);
 
-	t(fdf_transaction_start(), FDF_SUCCESS);
+	t(zs_transaction_start(), ZS_SUCCESS);
 
     for(i = 0; i < iterations; i++)
     {
 		sprintf(key_str, "key%04ld-%08d", (long) arg, i);
 		sprintf(key_data, "key%04ld-%08d_data", (long) arg, i);
 
-		t(fdf_set(cguid, key_str, strlen(key_str) + 1, key_data, strlen(key_data) + 1), FDF_SUCCESS);
+		t(zs_set(cguid, key_str, strlen(key_str) + 1, key_data, strlen(key_data) + 1), ZS_SUCCESS);
 
 		advance_spinner();
     }
 
-	t(fdf_transaction_commit(), FDF_SUCCESS);
+	t(zs_transaction_commit(), ZS_SUCCESS);
 
     for(i = 0; i < iterations; i++)
     {
 		sprintf(key_str, "key%04ld-%08d", (long) arg, i);
 		sprintf(key_data, "key%04ld-%08d_data", (long) arg, i);
 
-		t(fdf_get(cguid, key_str, strlen(key_str) + 1, &data, &datalen), FDF_SUCCESS);
+		t(zs_get(cguid, key_str, strlen(key_str) + 1, &data, &datalen), ZS_SUCCESS);
 
 		assert(!memcmp(data, key_data, 11));	
 
 		advance_spinner();
     }
 
-    t(fdf_enumerate(cguid, &_fdf_iterator), FDF_SUCCESS);
+    t(zs_enumerate(cguid, &_zs_iterator), ZS_SUCCESS);
 
-    while(fdf_next_enumeration(cguid, _fdf_iterator, &key, &keylen, &data, &datalen) == FDF_SUCCESS) {
+    while(zs_next_enumeration(cguid, _zs_iterator, &key, &keylen, &data, &datalen) == ZS_SUCCESS) {
 		fprintf(stderr, "%x sdf_enum: key=%s, keylen=%d, data=%s, datalen=%ld\n", (int)pthread_self(), key, keylen, data, datalen);
 		//advance_spinner();
     }
 
     fprintf(stderr, "\n");
 
-    t(fdf_finish_enumeration(cguid, _fdf_iterator), FDF_SUCCESS);
+    t(zs_finish_enumeration(cguid, _zs_iterator), ZS_SUCCESS);
 
     return 0;
 }
 
 void mini_trx_api_test()
 {
-	t(fdf_transaction_commit(), FDF_FAILURE_NO_TRANS);
+	t(zs_transaction_commit(), ZS_FAILURE_NO_TRANS);
 
-	t(fdf_transaction_start(), FDF_SUCCESS);
-	t(fdf_transaction_commit(), FDF_SUCCESS);
+	t(zs_transaction_start(), ZS_SUCCESS);
+	t(zs_transaction_commit(), ZS_SUCCESS);
 
-	t(fdf_transaction_start(), FDF_SUCCESS);
-	t(fdf_transaction_start(), FDF_FAILURE_ALREADY_IN_TRANS);
+	t(zs_transaction_start(), ZS_SUCCESS);
+	t(zs_transaction_start(), ZS_FAILURE_ALREADY_IN_TRANS);
 
-	t(fdf_transaction_commit(), FDF_SUCCESS);
-	t(fdf_transaction_commit(), FDF_FAILURE_NO_TRANS);
+	t(zs_transaction_commit(), ZS_SUCCESS);
+	t(zs_transaction_commit(), ZS_FAILURE_NO_TRANS);
 }
 
 int main(int argc, char *argv[])
@@ -114,13 +114,13 @@ int main(int argc, char *argv[])
 		fprintf(stderr, "size=%lu, hreads=%d, iterations=%d\n", size, threads, iterations);
 	}
 
-    t(fdf_init(), FDF_SUCCESS);
+    t(zs_init(), ZS_SUCCESS);
 
-    t(fdf_init_thread(), FDF_SUCCESS);
+    t(zs_init_thread(), ZS_SUCCESS);
 
     sprintf(name, "%s-mini-trx", base);
 
-    t(fdf_create_container(name, size, &cguid_shared), FDF_SUCCESS);
+    t(fdf.create_container(name, size, &cguid_shared), ZS_SUCCESS);
 
 	fprintf(stderr, "Mini transaction API tests\n");
 	mini_trx_api_test();
@@ -135,7 +135,7 @@ int main(int argc, char *argv[])
 
     fprintf(stderr, "All tests passed\n");
 
-	fdf_shutdown();
+	zs_shutdown();
 
     return(0);
 }

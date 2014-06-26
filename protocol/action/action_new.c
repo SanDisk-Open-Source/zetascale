@@ -317,7 +317,7 @@ static int flashPut_wrapper(SDF_trans_state_t *ptrans, struct shard *pshard, str
 static int shardSync_wrapper(SDF_trans_state_t *ptrans, struct shard *pshard);
 static SDF_status_t flush_inval_wrapper(SDF_trans_state_t *ptrans, struct shard *pshard, SDF_boolean_t flush_flag, SDF_boolean_t inval_flag);
 static void drain_store_pipe(SDF_action_thrd_state_t *pts);
-int do_put(FDF_async_rqst_t *pap, SDF_boolean_t unlock_slab);
+int do_put(ZS_async_rqst_t *pap, SDF_boolean_t unlock_slab);
 static SDF_status_t process_prefix_delete(SDF_trans_state_t *ptrans);
 
 #ifdef INCLUDE_TRACE_CODE
@@ -432,16 +432,16 @@ void InitActionProtocolCommonState(SDF_action_state_t *pas, SDF_action_init_t *p
         UTMallocTraceInit();
     #endif // MALLOC_TRACE
 
-    always_miss_string = getProperty_String("FDF_CACHE_ALWAYS_MISS", "Off");
-    plat_log_msg(160063, PLAT_LOG_CAT_PRINT_ARGS, PLAT_LOG_LEVEL_DEBUG, "PROP: FDF_CACHE_ALWAYS_MISS=%s", always_miss_string);
+    always_miss_string = getProperty_String("ZS_CACHE_ALWAYS_MISS", "Off");
+    plat_log_msg(160063, PLAT_LOG_CAT_PRINT_ARGS, PLAT_LOG_LEVEL_DEBUG, "PROP: ZS_CACHE_ALWAYS_MISS=%s", always_miss_string);
     if (strcmp(always_miss_string, "On") == 0) {
         pas->always_miss = SDF_TRUE;
     } else {
         pas->always_miss = SDF_FALSE;
     }
 
-    strict_wrbk_string = getProperty_String("FDF_STRICT_WRITEBACK", "Off");
-    plat_log_msg(160064, PLAT_LOG_CAT_PRINT_ARGS, PLAT_LOG_LEVEL_DEBUG, "PROP: FDF_STRICT_WRITEBACK=%s", strict_wrbk_string);
+    strict_wrbk_string = getProperty_String("ZS_STRICT_WRITEBACK", "Off");
+    plat_log_msg(160064, PLAT_LOG_CAT_PRINT_ARGS, PLAT_LOG_LEVEL_DEBUG, "PROP: ZS_STRICT_WRITEBACK=%s", strict_wrbk_string);
     if (strcmp(strict_wrbk_string, "On") == 0) {
         pas->strict_wrbk = SDF_TRUE;
     } else {
@@ -467,7 +467,7 @@ void InitActionProtocolCommonState(SDF_action_state_t *pas, SDF_action_init_t *p
     #endif
 
     max_obj_size = getProperty_uLongLong("SDF_MAX_OBJ_SIZE", SDF_MAX_OBJ_SIZE);
-    max_obj_size = getProperty_uLongLong("FDF_MAX_OBJ_SIZE", max_obj_size);
+    max_obj_size = getProperty_uLongLong("ZS_MAX_OBJ_SIZE", max_obj_size);
 
     uint64_t max_size = Mcd_osd_blk_size * MCD_OSD_OBJ_MAX_BLKS - 72 - 20 - 256;
     if(max_obj_size > max_size) {
@@ -480,7 +480,7 @@ void InitActionProtocolCommonState(SDF_action_state_t *pas, SDF_action_init_t *p
     //max_obj_size += 20; // allow extra bytes for secret memcached metadata
 
 #ifdef SDFAPIONLY
-    uint64_t cacheSize = getProperty_uLongLong("FDF_CACHE_SIZE", 100000000ULL);
+    uint64_t cacheSize = getProperty_uLongLong("ZS_CACHE_SIZE", 100000000ULL);
 #else
     uint64_t cacheSize = getProperty_uLongLong("SDF_CC_MAXCACHESIZE", 100000000ULL);
 #endif
@@ -490,15 +490,15 @@ void InitActionProtocolCommonState(SDF_action_state_t *pas, SDF_action_init_t *p
     avg_objsize = getProperty_uLongInt("SDF_CC_AVG_OBJSIZE", 1000);
     plat_log_msg(21073, PLAT_LOG_CAT_PRINT_ARGS, PLAT_LOG_LEVEL_DEBUG, "PROP: SDF_CC_AVG_OBJSIZE=%d", avg_objsize);
 
-    max_flushes_per_mod_check = getProperty_uLongInt("FDF_MAX_FLUSHES_PER_MOD_CHECK", 10);
-    plat_log_msg(80082, PLAT_LOG_CAT_PRINT_ARGS, PLAT_LOG_LEVEL_DEBUG, "PROP: FDF_MAX_FLUSHES_PER_MOD_CHECK=%d", max_flushes_per_mod_check);
+    max_flushes_per_mod_check = getProperty_uLongInt("ZS_MAX_FLUSHES_PER_MOD_CHECK", 10);
+    plat_log_msg(80082, PLAT_LOG_CAT_PRINT_ARGS, PLAT_LOG_LEVEL_DEBUG, "PROP: ZS_MAX_FLUSHES_PER_MOD_CHECK=%d", max_flushes_per_mod_check);
 
-    f_modified = getProperty_LongDouble("FDF_MODIFIED_FRACTION", 1.00);
+    f_modified = getProperty_LongDouble("ZS_MODIFIED_FRACTION", 1.00);
     if ((f_modified < 0) || (f_modified > 1)) {
         f_modified = 0.10;
-        plat_log_msg(80083, PLAT_LOG_CAT_PRINT_ARGS, PLAT_LOG_LEVEL_DEBUG, "PROP: FDF_MODIFIED_FRACTION is out of range; using default of %g", f_modified);
+        plat_log_msg(80083, PLAT_LOG_CAT_PRINT_ARGS, PLAT_LOG_LEVEL_DEBUG, "PROP: ZS_MODIFIED_FRACTION is out of range; using default of %g", f_modified);
     } else {
-        plat_log_msg(80084, PLAT_LOG_CAT_PRINT_ARGS, PLAT_LOG_LEVEL_DEBUG, "PROP: FDF_MODIFIED_FRACTION=%g", f_modified);
+        plat_log_msg(80084, PLAT_LOG_CAT_PRINT_ARGS, PLAT_LOG_LEVEL_DEBUG, "PROP: ZS_MODIFIED_FRACTION=%g", f_modified);
     }
 
     buckets_default = cacheSize/avg_objsize;
@@ -506,8 +506,8 @@ void InitActionProtocolCommonState(SDF_action_state_t *pas, SDF_action_init_t *p
         buckets_default = SDF_CC_MIN_DEFAULT_BUCKETS;
     }
 #ifdef SDFAPIONLY
-    uint64_t buckets = getProperty_uLongLong("FDF_CC_BUCKETS", buckets_default);
-    nslabs = getProperty_uLongLong("FDF_CC_NSLABS", 10000);
+    uint64_t buckets = getProperty_uLongLong("ZS_CC_BUCKETS", buckets_default);
+    nslabs = getProperty_uLongLong("ZS_CC_NSLABS", 10000);
 #else
     uint64_t buckets = getProperty_uLongLong("SDF_CC_BUCKETS", buckets_default);
     nslabs = getProperty_uLongLong("SDF_CC_NSLABS", 10000);
@@ -560,7 +560,7 @@ void InitActionProtocolCommonState(SDF_action_state_t *pas, SDF_action_init_t *p
         UTMallocTrace("actiondir", SDF_TRUE, SDF_FALSE, SDF_FALSE, (void *) pas->new_actiondir, sizeof(SDFNewCache_t));
     #endif // MALLOC_TRACE
 
-    page_size = getProperty_uLongInt("FDF_CACHE_CHUNK_SIZE", 0);
+    page_size = getProperty_uLongInt("ZS_CACHE_CHUNK_SIZE", 0);
 
     max_key_size = 256; // includes room for trailing NULL!
     SDFNewCacheInit(pas->new_actiondir, buckets, page_size, nslabs, cacheSize,
@@ -734,7 +734,7 @@ static void delete_from_flash(SDF_trans_state_t *ptrans)
 
     /* delete from flash */
 
-    incr(ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].msg_out_counts[HFDFF]);
+    incr(ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].msg_out_counts[HZSF]);
 
     #ifdef FAKE_FLASH
         ptrans->flash_retcode = FLASH_EOK;
@@ -764,7 +764,7 @@ static void delete_from_flash_no_replication(SDF_trans_state_t *ptrans)
 
     /* delete from flash with no replication */
 
-    incr(ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].msg_out_counts[HFDFF]);
+    incr(ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].msg_out_counts[HZSF]);
 
     #ifdef FAKE_FLASH
         ptrans->flash_retcode = FLASH_EOK;
@@ -2579,7 +2579,7 @@ SDF_status_t SDFPreloadContainerMetaData(SDF_action_init_t *pai, SDF_cguid_t cgu
 	    n_hash_bits = chash_bits(pas->ctnr_meta[i].pshard);
 	    if (n_hash_bits < SDFNewCacheHashBits(pas->new_actiondir)) {
 		plat_log_msg(160050, PLAT_LOG_CAT_SDF_PROT, PLAT_LOG_LEVEL_DEBUG,
-			     "Container %ld has only %d hash bits while the FDF cache uses %d hash bits!", cguid, n_hash_bits, SDFNewCacheHashBits(pas->new_actiondir));
+			     "Container %ld has only %d hash bits while the ZS cache uses %d hash bits!", cguid, n_hash_bits, SDFNewCacheHashBits(pas->new_actiondir));
 	    }
 	}
 
@@ -4043,7 +4043,7 @@ static int UsedMsgs[] = {
     HFXST,  FHXST, FHNXS,
     HFGFF,  FHDAT, FHGTF,
     HFPTF,  FHPTC, FHPTF,
-    HFDFF,  FHDEC, FHDEF,
+    HZSF,  FHDEC, FHDEF,
     HFCIF,  FHCRC, FHCRF,
     HFCZF,  FHCRC, FHCRF,
     HFSET,  FHSTC, FHSTF,
@@ -4616,7 +4616,7 @@ static void flush_wrbk_fn_wrapper(SDFNewCacheEntry_t *pce, void *wrbk_arg, SDF_a
 {
     // uint32_t                   h;
     SDF_trans_state_t         *ptrans;
-    FDF_async_rqst_t           rqst;
+    ZS_async_rqst_t           rqst;
     SDF_simple_key_t           simple_key;
     SDF_cache_ctnr_metadata_t *pmeta;
 
@@ -4714,7 +4714,7 @@ static int flashPut_wrapper(SDF_trans_state_t *ptrans, struct shard *pshard, str
     // uint32_t                 h;
     int                      ret = 0; // default is success
     SDF_action_init_t  __attribute__((unused)) *pai = ptrans->pts->pai;
-    FDF_async_rqst_t  rqst;
+    ZS_async_rqst_t  rqst;
 
     //  Force write-thru if we suppress loading the cache!
     if (ptrans->pas->always_miss) {
@@ -4724,8 +4724,8 @@ static int flashPut_wrapper(SDF_trans_state_t *ptrans, struct shard *pshard, str
     /* Check if compression has been enabled for this container. If so 
        Set flag to enable compression so that low level function will compress data 
        Before writing to flash*/
-    if( getProperty_Int("FDF_COMPRESSION", 0) && (ptrans->par->ctnr > LAST_PHYSICAL_CGUID ) &&
-                ptrans->meta->meta.properties.compression == FDF_TRUE ) {
+    if( getProperty_Int("ZS_COMPRESSION", 0) && (ptrans->par->ctnr > LAST_PHYSICAL_CGUID ) &&
+                ptrans->meta->meta.properties.compression == ZS_TRUE ) {
         flags = flags|FLASH_PUT_COMPRESS;     
     } 
 
@@ -4838,7 +4838,7 @@ static int flashPut_wrapper(SDF_trans_state_t *ptrans, struct shard *pshard, str
     return(ret);
 }
 
-static int delete_local_object(FDF_async_rqst_t *pap)
+static int delete_local_object(ZS_async_rqst_t *pap)
 {
     int                ret;
     SDF_action_init_t  __attribute__((unused)) *pai = pap->pai;
@@ -4863,7 +4863,7 @@ static int delete_local_object(FDF_async_rqst_t *pap)
  *
  * Used in error recovery paths.
  */
-static SDF_status_t delete_remote_object(FDF_async_rqst_t *pap)
+static SDF_status_t delete_remote_object(ZS_async_rqst_t *pap)
 {
     SDF_status_t             error;
     SDF_size_t               msize;
@@ -4895,7 +4895,7 @@ static SDF_status_t delete_remote_object(FDF_async_rqst_t *pap)
         
         /*  Create a message and pass it to the appropriate service.
          */
-        hf_mtype = HFDFF; // delete
+        hf_mtype = HZSF; // delete
         
         send_msg = load_msg(pap->tag,
                             pap->flash_meta.expTime,
@@ -4983,7 +4983,7 @@ static SDF_status_t delete_remote_object(FDF_async_rqst_t *pap)
     return ret;
 }
 
-static SDF_status_t set_remote_object_new(FDF_async_rqst_t *pap)
+static SDF_status_t set_remote_object_new(ZS_async_rqst_t *pap)
 {
     SDF_status_t             error;
     SDF_size_t               msize;
@@ -5081,7 +5081,7 @@ static SDF_status_t set_remote_object_new(FDF_async_rqst_t *pap)
     return ret;
 }
 
-static SDF_status_t set_remote_object_old(FDF_async_rqst_t *pap)
+static SDF_status_t set_remote_object_old(ZS_async_rqst_t *pap)
 {
     SDF_action_init_t  __attribute__((unused)) *pai = pap->pai;
     SDF_status_t             error;
@@ -5214,7 +5214,7 @@ static SDF_status_t set_remote_object_old(FDF_async_rqst_t *pap)
     return ret;
 }
 
-int do_put(FDF_async_rqst_t *pap, SDF_boolean_t unlock_slab)
+int do_put(ZS_async_rqst_t *pap, SDF_boolean_t unlock_slab)
 {
     int                      ret = FLASH_EOK;
     int                      ret_cleanup = FLASH_EOK;
@@ -5322,7 +5322,7 @@ int do_put(FDF_async_rqst_t *pap, SDF_boolean_t unlock_slab)
         switch (pap->flash_flags) {
             case FLASH_PUT_TEST_NONEXIST: 
                 if (pap->pdata == NULL) {
-                    hf_mtype = HFDFF; // delete
+                    hf_mtype = HZSF; // delete
                 } else {
                     hf_mtype = HFPTF; // put
                 }
@@ -5386,7 +5386,7 @@ int do_put(FDF_async_rqst_t *pap, SDF_boolean_t unlock_slab)
 
         key_lock = NULL;
 
-        if (hf_mtype == HFDFF) {
+        if (hf_mtype == HZSF) {
             cache_ctnr_meta = get_container_metadata(pai, pap->ctnr);
             plat_assert(cache_ctnr_meta);
             plat_assert(cache_ctnr_meta->lock_container);
@@ -5526,7 +5526,7 @@ int do_put(FDF_async_rqst_t *pap, SDF_boolean_t unlock_slab)
                     (void) delete_remote_object(pap);
 
                 } else {
-                    delflag = (hf_mtype == HFDFF) ? SDF_TRUE : SDF_FALSE;
+                    delflag = (hf_mtype == HZSF) ? SDF_TRUE : SDF_FALSE;
 
                     lookup_resp_tbl(pap->pmeta->properties.container_type.caching_container, 
                                     pap->flash_flags, delflag,
@@ -5617,7 +5617,7 @@ int do_put(FDF_async_rqst_t *pap, SDF_boolean_t unlock_slab)
     return(ret);
 }
 
-int do_writeback(FDF_async_rqst_t *pap)
+int do_writeback(ZS_async_rqst_t *pap)
 {
     int                      ret = FLASH_EOK;
     SDF_action_init_t       *pai = pap->pai;
@@ -5644,7 +5644,7 @@ int do_writeback(FDF_async_rqst_t *pap)
     return(ret);
 }
 
-int do_flush(FDF_async_rqst_t *pap)
+int do_flush(ZS_async_rqst_t *pap)
 {
     int                      ret = FLASH_EOK;
     SDF_action_init_t       *pai = pap->pai;

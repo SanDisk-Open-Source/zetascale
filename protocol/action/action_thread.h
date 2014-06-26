@@ -101,7 +101,7 @@ typedef struct SDF_action_thrd_state {
     fthMbox_t                 async_put_ack_mbox;
 
     /* for draining the store pipe */
-    FDF_async_rqst_t          drain_request;
+    ZS_async_rqst_t          drain_request;
 
     /* to check for memory leaks */
     int64_t                   nflash_bufs;

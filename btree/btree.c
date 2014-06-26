@@ -20,7 +20,7 @@
 #include "btree_hash.h"
 #include "btree.h"
 #include "btree_internal.h"
-#include <api/fdf.h>
+#include <api/zs.h>
 
 
 #define bt_err(msg, args...) \
@@ -70,7 +70,7 @@ static int default_cmp_cb(void *data, char *key1, uint32_t keylen1, char *key2, 
     return(0);
 }
 
-btree_t *btree_init(uint32_t n_partitions, uint32_t flags, uint32_t max_key_size, uint32_t min_keys_per_node, uint32_t nodesize, create_node_cb_t *create_node_cb, void *create_node_data, read_node_cb_t *read_node_cb, void *read_node_cb_data, write_node_cb_t *write_node_cb, void *write_node_cb_data, flush_node_cb_t *flush_node_cb, void *flush_node_cb_data, freebuf_cb_t *freebuf_cb, void *freebuf_cb_data, delete_node_cb_t *delete_node_cb, void *delete_node_data, log_cb_t *log_cb, void *log_cb_data, msg_cb_t *msg_cb, void *msg_cb_data, cmp_cb_t *cmp_cb, void * cmp_cb_data, bt_mput_cmp_cb_t mput_cmp_cb, void * mput_cmp_cb_data, trx_cmd_cb_t *trx_cmd_cb, uint64_t cguid,  fdf_pstats_t *pstats, seqno_alloc_cb_t *ptr_seqno_alloc_cb)
+btree_t *btree_init(uint32_t n_partitions, uint32_t flags, uint32_t max_key_size, uint32_t min_keys_per_node, uint32_t nodesize, create_node_cb_t *create_node_cb, void *create_node_data, read_node_cb_t *read_node_cb, void *read_node_cb_data, write_node_cb_t *write_node_cb, void *write_node_cb_data, flush_node_cb_t *flush_node_cb, void *flush_node_cb_data, freebuf_cb_t *freebuf_cb, void *freebuf_cb_data, delete_node_cb_t *delete_node_cb, void *delete_node_data, log_cb_t *log_cb, void *log_cb_data, msg_cb_t *msg_cb, void *msg_cb_data, cmp_cb_t *cmp_cb, void * cmp_cb_data, bt_mput_cmp_cb_t mput_cmp_cb, void * mput_cmp_cb_data, trx_cmd_cb_t *trx_cmd_cb, uint64_t cguid,  zs_pstats_t *pstats, seqno_alloc_cb_t *ptr_seqno_alloc_cb)
 {
     int          i;
     btree_t     *bt;
@@ -182,14 +182,14 @@ btree_status_t btree_insert(struct btree *btree, char *key, uint32_t keylen, cha
 {
     int n_partition = hash_key(key, keylen) % btree->n_partitions;
 
-    return btree_raw_write(btree->partitions[n_partition], key, keylen, data, datalen, meta, FDF_WRITE_MUST_NOT_EXIST);
+    return btree_raw_write(btree->partitions[n_partition], key, keylen, data, datalen, meta, ZS_WRITE_MUST_NOT_EXIST);
 }
 
 btree_status_t btree_update(struct btree *btree, char *key, uint32_t keylen, char *data, uint64_t datalen, btree_metadata_t *meta)
 {
     int n_partition = hash_key(key, keylen) % btree->n_partitions;
 
-    return btree_raw_write(btree->partitions[n_partition], key, keylen, data, datalen, meta, FDF_WRITE_MUST_EXIST);
+    return btree_raw_write(btree->partitions[n_partition], key, keylen, data, datalen, meta, ZS_WRITE_MUST_EXIST);
 }
 
 btree_status_t btree_set(struct btree *btree, char *key, uint32_t keylen, char *data, uint64_t datalen, btree_metadata_t *meta)

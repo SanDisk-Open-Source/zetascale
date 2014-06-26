@@ -17,7 +17,7 @@
 extern "C" {
 #endif
 
-int FDF_log_level;
+int ZS_log_level;
 
 void initializeProperties();
 

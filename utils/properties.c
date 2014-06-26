@@ -21,7 +21,7 @@
 #include "properties.h"
 #include "sdftcp/tools.h"
 
-int FDF_log_level;
+int ZS_log_level;
 
 static const char propertiesDefaultFile[] = 
     "/opt/schooner/config/schooner-med.properties";
@@ -120,25 +120,25 @@ static void
 set_log_level(char *val)
 {
     if (streq(val, "devel"))
-        FDF_log_level = PLAT_LOG_LEVEL_DEVEL;
+        ZS_log_level = PLAT_LOG_LEVEL_DEVEL;
     else if (streq(val, "trace_low"))
-        FDF_log_level = PLAT_LOG_LEVEL_TRACE_LOW;
+        ZS_log_level = PLAT_LOG_LEVEL_TRACE_LOW;
     else if (streq(val, "trace"))
-        FDF_log_level = PLAT_LOG_LEVEL_TRACE;
+        ZS_log_level = PLAT_LOG_LEVEL_TRACE;
     else if (streq(val, "debug"))
-        FDF_log_level = PLAT_LOG_LEVEL_DEBUG;
+        ZS_log_level = PLAT_LOG_LEVEL_DEBUG;
     else if (streq(val, "diagnostic"))
-        FDF_log_level = PLAT_LOG_LEVEL_DIAGNOSTIC;
+        ZS_log_level = PLAT_LOG_LEVEL_DIAGNOSTIC;
     else if (streq(val, "info"))
-        FDF_log_level = PLAT_LOG_LEVEL_INFO;
+        ZS_log_level = PLAT_LOG_LEVEL_INFO;
     else if (streq(val, "warning"))
-        FDF_log_level = PLAT_LOG_LEVEL_WARN;
+        ZS_log_level = PLAT_LOG_LEVEL_WARN;
     else if (streq(val, "error"))
-        FDF_log_level = PLAT_LOG_LEVEL_ERROR;
+        ZS_log_level = PLAT_LOG_LEVEL_ERROR;
     else if (streq(val, "fatal"))
-        FDF_log_level = PLAT_LOG_LEVEL_FATAL;
+        ZS_log_level = PLAT_LOG_LEVEL_FATAL;
     else if (streq(val, "none"))
-        FDF_log_level = PLAT_LOG_LEVEL_FATAL;
+        ZS_log_level = PLAT_LOG_LEVEL_FATAL;
 }
 
 
@@ -227,14 +227,14 @@ int loadProperties(const char *path_arg)
          * this will get us the current settings in Patrick's memcached
          * runs.
          */
-        if (FDF_log_level <= PLAT_LOG_LEVEL_TRACE_LOW) {
+        if (ZS_log_level <= PLAT_LOG_LEVEL_TRACE_LOW) {
             plat_log_msg(21758, PLAT_LOG_CAT_PRINT_ARGS,
                          PLAT_LOG_LEVEL_TRACE_LOW,
                          "Parsed property ('%s', '%s')", key, val);
         }
     }
     
-    if (FDF_log_level <= PLAT_LOG_LEVEL_TRACE_LOW) {
+    if (ZS_log_level <= PLAT_LOG_LEVEL_TRACE_LOW) {
         plat_log_msg(70124, PLAT_LOG_CAT_PRINT_ARGS,
                      PLAT_LOG_LEVEL_TRACE_LOW,
                      "Read from properties file '%s'", path);
@@ -252,7 +252,7 @@ int insertProperty(const char *key, void* value)
         initializeProperties();
     }
 #endif
-    if (strcmp(key, "FDF_LOG_LEVEL") == 0)
+    if (strcmp(key, "ZS_LOG_LEVEL") == 0)
         set_log_level(value);
     return ((SDF_TRUE == HashMap_put(_sdf_globalPropertiesMap, key, value)) ? 0 : 1);
 }
@@ -265,7 +265,7 @@ int setProperty(const char *key, void* value)
         initializeProperties();
     }
 #endif
-    if (strcmp(key, "FDF_LOG_LEVEL") == 0)
+    if (strcmp(key, "ZS_LOG_LEVEL") == 0)
         set_log_level(value);
     if (SDF_TRUE != HashMap_put(_sdf_globalPropertiesMap, key, value)) {
         void *p = HashMap_replace(_sdf_globalPropertiesMap, key, value);

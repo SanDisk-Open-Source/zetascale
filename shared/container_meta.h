@@ -22,7 +22,7 @@ extern "C" {
 #include "common/sdftypes.h"
 #include "container.h"
 #include "container_props.h"
-#include "api/fdf.h"
+#include "api/zs.h"
 
 __BEGIN_DECLS
 
@@ -60,7 +60,7 @@ typedef struct SDF_container_meta {
      * @brief Container properties.
      */
     SDF_container_props_t properties;		// FIXME: remove
-    FDF_container_props_t fdf_properties;
+    ZS_container_props_t zs_properties;
 
     /** @brief Time at which objects in container are to be flushed */
     SDF_time_t   flush_time;

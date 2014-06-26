@@ -1,5 +1,5 @@
 /****************************
-#function : FDFFlushCache
+#function : ZSFlushCache
 #author   : AliceXu
 *****************************/
 
@@ -7,33 +7,33 @@
 #include <assert.h>
 #include <unistd.h>
 #include <string.h>
-#include "fdf.h"
+#include "zs.h"
 
 FILE *fp;
-static struct FDF_state        *fdf_state;
-static struct FDF_thread_state *fdf_thrd_state;
-FDF_cguid_t                    cguid;
+static struct ZS_state        *zs_state;
+static struct ZS_thread_state *zs_thrd_state;
+ZS_cguid_t                    cguid;
 char *testname[10] = {NULL};
 int result[2][10][3];
 //uint32_t mode[6][4] = {{0,0,0,1},{0,1,0,1},{0,1,1,0},{0,1,1,1},{1,0,1,0},{1,0,1,1}};
 
 
-FDF_status_t pre_env()
+ZS_status_t pre_env()
 {
-    FDF_status_t ret = FDF_FAILURE;
-    //(void)FDFLoadConfigDefaults(fdf_config, NULL);
-    //  if (FDFInit(&fdf_state, fdf_config) != FDF_SUCCESS) {
+    ZS_status_t ret = ZS_FAILURE;
+    //(void)ZSLoadConfigDefaults(fdf.config, NULL);
+    //  if (ZSInit(&zs_state, fdf.config) != ZS_SUCCESS) {
 
-    ret = FDFInit(&fdf_state);
-    if (FDF_SUCCESS != ret)
+    ret = ZSInit(&zs_state);
+    if (ZS_SUCCESS != ret)
     {
-        fprintf(fp, "FDF initialization failed!\n");
+        fprintf(fp, "ZS initialization failed!\n");
     }else {
-        fprintf(fp, "FDF initialization succeed!\n");
-        ret = FDFInitPerThreadState(fdf_state, &fdf_thrd_state);
-        if( FDF_SUCCESS == ret)
+        fprintf(fp, "ZS initialization succeed!\n");
+        ret = ZSInitPerThreadState(zs_state, &zs_thrd_state);
+        if( ZS_SUCCESS == ret)
         {
-            fprintf(fp, "FDF thread initialization succeed!\n");
+            fprintf(fp, "ZS thread initialization succeed!\n");
         }
     }
     return ret;
@@ -41,18 +41,18 @@ FDF_status_t pre_env()
 
 void clear_env()
 {
-    (void)FDFReleasePerThreadState(&fdf_thrd_state);
-    (void)FDFShutdown(fdf_state);
+    (void)ZSReleasePerThreadState(&zs_thrd_state);
+    (void)ZSShutdown(zs_state);
     fprintf(fp, "clear env!");
 }
 
-FDF_status_t OpenContainer(char *cname, uint32_t flag, uint32_t asyncwrite, uint32_t dura)
+ZS_status_t OpenContainer(char *cname, uint32_t flag, uint32_t asyncwrite, uint32_t dura)
 {
-    FDF_status_t          ret;
-    FDF_container_props_t p;
+    ZS_status_t          ret;
+    ZS_container_props_t p;
 
-    ret = FDF_FAILURE;        
-    (void)FDFLoadCntrPropDefaults(&p);
+    ret = ZS_FAILURE;        
+    (void)ZSLoadCntrPropDefaults(&p);
     p.async_writes = asyncwrite;
     p.durability_level = dura;
     p.fifo_mode = 0;
@@ -62,85 +62,85 @@ FDF_status_t OpenContainer(char *cname, uint32_t flag, uint32_t asyncwrite, uint
     p.num_shards = 1;
     p.evicting = 0;
  
-    ret = FDFOpenContainer(
-                        fdf_thrd_state,
+    ret = ZSOpenContainer(
+                        zs_thrd_state,
                         cname,
                         &p,
                         flag,
                         &cguid
                         );
      fprintf(fp,"durability type: %d\n", dura);
-     fprintf(fp,"FDFOpenContainer : %s\n", FDFStrError(ret));
+     fprintf(fp,"ZSOpenContainer : %s\n", ZSStrError(ret));
      return ret;
 }
 
-FDF_status_t CloseContainer(FDF_cguid_t cid)
+ZS_status_t CloseContainer(ZS_cguid_t cid)
 {
-    FDF_status_t ret;
-    ret = FDFCloseContainer(fdf_thrd_state, cid);
-    fprintf(fp,"FDFCloseContainer : %s\n", FDFStrError(ret));
+    ZS_status_t ret;
+    ret = ZSCloseContainer(zs_thrd_state, cid);
+    fprintf(fp,"ZSCloseContainer : %s\n", ZSStrError(ret));
     return ret;
 }
 
-FDF_status_t DeleteContainer(FDF_cguid_t cid)
+ZS_status_t DeleteContainer(ZS_cguid_t cid)
 {
-    FDF_status_t ret;
-    ret = FDFDeleteContainer(fdf_thrd_state, cid);
-    fprintf(fp, "FDFDeleteContainer : %s\n", FDFStrError(ret));
+    ZS_status_t ret;
+    ret = ZSDeleteContainer(zs_thrd_state, cid);
+    fprintf(fp, "ZSDeleteContainer : %s\n", ZSStrError(ret));
     return ret;
 }
 
-FDF_status_t WriteObject(FDF_cguid_t cid,char *key,uint32_t keylen,char *data,uint64_t datalen,uint32_t flags)
+ZS_status_t WriteObject(ZS_cguid_t cid,char *key,uint32_t keylen,char *data,uint64_t datalen,uint32_t flags)
 {
-    FDF_status_t ret;
-    ret = FDFWriteObject(fdf_thrd_state, cid, key, keylen, data, datalen, flags);
-    fprintf(fp,"FDFWriteObject : %s\n",FDFStrError(ret));
+    ZS_status_t ret;
+    ret = ZSWriteObject(zs_thrd_state, cid, key, keylen, data, datalen, flags);
+    fprintf(fp,"ZSWriteObject : %s\n",ZSStrError(ret));
     return ret;
 }
 
-FDF_status_t ReadObject(FDF_cguid_t cid,char *key,uint32_t keylen,char **data,uint64_t *datalen)
+ZS_status_t ReadObject(ZS_cguid_t cid,char *key,uint32_t keylen,char **data,uint64_t *datalen)
 {
-    FDF_status_t ret;
-    ret = FDFReadObject(fdf_thrd_state,cid,key,keylen,data,datalen);
-    fprintf(fp,"FDFReadObject : %s\n",FDFStrError(ret));
+    ZS_status_t ret;
+    ret = ZSReadObject(zs_thrd_state,cid,key,keylen,data,datalen);
+    fprintf(fp,"ZSReadObject : %s\n",ZSStrError(ret));
     return ret;
 }
 
-FDF_status_t DeleteObject(FDF_cguid_t cid,char *key,uint32_t keylen)
+ZS_status_t DeleteObject(ZS_cguid_t cid,char *key,uint32_t keylen)
 {
-    FDF_status_t ret;
-    ret = FDFDeleteObject(fdf_thrd_state,cid,key,keylen);
-    fprintf(fp,"FDFDeleteObject : %s\n",FDFStrError(ret));
+    ZS_status_t ret;
+    ret = ZSDeleteObject(zs_thrd_state,cid,key,keylen);
+    fprintf(fp,"ZSDeleteObject : %s\n",ZSStrError(ret));
     return ret;
 }
 
-FDF_status_t FlushCache()
+ZS_status_t FlushCache()
 {
-    FDF_status_t ret;
-    ret = FDFFlushCache(fdf_thrd_state);
-    fprintf(fp,"FDFFlushCache : %s\n",FDFStrError(ret));
+    ZS_status_t ret;
+    ret = ZSFlushCache(zs_thrd_state);
+    fprintf(fp,"ZSFlushCache : %s\n",ZSStrError(ret));
     return ret;
 }
 
-FDF_status_t SetContainerProps(FDF_cguid_t cid,FDF_container_props_t *pprops)
+ZS_status_t SetContainerProps(ZS_cguid_t cid,ZS_container_props_t *pprops)
 {
-    FDF_status_t ret;
-    ret = FDFSetContainerProps(fdf_thrd_state,cid,pprops);
-    fprintf(fp,"FDFSetContainerProps : %s\n",FDFStrError(ret));
+    ZS_status_t ret;
+    ret = ZSSetContainerProps(zs_thrd_state,cid,pprops);
+    fprintf(fp,"ZSSetContainerProps : %s\n",ZSStrError(ret));
     return ret;
 }
 
 /***************** test ******************/
 int test_basic_check_0(uint32_t aw)
 {
-    FDF_status_t ret;
+    ZS_status_t ret;
     int tag = 0;
     testname[0] = "#test0:flush cache with none containers in thread.";
     fprintf(fp,"******async write = %d ******\n",aw);
     fprintf(fp,"%s\n",testname[0]);
 
     ret = FlushCache();
-    if(FDF_SUCCESS == ret)
+    if(ZS_SUCCESS == ret)
     {
         tag += 1;
         result[aw][0][0] = 1;
@@ -153,7 +153,7 @@ int test_basic_check_0(uint32_t aw)
 
 int test_basic_check_1(uint32_t aw)
 {
-    FDF_status_t ret;
+    ZS_status_t ret;
     int tag = 0;
     testname[1] = "#test1:open c 1/close c/flush cache/ open c 2/flush cache.";
     fprintf(fp,"******async write = %d ******\n",aw);
@@ -162,21 +162,21 @@ int test_basic_check_1(uint32_t aw)
     for(int i = 0; i < 3; i++)
     {
         ret = OpenContainer("test1", 1, aw, i);
-        if(FDF_SUCCESS == ret)
+        if(ZS_SUCCESS == ret)
         {
             ret = CloseContainer(cguid);
-            if(FDF_SUCCESS == ret)
+            if(ZS_SUCCESS == ret)
             {
                 ret = FlushCache();
-                if(FDF_FAILURE == ret)
+                if(ZS_FAILURE == ret)
                 {
                     result[aw][1][i] += 1;
                 }
                 ret = OpenContainer("test1", 2, aw, i);
-                if(FDF_SUCCESS == ret)
+                if(ZS_SUCCESS == ret)
                 {
                     ret = FlushCache();
-                    if(FDF_SUCCESS == ret)
+                    if(ZS_SUCCESS == ret)
                     {
                         result[aw][1][i] += 1;
                     }
@@ -198,7 +198,7 @@ int test_basic_check_1(uint32_t aw)
 
 int test_basic_check_2(uint32_t aw)
 {
-    FDF_status_t ret;
+    ZS_status_t ret;
     int tag = 0;
     testname[2] = "#test2:open c 1/close c/flush cache/ open c 4/flush cache.";
     fprintf(fp,"******async write = %d ******\n",aw);
@@ -207,23 +207,23 @@ int test_basic_check_2(uint32_t aw)
     for(int i = 0; i < 3; i++)
     {
         ret = OpenContainer("test2", 1, aw, i);
-        if(FDF_SUCCESS == ret)
+        if(ZS_SUCCESS == ret)
         {
             ret = CloseContainer(cguid);
             (void)OpenContainer("test2", 4, aw, i);
             (void)CloseContainer(cguid);
-            if(FDF_SUCCESS == ret)
+            if(ZS_SUCCESS == ret)
             {
                 ret = FlushCache();
-                if(FDF_FAILURE == ret)
+                if(ZS_FAILURE == ret)
                 {
                     result[aw][2][i] += 1;
                 }
                 ret = OpenContainer("test1", 4, aw, i);
-                if(FDF_SUCCESS == ret)
+                if(ZS_SUCCESS == ret)
                 {
                     ret = FlushCache();
-                    if(FDF_SUCCESS == ret)
+                    if(ZS_SUCCESS == ret)
                     {
                         result[aw][2][i] += 1;
                     }
@@ -245,7 +245,7 @@ int test_basic_check_2(uint32_t aw)
  
 int test_basic_check_3(uint32_t aw)
 {
-    FDF_status_t ret;
+    ZS_status_t ret;
     int tag = 0;
     testname[3] = "#test3:open c/write o/flush cache.";
     fprintf(fp,"****** async write = %d ******\n",aw);
@@ -260,13 +260,13 @@ int test_basic_check_3(uint32_t aw)
     for(int i = 0; i < 3; i++)
     {
         ret = OpenContainer("test3", 1, aw, i);
-        if(FDF_SUCCESS == ret)
+        if(ZS_SUCCESS == ret)
         {
             ret = WriteObject(cguid, "xxxx", 5, data, datalen,1);
-            if(FDF_SUCCESS == ret)
+            if(ZS_SUCCESS == ret)
             {
                 ret = FlushCache();
-                if(FDF_SUCCESS == ret)
+                if(ZS_SUCCESS == ret)
                 {
                     result[aw][3][i] = 1;
                     tag += 1;
@@ -283,36 +283,36 @@ int test_basic_check_3(uint32_t aw)
 
 int test_basic_check_4(uint32_t aw)
 {
-    FDF_status_t           ret;
+    ZS_status_t           ret;
     int tag = 0;
     testname[4] = "#test4: open c/write o/flush cache/set c props/flush cache.";
     fprintf(fp, "****** async write = %d ******\n",aw);
     fprintf(fp, "%s\n",testname[4]);
 
-    FDF_container_props_t  props;
+    ZS_container_props_t  props;
     props.size_kb = 2*1024*1024;
-    props.persistent = FDF_FALSE;
-    props.evicting = FDF_FALSE;
-    props.fifo_mode = FDF_FALSE;
+    props.persistent = ZS_FALSE;
+    props.evicting = ZS_FALSE;
+    props.fifo_mode = ZS_FALSE;
 
     for(int i = 0; i < 3; i++)
     {
         ret = OpenContainer("test4", 1, aw, i);
-        if(FDF_SUCCESS == ret)
+        if(ZS_SUCCESS == ret)
         {
             (void)WriteObject(cguid, "xxxx", 5, "pppp", 5, 1);
             (void)WriteObject(cguid, "yyyy", 5, "qqqq", 5, 1);
             ret = FlushCache();
-            if(FDF_SUCCESS == ret)
+            if(ZS_SUCCESS == ret)
             {
                 result[aw][4][i] += 1;
             }
         }
         ret = SetContainerProps(cguid, &props);
-        if(FDF_SUCCESS == ret)
+        if(ZS_SUCCESS == ret)
         {
             ret = FlushCache();
-            if(FDF_SUCCESS == ret)
+            if(ZS_SUCCESS == ret)
             {
                 result[aw][4][i] += 1;
             }
@@ -340,12 +340,12 @@ int main()
     int testnumber = 5;
     int count      = 0;
     
-    if((fp = fopen("FDF_FlushCache.log", "w+")) == 0)
+    if((fp = fopen("ZS_FlushCache.log", "w+")) == 0)
     {
         fprintf(stderr, " open log file failed!.\n");
         return -1;
     }
-   if(FDF_SUCCESS == pre_env())
+   if(ZS_SUCCESS == pre_env())
     {
         for(uint32_t aw = 0; aw < 2; aw++)
         {
@@ -388,13 +388,13 @@ int main()
 
     if(2*3 == count)
     {
-        fprintf(stderr, "#Test of FDFFlushCache pass!\n");
-	fprintf(stderr, "#The related test script is FDF_FlushCache.c\n");
-	fprintf(stderr, "#If you want, you can check test details in FDF_FlushCache.log\n");
+        fprintf(stderr, "#Test of ZSFlushCache pass!\n");
+	fprintf(stderr, "#The related test script is ZS_FlushCache.c\n");
+	fprintf(stderr, "#If you want, you can check test details in ZS_FlushCache.log\n");
     }else { 
-        fprintf(stderr, "#Test of FDFFlushCache fail!\n");
-	fprintf(stderr, "#The related test script is FDF_FlushCache.c\n");
-	fprintf(stderr, "#If you want, you can check test details in FDF_FlushCache.log\n");
+        fprintf(stderr, "#Test of ZSFlushCache fail!\n");
+	fprintf(stderr, "#The related test script is ZS_FlushCache.c\n");
+	fprintf(stderr, "#If you want, you can check test details in ZS_FlushCache.log\n");
     }
 
     return (!(2*3 == count));

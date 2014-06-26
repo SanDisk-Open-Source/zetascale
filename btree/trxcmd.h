@@ -8,8 +8,8 @@
  *
  *	TRX_ENABLED
  *		If the trx facility is enabled, 1 is returned, otherwise
- *		0.  The setting is controlled by FDF integer property
- *		"FDF_TRX", bit 0.
+ *		0.  The setting is controlled by ZS integer property
+ *		"ZS_TRX", bit 0.
  *	TRX_START
  *		Start trx.  Nesting and roll back is not supported.
  *	TRX_COMMIT

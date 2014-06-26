@@ -2935,14 +2935,14 @@ flog_recover(mcd_osd_shard_t *shard, void *context)
     char path[FLUSH_LOG_MAX_PATH];
     FILE            *fp = NULL;
     char          *fast = NULL;
-    char *log_flush_dir = (char *) getProperty_String("FDF_LOG_FLUSH_DIR", NULL);
+    char *log_flush_dir = (char *) getProperty_String("ZS_LOG_FLUSH_DIR", NULL);
 
     if (log_flush_dir == NULL)
         return;
 
-	if(fdf_instance_id)
-		snprintf(path, sizeof(path), "%s/fdf_%d/%s%lu",
-			log_flush_dir, fdf_instance_id, FLUSH_LOG_PREFIX, shard->id);
+	if(zs_instance_id)
+		snprintf(path, sizeof(path), "%s/zs_%d/%s%lu",
+			log_flush_dir, zs_instance_id, FLUSH_LOG_PREFIX, shard->id);
 	else
 		snprintf(path, sizeof(path), "%s/%s%lu",
              log_flush_dir, FLUSH_LOG_PREFIX, shard->id);
@@ -2968,15 +2968,15 @@ static void
 flog_prepare(mcd_osd_shard_t *shard)
 {
     char path[FLUSH_LOG_MAX_PATH];
-    char *log_flush_dir = (char *)getProperty_String("FDF_LOG_FLUSH_DIR", NULL);
+    char *log_flush_dir = (char *)getProperty_String("ZS_LOG_FLUSH_DIR", NULL);
 
     if (log_flush_dir == NULL)
         return;
 
-	if(fdf_instance_id)
+	if(zs_instance_id)
 	{
 		char temp[PATH_MAX + 1];
-		snprintf(temp, sizeof(temp), "%s/fdf_%d", log_flush_dir, fdf_instance_id);
+		snprintf(temp, sizeof(temp), "%s/zs_%d", log_flush_dir, zs_instance_id);
 		if(mkdir(temp, 0770) == -1 && errno != EEXIST)
 			mcd_log_msg(180010, PLAT_LOG_LEVEL_ERROR, "Couldn't create flush log directory %s: %s", temp, plat_strerror(errno));
 		log_flush_dir = temp;
@@ -2987,10 +2987,10 @@ flog_prepare(mcd_osd_shard_t *shard)
     mcd_log_msg(70080, PLAT_LOG_LEVEL_DEBUG, "Flushing logs to %s", path);
 
     int flags = O_CREAT|O_TRUNC|O_WRONLY;
-    if(getProperty_Int("FDF_LOG_O_DIRECT", 0)) {
+    if(getProperty_Int("ZS_LOG_O_DIRECT", 0)) {
         flags |= O_DIRECT;
         mcd_log_msg(180019, PLAT_LOG_LEVEL_DEBUG,
-                    "FDF_LOG_O_DIRECT is set");
+                    "ZS_LOG_O_DIRECT is set");
     }
 
     int fd = open(path, flags, FLUSH_LOG_FILE_MODE);
@@ -3033,14 +3033,14 @@ void
 flog_clean(uint64_t shard_id)
 {
     char path[FLUSH_LOG_MAX_PATH];
-    char *log_flush_dir = (char *)getProperty_String("FDF_LOG_FLUSH_DIR", NULL);
+    char *log_flush_dir = (char *)getProperty_String("ZS_LOG_FLUSH_DIR", NULL);
 
     if (log_flush_dir == NULL)
         return;
 
-	if(fdf_instance_id)
-		snprintf(path, sizeof(path), "%s/fdf_%d/%s%lu",
-			log_flush_dir, fdf_instance_id, FLUSH_LOG_PREFIX, shard_id);
+	if(zs_instance_id)
+		snprintf(path, sizeof(path), "%s/zs_%d/%s%lu",
+			log_flush_dir, zs_instance_id, FLUSH_LOG_PREFIX, shard_id);
 	else
         snprintf(path, sizeof(path), "%s/%s%lu",
              log_flush_dir, FLUSH_LOG_PREFIX, shard_id);
@@ -3652,7 +3652,7 @@ shard_recover_phase2( mcd_osd_shard_t * shard )
                  shard->sequence, shard->cntr->cas_id, shard->ps_alloc );
 
     if(slab_gc_enabled && shard->cntr->cguid == VDC_CGUID)
-        slab_gc_init(shard, getProperty_Int("FDF_SLAB_GC_THRESHOLD", 70 /* % */));
+        slab_gc_init(shard, getProperty_Int("ZS_SLAB_GC_THRESHOLD", 70 /* % */));
 
     return;
 }
@@ -4336,7 +4336,7 @@ enum {
 	TRX_OP_LAST		= 2
 };
 
-extern int	fdf_uncompress_data( char *, size_t, size_t, size_t *);
+extern int	zs_uncompress_data( char *, size_t, size_t, size_t *);
 
 
 static int
@@ -5900,7 +5900,7 @@ static const char	*
 packet_directory( )
 {
 
-	return (getProperty_String( "FDF_CRASH_DIR", "/tmp/fdf-crash-recovery"));
+	return (getProperty_String( "ZS_CRASH_DIR", "/tmp/fdf.crash-recovery"));
 }
 
 
@@ -5963,7 +5963,7 @@ recovery_packet_dump( FILE *f, uint32_t blkno, uint32_t nblock, size_t ocount, v
 		memcpy( data2, data, dlen);
 		data = data2;
 		size_t udlen;
-		if (fdf_uncompress_data( data, dlen, max( dlen, meta->uncomp_datalen), &udlen) < 0) {
+		if (zs_uncompress_data( data, dlen, max( dlen, meta->uncomp_datalen), &udlen) < 0) {
 			mcd_log_msg( 170039, PLAT_LOG_LEVEL_FATAL, "cguid=%lu seqno=%lu uncomp_datalen=%u data_len=%lu udlen=%lu", meta->cguid, meta->seqno, meta->uncomp_datalen, (ulong)dlen, udlen);
 			plat_abort( );
 		}
@@ -6020,8 +6020,8 @@ free_and_exit:
  * blocks appear first (in chronological order), followed by old data blocks
  * (chronological order).
  *
- * Packets are saved in the directory given by FDF property FDF_CRASH_DIR
- * (default /tmp/fdf-crash-recovery).  Packet name identifies the associated
+ * Packets are saved in the directory given by ZS property ZS_CRASH_DIR
+ * (default /tmp/fdf.crash-recovery).  Packet name identifies the associated
  * container by cguid.  Packets are compressed with gzip.
  */
 static void
@@ -6031,14 +6031,14 @@ recovery_packet_save( packet_t *r, void *context, mcd_osd_shard_t *shard)
 		j;
 
 	char *SAVE_COMMAND = "sort -k 1,1 -k 3,3nr -k 5,5 -k 4,4n |"
-		"awk '{print | \"gzip -1 >\"ENVIRON[\"FDFRECOVERYDIR\"]\"/cguid-\"$1\".gz\"}'";
+		"awk '{print | \"gzip -1 >\"ENVIRON[\"ZSRECOVERYDIR\"]\"/cguid-\"$1\".gz\"}'";
 	fflush( stdout);
 	for (i=0; i<nel( r->btab); ++i)
 		while ((j = r->btab[i].nrec)
 		and (r->btab[i].record[j-1].trx == TRX_OP))
 			--r->btab[i].nrec;	/* lop the TRX fragment if present */
 	const char *crashdir = makecrashdir( );
-	setenv( "FDFRECOVERYDIR", crashdir, TRUE);
+	setenv( "ZSRECOVERYDIR", crashdir, TRUE);
 	FILE *f = popen( SAVE_COMMAND, "w");
 	for (i=0; i<nel( r->btab); ++i)
 		if (r->btab[i].nrec)
@@ -6074,17 +6074,17 @@ recovery_packet_save( packet_t *r, void *context, mcd_osd_shard_t *shard)
  * the data block: only the first bytes are saved.  Each packet contains
  * the information needed to update btree stats.  Order is chronological.
  *
- * Packets are saved in the directory given by FDF property FDF_CRASH_DIR
- * (default /tmp/fdf-crash-recovery).  Packet name identifies the associated
+ * Packets are saved in the directory given by ZS property ZS_CRASH_DIR
+ * (default /tmp/fdf.crash-recovery).  Packet name identifies the associated
  * container by cguid.  Packets are compressed with gzip.
  */
 static void
 stats_packet_save( mcd_rec_obj_state_t *state, void *context, mcd_osd_shard_t *shard)
 {
 
-	char *SAVE_COMMAND = "awk '{print | \"gzip >\"ENVIRON[\"FDFRECOVERYDIR\"]\"/stats-cguid-\"$1\".gz\"}'";
+	char *SAVE_COMMAND = "awk '{print | \"gzip >\"ENVIRON[\"ZSRECOVERYDIR\"]\"/stats-cguid-\"$1\".gz\"}'";
 	const char *crashdir = makecrashdir( );
-	setenv( "FDFRECOVERYDIR", crashdir, TRUE);
+	setenv( "ZSRECOVERYDIR", crashdir, TRUE);
 	FILE *f = popen( SAVE_COMMAND, "w");
 	until (state->statbuftail == state->statbufhead) {
 		mcd_logrec_object_t *lr = &state->statbuf[state->statbuftail];
@@ -6763,7 +6763,7 @@ log_init( mcd_osd_shard_t * shard )
     shard->ps_alloc += sizeof( mcd_rec_log_t );
 
     memset( log, 0, sizeof( mcd_rec_log_t ) );
-    log->errors_fatal         = getProperty_Int( "FDF_LOG_FATAL", 0);
+    log->errors_fatal         = getProperty_Int( "ZS_LOG_FATAL", 0);
     log->curr_LSN             = 0; // must be initialized after recovery
     log->next_fill            = 0;
     log->total_slots          = log_slots;
@@ -6786,7 +6786,7 @@ log_init( mcd_osd_shard_t * shard )
     log->pp_state.dealloc_count = 0;
     log->pp_state.dealloc_list  = NULL; // allocated below
 
-    log->pp_state.dealloc_ring_enabled   = getProperty_Int( "FDF_TRX", 0);
+    log->pp_state.dealloc_ring_enabled   = getProperty_Int( "ZS_TRX", 0);
 
     fthMboxInit( &log->update_mbox );
     fthMboxInit( &log->update_stop_mbox );
@@ -8771,7 +8771,7 @@ static mcd_trx_stats_t	mcd_trx_stats;
 /*
  * start transaction
  *
- * Callable from FDF top-level.  Concurrent transactions are supported.
+ * Callable from ZS top-level.  Concurrent transactions are supported.
  * Activity on objects will be deferred in the log; activity on containers
  * is not defined during a transaction.  Incremental changes are visible
  * to all threads, meaning poor (ACID) isolation.  Transactions in progress
@@ -8809,7 +8809,7 @@ mcd_trx_start( )
 /*
  * commit transaction in progress
  *
- * Callable from FDF top-level.  On return, thread's transaction has been
+ * Callable from ZS top-level.  On return, thread's transaction has been
  * committed to persistent storage.  To achieve crash consistency, the
  * transaction will not span the two logs: this possibility is detected, and
  * avoided by padding the remaindered log with no-op entries (CAS type).
@@ -8836,7 +8836,7 @@ mcd_trx_commit( void *pai)
 /*
  * undo transaction in progress
  *
- * Callable from FDF top-level.  On return, thread's transaction
+ * Callable from ZS top-level.  On return, thread's transaction
  * is concluded.  All changes to hash table and slabs are reverted.
  * Accumulated log entries not written, but pitched.  Objects created by
  * the transaction are purged from the object cache.
@@ -8880,7 +8880,7 @@ mcd_trx_id( )
 /*
  * detach from current transaction
  *
- * Callable from FDF top-level.  On return, thread has no associated
+ * Callable from ZS top-level.  On return, thread has no associated
  * transaction.  Transaction remains active and can be concluded by other
  * associated threads, or by any thread with mcd_trx_commit_id().
  *
@@ -8901,7 +8901,7 @@ mcd_trx_detach( )
 /*
  * attach to transaction
  *
- * Callable from FDF top-level.  On return, caller's thread is now associated
+ * Callable from ZS top-level.  On return, caller's thread is now associated
  * with the transaction specified by the given ID.
  *
  * Fails if transaction doesn't exist, or caller has a transaction already.
@@ -8933,7 +8933,7 @@ mcd_trx_attach( uint64_t id)
 /*
  * commit transaction by ID
  *
- * Callable from FDF top-level.  On return, specified transaction has been
+ * Callable from ZS top-level.  On return, specified transaction has been
  * committed to persistent storage.
  *
  * Fails if transaction limit was exceeded, transaction referenced multiple
@@ -9065,7 +9065,7 @@ mcd_trx_service( void *pai, int cmd, void *arg)
 	 * return crash recovery directory in 'arg'
 	 */
 	case 3:
-		*(const char **)arg = getProperty_String( "FDF_CRASH_DIR", "/tmp/fdf-crash-recovery");
+		*(const char **)arg = getProperty_String( "ZS_CRASH_DIR", "/tmp/fdf.crash-recovery");
 		break;
 	/*
 	 * print status of trx service

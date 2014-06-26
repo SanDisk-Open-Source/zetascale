@@ -1,5 +1,5 @@
 /****************************
-#function : FDFReadObjectExpiry
+#function : ZSReadObjectExpiry
 #author   : RoyGao
 #date     : 2013.1.28
 *****************************/
@@ -8,31 +8,31 @@
 #include <assert.h>
 #include <unistd.h>
 #include <string.h>
-#include "fdf.h"
+#include "zs.h"
 
 static FILE *fp;
-static struct FDF_state        *fdf_state;
-static struct FDF_thread_state *fdf_thrd_state;
-FDF_cguid_t                    cguid;
+static struct ZS_state        *zs_state;
+static struct ZS_thread_state *zs_thrd_state;
+ZS_cguid_t                    cguid;
 char* testname[10] = {NULL};
 int result[2][3][3];
 
-FDF_status_t pre_env()
+ZS_status_t pre_env()
 {
-    FDF_status_t ret;
+    ZS_status_t ret;
    
-    ret = FDFInit(&fdf_state);
-    if(ret != FDF_SUCCESS)
+    ret = ZSInit(&zs_state);
+    if(ret != ZS_SUCCESS)
     {
-        fprintf(fp, "FDF initialization failed!\n");
+        fprintf(fp, "ZS initialization failed!\n");
     }else{
-        fprintf(fp, "FDF initialization succeed!\n");
-        ret = FDFInitPerThreadState(fdf_state, &fdf_thrd_state);
-        if( FDF_SUCCESS == ret)
+        fprintf(fp, "ZS initialization succeed!\n");
+        ret = ZSInitPerThreadState(zs_state, &zs_thrd_state);
+        if( ZS_SUCCESS == ret)
         {
-            fprintf(fp, "FDF thread initialization succeed!\n");
+            fprintf(fp, "ZS thread initialization succeed!\n");
         }else{
-            fprintf(fp, "FDF thread initialization fail!\n");
+            fprintf(fp, "ZS thread initialization fail!\n");
             }
     }
     return ret;
@@ -40,18 +40,18 @@ FDF_status_t pre_env()
 
 void clear_env()
 {
-    (void)FDFReleasePerThreadState(&fdf_thrd_state);
-    (void)FDFShutdown(fdf_state);
+    (void)ZSReleasePerThreadState(&zs_thrd_state);
+    (void)ZSShutdown(zs_state);
     fprintf(stderr,"clear env!\n");
 }
 
-FDF_status_t opencontainer(char *cname, uint32_t flag, uint32_t asyncwrite, uint32_t dura)
+ZS_status_t opencontainer(char *cname, uint32_t flag, uint32_t asyncwrite, uint32_t dura)
 {
-    FDF_status_t          ret;
-    FDF_container_props_t p;
+    ZS_status_t          ret;
+    ZS_container_props_t p;
 
-    ret = FDF_FAILURE;        
-    (void)FDFLoadCntrPropDefaults(&p);
+    ret = ZS_FAILURE;        
+    (void)ZSLoadCntrPropDefaults(&p);
     p.async_writes = asyncwrite;
     p.durability_level = dura;
     p.fifo_mode = 0;
@@ -61,56 +61,56 @@ FDF_status_t opencontainer(char *cname, uint32_t flag, uint32_t asyncwrite, uint
     p.num_shards = 1;
     p.evicting = 0;
  
-    ret = FDFOpenContainer(
-                        fdf_thrd_state,
+    ret = ZSOpenContainer(
+                        zs_thrd_state,
                         cname,
                         &p,
                         flag,
                         &cguid
                         );
     fprintf(stderr,"durability type: %d\n",dura);
-    fprintf(stderr,"FDFOpenContainer: %s\n",FDFStrError(ret));
+    fprintf(stderr,"ZSOpenContainer: %s\n",ZSStrError(ret));
     return ret;
 }
 
 
-FDF_status_t CloseContainer(FDF_cguid_t cid)
+ZS_status_t CloseContainer(ZS_cguid_t cid)
 {
-    FDF_status_t ret;
-    ret = FDFCloseContainer(fdf_thrd_state, cid);
-    fprintf(fp,"FDFCloseContainer : %s\n",FDFStrError(ret));
+    ZS_status_t ret;
+    ret = ZSCloseContainer(zs_thrd_state, cid);
+    fprintf(fp,"ZSCloseContainer : %s\n",ZSStrError(ret));
     return ret;
 }
 
-FDF_status_t DeleteContainer(FDF_cguid_t cid)
+ZS_status_t DeleteContainer(ZS_cguid_t cid)
 {
-    FDF_status_t ret;
-    ret = FDFDeleteContainer(fdf_thrd_state, cid);
-    fprintf(fp,"FDFDeleteContainer : %s\n",FDFStrError(ret));
+    ZS_status_t ret;
+    ret = ZSDeleteContainer(zs_thrd_state, cid);
+    fprintf(fp,"ZSDeleteContainer : %s\n",ZSStrError(ret));
     return ret;
 }
 
-FDF_status_t WriteObjectExpiry(FDF_cguid_t cid,FDF_writeobject_t* wobj,uint32_t flags)
+ZS_status_t WriteObjectExpiry(ZS_cguid_t cid,ZS_writeobject_t* wobj,uint32_t flags)
 {
-    FDF_status_t              ret;
+    ZS_status_t              ret;
 
-    ret = FDFWriteObjectExpiry(fdf_thrd_state, cid, wobj, flags);
-    if(ret != FDF_SUCCESS)
+    ret = ZSWriteObjectExpiry(zs_thrd_state, cid, wobj, flags);
+    if(ret != ZS_SUCCESS)
     {
-        fprintf(fp,"FDFWriteObjectExpiry : %s\n",FDFStrError(ret));
+        fprintf(fp,"ZSWriteObjectExpiry : %s\n",ZSStrError(ret));
     }
     return ret;
 }
 
 
-FDF_status_t ReadObjectExpiry(FDF_cguid_t cid,FDF_readobject_t* robj)
+ZS_status_t ReadObjectExpiry(ZS_cguid_t cid,ZS_readobject_t* robj)
 {
-    FDF_status_t              ret;
+    ZS_status_t              ret;
 
-    ret = FDFReadObjectExpiry(fdf_thrd_state, cid, robj);
-    if(ret != FDF_SUCCESS)
+    ret = ZSReadObjectExpiry(zs_thrd_state, cid, robj);
+    if(ret != ZS_SUCCESS)
     {
-        fprintf(fp,"FDFReadObjectExpiry : %s\n",FDFStrError(ret));
+        fprintf(fp,"ZSReadObjectExpiry : %s\n",ZSStrError(ret));
     }
     return ret;
 }
@@ -118,9 +118,9 @@ FDF_status_t ReadObjectExpiry(FDF_cguid_t cid,FDF_readobject_t* robj)
 
 int test_basic_check(uint32_t aw)
 {
-    FDF_status_t ret;
-    FDF_writeobject_t wobj;
-    FDF_readobject_t robj;
+    ZS_status_t ret;
+    ZS_writeobject_t wobj;
+    ZS_readobject_t robj;
     int tag = 0; 
     testname[0] = "#test1: readobjectexpiry with basic check.";
     fprintf(fp,"****** async write = %d ******\n",aw);
@@ -139,12 +139,12 @@ int test_basic_check(uint32_t aw)
     
     for(int i = 0;i < 3; i++)
     {
-        if(FDF_SUCCESS == opencontainer("c0", 1, aw, i))
+        if(ZS_SUCCESS == opencontainer("c0", 1, aw, i))
         {  
-            if(FDF_SUCCESS == WriteObjectExpiry(cguid,&wobj,1))
+            if(ZS_SUCCESS == WriteObjectExpiry(cguid,&wobj,1))
             {
                 ret = ReadObjectExpiry(cguid,&robj);
-                if((FDF_EXPIRED == ret))
+                if((ZS_EXPIRED == ret))
                 {
                     tag++;
                     result[aw][0][i] = 1;
@@ -162,12 +162,12 @@ int test_basic_check(uint32_t aw)
     robj.current = 90;
     for(int i = 0;i < 3; i++)
     {
-        if(FDF_SUCCESS == opencontainer("c0", 1, aw, i))
+        if(ZS_SUCCESS == opencontainer("c0", 1, aw, i))
         {  
-            if(FDF_SUCCESS == WriteObjectExpiry(cguid,&wobj,1))
+            if(ZS_SUCCESS == WriteObjectExpiry(cguid,&wobj,1))
             {
                 ret = ReadObjectExpiry(cguid,&robj);
-                if((FDF_SUCCESS == ret)&&(4 == robj.data_len)&&(!strcmp("512",robj.data)))
+                if((ZS_SUCCESS == ret)&&(4 == robj.data_len)&&(!strcmp("512",robj.data)))
                 {
                     tag++;
                 }
@@ -188,9 +188,9 @@ int test_basic_check(uint32_t aw)
 
 int test_update_expiry_check(uint32_t aw)
 {
-    FDF_status_t ret;
-    FDF_writeobject_t wobj1,wobj2;
-    FDF_readobject_t robj;
+    ZS_status_t ret;
+    ZS_writeobject_t wobj1,wobj2;
+    ZS_readobject_t robj;
     int tag = 0; 
     testname[1] = "#test2: readobjectexpiry with update expiry.";
     fprintf(fp,"****** async write = %d ******\n",aw);
@@ -216,17 +216,17 @@ int test_update_expiry_check(uint32_t aw)
         wobj2.current = 80;
         wobj2.expiry = 100;
         robj.current = 90;
-        if(FDF_SUCCESS == opencontainer("c0", 1, aw, i))
+        if(ZS_SUCCESS == opencontainer("c0", 1, aw, i))
         {  
-            if(FDF_SUCCESS == WriteObjectExpiry(cguid,&wobj1,FDF_WRITE_MUST_NOT_EXIST))
+            if(ZS_SUCCESS == WriteObjectExpiry(cguid,&wobj1,ZS_WRITE_MUST_NOT_EXIST))
             {
-                ret = WriteObjectExpiry(cguid,&wobj2,FDF_WRITE_MUST_EXIST);
-                if(FDF_SUCCESS == ret)
+                ret = WriteObjectExpiry(cguid,&wobj2,ZS_WRITE_MUST_EXIST);
+                if(ZS_SUCCESS == ret)
                 {
                     result[aw][1][i] = 1;
                 }
                 ret = ReadObjectExpiry(cguid,&robj);
-                if(FDF_SUCCESS == ret && robj.expiry == 100)
+                if(ZS_SUCCESS == ret && robj.expiry == 100)
                 {
                     free(robj.data);
                     robj.data = NULL;
@@ -235,15 +235,15 @@ int test_update_expiry_check(uint32_t aw)
                 else
                     result[aw][1][i] = 0; 
                 wobj2.current = 110;
-                ret = WriteObjectExpiry(cguid,&wobj2,FDF_WRITE_MUST_EXIST);
+                ret = WriteObjectExpiry(cguid,&wobj2,ZS_WRITE_MUST_EXIST);
                 
-                if(FDF_EXPIRED != ret) 
+                if(ZS_EXPIRED != ret) 
                 {
                     result[aw][1][i] = 0;
                 }
                 robj.current = 50;
                 ret = ReadObjectExpiry(cguid,&robj);
-                if(FDF_OBJECT_UNKNOWN == ret)
+                if(ZS_OBJECT_UNKNOWN == ret)
                 {
                     tag++;
                 }
@@ -267,9 +267,9 @@ int test_update_expiry_check(uint32_t aw)
 
 int test_multikeys_expiry_check(uint32_t aw)
 {
-    FDF_status_t ret;
-    FDF_writeobject_t* wobjs;
-    FDF_readobject_t* robjs;
+    ZS_status_t ret;
+    ZS_writeobject_t* wobjs;
+    ZS_readobject_t* robjs;
     char keyname[15];
     int tag = 0; 
     testname[2] = "#test3: readobjectexpiry with multi keys expired.";
@@ -279,12 +279,12 @@ int test_multikeys_expiry_check(uint32_t aw)
     char value[1024];
     memset(value,'a',1024);
     
-    wobjs = (FDF_writeobject_t*)malloc(1024*512*sizeof(FDF_writeobject_t));
-    robjs = (FDF_readobject_t*)malloc(1024*512*sizeof(FDF_readobject_t));
+    wobjs = (ZS_writeobject_t*)malloc(1024*512*sizeof(ZS_writeobject_t));
+    robjs = (ZS_readobject_t*)malloc(1024*512*sizeof(ZS_readobject_t));
 
     for(int i = 0;i < 3; i++)
     {
-        if(FDF_SUCCESS == opencontainer("c0", 1, aw, i))
+        if(ZS_SUCCESS == opencontainer("c0", 1, aw, i))
         {  
             result[aw][2][i] = 1;
             for (long j=0;j < 1024*512;j++)
@@ -296,7 +296,7 @@ int test_multikeys_expiry_check(uint32_t aw)
                 sprintf(keyname,"%s%ld","key",j);
                 wobjs[j].key = keyname;
                 wobjs[j].key_len = strlen(keyname)+1;
-                if(FDF_SUCCESS != WriteObjectExpiry(cguid,&(wobjs[j]),FDF_WRITE_MUST_NOT_EXIST))
+                if(ZS_SUCCESS != WriteObjectExpiry(cguid,&(wobjs[j]),ZS_WRITE_MUST_NOT_EXIST))
                     result[aw][2][i] = 0;
             }
             for (long j=0;j < 1024*512;j++)
@@ -307,7 +307,7 @@ int test_multikeys_expiry_check(uint32_t aw)
                 robjs[j].key = keyname;
                 robjs[j].key_len = strlen(keyname)+1;
                 ret = ReadObjectExpiry(cguid,&(robjs[j]));
-                if(FDF_SUCCESS != ret)
+                if(ZS_SUCCESS != ret)
                     result[aw][2][i] = 0;
                 else
                 {
@@ -325,7 +325,7 @@ int test_multikeys_expiry_check(uint32_t aw)
                 robjs[j].key = keyname;
                 robjs[j].key_len = strlen(keyname)+1;
                 ret = ReadObjectExpiry(cguid,&(robjs[j]));
-                if(FDF_EXPIRED != ret)
+                if(ZS_EXPIRED != ret)
                     result[aw][2][i] = 0;
             }
             (void)CloseContainer(cguid);
@@ -346,12 +346,12 @@ int main()
     int testnumber = 3;
     int count = 0;
 
-    if((fp = fopen("FDF_ReadObjectExpiry.log","w+")) == 0)
+    if((fp = fopen("ZS_ReadObjectExpiry.log","w+")) == 0)
     {
         fprintf(stderr, "open log file failed! \n");
         return -1;
     }
-    if(FDF_SUCCESS == pre_env())
+    if(ZS_SUCCESS == pre_env())
     {
         for(uint32_t aw = 0; aw < 2; aw++)
         {
@@ -396,9 +396,9 @@ int main()
     }
     if(3*2 == count)
     {
-        fprintf(stderr, "#Test of FDFReadObjectExpiry pass!\n");
+        fprintf(stderr, "#Test of ZSReadObjectExpiry pass!\n");
     }else{
-        fprintf(stderr, "#Test of FDFReadObjectExpiry fail!\n");
+        fprintf(stderr, "#Test of ZSReadObjectExpiry fail!\n");
     }
 
 	return (!(3*2 == count));

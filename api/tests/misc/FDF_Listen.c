@@ -1,18 +1,18 @@
 #include <unistd.h>
 #include <assert.h>
 #include <fcntl.h>
-#include "fdf.h"
+#include "zs.h"
 
 int main() 
 {
 	char fname[1024];
-	struct FDF_state* fdf_state;
-    FDF_status_t ret = FDFInit(&fdf_state);
+	struct ZS_state* zs_state;
+    ZS_status_t ret = ZSInit(&zs_state);
 	assert(ret);
-	sprintf(fname, "/tmp/fdf_listen_pid.%d", getpid());
+	sprintf(fname, "/tmp/zs_listen_pid.%d", getpid());
 	int r = open(fname, O_CREAT, 0660);
 	assert(r > 0);
 	sleep(60);
-    (void)FDFShutdown(fdf_state);
+    (void)ZSShutdown(zs_state);
 }
 

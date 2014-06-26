@@ -7,8 +7,8 @@
  * Created on March 25, 2013.
  */
 
-#ifndef __FDFLICINTERFACE_H
-#define __FDFLICINTERFACE_H
+#ifndef __ZSLICINTERFACE_H
+#define __ZSLICINTERFACE_H
 #ifdef  __cplusplus
 extern "C" {
 #endif

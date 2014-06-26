@@ -1,7 +1,7 @@
 /** @file hash.c
- *  @brief FDF translation(key <-> addr) module.
+ *  @brief ZS translation(key <-> addr) module.
  *
- *  This contains the functions for FDF
+ *  This contains the functions for ZS
  *   key to addr translation and vice-versa
  *
  *  @author Tomy Cheru (tcheru)

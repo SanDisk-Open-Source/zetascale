@@ -1,5 +1,5 @@
 /*
- * File:   fdf_static_test.c
+ * File:   zs_static_test.c
  * Author: Darryl Ouye
  *
  * Created on September 12
@@ -32,7 +32,7 @@
 #include "ssd/fifo/mcd_ipf.h"
 #endif
 #include "api/sdf.h"
-#include "common/fdftypes.h"
+#include "common/zstypes.h"
 
 enum { NO_CPU_AFFINITY = -1 };
 

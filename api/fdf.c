@@ -18,7 +18,7 @@
 
 #include "sdf.h"
 #include "sdf_internal.h"
-#include "fdf.h"
+#include "zs.h"
 #include "fdf_internal.h"
 #include "fdf_internal_cb.h"
 #include "protocol/protocol_utils.h"
@@ -88,7 +88,7 @@ static sem_t Mcd_initer_sem;
 extern HashMap cmap_cname_hash;           // cname -> cguid
 extern __thread uint32_t *trx_bracket_slabs;
 
-FDF_status_t get_btree_num_objs(FDF_cguid_t cguid, uint64_t *num_objs);
+ZS_status_t get_btree_num_objs(ZS_cguid_t cguid, uint64_t *num_objs);
 
 void update_container_stats(SDF_action_init_t *pai, int reqtype, SDF_cache_ctnr_metadata_t *meta, int count) {
     atomic_add(pai->pcs->stats_new_per_sched[curSchedNum].ctnr_stats[meta->n].appreq_counts[reqtype], count);
@@ -100,37 +100,37 @@ void update_container_stats(SDF_action_init_t *pai, int reqtype, SDF_cache_ctnr_
 #define MCD_MAX_NUM_SCHED       32
 #define MCD_MAX_NUM_FTHREADS    1025
 
-int fdf_instance_id;
+int zs_instance_id;
 
 static time_t 			current_time 	= 0;
 static int stats_dump = 0;
 static SDF_shardid_t	vdc_shardid		= SDF_SHARDID_INVALID;
 SDF_shardid_t       cmc_shardid = SDF_SHARDID_INVALID;
 static int dump_interval = 0;
-int fdf_dump_core = 0;
+int zs_dump_core = 0;
 
 /* Id used to uniquely differenciate 
    parallel container deletes with same name */
 static uint32_t delete_prefix = 0; 
  
-char *FDF_Status_Strings[] = {
-    "UNKNOWN_STATUS", /* since FDF_SUCCESS is 1! */
+char *ZS_Status_Strings[] = {
+    "UNKNOWN_STATUS", /* since ZS_SUCCESS is 1! */
 #define item(caps, value) \
         #caps,
-        FDF_STATUS_ITEMS()
+        ZS_STATUS_ITEMS()
 #undef item
     };
 
 
 /* From enumerate.c */
-FDF_status_t cguid_to_shard(
+ZS_status_t cguid_to_shard(
 	SDF_action_init_t *pai, 
-	FDF_cguid_t cguid, 
+	ZS_cguid_t cguid, 
 	shard_t **shard_ptr, 
 	int delete_ok);
 
 
-void fdf_signal_handler(int signum);
+void zs_signal_handler(int signum);
 /*
 ** Externals
 */
@@ -199,138 +199,138 @@ SDF_status_t delete_container_internal_low(
 /*
 ** Forward declarations
 */
-static FDF_status_t fdf_create_container(
-    struct FDF_thread_state *fdf_thread_state,
+static ZS_status_t zs_create_container(
+    struct ZS_thread_state *zs_thread_state,
     char                    *cname,
-    FDF_container_props_t   *properties,
+    ZS_container_props_t   *properties,
     uint32_t                 flags,
-    FDF_cguid_t             *cguid,
-    FDF_container_mode_t     mode
+    ZS_cguid_t             *cguid,
+    ZS_container_mode_t     mode
 	);
 
-static FDF_status_t fdf_open_container(
-    struct FDF_thread_state *fdf_thread_state,
+static ZS_status_t zs_open_container(
+    struct ZS_thread_state *zs_thread_state,
     char                    *cname,
-    FDF_container_props_t   *props,
+    ZS_container_props_t   *props,
     uint32_t                 flags,
-    FDF_cguid_t             *cguid,
-    FDF_container_mode_t     mode,
-	FDF_boolean_t			 serialize
+    ZS_cguid_t             *cguid,
+    ZS_container_mode_t     mode,
+	ZS_boolean_t			 serialize
     );
 
-static FDF_status_t fdf_close_container(
-	struct FDF_thread_state	*fdf_thread_state,
-	FDF_cguid_t  		     cguid,
-	FDF_container_mode_t	 mode,
-	FDF_boolean_t			 serialize,
-	FDF_boolean_t			 delete_check
+static ZS_status_t zs_close_container(
+	struct ZS_thread_state	*zs_thread_state,
+	ZS_cguid_t  		     cguid,
+	ZS_container_mode_t	 mode,
+	ZS_boolean_t			 serialize,
+	ZS_boolean_t			 delete_check
 	);
 
-static FDF_status_t fdf_delete_container(
-    struct FDF_thread_state *fdf_thread_state,
-    FDF_cguid_t              cguid,
-	FDF_container_mode_t	 mode
+static ZS_status_t zs_delete_container(
+    struct ZS_thread_state *zs_thread_state,
+    ZS_cguid_t              cguid,
+	ZS_container_mode_t	 mode
     );
 
 #if 0
-static SDF_container_props_t *fdf_create_sdf_props(
-    FDF_container_props_t 			*fdf_properties,
-    FDF_internal_container_props_t  *fdf_internal_properties
+static SDF_container_props_t *zs_create_sdf_props(
+    ZS_container_props_t 			*zs_properties,
+    ZS_internal_container_props_t  *zs_internal_properties
     );
 #else
-static SDF_container_props_t *fdf_create_sdf_props(
-    FDF_container_props_t 			*fdf_properties
+static SDF_container_props_t *zs_create_sdf_props(
+    ZS_container_props_t 			*zs_properties
 	);
 #endif
 
-static FDF_status_t fdf_create_fdf_props(
+static ZS_status_t zs_create_zs_props(
     SDF_container_props_t   *sdf_properties,
-    FDF_container_props_t   *fdf_properties
+    ZS_container_props_t   *zs_properties
     );
  
-static FDF_status_t fdf_resize_container(
-    struct FDF_thread_state *fdf_thread_state,
-    FDF_cguid_t              cguid,
+static ZS_status_t zs_resize_container(
+    struct ZS_thread_state *zs_thread_state,
+    ZS_cguid_t              cguid,
 	uint64_t				 size
     );
 
-FDF_status_t FDFInitPerThreadState(
-	struct FDF_state 		 *fdf_state,
-    struct FDF_thread_state **thd_state
+ZS_status_t ZSInitPerThreadState(
+	struct ZS_state 		 *zs_state,
+    struct ZS_thread_state **thd_state
 	);
 
-static void fdf_start_vc_thread( 
-	struct FDF_state *sdf_state 
+static void zs_start_vc_thread( 
+	struct ZS_state *sdf_state 
 	);
 
-static FDF_status_t fdf_vc_init(
-	struct FDF_thread_state  *fdf_thread_state,
+static ZS_status_t zs_vc_init(
+	struct ZS_thread_state  *zs_thread_state,
     int                  	  flags
     );
 
-static FDF_status_t fdf_generate_cguid(
-	struct FDF_thread_state  *fdf_thread_state,
-	FDF_cguid_t 			 *cguid
+static ZS_status_t zs_generate_cguid(
+	struct ZS_thread_state  *zs_thread_state,
+	ZS_cguid_t 			 *cguid
 	);
 
-static FDF_status_t fdf_delete_object(
-	struct FDF_thread_state  *fdf_thread_state,
-	FDF_cguid_t          	  cguid,
+static ZS_status_t zs_delete_object(
+	struct ZS_thread_state  *zs_thread_state,
+	ZS_cguid_t          	  cguid,
 	char                	 *key,
 	uint32_t             	  keylen
 	);
 
-static FDF_status_t fdf_delete_objects(
-	struct FDF_thread_state  *fdf_thread_state,
-	FDF_cguid_t 			  cguid
+static ZS_status_t zs_delete_objects(
+	struct ZS_thread_state  *zs_thread_state,
+	ZS_cguid_t 			  cguid
 	);
 
-static FDF_status_t
-fdf_get_containers(
-		struct FDF_thread_state	*fdf_thread_state,
-		FDF_cguid_t             *cguids,
+static ZS_status_t
+zs_get_containers(
+		struct ZS_thread_state	*zs_thread_state,
+		ZS_cguid_t             *cguids,
 		uint32_t                *n_cguids
 		);
 
-static FDF_status_t
-fdf_get_containers_int(
-		struct FDF_thread_state	*fdf_thread_state,
-		FDF_cguid_t             *cguids,
+static ZS_status_t
+zs_get_containers_int(
+		struct ZS_thread_state	*zs_thread_state,
+		ZS_cguid_t             *cguids,
 		uint32_t                *n_cguids
 		);
 
-static FDF_status_t
-fdf_get_open_containers_int(
-                struct FDF_thread_state *fdf_thread_state,
-                FDF_cguid_t             *cguids,
+static ZS_status_t
+zs_get_open_containers_int(
+                struct ZS_thread_state *zs_thread_state,
+                ZS_cguid_t             *cguids,
                 uint32_t                *n_cguids
                 );
 
-static FDF_status_t
-fdf_get_container_props(
-		struct FDF_thread_state	*fdf_thread_state, 
-		FDF_cguid_t 		  	 cguid, 
-		FDF_container_props_t	*pprops
+static ZS_status_t
+zs_get_container_props(
+		struct ZS_thread_state	*zs_thread_state, 
+		ZS_cguid_t 		  	 cguid, 
+		ZS_container_props_t	*pprops
 		);
 
-static FDF_status_t
-fdf_get_container_props_int(
-		struct FDF_thread_state	*fdf_thread_state, 
-		FDF_cguid_t 		  	 cguid, 
-		FDF_container_props_t	*pprops
+static ZS_status_t
+zs_get_container_props_int(
+		struct ZS_thread_state	*zs_thread_state, 
+		ZS_cguid_t 		  	 cguid, 
+		ZS_container_props_t	*pprops
 		);
 
 
-static FDF_status_t
-fdf_flush_container(
-	struct FDF_thread_state  *fdf_thread_state,
-	FDF_cguid_t               cguid
+static ZS_status_t
+zs_flush_container(
+	struct ZS_thread_state  *zs_thread_state,
+	ZS_cguid_t               cguid
 	);
 
-static FDF_status_t fdf_delete_container_1(
-	struct FDF_thread_state	*fdf_thread_state,
-	FDF_cguid_t		 		 cguid,
-	FDF_container_mode_t	 mode
+static ZS_status_t zs_delete_container_1(
+	struct ZS_thread_state	*zs_thread_state,
+	ZS_cguid_t		 		 cguid,
+	ZS_container_mode_t	 mode
 	);
 
 
@@ -354,9 +354,9 @@ typedef enum {
     ipowr_m,
     newents,
     MCD_NUM_SDF_COUNTS,
-}FDF_cache_counts_t;
+}ZS_cache_counts_t;
 
-static char * FDFCacheCountStrings[] = {
+static char * ZSCacheCountStrings[] = {
     "APGRX",
     "APGRD",
     "APCOE",
@@ -374,441 +374,441 @@ static char * FDFCacheCountStrings[] = {
     "new_entries",
 };
 
-fdf_stats_info_t fdf_stats_access_type[] = {
-    {"APCOE","num_created_objs_with_expiry",FDF_STATS_TYPE_APP_REQ},/*FDF_ACCESS_TYPES_APCOE*/
-    {"APCOP","num_created_objs",FDF_STATS_TYPE_APP_REQ},/*FDF_ACCESS_TYPES_APCOP*/
-    {"APPAE","num_put_objs_with_expiry",FDF_STATS_TYPE_APP_REQ},/*FDF_ACCESS_TYPES_APPAE*/
-    {"APPTA","num_put_objs",FDF_STATS_TYPE_APP_REQ},/*FDF_ACCESS_TYPES_APPTA*/
-    {"APSOE","num_set_objs_with_expiry",FDF_STATS_TYPE_APP_REQ},/*FDF_ACCESS_TYPES_APSOE*/
-    {"APSOB","num_set_objs",FDF_STATS_TYPE_APP_REQ},/*FDF_ACCESS_TYPES_APSOB*/
-    {"APGRX","num_get_objs_and_check_expiry",FDF_STATS_TYPE_APP_REQ},/*FDF_ACCESS_TYPES_APGRX*/
-    {"APGRD","num_get_objs",FDF_STATS_TYPE_APP_REQ},/*FDF_ACCESS_TYPES_APGRD*/
-    {"APDBE","num_del_objs_with_expiry",FDF_STATS_TYPE_APP_REQ},/*FDF_ACCESS_TYPES_APDBE*/
-    {"APDOB","num_del_objs",FDF_STATS_TYPE_APP_REQ},/*FDF_ACCESS_TYPES_APDOB*/
-    {"APFLS","num_flush_objs",FDF_STATS_TYPE_APP_REQ},/*FDF_ACCESS_TYPES_APFLS*/
-    {"APFLI","num_flush_and_invalidate_objs",FDF_STATS_TYPE_APP_REQ},/*FDF_ACCESS_TYPES_APFLI*/
-    {"APINV","num_invalidate_objs",FDF_STATS_TYPE_APP_REQ},/*FDF_ACCESS_TYPES_APINV*/
-    {"APSYC","num_sync_to_flash",FDF_STATS_TYPE_APP_REQ},/*FDF_ACCESS_TYPES_APSYC*/
-    {"APICD","num_delayed_invalidates",FDF_STATS_TYPE_APP_REQ},/*FDF_ACCESS_TYPES_APICD*/
-    {"APGIT","delayed_invalidation_time",FDF_STATS_TYPE_APP_REQ},/*FDF_ACCESS_TYPES_APGIT*/
-    {"APFCO","num_flush_container",FDF_STATS_TYPE_APP_REQ},/*FDF_ACCESS_TYPES_APFCO*/
-    {"APFCI","num_flush_and_invalidate_container",FDF_STATS_TYPE_APP_REQ},/*FDF_ACCESS_TYPES_APFCI*/
-    {"APICO","num_invalidate_container",FDF_STATS_TYPE_APP_REQ},/*FDF_ACCESS_TYPES_APICO*/
-    {"APRIV","num_remote_invalidations",FDF_STATS_TYPE_APP_REQ},/*FDF_ACCESS_TYPES_APRIV*/
-    {"APRUP","num_remote_updates",FDF_STATS_TYPE_APP_REQ},/*FDF_ACCESS_TYPES_APRUP*/
+zs_stats_info_t zs_stats_access_type[] = {
+    {"APCOE","num_created_objs_with_expiry",ZS_STATS_TYPE_APP_REQ},/*ZS_ACCESS_TYPES_APCOE*/
+    {"APCOP","num_created_objs",ZS_STATS_TYPE_APP_REQ},/*ZS_ACCESS_TYPES_APCOP*/
+    {"APPAE","num_put_objs_with_expiry",ZS_STATS_TYPE_APP_REQ},/*ZS_ACCESS_TYPES_APPAE*/
+    {"APPTA","num_put_objs",ZS_STATS_TYPE_APP_REQ},/*ZS_ACCESS_TYPES_APPTA*/
+    {"APSOE","num_set_objs_with_expiry",ZS_STATS_TYPE_APP_REQ},/*ZS_ACCESS_TYPES_APSOE*/
+    {"APSOB","num_set_objs",ZS_STATS_TYPE_APP_REQ},/*ZS_ACCESS_TYPES_APSOB*/
+    {"APGRX","num_get_objs_and_check_expiry",ZS_STATS_TYPE_APP_REQ},/*ZS_ACCESS_TYPES_APGRX*/
+    {"APGRD","num_get_objs",ZS_STATS_TYPE_APP_REQ},/*ZS_ACCESS_TYPES_APGRD*/
+    {"APDBE","num_del_objs_with_expiry",ZS_STATS_TYPE_APP_REQ},/*ZS_ACCESS_TYPES_APDBE*/
+    {"APDOB","num_del_objs",ZS_STATS_TYPE_APP_REQ},/*ZS_ACCESS_TYPES_APDOB*/
+    {"APFLS","num_flush_objs",ZS_STATS_TYPE_APP_REQ},/*ZS_ACCESS_TYPES_APFLS*/
+    {"APFLI","num_flush_and_invalidate_objs",ZS_STATS_TYPE_APP_REQ},/*ZS_ACCESS_TYPES_APFLI*/
+    {"APINV","num_invalidate_objs",ZS_STATS_TYPE_APP_REQ},/*ZS_ACCESS_TYPES_APINV*/
+    {"APSYC","num_sync_to_flash",ZS_STATS_TYPE_APP_REQ},/*ZS_ACCESS_TYPES_APSYC*/
+    {"APICD","num_delayed_invalidates",ZS_STATS_TYPE_APP_REQ},/*ZS_ACCESS_TYPES_APICD*/
+    {"APGIT","delayed_invalidation_time",ZS_STATS_TYPE_APP_REQ},/*ZS_ACCESS_TYPES_APGIT*/
+    {"APFCO","num_flush_container",ZS_STATS_TYPE_APP_REQ},/*ZS_ACCESS_TYPES_APFCO*/
+    {"APFCI","num_flush_and_invalidate_container",ZS_STATS_TYPE_APP_REQ},/*ZS_ACCESS_TYPES_APFCI*/
+    {"APICO","num_invalidate_container",ZS_STATS_TYPE_APP_REQ},/*ZS_ACCESS_TYPES_APICO*/
+    {"APRIV","num_remote_invalidations",ZS_STATS_TYPE_APP_REQ},/*ZS_ACCESS_TYPES_APRIV*/
+    {"APRUP","num_remote_updates",ZS_STATS_TYPE_APP_REQ},/*ZS_ACCESS_TYPES_APRUP*/
 
     {
         "ENUM_TOTAL",
         "completed_enumerations",
-        FDF_STATS_TYPE_APP_REQ,
+        ZS_STATS_TYPE_APP_REQ,
     },
 
     {
         "ENUM_ACTIVE",
         "active_enumerations",
-        FDF_STATS_TYPE_APP_REQ,
+        ZS_STATS_TYPE_APP_REQ,
     },
 
     {
         "ENUM_OBJECTS",
         "objects_enumerated",
-        FDF_STATS_TYPE_APP_REQ,
+        ZS_STATS_TYPE_APP_REQ,
     },
 
     {
         "ENUM_CACHED_OBJECTS",
         "cached_objects_enumerated",
-        FDF_STATS_TYPE_APP_REQ,
+        ZS_STATS_TYPE_APP_REQ,
     },
     {
-        "FDF_ACCESS_TYPES_NUM_CONT_DELETES_PEND",
+        "ZS_ACCESS_TYPES_NUM_CONT_DELETES_PEND",
         "num_container_deletes_pending",
-        FDF_STATS_TYPE_APP_REQ,
+        ZS_STATS_TYPE_APP_REQ,
     },
     {
-        "FDF_ACCESS_TYPES_NUM_CONT_DELETES_PROG",
+        "ZS_ACCESS_TYPES_NUM_CONT_DELETES_PROG",
         "num_container_deletes_progress",
-        FDF_STATS_TYPE_APP_REQ,
+        ZS_STATS_TYPE_APP_REQ,
     },
-    {"FDF_ACCESS_TYPES_READ","num_reads",FDF_STATS_TYPE_APP_REQ},/*FDF_ACCESS_TYPES_APRUP*/
-    {"FDF_ACCESS_TYPES_WRITE","num_writes",FDF_STATS_TYPE_APP_REQ},/*FDF_ACCESS_TYPES_APRUP*/
-    {"FDF_ACCESS_TYPES_DELETE","num_deletes",FDF_STATS_TYPE_APP_REQ},/*FDF_ACCESS_TYPES_APRUP*/
-    {"FDF_ACCESS_TYPES_FLUSH","num_flushes",FDF_STATS_TYPE_APP_REQ},/*FDF_ACCESS_TYPES_APRUP*/
-    {"FDF_ACCESS_TYPES_MPUT","num_mputs",FDF_STATS_TYPE_APP_REQ},/*FDF_ACCESS_TYPES_APRUP*/
-    {"FDF_ACCESS_TYPES_MSET","num_msets",FDF_STATS_TYPE_APP_REQ},/*FDF_ACCESS_TYPES_APRUP*/
-    {"FDF_ACCESS_TYPES_RANGE","num_range",FDF_STATS_TYPE_APP_REQ},/*FDF_ACCESS_TYPES_APRUP*/
-    {"FDF_ACCESS_TYPES_RANGE_NEXT","num_range_next",FDF_STATS_TYPE_APP_REQ},/*FDF_ACCESS_TYPES_APRUP*/
-    {"FDF_ACCESS_TYPES_RANGE_FINISH","num_range_finish",FDF_STATS_TYPE_APP_REQ},/*FDF_ACCESS_TYPES_APRUP*/
-    {"FDF_ACCESS_TYPES_RANGE_UPDATE","num_range_updates",FDF_STATS_TYPE_APP_REQ},/*FDF_ACCESS_TYPES_APRUP*/
-    {"FDF_ACCESS_TYPES_CREATE_SNAPSHOT","num_create_snapshots",FDF_STATS_TYPE_APP_REQ},/*FDF_ACCESS_TYPES_APRUP*/
-    {"FDF_ACCESS_TYPES_DELETE_SNAPSHOT","num_delete_snapshots",FDF_STATS_TYPE_APP_REQ},/*FDF_ACCESS_TYPES_APRUP*/
-    {"FDF_ACCESS_TYPES_LIST_SNAPSHOT","num_list_snapshots",FDF_STATS_TYPE_APP_REQ},/*FDF_ACCESS_TYPES_APRUP*/
-    {"FDF_ACCESS_TYPES_TRX_START","num_transaction_starts",FDF_STATS_TYPE_APP_REQ},/*FDF_ACCESS_TYPES_APRUP*/
-    {"FDF_ACCESS_TYPES_TRX_COMMITS","num_transaction_commits",FDF_STATS_TYPE_APP_REQ},/*FDF_ACCESS_TYPES_APRUP*/
+    {"ZS_ACCESS_TYPES_READ","num_reads",ZS_STATS_TYPE_APP_REQ},/*ZS_ACCESS_TYPES_APRUP*/
+    {"ZS_ACCESS_TYPES_WRITE","num_writes",ZS_STATS_TYPE_APP_REQ},/*ZS_ACCESS_TYPES_APRUP*/
+    {"ZS_ACCESS_TYPES_DELETE","num_deletes",ZS_STATS_TYPE_APP_REQ},/*ZS_ACCESS_TYPES_APRUP*/
+    {"ZS_ACCESS_TYPES_FLUSH","num_flushes",ZS_STATS_TYPE_APP_REQ},/*ZS_ACCESS_TYPES_APRUP*/
+    {"ZS_ACCESS_TYPES_MPUT","num_mputs",ZS_STATS_TYPE_APP_REQ},/*ZS_ACCESS_TYPES_APRUP*/
+    {"ZS_ACCESS_TYPES_MSET","num_msets",ZS_STATS_TYPE_APP_REQ},/*ZS_ACCESS_TYPES_APRUP*/
+    {"ZS_ACCESS_TYPES_RANGE","num_range",ZS_STATS_TYPE_APP_REQ},/*ZS_ACCESS_TYPES_APRUP*/
+    {"ZS_ACCESS_TYPES_RANGE_NEXT","num_range_next",ZS_STATS_TYPE_APP_REQ},/*ZS_ACCESS_TYPES_APRUP*/
+    {"ZS_ACCESS_TYPES_RANGE_FINISH","num_range_finish",ZS_STATS_TYPE_APP_REQ},/*ZS_ACCESS_TYPES_APRUP*/
+    {"ZS_ACCESS_TYPES_RANGE_UPDATE","num_range_updates",ZS_STATS_TYPE_APP_REQ},/*ZS_ACCESS_TYPES_APRUP*/
+    {"ZS_ACCESS_TYPES_CREATE_SNAPSHOT","num_create_snapshots",ZS_STATS_TYPE_APP_REQ},/*ZS_ACCESS_TYPES_APRUP*/
+    {"ZS_ACCESS_TYPES_DELETE_SNAPSHOT","num_delete_snapshots",ZS_STATS_TYPE_APP_REQ},/*ZS_ACCESS_TYPES_APRUP*/
+    {"ZS_ACCESS_TYPES_LIST_SNAPSHOT","num_list_snapshots",ZS_STATS_TYPE_APP_REQ},/*ZS_ACCESS_TYPES_APRUP*/
+    {"ZS_ACCESS_TYPES_TRX_START","num_transaction_starts",ZS_STATS_TYPE_APP_REQ},/*ZS_ACCESS_TYPES_APRUP*/
+    {"ZS_ACCESS_TYPES_TRX_COMMITS","num_transaction_commits",ZS_STATS_TYPE_APP_REQ},/*ZS_ACCESS_TYPES_APRUP*/
 };
 char *get_access_type_stats_desc(int stat ) {
-    if( stat >= sizeof(fdf_stats_access_type)/sizeof(fdf_stats_info_t)) {
+    if( stat >= sizeof(zs_stats_access_type)/sizeof(zs_stats_info_t)) {
         return "Invalid stat";
     }
-    return fdf_stats_access_type[stat].desc;
+    return zs_stats_access_type[stat].desc;
 }
-fdf_stats_info_t fdf_stats_btree[] = {
+zs_stats_info_t zs_stats_btree[] = {
     // btree related categories
-    {"FDF_BTREE_L1_ENTRIES","l1_cache_entries",FDF_STATS_TYPE_BTREE},/* FDF_CACHE_STAT_L1_ENTRIES */
-    {"FDF_BTREE_L1_OBJECTS","l1_cache_objects",FDF_STATS_TYPE_BTREE},/* FDF_CACHE_STAT_L1_OBJECTS */
-    {"FDF_BTREE_LEAF_L1_HITS","l1_cache_leaf_hits",FDF_STATS_TYPE_BTREE},/* FDF_CACHE_STAT_LEAF_L1_HITS */
-    {"FDF_BTREE_NONLEAF_L1_HITS","l1_cache_nonleaf_hits",FDF_STATS_TYPE_BTREE},/* FDF_CACHE_STAT_NONLEAF_L1_HITS */
-    {"FDF_BTREE_OVERFLOW_L1_HITS","l1_cache_overflow_hits",FDF_STATS_TYPE_BTREE},/* FDF_CACHE_STAT_OVERFLOW_L1_HITS */
+    {"ZS_BTREE_L1_ENTRIES","l1_cache_entries",ZS_STATS_TYPE_BTREE},/* ZS_CACHE_STAT_L1_ENTRIES */
+    {"ZS_BTREE_L1_OBJECTS","l1_cache_objects",ZS_STATS_TYPE_BTREE},/* ZS_CACHE_STAT_L1_OBJECTS */
+    {"ZS_BTREE_LEAF_L1_HITS","l1_cache_leaf_hits",ZS_STATS_TYPE_BTREE},/* ZS_CACHE_STAT_LEAF_L1_HITS */
+    {"ZS_BTREE_NONLEAF_L1_HITS","l1_cache_nonleaf_hits",ZS_STATS_TYPE_BTREE},/* ZS_CACHE_STAT_NONLEAF_L1_HITS */
+    {"ZS_BTREE_OVERFLOW_L1_HITS","l1_cache_overflow_hits",ZS_STATS_TYPE_BTREE},/* ZS_CACHE_STAT_OVERFLOW_L1_HITS */
 
-    {"FDF_BTREE_LEAF_L1_MISSES","l1_cache_leaf_misses",FDF_STATS_TYPE_BTREE},/* FDF_CACHE_STAT_LEAF_L1_MISSES */
-    {"FDF_BTREE_NONLEAF_L1_MISSES","l1_cache_nonleaf_misses",FDF_STATS_TYPE_BTREE},/* FDF_CACHE_STAT_NONLEAF_L1_MISSES */
-    {"FDF_BTREE_OVERFLOW_L1_MISSES","l1_cache_overflow_misses",FDF_STATS_TYPE_BTREE},/* FDF_CACHE_STAT_OVERFLOW_L1_MISSES */
-    {"FDF_BTREE_BACKUP_L1_MISSES","l1_cache_snapread_misses",FDF_STATS_TYPE_BTREE},/* FDF_CACHE_STAT_NONLEAF_L1_MISSES */
-    {"FDF_BTREE_BACKUP_L1_HITS","l1_cache_snapread_misses",FDF_STATS_TYPE_BTREE},/* FDF_CACHE_STAT_OVERFLOW_L1_MISSES */
+    {"ZS_BTREE_LEAF_L1_MISSES","l1_cache_leaf_misses",ZS_STATS_TYPE_BTREE},/* ZS_CACHE_STAT_LEAF_L1_MISSES */
+    {"ZS_BTREE_NONLEAF_L1_MISSES","l1_cache_nonleaf_misses",ZS_STATS_TYPE_BTREE},/* ZS_CACHE_STAT_NONLEAF_L1_MISSES */
+    {"ZS_BTREE_OVERFLOW_L1_MISSES","l1_cache_overflow_misses",ZS_STATS_TYPE_BTREE},/* ZS_CACHE_STAT_OVERFLOW_L1_MISSES */
+    {"ZS_BTREE_BACKUP_L1_MISSES","l1_cache_snapread_misses",ZS_STATS_TYPE_BTREE},/* ZS_CACHE_STAT_NONLEAF_L1_MISSES */
+    {"ZS_BTREE_BACKUP_L1_HITS","l1_cache_snapread_misses",ZS_STATS_TYPE_BTREE},/* ZS_CACHE_STAT_OVERFLOW_L1_MISSES */
 
-    {"FDF_BTREE_LEAF_L1_WRITES","l1_cache_leaf_writes",FDF_STATS_TYPE_BTREE},/* FDF_CACHE_STAT_LEAF_L1_WRITES */
-    {"FDF_BTREE_NONLEAF_L1_WRITES","l1_cache_nonleaf_writes",FDF_STATS_TYPE_BTREE},/* FDF_CACHE_STAT_NONLEAF_L1_WRITES */
-    {"FDF_BTREE_OVERFLOW_L1_WRITES","l1_cache_overflow_writes",FDF_STATS_TYPE_BTREE},/* FDF_CACHE_STAT_OVERFLOW_L1_WRITES */
-    {"FDF_BTREE_LEAF_NODES","num_leaf_nodes",FDF_STATS_TYPE_BTREE},/* FDF_CACHE_STAT_BT_LEAF_NODES */
-    {"FDF_BTREE_NONLEAF_NODES","num_nonleaf_nodes",FDF_STATS_TYPE_BTREE},/* FDF_CACHE_STAT_BT_NONLEAF_NODES */
+    {"ZS_BTREE_LEAF_L1_WRITES","l1_cache_leaf_writes",ZS_STATS_TYPE_BTREE},/* ZS_CACHE_STAT_LEAF_L1_WRITES */
+    {"ZS_BTREE_NONLEAF_L1_WRITES","l1_cache_nonleaf_writes",ZS_STATS_TYPE_BTREE},/* ZS_CACHE_STAT_NONLEAF_L1_WRITES */
+    {"ZS_BTREE_OVERFLOW_L1_WRITES","l1_cache_overflow_writes",ZS_STATS_TYPE_BTREE},/* ZS_CACHE_STAT_OVERFLOW_L1_WRITES */
+    {"ZS_BTREE_LEAF_NODES","num_leaf_nodes",ZS_STATS_TYPE_BTREE},/* ZS_CACHE_STAT_BT_LEAF_NODES */
+    {"ZS_BTREE_NONLEAF_NODES","num_nonleaf_nodes",ZS_STATS_TYPE_BTREE},/* ZS_CACHE_STAT_BT_NONLEAF_NODES */
 
-    {"FDF_BTREE_OVERFLOW_NODES","num_overflow_nodes",FDF_STATS_TYPE_BTREE},/* FDF_CACHE_STAT_BT_OVERFLOW_NODES */
-    {"FDF_BTREE_LEAF_BYTES","leaf_bytes",FDF_STATS_TYPE_BTREE},/* FDF_CACHE_STAT_BT_LEAF_BYTES */
-    {"FDF_BTREE_NONLEAF_BYTES","nonleaf_bytes",FDF_STATS_TYPE_BTREE},/* FDF_CACHE_STAT_BT_NONLEAF_BYTES */
-    {"FDF_BTREE_OVERFLOW_BYTES","overflow_bytes",FDF_STATS_TYPE_BTREE},/* FDF_CACHE_STAT_BT_OVERFLOW_BYTES */
-    {"FDF_BTREE_NUM_OBJS","num_objs",FDF_STATS_TYPE_BTREE},/* FDF_CACHE_STAT_BT_NUM_OBJS */
+    {"ZS_BTREE_OVERFLOW_NODES","num_overflow_nodes",ZS_STATS_TYPE_BTREE},/* ZS_CACHE_STAT_BT_OVERFLOW_NODES */
+    {"ZS_BTREE_LEAF_BYTES","leaf_bytes",ZS_STATS_TYPE_BTREE},/* ZS_CACHE_STAT_BT_LEAF_BYTES */
+    {"ZS_BTREE_NONLEAF_BYTES","nonleaf_bytes",ZS_STATS_TYPE_BTREE},/* ZS_CACHE_STAT_BT_NONLEAF_BYTES */
+    {"ZS_BTREE_OVERFLOW_BYTES","overflow_bytes",ZS_STATS_TYPE_BTREE},/* ZS_CACHE_STAT_BT_OVERFLOW_BYTES */
+    {"ZS_BTREE_NUM_OBJS","num_objs",ZS_STATS_TYPE_BTREE},/* ZS_CACHE_STAT_BT_NUM_OBJS */
 
-    {"FDF_BTREE_TOTAL_BYTES","total_bytes",FDF_STATS_TYPE_BTREE},/* FDF_CACHE_STAT_BT_NUM_OBJS */
-    {"FDF_BTREE_EVICT_BYTES","evict_bytes",FDF_STATS_TYPE_BTREE},/* FDF_CACHE_STAT_BT_EVICT_BYTES */
-    {"FDF_BTREE_SPLITS","num_splits",FDF_STATS_TYPE_BTREE},/* FDF_CACHE_STAT_BT_SPLITS */
-    {"FDF_BTREE_LMERGES","num_lmerges",FDF_STATS_TYPE_BTREE},/* FDF_CACHE_STAT_BT_LMERGES */
-    {"FDF_BTREE_RMERGES","num_rmerges",FDF_STATS_TYPE_BTREE},/* FDF_CACHE_STAT_BT_RMERGES */
+    {"ZS_BTREE_TOTAL_BYTES","total_bytes",ZS_STATS_TYPE_BTREE},/* ZS_CACHE_STAT_BT_NUM_OBJS */
+    {"ZS_BTREE_EVICT_BYTES","evict_bytes",ZS_STATS_TYPE_BTREE},/* ZS_CACHE_STAT_BT_EVICT_BYTES */
+    {"ZS_BTREE_SPLITS","num_splits",ZS_STATS_TYPE_BTREE},/* ZS_CACHE_STAT_BT_SPLITS */
+    {"ZS_BTREE_LMERGES","num_lmerges",ZS_STATS_TYPE_BTREE},/* ZS_CACHE_STAT_BT_LMERGES */
+    {"ZS_BTREE_RMERGES","num_rmerges",ZS_STATS_TYPE_BTREE},/* ZS_CACHE_STAT_BT_RMERGES */
 
-    {"FDF_BTREE_LSHIFTS","num_lshifts",FDF_STATS_TYPE_BTREE},/* FDF_CACHE_STAT_BT_LSHIFTS */
-    {"FDF_BTREE_RSHIFTS","num_rshifts",FDF_STATS_TYPE_BTREE},/* FDF_CACHE_STAT_BT_RSHIFTS */
-    {"FDF_BTREE_EX_TREE_LOCKS","nym_xtree_locks",FDF_STATS_TYPE_BTREE},/* FDF_CACHE_STAT_BT_EX_TREE_LOCKS */
-    {"FDF_BTREE_NON_EX_TREE_LOCKS","num_non_xtree_locks",FDF_STATS_TYPE_BTREE},/* FDF_CACHE_STAT_BT_NON_EX_TREE_LOCKS */
-    {"FDF_BTREE_GET","num_creates",FDF_STATS_TYPE_BTREE},/*FDF_BTREE_APRUP*/
-    {"FDF_BTREE_GET_PATH_LEN","get_path_len",FDF_STATS_TYPE_BTREE},/* FDF_CACHE_STAT_BT_GET_PATH_LEN */
-    {"FDF_BTREE_CREATE","num_creates",FDF_STATS_TYPE_BTREE},/*FDF_BTREE_APRUP*/
-    {"FDF_BTREE_CREATE_PATH_LEN","create_path_len",FDF_STATS_TYPE_BTREE},/* FDF_CACHE_STAT_BT_CREATE_PATH_LEN */
-    {"FDF_BTREE_SET","num_sets",FDF_STATS_TYPE_BTREE},/*FDF_ACCESS_TYPES_APRUP*/
-    {"FDF_BTREE_SET_PATH_LEN","set_path_len",FDF_STATS_TYPE_BTREE},/* FDF_CACHE_STAT_BT_SET_PATH_LEN */
-    {"FDF_BTREE_UPDATE","num_updates",FDF_STATS_TYPE_BTREE},/*FDF_ACCESS_TYPES_APRUP*/
-    {"FDF_BTREE_UPDATE_PATH_LEN","update_path_len",FDF_STATS_TYPE_BTREE},/* FDF_CACHE_STAT_BT_UPDATE_PATH_LEN */
-    {"FDF_BTREE_DELETE_PATH_LEN","delete_path_len",FDF_STATS_TYPE_BTREE},/* FDF_CACHE_STAT_BT_DELETE_PATH_LEN */
-    {"FDF_BTREE_FLUSH_CNT","flush_count",FDF_STATS_TYPE_BTREE},/* FDF_CACHE_STAT_BT_FLUSH_CNT */
+    {"ZS_BTREE_LSHIFTS","num_lshifts",ZS_STATS_TYPE_BTREE},/* ZS_CACHE_STAT_BT_LSHIFTS */
+    {"ZS_BTREE_RSHIFTS","num_rshifts",ZS_STATS_TYPE_BTREE},/* ZS_CACHE_STAT_BT_RSHIFTS */
+    {"ZS_BTREE_EX_TREE_LOCKS","nym_xtree_locks",ZS_STATS_TYPE_BTREE},/* ZS_CACHE_STAT_BT_EX_TREE_LOCKS */
+    {"ZS_BTREE_NON_EX_TREE_LOCKS","num_non_xtree_locks",ZS_STATS_TYPE_BTREE},/* ZS_CACHE_STAT_BT_NON_EX_TREE_LOCKS */
+    {"ZS_BTREE_GET","num_creates",ZS_STATS_TYPE_BTREE},/*ZS_BTREE_APRUP*/
+    {"ZS_BTREE_GET_PATH_LEN","get_path_len",ZS_STATS_TYPE_BTREE},/* ZS_CACHE_STAT_BT_GET_PATH_LEN */
+    {"ZS_BTREE_CREATE","num_creates",ZS_STATS_TYPE_BTREE},/*ZS_BTREE_APRUP*/
+    {"ZS_BTREE_CREATE_PATH_LEN","create_path_len",ZS_STATS_TYPE_BTREE},/* ZS_CACHE_STAT_BT_CREATE_PATH_LEN */
+    {"ZS_BTREE_SET","num_sets",ZS_STATS_TYPE_BTREE},/*ZS_ACCESS_TYPES_APRUP*/
+    {"ZS_BTREE_SET_PATH_LEN","set_path_len",ZS_STATS_TYPE_BTREE},/* ZS_CACHE_STAT_BT_SET_PATH_LEN */
+    {"ZS_BTREE_UPDATE","num_updates",ZS_STATS_TYPE_BTREE},/*ZS_ACCESS_TYPES_APRUP*/
+    {"ZS_BTREE_UPDATE_PATH_LEN","update_path_len",ZS_STATS_TYPE_BTREE},/* ZS_CACHE_STAT_BT_UPDATE_PATH_LEN */
+    {"ZS_BTREE_DELETE_PATH_LEN","delete_path_len",ZS_STATS_TYPE_BTREE},/* ZS_CACHE_STAT_BT_DELETE_PATH_LEN */
+    {"ZS_BTREE_FLUSH_CNT","flush_count",ZS_STATS_TYPE_BTREE},/* ZS_CACHE_STAT_BT_FLUSH_CNT */
 
-    {"FDF_BTREE_DELETE_OPT_COUNT","delete_opt_count",FDF_STATS_TYPE_BTREE},/* FDF_CACHE_STAT_BT_DELETE_OPT_COUNT */
-    {"FDF_BTREE_MPUT_IO_SAVED","mput_io_saved",FDF_STATS_TYPE_BTREE},/* FDF_CACHE_STAT_BT_MPUT_IO_SAVED */
-    {"FDF_BTREE_PUT_RESTART_CNT","put_restart_cnt",FDF_STATS_TYPE_BTREE},/* FDF_CACHE_STAT_BT_PUT_RESTART_CNT */
-    {"FDF_BTREE_SPCOPT_BYTES_SAVED", "space_opt_bytes_saved", FDF_STATS_TYPE_BTREE},/* FDF_CACHE_STAT_BT_SPCOPT_BYTES_SAVED */
-    {"FDF_BTREE_NUM_MPUT_OBJS", "num_mput_objs", FDF_STATS_TYPE_BTREE},/* FDF_CACHE_STAT_BT_SPCOPT_BYTES_SAVED */
+    {"ZS_BTREE_DELETE_OPT_COUNT","delete_opt_count",ZS_STATS_TYPE_BTREE},/* ZS_CACHE_STAT_BT_DELETE_OPT_COUNT */
+    {"ZS_BTREE_MPUT_IO_SAVED","mput_io_saved",ZS_STATS_TYPE_BTREE},/* ZS_CACHE_STAT_BT_MPUT_IO_SAVED */
+    {"ZS_BTREE_PUT_RESTART_CNT","put_restart_cnt",ZS_STATS_TYPE_BTREE},/* ZS_CACHE_STAT_BT_PUT_RESTART_CNT */
+    {"ZS_BTREE_SPCOPT_BYTES_SAVED", "space_opt_bytes_saved", ZS_STATS_TYPE_BTREE},/* ZS_CACHE_STAT_BT_SPCOPT_BYTES_SAVED */
+    {"ZS_BTREE_NUM_MPUT_OBJS", "num_mput_objs", ZS_STATS_TYPE_BTREE},/* ZS_CACHE_STAT_BT_SPCOPT_BYTES_SAVED */
 
-    {"FDF_BTREE_NUM_RANGE_NEXT_OBJS", "num_range_next_objs", FDF_STATS_TYPE_BTREE},/* FDF_CACHE_STAT_BT_SPCOPT_BYTES_SAVED */
-    {"FDF_BTREE_NUM_RANGE_UPDATE_OBJS", "num_range_update_objs", FDF_STATS_TYPE_BTREE},/* FDF_CACHE_STAT_BT_SPCOPT_BYTES_SAVED */
-    {"FDF_BTREE_NUM_SNAP_OBJS", "num_snapshot_objs", FDF_STATS_TYPE_BTREE},/* FDF_CACHE_STAT_BT_SPCOPT_BYTES_SAVED */
-    {"FDF_BTREE_NUM_SNAP_DATA_SIZE", "num_snapshot_size", FDF_STATS_TYPE_BTREE},/* FDF_CACHE_STAT_BT_SPCOPT_BYTES_SAVED */
-    {"FDF_BTREE_NUM_NUM_SNAPS", "num_snapshots", FDF_STATS_TYPE_BTREE},/* FDF_CACHE_STAT_BT_SPCOPT_BYTES_SAVED */
-    {"FDF_BTREE_NUM_BULK_INSERT_CNT", "num_bulk_inserts", FDF_STATS_TYPE_BTREE},/* FDF_BTREE_NUM_BULK_INSERT_CNT */
-    {"FDF_BTREE_NUM_BULK_INSERT_FULL_NODES_CNT", "num_bulk_fullnode_inserts", FDF_STATS_TYPE_BTREE},/* FDF_CACHE_STAT_BT_SPCOPT_BYTES_SAVED */
+    {"ZS_BTREE_NUM_RANGE_NEXT_OBJS", "num_range_next_objs", ZS_STATS_TYPE_BTREE},/* ZS_CACHE_STAT_BT_SPCOPT_BYTES_SAVED */
+    {"ZS_BTREE_NUM_RANGE_UPDATE_OBJS", "num_range_update_objs", ZS_STATS_TYPE_BTREE},/* ZS_CACHE_STAT_BT_SPCOPT_BYTES_SAVED */
+    {"ZS_BTREE_NUM_SNAP_OBJS", "num_snapshot_objs", ZS_STATS_TYPE_BTREE},/* ZS_CACHE_STAT_BT_SPCOPT_BYTES_SAVED */
+    {"ZS_BTREE_NUM_SNAP_DATA_SIZE", "num_snapshot_size", ZS_STATS_TYPE_BTREE},/* ZS_CACHE_STAT_BT_SPCOPT_BYTES_SAVED */
+    {"ZS_BTREE_NUM_NUM_SNAPS", "num_snapshots", ZS_STATS_TYPE_BTREE},/* ZS_CACHE_STAT_BT_SPCOPT_BYTES_SAVED */
+    {"ZS_BTREE_NUM_BULK_INSERT_CNT", "num_bulk_inserts", ZS_STATS_TYPE_BTREE},/* ZS_BTREE_NUM_BULK_INSERT_CNT */
+    {"ZS_BTREE_NUM_BULK_INSERT_FULL_NODES_CNT", "num_bulk_fullnode_inserts", ZS_STATS_TYPE_BTREE},/* ZS_CACHE_STAT_BT_SPCOPT_BYTES_SAVED */
     
 };
 
 char *get_btree_stats_desc(int stat ) {
-    if( stat >= sizeof(fdf_stats_btree)/sizeof(fdf_stats_info_t)) {
+    if( stat >= sizeof(zs_stats_btree)/sizeof(zs_stats_info_t)) {
         return "Invalid stat";
     }    
-    return fdf_stats_btree[stat].desc;
+    return zs_stats_btree[stat].desc;
 }
 
-fdf_stats_info_t fdf_stats_flash[] = {
-    {"NUM_OBJS","num_items_flash",FDF_STATS_TYPE_FLASH},/*FDF_FLASH_STATS_NUM_OBJS*/
-    {"NUM_CREATED_OBJS","num_items_created",FDF_STATS_TYPE_FLASH},/*FDF_FLASH_STATS_NUM_CREATED_OBJS*/
-    {"NUM_EVICTIONS","num_evictions_flash",FDF_STATS_TYPE_FLASH},/*FDF_FLASH_STATS_NUM_EVICTIONS*/
-    {"HASH_EVICTIONS","num_hash_evictions",FDF_STATS_TYPE_FLASH},/*FDF_FLASH_STATS_NUM_HASH_EVICTIONS*/
-    {"INVAL_EVICTIONS","num_inval_evictions",FDF_STATS_TYPE_FLASH},/*FDF_FLASH_STATS_NUM_INVAL_EVICTIONS*/
-    {"SOFT_OVERFLOWS","num_soft_overflows",FDF_STATS_TYPE_FLASH},/*FDF_FLASH_STATS_NUM_SOFT_OVERFLOWS*/
-    {"NUM_HARD_OVERFLOWS","num_hard_overflows",FDF_STATS_TYPE_FLASH},/*FDF_FLASH_STATS_NUM_HARD_OVERFLOWS*/
-    {"GET_HASH_COLLISION","num_get_hash_collisions",FDF_STATS_TYPE_FLASH},/*FDF_FLASH_STATS_GET_HASH_COLLISION*/
-    {"SET_HASH_COLLISION","num_set_hash_collisions",FDF_STATS_TYPE_FLASH},/* FDF_FLASH_STATS_SET_HASH_COLLISION*/
-    {"NUM_OVERWRITES","num_overwrites",FDF_STATS_TYPE_FLASH},/*FDF_FLASH_STATS_NUM_OVERWRITES*/
-    {"NUM_OPS","num_flash_ops",FDF_STATS_TYPE_FLASH},/*FDF_FLASH_STATS_NUM_OPS*/
-    {"READ_OPS","num_read_ops",FDF_STATS_TYPE_FLASH},/*FDF_FLASH_STATS_NUM_READ_OPS*/
-    {"GET_OPS","num_get_ops",FDF_STATS_TYPE_FLASH},/*FDF_FLASH_STATS_NUM_GET_OPS*/
-    {"PUT_OPS","num_put_ops",FDF_STATS_TYPE_FLASH},/*FDF_FLASH_STATS_NUM_PUT_OPS*/
-    {"DEL_OPS","num_del_ops",FDF_STATS_TYPE_FLASH},/*FDF_FLASH_STATS_NUM_DEL_OPS*/
-    {"EXIST_CHECKS","num_existence_checks",FDF_STATS_TYPE_FLASH},/*FDF_FLASH_STATS_GET_EXIST_CHECKS*/
-    {"FULL_BUCKETS","num_full_hash_buckets",FDF_STATS_TYPE_FLASH},/*FDF_FLASH_STATS_NUM_FULL_BUCKETS*/
-    {"PENDING_IOS","num_pending_ios",FDF_STATS_TYPE_FLASH},/*FDF_FLASH_STATS_PENDING_IOS*/
-    {"SPACE_ALLOCATED","flash_space_allocated",FDF_STATS_TYPE_FLASH},/*FDF_FLASH_STATS_SPACE_ALLOCATED*/
-    {"SPACE_CONSUMED","flash_space_consumed",FDF_STATS_TYPE_FLASH},/*FDF_FLASH_STATS_SPACE_CONSUMED*/
+zs_stats_info_t zs_stats_flash[] = {
+    {"NUM_OBJS","num_items_flash",ZS_STATS_TYPE_FLASH},/*ZS_FLASH_STATS_NUM_OBJS*/
+    {"NUM_CREATED_OBJS","num_items_created",ZS_STATS_TYPE_FLASH},/*ZS_FLASH_STATS_NUM_CREATED_OBJS*/
+    {"NUM_EVICTIONS","num_evictions_flash",ZS_STATS_TYPE_FLASH},/*ZS_FLASH_STATS_NUM_EVICTIONS*/
+    {"HASH_EVICTIONS","num_hash_evictions",ZS_STATS_TYPE_FLASH},/*ZS_FLASH_STATS_NUM_HASH_EVICTIONS*/
+    {"INVAL_EVICTIONS","num_inval_evictions",ZS_STATS_TYPE_FLASH},/*ZS_FLASH_STATS_NUM_INVAL_EVICTIONS*/
+    {"SOFT_OVERFLOWS","num_soft_overflows",ZS_STATS_TYPE_FLASH},/*ZS_FLASH_STATS_NUM_SOFT_OVERFLOWS*/
+    {"NUM_HARD_OVERFLOWS","num_hard_overflows",ZS_STATS_TYPE_FLASH},/*ZS_FLASH_STATS_NUM_HARD_OVERFLOWS*/
+    {"GET_HASH_COLLISION","num_get_hash_collisions",ZS_STATS_TYPE_FLASH},/*ZS_FLASH_STATS_GET_HASH_COLLISION*/
+    {"SET_HASH_COLLISION","num_set_hash_collisions",ZS_STATS_TYPE_FLASH},/* ZS_FLASH_STATS_SET_HASH_COLLISION*/
+    {"NUM_OVERWRITES","num_overwrites",ZS_STATS_TYPE_FLASH},/*ZS_FLASH_STATS_NUM_OVERWRITES*/
+    {"NUM_OPS","num_flash_ops",ZS_STATS_TYPE_FLASH},/*ZS_FLASH_STATS_NUM_OPS*/
+    {"READ_OPS","num_read_ops",ZS_STATS_TYPE_FLASH},/*ZS_FLASH_STATS_NUM_READ_OPS*/
+    {"GET_OPS","num_get_ops",ZS_STATS_TYPE_FLASH},/*ZS_FLASH_STATS_NUM_GET_OPS*/
+    {"PUT_OPS","num_put_ops",ZS_STATS_TYPE_FLASH},/*ZS_FLASH_STATS_NUM_PUT_OPS*/
+    {"DEL_OPS","num_del_ops",ZS_STATS_TYPE_FLASH},/*ZS_FLASH_STATS_NUM_DEL_OPS*/
+    {"EXIST_CHECKS","num_existence_checks",ZS_STATS_TYPE_FLASH},/*ZS_FLASH_STATS_GET_EXIST_CHECKS*/
+    {"FULL_BUCKETS","num_full_hash_buckets",ZS_STATS_TYPE_FLASH},/*ZS_FLASH_STATS_NUM_FULL_BUCKETS*/
+    {"PENDING_IOS","num_pending_ios",ZS_STATS_TYPE_FLASH},/*ZS_FLASH_STATS_PENDING_IOS*/
+    {"SPACE_ALLOCATED","flash_space_allocated",ZS_STATS_TYPE_FLASH},/*ZS_FLASH_STATS_SPACE_ALLOCATED*/
+    {"SPACE_CONSUMED","flash_space_consumed",ZS_STATS_TYPE_FLASH},/*ZS_FLASH_STATS_SPACE_CONSUMED*/
 
-    {"SEGMENTS_COMPACTED","slab_gc_segments_compacted",FDF_STATS_TYPE_FLASH},
-    {"SEGMENTS_FREED","slab_gc_segments_freed",FDF_STATS_TYPE_FLASH},
-    {"SLABS_RELOCATED","slab_gc_slabs_relocated",FDF_STATS_TYPE_FLASH},
-    {"BLOCKS_RELOCATED","slab_gc_blocks_relocated",FDF_STATS_TYPE_FLASH},
-    {"RELOCATE_ERRORS","slab_gc_relocate_errors",FDF_STATS_TYPE_FLASH},
-    {"SIGNALLED","slab_gc_signalled",FDF_STATS_TYPE_FLASH},
-    {"SIGNALLED_SYNC","slab_gc_signalled_sync",FDF_STATS_TYPE_FLASH},
-    {"WAIT_SYNC","slab_gc_wait_sync",FDF_STATS_TYPE_FLASH},
-    {"SEGMENTS_CANCELLED","slab_gc_segments_cancelled",FDF_STATS_TYPE_FLASH}, 
+    {"SEGMENTS_COMPACTED","slab_gc_segments_compacted",ZS_STATS_TYPE_FLASH},
+    {"SEGMENTS_FREED","slab_gc_segments_freed",ZS_STATS_TYPE_FLASH},
+    {"SLABS_RELOCATED","slab_gc_slabs_relocated",ZS_STATS_TYPE_FLASH},
+    {"BLOCKS_RELOCATED","slab_gc_blocks_relocated",ZS_STATS_TYPE_FLASH},
+    {"RELOCATE_ERRORS","slab_gc_relocate_errors",ZS_STATS_TYPE_FLASH},
+    {"SIGNALLED","slab_gc_signalled",ZS_STATS_TYPE_FLASH},
+    {"SIGNALLED_SYNC","slab_gc_signalled_sync",ZS_STATS_TYPE_FLASH},
+    {"WAIT_SYNC","slab_gc_wait_sync",ZS_STATS_TYPE_FLASH},
+    {"SEGMENTS_CANCELLED","slab_gc_segments_cancelled",ZS_STATS_TYPE_FLASH}, 
 
-    {"FREE_SEGMENTS","slab_free_segments",FDF_STATS_TYPE_FLASH}, 
-    {"COMPRESSED_BYTES","flash_compressed_bytes",FDF_STATS_TYPE_FLASH}, 
-    {"FDF_FLASH_STATS_THD_CONTEXTS","fdf_thd_contexts",FDF_STATS_TYPE_FLASH}, 
-    {"ESCVN_OBJ_DEL","scavenged_object_count",FDF_STATS_TYPE_FLASH},
-    {"ESCVN_YLD_SCAN_CMPLTE","scavenger_scans_completed",FDF_STATS_TYPE_FLASH},
-    {"ESCVN_YLD_SCAN_RATE","scavenger_yields",FDF_STATS_TYPE_FLASH},
+    {"FREE_SEGMENTS","slab_free_segments",ZS_STATS_TYPE_FLASH}, 
+    {"COMPRESSED_BYTES","flash_compressed_bytes",ZS_STATS_TYPE_FLASH}, 
+    {"ZS_FLASH_STATS_THD_CONTEXTS","zs_thd_contexts",ZS_STATS_TYPE_FLASH}, 
+    {"ESCVN_OBJ_DEL","scavenged_object_count",ZS_STATS_TYPE_FLASH},
+    {"ESCVN_YLD_SCAN_CMPLTE","scavenger_scans_completed",ZS_STATS_TYPE_FLASH},
+    {"ESCVN_YLD_SCAN_RATE","scavenger_yields",ZS_STATS_TYPE_FLASH},
 };
 
 char *get_flash_type_stats_desc(int stat ) {
-    if( stat >= sizeof(fdf_stats_flash)/sizeof(fdf_stats_info_t)) {
+    if( stat >= sizeof(zs_stats_flash)/sizeof(zs_stats_info_t)) {
         return "Invalid stat";
     }
-    return fdf_stats_flash[stat].desc;
+    return zs_stats_flash[stat].desc;
 }
 
-fdf_stats_info_t fdf_stats_cache[] = {
-    {"overwrites_s","num_overwrites_s_state",FDF_STATS_TYPE_OVERWRITES},/* FDF_CACHE_STAT_OVERWRITES_S */
-    {"overwrites_m","num_overwrites_m_state",FDF_STATS_TYPE_OVERWRITES},/* FDF_CACHE_STAT_OVERWRITES_M */
-    {"inplaceowr_s","num_inplace_overwrites_s_state",FDF_STATS_TYPE_OVERWRITES},/* FDF_CACHE_STAT_INPLACEOWR_S */
-    {"inplaceowr_m","num_inplace_overwrites_m_state",FDF_STATS_TYPE_OVERWRITES},/* FDF_CACHE_STAT_INPLACEOWR_M */
-    {"new_entries","num_new_entries",FDF_STATS_TYPE_OVERWRITES},/* FDF_CACHE_STAT_NEW_ENTRIES */
-    {"writethrus","num_writethrus_to_flash",FDF_STATS_TYPE_OVERWRITES},/* FDF_CACHE_STAT_WRITETHRUS */
-    {"writebacks","num_writebacks",FDF_STATS_TYPE_OVERWRITES},/* FDF_CACHE_STAT_WRITEBACKS */
-    {"flushes","num_flush_ops_to_flash",FDF_STATS_TYPE_OVERWRITES},/* FDF_CACHE_STAT_FLUSHES */
-    {"async_drains","async_drains",FDF_STATS_TYPE_CACHE_TO_FLASH},/* FDF_CACHE_STAT_ASYNC_DRAINS */
-    {"async_puts","async_puts",FDF_STATS_TYPE_CACHE_TO_FLASH},/* FDF_CACHE_STAT_ASYNC_PUTS */
-    {"async_put_fails","async_put_fails",FDF_STATS_TYPE_CACHE_TO_FLASH},/* FDF_CACHE_STAT_ASYNC_PUT_FAILS */
-    {"async_flushes","async_flushes",FDF_STATS_TYPE_CACHE_TO_FLASH},/* FDF_CACHE_STAT_ASYNC_FLUSHES */
-    {"async_flush_fails","async_flush_fails",FDF_STATS_TYPE_CACHE_TO_FLASH},/* FDF_CACHE_STAT_ASYNC_FLUSH_FAILS */
-    {"async_wrbks","async_wrbks",FDF_STATS_TYPE_CACHE_TO_FLASH},/* FDF_CACHE_STAT_ASYNC_WRBKS */
-    {"async_wrbk_fails","async_wrbk_fails",FDF_STATS_TYPE_CACHE_TO_FLASH},/* FDF_CACHE_STAT_ASYNC_WRBK_FAILS */
-    {"cache_misses","cache_misses",FDF_STATS_TYPE_CACHE_TO_FLASH},/* FDF_CACHE_STAT_CACHE_MISSES */
-    {"cache_hits","cache_hits",FDF_STATS_TYPE_CACHE_TO_FLASH},/* FDF_CACHE_STAT_CACHE_HITS */
+zs_stats_info_t zs_stats_cache[] = {
+    {"overwrites_s","num_overwrites_s_state",ZS_STATS_TYPE_OVERWRITES},/* ZS_CACHE_STAT_OVERWRITES_S */
+    {"overwrites_m","num_overwrites_m_state",ZS_STATS_TYPE_OVERWRITES},/* ZS_CACHE_STAT_OVERWRITES_M */
+    {"inplaceowr_s","num_inplace_overwrites_s_state",ZS_STATS_TYPE_OVERWRITES},/* ZS_CACHE_STAT_INPLACEOWR_S */
+    {"inplaceowr_m","num_inplace_overwrites_m_state",ZS_STATS_TYPE_OVERWRITES},/* ZS_CACHE_STAT_INPLACEOWR_M */
+    {"new_entries","num_new_entries",ZS_STATS_TYPE_OVERWRITES},/* ZS_CACHE_STAT_NEW_ENTRIES */
+    {"writethrus","num_writethrus_to_flash",ZS_STATS_TYPE_OVERWRITES},/* ZS_CACHE_STAT_WRITETHRUS */
+    {"writebacks","num_writebacks",ZS_STATS_TYPE_OVERWRITES},/* ZS_CACHE_STAT_WRITEBACKS */
+    {"flushes","num_flush_ops_to_flash",ZS_STATS_TYPE_OVERWRITES},/* ZS_CACHE_STAT_FLUSHES */
+    {"async_drains","async_drains",ZS_STATS_TYPE_CACHE_TO_FLASH},/* ZS_CACHE_STAT_ASYNC_DRAINS */
+    {"async_puts","async_puts",ZS_STATS_TYPE_CACHE_TO_FLASH},/* ZS_CACHE_STAT_ASYNC_PUTS */
+    {"async_put_fails","async_put_fails",ZS_STATS_TYPE_CACHE_TO_FLASH},/* ZS_CACHE_STAT_ASYNC_PUT_FAILS */
+    {"async_flushes","async_flushes",ZS_STATS_TYPE_CACHE_TO_FLASH},/* ZS_CACHE_STAT_ASYNC_FLUSHES */
+    {"async_flush_fails","async_flush_fails",ZS_STATS_TYPE_CACHE_TO_FLASH},/* ZS_CACHE_STAT_ASYNC_FLUSH_FAILS */
+    {"async_wrbks","async_wrbks",ZS_STATS_TYPE_CACHE_TO_FLASH},/* ZS_CACHE_STAT_ASYNC_WRBKS */
+    {"async_wrbk_fails","async_wrbk_fails",ZS_STATS_TYPE_CACHE_TO_FLASH},/* ZS_CACHE_STAT_ASYNC_WRBK_FAILS */
+    {"cache_misses","cache_misses",ZS_STATS_TYPE_CACHE_TO_FLASH},/* ZS_CACHE_STAT_CACHE_MISSES */
+    {"cache_hits","cache_hits",ZS_STATS_TYPE_CACHE_TO_FLASH},/* ZS_CACHE_STAT_CACHE_HITS */
     /* request from cache to flash manager */
-    {"AHCOB","num_create_objs",FDF_STATS_TYPE_CACHE_TO_FLASH},/* FDF_CACHE_STAT_AHCOB */
-    {"AHCOP","num_create_objs_and_put",FDF_STATS_TYPE_CACHE_TO_FLASH},/* FDF_CACHE_STAT_AHCOP */
-    {"AHCWD","num_create_objs_with_data",FDF_STATS_TYPE_CACHE_TO_FLASH},/* FDF_CACHE_STAT_AHCWD */
-    {"AHDOB","num_delete_objs",FDF_STATS_TYPE_CACHE_TO_FLASH},/* FDF_CACHE_STAT_AHDOB */
-    {"AHFLD","num_flush_objs",FDF_STATS_TYPE_CACHE_TO_FLASH},/* FDF_CACHE_STAT_AHFLD */
-    {"AHGTR","num_get_objs_to_read",FDF_STATS_TYPE_CACHE_TO_FLASH},/* FDF_CACHE_STAT_AHGTR */
-    {"AHGTW","num_get_objs_to_write",FDF_STATS_TYPE_CACHE_TO_FLASH},/* FDF_CACHE_STAT_AHGTW */
-    {"AHPTA","num_put_objs",FDF_STATS_TYPE_CACHE_TO_FLASH},/* FDF_CACHE_STAT_AHPTA */
-    {"AHSOB","num_set_objs",FDF_STATS_TYPE_CACHE_TO_FLASH},/* FDF_CACHE_STAT_AHSOB */
-    {"AHSOP","num_set_objs_and_put",FDF_STATS_TYPE_CACHE_TO_FLASH},/* FDF_CACHE_STAT_AHSOP */
+    {"AHCOB","num_create_objs",ZS_STATS_TYPE_CACHE_TO_FLASH},/* ZS_CACHE_STAT_AHCOB */
+    {"AHCOP","num_create_objs_and_put",ZS_STATS_TYPE_CACHE_TO_FLASH},/* ZS_CACHE_STAT_AHCOP */
+    {"AHCWD","num_create_objs_with_data",ZS_STATS_TYPE_CACHE_TO_FLASH},/* ZS_CACHE_STAT_AHCWD */
+    {"AHDOB","num_delete_objs",ZS_STATS_TYPE_CACHE_TO_FLASH},/* ZS_CACHE_STAT_AHDOB */
+    {"AHFLD","num_flush_objs",ZS_STATS_TYPE_CACHE_TO_FLASH},/* ZS_CACHE_STAT_AHFLD */
+    {"AHGTR","num_get_objs_to_read",ZS_STATS_TYPE_CACHE_TO_FLASH},/* ZS_CACHE_STAT_AHGTR */
+    {"AHGTW","num_get_objs_to_write",ZS_STATS_TYPE_CACHE_TO_FLASH},/* ZS_CACHE_STAT_AHGTW */
+    {"AHPTA","num_put_objs",ZS_STATS_TYPE_CACHE_TO_FLASH},/* ZS_CACHE_STAT_AHPTA */
+    {"AHSOB","num_set_objs",ZS_STATS_TYPE_CACHE_TO_FLASH},/* ZS_CACHE_STAT_AHSOB */
+    {"AHSOP","num_set_objs_and_put",ZS_STATS_TYPE_CACHE_TO_FLASH},/* ZS_CACHE_STAT_AHSOP */
     /* Request from flash manager to cache */
-    {"HACRC","num_create_objs_completed",FDF_STATS_TYPE_FLASH_TO_CACHE},/* FDF_CACHE_STAT_HACRC */
-    {"HACRF","num_create_objs_failed",FDF_STATS_TYPE_FLASH_TO_CACHE},/* FDF_CACHE_STAT_HACRF */
-    {"HACSC","num_castout_completed",FDF_STATS_TYPE_FLASH_TO_CACHE},/* FDF_CACHE_STAT_HACSC */
-    {"HACSF","num_castout_failed",FDF_STATS_TYPE_FLASH_TO_CACHE},/* FDF_CACHE_STAT_HACSF */
-    {"HADEC","num_delete_objs_completed",FDF_STATS_TYPE_FLASH_TO_CACHE},/* FDF_CACHE_STAT_HADEC */
-    {"HADEF","num_delete_objs_failed",FDF_STATS_TYPE_FLASH_TO_CACHE},/* FDF_CACHE_STAT_HADEF */
-    {"HAFLC","num_flush_objs_completed",FDF_STATS_TYPE_FLASH_TO_CACHE},/* FDF_CACHE_STAT_HAFLC */
-    {"HAFLF","num_flush_objs_failed",FDF_STATS_TYPE_FLASH_TO_CACHE},/* FDF_CACHE_STAT_HAFLF */
-    {"HAGRC","num_get_objs_to_read_completed",FDF_STATS_TYPE_FLASH_TO_CACHE},/* FDF_CACHE_STAT_HAGRC */
-    {"HAGRF","num_get_objs_to_read_failed",FDF_STATS_TYPE_FLASH_TO_CACHE},/* FDF_CACHE_STAT_HAGRF */
-    {"HAGWC","num_get_objs_to_write_completed",FDF_STATS_TYPE_FLASH_TO_CACHE},/* FDF_CACHE_STAT_HAGWC */
-    {"HAGWF","num_get_objs_to_write_failed",FDF_STATS_TYPE_FLASH_TO_CACHE},/* FDF_CACHE_STAT_HAGWF */
-    {"HAPAC","num_put_objs_completed",FDF_STATS_TYPE_FLASH_TO_CACHE},/* FDF_CACHE_STAT_HAPAC */
-    {"HAPAF","num_put_objs_failed",FDF_STATS_TYPE_FLASH_TO_CACHE},/* FDF_CACHE_STAT_HAPAF */
-    {"HASTC","num_set_objs_completed",FDF_STATS_TYPE_FLASH_TO_CACHE},/* FDF_CACHE_STAT_HASTC */
-    {"HASTF","num_set_objs_failed",FDF_STATS_TYPE_FLASH_TO_CACHE},/* FDF_CACHE_STAT_HASTF */
-    {"HFXST","num_existence_checks",FDF_STATS_TYPE_FLASH_MANAGER},/* FDF_CACHE_STAT_HFXST */
-    {"FHXST","num_existence_success",FDF_STATS_TYPE_FLASH_MANAGER},/* FDF_CACHE_STAT_FHXST */
-    {"FHNXS","num_existence_failed",FDF_STATS_TYPE_FLASH_MANAGER},/* FDF_CACHE_STAT_FHNXS */
-    {"HFGFF","num_get_objs",FDF_STATS_TYPE_FLASH_MANAGER},/* FDF_CACHE_STAT_HFGFF */
-    {"FHDAT","num_objs_data",FDF_STATS_TYPE_FLASH_MANAGER},/* FDF_CACHE_STAT_FHDAT */
-    {"FHGTF","num_get_objs_failed",FDF_STATS_TYPE_FLASH_MANAGER},/* FDF_CACHE_STAT_FHGTF */
-    {"HFPTF","num_put_objs",FDF_STATS_TYPE_FLASH_MANAGER},/* FDF_CACHE_STAT_HFPTF */
-    {"FHPTC","num_put_objs_completed",FDF_STATS_TYPE_FLASH_MANAGER},/* FDF_CACHE_STAT_FHPTC */
-    {"FHPTF","num_put_objs_failed",FDF_STATS_TYPE_FLASH_MANAGER},/* FDF_CACHE_STAT_FHPTF */
-    {"HFDFF","num_delete_objs",FDF_STATS_TYPE_FLASH_MANAGER},/* FDF_CACHE_STAT_HFDFF */
-    {"FHDEC","num_delete_completed",FDF_STATS_TYPE_FLASH_MANAGER},/* FDF_CACHE_STAT_FHDEC */
-    {"FHDEF","num_delete_failed",FDF_STATS_TYPE_FLASH_MANAGER},/* FDF_CACHE_STAT_FHDEF */
-    {"HFCIF","num_create_objects",FDF_STATS_TYPE_FLASH_MANAGER},/* FDF_CACHE_STAT_HFCIF */
-    {"FHCRC","num_create_completerdf",FDF_STATS_TYPE_FLASH_MANAGER},/* FDF_CACHE_STAT_FHCRC */
-    {"FHCRF","num_create_failed",FDF_STATS_TYPE_FLASH_MANAGER},/* FDF_CACHE_STAT_FHCRF */
-    {"HFCZF","num_create_zeroed_objs",FDF_STATS_TYPE_FLASH_MANAGER},/* FDF_CACHE_STAT_HFCZF */
-    {"HFCRC","num_create_zeroed_objs_completed",FDF_STATS_TYPE_FLASH_MANAGER},/* FDF_CACHE_STAT_HFCRC */
-    {"HFCRF","num_create_zeroed_objs_failed",FDF_STATS_TYPE_FLASH_MANAGER},/* FDF_CACHE_STAT_HFCRF */
-    {"HFSET","num_set_objs",FDF_STATS_TYPE_FLASH_MANAGER},/* FDF_CACHE_STAT_HFSET */
-    {"HFSTC","num_set_objs_completed",FDF_STATS_TYPE_FLASH_MANAGER},/* FDF_CACHE_STAT_HFSTC */
-    {"FHSTF","num_set_objs_failed",FDF_STATS_TYPE_FLASH_MANAGER},/* FDF_CACHE_STAT_FHSTF */
-    {"HFCSH","num_create_shards",FDF_STATS_TYPE_FLASH_MANAGER},/* FDF_CACHE_STAT_HFCSH */
-    {"FHCSC","num_create_shards_completed",FDF_STATS_TYPE_FLASH_MANAGER},/* FDF_CACHE_STAT_FHCSC */
-    {"FHCSF","num_create_shards_failed",FDF_STATS_TYPE_FLASH_MANAGER},/* FDF_CACHE_STAT_FHCSF */
-    {"FHSSH","num_sync_shards",FDF_STATS_TYPE_FLASH_MANAGER},/* FDF_CACHE_STAT_HFSSH */
-    {"FHSSC","num_sync_shards_completed",FDF_STATS_TYPE_FLASH_MANAGER},/* FDF_CACHE_STAT_FHSSC */
-    {"FHSSF","num_sync_shards_failed",FDF_STATS_TYPE_FLASH_MANAGER},/* FDF_CACHE_STAT_FHSSF */
-    {"HFDSH","num_delete_shards",FDF_STATS_TYPE_FLASH_MANAGER},/* FDF_CACHE_STAT_HFDSH */
-    {"FHDSC","num_delete_shards_completed",FDF_STATS_TYPE_FLASH_MANAGER},/* FDF_CACHE_STAT_FHDSC */
-    {"FHDSF","num_delete_shards_failed",FDF_STATS_TYPE_FLASH_MANAGER},/* FDF_CACHE_STAT_FHDSF */
-    {"HFGLS","num_get_last_seq",FDF_STATS_TYPE_FLASH_MANAGER},/* FDF_CACHE_STAT_HFGLS */
-    {"FHGLC","num_get_last_seq_completed",FDF_STATS_TYPE_FLASH_MANAGER},/* FDF_CACHE_STAT_FHGLC */
-    {"FHGLF","num_get_last_seq_failed",FDF_STATS_TYPE_FLASH_MANAGER},/* FDF_CACHE_STAT_FHGLF */
-    {"HFGIC","num_get_iter_cursors",FDF_STATS_TYPE_FLASH_MANAGER},/* FDF_CACHE_STAT_HFGIC */
-    {"FHGIC","num_get_iter_cursors_completed",FDF_STATS_TYPE_FLASH_MANAGER},/* FDF_CACHE_STAT_FHGIC */
-    {"FHGIF","num_get_iter_cursors_failed",FDF_STATS_TYPE_FLASH_MANAGER},/* FDF_CACHE_STAT_FHGIF */
-    {"HFGBC","num_get_by_cursors",FDF_STATS_TYPE_FLASH_MANAGER},/* FDF_CACHE_STAT_HFGBC */
-    {"FHGCC","num_get_by_cursors_completed",FDF_STATS_TYPE_FLASH_MANAGER},/* FDF_CACHE_STAT_FHGCC */
-    {"FHGCF","num_get_by_cursors_failed",FDF_STATS_TYPE_FLASH_MANAGER},/* FDF_CACHE_STAT_FHGCF */
-    {"HFGSN","num_get_seq_numbers",FDF_STATS_TYPE_FLASH_MANAGER},/* FDF_CACHE_STAT_HFGSN */
-    {"HFGCS","num_get_container_stats",FDF_STATS_TYPE_FLASH_MANAGER},/* FDF_CACHE_STAT_HFGCS */
-    {"FHGSC","num_get_container_stats_completed",FDF_STATS_TYPE_FLASH_MANAGER},/* FDF_CACHE_STAT_FHGSC */
-    {"FHGSF","num_get_container_stats_failed",FDF_STATS_TYPE_FLASH_MANAGER},/* FDF_CACHE_STAT_FHGSF */
-    {"HFSRR","num_replication_starts",FDF_STATS_TYPE_FLASH_MANAGER},/* FDF_CACHE_STAT_HFSRR */
-    {"FHSRC","num_replication_starts_completed",FDF_STATS_TYPE_FLASH_MANAGER},/* FDF_CACHE_STAT_FHSRC */
-    {"FHSRF","num_replication_starts_failed",FDF_STATS_TYPE_FLASH_MANAGER},/* FDF_CACHE_STAT_FHSRF */
-    {"HFSPR","num_replication_stops",FDF_STATS_TYPE_FLASH_MANAGER},/* FDF_CACHE_STAT_HFSPR */
-    {"FHSPC","num_replication_stops_completed",FDF_STATS_TYPE_FLASH_MANAGER},/* FDF_CACHE_STAT_FHSPC */
-    {"FHSPF","num_replication_stops_failed",FDF_STATS_TYPE_FLASH_MANAGER},/* FDF_CACHE_STAT_FHSPF */
-    {"HFFLA","num_flush_objs",FDF_STATS_TYPE_FLASH_MANAGER},/* FDF_CACHE_STAT_HFFLA */
-    {"FHFLC","num_flush_objs_completed",FDF_STATS_TYPE_FLASH_MANAGER},/* FDF_CACHE_STAT_FHFLC */
-    {"FHFLF","num_flush_objs_failed",FDF_STATS_TYPE_FLASH_MANAGER},/* FDF_CACHE_STAT_FHFLF */
-    {"HFRVG","num_release_vip_grps",FDF_STATS_TYPE_FLASH_MANAGER},/* FDF_CACHE_STAT_HFRVG */
-    {"FHRVC","num_release_vip_grps_completed",FDF_STATS_TYPE_FLASH_MANAGER},/* FDF_CACHE_STAT_FHRVC */
-    {"FHRVF","num_release_vip_grps_failed",FDF_STATS_TYPE_FLASH_MANAGER},/* FDF_CACHE_STAT_FHRVF */
-    {"HFNOP","num_noop",FDF_STATS_TYPE_FLASH_MANAGER},/* FDF_CACHE_STAT_HFNOP */
-    {"FHNPC","num_noop_completed",FDF_STATS_TYPE_FLASH_MANAGER},/* FDF_CACHE_STAT_FHNPC */
-    {"FHNPF","num_noop_failed",FDF_STATS_TYPE_FLASH_MANAGER},/* FDF_CACHE_STAT_FHNPF */
-    {"HFOSH","num_open_shards",FDF_STATS_TYPE_FLASH_MANAGER}, /* FDF_CACHE_STAT_HFOSH */
-    {"FHOSC","num_open_shards_completed",FDF_STATS_TYPE_FLASH_MANAGER},/* FDF_CACHE_STAT_FHOSC */
-    {"FHOSF","num_open_shards_failed",FDF_STATS_TYPE_FLASH_MANAGER},/* FDF_CACHE_STAT_FHOSF */
-    {"HFFLS","num_flush_objs",FDF_STATS_TYPE_FLASH_MANAGER},/* FDF_CACHE_STAT_HFFLS */
-    {"FHFCC","num_flush_objs_completed",FDF_STATS_TYPE_FLASH_MANAGER},/* FDF_CACHE_STAT_FHFCC */
-    {"FHFCF","num_flush_objs_fialed",FDF_STATS_TYPE_FLASH_MANAGER},/* FDF_CACHE_STAT_FHFCF */
-    {"HFFIV","num_flush_invalidate_objs",FDF_STATS_TYPE_FLASH_MANAGER},/* FDF_CACHE_STAT_HFFIV */
-    {"FHFIC","num_flush_invalidate_objs_completed",FDF_STATS_TYPE_FLASH_MANAGER},/* FDF_CACHE_STAT_FHFIC */
-    {"FHFIF","num_flush_invalidate_objs_failed",FDF_STATS_TYPE_FLASH_MANAGER},/* FDF_CACHE_STAT_FHFIF */
-    {"HFINV","num_invalidate_objs",FDF_STATS_TYPE_FLASH_MANAGER},/* FDF_CACHE_STAT_HFINV */
-    {"FHINC","num_invalidate_objs",FDF_STATS_TYPE_FLASH_MANAGER},/* FDF_CACHE_STAT_FHINC */
-    {"FHINF","num_invalidate_objs",FDF_STATS_TYPE_FLASH_MANAGER},/* FDF_CACHE_STAT_FHINF */
-    {"HFFLC","num_flush_containers",FDF_STATS_TYPE_FLASH_MANAGER},/* FDF_CACHE_STAT_HFFLC */
-    {"FHLCC","num_flush_containers_completed",FDF_STATS_TYPE_FLASH_MANAGER},/* FDF_CACHE_STAT_FHLCC */
-    {"FHLCF","num_flush_containers_failed",FDF_STATS_TYPE_FLASH_MANAGER},/* FDF_CACHE_STAT_FHLCF */
-    {"HFFLI","num_flush_invalidate_containers",FDF_STATS_TYPE_FLASH_MANAGER},/* FDF_CACHE_STAT_HFFLI */
-    {"FHLIC","num_flush_invalidate_containers_completed",FDF_STATS_TYPE_FLASH_MANAGER},/* FDF_CACHE_STAT_FHLIC */
-    {"FHLIF","num_flush_invalidate_containers_failed",FDF_STATS_TYPE_FLASH_MANAGER},/* FDF_CACHE_STAT_FHLIF */
-    {"HFINC","num_invalidate_containers",FDF_STATS_TYPE_FLASH_MANAGER},/* FDF_CACHE_STAT_HFINC */
-    {"HFINC","num_invalidate_containers_completed",FDF_STATS_TYPE_FLASH_MANAGER},/* FDF_CACHE_STAT_FHCIC */
-    {"FHCIF","num_invalidate_containers_failed",FDF_STATS_TYPE_FLASH_MANAGER},/* FDF_CACHE_STAT_FHCIF */
-    {"EOK","num_success",FDF_STATS_TYPE_FLASH_RC},/* FDF_CACHE_STAT_EOK */
-    {"EPERM","num_errors_not_permitted_",FDF_STATS_TYPE_FLASH_RC},/* FDF_CACHE_STAT_EPERM */
-    {"ENOENT","num_errors_objects_not_found",FDF_STATS_TYPE_FLASH_RC},/* FDF_CACHE_STAT_ENOENT */
-    {"EDATASIZE","num_errors_insufficient_buffer",FDF_STATS_TYPE_FLASH_RC},/* FDF_CACHE_STAT_EDATASIZE */
-    {"ESTOPPED","num_errors_container_stopped",FDF_STATS_TYPE_FLASH_RC},/* FDF_CACHE_STAT_ESTOPPED */
-    {"EBADCTNR","num_errors_container_not_found",FDF_STATS_TYPE_FLASH_RC},/* FDF_CACHE_STAT_EBADCTNR */
-    {"EDELFAIL","num_errors_delete_failed",FDF_STATS_TYPE_FLASH_RC},/* FDF_CACHE_STAT_EDELFAIL */
-    {"EAGAIN","num_errors_try_again",FDF_STATS_TYPE_FLASH_RC},/* FDF_CACHE_STAT_EAGAIN */
-    {"ENOMEM","num_errors_no_memory",FDF_STATS_TYPE_FLASH_RC},/* FDF_CACHE_STAT_ENOMEM */
-    {"EACCES","num_errors_perm_denied",FDF_STATS_TYPE_FLASH_RC},/* FDF_CACHE_STAT_EACCES */
-    {"EINCONS","num_errors_replication_inconsistencies",FDF_STATS_TYPE_FLASH_RC},/* FDF_CACHE_STAT_EINCONS */
-    {"EBUSY","num_errors_dev_busy",FDF_STATS_TYPE_FLASH_RC},/* FDF_CACHE_STAT_EBUSY */
-    {"EEXIST","num_errors_obj_exists",FDF_STATS_TYPE_FLASH_RC},/* FDF_CACHE_STAT_EEXIST */
-    {"EINVAL","num_errors_invalid_arguments",FDF_STATS_TYPE_FLASH_RC},/* FDF_CACHE_STAT_EINVAL */
-    {"EMFILE","num_errors_too_many_objs",FDF_STATS_TYPE_FLASH_RC},/* FDF_CACHE_STAT_EMFILE */
-    {"ENOSPC","num_errors_no_flash_space",FDF_STATS_TYPE_FLASH_RC},/* FDF_CACHE_STAT_ENOSPC */
-    {"ENOBUFS","num_errors_no_system_resource",FDF_STATS_TYPE_FLASH_RC},/* FDF_CACHE_STAT_ENOBUFS */
-    {"ESTALE","num_errors_stale_data",FDF_STATS_TYPE_FLASH_RC},/* FDF_CACHE_STAT_ESTALE */
-    {"EDQUOT","num_errors_quota_exceeded",FDF_STATS_TYPE_FLASH_RC},/* FDF_CACHE_STAT_EDQUOT */
-    {"EDELFAIL","num_errors_remote_delete_failures",FDF_STATS_TYPE_FLASH_RC},/* FDF_CACHE_STAT_RMT_EDELFAIL */
-    {"EBADCTNR","num_errors_no_remote_container",FDF_STATS_TYPE_FLASH_RC},/* FDF_CACHE_STAT_RMT_EBADCTNR */
-    {"hashBuckets","num_hash_buckets_in_cache",FDF_STATS_TYPE_PER_CACHE},/* FDF_CACHE_STAT_HASH_BUCKETS */
-    {"nSlabs","num_cache_partitions",FDF_STATS_TYPE_PER_CACHE},/* FDF_CACHE_STAT_NUM_SLABS */
-    {"numElements","num_objects_in_cache",FDF_STATS_TYPE_PER_CACHE},/* FDF_CACHE_STAT_NUM_ELEMENTS */
-    {"maxSz","max_cache_capacity",FDF_STATS_TYPE_PER_CACHE},/* FDF_CACHE_STAT_MAX_SIZE */
-    {"currSz","current_data_size_in_cache",FDF_STATS_TYPE_PER_CACHE},/* FDF_CACHE_STAT_CURR_SIZE */
-    {"currSzWkeys","current_key_and_data_size_in_cache",FDF_STATS_TYPE_PER_CACHE},/* FDF_CACHE_STAT_CURR_SIZE_WKEYS */
-    {"nMod","num_modified_objs_in_cache",FDF_STATS_TYPE_PER_CACHE},/* FDF_CACHE_STAT_NUM_MODIFIED_OBJS */
-    {"modSzWkeys","num_bytes_of_modified_objs_in_cache",FDF_STATS_TYPE_PER_CACHE},/* FDF_CACHE_STAT_NUM_MODIFIED_OBJS_WKEYS */
-    {"nModFlushes","num_mod_objs_flushed",FDF_STATS_TYPE_PER_CACHE},/* FDF_CACHE_STAT_NUM_MODIFIED_OBJS_FLUSHED */
-    {"nModBGFlushes","num_mod_objs_flushed_by_bgflush",FDF_STATS_TYPE_PER_CACHE},/* FDF_CACHE_STAT_NUM_MODIFIED_OBJS_BGFLUSHED */
-    {"nPending","num_pending_remote_cache_req",FDF_STATS_TYPE_PER_CACHE},/* FDF_CACHE_STAT_NUM_PENDING_REQS */
-    {"nModRecEnums","num_modified_objs_copied_during_recovery",FDF_STATS_TYPE_PER_CACHE},/* FDF_CACHE_STAT_NUM_MODIFIED_OBJC_REC */
-    {"bkFlshProg","background_flush_progress",FDF_STATS_TYPE_PER_CACHE},/* FDF_CACHE_STAT_BGFLUSH_PROGRESS */
-    {"nBkFlsh","num_background_flushes",FDF_STATS_TYPE_PER_CACHE},/* FDF_CACHE_STAT_NUM_BGFLUSH */
-    {"nFlshTok","max_parallel_flushes",FDF_STATS_TYPE_PER_CACHE},/* FDF_CACHE_STAT_NUM_FLUSH_PARALLEL */
-    {"nBkFlshTok","max_parallel_bg_flushes",FDF_STATS_TYPE_PER_CACHE},/* FDF_CACHE_STAT_NUM_BGFLUSH_PARALLEL */
-    {"FlsMs","time_to_wait_after_bgflush_for_nodirty_data",FDF_STATS_TYPE_PER_CACHE},/* FDF_CACHE_STAT_BGFLUSH_WAIT */
-    {"modPct","max_percent_limit_on_modifiable_cache",FDF_STATS_TYPE_PER_CACHE},/* FDF_CACHE_STAT_MODIFIED_PCT */
-    {"nAppBufs","num_app_buffers_inuse",FDF_STATS_TYPE_PER_CACHE},/* FDF_CACHE_STAT_NUM_APP_BUFFERS */
-    {"nTrans","num_cache_ops_in_progress",FDF_STATS_TYPE_PER_CACHE},/* FDF_CACHE_STAT_NUM_CACHE_OPS_PROG */
-    {"nFGBufs","num_flash_data_buffer_being_processed",FDF_STATS_TYPE_PER_CACHE},/* FDF_CACHE_STAT_NUM_FGBUFFER_PROCESSED */
-    {"nResp","num_resp_msg_being_processed",FDF_STATS_TYPE_PER_CACHE},/* FDF_CACHE_STAT_NUM_RESP_PROCESSED  */
+    {"HACRC","num_create_objs_completed",ZS_STATS_TYPE_FLASH_TO_CACHE},/* ZS_CACHE_STAT_HACRC */
+    {"HACRF","num_create_objs_failed",ZS_STATS_TYPE_FLASH_TO_CACHE},/* ZS_CACHE_STAT_HACRF */
+    {"HACSC","num_castout_completed",ZS_STATS_TYPE_FLASH_TO_CACHE},/* ZS_CACHE_STAT_HACSC */
+    {"HACSF","num_castout_failed",ZS_STATS_TYPE_FLASH_TO_CACHE},/* ZS_CACHE_STAT_HACSF */
+    {"HADEC","num_delete_objs_completed",ZS_STATS_TYPE_FLASH_TO_CACHE},/* ZS_CACHE_STAT_HADEC */
+    {"HADEF","num_delete_objs_failed",ZS_STATS_TYPE_FLASH_TO_CACHE},/* ZS_CACHE_STAT_HADEF */
+    {"HAFLC","num_flush_objs_completed",ZS_STATS_TYPE_FLASH_TO_CACHE},/* ZS_CACHE_STAT_HAFLC */
+    {"HAFLF","num_flush_objs_failed",ZS_STATS_TYPE_FLASH_TO_CACHE},/* ZS_CACHE_STAT_HAFLF */
+    {"HAGRC","num_get_objs_to_read_completed",ZS_STATS_TYPE_FLASH_TO_CACHE},/* ZS_CACHE_STAT_HAGRC */
+    {"HAGRF","num_get_objs_to_read_failed",ZS_STATS_TYPE_FLASH_TO_CACHE},/* ZS_CACHE_STAT_HAGRF */
+    {"HAGWC","num_get_objs_to_write_completed",ZS_STATS_TYPE_FLASH_TO_CACHE},/* ZS_CACHE_STAT_HAGWC */
+    {"HAGWF","num_get_objs_to_write_failed",ZS_STATS_TYPE_FLASH_TO_CACHE},/* ZS_CACHE_STAT_HAGWF */
+    {"HAPAC","num_put_objs_completed",ZS_STATS_TYPE_FLASH_TO_CACHE},/* ZS_CACHE_STAT_HAPAC */
+    {"HAPAF","num_put_objs_failed",ZS_STATS_TYPE_FLASH_TO_CACHE},/* ZS_CACHE_STAT_HAPAF */
+    {"HASTC","num_set_objs_completed",ZS_STATS_TYPE_FLASH_TO_CACHE},/* ZS_CACHE_STAT_HASTC */
+    {"HASTF","num_set_objs_failed",ZS_STATS_TYPE_FLASH_TO_CACHE},/* ZS_CACHE_STAT_HASTF */
+    {"HFXST","num_existence_checks",ZS_STATS_TYPE_FLASH_MANAGER},/* ZS_CACHE_STAT_HFXST */
+    {"FHXST","num_existence_success",ZS_STATS_TYPE_FLASH_MANAGER},/* ZS_CACHE_STAT_FHXST */
+    {"FHNXS","num_existence_failed",ZS_STATS_TYPE_FLASH_MANAGER},/* ZS_CACHE_STAT_FHNXS */
+    {"HFGFF","num_get_objs",ZS_STATS_TYPE_FLASH_MANAGER},/* ZS_CACHE_STAT_HFGFF */
+    {"FHDAT","num_objs_data",ZS_STATS_TYPE_FLASH_MANAGER},/* ZS_CACHE_STAT_FHDAT */
+    {"FHGTF","num_get_objs_failed",ZS_STATS_TYPE_FLASH_MANAGER},/* ZS_CACHE_STAT_FHGTF */
+    {"HFPTF","num_put_objs",ZS_STATS_TYPE_FLASH_MANAGER},/* ZS_CACHE_STAT_HFPTF */
+    {"FHPTC","num_put_objs_completed",ZS_STATS_TYPE_FLASH_MANAGER},/* ZS_CACHE_STAT_FHPTC */
+    {"FHPTF","num_put_objs_failed",ZS_STATS_TYPE_FLASH_MANAGER},/* ZS_CACHE_STAT_FHPTF */
+    {"HZSF","num_delete_objs",ZS_STATS_TYPE_FLASH_MANAGER},/* ZS_CACHE_STAT_HZSF */
+    {"FHDEC","num_delete_completed",ZS_STATS_TYPE_FLASH_MANAGER},/* ZS_CACHE_STAT_FHDEC */
+    {"FHDEF","num_delete_failed",ZS_STATS_TYPE_FLASH_MANAGER},/* ZS_CACHE_STAT_FHDEF */
+    {"HFCIF","num_create_objects",ZS_STATS_TYPE_FLASH_MANAGER},/* ZS_CACHE_STAT_HFCIF */
+    {"FHCRC","num_create_completerdf",ZS_STATS_TYPE_FLASH_MANAGER},/* ZS_CACHE_STAT_FHCRC */
+    {"FHCRF","num_create_failed",ZS_STATS_TYPE_FLASH_MANAGER},/* ZS_CACHE_STAT_FHCRF */
+    {"HFCZF","num_create_zeroed_objs",ZS_STATS_TYPE_FLASH_MANAGER},/* ZS_CACHE_STAT_HFCZF */
+    {"HFCRC","num_create_zeroed_objs_completed",ZS_STATS_TYPE_FLASH_MANAGER},/* ZS_CACHE_STAT_HFCRC */
+    {"HFCRF","num_create_zeroed_objs_failed",ZS_STATS_TYPE_FLASH_MANAGER},/* ZS_CACHE_STAT_HFCRF */
+    {"HFSET","num_set_objs",ZS_STATS_TYPE_FLASH_MANAGER},/* ZS_CACHE_STAT_HFSET */
+    {"HFSTC","num_set_objs_completed",ZS_STATS_TYPE_FLASH_MANAGER},/* ZS_CACHE_STAT_HFSTC */
+    {"FHSTF","num_set_objs_failed",ZS_STATS_TYPE_FLASH_MANAGER},/* ZS_CACHE_STAT_FHSTF */
+    {"HFCSH","num_create_shards",ZS_STATS_TYPE_FLASH_MANAGER},/* ZS_CACHE_STAT_HFCSH */
+    {"FHCSC","num_create_shards_completed",ZS_STATS_TYPE_FLASH_MANAGER},/* ZS_CACHE_STAT_FHCSC */
+    {"FHCSF","num_create_shards_failed",ZS_STATS_TYPE_FLASH_MANAGER},/* ZS_CACHE_STAT_FHCSF */
+    {"FHSSH","num_sync_shards",ZS_STATS_TYPE_FLASH_MANAGER},/* ZS_CACHE_STAT_HFSSH */
+    {"FHSSC","num_sync_shards_completed",ZS_STATS_TYPE_FLASH_MANAGER},/* ZS_CACHE_STAT_FHSSC */
+    {"FHSSF","num_sync_shards_failed",ZS_STATS_TYPE_FLASH_MANAGER},/* ZS_CACHE_STAT_FHSSF */
+    {"HFDSH","num_delete_shards",ZS_STATS_TYPE_FLASH_MANAGER},/* ZS_CACHE_STAT_HFDSH */
+    {"FHDSC","num_delete_shards_completed",ZS_STATS_TYPE_FLASH_MANAGER},/* ZS_CACHE_STAT_FHDSC */
+    {"FHDSF","num_delete_shards_failed",ZS_STATS_TYPE_FLASH_MANAGER},/* ZS_CACHE_STAT_FHDSF */
+    {"HFGLS","num_get_last_seq",ZS_STATS_TYPE_FLASH_MANAGER},/* ZS_CACHE_STAT_HFGLS */
+    {"FHGLC","num_get_last_seq_completed",ZS_STATS_TYPE_FLASH_MANAGER},/* ZS_CACHE_STAT_FHGLC */
+    {"FHGLF","num_get_last_seq_failed",ZS_STATS_TYPE_FLASH_MANAGER},/* ZS_CACHE_STAT_FHGLF */
+    {"HFGIC","num_get_iter_cursors",ZS_STATS_TYPE_FLASH_MANAGER},/* ZS_CACHE_STAT_HFGIC */
+    {"FHGIC","num_get_iter_cursors_completed",ZS_STATS_TYPE_FLASH_MANAGER},/* ZS_CACHE_STAT_FHGIC */
+    {"FHGIF","num_get_iter_cursors_failed",ZS_STATS_TYPE_FLASH_MANAGER},/* ZS_CACHE_STAT_FHGIF */
+    {"HFGBC","num_get_by_cursors",ZS_STATS_TYPE_FLASH_MANAGER},/* ZS_CACHE_STAT_HFGBC */
+    {"FHGCC","num_get_by_cursors_completed",ZS_STATS_TYPE_FLASH_MANAGER},/* ZS_CACHE_STAT_FHGCC */
+    {"FHGCF","num_get_by_cursors_failed",ZS_STATS_TYPE_FLASH_MANAGER},/* ZS_CACHE_STAT_FHGCF */
+    {"HFGSN","num_get_seq_numbers",ZS_STATS_TYPE_FLASH_MANAGER},/* ZS_CACHE_STAT_HFGSN */
+    {"HFGCS","num_get_container_stats",ZS_STATS_TYPE_FLASH_MANAGER},/* ZS_CACHE_STAT_HFGCS */
+    {"FHGSC","num_get_container_stats_completed",ZS_STATS_TYPE_FLASH_MANAGER},/* ZS_CACHE_STAT_FHGSC */
+    {"FHGSF","num_get_container_stats_failed",ZS_STATS_TYPE_FLASH_MANAGER},/* ZS_CACHE_STAT_FHGSF */
+    {"HFSRR","num_replication_starts",ZS_STATS_TYPE_FLASH_MANAGER},/* ZS_CACHE_STAT_HFSRR */
+    {"FHSRC","num_replication_starts_completed",ZS_STATS_TYPE_FLASH_MANAGER},/* ZS_CACHE_STAT_FHSRC */
+    {"FHSRF","num_replication_starts_failed",ZS_STATS_TYPE_FLASH_MANAGER},/* ZS_CACHE_STAT_FHSRF */
+    {"HFSPR","num_replication_stops",ZS_STATS_TYPE_FLASH_MANAGER},/* ZS_CACHE_STAT_HFSPR */
+    {"FHSPC","num_replication_stops_completed",ZS_STATS_TYPE_FLASH_MANAGER},/* ZS_CACHE_STAT_FHSPC */
+    {"FHSPF","num_replication_stops_failed",ZS_STATS_TYPE_FLASH_MANAGER},/* ZS_CACHE_STAT_FHSPF */
+    {"HFFLA","num_flush_objs",ZS_STATS_TYPE_FLASH_MANAGER},/* ZS_CACHE_STAT_HFFLA */
+    {"FHFLC","num_flush_objs_completed",ZS_STATS_TYPE_FLASH_MANAGER},/* ZS_CACHE_STAT_FHFLC */
+    {"FHFLF","num_flush_objs_failed",ZS_STATS_TYPE_FLASH_MANAGER},/* ZS_CACHE_STAT_FHFLF */
+    {"HFRVG","num_release_vip_grps",ZS_STATS_TYPE_FLASH_MANAGER},/* ZS_CACHE_STAT_HFRVG */
+    {"FHRVC","num_release_vip_grps_completed",ZS_STATS_TYPE_FLASH_MANAGER},/* ZS_CACHE_STAT_FHRVC */
+    {"FHRVF","num_release_vip_grps_failed",ZS_STATS_TYPE_FLASH_MANAGER},/* ZS_CACHE_STAT_FHRVF */
+    {"HFNOP","num_noop",ZS_STATS_TYPE_FLASH_MANAGER},/* ZS_CACHE_STAT_HFNOP */
+    {"FHNPC","num_noop_completed",ZS_STATS_TYPE_FLASH_MANAGER},/* ZS_CACHE_STAT_FHNPC */
+    {"FHNPF","num_noop_failed",ZS_STATS_TYPE_FLASH_MANAGER},/* ZS_CACHE_STAT_FHNPF */
+    {"HFOSH","num_open_shards",ZS_STATS_TYPE_FLASH_MANAGER}, /* ZS_CACHE_STAT_HFOSH */
+    {"FHOSC","num_open_shards_completed",ZS_STATS_TYPE_FLASH_MANAGER},/* ZS_CACHE_STAT_FHOSC */
+    {"FHOSF","num_open_shards_failed",ZS_STATS_TYPE_FLASH_MANAGER},/* ZS_CACHE_STAT_FHOSF */
+    {"HFFLS","num_flush_objs",ZS_STATS_TYPE_FLASH_MANAGER},/* ZS_CACHE_STAT_HFFLS */
+    {"FHFCC","num_flush_objs_completed",ZS_STATS_TYPE_FLASH_MANAGER},/* ZS_CACHE_STAT_FHFCC */
+    {"FHFCF","num_flush_objs_fialed",ZS_STATS_TYPE_FLASH_MANAGER},/* ZS_CACHE_STAT_FHFCF */
+    {"HFFIV","num_flush_invalidate_objs",ZS_STATS_TYPE_FLASH_MANAGER},/* ZS_CACHE_STAT_HFFIV */
+    {"FHFIC","num_flush_invalidate_objs_completed",ZS_STATS_TYPE_FLASH_MANAGER},/* ZS_CACHE_STAT_FHFIC */
+    {"FHFIF","num_flush_invalidate_objs_failed",ZS_STATS_TYPE_FLASH_MANAGER},/* ZS_CACHE_STAT_FHFIF */
+    {"HFINV","num_invalidate_objs",ZS_STATS_TYPE_FLASH_MANAGER},/* ZS_CACHE_STAT_HFINV */
+    {"FHINC","num_invalidate_objs",ZS_STATS_TYPE_FLASH_MANAGER},/* ZS_CACHE_STAT_FHINC */
+    {"FHINF","num_invalidate_objs",ZS_STATS_TYPE_FLASH_MANAGER},/* ZS_CACHE_STAT_FHINF */
+    {"HFFLC","num_flush_containers",ZS_STATS_TYPE_FLASH_MANAGER},/* ZS_CACHE_STAT_HFFLC */
+    {"FHLCC","num_flush_containers_completed",ZS_STATS_TYPE_FLASH_MANAGER},/* ZS_CACHE_STAT_FHLCC */
+    {"FHLCF","num_flush_containers_failed",ZS_STATS_TYPE_FLASH_MANAGER},/* ZS_CACHE_STAT_FHLCF */
+    {"HFFLI","num_flush_invalidate_containers",ZS_STATS_TYPE_FLASH_MANAGER},/* ZS_CACHE_STAT_HFFLI */
+    {"FHLIC","num_flush_invalidate_containers_completed",ZS_STATS_TYPE_FLASH_MANAGER},/* ZS_CACHE_STAT_FHLIC */
+    {"FHLIF","num_flush_invalidate_containers_failed",ZS_STATS_TYPE_FLASH_MANAGER},/* ZS_CACHE_STAT_FHLIF */
+    {"HFINC","num_invalidate_containers",ZS_STATS_TYPE_FLASH_MANAGER},/* ZS_CACHE_STAT_HFINC */
+    {"HFINC","num_invalidate_containers_completed",ZS_STATS_TYPE_FLASH_MANAGER},/* ZS_CACHE_STAT_FHCIC */
+    {"FHCIF","num_invalidate_containers_failed",ZS_STATS_TYPE_FLASH_MANAGER},/* ZS_CACHE_STAT_FHCIF */
+    {"EOK","num_success",ZS_STATS_TYPE_FLASH_RC},/* ZS_CACHE_STAT_EOK */
+    {"EPERM","num_errors_not_permitted_",ZS_STATS_TYPE_FLASH_RC},/* ZS_CACHE_STAT_EPERM */
+    {"ENOENT","num_errors_objects_not_found",ZS_STATS_TYPE_FLASH_RC},/* ZS_CACHE_STAT_ENOENT */
+    {"EDATASIZE","num_errors_insufficient_buffer",ZS_STATS_TYPE_FLASH_RC},/* ZS_CACHE_STAT_EDATASIZE */
+    {"ESTOPPED","num_errors_container_stopped",ZS_STATS_TYPE_FLASH_RC},/* ZS_CACHE_STAT_ESTOPPED */
+    {"EBADCTNR","num_errors_container_not_found",ZS_STATS_TYPE_FLASH_RC},/* ZS_CACHE_STAT_EBADCTNR */
+    {"EDELFAIL","num_errors_delete_failed",ZS_STATS_TYPE_FLASH_RC},/* ZS_CACHE_STAT_EDELFAIL */
+    {"EAGAIN","num_errors_try_again",ZS_STATS_TYPE_FLASH_RC},/* ZS_CACHE_STAT_EAGAIN */
+    {"ENOMEM","num_errors_no_memory",ZS_STATS_TYPE_FLASH_RC},/* ZS_CACHE_STAT_ENOMEM */
+    {"EACCES","num_errors_perm_denied",ZS_STATS_TYPE_FLASH_RC},/* ZS_CACHE_STAT_EACCES */
+    {"EINCONS","num_errors_replication_inconsistencies",ZS_STATS_TYPE_FLASH_RC},/* ZS_CACHE_STAT_EINCONS */
+    {"EBUSY","num_errors_dev_busy",ZS_STATS_TYPE_FLASH_RC},/* ZS_CACHE_STAT_EBUSY */
+    {"EEXIST","num_errors_obj_exists",ZS_STATS_TYPE_FLASH_RC},/* ZS_CACHE_STAT_EEXIST */
+    {"EINVAL","num_errors_invalid_arguments",ZS_STATS_TYPE_FLASH_RC},/* ZS_CACHE_STAT_EINVAL */
+    {"EMFILE","num_errors_too_many_objs",ZS_STATS_TYPE_FLASH_RC},/* ZS_CACHE_STAT_EMFILE */
+    {"ENOSPC","num_errors_no_flash_space",ZS_STATS_TYPE_FLASH_RC},/* ZS_CACHE_STAT_ENOSPC */
+    {"ENOBUFS","num_errors_no_system_resource",ZS_STATS_TYPE_FLASH_RC},/* ZS_CACHE_STAT_ENOBUFS */
+    {"ESTALE","num_errors_stale_data",ZS_STATS_TYPE_FLASH_RC},/* ZS_CACHE_STAT_ESTALE */
+    {"EDQUOT","num_errors_quota_exceeded",ZS_STATS_TYPE_FLASH_RC},/* ZS_CACHE_STAT_EDQUOT */
+    {"EDELFAIL","num_errors_remote_delete_failures",ZS_STATS_TYPE_FLASH_RC},/* ZS_CACHE_STAT_RMT_EDELFAIL */
+    {"EBADCTNR","num_errors_no_remote_container",ZS_STATS_TYPE_FLASH_RC},/* ZS_CACHE_STAT_RMT_EBADCTNR */
+    {"hashBuckets","num_hash_buckets_in_cache",ZS_STATS_TYPE_PER_CACHE},/* ZS_CACHE_STAT_HASH_BUCKETS */
+    {"nSlabs","num_cache_partitions",ZS_STATS_TYPE_PER_CACHE},/* ZS_CACHE_STAT_NUM_SLABS */
+    {"numElements","num_objects_in_cache",ZS_STATS_TYPE_PER_CACHE},/* ZS_CACHE_STAT_NUM_ELEMENTS */
+    {"maxSz","max_cache_capacity",ZS_STATS_TYPE_PER_CACHE},/* ZS_CACHE_STAT_MAX_SIZE */
+    {"currSz","current_data_size_in_cache",ZS_STATS_TYPE_PER_CACHE},/* ZS_CACHE_STAT_CURR_SIZE */
+    {"currSzWkeys","current_key_and_data_size_in_cache",ZS_STATS_TYPE_PER_CACHE},/* ZS_CACHE_STAT_CURR_SIZE_WKEYS */
+    {"nMod","num_modified_objs_in_cache",ZS_STATS_TYPE_PER_CACHE},/* ZS_CACHE_STAT_NUM_MODIFIED_OBJS */
+    {"modSzWkeys","num_bytes_of_modified_objs_in_cache",ZS_STATS_TYPE_PER_CACHE},/* ZS_CACHE_STAT_NUM_MODIFIED_OBJS_WKEYS */
+    {"nModFlushes","num_mod_objs_flushed",ZS_STATS_TYPE_PER_CACHE},/* ZS_CACHE_STAT_NUM_MODIFIED_OBJS_FLUSHED */
+    {"nModBGFlushes","num_mod_objs_flushed_by_bgflush",ZS_STATS_TYPE_PER_CACHE},/* ZS_CACHE_STAT_NUM_MODIFIED_OBJS_BGFLUSHED */
+    {"nPending","num_pending_remote_cache_req",ZS_STATS_TYPE_PER_CACHE},/* ZS_CACHE_STAT_NUM_PENDING_REQS */
+    {"nModRecEnums","num_modified_objs_copied_during_recovery",ZS_STATS_TYPE_PER_CACHE},/* ZS_CACHE_STAT_NUM_MODIFIED_OBJC_REC */
+    {"bkFlshProg","background_flush_progress",ZS_STATS_TYPE_PER_CACHE},/* ZS_CACHE_STAT_BGFLUSH_PROGRESS */
+    {"nBkFlsh","num_background_flushes",ZS_STATS_TYPE_PER_CACHE},/* ZS_CACHE_STAT_NUM_BGFLUSH */
+    {"nFlshTok","max_parallel_flushes",ZS_STATS_TYPE_PER_CACHE},/* ZS_CACHE_STAT_NUM_FLUSH_PARALLEL */
+    {"nBkFlshTok","max_parallel_bg_flushes",ZS_STATS_TYPE_PER_CACHE},/* ZS_CACHE_STAT_NUM_BGFLUSH_PARALLEL */
+    {"FlsMs","time_to_wait_after_bgflush_for_nodirty_data",ZS_STATS_TYPE_PER_CACHE},/* ZS_CACHE_STAT_BGFLUSH_WAIT */
+    {"modPct","max_percent_limit_on_modifiable_cache",ZS_STATS_TYPE_PER_CACHE},/* ZS_CACHE_STAT_MODIFIED_PCT */
+    {"nAppBufs","num_app_buffers_inuse",ZS_STATS_TYPE_PER_CACHE},/* ZS_CACHE_STAT_NUM_APP_BUFFERS */
+    {"nTrans","num_cache_ops_in_progress",ZS_STATS_TYPE_PER_CACHE},/* ZS_CACHE_STAT_NUM_CACHE_OPS_PROG */
+    {"nFGBufs","num_flash_data_buffer_being_processed",ZS_STATS_TYPE_PER_CACHE},/* ZS_CACHE_STAT_NUM_FGBUFFER_PROCESSED */
+    {"nResp","num_resp_msg_being_processed",ZS_STATS_TYPE_PER_CACHE},/* ZS_CACHE_STAT_NUM_RESP_PROCESSED  */
 };
 
 char *get_cache_type_stats_desc(int stat ) {
-    if( stat >= sizeof(fdf_stats_cache)/sizeof(fdf_stats_info_t)) {
+    if( stat >= sizeof(zs_stats_cache)/sizeof(zs_stats_info_t)) {
         return "Invalid stat";
     }
-    return fdf_stats_cache[stat].desc;
+    return zs_stats_cache[stat].desc;
 }
 
 int get_cache_type_stats_category(int stat ) {
-    if( stat >= sizeof(fdf_stats_cache)/sizeof(fdf_stats_info_t)) {
+    if( stat >= sizeof(zs_stats_cache)/sizeof(zs_stats_info_t)) {
         return -1;
     }
-    return fdf_stats_cache[stat].category;
+    return zs_stats_cache[stat].category;
 }   
 
-fdf_stats_info_t fdf_stats_cntr[] = {
-    {"NUM_OBJS","num_objs",FDF_STATS_TYPE_CONTAINER_FLASH},/*FDF_CNTR_STATS_NUM_OBJS*/
-    {"USED_SPACE","used_space",FDF_STATS_TYPE_CONTAINER_FLASH},/*FDF_CNTR_STATS_USED_SPACE*/
+zs_stats_info_t zs_stats_cntr[] = {
+    {"NUM_OBJS","num_objs",ZS_STATS_TYPE_CONTAINER_FLASH},/*ZS_CNTR_STATS_NUM_OBJS*/
+    {"USED_SPACE","used_space",ZS_STATS_TYPE_CONTAINER_FLASH},/*ZS_CNTR_STATS_USED_SPACE*/
 };
 
 char *get_cntr_type_stats_desc(int stat ) {
-    if( stat >= sizeof(fdf_stats_cntr)/sizeof(fdf_stats_info_t)) {
+    if( stat >= sizeof(zs_stats_cntr)/sizeof(zs_stats_info_t)) {
         return "Invalid stat";
     }
-    return fdf_stats_cntr[stat].desc;
+    return zs_stats_cntr[stat].desc;
 }
 
-FDF_status_t verify_stats_datastruct() {
+ZS_status_t verify_stats_datastruct() {
     int num_stats_array;
-    /*Number of stats listed in the corresponding descriptive array fdf_stats_access_type*/
-    num_stats_array = sizeof(fdf_stats_access_type)/sizeof(fdf_stats_info_t); 
-    if( FDF_N_ACCESS_TYPES != num_stats_array ) {
+    /*Number of stats listed in the corresponding descriptive array zs_stats_access_type*/
+    num_stats_array = sizeof(zs_stats_access_type)/sizeof(zs_stats_info_t); 
+    if( ZS_N_ACCESS_TYPES != num_stats_array ) {
          plat_log_msg(70127, LOG_CAT, LOG_ERR,
-            "Programming error: Numbers of stats defined in FDF_access_types_t(%d) does not match array fdf_stats_access_type(%d)",
-                     FDF_N_ACCESS_TYPES,num_stats_array);
-         return FDF_FAILURE;
+            "Programming error: Numbers of stats defined in ZS_access_types_t(%d) does not match array zs_stats_access_type(%d)",
+                     ZS_N_ACCESS_TYPES,num_stats_array);
+         return ZS_FAILURE;
     }
 
-    /*Number of stats listed in the corresponding descriptive array fdf_stats_access_type*/
-    num_stats_array = sizeof(fdf_stats_cache)/sizeof(fdf_stats_info_t); 
-    if( FDF_N_CACHE_STATS != num_stats_array ) {
+    /*Number of stats listed in the corresponding descriptive array zs_stats_access_type*/
+    num_stats_array = sizeof(zs_stats_cache)/sizeof(zs_stats_info_t); 
+    if( ZS_N_CACHE_STATS != num_stats_array ) {
          plat_log_msg(70128, LOG_CAT, LOG_ERR,
-            "Programming error: Numbers of stats defined in FDF_cache_stat_t(%d) does not match array fdf_stats_cache(%d)",
-                     FDF_N_CACHE_STATS,num_stats_array);
-         return FDF_FAILURE;
+            "Programming error: Numbers of stats defined in ZS_cache_stat_t(%d) does not match array zs_stats_cache(%d)",
+                     ZS_N_CACHE_STATS,num_stats_array);
+         return ZS_FAILURE;
     }
 
-    /*Number of stats listed in the corresponding descriptive array fdf_stats_access_type*/
-    num_stats_array = sizeof(fdf_stats_flash)/sizeof(fdf_stats_info_t);
-    if( FDF_N_FLASH_STATS != num_stats_array ) {
+    /*Number of stats listed in the corresponding descriptive array zs_stats_access_type*/
+    num_stats_array = sizeof(zs_stats_flash)/sizeof(zs_stats_info_t);
+    if( ZS_N_FLASH_STATS != num_stats_array ) {
          plat_log_msg(160207, LOG_CAT, LOG_ERR,
-            "Programming error: Numbers of stats defined in FDF_flash_stat_t(%d) does not match array fdf_stats_flash(%d)",
-                     FDF_N_FLASH_STATS,num_stats_array);
-         return FDF_FAILURE;
+            "Programming error: Numbers of stats defined in ZS_flash_stat_t(%d) does not match array zs_stats_flash(%d)",
+                     ZS_N_FLASH_STATS,num_stats_array);
+         return ZS_FAILURE;
     }
-    /*Number of stats listed in the corresponding descriptive array fdf_btree_stats*/
-    num_stats_array = sizeof(fdf_stats_btree)/sizeof(fdf_stats_info_t);
-    if( FDF_N_BTREE_STATS != num_stats_array ) {
+    /*Number of stats listed in the corresponding descriptive array zs_btree_stats*/
+    num_stats_array = sizeof(zs_stats_btree)/sizeof(zs_stats_info_t);
+    if( ZS_N_BTREE_STATS != num_stats_array ) {
          plat_log_msg(160208, LOG_CAT, LOG_ERR,
-            "Programming error: Numbers of stats defined in FDF_Btree_stat_t(%d) does not match array fdf_stats_btree(%d)",
-                     FDF_N_BTREE_STATS,num_stats_array);
-         return FDF_FAILURE;
+            "Programming error: Numbers of stats defined in ZS_Btree_stat_t(%d) does not match array zs_stats_btree(%d)",
+                     ZS_N_BTREE_STATS,num_stats_array);
+         return ZS_FAILURE;
     }
-    return FDF_SUCCESS;
+    return ZS_SUCCESS;
 }
 
-FDF_status_t verify_datastruct_consistency() {
-    if( (FDF_status_t) N_SDF_STATUS_STRINGS != N_FDF_STATUS_STRINGS ) {
+ZS_status_t verify_datastruct_consistency() {
+    if( (ZS_status_t) N_SDF_STATUS_STRINGS != N_ZS_STATUS_STRINGS ) {
         plat_log_msg(80047, LOG_CAT, LOG_ERR,
-           "Data structure SDF_status_t(size:%d) and FDF_status_t(size:%d) is not consistent.",N_SDF_STATUS_STRINGS, N_FDF_STATUS_STRINGS);
-        return FDF_FAILURE;
+           "Data structure SDF_status_t(size:%d) and ZS_status_t(size:%d) is not consistent.",N_SDF_STATUS_STRINGS, N_ZS_STATUS_STRINGS);
+        return ZS_FAILURE;
     }
     return verify_stats_datastruct();
 }
@@ -824,16 +824,16 @@ typedef enum {
 } mcd_fth_stat_t;
 
 typedef enum {
-    FDF_DRAM_CACHE_HITS = 0,
-    FDF_DRAM_CACHE_MISSES,
-    FDF_FLASH_CACHE_HITS,
-    FDF_FLASH_CACHE_MISSES,
-    FDF_DRAM_CACHE_CASTOUTS,
-    FDF_DRAM_N_OVERWRITES,
-    FDF_DRAM_N_IN_PLACE_OVERWRITES,
-    FDF_DRAM_N_NEW_ENTRY,
+    ZS_DRAM_CACHE_HITS = 0,
+    ZS_DRAM_CACHE_MISSES,
+    ZS_FLASH_CACHE_HITS,
+    ZS_FLASH_CACHE_MISSES,
+    ZS_DRAM_CACHE_CASTOUTS,
+    ZS_DRAM_N_OVERWRITES,
+    ZS_DRAM_N_IN_PLACE_OVERWRITES,
+    ZS_DRAM_N_NEW_ENTRY,
     MCD_NUM_SDF_STATS,
-} FDF_cache_stats_t;
+} ZS_cache_stats_t;
 
 extern
 struct shard *
@@ -866,11 +866,11 @@ SDF_boolean_t agent_engine_post_init(
 	struct sdf_agent_state 	*state
 	);
 
-FDF_status_t FDFGetStatsStr (
-	struct FDF_thread_state *fdf_thread_state,
-	FDF_cguid_t 			 cguid,
+ZS_status_t ZSGetStatsStr (
+	struct ZS_thread_state *zs_thread_state,
+	ZS_cguid_t 			 cguid,
 	char 					*stats_str,
-    FDF_stats_t				*stats
+    ZS_stats_t				*stats
 	);
 
 void action_stats_new_cguid(SDF_internal_ctxt_t *pac, char *str, int size, SDF_cguid_t cguid);
@@ -892,7 +892,7 @@ char *Log_levels[] ={
 };
 
 /*
- * Set the FDF log level.
+ * Set the ZS log level.
  */
 static void
 set_log_level(unsigned int level)
@@ -910,26 +910,26 @@ set_log_level(unsigned int level)
     }
 }
 
-FDF_status_t change_log_level(char *level) {
+ZS_status_t change_log_level(char *level) {
     int i;
     for (i = 0; i < nel(Log_levels); i++){
         if (streq(level, Log_levels[i])) {
             set_log_level(i);
             agent_state.flash_settings.sdf_log_level = i;
-            return FDF_SUCCESS;
+            return ZS_SUCCESS;
         }
     }
-    return FDF_FAILURE;
+    return ZS_FAILURE;
 }
 
 /*
- * Parse the FDF_LOG_LEVEL.
+ * Parse the ZS_LOG_LEVEL.
  */
 static int
 parse_log_level()
 {
     int i;
-    const char *v = getProperty_String("FDF_LOG_LEVEL", NULL);
+    const char *v = getProperty_String("ZS_LOG_LEVEL", NULL);
 
     if (!v)
         return LOG_INFO;
@@ -947,12 +947,12 @@ parse_log_level()
             return i;
     }
 
-    fdf_loge(70125, "Bad setting of FDF_LOG_LEVEL: %s", v);
+    zs_loge(70125, "Bad setting of ZS_LOG_LEVEL: %s", v);
     return LOG_DBG;
 }
 
 
-static int fdf_check_delete_in_future(void *data)
+static int zs_check_delete_in_future(void *data)
 {
     return(0);
 }
@@ -961,32 +961,32 @@ static int fdf_check_delete_in_future(void *data)
  * @brief: Check if given cguid belongs to a valid
  *         container (virtual, non-null cguid)
  * @params[in]: cguid container ID
- * @return FDF_TRUE if cguid belongs to a virtual container
- *         FDF_FALSE otherwise
+ * @return ZS_TRUE if cguid belongs to a virtual container
+ *         ZS_FALSE otherwise
  */
-static FDF_status_t
-fdf_validate_container(uint64_t cguid)
+static ZS_status_t
+zs_validate_container(uint64_t cguid)
 {
 	switch (cguid) {
 		case          0:
 		case  CMC_CGUID:
 		case  VMC_CGUID:
 		case  VDC_CGUID:
-			return FDF_FAILURE_ILLEGAL_CONTAINER_ID;
+			return ZS_FAILURE_ILLEGAL_CONTAINER_ID;
         case         -1:
-            return FDF_FAILURE_CONTAINER_NOT_FOUND;
+            return ZS_FAILURE_CONTAINER_NOT_FOUND;
 		default:
-			return FDF_SUCCESS;
+			return ZS_SUCCESS;
 	}
 }
 
 /*
- * same as fdf_validate_container(), for exclusive use
- * in FDFGetContainerStats() and FDFGetStatsStr()  for
+ * same as zs_validate_container(), for exclusive use
+ * in ZSGetContainerStats() and ZSGetStatsStr()  for
  * trac #11290
  */
-static FDF_status_t
-fdf_validate_container_1(uint64_t cguid)
+static ZS_status_t
+zs_validate_container_1(uint64_t cguid)
 {
     switch (cguid) {
         case          0:
@@ -994,39 +994,39 @@ fdf_validate_container_1(uint64_t cguid)
         case  VMC_CGUID:
         //excluding VDC container.
         //case  VDC_CGUID:
-            return FDF_FAILURE_ILLEGAL_CONTAINER_ID;
+            return ZS_FAILURE_ILLEGAL_CONTAINER_ID;
         default:
-            return FDF_SUCCESS;
+            return ZS_SUCCESS;
     }
 }
 
-static void fdf_load_settings(flash_settings_t *osd_settings)
+static void zs_load_settings(flash_settings_t *osd_settings)
 {
     /* Set properties which defaults isn't suitable for library */
 	insertProperty("SDF_PROP_FILE_VERSION", "1");
 	insertProperty("SHMEM_FAKE", "1");
 	insertProperty("MEMCACHED_STATIC_CONTAINERS", "1");
 	insertProperty("SDF_FLASH_PROTOCOL_THREADS", "1");
-	insertProperty("FDF_LOG_FLUSH_DIR", "/tmp");
-//	insertProperty("FDF_CC_BUCKETS", "1000");
-//	insertProperty("FDF_CC_NSLABS", "100");
+	insertProperty("ZS_LOG_FLUSH_DIR", "/tmp");
+//	insertProperty("ZS_CC_BUCKETS", "1000");
+//	insertProperty("ZS_CC_NSLABS", "100");
 
-	/*EF: When fdf_instance_id set it used as as a suffix for all shared resources,
-		e.g. allows to start multiple instance of FDF on one machine */
-    fdf_instance_id = getProperty_Int("FDF_INSTANCE_ID", 0);
+	/*EF: When zs_instance_id set it used as as a suffix for all shared resources,
+		e.g. allows to start multiple instance of ZS on one machine */
+    zs_instance_id = getProperty_Int("ZS_INSTANCE_ID", 0);
 
 	/* Use random value to run multiple tests simultaneously */
-	if(!fdf_instance_id && getProperty_Int("FDF_TEST_MODE", 0))
-		fdf_instance_id = getpid();
+	if(!zs_instance_id && getProperty_Int("ZS_TEST_MODE", 0))
+		zs_instance_id = getpid();
 
-    (void) strcpy(osd_settings->aio_base, getProperty_String("FDF_FLASH_FILENAME", "/tmp/schooner%d")); // base filename of flash files
-	/* This is added for compatibility with old property files which don't contain FDF_FLASH_FILENAME property */
+    (void) strcpy(osd_settings->aio_base, getProperty_String("ZS_FLASH_FILENAME", "/tmp/schooner%d")); // base filename of flash files
+	/* This is added for compatibility with old property files which don't contain ZS_FLASH_FILENAME property */
 	const char *p = getProperty_String("AIO_BASE_FILENAME", osd_settings->aio_base);
 	if(p != osd_settings->aio_base)
 	    (void) strcpy(osd_settings->aio_base, p); // base filename of flash files
 
     osd_settings->aio_create          = 1;// use O_CREAT - membrain sets this to 0
-    osd_settings->aio_total_size      = getProperty_Int("FDF_FLASH_SIZE", FDF_MIN_FLASH_SIZE); // this flash size counts! 3Gb by default
+    osd_settings->aio_total_size      = getProperty_Int("ZS_FLASH_SIZE", ZS_MIN_FLASH_SIZE); // this flash size counts! 3Gb by default
     osd_settings->aio_total_size      = getProperty_Int("AIO_FLASH_SIZE_TOTAL", osd_settings->aio_total_size); // compatibility with old property files
     osd_settings->aio_sync_enabled    = getProperty_Int("AIO_SYNC_ENABLED", 0); // AIO_SYNC_ENABLED
     osd_settings->no_direct_io        = !getProperty_Int("AIO_O_DIRECT", 1);
@@ -1038,15 +1038,15 @@ static void fdf_load_settings(flash_settings_t *osd_settings)
     /*
      * checksum of metadata, data, or entire object
      */
-    osd_settings->chksum_data         = getProperty_Int( "FDF_OBJECT_DATA_CHECKSUM", 0);
-    osd_settings->chksum_metadata     = getProperty_Int( "FDF_OBJECT_METADATA_CHECKSUM", 0); 
-    osd_settings->chksum_object       = getProperty_Int( "FDF_OBJECT_CHECKSUM", 1);
+    osd_settings->chksum_data         = getProperty_Int( "ZS_OBJECT_DATA_CHECKSUM", 0);
+    osd_settings->chksum_metadata     = getProperty_Int( "ZS_OBJECT_METADATA_CHECKSUM", 0); 
+    osd_settings->chksum_object       = getProperty_Int( "ZS_OBJECT_CHECKSUM", 1);
 
     osd_settings->sb_data_copies      = 0; // use default
     osd_settings->multi_fifo_writers  = getProperty_Int("SDF_MULTI_FIFO_WRITERS", 1);
     osd_settings->aio_wc              = false;
     osd_settings->aio_error_injection = false;
-    osd_settings->aio_queue_len       = getProperty_Int( "FDF_AIO_QUEUE_LENGTH", MCD_MAX_NUM_FTHREADS);
+    osd_settings->aio_queue_len       = getProperty_Int( "ZS_AIO_QUEUE_LENGTH", MCD_MAX_NUM_FTHREADS);
 
     // num_threads // legacy--not used
 
@@ -1059,19 +1059,19 @@ static void fdf_load_settings(flash_settings_t *osd_settings)
     osd_settings->aio_sub_files    = 0; // what are these? ignore?
     osd_settings->aio_first_file   = 0; // "-z" index of first file! - membrain sets this to -1
     osd_settings->mq_ssd_balance   = 0;  // what does this do?
-    osd_settings->no_direct_io     = !getProperty_Int("FDF_O_DIRECT", 1);
+    osd_settings->no_direct_io     = !getProperty_Int("ZS_O_DIRECT", 1);
     osd_settings->sdf_persistence  = 0; // "-V" force containers to be persistent!
     osd_settings->max_aio_errors   = getProperty_Int("MEMCACHED_MAX_AIO_ERRORS", 1000 );
-    osd_settings->check_delete_in_future = fdf_check_delete_in_future;
+    osd_settings->check_delete_in_future = zs_check_delete_in_future;
     osd_settings->pcurrent_time	    = &current_time;
     osd_settings->is_node_independent = 1;
     osd_settings->ips_per_cntr	    = 1;
     osd_settings->rec_log_size_factor = 0;
-	osd_settings->os_blk_size = getProperty_Int("FDF_BLOCK_SIZE", 2048);
+	osd_settings->os_blk_size = getProperty_Int("ZS_BLOCK_SIZE", 2048);
 }
 
 /*
- * fdf_check_settings
+ * zs_check_settings
  *
  * DESCRIPTION:
  * Check whether the settings meet the minimum requirements.
@@ -1083,7 +1083,7 @@ static void fdf_load_settings(flash_settings_t *osd_settings)
  * 	false		Minimum requirements not met.
  */	
 static bool
-fdf_check_settings(flash_settings_t *osd_settings)
+zs_check_settings(flash_settings_t *osd_settings)
 {
 	plat_assert(osd_settings);
 
@@ -1095,7 +1095,7 @@ fdf_check_settings(flash_settings_t *osd_settings)
 	}
 
 	/* Device size must be atleast minimum size */
-	if (osd_settings->aio_total_size < FDF_MIN_FLASH_SIZE) {
+	if (osd_settings->aio_total_size < ZS_MIN_FLASH_SIZE) {
 		plat_log_msg(160124, LOG_CAT, LOG_ERR,	
 			"Device size is less than minimum required");
 		return false;
@@ -1129,7 +1129,7 @@ char *get_log_level() {
  * Lock and unlock the thread context.
  */
 inline bool
-fdf_lock_thd_ctxt(struct FDF_thread_state *thd_state)
+zs_lock_thd_ctxt(struct ZS_thread_state *thd_state)
 {
 	bool ret = false;
 	SDF_action_init_t *pai = (SDF_action_init_t*) thd_state;
@@ -1142,7 +1142,7 @@ fdf_lock_thd_ctxt(struct FDF_thread_state *thd_state)
 }
 
 inline void
-fdf_unlock_thd_ctxt(struct FDF_thread_state *thd_state)
+zs_unlock_thd_ctxt(struct ZS_thread_state *thd_state)
 {
 	SDF_action_init_t *pai = (SDF_action_init_t*) thd_state;
 	SDF_action_thrd_state_t *pts = (SDF_action_thrd_state_t *)
@@ -1164,10 +1164,10 @@ fdf_unlock_thd_ctxt(struct FDF_thread_state *thd_state)
  * @param [in] void
  * @retval SDF_boolean_t, SDF_TRUE for success
  */
-FDF_status_t 
-is_fdf_operation_allowed(void)
+ZS_status_t 
+is_zs_operation_allowed(void)
 {
-	FDF_status_t status = FDF_SUCCESS;
+	ZS_status_t status = ZS_SUCCESS;
 
 	/*
 	 * Check if shutdown is in progress
@@ -1176,20 +1176,20 @@ is_fdf_operation_allowed(void)
 		/*
 		 * Disallow further operation
 		 */
-		status = FDF_FAILURE_OPERATION_DISALLOWED;
+		status = ZS_FAILURE_OPERATION_DISALLOWED;
 
 		plat_log_msg(160097, LOG_CAT, LOG_DBG, 
 				"Operation denied: Shutdown in progress %s",
-				FDF_Status_Strings[status]);
+				ZS_Status_Strings[status]);
 	} else if (NULL == fthSelf()) {
 		/*
 		 * Disallow further operation
 		 */
-		status = FDF_FAILURE_OPERATION_DISALLOWED;
+		status = ZS_FAILURE_OPERATION_DISALLOWED;
 
 		plat_log_msg(160185, LOG_CAT, LOG_DBG, 
 				"Operation denied: Thread state already released, %s",
-				FDF_Status_Strings[status]);
+				ZS_Status_Strings[status]);
 	}
 
 	return status;
@@ -1204,7 +1204,7 @@ get_cntr_map(cntr_id_t cntr_id)
 {
     cntr_map_t *cmap = NULL;
 
-	cmap = fdf_cmap_get_by_cguid( cntr_id );
+	cmap = zs_cmap_get_by_cguid( cntr_id );
 
 	if ( cmap )
     	atomic_inc( cmap->io_count );
@@ -1231,7 +1231,7 @@ get_cntr_info(cntr_id_t cntr_id,
               uint64_t *objs,
               uint64_t *used,
               uint64_t *size,
-              FDF_boolean_t *evicting)
+              ZS_boolean_t *evicting)
 {
     cntr_map_t *cmap = get_cntr_map(cntr_id);
     if (!cmap)
@@ -1294,10 +1294,10 @@ inc_cntr_map(cntr_id_t cntr_id, int64_t objs, int64_t blks, int check)
     }
 
     if (t_objs < 0)
-        fdf_loge(70115, "container %d would have %ld objects", cntr_id, objs);
+        zs_loge(70115, "container %d would have %ld objects", cntr_id, objs);
 
     if (t_size < 0) {
-        fdf_loge(70116, "container %d would have a size of %ld bytes",
+        zs_loge(70116, "container %d would have a size of %ld bytes",
                  cntr_id, size);
     }
 
@@ -1329,53 +1329,53 @@ inc_cntr_map_by_map(cntr_map_t *cmap, cntr_id_t cntr_id, int64_t objs, int64_t b
     }
 
     if (t_objs < 0)
-        fdf_loge(70115, "container %d would have %ld objects", cntr_id, objs);
+        zs_loge(70115, "container %d would have %ld objects", cntr_id, objs);
 
     if (t_size < 0) {
-        fdf_loge(70116, "container %d would have a size of %ld bytes",
+        zs_loge(70116, "container %d would have a size of %ld bytes",
                  cntr_id, size);
     }
 
     return ret;
 }
 
-FDF_status_t fdf_get_ctnr_status(FDF_cguid_t cguid, int delete_ok) {
+ZS_status_t zs_get_ctnr_status(ZS_cguid_t cguid, int delete_ok) {
     cntr_map_t   *cmap   = NULL;
-	FDF_status_t  status = FDF_FAILURE_CONTAINER_NOT_OPEN;
+	ZS_status_t  status = ZS_FAILURE_CONTAINER_NOT_OPEN;
 
-    cmap = fdf_cmap_get_by_cguid( cguid );
+    cmap = zs_cmap_get_by_cguid( cguid );
     if ( !cmap ) {
-        return FDF_FAILURE_CONTAINER_NOT_FOUND;
+        return ZS_FAILURE_CONTAINER_NOT_FOUND;
     } else {
         if ( !isContainerNull( cmap->sdf_container ) ) {
-            status = FDF_CONTAINER_OPEN;
+            status = ZS_CONTAINER_OPEN;
         }
-        if ( FDF_CONTAINER_STATE_OPEN != cmap->state ) {
-            status = FDF_FAILURE_CONTAINER_NOT_OPEN;
+        if ( ZS_CONTAINER_STATE_OPEN != cmap->state ) {
+            status = ZS_FAILURE_CONTAINER_NOT_OPEN;
         }
-        if ( delete_ok && FDF_CONTAINER_STATE_DELETE_OPEN == cmap->state ) {
-            status = FDF_CONTAINER_OPEN;
+        if ( delete_ok && ZS_CONTAINER_STATE_DELETE_OPEN == cmap->state ) {
+            status = ZS_CONTAINER_OPEN;
         }
 	}
 
     return status;
 }
 
-FDF_status_t
-fdf_get_ctnr_status_cmap(cntr_map_t *cmap, FDF_cguid_t cguid, int delete_ok)
+ZS_status_t
+zs_get_ctnr_status_cmap(cntr_map_t *cmap, ZS_cguid_t cguid, int delete_ok)
 {
-	FDF_status_t  status = FDF_FAILURE_CONTAINER_NOT_OPEN;
+	ZS_status_t  status = ZS_FAILURE_CONTAINER_NOT_OPEN;
 
 	plat_assert(cmap && (cmap->cguid == cguid));
 
 	if ( !isContainerNull( cmap->sdf_container ) ) {
-		status = FDF_CONTAINER_OPEN;
+		status = ZS_CONTAINER_OPEN;
 	}
-	if ( FDF_CONTAINER_STATE_OPEN != cmap->state ) {
-		status = FDF_FAILURE_CONTAINER_NOT_OPEN;
+	if ( ZS_CONTAINER_STATE_OPEN != cmap->state ) {
+		status = ZS_FAILURE_CONTAINER_NOT_OPEN;
 	}
-	if ( delete_ok && FDF_CONTAINER_STATE_DELETE_OPEN == cmap->state ) {
-		status = FDF_CONTAINER_OPEN;
+	if ( delete_ok && ZS_CONTAINER_STATE_DELETE_OPEN == cmap->state ) {
+		status = ZS_CONTAINER_OPEN;
 	}
 
 	return status;
@@ -1385,22 +1385,22 @@ fdf_get_ctnr_status_cmap(cntr_map_t *cmap, FDF_cguid_t cguid, int delete_ok)
  * IMPORTANT:
  * If opening for write/delete objects, use incr_wr_io_count API
  */
-inline void fdf_incr_io_count( FDF_cguid_t cguid )
+inline void zs_incr_io_count( ZS_cguid_t cguid )
 {
 	cntr_map_t *cmap = NULL;
 
-	cmap = fdf_cmap_get_by_cguid( cguid );
+	cmap = zs_cmap_get_by_cguid( cguid );
 	if ( cmap )
     	atomic_inc( cmap->io_count );
 }
 
-inline int fdf_incr_wr_io_count( FDF_cguid_t cguid )
+inline int zs_incr_wr_io_count( ZS_cguid_t cguid )
 {
 	cntr_map_t *cmap = NULL;
 
-	cmap = fdf_cmap_get_by_cguid( cguid );
+	cmap = zs_cmap_get_by_cguid( cguid );
 	if ( cmap ) {
-		if (cmap->read_only == FDF_TRUE) {
+		if (cmap->read_only == ZS_TRUE) {
 			return 0;
 		} else {
 			atomic_inc( cmap->io_count );
@@ -1410,40 +1410,40 @@ inline int fdf_incr_wr_io_count( FDF_cguid_t cguid )
 	return 0;
 }
 
-inline int fdf_is_opened_ro( FDF_cguid_t cguid )
+inline int zs_is_opened_ro( ZS_cguid_t cguid )
 {
 	cntr_map_t *cmap = NULL;
 
-	cmap = fdf_cmap_get_by_cguid( cguid );
+	cmap = zs_cmap_get_by_cguid( cguid );
 	if ( cmap ) {
-		return ((cmap->read_only == FDF_TRUE) ? 1 : 0);
+		return ((cmap->read_only == ZS_TRUE) ? 1 : 0);
 	}
 	return 0;
 }
 
-inline void fdf_decr_io_count( FDF_cguid_t cguid )
+inline void zs_decr_io_count( ZS_cguid_t cguid )
 {
 	cntr_map_t *cmap = NULL;
 
-	cmap = fdf_cmap_get_by_cguid( cguid );
+	cmap = zs_cmap_get_by_cguid( cguid );
 	if ( cmap )
     	atomic_dec( cmap->io_count );
 }
 
 // Return 0 - not open, 1 - open
-int fdf_is_ctnr_open(
-    FDF_cguid_t cguid
+int zs_is_ctnr_open(
+    ZS_cguid_t cguid
     )
 {
     int         result = 0;
 	cntr_map_t *cmap   = NULL;
 
-	cmap = fdf_cmap_get_by_cguid( cguid );
+	cmap = zs_cmap_get_by_cguid( cguid );
 	if ( cmap ) {
 		if ( !isContainerNull( cmap->sdf_container ) ) {
 			result = 1;
 		}
-        if ( FDF_CONTAINER_STATE_OPEN != cmap->state ) {
+        if ( ZS_CONTAINER_STATE_OPEN != cmap->state ) {
             result = 0;
         }
 	}
@@ -1452,67 +1452,67 @@ int fdf_is_ctnr_open(
 }
 
 void
-fdf_cntr_set_readonly(
+zs_cntr_set_readonly(
 		cntr_map_t		*cmap
 		)
 {
-	cmap->read_only = FDF_TRUE;
+	cmap->read_only = ZS_TRUE;
 }
 
 void
-fdf_cntr_set_readwrite(
+zs_cntr_set_readwrite(
 		cntr_map_t		*cmap
 		)
 {
-	cmap->read_only = FDF_FALSE;
+	cmap->read_only = ZS_FALSE;
 }
 
-FDF_status_t fdf_ctnr_set_state(
+ZS_status_t zs_ctnr_set_state(
 	cntr_map_t          *cmap,
-    FDF_CONTAINER_STATE	new_state
+    ZS_CONTAINER_STATE	new_state
     )
 {
-	FDF_status_t status = FDF_FAILURE_INVALID_CONTAINER_STATE;
-	FDF_CONTAINER_STATE	current_state;
+	ZS_status_t status = ZS_FAILURE_INVALID_CONTAINER_STATE;
+	ZS_CONTAINER_STATE	current_state;
 
 	if ( !cmap )
 		return status;
 
 	if ( cmap->cguid <= LAST_PHYSICAL_CGUID ) {
-		status = FDF_SUCCESS;
+		status = ZS_SUCCESS;
 		goto out;
 	}
 
 	current_state = cmap->state;
 	switch ( new_state ) {
-		case FDF_CONTAINER_STATE_UNINIT:
-			if ( FDF_CONTAINER_STATE_DELETE_CLOSED != current_state ) 
+		case ZS_CONTAINER_STATE_UNINIT:
+			if ( ZS_CONTAINER_STATE_DELETE_CLOSED != current_state ) 
 				goto err;
 			break;
 
-		case FDF_CONTAINER_STATE_OPEN:
-			if ( FDF_CONTAINER_STATE_CLOSED != current_state ) 
+		case ZS_CONTAINER_STATE_OPEN:
+			if ( ZS_CONTAINER_STATE_CLOSED != current_state ) 
 				goto err;
 			break;
 
-		case FDF_CONTAINER_STATE_CLOSED:
-			if ( FDF_CONTAINER_STATE_OPEN != current_state &&
-			     FDF_CONTAINER_STATE_UNINIT != current_state ) 
+		case ZS_CONTAINER_STATE_CLOSED:
+			if ( ZS_CONTAINER_STATE_OPEN != current_state &&
+			     ZS_CONTAINER_STATE_UNINIT != current_state ) 
 				goto err;
 			break;
 
-		case FDF_CONTAINER_STATE_DELETE_PROG:
-			if ( FDF_CONTAINER_STATE_CLOSED != current_state )
+		case ZS_CONTAINER_STATE_DELETE_PROG:
+			if ( ZS_CONTAINER_STATE_CLOSED != current_state )
 				goto err;
 			break;
 
-		case FDF_CONTAINER_STATE_DELETE_OPEN:
-			if ( FDF_CONTAINER_STATE_DELETE_PROG != current_state ) 
+		case ZS_CONTAINER_STATE_DELETE_OPEN:
+			if ( ZS_CONTAINER_STATE_DELETE_PROG != current_state ) 
 				goto err;
 			break;
 
-		case FDF_CONTAINER_STATE_DELETE_CLOSED:
-			if ( FDF_CONTAINER_STATE_DELETE_OPEN != current_state ) 
+		case ZS_CONTAINER_STATE_DELETE_CLOSED:
+			if ( ZS_CONTAINER_STATE_DELETE_OPEN != current_state ) 
 				goto err;
 			break;
 
@@ -1524,11 +1524,11 @@ FDF_status_t fdf_ctnr_set_state(
 out:
 	barrier();
 	cmap->state = new_state; 
-	status = FDF_SUCCESS;
+	status = ZS_SUCCESS;
 
 err:
 
-	if ( FDF_FAILURE_INVALID_CONTAINER_STATE == status ) {
+	if ( ZS_FAILURE_INVALID_CONTAINER_STATE == status ) {
 		plat_log_msg( 150112, 
 					  LOG_CAT, 
 					  LOG_ERR, 
@@ -1541,7 +1541,7 @@ err:
     return status;
 }
 
-static void fdf_fth_initer(uint64_t arg)
+static void zs_fth_initer(uint64_t arg)
 {
     struct sdf_agent_state    	*state 		= (struct sdf_agent_state *) arg;
 
@@ -1573,25 +1573,25 @@ out:
 
 #define STAT_BUFFER_SIZE 16384
 
-static void print_fdf_stats(FILE *log, FDF_stats_t *stats, char *disp_str) {
+static void print_zs_stats(FILE *log, ZS_stats_t *stats, char *disp_str) {
     int i;
     char buf[BUF_LEN];
     fputs(disp_str,log); 
-    for (i = 0; i < FDF_N_FLASH_STATS; i++ ) {
+    for (i = 0; i < ZS_N_FLASH_STATS; i++ ) {
         if( stats->flash_stats[i] != 0 ) {
-            sprintf(buf,"%s = %lu\n",fdf_stats_flash[i].stat_token,stats->flash_stats[i]);
+            sprintf(buf,"%s = %lu\n",zs_stats_flash[i].stat_token,stats->flash_stats[i]);
             fputs(buf,log);
         }
     }
-    for (i = 0; i < FDF_N_CACHE_STATS; i++ ) {
+    for (i = 0; i < ZS_N_CACHE_STATS; i++ ) {
         if( stats->cache_stats[i] != 0 ) {
-            sprintf(buf,"%s = %lu\n",fdf_stats_cache[i].stat_token,stats->cache_stats[i]);
+            sprintf(buf,"%s = %lu\n",zs_stats_cache[i].stat_token,stats->cache_stats[i]);
             fputs(buf,log);
         }
     }
-    for (i = 0; i < FDF_N_ACCESS_TYPES; i++ ) {
+    for (i = 0; i < ZS_N_ACCESS_TYPES; i++ ) {
         if( stats->n_accesses[i] != 0 ) {
-            sprintf(buf,"%s = %lu\n",fdf_stats_access_type[i].stat_token,stats->n_accesses[i]);
+            sprintf(buf,"%s = %lu\n",zs_stats_access_type[i].stat_token,stats->n_accesses[i]);
             fputs(buf,log);
         }
     }
@@ -1617,32 +1617,32 @@ int is_auto_dump_enabled() {
     return ((stats_dump == 1) && (dump_interval > 0 ));
 }
 
-static void *fdf_stats_thread(void *arg) {
-    FDF_cguid_t *cguids = NULL;
+static void *zs_stats_thread(void *arg) {
+    ZS_cguid_t *cguids = NULL;
     uint32_t n_cguids;
     char stats_str[STAT_BUFFER_SIZE];
     FILE *stats_log = NULL;
     int i;
-    struct FDF_thread_state *thd_state;
-    FDF_stats_t stats;
+    struct ZS_thread_state *thd_state;
+    ZS_stats_t stats;
     time_t st,et;
     int time_elapsed,cur_dump_int;
 
 
-    cguids = (FDF_cguid_t *) plat_alloc(sizeof(*cguids) * MCD_MAX_NUM_CNTRS);
+    cguids = (ZS_cguid_t *) plat_alloc(sizeof(*cguids) * MCD_MAX_NUM_CNTRS);
     if (cguids == NULL) {
 		fprintf(stderr, "Could not allocate memory for CGUIDs.\n");
 		return NULL;	
     }
 
-    if ( FDF_SUCCESS != FDFInitPerThreadState( ( struct FDF_state * ) arg, ( struct FDF_thread_state ** ) &thd_state )) {
-        fprintf(stderr,"Stats Thread:Unable to open the log file /tmp/fdf_stats.log. Exiting\n");
+    if ( ZS_SUCCESS != ZSInitPerThreadState( ( struct ZS_state * ) arg, ( struct ZS_thread_state ** ) &thd_state )) {
+        fprintf(stderr,"Stats Thread:Unable to open the log file /tmp/zs_stats.log. Exiting\n");
         plat_free(cguids);
         return NULL;
     }
 
     stats_dump = 1;
-    dump_interval = getProperty_Int( "FDF_STATS_DUMP_INTERVAL", 10 ); 
+    dump_interval = getProperty_Int( "ZS_STATS_DUMP_INTERVAL", 10 ); 
     while(1) {
 		if (agent_state.op_access.is_shutdown_in_progress) {
 			break;
@@ -1653,7 +1653,7 @@ static void *fdf_stats_thread(void *arg) {
             sleep(5);
             continue;
         }
-        if(getProperty_Int( "FDF_STATS_NEW", 1 ) == 1 ) {
+        if(getProperty_Int( "ZS_STATS_NEW", 1 ) == 1 ) {
             time(&st);
             dump_all_container_stats(thd_state,STATS_PRINT_TYPE_DETAILED);
             time(&et);
@@ -1671,14 +1671,14 @@ static void *fdf_stats_thread(void *arg) {
             }
             continue;
         }
-        stats_log = fopen(getProperty_String("FDF_STATS_FILE","/tmp/fdfstats.log"),"a+");
+        stats_log = fopen(getProperty_String("ZS_STATS_FILE","/tmp/zsstats.log"),"a+");
         if( stats_log == NULL ) {
-            fprintf(stderr,"Stats Thread:Unable to open the log file /tmp/fdf_stats.log. Exiting\n");
+            fprintf(stderr,"Stats Thread:Unable to open the log file /tmp/zs_stats.log. Exiting\n");
 	    	plat_free(cguids);
             return NULL;
         }
 
-        fdf_get_containers(thd_state,cguids,&n_cguids);
+        zs_get_containers(thd_state,cguids,&n_cguids);
         if( n_cguids <= 0 ) {
              fprintf(stderr,"Stats Thread:No container exists\n");    
              sleep(10);
@@ -1686,16 +1686,16 @@ static void *fdf_stats_thread(void *arg) {
         }
         for ( i = 0; i < n_cguids; i++ ) {
 			// Skip containers that are not open
-			if ( FDF_FAILURE_CONTAINER_NOT_OPEN == fdf_get_ctnr_status( cguids[i], 0 ) ) 
+			if ( ZS_FAILURE_CONTAINER_NOT_OPEN == zs_get_ctnr_status( cguids[i], 0 ) ) 
 				continue;
            	memset(stats_str,0,STAT_BUFFER_SIZE);
-            FDFGetStatsStr(thd_state,cguids[i],stats_str,NULL);
+            ZSGetStatsStr(thd_state,cguids[i],stats_str,NULL);
             fputs(stats_str,stats_log);
-            if ( getProperty_Int( "FDF_STATS_API_DEBUG", 0 ) == 1 ) {
-                FDFGetContainerStats(thd_state,cguids[i],&stats);
-                print_fdf_stats(stats_log,&stats,"Container\n");
-                FDFGetStats(thd_state,&stats);
-                print_fdf_stats(stats_log,&stats,"Flash\n");
+            if ( getProperty_Int( "ZS_STATS_API_DEBUG", 0 ) == 1 ) {
+                ZSGetContainerStats(thd_state,cguids[i],&stats);
+                print_zs_stats(stats_log,&stats,"Container\n");
+                ZSGetStats(thd_state,&stats);
+                print_zs_stats(stats_log,&stats,"Flash\n");
             }
         }
 
@@ -1713,7 +1713,7 @@ static void *fdf_stats_thread(void *arg) {
 	return NULL;
 }
 
-static void *fdf_scheduler_thread(void *arg)
+static void *zs_scheduler_thread(void *arg)
 {
     // mcd_osd_assign_pthread_id();
 
@@ -1728,23 +1728,23 @@ static void *fdf_scheduler_thread(void *arg)
 }
 
 
-static int fdf_fth_cleanup( void )
+static int zs_fth_cleanup( void )
 {
     return 0;   /* SUCCESS */
 }
 
-void fdf_start_stats_thread(struct FDF_state *sdf_state) {
+void zs_start_stats_thread(struct ZS_state *sdf_state) {
     pthread_t thd;
     int rc;
 
-    rc = pthread_create(&thd,NULL,fdf_stats_thread,(void *)sdf_state);
+    rc = pthread_create(&thd,NULL,zs_stats_thread,(void *)sdf_state);
     if( rc != 0 ) {
         fprintf(stderr,"Unable to start the stats thread\n");
     }
 }
 
 
-static void *fdf_run_schedulers(void *arg)
+static void *zs_run_schedulers(void *arg)
 {
     int                 rc;
     int                 i;
@@ -1763,7 +1763,7 @@ static void *fdf_run_schedulers(void *arg)
     pthread_attr_setdetachstate( &attr, PTHREAD_CREATE_JOINABLE );
 
     for ( i = 1; i < num_sched; i++ ) {
-        rc = pthread_create( &fth_pthreads[i], &attr, fdf_scheduler_thread,
+        rc = pthread_create( &fth_pthreads[i], &attr, zs_scheduler_thread,
                              NULL);
         if ( 0 != rc ) {
             mcd_log_msg( 20163, PLAT_LOG_LEVEL_FATAL,
@@ -1796,17 +1796,17 @@ static void *fdf_run_schedulers(void *arg)
         pthread_join( fth_pthreads[i], NULL );
     }
 
-    fdf_fth_cleanup();
+    zs_fth_cleanup();
 
     return(NULL);
 }
 
 
 /*
- * Get a FDF property.
+ * Get a ZS property.
  */
 const char *
-FDFGetProperty(const char *key, const char *def)
+ZSGetProperty(const char *key, const char *def)
 {
 	const char	*value;
 	char 		*ret;	
@@ -1830,7 +1830,7 @@ FDFGetProperty(const char *key, const char *def)
 /*
 ** API
 */
-FDF_status_t FDFSetProperty(const char* property, const char* value)
+ZS_status_t ZSSetProperty(const char* property, const char* value)
 {
     int ret = 0;
 
@@ -1838,28 +1838,28 @@ FDF_status_t FDFSetProperty(const char* property, const char* value)
     if (value)
         ret = setProperty(property, (void*) value);
 
-    if (FDF_log_level <= PLAT_LOG_LEVEL_INFO) {
+    if (ZS_log_level <= PLAT_LOG_LEVEL_INFO) {
         plat_log_msg(180021, PLAT_LOG_CAT_PRINT_ARGS, PLAT_LOG_LEVEL_INFO,
-                     "FDFSetProperty ('%s', '%s'). Old value: %s",
+                     "ZSSetProperty ('%s', '%s'). Old value: %s",
                      property, value, getProperty_String(property, "NULL"));
     }
 
     if ( ret )
-        return FDF_FAILURE;
+        return ZS_FAILURE;
     else
-        return FDF_SUCCESS;
+        return ZS_SUCCESS;
 }
 
-FDF_status_t FDFLoadProperties(const char *prop_file)
+ZS_status_t ZSLoadProperties(const char *prop_file)
 {
 	if ( !prop_file )
-		return FDF_INVALID_PARAMETER;
+		return ZS_INVALID_PARAMETER;
 
 	if ( loadProperties(prop_file) )
-		return FDF_FAILURE;
+		return ZS_FAILURE;
 	else {
         log_properties_file(prop_file,LOG_INFO);
-		return FDF_SUCCESS;
+		return ZS_SUCCESS;
     }
 }
 
@@ -1909,7 +1909,7 @@ void log_properties_file(const char *path, int log_level) {
 		continue;
 	}
 
-        if (FDF_log_level <= log_level) {
+        if (ZS_log_level <= log_level) {
             plat_log_msg(70036, PLAT_LOG_CAT_PRINT_ARGS,
                          log_level,"%s = %s",key, val);
         }
@@ -1921,42 +1921,42 @@ void log_properties_file(const char *path, int log_level) {
 }       
 void print_configuration(int log_level) {
     plat_log_msg(80030, LOG_CAT, log_level,
-        "FDF Configuration: Storage size = %d GB,"
+        "ZS Configuration: Storage size = %d GB,"
         "Reformat the storage = %s,"
         "Cache size = %llu,"
         "Maximum object size = %llu",
-        getProperty_Int("FDF_FLASH_SIZE", FDF_MIN_FLASH_SIZE),
-        getProperty_Int("FDF_REFORMAT", 0 )?"yes":"no",
-        getProperty_uLongLong("FDF_CACHE_SIZE", 100000000ULL),
+        getProperty_Int("ZS_FLASH_SIZE", ZS_MIN_FLASH_SIZE),
+        getProperty_Int("ZS_REFORMAT", 0 )?"yes":"no",
+        getProperty_uLongLong("ZS_CACHE_SIZE", 100000000ULL),
         getProperty_uLongLong("SDF_MAX_OBJ_SIZE", SDF_MAX_OBJ_SIZE));
 	plat_log_msg(160171, LOG_CAT, log_level,"Block size = %llu",
-		getProperty_uLongLong("FDF_BLOCK_SIZE", 2048));
-    if (getProperty_Int("FDF_TEST_MODE", 0)) {
-         plat_log_msg(80031, LOG_CAT, log_level,"FDF Testmode enabled");
+		getProperty_uLongLong("ZS_BLOCK_SIZE", 2048));
+    if (getProperty_Int("ZS_TEST_MODE", 0)) {
+         plat_log_msg(80031, LOG_CAT, log_level,"ZS Testmode enabled");
     }
 }
 
-FDF_status_t FDFRegisterCallbacks(struct FDF_state *fdf_state, FDF_ext_cb_t *cb) 
+ZS_status_t ZSRegisterCallbacks(struct ZS_state *zs_state, ZS_ext_cb_t *cb) 
 {
     if( cb == NULL ) {
-        return FDF_FAILURE;
+        return ZS_FAILURE;
     }
 
     ext_cbs = cb;
     plat_log_msg(150113, LOG_CAT, LOG_INFO, "Callback registered"); 
-    return FDF_SUCCESS;
+    return ZS_SUCCESS;
 }
-FDF_status_t FDFLicenseCheck(int *state)
+ZS_status_t ZSLicenseCheck(int *state)
 {
 	*state = (is_license_valid(false) == true) ? 1 : 0;
-	return FDF_SUCCESS;
+	return ZS_SUCCESS;
 }
 void agent_config_set_defaults(struct plat_opts_config_sdf_agent *config);
 bool is_btree_loaded() {
     return (ext_cbs != NULL)?1:0;
 }
-FDF_status_t FDFInitVersioned(
-	struct FDF_state	**fdf_state,
+ZS_status_t ZSInitVersioned(
+	struct ZS_state	**zs_state,
 	uint32_t                api_version
 	)
 {
@@ -1969,39 +1969,39 @@ FDF_status_t FDFInitVersioned(
 
     char log_file[2048]="";
 
-    if (api_version != FDF_API_VERSION) {
+    if (api_version != ZS_API_VERSION) {
         mcd_log_msg(160260, PLAT_LOG_LEVEL_FATAL, 
-                    "Error: Incompatibile FDF API Version. FDFInit called "
-                    "with version '%u', FDF API version is '%u'\n",
-                    api_version, FDF_API_VERSION);
-        return FDF_VERSION_CHECK_FAILED;       
+                    "Error: Incompatibile ZS API Version. ZSInit called "
+                    "with version '%u', ZS API version is '%u'\n",
+                    api_version, ZS_API_VERSION);
+        return ZS_VERSION_CHECK_FAILED;       
     }
 
-    if (verify_datastruct_consistency() != FDF_SUCCESS ) {
-        return FDF_FAILURE;
+    if (verify_datastruct_consistency() != ZS_SUCCESS ) {
+        return ZS_FAILURE;
     }
     sem_init( &Mcd_initer_sem, 0, 0 );
 
     gettimeofday( &timer, NULL );
     current_time = timer.tv_sec;
 
-    *fdf_state = (struct FDF_state *) &agent_state;
+    *zs_state = (struct ZS_state *) &agent_state;
 
-    prop_file = getenv("FDF_PROPERTY_FILE");
+    prop_file = getenv("ZS_PROPERTY_FILE");
     agent_state.flash_settings.sdf_log_level = LOG_FATAL;
     if (prop_file)
         loadProperties(prop_file);
 
 
     //  Initialize a crap-load of settings
-    fdf_load_settings( &(agent_state.flash_settings) );
-    if (fdf_check_settings(&(agent_state.flash_settings)) == false) {
-        return FDF_FAILURE;
+    zs_load_settings( &(agent_state.flash_settings) );
+    if (zs_check_settings(&(agent_state.flash_settings)) == false) {
+        return ZS_FAILURE;
     } 
 
     // Initialize the container metadata map
-    if ( FDF_SUCCESS != fdf_cmap_init() )
-        return FDF_FAILURE;
+    if ( ZS_SUCCESS != zs_cmap_init() )
+        return ZS_FAILURE;
 
     mcd_aio_register_ops();
     mcd_osd_register_ops();
@@ -2010,14 +2010,14 @@ FDF_status_t FDFInitVersioned(
     set_log_level( agent_state.flash_settings.sdf_log_level );
     agent_config_set_defaults(& (agent_state.config));
     /* Set the log file if configured*/
-    strncpy(log_file,getProperty_String("FDF_LOG_FILE",log_file),sizeof(log_file)-1);
+    strncpy(log_file,getProperty_String("ZS_LOG_FILE",log_file),sizeof(log_file)-1);
     if( strcmp(log_file,"") ) { 
         plat_log_set_file(log_file, PLAT_LOG_REDIRECT_STDERR|PLAT_LOG_REDIRECT_STDOUT);
     } 
 
-#ifdef FDF_REVISION
+#ifdef ZS_REVISION
     plat_log_msg(160146, LOG_CAT, LOG_INFO,
-            "Initializing %s (Rev:%s API version:%u)", FDF_PRODUCT_NAME, FDF_REVISION, FDF_API_VERSION);
+            "Initializing %s (Rev:%s API version:%u)", ZS_PRODUCT_NAME, ZS_REVISION, ZS_API_VERSION);
 #endif
     if ( prop_file != NULL ) {
         plat_log_msg(80032, LOG_CAT, LOG_INFO, "Property file: %s",prop_file);
@@ -2025,34 +2025,34 @@ FDF_status_t FDFInitVersioned(
     }
     print_configuration(LOG_INFO);
     if ( !agent_engine_pre_init( &agent_state, 0, NULL ) ) {
-        return FDF_FAILURE; 
+        return ZS_FAILURE; 
     }
 
 #ifdef FLIP_ENABLED
     flip_init();
 #endif
-    if (getProperty_Int( "FDF_SIGNAL_HANDLERS", 0) == 1 ) {
+    if (getProperty_Int( "ZS_SIGNAL_HANDLERS", 0) == 1 ) {
         /* Initialize signal handler */
-        signal(SIGSEGV, fdf_signal_handler);  
-        signal(SIGABRT, fdf_signal_handler);    
-        signal(SIGBUS, fdf_signal_handler);     
-        signal(SIGFPE, fdf_signal_handler); 
+        signal(SIGSEGV, zs_signal_handler);  
+        signal(SIGABRT, zs_signal_handler);    
+        signal(SIGBUS, zs_signal_handler);     
+        signal(SIGFPE, zs_signal_handler); 
     }
 
-    if (getProperty_Int( "FDF_CORE_DUMP", 1) == 1) {
-		fdf_dump_core = 1;	
+    if (getProperty_Int( "ZS_CORE_DUMP", 1) == 1) {
+		zs_dump_core = 1;	
     }
 
     // spawn initer thread (like mcd_fth_initer)
-    fthResume( fthSpawn( &fdf_fth_initer, MCD_FTH_STACKSIZE ),
+    fthResume( fthSpawn( &zs_fth_initer, MCD_FTH_STACKSIZE ),
             (uint64_t) &agent_state );
     //Start License daemon
-    if (!licd_start(getProperty_String("FDF_LICENSE_PATH", FDF_LICENSE_PATH),
-                getProperty_Int("FDF_LICENSE_CHECK_PERIOD", FDF_LICENSE_CHECK_PERIOD),
-                *fdf_state)) {
+    if (!licd_start(getProperty_String("ZS_LICENSE_PATH", ZS_LICENSE_PATH),
+                getProperty_Int("ZS_LICENSE_CHECK_PERIOD", ZS_LICENSE_CHECK_PERIOD),
+                *zs_state)) {
         mcd_log_msg(160147, PLAT_LOG_LEVEL_FATAL, 
                 "Creation of license daemon failed\n");
-        return FDF_FAILURE;
+        return ZS_FAILURE;
     }
 
     //ipf_set_active( 1 );
@@ -2064,7 +2064,7 @@ FDF_status_t FDFInitVersioned(
     num_sched = agent_state.flash_settings.num_cores;
     rc = pthread_create( &run_sched_pthread, 
             &attr, 
-            fdf_run_schedulers,
+            zs_run_schedulers,
             (void *) num_sched );
     if ( 0 != rc ) {
         mcd_log_msg( 20163, 
@@ -2079,7 +2079,7 @@ FDF_status_t FDFInitVersioned(
     wait_for_licd_start();
     if (is_license_valid(false) == false) {
         plat_log_msg(160145, LOG_CAT, LOG_WARN, "License check failed.");
-        return FDF_LICENSE_CHK_FAILED;
+        return ZS_LICENSE_CHK_FAILED;
     }	
 
     // Wait until mcd_fth_initer is done
@@ -2088,39 +2088,39 @@ FDF_status_t FDFInitVersioned(
     } while (rc == -1 && errno == EINTR);
 
     plat_assert( 0 == rc );
-    if(getProperty_String("FDF_STATS_FILE","")[0])
+    if(getProperty_String("ZS_STATS_FILE","")[0])
     {
-        fdf_start_stats_thread( *fdf_state );
+        zs_start_stats_thread( *zs_state );
     }
-    if ( getProperty_Int( "FDF_ADMIN_ENABLED", 1 ) == 1 ) {
-        fdf_start_admin_thread(*fdf_state );
+    if ( getProperty_Int( "ZS_ADMIN_ENABLED", 1 ) == 1 ) {
+        zs_start_admin_thread(*zs_state );
     }
     if ( getProperty_Int( "ASYNC_DELETE_CONTAINERS",0) == 1 ) {
         time((time_t *)&delete_prefix);
-        init_async_cmd_handler(getProperty_Int("ASYNC_DELETE_CONTAINERS_THREADS",5),*fdf_state);
+        init_async_cmd_handler(getProperty_Int("ASYNC_DELETE_CONTAINERS_THREADS",5),*zs_state);
     }
 
-	fdf_start_vc_thread ( *fdf_state );
+	zs_start_vc_thread ( *zs_state );
 
 	shard_t *shard; 
-	SDF_action_init_t *pai = (SDF_action_init_t *) fdf_state; 
+	SDF_action_init_t *pai = (SDF_action_init_t *) zs_state; 
 	int s = cguid_to_shard(pai, VDC_CGUID, &shard, 0); 
-	if (s != FDF_SUCCESS) 
+	if (s != ZS_SUCCESS) 
 		return s; 
-	set_cntr_sizes((SDF_action_init_t *) fdf_state, shard);
+	set_cntr_sizes((SDF_action_init_t *) zs_state, shard);
         mcd_osd_shard_t *mcd_shard;
         mcd_shard = (mcd_osd_shard_t *)shard;
         if ( is_btree_loaded() ) {
             ext_cbs->flash_stats_buf_cb( &(mcd_shard->blk_allocated), 
                  &(mcd_shard->free_segments_count), &(mcd_shard->blk_consumed), 
                  Mcd_osd_blk_size, Mcd_osd_segment_size);
-           ext_cbs->fdf_funcs_cb((void *)plat_log_msg_helper);
+           ext_cbs->zs_funcs_cb((void *)plat_log_msg_helper);
         }
 
-    if ( getProperty_Int( "FDF_EXPIRY_SCAVENGER_ENABLE", 1 ) == 1 ) {
+    if ( getProperty_Int( "ZS_EXPIRY_SCAVENGER_ENABLE", 1 ) == 1 ) {
         mcd_log_msg(160234, PLAT_LOG_LEVEL_DEBUG, 
                 "expired object scavenging enabled.");
-        fdf_start_scavenger_thread( *fdf_state );
+        zs_start_scavenger_thread( *zs_state );
     } else {
         mcd_log_msg(160235, PLAT_LOG_LEVEL_DEBUG,
                 "expired object scavenging disabled.");
@@ -2139,13 +2139,13 @@ FDF_status_t FDFInitVersioned(
 	    }
 
 	    SDF_container_props_t sdf_properties;
-		SDF_status_t props_rc = FDFGetContainerProps( fth_state->pai,
+		SDF_status_t props_rc = ZSGetContainerProps( fth_state->pai,
 													  pMcd_containers[i]->cguid,
 	                                                  &sdf_properties );
-		if ( FDF_SUCCESS != props_rc ) {
+		if ( ZS_SUCCESS != props_rc ) {
 			mcd_log_msg( 50030, PLAT_LOG_LEVEL_ERROR,
 	                     "failed to get SDF properties, status=%s",
-	                     FDFStrError(props_rc) );
+	                     ZSStrError(props_rc) );
 	        plat_abort();
 		}
 
@@ -2175,23 +2175,23 @@ FDF_status_t FDFInitVersioned(
 	if ((agent_state.flash_settings.chksum_object)
 	&& (check_x86_sse42( ) == 0)) {
 		agent_state.flash_settings.chksum_object = 0;
-		mcd_log_msg( 170040, PLAT_LOG_LEVEL_ERROR, "No x86 SSE4.2 support, FDF_OBJECT_CHECKSUM disabled");
+		mcd_log_msg( 170040, PLAT_LOG_LEVEL_ERROR, "No x86 SSE4.2 support, ZS_OBJECT_CHECKSUM disabled");
 	}
 
-    return FDF_SUCCESS;
+    return ZS_SUCCESS;
 }
 
-char *fdf_init_per_thd_comp_buf(size_t len) {
+char *zs_init_per_thd_comp_buf(size_t len) {
 	size_t tmp_len = len;
 
-	if( getProperty_Int("FDF_COMPRESSION", 0) == 0 ) {
+	if( getProperty_Int("ZS_COMPRESSION", 0) == 0 ) {
 		return NULL;
 	}
 
 	if (len == 0) {
 		tmp_len = snappy_max_compressed_length(
-						getProperty_Int("FDF_COMPRESSION_MAX_OBJECT_SIZE",
-							getProperty_Int("FDF_BTREE_NODE_SIZE",8100) + 1024));
+						getProperty_Int("ZS_COMPRESSION_MAX_OBJECT_SIZE",
+							getProperty_Int("ZS_BTREE_NODE_SIZE",8100) + 1024));
 	} else {
 		tmp_len = snappy_max_compressed_length(len + 1024);
 	}
@@ -2203,10 +2203,10 @@ char *fdf_init_per_thd_comp_buf(size_t len) {
 	return(compression_buf);
 }
 
-char *fdf_get_per_thd_comp_buf(size_t len) {
+char *zs_get_per_thd_comp_buf(size_t len) {
 
 	if (compression_buf_len == 0) {
-		fdf_init_per_thd_comp_buf(0);
+		zs_init_per_thd_comp_buf(0);
 	}
 
    if( compression_buf_len < len) {
@@ -2225,16 +2225,16 @@ char *fdf_get_per_thd_comp_buf(size_t len) {
    return compression_buf;
 }
 
-char *fdf_compress_data(char *src, size_t src_len, 
+char *zs_compress_data(char *src, size_t src_len, 
                             char *comp_buf, size_t memsz, size_t *comp_len) {
 	char *cbuf;
 	snappy_status rc;
 	size_t len;
 	size_t btree_node_size = snappy_max_compressed_length(
-			 							getProperty_Int("FDF_COMPRESSION_MAX_OBJECT_SIZE", 
-											getProperty_Int("FDF_BTREE_NODE_SIZE",8100)));
+			 							getProperty_Int("ZS_COMPRESSION_MAX_OBJECT_SIZE", 
+											getProperty_Int("ZS_BTREE_NODE_SIZE",8100)));
 
-	if( getProperty_Int("FDF_COMPRESSION", 0) == 0 ) {
+	if( getProperty_Int("ZS_COMPRESSION", 0) == 0 ) {
 		return NULL;
 	}
 
@@ -2245,7 +2245,7 @@ char *fdf_compress_data(char *src, size_t src_len,
 		 if (len < btree_node_size) { 
 			 len = btree_node_size;
 		 }
-         cbuf = fdf_get_per_thd_comp_buf(len); /* initializes per thread compression buffer */
+         cbuf = zs_get_per_thd_comp_buf(len); /* initializes per thread compression buffer */
 		 *comp_len = compression_buf_len;
      } else {
 		 if (len > memsz) {
@@ -2288,7 +2288,7 @@ char *fdf_compress_data(char *src, size_t src_len,
  *
  */
 
-int fdf_uncompress_data(char *data, size_t datalen, size_t memsz, size_t *uncomp_len) {
+int zs_uncompress_data(char *data, size_t datalen, size_t memsz, size_t *uncomp_len) {
 	size_t len;
     snappy_status rc;
 
@@ -2309,7 +2309,7 @@ int fdf_uncompress_data(char *data, size_t datalen, size_t memsz, size_t *uncomp
 	len = memsz;
 
     /* Get per thread comp buffer to store compresssed data*/
-	if (fdf_get_per_thd_comp_buf(datalen) == NULL) {
+	if (zs_get_per_thd_comp_buf(datalen) == NULL) {
 		plat_log_msg(160233, LOG_CAT,LOG_FATAL,
 				"Uncompression failed, couldn't allocate buffer");
 	}
@@ -2335,9 +2335,9 @@ int fdf_uncompress_data(char *data, size_t datalen, size_t memsz, size_t *uncomp
     return (int)*uncomp_len;
 }
 
-FDF_status_t FDFInitPerThreadState(
-	struct FDF_state 		 *fdf_state,
-    struct FDF_thread_state **thd_state
+ZS_status_t ZSInitPerThreadState(
+	struct ZS_state 		 *zs_state,
+    struct ZS_thread_state **thd_state
 	)
 {
     SDF_action_init_t       *pai;
@@ -2345,10 +2345,10 @@ FDF_status_t FDFInitPerThreadState(
     SDF_action_thrd_state_t *pts;
 	int						shutdown_thread = 0;
 
-    if ( !fdf_state ) {
+    if ( !zs_state ) {
         plat_log_msg(80052,LOG_CAT,LOG_DBG,
-                             "FDF state is NULL");
-        return FDF_INVALID_PARAMETER;
+                             "ZS state is NULL");
+        return ZS_INVALID_PARAMETER;
     }
     struct sdf_agent_state    *state = &agent_state;
 
@@ -2357,7 +2357,7 @@ FDF_status_t FDFInitPerThreadState(
 		shutdown_thread = 1;
 	}
     if (fthSpawnPthread(shutdown_thread) == NULL) {
-		return FDF_FAILURE;
+		return ZS_FAILURE;
 	}
 
     pai = &state->ActionInitState;
@@ -2386,9 +2386,9 @@ FDF_status_t FDFInitPerThreadState(
 
     pai_new->ctxt = ActionGetContext( pts );
 
-    *thd_state = (struct FDF_thread_state *) pai_new;
+    *thd_state = (struct ZS_thread_state *) pai_new;
     /* Initialize per thread compression/decompression buffer */
-    fdf_init_per_thd_comp_buf(0);
+    zs_init_per_thd_comp_buf(0);
 
     if (trx_bracket_slabs == NULL) {
         trx_bracket_slabs = plat_alloc(MAX_TRX_BRACKET_SLAB_CNT * sizeof(uint32_t));
@@ -2399,11 +2399,11 @@ FDF_status_t FDFInitPerThreadState(
         }
     }
 
-    return FDF_SUCCESS;
+    return ZS_SUCCESS;
 }
 
-FDF_status_t FDFReleasePerThreadState(
-    struct FDF_thread_state **thd_state
+ZS_status_t ZSReleasePerThreadState(
+    struct ZS_thread_state **thd_state
     )
 {
 	SDF_action_thrd_state_t *pts, *pts_check;
@@ -2414,14 +2414,14 @@ FDF_status_t FDFReleasePerThreadState(
 	if (NULL == *thd_state) {
     	plat_log_msg(160098, LOG_CAT, LOG_ERR, 
                      "Thread state is null");
-		return FDF_FAILURE;
+		return ZS_FAILURE;
 	}
 	/* Thread state already freed, application issue, single thread 
 	 * releasing thread context multiple times. */
 	if (NULL == fthSelf()) {
     	plat_log_msg(160186, LOG_CAT, LOG_ERR, 
                      "Thread state already released");
-		return FDF_FAILURE;
+		return ZS_FAILURE;
 	}
 	pai = (SDF_action_init_t *)*thd_state;
 	pts = (SDF_action_thrd_state_t *)pai->pts;
@@ -2466,7 +2466,7 @@ FDF_status_t FDFReleasePerThreadState(
     plat_free( *thd_state );
     *thd_state = NULL;
     /* Free compression buffer */
-    if( getProperty_Int("FDF_COMPRESSION", 0) ) {
+    if( getProperty_Int("ZS_COMPRESSION", 0) ) {
         if ( compression_buf != NULL ) {
             plat_free(compression_buf);
         }
@@ -2478,7 +2478,7 @@ FDF_status_t FDFReleasePerThreadState(
         trx_bracket_slabs = NULL;
     }
 
-    return FDF_SUCCESS;
+    return ZS_SUCCESS;
 }
 
 
@@ -2487,7 +2487,7 @@ FDF_status_t FDFReleasePerThreadState(
  * @return None
  */
 static void
-fdf_wait_containers_delete()
+zs_wait_containers_delete()
 {
 	uint32_t num_deletes = 0;
 	uint32_t num_prog = 0;
@@ -2528,22 +2528,22 @@ fdf_wait_containers_delete()
 
 
 /*
- * The phase one of FDF shutdown process
- * @param [in] Pointer to FDF state object
- * @retval FDF_status_t, FDF_SUCCES for success. Any other value indicate a failure.
+ * The phase one of ZS shutdown process
+ * @param [in] Pointer to ZS state object
+ * @retval ZS_status_t, ZS_SUCCES for success. Any other value indicate a failure.
  */
-static FDF_status_t
-fdf_containers_cleanup(struct FDF_state *fdf_state)
+static ZS_status_t
+zs_containers_cleanup(struct ZS_state *zs_state)
 {
-	plat_log_msg(160069, LOG_CAT, LOG_DBG, "%p", fdf_state);
+	plat_log_msg(160069, LOG_CAT, LOG_DBG, "%p", zs_state);
 
-	struct FDF_thread_state *fdf_thread_state = NULL;
-	FDF_cguid_t *cguids = NULL;
-	FDF_container_props_t props = {0};
+	struct ZS_thread_state *zs_thread_state = NULL;
+	ZS_cguid_t *cguids = NULL;
+	ZS_container_props_t props = {0};
 	SDF_internal_ctxt_t *pai = NULL;
 
-	FDF_status_t status = FDF_SUCCESS;
-	SDF_status_t props_rc = FDF_SUCCESS;
+	ZS_status_t status = ZS_SUCCESS;
+	SDF_status_t props_rc = ZS_SUCCESS;
 
 	uint32_t n_cguids = 0;
 	uint32_t i = 0;
@@ -2554,24 +2554,24 @@ fdf_containers_cleanup(struct FDF_state *fdf_state)
 	 * If container deletion operations are in progress, let them
 	 * complete.
    	 */
-	fdf_wait_containers_delete();
+	zs_wait_containers_delete();
 
-	status = FDFInitPerThreadState((struct FDF_state*) fdf_state,
-			(struct FDF_thread_state **) &fdf_thread_state);
+	status = ZSInitPerThreadState((struct ZS_state*) zs_state,
+			(struct ZS_thread_state **) &zs_thread_state);
 
-	if ( FDF_SUCCESS != status)	{
+	if ( ZS_SUCCESS != status)	{
 		plat_log_msg(160100, LOG_CAT, LOG_ERR, 
 				"Unable to create thread context %s",
-				FDF_Status_Strings[status]);
+				ZS_Status_Strings[status]);
 		return status;
 	}
-	cguids = (FDF_cguid_t *) plat_alloc(sizeof(*cguids) * MCD_MAX_NUM_CNTRS);
+	cguids = (ZS_cguid_t *) plat_alloc(sizeof(*cguids) * MCD_MAX_NUM_CNTRS);
 	if (cguids == NULL) {
 		goto out;
 	}
 	memset(cguids, 0, sizeof(*cguids) * MCD_MAX_NUM_CNTRS);
 
-	pai = (SDF_internal_ctxt_t *) fdf_thread_state;
+	pai = (SDF_internal_ctxt_t *) zs_thread_state;
 	SDFStartSerializeContainerOp(pai);
         serialized = true;
 
@@ -2579,7 +2579,7 @@ fdf_containers_cleanup(struct FDF_state *fdf_state)
 	 * We will get all containers but physical containers (CMC, VMC and VDC).
 	 * This API do _not_ list a container that's marked for deletion.
 	 */
-	status = fdf_get_open_containers_int(fdf_thread_state, cguids, &n_cguids);
+	status = zs_get_open_containers_int(zs_thread_state, cguids, &n_cguids);
 
 	if (0 == n_cguids) {
 		plat_log_msg(160055, LOG_CAT, LOG_DBG, 
@@ -2591,11 +2591,11 @@ fdf_containers_cleanup(struct FDF_state *fdf_state)
 			"Total containers = %d", n_cguids);
 
 	for (i = 0; i < n_cguids; i++) {
-		props_rc = fdf_get_container_props_int(fdf_thread_state, cguids[i], &props);
+		props_rc = zs_get_container_props_int(zs_thread_state, cguids[i], &props);
 		if (SDF_SUCCESS != props_rc) {
 			plat_log_msg(160102, LOG_CAT, LOG_DBG, 
 					"Error getting container properties for index=%d cguid=%ld: %s",
-					i, cguids[i], FDF_Status_Strings[status]);
+					i, cguids[i], ZS_Status_Strings[status]);
 
 			/*
 			 * Carry on with remaining containers
@@ -2604,21 +2604,21 @@ fdf_containers_cleanup(struct FDF_state *fdf_state)
 		}
 		plat_log_msg(160103, LOG_CAT, LOG_DBG, 
 				"Got container properties for index=%d cguid=%ld: %s",
-				i, cguids[i], FDF_Status_Strings[status]);
+				i, cguids[i], ZS_Status_Strings[status]);
 
 		/*
 		 * Close the container
 		 */
-		status = fdf_close_container(fdf_thread_state,
+		status = zs_close_container(zs_thread_state,
 					     cguids[i],
-					     FDF_VIRTUAL_CNTR,
-			                     FDF_FALSE, //No need to serialize
-		                             FDF_TRUE);
+					     ZS_VIRTUAL_CNTR,
+			                     ZS_FALSE, //No need to serialize
+		                             ZS_TRUE);
 
-		if (FDF_SUCCESS != status) {
+		if (ZS_SUCCESS != status) {
 			plat_log_msg(160104, LOG_CAT, LOG_DBG, 
 					"Error closing container ID: %ld with %s",
-					cguids[i], FDF_Status_Strings[status]);
+					cguids[i], ZS_Status_Strings[status]);
 		}
 
        plat_log_msg(160106, LOG_CAT,
@@ -2645,7 +2645,7 @@ out:
 	if (cguids) {
 		plat_free(cguids);
 	}
-	FDFReleasePerThreadState(&fdf_thread_state);
+	ZSReleasePerThreadState(&zs_thread_state);
 
 	return status;
 }
@@ -2653,10 +2653,10 @@ out:
 /*
  * Gets the list of open containers
  */
-static FDF_status_t
-fdf_get_open_containers_int(
-                struct FDF_thread_state *fdf_thread_state,
-                FDF_cguid_t             *cguids,
+static ZS_status_t
+zs_get_open_containers_int(
+                struct ZS_thread_state *zs_thread_state,
+                ZS_cguid_t             *cguids,
                 uint32_t                *n_cguids)
 {
 		int                   n_containers = 0;
@@ -2667,43 +2667,43 @@ fdf_get_open_containers_int(
         struct cmap_iterator *iterator     = NULL;
 
     if (!cguids || !n_cguids)
-            return FDF_INVALID_PARAMETER;
+            return ZS_INVALID_PARAMETER;
 
-        iterator = fdf_cmap_enum();
+        iterator = zs_cmap_enum();
 
         if ( !iterator )
-            return FDF_FAILURE;
+            return ZS_FAILURE;
 
-        while ( fdf_cmap_next_enum( iterator, &key, &keylen, (char **) &cmap, &cmaplen ) ) {
+        while ( zs_cmap_next_enum( iterator, &key, &keylen, (char **) &cmap, &cmaplen ) ) {
                 if ( cmap->cguid > LAST_PHYSICAL_CGUID  &&
              strcmp( cmap->cname,SEQNO_CONTAINER_NAME ) &&
              strcmp( cmap->cname,PSTATS_CONTAINER_NAME ) &&
-                         ( cmap->state == FDF_CONTAINER_STATE_OPEN )  ) {
+                         ( cmap->state == ZS_CONTAINER_STATE_OPEN )  ) {
                         cguids[n_containers] = cmap->cguid;
             n_containers++;
         }
     }
 
-    fdf_cmap_finish_enum( iterator );
+    zs_cmap_finish_enum( iterator );
     *n_cguids = n_containers;
-    return FDF_SUCCESS;
+    return ZS_SUCCESS;
 }
 
 /*
- * The FDF shutdown process. This function should get called once.
- * @param [in] Pointer to FDF state object
- * @retval FDF_status_t, FDF_SUCCES for success. Any other value
+ * The ZS shutdown process. This function should get called once.
+ * @param [in] Pointer to ZS state object
+ * @retval ZS_status_t, ZS_SUCCES for success. Any other value
  *         indicates a failure.
  */
-FDF_status_t FDFShutdown(struct FDF_state *fdf_state)
+ZS_status_t ZSShutdown(struct ZS_state *zs_state)
 {
-        if ( !fdf_state ) {
+        if ( !zs_state ) {
             plat_log_msg(80052,LOG_CAT,LOG_DBG,
-                           "FDF state is NULL");
-            return FDF_INVALID_PARAMETER;
+                           "ZS state is NULL");
+            return ZS_INVALID_PARAMETER;
         }
 
-	FDF_status_t status = FDF_SUCCESS;
+	ZS_status_t status = ZS_SUCCESS;
 
 	if (1 == getProperty_Int("GRACEFUL_SHUTDOWN", 1)) {
 		plat_log_msg(20819, PLAT_LOG_CAT_SDF_PROT,
@@ -2712,7 +2712,7 @@ FDF_status_t FDFShutdown(struct FDF_state *fdf_state)
         /*
          * stop scavenger thread.
          */
-        fdf_stop_scavenger_thread();
+        zs_stop_scavenger_thread();
 
 		/*
 		 * Mark shutdown in progress
@@ -2723,7 +2723,7 @@ FDF_status_t FDFShutdown(struct FDF_state *fdf_state)
 			plat_log_msg(20819, PLAT_LOG_CAT_SDF_PROT,
 					PLAT_LOG_LEVEL_DEBUG, "%s", "Another shutdown is in progress");
 
-			return FDF_FAILURE;
+			return ZS_FAILURE;
 		}
 		agent_state.op_access.shutdown_thread = fthSelf();
 
@@ -2733,18 +2733,18 @@ FDF_status_t FDFShutdown(struct FDF_state *fdf_state)
 		plat_log_msg(20819, PLAT_LOG_CAT_SDF_PROT,
                     PLAT_LOG_LEVEL_DEBUG, "%s", "Closing containers");
 
-		status = fdf_containers_cleanup(fdf_state);
+		status = zs_containers_cleanup(zs_state);
 
 		plat_log_msg(160107, PLAT_LOG_CAT_SDF_PROT,
 				PLAT_LOG_LEVEL_DEBUG, "Shutdown phase 1 returns :%s",
-				FDF_Status_Strings[status]);
+				ZS_Status_Strings[status]);
 	}
 
 	/* This hack should be remove or wrapped with #if 0 in release code */
-	if (getProperty_Int("FDF_TEST_MODE", 0)) {
+	if (getProperty_Int("ZS_TEST_MODE", 0)) {
 		char temp[PATH_MAX + 1];
-		char *log_flush_dir = (char *)getProperty_String("FDF_LOG_FLUSH_DIR", NULL);
-		snprintf(temp, sizeof(temp), "rm -rf %s/fdf_%d", log_flush_dir, fdf_instance_id);
+		char *log_flush_dir = (char *)getProperty_String("ZS_LOG_FLUSH_DIR", NULL);
+		snprintf(temp, sizeof(temp), "rm -rf %s/zs_%d", log_flush_dir, zs_instance_id);
 		ignore(system(temp));
 	}
     plat_log_msg(80033, PLAT_LOG_CAT_SDF_PROT,
@@ -2753,200 +2753,200 @@ FDF_status_t FDFShutdown(struct FDF_state *fdf_state)
 }
 
 
-FDF_status_t FDFLoadCntrPropDefaults(
-		FDF_container_props_t *props
+ZS_status_t ZSLoadCntrPropDefaults(
+		ZS_container_props_t *props
 		)
 {
-	props->size_kb = FDF_DEFAULT_CONTAINER_SIZE_KB;
-	props->fifo_mode = FDF_FALSE;
-	props->persistent = FDF_TRUE; 
-	props->evicting = FDF_FALSE;
-	props->writethru = FDF_TRUE;
+	props->size_kb = ZS_DEFAULT_CONTAINER_SIZE_KB;
+	props->fifo_mode = ZS_FALSE;
+	props->persistent = ZS_TRUE; 
+	props->evicting = ZS_FALSE;
+	props->writethru = ZS_TRUE;
 	props->async_writes = SDF_FALSE;
-	props->durability_level = FDF_DURABILITY_PERIODIC;
+	props->durability_level = ZS_DURABILITY_PERIODIC;
 	props->cguid = 0;
 	props->cid = 0;
 	props->num_shards = 1;
-	props->flash_only = FDF_FALSE;
-	props->cache_only = FDF_FALSE;
-	props->compression = FDF_FALSE;
+	props->flash_only = ZS_FALSE;
+	props->cache_only = ZS_FALSE;
+	props->compression = ZS_FALSE;
     /*
      * By default all containers are Btree enabled
      */
 	props->flags = 0;
-	return FDF_SUCCESS;
+	return ZS_SUCCESS;
 }
 
 #define CONTAINER_PENDING
 
 //static uint64_t cid_counter = 0;
-char *FDFStrError(FDF_status_t fdf_errno) {
-	if ( fdf_errno >= N_FDF_STATUS_STRINGS ) {
-		return FDF_Status_Strings[0];  
+char *ZSStrError(ZS_status_t zs_errno) {
+	if ( zs_errno >= N_ZS_STATUS_STRINGS ) {
+		return ZS_Status_Strings[0];  
 	}
-	return FDF_Status_Strings[fdf_errno]; 
+	return ZS_Status_Strings[zs_errno]; 
 }
 
-FDF_status_t FDFOpenContainer(
-		struct FDF_thread_state	*fdf_thread_state, 
+ZS_status_t ZSOpenContainer(
+		struct ZS_thread_state	*zs_thread_state, 
 		char					*cname,
-		FDF_container_props_t	*properties,
+		ZS_container_props_t	*properties,
 		uint32_t				 flags,
-		FDF_cguid_t 	 	 	*cguid
+		ZS_cguid_t 	 	 	*cguid
 		)
 {
-	FDF_status_t status		= FDF_SUCCESS;
+	ZS_status_t status		= ZS_SUCCESS;
 	bool thd_ctx_locked = false;
 
-         if( getProperty_Int("FDF_ENABLE_COMPRESSION_ALL_CONTAINERS", 1) && 
-                  getProperty_Int("FDF_COMPRESSION", 0) ) {
+         if( getProperty_Int("ZS_ENABLE_COMPRESSION_ALL_CONTAINERS", 1) && 
+                  getProperty_Int("ZS_COMPRESSION", 0) ) {
              if(properties) {
-                 properties->compression = FDF_TRUE;
+                 properties->compression = ZS_TRUE;
              }
          }
 
-	if (properties->durability_level == FDF_DURABILITY_PERIODIC) {
+	if (properties->durability_level == ZS_DURABILITY_PERIODIC) {
 		plat_log_msg(180216, LOG_CAT, LOG_WARN, "PERIODIC durability is not supported, set to SW_CRASH_SAFE for %s\n", cname);
-		properties->durability_level = FDF_DURABILITY_SW_CRASH_SAFE;
+		properties->durability_level = ZS_DURABILITY_SW_CRASH_SAFE;
 	}
 
 	/*
 	 * Check if operation can begin
 	 */
-	if (FDF_SUCCESS != (status = is_fdf_operation_allowed())) {
+	if (ZS_SUCCESS != (status = is_zs_operation_allowed())) {
 		plat_log_msg(160187, LOG_CAT,
 		       LOG_WARN, "Operation not allowed");
 		goto out;
 	}
 	if (is_license_valid(is_btree_loaded()) == false) {
 		plat_log_msg(160145, LOG_CAT, LOG_WARN, "License check failed.");
-		status = FDF_LICENSE_CHK_FAILED;
+		status = ZS_LICENSE_CHK_FAILED;
 		goto out;
 	}
-        if ( !fdf_thread_state || !cguid || ISEMPTY(cname)) {
-            if ( !fdf_thread_state ) {
+        if ( !zs_thread_state || !cguid || ISEMPTY(cname)) {
+            if ( !zs_thread_state ) {
                 plat_log_msg(80049,LOG_CAT,LOG_DBG,
-                             "FDF Thread state is NULL");
+                             "ZS Thread state is NULL");
             }
             if ( ISEMPTY(cname) ) {
                 plat_log_msg(80053,LOG_CAT,LOG_DBG,
                              "Invalid container name");
             }
-            return FDF_INVALID_PARAMETER;
+            return ZS_INVALID_PARAMETER;
         }
         if( properties ) {
              plat_log_msg(160199,LOG_CAT, LOG_DBG, "Compression %s for Container %s",
                                properties->compression?"enabled":"disabled",cname);
         }
 
-	thd_ctx_locked = fdf_lock_thd_ctxt(fdf_thread_state);
+	thd_ctx_locked = zs_lock_thd_ctxt(zs_thread_state);
 	if (false == thd_ctx_locked) {
 		/*
 		 * Could not get thread context lock, error out.
 		 */
-		status = FDF_THREAD_CONTEXT_BUSY;
+		status = ZS_THREAD_CONTEXT_BUSY;
 		plat_log_msg(160161, LOG_CAT,
 		       	     LOG_DBG, "Could not get thread context lock");
 		goto out;
 	}
 
-	if ( flags & FDF_CTNR_CREATE ) {
-		uint64_t vdc_size = ((uint64_t)getProperty_Int("FDF_FLASH_SIZE", FDF_MIN_FLASH_SIZE)) * 1024 * 1024 -
-                                                                       (2 * FDF_DEFAULT_CONTAINER_SIZE_KB);
+	if ( flags & ZS_CTNR_CREATE ) {
+		uint64_t vdc_size = ((uint64_t)getProperty_Int("ZS_FLASH_SIZE", ZS_MIN_FLASH_SIZE)) * 1024 * 1024 -
+                                                                       (2 * ZS_DEFAULT_CONTAINER_SIZE_KB);
 		if (!properties) {
-            status = FDF_INVALID_PARAMETER;
+            status = ZS_INVALID_PARAMETER;
             goto out;
 		}
 		if( properties->size_kb >  vdc_size) {
 			plat_log_msg(80063, LOG_CAT, LOG_DBG,
                          "Container size %lu kb greater than the flash size %lu kb",
                               properties->size_kb,vdc_size);
-			status =FDF_FAILURE_INVALID_CONTAINER_SIZE;
+			status =ZS_FAILURE_INVALID_CONTAINER_SIZE;
 			goto out;
 		}
 
-		status = fdf_create_container( fdf_thread_state,
+		status = zs_create_container( zs_thread_state,
 				cname,
 				properties,
 				flags,
 				cguid,
-				FDF_VIRTUAL_CNTR );
+				ZS_VIRTUAL_CNTR );
 	}
 
-    if ( (FDF_SUCCESS == status)) {
-		status = fdf_open_container( fdf_thread_state,
+    if ( (ZS_SUCCESS == status)) {
+		status = zs_open_container( zs_thread_state,
 				cname,
 				properties,
 				flags,
 				cguid,
-				FDF_VIRTUAL_CNTR,
-				FDF_TRUE );
+				ZS_VIRTUAL_CNTR,
+				ZS_TRUE );
 	}
 
 out:
 	if (thd_ctx_locked) {
-		fdf_unlock_thd_ctxt(fdf_thread_state);
+		zs_unlock_thd_ctxt(zs_thread_state);
 	}
 
 	return status;
 }
 
-FDF_status_t FDFOpenContainerSpecial(
-	struct FDF_thread_state	  *fdf_thread_state, 
+ZS_status_t ZSOpenContainerSpecial(
+	struct ZS_thread_state	  *zs_thread_state, 
 	char                      *cname, 
-	FDF_container_props_t     *properties, 
+	ZS_container_props_t     *properties, 
 	uint32_t                  flags,
-	FDF_container_meta_t      *cmeta,
-	FDF_cguid_t               *cguid
+	ZS_container_meta_t      *cmeta,
+	ZS_cguid_t               *cguid
 	)
 {
-	return (FDFOpenContainer(fdf_thread_state, cname, properties, flags, cguid));
+	return (ZSOpenContainer(zs_thread_state, cname, properties, flags, cguid));
 }
 
-FDF_status_t FDFOpenPhysicalContainer(
-		struct FDF_thread_state *fdf_thread_state,
+ZS_status_t ZSOpenPhysicalContainer(
+		struct ZS_thread_state *zs_thread_state,
 		char                    *cname,
-		FDF_container_props_t   *properties,
+		ZS_container_props_t   *properties,
 		uint32_t                 flags,
-		FDF_cguid_t             *cguid
+		ZS_cguid_t             *cguid
 		)
 {
-	FDF_status_t status     = FDF_SUCCESS;
+	ZS_status_t status     = ZS_SUCCESS;
 
-	if ( flags & FDF_CTNR_CREATE ) {
-		status = fdf_create_container( fdf_thread_state,
+	if ( flags & ZS_CTNR_CREATE ) {
+		status = zs_create_container( zs_thread_state,
 				cname,
 				properties,
 				flags,
 				cguid,
-				FDF_PHYSICAL_CNTR );
+				ZS_PHYSICAL_CNTR );
 	}
 
-	if ( FDF_SUCCESS == status ) {
-		status = fdf_open_container( fdf_thread_state,
+	if ( ZS_SUCCESS == status ) {
+		status = zs_open_container( zs_thread_state,
 				cname,
 				properties,
 				flags,
 				cguid,
-				FDF_PHYSICAL_CNTR,
-				FDF_TRUE );
+				ZS_PHYSICAL_CNTR,
+				ZS_TRUE );
 	}
 
 	return status;
 }
 
-static FDF_status_t fdf_create_container(
-        struct FDF_thread_state    *fdf_thread_state, 
+static ZS_status_t zs_create_container(
+        struct ZS_thread_state    *zs_thread_state, 
         char                    *cname,
-        FDF_container_props_t    *properties,
+        ZS_container_props_t    *properties,
         uint32_t                 flags,
-        FDF_cguid_t               *cguid,
-        FDF_container_mode_t     mode
+        ZS_cguid_t               *cguid,
+        ZS_container_mode_t     mode
         )
 {
 	int                               i                             = 0;
     struct SDF_shared_state          *state                         = &sdf_shared_state;
-    FDF_status_t                      status                        = FDF_FAILURE;
+    ZS_status_t                      status                        = ZS_FAILURE;
     SDF_shardid_t                     shardid                       = SDF_SHARDID_INVALID;
     SDF_container_meta_t             *meta                          = NULL;
     SDF_CONTAINER_PARENT              parent                        = containerParentNull;
@@ -2955,16 +2955,16 @@ static FDF_status_t fdf_create_container(
     uint32_t                          in_shard_count                = 0;
     uint32_t                          num_objs                      = 0;
     const char                       *writeback_enabled_string      = NULL;
-    SDF_internal_ctxt_t              *pai                           = (SDF_internal_ctxt_t *) fdf_thread_state;
+    SDF_internal_ctxt_t              *pai                           = (SDF_internal_ctxt_t *) zs_thread_state;
     SDF_container_props_t            *sdf_properties                = NULL;
 #if 0
-	FDF_internal_container_props_t    iproperties;
+	ZS_internal_container_props_t    iproperties;
 #endif
 
 
-	if ( !properties || !cguid || !fdf_thread_state ||
+	if ( !properties || !cguid || !zs_thread_state ||
 			ISEMPTY( cname ) ) {
-		return FDF_INVALID_PARAMETER;
+		return ZS_INVALID_PARAMETER;
 	}
 
 	*cguid = 0;
@@ -2972,16 +2972,16 @@ static FDF_status_t fdf_create_container(
 	properties->persistent			= SDF_TRUE;
 	//properties->evicting			= SDF_FALSE;
 	if (Force_async_writes)
-		properties->async_writes = FDF_TRUE;
+		properties->async_writes = ZS_TRUE;
 	else if (!Enable_async_writes)
-		properties->async_writes = FDF_FALSE;
+		properties->async_writes = ZS_FALSE;
 #if 0
 	iproperties.current_size		= 0;
 	iproperties.num_obj				= 0;
-	iproperties.fifo_mode			= FDF_FALSE;
+	iproperties.fifo_mode			= ZS_FALSE;
 	iproperties.cguid				= 0;
 	iproperties.num_shards 			= 1;  
-	iproperties.async_writes		= FDF_FALSE;
+	iproperties.async_writes		= ZS_FALSE;
 #endif
 
 	plat_log_msg(160033, LOG_CAT, LOG_DBG, "%s, size=%ld bytes", cname, (long)properties->size_kb * 1024);
@@ -2989,7 +2989,7 @@ static FDF_status_t fdf_create_container(
     // Unlimited size containers must be store mode             
     if ( properties->size_kb == 0 && properties->evicting ) {
         plat_log_msg( 160144, LOG_CAT, LOG_ERR, "Unlimited containers must be non-evicting." );
-        return FDF_UNLIMITED_CONTAINER_MUST_BE_NON_EVICTING;
+        return ZS_UNLIMITED_CONTAINER_MUST_BE_NON_EVICTING;
     }
 
 	if ( !properties->writethru ) {
@@ -3013,7 +3013,7 @@ static FDF_status_t fdf_create_container(
 	if ( properties->fifo_mode && ( !properties->evicting || properties->persistent ) ) {
 		plat_log_msg( 150043, LOG_CAT, LOG_ERR,
 				"FIFO mode is only allowed for evicting, non-persistent containers" );
-		return FDF_FAILURE_INVALID_CONTAINER_TYPE;
+		return ZS_FAILURE_INVALID_CONTAINER_TYPE;
 	}
 #endif /* notdef */
 
@@ -3034,31 +3034,31 @@ static FDF_status_t fdf_create_container(
 		if ( i == MCD_MAX_NUM_CNTRS ) {
 			plat_log_msg( 150033, 
 					LOG_CAT,LOG_ERR, 
-					"FDFCreateContainer failed for container %s because 128 containers have already been created.", 
+					"ZSCreateContainer failed for container %s because 128 containers have already been created.", 
 					cname );
-			status = FDF_TOO_MANY_CONTAINERS;
+			status = ZS_TOO_MANY_CONTAINERS;
 			goto out;
 		}
 
-		if ( ( status = fdf_generate_cguid( fdf_thread_state, cguid ) ) != FDF_SUCCESS ) {
+		if ( ( status = zs_generate_cguid( zs_thread_state, cguid ) ) != ZS_SUCCESS ) {
 			plat_log_msg( 150084,
 					LOG_CAT,
 					LOG_ERR,
 					"Failed to generate container id for %s", 
 					cname );
-			status = FDF_TOO_MANY_CONTAINERS;
+			status = ZS_TOO_MANY_CONTAINERS;
 			SDFEndSerializeContainerOp( pai );
 			return status;
 		}
 
-        status = fdf_cmap_create( cname, 
+        status = zs_cmap_create( cname, 
 	                              *cguid, 
 	                              properties->size_kb, 
-	                              FDF_CONTAINER_STATE_CLOSED, 
+	                              ZS_CONTAINER_STATE_CLOSED, 
 	                              properties->evicting
 	                            );
 
-	    if ( FDF_SUCCESS != status ) 
+	    if ( ZS_SUCCESS != status ) 
 			goto out;
 
 		isCMC = SDF_FALSE;
@@ -3072,9 +3072,9 @@ static FDF_status_t fdf_create_container(
 					LOG_CAT,
 					LOG_ERR,
 					"Failed to save cguid state: %s",
-					FDFStrError(status) );
+					ZSStrError(status) );
 
-			status = FDF_PUT_METADATA_FAILED;
+			status = ZS_PUT_METADATA_FAILED;
 			goto out;
 		}
 	}
@@ -3086,15 +3086,15 @@ static FDF_status_t fdf_create_container(
 #endif
 
 #if 0
-	if ( (sdf_properties = fdf_create_sdf_props( properties, &iproperties ) ) == NULL ) {
+	if ( (sdf_properties = zs_create_sdf_props( properties, &iproperties ) ) == NULL ) {
 		*cguid = SDF_NULL_CGUID;
-		status = FDF_FAILURE_MEMORY_ALLOC;
+		status = ZS_FAILURE_MEMORY_ALLOC;
 		goto out;
 	}
 #else
-	if ( (sdf_properties = fdf_create_sdf_props( properties ) ) == NULL ) {
+	if ( (sdf_properties = zs_create_sdf_props( properties ) ) == NULL ) {
 		*cguid = SDF_NULL_CGUID;
-		status = FDF_FAILURE_MEMORY_ALLOC;
+		status = ZS_FAILURE_MEMORY_ALLOC;
 		goto out;
 	}
 #endif
@@ -3195,13 +3195,13 @@ static FDF_status_t fdf_create_container(
 			local_SDF_CONTAINER_PARENT lparent = getLocalContainerParent( &lparent, parent );
 
 			if ( lparent->delete_pending == SDF_TRUE ) {
-				if ( !isCMC && (status = name_service_lock_meta( pai, cname )) != FDF_SUCCESS ) {
+				if ( !isCMC && (status = name_service_lock_meta( pai, cname )) != ZS_SUCCESS ) {
 					plat_log_msg( 21532, LOG_CAT, LOG_ERR, "failed to lock %s", cname );
 				}
 
 				lparent->delete_pending = SDF_FALSE;
 
-				if ( !isCMC && (status = name_service_unlock_meta( pai, cname )) != FDF_SUCCESS ) {
+				if ( !isCMC && (status = name_service_unlock_meta( pai, cname )) != ZS_SUCCESS ) {
 					plat_log_msg( 21533, LOG_CAT, LOG_ERR, "failed to unlock %s", cname );
 				}
 
@@ -3210,10 +3210,10 @@ static FDF_status_t fdf_create_container(
 			releaseLocalContainerParent( &lparent ); // TODO C++ please!
 		}
 #endif
-		status = FDF_CONTAINER_EXISTS;
+		status = ZS_CONTAINER_EXISTS;
 	} else {
 
-		if ( mode == FDF_PHYSICAL_CNTR ) {
+		if ( mode == ZS_PHYSICAL_CNTR ) {
 
 			if ( ( shardid = build_shard( state, pai, cname, num_objs,
 							in_shard_count, *sdf_properties, *cguid,
@@ -3240,7 +3240,7 @@ static FDF_status_t fdf_create_container(
 						plat_log_msg( 21534, LOG_CAT, LOG_ERR,
 								"failed to map cguid: %s", cname );
 					}
-					if ( !isCMC && (status = name_service_lock_meta( pai, cname )) != FDF_SUCCESS ) {
+					if ( !isCMC && (status = name_service_lock_meta( pai, cname )) != ZS_SUCCESS ) {
 						plat_log_msg(21532, LOG_CAT, LOG_ERR, "failed to lock %s", cname);
 					} else if ( !isContainerParentNull(parent = createParentContainer( pai, cname, meta )) ) {
 						lparent = getLocalContainerParent( &lparent, parent ); // TODO C++ please!
@@ -3252,9 +3252,9 @@ static FDF_status_t fdf_create_container(
 #endif
 						releaseLocalContainerParent(&lparent); // TODO C++ please!
 
-						status = FDF_SUCCESS;
+						status = ZS_SUCCESS;
 
-						if ( !isCMC && (status = name_service_unlock_meta( pai, cname )) != FDF_SUCCESS ) {
+						if ( !isCMC && (status = name_service_unlock_meta( pai, cname )) != ZS_SUCCESS ) {
 							plat_log_msg( 21533, LOG_CAT, LOG_ERR, "failed to unlock %s", cname );
 						}
 					} else {
@@ -3271,13 +3271,13 @@ static FDF_status_t fdf_create_container(
 			}
 		} else {
 			plat_log_msg( 21535, LOG_CAT, LOG_ERR, "cname=%s, build_shard failed", cname );
-			status = FDF_OUT_OF_STORAGE_SPACE;
+			status = ZS_OUT_OF_STORAGE_SPACE;
 		}
 	}
 
-	plat_log_msg( 21511, LOG_CAT, LOG_TRACE, "%s - %s", cname, FDFStrError(status) );
+	plat_log_msg( 21511, LOG_CAT, LOG_TRACE, "%s - %s", cname, ZSStrError(status) );
 
-	if ( status != FDF_SUCCESS && status != FDF_CONTAINER_EXISTS ) {
+	if ( status != ZS_SUCCESS && status != ZS_CONTAINER_EXISTS ) {
 		plat_log_msg( 21538, LOG_CAT, LOG_ERR, "cname=%s, function returned status = %u", cname, status );
 		name_service_remove_meta( pai, cname );
 #if 0
@@ -3292,16 +3292,16 @@ static FDF_status_t fdf_create_container(
 	}
 #ifdef SIMPLE_REPLICATION
 	/*
-	   else if ( status == FDF_SUCCESS ) {
+	   else if ( status == ZS_SUCCESS ) {
 	   SDFRepDataStructAddContainer( pai, sdf_properties, *cguid );
 	   }
 	 */
 #endif
 
-	if ( FDF_SUCCESS == status && CMC_CGUID != *cguid ) {
+	if ( ZS_SUCCESS == status && CMC_CGUID != *cguid ) {
 		for ( i = 0; i < MCD_MAX_NUM_CNTRS; i++ ) {
 #ifdef SDFAPIONLY
-	        if ( Mcd_containers[i].cguid == FDF_NULL_CGUID ) {
+	        if ( Mcd_containers[i].cguid == ZS_NULL_CGUID ) {
 				Mcd_containers[i].cguid = *cguid;
 				strcpy( Mcd_containers[i].cname, cname );
 #endif /* SDfAPIONLY */
@@ -3316,49 +3316,49 @@ out:
 
 	SDFEndSerializeContainerOp( pai );
 
-	plat_log_msg(160034, LOG_CAT, LOG_DBG, "%s(cguid=%lu) - %s", cname, *cguid, FDFStrError(status));
+	plat_log_msg(160034, LOG_CAT, LOG_DBG, "%s(cguid=%lu) - %s", cname, *cguid, ZSStrError(status));
 
 	return status;
 }
 
-static FDF_status_t fdf_open_container(
-		struct FDF_thread_state	*fdf_thread_state, 
+static ZS_status_t zs_open_container(
+		struct ZS_thread_state	*zs_thread_state, 
 		char					*cname,
-		FDF_container_props_t	*props,
+		ZS_container_props_t	*props,
 		uint32_t				 flags,
-		FDF_cguid_t 	 	 	*cguid,
-		FDF_container_mode_t	 mode,
-		FDF_boolean_t			 serialize
+		ZS_cguid_t 	 	 	*cguid,
+		ZS_container_mode_t	 mode,
+		ZS_boolean_t			 serialize
 		) 
 {               
-	FDF_status_t 				 status 	= FDF_SUCCESS;
+	ZS_status_t 				 status 	= ZS_SUCCESS;
 	local_SDF_CONTAINER 		 lc 		= NULL;
 	SDF_CONTAINER_PARENT 		 parent;
 	local_SDF_CONTAINER_PARENT 	 lparent 	= NULL;
 	int 						 log_level 	= LOG_ERR;
 	int  						 i_ctnr 	= -1, i;
 	SDF_CONTAINER 				 container 	= containerNull;
-	SDF_internal_ctxt_t     	*pai 		= (SDF_internal_ctxt_t *) fdf_thread_state;
+	SDF_internal_ctxt_t     	*pai 		= (SDF_internal_ctxt_t *) zs_thread_state;
 #ifdef SDFAPIONLY
 	mcd_osd_shard_t 			*mcd_shard	= NULL;
 	struct shard				*shard		= NULL;
 #endif /* SDFAPIONLY */
 	SDF_container_meta_t		 meta;
 	cntr_map_t                  *cmap       = NULL;
-	FDF_cguid_t					tcguid = -1;
+	ZS_cguid_t					tcguid = -1;
 
 	if ( serialize )
 		SDFStartSerializeContainerOp( pai );
 
 
 	if ( !cguid ) {
-		status = FDF_INVALID_PARAMETER;
+		status = ZS_INVALID_PARAMETER;
 		goto out;
 	}
 
     if ( ISEMPTY( cname ) ) { 
-        status = FDF_INVALID_PARAMETER;
-		*cguid = FDF_NULL_CGUID;
+        status = ZS_INVALID_PARAMETER;
+		*cguid = ZS_NULL_CGUID;
 		goto out;
 	}
 
@@ -3368,9 +3368,9 @@ static FDF_status_t fdf_open_container(
     }
 
     if ( strcmp( cname, CMC_PATH ) != 0 ) {
-	    if ( NULL == ( cmap = fdf_cmap_get_by_cname( cname ) ) ) {
-	        status = FDF_INVALID_PARAMETER;
-	        *cguid = FDF_NULL_CGUID;
+	    if ( NULL == ( cmap = zs_cmap_get_by_cname( cname ) ) ) {
+	        status = ZS_INVALID_PARAMETER;
+	        *cguid = ZS_NULL_CGUID;
 	        goto out;
 	    }
 	    *cguid = tcguid = cmap->cguid;
@@ -3387,8 +3387,8 @@ static FDF_status_t fdf_open_container(
     }
 
     if ( strcmp( cname, CMC_PATH ) != 0 ) {
-        if ( FDF_CONTAINER_STATE_OPEN == cmap->state || FDF_CONTAINER_STATE_DELETE_OPEN == cmap->state) {
-            plat_log_msg( 160032, LOG_CAT, LOG_DBG, "Already opened or error: %s - %s", cname, FDFStrError(status) );
+        if ( ZS_CONTAINER_STATE_OPEN == cmap->state || ZS_CONTAINER_STATE_DELETE_OPEN == cmap->state) {
+            plat_log_msg( 160032, LOG_CAT, LOG_DBG, "Already opened or error: %s - %s", cname, ZSStrError(status) );
 		    goto out;
         }
 	}
@@ -3405,34 +3405,34 @@ static FDF_status_t fdf_open_container(
         releaseLocalContainerParent( &lparent );
     }
 
-    if ( status == FDF_SUCCESS ) {
+    if ( status == ZS_SUCCESS ) {
 
         // Ok to open
         container = openParentContainer( pai, cname );
 
         if ( isContainerNull( container ) ) {
-	    	fprintf( stderr, "FDFOpenContainer: failed to open parent container for %s\n", cname );
+	    	fprintf( stderr, "ZSOpenContainer: failed to open parent container for %s\n", cname );
 		}
 
         if ( CMC_CGUID == *cguid ) {
             theCMC->c = internal_serverToClientContainer( container );
         } else {
             cmap->sdf_container = container;
-        	if ( FDF_CONTAINER_STATE_DELETE_PROG == cmap->state ) {
-            	if ( FDF_SUCCESS != ( status = fdf_ctnr_set_state( cmap, FDF_CONTAINER_STATE_DELETE_OPEN ) ) ) 
+        	if ( ZS_CONTAINER_STATE_DELETE_PROG == cmap->state ) {
+            	if ( ZS_SUCCESS != ( status = zs_ctnr_set_state( cmap, ZS_CONTAINER_STATE_DELETE_OPEN ) ) ) 
 					goto out;
         	} else {
-            	if ( FDF_SUCCESS != ( status = fdf_ctnr_set_state( cmap, FDF_CONTAINER_STATE_OPEN ) ) )
+            	if ( ZS_SUCCESS != ( status = zs_ctnr_set_state( cmap, ZS_CONTAINER_STATE_OPEN ) ) )
 					goto out;
         	}
 
-			if (flags & FDF_CTNR_RO_MODE) {
-				//fdf_cntr_set_readonly(cmap);
-				fdf_cntr_set_readwrite(cmap);
-			} else if (flags & FDF_CTNR_RW_MODE) {
-				fdf_cntr_set_readwrite(cmap);
+			if (flags & ZS_CTNR_RO_MODE) {
+				//zs_cntr_set_readonly(cmap);
+				zs_cntr_set_readwrite(cmap);
+			} else if (flags & ZS_CTNR_RW_MODE) {
+				zs_cntr_set_readwrite(cmap);
 			} else { /*default */
-				fdf_cntr_set_readwrite(cmap);
+				zs_cntr_set_readwrite(cmap);
 			}
 
 		}
@@ -3442,7 +3442,7 @@ static FDF_status_t fdf_open_container(
             lc->mode = SDF_READ_WRITE_MODE; // (container)->mode = mode;
             _sdf_print_container_descriptor( container );
             log_level = LOG_DBG;
-			if ( mode == FDF_PHYSICAL_CNTR ) {
+			if ( mode == ZS_PHYSICAL_CNTR ) {
             	// FIXME: This is where the call to shardOpen goes.
             	#define MAX_SHARDIDS 32 // Not sure what max is today
             	SDF_shardid_t shardids[MAX_SHARDIDS];
@@ -3463,12 +3463,12 @@ static FDF_status_t fdf_open_container(
 			}
 
             status = SDFActionOpenContainer( pai, lc->cguid );
-            if ( status != FDF_SUCCESS ) {
+            if ( status != ZS_SUCCESS ) {
                 plat_log_msg( 21554, LOG_CAT,LOG_ERR, "SDFActionOpenContainer failed for container %s", cname );
             }
 
 #ifdef SDFAPIONLY
-            if ( mode == FDF_PHYSICAL_CNTR && CMC_CGUID != *cguid ) {
+            if ( mode == ZS_PHYSICAL_CNTR && CMC_CGUID != *cguid ) {
                 shard = container_to_shard( pai, lc );
                 if ( NULL != shard ) {
                     mcd_shard = (mcd_osd_shard_t *)shard;
@@ -3492,16 +3492,16 @@ static FDF_status_t fdf_open_container(
     }
 
     if ( cname ) {
-        if ( status != FDF_SUCCESS ) {
-            if( FDF_INVALID_PARAMETER == status ) {
+        if ( status != ZS_SUCCESS ) {
+            if( ZS_INVALID_PARAMETER == status ) {
                 plat_log_msg(80034,LOG_CAT,LOG_DIAG,"Container %s does not exist",cname);
             }
             else {
-		        plat_log_msg( 21511, LOG_CAT, LOG_DIAG, "%s - %s", cname, FDFStrError(status) );
+		        plat_log_msg( 21511, LOG_CAT, LOG_DIAG, "%s - %s", cname, ZSStrError(status) );
             }
         }
     } else {
-		plat_log_msg( 150024, LOG_CAT, log_level, "NULL - %s", FDFStrError(status) );
+		plat_log_msg( 150024, LOG_CAT, log_level, "NULL - %s", ZSStrError(status) );
     }
 
  out:
@@ -3511,87 +3511,87 @@ static FDF_status_t fdf_open_container(
     return status;
 }
 
-FDF_status_t FDFCloseContainer(
-	struct FDF_thread_state	*fdf_thread_state,
-	FDF_cguid_t  		     cguid
+ZS_status_t ZSCloseContainer(
+	struct ZS_thread_state	*zs_thread_state,
+	ZS_cguid_t  		     cguid
 	)
 {
-    //plat_assert(fdf_thread_state);
+    //plat_assert(zs_thread_state);
 
-	FDF_status_t status = FDF_SUCCESS;
+	ZS_status_t status = ZS_SUCCESS;
 	bool thd_ctx_locked = false;
 
-	status = fdf_validate_container(cguid);
-	if (FDF_SUCCESS != status) {
+	status = zs_validate_container(cguid);
+	if (ZS_SUCCESS != status) {
 		plat_log_msg(160125, LOG_CAT,
 				LOG_ERR, "Failed due to an illegal container ID:%s",
-				FDF_Status_Strings[status]);
+				ZS_Status_Strings[status]);
 		goto out;
 	}
 
 	/*
 	 * Check if operation can begin
 	 */
-	if (FDF_SUCCESS != (status = is_fdf_operation_allowed())) {
+	if (ZS_SUCCESS != (status = is_zs_operation_allowed())) {
 		plat_log_msg(160108, LOG_CAT,
-				LOG_ERR, "is_fdf_operation_allowed:%s",
-				FDF_Status_Strings[status]);
+				LOG_ERR, "is_zs_operation_allowed:%s",
+				ZS_Status_Strings[status]);
 
 		goto out;
 	}
-        if ( !fdf_thread_state || !cguid ) {
-            if ( !fdf_thread_state ) {
+        if ( !zs_thread_state || !cguid ) {
+            if ( !zs_thread_state ) {
                 plat_log_msg(80049,LOG_CAT,LOG_DBG,
-                             "FDF Thread state is NULL");
+                             "ZS Thread state is NULL");
             }
             if ( !cguid ) {
                 plat_log_msg(80050,LOG_CAT,LOG_DBG,
                              "Invalid container cguid:%lu",cguid);
             }
-            return FDF_INVALID_PARAMETER;
+            return ZS_INVALID_PARAMETER;
         }
 
-	thd_ctx_locked = fdf_lock_thd_ctxt(fdf_thread_state);
+	thd_ctx_locked = zs_lock_thd_ctxt(zs_thread_state);
 	if (false == thd_ctx_locked) {
 		/*
 		 * Could not get thread context lock, error out.
 		 */
-		status = FDF_THREAD_CONTEXT_BUSY;
+		status = ZS_THREAD_CONTEXT_BUSY;
 		plat_log_msg(160161, LOG_CAT,
 		       	     LOG_DBG, "Could not get thread context lock");
 		goto out;
 	}
 
-        status = fdf_flush_container(fdf_thread_state,cguid);
-        if( status != FDF_SUCCESS ) {
+        status = zs_flush_container(zs_thread_state,cguid);
+        if( status != ZS_SUCCESS ) {
             plat_log_msg(150109,LOG_CAT,LOG_ERR,
-                     "Failed to flush before closing the container %lu - %s",cguid, FDFStrError(status));
+                     "Failed to flush before closing the container %lu - %s",cguid, ZSStrError(status));
         }
 
-	status = fdf_close_container(fdf_thread_state,
+	status = zs_close_container(zs_thread_state,
 					cguid,
-					FDF_VIRTUAL_CNTR,
-					FDF_TRUE,
-					FDF_TRUE);
+					ZS_VIRTUAL_CNTR,
+					ZS_TRUE,
+					ZS_TRUE);
 
 
 out:
 	if (thd_ctx_locked) {
-		fdf_unlock_thd_ctxt(fdf_thread_state);
+		zs_unlock_thd_ctxt(zs_thread_state);
 	}
 	return status;
 }
 
-FDF_status_t FDFClosePhysicalContainer(
-	struct FDF_thread_state	*fdf_thread_state,
-	FDF_cguid_t  		     cguid
+ZS_status_t ZSClosePhysicalContainer(
+	struct ZS_thread_state	*zs_thread_state,
+	ZS_cguid_t  		     cguid
 	)
 {
-	return fdf_close_container( fdf_thread_state,
+	return zs_close_container( zs_thread_state,
 								cguid,
-								FDF_PHYSICAL_CNTR,
-								FDF_TRUE,
-                                FDF_TRUE
+								ZS_PHYSICAL_CNTR,
+								ZS_TRUE,
+                                ZS_TRUE
 							  );
 }
 
@@ -3599,16 +3599,16 @@ FDF_status_t FDFClosePhysicalContainer(
  * This function must be called within SDFStartSerializeContainerOp
  */
 static bool 
-is_container_being_deleted(FDF_cguid_t cguid)
+is_container_being_deleted(ZS_cguid_t cguid)
 {
 	cntr_map_t *cmap = NULL;
-	bool ret = FDF_TRUE;
+	bool ret = ZS_TRUE;
 
 	/*
 	 * Check if the cguid is present in cmap. If not,
 	 * the container for given cguid has been deleted.
 	 */
-	cmap = fdf_cmap_get_by_cguid(cguid);
+	cmap = zs_cmap_get_by_cguid(cguid);
 
 	if ( !cmap ) {
 		plat_log_msg(160138, LOG_CAT, LOG_DIAG,
@@ -3619,9 +3619,9 @@ is_container_being_deleted(FDF_cguid_t cguid)
 	/*
 	 * Check if container is being deleted, if so return error
 	 */
-	if ( FDF_CONTAINER_STATE_DELETE_PROG == cmap->state ||
-		 FDF_CONTAINER_STATE_DELETE_OPEN == cmap->state ||
-		 FDF_CONTAINER_STATE_DELETE_CLOSED == cmap->state ) {
+	if ( ZS_CONTAINER_STATE_DELETE_PROG == cmap->state ||
+		 ZS_CONTAINER_STATE_DELETE_OPEN == cmap->state ||
+		 ZS_CONTAINER_STATE_DELETE_CLOSED == cmap->state ) {
 		plat_log_msg(160139, LOG_CAT, LOG_DIAG,
 				"Container %lu deletion is in progress", cguid);
 
@@ -3631,52 +3631,52 @@ is_container_being_deleted(FDF_cguid_t cguid)
 	/*
 	 * Container is valid
 	 */
-    ret = FDF_FALSE;
+    ret = ZS_FALSE;
 
 	return ret;
 }
 
-static FDF_status_t fdf_close_container(
-	struct FDF_thread_state	*fdf_thread_state,
-	FDF_cguid_t  		     cguid,
-	FDF_container_mode_t	 mode,
-	FDF_boolean_t			 serialize,
-	FDF_boolean_t			 delete_check
+static ZS_status_t zs_close_container(
+	struct ZS_thread_state	*zs_thread_state,
+	ZS_cguid_t  		     cguid,
+	ZS_container_mode_t	 mode,
+	ZS_boolean_t			 serialize,
+	ZS_boolean_t			 delete_check
 	)
 {
 #ifdef SDFAPIONLY
     struct shard			*shard			= NULL;
     flashDev_t              *flash_dev;
     SDF_container_meta_t     meta;
-    FDF_status_t			 tmp_status;
+    ZS_status_t			 tmp_status;
     struct SDF_shared_state *state			= &sdf_shared_state;
 #endif
-    FDF_status_t			 status			= SDF_FAILURE;
+    ZS_status_t			 status			= SDF_FAILURE;
     SDF_CONTAINER			 container		= containerNull;
-    SDF_internal_ctxt_t     *pai			= (SDF_internal_ctxt_t *) fdf_thread_state;
+    SDF_internal_ctxt_t     *pai			= (SDF_internal_ctxt_t *) zs_thread_state;
     int						 ok_to_delete	= 0;
 
     plat_log_msg( 21630, LOG_CAT, LOG_DBG, "%lu", cguid);
 
-	status = fdf_validate_container(cguid);
-	if (FDF_SUCCESS != status) {
+	status = zs_validate_container(cguid);
+	if (ZS_SUCCESS != status) {
 		plat_log_msg(160125, LOG_CAT,
 				LOG_ERR, "Failed due to an illegal container ID:%s",
-				FDF_Status_Strings[status]);
+				ZS_Status_Strings[status]);
 		return status;
 	}
 	if ( !cguid )
-		return FDF_INVALID_PARAMETER;
+		return ZS_INVALID_PARAMETER;
 
 	if ( serialize )
 	    SDFStartSerializeContainerOp(pai);
 
-	cntr_map_t *cmap = fdf_cmap_get_by_cguid( cguid );
+	cntr_map_t *cmap = zs_cmap_get_by_cguid( cguid );
 
 	if ( !cmap ) { 
 	    if ( serialize )
 	        SDFEndSerializeContainerOp(pai);
-	    return FDF_FAILURE_CONTAINER_NOT_FOUND;
+	    return ZS_FAILURE_CONTAINER_NOT_FOUND;
 	}
 	    
 	container = cmap->sdf_container;
@@ -3684,12 +3684,12 @@ static FDF_status_t fdf_close_container(
 	/*
 	 * Check if container is/being deleted, if so return error
 	 */
-	if (delete_check && (FDF_TRUE == is_container_being_deleted(cguid))) {
+	if (delete_check && (ZS_TRUE == is_container_being_deleted(cguid))) {
 
-		status = FDF_FAILURE_CONTAINER_NOT_FOUND;
+		status = ZS_FAILURE_CONTAINER_NOT_FOUND;
 
 		plat_log_msg(160140, LOG_CAT, LOG_DIAG,
-				"Container %lu does not exist:%s", cguid, FDF_Status_Strings[status]);
+				"Container %lu does not exist:%s", cguid, ZS_Status_Strings[status]);
 
 		if ( serialize ) {
 			SDFEndSerializeContainerOp(pai);
@@ -3697,22 +3697,22 @@ static FDF_status_t fdf_close_container(
 		return status;
 	}
 
-    if ( ( FDF_CONTAINER_STATE_OPEN != cmap->state && 
-		   FDF_CONTAINER_STATE_DELETE_OPEN != cmap->state ) || 	
+    if ( ( ZS_CONTAINER_STATE_OPEN != cmap->state && 
+		   ZS_CONTAINER_STATE_DELETE_OPEN != cmap->state ) || 	
 		 isContainerNull(container) ) {
-        status = FDF_FAILURE_CONTAINER_NOT_OPEN;
+        status = ZS_FAILURE_CONTAINER_NOT_OPEN;
     } else {
 
-    	if ( FDF_CONTAINER_STATE_DELETE_OPEN == cmap->state ) {
-   			if ( FDF_SUCCESS != ( status = fdf_ctnr_set_state( cmap, FDF_CONTAINER_STATE_DELETE_CLOSED ) ) )
+    	if ( ZS_CONTAINER_STATE_DELETE_OPEN == cmap->state ) {
+   			if ( ZS_SUCCESS != ( status = zs_ctnr_set_state( cmap, ZS_CONTAINER_STATE_DELETE_CLOSED ) ) )
 				goto out;
 		} else {
-   			if ( FDF_SUCCESS != ( status = fdf_ctnr_set_state( cmap, FDF_CONTAINER_STATE_CLOSED ) ) )
+   			if ( ZS_SUCCESS != ( status = zs_ctnr_set_state( cmap, ZS_CONTAINER_STATE_CLOSED ) ) )
 				goto out;
 		}
 
      	// Allow any outstanding IO to drain
-    	fdf_cntr_drain_io( cmap->io_count );
+    	zs_cntr_drain_io( cmap->io_count );
 
         // Delete the container if there are no outstanding opens and a delete is pending
         local_SDF_CONTAINER lcontainer = getLocalContainer(&lcontainer, container);
@@ -3731,12 +3731,12 @@ static FDF_status_t fdf_close_container(
         releaseLocalContainerParent(&lparent);
 
         if (closeParentContainer(container)) {
-            status = FDF_SUCCESS;
+            status = ZS_SUCCESS;
         }
 
 #ifdef SDFAPIONLY
-    	if ( mode == FDF_PHYSICAL_CNTR && 
-			(status = name_service_get_meta(pai, cguid, &meta)) == FDF_SUCCESS) {
+    	if ( mode == ZS_PHYSICAL_CNTR && 
+			(status = name_service_get_meta(pai, cguid, &meta)) == ZS_SUCCESS) {
 
 			#ifdef MULTIPLE_FLASH_DEV_ENABLED
 				flash_dev = get_flashdev_from_shardid(state->config.flash_dev,
@@ -3751,7 +3751,7 @@ static FDF_status_t fdf_close_container(
 		}
 
 	    // Invalidate all of the container's cached objects
-	    if ((status = name_service_flush_inval_object_container(pai, path)) != FDF_SUCCESS) {
+	    if ((status = name_service_flush_inval_object_container(pai, path)) != ZS_SUCCESS) {
 			plat_log_msg(21540, LOG_CAT, LOG_ERR,
 			     "%s - failed to flush and invalidate container", path);
 	    } else {
@@ -3759,9 +3759,9 @@ static FDF_status_t fdf_close_container(
 			     "%s - flush and invalidate container succeed", path);
 	    }
 
-		if ((tmp_status = name_service_get_meta_from_cname(pai, path, &meta)) == FDF_SUCCESS) {
+		if ((tmp_status = name_service_get_meta_from_cname(pai, path, &meta)) == ZS_SUCCESS) {
 		    tmp_status = SDFActionDeleteContainer(pai, &meta);
-		    if (tmp_status != FDF_SUCCESS) {
+		    if (tmp_status != ZS_SUCCESS) {
 				// xxxzzz container will be left in a weird state!
 				plat_log_msg(21542, LOG_CAT, LOG_ERR,
 					"%s - failed to delete action thread container state", path);
@@ -3771,19 +3771,19 @@ static FDF_status_t fdf_close_container(
 		    }
 		}
 
-    	if ( mode == FDF_PHYSICAL_CNTR && shard )
+    	if ( mode == ZS_PHYSICAL_CNTR && shard )
 			shardClose(shard);
 #endif
 
-        if ( status == FDF_SUCCESS ) {
+        if ( status == ZS_SUCCESS ) {
     		cmap->sdf_container = containerNull;
 
 			if (ok_to_delete) {
 				// Is this path used???
 			    plat_log_msg(160031, LOG_CAT, LOG_DBG, "Delete request pending. Deleting... cguid=%lu", cguid);
 
-		    	status = delete_container_internal_low(pai, path, SDF_FALSE, mode == FDF_PHYSICAL_CNTR ? SDF_TRUE:SDF_FALSE, NULL);
-	            fdf_cmap_delete( cguid, path );
+		    	status = delete_container_internal_low(pai, path, SDF_FALSE, mode == ZS_PHYSICAL_CNTR ? SDF_TRUE:SDF_FALSE, NULL);
+	            zs_cmap_delete( cguid, path );
 			}
         }
     }
@@ -3792,10 +3792,10 @@ out:
 	/*
 	 * We would not want to see this log emitted if shutdown is in progress.
 	 * Closing a closed container throws error that container was not open.
-	 * We collect the error in FDFShutdown() and emit appropriate log.
+	 * We collect the error in ZSShutdown() and emit appropriate log.
 	 */
 	if (!agent_state.op_access.is_shutdown_in_progress) {
-		plat_log_msg(150021, LOG_CAT, LOG_DIAG, "%lu - %s", cguid, FDF_Status_Strings[status]);
+		plat_log_msg(150021, LOG_CAT, LOG_DIAG, "%lu - %s", cguid, ZS_Status_Strings[status]);
 	}
 
 	if ( serialize )
@@ -3805,176 +3805,176 @@ out:
 }
 
 
-static FDF_status_t
-fdf_delete_container(
-    struct FDF_thread_state *fdf_thread_state,
-    FDF_cguid_t              cguid,
-	FDF_container_mode_t	 mode
+static ZS_status_t
+zs_delete_container(
+    struct ZS_thread_state *zs_thread_state,
+    ZS_cguid_t              cguid,
+	ZS_container_mode_t	 mode
     )
 {
     if ( getProperty_Int("ASYNC_DELETE_CONTAINERS",0) == 1 ) {
-        return fdf_delete_container_async_start(fdf_thread_state,cguid,
-                                                        FDF_VIRTUAL_CNTR);
+        return zs_delete_container_async_start(zs_thread_state,cguid,
+                                                        ZS_VIRTUAL_CNTR);
     }
     else {
-	    return fdf_delete_container_1(fdf_thread_state, cguid, FDF_VIRTUAL_CNTR);
+	    return zs_delete_container_1(zs_thread_state, cguid, ZS_VIRTUAL_CNTR);
     }
 }
 
 
-FDF_status_t FDFDeleteContainer(
-    struct FDF_thread_state *fdf_thread_state,
-    FDF_cguid_t              cguid
+ZS_status_t ZSDeleteContainer(
+    struct ZS_thread_state *zs_thread_state,
+    ZS_cguid_t              cguid
     )
 {
 
-	FDF_status_t status = FDF_SUCCESS;
+	ZS_status_t status = ZS_SUCCESS;
 	bool thd_ctx_locked = false;
 
 	plat_log_msg(21630, LOG_CAT, LOG_DBG, "%lu", cguid);
-	status = fdf_validate_container(cguid);
-	if (FDF_SUCCESS != status) {
+	status = zs_validate_container(cguid);
+	if (ZS_SUCCESS != status) {
 		plat_log_msg(160125, LOG_CAT,
 				LOG_ERR, "Failed due to an illegal container ID:%s",
-				FDF_Status_Strings[status]);
+				ZS_Status_Strings[status]);
 		goto out;
 	}
 
 	/*
 	 * Check if operation can begin
 	 */
-	if (FDF_SUCCESS != (status = is_fdf_operation_allowed())) {
+	if (ZS_SUCCESS != (status = is_zs_operation_allowed())) {
 	       plat_log_msg(160188, LOG_CAT,
                LOG_DBG, "Operation not allowed ");
 		goto out;
 	}
 	if (is_license_valid(is_btree_loaded()) == false) {
 		plat_log_msg(160145, LOG_CAT, LOG_WARN, "License check failed.");
-		status = FDF_LICENSE_CHK_FAILED;
+		status = ZS_LICENSE_CHK_FAILED;
 		goto out;
 	}
-        if ( !fdf_thread_state || !cguid ) {
-            if ( !fdf_thread_state ) {
+        if ( !zs_thread_state || !cguid ) {
+            if ( !zs_thread_state ) {
                 plat_log_msg(80049,LOG_CAT,LOG_DBG,
-                             "FDF Thread state is NULL");
+                             "ZS Thread state is NULL");
             }
             if ( !cguid ) {
                 plat_log_msg(80050,LOG_CAT,LOG_DBG,
                              "Invalid container cguid:%lu",cguid);
             }
-            return FDF_INVALID_PARAMETER;
+            return ZS_INVALID_PARAMETER;
         }
 
 
-	thd_ctx_locked = fdf_lock_thd_ctxt(fdf_thread_state);
+	thd_ctx_locked = zs_lock_thd_ctxt(zs_thread_state);
 	if (false == thd_ctx_locked) {
 		/*
 		 * Could not get thread context lock, error out.
 		 */
-		status = FDF_THREAD_CONTEXT_BUSY;
+		status = ZS_THREAD_CONTEXT_BUSY;
 		plat_log_msg(160161, LOG_CAT,
 		       	     LOG_DBG, "Could not get thread context lock");
 		goto out;
 	}
 
-	status = fdf_delete_container(fdf_thread_state, cguid, FDF_VIRTUAL_CNTR);
+	status = zs_delete_container(zs_thread_state, cguid, ZS_VIRTUAL_CNTR);
 
 out:
 	if (thd_ctx_locked) {
-		fdf_unlock_thd_ctxt(fdf_thread_state);
+		zs_unlock_thd_ctxt(zs_thread_state);
 	}
-	plat_log_msg(150021, LOG_CAT, LOG_DBG, "%lu - %s", cguid, FDFStrError(status));
+	plat_log_msg(150021, LOG_CAT, LOG_DBG, "%lu - %s", cguid, ZSStrError(status));
 
 	return status;
 }
 
-FDF_status_t FDFDeletePhysicalContainer(
-	struct FDF_thread_state	*fdf_thread_state,
-	FDF_cguid_t		 		 cguid
+ZS_status_t ZSDeletePhysicalContainer(
+	struct ZS_thread_state	*zs_thread_state,
+	ZS_cguid_t		 		 cguid
 	)
 {
-	return fdf_delete_container( fdf_thread_state,
+	return zs_delete_container( zs_thread_state,
 								 cguid,
-								 FDF_PHYSICAL_CNTR
+								 ZS_PHYSICAL_CNTR
 							   );
 }
 
-FDF_status_t fdf_delete_container_async_end(
-                                struct FDF_thread_state *fdf_thread_state,
-                                                         FDF_cguid_t cguid){
-    FDF_status_t status;
+ZS_status_t zs_delete_container_async_end(
+                                struct ZS_thread_state *zs_thread_state,
+                                                         ZS_cguid_t cguid){
+    ZS_status_t status;
     int ok_to_delete;
-    FDF_cguid_t mycguid;
+    ZS_cguid_t mycguid;
     SDF_container_meta_t meta;
     SDF_internal_ctxt_t *pai;
-    FDF_container_mode_t mode;
+    ZS_container_mode_t mode;
 	cntr_map_t *cmap = NULL;
     int j = 0;
 
-    pai = (SDF_internal_ctxt_t *) fdf_thread_state;
+    pai = (SDF_internal_ctxt_t *) zs_thread_state;
     /* Serializing container operation not required here. Because 
        it is protected by flag delete under progress */
-    cmap = fdf_cmap_get_by_cguid( cguid );  
+    cmap = zs_cmap_get_by_cguid( cguid );  
     if ( !cmap ) {
         plat_log_msg( 160074, LOG_CAT, LOG_DBG,
                         "Container does not exist. Delete can not proceed" );
-        return FDF_FAILURE;
+        return ZS_FAILURE;
     }      
 
-    mode = FDF_VIRTUAL_CNTR;
+    mode = ZS_VIRTUAL_CNTR;
     if( cguid <= 2 ) { 
-        mode = FDF_PHYSICAL_CNTR;
+        mode = ZS_PHYSICAL_CNTR;
     }
     //sleep(15);
 
     /* Open container and delete */
-    status = fdf_open_container( fdf_thread_state,cmap->cname,
-                                  NULL,0,&mycguid,mode,FDF_TRUE);
-    if( status != FDF_SUCCESS ) {
+    status = zs_open_container( zs_thread_state,cmap->cname,
+                                  NULL,0,&mycguid,mode,ZS_TRUE);
+    if( status != ZS_SUCCESS ) {
         plat_log_msg(160209, LOG_CAT,LOG_ERR,
-                    "Unable to open container %lu for deleting err=%s",cguid, FDFStrError(status));
-        return FDF_FAILURE;
+                    "Unable to open container %lu for deleting err=%s",cguid, ZSStrError(status));
+        return ZS_FAILURE;
     }
-    status = fdf_delete_objects( fdf_thread_state, cguid );
-    if( status != FDF_SUCCESS ) {
+    status = zs_delete_objects( zs_thread_state, cguid );
+    if( status != ZS_SUCCESS ) {
         plat_log_msg(160076,LOG_CAT,LOG_ERR,
                     "Deleting all objects in container %lu failed",cguid);
-        return FDF_FAILURE;
+        return ZS_FAILURE;
     }
-    status = fdf_close_container(fdf_thread_state,cguid,mode,
-                                                       FDF_TRUE,FDF_FALSE);
-    if( status != FDF_SUCCESS ) {
+    status = zs_close_container(zs_thread_state,cguid,mode,
+                                                       ZS_TRUE,ZS_FALSE);
+    if( status != ZS_SUCCESS ) {
         plat_log_msg(160077,LOG_CAT,LOG_WARN,
                  "Closing container %lu after deleting objects failed",cguid);
-        return FDF_FAILURE;
+        return ZS_FAILURE;
     }
 
     /* All objects got deleted. Just cleanup metaadata */
     SDFStartSerializeContainerOp(pai);
 	status = delete_container_internal_low( pai, cmap->cname, 
-				SDF_FALSE,  (mode == FDF_PHYSICAL_CNTR ? SDF_TRUE:SDF_FALSE), 
+				SDF_FALSE,  (mode == ZS_PHYSICAL_CNTR ? SDF_TRUE:SDF_FALSE), 
 													&ok_to_delete );
-	if ( FDF_SUCCESS == status && ok_to_delete) {
-	    fdf_cmap_delete( cguid, cmap->cname );
+	if ( ZS_SUCCESS == status && ok_to_delete) {
+	    zs_cmap_delete( cguid, cmap->cname );
 		cmap = NULL;
-		if ( FDF_VIRTUAL_CNTR == mode ) {
-            fdf_flush_container( fdf_thread_state, VMC_CGUID );
+		if ( ZS_VIRTUAL_CNTR == mode ) {
+            zs_flush_container( zs_thread_state, VMC_CGUID );
         }
 		else {
-    		fdf_flush_container( fdf_thread_state, CMC_CGUID );
+    		zs_flush_container( zs_thread_state, CMC_CGUID );
         }
     } 
     else { 
         /* for some reason cleanup failed. Just reset delete_in_progress*/
-        status = FDF_FAILURE;
+        status = ZS_FAILURE;
         if (name_service_get_meta( pai, cguid, &meta ) != SDF_SUCCESS ) {
             plat_log_msg( 160078, LOG_CAT, LOG_ERR,
                    "Could not read metadata for %lu. Delete can not proceed\n",
                                                                         cguid );
             SDFEndSerializeContainerOp(pai);
-            return FDF_FAILURE;
+            return ZS_FAILURE;
         }
-        meta.delete_in_progress = FDF_FALSE;
+        meta.delete_in_progress = ZS_FALSE;
         if ( name_service_put_meta( pai, cguid, &meta ) != SDF_SUCCESS ) { 
             plat_log_msg( 160079, LOG_CAT, LOG_ERR, 
                     "Could not clear Metadata for %lu after delete", cguid );
@@ -4005,35 +4005,35 @@ FDF_status_t fdf_delete_container_async_end(
 
 /* This function MUST be called after aquiring 
                                  SDFStartSerializeContainerOp(pai) lock */
-FDF_status_t fdf_rename_container(struct FDF_thread_state *fdf_thread_state,
-                                                         FDF_cguid_t cguid ) {
+ZS_status_t zs_rename_container(struct ZS_thread_state *zs_thread_state,
+                                                         ZS_cguid_t cguid ) {
     time_t t;
-    FDF_status_t status;
+    ZS_status_t status;
     SDF_container_meta_t meta;
     char cname[CONTAINER_NAME_MAXLEN];
     SDF_internal_ctxt_t *pai;
 	cntr_map_t *cmap = NULL;
 
-    pai = (SDF_internal_ctxt_t *) fdf_thread_state;
+    pai = (SDF_internal_ctxt_t *) zs_thread_state;
 
-    cmap = fdf_cmap_get_by_cguid( cguid );
+    cmap = zs_cmap_get_by_cguid( cguid );
     if ( !cmap ) {
         plat_log_msg( 160110, LOG_CAT, LOG_DBG,
                         "Container does not exist. Can not rename" );
-        return FDF_FAILURE;
+        return ZS_FAILURE;
     }
 
     status = name_service_get_meta( pai, cguid, &meta );
-    if ( status != FDF_SUCCESS ) {
+    if ( status != ZS_SUCCESS ) {
         plat_log_msg( 160111, LOG_CAT, LOG_DBG,
           "Could not read metadata for %lu. Can not rename\n", cguid );
-        return FDF_FAILURE;
+        return ZS_FAILURE;
     }   
     if ( strncmp(meta.cname,CONTAINER_RENAME_PREFIX,
                                     strlen(CONTAINER_RENAME_PREFIX)) == 0 ) {
         plat_log_msg( 160112, LOG_CAT, LOG_DBG,
           "Container %lu is already renamed. \n", cguid );
-        return FDF_SUCCESS;
+        return ZS_SUCCESS;
     }
 
     time(&t);
@@ -4042,11 +4042,11 @@ FDF_status_t fdf_rename_container(struct FDF_thread_state *fdf_thread_state,
     plat_log_msg( 160113, LOG_CAT, LOG_DBG,
           "Renaming container %s to %s\n",meta.cname,cname );
     status = name_service_remove_cguid_map(pai,meta.cname);
-    if ( status != FDF_SUCCESS ) {
+    if ( status != ZS_SUCCESS ) {
         plat_log_msg( 160114,LOG_CAT, LOG_ERR,
                        "Unable to remove cguid map for container %lu."
                        " Can not rename",meta.cguid);
-        return FDF_FAILURE;
+        return ZS_FAILURE;
     }
     if ( getProperty_Int("ASYNC_DEL_CONT_TEST_ABORT_AFTER_REM_MAP", 0) == 1 ){
          plat_abort();
@@ -4061,15 +4061,15 @@ FDF_status_t fdf_rename_container(struct FDF_thread_state *fdf_thread_state,
     snprintf(meta.cname,CONTAINER_NAME_MAXLEN,"%s",cname);
     snprintf(cmap->cname,CONTAINER_NAME_MAXLEN,"%s",cname);
 
-	status = fdf_cmap_update(cmap);
+	status = zs_cmap_update(cmap);
 
-	if (FDF_SUCCESS != status) {
+	if (ZS_SUCCESS != status) {
 	    plat_log_msg( 150115, LOG_CAT, LOG_ERR, "Unable to create metadata cache for %lu. Cannot rename", cguid );
 	    return status;
 	}
 
     status = name_service_put_meta( pai, cguid, &meta );
-    if ( status != FDF_SUCCESS ) {
+    if ( status != ZS_SUCCESS ) {
         plat_log_msg( 160115, LOG_CAT, LOG_ERR,
                       "Unable to write metadata for %lu. Can not rename ",
                                                                       cguid );
@@ -4079,23 +4079,23 @@ FDF_status_t fdf_rename_container(struct FDF_thread_state *fdf_thread_state,
          plat_abort();
     }
     /* Create New container Map with new name */
-    status = name_service_create_cguid_map(fdf_thread_state,
+    status = name_service_create_cguid_map(zs_thread_state,
                                                   meta.cname,meta.cguid);
-    if ( status != FDF_SUCCESS ) {
+    if ( status != ZS_SUCCESS ) {
         plat_log_msg( 160116,LOG_CAT, LOG_ERR,
              "Unable to create cguid map for container %lu."
              "Can not rename",meta.cguid);
         return status;
     }
 
-    return FDF_SUCCESS;
+    return ZS_SUCCESS;
 }
 
-FDF_status_t fdf_delete_container_async_start(
-                                struct FDF_thread_state *fdf_thread_state,
-                                FDF_cguid_t cguid, FDF_container_mode_t mode ){
+ZS_status_t zs_delete_container_async_start(
+                                struct ZS_thread_state *zs_thread_state,
+                                ZS_cguid_t cguid, ZS_container_mode_t mode ){
 
-    FDF_status_t status;
+    ZS_status_t status;
     SDF_container_meta_t meta;
     SDF_internal_ctxt_t *pai;
 	cntr_map_t *cmap = NULL;
@@ -4105,112 +4105,112 @@ FDF_status_t fdf_delete_container_async_start(
     if ( !cguid ) {
         plat_log_msg(160081,LOG_CAT, LOG_DBG,
                       "Null container Id. Delete can not proceed.");
-        return FDF_INVALID_PARAMETER;
+        return ZS_INVALID_PARAMETER;
     }
 
-    pai = (SDF_internal_ctxt_t *) fdf_thread_state;
+    pai = (SDF_internal_ctxt_t *) zs_thread_state;
 
     SDFStartSerializeContainerOp(pai);
-    cmap = fdf_cmap_get_by_cguid( cguid );
+    cmap = zs_cmap_get_by_cguid( cguid );
     if ( !cmap ) {
         plat_log_msg(160210, LOG_CAT, LOG_WARN,
                         "Container cguid=%lu does not exist. Delete can not proceed\n", cguid );
         SDFEndSerializeContainerOp(pai);
-        return FDF_FAILURE;
+        return ZS_FAILURE;
     }
 
     status = name_service_get_meta( pai, cguid, &meta );
-    if ( status != FDF_SUCCESS ) {
+    if ( status != ZS_SUCCESS ) {
         plat_log_msg( 160078, LOG_CAT, LOG_ERR, 
           "Could not read metadata for %lu. Delete can not proceed\n", cguid );
         SDFEndSerializeContainerOp(pai);
-        return FDF_FAILURE;
+        return ZS_FAILURE;
     }
     /* Check if delete is under progress already */
     if ( meta.delete_in_progress == SDF_TRUE ) {
         /* Check if we have initiated the async command. While doing 
            Recovery, we have to make sure we are sending the command */
-        if ( FDF_CONTAINER_STATE_DELETE_PROG == cmap->state ||
-        	 FDF_CONTAINER_STATE_DELETE_OPEN == cmap->state ||
-        	 FDF_CONTAINER_STATE_DELETE_CLOSED == cmap->state ) {
+        if ( ZS_CONTAINER_STATE_DELETE_PROG == cmap->state ||
+        	 ZS_CONTAINER_STATE_DELETE_OPEN == cmap->state ||
+        	 ZS_CONTAINER_STATE_DELETE_CLOSED == cmap->state ) {
             plat_log_msg(160211, LOG_CAT, LOG_DIAG,
                       "Delete already under progress for container %lu with state=%d",cguid, cmap->state);
             SDFEndSerializeContainerOp(pai);
-            return FDF_FAILURE_CONTAINER_DELETED; 
+            return ZS_FAILURE_CONTAINER_DELETED; 
         }
         /* check if it needs renaming */
-        status = fdf_rename_container(fdf_thread_state,cguid);
-        if ( status != FDF_SUCCESS ) {
+        status = zs_rename_container(zs_thread_state,cguid);
+        if ( status != ZS_SUCCESS ) {
             plat_log_msg(160117,LOG_CAT, LOG_ERR,
                                    "Failed to delete the container:%lu",cguid);
             SDFEndSerializeContainerOp(pai);
-            return FDF_FAILURE;
+            return ZS_FAILURE;
         }
     }
     else {
        
         /* Close the container if it is open already */
-        if ( fdf_is_ctnr_open( cguid ) ) {
-            status = fdf_close_container(fdf_thread_state, cguid,
-                                               mode, FDF_FALSE,FDF_TRUE);
-            if ( status != FDF_SUCCESS ) {
+        if ( zs_is_ctnr_open( cguid ) ) {
+            status = zs_close_container(zs_thread_state, cguid,
+                                               mode, ZS_FALSE,ZS_TRUE);
+            if ( status != ZS_SUCCESS ) {
                 plat_log_msg(160212, LOG_CAT, LOG_ERR,
-                          "Failed to close container during delete status=%s", FDFStrError(status) );
+                          "Failed to close container during delete status=%s", ZSStrError(status) );
                 SDFEndSerializeContainerOp(pai);
-                return FDF_FAILURE;
+                return ZS_FAILURE;
             }
         }
-        meta.delete_in_progress = FDF_TRUE;
+        meta.delete_in_progress = ZS_TRUE;
         status = name_service_put_meta( pai, cguid, &meta );
-        if ( status != FDF_SUCCESS ) {
+        if ( status != ZS_SUCCESS ) {
             plat_log_msg( 160093, LOG_CAT, LOG_ERR, 
                       "Could not mark delete in progress for container %lu. ",
                                                                       cguid );
             SDFEndSerializeContainerOp(pai);
-            return FDF_FAILURE;
+            return ZS_FAILURE;
         } 
         if ( getProperty_Int("ASYNC_DEL_CONT_TEST_ABORT_AFTER_META", 0) == 1 ){
             plat_abort();
         }
 
-        status = fdf_rename_container(fdf_thread_state,cguid);
-        if ( status != FDF_SUCCESS ) {
+        status = zs_rename_container(zs_thread_state,cguid);
+        if ( status != ZS_SUCCESS ) {
             plat_log_msg(160117,LOG_CAT, LOG_ERR,
                                    "Failed to delete the container:%lu",cguid);
             SDFEndSerializeContainerOp(pai);
-            return FDF_FAILURE;
+            return ZS_FAILURE;
         }
     }
 
     status = async_command_delete_container(cguid);
-    if ( status != FDF_SUCCESS ) {
+    if ( status != ZS_SUCCESS ) {
         plat_log_msg( 160085, LOG_CAT, LOG_ERR,
              "Failed to initiate the asynchronous container delete");
         SDFEndSerializeContainerOp(pai);
-        return FDF_FAILURE;
+        return ZS_FAILURE;
     }
     /* Set the state that async delete is under progress */
-	if ( FDF_SUCCESS != ( status = fdf_ctnr_set_state( cmap, FDF_CONTAINER_STATE_DELETE_PROG ) ) ) {
+	if ( ZS_SUCCESS != ( status = zs_ctnr_set_state( cmap, ZS_CONTAINER_STATE_DELETE_PROG ) ) ) {
     	SDFEndSerializeContainerOp(pai);
     	return status;
 	}
     SDFEndSerializeContainerOp(pai);
-    return FDF_SUCCESS;
+    return ZS_SUCCESS;
 }
 
 
-static FDF_status_t fdf_delete_container_1(
-	struct FDF_thread_state	*fdf_thread_state,
-	FDF_cguid_t		 		 cguid,
-	FDF_container_mode_t	 mode
+static ZS_status_t zs_delete_container_1(
+	struct ZS_thread_state	*zs_thread_state,
+	ZS_cguid_t		 		 cguid,
+	ZS_container_mode_t	 mode
 	)
 {  
-    FDF_status_t 	 	 	 status 		= FDF_FAILURE;
-    FDF_status_t 	 	 	 del_status 	= FDF_FAILURE;
+    ZS_status_t 	 	 	 status 		= ZS_FAILURE;
+    ZS_status_t 	 	 	 del_status 	= ZS_FAILURE;
 	int				  	 	 ok_to_delete	= 0, j = 0;
 	SDF_container_meta_t	 meta;
-	FDF_cguid_t	 			 mycguid		= 0;
-    SDF_internal_ctxt_t 	*pai 			= (SDF_internal_ctxt_t *) fdf_thread_state;
+	ZS_cguid_t	 			 mycguid		= 0;
+    SDF_internal_ctxt_t 	*pai 			= (SDF_internal_ctxt_t *) zs_thread_state;
 	cntr_map_t              *cmap           = NULL;
     plat_log_msg( 21630, 
 				  LOG_CAT, 
@@ -4220,23 +4220,23 @@ static FDF_status_t fdf_delete_container_1(
 
 
 	if ( !cguid )
-		return FDF_INVALID_PARAMETER;
+		return ZS_INVALID_PARAMETER;
 
     SDFStartSerializeContainerOp(pai);
 
-    cmap = fdf_cmap_get_by_cguid( cguid );
+    cmap = zs_cmap_get_by_cguid( cguid );
 
 	if ( !cmap ) {
 		plat_log_msg( 150099,
 					  LOG_CAT,
 					  LOG_DIAG,
 					  "Container does not exist" );
-		status = FDF_FAILURE_CONTAINER_NOT_FOUND;
+		status = ZS_FAILURE_CONTAINER_NOT_FOUND;
 		goto out;
 	}
 
-	if ( fdf_is_ctnr_open( cguid ) ) {
-		if ( ( status = fdf_close_container( fdf_thread_state, cguid, mode, FDF_FALSE, FDF_TRUE ) ) != FDF_SUCCESS ) {
+	if ( zs_is_ctnr_open( cguid ) ) {
+		if ( ( status = zs_close_container( zs_thread_state, cguid, mode, ZS_FALSE, ZS_TRUE ) ) != ZS_SUCCESS ) {
 			plat_log_msg( 150097,
 						  LOG_CAT,
 						  LOG_DIAG,
@@ -4244,25 +4244,25 @@ static FDF_status_t fdf_delete_container_1(
 		}
 	}
 
-	if ( ( status = name_service_get_meta( pai, cguid, &meta ) ) != FDF_SUCCESS ) {
+	if ( ( status = name_service_get_meta( pai, cguid, &meta ) ) != ZS_SUCCESS ) {
 		plat_log_msg( 150085, LOG_CAT, LOG_ERR, "Could not read metadata for %lu\n", cguid );
     	SDFEndSerializeContainerOp(pai);
-		return FDF_FAILURE;
+		return ZS_FAILURE;
 	} 
 
-	meta.delete_in_progress = FDF_TRUE;
+	meta.delete_in_progress = ZS_TRUE;
 
 	if ( name_service_put_meta( pai, cguid, &meta ) != SDF_SUCCESS ) {
 		plat_log_msg( 150086, LOG_CAT, LOG_DIAG, "Could not mark delete in progress for container %lu\n", cguid );
 	} 
 
-	if ( ( status = fdf_open_container( fdf_thread_state,  
+	if ( ( status = zs_open_container( zs_thread_state,  
 	                                    cmap->cname, 
 	                                    NULL, 
 	                                    0, 
 	                                    &mycguid, 
 	                                    mode, 
-	                                    FDF_FALSE ) ) != FDF_SUCCESS ) {
+	                                    ZS_FALSE ) ) != ZS_SUCCESS ) {
 		plat_log_msg( 150091,
 					  LOG_CAT,
 					  LOG_ERR,
@@ -4270,49 +4270,49 @@ static FDF_status_t fdf_delete_container_1(
 					  cguid );
 		goto out;
 	}
-	if ( ( del_status = fdf_delete_objects( fdf_thread_state, cguid ) ) != FDF_SUCCESS ) {
+	if ( ( del_status = zs_delete_objects( zs_thread_state, cguid ) ) != ZS_SUCCESS ) {
 		plat_log_msg( 150092,
 					  LOG_CAT,
 					  LOG_ERR,
 					  "Failed to delete container objects" );
 	} 
 
-	if ( ( status = fdf_close_container( fdf_thread_state,  
+	if ( ( status = zs_close_container( zs_thread_state,  
    										 mycguid,
 										 mode,
-										 FDF_FALSE, FDF_TRUE ) ) != FDF_SUCCESS ) {
+										 ZS_FALSE, ZS_TRUE ) ) != ZS_SUCCESS ) {
 		plat_log_msg( 150093,
 				  	  LOG_CAT,
 					  LOG_WARN,
 					  "Cannot close container %lu to delete it",
 					  cguid );
 
-		if ( FDF_SUCCESS != del_status )
+		if ( ZS_SUCCESS != del_status )
 			status = del_status;
 		goto out;
 	} else {
 
         status = delete_container_internal_low( pai, 
 												cmap->cname, 
-												SDF_FALSE,  mode == FDF_PHYSICAL_CNTR ? SDF_TRUE:SDF_FALSE, 
+												SDF_FALSE,  mode == ZS_PHYSICAL_CNTR ? SDF_TRUE:SDF_FALSE, 
 												&ok_to_delete );
 
-        if ( FDF_SUCCESS == status && ok_to_delete) {
+        if ( ZS_SUCCESS == status && ok_to_delete) {
 
-	        fdf_cmap_delete( cguid, cmap->cname );
+	        zs_cmap_delete( cguid, cmap->cname );
 			cmap = NULL;
 
 			// Make sure the metadata container is in sync
-			if ( FDF_VIRTUAL_CNTR == mode )
-				fdf_flush_container( fdf_thread_state, VMC_CGUID );
+			if ( ZS_VIRTUAL_CNTR == mode )
+				zs_flush_container( zs_thread_state, VMC_CGUID );
 			else
-				fdf_flush_container( fdf_thread_state, CMC_CGUID );
+				zs_flush_container( zs_thread_state, CMC_CGUID );
 
         } else {
-	        if ( FDF_SUCCESS == status )
-				status = FDF_FAILURE;
+	        if ( ZS_SUCCESS == status )
+				status = ZS_FAILURE;
 
-			meta.delete_in_progress = FDF_FALSE;
+			meta.delete_in_progress = ZS_FALSE;
 
 			if ( name_service_put_meta( pai, cguid, &meta ) != SDF_SUCCESS ) {
 				plat_log_msg( 150087, LOG_CAT, LOG_WARN, "Could not clear delete in progress for container %lu\n", cguid );
@@ -4323,7 +4323,7 @@ static FDF_status_t fdf_delete_container_1(
 	                     LOG_ERR, 
 	                     "Container is not deleted (busy or error): cguid=%lu, status=%s", 
 	                     cguid, 
-	                     FDFStrError(status) );
+	                     ZSStrError(status) );
         }
     }
 
@@ -4344,17 +4344,17 @@ static FDF_status_t fdf_delete_container_1(
 				  LOG_CAT, 
 				  LOG_DBG, 
 				  "%s", 
-				  FDFStrError(status) );
+				  ZSStrError(status) );
  out:
     SDFEndSerializeContainerOp(pai);
     return status;
 }
 
-FDF_cguid_t FDFGetCguid (char *cname ) {
-	FDF_cguid_t cguid = FDF_NULL_CGUID;
+ZS_cguid_t ZSGetCguid (char *cname ) {
+	ZS_cguid_t cguid = ZS_NULL_CGUID;
 
 	if ( cname ) {
-	    cntr_map_t *cmap = fdf_cmap_get_by_cname( cname );
+	    cntr_map_t *cmap = zs_cmap_get_by_cname( cname );
 	    if ( cmap )
 	        cguid = cmap->cguid;
 	}
@@ -4362,10 +4362,10 @@ FDF_cguid_t FDFGetCguid (char *cname ) {
 	return cguid;
 }
 
-char *FDFGetContainerName(FDF_cguid_t cguid) {
+char *ZSGetContainerName(ZS_cguid_t cguid) {
 	cntr_map_t *cmap = NULL;
 
-	cmap = fdf_cmap_get_by_cguid( cguid );
+	cmap = zs_cmap_get_by_cguid( cguid );
 	if ( !cmap || !cmap->cname )
 	    return "";
 	else {
@@ -4373,7 +4373,7 @@ char *FDFGetContainerName(FDF_cguid_t cguid) {
 	}
 }
 
-char *FDFGetNextContainerName(struct FDF_thread_state *fdf_thread_state, struct FDFCMapIterator **iterator, FDF_cguid_t *pcguid) {
+char *ZSGetNextContainerName(struct ZS_thread_state *zs_thread_state, struct ZSCMapIterator **iterator, ZS_cguid_t *pcguid) {
     SDF_container_meta_t meta;
     SDF_internal_ctxt_t *pai;
 	char *key = NULL;
@@ -4381,20 +4381,20 @@ char *FDFGetNextContainerName(struct FDF_thread_state *fdf_thread_state, struct 
 	cntr_map_t *cmap = NULL;
 	uint64_t cmaplen = 0;
 
-    pai = (SDF_internal_ctxt_t *) fdf_thread_state;
+    pai = (SDF_internal_ctxt_t *) zs_thread_state;
     SDFStartSerializeContainerOp(pai);
-    *pcguid = FDF_NULL_CGUID;
+    *pcguid = ZS_NULL_CGUID;
 
 	// See if we are just starting the enum
 	if ( NULL == *iterator ) {
-	    *iterator = (struct FDFCMapIterator *) fdf_cmap_enum();
+	    *iterator = (struct ZSCMapIterator *) zs_cmap_enum();
 	    if ( NULL == *iterator )
 	        return NULL;
 	}
 
 	// Get the next container name
-	while ( fdf_cmap_next_enum( (struct cmap_iterator *)(*iterator), &key, &keylen, (char **) &cmap, &cmaplen ) ) {
-        if ( cmap->cguid != FDF_NULL_CGUID ) {
+	while ( zs_cmap_next_enum( (struct cmap_iterator *)(*iterator), &key, &keylen, (char **) &cmap, &cmaplen ) ) {
+        if ( cmap->cguid != ZS_NULL_CGUID ) {
             /* Skip CMC, VMC and VDC */
             if ( ( strcmp( cmap->cname,"/sdf/VMC" ) == 0 ) ||
                  ( strcmp( cmap->cname,"/sdf/VDC") == 0 ) ||
@@ -4423,19 +4423,19 @@ char *FDFGetNextContainerName(struct FDF_thread_state *fdf_thread_state, struct 
     }
 
 	// Must have reached the end of the enum
-	fdf_cmap_finish_enum( ( struct cmap_iterator * ) (*iterator) );
+	zs_cmap_finish_enum( ( struct cmap_iterator * ) (*iterator) );
 	*iterator = NULL;
     SDFEndSerializeContainerOp( pai );
     return NULL;
 }
 
 /*
- * Internal version of fdf_get_containers_int
+ * Internal version of zs_get_containers_int
  */ 
-static FDF_status_t
-fdf_get_containers_int(
-		struct FDF_thread_state	*fdf_thread_state,
-		FDF_cguid_t             *cguids,
+static ZS_status_t
+zs_get_containers_int(
+		struct ZS_thread_state	*zs_thread_state,
+		ZS_cguid_t             *cguids,
 		uint32_t                *n_cguids)
 {
     int                   n_containers = 0;
@@ -4446,59 +4446,59 @@ fdf_get_containers_int(
 	struct cmap_iterator *iterator     = NULL;
 
     if (!cguids || !n_cguids) 
-	    return FDF_INVALID_PARAMETER;
+	    return ZS_INVALID_PARAMETER;
 
-	iterator = fdf_cmap_enum();
+	iterator = zs_cmap_enum();
 
 	if ( !iterator )
-	    return FDF_FAILURE;
+	    return ZS_FAILURE;
 
-	while ( fdf_cmap_next_enum( iterator, &key, &keylen, (char **) &cmap, &cmaplen ) ) {
+	while ( zs_cmap_next_enum( iterator, &key, &keylen, (char **) &cmap, &cmaplen ) ) {
 		if ( cmap->cguid > LAST_PHYSICAL_CGUID  && 
              strcmp( cmap->cname,SEQNO_CONTAINER_NAME ) &&
              strcmp( cmap->cname,PSTATS_CONTAINER_NAME ) &&
-			 ( cmap->state == FDF_CONTAINER_STATE_CLOSED ||
-			   cmap->state == FDF_CONTAINER_STATE_OPEN )  ) {
+			 ( cmap->state == ZS_CONTAINER_STATE_CLOSED ||
+			   cmap->state == ZS_CONTAINER_STATE_OPEN )  ) {
 			cguids[n_containers] = cmap->cguid;
             n_containers++;
         }
     }
 
-	fdf_cmap_finish_enum( iterator );
+	zs_cmap_finish_enum( iterator );
     *n_cguids = n_containers;
-    return FDF_SUCCESS;
+    return ZS_SUCCESS;
 }
 
-static FDF_status_t
-fdf_get_containers(
-		struct FDF_thread_state	*fdf_thread_state,
-		FDF_cguid_t             *cguids,
+static ZS_status_t
+zs_get_containers(
+		struct ZS_thread_state	*zs_thread_state,
+		ZS_cguid_t             *cguids,
 		uint32_t                *n_cguids)
 {
-    SDF_internal_ctxt_t *pai = (SDF_internal_ctxt_t *) fdf_thread_state;
-    FDF_status_t ret = FDF_SUCCESS;
+    SDF_internal_ctxt_t *pai = (SDF_internal_ctxt_t *) zs_thread_state;
+    ZS_status_t ret = ZS_SUCCESS;
 
     SDFStartSerializeContainerOp(pai);  
-    ret = fdf_get_containers_int(fdf_thread_state, cguids, n_cguids);
+    ret = zs_get_containers_int(zs_thread_state, cguids, n_cguids);
     SDFEndSerializeContainerOp( pai );   
 
     return ret;
 }
 
 
-FDF_status_t FDFGetContainers(
-	struct FDF_thread_state	*fdf_thread_state,
-	FDF_cguid_t             *cguids,
+ZS_status_t ZSGetContainers(
+	struct ZS_thread_state	*zs_thread_state,
+	ZS_cguid_t             *cguids,
 	uint32_t                *n_cguids
 	)
 {
-	FDF_status_t status = FDF_SUCCESS;
+	ZS_status_t status = ZS_SUCCESS;
 	bool thd_ctx_locked = false;
 
 	/*
 	 * Check if operation can begin
 	 */
-	if (FDF_SUCCESS != (status = is_fdf_operation_allowed())) {
+	if (ZS_SUCCESS != (status = is_zs_operation_allowed())) {
 		plat_log_msg(160187, LOG_CAT,
 			LOG_WARN, "Operation not allowed");
 		goto out;
@@ -4506,184 +4506,184 @@ FDF_status_t FDFGetContainers(
 
 	if (is_license_valid(is_btree_loaded()) == false) {
 		plat_log_msg(160145, LOG_CAT, LOG_WARN, "License check failed.");
-		status = FDF_LICENSE_CHK_FAILED;
+		status = ZS_LICENSE_CHK_FAILED;
 		goto out;
 	}
 
-    if ( !fdf_thread_state ) {
-        plat_log_msg(80049,LOG_CAT,LOG_DBG, "FDF Thread state is NULL");
-        status = FDF_INVALID_PARAMETER;
+    if ( !zs_thread_state ) {
+        plat_log_msg(80049,LOG_CAT,LOG_DBG, "ZS Thread state is NULL");
+        status = ZS_INVALID_PARAMETER;
         goto out;
     }
 
-	thd_ctx_locked = fdf_lock_thd_ctxt(fdf_thread_state);
+	thd_ctx_locked = zs_lock_thd_ctxt(zs_thread_state);
 
 	if (false == thd_ctx_locked) {
 		/*
 		 * Could not get thread context lock, error out.
 		 */
-		status = FDF_THREAD_CONTEXT_BUSY;
+		status = ZS_THREAD_CONTEXT_BUSY;
 		plat_log_msg(160161, LOG_CAT,
 		       	     LOG_DBG, "Could not get thread context lock");
 		goto out;
 	}
 
-	status = fdf_get_containers(fdf_thread_state, cguids, n_cguids);
+	status = zs_get_containers(zs_thread_state, cguids, n_cguids);
 
 out:
 	if (thd_ctx_locked) {
-		fdf_unlock_thd_ctxt(fdf_thread_state);
+		zs_unlock_thd_ctxt(zs_thread_state);
 	}
 	return status;
 }
 
 /*
- * Internal version of fdf_get_container_props.
+ * Internal version of zs_get_container_props.
  */
 
-static FDF_status_t
-fdf_get_container_props_int(
-			struct FDF_thread_state	*fdf_thread_state, 
-			FDF_cguid_t 		  	 cguid, 
-			FDF_container_props_t	*pprops)
+static ZS_status_t
+zs_get_container_props_int(
+			struct ZS_thread_state	*zs_thread_state, 
+			ZS_cguid_t 		  	 cguid, 
+			ZS_container_props_t	*pprops)
 {
-    FDF_status_t             	 status = FDF_SUCCESS;
+    ZS_status_t             	 status = ZS_SUCCESS;
     SDF_container_meta_t     	 meta;
-    SDF_internal_ctxt_t     	*pai = (SDF_internal_ctxt_t *) fdf_thread_state;
+    SDF_internal_ctxt_t     	*pai = (SDF_internal_ctxt_t *) zs_thread_state;
 
 	if ( !cguid || !pprops )
-		return FDF_INVALID_PARAMETER;
+		return ZS_INVALID_PARAMETER;
 
-	if ( FDF_TRUE == is_container_being_deleted(cguid) ) {
+	if ( ZS_TRUE == is_container_being_deleted(cguid) ) {
 
-		status = FDF_FAILURE_CONTAINER_NOT_FOUND;
+		status = ZS_FAILURE_CONTAINER_NOT_FOUND;
 
 		plat_log_msg(160140, LOG_CAT, LOG_DIAG,
-				"Container %lu does not exist:%s", cguid, FDF_Status_Strings[status]);
+				"Container %lu does not exist:%s", cguid, ZS_Status_Strings[status]);
 
 		return status;
 	}
 
-	if (( status = name_service_get_meta( pai, cguid, &meta )) == FDF_SUCCESS ) {
-		status = fdf_create_fdf_props( &meta.properties, pprops );
+	if (( status = name_service_get_meta( pai, cguid, &meta )) == ZS_SUCCESS ) {
+		status = zs_create_zs_props( &meta.properties, pprops );
 		strncpy(pprops->name, meta.cname, CONTAINER_NAME_MAXLEN);
     }              
                    
     return status;
 }
 
-static FDF_status_t
-fdf_get_container_props(
-		struct FDF_thread_state	*fdf_thread_state, 
-		FDF_cguid_t cguid, 
-		FDF_container_props_t *pprops
+static ZS_status_t
+zs_get_container_props(
+		struct ZS_thread_state	*zs_thread_state, 
+		ZS_cguid_t cguid, 
+		ZS_container_props_t *pprops
 		)
 {   
-    FDF_status_t             	 status = FDF_SUCCESS;
-    SDF_internal_ctxt_t     	*pai = (SDF_internal_ctxt_t *) fdf_thread_state;
+    ZS_status_t             	 status = ZS_SUCCESS;
+    SDF_internal_ctxt_t     	*pai = (SDF_internal_ctxt_t *) zs_thread_state;
 
     SDFStartSerializeContainerOp(pai);  
-    status = fdf_get_container_props_int(fdf_thread_state, cguid, pprops);
+    status = zs_get_container_props_int(zs_thread_state, cguid, pprops);
     SDFEndSerializeContainerOp( pai );   
                    
     return status;
 }
    
 
-FDF_status_t FDFGetContainerProps(
-	struct FDF_thread_state	*fdf_thread_state, 
-	FDF_cguid_t 		  	 cguid, 
-	FDF_container_props_t	*pprops
+ZS_status_t ZSGetContainerProps(
+	struct ZS_thread_state	*zs_thread_state, 
+	ZS_cguid_t 		  	 cguid, 
+	ZS_container_props_t	*pprops
 	)
 {
-	FDF_status_t status = FDF_SUCCESS;
+	ZS_status_t status = ZS_SUCCESS;
 	bool thd_ctx_locked = false;
 
-	status = fdf_validate_container(cguid);
-	if (FDF_SUCCESS != status) {
+	status = zs_validate_container(cguid);
+	if (ZS_SUCCESS != status) {
 		plat_log_msg(160125, LOG_CAT,
 				LOG_ERR, "Failed due to an illegal container ID:%s",
-				FDF_Status_Strings[status]);
+				ZS_Status_Strings[status]);
 		goto out;
 	}
 
 	/*
 	 * Check if operation can begin
 	 */
-	if (FDF_SUCCESS != (status = is_fdf_operation_allowed())) {
+	if (ZS_SUCCESS != (status = is_zs_operation_allowed())) {
 		plat_log_msg(160187, LOG_CAT,
 			LOG_WARN, "Operation not allowed");
 		goto out;
 	}
 	if (is_license_valid(is_btree_loaded()) == false) {
 		plat_log_msg(160145, LOG_CAT, LOG_WARN, "License check failed.");
-		status = FDF_LICENSE_CHK_FAILED;
+		status = ZS_LICENSE_CHK_FAILED;
 		goto out;
 	}
-        if ( !fdf_thread_state || !cguid ) {
-            if ( !fdf_thread_state ) {
+        if ( !zs_thread_state || !cguid ) {
+            if ( !zs_thread_state ) {
                 plat_log_msg(80049,LOG_CAT,LOG_DBG,
-                             "FDF Thread state is NULL");
+                             "ZS Thread state is NULL");
             }
             if ( !cguid ) {
                 plat_log_msg(80050,LOG_CAT,LOG_DBG,
                              "Invalid container cguid:%lu",cguid);
             }
-            return FDF_INVALID_PARAMETER;
+            return ZS_INVALID_PARAMETER;
         }
 
-	thd_ctx_locked = fdf_lock_thd_ctxt(fdf_thread_state);
+	thd_ctx_locked = zs_lock_thd_ctxt(zs_thread_state);
 	if (false == thd_ctx_locked) {
 		/*
 		 * Could not get thread context lock, error out.
 		 */
-		status = FDF_THREAD_CONTEXT_BUSY;
+		status = ZS_THREAD_CONTEXT_BUSY;
 		plat_log_msg(160161, LOG_CAT,
 		       	     LOG_DBG, "Could not get thread context lock");
 		goto out;
 	}
 
-	status = fdf_get_container_props(fdf_thread_state, cguid, pprops);	
+	status = zs_get_container_props(zs_thread_state, cguid, pprops);	
 
 out:
 	if (thd_ctx_locked) {
-		fdf_unlock_thd_ctxt(fdf_thread_state);
+		zs_unlock_thd_ctxt(zs_thread_state);
 	}
 	return status;
 }
 
 
-static FDF_status_t
-fdf_set_container_props(
-		struct FDF_thread_state	*fdf_thread_state, 
-		FDF_cguid_t 	 	  	 cguid,
-		FDF_container_props_t	*pprops
+static ZS_status_t
+zs_set_container_props(
+		struct ZS_thread_state	*zs_thread_state, 
+		ZS_cguid_t 	 	  	 cguid,
+		ZS_container_props_t	*pprops
 		)
 {
-    FDF_status_t             status = FDF_SUCCESS;
+    ZS_status_t             status = ZS_SUCCESS;
     SDF_container_meta_t     meta;
-    SDF_internal_ctxt_t     *pai 	= (SDF_internal_ctxt_t *) fdf_thread_state;
+    SDF_internal_ctxt_t     *pai 	= (SDF_internal_ctxt_t *) zs_thread_state;
 	cntr_map_t              *cmap   = NULL;
 
 	if ( !cguid || !pprops )
-		return FDF_INVALID_PARAMETER;
+		return ZS_INVALID_PARAMETER;
 
 	SDFStartSerializeContainerOp(pai);
-	if ( FDF_TRUE == is_container_being_deleted(cguid) ) {
+	if ( ZS_TRUE == is_container_being_deleted(cguid) ) {
 
-		status = FDF_FAILURE_CONTAINER_NOT_FOUND;
+		status = ZS_FAILURE_CONTAINER_NOT_FOUND;
 
 		plat_log_msg(160140, LOG_CAT, LOG_DIAG,
-				"Container %lu does not exist:%s", cguid, FDF_Status_Strings[status]);
+				"Container %lu does not exist:%s", cguid, ZS_Status_Strings[status]);
 
 		SDFEndSerializeContainerOp( pai );
 		return status;
 	}
 
-	if (( status = name_service_get_meta( pai, cguid, &meta )) == FDF_SUCCESS ) {
+	if (( status = name_service_get_meta( pai, cguid, &meta )) == ZS_SUCCESS ) {
 		if ( pprops->size_kb != meta.properties.container_id.size ) {
-			if ( ( status = fdf_resize_container( fdf_thread_state, cguid, pprops->size_kb ) ) != FDF_SUCCESS ) {
-				plat_log_msg( 150094, LOG_CAT, LOG_ERR, "Failed to resize %lu - %s", cguid, FDFStrError( status ) );
+			if ( ( status = zs_resize_container( zs_thread_state, cguid, pprops->size_kb ) ) != ZS_SUCCESS ) {
+				plat_log_msg( 150094, LOG_CAT, LOG_ERR, "Failed to resize %lu - %s", cguid, ZSStrError( status ) );
 				goto out;
 			}
 		}
@@ -4696,9 +4696,9 @@ fdf_set_container_props(
 		meta.properties.shard.num_shards 		      		  = 1;
 
 		meta.properties.durability_level = SDF_NO_DURABILITY;
-		if ( pprops->durability_level == FDF_DURABILITY_HW_CRASH_SAFE )
+		if ( pprops->durability_level == ZS_DURABILITY_HW_CRASH_SAFE )
 	    	meta.properties.durability_level = SDF_FULL_DURABILITY;
-		else if ( pprops->durability_level == FDF_DURABILITY_SW_CRASH_SAFE )
+		else if ( pprops->durability_level == ZS_DURABILITY_SW_CRASH_SAFE )
 	    	meta.properties.durability_level = SDF_RELAXED_DURABILITY;
 
  		meta.properties.flash_only = pprops->flash_only;
@@ -4706,7 +4706,7 @@ fdf_set_container_props(
                 meta.properties.compression = pprops->compression;
 
         status = name_service_put_meta( pai, cguid, &meta );
-		cmap = fdf_cmap_get_by_cguid( cguid );
+		cmap = zs_cmap_get_by_cguid( cguid );
 
         if ( cmap ) {
             cmap->evicting = pprops->evicting;
@@ -4714,7 +4714,7 @@ fdf_set_container_props(
              * These maps are immutable except for container deletion.
              * We should never update them.
              */
-            //status = fdf_cmap_update( cmap );
+            //status = zs_cmap_update( cmap );
         }
     }
 
@@ -4725,43 +4725,43 @@ fdf_set_container_props(
 }
 
 
-FDF_status_t FDFSetContainerProps(
-	struct FDF_thread_state	*fdf_thread_state, 
-	FDF_cguid_t 	 	  	 cguid,
-	FDF_container_props_t	*pprops
+ZS_status_t ZSSetContainerProps(
+	struct ZS_thread_state	*zs_thread_state, 
+	ZS_cguid_t 	 	  	 cguid,
+	ZS_container_props_t	*pprops
 	)
 {
-	FDF_status_t  status = FDF_SUCCESS;
+	ZS_status_t  status = ZS_SUCCESS;
 	bool thd_ctx_locked = false;
 
-	if (pprops->durability_level == FDF_DURABILITY_PERIODIC) {
-		pprops->durability_level = FDF_DURABILITY_SW_CRASH_SAFE;
+	if (pprops->durability_level == ZS_DURABILITY_PERIODIC) {
+		pprops->durability_level = ZS_DURABILITY_SW_CRASH_SAFE;
 	}
 
-	status = fdf_validate_container(cguid);
-	if (FDF_SUCCESS != status) {
+	status = zs_validate_container(cguid);
+	if (ZS_SUCCESS != status) {
 		plat_log_msg(160125, LOG_CAT,
 				LOG_ERR, "Failed due to an illegal container ID:%s",
-				FDF_Status_Strings[status]);
+				ZS_Status_Strings[status]);
 		goto out;
 	}
 	/*
 	 * Check if operation can begin
 	 */
-	if (FDF_SUCCESS != (status = is_fdf_operation_allowed())) {
+	if (ZS_SUCCESS != (status = is_zs_operation_allowed())) {
         plat_log_msg(160188, LOG_CAT,
                LOG_WARN, "Operation not allowed ");
 		goto out;
 	}
 	if (is_license_valid(is_btree_loaded()) == false) {
 		plat_log_msg(160145, LOG_CAT, LOG_WARN, "License check failed.");
-		status = FDF_LICENSE_CHK_FAILED;
+		status = ZS_LICENSE_CHK_FAILED;
 		goto out;
 	}
-        if ( !fdf_thread_state || !cguid || !pprops ) {
-            if ( !fdf_thread_state ) {
+        if ( !zs_thread_state || !cguid || !pprops ) {
+            if ( !zs_thread_state ) {
                 plat_log_msg(80049,LOG_CAT,LOG_DBG,
-                             "FDF Thread state is NULL");
+                             "ZS Thread state is NULL");
             }
             if ( !cguid ) {
                 plat_log_msg(80050,LOG_CAT,LOG_DBG,
@@ -4771,34 +4771,34 @@ FDF_status_t FDFSetContainerProps(
                 plat_log_msg(80054,LOG_CAT,LOG_DBG,
                              "Container property is NULL");
             }
-            return FDF_INVALID_PARAMETER;
+            return ZS_INVALID_PARAMETER;
         }
 
-	thd_ctx_locked = fdf_lock_thd_ctxt(fdf_thread_state);
+	thd_ctx_locked = zs_lock_thd_ctxt(zs_thread_state);
 	if (false == thd_ctx_locked) {
 		/*
 		 * Could not get thread context lock, error out.
 		 */
-		status = FDF_THREAD_CONTEXT_BUSY;
+		status = ZS_THREAD_CONTEXT_BUSY;
 		plat_log_msg(160161, LOG_CAT,
 		       	     LOG_DBG, "Could not get thread context lock");
 		goto out;
 	}
 
-	status = fdf_set_container_props(fdf_thread_state, cguid, pprops);
+	status = zs_set_container_props(zs_thread_state, cguid, pprops);
 
 out:
 	if (thd_ctx_locked) {
-		fdf_unlock_thd_ctxt(fdf_thread_state);
+		zs_unlock_thd_ctxt(zs_thread_state);
 	}
 	return status;
 }
 
 
-static FDF_status_t
-fdf_read_object(
-	struct FDF_thread_state   *fdf_thread_state,
-	FDF_cguid_t                cguid,
+static ZS_status_t
+zs_read_object(
+	struct ZS_thread_state   *zs_thread_state,
+	ZS_cguid_t                cguid,
 	char                      *key,
 	uint32_t                   keylen,
 	char                     **data,
@@ -4808,25 +4808,25 @@ fdf_read_object(
 {
     SDF_appreq_t        ar;
     SDF_action_init_t  *pac;
-    FDF_status_t        status  = FDF_SUCCESS;
+    ZS_status_t        status  = ZS_SUCCESS;
     char *app_buf_data_ptr = NULL;
     cntr_map_t *cmap = NULL;
 
     if ( !cguid || !key ) {
-        return FDF_INVALID_PARAMETER;
+        return ZS_INVALID_PARAMETER;
 	}
 
 	cmap = get_cntr_map(cguid);
 	if (!cmap) {
-		return(FDF_CONTAINER_UNKNOWN);
+		return(ZS_CONTAINER_UNKNOWN);
 	}
 
-	if ( (status = fdf_get_ctnr_status_cmap(cmap, cguid, 0)) != FDF_CONTAINER_OPEN ) {
+	if ( (status = zs_get_ctnr_status_cmap(cmap, cguid, 0)) != ZS_CONTAINER_OPEN ) {
         plat_log_msg( 160039, LOG_CAT, LOG_DIAG, "Container must be open to execute a read object" );
         goto out;     
     }
 
-    pac = (SDF_action_init_t *) fdf_thread_state;
+    pac = (SDF_action_init_t *) zs_thread_state;
 
 	SDF_cache_ctnr_metadata_t *meta;
 	meta = get_container_metadata(pac, cguid);
@@ -4834,11 +4834,11 @@ fdf_read_object(
 		goto out;
 	}
     
-	if (meta->meta.properties.flash_only == FDF_TRUE) {
+	if (meta->meta.properties.flash_only == ZS_TRUE) {
 		char* tdata = (char *)0x1; // Make sure its not NULL
 
 		plat_log_msg(160191, LOG_CAT,
-                    LOG_TRACE, "FDFReadObject flash_only.");
+                    LOG_TRACE, "ZSReadObject flash_only.");
 		struct objMetaData metaData;
 		metaData.keyLen = keylen;
 		metaData.cguid  = cguid;
@@ -4856,18 +4856,18 @@ fdf_read_object(
 
 		if (status == FLASH_EOK) {
 
-			status = FDF_SUCCESS;
+			status = ZS_SUCCESS;
 			if (!app_buf) {
 				*data = malloc(*datalen);
 			}
 			if(!data)
-				status = FDF_FAILURE;
+				status = ZS_FAILURE;
 			else
 				memcpy(*data, tdata, *datalen);
 
 			ssd_flashFreeBuf(tdata);
 		} else {
-			status = FDF_FAILURE;
+			status = ZS_FAILURE;
 		}
 		goto out;
 
@@ -4880,11 +4880,11 @@ fdf_read_object(
     ar.ctnr_type = SDF_OBJECT_CONTAINER;
     ar.internal_request = SDF_TRUE;
     ar.internal_thread = fthSelf();
-    if ((status=SDFObjnameToKey(&(ar.key), (char *) key, keylen)) != FDF_SUCCESS) {
+    if ((status=SDFObjnameToKey(&(ar.key), (char *) key, keylen)) != ZS_SUCCESS) {
         goto out;
     }
     if (data == NULL) {
-       	status = FDF_BAD_PBUF_POINTER;
+       	status = ZS_BAD_PBUF_POINTER;
 		goto out; 
     }
 
@@ -4898,14 +4898,14 @@ fdf_read_object(
     ActionProtocolAgentNew(pac, &ar);
 
     if (datalen == NULL) {
-        return(FDF_BAD_SIZE_POINTER);
+        return(ZS_BAD_SIZE_POINTER);
     }
 
     /* TODO: This is sub-optimal way of reading from app buf,
      * however, there is no application use case so far and used
      * only for test app, hence its fine for now. When it needs
      * to support widely, need to put this in ActionProtocol code */
-    if (app_buf && (ar.respStatus == FDF_SUCCESS)) {
+    if (app_buf && (ar.respStatus == ZS_SUCCESS)) {
         *datalen = (*datalen > ar.destLen) ? ar.destLen: *datalen;
 	plat_assert(app_buf_data_ptr != *data); // Don't want to free app buf by mistake
         memcpy(app_buf_data_ptr, *data, *datalen);
@@ -4926,42 +4926,42 @@ out:
 }
 
 
-FDF_status_t FDFReadObject(
-	struct FDF_thread_state   *fdf_thread_state,
-	FDF_cguid_t                cguid,
+ZS_status_t ZSReadObject(
+	struct ZS_thread_state   *zs_thread_state,
+	ZS_cguid_t                cguid,
 	char                      *key,
 	uint32_t                   keylen,
 	char                     **data,
 	uint64_t                  *datalen
 	)
 {
-	FDF_status_t status = FDF_SUCCESS;
+	ZS_status_t status = ZS_SUCCESS;
 	bool thd_ctx_locked = false;
 
-	status = fdf_validate_container(cguid);
-	if (FDF_SUCCESS != status) {
+	status = zs_validate_container(cguid);
+	if (ZS_SUCCESS != status) {
 		plat_log_msg(160125, LOG_CAT,
 				LOG_ERR, "Failed due to an illegal container ID:%s",
-				FDF_Status_Strings[status]);
+				ZS_Status_Strings[status]);
 		goto out;
 	}
 	/*
 	 * Check if operation can begin
 	 */
-	if (FDF_SUCCESS != (status = is_fdf_operation_allowed())) {
+	if (ZS_SUCCESS != (status = is_zs_operation_allowed())) {
         plat_log_msg(160188, LOG_CAT,
 		   LOG_WARN, "Operation not allowed ");
 		goto out;
 	}
 	if (is_license_valid(is_btree_loaded()) == false) {
 		plat_log_msg(160145, LOG_CAT, LOG_WARN, "License check failed.");
-		status = FDF_LICENSE_CHK_FAILED;
+		status = ZS_LICENSE_CHK_FAILED;
 		goto out;
 	}
-        if ( !fdf_thread_state || !cguid || !keylen ) {
-            if ( !fdf_thread_state ) {
+        if ( !zs_thread_state || !cguid || !keylen ) {
+            if ( !zs_thread_state ) {
                 plat_log_msg(80049,LOG_CAT,LOG_DBG,
-                             "FDF Thread state is NULL");
+                             "ZS Thread state is NULL");
             }
             if ( !cguid ) {
                 plat_log_msg(80050,LOG_CAT,LOG_DBG,
@@ -4971,66 +4971,66 @@ FDF_status_t FDFReadObject(
                 plat_log_msg(80056,LOG_CAT,LOG_DBG,
                              "Invalid key length");
             }
-            return FDF_INVALID_PARAMETER;
+            return ZS_INVALID_PARAMETER;
         }
 
-	thd_ctx_locked = fdf_lock_thd_ctxt(fdf_thread_state);
+	thd_ctx_locked = zs_lock_thd_ctxt(zs_thread_state);
 	if (false == thd_ctx_locked) {
 		/*
 		 * Could not get thread context lock, error out.
 		 */
-		status = FDF_THREAD_CONTEXT_BUSY;
+		status = ZS_THREAD_CONTEXT_BUSY;
 		plat_log_msg(160161, LOG_CAT,
 		       	     LOG_DBG, "Could not get thread context lock");
 		goto out;
 	}
 
-	status = fdf_read_object(fdf_thread_state, cguid, key, keylen, data, datalen, false);
+	status = zs_read_object(zs_thread_state, cguid, key, keylen, data, datalen, false);
 
 out:
 	if (thd_ctx_locked) {
-		fdf_unlock_thd_ctxt(fdf_thread_state);
+		zs_unlock_thd_ctxt(zs_thread_state);
 	}
 	return status; 
 }
 
 
-FDF_status_t FDFReadObject2(
-	struct FDF_thread_state   *fdf_thread_state,
-	FDF_cguid_t                cguid,
+ZS_status_t ZSReadObject2(
+	struct ZS_thread_state   *zs_thread_state,
+	ZS_cguid_t                cguid,
 	char                      *key,
 	uint32_t                   keylen,
 	char                     **data,
 	uint64_t                  *datalen
 	)
 {
-	FDF_status_t status = FDF_SUCCESS;
+	ZS_status_t status = ZS_SUCCESS;
 	bool thd_ctx_locked = false;
 
-	status = fdf_validate_container(cguid);
-	if (FDF_SUCCESS != status) {
+	status = zs_validate_container(cguid);
+	if (ZS_SUCCESS != status) {
 		plat_log_msg(160125, LOG_CAT,
 				LOG_ERR, "Failed due to an illegal container ID:%s",
-				FDF_Status_Strings[status]);
+				ZS_Status_Strings[status]);
 		goto out;
 	}
 	/*
 	 * Check if operation can begin
 	 */
-	if (FDF_SUCCESS != (status = is_fdf_operation_allowed())) {
+	if (ZS_SUCCESS != (status = is_zs_operation_allowed())) {
         plat_log_msg(160188, LOG_CAT,
 		   LOG_WARN, "Operation not allowed ");
 		goto out;
 	}
 	if (is_license_valid(is_btree_loaded()) == false) {
 		plat_log_msg(160145, LOG_CAT, LOG_WARN, "License check failed.");
-		status = FDF_LICENSE_CHK_FAILED;
+		status = ZS_LICENSE_CHK_FAILED;
 		goto out;
 	}
-        if ( !fdf_thread_state || !cguid || !keylen ) {
-            if ( !fdf_thread_state ) {
+        if ( !zs_thread_state || !cguid || !keylen ) {
+            if ( !zs_thread_state ) {
                 plat_log_msg(80049,LOG_CAT,LOG_DBG,
-                             "FDF Thread state is NULL");
+                             "ZS Thread state is NULL");
             }
             if ( !cguid ) {
                 plat_log_msg(80050,LOG_CAT,LOG_DBG,
@@ -5040,34 +5040,34 @@ FDF_status_t FDFReadObject2(
                 plat_log_msg(80056,LOG_CAT,LOG_DBG,
                              "Invalid key length");
             }
-            return FDF_INVALID_PARAMETER;
+            return ZS_INVALID_PARAMETER;
         }
 
-	thd_ctx_locked = fdf_lock_thd_ctxt(fdf_thread_state);
+	thd_ctx_locked = zs_lock_thd_ctxt(zs_thread_state);
 	if (false == thd_ctx_locked) {
 		/*
 		 * Could not get thread context lock, error out.
 		 */
-		status = FDF_THREAD_CONTEXT_BUSY;
+		status = ZS_THREAD_CONTEXT_BUSY;
 		plat_log_msg(160161, LOG_CAT,
 		       	     LOG_DBG, "Could not get thread context lock");
 		goto out;
 	}
 
-	status = fdf_read_object(fdf_thread_state, cguid, key, keylen, data, datalen, true);
+	status = zs_read_object(zs_thread_state, cguid, key, keylen, data, datalen, true);
 
 out:
 	if (thd_ctx_locked) {
-		fdf_unlock_thd_ctxt(fdf_thread_state);
+		zs_unlock_thd_ctxt(zs_thread_state);
 	}
 	return status; 
 }
 
-static FDF_status_t
-fdf_read_object_expiry(
-    struct FDF_thread_state  *fdf_thread_state,
-    FDF_cguid_t               cguid,
-    FDF_readobject_t         *robj
+static ZS_status_t
+zs_read_object_expiry(
+    struct ZS_thread_state  *zs_thread_state,
+    ZS_cguid_t               cguid,
+    ZS_readobject_t         *robj
     )
 {
     SDF_appreq_t        ar;
@@ -5076,23 +5076,23 @@ fdf_read_object_expiry(
 	cntr_map_t *cmap = NULL;
 
     if ( !cguid )
-        return FDF_INVALID_PARAMETER;
+        return ZS_INVALID_PARAMETER;
 
-    if ((NULL == fdf_thread_state) || (NULL == robj) || (NULL == robj->key)) {
-        return FDF_INVALID_PARAMETER;        
+    if ((NULL == zs_thread_state) || (NULL == robj) || (NULL == robj->key)) {
+        return ZS_INVALID_PARAMETER;        
     }
 
 	cmap = get_cntr_map(cguid);
 	if (!cmap) {
-		return(FDF_CONTAINER_UNKNOWN);
+		return(ZS_CONTAINER_UNKNOWN);
 	}
 
-    if ( (status = fdf_get_ctnr_status_cmap(cmap, cguid, 0)) != (SDF_status_t) FDF_CONTAINER_OPEN ) {
+    if ( (status = zs_get_ctnr_status_cmap(cmap, cguid, 0)) != (SDF_status_t) ZS_CONTAINER_OPEN ) {
         plat_log_msg( 160039, LOG_CAT, LOG_DIAG, "Container must be open to execute a read object" );
         goto out;     
     }
 
-    pac = (SDF_action_init_t *) fdf_thread_state;
+    pac = (SDF_action_init_t *) zs_thread_state;
    
     ar.reqtype = APGRX;
     ar.curtime = robj->current;
@@ -5122,40 +5122,40 @@ out:
 }
 
 
-FDF_status_t FDFReadObjectExpiry(
-    struct FDF_thread_state  *fdf_thread_state,
-    FDF_cguid_t               cguid,
-    FDF_readobject_t         *robj
+ZS_status_t ZSReadObjectExpiry(
+    struct ZS_thread_state  *zs_thread_state,
+    ZS_cguid_t               cguid,
+    ZS_readobject_t         *robj
     )
 {
-	FDF_status_t status = FDF_SUCCESS;
+	ZS_status_t status = ZS_SUCCESS;
 	bool thd_ctx_locked = false;
-//        return FDF_UNSUPPORTED_REQUEST;
+//        return ZS_UNSUPPORTED_REQUEST;
 
-	status = fdf_validate_container(cguid);
-	if (FDF_SUCCESS != status) {
+	status = zs_validate_container(cguid);
+	if (ZS_SUCCESS != status) {
 		plat_log_msg(160125, LOG_CAT,
 				LOG_ERR, "Failed due to an illegal container ID:%s",
-				FDF_Status_Strings[status]);
+				ZS_Status_Strings[status]);
 		goto out;
 	}
 	/*
 	 * Check if operation can begin
 	 */
-	if (FDF_SUCCESS != (status = is_fdf_operation_allowed())) {
+	if (ZS_SUCCESS != (status = is_zs_operation_allowed())) {
         plat_log_msg(80022, LOG_CAT,
                LOG_WARN, "Shutdown in Progress. Operation not allowed ");
 		goto out;
 	}
 	if (is_license_valid(is_btree_loaded()) == false) {
 		plat_log_msg(160145, LOG_CAT, LOG_WARN, "License check failed.");
-		status = FDF_LICENSE_CHK_FAILED;
+		status = ZS_LICENSE_CHK_FAILED;
 		goto out;
 	}
-        if ( !fdf_thread_state || !cguid || !robj || !robj->key_len ) {
-            if ( !fdf_thread_state ) {
+        if ( !zs_thread_state || !cguid || !robj || !robj->key_len ) {
+            if ( !zs_thread_state ) {
                 plat_log_msg(80049,LOG_CAT,LOG_DBG,
-                             "FDF Thread state is NULL");
+                             "ZS Thread state is NULL");
             }
             if ( !cguid ) {
                 plat_log_msg(80050,LOG_CAT,LOG_DBG,
@@ -5163,48 +5163,48 @@ FDF_status_t FDFReadObjectExpiry(
             }
             if( !robj ) {
                 plat_log_msg(80057,LOG_CAT,LOG_DBG,
-                             "Invalid container FDF_readobject_t");
+                             "Invalid container ZS_readobject_t");
             }
             if ( !robj->key_len ) {
                 plat_log_msg(80056,LOG_CAT,LOG_DBG,
                              "Invalid key length");
             }
-            return FDF_INVALID_PARAMETER;
+            return ZS_INVALID_PARAMETER;
         }
 
-	thd_ctx_locked = fdf_lock_thd_ctxt(fdf_thread_state);
+	thd_ctx_locked = zs_lock_thd_ctxt(zs_thread_state);
 	if (false == thd_ctx_locked) {
 		/*
 		 * Could not get thread context lock, error out.
 		 */
-		status = FDF_THREAD_CONTEXT_BUSY;
+		status = ZS_THREAD_CONTEXT_BUSY;
 		plat_log_msg(160161, LOG_CAT,
 		       	     LOG_DBG, "Could not get thread context lock");
 		goto out;
 	}
 
-	status = fdf_read_object_expiry(fdf_thread_state, cguid, robj);
+	status = zs_read_object_expiry(zs_thread_state, cguid, robj);
 
 out:
 	if (thd_ctx_locked) {
-		fdf_unlock_thd_ctxt(fdf_thread_state);
+		zs_unlock_thd_ctxt(zs_thread_state);
 	}
 	return status; 
 }
 
 
-FDF_status_t FDFFreeBuffer(
+ZS_status_t ZSFreeBuffer(
 	char *buf
 	)
 {
     plat_free( buf );
-    return FDF_SUCCESS;
+    return ZS_SUCCESS;
 }
 
-static FDF_status_t
-fdf_write_object(
-	struct FDF_thread_state  *fdf_thread_state,
-	FDF_cguid_t          cguid,
+static ZS_status_t
+zs_write_object(
+	struct ZS_thread_state  *zs_thread_state,
+	ZS_cguid_t          cguid,
 	char                *key,
 	uint32_t             keylen,
 	char                *data,
@@ -5214,23 +5214,23 @@ fdf_write_object(
 {
     SDF_appreq_t        ar;
     SDF_action_init_t  *pac		= NULL;
-    FDF_status_t        status	= FDF_FAILURE;
+    ZS_status_t        status	= ZS_FAILURE;
 	cntr_map_t *cmap = NULL;
 
  	if ( !cguid || !key )
- 		return FDF_INVALID_PARAMETER;
+ 		return ZS_INVALID_PARAMETER;
  
 	cmap = get_cntr_map(cguid);
 	if (!cmap) {
-		return(FDF_CONTAINER_UNKNOWN);
+		return(ZS_CONTAINER_UNKNOWN);
 	}
 
-    if ( (status = fdf_get_ctnr_status_cmap(cmap, cguid, 0)) != FDF_CONTAINER_OPEN ) {
+    if ( (status = zs_get_ctnr_status_cmap(cmap, cguid, 0)) != ZS_CONTAINER_OPEN ) {
     	plat_log_msg( 160040, LOG_CAT, LOG_DIAG, "Container must be open to execute a write object" );
         goto out;     
     }
 
-    pac = (SDF_action_init_t *) fdf_thread_state;
+    pac = (SDF_action_init_t *) zs_thread_state;
 
 	SDF_cache_ctnr_metadata_t *meta;
 	meta = get_container_metadata(pac, cguid);
@@ -5238,10 +5238,10 @@ fdf_write_object(
 		goto out;
 	}
 
-	if (meta->meta.properties.flash_only == FDF_TRUE) {
+	if (meta->meta.properties.flash_only == ZS_TRUE) {
 		int flags = 0;
 		plat_log_msg(160192, LOG_CAT,
-			LOG_TRACE, "FDFWriteObject flash_only.");
+			LOG_TRACE, "ZSWriteObject flash_only.");
 		struct objMetaData metaData;
 		metaData.keyLen = keylen;
 		metaData.cguid  = cguid;
@@ -5257,15 +5257,15 @@ fdf_write_object(
 
 		status = ssd_flashPut(pac->paio_ctxt, meta->pshard, &metaData, key, data, FLASH_PUT_NO_TEST|flags);
 		if (status == FLASH_EOK) {
-			status = FDF_SUCCESS;
+			status = ZS_SUCCESS;
 		} else {
-			status = FDF_FAILURE;
+			status = ZS_FAILURE;
 		}
 		goto out;
 	} else {
-	if ( flags & FDF_WRITE_MUST_EXIST ) {
+	if ( flags & ZS_WRITE_MUST_EXIST ) {
     	ar.reqtype = APPAE;
-	} else if( flags & FDF_WRITE_MUST_NOT_EXIST ) {
+	} else if( flags & ZS_WRITE_MUST_NOT_EXIST ) {
     	ar.reqtype = APCOE;
 	}
     else {
@@ -5277,14 +5277,14 @@ fdf_write_object(
     ar.ctnr_type = SDF_OBJECT_CONTAINER;
     ar.internal_request = SDF_TRUE;
     ar.internal_thread = fthSelf();
-    if ((status=SDFObjnameToKey(&(ar.key), (char *) key, keylen)) != FDF_SUCCESS) {
+    if ((status=SDFObjnameToKey(&(ar.key), (char *) key, keylen)) != ZS_SUCCESS) {
         return(status);
     }
     ar.sze = datalen;
     ar.pbuf_out = (void *) data;
     ar.exptime = 0;
     if (data == NULL) {
-        status = FDF_BAD_PBUF_POINTER;
+        status = ZS_BAD_PBUF_POINTER;
 		goto out;
     }
 
@@ -5298,10 +5298,10 @@ out:
     return status;
 }
 
-static FDF_status_t
-fdf_write_objects(
-	struct FDF_thread_state  *fdf_thread_state,
-	FDF_cguid_t          cguid,
+static ZS_status_t
+zs_write_objects(
+	struct ZS_thread_state  *zs_thread_state,
+	ZS_cguid_t          cguid,
 	char                **key,
 	uint32_t             keylen,
 	char                **data,
@@ -5312,22 +5312,22 @@ fdf_write_objects(
 {
 	int i;
     SDF_action_init_t  *pac		= NULL;
-    FDF_status_t        status	= FDF_FAILURE;
+    ZS_status_t        status	= ZS_FAILURE;
 	cntr_map_t *cmap = NULL;
 
  	plat_assert(cguid && key);
  
 	cmap = get_cntr_map(cguid);
 	if (!cmap) {
-		return(FDF_CONTAINER_UNKNOWN);
+		return(ZS_CONTAINER_UNKNOWN);
 	}
 
-    if ( (status = fdf_get_ctnr_status_cmap(cmap, cguid, 0)) != FDF_CONTAINER_OPEN ) {
+    if ( (status = zs_get_ctnr_status_cmap(cmap, cguid, 0)) != ZS_CONTAINER_OPEN ) {
     	plat_log_msg( 160040, LOG_CAT, LOG_DIAG, "Container must be open to execute a write object" );
         goto out;     
     }
 
-    pac = (SDF_action_init_t *) fdf_thread_state;
+    pac = (SDF_action_init_t *) zs_thread_state;
 
 	SDF_cache_ctnr_metadata_t *meta;
 	meta = get_container_metadata(pac, cguid);
@@ -5335,10 +5335,10 @@ fdf_write_objects(
 		goto out;
 	}
 
-	if (meta->meta.properties.flash_only != FDF_TRUE || count < 8) {
-		status = FDF_SUCCESS;
-		for(i = 0; i < count && status == FDF_SUCCESS; i++)
-			status = fdf_write_object(fdf_thread_state, cguid, key[i], keylen, data[i], datalen, flags);
+	if (meta->meta.properties.flash_only != ZS_TRUE || count < 8) {
+		status = ZS_SUCCESS;
+		for(i = 0; i < count && status == ZS_SUCCESS; i++)
+			status = zs_write_object(zs_thread_state, cguid, key[i], keylen, data[i], datalen, flags);
 	} else {
 		struct objMetaData metaData;
 		metaData.keyLen = keylen;
@@ -5355,7 +5355,7 @@ fdf_write_objects(
 		update_container_stats(pac, APSOE, meta, count);
 
 		status = ssd_flashPutV(pac->paio_ctxt, meta->pshard, &metaData, key, data, count, FLASH_PUT_NO_TEST | flags);
-		status = status == FLASH_EOK ? FDF_SUCCESS : FDF_FAILURE;
+		status = status == FLASH_EOK ? ZS_SUCCESS : ZS_FAILURE;
 	}
 
 out:
@@ -5363,9 +5363,9 @@ out:
     return status;
 }
 
-FDF_status_t FDFWriteObject(
-	struct FDF_thread_state  *fdf_thread_state,
-	FDF_cguid_t          cguid,
+ZS_status_t ZSWriteObject(
+	struct ZS_thread_state  *zs_thread_state,
+	ZS_cguid_t          cguid,
 	char                *key,
 	uint32_t             keylen,
 	char                *data,
@@ -5373,33 +5373,33 @@ FDF_status_t FDFWriteObject(
 	uint32_t             flags
 	)
 {
-	FDF_status_t status = FDF_SUCCESS;
+	ZS_status_t status = ZS_SUCCESS;
 	bool thd_ctx_locked = false;
 
-	status = fdf_validate_container(cguid);
-	if (FDF_SUCCESS != status) {
+	status = zs_validate_container(cguid);
+	if (ZS_SUCCESS != status) {
 		plat_log_msg(160125, LOG_CAT,
 				LOG_ERR, "Failed due to an illegal container ID:%s",
-				FDF_Status_Strings[status]);
+				ZS_Status_Strings[status]);
 		goto out;
 	}
 	/*
 	 * Check if operation can begin
 	 */
-	if (FDF_SUCCESS != (status = is_fdf_operation_allowed())) {
+	if (ZS_SUCCESS != (status = is_zs_operation_allowed())) {
         plat_log_msg(80022, LOG_CAT,
                LOG_WARN, "Shutdown in Progress. Operation not allowed ");
 		goto out;
 	}
 	if (is_license_valid(is_btree_loaded()) == false) {
 		plat_log_msg(160145, LOG_CAT, LOG_WARN, "License check failed.");
-		status = FDF_LICENSE_CHK_FAILED;
+		status = ZS_LICENSE_CHK_FAILED;
 		goto out;
 	}
-        if ( !fdf_thread_state || !cguid || !keylen || !data || !datalen  ) {
-            if ( !fdf_thread_state ) {
+        if ( !zs_thread_state || !cguid || !keylen || !data || !datalen  ) {
+            if ( !zs_thread_state ) {
                 plat_log_msg(80049,LOG_CAT,LOG_DBG,
-                             "FDF Thread state is NULL");
+                             "ZS Thread state is NULL");
             }
             if ( !cguid ) {
                 plat_log_msg(80050,LOG_CAT,LOG_DBG,
@@ -5417,32 +5417,32 @@ FDF_status_t FDFWriteObject(
                 plat_log_msg(80059,LOG_CAT,LOG_DBG,
                              "Invalid data length");
             }
-            return FDF_INVALID_PARAMETER;
+            return ZS_INVALID_PARAMETER;
         }
 
-	thd_ctx_locked = fdf_lock_thd_ctxt(fdf_thread_state);
+	thd_ctx_locked = zs_lock_thd_ctxt(zs_thread_state);
 	if (false == thd_ctx_locked) {
 		/*
 		 * Could not get thread context lock, error out.
 		 */
-		status = FDF_THREAD_CONTEXT_BUSY;
+		status = ZS_THREAD_CONTEXT_BUSY;
 		plat_log_msg(160161, LOG_CAT,
 		       	     LOG_DBG, "Could not get thread context lock");
 		goto out;
 	}
 
-	status = fdf_write_object(fdf_thread_state, cguid, key, keylen, data, datalen, flags);
+	status = zs_write_object(zs_thread_state, cguid, key, keylen, data, datalen, flags);
 
 out:
 	if (thd_ctx_locked) {
-		fdf_unlock_thd_ctxt(fdf_thread_state);
+		zs_unlock_thd_ctxt(zs_thread_state);
 	}
 	return status;
 }
 
-FDF_status_t FDFWriteObjects(
-	struct FDF_thread_state  *fdf_thread_state,
-	FDF_cguid_t          cguid,
+ZS_status_t ZSWriteObjects(
+	struct ZS_thread_state  *zs_thread_state,
+	ZS_cguid_t          cguid,
 	char                **key,
 	uint32_t             keylen,
 	char                **data,
@@ -5451,33 +5451,33 @@ FDF_status_t FDFWriteObjects(
 	uint32_t             flags
 	)
 {
-	FDF_status_t status = FDF_SUCCESS;
+	ZS_status_t status = ZS_SUCCESS;
 	bool thd_ctx_locked = false;
 
-	status = fdf_validate_container(cguid);
-	if (FDF_SUCCESS != status) {
+	status = zs_validate_container(cguid);
+	if (ZS_SUCCESS != status) {
 		plat_log_msg(160125, LOG_CAT,
 				LOG_ERR, "Failed due to an illegal container ID:%s",
-				FDF_Status_Strings[status]);
+				ZS_Status_Strings[status]);
 		goto out;
 	}
 	/*
 	 * Check if operation can begin
 	 */
-	if (FDF_SUCCESS != (status = is_fdf_operation_allowed())) {
+	if (ZS_SUCCESS != (status = is_zs_operation_allowed())) {
         plat_log_msg(80022, LOG_CAT,
                LOG_WARN, "Shutdown in Progress. Operation not allowed ");
 		goto out;
 	}
 	if (is_license_valid(is_btree_loaded()) == false) {
 		plat_log_msg(160145, LOG_CAT, LOG_WARN, "License check failed.");
-		status = FDF_LICENSE_CHK_FAILED;
+		status = ZS_LICENSE_CHK_FAILED;
 		goto out;
 	}
-        if ( !fdf_thread_state || !cguid || !keylen || !data || !datalen  ) {
-            if ( !fdf_thread_state ) {
+        if ( !zs_thread_state || !cguid || !keylen || !data || !datalen  ) {
+            if ( !zs_thread_state ) {
                 plat_log_msg(80049,LOG_CAT,LOG_DBG,
-                             "FDF Thread state is NULL");
+                             "ZS Thread state is NULL");
             }
             if ( !cguid ) {
                 plat_log_msg(80050,LOG_CAT,LOG_DBG,
@@ -5499,69 +5499,69 @@ FDF_status_t FDFWriteObjects(
                 plat_log_msg(180207,LOG_CAT,LOG_DBG,
                              "Invalid objects count");
             }
-            return FDF_INVALID_PARAMETER;
+            return ZS_INVALID_PARAMETER;
         }
 
-	thd_ctx_locked = fdf_lock_thd_ctxt(fdf_thread_state);
+	thd_ctx_locked = zs_lock_thd_ctxt(zs_thread_state);
 	if (false == thd_ctx_locked) {
 		/*
 		 * Could not get thread context lock, error out.
 		 */
-		status = FDF_THREAD_CONTEXT_BUSY;
+		status = ZS_THREAD_CONTEXT_BUSY;
 		plat_log_msg(160161, LOG_CAT,
 		       	     LOG_DBG, "Could not get thread context lock");
 		goto out;
 	}
 
-	status = fdf_write_objects(fdf_thread_state, cguid, key, keylen, data, datalen, count, flags);
+	status = zs_write_objects(zs_thread_state, cguid, key, keylen, data, datalen, count, flags);
 
 out:
 	if (thd_ctx_locked) {
-		fdf_unlock_thd_ctxt(fdf_thread_state);
+		zs_unlock_thd_ctxt(zs_thread_state);
 	}
 	return status;
 }
 
 
-static FDF_status_t
-fdf_write_object_expiry (
-    struct FDF_thread_state  *fdf_thread_state,
-    FDF_cguid_t               cguid,
-    FDF_writeobject_t        *wobj,
+static ZS_status_t
+zs_write_object_expiry (
+    struct ZS_thread_state  *zs_thread_state,
+    ZS_cguid_t               cguid,
+    ZS_writeobject_t        *wobj,
     uint32_t                  flags
     )
 {
     SDF_appreq_t        ar;
     SDF_action_init_t  *pac;
-    FDF_status_t        status;
+    ZS_status_t        status;
 	cntr_map_t *cmap = NULL;
 
     if ( !cguid )
-        return FDF_INVALID_PARAMETER;
+        return ZS_INVALID_PARAMETER;
  
-    if ((NULL == fdf_thread_state) || (NULL == wobj) || (NULL == wobj->key)) {
-        return FDF_INVALID_PARAMETER;        
+    if ((NULL == zs_thread_state) || (NULL == wobj) || (NULL == wobj->key)) {
+        return ZS_INVALID_PARAMETER;        
     }
 
     if (NULL == wobj->data) {
-        return FDF_BAD_PBUF_POINTER;
+        return ZS_BAD_PBUF_POINTER;
     }
 
 	cmap = get_cntr_map(cguid);
 	if (!cmap) {
-		return(FDF_CONTAINER_UNKNOWN);
+		return(ZS_CONTAINER_UNKNOWN);
 	}
 
-    if ( (status = fdf_get_ctnr_status_cmap(cmap, cguid, 0)) != FDF_CONTAINER_OPEN ) {
+    if ( (status = zs_get_ctnr_status_cmap(cmap, cguid, 0)) != ZS_CONTAINER_OPEN ) {
         plat_log_msg( 160040, LOG_CAT, LOG_DIAG, "Container must be open to execute a write object" );
 		goto out;
     }
 
-    pac = (SDF_action_init_t *) fdf_thread_state;
+    pac = (SDF_action_init_t *) zs_thread_state;
 
-    if ( flags & FDF_WRITE_MUST_EXIST ) {
+    if ( flags & ZS_WRITE_MUST_EXIST ) {
         ar.reqtype = APPAE;
-    } else if( flags & FDF_WRITE_MUST_NOT_EXIST ) {
+    } else if( flags & ZS_WRITE_MUST_NOT_EXIST ) {
         ar.reqtype = APCOE;
     }
     else {
@@ -5575,7 +5575,7 @@ fdf_write_object_expiry (
     ar.internal_thread = fthSelf();
 
     status = SDFObjnameToKey(&(ar.key), (char *)wobj->key, wobj->key_len);
-    if (status != FDF_SUCCESS) {
+    if (status != ZS_SUCCESS) {
 		goto out;
 	}
     ar.sze = wobj->data_len;
@@ -5592,40 +5592,40 @@ out:
 }
 
 
-FDF_status_t FDFWriteObjectExpiry(
-    struct FDF_thread_state  *fdf_thread_state,
-    FDF_cguid_t               cguid,
-    FDF_writeobject_t        *wobj,
+ZS_status_t ZSWriteObjectExpiry(
+    struct ZS_thread_state  *zs_thread_state,
+    ZS_cguid_t               cguid,
+    ZS_writeobject_t        *wobj,
     uint32_t                  flags
     )
 {
-    FDF_status_t        status	= FDF_SUCCESS;
+    ZS_status_t        status	= ZS_SUCCESS;
 	bool thd_ctx_locked = false;
-//        return FDF_UNSUPPORTED_REQUEST;
-	status = fdf_validate_container(cguid);
-	if (FDF_SUCCESS != status) {
+//        return ZS_UNSUPPORTED_REQUEST;
+	status = zs_validate_container(cguid);
+	if (ZS_SUCCESS != status) {
 		plat_log_msg(160125, LOG_CAT,
 				LOG_ERR, "Failed due to an illegal container ID:%s",
-				FDF_Status_Strings[status]);
+				ZS_Status_Strings[status]);
 		goto out;
 	}
 	/*
 	 * Check if operation can begin
 	 */
-	if (FDF_SUCCESS != (status = is_fdf_operation_allowed())) {
+	if (ZS_SUCCESS != (status = is_zs_operation_allowed())) {
         plat_log_msg(80022, LOG_CAT,
                LOG_WARN, "Shutdown in Progress. Operation not allowed ");
 		goto out;
 	}
 	if (is_license_valid(is_btree_loaded()) == false) {
 		plat_log_msg(160145, LOG_CAT, LOG_WARN, "License check failed.");
-		status = FDF_LICENSE_CHK_FAILED;
+		status = ZS_LICENSE_CHK_FAILED;
 		goto out;
 	}
-        if ( !fdf_thread_state || !cguid || !wobj->key_len || !wobj->data || !wobj->data_len  ) {
-            if ( !fdf_thread_state ) {
+        if ( !zs_thread_state || !cguid || !wobj->key_len || !wobj->data || !wobj->data_len  ) {
+            if ( !zs_thread_state ) {
                 plat_log_msg(80049,LOG_CAT,LOG_DBG,
-                             "FDF Thread state is NULL");
+                             "ZS Thread state is NULL");
             }
             if ( !cguid ) {
                 plat_log_msg(80050,LOG_CAT,LOG_DBG,
@@ -5633,7 +5633,7 @@ FDF_status_t FDFWriteObjectExpiry(
             }
             if ( !wobj ) {
                 plat_log_msg(80060,LOG_CAT,LOG_DBG,
-                             "Invalid FDF_writeobject_t");
+                             "Invalid ZS_writeobject_t");
             }
             if ( !wobj->key_len ) {
                 plat_log_msg(80056,LOG_CAT,LOG_DBG,
@@ -5647,57 +5647,57 @@ FDF_status_t FDFWriteObjectExpiry(
                 plat_log_msg(80059,LOG_CAT,LOG_DBG,
                              "Invalid data length");
             }
-            return FDF_INVALID_PARAMETER;
+            return ZS_INVALID_PARAMETER;
         }
 
-	thd_ctx_locked = fdf_lock_thd_ctxt(fdf_thread_state);
+	thd_ctx_locked = zs_lock_thd_ctxt(zs_thread_state);
 	if (false == thd_ctx_locked) {
 		/*
 		 * Could not get thread context lock, error out.
 		 */
-		status = FDF_THREAD_CONTEXT_BUSY;
+		status = ZS_THREAD_CONTEXT_BUSY;
 		plat_log_msg(160161, LOG_CAT,
 		       	     LOG_DBG, "Could not get thread context lock");
 		goto out;
 	}
 
-	status = fdf_write_object_expiry(fdf_thread_state, cguid, wobj, flags);
+	status = zs_write_object_expiry(zs_thread_state, cguid, wobj, flags);
 
 out:
 	if (thd_ctx_locked) {
-		fdf_unlock_thd_ctxt(fdf_thread_state);
+		zs_unlock_thd_ctxt(zs_thread_state);
 	}
 	return status;
 }
 
 
-static FDF_status_t
-fdf_delete_object(
-	struct FDF_thread_state  *fdf_thread_state,
-	FDF_cguid_t          	  cguid,
+static ZS_status_t
+zs_delete_object(
+	struct ZS_thread_state  *zs_thread_state,
+	ZS_cguid_t          	  cguid,
 	char                	 *key,
 	uint32_t             	  keylen
 	)
 {
     SDF_appreq_t        ar;
     SDF_action_init_t  *pac		= NULL;
-    FDF_status_t        status	= FDF_SUCCESS;
+    ZS_status_t        status	= ZS_SUCCESS;
 	cntr_map_t *cmap = NULL;
 
     if ( !cguid || !key )
-        return FDF_INVALID_PARAMETER;
+        return ZS_INVALID_PARAMETER;
 
 	cmap = get_cntr_map(cguid);
 	if (!cmap) {
-		return(FDF_CONTAINER_UNKNOWN);
+		return(ZS_CONTAINER_UNKNOWN);
 	}
 
-    if ( (status = fdf_get_ctnr_status_cmap(cmap, cguid, 0)) != FDF_CONTAINER_OPEN ) {
+    if ( (status = zs_get_ctnr_status_cmap(cmap, cguid, 0)) != ZS_CONTAINER_OPEN ) {
         plat_log_msg( 160041, LOG_CAT, LOG_DIAG, "Container must be open to execute a delete object" );
         goto out;     
     }
 
-    pac = (SDF_action_init_t *) fdf_thread_state;
+    pac = (SDF_action_init_t *) zs_thread_state;
 
 	SDF_cache_ctnr_metadata_t *meta;
 	meta = get_container_metadata(pac, cguid);
@@ -5705,10 +5705,10 @@ fdf_delete_object(
 		goto out;
 	}
 
-	if (meta->meta.properties.flash_only == FDF_TRUE) {
+	if (meta->meta.properties.flash_only == ZS_TRUE) {
 		int flags = 0;
 		plat_log_msg(160193, LOG_CAT,
-			LOG_TRACE, "FDFDeleteObject flash_only.");
+			LOG_TRACE, "ZSDeleteObject flash_only.");
 		struct objMetaData metaData;
 		metaData.keyLen = keylen;
 		metaData.cguid  = cguid;
@@ -5719,9 +5719,9 @@ fdf_delete_object(
 			flags |= FLASH_PUT_DURA_HW_CRASH;
 		status=ssd_flashPut(pac->paio_ctxt, meta->pshard, &metaData, key, NULL, FLASH_PUT_TEST_NONEXIST|flags);
 		if (status == FLASH_EOK) {
-			status = FDF_SUCCESS;
+			status = ZS_SUCCESS;
 		} else {
-			status = FDF_FAILURE;
+			status = ZS_FAILURE;
 		}
 		goto out;
 	} else {
@@ -5734,7 +5734,7 @@ fdf_delete_object(
     ar.ctnr_type = SDF_OBJECT_CONTAINER;
     ar.internal_request = SDF_TRUE;    
 	ar.internal_thread = fthSelf();
-    if ((status=SDFObjnameToKey(&(ar.key), (char *) key, keylen)) != FDF_SUCCESS) {
+    if ((status=SDFObjnameToKey(&(ar.key), (char *) key, keylen)) != ZS_SUCCESS) {
 		goto out;
     }
 
@@ -5751,40 +5751,40 @@ out:
 }
 
 
-FDF_status_t FDFDeleteObject(
-	struct FDF_thread_state  *fdf_thread_state,
-	FDF_cguid_t          	  cguid,
+ZS_status_t ZSDeleteObject(
+	struct ZS_thread_state  *zs_thread_state,
+	ZS_cguid_t          	  cguid,
 	char                	 *key,
 	uint32_t             	  keylen
 	)
 {
-    FDF_status_t        status	= FDF_FAILURE;
+    ZS_status_t        status	= ZS_FAILURE;
 	bool thd_ctx_locked = false;
 
-	status = fdf_validate_container(cguid);
-	if (FDF_SUCCESS != status) {
+	status = zs_validate_container(cguid);
+	if (ZS_SUCCESS != status) {
 		plat_log_msg(160125, LOG_CAT,
 				LOG_ERR, "Failed due to an illegal container ID:%s",
-				FDF_Status_Strings[status]);
+				ZS_Status_Strings[status]);
 		goto out;
 	}
 	/*
 	 * Check if operation can begin
 	 */
-	if (FDF_SUCCESS != (status = is_fdf_operation_allowed())) {
+	if (ZS_SUCCESS != (status = is_zs_operation_allowed())) {
         plat_log_msg(80022, LOG_CAT,
                LOG_WARN, "Shutdown in Progress. Operation not allowed ");
 		goto out;
 	}
 	if (is_license_valid(is_btree_loaded()) == false) {
 		plat_log_msg(160145, LOG_CAT, LOG_WARN, "License check failed.");
-		status = FDF_LICENSE_CHK_FAILED;
+		status = ZS_LICENSE_CHK_FAILED;
 		goto out;
 	}
-        if ( !fdf_thread_state || !cguid || !keylen ) {
-            if ( !fdf_thread_state ) {
+        if ( !zs_thread_state || !cguid || !keylen ) {
+            if ( !zs_thread_state ) {
                 plat_log_msg(80049,LOG_CAT,LOG_DBG,
-                             "FDF Thread state is NULL");
+                             "ZS Thread state is NULL");
             }
             if ( !cguid ) {
                 plat_log_msg(80050,LOG_CAT,LOG_DBG,
@@ -5794,54 +5794,54 @@ FDF_status_t FDFDeleteObject(
                 plat_log_msg(80056,LOG_CAT,LOG_DBG,
                              "Invalid key length");
             }
-            return FDF_INVALID_PARAMETER;
+            return ZS_INVALID_PARAMETER;
         }
 
-	thd_ctx_locked = fdf_lock_thd_ctxt(fdf_thread_state);
+	thd_ctx_locked = zs_lock_thd_ctxt(zs_thread_state);
 	if (false == thd_ctx_locked) {
 		/*
 		 * Could not get thread context lock, error out.
 		 */
-		status = FDF_THREAD_CONTEXT_BUSY;
+		status = ZS_THREAD_CONTEXT_BUSY;
 		plat_log_msg(160161, LOG_CAT,
 		       	     LOG_DBG, "Could not get thread context lock");
 		goto out;
 	}
 
-	status = fdf_delete_object(fdf_thread_state, cguid, key, keylen);
+	status = zs_delete_object(zs_thread_state, cguid, key, keylen);
 
 out:
 	if (thd_ctx_locked) {
-		fdf_unlock_thd_ctxt(fdf_thread_state);
+		zs_unlock_thd_ctxt(zs_thread_state);
 	}
 	return status;
 }
 
 
-static FDF_status_t
-fdf_flush_object(
-	struct FDF_thread_state  *fdf_thread_state,
-	FDF_cguid_t          	  cguid,
+static ZS_status_t
+zs_flush_object(
+	struct ZS_thread_state  *zs_thread_state,
+	ZS_cguid_t          	  cguid,
 	char                	 *key,
 	uint32_t             	  keylen
 	)
 {
     SDF_appreq_t        ar;
     SDF_action_init_t  *pac;
-    FDF_status_t        status;
+    ZS_status_t        status;
 	cntr_map_t *cmap = NULL;
 
-    pac = (SDF_action_init_t *) fdf_thread_state;
+    pac = (SDF_action_init_t *) zs_thread_state;
 
 	if ( !cguid || !key )
-		return FDF_INVALID_PARAMETER;
+		return ZS_INVALID_PARAMETER;
 
 	cmap = get_cntr_map(cguid);
 	if (!cmap) {
-		return(FDF_CONTAINER_UNKNOWN);
+		return(ZS_CONTAINER_UNKNOWN);
 	}
 
-    if ( (status = fdf_get_ctnr_status_cmap(cmap, cguid, 0)) != FDF_CONTAINER_OPEN ) {
+    if ( (status = zs_get_ctnr_status_cmap(cmap, cguid, 0)) != ZS_CONTAINER_OPEN ) {
         plat_log_msg( 160043, LOG_CAT, LOG_DIAG, "Container must be open to execute a flush object" );
         goto out;     
     }
@@ -5853,7 +5853,7 @@ fdf_flush_object(
     ar.ctnr_type = SDF_OBJECT_CONTAINER;
     ar.internal_request = SDF_TRUE;
     ar.internal_thread = fthSelf();
-    if ((status=SDFObjnameToKey(&(ar.key), (char *) key, keylen)) != FDF_SUCCESS) {
+    if ((status=SDFObjnameToKey(&(ar.key), (char *) key, keylen)) != ZS_SUCCESS) {
 		goto out;
     }
 
@@ -5866,36 +5866,36 @@ out:
 }
 
 
-FDF_status_t FDFFlushObject(
-	struct FDF_thread_state  *fdf_thread_state,
-	FDF_cguid_t          	  cguid,
+ZS_status_t ZSFlushObject(
+	struct ZS_thread_state  *zs_thread_state,
+	ZS_cguid_t          	  cguid,
 	char                	 *key,
 	uint32_t             	  keylen
 	)
 {
 
-    FDF_status_t        status	= FDF_FAILURE;
+    ZS_status_t        status	= ZS_FAILURE;
 	bool thd_ctx_locked = false;
 
-	status = fdf_validate_container(cguid);
-	if (FDF_SUCCESS != status) {
+	status = zs_validate_container(cguid);
+	if (ZS_SUCCESS != status) {
 		plat_log_msg(160125, LOG_CAT,
 				LOG_ERR, "Failed due to an illegal container ID:%s",
-				FDF_Status_Strings[status]);
+				ZS_Status_Strings[status]);
 		goto out;
 	}
 	/*
 	 * Check if operation can begin
 	 */
-	if (FDF_SUCCESS != (status = is_fdf_operation_allowed())) {
+	if (ZS_SUCCESS != (status = is_zs_operation_allowed())) {
         plat_log_msg(80022, LOG_CAT,
                LOG_WARN, "Shutdown in Progress. Operation not allowed ");
 		goto out;
 	}
-        if ( !fdf_thread_state || !cguid || !keylen ) {
-            if ( !fdf_thread_state ) {
+        if ( !zs_thread_state || !cguid || !keylen ) {
+            if ( !zs_thread_state ) {
                 plat_log_msg(80049,LOG_CAT,LOG_DBG,
-                             "FDF Thread state is NULL");
+                             "ZS Thread state is NULL");
             }
             if ( !cguid ) {
                 plat_log_msg(80050,LOG_CAT,LOG_DBG,
@@ -5905,41 +5905,41 @@ FDF_status_t FDFFlushObject(
                 plat_log_msg(80056,LOG_CAT,LOG_DBG,
                              "Invalid key length");
             }
-            return FDF_INVALID_PARAMETER;
+            return ZS_INVALID_PARAMETER;
         }
 
-	thd_ctx_locked = fdf_lock_thd_ctxt(fdf_thread_state);
+	thd_ctx_locked = zs_lock_thd_ctxt(zs_thread_state);
 	if (false == thd_ctx_locked) {
 		/*
 		 * Could not get thread context lock, error out.
 		 */
-		status = FDF_THREAD_CONTEXT_BUSY;
+		status = ZS_THREAD_CONTEXT_BUSY;
 		plat_log_msg(160161, LOG_CAT,
 		       	     LOG_DBG, "Could not get thread context lock");
 		goto out;
 	}
 
-	status = fdf_flush_object(fdf_thread_state, cguid, key, keylen);
+	status = zs_flush_object(zs_thread_state, cguid, key, keylen);
 
 out:
 	if (thd_ctx_locked) {
-		fdf_unlock_thd_ctxt(fdf_thread_state);
+		zs_unlock_thd_ctxt(zs_thread_state);
 	}
 	return status;
 }
 
 
-static FDF_status_t
-fdf_flush_container(
-	struct FDF_thread_state  *fdf_thread_state,
-	FDF_cguid_t               cguid
+static ZS_status_t
+zs_flush_container(
+	struct ZS_thread_state  *zs_thread_state,
+	ZS_cguid_t               cguid
 	)
 {
     SDF_appreq_t        	 ar;
     SDF_action_init_t  		*pac;
-	FDF_status_t			 status			= FDF_FAILURE;
+	ZS_status_t			 status			= ZS_FAILURE;
 #ifdef SDFAPIONLY
-    SDF_internal_ctxt_t     *pai			= (SDF_internal_ctxt_t *) fdf_thread_state;
+    SDF_internal_ctxt_t     *pai			= (SDF_internal_ctxt_t *) zs_thread_state;
     struct shard            *shard          = NULL;
     flashDev_t              *flash_dev;
     SDF_container_meta_t     meta;
@@ -5948,19 +5948,19 @@ fdf_flush_container(
 	cntr_map_t *cmap = NULL;
 
     if ( !cguid )
-        return FDF_INVALID_PARAMETER;
+        return ZS_INVALID_PARAMETER;
 
 	cmap = get_cntr_map(cguid);
 	if (!cmap) {
-		return(FDF_CONTAINER_UNKNOWN);
+		return(ZS_CONTAINER_UNKNOWN);
 	}
 
-    if ( (status = fdf_get_ctnr_status_cmap(cmap, cguid, 0)) != FDF_CONTAINER_OPEN ) {
+    if ( (status = zs_get_ctnr_status_cmap(cmap, cguid, 0)) != ZS_CONTAINER_OPEN ) {
         plat_log_msg( 160044, LOG_CAT, LOG_DIAG, "Container must be open to execute a flush container" );
         goto out;     
     }
 
-    pac = (SDF_action_init_t *) fdf_thread_state;
+    pac = (SDF_action_init_t *) zs_thread_state;
 
     ar.reqtype = APFCO;
     ar.curtime = 0;
@@ -5974,13 +5974,13 @@ fdf_flush_container(
 
 	status = ar.respStatus;
 
-	if ( FDF_SUCCESS != status ) {
+	if ( ZS_SUCCESS != status ) {
 		rel_cntr_map(cmap);
     	return status;         
 	}
 
 #ifdef SDFAPIONLY
-	if ((status = name_service_get_meta(pai, cguid, &meta)) == FDF_SUCCESS) {
+	if ((status = name_service_get_meta(pai, cguid, &meta)) == ZS_SUCCESS) {
 
 #ifdef MULTIPLE_FLASH_DEV_ENABLED
 		flash_dev = get_flashdev_from_shardid( state->config.flash_dev,
@@ -6003,151 +6003,151 @@ out:
 }
 
 
-FDF_status_t FDFFlushContainer(
-	struct FDF_thread_state  *fdf_thread_state,
-	FDF_cguid_t               cguid
+ZS_status_t ZSFlushContainer(
+	struct ZS_thread_state  *zs_thread_state,
+	ZS_cguid_t               cguid
 	)
 {
-	FDF_status_t status = FDF_SUCCESS;
+	ZS_status_t status = ZS_SUCCESS;
 	bool thd_ctx_locked = false;
 
-	status = fdf_validate_container(cguid);
-	if (FDF_SUCCESS != status) {
+	status = zs_validate_container(cguid);
+	if (ZS_SUCCESS != status) {
 		plat_log_msg(160125, LOG_CAT,
 				LOG_ERR, "Failed due to an illegal container ID:%s",
-				FDF_Status_Strings[status]);
+				ZS_Status_Strings[status]);
 		goto out;
 	}
 	/*
 	 * Check if operation can begin
 	 */
-	if (FDF_SUCCESS != (status = is_fdf_operation_allowed())) {
+	if (ZS_SUCCESS != (status = is_zs_operation_allowed())) {
         plat_log_msg(80022, LOG_CAT,
                LOG_WARN, "Shutdown in Progress. Operation not allowed ");
 		goto out;
 	}
-        if ( !fdf_thread_state || !cguid ) {
-            if ( !fdf_thread_state ) {
+        if ( !zs_thread_state || !cguid ) {
+            if ( !zs_thread_state ) {
                 plat_log_msg(80049,LOG_CAT,LOG_DBG,
-                             "FDF Thread state is NULL");
+                             "ZS Thread state is NULL");
             }
             if ( !cguid ) {
                 plat_log_msg(80050,LOG_CAT,LOG_DBG,
                              "Invalid container cguid:%lu",cguid);
             }
-            return FDF_INVALID_PARAMETER;
+            return ZS_INVALID_PARAMETER;
         }
 
-	thd_ctx_locked = fdf_lock_thd_ctxt(fdf_thread_state);
+	thd_ctx_locked = zs_lock_thd_ctxt(zs_thread_state);
 	if (false == thd_ctx_locked) {
 		/*
 		 * Could not get thread context lock, error out.
 		 */
-		status = FDF_THREAD_CONTEXT_BUSY;
+		status = ZS_THREAD_CONTEXT_BUSY;
 		plat_log_msg(160161, LOG_CAT,
 		       	     LOG_DBG, "Could not get thread context lock");
 		goto out;
 	}
 
-	status = fdf_flush_container(fdf_thread_state, cguid);
+	status = zs_flush_container(zs_thread_state, cguid);
 
 out:
 	if (thd_ctx_locked) {
-		fdf_unlock_thd_ctxt(fdf_thread_state);
+		zs_unlock_thd_ctxt(zs_thread_state);
 	}
 	return status;
 }
 
 
-static FDF_status_t
-fdf_flush_cache(
-		struct FDF_thread_state  *fdf_thread_state
+static ZS_status_t
+zs_flush_cache(
+		struct ZS_thread_state  *zs_thread_state
 		)
 {
-	FDF_status_t          status       = FDF_SUCCESS;
+	ZS_status_t          status       = ZS_SUCCESS;
     char                 *key          = NULL;
     uint32_t              keylen       = 0;
     cntr_map_t           *cmap         = NULL;
     uint64_t              cmaplen      = 0;
     struct cmap_iterator *iterator     = NULL;
 
-    iterator = fdf_cmap_enum();
+    iterator = zs_cmap_enum();
 
     if ( !iterator )
-        return FDF_FAILURE;
+        return ZS_FAILURE;
 
-    while ( fdf_cmap_next_enum( iterator, &key, &keylen, (char **) &cmap, &cmaplen ) ) {
+    while ( zs_cmap_next_enum( iterator, &key, &keylen, (char **) &cmap, &cmaplen ) ) {
         plat_assert(cmap);
-        if ( (cmap->cguid != FDF_NULL_CGUID ) && 
-			 (cmap->state != FDF_CONTAINER_STATE_DELETE_PROG) &&
-			 (cmap->state != FDF_CONTAINER_STATE_DELETE_OPEN) &&
-			 (cmap->state != FDF_CONTAINER_STATE_DELETE_CLOSED) ) {
-			status = fdf_flush_container( fdf_thread_state, cmap->cguid );
+        if ( (cmap->cguid != ZS_NULL_CGUID ) && 
+			 (cmap->state != ZS_CONTAINER_STATE_DELETE_PROG) &&
+			 (cmap->state != ZS_CONTAINER_STATE_DELETE_OPEN) &&
+			 (cmap->state != ZS_CONTAINER_STATE_DELETE_CLOSED) ) {
+			status = zs_flush_container( zs_thread_state, cmap->cguid );
 
-			if ( status != FDF_SUCCESS ) 
+			if ( status != ZS_SUCCESS ) 
 				goto out;
         }
     }
 
 out:
-    fdf_cmap_finish_enum( iterator );
+    zs_cmap_finish_enum( iterator );
     return status;
 }
 
 
-FDF_status_t FDFFlushCache(
-	struct FDF_thread_state  *fdf_thread_state
+ZS_status_t ZSFlushCache(
+	struct ZS_thread_state  *zs_thread_state
 	)
 {
-	FDF_status_t	status	= FDF_SUCCESS;
+	ZS_status_t	status	= ZS_SUCCESS;
 	bool thd_ctx_locked = false;
 
 	/*
 	 * Check if operation can begin
 	 */
-	if (FDF_SUCCESS != (status = is_fdf_operation_allowed())) {
+	if (ZS_SUCCESS != (status = is_zs_operation_allowed())) {
         plat_log_msg(80022, LOG_CAT,
                LOG_WARN, "Shutdown in Progress. Operation not allowed ");
 		goto out;
 	}
-        if ( !fdf_thread_state ) {
+        if ( !zs_thread_state ) {
             plat_log_msg(80049,LOG_CAT,LOG_DBG,
-                             "FDF Thread state is NULL");
-            return FDF_INVALID_PARAMETER;
+                             "ZS Thread state is NULL");
+            return ZS_INVALID_PARAMETER;
         }
 
-	thd_ctx_locked = fdf_lock_thd_ctxt(fdf_thread_state);
+	thd_ctx_locked = zs_lock_thd_ctxt(zs_thread_state);
 	if (false == thd_ctx_locked) {
 		/*
 		 * Could not get thread context lock, error out.
 		 */
-		status = FDF_THREAD_CONTEXT_BUSY;
+		status = ZS_THREAD_CONTEXT_BUSY;
 		plat_log_msg(160161, LOG_CAT,
 		       	     LOG_DBG, "Could not get thread context lock");
 		goto out;
 	}
 
-	status = fdf_flush_cache(fdf_thread_state);
+	status = zs_flush_cache(zs_thread_state);
 
 out:
 	if (thd_ctx_locked) {
-		fdf_unlock_thd_ctxt(fdf_thread_state);
+		zs_unlock_thd_ctxt(zs_thread_state);
 	}
 	return status;
 }
 
 
-FDF_status_t FDFContainerStat(SDF_internal_ctxt_t *pai, SDF_CONTAINER container, int key, uint64_t *stat) 
+ZS_status_t ZSContainerStat(SDF_internal_ctxt_t *pai, SDF_CONTAINER container, int key, uint64_t *stat) 
 {
-    FDF_status_t   status;
+    ZS_status_t   status;
 
 	status = SDFContainerStatInternal( pai, container, key, stat ); 
 	return status;
 }
 
 #if 0
-static void fdf_get_fth_stats(SDF_internal_ctxt_t *pai, char ** ppos, int * lenp,
-                                 SDF_CONTAINER sdf_container, FDF_stats_t *stats )
+static void zs_get_fth_stats(SDF_internal_ctxt_t *pai, char ** ppos, int * lenp,
+                                 SDF_CONTAINER sdf_container, ZS_stats_t *stats )
 {
     uint64_t            old_value;
     static uint64_t     idle_time = 0;
@@ -6163,7 +6163,7 @@ static void fdf_get_fth_stats(SDF_internal_ctxt_t *pai, char ** ppos, int * lenp
     plat_snprintfcat( ppos, lenp, "STAT pending_ios %lu\r\n",
                       Mcd_num_pending_ios );
     if (stats != NULL)
-        stats->flash_stats[FDF_FLASH_STATS_PENDING_IOS] = Mcd_num_pending_ios;
+        stats->flash_stats[ZS_FLASH_STATS_PENDING_IOS] = Mcd_num_pending_ios;
 
     extern uint64_t Mcd_fth_waiting_io;
     plat_snprintfcat( ppos, lenp, "STAT fth_waiting_io %lu\r\n",
@@ -6180,7 +6180,7 @@ static void fdf_get_fth_stats(SDF_internal_ctxt_t *pai, char ** ppos, int * lenp
     plat_snprintfcat( ppos, lenp, "\r\n");
 
     old_value = idle_time;
-    FDFContainerStat( pai, sdf_container,
+    ZSContainerStat( pai, sdf_container,
                              FLASH_FTH_SCHEDULER_IDLE_TIME,
                              &idle_time );
     plat_snprintfcat( ppos, lenp, "STAT fth_idle_time %lu %lu\r\n",
@@ -6188,7 +6188,7 @@ static void fdf_get_fth_stats(SDF_internal_ctxt_t *pai, char ** ppos, int * lenp
                       (unsigned long)(idle_time - old_value) );
 
     old_value = num_dispatches;
-    FDFContainerStat( pai, sdf_container,
+    ZSContainerStat( pai, sdf_container,
                              FLASH_FTH_NUM_DISPATCHES,
                              &num_dispatches );
     plat_snprintfcat( ppos, lenp,
@@ -6196,14 +6196,14 @@ static void fdf_get_fth_stats(SDF_internal_ctxt_t *pai, char ** ppos, int * lenp
                       num_dispatches, num_dispatches - old_value );
 
     old_value = dispatch_time;
-    FDFContainerStat( pai, sdf_container,
+    ZSContainerStat( pai, sdf_container,
                              FLASH_FTH_SCHEDULER_DISPATCH_TIME,
                              &dispatch_time );
     plat_snprintfcat( ppos, lenp, "STAT fth_dispatch_time %lu %lu\r\n",
                       dispatch_time, dispatch_time - old_value );
 
     old_value = num_low_prio_dispatches;
-    FDFContainerStat( pai, sdf_container,
+    ZSContainerStat( pai, sdf_container,
                              FLASH_FTH_NUM_LOW_PRIO_DISPATCHES,
                              &num_low_prio_dispatches );
     plat_snprintfcat( ppos, lenp,
@@ -6212,7 +6212,7 @@ static void fdf_get_fth_stats(SDF_internal_ctxt_t *pai, char ** ppos, int * lenp
                       num_low_prio_dispatches - old_value );
 
     old_value = low_prio_dispatch_time;
-    FDFContainerStat( pai, sdf_container,
+    ZSContainerStat( pai, sdf_container,
                              FLASH_FTH_SCHEDULER_LOW_PRIO_DISPATCH_TIME,
                              &low_prio_dispatch_time );
     plat_snprintfcat( ppos, lenp,
@@ -6221,7 +6221,7 @@ static void fdf_get_fth_stats(SDF_internal_ctxt_t *pai, char ** ppos, int * lenp
                       low_prio_dispatch_time - old_value );
 
     old_value = thread_time;
-    FDFContainerStat( pai, sdf_container,
+    ZSContainerStat( pai, sdf_container,
                              FLASH_FTH_TOTAL_THREAD_RUN_TIME,
                              &thread_time );
     plat_snprintfcat( ppos, lenp,
@@ -6229,13 +6229,13 @@ static void fdf_get_fth_stats(SDF_internal_ctxt_t *pai, char ** ppos, int * lenp
                       thread_time, thread_time - old_value );
 
     old_value = ticks;
-    FDFContainerStat( pai, sdf_container,
+    ZSContainerStat( pai, sdf_container,
                              FLASH_TSC_TICKS_PER_MICROSECOND, &ticks);
     plat_snprintfcat( ppos, lenp,
                       "STAT fth_tsc_ticks_per_usec %lu %lu\r\n",
                       ticks, old_value );
 
-    FDFContainerStat( pai, sdf_container,
+    ZSContainerStat( pai, sdf_container,
                              FLASH_FTH_AVG_DISPATCH_NANOSEC,
                              &avg_dispatch );
     plat_snprintfcat( ppos, lenp,
@@ -6244,7 +6244,7 @@ static void fdf_get_fth_stats(SDF_internal_ctxt_t *pai, char ** ppos, int * lenp
 }
 #endif
 
-void fdf_get_flash_map(struct FDF_thread_state *thd_state, FDF_cguid_t cguid, 
+void zs_get_flash_map(struct ZS_thread_state *thd_state, ZS_cguid_t cguid, 
                        char *buf, int *size){
     int rc;
     uint64_t *stats_ptr;
@@ -6257,19 +6257,19 @@ void fdf_get_flash_map(struct FDF_thread_state *thd_state, FDF_cguid_t cguid,
     pai  = (SDF_internal_ctxt_t *)thd_state;
     SDFStartSerializeContainerOp(pai);
 
-    cmap = fdf_cmap_get_by_cguid(cguid);
+    cmap = zs_cmap_get_by_cguid(cguid);
     if (!cmap) {
         *size = sprintf(buf,"Unable to get container from cguid\n");
         SDFEndSerializeContainerOp(pai);
         return;
     }   
-    if ( fdf_get_ctnr_status(cguid, 0) != FDF_CONTAINER_OPEN ) {
+    if ( zs_get_ctnr_status(cguid, 0) != ZS_CONTAINER_OPEN ) {
         SDFEndSerializeContainerOp(pai);
         return;
     }
 
     sdf_container = cmap->sdf_container;
-    FDFContainerStat( pai, sdf_container,
+    ZSContainerStat( pai, sdf_container,
                              FLASH_SLAB_CLASS_SEGS,
                              (uint64_t *)&stats_ptr );
     if( stats_ptr != NULL ) {
@@ -6291,7 +6291,7 @@ void fdf_get_flash_map(struct FDF_thread_state *thd_state, FDF_cguid_t cguid,
     }
     
     stats_ptr = NULL;
-    FDFContainerStat( pai, sdf_container,
+    ZSContainerStat( pai, sdf_container,
                              FLASH_SLAB_CLASS_SLABS,
                              (uint64_t *)&stats_ptr );
     if( stats_ptr != NULL ) {
@@ -6313,7 +6313,7 @@ void fdf_get_flash_map(struct FDF_thread_state *thd_state, FDF_cguid_t cguid,
     }
 
     stats_ptr = NULL;
-    FDFContainerStat( pai, sdf_container,
+    ZSContainerStat( pai, sdf_container,
                              FLASH_SPACE_COMP_HISTOGRAM,
                              (uint64_t *)&stats_ptr );
     if( stats_ptr != NULL ) {
@@ -6340,8 +6340,8 @@ void fdf_get_flash_map(struct FDF_thread_state *thd_state, FDF_cguid_t cguid,
 
 
 
-static void fdf_get_flash_stats( SDF_internal_ctxt_t *pai, char ** ppos, int * lenp,
-                                 SDF_CONTAINER sdf_container, FDF_stats_t *stats)
+static void zs_get_flash_stats( SDF_internal_ctxt_t *pai, char ** ppos, int * lenp,
+                                 SDF_CONTAINER sdf_container, ZS_stats_t *stats)
 {
     uint64_t            space_allocated = 0;
     uint64_t            space_consumed = 0;
@@ -6365,7 +6365,7 @@ static void fdf_get_flash_stats( SDF_internal_ctxt_t *pai, char ** ppos, int * l
     uint64_t            val = 0;
     uint64_t          * stats_ptr = NULL;
 
-    FDFContainerStat( pai, sdf_container,
+    ZSContainerStat( pai, sdf_container,
                              FLASH_SLAB_CLASS_SEGS,
                              (uint64_t *)&stats_ptr );
     if( stats_ptr != NULL ) {
@@ -6379,7 +6379,7 @@ static void fdf_get_flash_stats( SDF_internal_ctxt_t *pai, char ** ppos, int * l
         plat_snprintfcat( ppos, lenp, "STAT flash_class_map:\r\n" );
     }
     stats_ptr = NULL;
-    FDFContainerStat( pai, sdf_container,
+    ZSContainerStat( pai, sdf_container,
                              FLASH_SLAB_CLASS_SLABS,
                              (uint64_t *)&stats_ptr );
     if( stats_ptr != NULL ) {
@@ -6393,178 +6393,178 @@ static void fdf_get_flash_stats( SDF_internal_ctxt_t *pai, char ** ppos, int * l
         plat_snprintfcat( ppos, lenp, "STAT flash_slab_map:\r\n" );
     }
 
-    FDFContainerStat( pai, sdf_container,
+    ZSContainerStat( pai, sdf_container,
                              FLASH_SPACE_ALLOCATED,
                              &space_allocated );
     plat_snprintfcat( ppos, lenp,
                       "STAT flash_space_allocated %lu\r\n",
                       space_allocated );
     if (stats != NULL) 
-        stats->flash_stats[FDF_FLASH_STATS_SPACE_ALLOCATED] = space_allocated;
+        stats->flash_stats[ZS_FLASH_STATS_SPACE_ALLOCATED] = space_allocated;
 
-    FDFContainerStat( pai, sdf_container,
+    ZSContainerStat( pai, sdf_container,
                              FLASH_SPACE_CONSUMED,
                              &space_consumed );
     plat_snprintfcat( ppos, lenp, "STAT flash_space_consumed %lu\r\n",
                       space_consumed );
     if (stats != NULL) 
-        stats->flash_stats[FDF_FLASH_STATS_SPACE_CONSUMED] = space_consumed;
+        stats->flash_stats[ZS_FLASH_STATS_SPACE_CONSUMED] = space_consumed;
 
-    FDFContainerStat( pai, sdf_container,
+    ZSContainerStat( pai, sdf_container,
                              FLASH_NUM_OBJECTS,
                              &num_objects );
     plat_snprintfcat( ppos, lenp, "STAT flash_num_objects %lu\r\n",
                       num_objects );
     if (stats != NULL) 
-        stats->flash_stats[FDF_FLASH_STATS_NUM_OBJS] = num_objects;
+        stats->flash_stats[ZS_FLASH_STATS_NUM_OBJS] = num_objects;
 
-    FDFContainerStat( pai, sdf_container,
+    ZSContainerStat( pai, sdf_container,
                              FLASH_NUM_CREATED_OBJECTS,
                              &num_created_objects );
     plat_snprintfcat( ppos, lenp,
                       "STAT flash_num_created_objects %lu\r\n",
                       num_created_objects );
     if (stats != NULL) 
-        stats->flash_stats[FDF_FLASH_STATS_NUM_CREATED_OBJS] = num_created_objects;
+        stats->flash_stats[ZS_FLASH_STATS_NUM_CREATED_OBJS] = num_created_objects;
 
-    FDFContainerStat( pai, sdf_container,
+    ZSContainerStat( pai, sdf_container,
                              FLASH_NUM_EVICTIONS,
                              &num_evictions );
     plat_snprintfcat( ppos, lenp, "STAT flash_num_evictions %lu\r\n",
                       num_evictions );
     if (stats != NULL) 
-        stats->flash_stats[FDF_FLASH_STATS_NUM_EVICTIONS] = num_evictions;
+        stats->flash_stats[ZS_FLASH_STATS_NUM_EVICTIONS] = num_evictions;
 
-    FDFContainerStat( pai, sdf_container,
+    ZSContainerStat( pai, sdf_container,
                                  FLASH_NUM_HASH_EVICTIONS,
                                  &num_hash_evictions );
     plat_snprintfcat( ppos, lenp,
                           "STAT flash_num_hash_evictions %lu\r\n",
                           num_hash_evictions );
     if (stats != NULL) 
-        stats->flash_stats[FDF_FLASH_STATS_NUM_HASH_EVICTIONS] = num_hash_evictions;
+        stats->flash_stats[ZS_FLASH_STATS_NUM_HASH_EVICTIONS] = num_hash_evictions;
 
-    FDFContainerStat( pai, sdf_container,
+    ZSContainerStat( pai, sdf_container,
                                  FLASH_NUM_INVAL_EVICTIONS,
                                  &num_inval_evictions );
     plat_snprintfcat( ppos, lenp,
                           "STAT flash_num_inval_evictions %lu\r\n",
                           num_inval_evictions );
     if (stats != NULL) 
-        stats->flash_stats[FDF_FLASH_STATS_NUM_INVAL_EVICTIONS] = num_inval_evictions;
+        stats->flash_stats[ZS_FLASH_STATS_NUM_INVAL_EVICTIONS] = num_inval_evictions;
 
-    FDFContainerStat( pai, sdf_container,
+    ZSContainerStat( pai, sdf_container,
                                  FLASH_NUM_SOFT_OVERFLOWS,
                                  &num_hash_overflows );
     plat_snprintfcat( ppos, lenp,
                           "STAT flash_num_soft_overflows %lu\r\n",
                           num_hash_overflows );
     if (stats != NULL) 
-        stats->flash_stats[FDF_FLASH_STATS_NUM_SOFT_OVERFLOWS] = num_hash_overflows;
+        stats->flash_stats[ZS_FLASH_STATS_NUM_SOFT_OVERFLOWS] = num_hash_overflows;
 
-    FDFContainerStat( pai, sdf_container,
+    ZSContainerStat( pai, sdf_container,
                                  FLASH_NUM_HARD_OVERFLOWS,
                                  &num_hash_overflows );
     plat_snprintfcat( ppos, lenp,
                           "STAT flash_num_hard_overflows %lu\r\n",
                           num_hash_overflows );
     if (stats != NULL) 
-        stats->flash_stats[FDF_FLASH_STATS_NUM_HARD_OVERFLOWS] = num_hash_overflows;
+        stats->flash_stats[ZS_FLASH_STATS_NUM_HARD_OVERFLOWS] = num_hash_overflows;
 
-    FDFContainerStat( pai, sdf_container,
+    ZSContainerStat( pai, sdf_container,
                              FLASH_GET_HASH_COLLISIONS,
                                  &get_hash_collisions );
     plat_snprintfcat( ppos, lenp,
                           "STAT flash_get_hash_collisions %lu\r\n",
                           get_hash_collisions );
     if (stats != NULL)
-        stats->flash_stats[FDF_FLASH_STATS_GET_HASH_COLLISION] = get_hash_collisions;
+        stats->flash_stats[ZS_FLASH_STATS_GET_HASH_COLLISION] = get_hash_collisions;
 
 
-    FDFContainerStat( pai, sdf_container,
+    ZSContainerStat( pai, sdf_container,
                                  FLASH_SET_HASH_COLLISIONS,
                                  &set_hash_collisions );
     plat_snprintfcat( ppos, lenp,
                           "STAT flash_set_hash_collisions %lu\r\n",
                           set_hash_collisions );
     if (stats != NULL)
-        stats->flash_stats[FDF_FLASH_STATS_SET_HASH_COLLISION] = set_hash_collisions;
+        stats->flash_stats[ZS_FLASH_STATS_SET_HASH_COLLISION] = set_hash_collisions;
 
-    FDFContainerStat( pai, sdf_container,
+    ZSContainerStat( pai, sdf_container,
                              FLASH_NUM_OVERWRITES,
                              &num_overwrites );
     plat_snprintfcat( ppos, lenp, "STAT flash_num_overwrites %lu\r\n",
                       num_overwrites );
     if (stats != NULL)
-        stats->flash_stats[FDF_FLASH_STATS_NUM_OVERWRITES] = num_overwrites;
+        stats->flash_stats[ZS_FLASH_STATS_NUM_OVERWRITES] = num_overwrites;
 
-    FDFContainerStat( pai, sdf_container,
+    ZSContainerStat( pai, sdf_container,
                              FLASH_OPS,
                              &num_ops );
     plat_snprintfcat( ppos, lenp, "STAT flash_num_ops %lu\r\n",
                       num_ops );
     if (stats != NULL)
-        stats->flash_stats[FDF_FLASH_STATS_NUM_OPS] = num_ops;
+        stats->flash_stats[ZS_FLASH_STATS_NUM_OPS] = num_ops;
 
-    FDFContainerStat( pai, sdf_container,
+    ZSContainerStat( pai, sdf_container,
                              FLASH_READ_OPS,
                              &num_read_ops );
 
     plat_snprintfcat( ppos, lenp, "STAT flash_num_read_ops %lu\r\n",
                       num_read_ops );
     if (stats != NULL)
-        stats->flash_stats[FDF_FLASH_STATS_NUM_READ_OPS] = num_read_ops;
+        stats->flash_stats[ZS_FLASH_STATS_NUM_READ_OPS] = num_read_ops;
 
-    FDFContainerStat( pai, sdf_container,
+    ZSContainerStat( pai, sdf_container,
                              FLASH_NUM_GET_OPS,
                              &num_get_ops );
     plat_snprintfcat( ppos, lenp, "STAT flash_num_get_ops %lu\r\n",
                       num_get_ops );
     if (stats != NULL)
-        stats->flash_stats[FDF_FLASH_STATS_NUM_GET_OPS] = num_get_ops;
+        stats->flash_stats[ZS_FLASH_STATS_NUM_GET_OPS] = num_get_ops;
 
-    FDFContainerStat( pai, sdf_container,
+    ZSContainerStat( pai, sdf_container,
                              FLASH_NUM_PUT_OPS,
                              &num_put_ops );
     plat_snprintfcat( ppos, lenp, "STAT flash_num_put_ops %lu\r\n",
                       num_put_ops );
     if (stats != NULL)
-        stats->flash_stats[FDF_FLASH_STATS_NUM_PUT_OPS] = num_put_ops;
+        stats->flash_stats[ZS_FLASH_STATS_NUM_PUT_OPS] = num_put_ops;
 
-    FDFContainerStat( pai, sdf_container,
+    ZSContainerStat( pai, sdf_container,
                              FLASH_SPACE_COMP_BYTES,
                              &comp_bytes );
     if(stats != NULL) 
-        stats->flash_stats[FDF_FLASH_STATS_COMP_BYTES] = comp_bytes;
+        stats->flash_stats[ZS_FLASH_STATS_COMP_BYTES] = comp_bytes;
 
 
-    FDFContainerStat( pai, sdf_container,
+    ZSContainerStat( pai, sdf_container,
                              FLASH_NUM_DELETE_OPS,
                              &num_del_ops );
     plat_snprintfcat( ppos, lenp, "STAT flash_num_del_ops %lu\r\n",
                       num_del_ops );
     if (stats != NULL)
-        stats->flash_stats[FDF_FLASH_STATS_NUM_DEL_OPS] = num_del_ops;
+        stats->flash_stats[ZS_FLASH_STATS_NUM_DEL_OPS] = num_del_ops;
 
-    FDFContainerStat( pai, sdf_container,
+    ZSContainerStat( pai, sdf_container,
                                  FLASH_NUM_EXIST_CHECKS,
                                  &num_ext_checks );
     plat_snprintfcat( ppos, lenp,
                           "STAT flash_get_exist_checks %lu\r\n",
                           num_ext_checks );
     if (stats != NULL)
-        stats->flash_stats[FDF_FLASH_STATS_GET_EXIST_CHECKS] = num_ext_checks;
+        stats->flash_stats[ZS_FLASH_STATS_GET_EXIST_CHECKS] = num_ext_checks;
 
-    FDFContainerStat( pai, sdf_container,
+    ZSContainerStat( pai, sdf_container,
                                  FLASH_NUM_FULL_BUCKETS,
                                  &num_full_buckets );
     plat_snprintfcat( ppos, lenp,
                           "STAT flash_num_full_buckets %lu\r\n",
                           num_full_buckets );
     if (stats != NULL)
-        stats->flash_stats[FDF_FLASH_STATS_NUM_FULL_BUCKETS] = num_full_buckets;
+        stats->flash_stats[ZS_FLASH_STATS_NUM_FULL_BUCKETS] = num_full_buckets;
 
-    FDFContainerStat( pai, sdf_container,
+    ZSContainerStat( pai, sdf_container,
                              FLASH_NUM_FREE_SEGS,
                              &val );
     plat_snprintfcat( ppos, lenp, "STAT flash_num_free_segs %lu\r\n",
@@ -6572,19 +6572,19 @@ static void fdf_get_flash_stats( SDF_internal_ctxt_t *pai, char ** ppos, int * l
     /* Get Number of contexts */
     if(stats != NULL) {
          SDF_action_thrd_state_t *pts = ((SDF_action_init_t *)pai)->pts;
-         stats->flash_stats[FDF_FLASH_STATS_THD_CONTEXTS] = pts->phs->contextcount;
+         stats->flash_stats[ZS_FLASH_STATS_THD_CONTEXTS] = pts->phs->contextcount;
     }
     if (stats != NULL) 
-        stats->flash_stats[FDF_FLASH_STATS_NUM_FREE_SEGMENTS] = val;
+        stats->flash_stats[ZS_FLASH_STATS_NUM_FREE_SEGMENTS] = val;
 
     if (stats != NULL) {
         extern uint64_t num_objs_expired;
         extern uint64_t num_scav_scan_yld;
         extern uint64_t num_scav_scan_complete;
 
-        stats->flash_stats[FDF_FLASH_STATS_ESCVN_OBJ_DEL] = num_objs_expired;
-        stats->flash_stats[FDF_FLASH_STATS_ESCVN_YLD_SCAN_CMPLTE] = num_scav_scan_complete;
-        stats->flash_stats[FDF_FLASH_STATS_ESCVN_YLD_SCAN_RATE] = num_scav_scan_yld;
+        stats->flash_stats[ZS_FLASH_STATS_ESCVN_OBJ_DEL] = num_objs_expired;
+        stats->flash_stats[ZS_FLASH_STATS_ESCVN_YLD_SCAN_CMPLTE] = num_scav_scan_complete;
+        stats->flash_stats[ZS_FLASH_STATS_ESCVN_YLD_SCAN_RATE] = num_scav_scan_yld;
     }
 
     //mcd_osd_recovery_stats( mcd_osd_container_shard(c->mcd_container), ppos, lenp );
@@ -6619,47 +6619,47 @@ static uint64_t parse_count( char * buf, char * name )
     return x;
 }
 #if 0
-char *FDFGetStatsDescription(FDF_cache_stat_t stat) {
-    return FDFCacheStatsDescStrings[stat];
+char *ZSGetStatsDescription(ZS_cache_stat_t stat) {
+    return ZSCacheStatsDescStrings[stat];
 }
 #endif
 
-SDF_status_t fdf_parse_access_stats (char * stat_buf,FDF_stats_t *stats ) {
+SDF_status_t zs_parse_access_stats (char * stat_buf,ZS_stats_t *stats ) {
     int i;                       
     uint64_t val;
                           
     if (stats == NULL ) { 
-        return FDF_SUCCESS;
+        return ZS_SUCCESS;
     }   
-    for ( i = 0; i < FDF_N_ACCESS_TYPES; i++ ) {
-        val = parse_count( stat_buf, fdf_stats_access_type[i].stat_token );
+    for ( i = 0; i < ZS_N_ACCESS_TYPES; i++ ) {
+        val = parse_count( stat_buf, zs_stats_access_type[i].stat_token );
         if ( val != 0 ) {        
             stats->n_accesses[i] = val;
         }
     }                     
-    return FDF_SUCCESS;   
+    return ZS_SUCCESS;   
 }   
 
 
-SDF_status_t fdf_parse_cache_stats (char * stat_buf,FDF_stats_t *stats ) {
+SDF_status_t zs_parse_cache_stats (char * stat_buf,ZS_stats_t *stats ) {
     int i;
     uint64_t val;
 
     if (stats == NULL ) {
-        return FDF_SUCCESS;
+        return ZS_SUCCESS;
     }
-    //fprintf(stderr,"fdf_parse_cache_stats: %s\n",stat_buf);
-    for ( i = 0; i < FDF_N_CACHE_STATS; i++ ) {
-        val = parse_count( stat_buf, fdf_stats_cache[i].stat_token );
+    //fprintf(stderr,"zs_parse_cache_stats: %s\n",stat_buf);
+    for ( i = 0; i < ZS_N_CACHE_STATS; i++ ) {
+        val = parse_count( stat_buf, zs_stats_cache[i].stat_token );
         if ( val != 0 ) {
             stats->cache_stats[i] = val;
         }
     }
-    return FDF_SUCCESS;
+    return ZS_SUCCESS;
 }
 
 SDF_status_t
-fdf_parse_stats( char * stat_buf, int stat_key, uint64_t * pstat)
+zs_parse_stats( char * stat_buf, int stat_key, uint64_t * pstat)
 {
     int         i;
     uint64_t    stats[MCD_NUM_SDF_STATS];
@@ -6676,11 +6676,11 @@ fdf_parse_stats( char * stat_buf, int stat_key, uint64_t * pstat)
     }
 
     for ( i = 0; i < MCD_NUM_SDF_COUNTS; i++ ) {
-        counts[i] = parse_count( stat_buf, FDFCacheCountStrings[i] );
+        counts[i] = parse_count( stat_buf, ZSCacheCountStrings[i] );
     }
 
     if ( ( counts[apgrd] + counts[apgrx] ) >= counts[ahgtr] ) {
-        stats[FDF_DRAM_CACHE_HITS] =
+        stats[ZS_DRAM_CACHE_HITS] =
             counts[apgrd] + counts[apgrx] - counts[ahgtr];
     }
     else {
@@ -6689,24 +6689,24 @@ fdf_parse_stats( char * stat_buf, int stat_key, uint64_t * pstat)
                       PLAT_LOG_LEVEL_DEBUG,
                       "invalid sdf cache stats, rd=%lu rx=%lu tr=%lu",
                       counts[apgrd], counts[apgrx], counts[ahgtr] );
-        stats[FDF_DRAM_CACHE_HITS] = 0;
+        stats[ZS_DRAM_CACHE_HITS] = 0;
     }
-    stats[FDF_DRAM_CACHE_MISSES]   = counts[ahgtr];
-    stats[FDF_FLASH_CACHE_HITS]    = counts[hagrc];
-    stats[FDF_FLASH_CACHE_MISSES]  = counts[hagrf];
-    stats[FDF_DRAM_CACHE_CASTOUTS] = counts[ahcwd];
-    stats[FDF_DRAM_N_OVERWRITES]   = counts[owrites_s] + counts[owrites_m];
-    stats[FDF_DRAM_N_IN_PLACE_OVERWRITES] = counts[ipowr_s] + counts[ipowr_m];
-    stats[FDF_DRAM_N_NEW_ENTRY]    = counts[newents];
+    stats[ZS_DRAM_CACHE_MISSES]   = counts[ahgtr];
+    stats[ZS_FLASH_CACHE_HITS]    = counts[hagrc];
+    stats[ZS_FLASH_CACHE_MISSES]  = counts[hagrf];
+    stats[ZS_DRAM_CACHE_CASTOUTS] = counts[ahcwd];
+    stats[ZS_DRAM_N_OVERWRITES]   = counts[owrites_s] + counts[owrites_m];
+    stats[ZS_DRAM_N_IN_PLACE_OVERWRITES] = counts[ipowr_s] + counts[ipowr_m];
+    stats[ZS_DRAM_N_NEW_ENTRY]    = counts[newents];
 
     *pstat = stats[stat_key];
 
-    return FDF_SUCCESS;
+    return ZS_SUCCESS;
 }
 
 
-static void get_fdf_stats( SDF_internal_ctxt_t *pai, char ** ppos, int * lenp,
-                               SDF_CONTAINER sdf_container, FDF_stats_t *stat)
+static void get_zs_stats( SDF_internal_ctxt_t *pai, char ** ppos, int * lenp,
+                               SDF_CONTAINER sdf_container, ZS_stats_t *stat)
 {
     char                buf[BUF_LEN];
     uint64_t            n;
@@ -6736,18 +6736,18 @@ static void get_fdf_stats( SDF_internal_ctxt_t *pai, char ** ppos, int * lenp,
     memset( buf, 0, BUF_LEN);
     action_stats_new_cguid(pai, buf, BUF_LEN, lc->cguid );
 
-    fdf_parse_stats( buf, FDF_DRAM_CACHE_HITS, &sdf_cache_hits );
-    fdf_parse_stats( buf, FDF_DRAM_CACHE_MISSES, &sdf_cache_misses );
+    zs_parse_stats( buf, ZS_DRAM_CACHE_HITS, &sdf_cache_hits );
+    zs_parse_stats( buf, ZS_DRAM_CACHE_MISSES, &sdf_cache_misses );
     if ( stat != NULL ) {
-        stat->cache_stats[FDF_CACHE_STAT_CACHE_MISSES] = sdf_cache_misses;
-        stat->cache_stats[FDF_CACHE_STAT_CACHE_HITS] = sdf_cache_hits;
+        stat->cache_stats[ZS_CACHE_STAT_CACHE_MISSES] = sdf_cache_misses;
+        stat->cache_stats[ZS_CACHE_STAT_CACHE_HITS] = sdf_cache_hits;
     }
-    fdf_parse_stats( buf, FDF_FLASH_CACHE_HITS, &sdf_flash_hits );
-    fdf_parse_stats( buf, FDF_FLASH_CACHE_MISSES, &sdf_flash_misses );
-    fdf_parse_stats( buf, FDF_DRAM_CACHE_CASTOUTS, &sdf_cache_evictions );
-    fdf_parse_stats( buf, FDF_DRAM_N_OVERWRITES, &sdf_n_overwrites );
-    fdf_parse_stats( buf, FDF_DRAM_N_IN_PLACE_OVERWRITES, &sdf_n_in_place_overwrites );
-    fdf_parse_stats( buf, FDF_DRAM_N_NEW_ENTRY, &sdf_n_new_entry );
+    zs_parse_stats( buf, ZS_FLASH_CACHE_HITS, &sdf_flash_hits );
+    zs_parse_stats( buf, ZS_FLASH_CACHE_MISSES, &sdf_flash_misses );
+    zs_parse_stats( buf, ZS_DRAM_CACHE_CASTOUTS, &sdf_cache_evictions );
+    zs_parse_stats( buf, ZS_DRAM_N_OVERWRITES, &sdf_n_overwrites );
+    zs_parse_stats( buf, ZS_DRAM_N_IN_PLACE_OVERWRITES, &sdf_n_in_place_overwrites );
+    zs_parse_stats( buf, ZS_DRAM_N_NEW_ENTRY, &sdf_n_new_entry );
 
     plat_snprintfcat( ppos, lenp, "STAT sdf_cache_hits %lu\r\n",
                       sdf_cache_hits );
@@ -6773,13 +6773,13 @@ static void get_fdf_stats( SDF_internal_ctxt_t *pai, char ** ppos, int * lenp,
     plat_snprintfcat( ppos, lenp, "STAT sdf_n_new_entries %lu\r\n",
                       sdf_n_new_entry);
 
-    FDFContainerStat( pai, sdf_container,
+    ZSContainerStat( pai, sdf_container,
                              SDF_N_ONLY_IN_CACHE, &n);
     plat_snprintfcat( ppos, lenp, "STAT sdf_cache_only_items %lu\r\n", n);
 
     plat_snprintfcat( ppos, lenp, "STAT %s", buf );
-    fdf_parse_access_stats(buf,stat);
-    fdf_parse_cache_stats(buf,stat);
+    zs_parse_access_stats(buf,stat);
+    zs_parse_cache_stats(buf,stat);
 
 	/*
      * get stats for entire cache (for all cguid's)
@@ -6800,17 +6800,17 @@ static void get_fdf_stats( SDF_internal_ctxt_t *pai, char ** ppos, int * lenp,
     uint64_t *p = stat->n_accesses;
 
     enumerate_stats(&e, lc->cguid);
-    p[FDF_ACCESS_TYPES_ENUM_TOTAL]          = e.num_total;
-    p[FDF_ACCESS_TYPES_ENUM_ACTIVE]         = e.num_active;
-    p[FDF_ACCESS_TYPES_ENUM_OBJECTS]        = e.num_objects;
-    p[FDF_ACCESS_TYPES_ENUM_CACHED_OBJECTS] = e.num_cached_objects;
+    p[ZS_ACCESS_TYPES_ENUM_TOTAL]          = e.num_total;
+    p[ZS_ACCESS_TYPES_ENUM_ACTIVE]         = e.num_active;
+    p[ZS_ACCESS_TYPES_ENUM_OBJECTS]        = e.num_objects;
+    p[ZS_ACCESS_TYPES_ENUM_CACHED_OBJECTS] = e.num_cached_objects;
 
     /* Async deletes stats */
 #if 0
     uint32_t num_dels, dels_prog;
     get_async_delete_stats(&num_dels,&dels_prog);
-    p[FDF_ACCESS_TYPES_NUM_CONT_DELETES_PEND] = num_dels;
-    p[FDF_ACCESS_TYPES_NUM_CONT_DELETES_PROG] = dels_prog;
+    p[ZS_ACCESS_TYPES_NUM_CONT_DELETES_PEND] = num_dels;
+    p[ZS_ACCESS_TYPES_NUM_CONT_DELETES_PROG] = dels_prog;
 #endif
     
 }
@@ -6845,20 +6845,20 @@ static void get_proc_stats( char ** ppos, int * lenp )
     close( proc_fd );
 }
 
-FDF_status_t FDFGetStatsStr (
-    struct FDF_thread_state *fdf_thread_state,
-    FDF_cguid_t 			 cguid,
+ZS_status_t ZSGetStatsStr (
+    struct ZS_thread_state *zs_thread_state,
+    ZS_cguid_t 			 cguid,
 	char 					*stats_str,
-    FDF_stats_t *stats
+    ZS_stats_t *stats
 	) 
 {
-    FDF_status_t status = SDF_FAILURE;
+    ZS_status_t status = SDF_FAILURE;
     SDF_CONTAINER sdf_container = containerNull;
-    SDF_internal_ctxt_t *pai = (SDF_internal_ctxt_t *) fdf_thread_state;
-    FDF_container_props_t   pprops = {0};
+    SDF_internal_ctxt_t *pai = (SDF_internal_ctxt_t *) zs_thread_state;
+    ZS_container_props_t   pprops = {0};
     SDF_container_meta_t    meta;
     time_t t;
-    //SDF_status_t lock_status = FDF_SUCCESS;
+    //SDF_status_t lock_status = ZS_SUCCESS;
     //SDF_cguid_t parent_cguid = SDF_NULL_CGUID;
     //int log_level = LOG_ERR;
     uint64_t space_used = 0;
@@ -6869,21 +6869,21 @@ FDF_status_t FDFGetStatsStr (
     int buf_len;
     char *temp;
     char * pos;
-    FDF_container_props_t       dummy_prop;
+    ZS_container_props_t       dummy_prop;
 	cntr_map_t *cmap = NULL;
 
-	status = fdf_validate_container_1(cguid);
-	if (FDF_SUCCESS != status) {
+	status = zs_validate_container_1(cguid);
+	if (ZS_SUCCESS != status) {
 		plat_log_msg(160125, LOG_CAT,
 				LOG_ERR, "Failed due to an illegal container ID:%s",
-				FDF_Status_Strings[status]);
+				ZS_Status_Strings[status]);
 		return status;
 	}
     memset( (void *)&dummy_prop, 0, sizeof(dummy_prop) );
 
     SDFStartSerializeContainerOp(pai);
 
-    cmap = fdf_cmap_get_by_cguid(cguid);
+    cmap = zs_cmap_get_by_cguid(cguid);
     if (!cmap) {
         status = SDF_INVALID_PARAMETER;
         goto out;
@@ -6891,19 +6891,19 @@ FDF_status_t FDFGetStatsStr (
     else {
         sdf_container = cmap->sdf_container;
     }
-    if ( (status = fdf_get_ctnr_status(cguid, 0)) != FDF_CONTAINER_OPEN ) {
+    if ( (status = zs_get_ctnr_status(cguid, 0)) != ZS_CONTAINER_OPEN ) {
         goto out;
     }
     /* Check if this container is being deleted */
-    if( cmap->state == FDF_CONTAINER_STATE_DELETE_PROG ||
-        cmap->state == FDF_CONTAINER_STATE_DELETE_OPEN ||
-        cmap->state == FDF_CONTAINER_STATE_DELETE_CLOSED ) {
+    if( cmap->state == ZS_CONTAINER_STATE_DELETE_PROG ||
+        cmap->state == ZS_CONTAINER_STATE_DELETE_OPEN ||
+        cmap->state == ZS_CONTAINER_STATE_DELETE_CLOSED ) {
         SDFEndSerializeContainerOp(pai);
-        return FDF_FAILURE_CONTAINER_DELETED;     
+        return ZS_FAILURE_CONTAINER_DELETED;     
     }
 
-    if (( status = name_service_get_meta( pai, cguid, &meta )) == FDF_SUCCESS ) {
-        status = fdf_create_fdf_props( &meta.properties, &pprops );
+    if (( status = name_service_get_meta( pai, cguid, &meta )) == ZS_SUCCESS ) {
+        status = zs_create_zs_props( &meta.properties, &pprops );
     }
     buf_len = STAT_BUFFER_SIZE;
     temp = stats_str;
@@ -6914,7 +6914,7 @@ FDF_status_t FDFGetStatsStr (
     plat_snprintfcat( &pos, &buf_len, "STAT Time %s\r\n", ctime(&t) );    
 
 	// Get per container stats
-    if ( status == FDF_SUCCESS ) {
+    if ( status == ZS_SUCCESS ) {
         //Add container properties to the list
         plat_snprintfcat( &pos, &buf_len, "STAT Container Name %s size:%lukb FIFO:%d persistence:%d eviction:%d writethru:%d\r\n", 
                                            cmap->cname, pprops.size_kb, /*pprops.fifo_mode*/ 0, pprops.persistent, pprops.evicting, pprops.writethru );
@@ -6923,17 +6923,17 @@ FDF_status_t FDFGetStatsStr (
         plat_snprintfcat( &pos, &buf_len, "STAT Container Name %s\r\n", cmap->cname );
     }
     plat_snprintfcat( &pos, &buf_len, "STAT CGUID %lu\r\n", cguid );
-    FDFContainerStat( pai, sdf_container, SDF_N_CURR_ITEMS, &n );
+    ZSContainerStat( pai, sdf_container, SDF_N_CURR_ITEMS, &n );
     plat_snprintfcat( &pos, &buf_len, "STAT curr_items %lu\r\n", n );
 
-    FDFContainerStat( pai, sdf_container,
+    ZSContainerStat( pai, sdf_container,
                              FLASH_SPACE_USED, &space_used );
     plat_snprintfcat( &pos, &buf_len, "STAT bytes %lu\r\n", space_used );
-    FDFContainerStat( pai, sdf_container,
+    ZSContainerStat( pai, sdf_container,
                                          FLASH_NUM_EVICTIONS, &num_evictions );
     plat_snprintfcat( &pos, &buf_len, "STAT evictions %lu\r\n",
                               num_evictions );
-    FDFContainerStat( pai, sdf_container,
+    ZSContainerStat( pai, sdf_container,
                                          FLASH_SHARD_MAXBYTES, &maxbytes );
     plat_snprintfcat( &pos, &buf_len, "STAT limit_maxbytes %lu\r\n",
                               maxbytes );
@@ -6942,67 +6942,67 @@ FDF_status_t FDFGetStatsStr (
                               cmap->container_stats.num_evictions );
 
 	// Get server-wide flash stats
-    fdf_get_flash_stats( pai, &pos, &buf_len, sdf_container,stats);
+    zs_get_flash_stats( pai, &pos, &buf_len, sdf_container,stats);
     #if 0
-    fdf_get_fth_stats( pai, &pos, &buf_len, sdf_container,stats);
+    zs_get_fth_stats( pai, &pos, &buf_len, sdf_container,stats);
     #endif
     if (stats != NULL) {
-        stats->flash_stats[FDF_FLASH_STATS_PENDING_IOS] = Mcd_num_pending_ios;
+        stats->flash_stats[ZS_FLASH_STATS_PENDING_IOS] = Mcd_num_pending_ios;
     }
-    get_fdf_stats(pai, &pos, &buf_len, sdf_container,stats);
+    get_zs_stats(pai, &pos, &buf_len, sdf_container,stats);
 #if 0
     if( (cguid > 3) && (stats != NULL) ) {
         uint64_t num_objs = 0;
         uint64_t used = 0;    
         /* Virtual containers. Get the size and space consumed */
         get_cntr_info(cguid,NULL, 0, &num_objs, &used, NULL, NULL);
-        stats->flash_stats[FDF_FLASH_STATS_SPACE_CONSUMED] = used;
-        stats->flash_stats[FDF_FLASH_STATS_NUM_CREATED_OBJS] = num_objs;
+        stats->flash_stats[ZS_FLASH_STATS_SPACE_CONSUMED] = used;
+        stats->flash_stats[ZS_FLASH_STATS_NUM_CREATED_OBJS] = num_objs;
     }
 #endif
     get_proc_stats(&pos, &buf_len);
 out:
 
-    //plat_log_msg(20819, LOG_CAT, log_level, "%s", FDFStrError(status));
+    //plat_log_msg(20819, LOG_CAT, log_level, "%s", ZSStrError(status));
     SDFEndSerializeContainerOp(pai);
 
     return (status);
 }
 
 
-FDF_status_t FDFGetStats(
-	struct FDF_thread_state *fdf_thread_state,
-	FDF_stats_t             *stats
+ZS_status_t ZSGetStats(
+	struct ZS_thread_state *zs_thread_state,
+	ZS_stats_t             *stats
 	)
 {
     int i;
-    FDF_status_t rc;
-    FDF_stats_t VDC_flash_stats;
+    ZS_status_t rc;
+    ZS_stats_t VDC_flash_stats;
     char buf[BUF_LEN];
     char *ptr;
     if ( stats == NULL ) {
-        return FDF_SUCCESS;
+        return ZS_SUCCESS;
     }
-    if ( !fdf_thread_state ) {
+    if ( !zs_thread_state ) {
         plat_log_msg(80049,LOG_CAT,LOG_DBG,
-                             "FDF Thread state is NULL");
+                             "ZS Thread state is NULL");
     }
 
-    memset (stats, 0, sizeof(FDF_stats_t));
-    SDF_internal_ctxt_t *pai = (SDF_internal_ctxt_t *)fdf_thread_state;
+    memset (stats, 0, sizeof(ZS_stats_t));
+    SDF_internal_ctxt_t *pai = (SDF_internal_ctxt_t *)zs_thread_state;
     action_stats(pai, buf, BUF_LEN );
     ptr = strstr(buf,"<CACHE>"); 
-    fdf_parse_access_stats(ptr,stats);
-    fdf_parse_cache_stats(ptr,stats);
+    zs_parse_access_stats(ptr,stats);
+    zs_parse_cache_stats(ptr,stats);
 
     /* VDC flash stats */
-    rc = FDFGetContainerStats(fdf_thread_state, VDC_CGUID, &VDC_flash_stats);
-    if ( rc != FDF_SUCCESS ) {
+    rc = ZSGetContainerStats(zs_thread_state, VDC_CGUID, &VDC_flash_stats);
+    if ( rc != ZS_SUCCESS ) {
         plat_log_msg(160206, LOG_CAT, LOG_DBG,
-            "FDFGetContainerStats failed for VDC (error:%s)",FDFStrError(rc));
-        return FDF_FAILURE;
+            "ZSGetContainerStats failed for VDC (error:%s)",ZSStrError(rc));
+        return ZS_FAILURE;
     }
-    for (i = 0; i < FDF_N_FLASH_STATS; i++ ) {
+    for (i = 0; i < ZS_N_FLASH_STATS; i++ ) {
         stats->flash_stats[i] = VDC_flash_stats.flash_stats[i];
     }
 
@@ -7010,94 +7010,94 @@ FDF_status_t FDFGetStats(
     uint32_t num_dels, dels_prog;
     uint64_t *p = stats->n_accesses;
     get_async_delete_stats(&num_dels,&dels_prog);
-    p[FDF_ACCESS_TYPES_NUM_CONT_DELETES_PEND] = num_dels;
-    p[FDF_ACCESS_TYPES_NUM_CONT_DELETES_PROG] = dels_prog;
-    return( FDF_SUCCESS );
+    p[ZS_ACCESS_TYPES_NUM_CONT_DELETES_PEND] = num_dels;
+    p[ZS_ACCESS_TYPES_NUM_CONT_DELETES_PROG] = dels_prog;
+    return( ZS_SUCCESS );
 }
 
-FDF_status_t update_btree_stats(FDF_cguid_t cguid,FDF_stats_t *stats) {
-    FDF_ext_stat_t *estats;
+ZS_status_t update_btree_stats(ZS_cguid_t cguid,ZS_stats_t *stats) {
+    ZS_ext_stat_t *estats;
     uint32_t n_stats, i;
-    FDF_status_t rc;
+    ZS_status_t rc;
 
     if( ext_cbs == NULL ) {
         /* Non btree container, return */
-        return FDF_SUCCESS;
+        return ZS_SUCCESS;
     }
     rc = ext_cbs->stats_cb(cguid,&estats,&n_stats);
-    if( rc != FDF_SUCCESS ) {
+    if( rc != ZS_SUCCESS ) {
         return rc;
     }
-    //stats->n_accesses[FDF_ACCESS_TYPES_APCOE] = 0;
-    //stats->n_accesses[FDF_ACCESS_TYPES_APPAE] = 0;
-    //stats->n_accesses[FDF_ACCESS_TYPES_APSOE] = 0;
+    //stats->n_accesses[ZS_ACCESS_TYPES_APCOE] = 0;
+    //stats->n_accesses[ZS_ACCESS_TYPES_APPAE] = 0;
+    //stats->n_accesses[ZS_ACCESS_TYPES_APSOE] = 0;
     for ( i = 0; i < n_stats; i++ ) {
-       if( estats[i].ftype == FDF_STATS_TYPE_APP_REQ ) {
+       if( estats[i].ftype == ZS_STATS_TYPE_APP_REQ ) {
            stats->n_accesses[estats[i].fstat] = estats[i].value;
        }
-       else if(estats[i].ftype == FDF_STATS_TYPE_BTREE ) {
+       else if(estats[i].ftype == ZS_STATS_TYPE_BTREE ) {
            stats->btree_stats[estats[i].fstat] = estats[i].value;
        }
        else {
-           fprintf(stderr,"Invalid fdf type(%lu) for btree stats:%d\n",estats[i].ftype,i);
+           fprintf(stderr,"Invalid zs type(%lu) for btree stats:%d\n",estats[i].ftype,i);
        }
 #if 0
-       else if( estats[i].ftype == FDF_STATS_TYPE_CACHE_TO_FLASH ) {
+       else if( estats[i].ftype == ZS_STATS_TYPE_CACHE_TO_FLASH ) {
            stats->cache_stats[estats[i].fstat] = estats[i].value;
        }
 #endif
     }
     plat_free(estats);
-    return FDF_SUCCESS;
+    return ZS_SUCCESS;
 }
 
-FDF_status_t get_btree_num_objs(FDF_cguid_t cguid, uint64_t *num_objs) {
-    FDF_ext_stat_t *estats;
+ZS_status_t get_btree_num_objs(ZS_cguid_t cguid, uint64_t *num_objs) {
+    ZS_ext_stat_t *estats;
     uint32_t n_stats, i;
-    FDF_status_t rc;
+    ZS_status_t rc;
 
     if( ext_cbs == NULL ) {
         /* Non btree container, return */
-        return FDF_SUCCESS;
+        return ZS_SUCCESS;
     }
     rc = ext_cbs->stats_cb(cguid,&estats,&n_stats);
-    if( rc != FDF_SUCCESS ) {
+    if( rc != ZS_SUCCESS ) {
         return rc;
     }
     for ( i = 0; i < n_stats; i++ ) {
-       if( estats[i].fstat == FDF_BTREE_NUM_OBJS ) {
+       if( estats[i].fstat == ZS_BTREE_NUM_OBJS ) {
            *num_objs = estats[i].value;
            break; 
        }
     }
     plat_free(estats);
-    return FDF_SUCCESS;
+    return ZS_SUCCESS;
 }
 
 
 #define MAX_STATS_RETRY 5
-FDF_status_t FDFGetContainerStats(
-	struct FDF_thread_state   	*fdf_thread_state,
-	FDF_cguid_t                	 cguid,
-	FDF_stats_t					*stats
+ZS_status_t ZSGetContainerStats(
+	struct ZS_thread_state   	*zs_thread_state,
+	ZS_cguid_t                	 cguid,
+	ZS_stats_t					*stats
 	)
 {
     char stats_str[STAT_BUFFER_SIZE];
-    FDF_status_t rc;
+    ZS_status_t rc;
     uint64_t num_objs = 0;
     uint64_t used_space = 0;
 
-	rc = fdf_validate_container_1(cguid);
-	if (FDF_SUCCESS != rc) {
+	rc = zs_validate_container_1(cguid);
+	if (ZS_SUCCESS != rc) {
 		plat_log_msg(160125, LOG_CAT,
 				LOG_ERR, "Failed due to an illegal container ID:%s",
-				FDF_Status_Strings[rc]);
+				ZS_Status_Strings[rc]);
 		return rc;
 	}
-    if ( !fdf_thread_state || !cguid || !stats ) {
-        if ( !fdf_thread_state ) {
+    if ( !zs_thread_state || !cguid || !stats ) {
+        if ( !zs_thread_state ) {
             plat_log_msg(80049,LOG_CAT,LOG_DBG,
-                         "FDF Thread state is NULL");
+                         "ZS Thread state is NULL");
         }
         if ( !cguid ) {
             plat_log_msg(80050,LOG_CAT,LOG_DBG,
@@ -7105,31 +7105,31 @@ FDF_status_t FDFGetContainerStats(
         }
         if ( !stats ) {
             plat_log_msg(80062,LOG_CAT,LOG_DBG,
-                         "Invalid FDF_stats_t(NULL)");
+                         "Invalid ZS_stats_t(NULL)");
         }
-        return FDF_INVALID_PARAMETER;
+        return ZS_INVALID_PARAMETER;
     }
     // excluded VDC, trac #11290
     if (cguid < VDC_CGUID ) {
         /* The cguid is for physical container. So return error */
-        return FDF_FAILURE;
+        return ZS_FAILURE;
     }
-    memset (stats, 0, sizeof(FDF_stats_t));
-    rc = FDFGetStatsStr(fdf_thread_state,cguid,stats_str, stats);
-    if ( rc != FDF_SUCCESS ) { 
+    memset (stats, 0, sizeof(ZS_stats_t));
+    rc = ZSGetStatsStr(zs_thread_state,cguid,stats_str, stats);
+    if ( rc != ZS_SUCCESS ) { 
         plat_log_msg( 80024, LOG_CAT, LOG_DIAG,
-                      "Failed to get stats for container:%lu (%s)",cguid,FDF_Status_Strings[rc] );
+                      "Failed to get stats for container:%lu (%s)",cguid,ZS_Status_Strings[rc] );
     }
 
     get_cntr_info(cguid, NULL, 0, &num_objs, &used_space, NULL, NULL);
-    stats->cntr_stats[FDF_CNTR_STATS_NUM_OBJS] = num_objs;
-    stats->cntr_stats[FDF_CNTR_STATS_USED_SPACE] = used_space;
+    stats->cntr_stats[ZS_CNTR_STATS_NUM_OBJS] = num_objs;
+    stats->cntr_stats[ZS_CNTR_STATS_USED_SPACE] = used_space;
 
     //  no-op in this simple implementation
     slab_gc_get_stats(NULL, stats, NULL);
 
-    FDF_container_props_t props;
-    rc = FDFGetContainerProps(fdf_thread_state, cguid, &props);
+    ZS_container_props_t props;
+    rc = ZSGetContainerProps(zs_thread_state, cguid, &props);
     if (!props.flags & (1 << 0)) {
         update_btree_stats(cguid,stats);
     }
@@ -7137,46 +7137,46 @@ FDF_status_t FDFGetContainerStats(
 }
 
 
-FDF_status_t FDFBackupContainer(
-	struct FDF_thread_state   *fdf_thread_state,
-	FDF_cguid_t                cguid,
+ZS_status_t ZSBackupContainer(
+	struct ZS_thread_state   *zs_thread_state,
+	ZS_cguid_t                cguid,
 	char                      *backup_directory
 	)
 {
     //  no-op in this simple implementation
-    return( FDF_SUCCESS );
+    return( ZS_SUCCESS );
 }
 
-FDF_status_t FDFRestoreContainer(
-	struct FDF_thread_state   *fdf_thread_state,
-	FDF_cguid_t                cguid,
+ZS_status_t ZSRestoreContainer(
+	struct ZS_thread_state   *zs_thread_state,
+	ZS_cguid_t                cguid,
 	char                      *backup_directory
 	)
 {
     //  no-op in this simple implementation
-    return( FDF_SUCCESS );
+    return( ZS_SUCCESS );
 }
 
 // Internal functions
 #if 1
-static SDF_container_props_t *fdf_create_sdf_props(
-    FDF_container_props_t           *fdf_properties
+static SDF_container_props_t *zs_create_sdf_props(
+    ZS_container_props_t           *zs_properties
     )
 {
     SDF_container_props_t   *sdf_properties = (SDF_container_props_t *) plat_alloc ( sizeof ( SDF_container_props_t ) );
 
     if ( NULL != sdf_properties ) {
         sdf_properties->container_id.owner                    	= 0;
-        sdf_properties->container_id.size                     	= fdf_properties->size_kb;
+        sdf_properties->container_id.size                     	= zs_properties->size_kb;
         sdf_properties->container_id.container_id             	= 0;
-        sdf_properties->container_id.num_objs                 	= (fdf_properties->size_kb * 1024 / 512);
+        sdf_properties->container_id.num_objs                 	= (zs_properties->size_kb * 1024 / 512);
 
-        sdf_properties->cguid                                 	= fdf_properties->cguid;
+        sdf_properties->cguid                                 	= zs_properties->cguid;
 
         sdf_properties->container_type.type                   	= SDF_OBJECT_CONTAINER;
-        sdf_properties->container_type.persistence            	= SDF_TRUE /* fdf_properties->persistent */;
-        sdf_properties->container_type.caching_container      	= fdf_properties->evicting;
-        sdf_properties->container_type.async_writes           	= fdf_properties->async_writes;
+        sdf_properties->container_type.persistence            	= SDF_TRUE /* zs_properties->persistent */;
+        sdf_properties->container_type.caching_container      	= zs_properties->evicting;
+        sdf_properties->container_type.async_writes           	= zs_properties->async_writes;
 
         sdf_properties->replication.enabled                     = 0;
         sdf_properties->replication.type                        = SDF_REPLICATION_NONE;
@@ -7188,49 +7188,49 @@ static SDF_container_props_t *fdf_create_sdf_props(
         sdf_properties->cache.shared                            = SDF_FALSE;
         sdf_properties->cache.coherent                          = SDF_FALSE;
         sdf_properties->cache.enabled                           = SDF_TRUE;
-        sdf_properties->cache.writethru                         = fdf_properties->writethru;
+        sdf_properties->cache.writethru                         = zs_properties->writethru;
         sdf_properties->cache.size                              = 0;
         sdf_properties->cache.max_size                          = 0;
 
         sdf_properties->shard.enabled                           = SDF_TRUE;
-        sdf_properties->shard.num_shards                        = 1 /* fdf_properties->num_shards */;
-        sdf_properties->fifo_mode                               = SDF_FALSE /* fdf_properties->fifo_mode */;
+        sdf_properties->shard.num_shards                        = 1 /* zs_properties->num_shards */;
+        sdf_properties->fifo_mode                               = SDF_FALSE /* zs_properties->fifo_mode */;
 
         sdf_properties->durability_level                        = SDF_NO_DURABILITY;
 
-    	if ( fdf_properties->durability_level == FDF_DURABILITY_HW_CRASH_SAFE )
+    	if ( zs_properties->durability_level == ZS_DURABILITY_HW_CRASH_SAFE )
 			sdf_properties->durability_level = SDF_FULL_DURABILITY;
-    	else if ( fdf_properties->durability_level == FDF_DURABILITY_SW_CRASH_SAFE )
+    	else if ( zs_properties->durability_level == ZS_DURABILITY_SW_CRASH_SAFE )
         	sdf_properties->durability_level = SDF_RELAXED_DURABILITY;
 
-		sdf_properties->flash_only                              = fdf_properties->flash_only;
-		sdf_properties->cache_only                              = fdf_properties->cache_only;
-                sdf_properties->compression = fdf_properties->compression;
+		sdf_properties->flash_only                              = zs_properties->flash_only;
+		sdf_properties->cache_only                              = zs_properties->cache_only;
+                sdf_properties->compression = zs_properties->compression;
     }
 
     return sdf_properties;
 }
 #else
-static SDF_container_props_t *fdf_create_sdf_props(
-    FDF_container_props_t           *fdf_properties,
-	FDF_internal_container_props_t	*fdf_internal_properties
+static SDF_container_props_t *zs_create_sdf_props(
+    ZS_container_props_t           *zs_properties,
+	ZS_internal_container_props_t	*zs_internal_properties
     )
 {
     SDF_container_props_t   *sdf_properties = (SDF_container_props_t *) plat_alloc ( sizeof ( SDF_container_props_t ) );
 
     if ( NULL != sdf_properties ) {
         sdf_properties->container_id.owner                      = 0;
-        sdf_properties->container_id.size                       = fdf_properties->size_kb;
-        sdf_properties->container_id.container_id               = 0 /* fdf_internal_properties->cid */;
+        sdf_properties->container_id.size                       = zs_properties->size_kb;
+        sdf_properties->container_id.container_id               = 0 /* zs_internal_properties->cid */;
         sdf_properties->container_id.owner                      = 0;
-        sdf_properties->container_id.num_objs                   = (fdf_properties->size_kb * 1024 / 512);
+        sdf_properties->container_id.num_objs                   = (zs_properties->size_kb * 1024 / 512);
 
-        sdf_properties->cguid                                   = fdf_internal_properties->cguid;
+        sdf_properties->cguid                                   = zs_internal_properties->cguid;
 
         sdf_properties->container_type.type                     = SDF_OBJECT_CONTAINER;
-        sdf_properties->container_type.persistence              = fdf_properties->persistent;
-        sdf_properties->container_type.caching_container        = fdf_properties->evicting;
-        sdf_properties->container_type.async_writes             = fdf_internal_properties->async_writes;
+        sdf_properties->container_type.persistence              = zs_properties->persistent;
+        sdf_properties->container_type.caching_container        = zs_properties->evicting;
+        sdf_properties->container_type.async_writes             = zs_internal_properties->async_writes;
 
         sdf_properties->replication.enabled                     = 0;
         sdf_properties->replication.type                        = SDF_REPLICATION_NONE;
@@ -7242,19 +7242,19 @@ static SDF_container_props_t *fdf_create_sdf_props(
         sdf_properties->cache.shared                            = SDF_FALSE;
         sdf_properties->cache.coherent                          = SDF_FALSE;
         sdf_properties->cache.enabled                           = SDF_TRUE;
-        sdf_properties->cache.writethru                         = fdf_properties->writethru;
+        sdf_properties->cache.writethru                         = zs_properties->writethru;
         sdf_properties->cache.size                              = 0;
         sdf_properties->cache.max_size                          = 0;
 
         sdf_properties->shard.enabled                           = SDF_TRUE;
-        sdf_properties->shard.num_shards                        = fdf_internal_properties->num_shards;
-        sdf_properties->fifo_mode                               = fdf_internal_properties->fifo_mode;
+        sdf_properties->shard.num_shards                        = zs_internal_properties->num_shards;
+        sdf_properties->fifo_mode                               = zs_internal_properties->fifo_mode;
 
         sdf_properties->durability_level                        = SDF_NO_DURABILITY;
 
-        if ( fdf_properties->durability_level == FDF_DURABILITY_HW_CRASH_SAFE )
+        if ( zs_properties->durability_level == ZS_DURABILITY_HW_CRASH_SAFE )
             sdf_properties->durability_level = SDF_FULL_DURABILITY;
-        else if ( fdf_properties->durability_level == FDF_DURABILITY_SW_CRASH_SAFE )
+        else if ( zs_properties->durability_level == ZS_DURABILITY_SW_CRASH_SAFE )
             sdf_properties->durability_level = SDF_RELAXED_DURABILITY;
     }
 
@@ -7263,75 +7263,75 @@ static SDF_container_props_t *fdf_create_sdf_props(
 #endif
 
 
-static FDF_status_t fdf_create_fdf_props(
+static ZS_status_t zs_create_zs_props(
     SDF_container_props_t   *sdf_properties,
-    FDF_container_props_t   *fdf_properties
+    ZS_container_props_t   *zs_properties
     )
 {
-	FDF_status_t	status	= FDF_INVALID_PARAMETER;
+	ZS_status_t	status	= ZS_INVALID_PARAMETER;
 
-    if ( NULL != fdf_properties ) {
-        fdf_properties->size_kb 							= sdf_properties->container_id.size;
-        fdf_properties->fifo_mode							= sdf_properties->fifo_mode;
-        fdf_properties->persistent							= sdf_properties->container_type.persistence;
-        fdf_properties->evicting							= sdf_properties->container_type.caching_container;
-        fdf_properties->writethru							= sdf_properties->cache.writethru;
-        fdf_properties->async_writes						= sdf_properties->container_type.async_writes;
-        fdf_properties->cguid       						= sdf_properties->cguid;
-        fdf_properties->cid       							= sdf_properties->container_id.container_id;
-        fdf_properties->num_shards							= sdf_properties->shard.num_shards;
+    if ( NULL != zs_properties ) {
+        zs_properties->size_kb 							= sdf_properties->container_id.size;
+        zs_properties->fifo_mode							= sdf_properties->fifo_mode;
+        zs_properties->persistent							= sdf_properties->container_type.persistence;
+        zs_properties->evicting							= sdf_properties->container_type.caching_container;
+        zs_properties->writethru							= sdf_properties->cache.writethru;
+        zs_properties->async_writes						= sdf_properties->container_type.async_writes;
+        zs_properties->cguid       						= sdf_properties->cguid;
+        zs_properties->cid       							= sdf_properties->container_id.container_id;
+        zs_properties->num_shards							= sdf_properties->shard.num_shards;
 
-		fdf_properties->durability_level = FDF_DURABILITY_PERIODIC;
+		zs_properties->durability_level = ZS_DURABILITY_PERIODIC;
 		if ( sdf_properties->durability_level == SDF_FULL_DURABILITY )
-	    	fdf_properties->durability_level = FDF_DURABILITY_HW_CRASH_SAFE;
+	    	zs_properties->durability_level = ZS_DURABILITY_HW_CRASH_SAFE;
 		else if ( sdf_properties->durability_level == SDF_RELAXED_DURABILITY )
-	    	fdf_properties->durability_level = FDF_DURABILITY_SW_CRASH_SAFE;
-		fdf_properties->flash_only = sdf_properties->flash_only;
-		fdf_properties->cache_only = sdf_properties->cache_only;
-                fdf_properties->compression = sdf_properties->compression;
-		status												= FDF_SUCCESS;
+	    	zs_properties->durability_level = ZS_DURABILITY_SW_CRASH_SAFE;
+		zs_properties->flash_only = sdf_properties->flash_only;
+		zs_properties->cache_only = sdf_properties->cache_only;
+                zs_properties->compression = sdf_properties->compression;
+		status												= ZS_SUCCESS;
     }
 
     return status;
 }
 
-FDF_status_t fdf_resize_container(
-    struct FDF_thread_state *fdf_thread_state,
-    FDF_cguid_t              cguid,
+ZS_status_t zs_resize_container(
+    struct ZS_thread_state *zs_thread_state,
+    ZS_cguid_t              cguid,
     uint64_t                 size
     )
 {   
-    FDF_status_t                 status     = FDF_FAILURE;
-    SDF_internal_ctxt_t         *pai        = (SDF_internal_ctxt_t *) fdf_thread_state;
+    ZS_status_t                 status     = ZS_FAILURE;
+    SDF_internal_ctxt_t         *pai        = (SDF_internal_ctxt_t *) zs_thread_state;
     SDF_container_meta_t         meta;
 	cntr_map_t                  *cmap       = NULL;
         
     // Cannot change physical container size
     if ( CMC_CGUID == cguid || VMC_CGUID == cguid || VDC_CGUID == cguid ) {
         plat_log_msg( 150078, LOG_CAT, LOG_ERR, "Cannnot change container size" );
-        return FDF_CANNOT_REDUCE_CONTAINER_SIZE;
+        return ZS_CANNOT_REDUCE_CONTAINER_SIZE;
     }
-	status = fdf_validate_container(cguid);
-	if (FDF_SUCCESS != status) {
+	status = zs_validate_container(cguid);
+	if (ZS_SUCCESS != status) {
 		plat_log_msg(160125, LOG_CAT,
 				LOG_ERR, "Failed due to an illegal container ID:%s",
-				FDF_Status_Strings[status]);
+				ZS_Status_Strings[status]);
 		goto out;
 	}
-    cmap = fdf_cmap_get_by_cguid( cguid );
+    cmap = zs_cmap_get_by_cguid( cguid );
     if ( !cmap ) {
         plat_log_msg( 150082, LOG_CAT, LOG_ERR, "Cannnot find container id %lu", cguid );
-        status = FDF_CONTAINER_UNKNOWN;
+        status = ZS_CONTAINER_UNKNOWN;
 		goto out;
     } else if ( size < cmap->size_kb ) {
             plat_log_msg( 150079, LOG_CAT, LOG_DIAG, "Cannnot reduce container size" );
-            status = FDF_CANNOT_REDUCE_CONTAINER_SIZE;
+            status = ZS_CANNOT_REDUCE_CONTAINER_SIZE;
 			goto out;
     }
 
 	if ( ( status = name_service_get_meta( pai,
                                            cguid,
-                                           &meta ) ) != FDF_SUCCESS) {
+                                           &meta ) ) != ZS_SUCCESS) {
 		plat_log_msg( 150080, LOG_CAT, LOG_ERR, "Cannnot read container metadata for %lu", cguid );
    	} else {
 
@@ -7339,11 +7339,11 @@ FDF_status_t fdf_resize_container(
 
 		if ( ( status = name_service_put_meta( pai, 
 											   cguid, 
-											   &meta ) ) != FDF_SUCCESS ) {
+											   &meta ) ) != ZS_SUCCESS ) {
            	plat_log_msg( 150081, LOG_CAT, LOG_ERR, "Cannnot write container metadata for %lu", cguid );
        	} else {
            	cmap->size_kb = size;
-			status = FDF_SUCCESS;
+			status = ZS_SUCCESS;
 		}
     }
 
@@ -7351,13 +7351,13 @@ out:
     return status;
 }
 
-static void *fdf_vc_thread(
+static void *zs_vc_thread(
 	void *arg
 	) 
 {
-	struct FDF_thread_state *fdf_thread_state		= NULL;
-	FDF_status_t             status         		= FDF_FAILURE;
-	struct FDF_iterator     *_fdf_iterator  		= NULL;
+	struct ZS_thread_state *zs_thread_state		= NULL;
+	ZS_status_t             status         		= ZS_FAILURE;
+	struct ZS_iterator     *_zs_iterator  		= NULL;
 	int                      i              		= 1000;
 	int                      j              		= 0;
 	int                      k              		= 0;
@@ -7366,62 +7366,62 @@ static void *fdf_vc_thread(
 	uint64_t                 datalen        		= 0;
 	SDF_container_meta_t    *meta           		= NULL;
 	struct SDF_shared_state *state 	= &sdf_shared_state;
-	int	flags					= FDF_CTNR_CREATE;
-	FDF_cguid_t *deletes = NULL;
+	int	flags					= ZS_CTNR_CREATE;
+	ZS_cguid_t *deletes = NULL;
 
 
-	if ( FDF_SUCCESS != FDFInitPerThreadState((struct FDF_state *)arg, 
-					( struct FDF_thread_state ** ) &fdf_thread_state)) {
+	if ( ZS_SUCCESS != ZSInitPerThreadState((struct ZS_state *)arg, 
+					( struct ZS_thread_state ** ) &zs_thread_state)) {
 		plat_log_msg( 150088,
 			  LOG_CAT,
 			  LOG_ERR,
-			  "Unable to initialize FDF thread state, exiting" );
+			  "Unable to initialize ZS thread state, exiting" );
 		return NULL;
 	}
 
 
 	if ( state->config.system_recovery == SYS_FLASH_RECOVERY )
 	    flags = 0;  // Just open the VMC/VDC
-	if ( ( status = fdf_vc_init( fdf_thread_state, flags ) ) != FDF_SUCCESS ) {
+	if ( ( status = zs_vc_init( zs_thread_state, flags ) ) != ZS_SUCCESS ) {
 	    plat_log_msg(150076,
 			 LOG_CAT, LOG_ERR,
-			 "Failed to open support containers: %s", FDFStrError( status ) );
-		FDFReleasePerThreadState(&fdf_thread_state);
+			 "Failed to open support containers: %s", ZSStrError( status ) );
+		ZSReleasePerThreadState(&zs_thread_state);
 		return NULL;
 	}
 
-	deletes = (FDF_cguid_t *) plat_alloc(sizeof(*deletes) * MCD_MAX_NUM_CNTRS);
+	deletes = (ZS_cguid_t *) plat_alloc(sizeof(*deletes) * MCD_MAX_NUM_CNTRS);
 	if (deletes == NULL) {
-		FDFReleasePerThreadState(&fdf_thread_state);
+		ZSReleasePerThreadState(&zs_thread_state);
 		return NULL;
 	}
 	memset(deletes, 0, sizeof(*deletes) * MCD_MAX_NUM_CNTRS);
 
 	do {
-		status = FDFEnumerateContainerObjects(fdf_thread_state, 
+		status = ZSEnumerateContainerObjects(zs_thread_state, 
 						VMC_CGUID,  
-						&_fdf_iterator);
-	} while (status == FDF_FLASH_EBUSY && i--);
+						&_zs_iterator);
+	} while (status == ZS_FLASH_EBUSY && i--);
 
-	while ((status = FDFNextEnumeratedObject(fdf_thread_state,
-						 _fdf_iterator,
+	while ((status = ZSNextEnumeratedObject(zs_thread_state,
+						 _zs_iterator,
 						 &key,
 						 &keylen,
 						 (char **) &meta,
 						 &datalen
-					       )) == FDF_SUCCESS) {
+					       )) == ZS_SUCCESS) {
 
-	    status = fdf_cmap_create( meta->cname,
+	    status = zs_cmap_create( meta->cname,
 	                              meta->cguid,
 	                              meta->properties.container_id.size,
-	                              FDF_CONTAINER_STATE_CLOSED,
+	                              ZS_CONTAINER_STATE_CLOSED,
 	                              meta->properties.container_type.caching_container
 	                            );
 
-	    if ( FDF_SUCCESS != status )
+	    if ( ZS_SUCCESS != status )
 	        break;
 
-		name_service_create_cguid_map( fdf_thread_state, 
+		name_service_create_cguid_map( zs_thread_state, 
 	                                   meta->cname, 
 	                                   meta->cguid
 	                                 );
@@ -7440,27 +7440,27 @@ static void *fdf_vc_thread(
 		}
 	}
     
-	status = FDFFinishEnumeration( fdf_thread_state, 
-				   _fdf_iterator);
+	status = ZSFinishEnumeration( zs_thread_state, 
+				   _zs_iterator);
 	
-	for( k = 0; k < MCD_MAX_NUM_CNTRS && deletes[k] != FDF_NULL_CGUID; k++ ) {
-		if ( ( status = fdf_delete_container( fdf_thread_state, deletes[k], FDF_VIRTUAL_CNTR) ) != FDF_SUCCESS )
+	for( k = 0; k < MCD_MAX_NUM_CNTRS && deletes[k] != ZS_NULL_CGUID; k++ ) {
+		if ( ( status = zs_delete_container( zs_thread_state, deletes[k], ZS_VIRTUAL_CNTR) ) != ZS_SUCCESS )
 			plat_log_msg( 150098,
 				  LOG_CAT, 
 				  LOG_ERR, 
 				  "Failed to delete container %lu during recovery - %s", 
 				  deletes[k], 
-				  FDFStrError( status ) );
+				  ZSStrError( status ) );
 	}
 
-	FDFReleasePerThreadState(&fdf_thread_state);
+	ZSReleasePerThreadState(&zs_thread_state);
 	plat_free(deletes);
 	return NULL;
 }
 
 static void 
-fdf_start_vc_thread(
-	struct FDF_state *fdf_state
+zs_start_vc_thread(
+	struct ZS_state *zs_state
 	) 
 {
     pthread_t 	thd;
@@ -7468,8 +7468,8 @@ fdf_start_vc_thread(
 
     rc = pthread_create( &thd,
 						 NULL,
-						 fdf_vc_thread,
-						 (void *) fdf_state
+						 zs_vc_thread,
+						 (void *) zs_state
 						);
 
     if ( rc != 0 ) {
@@ -7483,67 +7483,67 @@ fdf_start_vc_thread(
 }
 #define MAX_PHYSICAL_CONT_SIZE 2147483648
 
-static FDF_status_t
-fdf_vc_init(
-	struct FDF_thread_state  *fdf_thread_state,
+static ZS_status_t
+zs_vc_init(
+	struct ZS_thread_state  *zs_thread_state,
     int                  	  flags
     )
 {
-    FDF_container_props_t    p;
-    FDF_cguid_t              cguid       = FDF_NULL_CGUID;
-    SDF_status_t             status      = FDF_FAILURE;
-    SDF_internal_ctxt_t		*pai		= (SDF_internal_ctxt_t *) fdf_thread_state;
+    ZS_container_props_t    p;
+    ZS_cguid_t              cguid       = ZS_NULL_CGUID;
+    SDF_status_t             status      = ZS_FAILURE;
+    SDF_internal_ctxt_t		*pai		= (SDF_internal_ctxt_t *) zs_thread_state;
 
     // Create the VMC
-    FDFLoadCntrPropDefaults(&p);
-    p.durability_level      = FDF_DURABILITY_HW_CRASH_SAFE;
+    ZSLoadCntrPropDefaults(&p);
+    p.durability_level      = ZS_DURABILITY_HW_CRASH_SAFE;
     plat_log_msg(80035,LOG_CAT, LOG_DBG, "%s Virtual Metadata Container"
                           " (name = %s,size = %lu kbytes,"
                           "persistence = %s,eviction = %s,writethrough = %s,fifo = %s,"
                           "async_writes = %s,durability = %s)",
-                          flags & FDF_CTNR_CREATE?"Creating":"Opening",
+                          flags & ZS_CTNR_CREATE?"Creating":"Opening",
                           VMC_PATH,p.size_kb, get_bool_str(p.persistent),
                           get_bool_str(p.evicting),get_bool_str(p.writethru),
                           get_bool_str(p.fifo_mode),get_bool_str(p.async_writes),
                           get_durability_str(p.durability_level));
 
-	//fdf_ctnr_set_state( 0, FDF_CONTAINER_STATE_CLOSED );
+	//zs_ctnr_set_state( 0, ZS_CONTAINER_STATE_CLOSED );
 
-    if ((status = FDFOpenPhysicalContainer(pai, VMC_PATH, &p, flags, &cguid)) != SDF_SUCCESS) {
-        plat_log_msg(150057, LOG_CAT, LOG_ERR, "Failed to create VMC container - %s\n", FDFStrError(status));
+    if ((status = ZSOpenPhysicalContainer(pai, VMC_PATH, &p, flags, &cguid)) != SDF_SUCCESS) {
+        plat_log_msg(150057, LOG_CAT, LOG_ERR, "Failed to create VMC container - %s\n", ZSStrError(status));
         return status;
     }
 
     // Create the VDC
-    FDFLoadCntrPropDefaults(&p);
-    p.durability_level      = FDF_DURABILITY_HW_CRASH_SAFE;
-    p.size_kb               = ((uint64_t)getProperty_Int("FDF_FLASH_SIZE", FDF_MIN_FLASH_SIZE)) * 1024 * 1024 -
-                              (2 * FDF_DEFAULT_CONTAINER_SIZE_KB) - (32 * 1024); // Minus CMC/VMC allocation & super block;
+    ZSLoadCntrPropDefaults(&p);
+    p.durability_level      = ZS_DURABILITY_HW_CRASH_SAFE;
+    p.size_kb               = ((uint64_t)getProperty_Int("ZS_FLASH_SIZE", ZS_MIN_FLASH_SIZE)) * 1024 * 1024 -
+                              (2 * ZS_DEFAULT_CONTAINER_SIZE_KB) - (32 * 1024); // Minus CMC/VMC allocation & super block;
 #if 0
-    if ( (getProperty_Int("FDF_VDC_SIZE_CHECK", 1) && (p.size_kb > MAX_PHYSICAL_CONT_SIZE) ) ) {
+    if ( (getProperty_Int("ZS_VDC_SIZE_CHECK", 1) && (p.size_kb > MAX_PHYSICAL_CONT_SIZE) ) ) {
         plat_log_msg(80036,LOG_CAT, LOG_ERR, "Unsupported size(%lu bytes) for VDC. Maximum supported size is 2TB",
                                                             p.size_kb * 1024);
-        return FDF_FAILURE;
+        return ZS_FAILURE;
     }
 #endif
     plat_log_msg(80037,LOG_CAT, LOG_DBG, "%s Virtual Data Container"
                            " (name = %s,size = %lu kbytes,"
                            "persistence = %s,eviction = %s,writethrough = %s,fifo = %s,"
                            "async_writes = %s,durability = %s)",
-                           flags & FDF_CTNR_CREATE?"Creating":"Opening",
+                           flags & ZS_CTNR_CREATE?"Creating":"Opening",
                            VDC_PATH,p.size_kb, get_bool_str(p.persistent),
                            get_bool_str(p.evicting),get_bool_str(p.writethru),
                            get_bool_str(p.fifo_mode),get_bool_str(p.async_writes),
                            get_durability_str(p.durability_level));
 
-	//fdf_ctnr_set_state( 1, FDF_CONTAINER_STATE_CLOSED );
+	//zs_ctnr_set_state( 1, ZS_CONTAINER_STATE_CLOSED );
 
-    if ((status = FDFOpenPhysicalContainer(pai, VDC_PATH, &p, flags, &cguid)) != SDF_SUCCESS) {
-        plat_log_msg(150114, LOG_CAT, LOG_ERR, "Failed to create VDC container - %s\n", FDFStrError(status));
+    if ((status = ZSOpenPhysicalContainer(pai, VDC_PATH, &p, flags, &cguid)) != SDF_SUCCESS) {
+        plat_log_msg(150114, LOG_CAT, LOG_ERR, "Failed to create VDC container - %s\n", ZSStrError(status));
         return status;
     }
 
-    plat_log_msg(20168, LOG_CAT, LOG_DBG, "%s\n", FDFStrError(status));
+    plat_log_msg(20168, LOG_CAT, LOG_DBG, "%s\n", ZSStrError(status));
 
     return status;
 }
@@ -7551,14 +7551,14 @@ fdf_vc_init(
 // Generate a unique container id. Check the metadata map for existing id allocation.
 // Note that this function returns a 16bit value, where the cguid is actually 64bit.
 // We need to change to a 16bit cguid eventually.
-static FDF_status_t fdf_generate_cguid(
-	struct FDF_thread_state *fdf_thread_state,
-	FDF_cguid_t				*cguid
+static ZS_status_t zs_generate_cguid(
+	struct ZS_thread_state *zs_thread_state,
+	ZS_cguid_t				*cguid
 	)
 {
-	FDF_status_t				 status	= FDF_OBJECT_EXISTS;
+	ZS_status_t				 status	= ZS_OBJECT_EXISTS;
     struct SDF_shared_state		*state	= &sdf_shared_state;
-    SDF_internal_ctxt_t 		*pai 	= (SDF_internal_ctxt_t *) fdf_thread_state;
+    SDF_internal_ctxt_t 		*pai 	= (SDF_internal_ctxt_t *) zs_thread_state;
 	uint16_t		 			 i		= 0;
 	uint16_t		 			 start	= 0;
 
@@ -7569,14 +7569,14 @@ static FDF_status_t fdf_generate_cguid(
 		state->config.cguid_counter += 1; 
 		if ( state->config.cguid_counter == 0 )
 			state->config.cguid_counter += 1; 
-		if ( ( status = name_service_cguid_exists( pai, state->config.cguid_counter ) ) == FDF_OBJECT_UNKNOWN ) {
+		if ( ( status = name_service_cguid_exists( pai, state->config.cguid_counter ) ) == ZS_OBJECT_UNKNOWN ) {
 			*cguid = state->config.cguid_counter;
-			status = FDF_SUCCESS;
+			status = ZS_SUCCESS;
 			break;
 		}
 	}
 
-	plat_log_msg( 150083, LOG_CAT, LOG_DBG, "%lu - %s\n", *cguid, FDFStrError( status ) );
+	plat_log_msg( 150083, LOG_CAT, LOG_DBG, "%lu - %s\n", *cguid, ZSStrError( status ) );
 
 	return status;
 }
@@ -7585,148 +7585,148 @@ static FDF_status_t fdf_generate_cguid(
 /*
  * Delete all objects.
  */
-static FDF_status_t
-fdf_delete_objects(struct FDF_thread_state *ts, FDF_cguid_t cguid)
+static ZS_status_t
+zs_delete_objects(struct ZS_thread_state *ts, ZS_cguid_t cguid)
 {
-    FDF_status_t s;
+    ZS_status_t s;
     struct shard *shard = NULL;
     SDF_action_init_t *pai = (SDF_action_init_t *) ts;
 
     s = cguid_to_shard(pai, cguid, &shard, 1);
-    if (s != FDF_SUCCESS)
+    if (s != ZS_SUCCESS)
         return s;
 
     delete_all_objects(pai, shard, cguid);
-    return FDF_SUCCESS;
+    return ZS_SUCCESS;
 }
 
 
 /**
  * @brief Start transaction
  *
- * @param fdf_thread_state <IN> The FDF context for which this operation applies
- * @return FDF_SUCCESS on success
- *         FDF_TRANS_LEVEL_EXCEEDED if transaction is nested too deeply
- *         FDF_OUT_OF_MEM if memory exhausted
- *         FDF_FAILURE for error unspecified
+ * @param zs_thread_state <IN> The ZS context for which this operation applies
+ * @return ZS_SUCCESS on success
+ *         ZS_TRANS_LEVEL_EXCEEDED if transaction is nested too deeply
+ *         ZS_OUT_OF_MEM if memory exhausted
+ *         ZS_FAILURE for error unspecified
  */
-FDF_status_t FDFTransactionStart(
-	struct FDF_thread_state	*fdf_thread_state
+ZS_status_t ZSTransactionStart(
+	struct ZS_thread_state	*zs_thread_state
 	)
 {
-	if (fdf_thread_state == 0)
-		plat_log_msg( 80049, LOG_CAT, LOG_DBG, "FDF Thread state is NULL");
+	if (zs_thread_state == 0)
+		plat_log_msg( 80049, LOG_CAT, LOG_DBG, "ZS Thread state is NULL");
 
 	switch (mcd_trx_start( )) {
 	case MCD_TRX_OKAY:
-		return (FDF_SUCCESS);
+		return (ZS_SUCCESS);
 	case MCD_TRX_TOO_MANY:
-		return (FDF_TRANS_LEVEL_EXCEEDED);
+		return (ZS_TRANS_LEVEL_EXCEEDED);
 	case MCD_TRX_NO_MEM:
-		return (FDF_OUT_OF_MEM);
+		return (ZS_OUT_OF_MEM);
 	}
-	return (FDF_FAILURE);
+	return (ZS_FAILURE);
 }
 
 
 /**
  * @brief Commit transaction
  *
- * @param fdf_thread_state <IN> The FDF context for which this operation applies
- * @return FDF_SUCCESS on success
- *         FDF_FAILURE_NO_TRANS if there is no active transaction in the current thread
- *         FDF_TRANS_ABORTED if transaction aborted due to excessive size or internal error
+ * @param zs_thread_state <IN> The ZS context for which this operation applies
+ * @return ZS_SUCCESS on success
+ *         ZS_FAILURE_NO_TRANS if there is no active transaction in the current thread
+ *         ZS_TRANS_ABORTED if transaction aborted due to excessive size or internal error
  */
-FDF_status_t FDFTransactionCommit(
-	struct FDF_thread_state	*fdf_thread_state
+ZS_status_t ZSTransactionCommit(
+	struct ZS_thread_state	*zs_thread_state
 	)
 {
-	if (fdf_thread_state == 0) {
+	if (zs_thread_state == 0) {
 		plat_log_msg( 80049, LOG_CAT, LOG_DBG,
-						"FDF Thread state is NULL");
+						"ZS Thread state is NULL");
 	}
 	if (Enable_async_writes) {
 		uint64_t trx_id = mcd_trx_id();
 		if (!trx_id)
-			return FDF_FAILURE_NO_TRANS;
+			return ZS_FAILURE_NO_TRANS;
 
 		mcd_trx_t s = mcd_trx_detach();
 		if (s == MCD_TRX_NO_TRANS)
-			return (FDF_FAILURE_NO_TRANS);
+			return (ZS_FAILURE_NO_TRANS);
 		if (s != MCD_TRX_OKAY)
-			return FDF_FAILURE;
+			return ZS_FAILURE;
 
-		async_commit(fdf_thread_state, trx_id);
-		return FDF_SUCCESS;
+		async_commit(zs_thread_state, trx_id);
+		return ZS_SUCCESS;
 	}
 
-	switch (mcd_trx_commit( fdf_thread_state)) {
+	switch (mcd_trx_commit( zs_thread_state)) {
 	case MCD_TRX_NO_TRANS:
-		return (FDF_FAILURE_NO_TRANS);
+		return (ZS_FAILURE_NO_TRANS);
 	case MCD_TRX_BAD_SHARD:
 	case MCD_TRX_TOO_BIG:
-		return (FDF_TRANS_ABORTED);
+		return (ZS_TRANS_ABORTED);
 	case MCD_TRX_OKAY:
-		return (FDF_SUCCESS);
+		return (ZS_SUCCESS);
 	}
-	return (FDF_FAILURE);
+	return (ZS_FAILURE);
 }
 
 
 /**
  * @brief Roll back transaction
  *
- * @param fdf_thread_state <IN> The FDF context for which this operation applies
- * @return FDF_SUCCESS on success
- *         FDF_FAILURE_NO_TRANS if there is no active transaction in the current thread
- *         FDF_TRANS_ABORTED if transaction aborted due to excessive size or internal error
+ * @param zs_thread_state <IN> The ZS context for which this operation applies
+ * @return ZS_SUCCESS on success
+ *         ZS_FAILURE_NO_TRANS if there is no active transaction in the current thread
+ *         ZS_TRANS_ABORTED if transaction aborted due to excessive size or internal error
  */
-FDF_status_t FDFTransactionRollback(
-	struct FDF_thread_state	*fdf_thread_state
+ZS_status_t ZSTransactionRollback(
+	struct ZS_thread_state	*zs_thread_state
 	)
 {
 
-	switch (mcd_trx_rollback( fdf_thread_state)) {
+	switch (mcd_trx_rollback( zs_thread_state)) {
 	case MCD_TRX_NO_TRANS:
-		return (FDF_FAILURE_NO_TRANS);
+		return (ZS_FAILURE_NO_TRANS);
 	case MCD_TRX_BAD_SHARD:
 	case MCD_TRX_TOO_BIG:
-		return (FDF_TRANS_ABORTED);
+		return (ZS_TRANS_ABORTED);
 	case MCD_TRX_HASHTABLE_FULL:
-		return (FDF_CONTAINER_FULL);
+		return (ZS_CONTAINER_FULL);
 	case MCD_TRX_OKAY:
-		return (FDF_SUCCESS);
+		return (ZS_SUCCESS);
 	}
-	return (FDF_FAILURE);
+	return (ZS_FAILURE);
 }
 
 
 /**
  * @brief Quit a transaction
  *
- * @param fdf_thread_state <IN> The FDF context for which this operation applies
- * @return FDF_SUCCESS on success
- *         FDF_FAILURE_NO_TRANS if there is no active transaction in the current thread
+ * @param zs_thread_state <IN> The ZS context for which this operation applies
+ * @return ZS_SUCCESS on success
+ *         ZS_FAILURE_NO_TRANS if there is no active transaction in the current thread
  */
-FDF_status_t FDFTransactionQuit(
-	struct FDF_thread_state	*fdf_thread_state
+ZS_status_t ZSTransactionQuit(
+	struct ZS_thread_state	*zs_thread_state
 	)
 {
 
 	/* code here */
-	return (FDF_FAILURE);
+	return (ZS_FAILURE);
 }
 
 
 /**
  * @brief ID of current transaction
  *
- * @param fdf_thread_state <IN> The FDF context for which this operation applies
+ * @param zs_thread_state <IN> The ZS context for which this operation applies
  * @return Non-zero transaction ID on success
  *         Zero if there is no active transaction in the current thread
  */
-uint64_t FDFTransactionID(
-	struct FDF_thread_state	*fdf_thread_state
+uint64_t ZSTransactionID(
+	struct ZS_thread_state	*zs_thread_state
 	)
 {
 
@@ -7737,229 +7737,229 @@ uint64_t FDFTransactionID(
 /**
  * @brief Perform internal transaction service
  *
- * @param fdf_thread_state <IN> The FDF context for which this operation applies
- * @return FDF_SUCCESS on success
- *         FDF_FAILURE_OPERATION_DISALLOWED for unbalanced/nested rollback brackets
- *         FDF_FAILURE for error unspecified
+ * @param zs_thread_state <IN> The ZS context for which this operation applies
+ * @return ZS_SUCCESS on success
+ *         ZS_FAILURE_OPERATION_DISALLOWED for unbalanced/nested rollback brackets
+ *         ZS_FAILURE for error unspecified
  */
-FDF_status_t FDFTransactionService(
-	struct FDF_thread_state	*fdf_thread_state,
+ZS_status_t ZSTransactionService(
+	struct ZS_thread_state	*zs_thread_state,
 	int			cmd,
 	void			*arg
 	)
 {
 
-	switch (mcd_trx_service( fdf_thread_state, cmd, arg)) {
+	switch (mcd_trx_service( zs_thread_state, cmd, arg)) {
 	case MCD_TRX_OKAY:
-		return (FDF_SUCCESS);
+		return (ZS_SUCCESS);
 	case MCD_TRX_BAD_CMD:
-		return (FDF_FAILURE_OPERATION_DISALLOWED);
+		return (ZS_FAILURE_OPERATION_DISALLOWED);
 	}
-	return (FDF_FAILURE);
+	return (ZS_FAILURE);
 }
 
 
 /**
- * @brief Return version of FDF
+ * @brief Return version of ZS
  *
- * @param fdf_thread_state <IN> The FDF context for which this operation applies
+ * @param zs_thread_state <IN> The ZS context for which this operation applies
  * @return String having the versions
  * 	   NULL if failed internally
  */
 
-FDF_status_t
-FDFGetVersion(
+ZS_status_t
+ZSGetVersion(
 	char **str
 	)
 {
 	if (!str)
-		return FDF_INVALID_PARAMETER;
+		return ZS_INVALID_PARAMETER;
 
-#ifdef FDF_REVISION
-	*str = plat_strdup(FDF_REVISION);
+#ifdef ZS_REVISION
+	*str = plat_strdup(ZS_REVISION);
 #else
 	*str = NULL;
 #endif
 
-	return *str ? FDF_SUCCESS : FDF_FAILURE;
+	return *str ? ZS_SUCCESS : ZS_FAILURE;
 }
 
-FDF_status_t FDFGetRange(struct FDF_thread_state *thrd_state, 
-                         FDF_cguid_t              cguid,
-                         FDF_indexid_t            indexid,
-                         struct FDF_cursor      **cursor,
-                         FDF_range_meta_t        *meta)
+ZS_status_t ZSGetRange(struct ZS_thread_state *thrd_state, 
+                         ZS_cguid_t              cguid,
+                         ZS_indexid_t            indexid,
+                         struct ZS_cursor      **cursor,
+                         ZS_range_meta_t        *meta)
 {
-	fprintf(stderr, "FDF: FDFGetRange without btree is not supported\n");
-	return FDF_UNSUPPORTED_REQUEST;
+	fprintf(stderr, "ZS: ZSGetRange without btree is not supported\n");
+	return ZS_UNSUPPORTED_REQUEST;
 }
 
-FDF_status_t
-FDFGetNextRange(struct FDF_thread_state *thrd_state, 
-                struct FDF_cursor       *cursor,
+ZS_status_t
+ZSGetNextRange(struct ZS_thread_state *thrd_state, 
+                struct ZS_cursor       *cursor,
                 int                      n_in, 
                 int                     *n_out,
-                FDF_range_data_t        *values)
+                ZS_range_data_t        *values)
 {
-	fprintf(stderr, "FDF: FDFGetNextRange without btree is not supported\n");
-	return FDF_UNSUPPORTED_REQUEST;
+	fprintf(stderr, "ZS: ZSGetNextRange without btree is not supported\n");
+	return ZS_UNSUPPORTED_REQUEST;
 }
 
-FDF_status_t 
-FDFGetRangeFinish(struct FDF_thread_state *thrd_state, 
-                  struct FDF_cursor *cursor)
+ZS_status_t 
+ZSGetRangeFinish(struct ZS_thread_state *thrd_state, 
+                  struct ZS_cursor *cursor)
 {
-	fprintf(stderr, "FDF: FDFGetRangeFinish without btree is not supported\n");
-	return FDF_UNSUPPORTED_REQUEST;
+	fprintf(stderr, "ZS: ZSGetRangeFinish without btree is not supported\n");
+	return ZS_UNSUPPORTED_REQUEST;
 }
 
-FDF_status_t 
-FDFMPut(struct FDF_thread_state *fdf_thread_state, 
-	FDF_cguid_t cguid,
+ZS_status_t 
+ZSMPut(struct ZS_thread_state *zs_thread_state, 
+	ZS_cguid_t cguid,
 	uint32_t num_objs,
-	FDF_obj_t *objs,
+	ZS_obj_t *objs,
 	uint32_t flags,
 	uint32_t *objs_written)
 {
-	fprintf(stderr, "FDF: FDFMPut without btree is not supported\n");
-	return FDF_UNSUPPORTED_REQUEST;
+	fprintf(stderr, "ZS: ZSMPut without btree is not supported\n");
+	return ZS_UNSUPPORTED_REQUEST;
 }
 
-FDF_status_t
-FDFRangeUpdate(struct FDF_thread_state *fdf_thread_state, 
-	       FDF_cguid_t cguid,
+ZS_status_t
+ZSRangeUpdate(struct ZS_thread_state *zs_thread_state, 
+	       ZS_cguid_t cguid,
 	       char *range_key,
 	       uint32_t range_key_len,
-	       FDF_range_update_cb_t callback_func,
+	       ZS_range_update_cb_t callback_func,
 	       void * callback_args,	
-	       FDF_range_cmp_cb_t range_cmp_callback,
+	       ZS_range_cmp_cb_t range_cmp_callback,
 	       void *range_cmp_cb_args,
 	       uint32_t *objs_updated)
 {
-	fprintf(stderr, "FDF: FDFRangeUpdate without btree is not supported\n");
-	return FDF_UNSUPPORTED_REQUEST;
+	fprintf(stderr, "ZS: ZSRangeUpdate without btree is not supported\n");
+	return ZS_UNSUPPORTED_REQUEST;
 }
 
-FDF_status_t
-FDFCheckBtree(struct FDF_thread_state *fdf_thread_state, 
-	       FDF_cguid_t cguid)
+ZS_status_t
+ZSCheckBtree(struct ZS_thread_state *zs_thread_state, 
+	       ZS_cguid_t cguid)
 {
 
-	fprintf(stderr, "FDF: FDFCheckBtree without btree is not supported\n");
-	return FDF_FAILURE;
+	fprintf(stderr, "ZS: ZSCheckBtree without btree is not supported\n");
+	return ZS_FAILURE;
 }
 
-FDF_status_t
-FDFIoctl(struct FDF_thread_state *fdf_thread_state, 
-         FDF_cguid_t cguid,
+ZS_status_t
+ZSIoctl(struct ZS_thread_state *zs_thread_state, 
+         ZS_cguid_t cguid,
          uint32_t ioctl_type,
          void *data)
 {
 	switch (ioctl_type) {
 #ifdef FLIP_ENABLED
-	case FDF_IOCTL_FLIP:
+	case ZS_IOCTL_FLIP:
 		flip_handle_ioctl(data);
 		break;
 #endif
 	default:
 		break;
 	}
-	return FDF_SUCCESS;
+	return ZS_SUCCESS;
 }
 
 /*
  * @brief Create a snapshot for a container  
  * 
- * @param fdf_thread_state <IN> The FDF context for which this operation applies
+ * @param zs_thread_state <IN> The ZS context for which this operation applies
  * @param cguid <IN> container global identifier
  * @param snap_seq <OUT> sequence number of snapshot
- * @return FDF_SUCCESS if successful
- *         FDF_TOO_MANY_SNAPSHOTS if snapshot limit is reached
+ * @return ZS_SUCCESS if successful
+ *         ZS_TOO_MANY_SNAPSHOTS if snapshot limit is reached
  */
-FDF_status_t
-FDFCreateContainerSnapshot(
-	struct FDF_thread_state	*fdf_thread_state,
-	FDF_cguid_t		cguid,
+ZS_status_t
+ZSCreateContainerSnapshot(
+	struct ZS_thread_state	*zs_thread_state,
+	ZS_cguid_t		cguid,
 	uint64_t		*snap_seq
 	)
 {
 
 	/* supported in btree only */
-	return (FDF_FAILURE);
+	return (ZS_FAILURE);
 }
 
 /*
  * @brief Delete a snapshot
  * 
- * @param fdf_thread_state <IN> The FDF context for which this operation applies
+ * @param zs_thread_state <IN> The ZS context for which this operation applies
  * @param cguid <IN> container global identifier
  * @param snap_seq <IN> snapshot to be deleted
- * @return FDF_SUCCESS if successful
- *         FDF_SNAPSHOT_NOT_FOUND if no snapshot for snap_seq is found
+ * @return ZS_SUCCESS if successful
+ *         ZS_SNAPSHOT_NOT_FOUND if no snapshot for snap_seq is found
  */
-FDF_status_t
-FDFDeleteContainerSnapshot(
-	struct FDF_thread_state	*fdf_thread_state,
-	FDF_cguid_t		cguid,
+ZS_status_t
+ZSDeleteContainerSnapshot(
+	struct ZS_thread_state	*zs_thread_state,
+	ZS_cguid_t		cguid,
 	uint64_t		snap_seq
 	)
 {
 
 	/* supported in btree only */
-	return (FDF_FAILURE);
+	return (ZS_FAILURE);
 }
 
 /*
  * @brief Get a list of all current snapshots
  *
- * Array returned in snap_seqs is allocated by FDF and must be freed by
+ * Array returned in snap_seqs is allocated by ZS and must be freed by
  * application.
  * 
- * @param fdf_thread_state <IN> The FDF context for which this operation applies
+ * @param zs_thread_state <IN> The ZS context for which this operation applies
  * @param cguid <IN> container global identifier
  * @param n_snapshots <OUT> number of snapshots retrieved
  * @param snap_seqs <OUT> retrieved snapshots
- * @return FDF_SUCCESS if successful
- *         FDF_xxxzzz if snap_seqs cannot be allocated
+ * @return ZS_SUCCESS if successful
+ *         ZS_xxxzzz if snap_seqs cannot be allocated
  */
-FDF_status_t
-FDFGetContainerSnapshots(
-	struct FDF_thread_state	*fdf_thread_state,
-	FDF_cguid_t		cguid,
+ZS_status_t
+ZSGetContainerSnapshots(
+	struct ZS_thread_state	*zs_thread_state,
+	ZS_cguid_t		cguid,
 	uint32_t		*n_snapshots,
-	FDF_container_snapshots_t **snap_seqs
+	ZS_container_snapshots_t **snap_seqs
 	)
 {
 	/* supported in btree only */
-	return (FDF_FAILURE);
+	return (ZS_FAILURE);
 }
 
-FDF_status_t (FDFScavenger) (struct FDF_state *fdf_state) 
+ZS_status_t (ZSScavenger) (struct ZS_state *zs_state) 
 {
-	fprintf(stderr, "FDF: FDFScavenger without btree is not supported\n");
-	return FDF_UNSUPPORTED_REQUEST;	
+	fprintf(stderr, "ZS: ZSScavenger without btree is not supported\n");
+	return ZS_UNSUPPORTED_REQUEST;	
 }
 
-FDF_status_t (FDFScavengeContainer) (struct FDF_state *fdf_state, FDF_cguid_t cguid) 
+ZS_status_t (ZSScavengeContainer) (struct ZS_state *zs_state, ZS_cguid_t cguid) 
 {
-	fprintf(stderr, "FDF: FDFScavengeContainer without btree is not supported\n");
-	return FDF_UNSUPPORTED_REQUEST;
+	fprintf(stderr, "ZS: ZSScavengeContainer without btree is not supported\n");
+	return ZS_UNSUPPORTED_REQUEST;
 }
 
-FDF_status_t (FDFScavengeSnapshot) (struct FDF_state *fdf_state, FDF_cguid_t cguid, uint64_t snap_seq) 
+ZS_status_t (ZSScavengeSnapshot) (struct ZS_state *zs_state, ZS_cguid_t cguid, uint64_t snap_seq) 
 {
-	fprintf(stderr, "FDF: FDFScavengeSnapshot without btree is not supported\n");
-	return FDF_UNSUPPORTED_REQUEST;
+	fprintf(stderr, "ZS: ZSScavengeSnapshot without btree is not supported\n");
+	return ZS_UNSUPPORTED_REQUEST;
 }
 
-FDF_status_t
-FDFOperationAllowed( void )
+ZS_status_t
+ZSOperationAllowed( void )
 {
-	return is_fdf_operation_allowed();
+	return is_zs_operation_allowed();
 }
 #if 0
 #define NUM_BTRACE_ENTRIES 50
-void fdf_print_backtrace() {
+void zs_print_backtrace() {
     void *array[NUM_BTRACE_ENTRIES];
     char **strings;
     int size,i;
@@ -7977,7 +7977,7 @@ void fdf_print_backtrace() {
 
 char pstack_out_file[100] = "stack_at_crach.info" ;
 
-void fdf_print_backtrace()
+void zs_print_backtrace()
 {
 
 	pid_t pid = 0;
@@ -8000,14 +8000,14 @@ void fdf_print_backtrace()
 #endif 
 
 
-void fdf_signal_handler(int signum) { 
+void zs_signal_handler(int signum) { 
     plat_log_msg(80064, LOG_CAT, LOG_ERR,
                 "Got signal %d(%s):",signum,strsignal(signum)); 
-    fdf_print_backtrace(); 
+    zs_print_backtrace(); 
 
     signal(SIGABRT, SIG_DFL);
 
-    if (fdf_dump_core) {
+    if (zs_dump_core) {
 	plat_abort();
     } else {
 	plat_exit(1); 

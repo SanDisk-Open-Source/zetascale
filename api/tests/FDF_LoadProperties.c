@@ -1,36 +1,36 @@
 /****************************
-#function : FDFLoadProperties
+#function : ZSLoadProperties
 #author   : AliceXu
 *****************************/
 
 #include <stdlib.h>
 #include <assert.h>
 #include <unistd.h>
-#include "fdf.h"
+#include "zs.h"
 
 FILE *fp;
-static struct FDF_state        *fdf_state;
-static struct FDF_thread_state *fdf_thrd_state;
-//FDF_config_t                   *fdf_config;
-FDF_cguid_t                    cguid;
+static struct ZS_state        *zs_state;
+static struct ZS_thread_state *zs_thrd_state;
+//ZS_config_t                   *fdf.config;
+ZS_cguid_t                    cguid;
 char *testname[10] = {NULL};
 int result[10] = {0};
 
-FDF_status_t pre_env()
+ZS_status_t pre_env()
 {
-     FDF_status_t ret = FDF_FAILURE;
-   //(void)FDFLoadConfigDefaults(fdf_config, NULL);
-   //  if (FDFInit(&fdf_state, fdf_config) != FDF_SUCCESS) {
-     ret = FDFInit(&fdf_state);
-     if (FDF_SUCCESS != ret)
+     ZS_status_t ret = ZS_FAILURE;
+   //(void)ZSLoadConfigDefaults(fdf.config, NULL);
+   //  if (ZSInit(&zs_state, fdf.config) != ZS_SUCCESS) {
+     ret = ZSInit(&zs_state);
+     if (ZS_SUCCESS != ret)
      {
-        fprintf(fp, "FDF initialization failed!\n");
+        fprintf(fp, "ZS initialization failed!\n");
      }else {
-        fprintf(fp, "FDF initialization succeed!\n");
-        ret = FDFInitPerThreadState(fdf_state, &fdf_thrd_state);
-        if( FDF_SUCCESS == ret)
+        fprintf(fp, "ZS initialization succeed!\n");
+        ret = ZSInitPerThreadState(zs_state, &zs_thrd_state);
+        if( ZS_SUCCESS == ret)
         {
-            fprintf(fp, "FDF thread initialization succeed!\n");
+            fprintf(fp, "ZS thread initialization succeed!\n");
         }
      }
      return ret;
@@ -38,8 +38,8 @@ FDF_status_t pre_env()
 
 void clear_env()
 {
-    (void)FDFReleasePerThreadState(&fdf_thrd_state);
-    (void)FDFShutdown(fdf_state);
+    (void)ZSReleasePerThreadState(&zs_thrd_state);
+    (void)ZSShutdown(zs_state);
     fprintf(fp, "clear env!\n");
 }                       
 
@@ -47,11 +47,11 @@ void clear_env()
 
 int test_property_is_null()
 {
-    FDF_status_t status;
+    ZS_status_t status;
     testname[0] = "#test0: test with incoming parmeter is NULL.";
 
-    status = FDFLoadProperties(NULL);
-    if(FDF_SUCCESS == status)
+    status = ZSLoadProperties(NULL);
+    if(ZS_SUCCESS == status)
     {
         fprintf(fp,"ok -> can load properties with input is NULL!\n");
         return 0;
@@ -64,11 +64,11 @@ int test_property_is_null()
 
 int test_property_is_wrong()
 {
-    FDF_status_t status;
+    ZS_status_t status;
     testname[1] = "#test1: test with property path is none exist or wrong.";
 
-    status = FDFLoadProperties("lalala");
-    if(FDF_SUCCESS != status)
+    status = ZSLoadProperties("lalala");
+    if(ZS_SUCCESS != status)
     {
         result[1] = 1;
         fprintf(fp,"ok -> can't load properties with property path is none-exist!\n");
@@ -81,15 +81,15 @@ int test_property_is_wrong()
 
 int test_basic_check()
 {
-    FDF_status_t status;
+    ZS_status_t status;
     testname[2] = "#test2: test with basic function.";
 
     if (system("mkdir /tmp/my.properties")) {}
     sleep(5);
-    status = FDFLoadProperties("/tmp/my.properties");
-    fprintf(stderr, "FDFLoadProperties test_basic_check() returned %s\n", FDFStrError(status));
+    status = ZSLoadProperties("/tmp/my.properties");
+    fprintf(stderr, "ZSLoadProperties test_basic_check() returned %s\n", ZSStrError(status));
     if (system("rm -rf /tmp/my.properties")) {}
-    if(FDF_SUCCESS == status)
+    if(ZS_SUCCESS == status)
     {
         result[2] = 1;
         fprintf(fp,"ok -> can't load properties with valid property path!\n");
@@ -107,13 +107,13 @@ int main()
     int testnumber = 3;
 	int count      = 0;
 
-    if((fp = fopen("FDF_LoadProperties.log", "w+")) == 0)
+    if((fp = fopen("ZS_LoadProperties.log", "w+")) == 0)
     {
         fprintf(stderr, " open log file failed!.\n");
         return -1;
     }
 
-    if(FDF_SUCCESS == pre_env())
+    if(ZS_SUCCESS == pre_env())
     {
         count += test_property_is_null();
         count += test_property_is_wrong();
@@ -138,13 +138,13 @@ int main()
 
     if(testnumber == count)
     {
-        fprintf(stderr, "#Test of FDFLoadProperties pass!\n");
-	fprintf(stderr, "#The related test script is FDF_LoadProperties.c\n");
-	fprintf(stderr, "#If you want, you can check test details in FDF_LoadProperties.log\n");
+        fprintf(stderr, "#Test of ZSLoadProperties pass!\n");
+	fprintf(stderr, "#The related test script is ZS_LoadProperties.c\n");
+	fprintf(stderr, "#If you want, you can check test details in ZS_LoadProperties.log\n");
     }else{
-        fprintf(stderr, "#Test of FDFLoadProperties fail!\n");
-	fprintf(stderr, "#The related test script is FDF_LoadProperties.c\n");
-	fprintf(stderr, "#If you want, you can check test details in FDF_LoadProperties.log\n");
+        fprintf(stderr, "#Test of ZSLoadProperties fail!\n");
+	fprintf(stderr, "#The related test script is ZS_LoadProperties.c\n");
+	fprintf(stderr, "#If you want, you can check test details in ZS_LoadProperties.log\n");
     }
 
 

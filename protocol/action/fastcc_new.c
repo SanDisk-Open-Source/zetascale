@@ -2628,7 +2628,7 @@ int SDFNewCacheGetByMhash(SDFNewCache_t *pc, struct shard *shard,
     }
 
     if (pce != NULL) {
-	/* copy out the key and data into FDF-allocated buffers */
+	/* copy out the key and data into ZS-allocated buffers */
 	pkey  = (char *) malloc(pce->key_len);
 	if (!pkey) {
 	    plat_log_msg(160052, 

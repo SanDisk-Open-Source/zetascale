@@ -15,7 +15,7 @@
  * Company: 
  * Email: 
  * @@PARTICULARS@@
- * Product: FDF
+ * Product: ZS
  * Version: 
  * Machine ID:
  * Type: Permanent|Periodic
@@ -23,7 +23,7 @@
  * Date valid to:  mm/dd/yy 00:00:00
  * @@CIPHERTEXT@@
  * ... 
- * The license details are stored in a regular file, /opt/sandisk/fdf<xx>/license.
+ * The license details are stored in a regular file, /opt/sandisk/zs<xx>/license.
  * It contains following details:
  *
  * 1.	Customer contact details: This just provides details of the customer to
@@ -43,7 +43,7 @@
  *	is installed, we can deny the service. 
  *
  * 4.	Machine ID: This is the unique machine ID on which the license was
- *	requested for and FDF is installed. This is one of the keys, and all FDF
+ *	requested for and ZS is installed. This is one of the keys, and all ZS
  *	APIs would check for this ID to match with that of the machine. This
  *	restricts users from using the license on more than one machine.
  *
@@ -56,8 +56,8 @@
  *
  */
 
-#ifndef _FDFVER_1_0
-#define _FDFVER_1_0
+#ifndef _ZSVER_1_0
+#define _ZSVER_1_0
 #include <stdio.h>
 #include "license/versions.h"
 #include "license/interface.h"

@@ -1,151 +1,151 @@
 #include <assert.h>
-#include "fdf.h"
+#include "zs.h"
 
-static struct FDF_state* fdf_state;
-static __thread struct FDF_thread_state *_fdf_thd_state;
+static struct ZS_state* zs_state;
+static __thread struct ZS_thread_state *_zs_thd_state;
 
-FDF_status_t fdf_init()
+ZS_status_t zs_init()
 {
-    return FDFInit( &fdf_state );
+    return ZSInit( &zs_state );
 }
 
-FDF_status_t fdf_shutdown()
+ZS_status_t zs_shutdown()
 {
-    return FDFShutdown( fdf_state );
+    return ZSShutdown( zs_state );
 }
 
-FDF_status_t fdf_init_thread()
+ZS_status_t zs_init_thread()
 {
-    return FDFInitPerThreadState(fdf_state, &_fdf_thd_state);
+    return ZSInitPerThreadState(zs_state, &_zs_thd_state);
 }
 
-FDF_status_t fdf_release_thread()
+ZS_status_t zs_release_thread()
 {
-    return FDFReleasePerThreadState(&_fdf_thd_state);
+    return ZSReleasePerThreadState(&_zs_thd_state);
 }
 
-FDF_status_t fdf_transaction_start()
+ZS_status_t zs_transaction_start()
 {
-    return FDFTransactionStart(_fdf_thd_state);
+    return ZSTransactionStart(_zs_thd_state);
 }
 
-FDF_status_t fdf_transaction_commit()
+ZS_status_t zs_transaction_commit()
 {
-    return FDFTransactionCommit(_fdf_thd_state);
+    return ZSTransactionCommit(_zs_thd_state);
 }
 
-FDF_status_t fdf_create_container (
+ZS_status_t zs_create_container (
     char                    *cname,
     uint64_t                size,
-    FDF_cguid_t             *cguid
+    ZS_cguid_t             *cguid
     )
 {
-    FDF_status_t            ret;
-    FDF_container_props_t   props;
-    uint32_t                flags       = FDF_CTNR_CREATE;
+    ZS_status_t            ret;
+    ZS_container_props_t   props;
+    uint32_t                flags       = ZS_CTNR_CREATE;
 
-    FDFLoadCntrPropDefaults(&props);
+    ZSLoadCntrPropDefaults(&props);
 
     props.size_kb   = size / 1024;
 
-    ret = FDFOpenContainer (
-            _fdf_thd_state,
+    ret = ZSOpenContainer (
+            _zs_thd_state,
             cname, 
             &props,
             flags,
             cguid
             );
     
-    if ( ret != FDF_SUCCESS ) 
-        fprintf( stderr, "FDFOpenContainer: %s\n", FDFStrError(ret) );
+    if ( ret != ZS_SUCCESS ) 
+        fprintf( stderr, "ZSOpenContainer: %s\n", ZSStrError(ret) );
     
     return ret;
 }
 
-FDF_status_t fdf_open_container (
+ZS_status_t zs_open_container (
 	char                    *cname,
 	uint64_t				size,
-	FDF_cguid_t             *cguid
+	ZS_cguid_t             *cguid
 	)
 {
-    FDF_status_t            ret;
-    FDF_container_props_t   props;
+    ZS_status_t            ret;
+    ZS_container_props_t   props;
     uint32_t                flags		= 0;
 
-	FDFLoadCntrPropDefaults(&props);
+	ZSLoadCntrPropDefaults(&props);
 
 	props.size_kb   = size / 1024;
-	props.evicting	= FDF_TRUE;
+	props.evicting	= ZS_TRUE;
 
-	ret = FDFOpenContainer (
-			_fdf_thd_state, 
+	ret = ZSOpenContainer (
+			_zs_thd_state, 
 			cname, 
 			&props,
 			flags,
 			cguid
 			);
 
-    if ( ret != FDF_SUCCESS ) 
-		fprintf( stderr, "FDFOpenContainer: %s\n", FDFStrError(ret) );
+    if ( ret != ZS_SUCCESS ) 
+		fprintf( stderr, "ZSOpenContainer: %s\n", ZSStrError(ret) );
 
     return ret;
 }
 
-FDF_status_t fdf_close_container (
-    FDF_cguid_t                cguid
+ZS_status_t zs_close_container (
+    ZS_cguid_t                cguid
        )
 {
-    FDF_status_t  ret;
+    ZS_status_t  ret;
 
-    ret = FDFCloseContainer(
-            _fdf_thd_state,
+    ret = ZSCloseContainer(
+            _zs_thd_state,
             cguid
         );
 
     return(ret);
 }
 
-FDF_status_t fdf_delete_container (
-    FDF_cguid_t                cguid
+ZS_status_t zs_delete_container (
+    ZS_cguid_t                cguid
        )
 {
-    FDF_status_t  ret;
+    ZS_status_t  ret;
 
-    ret = FDFDeleteContainer(
-            _fdf_thd_state,
+    ret = ZSDeleteContainer(
+            _zs_thd_state,
             cguid
         );
 
     return(ret);
 }
 
-FDF_status_t fdf_flush_container (
-    FDF_cguid_t                cguid
+ZS_status_t zs_flush_container (
+    ZS_cguid_t                cguid
        )
 {
-    FDF_status_t  ret;
+    ZS_status_t  ret;
 
-    ret = FDFFlushContainer(
-            _fdf_thd_state,
+    ret = ZSFlushContainer(
+            _zs_thd_state,
             cguid
         );
 
     return(ret);
 }
 
-FDF_status_t fdf_get (
-	FDF_cguid_t                cguid,
+ZS_status_t zs_get (
+	ZS_cguid_t                cguid,
 	char                      *key,
 	uint32_t                   keylen,
 	char                     **data,
 	uint64_t                  *datalen
 	   )
 {
-    FDF_status_t  ret;
+    ZS_status_t  ret;
 
     //fprintf(stderr, "%x sdf_get before: key=%s, keylen=%d\n", (int)pthread_self(), key, keylen);
-    ret = FDFReadObject(
-			_fdf_thd_state, 
+    ret = ZSReadObject(
+			_zs_thd_state, 
 			cguid, 
 			key,
 			keylen,
@@ -157,50 +157,50 @@ FDF_status_t fdf_get (
     return(ret);
 }
 
-FDF_status_t fdf_free_buffer(
+ZS_status_t zs_free_buffer(
 	char 					*data
 	) 
 {
-    FDF_status_t   ret;
+    ZS_status_t   ret;
 
-    ret = FDFFreeBuffer( data );
+    ret = ZSFreeBuffer( data );
     return ret;
 }
 
-FDF_status_t fdf_enumerate (
-	FDF_cguid_t 			  cguid,
-	struct FDF_iterator		**_fdf_iterator
+ZS_status_t zs_enumerate (
+	ZS_cguid_t 			  cguid,
+	struct ZS_iterator		**_zs_iterator
 	)
 {
 	int i = 1000;
-    FDF_status_t  ret;
+    ZS_status_t  ret;
 
 	do{
-    	ret = FDFEnumerateContainerObjects(
-				_fdf_thd_state,
+    	ret = ZSEnumerateContainerObjects(
+				_zs_thd_state,
 				cguid,
-				_fdf_iterator 
+				_zs_iterator 
 				);
-    } while (ret == FDF_FLASH_EBUSY && i--);
+    } while (ret == ZS_FLASH_EBUSY && i--);
 
     //fprintf(stderr, "%x sdf_enumerate after: ret %d\n", (int)pthread_self(), ret);
     return ret;
 }
 
-FDF_status_t fdf_next_enumeration(
-	FDF_cguid_t               cguid,
-	struct FDF_iterator		 *_fdf_iterator,
+ZS_status_t zs_next_enumeration(
+	ZS_cguid_t               cguid,
+	struct ZS_iterator		 *_zs_iterator,
 	char                     **key,
 	uint32_t                  *keylen,
 	char                     **data,
 	uint64_t                  *datalen
 	)
 {
-    FDF_status_t  ret;
+    ZS_status_t  ret;
 
-    ret = FDFNextEnumeratedObject (
-			_fdf_thd_state, 
-			_fdf_iterator,
+    ret = ZSNextEnumeratedObject (
+			_zs_thd_state, 
+			_zs_iterator,
 			key,
 			keylen,
 			data,
@@ -210,36 +210,36 @@ FDF_status_t fdf_next_enumeration(
     return ret;
 }
 
-FDF_status_t fdf_finish_enumeration (
-	FDF_cguid_t  			 cguid,
-	struct FDF_iterator		*_fdf_iterator
+ZS_status_t zs_finish_enumeration (
+	ZS_cguid_t  			 cguid,
+	struct ZS_iterator		*_zs_iterator
 	)
 {
-    FDF_status_t  ret;
+    ZS_status_t  ret;
 
-    ret = FDFFinishEnumeration(
-			_fdf_thd_state, 
-			_fdf_iterator
+    ret = ZSFinishEnumeration(
+			_zs_thd_state, 
+			_zs_iterator
 			);
     //fprintf(stderr, "%x sdf_finish_enumeration after: ret %d\n", (int)pthread_self(), ret);
     return ret;
 }
 
-FDF_status_t fdf_set (
-	FDF_cguid_t              cguid,
+ZS_status_t zs_set (
+	ZS_cguid_t              cguid,
 	char					*key,
 	uint32_t				 keylen,
 	char					*data,
 	uint64_t				 datalen
 	)
 {
-    FDF_status_t  	ret;
+    ZS_status_t  	ret;
 	uint32_t		flags	= 1;
 
     //fprintf(stderr, "%x sdf_set before: key=%s, keylen=%d, data=%s, datalen=%ld\n", (int)pthread_self(), key, keylen, data, datalen);
 
-    ret = FDFWriteObject (
-		_fdf_thd_state,
+    ret = ZSWriteObject (
+		_zs_thd_state,
 		cguid,
 		key,
 		keylen,
@@ -251,16 +251,16 @@ FDF_status_t fdf_set (
     return ret;
 }
 
-FDF_status_t fdf_delete(
-	FDF_cguid_t              cguid,
+ZS_status_t zs_delete(
+	ZS_cguid_t              cguid,
 	char					*key,
 	uint32_t				 keylen
 	)
 {
-    FDF_status_t  ret;
+    ZS_status_t  ret;
 
-    ret = FDFDeleteObject(
-		  	_fdf_thd_state, 
+    ret = ZSDeleteObject(
+		  	_zs_thd_state, 
 			cguid,
 			key,
 			keylen
@@ -269,16 +269,16 @@ FDF_status_t fdf_delete(
     return ret;
 }
 
-FDF_status_t fdf_flush(
-    FDF_cguid_t              cguid,
+ZS_status_t zs_flush(
+    ZS_cguid_t              cguid,
     char                    *key,
     uint32_t                 keylen
     )
 {
-    FDF_status_t  ret;
+    ZS_status_t  ret;
 
-    ret = FDFFlushObject(
-            _fdf_thd_state,
+    ret = ZSFlushObject(
+            _zs_thd_state,
             cguid,
             key,
             keylen
@@ -287,12 +287,12 @@ FDF_status_t fdf_flush(
     return ret;
 }
 
-FDF_status_t fdf_get_container_stats(FDF_cguid_t cguid, FDF_stats_t *stats)
+ZS_status_t zs_get_container_stats(ZS_cguid_t cguid, ZS_stats_t *stats)
 {
-    FDF_status_t  ret;
+    ZS_status_t  ret;
 
-    ret = FDFGetContainerStats(
-		  	_fdf_thd_state, 
+    ret = ZSGetContainerStats(
+		  	_zs_thd_state, 
 			cguid,
 			stats
 			);
@@ -300,27 +300,27 @@ FDF_status_t fdf_get_container_stats(FDF_cguid_t cguid, FDF_stats_t *stats)
     return ret;
 }
 
-FDF_status_t fdf_get_stats(FDF_stats_t *stats)
+ZS_status_t zs_get_stats(ZS_stats_t *stats)
 {
-    FDF_status_t  ret;
+    ZS_status_t  ret;
 
-    ret = FDFGetStats(
-		  	_fdf_thd_state, 
+    ret = ZSGetStats(
+		  	_zs_thd_state, 
 			stats
 			);
 
     return ret;
 }
 
-FDF_status_t fdf_get_containers(
-    FDF_cguid_t              *cguids,
+ZS_status_t zs_get_containers(
+    ZS_cguid_t              *cguids,
     uint32_t                 *n_cguids
     )
 {
-	FDF_status_t	ret;
+	ZS_status_t	ret;
 
-	ret = FDFGetContainers(
-			_fdf_thd_state,
+	ret = ZSGetContainers(
+			_zs_thd_state,
 			cguids,
 			n_cguids
 			);
