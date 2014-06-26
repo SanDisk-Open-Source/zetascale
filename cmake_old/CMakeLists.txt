@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 2.8 FATAL_ERROR)
 #
-IF($ENV{ZS_SDK_VERSION})
-	SET(VERSION $ENV{ZS_SDK_VERSION})
+IF($ENV{FDF_SDK_VERSION})
+	SET(VERSION $ENV{FDF_SDK_VERSION})
 ELSE()
 	SET(VERSION 1.0)
 ENDIF()
@@ -33,7 +33,7 @@ ELSE(DEBUG)
 	ADD_DEFINITIONS(-g -D_OPTIMIZE)
 ENDIF(DEBUG)
 #
-SET(LIBRARY zs)
+SET(LIBRARY fdf)
 #
 IF(BUILD_SHARED)
 	ADD_DEFINITIONS(-fPIC)
@@ -43,9 +43,9 @@ ELSE(BUILD_SHARED)
 	SET(LIB_TYPE STATIC)
 ENDIF(BUILD_SHARED)
 #
-IF(ZS_REVISION)
-	ADD_DEFINITIONS(-DZS_REVISION="${ZS_REVISION}")
-ENDIF(ZS_REVISION)
+IF(FDF_REVISION)
+	ADD_DEFINITIONS(-DFDF_REVISION="${FDF_REVISION}")
+ENDIF(FDF_REVISION)
 
 #add_definitions(-O2 -pipe -Wall -fstack-protector-all -fno-strict-aliasing -fno-omit-frame-pointer)
 add_definitions(-pipe -Wall -fstack-protector-all -fno-strict-aliasing -fno-omit-frame-pointer)
@@ -59,12 +59,12 @@ ENDIF(NOT PERMISSIVE)
 #
 add_subdirectory(agent)
 add_subdirectory(api)
-add_subdirectory(api/tests)
-add_subdirectory(api/tests/btree)
-add_subdirectory(api/tests/core)
-add_subdirectory(api/tests/misc)
+#add_subdirectory(api/tests)
+#add_subdirectory(api/tests/btree)
+#add_subdirectory(api/tests/core)
+#add_subdirectory(api/tests/misc)
 add_subdirectory(btree)
-add_subdirectory(btree/tests)
+#add_subdirectory(btree/tests)
 add_subdirectory(cmds)
 add_subdirectory(ecc)
 add_subdirectory(fth)
@@ -81,14 +81,14 @@ add_subdirectory(dll)
 IF(EXISTS test_suite/)
 add_subdirectory(test_suite)
 ENDIF(EXISTS test_suite/)
-IF(EXISTS zs_slap/)
-add_subdirectory(zs_slap)
-ENDIF(EXISTS zs_slap/)
+IF(EXISTS fdf_slap/)
+add_subdirectory(fdf_slap)
+ENDIF(EXISTS fdf_slap/)
 #
 ADD_LIBRARY(${LIBRARY} ${LIB_TYPE} 
 $<TARGET_OBJECTS:agent>
 $<TARGET_OBJECTS:api>
-$<TARGET_OBJECTS:btree> 
+#$<TARGET_OBJECTS:btree> 
 $<TARGET_OBJECTS:ecc> 
 $<TARGET_OBJECTS:fth> 
 $<TARGET_OBJECTS:hotkey> 

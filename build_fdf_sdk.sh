@@ -51,63 +51,58 @@ SDK_DIR=$WD/zs-build/$PKG_NAME
 rm -fr $SDK_DIR
 mkdir -p $SDK_DIR/{config,lib,include,samples}
 
-rm -fr $WD/../sdf-zs
-cp -r $WD $WD/../sdf-zs
+rm -fr $WD/../sdf-old
+cp -r $WD $WD/../sdf-old
 
 echo "Building DEBUG=$DBG shared lib"
 rm -f CMakeCache.txt
 cmake $WD -DNCPU=$NCPU -DDEBUG=$DBG -DZS_REVISION="$VERSION" -DTRACE=$TRACE
 make -j $NCPU
 
-cd $WD/../sdf-zs
-#build zs lib
-sed -i "s/SHARED/OBJECT/g" btree/CMakeLists.txt
-sed -i "s/^target_link_libraries(btree zsdll)/#target_link_libraries(btree zsdll)/g" btree/CMakeLists.txt
-sed -i "s/LIBRARY fdf/LIBRARY zs/g" CMakeLists.txt
-sed -i "s/#\$<TARGET_OBJECTS:btree>/\$<TARGET_OBJECTS:btree>/g" CMakeLists.txt
-sed -i "s/^add_subdirectory(dll)/#add_subdirectory(dll)/g" CMakeLists.txt
-sed -i "s/^add_subdirectory(btree\/tests)/#add_subdirectory(btree\/tests)/g" CMakeLists.txt
-sed -i "s/^add_subdirectory(api\/tests/#add_subdirectory(api\/tests/g" CMakeLists.txt
-# remove double linking of rwlock.c in btree/CMakeLists.txt
-sed -i "s/..\/platform\/rwlock.c//g" btree/CMakeLists.txt
+cd $WD/../sdf-old
+#replace zs cmake configuration file
+for cmake_file in `find cmake_old/ -name 'CMakeLists.txt'`
+do
+    dest_cmake=`echo $cmake_file | sed "s/cmake_old\///g"`
+    cp -f $cmake_file $dest_cmake
+done
 
-echo "Building DEBUG=$DBG shared ZS lib"
+echo "Building DEBUG=$DBG shared old lib"
 rm -f CMakeCache.txt
-cmake $WD/../sdf-zs -DNCPU=$NCPU -DDEBUG=$DBG -DZS_REVISION="$VERSION" -DTRACE=$TRACE
+cmake $WD/../sdf-old -DNCPU=$NCPU -DDEBUG=$DBG -DZS_REVISION="$VERSION" -DTRACE=$TRACE
 make -j $NCPU
-
 #Packaging
 cp -f $WD/output/lib/* $SDK_DIR/lib
 
 #cp libzs.so
-cp -f $WD/../sdf-zs/output/lib/* $SDK_DIR/lib
-#cp fdf lib to zs lib
-#cp -f $WD/output/lib/libzs.so $SDK_DIR/lib/libzs.so
-cp -f $WD/output/lib/libzsdll.a $SDK_DIR/lib/libzsdll.a
+cp -f $WD/../sdf-old/output/lib/* $SDK_DIR/lib
 
-#cp -f $WD/output/lib/libzsdll.a $SDK_DIR/lib/libbtreedll.a
 cp -a $WD/api/zs.h $SDK_DIR/include
+cp -a $WD/api/fdf.h $SDK_DIR/include
 cp -a $WD/api/tests/sample_program.c $SDK_DIR/samples
 cp -a $WD/api/tests/Makefile.sample $SDK_DIR/samples/Makefile
 #cp -a $WD/doc/FDF_programming_guide.docx $SDK_DIR/docs
 #cp -a $WD/doc/FDF1.2_DesignDocument.docx $SDK_DIR/docs
 mkdir -p $SDK_DIR/include/common
 cp -a $WD/common/zstypes.h $SDK_DIR/include/common
-cp -a $WD/api/tests/conf/zs_sample.prop $SDK_DIR/config/
+cp -a $WD/common/fdftypes.h $SDK_DIR/include/common
+cp -a $WD/api/tests/conf/*_sample.prop $SDK_DIR/config/
 #check withjni option
 #when withjni=true, get jni code and compiling
+cd $WD
 if [ "is$WITHJNI" == "isON" ]
 then
     rm -fr ZSJNI 
     jniurl=http://svn.schoonerinfotech.net/svn/schooner-trunk/ht_delivery/rd/fdfjni/trunk
     svn co $jniurl ZSJNI 
     cd ZSJNI
-    sed -i "/sdk$/d" bin/prepare_fdfsdk.sh 
+    svn export http://svn.schoonerinfotech.net/svn/schooner-trunk/ht_delivery/rd/fdfjni/branches/zs/bin/prepare_zssdk.sh bin/prepare_zssdk.sh
+    sed -i "/sdk$/d" bin/prepare_zssdk.sh 
     cp -r $SDK_DIR ./zs_sdk
 	export BTREE_LIB=$PWD/zs_sdk/lib/libbtree.so
 	export ZS_LIB=$PWD/zs_sdk/lib/libzs.so
     mvn clean && mvn install -Dmaven.test.skip=true
-    cp target/zs-*.jar zs_sdk/lib/
+    cp target/*.jar zs_sdk/lib/
     rm -fr $SDK_DIR && mv zs_sdk $SDK_DIR
     cd - 
     cd ..
