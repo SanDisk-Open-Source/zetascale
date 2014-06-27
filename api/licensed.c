@@ -595,8 +595,6 @@ is_license_valid(bool btree_loaded)
 	struct timespec abstime;
 	int		flag;
 
-        // CHEESE
-        return true;
 	// If license start had failed, we shall based on when last check made.
 	flag = 0;
 	if (licd_running == false) {
