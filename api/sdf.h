@@ -440,7 +440,7 @@ typedef struct {
 	uint32_t					flash_only;
 	uint32_t					cache_only;
     SDF_boolean_t compression;  /*Flag to enable/disable compression */
-
+    uint64_t  flags;
 } SDF_container_props_t;
 
 /** Legacy structure for container properties */

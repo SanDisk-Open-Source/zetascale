@@ -303,8 +303,11 @@ bt_get_ctnr_from_cguid(
         pthread_rwlock_unlock(&ctnrmap_rwlock);
         return -2;
     }
-    if (Container_Map[cguid].cguid > 0) {
-        i_ctnr = cguid;
+
+    if (cguid < MAX_OPEN_CONTAINERS) {
+        if (Container_Map[cguid].cguid > 0) {
+            i_ctnr = cguid;
+        }
     }
     pthread_rwlock_unlock(&ctnrmap_rwlock);
     return i_ctnr;

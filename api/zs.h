@@ -26,7 +26,7 @@ extern "C" {
 
 #define zs_cntr_drain_io( v )  while ( unlikely( v > 0 ) ) fthYield(0)
 
-#define ZS_API_VERSION                 1
+#define ZS_API_VERSION                 2
 
 #define CONTAINER_NAME_MAXLEN		64
 #define ZS_DEFAULT_CONTAINER_SIZE_KB	(1024 * 1024)	//1GB

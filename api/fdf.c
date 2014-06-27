@@ -7109,11 +7109,13 @@ ZS_status_t ZSGetContainerStats(
         }
         return ZS_INVALID_PARAMETER;
     }
+
     // excluded VDC, trac #11290
     if (cguid < VDC_CGUID ) {
         /* The cguid is for physical container. So return error */
         return ZS_FAILURE;
     }
+
     memset (stats, 0, sizeof(ZS_stats_t));
     rc = ZSGetStatsStr(zs_thread_state,cguid,stats_str, stats);
     if ( rc != ZS_SUCCESS ) { 
@@ -7206,6 +7208,7 @@ static SDF_container_props_t *zs_create_sdf_props(
 		sdf_properties->flash_only                              = zs_properties->flash_only;
 		sdf_properties->cache_only                              = zs_properties->cache_only;
                 sdf_properties->compression = zs_properties->compression;
+        sdf_properties->flags = zs_properties->flags;        
     }
 
     return sdf_properties;
@@ -7251,6 +7254,7 @@ static SDF_container_props_t *zs_create_sdf_props(
         sdf_properties->fifo_mode                               = zs_internal_properties->fifo_mode;
 
         sdf_properties->durability_level                        = SDF_NO_DURABILITY;
+        sdf_properties->flags = zs_properties->flags;
 
         if ( zs_properties->durability_level == ZS_DURABILITY_HW_CRASH_SAFE )
             sdf_properties->durability_level = SDF_FULL_DURABILITY;
@@ -7289,6 +7293,9 @@ static ZS_status_t zs_create_zs_props(
 		zs_properties->flash_only = sdf_properties->flash_only;
 		zs_properties->cache_only = sdf_properties->cache_only;
                 zs_properties->compression = sdf_properties->compression;
+
+        zs_properties->flags = sdf_properties->flags;
+
 		status												= ZS_SUCCESS;
     }
 

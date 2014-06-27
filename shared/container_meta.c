@@ -70,7 +70,7 @@ container_meta_create(const char *name, SDF_container_props_t props, SDF_cguid_t
    	} else {
        	plat_log_msg(21585, PLAT_LOG_CAT_SDF_SHARED, PLAT_LOG_LEVEL_TRACE, "invalid parameter");
    	}
-
+    meta->flags = props.flags;
     return (meta);
 }
 
