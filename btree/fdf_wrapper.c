@@ -1533,6 +1533,7 @@ restart:
      */
     if (true == IS_ZS_HASH_CONTAINER(Container_Map[index].flags)) {
         status = ZSCloseContainer(zs_thread_state, cguid);
+        Container_Map[index].iter = NULL;
 		pthread_rwlock_unlock(&(Container_Map[index].bt_cm_rwlock));
 #ifdef UNIFIED_CNTR_DEBUG
         fprintf(stderr, "Closing HASH container\n");
@@ -2221,6 +2222,7 @@ ZS_status_t _ZSEnumerateContainerObjects(
         pthread_rwlock_unlock(&(Container_Map[cguid].bt_cm_rwlock));
         return ret;
     }
+    Container_Map[cguid].iter = *iterator;
     pthread_rwlock_unlock(&(Container_Map[cguid].bt_cm_rwlock));
 
     bt = bt_get_btree_from_cguid(cguid, &index, &ret, false);
@@ -2346,6 +2348,7 @@ ZS_status_t _ZSFinishEnumeration(
     for (i = 0; i < MAX_OPEN_CONTAINERS; i++) {
         if (iterator == Container_Map[i].iter) {
             cguid = i;
+            fprintf(stderr, "_ZSFinishEnumeration: cguid = %ld \n", cguid);
             break;
         }
     }

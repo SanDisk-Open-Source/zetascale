@@ -4599,11 +4599,11 @@ ZS_status_t ZSGetContainerProps(
 	ZS_status_t status = ZS_SUCCESS;
 	bool thd_ctx_locked = false;
 
-	status = zs_validate_container(cguid);
+	status = zs_validate_container_1(cguid);
 	if (ZS_SUCCESS != status) {
-		plat_log_msg(160125, LOG_CAT,
-				LOG_ERR, "Failed due to an illegal container ID:%s",
-				ZS_Status_Strings[status]);
+		plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT,
+				LOG_ERR, "Failed due to an illegal container ID: %ld %s",
+				cguid, ZS_Status_Strings[status]);
 		goto out;
 	}
 
@@ -7132,7 +7132,7 @@ ZS_status_t ZSGetContainerStats(
 
     ZS_container_props_t props;
     rc = ZSGetContainerProps(zs_thread_state, cguid, &props);
-    if (!props.flags & (1 << 0)) {
+    if (0 == (props.flags & (1 << 0))) {
         update_btree_stats(cguid,stats);
     }
     return rc;
