@@ -96,10 +96,9 @@ then
     jniurl=http://svn.schoonerinfotech.net/svn/schooner-trunk/ht_delivery/rd/fdfjni/trunk
     svn co $jniurl ZSJNI 
     cd ZSJNI
-    svn export http://svn.schoonerinfotech.net/svn/schooner-trunk/ht_delivery/rd/fdfjni/branches/zs/bin/prepare_zssdk.sh bin/prepare_zssdk.sh
     sed -i "/sdk$/d" bin/prepare_zssdk.sh 
     cp -r $SDK_DIR ./zs_sdk
-	export BTREE_LIB=$PWD/zs_sdk/lib/libbtree.so
+	#export BTREE_LIB=$PWD/zs_sdk/lib/libbtree.so
 	export ZS_LIB=$PWD/zs_sdk/lib/libzs.so
     mvn clean && mvn install -Dmaven.test.skip=true
     cp target/*.jar zs_sdk/lib/
