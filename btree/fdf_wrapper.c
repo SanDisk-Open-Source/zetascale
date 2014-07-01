@@ -1622,8 +1622,10 @@ restart:
 
     if (true == IS_ZS_HASH_CONTAINER(Container_Map[index].flags)) {
         status = ZSDeleteContainer(zs_thread_state, cguid);
-        Container_Map[index].cguid = 0;
-		pthread_rwlock_unlock(&(Container_Map[index].bt_cm_rwlock));
+        Container_Map[index].cguid = ZS_NULL_CGUID;
+        Container_Map[index].btree = NULL;
+        Container_Map[index].bt_state = BT_CNTR_UNUSED;
+        pthread_rwlock_unlock(&(Container_Map[index].bt_cm_rwlock));
 #ifdef UNIFIED_CNTR_DEBUG
         fprintf(stderr, "Deleting a HASH container\n");
 #endif
@@ -2159,7 +2161,7 @@ ZS_status_t _ZSDeleteObject(
     pthread_rwlock_rdlock(&(Container_Map[cguid].bt_cm_rwlock));
     if (true == IS_ZS_HASH_CONTAINER(Container_Map[cguid].flags)) {
         ret = ZSDeleteObject(my_thd_state, cguid, key, keylen);
-        //fprintf(stderr, "Deleting object from a HASH container\n");
+        // fprintf(stderr, "Deleting object from a HASH container\n");
         pthread_rwlock_unlock(&(Container_Map[cguid].bt_cm_rwlock));
         return ret;
     }
@@ -2214,7 +2216,7 @@ ZS_status_t _ZSEnumerateContainerObjects(
     /*
      * Handle hashed container case
      */
-    pthread_rwlock_rdlock(&(Container_Map[cguid].bt_cm_rwlock));
+    pthread_rwlock_wrlock(&(Container_Map[cguid].bt_cm_rwlock));
     if (true == IS_ZS_HASH_CONTAINER(Container_Map[cguid].flags)) {
         ret = ZSEnumerateContainerObjects(zs_thread_state, cguid, iterator);
         //fprintf(stderr, "Calling ZSEnumerateContainerObjects on a hash container\n");
@@ -2222,7 +2224,6 @@ ZS_status_t _ZSEnumerateContainerObjects(
         pthread_rwlock_unlock(&(Container_Map[cguid].bt_cm_rwlock));
         return ret;
     }
-    Container_Map[cguid].iter = *iterator;
     pthread_rwlock_unlock(&(Container_Map[cguid].bt_cm_rwlock));
 
     bt = bt_get_btree_from_cguid(cguid, &index, &ret, false);
@@ -2236,7 +2237,10 @@ ZS_status_t _ZSEnumerateContainerObjects(
                         (struct ZS_cursor **) iterator, 
                         &rmeta);
 	bt_rel_entry(index, false);
+
+    pthread_rwlock_wrlock(&(Container_Map[cguid].bt_cm_rwlock));
     Container_Map[cguid].iter = *iterator;
+    pthread_rwlock_unlock(&(Container_Map[cguid].bt_cm_rwlock));
     return(ret);
 }
 
@@ -2268,12 +2272,14 @@ ZS_status_t _ZSNextEnumeratedObject(
     ZS_cguid_t cguid = 0;
     uint64_t i;
 
+    pthread_rwlock_rdlock(&ctnrmap_rwlock);
     for (i = 0; i < MAX_OPEN_CONTAINERS; i++) {
         if (iterator == Container_Map[i].iter) {
             cguid = i;
             break;
         }
     }
+    pthread_rwlock_unlock(&ctnrmap_rwlock);
 
     //const ZS_cguid_t cguid = ((btree_range_cursor_t *)iterator)->cguid;
 
@@ -2283,7 +2289,7 @@ ZS_status_t _ZSNextEnumeratedObject(
     pthread_rwlock_rdlock(&((Container_Map[cguid]).bt_cm_rwlock));
     if (true == IS_ZS_HASH_CONTAINER(Container_Map[cguid].flags)) {
         status = ZSNextEnumeratedObject(zs_thread_state, iterator, key, keylen, data, datalen);
-        fprintf(stderr, "Calling ZSEnumerateContainerObjects on a hash container\n");
+         //fprintf(stderr, "Calling ZSEnumerateContainerObjects on a hash container\n");
         pthread_rwlock_unlock(&(Container_Map[cguid].bt_cm_rwlock));
         return status;
     }
@@ -2345,6 +2351,7 @@ ZS_status_t _ZSFinishEnumeration(
     ZS_status_t ret = ZS_SUCCESS;
     uint64_t i;
 
+    pthread_rwlock_rdlock(&ctnrmap_rwlock);
     for (i = 0; i < MAX_OPEN_CONTAINERS; i++) {
         if (iterator == Container_Map[i].iter) {
             cguid = i;
@@ -2352,6 +2359,7 @@ ZS_status_t _ZSFinishEnumeration(
             break;
         }
     }
+    pthread_rwlock_unlock(&ctnrmap_rwlock);
 
     //const ZS_cguid_t cguid = ((btree_range_cursor_t *)iterator)->cguid;
 
@@ -2362,7 +2370,7 @@ ZS_status_t _ZSFinishEnumeration(
     if (true == IS_ZS_HASH_CONTAINER(Container_Map[cguid].flags)) {
         ret = (ZSFinishEnumeration(zs_thread_state, iterator));
     } else {
-	ret = (_ZSGetRangeFinish(zs_thread_state, (struct ZS_cursor *) iterator));
+        ret = (_ZSGetRangeFinish(zs_thread_state, (struct ZS_cursor *) iterator));
     }
     pthread_rwlock_unlock(&(Container_Map[cguid].bt_cm_rwlock));
 
@@ -3776,7 +3784,7 @@ _ZSDeleteContainerSnapshot(struct ZS_thread_state *zs_thread_state, //  client t
     if (true == IS_ZS_HASH_CONTAINER(Container_Map[cguid].flags) ) {
         pthread_rwlock_unlock(&(Container_Map[cguid].bt_cm_rwlock));
         msg("ZSDeleteContainerSnapshot is not supported on a HASH container\n");
-        return ZS_FAILURE;
+        return ZS_FAILURE_INVALID_CONTAINER_TYPE;
     }
     pthread_rwlock_unlock(&(Container_Map[cguid].bt_cm_rwlock));
 
@@ -5277,6 +5285,14 @@ ZS_status_t _ZSScavengeContainer(struct ZS_state *zs_state, ZS_cguid_t cguid)
         return ret;
     }
 
+    pthread_rwlock_rdlock(&(Container_Map[cguid].bt_cm_rwlock));
+    if (true == IS_ZS_HASH_CONTAINER(Container_Map[cguid].flags) ) {
+        fprintf(stderr, "Scavenger is unavailable on a hash container\n");
+        pthread_rwlock_unlock(&(Container_Map[cguid].bt_cm_rwlock));
+        return ZS_FAILURE_INVALID_CONTAINER_TYPE;
+    }
+    pthread_rwlock_unlock(&(Container_Map[cguid].bt_cm_rwlock));
+
     bt = bt_get_btree_from_cguid(cguid, &index, &ret, false);
     if (bt == NULL) {
         return ret;
@@ -5312,14 +5328,22 @@ ZS_status_t _ZSScavengeContainer(struct ZS_state *zs_state, ZS_cguid_t cguid)
 }
 
 ZS_status_t _ZSScavengeSnapshot(struct ZS_state *zs_state, ZS_cguid_t cguid, uint64_t snap_seq) {
-        ZS_status_t    ret = ZS_FAILURE;
-        Scavenge_Arg_t s;
+    ZS_status_t    ret = ZS_FAILURE;
+    Scavenge_Arg_t s;
 
-		//Check for shutdown is not handled
-        s.type = 3;
-        s.cguid = cguid;
-        return ret;
-        ret = btree_scavenge(zs_state, s);
+    pthread_rwlock_rdlock(&(Container_Map[cguid].bt_cm_rwlock));
+    if (true == IS_ZS_HASH_CONTAINER(Container_Map[cguid].flags) ) {
+        fprintf(stderr, "Scavenger is unavailable on a hash container\n");
+        pthread_rwlock_unlock(&(Container_Map[cguid].bt_cm_rwlock));
+        return ZS_FAILURE_INVALID_CONTAINER_TYPE;
+    }
+    pthread_rwlock_unlock(&(Container_Map[cguid].bt_cm_rwlock));
+
+    //Check for shutdown is not handled
+    s.type = 3;
+    s.cguid = cguid;
+    return ret;
+    ret = btree_scavenge(zs_state, s);
 }
 
 ZS_status_t

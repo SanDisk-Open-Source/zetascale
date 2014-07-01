@@ -3420,6 +3420,7 @@
 160258 License %s beyond grace period. ZS will fail. Renew the license.
 160259 Customer details: %s, %s, %s.
 160260 Error: Incompatibile ZS API Version. ZSInit called with version '%u', ZS API version is '%u'\n
+160261 Failed due to an illegal container ID: %ld %s
 
 
 # rico

@@ -4601,7 +4601,7 @@ ZS_status_t ZSGetContainerProps(
 
 	status = zs_validate_container_1(cguid);
 	if (ZS_SUCCESS != status) {
-		plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT,
+		plat_log_msg(160261, LOG_CAT,
 				LOG_ERR, "Failed due to an illegal container ID: %ld %s",
 				cguid, ZS_Status_Strings[status]);
 		goto out;
