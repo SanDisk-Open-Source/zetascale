@@ -102,6 +102,11 @@ typedef struct read_node {
     uint64_t                 nodesize;
 } read_node_t;
 
+typedef struct __zs_cont_iterator {
+	void * iterator;
+	ZS_cguid_t cguid;	
+} __zs_cont_iterator_t;
+
 
 ZS_status_t BtreeErr_to_ZSErr(btree_status_t b_status);
 btree_status_t ZSErr_to_BtreeErr(ZS_status_t f_status);
@@ -1121,6 +1126,7 @@ ZS_status_t _ZSOpenContainerSpecial(
     read_node_t  *prn;
     int           index = -1;
     char         *env = NULL, *zs_prop;
+    ZS_cguid_t cg1 = 0;
 
     my_thd_state = zs_thread_state;;
 
@@ -1156,6 +1162,11 @@ restart:
                     "(enabling ZS cache) with libbtree. This could impact "
                     "the performance\n", cname);
         }
+    } else {
+	/*
+	 * Flash only cont with fdf core is not supported.
+	 */
+	properties->flash_only = false;
     }
 
     ret = ZSOpenContainer(zs_thread_state, cname, properties, flags_in, cguid);
@@ -1163,7 +1174,10 @@ restart:
         return(ret);
 
     // See if metadata exists (recovered container or opened already)
+    cg1 = *cguid;
     index = bt_add_cguid(*cguid);
+
+   assert(index == cg1);
 
 	/* This shouldnt happen, how ZS could create container but we exhausted map */
 	if (index == -1) {
@@ -2204,44 +2218,50 @@ ZS_status_t _ZSEnumerateContainerObjects(
 	struct ZS_iterator    **iterator
 	)
 {
-    ZS_range_meta_t rmeta;
-	ZS_status_t	ret;
-    struct btree     *bt;
-	int				index;
+	ZS_range_meta_t rmeta;
+	ZS_status_t ret;
+	struct btree *bt;
+	int index;
+	__zs_cont_iterator_t *itr = NULL;
+	struct ZS_iterator *itr_int = NULL;
 
 	if ((ret= bt_is_valid_cguid(cguid)) != ZS_SUCCESS) {
-		return ret;
+			return ret;
 	}
 
-    /*
-     * Handle hashed container case
-     */
-    pthread_rwlock_wrlock(&(Container_Map[cguid].bt_cm_rwlock));
-    if (true == IS_ZS_HASH_CONTAINER(Container_Map[cguid].flags)) {
-        ret = ZSEnumerateContainerObjects(zs_thread_state, cguid, iterator);
-        //fprintf(stderr, "Calling ZSEnumerateContainerObjects on a hash container\n");
-        Container_Map[cguid].iter = *iterator;
-        pthread_rwlock_unlock(&(Container_Map[cguid].bt_cm_rwlock));
-        return ret;
-    }
-    pthread_rwlock_unlock(&(Container_Map[cguid].bt_cm_rwlock));
+	itr = btree_malloc(sizeof(*itr));
+	itr->cguid = cguid;
 
-    bt = bt_get_btree_from_cguid(cguid, &index, &ret, false);
-    if (bt == NULL) {
-        return (ret);
-    }
+	/*
+	 * Handle hashed container case
+	 */
+	pthread_rwlock_wrlock(&(Container_Map[cguid].bt_cm_rwlock));
+	if (true == IS_ZS_HASH_CONTAINER(Container_Map[cguid].flags)) {
+		ret = ZSEnumerateContainerObjects(zs_thread_state, cguid, &itr_int);
+		itr->iterator = itr_int;
+
+		*iterator = (void *) itr;
+		pthread_rwlock_unlock(&(Container_Map[cguid].bt_cm_rwlock));
+		return ret;
+	}
+	pthread_rwlock_unlock(&(Container_Map[cguid].bt_cm_rwlock));
+
+	bt = bt_get_btree_from_cguid(cguid, &index, &ret, false);
+	if (bt == NULL) {
+		return (ret);
+	}
 	bzero(&rmeta, sizeof(ZS_range_meta_t));
-    ret = _ZSGetRange(zs_thread_state, 
-	                    cguid, 
-                        ZS_RANGE_PRIMARY_INDEX, 
-                        (struct ZS_cursor **) iterator, 
+	ret = _ZSGetRange(zs_thread_state, 
+			    cguid, 
+			ZS_RANGE_PRIMARY_INDEX, 
+                        (struct ZS_cursor **) &itr_int, 
                         &rmeta);
 	bt_rel_entry(index, false);
 
-    pthread_rwlock_wrlock(&(Container_Map[cguid].bt_cm_rwlock));
-    Container_Map[cguid].iter = *iterator;
-    pthread_rwlock_unlock(&(Container_Map[cguid].bt_cm_rwlock));
-    return(ret);
+	itr->iterator = itr_int;
+
+	*iterator = (void *) itr;
+	return(ret);
 }
 
 /**
@@ -2268,71 +2288,58 @@ ZS_status_t _ZSNextEnumeratedObject(
 	ZS_status_t     status = ZS_FAILURE;
 	int              count = 0;
 	ZS_range_data_t values;
+	__zs_cont_iterator_t *itr = (__zs_cont_iterator_t *) iterator;
 
-    ZS_cguid_t cguid = 0;
-    uint64_t i;
+	ZS_cguid_t cguid = itr->cguid;
+	uint64_t i;
 
-    pthread_rwlock_rdlock(&ctnrmap_rwlock);
-    for (i = 0; i < MAX_OPEN_CONTAINERS; i++) {
-        if (iterator == Container_Map[i].iter) {
-            cguid = i;
-            break;
-        }
-    }
-    pthread_rwlock_unlock(&ctnrmap_rwlock);
-
-    //const ZS_cguid_t cguid = ((btree_range_cursor_t *)iterator)->cguid;
-
-    /*
-     * Handle hashed container case
-     */
-    pthread_rwlock_rdlock(&((Container_Map[cguid]).bt_cm_rwlock));
-    if (true == IS_ZS_HASH_CONTAINER(Container_Map[cguid].flags)) {
-        status = ZSNextEnumeratedObject(zs_thread_state, iterator, key, keylen, data, datalen);
-         //fprintf(stderr, "Calling ZSEnumerateContainerObjects on a hash container\n");
-        pthread_rwlock_unlock(&(Container_Map[cguid].bt_cm_rwlock));
-        return status;
-    }
-    pthread_rwlock_unlock(&(Container_Map[cguid].bt_cm_rwlock));
+	/*
+	 * Handle hashed container case
+	 */
+	pthread_rwlock_rdlock(&((Container_Map[cguid]).bt_cm_rwlock));
+	if (true == IS_ZS_HASH_CONTAINER(Container_Map[cguid].flags)) {
+		status = ZSNextEnumeratedObject(zs_thread_state, itr->iterator, key, keylen, data, datalen);
+		pthread_rwlock_unlock(&(Container_Map[cguid].bt_cm_rwlock));
+		return status;
+	}
+	pthread_rwlock_unlock(&(Container_Map[cguid].bt_cm_rwlock));
 
 	values.key = NULL;
 	values.data = NULL;
 	status = _ZSGetNextRange(zs_thread_state,
-                              (struct ZS_cursor *) iterator,
+                              (struct ZS_cursor *) itr->iterator,
                               1,
                               &count,
                               &values);
 
 	if (ZS_SUCCESS == status &&
-            ZS_RANGE_DATA_SUCCESS == values.status && count)
-        {
-            assert(count); // Hack
-	    	*key = (char *) malloc(values.keylen);
-            assert(*key);
-	    	strncpy(*key, values.key, values.keylen);
-	    	*keylen = values.keylen;
-	    	*data = (char *) malloc(values.datalen);
-            assert(*data);
-	    	strncpy(*data, values.data, values.datalen);
-	    	*datalen = values.datalen;
-	    //if (values.primary_key)
-	        //free(values.primary_key);
+	    ZS_RANGE_DATA_SUCCESS == values.status && count) {
+		assert(count); // Hack
+		*key = (char *) malloc(values.keylen);
+		assert(*key);
+		strncpy(*key, values.key, values.keylen);
+		*keylen = values.keylen;
+		*data = (char *) malloc(values.datalen);
+		assert(*data);
+		strncpy(*data, values.data, values.datalen);
+		*datalen = values.datalen;
 	} else {
-	    *key = NULL;
-	    *keylen = 0;
-	    *data = NULL;
-	    *datalen = 0;
-	    status = ZS_OBJECT_UNKNOWN;
+		*key = NULL;
+		*keylen = 0;
+		*data = NULL;
+		*datalen = 0;
+		status = ZS_OBJECT_UNKNOWN;
 	}
 
 	if (values.key) {
 		free(values.key);
 	}
+
 	if (values.data) {
 		free(values.data);
 	}
 
-    return(status);
+	return(status);
 }
 
 /**
@@ -2347,34 +2354,25 @@ ZS_status_t _ZSFinishEnumeration(
 	struct ZS_iterator     *iterator
 	)
 {
-    ZS_cguid_t cguid = 0;
-    ZS_status_t ret = ZS_SUCCESS;
-    uint64_t i;
+	ZS_status_t ret = ZS_SUCCESS;
+	uint64_t i;
+	__zs_cont_iterator_t *itr = (__zs_cont_iterator_t *) iterator;
+	ZS_cguid_t cguid = itr->cguid;
 
-    pthread_rwlock_rdlock(&ctnrmap_rwlock);
-    for (i = 0; i < MAX_OPEN_CONTAINERS; i++) {
-        if (iterator == Container_Map[i].iter) {
-            cguid = i;
-            fprintf(stderr, "_ZSFinishEnumeration: cguid = %ld \n", cguid);
-            break;
-        }
-    }
-    pthread_rwlock_unlock(&ctnrmap_rwlock);
+	/*
+	* Handle hashed container case
+	*/
+	pthread_rwlock_rdlock(&((Container_Map[cguid]).bt_cm_rwlock));
+	if (true == IS_ZS_HASH_CONTAINER(Container_Map[cguid].flags)) {
+		ret = (ZSFinishEnumeration(zs_thread_state, itr->iterator));
+	} else {
+		ret = (_ZSGetRangeFinish(zs_thread_state, (struct ZS_cursor *) itr->iterator));
+	}
+	pthread_rwlock_unlock(&(Container_Map[cguid].bt_cm_rwlock));
 
-    //const ZS_cguid_t cguid = ((btree_range_cursor_t *)iterator)->cguid;
+	btree_free(itr);
 
-    /*
-     * Handle hashed container case
-     */
-    pthread_rwlock_rdlock(&((Container_Map[cguid]).bt_cm_rwlock));
-    if (true == IS_ZS_HASH_CONTAINER(Container_Map[cguid].flags)) {
-        ret = (ZSFinishEnumeration(zs_thread_state, iterator));
-    } else {
-        ret = (_ZSGetRangeFinish(zs_thread_state, (struct ZS_cursor *) iterator));
-    }
-    pthread_rwlock_unlock(&(Container_Map[cguid].bt_cm_rwlock));
-
-    return ret;
+	return ret;
 }
 
 /**

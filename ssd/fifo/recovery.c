@@ -4420,8 +4420,11 @@ copyhash(e_state_t *es, mhash_t *hash, uint64_t bkt_i, int flag)
     if( flag ){
         cntr_id_t cntr_id = es->cguid;
 
-        if (hash->cntr_id != cntr_id)
+
+//	printf("Found entry with cguid = %d cntr_id= %d.\n", hash->cntr_id,cntr_id);
+        if (hash->cntr_id != cntr_id) {
             return;
+	}
     }
 
     if (es->hash_buf_i >= es->hash_buf_n) {
@@ -4430,6 +4433,7 @@ copyhash(e_state_t *es, mhash_t *hash, uint64_t bkt_i, int flag)
             zs_loge(70121, "enumeration internal error %ld >= %ld",
                      es->hash_buf_i, es->hash_buf_n);
         }
+	plat_assert(0);
         return;
     }
 
@@ -4487,8 +4491,9 @@ enumerate_next(pai_t *pai, e_state_t *es, char **key, uint64_t *keylen,
 
     for (;;) {
         while (!es->hash_buf_i) {
-            if (es->hash_bkt_i >= es->num_bkts)
+            if (es->hash_bkt_i >= es->num_bkts) {
                 return ZS_OBJECT_UNKNOWN;
+	    }
             e_hash_fill(pai, es, es->hash_bkt_i++, 1);
         }
 
