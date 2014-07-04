@@ -1369,6 +1369,8 @@ ZS_status_t ZSTransactionService(
 	);
 #endif
 
+
+
 /**
  * @brief Return version of ZS
  *
@@ -1826,6 +1828,29 @@ ZS_status_t
 ZSOperationAllowed( void );
 #endif
 
+#ifdef BTREE_MODE
+#define ZSTransactionGetMode _ZSTransactionGetMode
+ZS_status_t
+_ZSTransactionGetMode(struct ZS_thread_state *zs_thread_state, int *mode);
+
+#else 
+
+ZS_status_t
+ZSTransactionGetMode(struct ZS_thread_state *zs_thread_state, int *mode);
+#endif 
+
+#ifdef BTREE_MODE 
+
+ZS_status_t
+_ZSTransactionSetMode(struct ZS_thread_state *zs_thread_state, int mode);
+#define ZSTransactionSetMode _ZSTransactionSetMode
+
+#else 
+
+ZS_status_t
+ZSTransactionSetMode(struct ZS_thread_state *zs_thread_state, int mode);
+
+#endif 
 
 #if 0
 /*********************************************************

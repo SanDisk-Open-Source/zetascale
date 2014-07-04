@@ -32,6 +32,8 @@ extern "C" {
 #define FDF_DEFAULT_CONTAINER_SIZE_KB	(1024 * 1024)	//1GB
 #define FDF_MIN_FLASH_SIZE		3		//3GB
 
+//#undef BTREE_MODE 
+
 typedef struct {
 	uint64_t		n;
 	uint64_t		min;

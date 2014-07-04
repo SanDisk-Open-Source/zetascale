@@ -200,6 +200,12 @@ static uint64_t
 static ZS_status_t
 (*ptr_ZSTransactionService)(struct ZS_thread_state *zs_thread_state, int, void *);
 
+static ZS_status_t
+(*ptr_ZSTransactionGetMode)(struct ZS_thread_state *zs_thread_state, int *mode);
+
+static ZS_status_t
+(*ptr_ZSTransactionSetMode)(struct ZS_thread_state *zs_thread_state, int mode);
+
 static ZS_status_t 
 (*ptr_ZSGetVersion)(char **str);
 
@@ -383,6 +389,8 @@ static struct {
     { "_ZSTransactionQuit",            &ptr_ZSTransactionQuit           },
     { "_ZSTransactionID",              &ptr_ZSTransactionID             },
     { "_ZSTransactionService",         &ptr_ZSTransactionService        },
+    { "_ZSTransactionGetMode", 	       &ptr_ZSTransactionGetMode	},
+    { "_ZSTransactionSetMode", 	       &ptr_ZSTransactionSetMode	},
     { "_ZSGetVersion",                 &ptr_ZSGetVersion                },
     { "_ZSGetRange",                   &ptr_ZSGetRange                  },
     { "_ZSGetNextRange",               &ptr_ZSGetNextRange              },
@@ -1075,6 +1083,30 @@ ZSTransactionService(struct ZS_thread_state *zs_thread_state, int cmd, void *arg
 	undefined("ZSTransactionService");
 
     return ((*ptr_ZSTransactionService)(zs_thread_state, cmd, arg));
+}
+
+/*
+ * ZSTransactionGetMode
+ */
+ZS_status_t
+ZSTransactionGetMode(struct ZS_thread_state *zs_thread_state, int *mode)
+{
+    if (unlikely(!ptr_ZSTransactionGetMode))
+	undefined("ZSTransactionGetMode");
+
+    return ((*ptr_ZSTransactionGetMode)(zs_thread_state, mode));
+}
+
+/*
+ * ZSTransactionSetMode
+ */
+ZS_status_t
+ZSTransactionSetMode(struct ZS_thread_state *zs_thread_state, int mode)
+{
+    if (unlikely(!ptr_ZSTransactionSetMode))
+	undefined("ZSTransactionSetMode");
+
+    return ((*ptr_ZSTransactionSetMode)(zs_thread_state, mode));
 }
 
 /*

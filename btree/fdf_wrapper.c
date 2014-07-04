@@ -90,6 +90,15 @@ int btree_ld_valid = true;
 
 static bool shutdown = false;
 
+typedef enum __fdf_txn_mode {
+	FDF_TXN_NONE_MODE = 0,
+	FDF_TXN_BTREE_MODE,
+	FDF_TXN_CORE_MODE
+} __fdf_txn_mode_t;
+
+static __thread int  __fdf_txn_mode_state = FDF_TXN_NONE_MODE;
+static int  __fdf_txn_mode_state_global = FDF_TXN_NONE_MODE;
+
 /*
  * Variables to manage persistent stats
  */
@@ -951,6 +960,11 @@ ZS_status_t _ZSInitPerThreadState(
 	)
 {
     ZS_status_t ret = ZS_SUCCESS;
+
+    /*
+     * Make per thread txn mode state as per global one.
+     */
+    __fdf_txn_mode_state = __fdf_txn_mode_state_global;
     ret = ZSInitPerThreadState(zs_state, thd_state);
     btree_raw_alloc_thread_bufs();
 
@@ -1136,6 +1150,20 @@ ZS_status_t _ZSOpenContainerSpecial(
      if (getZSVersion() < 2 && (1 == IS_ZS_HASH_CONTAINER(properties->flags))) {
          msg("Hash containers are supported on Version 2 and higher\n");
          return ZS_FAILURE;
+     }
+
+
+     /*
+      * If this is first cont open by the app, the txn type is not set and we
+      * we should set it according to type of cont being opened.
+      * This is workaround solution till we have unified txn support.
+      */
+     if (__fdf_txn_mode_state_global == FDF_TXN_NONE_MODE) {
+	    if (0 == (IS_ZS_HASH_CONTAINER(properties->flags)) ) {
+			__fdf_txn_mode_state_global = FDF_TXN_BTREE_MODE;
+	    } else {
+			__fdf_txn_mode_state_global = FDF_TXN_CORE_MODE;
+	    }
      }
 
 restart:
@@ -2551,7 +2579,14 @@ _ZSTransactionStart(struct ZS_thread_state *zs_thread_state)
 	if (bt_is_license_valid() == false) {
 		return (ZS_LICENSE_CHK_FAILED);
 	}
-    return (ZSTransactionService( zs_thread_state, 0, 0));
+
+	__fdf_txn_mode_state = (__fdf_txn_mode_state == FDF_TXN_NONE_MODE)? __fdf_txn_mode_state_global: __fdf_txn_mode_state;
+
+	if (__fdf_txn_mode_state == FDF_TXN_BTREE_MODE) {
+		return (ZSTransactionService(zs_thread_state, 0, 0));
+	} else {
+		return ZSTransactionStart(zs_thread_state);
+	}
 }
 
 
@@ -2565,7 +2600,13 @@ _ZSTransactionCommit(struct ZS_thread_state *zs_thread_state)
 	if (bt_is_license_valid() == false) {
 		return (ZS_LICENSE_CHK_FAILED);
 	}
-    return (ZSTransactionService( zs_thread_state, 1, 0));
+
+	__fdf_txn_mode_state = (__fdf_txn_mode_state == FDF_TXN_NONE_MODE)? __fdf_txn_mode_state_global: __fdf_txn_mode_state;
+	if (__fdf_txn_mode_state == FDF_TXN_BTREE_MODE) {
+		return (ZSTransactionService( zs_thread_state, 1, 0));
+	} else {
+		return  ZSTransactionCommit(zs_thread_state);
+	}
 }
 
 /*
@@ -2578,7 +2619,13 @@ _ZSTransactionRollback(struct ZS_thread_state *zs_thread_state)
 	if (bt_is_license_valid() == false) {
 		return (ZS_LICENSE_CHK_FAILED);
 	}
-    return (ZS_UNSUPPORTED_REQUEST);
+
+	__fdf_txn_mode_state = (__fdf_txn_mode_state == FDF_TXN_NONE_MODE)? __fdf_txn_mode_state_global: __fdf_txn_mode_state;
+	if (__fdf_txn_mode_state == FDF_TXN_BTREE_MODE) {
+		return (ZS_UNSUPPORTED_REQUEST);
+	} else {
+		return ZSTransactionRollback(zs_thread_state);
+	}
 }
 
 /*
@@ -2591,8 +2638,16 @@ _ZSTransactionQuit(struct ZS_thread_state *zs_thread_state)
 	if (bt_is_license_valid() == false) {
 		return (ZS_LICENSE_CHK_FAILED);
 	}
-    return (ZS_UNSUPPORTED_REQUEST);
+
+	__fdf_txn_mode_state = (__fdf_txn_mode_state == FDF_TXN_NONE_MODE)? __fdf_txn_mode_state_global: __fdf_txn_mode_state;
+	if (__fdf_txn_mode_state == FDF_TXN_BTREE_MODE) {
+		return (ZS_UNSUPPORTED_REQUEST);
+	} else {
+		return ZSTransactionQuit(zs_thread_state);
+	}
 }
+
+	
 
 /*
  * ZSTransactionID
@@ -2612,6 +2667,33 @@ _ZSTransactionService(struct ZS_thread_state *zs_thread_state, int cmd, void *ar
 {
 
     return (ZSTransactionService( zs_thread_state, cmd, arg));
+}
+
+/*
+ * ZSTransactionGetMode
+ */
+ZS_status_t
+_ZSTransactionGetMode(struct ZS_thread_state *zs_thread_state, int *mode)
+{
+	__fdf_txn_mode_state = (__fdf_txn_mode_state == FDF_TXN_NONE_MODE)? __fdf_txn_mode_state_global: __fdf_txn_mode_state;
+	*mode = __fdf_txn_mode_state;
+	return ZS_SUCCESS;
+}
+
+/*
+ * ZSTransactionSetMode
+ */
+ZS_status_t
+_ZSTransactionSetMode(struct ZS_thread_state *zs_thread_state, int mode)
+{
+	if (mode == FDF_TXN_NONE_MODE ||
+	    (mode != FDF_TXN_BTREE_MODE &&
+	    mode != FDF_TXN_CORE_MODE)) {
+		return ZS_INVALID_PARAMETER;
+	}
+
+	__fdf_txn_mode_state = mode;	
+	return ZS_SUCCESS;
 }
 
 /*

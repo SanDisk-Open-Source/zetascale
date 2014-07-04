@@ -7621,6 +7621,7 @@ ZS_status_t ZSTransactionStart(
 	struct ZS_thread_state	*zs_thread_state
 	)
 {
+
 	if (zs_thread_state == 0)
 		plat_log_msg( 80049, LOG_CAT, LOG_DBG, "ZS Thread state is NULL");
 
@@ -7754,8 +7755,8 @@ ZS_status_t ZSTransactionService(
 	int			cmd,
 	void			*arg
 	)
-{
 
+{
 	switch (mcd_trx_service( zs_thread_state, cmd, arg)) {
 	case MCD_TRX_OKAY:
 		return (ZS_SUCCESS);
@@ -7765,6 +7766,25 @@ ZS_status_t ZSTransactionService(
 	return (ZS_FAILURE);
 }
 
+/*
+ * ZSTransactionGetMode
+ */
+ZS_status_t
+ZSTransactionGetMode(struct ZS_thread_state *zs_thread_state, int *mode)
+{
+	fprintf(stderr, "ZS: ZSTransactionGetMode without unified FDF is not supported\n");
+	return ZS_UNSUPPORTED_REQUEST;
+}
+
+/*
+ * ZSTransactionSetMode
+ */
+ZS_status_t
+ZSTransactionSetMode(struct ZS_thread_state *zs_thread_state, int mode)
+{
+	fprintf(stderr, "ZS: ZSTransactionGetMode without unified FDF is not supported\n");
+	return ZS_UNSUPPORTED_REQUEST;
+}
 
 /**
  * @brief Return version of ZS
