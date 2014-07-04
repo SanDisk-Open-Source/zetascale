@@ -1115,12 +1115,6 @@ ZSTransactionSetMode(struct ZS_thread_state *zs_thread_state, int mode)
  */
 ZS_status_t 
 ZSGetVersion(char **str)
-
-/*
- * ZSGetVersion
- */
-ZS_status_t 
-ZSGetVersion(char **str)
 {
     parse();
     if (unlikely(!ptr_ZSGetVersion))
