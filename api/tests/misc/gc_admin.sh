@@ -2,6 +2,13 @@
 
 set -ex
 
+#    /*
+#     * GC is disabled on Btree since trx is always enabled. Till we find a way to
+#     * disable trx in new fused libraries setup, this test is disabled.
+#     */
+
+exit;
+
 at_exit() { kill $CHLD; rm $PF; rm /tmp/zs_listen_pid.$CHLD; }
 trap at_exit EXIT
 
