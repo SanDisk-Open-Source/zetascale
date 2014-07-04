@@ -1183,7 +1183,7 @@ ZSTransactionSetMode(struct ZS_thread_state *zs_thread_state, int mode)
     if (unlikely(!ptr_ZSTransactionSetMode))
 	undefined("ZSTransactionSetMode");
 
-    return ((*ptr_ZSTransactionGetMode)(zs_thread_state, mode));
+    return ((*ptr_ZSTransactionSetMode)(zs_thread_state, mode));
 }
 
 /*
