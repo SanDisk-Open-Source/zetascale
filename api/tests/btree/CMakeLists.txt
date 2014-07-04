@@ -4,6 +4,7 @@ SET(zs_mput_param 1 1000 100 10)
 SET(zs_mput_pstats_param 1 1000 100 10)
 SET(zs_rangeupdate_param 1000 10)
 SET(zs_snapshot_param 1000 10 15)
+SET(fdf_snapshot_param 1000 10 15)
 SET(zs_big_writes_param 100 1000 1 1048576)
 SET(FDF_Write_mthreads_param 1000 1 1450 1024 1 1)
 

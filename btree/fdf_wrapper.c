@@ -1230,18 +1230,6 @@ restart:
 		goto restart;
 	}
 
-    if (IS_ZS_HASH_CONTAINER(properties->flags)) {
-        Container_Map[index].flags |= (1 << 0);
-        Container_Map[index].btree = NULL;
-	    Container_Map[index].bt_state = BT_CNTR_UNUSED;
-
-		pthread_rwlock_unlock(&(Container_Map[index].bt_cm_rwlock));
-        fprintf(stderr, "Creating/opening a HASH container\n");
-        return ret;
-    }
-
-    Container_Map[index].flags &= ~(1 << 0);
-
 	assert ((Container_Map[index].bt_state == BT_CNTR_INIT) || /* Create/First Open */
 			(Container_Map[index].bt_state == BT_CNTR_OPEN) || /* Re-open */
 			(Container_Map[index].bt_state == BT_CNTR_CLOSED)); /* Opening closed one */
@@ -1253,6 +1241,17 @@ restart:
 	} else {
 		Container_Map[index].read_only = false;
 	}
+
+    if (IS_ZS_HASH_CONTAINER(properties->flags)) {
+        Container_Map[index].flags |= (1 << 0);
+        Container_Map[index].btree = NULL;
+        Container_Map[index].bt_state = BT_CNTR_OPEN;
+        pthread_rwlock_unlock(&(Container_Map[index].bt_cm_rwlock));
+        fprintf(stderr, "Creating/opening a HASH container\n");
+        return ZS_SUCCESS;
+    } else {
+        Container_Map[index].flags &= ~(1 << 0);
+    }
 
     // Metadata exists, just return if btree is not empty
     if (Container_Map[index].btree) {	
@@ -1570,18 +1569,6 @@ restart:
         return ZS_FAILURE_CONTAINER_NOT_FOUND;
     }
 
-    /*
-     * Handle hash container case
-     */
-    if (true == IS_ZS_HASH_CONTAINER(Container_Map[index].flags)) {
-        status = ZSCloseContainer(zs_thread_state, cguid);
-        Container_Map[index].iter = NULL;
-		pthread_rwlock_unlock(&(Container_Map[index].bt_cm_rwlock));
-#ifdef UNIFIED_CNTR_DEBUG
-        fprintf(stderr, "Closing HASH container\n");
-#endif
-        return status;
-    }
 
     if (Container_Map[index].bt_state != BT_CNTR_OPEN) {
         pthread_rwlock_unlock(&(Container_Map[index].bt_cm_rwlock));
@@ -1605,9 +1592,19 @@ restart:
     Container_Map[index].bt_state = BT_CNTR_CLOSING;
 
     /*
-     * Flush persistent stats
+     * Handle hash container case
      */
-    pstats_prepare_to_flush_single(zs_thread_state, &Container_Map[index]);
+    if (true == IS_ZS_HASH_CONTAINER(Container_Map[index].flags)) {
+        Container_Map[index].iter = NULL;
+#ifdef UNIFIED_CNTR_DEBUG
+        fprintf(stderr, "Closing HASH container\n");
+#endif
+    } else {
+        /*
+         * Flush persistent stats
+         */
+        pstats_prepare_to_flush_single(zs_thread_state, &Container_Map[index]);
+    }
 
     status = ZSCloseContainer(zs_thread_state, cguid);
 
@@ -1662,17 +1659,6 @@ restart:
 		return ZS_FAILURE_CONTAINER_NOT_FOUND;
 	}
 
-    if (true == IS_ZS_HASH_CONTAINER(Container_Map[index].flags)) {
-        status = ZSDeleteContainer(zs_thread_state, cguid);
-        Container_Map[index].cguid = ZS_NULL_CGUID;
-        Container_Map[index].btree = NULL;
-        Container_Map[index].bt_state = BT_CNTR_UNUSED;
-        pthread_rwlock_unlock(&(Container_Map[index].bt_cm_rwlock));
-#ifdef UNIFIED_CNTR_DEBUG
-        fprintf(stderr, "Deleting a HASH container\n");
-#endif
-        return status;
-    }
 
 	/* IO might have started on this container. Lets wait and retry */
 	assert(Container_Map[index].bt_rd_count == 0);
@@ -1693,19 +1679,27 @@ restart:
 	/* Let us mark the entry NULL and then delete, so that we dont get the same
 	   cguid if there is a create container happening */
 
-	btree = Container_Map[index].btree;
+    if (0 == IS_ZS_HASH_CONTAINER(Container_Map[index].flags)) {
+        btree = Container_Map[index].btree;
+    }
 
-	Container_Map[index].cguid = ZS_NULL_CGUID;
+    Container_Map[index].cguid = ZS_NULL_CGUID;
 	Container_Map[index].btree = NULL;
 	Container_Map[index].bt_state = BT_CNTR_UNUSED;
+	//Container_Map[index].flags |= ~0;
 	(void) __sync_sub_and_fetch(&N_Open_Containers, 1);
 	pthread_rwlock_unlock(&(Container_Map[index].bt_cm_rwlock));
 
-    trxdeletecontainer( zs_thread_state, cguid);
+    if (0 == IS_ZS_HASH_CONTAINER(Container_Map[index].flags)) {
+        trxdeletecontainer( zs_thread_state, cguid);
+    }
+
     status = ZSDeleteContainer(zs_thread_state, cguid);
 
-    if (btree) {
-        btree_destroy(btree);
+    if (0 == IS_ZS_HASH_CONTAINER(Container_Map[index].flags)) {
+        if (btree) {
+            btree_destroy(btree);
+        }
     }
     return(status);
 }
@@ -2263,7 +2257,7 @@ ZS_status_t _ZSEnumerateContainerObjects(
 	/*
 	 * Handle hashed container case
 	 */
-	pthread_rwlock_wrlock(&(Container_Map[cguid].bt_cm_rwlock));
+	pthread_rwlock_rdlock(&(Container_Map[cguid].bt_cm_rwlock));
 	if (true == IS_ZS_HASH_CONTAINER(Container_Map[cguid].flags)) {
 		ret = ZSEnumerateContainerObjects(zs_thread_state, cguid, &itr_int);
 		itr->iterator = itr_int;
@@ -2387,7 +2381,7 @@ ZS_status_t _ZSFinishEnumeration(
 	__zs_cont_iterator_t *itr = (__zs_cont_iterator_t *) iterator;
 	ZS_cguid_t cguid = itr->cguid;
 
-	/*
+    /*
 	* Handle hashed container case
 	*/
 	pthread_rwlock_rdlock(&((Container_Map[cguid]).bt_cm_rwlock));
@@ -2725,6 +2719,15 @@ _ZSGetRange(struct ZS_thread_state *zs_thread_state,
 	if ((ret= bt_is_valid_cguid(cguid)) != ZS_SUCCESS) {
 		return ret;
 	}
+
+    pthread_rwlock_rdlock(&(Container_Map[cguid].bt_cm_rwlock));
+    if (true == IS_ZS_HASH_CONTAINER(Container_Map[cguid].flags) ) {
+        pthread_rwlock_unlock(&(Container_Map[cguid].bt_cm_rwlock));
+        msg("ZSGetRange is not supported on a HASH container\n");
+        return ZS_FAILURE_INVALID_CONTAINER_TYPE;
+    }
+    pthread_rwlock_unlock(&(Container_Map[cguid].bt_cm_rwlock));
+
     bt = bt_get_btree_from_cguid(cguid, &index, &ret, false);
     if (bt == NULL) {
         return (ret);
@@ -2766,6 +2769,14 @@ _ZSGetNextRange(struct ZS_thread_state *zs_thread_state,
 	if ((ret= bt_is_valid_cguid(cguid)) != ZS_SUCCESS) {
 		return ret;
 	}
+
+    pthread_rwlock_rdlock(&(Container_Map[cguid].bt_cm_rwlock));
+    if (true == IS_ZS_HASH_CONTAINER(Container_Map[cguid].flags) ) {
+        pthread_rwlock_unlock(&(Container_Map[cguid].bt_cm_rwlock));
+        msg("ZSGetNextRange is not supported on a HASH container\n");
+        return ZS_FAILURE_INVALID_CONTAINER_TYPE;
+    }
+    pthread_rwlock_unlock(&(Container_Map[cguid].bt_cm_rwlock));
 
 	bt = bt_get_btree_from_cguid(cguid, &index, &ret, false);
 	if (bt == NULL) {
@@ -2809,6 +2820,15 @@ _ZSGetRangeFinish(struct ZS_thread_state *zs_thread_state,
 {
 	ZS_status_t      ret = ZS_SUCCESS;
 	btree_status_t    status;
+
+	const ZS_cguid_t cguid = ((btree_range_cursor_t *)cursor)->cguid;
+    pthread_rwlock_rdlock(&(Container_Map[cguid].bt_cm_rwlock));
+    if (true == IS_ZS_HASH_CONTAINER(Container_Map[cguid].flags) ) {
+        pthread_rwlock_unlock(&(Container_Map[cguid].bt_cm_rwlock));
+        msg("ZSGetRangeFinish is not supported on a HASH container\n");
+        return ZS_FAILURE_INVALID_CONTAINER_TYPE;
+    }
+    pthread_rwlock_unlock(&(Container_Map[cguid].bt_cm_rwlock));
 
 	my_thd_state = zs_thread_state;
         __sync_add_and_fetch(&(((btree_range_cursor_t *)cursor)->btree->stats.stat[BTSTAT_RANGE_FINISH_CNT]), 1);
@@ -3926,6 +3946,13 @@ _ZSGetContainerSnapshots(struct ZS_thread_state *ts, //  client thread ZS contex
 		return status;
 	}
 
+    pthread_rwlock_rdlock(&(Container_Map[cguid].bt_cm_rwlock));
+    if (true == IS_ZS_HASH_CONTAINER(Container_Map[cguid].flags) ) {
+        msg("ZSGetContainerSnapshots is not supported on a hash container\n");
+        pthread_rwlock_unlock(&(Container_Map[cguid].bt_cm_rwlock));
+        return ZS_FAILURE_INVALID_CONTAINER_TYPE;
+    }
+    pthread_rwlock_unlock(&(Container_Map[cguid].bt_cm_rwlock));
 	bt = bt_get_btree_from_cguid(cguid, &index, &status, false);
 	if (bt == NULL) {
 		return status;
@@ -5329,6 +5356,7 @@ ZS_status_t btree_process_admin_cmd(
 
 ZS_status_t _ZSScavenger(struct ZS_state  *zs_state) 
 {
+    assert(0);
         ZS_status_t                                    ret = ZS_FAILURE;
         Scavenge_Arg_t s;
 		if (bt_is_license_valid() == false) {
@@ -5575,6 +5603,7 @@ close_container(struct ZS_thread_state *zs_thread_state, Scavenge_Arg_t *S)
     ZS_status_t       ret = ZS_SUCCESS;
     int           index = -1;
 
+    assert(S);
     (S->bt->partitions[0])->snap_meta->scavenging_in_progress = 0;
     flushpersistent(S->btree);
     if (deref_l1cache(S->btree) != BTREE_SUCCESS) {

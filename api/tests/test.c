@@ -47,7 +47,7 @@ ZS_status_t zs_create_container (
     ZSLoadCntrPropDefaults(&props);
 
     props.size_kb   = size / 1024;
-
+    //props.flags = 1;
     ret = ZSOpenContainer (
             _zs_thd_state,
             cname, 
