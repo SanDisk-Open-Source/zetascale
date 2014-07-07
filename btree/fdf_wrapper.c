@@ -689,7 +689,7 @@ ZS_status_t _ZSInitVersioned(
     assert(ZS_SUCCESS == ret);
 
     ZSSetProperty ("ZS_KEY_CACHE", ZSGetProperty("ZS_KEY_CACHE", "1"));
-    ZSSetProperty ("ZS_CACHE_CHUNK_SIZE", ZSGetProperty("ZS_CACHE_CHUNK_SIZE", "8300"));
+    ZSSetProperty ("ZS_CACHE_CHUNK_SIZE", ZSGetProperty("ZS_CACHE_CHUNK_SIZE", "0"));
     ZSSetProperty ("ZS_COMPRESSION", ZSGetProperty("ZS_COMPRESSION", "1"));
 
     ZSSetProperty ("ZS_TRX", ZSGetProperty("ZS_TRX", "1"));
