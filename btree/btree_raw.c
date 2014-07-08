@@ -7329,6 +7329,7 @@ void release_per_thread_keybuf()
 	if (_keybuf) {
 		free(_keybuf);
 		_keybuf = NULL;
+        _keybuf_size = 0;
 	}
 }
 
