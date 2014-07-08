@@ -206,8 +206,6 @@ int main(int argc, char *argv[])
      * disable trx in new fused libraries setup, this test is disabled.
      */
 
-    return (0);
-
 	ZSLoadProperties(getenv("ZS_PROPERTY_FILE"));
 	ZSSetProperty("ZS_SLAB_GC", "On");
 	ZSSetProperty("ZS_SLAB_GC_THRESHOLD", "70");
@@ -218,6 +216,9 @@ int main(int argc, char *argv[])
 	ZSSetProperty("ZS_LOG_FLUSH_DIR", "/dev/shm");
 	ZSSetProperty("SYNC_DATA", "0");
 	ZSSetProperty("ZS_O_DIRECT", "0");
+
+    // Trx and GC do not work together; so switching off trx
+	ZSSetProperty("ZS_TRX", "0");
 
 	unsetenv("ZS_PROPERTY_FILE");
 

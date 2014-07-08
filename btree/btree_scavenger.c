@@ -66,7 +66,7 @@ scavenger_worker(uint64_t arg)
         mail = btSyncMboxWait(&mbox_scavenger);
         s = (Scavenge_Arg_t *)mail;
 
-        _ZSInitPerThreadState(s->zs_state, &zs_thread_state);
+        assert(ZS_SUCCESS == _ZSInitPerThreadState(s->zs_state, &zs_thread_state));
         my_thd_state = zs_thread_state;
 
         my_thrd_cguid = 0; /* To avoid recurrence triggering of scavenger from btree_delete rouinte after ZS_SCAVENGE_PER_OBJECTS deletes*/

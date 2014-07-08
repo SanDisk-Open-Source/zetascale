@@ -1,5 +1,6 @@
 #include <assert.h>
 #include "zs.h"
+#include "string.h"
 
 static struct ZS_state* zs_state;
 static __thread struct ZS_thread_state *_zs_thd_state;
@@ -47,7 +48,11 @@ ZS_status_t zs_create_container (
     ZSLoadCntrPropDefaults(&props);
 
     props.size_kb   = size / 1024;
-    //props.flags = 1;
+
+    // Hack!: GC is meant to work on a hash container, hence the check
+    if (0 == strncmp("container-slab-gc", cname, sizeof("container-slab-gc") - 1)) {
+        props.flags = 1;
+    }
     ret = ZSOpenContainer (
             _zs_thd_state,
             cname, 

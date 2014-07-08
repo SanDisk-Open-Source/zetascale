@@ -1,6 +1,6 @@
 add_definitions(-std=gnu99 -fgnu89-inline)
 
-SET(test_src_file FDF_Listen.c)
+SET(test_src_file ZS_Listen.c)
 get_filename_component(testname ${test_src_file} NAME_WE)
 add_executable(${testname} ${test_src_file})
 add_dependencies(${testname} zs)
