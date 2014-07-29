@@ -57,6 +57,7 @@ cmake $WD -DNCPU=$NCPU -DDEBUG=$DBG -DZS_REVISION="$VERSION" -DTRACE=$TRACE
 make -j $NCPU
 
 #Packaging
+ cp -f /schooner/backup/fdf_extra/lib/* $SDK_DIR/lib
 cp -f $WD/output/lib/* $SDK_DIR/lib
 cp -a $WD/api/zs.h $SDK_DIR/include
 cp -a $WD/api/fdf.h $SDK_DIR/include
@@ -73,9 +74,10 @@ cp -a $WD/api/tests/conf/*_sample.prop $SDK_DIR/config/
 if [ "is$WITHJNI" == "isON" ]
 then
     rm -fr ZSJNI 
-    jniurl=http://svn.schoonerinfotech.net/svn/schooner-trunk/ht_delivery/rd/fdfjni/branches/zs
+    jniurl=http://svn.schoonerinfotech.net/svn/schooner-trunk/ht_delivery/rd/fdfjni/trunk
     svn co $jniurl ZSJNI 
-    cd ZSJNI
+    cd ZSJNI 
+    sed -i 's#make$#make JDK_HOME=/usr/lib/jvm/java-1.7.0-openjdk.x86_64/#' bin/prepare_zssdk.sh
     sed -i "/sdk$/d" bin/prepare_zssdk.sh 
     cp -r $SDK_DIR ./zs_sdk
 
@@ -114,7 +116,7 @@ if [ -n "$run_tests" ]; then
 	if [[ "$(hostname)" =~ "xen" ]]; then
 		ctest
 	else
-		ctest -j$NCPU
+		ctest
 	fi
 fi
 
