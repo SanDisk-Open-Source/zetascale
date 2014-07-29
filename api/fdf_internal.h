@@ -26,7 +26,7 @@ extern "C" {
 #define STATS_BUFFER_SIZE 1024
 #define MCD_FTH_STACKSIZE 81920
 
-#define ZS_PRODUCT_NAME	"Flash Data Fabric"
+#define ZS_PRODUCT_NAME	"ZetaScale"
 #define ZS_LICENSE_PATH	"/opt/sandisk/zs/license"
 #define ZS_LICENSE_CHECK_PERIOD	0
 

@@ -344,7 +344,7 @@ update_lic_info(lic_data_t *data, bool daemon)
 			 * If product matches, check whether the version
 			 * matches. If both, then this is a valid license.
 			 */
-			if (!strcmp(prod, ZS_PRODUCT_NAME)) {
+			if ( (!strcmp(prod, ZS_PRODUCT_NAME)) || (!strcmp(prod, "Flash Data Fabric")) ) {
 #ifdef ZS_REVISION
 				if (p1) {
 					if (strncmp(p1, "all", strlen(p1))) {
