@@ -60,15 +60,13 @@ make -j $NCPU
  cp -f /schooner/backup/fdf_extra/lib/* $SDK_DIR/lib
 cp -f $WD/output/lib/* $SDK_DIR/lib
 cp -a $WD/api/zs.h $SDK_DIR/include
-cp -a $WD/api/fdf.h $SDK_DIR/include
 cp -a $WD/api/tests/sample_program.c $SDK_DIR/samples
 cp -a $WD/api/tests/Makefile.sample $SDK_DIR/samples/Makefile
 #cp -a $WD/doc/ZS_programming_guide.docx $SDK_DIR/docs
 #cp -a $WD/doc/ZS1.2_DesignDocument.docx $SDK_DIR/docs
 mkdir -p $SDK_DIR/include/common
 cp -a $WD/common/zstypes.h $SDK_DIR/include/common
-cp -a $WD/common/fdftypes.h $SDK_DIR/include/common
-cp -a $WD/api/tests/conf/*_sample.prop $SDK_DIR/config/
+cp -a $WD/api/tests/conf/zs_sample.prop $SDK_DIR/config/
 #check withjni option
 #when withjni=true, get jni code and compiling
 if [ "is$WITHJNI" == "isON" ]
@@ -77,6 +75,7 @@ then
     jniurl=http://svn.schoonerinfotech.net/svn/schooner-trunk/ht_delivery/rd/fdfjni/trunk
     svn co $jniurl ZSJNI 
     cd ZSJNI 
+    sed -i 's#make$#make JDK_HOME=/usr/lib/jvm/java-1.7.0-openjdk.x86_64/#' bin/prepare_zssdk.sh 
     sed -i 's#make$#make JDK_HOME=/usr/lib/jvm/java-1.7.0-openjdk.x86_64/#' bin/prepare_zssdk.sh
     sed -i "/sdk$/d" bin/prepare_zssdk.sh 
     cp -r $SDK_DIR ./zs_sdk
