@@ -56,7 +56,7 @@ typedef enum {
 
     HRREP, RHREC, HRSET, HRCRE, HRDEL,
 
-    HFGFF, HFPTF, HFCIF, HFCZF, HFDFF, HFXST, HFSEN, HFNEN,
+    HFGFF, HFPTF, HFCIF, HFCZF, HZSF, HFXST, HFSEN, HFNEN,
     HFCSH, HFDSH, HFGBC, HFGIC, HFGLS, HFGSN, HFICD, HFGCS, HFSET, HFSCN,
     HFOSH, HFSSH, HFSRR, HFSPR, HFFLA, HFRVG, HFNOP,
 
@@ -361,7 +361,7 @@ typedef struct {
 	{HFCIF, "HFCIF", "HF_create",                    C_NONE_,    N_HOME,   N_FLASH, (0|m_cgid|m_key_|m_size|m_data)},
 	{HFSET, "HFSET", "HF_set",                       C_NONE_,    N_HOME,   N_FLASH, (0|m_cgid|m_key_|m_size|m_data)},
 	{HFCZF, "HFCZF", "HF_create_zero",               C_NONE_,    N_HOME,   N_FLASH, (0|m_cgid|m_key_|m_size)},
-	{HFDFF, "HFDFF", "HF_delete",                    C_NONE_,    N_HOME,   N_FLASH, (0|m_cgid|m_key_)},
+	{HZSF, "HZSF", "HF_delete",                    C_NONE_,    N_HOME,   N_FLASH, (0|m_cgid|m_key_)},
 	{HFXST, "HFXST", "HF_exists",                    C_NONE_,    N_HOME,   N_FLASH, (0|m_cgid|m_key_)},
 	{HFSEN, "HFSEN", "HF_start_enum",                C_NONE_,    N_HOME,   N_FLASH, (0|m_cgid)},
 	{HFNEN, "HFNEN", "HF_next_enum",                 C_NONE_,    N_HOME,   N_FLASH, (0|m_enpt)},

@@ -352,7 +352,7 @@ enum cr_op_flags {
                                 sdf_msg_recv_wrapper_create((op_arg)->cr->closure_scheduler, \
                                                             &cr_op_flash_response, \
                                                             (op_arg))))        \
-    item(HFDFF, ALL_LIVE,                                                      \
+    item(HZSF, ALL_LIVE,                                                      \
          CROF_NEED_SEQNO|CROF_LOCK_EXCLUSIVE|CROF_CR_SHARD_BY_TYPE,            \
          cr_op_flash_multi_node((op_arg), (context_arg),                       \
                                 sdf_msg_recv_wrapper_create((op_arg)->cr->closure_scheduler, \
@@ -7374,7 +7374,7 @@ cr_replica_redo(struct cr_replica *replica, struct sdf_msg_wrapper *wrapper) {
     plat_assert(shard->shard_meta);
 
     if (pm->flags & f_tombstone) {
-        pm->msgtype = HFDFF;
+        pm->msgtype = HZSF;
     } else {
         pm->msgtype = HFSET;
     }
@@ -7507,7 +7507,7 @@ cr_replica_redo_op(struct cr_replica *dest_replica,
     if (op->put_msgtype == HFSET) {
         ++shard->stat_counters->recovery_set_started;
         ++shard->cr->total_stat_counters->recovery_set_started;
-    } else if (op->put_msgtype == HFDFF) {
+    } else if (op->put_msgtype == HZSF) {
         ++shard->stat_counters->recovery_delete_started;
         ++shard->cr->total_stat_counters->recovery_delete_started;
     } else {
@@ -7571,7 +7571,7 @@ cr_replica_redo_response(struct plat_closure_scheduler *context,
             ++shard->stat_counters->recovery_set_failed;
             ++shard->cr->total_stat_counters->recovery_set_failed;
         }
-    } else if (op->put_msgtype == HFDFF) {
+    } else if (op->put_msgtype == HZSF) {
         ++shard->stat_counters->recovery_delete_complete;
         ++shard->cr->total_stat_counters->recovery_delete_complete;
         if (status != SDF_SUCCESS && (int) shard->state != CR_REPLICA_STATE_TO_DEAD) {
@@ -7895,7 +7895,7 @@ cr_replica_undo_op_authoritative_get_cb(struct plat_closure_scheduler *context,
     } else if (!(op->data.pm->flags & f_tombstone) &&
                op->undo.pm->status == SDF_OBJECT_UNKNOWN &&
                !(op->undo.pm->flags & f_tombstone)) {
-        op->undo.pm->msgtype = HFDFF;
+        op->undo.pm->msgtype = HZSF;
         cr_replica_undo_op_put(op);
     /*
      * The object or tombstone in the authoritative replicas is older
@@ -7932,7 +7932,7 @@ cr_replica_undo_op_authoritative_get_cb(struct plat_closure_scheduler *context,
  *     the authoritative copy.
  *
  * @param op <IN> operation
- * @param put_msgtype <IN> compensating action (most likely HFDFF
+ * @param put_msgtype <IN> compensating action (most likely HZSF
  * or HFSET)
  * @param get_response_msg <IN> response authoritative replica
  */
@@ -7970,7 +7970,7 @@ cr_replica_undo_op_put(struct cr_recovery_op *op) {
         if (op->put_msgtype == HFSET) {
             ++shard->stat_counters->recovery_set_started;
             ++shard->cr->total_stat_counters->recovery_set_started;
-        } else if (op->put_msgtype == HFDFF) {
+        } else if (op->put_msgtype == HZSF) {
             ++shard->stat_counters->recovery_delete_started;
             ++shard->cr->total_stat_counters->recovery_delete_started;
         }
@@ -8045,7 +8045,7 @@ cr_replica_undo_op_put_cb(struct plat_closure_scheduler *context, void *env,
             ++shard->stat_counters->recovery_set_failed;
             ++shard->cr->total_stat_counters->recovery_set_failed;
         }
-    } else if (op->put_msgtype == HFDFF) {
+    } else if (op->put_msgtype == HZSF) {
         ++shard->stat_counters->recovery_delete_complete;
         ++shard->cr->total_stat_counters->recovery_delete_complete;
         if (status != SDF_SUCCESS) {

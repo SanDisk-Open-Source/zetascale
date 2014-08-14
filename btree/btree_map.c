@@ -8,7 +8,7 @@
  * http://www.sandisk.com
  *
  * IMPORTANT NOTES:
- *    - Unlike tlmap in the fdf directory, fdf_tlmap does NOT
+ *    - Unlike tlmap in the zs directory, zs_tlmap does NOT
  *      automatically malloc and free the key and contest of
  *      a hashtable entry!
  *
@@ -47,7 +47,7 @@
 
 static void _map_assert(int x) {
     if (x) {
-        dbg_print("Assertion failure in fdf_tlmap!\n");
+        dbg_print("Assertion failure in zs_tlmap!\n");
 	assert(0);
     }
 }
@@ -68,7 +68,9 @@ static void _map_assert(int x) {
 #define do_unlock(x) {if (pm->use_locks) { pthread_rwlock_unlock(&(x)->lock); }}
 
 //  Predeclarations
-void check_list(MapBucket_t *pb, MapEntry_t *pme);
+#ifdef LISTCHECK
+static void check_list(MapBucket_t *pb, MapEntry_t *pme);
+#endif
 static void insert_lru(struct Map *pm, MapEntry_t *pme);
 static void remove_lru(struct Map *pm, MapEntry_t *pme);
 static void update_lru(struct Map *pm, MapEntry_t *pme);
@@ -1019,7 +1021,8 @@ static MapEntry_t *find_pme(struct Map *pm, char *pkey, uint32_t keylen, MapBuck
     return(pme);
 }
 
-void check_list(MapBucket_t *pb, MapEntry_t *pme_in)
+#ifdef LISTCHECK
+static void check_list(MapBucket_t *pb, MapEntry_t *pme_in)
 {
     MapEntry_t *pme, *pme2;
     //  check for a circular list
@@ -1033,6 +1036,6 @@ void check_list(MapBucket_t *pb, MapEntry_t *pme_in)
 	}
     }
 }
-
+#endif
 
 

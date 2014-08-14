@@ -26,6 +26,7 @@ char *lic_state_msg[] = {
 	"License period has not started",
 	"Internal error",
 	"I/O error",
+	"File operation failed",
 	"License file format not supported",
 	"License file is not in valid format",
 	"Data is not entered for one of the fields",
@@ -69,7 +70,7 @@ generate_license_file(char *ver, char *path)
 {
 	int		major, minor, indx;
 	FILE		*fd;
-	const char 	license_blank_header[] = "NOTE: Machine-generated content. \n© Copyright SanDisk Inc. 2013. All rights reserved.\nhttp://www.sandisk.com\n\nThis is template file for generating license. Input the details in CONTACT and PARTICULARS section. Use fdflicense command to generate license.\n";
+	const char 	license_blank_header[] = "NOTE: Machine-generated content. \n© Copyright SanDisk Inc. 2013. All rights reserved.\nhttp://www.sandisk.com\n\nThis is template file for generating license. Input the details in CONTACT and PARTICULARS section. Use zslicense command to generate license.\n";
 	char		version[32] = {0};
 
 	if (path) {
@@ -344,11 +345,11 @@ get_license_details(char *input_file, lic_data_t *data)
 	}
 
 	if (NULL == (in_fd = fopen(input_file, "r"))) {
-		data->fld_state = LS_INVALID;
+		data->fld_state = LS_FILE_IO_ERR;
 		return;
 	}
 	if (fread((void *) license, license_size, 1, in_fd) < 1) {
-		data->fld_state = LS_INVALID;
+		data->fld_state = LS_FILE_IO_ERR;
 		goto out;
 	}
 	retval = get_version_specific_contents(license, &input, &major, &minor);

@@ -4,7 +4,7 @@
 #include "btree_raw.h"
 #include "platform/rwlock.h"
 #include <assert.h>
-#include <api/fdf.h>
+#include <api/zs.h>
 
 
 #define BAD_CHILD       0
@@ -77,14 +77,14 @@ typedef struct key_stuff {
  * Per node persistent stats
  */
 enum delta_indx {PSTAT_OBJ_COUNT, PSTAT_NUM_SNAP_OBJS, PSTAT_SNAP_DATA_SIZE, PSTAT_MAX_STATS=8};
-typedef struct fdf_pstats_delta_ {
+typedef struct zs_pstats_delta_ {
     uint64_t		seq_num;
     //uint64_t		delta_obj_count;
     uint64_t		delta[PSTAT_MAX_STATS];
     //bool			is_positive_delta;
 	char			is_pos_delta;
     uint64_t		seq;
-} fdf_pstats_delta_t;
+} zs_pstats_delta_t;
 
 typedef struct btree_raw_node {
     /*
@@ -93,7 +93,7 @@ typedef struct btree_raw_node {
      * assumes that stats are present in first field of
      * btree node.
      */
-    fdf_pstats_delta_t     pstats;
+    zs_pstats_delta_t     pstats;
 
     uint32_t      flags;
     uint16_t      level;
@@ -215,7 +215,7 @@ typedef struct btSyncRequest {
 
 typedef struct pstat_ckpt_info {
 	int64_t *active_writes;
-	fdf_pstats_t pstat;
+	zs_pstats_t pstat;
 } pstat_ckpt_info_t;
 
 typedef struct btree_raw {
@@ -280,7 +280,7 @@ typedef struct btree_raw {
     pthread_mutex_t    pstat_lock;
     uint64_t           last_flushed_seq_num;
     uint64_t           pstats_modified;
-    fdf_pstats_t       pstats; 
+    zs_pstats_t       pstats; 
 
     pstat_ckpt_info_t pstat_ckpt;
     uint64_t current_active_write_idx;
@@ -308,7 +308,7 @@ btree_status_t btree_snap_create_meta(btree_raw_t *bt, uint64_t seqno);
 btree_status_t btree_snap_delete_meta(btree_raw_t *bt, uint64_t seqno);
 int btree_snap_find_meta_index(btree_raw_t *bt, uint64_t seqno);
 btree_status_t btree_snap_get_meta_list(btree_raw_t *bt, uint32_t *n_snapshots,
- 		                             FDF_container_snapshots_t **snap_seqs);
+ 		                             ZS_container_snapshots_t **snap_seqs);
 bool btree_snap_seqno_in_snap(btree_raw_t *bt, uint64_t seqno);
  
 btree_status_t savepersistent( btree_raw_t *bt, bool create);

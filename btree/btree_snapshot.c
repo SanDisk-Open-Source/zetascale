@@ -19,7 +19,7 @@
 #include "btree_raw.h"
 #include "btree_map.h"
 #include "btree_raw_internal.h"
-#include "fdf.h"
+#include "zs.h"
 
 static int btree_snap_find_meta_index_low(btree_raw_t *bt, uint64_t seqno);
 
@@ -234,13 +234,13 @@ btree_snap_seqno_in_snap(btree_raw_t *bt, uint64_t seqno)
 
 btree_status_t
 btree_snap_get_meta_list(btree_raw_t *bt, uint32_t *n_snapshots,
-							 FDF_container_snapshots_t **snap_seqs)
+							 ZS_container_snapshots_t **snap_seqs)
 {
 	int					i;
 	btree_snap_meta_t	*smeta = bt->snap_meta;
 
 	*n_snapshots = smeta->total_snapshots;
-	*snap_seqs = (FDF_container_snapshots_t *)malloc(*n_snapshots * sizeof(FDF_container_snapshots_t));
+	*snap_seqs = (ZS_container_snapshots_t *)malloc(*n_snapshots * sizeof(ZS_container_snapshots_t));
 	pthread_rwlock_rdlock(&bt->snap_lock);
 	switch (smeta->snap_version) {
 		case SNAP_VERSION1 :

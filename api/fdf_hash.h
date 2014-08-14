@@ -23,6 +23,6 @@
 //
 
 // Level is an arbitrary salt for the hash.
-uint64_t fdf_hash(const unsigned char *key, uint64_t keyLength, uint64_t level);
+uint64_t zs_hash(const unsigned char *key, uint64_t keyLength, uint64_t level);
 
 #endif

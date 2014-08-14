@@ -1,8 +1,8 @@
 # $Id: Makefile 9983 2009-11-02 18:25:23Z gxu $
 
 TOP = ..
-PROG = fdf_multi_test
-SRCS = fdf_multi_test.c test.c 
+PROG = zs_multi_test
+SRCS = zs_multi_test.c test.c 
 #CFLAGS = -O3 -D_GNU_SOURCE -DMPI_BUILD -DFLASH_SIM_TYPE=5 \
 -DPLAT_LOG_COMPILE_LEVEL=DEVEL -DENABLE_MULTIPLE_FLASH_SUBSYSTEMS \
 -DBLD_VERSION=857 -DSDFAPI -DSDFAPIREFORMAT -DSIMPLE_REPLICATION \
@@ -15,7 +15,7 @@ CFLAGS = -D_GNU_SOURCE -DMPI_BUILD -DFLASH_SIM_TYPE=5 \
 -O3 -pipe -Wall -fstack-protector-all -fno-strict-aliasing \
 -fno-omit-frame-pointer -Werror -std=gnu99 -fgnu89-inline 
 
-LIBS = $(TOP)/lib/libfdfdll.a \
+LIBS = $(TOP)/lib/libzsdll.a \
         -lpthread -lrt -lnsl -lutil -lm -laio -levent -ldl	
 all:
 	$(CC) $(CFLAGS) $(SRCS) $(LIBS) -I$(TOP)/include -o $(PROG)	

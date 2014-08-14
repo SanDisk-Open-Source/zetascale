@@ -3,24 +3,24 @@
 #include <unistd.h>
 #include "api/sdf.h"
 #include "api/sdf_internal.h"
-#include "api/fdf.h"
+#include "api/zs.h"
 
-static struct FDF_state *fdf_state;
+static struct ZS_state *zs_state;
 static int iterations = 10;
 static int size = 1024 * 1024;
 
-FDF_status_t fdf_create_container (
-	struct FDF_thread_state *_fdf_thd_state,
+ZS_status_t fdf.create_container (
+	struct ZS_thread_state *_zs_thd_state,
 	char                    *cname,
-	FDF_cguid_t             *cguid,
-	FDF_boolean_t			fifo,
-	FDF_boolean_t			persistent,
-	FDF_boolean_t			evicting
+	ZS_cguid_t             *cguid,
+	ZS_boolean_t			fifo,
+	ZS_boolean_t			persistent,
+	ZS_boolean_t			evicting
 	)
 {
-    FDF_status_t            ret;
-    FDF_container_props_t   props;
-    uint32_t                flags		= FDF_CTNR_CREATE;
+    ZS_status_t            ret;
+    ZS_container_props_t   props;
+    uint32_t                flags		= ZS_CTNR_CREATE;
 
     props.size_kb                       = size;
     props.fifo_mode                     = fifo;
@@ -32,8 +32,8 @@ FDF_status_t fdf_create_container (
     props.num_shards                    = 1;
     props.cid                    		= SDF_NULL_CID;
 
-    ret = FDFOpenContainer (
-			_fdf_thd_state, 
+    ret = ZSOpenContainer (
+			_zs_thd_state, 
 			cname, 
 			&props,
 			flags,
@@ -41,7 +41,7 @@ FDF_status_t fdf_create_container (
 			);
 
 	fprintf( stderr, 
-			 "\n>>>FDFOpenContainer: fifo=%d, persistent=%d, evicting=%d, %lu - %s\n", 
+			 "\n>>>ZSOpenContainer: fifo=%d, persistent=%d, evicting=%d, %lu - %s\n", 
 			 fifo,
 			 persistent,
 			 evicting,
@@ -51,21 +51,21 @@ FDF_status_t fdf_create_container (
     return ret;
 }
 
-FDF_status_t fdf_get_container_props(
-    struct FDF_thread_state *_fdf_thd_state,
-    FDF_cguid_t              cguid,
-	FDF_container_props_t	*pprops
+ZS_status_t zs_get_container_props(
+    struct ZS_thread_state *_zs_thd_state,
+    ZS_cguid_t              cguid,
+	ZS_container_props_t	*pprops
     )
 {  
-    FDF_status_t     ret;
+    ZS_status_t     ret;
 
-    ret = FDFGetContainerProps(
-            _fdf_thd_state,
+    ret = ZSGetContainerProps(
+            _zs_thd_state,
             cguid,
 			pprops
             );
    
-	if ( FDF_SUCCESS != ret ) {
+	if ( ZS_SUCCESS != ret ) {
     	fprintf( stderr, ">>>container_props: %lu - %s\n", cguid, SDF_Status_Strings[ret] );
 	}
    
@@ -75,21 +75,21 @@ FDF_status_t fdf_get_container_props(
 int prop_test()
 {
 
-    struct FDF_thread_state 	*_fdf_thd_state;
+    struct ZS_thread_state 	*_zs_thd_state;
 
-    FDF_cguid_t  				 cguid;
-    FDF_container_props_t		 props;
+    ZS_cguid_t  				 cguid;
+    ZS_container_props_t		 props;
     char 						 cname[32];
     
-    if ( FDF_SUCCESS != FDFInitPerThreadState( fdf_state, &_fdf_thd_state ) ) {
-        fprintf( stderr, "FDF thread initialization failed!\n" );
+    if ( ZS_SUCCESS != ZSInitPerThreadState( zs_state, &_zs_thd_state ) ) {
+        fprintf( stderr, "ZS thread initialization failed!\n" );
         plat_assert( 0 );
 	}
 
 	for (int i = 0; i < iterations; i++ ) {
 		sprintf( cname, "container-%02d", i );
-		plat_assert( fdf_create_container( _fdf_thd_state, cname, &cguid, SDF_TRUE, SDF_TRUE, SDF_FALSE ) == SDF_SUCCESS);
-		plat_assert( fdf_get_container_props( _fdf_thd_state, cguid, &props ) == SDF_SUCCESS);
+		plat_assert( fdf.create_container( _zs_thd_state, cname, &cguid, SDF_TRUE, SDF_TRUE, SDF_FALSE ) == SDF_SUCCESS);
+		plat_assert( zs_get_container_props( _zs_thd_state, cguid, &props ) == SDF_SUCCESS);
 
 		fprintf( stderr, "\n>>>cname					            = %s\n", cname );
 		fprintf( stderr, ">>>container_props: size_kb           = %lu\n", props.size_kb );
@@ -108,63 +108,63 @@ int prop_test()
 int param_test()
 {
 
-    struct FDF_thread_state     *_fdf_thd_state;
+    struct ZS_thread_state     *_zs_thd_state;
 
-    FDF_cguid_t                  cguid;
+    ZS_cguid_t                  cguid;
     char                         cname[32];
 
-    if ( FDF_SUCCESS != FDFInitPerThreadState( fdf_state, &_fdf_thd_state ) ) {
-        fprintf( stderr, "FDF thread initialization failed!\n" );
+    if ( ZS_SUCCESS != ZSInitPerThreadState( zs_state, &_zs_thd_state ) ) {
+        fprintf( stderr, "ZS thread initialization failed!\n" );
         plat_assert( 0 );
     }
 
 	// CACHE: FIFO, non-persistent, evicting
 	sprintf( cname, "1-CACHE:FIFO-NP-EVICT" );
-    fdf_create_container( _fdf_thd_state, cname, &cguid, FDF_TRUE, FDF_FALSE, FDF_TRUE );
+    fdf.create_container( _zs_thd_state, cname, &cguid, ZS_TRUE, ZS_FALSE, ZS_TRUE );
 
 	// STORE: SLAB, persistent, non-evicting
 	sprintf( cname, "2-STORE:SLAB-P-NONEVICT" );
-    fdf_create_container( _fdf_thd_state, cname, &cguid, FDF_FALSE, FDF_TRUE, FDF_FALSE );
+    fdf.create_container( _zs_thd_state, cname, &cguid, ZS_FALSE, ZS_TRUE, ZS_FALSE );
 
 	// P.CACHE: SLAB, persistent, evicting
 	sprintf( cname, "3-P.CACHE:SLAB-P-EVICT" );
-    fdf_create_container( _fdf_thd_state, cname, &cguid, FDF_FALSE, FDF_TRUE, FDF_TRUE );
+    fdf.create_container( _zs_thd_state, cname, &cguid, ZS_FALSE, ZS_TRUE, ZS_TRUE );
 
 	// NE.CACHE: SLAB, non-persistent, non-evicting
 	sprintf( cname, "4-NE.CACHE:SLAB-NP-NONEVICT" );
-    fdf_create_container( _fdf_thd_state, cname, &cguid, FDF_FALSE, FDF_FALSE, FDF_FALSE );
+    fdf.create_container( _zs_thd_state, cname, &cguid, ZS_FALSE, ZS_FALSE, ZS_FALSE );
 
 	// FAIL: FIFO, non-persistent, non-evicting
 	sprintf( cname, "5-FAIL:FIFO-NP-NONEVICT" );
-    fdf_create_container( _fdf_thd_state, cname, &cguid, FDF_TRUE, FDF_FALSE, FDF_FALSE );
+    fdf.create_container( _zs_thd_state, cname, &cguid, ZS_TRUE, ZS_FALSE, ZS_FALSE );
 
 	// FAIL: FIFO, persistent, non-evicting
 	sprintf( cname, "6-FAIL:FIFO-P-NONEVICT" );
-    fdf_create_container( _fdf_thd_state, cname, &cguid, FDF_TRUE, FDF_TRUE, FDF_FALSE );
+    fdf.create_container( _zs_thd_state, cname, &cguid, ZS_TRUE, ZS_TRUE, ZS_FALSE );
 
 	// CACHE.SLAB: SLAB, non-persistent, evicting
 	sprintf( cname, "7-CACHE.SLAB:SLAB-NP-EVICT" );
-    fdf_create_container( _fdf_thd_state, cname, &cguid, FDF_FALSE, FDF_FALSE, FDF_TRUE );
+    fdf.create_container( _zs_thd_state, cname, &cguid, ZS_FALSE, ZS_FALSE, ZS_TRUE );
 
 	// FAIL: FIFO, persistent, evicting
 	sprintf( cname, "8-FAIL:FIFO-P-EVICT" );
-    fdf_create_container( _fdf_thd_state, cname, &cguid, FDF_TRUE, FDF_TRUE, FDF_TRUE );
+    fdf.create_container( _zs_thd_state, cname, &cguid, ZS_TRUE, ZS_TRUE, ZS_TRUE );
     
     return 0;
 }           
 
 int main(int argc, char *argv[])
 {
-    FDFSetProperty("SDF_FLASH_FILENAME", "/schooner/data/schooner%d");
-    FDFSetProperty("SDF_FLASH_SIZE", "12");
-    FDFSetProperty("SDF_CC_MAXCACHESIZE", "1000000000");
+    ZSSetProperty("SDF_FLASH_FILENAME", "/schooner/data/schooner%d");
+    ZSSetProperty("SDF_FLASH_SIZE", "12");
+    ZSSetProperty("SDF_CC_MAXCACHESIZE", "1000000000");
 
-    if ( FDFInit( &fdf_state ) != FDF_SUCCESS ) {
-        fprintf( stderr, "FDF initialization failed!\n" );
+    if ( ZSInit( &zs_state ) != ZS_SUCCESS ) {
+        fprintf( stderr, "ZS initialization failed!\n" );
         plat_assert( 0 );
     }
 
-    fprintf( stderr, "FDF was initialized successfully!\n" );
+    fprintf( stderr, "ZS was initialized successfully!\n" );
 
 	param_test();
 

@@ -1,13 +1,13 @@
 cmake_minimum_required(VERSION 2.8 FATAL_ERROR)
 #
-IF($ENV{FDF_SDK_VERSION})
-	SET(VERSION $ENV{FDF_SDK_VERSION})
+IF($ENV{ZS_SDK_VERSION})
+	SET(VERSION $ENV{ZS_SDK_VERSION})
 ELSE()
 	SET(VERSION 1.0)
 ENDIF()
 #
 OPTION(DEBUG "Generate debug build" ON)
-OPTION(BUILD_SHARED "Generate shared libs" OFF)
+OPTION(BUILD_SHARED "Generate shared libs" ON)
 OPTION(PERMISSIVE "Omit -Werror for build" OFF)
 #
 ENABLE_TESTING()
@@ -33,7 +33,7 @@ ELSE(DEBUG)
 	ADD_DEFINITIONS(-g -D_OPTIMIZE)
 ENDIF(DEBUG)
 #
-SET(LIBRARY fdfdll)
+SET(LIBRARY zs)
 #
 IF(BUILD_SHARED)
 	ADD_DEFINITIONS(-fPIC)
@@ -43,12 +43,12 @@ ELSE(BUILD_SHARED)
 	SET(LIB_TYPE STATIC)
 ENDIF(BUILD_SHARED)
 #
-IF(FDF_REVISION)
-	ADD_DEFINITIONS(-DFDF_REVISION="${FDF_REVISION}")
-ENDIF(FDF_REVISION)
+IF(ZS_REVISION)
+	ADD_DEFINITIONS(-DZS_REVISION="${ZS_REVISION}")
+ENDIF(ZS_REVISION)
 
 add_definitions(-O2 -pipe -Wall -fstack-protector-all -fno-strict-aliasing -fno-omit-frame-pointer)
-#add_definitions(-pipe -Wall -fstack-protector-all -fno-strict-aliasing -fno-omit-frame-pointer)
+#add_definitions( -pipe -Wall -fstack-protector-all -fno-strict-aliasing -fno-omit-frame-pointer)
 add_definitions( -D_GNU_SOURCE -DMPI_BUILD -DFLASH_SIM_TYPE=5 -DPLAT_LOG_COMPILE_LEVEL=DEVEL -DENABLE_MULTIPLE_FLASH_SUBSYSTEMS
 -DBLD_VERSION=857 -DSDFAPI -DSDFAPIONLY -DSDFAPIREFORMAT -DENABLE_MULTIPLE_FLASH_SUBSYSTEMS)
 #-DBLD_VERSION=857 -DSDFAPI -DSDFAPIONLY -DSDFAPIREFORMAT
@@ -77,13 +77,13 @@ add_subdirectory(sdfmsg)
 add_subdirectory(utils)
 add_subdirectory(ssd)
 add_subdirectory(shared)
-#add_subdirectory(dll)
+add_subdirectory(dll)
 IF(EXISTS test_suite/)
 add_subdirectory(test_suite)
 ENDIF(EXISTS test_suite/)
-IF(EXISTS fdf_slap/)
-add_subdirectory(fdf_slap)
-ENDIF(EXISTS fdf_slap/)
+IF(EXISTS zs_slap/)
+add_subdirectory(zs_slap)
+ENDIF(EXISTS zs_slap/)
 #
 ADD_LIBRARY(${LIBRARY} ${LIB_TYPE} 
 $<TARGET_OBJECTS:agent>
@@ -104,7 +104,7 @@ $<TARGET_OBJECTS:sdfmsg>
 $<TARGET_OBJECTS:utils> 
 $<TARGET_OBJECTS:ssd> 
 $<TARGET_OBJECTS:shared> 
-#$<TARGET_OBJECTS:clipper> 
+$<TARGET_OBJECTS:clipper> 
 $<TARGET_OBJECTS:fifo> 
 )
 add_dependencies(${LIBRARY} ffdc)

@@ -58,7 +58,7 @@
     item(HFGFF, HF_MSG_KV, FHDAT, FHGTF)                                       \
     item(HFSET, HF_MSG_KV, FHSTC, FHSTF)                                       \
     item(HFPTF, HF_MSG_KV, FHPTC, FHPTF)                                       \
-    item(HFDFF, HF_MSG_KV, FHDEC, FHDEF)                                       \
+    item(HZSF, HF_MSG_KV, FHDEC, FHDEF)                                       \
     /* Shard operations */                                                     \
     item(HFCSH, HF_MSG_SHARD, FHCSC, FHCSF)                                    \
     item(HFDSH, HF_MSG_SHARD, FHDSC, FHDSF)                                    \

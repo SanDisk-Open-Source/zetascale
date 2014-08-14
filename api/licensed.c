@@ -1,5 +1,5 @@
 /*
- * FDF License Daemon
+ * ZS License Daemon
  *
  * Author: Niranjan Neelakanta
  *
@@ -25,7 +25,7 @@
 
 #include "sdf.h"
 #include "sdf_internal.h"
-#include "fdf.h"
+#include "zs.h"
 #include "utils/properties.h"
 #include "protocol/protocol_utils.h"
 #include "protocol/protocol_common.h"
@@ -48,7 +48,6 @@
 #include "shared/internal_blk_obj_api.h"
 #include "agent/agent_common.h"
 #include "agent/agent_helper.h"
-#include "fdf.h"
 #include "fdf_internal.h"
 
 #include "license/interface.h"
@@ -66,16 +65,16 @@
 #define HOUR	(3600)
 #define DAY	(86400)
 
-#define FDF_INVAL_GPRD		(0 * DAY)
-#define FDF_EXP_GPRD		(30 * DAY)
+#define ZS_INVAL_GPRD		(0 * DAY)
+#define ZS_EXP_GPRD		(30 * DAY)
 
 /*
  * Period for checking the license, once in an hour.
  */
-double 		fdf_chk_prd = HOUR;
-int		fdf_chk_prd_option;
+double 		zs_chk_prd = HOUR;
+int		zs_chk_prd_option;
 
-char 		*fdf_version;
+char 		*zs_version;
 char		*license_path;	/* License file path */
 char		*ld_prod;	/* Product Name */
 double		ld_frm_diff;	/* Current time - Start of license */
@@ -97,7 +96,7 @@ pthread_mutex_t	licd_mutex = PTHREAD_MUTEX_INITIALIZER;
 pthread_cond_t	licstate_cv = PTHREAD_COND_INITIALIZER;
 pthread_mutex_t	licstate_mutex = PTHREAD_MUTEX_INITIALIZER;;
 
-static struct FDF_state *licd_fdf_state = NULL;
+static struct ZS_state *licd_zs_state = NULL;
 
 static void licd_handler_thread(uint64_t);
 void update_lic_info(lic_data_t *, bool);
@@ -114,16 +113,16 @@ void free_details(lic_data_t *);
  * The license is read from the path passed in as argument (lic_path).
  */
 bool
-licd_start(const char *lic_path, int period, struct FDF_state *fdf_state)
+licd_start(const char *lic_path, int period, struct ZS_state *zs_state)
 {
 	plat_assert(lic_path);
-	plat_assert(fdf_state);
+	plat_assert(zs_state);
 
-#ifdef FDF_REVISION
-	fdf_version = malloc(strlen(FDF_REVISION) + 1);
-	if (fdf_version) {
-		bzero(fdf_version, strlen(FDF_REVISION) + 1);
-		strncpy(fdf_version, FDF_REVISION, strlen(FDF_REVISION));
+#ifdef ZS_REVISION
+	zs_version = malloc(strlen(ZS_REVISION) + 1);
+	if (zs_version) {
+		bzero(zs_version, strlen(ZS_REVISION) + 1);
+		strncpy(zs_version, ZS_REVISION, strlen(ZS_REVISION));
 	} else {
 		plat_log_msg(160071, LOG_CAT, LOG_WARN,
 				"Memory allocation failed");
@@ -132,10 +131,10 @@ licd_start(const char *lic_path, int period, struct FDF_state *fdf_state)
 #endif
 	//Checking period cannot be beyond an hour. Atleast once an hour needed
 	if ((period > 0) && (period < HOUR)) {
-		fdf_chk_prd_option = period;
-		fdf_chk_prd = fdf_chk_prd_option;
+		zs_chk_prd_option = period;
+		zs_chk_prd = zs_chk_prd_option;
 	} else {
-		fdf_chk_prd_option = 0;
+		zs_chk_prd_option = 0;
 	}
 
 	if (!lic_path) {
@@ -144,10 +143,10 @@ licd_start(const char *lic_path, int period, struct FDF_state *fdf_state)
 		goto out;
 	}
 
-	licd_fdf_state = fdf_state;
+	licd_zs_state = zs_state;
 
-	if( fdf_state == NULL ) {
-		plat_log_msg(160072,LOG_CAT, LOG_ERR, "Invalid FDF state");
+	if( zs_state == NULL ) {
+		plat_log_msg(160072,LOG_CAT, LOG_ERR, "Invalid ZS state");
 		goto out;
 	}
 	/* Start the thread */
@@ -171,7 +170,7 @@ out:
  * 1. Get the license details.
  * 2. Update the in house license information.
  * 3. Wake up any thread waiting for license to get initialized.
- * 4. Sleep for the period (fdf_chk_prd).
+ * 4. Sleep for the period (zs_chk_prd).
  * 5. Goto (1).
  */
 static void
@@ -242,12 +241,12 @@ licd_handler_thread(uint64_t arg)
 		}
 
 		free_details(&data);
-		// Sleep for fdf_chk_prd time
+		// Sleep for zs_chk_prd time
 		pthread_mutex_lock(&licd_mutex);
 		clock_gettime(CLOCK_REALTIME, &abstime);
-		abstime.tv_sec += fdf_chk_prd;
+		abstime.tv_sec += zs_chk_prd;
 		plat_log_msg(80069, LOG_CAT, LOG_DBG,
-				"LIC: Daemon sleeping for %lf seconds.", fdf_chk_prd);
+				"LIC: Daemon sleeping for %lf seconds.", zs_chk_prd);
 		pthread_cond_timedwait(&licd_cv, &licd_mutex, &abstime);
 		pthread_mutex_unlock(&licd_mutex);
 	}
@@ -302,12 +301,15 @@ update_lic_info(lic_data_t *data, bool daemon)
 	if (daemon && (data->fld_state == LS_INTERNAL_ERR)) {
 		ld_valid = true;
 		adjust_chk_prd(-1);
+		if (is_btree_loaded()) {
+			ext_cbs->zs_lic_cb((ld_valid == true) ? 1 : 0);
+		}
 		return;
 	}
 
 	/*
 	 * Only if license is valid or expired, let us check whether the license
-	 * is for FDF. Else, let us mark the license as invalid and fail the
+	 * is for ZS. Else, let us mark the license as invalid and fail the
 	 * application.
 	 */
 	if ((ld_state == LS_VALID) || (ld_state == LS_EXPIRED)) {
@@ -342,28 +344,28 @@ update_lic_info(lic_data_t *data, bool daemon)
 			 * If product matches, check whether the version
 			 * matches. If both, then this is a valid license.
 			 */
-			if (!strcmp(prod, FDF_PRODUCT_NAME)) {
-#ifdef FDF_REVISION
+			if ( (!strcmp(prod, ZS_PRODUCT_NAME)) || (!strcmp(prod, "Flash Data Fabric")) ) {
+#ifdef ZS_REVISION
 				if (p1) {
 					if (strncmp(p1, "all", strlen(p1))) {
 						char	*tmp;
-						if (!fdf_version) {
-							fdf_version = malloc(strlen(FDF_REVISION) + 1);
+						if (!zs_version) {
+							zs_version = malloc(strlen(ZS_REVISION) + 1);
 						}
 
-						if (fdf_version) {
-							bzero(fdf_version, strlen(FDF_REVISION) + 1);
-							strncpy(fdf_version, FDF_REVISION, strlen(FDF_REVISION));
-							tmp = strstr(fdf_version, ".");
+						if (zs_version) {
+							bzero(zs_version, strlen(ZS_REVISION) + 1);
+							strncpy(zs_version, ZS_REVISION, strlen(ZS_REVISION));
+							tmp = strstr(zs_version, ".");
 
 							if (tmp) {
-								int len = tmp - fdf_version;
+								int len = tmp - zs_version;
 								if (len) {
-									if (strncmp(fdf_version, maj, len)){
+									if (strncmp(zs_version, maj, len)){
 										ld_state = LS_VER_MISMATCH;
 									}
 								} else {
-									if (strncmp(fdf_version, maj, strlen(fdf_version))){
+									if (strncmp(zs_version, maj, strlen(zs_version))){
 										ld_state = LS_VER_MISMATCH;
 									}
 								}
@@ -419,7 +421,7 @@ print:
 			if (p) {
 				check_time_left(exptime, getas(p, double), daemon);
 			} else {
-				check_time_left(exptime, FDF_EXP_GPRD, daemon);
+				check_time_left(exptime, ZS_EXP_GPRD, daemon);
 			}
 		}
 	} else {
@@ -430,9 +432,12 @@ print:
 				lic_state_msg[ld_state]);
 		}
 		//Print warning and find period we need to make next check.
-		check_time_left(abstime.tv_sec - ld_vtime, FDF_INVAL_GPRD,
+		check_time_left(abstime.tv_sec - ld_vtime, ZS_INVAL_GPRD,
 				daemon);
 
+	}
+	if (is_btree_loaded()) {
+		ext_cbs->zs_lic_cb((ld_valid == true) ? 1 : 0);
 	}
 }
 
@@ -460,7 +465,7 @@ check_time_left(double time, double grace, bool warn)
 		plat_assert(ld_state == LS_EXPIRED);
 		if (warn) {
 			plat_log_msg( 160257, LOG_CAT, LOG_WARN, 
-			"License has expired, however FDF will continue to run. Renew the license.");
+			"License has expired, however ZS will continue to run. Renew the license.");
 		}
 		ld_valid = true;
 		adjust_chk_prd(0);
@@ -472,7 +477,7 @@ check_time_left(double time, double grace, bool warn)
 		 */
 		if (warn) {
 			plat_log_msg( 160258, LOG_CAT, LOG_WARN, 
-					"License %s beyond grace period. FDF will fail. Renew the license.", 
+					"License %s beyond grace period. ZS will fail. Renew the license.", 
 						(ld_state == LS_EXPIRED) ? "expired" : "invalid");
 		}
 		ld_valid = false;
@@ -488,7 +493,7 @@ check_time_left(double time, double grace, bool warn)
 		days = hrs / 24; hrs = hrs - days * 24;
 		if (warn) {
 			plat_log_msg( 160158, LOG_CAT, LOG_WARN, 
-				"FDF will be functional for next %d days, %d "
+				"ZS will be functional for next %d days, %d "
 				"hours and %d minutes only.", days, hrs, mins);
 		}
 		ld_valid = true;
@@ -530,7 +535,7 @@ check_validity_left(lic_data_t *data, lic_inst_type inst_type, lic_type type, bo
 	if (p) {
 		exptime = getas(p, double);
 		plat_assert(exptime > 0);
-		if (exptime > FDF_EXP_GPRD) {
+		if (exptime > ZS_EXP_GPRD) {
 			return;
 		}
 		secs = exptime;
@@ -563,19 +568,19 @@ adjust_chk_prd(double secs)
 {
 
 	if (secs == -1) {
-		fdf_chk_prd = 1;
+		zs_chk_prd = 1;
 		return;
 	}
 
-	if (fdf_chk_prd_option > 0) {
-		fdf_chk_prd = fdf_chk_prd_option;
+	if (zs_chk_prd_option > 0) {
+		zs_chk_prd = zs_chk_prd_option;
 	} else {
 		if (secs <= 15 * MINUTE) {
-			fdf_chk_prd = MINUTE;
+			zs_chk_prd = MINUTE;
 		} else if (secs <= HOUR) {
-			fdf_chk_prd = 15 * MINUTE;
+			zs_chk_prd = 15 * MINUTE;
 		} else {
-			fdf_chk_prd = HOUR;
+			zs_chk_prd = HOUR;
 		}
 	}
 }
@@ -584,18 +589,17 @@ adjust_chk_prd(double secs)
  * Returns state of license to calling thread/APIs.
  */
 bool
-is_license_valid()
+is_license_valid(bool btree_loaded)
 {
 	lic_data_t	data;
 	struct timespec abstime;
 	int		flag;
 
-
 	// If license start had failed, we shall based on when last check made.
 	flag = 0;
 	if (licd_running == false) {
 		clock_gettime(CLOCK_REALTIME, &abstime);
-		if ((abstime.tv_sec - ld_cktime) > fdf_chk_prd) {
+		if ((abstime.tv_sec - ld_cktime) > zs_chk_prd) {
 			flag = 1;
 		}
 	}
@@ -657,7 +661,13 @@ start:
 			pthread_cond_broadcast(&licstate_cv);
 		}
 		pthread_mutex_unlock(&licstate_mutex); 
+
 	}
+
+	if (btree_loaded) {
+		return true;
+	}
+
 	return ld_valid;
 }
 

@@ -17,14 +17,14 @@ static char *Desc = "test 1";
  * A test.
  */
 static void
-test(fdf_t *fdf)
+test(zs_t *zs)
 {
-    /* Initialize FDF */
-    test_init(fdf, Name);
+    /* Initialize ZS */
+    test_init(zs, Name);
 
     /* Create containers */
-    fdf_ctr_t *ctr1 = open_ctr(fdf, "C0", FDF_CTNR_CREATE);
-    fdf_ctr_t *ctr2 = open_ctr(fdf, "C1", FDF_CTNR_CREATE);
+    fdf.ctr_t *ctr1 = open_ctr(zs, "C0", ZS_CTNR_CREATE);
+    fdf.ctr_t *ctr2 = open_ctr(zs, "C1", ZS_CTNR_CREATE);
 
     /* Set some objects */
     set_obj(ctr1, "white", "horse");
@@ -51,11 +51,11 @@ test(fdf_t *fdf)
     show_objs(ctr2);
 
     /* Close containers */
-    fdf_ctr_close(ctr1, NULL);
-    fdf_ctr_close(ctr2, NULL);
+    fdf.ctr_close(ctr1, NULL);
+    fdf.ctr_close(ctr2, NULL);
 
-    /* Close FDF */
-    fdf_done(fdf);
+    /* Close ZS */
+    zs_done(zs);
 }
 
 

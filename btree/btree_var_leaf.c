@@ -22,7 +22,7 @@
 * one of them dynamically as keys are inserted.  
 * 
 *  === Prefix of the keys ===
-* Keys could have common duplicate part at start of the keys, for e.g. the rowname in FDF-cassandra.
+* Keys could have common duplicate part at start of the keys, for e.g. the rowname in ZS-cassandra.
 * In order to avoid storing duplicate parts multiple time, we user prefix concept in node.
 * The kyes are split in to two parts, the first part if the prefix and second part is the short key.
 * The prefix is the part of key that is actually pointing to another key to left of this key.

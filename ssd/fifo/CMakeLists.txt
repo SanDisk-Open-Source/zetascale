@@ -3,7 +3,7 @@ add_library(fifo OBJECT fifo.c
 	mcd_bak.c
 	mcd_pfx.c
 	mcd_rec.c
-#	mcd_rep.c
+	mcd_rep.c
 	mcd_sync.c
 	mcd_hash.c
  	mcd_osd.c

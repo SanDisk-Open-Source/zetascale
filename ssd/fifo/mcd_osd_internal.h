@@ -39,21 +39,18 @@ typedef struct mcd_container {
     /*
      * container configuration
      */
+    int                         tcp_port;
+    int                         udp_port;
     int                         eviction;
     int                         persistent;
     int                         container_id;
     char                        cname[MCD_CNTR_NAME_MAXLEN];
     char                        cluster_name[64];
-    uint64_t                    size_quota;
-    uint32_t                    obj_quota;
-
-#if 0
-    int                         tcp_port;
-    int                         udp_port;
     int                         sync_backup;
     int                         sync_updates;
     uint32_t                    sync_msec;
-#endif
+    uint64_t                    size_quota;
+    uint32_t                    obj_quota;
 
     /*
      * stats

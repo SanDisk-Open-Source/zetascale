@@ -114,7 +114,7 @@
 #include	<assert.h>
 #include	<pthread.h>
 #include	<stdarg.h>
-#include	"fdf.h"
+#include	"zs.h"
 #include	"btree_hash.h"
 #include	"utils/properties.h"
 #include	"utils/rico.h"
@@ -141,7 +141,7 @@ typedef struct nodetrxstructure	nodetrx_t;
 typedef pthread_rwlock_t	rwlock_t;
 typedef pthread_mutex_t		mutex_t;
 typedef pthread_mutexattr_t	mutexattr_t;
-typedef struct FDF_thread_state	thread_state_t;
+typedef struct ZS_thread_state	thread_state_t;
 typedef uint64_t		timestamp_t;
 typedef enum pairorderenum	pairorder_t;
 
@@ -164,7 +164,7 @@ struct trxnodestructure {
 };
 struct nodestructure {
 	node_t		*next;
-	FDF_cguid_t	c;
+	ZS_cguid_t	c;
 	uint64_t	nid;
 	enum cachestate	cache;
 	nodetrx_t	*tlist;
@@ -200,7 +200,7 @@ static __thread trx_t	*trx;
 static int		trxproperty;
 static bool		trxverbose;
 
-static FDF_status_t	conclude( ),
+static ZS_status_t	conclude( ),
 			concludeself( );
 static uint64_t		reltime( );
 static trx_t		*tadd( trx_t *, trx_t *),
@@ -210,7 +210,7 @@ static trxnode_t	*tnsearch( node_t *, nodetrx_t *),
 			*tnadd( trxnode_t *, trxnode_t *),
 			*tndel( trxnode_t *, trxnode_t *),
 			*tnalloc( );
-static node_t		*nsearch( FDF_cguid_t c, uint64_t),
+static node_t		*nsearch( ZS_cguid_t c, uint64_t),
 			*nadd( node_t *, node_t *),
 			*ndel( node_t *, node_t *),
 			*nalloc( );
@@ -226,8 +226,8 @@ static void		schedule( ),
 			tnfree( trxnode_t *),
 			nfree( node_t *),
 			ntfree( nodetrx_t *),
-			track( FDF_cguid_t, uint64_t, bool);
-static uint		hash( FDF_cguid_t, uint64_t);
+			track( ZS_cguid_t, uint64_t, bool);
+static uint		hash( ZS_cguid_t, uint64_t);
 static timestamp_t	timestamp( );
 
 
@@ -260,7 +260,7 @@ static pairorder_t	pairoutcome[3][2][2];
 /*
  * start a trx cluster
  *
- * Start a new cluster in the FDF core, getting trx count.  Ensure average
+ * Start a new cluster in the ZS core, getting trx count.  Ensure average
  * trx size of N write ops is correct for your use case.  Locking assumed.
  */
 static void
@@ -269,7 +269,7 @@ startcluster( )
 
 	const uint N = 10;
 	uint n = N;
-	FDFTransactionService( 0, 2, &n);
+	ZSTransactionService( 0, 2, &n);
 	ntrxlimit += n;
 }
 #endif
@@ -287,43 +287,43 @@ trxinit( )
 	sem_init( &endlock, 0, 0);
 	pthread_rwlock_init( &entrylock, 0);
 	ntrxlimit += ntrxpermitted;
-	trxproperty = atoi( FDFGetProperty( "FDF_TRX", "0"));
+	trxproperty = atoi( ZSGetProperty( "ZS_TRX", "0"));
 	trxenabled = trxproperty & 1<<0;
 	trxverbose = trxproperty & 1<<1;
-	FDFTransactionService( 0, 4, (void *)(long)trxenabled);
+	ZSTransactionService( 0, 4, (void *)(long)trxenabled);
 	initpairoutcome( );
 }
 
 
-FDF_status_t
-_trxenter( FDF_cguid_t c)
+ZS_status_t
+_trxenter( ZS_cguid_t c)
 {
 
 	pthread_rwlock_rdlock( &entrylock);
-	return (FDF_SUCCESS);
+	return (ZS_SUCCESS);
 }
 
 
-FDF_status_t
-_trxleave( FDF_cguid_t c)
+ZS_status_t
+_trxleave( ZS_cguid_t c)
 {
 
 	pthread_rwlock_unlock( &entrylock);
-	return (FDF_SUCCESS);
+	return (ZS_SUCCESS);
 }
 
 
 #if 0//Rico
-FDF_status_t
+ZS_status_t
 _trxstart( thread_state_t *ts)
 {
 
 	if (trx) {
 		++trx->level;
-		return (FDF_SUCCESS);
+		return (ZS_SUCCESS);
 	}
 	unless (trx = talloc( ))
-		return (FDF_OUT_OF_MEM);
+		return (ZS_OUT_OF_MEM);
 	trx->ts = ts;
 	trx->level = 0;
 	trx->state = PROGRESSING;
@@ -331,8 +331,8 @@ _trxstart( thread_state_t *ts)
 	trx->hi = 0;
 	trx->nlist = 0;
 	sem_init( &trx->endlock, 0, 0);
-	FDF_status_t s = FDFTransactionStart( ts);
-	if (s == FDF_SUCCESS) {
+	ZS_status_t s = ZSTransactionStart( ts);
+	if (s == ZS_SUCCESS) {
 		++trx->level;
 		pthread_mutex_lock( &activetrxlock);
 		if (ntrxstarted < ntrxlimit) {
@@ -354,16 +354,16 @@ _trxstart( thread_state_t *ts)
 	return (s);
 }
 #else
-FDF_status_t
+ZS_status_t
 _trxstart( thread_state_t *ts)
 {
 
 	if (trx) {
 		++trx->level;
-		return (FDF_SUCCESS);
+		return (ZS_SUCCESS);
 	}
 	unless (trx = talloc( ))
-		return (FDF_OUT_OF_MEM);
+		return (ZS_OUT_OF_MEM);
 	trx->ts = ts;
 	trx->level = 0;
 	trx->state = PROGRESSING;
@@ -371,8 +371,8 @@ _trxstart( thread_state_t *ts)
 	trx->hi = 0;
 	trx->nlist = 0;
 	sem_init( &trx->startlock, 0, 0);
-	FDF_status_t s = FDFTransactionStart( ts);
-	unless (s == FDF_SUCCESS) {
+	ZS_status_t s = ZSTransactionStart( ts);
+	unless (s == ZS_SUCCESS) {
 		tfree( trx);
 		trx = 0;
 		return (s);
@@ -395,37 +395,37 @@ _trxstart( thread_state_t *ts)
 
 
 #if 0//Rico
-FDF_status_t 
+ZS_status_t 
 _trxcommit( thread_state_t *ts)
 {
 
 	unless (trx)
-		return (FDF_FAILURE_NO_TRANS);
+		return (ZS_FAILURE_NO_TRANS);
 	if (--trx->level)
-		return (FDF_SUCCESS);
+		return (ZS_SUCCESS);
 	trx->state = COMMITTING;
-	FDF_status_t s = conclude( );
+	ZS_status_t s = conclude( );
 	tfree( trx);
 	trx = 0;
 	return (s);
 }
 #else
-FDF_status_t 
+ZS_status_t 
 _trxcommit( thread_state_t *ts)
 {
-	FDF_status_t	s;
+	ZS_status_t	s;
 
 	unless (trx)
-		return (FDF_FAILURE_NO_TRANS);
+		return (ZS_FAILURE_NO_TRANS);
 	if (--trx->level)
-		return (FDF_SUCCESS);
+		return (ZS_SUCCESS);
 	trx->state = COMMITTING;
 	pthread_mutex_lock( &activetrxlock);
 	if (++ntrxconcluded < ntrxlimit)
-		s = FDFTransactionCommit( trx->ts);
+		s = ZSTransactionCommit( trx->ts);
 	else {
-		FDFTransactionService( ts, 3, 0);
-		s = FDFTransactionCommit( trx->ts);
+		ZSTransactionService( ts, 3, 0);
+		s = ZSTransactionCommit( trx->ts);
 		startcluster( );
 		trx_t *t;
 		while ((ntrxstarted < ntrxlimit)
@@ -445,18 +445,18 @@ _trxcommit( thread_state_t *ts)
 
 
 #if 0//Rico
-FDF_status_t 
+ZS_status_t 
 trxrollback( thread_state_t *ts)
 {
 
 	unless (trxenabled)
-		return (FDF_SUCCESS);
+		return (ZS_SUCCESS);
 	unless (trx)
-		return (FDF_FAILURE_NO_TRANS);
+		return (ZS_FAILURE_NO_TRANS);
 	if (--trx->level)
-		return (FDF_SUCCESS);
+		return (ZS_SUCCESS);
 	trx->state = ROLLINGBACK;
-	FDF_status_t s = conclude( );
+	ZS_status_t s = conclude( );
 	tfree( trx);
 	trx = 0;
 	return (s);
@@ -465,7 +465,7 @@ trxrollback( thread_state_t *ts)
 /*
  * (No rollback for Fast Mode; fake a successful outcome to pass DevTests)
  */
-FDF_status_t 
+ZS_status_t 
 trxrollback( thread_state_t *ts)
 {
 
@@ -474,13 +474,13 @@ trxrollback( thread_state_t *ts)
 #endif
 
 
-FDF_status_t 
+ZS_status_t 
 trxquit( thread_state_t *ts)
 {
 
 	unless (trxenabled)
-		return (FDF_SUCCESS);
-	return (FDFTransactionQuit( ts));
+		return (ZS_SUCCESS);
+	return (ZSTransactionQuit( ts));
 }
 
 
@@ -488,7 +488,7 @@ uint64_t
 trxid( thread_state_t *ts)
 {
 
-	return (FDFTransactionID( ts));
+	return (ZSTransactionID( ts));
 }
 
 
@@ -503,33 +503,33 @@ trxid( thread_state_t *ts)
  * trx for this thread).
  */
 void
-trxdeletecontainer( thread_state_t *ts, FDF_cguid_t c)
+trxdeletecontainer( thread_state_t *ts, ZS_cguid_t c)
 {
 
 	/* to do */
 }
 
 
-FDF_status_t
-_trxtrackread( FDF_cguid_t c, uint64_t nid)
+ZS_status_t
+_trxtrackread( ZS_cguid_t c, uint64_t nid)
 {
 
 	track( c, nid, FALSE);
-	return (FDF_SUCCESS);
+	return (ZS_SUCCESS);
 }
 
 
-FDF_status_t
-_trxtrackwrite( FDF_cguid_t c, uint64_t nid)
+ZS_status_t
+_trxtrackwrite( ZS_cguid_t c, uint64_t nid)
 {
 
 	track( c, nid, TRUE);
-	return (FDF_SUCCESS);
+	return (ZS_SUCCESS);
 }
 
 
 static void
-track( FDF_cguid_t c, uint64_t nid, bool written)
+track( ZS_cguid_t c, uint64_t nid, bool written)
 {
 
 	if (trx) {
@@ -570,7 +570,7 @@ limitretries( )
  * of nsDELAY makes a singleton trx wait awhile for others to arrive
  * (throughput/latency tradeoff).
  */
-static FDF_status_t
+static ZS_status_t
 conclude( )
 {
 	const uint	nsDELAY		= 3000;
@@ -592,7 +592,7 @@ conclude( )
 	}
 	schedule( );
 	pthread_rwlock_wrlock( &entrylock);
-	FDF_status_t sself = 0;
+	ZS_status_t sself = 0;
 	bool service = FALSE;
 	bool aborts = FALSE;
 	while (t = activetrxlist) {
@@ -605,7 +605,7 @@ conclude( )
 		}
 		if ((t->cardinal)
 		and (not service)) {
-			FDFTransactionService( trx->ts, 0, 0);
+			ZSTransactionService( trx->ts, 0, 0);
 			service = TRUE;
 		}
 		if (t == trx) {
@@ -634,33 +634,33 @@ conclude( )
 }
 
 
-static FDF_status_t
+static ZS_status_t
 concludeself( )
 {
-	FDF_status_t	s;
+	ZS_status_t	s;
 
 	sem_wait( &trx->endlock);
 	switch (trx->state) {
 	case COMMITTING:
-		s = FDFTransactionCommit( trx->ts);
-		unless (s == FDF_SUCCESS)
+		s = ZSTransactionCommit( trx->ts);
+		unless (s == ZS_SUCCESS)
 			purgecache( );
 		break;
 	case ROLLINGBACK:
-		s = FDFTransactionRollback( trx->ts);
+		s = ZSTransactionRollback( trx->ts);
 		purgecache( );
 		break;
 	case ABORTING:
-		s = FDFTransactionRollback( trx->ts);
-		if (s == FDF_SUCCESS)
-			s = FDF_FAILURE;
+		s = ZSTransactionRollback( trx->ts);
+		if (s == ZS_SUCCESS)
+			s = ZS_FAILURE;
 		purgecache( );
 		break;
 	default:
 		abort( );
 	}
 	if (trx->cardinal == 1)
-		FDFTransactionService( trx->ts, 1, 0);
+		ZSTransactionService( trx->ts, 1, 0);
 	tdestroy( );
 	sem_post( &endlock);
 	return (s);
@@ -874,7 +874,7 @@ tnfree( trxnode_t *tn)
  * Locking assumed.
  */
 static node_t	*
-nsearch( FDF_cguid_t c, uint64_t nid)
+nsearch( ZS_cguid_t c, uint64_t nid)
 {
 
 	uint h = hash( c, nid) % nel( nodetable);
@@ -906,7 +906,7 @@ nsearch( FDF_cguid_t c, uint64_t nid)
  * this point.  Locking assumed.
  */
 static void
-ndestroy( FDF_cguid_t c, uint64_t nid)
+ndestroy( ZS_cguid_t c, uint64_t nid)
 {
 	node_t		*n;
 
@@ -1103,17 +1103,17 @@ int
 trx_cmd_cb( int cmd, ...)
 {
 	extern __thread thread_state_t	*my_thd_state;
-	uint64_t	seqnoalloc( struct FDF_thread_state *);
+	uint64_t	seqnoalloc( struct ZS_thread_state *);
 	va_list		va;
 
 	switch (cmd) {
 	case TRX_ENABLED:
 		return (trxenabled);
 	case TRX_START:
-		FDFTransactionStart( my_thd_state);
+		ZSTransactionStart( my_thd_state);
 		return (1);
 	case TRX_COMMIT:
-		FDFTransactionCommit( my_thd_state);
+		ZSTransactionCommit( my_thd_state);
 		return (1);
 	case TRX_SEQNOALLOC:
 		va_start( va, cmd);
@@ -1131,22 +1131,22 @@ trx_cmd_cb( int cmd, ...)
 	pthread_mutex_lock( &nodetablelock);
 	switch (cmd) {
 	case TRX_CACHE_ADD:
-		n = nsearch( *(FDF_cguid_t *)v0, (uint64_t)v1);
+		n = nsearch( *(ZS_cguid_t *)v0, (uint64_t)v1);
 		n->cache = CACHED;
 		break;
 	case TRX_CACHE_DEL:
-		n = nsearch( *(FDF_cguid_t *)v0, (uint64_t)v1);
+		n = nsearch( *(ZS_cguid_t *)v0, (uint64_t)v1);
 		n->cache = UNCACHED;
 		unless (n->tlist)
-			ndestroy( *(FDF_cguid_t *)v0, (uint64_t)v1);
+			ndestroy( *(ZS_cguid_t *)v0, (uint64_t)v1);
 		break;
 	case TRX_CACHE_QUERY:
-		if (n = nsearch( *(FDF_cguid_t *)v0, (uint64_t)v1)) {
+		if (n = nsearch( *(ZS_cguid_t *)v0, (uint64_t)v1)) {
 			if (n->cache == INVALID)
 				if (n->tlist)
 					n->cache = UNCACHED;
 				else
-					ndestroy( *(FDF_cguid_t *)v0, (uint64_t)v1);
+					ndestroy( *(ZS_cguid_t *)v0, (uint64_t)v1);
 			else {
 				if (trx)
 					ntsearch( n)->hi = timestamp( );
@@ -1166,7 +1166,7 @@ trx_cmd_cb( int cmd, ...)
 
 
 static uint
-hash( FDF_cguid_t c, uint64_t nid)
+hash( ZS_cguid_t c, uint64_t nid)
 {
 
 	return (c ^ nid);
@@ -1207,7 +1207,7 @@ reltime( )
 /*
  * Description: Ordered pairs
  *
- * Each interaction between a trx and an FDF object (node in b-tree parlance)
+ * Each interaction between a trx and an ZS object (node in b-tree parlance)
  * is tracked during the Transaction Phase by one nodetrx struct: read vs
  * write, and time.  If multiple accesses occur, the time range is enlarged.
  * Any write op will mark the entire range as a write.
@@ -1430,7 +1430,7 @@ topsort( )
  * (in commitment order).  For caller's convenience, trx for roll back are
  * assigned cardinal numbers descending to 1: this is used to trigger the
  * aggregated roll back.  The actual order of rollback is determined with
- * op resolution when the final roll back is submitted to the FDF core.
+ * op resolution when the final roll back is submitted to the ZS core.
  * Cardinal for commitment trx is 0.  Roll backs must be performed before
  * commitments.
  *

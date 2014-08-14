@@ -30,7 +30,7 @@ typedef uint64_t btree_indexid_t;          // persistent opaque index handle
 
 typedef enum btree_range_status {
 	BTREE_RANGE_STATUS_NONE     = 0,
-	BTREE_RANGE_SUCCESS         = 1,   // Kept as 1 to align with FDF for now
+	BTREE_RANGE_SUCCESS         = 1,   // Kept as 1 to align with ZS for now
 	BTREE_KEY_BUFFER_TOO_SMALL  = 2,
 	BTREE_DATA_BUFFER_TOO_SMALL = 4,
 	BTREE_RANGE_PAUSED          = 8
@@ -38,7 +38,7 @@ typedef enum btree_range_status {
 
 typedef enum {
 	RANGE_BUFFER_PROVIDED      = 1<<0,  // buffers for keys and data provided by application
-	RANGE_ALLOC_IF_TOO_SMALL   = 1<<1,  // if supplied buffers are too small, FDF will allocate
+	RANGE_ALLOC_IF_TOO_SMALL   = 1<<1,  // if supplied buffers are too small, ZS will allocate
 
 	RANGE_SEQNO_EQ             = 1<<4,  // only return objects = seqno
 	RANGE_SEQNO_LE             = 1<<5,  // only return objects with seqno <= end_seq
@@ -86,7 +86,7 @@ typedef struct {
 	struct btree_raw              *btree;       // BTree we are operating on. We might need this for joins??
 	btree_range_meta_t   query_meta;  // Metadata for this current search
 	struct btree_raw_mem_node *node;
-	FDF_cguid_t cguid;
+	ZS_cguid_t cguid;
 	int16_t cur_idx;
 	int16_t end_idx;
 	int16_t start_idx;
@@ -99,8 +99,8 @@ typedef struct {
 
 /* Start an index query.
  * 
- * Returns: FDF_SUCCESS if successful
- *          FDF_FAILURE if unsuccessful
+ * Returns: ZS_SUCCESS if successful
+ *          ZS_FAILURE if unsuccessful
  */
 btree_status_t
 btree_range_query_start(btree_t                 *btree,    //  Btree to query for
@@ -128,11 +128,11 @@ typedef struct btree_range_data {
  * pre-populated with buffers provided by the application (with sizes that were
  * specified in 'meta' when the index query was started).  If the application provided
  * buffer is too small for returned item 'i', the status for that item will 
- * be FDF_BUFFER_TOO_SMALL; if the ALLOC_IF_TOO_SMALL flag is set, FDF will allocate
+ * be ZS_BUFFER_TOO_SMALL; if the ALLOC_IF_TOO_SMALL flag is set, ZS will allocate
  * a new buffer whenever the provided buffer is too small.
  * 
  * If the SEQNO_LE flag is set, only items whose sequence number is less than or
- * equal to 'end_seq' from FDF_range_meta_t above are returned.
+ * equal to 'end_seq' from ZS_range_meta_t above are returned.
  * If there are multiple versions of an item that satisfy the inequality,
  * always return the most recent version.
  *
@@ -145,13 +145,13 @@ typedef struct btree_range_data {
  * is returned.
  * 
  * 
- * Returns: FDF_SUCCESS    if all statuses are successful
- *          FDF_QUERY_DONE if query is done (n_out will be set to 0)
- *          FDF_FAILURE    if one or more of the key fetches fails (see statuses for the
+ * Returns: ZS_SUCCESS    if all statuses are successful
+ *          ZS_QUERY_DONE if query is done (n_out will be set to 0)
+ *          ZS_FAILURE    if one or more of the key fetches fails (see statuses for the
  *                         status of each fetched object)
  * 
- * statuses[i] returns: FDF_SUCCESS if the i'th data item was retrieved successfully
- *                      FDF_BUFFER_TOO_SMALL  if the i'th buffer was too small to retrieve the object
+ * statuses[i] returns: ZS_SUCCESS if the i'th data item was retrieved successfully
+ *                      ZS_BUFFER_TOO_SMALL  if the i'th buffer was too small to retrieve the object
  */
 btree_status_t
 btree_range_get_next(btree_range_cursor_t *cursor,   //  cursor for this indexed search
@@ -161,8 +161,8 @@ btree_range_get_next(btree_range_cursor_t *cursor,   //  cursor for this indexed
 
 /* End an index query.
  * 
- * Returns: FDF_SUCCESS if successful
- *          FDF_UNKNOWN_CURSOR if the cursor is invalid
+ * Returns: ZS_SUCCESS if successful
+ *          ZS_UNKNOWN_CURSOR if the cursor is invalid
  */
 btree_status_t
 btree_range_query_end(btree_range_cursor_t *cursor);

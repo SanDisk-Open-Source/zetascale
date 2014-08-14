@@ -31,11 +31,11 @@ enum_start(void *arg)
 {
     char *err;
     uint64_t   num = 0;
-    fdf_ctr_t *ctr = arg;
+    fdf.ctr_t *ctr = arg;
 
-    fdf_iter_t *iter = fdf_iter_init(ctr, &err);
+    zs_iter_t *iter = zs_iter_init(ctr, &err);
     if (!iter)
-        die_err(err, "fdf_iter_init failed");
+        die_err(err, "zs_iter_init failed");
 
     for (;;) {
         char *key;
@@ -43,16 +43,16 @@ enum_start(void *arg)
         uint64_t keylen;
         uint64_t datalen;
 
-        int s = fdf_iter_next(iter, &key, &keylen, &data, &datalen, &err);
+        int s = zs_iter_next(iter, &key, &keylen, &data, &datalen, &err);
         if (s < 0)
-            die_err(err, "fdf_iter_next failed");
+            die_err(err, "zs_iter_next failed");
         if (s == 0)
             break;
         num++;
     }
 
-    if (!fdf_iter_done(iter, &err))
-        die_err(err, "fdf_iter_done failed");
+    if (!zs_iter_done(iter, &err))
+        die_err(err, "zs_iter_done failed");
     if (num != Objects)
         die("enumerated %ld/%ld objects", num, Objects);
     printv("enumerated %ld/%ld objects", num, Objects);
@@ -64,7 +64,7 @@ enum_start(void *arg)
  * Enumerate simultaneously using multiple threads.
  */
 static void
-enum_m(fdf_ctr_t *ctr, int num_threads)
+enum_m(fdf.ctr_t *ctr, int num_threads)
 {
     int t;
     pthread_t *threads = malloc_q(num_threads * sizeof(pthread_t));
@@ -85,14 +85,14 @@ enum_m(fdf_ctr_t *ctr, int num_threads)
  * A test.
  */
 static void
-test(fdf_t *fdf)
+test(zs_t *zs)
 {
-    test_init(fdf, Name);
+    test_init(zs, Name);
 
-    fdf_ctr_t *ctr = open_ctr(fdf, "C0", FDF_CTNR_CREATE);
+    fdf.ctr_t *ctr = open_ctr(zs, "C0", ZS_CTNR_CREATE);
     set_objs_m(ctr, 0, Objects, 16, 32, Threads);
     enum_m(ctr, Threads);
-    fdf_ctr_close(ctr, NULL);
+    fdf.ctr_close(ctr, NULL);
 }
 
 

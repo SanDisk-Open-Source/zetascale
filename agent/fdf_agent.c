@@ -56,7 +56,7 @@
 #include "protocol/replication/replicator_adapter.h"
 #include "utils/properties.h"
 #include "agent_helper.h"
-//#define PLAT_OPTS_NAME(name) name ## _fdf_agent
+//#define PLAT_OPTS_NAME(name) name ## _zs_agent
 //#include "platform/opts.h"
 
 #include "agent_common.h"
@@ -101,7 +101,7 @@ static SDF_boolean_t SDFEnable_Replication = SDF_FALSE;
  * @return status, SDF_TRUE on success
  */
 static SDF_boolean_t
-fdf_agent_engine_pre_init_internal(struct sdf_agent_state *state) {
+zs_agent_engine_pre_init_internal(struct sdf_agent_state *state) {
     int numScheds;
     uint32_t sdf_msg_numprocs;
 
@@ -154,7 +154,7 @@ fdf_agent_engine_pre_init_internal(struct sdf_agent_state *state) {
  * 
  * @return status, SDF_TRUE on success
  */
-SDF_boolean_t fdf_agent_engine_pre_init(struct sdf_agent_state *state)
+SDF_boolean_t zs_agent_engine_pre_init(struct sdf_agent_state *state)
 {
     SDF_boolean_t  success = SDF_TRUE;
     const char    *sdf_mode_string;
@@ -163,7 +163,7 @@ SDF_boolean_t fdf_agent_engine_pre_init(struct sdf_agent_state *state)
 
     agent_config_set_defaults(&state->config);
     /* Set the log file if configured*/
-    getPropertyFromFile(state->config.propertyFileName, "FDF_LOG_FILE",log_file);
+    strncpy(log_file,getProperty_String("ZS_LOG_FILE",log_file),sizeof(log_file)-1);
     if( strcmp(log_file,"") ) {
         plat_log_set_file(log_file, PLAT_LOG_REDIRECT_STDERR|PLAT_LOG_REDIRECT_STDOUT);
     }
@@ -222,7 +222,7 @@ SDF_boolean_t fdf_agent_engine_pre_init(struct sdf_agent_state *state)
     }
 
     if (success) {
-        success = fdf_agent_engine_pre_init_internal(state);
+        success = zs_agent_engine_pre_init_internal(state);
     }
 
     return (success);

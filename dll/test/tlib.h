@@ -6,7 +6,7 @@
 #define TLIB_H
 
 #include <stdio.h>
-#include "fdf_easy.h"
+#include "zs_easy.h"
 #include "test.h"
 
 
@@ -19,22 +19,22 @@
 
 void die(char *fmt, ...);
 void printv(char *fmt, ...);
-void show_objs(fdf_ctr_t *ctr);
-void flush_ctr(fdf_ctr_t *ctr);
-void delete_ctr(fdf_ctr_t *ctr);
+void show_objs(fdf.ctr_t *ctr);
+void flush_ctr(fdf.ctr_t *ctr);
+void delete_ctr(fdf.ctr_t *ctr);
 void fill_patn(char *buf, int len);
-void test_init(fdf_t *fdf, char *name);
-void del_obj(fdf_ctr_t *ctr, char *key);
+void test_init(zs_t *zs, char *name);
+void del_obj(fdf.ctr_t *ctr, char *key);
 void die_err(char *err, char *fmt, ...);
-void reopen_ctr(fdf_ctr_t *ctr, int mode);
-void set_obj(fdf_ctr_t *ctr, char *key, char *value);
-void show_obj(fdf_ctr_t *ctr, char *key, char *value);
+void reopen_ctr(fdf.ctr_t *ctr, int mode);
+void set_obj(fdf.ctr_t *ctr, char *key, char *value);
+void show_obj(fdf.ctr_t *ctr, char *key, char *value);
 void fill_uint(char *buf, int len, unsigned long num);
-void set_objs_m(fdf_ctr_t *ctr, int obj_min, int obj_max,
+void set_objs_m(fdf.ctr_t *ctr, int obj_min, int obj_max,
                 int key_len, int val_len, int num_threads);
 
 void      *malloc_q(long size);
 void      *realloc_q(void *ptr, long size);
-fdf_ctr_t *open_ctr(fdf_t *fdf, char *name, int mode);
+fdf.ctr_t *open_ctr(zs_t *zs, char *name, int mode);
 
 #endif /* TLIB_H */

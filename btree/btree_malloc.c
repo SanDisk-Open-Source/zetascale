@@ -1,5 +1,5 @@
 /*
- * Malloc and memcpy wrappers for FDF/Btree.
+ * Malloc and memcpy wrappers for ZS/Btree.
  * Author: Ramesh Chander.
  * Created on Nov, 2013.
  * (c) Sandisk Inc.

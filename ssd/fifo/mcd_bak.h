@@ -9,7 +9,6 @@
  *
  * $Id: mcd_bak.h 14160 2010-06-14 22:16:12Z hiney $
  */
-#ifdef BACKUP_SUPPORT
 
 #ifndef __MCD_BAK_H__
 #define __MCD_BAK_H__
@@ -149,4 +148,3 @@ inline int restore_requires_conversion( mcd_osd_shard_t * shard );
 
 
 #endif
-#endif // BACKUP_SUPPORT

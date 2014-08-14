@@ -1,5 +1,5 @@
 /****************************
-#function : FDFDeleteObject
+#function : ZSDeleteObject
 #author   : AliceXu
 #date     : 2012.11.10
 *****************************/
@@ -8,36 +8,36 @@
 #include <assert.h>
 #include <unistd.h>
 #include <string.h>
-#include "fdf.h"
+#include "zs.h"
 
 FILE *fp;
-static struct FDF_state        *fdf_state;
-static struct FDF_thread_state *fdf_thrd_state;
-//FDF_config_t                   *fdf_config;
-FDF_cguid_t                    cguid;
+static struct ZS_state        *zs_state;
+static struct ZS_thread_state *zs_thrd_state;
+//ZS_config_t                   *fdf.config;
+ZS_cguid_t                    cguid;
 char *testname[10] = { NULL } ;
 int result[2][10][3] = {{{0}}};
 //uint32_t mode[6][4] = {{0,0,0,1},{0,1,0,1},{0,1,1,0},{0,1,1,1},{1,0,1,0},{1,0,1,1}};
 
-FDF_status_t pre_env()
+ZS_status_t pre_env()
 {
-    FDF_status_t ret;
+    ZS_status_t ret;
 
-//    (void)FDFLoadConfigDefaults(fdf_config, NULL);
-//  if (FDFInit(&fdf_state, fdf_config) != FDF_SUCCESS) {
+//    (void)ZSLoadConfigDefaults(fdf.config, NULL);
+//  if (ZSInit(&zs_state, fdf.config) != ZS_SUCCESS) {
     
-    ret = FDFInit(&fdf_state);
-    if (ret != FDF_SUCCESS)
+    ret = ZSInit(&zs_state);
+    if (ret != ZS_SUCCESS)
     {
-        fprintf(fp, "FDF initialization failed!\n");
+        fprintf(fp, "ZS initialization failed!\n");
     }else{
-        fprintf(fp, "FDF initialization passed!\n");
-        ret = FDFInitPerThreadState(fdf_state, &fdf_thrd_state);
-        if( FDF_SUCCESS == ret)
+        fprintf(fp, "ZS initialization passed!\n");
+        ret = ZSInitPerThreadState(zs_state, &zs_thrd_state);
+        if( ZS_SUCCESS == ret)
         {
-            fprintf(fp, "FDF thread initialization passed!\n");
+            fprintf(fp, "ZS thread initialization passed!\n");
         }else{
-            fprintf(fp, "FDF thread initialization failed!\n");
+            fprintf(fp, "ZS thread initialization failed!\n");
         }
     }
     return ret;
@@ -45,19 +45,19 @@ FDF_status_t pre_env()
 
 void clear_env()
 {
-    (void)FDFReleasePerThreadState(&fdf_thrd_state);
-    (void)FDFShutdown(fdf_state);
+    (void)ZSReleasePerThreadState(&zs_thrd_state);
+    (void)ZSShutdown(zs_state);
     fprintf(fp, "clear env\n");
 }
 
-FDF_status_t OpenContainer(char *cname, uint32_t flag, uint32_t asyncwrite, 
+ZS_status_t OpenContainer(char *cname, uint32_t flag, uint32_t asyncwrite, 
                            uint32_t dura)
 {
-    FDF_status_t          ret;
-    FDF_container_props_t p;
+    ZS_status_t          ret;
+    ZS_container_props_t p;
 
-    ret = FDF_FAILURE;        
-    (void)FDFLoadCntrPropDefaults(&p);
+    ret = ZS_FAILURE;        
+    (void)ZSLoadCntrPropDefaults(&p);
     p.async_writes = asyncwrite;
     p.durability_level = dura;
     p.fifo_mode = 0;
@@ -67,70 +67,70 @@ FDF_status_t OpenContainer(char *cname, uint32_t flag, uint32_t asyncwrite,
     p.num_shards = 1;
     p.evicting = 0;
  
-    ret = FDFOpenContainer(
-                        fdf_thrd_state,
+    ret = ZSOpenContainer(
+                        zs_thrd_state,
                         cname,
                         &p,
                         flag,
                         &cguid
                         );
-    fprintf(fp,"FDFOpenContainer : ");
+    fprintf(fp,"ZSOpenContainer : ");
     fprintf(fp,"container type: %d\n",dura);
-    fprintf(fp,"open result: %s\n",FDFStrError(ret));
+    fprintf(fp,"open result: %s\n",ZSStrError(ret));
     return ret;
 }
 
-FDF_status_t CloseContainer(FDF_cguid_t cid)
+ZS_status_t CloseContainer(ZS_cguid_t cid)
 {
-    FDF_status_t ret;
-    ret = FDFCloseContainer(fdf_thrd_state, cid);
-    fprintf(fp,"FDFCloseContainer : ");
-    fprintf(fp,"%s\n",FDFStrError(ret));
+    ZS_status_t ret;
+    ret = ZSCloseContainer(zs_thrd_state, cid);
+    fprintf(fp,"ZSCloseContainer : ");
+    fprintf(fp,"%s\n",ZSStrError(ret));
     return ret;
 }
 
-FDF_status_t DeleteContainer(FDF_cguid_t cid)
+ZS_status_t DeleteContainer(ZS_cguid_t cid)
 {
-    FDF_status_t ret;
-    ret = FDFDeleteContainer(fdf_thrd_state, cid);
-    fprintf(fp,"FDFDeleteContainer : ");
-    fprintf(fp,"%s\n",FDFStrError(ret));
+    ZS_status_t ret;
+    ret = ZSDeleteContainer(zs_thrd_state, cid);
+    fprintf(fp,"ZSDeleteContainer : ");
+    fprintf(fp,"%s\n",ZSStrError(ret));
     return ret;
 }
 
-FDF_status_t WriteObject(FDF_cguid_t cid,char *key,uint32_t keylen,char *data,uint64_t datalen,uint32_t flags)
+ZS_status_t WriteObject(ZS_cguid_t cid,char *key,uint32_t keylen,char *data,uint64_t datalen,uint32_t flags)
 {
-    FDF_status_t ret;
-    ret = FDFWriteObject(fdf_thrd_state, cid, key, keylen, data, datalen, flags);
-    fprintf(fp,"FDFWriteObject : ");
-    fprintf(fp,"%s\n",FDFStrError(ret));
+    ZS_status_t ret;
+    ret = ZSWriteObject(zs_thrd_state, cid, key, keylen, data, datalen, flags);
+    fprintf(fp,"ZSWriteObject : ");
+    fprintf(fp,"%s\n",ZSStrError(ret));
     return ret;
 }
 
-FDF_status_t ReadObject(FDF_cguid_t cid,char *key,uint32_t keylen,char **data,uint64_t *datalen)
+ZS_status_t ReadObject(ZS_cguid_t cid,char *key,uint32_t keylen,char **data,uint64_t *datalen)
 {
-    FDF_status_t ret;
-    ret = FDFReadObject(fdf_thrd_state,cid,key,keylen,data,datalen);
-    fprintf(fp,"FDFReadObject : ");
-    fprintf(fp,"%s\n",FDFStrError(ret));
+    ZS_status_t ret;
+    ret = ZSReadObject(zs_thrd_state,cid,key,keylen,data,datalen);
+    fprintf(fp,"ZSReadObject : ");
+    fprintf(fp,"%s\n",ZSStrError(ret));
     return ret;
 }
 
-FDF_status_t DeleteObject(FDF_cguid_t cid,char *key,uint32_t keylen)
+ZS_status_t DeleteObject(ZS_cguid_t cid,char *key,uint32_t keylen)
 {
-    FDF_status_t ret;
-    ret = FDFDeleteObject(fdf_thrd_state,cid,key,keylen);
-    fprintf(fp,"FDFDeleteObject : ");
-    fprintf(fp,"%s\n",FDFStrError(ret));
+    ZS_status_t ret;
+    ret = ZSDeleteObject(zs_thrd_state,cid,key,keylen);
+    fprintf(fp,"ZSDeleteObject : ");
+    fprintf(fp,"%s\n",ZSStrError(ret));
     return ret;
 }
 
-FDF_status_t GetContainers(FDF_cguid_t *cid, uint32_t *n_cguids)
+ZS_status_t GetContainers(ZS_cguid_t *cid, uint32_t *n_cguids)
 {
-    FDF_status_t ret;
-    ret = FDFGetContainers(fdf_thrd_state, cid, n_cguids);
+    ZS_status_t ret;
+    ret = ZSGetContainers(zs_thrd_state, cid, n_cguids);
     fprintf(fp,"GetContainers : ");
-    fprintf(fp,"%s\n",FDFStrError(ret));
+    fprintf(fp,"%s\n",ZSStrError(ret));
     return ret;
 }
 
@@ -138,26 +138,26 @@ FDF_status_t GetContainers(FDF_cguid_t *cid, uint32_t *n_cguids)
 
 int test_with_invalid_cguid(uint32_t aw)
 {
-    FDF_status_t ret;
+    ZS_status_t ret;
     int tag = 0;
     testname[0] = "#test0:delete object with invalid cguids.";
     fprintf(fp,"****** async write = %d ******\n",aw);
     fprintf(fp,"%s\n",testname[0]);
 
     ret = DeleteObject(0, "xxxx", 5);
-    if(FDF_CONTAINER_UNKNOWN == ret)
+    if(ZS_CONTAINER_UNKNOWN == ret)
     {
         tag += 1;
         result[aw][0][0] = 1;
     }
     ret = DeleteObject(-1, "xxxx", 5);
-    if(FDF_CONTAINER_UNKNOWN == ret)
+    if(ZS_CONTAINER_UNKNOWN == ret)
     {
         tag += 1;
         result[aw][0][1] = 1;
     }
     ret = DeleteObject(11111111111, "xxxx", 5);
-    if(FDF_CONTAINER_UNKNOWN == ret)
+    if(ZS_CONTAINER_UNKNOWN == ret)
     {
         tag += 1;
         result[aw][0][2] = 1;
@@ -167,7 +167,7 @@ int test_with_invalid_cguid(uint32_t aw)
 
 int test_with_noexist_object(uint32_t aw)
 {
-    FDF_status_t ret;
+    ZS_status_t ret;
     int tag = 0;
     testname[1] = "#test1: delete none-exist objects.";
     fprintf(fp,"****** async write = %d ******\n",aw);
@@ -176,10 +176,10 @@ int test_with_noexist_object(uint32_t aw)
     for(int i = 0; i < 3; i++)
     {
         ret = OpenContainer("test1", 1, aw, i);
-        if(FDF_SUCCESS == ret)
+        if(ZS_SUCCESS == ret)
         {
             ret = DeleteObject(cguid, "xxxx", 5);
-            if(FDF_OBJECT_UNKNOWN == ret)
+            if(ZS_OBJECT_UNKNOWN == ret)
             {
                 tag += 1;
                 result[aw][1][i] = 1;
@@ -193,7 +193,7 @@ int test_with_noexist_object(uint32_t aw)
 
 int test_close_open_deleteobject(uint32_t aw)
 {
-    FDF_status_t ret;
+    ZS_status_t ret;
     int tag = 0;
     testname[2] = "#test2:open c/write o/close c/delete o/openc/delete o.";
     fprintf(fp,"****** async write = %d ******\n",aw);
@@ -202,23 +202,23 @@ int test_close_open_deleteobject(uint32_t aw)
     for(int i = 0; i < 3; i++)
     {
         ret = OpenContainer("test2", 1, aw, i);
-        if(FDF_SUCCESS == ret)
+        if(ZS_SUCCESS == ret)
         {
             ret = WriteObject(cguid, "xxxx", 5, "yyyyyyy", 7, 1);
-            if(FDF_SUCCESS == ret)
+            if(ZS_SUCCESS == ret)
             {
-                if(FDF_SUCCESS == CloseContainer(cguid))
+                if(ZS_SUCCESS == CloseContainer(cguid))
                 {
 
                     ret = DeleteObject(cguid, "xxxx", 5);
-                    if(FDF_FAILURE == ret)
+                    if(ZS_FAILURE == ret)
                     {
                        result[aw][2][i] += 1;
                     }
-                   if(FDF_SUCCESS == OpenContainer("test2", 4, aw, i))
+                   if(ZS_SUCCESS == OpenContainer("test2", 4, aw, i))
                    {
                     ret = DeleteObject(cguid, "xxxx", 5);
-                    if(FDF_SUCCESS == ret)
+                    if(ZS_SUCCESS == ret)
                     {
                         result[aw][2][i] += 1;
                     }
@@ -241,7 +241,7 @@ int test_close_open_deleteobject(uint32_t aw)
 
 int test_basic_check(uint32_t aw)
 {
-    FDF_status_t ret;
+    ZS_status_t ret;
     int tag = 0;
     testname[3] = "test3: delete object basic check.";
     fprintf(fp,"******* async write = %d ******\n",aw);
@@ -255,13 +255,13 @@ int test_basic_check(uint32_t aw)
     for(int i = 0; i < 3; i++)
     {
         ret = OpenContainer("test3", 1, aw, i);
-        if(FDF_SUCCESS == ret)
+        if(ZS_SUCCESS == ret)
         {
             ret = WriteObject(cguid, "xxxx", 5, data, datalen, 1);
-            if(FDF_SUCCESS == ret)
+            if(ZS_SUCCESS == ret)
             {
                 ret = DeleteObject(cguid, "xxxx", 5);
-                if(FDF_SUCCESS == ret)
+                if(ZS_SUCCESS == ret)
                 {
                     tag += 1;
                     result[aw][3][i] = 1;
@@ -278,7 +278,7 @@ int test_basic_check(uint32_t aw)
 
 int test_double_deleteobject(uint32_t aw)
 {
-    FDF_status_t ret;
+    ZS_status_t ret;
     int tag = 0;
     testname[4] = "#test4:double delete object.";
     fprintf(fp,"******* async write = %d ******\n",aw);
@@ -287,15 +287,15 @@ int test_double_deleteobject(uint32_t aw)
     for(int i = 0; i < 3; i++)
     {
         ret = OpenContainer("test4", 1, aw, i);
-        if(FDF_SUCCESS == ret)
+        if(ZS_SUCCESS == ret)
         {
-            if(FDF_SUCCESS == WriteObject(cguid, "xxx", 4, "xxxx", 5, FDF_WRITE_MUST_NOT_EXIST))
+            if(ZS_SUCCESS == WriteObject(cguid, "xxx", 4, "xxxx", 5, ZS_WRITE_MUST_NOT_EXIST))
             {
                 ret = DeleteObject(cguid, "xxx", 4);
-                if(FDF_SUCCESS == ret)
+                if(ZS_SUCCESS == ret)
                 {
                     ret = DeleteObject(cguid, "xxx", 4);
-                    if(FDF_OBJECT_UNKNOWN == ret)
+                    if(ZS_OBJECT_UNKNOWN == ret)
                     {
                         tag += 1;
                         result[aw][4][i] = 1;
@@ -311,7 +311,7 @@ int test_double_deleteobject(uint32_t aw)
 
 int test_doublewrite_delete(uint32_t aw)
 {
-    FDF_status_t ret;
+    ZS_status_t ret;
     int tag = 0;
     testname[5] = "#test5: write twice and delete object. ";
     fprintf(fp,"******* async write = %d ******\n",aw);
@@ -325,14 +325,14 @@ int test_doublewrite_delete(uint32_t aw)
     for(int i = 0; i < 3; i++)
     {
         ret = OpenContainer("test4", 1, aw, i);
-        if(FDF_SUCCESS == ret)
+        if(ZS_SUCCESS == ret)
         {
-            if(FDF_SUCCESS == WriteObject(cguid, "dd", 3, data, datalen, FDF_WRITE_MUST_NOT_EXIST))
+            if(ZS_SUCCESS == WriteObject(cguid, "dd", 3, data, datalen, ZS_WRITE_MUST_NOT_EXIST))
             {
-                if(FDF_SUCCESS == WriteObject(cguid, "dd", 3, "jssd", 5, FDF_WRITE_MUST_EXIST))
+                if(ZS_SUCCESS == WriteObject(cguid, "dd", 3, "jssd", 5, ZS_WRITE_MUST_EXIST))
                 {
                      ret = DeleteObject(cguid, "dd", 3);
-                     if(FDF_SUCCESS == ret)
+                     if(ZS_SUCCESS == ret)
                      {
                         tag += 1;
                         result[aw][5][i] = 1;
@@ -348,7 +348,7 @@ int test_doublewrite_delete(uint32_t aw)
 
 int test_invalid_key_keylen(uint32_t aw)
 {
-    FDF_status_t ret;
+    ZS_status_t ret;
     int tag = 0;
     testname[6] = "#test6: delete object with invalid key/keylen.";
     fprintf(fp,"******* async write = %d ******\n",aw);
@@ -356,33 +356,33 @@ int test_invalid_key_keylen(uint32_t aw)
     for(int i = 0; i < 3; i++)
     {
         ret = OpenContainer("test4", 1, aw, i);
-        if(FDF_SUCCESS == ret)
+        if(ZS_SUCCESS == ret)
         {
             (void)WriteObject(cguid, "dd", 3, "sss", 4, 1);
 /*
             ret = DeleteObject(cguid, NULL, 3);
-            if(FDF_FAILURE == ret)
+            if(ZS_FAILURE == ret)
             {
                 result[6][i] += 1;
             }
   */
             ret = DeleteObject(cguid, "dd", 0);
-            if(FDF_FAILURE == ret)
+            if(ZS_FAILURE == ret)
             {
                 result[aw][6][i] += 1;
             }
             ret = DeleteObject(cguid, "dd", 555);
-            if(FDF_FAILURE == ret)
+            if(ZS_FAILURE == ret)
             {
                 result[aw][6][i] += 1;
             }
             ret = DeleteObject(cguid, "sss", 3);
-            if(FDF_FAILURE == ret)
+            if(ZS_FAILURE == ret)
             {
                 result[aw][6][i] += 1;
             }
             ret = DeleteObject(cguid, "dd", -1);
-            if(FDF_FAILURE == ret)
+            if(ZS_FAILURE == ret)
             {
                 result[aw][6][i] += 1;
             }
@@ -409,13 +409,13 @@ int main()
     int testnumber = 7;
 	int count      = 0;
     
-    if((fp = fopen("FDF_DeleteObject.log", "w+")) == 0)
+    if((fp = fopen("ZS_DeleteObject.log", "w+")) == 0)
     {
         fprintf(stderr, " open log file failed!.\n");
         return -1;
     }
 
-    if( FDF_SUCCESS == pre_env())
+    if( ZS_SUCCESS == pre_env())
     {
         for(uint32_t aw = 0; aw < 2; aw++)
         {
@@ -460,13 +460,13 @@ int main()
  }
     if(4*2 == count)
     {
-        fprintf(stderr, "#Test of FDFDeleteObject pass!\n");
-	fprintf(stderr, "#The related test script is FDF_DeleteObject.c\n");
-	fprintf(stderr, "#If you want, you can check test details in FDF_DeleteObject.log\n");
+        fprintf(stderr, "#Test of ZSDeleteObject pass!\n");
+	fprintf(stderr, "#The related test script is ZS_DeleteObject.c\n");
+	fprintf(stderr, "#If you want, you can check test details in ZS_DeleteObject.log\n");
     }else{
-        fprintf(stderr, "#Test of FDFDeleteObject fail!\n");
-	fprintf(stderr, "#The related test script is FDF_DeleteObject.c\n");
-	fprintf(stderr, "#If you want, you can check test details in FDF_DeleteObject.log\n");
+        fprintf(stderr, "#Test of ZSDeleteObject fail!\n");
+	fprintf(stderr, "#The related test script is ZS_DeleteObject.c\n");
+	fprintf(stderr, "#If you want, you can check test details in ZS_DeleteObject.log\n");
     }
 
 	return (!(4*2 == count));

@@ -1,4 +1,4 @@
-#include <fdf.h>
+#include <zs.h>
 #include <string.h>
 #include <unistd.h>
 #include <stdlib.h>
@@ -6,14 +6,14 @@
 #include <assert.h>
 
 
-#define FDF_MAX_KEY_LEN 1979
+#define ZS_MAX_KEY_LEN 1979
 #define NUM_OBJS 10000 //max mput in single operation
 #define NUM_MPUTS 1000000 
 
 //static int cur_thd_id = 0;
 static __thread int my_thdid = 0;
-//FDF_cguid_t cguid;
-struct FDF_state *fdf_state;
+//ZS_cguid_t cguid;
+struct ZS_state *zs_state;
 int num_mputs =  NUM_MPUTS;
 int num_objs = NUM_OBJS;
 int obj_data_len = 0;
@@ -58,30 +58,30 @@ get_time_usecs(void)
 
 
 void
-do_mput(struct FDF_thread_state *thd_state, FDF_cguid_t cguid,
+do_mput(struct ZS_thread_state *thd_state, ZS_cguid_t cguid,
 	uint32_t flags, int key_seed)
 {
 	int i, j, k;
-	FDF_status_t status;
-	FDF_obj_t *objs = NULL; 
+	ZS_status_t status;
+	ZS_obj_t *objs = NULL; 
 	uint64_t start_time;
-	uint64_t num_fdf_writes = 0;
-	uint64_t num_fdf_reads = 0;
-	uint64_t num_fdf_mputs = 0;
+	uint64_t num_zs_writes = 0;
+	uint64_t num_zs_reads = 0;
+	uint64_t num_zs_mputs = 0;
 	uint32_t objs_written = 0;
 	char *data;
 	uint64_t data_len;
 	uint64_t key_num = 0;
 	uint64_t mismatch = 0;
 
-	objs = (FDF_obj_t *) malloc(sizeof(FDF_obj_t) * num_objs);
+	objs = (ZS_obj_t *) malloc(sizeof(ZS_obj_t) * num_objs);
 	if (objs == NULL) {
 		printf("Cannot allocate memory.\n");
 		exit(0);
 	}
-	memset(objs, 0, sizeof(FDF_obj_t) * num_objs);
+	memset(objs, 0, sizeof(ZS_obj_t) * num_objs);
 	for (i = 0; i < num_objs; i++) {
-		objs[i].key = malloc(FDF_MAX_KEY_LEN);
+		objs[i].key = malloc(ZS_MAX_KEY_LEN);
 		if (objs[i].key == NULL) {
 			printf("Cannot allocate memory.\n");
 			exit(0);
@@ -98,13 +98,13 @@ do_mput(struct FDF_thread_state *thd_state, FDF_cguid_t cguid,
 	for (k = 1; k <= num_mputs; k++) {
 
 		for (i = 0; i < num_objs; i++) {
-			memset(objs[i].key, 0, FDF_MAX_KEY_LEN);
+			memset(objs[i].key, 0, ZS_MAX_KEY_LEN);
 			sprintf(objs[i].key, "key_%d_%06"PRId64"", my_thdid, key_num);
 
 			sprintf(objs[i].data, "key_%d_%06"PRId64"_%x", my_thdid, key_num, flags);
 			objs[i].data_len = strlen(objs[i].data) + 1;
 		
-			if (flags == FDF_WRITE_MUST_EXIST) { 
+			if (flags == ZS_WRITE_MUST_EXIST) { 
 				strncat(&objs[i].data[objs[i].data_len - 1], objs[i].data, objs[i].data_len - 1);
 			}
 			objs[i].data_len = strlen(objs[i].data) + 1;
@@ -115,19 +115,19 @@ do_mput(struct FDF_thread_state *thd_state, FDF_cguid_t cguid,
 			objs[i].key_len = strlen(objs[i].key) + 1;
 			objs[i].flags = 0;
 			if (!use_mput) {
-				status = FDFWriteObject(thd_state, cguid,
+				status = ZSWriteObject(thd_state, cguid,
 						        objs[i].key, objs[i].key_len,
 							objs[i].data, objs[i].data_len, flags);
-				if (status != FDF_SUCCESS) {
+				if (status != ZS_SUCCESS) {
 					printf("Write failed with %d errror.\n", status);
 					assert(0);
 				}
-				num_fdf_writes++;
+				num_zs_writes++;
 
-				status = FDFReadObject(thd_state, cguid,
+				status = ZSReadObject(thd_state, cguid,
 						       objs[i].key, objs[i].key_len,
 						       &data, &data_len);
-				if (status != FDF_SUCCESS) {
+				if (status != ZS_SUCCESS) {
 					printf("Rread failed after write.\n");
 					assert(0);
 				}
@@ -135,20 +135,20 @@ do_mput(struct FDF_thread_state *thd_state, FDF_cguid_t cguid,
 				assert(objs[i].data_len == data_len);
 
 				assert(memcmp(objs[i].data, data, data_len) == 0);
-				FDFFreeBuffer(data);
+				ZSFreeBuffer(data);
 			}
 		}
 
 		if (use_mput) {
-			status = FDFMPut(thd_state, cguid, num_objs,
+			status = ZSMPut(thd_state, cguid, num_objs,
 					 &objs[0], flags, &objs_written);
-			if (status != FDF_SUCCESS) {
-				printf("Failed to write objects using FDFMPut, status = %d.\n",
+			if (status != ZS_SUCCESS) {
+				printf("Failed to write objects using ZSMPut, status = %d.\n",
 					status);
 				assert(0);
 				return ;
 			}
-			num_fdf_mputs++;
+			num_zs_mputs++;
 		}
 
 
@@ -156,7 +156,7 @@ do_mput(struct FDF_thread_state *thd_state, FDF_cguid_t cguid,
 
 
 
-	num_fdf_reads = 0;
+	num_zs_reads = 0;
 	
 	j = 0;
 	printf("Reading all objects put in thread = %d.\n", my_thdid);
@@ -164,13 +164,13 @@ do_mput(struct FDF_thread_state *thd_state, FDF_cguid_t cguid,
 	for (k = 1; k <= num_mputs; k++) {
 
 		for (i = 0; i < num_objs; i++) {
-			memset(objs[i].key, 0, FDF_MAX_KEY_LEN);
+			memset(objs[i].key, 0, ZS_MAX_KEY_LEN);
 
 			sprintf(objs[i].key, "key_%d_%06"PRId64"", my_thdid, key_num);
 			sprintf(objs[i].data, "key_%d_%06"PRId64"_%x", my_thdid, key_num, flags);
 			objs[i].data_len = strlen(objs[i].data) + 1;
 		
-			if (flags == FDF_WRITE_MUST_EXIST) { 
+			if (flags == ZS_WRITE_MUST_EXIST) { 
 				strncat(&objs[i].data[objs[i].data_len - 1], objs[i].data, objs[i].data_len - 1);
 			}
 			objs[i].data_len = strlen(objs[i].data) + 1;
@@ -181,10 +181,10 @@ do_mput(struct FDF_thread_state *thd_state, FDF_cguid_t cguid,
 			objs[i].data_len = strlen(objs[i].data) + 1;
 			objs[i].flags = 0;
 
-			status = FDFReadObject(thd_state, cguid,
+			status = ZSReadObject(thd_state, cguid,
 					       objs[i].key, objs[i].key_len,
 						&data, &data_len);
-			if (status != FDF_SUCCESS) {
+			if (status != ZS_SUCCESS) {
 					printf("Read failed with %d errror. Key=%s.\n", status, objs[i].key);
 					assert(0);
 					exit(0);
@@ -201,8 +201,8 @@ do_mput(struct FDF_thread_state *thd_state, FDF_cguid_t cguid,
 				assert(0);
 				mismatch++;
 			}
-			num_fdf_reads++;
-			FDFFreeBuffer(data);
+			num_zs_reads++;
+			ZSFreeBuffer(data);
 		}
 	}
 
@@ -215,7 +215,7 @@ do_mput(struct FDF_thread_state *thd_state, FDF_cguid_t cguid,
 	for (k = 1; k <= num_mputs; k++) {
 
 		for (i = 0; i < num_objs; i++) {
-			memset(objs[i].key, 0, FDF_MAX_KEY_LEN);
+			memset(objs[i].key, 0, ZS_MAX_KEY_LEN);
 
 			sprintf(objs[i].key, "key_%d_%06"PRId64"", my_thdid, key_num);
 			sprintf(objs[i].data, "key_%d_%06"PRId64"", my_thdid, key_num);
@@ -224,9 +224,9 @@ do_mput(struct FDF_thread_state *thd_state, FDF_cguid_t cguid,
 
 			objs[i].key_len = strlen(objs[i].key) + 1;
 
-			status = FDFDeleteObject(thd_state, cguid,
+			status = ZSDeleteObject(thd_state, cguid,
 					       objs[i].key, objs[i].key_len);
-			if (status != FDF_SUCCESS) {
+			if (status != ZS_SUCCESS) {
 				printf("Delete failed with %d errror.\n", status);
 				assert(0);
 				exit(0);
@@ -239,44 +239,44 @@ do_mput(struct FDF_thread_state *thd_state, FDF_cguid_t cguid,
 	printf("Deleted objects successfully for thread = %d.\n", my_thdid);
 #endif
 
-    struct FDF_iterator *iterator;
+    struct ZS_iterator *iterator;
     uint64_t datalen;
     char	*key;
     data = NULL;
     int count = 0;
     uint32_t keylen;
 
-    status =  FDFEnumerateContainerObjects(thd_state, cguid, &iterator);
+    status =  ZSEnumerateContainerObjects(thd_state, cguid, &iterator);
 
-    while (FDFNextEnumeratedObject(thd_state, iterator, &key, &keylen, &data, &datalen) == FDF_SUCCESS) {
-        FDFFreeBuffer(data);
-        FDFFreeBuffer(key);
+    while (ZSNextEnumeratedObject(thd_state, iterator, &key, &keylen, &data, &datalen) == ZS_SUCCESS) {
+        ZSFreeBuffer(data);
+        ZSFreeBuffer(key);
         count++;
     }
-    FDFFinishEnumeration(thd_state, iterator);
+    ZSFinishEnumeration(thd_state, iterator);
 
-    FDF_stats_t stats;
-    status = FDFGetContainerStats(thd_state, cguid, &stats);
+    ZS_stats_t stats;
+    status = ZSGetContainerStats(thd_state, cguid, &stats);
     printf("Enum count=%d Pstats count=%ld size = %ld\n",
-            count, stats.cntr_stats[FDF_CNTR_STATS_NUM_OBJS], stats.cntr_stats[FDF_CNTR_STATS_USED_SPACE]);
-    assert(count == stats.cntr_stats[FDF_CNTR_STATS_NUM_OBJS]);
+            count, stats.cntr_stats[ZS_CNTR_STATS_NUM_OBJS], stats.cntr_stats[ZS_CNTR_STATS_USED_SPACE]);
+    assert(count == stats.cntr_stats[ZS_CNTR_STATS_NUM_OBJS]);
 }
 
 void *
 write_stress(void *t)
 {
-	FDF_container_props_t props;
-	struct FDF_thread_state *thd_state;
-	FDF_status_t status;
-        FDF_cguid_t cguid;
+	ZS_container_props_t props;
+	struct ZS_thread_state *thd_state;
+	ZS_status_t status;
+        ZS_cguid_t cguid;
 
 	char cnt_name[100] = {0};
 
 	sprintf(cnt_name, "cntr_%d", __sync_fetch_and_add(&cnt_id, 1));
 
-	FDFInitPerThreadState(fdf_state, &thd_state);	
+	ZSInitPerThreadState(zs_state, &thd_state);	
 
-	FDFLoadCntrPropDefaults(&props);
+	ZSLoadCntrPropDefaults(&props);
 
 	props.persistent = 1;
 	props.evicting = 0;
@@ -285,18 +285,18 @@ write_stress(void *t)
 	props.fifo_mode = 0;
 	props.size_kb = (1024 * 1024 * 10);;
 
-	status = FDFOpenContainer(thd_state, cnt_name, &props, FDF_CTNR_CREATE, &cguid);
-	if (status != FDF_SUCCESS) {
+	status = ZSOpenContainer(thd_state, cnt_name, &props, ZS_CTNR_CREATE, &cguid);
+	if (status != ZS_SUCCESS) {
 		printf("Open Cont failed with error=%x.\n", status);
 		exit(-1);
 	}
 
 	do_mput(thd_state, cguid, flags_global, 1);
 
-	FDFCloseContainer(thd_state, cguid);
-	FDFDeleteContainer(thd_state, cguid);
+	ZSCloseContainer(thd_state, cguid);
+	ZSDeleteContainer(thd_state, cguid);
 
-	FDFReleasePerThreadState(&thd_state);
+	ZSReleasePerThreadState(&thd_state);
 
 	return NULL;
 }
@@ -362,22 +362,22 @@ main(int argc, char *argv[])
 	printf("Running with mput (y/n) = %d, mputs = %d, num objs each mput = %d, num threads = %d.\n",
 		use_mput, num_mputs, num_objs, num_thds);
 
-	FDFInit(&fdf_state);
+	ZSInit(&zs_state);
 
 	printf(" ======================== Doing test for set case. ===================\n");
 	do_op(0);// set
 	printf(" ******************  Done test for set case.***********************\n");
 
 	printf(" ======================== Doing test for create case. ===================\n");
-	do_op(FDF_WRITE_MUST_NOT_EXIST); //create
+	do_op(ZS_WRITE_MUST_NOT_EXIST); //create
 	printf(" ******************  Done test for create  case.***********************\n");
 
 #if 0
 	printf(" ======================== Doing test for update case. ===================\n");
-	do_op(FDF_WRITE_MUST_EXIST); //update
+	do_op(ZS_WRITE_MUST_EXIST); //update
 	printf(" ******************  Done test for update  case.***********************\n");
 #endif
 
-	FDFShutdown(fdf_state);
+	ZSShutdown(zs_state);
 	return 0;
 }

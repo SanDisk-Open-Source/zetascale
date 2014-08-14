@@ -257,8 +257,8 @@ typedef struct {
 
     // Mcd index
     int				mcd_index;
-	uint32_t		flash_only;//Bypass FDF DRAM Cache
-	uint32_t		cache_only;//Terminate at FDF DRAM Cache 
+	uint32_t		flash_only;//Bypass ZS DRAM Cache
+	uint32_t		cache_only;//Terminate at ZS DRAM Cache 
 } SDF_container_props_t;
 
 /** Legacy structure for container properties */

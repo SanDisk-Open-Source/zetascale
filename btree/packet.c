@@ -8,7 +8,7 @@
 #include	<stdlib.h>
 #include	<stdarg.h>
 #include	<unistd.h>
-#include	"fdf.h"
+#include	"zs.h"
 #include	"utils/rico.h"
 #include	"packet.h"
 
@@ -39,7 +39,7 @@ static bool	statsreadline( stats_packet_t *),
 		badstatsdata( );
 static void	baddata( ),
 		nomem( ),
-		fdfmessage( char, char *, ...);
+		zsmessage( char, char *, ...);
 
 
 rec_packet_t	*
@@ -53,7 +53,7 @@ recovery_packet_open( uint cguid)
 	and (access( file, X_OK) < 0))
 		;//fprintf( stderr, "recovery packet not found (cguid %u)\n", cguid);
 	else {
-		fdfmessage( 'I', "loading recovery packet %s", file);
+		zsmessage( 'I', "loading recovery packet %s", file);
 		char *cmd;
 		asprintf( &cmd, "gunzip < '%s'", file);
 		unless ((cmd)
@@ -62,7 +62,7 @@ recovery_packet_open( uint cguid)
 		r->lbuf0full = FALSE;
 		r->trxid = ~0;
 		unless (r->f = popen( cmd, "r")) {
-			fdfmessage( 'E', "failed to load %s", file);
+			zsmessage( 'E', "failed to load %s", file);
 			free( r);
 			r = 0;
 		}
@@ -142,14 +142,14 @@ stats_packet_open( uint cguid)
 	and (access( file, X_OK) < 0))
 		;//fprintf( stderr, "stats packet not found (cguid %u)\n", cguid);
 	else {
-		fdfmessage( 'I', "loading stats packet %s", file);
+		zsmessage( 'I', "loading stats packet %s", file);
 		char *cmd;
 		asprintf( &cmd, "gunzip < '%s'", file);
 		unless ((cmd)
 		and (s = malloc( sizeof *s)))
 			nomem( );
 		unless (s->f = popen( cmd, "r")) {
-			fdfmessage( 'E', "failed to load %s", file);
+			zsmessage( 'E', "failed to load %s", file);
 			free( s);
 			s = 0;
 		}
@@ -228,7 +228,7 @@ readlines( rec_packet_t *r, uint *count, int old)
 			unless (fgets( r->lbuf0, sizeof r->lbuf0, r->f))
 				break;
 			unless (r->lbuf0[strlen( r->lbuf0)-1] == '\n') {
-				fdfmessage( 'E', "line too long in recovery packet");
+				zsmessage( 'E', "line too long in recovery packet");
 				return (0);
 			}
 		}
@@ -263,7 +263,7 @@ readlines( rec_packet_t *r, uint *count, int old)
 			else
 				*q++ = *p++;
 		unless (c < nel( r->lvec)) {
-			fdfmessage( 'E', "too many ops in trx");
+			zsmessage( 'E', "too many ops in trx");
 			return (0);
 		}
 		const uint n = q - r->lbuf1;
@@ -298,7 +298,7 @@ statsreadline( stats_packet_t *s)
 	unless (fgets( s->lbuf0, sizeof s->lbuf0, s->f))
 		return (FALSE);
 	unless (s->lbuf0[strlen( s->lbuf0)-1] == '\n') {
-		fdfmessage( 'E', "line too long in stats packet");
+		zsmessage( 'E', "line too long in stats packet");
 		return (FALSE);
 	}
 	unless (sscanf( s->lbuf0, "%u %s", &cguid, s->lbuf1) == 2)
@@ -331,7 +331,7 @@ packetname( uint cguid)
 	char	*crashdir,
 		*file;
 
-	FDFTransactionService( 0, 3, &crashdir);
+	ZSTransactionService( 0, 3, &crashdir);
 	asprintf( &file, "%s/cguid-%d.gz", crashdir, cguid);
 	unless (file)
 		nomem( );
@@ -345,7 +345,7 @@ statspacketname( uint cguid)
 	char	*crashdir,
 		*file;
 
-	FDFTransactionService( 0, 3, &crashdir);
+	ZSTransactionService( 0, 3, &crashdir);
 	asprintf( &file, "%s/stats-cguid-%d.gz", crashdir, cguid);
 	unless (file)
 		nomem( );
@@ -357,7 +357,7 @@ static void
 baddata( )
 {
 
-	fdfmessage( 'E', "bad data in recovery packet");
+	zsmessage( 'E', "bad data in recovery packet");
 }
 
 
@@ -365,7 +365,7 @@ static bool
 badstatsdata( )
 {
 
-	fdfmessage( 'E', "bad data in stats packet");
+	zsmessage( 'E', "bad data in stats packet");
 	return (FALSE);
 }
 
@@ -374,13 +374,13 @@ static void
 nomem( )
 {
 
-	fdfmessage( 'F', "out of memory");
+	zsmessage( 'F', "out of memory");
 	abort( );
 }
 
 
 static void
-fdfmessage( char level, char *mesg, ...)
+zsmessage( char level, char *mesg, ...)
 {
 	va_list	va;
 	char	*s;
@@ -391,12 +391,12 @@ fdfmessage( char level, char *mesg, ...)
 	if (s)
 		switch (level) {
 		case 'I':
-			FDFTransactionService( 0, 5, s);
+			ZSTransactionService( 0, 5, s);
 			break;
 		case 'E':
-			FDFTransactionService( 0, 6, s);
+			ZSTransactionService( 0, 6, s);
 			break;
 		case 'F':
-			FDFTransactionService( 0, 7, s);
+			ZSTransactionService( 0, 7, s);
 		}
 }

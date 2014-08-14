@@ -8,7 +8,7 @@
  * http://www.sandisk.com
  *
  * IMPORTANT NOTES:
- *    - Unlike tlmap in the fdf directory, fdf_tlmap does NOT
+ *    - Unlike tlmap in the zs directory, zs_tlmap does NOT
  *      automatically malloc and free the key and contest of
  *      a hashtable entry!
  *

@@ -1,4 +1,4 @@
-#include <fdf.h>
+#include <zs.h>
 #include <string.h>
 #include <unistd.h>
 #include <stdlib.h>
@@ -8,15 +8,15 @@
 #include <pthread.h>
 #include <sched.h>
 
-#define FDF_MAX_KEY_LEN       100
+#define ZS_MAX_KEY_LEN       100
 #define LARGE_OBJECT_SIZE     (25 * 1024 * 1024)
 //#define LARGE_OBJECT_SIZE     (800 * 1024)
 #define SMALL_OBJECT_SIZE     100
 
 #define MAX_THREADS           128
 
-FDF_cguid_t cguid;
-struct FDF_state *fdf_state;
+ZS_cguid_t cguid;
+struct ZS_state *zs_state;
 
 static char *char_array = "abcdefghijklmnopqrstuvwxyz0123456789_-.";
 
@@ -55,16 +55,16 @@ void *do_bulk_write(void *arg)
 	blk_write_param_t *p = (blk_write_param_t *)arg;
 	uint32_t *large_cols;
 	uint32_t large_col_cnt;
-	FDF_status_t status;
-	FDF_obj_t *objs = NULL; 
-	struct FDF_thread_state *thd_state;
+	ZS_status_t status;
+	ZS_obj_t *objs = NULL; 
+	struct ZS_thread_state *thd_state;
 	int i, l, c;
 	uint32_t objs_written = 0;
 
-	FDFInitPerThreadState(fdf_state, &thd_state);	
+	ZSInitPerThreadState(zs_state, &thd_state);	
 
 	for (i = p->start_row; i < p->start_row + p->nrows; i++) {
-		objs = (FDF_obj_t *) malloc(sizeof(FDF_obj_t) * p->ncols);
+		objs = (ZS_obj_t *) malloc(sizeof(ZS_obj_t) * p->ncols);
 		if (objs == NULL) {
 			printf("Cannot allocate memory.\n");
 			fflush(stdout);
@@ -81,10 +81,10 @@ void *do_bulk_write(void *arg)
 		}
 
 		l = 0;
-		memset(objs, 0, sizeof(FDF_obj_t) * p->ncols);
+		memset(objs, 0, sizeof(ZS_obj_t) * p->ncols);
 
 		for (c = 0; c < p->ncols; c++) { 
-			objs[c].key = malloc(FDF_MAX_KEY_LEN);
+			objs[c].key = malloc(ZS_MAX_KEY_LEN);
 			if (objs[c].key == NULL) {
 				printf("Cannot allocate memory.\n");
 				fflush(stdout);
@@ -109,19 +109,19 @@ void *do_bulk_write(void *arg)
 		}
 
 		uint32_t flags = 0;
-		status = FDFMPut(thd_state, cguid, p->ncols,
+		status = ZSMPut(thd_state, cguid, p->ncols,
 		                 &objs[0], flags, &objs_written);
-		if (status != FDF_SUCCESS) {
-			fprintf(stderr, "Failed to write objects using FDFMPut, status = %d.\n",
+		if (status != ZS_SUCCESS) {
+			fprintf(stderr, "Failed to write objects using ZSMPut, status = %d.\n",
 			        status);
 			fflush(stdout);
 			return NULL;
 		}
 
-		status = FDFMPut(thd_state, cguid, p->ncols,
+		status = ZSMPut(thd_state, cguid, p->ncols,
 		                 &objs[0], flags, &objs_written);
-		if (status != FDF_SUCCESS) {
-			fprintf(stderr, "Failed to update objects using FDFMPut, status = %d.\n",
+		if (status != ZS_SUCCESS) {
+			fprintf(stderr, "Failed to update objects using ZSMPut, status = %d.\n",
 			        status);
 			fflush(stdout);
 			return NULL;
@@ -138,23 +138,23 @@ void *do_bulk_write(void *arg)
 	fprintf(stderr, "MPut from %d to %d rows completed successfully\n", p->start_row, 
 	                p->start_row + p->nrows);
 
-	FDFReleasePerThreadState(&thd_state);
+	ZSReleasePerThreadState(&thd_state);
 	return NULL;
 }
 
 void *do_read_verify(void *arg)
 {
 	blk_write_param_t *p = (blk_write_param_t *)arg;
-	FDF_status_t status;
-	struct FDF_thread_state *thd_state;
+	ZS_status_t status;
+	struct ZS_thread_state *thd_state;
 	int i, c;
-	char key[FDF_MAX_KEY_LEN];
+	char key[ZS_MAX_KEY_LEN];
 	char *data;
 	uint64_t datalen;
 	uint32_t keylen;
 	uint32_t errors = 0;
 
-	FDFInitPerThreadState(fdf_state, &thd_state);	
+	ZSInitPerThreadState(zs_state, &thd_state);	
 
 	for (i = p->start_row; i < p->start_row + p->nrows; i++) {
 		for (c = 0; c < p->ncols; c++) { 
@@ -169,9 +169,9 @@ void *do_read_verify(void *arg)
 		//	keylen = strlen(key) + 1;
 			keylen = 50;
 
-			status = FDFReadObject(thd_state, cguid, key, keylen,
+			status = ZSReadObject(thd_state, cguid, key, keylen,
 			                       &data, &datalen);
-			if (status != FDF_SUCCESS) {
+			if (status != ZS_SUCCESS) {
 				fprintf(stderr, "Error: Read object for key '%s'"
 				        "returned error '%d'\n", key, status);
 				errors++;
@@ -196,7 +196,7 @@ void *do_read_verify(void *arg)
 		                p->start_row + p->nrows);
 	}
 
-	FDFReleasePerThreadState(&thd_state);
+	ZSReleasePerThreadState(&thd_state);
 	return NULL;
 }
 
@@ -243,12 +243,12 @@ void launch_blk_write_threads(uint32_t nrows, uint32_t ncols, uint32_t nthreads,
 }
 
 static void 
-open_stuff(struct FDF_thread_state *thd_state, char *cntr_name)
+open_stuff(struct ZS_thread_state *thd_state, char *cntr_name)
 {
-	FDF_container_props_t props;
-	FDF_status_t status;
+	ZS_container_props_t props;
+	ZS_status_t status;
 
-	FDFLoadCntrPropDefaults(&props);
+	ZSLoadCntrPropDefaults(&props);
 	props.persistent = 1;
 	props.evicting = 0;
 	props.writethru = 1;
@@ -257,23 +257,23 @@ open_stuff(struct FDF_thread_state *thd_state, char *cntr_name)
 	props.size_kb = 0;
 //	props.size_kb = (1024 * 1024 * 10);;
 
-	status = FDFOpenContainer(thd_state, cntr_name, &props, FDF_CTNR_CREATE, &cguid);
-	if (status != FDF_SUCCESS) {
-		printf("Open Cont failed with error=%s.\n", FDFStrError(status));
+	status = ZSOpenContainer(thd_state, cntr_name, &props, ZS_CTNR_CREATE, &cguid);
+	if (status != ZS_SUCCESS) {
+		printf("Open Cont failed with error=%s.\n", ZSStrError(status));
 		fflush(stdout);
 		exit(-1);
 	}
 }
 
 static void 
-free_stuff(struct FDF_thread_state *thd_state)
+free_stuff(struct ZS_thread_state *thd_state)
 {
-	FDF_status_t status;
+	ZS_status_t status;
 
-	status = FDFCloseContainer(thd_state, cguid);
-	status = FDFDeleteContainer(thd_state, cguid);
-	if (status != FDF_SUCCESS) {
-		printf("Delete Cont failed with error=%s.\n", FDFStrError(status));
+	status = ZSCloseContainer(thd_state, cguid);
+	status = ZSDeleteContainer(thd_state, cguid);
+	if (status != ZS_SUCCESS) {
+		printf("Delete Cont failed with error=%s.\n", ZSStrError(status));
 		fflush(stdout);
 		exit(-1);
 	}
@@ -281,14 +281,14 @@ free_stuff(struct FDF_thread_state *thd_state)
 
 void do_bulk_test(uint32_t nrows, uint32_t ncols, uint32_t nthreads, unsigned long data_size)
 {
-	struct FDF_thread_state *thd_state;
+	struct ZS_thread_state *thd_state;
 
-	FDFInitPerThreadState(fdf_state, &thd_state);	
+	ZSInitPerThreadState(zs_state, &thd_state);	
 
 	open_stuff(thd_state, "cntr_1");
 	launch_blk_write_threads(nrows, ncols, nthreads, data_size);	
 	free_stuff(thd_state);
-	FDFReleasePerThreadState(&thd_state);
+	ZSReleasePerThreadState(&thd_state);
 }
 
 int 
@@ -323,9 +323,9 @@ main(int argc, char *argv[])
 	fprintf(stderr, "Starting test with %u rows %u cols in %u threads %lu datasize\n",
 	        nrows, ncols, nthreads, data_size);
 
-	FDFInit(&fdf_state);
+	ZSInit(&zs_state);
 	do_bulk_test(nrows, ncols, nthreads, data_size);
-	FDFShutdown(fdf_state);
+	ZSShutdown(zs_state);
 
 	return 0;
 }

@@ -51,7 +51,7 @@ struct sdf_agent_state {
 	 * Allow or disallow an operation based on
 	 * different dynamic parameters. 
 	 */   
-	FDF_operational_states_t op_access;
+	ZS_operational_states_t op_access;
  
     pthread_t threads[MAX_THREADS];
     int numThreads;

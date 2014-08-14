@@ -954,12 +954,12 @@ sub _sitParseFile
             $multi_source_line =~ s/.*UTMessage/UTMessage/;
             
             $log_func = "UTMessage";
-        } elsif ($multi_source_line =~ /fdf_log([defitw])(_sys)?\(((?:
+        } elsif ($multi_source_line =~ /zs_log([defitw])(_sys)?\(((?:
                                         LOG_ID|LOGID|PLAT_LOG_ID_INITIAL|
                                         [1-9]\d*,).*?)\)\s*;\s*\\?$/x) {
-            $log_func = "fdf_log$1$2";
+            $log_func = "zs_log$1$2";
             ($msgid, $ma) = split(/,/, $3, 2);
-            $multi_source_line =~ s/.*fdf_log/fdf_log/;
+            $multi_source_line =~ s/.*zs_log/zs_log/;
             $catid = 'LOG_CAT';
             $level = $LEVELS{$1};
         } elsif ($multi_source_line =~

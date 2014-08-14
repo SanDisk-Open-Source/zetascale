@@ -9,12 +9,12 @@
 #include <unistd.h>
 #include <string.h>
 #include <stdio.h>
-#include <fdf.h>
+#include <zs.h>
 #include <sys/time.h>
 
 static FILE                    *fp;
-static struct FDF_state        *fdf_state;
-static struct FDF_thread_state *fdf_thrd_state;
+static struct ZS_state        *zs_state;
+static struct ZS_thread_state *zs_thrd_state;
 
 static char *char_array = "abcdefghijklmnopqrstuvwxyz0123456789_-.";
 static char **data_arr;     
@@ -34,46 +34,46 @@ static void discard_data(uint32_t n_objects);
 
 int test_iter = DEFAULT_TEST_ITER;
 
-FDF_status_t PreEnvironment()
+ZS_status_t PreEnvironment()
 {
-	FDF_status_t ret;
+	ZS_status_t ret;
     
-//	FDFSetProperty("FDF_CACHE_SIZE", "100000000");
+//	ZSSetProperty("ZS_CACHE_SIZE", "100000000");
 
-	ret = FDFInit(&fdf_state);
-	if (ret != FDF_SUCCESS) {
-		fprintf(fp, "FDF initialization failed. Status = %d\n", ret);
+	ret = ZSInit(&zs_state);
+	if (ret != ZS_SUCCESS) {
+		fprintf(fp, "ZS initialization failed. Status = %d\n", ret);
 		return (ret);
 	}
 
-	fprintf(fp, "FDF initialization succeed!\n");
-	ret = FDFInitPerThreadState(fdf_state, &fdf_thrd_state);
-        if( ret != FDF_SUCCESS) {
-		fprintf(fp, "FDF thread initialization failed!\n");
+	fprintf(fp, "ZS initialization succeed!\n");
+	ret = ZSInitPerThreadState(zs_state, &zs_thrd_state);
+        if( ret != ZS_SUCCESS) {
+		fprintf(fp, "ZS thread initialization failed!\n");
 		return (ret);
 	}
 
-	fprintf(fp, "FDF thread initialization succeed!\n");
+	fprintf(fp, "ZS thread initialization succeed!\n");
 	return ret;
 }
 
 void ClearEnvironment()
 {
-	(void)FDFReleasePerThreadState(&fdf_thrd_state);
-	(void)FDFShutdown(fdf_state);
+	(void)ZSReleasePerThreadState(&zs_thrd_state);
+	(void)ZSShutdown(zs_state);
 
 	fprintf(fp, "clear env completed.\n");
 }
 
-static FDF_status_t OpenContainer(char *cname, FDF_cguid_t *pcguid)
+static ZS_status_t OpenContainer(char *cname, ZS_cguid_t *pcguid)
 {
-	FDF_status_t          ret;
-	FDF_container_props_t p;
+	ZS_status_t          ret;
+	ZS_container_props_t p;
 	uint32_t flag;
 
-	ret = FDF_FAILURE;        
+	ret = ZS_FAILURE;        
 
-	(void)FDFLoadCntrPropDefaults(&p);
+	(void)ZSLoadCntrPropDefaults(&p);
 	p.async_writes = 0;
 	p.durability_level = 0;
 	p.fifo_mode = 0;
@@ -83,56 +83,56 @@ static FDF_status_t OpenContainer(char *cname, FDF_cguid_t *pcguid)
 	p.num_shards = 1;
 	p.evicting = 0;
  
-	flag = FDF_CTNR_CREATE;
-	fprintf(fp, "FDFOpenContainer: Attempting to create with "
+	flag = ZS_CTNR_CREATE;
+	fprintf(fp, "ZSOpenContainer: Attempting to create with "
 	                         "Writeback mode of size 2GB\n");
 
-	ret = FDFOpenContainer(fdf_thrd_state,
+	ret = ZSOpenContainer(zs_thrd_state,
 	                       cname,
 	                       &p,
 	                       flag,
 	                       pcguid);
 
-	fprintf(fp, "FDFOpenContainer : %s\n",FDFStrError(ret));
+	fprintf(fp, "ZSOpenContainer : %s\n",ZSStrError(ret));
 	return ret;
 }
 
-FDF_status_t CloseContainer(FDF_cguid_t cguid)
+ZS_status_t CloseContainer(ZS_cguid_t cguid)
 {
-	FDF_status_t ret;
-	ret = FDFCloseContainer(fdf_thrd_state, cguid);
+	ZS_status_t ret;
+	ret = ZSCloseContainer(zs_thrd_state, cguid);
 
-	fprintf(fp,"FDFCloseContainer : ");
-	fprintf(fp,"%s\n",FDFStrError(ret));
+	fprintf(fp,"ZSCloseContainer : ");
+	fprintf(fp,"%s\n",ZSStrError(ret));
 
 	return ret;
 }
 
-FDF_status_t DeleteContainer(FDF_cguid_t cguid)
+ZS_status_t DeleteContainer(ZS_cguid_t cguid)
 {
-	FDF_status_t ret;
-	ret = FDFDeleteContainer(fdf_thrd_state, cguid);
+	ZS_status_t ret;
+	ret = ZSDeleteContainer(zs_thrd_state, cguid);
 
-	fprintf(fp,"FDFDeleteContainer : ");
-	fprintf(fp,"%s\n",FDFStrError(ret));
+	fprintf(fp,"ZSDeleteContainer : ");
+	fprintf(fp,"%s\n",ZSStrError(ret));
 
 	return ret;
 }
 
-FDF_status_t DeleteObject(FDF_cguid_t cguid, char *key, uint32_t keylen)
+ZS_status_t DeleteObject(ZS_cguid_t cguid, char *key, uint32_t keylen)
 {
-	FDF_status_t ret;
-	ret = FDFDeleteObject(fdf_thrd_state, cguid, key, keylen);
+	ZS_status_t ret;
+	ret = ZSDeleteObject(zs_thrd_state, cguid, key, keylen);
 
-	fprintf(fp,"FDFDeleteObject : ");
-	fprintf(fp,"%s\n",FDFStrError(ret));
+	fprintf(fp,"ZSDeleteObject : ");
+	fprintf(fp,"%s\n",ZSStrError(ret));
 	return ret;
 }
 
-int GenerateKeyDataSeries(struct FDF_thread_state *thrd_state, FDF_cguid_t cguid, 
+int GenerateKeyDataSeries(struct ZS_thread_state *thrd_state, ZS_cguid_t cguid, 
                           uint32_t start, uint32_t end, uint32_t flags)
 {
-	FDF_status_t ret = FDF_SUCCESS;
+	ZS_status_t ret = ZS_SUCCESS;
 	char *keytmp;
 	uint32_t i;
 	struct timeval start_tv, end_tv;
@@ -147,12 +147,12 @@ int GenerateKeyDataSeries(struct FDF_thread_state *thrd_state, FDF_cguid_t cguid
 		data_arr[i] = gen_data(MAX_DATALEN, &datalen_arr[i]);
 
 		gettimeofday(&start_tv, NULL);
-		ret = FDFWriteObject(thrd_state, cguid, 
+		ret = ZSWriteObject(thrd_state, cguid, 
 		                     keytmp, strlen(keytmp) + 1, 
 		                     data_arr[i], datalen_arr[i], flags);
-		if (ret != FDF_SUCCESS) {
+		if (ret != ZS_SUCCESS) {
 			fprintf(fp, "WriteObject failed with status=%s\n", 
-			            FDFStrError(ret));
+			            ZSStrError(ret));
 			return -1;
 		}
 		gettimeofday(&end_tv, NULL);
@@ -201,7 +201,7 @@ static void discard_data(uint32_t n_objects)
 }
 
 typedef struct {
-	FDF_cguid_t cguid;
+	ZS_cguid_t cguid;
 	uint32_t start;
 	uint32_t end;
 	uint32_t flags;
@@ -215,11 +215,11 @@ static void *
 thr_write(void *arg)
 {
 	thr_obj_range_t *r = (thr_obj_range_t *)arg;
-	struct FDF_thread_state *my_state;
+	struct ZS_thread_state *my_state;
 
-	(void)FDFInitPerThreadState(fdf_state, &my_state);
+	(void)ZSInitPerThreadState(zs_state, &my_state);
 	r->write_time = GenerateKeyDataSeries(my_state, r->cguid, r->start, r->end, r->flags);
-	(void)FDFReleasePerThreadState(&my_state);
+	(void)ZSReleasePerThreadState(&my_state);
 	return (NULL);
 }
 
@@ -227,26 +227,26 @@ static void *
 thr_point_query(void *arg)
 {
 	thr_obj_range_t *r = (thr_obj_range_t *)arg;
-	struct FDF_thread_state *my_state;
+	struct ZS_thread_state *my_state;
 	struct timeval start_tv, end_tv;
 	char keytmp[MAX_KEYLEN];
-	FDF_status_t status;
+	ZS_status_t status;
 	int i;
 	int iter = 0;
 
-	(void)FDFInitPerThreadState(fdf_state, &my_state);
+	(void)ZSInitPerThreadState(zs_state, &my_state);
 
 	while (iter < test_iter) {
 		r->read_time = 0;
 		for (i = r->start; i < r->end; i++) {
 			(void) sprintf(keytmp, "%08d", i);
 			gettimeofday(&start_tv, NULL);
-			status = FDFReadObject(my_state, r->cguid, 
+			status = ZSReadObject(my_state, r->cguid, 
 			                       keytmp, strlen(keytmp)+1,
 			                       &data_arr[i], (uint64_t *)&datalen_arr[i]);
 
-			if (status != FDF_SUCCESS) {
-				fprintf(fp, "Error in FDFReadObject. Status "
+			if (status != ZS_SUCCESS) {
+				fprintf(fp, "Error in ZSReadObject. Status "
 				            " = %d\n", status);
 				r->read_time = 0;
 				break;
@@ -262,7 +262,7 @@ thr_point_query(void *arg)
 		sleep(1);
 	}
 
-	(void)FDFReleasePerThreadState(&my_state);
+	(void)ZSReleasePerThreadState(&my_state);
 	return (NULL);
 }
 
@@ -271,11 +271,11 @@ thr_range_query(void *arg)
 {
 	thr_obj_range_t *r = (thr_obj_range_t *)arg;
 
-	struct FDF_thread_state *my_state;
-	FDF_status_t status;
-	FDF_range_meta_t  rmeta;
-	FDF_range_data_t *values = NULL;
-	struct FDF_cursor *cursor;       // opaque cursor handle
+	struct ZS_thread_state *my_state;
+	ZS_status_t status;
+	ZS_range_meta_t  rmeta;
+	ZS_range_data_t *values = NULL;
+	struct ZS_cursor *cursor;       // opaque cursor handle
 
 	struct timeval start_tv, end_tv;
 	int n_out;
@@ -283,7 +283,7 @@ thr_range_query(void *arg)
 	int i, j;
 	int iter = 0;
 
-	(void)FDFInitPerThreadState(fdf_state, &my_state);
+	(void)ZSInitPerThreadState(zs_state, &my_state);
 
 	fprintf(fp, "####Doing Range query test in %d chunks\n", r->chunks);
 	if (r->chunks == -1) {
@@ -296,13 +296,13 @@ thr_range_query(void *arg)
 	}
 
 	for (i = 0; i < r->chunks; i++) {
-		values = (FDF_range_data_t *)malloc(sizeof(FDF_range_data_t) * n_in_chunk);
+		values = (ZS_range_data_t *)malloc(sizeof(ZS_range_data_t) * n_in_chunk);
 		assert(values);
 	}
 
-	bzero(&rmeta, sizeof(FDF_range_meta_t));
-	rmeta.flags = FDF_RANGE_START_GE | FDF_RANGE_END_LT | 
-	              FDF_RANGE_BUFFER_PROVIDED | FDF_RANGE_ALLOC_IF_TOO_SMALL;
+	bzero(&rmeta, sizeof(ZS_range_meta_t));
+	rmeta.flags = ZS_RANGE_START_GE | ZS_RANGE_END_LT | 
+	              ZS_RANGE_BUFFER_PROVIDED | ZS_RANGE_ALLOC_IF_TOO_SMALL;
 
 	rmeta.key_start = (char *)malloc(MAX_KEYLEN);
 	assert(rmeta.key_start);
@@ -314,8 +314,8 @@ thr_range_query(void *arg)
 	sprintf(rmeta.key_end, "%08d", r->end);
 	rmeta.keylen_end = strlen(rmeta.key_end) + 1; 
 
-/*	rmeta.flags = FDF_RANGE_START_LE | FDF_RANGE_END_GT | 
-	              FDF_RANGE_BUFFER_PROVIDED | FDF_RANGE_ALLOC_IF_TOO_SMALL; 
+/*	rmeta.flags = ZS_RANGE_START_LE | ZS_RANGE_END_GT | 
+	              ZS_RANGE_BUFFER_PROVIDED | ZS_RANGE_ALLOC_IF_TOO_SMALL; 
 
 	rmeta.key_start = (char *)malloc(MAX_KEYLEN);
 	assert(rmeta.key_start);
@@ -328,14 +328,14 @@ thr_range_query(void *arg)
 	rmeta.keylen_end = strlen(rmeta.key_end) + 1; */
 
 	while (iter < test_iter) {
-		status = FDFGetRange(my_state, 
+		status = ZSGetRange(my_state, 
 		                     r->cguid,
-		                     FDF_RANGE_PRIMARY_INDEX,
+		                     ZS_RANGE_PRIMARY_INDEX,
 		                     &cursor, 
 		                     &rmeta);
 
-		if (status != FDF_SUCCESS) {
-			fprintf(fp, "FDFStartRangeQuery failed with status=%d\n", status);
+		if (status != ZS_SUCCESS) {
+			fprintf(fp, "ZSStartRangeQuery failed with status=%d\n", status);
 			return (NULL);
 		}
 
@@ -354,15 +354,15 @@ thr_range_query(void *arg)
 			}
 
 			gettimeofday(&start_tv, NULL);
-			status = FDFGetNextRange(my_state, 
+			status = ZSGetNextRange(my_state, 
 			                         cursor,
 			                         n_in_chunk,
 			                         &n_out,
 			                         values);
-			if ((status != FDF_SUCCESS) &&
-			    (status != FDF_WARNING) &&
-			    (status != FDF_QUERY_DONE)) {
-				fprintf(fp, "FDFGetNextRange failed with status=%s\n", FDFStrError(status));
+			if ((status != ZS_SUCCESS) &&
+			    (status != ZS_WARNING) &&
+			    (status != ZS_QUERY_DONE)) {
+				fprintf(fp, "ZSGetNextRange failed with status=%s\n", ZSStrError(status));
 				r->read_time = 0;
 				break;
 			} 
@@ -375,7 +375,7 @@ thr_range_query(void *arg)
 			} */
 
 			/*if (n_out != query_cnt) {
-				fprintf(fp, "FDFGetNextRange returned inconsistent result, "
+				fprintf(fp, "ZSGetNextRange returned inconsistent result, "
 				            "input n=%d, output cnt=%d does not match\n",
 				             query_cnt, n_out);
 				return -1;
@@ -384,7 +384,7 @@ thr_range_query(void *arg)
 			r->read_time += ((end_tv.tv_sec - start_tv.tv_sec) * 1000000) + 
 			                 (end_tv.tv_usec - start_tv.tv_usec);
 		}
-		(void)FDFGetRangeFinish(my_state, cursor);
+		(void)ZSGetRangeFinish(my_state, cursor);
 
 		printf("Range Query Iter=%d read time = %"PRIu64" usecs\n", iter, r->read_time);
 		iter++;
@@ -392,11 +392,11 @@ thr_range_query(void *arg)
 		sleep(1);
 	}
 
-	(void)FDFReleasePerThreadState(&my_state);
+	(void)ZSReleasePerThreadState(&my_state);
 	return (NULL);
 }
 
-static void do_insert_parallel(FDF_cguid_t cguid, int n_threads, 
+static void do_insert_parallel(ZS_cguid_t cguid, int n_threads, 
                                uint32_t start, uint32_t end, thr_obj_range_t **range)
 {
 	uint32_t start_chunk, end_chunk, slice;
@@ -427,7 +427,7 @@ static void do_insert_parallel(FDF_cguid_t cguid, int n_threads,
 	*range = r;
 }
 
-static void do_point_query_parallel(FDF_cguid_t cguid, int n_threads, 
+static void do_point_query_parallel(ZS_cguid_t cguid, int n_threads, 
                                uint32_t start, uint32_t end, thr_obj_range_t **range)
 {
 	uint32_t start_chunk, end_chunk, slice;
@@ -458,7 +458,7 @@ static void do_point_query_parallel(FDF_cguid_t cguid, int n_threads,
 	*range = r;
 } 
 
-static void do_range_query_parallel(FDF_cguid_t cguid, int n_threads, int chunks,
+static void do_range_query_parallel(ZS_cguid_t cguid, int n_threads, int chunks,
                                     uint32_t start, uint32_t end, thr_obj_range_t **range)
 {
 	uint32_t start_chunk, end_chunk, slice;
@@ -493,8 +493,8 @@ static void do_range_query_parallel(FDF_cguid_t cguid, int n_threads, int chunks
 static long get_query_perf(int write_n_threads, int read_n_threads, uint32_t n_objects, int chunks, int is_range)
 {
 	uint32_t i;
-	FDF_status_t status;
-	FDF_cguid_t cguid;
+	ZS_status_t status;
+	ZS_cguid_t cguid;
 	uint32_t initial_objects;
 	long rtime = 0;
 	long wtime = 0;
@@ -506,7 +506,7 @@ static long get_query_perf(int write_n_threads, int read_n_threads, uint32_t n_o
 	               write_n_threads, read_n_threads);
 
 	status = OpenContainer("pcheck1", &cguid);
-	if (status != FDF_SUCCESS) {
+	if (status != ZS_SUCCESS) {
 		fprintf(fp, "####get_point_query_perf failed. OpenContainer failed "
 		        "ret=%d\n", status);
 		return -1;
@@ -518,7 +518,7 @@ static long get_query_perf(int write_n_threads, int read_n_threads, uint32_t n_o
 	initial_objects = write_n_threads > 0 ? n_objects/2 : n_objects;
 
 	fprintf(fp, "####Generating %u objects out of total(%u) into container\n", initial_objects, n_objects);
-	initial_wtime = GenerateKeyDataSeries(fdf_thrd_state, cguid, 0, initial_objects, 0);
+	initial_wtime = GenerateKeyDataSeries(zs_thrd_state, cguid, 0, initial_objects, 0);
 	if (initial_wtime == -1) {
 		fprintf(fp, "####get_query_perf failed. Writing serial key "
 		        "and data has failed 1st time. ret=%d\n", -1);
@@ -584,11 +584,11 @@ static long get_query_perf(int write_n_threads, int read_n_threads, uint32_t n_o
 #if 0
 static long get_range_query_perf(int parallel, uint32_t n_objects, int chunks)
 {
-	FDF_status_t status;
-	FDF_cguid_t cguid;
-	FDF_range_meta_t  rmeta;
-	FDF_range_data_t *values;
-	struct FDF_cursor *cursor;       // opaque cursor handle
+	ZS_status_t status;
+	ZS_cguid_t cguid;
+	ZS_range_meta_t  rmeta;
+	ZS_range_data_t *values;
+	struct ZS_cursor *cursor;       // opaque cursor handle
 	uint32_t initial_objects;
 	int n_out;
 	int n_in_chunk;
@@ -603,7 +603,7 @@ static long get_range_query_perf(int parallel, uint32_t n_objects, int chunks)
 	             parallel ? "on" : "off");
 
 	status = OpenContainer("pcheck2", &cguid);
-	if (status != FDF_SUCCESS) {
+	if (status != ZS_SUCCESS) {
 		fprintf(fp, "####get_range_query_perf failed. OpenContainer failed "
 		        "ret=%d\n", status);
 		return -1;
@@ -615,7 +615,7 @@ static long get_range_query_perf(int parallel, uint32_t n_objects, int chunks)
 	initial_objects = n_objects/2;
 
 	fprintf(fp, "####Generating %u objects out of total(%u) into container\n", initial_objects, n_objects);
-	initial_wtime = GenerateKeyDataSeries(fdf_thrd_state, cguid, 0, initial_objects, 0);
+	initial_wtime = GenerateKeyDataSeries(zs_thrd_state, cguid, 0, initial_objects, 0);
 	if (initial_wtime == -1) {
 		fprintf(fp, "####get_range_query_perf failed. Writing serial key "
 		        "and data has failed 1st time. ret=%d\n", -1);
@@ -629,7 +629,7 @@ static long get_range_query_perf(int parallel, uint32_t n_objects, int chunks)
 		usleep(500);
 	}
 
-	rmeta.flags = FDF_RANGE_START_GE | FDF_RANGE_END_LT;
+	rmeta.flags = ZS_RANGE_START_GE | ZS_RANGE_END_LT;
 	rmeta.key_start = (char *)malloc(MAX_KEYLEN);
 	assert(rmeta.key_start);
 	sprintf(rmeta.key_start, "%08d", 0);
@@ -640,14 +640,14 @@ static long get_range_query_perf(int parallel, uint32_t n_objects, int chunks)
 	sprintf(rmeta.key_end, "%08d", initial_objects);
 	rmeta.keylen_end = strlen(rmeta.key_end) + 1;
 
-	status = FDFGetRange(fdf_thrd_state, 
+	status = ZSGetRange(zs_thrd_state, 
 	                     cguid,
-	                     FDF_RANGE_PRIMARY_INDEX,
+	                     ZS_RANGE_PRIMARY_INDEX,
 	                     &cursor, 
 	                     &rmeta);
 
-	if (status != FDF_SUCCESS) {
-		fprintf(fp, "FDFStartRangeQuery failed with status=%d\n", status);
+	if (status != ZS_SUCCESS) {
+		fprintf(fp, "ZSStartRangeQuery failed with status=%d\n", status);
 		return -1;
 	}
 
@@ -662,23 +662,23 @@ static long get_range_query_perf(int parallel, uint32_t n_objects, int chunks)
 
 	fprintf(fp, "####Doing Range query test in %d chunks\n", chunks);
 	for (i = 0; i < chunks; i++) {
-		values = (FDF_range_data_t *)malloc(sizeof(FDF_range_data_t) * n_in_chunk);
+		values = (ZS_range_data_t *)malloc(sizeof(ZS_range_data_t) * n_in_chunk);
 		assert(values);
 
 		gettimeofday(&start_tv, NULL);
-		status = FDFGetNextRange(fdf_thrd_state, 
+		status = ZSGetNextRange(zs_thrd_state, 
 		                         cursor,
 		                         n_in_chunk,
 		                         &n_out,
 		                         values);
-		if (status != FDF_SUCCESS) {
-			fprintf(fp, "FDFGetNextRange failed with status=%d\n", status);
+		if (status != ZS_SUCCESS) {
+			fprintf(fp, "ZSGetNextRange failed with status=%d\n", status);
 			return -1;
 		}
 		gettimeofday(&end_tv, NULL);
 
 		/*if (n_out != query_cnt) {
-			fprintf(fp, "FDFGetNextRange returned inconsistent result, "
+			fprintf(fp, "ZSGetNextRange returned inconsistent result, "
 			            "input n=%d, output cnt=%d does not match\n",
 			             query_cnt, n_out);
 			return -1;
@@ -767,7 +767,7 @@ int main(int argc, char *argv[])
 	printf("Read  Threads = %d\n", read_n_threads);
 
 	fprintf(fp, "####Setting up environment for test\n");
-	if (PreEnvironment() != FDF_SUCCESS) {
+	if (PreEnvironment() != ZS_SUCCESS) {
 		fprintf(fp, "####ERROR: PreEnvironment failed\n");
 		return (1);
 	}

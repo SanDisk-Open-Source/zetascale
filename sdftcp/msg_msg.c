@@ -101,7 +101,7 @@ typedef struct pollfd pollfd_t;
 typedef struct sockaddr_in sa_in_t;
 typedef struct addrinfo addrinfo_t;
 typedef unsigned int uint_t;
-typedef void (*fdfunc_t)(void *p);
+typedef void (*zsunc_t)(void *p);
 
 
 /*
@@ -399,8 +399,8 @@ typedef struct {
  * pollfd_t.
  */
 typedef struct {
-    fdfunc_t  rfunc;                    /* Function called for reading */
-    fdfunc_t  wfunc;                    /* Function called for writing */
+    zsunc_t  rfunc;                    /* Function called for reading */
+    zsunc_t  wfunc;                    /* Function called for writing */
     void     *rarg;                     /* Argument for read function */
     void     *warg;                     /* Argument for write function */
     conn_t   *conn;                     /* Associated connection */
@@ -426,7 +426,7 @@ typedef struct {
 typedef struct {
     int       fd;                       /* File descriptor */
     void     *arg[2];                   /* Arguments */
-    fdfunc_t  func[2];                  /* Functions */
+    zsunc_t  func[2];                  /* Functions */
 } fdcall_t;
 
 
@@ -666,12 +666,12 @@ static void  tcp_recv_err(conn_t *conn, int real, char *msg);
 static void  node_send_putlist(node_t *node, msg_send_t *send);
 static void  post_recv(node_t *node, head_t *head, char *data);
 static void  send_out(node_t *node, msg_send_t *send, int fast);
-static void  fdcall_set(int fd, int rw, fdfunc_t func, void *arg);
+static void  fdcall_set(int fd, int rw, zsunc_t func, void *arg);
 static void  meta_recv(node_t *node, msg_info_t *info, atom_t aseqn);
 static void  head_prep(head_t *head, msg_send_t *send, node_t *node, int ver);
 static void  pick_best(conn_t **bestp, int *state, conn_t *conn, conn_t *next);
 static void  poll_add(task_t *task, conn_t *conn, int fd,
-                      fdfunc_t rfunc, void *rarg, fdfunc_t wfunc, void *warg);
+                      zsunc_t rfunc, void *rarg, zsunc_t wfunc, void *warg);
 static void *worker(void *arg);
 static void *errp_close(int fd, char *msg);
 static char *type_msg(int type);
@@ -920,7 +920,7 @@ init_face(void)
 
             cip_2str(&p->local, lip, sizeof(lip));
             cip_2str(&p->bcast, bip, sizeof(bip));
-            fdf_logi(70064, "if=%s con=%d pri=%d lip=%s bip=%s",
+            zs_logi(70064, "if=%s con=%d pri=%d lip=%s bip=%s",
                      p->name, p->nconn, p->prior, lip, bip);
         }
     }
@@ -1084,7 +1084,7 @@ init_tcp(void)
         .sin_addr   = {.s_addr = htonl(INADDR_ANY)},
     };
 
-    fdf_logi(70047, "msgtcp version %d", V.version);
+    zs_logi(70047, "msgtcp version %d", V.version);
 
     fd = socket(AF_INET, SOCK_STREAM, 0);
     if (fd < 0)
@@ -1145,7 +1145,7 @@ udp_open(cip_t *ip, int port)
 
     fd = socket(AF_INET, SOCK_DGRAM, 0);
     if (fd < 0) {
-        fdf_loge(70073, "UDP socket failed");
+        zs_loge(70073, "UDP socket failed");
         return -1;
     }
 
@@ -1159,7 +1159,7 @@ udp_open(cip_t *ip, int port)
 
     s = bind(fd, (sa_t *)&saddr, sizeof(sa_t));
     if (s < 0) {
-        fdf_loge(70074, "UDP bind failed");
+        zs_loge(70074, "UDP bind failed");
         close(fd);
         return -1;
     }
@@ -1533,7 +1533,7 @@ ping_run(void)
 
     if (old && (now < old || (V.init.ping && now-old > 2*V.init.ping))) {
         if (!f_on(GDB))
-            fdf_logi(70048, "possible clock skew %.1fs",
+            zs_logi(70048, "possible clock skew %.1fs",
                      (double)(now-old)/NANO);
         V.time_ping = now;
         node_redo_time(now);
@@ -1592,29 +1592,29 @@ poll_prepare(task_t *task)
     poll_clr(task);
     if (task == V.tasks) {
         poll_add(task, NULL, V.wake_main[0],
-                 (fdfunc_t)swallow, NULL, NULL, NULL);
+                 (zsunc_t)swallow, NULL, NULL, NULL);
         poll_add(task, NULL, V.udp_fd, udp_recv, NULL, NULL, NULL);
         poll_add(task, NULL, V.tcp_lfd, tcp_accept, NULL, NULL, NULL);
         if (V.init.mustlive)
             return;
     } else {
         poll_add(task, NULL, V.wake_work[0],
-                 (fdfunc_t)nothing, NULL, NULL, NULL);
+                 (zsunc_t)nothing, NULL, NULL, NULL);
     }
         
     for (node = V.nodes->next; node; node = node->next) {
         for (conn = node->conn; conn; conn = conn->next) {
             void *warg;
-            fdfunc_t wfunc;
+            zsunc_t wfunc;
 
             if (!rwl_tryr(conn->fdlock))
                 continue;
             if (conn->shead)
-                wfunc = (fdfunc_t)tcp_send, warg = conn;
+                wfunc = (zsunc_t)tcp_send, warg = conn;
             else
                 wfunc = NULL, warg = NULL;
             poll_add(task, conn, conn->sfd,
-                     (fdfunc_t)tcp_recv, conn, wfunc, warg);
+                     (zsunc_t)tcp_recv, conn, wfunc, warg);
         }
     }
 }
@@ -1635,7 +1635,7 @@ poll_clr(task_t *task)
  */
 static void
 poll_add(task_t *task, conn_t *conn, int fd,
-         fdfunc_t rfunc, void *rarg, fdfunc_t wfunc, void *warg)
+         zsunc_t rfunc, void *rarg, zsunc_t wfunc, void *warg)
 {
     int i = task->pollfds.i++;
     pollfd_t *poll = xasubs(&task->pollfds, i);
@@ -1709,7 +1709,7 @@ timeout = 0;
         int revents = pollp->revents;
         if (revents & POLLIN) {
             (*callp->rfunc)(callp->rarg);
-            if (callp->rfunc == (fdfunc_t)swallow)
+            if (callp->rfunc == (zsunc_t)swallow)
                 return poll_ret(0, callp, n);
         }
         if (revents & POLLOUT)
@@ -1803,7 +1803,7 @@ hello_udp_read(int fd, hellostd_t *hstd)
     salen = sizeof(sa_t);
     len = recvfrom(fd, &hbuf, sizeof(hbuf), 0, (sa_t *)&saddr, &salen);
     if (len < 0) {
-        fdf_logi_sys(70049, "UDP receive failed");
+        zs_logi_sys(70049, "UDP receive failed");
         return 0;
     }
 
@@ -1996,14 +1996,14 @@ hello_send(int type)
         if (sendto(rips->fd, &hbuf, len, 0, (sa_t *)&saddr, salen) != len) {
             if (!rips->fail) {
                 cip_2str(&rips->rip, dest, sizeof(dest));
-                fdf_logi_sys(70050, "UDP send failed: %s to %s",
+                zs_logi_sys(70050, "UDP send failed: %s to %s",
                              type_msg(type), dest);
             }
             rips->fail = 1;
         } else {
             if (rips->fail) {
                 cip_2str(&rips->rip, dest, sizeof(dest));
-                fdf_logi(70051, "UDP send succeeded: %s to %s",
+                zs_logi(70051, "UDP send succeeded: %s to %s",
                          type_msg(type), dest);
             }
             rips->fail = 0;
@@ -2234,7 +2234,7 @@ node_drop(node_t *node, char *msg)
     char nbuf[NOSIZE];
 
     node_no(node, nbuf, sizeof(nbuf));
-    fdf_logi(70052, "node drop rn=%s: %s", nbuf, msg);
+    zs_logi(70052, "node drop rn=%s: %s", nbuf, msg);
     node->to_die = 1;
     for (conn = node->conn; conn; conn = conn->next)
         if (conn->state == CS_READY)
@@ -2353,7 +2353,7 @@ meta_recv(node_t *node, msg_info_t *info, atom_t aseqn)
         node_resend(node, aseqn+1);
     } else {
         t_meta(0, "recv m%d: bad metadata type=%d", node->nno, type);
-        fdf_logi(70053, "recv n%d: bad metadata type=%d", node->nno, type);
+        zs_logi(70053, "recv n%d: bad metadata type=%d", node->nno, type);
     }
 
     msg_ifree(info);
@@ -2391,7 +2391,7 @@ node_resend(node_t *node, atom_t lseqn)
     wl_unlock(node->lock_sent);
     *qq = NULL;
 
-    fdf_logi(70054, "resending %d messages from %ld", n, lseqn);
+    zs_logi(70054, "resending %d messages from %ld", n, lseqn);
     while ((p = q) != NULL) {
         q = p->link;
         p->flags |= MS_USESEQ;
@@ -2552,7 +2552,7 @@ send_talk(node_t *node)
     node_t       *me = V.nodes;
     msg_send_t *send = msg_salloc();
 
-    fdf_logi(70065, "send_talk node=m%d state=%s rank=%d",
+    zs_logi(70065, "send_talk node=m%d state=%s rank=%d",
              node->nno, node_state_name(me->rank_state), me->rank);
 
     talk = m_malloc(sizeof(*talk), "talk_t");
@@ -2611,11 +2611,11 @@ msg_setstate(int nno, int new)
     node->rank_state = new;
 
     if (old != NS_ACTIVE && new == NS_ACTIVE) {
-        fdf_logi(70066, "node n%d is live", node->rank);
+        zs_logi(70066, "node n%d is live", node->rank);
         fsync(2);
         live_call_all(1, node->rank);
     } else if (old == NS_ACTIVE && new != NS_ACTIVE) {
-        fdf_logi(70067, "node n%d is dead", node->rank);
+        zs_logi(70067, "node n%d is dead", node->rank);
         fsync(2);
         live_call_all(0, node->rank);
     }
@@ -2666,7 +2666,7 @@ live_post(node_t *node, int event)
         char *s = (event==MSG_EJOIN) ? "connected" : "disconnected";
 
         node_no(node, nbuf, sizeof(nbuf));
-        fdf_logi(70068, "node %s is %s", nbuf, s);
+        zs_logi(70068, "node %s is %s", nbuf, s);
     }
     info->type = event;
     info->nno  = node->nno;
@@ -2770,7 +2770,7 @@ node_new(int ver, cip_t *uip, msg_port_t port, char name[NNSIZE])
 
         node_no(node, nbuf, sizeof(nbuf));
         cip_2str(&node->uip, ubuf, sizeof(ubuf));
-        fdf_logi(70069, "node new rn=%s uip=%s ver=%d", nbuf, ubuf, node->ver);
+        zs_logi(70069, "node new rn=%s uip=%s ver=%d", nbuf, ubuf, node->ver);
     }
     return node;
 }
@@ -3114,7 +3114,7 @@ path_msg(path_t *path, char *msg)
     node_no(path->node, nbuf, sizeof(nbuf));
     cip_2str(&path->lip, lbuf, sizeof(lbuf));
     cip_2str(&path->rip, rbuf, sizeof(rbuf));
-    fdf_logi(70077, "path %s rn=%s if=%s lip=%s rip=%s nc=%d",
+    zs_logi(70077, "path %s rn=%s if=%s lip=%s rip=%s nc=%d",
              msg, nbuf, path->iface, lbuf, rbuf, path->nconn);
 }
 
@@ -3144,7 +3144,7 @@ path_no(node_t *node, path_t *path)
  * and fdcall_call causes the appropriate call to take place.
  */
 static void
-fdcall_set(int fd, int rw, fdfunc_t func, void *arg)
+fdcall_set(int fd, int rw, zsunc_t func, void *arg)
 {
     int i;
     int f;
@@ -3346,12 +3346,12 @@ msg_addrname(char *name)
     snprintf(buf, sizeof(buf), "%d", V.init.udpport);
     s = getaddrinfo(name, buf, &hints, &ailist);
     if (s != 0) {
-        fdf_loge(70055, "getaddrinfo %s:%s failed: %s",
+        zs_loge(70055, "getaddrinfo %s:%s failed: %s",
                  name, buf, gai_strerror(s));
         return;
     }
     if (!ailist) {
-        fdf_loge(70056, "getaddrinfo %s:%s failed: no valid entries",
+        zs_loge(70056, "getaddrinfo %s:%s failed: no valid entries",
                  name, buf);
         return;
     }
@@ -3405,7 +3405,7 @@ add_cast(cip_t *lip, cip_t *rip)
 
     if (q->fd < 0) {
         cip_2str(rip, rbuf, sizeof(rbuf));
-        fdf_loge(70075, "failed to add contact IP: %s", rbuf);
+        zs_loge(70075, "failed to add contact IP: %s", rbuf);
     } else {
         rips_t *p;
         rips_t **pp;
@@ -3421,7 +3421,7 @@ add_cast(cip_t *lip, cip_t *rip)
         if (!p)
             return;
         cip_2str(rip, rbuf, sizeof(rbuf));
-        fdf_logi(70076, "attempting to add duplicate contact IP: %s", rbuf);
+        zs_logi(70076, "attempting to add duplicate contact IP: %s", rbuf);
         close(q->fd);
     }
     m_free(q);
@@ -3607,7 +3607,7 @@ tcp_accept(void *arg)
 static void
 errv_close(int fd, char *msg)
 {
-    fdf_loge_sys(20819, "%s", msg);
+    zs_loge_sys(20819, "%s", msg);
     if (fd >= 0)
         close(fd);
 }
@@ -3619,7 +3619,7 @@ errv_close(int fd, char *msg)
 static int
 errz_close(int fd, char *msg)
 {
-    fdf_loge_sys(20819, "%s", msg);
+    zs_loge_sys(20819, "%s", msg);
     if (fd >= 0)
         close(fd);
     return 0;
@@ -3632,7 +3632,7 @@ errz_close(int fd, char *msg)
 static void *
 errp_close(int fd, char *msg)
 {
-    fdf_loge(20819, "%s", msg);
+    zs_loge(20819, "%s", msg);
     if (fd >= 0)
         close(fd);
     return NULL;
@@ -4075,7 +4075,7 @@ conn_new(path_t *path, int fd)
             if (!best || p->path->prior < best->prior)
                 best = p->path;
     if (best && best->prior > path->prior)
-        fdf_logi(70057, "failing back to %s", path->iface);
+        zs_logi(70057, "failing back to %s", path->iface);
 
     node->aconn++;
     if (node->ver == V1_HELLO) {
@@ -4175,10 +4175,10 @@ conn_error(conn_t *conn, int sys, char *msg)
     node_no(node, nbuf, sizeof(nbuf));
     cip_2str(&path->rip, rbuf, sizeof(rbuf));
     if (sys) {
-        fdf_logi_sys(70058, "conn err rn=%s if=%s fd=%d rip=%s: %s",
+        zs_logi_sys(70058, "conn err rn=%s if=%s fd=%d rip=%s: %s",
                      nbuf, path->iface, conn->sfd, rbuf, msg);
     } else {
-        fdf_logi(70058, "conn err rn=%s if=%s fd=%d rip=%s: %s",
+        zs_logi(70058, "conn err rn=%s if=%s fd=%d rip=%s: %s",
                  nbuf, path->iface, conn->sfd, rbuf, msg);
     }
 
@@ -4212,7 +4212,7 @@ conn_close(conn_t *conn)
             if (!best || p->path->prior < best->prior)
                 best = p->path;
     if (best && best->prior > path->prior)
-        fdf_logi(70059, "failing over to %s", best->iface);
+        zs_logi(70059, "failing over to %s", best->iface);
 
     conn->path  = NULL;
     conn->sfd   = -1;
@@ -4276,7 +4276,7 @@ conn_msg(conn_t *conn, char *msg)
 
     node_no(path->node, nbuf, sizeof(nbuf));
     cip_2str(&path->rip, rbuf, sizeof(rbuf));
-    fdf_logi(70071, "conn %s rn=%s if=%s fd=%d rip=%s",
+    zs_logi(70071, "conn %s rn=%s if=%s fd=%d rip=%s",
              msg, nbuf, path->iface, conn->sfd, rbuf);
 }
 
@@ -5695,6 +5695,6 @@ error(int sys, char *fmt, ...)
         else
             xsprint(&xstr, ": %d", err);
     }
-    fdf_loge(160069, "%p", xstr.p);
+    zs_loge(160069, "%p", xstr.p);
     xsfree(&xstr);
 }

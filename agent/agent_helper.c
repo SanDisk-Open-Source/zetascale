@@ -222,7 +222,7 @@ init_containers(struct sdf_agent_state *state)
         status = init_sdf_initialize(&state->ContainerInitState,
                                      state->config.system_restart);
     }
-	// initFDF_operational_states_t();
+	// initZS_operational_states_t();
 	state->op_access.is_shutdown_in_progress = SDF_FALSE;
 
     return (status == SDF_SUCCESS);
@@ -325,24 +325,24 @@ init_action_home(struct sdf_agent_state *state)
 		     "SDF_MAX_OUTSTANDING_FLUSHES = %d", papi->max_flushes_in_progress);
     }
 
-    papi->max_background_flushes_in_progress = getProperty_uLongInt("FDF_MAX_OUTSTANDING_BACKGROUND_FLUSHES", 8);
+    papi->max_background_flushes_in_progress = getProperty_uLongInt("ZS_MAX_OUTSTANDING_BACKGROUND_FLUSHES", 8);
     if (papi->max_background_flushes_in_progress > papi->nthreads) {
         papi->max_background_flushes_in_progress = papi->nthreads;
 	plat_log_msg(80078, PLAT_LOG_CAT_PRINT_ARGS, PLAT_LOG_LEVEL_DEBUG, 
-		     "FDF_MAX_OUTSTANDING_BACKGROUND_FLUSHES must be less than or equal to the number of async put threads; setting to %d", papi->max_background_flushes_in_progress);
+		     "ZS_MAX_OUTSTANDING_BACKGROUND_FLUSHES must be less than or equal to the number of async put threads; setting to %d", papi->max_background_flushes_in_progress);
     } else {
 	plat_log_msg(80079, PLAT_LOG_CAT_PRINT_ARGS, PLAT_LOG_LEVEL_DEBUG, 
-		     "FDF_MAX_OUTSTANDING_BACKGROUND_FLUSHES = %d", papi->max_background_flushes_in_progress);
+		     "ZS_MAX_OUTSTANDING_BACKGROUND_FLUSHES = %d", papi->max_background_flushes_in_progress);
     }
 
-    papi->background_flush_sleep_msec = getProperty_uLongInt("FDF_BACKGROUND_FLUSH_SLEEP_MSEC", 1000);
+    papi->background_flush_sleep_msec = getProperty_uLongInt("ZS_BACKGROUND_FLUSH_SLEEP_MSEC", 1000);
     if (papi->background_flush_sleep_msec < MIN_BACKGROUND_FLUSH_SLEEP_MSEC) {
         papi->background_flush_sleep_msec = MIN_BACKGROUND_FLUSH_SLEEP_MSEC;
 	plat_log_msg(80080, PLAT_LOG_CAT_PRINT_ARGS, PLAT_LOG_LEVEL_DEBUG, 
-		     "FDF_BACKGROUND_FLUSH_SLEEP_MSEC must be >= %d; defaulting to minimum value", MIN_BACKGROUND_FLUSH_SLEEP_MSEC);
+		     "ZS_BACKGROUND_FLUSH_SLEEP_MSEC must be >= %d; defaulting to minimum value", MIN_BACKGROUND_FLUSH_SLEEP_MSEC);
     } else {
 	plat_log_msg(80081, PLAT_LOG_CAT_PRINT_ARGS, PLAT_LOG_LEVEL_DEBUG, 
-		     "FDF_BACKGROUND_FLUSH_SLEEP_MSEC = %d", papi->background_flush_sleep_msec);
+		     "ZS_BACKGROUND_FLUSH_SLEEP_MSEC = %d", papi->background_flush_sleep_msec);
     }
 
     papi->paps            = async_puts_alloc(papi, pai->pcs);
@@ -375,7 +375,7 @@ agent_config_set_defaults(struct plat_opts_config_sdf_agent *config)
 
     #ifdef SDFAPI
 	//EF: Not used in SDFAPI should be removed
-	if ((s = getenv("FDF_PROPERTY_FILE"))) {
+	if ((s = getenv("ZS_PROPERTY_FILE"))) {
 	    strncpy(config->propertyFileName, 
 		    s, 
 		    sizeof(config->propertyFileName));
@@ -432,7 +432,7 @@ agent_config_set_properties(struct plat_opts_config_sdf_agent *config)
     }
 
     config->numFlashProtocolThreads = getProperty_uLongInt("SDF_FLASH_PROTOCOL_THREADS", 128);
-    config->numAsyncPutThreads = getProperty_uLongInt("FDF_ASYNC_PUT_THREADS", 128);
+    config->numAsyncPutThreads = getProperty_uLongInt("ZS_ASYNC_PUT_THREADS", 128);
     config->numReplicationThreads = getProperty_uLongInt("SDF_REPLICATION_THREADS", 8);
     config->numAgentMboxes =  getProperty_uLongInt("SDF_NUM_AGENT_MBOXES", 10);
     config->defaultShardCount = getProperty_uLongInt("SDF_DEFAULT_SHARD_COUNT", 1);
@@ -462,7 +462,7 @@ agent_config_set_properties(struct plat_opts_config_sdf_agent *config)
     }
 
     #ifdef SDFAPIONLY
-    if ( (1 == getProperty_Int("SDF_REFORMAT", 0)) || (1 == getProperty_Int("FDF_REFORMAT", 0))) {  	// Default to recover
+    if ( (1 == getProperty_Int("SDF_REFORMAT", 0)) || (1 == getProperty_Int("ZS_REFORMAT", 0))) {  	// Default to recover
         config->system_recovery = SYS_FLASH_REFORMAT;
     } else {
 	config->system_recovery = SYS_FLASH_RECOVERY;

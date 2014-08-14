@@ -21,7 +21,7 @@
  * For setting a range of objects in a pthread.
  */
 typedef struct {
-    fdf_ctr_t *ctr;
+    fdf.ctr_t *ctr;
     uint64_t   num;
     uint64_t   max;
     int        key_len;
@@ -127,12 +127,12 @@ printv(char *fmt, ...)
  * Flush a container.
  */
 void
-flush_ctr(fdf_ctr_t *ctr)
+flush_ctr(fdf.ctr_t *ctr)
 {
     char *err;
 
-    if (!fdf_ctr_flush(ctr, &err))
-        die_err(err, "fdf_ctr_flush failed");
+    if (!fdf.ctr_flush(ctr, &err))
+        die_err(err, "fdf.ctr_flush failed");
 }
 
 
@@ -140,12 +140,12 @@ flush_ctr(fdf_ctr_t *ctr)
  * Delete a container.
  */
 void
-delete_ctr(fdf_ctr_t *ctr)
+delete_ctr(fdf.ctr_t *ctr)
 {
     char *err;
 
-    if (!fdf_ctr_delete(ctr, &err))
-        die_err(err, "fdf_ctr_delete failed");
+    if (!fdf.ctr_delete(ctr, &err))
+        die_err(err, "fdf.ctr_delete failed");
 }
 
 
@@ -153,31 +153,31 @@ delete_ctr(fdf_ctr_t *ctr)
  * Reopen a container.
  */
 void
-reopen_ctr(fdf_ctr_t *ctr, int mode)
+reopen_ctr(fdf.ctr_t *ctr, int mode)
 {
     char *err;
 
-    if (!fdf_ctr_open(ctr, mode, &err))
-        die_err(err, "fdf_ctr_open failed");
+    if (!fdf.ctr_open(ctr, mode, &err))
+        die_err(err, "fdf.ctr_open failed");
 }
 
 
 /*
  * Open a container.
  */
-fdf_ctr_t *
-open_ctr(fdf_t *fdf, char *name, int mode)
+fdf.ctr_t *
+open_ctr(zs_t *zs, char *name, int mode)
 {
     char *err;
 
-    fdf_ctr_t *ctr = fdf_ctr_init(fdf, name, &err);
+    fdf.ctr_t *ctr = fdf.ctr_init(zs, name, &err);
     if (!ctr)
-        die_err(err, "fdf_ctr_init failed");
+        die_err(err, "fdf.ctr_init failed");
 
-    if (!fdf_ctr_open(ctr, mode, &err))
-        die_err(err, "fdf_ctr_open failed");
+    if (!fdf.ctr_open(ctr, mode, &err))
+        die_err(err, "fdf.ctr_open failed");
 
-    FDF_container_props_t *p = &ctr->props;
+    ZS_container_props_t *p = &ctr->props;
     printv("open ctr %s mode=%d fifo=%d pers=%d evict=%d wthru=%d",
            name, mode, p->fifo_mode, p->persistent, p->evicting, p->writethru);
 
@@ -189,12 +189,12 @@ open_ctr(fdf_t *fdf, char *name, int mode)
  * Set an object.
  */
 void
-set_obj(fdf_ctr_t *ctr, char *key, char *value)
+set_obj(fdf.ctr_t *ctr, char *key, char *value)
 {
     char *err;
 
-    if (!fdf_obj_set(ctr, key, strlen(key), value, strlen(value), &err)) {
-        die_err(err, "fdf_obj_set failed: %s: %s => %s",
+    if (!zs_obj_set(ctr, key, strlen(key), value, strlen(value), &err)) {
+        die_err(err, "zs_obj_set failed: %s: %s => %s",
                 ctr->name, key, value);
     }
 }
@@ -204,12 +204,12 @@ set_obj(fdf_ctr_t *ctr, char *key, char *value)
  * Delete an object.
  */
 void
-del_obj(fdf_ctr_t *ctr, char *key)
+del_obj(fdf.ctr_t *ctr, char *key)
 {
     char *err;
 
-    if (!fdf_obj_del(ctr, key, strlen(key), &err))
-        die_err(err, "fdf_obj_del failed: %s: %s", ctr->name, key);
+    if (!zs_obj_del(ctr, key, strlen(key), &err))
+        die_err(err, "zs_obj_del failed: %s: %s", ctr->name, key);
 }
 
 
@@ -217,21 +217,21 @@ del_obj(fdf_ctr_t *ctr, char *key)
  * Get and show an object from a container.
  */
 void
-show_obj(fdf_ctr_t *ctr, char *key, char *value)
+show_obj(fdf.ctr_t *ctr, char *key, char *value)
 {
     char *data;
     uint64_t datalen;
     char *err;
 
-    int s = fdf_obj_get(ctr, key, strlen(key), &data, &datalen, &err);
+    int s = zs_obj_get(ctr, key, strlen(key), &data, &datalen, &err);
     if (s < 0)
-        die_err(err, "fdf_obj_get failed %s: %s", ctr->name, key);
+        die_err(err, "zs_obj_get failed %s: %s", ctr->name, key);
 
     if (s == 0)
         printf("ctr %s: object %s was not set\n", ctr->name, key);
     else {
         printf("ctr %s: %s => %.*s\n", ctr->name, key, (int)datalen, data);
-        fdf_free(ctr->fdf, data);
+        zs_free(ctr->zs, data);
     }
 }
 
@@ -240,13 +240,13 @@ show_obj(fdf_ctr_t *ctr, char *key, char *value)
  * Show all objects in a container.
  */
 void
-show_objs(fdf_ctr_t *ctr)
+show_objs(fdf.ctr_t *ctr)
 {
     char *err;
 
-    fdf_iter_t *iter = fdf_iter_init(ctr, &err);
+    zs_iter_t *iter = zs_iter_init(ctr, &err);
     if (!iter)
-        die_err(err, "fdf_iter_init failed");
+        die_err(err, "zs_iter_init failed");
 
     printf("\n%s\n", ctr->name);
     for (;;) {
@@ -255,17 +255,17 @@ show_objs(fdf_ctr_t *ctr)
         uint64_t keylen;
         uint64_t datalen;
 
-        int s = fdf_iter_next(iter, &key, &keylen, &data, &datalen, &err);
+        int s = zs_iter_next(iter, &key, &keylen, &data, &datalen, &err);
         if (s < 0)
-            die_err(err, "fdf_iter_next failed");
+            die_err(err, "zs_iter_next failed");
         if (s == 0)
             break;
 
         //printf("  %.*s => %.*s\n", (int)keylen, key, (int)datalen, data);
     }
 
-    if (!fdf_iter_done(iter, &err))
-        die_err(err, "fdf_iter_done failed");
+    if (!zs_iter_done(iter, &err))
+        die_err(err, "zs_iter_done failed");
 }
 
 
@@ -306,7 +306,7 @@ set_objs_start(void *arg)
 {
     char *err;
     m_set_t     *t = arg;
-    fdf_ctr_t *ctr = t->ctr;
+    fdf.ctr_t *ctr = t->ctr;
     int    key_len = t->key_len;
     int    val_len = t->val_len;
     char      *key = malloc_q(key_len);
@@ -325,8 +325,8 @@ set_objs_start(void *arg)
         }
 
         fill_uint(id_ptr, id_len, num);
-        if (!fdf_obj_set(ctr, key, key_len, val, val_len, &err)) {
-            die_err(err, "fdf_obj_set failed: key %d kl=%d dl=%d",
+        if (!zs_obj_set(ctr, key, key_len, val, val_len, &err)) {
+            die_err(err, "zs_obj_set failed: key %d kl=%d dl=%d",
                     num, key_len, val_len);
         }
     }
@@ -338,7 +338,7 @@ set_objs_start(void *arg)
  * Set objects in a container using multiple threads.
  */
 void
-set_objs_m(fdf_ctr_t *ctr, int obj_min, int obj_max,
+set_objs_m(fdf.ctr_t *ctr, int obj_min, int obj_max,
            int key_len, int val_len, int num_threads)
 {
     int t;

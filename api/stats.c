@@ -1,5 +1,5 @@
 /*
- * FDF Admin Interface.
+ * ZS Admin Interface.
  *
  * Author: Manavalan Krishnan
  *
@@ -15,7 +15,7 @@
 #include <string.h>
 #include <sys/types.h>
 #include <time.h> 
-#include "fdf.h"
+#include "zs.h"
 #include <stdio.h>
 #include <stdint.h>
 #include <unistd.h>
@@ -24,7 +24,7 @@
 
 #include "sdf.h"
 #include "sdf_internal.h"
-#include "fdf.h"
+#include "zs.h"
 #include "utils/properties.h"
 #include "protocol/protocol_utils.h"
 #include "protocol/protocol_common.h"
@@ -80,11 +80,11 @@ static stats_dump_cfg_t dump_thd_cfg;
 #define LOG_WARN PLAT_LOG_LEVEL_WARN
 #define LOG_FATAL PLAT_LOG_LEVEL_FATAL
 
-FDF_status_t print_container_stats_by_name(struct FDF_thread_state *thd_state,
+ZS_status_t print_container_stats_by_name(struct ZS_thread_state *thd_state,
                               FILE *fp, char *cname, int stats_type);
-FDF_status_t print_container_stats_by_cguid( struct FDF_thread_state *thd_state,
-                                   FILE *fp, FDF_cguid_t cguid, int stats_type);
-void *FDFStatsDumpThread(void *arg);
+ZS_status_t print_container_stats_by_cguid( struct ZS_thread_state *thd_state,
+                                   FILE *fp, ZS_cguid_t cguid, int stats_type);
+void *ZSStatsDumpThread(void *arg);
 
 
 
@@ -146,7 +146,7 @@ static size_t tokenize_adm_cmd(char *command, cmd_token_t *tokens,
     return ntokens;
 }
 
-FDF_status_t write_socket(int conn_fd, char *data, int len ) {
+ZS_status_t write_socket(int conn_fd, char *data, int len ) {
     int bytes_written, rc;
     int err = 0;
 
@@ -157,7 +157,7 @@ FDF_status_t write_socket(int conn_fd, char *data, int len ) {
             if ( err > 3 ) {
                 plat_log_msg(160053, LOG_CAT, LOG_ERR,
                      "Unable to write string %s",data+bytes_written);
-                return FDF_FAILURE;
+                return ZS_FAILURE;
             }
             err++;
             continue;
@@ -165,57 +165,57 @@ FDF_status_t write_socket(int conn_fd, char *data, int len ) {
         bytes_written = bytes_written + rc;
         err = 0;
     }
-    return FDF_SUCCESS;
+    return ZS_SUCCESS;
 }
 
-char *get_stats_catogory_desc_str(FDF_STATS_TYPE type) {
-    if( type == FDF_STATS_TYPE_APP_REQ ) {
+char *get_stats_catogory_desc_str(ZS_STATS_TYPE type) {
+    if( type == ZS_STATS_TYPE_APP_REQ ) {
         return "Application requests";
     }
-    else if( type == FDF_STATS_TYPE_FLASH ) {
+    else if( type == ZS_STATS_TYPE_FLASH ) {
         return "Flash statistics";
     }
-    else if( type == FDF_STATS_TYPE_OVERWRITES )  {
+    else if( type == ZS_STATS_TYPE_OVERWRITES )  {
         return "Overwrite and write-through statistics";
     }
-    else if( type == FDF_STATS_TYPE_CACHE_TO_FLASH )  {
+    else if( type == ZS_STATS_TYPE_CACHE_TO_FLASH )  {
         return "Cache to Flash Manager requests";
     }
-    else if( type == FDF_STATS_TYPE_FLASH_TO_CACHE )  {
+    else if( type == ZS_STATS_TYPE_FLASH_TO_CACHE )  {
         return "Flash Manager responses to cache";
     }
-    else if( type == FDF_STATS_TYPE_FLASH_RC )  {
+    else if( type == ZS_STATS_TYPE_FLASH_RC )  {
         return "Flash layer return codes";
     }
-    else if( type == FDF_STATS_TYPE_PER_CACHE )  {
+    else if( type == ZS_STATS_TYPE_PER_CACHE )  {
         return "Cache statistics";
     }
-    else if( type == FDF_STATS_TYPE_FLASH_MANAGER )  {
+    else if( type == ZS_STATS_TYPE_FLASH_MANAGER )  {
         return "Flash Manager requests/responses";;
     }
-    else if( type == FDF_STATS_TYPE_CONTAINER_FLASH )  {
+    else if( type == ZS_STATS_TYPE_CONTAINER_FLASH )  {
         return "Container evictions";;
     }
-    else if(type == FDF_STATS_TYPE_BTREE ) {
+    else if(type == ZS_STATS_TYPE_BTREE ) {
         return "Btree layer statistics";
     }
     return "Unknown type:";
 }
 
 
-void print_stats_btree(FILE *fp, FDF_stats_t *stats) {
+void print_stats_btree(FILE *fp, ZS_stats_t *stats) {
     int i;
 
-    fprintf(fp,"  %s:\n",get_stats_catogory_desc_str(FDF_STATS_TYPE_APP_REQ));
-    for (i = 0; i < FDF_N_ACCESS_TYPES; i++ ) { 
-        if( (stats->n_accesses[i] == 0) || ( i < FDF_ACCESS_TYPES_READ ) ){ 
+    fprintf(fp,"  %s:\n",get_stats_catogory_desc_str(ZS_STATS_TYPE_APP_REQ));
+    for (i = 0; i < ZS_N_ACCESS_TYPES; i++ ) { 
+        if( (stats->n_accesses[i] == 0) || ( i < ZS_ACCESS_TYPES_READ ) ){ 
             continue;
         }   
         fprintf(fp,"    %s = %lu\n",get_access_type_stats_desc(i), 
                                                           stats->n_accesses[i]);
     }   
-    fprintf(fp,"  %s:\n",get_stats_catogory_desc_str(FDF_STATS_TYPE_BTREE));
-    for (i = 0; i < FDF_N_BTREE_STATS; i++ ) {
+    fprintf(fp,"  %s:\n",get_stats_catogory_desc_str(ZS_STATS_TYPE_BTREE));
+    for (i = 0; i < ZS_N_BTREE_STATS; i++ ) {
         if( stats->btree_stats[i] == 0 ) {
             continue;
         }
@@ -224,36 +224,36 @@ void print_stats_btree(FILE *fp, FDF_stats_t *stats) {
     }
 }
 
-void print_stats(FILE *fp, FDF_stats_t *stats, int cntr_stat) {
+void print_stats(FILE *fp, ZS_stats_t *stats, int cntr_stat) {
     int i, stats_type, category;
     char space[8] = "  ";
 
     if( is_btree_loaded() && (cntr_stat == 1 ) ) { 
         /* Btree enabled and function is called to print per cont. stats */
         print_stats_btree(fp,stats);
-        fprintf(fp,"  %s:\n","FDF Layer statistics");
+        fprintf(fp,"  %s:\n","ZS Layer statistics");
         snprintf(space,5,"%s","    ");
     }
-    fprintf(fp,"%s%s:\n",space,get_stats_catogory_desc_str(FDF_STATS_TYPE_APP_REQ));
-    for (i = 0; i < FDF_N_ACCESS_TYPES; i++ ) {
-        if( (stats->n_accesses[i] == 0 ) || ( i >= FDF_ACCESS_TYPES_READ ) ) {
+    fprintf(fp,"%s%s:\n",space,get_stats_catogory_desc_str(ZS_STATS_TYPE_APP_REQ));
+    for (i = 0; i < ZS_N_ACCESS_TYPES; i++ ) {
+        if( (stats->n_accesses[i] == 0 ) || ( i >= ZS_ACCESS_TYPES_READ ) ) {
             continue;
         }
         fprintf(fp,"%s  %s = %lu\n",space,get_access_type_stats_desc(i), 
                                                           stats->n_accesses[i]);
     }
-    stats_type = FDF_STATS_TYPE_OVERWRITES; 
+    stats_type = ZS_STATS_TYPE_OVERWRITES; 
     fprintf(fp,"%s%s:\n",space,
-                        get_stats_catogory_desc_str(FDF_STATS_TYPE_OVERWRITES));
-    for (i = 0; i < FDF_N_CACHE_STATS; i++ ) {
-        if( (i != FDF_CACHE_STAT_CACHE_MISSES) &&
-            (i != FDF_CACHE_STAT_CACHE_HITS) &&
+                        get_stats_catogory_desc_str(ZS_STATS_TYPE_OVERWRITES));
+    for (i = 0; i < ZS_N_CACHE_STATS; i++ ) {
+        if( (i != ZS_CACHE_STAT_CACHE_MISSES) &&
+            (i != ZS_CACHE_STAT_CACHE_HITS) &&
             (stats->cache_stats[i] == 0 )  ) {
             continue;
         }
         /* Do not print 0 stats for cache miss and hit in the container section */
         if( (stats->cache_stats[i] == 0 ) && (cntr_stat == 1) && 
-            ((i == FDF_CACHE_STAT_CACHE_MISSES) || (i == FDF_CACHE_STAT_CACHE_HITS)))
+            ((i == ZS_CACHE_STAT_CACHE_MISSES) || (i == ZS_CACHE_STAT_CACHE_HITS)))
         {
             continue;
         }
@@ -271,7 +271,7 @@ FILE *open_stats_dump_file() {
     const char *file_name;
     FILE *fp;
     /* Open the file */
-    file_name = getProperty_String("FDF_STATS_FILE","/tmp/fdfstats.log");
+    file_name = getProperty_String("ZS_STATS_FILE","/tmp/zsstats.log");
     fp = fopen(file_name,"a+");
     if( fp == NULL ) {
         plat_log_msg(160054, LOG_CAT, LOG_ERR,
@@ -280,7 +280,7 @@ FILE *open_stats_dump_file() {
     return fp;
 }
 
-FDF_status_t dump_container_stats_by_name(struct FDF_thread_state *thd_state,
+ZS_status_t dump_container_stats_by_name(struct ZS_thread_state *thd_state,
                                                  char *cname, int stats_type) {
     int rc;
     FILE *fp;
@@ -288,7 +288,7 @@ FDF_status_t dump_container_stats_by_name(struct FDF_thread_state *thd_state,
     /* Open the file */
     fp = open_stats_dump_file();
     if( fp == NULL) {
-        return FDF_FAILURE;
+        return ZS_FAILURE;
     }
     rc = print_container_stats_by_name(thd_state,fp,cname,stats_type);
     fflush(fp);
@@ -296,15 +296,15 @@ FDF_status_t dump_container_stats_by_name(struct FDF_thread_state *thd_state,
     return rc;
 }
 
-FDF_status_t dump_container_stats_by_cguid(struct FDF_thread_state *thd_state,
-                                           FDF_cguid_t cguid, int stats_type) {
+ZS_status_t dump_container_stats_by_cguid(struct ZS_thread_state *thd_state,
+                                           ZS_cguid_t cguid, int stats_type) {
     int rc;
     FILE *fp;
         
     /* Open the file */
     fp = open_stats_dump_file();
     if( fp == NULL ) {
-        return FDF_FAILURE;
+        return ZS_FAILURE;
     }
     rc = print_container_stats_by_cguid(thd_state,fp,cguid,stats_type);
     fflush(fp);
@@ -312,34 +312,34 @@ FDF_status_t dump_container_stats_by_cguid(struct FDF_thread_state *thd_state,
     return rc;
 }       
 
-FDF_status_t dump_all_container_stats(struct FDF_thread_state *thd_state,
+ZS_status_t dump_all_container_stats(struct ZS_thread_state *thd_state,
                                                                int stats_type) {
     int i;
     FILE *fp;
     uint32_t n_cguids;
-    FDF_cguid_t *cguids = NULL;
-    FDF_status_t ret = FDF_SUCCESS;
+    ZS_cguid_t *cguids = NULL;
+    ZS_status_t ret = ZS_SUCCESS;
 
 
-    cguids = (FDF_cguid_t *) plat_alloc(sizeof(*cguids) * MCD_MAX_NUM_CNTRS);
+    cguids = (ZS_cguid_t *) plat_alloc(sizeof(*cguids) * MCD_MAX_NUM_CNTRS);
     if (cguids == NULL) {
-	    return FDF_FAILURE;	
+	    return ZS_FAILURE;	
     }
 
-    ret = FDFGetContainers(thd_state,cguids,&n_cguids);
-	if ( FDF_SUCCESS != ret )
+    ret = ZSGetContainers(thd_state,cguids,&n_cguids);
+	if ( ZS_SUCCESS != ret )
 	    goto out;
 
     if( n_cguids <= 0 ) {
         plat_log_msg(160055, LOG_CAT, LOG_DBG,
                            "No container exists");
-        ret = FDF_FAILURE;
+        ret = ZS_FAILURE;
 	    goto out;
     }
 
     fp = open_stats_dump_file();
     if( fp == NULL ) {
-        ret = FDF_FAILURE;
+        ret = ZS_FAILURE;
 	    goto out;
     }
 
@@ -356,15 +356,15 @@ out:
     return ret;
 }
 
-FDF_status_t print_container_stats_by_name(struct FDF_thread_state *thd_state,
+ZS_status_t print_container_stats_by_name(struct ZS_thread_state *thd_state,
                               FILE *fp, char *cname, int stats_type) {
-    FDF_cguid_t cguid;
+    ZS_cguid_t cguid;
 
     /* Find cgiud for given container name */
-    cguid = FDFGetCguid(cname);
+    cguid = ZSGetCguid(cname);
     if ( cguid == SDF_NULL_CGUID ) {
         fprintf(fp,"Container %s not found", cname);
-        return FDF_FAILURE;
+        return ZS_FAILURE;
     }
     return print_container_stats_by_cguid(thd_state,fp,cguid,stats_type);
 }
@@ -378,14 +378,14 @@ char *get_bool_str( int val) {
     }
 }
 
-char *get_durability_str(FDF_durability_level_t dura) {
-    if ( dura == FDF_DURABILITY_PERIODIC ) {
+char *get_durability_str(ZS_durability_level_t dura) {
+    if ( dura == ZS_DURABILITY_PERIODIC ) {
         return "Periodic sync";
     }
-    else if ( dura == FDF_DURABILITY_SW_CRASH_SAFE ) {
+    else if ( dura == ZS_DURABILITY_SW_CRASH_SAFE ) {
         return "Software crash safe";
     }
-    else if ( dura == FDF_DURABILITY_HW_CRASH_SAFE ) {
+    else if ( dura == ZS_DURABILITY_HW_CRASH_SAFE ) {
         return "Hardware crash safe";
     }
     else {
@@ -393,32 +393,41 @@ char *get_durability_str(FDF_durability_level_t dura) {
     }
 }
 
-FDF_status_t print_container_stats_by_cguid( struct FDF_thread_state *thd_state,
-                                   FILE *fp, FDF_cguid_t cguid, int stats_type) {
+#define IS_ZS_HASH_CONTAINER(FLAGS) (FLAGS & (1 << 0))
+ZS_status_t print_container_stats_by_cguid( struct ZS_thread_state *thd_state,
+                                   FILE *fp, ZS_cguid_t cguid, int stats_type) {
     int len,i;
     time_t t;
-    FDF_status_t rc;
-    FDF_stats_t stats;
+    ZS_status_t rc;
+    ZS_stats_t stats;
     char stats_buffer[STATS_BUFFER_SIZE], *cname;
-    FDF_container_props_t props;
+    ZS_container_props_t props;
     uint64_t num_objs = 0;
     uint64_t used_space = 0;   
 	cntr_map_t *cmap = NULL;
+    char *type = NULL;
 
     /* Get container name */
-    cname = FDFGetContainerName(cguid);
+    cname = ZSGetContainerName(cguid);
     if( cname == NULL ) {
          fprintf(fp,"Unable to container name for cguid %lu", cguid);
-         return FDF_FAILURE;
+         return ZS_FAILURE;
     }
 
     /* Get container properties and print */
-    rc = FDFGetContainerProps(thd_state,cguid,&props);
-    if ( rc != FDF_SUCCESS ) {
-		if ( FDF_FAILURE_OPERATION_DISALLOWED != rc && FDF_FAILURE_CONTAINER_NOT_FOUND != rc ) 
-			fprintf(fp,"Unable to get container properties for %s(error:%s)\n",cname,FDFStrError(rc)); 
-		return FDF_FAILURE;
+    rc = ZSGetContainerProps(thd_state,cguid,&props);
+    if ( rc != ZS_SUCCESS ) {
+		if ( ZS_FAILURE_OPERATION_DISALLOWED != rc && ZS_FAILURE_CONTAINER_NOT_FOUND != rc ) 
+			fprintf(fp,"Unable to get container properties for %s(error:%s)\n",cname,ZSStrError(rc)); 
+		return ZS_FAILURE;
     }
+
+    if (props.flags & (1 << 0)) {
+        type = "hash";
+    } else {
+        type = "btree";
+    }
+
     time(&t);
     /* Print the container properties */
     get_cntr_info(cguid,NULL, 0, &num_objs, &used_space, NULL, NULL);
@@ -434,62 +443,64 @@ FDF_status_t print_container_stats_by_cguid( struct FDF_thread_state *thd_state,
                           "    async_writes     = %s\n"
                           "    durability       = %s\n"
                           "    compression      = %s\n"
-                          "    bypass_fdf_cache = %s\n"
+                          "    bypass_zs_cache = %s\n"
                           "    num_objs         = %lu\n"
-                          "    used_space       = %lu\n",ctime(&t),
-            cname,cguid, props.size_kb, get_bool_str(props.persistent),
+                          "    used_space       = %lu\n"
+                          "    type             = %s\n",
+            ctime(&t),
+            cname, cguid, props.size_kb, get_bool_str(props.persistent),
             get_bool_str(props.evicting),get_bool_str(props.writethru),
             get_bool_str(props.fifo_mode),get_bool_str(props.async_writes),
             get_durability_str(props.durability_level),
             get_bool_str(props.compression), get_bool_str(props.flash_only), 
-            num_objs, used_space);
+            num_objs, used_space, type);
 
     /* Get Per container stats */
-    memset(&stats,0,sizeof(FDF_stats_t));
-    rc = FDFGetContainerStats(thd_state,cguid,&stats); 
-    if ( rc != FDF_SUCCESS ) {
-		if ( 0 && FDF_FAILURE_CONTAINER_DELETED != rc )
-        	fprintf(fp,"FDFGetContainerStats failed for %s(error:%s)",cname,FDFStrError(rc));
-        return FDF_FAILURE;
+    memset(&stats,0,sizeof(ZS_stats_t));
+    rc = ZSGetContainerStats(thd_state,cguid,&stats); 
+    if ( rc != ZS_SUCCESS ) {
+		if ( 0 && ZS_FAILURE_CONTAINER_DELETED != rc )
+        	fprintf(fp,"ZSGetContainerStats failed for %s(error:%s)",cname,ZSStrError(rc));
+        return ZS_FAILURE;
     }
     print_stats(fp,&stats, 1);
 
 	// Output per container evictions 
-	cmap = fdf_cmap_get_by_cguid( cguid ); 
+	cmap = zs_cmap_get_by_cguid( cguid ); 
 	if ( cmap && cmap->container_stats.num_evictions > 0 ) {
-		fprintf(fp,"  %s:\n", get_stats_catogory_desc_str(FDF_STATS_TYPE_CONTAINER_FLASH));
+		fprintf(fp,"  %s:\n", get_stats_catogory_desc_str(ZS_STATS_TYPE_CONTAINER_FLASH));
 		fprintf(fp,"    %s = %lu\n", "num_evictions", cmap->container_stats.num_evictions);
 	}
 
     if( stats_type != STATS_PRINT_TYPE_DETAILED ) {   
-        return FDF_SUCCESS;
+        return ZS_SUCCESS;
     }
     /* Print Flash layer statistics */
-    fprintf(fp,"Overall FDF Statistics\n");
-    fprintf(fp,"  %s:\n",get_stats_catogory_desc_str(FDF_STATS_TYPE_FLASH));
-    for (i = 0; i < FDF_N_FLASH_STATS; i++ ) {
+    fprintf(fp,"Overall ZS Statistics\n");
+    fprintf(fp,"  %s:\n",get_stats_catogory_desc_str(ZS_STATS_TYPE_FLASH));
+    for (i = 0; i < ZS_N_FLASH_STATS; i++ ) {
         if( stats.flash_stats[i] == 0 ) {
             continue;
         }
         fprintf(fp,"    %s = %lu\n",get_flash_type_stats_desc(i),
                                                           stats.flash_stats[i]);
     }
-    fdf_get_flash_map(thd_state,cguid,stats_buffer,&len);        
+    zs_get_flash_map(thd_state,cguid,stats_buffer,&len);        
     fprintf(fp,"  Flash layout:\n%s",stats_buffer);
 
     /* Get the Total Flash stats */
-    memset(&stats,0,sizeof(FDF_stats_t));
-    rc = FDFGetStats(thd_state,&stats);
-    if ( rc != FDF_SUCCESS ) {
-		if ( 0 && FDF_FAILURE_CONTAINER_DELETED != rc )
-        	fprintf(fp,"FDFGetStats failed for %s(error:%s)", cname,FDFStrError(rc));
-        return FDF_FAILURE;
+    memset(&stats,0,sizeof(ZS_stats_t));
+    rc = ZSGetStats(thd_state,&stats);
+    if ( rc != ZS_SUCCESS ) {
+		if ( 0 && ZS_FAILURE_CONTAINER_DELETED != rc )
+        	fprintf(fp,"ZSGetStats failed for %s(error:%s)", cname,ZSStrError(rc));
+        return ZS_FAILURE;
     }
     print_stats(fp,&stats, 0);
     fflush(fp);
-    return FDF_SUCCESS;
+    return ZS_SUCCESS;
 }
-static void process_log_level_cmd(struct FDF_thread_state *thd_state,
+static void process_log_level_cmd(struct ZS_thread_state *thd_state,
                        FILE *fp, cmd_token_t *tokens, size_t ntokens){
     if ( ntokens < 2 ) {
         fprintf(fp,"Invalid argument! Type help for more info\n");
@@ -503,7 +514,7 @@ static void process_log_level_cmd(struct FDF_thread_state *thd_state,
             fprintf(fp,"Invalid arguments! Type help for more info\n");
             return;
         }
-        if( change_log_level(tokens[2].value) != FDF_SUCCESS ) {
+        if( change_log_level(tokens[2].value) != ZS_SUCCESS ) {
             fprintf(fp,"Invalid log level %s! Type help for more info\n",
                            tokens[2].value);
         }
@@ -514,7 +525,7 @@ static void process_log_level_cmd(struct FDF_thread_state *thd_state,
     }
 }
 
-static void process_scavenger_cmd(struct FDF_thread_state *thd_state,
+static void process_scavenger_cmd(struct ZS_thread_state *thd_state,
                             FILE *fp, cmd_token_t *tokens, size_t ntokens)
 {
     if ( ntokens < 2 ) {
@@ -522,26 +533,26 @@ static void process_scavenger_cmd(struct FDF_thread_state *thd_state,
         return;
     }
 
-    if ( 0 == getProperty_uLongInt("FDF_EXPIRY_SCAVENGER_ENABLE", 1)) {
-        fprintf(fp,"scavenger not enabled, use FDF_EXPIRY_SCAVENGER_ENABLE\n");
+    if ( 0 == getProperty_uLongInt("ZS_EXPIRY_SCAVENGER_ENABLE", 1)) {
+        fprintf(fp,"scavenger not enabled, use ZS_EXPIRY_SCAVENGER_ENABLE\n");
         return;
     }
 
     if ( strcmp(tokens[1].value,"start" ) == 0 ){
-        if(FDF_SUCCESS == fdf_start_scavenger_thread(
-                    (struct FDF_state *)0xdeadbeef)){
+        if(ZS_SUCCESS == zs_start_scavenger_thread(
+                    (struct ZS_state *)0xdeadbeef)){
             fprintf(fp,"scavenger started\n");
         } else {
             fprintf(fp,"scavenger start failed\n");   
         }
     } else if (strcmp(tokens[1].value,"stop" ) == 0 ){
-        if(FDF_SUCCESS == fdf_stop_scavenger_thread()){
+        if(ZS_SUCCESS == zs_stop_scavenger_thread()){
             fprintf(fp,"scavenger stopped\n");
         }
     }
 }
 
-static void process_container_cmd(struct FDF_thread_state *thd_state, 
+static void process_container_cmd(struct ZS_thread_state *thd_state, 
                        FILE *fp, cmd_token_t *tokens, size_t ntokens){
     int rc,i;
     int stats_type = 0;
@@ -599,7 +610,7 @@ static void process_container_cmd(struct FDF_thread_state *thd_state,
         /* Create dump thread */
         pthread_attr_init(&attr);
         pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
-        rc = pthread_create(&thread, &attr,FDFStatsDumpThread, NULL);
+        rc = pthread_create(&thread, &attr,ZSStatsDumpThread, NULL);
         if( rc ) {
             fprintf(fp,"Unable to create dump thread\n");
             dump_thd_cfg.state = 0;
@@ -641,13 +652,13 @@ static void process_container_cmd(struct FDF_thread_state *thd_state,
         }
     }
     else if( strcmp(tokens[1].value,"list" ) == 0 ) {
-	    struct FDFCMapIterator *iterator = NULL; 
-            FDF_cguid_t cguid;
+	    struct ZSCMapIterator *iterator = NULL; 
+            ZS_cguid_t cguid;
             bool verbose = ((ntokens > 2) && 
                             (strcmp(tokens[2].value, "-v") == 0));
 
 	    for ( i = 0; i < MCD_MAX_NUM_CNTRS; i++ ) {
-	        cname = FDFGetNextContainerName(thd_state, &iterator, &cguid); 
+	        cname = ZSGetNextContainerName(thd_state, &iterator, &cguid); 
 	        if ( cname ) {     
                     if (verbose) fprintf(fp, "%"PRIu64": ", cguid);
 	            fprintf(fp,"%s\n",cname); 
@@ -665,13 +676,13 @@ static void process_container_cmd(struct FDF_thread_state *thd_state,
 }
 
 /* From enumerate.c */
-FDF_status_t cguid_to_shard(
+ZS_status_t cguid_to_shard(
         SDF_action_init_t *pai, 
-        FDF_cguid_t cguid, 
+        ZS_cguid_t cguid, 
         shard_t **shard_ptr, 
         int delete_ok);
 
-static void process_slab_gc_cmd(struct FDF_thread_state *thd_state, 
+static void process_slab_gc_cmd(struct ZS_thread_state *thd_state, 
                        FILE *fp, cmd_token_t *tokens, size_t ntokens){
     if ( ntokens < 2 ) {
         fprintf(fp,"Invalid argument! Type help for more info\n");
@@ -681,14 +692,14 @@ static void process_slab_gc_cmd(struct FDF_thread_state *thd_state,
     shard_t *shard; 
     SDF_action_init_t *pai = (SDF_action_init_t *) thd_state; 
     int s = cguid_to_shard(pai, VDC_CGUID, &shard, 0); 
-    if (s != FDF_SUCCESS) {
+    if (s != ZS_SUCCESS) {
         fprintf(fp, "Error getting shard from cguid.\n");
         return;
     }
     mcd_osd_shard_t *mcd_shard = (mcd_osd_shard_t *)shard;
 
     if( strcmp(tokens[1].value,"enable") == 0 )
-        slab_gc_init(mcd_shard, getProperty_Int("FDF_SLAB_GC_THRESHOLD", 70 ));
+        slab_gc_init(mcd_shard, getProperty_Int("ZS_SLAB_GC_THRESHOLD", 70 ));
     else if( strcmp(tokens[1].value,"disable") == 0 )
         slab_gc_end(mcd_shard);
     else if( strcmp(tokens[1].value,"threshold") == 0 ) {
@@ -706,7 +717,7 @@ static void process_slab_gc_cmd(struct FDF_thread_state *thd_state,
 
         char* val = strndup(tokens[2].value, 6);
         if(val)
-            setProperty("FDF_SLAB_GC_THRESHOLD", val);
+            setProperty("ZS_SLAB_GC_THRESHOLD", val);
     }
     else {
         fprintf(fp,"Invalid arguments. Type help for more info\n");
@@ -727,7 +738,7 @@ static void print_admin_command_usage(FILE *fp) {
                    "help\nquit\n");
 }
 
-static FDF_status_t process_admin_cmd( struct FDF_thread_state *thd_state, 
+static ZS_status_t process_admin_cmd( struct ZS_thread_state *thd_state, 
                                                       FILE *fp, char *cmd ) {
     size_t ntokens;
     cmd_token_t tokens[MAX_CMD_TOKENS];
@@ -739,7 +750,7 @@ static FDF_status_t process_admin_cmd( struct FDF_thread_state *thd_state,
     if ( ntokens <= 0 ) {
         fprintf(fp,"Please specify a command." 
                                            "Type help for list of commands\n");
-        return FDF_SUCCESS;
+        return ZS_SUCCESS;
     }  
     /*
     for(len = 0; len < ntokens; len++ ) {
@@ -767,7 +778,7 @@ static FDF_status_t process_admin_cmd( struct FDF_thread_state *thd_state,
         ext_cbs->admin_cb(thd_state, fp, tokens, ntokens);
     }
     else if( strcmp(tokens[0].value,"quit") == 0 ) {
-         return FDF_FAILURE;
+         return ZS_FAILURE;
     }
     else if( strcmp(tokens[0].value,"scavenger") == 0 ) {
         process_scavenger_cmd(thd_state, fp, tokens, ntokens);
@@ -776,19 +787,19 @@ static FDF_status_t process_admin_cmd( struct FDF_thread_state *thd_state,
         fprintf(fp,"Invalid command:(%s)." 
                           "Type help for list of commands\n",cmd);
     }
-    return FDF_SUCCESS;
+    return ZS_SUCCESS;
 }
 
 #define CMD_BUFFER_SIZE 256
 
-void *FDFStatsDumpThread(void *arg) {
+void *ZSStatsDumpThread(void *arg) {
     int ret;
-    struct FDF_thread_state *thd_state;
+    struct ZS_thread_state *thd_state;
     //fprintf(stderr,"Starting Dump thread...\n");
 
-    ret = FDFInitPerThreadState(admin_config.fdf_state,
-                                 (struct FDF_thread_state **) &thd_state );
-    if (ret != FDF_SUCCESS) {
+    ret = ZSInitPerThreadState(admin_config.zs_state,
+                                 (struct ZS_thread_state **) &thd_state );
+    if (ret != ZS_SUCCESS) {
         plat_log_msg(160056,LOG_CAT, LOG_ERR,
                     "Unable to create thread state(%d)\n", ret);
         dump_thd_cfg.state = 0;
@@ -805,23 +816,23 @@ void *FDFStatsDumpThread(void *arg) {
     return NULL;
 }
 
-#define CMD_PROMPT   "fdf> "
+#define CMD_PROMPT   "zs> "
 
-void *FDFAdminThread(void *arg) {
+void *ZSAdminThread(void *arg) {
     int server_fd, conn_fd, ret,i;
     FILE *fp;
     struct sockaddr_in srv_addr;
     admin_config_t *adm_cfg;
     char buffer[CMD_BUFFER_SIZE];
-    struct FDF_thread_state *thd_state;
+    struct ZS_thread_state *thd_state;
     
 
     /* Create server socket and listen on it for commands */
     adm_cfg = (admin_config_t *)arg;
 
-    ret = FDFInitPerThreadState( adm_cfg->fdf_state, 
-                                 (struct FDF_thread_state **) &thd_state );
-    if (ret != FDF_SUCCESS) {
+    ret = ZSInitPerThreadState( adm_cfg->zs_state, 
+                                 (struct ZS_thread_state **) &thd_state );
+    if (ret != ZS_SUCCESS) {
         plat_log_msg(160056,LOG_CAT, LOG_ERR,
                             "Unable to create thread state(%d)\n", ret);
         return NULL;
@@ -882,7 +893,7 @@ void *FDFAdminThread(void *arg) {
                     buffer[i] = 0; 
                 }
             } 
-            if(process_admin_cmd(thd_state, fp,buffer) == FDF_FAILURE) {
+            if(process_admin_cmd(thd_state, fp,buffer) == ZS_FAILURE) {
                 break;
             }
             fflush(fp);
@@ -893,31 +904,31 @@ void *FDFAdminThread(void *arg) {
     plat_log_msg(160060, LOG_CAT, LOG_DBG,"Admin thread exiting...");
     return 0;
 }
-FDF_status_t fdf_start_admin_thread( struct FDF_state *fdf_state ) {
+ZS_status_t zs_start_admin_thread( struct ZS_state *zs_state ) {
     pthread_t thd;
     int rc;
 
-    admin_config.admin_port  = getProperty_Int( "FDF_ADMIN_PORT", 51350 );
+    admin_config.admin_port  = getProperty_Int( "ZS_ADMIN_PORT", 51350 );
     admin_config.num_threads = 1;
-    admin_config.fdf_state   = fdf_state;
+    admin_config.zs_state   = zs_state;
 
-    if(!getProperty_Int( "FDF_TEST_MODE", 0) || getProperty_Int("FDF_ADMIN_PORT", 0))
+    if(!getProperty_Int( "ZS_TEST_MODE", 0) || getProperty_Int("ZS_ADMIN_PORT", 0))
 	{
         plat_log_msg(80027,LOG_CAT, LOG_INFO,
-              "Starting FDF admin on TCP Port:%u", admin_config.admin_port);
+              "Starting ZS admin on TCP Port:%u", admin_config.admin_port);
 		/* Create Admin thread */    
-		rc = pthread_create(&thd,NULL,FDFAdminThread,(void *)&admin_config);
+		rc = pthread_create(&thd,NULL,ZSAdminThread,(void *)&admin_config);
 		if( rc != 0 ) {
 			plat_log_msg(80028,LOG_CAT, LOG_ERR,
 					"Unable to start admin on TCP Port:%u",admin_config.admin_port);
 		}
 	}
 
-    return FDF_SUCCESS; 
+    return ZS_SUCCESS; 
 }
 
-FDF_status_t fdf_stop_admin_thread(uint16_t admin_port, uint16_t num_thds ) {
+ZS_status_t zs_stop_admin_thread(uint16_t admin_port, uint16_t num_thds ) {
     /* Create Admin thread */  
-    return FDF_SUCCESS;
+    return ZS_SUCCESS;
 }
 

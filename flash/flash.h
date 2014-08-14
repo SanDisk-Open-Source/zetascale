@@ -14,7 +14,7 @@
 #define __FLASH_H
 
 #include "common/sdftypes.h"
-#include "common/fdftypes.h"
+#include "common/zstypes.h"
 
 // Flags for opening flash devices
 enum flashOpenFlags {

@@ -6,9 +6,9 @@
 #include <stdint.h>
 #include <inttypes.h>
 #include "sdftcp/locks.h"
-#include "common/fdftypes.h"
+#include "common/zstypes.h"
 #include "sdf.h"
-#include "fdf.h"
+#include "zs.h"
 
 
 /*
@@ -31,30 +31,30 @@ typedef struct {
  */
 typedef struct {
     uint64_t num_evictions;
-} FDF_container_stats_t;
+} ZS_container_stats_t;
 
 typedef enum {
-    FDF_CONTAINER_STATE_UNINIT,  	  /* Container is uninitialized */
-    FDF_CONTAINER_STATE_CLOSED,       /* Container is closed */
-    FDF_CONTAINER_STATE_OPEN,         /* Container is Open */
-    FDF_CONTAINER_STATE_DELETE_PROG,  /* Container submitted for async delete */
-    FDF_CONTAINER_STATE_DELETE_OPEN,  /* Container submitted for async delete */
-    FDF_CONTAINER_STATE_DELETE_CLOSED, /* Container submitted for async delete */
-}FDF_CONTAINER_STATE;
+    ZS_CONTAINER_STATE_UNINIT,  	  /* Container is uninitialized */
+    ZS_CONTAINER_STATE_CLOSED,       /* Container is closed */
+    ZS_CONTAINER_STATE_OPEN,         /* Container is Open */
+    ZS_CONTAINER_STATE_DELETE_PROG,  /* Container submitted for async delete */
+    ZS_CONTAINER_STATE_DELETE_OPEN,  /* Container submitted for async delete */
+    ZS_CONTAINER_STATE_DELETE_CLOSED, /* Container submitted for async delete */
+}ZS_CONTAINER_STATE;
 
 typedef struct cntr_map {
     char            	 	cname[CONTAINER_NAME_MAXLEN];	/* Container name */
 	int     			 	io_count;						/* IO in flight count */
-    FDF_cguid_t     	 	cguid;							/* Container ID */
+    ZS_cguid_t     	 	cguid;							/* Container ID */
     SDF_CONTAINER   	 	sdf_container;					/* Open container handle */
 	uint64_t			 	size_kb;						/* Container size KB */
 	uint64_t			 	current_size;					/* Current container size */
 	uint64_t			 	num_obj;						/* Current number of objects */
-    FDF_CONTAINER_STATE  	state;							/* Container state */
-	FDF_boolean_t   	 	evicting;						/* Eviction mode */
+    ZS_CONTAINER_STATE  	state;							/* Container state */
+	ZS_boolean_t   	 	evicting;						/* Eviction mode */
     enum_stats_t 		 	enum_stats;						/* Enumeration stats */
-    FDF_container_stats_t 	container_stats;				/* Container stats */
-	FDF_boolean_t			read_only;						/* Set if Read-Only */
+    ZS_container_stats_t 	container_stats;				/* Container stats */
+	ZS_boolean_t			read_only;						/* Set if Read-Only */
 } cntr_map_t;
 
 typedef struct SDF_state {
@@ -70,7 +70,7 @@ typedef struct SDF_iterator {
     SDF_cguid_t       cguid;
 } SDF_iterator_t;
 
-extern int get_ctnr_from_cguid(FDF_cguid_t cguid);
+extern int get_ctnr_from_cguid(ZS_cguid_t cguid);
 extern int get_ctnr_from_cname(char *cname);
 
 void rel_cntr_map(cntr_map_t *cmap);
@@ -90,16 +90,16 @@ get_cntr_info(cntr_id_t cntr_id,
               uint64_t *objs,
               uint64_t *used,
               uint64_t *size,
-			  FDF_boolean_t *evicting);
+			  ZS_boolean_t *evicting);
 
 /*
  * Container metadata cache
 */
 struct cmap_iterator;
 
-FDF_status_t fdf_cmap_init( void );
+ZS_status_t zs_cmap_init( void );
 
-FDF_status_t fdf_cmap_destroy( void );
+ZS_status_t zs_cmap_destroy( void );
 
 /**
  * @brief Create a metadata map entry
@@ -109,53 +109,53 @@ FDF_status_t fdf_cmap_destroy( void );
  * @param size_kb <IN> max size in kb
  * @param state <IN> container state
  * @param evicting <IN> container eviction mode
- * @return FDF_SUCCESS on success
- *		   FDF_FAILURE on failure
+ * @return ZS_SUCCESS on success
+ *		   ZS_FAILURE on failure
  */
-FDF_status_t fdf_cmap_create(
+ZS_status_t zs_cmap_create(
     char                    *cname,
-    FDF_cguid_t              cguid,
+    ZS_cguid_t              cguid,
     uint64_t                 size_kb,
-	FDF_CONTAINER_STATE      state,
-    FDF_boolean_t            evicting
+	ZS_CONTAINER_STATE      state,
+    ZS_boolean_t            evicting
 	);
 
-FDF_status_t fdf_cmap_update(
+ZS_status_t zs_cmap_update(
     cntr_map_t *cmap
     );
 
-cntr_map_t *fdf_cmap_get_by_cguid(
-    FDF_cguid_t cguid
+cntr_map_t *zs_cmap_get_by_cguid(
+    ZS_cguid_t cguid
     );
 
-void fdf_cmap_rel(
+void zs_cmap_rel(
     cntr_map_t *
     );
 
-cntr_map_t *fdf_cmap_get_by_cname(
+cntr_map_t *zs_cmap_get_by_cname(
     char *cname
     );
 
-char *fdf_cmap_get_cname(
-    FDF_cguid_t cguid;
+char *zs_cmap_get_cname(
+    ZS_cguid_t cguid;
     );
 
-FDF_status_t fdf_cmap_delete(
-    FDF_cguid_t cguid;
+ZS_status_t zs_cmap_delete(
+    ZS_cguid_t cguid;
     );
 
-void fdf_cmap_destroy_map(
+void zs_cmap_destroy_map(
 	cntr_map_t *cmap
 	);
 	
-struct cmap_iterator *fdf_cmap_enum(void);
+struct cmap_iterator *zs_cmap_enum(void);
 
-int fdf_cmap_next_enum( struct cmap_iterator *iterator,
+int zs_cmap_next_enum( struct cmap_iterator *iterator,
 	                    char **key,
 	                    uint32_t *keylen,
 	                    char **data,
 	                    uint64_t *datalen
 	                  );
 
-void fdf_cmap_finish_enum( struct cmap_iterator *iterator );
+void zs_cmap_finish_enum( struct cmap_iterator *iterator );
 #endif // __SDF_INTERNAL_H

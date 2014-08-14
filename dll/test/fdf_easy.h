@@ -1,76 +1,76 @@
 /*
- * An easier interface to FDF: header.
+ * An easier interface to ZS: header.
  * Author: Johann George
  *
  * Copyright (c) 2012-2013, Sandisk Corporation.  All rights reserved.
  */
-#ifndef FDF_EASY_H
-#define FDF_EASY_H
+#ifndef ZS_EASY_H
+#define ZS_EASY_H
 
 #include <pthread.h>
-#include "fdf.h"
+#include "zs.h"
 
 
 /*
- * FDF information.
+ * ZS information.
  */
 typedef struct {
-    struct FDF_state *state;
+    struct ZS_state *state;
     pthread_key_t     key;
-    struct fdf_prop  *prop;
+    struct zs_prop  *prop;
     char             *prop_data;
-} fdf_t;
+} zs_t;
 
 
 /*
- * FDF container information.
+ * ZS container information.
  */
 typedef struct {
-    fdf_t                 *fdf;
+    zs_t                 *zs;
     char                  *name;
     int                    num;
-    FDF_cguid_t            cguid;
-    FDF_container_props_t  props;
-} fdf_ctr_t;
+    ZS_cguid_t            cguid;
+    ZS_container_props_t  props;
+} fdf.ctr_t;
 
 
 /*
- * FDF container iterator.
+ * ZS container iterator.
  */
 typedef struct {
-    fdf_ctr_t           *ctr;
-    struct FDF_iterator *iter;
-} fdf_iter_t;
+    fdf.ctr_t           *ctr;
+    struct ZS_iterator *iter;
+} zs_iter_t;
 
 
 /*
  * Function prototypes.
  */
-void        fdf_done(fdf_t *fdf);
-void        fdf_free(fdf_t *fdf, void *ptr);
-void        fdf_set_prop(fdf_t *fdf, const char *key, const char *val);
-fdf_t      *fdf_init(int start, char **errp);
-fdf_ctr_t  *fdf_ctr_init(fdf_t *fdf, char *name, char **errp);
-fdf_iter_t *fdf_iter_init(fdf_ctr_t *ctr, char **errp);
-const char *fdf_get_prop(fdf_t *fdf, const char *key, const char *def);
-const char *fdf_get_prop2(fdf_t *fdf, const char *lkey,
+void        zs_done(zs_t *zs);
+void        zs_free(zs_t *zs, void *ptr);
+void        zs_set_prop(zs_t *zs, const char *key, const char *val);
+zs_t      *zs_init(int start, char **errp);
+fdf.ctr_t  *fdf.ctr_init(zs_t *zs, char *name, char **errp);
+zs_iter_t *zs_iter_init(fdf.ctr_t *ctr, char **errp);
+const char *zs_get_prop(zs_t *zs, const char *key, const char *def);
+const char *zs_get_prop2(zs_t *zs, const char *lkey,
                           const char *rkey, const char *def);
 
-int fdf_start(fdf_t *fdf, char **errp);
-int fdf_ctr_flush(fdf_ctr_t *ctr, char **errp);
-int fdf_ctr_close(fdf_ctr_t *ctr, char **errp);
-int fdf_ctr_delete(fdf_ctr_t *ctr, char **errp);
-int fdf_iter_done(fdf_iter_t *iter, char **errp);
-int fdf_utoi(const char *str, unsigned long *ret);
-int fdf_conf(fdf_t *fdf, char *path, char **errp);
-int fdf_ctr_open(fdf_ctr_t *ctr, int mode, char **errp);
-int fdf_load_prop_file(fdf_t *fdf, const char *file, char **errp);
-int fdf_obj_del(fdf_ctr_t *ctr, char *key, uint64_t keylen, char **errp);
-int fdf_obj_set(fdf_ctr_t *ctr, char *key, uint64_t keylen,
+int zs_start(zs_t *zs, char **errp);
+int fdf.ctr_flush(fdf.ctr_t *ctr, char **errp);
+int fdf.ctr_close(fdf.ctr_t *ctr, char **errp);
+int fdf.ctr_delete(fdf.ctr_t *ctr, char **errp);
+int zs_iter_done(zs_iter_t *iter, char **errp);
+int zs_utoi(const char *str, unsigned long *ret);
+int fdf.conf(zs_t *zs, char *path, char **errp);
+int fdf.ctr_open(fdf.ctr_t *ctr, int mode, char **errp);
+int zs_load_prop_file(zs_t *zs, const char *file, char **errp);
+int zs_obj_del(fdf.ctr_t *ctr, char *key, uint64_t keylen, char **errp);
+int zs_obj_set(fdf.ctr_t *ctr, char *key, uint64_t keylen,
                 char *data, uint64_t datalen, char **errp);
-int fdf_obj_get(fdf_ctr_t *ctr, char *key, uint64_t keylen,
+int zs_obj_get(fdf.ctr_t *ctr, char *key, uint64_t keylen,
                 char **data, uint64_t *datalen, char **errp);
-int fdf_iter_next(fdf_iter_t *iter, char **key, uint64_t *keylen,
+int zs_iter_next(zs_iter_t *iter, char **key, uint64_t *keylen,
                           char **data, uint64_t *datalen, char **errp);
 
-#endif /* FDF_EASY_H */
+#endif /* ZS_EASY_H */

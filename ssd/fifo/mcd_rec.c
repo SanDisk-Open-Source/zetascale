@@ -192,7 +192,6 @@ enum verify_mode {
 //    For internal tests
 // -----------------------------------------------------
 
-#if 0
 static int                Mcd_rec_attach_test_running         = 0;
 static int                Mcd_rec_attach_test_waiters_special = 0;
 static int                Mcd_rec_attach_test_waiters         = 0;
@@ -200,7 +199,6 @@ static fthMbox_t          Mcd_rec_attach_test_mbox_special;
 static fthMbox_t          Mcd_rec_attach_test_mbox;
 static fthMbox_t          Mcd_rec_attach_test_updated_mbox;
 static mcd_rec_update_t   Mcd_rec_attach_test_update_mail[ MCD_MAX_NUM_CNTRS ];
-#endif
 
 
 // -----------------------------------------------------
@@ -215,7 +213,7 @@ extern SDF_shardid_t    cmc_shardid;
 extern int              Mcd_osd_max_nclasses;
 
 
-extern void mcd_osd_slab_dealloc( mcd_osd_shard_t * shard,
+extern void mcd_fth_osd_slab_dealloc( mcd_osd_shard_t * shard,
                                       uint32_t address, bool async );
 extern inline uint32_t mcd_osd_lba_to_blk( uint32_t blocks );
 
@@ -267,7 +265,7 @@ container_meta_blob_put( uint64_t shard_id, char * data, int len )
     mcd_rec_shard_t           * pshard;
     mcd_osd_shard_t	      * shard;
     osd_state_t               * context =
-        mcd_init_aio_ctxt( SSD_AIO_CTXT_MCD_REC_BLOB );
+        mcd_fth_init_aio_ctxt( SSD_AIO_CTXT_MCD_REC_BLOB );
     char                      * buf;
     mcd_rec_blob_t            * blob;
     uint64_t			seg;
@@ -340,7 +338,7 @@ container_meta_blob_put( uint64_t shard_id, char * data, int len )
 	blob_offset = blob_offset % Mcd_osd_segment_blks;
 
         // write the blob
-        rc = mcd_aio_blk_write( context,
+        rc = mcd_fth_aio_blk_write( context,
                                     buf,
 				    blk_size *
                                     (shard->segments[ seg ] + blob_offset),
@@ -365,7 +363,7 @@ read_blob( void * context, uint64_t offset, uint64_t len, char * buf )
     mcd_rec_blob_t            * blob;
 
     // read blob block
-    rc = mcd_aio_blk_read( context,
+    rc = mcd_fth_aio_blk_read( context,
                                buf,
                                offset,
                                len);
@@ -399,7 +397,7 @@ container_meta_blob_get( char * blobs[], int num_slots )
     uint64_t                    stripe_offset;
     char                      * buf;
     osd_state_t               * context =
-        mcd_init_aio_ctxt( SSD_AIO_CTXT_MCD_REC_BLOB );
+        mcd_fth_init_aio_ctxt( SSD_AIO_CTXT_MCD_REC_BLOB );
     mcd_rec_shard_t           * pshard;
     mcd_osd_shard_t	      * shard;
     mcd_rec_superblock_t      * sb = &Mcd_rec_superblock;
@@ -606,7 +604,7 @@ read_label( int order[] )
     uint64_t                    stripe_offset;
     char                      * label;
     osd_state_t               * context =
-        mcd_init_aio_ctxt( SSD_AIO_CTXT_MCD_REC_LABEL );
+        mcd_fth_init_aio_ctxt( SSD_AIO_CTXT_MCD_REC_LABEL );
 
     // get pointer to label position in buffer
     label = (char *)( ( (uint64_t)context->osd_buf + MCD_OSD_SEG0_BLK_SIZE - 1 ) &
@@ -619,7 +617,7 @@ read_label( int order[] )
         stripe_offset = ssd * Mcd_aio_strip_size;
 
         // read label
-        rc = mcd_aio_blk_read( context,
+        rc = mcd_fth_aio_blk_read( context,
                                    label,
                                    stripe_offset,
                                    MCD_OSD_SEG0_BLK_SIZE);
@@ -662,7 +660,7 @@ write_label( char * buf, int blks, uint64_t blk_offset )
     int                         ssd, rc;
     uint64_t                    stripe_offset;
     void                      * context =
-        mcd_init_aio_ctxt( SSD_AIO_CTXT_MCD_REC_LABEL );
+        mcd_fth_init_aio_ctxt( SSD_AIO_CTXT_MCD_REC_LABEL );
 
     // write label on each device
     for ( ssd = 0; ssd < Mcd_rec_sb_data_copies; ssd++ ) {
@@ -676,7 +674,7 @@ write_label( char * buf, int blks, uint64_t blk_offset )
         stripe_offset = ssd * Mcd_aio_strip_size;
 
         // write label
-        rc = mcd_aio_blk_write( context,
+        rc = mcd_fth_aio_blk_write( context,
                                     buf,
                                     stripe_offset +
                                     (blk_offset * MCD_OSD_SEG0_BLK_SIZE),
@@ -699,7 +697,7 @@ write_superblock( char * buf, int blks, uint64_t blk_offset )
     int                         ssd, rc;
     uint64_t                    stripe_offset;
     void                      * context =
-        mcd_init_aio_ctxt( SSD_AIO_CTXT_MCD_REC_SPBLK );
+        mcd_fth_init_aio_ctxt( SSD_AIO_CTXT_MCD_REC_SPBLK );
 
     // write superblock on each device
     for ( ssd = 0; ssd < Mcd_rec_sb_data_copies; ssd++ ) {
@@ -708,7 +706,7 @@ write_superblock( char * buf, int blks, uint64_t blk_offset )
         stripe_offset = ssd * Mcd_aio_strip_size;
 
         // write superblock
-        rc = mcd_aio_blk_write( context,
+        rc = mcd_fth_aio_blk_write( context,
                                     buf,
                                     stripe_offset +
                                     (blk_offset * MCD_OSD_SEG0_BLK_SIZE),
@@ -782,7 +780,7 @@ read_log_page( osd_state_t * context, mcd_osd_shard_t * shard, int log,
 		((log_offset + tmp_offset) % Mcd_osd_segment_size);
 
     // read last page of first log
-    rc = mcd_aio_blk_read( context,
+    rc = mcd_fth_aio_blk_read( context,
                                buf,
                                offset,
                                MCD_OSD_META_BLK_SIZE);
@@ -918,7 +916,7 @@ context_alloc( int category )
         fthUnlock( wait );
     }
 
-    return mcd_init_aio_ctxt( category );
+    return mcd_fth_init_aio_ctxt( category );
 }
 
 void
@@ -972,7 +970,7 @@ validate_superblock_data( char * dest, int good_count, int good_copy[],
     int                         copy_good[ MCD_AIO_MAX_NFILES ];
     uint64_t                    stripe_offset;
     void                      * context =
-        mcd_init_aio_ctxt( SSD_AIO_CTXT_MCD_REC_SPBLK );
+        mcd_fth_init_aio_ctxt( SSD_AIO_CTXT_MCD_REC_SPBLK );
 
     // copy the list of which source buffers are "good"
     memcpy( copy_good, good_copy, sizeof( int ) * Mcd_rec_sb_data_copies );
@@ -1062,7 +1060,7 @@ validate_superblock_data( char * dest, int good_count, int good_copy[],
             // try max_tries times to re-write this copy
             for ( j = 1; j <= max_tries; j++ ) {
                 stripe_offset = ssd * Mcd_aio_strip_size;
-                rc = mcd_aio_blk_write( context,
+                rc = mcd_fth_aio_blk_write( context,
                                             source[ i ], // i has the good copy
                                             stripe_offset +
                                             (blk_offset * MCD_OSD_SEG0_BLK_SIZE),
@@ -1087,6 +1085,12 @@ validate_superblock_data( char * dest, int good_count, int good_copy[],
                              "offset=%lu, count=%d, copy=%d",
                              blk_offset, blk_count, ssd );
 
+                // sync all devices
+                rc = mcd_aio_sync_devices();
+                if ( rc != 0 ) {
+                    mcd_log_msg( 20449, PLAT_LOG_LEVEL_ERROR,
+                                 "error syncing superblock, rc=%d", rc );
+                }
             }
         }
     }
@@ -1115,7 +1119,7 @@ recovery_init( void )
     char                      * data_buf = NULL, *mmsdata_buf = NULL, *mmsbuf = NULL;
     char                      * buf;
     osd_state_t               * context =
-        mcd_init_aio_ctxt( SSD_AIO_CTXT_MCD_REC_INIT );
+        mcd_fth_init_aio_ctxt( SSD_AIO_CTXT_MCD_REC_INIT );
     mcd_rec_list_block_t      * seg_list;
     mcd_osd_shard_t           * shard;
     mcd_rec_shard_t           * pshard;
@@ -1193,9 +1197,7 @@ recovery_init( void )
     buf = (char *)( ( (uint64_t)context->osd_buf + MCD_OSD_SEG0_BLK_SIZE- 1 ) &
                     MCD_OSD_SEG0_BLK_MASK);
 
-#if 0
  revalidate_flash_desc:
-#endif
 
     good_count     = 0;
     version_change = 0;
@@ -1211,7 +1213,7 @@ recovery_init( void )
         stripe_offset = ssd * Mcd_aio_strip_size;
 
         // read flash descriptor
-        rc = mcd_aio_blk_read( context,
+        rc = mcd_fth_aio_blk_read( context,
                                    source[ ssd ],
                                    stripe_offset +
                                    (blk_offset * MCD_OSD_SEG0_BLK_SIZE),
@@ -1254,7 +1256,6 @@ recovery_init( void )
 
 		Mcd_osd_blk_size = (uint64_t)(fd->blk_size);
 
-#if 0
         // check structure version
         if ( fd->version != MCD_REC_FLASH_VERSION ) {
             mcd_log_msg( 160008, PLAT_LOG_LEVEL_WARN,
@@ -1264,7 +1265,6 @@ recovery_init( void )
                          fd->version, MCD_REC_FLASH_VERSION );
             version_change = fd->version;
         }
-#endif
 
         good_copy[ ssd ] = 1;
         good_count++;
@@ -1287,7 +1287,6 @@ recovery_init( void )
     // recover valid flash descriptor
     fd = sb->flash_desc;
 
-#if 0
     // handle version change
     if ( version_change ) {
         fd->write_version++;
@@ -1312,7 +1311,6 @@ recovery_init( void )
         }
         goto revalidate_flash_desc;
     }
-#endif
 
     // check if max_shards has changed; using last fd read from disk
     if ( fd->max_shards != MCD_OSD_MAX_NUM_SHARDS) {
@@ -1334,6 +1332,14 @@ recovery_init( void )
                          "error updating superblock, rc=%d", rc );
             return rc;
         }
+
+        // sync all devices
+        rc = mcd_aio_sync_devices();
+        if ( rc != 0 ) {
+            mcd_log_msg( 20449, PLAT_LOG_LEVEL_ERROR,
+                         "error syncing superblock, rc=%d", rc );
+            return rc;
+        }
     }
 
     // --------------------------------------------------------------
@@ -1353,9 +1359,7 @@ recovery_init( void )
     buf = (char *)( ((uint64_t)context->osd_buf + MCD_OSD_SEG0_BLK_SIZE - 1) &
                     MCD_OSD_SEG0_BLK_MASK);
 
-#if 0
  revalidate_props:
-#endif
 
     version_change = 0;
     memset( context->osd_buf, 0, size );
@@ -1377,7 +1381,7 @@ recovery_init( void )
             stripe_offset = ssd * Mcd_aio_strip_size;
 
             // read shard properties list
-            rc = mcd_aio_blk_read( context,
+            rc = mcd_fth_aio_blk_read( context,
                                        source[ ssd ],
                                        stripe_offset +
                                        (blk_offset * MCD_OSD_SEG0_BLK_SIZE),
@@ -1421,7 +1425,6 @@ recovery_init( void )
                 continue;
             }
 
-#if 0
             // check structure version
             if ( prop->version != MCD_REC_PROP_VERSION ) {
                 mcd_log_msg( 160012, PLAT_LOG_LEVEL_WARN,
@@ -1431,7 +1434,6 @@ recovery_init( void )
                              prop->version, MCD_REC_PROP_VERSION );
                 version_change = prop->version;
             }
-#endif
 
             good_copy[ ssd ] = 1;
             good_count++;
@@ -1450,8 +1452,8 @@ recovery_init( void )
                                        blk_count,
                                        source );
         plat_assert_rc( rc );
+    }
 
-#if 0
     // handle version change
     if ( version_change ) {
         for ( s = 0; s < fd->max_shards; s++ ) {
@@ -1502,7 +1504,17 @@ recovery_init( void )
         }
         goto revalidate_props;
     }
-#endif
+
+    // --------------------------------------------
+    // Get and validate all persistent shards
+    // --------------------------------------------
+
+    // get aligned buffer
+    buf = (char *)( ( (uint64_t)context->osd_buf + Mcd_osd_blk_size - 1 ) &
+                    Mcd_osd_blk_mask );
+
+    // retrieve shard descriptors
+    for ( s = 0; s < fd->max_shards; s++ ) {
 
         // skip empty slots and non-persistent shards
         if ( sb->props[ s ]->shard_id == 0 ||
@@ -1510,7 +1522,36 @@ recovery_init( void )
             continue;
         }
 
-        pshard = (mcd_rec_shard_t *)&sb->props[s]->pshard;
+        // read shard descriptor
+        rc = mcd_fth_aio_blk_read( context,
+                                   buf,
+                                   (sb->props[ s ]->blk_offset *
+                                    Mcd_osd_blk_size),
+                                   Mcd_osd_blk_size );
+        if ( FLASH_EOK != rc ) {
+            mcd_log_msg( 20458, PLAT_LOG_LEVEL_ERROR,
+                         "failed to read shard desc, rc=%d", rc );
+            return rc;
+        }
+
+        pshard = (mcd_rec_shard_t *)buf;
+
+        // verify shard descriptor checksum
+        checksum         = pshard->checksum;
+        pshard->checksum = 0;
+        pshard->checksum = hashb((unsigned char *)pshard,
+                                 Mcd_osd_blk_size,
+                                 MCD_REC_SHARD_EYE_CATCHER);
+        if ( pshard->checksum != checksum ||
+             pshard->eye_catcher != MCD_REC_SHARD_EYE_CATCHER ||
+             pshard->version != MCD_REC_SHARD_VERSION ) {
+            mcd_log_msg( 20459, PLAT_LOG_LEVEL_FATAL,
+                         "invalid shard checksum, blk_offset=%lu",
+                         sb->props[ s ]->blk_offset );
+            pshard->checksum = checksum;   // restore original contents
+            snap_dump( buf, Mcd_osd_blk_size );
+            plat_abort();
+        }
 
         // create volatile shard descriptor
         shard = (mcd_osd_shard_t *)plat_alloc( sizeof( mcd_osd_shard_t ) );
@@ -1521,10 +1562,21 @@ recovery_init( void )
         }
         memset( shard, 0, sizeof( mcd_osd_shard_t ) );
 
+        // create persistent shard descriptor
+        pshard = plat_alloc( sizeof( mcd_rec_shard_t ) );
+        if ( pshard == NULL ) {
+            mcd_log_msg( 20461, PLAT_LOG_LEVEL_ERROR,
+                         "failed to allocate pshard" );
+            plat_free( shard );
+            return FLASH_ENOMEM;
+        }
+        shard->ps_alloc += sizeof( mcd_rec_shard_t );
+
+        // recover valid persistent shard descriptor
+        memcpy( pshard, buf, sizeof( mcd_rec_shard_t ) );
+
         shard->pshard = pshard;
         shard->opened = 0;
-
-#if 0
         if (1 || ((pshard->blk_offset + pshard->seg_list_offset) / 
                      Mcd_osd_segment_blks !=
                      (pshard->blk_offset + pshard->seg_list_offset +
@@ -1540,7 +1592,7 @@ recovery_init( void )
                      Mcd_osd_segment_blks );
 
         // read the segment table for this shard
-        rc = mcd_aio_blk_read( context,
+        rc = mcd_fth_aio_blk_read( context,
                                    buf,
                                    (pshard->blk_offset +
                                     pshard->seg_list_offset) *
@@ -1551,6 +1603,7 @@ recovery_init( void )
                          "failed to read shard metadata, shrad_offset=%lu, "
                          "offset=%lu, rc=%d", pshard->blk_offset,
                          pshard->seg_list_offset, rc );
+            plat_free( pshard );
             plat_free( shard );
             return rc;
         }
@@ -1566,6 +1619,7 @@ recovery_init( void )
         if ( shard->segments == NULL ) {
             mcd_log_msg( 20463, PLAT_LOG_LEVEL_ERROR,
                          "failed to allocate segment list" );
+            plat_free( pshard );
             plat_free( shard );
             return FLASH_ENOMEM;
         }
@@ -1617,13 +1671,12 @@ recovery_init( void )
 
 				Mcd_osd_free_seg_curr--;
 #endif
-                }
-           }
+			}
+		}
 	
-           goto remaining;
+		goto remaining;
 
 meta_more_than_seg:
-#endif
 		/******************************************************
 		 *                                                    *
 		 *   IF THE METADATA CROSSES THE SEGMENT BOUNDARY     *
@@ -1648,40 +1701,42 @@ meta_more_than_seg:
         // create the segment table for this shard
 		shard->segments = plat_alloc( seg_list_size );
 		if ( shard->segments == NULL ) {
-                    mcd_log_msg( 20463, PLAT_LOG_LEVEL_ERROR,
-                                 "failed to allocate segment list" );
-                    plat_free( shard );
-                    plat_free(mmsdata_buf);
-                    return FLASH_ENOMEM;
-                }
+			mcd_log_msg( 20463, PLAT_LOG_LEVEL_ERROR,
+							"failed to allocate segment list" );
+            plat_free( pshard );
+            plat_free( shard );
+			plat_free(mmsdata_buf);
+            return FLASH_ENOMEM;
+        }
 
         // set key fields of shard descriptor (needed by shard init)
         shard->total_segments  = actual_segs - metadata_segs;
         shard->data_blk_offset = metadata_segs * Mcd_osd_segment_blks;
 
         // install the segment mapping table
-        buf_offset = 0; len = 0;
-        offset = pshard->seg_list_offset;
-        plat_assert_always(offset < Mcd_osd_segment_blks);
-        seg = 0;
-        len = (pshard->map_blks > (Mcd_osd_segment_blks - offset)) ?
-                                  (Mcd_osd_segment_blks - offset) : pshard->map_blks;
+		buf_offset = 0; len = 0;
+		offset = pshard->seg_list_offset;
+		plat_assert_always(offset < Mcd_osd_segment_blks);
+		seg = 0;
+		len = (pshard->map_blks > (Mcd_osd_segment_blks - offset)) ?
+				(Mcd_osd_segment_blks - offset) : pshard->map_blks;
 
-        // read class segment table for each class
-        rc = mcd_aio_blk_read( context,
-                                   mmsbuf,
-                                   Mcd_osd_blk_size *
-                                   (pshard->blk_offset + offset),
-                                   len * Mcd_osd_blk_size);
-        if ( FLASH_EOK != rc ) {
-            mcd_log_msg( 160174, PLAT_LOG_LEVEL_ERROR,
-                           "failed to read seg list, shardID=%lu, blk_offset=%lu, "
-                           "blks=%lu, rc=%d", shard->id, (shard->segments[seg] + offset),
-                           len, rc );
+		// read class segment table for each class
+		rc = mcd_fth_aio_blk_read( context,
+				   mmsbuf,
+				   Mcd_osd_blk_size *
+				   (pshard->blk_offset + offset),
+				   len * Mcd_osd_blk_size);
+		if ( FLASH_EOK != rc ) {
+			mcd_log_msg( 160174, PLAT_LOG_LEVEL_ERROR,
+				 "failed to read seg list, shardID=%lu, blk_offset=%lu, "
+				 "blks=%lu, rc=%d", shard->id, (shard->segments[seg] + offset),
+				 len, rc );
+            plat_free( pshard );
             plat_free( shard );
-            plat_free(mmsdata_buf);
-            return rc;
-        }
+			plat_free(mmsdata_buf);
+			return rc;
+		}
 
         seg_count = 0;
         for ( i = 0;
@@ -1696,7 +1751,7 @@ meta_more_than_seg:
 				offset = 0; buf_offset = 0;
 				plat_assert_always(shard->segments[seg]);
 				// read class segment table for each class
-				rc = mcd_aio_blk_read( context,
+				rc = mcd_fth_aio_blk_read( context,
 							mmsbuf,
 							Mcd_osd_blk_size *
 							(shard->segments[seg] + offset),
@@ -1706,6 +1761,7 @@ meta_more_than_seg:
 						 "failed to read seg list, shardID=%lu, blk_offset=%lu, "
 						 "blks=%lu, rc=%d", shard->id, (shard->segments[seg] + offset),
 						 len, rc );
+					plat_free( pshard );
 					plat_free( shard );
 					plat_free(mmsdata_buf);
 					return rc;
@@ -1752,9 +1808,7 @@ meta_more_than_seg:
 			}
 		}
 
-#if 0
 remaining:
-#endif
         // initialize parts of public shard descriptor
         shard->shard.shardID = pshard->shard_id;
         shard->shard.flags   = pshard->flags;
@@ -1971,7 +2025,7 @@ recovery_reclaim_space( void )
                              "container %s.%d.%d property changed from "
                              "persistent to non-persistent - leaving as "
                              "persistent",
-                             prop->cname, 0, prop->container_id );
+                             prop->cname, prop->tcp_port, prop->container_id );
                 prop->persistent = 1;
                 prop->checksum = 0;
                 prop->checksum = hashb((unsigned char *)prop,
@@ -2016,6 +2070,7 @@ recovery_reclaim_space( void )
             Mcd_osd_slab_shards[ s ] = NULL;
 
             // free allocated memory
+            plat_free( shard->pshard );
             shard->ps_alloc -= sizeof( mcd_rec_shard_t );
             plat_free( shard->segments );
             plat_free( shard );
@@ -2036,8 +2091,8 @@ recovery_reclaim_space( void )
                          "name=%s, tcpport=%d, id=%d "
                          "(not in current configuration)",
                          (prop->persistent ? "persistent" : "non-persistent"),
-                         prop->shard_id, prop->cname, 0,
-                         prop->container_id );
+                         prop->shard_id, prop->cname,
+                         prop->tcp_port, prop->container_id );
 
             // remove the shard properties
             memset( sb->props[ slot ], 0, Mcd_osd_blk_size );
@@ -2051,6 +2106,11 @@ recovery_reclaim_space( void )
             }
             updated = true;
         }
+    }
+
+    // sync all devices
+    if ( updated ) {
+        rc = mcd_aio_sync_devices();
     }
 
     return rc;
@@ -2099,7 +2159,7 @@ update_class( mcd_osd_shard_t * shard, mcd_osd_slab_class_t * class, mcd_osd_seg
     int                         seg_blk_offset;
     char                      * buf;
     osd_state_t               * context =
-        mcd_init_aio_ctxt( SSD_AIO_CTXT_MCD_REC_CLASS );
+        mcd_fth_init_aio_ctxt( SSD_AIO_CTXT_MCD_REC_CLASS );
     uint64_t                    offset;
     uint64_t                    pclass_offset;
     uint64_t                    checksum;
@@ -2138,7 +2198,7 @@ update_class( mcd_osd_shard_t * shard, mcd_osd_slab_class_t * class, mcd_osd_seg
                  (pclass_offset + blks - 1) / Mcd_osd_segment_blks );
 
     // read persistent class desc and segment array for this class
-    rc = mcd_aio_blk_read( context,
+    rc = mcd_fth_aio_blk_read( context,
                                buf,
                                pclass_offset * Mcd_osd_blk_size,
                                blks * Mcd_osd_blk_size );
@@ -2230,7 +2290,7 @@ update_class( mcd_osd_shard_t * shard, mcd_osd_slab_class_t * class, mcd_osd_seg
 #endif
 
     // write persistent segment list (single updated block)
-    rc = mcd_aio_blk_write( context,
+    rc = mcd_fth_aio_blk_write( context,
                                 (char *)seg_list,
                                 offset * Mcd_osd_blk_size,
                                 Mcd_osd_blk_size );
@@ -2278,7 +2338,7 @@ meta_more_than_seg:
     buf_offset = 0;
 
     // read persistent class desc and segment array for this class
-    rc = mcd_aio_blk_read( context,
+    rc = mcd_fth_aio_blk_read( context,
                                buf,
 							   Mcd_osd_blk_size *
                                (shard->segments[seg] + offset),
@@ -2331,7 +2391,7 @@ meta_more_than_seg:
     }
     for ( int b = 0; b < pshard->map_blks; b++, buf_offset++) {
 		if (buf_offset == len) {
-			rc = mcd_aio_blk_read( context,
+			rc = mcd_fth_aio_blk_read( context,
 					buf,
 					Mcd_osd_blk_size *
 					(shard->segments[seg] + offset),
@@ -2376,7 +2436,7 @@ meta_more_than_seg:
 				% Mcd_osd_segment_blks;
     seg = (pclass_offset + seg_list_offset + seg_blk_offset)
 	    			/ Mcd_osd_segment_blks;
-    rc = mcd_aio_blk_read( context,
+    rc = mcd_fth_aio_blk_read( context,
                                buf,
 			       Mcd_osd_blk_size *
                                (shard->segments[seg] + offset),
@@ -2409,7 +2469,7 @@ meta_more_than_seg:
                 ~seg_list->data[ seg_slot ]);
 
     // write persistent segment list (single updated block)
-    rc = mcd_aio_blk_write( context,
+    rc = mcd_fth_aio_blk_write( context,
                                 (char *)seg_list,
 				Mcd_osd_blk_size *
                                 (shard->segments[seg] + offset),
@@ -2424,7 +2484,13 @@ meta_more_than_seg:
         return rc;
     }
 
-    plat_free(data_buf);
+    // sync device that was written to
+    rc = mcd_aio_sync_device_offset( (shard->segments[seg] + offset)
+		    				* Mcd_osd_blk_size,
+                                     Mcd_osd_blk_size );
+    plat_assert_rc( rc );
+
+	plat_free(data_buf);
     return 0;
 
 }
@@ -2676,7 +2742,7 @@ tombstone_prune( mcd_osd_shard_t * shard )
         del_ts = ts;
         ts     = ts->next;
         // dealloc disk space
-        mcd_osd_slab_dealloc( shard, del_ts->blk_offset );
+        mcd_fth_osd_slab_dealloc( shard, del_ts->blk_offset );
 
         // delete the tombstone
         tombstone_free( shard, del_ts );
@@ -2761,7 +2827,7 @@ fbio_flush(flog_bio_t *fbio)
     hdr->checksum    = 0;
     hdr->checksum    = hashb(fbio->abuf, MCD_OSD_META_BLK_SIZE, hdr->LSN);
 
-    int s = mcd_aio_blk_write(fbio->context, (char *)fbio->abuf,
+    int s = mcd_fth_aio_blk_write(fbio->context, (char *)fbio->abuf,
                                   fbio->blkno * MCD_OSD_META_BLK_SIZE,
                                   MCD_OSD_META_BLK_SIZE);
     if (s != FLASH_EOK) {
@@ -2786,7 +2852,7 @@ fbio_write(flog_bio_t *fbio, flog_rec_t *frec)
         if (fbio->dirty)
             if (!fbio_flush(fbio))
                 return 0;
-        int s = mcd_aio_blk_read(fbio->context, (char *)fbio->abuf,
+        int s = mcd_fth_aio_blk_read(fbio->context, (char *)fbio->abuf,
                                      frec->shard_blk * MCD_OSD_META_BLK_SIZE,
                                      MCD_OSD_META_BLK_SIZE);
         if (s != FLASH_EOK) {
@@ -2869,14 +2935,14 @@ flog_recover(mcd_osd_shard_t *shard, void *context)
     char path[FLUSH_LOG_MAX_PATH];
     FILE            *fp = NULL;
     char          *fast = NULL;
-    char *log_flush_dir = (char *) getProperty_String("FDF_LOG_FLUSH_DIR", NULL);
+    char *log_flush_dir = (char *) getProperty_String("ZS_LOG_FLUSH_DIR", NULL);
 
     if (log_flush_dir == NULL)
         return;
 
-	if(fdf_instance_id)
-		snprintf(path, sizeof(path), "%s/fdf_%d/%s%lu",
-			log_flush_dir, fdf_instance_id, FLUSH_LOG_PREFIX, shard->id);
+	if(zs_instance_id)
+		snprintf(path, sizeof(path), "%s/zs_%d/%s%lu",
+			log_flush_dir, zs_instance_id, FLUSH_LOG_PREFIX, shard->id);
 	else
 		snprintf(path, sizeof(path), "%s/%s%lu",
              log_flush_dir, FLUSH_LOG_PREFIX, shard->id);
@@ -2902,15 +2968,15 @@ static void
 flog_prepare(mcd_osd_shard_t *shard)
 {
     char path[FLUSH_LOG_MAX_PATH];
-    char *log_flush_dir = (char *)getProperty_String("FDF_LOG_FLUSH_DIR", NULL);
+    char *log_flush_dir = (char *)getProperty_String("ZS_LOG_FLUSH_DIR", NULL);
 
     if (log_flush_dir == NULL)
         return;
 
-	if(fdf_instance_id)
+	if(zs_instance_id)
 	{
 		char temp[PATH_MAX + 1];
-		snprintf(temp, sizeof(temp), "%s/fdf_%d", log_flush_dir, fdf_instance_id);
+		snprintf(temp, sizeof(temp), "%s/zs_%d", log_flush_dir, zs_instance_id);
 		if(mkdir(temp, 0770) == -1 && errno != EEXIST)
 			mcd_log_msg(180010, PLAT_LOG_LEVEL_ERROR, "Couldn't create flush log directory %s: %s", temp, plat_strerror(errno));
 		log_flush_dir = temp;
@@ -2921,10 +2987,10 @@ flog_prepare(mcd_osd_shard_t *shard)
     mcd_log_msg(70080, PLAT_LOG_LEVEL_DEBUG, "Flushing logs to %s", path);
 
     int flags = O_CREAT|O_TRUNC|O_WRONLY;
-    if(getProperty_Int("FDF_LOG_O_DIRECT", 0)) {
+    if(getProperty_Int("ZS_LOG_O_DIRECT", 0)) {
         flags |= O_DIRECT;
         mcd_log_msg(180019, PLAT_LOG_LEVEL_DEBUG,
-                    "FDF_LOG_O_DIRECT is set");
+                    "ZS_LOG_O_DIRECT is set");
     }
 
     int fd = open(path, flags, FLUSH_LOG_FILE_MODE);
@@ -2967,14 +3033,14 @@ void
 flog_clean(uint64_t shard_id)
 {
     char path[FLUSH_LOG_MAX_PATH];
-    char *log_flush_dir = (char *)getProperty_String("FDF_LOG_FLUSH_DIR", NULL);
+    char *log_flush_dir = (char *)getProperty_String("ZS_LOG_FLUSH_DIR", NULL);
 
     if (log_flush_dir == NULL)
         return;
 
-	if(fdf_instance_id)
-		snprintf(path, sizeof(path), "%s/fdf_%d/%s%lu",
-			log_flush_dir, fdf_instance_id, FLUSH_LOG_PREFIX, shard_id);
+	if(zs_instance_id)
+		snprintf(path, sizeof(path), "%s/zs_%d/%s%lu",
+			log_flush_dir, zs_instance_id, FLUSH_LOG_PREFIX, shard_id);
 	else
         snprintf(path, sizeof(path), "%s/%s%lu",
              log_flush_dir, FLUSH_LOG_PREFIX, shard_id);
@@ -3026,7 +3092,7 @@ shard_recover( mcd_osd_shard_t * shard )
     uint64_t			buf_size = Mcd_osd_segment_size;
     char                      * buf;
     osd_state_t               * context =
-        mcd_init_aio_ctxt( SSD_AIO_CTXT_MCD_REC_RCVR );
+        mcd_fth_init_aio_ctxt( SSD_AIO_CTXT_MCD_REC_RCVR );
     mcd_osd_slab_class_t      * class;
     mcd_rec_shard_t           * pshard = shard->pshard;
     mcd_rec_class_t           * pclass;
@@ -3061,6 +3127,8 @@ shard_recover( mcd_osd_shard_t * shard )
     // -----------------------------------------------------
 
     plat_assert_always( pshard != NULL );
+    plat_assert_always( pshard->eye_catcher == MCD_REC_SHARD_EYE_CATCHER );
+    plat_assert_always( pshard->version == MCD_REC_SHARD_VERSION );
 
     shard->blk_allocated = 0;
     if (1 || (pshard->rec_md_blks > Mcd_osd_segment_blks)) {
@@ -3077,7 +3145,7 @@ shard_recover( mcd_osd_shard_t * shard )
                      (class_offset+pshard->map_blks) / Mcd_osd_segment_blks );
 
         // read class desc + segment table for each class
-        rc = mcd_aio_blk_read( context,
+        rc = mcd_fth_aio_blk_read( context,
                                    buf,
                                    class_offset * Mcd_osd_blk_size,
                                    (1 + pshard->map_blks) * Mcd_osd_blk_size );
@@ -3211,7 +3279,7 @@ meta_more_than_seg:
 		offset = class_offset % Mcd_osd_segment_blks;
 
         // read class desc + segment table for each class
-        rc = mcd_aio_blk_read( context,
+        rc = mcd_fth_aio_blk_read( context,
                                    buf,
                                    Mcd_osd_blk_size *
 								   (shard->segments[seg] + offset),
@@ -3276,7 +3344,7 @@ meta_more_than_seg:
 				pshard->map_blks;
 
         // read class segment table for each class
-        rc = mcd_aio_blk_read( context,
+        rc = mcd_fth_aio_blk_read( context,
                                    buf,
                                    Mcd_osd_blk_size *
 								   (shard->segments[seg] + offset),
@@ -3302,7 +3370,7 @@ meta_more_than_seg:
 				offset = 0; buf_offset = 0;
 
 				// read class segment table for each class
-				rc = mcd_aio_blk_read( context,
+				rc = mcd_fth_aio_blk_read( context,
 					   buf,
 					   Mcd_osd_blk_size *
 					   (shard->segments[seg] + offset),
@@ -3394,7 +3462,7 @@ meta_more_than_seg:
     offset = (pshard->rec_md_blks - 1) % Mcd_osd_segment_blks;
 
     // read in the ckpt record for this shard
-    rc = mcd_aio_blk_read( context,
+    rc = mcd_fth_aio_blk_read( context,
                                buf,
                                (pshard->blk_offset + pshard->rec_md_blks - 1) *
 //                               (shard->segments[seg] + offset) *
@@ -3508,7 +3576,7 @@ shard_recover_phase2( mcd_osd_shard_t * shard )
     int                         rc;
     uint64_t                    recovered_objs = 0;
     void                      * context =
-    mcd_init_aio_ctxt( SSD_AIO_CTXT_MCD_REC_RCVR );
+    mcd_fth_init_aio_ctxt( SSD_AIO_CTXT_MCD_REC_RCVR );
     mcd_rec_update_t            update_mail;
     fthMbox_t                   updated_mbox;
 
@@ -3584,7 +3652,7 @@ shard_recover_phase2( mcd_osd_shard_t * shard )
                  shard->sequence, shard->cntr->cas_id, shard->ps_alloc );
 
     if(slab_gc_enabled && shard->cntr->cguid == VDC_CGUID)
-        slab_gc_init(shard, getProperty_Int("FDF_SLAB_GC_THRESHOLD", 70 /* % */));
+        slab_gc_init(shard, getProperty_Int("ZS_SLAB_GC_THRESHOLD", 70 /* % */));
 
     return;
 }
@@ -3596,27 +3664,24 @@ shard_set_properties_internal( mcd_container_t * cntr,
     plat_assert( cntr != NULL );
     plat_assert( prop != NULL );
 
+    prop->flush_time    = cntr->flush_time;
+    prop->cas_id        = cntr->cas_id;
+    prop->size_quota    = cntr->size_quota;
+    prop->obj_quota     = cntr->obj_quota;
+    prop->state         = cntr->state;
+    prop->tcp_port      = cntr->tcp_port;
+    prop->udp_port      = cntr->udp_port;
     prop->eviction      = cntr->eviction;
     prop->persistent    = cntr->persistent;
     prop->container_id  = cntr->container_id;
-    prop->state         = cntr->state;
-    memset( prop->cname, 0, sizeof( prop->cname ) );
-    strcpy( prop->cname, cntr->cname );
-
-    prop->pshard.quota  = cntr->size_quota;
-    prop->pshard.obj_quota = cntr->obj_quota;
-
-#if 0
-    prop->flush_time    = cntr->flush_time;
-    prop->cas_id        = cntr->cas_id;
-    prop->tcp_port      = cntr->tcp_port;
-    prop->udp_port      = cntr->udp_port;
     prop->sync_updates  = cntr->sync_updates;
     prop->sync_msec     = cntr->sync_msec;
     prop->num_ips       = cntr->num_ips;
     prop->sasl          = cntr->sasl;
     prop->prefix_delete = cntr->prefix_delete;
     prop->sync_backup   = cntr->sync_backup;
+    memset( prop->cname, 0, sizeof( prop->cname ) );
+    strcpy( prop->cname, cntr->cname );
     memset( prop->cluster_name, 0, sizeof( prop->cluster_name ) );
     strcpy( prop->cluster_name, cntr->cluster_name );
 
@@ -3624,7 +3689,6 @@ shard_set_properties_internal( mcd_container_t * cntr,
         prop->ip_addrs[ i ] = cntr->ip_addrs[ i ].s_addr;
     }
     plat_assert_always( sizeof( in_addr_t ) == sizeof( uint32_t ) );
-#endif
 }
 
 int
@@ -3670,6 +3734,9 @@ shard_set_properties( mcd_osd_shard_t * shard, mcd_container_t * cntr )
         return rc;
     }
 
+    // sync all devices
+    rc = mcd_aio_sync_devices();
+
     return rc;
 }
 
@@ -3683,32 +3750,28 @@ shard_get_properties( int slot, mcd_container_t * cntr )
                  prop->shard_id );
 
     // fill in container properties
-    cntr->size_quota   = prop->pshard.quota;
-    cntr->obj_quota    = prop->pshard.obj_quota;
+    cntr->flush_time   = prop->flush_time;
+    cntr->cas_id       = prop->cas_id;
+    cntr->size_quota   = prop->size_quota;
+    cntr->obj_quota    = prop->obj_quota;
     cntr->state        = prop->state;
+    cntr->tcp_port     = prop->tcp_port;
+    cntr->udp_port     = prop->udp_port;
     cntr->eviction     = prop->eviction;
     cntr->persistent   = prop->persistent;
     cntr->container_id = prop->container_id;
-#if 0
-    cntr->flush_time   = prop->flush_time;
-    cntr->tcp_port     = prop->tcp_port;
-    cntr->udp_port     = prop->udp_port;
-    cntr->cas_id       = prop->cas_id;
     cntr->sync_updates = prop->sync_updates;
     cntr->sync_msec    = prop->sync_msec;
     cntr->num_ips      = prop->num_ips;
     cntr->sasl         = prop->sasl;
     cntr->prefix_delete= prop->prefix_delete;
     cntr->sync_backup  = prop->sync_backup;
-    strcpy( cntr->cluster_name, prop->cluster_name );
-#endif
     strcpy( cntr->cname, prop->cname );
+    strcpy( cntr->cluster_name, prop->cluster_name );
 
-#if 0
     for ( int i = 0; i < MCD_CNTR_MAX_NUM_IPS; i++ ) {
         cntr->ip_addrs[ i ].s_addr = prop->ip_addrs[ i ];
     }
-#endif
     plat_assert_always( sizeof( in_addr_t ) == sizeof( uint32_t ) );
 
     return 0;
@@ -3756,6 +3819,9 @@ shard_set_state( mcd_osd_shard_t * shard, int new_state )
         prop->state = old_state;
         return rc;
     }
+
+    // sync all devices
+    rc = mcd_aio_sync_devices();
 
     return rc;
 }
@@ -3871,6 +3937,7 @@ shard_unrecover( mcd_osd_shard_t * shard )
     }
 
 #ifndef SDFAPIONLY
+    plat_free( shard->pshard );
     shard->pshard = NULL;
     shard->ps_alloc -= sizeof( mcd_rec_shard_t );
 
@@ -3915,7 +3982,7 @@ dump_hash_bucket( void * context, mcd_osd_shard_t * shard,
         shard->rand_table[blk_offset /
                           (Mcd_osd_segment_blks / Mcd_aio_num_files)] +
         (blk_offset % (Mcd_osd_segment_blks / Mcd_aio_num_files));
-    rc = mcd_aio_blk_read( context,
+    rc = mcd_fth_aio_blk_read( context,
                                buf,
                                tmp_offset * Mcd_osd_blk_size,
                                Mcd_osd_blk_size );
@@ -3956,7 +4023,7 @@ dump_hash_bucket( void * context, mcd_osd_shard_t * shard,
             shard->rand_table[blk_offset /
                               (Mcd_osd_segment_blks / Mcd_aio_num_files)] +
             (blk_offset % (Mcd_osd_segment_blks / Mcd_aio_num_files));
-        rc = mcd_aio_blk_read( context,
+        rc = mcd_fth_aio_blk_read( context,
                                    buf,
                                    tmp_offset * Mcd_osd_blk_size,
                                    Mcd_osd_blk_size );
@@ -3997,7 +4064,7 @@ dump_hash_bucket( void * context, mcd_osd_shard_t * shard,
             shard->rand_table[blk_offset /
                               (Mcd_osd_segment_blks / Mcd_aio_num_files)] +
             (blk_offset % (Mcd_osd_segment_blks / Mcd_aio_num_files));
-        rc = mcd_aio_blk_read( context,
+        rc = mcd_fth_aio_blk_read( context,
                                    buf,
                                    tmp_offset * Mcd_osd_blk_size,
                                    Mcd_osd_blk_size );
@@ -4269,7 +4336,7 @@ enum {
 	TRX_OP_LAST		= 2
 };
 
-extern int	fdf_uncompress_data( char *, size_t, size_t, size_t *);
+extern int	zs_uncompress_data( char *, size_t, size_t, size_t *);
 
 
 static int
@@ -4927,7 +4994,7 @@ filter_cs_rewind_log( mcd_rec_obj_state_t *state)
 				}
 				char *buf = (char *) roundup( (size_t)buffer, Mcd_osd_blk_size);
 				uint64_t offset = mcd_osd_rand_address( state->shard, rec->blk_offset);
-				int rc = mcd_aio_blk_read( state->context, buf, offset, nblock*Mcd_osd_blk_size);
+				int rc = mcd_fth_aio_blk_read( state->context, buf, offset, nblock*Mcd_osd_blk_size);
 				unless (rc == FLASH_EOK) {
 					mcd_log_msg( 20003, PLAT_LOG_LEVEL_FATAL, "failed to read blocks, rc=%d", rc);
 					plat_abort( );
@@ -5065,7 +5132,7 @@ read_log_segment( void * context, int segment, mcd_osd_shard_t * shard,
         (void) __sync_add_and_fetch( &shard->rec_log_reads, 1 );
 
         // do the I/O operation
-        rc = mcd_aio_blk_read( context,
+        rc = mcd_fth_aio_blk_read( context,
                                    buf + (blk_count * MCD_OSD_META_BLK_SIZE),
                                    offset,
                                    io_blks * MCD_OSD_META_BLK_SIZE);
@@ -5385,13 +5452,13 @@ table_chunk_op( void * context, mcd_osd_shard_t * shard, int op,
         // do the I/O operation
         if ( op == TABLE_READ ) {
             (void) __sync_add_and_fetch( &shard->rec_table_reads, 1 );
-            rc = mcd_aio_blk_read( context,
+            rc = mcd_fth_aio_blk_read( context,
                                        buf + (blk_count * MCD_OSD_META_BLK_SIZE),
                                        offset,
                                        io_blks * MCD_OSD_META_BLK_SIZE);
         } else {
             (void) __sync_add_and_fetch( &shard->rec_table_writes, 1 );
-            rc = mcd_aio_blk_write( context,
+            rc = mcd_fth_aio_blk_write( context,
                                         buf + (blk_count * MCD_OSD_META_BLK_SIZE),
                                         offset,
                                         io_blks * MCD_OSD_META_BLK_SIZE);
@@ -5701,7 +5768,7 @@ recovery_checkpoint( osd_state_t * context, mcd_osd_shard_t * shard,
     seg = offset / Mcd_osd_segment_blks;
     offset = offset % Mcd_osd_segment_blks;
 
-    rc = mcd_aio_blk_write( context,
+    rc = mcd_fth_aio_blk_write( context,
                                 buf,
                                 Mcd_osd_blk_size *
                                 (shard->segments[ seg ] + offset),
@@ -5712,6 +5779,10 @@ recovery_checkpoint( osd_state_t * context, mcd_osd_shard_t * shard,
                      "rc=%d", shard->id, pshard->rec_md_blks - 1, rc );
         plat_abort();
     }
+
+    // make sure these updates stick
+    rc = mcd_aio_sync_devices();
+    plat_assert_rc( rc );
 
     return;
 }
@@ -5772,7 +5843,6 @@ attach_buffer_segments( mcd_osd_shard_t * shard, int in_recovery,
                  *seg_count, shard->id, Mcd_rec_free_upd_seg_curr );
     fthUnlock( wait );
 
-#if 0
     if ( Mcd_rec_attach_test_running ) {
         if ( *seg_count > 1 ) {
             fthMboxWait( &Mcd_rec_attach_test_mbox_special );
@@ -5780,7 +5850,6 @@ attach_buffer_segments( mcd_osd_shard_t * shard, int in_recovery,
             fthMboxWait( &Mcd_rec_attach_test_mbox );
         }
     }
-#endif
 
     return;
 }
@@ -5831,7 +5900,7 @@ static const char	*
 packet_directory( )
 {
 
-	return (getProperty_String( "FDF_CRASH_DIR", "/tmp/fdf-crash-recovery"));
+	return (getProperty_String( "ZS_CRASH_DIR", "/tmp/fdf.crash-recovery"));
 }
 
 
@@ -5875,7 +5944,7 @@ recovery_packet_dump( FILE *f, uint32_t blkno, uint32_t nblock, size_t ocount, v
 	char *buffer = malloc( nblock*Mcd_osd_blk_size+MCD_OSD_META_BLK_SIZE);
 	char *buf = (char *) roundup( (size_t)buffer, MCD_OSD_META_BLK_SIZE);
 	uint64_t offset = mcd_osd_rand_address( shard, blkno);
-	int rc = mcd_aio_blk_read( context, buf, offset, nblock*Mcd_osd_blk_size);
+	int rc = mcd_fth_aio_blk_read( context, buf, offset, nblock*Mcd_osd_blk_size);
 	unless (rc == FLASH_EOK) {
 		mcd_log_msg( 20003, PLAT_LOG_LEVEL_FATAL, "failed to read blocks, rc=%d", rc);
 		plat_abort( );
@@ -5894,7 +5963,7 @@ recovery_packet_dump( FILE *f, uint32_t blkno, uint32_t nblock, size_t ocount, v
 		memcpy( data2, data, dlen);
 		data = data2;
 		size_t udlen;
-		if (fdf_uncompress_data( data, dlen, max( dlen, meta->uncomp_datalen), &udlen) < 0) {
+		if (zs_uncompress_data( data, dlen, max( dlen, meta->uncomp_datalen), &udlen) < 0) {
 			mcd_log_msg( 170039, PLAT_LOG_LEVEL_FATAL, "cguid=%lu seqno=%lu uncomp_datalen=%u data_len=%lu udlen=%lu", meta->cguid, meta->seqno, meta->uncomp_datalen, (ulong)dlen, udlen);
 			plat_abort( );
 		}
@@ -5951,8 +6020,8 @@ free_and_exit:
  * blocks appear first (in chronological order), followed by old data blocks
  * (chronological order).
  *
- * Packets are saved in the directory given by FDF property FDF_CRASH_DIR
- * (default /tmp/fdf-crash-recovery).  Packet name identifies the associated
+ * Packets are saved in the directory given by ZS property ZS_CRASH_DIR
+ * (default /tmp/fdf.crash-recovery).  Packet name identifies the associated
  * container by cguid.  Packets are compressed with gzip.
  */
 static void
@@ -5962,14 +6031,14 @@ recovery_packet_save( packet_t *r, void *context, mcd_osd_shard_t *shard)
 		j;
 
 	char *SAVE_COMMAND = "sort -k 1,1 -k 3,3nr -k 5,5 -k 4,4n |"
-		"awk '{print | \"gzip -1 >\"ENVIRON[\"FDFRECOVERYDIR\"]\"/cguid-\"$1\".gz\"}'";
+		"awk '{print | \"gzip -1 >\"ENVIRON[\"ZSRECOVERYDIR\"]\"/cguid-\"$1\".gz\"}'";
 	fflush( stdout);
 	for (i=0; i<nel( r->btab); ++i)
 		while ((j = r->btab[i].nrec)
 		and (r->btab[i].record[j-1].trx == TRX_OP))
 			--r->btab[i].nrec;	/* lop the TRX fragment if present */
 	const char *crashdir = makecrashdir( );
-	setenv( "FDFRECOVERYDIR", crashdir, TRUE);
+	setenv( "ZSRECOVERYDIR", crashdir, TRUE);
 	FILE *f = popen( SAVE_COMMAND, "w");
 	for (i=0; i<nel( r->btab); ++i)
 		if (r->btab[i].nrec)
@@ -6005,17 +6074,17 @@ recovery_packet_save( packet_t *r, void *context, mcd_osd_shard_t *shard)
  * the data block: only the first bytes are saved.  Each packet contains
  * the information needed to update btree stats.  Order is chronological.
  *
- * Packets are saved in the directory given by FDF property FDF_CRASH_DIR
- * (default /tmp/fdf-crash-recovery).  Packet name identifies the associated
+ * Packets are saved in the directory given by ZS property ZS_CRASH_DIR
+ * (default /tmp/fdf.crash-recovery).  Packet name identifies the associated
  * container by cguid.  Packets are compressed with gzip.
  */
 static void
 stats_packet_save( mcd_rec_obj_state_t *state, void *context, mcd_osd_shard_t *shard)
 {
 
-	char *SAVE_COMMAND = "awk '{print | \"gzip >\"ENVIRON[\"FDFRECOVERYDIR\"]\"/stats-cguid-\"$1\".gz\"}'";
+	char *SAVE_COMMAND = "awk '{print | \"gzip >\"ENVIRON[\"ZSRECOVERYDIR\"]\"/stats-cguid-\"$1\".gz\"}'";
 	const char *crashdir = makecrashdir( );
-	setenv( "FDFRECOVERYDIR", crashdir, TRUE);
+	setenv( "ZSRECOVERYDIR", crashdir, TRUE);
 	FILE *f = popen( SAVE_COMMAND, "w");
 	until (state->statbuftail == state->statbufhead) {
 		mcd_logrec_object_t *lr = &state->statbuf[state->statbuftail];
@@ -6085,7 +6154,7 @@ updater_thread( uint64_t arg )
     // get aio context and free unused buffer
     context = context_alloc( SSD_AIO_CTXT_MCD_REC_UPDT );
     if ( context->osd_buf != NULL ) {
-        mcd_osd_iobuf_free( context->osd_buf );
+        mcd_fth_osd_iobuf_free( context->osd_buf );
         context->osd_buf = NULL;
     }
 
@@ -6694,7 +6763,7 @@ log_init( mcd_osd_shard_t * shard )
     shard->ps_alloc += sizeof( mcd_rec_log_t );
 
     memset( log, 0, sizeof( mcd_rec_log_t ) );
-    log->errors_fatal         = getProperty_Int( "FDF_LOG_FATAL", 0);
+    log->errors_fatal         = getProperty_Int( "ZS_LOG_FATAL", 0);
     log->curr_LSN             = 0; // must be initialized after recovery
     log->next_fill            = 0;
     log->total_slots          = log_slots;
@@ -6717,7 +6786,7 @@ log_init( mcd_osd_shard_t * shard )
     log->pp_state.dealloc_count = 0;
     log->pp_state.dealloc_list  = NULL; // allocated below
 
-    log->pp_state.dealloc_ring_enabled   = getProperty_Int( "FDF_TRX", 0);
+    log->pp_state.dealloc_ring_enabled   = getProperty_Int( "ZS_TRX", 0);
 
     fthMboxInit( &log->update_mbox );
     fthMboxInit( &log->update_stop_mbox );
@@ -6892,7 +6961,6 @@ log_init_phase2( void * context, mcd_osd_shard_t * shard )
         log->curr_LSN = ( (log->curr_LSN + reclogblks - 1) / reclogblks ) * reclogblks;
     }
 
-#if 0
     // get number of updates per sync for the container
     if ( shard->cntr != NULL ) {
         // not previously set
@@ -6911,7 +6979,6 @@ log_init_phase2( void * context, mcd_osd_shard_t * shard )
             log->pp_state.sync_recs = shard->cntr->sync_updates;
         }
     }
-#endif
 
     // start log writer thread and wait unti it is ready
     fthResume( fthSpawn( &log_writer_thread, 40960 ), (uint64_t)shard );
@@ -7096,9 +7163,7 @@ log_write_internal( mcd_osd_shard_t *s, mcd_logrec_object_t *lr)
 	uint rec_filled = __sync_add_and_fetch( &logbuf->fill_count, 1);
 	if (rec_filled == MCD_REC_LOGBUF_RECS)
 		fthSemUp( logbuf->write_sem, 1);
-#ifdef REPLICATION_SUPPORT
 	rep_logbuf_seqno_update( (struct shard *)s, nth_buffer, lr->seqno);
-#endif
 	(void)__sync_fetch_and_sub( &s->refcount, 1);
 
 	if(s->durability_level == SDF_NO_DURABILITY) {
@@ -7204,13 +7269,13 @@ log_sync_postprocess( mcd_osd_shard_t *shard, mcd_rec_pp_state_t *pp_state)
 				uint i = mcd_osd_lba_to_blk( slabsize( shard, o));
 				shard->blk_delayed -= i;
 				__sync_fetch_and_sub( &shard->blk_consumed, i);
-				mcd_osd_slab_dealloc( shard, o, true);
+				mcd_fth_osd_slab_dealloc( shard, o, true);
 			}
 		} else {
 			uint o = pp_state->dealloc_list[d];
 			uint i = mcd_osd_lba_to_blk( slabsize( shard, o));
 			shard->blk_delayed -= i;
-			mcd_osd_slab_dealloc( shard, o, true);
+			mcd_fth_osd_slab_dealloc( shard, o, true);
 		}
 	}
 	pp_state->dealloc_count = 0;
@@ -7220,7 +7285,7 @@ log_sync_postprocess( mcd_osd_shard_t *shard, mcd_rec_pp_state_t *pp_state)
 		mcd_log_msg( 170026, PLAT_LOG_LEVEL_DIAGNOSTIC, "freeing %u deferred slabs", l->nslab);
 		fthWaitEl_t *w = fthLock( &l->slablock, 1, NULL);
 		for (uint i=0; i<l->nslab; ++i)
-			mcd_osd_slab_dealloc( shard, l->slabtab[i], true);
+			mcd_fth_osd_slab_dealloc( shard, l->slabtab[i], true);
 		l->nslab = 0;
 		fthUnlock( w);
 	}
@@ -7232,10 +7297,8 @@ log_write_postprocess( mcd_osd_shard_t * shard, mcd_rec_logbuf_t * logbuf,
 {
     int                         s;
     mcd_logrec_object_t       * rec;
-#ifdef BACKUP_SUPPORT
     mcd_bak_ps_entry_t        * entry = NULL;
     mcd_bak_state_t           * bk = shard->backup;
-#endif
     mcd_rec_log_t             * log = shard->log;
     mcd_rec_pp_state_t        * pp = &log->pp_state;
 
@@ -7278,7 +7341,6 @@ log_write_postprocess( mcd_osd_shard_t * shard, mcd_rec_logbuf_t * logbuf,
             *high_seqno = rec->seqno;
         }
 
-#ifdef BACKUP_SSUPPORT
         // update bitmaps for backup
         if ( bk->backup_prev_seqno == bk->backup_curr_seqno ||
              rec->seqno <= bk->backup_curr_seqno ||
@@ -7304,7 +7366,6 @@ log_write_postprocess( mcd_osd_shard_t * shard, mcd_rec_logbuf_t * logbuf,
                          "count=%d", shard->id, bk->backup_curr_seqno,
                          (uint64_t) rec->seqno, bk->ps_count );
         }
-#endif
 
         // ------------------------------------------------------
         // Main processing (what this function was created to do)
@@ -7357,7 +7418,6 @@ log_write_postprocess( mcd_osd_shard_t * shard, mcd_rec_logbuf_t * logbuf,
         }
     }
 
-#ifdef BACKUP_SUPPORT
     // check for snapshot of bitmaps for backup
     if ( bk->backup_prev_seqno != bk->backup_curr_seqno &&
          bk->snapshot_logbuf == logbuf->seqno ) {
@@ -7398,7 +7458,6 @@ log_write_postprocess( mcd_osd_shard_t * shard, mcd_rec_logbuf_t * logbuf,
             }
         }
     }
-#endif
 
     mcd_rlg_msg( 40056, MCD_REC_LOG_LVL_TRACE,
                  "shardID=%lu, seqno=%lu, prev=%u, curr=%u, left=%lu, "
@@ -7437,7 +7496,7 @@ log_writer_thread( uint64_t arg )
     // free unused buffer
     context = context_alloc( SSD_AIO_CTXT_MCD_REC_LGWR );
     /*if ( context->osd_buf != NULL ) {
-        mcd_osd_iobuf_free( context->osd_buf );
+        mcd_fth_osd_iobuf_free( context->osd_buf );
         context->osd_buf = NULL;
     }*/
 
@@ -7573,7 +7632,7 @@ log_writer_thread( uint64_t arg )
 	if (shard->id == cmc_shardid)		// suppress logging for CMC
 		rc = FLASH_EOK;
 	else
-        	rc = mcd_aio_blk_write( context, logbuf->buf, offset, blk_count * MCD_OSD_META_BLK_SIZE);
+        	rc = mcd_fth_aio_blk_write( context, logbuf->buf, offset, blk_count * MCD_OSD_META_BLK_SIZE);
         if ( FLASH_EOK != rc ) {
             mcd_rlg_msg( 20552, PLAT_LOG_LEVEL_FATAL,
                          "failed to commit log buffer, shardID=%lu, "
@@ -7637,6 +7696,20 @@ log_writer_thread( uint64_t arg )
                          shard->id, log->pp_state.curr_recs,
                          log->pp_state.sync_recs, logbuf->seqno,
                          (sync_sem ? "true" : "false") );
+
+            // sync all devices for explicit sync
+            if ( sync_sem ) {
+                rc = mcd_aio_sync_devices();
+                plat_assert_rc( rc );
+            }
+            // sync if any records have been written since last sync
+            else if ( log->pp_state.curr_recs > 0 ) {
+                // sync log device(s); syncs all on raid
+                rc = mcd_aio_sync_device_offset( offset,
+                                                 blk_count *
+                                                 MCD_OSD_META_BLK_SIZE );
+                plat_assert_rc( rc );
+            }
 
             // postprocess after sync
             log_sync_postprocess( shard, &log->pp_state );
@@ -7741,7 +7814,7 @@ shard_format( uint64_t shard_id, int flags, uint64_t quota, unsigned max_objs,
     char                      * data_buf = NULL;
     char                      * buf;
     void                      * context =
-        mcd_init_aio_ctxt( SSD_AIO_CTXT_MCD_REC_FRMT );
+        mcd_fth_init_aio_ctxt( SSD_AIO_CTXT_MCD_REC_FRMT );
     uint32_t                    seg_list_blks;
     uint64_t                    total_blks;
     uint64_t                    max_table_blks;
@@ -7770,23 +7843,6 @@ shard_format( uint64_t shard_id, int flags, uint64_t quota, unsigned max_objs,
 
     mcd_log_msg( 20065, PLAT_LOG_LEVEL_TRACE,
                  "ENTERING, shardID=%lu", shard_id );
-
-    rc = FLASH_EOK;
-
-    // find an empty properties slot
-    for ( slot = 0; slot < fd->max_shards; slot++ ) {
-        if ( sb->props[ slot ]->shard_id == 0 ) {
-            break;
-        }
-    }
-
-    if ( slot == fd->max_shards ) {
-        mcd_log_msg( 20567, PLAT_LOG_LEVEL_ERROR,
-                     "can't find empty prop slot shardID=%lu", shard->id );
-        return FLASH_ENOENT;  // shouldn't happen
-    }
-
-    prop = sb->props[ slot ];
 
     // format properties for non-persistent shards
     if ( FLASH_SHARD_INIT_PERSISTENCE_NO ==
@@ -7923,7 +7979,7 @@ shard_format( uint64_t shard_id, int flags, uint64_t quota, unsigned max_objs,
                 buf_blks = Mcd_osd_segment_blks - b;
             }
 
-            rc = mcd_aio_blk_write( context,
+            rc = mcd_fth_aio_blk_write( context,
                                         buf,
                                         (blk_offset + b) * Mcd_osd_blk_size,
                                         buf_blks * Mcd_osd_blk_size );
@@ -7939,11 +7995,14 @@ shard_format( uint64_t shard_id, int flags, uint64_t quota, unsigned max_objs,
     }
 
     // install shard descriptor in buffer
-    pshard                  = (mcd_rec_shard_t *)&prop->pshard;
+    pshard                  = (mcd_rec_shard_t *)buf;
+    pshard->eye_catcher     = MCD_REC_SHARD_EYE_CATCHER;
+    pshard->version         = MCD_REC_SHARD_VERSION;
+    pshard->r1              = 0;
+    pshard->r2              = 0;
     pshard->map_blks        = seg_list_blks;
     pshard->flags           = flags;
     pshard->obj_quota       = max_objs;
-    pshard->r1              = 0;
     pshard->quota           = quota;
     pshard->shard_id        = shard_id;
     pshard->blk_offset      = shard->segments[ 0 ];
@@ -7956,8 +8015,7 @@ shard_format( uint64_t shard_id, int flags, uint64_t quota, unsigned max_objs,
     pshard->rec_log_blks    = act_log_blks;
     pshard->rec_log_pad     = max_log_pad;
     pshard->reserved_blks   = reserved_blks;
-
-#if 0
+    pshard->checksum        = 0;
     if (1 || (max_md_blks > Mcd_osd_segment_blks)) {
 	    goto meta_more_than_seg;
     }
@@ -8034,7 +8092,7 @@ shard_format( uint64_t shard_id, int flags, uint64_t quota, unsigned max_objs,
                               Mcd_osd_blk_size, MCD_REC_CKPT_EYE_CATCHER);
 
     // write shard recovery metadata
-    rc = mcd_aio_blk_write( context,
+    rc = mcd_fth_aio_blk_write( context,
                                 buf,
                                 pshard->blk_offset * Mcd_osd_blk_size, 
                                 max_md_blks * Mcd_osd_blk_size );
@@ -8083,7 +8141,6 @@ shard_format( uint64_t shard_id, int flags, uint64_t quota, unsigned max_objs,
      ******************************************************/ 
 
 meta_more_than_seg:
-#endif
     // install all class descriptors for this shard
     for ( c = 0, blksize = 1; c < Mcd_osd_max_nclasses; c++, blksize *= 2 ) {
 
@@ -8091,6 +8148,28 @@ meta_more_than_seg:
         pshard->class_offset[ c ] = (base_class_offset +
                                      (c * (seg_list_offset + seg_list_blks)));
     }
+
+    // install checksum in shard desc now that class offsets are in place
+    pshard->checksum = hashb((unsigned char *)pshard,
+                             Mcd_osd_blk_size, MCD_REC_SHARD_EYE_CATCHER);
+
+    // write shard recovery metadata
+    rc = mcd_fth_aio_blk_write( context,
+                                buf,
+                                pshard->blk_offset * Mcd_osd_blk_size, 
+                                Mcd_osd_blk_size );
+
+    // allocate new persistent shard descriptor
+    pshard = plat_alloc( sizeof( mcd_rec_shard_t ) );
+    if ( pshard == NULL ) {
+        mcd_log_msg( 20565, PLAT_LOG_LEVEL_ERROR, "cannot alloc pshard" );
+        plat_free( data_buf );
+        return FLASH_ENOMEM;
+    }
+    shard->ps_alloc += sizeof( mcd_rec_shard_t );
+
+    // cache the persistent shard descriptor
+    memcpy( pshard, buf, sizeof( mcd_rec_shard_t ) );
 
     // initialize fields in volatile shard struct
     shard->pshard          = pshard;
@@ -8129,7 +8208,7 @@ meta_more_than_seg:
     for ( b = 0; b < seg_list_blks; b++, buf_offset++ ) {
 
 	if (buf_offset == len ) {
-		rc = mcd_aio_blk_write( context,
+		rc = mcd_fth_aio_blk_write( context,
 					buf,
 					Mcd_osd_blk_size *
 					(shard->segments[seg] + offset),
@@ -8170,7 +8249,7 @@ meta_more_than_seg:
     plat_assert(len);
     plat_assert(seg || (offset >= pshard->seg_list_offset));
 
-    rc = mcd_aio_blk_write( context,
+    rc = mcd_fth_aio_blk_write( context,
 				buf,
 				Mcd_osd_blk_size *
 				(shard->segments[seg] + offset),
@@ -8205,7 +8284,7 @@ meta_more_than_seg:
 	seg = pshard->class_offset[ c ] / Mcd_osd_segment_blks;
 	offset = pshard->class_offset[ c ] % Mcd_osd_segment_blks;
 
-	rc = mcd_aio_blk_write( context,
+	rc = mcd_fth_aio_blk_write( context,
 				buf,
 				Mcd_osd_blk_size *
 				(shard->segments[seg] + offset),
@@ -8231,7 +8310,7 @@ meta_more_than_seg:
         // install class segment list (empty)
         for ( b = 0; b < seg_list_blks; b++, buf_offset++) {
 	    if (buf_offset == len) {
-		rc = mcd_aio_blk_write( context,
+		rc = mcd_fth_aio_blk_write( context,
 					buf,
 					Mcd_osd_blk_size *
 					(shard->segments[seg] + offset),
@@ -8261,7 +8340,7 @@ meta_more_than_seg:
 	plat_assert(len);
 	plat_assert(seg || (offset >= pshard->seg_list_offset));
 
-	rc = mcd_aio_blk_write( context,
+	rc = mcd_fth_aio_blk_write( context,
 				buf,
 				Mcd_osd_blk_size *
 				(shard->segments[seg] + offset),
@@ -8292,7 +8371,7 @@ meta_more_than_seg:
                               Mcd_osd_blk_size, MCD_REC_CKPT_EYE_CATCHER);
     seg = (max_md_blks - 1) / Mcd_osd_segment_blks;
     offset = (max_md_blks - 1) % Mcd_osd_segment_blks;
-    rc = mcd_aio_blk_write( context,
+    rc = mcd_fth_aio_blk_write( context,
 			buf,
 			Mcd_osd_blk_size *
 			(shard->segments[seg] + offset),
@@ -8313,6 +8392,20 @@ meta_more_than_seg:
 
  format_properties:
 
+    // find an empty properties slot
+    for ( slot = 0; slot < fd->max_shards; slot++ ) {
+        if ( sb->props[ slot ]->shard_id == 0 ) {
+            break;
+        }
+    }
+    if ( slot == fd->max_shards ) {
+        mcd_log_msg( 20567, PLAT_LOG_LEVEL_ERROR,
+                     "can't find empty prop slot shardID=%lu", shard->id );
+        return FLASH_ENOENT;  // shouldn't happen
+    }
+
+    // install the basic shard properties
+    prop                = sb->props[ slot ];
     prop->eye_catcher   = MCD_REC_PROP_EYE_CATCHER;
     prop->version       = MCD_REC_PROP_VERSION;
     prop->write_version = 1;
@@ -8342,6 +8435,9 @@ meta_more_than_seg:
 
     flog_clean(shard_id);
     packet_clean( );
+
+    // sync all devices
+    rc = mcd_aio_sync_devices();
 
     return rc;
 }
@@ -8373,6 +8469,9 @@ shard_unformat( uint64_t shard_id )
         return rc;
     }
 
+    // sync all devices
+    rc = mcd_aio_sync_devices();
+
     return rc;
 }
 
@@ -8382,6 +8481,7 @@ shard_unformat_api( mcd_osd_shard_t* shard )
 {
 	if(shard->pshard)
 	{
+		plat_free( shard->pshard );
 	    shard->pshard = NULL;
 	    shard->ps_alloc -= sizeof( mcd_rec_shard_t );
 
@@ -8503,12 +8603,91 @@ flash_format ( uint64_t total_size )
     // write superblock on each device
     rc = write_superblock( buf, 1, fd_offset );
 
+    // sync all devices
+    if ( rc == 0 ) {
+        rc = mcd_aio_sync_devices();
+    }
+
     plat_free( data_buf );
 
     // mark superblock formatted
     Mcd_rec_superblock_formatted = 1;
 
     return rc;
+}
+
+int
+mcd_rec_attach_test( int testcmd, int test_arg )
+{
+    switch ( testcmd ) {
+    case 1:                              // start test
+        Mcd_rec_attach_test_running = 1;
+        fthMboxInit( &Mcd_rec_attach_test_mbox_special );
+        fthMboxInit( &Mcd_rec_attach_test_mbox );
+        fthMboxInit( &Mcd_rec_attach_test_updated_mbox );
+        // signal each updater thread
+        for ( int i = 0; i < MCD_MAX_NUM_CNTRS; i++ ) {
+            if ( Mcd_containers[ i ].tcp_port != 0 ) {
+                mcd_osd_shard_t * shard =
+                    (mcd_osd_shard_t *)Mcd_containers[ i ].shard;
+                Mcd_rec_attach_test_update_mail[ i ].log  = 0;
+                Mcd_rec_attach_test_update_mail[ i ].cntr = shard->cntr;
+                Mcd_rec_attach_test_update_mail[ i ].in_recovery  = 0;
+                Mcd_rec_attach_test_update_mail[ i ].updated_sem  = NULL;
+                Mcd_rec_attach_test_update_mail[ i ].updated_mbox =
+                    &Mcd_rec_attach_test_updated_mbox;
+                fthMboxPost( &shard->log->update_mbox,
+                             (uint64_t)(&Mcd_rec_attach_test_update_mail[i]) );
+                if ( shard->total_segments > 32 ) {   // >1GB container
+                    Mcd_rec_attach_test_waiters_special++;
+                } else {
+                    Mcd_rec_attach_test_waiters++;
+                }
+            }
+        }
+        break;
+
+    case 2:                              // stop test
+        if ( !Mcd_rec_attach_test_running ) {
+            return 1;
+        }
+        // ensure no threads still stuck
+        while ( Mcd_rec_attach_test_waiters_special > 0 ) {
+            fthMboxPost( &Mcd_rec_attach_test_mbox_special, 0 );
+            fthMboxWait( &Mcd_rec_attach_test_updated_mbox );
+            Mcd_rec_attach_test_waiters_special--;
+        }
+        for ( int s = 0; s < Mcd_rec_attach_test_waiters; s++ ) {
+            fthMboxPost( &Mcd_rec_attach_test_mbox, 0 );
+        }
+        while ( Mcd_rec_attach_test_waiters > 0 ) {
+            fthMboxWait( &Mcd_rec_attach_test_updated_mbox );
+            Mcd_rec_attach_test_waiters--;
+        }
+        Mcd_rec_attach_test_running = 0;
+        break;
+
+    case 3:                              // release one thread
+        // if thread == 0, then first container;
+        //                 otherwise it doesn't matter which one
+        if ( !Mcd_rec_attach_test_running ) {
+            return 1;
+        }
+        if ( test_arg == 0 ) {
+            Mcd_rec_attach_test_waiters_special--;
+            fthMboxPost( &Mcd_rec_attach_test_mbox_special, 0 );
+        } else {
+            Mcd_rec_attach_test_waiters--;
+            fthMboxPost( &Mcd_rec_attach_test_mbox, 0 );
+        }
+        fthMboxWait( &Mcd_rec_attach_test_updated_mbox );
+        break;
+
+    default:                             // unknown command
+        return 2;
+    }
+
+    return 0;
 }
 
 /*
@@ -8592,7 +8771,7 @@ static mcd_trx_stats_t	mcd_trx_stats;
 /*
  * start transaction
  *
- * Callable from FDF top-level.  Concurrent transactions are supported.
+ * Callable from ZS top-level.  Concurrent transactions are supported.
  * Activity on objects will be deferred in the log; activity on containers
  * is not defined during a transaction.  Incremental changes are visible
  * to all threads, meaning poor (ACID) isolation.  Transactions in progress
@@ -8630,7 +8809,7 @@ mcd_trx_start( )
 /*
  * commit transaction in progress
  *
- * Callable from FDF top-level.  On return, thread's transaction has been
+ * Callable from ZS top-level.  On return, thread's transaction has been
  * committed to persistent storage.  To achieve crash consistency, the
  * transaction will not span the two logs: this possibility is detected, and
  * avoided by padding the remaindered log with no-op entries (CAS type).
@@ -8657,7 +8836,7 @@ mcd_trx_commit( void *pai)
 /*
  * undo transaction in progress
  *
- * Callable from FDF top-level.  On return, thread's transaction
+ * Callable from ZS top-level.  On return, thread's transaction
  * is concluded.  All changes to hash table and slabs are reverted.
  * Accumulated log entries not written, but pitched.  Objects created by
  * the transaction are purged from the object cache.
@@ -8701,7 +8880,7 @@ mcd_trx_id( )
 /*
  * detach from current transaction
  *
- * Callable from FDF top-level.  On return, thread has no associated
+ * Callable from ZS top-level.  On return, thread has no associated
  * transaction.  Transaction remains active and can be concluded by other
  * associated threads, or by any thread with mcd_trx_commit_id().
  *
@@ -8722,7 +8901,7 @@ mcd_trx_detach( )
 /*
  * attach to transaction
  *
- * Callable from FDF top-level.  On return, caller's thread is now associated
+ * Callable from ZS top-level.  On return, caller's thread is now associated
  * with the transaction specified by the given ID.
  *
  * Fails if transaction doesn't exist, or caller has a transaction already.
@@ -8754,7 +8933,7 @@ mcd_trx_attach( uint64_t id)
 /*
  * commit transaction by ID
  *
- * Callable from FDF top-level.  On return, specified transaction has been
+ * Callable from ZS top-level.  On return, specified transaction has been
  * committed to persistent storage.
  *
  * Fails if transaction limit was exceeded, transaction referenced multiple
@@ -8886,7 +9065,7 @@ mcd_trx_service( void *pai, int cmd, void *arg)
 	 * return crash recovery directory in 'arg'
 	 */
 	case 3:
-		*(const char **)arg = getProperty_String( "FDF_CRASH_DIR", "/tmp/fdf-crash-recovery");
+		*(const char **)arg = getProperty_String( "ZS_CRASH_DIR", "/tmp/fdf.crash-recovery");
 		break;
 	/*
 	 * print status of trx service

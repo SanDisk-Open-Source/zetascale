@@ -22,7 +22,7 @@
 #include "btest_common.h"
 #include "../btree_malloc.h"
 
-extern fdf_log_func fdf_log_func_ptr;
+extern zs_log_func zs_log_func_ptr;
 
 extern int init_l1cache();
 
@@ -244,7 +244,7 @@ btest_init(int argc, char **argv, char *program, btest_parse_fn parse_fn)
 		assert(cfg);
 		return NULL;
 	}
-	fdf_pstats_t *ps = malloc( sizeof *ps);
+	zs_pstats_t *ps = malloc( sizeof *ps);
 
 	if( init_l1cache() ){
 		fprintf(stderr, "Coundn't init global l1 cache.\n");
@@ -736,10 +736,10 @@ static int cmp_cb(void *data, char *key1, uint32_t keylen1, char *key2, uint32_t
 
 
 #if 0
-FDF_status_t
-FDFTransactionService( struct FDF_thread_state *t, int cmd, void *arg)
+ZS_status_t
+ZSTransactionService( struct ZS_thread_state *t, int cmd, void *arg)
 {
-	return (FDF_SUCCESS);
+	return (ZS_SUCCESS);
 }
 #endif
 

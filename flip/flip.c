@@ -199,7 +199,7 @@ flip_info_t *get_flip_instance(int index)
 	d.flip_ioctl_type = FLIP_IOCTL_GET_INSTANCE;
 	d.index = index;
 
-	(void) FDFIoctl(NULL, 0, FDF_IOCTL_FLIP, &d);
+	(void) ZSIoctl(NULL, 0, ZS_IOCTL_FLIP, &d);
 	return (d.flip_instance);
 }
 

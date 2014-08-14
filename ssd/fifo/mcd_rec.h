@@ -210,11 +210,15 @@ enum {
 // Persistent shard descriptor.
 // Written at the beginning of each shard.
 typedef struct mcd_rec_shard {
+    uint32_t        eye_catcher;       // eye-catching magic number
+    uint16_t        version;           // version number of this structure
+    uint16_t        r1;                // alignment
+    uint64_t        checksum;          // checksum of shard descriptor
+    uint32_t        r2;                // alignment
     uint32_t        map_blks;          // number of address map blocks; also
                                        // number of seg addr blocks for classes
     uint32_t        flags;             // flags from shard create
     uint32_t        obj_quota;         // object quota from shard create
-    uint32_t        r1;                // alignment
     uint64_t        quota;             // size quota from shard create
     uint64_t        shard_id;          // shard ID
     uint64_t        blk_offset;        // block offset from origin (phys addr)
@@ -230,6 +234,7 @@ typedef struct mcd_rec_shard {
     uint64_t        class_offset[ MCD_OSD_MAX_NCLASSES ]; // relative offset
                                                           //   to class desc
                                                           //   from shard
+    uint64_t        reserved[ 8 ];     // -- reserved for future use --
 } mcd_rec_shard_t;
 
 enum {
@@ -338,14 +343,35 @@ typedef struct mcd_rec_properties {
     uint64_t        blk_offset;        // offset of persistent shard desc
     uint64_t        shard_id;          // shard id
 
-    uint32_t        container_id;      // unique container id
+    // needed by the memcached protocol layer
+    uint64_t        flush_time;        // "flush_all" time (may be in future)
+    uint64_t        cas_id;            // cas version number
+
+    // container configuration
+    uint64_t        size_quota;        // size of container
+    uint32_t        obj_quota;         // max number of objects
     uint32_t        state;             // container state, 'running', etc
+    uint32_t        tcp_port;          // listen tcp port
+    uint32_t        udp_port;          // listen udp port
     uint32_t        eviction;          // 1=cache mode, 0=store mode
     uint32_t        persistent;        // 1=persistent, 0=non-persistent
-    char            cname[64];         // container name
+    uint32_t        container_id;      // unique container id
+    uint32_t        sync_updates;      // updates between syncs (persistent)
+    uint32_t        sync_msec;         // msecs between syncs (not used)
 
-    mcd_rec_shard_t pshard;            // Backward compatibilty. Shard structures
-    uint64_t        reserved[20];      // -- reserved for future use --
+    uint32_t        r2:29;             // alignment
+    uint32_t        sync_backup:1;     // 1=sync_all before backup; 0=don't
+    uint32_t        sasl:1;            // 1=SASL-enabled
+    uint32_t        prefix_delete:1;   // 1=prefix_delete-enabled
+
+    char            cname[64];         // container name
+    char            cluster_name[64];  // cluster name
+
+    // container IPs
+    uint32_t        num_ips;           // number of ip addrs used
+    uint32_t        ip_addrs[ MCD_CNTR_MAX_NUM_IPS ]; // ip addrs
+
+    uint64_t        reserved[ 8 ];     // -- reserved for future use --
 } mcd_rec_properties_t;
 
 enum {

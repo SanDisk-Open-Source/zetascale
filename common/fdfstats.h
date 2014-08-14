@@ -10,8 +10,8 @@
  * $Id: sdfstats.h 12880 2010-04-13 22:30:12Z hiney $
  */
 
-#ifndef _FDFSTATS_H
-#define _FDFSTATS_H
+#ifndef _ZSSTATS_H
+#define _ZSSTATS_H
 
 #include <stdint.h>
 #ifndef SDFAPI

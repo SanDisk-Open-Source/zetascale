@@ -87,7 +87,7 @@ enum {
     item(HFXST, HF_MSG_KV, FHXST, FHNXS)                                       \
     item(HFGFF, HF_MSG_KV, FHDAT, FHGTF)                                       \
     item(HFPTF, HF_MSG_KV, FHPTC, FHPTF)                                       \
-    item(HFDFF, HF_MSG_KV, FHDEC, FHDEF)                                       \
+    item(HZSF, HF_MSG_KV, FHDEC, FHDEF)                                       \
     item(HFCIF, HF_MSG_KV, FHCRC, FHCRF)                                       \
     /* XXX: Should HFCZF get a unique type? */                                 \
     item(HFCZF, HF_MSG_KV, FHCRC, FHCRF)                                       \
@@ -1195,7 +1195,7 @@ home_flash_wrapper(
         fh_mtype = home_flash_response_type(in_mtype, status);
         break;
 
-    case HFDFF: /* flash delete */
+    case HZSF: /* flash delete */
         inval_cache = SDF_TRUE;
         if (success) {
 	    (metaData.keyLen)--; // adjust for added null from SDF

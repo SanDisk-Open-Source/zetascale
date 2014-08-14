@@ -8,9 +8,9 @@
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <fdf.h>
+#include <zs.h>
 
-#define FDF_MAX_KEY_LEN 2000
+#define ZS_MAX_KEY_LEN 2000
 
 int32_t
 generate_keys(int prefix_len, int seed1, int seed2, char *key_buf)
@@ -37,9 +37,9 @@ generate_keys(int prefix_len, int seed1, int seed2, char *key_buf)
 	return (strlen(key_buf) + 1);
 }
 
-FDF_cguid_t cguid;
-struct FDF_state *fdf_state;
-struct FDF_thread_state *thd_state;
+ZS_cguid_t cguid;
+struct ZS_state *zs_state;
+struct ZS_thread_state *thd_state;
 
 int
 my_cmp_cb(void *cmp_cb_data, char *key1, uint32_t keylen1, char *key2, uint32_t keylen2)
@@ -93,24 +93,24 @@ insert_keys(int num_keys, int prefix_len, int seed1_start, int seed2_start, bool
 	char *data = &tmp_data[0];
 //	uint64_t datalen = DATA_LEN;
 	int i = 0;
-	FDF_obj_t *objs = NULL; 
+	ZS_obj_t *objs = NULL; 
 	int num_objs = 100;
 	int num_mputs;
 	int k = 0;
 	char *tmp_data = NULL;
 	uint64_t tmp_datalen = 0;
 
-	FDF_status_t status = FDF_SUCCESS;
+	ZS_status_t status = ZS_SUCCESS;
 
-	objs = (FDF_obj_t *) malloc(sizeof(FDF_obj_t) * num_objs);
+	objs = (ZS_obj_t *) malloc(sizeof(ZS_obj_t) * num_objs);
 	if (objs == NULL) {
 		printf("Cannot allocate memory.\n");
 		exit(0);
 	}
-	memset(objs, 0, sizeof(FDF_obj_t) * num_objs);
+	memset(objs, 0, sizeof(ZS_obj_t) * num_objs);
 
 	for (i = 0; i < num_objs; i++) {
-		objs[i].key = malloc(FDF_MAX_KEY_LEN);
+		objs[i].key = malloc(ZS_MAX_KEY_LEN);
 		if (objs[i].key == NULL) {
 			printf("Cannot allocate memory.\n");
 			exit(0);
@@ -130,9 +130,9 @@ insert_keys(int num_keys, int prefix_len, int seed1_start, int seed2_start, bool
 
 		for (i = 0; i < num_keys; i++) {
 #if 1
-			memset(objs[0].key, 0, FDF_MAX_KEY_LEN);
+			memset(objs[0].key, 0, ZS_MAX_KEY_LEN);
 			objs[0].key_len = generate_keys(prefix_len, seed1_start, seed2_start, objs[0].key);
-			assert(objs[0].key_len < FDF_MAX_KEY_LEN);
+			assert(objs[0].key_len < ZS_MAX_KEY_LEN);
 
 #endif 
 			objs[0].data = data;
@@ -141,17 +141,17 @@ insert_keys(int num_keys, int prefix_len, int seed1_start, int seed2_start, bool
 			/*
 			 * Insert key 		
 			 */
-			status = FDFWriteObject(thd_state, cguid, objs[0].key, objs[0].key_len,
+			status = ZSWriteObject(thd_state, cguid, objs[0].key, objs[0].key_len,
 						objs[0].data, objs[0].data_len, 0);
-			if (status != FDF_SUCCESS) {
+			if (status != ZS_SUCCESS) {
 				printf("Write failed with error = %d.\n", status);
 				exit(-1);
 			}
 
-			status = FDFReadObject(thd_state, cguid, objs[0].key, 
+			status = ZSReadObject(thd_state, cguid, objs[0].key, 
 					       objs[0].key_len, &tmp_data, &tmp_datalen);
 
-			if (status != FDF_SUCCESS) {
+			if (status != ZS_SUCCESS) {
 				printf("Read failed with error %d.\n", status);
 				exit(-1);
 			}
@@ -167,7 +167,7 @@ insert_keys(int num_keys, int prefix_len, int seed1_start, int seed2_start, bool
 		for (i = 0; i < num_mputs; i++) {
 
 			for (k = 0; k < num_objs; k++) {
-				memset(objs[k].key, 0, FDF_MAX_KEY_LEN);
+				memset(objs[k].key, 0, ZS_MAX_KEY_LEN);
 				objs[k].key_len = generate_keys(prefix_len, seed1_start, seed2_start, objs[k].key);
 				objs[k].data = data;
 				objs[k].data_len = datalen;
@@ -177,24 +177,24 @@ insert_keys(int num_keys, int prefix_len, int seed1_start, int seed2_start, bool
 
 			if (use_mput) {
 				uint32_t written = 0;
-				status = FDFMPut(thd_state, cguid, num_objs, &objs[0], 0, &written);
-				if (status != FDF_SUCCESS) {
+				status = ZSMPut(thd_state, cguid, num_objs, &objs[0], 0, &written);
+				if (status != ZS_SUCCESS) {
 					printf("Write failed with error = %d.\n", status);
 					exit(-1);
 				}
 
 				assert(written == num_objs);
 				for (k = 0; k < num_objs; k++) {
-					status = FDFReadObject(thd_state, cguid, objs[k].key, 
+					status = ZSReadObject(thd_state, cguid, objs[k].key, 
 							       objs[k].key_len, &tmp_data, &tmp_datalen);
 
-					if (status != FDF_SUCCESS) {
+					if (status != ZS_SUCCESS) {
 						printf("Read failed with error %d.\n", status);
 						assert(0);
 						exit(-1);
 					}
 
-					FDFFreeBuffer(tmp_data);
+					ZSFreeBuffer(tmp_data);
 				}
 			}
 		}
@@ -217,19 +217,19 @@ read_keys(int num_keys, int prefix_len, int seed1_start, int seed2_start)
 	int i = 0;
 	char *tmp_data = NULL;
 	uint64_t tmp_datalen = 0;
-	char key[FDF_MAX_KEY_LEN];
+	char key[ZS_MAX_KEY_LEN];
 	uint32_t keylen = 0;
 
-	FDF_status_t status = FDF_SUCCESS;
+	ZS_status_t status = ZS_SUCCESS;
 
 
 	for (i = 0; i < num_keys; i++) {
 
 		keylen = generate_keys(prefix_len, seed1_start, seed2_start, key);
-		status = FDFReadObject(thd_state, cguid, key, 
+		status = ZSReadObject(thd_state, cguid, key, 
 				       keylen, &tmp_data, &tmp_datalen);
 
-		if (status != FDF_SUCCESS) {
+		if (status != ZS_SUCCESS) {
 			printf("Read failed with error %d.\n", status);
 			exit(-1);
 		}
@@ -285,9 +285,9 @@ main()
 {
 	char tmp_buf[1000];
 	char tmp_buf1[1000];
-	FDF_container_props_t props;
-	FDF_status_t status;
-	FDF_container_meta_t cmeta = {my_cmp_cb, NULL, NULL, NULL};
+	ZS_container_props_t props;
+	ZS_status_t status;
+	ZS_container_meta_t cmeta = {my_cmp_cb, NULL, NULL, NULL};
 	uint32_t keylen1 = 0;
 	uint32_t keylen2 = 0;
 	bool use_mput = false;
@@ -310,11 +310,11 @@ main()
 	my_cmp_cb(NULL, tmp_buf, keylen1, tmp_buf1, keylen2);
 
 
-	FDFInit(&fdf_state);
+	ZSInit(&zs_state);
 
-	FDFInitPerThreadState(fdf_state, &thd_state);	
+	ZSInitPerThreadState(zs_state, &thd_state);	
 
-	FDFLoadCntrPropDefaults(&props);
+	ZSLoadCntrPropDefaults(&props);
 
 	props.persistent = 1;
 	props.evicting = 0;
@@ -323,50 +323,50 @@ main()
 	props.fifo_mode = 0;
 	props.size_kb = 0; 
 
-	status = FDFOpenContainerSpecial(thd_state, "cnt_01", &props,
-					 FDF_CTNR_CREATE, &cmeta, &cguid);
-	if (status != FDF_SUCCESS) {
+	status = ZSOpenContainerSpecial(thd_state, "cnt_01", &props,
+					 ZS_CTNR_CREATE, &cmeta, &cguid);
+	if (status != ZS_SUCCESS) {
 		printf("Open Cont failed with error=%x.\n", status);
 		exit(-1);
 	}
 
 
 
-	printf("Writing key with FDFWriteObjs with datalen = %ld.\n", datalen);
+	printf("Writing key with ZSWriteObjs with datalen = %ld.\n", datalen);
 	test_splits(false, 0);
 	printf("Done without any issues. Passed.\n");
 
-	printf("Writing key with FDFMPut.\n");
+	printf("Writing key with ZSMPut.\n");
 	test_splits(true, 300);
 	printf("Done without any issues. Passed.\n");
 
 	datalen = 200;
 
-	printf("Writing key with FDFWriteObjs with datalen = %ld.\n", datalen);
+	printf("Writing key with ZSWriteObjs with datalen = %ld.\n", datalen);
 	test_splits(false, 0);
 	printf("Done without any issues. Passed.\n");
 
-	printf("Writing key with FDFMPut.\n");
+	printf("Writing key with ZSMPut.\n");
 	test_splits(true, 300);
 	printf("Done without any issues. Passed.\n");
 
 	datalen = 1500;
 
-	printf("Writing key with FDFWriteObjs with datalen = %ld.\n", datalen);
+	printf("Writing key with ZSWriteObjs with datalen = %ld.\n", datalen);
 	test_splits(false, 0);
 	printf("Done without any issues. Passed.\n");
 
-	printf("Writing key with FDFMPut.\n");
+	printf("Writing key with ZSMPut.\n");
 	test_splits(true, 300);
 	printf("Done without any issues. Passed.\n");
 
 
 	datalen = 150;
-	printf("Writing key with FDFWriteObjs with datalen = %ld.\n", datalen);
+	printf("Writing key with ZSWriteObjs with datalen = %ld.\n", datalen);
 	test_splits(false, 0);
 	printf("Done without any issues. Passed.\n");
 
-	printf("Writing key with FDFMPut.\n");
+	printf("Writing key with ZSMPut.\n");
 	test_splits(true, 300);
 	printf("Done without any issues. Passed.\n");
 
@@ -381,7 +381,7 @@ main()
 	}
 	printf("Done without any issues. Passed.\n");
 
-	FDFCloseContainer(thd_state, cguid);
-	FDFDeleteContainer(thd_state, cguid);
+	ZSCloseContainer(thd_state, cguid);
+	ZSDeleteContainer(thd_state, cguid);
 
 }

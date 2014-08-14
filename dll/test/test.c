@@ -1,5 +1,5 @@
 /*
- * Run various FDF tests.
+ * Run various ZS tests.
  *
  * Author: Johann George
  * Copyright (c) 2012-2013, Sandisk Corporation.  All rights reserved.
@@ -15,8 +15,8 @@
  * Configurable parameters.
  */
 #define BUF_SIZE            256
-#define FDF_LIB             "FDF_LIB"
-#define FDF_PROPERTY_FILE   "FDF_PROPERTY_FILE"
+#define ZS_LIB             "ZS_LIB"
+#define ZS_PROPERTY_FILE   "ZS_PROPERTY_FILE"
 
 
 /*
@@ -28,7 +28,7 @@
 /*
  * Types.
  */
-typedef void (tfunc_t)(fdf_t *);
+typedef void (tfunc_t)(zs_t *);
 
 
 /*
@@ -122,10 +122,10 @@ char *Levels[] ={
  * Set the log level.
  */
 static void
-set_level(fdf_t *fdf)
+set_level(zs_t *zs)
 {
     if (Level)
-        fdf_set_prop(fdf, "FDF_LOG_LEVEL", Level);
+        zs_set_prop(zs, "ZS_LOG_LEVEL", Level);
 }
 
 
@@ -133,10 +133,10 @@ set_level(fdf_t *fdf)
  * Determine whether we have enough memory for it to substitute as flash.
  */
 static speed_t
-get_speed(fdf_t *fdf)
+get_speed(zs_t *zs)
 {
     unsigned long flash;
-    if (!fdf_utoi(fdf_get_prop(fdf, "FDF_FLASH_SIZE", "0"), &flash))
+    if (!zs_utoi(zs_get_prop(zs, "ZS_FLASH_SIZE", "0"), &flash))
         return SLOW;
 
     FILE *fp = fopen("/proc/meminfo", "r");
@@ -163,18 +163,18 @@ get_speed(fdf_t *fdf)
  * Set the properties relating to the speed.
  */
 static void
-set_speed(fdf_t *fdf)
+set_speed(zs_t *zs)
 {
     if (Speed == AUTO)
-        Speed = get_speed(fdf);
+        Speed = get_speed(zs);
 
     if (Speed == SLOW)
-        fdf_set_prop(fdf, "FDF_FLASH_FILENAME", "/tmp/fdf_disk%d");
+        zs_set_prop(zs, "ZS_FLASH_FILENAME", "/tmp/zs_disk%d");
     else if (Speed == FAST) {
-        fdf_set_prop(fdf, "FDF_O_DIRECT",       "0");
-        fdf_set_prop(fdf, "FDF_TEST_MODE",      "1");
-        fdf_set_prop(fdf, "FDF_LOG_FLUSH_DIR",  "/dev/shm");
-        fdf_set_prop(fdf, "FDF_FLASH_FILENAME", "/dev/shm/fdf_disk%d");
+        zs_set_prop(zs, "ZS_O_DIRECT",       "0");
+        zs_set_prop(zs, "ZS_TEST_MODE",      "1");
+        zs_set_prop(zs, "ZS_LOG_FLUSH_DIR",  "/dev/shm");
+        zs_set_prop(zs, "ZS_FLASH_FILENAME", "/dev/shm/zs_disk%d");
     }
 }
 
@@ -183,15 +183,15 @@ set_speed(fdf_t *fdf)
  * Initialize the property file.
  */
 static void
-init_prop_file(fdf_t *fdf, char *name)
+init_prop_file(zs_t *zs, char *name)
 {
     char *err;
     char buf[BUF_SIZE];
     struct stat sbuf;
-    char *prop = getenv(FDF_PROPERTY_FILE);
+    char *prop = getenv(ZS_PROPERTY_FILE);
 
     if (prop)
-        unsetenv(FDF_PROPERTY_FILE);
+        unsetenv(ZS_PROPERTY_FILE);
     else {
         snprintf(buf, sizeof(buf), "./%s.prop", name);
         if (stat(buf, &sbuf) < 0) {
@@ -203,8 +203,8 @@ init_prop_file(fdf_t *fdf, char *name)
     }
 
     printv("using property file: %s", prop);
-    if (!fdf_load_prop_file(fdf, prop, &err))
-        die_err(err, "fdf_load_prop_file failed");
+    if (!zs_load_prop_file(zs, prop, &err))
+        die_err(err, "zs_load_prop_file failed");
 }
 
 
@@ -212,16 +212,16 @@ init_prop_file(fdf_t *fdf, char *name)
  * Initialize the test framework.  We are passed the test name.
  */
 void
-test_init(fdf_t *fdf, char *name)
+test_init(zs_t *zs, char *name)
 {
     char *err;
 
-    init_prop_file(fdf, name);
-    set_speed(fdf);
-    set_level(fdf);
+    init_prop_file(zs, name);
+    set_speed(zs);
+    set_level(zs);
 
-    if (!fdf_start(fdf, &err))
-        die_err(err, "fdf_start failed");
+    if (!zs_start(zs, &err))
+        die_err(err, "zs_start failed");
 }
 
 
@@ -229,28 +229,28 @@ test_init(fdf_t *fdf, char *name)
  * Initialize properties.
  */
 static void
-set_def_props(fdf_t *fdf)
+set_def_props(zs_t *zs)
 {
-    fdf_set_prop(fdf, "FDF_LOG_LEVEL",  "warning");
-    fdf_set_prop(fdf, "HUSH_FASTCC",    "1");
-    fdf_set_prop(fdf, "FDF_REFORMAT",   "1");
-    fdf_set_prop(fdf, "FDF_FLASH_SIZE", "4G");
+    zs_set_prop(zs, "ZS_LOG_LEVEL",  "warning");
+    zs_set_prop(zs, "HUSH_FASTCC",    "1");
+    zs_set_prop(zs, "ZS_REFORMAT",   "1");
+    zs_set_prop(zs, "ZS_FLASH_SIZE", "4G");
 }
 
 
 /*
- * Initialize the FDF library.
+ * Initialize the ZS library.
  */
 static void
-init_fdf_lib()
+init_zs_lib()
 {
     int n;
     char **l;
     struct stat sbuf;
-    char *lib = getenv(FDF_LIB);
+    char *lib = getenv(ZS_LIB);
     char *libs[] ={
-        "../../output/lib/libfdf.so",
-        "/tmp/libfdf.so"
+        "../../output/lib/libzs.so",
+        "/tmp/libzs.so"
     };
 
     if (lib)
@@ -258,11 +258,11 @@ init_fdf_lib()
     for (n = nel(libs), l = libs; n--; l++) {
         if (stat(*l, &sbuf) < 0)
             continue;
-        setenv(FDF_LIB, *l, 0);
-        printv("using FDF library: %s", *l);
+        setenv(ZS_LIB, *l, 0);
+        printv("using ZS library: %s", *l);
         return;
     }
-    die("cannot determine FDF library; set FDF_LIB");
+    die("cannot determine ZS library; set ZS_LIB");
 }
 
 
@@ -274,14 +274,14 @@ run_test(tinfo_t *tinfo)
 {
     char *err;
 
-    fdf_t *fdf = fdf_init(0, &err);
-    if (!fdf)
-        die_err(err, "fdf_init failed");
+    zs_t *zs = zs_init(0, &err);
+    if (!zs)
+        die_err(err, "zs_init failed");
 
-    init_fdf_lib();
-    set_def_props(fdf);
-    tinfo->func(fdf);
-    fdf_done(fdf);
+    init_zs_lib();
+    set_def_props(zs);
+    tinfo->func(zs);
+    zs_done(zs);
 }
 
 

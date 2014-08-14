@@ -440,7 +440,7 @@ typedef struct {
 	uint32_t					flash_only;
 	uint32_t					cache_only;
     SDF_boolean_t compression;  /*Flag to enable/disable compression */
-
+    uint64_t  flags;
 } SDF_container_props_t;
 
 /** Legacy structure for container properties */
@@ -491,17 +491,17 @@ typedef struct {
 } SDF_container_stats_t;
 #endif
 
-typedef struct FDF_operational_states_t_ {
+typedef struct ZS_operational_states_t_ {
     SDF_boolean_t is_shutdown_in_progress;
 	void		  *shutdown_thread;
     /*
      * Add more flags if needed.
      */
-} FDF_operational_states_t;
+} ZS_operational_states_t;
 
 
 /**
- * @brief set FDF property
+ * @brief set ZS property
  *
  * @param propery <IN> property name
  * @param value <IN> pointer to value
@@ -524,9 +524,9 @@ int SDFLoadProperties(
 	);
 
 /**
- * @brief FDF initialization
+ * @brief ZS initialization
  *
- * @param fdf_state <IN> FDF state variable
+ * @param zs_state <IN> ZS state variable
  * @param argc <IN> program arguments count
  * @param argv <IN> program arguments array
  * @return SDF_SUCCESS on success
@@ -538,9 +538,9 @@ SDF_status_t SDFInit(
 	);
 
 /**
- * @brief FDF per thread state initialization
+ * @brief ZS per thread state initialization
  *
- * @param fdf_state <IN> FDF thread state variable
+ * @param zs_state <IN> ZS thread state variable
  * @return SDF_SUCCESS on success
  */
 struct SDF_thread_state *SDFInitPerThreadState(

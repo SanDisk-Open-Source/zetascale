@@ -2,27 +2,33 @@
 
 set -ex
 
-at_exit() { kill $CHLD; rm $PF; rm /tmp/fdf_listen_pid.$CHLD; }
+#    /*
+#     * GC is disabled on Btree since trx is always enabled. Till we find a way to
+#     * disable trx in new fused libraries setup, this test is disabled.
+#     */
+
+
+at_exit() { kill $CHLD; rm $PF; rm /tmp/zs_listen_pid.$CHLD; }
 trap at_exit EXIT
 
 WD=$(readlink -f $(dirname $0))
 PORT=55555
 
-[ -n "$FDF_PROPERTY_FILE" ] || FDF_PROPERTY_FILE=$WD/../conf/fdf.prop
+[ -n "$ZS_PROPERTY_FILE" ] || ZS_PROPERTY_FILE=$WD/../conf/zs.prop
 
-PF=/tmp/fdf.prop.$$
-sed -e '/FDF_ADMIN_PORT/d' \
-	-e '/FDF_SLAB_GC/d' \
-	-e '/FDF_SLAB_GC_THRESHOLD/d' \
-		$FDF_PROPERTY_FILE >$PF
-echo "FDF_ADMIN_PORT=$PORT" >>$PF
+PF=/tmp/zs.prop.$$
+sed -e '/ZS_ADMIN_PORT/d' \
+	-e '/ZS_SLAB_GC/d' \
+	-e '/ZS_SLAB_GC_THRESHOLD/d' \
+		$ZS_PROPERTY_FILE >$PF
+echo "ZS_ADMIN_PORT=$PORT" >>$PF
 
-export FDF_PROPERTY_FILE=$PF
-$WD/FDF_Listen&
+export ZS_PROPERTY_FILE=$PF
+$WD/ZS_Listen&
 
 CHLD=$!
 
-while ! [ -f /tmp/fdf_listen_pid.$CHLD ] && [ $((i++ < 120)) ]; do
+while ! [ -f /tmp/zs_listen_pid.$CHLD ] && [ $((i++ < 120)) ]; do
 	sleep 1
 done
 

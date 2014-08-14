@@ -22,7 +22,7 @@
 #include "name_service.h"
 #include "shard_compute.h"
 #include "init_sdf.h"
-#include "api/fdf.h"
+#include "api/zs.h"
 #include "api/sdf_internal.h"
 
 #define LOG_ID PLAT_LOG_ID_INITIAL
@@ -109,7 +109,7 @@ name_service_get_meta(SDF_internal_ctxt_t *pai, SDF_cguid_t cguid, SDF_container
     }
 
 	if ( SDF_SUCCESS != status )
-		status = SDF_FAILURE;		// Hack for FDF test compatibility
+		status = SDF_FAILURE;		// Hack for ZS test compatibility
 
     plat_log_msg(21506, LOG_CAT, log_level, "%llu - %s", (unsigned long long)cguid, SDF_Status_Strings[status]);
 
@@ -696,7 +696,7 @@ name_service_metadata_container_from_cguid( SDF_cguid_t cguid ) {
     if ( cguid <= LAST_PHYSICAL_CGUID ) {
         c = theCMC->c;
     } else { 
-	    cmap = fdf_cmap_get_by_cguid( VMC_CGUID );
+	    cmap = zs_cmap_get_by_cguid( VMC_CGUID );
 	    if ( cmap && !isContainerNull( cmap->sdf_container )) { 
 	        c = internal_serverToClientContainer( cmap->sdf_container );
         } else {
@@ -717,7 +717,7 @@ name_service_metadata_container_from_cname( char *cname ) {
          strcmp( VDC_PATH, cname ) == 0 ) {
         c = theCMC->c;
     } else {
-	    cmap = fdf_cmap_get_by_cname( VMC_PATH );
+	    cmap = zs_cmap_get_by_cname( VMC_PATH );
 	    if ( cmap && !isContainerNull( cmap->sdf_container )) { 
 	        c = internal_serverToClientContainer( cmap->sdf_container );
         } else {

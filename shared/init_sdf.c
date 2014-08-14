@@ -26,7 +26,7 @@
 #include "shard_compute.h"
 #include "ssd/fifo/container_meta_blob.h"
 #include "utils/properties.h"
-#include "api/fdf.h"
+#include "api/zs.h"
 #include "ssd/fifo/mcd_osd_internal.h"
 #include "api/sdf_internal.h"
 
@@ -47,7 +47,7 @@ SDF_cmc_t *theCMC = NULL;        // Container metadata container
 struct SDF_shared_state sdf_shared_state;
 
 extern SDF_status_t
-fdf_open_virtual_support_containers(SDF_internal_ctxt_t *pai, int flags);
+zs_open_virtual_support_containers(SDF_internal_ctxt_t *pai, int flags);
 
 int 
 (*init_container_meta_blob_put)( uint64_t shard_id, char * data, int len ) = NULL;
@@ -133,7 +133,7 @@ init_sdf_initialize(const struct SDF_config *config, int restart)
                      "CMC create failed");
     }
 
-	// Recover FDF system containers and objects
+	// Recover ZS system containers and objects
     if (status == SDF_SUCCESS && sdf_shared_state.config.system_recovery == SYS_FLASH_RECOVERY) {
 		SDF_cguid_t cguid_counter;
 		if ((status = name_service_get_cguid_state(config->pai,
@@ -154,7 +154,7 @@ init_sdf_initialize(const struct SDF_config *config, int restart)
     if (!restart && config->my_node == CMC_HOME)
         sdf_msg_sync();
 
-    // Create FDF system containers and objects
+    // Create ZS system containers and objects
     if (status == SDF_SUCCESS && sdf_shared_state.config.system_recovery != SYS_FLASH_RECOVERY) {
 
     	// Write out a cguid state object so that cmc recovery will work

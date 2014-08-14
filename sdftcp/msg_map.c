@@ -550,7 +550,7 @@ info_recv(msg_info_t *info)
 static int
 bad_talk(talk_t *talk, msg_info_t *info, char *msg)
 {
-    fdf_logi(70045, "%s node=m%d state=%s rank=%d",
+    zs_logi(70045, "%s node=m%d state=%s rank=%d",
              msg, info->nno, n_state(talk->state), talk->rank);
     return 0;
 }
@@ -608,7 +608,7 @@ node_drop(int nno)
     node_t *node = get_node_nno(nno);
 
     if (!node) {
-        fdf_logi(70046, "node m%d drop attempt, non-existent", nno);
+        zs_logi(70046, "node m%d drop attempt, non-existent", nno);
         return;
     }
 

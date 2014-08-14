@@ -32,7 +32,7 @@ const char *particulars_section_v2_0[]= {"Product:", "Version:", "Scope:", "Type
        				"MAC Address:", "License ID:",
 				"Date valid from (GMT):", "Date valid to (GMT):", "Grace period (in days):"};
 
-const char *comments_section_v2_0[]= {"Flash Data Fabric", "<major>.<minor>", " Single/Multiple (Valid on only one machine or multiple)", " Permanent/Periodic", 
+const char *comments_section_v2_0[]= {"ZetaScale", "<major>.<minor>", " Single/Multiple (Valid on only one machine or multiple)", " Permanent/Periodic", 
 			 " 00:00:00:00:00:00 (Use 'ifconfig or ip addr' to get HWaddr of eth0)",
 			 " Optional identifier",
 			 " mm/dd/yyyy HH:MM:SS",

@@ -61,10 +61,9 @@ ssd_fifo_ops_t      Ssd_fifo_ops = {
     .flashPut           = NULL,
     .flashFreeBuf       = NULL,
     .flashStats         = NULL,
-    .shardClose         = NULL,
-    .shardDelete        = NULL,
-#ifdef DYNAMIC_SHARD
+	.shardClose			= NULL,
     .shardSync          = NULL,
+    .shardDelete        = NULL,
     .shardStart         = NULL,
     .shardStop          = NULL,
     .flashGetHighSequence     = NULL,
@@ -73,7 +72,6 @@ ssd_fifo_ops_t      Ssd_fifo_ops = {
     .flashGetByCursor         = NULL,
     .flashGetRetainedTombstoneGuarantee = NULL,
     .flashRegisterSetRetainedTombstoneGuaranteeCallback = NULL,
-#endif
 };
 
 
@@ -262,6 +260,19 @@ uint64_t fifo_flashStats( struct shard * shard, int key )
     return Ssd_fifo_ops.flashStats( shard, key );
 }
 
+void fifo_shardSync( struct shard * shard )
+{
+    if ( NULL == Ssd_fifo_ops.shardSync ) {
+        plat_log_msg(21704, 
+                      PLAT_LOG_CAT_SDF_APP_MEMCACHED,
+                      PLAT_LOG_LEVEL_FATAL,
+                      "fifo_shardSync not implemented!" );
+        plat_abort();
+    }
+    
+    return Ssd_fifo_ops.shardSync( shard );
+}
+
 void fifo_shardClose( struct shard * shard )
 {
     if ( NULL == Ssd_fifo_ops.shardClose ) {
@@ -288,20 +299,6 @@ int fifo_shardDelete( struct shard * shard )
     return Ssd_fifo_ops.shardDelete( shard );
 }
 
-void fifo_shardSync( struct shard * shard )
-{
-    if ( NULL == Ssd_fifo_ops.shardSync ) {
-        plat_log_msg(21704, 
-                      PLAT_LOG_CAT_SDF_APP_MEMCACHED,
-                      PLAT_LOG_LEVEL_FATAL,
-                      "fifo_shardSync not implemented!" );
-        plat_abort();
-    }
-    
-    return Ssd_fifo_ops.shardSync( shard );
-}
-
-#ifdef DYNAMIC_SHARD
 int fifo_shardStart( struct shard * shard )
 {
     if ( NULL == Ssd_fifo_ops.shardStart ) {
@@ -410,4 +407,4 @@ void fifo_flashRegisterSetRetainedTombstoneGuaranteeCallback( void (*callback)(u
         
     return Ssd_fifo_ops.flashRegisterSetRetainedTombstoneGuaranteeCallback( callback );
 }
-#endif
+

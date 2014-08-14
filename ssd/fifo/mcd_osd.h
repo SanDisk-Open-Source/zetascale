@@ -78,8 +78,7 @@
 /*
  * add one for cmc shard
  */
-//#define MCD_OSD_MAX_NUM_SHARDS  (MCD_MAX_NUM_CNTRS + 1)
-#define MCD_OSD_MAX_NUM_SHARDS  128
+#define MCD_OSD_MAX_NUM_SHARDS  (MCD_MAX_NUM_CNTRS + 1)
 
 /*
  * number of updates between cas_id log records
@@ -412,6 +411,7 @@ typedef struct mcd_logrec_object {
 #define MCD_FTH_OSD_BUF_SIZE    (1024 * 1024)
 
 typedef struct osd_state {
+    aio_state_t       * osd_aio_state;
     void              * osd_mbox;
     int                 osd_blocks;
     void              * osd_lock;
@@ -607,7 +607,7 @@ extern int mcd_osd_container_eviction(mcd_container_t *container);
 
 extern int mcd_osd_init( void );
 
-extern void mcd_osd_writer( uint64_t arg );
+extern void mcd_fth_osd_writer( uint64_t arg );
 
 extern void mcd_osd_register_ops( void );
 
@@ -623,13 +623,12 @@ extern uint64_t mcd_osd_get_shard_minsize( void );
 
 extern uint32_t mcd_osd_get_lba_minsize( void );
 
-// extern void * mcd_osd_iobuf_alloc( size_t size, bool is_static );
+// extern void * mcd_fth_osd_iobuf_alloc( size_t size, bool is_static );
 
-extern void mcd_osd_iobuf_free( void * buf );
+extern void mcd_fth_osd_iobuf_free( void * buf );
 
 struct shard;
 
-#ifdef DYNAMIC_SHARD
 extern int
 mcd_osd_shard_backup_prepare( struct shard * shard, int full_backup,
                               uint32_t client_version,
@@ -646,17 +645,14 @@ mcd_osd_shard_restore( struct shard * shard, uint64_t prev_seqno,
                        uint64_t curr_seqno, int cancel, int complete,
                        uint32_t client_version, uint32_t * server_version,
                        uint64_t * err_seqno );
-#endif
 
 extern int mcd_osd_shard_set_state( struct shard * shard, int new_state );
 
 //struct mcd_container;
 
-#ifdef DYNAMIC_SHARD
 extern int mcd_osd_shard_set_properties( struct shard * shard, mcd_container_t * cntr );
 
 extern int mcd_osd_shard_get_properties( int index, mcd_container_t * cntr );
-#endif
 
 
 extern int mcd_rec_attach_test( int cmd, int arg );
@@ -667,9 +663,9 @@ extern SDF_status_t mcd_osd_prefix_stats( mcd_container_t *container, char **pda
 extern SDF_status_t mcd_fth_container_start( void * context, mcd_container_t * container );
 extern SDF_status_t mcd_fth_container_stop( void * context, mcd_container_t * container );
 
-extern osd_state_t *mcd_init_aio_ctxt( int category );
-extern int mcd_free_aio_ctxt( osd_state_t *context, int category );
-extern void mcd_start_osd_writers();
+extern osd_state_t *mcd_fth_init_aio_ctxt( int category );
+extern int mcd_fth_free_aio_ctxt( osd_state_t *context, int category );
+extern void mcd_fth_start_osd_writers();
 
 extern int mcd_fth_do_try_container( void * pai, mcd_container_t **ppcontainer, bool open_only,
                               int tcp_port, int udp_port,
@@ -678,20 +674,20 @@ extern int mcd_fth_do_try_container( void * pai, mcd_container_t **ppcontainer, 
 
 /* Next functions used in slab_gc.c */
 int
-mcd_osd_slab_alloc( void * context, mcd_osd_shard_t * shard, int blocks, int count, uint64_t * blk_offset );
+mcd_fth_osd_slab_alloc( void * context, mcd_osd_shard_t * shard, int blocks, int count, uint64_t * blk_offset );
 
 /*
  * remove an entry from the hash table, free up its slab and update
  * the bitmap as well as the free list
  */
 int
-mcd_osd_remove_entry( mcd_osd_shard_t * shard,
+mcd_fth_osd_remove_entry( mcd_osd_shard_t * shard,
     struct hash_entry* hash_entry,
     bool delayed,
     bool remove_entry);
 
 uint64_t
-mcd_osd_shrink_class(mcd_osd_shard_t * shard, mcd_osd_segment_t *segment, bool gc);
+mcd_fth_osd_shrink_class(mcd_osd_shard_t * shard, mcd_osd_segment_t *segment, bool gc);
 
 int
 mcd_osd_slab_segments_get_free_slot(mcd_osd_slab_class_t* class);

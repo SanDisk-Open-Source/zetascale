@@ -90,7 +90,7 @@ is acceptable.  Do NOT use for cryptographic purposes.
 --------------------------------------------------------------------
 */
 
-uint64_t fdf_hash( const ub1 *k, ub8 length, ub8 level)
+uint64_t zs_hash( const ub1 *k, ub8 length, ub8 level)
 // register const ub1 *k;        /* the key */
 // register ub8  length;   /* the length of the key */
 // register ub8  level;    /* the previous hash, or an arbitrary value */
