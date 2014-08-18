@@ -41,6 +41,18 @@ extern  ZS_status_t BtreeErr_to_ZSErr(btree_status_t b_status);
 
 static void update_leaf_bytes_count(btree_raw_t *btree, btree_raw_mem_node_t *node);
 
+static btSyncMbox_t mbox_scavenger;
+static btSyncMbox_t mbox_scavenger_stopped;
+
+static btSyncMbox_t mbox_astats;
+static btSyncMbox_t mbox_astats_stopped;
+
+static int num_scavenger_threads;
+static int num_astats_threads;
+
+static int scavenger_killed = false;
+static int astats_killed = false;
+
 void
 scavenger_worker(uint64_t arg)
 {
@@ -48,7 +60,7 @@ scavenger_worker(uint64_t arg)
     struct ZS_thread_state  *zs_thread_state;
     int i;
 
-    while(1) {
+	while(!scavenger_killed) {
         uint64_t mail;
         uint64_t          child_id,snap_n1,snap_n2,syndrome = 0;
         int write_lock = 0, snap_no,j,total_keys = 0,deleting_keys = -1,nkey_prev = 0;
@@ -64,6 +76,8 @@ scavenger_worker(uint64_t arg)
         ZS_status_t    zs_ret;
 
         mail = btSyncMboxWait(&mbox_scavenger);
+		if(!mail)
+			break;
         s = (Scavenge_Arg_t *)mail;
 
         assert(ZS_SUCCESS == _ZSInitPerThreadState(s->zs_state, &zs_thread_state));
@@ -91,7 +105,7 @@ scavenger_worker(uint64_t arg)
         start_key_in_node = 0;
         nkey_prev_tombstone = 0;
         bzero(&ks_prev,sizeof(key_stuff_t));
-        while (1)
+		while (!scavenger_killed)
         {
             key = (key_stuff_info_t *)malloc(16*sizeof(key_stuff_info_t));
             int temp = 0;
@@ -137,7 +151,8 @@ scavenger_worker(uint64_t arg)
                 meta.flags = FORCE_DELETE | READ_SEQNO_EQ;
                 btree_ret = btree_delete(s->bt, key[j].key, key[j].keylen, &meta);
                 bt_cntr_unlock_scavenger(s);
-                usleep(1000*(s->throttle_value));
+				if(!scavenger_killed)
+					usleep(1000*(s->throttle_value));
                 zs_ret = bt_cntr_lock_scavenger(s);
                 if (s->btree == NULL)
                 {
@@ -171,6 +186,35 @@ scavenger_worker_exit:
         free(s);
         _ZSReleasePerThreadState(&zs_thread_state);
     }
+
+	btSyncMboxPost(&mbox_scavenger_stopped, 0);
+}
+
+void
+scavenger_init(int nthreads) {
+	int i;
+
+	num_scavenger_threads = nthreads;
+
+    btSyncMboxInit(&mbox_scavenger);
+    btSyncMboxInit(&mbox_scavenger_stopped);
+
+    for (i = 0;i < num_scavenger_threads;i++) {
+	btSyncResume(btSyncSpawn(NULL,i,&scavenger_worker),(uint64_t)NULL);
+    }
+}
+
+void
+scavenger_stop() {
+	int i;
+
+	scavenger_killed = true;
+
+	for(i = 0; i < num_scavenger_threads; i++)
+		btSyncMboxPost(&mbox_scavenger, 0);
+
+	while(num_scavenger_threads--)
+		(void)btSyncMboxWait(&mbox_scavenger_stopped);
 }
 
 
@@ -482,19 +526,21 @@ astats_worker(uint64_t arg)
     struct ZS_thread_state  *zs_thread_state;
     int i;
 
-    while (1) {
+    while (astats_killed) {
         uint64_t mail;
         uint64_t child_id;
 
         int write_lock = 0, j;
         struct btree_raw_mem_node *node;
-        btree_raw_mem_node_t *parent;
+        btree_raw_mem_node_t *parent = NULL;
 
         btree_status_t    ret = BTREE_SUCCESS;
         key_stuff_t    ks_current_1;
         btree_metadata_t  meta;
 
         mail = btSyncMboxWait(&mbox_astats);
+        if(!mail)
+            break;
         s = (astats_arg_t*)mail;
 
         _ZSInitPerThreadState(s->zs_state, &zs_thread_state);
@@ -527,7 +573,7 @@ astats_worker(uint64_t arg)
         int count = 0;
         int duplicate = 0;
 
-        while (1) {
+        while (astats_killed) {
             parent = node;
             child_id = node->pnode->next;
 
@@ -638,4 +684,33 @@ astats_worker_exit:
         fprintf(stderr, "astats worker is done\n");
         astats_done = 1;
     }
+
+    btSyncMboxPost(&mbox_astats_stopped, 0);
 }
+
+void astats_init(int nthreads) {
+	int i;
+
+	num_astats_threads = nthreads;
+
+    btSyncMboxInit(&mbox_astats);
+    btSyncMboxInit(&mbox_astats_stopped);
+
+    for (i = 0; i < num_astats_threads; i++) {
+        btSyncResume(btSyncSpawn(NULL, i, &astats_worker),(uint64_t)NULL);
+    }
+}
+
+void
+astats_stop() {
+	int i;
+
+	astats_killed = true;
+
+	for(i = 0; i < num_astats_threads; i++)
+		btSyncMboxPost(&mbox_astats, 0);
+
+	while(num_astats_threads--)
+		(void)btSyncMboxWait(&mbox_astats_stopped);
+}
+

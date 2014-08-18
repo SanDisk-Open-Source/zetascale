@@ -656,24 +656,15 @@ ZS_status_t _ZSInitVersioned(
 		pthread_rwlock_init(&(Container_Map[i].bt_cm_rwlock), NULL);
     }
 
-
-    btSyncMboxInit(&mbox_scavenger);
-    btSyncMboxInit(&mbox_astats);
-
     NThreads = atoi(_ZSGetProperty("ZS_SCAVENGER_THREADS", ZS_SCAVENGER_THREADS));
 
-    for (i = 0;i < NThreads;i++) {
-	btSyncResume(btSyncSpawn(NULL,i,&scavenger_worker),(uint64_t)NULL);
-    }
-
+	scavenger_init(NThreads);
 
     char buf[32];
     sprintf(buf, "%u", ZS_ASYNC_STATS_THREADS);
     int num_astats_threads = atoi(_ZSGetProperty("ZS_ASYNC_STATS_THREADS", buf));
 
-    for (i = 0; i < num_astats_threads; i++) {
-        btSyncResume(btSyncSpawn(NULL, i, &astats_worker),(uint64_t)NULL);
-    }
+	astats_init(num_astats_threads);
 
     cbs = malloc(sizeof(ZS_ext_cb_t));
     if( cbs == NULL ) {
@@ -1023,8 +1014,12 @@ ZS_status_t _ZSShutdown(
     }
 
 	pthread_rwlock_wrlock(&ctnrmap_rwlock);
+
     (void)__sync_fetch_and_or(&shutdown, true);
 	pthread_rwlock_unlock(&ctnrmap_rwlock);
+
+	scavenger_stop();
+	astats_stop();
 
 	sched_yield();
 
