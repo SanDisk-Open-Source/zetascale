@@ -19,6 +19,13 @@ ZS_status_t zs_create_container (
 	ZS_cguid_t             *cguid
 	);
 
+ZS_status_t zs_create_container_dur (
+	char                    *cname,
+	uint64_t				size,
+	ZS_durability_level_t  dur,
+	ZS_cguid_t             *cguid
+	);
+
 ZS_status_t zs_open_container (
 	char                    *cname,
 	uint64_t				size,
@@ -108,6 +115,11 @@ advance_spinner();
 	if(r != res) \
 		exit(1); \
 	r; })
+
+int set_objs(ZS_cguid_t cguid, long thr, int size, int start_id, int count, int step);
+int del_objs(ZS_cguid_t cguid, long thr, int start_id, int count, int step);
+int get_objs(ZS_cguid_t cguid, long thr, int start_id, int count, int step);
+int enum_objs(ZS_cguid_t cguid);
 
 #endif /* __ZS_TEST__ */
 

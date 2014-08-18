@@ -14,3 +14,4 @@ foreach( test_src_file ${TEST_SOURCES} )
 	endif (NOT ${test_src_file} MATCHES "/test.c")
 endforeach(test_src_file ${TEST_SOURCES})
 
+add_test(zs_group_commit_hw ${CMAKE_CURRENT_BINARY_DIR}/zs_group_commit 1)

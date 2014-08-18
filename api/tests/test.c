@@ -1,6 +1,10 @@
 #include <assert.h>
+#include <string.h>
+#include <stdlib.h>
 #include "zs.h"
 #include "string.h"
+
+#include "test.h"
 
 static struct ZS_state* zs_state;
 static __thread struct ZS_thread_state *_zs_thd_state;
@@ -35,9 +39,10 @@ ZS_status_t zs_transaction_commit()
     return ZSTransactionCommit(_zs_thd_state);
 }
 
-ZS_status_t zs_create_container (
+ZS_status_t zs_create_container_dur (
     char                    *cname,
     uint64_t                size,
+    ZS_durability_level_t  dur,
     ZS_cguid_t             *cguid
     )
 {
@@ -48,6 +53,7 @@ ZS_status_t zs_create_container (
     ZSLoadCntrPropDefaults(&props);
 
     props.size_kb   = size / 1024;
+    props.durability_level = dur;
 
     // Hack!: GC is meant to work on a hash container, hence the check
     if (0 == strncmp("container-slab-gc", cname, sizeof("container-slab-gc") - 1)) {
@@ -65,6 +71,15 @@ ZS_status_t zs_create_container (
         fprintf( stderr, "ZSOpenContainer: %s\n", ZSStrError(ret) );
     
     return ret;
+}
+
+ZS_status_t zs_create_container (
+    char                    *cname,
+    uint64_t                size,
+    ZS_cguid_t             *cguid
+    )
+{
+    return zs_create_container_dur(cname, size, ZS_DURABILITY_HW_CRASH_SAFE, cguid);
 }
 
 ZS_status_t zs_open_container (
@@ -344,5 +359,98 @@ advance_spinner() {
     fflush(stderr);
     pos = (pos + 1) % nbars;
 #endif
+}
+
+
+int set_objs(ZS_cguid_t cguid, long thr, int size, int start_id, int count, int step)
+{
+	int i;
+	char key_str[24] = "key00";
+	char *key_data;
+
+	key_data = malloc(size);
+	assert(key_data);
+	memset(key_data, 0, size);
+
+	for(i = 0; i < count; i += step)
+	{
+		sprintf(key_str, "key%04ld-%08d", thr, start_id + i);
+		sprintf(key_data, "key%04ld-%08d_data", thr, start_id + i);
+
+		if(zs_set(cguid, key_str, strlen(key_str) + 1, key_data, size) != ZS_SUCCESS)
+			break;
+    }
+
+	free(key_data);
+	fprintf(stderr, "set_objs: count=%d datalen=%d\n", i, size);
+	return i;
+}
+
+int del_objs(ZS_cguid_t cguid, long thr, int start_id, int count, int step)
+{
+	int i;
+	char key_str[24] = "key00";
+
+	for(i = 0; i < count; i+=step)
+	{
+		sprintf(key_str, "key%04ld-%08d", thr, start_id + i);
+
+		if(zs_delete(cguid, key_str, strlen(key_str) + 1) != ZS_SUCCESS)
+			break;
+    }
+
+	fprintf(stderr, "del_objs: count=%d\n", i);
+	return i;
+}
+
+int get_objs(ZS_cguid_t cguid, long thr, int start_id, int count, int step)
+{
+	int i;
+	char key_str[24] = "key00";
+	char *key_data;
+    char        				*data;
+    uint64_t     				 datalen;
+
+	key_data = malloc(8*1024*1024);
+	assert(key_data);
+	memset(key_data, 0, 8*1024*1024);
+
+	for(i = 0; i < count; i += step)
+	{
+		sprintf(key_str, "key%04ld-%08d", thr, start_id + i);
+		sprintf(key_data, "key%04ld-%08d_data", thr, start_id + i);
+
+		t(zs_get(cguid, key_str, strlen(key_str) + 1, &data, &datalen), ZS_SUCCESS);
+
+		assert(!memcmp(data, key_data, datalen));	
+    }
+
+	free(key_data);
+	fprintf(stderr, "get_objs: count=%d datalen=%ld\n", i, datalen);
+	return i;
+}
+
+int enum_objs(ZS_cguid_t cguid)
+{
+	int cnt = 0;
+	char* key = "key00";
+	char     *data;
+	uint64_t datalen;
+	uint32_t keylen;
+	struct ZS_iterator* _zs_iterator;
+
+    t(zs_enumerate(cguid, &_zs_iterator), ZS_SUCCESS);
+
+    while (zs_next_enumeration(cguid, _zs_iterator, &key, &keylen, &data, &datalen) == ZS_SUCCESS) {
+		cnt++;
+		
+		//fprintf(stderr, "%x sdf_enum: key=%s, keylen=%d, data=%s, datalen=%ld\n", (int)pthread_self(), key, keylen, data, datalen);
+		//advance_spinner();
+    }
+
+    t(zs_finish_enumeration(cguid, _zs_iterator), ZS_SUCCESS);
+
+	fprintf(stderr, "cguid: %ld enumerated count: %d\n", cguid, cnt);
+	return cnt;
 }
 
