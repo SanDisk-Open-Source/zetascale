@@ -7277,6 +7277,7 @@ log_sync_postprocess( mcd_osd_shard_t *shard, mcd_rec_pp_state_t *pp_state)
 			uint o = pp_state->dealloc_list[d];
 			uint i = mcd_osd_lba_to_blk( slabsize( shard, o));
 			shard->blk_delayed -= i;
+			__sync_fetch_and_sub( &shard->blk_consumed, i);
 			mcd_fth_osd_slab_dealloc( shard, o, true);
 		}
 	}
