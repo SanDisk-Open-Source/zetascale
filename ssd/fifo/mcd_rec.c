@@ -79,7 +79,6 @@ typedef struct {
     unsigned char   *abuf;
 } flog_bio_t;
 
-
 /*
  * Static variables.
  */
@@ -247,6 +246,9 @@ void updater_thread( uint64_t arg );
 void log_writer_thread( uint64_t arg );
 int  log_init( mcd_osd_shard_t * shard );
 int  log_init_phase2( void * context, mcd_osd_shard_t * shard );
+
+static void
+log_sync_internal_legacy( mcd_osd_shard_t *s, uint64_t lsn);
 
 
 /************************************************************************
@@ -3002,7 +3004,8 @@ flog_prepare(mcd_osd_shard_t *shard)
         return;
     }
 
-    shard->flush_fd = fd;
+    shard->flog_fd = fd;
+
 }
 
 
@@ -3018,14 +3021,14 @@ flog_init(mcd_osd_shard_t *shard, void *context)
 	    flog_prepare(shard);
 	}
 	else
-		shard->flush_fd = -1;
+		shard->flog_fd = -1;
 }
 
 void
 flog_close(mcd_osd_shard_t *shard)
 {
-    if (shard->flush_fd > 0) {
-        close(shard->flush_fd);
+    if (shard->flog_fd > 0) {
+        close(shard->flog_fd);
     }
 }
 
@@ -3056,6 +3059,35 @@ flog_clean(uint64_t shard_id)
     }
 }
 
+void mlog_init(mcd_osd_shard_t* shard) {
+    int i;
+    mlog_t* mlog = &shard->log->mlog;
+
+    pthread_mutex_init(&mlog->mutex, NULL);
+    pthread_mutex_init(&mlog->sync_mutex, NULL);
+
+    pthread_cond_init(&mlog->sync_cond, NULL);
+
+    mlog->cur_buf = 0;
+    mlog->lsn = 0;
+    mlog->synced_lsn = 0;
+    mlog->in_sync = 0;
+
+    mlog->stat_n_fsyncs = 0;
+    mlog->stat_n_writes = 0;
+
+    for(i = 0; i < MLOG_N_BUFS; i++)
+        mlog->bufs[i].n_recs = 0;
+}
+
+void mlog_close(mcd_osd_shard_t* shard) {
+	mlog_t* mlog = &shard->log->mlog;
+
+	pthread_mutex_destroy(&mlog->mutex);
+	pthread_mutex_destroy(&mlog->sync_mutex);
+
+	pthread_cond_destroy(&mlog->sync_cond);
+}
 
 void
 shard_recovery_stats( mcd_osd_shard_t * shard, char ** ppos, int * lenp )
@@ -3854,7 +3886,9 @@ shard_unrecover( mcd_osd_shard_t * shard )
         // kill the log writer and wait for it to end
         if ( log->started ) {
             log->shutdown = 1;
+
             log_sync( shard);
+
             if ( Mcd_rec_chicken ) {
                 // make sure the updater thread isn't working on this shard
                 log_wait( shard );
@@ -3871,6 +3905,7 @@ shard_unrecover( mcd_osd_shard_t * shard )
                              shard->id, shard->refcount );
             }
 
+            mlog_close(shard);
             flog_clean(shard->id);
         }
 
@@ -6909,6 +6944,8 @@ log_init( mcd_osd_shard_t * shard )
     // set the log state pointer
     shard->log = log;
 
+    mlog_init(shard);
+
     return 0;
 }
 
@@ -7009,8 +7046,7 @@ static void
 flog_persist(mcd_osd_shard_t *shard,
             uint64_t slot_seqno,
             uint64_t lsn,
-            mcd_logrec_object_t *logrec_obj,
-            bool sync)
+            mcd_logrec_object_t *logrec_obj)
 {
     char buf[FLUSH_LOG_SEC_SIZE+FLUSH_LOG_SEC_ALIGN-1];
     char       *sector = align(buf, FLUSH_LOG_SEC_ALIGN);
@@ -7051,17 +7087,116 @@ flog_persist(mcd_osd_shard_t *shard,
     plat_log_msg(160181, PLAT_LOG_CAT_SDF_NAMING, PLAT_LOG_LEVEL_WARN,
 		    "=========================================");
 #endif
-    size_t size = pwrite(shard->flush_fd, sector, sec_size, flush_seek);
+    size_t size = pwrite(shard->flog_fd, sector, sec_size, flush_seek);
     if (size != sec_size) {
         mcd_log_msg(70109, PLAT_LOG_LEVEL_ERROR,
                     "Flush log sync:"
                     " log flush write failed seek=%ld errno=%d size=%ld",
                     flush_seek, errno, size);
     }
-
-    if (sync)
-        fdatasync(shard->flush_fd);
 }
+
+void mlog_sync(mcd_osd_shard_t* shard, uint64_t lsn)
+{
+	int i;
+	mlog_t *log = &shard->log->mlog;
+
+	if(log->synced_lsn >= lsn)
+		return;
+
+	pthread_mutex_lock(&log->sync_mutex);
+
+	while(log->in_sync && log->synced_lsn < lsn)
+		pthread_cond_wait(&log->sync_cond, &log->sync_mutex);
+
+	if(log->synced_lsn >= lsn)
+	{
+		pthread_mutex_unlock(&log->sync_mutex);
+		return;
+	}
+
+	plat_assert(!log->in_sync);
+	log->in_sync = 1;
+
+	pthread_mutex_unlock(&log->sync_mutex);
+
+	pthread_mutex_lock(&log->mutex);
+
+	mlog_buf_t* buf = &log->bufs[log->cur_buf];
+
+	log->cur_buf = (log->cur_buf + 1) % MLOG_N_BUFS;
+
+	uint64_t synced_lsn = log->lsn;
+
+	pthread_mutex_unlock(&log->mutex);
+
+	for(i = 0; i < buf->n_recs; i++)
+		flog_persist(shard, buf->rec[i].slot_seqno, buf->rec[i].lsn, &buf->rec[i].rec);
+
+	if(shard->durability_level == SDF_FULL_DURABILITY)
+	{
+		log->stat_n_fsyncs++;
+		fdatasync(shard->flog_fd);
+	}
+
+	pthread_mutex_lock(&log->sync_mutex);
+
+	log->synced_lsn = synced_lsn;
+	log->in_sync = 0;
+
+	log->stat_n_writes += buf->n_recs;
+	buf->n_recs = 0;
+
+	pthread_cond_broadcast(&log->sync_cond);
+
+	pthread_mutex_unlock(&log->sync_mutex);
+}
+
+static inline
+mlog_buf_t* mlog_ensure_space(mcd_osd_shard_t* shard)
+{
+	mlog_t *log = &shard->log->mlog;
+	mlog_buf_t* buf = &log->bufs[log->cur_buf];
+
+	while(buf->n_recs >= MLOG_BUF_N_RECS)
+	{
+		pthread_mutex_unlock(&log->mutex);
+
+		mlog_sync(shard, log->lsn);
+
+		pthread_mutex_lock(&log->mutex);
+
+		buf = &log->bufs[log->cur_buf];
+	}
+
+	return buf;
+}
+
+static
+uint64_t
+mlog_buf(mcd_osd_shard_t *shard,
+            uint64_t slot_seqno,
+            uint64_t lsn,
+            mcd_logrec_object_t *log_rec)
+{
+	mlog_t *log = &shard->log->mlog;
+
+	pthread_mutex_lock(&log->mutex);
+
+	mlog_buf_t* buf = mlog_ensure_space(shard);
+	mlog_rec_t* rec = &buf->rec[buf->n_recs++];
+
+	rec->rec = *log_rec;
+	rec->slot_seqno = slot_seqno;
+	rec->lsn = lsn;
+
+	uint64_t rlsn = ++log->lsn;
+
+	pthread_mutex_unlock(&log->mutex);
+
+	return rlsn;
+}
+
 
 static bool	trx_in_progress( mcd_osd_shard_t *, mcd_logrec_object_t *, uint64_t, hash_entry_t *);
 
@@ -7084,9 +7219,9 @@ log_flush_internal( mcd_rec_logbuf_t *logbuf, uint buf_offset)
  * (slot temporarily allocated to sync with log writer)
  */
 static void
-log_sync_internal( mcd_osd_shard_t *s)
+log_sync_internal_legacy( mcd_osd_shard_t *s, uint64_t lsn)
 {
-	mcd_rec_logpage_hdr_t     * hdr;
+	fthWaitEl_t *w = fthLock( &s->log->sync_fill_lock, 1, NULL);
 
 	(void)__sync_fetch_and_add( &s->refcount, 1);
 	mcd_rec_log_t *log = s->log;
@@ -7099,14 +7234,29 @@ log_sync_internal( mcd_osd_shard_t *s)
 
 	if(need_lsn_upd)
 	{
-		hdr = (mcd_rec_logpage_hdr_t *)
+		mcd_rec_logpage_hdr_t *hdr = (mcd_rec_logpage_hdr_t *)
 			(logbuf->buf + (buf_offset) * sizeof(mcd_logrec_object_t));
-		hdr->LSN         = log->curr_LSN + 1;
+		hdr->LSN = log->curr_LSN + 1;
 	}
 
 	log_flush_internal(logbuf, buf_offset);
 	fthSemUp( &log->fill_sem, 1);			/* relinquish slot */
 	(void)__sync_fetch_and_sub( &s->refcount, 1);
+
+	fthUnlock(w);
+}
+
+static void
+log_sync_internal(mcd_osd_shard_t *s, uint64_t lsn)
+{
+	if (s->flog_fd > 0) {
+		if(s->group_commit_enabled)
+			mlog_sync(s, lsn);
+		else if (s->durability_level == SDF_FULL_DURABILITY)
+			fdatasync(s->flog_fd);
+	}
+	else if (s->durability_level == SDF_FULL_DURABILITY)
+		log_sync_internal_legacy(s, lsn);
 }
 
 
@@ -7116,7 +7266,8 @@ static __thread uint	trx_bracket_id,
 
 __thread uint32_t *trx_bracket_slabs = NULL;
 
-static void
+static
+uint64_t
 log_write_internal( mcd_osd_shard_t *s, mcd_logrec_object_t *lr)
 {
 	mcd_rec_logpage_hdr_t     * hdr;
@@ -7168,25 +7319,29 @@ log_write_internal( mcd_osd_shard_t *s, mcd_logrec_object_t *lr)
 	rep_logbuf_seqno_update( (struct shard *)s, nth_buffer, lr->seqno);
 	(void)__sync_fetch_and_sub( &s->refcount, 1);
 
-	if(s->durability_level == SDF_NO_DURABILITY) {
-		return;
+	if (s->flog_fd > 0 && s->durability_level != SDF_NO_DURABILITY) {
+		if(s->group_commit_enabled)
+			return mlog_buf(s, slot_seqno, log->curr_LSN, lr);
+		else
+			flog_persist(s, slot_seqno, log->curr_LSN, lr);
 	}
 
-	if (s->flush_fd > 0)
-		flog_persist( s, slot_seqno, log->curr_LSN, lr, s->durability_level == SDF_FULL_DURABILITY);
-	else if (s->durability_level == SDF_FULL_DURABILITY)
-		log_sync_internal( s);
+	return ++s->log->mlog.lsn;
 }
 
 
 void
 log_write( mcd_osd_shard_t *s, mcd_logrec_object_t *lr)
 {
-
 	lr->trx = 0;
+
 	fthWaitEl_t *w = fthLock( &s->log->sync_fill_lock, 1, NULL);
-	log_write_internal( s, lr);
+
+	uint64_t lsn = log_write_internal( s, lr);
+
 	fthUnlock( w);
+
+	log_sync_internal(s, lsn);
 }
 
 
@@ -7204,8 +7359,9 @@ log_sync( mcd_osd_shard_t *s)
 {
 
 	fthWaitEl_t *w = fthLock( &s->log->sync_fill_lock, 1, NULL);
-	log_sync_internal( s);
+	log_sync_internal( s, s->log->mlog.lsn);
 	fthUnlock( w);
+	log_sync_internal_legacy( s, s->log->mlog.lsn);
 }
 
 
@@ -7635,7 +7791,8 @@ log_writer_thread( uint64_t arg )
 	if (shard->id == cmc_shardid)		// suppress logging for CMC
 		rc = FLASH_EOK;
 	else
-        	rc = mcd_fth_aio_blk_write( context, logbuf->buf, offset, blk_count * MCD_OSD_META_BLK_SIZE);
+		rc = mcd_fth_aio_blk_write_low( context, logbuf->buf, offset, blk_count * MCD_OSD_META_BLK_SIZE,
+				shard->durability_level == SDF_FULL_DURABILITY);
         if ( FLASH_EOK != rc ) {
             mcd_rlg_msg( 20552, PLAT_LOG_LEVEL_FATAL,
                          "failed to commit log buffer, shardID=%lu, "
@@ -9131,17 +9288,22 @@ mcd_trx_commit_internal( mcd_trx_state_t *t, int op_last)
 				memset( &z, 0, sizeof z);
 				z.blk_offset = 0xffffffffu;	/* CAS type */
 				for (i=0; i<n; ++i)
-					log_write_internal( t->s, &z);
+					(void)log_write_internal( t->s, &z);
 			}
 #endif
 		}
 		for (i=0; i<t->n-1; ++i) {
 			t->trtab[i].lr.trx = TRX_OP;
-			log_write_internal( t->s, &t->trtab[i].lr);
+			(void)log_write_internal( t->s, &t->trtab[i].lr);
 		}
 		t->trtab[i].lr.trx = op_last;
-		log_write_internal( t->s, &t->trtab[i].lr);
+
+		uint64_t lsn = log_write_internal( t->s, &t->trtab[i].lr);
+
 		fthUnlock( w);
+
+		log_sync_internal(t->s, lsn);
+
 		mcd_trx_stats.operations += t->n;
 	}
 	mcd_trx_stats.transactions++;

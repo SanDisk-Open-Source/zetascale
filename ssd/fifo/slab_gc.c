@@ -164,10 +164,11 @@ found:
 	target_seqno = meta->seqno;
 	meta->seqno = seqno;
 
-	if((rc = mcd_fth_aio_blk_write(context,
+	if((rc = mcd_fth_aio_blk_write_low(context,
 				buf,
 				dst_offset,
-				class->slab_blksize * Mcd_osd_blk_size)))
+				class->slab_blksize * Mcd_osd_blk_size,
+				shard->durability_level > SDF_RELAXED_DURABILITY)))
 		goto out;
 
 	stat_inc(shard, SLABS_RELOCATED);

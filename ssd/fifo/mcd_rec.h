@@ -466,6 +466,34 @@ typedef struct mcd_rec_logbuf {
     mcd_logrec_object_t   * entries;     // record index into data buffer
 } mcd_rec_logbuf_t;
 
+// Memory flog buffer
+typedef struct {
+	mcd_logrec_object_t rec;
+	uint64_t slot_seqno;
+	uint64_t lsn;
+} mlog_rec_t;
+
+#define MLOG_BUF_N_RECS 1024
+typedef struct {
+	mlog_rec_t rec[MLOG_BUF_N_RECS];
+	int n_recs;
+} mlog_buf_t;
+
+#define MLOG_N_BUFS 2
+typedef struct {
+	pthread_mutex_t mutex, sync_mutex;
+	pthread_cond_t sync_cond;
+	mlog_buf_t bufs[MLOG_N_BUFS];
+	int cur_buf;
+	uint64_t lsn;
+	uint64_t synced_lsn;
+	uint64_t in_sync;
+
+	uint64_t stat_n_fsyncs;
+	uint64_t stat_n_writes;
+} mlog_t;
+
+
 // Recovery log
 typedef struct mcd_rec_log {
 
@@ -508,6 +536,7 @@ typedef struct mcd_rec_log {
     fthLock_t               slablock;         // access deferred slab info
     uint                    nslab;            // # deferred slab deallocs
     uint32_t                slabtab[10000000]; // deferred-dealloc slabs
+    mlog_t                  mlog;
 } mcd_rec_log_t;
 
 // Superblock

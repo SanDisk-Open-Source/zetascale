@@ -210,7 +210,7 @@ typedef struct mcd_osd_shard {
 
     uint64_t                    id;
     int                         opened;
-    int                         flush_fd;
+    int                         flog_fd;
     int                         persistent;
     int                         durability_level;
     int                         replicated;
@@ -292,6 +292,7 @@ typedef struct mcd_osd_shard {
     char                      * slab_cache;
 #endif
 
+    int                         group_commit_enabled;
 } mcd_osd_shard_t;
 
 typedef struct mcd_osd_meta {

@@ -90,6 +90,8 @@ typedef enum {
 
     FLASH_NUM_DATA_WRITES,
     FLASH_NUM_DATA_FSYNCS,
+    FLASH_NUM_LOG_WRITES,
+    FLASH_NUM_LOG_FSYNCS,
 
     // Per container stats
     SDF_N_ONLY_IN_CACHE = FIRST_STAT_TYPE_PER_CONTAINER,   

@@ -53,6 +53,7 @@
 #include "mcd_pfx.h"
 #include "mcd_rep.h"
 #include "mcd_hash.h"
+#include "mcd_rec.h"
 #include "hash.h"
 #include "slab_gc.h"
 #include <snappy-c.h>
@@ -3547,6 +3548,9 @@ mcd_osd_slab_shard_init( mcd_osd_shard_t * shard, uint64_t shard_id,
 	plat_assert(getProperty_Int("ZS_KEY_CACHE", 0) && shard->hash_handle->key_cache ||
 			!getProperty_Int("ZS_KEY_CACHE", 0) && !shard->hash_handle->key_cache);
 
+
+    shard->group_commit_enabled = getProperty_Int("ZS_GROUP_COMMIT", 1);
+
     return 0;   /* SUCCESS */
 
 out_failed:
@@ -5597,6 +5601,14 @@ uint64_t mcd_osd_shard_get_stats( struct shard * shard, int stat_key )
 
     case FLASH_NUM_DATA_FSYNCS:
         stat = stat_n_data_fsyncs;
+        break;
+
+    case FLASH_NUM_LOG_WRITES:
+        stat = mcd_shard->log->mlog.stat_n_writes;
+        break;
+
+    case FLASH_NUM_LOG_FSYNCS:
+        stat = mcd_shard->log->mlog.stat_n_fsyncs;
         break;
 
     default:

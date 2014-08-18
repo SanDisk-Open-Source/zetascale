@@ -563,6 +563,8 @@ zs_stats_info_t zs_stats_flash[] = {
 
     {"NUM_DATA_WRITES","num_data_writes",ZS_STATS_TYPE_FLASH}, 
     {"NUM_DATA_FSYNCS","num_data_fsyncs",ZS_STATS_TYPE_FLASH}, 
+    {"NUM_LOG_WRITES","num_log_writes",ZS_STATS_TYPE_FLASH}, 
+    {"NUM_LOG_FSYNCS","num_log_fsyncs",ZS_STATS_TYPE_FLASH}, 
 };
 
 char *get_flash_type_stats_desc(int stat ) {
@@ -6591,6 +6593,22 @@ static void zs_get_flash_stats( SDF_internal_ctxt_t *pai, char ** ppos, int * le
                       val );
     if (stats != NULL)
         stats->flash_stats[ZS_FLASH_STATS_NUM_DATA_WRITES] = val;
+
+    ZSContainerStat( pai, sdf_container,
+                             FLASH_NUM_LOG_WRITES,
+                             &val );
+    plat_snprintfcat( ppos, lenp, "STAT flash_num_log_writes %lu\r\n",
+                      val );
+    if (stats != NULL)
+        stats->flash_stats[ZS_FLASH_STATS_NUM_LOG_WRITES] = val;
+
+    ZSContainerStat( pai, sdf_container,
+                             FLASH_NUM_LOG_FSYNCS,
+                             &val );
+    plat_snprintfcat( ppos, lenp, "STAT flash_num_log_fsyncs %lu\r\n",
+                      val );
+    if (stats != NULL)
+        stats->flash_stats[ZS_FLASH_STATS_NUM_LOG_FSYNCS] = val;
 
     /* Get Number of contexts */
     if(stats != NULL) {
