@@ -91,6 +91,9 @@ int                     Mcd_aio_raid_device     = 0;
 uint64_t                Mcd_aio_total_size      = 0;
 uint64_t                Mcd_aio_real_size       = 0;
 
+uint64_t stat_n_data_fsyncs = 0;
+uint64_t stat_n_data_writes = 0;
+
 /*
  * number of AIO errors encourntered
  */
@@ -363,6 +366,8 @@ mcd_fth_aio_blk_write_low( osd_state_t * context, char * buf, uint64_t offset,
     mcd_aio_cb_t              * acb = &aio_cbs[0];
     mcd_aio_cb_t              * acbs[MCD_AIO_MAX_NFILES];
     aio_state_t               * aio_state = context->osd_aio_state;
+    static volatile uint64_t    sync_counter = 0;
+    static pthread_rwlock_t     flush_lock = PTHREAD_RWLOCK_INITIALIZER;
 
     mcd_log_msg(20010, PLAT_LOG_LEVEL_TRACE, "ENTERING, offset=%lu nbytes=%d",
                  offset, nbytes );
@@ -452,13 +457,25 @@ mcd_fth_aio_blk_write_low( osd_state_t * context, char * buf, uint64_t offset,
         }
     } while ( 1 );
 
+    atomic_inc(stat_n_data_writes);
+
+    uint64_t sync_tag = sync_counter;
+
+    if (sync) {
+        if(sync_counter <= sync_tag + 1) {
+            pthread_rwlock_wrlock(&flush_lock);
+            if(sync_counter == sync_tag) {
+                sync_counter++;
 #if 1//Rico - official fault injection
-	if (sync)
-		write_fault_sync( aio_fd, -1);
+                write_fault_sync( aio_fd, -1);
 #else
-	if(sync)
-		fdatasync(aio_fd);
+                fdatasync(aio_fd);
 #endif
+                stat_n_data_fsyncs++;
+            }
+            pthread_rwlock_unlock(&flush_lock);
+        }
+    }
 
     return FLASH_EOK;   /* SUCCESS */
 

@@ -560,6 +560,9 @@ zs_stats_info_t zs_stats_flash[] = {
     {"ESCVN_OBJ_DEL","scavenged_object_count",ZS_STATS_TYPE_FLASH},
     {"ESCVN_YLD_SCAN_CMPLTE","scavenger_scans_completed",ZS_STATS_TYPE_FLASH},
     {"ESCVN_YLD_SCAN_RATE","scavenger_yields",ZS_STATS_TYPE_FLASH},
+
+    {"NUM_DATA_WRITES","num_data_writes",ZS_STATS_TYPE_FLASH}, 
+    {"NUM_DATA_FSYNCS","num_data_fsyncs",ZS_STATS_TYPE_FLASH}, 
 };
 
 char *get_flash_type_stats_desc(int stat ) {
@@ -6570,13 +6573,30 @@ static void zs_get_flash_stats( SDF_internal_ctxt_t *pai, char ** ppos, int * le
                              &val );
     plat_snprintfcat( ppos, lenp, "STAT flash_num_free_segs %lu\r\n",
                       val );
+    if (stats != NULL) 
+        stats->flash_stats[ZS_FLASH_STATS_NUM_FREE_SEGMENTS] = val;
+
+    ZSContainerStat( pai, sdf_container,
+                             FLASH_NUM_DATA_FSYNCS,
+                             &val );
+    plat_snprintfcat( ppos, lenp, "STAT flash_num_data_fsyncs %lu\r\n",
+                      val );
+    if (stats != NULL)
+        stats->flash_stats[ZS_FLASH_STATS_NUM_DATA_FSYNCS] = val;
+
+    ZSContainerStat( pai, sdf_container,
+                             FLASH_NUM_DATA_WRITES,
+                             &val );
+    plat_snprintfcat( ppos, lenp, "STAT flash_num_data_writes %lu\r\n",
+                      val );
+    if (stats != NULL)
+        stats->flash_stats[ZS_FLASH_STATS_NUM_DATA_WRITES] = val;
+
     /* Get Number of contexts */
     if(stats != NULL) {
          SDF_action_thrd_state_t *pts = ((SDF_action_init_t *)pai)->pts;
          stats->flash_stats[ZS_FLASH_STATS_THD_CONTEXTS] = pts->phs->contextcount;
     }
-    if (stats != NULL) 
-        stats->flash_stats[ZS_FLASH_STATS_NUM_FREE_SEGMENTS] = val;
 
     if (stats != NULL) {
         extern uint64_t num_objs_expired;

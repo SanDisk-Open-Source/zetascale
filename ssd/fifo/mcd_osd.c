@@ -170,6 +170,10 @@ extern void SDFClusterStatus(SDF_action_init_t *pai, uint32_t *mynode_id, uint32
 // from mcd_rep.c
 extern uint64_t rep_seqno_get(struct shard * shard);
 
+//mcd_aio.c
+extern uint64_t stat_n_data_writes;
+extern uint64_t stat_n_data_fsyncs;
+
 void
 flog_close(struct shard *shard);
 
@@ -5585,6 +5589,14 @@ uint64_t mcd_osd_shard_get_stats( struct shard * shard, int stat_key )
 
     case FLASH_NUM_FREE_SEGS:
         stat = mcd_shard->free_segments_count;
+        break;
+
+    case FLASH_NUM_DATA_WRITES:
+        stat = stat_n_data_writes;
+        break;
+
+    case FLASH_NUM_DATA_FSYNCS:
+        stat = stat_n_data_fsyncs;
         break;
 
     default:
