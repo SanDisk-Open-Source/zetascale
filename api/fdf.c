@@ -2636,9 +2636,10 @@ zs_containers_cleanup(struct ZS_state *zs_state)
 				LOG_DBG, "Containers closed=%d", num_closed_containers);
 	}
 
-
- 
 out:
+	zs_close_container( zs_thread_state, VDC_CGUID, ZS_PHYSICAL_CNTR, ZS_FALSE, ZS_TRUE);
+	zs_close_container( zs_thread_state, VMC_CGUID, ZS_PHYSICAL_CNTR, ZS_FALSE, ZS_TRUE);
+
 	if (true == serialized) {
 	    SDFEndSerializeContainerOp( pai );
 	}
@@ -3659,7 +3660,7 @@ static ZS_status_t zs_close_container(
     plat_log_msg( 21630, LOG_CAT, LOG_DBG, "%lu", cguid);
 
 	status = zs_validate_container(cguid);
-	if (ZS_SUCCESS != status) {
+	if (ZS_SUCCESS != status && !agent_state.op_access.is_shutdown_in_progress) {
 		plat_log_msg(160125, LOG_CAT,
 				LOG_ERR, "Failed due to an illegal container ID:%s",
 				ZS_Status_Strings[status]);

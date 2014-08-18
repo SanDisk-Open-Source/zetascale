@@ -3761,7 +3761,7 @@ SDF_status_t SDFActionDeleteContainer(SDF_action_init_t *pai, SDF_container_meta
        for (pts = pas->threadstates; pts != NULL; pts = pts->next) {
            ret = delete_home_shard_map_entry(pts, pmeta->shard);
            if (ret != 0) {
-               status = SDF_DELETE_SHARD_MAP_ENTRY_FAILED;
+//               status = SDF_DELETE_SHARD_MAP_ENTRY_FAILED;
            }
        }
        fthUnlock(wait);

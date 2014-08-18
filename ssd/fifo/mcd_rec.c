@@ -3870,6 +3870,8 @@ shard_unrecover( mcd_osd_shard_t * shard )
                              "shardID=%lu reference count is %u",
                              shard->id, shard->refcount );
             }
+
+            flog_clean(shard->id);
         }
 
         if ( log->pp_state.dealloc_list ) {
