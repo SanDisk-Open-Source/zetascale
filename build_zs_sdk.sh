@@ -57,7 +57,8 @@ cmake $WD -DNCPU=$NCPU -DDEBUG=$DBG -DZS_REVISION="$VERSION" -DTRACE=$TRACE
 make -j $NCPU
 
 #Packaging
-scp -r lab67:/schooner/backup/fdf_extra/lib/* $SDK_DIR/lib
+#scp -r lab67:/schooner/backup/fdf_extra/lib/* $SDK_DIR/lib
+wget http://lab67.schoonerinfotech.net/zs/lib/libpthread.so.0 -O $SDK_DIR/lib/libpthread.so.0
 cp -f $WD/output/lib/* $SDK_DIR/lib
 cp -a $WD/api/zs.h $SDK_DIR/include
 cp -a $WD/api/tests/sample_program.c $SDK_DIR/samples
