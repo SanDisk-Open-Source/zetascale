@@ -73,7 +73,7 @@ cp -a $WD/api/tests/conf/zs_sample.prop $SDK_DIR/config/
 if [ "is$WITHJNI" == "isON" ]
 then
     rm -fr ZSJNI 
-    jniurl=http://svn.schoonerinfotech.net/svn/schooner-trunk/ht_delivery/rd/fdfjni/trunk
+    jniurl=https://10.196.60.217/svn/schooner-trunk/ht_delivery/rd/fdfjni/trunk
     svn co $jniurl ZSJNI 
     cd ZSJNI 
     sed -i "/sdk$/d" bin/prepare_zssdk.sh 
