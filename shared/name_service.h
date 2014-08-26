@@ -183,16 +183,6 @@ SDF_status_t
 name_service_delete_shards(SDF_internal_ctxt_t *pai, const char *cname);
 
 /**
- * @brief Map a container path to its guid.
- *
- * @param cname <IN> Container name.
- * @param cguid <IN> Container guid.
- * @return SDF status.
- */
-SDF_status_t
-name_service_create_cguid_map(SDF_internal_ctxt_t *pai, const char *cname, SDF_cguid_t cguid);
-
-/**
  * @brief Get the cguid associated with a container name.
  *
  * @param cname <IN> Container name.
@@ -200,25 +190,6 @@ name_service_create_cguid_map(SDF_internal_ctxt_t *pai, const char *cname, SDF_c
  */
 SDF_status_t
 name_service_get_cguid(SDF_internal_ctxt_t *pai, const char *cname, SDF_cguid_t *cguid);
-
-/**
- * @brief Update a container guid map.
- *
- * @param cname <IN> Container name.
- * @param cguid <IN> Container guid.
- * @return SDF status.
- */
-SDF_status_t
-name_service_put_cguid_map(SDF_internal_ctxt_t *pai, const char *cname, SDF_cguid_t cguid);
-
-/**
- * @brief Remove a container guid.
- *
- * @param cguid <IN> Container name.
- * @return SDF status.
- */
-SDF_status_t
-name_service_remove_cguid_map(SDF_internal_ctxt_t *pai, const char *cname);
 
 /**
  * @brief Get the home node for the container guid + object tuple.
@@ -230,51 +201,6 @@ name_service_remove_cguid_map(SDF_internal_ctxt_t *pai, const char *cname);
  */
 SDF_status_t
 name_service_get_home_node(SDF_internal_ctxt_t *pai, SDF_cguid_t cguid, SDF_simple_key_t *pkey, uint32_t *node);
-
-/**
- * @brief Create the a container guid object in the CMC.
- * This object maintains the state of the per node cguid counter.
- *
- * @param vnode <IN> The vnode for which the cguid state applies.
- * @param cguid_counter <IN> Last used cguid_counter.
- * @return SDF status.
- */
-SDF_status_t
-name_service_create_cguid_state(SDF_internal_ctxt_t *pai, SDF_vnode_t vnode, SDF_cguid_t cguid);
-
-/**
- * @brief Update the a container guid object in the CMC.
- * This object maintains the state of the per node cguid counter.
- *
- * @param vnode <IN> The vnode for which the cguid state applies.
- * @param cguid_counter <IN> Last used cguid_counter.
- * @return SDF status.
- */
-SDF_status_t
-name_service_put_cguid_state(SDF_internal_ctxt_t *pai, SDF_vnode_t vnode, SDF_cguid_t cguid_counter);
-
-/**
- * @brief Get the a container guid object in the CMC.
- * This object maintains the state of the per node cguid counter.
- *
- * @param vnode <IN> The vnode for which the cguid state applies.
- * @param cguid_counter <OUT> Last used cguid_counter.
- * @return SDF status.
- */
-SDF_status_t
-name_service_get_cguid_state(SDF_internal_ctxt_t *pai, SDF_vnode_t vnode, SDF_cguid_t *cguid_counter);
-
-/**
- * @brief Remove the a container guid object in the CMC.
- * This object maintains the state of the per node cguid counter.
- *
- * @param vnode <IN> The vnode for which the cguid state applies.
- * @param cguid_counter <IN> Last used cguid_counter.
- * @return SDF status.
- */
-SDF_status_t
-name_service_remove_cguid_state(SDF_internal_ctxt_t *pai, SDF_vnode_t vnode, SDF_cguid_t cguid);
-
 
 /**
  * @brief Flush and invalidate a container.

@@ -23,10 +23,8 @@
 
 int container_meta_report_version( char **bufp, int *lenp) 
 {
-    plat_snprintfcat(bufp, lenp, "%s %d.%d.%d\r\n", 
-	"sdf/container_meta", SDF_CONTAINER_META_VERSION, 0, 0);
     return(plat_snprintfcat(bufp, lenp, "%s %d.%d.%d\r\n", 
-	"sdf/blob_container_meta", SDF_BLOB_CONTAINER_META_VERSION, 0, 0));
+	       "sdf/container_meta", SDF_CONTAINER_META_VERSION, 0, 0));
 }
 
 // =====================================================

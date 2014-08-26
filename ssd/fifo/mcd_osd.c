@@ -64,13 +64,7 @@
 #include "api/sdf_internal.h"
 #include "api/fdf_internal.h"
 #include "shared/name_service.h"
-extern
-SDF_cguid_t generate_cguid(
-        SDF_internal_ctxt_t     *pai,
-        const char              *path,
-        uint32_t                 node,
-        int64_t                  cntr_id
-        );
+
 extern uint32_t
 init_get_my_node_id();
 extern char *zs_compress_data(char *src, size_t src_len,
@@ -5718,7 +5712,6 @@ flash_report_version( char ** bufp, int * lenp )
     return 0;
 }
 
-
 struct flashDev * mcd_osd_flash_open( char * name, flash_settings_t *flash_settings, int flags )
 {
     mcd_log_msg( 20374, PLAT_LOG_LEVEL_DEBUG,
@@ -5735,7 +5728,7 @@ struct flashDev * mcd_osd_flash_open( char * name, flash_settings_t *flash_setti
 			plat_abort();
 		}
 	}
-
+    
     // initialize recovery
     if ( 0 != recovery_init() ) {
         mcd_log_msg( 20377, PLAT_LOG_LEVEL_FATAL, "failed to init mcd rec" );

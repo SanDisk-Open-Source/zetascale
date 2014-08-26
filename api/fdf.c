@@ -104,8 +104,9 @@ int zs_instance_id;
 
 static time_t 			current_time 	= 0;
 static int stats_dump = 0;
-static SDF_shardid_t	vdc_shardid		= SDF_SHARDID_INVALID;
 SDF_shardid_t       cmc_shardid = SDF_SHARDID_INVALID;
+SDF_shardid_t      vmc_shardid = SDF_SHARDID_INVALID;
+SDF_shardid_t	vdc_shardid		= SDF_SHARDID_INVALID;
 static int dump_interval = 0;
 int zs_dump_core = 0;
 
@@ -2769,7 +2770,7 @@ ZS_status_t ZSLoadCntrPropDefaults(
 	props->evicting = ZS_FALSE;
 	props->writethru = ZS_TRUE;
 	props->async_writes = SDF_FALSE;
-	props->durability_level = ZS_DURABILITY_PERIODIC;
+	props->durability_level = ZS_DURABILITY_SW_CRASH_SAFE;
 	props->cguid = 0;
 	props->cid = 0;
 	props->num_shards = 1;
@@ -3029,7 +3030,6 @@ static ZS_status_t zs_create_container(
 		*cguid = CMC_CGUID;
 		isCMC = SDF_TRUE;
 	} else {
-		// Make sure we have not gone over the container limit
 		for ( i = 0; i < MCD_MAX_NUM_CNTRS; i++ ) {
 			if ( Mcd_containers[i].cguid == 0 ) { 
 				// this is an unused map entry
@@ -3069,20 +3069,6 @@ static ZS_status_t zs_create_container(
 
 		isCMC = SDF_FALSE;
 		init_get_my_node_id();
-
-		// Save the current cguid counter for use in recovery
-		if ( SDF_SUCCESS != name_service_put_cguid_state( pai,
-					init_get_my_node_id(),
-					*cguid ) ) {
-			plat_log_msg( 150034,
-					LOG_CAT,
-					LOG_ERR,
-					"Failed to save cguid state: %s",
-					ZSStrError(status) );
-
-			status = ZS_PUT_METADATA_FAILED;
-			goto out;
-		}
 	}
 
 #if 0
@@ -3194,7 +3180,8 @@ static ZS_status_t zs_create_container(
 			cname, getProperty_Int( "DEBUG_MULTISHARD_INDEX", -1 ) );
 
 
-	if ( doesContainerExistInBackend( pai, cname )) {
+    // This check is no longer needed
+	if ( 0 /* doesContainerExistInBackend( pai, cname ) */) {
 #ifdef CONTAINER_PENDING
 		// Unset parent delete flag if with deleted flag
 		if ( !isContainerParentNull( parent = isParentContainerOpened( cname ) ) ) {
@@ -3224,7 +3211,9 @@ static ZS_status_t zs_create_container(
 			if ( ( shardid = build_shard( state, pai, cname, num_objs,
 							in_shard_count, *sdf_properties, *cguid,
 							isCMC ? BUILD_SHARD_CMC : BUILD_SHARD_OTHER, cname ) ) <= SDF_SHARDID_LIMIT ) {
-				if ( VDC_CGUID == *cguid ) {
+				if ( VMC_CGUID == *cguid ) {
+					vmc_shardid = shardid;
+				} else if ( VDC_CGUID == *cguid ) {
 					vdc_shardid = shardid;
 				} else if (CMC_CGUID == *cguid ) {
 					cmc_shardid = shardid;
@@ -3239,13 +3228,12 @@ static ZS_status_t zs_create_container(
 #ifdef STATE_MACHINE_SUPPORT
 				SDFUpdateMetaClusterGroupInfo( pai, meta, sdf_properties->container_id.container_id );
 #endif
+
+                // Copy the FDF properties into the old SDF properties
+                memcpy(&meta->zs_properties, properties, sizeof(ZS_container_props_t));
+
 				if ( create_put_meta( pai, cname, meta, (SDF_cguid_t) *cguid ) == SDF_SUCCESS ) {
 
-					// For non-CMC, map the cguid and cname
-					if ( !isCMC && (name_service_create_cguid_map( pai, cname, *cguid )) != SDF_SUCCESS ) {
-						plat_log_msg( 21534, LOG_CAT, LOG_ERR,
-								"failed to map cguid: %s", cname );
-					}
 					if ( !isCMC && (status = name_service_lock_meta( pai, cname )) != ZS_SUCCESS ) {
 						plat_log_msg(21532, LOG_CAT, LOG_ERR, "failed to lock %s", cname);
 					} else if ( !isContainerParentNull(parent = createParentContainer( pai, cname, meta )) ) {
@@ -4047,13 +4035,6 @@ ZS_status_t zs_rename_container(struct ZS_thread_state *zs_thread_state,
                                  atomic_add_get(delete_prefix,1),meta.cname);
     plat_log_msg( 160113, LOG_CAT, LOG_DBG,
           "Renaming container %s to %s\n",meta.cname,cname );
-    status = name_service_remove_cguid_map(pai,meta.cname);
-    if ( status != ZS_SUCCESS ) {
-        plat_log_msg( 160114,LOG_CAT, LOG_ERR,
-                       "Unable to remove cguid map for container %lu."
-                       " Can not rename",meta.cguid);
-        return ZS_FAILURE;
-    }
     if ( getProperty_Int("ASYNC_DEL_CONT_TEST_ABORT_AFTER_REM_MAP", 0) == 1 ){
          plat_abort();
     }
@@ -4083,15 +4064,6 @@ ZS_status_t zs_rename_container(struct ZS_thread_state *zs_thread_state,
     }
     if ( getProperty_Int("ASYNC_DEL_CONT_TEST_ABORT_BEF_CMAP", 0) == 1 ){
          plat_abort();
-    }
-    /* Create New container Map with new name */
-    status = name_service_create_cguid_map(zs_thread_state,
-                                                  meta.cname,meta.cguid);
-    if ( status != ZS_SUCCESS ) {
-        plat_log_msg( 160116,LOG_CAT, LOG_ERR,
-             "Unable to create cguid map for container %lu."
-             "Can not rename",meta.cguid);
-        return status;
     }
 
     return ZS_SUCCESS;
@@ -7467,10 +7439,6 @@ static void *zs_vc_thread(
 	    if ( ZS_SUCCESS != status )
 	        break;
 
-		name_service_create_cguid_map( zs_thread_state, 
-	                                   meta->cname, 
-	                                   meta->cguid
-	                                 );
 		for ( j = 0; j < MCD_MAX_NUM_CNTRS; j++ ) {
 			if (Mcd_containers[j].cguid == 0) {
 				Mcd_containers[j].cguid         = meta->cguid;
@@ -7553,8 +7521,6 @@ zs_vc_init(
                           get_bool_str(p.fifo_mode),get_bool_str(p.async_writes),
                           get_durability_str(p.durability_level));
 
-	//zs_ctnr_set_state( 0, ZS_CONTAINER_STATE_CLOSED );
-
     if ((status = ZSOpenPhysicalContainer(pai, VMC_PATH, &p, flags, &cguid)) != SDF_SUCCESS) {
         plat_log_msg(150057, LOG_CAT, LOG_ERR, "Failed to create VMC container - %s\n", ZSStrError(status));
         return status;
@@ -7565,13 +7531,7 @@ zs_vc_init(
     p.durability_level      = ZS_DURABILITY_HW_CRASH_SAFE;
     p.size_kb               = ((uint64_t)getProperty_Int("ZS_FLASH_SIZE", ZS_MIN_FLASH_SIZE)) * 1024 * 1024 -
                               (2 * ZS_DEFAULT_CONTAINER_SIZE_KB) - (32 * 1024); // Minus CMC/VMC allocation & super block;
-#if 0
-    if ( (getProperty_Int("ZS_VDC_SIZE_CHECK", 1) && (p.size_kb > MAX_PHYSICAL_CONT_SIZE) ) ) {
-        plat_log_msg(80036,LOG_CAT, LOG_ERR, "Unsupported size(%lu bytes) for VDC. Maximum supported size is 2TB",
-                                                            p.size_kb * 1024);
-        return ZS_FAILURE;
-    }
-#endif
+
     plat_log_msg(80037,LOG_CAT, LOG_DBG, "%s Virtual Data Container"
                            " (name = %s,size = %lu kbytes,"
                            "persistence = %s,eviction = %s,writethrough = %s,fifo = %s,"
@@ -7581,8 +7541,6 @@ zs_vc_init(
                            get_bool_str(p.evicting),get_bool_str(p.writethru),
                            get_bool_str(p.fifo_mode),get_bool_str(p.async_writes),
                            get_durability_str(p.durability_level));
-
-	//zs_ctnr_set_state( 1, ZS_CONTAINER_STATE_CLOSED );
 
     if ((status = ZSOpenPhysicalContainer(pai, VDC_PATH, &p, flags, &cguid)) != SDF_SUCCESS) {
         plat_log_msg(150114, LOG_CAT, LOG_ERR, "Failed to create VDC container - %s\n", ZSStrError(status));
@@ -7604,7 +7562,6 @@ static ZS_status_t zs_generate_cguid(
 {
 	ZS_status_t				 status	= ZS_OBJECT_EXISTS;
     struct SDF_shared_state		*state	= &sdf_shared_state;
-    SDF_internal_ctxt_t 		*pai 	= (SDF_internal_ctxt_t *) zs_thread_state;
 	uint16_t		 			 i		= 0;
 	uint16_t		 			 start	= 0;
 
@@ -7615,7 +7572,7 @@ static ZS_status_t zs_generate_cguid(
 		state->config.cguid_counter += 1; 
 		if ( state->config.cguid_counter == 0 )
 			state->config.cguid_counter += 1; 
-		if ( ( status = name_service_cguid_exists( pai, state->config.cguid_counter ) ) == ZS_OBJECT_UNKNOWN ) {
+        if ( !zs_cmap_get_by_cguid( state->config.cguid_counter ) ) {
 			*cguid = state->config.cguid_counter;
 			status = ZS_SUCCESS;
 			break;

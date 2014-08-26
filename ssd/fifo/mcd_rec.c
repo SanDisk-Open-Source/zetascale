@@ -48,7 +48,6 @@
 #define FLUSH_LOG_SEC_ALIGN 512
 #define FLUSH_LOG_FILE_MODE 0755
 
-
 /*
  * For boundary alignment.  n must be a power of 2.
  */
@@ -178,8 +177,6 @@ static int                      Mcd_rec_chicken              = 1;
 
 // FIXME: hack alert
 static int                      Mcd_rec_first_shard_recovered = 0;
-static char                     Mcd_rec_cmc_blobs[ MCD_METABLOB_MAX_SLOTS ]
-                                                 [ MCD_OSD_BLK_SIZE_MAX ];
 
 enum verify_mode {
     VERIFY_ABORT_IF_CLEAN = 1,
@@ -224,12 +221,6 @@ extern inline uint32_t mcd_osd_lba_to_blk( uint32_t blocks );
 extern mcd_container_t          Mcd_osd_cmc_cntr;
 
 
-// FIXME: hack alert
-extern int (* init_container_meta_blob_put)( uint64_t shard_id, char * data,
-                                             int len );
-extern int (* init_container_meta_blob_get)( char * blobs[], int num_slots );
-
-
 // -----------------------------------------------------
 //    Forward declarations
 // -----------------------------------------------------
@@ -249,280 +240,6 @@ int  log_init_phase2( void * context, mcd_osd_shard_t * shard );
 
 static void
 log_sync_internal_legacy( mcd_osd_shard_t *s, uint64_t lsn);
-
-
-/************************************************************************
- *                                                                      *
- *                      "Metablob" storage                              *
- *                                                                      *
- ************************************************************************/
-
-int
-container_meta_blob_put( uint64_t shard_id, char * data, int len )
-{
-    int                         i, rc;
-    uint64_t                    blob_offset;
-    uint64_t                    blk_size;
-    uint64_t                    blk_mask;
-    mcd_rec_shard_t           * pshard;
-    mcd_osd_shard_t	      * shard;
-    osd_state_t               * context =
-        mcd_fth_init_aio_ctxt( SSD_AIO_CTXT_MCD_REC_BLOB );
-    char                      * buf;
-    mcd_rec_blob_t            * blob;
-    uint64_t			seg;
-
-    mcd_log_msg( 20065, PLAT_LOG_LEVEL_TRACE,
-                 "ENTERING, shardID=%lu", shard_id );
-
-    if (shard_id == 0) {
-	    blk_size = MCD_OSD_SEG0_BLK_SIZE;
-	    blk_mask = MCD_OSD_SEG0_BLK_MASK;
-    } else {
-	    blk_size = Mcd_osd_blk_size;
-	    blk_mask = Mcd_osd_blk_mask;
-    }
-
-    // make buffer aligned
-    buf = (char *)( ( (uint64_t)context->osd_buf + blk_size - 1 ) &
-                    blk_mask);
-    memset( buf, 0, blk_size );
-
-    // sanity
-    if ( len > MCD_METABLOB_MAX_LEN ) {
-        mcd_log_msg( 20431, PLAT_LOG_LEVEL_ERROR,
-                     "invalid length %d (max=%d)",
-                     len, MCD_METABLOB_MAX_LEN );
-        return SDF_FAILURE;
-    }
-
-    // install the data, length, and checksum
-    blob              = (mcd_rec_blob_t *)buf;
-    blob->eye_catcher = MCD_REC_BLOB_EYE_CATCHER;
-    blob->version     = MCD_REC_BLOB_VERSION;
-    blob->length      = len;
-    blob->checksum    = 0;
-    memcpy( blob->data, data, len );
-    blob->checksum    = hashb((unsigned char *)blob, blk_size, 0);
-
-    // "global" blob
-    if ( shard_id == 0 ) {
-        blob_offset = Mcd_rec_superblock.flash_desc->blk_offset +
-            Mcd_rec_superblock.flash_desc->blob_offset;
-
-        rc = write_superblock( buf, 1, blob_offset );
-
-    // shard blob
-    } else {
-        // find the shard
-        for ( i = 0; i < MCD_OSD_MAX_NUM_SHARDS; i++ ) {
-            if ( Mcd_osd_slab_shards[ i ] != NULL &&
-                 Mcd_osd_slab_shards[ i ]->shard.shardID == shard_id ) {
-                break;
-            }
-        }
-        if ( i == MCD_OSD_MAX_NUM_SHARDS ) {
-            mcd_log_msg( 20432, PLAT_LOG_LEVEL_ERROR,
-                         "couldn't find shardID=%lu", shard_id );
-            return SDF_FAILURE;
-        }
-	shard = Mcd_osd_slab_shards[ i ];
-        pshard = Mcd_osd_slab_shards[ i ]->pshard;
-
-        if ( pshard == NULL ) {
-            mcd_log_msg( 20433, PLAT_LOG_LEVEL_ERROR,
-                         "non-persistent shard, shardID=%lu", shard_id );
-            return SDF_FAILURE;
-        }
-
-	blob_offset = pshard->blob_offset;
-	seg = blob_offset / Mcd_osd_segment_blks;
-	blob_offset = blob_offset % Mcd_osd_segment_blks;
-
-        // write the blob
-        rc = mcd_fth_aio_blk_write( context,
-                                    buf,
-				    blk_size *
-                                    (shard->segments[ seg ] + blob_offset),
-                                    blk_size );
-    }
-
-    if ( FLASH_EOK != rc ) {
-        mcd_log_msg( 20434, PLAT_LOG_LEVEL_ERROR,
-                     "failed to write blob, shardID=%lu, offset=%lu, rc=%d",
-                     shard_id, blob_offset, rc );
-        return SDF_FAILURE;
-    }
-
-    return SDF_SUCCESS;
-}
-
-int
-read_blob( void * context, uint64_t offset, uint64_t len, char * buf )
-{
-    int                         rc;
-    uint64_t                    checksum;
-    mcd_rec_blob_t            * blob;
-
-    // read blob block
-    rc = mcd_fth_aio_blk_read( context,
-                               buf,
-                               offset,
-                               len);
-    if ( FLASH_EOK != rc ) {
-        return rc;
-    }
-
-    // verify checksum
-    blob           = (mcd_rec_blob_t *)buf;
-    checksum       = blob->checksum;
-    blob->checksum = 0;
-    blob->checksum = hashb((unsigned char *)buf, len, 0);
-
-    if ( checksum != blob->checksum ||
-         blob->eye_catcher != MCD_REC_BLOB_EYE_CATCHER ||
-         blob->version != MCD_REC_BLOB_VERSION ) {
-        blob->checksum = checksum;   // restore original contents
-        return -1;
-    }
-
-    return 0;
-}
-
-int
-container_meta_blob_get( char * blobs[], int num_slots )
-{
-    int                         i, ssd, rc, count = 0;
-    int                         size;
-    int                         blob_count;
-    int                       * good_copy;
-    uint64_t                    stripe_offset;
-    char                      * buf;
-    osd_state_t               * context =
-        mcd_fth_init_aio_ctxt( SSD_AIO_CTXT_MCD_REC_BLOB );
-    mcd_rec_shard_t           * pshard;
-    mcd_osd_shard_t	      * shard;
-    mcd_rec_superblock_t      * sb = &Mcd_rec_superblock;
-    mcd_rec_flash_t           * fd = sb->flash_desc;
-    char                      * source[ MCD_AIO_MAX_NFILES ];
-    uint64_t			seg;
-    uint64_t			offset;
-
-    mcd_log_msg( 20435, PLAT_LOG_LEVEL_TRACE,
-                 "ENTERING, slots=%d", num_slots );
-
-    // calculate buffer size to hold aligned 1-block buffers
-    // for each blob, plus 1 block for alignment (blobs are 1 block in length)
-    size = ( Mcd_rec_sb_data_copies * MCD_OSD_SEG0_BLK_SIZE) + MCD_OSD_SEG0_BLK_SIZE;
-
-    // get aligned buffer
-    buf = (char *)( ( (uint64_t)context->osd_buf + MCD_OSD_SEG0_BLK_SIZE - 1 ) &
-                    MCD_OSD_SEG0_BLK_MASK);
-
-    // get array for keeping track of "good" copies
-    good_copy = (int *)( (uint64_t)context->osd_buf + size );
-
-    plat_assert( size + (sizeof( int ) * Mcd_rec_sb_data_copies) < MEGABYTE );
-
-    blob_count = 0;
-    memset( context->osd_buf, 0, size );
-
-    // read global blob on each device
-    for ( ssd = 0; ssd < Mcd_rec_sb_data_copies; ssd++ ) {
-
-        source[ ssd ]    = buf + (ssd * MCD_OSD_SEG0_BLK_SIZE);
-        good_copy[ ssd ] = 0;
-
-        // using stripe size as offset will write on each drive
-        stripe_offset = ssd * Mcd_aio_strip_size;
-
-        // read the "global" blob
-        rc = read_blob( context,
-                        stripe_offset +
-                        (fd->blk_offset + fd->blob_offset) * MCD_OSD_SEG0_BLK_SIZE,
-			MCD_OSD_SEG0_BLK_SIZE,
-                        source[ ssd ] );
-        if ( rc < 0 ) {
-            mcd_log_msg( 20436, PLAT_LOG_LEVEL_ERROR,
-                         "global blob verification failure, "
-                         "offset=%lu, copy=%d",
-                         fd->blk_offset + fd->blob_offset, ssd );
-            snap_dump( source[ ssd ], MCD_OSD_SEG0_BLK_SIZE);
-            continue;
-        } else if ( rc > 0 ) {
-            mcd_log_msg( 20437, PLAT_LOG_LEVEL_ERROR,
-                         "global blob read failure, "
-                         "offset=%lu, copy=%d, rc=%d",
-                         fd->blk_offset + fd->blob_offset, ssd, rc );
-            continue;
-        }
-
-        good_copy[ ssd ] = 1;
-        blob_count++;
-    }
-
-    // validate N copies of the global blob
-    rc = validate_superblock_data( Mcd_rec_cmc_blobs[ count ],
-                                   blob_count,
-                                   good_copy,
-                                   fd->blk_offset + fd->blob_offset,
-                                   1,
-                                   source );
-    plat_assert_rc( rc );
-
-    // return global blob data
-    blobs[ count ] = ((mcd_rec_blob_t *)Mcd_rec_cmc_blobs[ count ])->data;
-    count++;
-
-    // find all shards' blobs
-    for ( i = 0; i < MCD_OSD_MAX_NUM_SHARDS; i++ ) {
-        if ( Mcd_osd_slab_shards[ i ] != NULL ) {
-	    shard = Mcd_osd_slab_shards[i];	
-            pshard = Mcd_osd_slab_shards[ i ]->pshard;
-            if ( pshard == NULL ) {  // non-persistent shard
-                continue;
-            }
-
-            // read this shard's blob
-	 	   
-	    offset = pshard->blob_offset;
-	    seg = offset / Mcd_osd_segment_blks;
-	    offset = offset % Mcd_osd_segment_blks;
-
-            rc = read_blob( context,
-			    Mcd_osd_blk_size *
-			    (shard->segments[ seg ] + offset),
-                            Mcd_osd_blk_size, buf );
-
-            if ( rc != 0 ) {
-                if ( rc < 0 ) {
-                    mcd_log_msg( 160172, PLAT_LOG_LEVEL_FATAL,
-                                 "blob verification failure, shardID=%lu, "
-                                 "segment=%lu, offset=%lu",
-                                 pshard->shard_id, seg,
-                                 offset );
-                    snap_dump( buf, Mcd_osd_blk_size );
-                } else {
-                    mcd_log_msg( 160173, PLAT_LOG_LEVEL_FATAL,
-                                 "blob read failure, shardID=%lu, "
-                                 "segment=%lu, offset=%lu, rc=%d",
-                                 pshard->shard_id, seg,
-                                 offset, rc );
-                }
-                plat_abort();
-            }
-
-            // copy blob block to unaligned cache
-            memcpy( Mcd_rec_cmc_blobs[ count ], buf, Mcd_osd_blk_size );
-            blobs[ count ] =
-                ((mcd_rec_blob_t *)Mcd_rec_cmc_blobs[ count ])->data;
-            count++;
-         }
-    }
-
-    return count;
-}
-
 
 /************************************************************************
  *                                                                      *
@@ -1145,10 +862,6 @@ recovery_init( void )
 
     plat_assert( Mcd_rec_sb_data_copies <= MCD_OSD_MAX_NUM_SHARDS );
 
-    // FIXME: hack alert
-    init_container_meta_blob_put = &container_meta_blob_put;
-    init_container_meta_blob_get = &container_meta_blob_get;
-
     // calculate buffer size to hold aligned 1-block buffers
     // for each shard, the flash descriptor (+1), plus alignment (+1)
     size = (MCD_OSD_MAX_NUM_SHARDS + 2) * MCD_OSD_SEG0_BLK_SIZE;
@@ -1235,6 +948,7 @@ recovery_init( void )
                              blk_count * MCD_OSD_SEG0_BLK_SIZE,
                              MCD_REC_FLASH_EYE_CATCHER);
         if ( fd->checksum != checksum ) {
+            // Restore from copy
             mcd_log_msg( 160006, PLAT_LOG_LEVEL_ERROR,
                          "invalid flash desc checksum, offset=%lu, copy=%lu",
                          blk_offset * MCD_OSD_SEG0_BLK_SIZE, ssd );
@@ -1547,12 +1261,12 @@ recovery_init( void )
         if ( pshard->checksum != checksum ||
              pshard->eye_catcher != MCD_REC_SHARD_EYE_CATCHER ||
              pshard->version != MCD_REC_SHARD_VERSION ) {
-            mcd_log_msg( 20459, PLAT_LOG_LEVEL_FATAL,
-                         "invalid shard checksum, blk_offset=%lu",
-                         sb->props[ s ]->blk_offset );
-            pshard->checksum = checksum;   // restore original contents
-            snap_dump( buf, Mcd_osd_blk_size );
-            plat_abort();
+             mcd_log_msg( 20459, PLAT_LOG_LEVEL_FATAL,
+                          "invalid shard checksum, blk_offset=%lu",
+                           sb->props[ s ]->blk_offset );
+             pshard->checksum = checksum;   // restore original contents
+             snap_dump( buf, Mcd_osd_blk_size );
+             plat_abort();
         }
 
         // create volatile shard descriptor

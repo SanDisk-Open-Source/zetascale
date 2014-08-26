@@ -109,12 +109,12 @@ enum {
     SYS_FLASH_RECOVERY = 1,
 };
 
-// Defines the type of meta object maintained in the 
+// Defines the type of meta object maintained in the blobs
 enum {
     SDF_META_TYPE_UNDEFINED          = 0,
-    SDF_META_TYPE_CONTAINER          = 1,
-    SDF_META_TYPE_CGUID_MAP          = 2,
-    SDF_META_TYPE_CGUID_STATE        = 3,
+    SDF_META_TYPE_CONTAINER          = 1, 
+    SDF_META_TYPE_CGUID_MAP          = 2,    // No longer used
+    SDF_META_TYPE_CGUID_STATE        = 3,    // No longer used
 };
 
 typedef uint64_t SDF_context_t;
@@ -532,20 +532,6 @@ typedef struct {
     uint32_t size;
     char *name;
 } SDF_object_info_t;
-
-#ifdef SWIG
-#else
-typedef struct {
-    SDF_meta_t type;
-    uint32_t node;
-    SDF_cguid_t cguid;
-} SDF_cguid_map_t;
-#endif
-
-typedef struct {
-    SDF_meta_t type;
-    SDF_cguid_t cguid_counter;
-} SDF_cguid_state_t;
 
 typedef int stringLen_t;
 

@@ -26,7 +26,9 @@
 #include "shard_compute.h"
 #include "container_props.h"
 #include "internal_blk_obj_api.h"
+#include "ssd/fifo/mcd_osd.h"
 #include "private.h"
+#include "api/sdf_internal.h"
 #include "cmc.h"
 
 #include <netinet/in.h>
@@ -37,12 +39,13 @@ extern mcd_container_t Mcd_containers[MCD_MAX_NUM_CNTRS];
 
 extern SDF_cmc_t *theCMC; // Global CMC object
 extern struct SDF_shared_state sdf_shared_state;
+extern SDF_shardid_t generate_shard_ids(uint32_t node, SDF_cguid_t cguid, uint32_t count);
 
 static fthLock_t cguid_lock;        // For the cguid hashmap
 static fthLock_t meta_lock;         // For the metadata hashmap
 static fthLock_t metamap_lock;      // For the TL metadata hashmap list
 
-static int cmc_type = 0; 
+static int cmc_type = CMC_HASHMAP; 
 
 #include "utils/properties.h"
 #include "utils/hashmap.h"
@@ -57,6 +60,16 @@ static int cmc_type = 0;
 #define LOG_WARN PLAT_LOG_LEVEL_WARN
 #define LOG_FATAL PLAT_LOG_LEVEL_FATAL
 
+
+extern
+SDF_container_meta_t * build_meta(
+    const char              *path,
+    SDF_container_props_t    props,
+    SDF_cguid_t              cguid,
+    SDF_shardid_t            shard
+    );
+
+static SDF_container_props_t *cmc_create_sdf_props(ZS_container_props_t *fdf_properties);
 
 // Process local meta map interface - maintains version
 SDF_boolean_t
@@ -80,7 +93,6 @@ delete_shard_from_service(struct SDF_shared_state *state, service_t service,
 
 // Process local maps
 HashMap meta_map;			// cguid->meta
-HashMap cguid_map;			// cname->cguid
 
 // Thread local meta map
 static __thread HashMap TL_meta_map = NULL;
@@ -203,9 +215,6 @@ SDF_status_t
 cmc_unpin_object(SDF_internal_ctxt_t *pai, SDFContainer container, const char *objkey);
 
 SDF_status_t
-cmc_put_cguid_map(SDF_internal_ctxt_t *pai, SDFContainer c, SDF_cguid_t cguid, const char *cname);
-
-SDF_status_t
 cmc_flush_object(SDF_internal_ctxt_t *pai, SDFContainer c, const char *objkey);
 
 int
@@ -271,8 +280,7 @@ cmc_destroy(SDF_internal_ctxt_t *pai, SDF_cmc_t *cmc) {
 
 	if (cmc_type == CMC_HASHMAP) {
 	    HashMap_destroy(meta_map); // TODO Remove all entries from HashMap
-	    HashMap_destroy(cguid_map);
-        cguid_map = meta_map = NULL;
+        meta_map = NULL;
 	}
 
         status = SDF_SUCCESS;
@@ -319,7 +327,6 @@ cmc_initialize(SDF_internal_ctxt_t *pai, const char *cmc_path) {
             plat_log_msg(21492, PLAT_LOG_CAT_PRINT_ARGS, PLAT_LOG_LEVEL_DEBUG, "PROP: SDF_CMC_BUCKETS=%d",
                          buckets);
 	    	meta_map = HashMap_create(buckets, FTH_BUCKET_RW);
-	    	cguid_map = HashMap_create(buckets, FTH_BUCKET_RW);
 		}
 
 #ifdef SDFAPI
@@ -373,24 +380,6 @@ cmc_initialize(SDF_internal_ctxt_t *pai, const char *cmc_path) {
     return (theCMC);
 }
 
-static void blob_version_check(uint32_t version)
-{
-    if (version != SDF_BLOB_CONTAINER_META_VERSION) {
-	plat_log_msg(21502, LOG_CAT, LOG_ERR, 
-	    "Incompatible version of SDF_container_meta_blob_t\n");
-	plat_assert(0);
-    }
-}
-
-static void ctnr_meta_version_check(uint32_t version)
-{
-    if (version != SDF_CONTAINER_META_VERSION) {
-	plat_log_msg(21503, LOG_CAT, LOG_ERR, 
-	    "Incompatible version of SDF_container_meta_t\n");
-	plat_assert(0);
-    }
-}
-
 // FIXME: get rid of this
 #define CMC_SHARD_ID 1
 extern uint64_t generate_shard_ids(uint32_t node, SDF_cguid_t cguid, uint32_t count);
@@ -410,17 +399,29 @@ cmc_recover(SDF_internal_ctxt_t *pai, const char *cmc_path) {
     SDF_CONTAINER			 c;
     SDFContainer			 container	= 0;
 #endif /* SDFAPI */
-    SDF_container_props_t	 p;
+    SDF_container_props_t	 cmc_sdf_props;
+    SDF_container_props_t	*vmc_sdf_props = NULL;
+    SDF_container_props_t	*vdc_sdf_props = NULL;
     int						 log_level	= LOG_ERR;
-    SDF_container_meta_t	*meta		= NULL;
-    struct SDF_shared_state *state		= &sdf_shared_state;
+    SDF_container_meta_t	*cmc_meta   = NULL;
+    SDF_container_meta_t	*vmc_meta	= NULL;
+    SDF_container_meta_t	*vdc_meta	= NULL;
+    ZS_container_props_t    cmc_fdf_props;
+    ZS_container_props_t    vmc_fdf_props;
+    ZS_container_props_t    vdc_fdf_props;
+    ZS_cguid_t              cguid       = ZS_NULL_CGUID;
+    int                     flags       = 0;
+    SDF_shardid_t           vmc_shard   = SDF_SHARDID_INVALID;
+    SDF_shardid_t           vdc_shard   = SDF_SHARDID_INVALID;
 
     plat_log_msg(21498, LOG_CAT, LOG_TRACE, "Node: %d", init_get_my_node_id());
 
     if (ISEMPTY(cmc_path)) {
 		status = SDF_INVALID_PARAMETER;
+        goto out;
     } else if ((theCMC = (SDF_cmc_t *)plat_alloc(sizeof (SDF_cmc_t))) == NULL) {
 		status = SDF_FAILURE_MEMORY_ALLOC;
+        goto out;
     } else {
 
 		theCMC->initialized = SDF_FALSE;
@@ -440,49 +441,35 @@ cmc_recover(SDF_internal_ctxt_t *pai, const char *cmc_path) {
 						 "PROP: SDF_CMC_BUCKETS=%d",
                          buckets);
 		    meta_map = HashMap_create(buckets, FTH_BUCKET_RW);
-		    cguid_map = HashMap_create(buckets, FTH_BUCKET_RW);
 		}
 
-		memset(&p, 0, sizeof(p));
-		p.container_type.type = SDF_OBJECT_CONTAINER;
-		p.container_type.persistence = SDF_TRUE;
-		p.container_type.caching_container = SDF_FALSE;
-		p.shard.num_shards = SDF_SHARD_DEFAULT_SHARD_COUNT;
+		memset(&cmc_sdf_props, 0, sizeof(cmc_sdf_props));
+		cmc_sdf_props.container_type.type = SDF_OBJECT_CONTAINER;
+		cmc_sdf_props.container_type.persistence = SDF_TRUE;
+		cmc_sdf_props.container_type.caching_container = SDF_FALSE;
+		cmc_sdf_props.shard.num_shards = SDF_SHARD_DEFAULT_SHARD_COUNT;
 
-		// FIXME...enable this when CMC is replicating
-		if (0 && state->config.always_replicate) {
-		    p.replication.enabled = 1;
-		    p.replication.type = SDF_REPLICATION_SIMPLE;
-		    p.replication.num_replicas = state->config.always_replicate;
-		    p.replication.num_meta_replicas = state->config.always_replicate;
-		    p.replication.synchronous = 1;
-		}
+		cmc_meta = container_meta_create(cmc_path, cmc_sdf_props, CMC_CGUID, generate_shard_ids(CMC_HOME, CMC_CGUID, 1));
 
-		meta = container_meta_create(cmc_path, p, CMC_CGUID, generate_shard_ids(CMC_HOME, CMC_CGUID, 1));
-		init_cmc(meta);
+		init_cmc(cmc_meta);
 		theCMC->initialized = SDF_TRUE;
-        ZS_container_props_t   zs_p;
-        ZS_cguid_t             cguid       = ZS_NULL_CGUID;
-        int                     flags       = 0;
 
         // Create the CMC
-        //zs_p.fifo_mode             = ZS_FALSE;
-        zs_p.persistent            = ZS_TRUE;
-        zs_p.evicting              = ZS_FALSE;
-        zs_p.writethru             = ZS_TRUE;
-        //zs_p.num_shards            = 1;
-        zs_p.durability_level      = ZS_DURABILITY_HW_CRASH_SAFE;
-        zs_p.size_kb               = 1024 * 1024; // kB
+        cmc_fdf_props.persistent            = ZS_TRUE;
+        cmc_fdf_props.evicting              = ZS_FALSE;
+        cmc_fdf_props.writethru             = ZS_TRUE;
+        cmc_fdf_props.durability_level      = ZS_DURABILITY_HW_CRASH_SAFE;
+        cmc_fdf_props.size_kb               = 1024 * 1024; // kB
         plat_log_msg(80040,LOG_CAT, LOG_INFO, "Opening Container Metadata Container"
                           " (name = %s,size = %lu kbytes,"
                           "persistence = %s,eviction = %s,writethrough = %s,fifo = %s,"
                           "async_writes = %s,durability = %s)",
-                          cmc_path,zs_p.size_kb, get_bool_str(zs_p.persistent),
-                          get_bool_str(zs_p.evicting),get_bool_str(zs_p.writethru),
-                          get_bool_str(zs_p.fifo_mode),get_bool_str(zs_p.async_writes),
-                          get_durability_str(zs_p.durability_level));
+                          cmc_path,cmc_fdf_props.size_kb, get_bool_str(cmc_fdf_props.persistent),
+                          get_bool_str(cmc_fdf_props.evicting),get_bool_str(cmc_fdf_props.writethru),
+                          get_bool_str(cmc_fdf_props.fifo_mode),get_bool_str(cmc_fdf_props.async_writes),
+                          get_durability_str(cmc_fdf_props.durability_level));
         
-        if ((status = ZSOpenPhysicalContainer(pai, (char *) cmc_path, &zs_p, flags, &cguid)) != SDF_SUCCESS) {
+        if ((status = ZSOpenPhysicalContainer(pai, (char *) cmc_path, &cmc_fdf_props, flags, &cguid)) != SDF_SUCCESS) {
             plat_log_msg(150059, LOG_CAT, LOG_ERR, "Failed to create CMC container - %s\n", SDF_Status_Strings[status]);
             status = SDF_FAILURE_CONTAINER_OPEN;
         } else { 
@@ -493,79 +480,84 @@ cmc_recover(SDF_internal_ctxt_t *pai, const char *cmc_path) {
         }
 	}
 
-    // Recovery hack - we must rebuild the CMC from metadata kept in shard...
-    // This value must match the one in container_meta_blob.h
-#define MCD_METABLOB_MAX_SLOTS  130
-    char *blobs[MCD_METABLOB_MAX_SLOTS];
-    int num_blobs = 0;
+    // Recreate the VMC metdata. We use the existing shard.
+    vmc_fdf_props.persistent            = ZS_TRUE;
+    vmc_fdf_props.evicting              = ZS_FALSE;
+    vmc_fdf_props.writethru             = ZS_TRUE;
+    vmc_fdf_props.durability_level      = ZS_DURABILITY_HW_CRASH_SAFE;
+    vmc_fdf_props.size_kb               = 1024 * 1024; // kB
 
-    if (status == SDF_SUCCESS && init_container_meta_blob_get != NULL) {
+    vmc_sdf_props = cmc_create_sdf_props(&vmc_fdf_props);
 
-		num_blobs = init_container_meta_blob_get(blobs, MCD_METABLOB_MAX_SLOTS);
+    vmc_shard = generate_shard_ids(init_get_my_node_id(), VMC_CGUID, 1);
 
-		for (int i = 0; i < num_blobs && status == SDF_SUCCESS; i++) {
+    vmc_meta = container_meta_create(VMC_PATH, *vmc_sdf_props, VMC_CGUID, vmc_shard);
 
-		    if (i == 0) {
+    memcpy(&vmc_meta->zs_properties, &vmc_fdf_props, sizeof(ZS_container_props_t));
 
-				// First entry is the global cguid counter
-				SDF_cguid_t cguid_counter;
-				char name[MAX_OBJECT_ID_SIZE];
-				SDF_container_meta_blob_t *blob = (SDF_container_meta_blob_t *) blobs[0];
-				blob_version_check(blob->version);
-	    
-				memcpy( (char *)&cguid_counter, &(blob->meta), sizeof(cguid_counter) );
-				snprintf(name, sizeof(name), CGUID_COUNTER_TEMPLATE, init_get_my_node_id());
-	    
-				status = name_service_create_cguid_state(pai,
-													  	 init_get_my_node_id(),
-													  	 cguid_counter);
-		    } else {
+    status = cmc_create_meta(pai, theCMC->c, VMC_PATH, VMC_CGUID, vmc_meta);
+    if ( SDF_SUCCESS != status )
+        goto out;
 
-				SDF_container_meta_blob_t *blob = (SDF_container_meta_blob_t *) blobs[i];
-				blob_version_check(blob->version);
+    //  Initialize the container map
+    status = zs_cmap_create( VMC_PATH,
+                             VMC_CGUID,  
+                             vmc_meta->properties.container_id.size,
+                             ZS_CONTAINER_STATE_CLOSED,
+                             vmc_meta->properties.container_type.caching_container
+                             );
+            
+    if ( SDF_SUCCESS != status ) 
+        goto out;
+        
+    for (int i=0; i<MCD_MAX_NUM_CNTRS; i++) {
+        if (Mcd_containers[i].cguid == ZS_NULL_CGUID) {
+            // this is an unused map entry  
+            Mcd_containers[i].cguid         = vmc_meta->cguid;
+            Mcd_containers[i].container_id  = vmc_meta->properties.container_id.container_id;
+            strcpy(Mcd_containers[i].cname, vmc_meta->cname);
+            break;
+        }
+    }
+    // Recreate the VDC metdata. We use the existing shard.
+    vdc_fdf_props.persistent            = ZS_TRUE;
+    vdc_fdf_props.evicting              = ZS_FALSE;
+    vdc_fdf_props.writethru             = ZS_TRUE;
+    vdc_fdf_props.durability_level      = ZS_DURABILITY_HW_CRASH_SAFE;
+    vdc_fdf_props.size_kb               = (uint64_t)(((uint64_t)getProperty_uLongLong("ZS_FLASH_SIZE", ZS_MIN_FLASH_SIZE)) *
+                                          1024 * 1024 - (2 * ZS_DEFAULT_CONTAINER_SIZE_KB) - (32 * 1024));
 
-				// Bypass the CMC blob...we re-create it in the SDF globals...
-				if (blob->meta.cguid != CMC_CGUID) {
-				    ctnr_meta_version_check(blob->meta.version);
-					
-				    status = cmc_create_meta(pai,
-										     theCMC->c,
-										     blob->meta.cname,
-										     blob->meta.cguid,
-										     &blob->meta);
+    vdc_sdf_props = cmc_create_sdf_props(&vdc_fdf_props);
 
-				    if (status == SDF_SUCCESS) {
-						status = cmc_create_cguid_map(pai,
-												      theCMC->c,
-												      blob->meta.cguid,
-												      blob->meta.cname);
-				    }
+    vdc_shard = generate_shard_ids(init_get_my_node_id(), VDC_CGUID, 1);
 
-#ifdef SDFAPIONLY
-					//  Initialize the container map
-	                status = zs_cmap_create( blob->meta.cname, 
-	                                          blob->meta.cguid, 
-	                                          blob->meta.properties.container_id.size,
-	                                          ZS_CONTAINER_STATE_CLOSED, 
-	                                          blob->meta.properties.container_type.caching_container
-                                            );
+    vdc_meta = container_meta_create(VDC_PATH, *vdc_sdf_props, VDC_CGUID, vdc_shard);
 
-                     if ( SDF_SUCCESS != status ) 
-                         goto out;
+    memcpy(&vdc_meta->zs_properties, &vdc_fdf_props, sizeof(ZS_container_props_t));
 
-					for (int i=0; i<MCD_MAX_NUM_CNTRS; i++) {
-						if (Mcd_containers[i].cguid == ZS_NULL_CGUID) {
-							// this is an unused map entry
-					    	Mcd_containers[i].cguid 		= blob->meta.cguid;
-					    	Mcd_containers[i].container_id  = blob->meta.properties.container_id.container_id;
-							strcpy(Mcd_containers[i].cname, blob->meta.cname);
-							break;
-						}
-					}
-#endif /* SDFAPIONLY */
-				}
-		    }
-		}
+    status = cmc_create_meta(pai, theCMC->c, VDC_PATH, VDC_CGUID, vdc_meta);
+    if ( SDF_SUCCESS != status )
+        goto out;
+
+    //  Initialize the container map
+    status = zs_cmap_create( VDC_PATH,
+                             VDC_CGUID,
+                             vdc_meta->properties.container_id.size,
+                             ZS_CONTAINER_STATE_CLOSED,
+                             vdc_meta->properties.container_type.caching_container
+                             );
+
+    if ( SDF_SUCCESS != status )
+        goto out;
+
+    for (int i=0; i<MCD_MAX_NUM_CNTRS; i++) {
+        if (Mcd_containers[i].cguid == ZS_NULL_CGUID) {
+            // this is an unused map entry
+            Mcd_containers[i].cguid         = vdc_meta->cguid;
+            Mcd_containers[i].container_id  = vdc_meta->properties.container_id.container_id;
+            strcpy(Mcd_containers[i].cname, vdc_meta->cname);
+            break;
+        }
     }
 
     fthLockInit(&cguid_lock);
@@ -751,8 +743,8 @@ cmc_get_meta_from_cname(SDF_internal_ctxt_t *pai, SDFContainer c, const char *cn
 			SDF_container_meta_t *meta) {
 
     SDF_status_t status = SDF_FAILURE;
-    SDF_cguid_map_t map;
     int log_level = LOG_TRACE;
+    cntr_map_t *cmap = NULL;
 
     plat_log_msg(20819, LOG_CAT, LOG_TRACE, "%s", cname);
 
@@ -767,9 +759,9 @@ cmc_get_meta_from_cname(SDF_internal_ctxt_t *pai, SDFContainer c, const char *cn
         memcpy(meta, &theCMC->meta, sizeof(SDF_container_meta_t));
 		status = SDF_SUCCESS;
 
-    } else if ((status = cmc_get_cguid_map(pai, theCMC->c, cname, &map)) == SDF_SUCCESS) {
+    } else if ((cmap = zs_cmap_get_by_cname((char *)cname)) != NULL) { 
 
-		status = cmc_get_meta(pai, c, map.cguid, meta);
+		status = cmc_get_meta(pai, c, cmap->cguid, meta);
     }
 
     plat_log_msg(21511, LOG_CAT, log_level, "%s - %s",
@@ -1115,7 +1107,6 @@ SDF_status_t
 cmc_meta_exists(SDF_internal_ctxt_t *pai, SDFContainer c, const char *cname) {
 
     SDF_status_t 			status 		= SDF_OBJECT_UNKNOWN;
-	SDF_cguid_map_t 		map;
 
     plat_log_msg(20819, LOG_CAT, LOG_TRACE, "%s", cname);
 
@@ -1130,11 +1121,10 @@ cmc_meta_exists(SDF_internal_ctxt_t *pai, SDFContainer c, const char *cname) {
 	    	status = SDF_SUCCESS;
 		} 
 
-    } else if ((cmc_type == CMC_HASHMAP) && (HashMap_get(cguid_map, cname)) != NULL) {
+    } else if ((zs_cmap_get_by_cname((char *)cname)) != NULL) {
 
 		status = SDF_SUCCESS;
 
-    } else if ((status = cmc_get_cguid_map(pai, theCMC->c, cname, &map)) != SDF_SUCCESS) {
     }
 
     plat_log_msg(21511, LOG_CAT, LOG_DBG, "%s - %s", cname, SDF_Status_Strings[status]);
@@ -1177,221 +1167,19 @@ cmc_cguid_exists(SDF_internal_ctxt_t *pai, SDFContainer c, SDF_cguid_t cguid) {
     return (status);
 }
 
-// Creates two types of map entries (cname->cguid and just cguid) as well as saving the cname->cguid map object
-SDF_status_t
-cmc_create_cguid_map(SDF_internal_ctxt_t *pai, SDFContainer c, SDF_cguid_t cguid, const char *cname) {
-    SDF_status_t status = SDF_FAILURE;
-    SDF_cguid_map_t *map = NULL;
-    SDF_size_t datalen = sizeof(SDF_cguid_map_t);
-    int log_level = LOG_ERR;
+SDF_cguid_t
+cmc_get_cguid_from_cname(SDF_internal_ctxt_t *pai, SDFContainer c, const char *cname) {
 
-    plat_log_msg(21506, LOG_CAT, LOG_TRACE, "%llu - %s", 
-		 (unsigned long long)cguid, cname);
-
-    if (ISEMPTY(cname)) {
-		status = SDF_INVALID_PARAMETER;
-    } else {
-
-		//Create a map structure
-		map = (SDF_cguid_map_t *) plat_alloc(datalen);
-		if (!map) {
-	    	status = SDF_FAILURE_MEMORY_ALLOC;
-		} else {
-
-	    	map->type = SDF_META_TYPE_CGUID_MAP;
-	    	map->node = init_get_my_node_id();
-	    	map->cguid = cguid;
-
-	    	switch(cmc_type) {
-
-	    		case CMC_HASHMAP:
-					if ((cmc_cguidmap_update(cguid_map, cname, (void *)map)) == SDF_TRUE &&
-		    			(status = cmc_create_put_buffered_object(pai, c, 
-							     	cname, datalen,
-							     	(void *)map)) == SDF_SUCCESS) {
-		    			log_level = LOG_TRACE;
-					}
-				break;
-
-
-	    		default:
-
-					if ((status = cmc_create_put_buffered_object(pai, c, 
-						    		cname, datalen,
-						    		(void *)map)) == SDF_SUCCESS) {
-		    			log_level = LOG_TRACE;
-		    			plat_free(map);
-					}
-				break;
-	    	}
-		}
-    }
-
-    plat_log_msg(21516, LOG_CAT, log_level, "%llu - %s - %s", 
-		 (unsigned long long)cguid, cname, SDF_Status_Strings[status]);
-
-    return (status);
-}
-
-SDF_status_t
-cmc_put_cguid_map(SDF_internal_ctxt_t *pai, SDFContainer c, SDF_cguid_t cguid, const char *cname) {
-    SDF_status_t status = SDF_FAILURE;
-    SDF_cguid_map_t *map = NULL;
-    SDF_size_t datalen = sizeof(SDF_cguid_map_t);
-    int log_level = LOG_ERR;
-
-    plat_log_msg(21506, LOG_CAT, LOG_TRACE, "%llu - %s", 
-		 (unsigned long long)cguid, cname);
-
-    if (ISEMPTY(cname)) {
-		status = SDF_INVALID_PARAMETER;
-    } else {
-
-		// Create a map structure
-		map = (SDF_cguid_map_t *) plat_alloc(datalen);
-		if (!map) {
-	    	status = SDF_FAILURE_MEMORY_ALLOC;
-		} else {
-
-	    	map->node = init_get_my_node_id();
-	    	map->cguid = cguid;
-
-	    	switch(cmc_type) {
-
-	    		case CMC_HASHMAP:
-						if ((cmc_cguidmap_update(cguid_map, cname, (void *)map)) == SDF_TRUE &&
-		    				(status = cmc_put_buffered_object(pai, c, 
-						      cname, datalen,
-						      (void *)map)) == SDF_SUCCESS) {
-		    				log_level = LOG_TRACE;
-						}
-				break;
-
-
-	    		default:
-
-					if ((status = cmc_put_buffered_object(pai, c, 
-					     				cname, datalen,
-					     (void *)map)) == SDF_SUCCESS) {
-		    			log_level = LOG_TRACE;
-		    			plat_free(map);
-					}
-					break;
-	    	}
-		}
-    }
-
-    plat_log_msg(21516, LOG_CAT, log_level, "%llu - %s - %s", 
-		 (unsigned long long)cguid, cname, SDF_Status_Strings[status]);
-
-    return (status);
-}
-
-SDF_status_t
-cmc_get_cguid_map(SDF_internal_ctxt_t *pai, SDFContainer c, const char *cname, SDF_cguid_map_t *map) {
-
-    SDF_status_t status = SDF_FAILURE;
-    SDF_size_t destLen = 0;
-    SDF_cguid_map_t *cached = NULL;
-    SDF_size_t size = sizeof(SDF_cguid_map_t);
-    SDF_cguid_map_t *lmap = NULL;
-    fthWaitEl_t *wait = NULL;
+    cntr_map_t  *cmap  = NULL;
+    SDF_cguid_t  cguid = SDF_NULL_CGUID;
 
     plat_log_msg(20819, LOG_CAT, LOG_TRACE, "%s", cname);
 
-   	switch (cmc_type) {
+    cmap = zs_cmap_get_by_cname((char *)cname);
+    if (NULL != cmap)
+       cguid = cmap->cguid;
 
-		case CMC_HASHMAP:
-			if ((cached = (SDF_cguid_map_t *) HashMap_get(cguid_map, cname)) == NULL) {
-	    		// Miss - must get from flash
-	    		if ((status = cmc_get_for_read_buffered_object(pai, c,
-							   cname, (void *) map,
-							   size, &destLen)) != SDF_SUCCESS) {
-	    		}
-			} else {
-
-	    		memcpy(map, cached, size);
-	    		status = SDF_SUCCESS;
-			}
-			break;
-
-    	case CMC_PIN:
-			wait = fthLock(&cguid_lock, 1, NULL);
-
-			if ((status = cmc_get_for_read_pinned_object(pai, c, cname, &destLen,
-					    (void **) &lmap)) == SDF_SUCCESS) {
-	    		memcpy(map, lmap, destLen);
-	    		status = cmc_unpin_object(pai, c, cname);
-			}
-
-			fthUnlock(wait);
-			break;
-
-    	case CMC_BUFFERED:
-
-			if ((status = cmc_get_for_read_buffered_object(pai, c,
-						       cname, (void *) map,
-						       size, &destLen)) != SDF_SUCCESS) {
-			}
-			break;
-
-    	default:
-			plat_log_msg(21510, LOG_CAT, LOG_FATAL, "Invalid CMC_TYPE!");
-			plat_assert(0 == 1);
-			break;
-    	}
-
-    if (status == SDF_OBJECT_UNKNOWN) {
-		status = SDF_CONTAINER_UNKNOWN;
-    }
-
-    plat_log_msg(21511, LOG_CAT, LOG_DBG, "%s - %s", 
-		 cname, SDF_Status_Strings[status]);
-
-    return (status);
-}
-
-SDF_status_t
-cmc_remove_cguid_map(SDF_internal_ctxt_t *pai, SDFContainer c, const char *cname) {
-
-    SDF_status_t status = SDF_FAILURE;
-    fthWaitEl_t *wait = NULL;
-#ifndef SDFAPI
-    int log_level = LOG_ERR;
-#endif /* SDFAPI */
-    SDF_cguid_map_t *map = NULL;
-                
-    plat_log_msg(20819, LOG_CAT, LOG_TRACE, "%s", cname);
-            
-    switch(cmc_type) {
-
-    	case CMC_HASHMAP:
-			if ((map = (SDF_cguid_map_t *) HashMap_remove(cguid_map, cname)) != NULL) {
-	    		plat_free(map);
-	    		status = SDF_SUCCESS;
-#ifndef SDFAPI
-	    		log_level = LOG_TRACE;
-#endif /* SDFAPI */
-			}
-			// Fall through to remove from flash
-
-    	default:
-			wait = fthLock(&cguid_lock, 1, NULL);
-			if ((status = cmc_remove_object(pai, c, cname)) == SDF_SUCCESS) {
-#ifndef SDFAPI
-	    		log_level = LOG_TRACE;
-#endif /* SDFAPI */
-			}
-			fthUnlock(wait);
-   	}
-
-    if (status == SDF_OBJECT_UNKNOWN) {
-		status = SDF_CONTAINER_UNKNOWN;
-    }
-
-    plat_log_msg(21511, LOG_CAT, LOG_TRACE, "%s - %s",  cname, SDF_Status_Strings[status]);
-
-    return (status);
+    return cguid;
 }
 
 #if 0
@@ -1517,15 +1305,16 @@ SDF_status_t
 cmc_flush_inval_object_container(SDF_internal_ctxt_t *pai, const char *path) {
 
     SDF_status_t status = SDF_SUCCESS;
-    SDF_cguid_map_t map;
+    SDF_cguid_t cguid = SDF_NULL_CGUID;
     int log_level = LOG_ERR;
+
 
     plat_log_msg(20819, LOG_CAT, LOG_TRACE, "%s", path);
 
-    if ((status = cmc_get_cguid_map(pai, theCMC->c, path, &map)) == SDF_SUCCESS &&
-	(status = SDF_I_FlushInvalContainer(pai, map.cguid)) == SDF_SUCCESS &&
-        (status = SDF_I_SyncContainer(pai, map.cguid)) == SDF_SUCCESS) {
-	log_level = LOG_TRACE;	
+    if ((cguid = cmc_get_cguid_from_cname(pai, theCMC->c, (char *)path)) != SDF_NULL_CGUID &&
+        (status = SDF_I_FlushInvalContainer(pai, cguid)) == SDF_SUCCESS &&
+        (status = SDF_I_SyncContainer(pai, cguid)) == SDF_SUCCESS) {
+        log_level = LOG_TRACE;
     }
 
     plat_log_msg(21511, LOG_CAT, log_level, "%s - %s",
@@ -1538,15 +1327,15 @@ SDF_status_t
 cmc_inval_object_container(SDF_internal_ctxt_t *pai, const char *path) {
 
     SDF_status_t status = SDF_SUCCESS;
-    SDF_cguid_map_t map;
+    SDF_cguid_t cguid = SDF_NULL_CGUID;
     int log_level = LOG_ERR;
 
     plat_log_msg(20819, LOG_CAT, LOG_TRACE, "%s", path);
 
-    if ((status = cmc_get_cguid_map(pai, theCMC->c, path, &map)) == SDF_SUCCESS &&
-	(status = SDF_I_InvalContainer(pai, map.cguid)) == SDF_SUCCESS)
+    if ((cguid = cmc_get_cguid_from_cname(pai, theCMC->c, (char *)path)) == SDF_NULL_CGUID &&
+	    (status = SDF_I_InvalContainer(pai, cguid)) == SDF_SUCCESS)
     {
-	log_level = LOG_TRACE;	
+	    log_level = LOG_TRACE;	
     }
 
     plat_log_msg(21511, LOG_CAT, log_level, "%s - %s",
@@ -2039,3 +1828,56 @@ cmc_object_container_arg_check2(SDF_CONTAINER container, const char *key, SDF_st
     }
     return (ret);
 }
+
+static SDF_container_props_t *cmc_create_sdf_props(
+    ZS_container_props_t *fdf_properties
+    )
+{
+    SDF_container_props_t   *sdf_properties = (SDF_container_props_t *) plat_alloc ( sizeof ( SDF_container_props_t ) );
+
+    if ( NULL != sdf_properties ) {
+        sdf_properties->container_id.owner                      = 0;
+        sdf_properties->container_id.size                       = fdf_properties->size_kb;
+        sdf_properties->container_id.container_id               = 0;
+        //sdf_properties->container_id.sc_num_objs                 = (fdf_properties->size_kb * 1024 / Mcd_osd_blk_size);
+
+        sdf_properties->cguid                                   = fdf_properties->cguid;
+
+        sdf_properties->container_type.type                     = SDF_OBJECT_CONTAINER;
+        sdf_properties->container_type.persistence              = SDF_TRUE /* fdf_properties->persistent */;
+        sdf_properties->container_type.caching_container        = fdf_properties->evicting;
+        sdf_properties->container_type.async_writes             = fdf_properties->async_writes;
+
+        sdf_properties->replication.enabled                     = 0;
+        sdf_properties->replication.type                        = SDF_REPLICATION_NONE;
+        sdf_properties->replication.num_replicas                = 1;
+        sdf_properties->replication.num_meta_replicas           = 0;
+        sdf_properties->replication.synchronous                 = 1;
+
+        sdf_properties->cache.not_cacheable                     = SDF_FALSE;
+        sdf_properties->cache.shared                            = SDF_FALSE;
+        sdf_properties->cache.coherent                          = SDF_FALSE;
+        sdf_properties->cache.enabled                           = SDF_TRUE;
+        sdf_properties->cache.writethru                         = fdf_properties->writethru;
+        sdf_properties->cache.size                              = 0;
+        sdf_properties->cache.max_size                          = 0;
+
+        sdf_properties->shard.enabled                           = SDF_TRUE;
+        sdf_properties->shard.num_shards                        = 1 /* fdf_properties->num_shards */;
+        sdf_properties->fifo_mode                               = SDF_FALSE /* fdf_properties->fifo_mode */;
+
+        sdf_properties->durability_level                        = SDF_NO_DURABILITY;
+
+        if ( fdf_properties->durability_level == ZS_DURABILITY_HW_CRASH_SAFE )
+            sdf_properties->durability_level = SDF_FULL_DURABILITY;
+        else if ( fdf_properties->durability_level == ZS_DURABILITY_SW_CRASH_SAFE )
+            sdf_properties->durability_level = SDF_RELAXED_DURABILITY;
+
+        sdf_properties->flash_only                              = fdf_properties->flash_only;
+        sdf_properties->cache_only                              = fdf_properties->cache_only;
+                sdf_properties->compression = fdf_properties->compression;
+    }
+
+    return sdf_properties;
+}
+

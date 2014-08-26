@@ -516,12 +516,6 @@ SDFCreateContainer(SDF_internal_ctxt_t *pai, const char *path, SDF_container_pro
 #endif
                 if (create_put_meta(pai, path, meta, cguid) == SDF_SUCCESS) {
 
-		    // For non-CMC, map the cguid and cname
-		    if (!isCMC && (name_service_create_cguid_map(pai, path, cguid)) != SDF_SUCCESS) {
-			plat_log_msg(21534, LOG_CAT, LOG_ERR,
-				     "failed to map cguid: %s", path);
-		    }
-
 		    if (!isCMC && (status = name_service_lock_meta(pai, path)) != SDF_SUCCESS) {
 			plat_log_msg(21532, LOG_CAT, LOG_ERR, "failed to lock %s", path);
 		    } else if (!isContainerParentNull(parent = createParentContainer(pai, path, meta))) {
@@ -891,21 +885,6 @@ SDF_status_t delete_container_internal_low(
                 plat_log_msg(21549, LOG_CAT, LOG_TRACE,
                         "%s - unlock metadata succeeded", path);
 	    }
-
-            /*  Remove the container cguid map.
-	     *  This must be done AFTER name_service_unlock_meta because
-	     *  the meta lock is uses the cguid map structure!
-	     */
-            if (status == SDF_SUCCESS &&
-		name_service_remove_cguid_map(pai, path) != SDF_SUCCESS) {
-                plat_log_msg(21550, LOG_CAT, LOG_ERR,
-                        "%s - failed to remove cguid map", path);
-                log_level = LOG_ERR;
-               plat_assert(0);
-            } else {
-                plat_log_msg(21551, LOG_CAT, LOG_TRACE,
-                        "%s - remove cguid map succeeded", path);
-	    }
 	}
     }
 
@@ -1040,102 +1019,91 @@ SDFCloseContainer(SDF_internal_ctxt_t *pai, SDF_CONTAINER container)
         status = SDF_FAILURE_CONTAINER_GENERIC;
     } else {
 
-	// Delete the container if there are no outstanding opens and a delete is pending
-	local_SDF_CONTAINER lcontainer = getLocalContainer(&lcontainer, container);
-	SDF_CONTAINER_PARENT parent = lcontainer->parent;
-	local_SDF_CONTAINER_PARENT lparent = getLocalContainerParent(&lparent, parent);
-	char path[MAX_OBJECT_ID_SIZE] = "";
+        // Delete the container if there are no outstanding opens and a delete is pending
+        local_SDF_CONTAINER lcontainer = getLocalContainer(&lcontainer, container);
+        SDF_CONTAINER_PARENT parent = lcontainer->parent;
+        local_SDF_CONTAINER_PARENT lparent = getLocalContainerParent(&lparent, parent);
+        char path[MAX_OBJECT_ID_SIZE] = "";
 
-	if (lparent->name) {
-	    memcpy(&path, lparent->name, strlen(lparent->name));
-	} 
+        if (lparent->name) { 
+            memcpy(&path, lparent->name, strlen(lparent->name));
+        } 
 
-	if (lparent->num_open_descriptors == 1 && lparent->delete_pending == SDF_TRUE) {
-	    ok_to_delete = 1;
-	}
+        if (lparent->num_open_descriptors == 1 && lparent->delete_pending == SDF_TRUE) {
+	        ok_to_delete = 1;
+	    }
+
         // copy these from lparent before I nuke it!
-	n_descriptors = lparent->num_open_descriptors;
-	cguid         = lparent->cguid;
-	releaseLocalContainerParent(&lparent); 
+	    n_descriptors = lparent->num_open_descriptors;
+	    cguid         = lparent->cguid;
+	    releaseLocalContainerParent(&lparent); 
 
-	if (closeParentContainer(container)) {
-	    status = SDF_SUCCESS;
-	    log_level = LOG_TRACE;
-	}
-
-	// FIXME: This is where shardClose call goes.
-	if (n_descriptors == 1) {
-	    #define MAX_SHARDIDS 32 // Not sure what max is today
-	    SDF_shardid_t shardids[MAX_SHARDIDS];
-	    uint32_t shard_count;
-	    get_container_shards(pai, cguid, shardids, MAX_SHARDIDS, &shard_count);
-	    for (int i = 0; i < shard_count; i++) {
-		//shardClose(shardids[i]);
+	    if (closeParentContainer(container)) {
+	        status = SDF_SUCCESS;
+	        log_level = LOG_TRACE;
 	    }
-	}
 
+	    // FIXME: This is where shardClose call goes.
+	    if (n_descriptors == 1) {
+	        #define MAX_SHARDIDS 32 // Not sure what max is today
+	        SDF_shardid_t shardids[MAX_SHARDIDS];
+	        uint32_t shard_count;
+	        get_container_shards(pai, cguid, shardids, MAX_SHARDIDS, &shard_count);
+	        for (int i = 0; i < shard_count; i++) {
+		        //shardClose(shardids[i]);
+	        }
+	    }
 	
-	if (status == SDF_SUCCESS && ok_to_delete) {
+	    if (status == SDF_SUCCESS && ok_to_delete) {
 
-	    if ((status = name_service_lock_meta(pai, path)) == SDF_SUCCESS) {
+	        if ((status = name_service_lock_meta(pai, path)) == SDF_SUCCESS) {
 
-		// Flush and invalidate all of the container's cached objects
-		if ((status = name_service_inval_object_container(pai, path)) != SDF_SUCCESS) {
-		    plat_log_msg(21540, LOG_CAT, LOG_ERR,
-				 "%s - failed to flush and invalidate container", path);
-		    log_level = LOG_ERR;
-		} else {
-		    plat_log_msg(21541, LOG_CAT, LOG_TRACE,
-				 "%s - flush and invalidate container succeed", path);
-		}
+		        // Flush and invalidate all of the container's cached objects
+		        if ((status = name_service_inval_object_container(pai, path)) != SDF_SUCCESS) {
+		            plat_log_msg(21540, LOG_CAT, LOG_ERR, 
+                                 "%s - failed to flush and invalidate container", path);
+		            log_level = LOG_ERR;
+		        } else {
+		            plat_log_msg(21541, LOG_CAT, LOG_TRACE,
+				     "%s - flush and invalidate container succeed", path);
+		        }
 
-		// Remove the container shards
-		if (status == SDF_SUCCESS && 
-		    (status = name_service_delete_shards(pai, path)) != SDF_SUCCESS) {
-		    plat_log_msg(21544, LOG_CAT, LOG_ERR,
-				 "%s - failed to delete container shards", path);
-		    log_level = LOG_ERR;
-		} else {
-		    plat_log_msg(21545, LOG_CAT, LOG_TRACE,
-				 "%s - delete container shards succeeded", path);
-		}
+		        // Remove the container shards
+		        if (status == SDF_SUCCESS && 
+		            (status = name_service_delete_shards(pai, path)) != SDF_SUCCESS) {
+		            plat_log_msg(21544, LOG_CAT, LOG_ERR,
+				         "%s - failed to delete container shards", path);
+		            log_level = LOG_ERR;
+		        } else {
+		            plat_log_msg(21545, LOG_CAT, LOG_TRACE,
+				         "%s - delete container shards succeeded", path);
+		        }
 
-		// Remove the container metadata
-		if (status == SDF_SUCCESS &&
-		    (status = name_service_remove_meta(pai, path)) != SDF_SUCCESS) {
-		    plat_log_msg(21546, LOG_CAT, LOG_ERR,
-				 "%s - failed to remove metadata", path);
-		    log_level = LOG_ERR;
-		} else {
-		    plat_log_msg(21547, LOG_CAT, LOG_TRACE,
-				 "%s - remove metadata succeeded", path);
-		}
+		        // Remove the container metadata
+		        if (status == SDF_SUCCESS &&
+		            (status = name_service_remove_meta(pai, path)) != SDF_SUCCESS) {
+		            plat_log_msg(21546, LOG_CAT, LOG_ERR,
+				                 "%s - failed to remove metadata", path);
+		            log_level = LOG_ERR;
+		        } else {
+		            plat_log_msg(21547, LOG_CAT, LOG_TRACE,
+				                 "%s - remove metadata succeeded", path);
+		        }
 
-		// Unlock the metadata - only return lock error status if no other errors
-		if ((lock_status == name_service_unlock_meta(pai, path)) != SDF_SUCCESS) {
-		    plat_log_msg(21548, LOG_CAT, LOG_ERR,
-				 "%s - failed to unlock metadata", path);
-		    if (status == SDF_SUCCESS) {
-			status = lock_status;
-			log_level = LOG_ERR;		    
-		    }
-		} else {
-		    plat_log_msg(21549, LOG_CAT, LOG_TRACE,
-				 "%s - unlock metadata succeeded", path);
-		}
-
-		// Remove the container guid map
-		if (status == SDF_SUCCESS &&
-		    name_service_remove_cguid_map(pai, path) != SDF_SUCCESS) {
-		    plat_log_msg(21550, LOG_CAT, LOG_ERR,
-				 "%s - failed to remove cguid map", path);
-		    log_level = LOG_ERR;
-		} else {
-		    plat_log_msg(21551, LOG_CAT, LOG_TRACE,
-				 "%s - remove cguid map succeeded", path);
-		}
+		        // Unlock the metadata - only return lock error status if no other errors
+		        if ((lock_status == name_service_unlock_meta(pai, path)) != SDF_SUCCESS) {
+		            plat_log_msg(21548, LOG_CAT, LOG_ERR,
+				                 "%s - failed to unlock metadata", path);
+		            if (status == SDF_SUCCESS) {
+			            status = lock_status;
+			            log_level = LOG_ERR;		    
+		            }
+		        } else {
+		            plat_log_msg(21549, LOG_CAT, LOG_TRACE,
+				                 "%s - unlock metadata succeeded", path);
+		        }
+	        }
 	    }
-	}
     }
 
     plat_log_msg(20819, LOG_CAT, log_level, "%s", SDF_Status_Strings[status]);
@@ -1404,20 +1372,7 @@ create_put_meta(SDF_internal_ctxt_t *pai, const char *path, SDF_container_meta_t
         // For the CMC, simply initialize the CMC structure.
         init_cmc(meta);
 
-		/*
-		** We need to stuff away metadata in the shard so that the CMC can be recovered.
-		** Need to revisit this after Beta. It would be better to delete containers from Admin.
-		*/
-		if (cguid <= LAST_PHYSICAL_CGUID && init_container_meta_blob_put != NULL) {
-
-	    	SDF_container_meta_blob_t blob;
-
-	    	// Stuff the metadata
-	    	blob.version = SDF_BLOB_CONTAINER_META_VERSION;
-	    	memcpy(&(blob.meta), meta, sizeof(*meta));
-
-	    	status = init_container_meta_blob_put(meta->shard, (char *) &blob, sizeof(SDF_container_meta_blob_t));
-		}
+        status = SDF_SUCCESS;
     }
 
     plat_log_msg(21562, LOG_CAT, LOG_TRACE, "create_put_meta: %d\n", status);
@@ -2157,15 +2112,12 @@ _sdf_cguid_valid(SDF_cguid_t cguid) {
     return (cguid >= NODE_MULTIPLIER || cguid == CMC_CGUID);
 }
 
-// static uint32_t shard_id_counter = 1;
-
 /** @brief return contiguous range of count shardids */
 /* XXX: This needs to persist (in the local container) */
 SDF_shardid_t
 generate_shard_ids(uint32_t node, SDF_cguid_t cguid, uint32_t count) {
     uint64_t shard_part = 0;
     uint64_t shard_id = 0;
-    // shard_part = __sync_fetch_and_add(&shard_id_counter, count);
     shard_part = 1;
 
 /* can't allow shard_id and container_id (cguid) to exceed their

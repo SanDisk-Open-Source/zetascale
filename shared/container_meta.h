@@ -27,11 +27,7 @@ extern "C" {
 __BEGIN_DECLS
 
 enum {
-    SDF_BLOB_CONTAINER_META_VERSION = 0x1
-};
-
-enum {
-    SDF_CONTAINER_META_VERSION = 0x1
+    SDF_CONTAINER_META_VERSION = 0x2
 };
 
 typedef struct {

@@ -584,6 +584,18 @@ FDF_status_t FDFInitVersioned(
 #endif
 
 /**
+ * @brief FDF FSCK initialization
+ *
+ * @param fdf_state <OUT> FDF state variable
+ * @param api_version <IN> FDF API version
+ * @return FDF_SUCCESS on success
+ */
+FDF_status_t FDFInitFSCK(
+	struct FDF_state	**fdf_state,
+	uint32_t                api_version
+	);
+
+/**
  * @brief FDF per thread state initialization
  *
  * @param fdf_state <IN> FDF state variable

@@ -219,48 +219,14 @@ SDF_status_t
 cmc_delete_shards(SDF_internal_ctxt_t *pai, SDFContainer c, const char *cname);
 
 /**
- * @brief Map a container path name to its guid.
- *
- * @param c <IN> CMC open container pointer.
- * @param cguid <IN> Container guid.
- * @param cname <IN> Container name.
- * @return SDF status.
- */
-SDF_status_t
-cmc_create_cguid_map(SDF_internal_ctxt_t *pai, SDFContainer c, SDF_cguid_t cguid, const char *cname);
-
-/**
- * @brief Get the container name to guid map object.
+ * @brief Get the cguid from the container name.
  *
  * @param c <IN> CMC open container pointer.
  * @param cname <IN> Container name.
- * @param meta <OUT> Pointer to a user-supplied cguid map buffer.
- * @return SDF status.
+ * @return cguid.
  */
-SDF_status_t
-cmc_get_cguid_map(SDF_internal_ctxt_t *pai, SDFContainer c, const char *cname, 
-		  SDF_cguid_map_t *map);
-
-/**
- * @brief Update a container name to guid map.
- *
- * @param c <IN> CMC open container pointer.
- * @param cguid <IN> Container guid.
- * @param cname <IN> Container name.
- * @return SDF status.
- */
-SDF_status_t
-cmc_put_cguid_map(SDF_internal_ctxt_t *pai, SDFContainer c, SDF_cguid_t cguid, const char *cname);
-
-/**
- * @brief Remove a container name to guid map.
- *
- * @param c <IN> CMC open container pointer.
- * @param cname <IN> Container name.
- * @return SDF status.
- */
-SDF_status_t
-cmc_remove_cguid_map(SDF_internal_ctxt_t *pai, SDFContainer c, const char *cname);
+SDF_cguid_t
+cmc_get_cguid_from_cname(SDF_internal_ctxt_t *pai, SDFContainer c, const char *cname);
 
 /**
  * @brief Create an object container

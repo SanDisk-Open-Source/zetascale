@@ -1533,47 +1533,6 @@ home_flash_shard_wrapper(
 			status = SDF_FAILURE_STORAGE_WRITE;
 		    } else if (recv_pm->flags & f_open_ctnr) {
 		
-			SDF_container_meta_t      meta;
-			SDF_container_meta_blob_t blob;
-			extern int (*init_container_meta_blob_put)( uint64_t shard_id, char * data, int len );
-
-			/*  We need to stuff away metadata in the
-			 *  shard so that the CMC can be recovered.
-			 *  Need to revisit this after Beta.
-			 */
-
-			/* xxxzzz FIXME!!! */
-
-			meta.type              = SDF_META_TYPE_CONTAINER;
-			meta.version           = SDF_CONTAINER_META_VERSION;
-			meta.cguid             = recv_pm->cguid;
-			bzero((void *) &(meta.properties), sizeof(meta.properties));
-			meta.flush_time        = 0;
-			meta.flush_set_time    = 0;
-			meta.shard             = recv_shard_meta->sguid;
-			meta.meta_shard        = recv_shard_meta->sguid_meta;
-			meta.shards_per_node   = 1;
-			meta.nodes_per_replica = 1;
-			meta.node              = 0; // FIXME xxxzzz
-			bzero((void *) &(meta.counters), sizeof(meta.counters));
-			(void) strcpy(meta.cname, recv_pm->cname);
-
-			/* assign properties that matter */
-			meta.properties.shard.num_shards = 1;
-
-			plat_log_msg(21317, LOG_CAT_SHARD,
-				     PLAT_LOG_LEVEL_DEBUG,
-				     "HFCSH container name: %s", recv_pm->cname);
-
-			blob.version = SDF_BLOB_CONTAINER_META_VERSION;
-			memcpy(&(blob.meta), &meta, sizeof(meta));
-			status = init_container_meta_blob_put(recv_shard_meta->sguid,
-					 (char *) &blob,
-					 sizeof(SDF_container_meta_blob_t));
-			if (!status) {
-			    status  = SDF_FAILURE_STORAGE_WRITE;
-			    success = 0;
-			}
 		    }
 		    if (success) {
 			if (recv_pm->flags & f_open_ctnr) {

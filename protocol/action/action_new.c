@@ -80,7 +80,6 @@
 #define incrn(x, n) __sync_fetch_and_add(&(x), (n))
 
 extern HashMap meta_map; // from shared/cmc.c, used in action_stats()
-extern HashMap cguid_map; // from shared/cmc.c, used in action_stats()
 
 /*  Stop a shard map entry.
  *  Returns 0 if success, non-zero otherwise.
@@ -4440,7 +4439,6 @@ void action_stats(SDF_internal_ctxt_t *pac, char *str, int size)
     wait = fthLock(&(pas->stats_lock), 1, NULL);
     
     len += HashMap_stats(meta_map, "meta_map", str+len, size-len);
-    len += HashMap_stats(cguid_map, "cguid_map", str+len, size-len);
     (void) cache_stats(pas, str+len, size-len);
 
     fthUnlock(wait);

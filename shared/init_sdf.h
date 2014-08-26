@@ -186,14 +186,6 @@ uint32_t
 init_get_my_node_id();
 
 /**
- * @brief Configure the CMC to cguid mapping.
- *
- * @return SDF_SUCCESS on success
- */
-SDF_status_t
-init_set_cmc_cguid(SDF_internal_ctxt_t *pai);
-
-/**
  * @brief Initialize the node's cguid counter.
  *
  */

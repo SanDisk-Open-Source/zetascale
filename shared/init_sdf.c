@@ -23,6 +23,7 @@
 #include "name_service.h"
 #include "init_sdf.h"
 #include "cmc.h"
+#include "name_service.h"
 #include "shard_compute.h"
 #include "ssd/fifo/container_meta_blob.h"
 #include "utils/properties.h"
@@ -49,11 +50,13 @@ struct SDF_shared_state sdf_shared_state;
 extern SDF_status_t
 zs_open_virtual_support_containers(SDF_internal_ctxt_t *pai, int flags);
 
+#ifdef notdef
 int 
 (*init_container_meta_blob_put)( uint64_t shard_id, char * data, int len ) = NULL;
 
 int 
 (*init_container_meta_blob_get)( char * blobs[], int num_slots ) = NULL;
+#endif
 
 void 
 init_sdf_initialize_config(struct SDF_config *config,
@@ -133,38 +136,9 @@ init_sdf_initialize(const struct SDF_config *config, int restart)
                      "CMC create failed");
     }
 
-	// Recover ZS system containers and objects
-    if (status == SDF_SUCCESS && sdf_shared_state.config.system_recovery == SYS_FLASH_RECOVERY) {
-		SDF_cguid_t cguid_counter;
-		if ((status = name_service_get_cguid_state(config->pai,
-												   init_get_my_node_id(), 
-						   					   	   &cguid_counter)) == SDF_SUCCESS) {
-	    	init_set_cguid_counter(cguid_counter);
-	    	log_level = LOG_DBG;
-		} else {
-	    	// Did not recover cguid state - fail for now - need a resilient recovery method
-	    	plat_log_msg(21606, 
-						 PLAT_LOG_CAT_SDF_SHARED, 
-						 PLAT_LOG_LEVEL_WARN, 
-						 "Did not find cguid counter state - re-initializing counter");
-		}
-    }
-
     /* The master now allows the slaves to continue */
     if (!restart && config->my_node == CMC_HOME)
         sdf_msg_sync();
-
-    // Create ZS system containers and objects
-    if (status == SDF_SUCCESS && sdf_shared_state.config.system_recovery != SYS_FLASH_RECOVERY) {
-
-    	// Write out a cguid state object so that cmc recovery will work
-		if ((status = name_service_create_cguid_state(config->pai, 
-													  init_get_my_node_id(), 
-						      						  CMC_CGUID_INITIAL_VALUE)) != SDF_SUCCESS) {
-	    	log_level = LOG_FATAL;
-	    	plat_log_msg(21607, LOG_CAT, log_level, "Failed to write cguid state");
-		}
-    }
 
     plat_log_msg(20819, LOG_CAT, log_level, "%s", SDF_Status_Strings[status]);
 
@@ -179,24 +153,6 @@ init_cmc(SDF_container_meta_t *meta) {
 uint32_t
 init_get_my_node_id() {
     return (sdf_shared_state.config.my_node);
-}
-
-SDF_status_t
-init_set_cmc_cguid(SDF_internal_ctxt_t *pai) {
-    SDF_status_t status = SDF_FAILURE;
-    uint32_t my_node = sdf_shared_state.config.my_node;
-
-    if ((cmc_put_cguid_map(pai, theCMC->c, CMC_CGUID, CMC_PATH)) != SDF_SUCCESS) {
-		plat_log_msg(21608, PLAT_LOG_CAT_SDF_CMC, PLAT_LOG_LEVEL_ERROR,
-		     "Failure: Node %u - init_set_cmc_cguid - failed to map cguid %s - status %u",
-		     my_node, CMC_PATH, status);
-    } else {
-		status = SDF_SUCCESS;
-		plat_log_msg(21609, PLAT_LOG_CAT_SDF_CMC, PLAT_LOG_LEVEL_DEBUG,
-		     "Success: Node %u - init_set_cmc_cguid", my_node);
-    }
-
-    return (status);
 }
 
 void
