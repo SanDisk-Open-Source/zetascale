@@ -6,6 +6,38 @@
 #include <assert.h>
 #include <api/zs.h>
 
+typedef enum {
+	 BT_CNTR_UNUSED,		/* cguid will be NULL for unused entries */
+	 BT_CNTR_INIT,			/* Initializing */
+	 BT_CNTR_OPEN,			/* Opened */
+	 BT_CNTR_CLOSING,		/* Closing in progress */
+	 BT_CNTR_CLOSED,		/* Closed */
+	 BT_CNTR_DELETING,		/* Deletion in progress */
+} BT_CNTR_STATE;
+
+typedef struct read_node {
+    ZS_cguid_t              cguid;
+    uint64_t                 nodesize;
+} read_node_t;
+
+typedef struct cmap {
+    char				cname[CONTAINER_NAME_MAXLEN];
+    uint64_t			cguid;
+    struct btree		*btree;
+    int					read_by_rquery;
+    read_node_t			node_data;
+	bool				read_only;
+	BT_CNTR_STATE		bt_state;
+	int					bt_wr_count, bt_rd_count;
+	int					snap_initiated;
+	bool				scavenger_state;
+	pthread_mutex_t		bt_snap_mutex;
+	pthread_cond_t		bt_snap_wr_cv;
+	pthread_cond_t		bt_snap_cv;
+	pthread_rwlock_t	bt_cm_rwlock;
+	uint64_t			flags;
+	void				*iter;
+} ctrmap_t;
 
 #define BAD_CHILD       0
 #define META_LOGICAL_ID 0x8000000000000000L
@@ -108,7 +140,6 @@ typedef struct btree_raw_node {
     node_key_t    keys[0];
 } btree_raw_node_t;
 
-typedef struct btree_raw_mem_node btree_raw_mem_node_t;
 
 #define	NODE_DIRTY		0x1
 #define NODE_DELETED	0x2
@@ -120,6 +151,7 @@ typedef struct btree_raw_mem_node btree_raw_mem_node_t;
 #define	is_node_deleted(n)		((n)->flag & NODE_DELETED)
 
 
+typedef struct btree_raw_mem_node btree_raw_mem_node_t;
 //#define DEBUG_STUFF
 struct btree_raw_mem_node {
 	struct btree_raw_mem_node  *free_next; // free list   
@@ -131,11 +163,12 @@ struct btree_raw_mem_node {
 	pthread_t lock_id;
 #endif
 	bool pinned;
-        bool deref_delete_cache;
+	bool deref_delete_cache;
 	plat_rwlock_t lock;
 	btree_raw_mem_node_t *dirty_next; // dirty list
 	btree_raw_node_t *pnode;
 };
+
 
 /* Memory alloc functions */
 #define MEM_NODE_SIZE  (sizeof(btree_raw_mem_node_t) + get_btree_node_size())  
@@ -156,7 +189,8 @@ typedef struct {
 btree_node_list_t *btree_node_list_init(uint64_t n_entries, uint64_t size);
 btree_status_t btree_node_list_alloc(btree_node_list_t *l, uint64_t n_entries, uint64_t size);
 btree_raw_mem_node_t *btree_node_alloc(btree_node_list_t *l);
-void btree_node_free(btree_node_list_t *l, btree_raw_mem_node_t *mnode);
+void btree_node_free(btree_raw_mem_node_t *mnode);
+void btree_node_free2(btree_node_list_t *l, btree_raw_mem_node_t *mnode);
 
 /************** Snapshot related structures *****************/
 #define SNAP_VERSION1			0x98760001
@@ -173,11 +207,15 @@ typedef struct __attribute__((__packed__)) btree_snap_meta_v1 {
 } btree_snap_meta_v1_t;
 
 
+typedef enum sc_status {
+	SC_STALE_ENT 		= 0x01,	//Purge duplicate/stale entries
+	SC_OVERFLW_DELCONT	= 0x02,	//Purge Overflow nodes and delete container
+} scs_t;
 typedef struct __attribute__((__packed__)) btree_snap_meta {
 	uint32_t			snap_version;
 	uint32_t			max_snapshots;
 	uint32_t			total_snapshots;
-	uint32_t			scavenging_in_progress;
+	uint32_t			sc_status;
 	union {
 		btree_snap_meta_v1_t	v1_meta;
 	} meta;
@@ -321,7 +359,10 @@ get_key_stuff_info2(btree_raw_t *bt, btree_raw_node_t *n, uint32_t nkey, key_stu
 btree_status_t get_leaf_data_index(btree_raw_t *bt, btree_raw_node_t *n, int index, char **data, uint64_t *datalen, uint32_t meta_flags, int ref, bool deref_delete_cache);
 btree_status_t get_leaf_key_index(btree_raw_t *bt, btree_raw_node_t *n, int index, char **key, uint32_t *keylen, uint32_t meta_flags, key_stuff_info_t *pks);
 btree_raw_mem_node_t *get_existing_node_low(btree_status_t *ret, btree_raw_t *btree, uint64_t logical_id, int ref, bool pinned, bool delete_after_deref);
+btree_raw_mem_node_t *get_existing_overflow_node_low(btree_status_t *ret, btree_raw_t *btree, uint64_t logical_id, int ref, bool pinned, bool delete_after_deref);
 btree_raw_mem_node_t *get_existing_node(btree_status_t *ret, btree_raw_t *btree, uint64_t logical_id);
+btree_raw_mem_node_t *get_existing_overflow_node(btree_status_t *ret, btree_raw_t *btree, uint64_t logical_id);
+btree_raw_mem_node_t *get_existing_node_internal(btree_status_t *ret, btree_raw_t *btree, uint64_t logical_id, int rawobj, int ref, bool pinned, bool delete_after_deref);
 int is_leaf(btree_raw_t *btree, btree_raw_node_t *node);
 int is_overflow(btree_raw_t *btree, btree_raw_node_t *node);
 void delete_key_by_index_non_leaf(btree_status_t* ret, btree_raw_t *btree, btree_raw_mem_node_t *node, int index);
@@ -375,6 +416,13 @@ void btree_rcvry_test_recover(btree_raw_t *bt);
 #ifdef FLIP_ENABLED
 extern bool recovery_write;
 #endif
+extern int bt_storm_mode;
+extern uint64_t overflow_node_sz;
+extern uint64_t datasz_in_overflow;
+
+#define BT_USE_RAWOBJ(flag)			((bt_storm_mode && ((flag) & OVERFLOW_NODE))? 1 : 0)
+#define BT_GET_L1CACHE(robj)		((robj) ? global_raw_l1cache : global_l1cache)	
+#define BT_GET_L1CACHE_NODE(pnode)	(BT_GET_L1CACHE(BT_USE_RAWOBJ((pnode)->flags)))
 
 static inline int key_idx(struct btree_raw *btree, btree_raw_node_t* node, node_key_t* key)
 {
@@ -459,5 +507,8 @@ btree_raw_check_node_subtree(struct btree_raw *btree, btree_raw_node_t *node,
 bool
 btree_raw_check(struct btree_raw *btree);
 #endif 
-
+void node_lock(btree_raw_mem_node_t* node, int write_lock);
+void node_unlock(btree_raw_mem_node_t* node);
+void delete_overflow_data(btree_status_t *ret, btree_raw_t *bt, uint64_t ptr_in, uint64_t datalen);
+uint64_t get_data_in_overflownode(btree_raw_t *bt);
 #endif // __BTREE_RAW_INTERNAL_H

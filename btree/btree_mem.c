@@ -10,6 +10,8 @@
 #include <string.h>
 #include "btree_raw_internal.h"
 
+extern btree_node_list_t *free_node_list;
+extern btree_node_list_t *free_raw_node_list;
 /******************* Node related functions *********************/
 btree_node_list_t *
 btree_node_list_init(uint64_t n_entries, uint64_t size)
@@ -55,7 +57,7 @@ btree_node_list_alloc(btree_node_list_t *l, uint64_t n_entries, uint64_t size)
 	for (i = 0; i < n_entries; i++) {
 		mnode = (btree_raw_mem_node_t *)buf;
 		mnode->malloced = false;
-		btree_node_free(l, mnode);
+		btree_node_free2(l, mnode);
 		buf += size;
 	}
 
@@ -109,7 +111,13 @@ btree_node_alloc(btree_node_list_t *l)
 }
 
 void
-btree_node_free(btree_node_list_t *l, btree_raw_mem_node_t *mnode)
+btree_node_free(btree_raw_mem_node_t *mnode)
+{
+	btree_node_free2(BT_USE_RAWOBJ(mnode->pnode->flags) ? free_raw_node_list : free_node_list, mnode);
+}
+
+void
+btree_node_free2(btree_node_list_t *l, btree_raw_mem_node_t *mnode)
 {
 	if (l == NULL) {
 		assert(0);

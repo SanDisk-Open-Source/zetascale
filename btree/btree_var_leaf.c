@@ -2366,6 +2366,55 @@ btree_leaf_merge_right(btree_raw_t *bt, btree_raw_node_t *from_node,
 	return true;
 }
 
+/*
+ * I M P O R T A N T:
+ * Should be called only during async delete.
+ */
+void inline 
+btree_leaf_unset_dataptr(btree_raw_node_t *n, int index)
+{
+	entry_header_t *headers = NULL;
+	char *data_ptr = NULL;
+	entry_header_t *ent_hdr = NULL;
+
+	headers = (entry_header_t *) ((char *) n->keys);
+	data_ptr = (char *) ((uint64_t )n + n->insert_ptr);
+	ent_hdr = &headers[index];
+
+	switch (ent_hdr->meta_type) {
+
+	case BTREE_KEY_META_TYPE1: {
+		assert(0);						   
+		break;
+	}	
+
+	case BTREE_KEY_META_TYPE2: {
+		assert(0);						   
+		break;
+	}
+
+	case BTREE_KEY_META_TYPE3: {
+		key_meta_type3_t *key_meta3 = 
+			(key_meta_type3_t *) (ent_hdr->header_offset + (uint64_t) data_ptr);
+		key_meta3->ptr = 0;
+		key_meta3->datalen = 0;
+		break;
+	}
+
+	case BTREE_KEY_META_TYPE4: {
+		key_meta_type4_t *key_meta4 = 
+			(key_meta_type4_t *) (ent_hdr->header_offset + (uint64_t) data_ptr);
+		key_meta4->ptr = 0;
+		key_meta4->datalen = 0;
+		break;
+	}
+
+	default:
+		dbg_assert(0);
+	}
+
+}
+
 #if 0
 /*
  * Function for consistency check for leaf node.

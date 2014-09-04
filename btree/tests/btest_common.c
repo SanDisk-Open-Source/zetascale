@@ -382,7 +382,7 @@ btest_serial_data_gen(btest_cfg_t *cfg)
 		cfg->datas[nsuccess] = pdata;
 		cfg->datalens[nsuccess] = datalen;
 
-		if (!MapCreate(cfg->kmap, (char *) &key, sizeof(uint64_t), pdata, datalen, 4, (void *)cfg->bt)) {
+		if (!MapCreate(cfg->kmap, (char *) &key, sizeof(uint64_t), pdata, datalen, 4, 0, (void *)cfg->bt)) {
 			// Error("MapCreate failed for data item %d", nsuccess);
 			nconflict++;
 		} else {
@@ -463,7 +463,7 @@ btest_rand_data_gen(btest_cfg_t *cfg)
 		cfg->datas[nsuccess] = pdata;
 		cfg->datalens[nsuccess] = datalen;
 
-		if (!MapCreate(cfg->kmap, (char *) &key, sizeof(uint64_t), pdata, datalen, 4, (void *)cfg->bt)) {
+		if (!MapCreate(cfg->kmap, (char *) &key, sizeof(uint64_t), pdata, datalen, 4, 0, (void *)cfg->bt)) {
 			// Error("MapCreate failed for data item %d", nsuccess);
 			nconflict++;
 		} else {
@@ -578,7 +578,7 @@ btest_life_cycle(btest_cfg_t *cfg)
 			(void) MapSet(cfg->kmap, (char *) &(cfg->keys[nkey]), 
 			              sizeof(uint64_t), 
 			              cfg->datas[nkey], cfg->datalens[nkey],
-			              &old_pdata, &old_datalen, 4, (void *)cfg->bt);
+			              &old_pdata, &old_datalen, 4, 0, (void *)cfg->bt);
 
 		    	ret = btree_set(cfg->bt, 
 			                keytmp, strlen(keytmp) + 1, 
@@ -600,7 +600,7 @@ btest_life_cycle(btest_cfg_t *cfg)
 			meta.flags = 0;
 			if (!MapUpdate(cfg->kmap, 
 			               (char *) &(cfg->keys[nkey]), sizeof(uint64_t),
-			               cfg->datas[nkey], cfg->datalens[nkey], 4, (void *)cfg->bt)) {
+			               cfg->datas[nkey], cfg->datalens[nkey], 4, 0, (void *)cfg->bt)) {
 				Error("Inconsistency with MapUpdate for key %lld "
 				      "(i=%lld)", cfg->keys[nkey], i);
 	    		}

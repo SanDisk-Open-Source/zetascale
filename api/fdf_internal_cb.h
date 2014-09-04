@@ -22,6 +22,7 @@ extern "C" {
 #include "common/zstypes.h"
 #include "common/fdfstats.h"
 
+
 /* Data structure to exchange stats from Btree layer */
 typedef struct ZS_ext_stat {
     uint64_t       estat; /* external stat */
@@ -41,6 +42,7 @@ typedef ZS_status_t (ext_cb_flash_stats_t)(uint64_t *alloc_blks, uint64_t *free_
                                             uint64_t blk_size, uint64_t seg_size);
 typedef ZS_status_t (ext_cb_functions_t)(void *log_func);
 typedef ZS_status_t (ext_cb_licvalid_t)(int state);
+typedef ZS_status_t (ext_cb_raw_t)(int mode, uint64_t rawobjsz );
 
 typedef enum {
     ZS_EXT_MODULE_BTREE,
@@ -62,10 +64,21 @@ typedef struct ZS_ext_cb {
     
    /* Call back function to pass function pointers to Btree layer */
    ext_cb_licvalid_t *zs_lic_cb;
+
+   /* Call back function to check raw object supported */
+   ext_cb_raw_t *zs_raw_cb;
 }ZS_ext_cb_t;
 
 ZS_status_t ZSRegisterCallbacks(struct ZS_state *zs_state, ZS_ext_cb_t *cb);
 ZS_status_t ZSLicenseCheck(int *state);
+ZS_status_t ZSCreateRawObject(struct ZS_thread_state *sdf_thread_state, ZS_cguid_t cguid,
+								baddr_t *key, uint64_t datalen, uint32_t flags);
+ZS_status_t ZSDeleteRawObject(struct ZS_thread_state *sdf_thread_state, ZS_cguid_t cguid,
+								baddr_t key, uint32_t keylen, uint32_t flags);
+ZS_status_t ZSReadRawObject(struct ZS_thread_state *ZS_thread_state, ZS_cguid_t cguid, baddr_t key,
+							char **data, uint64_t *datalen, uint32_t flags);
+ZS_status_t ZSGetBtDelContainers(struct ZS_thread_state *ZS_thread_state, ZS_cguid_t *cguid, uint32_t *ncguid);
+ZS_status_t ZSRenameContainer(struct ZS_thread_state *ZS_thread_state, ZS_cguid_t cguid, char *name);
 
 #ifdef __cplusplus
 }

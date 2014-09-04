@@ -16,6 +16,7 @@
 #include <platform/alloc.h>
 
 //#define BTREE_HACK
+#define BLOCK_ADDRESS   48
 
 /*
  * Macros to print messages.
@@ -50,7 +51,7 @@
 #define OSD_HASH_SYN_SIZE 16
 #define OSD_HASH_SYN_SHIFT 48
 
-#define OSD_HASH_ENTRY_HOPED_SIZE 10
+#define OSD_HASH_ENTRY_HOPED_SIZE 12
 
 #define OSD_HASH_LOCK_BUCKETS 262144
 #define OSD_HASH_LOCKBKT_MINSIZE 256
@@ -81,8 +82,8 @@ typedef struct hash_entry {
     unsigned int referenced:1;
     unsigned int reserved:1;
     unsigned int blocks:12;
-    hashsyn_t    syndrome;
-    baddr_t      address;
+    hashsyn_t    hesyndrome;
+	uint64_t     blkaddress:BLOCK_ADDRESS;
     cntr_id_t    cntr_id;
 }
     __attribute__ ((packed))
@@ -105,6 +106,7 @@ typedef struct hash_handle {
     uint64_t                  hash_size;
     bucket_entry_t          * hash_table;
     uint32_t                  hash_table_idx;
+    uint32_t                  max_hash_table_idx;
     uint32_t                * hash_buckets;
     int                       lock_bktsize;
     uint64_t                  lock_buckets;
@@ -112,8 +114,10 @@ typedef struct hash_handle {
     uint32_t                * bucket_locks_free_list;
     uint64_t                * bucket_locks_free_map;
     uint64_t                  total_alloc;
-    uint64_t                * key_cache;
+    uint64_t                ** key_cache;
 } hash_handle_t;
+
+extern int storm_mode;
 
 hash_handle_t *
 hash_table_init ( uint64_t total_size, uint64_t max_nobjs, int mode, int key_cache);
@@ -132,11 +136,18 @@ void
 hash_entry_delete ( hash_handle_t *hdl, hash_entry_t *he, 
                             uint32_t hash_idx);
 
+void
+hash_entry_delete1 ( hash_handle_t *hdl, hash_entry_t *he,
+					uint32_t hash_idx, uint bucket_idx);
+
+void
+hash_entry_delete2 ( hash_handle_t *hdl, hash_entry_t *he, uint bucket_idx);
+
 hash_entry_t *
 hash_entry_insert_by_key(hash_handle_t *hdl, uint64_t syndrome);
 
 hash_entry_t *
-hash_entry_insert_by_addr(hash_handle_t *hdl, uint32_t addr, 
+hash_entry_insert_by_addr(hash_handle_t *hdl, uint64_t addr, 
                                 uint64_t syndrome);
 
 fthLock_t *
@@ -149,4 +160,12 @@ hash_entry_recovery_insert(hash_handle_t *hdl,
 
 struct mcd_osd_meta;
 int
-obj_valid( hash_handle_t *hdl, struct mcd_osd_meta *meta, uint32_t addr);
+obj_valid( hash_handle_t *hdl, struct mcd_osd_meta *meta, uint64_t addr);
+
+void
+keycache_set(hash_handle_t *hdl, uint64_t blkaddr, uint64_t key);
+uint64_t
+keycache_get(hash_handle_t *hdl, uint64_t blkaddr);
+void
+keycache_free(hash_handle_t *hdl);
+

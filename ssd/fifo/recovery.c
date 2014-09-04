@@ -1623,7 +1623,7 @@ sf_flush_seg(slab_free_t *sf)
     if (!sf->segment)
         return;
 
-    real_map = sf->segment->bitmap;
+    real_map = sf->segment->mos_bitmap;
     for (i = 0; i < sf->num_words; i++)
         atomic_and(real_map[i], sf->bitmap[i]);
     atomic_sub(sf->class->used_slabs, sf->num_free);
@@ -1714,7 +1714,7 @@ sf_next(slab_free_t *sf)
     n = (slab_i > seg_slabs) ? seg_slabs : slab_i;
     atomic_sub(segment->next_slab, n);
 
-    real_map = segment->bitmap;
+    real_map = segment->mos_bitmap;
     for (i = 0; i < sf->num_words; i++)
         bitmap[i] = atomic_get_or(real_map[i], -1ULL);
 
@@ -1928,7 +1928,7 @@ slab_set_map(mshard_t *shard, bitmap_t *seg_map)
             continue;
         if (seg->next_slab == 0)
             continue;
-        slab_map = seg->bitmap;
+        slab_map = seg->mos_bitmap;
         n = Mcd_osd_segment_blks / seg->class->slab_blksize;
         n = chunk_div(n, BMAP_BITS);
         for (i = 0; i < n && slab_map[i] == 0; i++)
@@ -2062,7 +2062,7 @@ static int
 obj_prep(sur_t *sur, uint_t max_obj)
 {
     int n;
-    addr_t addr;
+    uint64_t addr;
     mrep_sect_t *mrep_sect;
     sect_t     *sect = sur->sect;
     int         fifo = sur->shard->use_fifo;
@@ -2216,13 +2216,13 @@ rand_map(mshard_t *shard, blkno_t blkno, blkno_t want_blks, blkno_t *cont_p)
     blkno_t     index = blkno / rand_blks;
     blkno_t    offset = blkno % rand_blks;
     blkno_t cont_blks = rand_blks - offset;
-    blkno_t    mapblk = shard->rand_table[index];
+    blkno_t    mapblk = shard->mos_rand_table[index];
     blkno_t    newblk = mapblk + offset;
 
     while (cont_blks < want_blks) {
         index++;
         mapblk += rand_blks;
-        if (shard->rand_table[index] != mapblk)
+        if (shard->mos_rand_table[index] != mapblk)
             break;
         cont_blks += rand_blks;
     }
@@ -2678,7 +2678,7 @@ fth_req_one(freq_one_t *freq, aioctx_t *aioctx)
         .expTime    = freq->o.expiry_time,
     };
 
-    s = ssd_flashPut(aioctx, &rec->shard->shard, &omd,
+    s = ssd_flashPut(aioctx, &rec->shard->mos_shard, &omd,
                      key, data, FLASH_PUT_TEST_EXIST);
     if (freq->o.setx)
         rsx_put(rec, &freq->o.setx, 1);
@@ -3012,6 +3012,7 @@ coal_puthash(rec_t *rec)
             .bucket     = hash_off,
             .blk_offset = blkno,
             .seqno      = v->seqno,
+            .raw        = FALSE;
         };
         log_write(shard, &log);
     }
@@ -4503,8 +4504,8 @@ enumerate_next(pai_t *pai, e_state_t *es, char **key, uint64_t *keylen,
         if (!hash->used || hash->cntr_id != cntr_id)
             continue;
 
-        s = cache_get_by_mhash(pai, (shard_t *) es->shard, hash->address,
-                               ehash->bkt_i, hash->syndrome,
+        s = cache_get_by_mhash(pai, (shard_t *) es->shard, hash->blkaddress,
+                               ehash->bkt_i, hash->hesyndrome,
                               key, keylen, data, datalen);
         if (s) {
             cntr_map_t *cmap = get_cntr_map(cntr_id);
@@ -4521,7 +4522,7 @@ enumerate_next(pai_t *pai, e_state_t *es, char **key, uint64_t *keylen,
             return ZS_FLASH_EINVAL;
 
         s = read_disk(shard, (aioctx_t *)&pai->ctxt,
-                      es->data_buf_align, hash->address, nb);
+                      es->data_buf_align, hash->blkaddress, nb);
         if (!s)
             return ZS_FLASH_EINVAL;
 
@@ -4656,6 +4657,7 @@ delete_object(mshard_t *shard, mhash_t *hash, uint64_t bkt_i)
         .blk_offset = baddr,
         .old_offset = ~(hash->address),
         .cntr_id    = hash->cntr_id,
+        .raw        = FALSE;
     };
     log_write(shard, &log);
 }
@@ -4774,25 +4776,38 @@ delete_all_objects( pai_t *pai, shard_t *sshard, cguid_t cguid)
 				for (uint j=0; j<OSD_HASH_ENTRY_PER_BUCKET_ENTRY; ++j){
 					hash_entry_t *hash_entry = &bucket->hash_entry[j];
 					if (hash_entry->used && hash_entry->cntr_id == cguid) {
-						baddr_t baddr = hash_entry->address;
-						ulong hash_idx = hdl->addr_table[hash_entry->address];
-						hdl->addr_table[hash_entry->address] = 0;
+						uint64_t baddr = hash_entry->blkaddress;
+						ulong hash_idx = 0;
+						if (hdl->addr_table) {
+							hash_idx = hdl->addr_table[hash_entry->blkaddress];
+							hdl->addr_table[hash_entry->blkaddress] = 0;
+						}
 						hash_entry->deleted = 1;
 						mcd_logrec_object_t log;
 						memset( &log, 0, sizeof log);
-						log.syndrome = hash_entry->syndrome;
+						log.syndrome = hash_entry->hesyndrome;
 						log.deleted = 1;
-						log.bucket = hash_idx;
+						if (hdl->addr_table) {
+							log.rbucket = hash_idx;
+						} else {
+							log.rbucket = i;
+						}
 						log.blk_offset = baddr;
 						log.old_offset = ~ baddr;
-						log.cntr_id= hash_entry->cntr_id;
+						log.cntr_id = hash_entry->cntr_id;
+						log.raw = FALSE;
 						if (1 == shard->replicated)
 							log.seqno = rep_seqno_get((struct shard *)shard);
 						else
 							log.seqno = __sync_add_and_fetch( &shard->sequence, 1);
 						mcd_fth_osd_remove_entry( shard, hash_entry, TRUE, true);
 						log_write( shard, &log);
-						hash_entry_delete( hdl, hash_entry, hash_idx);
+						if (!storm_mode) {
+							plat_assert(i == hash_idx/OSD_HASH_BUCKET_SIZE);
+							hash_entry_delete1( hdl, hash_entry, hash_idx, i);
+						} else {
+							hash_entry_delete2( hdl, hash_entry, i);
+						}
 						++n;
 					}
 				}
@@ -5108,7 +5123,7 @@ scavenger_scan_next(pai_t *pai, e_state_t *es, uint64_t *cguid,
             return ZS_FLASH_EINVAL;
 
         s = read_disk(shard, (aioctx_t *)&pai->ctxt,
-                es->data_buf_align, hash->address, nb);
+                es->data_buf_align, hash->blkaddress, nb);
         if (!s)
             return ZS_FLASH_EINVAL;
 

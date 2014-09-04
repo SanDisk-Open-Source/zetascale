@@ -22,9 +22,9 @@
 #define	ZS_PROP_FILE		"config/zs_sample.prop"	//Configuration file
 #define	THREADS			1 //Number of threads
 #define CNTR_SIZE 		1	/* GB */
-#define DATA_SIZE		20
-#define NUM_OBJS			15000
-int keynumlen = 7;
+#define DATA_SIZE	100
+#define NUM_OBJS			50000
+int keynumlen = 47;
 
 static char *base = "container";
 
@@ -58,8 +58,8 @@ main( )
 		printf("This is a sample program using ZS %s\n", version);
 		ZSFreeBuffer(version);
 	}
-
-	if (ZSLoadProperties(ZS_PROP_FILE) != ZS_SUCCESS) {
+#if 0
+	if (ZSLoadProperties(ZS_PROPERTY_FILE) != ZS_SUCCESS) {
 		printf("Couldn't load properties from %s. ZSInit()"
 			" will use default properties or from file specified"
 			" in ZS_PROPRTY_FILE environment variable if set.\n",
@@ -71,6 +71,7 @@ main( )
 		 */
 		unsetenv("ZS_PROPERTY_FILE");
 	}
+#endif
 
 	path = ZSGetProperty("ZS_LICENSE_PATH", "Default path");
 	if (path && (strcmp(path, "Default path") != 0)) {
@@ -97,14 +98,17 @@ main( )
 
 	//Set size of container to 256MB and retain other values.
 	props.size_kb = CNTR_SIZE*6*1024 *1024;
+	props.flash_only = 0;
 
 	//Create container in read/write mode with properties specified.
 	status = ZSOpenContainer(thd_state, cname, &props, 
 				  ZS_CTNR_CREATE | ZS_CTNR_RW_MODE, &cguid);
 
+	ZSCloseContainer(thd_state, cguid);
 	if (status == ZS_SUCCESS) {
 		//If created successfully, get the container properties. 
-		ZSGetContainerProps(thd_state, cguid, &props);
+		props.size_kb = 0;
+		status = ZSGetContainerProps(thd_state, cguid, &props);
 		printf("Container %s (cguid: %ld) created with size: %ldKB.\n", 
 						cname, cguid, props.size_kb);
 	} else {
@@ -113,15 +117,17 @@ main( )
 		return 1;
 	}
 	//Spawn worker threads.
-	for (indx = 0; indx < 0; indx++) {
+	for (indx = 0; indx < 1; indx++) {
 		pthread_create(&thread_id[indx], NULL, (void *)worker,
 						(void *)zs_state);
 	}
 
 	//Wait for worker threads to complete.
-	for (indx = 0; indx < 0; indx++) {
+	for (indx = 0; indx < 1; indx++) {
 		pthread_join(thread_id[indx], NULL);
 	}
+	goto out;
+	return (0);
 	sleep(2);
 	status = ZSWriteObject(thd_state, cguid, "test", 4, "test", 4, 0);
 	fprintf(stderr, "Write data status: %s <--------------\n", ZSStrError(status));
@@ -157,9 +163,10 @@ main( )
 							ZSStrError(status));
 		return 1;
 	}
+out:
 	printf("Number of containers created by workers: %d\n", ncg);
 	ZSCloseContainer(thd_state, cguid);
-	ZSDeleteContainer(thd_state, cguid);
+	//ZSDeleteContainer(thd_state, cguid);
 
 	//Gracefuly shutdown ZS.
 	ZSShutdown(zs_state);
@@ -181,7 +188,7 @@ worker(void *arg)
 	ZS_status_t			status;
 	ZS_cguid_t			cguid;
 	uint32_t			keylen;
-	//uint64_t			datalen;
+	uint64_t			datalen;
 	ZS_container_props_t		props;
 
 
@@ -192,6 +199,7 @@ worker(void *arg)
 	ZSInitPerThreadState(zs_state, &thd_state);
 
 	//Create container in read/write mode with properties specified.
+	props.flash_only = 0;
 	status = ZSOpenContainer(thd_state, cname, &props, 
 				  ZS_CTNR_RW_MODE, &cguid);
 #if 0
@@ -207,12 +215,13 @@ worker(void *arg)
 	}
 #endif
 
-	keylen = strlen("key") + keynumlen + 1 + 8;
+	keylen = strlen("key") + keynumlen + 1;
 	keyw = (char *)malloc(keylen);
-	dataw = (char *)malloc(DATA_SIZE);
+	dataw = (char *)malloc(DATA_SIZE+ 5);
 	int i;
 	for (i=0; i <NUM_OBJS;i++) {
-		sprintf(keyw, "key%07d%x", i, (int)pthread_self());
+		//sprintf(keyw, "key%07d%x", i, (int)pthread_self());
+		sprintf(keyw, "key%047d", i);
 		if (strlen(keyw) != (keylen - 1)) {
 			printf("Key format mismatch\n");
 			return;
@@ -223,6 +232,7 @@ worker(void *arg)
 		}
 		*/
 		//Create initial data.
+		sprintf(dataw, "data%080d", i);
 		status = ZSWriteObject(thd_state, cguid, keyw, keylen, dataw, DATA_SIZE, 0);
 		if (status == ZS_SUCCESS) {
 	//		printf("%x: Key, %s, created/modified.\n", (int)pthread_self(), keyw);
@@ -232,10 +242,11 @@ worker(void *arg)
 		}
 	}
 	printf("Write done --- \n");
-	free(dataw);
-#if 0
+	//free(dataw);
+	return;
 	for (int i=0; i <NUM_OBJS;i++) {
-		sprintf(keyw, "key%06d%x", i, (int)pthread_self());
+		//sprintf(keyw, "key%07d%x", i, (int)pthread_self());
+		sprintf(keyw, "key%047d", i);
 		if (strlen(keyw) != (keylen - 1)) {
 			printf("Key format mismatch\n");
 			return;
@@ -243,13 +254,14 @@ worker(void *arg)
 		//Create initial data.
 		status = ZSReadObject(thd_state, cguid, keyw, keylen, &dataw, &datalen);
 		if (status == ZS_SUCCESS) {
-			printf("%x: Key, %s, read.\n", (int)pthread_self(), keyw);
+			printf("%x: Key, %s, read %s.\n", (int)pthread_self(), keyw, dataw);
 			ZSFreeBuffer(dataw);
 		} else {
 			printf("%x: Key, %s, couldn't be read.\n", (int)pthread_self(), keyw);
 			return;
 		}
 	}
+#if 0
 	for (int i=0; i <NUM_OBJS;i++) {
 		sprintf(keyw, "key%06d%x", i, (int)pthread_self());
 		if (strlen(keyw) != (keylen - 1)) {
@@ -265,8 +277,8 @@ worker(void *arg)
 			return;
 		}
 	}
-
 #endif
+
 #if 0
 	if (status == ZS_OBJECT_EXISTS) {
 		//If data already exists, get the object assocaited with key.

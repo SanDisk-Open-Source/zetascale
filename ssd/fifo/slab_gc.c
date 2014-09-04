@@ -118,6 +118,7 @@ int slab_gc_relocate_slab(
 
     mcd_logrec_object_t log_rec;
 
+	plat_assert(hdl->addr_table);
     seqno = atomic_inc_get(shard->sequence);
 
     hash_index = hdl->addr_table[src_blk_offset];
@@ -137,7 +138,7 @@ int slab_gc_relocate_slab(
             if (hash_entry->used == 0)
                 continue;
 
-            if (hash_entry->address == src_blk_offset)
+            if (hash_entry->blkaddress == src_blk_offset)
                 goto found;
         }
     }
@@ -148,7 +149,7 @@ found:
        but hash_entry points to different place already */
     if(hash_entry == NULL) goto out;
 
-	if(!hash_entry->used || hash_entry->address != src_blk_offset)
+	if(!hash_entry->used || hash_entry->blkaddress != src_blk_offset)
 		goto out;
 
 	if(!(rc = mcd_fth_osd_slab_alloc(context, shard, class->slab_blksize, 1, &dst_blk_offset)))
@@ -173,16 +174,18 @@ found:
 
 	stat_inc(shard, SLABS_RELOCATED);
 
-	log_rec.syndrome   = hash_entry->syndrome;
+	log_rec.syndrome   = hash_entry->hesyndrome;
 	log_rec.deleted    = hash_entry->deleted;
 	log_rec.reserved   = 0;
 	log_rec.blocks     = hash_entry->blocks;
-	log_rec.bucket     = syndrome % hdl->hash_size;
+	//log_rec.rbucket     = (syndrome % hdl->hash_size) / Mcd_osd_bucket_size;
+	log_rec.rbucket     = (syndrome % hdl->hash_size);
 	log_rec.blk_offset = dst_blk_offset;
 	log_rec.cntr_id    = hash_entry->cntr_id;
 	log_rec.seqno      = seqno;
-	log_rec.old_offset   = ~(hash_entry->address);
+	log_rec.old_offset   = ~(hash_entry->blkaddress);
 	log_rec.target_seqno = target_seqno;
+	log_rec.raw        = FALSE;
 
 	mcd_fth_osd_remove_entry(shard, hash_entry, true, false);
 
@@ -190,13 +193,13 @@ found:
 
 	atomic_add(shard->blk_consumed, mcd_osd_lba_to_blk(hash_entry->blocks));
 
-	plat_assert(hash_entry->address == src_blk_offset);
-	hash_entry->address = dst_blk_offset;
+	plat_assert(hash_entry->blkaddress == src_blk_offset);
+	hash_entry->blkaddress = dst_blk_offset;
 	hdl->addr_table[dst_blk_offset] = syndrome % hdl->hash_size;
 
 	plat_assert(shard->slab_classes + shard->class_table[mcd_osd_lba_to_blk(hash_entry->blocks)] == class);
 
-	plat_assert(hash_entry->address == dst_blk_offset);
+	plat_assert(hash_entry->blkaddress == dst_blk_offset);
 out:
 	if(rc)
 		stat_inc(shard, RELOCATE_ERRORS);
@@ -313,7 +316,7 @@ void slab_gc_compact_class(
 		goto out;
 
 	/* Make bitmap snapshot */
-	memcpy(shard->gc->bitmap, segment->bitmap, Mcd_osd_segment_blks / 8);
+	memcpy(shard->gc->bitmap, segment->mos_bitmap, Mcd_osd_segment_blks / 8);
 
 	/* Read whole segment at once */
 	if((mcd_fth_aio_blk_read(context,

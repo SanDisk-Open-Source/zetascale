@@ -199,11 +199,13 @@ typedef struct mcd_rec_flash {
     uint64_t        prop_offset;       // relative block offset to properties
     uint64_t        blk_offset;        // offset of flash descriptor
     uint64_t        total_blks;        // size of flash in 512-byte blocks
-    uint64_t        reserved[ 8 ];     // -- reserved for future use --
+	uint8_t			storm_mode;		   // storm mode
+	uint8_t			xreserved[7];	   // reserved
+    uint64_t        reserved[ 7 ];     // -- reserved for future use --
 } mcd_rec_flash_t;
 
 enum {
-    MCD_REC_FLASH_VERSION     = 1,
+    MCD_REC_FLASH_VERSION     = 2,
     MCD_REC_FLASH_EYE_CATCHER = 0x48534c46, // "FLSH" (in little endian)
 };
 
@@ -218,7 +220,7 @@ typedef struct mcd_rec_shard {
     uint32_t        map_blks;          // number of address map blocks; also
                                        // number of seg addr blocks for classes
     uint32_t        flags;             // flags from shard create
-    uint32_t        obj_quota;         // object quota from shard create
+    uint64_t        mrs_obj_quota;     // object quota from shard create
     uint64_t        quota;             // size quota from shard create
     uint64_t        shard_id;          // shard ID
     uint64_t        blk_offset;        // block offset from origin (phys addr)
@@ -230,6 +232,8 @@ typedef struct mcd_rec_shard {
     uint64_t        rec_table_pad;     // pad blocks to next alignment boundary
     uint64_t        rec_log_blks;      // single recovery log size (blocks)
     uint64_t        rec_log_pad;       // pad blocks to next alignment boundary
+    uint64_t        rec_potbm_blks;    // bitmap for persistent object table
+    uint64_t        rec_slabbm_blks;   // bitmap for slab allocation status
     uint64_t        reserved_blks;     // total size (blocks) of reserved area
     uint64_t        class_offset[ MCD_OSD_MAX_NCLASSES ]; // relative offset
                                                           //   to class desc
@@ -292,14 +296,14 @@ enum {
 // in flash maintained by applying updates from a log.
 // This must divide evenly into MCD_OSD_BLK_SIZE
 typedef struct mcd_rec_flash_object {
-    uint16_t        syndrome;          // 16-bit syndrome
+    uint16_t        osyndrome;         // 16-bit syndrome
     // use some extra bits
     uint16_t        tombstone:1;       // 1=entry is a tombstone
     uint16_t        deleted:1;         // 1=marked for delete-in-future
     uint16_t        reserved:2;        // reserved
     uint16_t        blocks:12;         // number of 512-byte blocks occupied
     // ------------------
-    uint32_t        bucket;            // hash bucket
+    uint32_t        obucket;           // hash bucket
     uint64_t        cntr_id:16;        // container id
     uint64_t        seqno:48;          // sequence number
 } mcd_rec_flash_object_t;
@@ -319,7 +323,7 @@ typedef struct mcd_rec_log_page_header {
                                        // that increments by one for each
                                        // log page written.
     uint64_t        checksum;          // checksum of filled log page
-    uint64_t        pad1;              // Make sure this is the same
+    char			pad1[40];              // Make sure this is the same
                                        //   size as mcd_logrec_object_t
                                        //   Also evenly divisible into
                                        //   MCD_OSD_BLK_SIZE
@@ -349,7 +353,7 @@ typedef struct mcd_rec_properties {
 
     // container configuration
     uint64_t        size_quota;        // size of container
-    uint32_t        obj_quota;         // max number of objects
+    uint64_t        obj_quota;         // max number of objects
     uint32_t        state;             // container state, 'running', etc
     uint32_t        tcp_port;          // listen tcp port
     uint32_t        udp_port;          // listen udp port
@@ -406,7 +410,7 @@ typedef struct mcd_rec_tombstone {
     struct mcd_rec_tombstone * next;     // next element pointer
     struct mcd_rec_tombstone * prev;     // previous element pointer
     uint64_t                seqno;       // sequence number of delete op
-    uint32_t                blk_offset;  // logical block offset within shard
+    uint64_t                tb_blk_offset;  // logical block offset within shard
     uint16_t                syndrome;    // 16-bit syndrome
     bool                    was_malloc;  // true=tombstone was malloc'd
 } mcd_rec_tombstone_t;
@@ -537,6 +541,12 @@ typedef struct mcd_rec_log {
     uint                    nslab;            // # deferred slab deallocs
     uint32_t                slabtab[10000000]; // deferred-dealloc slabs
     mlog_t                  mlog;
+
+	// lean memory extension
+	uint					potcachesize;		// # pages in potcache
+	void				  * potcache,			// cached portion of the POT
+						  * potbm,				// POT bitmap
+						  * slabbm;				// slab bitmap
 } mcd_rec_log_t;
 
 // Superblock

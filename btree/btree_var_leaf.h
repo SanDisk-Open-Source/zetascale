@@ -222,6 +222,9 @@ build_key_prefix(btree_raw_t *bt, btree_raw_node_t *n,
 int
 btree_leaf_find_split_idx(btree_raw_t *bt, btree_raw_node_t *n);
 
+void inline
+btree_leaf_unset_dataptr(btree_raw_node_t *n, int index);
+
 #if 0
 bool 
 btree_leaf_node_check(btree_raw_t *btree, btree_raw_node_t *node,

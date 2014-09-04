@@ -421,7 +421,7 @@ struct shard *clipper_shardCreate(struct flashDev *dev, uint64_t shardID, int fl
     ps->shardID           = shardID;
     ps->flags             = flags;
     ps->quota             = quota;
-    ps->maxObjs           = maxObjs; // xxxzzz this isn't used for anything
+    ps->s_maxObjs           = maxObjs; // xxxzzz this isn't used for anything
     ps->usedSpace         = 0;
     ps->numObjects        = 0;
     ps->numDeadObjects    = 0;

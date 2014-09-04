@@ -29,6 +29,7 @@ main()
 
     ZSLoadCntrPropDefaults(&props);
 
+	props.size_kb = 1024 * 1024 * 2;
     props.persistent = 1;
     props.evicting = 0;
     props.writethru = 1;

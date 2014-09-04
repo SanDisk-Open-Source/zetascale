@@ -25,22 +25,22 @@ extern struct PMap *PMapInit(uint32_t nparts, uint64_t nbuckets, uint64_t max_en
 extern void PMapDestroy(struct PMap **pm);
 extern void PMapClean(struct PMap **pm, uint64_t cguid, void *replacement_callback_data);
 extern void PMapClear(struct PMap *pm);
-extern struct MapEntry *PMapCreate(struct PMap *pm, char *pkey, uint32_t keylen, char *pdata, uint64_t datalen, uint64_t cguid, void *replacement_callback_data);
-extern struct MapEntry *PMapUpdate(struct PMap *pm, char *pkey, uint32_t keylen, char *pdata, uint64_t datalen, uint64_t cguid, void *replacement_callback_data);
-extern struct MapEntry *PMapSet(struct PMap *pm, char *pkey, uint32_t keylen, char *pdata, uint64_t datalen, char **old_pdata, uint64_t *old_datalen, uint64_t cguid, void *replacement_callback_data);
-extern struct MapEntry *PMapGet(struct PMap *pc, char *key, uint32_t keylen, char** data, uint64_t *pdatalen, uint64_t cguid);
-extern int PMapIncrRefcnt(struct PMap *pm, char *key, uint32_t keylen, uint64_t cguid);
-extern int PMapGetRefcnt(struct PMap *pm, char *key, uint32_t keylen, uint64_t cguid);
+extern struct MapEntry *PMapCreate(struct PMap *pm, char *pkey, uint32_t keylen, char *pdata, uint64_t datalen, uint64_t cguid, int robj, void *replacement_callback_data);
+extern struct MapEntry *PMapUpdate(struct PMap *pm, char *pkey, uint32_t keylen, char *pdata, uint64_t datalen, uint64_t cguid, int robj, void *replacement_callback_data);
+extern struct MapEntry *PMapSet(struct PMap *pm, char *pkey, uint32_t keylen, char *pdata, uint64_t datalen, char **old_pdata, uint64_t *old_datalen, uint64_t cguid, int robj, void *replacement_callback_data);
+extern struct MapEntry *PMapGet(struct PMap *pc, char *key, uint32_t keylen, char** data, uint64_t *pdatalen, uint64_t cguid, int robj);
+extern int PMapIncrRefcnt(struct PMap *pm, char *key, uint32_t keylen, uint64_t cguid, int robj);
+extern int PMapGetRefcnt(struct PMap *pm, char *key, uint32_t keylen, uint64_t cguid, int robj);
 extern void PMapCheckRefcnts(struct PMap *pm);
-extern int PMapRelease(struct PMap *pm, char *key, uint32_t keylen, uint64_t cguid, void *replacement_callback_data);
-extern int PMapReleaseAll(struct PMap *pm, char *key, uint32_t keylen, uint64_t cguid, void *replacement_callback_data);
+extern int PMapRelease(struct PMap *pm, char *key, uint32_t keylen, uint64_t cguid, int robj, void *replacement_callback_data);
+extern int PMapReleaseAll(struct PMap *pm, char *key, uint32_t keylen, uint64_t cguid, int robj, void *replacement_callback_data);
 #if 0
 extern int PMapReleaseEntry(struct PMap *pm, struct MapEntry *pme);
 extern struct Iterator *PMapEnum(struct PMap *pm);
 extern void FinishEnum(struct PMap *pm, struct Iterator *iterator);
 extern int PMapNextEnum(struct PMap *pm, struct Iterator *iterator, char **key, uint32_t *keylen, char **data, uint64_t *datalen);
 #endif
-extern int PMapDelete(struct PMap *pm, char *key, uint32_t keylen, uint64_t cguid, void *replacement_callback_data);
+extern int PMapDelete(struct PMap *pm, char *key, uint32_t keylen, uint64_t cguid, int robj, void *replacement_callback_data);
 extern uint64_t PMapNEntries(struct PMap *pm);
 
 #endif /* _BTREE_MAP_H */

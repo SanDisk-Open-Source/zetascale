@@ -3421,6 +3421,20 @@
 160259 Customer details: %s, %s, %s.
 160260 Error: Incompatibile ZS API Version. ZSInit called with version '%u', ZS API version is '%u'\n
 160261 Failed due to an illegal container ID: %ld %s
+160265 shard size greater than maximum device size (%dPB) for block size %d, not supported yet
+160266 cls=%ld addr=%lu slabs=%lu, pend=%lu
+160267 shard size greater than maximum device size (%dPB) for this block size, not supported yet
+160268 maximum storage size supported with block size, %d is %dPB
+160269 ENTERING, shard_id=%lu flags=0x%x quota=%lu max_nobjs=%lu
+160270 <<<< skipping offset=%lu, start=%lu, end=%lu
+160271 rec: syn=%u, blocks=%u, del=%u, bucket=%u, boff=%lu, ooff=%lu, seq=%lu, tseq=%lu, obj: syn=%u, ts=%u, blocks=%u, del=%u, bucket=%u, toff=%lu, seq=%lu, hwm_seqno=%lu
+160272 orig_rec: syn=%u, blocks=%u, del=%u, bucket=%u, boff=%lu, ooff=%lu, seq=%lu, tseq=%lu
+160274 ENTERING, shard=%p shard_id=%lu flags=0x%x quota=%lu max_nobjs=%lu
+160275 rand_table[%d]=%lu, segments[%d]=%lu
+160276 %dth segment allocated, blk_offset=%lu
+160277 recovered segment[%lu]: blk_offset=%lu
+160278 Invalid key argument
+160279 object size doesn't match slab size, blocks=%d, slab=%d
 
 
 # rico

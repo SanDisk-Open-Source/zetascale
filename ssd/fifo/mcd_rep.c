@@ -407,10 +407,10 @@ static int object_table_iterate(struct shard *shard, resume_cursor_t * resume_cu
             // See if this is a record we want. Either:
             // 1.) We want all records, so check it's valid
             // 2.) It's seqno is in our range
-            if (rec->syndrome && ((!seqno_start && !seqno_max) || 
+            if (rec->osyndrome && ((!seqno_start && !seqno_max) || 
                                   (rec->seqno >= seqno_start && rec->seqno <= seqno_max))) {
                 cursors[num_cursors].seqno = rec->seqno;
-                cursors[num_cursors].syndrome = rec->syndrome;
+                cursors[num_cursors].syndrome = rec->osyndrome;
                 cursors[num_cursors].blocks = rec->blocks;
                 cursors[num_cursors].tombstone = rec->tombstone;
                 cursors[num_cursors].blk_offset = (i * MCD_OSD_META_BLK_SIZE/ sizeof(mcd_rec_flash_object_t)) + j; 
@@ -488,10 +488,10 @@ static int volatile_object_table_iterate(struct shard *shard, resume_cursor_t * 
                 }
 
                 cursors[num_cursors].seqno = 0;
-                cursors[num_cursors].syndrome = entry->syndrome;
+                cursors[num_cursors].syndrome = entry->hesyndrome;
                 cursors[num_cursors].blocks = entry->blocks;
                 cursors[num_cursors].tombstone = 0;
-                cursors[num_cursors].blk_offset = entry->address;
+                cursors[num_cursors].blk_offset = entry->blkaddress;
                 cursors[num_cursors].bucket = i;
 
                 num_cursors++;
@@ -500,7 +500,7 @@ static int volatile_object_table_iterate(struct shard *shard, resume_cursor_t * 
                         PLAT_LOG_LEVEL_TRACE,
                         "add cursor[%ld][%ld]: syndrome: %x", i, 
                         (k * OSD_HASH_ENTRY_PER_BUCKET_ENTRY) + j, 
-                        entry->syndrome);
+                        entry->hesyndrome);
 
                 if (num_cursors == seqno_len) {
                     fthUnlock(wait);
@@ -589,7 +589,7 @@ int check_object_exists(struct shard *shard, rep_cursor_t * rep_cursor)
                 continue;
             }
 
-            if ( (uint16_t)(rep_cursor->syndrome) == entry->syndrome ) {
+            if ( (uint16_t)(rep_cursor->syndrome) == entry->hesyndrome ) {
                 return 1;
             }
         }
@@ -866,7 +866,7 @@ static int obj_read(struct shard * shard, uint64_t blk_offset, uint64_t nbytes, 
     }
     *wbuf = 0;
 
-    tmp_offset = osd_shard->rand_table[blk_offset / Mcd_osd_rand_blksize]
+    tmp_offset = osd_shard->mos_rand_table[blk_offset / Mcd_osd_rand_blksize]
         + (blk_offset % Mcd_osd_rand_blksize);
     offset = tmp_offset * Mcd_osd_blk_size;
 
@@ -924,7 +924,7 @@ static int logbuf_read(struct shard * shard, int logbuf_number, char * logbuf_bu
     plat_assert_always( start_seg == end_seg );
 
     // Get the physical offset
-    offset = mcd_shard->segments[start_seg] +
+    offset = mcd_shard->mos_segments[start_seg] +
         (log_blk_offset % Mcd_osd_segment_blks);
 
     // read the logbuf buffer

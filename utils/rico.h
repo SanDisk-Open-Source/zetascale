@@ -26,6 +26,7 @@
 #define	tab( col)	(((col)|7) + 1)
 #define	trunc( n, r)	((n) - (n)%(r))
 #define	roundup( n, r)	((n) - 1 - ((n)+(r)-1)%(r) + (r))
+#define	divideup( a, b)	(roundup( a, b) / (b))
 #define max( a, b)	((a)<(b)? (b): (a))
 #define min( a, b)	((a)<(b)? (a): (b))
 

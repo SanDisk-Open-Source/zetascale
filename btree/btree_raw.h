@@ -199,8 +199,9 @@ typedef enum btree_status {
 } btree_status_t;
 
 typedef enum node_flags {
-    LEAF_NODE     = 1,
-    OVERFLOW_NODE = 2
+	UNKNOWN_NODE	= 1,
+    LEAF_NODE		= 2,
+    OVERFLOW_NODE	= 4, 
 } node_flags_t;
 
 typedef enum btree_flags {
@@ -414,12 +415,12 @@ typedef int (* bt_mput_cmp_cb_t)(void  *data, 	//  opaque user data
 				 char *new_data,
 				 uint64_t new_datalen);
 					
-typedef void (read_node_cb_t)(btree_status_t *ret, void *data, void *pnode, uint64_t lnodeid);
-typedef void (write_node_cb_t)(struct ZS_thread_state *thd_state, btree_status_t *ret, void *cb_data, uint64_t **lnodeid, char **data, uint64_t datalen, uint32_t count);
+typedef void (read_node_cb_t)(btree_status_t *ret, void *data, void *pnode, uint64_t lnodeid, node_flags_t flag);
+typedef void (write_node_cb_t)(struct ZS_thread_state *thd_state, btree_status_t *ret, void *cb_data, uint64_t **lnodeid, char **data, uint64_t datalen, uint32_t count, uint32_t flags);
 typedef void (flush_node_cb_t)(btree_status_t *ret, void *cb_data, uint64_t lnodeid);
 typedef int (freebuf_cb_t)(void *data, char *buf);
 typedef struct btree_raw_mem_node *(create_node_cb_t)(btree_status_t *ret, void *data, uint64_t lnodeid);
-typedef int (delete_node_cb_t)(void *data, uint64_t lnodeid);
+typedef int (delete_node_cb_t)(void *data, uint64_t lnodeid, uint32_t flag);
 typedef void (log_cb_t)(btree_status_t *ret, void *data, uint32_t event_type, struct btree_raw *btree, struct btree_raw_mem_node *n);
 typedef int (cmp_cb_t)(void *data, char *key1, uint32_t keylen1, char *key2, uint32_t keylen2);
 typedef int (trx_cmd_cb_t)( int, ...);
@@ -533,5 +534,8 @@ btree_raw_check_node_subtree(struct btree_raw *btree, btree_raw_node_t *node,
 #endif 
 bool
 btree_raw_check(struct btree_raw *btree);
+
+
+
 
 #endif // __BTREE_RAW_H

@@ -20,7 +20,9 @@ struct MapBucket;
 
 typedef struct MapEntry {
     char					ref;
-	char					deleted;
+	uint8_t					deleted:1;
+	uint8_t					rawobj:1;
+	uint8_t					reserved:6;
     int32_t					refcnt;
     uint32_t				keylen;
     uint64_t				datalen;

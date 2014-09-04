@@ -71,7 +71,10 @@ extern char *zs_compress_data(char *src, size_t src_len,
                             char *comp_buf, size_t memsz, size_t *comp_len);
 extern int zs_uncompress_data(char *data, size_t datalen,size_t memsz, size_t *uncomp_len);
 #endif
+extern uint64_t get_regobj_storm_mode();
 
+extern int storm_mode;
+extern SDF_shardid_t vdc_shardid;
 
 /*
  * Set logging category.
@@ -320,6 +323,19 @@ static int mcd_fth_do_try_container_internal( void * pai, int index,
 #endif
 static SDF_status_t
 mcd_osd_delete_expired( osd_state_t *osd_state, mcd_osd_shard_t * shard );
+static int
+mcd_fth_osd_slab_create_raw( void * context, mcd_osd_shard_t * shard,
+			char * key, int key_len, void * data, SDF_size_t data_len, int flags,
+			struct objMetaData * meta_data, uint64_t syndrome, uint64_t blk_offset, int blocks );
+static int
+mcd_fth_osd_slab_write_raw( void * context, mcd_osd_shard_t * shard,
+			char * key, int key_len, void * data, SDF_size_t data_len, int flags,
+			struct objMetaData * meta_data, uint64_t syndrome, uint64_t blk_offset, int blocks );
+static int
+mcd_fth_osd_slab_get_raw( void * context, mcd_osd_shard_t * shard, char *key,
+                      int key_len, void ** ppdata, SDF_size_t * pactual_size,
+                      int flags, struct objMetaData * meta_data,
+                      uint64_t syndrome );
 
 /*
  * copied from mc_init.c
@@ -406,7 +422,7 @@ mcd_osd_lba_to_blk( uint32_t blocks )
 uint64_t
 mcd_osd_rand_address(mcd_osd_shard_t *shard, uint64_t offset)
 {
-    return (shard->rand_table[offset / Mcd_osd_rand_blksize]
+    return (shard->mos_rand_table[offset / Mcd_osd_rand_blksize]
         + (offset % Mcd_osd_rand_blksize)) * Mcd_osd_blk_size;
 }
 
@@ -1489,16 +1505,16 @@ SDF_status_t mcd_fth_container_init(void * pai,
 
 static int
 mcd_osd_fifo_shard_init( mcd_osd_shard_t * shard, uint64_t shard_id,
-                         int flags, uint64_t quota, unsigned max_nobjs )
+                         int flags, uint64_t quota, uint64_t max_nobjs )
 {
     int                         i;
     uint64_t                    total_alloc = 0;
     char                      * wbuf = NULL;
     char                      * wbuf_base;
 
-    mcd_log_msg( 20293, PLAT_LOG_LEVEL_DEBUG,
+    mcd_log_msg( 160274, PLAT_LOG_LEVEL_DEBUG,
                  "ENTERING, shard=%p shard_id=%lu flags=0x%x quota=%lu "
-                 "max_nobjs=%u",
+                 "max_nobjs=%lu",
                  shard, shard_id, flags, quota, max_nobjs );
 
     shard->id = shard_id;
@@ -1530,19 +1546,19 @@ mcd_osd_fifo_shard_init( mcd_osd_shard_t * shard, uint64_t shard_id,
     shard->total_size = shard->total_segments * Mcd_osd_segment_size;
     shard->total_blks = shard->total_segments * Mcd_osd_segment_blks;
 
-    if ( 4294967296ULL < shard->total_blks ) {
-	mcd_log_msg( 160164, PLAT_LOG_LEVEL_FATAL,
-			"shard size greater than maximum device size (%dTB) for block size %d, not supported yet",
-			(int)(Mcd_osd_blk_size/MCD_OSD_BLK_SIZE_MIN) * 2, (int)Mcd_osd_blk_size);
+    if ( (2ULL << BLOCK_ADDRESS) < shard->total_blks ) {
+	mcd_log_msg( 160265, PLAT_LOG_LEVEL_FATAL,
+			"shard size greater than maximum device size (%dPB) for block size %d, not supported yet",
+			(int)(Mcd_osd_blk_size/MCD_OSD_BLK_SIZE_MIN) * 128, (int)Mcd_osd_blk_size);
         return FLASH_EINVAL;
     }
 
     /*
      * initialize the address remapping table
      */
-    shard->rand_table = (uint32_t *)plat_alloc(
-        (shard->total_blks / Mcd_osd_rand_blksize) * sizeof(uint32_t) );
-    if ( NULL == shard->rand_table ) {
+    shard->mos_rand_table = (uint64_t *)plat_alloc(
+        (shard->total_blks / Mcd_osd_rand_blksize) * sizeof(uint64_t) );
+    if ( NULL == shard->mos_rand_table ) {
         mcd_log_msg( 20295, PLAT_LOG_LEVEL_ERROR, "failed to allocate random table" );
         return FLASH_ENOMEM;
     }
@@ -1554,19 +1570,19 @@ mcd_osd_fifo_shard_init( mcd_osd_shard_t * shard, uint64_t shard_id,
      * transparent
      */
     int temp = Mcd_osd_segment_blks / Mcd_osd_rand_blksize;
-    uint32_t * tmp_segments = shard->segments +
+    uint64_t * tmp_segments = shard->mos_segments +
         shard->data_blk_offset / Mcd_osd_segment_blks;
     for ( i = 0; i < shard->total_blks / Mcd_osd_rand_blksize; i++ ) {
         if ( 0 == flash_settings.mq_ssd_balance ) {
-            shard->rand_table[i] = tmp_segments[i / temp]
+            shard->mos_rand_table[i] = tmp_segments[i / temp]
                 + (i % temp) * Mcd_osd_rand_blksize;
         }
         else {
-            shard->rand_table[i] = tmp_segments[i / temp]
+            shard->mos_rand_table[i] = tmp_segments[i / temp]
                 + ( (i + i / temp) % temp ) * Mcd_osd_rand_blksize;
-            mcd_log_msg( 20296, PLAT_LOG_LEVEL_DEBUG,
-                         "rand_table[%d]=%u, segments[%d]=%u",
-                         i, shard->rand_table[i],
+            mcd_log_msg( 160275, PLAT_LOG_LEVEL_DEBUG,
+                         "rand_table[%d]=%lu, segments[%d]=%lu",
+                         i, shard->mos_rand_table[i],
                          i / temp, tmp_segments[i / temp] );
         }
     }
@@ -2222,7 +2238,7 @@ mcd_fth_osd_fifo_get( void * context, mcd_osd_shard_t * shard, char * key,
         }
 
         buf = mcd_fifo_find_buffered_obj( shard, key, key_len,
-                                          hash_entry->address, &wbuf,
+                                          hash_entry->blkaddress, &wbuf,
                                           &committed );
         if ( NULL != buf ) {
 
@@ -2272,7 +2288,7 @@ mcd_fth_osd_fifo_get( void * context, mcd_osd_shard_t * shard, char * key,
             return FLASH_ENOMEM;
         }
 
-        blk_offset = hash_entry->address;
+        blk_offset = hash_entry->blkaddress;
 
         offset = mcd_osd_rand_address(shard, blk_offset);
 
@@ -2450,13 +2466,13 @@ mcd_fth_osd_shrink_class(mcd_osd_shard_t * shard, mcd_osd_segment_t *segment, bo
 }
 
 void
-mcd_fth_osd_slab_dealloc_low( mcd_osd_segment_t *segment, uint32_t blk_offset, int count)
+mcd_fth_osd_slab_dealloc_low( mcd_osd_segment_t *segment, uint64_t blk_offset, int count)
 {
     int i, map_offset = (blk_offset - segment->blk_offset) / segment->class->slab_blksize;
 
     for(i = 0; i < count; i++)
     {
-        (void) __sync_fetch_and_and( &segment->bitmap[(map_offset + i) / 64],
+        (void) __sync_fetch_and_and( &segment->mos_bitmap[(map_offset + i) / 64],
                 ~Mcd_osd_bitmap_masks[(map_offset + i) % 64] );
     }
 
@@ -2503,7 +2519,7 @@ void print_bitmap(char* title, mcd_osd_segment_t* segment)
  * object is overwritten in store mode to free space for old object.
  */
 void
-mcd_fth_osd_slab_dealloc( mcd_osd_shard_t * shard, uint32_t address, bool async )
+mcd_fth_osd_slab_dealloc( mcd_osd_shard_t * shard, uint64_t address, bool async )
 {
     int                 free_slab_curr;
     mcd_osd_segment_t * segment;
@@ -2539,8 +2555,8 @@ mcd_fth_osd_slab_dealloc( mcd_osd_shard_t * shard, uint32_t address, bool async 
 	else if(shard->gc)
 		slab_gc_signal(shard, segment->class);
 
-    mcd_log_msg(180208, MCD_OSD_LOG_LVL_TRACE,
-                 "cls=%ld addr=%u slabs=%lu, pend=%lu",
+    mcd_log_msg(160266, MCD_OSD_LOG_LVL_TRACE,
+                 "cls=%ld addr=%lu slabs=%lu, pend=%lu",
                  segment->class - shard->slab_classes,
                  address,
                  segment->class->used_slabs,
@@ -2582,11 +2598,12 @@ mcd_fth_osd_remove_entry( mcd_osd_shard_t * shard,
 #endif
 		}
 	} else
-		mcd_fth_osd_slab_dealloc(shard, hash_entry->address, false);
+		mcd_fth_osd_slab_dealloc(shard, hash_entry->blkaddress, false);
 
     atomic_sub(shard->blk_consumed, mcd_osd_lba_to_blk(hash_entry->blocks));
-	if(shard->hash_handle->key_cache)
-		shard->hash_handle->key_cache[hash_entry->address] = 0;
+	if(shard->hash_handle->key_cache) {
+		keycache_set(shard->hash_handle, hash_entry->blkaddress, 0);
+	}
 
 #if 0
 	//use hash_entry_delete()
@@ -2679,7 +2696,7 @@ mcd_fth_osd_fifo_set( void * context, mcd_osd_shard_t * shard, char * key,
 
         if ( NULL !=
              mcd_fifo_find_buffered_obj( shard, key, key_len,
-                                         hash_entry->address, &wbuf,
+                                         hash_entry->blkaddress, &wbuf,
                                          &committed ) ) {
             obj_exists = true;
             mcd_log_msg( 20331, PLAT_LOG_LEVEL_TRACE, "object exists" );
@@ -2727,7 +2744,7 @@ mcd_fth_osd_fifo_set( void * context, mcd_osd_shard_t * shard, char * key,
             continue;
         }
 
-        offset = mcd_osd_rand_address(shard, hash_entry->address);
+        offset = mcd_osd_rand_address(shard, hash_entry->blkaddress);
 
         rc = mcd_fth_aio_blk_read( context,
                                    buf,
@@ -3097,7 +3114,9 @@ mcd_fth_osd_fifo_set( void * context, mcd_osd_shard_t * shard, char * key,
 
     if ( hash_entry ) {
         *hash_entry = new_entry;
-        shard->addr_table[new_entry.address] = hash_entry - shard->hash_table;
+		if (shard->addr_table) {
+			shard->addr_table[new_entry.address] = hash_entry - shard->hash_table;
+		}
         (void) __sync_fetch_and_add( &shard->blk_consumed,
                                      mcd_osd_lba_to_blk( new_entry.blocks ) );
         (void) __sync_fetch_and_add( &shard->total_objects, 1 );
@@ -3269,7 +3288,7 @@ mcd_osd_slab_shard_init_free_segments( mcd_osd_shard_t * shard )
 
 static int
 mcd_osd_slab_shard_init( mcd_osd_shard_t * shard, uint64_t shard_id,
-                         int flags, uint64_t quota, unsigned max_nobjs )
+                         int flags, uint64_t quota, uint64_t max_nobjs )
 {
     int                    i, j;
     int                    blksize;
@@ -3280,9 +3299,9 @@ mcd_osd_slab_shard_init( mcd_osd_shard_t * shard, uint64_t shard_id,
     mcd_osd_segment_t    * segments = NULL;
     mcd_osd_slab_class_t * class;
 
-    mcd_log_msg( 20293, PLAT_LOG_LEVEL_DEBUG,
+    mcd_log_msg( 160274, PLAT_LOG_LEVEL_DEBUG,
                  "ENTERING, shard=%p shard_id=%lu flags=0x%x quota=%lu "
-                 "max_nobjs=%u",
+                 "max_nobjs=%lu",
                  shard, shard_id, flags, quota, max_nobjs );
 
     shard->id = shard_id;
@@ -3306,10 +3325,10 @@ mcd_osd_slab_shard_init( mcd_osd_shard_t * shard, uint64_t shard_id,
     shard->total_blks = shard->total_segments * Mcd_osd_segment_blks;
 	shard->blk_allocated = 0;
 
-    if ( 4294967296ULL < shard->total_blks ) {
-        mcd_log_msg( 160165, PLAT_LOG_LEVEL_FATAL,
-                     "shard size greater than maximum device size (%dTB) for this block size, not supported yet",
-		  	(int)(Mcd_osd_blk_size/MCD_OSD_BLK_SIZE_MIN) * 2);
+    if ( (2ULL << BLOCK_ADDRESS) < shard->total_blks ) {
+        mcd_log_msg( 160267, PLAT_LOG_LEVEL_FATAL,
+                     "shard size greater than maximum device size (%dPB) for this block size, not supported yet",
+		  	(int)(Mcd_osd_blk_size/MCD_OSD_BLK_SIZE_MIN) * 128);
         return FLASH_EINVAL;
     }
 
@@ -3332,8 +3351,9 @@ mcd_osd_slab_shard_init( mcd_osd_shard_t * shard, uint64_t shard_id,
                  "base segment table initialized, size=%lu",
                  max_segments * sizeof(mcd_osd_segment_t) );
 
+#if 0
     bitmap_size = Mcd_osd_segment_blks / 8;
-    for ( j = 0; j < 5; j ++ ) {
+    for ( j = 0; j < 1; j ++ ) {
         bitmaps[j] = get_bitmaps( max_segments * bitmap_size, 0);
         if ( NULL == bitmaps[j] ) {
             mcd_log_msg( 20340, PLAT_LOG_LEVEL_ERROR,
@@ -3348,7 +3368,7 @@ mcd_osd_slab_shard_init( mcd_osd_shard_t * shard, uint64_t shard_id,
                  5 * max_segments * bitmap_size );
 
     for ( j = 0; j < max_segments; j++ ) {
-        segments[j].bitmap =
+        segments[j].mos_bitmap =
             (uint64_t *)( (char *)bitmaps[0] + ( j * bitmap_size ) );
         segments[j].update_map =
             (uint64_t *)( (char *)bitmaps[1] + ( j * bitmap_size ) );
@@ -3359,6 +3379,7 @@ mcd_osd_slab_shard_init( mcd_osd_shard_t * shard, uint64_t shard_id,
         segments[j].alloc_map_s =
             (uint64_t *)( (char *)bitmaps[4] + ( j * bitmap_size ) );
     }
+#endif
 
     shard->base_segments = segments;
 
@@ -3393,16 +3414,16 @@ mcd_osd_slab_shard_init( mcd_osd_shard_t * shard, uint64_t shard_id,
 
         for ( j = 0; j < MCD_OSD_MAX_PTHREADS; j++ ) {
             class->free_slab_curr[j] = 0;
-            class->free_slabs[j] = (uint32_t *)
-                plat_alloc( class->freelist_len * sizeof(uint32_t) );
+            class->free_slabs[j] = (uint64_t *)
+                plat_alloc( class->freelist_len * sizeof(uint64_t) );
             if ( NULL == class->free_slabs[j] ) {
                 mcd_log_msg( 20341, PLAT_LOG_LEVEL_ERROR,
                              "failed to allocate free lists" );
                 return FLASH_ENOMEM;
             }
             memset( (void *)class->free_slabs[j], 0,
-                    class->freelist_len * sizeof(uint32_t) );
-            total_alloc += class->freelist_len * sizeof(uint32_t);
+                    class->freelist_len * sizeof(uint64_t) );
+            total_alloc += class->freelist_len * sizeof(uint64_t);
         }
         mcd_log_msg( 40113, PLAT_LOG_LEVEL_TRACE,
                      "slab class inited, blksize=%d, free_slabs=%lu, "
@@ -3449,9 +3470,9 @@ mcd_osd_slab_shard_init( mcd_osd_shard_t * shard, uint64_t shard_id,
     /*
      * initialize the address remapping table
      */
-    shard->rand_table = (uint32_t *)plat_alloc(
-        (shard->total_blks / Mcd_osd_rand_blksize) * sizeof(uint32_t) );
-    if ( NULL == shard->rand_table ) {
+    shard->mos_rand_table = (uint64_t *)plat_alloc(
+        (shard->total_blks / Mcd_osd_rand_blksize) * sizeof(uint64_t) );
+    if ( NULL == shard->mos_rand_table ) {
         mcd_log_msg( 20295, PLAT_LOG_LEVEL_ERROR,
                      "failed to allocate random table" );
         return FLASH_ENOMEM;
@@ -3464,19 +3485,19 @@ mcd_osd_slab_shard_init( mcd_osd_shard_t * shard, uint64_t shard_id,
      * transparent
      */
     int temp = Mcd_osd_segment_blks / Mcd_osd_rand_blksize;
-    uint32_t * tmp_segments = shard->segments +
+    uint64_t * tmp_segments = shard->mos_segments +
         shard->data_blk_offset / Mcd_osd_segment_blks;
     for ( i = 0; i < shard->total_blks / Mcd_osd_rand_blksize; i++ ) {
         if ( 0 == flash_settings.mq_ssd_balance ) {
-            shard->rand_table[i] = tmp_segments[i / temp]
+            shard->mos_rand_table[i] = tmp_segments[i / temp]
                 + (i % temp) * Mcd_osd_rand_blksize;
         }
         else {
-            shard->rand_table[i] = tmp_segments[i / temp]
+            shard->mos_rand_table[i] = tmp_segments[i / temp]
                 + ( (i + i / temp) % temp ) * Mcd_osd_rand_blksize;
-            mcd_log_msg( 20296, PLAT_LOG_LEVEL_DEBUG,
-                         "rand_table[%d]=%u, segments[%d]=%u",
-                         i, shard->rand_table[i],
+            mcd_log_msg( 160275, PLAT_LOG_LEVEL_DEBUG,
+                         "rand_table[%d]=%lu, segments[%d]=%lu",
+                         i, shard->mos_rand_table[i],
                          i / temp, tmp_segments[i / temp] );
         }
     }
@@ -3498,9 +3519,33 @@ mcd_osd_slab_shard_init( mcd_osd_shard_t * shard, uint64_t shard_id,
 	/*
 	 * initialize hash tables.
 	 */
-	shard->hash_handle = hash_table_init( shard->total_size, 
+	if ((shard_id == vdc_shardid) && storm_mode) {
+		uint64_t		reg_objs = get_regobj_storm_mode();
+		int				scale = getProperty_Int("ZS_HASH_PCT", 100);
+
+		if (scale) {
+			uint64_t objs;
+			objs = (max_nobjs * scale) / 100;
+			if (reg_objs < objs) {
+				reg_objs = objs;
+			}
+		}
+		shard->hash_handle = hash_table_init(shard->total_size, reg_objs, SLAB,
+							getProperty_Int("ZS_KEY_CACHE", 0));
+	} else {
+		int                             scale = getProperty_Int("ZS_HASH_PCT", 100);
+		if ((flash_settings.storm_test & 0x0004) && scale) {
+			uint64_t objs;
+			objs = (max_nobjs * scale) / 100;
+			shard->hash_handle = hash_table_init( shard->total_size,
+						objs, SLAB,
+						getProperty_Int("ZS_KEY_CACHE", 0));
+		} else {
+			shard->hash_handle = hash_table_init( shard->total_size,
                                             max_nobjs, SLAB,
                                             getProperty_Int("ZS_KEY_CACHE", 0));
+		}
+	}
     if ( !shard->hash_handle ) {
         mcd_log_msg( 160204, PLAT_LOG_LEVEL_ERROR,
                 "failed to allocate hash tables");
@@ -3553,7 +3598,7 @@ out_failed:
     if ( segments ) {
         plat_free( segments );
     }
-    for ( i = 0; i < 5; i++ ) {
+    for ( i = 0; i < 1; i++ ) {
         if ( bitmaps[i] ) {
             plat_free( bitmaps[i] );
         }
@@ -3595,12 +3640,13 @@ static int mcd_osd_slab_init()
 
     plat_assert_always(sizeof(hash_entry_t) == OSD_HASH_ENTRY_HOPED_SIZE);
 
-    if ( 4294967296ULL < Mcd_osd_total_blks) {
-        mcd_log_msg( 160168, PLAT_LOG_LEVEL_FATAL,
-                     "maximum storage size supported with block size, %d is %dTB",
+	// Block size is 40 bits, so maximum supported device size is 2^40 */
+    if ( (2ULL << BLOCK_ADDRESS) < Mcd_osd_total_blks) {
+        mcd_log_msg( 160268, PLAT_LOG_LEVEL_FATAL,
+                     "maximum storage size supported with block size, %d is %dPB",
 		     		(int)Mcd_osd_blk_size, 
-				((int)(Mcd_osd_blk_size/MCD_OSD_BLK_SIZE_MIN)) * 2);
-	return FLASH_EINVAL;
+				((int)(Mcd_osd_blk_size/MCD_OSD_BLK_SIZE_MIN)) * 2 * 128);
+		return FLASH_EINVAL;
     }
 
     Mcd_osd_segment_blks = Mcd_osd_segment_size / Mcd_osd_blk_size;
@@ -3689,7 +3735,7 @@ static inline
 uint8_t
 mcd_osd_slab_slot_alloc(mcd_osd_shard_t* shard, mcd_osd_segment_t* segment, int offs, uint64_t* blk_offset)
 {
-  uint64_t tmp = __sync_fetch_and_or(&segment->bitmap[offs / 64], Mcd_osd_bitmap_masks[offs % 64] );
+  uint64_t tmp = __sync_fetch_and_or(&segment->mos_bitmap[offs / 64], Mcd_osd_bitmap_masks[offs % 64] );
 
   if (tmp & Mcd_osd_bitmap_masks[offs % 64])
   {
@@ -3833,7 +3879,12 @@ mcd_fth_osd_grow_class(void* context, mcd_osd_shard_t * shard, mcd_osd_slab_clas
 
         if(shard->free_segments_count)
             blk_offset = mcd_fth_osd_allocate_segment(shard);
-    }
+    } else {
+		if ((flash_settings.storm_test & 0x0004) && (shard->id == vdc_shardid)) {
+			blk_offset = shard->total_blks - Mcd_osd_segment_blks - blk_offset;
+		}
+	}
+
 
     if ( blk_offset + Mcd_osd_segment_blks > shard->total_blks ) {
         /*
@@ -3862,6 +3913,8 @@ mcd_fth_osd_grow_class(void* context, mcd_osd_shard_t * shard, mcd_osd_slab_clas
     segment->blk_offset = blk_offset;
     segment->class = class;
     segment->idx = seg_idx;
+	plat_assert(segment->mos_bitmap == NULL);
+	segment->mos_bitmap = (uint64_t *)plat_alloc((class->slabs_per_segment + 7)/ 8);
 
     atomic_add(class->total_slabs, class->slabs_per_segment);
 
@@ -3904,7 +3957,7 @@ mcd_osd_slab_evage_update( void * context, mcd_osd_shard_t * shard,
     buf = (char *)( ( (uint64_t)data_buf + Mcd_osd_blk_size - 1 )
                     & Mcd_osd_blk_mask );
 
-    offset = mcd_osd_rand_address(shard, hash_entry->address);
+    offset = mcd_osd_rand_address(shard, hash_entry->blkaddress);
 
     rc = mcd_fth_aio_blk_read( context,
                                buf,
@@ -4054,7 +4107,7 @@ mcd_fth_osd_get_slab( void * context, mcd_osd_shard_t * shard,
 
             if (segment)
             {
-              map_value = segment->bitmap[0];
+              map_value = segment->mos_bitmap[0];
               if ( 0 != ~map_value )
               {
                 temp = (map_value + 1) & ~map_value;
@@ -4095,7 +4148,7 @@ mcd_fth_osd_get_slab( void * context, mcd_osd_shard_t * shard,
 
             while ( map_offset < (Mcd_pthread_id + 1) * slabs_per_pth ) {
 
-                map_value = segment->bitmap[map_offset / 64];
+                map_value = segment->mos_bitmap[map_offset / 64];
                 if ( 0 != map_offset % 64 ) {
                     map_value |= Mcd_osd_scan_masks[(map_offset % 64) - 1];
                 }
@@ -4145,175 +4198,6 @@ mcd_fth_osd_get_slab( void * context, mcd_osd_shard_t * shard,
     // return mcd_osd_slab_clock_evict();
 #endif
 	plat_assert(0);
-#if 0
-    /*
-     * ok, need to evict an object
-     */
-    uint32_t loop_cnt = 0, idx;
-    do {
-        if ( 1 >= slabs_per_pth ) { /* FIXME_8MB */
-            hand = __sync_fetch_and_add( &(class->clock_hand[0]), 1 );
-
-            idx = ( hand / class->slabs_per_segment ) % class->num_segments;
-
-            map_offset = hand % class->slabs_per_segment;
-        }
-        else {
-            hand = class->clock_hand[Mcd_pthread_id]++;
-
-            idx = (hand / slabs_per_pth) % class->num_segments;
-
-            map_offset = hand % slabs_per_pth + Mcd_pthread_id * slabs_per_pth;
-        }
-
-        segment = mcd_osd_segment_get_and_lock(class, idx);
-
-        if (!segment) 
-            continue;
-
-        *blk_offset = segment->blk_offset + map_offset * class->slab_blksize;
-
-        /*
-         * if slab is not in use, simply grab it
-         */
-        if ( 0 == ( segment->bitmap[map_offset / 64] &
-                    Mcd_osd_bitmap_masks[map_offset % 64] ) ) {
-
-            mcd_log_msg( 20360, PLAT_LOG_LEVEL_TRACE,
-                    "unused slab found, seg_off=%lu map_off=%u",
-                    segment->blk_offset, map_offset );
-
-            if(mcd_osd_slab_slot_alloc(shard, segment, map_offset, NULL))
-            {
-                mcd_osd_segment_unlock(segment);
-
-                if ( NULL == osd_state->osd_wait ) {
-                    osd_state->osd_wait =
-                        fthLock( osd_state->osd_lock, 1, NULL );
-                }
-                return 0;   /* SUCCESS */
-            }
-        }
-
-        mcd_osd_segment_unlock(segment);
-
-        /*
-         * slab is occupied, evict the current owner
-         */
-        hash_index = shard->hash_handle->addr_table[*blk_offset];
-
-        if ( NULL != osd_state->osd_wait ) {
-            /*
-             * unlock the current bucket before we lock another one
-             */
-            fthUnlock( osd_state->osd_wait );
-        }
-
-        osd_state->osd_wait =
-            fthLock( shard->hash_handle->bucket_locks +
-                    hash_index / shard->hash_handle->lock_bktsize, 
-                    1, NULL );
-
-        bucket_head = shard->hash_handle->hash_buckets +
-            hash_index / OSD_HASH_BUCKET_SIZE;
-        bucket_idx = *bucket_head;
-        for(;bucket_idx != 0; bucket_idx = bucket->next){
-            bucket = shard->hash_handle->hash_table + (bucket_idx - 1);
-            for(i=0;i<OSD_HASH_ENTRY_PER_BUCKET_ENTRY;i++){
-                hash_entry = &bucket->hash_entry[i];
-                if(hash_entry->used == 0 ) continue;
-                if(hash_entry->address == *blk_offset){
-                    goto found;
-                }
-            }
-        }
-        (void) __sync_fetch_and_add( &shard->invalid_evictions, 1 );
-        fthUnlock( osd_state->osd_wait );
-        osd_state->osd_wait = NULL;
-
-        loop_cnt++;
-        if ( loop_cnt && 0 == loop_cnt % 128 ) {
-            fthYield( 1 );
-        }
-
-        if ( 65536 < loop_cnt && 0 == loop_cnt % 8192 ) {
-            mcd_log_msg( 50045, PLAT_LOG_LEVEL_WARN,
-                    "too many invalid evictions, "
-                    "cnt=%u moff=%d boff=%lu hind=%u",
-                    loop_cnt, map_offset, *blk_offset,
-                    hash_index );
-        }
-        continue;
-found:
-
-        if ( hash_entry->deleted ) {
-            /*
-             * the object is deleted with an expiry time, do not evict it
-             */
-            (void) __sync_fetch_and_add( &shard->invalid_evictions, 1 );
-            fthUnlock( osd_state->osd_wait );
-            osd_state->osd_wait = NULL;
-
-            loop_cnt++;
-            if ( loop_cnt && 0 == loop_cnt % 128 ) {
-                fthYield( 1 );
-            }
-            if ( 65536 < loop_cnt && 0 == loop_cnt % 8192 ) {
-                mcd_log_msg( 50046, PLAT_LOG_LEVEL_WARN,
-                        "too many deleted evictions, cnt=%u", loop_cnt );
-            }
-            continue;
-        }
-        mcd_log_msg( 160205, PLAT_LOG_LEVEL_TRACE,
-                "evicting, pth_id=%d hand=%u address=%u index=%u",
-                Mcd_pthread_id, hand,
-                hash_entry->address, hash_index );
-
-        if(shard->replicated)
-            mcd_fth_osd_remove_entry(shard, hash_entry, true, false);
-
-        // eviction case
-        if ( 1 == shard->persistent ) {
-            log_rec.syndrome     = hash_entry->syndrome;
-            log_rec.deleted      = hash_entry->deleted;
-            log_rec.reserved     = 0;
-            log_rec.blocks       = 0;  // distinguishes a delete record
-            log_rec.bucket       = hash_index;
-            log_rec.blk_offset   = hash_entry->address;
-            log_rec.old_offset   = 0;
-            log_rec.cntr_id      = hash_entry->cntr_id;
-            if ( 1 == shard->replicated ) {
-            // Must make RPC call to get a seqno to use for this eviction
-                log_rec.seqno = rep_seqno_get((struct shard *)shard);
-            } else {
-                log_rec.seqno =
-                    __sync_add_and_fetch( &shard->sequence, 1 );
-            }
-            log_rec.target_seqno = 0;
-            log_write( shard, &log_rec );
-        }
-
-        evictions = __sync_fetch_and_add( &shard->num_slab_evictions, 1 );
-        if ( 0 == evictions % MCD_OSD_EVAGE_FEQUENCY ) {
-            mcd_osd_slab_evage_update( context, shard, 
-            hash_entry, evictions );
-        }
-
-        hash_entry_delete(shard->hash_handle, hash_entry, hash_index);
-
-        (void) __sync_fetch_and_sub( &shard->num_objects, 1 );
-
-        fthUnlock( osd_state->osd_wait );
-
-        /*
-         * relock the original lock
-         */
-        osd_state->osd_wait =
-            fthLock( osd_state->osd_lock, 1, NULL );
-        return 0;       /* SUCCESS */
-
-    } while ( 1 );
-#endif
 }
 
 static inline int
@@ -4420,7 +4304,8 @@ mcd_fth_osd_slab_alloc( void * context, mcd_osd_shard_t * shard, int blocks,
                 return 1;   /* SUCCESS */
 
         /*EF: prevent call to grow_class from GC thread, which doesn't set osd_wait */
-        if (((!osd_state->osd_wait && count < 2) || mcd_fth_osd_grow_class(context, shard, class) == -1))
+    //    if (((!osd_state->osd_wait && count < 2) || mcd_fth_osd_grow_class(context, shard, class) == -1))
+        if (mcd_fth_osd_grow_class(context, shard, class) == -1)
 		{
 			if(!mcd_fth_osd_get_slab( context, shard, class, blocks, blk_offset))
 				return 1;
@@ -4525,6 +4410,14 @@ mcd_fth_osd_slab_set( void * context, mcd_osd_shard_t * shard,
 
     mcd_log_msg( 20000, PLAT_LOG_LEVEL_TRACE, "ENTERING" );
 
+	if (flags & FLASH_CREATE_RAW_OBJECT) {
+		return mcd_fth_osd_slab_create_raw(context, shard, key, key_len, data, data_len, flags,
+										meta_data, syndrome, blk_offset, blocks );
+	} else if (flags & FLASH_PUT_RAW_OBJECT) {
+		return mcd_fth_osd_slab_write_raw(context, shard, key, key_len, data, data_len, flags,
+										meta_data, syndrome, blk_offset, blocks );
+	}
+
     /*
      * FIXME: Shard durability is incorrectly used for a shared shard.
      * It assumes durability of the given contaner here, risking durability
@@ -4585,12 +4478,13 @@ mcd_fth_osd_slab_set( void * context, mcd_osd_shard_t * shard,
         log_rec.deleted      = 0;
         log_rec.reserved     = 0;
         log_rec.blocks       = 0;
-        log_rec.bucket       = 0;
+        log_rec.rbucket       = 0;
         log_rec.blk_offset   = 0xffffffffu; // marks this record
         log_rec.old_offset   = 0;
         log_rec.cntr_id      = 0;
         log_rec.seqno        = 0;
         log_rec.target_seqno = shard->cntr->cas_id;
+        log_rec.raw = FALSE;
         log_write( shard, &log_rec );
     }
 
@@ -4697,18 +4591,23 @@ mcd_fth_osd_slab_set( void * context, mcd_osd_shard_t * shard,
 
             // explicit delete case
             if ( 1 == shard->persistent ) {
-                log_rec.syndrome     = hash_entry->syndrome;
+                log_rec.syndrome     = hash_entry->hesyndrome;
                 log_rec.deleted      = hash_entry->deleted;
                 log_rec.reserved     = 0;
                 log_rec.blocks       = 0;  // distinguishes a delete record
-                log_rec.bucket       = syndrome % hdl->hash_size;
-                log_rec.blk_offset   = hash_entry->address;
+				if (!hdl->addr_table) {
+					log_rec.rbucket       = (syndrome % hdl->hash_size) / Mcd_osd_bucket_size;
+				} else {
+					log_rec.rbucket       = (syndrome % hdl->hash_size);
+				}
+                log_rec.blk_offset   = hash_entry->blkaddress;
                 log_rec.cntr_id      = cntr_id;
                 log_rec.seqno        = meta_data->sequence;
                 log_rec.target_seqno = target_seqno;
+                log_rec.raw = FALSE;
                 if ( 0 == shard->evict_to_free ) {
                     // store mode: delay flash space dealloc
-                    log_rec.old_offset = ~(hash_entry->address);
+                    log_rec.old_offset = ~(hash_entry->blkaddress);
                     log_write_trx( shard, &log_rec, syndrome, hash_entry);
                 } else {
                     log_rec.old_offset = 0;
@@ -4723,7 +4622,7 @@ mcd_fth_osd_slab_set( void * context, mcd_osd_shard_t * shard,
             (void) __sync_fetch_and_add( &shard->num_deletes, 1 );
 
             rc = FLASH_EOK;
-            meta_data->blockaddr = hash_entry->address;
+            meta_data->blockaddr = hash_entry->blkaddress;
             goto out;
         }
 
@@ -4732,38 +4631,6 @@ mcd_fth_osd_slab_set( void * context, mcd_osd_shard_t * shard,
     if ( true == obj_exists ) {
         if ( shard->evict_to_free ) {
 			plat_assert(0);
-#if 0
-            /*
-             * remove the hash entry first as we may lose control over the
-             * hash bucket due to eviction
-             */
-            // overwrite case in cache mode
-            if ( 1 == shard->persistent ) {
-                log_rec.syndrome     = hash_entry->syndrome;
-                log_rec.deleted      = hash_entry->deleted;
-                log_rec.reserved     = 0;
-                log_rec.blocks       = 0;  // distinguishes a delete record
-                log_rec.bucket       = syndrome % hdl->hash_size;
-                log_rec.blk_offset   = hash_entry->address;
-                log_rec.old_offset   = 0;
-                log_rec.cntr_id      = cntr_id;
-                if ( 1 == shard->replicated ) {
-                    log_rec.seqno = meta_data->sequence;
-                } else {
-                    log_rec.seqno =
-                        __sync_add_and_fetch( &shard->sequence, 1 );
-                }
-                log_rec.target_seqno = target_seqno;
-                log_write( shard, &log_rec );
-            }
-
-            mcd_fth_osd_remove_entry(shard, hash_entry, shard->replicated, true);
-	        hash_entry_delete(hdl, hash_entry, 
-                                (syndrome % hdl->hash_size));
-
-            (void) __sync_fetch_and_sub( &shard->num_objects, 1 );
-            (void) __sync_fetch_and_add( &shard->num_overwrites, 1 );
-#endif
         }
     }
 
@@ -4781,71 +4648,69 @@ mcd_fth_osd_slab_set( void * context, mcd_osd_shard_t * shard,
         plus_blks -= rsvd_blks;
     }
 
-    if(!(flags & FLASH_PUT_SKIP_IO))
-    {
-    /*
-     * re-alloc the buffer for large objects
-     */     
-    if ( (MCD_FTH_OSD_BUF_SIZE / Mcd_osd_blk_size) < blocks ) {
-        buf = mcd_fth_osd_iobuf_alloc(context, blocks * Mcd_osd_blk_size, false );
-        if ( NULL == buf ) {
-            rc = FLASH_ENOMEM;
-            goto out;
-        }
-        dyn_buffer = true;
-    }
+    if(!(flags & FLASH_PUT_SKIP_IO)) {
+		/*
+		 * re-alloc the buffer for large objects
+		 */     
+		if ( (MCD_FTH_OSD_BUF_SIZE / Mcd_osd_blk_size) < blocks ) {
+			buf = mcd_fth_osd_iobuf_alloc(context, blocks * Mcd_osd_blk_size, false );
+			if ( NULL == buf ) {
+				rc = FLASH_ENOMEM;
+				goto out;
+			}
+			dyn_buffer = true;
+		}
 
-    mcd_osd_slab_set_data(buf, key, key_len, data, data_len, uncomp_datalen, blocks, meta_data, true);
+		mcd_osd_slab_set_data(buf, key, key_len, data, data_len, uncomp_datalen, blocks, meta_data, true);
 
-    if ( 1 != mcd_fth_osd_slab_alloc( context, shard, blocks, 1, &blk_offset ) ) {
-        mcd_log_msg( 20367, PLAT_LOG_LEVEL_TRACE, "failed to allocate slab" );
-        rc = FLASH_ENOSPC;
-        goto out;
-    }       
-    mcd_log_msg( 20368, PLAT_LOG_LEVEL_TRACE,
-                 "blocks allocated, key_len=%d data_len=%lu "
-                 "blk_offset=%lu blocks=%d",
-                 key_len, data_len, blk_offset, blocks );
-                
-    plat_assert 
-        ( shard->segment_table[ blk_offset /
-                                Mcd_osd_segment_blks ]->class->slab_blksize >=
-          mcd_osd_lba_to_blk( mcd_osd_blk_to_lba( blocks ) ) );
+		if ( 1 != mcd_fth_osd_slab_alloc( context, shard, blocks, 1, &blk_offset ) ) {
+			mcd_log_msg( 20367, PLAT_LOG_LEVEL_TRACE, "failed to allocate slab" );
+			rc = FLASH_ENOSPC;
+			goto out;
+		}       
+		mcd_log_msg( 20368, PLAT_LOG_LEVEL_TRACE,
+					 "blocks allocated, key_len=%d data_len=%lu "
+					 "blk_offset=%lu blocks=%d",
+					 key_len, data_len, blk_offset, blocks );
+					
+		plat_assert 
+			( shard->segment_table[ blk_offset /
+									Mcd_osd_segment_blks ]->class->slab_blksize >=
+			  mcd_osd_lba_to_blk( mcd_osd_blk_to_lba( blocks ) ) );
 
-    offset = mcd_osd_rand_address(shard, blk_offset);
+		offset = mcd_osd_rand_address(shard, blk_offset);
 
 #ifndef MCD_ENABLE_SLAB_CACHE_NOSSD
-    /*
-     * FIXME: pad the object if size < 128KB
-     */
-    if ((blocks * Mcd_osd_blk_size) < (128 * 1024)) {
-        rc = mcd_fth_aio_blk_write_low(
-                context, buf, offset,
-                (1 << shard->class_table[blocks]) * Mcd_osd_blk_size,
-                shard->durability_level > SDF_RELAXED_DURABILITY);
-    }
-    else {
+		/*
+		 * FIXME: pad the object if size < 128KB
+		 */
+		if ((blocks * Mcd_osd_blk_size) < (128 * 1024)) {
+			rc = mcd_fth_aio_blk_write_low(
+					context, buf, offset,
+					(1 << shard->class_table[blocks]) * Mcd_osd_blk_size,
+					shard->durability_level > SDF_RELAXED_DURABILITY);
+		} else {
         rc = mcd_fth_aio_blk_write_low(
                 context, buf, offset,
                 blocks * Mcd_osd_blk_size,
                 shard->durability_level > SDF_RELAXED_DURABILITY);
-    }
-    if ( FLASH_EOK != rc ) {
-        /*
-         * FIXME: free the allocated space here?
-         */
-        mcd_log_msg( 20008, PLAT_LOG_LEVEL_ERROR,
-                     "failed to write blocks, rc=%d", rc );
-        goto out;
-    }
+		}
+		if ( FLASH_EOK != rc ) {
+			/*
+			 * FIXME: free the allocated space here?
+			 */
+			mcd_log_msg( 20008, PLAT_LOG_LEVEL_ERROR,
+						 "failed to write blocks, rc=%d", rc );
+			goto out;
+		}
 #endif
 
 #ifdef  MCD_ENABLE_SLAB_CACHE
-    /*
-     * copy the data into the slab cache (for testing only)
-     */
-    memcpy( shard->slab_cache + offset, buf, blocks * Mcd_osd_blk_size );
-    rc = FLASH_EOK;
+		/*
+		 * copy the data into the slab cache (for testing only)
+		 */
+		memcpy( shard->slab_cache + offset, buf, blocks * Mcd_osd_blk_size );
+		rc = FLASH_EOK;
 #endif
     } /* !(flags & FLASH_PUT_SKIP_IO) */
 
@@ -4861,12 +4726,13 @@ mcd_fth_osd_slab_set( void * context, mcd_osd_shard_t * shard,
     new_entry.used       = 1;
     new_entry.referenced = 1;
     new_entry.blocks     = mcd_osd_blk_to_lba( blocks );
-    new_entry.syndrome   = (uint16_t)(syndrome >> 48);
-    new_entry.address    = blk_offset;
+    new_entry.hesyndrome   = (uint16_t)(syndrome >> 48);
+    new_entry.blkaddress    = blk_offset;
     new_entry.cntr_id    = cntr_id;
 
-    if(key_len == 8 && hdl->key_cache)
-        hdl->key_cache[new_entry.address] = *(uint64_t*)key;
+    if(key_len == 8 && hdl->key_cache) {
+		keycache_set(hdl, new_entry.blkaddress, *(uint64_t*)key);
+	}
 
     new_entry.deleted    = 0;
     if ( &Mcd_osd_cmc_cntr != shard->cntr ) {
@@ -4875,62 +4741,6 @@ mcd_fth_osd_slab_set( void * context, mcd_osd_shard_t * shard,
         }
     }
 
-    /*
-     * if the shard allows eviction and is replicated, evict all
-     * items with the same hash to make life easier before we insert
-     * the new entry
-     *
-     * NOTE: shard->replicated should never be set with simple replication
-     */
-#if 0
-    if ( 1 == shard->evict_to_free && 1 == shard->replicated ) {
-
-        bucket_idx = *(hdl->hash_buckets + ((syndrome % hdl->hash_size) /
-                    OSD_HASH_BUCKET_SIZE));
-        for(;bucket_idx != 0;bucket_idx = bucket->next){
-            bucket = hdl->hash_table + (bucket_idx - 1);
-            for(i=0;i<OSD_HASH_ENTRY_PER_BUCKET_ENTRY;i++){
-                hash_entry = &bucket->hash_entry[i];
-                if(hash_entry->used == 0){
-                    continue;
-                }
-                if ( (uint16_t)(syndrome >> 48) != hash_entry->syndrome ) {
-                    continue;
-                }
-
-                // special case of hash eviction in cache mode and replicated
-                if ( 1 == shard->persistent ) {
-                    log_rec.syndrome     = hash_entry->syndrome;
-                    log_rec.deleted      = hash_entry->deleted;
-                    log_rec.reserved     = 0;
-                    log_rec.blocks       = 0;  // distinguishes a delete record
-                    log_rec.bucket       = syndrome % hdl->hash_size;
-                    log_rec.blk_offset   = hash_entry->address;
-                    log_rec.old_offset   = 0;
-                    log_rec.cntr_id      = cntr_id;
-                    if ( 1 == shard->replicated ) {
-                        log_rec.seqno = meta_data->sequence;
-                    } else {
-                        log_rec.seqno =
-                            __sync_add_and_fetch( &shard->sequence, 1 );
-                    }
-                    log_rec.target_seqno = 0;
-                    log_write( shard, &log_rec );
-                }
-
-
-                mcd_fth_osd_remove_entry(shard, hash_entry, true, true);
-                plus_objs--;
-                plus_blks -= lba_to_use(shard, hash_entry->blocks);
-                hash_entry_delete(hdl, hash_entry, 
-                                    (syndrome % hdl->hash_size));
-
-                (void) __sync_fetch_and_sub( &shard->num_objects, 1 );
-                (void) __sync_fetch_and_add( &shard->num_hash_evictions, 1 );
-            }
-        }
-    }
-#endif
 
     if ( true == obj_exists && 0 == shard->evict_to_free ) {
         /*
@@ -4947,141 +4757,39 @@ mcd_fth_osd_slab_set( void * context, mcd_osd_shard_t * shard,
         mcd_fth_osd_remove_entry(shard, hash_entry, shard->persistent, false);
 
         (void) __sync_fetch_and_add( &shard->num_overwrites, 1 );
-    }
-    else {
-	// TBD: eviction in bucket
-	hash_entry = hash_entry_insert_by_key(hdl, syndrome);
+    } else {
+		// TBD: eviction in bucket
+		hash_entry = hash_entry_insert_by_key(hdl, syndrome);
 
-	if( hash_entry == NULL) {
-		(void) __sync_fetch_and_add( &shard->blk_consumed,
-						new_entry.blocks );
-		mcd_fth_osd_remove_entry( shard, &new_entry, false, true);
-		hash_entry_copy(&new_entry, NULL);
-		rc = FLASH_ENOSPC;
-		goto out;
-	}
-#if 0
-            if ( 0 == shard->evict_to_free ) {
-                /*
-                 * hash bucket is full, try the overflow table
-                 */
-                index = shard->overflow_index +
-                    ( ( syndrome % shard->hash_size ) / shard->lock_bktsize )
-                    * Mcd_osd_overflow_depth;
-
-                hash_entry = shard->overflow_table +
-                    ( ( syndrome % shard->hash_size ) / shard->lock_bktsize )
-                    * Mcd_osd_overflow_depth;
-
-                for ( i = 0; i < Mcd_osd_overflow_depth; i++,hash_entry++ ) {
-                    if ( 0 == hash_entry->used ) {
-                        bucket->overflowed = 1;
-                        index[i] = ( bucket - shard->hash_buckets )
-                            % shard->lock_bktsize;
-                        mcd_log_msg( 20370, PLAT_LOG_LEVEL_TRACE,
-                                     "bucket=%lu index=%hu",
-                                     bucket - shard->hash_buckets, index[i] );
-                        (void) __sync_fetch_and_add( &shard->num_objects, 1 );
-                        break;
-                    }
-                }
-                if ( Mcd_osd_overflow_depth > i ) {
-                    (void) __sync_fetch_and_add(&shard->num_soft_overflows, 1);
-                }
-                else {
-                    /*
-                     * sigh, even the overflow area is full
-                     */
-                    (void) __sync_fetch_and_add( &shard->blk_consumed,
-                                                 new_entry.blocks );
-                    plus_objs--;
-                    plus_blks -= lba_to_use(shard, hash_entry->blocks);
-                    mcd_fth_osd_remove_entry( shard, &new_entry, false, true);
-                    (void)__sync_fetch_and_add(&shard->num_hard_overflows, 1);
-                    if (!vc_evict) {
-                        mcd_log_msg(80044, PLAT_LOG_LEVEL_WARN,
-                                    "hash table overflow area full:"
-                                    " num_hard_overflows=%lu",
-                                    shard->num_hard_overflows);
-                    }
-                    rc = FLASH_ENOSPC;
-                    goto out;
-                }
-            }
-            else {
-                n = 0;
-                do {
-                    hash_entry =
-                        bucket_head + ( bucket->hand % Mcd_osd_bucket_size );
-                    if ( 0 == hash_entry->used ) {
-                        plat_assert_always( 0 == 1 );
-                    }
-                    if ( 0 == hash_entry->referenced &&
-                         0 == hash_entry->deleted ) {
-                        break;
-                    }
-                    if ( ( 2 * Mcd_osd_bucket_size ) < n ) {
-                        (void) __sync_fetch_and_add( &shard->blk_consumed,
-                                                     blocks );
-                        mcd_fth_osd_remove_entry(shard, &new_entry, false, true);
-                        mcd_log_msg(80042,PLAT_LOG_LEVEL_ERROR,
-                          "No space left for hash entry");
-                        rc = FLASH_ENOSPC;
-                        goto out;
-                    }
-                    hash_entry->referenced = 0;
-                    bucket->hand++;
-                } while ( ++n );
-
-                mcd_fth_osd_remove_entry(shard, hash_entry, shard->replicated, true);
-
-                // hash eviction in cache mode
-                if ( 1 == shard->persistent ) {
-                    log_rec.syndrome     = hash_entry->syndrome;
-                    log_rec.deleted      = hash_entry->deleted;
-                    log_rec.reserved     = 0;
-                    log_rec.blocks       = 0;  // distinguishes a delete record
-                    log_rec.bucket       = syndrome % shard->hash_size;
-                    log_rec.blk_offset   = hash_entry->address;
-                    log_rec.old_offset   = 0;
-                    log_rec.cntr_id      = cntr_id;
-                    if ( 1 == shard->replicated ) {
-                        log_rec.seqno = meta_data->sequence;
-                    } else {
-                        log_rec.seqno =
-                            __sync_add_and_fetch( &shard->sequence, 1 );
-                    }
-                    log_rec.target_seqno = 0;
-                    log_write( shard, &log_rec );
-                }
-
-                (void) __sync_fetch_and_add( &shard->num_hash_evictions, 1 );
-            }
-        }
-        else {
-            hash_entry = bucket_head + bucket->next_item++;
-            (void) __sync_fetch_and_add( &shard->num_objects, 1 );
-            if ( Mcd_osd_bucket_size == bucket->next_item ) {
-                (void) __sync_fetch_and_add( &shard->num_full_buckets, 1 );
-            }
-        }
-#endif
+		if( hash_entry == NULL) {
+			(void) __sync_fetch_and_add( &shard->blk_consumed,
+							new_entry.blocks );
+			mcd_fth_osd_remove_entry( shard, &new_entry, false, true);
+			hash_entry_copy(&new_entry, NULL);
+			rc = FLASH_ENOSPC;
+			goto out;
+		}
     }
     (void) __sync_fetch_and_add( &shard->total_objects, 1 );
 
     // create case
     if ( 1 == shard->persistent ) {
-        log_rec.syndrome   = new_entry.syndrome;
+        log_rec.syndrome   = new_entry.hesyndrome;
         log_rec.deleted    = new_entry.deleted;
         log_rec.reserved   = 0;
         log_rec.blocks     = new_entry.blocks;
-        log_rec.bucket     = syndrome % hdl->hash_size;
-        log_rec.blk_offset = new_entry.address;
+        if (!hdl->addr_table) {
+			log_rec.rbucket     = (syndrome % hdl->hash_size) / Mcd_osd_bucket_size;
+		} else {
+			log_rec.rbucket     = (syndrome % hdl->hash_size);
+		}
+        log_rec.blk_offset = new_entry.blkaddress;
         log_rec.cntr_id    = cntr_id;
         log_rec.seqno      = meta_data->sequence;
+        log_rec.raw = FALSE;
         if ( true == obj_exists && 0 == shard->evict_to_free ) {
             // overwrite case in store mode
-            log_rec.old_offset   = ~(hash_entry->address);
+            log_rec.old_offset   = ~(hash_entry->blkaddress);
             log_rec.target_seqno = target_seqno;
             log_write_trx( shard, &log_rec, syndrome, hash_entry);
         } else {
@@ -5095,11 +4803,13 @@ mcd_fth_osd_slab_set( void * context, mcd_osd_shard_t * shard,
     plus_blks += blk_to_use(shard, blocks);
 
     hash_entry_copy( hash_entry, &new_entry);
-    hdl->addr_table[blk_offset] = syndrome % hdl->hash_size;
+	if (hdl->addr_table) {
+		hdl->addr_table[blk_offset] = (syndrome % hdl->hash_size);
+	}
 
     (void) __sync_fetch_and_add( &shard->blk_consumed,
                                  mcd_osd_lba_to_blk( new_entry.blocks ) );
-    meta_data->blockaddr = new_entry.address;
+    meta_data->blockaddr = new_entry.blkaddress;
 
 out:
     if ( dyn_buffer ) {
@@ -5142,6 +4852,425 @@ out:
 }
 
 static int
+mcd_fth_osd_slab_create_raw( void * context, mcd_osd_shard_t * shard,
+						char * key, int key_len, void * data, SDF_size_t data_len, int flags,
+						struct objMetaData * meta_data, uint64_t syndrome, uint64_t blk_offset, int blocks )
+{
+	int                          rc = FLASH_EOK;
+	//uint64_t                    num_puts;
+	int64_t                     plus_objs = 0;
+	int64_t                     plus_blks = 0;
+	cntr_id_t                   cntr_id = meta_data->cguid;
+	ZS_boolean_t				vc_evict = ZS_FALSE;
+	cntr_map_t					*cmap = NULL;
+    int room = 1;
+    
+
+    mcd_log_msg( 20000, PLAT_LOG_LEVEL_TRACE, "ENTERING" );
+
+    // don't allow normal flash puts during restore
+    if ( 1 == shard->restore_running &&
+         0 == (flags & FLASH_PUT_RESTORE) ) {
+        return FLASH_EACCES;
+    }
+
+	cmap = get_cntr_map(cntr_id);
+	if ( cntr_id > LAST_PHYSICAL_CGUID) {
+		if (!cmap) {
+			mcd_log_msg( 150108,
+						 PLAT_LOG_LEVEL_ERROR,
+						 "Could not determine eviction type for container %u\n",
+						 cntr_id );
+		} else {
+			vc_evict = cmap->evicting;
+		}
+	}
+
+#ifdef  MCD_OSD_DEBUGGING
+    (void) __sync_fetch_and_add( &Mcd_osd_set_cmds, 1 );
+    if ( 0 == Mcd_osd_set_cmds % MCD_OSD_DBG_SET_DIV ) {
+        mcd_log_msg( 20329, PLAT_LOG_LEVEL_DEBUG,
+                     "%lu sets, b_alloc=%lu overwrites=%lu evictions=%lu "
+                     "soft_of=%lu hard_of=%lu p_id=%d ",
+                     Mcd_osd_set_cmds,
+                     shard->blk_allocated,
+                     shard->num_overwrites,
+                     shard->num_hash_evictions,
+                     shard->num_soft_overflows,
+                     shard->num_hard_overflows,
+                     Mcd_pthread_id );
+    }
+#endif
+
+    if(!(flags & FLASH_PUT_SKIP_IO)) {
+        uint64_t raw_len = sizeof(mcd_osd_meta_t) + key_len + data_len;
+        blocks = ( raw_len + ( Mcd_osd_blk_size - 1 ) ) / Mcd_osd_blk_size;
+
+		plat_assert(blocks == 8);
+
+        if (blocks > MCD_OSD_OBJ_MAX_BLKS) {
+            mcd_log_msg( 20330, PLAT_LOG_LEVEL_ERROR,
+                    "object size beyond limit, raw_len=%lu", raw_len );
+            rc = FLASH_EINVAL;
+            goto xout;
+        }
+    }
+
+	/*
+	 * See if there is enough space.
+	 */
+	if (!vc_evict && !is_btree_loaded()) {
+		uint64_t rsvd_blks = blk_to_use(shard, blocks);
+		if (cmap && !inc_cntr_map_by_map(cmap, cntr_id, 0, rsvd_blks, 1)) {
+			rc = FLASH_ENOSPC;
+			goto xout;
+		}
+		plus_blks -= rsvd_blks;
+    }
+
+	if(!(flags & FLASH_PUT_SKIP_IO)) {
+
+		if ( 1 != mcd_fth_osd_slab_alloc( context, shard, blocks, 1, &blk_offset ) ) {
+			mcd_log_msg( 20367, PLAT_LOG_LEVEL_TRACE, "failed to allocate slab" );
+			rc = FLASH_ENOSPC;
+			goto xout;
+		}       
+		mcd_log_msg( 20368, PLAT_LOG_LEVEL_TRACE,
+					 "blocks allocated, key_len=%d data_len=%lu "
+					 "blk_offset=%lu blocks=%d",
+					 key_len, data_len, blk_offset, blocks );
+					
+		plat_assert 
+			( shard->segment_table[ blk_offset /
+									Mcd_osd_segment_blks ]->class->slab_blksize >=
+			  mcd_osd_lba_to_blk( mcd_osd_blk_to_lba( blocks ) ) );
+
+		//offset = mcd_osd_rand_address(shard, blk_offset);
+
+	} /* !(flags & FLASH_PUT_SKIP_IO) */
+
+
+    plus_objs++;
+    plus_blks += blk_to_use(shard, blocks);
+
+    (void) __sync_fetch_and_add( &shard->blk_consumed,
+                                 mcd_osd_lba_to_blk( mcd_osd_blk_to_lba( blocks )) );
+    meta_data->blockaddr = blk_offset;
+	*((baddr_t *)key) = blk_offset;
+	plat_assert(blk_offset % 8 == 0);
+
+xout:
+
+
+	if (cmap) {
+		room = inc_cntr_map_by_map(cmap, cntr_id, plus_objs, plus_blks, 0);
+	}
+
+    if (vc_evict && (!room || rc == FLASH_ENOSPC)) {
+        osd_state_t *osd_state = (osd_state_t *) context;
+        fthUnlock(osd_state->osd_wait);
+        osd_state->osd_wait = NULL;
+
+        int i;
+        for (i = 0; i < 2; i++) {
+            if (evict_object(shard, cntr_id, blocks)) {
+                uint64_t used = blk_to_use(shard, blocks);
+                (void) __sync_fetch_and_sub( &shard->num_objects, 1 );
+				if (cmap) {
+					if (inc_cntr_map_by_map(cmap, cntr_id, -1, -used, 0))
+						break;
+				} else {
+					break;
+				}
+            }
+        }
+        if (rc == FLASH_ENOSPC)
+            rc = FLASH_EOK;
+
+    }
+
+	if (cmap) {
+		rel_cntr_map(cmap);
+	}
+
+    return rc;
+}
+
+static int
+mcd_fth_osd_slab_write_raw( void * context, mcd_osd_shard_t * shard,
+        char * key, int key_len, void * data, SDF_size_t data_len, int flags,
+                      struct objMetaData * meta_data, uint64_t syndrome, uint64_t blk_offset, int blocks )
+{
+    int                         rc = FLASH_EOK;
+    bool                        dyn_buffer = false;
+    char                      * buf;
+    char                      * data_buf = NULL;
+    uint64_t                    offset;
+    uint64_t                    num_puts;
+    int64_t                     plus_objs = 0;
+    int64_t                     plus_blks = 0;
+    cntr_id_t                   cntr_id = meta_data->cguid;
+    ZS_boolean_t				vc_evict = ZS_FALSE;
+	cntr_map_t					*cmap = NULL;
+	mcd_osd_segment_t 			* segment;
+	mcd_logrec_object_t         log_rec;
+    
+
+    mcd_log_msg( 20000, PLAT_LOG_LEVEL_TRACE, "ENTERING" );
+
+    /*
+     * FIXME: Shard durability is incorrectly used for a shared shard.
+     * It assumes durability of the given contaner here, risking durability
+     * setting of other logical containers.
+     */
+    shard->durability_level = SDF_NO_DURABILITY;
+    if (flags & FLASH_PUT_DURA_SW_CRASH)
+        shard->durability_level = SDF_RELAXED_DURABILITY;
+    else if (flags & FLASH_PUT_DURA_HW_CRASH)
+        shard->durability_level = SDF_FULL_DURABILITY;
+
+    // don't allow normal flash puts during restore
+    if ( 1 == shard->restore_running &&
+         0 == (flags & FLASH_PUT_RESTORE) ) {
+        return FLASH_EACCES;
+    }
+
+	cmap = get_cntr_map(cntr_id);
+	if ( cntr_id > LAST_PHYSICAL_CGUID) {
+		if (!cmap) {
+			mcd_log_msg( 150108,
+						 PLAT_LOG_LEVEL_ERROR,
+						 "Could not determine eviction type for container %u\n",
+						 cntr_id );
+		} else {
+			vc_evict = cmap->evicting;
+		}
+	}
+
+    if ( FLASH_PUT_PREFIX_DELETE == flags ) {
+        rc = mcd_osd_prefix_delete( shard, key, key_len );
+        goto out;
+    }
+
+	blk_offset = *(baddr_t *)key;
+	plat_assert(blk_offset % 8 == 0);
+
+    num_puts = __sync_add_and_fetch( &shard->num_puts, 1 );
+
+    // write the current cas_id to the log at regular intervals
+    if ( 1 == shard->persistent &&
+         0 == (num_puts % MCD_OSD_CAS_UPDATE_INTERVAL) ) {
+        log_rec.syndrome     = 0;
+        log_rec.deleted      = 0;
+        log_rec.reserved     = 0;
+        log_rec.blocks       = 0;
+        log_rec.rbucket       = 0;
+        log_rec.blk_offset   = 0xffffffffu; // marks this record
+        log_rec.old_offset   = 0;
+        log_rec.cntr_id      = 0;
+        log_rec.seqno        = 0;
+        log_rec.target_seqno = shard->cntr->cas_id;
+        log_rec.raw = FALSE;
+        log_write( shard, &log_rec );
+    }
+
+	if ( NULL == data ) {
+		mcd_osd_slab_class_t* class;
+		bool delayed = 1 == shard->replicated || (1 == shard->persistent && 0 == shard->evict_to_free);
+
+		plus_objs--;
+		plus_blks -= lba_to_use(shard, blocks);
+
+		if (delayed) {
+			class = shard->slab_classes +
+				shard->class_table[mcd_osd_lba_to_blk(blocks)];
+
+			uint64_t slabs = atomic_add_get(class->dealloc_pending, 1);
+			uint64_t blks  = atomic_add_get(shard->blk_dealloc_pending, class->slab_blksize);
+
+			// insert a clever algorithm here to determine if too
+			// much space is pending deallocation
+
+			if ( blks * 100 / shard->blk_allocated > 15 ||
+					( class->used_slabs * 100 / (class->total_slabs + 1) > 40 &&
+					  slabs * 100 / (class->used_slabs + 1) > 50 ) ) {
+#if 0//Rico - debug
+			log_sync( shard );
+#endif
+			}
+		} else {
+			mcd_fth_osd_slab_dealloc(shard, blk_offset, false);
+		}
+
+		// explicit delete case
+		if ( 1 == shard->persistent ) {
+			log_rec.syndrome     = 0;
+			log_rec.deleted      = 1;
+			log_rec.reserved     = 0;
+			log_rec.blocks       = 0;  // distinguishes a delete record
+			log_rec.blk_offset   = blk_offset;
+			log_rec.cntr_id      = cntr_id;
+			log_rec.seqno        = meta_data->sequence;
+			log_rec.target_seqno = 0;
+			log_rec.old_offset   = 0;
+			log_rec.raw          = TRUE;
+			if (0 == shard->evict_to_free ) {
+				log_write_trx( shard, &log_rec, 0, 0);
+			} else {
+				log_write( shard, &log_rec );
+			}
+		}
+
+		atomic_sub(shard->blk_consumed, mcd_osd_lba_to_blk(blocks));
+
+		(void) __sync_fetch_and_sub( &shard->num_objects, 1 );
+		(void) __sync_fetch_and_add( &shard->num_deletes, 1 );
+
+		rc = FLASH_EOK;
+		meta_data->blockaddr = *(baddr_t *)key;
+		goto out;
+	}
+
+    if(!(flags & FLASH_PUT_SKIP_IO)) {
+        uint64_t raw_len = sizeof(mcd_osd_meta_t) + key_len + data_len;
+        blocks = ( raw_len + ( Mcd_osd_blk_size - 1 ) ) / Mcd_osd_blk_size;
+
+
+		plat_assert(blocks == 8);
+
+        if (blocks > MCD_OSD_OBJ_MAX_BLKS) {
+            mcd_log_msg( 20330, PLAT_LOG_LEVEL_ERROR,
+                    "object size beyond limit, raw_len=%lu", raw_len );
+            rc = FLASH_EINVAL;
+            goto out;
+        }
+    }
+
+	segment = shard->segment_table[blk_offset / Mcd_osd_segment_blks];
+	if ((blocks > segment->class->slab_blksize) ||
+			(blocks <= segment->class->slab_blksize/2)) {
+            mcd_log_msg( 160279, PLAT_LOG_LEVEL_ERROR,
+                    "object size doesn't match slab size, blocks=%d, slab=%d", blocks, segment->class->slab_blksize);
+            rc = FLASH_EINVAL;
+            goto out;
+	}
+
+    /*
+     * allocate the buffer now since we may need it for reading the key
+     */
+    data_buf = ((osd_state_t *)context)->osd_buf;
+    buf = (char *)( ( (uint64_t)data_buf + Mcd_osd_blk_size - 1 )
+                    & Mcd_osd_blk_mask );
+
+    /*
+     * See if there is enough space.
+     */
+    if (!vc_evict && !is_btree_loaded()) {
+        uint64_t rsvd_blks = blk_to_use(shard, blocks);
+        if (cmap && !inc_cntr_map_by_map(cmap, cntr_id, 0, rsvd_blks, 1)) {
+            rc = FLASH_ENOSPC;
+            goto out;
+        }
+        plus_blks -= rsvd_blks;
+    }
+
+    if(!(flags & FLASH_PUT_SKIP_IO)) {
+		/*
+		 * re-alloc the buffer for large objects
+		 */     
+		if ( (MCD_FTH_OSD_BUF_SIZE / Mcd_osd_blk_size) < blocks ) {
+			buf = mcd_fth_osd_iobuf_alloc(context, blocks * Mcd_osd_blk_size, false );
+			if ( NULL == buf ) {
+				rc = FLASH_ENOMEM;
+				goto out;
+			}
+			dyn_buffer = true;
+		}
+
+		mcd_osd_slab_set_data(buf, key, key_len, data, data_len, 0, blocks, meta_data, true);
+
+		mcd_log_msg( 20368, PLAT_LOG_LEVEL_TRACE,
+					 "blocks allocated, key_len=%d data_len=%lu "
+					 "blk_offset=%lu blocks=%d",
+					 key_len, data_len, blk_offset, blocks );
+					
+		plat_assert 
+			( shard->segment_table[ blk_offset /
+									Mcd_osd_segment_blks ]->class->slab_blksize >=
+			  mcd_osd_lba_to_blk( mcd_osd_blk_to_lba( blocks ) ) );
+
+		offset = mcd_osd_rand_address(shard, blk_offset);
+
+#ifndef MCD_ENABLE_SLAB_CACHE_NOSSD
+		/*
+		 * FIXME: pad the object if size < 128KB
+		 */
+		if ((blocks * Mcd_osd_blk_size) < (128 * 1024)) {
+			rc = mcd_fth_aio_blk_write_low(
+					context, buf, offset,
+					(1 << shard->class_table[blocks]) * Mcd_osd_blk_size,
+					shard->durability_level > SDF_RELAXED_DURABILITY);
+		} else {
+        rc = mcd_fth_aio_blk_write_low(
+                context, buf, offset,
+                blocks * Mcd_osd_blk_size,
+                shard->durability_level > SDF_RELAXED_DURABILITY);
+		}
+		if ( FLASH_EOK != rc ) {
+			/*
+			 * FIXME: free the allocated space here?
+			 */
+			mcd_log_msg( 20008, PLAT_LOG_LEVEL_ERROR,
+						 "failed to write blocks, rc=%d", rc );
+			goto out;
+		}
+#endif
+
+#ifdef  MCD_ENABLE_SLAB_CACHE
+		/*
+		 * copy the data into the slab cache (for testing only)
+		 */
+		memcpy( shard->slab_cache + offset, buf, blocks * Mcd_osd_blk_size );
+		rc = FLASH_EOK;
+#endif
+    } /* !(flags & FLASH_PUT_SKIP_IO) */
+
+    (void) __sync_fetch_and_add( &shard->total_objects, 1 );
+
+	// create case
+	if ( 1 == shard->persistent ) {
+		log_rec.syndrome   = 0;
+		log_rec.deleted    = 0;
+		log_rec.reserved   = 0;
+		log_rec.blocks     = mcd_osd_blk_to_lba( blocks );
+		log_rec.blk_offset = blk_offset;
+		log_rec.cntr_id    = cntr_id;
+		log_rec.seqno      = meta_data->sequence;
+		log_rec.raw        = TRUE;
+		log_rec.old_offset   = 0;
+		log_rec.target_seqno = 0;
+
+		if (0 == shard->evict_to_free ) {
+			log_write_trx( shard, &log_rec, 0, 0);
+		} else {
+			log_write( shard, &log_rec );
+		}
+	}
+
+    plus_objs++;
+    plus_blks += blk_to_use(shard, blocks);
+
+    meta_data->blockaddr = blk_offset;
+
+out:
+
+	if (cmap) {
+		rel_cntr_map(cmap);
+	}
+
+    return rc;
+}
+static int
 mcd_fth_osd_slab_get( void * context, mcd_osd_shard_t * shard, char *key,
                       int key_len, void ** ppdata, SDF_size_t * pactual_size,
                       int flags, struct objMetaData * meta_data,
@@ -5162,6 +5291,11 @@ mcd_fth_osd_slab_get( void * context, mcd_osd_shard_t * shard, char *key,
     bucket_entry_t            * bucket_entry;
     hash_handle_t             * hdl = shard->hash_handle;
 
+	if (flags & FLASH_GET_RAW_OBJECT) {
+		return mcd_fth_osd_slab_get_raw(context, shard, key, key_len, ppdata, pactual_size,
+									  flags, meta_data, syndrome );
+	}
+
     mcd_log_msg( 20000, PLAT_LOG_LEVEL_TRACE, "ENTERING" );
     (void) __sync_fetch_and_add( &shard->num_gets, 1 );
 
@@ -5176,6 +5310,7 @@ mcd_fth_osd_slab_get( void * context, mcd_osd_shard_t * shard, char *key,
     if ( NULL == ppdata ) {
         (void) __sync_fetch_and_add( &shard->get_exist_checks, 1 );
     }
+
 
     /*
      * look up the hash table entry
@@ -5195,11 +5330,11 @@ mcd_fth_osd_slab_get( void * context, mcd_osd_shard_t * shard, char *key,
             if (hash_entry->cntr_id != cntr_id)
                 continue;
 
-            if ( (uint16_t)(syndrome >> 48) != hash_entry->syndrome ) {
+            if ( (uint16_t)(syndrome >> 48) != hash_entry->hesyndrome ) {
                 continue;
             }
 
-            blk_offset = hash_entry->address;
+            blk_offset = hash_entry->blkaddress;
 
             offset = mcd_osd_rand_address(shard, blk_offset);
 
@@ -5209,19 +5344,18 @@ override_retry:
                  * read only one block for existence check
                  */
                 nbytes = Mcd_osd_blk_size;
-            }
-            else {
+            } else {
                 nbytes =
                     mcd_osd_lba_to_blk( hash_entry->blocks ) * Mcd_osd_blk_size;
             }
 
-        databuf_len = MCD_FTH_OSD_BUF_SIZE;
-        buf = data_buf = mcd_fth_osd_iobuf_alloc(context,
-                mcd_osd_lba_to_blk( hash_entry->blocks ) * Mcd_osd_blk_size,
-                false );
-        if ( NULL == data_buf ) {
-            return FLASH_ENOMEM;
-        }
+			databuf_len = MCD_FTH_OSD_BUF_SIZE;
+			buf = data_buf = mcd_fth_osd_iobuf_alloc(context,
+					mcd_osd_lba_to_blk( hash_entry->blocks ) * Mcd_osd_blk_size,
+					false );
+			if ( NULL == data_buf ) {
+				return FLASH_ENOMEM;
+			}
 
 #ifdef  MCD_ENABLE_SLAB_CACHE
             static uint32_t count = 0;
@@ -5241,8 +5375,7 @@ override_retry:
                     mcd_fth_osd_slab_free( data_buf );
                     return rc;
                 }
-            }
-            else {
+            } else {
                 /*
                  * read the data from the slab cache
                  */
@@ -5299,7 +5432,7 @@ override_retry:
                  * ok only an existence check
                  */
                 mcd_fth_osd_slab_free( data_buf );
-                meta_data->blockaddr = hash_entry->address;
+                meta_data->blockaddr = hash_entry->blkaddress;
                 return FLASH_EOK;
             }
 
@@ -5315,7 +5448,7 @@ override_retry:
                         "klen=%d dlen=%u nbybes=%d syn=%lu hsyn=%hu "
                         "ctime=%u",
                         meta->key_len, meta->data_len, nbytes,
-                        syndrome, hash_entry->syndrome,
+                        syndrome, hash_entry->hesyndrome,
                         meta->create_time);
                 (void) __sync_fetch_and_add( &shard->get_size_overrides, 1 );
 
@@ -5365,8 +5498,6 @@ override_retry:
                     meta->data_len );
 
             /* Uncompress the data here */
-            //if( getProperty_Int("ZS_COMPRESSION", 0) &&
-            //(flags & FLASH_GET_DECOMPRESS) ) {
             if( uncomp_datalen > 0 ) {
                 /* Data is compressed. So decompress before sending it to upper layer */
                 size_t uncomp_len = uncomp_datalen;
@@ -5405,11 +5536,178 @@ override_retry:
                 *pactual_size = uncomp_len;
             }
 
-            meta_data->blockaddr = hash_entry->address;
+            meta_data->blockaddr = hash_entry->blkaddress;
             return FLASH_EOK;
         }
     }
     return FLASH_ENOENT;
+}
+
+static int
+mcd_fth_osd_slab_get_raw( void * context, mcd_osd_shard_t * shard, char *key,
+                      int key_len, void ** ppdata, SDF_size_t * pactual_size,
+                      int flags, struct objMetaData * meta_data,
+                      uint64_t syndrome )
+{
+    int                         rc;
+    char                      * buf;
+    char                      * data_buf;
+    uint64_t                    blk_offset;
+    uint64_t                    offset;
+    int                         nbytes;
+    mcd_osd_meta_t            * meta;
+    cntr_id_t                   cntr_id = meta_data->cguid;
+	mcd_osd_segment_t 			* segment;
+
+    mcd_log_msg( 20000, PLAT_LOG_LEVEL_TRACE, "ENTERING" );
+    (void) __sync_fetch_and_add( &shard->num_gets, 1 );
+
+#ifdef  MCD_OSD_DEBUGGING
+    (void) __sync_fetch_and_add( &Mcd_osd_get_cmds, 1 );
+    if ( 0 == Mcd_osd_get_cmds % MCD_OSD_DBG_GET_DIV ) {
+        mcd_log_msg( 20327, PLAT_LOG_LEVEL_DEBUG,
+                     "%lu get cmds", Mcd_osd_get_cmds );
+    }
+#endif
+
+    if ( NULL == ppdata ) {
+        (void) __sync_fetch_and_add( &shard->get_exist_checks, 1 );
+    }
+
+	blk_offset = *(baddr_t *)key;
+	plat_assert(blk_offset % 8 == 0);
+
+	segment = shard->segment_table[blk_offset / Mcd_osd_segment_blks];
+
+	offset = mcd_osd_rand_address(shard, blk_offset);
+	nbytes =
+		mcd_osd_lba_to_blk( segment->class->slab_blksize) * Mcd_osd_blk_size;
+		//mcd_osd_lba_to_blk( meta_data->dataLen) * Mcd_osd_blk_size;
+    /*
+     * look up the hash table entry
+     */
+	buf = data_buf = mcd_fth_osd_iobuf_alloc(context, nbytes, false );
+	if ( NULL == data_buf ) {
+		return FLASH_ENOMEM;
+	}
+
+#ifdef  MCD_ENABLE_SLAB_CACHE
+	static uint32_t count = 0;
+
+	if ( 0 != flash_settings.fake_miss_rate &&
+			0 == count++ % flash_settings.fake_miss_rate ) {
+		/*
+		 * read the data from ssd
+		 */
+		rc = mcd_fth_aio_blk_read( context,
+				buf,
+				offset,
+				nbytes );
+		if ( FLASH_EOK != rc ) {
+			mcd_log_msg( 20003, PLAT_LOG_LEVEL_ERROR,
+					"failed to read blocks, rc=%d", rc );
+			mcd_fth_osd_slab_free( data_buf );
+			return rc;
+		}
+	} else {
+		/*
+		 * read the data from the slab cache
+		 */
+		memcpy( buf, shard->slab_cache + offset, nbytes );
+		rc = FLASH_EOK;
+	}
+#else
+	rc = mcd_fth_aio_blk_read( context,
+			buf,
+			offset,
+			nbytes );
+	if ( FLASH_EOK != rc ) {
+		mcd_log_msg( 20003, PLAT_LOG_LEVEL_ERROR,
+				"failed to read blocks, rc=%d", rc );
+		mcd_fth_osd_slab_free( data_buf );
+		return rc;
+	}
+#endif  /* MCD_ENABLE_SLAB_CACHE */
+
+	meta = (mcd_osd_meta_t *)buf;
+	mcd_log_msg( 20312, PLAT_LOG_LEVEL_TRACE, "key_len=%d data_len=%u",
+			meta->key_len, meta->data_len );
+
+	if ( MCD_OSD_MAGIC_NUMBER != meta->magic ) {
+		mcd_log_msg( 20325, PLAT_LOG_LEVEL_FATAL, "not enough magic!" );
+		mcd_fth_osd_slab_free( data_buf );
+		return FLASH_ENOENT;
+	}
+
+	if ( key_len != meta->key_len ) {
+		mcd_log_msg( 20326, MCD_OSD_LOG_LVL_DIAG,
+				"key length mismatch, req %d osd %d",
+				key_len, meta->key_len );
+		(void) __sync_fetch_and_add( &shard->get_hash_collisions, 1 );
+		mcd_fth_osd_slab_free( data_buf );
+		return FLASH_ENOENT;
+	}
+
+	if ( 0 != memcmp( buf + sizeof(mcd_osd_meta_t), key, key_len ) ) {
+		mcd_log_msg( 20006, MCD_OSD_LOG_LVL_TRACE,
+				"key mismatch, req %s", key );
+		(void) __sync_fetch_and_add( &shard->get_hash_collisions, 1 );
+		mcd_fth_osd_slab_free( data_buf );
+		return FLASH_ENOENT;
+	}
+
+	if ( NULL != meta_data ) {
+		meta_data->createTime = meta->create_time;
+		meta_data->expTime    = meta->expiry_time;
+		meta_data->sequence   = meta->seqno;
+	}
+
+	if ( NULL == ppdata ) {
+		/*
+		 * ok only an existence check
+		 */
+		mcd_fth_osd_slab_free( data_buf );
+		meta_data->blockaddr = *(baddr_t *)key;
+		return FLASH_EOK;
+	}
+
+
+	*ppdata = data_buf;
+	*pactual_size = meta->data_len;
+	uint64_t raw_len = sizeof(mcd_osd_meta_t) + meta->key_len + meta->data_len;
+	plat_assert( ( raw_len + ( Mcd_osd_blk_size - 1 ) ) / Mcd_osd_blk_size == 8);
+
+	/*
+	 * verify applicable checksums
+	 */
+	meta->checksum = 0;
+	uint64_t blk1_chksum = meta->blk1_chksum;
+	meta->blk1_chksum = 0;
+	if ((flash_settings.chksum_metadata)
+	&& (hashb( (uint8_t *)buf, MCD_OSD_META_BLK_SIZE, 0) != blk1_chksum)) {
+			mcd_log_msg(170036, PLAT_LOG_LEVEL_FATAL,
+					"Metadata inconsistency found in cguid = %d, byte offset = %"PRIu64".\n",
+					cntr_id, offset);
+			mcd_fth_osd_slab_free(data_buf);
+			return FLASH_EINCONS;
+	}
+	if ((flash_settings.chksum_data)
+	&& (hashb( (uint8_t *)buf+sizeof( mcd_osd_meta_t), key_len+meta->data_len, 0) != meta->data_chksum)) {
+			mcd_log_msg(170037, PLAT_LOG_LEVEL_FATAL,
+					"Data inconsistency found in cguid = %d, byte offset = %"PRIu64".\n",
+					cntr_id, offset);
+			mcd_fth_osd_slab_free(data_buf);
+			return FLASH_EINCONS;
+	}
+
+	/*
+	 * meta can no longer be accessed after this
+	 */
+	memmove( data_buf, buf + sizeof(mcd_osd_meta_t) + meta->key_len,
+			meta->data_len );
+
+	meta_data->blockaddr = *(baddr_t *)key;
+	return FLASH_EOK;
 }
 
 uint64_t mcd_osd_shard_get_stats( struct shard * shard, int stat_key )
@@ -5761,7 +6059,7 @@ mcd_osd_shard_free_segments( mcd_osd_shard_t * shard, int total_segments )
 
     wait = fthLock( &Mcd_osd_segment_lock, 1, NULL );
     for ( s = total_segments - 1; s >= 0 ; s-- ) {
-        Mcd_osd_free_segments[Mcd_osd_free_seg_curr++] = shard->segments[s];
+        Mcd_osd_free_segments[Mcd_osd_free_seg_curr++] = shard->mos_segments[s];
     }
     fthUnlock( wait );
 
@@ -5771,15 +6069,15 @@ mcd_osd_shard_free_segments( mcd_osd_shard_t * shard, int total_segments )
 
 struct shard *
 mcd_osd_shard_create( struct flashDev * dev, uint64_t shard_id,
-                      int flags, uint64_t quota, unsigned max_nobjs )
+                      int flags, uint64_t quota, uint64_t max_nobjs )
 {
     int                         i, rc;
     int                         total_segments = 0;
     mcd_osd_shard_t           * mcd_shard;
     fthWaitEl_t               * wait;
 
-    mcd_log_msg( 20379, PLAT_LOG_LEVEL_TRACE,
-                 "ENTERING, shard_id=%lu flags=0x%x quota=%lu max_nobjs=%u",
+    mcd_log_msg( 160269, PLAT_LOG_LEVEL_TRACE,
+                 "ENTERING, shard_id=%lu flags=0x%x quota=%lu max_nobjs=%lu",
                  shard_id, flags, quota, max_nobjs );
 
     if ( FLASH_SHARD_INIT_PERSISTENCE_YES ==
@@ -5788,7 +6086,7 @@ mcd_osd_shard_create( struct flashDev * dev, uint64_t shard_id,
             if ( NULL == Mcd_osd_slab_shards[i] ) {
                 continue;
             }
-            if ( Mcd_osd_slab_shards[i]->shard.shardID == shard_id ) {
+            if ( Mcd_osd_slab_shards[i]->mos_shard.shardID == shard_id ) {
                 mcd_shard = Mcd_osd_slab_shards[i];
                 mcd_log_msg( 20380, PLAT_LOG_LEVEL_DEBUG,
                              "shard found, id=%lu", shard_id );
@@ -5838,9 +6136,9 @@ mcd_osd_shard_create( struct flashDev * dev, uint64_t shard_id,
         goto out_failed;
     }
 
-    mcd_shard->segments = (uint32_t *)
-        plat_alloc( mcd_shard->total_segments * sizeof(uint32_t) );
-    if ( NULL == mcd_shard->segments ) {
+    mcd_shard->mos_segments = (uint64_t *)
+        plat_alloc( mcd_shard->total_segments * sizeof(uint64_t) );
+    if ( NULL == mcd_shard->mos_segments ) {
         mcd_log_msg( 20384, PLAT_LOG_LEVEL_ERROR,
                      "failed to allocated segment list" );
         goto out_failed;
@@ -5848,12 +6146,12 @@ mcd_osd_shard_create( struct flashDev * dev, uint64_t shard_id,
 
     wait = fthLock( &Mcd_osd_segment_lock, 1, NULL );
     for ( i = 0; i < mcd_shard->total_segments; i++ ) {
-        mcd_shard->segments[i] =
+        mcd_shard->mos_segments[i] =
             Mcd_osd_free_segments[--Mcd_osd_free_seg_curr];
         if ( 0 == i % 100 ) {
-            mcd_log_msg( 20385, MCD_OSD_LOG_LVL_DEBUG,
-                         "%dth segment allocated, blk_offset=%u",
-                         i, mcd_shard->segments[i] );
+            mcd_log_msg( 160276, MCD_OSD_LOG_LVL_DEBUG,
+                         "%dth segment allocated, blk_offset=%lu",
+                         i, mcd_shard->mos_segments[i] );
         }
     }
     fthUnlock( wait );
@@ -5861,10 +6159,10 @@ mcd_osd_shard_create( struct flashDev * dev, uint64_t shard_id,
                  "%lu segments allcated to shard %lu, free_seg_curr=%lu",
                  mcd_shard->total_segments, shard_id, Mcd_osd_free_seg_curr );
 
-    mcd_shard->shard.shardID    = shard_id;
-    mcd_shard->shard.flags      = flags;
-    mcd_shard->shard.quota      = quota;
-    mcd_shard->shard.maxObjs    = max_nobjs;
+    mcd_shard->mos_shard.shardID    = shard_id;
+    mcd_shard->mos_shard.flags      = flags;
+    mcd_shard->mos_shard.quota      = quota;
+    mcd_shard->mos_shard.s_maxObjs    = max_nobjs;
 
     for ( i = 0; i < MCD_OSD_MAX_NUM_SHARDS; i++ ) {
         if ( NULL == Mcd_osd_slab_shards[i] ) {
@@ -5900,7 +6198,7 @@ mcd_osd_shard_create( struct flashDev * dev, uint64_t shard_id,
 
     if ( FLASH_SHARD_INIT_PERSISTENCE_YES ==
          (flags & FLASH_SHARD_INIT_PERSISTENCE_MASK) ) {
-        rc = seqno_cache_init( &mcd_shard->shard );
+        rc = seqno_cache_init( &mcd_shard->mos_shard );
         if ( 0 != rc ) {
             mcd_log_msg( 20389, PLAT_LOG_LEVEL_ERROR,
                          "seqno cache init failed, rc=%d", rc );
@@ -5910,12 +6208,12 @@ mcd_osd_shard_create( struct flashDev * dev, uint64_t shard_id,
         }
     }
 
-    return &mcd_shard->shard;
+    return &mcd_shard->mos_shard;
 
 out_failed:
 
     if ( mcd_shard ) {
-        if ( mcd_shard->segments ) {
+        if ( mcd_shard->mos_segments ) {
             if ( FLASH_SHARD_INIT_PERSISTENCE_YES !=
                  (flags & FLASH_SHARD_INIT_PERSISTENCE_MASK) &&
                  FLASH_SHARD_INIT_EVICTION_CACHE ==
@@ -5927,7 +6225,7 @@ out_failed:
             }
 
             mcd_osd_shard_free_segments( mcd_shard, total_segments );
-            plat_free( mcd_shard->segments );
+            plat_free( mcd_shard->mos_segments );
         }
         plat_free( mcd_shard );
     }
@@ -6001,9 +6299,9 @@ mcd_osd_shard_uninit( mcd_osd_shard_t * shard )
         // segment bitmaps were allocated in one big chunk
         if ( shard->base_segments ) {
             bitmap_size = Mcd_osd_segment_blks / 8;
-            if ( shard->base_segments[0].bitmap ) {
-                plat_free_large( shard->base_segments[0].bitmap );
-                shard->base_segments[0].bitmap = NULL;
+            if ( shard->base_segments[0].mos_bitmap ) {
+                plat_free_large( shard->base_segments[0].mos_bitmap );
+                shard->base_segments[0].mos_bitmap = NULL;
                 total_alloc += shard->total_segments * bitmap_size;
             }
             if ( shard->base_segments[0].update_map ) {
@@ -6038,15 +6336,15 @@ mcd_osd_shard_uninit( mcd_osd_shard_t * shard )
     }
 
     // address remapping table
-    if ( shard->rand_table ) {
-        plat_free( shard->rand_table );
-        shard->rand_table = NULL;
+    if ( shard->mos_rand_table ) {
+        plat_free( shard->mos_rand_table );
+        shard->mos_rand_table = NULL;
         total_alloc += (shard->total_blks / Mcd_osd_rand_blksize) *
-            sizeof(uint32_t);
+            sizeof(uint64_t);
         mcd_log_msg( 20397, PLAT_LOG_LEVEL_DEBUG,
                      "remapping table deallocated, size=%lu",
                      (shard->total_blks / Mcd_osd_rand_blksize) *
-                     sizeof(uint32_t) );
+                     sizeof(uint64_t) );
     }
 
     // hash tables
@@ -6072,7 +6370,7 @@ mcd_osd_shard_open( struct flashDev * dev, uint64_t shard_id )
         if ( NULL == Mcd_osd_slab_shards[i] ) {
             continue;
         }
-        if ( Mcd_osd_slab_shards[i]->shard.shardID == shard_id ) {
+        if ( Mcd_osd_slab_shards[i]->mos_shard.shardID == shard_id ) {
             mcd_shard = Mcd_osd_slab_shards[i];
             mcd_log_msg( 20380, PLAT_LOG_LEVEL_DEBUG,
                          "shard found, id=%lu", shard_id );
@@ -6089,22 +6387,22 @@ mcd_osd_shard_open( struct flashDev * dev, uint64_t shard_id )
 
     if ( flash_settings.enable_fifo &&
          FLASH_SHARD_INIT_PERSISTENCE_YES !=
-         (mcd_shard->shard.flags & FLASH_SHARD_INIT_PERSISTENCE_MASK) &&
+         (mcd_shard->mos_shard.flags & FLASH_SHARD_INIT_PERSISTENCE_MASK) &&
          FLASH_SHARD_INIT_EVICTION_CACHE ==
-         (mcd_shard->shard.flags & FLASH_SHARD_INIT_EVICTION_MASK) ) {
+         (mcd_shard->mos_shard.flags & FLASH_SHARD_INIT_EVICTION_MASK) ) {
         rc = mcd_osd_fifo_shard_init( mcd_shard, shard_id,
-                                      mcd_shard->shard.flags,
-                                      mcd_shard->shard.quota,
-                                      mcd_shard->shard.maxObjs );
+                                      mcd_shard->mos_shard.flags,
+                                      mcd_shard->mos_shard.quota,
+                                      mcd_shard->mos_shard.s_maxObjs );
     	mcd_shard->durability_level = 0;
     }
     else {
         rc = mcd_osd_slab_shard_init( mcd_shard, shard_id,
-                                      mcd_shard->shard.flags,
-                                      mcd_shard->shard.quota,
-                                      mcd_shard->shard.maxObjs );
+                                      mcd_shard->mos_shard.flags,
+                                      mcd_shard->mos_shard.quota,
+                                      mcd_shard->mos_shard.s_maxObjs );
     	mcd_shard->durability_level =
-            (mcd_shard->shard.flags & FLASH_SHARD_INIT_DURABILITY_MASK) >> 20;
+            (mcd_shard->mos_shard.flags & FLASH_SHARD_INIT_DURABILITY_MASK) >> 20;
     }
 
     if ( 0 != rc ) {
@@ -6122,7 +6420,7 @@ mcd_osd_shard_open( struct flashDev * dev, uint64_t shard_id )
      * initialize the public shard structure
      * the following should have been set: shardID, flags, quota, maxObjs
      */
-    shard = &mcd_shard->shard;
+    shard = &mcd_shard->mos_shard;
 
     shard->dev                  = dev;
     shard->flash_offset         = 0;          // FIXME
@@ -6314,14 +6612,16 @@ mcd_osd_flash_get( struct ssdaio_ctxt * pctxt, struct shard * shard,
     mcd_log_msg( 20406, PLAT_LOG_LEVEL_TRACE, "ENTERING, context=%p shardID=%lu",
                  (void *)pctxt, shard->shardID );
 
-    syndrome = hashck((unsigned char *)key, metaData->keyLen,
-                      0, metaData->cguid);
+	if (!(flags & FLASH_GET_RAW_OBJECT)) {
+		syndrome = hashck((unsigned char *)key, metaData->keyLen,
+						  0, metaData->cguid);
 
-    osd_state->osd_lock = 
-            (void *) hash_table_find_lock(mcd_shard->hash_handle, 
-                                            syndrome, SYN);
-    osd_state->osd_wait = fthLock((fthLock_t *)osd_state->osd_lock, 
-                                    1, NULL);
+		osd_state->osd_lock = 
+				(void *) hash_table_find_lock(mcd_shard->hash_handle, 
+												syndrome, SYN);
+		osd_state->osd_wait = fthLock((fthLock_t *)osd_state->osd_lock, 
+										1, NULL);
+	}
 
     if ( mcd_shard->use_fifo ) {
         ret = mcd_fth_osd_fifo_get( (void *)pctxt,              // context
@@ -6333,8 +6633,7 @@ mcd_osd_flash_get( struct ssdaio_ctxt * pctxt, struct shard * shard,
                                     flags,
                                     metaData,
                                     syndrome );
-    }
-    else {
+    } else {
         ret = mcd_fth_osd_slab_get( (void *)pctxt,              // context
                                     mcd_shard,
                                     key,
@@ -6346,7 +6645,9 @@ mcd_osd_flash_get( struct ssdaio_ctxt * pctxt, struct shard * shard,
                                     syndrome );
     }
 
-    fthUnlock( osd_state->osd_wait );
+	if (!(flags & FLASH_GET_RAW_OBJECT)) {
+		fthUnlock( osd_state->osd_wait );
+	}
 
     metaData->dataLen = actual_size;
     return ret;
@@ -6515,16 +6816,18 @@ mcd_osd_flash_put( struct ssdaio_ctxt * pctxt, struct shard * shard,
     mcd_log_msg( 20406, PLAT_LOG_LEVEL_TRACE, "ENTERING, context=%p shardID=%lu",
                  (void *)pctxt, shard->shardID );
 
-    syndrome = hashck((unsigned char *)key,
-                      metaData->keyLen, 0, metaData->cguid);
+	if (!(flags & FLASH_CREATE_RAW_OBJECT)) {
+		syndrome = hashck((unsigned char *)key,
+						  metaData->keyLen, 0, metaData->cguid);
 
-    osd_state->osd_lock = 
-                (void *) hash_table_find_lock(mcd_shard->hash_handle, 
-                                                syndrome, SYN);
-    osd_state->osd_wait = fthLock((fthLock_t *)osd_state->osd_lock, 
-                                    1, NULL );
+		osd_state->osd_lock = 
+					(void *) hash_table_find_lock(mcd_shard->hash_handle, 
+													syndrome, SYN);
+		osd_state->osd_wait = fthLock((fthLock_t *)osd_state->osd_lock, 
+										1, NULL );
 
-    plat_assert(osd_state->osd_lock == osd_state->osd_wait);
+		plat_assert(osd_state->osd_lock == osd_state->osd_wait);
+	}
 
     if ( mcd_shard->use_fifo ) {
         ret = mcd_fth_osd_fifo_set( (void *)pctxt,
@@ -6536,8 +6839,7 @@ mcd_osd_flash_put( struct ssdaio_ctxt * pctxt, struct shard * shard,
                                     flags,
                                     metaData,
                                     syndrome );
-    }
-    else {
+    } else {
         if ( (shard->flags & FLASH_SHARD_SEQUENCE_EXTERNAL) == 0 ) {
             metaData->sequence =
                 __sync_add_and_fetch( &mcd_shard->sequence, 1 );
@@ -6571,8 +6873,10 @@ mcd_osd_flash_put( struct ssdaio_ctxt * pctxt, struct shard * shard,
     }
 
 
-    if (osd_state->osd_wait)
-        fthUnlock(osd_state->osd_wait);
+	if (!(flags & FLASH_CREATE_RAW_OBJECT)) {
+		if (osd_state->osd_wait)
+			fthUnlock(osd_state->osd_wait);
+	}
 
     return ret;
 }
@@ -6762,8 +7066,8 @@ mcd_osd_shard_delete( struct shard * lshard )
     }
 
     // shard segments
-    if ( shard->segments ) {
-        plat_free( shard->segments );
+    if ( shard->mos_segments ) {
+        plat_free( shard->mos_segments );
     }
 
     #ifdef notdef
@@ -7838,6 +8142,7 @@ repeat:
             return SDF_OBJECT_UNKNOWN;
         }
 
+#if 0
         // skip empty segment; compare uint64's
         for ( i = 0; i < Mcd_osd_segment_blks / 8 / sizeof(uint64_t); i++ ) {
             if ( 0 == prev_seq ) {
@@ -7850,6 +8155,7 @@ repeat:
                 }
             }
         }
+#endif
         if ( i == Mcd_osd_segment_blks / 8 / sizeof(uint64_t) ) {
             (void) __sync_add_and_fetch( &stats->seg_empty, 1 );
             goto next_segment;
@@ -8254,7 +8560,7 @@ mcd_osd_delete_expired( osd_state_t *osd_state, mcd_osd_shard_t * shard )
             break;
         }
 
-        map_value = ~segment->bitmap[map_offset / 64];
+        map_value = ~segment->mos_bitmap[map_offset / 64];
         if ( 0 != map_offset % 64 ) {
             map_value |= Mcd_osd_scan_masks[(map_offset % 64) - 1];
         }
@@ -8911,11 +9217,13 @@ mcd_osd_trx_revert( mcd_osd_shard_t *s, mcd_logrec_object_t *lr,
                 continue;
             }
 
-            if ( hash_entry->address == lr->blk_offset) {
+            if ( hash_entry->blkaddress == lr->blk_offset) {
                 if (lr->old_offset) {
                     hash_entry_copy(hash_entry, orig);
-                    hdl->addr_table[hash_entry->address] = 
+					if (hdl->addr_table) {
+						hdl->addr_table[hash_entry->blkaddress] = 
                                             syn % hdl->hash_size;
+					}
                 } else {
                     hash_entry_delete(hdl, hash_entry, 
                                         syn % hdl->hash_size);
@@ -8952,7 +9260,9 @@ mcd_osd_trx_insert( mcd_osd_shard_t *s, uint64_t syn, hash_entry_t *orig)
         return FALSE;
     } 
     hash_entry_copy(hash_entry, orig);
-    hdl->addr_table[hash_entry->address] = syn%hdl->hash_size;
+	if (hdl->addr_table) {
+		hdl->addr_table[hash_entry->blkaddress] = syn%hdl->hash_size;
+	}
     fthUnlock( w);
     return (TRUE);		
 }
@@ -8962,7 +9272,7 @@ mcd_osd_trx_insert( mcd_osd_shard_t *s, uint64_t syn, hash_entry_t *orig)
  */
 int
 mcd_onflash_key_match(void *context, mcd_osd_shard_t * shard, 
-                        uint32_t addr, char *key, int key_len)
+                        uint64_t addr, char *key, int key_len)
 {
     int               nbytes, rc;
     char            * data_buf, *buf;

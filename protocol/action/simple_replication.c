@@ -1195,7 +1195,7 @@ void SDFRepDataStructAddContainer( SDF_internal_ctxt_t *pai , SDF_container_prop
     /* Fill the new container information */
     new_cntrs_list[lnode->nctnrs_node].id =  properties.container_id.container_id;
     new_cntrs_list[lnode->nctnrs_node].gb = properties.container_id.size;
-    new_cntrs_list[lnode->nctnrs_node].max_objs = properties.container_id.num_objs;
+    new_cntrs_list[lnode->nctnrs_node].max_objs = properties.container_id.sc_num_objs;
     strcpy(new_cntrs_list[lnode->nctnrs_node].name,"");
     new_cntrs_list[lnode->nctnrs_node].num_vgrps = 0;
     new_cntrs_list[lnode->nctnrs_node].nreplicas = 0;

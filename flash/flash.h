@@ -40,13 +40,21 @@ enum flashPutFlags {
     FLASH_PUT_PREFIX_DO_DEL   = 0x180, // Prefix-based object deletion
     FLASH_PUT_DURA_SW_CRASH   = 0x200, // Request elevated durability
     FLASH_PUT_DURA_HW_CRASH   = 0x400, // Request maximum durability
-    FLASH_PUT_COMPRESS        = 0x800,  // Compress data portion before writing to flash
-    FLASH_PUT_SKIP_IO         = 0x1000  // Vectored write does IO before call to slab_set
+    FLASH_PUT_COMPRESS        = 0x800, // Compress data portion before writing to flash
+    FLASH_PUT_SKIP_IO         = 0x1000,// Vectored write does IO before call to slab_set
+    FLASH_CREATE_RAW_OBJECT	  = 0x2000,// Create RAW object
+    FLASH_PUT_RAW_OBJECT	  = 0x4000,// Write RAW object
 };
 
 enum flashGetFlags {
     FLASH_GET_NO_TEST         = 0x00,  // Get according to metadata flags (no overrides)
-    FLASH_GET_OVERRIDE_HIDDEN = 0x08   // Causes hidden flag to be ignored
+    FLASH_GET_OVERRIDE_HIDDEN = 0x08,  // Causes hidden flag to be ignored
+	FLASH_GET_RAW_OBJECT	  = 0x10,  // Read RAW object
+
+};
+
+enum flashReqFlags {
+	FLASH_RAW_OBJECT		= 0x01,		// RAW Object
 };
 
 #define FLASH_ALIGNMENT_LEN 16

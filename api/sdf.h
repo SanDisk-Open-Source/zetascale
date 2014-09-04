@@ -143,7 +143,7 @@ typedef struct {
 typedef struct {
     uint32_t owner;
     uint64_t size;    // In KB
-    uint32_t num_objs;
+    uint64_t sc_num_objs;
     uint64_t  container_id;
 } SDF_container_id_props_t;
 

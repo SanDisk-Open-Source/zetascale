@@ -4,19 +4,31 @@
 #include "btree_sync_th.h"
 #include <string.h>
 #include <assert.h>
+#include "btree.h"
+#include "btree_raw.h"
 #include "btree_raw_internal.h"
+#include "btree_internal.h"
 #include "btree_var_leaf.h"
 #include "btree_hash.h"
 #include "btree_malloc.h"
+#include "trx.h"
 
 #define NUM_IN_CHUNK 100
 #define MAX_KEYLEN 2000
 #define MAX_OPEN_CONTAINERS   (UINT16_MAX - 1 - 9)
 
 int astats_done = 1;
+int N_sc_wrk;
 
 extern  __thread struct ZS_thread_state *my_thd_state;
 extern __thread ZS_cguid_t my_thrd_cguid;
+//extern int bt_storm_mode;
+extern bool bt_shutdown;
+extern int N_Open_Containers;
+extern ctrmap_t Container_Map[];
+
+extern pthread_rwlock_t ctnrmap_rwlock;
+extern struct ZS_state *ZSState;
 
 __thread int key_loc = 0;
 __thread int nkey_prev_tombstone = 0;
@@ -26,8 +38,9 @@ static __thread char tmp_key_buf[8100] = {0};
 extern ZS_status_t astats_open_container(struct ZS_thread_state *zs_thread_state, ZS_cguid_t cguid, astats_arg_t *s);
 extern ZS_status_t open_container(struct ZS_thread_state *zs_thread_state, ZS_cguid_t cguid);
 extern void close_container(struct ZS_thread_state *zs_thread_state, Scavenge_Arg_t *S);
- extern void bt_cntr_unlock_scavenger(Scavenge_Arg_t *s);
- extern ZS_status_t bt_cntr_lock_scavenger(Scavenge_Arg_t *s);
+extern void bt_cntr_unlock_scavenger(Scavenge_Arg_t *s, bool write);
+extern ZS_status_t bt_cntr_lock_scavenger(Scavenge_Arg_t *s);
+extern btree_t *bt_get_btree_from_cguid(ZS_cguid_t cguid, int *index, ZS_status_t *error, bool write);
 extern ZS_status_t _ZSInitPerThreadState(struct ZS_state  *zs_state, struct ZS_thread_state **thd_state);
 extern ZS_status_t _ZSReleasePerThreadState(struct ZS_thread_state **thd_state);
 
@@ -40,6 +53,9 @@ extern btree_status_t btree_delete(struct btree *btree, char *key, uint32_t keyl
 extern  ZS_status_t BtreeErr_to_ZSErr(btree_status_t b_status);
 
 static void update_leaf_bytes_count(btree_raw_t *btree, btree_raw_mem_node_t *node);
+static void scavenger_del_stale_ent(Scavenge_Arg_t *s);
+static void scavenger_del_overflw_n_cont(Scavenge_Arg_t *s);
+
 
 static btSyncMbox_t mbox_scavenger;
 static btSyncMbox_t mbox_scavenger_stopped;
@@ -60,135 +76,284 @@ scavenger_worker(uint64_t arg)
     struct ZS_thread_state  *zs_thread_state;
     int i;
 
+	if (ZS_SUCCESS != _ZSInitPerThreadState(ZSState, &zs_thread_state)) {
+		return;
+	}
+
+	(void) __sync_add_and_fetch(&N_sc_wrk, 1);
+
+	my_thd_state = zs_thread_state;
+
 	while(!scavenger_killed) {
         uint64_t mail;
-        uint64_t          child_id,snap_n1,snap_n2,syndrome = 0;
-        int write_lock = 0, snap_no,j,total_keys = 0,deleting_keys = -1,nkey_prev = 0;
-        struct btree_raw_mem_node *node;
-        int deletedobjects = 0;
-        btree_raw_mem_node_t *parent;
-        btree_status_t    ret = BTREE_SUCCESS;
-        key_stuff_t    ks_current_1;
-        key_stuff_info_t ks_prev,ks_current,*key,*key1;
-        key_info_t key_info;
-        btree_metadata_t  meta;
-        btree_status_t    btree_ret = BTREE_SUCCESS;
-        ZS_status_t    zs_ret;
 
-        mail = btSyncMboxWait(&mbox_scavenger);
-		if(!mail)
+		mail = btSyncMboxWait(&mbox_scavenger);
+
+		if (!mail) {
 			break;
-        s = (Scavenge_Arg_t *)mail;
+		}
 
-        assert(ZS_SUCCESS == _ZSInitPerThreadState(s->zs_state, &zs_thread_state));
-        my_thd_state = zs_thread_state;
+		s = (Scavenge_Arg_t *)mail;
+		my_thrd_cguid = 0; /* To avoid recurrence triggering of scavenger from btree_delete rouinte after ZS_SCAVENGE_PER_OBJECTS deletes*/
 
-        my_thrd_cguid = 0; /* To avoid recurrence triggering of scavenger from btree_delete rouinte after ZS_SCAVENGE_PER_OBJECTS deletes*/
+		switch (s->type) {
+			case SC_OVERFLW_DELCONT:
+				scavenger_del_overflw_n_cont(s);
+				break;
 
-        open_container(zs_thread_state, s->cguid);
-        node = root_get_and_lock(s->btree, write_lock);
-        assert(node);
-
-        while(!is_leaf(s->btree, (node)->pnode)) {
-
-            (void) get_key_stuff(s->btree, node->pnode, 0, &ks_current_1);
-            child_id = ks_current_1.ptr;
-            parent = node;
-            node = get_existing_node_low(&ret, s->btree, child_id, 0, false, true);
-            plat_rwlock_rdlock(&node->lock);
-            plat_rwlock_unlock(&parent->lock);
-            deref_l1cache_node(s->btree, parent);
-
-        }
-        i = 0;
-        bool found = 0,last_node=0;
-        start_key_in_node = 0;
-        nkey_prev_tombstone = 0;
-        bzero(&ks_prev,sizeof(key_stuff_t));
-		while (!scavenger_killed)
-        {
-            key = (key_stuff_info_t *)malloc(16*sizeof(key_stuff_info_t));
-            int temp = 0;
-            assert(node);
-            if (start_key_in_node < node->pnode->nkeys) {
-                i = scavenge_node(s->btree, node, &ks_prev, &key);
-            } else {
-                i = 0;
-            }
-            if((i == 0) || (key_loc == 0)) {
-                parent = node;
-                child_id = node->pnode->next;
-                if (child_id == 0)
-                {
-                    plat_rwlock_unlock(&parent->lock);
-                    deref_l1cache_node(s->btree, parent);
-                    break;
-                }
-                node =  get_existing_node_low(&ret, s->btree, child_id, 0, false, true);
-                if (node == NULL)
-                {
-                    // Need to replace this with assert(0) once the broken leaf node chain in btree is fixed
-                    plat_rwlock_unlock(&parent->lock);
-                    deref_l1cache_node(s->btree, parent);
-                    break;
-                }
-                plat_rwlock_rdlock(&node->lock);
-                plat_rwlock_unlock(&parent->lock);
-                deref_l1cache_node(s->btree, parent);
-                start_key_in_node = 0;
-                continue;
-            }
-            if (node->pnode->next == 0) {
-                last_node = 1;
-            }
-            plat_rwlock_unlock(&node->lock);
-            deref_l1cache_node(s->btree, node);
-
-            j=0;
-            meta.flags = 0;
-            for (j = 0;j < key_loc;j++) {
-                meta.seqno = key[j].seqno;
-                meta.flags = FORCE_DELETE | READ_SEQNO_EQ;
-                btree_ret = btree_delete(s->bt, key[j].key, key[j].keylen, &meta);
-                bt_cntr_unlock_scavenger(s);
-				if(!scavenger_killed)
-					usleep(1000*(s->throttle_value));
-                zs_ret = bt_cntr_lock_scavenger(s);
-                if (s->btree == NULL)
-                {
-                    fprintf(stderr,"bt_get_btree_from_cguid failed with error: %s\n", ZSStrError(zs_ret));
-                    free(key);
-                    goto scavenger_worker_exit;
-                }
-                if (btree_ret != BTREE_SUCCESS) {
-                    //fprintf(stderr,"btree delete failed for the key %s and error is %s\n", key[j].key,ZSStrError(BtreeErr_to_ZSErr(btree_ret)));
-                    //goto end need to add after failure in btree logic is fixed
-                }
-                deletedobjects++;
-            }
-            memcpy(&ks_current, &ks_prev, sizeof(key_stuff_t));
-            free(key);
-            if (last_node) {
-                break;
-            }
-
-            uint64_t syndrome = btree_hash_int((const unsigned char *) ks_current.key, ks_current.keylen, 0); 
-            int                   pathcnt = 0;
-            bool key_exists = false;
-
-            meta.flags = READ_SEQNO_LE;
-            meta.end_seqno = ks_current.seqno - 1;
-            start_key_in_node = btree_raw_find(s->btree, ks_current.key, ks_current.keylen, syndrome, &meta, &node, write_lock, &pathcnt, &key_exists);
-        }
-        fprintf(stderr,"Total number of objects scavenged %d \n\n\n",deletedobjects);
-        close_container(zs_thread_state,s);
-scavenger_worker_exit:
-        free(s);
-        _ZSReleasePerThreadState(&zs_thread_state);
+			case SC_STALE_ENT:
+				scavenger_del_stale_ent(s);
+				break;
+		}
+		free(s);
     }
 
 	btSyncMboxPost(&mbox_scavenger_stopped, 0);
 }
+
+/*
+ * This routine deletes stale entries i.e. two consecutive entries belonging to same
+ * snapshot
+ */
+static void
+scavenger_del_stale_ent(Scavenge_Arg_t *s)
+{
+	uint64_t					child_id,snap_n1,snap_n2,syndrome = 0;
+	int							write_lock = 0, snap_no,j,total_keys = 0,deleting_keys = -1,nkey_prev = 0;
+	struct btree_raw_mem_node	*node;
+	int 						deletedobjects = 0;
+	btree_raw_mem_node_t 		*parent;
+	btree_status_t				ret = BTREE_SUCCESS;
+	key_stuff_t					ks_current_1;
+	key_stuff_info_t			ks_prev,ks_current,*key,*key1;
+	key_info_t					key_info;
+	btree_metadata_t			meta;
+	btree_status_t				btree_ret = BTREE_SUCCESS;
+	ZS_status_t					zs_ret;
+	int							i;
+
+	assert(my_thd_state);
+	open_container(my_thd_state, s->cguid);
+	node = root_get_and_lock(s->btree, write_lock);
+	assert(node);
+
+	while(!is_leaf(s->btree, (node)->pnode)) {
+ 
+		(void) get_key_stuff(s->btree, node->pnode, 0, &ks_current_1);
+		child_id = ks_current_1.ptr;
+		parent = node;
+		node = get_existing_node_low(&ret, s->btree, child_id, 0, false, true);
+		plat_rwlock_rdlock(&node->lock);
+		plat_rwlock_unlock(&parent->lock);
+		deref_l1cache_node(s->btree, parent);
+
+	}
+	i = 0;
+	bool found = 0,last_node=0;
+	start_key_in_node = 0;
+	nkey_prev_tombstone = 0;
+	bzero(&ks_prev,sizeof(key_stuff_t));
+	while (!scavenger_killed) {
+		key = (key_stuff_info_t *)malloc(16*sizeof(key_stuff_info_t));
+		int temp = 0;
+		assert(node);
+		if (start_key_in_node < node->pnode->nkeys) {
+			i = scavenge_node(s->btree, node, &ks_prev, &key);
+		} else {
+			i = 0;
+		}
+		if((i == 0) || (key_loc == 0)) {
+			parent = node;
+			child_id = node->pnode->next;
+			if (child_id == 0) {
+				plat_rwlock_unlock(&parent->lock);
+				deref_l1cache_node(s->btree, parent);
+				break;
+			}
+			node =  get_existing_node_low(&ret, s->btree, child_id, 0, false, true);
+			if (node == NULL) {
+				// Need to replace this with assert(0) once the broken leaf node chain in btree is fixed
+				plat_rwlock_unlock(&parent->lock);
+				deref_l1cache_node(s->btree, parent);
+				break;
+			}
+			plat_rwlock_rdlock(&node->lock);
+			plat_rwlock_unlock(&parent->lock);
+			deref_l1cache_node(s->btree, parent);
+			start_key_in_node = 0;
+			continue;
+		}
+		if (node->pnode->next == 0) {
+			last_node = 1;
+		}
+		plat_rwlock_unlock(&node->lock);
+		deref_l1cache_node(s->btree, node);
+
+		j=0;
+		meta.flags = 0;
+		for (j = 0;j < key_loc;j++) {
+			meta.seqno = key[j].seqno;
+			meta.flags = FORCE_DELETE | READ_SEQNO_EQ;
+			btree_ret = btree_delete(s->bt, key[j].key, key[j].keylen, &meta);
+			bt_cntr_unlock_scavenger(s, false);
+			while (!scavenger_killed) {
+				usleep(1000*(s->throttle_value));
+			}
+			zs_ret = bt_cntr_lock_scavenger(s);
+			if (s->btree == NULL) {
+				fprintf(stderr,"bt_get_btree_from_cguid failed with error: %s\n", ZSStrError(zs_ret));
+				free(key);
+				return;
+			}
+			if (btree_ret != BTREE_SUCCESS) {
+				//fprintf(stderr,"btree delete failed for the key %s and error is %s\n", key[j].key,ZSStrError(BtreeErr_to_ZSErr(btree_ret)));
+				//goto end need to add after failure in btree logic is fixed
+			}
+			deletedobjects++;
+		}
+		memcpy(&ks_current, &ks_prev, sizeof(key_stuff_t));
+		free(key);
+		if (last_node) {
+			break;
+		}
+
+		uint64_t syndrome = btree_hash_int((const unsigned char *) ks_current.key, ks_current.keylen, 0); 
+		int                   pathcnt = 0;
+		bool key_exists = false;
+		
+		meta.flags = READ_SEQNO_LE;
+		meta.end_seqno = ks_current.seqno - 1;
+		start_key_in_node = btree_raw_find(s->btree, ks_current.key, ks_current.keylen, syndrome, &meta, &node, write_lock, &pathcnt, &key_exists);
+	}
+	fprintf(stderr,"Total number of objects scavenged %d \n\n\n",deletedobjects);
+	close_container(my_thd_state, s);
+}
+
+
+/*
+ * This routine deletes all overflow nodes first and then deletes container.
+ * IMPORTANT: This routine to be used in strom mode where overflow nodes are RAW objects
+ */
+static void
+scavenger_del_overflw_n_cont(Scavenge_Arg_t *s)
+{
+	uint64_t					child_id,snap_n1,snap_n2,syndrome = 0;
+	int							write_lock = 0, snap_no,j,total_keys = 0,deleting_keys = -1,nkey_prev = 0;
+	struct btree_raw_mem_node	*node;
+	int 						deletedobjects = 0;
+	btree_raw_mem_node_t 		*parent;
+	btree_status_t				ret = BTREE_SUCCESS;
+	key_stuff_t					ks_current_1;
+	key_stuff_info_t			ks_prev,ks_current,*key,*key1;
+	key_info_t					key_info;
+	btree_metadata_t			meta;
+	btree_status_t				btree_ret = BTREE_SUCCESS;
+	ZS_status_t					zs_ret;
+	int							i, flag;
+	key_meta_t					key_meta;
+
+	/*
+	 * Acquire the lock of the container map. The sender had taken the lock and unlocked it.
+	 * We have to take the lock again here fom scavenger context.
+	 * We can be sure of consistent entry since we had incremented bt_wr_count from the sender.
+	 */
+	pthread_rwlock_wrlock(&Container_Map[s->btree_index].bt_cm_rwlock);
+
+	if (bt_shutdown == true) {
+		bt_cntr_unlock_scavenger(s, true);
+		return;
+	}
+
+	assert(bt_storm_mode == 1);
+	assert(s->btree->snap_meta->sc_status & SC_OVERFLW_DELCONT); //Only called by DelCont
+	assert(my_thd_state);
+
+	open_container(my_thd_state, s->cguid);
+	node = root_get_and_lock(s->btree, write_lock);
+	assert(node);
+
+	while(!is_leaf(s->btree, (node)->pnode)) {
+ 
+		(void) get_key_stuff(s->btree, node->pnode, 0, &ks_current_1);
+		child_id = ks_current_1.ptr;
+		parent = node;
+		node = get_existing_node_low(&ret, s->btree, child_id, 0, false, true);
+		if (is_leaf(s->btree, (node)->pnode)) {
+			node_lock(node, true);
+		} else {
+			node_lock(node, false);
+		}
+		node_unlock(parent);
+		deref_l1cache_node(s->btree, parent);
+
+	}
+
+	while (1) {
+		flag = 0;
+		for (i = 0; i < node->pnode->nkeys; i++) {
+			btree_leaf_get_meta(node->pnode, i, &key_meta);
+			if ((key_meta.keylen + key_meta.datalen) >=
+								s->btree->big_object_size) {
+				flag = 1;
+				delete_overflow_data(&ret, s->btree, key_meta.ptr, key_meta.datalen);
+				btree_leaf_unset_dataptr(node->pnode, i);
+			}
+		}
+		if (flag == 1) {
+			uint64_t *logical_id = &node->pnode->logical_id;
+			s->bt->write_node_cb(my_thd_state, &ret, s->bt->write_node_cb_data,
+								&logical_id, (char**)&node->pnode,
+								s->bt->nodesize, 1, 0);
+			deref_l1cache(s->btree);
+		}
+
+		child_id = node->pnode->next;
+		parent = node;
+
+		if (child_id == 0) {
+			node_unlock(parent);
+			deref_l1cache_node(s->btree, parent);
+
+			zs_ret = ZSCloseContainer(my_thd_state, s->cguid);
+			assert((zs_ret == ZS_SUCCESS) || (bt_shutdown==true && zs_ret==ZS_FAILURE_OPERATION_DISALLOWED));
+			trxdeletecontainer( my_thd_state, s->cguid);
+			zs_ret = ZSDeleteContainer(my_thd_state, s->cguid);
+			assert((zs_ret == ZS_SUCCESS) || (bt_shutdown==true && zs_ret==ZS_FAILURE_OPERATION_DISALLOWED));
+
+			Container_Map[s->btree_index].cguid = ZS_NULL_CGUID;
+			Container_Map[s->btree_index].btree = NULL;
+			Container_Map[s->btree_index].bt_state = BT_CNTR_UNUSED;
+			Container_Map[s->btree_index].scavenger_state = false;
+			(void) __sync_sub_and_fetch(&N_Open_Containers, 1);
+
+			bt_cntr_unlock_scavenger(s, true);
+
+			btree_destroy(s->bt);
+
+			return;
+		} else if (bt_shutdown == true) {
+			node_unlock(parent);
+			deref_l1cache_node(s->btree, parent);
+			break;
+		} else {
+			node =  get_existing_node_low(&ret, s->btree, child_id, 0, false, true);
+			if (node == NULL) {
+				node_unlock(parent);
+				deref_l1cache_node(s->btree, parent);
+				break;
+			} else {
+				node_lock(node, true);
+				node_unlock(parent);
+				deref_l1cache_node(s->btree, parent);
+			}
+		}
+	}
+	bt_cntr_unlock_scavenger(s, true);
+
+	return;
+}
+
+
 
 void
 scavenger_init(int nthreads) {
@@ -272,7 +437,8 @@ non_minimal_delete(btree_raw_t *btree, btree_raw_mem_node_t *mnode, int index)
 	return 0;
 }
 
-static int scavenge_node_all_keys(btree_raw_t *btree, btree_raw_mem_node_t *node)
+static int 
+scavenge_node_all_keys(btree_raw_t *btree, btree_raw_mem_node_t *node)
 {
 	key_stuff_info_t ks_prev, ks_current;
 	int i = 0;
@@ -372,7 +538,8 @@ done:
 	return (scavenged_keys);
 }
 
-int scavenge_node(struct btree_raw *btree, btree_raw_mem_node_t* node, key_stuff_info_t *ks_prev_key, key_stuff_info_t **key)
+int 
+scavenge_node(struct btree_raw *btree, btree_raw_mem_node_t* node, key_stuff_info_t *ks_prev_key, key_stuff_info_t **key)
 {
 	if (0 == astats_done) {
 		return 0;
@@ -494,7 +661,7 @@ update_leaf_bytes_count(btree_raw_t *btree, btree_raw_mem_node_t *node)
             z_next = key_info.ptr;
 
             while(z_next) {
-                btree_raw_mem_node_t *node1 = get_existing_node_low(&ret2, btree, z_next, ref, false, true);
+                btree_raw_mem_node_t *node1 = get_existing_overflow_node_low(&ret2, btree, z_next, ref, false, true);
 
                 if(!node1) {
                     break;

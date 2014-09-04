@@ -75,8 +75,8 @@ static void insert_lru(struct Map *pm, MapEntry_t *pme);
 static void remove_lru(struct Map *pm, MapEntry_t *pme);
 static void update_lru(struct Map *pm, MapEntry_t *pme);
 static void replace_lru(struct Map *pm, MapEntry_t *pme, void *replacement_callback_data);
-static MapEntry_t *find_pme(struct Map *pm, char *pkey, uint32_t keylen, MapBucket_t **pb, uint64_t cguid);
-static MapEntry_t *create_pme(Map_t *pm, char *pkey, uint32_t keylen, char *pdata, uint64_t datalen, uint64_t cguid);
+static MapEntry_t *find_pme(struct Map *pm, char *pkey, uint32_t keylen, MapBucket_t **pb, int raw_object, uint64_t cguid);
+static MapEntry_t *create_pme(Map_t *pm, char *pkey, uint32_t keylen, char *pdata, uint64_t datalen, int rawobj, uint64_t cguid);
 // static MapEntry_t *copy_pme(Map_t *pm, MapEntry_t *pme);
 // static MapEntry_t *copy_pme_list(Map_t *pm, MapEntry_t *pme);
 static void free_pme(Map_t *pm, MapEntry_t *pme);
@@ -290,7 +290,7 @@ void MapCheckRefcnts(struct Map *pm)
 }
 
 //  Return non-NULL if success, NULL if object exists
-struct MapEntry *MapCreate(struct Map *pm, char *pkey, uint32_t keylen, char *pdata, uint64_t datalen, uint64_t cguid, void *replacement_callback_data)
+struct MapEntry *MapCreate(struct Map *pm, char *pkey, uint32_t keylen, char *pdata, uint64_t datalen, uint64_t cguid, int raw_object, void *replacement_callback_data)
 {
     MapEntry_t   *pme;
     MapBucket_t  *pb;
@@ -299,7 +299,7 @@ struct MapEntry *MapCreate(struct Map *pm, char *pkey, uint32_t keylen, char *pd
 
 	dbg_print("MapCreate: pm=%p, key=0x%lx, keylen=%d, pdata=%p, datalen=%ld, ", pm, *((uint64_t *) pkey), keylen, pdata, datalen);
 
-    pme = find_pme(pm, pkey, keylen, &pb, cguid);
+    pme = find_pme(pm, pkey, keylen, &pb, raw_object,cguid);
 
     if (pme != NULL) {
 	    dbg_print("pme=%p\n", pme);
@@ -310,7 +310,7 @@ struct MapEntry *MapCreate(struct Map *pm, char *pkey, uint32_t keylen, char *pd
 
     /* Create a new entry. */
 
-    pme = create_pme(pm, pkey, keylen, pdata, datalen, cguid);
+    pme = create_pme(pm, pkey, keylen, pdata, datalen, raw_object, cguid);
 
     /* put myself on the bucket list */
     pme->refcnt = 1;
@@ -342,7 +342,7 @@ struct MapEntry *MapCreate(struct Map *pm, char *pkey, uint32_t keylen, char *pd
 }
 
 //  Return non-NULL if success, NULL if object does not exist
-struct MapEntry *MapUpdate(struct Map *pm, char *pkey, uint32_t keylen, char *pdata, uint64_t datalen, uint64_t cguid, void *replacement_callback_data)
+struct MapEntry *MapUpdate(struct Map *pm, char *pkey, uint32_t keylen, char *pdata, uint64_t datalen, uint64_t cguid, int raw_object, void *replacement_callback_data)
 {
     MapEntry_t   *pme;
 
@@ -350,7 +350,7 @@ struct MapEntry *MapUpdate(struct Map *pm, char *pkey, uint32_t keylen, char *pd
 
 	dbg_print("MapUpdate: pm=%p, key=0x%lx, keylen=%d, pdata=%p, datalen=%ld\n", pm, *((uint64_t *) pkey), keylen, pdata, datalen);
 
-    pme = find_pme(pm, pkey, keylen, NULL, cguid);
+    pme = find_pme(pm, pkey, keylen, NULL, raw_object, cguid);
 
     if (pme == NULL) {
 	do_unlock(pm);
@@ -377,7 +377,10 @@ struct MapEntry *MapUpdate(struct Map *pm, char *pkey, uint32_t keylen, char *pd
 }
 
 //  Return non-NULL if success, NULL if object exists
-struct MapEntry *MapSet(struct Map *pm, char *pkey, uint32_t keylen, char *pdata, uint64_t datalen, char **old_pdata, uint64_t *old_datalen, uint64_t cguid, void *replacement_callback_data)
+struct MapEntry *
+MapSet(struct Map *pm, char *pkey, uint32_t keylen, char *pdata, uint64_t datalen,
+		char **old_pdata, uint64_t *old_datalen, uint64_t cguid, int raw_object,
+		void *replacement_callback_data)
 {
     MapEntry_t   *pme;
     MapBucket_t  *pb;
@@ -386,7 +389,7 @@ struct MapEntry *MapSet(struct Map *pm, char *pkey, uint32_t keylen, char *pdata
 
 	dbg_print("MapSet: pm=%p, key=0x%lx, keylen=%d, pdata=%p, datalen=%ld\n", pm, *((uint64_t *) pkey), keylen, pdata, datalen);
 
-    pme = find_pme(pm, pkey, keylen, &pb, cguid);
+    pme = find_pme(pm, pkey, keylen, &pb, raw_object, cguid);
 
     if (pme != NULL) {
 
@@ -412,7 +415,7 @@ struct MapEntry *MapSet(struct Map *pm, char *pkey, uint32_t keylen, char *pdata
 
 		/* Create a new entry. */
 
-		pme = create_pme(pm, pkey, keylen, pdata, datalen, cguid);
+		pme = create_pme(pm, pkey, keylen, pdata, datalen, raw_object, cguid);
 
 		*old_pdata   = NULL;
 		*old_datalen = 0;
@@ -444,7 +447,7 @@ struct MapEntry *MapSet(struct Map *pm, char *pkey, uint32_t keylen, char *pdata
 }
 
 //  Returns non-NULL if successful, NULL otherwise
-struct MapEntry *MapGet(struct Map *pm, char *key, uint32_t keylen, char **pdata, uint64_t *pdatalen, uint64_t cguid)
+struct MapEntry *MapGet(struct Map *pm, char *key, uint32_t keylen, char **pdata, uint64_t *pdatalen, uint64_t cguid, int raw_object)
 {
     uint64_t           datalen;
     MapEntry_t   *pme;
@@ -452,7 +455,7 @@ struct MapEntry *MapGet(struct Map *pm, char *key, uint32_t keylen, char **pdata
 
     do_lock_read(pm);
 
-    pme = find_pme(pm, key, keylen, NULL, cguid);
+    pme = find_pme(pm, key, keylen, NULL, raw_object, cguid);
 
     if (pme != NULL) {
         data    = pme->contents;
@@ -515,14 +518,14 @@ struct MapEntry *MapGet(struct Map *pm, char *key, uint32_t keylen, char **pdata
 
 //  Increment the reference count for this entry
 //  rc=1 if entry is found, rc=0 otherwise
-int MapGetRefcnt(struct Map *pm, char *key, uint32_t keylen, uint64_t cguid)
+int MapGetRefcnt(struct Map *pm, char *key, uint32_t keylen, uint64_t cguid, int raw_object)
 {
     MapEntry_t   *pme;
     int res;
 
     do_lock_read(pm);
 
-    pme = find_pme(pm, key, keylen, NULL, cguid);
+    pme = find_pme(pm, key, keylen, NULL, raw_object, cguid);
 
     assert(pme);
     res = (pme->refcnt);
@@ -532,7 +535,7 @@ int MapGetRefcnt(struct Map *pm, char *key, uint32_t keylen, uint64_t cguid)
 }
 //  Increment the reference count for this entry
 //  rc=1 if entry is found, rc=0 otherwise
-int MapIncrRefcnt(struct Map *pm, char *key, uint32_t keylen, uint64_t cguid)
+int MapIncrRefcnt(struct Map *pm, char *key, uint32_t keylen, uint64_t cguid, int raw_object)
 {
     MapEntry_t   *pme;
     int                rc = 0;
@@ -541,7 +544,7 @@ int MapIncrRefcnt(struct Map *pm, char *key, uint32_t keylen, uint64_t cguid)
 
 	dbg_print("MapIncrRefcnt: pm=%p, key=0x%lx, keylen=%d", pm, *((uint64_t *) key), keylen);
 
-    pme = find_pme(pm, key, keylen, NULL, cguid);
+    pme = find_pme(pm, key, keylen, NULL, raw_object, cguid);
 
     if (pme != NULL) {
 // dbg_print(", after incr refcnt [0x%lx] =%d\n", *((uint64_t *) key), pme->refcnt + 1);
@@ -558,7 +561,7 @@ int MapIncrRefcnt(struct Map *pm, char *key, uint32_t keylen, uint64_t cguid)
 
 //  Decrement the reference count for this entry
 //  rc=1 if entry is found, rc=0 otherwise
-int MapRelease(struct Map *pm, char *key, uint32_t keylen, uint64_t cguid, void *replacement_callback_data)
+int MapRelease(struct Map *pm, char *key, uint32_t keylen, uint64_t cguid, int raw_object, void *replacement_callback_data)
 {
     uint64_t            h;
     MapEntry_t   **ppme;
@@ -570,7 +573,7 @@ int MapRelease(struct Map *pm, char *key, uint32_t keylen, uint64_t cguid, void 
 
 	dbg_print("MapRelease: pm=%p, key=0x%lx, keylen=%d", pm, *((uint64_t *) key), keylen);
 
-    pme = find_pme(pm, key, keylen, NULL, cguid);
+    pme = find_pme(pm, key, keylen, NULL, raw_object, cguid);
 
     if (pme != NULL) {
 // dbg_print(", after release [0x%lx] =%d\n", *((uint64_t *) key), pme->refcnt - 1);
@@ -586,7 +589,7 @@ int MapRelease(struct Map *pm, char *key, uint32_t keylen, uint64_t cguid, void 
 
 			for (ppme = &(pb->entry); (*ppme) != NULL; ppme = &((*ppme)->next)) {
 				pme = *ppme;
-				if ((pme->key == key) && (pme->cguid == cguid)) {
+				if ((pme->key == key) && (pme->cguid == cguid) &&(pme->rawobj == raw_object)) {
 					if ((pme->refcnt == 0) && pme->deleted) {
 						remove_lru(pm, pme);
 						pm->n_entries--;
@@ -609,7 +612,7 @@ int MapRelease(struct Map *pm, char *key, uint32_t keylen, uint64_t cguid, void 
     return(rc);
 }
 
-int MapReleaseAll(struct Map *pm, char *key, uint32_t keylen, uint64_t cguid, void *replacement_callback_data)
+int MapReleaseAll(struct Map *pm, char *key, uint32_t keylen, uint64_t cguid, int raw_object, void *replacement_callback_data)
 {
     uint64_t            h;
     MapEntry_t   **ppme;
@@ -621,7 +624,7 @@ int MapReleaseAll(struct Map *pm, char *key, uint32_t keylen, uint64_t cguid, vo
 
 	dbg_print("MapRelease: pm=%p, key=0x%lx, keylen=%d", pm, *((uint64_t *) key), keylen);
 
-    pme = find_pme(pm, key, keylen, NULL, cguid);
+    pme = find_pme(pm, key, keylen, NULL, raw_object, cguid);
 
     if (pme != NULL) {
 // dbg_print(", after release [0x%lx] =%d\n", *((uint64_t *) key), pme->refcnt - 1);
@@ -637,7 +640,7 @@ int MapReleaseAll(struct Map *pm, char *key, uint32_t keylen, uint64_t cguid, vo
 
 			for (ppme = &(pb->entry); (*ppme) != NULL; ppme = &((*ppme)->next)) {
 				pme = *ppme;
-				if ((pme->key == key) && (pme->cguid == cguid)) {
+				if ((pme->key == key) && (pme->cguid == cguid) && (pme->rawobj == raw_object)) {
 					if ((pme->refcnt == 0) && pme->deleted) {
 						remove_lru(pm, pme);
 						pm->n_entries--;
@@ -771,7 +774,7 @@ int MapNextEnum(struct Map *pm, struct Iterator *iterator, char **key, uint32_t 
 
 /*   Return 0 if succeeds, 1 if object doesn't exist.
  */
-int MapDelete(struct Map *pm, char *key, uint32_t keylen, uint64_t cguid, void *replacement_callback_data)
+int MapDelete(struct Map *pm, char *key, uint32_t keylen, uint64_t cguid, int robj, void *replacement_callback_data)
 {
     uint64_t            h;
     MapEntry_t   **ppme;
@@ -792,7 +795,7 @@ int MapDelete(struct Map *pm, char *key, uint32_t keylen, uint64_t cguid, void *
 
     for (ppme = &(pb->entry); (*ppme) != NULL; ppme = &((*ppme)->next)) {
 		pme = *ppme;
-		if ((pme->key == key2) && (pme->cguid == cguid)) {
+		if ((pme->key == key2) && (pme->cguid == cguid) && (pme->rawobj == robj)) {
 
 	    	//  Remove from the LRU list if necessary
 			pme->refcnt--;
@@ -816,7 +819,8 @@ int MapDelete(struct Map *pm, char *key, uint32_t keylen, uint64_t cguid, void *
     return (1);
 }
 
-static MapEntry_t *create_pme(Map_t *pm, char *pkey, uint32_t keylen, char *pdata, uint64_t datalen, uint64_t cguid)
+static MapEntry_t *create_pme(Map_t *pm, char *pkey, uint32_t keylen, char *pdata,
+							  uint64_t datalen, int rawobj, uint64_t cguid)
 {
     MapEntry_t   *pme;
 
@@ -834,6 +838,7 @@ static MapEntry_t *create_pme(Map_t *pm, char *pkey, uint32_t keylen, char *pdat
     pme->contents  = pdata;
     pme->datalen   = datalen;
 
+	pme->rawobj	   = rawobj;
     pme->cguid     = cguid;
     pme->next      = NULL;
 
@@ -995,7 +1000,7 @@ static void replace_lru(struct Map *pm, MapEntry_t *pme_in, void *replacement_ca
 
 }
 
-static MapEntry_t *find_pme(struct Map *pm, char *pkey, uint32_t keylen, MapBucket_t **pb_out, uint64_t cguid)
+static MapEntry_t *find_pme(struct Map *pm, char *pkey, uint32_t keylen, MapBucket_t **pb_out, int raw_object, uint64_t cguid)
 {
     uint64_t           h;
     MapBucket_t  *pb;
@@ -1008,7 +1013,7 @@ static MapEntry_t *find_pme(struct Map *pm, char *pkey, uint32_t keylen, MapBuck
 
     if (keylen == 8) {
 	for (pme = pb->entry; pme != NULL; pme = pme->next) {
-	    if ((pme->key == key2) && (pme->cguid == cguid)) {
+	    if ((pme->key == key2) && (pme->cguid == cguid) && (pme->rawobj == raw_object)) {
 		break;
 	    }
 	}

@@ -121,6 +121,7 @@ backup_maintain_bitmaps( mcd_osd_shard_t * shard, uint32_t blk_offset,
     int                         map_offset;
     mcd_osd_segment_t         * segment;
 
+	return;
     mcd_bak_msg( 20064, PLAT_LOG_LEVEL_TRACE,
                  "ENTERING, shardID=%lu, off=%u, del=%d",
                  shard->id, blk_offset, delete );

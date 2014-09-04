@@ -79,6 +79,8 @@
 #include "packet.h"
 #include "trxcmd.h"
 #include "flip/flip.h"
+#include <api/fdf_internal_cb.h>
+#include "fdf_internal_cb.h"
 
 //  Define this to include detailed debugging code
 //#define BTREE_RAW_CHECK
@@ -112,7 +114,10 @@ static int Verbose = 0;
                                   MAX_PER_THREAD_NODES - modified_nodes_count))
 
 extern uint64_t n_global_l1cache_buckets;
+extern uint64_t l1reg_buckets, l1raw_buckets;
+extern uint64_t l1reg_size, l1raw_size;
 extern struct PMap *global_l1cache;
+extern struct PMap *global_raw_l1cache;
 extern int btree_parallel_flush_disabled;
 extern int btree_parallel_flush_minbufs;
 extern uint64_t zs_flush_pstats_frequency;
@@ -133,14 +138,17 @@ __thread uint32_t   _keybuf_size = 0;
 
 extern ZS_status_t _ZSInitPerThreadState(struct ZS_state  *zs_state, struct ZS_thread_state **thd_state);
 extern ZS_status_t _ZSReleasePerThreadState(struct ZS_thread_state **thd_state);
+extern btree_status_t ZSErr_to_BtreeErr(ZS_status_t f_status);
 
 extern __thread struct ZS_thread_state *my_thd_state;
 __thread btree_raw_mem_node_t **modified_nodes = NULL;
 __thread btree_raw_mem_node_t **referenced_nodes = NULL;
 __thread btree_raw_mem_node_t **deleted_nodes = NULL;
+__thread btree_raw_mem_node_t **overflow_nodes = NULL;
 __thread int *modified_written = NULL;
 __thread int *deleted_written = NULL;
-__thread uint64_t modified_nodes_count=0, referenced_nodes_count=0, deleted_nodes_count=0;
+__thread int *overflow_written = NULL;
+__thread uint64_t modified_nodes_count=0, referenced_nodes_count=0, deleted_nodes_count=0, overflow_nodes_count = 0;
 
 static __thread char tmp_key_buf[8100] = {0};
 __thread uint64_t dbg_referenced = 0;
@@ -156,6 +164,11 @@ extern ZS_status_t _ZSScavengeContainer(struct ZS_state *zs_state, ZS_cguid_t cg
 extern __thread ZS_cguid_t my_thrd_cguid;
 
 btree_node_list_t *free_node_list;
+btree_node_list_t *free_raw_node_list;
+
+int bt_storm_mode;
+uint64_t overflow_node_sz;
+uint64_t datasz_in_overflow;
 
 #ifdef FLIP_ENABLED
 bool recovery_write = false;
@@ -242,7 +255,7 @@ static btree_status_t loadpersistent( btree_raw_t *);
 static void free_node(btree_status_t *ret, btree_raw_t *btree, btree_raw_mem_node_t *n);
 
 static inline btree_raw_mem_node_t *get_new_node(btree_status_t *ret, btree_raw_t *btree, uint32_t leaf_flags, uint16_t level);
-static btree_raw_mem_node_t *create_new_node(btree_raw_t *btree, uint64_t logical_id, bool ref, bool pinned);
+static btree_raw_mem_node_t *create_new_node(btree_raw_t *btree, uint64_t logical_id, node_flags_t flag, bool ref, bool pinned);
 //static btree_raw_mem_node_t *get_new_node_low(btree_status_t *ret, btree_raw_t *btree, uint32_t leaf_flags, int ref);
 
 static inline
@@ -254,7 +267,8 @@ get_child_id_and_count(btree_raw_t* btree, btree_raw_node_t* pnode,
 int init_l1cache();
 void destroy_l1cache();
 void clean_l1cache(btree_raw_t* btree);
-void delete_l1cache(btree_raw_t *btree, uint64_t logical_id);
+void delete_l1cache(btree_raw_t *btree, int robj, uint64_t logical_id);
+void delete_node_l1cache(btree_raw_t *btree, btree_raw_node_t *pnode);
 uint32_t get_btree_node_size();
 
 btree_status_t deref_l1cache(btree_raw_t *btree);
@@ -359,7 +373,7 @@ l1cache_replace(void *callback_data, char *key, uint32_t keylen, char *pdata, ui
 
 
     plat_rwlock_destroy(&n->lock);
-    btree_node_free(free_node_list, n);
+	btree_node_free(n);
 }
 
 
@@ -538,7 +552,7 @@ btree_raw_init(uint32_t flags, uint32_t n_partition, uint32_t n_partitions, uint
 
     if (flags & RELOAD) {
         if (BTREE_SUCCESS != loadpersistent( bt)) {
-	    bad_container = 1;
+			bad_container = 1;
             free( bt);
             return (NULL);
         }
@@ -687,8 +701,8 @@ extern __thread long long locked;
 __thread int no_lock = 0;
 #endif
 
-inline static
-void node_lock(btree_raw_mem_node_t* node, int write_lock) 
+void
+node_lock(btree_raw_mem_node_t* node, int write_lock) 
 {
 #ifdef DEBUG_STUFF
 	if(no_lock) return;
@@ -705,8 +719,8 @@ void node_lock(btree_raw_mem_node_t* node, int write_lock)
 #endif
 }
 
-inline static
-void node_unlock(btree_raw_mem_node_t* node)
+void
+node_unlock(btree_raw_mem_node_t* node)
 {
 #ifdef DEBUG_STUFF
 	if(no_lock) return;
@@ -748,10 +762,11 @@ writepersistent( btree_raw_t *bt, bool create, bool force_write)
 
     if(create) {
         mem_node = create_new_node(bt,
-                                   META_LOGICAL_ID+bt->n_partition,
-                                   true /* ref */, true /* pinned */);
+								   META_LOGICAL_ID+bt->n_partition,
+								   UNKNOWN_NODE, true /* ref */, true /* pinned */);
         if (mem_node == NULL) {
             ret = BTREE_FAILURE;
+			bt_warn( "New node!");
             goto done;
         }
 
@@ -772,6 +787,7 @@ writepersistent( btree_raw_t *bt, bool create, bool force_write)
 
     if (mem_node == NULL) {
         ret = BTREE_FAILURE;
+		bt_warn( "Existing node!");
         goto done;
     }
 
@@ -816,8 +832,11 @@ writepersistent( btree_raw_t *bt, bool create, bool force_write)
         uint64_t* logical_id = &mem_node->pnode->logical_id;
         bt->write_node_cb(my_thd_state, &ret, bt->write_node_cb_data,
                           &logical_id, (char**)&mem_node->pnode,
-                          bt->nodesize, 1);
+                          bt->nodesize, 1, 0);
 
+		if (ret != BTREE_SUCCESS) {
+			bt_warn("write_node_cb");
+		}
         if (bt->trxenabled) {
             (*bt->trx_cmd_cb)( TRX_COMMIT);
         }
@@ -842,8 +861,8 @@ done:
 
     if (BTREE_SUCCESS != ret) {
         bt_warn( "Could not persist btree!");
-	// Write now we simply ignore the storage errors.
-	ret = BTREE_SUCCESS;
+		// Write now we simply ignore the storage errors.
+		ret = BTREE_SUCCESS;
      }
 
     return ret;
@@ -887,81 +906,81 @@ int btree_raw_free_buffer(btree_raw_t *btree, char *buf)
 
 //======================   GET  =========================================
 
-int is_overflow(btree_raw_t *btree, btree_raw_node_t *node) { return node->flags & OVERFLOW_NODE; }
+int is_overflow(btree_raw_t *btree, btree_raw_node_t *node) { return ((node->flags & OVERFLOW_NODE) ? true : false); }
 
-int is_leaf(btree_raw_t *btree, btree_raw_node_t *node) { return node->flags & LEAF_NODE; }
+int is_leaf(btree_raw_t *btree, btree_raw_node_t *node) { return ((node->flags & LEAF_NODE) ? true : false); }
 
 inline static
 int is_root(btree_raw_t *btree, btree_raw_node_t *node) { return btree->rootid == node->logical_id; }
 
 int get_key_stuff(btree_raw_t *bt, btree_raw_node_t *n, uint32_t nkey, key_stuff_t *pks)
 {
-    node_vkey_t   *pvk;
-    node_vlkey_t  *pvlk;
-    node_fkey_t   *pfk;
-    int            leaf = 0;
+	node_vkey_t   *pvk;
+	node_vlkey_t  *pvlk;
+	node_fkey_t   *pfk;
+	int            leaf = 0;
 
-    pks->nkey = nkey;
-    if (bt->flags & SECONDARY_INDEX) {
-        pks->fixed = 0;
-        //  used for secondary indices
-	if (n->flags & LEAF_NODE) {
-	    leaf               = 1;
-	    pvlk               = ((node_vlkey_t *) n->keys) + nkey;
-	    pks->ptr           = pvlk->ptr;
-	    pks->offset        = sizeof(node_vlkey_t);
-	    pks->pkey_struct   = (void *) pvlk;
-	    pks->pkey_val      = (char *) n + pvlk->keypos;
-	    pks->keylen        = pvlk->keylen;
-	    pks->datalen       = pvlk->datalen;
-	    pks->fkeys_per_node = 0;
-	    pks->seqno         = pvlk->seqno;
-	    pks->syndrome      = 0;
+	pks->nkey = nkey;
+	if (bt->flags & SECONDARY_INDEX) {
+		pks->fixed = 0;
+		//  used for secondary indices
+		if (n->flags & LEAF_NODE) {
+			leaf               = 1;
+			pvlk               = ((node_vlkey_t *) n->keys) + nkey;
+			pks->ptr           = pvlk->ptr;
+			pks->offset        = sizeof(node_vlkey_t);
+			pks->pkey_struct   = (void *) pvlk;
+			pks->pkey_val      = (char *) n + pvlk->keypos;
+			pks->keylen        = pvlk->keylen;
+			pks->datalen       = pvlk->datalen;
+			pks->fkeys_per_node = 0;
+			pks->seqno         = pvlk->seqno;
+			pks->syndrome      = 0;
+		} else {
+			pvk                = ((node_vkey_t *) n->keys) + nkey;
+			pks->ptr           = pvk->ptr;
+			pks->offset        = sizeof(node_vkey_t);
+			pks->pkey_struct   = (void *) pvk;
+			pks->pkey_val      = (char *) n + pvk->keypos;
+			pks->keylen        = pvk->keylen;
+			pks->datalen       = sizeof(uint64_t);
+			pks->fkeys_per_node = 0;
+			pks->seqno         = pvk->seqno;
+			pks->syndrome      = 0;
+		}
+	} else if (bt->flags & SYNDROME_INDEX) {
+		//  used for primary indices
+		if (n->flags & LEAF_NODE) {
+			leaf               = 1;
+			pvlk               = ((node_vlkey_t *) n->keys) + nkey;
+			pks->fixed         = 0;
+			pks->ptr           = pvlk->ptr;
+			pks->offset        = sizeof(node_vlkey_t);
+			pks->pkey_struct   = (void *) pvlk;
+			pks->pkey_val      = (char *) n + pvlk->keypos;
+			pks->keylen        = pvlk->keylen;
+			pks->datalen       = pvlk->datalen;
+			pks->fkeys_per_node = 0;
+			pks->seqno         = pvlk->seqno;
+			pks->syndrome      = 0;
+		} else {
+			pfk                = ((node_fkey_t *) n->keys) + nkey;
+			pks->fixed         = 1;
+			pks->ptr           = pfk->ptr;
+			pks->offset        = sizeof(node_fkey_t);
+			pks->pkey_struct   = (void *) pfk;
+			pks->pkey_val      = (char *) (pfk->key);
+			pks->keylen        = sizeof(uint64_t);
+			pks->datalen       = sizeof(uint64_t);
+			pks->fkeys_per_node = bt->fkeys_per_node;
+			pks->seqno         = pfk->seqno;
+			pks->syndrome      = pfk->key;
+		}
 	} else {
-	    pvk                = ((node_vkey_t *) n->keys) + nkey;
-	    pks->ptr           = pvk->ptr;
-	    pks->offset        = sizeof(node_vkey_t);
-	    pks->pkey_struct   = (void *) pvk;
-	    pks->pkey_val      = (char *) n + pvk->keypos;
-	    pks->keylen        = pvk->keylen;
-	    pks->datalen       = sizeof(uint64_t);
-	    pks->fkeys_per_node = 0;
-	    pks->seqno         = pvk->seqno;
-	    pks->syndrome      = 0;
+		assert(0);
 	}
-    } else if (bt->flags & SYNDROME_INDEX) {
-        //  used for primary indices
-	if (n->flags & LEAF_NODE) {
-	    leaf               = 1;
-	    pvlk               = ((node_vlkey_t *) n->keys) + nkey;
-	    pks->fixed         = 0;
-	    pks->ptr           = pvlk->ptr;
-	    pks->offset        = sizeof(node_vlkey_t);
-	    pks->pkey_struct   = (void *) pvlk;
-	    pks->pkey_val      = (char *) n + pvlk->keypos;
-	    pks->keylen        = pvlk->keylen;
-	    pks->datalen       = pvlk->datalen;
-	    pks->fkeys_per_node = 0;
-	    pks->seqno         = pvlk->seqno;
-            pks->syndrome      = 0;
-	} else {
-	    pfk                = ((node_fkey_t *) n->keys) + nkey;
-	    pks->fixed         = 1;
-	    pks->ptr           = pfk->ptr;
-	    pks->offset        = sizeof(node_fkey_t);
-	    pks->pkey_struct   = (void *) pfk;
-	    pks->pkey_val      = (char *) (pfk->key);
-	    pks->keylen        = sizeof(uint64_t);
-	    pks->datalen       = sizeof(uint64_t);
-	    pks->fkeys_per_node = bt->fkeys_per_node;
-	    pks->seqno         = pfk->seqno;
-	    pks->syndrome      = pfk->key;
-	}
-    } else {
-        assert(0);
-    }
-    pks->leaf = leaf;
-    return(leaf);
+	pks->leaf = leaf;
+	return(leaf);
 }
 
 void
@@ -1485,7 +1504,7 @@ get_leaf_data_index(btree_raw_t *bt, btree_raw_node_t *n, int index, char **data
 
 
     if (meta_flags & INPLACE_POINTERS) {
-	*datalen = big_object(bt, &key_info) ? 0 : key_info.datalen;
+		*datalen = big_object(bt, &key_info) ? 0 : key_info.datalen;
     }
 
     if (meta_flags & (BUFFER_PROVIDED|INPLACE_POINTERS)) {
@@ -1517,27 +1536,30 @@ get_leaf_data_index(btree_raw_t *bt, btree_raw_node_t *n, int index, char **data
     *data    = buf;
 
     if (big_object(bt, (&key_info))) {
-        /*
-	 *  data is in overflow btree nodes
-	 */
+		/*
+		 *  data is in overflow btree nodes
+		 */
 
-        if (key_info.datalen > 0) {
+		if (key_info.datalen > 0) {
 			nbytes = key_info.datalen;
 			p      = buf;
 			z_next = key_info.ptr;
 			while(nbytes > 0 && z_next) {
-				btree_raw_mem_node_t *node = get_existing_node_low(&ret2, bt, z_next, ref, false, 
-				                                                   deref_delete_cache);
-				if(!node)
+				uint64_t ovdatasize =  get_data_in_overflownode(bt);
+				btree_raw_mem_node_t *node = get_existing_overflow_node_low(&ret2, bt, z_next, ref, false, 
+																	   deref_delete_cache);
+				if(!node) {
 					break;
+				}
 				z = node->pnode;
-				copybytes = nbytes >= bt->nodesize_less_hdr ? bt->nodesize_less_hdr : nbytes;
+				copybytes = nbytes >= ovdatasize ? ovdatasize : nbytes;
 				memcpy(p, ((char *) z + sizeof(btree_raw_node_t)), copybytes);
 				nbytes -= copybytes;
 				p      += copybytes;
 				z_next  = z->next;
-				if(!ref)
+				if(!ref) {
 					deref_l1cache_node(bt, node);
+				}
 			}
 			if (nbytes) {
 				bt_err("Failed to get overflow node (logical_id=%lld)(nbytes=%ld) in get_leaf_data!", z_next, nbytes);
@@ -1549,11 +1571,11 @@ get_leaf_data_index(btree_raw_t *bt, btree_raw_node_t *n, int index, char **data
 			assert(z_next == 0);
 		}
     } else if (meta_flags & INPLACE_POINTERS) {
-	assert(0);
+		assert(0);
     } else {
-	btree_leaf_get_data_nth_key(bt, n, index, &datap, &datalen1);
-	assert(key_info.datalen == datalen1);
-	memcpy(buf, datap, datalen1);
+		btree_leaf_get_data_nth_key(bt, n, index, &datap, &datalen1);
+		assert(key_info.datalen == datalen1);
+		memcpy(buf, datap, datalen1);
     }
 
     return(ret);
@@ -1564,91 +1586,93 @@ get_leaf_data_nth_key(btree_raw_t *bt, btree_raw_node_t *n, int index,
 		      btree_metadata_t *meta, uint64_t syndrome,
 		      char **data, uint64_t *datalen, int ref)
 {
-    btree_raw_node_t   *z;
-    btree_status_t      ret=BTREE_SUCCESS;
-    char               *buf;
-    char               *p;
-    int                 buf_alloced=0;
-    uint64_t            nbytes;
-    uint64_t            copybytes;
-    uint64_t            z_next;
-    key_info_t 	key_info = {0};
-    bool res = false;
-    char *datap = NULL;
-    uint64_t datalen1 = 0;
-    uint32_t meta_flags = meta->flags;
+	btree_raw_node_t   *z;
+	btree_status_t      ret=BTREE_SUCCESS;
+	char               *buf;
+	char               *p;
+	int                 buf_alloced=0;
+	uint64_t            nbytes;
+	uint64_t            copybytes;
+	uint64_t            z_next;
+	key_info_t 	key_info = {0};
+	bool res = false;
+	char *datap = NULL;
+	uint64_t datalen1 = 0;
+	uint32_t meta_flags = meta->flags;
 
-    *data = NULL;
-    *datalen = 0; 
+	*data = NULL;
+	*datalen = 0; 
 
-    res = btree_leaf_get_nth_key_info(bt, n, index, &key_info); 
-    assert(res == true);
-    free_buffer(bt, key_info.key);
-    key_info.key = NULL;
+	res = btree_leaf_get_nth_key_info(bt, n, index, &key_info); 
+	assert(res == true);
+	free_buffer(bt, key_info.key);
+	key_info.key = NULL;
 
-    if (meta_flags & BUFFER_PROVIDED) {
-        if (*datalen < key_info.datalen) {
-	    ret = BTREE_BUFFER_TOO_SMALL;
-	    if (meta_flags & ALLOC_IF_TOO_SMALL) {
+	if (meta_flags & BUFFER_PROVIDED) {
+		if (*datalen < key_info.datalen) {
+			ret = BTREE_BUFFER_TOO_SMALL;
+			if (meta_flags & ALLOC_IF_TOO_SMALL) {
+				buf = get_buffer(bt, key_info.datalen);
+				if (buf == NULL) {
+					bt_err("Failed to allocate a buffer of size %lld in get_leaf_data!", key_info.datalen);
+					return(BTREE_FAILURE);
+				}
+				buf_alloced = 1;
+			} else {
+				return(BTREE_BUFFER_TOO_SMALL);
+			}
+		} else {
+			buf = *data;
+		}
+	} else {
 		buf = get_buffer(bt, key_info.datalen);
 		if (buf == NULL) {
-		    bt_err("Failed to allocate a buffer of size %lld in get_leaf_data!", key_info.datalen);
-		    return(BTREE_FAILURE);
+			bt_err("Failed to allocate a buffer of size %lld in get_leaf_data!", key_info.datalen);
+			return(BTREE_FAILURE);
 		}
 		buf_alloced = 1;
-	    } else {
-	        return(BTREE_BUFFER_TOO_SMALL);
-	    }
-	} else {
-	    buf = *data;
-	}
-    } else {
-        buf = get_buffer(bt, key_info.datalen);
-	if (buf == NULL) {
-	    bt_err("Failed to allocate a buffer of size %lld in get_leaf_data!", key_info.datalen);
-	    return(BTREE_FAILURE);
-	}
-	buf_alloced = 1;
     }
 
     if ((key_info.keylen + key_info.datalen) < bt->big_object_size) {
-        /*
-	 *  key and data are in this btree node
-	 */
-	btree_leaf_get_data_nth_key(bt, n, index, &datap, &datalen1);
-	assert(key_info.datalen == datalen1);
-	memcpy(buf, datap, datalen1);
-    } else {
-        /*
-	 *  data is in overflow btree nodes
-	 */
-        if (key_info.datalen > 0) {
-	    nbytes = key_info.datalen;
-	    p      = buf;
-	    z_next = key_info.ptr;
-	    while(nbytes > 0 && z_next)
-	    {
-		btree_raw_mem_node_t *node = get_existing_node_low(&ret, bt, z_next, ref, false, false);
-		if(!node)
-		    break;
-		z = node->pnode;
-                copybytes = nbytes >= bt->nodesize_less_hdr ? bt->nodesize_less_hdr : nbytes;
-		memcpy(p, ((char *) z + sizeof(btree_raw_node_t)), copybytes);
-		nbytes -= copybytes;
-		p      += copybytes;
-		z_next  = z->next;
-		if(!ref)
-		    deref_l1cache_node(bt, node);
-	    }
-	    if (nbytes) {
-		bt_err("Failed to get overflow node (logical_id=%lld)(nbytes=%ld) in get_leaf_data!", z_next, nbytes);
-		if (buf_alloced) {
-		    free_buffer(bt, buf);
+		/*
+		 *  key and data are in this btree node
+		 */
+		btree_leaf_get_data_nth_key(bt, n, index, &datap, &datalen1);
+		assert(key_info.datalen == datalen1);
+		memcpy(buf, datap, datalen1);
+	} else {
+		/*
+		 *  data is in overflow btree nodes
+		 */
+		if (key_info.datalen > 0) {
+			uint64_t ovdatasize =  get_data_in_overflownode(bt);
+
+			nbytes = key_info.datalen;
+			p      = buf;
+			z_next = key_info.ptr;
+			while(nbytes > 0 && z_next) {
+				btree_raw_mem_node_t *node = get_existing_overflow_node_low(&ret, bt, z_next, ref, false, false);
+				if(!node)
+					break;
+				z = node->pnode;
+				copybytes = nbytes >= ovdatasize ? ovdatasize : nbytes;
+				memcpy(p, ((char *) z + sizeof(btree_raw_node_t)), copybytes);
+				nbytes -= copybytes;
+				p      += copybytes;
+				z_next  = z->next;
+				if(!ref) {
+					deref_l1cache_node(bt, node);
+				}
+			}
+			if (nbytes) {
+				bt_err("Failed to get overflow node (logical_id=%lld)(nbytes=%ld) in get_leaf_data!", z_next, nbytes);
+				if (buf_alloced) {
+					free_buffer(bt, buf);
+				}
+				return(BTREE_FAILURE);
+			}
+			assert(z_next == 0);
 		}
-		return(BTREE_FAILURE);
-	    }
-	    assert(z_next == 0);
-	}
     }
     *datalen = key_info.datalen;
     *data    = buf;
@@ -1731,7 +1755,8 @@ get_leaf_key_index(btree_raw_t *bt, btree_raw_node_t *n, int index, char **key,
 	return(ret);
 }
 
-static void delete_overflow_data(btree_status_t *ret, btree_raw_t *bt, uint64_t ptr_in, uint64_t datalen)
+void 
+delete_overflow_data(btree_status_t *ret, btree_raw_t *bt, uint64_t ptr_in, uint64_t datalen)
 {
     uint64_t            ptr;
     uint64_t            ptr_next;
@@ -1740,7 +1765,7 @@ static void delete_overflow_data(btree_status_t *ret, btree_raw_t *bt, uint64_t 
     if (*ret) { return; }
 
     for (ptr = ptr_in; ptr != 0; ptr = ptr_next) {
-        n = get_existing_node(ret, bt, ptr);
+        n = get_existing_overflow_node(ret, bt, ptr);
         if (BTREE_SUCCESS != *ret) {
             bt_err("Failed to find an existing overflow node in delete_overflow_data!");
             return;
@@ -1762,7 +1787,7 @@ static void undo_allocate_overflow_data(btree_raw_t *bt, btree_raw_mem_node_t *n
 	btree_raw_mem_node_t *n = n_first;
 	while (n) {
 		deref_l1cache_node(bt, n);
-		delete_l1cache(bt, n->pnode->logical_id);
+		delete_node_l1cache(bt, n->pnode);
 
 		n = n->dirty_next;
 	}
@@ -1775,24 +1800,30 @@ static uint64_t allocate_overflow_data(btree_raw_t *bt, uint64_t datalen, char *
     btree_status_t      ret = BTREE_SUCCESS;
     char               *p = data;;
     uint64_t            nbytes = datalen;
+	uint64_t			ovdatasize;
 
-    dbg_print("datalen %ld nodesize_less_hdr: %d bt %p\n", datalen, bt->nodesize_less_hdr, bt);
+	ovdatasize = get_data_in_overflownode(bt);
+
+    dbg_print("datalen %ld nodesize_less_hdr: %d bt %p\n", datalen, ovdatasize, bt);
 
     if (!datalen)
         return(BTREE_SUCCESS);
 
-    n_nodes = (datalen + bt->nodesize_less_hdr - 1) / bt->nodesize_less_hdr;
+    n_nodes = (datalen + ovdatasize - 1) / ovdatasize;
 
     n_first = n = get_new_node(&ret, bt, OVERFLOW_NODE, 0);
+	if (bt_storm_mode) {
+		assert(n->pnode->logical_id % 8 == 0);
+	}
     while(nbytes > 0 && !ret) {
-	n->dirty_next = NULL;
+		n->dirty_next = NULL;
 
-	if (n_last != NULL) {
-	    n_last->pnode->next = n->pnode->logical_id;
+		if (n_last != NULL) {
+			n_last->pnode->next = n->pnode->logical_id;
             n_last->dirty_next = n;
         }
 
-        int b = nbytes < bt->nodesize_less_hdr ? nbytes : bt->nodesize_less_hdr;
+        int b = nbytes < ovdatasize ? nbytes : ovdatasize;
 
         memcpy(((char *) n->pnode + sizeof(btree_raw_node_t)), p, b);
 
@@ -1802,8 +1833,13 @@ static uint64_t allocate_overflow_data(btree_raw_t *bt, uint64_t datalen, char *
 
         __sync_add_and_fetch(&(bt->stats.stat[BTSTAT_OVERFLOW_BYTES]), 
                 b + sizeof(btree_raw_node_t));
-        if(nbytes)
+        if(nbytes) {
             n = get_new_node(&ret, bt, OVERFLOW_NODE, 0);
+			if (bt_storm_mode) {
+				assert(n->pnode->logical_id % 8 == 0);
+			}
+		}
+
     }
 
     if(BTREE_SUCCESS == ret) 
@@ -1945,54 +1981,88 @@ init_l1cache()
 {
     int n = 0;
     char *zs_prop = NULL;
+	int percentage = 100;
+	int ratio = overflow_node_sz / get_btree_node_size(); //overflow node size : btree noe size
+	uint64_t buffer_count;
 
-    n_global_l1cache_buckets = 0;
-    /* Check if cache size is configured through zs property file  */
-    zs_prop = (char *)ZSGetProperty("ZS_BTREE_L1CACHE_SIZE",NULL);
-    if( zs_prop != NULL ) {
-         n_global_l1cache_buckets = (uint64_t)atoll(zs_prop);
-    }
-    else {
-         /* Check if the size is set through env. variable */
-         char *env = getenv("BTREE_L1CACHE_SIZE");
-         n_global_l1cache_buckets = env ? (uint64_t)atoll(env) : 0;
-    }
-    l1cache_size = n_global_l1cache_buckets;
+	l1cache_size = 0;
+	n_global_l1cache_buckets = 0;
+    /* Check if cachesize is configured through zs property file  */
+	zs_prop = (char *)ZSGetProperty("ZS_BTREE_L1CACHE_SIZE",NULL);
+	if( zs_prop != NULL ) {
+		l1cache_size = (uint64_t)atoll(zs_prop);
+	} else {
+		/* Check if the size is set through env. variable */
+		char *env = getenv("BTREE_L1CACHE_SIZE");
+		l1cache_size = env ? (uint64_t)atoll(env) : 0;
+	}
 
-    if ( n_global_l1cache_buckets ){
-        n_global_l1cache_buckets = n_global_l1cache_buckets / 16 / get_btree_node_size();
-    } else {
-        n_global_l1cache_buckets = DEFAULT_N_L1CACHE_BUCKETS;
-    }
-    if ( !l1cache_size ) {
-        l1cache_size = n_global_l1cache_buckets * 16 * 8192;
-    }
+	if (bt_storm_mode) {
+		zs_prop = (char *)ZSGetProperty("ZS_BTREE_L1CACHE_REG_PCT",NULL);
+		if( zs_prop != NULL ) {
+			percentage = (uint64_t)atoi(zs_prop);
+		} else {
+			percentage = 5;
+		}
+	} else {
+		percentage = 100;
+	}
 
-    /* check if cache partitions is configured through zs property */
-    zs_prop = (char *)ZSGetProperty("ZS_N_L1CACHE_PARTITIONS",NULL);
-    if( zs_prop != NULL ) {
-        n = atoi(zs_prop);
-    }
-    else {
-        /* check if cache partitions is configured through env */
-        char *p = getenv("N_L1CACHE_PARTITIONS");
-        if(p)
-            n = atoi(p);
-    }
+	if ( l1cache_size ) {
+		l1reg_size = (l1cache_size * percentage) / 100;
+		l1reg_buckets = l1reg_size / 16 / get_btree_node_size();
 
-    if(n <=0 || n > 10000000)
-        n = DEFAULT_N_L1CACHE_PARTITIONS;
+		if (bt_storm_mode ) {
+			l1raw_size = l1cache_size - l1reg_size;
+			l1raw_buckets = l1raw_size / 16 / overflow_node_sz;
+		}
+	} else {
+		l1reg_buckets = DEFAULT_N_L1CACHE_BUCKETS;
+		l1reg_size = l1reg_buckets * 16 * get_btree_node_size();
 
-    // Allocate extra 1% for boundary conditions.
-    uint64_t buffer_count = ((n_global_l1cache_buckets * 16) + (n + 1)) * 1.01;
-    free_node_list = btree_node_list_init(buffer_count, MEM_NODE_SIZE);
+		if (bt_storm_mode) {
+			l1raw_buckets = DEFAULT_N_L1CACHE_BUCKETS;
+			l1raw_size = l1raw_buckets * 16 * overflow_node_sz;
+		}
+		n_global_l1cache_buckets = l1reg_buckets + l1raw_buckets;
+		l1cache_size = l1reg_size + l1raw_size;
+	}
 
-    l1cache_partitions = n;
-    global_l1cache = PMapInit(n, n_global_l1cache_buckets / n + 1, 16 * (n_global_l1cache_buckets / n + 1), 1, l1cache_replace);
-    if (global_l1cache == NULL) {
-        return(1);
-    }
-    return(0);
+	/* check if cache partitions is configured through zs property */
+	zs_prop = (char *)ZSGetProperty("ZS_N_L1CACHE_PARTITIONS",NULL);
+	if( zs_prop != NULL ) {
+		n = atoi(zs_prop);
+	} else {
+		/* check if cache partitions is configured through env */
+		char *p = getenv("N_L1CACHE_PARTITIONS");
+		if(p)
+			n = atoi(p);
+	}
+
+	if(n <=0 || n > 10000000)
+		n = DEFAULT_N_L1CACHE_PARTITIONS;
+
+	// Allocate extra 1% for boundary conditions.
+	if (bt_storm_mode) {
+		buffer_count = (l1raw_size / overflow_node_sz + (n + 1)) * 1.01;
+		free_raw_node_list = btree_node_list_init(buffer_count, sizeof(btree_raw_mem_node_t) + overflow_node_sz);
+		global_raw_l1cache = PMapInit(n, l1raw_buckets / n + 1, 16 * (l1raw_buckets / n + 1), 1, l1cache_replace);
+		if (global_raw_l1cache == NULL) {
+			return(1);
+		}
+	} else {
+		free_raw_node_list = NULL;
+	}
+
+	buffer_count = ((l1reg_size / get_btree_node_size()) + (n + 1)) * 1.01;
+	free_node_list = btree_node_list_init(buffer_count, MEM_NODE_SIZE);
+
+	l1cache_partitions = n;
+	global_l1cache = PMapInit(n, l1reg_buckets / n + 1, 16 * (l1reg_buckets / n + 1), 1, l1cache_replace);
+	if (global_l1cache == NULL) {
+		return(1);
+	}
+	return(0);
 }
 
 void
@@ -2009,10 +2079,16 @@ clean_l1cache(btree_raw_t* btree)
 	PMapClean(&(btree->l1cache), btree->cguid, (void *)btree);
 }
 
-void 
-delete_l1cache(btree_raw_t *btree, uint64_t logical_id)
+void
+delete_node_l1cache(btree_raw_t *btree, btree_raw_node_t *pnode)
 {
-    (void) PMapDelete(btree->l1cache, (char *) &logical_id, sizeof(uint64_t), btree->cguid, (void *)btree);
+	delete_l1cache(btree, BT_USE_RAWOBJ(pnode->flags), pnode->logical_id);
+}
+
+void 
+delete_l1cache(btree_raw_t *btree, int robj, uint64_t logical_id)
+{
+    (void) PMapDelete(BT_GET_L1CACHE(robj), (char *) &logical_id, sizeof(uint64_t), btree->cguid, robj, (void *)btree);
     dbg_referenced--;
 
     btree->stats.stat[BTSTAT_L1ENTRIES] = PMapNEntries(btree->l1cache);
@@ -2024,7 +2100,7 @@ deref_l1cache_node(btree_raw_t* btree, btree_raw_mem_node_t *node)
     /* Delete the cache instead of deref, if it asked to do so */
     if (node->deref_delete_cache) {
         assert(!node->pinned);
-        delete_l1cache(btree, node->pnode->logical_id);
+        delete_node_l1cache(btree, node->pnode);
         return;
     }
 
@@ -2032,7 +2108,9 @@ deref_l1cache_node(btree_raw_t* btree, btree_raw_mem_node_t *node)
     if (!node->pinned) {
         dbg_print("node %p id %ld root: %d leaf: %d dbg_referenced: %lx mpnode %ld refs %ld\n", node, node->pnode->logical_id, is_root(btree, node->pnode), is_leaf(btree, node->pnode), dbg_referenced, modified_nodes_count, referenced_nodes_count);
 
-        if (!PMapRelease(btree->l1cache, (char *) &node->pnode->logical_id, sizeof(node->pnode->logical_id), btree->cguid, (void *)btree))
+        if (!PMapRelease(BT_GET_L1CACHE_NODE(node->pnode), (char *) &node->pnode->logical_id,
+						  sizeof(node->pnode->logical_id), btree->cguid,
+						  BT_USE_RAWOBJ(node->pnode->flags), (void *)btree))
             assert(0);
     }
 
@@ -2048,7 +2126,9 @@ deref_l1cache_node(btree_raw_t* btree, btree_raw_mem_node_t *node)
 void
 deref_l1cache_node_all(btree_raw_t* btree, btree_raw_mem_node_t *node)
 {
-        if (!PMapReleaseAll(btree->l1cache, (char *) &node->pnode->logical_id, sizeof(node->pnode->logical_id), btree->cguid, (void *)btree)) {
+        if (!PMapReleaseAll(BT_GET_L1CACHE_NODE(node->pnode), (char *) &node->pnode->logical_id, 
+					sizeof(node->pnode->logical_id), btree->cguid,
+					BT_USE_RAWOBJ(node->pnode->flags), (void *)btree)) {
             assert(0);
 	    }
 }
@@ -2264,7 +2344,7 @@ btree_status_t deref_l1cache(btree_raw_t *btree)
             if (!btree_parallel_flush_disabled && (count + deleted_nodes_count) > btree_parallel_flush_minbufs)
                 btree_parallel_flush_write(btree, (btree_raw_node_t**)nodes, count);
             else
-                btree->write_node_cb(my_thd_state, &ret, btree->write_node_cb_data, ids, (char**)nodes, btree->nodesize, count);
+                btree->write_node_cb(my_thd_state, &ret, btree->write_node_cb_data, ids, (char**)nodes, btree->nodesize, count, 0);
             count = 0;
         }
     }
@@ -2274,8 +2354,19 @@ btree_status_t deref_l1cache(btree_raw_t *btree)
         if (!btree_parallel_flush_disabled && (count + deleted_nodes_count) > btree_parallel_flush_minbufs)
             btree_parallel_flush_write(btree, (btree_raw_node_t**)nodes, count);
         else
-            btree->write_node_cb(my_thd_state, &ret, btree->write_node_cb_data, ids, nodes, btree->nodesize, count);
+            btree->write_node_cb(my_thd_state, &ret, btree->write_node_cb_data, ids, nodes, btree->nodesize, count, 0);
     }
+
+	if (bt_storm_mode) {
+		for ( i = 0; i < overflow_nodes_count; i++ ) {
+			n = overflow_nodes[i];
+
+			dbg_print("write_node_cb key=%ld data=%p datalen=%d\n", n->pnode->logical_id, n, btree->nodesize);
+			uint64_t *logical_id = &n->pnode->logical_id;
+
+			btree->write_node_cb(my_thd_state, &ret, btree->write_node_cb_data, &logical_id, (char **)&n->pnode, overflow_node_sz, 1, ZS_WRITE_RAW);
+		}
+	}
 
 #ifdef FLIP_ENABLED
     if (flip_get("sw_crash_on_single_write", 
@@ -2306,12 +2397,26 @@ btree_status_t deref_l1cache(btree_raw_t *btree)
         add_node_stats(btree, n->pnode, L1WRITES, 1);
     }
 
+	if (bt_storm_mode) {
+		for(i = 0; i < overflow_nodes_count; i++) {
+			n = overflow_nodes[i];
+
+			mark_node_clean(n);
+			reset_node_pstats(n->pnode);
+
+			assert(!is_node_dirty(n));
+			deref_l1cache_node(btree, n);
+			add_node_stats(btree, n->pnode, L1WRITES, 1);
+		}
+	}
+
     /*
      * Deleted node writes
      */ 
     if (!(!btree_parallel_flush_disabled && (count + deleted_nodes_count) > btree_parallel_flush_minbufs)) {
         for(i = 0; i < deleted_nodes_count; i++)
         {
+			uint32_t flag;
             n = deleted_nodes[i];
 
             dbg_print("delete_node_cb key=%ld data=%p datalen=%d\n", n->pnode->logical_id, n, btree->nodesize);
@@ -2322,7 +2427,7 @@ btree_status_t deref_l1cache(btree_raw_t *btree)
              */
             pstats_flush(btree, n);
 
-            ret = btree->delete_node_cb(btree->create_node_cb_data, n->pnode->logical_id);
+            ret = btree->delete_node_cb(btree->create_node_cb_data, n->pnode->logical_id, BT_USE_RAWOBJ(n->pnode->flags));
 #ifdef BTREE_UNDO_TEST
             btree_rcvry_test_delete(btree, n->pnode);
 #endif
@@ -2347,12 +2452,13 @@ btree_status_t deref_l1cache(btree_raw_t *btree)
     for(i = 0; i < deleted_nodes_count; i++)
     {
         n = deleted_nodes[i];
-        delete_l1cache(btree, n->pnode->logical_id);
+        delete_node_l1cache(btree, n->pnode);
     }
 
     modified_nodes_count = 0;
     referenced_nodes_count = 0;
     deleted_nodes_count = 0;
+    overflow_nodes_count = 0;
 
     //    assert(PMapNEntries(btree->l1cache) <= 16 * (btree->n_l1cache_buckets / 1000 + 1) * 1000 + 1);
 
@@ -2447,7 +2553,7 @@ btree_sync_flush_entry(btree_raw_t *btree, struct ZS_thread_state *thd_state, bt
 					__sync_fetch_and_add(&(list->dir_written[index]), 1);
 					assert(list->dir_written[index] == 1);
 					uint64_t* logical_id = &pnode->logical_id;
-					btree->write_node_cb(thd_state, &ret, btree->write_node_cb_data, &logical_id, (char**)&pnode, btree->nodesize, 1);
+					btree->write_node_cb(thd_state, &ret, btree->write_node_cb_data, &logical_id, (char**)&pnode, btree->nodesize, 1, 0);
 #if 0
 					if (ret != BTREE_SUCCESS) {
 						list->ret = ret;
@@ -2469,7 +2575,7 @@ btree_sync_flush_entry(btree_raw_t *btree, struct ZS_thread_state *thd_state, bt
 				if (n) {
 					assert(list->del_written[index] == 0);
 					list->del_written[index] = 1;
-					ret = btree->delete_node_cb(btree->create_node_cb_data, n->pnode->logical_id);
+					ret = btree->delete_node_cb(btree->create_node_cb_data, n->pnode->logical_id, BT_USE_RAWOBJ(n->pnode->flags));
 					add_node_stats(btree, n->pnode, L1WRITES, 1);
 #if 0
 					if (ret != BTREE_SUCCESS) {
@@ -2537,11 +2643,15 @@ void unlock_and_unreference(btree_raw_t* btree, int last)
 	referenced_nodes_count = last;
 }
 
-static btree_raw_mem_node_t* add_l1cache(btree_raw_t *btree, uint64_t logical_id, bool pinned)
+static btree_raw_mem_node_t* add_l1cache(btree_raw_t *btree, uint64_t logical_id, int robj, bool pinned)
 {
     btree_raw_mem_node_t *node;
 
-    node = btree_node_alloc(free_node_list);
+	if (!robj) {
+		node = btree_node_alloc(free_node_list);
+	} else {
+		node = btree_node_alloc(free_raw_node_list);
+	}
     assert(node);
 
     node->pnode = (btree_raw_node_t *)(((void *)node) + sizeof(btree_raw_mem_node_t));
@@ -2555,10 +2665,10 @@ static btree_raw_mem_node_t* add_l1cache(btree_raw_t *btree, uint64_t logical_id
 
     node_lock(node, WRITE);
 
-    if(!PMapCreate(btree->l1cache, (char *) &logical_id, sizeof(uint64_t), (char *) node, sizeof(uint64_t), btree->cguid, (void *)btree)) {
+    if(!PMapCreate(BT_GET_L1CACHE(robj), (char *) &logical_id, sizeof(uint64_t), (char *) node, sizeof(uint64_t), btree->cguid, robj, (void *)btree)) {
         node_unlock(node);
         plat_rwlock_destroy(&node->lock);
-        btree_node_free(free_node_list, node);
+        btree_node_free2(robj ? free_raw_node_list : free_node_list, node);
         return NULL;
     }
 
@@ -2578,30 +2688,40 @@ void ref_l1cache(btree_raw_t *btree, btree_raw_mem_node_t *n)
     referenced_nodes[referenced_nodes_count++] = n;
 }
 
-static btree_raw_mem_node_t *get_l1cache(btree_raw_t *btree, uint64_t logical_id)
+static btree_raw_mem_node_t *get_l1cache(btree_raw_t *btree, uint64_t logical_id, int robj)
 {
     btree_raw_mem_node_t *n;
     uint64_t datalen;
 
-    if (PMapGet(btree->l1cache, (char *) &logical_id, sizeof(uint64_t), (char **) &n, &datalen, btree->cguid) == NULL)
+    if (PMapGet(BT_GET_L1CACHE(robj), (char *) &logical_id, sizeof(uint64_t), (char **) &n, &datalen, btree->cguid, robj) == NULL)
         return NULL;
 
     dbg_referenced++;
 
-    dbg_print("n %p node %p id %ld(%ld) lock %p root: %d leaf: %d over %d refcnt %d\n", n, n->pnode, n->pnode->logical_id, logical_id, &n->lock, is_root(btree, n->pnode), is_leaf(btree, n->pnode), is_overflow(btree, n->pnode), PMapGetRefcnt(btree->l1cache, (char *) &logical_id, sizeof(uint64_t), btree->cguid));
+    dbg_print("n %p node %p id %ld(%ld) lock %p root: %d leaf: %d over %d refcnt %d\n",
+					n, n->pnode, n->pnode->logical_id, logical_id, &n->lock, is_root(btree, n->pnode),
+					is_leaf(btree, n->pnode), is_overflow(btree, n->pnode),
+					PMapGetRefcnt(BT_GET_L1CACHE(robj), (char *) &logical_id, sizeof(uint64_t), btree->cguid, robj));
 
     return n;
 }
 
 static void modify_l1cache_node(btree_raw_t *btree, btree_raw_mem_node_t *node)
 {
-	assert(modified_nodes_count < MAX_PER_THREAD_NODES);
 	node->modified++;
+	assert(node->pnode->flags != 0);
 	if(!is_node_dirty(node)) {
 		dbg_print("marked modified id=%ld modified_nodes_count=%ld\n", node->pnode->logical_id, modified_nodes_count);
 		mark_node_dirty(node);
-		modified_nodes[modified_nodes_count++] = node;
-		PMapIncrRefcnt(btree->l1cache,(char *) &(node->pnode->logical_id), sizeof(uint64_t), btree->cguid);
+		if (bt_storm_mode && (node->pnode->flags == OVERFLOW_NODE)) {
+			assert(overflow_nodes_count < MAX_PER_THREAD_NODES);
+			overflow_nodes[overflow_nodes_count++] = node;
+		} else {
+			assert(modified_nodes_count < MAX_PER_THREAD_NODES);
+			modified_nodes[modified_nodes_count++] = node;
+		}
+		PMapIncrRefcnt(BT_GET_L1CACHE_NODE(node->pnode),(char *) &(node->pnode->logical_id), sizeof(uint64_t), btree->cguid, 
+						BT_USE_RAWOBJ(node->pnode->flags));
 		dbg_referenced++;
 	}
 }
@@ -2654,13 +2774,45 @@ static void lock_modified_nodes_func(btree_raw_t *btree, int lock)
 {
     dbg_print("lock %d start\n", lock);
     lock_nodes_list(btree, lock, modified_nodes, modified_nodes_count, NULL, 0);
+    lock_nodes_list(btree, lock, overflow_nodes, overflow_nodes_count, NULL, 0);
     dbg_print("lock %d middle\n", lock);
     lock_nodes_list(btree, lock, deleted_nodes, deleted_nodes_count, modified_nodes, modified_nodes_count);
     dbg_print("lock %d finish\n", lock);
 }
 
-btree_raw_mem_node_t *get_existing_node_low(btree_status_t *ret, btree_raw_t *btree, uint64_t logical_id,
+/*
+ * IMPORTANT: For overflow nodes use, get_existing_overflow_node_low()
+ */
+btree_raw_mem_node_t *
+get_existing_node_low(btree_status_t *ret, btree_raw_t *btree, uint64_t logical_id,
 		int ref, bool pinned, bool delete_after_deref)
+{
+	btree_raw_mem_node_t	*n;
+	n = get_existing_node_internal(ret, btree, logical_id, BT_USE_RAWOBJ(~OVERFLOW_NODE),
+										ref, pinned, delete_after_deref);
+	if (n) {
+		assert(n->pnode->flags != OVERFLOW_NODE);
+	}
+	return n;
+}
+
+
+btree_raw_mem_node_t *
+get_existing_overflow_node_low(btree_status_t *ret, btree_raw_t *btree, uint64_t logical_id,
+		int ref, bool pinned, bool delete_after_deref)
+{
+	btree_raw_mem_node_t	*n;
+	n = get_existing_node_internal(ret, btree, logical_id, BT_USE_RAWOBJ(OVERFLOW_NODE),
+										ref, pinned, delete_after_deref);
+	if (n) {
+		assert(n->pnode->flags == OVERFLOW_NODE);
+	}
+	return n;
+}
+
+btree_raw_mem_node_t *
+get_existing_node_internal(btree_status_t *ret, btree_raw_t *btree, uint64_t logical_id,
+		int rawobj, int ref, bool pinned, bool delete_after_deref)
 {
 	btree_raw_mem_node_t  *n = NULL;
 
@@ -2670,7 +2822,7 @@ btree_raw_mem_node_t *get_existing_node_low(btree_status_t *ret, btree_raw_t *bt
 
 retry:
 	//  check l1cache first
-	n = get_l1cache(btree, logical_id);
+	n = get_l1cache(btree, logical_id, rawobj);
 	if (n != NULL) {
 		//Got a deleted node?? Parent referring to deleted child??
 		//Check the locking of btree/nodes
@@ -2699,16 +2851,16 @@ retry:
 		node_unlock(n);
 	} else {
 		// already in the cache retry get
-		n = add_l1cache(btree, logical_id, pinned);
+		n = add_l1cache(btree, logical_id, rawobj, pinned);
 		if(!n)
 			goto retry;
 
 		//  look for the node the hard way
 		//  If we don't look at the ret code, why does read_node_cb need one?
-		btree->read_node_cb(ret, btree->read_node_cb_data, (void *)n->pnode, logical_id);
+		btree->read_node_cb(ret, btree->read_node_cb_data, (void *)n->pnode, logical_id, rawobj);
 		if (*ret != BTREE_SUCCESS) {
 			*ret = BTREE_FAILURE;
-			delete_l1cache(btree, logical_id);
+			delete_l1cache(btree, rawobj, logical_id);
 			node_unlock(n);
 			return(NULL);
 		}
@@ -2740,24 +2892,36 @@ retry:
 	return(n);
 }
 
+//IMPORTANT: For overflow node use get_existing_overflow_node()
 btree_raw_mem_node_t *get_existing_node(btree_status_t *ret, btree_raw_t *btree, uint64_t logical_id)
 {
     return get_existing_node_low(ret, btree, logical_id, 1, 
                                  false /* pinned */, false /* deref_delete */);
 }
 
+btree_raw_mem_node_t *get_existing_overflow_node(btree_status_t *ret, btree_raw_t *btree, uint64_t logical_id)
+{
+    return get_existing_overflow_node_low(ret, btree, logical_id, 1, 
+                                 false /* pinned */, false /* deref_delete */);
+}
+
 static
-btree_raw_mem_node_t *create_new_node(btree_raw_t *btree, uint64_t logical_id, bool ref, bool pinned)
+btree_raw_mem_node_t *create_new_node(btree_raw_t *btree, uint64_t logical_id,
+										node_flags_t leaf_flag, bool ref, bool pinned)
 {
     btree_raw_mem_node_t *n = NULL;
 //    memset(pnode, 0, btree->nodesize);
     // n = btree->create_node_cb(ret, btree->create_node_cb_data, logical_id);
     //  Just malloc the node here.  It will be written
     //  out at the end of the request by deref_l1cache().
-    n = add_l1cache(btree, logical_id, pinned);
+	if (BT_USE_RAWOBJ(leaf_flag)) {
+		assert(logical_id % 8 == 0);
+	}
+    n = add_l1cache(btree, logical_id, BT_USE_RAWOBJ(leaf_flag), pinned);
 
     n->deref_delete_cache = false; /* New node should be in l1cache. Its for writes */
     n->pnode->logical_id = logical_id;
+	n->pnode->flags = leaf_flag;
 
     /*
      * Zero out pstats for new node
@@ -2767,27 +2931,37 @@ btree_raw_mem_node_t *create_new_node(btree_raw_t *btree, uint64_t logical_id, b
     assert(n); /* the tree is exclusively locked */
     if(ref) {
         ref_l1cache(btree, n);
-        modify_l1cache_node(btree, n);
+		modify_l1cache_node(btree, n);
     }
 
     return n;
 }
 
-static btree_raw_mem_node_t *get_new_node_low(btree_status_t *ret, btree_raw_t *btree, uint32_t leaf_flags, uint16_t level, int ref)
+static btree_raw_mem_node_t *
+get_new_node_low(btree_status_t *ret, btree_raw_t *btree, node_flags_t leaf_flags, uint16_t level, int ref)
 {
 	btree_raw_node_t  *n;
 	btree_raw_mem_node_t  *node;
-	uint64_t           logical_id;
+	baddr_t           logical_id;
 	// pid_t  tid = syscall(SYS_gettid);
 
 	if (*ret) { return(NULL); }
 
-	logical_id = __sync_fetch_and_add(&btree->logical_id_counter, 1)*btree->n_partitions + btree->n_partition;
-	if (BTREE_SUCCESS != savepersistent( btree, false)) {
-		*ret = BTREE_FAILURE;
-		return (NULL);
-	}
-	node = create_new_node(btree, logical_id, ref, false /*pinned */);
+	if (BT_USE_RAWOBJ(leaf_flags)) {
+		*ret = ZSErr_to_BtreeErr(ZSCreateRawObject(my_thd_state, btree->cguid, &logical_id, overflow_node_sz, 0));
+		if (*ret != BTREE_SUCCESS) { 
+			return (NULL);
+		}
+		assert(logical_id % 8 == 0);
+	} else {
+		logical_id = __sync_fetch_and_add(&btree->logical_id_counter, 1)*btree->n_partitions + btree->n_partition;
+		if (BTREE_SUCCESS != savepersistent( btree, false)) {
+			*ret = BTREE_FAILURE;
+			return (NULL);
+		}
+	}		
+
+	node = create_new_node(btree, logical_id, leaf_flags, ref, false /*pinned */);
 	n = node->pnode;
 
 	if (n == NULL) {
@@ -2830,7 +3004,8 @@ free_node(btree_status_t *ret, btree_raw_t *btree, btree_raw_mem_node_t *n)
 	assert(deleted_nodes_count < MAX_PER_THREAD_NODES);
 	deleted_nodes[deleted_nodes_count++] = n;
 	mark_node_deleted(n);
-	PMapIncrRefcnt(btree->l1cache,(char *) &(n->pnode->logical_id), sizeof(uint64_t), btree->cguid);
+	PMapIncrRefcnt(BT_GET_L1CACHE_NODE(n->pnode),(char *) &(n->pnode->logical_id), sizeof(uint64_t),
+					btree->cguid, BT_USE_RAWOBJ(n->pnode->flags));
 	dbg_referenced++;
 	//*ret = btree->delete_node_cb(n, btree->create_node_cb_data, n->logical_id);
 }
@@ -3544,7 +3719,7 @@ btree_split_child(btree_status_t *ret, btree_raw_t *btree, btree_raw_mem_node_t 
 
     __sync_add_and_fetch(&(btree->stats.stat[BTSTAT_SPLITS]),1);
 
-    n_new = get_new_node(ret, btree, is_leaf(btree, n_child->pnode) ? LEAF_NODE : 0, n_child->pnode->level);
+    n_new = get_new_node(ret, btree, is_leaf(btree, n_child->pnode) ? LEAF_NODE : UNKNOWN_NODE, n_child->pnode->level);
     if (BTREE_SUCCESS != *ret)
         return NULL;
 
@@ -3688,7 +3863,7 @@ btree_msplit_child(btree_raw_t *btree, btree_raw_mem_node_t *n_parent,
 			return BTREE_NO_NODE_REFS;
 		}
 
-		n_new = get_new_node(&ret, btree, is_leaf(btree, (*n_child)->pnode) ? LEAF_NODE : 0, (*n_child)->pnode->level);
+		n_new = get_new_node(&ret, btree, is_leaf(btree, (*n_child)->pnode) ? LEAF_NODE : UNKNOWN_NODE, (*n_child)->pnode->level);
 		if (BTREE_SUCCESS != ret) {
 			return BTREE_FAILURE;
 		}
@@ -4536,7 +4711,7 @@ int split_root(btree_raw_t* btree, btree_raw_mem_node_t** parent_out, int* paren
 {
 	btree_status_t ret = BTREE_SUCCESS;
 
-	btree_raw_mem_node_t* parent = get_new_node(&ret, btree, 0, level + 1);
+	btree_raw_mem_node_t* parent = get_new_node(&ret, btree, UNKNOWN_NODE, level + 1);
 
 	if(!parent)
 		return 0;
@@ -5262,6 +5437,7 @@ mini_restart:
 
 	assert(referenced_nodes_count == 0);
 	assert(modified_nodes_count == 0);
+	assert(overflow_nodes_count == 0);
 
 	return ret;
 
@@ -8140,6 +8316,7 @@ void
 btree_raw_alloc_thread_bufs(void)
 {
 	thread_buf_alloc_helper(modified_nodes, btree_raw_mem_node_t **, sizeof(btree_raw_mem_node_t *) * MAX_PER_THREAD_NODES);
+	thread_buf_alloc_helper(overflow_nodes, btree_raw_mem_node_t **, sizeof(btree_raw_mem_node_t *) * MAX_PER_THREAD_NODES);
 	thread_buf_alloc_helper(referenced_nodes, btree_raw_mem_node_t **, sizeof(btree_raw_mem_node_t *) * MAX_PER_THREAD_NODES_REF);
 	thread_buf_alloc_helper(deleted_nodes, btree_raw_mem_node_t **, sizeof(btree_raw_mem_node_t *) * MAX_PER_THREAD_NODES);
 	thread_buf_alloc_helper(modified_written, int *, sizeof(int) * MAX_PER_THREAD_NODES);
@@ -8150,9 +8327,20 @@ void
 btree_raw_free_thread_bufs(void)
 {
 	thread_buf_free_helper(modified_nodes);
+	thread_buf_free_helper(overflow_nodes);
 	thread_buf_free_helper(referenced_nodes);
 	thread_buf_free_helper(deleted_nodes);
 	thread_buf_free_helper(modified_written);
 	thread_buf_free_helper(deleted_written);
+}
+
+uint64_t
+get_data_in_overflownode(btree_raw_t *bt)
+{
+	if (bt_storm_mode) {
+		return datasz_in_overflow;
+	} else {
+		return bt->nodesize_less_hdr;
+	}
 }
 

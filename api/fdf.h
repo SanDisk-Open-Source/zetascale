@@ -448,6 +448,7 @@ typedef struct {
 typedef enum {
     FDF_WRITE_MUST_NOT_EXIST    = 1,
     FDF_WRITE_MUST_EXIST    	= 2,
+	FDF_WRITE_RAW				= 4,
 } FDF_write_mode_t;
 
 typedef struct {

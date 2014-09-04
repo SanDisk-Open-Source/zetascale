@@ -35,11 +35,11 @@ typedef enum {
 } FDF_container_mode_t;
 
 
-typedef uint32_t baddr_t;
 typedef uint16_t cntr_id_t;
 typedef uint16_t hashsyn_t;
 typedef uint32_t FDF_time_t; 
 typedef uint64_t FDF_cguid_t;
+typedef uint64_t baddr_t;
 
 /**
  * @brief Statuses and their value

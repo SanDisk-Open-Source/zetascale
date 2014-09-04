@@ -54,7 +54,7 @@ struct shard {
     SDF_shardid_t      shardID;
     uint32_t           flags;
     uint64_t           quota;
-    uint64_t           maxObjs;
+    uint64_t           s_maxObjs;
     uint64_t           usedSpace;
     uint64_t           numObjects;
     uint64_t           numDeadObjects;

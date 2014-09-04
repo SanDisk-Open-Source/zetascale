@@ -443,6 +443,8 @@ typedef struct flashsettings {
     struct paio_libaio_config aio_libaio_config;
     struct paio_error_bdb_config aio_error_bdb_config;
     int bypass_aio_check;
+    int storm_mode;
+    int storm_test;
     int chksum_object;
     int chksum_data;
     int chksum_metadata;

@@ -43,6 +43,7 @@
 #include "shared/open_container_mgr.h"
 #include "shared/internal_blk_obj_api.h"
 #include "ssd/fifo/mcd_osd.h"
+#include "ssd/fifo/mcd_rec2.h"
 #include "ssd/fifo/mcd_bak.h"
 #include "ssd/fifo/mcd_trx.h"
 #include "utils/properties.h"
@@ -87,6 +88,7 @@ static sem_t Mcd_initer_sem;
 
 extern HashMap cmap_cname_hash;           // cname -> cguid
 extern __thread uint32_t *trx_bracket_slabs;
+extern int storm_mode;
 
 ZS_status_t get_btree_num_objs(ZS_cguid_t cguid, uint64_t *num_objs);
 
@@ -160,7 +162,7 @@ SDF_shardid_t build_shard(
 	struct SDF_shared_state *state, 
 	SDF_internal_ctxt_t 	*pai,
     const char 				*path, 
-	int 			 		 num_objs,  
+	uint64_t 			 		 num_objs,  
 	uint32_t 		 		 in_shard_count,
     SDF_container_props_t 	 props,  
 	SDF_cguid_t 		 	 cguid,
@@ -278,7 +280,8 @@ static ZS_status_t zs_delete_object(
 	struct ZS_thread_state  *zs_thread_state,
 	ZS_cguid_t          	  cguid,
 	char                	 *key,
-	uint32_t             	  keylen
+	uint32_t             	  keylen,
+	bool					  raw_object
 	);
 
 static ZS_status_t zs_delete_objects(
@@ -1039,7 +1042,8 @@ static void zs_load_settings(flash_settings_t *osd_settings)
     osd_settings->rec_log_verify      = 0;
     osd_settings->enable_fifo         = 1;
     osd_settings->bypass_aio_check    = 0;
-
+    osd_settings->storm_mode          = getProperty_Int( "ZS_STORM_MODE", 1);
+    osd_settings->storm_test          = getProperty_Int( "ZS_STORM_TEST", 0);
 
     /*
      * checksum of metadata, data, or entire object
@@ -1073,7 +1077,7 @@ static void zs_load_settings(flash_settings_t *osd_settings)
     osd_settings->is_node_independent = 1;
     osd_settings->ips_per_cntr	    = 1;
     osd_settings->rec_log_size_factor = 0;
-	osd_settings->os_blk_size = getProperty_Int("ZS_BLOCK_SIZE", 2048);
+    osd_settings->os_blk_size = getProperty_Int("ZS_BLOCK_SIZE", 2048);
 }
 
 /*
@@ -2184,6 +2188,10 @@ ZS_status_t ZSInitVersioned(
 		mcd_log_msg( 170040, PLAT_LOG_LEVEL_ERROR, "No x86 SSE4.2 support, ZS_OBJECT_CHECKSUM disabled");
 	}
 
+	if (is_btree_loaded()) {
+		ext_cbs->zs_raw_cb(storm_mode, get_rawobjsz());
+	}
+
     return ZS_SUCCESS;
 }
 
@@ -2858,7 +2866,7 @@ ZS_status_t ZSOpenContainer(
 	}
 
 	if ( flags & ZS_CTNR_CREATE ) {
-		uint64_t vdc_size = ((uint64_t)getProperty_Int("ZS_FLASH_SIZE", ZS_MIN_FLASH_SIZE)) * 1024 * 1024 -
+		uint64_t vdc_size = ((uint64_t)getProperty_uLongLong("ZS_FLASH_SIZE", ZS_MIN_FLASH_SIZE)) * 1024 * 1024 -
                                                                        (2 * ZS_DEFAULT_CONTAINER_SIZE_KB);
 		if (!properties) {
             status = ZS_INVALID_PARAMETER;
@@ -2960,7 +2968,7 @@ static ZS_status_t zs_create_container(
     local_SDF_CONTAINER_PARENT        lparent                       = NULL;
     SDF_boolean_t                     isCMC                         = SDF_FALSE;
     uint32_t                          in_shard_count                = 0;
-    uint32_t                          num_objs                      = 0;
+    uint64_t                          num_objs                      = 0;
     const char                       *writeback_enabled_string      = NULL;
     SDF_internal_ctxt_t              *pai                           = (SDF_internal_ctxt_t *) zs_thread_state;
     SDF_container_props_t            *sdf_properties                = NULL;
@@ -3109,7 +3117,7 @@ static ZS_status_t zs_create_container(
 	}
 #endif /* notdef */
 
-	num_objs = sdf_properties->container_id.num_objs;
+	num_objs = sdf_properties->container_id.sc_num_objs;
 
 #ifdef notdef
 	/*
@@ -3437,6 +3445,13 @@ static ZS_status_t zs_open_container(
             _sdf_print_container_descriptor( container );
             log_level = LOG_DBG;
 			if ( mode == ZS_PHYSICAL_CNTR ) {
+				if ( lc->cguid == VDC_CGUID ) {
+    				name_service_get_meta(pai, lc->cguid, &meta);
+					vdc_shardid = meta.shard;
+				} else if (lc->cguid == CMC_CGUID ) {
+					name_service_get_meta(pai, lc->cguid, &meta);
+					cmc_shardid = meta.shard;
+				}
             	// FIXME: This is where the call to shardOpen goes.
             	#define MAX_SHARDIDS 32 // Not sure what max is today
             	SDF_shardid_t shardids[MAX_SHARDIDS];
@@ -3447,13 +3462,6 @@ static ZS_status_t zs_open_container(
                 	shardOpen( state->config.flash_dev, shardids[i] );
             	}
 
-				if ( lc->cguid == VDC_CGUID ) {
-    				name_service_get_meta(pai, lc->cguid, &meta);
-					vdc_shardid = meta.shard;
-				} else if (lc->cguid == CMC_CGUID ) {
-					name_service_get_meta(pai, lc->cguid, &meta);
-					cmc_shardid = meta.shard;
-				}
 			}
 
             status = SDFActionOpenContainer( pai, lc->cguid );
@@ -4410,6 +4418,7 @@ char *ZSGetNextContainerName(struct ZS_thread_state *zs_thread_state, struct ZSC
 /*
  * Internal version of zs_get_containers_int
  */ 
+#define BTREE_DELETE_CONTAINER_NAME "B#^++$c#@@n**"
 static ZS_status_t
 zs_get_containers_int(
 		struct ZS_thread_state	*zs_thread_state,
@@ -4435,6 +4444,7 @@ zs_get_containers_int(
 		if ( cmap->cguid > LAST_PHYSICAL_CGUID  && 
              strcmp( cmap->cname,SEQNO_CONTAINER_NAME ) &&
              strcmp( cmap->cname,PSTATS_CONTAINER_NAME ) &&
+             strncmp( cmap->cname,BTREE_DELETE_CONTAINER_NAME, strlen(BTREE_DELETE_CONTAINER_NAME) ) &&
 			 ( cmap->state == ZS_CONTAINER_STATE_CLOSED ||
 			   cmap->state == ZS_CONTAINER_STATE_OPEN )  ) {
 			cguids[n_containers] = cmap->cguid;
@@ -4775,23 +4785,24 @@ out:
 
 static ZS_status_t
 zs_read_object(
-	struct ZS_thread_state   *zs_thread_state,
-	ZS_cguid_t                cguid,
-	char                      *key,
-	uint32_t                   keylen,
-	char                     **data,
-	uint64_t                  *datalen,
-        bool                      app_buf
+	struct ZS_thread_state	*zs_thread_state,
+	ZS_cguid_t				cguid,
+	char					*key,
+	uint32_t				keylen,
+	char					**data,
+	uint64_t				*datalen,
+	bool					app_buf,
+	bool					rawobject	
 	)
 {
-    SDF_appreq_t        ar;
-    SDF_action_init_t  *pac;
-    ZS_status_t        status  = ZS_SUCCESS;
-    char *app_buf_data_ptr = NULL;
-    cntr_map_t *cmap = NULL;
+	SDF_appreq_t        ar;
+	SDF_action_init_t  *pac;
+	ZS_status_t        status  = ZS_SUCCESS;
+	char *app_buf_data_ptr = NULL;
+	cntr_map_t *cmap = NULL;
 
-    if ( !cguid || !key ) {
-        return ZS_INVALID_PARAMETER;
+	if ( !cguid || !key ) {
+		return ZS_INVALID_PARAMETER;
 	}
 
 	cmap = get_cntr_map(cguid);
@@ -4800,30 +4811,35 @@ zs_read_object(
 	}
 
 	if ( (status = zs_get_ctnr_status_cmap(cmap, cguid, 0)) != ZS_CONTAINER_OPEN ) {
-        plat_log_msg( 160039, LOG_CAT, LOG_DIAG, "Container must be open to execute a read object" );
-        goto out;     
-    }
+		plat_log_msg( 160039, LOG_CAT, LOG_DIAG, "Container must be open to execute a read object" );
+		goto out;     
+	}
 
-    pac = (SDF_action_init_t *) zs_thread_state;
+	pac = (SDF_action_init_t *) zs_thread_state;
 
 	SDF_cache_ctnr_metadata_t *meta;
 	meta = get_container_metadata(pac, cguid);
-    if (meta == NULL) {
+	if (meta == NULL) {
 		goto out;
 	}
-    
-	if (meta->meta.properties.flash_only == ZS_TRUE) {
-		char* tdata = (char *)0x1; // Make sure its not NULL
+
+	if (rawobject || (meta->meta.properties.flash_only == ZS_TRUE)) {
+		char	*tdata = (char *)0x1; // Make sure its not NULL
+		int		flag = 0;
 
 		plat_log_msg(160191, LOG_CAT,
-                    LOG_TRACE, "ZSReadObject flash_only.");
+				LOG_TRACE, "ZSReadObject flash_only.");
 		struct objMetaData metaData;
 		metaData.keyLen = keylen;
 		metaData.cguid  = cguid;
 
 		update_container_stats(pac, APGRX, meta, 1);
 
-		status = ssd_flashGet(pac->paio_ctxt, meta->pshard, &metaData, key, &tdata, FLASH_GET_NO_TEST);
+		if (rawobject) {
+			flag |= FLASH_GET_RAW_OBJECT;
+		}
+
+		status = ssd_flashGet(pac->paio_ctxt, meta->pshard, &metaData, key, &tdata, flag | FLASH_GET_NO_TEST);
 
 		/* If app buf, copied len should be min of datalen and metaData.dataLen */
 		if (app_buf) {
@@ -4851,56 +4867,57 @@ zs_read_object(
 
 	} else {
 
-    ar.reqtype = APGRX;
-    ar.curtime = 0;
-    ar.ctxt = pac->ctxt;
-    ar.ctnr = cguid;
-    ar.ctnr_type = SDF_OBJECT_CONTAINER;
-    ar.internal_request = SDF_TRUE;
-    ar.internal_thread = fthSelf();
-    if ((status=SDFObjnameToKey(&(ar.key), (char *) key, keylen)) != ZS_SUCCESS) {
-        goto out;
-    }
-    if (data == NULL) {
-       	status = ZS_BAD_PBUF_POINTER;
-		goto out; 
-    }
+		ar.reqtype = APGRX;
+		ar.curtime = 0;
+		ar.ctxt = pac->ctxt;
+		ar.ctnr = cguid;
+		ar.ctnr_type = SDF_OBJECT_CONTAINER;
+		ar.internal_request = SDF_TRUE;
+		ar.internal_thread = fthSelf();
 
-    if (app_buf) {
-        /* data ptr gets modified lower layer. Keep a copy of it */
-        app_buf_data_ptr = *data;
-    }
+		if ((status=SDFObjnameToKey(&(ar.key), (char *) key, keylen)) != ZS_SUCCESS) {
+			goto out;
+		}
+		if (data == NULL) {
+			status = ZS_BAD_PBUF_POINTER;
+			goto out; 
+		}
 
-    ar.ppbuf_in = (void **)data;
+		if (app_buf) {
+			/* data ptr gets modified lower layer. Keep a copy of it */
+			app_buf_data_ptr = *data;
+		}
 
-    ActionProtocolAgentNew(pac, &ar);
+		ar.ppbuf_in = (void **)data;
 
-    if (datalen == NULL) {
-        return(ZS_BAD_SIZE_POINTER);
-    }
+		ActionProtocolAgentNew(pac, &ar);
 
-    /* TODO: This is sub-optimal way of reading from app buf,
-     * however, there is no application use case so far and used
-     * only for test app, hence its fine for now. When it needs
-     * to support widely, need to put this in ActionProtocol code */
-    if (app_buf && (ar.respStatus == ZS_SUCCESS)) {
-        *datalen = (*datalen > ar.destLen) ? ar.destLen: *datalen;
-	plat_assert(app_buf_data_ptr != *data); // Don't want to free app buf by mistake
-        memcpy(app_buf_data_ptr, *data, *datalen);
-        free(*data);
-        *data = app_buf_data_ptr;
-    } else {
-        *datalen = ar.destLen;
-    }
+		if (datalen == NULL) {
+			return(ZS_BAD_SIZE_POINTER);
+		}
 
-    status = ar.respStatus;
+		/* TODO: This is sub-optimal way of reading from app buf,
+		 * however, there is no application use case so far and used
+		 * only for test app, hence its fine for now. When it needs
+		 * to support widely, need to put this in ActionProtocol code */
+		if (app_buf && (ar.respStatus == ZS_SUCCESS)) {
+			*datalen = (*datalen > ar.destLen) ? ar.destLen: *datalen;
+			plat_assert(app_buf_data_ptr != *data); // Don't want to free app buf by mistake
+			memcpy(app_buf_data_ptr, *data, *datalen);
+			free(*data);
+			*data = app_buf_data_ptr;
+		} else {
+			*datalen = ar.destLen;
+		}
+
+		status = ar.respStatus;
 	}
 
 out:
 
 	rel_cntr_map(cmap);
 
-    return status;
+	return status;
 }
 
 
@@ -4963,7 +4980,7 @@ ZS_status_t ZSReadObject(
 		goto out;
 	}
 
-	status = zs_read_object(zs_thread_state, cguid, key, keylen, data, datalen, false);
+	status = zs_read_object(zs_thread_state, cguid, key, keylen, data, datalen, false, false);
 
 out:
 	if (thd_ctx_locked) {
@@ -5032,7 +5049,7 @@ ZS_status_t ZSReadObject2(
 		goto out;
 	}
 
-	status = zs_read_object(zs_thread_state, cguid, key, keylen, data, datalen, true);
+	status = zs_read_object(zs_thread_state, cguid, key, keylen, data, datalen, true, false);
 
 out:
 	if (thd_ctx_locked) {
@@ -5187,28 +5204,28 @@ zs_write_object(
 	uint32_t             keylen,
 	char                *data,
 	uint64_t             datalen,
-	uint32_t             flags
+	uint32_t             xflags
 	)
 {
-    SDF_appreq_t        ar;
-    SDF_action_init_t  *pac		= NULL;
-    ZS_status_t        status	= ZS_FAILURE;
+	SDF_appreq_t        ar;
+	SDF_action_init_t  *pac		= NULL;
+	ZS_status_t        status	= ZS_FAILURE;
 	cntr_map_t *cmap = NULL;
 
- 	if ( !cguid || !key )
- 		return ZS_INVALID_PARAMETER;
+	if ( !cguid || !key )
+		return ZS_INVALID_PARAMETER;
  
 	cmap = get_cntr_map(cguid);
 	if (!cmap) {
 		return(ZS_CONTAINER_UNKNOWN);
 	}
 
-    if ( (status = zs_get_ctnr_status_cmap(cmap, cguid, 0)) != ZS_CONTAINER_OPEN ) {
-    	plat_log_msg( 160040, LOG_CAT, LOG_DIAG, "Container must be open to execute a write object" );
-        goto out;     
-    }
+	if ( (status = zs_get_ctnr_status_cmap(cmap, cguid, 0)) != ZS_CONTAINER_OPEN ) {
+		plat_log_msg( 160040, LOG_CAT, LOG_DIAG, "Container must be open to execute a write object" );
+		goto out;     
+	}
 
-    pac = (SDF_action_init_t *) zs_thread_state;
+	pac = (SDF_action_init_t *) zs_thread_state;
 
 	SDF_cache_ctnr_metadata_t *meta;
 	meta = get_container_metadata(pac, cguid);
@@ -5216,7 +5233,8 @@ zs_write_object(
 		goto out;
 	}
 
-	if (meta->meta.properties.flash_only == ZS_TRUE) {
+	if ((xflags & ZS_WRITE_RAW) ||
+			(meta->meta.properties.flash_only == ZS_TRUE)) {
 		int flags = 0;
 		plat_log_msg(160192, LOG_CAT,
 			LOG_TRACE, "ZSWriteObject flash_only.");
@@ -5224,12 +5242,20 @@ zs_write_object(
 		metaData.keyLen = keylen;
 		metaData.cguid  = cguid;
 		metaData.dataLen = datalen;
-		if (meta->meta.properties.compression)
-			flags |= FLASH_PUT_COMPRESS;
-		if (meta->meta.properties.durability_level == SDF_RELAXED_DURABILITY)
+		if (xflags & ZS_WRITE_RAW) {
+			flags |= FLASH_PUT_RAW_OBJECT;
+		} else {
+			if (meta->meta.properties.compression) {
+				flags |= FLASH_PUT_COMPRESS;
+			}
+		}
+
+		if (meta->meta.properties.durability_level == SDF_RELAXED_DURABILITY) {
 			flags |= FLASH_PUT_DURA_SW_CRASH;
-		else if (meta->meta.properties.durability_level == SDF_FULL_DURABILITY)
+		} else if (meta->meta.properties.durability_level == SDF_FULL_DURABILITY) {
 			flags |= FLASH_PUT_DURA_HW_CRASH;
+		}
+
 
 		update_container_stats(pac, APSOE, meta, 1);
 
@@ -5241,39 +5267,39 @@ zs_write_object(
 		}
 		goto out;
 	} else {
-	if ( flags & ZS_WRITE_MUST_EXIST ) {
-    	ar.reqtype = APPAE;
-	} else if( flags & ZS_WRITE_MUST_NOT_EXIST ) {
-    	ar.reqtype = APCOE;
-	}
-    else {
-    	ar.reqtype = APSOE;
-    }
-    ar.curtime = 0;
-    ar.ctxt = pac->ctxt;
-    ar.ctnr = cguid;
-    ar.ctnr_type = SDF_OBJECT_CONTAINER;
-    ar.internal_request = SDF_TRUE;
-    ar.internal_thread = fthSelf();
-    if ((status=SDFObjnameToKey(&(ar.key), (char *) key, keylen)) != ZS_SUCCESS) {
-        return(status);
-    }
-    ar.sze = datalen;
-    ar.pbuf_out = (void *) data;
-    ar.exptime = 0;
-    if (data == NULL) {
-        status = ZS_BAD_PBUF_POINTER;
-		goto out;
-    }
+		if ( xflags & ZS_WRITE_MUST_EXIST ) {
+			ar.reqtype = APPAE;
+		} else if( xflags & ZS_WRITE_MUST_NOT_EXIST ) {
+			ar.reqtype = APCOE;
+		} else {
+			ar.reqtype = APSOE;
+		}
+		ar.curtime = 0;
+		ar.ctxt = pac->ctxt;
+		ar.ctnr = cguid;
+		ar.ctnr_type = SDF_OBJECT_CONTAINER;
+		ar.internal_request = SDF_TRUE;
+		ar.internal_thread = fthSelf();
+		if ((status=SDFObjnameToKey(&(ar.key), (char *) key, keylen)) != ZS_SUCCESS) {
+			return(status);
+		}
+		ar.sze = datalen;
+		ar.pbuf_out = (void *) data;
+		ar.exptime = 0;
 
-    ActionProtocolAgentNew(pac, &ar);
+		if (data == NULL) {
+			status = ZS_BAD_PBUF_POINTER;
+			goto out;
+		}
 
-	status = ar.respStatus;
+		ActionProtocolAgentNew(pac, &ar);
+
+		status = ar.respStatus;
 	}	
 out:
 	rel_cntr_map(cmap);
 
-    return status;
+	return status;
 }
 
 static ZS_status_t
@@ -5374,29 +5400,29 @@ ZS_status_t ZSWriteObject(
 		status = ZS_LICENSE_CHK_FAILED;
 		goto out;
 	}
-        if ( !zs_thread_state || !cguid || !keylen || !data || !datalen  ) {
-            if ( !zs_thread_state ) {
-                plat_log_msg(80049,LOG_CAT,LOG_DBG,
-                             "ZS Thread state is NULL");
-            }
-            if ( !cguid ) {
-                plat_log_msg(80050,LOG_CAT,LOG_DBG,
-                             "Invalid container cguid:%lu",cguid);
-            }
-            if ( !keylen ) {
-                plat_log_msg(80056,LOG_CAT,LOG_DBG,
-                             "Invalid key length");
-            }
-            if ( !data ) {
-                plat_log_msg(80058,LOG_CAT,LOG_DBG,
-                             "Invalid data(NULL)");
-            }
-            if ( !datalen ) {
-                plat_log_msg(80059,LOG_CAT,LOG_DBG,
-                             "Invalid data length");
-            }
-            return ZS_INVALID_PARAMETER;
-        }
+	if ( !zs_thread_state || !cguid || !keylen || !data || !datalen  ) {
+		if ( !zs_thread_state ) {
+			plat_log_msg(80049,LOG_CAT,LOG_DBG,
+						 "ZS Thread state is NULL");
+		}
+		if ( !cguid ) {
+			plat_log_msg(80050,LOG_CAT,LOG_DBG,
+						 "Invalid container cguid:%lu",cguid);
+		}
+		if ( !keylen ) {
+			plat_log_msg(80056,LOG_CAT,LOG_DBG,
+						 "Invalid key length");
+		}
+		if ( !data ) {
+			plat_log_msg(80058,LOG_CAT,LOG_DBG,
+						 "Invalid data(NULL)");
+		}
+		if ( !datalen ) {
+			plat_log_msg(80059,LOG_CAT,LOG_DBG,
+						 "Invalid data length");
+		}
+		return ZS_INVALID_PARAMETER;
+	}
 
 	thd_ctx_locked = zs_lock_thd_ctxt(zs_thread_state);
 	if (false == thd_ctx_locked) {
@@ -5541,8 +5567,7 @@ zs_write_object_expiry (
         ar.reqtype = APPAE;
     } else if( flags & ZS_WRITE_MUST_NOT_EXIST ) {
         ar.reqtype = APCOE;
-    }
-    else {
+    } else {
         ar.reqtype = APSOE;
     }
     ar.curtime = wobj->current;
@@ -5577,9 +5602,9 @@ ZS_status_t ZSWriteObjectExpiry(
     uint32_t                  flags
     )
 {
-    ZS_status_t        status	= ZS_SUCCESS;
+	ZS_status_t        status	= ZS_SUCCESS;
 	bool thd_ctx_locked = false;
-//        return ZS_UNSUPPORTED_REQUEST;
+
 	status = zs_validate_container(cguid);
 	if (ZS_SUCCESS != status) {
 		plat_log_msg(160125, LOG_CAT,
@@ -5591,8 +5616,8 @@ ZS_status_t ZSWriteObjectExpiry(
 	 * Check if operation can begin
 	 */
 	if (ZS_SUCCESS != (status = is_zs_operation_allowed())) {
-        plat_log_msg(80022, LOG_CAT,
-               LOG_WARN, "Shutdown in Progress. Operation not allowed ");
+		plat_log_msg(80022, LOG_CAT,
+				LOG_WARN, "Shutdown in Progress. Operation not allowed ");
 		goto out;
 	}
 	if (is_license_valid(is_btree_loaded()) == false) {
@@ -5600,33 +5625,33 @@ ZS_status_t ZSWriteObjectExpiry(
 		status = ZS_LICENSE_CHK_FAILED;
 		goto out;
 	}
-        if ( !zs_thread_state || !cguid || !wobj->key_len || !wobj->data || !wobj->data_len  ) {
-            if ( !zs_thread_state ) {
-                plat_log_msg(80049,LOG_CAT,LOG_DBG,
-                             "ZS Thread state is NULL");
-            }
-            if ( !cguid ) {
-                plat_log_msg(80050,LOG_CAT,LOG_DBG,
-                             "Invalid container cguid:%lu",cguid);
-            }
-            if ( !wobj ) {
-                plat_log_msg(80060,LOG_CAT,LOG_DBG,
-                             "Invalid ZS_writeobject_t");
-            }
-            if ( !wobj->key_len ) {
-                plat_log_msg(80056,LOG_CAT,LOG_DBG,
-                             "Invalid key length");
-            }
-            if ( !wobj->data ) {
-                plat_log_msg(80061,LOG_CAT,LOG_DBG,
-                             "Invalid data (NULL)");
-            }
-            if ( !wobj->data_len ) {
-                plat_log_msg(80059,LOG_CAT,LOG_DBG,
-                             "Invalid data length");
-            }
-            return ZS_INVALID_PARAMETER;
-        }
+	if ( !zs_thread_state || !cguid || !wobj->key_len || !wobj->data || !wobj->data_len  ) {
+		if ( !zs_thread_state ) {
+			plat_log_msg(80049,LOG_CAT,LOG_DBG,
+					"ZS Thread state is NULL");
+		}
+		if ( !cguid ) {
+			plat_log_msg(80050,LOG_CAT,LOG_DBG,
+					"Invalid container cguid:%lu",cguid);
+		}
+		if ( !wobj ) {
+			plat_log_msg(80060,LOG_CAT,LOG_DBG,
+					"Invalid ZS_writeobject_t");
+		}
+		if ( !wobj->key_len ) {
+			plat_log_msg(80056,LOG_CAT,LOG_DBG,
+					"Invalid key length");
+		}
+		if ( !wobj->data ) {
+			plat_log_msg(80061,LOG_CAT,LOG_DBG,
+					"Invalid data (NULL)");
+		}
+		if ( !wobj->data_len ) {
+			plat_log_msg(80059,LOG_CAT,LOG_DBG,
+					"Invalid data length");
+		}
+		return ZS_INVALID_PARAMETER;
+	}
 
 	thd_ctx_locked = zs_lock_thd_ctxt(zs_thread_state);
 	if (false == thd_ctx_locked) {
@@ -5635,7 +5660,7 @@ ZS_status_t ZSWriteObjectExpiry(
 		 */
 		status = ZS_THREAD_CONTEXT_BUSY;
 		plat_log_msg(160161, LOG_CAT,
-		       	     LOG_DBG, "Could not get thread context lock");
+				LOG_DBG, "Could not get thread context lock");
 		goto out;
 	}
 
@@ -5651,31 +5676,32 @@ out:
 
 static ZS_status_t
 zs_delete_object(
-	struct ZS_thread_state  *zs_thread_state,
-	ZS_cguid_t          	  cguid,
-	char                	 *key,
-	uint32_t             	  keylen
+	struct ZS_thread_state		*zs_thread_state,
+	ZS_cguid_t					cguid,
+	char						*key,
+	uint32_t					keylen,
+	bool						raw_object
 	)
 {
-    SDF_appreq_t        ar;
-    SDF_action_init_t  *pac		= NULL;
-    ZS_status_t        status	= ZS_SUCCESS;
+	SDF_appreq_t        ar;
+	SDF_action_init_t  *pac		= NULL;
+	ZS_status_t        status	= ZS_SUCCESS;
 	cntr_map_t *cmap = NULL;
 
-    if ( !cguid || !key )
-        return ZS_INVALID_PARAMETER;
+	if ( !cguid || !key )
+		return ZS_INVALID_PARAMETER;
 
 	cmap = get_cntr_map(cguid);
 	if (!cmap) {
 		return(ZS_CONTAINER_UNKNOWN);
 	}
 
-    if ( (status = zs_get_ctnr_status_cmap(cmap, cguid, 0)) != ZS_CONTAINER_OPEN ) {
-        plat_log_msg( 160041, LOG_CAT, LOG_DIAG, "Container must be open to execute a delete object" );
-        goto out;     
-    }
+	if ( (status = zs_get_ctnr_status_cmap(cmap, cguid, 0)) != ZS_CONTAINER_OPEN ) {
+		plat_log_msg( 160041, LOG_CAT, LOG_DIAG, "Container must be open to execute a delete object" );
+		goto out;     
+	}
 
-    pac = (SDF_action_init_t *) zs_thread_state;
+	pac = (SDF_action_init_t *) zs_thread_state;
 
 	SDF_cache_ctnr_metadata_t *meta;
 	meta = get_container_metadata(pac, cguid);
@@ -5683,10 +5709,10 @@ zs_delete_object(
 		goto out;
 	}
 
-	if (meta->meta.properties.flash_only == ZS_TRUE) {
+	if (raw_object || (meta->meta.properties.flash_only == ZS_TRUE)) {
 		int flags = 0;
 		plat_log_msg(160193, LOG_CAT,
-			LOG_TRACE, "ZSDeleteObject flash_only.");
+				LOG_TRACE, "ZSDeleteObject flash_only.");
 		struct objMetaData metaData;
 		metaData.keyLen = keylen;
 		metaData.cguid  = cguid;
@@ -5695,6 +5721,10 @@ zs_delete_object(
 			flags |= FLASH_PUT_DURA_SW_CRASH;
 		else if (meta->meta.properties.durability_level == SDF_FULL_DURABILITY)
 			flags |= FLASH_PUT_DURA_HW_CRASH;
+
+		if (raw_object == true) {
+			flags |= FLASH_PUT_RAW_OBJECT;
+		}
 		status=ssd_flashPut(pac->paio_ctxt, meta->pshard, &metaData, key, NULL, FLASH_PUT_TEST_NONEXIST|flags);
 		if (status == FLASH_EOK) {
 			status = ZS_SUCCESS;
@@ -5704,28 +5734,29 @@ zs_delete_object(
 		goto out;
 	} else {
 
-    ar.reqtype = APDBE;
-    ar.prefix_delete = 0;
-    ar.curtime = 0;
-    ar.ctxt = pac->ctxt;
-    ar.ctnr = cguid;
-    ar.ctnr_type = SDF_OBJECT_CONTAINER;
-    ar.internal_request = SDF_TRUE;    
-	ar.internal_thread = fthSelf();
-    if ((status=SDFObjnameToKey(&(ar.key), (char *) key, keylen)) != ZS_SUCCESS) {
-		goto out;
-    }
+		ar.reqtype = APDBE;
+		ar.prefix_delete = 0;
+		ar.curtime = 0;
+		ar.ctxt = pac->ctxt;
+		ar.ctnr = cguid;
+		ar.ctnr_type = SDF_OBJECT_CONTAINER;
+		ar.internal_request = SDF_TRUE;    
+		ar.internal_thread = fthSelf();
 
-    ActionProtocolAgentNew(pac, &ar);
+		if ((status=SDFObjnameToKey(&(ar.key), (char *) key, keylen)) != ZS_SUCCESS) {
+			goto out;
+		}
 
-	status = ar.respStatus;
+		ActionProtocolAgentNew(pac, &ar);
+
+		status = ar.respStatus;
 	}	
 
 out:
 
 	rel_cntr_map(cmap);
 
-    return status;
+	return status;
 }
 
 
@@ -5786,7 +5817,7 @@ ZS_status_t ZSDeleteObject(
 		goto out;
 	}
 
-	status = zs_delete_object(zs_thread_state, cguid, key, keylen);
+	status = zs_delete_object(zs_thread_state, cguid, key, keylen, false);
 
 out:
 	if (thd_ctx_locked) {
@@ -6060,14 +6091,10 @@ zs_flush_cache(
 			 (cmap->state != ZS_CONTAINER_STATE_DELETE_PROG) &&
 			 (cmap->state != ZS_CONTAINER_STATE_DELETE_OPEN) &&
 			 (cmap->state != ZS_CONTAINER_STATE_DELETE_CLOSED) ) {
-			status = zs_flush_container( zs_thread_state, cmap->cguid );
-
-			if ( status != ZS_SUCCESS ) 
-				goto out;
+			(void)zs_flush_container( zs_thread_state, cmap->cguid );
         }
     }
 
-out:
     zs_cmap_finish_enum( iterator );
     return status;
 }
@@ -7182,7 +7209,7 @@ static SDF_container_props_t *zs_create_sdf_props(
         sdf_properties->container_id.owner                    	= 0;
         sdf_properties->container_id.size                     	= zs_properties->size_kb;
         sdf_properties->container_id.container_id             	= 0;
-        sdf_properties->container_id.num_objs                 	= (zs_properties->size_kb * 1024 / 512);
+        sdf_properties->container_id.sc_num_objs                 = (zs_properties->size_kb * 1024 / Mcd_osd_blk_size);
 
         sdf_properties->cguid                                 	= zs_properties->cguid;
 
@@ -7237,7 +7264,7 @@ static SDF_container_props_t *zs_create_sdf_props(
         sdf_properties->container_id.size                       = zs_properties->size_kb;
         sdf_properties->container_id.container_id               = 0 /* zs_internal_properties->cid */;
         sdf_properties->container_id.owner                      = 0;
-        sdf_properties->container_id.num_objs                   = (zs_properties->size_kb * 1024 / 512);
+        sdf_properties->container_id.num_objs                   = (zs_properties->size_kb * 1024 / Mcd_osd_blk_size);
 
         sdf_properties->cguid                                   = zs_internal_properties->cguid;
 
@@ -7529,8 +7556,8 @@ zs_vc_init(
     // Create the VDC
     ZSLoadCntrPropDefaults(&p);
     p.durability_level      = ZS_DURABILITY_HW_CRASH_SAFE;
-    p.size_kb               = ((uint64_t)getProperty_Int("ZS_FLASH_SIZE", ZS_MIN_FLASH_SIZE)) * 1024 * 1024 -
-                              (2 * ZS_DEFAULT_CONTAINER_SIZE_KB) - (32 * 1024); // Minus CMC/VMC allocation & super block;
+	p.size_kb               = (uint64_t)(((uint64_t)getProperty_uLongLong("ZS_FLASH_SIZE", ZS_MIN_FLASH_SIZE)) * 1024 * 1024 -
+							  (2 * ZS_DEFAULT_CONTAINER_SIZE_KB) - (32 * 1024)); // Minus CMC/VMC allocation & super block;
 
     plat_log_msg(80037,LOG_CAT, LOG_DBG, "%s Virtual Data Container"
                            " (name = %s,size = %lu kbytes,"
@@ -7997,7 +8024,6 @@ void zs_print_backtrace() {
     return;
 }
 #else
-
 char pstack_out_file[100] = "stack_at_crach.info" ;
 
 void zs_print_backtrace()
@@ -8036,3 +8062,510 @@ void zs_signal_handler(int signum) {
 	plat_exit(1); 
     }
 } 
+
+ZS_status_t ZSDeleteRawObject(
+	struct ZS_thread_state		*zs_thread_state,
+	ZS_cguid_t					cguid,
+	baddr_t						key,
+	uint32_t					keylen,
+	uint32_t					flags
+	)
+{
+    ZS_status_t        status	= ZS_FAILURE;
+	bool thd_ctx_locked = false;
+
+	status = zs_validate_container(cguid);
+	if (ZS_SUCCESS != status) {
+		plat_log_msg(160125, LOG_CAT,
+				LOG_ERR, "Failed due to an illegal container ID:%s",
+				ZS_Status_Strings[status]);
+		goto out;
+	}
+	/*
+	 * Check if operation can begin
+	 */
+	if (ZS_SUCCESS != (status = is_zs_operation_allowed())) {
+        plat_log_msg(80022, LOG_CAT,
+               LOG_WARN, "Shutdown in Progress. Operation not allowed ");
+		goto out;
+	}
+	if (is_license_valid(is_btree_loaded()) == false) {
+		plat_log_msg(160145, LOG_CAT, LOG_WARN, "License check failed.");
+		status = ZS_LICENSE_CHK_FAILED;
+		goto out;
+	}
+        if ( !zs_thread_state || !cguid || !keylen ) {
+            if ( !zs_thread_state ) {
+                plat_log_msg(80049,LOG_CAT,LOG_DBG,
+                             "ZS Thread state is NULL");
+            }
+            if ( !cguid ) {
+                plat_log_msg(80050,LOG_CAT,LOG_DBG,
+                             "Invalid container cguid:%lu",cguid);
+            }
+            if ( !keylen ) {
+                plat_log_msg(80056,LOG_CAT,LOG_DBG,
+                             "Invalid key length");
+            }
+            return ZS_INVALID_PARAMETER;
+        }
+
+	thd_ctx_locked = zs_lock_thd_ctxt(zs_thread_state);
+	if (false == thd_ctx_locked) {
+		/*
+		 * Could not get thread context lock, error out.
+		 */
+		status = ZS_THREAD_CONTEXT_BUSY;
+		plat_log_msg(160161, LOG_CAT,
+		       	     LOG_DBG, "Could not get thread context lock");
+		goto out;
+	}
+
+	status = zs_delete_object(zs_thread_state, cguid, (char *)&key, keylen, true);
+
+out:
+	if (thd_ctx_locked) {
+		zs_unlock_thd_ctxt(zs_thread_state);
+	}
+	return status;
+}
+ZS_status_t ZSRenameContainer(
+	struct ZS_thread_state	*zs_thread_state,
+	ZS_cguid_t				cguid,
+	char					*name
+	)
+{
+
+	ZS_status_t status = ZS_SUCCESS;
+	SDF_container_meta_t meta;
+	SDF_internal_ctxt_t *pai;
+	cntr_map_t *cmap = NULL;
+	SDF_CONTAINER_PARENT parent = containerParentNull;
+	local_SDF_CONTAINER_PARENT lparent = NULL;
+
+	/*
+	 * Check if operation can begin
+	 */
+	if (ZS_SUCCESS != (status = is_zs_operation_allowed())) {
+		plat_log_msg(160187, LOG_CAT,
+			LOG_WARN, "Operation not allowed");
+		return status;
+	}
+
+    if ( !zs_thread_state ) {
+        plat_log_msg(80049,LOG_CAT,LOG_DBG, "ZS Thread state is NULL");
+        return ZS_INVALID_PARAMETER;
+    }
+
+	if (is_license_valid(is_btree_loaded()) == false) {
+		plat_log_msg(160145, LOG_CAT, LOG_WARN, "License check failed.");
+		return ZS_LICENSE_CHK_FAILED;
+	}
+
+	status = zs_validate_container(cguid);
+	if (ZS_SUCCESS != status) {
+		plat_log_msg(160125, LOG_CAT,
+				LOG_ERR, "Failed due to an illegal container ID:%s",
+				ZS_Status_Strings[status]);
+		return status;
+	}
+
+	if (false == zs_lock_thd_ctxt(zs_thread_state)) {
+		/*
+		 * Could not get thread context lock, error out.
+		 */
+		plat_log_msg(160161, LOG_CAT,
+				LOG_DBG, "Could not get thread context lock");
+		return ZS_THREAD_CONTEXT_BUSY;
+	}
+
+	pai = (SDF_internal_ctxt_t *) zs_thread_state;
+
+	SDFStartSerializeContainerOp(pai);
+	cmap = zs_cmap_get_by_cguid( cguid );
+	if ( !cmap ) {
+		plat_log_msg(160210, LOG_CAT, LOG_WARN,
+				"Container cguid=%lu does not exist. Delete can not proceed\n", cguid );
+		status = ZS_FAILURE;
+		goto out;
+	}
+
+	status = name_service_get_meta( pai, cguid, &meta );
+	if ( status != ZS_SUCCESS ) {
+		plat_log_msg( 160078, LOG_CAT, LOG_ERR,
+				"Could not read metadata for %lu. Delete can not proceed\n", cguid );
+		status = ZS_FAILURE;
+		goto out;
+	}
+#if 0
+	plat_log_msg( 160113, LOG_CAT, LOG_DBG,
+			"Renaming container %s to %s\n",meta.cname,name );
+	status = name_service_remove_cguid_map(pai,meta.cname);
+	if ( status != ZS_SUCCESS ) {
+		plat_log_msg( 160114,LOG_CAT, LOG_ERR,
+				"Unable to remove cguid map for container %lu."
+				" Can not rename",meta.cguid);
+		status = ZS_FAILURE;
+		goto out;
+	}
+
+	if (!closeParentContainer(cmap->sdf_container)) {
+		status = ZS_FAILURE;
+		goto out;
+	}
+#endif
+	/*
+	 * Delete entry from hashmap. We cannot update the entry for cname since
+	 * cname acts as the key and now we have a new key (i.e. the new cname).
+	 */
+	HashMap_remove( cmap_cname_hash, meta.cname );
+
+	snprintf(meta.cname,CONTAINER_NAME_MAXLEN,"%s",name);
+	snprintf(cmap->cname,CONTAINER_NAME_MAXLEN,"%s",name);
+
+	status = zs_cmap_update(cmap);
+
+	if (ZS_SUCCESS != status) {
+		plat_log_msg( 150115, LOG_CAT, LOG_ERR, "Unable to create metadata cache for %lu. Cannot rename", cguid );
+		goto out;
+	}
+
+	status = name_service_put_meta( pai, cguid, &meta );
+	if ( status != ZS_SUCCESS ) {
+		plat_log_msg( 160115, LOG_CAT, LOG_ERR,
+				"Unable to write metadata for %lu. Can not rename ",
+				cguid );
+		goto out;
+	}
+#if 0
+	/* Create New container Map with new name */
+	status = name_service_create_cguid_map(zs_thread_state,
+			meta.cname,meta.cguid);
+	if ( status != ZS_SUCCESS ) {
+		plat_log_msg( 160116,LOG_CAT, LOG_ERR,
+				"Unable to create cguid map for container %lu."
+				"Can not rename",meta.cguid);
+		goto out;
+	}
+#endif
+
+	if ((status = name_service_lock_meta( pai, meta.cname )) != ZS_SUCCESS ) {
+		plat_log_msg(21532, LOG_CAT, LOG_ERR, "failed to lock %s", meta.cname);
+	} else if ( !isContainerParentNull(parent = createParentContainer( pai, meta.cname, &meta )) ) {
+		lparent = getLocalContainerParent( &lparent, parent ); // TODO C++ please!
+#ifdef notdef
+		lparent->container_type = sdf_properties->container_type.type;
+		if ( lparent->container_type == SDF_BLOCK_CONTAINER ) {
+			lparent->blockSize = sdf_properties->specific.block_props.blockSize;
+		}
+#endif
+		releaseLocalContainerParent(&lparent); // TODO C++ please!
+
+		status = ZS_SUCCESS;
+		cmap->sdf_container = openParentContainer(pai, meta.cname);
+
+		if ((status = name_service_unlock_meta( pai, meta.cname )) != ZS_SUCCESS ) {
+			plat_log_msg( 21533, LOG_CAT, LOG_ERR, "failed to unlock %s", meta.cname );
+		}
+	}
+
+
+out:
+	SDFEndSerializeContainerOp(pai);
+	zs_unlock_thd_ctxt(zs_thread_state);
+	return(status);
+}
+
+
+ZS_status_t
+ZSGetBtDelContainers(struct ZS_thread_state *zs_thread_state, 
+						ZS_cguid_t *cguids, uint32_t *ncguids)
+{
+	ZS_status_t 		status		   = ZS_SUCCESS;
+	bool 				thd_ctx_locked = false;
+    SDF_internal_ctxt_t *pai 		   = (SDF_internal_ctxt_t *) zs_thread_state;
+    int                   n_containers = 0;
+	char                 *key          = NULL;
+	uint32_t              keylen       = 0;
+	cntr_map_t           *cmap         = NULL;
+	uint64_t              cmaplen      = 0;
+	struct cmap_iterator *iterator     = NULL;
+
+	/*
+	 * Check if operation can begin
+	 */
+	if (ZS_SUCCESS != (status = is_zs_operation_allowed())) {
+		plat_log_msg(160187, LOG_CAT,
+			LOG_WARN, "Operation not allowed");
+		goto out;
+	}
+
+	if (is_license_valid(is_btree_loaded()) == false) {
+		plat_log_msg(160145, LOG_CAT, LOG_WARN, "License check failed.");
+		status = ZS_LICENSE_CHK_FAILED;
+		goto out;
+	}
+
+    if ( !zs_thread_state ) {
+        plat_log_msg(80049,LOG_CAT,LOG_DBG, "ZS Thread state is NULL");
+        status = ZS_INVALID_PARAMETER;
+        goto out;
+    }
+    if (!cguids || !ncguids) {
+		status = ZS_INVALID_PARAMETER;
+		goto out;
+	}
+	    
+
+	thd_ctx_locked = zs_lock_thd_ctxt(zs_thread_state);
+
+	if (false == thd_ctx_locked) {
+		/*
+		 * Could not get thread context lock, error out.
+		 */
+		status = ZS_THREAD_CONTEXT_BUSY;
+		plat_log_msg(160161, LOG_CAT,
+		       	     LOG_DBG, "Could not get thread context lock");
+		goto out;
+	}
+
+
+    SDFStartSerializeContainerOp(pai);  
+
+
+	iterator = zs_cmap_enum();
+
+	if ( !iterator ) {
+		SDFEndSerializeContainerOp( pai );   
+	    status = ZS_FAILURE;
+		goto out;
+	}
+
+	while ( zs_cmap_next_enum( iterator, &key, &keylen, (char **) &cmap, &cmaplen ) ) {
+		if ( cmap->cguid > LAST_PHYSICAL_CGUID  && 
+			 strcmp( cmap->cname,SEQNO_CONTAINER_NAME ) &&
+			 strcmp( cmap->cname,PSTATS_CONTAINER_NAME ) &&
+             !strncmp( cmap->cname,BTREE_DELETE_CONTAINER_NAME, strlen(BTREE_DELETE_CONTAINER_NAME) ) &&
+			 ( cmap->state == ZS_CONTAINER_STATE_CLOSED ||
+			   cmap->state == ZS_CONTAINER_STATE_OPEN )  ) {
+			cguids[n_containers] = cmap->cguid;
+            n_containers++;
+        }
+    }
+
+	zs_cmap_finish_enum( iterator );
+    *ncguids = n_containers;
+	SDFEndSerializeContainerOp( pai );   
+
+out:
+	if (thd_ctx_locked) {
+		zs_unlock_thd_ctxt(zs_thread_state);
+	}
+	return status;
+}
+
+
+static ZS_status_t
+zs_create_raw_object(
+	struct ZS_thread_state	*zs_thread_state,
+	ZS_cguid_t				cguid,
+	baddr_t					*key,
+	uint64_t				datalen,
+	uint32_t				xflags
+	)
+{
+	SDF_action_init_t  *pac		= NULL;
+	ZS_status_t        status	= ZS_FAILURE;
+	cntr_map_t *cmap = NULL;
+
+	if ( !cguid || !key )
+		return ZS_INVALID_PARAMETER;
+ 
+	cmap = get_cntr_map(cguid);
+	if (!cmap) {
+		return(ZS_CONTAINER_UNKNOWN);
+	}
+
+	if ( (status = zs_get_ctnr_status_cmap(cmap, cguid, 0)) != ZS_CONTAINER_OPEN ) {
+		plat_log_msg( 160040, LOG_CAT, LOG_DIAG, "Container must be open to execute a write object" );
+		goto out;     
+	}
+
+	pac = (SDF_action_init_t *) zs_thread_state;
+
+	SDF_cache_ctnr_metadata_t *meta;
+	meta = get_container_metadata(pac, cguid);
+	if (meta == NULL) {
+		goto out;
+	}
+
+	int flags = 0;
+	plat_log_msg(160192, LOG_CAT,
+			LOG_TRACE, "ZSWriteObject flash_only.");
+	struct objMetaData metaData;
+	metaData.keyLen = sizeof(uint64_t);
+	metaData.cguid  = cguid;
+	metaData.dataLen = datalen;
+	if (meta->meta.properties.compression) {
+		flags |= FLASH_PUT_COMPRESS;
+	}
+
+	if (meta->meta.properties.durability_level == SDF_RELAXED_DURABILITY) {
+		flags |= FLASH_PUT_DURA_SW_CRASH;
+	} else if (meta->meta.properties.durability_level == SDF_FULL_DURABILITY) {
+		flags |= FLASH_PUT_DURA_HW_CRASH;
+	}
+
+	flags |= FLASH_CREATE_RAW_OBJECT;
+
+	update_container_stats(pac, APSOE, meta, 1);
+
+	status = ssd_flashPut(pac->paio_ctxt, meta->pshard, &metaData, (char *)key, NULL, FLASH_PUT_NO_TEST|flags);
+	if (status == FLASH_EOK) {
+		status = ZS_SUCCESS;
+	} else {
+		status = ZS_FAILURE;
+	}
+
+out:
+	rel_cntr_map(cmap);
+
+	return status;
+}
+
+ZS_status_t ZSCreateRawObject(
+	struct ZS_thread_state	*zs_thread_state,
+	ZS_cguid_t				cguid,
+	baddr_t					*key,
+	uint64_t				datalen,
+	uint32_t				flags
+	)
+{
+	ZS_status_t status = ZS_SUCCESS;
+	bool thd_ctx_locked = false;
+
+	status = zs_validate_container(cguid);
+	if (ZS_SUCCESS != status) {
+		plat_log_msg(160125, LOG_CAT,
+				LOG_ERR, "Failed due to an illegal container ID:%s",
+				ZS_Status_Strings[status]);
+		goto out;
+	}
+	/*
+	 * Check if operation can begin
+	 */
+	if (ZS_SUCCESS != (status = is_zs_operation_allowed())) {
+        plat_log_msg(80022, LOG_CAT,
+               LOG_WARN, "Shutdown in Progress. Operation not allowed ");
+		goto out;
+	}
+	if (is_license_valid(is_btree_loaded()) == false) {
+		plat_log_msg(160145, LOG_CAT, LOG_WARN, "License check failed.");
+		status = ZS_LICENSE_CHK_FAILED;
+		goto out;
+	}
+	if ( !zs_thread_state || !cguid || !key  ) {
+		if ( !zs_thread_state ) {
+			plat_log_msg(80049,LOG_CAT,LOG_DBG,
+						 "ZS Thread state is NULL");
+		}
+		if ( !cguid ) {
+			plat_log_msg(80050,LOG_CAT,LOG_DBG,
+						 "Invalid container cguid:%lu",cguid);
+		}
+		if ( !key ) {
+			plat_log_msg(160278,LOG_CAT,LOG_DBG,
+						 "Invalid key argument");
+		}
+
+		return ZS_INVALID_PARAMETER;
+	}
+
+	thd_ctx_locked = zs_lock_thd_ctxt(zs_thread_state);
+	if (false == thd_ctx_locked) {
+		/*
+		 * Could not get thread context lock, error out.
+		 */
+		status = ZS_THREAD_CONTEXT_BUSY;
+		plat_log_msg(160161, LOG_CAT,
+		       	     LOG_DBG, "Could not get thread context lock");
+		goto out;
+	}
+
+	status = zs_create_raw_object(zs_thread_state, cguid, key, datalen, flags);
+
+out:
+	if (thd_ctx_locked) {
+		zs_unlock_thd_ctxt(zs_thread_state);
+	}
+	return status;
+}
+
+
+ZS_status_t ZSReadRawObject(
+	struct ZS_thread_state		*zs_thread_state,
+	ZS_cguid_t					cguid,
+	baddr_t						key,
+	char						**data,
+	uint64_t					*datalen,
+	uint32_t					flags
+	)
+{
+	ZS_status_t status = ZS_SUCCESS;
+	bool thd_ctx_locked = false;
+
+	status = zs_validate_container(cguid);
+	if (ZS_SUCCESS != status) {
+		plat_log_msg(160125, LOG_CAT,
+				LOG_ERR, "Failed due to an illegal container ID:%s",
+				ZS_Status_Strings[status]);
+		goto out;
+	}
+	/*
+	 * Check if operation can begin
+	 */
+	if (ZS_SUCCESS != (status = is_zs_operation_allowed())) {
+		plat_log_msg(160188, LOG_CAT,
+				LOG_WARN, "Operation not allowed ");
+		goto out;
+	}
+	if (is_license_valid(is_btree_loaded()) == false) {
+		plat_log_msg(160145, LOG_CAT, LOG_WARN, "License check failed.");
+		status = ZS_LICENSE_CHK_FAILED;
+		goto out;
+	}
+	if ( !zs_thread_state || !cguid) {
+		if ( !zs_thread_state ) {
+			plat_log_msg(80049,LOG_CAT,LOG_DBG,
+					"ZS Thread state is NULL");
+		}
+		if ( !cguid ) {
+			plat_log_msg(80050,LOG_CAT,LOG_DBG,
+					"Invalid container cguid:%lu",cguid);
+		}
+		return ZS_INVALID_PARAMETER;
+	}
+
+	thd_ctx_locked = zs_lock_thd_ctxt(zs_thread_state);
+	if (false == thd_ctx_locked) {
+		/*
+		 * Could not get thread context lock, error out.
+		 */
+		status = ZS_THREAD_CONTEXT_BUSY;
+		plat_log_msg(160161, LOG_CAT,
+				LOG_DBG, "Could not get thread context lock");
+		goto out;
+	}
+
+	status = zs_read_object(zs_thread_state, cguid, (char *)&key, sizeof(key), data, datalen, flags, true);
+
+out:
+	if (thd_ctx_locked) {
+		zs_unlock_thd_ctxt(zs_thread_state);
+	}
+	return status; 
+}
+
+
+
+

@@ -402,7 +402,7 @@ void default_shardAttributes(struct shard *shard, int *p_flags, uint64_t *p_quot
 {
     *p_flags   = shard->flags;
     *p_quota   = shard->quota;
-    *p_maxObjs = shard->maxObjs;
+    *p_maxObjs = shard->s_maxObjs;
 }
 
 /***********************   NO-OP!!   **************************/

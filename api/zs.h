@@ -444,8 +444,9 @@ typedef struct {
 #define ZS_CTNR_RW_MODE  4
 
 typedef enum {
-    ZS_WRITE_MUST_NOT_EXIST    = 1,
+    ZS_WRITE_MUST_NOT_EXIST = 1,
     ZS_WRITE_MUST_EXIST    	= 2,
+	ZS_WRITE_RAW			= 4,
 } ZS_write_mode_t;
 
 typedef struct {
