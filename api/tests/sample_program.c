@@ -41,7 +41,7 @@ main( )
 	char				*version;
 	int				indx;
 	uint32_t		t;
-	uint32_t			ncg;
+	uint32_t			ncg = 0;
 	const char			*path;
 	ZS_container_props_t		props;
 	char				cname[32] = {0};

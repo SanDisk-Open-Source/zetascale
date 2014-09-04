@@ -9,7 +9,7 @@
 static char *base = "container";
 static int iterations = 200000;
 static int threads = 2;
-static long size = 1024 * 1024 * 1024 * 4;
+static long size = (uint64_t) 1024 * 1024 * 1024 * 4;
 
 pthread_mutex_t count_mutex   = PTHREAD_MUTEX_INITIALIZER;
 pthread_cond_t  condition_var = PTHREAD_COND_INITIALIZER;

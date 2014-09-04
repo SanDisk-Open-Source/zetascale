@@ -369,10 +369,11 @@ hash_table_cleanup ( hash_handle_t *hdl)
 void
 hash_table_dump( void *context, hash_handle_t * hdl)
 {
-	uint64_t	syndrome,
-			tmpkey;
-	hash_entry_t	*hash_entry	= NULL;
-	bucket_entry_t	*bucket_entry;
+//	uint64_t	syndrome;
+	//		tmpkey;
+
+//	hash_entry_t	*hash_entry	= NULL;
+//	bucket_entry_t	*bucket_entry;
 
 #if 0
 	uint32_t bucket_idx = *(hdl->hash_buckets + ((syndrome % hdl->hash_size) / OSD_HASH_BUCKET_SIZE));

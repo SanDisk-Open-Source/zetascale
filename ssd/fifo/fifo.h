@@ -25,7 +25,7 @@ typedef struct ssd_fifo_ops {
                                         uint64_t shardID,
                                         int flags, 
                                         uint64_t quota, 
-                                        unsigned maxObjs );
+                                        uint64_t maxObjs );
 
     struct shard      * (*shardOpen)( struct flashDev * dev, 
                                       uint64_t shardID );

@@ -1255,7 +1255,7 @@ updater_thread2( void *arg)
 	ulong buf_size = ((Mcd_rec_update_bufsize / Mcd_rec_update_segment_size) * sizeof(char *));
 	char **buf_segments = plat_alloc(buf_size);
 	memset( buf_segments, 0, buf_size);
-	__sync_add_and_fetch( &s->refcount, 1);
+	(void) __sync_add_and_fetch( &s->refcount, 1);
 	log->updater_started = 1;
 	loop {
 		mcd_rec_update_t *mail = (mcd_rec_update_t *)fthMboxWait( &log->update_mbox);

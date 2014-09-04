@@ -3792,7 +3792,7 @@ reapply:
 			goto reapply;
 		}
 		// record is out of this table range
-		mcd_log_msg( 160270, PLAT_LOG_LEVEL_DEVEL, "<<<< skipping offset=%lu, start=%lu, end=%lu", rec->blk_offset, state->start_obj, state->start_obj + state->num_objs - 1);
+		mcd_log_msg( 160270, PLAT_LOG_LEVEL_DEVEL, "<<<< skipping offset=%lu, start=%lu, end=%lu", (uint64_t) rec->blk_offset, state->start_obj, state->start_obj + state->num_objs - 1);
 		return applied;
 	}
 	// calculate offset to the object, in the proper segment
@@ -3808,9 +3808,9 @@ reapply:
                  object->seqno==rec->target_seqno ||
                  shard->evict_to_free))
             {
-				mcd_log_msg( 160271, PLAT_LOG_LEVEL_FATAL, "rec: syn=%u, blocks=%u, del=%u, bucket=%u, " "boff=%lu, ooff=%lu, seq=%lu, tseq=%lu, obj: " "syn=%u, ts=%u, blocks=%u, del=%u, bucket=%u, " "toff=%lu, seq=%lu, hwm_seqno=%lu", rec->syndrome, mcd_osd_lba_to_blk( rec->blocks), rec->deleted, rec->rbucket, rec->blk_offset, rec->old_offset, (uint64_t) rec->seqno, (ulong)rec->target_seqno, object->osyndrome, object->tombstone, mcd_osd_lba_to_blk( object->blocks), object->deleted, object->obucket, obj_offset, (uint64_t) object->seqno, 0uL);
+				mcd_log_msg( 160271, PLAT_LOG_LEVEL_FATAL, "rec: syn=%u, blocks=%u, del=%u, bucket=%u, " "boff=%lu, ooff=%lu, seq=%lu, tseq=%lu, obj: " "syn=%u, ts=%u, blocks=%u, del=%u, bucket=%u, " "toff=%lu, seq=%lu, hwm_seqno=%lu", rec->syndrome, mcd_osd_lba_to_blk( rec->blocks), rec->deleted, rec->rbucket, (uint64_t) rec->blk_offset, (uint64_t) rec->old_offset, (uint64_t) rec->seqno, (ulong)rec->target_seqno, object->osyndrome, object->tombstone, mcd_osd_lba_to_blk( object->blocks), object->deleted, object->obucket, (uint64_t) obj_offset, (uint64_t) object->seqno, 0uL);
 				if (rec != orig_rec)
-					mcd_log_msg( 160272, PLAT_LOG_LEVEL_FATAL, "orig_rec: syn=%u, blocks=%u, del=%u, " "bucket=%u, boff=%lu, ooff=%lu, seq=%lu, " "tseq=%lu", orig_rec->syndrome, mcd_osd_lba_to_blk( orig_rec->blocks), orig_rec->deleted, orig_rec->rbucket, orig_rec->blk_offset, orig_rec->old_offset, (uint64_t) orig_rec->seqno, (ulong)orig_rec->target_seqno);
+					mcd_log_msg( 160272, PLAT_LOG_LEVEL_FATAL, "orig_rec: syn=%u, blocks=%u, del=%u, " "bucket=%u, boff=%lu, ooff=%lu, seq=%lu, " "tseq=%lu", orig_rec->syndrome, mcd_osd_lba_to_blk( orig_rec->blocks), orig_rec->deleted, orig_rec->rbucket, (uint64_t) orig_rec->blk_offset, (uint64_t) orig_rec->old_offset, (uint64_t) orig_rec->seqno, (ulong)orig_rec->target_seqno);
 				plat_abort();
 			}
 		}
@@ -3825,9 +3825,9 @@ reapply:
 			and (object->osyndrome == 0)
 			and (object->tombstone == 0)
 			and (object->seqno == 0)) {
-				mcd_log_msg( 160271, PLAT_LOG_LEVEL_FATAL, "rec: syn=%u, blocks=%u, del=%u, bucket=%u, " "boff=%lu, ooff=%lu, seq=%lu, tseq=%lu, obj: " "syn=%u, ts=%u, blocks=%u, del=%u, bucket=%u, " "toff=%lu, seq=%lu, hwm_seqno=%lu", rec->syndrome, mcd_osd_lba_to_blk( rec->blocks), rec->deleted, rec->rbucket, rec->blk_offset, rec->old_offset, (uint64_t) rec->seqno, (ulong)rec->target_seqno, object->osyndrome, object->tombstone, mcd_osd_lba_to_blk( object->blocks), object->deleted, object->obucket, obj_offset, (uint64_t) object->seqno, 0uL);
+				mcd_log_msg( 160271, PLAT_LOG_LEVEL_FATAL, "rec: syn=%u, blocks=%u, del=%u, bucket=%u, " "boff=%lu, ooff=%lu, seq=%lu, tseq=%lu, obj: " "syn=%u, ts=%u, blocks=%u, del=%u, bucket=%u, " "toff=%lu, seq=%lu, hwm_seqno=%lu", rec->syndrome, mcd_osd_lba_to_blk( rec->blocks), rec->deleted, rec->rbucket, (uint64_t) rec->blk_offset, (uint64_t) rec->old_offset, (uint64_t) rec->seqno, (ulong)rec->target_seqno, object->osyndrome, object->tombstone, mcd_osd_lba_to_blk( object->blocks), object->deleted, object->obucket, obj_offset, (uint64_t) object->seqno, 0uL);
 				if (rec != orig_rec)
-					mcd_log_msg( 160272, PLAT_LOG_LEVEL_FATAL, "orig_rec: syn=%u, blocks=%u, del=%u, " "bucket=%u, boff=%lu, ooff=%lu, seq=%lu, " "tseq=%lu", orig_rec->syndrome, mcd_osd_lba_to_blk( orig_rec->blocks), orig_rec->deleted, orig_rec->rbucket, orig_rec->blk_offset, orig_rec->old_offset, (uint64_t) orig_rec->seqno, (ulong)orig_rec->target_seqno);
+					mcd_log_msg( 160272, PLAT_LOG_LEVEL_FATAL, "orig_rec: syn=%u, blocks=%u, del=%u, " "bucket=%u, boff=%lu, ooff=%lu, seq=%lu, " "tseq=%lu", orig_rec->syndrome, mcd_osd_lba_to_blk( orig_rec->blocks), orig_rec->deleted, orig_rec->rbucket, (uint64_t) orig_rec->blk_offset, (uint64_t) orig_rec->old_offset, (uint64_t) orig_rec->seqno, (ulong)orig_rec->target_seqno);
 				plat_abort();
 			}
 		}

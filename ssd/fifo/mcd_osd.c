@@ -3293,7 +3293,7 @@ mcd_osd_slab_shard_init( mcd_osd_shard_t * shard, uint64_t shard_id,
     int                    i, j;
     int                    blksize;
     int                    max_segments;
-    int                    bitmap_size;
+ //   int                    bitmap_size;
     uint64_t               total_alloc = 0;
     uint64_t             * bitmaps[5] = {NULL, NULL, NULL, NULL, NULL};
     mcd_osd_segment_t    * segments = NULL;
@@ -4254,7 +4254,7 @@ mcd_fth_osd_slab_alloc( void * context, mcd_osd_shard_t * shard, int blocks,
     int                         i, idx, seg_count;
     mcd_osd_segment_t         * segment;
     mcd_osd_slab_class_t* class = shard->slab_classes + shard->class_table[blocks];
-    osd_state_t               * osd_state = (osd_state_t *)context;
+  //  osd_state_t               * osd_state = (osd_state_t *)context;
 
     if(count < 2 && mcd_fth_osd_get_free_slab(shard, class, blk_offset))
         return 1;
@@ -6604,7 +6604,7 @@ mcd_osd_flash_get( struct ssdaio_ctxt * pctxt, struct shard * shard,
                         char ** dataPtr, int flags )
 {
     int                         ret;
-    uint64_t                    syndrome;
+    uint64_t                    syndrome = 0;
     SDF_size_t                  actual_size = 0;
     osd_state_t               * osd_state = (osd_state_t *)pctxt;
     mcd_osd_shard_t           * mcd_shard = (mcd_osd_shard_t *)shard;
@@ -6809,7 +6809,7 @@ mcd_osd_flash_put( struct ssdaio_ctxt * pctxt, struct shard * shard,
 {
     int                         ret;
     int                         window = 0;
-    uint64_t                    syndrome;
+    uint64_t                    syndrome = 0;
     osd_state_t               * osd_state = (osd_state_t *)pctxt;
     mcd_osd_shard_t           * mcd_shard = (mcd_osd_shard_t *)shard;
 
@@ -8073,7 +8073,8 @@ mcd_osd_raw_get( osd_state_t     *osd_state,
 		 uint64_t curr_seq, 
 		 int num_sessions )
 {
-    int                         i, rc;
+    int                         i =0;
+   	int		rc;
     int                         map_offset;
     uint64_t                    tmp_offset;
     uint64_t                    map_value;

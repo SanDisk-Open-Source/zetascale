@@ -187,7 +187,7 @@ typedef struct shard shard_t;
 
 struct flashDev *flashOpen(char *name, flash_settings_t *flash_settings, int flags);
 void flashClose(struct flashDev *dev);
-struct shard *shardCreate(struct flashDev *dev, uint64_t shardID, int flags, uint64_t quota, unsigned maxObjs);
+struct shard *shardCreate(struct flashDev *dev, uint64_t shardID, int flags, uint64_t quota, uint64_t maxObjs);
 struct shard *shardOpen(struct flashDev *dev, uint64_t shardID);
 void shardFree(struct shard *);
 void shardAttributes(struct shard *shard, int *p_flags, uint64_t *p_quota, unsigned *p_maxObjs);
