@@ -230,22 +230,6 @@ mcd_rec2_shutdown( mcd_osd_shard_t *s)
 
 
 /*
- * standard slab region in 32MB segments
- *
- * In Storm mode, the standard slab system is constrained to the first part
- * of the slab region, while the remainder is managed by the raw slab system.
- *
- * Valid for Storm Mode only.
- */
-ulong
-mcd_rec2_standard_slab_segments( ulong bytes_per_shard)
-{
-
-	return (divideup( bytes_per_shard, bytes_per_segment));
-}
-
-
-/*
  * size of one log in bytes
  *
  * Valid for Storm Mode only.
@@ -263,19 +247,37 @@ mcd_rec2_log_size( ulong bytes_per_shard)
 
 /*
  * initialize the POT cache
+ *
+ * Cache is filled and pinned as directed by the POT bitmap.  A cache page
+ * contains the POT elements necessary to describe one segment of slabs.
+ * Note that one POT element exists for each device block.  Return 0 on
+ * memory exhaustion, abort on read error.
  */
 bool
-mcd_rec2_potcache_init( mcd_osd_shard_t *s)
+mcd_rec2_potcache_init( mcd_osd_shard_t *s, osd_state_t *context)
 {
 
 	if (flash_settings.storm_mode) {
+		mcd_rec_log_t *l = s->log;
 		uint npage = divideup( s->total_blks, device_blocks_per_segment);
 		size_t nbyte = npage * sizeof( mcd_rec_flash_object_t *);
-		s->log->potcachesize = 0;
-		unless (s->log->potcache = malloc( nbyte))
+		l->potcachesize = 0;
+		unless (l->potcache = malloc( nbyte))
 			return (nomem( ));
-		memset( s->log->potcache, 0, nbyte);
-		s->log->potcachesize = npage;
+		memset( l->potcache, 0, nbyte);
+		l->potcachesize = npage;
+		const mcd_rec_flash_object_t **c = l->potcache;
+		for (ulong page=0; page<l->potcachesize; ++page)
+			if (mcd_rec2_potbitmap_query( s, page)) {
+				ulong o = pot_base( s->pshard) + page*bytes_per_page;
+				mcd_rec_flash_object_t *e = memalign( MCD_OSD_META_BLK_SIZE, bytes_per_page);
+				unless (e)
+					return ((void *)nomem( ));
+				int rc = mcd_fth_aio_blk_read( context, (char *)e, o, bytes_per_page);
+				if (rc)
+					readerror( rc);
+				c[page] = e;
+			}
 	}
 	return (TRUE);
 }
@@ -284,7 +286,7 @@ mcd_rec2_potcache_init( mcd_osd_shard_t *s)
 /*
  * save active POT pages to flash
  *
- * Returns FALSE on write error.
+ * Aborts on write error.
  */
 bool
 mcd_rec2_potcache_save( mcd_osd_shard_t *s, void *context)
@@ -309,40 +311,30 @@ mcd_rec2_potcache_save( mcd_osd_shard_t *s, void *context)
 /*
  * return address of POT element given by device blkno
  *
- * Cache is filled and pinned as needed.  A cache page is sized to
- * span one segment.  This access triggers an update to the POT bitmap.
- * Note that one POT element exists for each device block.  Return 0 on
- * read error or memory exhaustion.
+ * The POT bitmap indicates the active pages of the POT.  Since the POT cache
+ * is preloaded on startup, newly active pages are empty by definition and
+ * can, therefore, by zeroed rather than read from flash.  This optimization
+ * is actually mandatory because, in Storm Mode, the POT is not cleared at
+ * time of flash format, and is likely filled with debris.
  *
- * Option 'zero' means an uncached page is defined as zero, and is NOT to be
- * read from flash.  (In Storm Mode, the POT is not cleared on flash format,
- * resulting in faster initialization.)
+ * Return 0 on memory exhaustion.
  */
 mcd_rec_flash_object_t	*
-mcd_rec2_potcache_access( mcd_osd_shard_t *s, void *context, ulong blkno, bool zero)
+mcd_rec2_potcache_access( mcd_osd_shard_t *s, void *context, ulong blkno)
 {
 
-	uint cache_page = blkno / device_blocks_per_segment;
+	uint page = blkno / device_blocks_per_segment;
 	mcd_rec_log_t *l = s->log;
 	mcd_rec_flash_object_t **c = l->potcache;
-	unless (c[cache_page]) {
+	unless (c[page]) {
 		mcd_rec_flash_object_t *e = memalign( MCD_OSD_META_BLK_SIZE, bytes_per_page);
 		unless (e)
 			return ((void *)nomem( ));
-		if (zero)
-			memset( e, 0, bytes_per_page);
-		else {
-			mcd_rec_shard_t *p = s->pshard;
-			ulong o = pot_base( p);
-			o += cache_page * bytes_per_page;
-			int rc = mcd_fth_aio_blk_read( context, (char *)e, o, bytes_per_page);
-			if (rc)
-				readerror( rc);
-		}
-		mcd_rec2_potbitmap_set( s, cache_page);
-		c[cache_page] = e;
+		memset( e, 0, bytes_per_page);
+		mcd_rec2_potbitmap_set( s, page);
+		c[page] = e;
 	}
-	return (&c[cache_page][blkno%device_blocks_per_segment]);
+	return (&c[page][blkno%device_blocks_per_segment]);
 }
 
 
@@ -364,7 +356,7 @@ mcd_rec2_potbitmap_size( ulong bytes_per_shard)
 /*
  * load POT bitmap from flash
  *
- * Returns FALSE on read error, or memory exhaustion.
+ * Aborts on read errors, returns FALSE on other errors.
  */
 bool
 mcd_rec2_potbitmap_load( mcd_osd_shard_t *s, void *context)
@@ -397,7 +389,7 @@ mcd_rec2_potbitmap_load( mcd_osd_shard_t *s, void *context)
 /*
  * save POT bitmap to flash
  *
- * Returns FALSE on write error.
+ * Aborts on write error.
  */
 bool
 mcd_rec2_potbitmap_save( mcd_osd_shard_t *s, void *context)
@@ -419,32 +411,36 @@ mcd_rec2_potbitmap_save( mcd_osd_shard_t *s, void *context)
 
 
 /*
- * set specified bit 'n' in the POT bitmap
+ * set bit in the POT bitmap
  *
- * Value of 'n' is interpreted to be an active segment, and the corresponding
- * POT page will be scanned on future restarts.
+ * Segment 'n' is marked as active, and the corresponding POT page will be
+ * loaded on future restarts.
  */
 void
 mcd_rec2_potbitmap_set( mcd_osd_shard_t *s, uint n)
 {
 
-	if (flash_settings.storm_mode)
-		((potbm_t *)s->log->potbm)->bits[bitbase( n)] |= bitmask( n);
+	potbm_t *potbm = s->log->potbm;
+	if ((flash_settings.storm_mode)
+	and (n < potbm->nbit))
+		potbm->bits[bitbase( n)] |= bitmask( n);
 }
 
 
 /*
- * query bit 'n' in the POT bitmap
+ * query bit in the POT bitmap
  *
- * Value of 'n' is interpreted to be an active segment.
+ * If 'n' is not a valid segment number, return FALSE.
  */
 bool
 mcd_rec2_potbitmap_query( mcd_osd_shard_t *s, uint n)
 {
 
-	unless (flash_settings.storm_mode)
+	potbm_t *potbm = s->log->potbm;
+	unless ((flash_settings.storm_mode)
+	and (n < potbm->nbit))
 		return (FALSE);
-	return (((potbm_t *)s->log->potbm)->bits[bitbase( n )] & bitmask( n));
+	return (potbm->bits[bitbase( n)] & bitmask( n));
 }
 
 
@@ -469,7 +465,7 @@ mcd_rec2_slabbitmap_size( ulong bytes_per_shard)
 /*
  * load slab bitmap from flash
  *
- * Returns FALSE on read error, or memory exhaustion.
+ * Aborts on read errors, returns FALSE on other errors.
  */
 bool
 mcd_rec2_slabbitmap_load( mcd_osd_shard_t *s, void *context)
@@ -1150,7 +1146,7 @@ recover( mcd_osd_shard_t *s, osd_state_t *context, char **buf_segments)
 			ulong bno = 0;
 			while (bno < device_blocks_per_segment) {
 				const ulong blk_offset = i*device_blocks_per_segment + bno;
-				const mcd_rec_flash_object_t *e = mcd_rec2_potcache_access( s, context, blk_offset, FALSE);
+				const mcd_rec_flash_object_t *e = mcd_rec2_potcache_access( s, context, blk_offset);
 				unless (e)
 					plat_abort( );
 				if ((e->blocks)
@@ -1248,7 +1244,7 @@ updater_thread2( void *arg)
 	}
 	unless ((mcd_rec2_slabbitmap_load( s, context))
 	and (mcd_rec2_potbitmap_load( s, context))
-	and (mcd_rec2_potcache_init( s)))
+	and (mcd_rec2_potcache_init( s, context)))
 		plat_abort( );
 	mcd_rec_log_t *log = s->log;
 	int real_log = -1;
@@ -1259,9 +1255,7 @@ updater_thread2( void *arg)
 	log->updater_started = 1;
 	loop {
 		mcd_rec_update_t *mail = (mcd_rec_update_t *)fthMboxWait( &log->update_mbox);
-		if (mail == 0)
-			printf( "mail = %p\n", mail);
-		if (mail == 0)
+		unless (mail)
 			break;
 		if (mail->log == -1) {
 			if (mail->updated_mbox)
@@ -1313,7 +1307,7 @@ apply_log_record_mp_storm( mcd_rec_obj_state_t *state, mcd_logrec_object_t *rec)
 			slab_bitmap_clear( s, rec->blk_offset);
 		return (1);
 	}
-	mcd_rec_flash_object_t *e = mcd_rec2_potcache_access( s, state->context, rec->blk_offset, TRUE);
+	mcd_rec_flash_object_t *e = mcd_rec2_potcache_access( s, state->context, rec->blk_offset);
 	if (rec->blocks) {
 		unless (state->in_recovery) {
 			unless ((e->blocks == 0)
@@ -1333,7 +1327,7 @@ apply_log_record_mp_storm( mcd_rec_obj_state_t *state, mcd_logrec_object_t *rec)
 		e->seqno = rec->seqno;
 		e->tombstone = 0;
 		if (rec->old_offset)
-			delete_object( mcd_rec2_potcache_access( s, state->context, ~ rec->old_offset, TRUE));
+			delete_object( mcd_rec2_potcache_access( s, state->context, ~ rec->old_offset));
 	}
 	else {
 		unless (state->in_recovery) {

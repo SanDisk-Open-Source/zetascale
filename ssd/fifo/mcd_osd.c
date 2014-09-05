@@ -3218,18 +3218,6 @@ static __attribute__((unused)) int mcd_osd_slab_init();
 static mcd_osd_shard_t  Mcd_osd_slab_shard;
 
 
-static inline uint64_t *
-get_bitmaps( int bitmap_size, int initializer )
-{
-    uint64_t                  * bitmaps;
-
-    bitmaps = (uint64_t *)plat_alloc_large( bitmap_size );
-    if ( NULL != bitmaps ) {
-        memset( (void *)bitmaps, initializer, bitmap_size );
-    }
-    return bitmaps;
-}
-
 static int
 mcd_osd_slab_shard_init_free_segments( mcd_osd_shard_t * shard )
 {
@@ -3350,36 +3338,6 @@ mcd_osd_slab_shard_init( mcd_osd_shard_t * shard, uint64_t shard_id,
     mcd_log_msg( 40111, PLAT_LOG_LEVEL_TRACE,
                  "base segment table initialized, size=%lu",
                  max_segments * sizeof(mcd_osd_segment_t) );
-
-#if 0
-    bitmap_size = Mcd_osd_segment_blks / 8;
-    for ( j = 0; j < 1; j ++ ) {
-        bitmaps[j] = get_bitmaps( max_segments * bitmap_size, 0);
-        if ( NULL == bitmaps[j] ) {
-            mcd_log_msg( 20340, PLAT_LOG_LEVEL_ERROR,
-                         "failed to allocate segment bitmaps[%d]", j );
-            goto out_failed;
-        }
-        total_alloc += max_segments * bitmap_size;
-    }
-    mcd_log_msg( 40112, PLAT_LOG_LEVEL_TRACE,
-                 "bitmaps initialized, size=%d, bitmap_size=%d, total=%d",
-                 bitmap_size, max_segments * bitmap_size,
-                 5 * max_segments * bitmap_size );
-
-    for ( j = 0; j < max_segments; j++ ) {
-        segments[j].mos_bitmap =
-            (uint64_t *)( (char *)bitmaps[0] + ( j * bitmap_size ) );
-        segments[j].update_map =
-            (uint64_t *)( (char *)bitmaps[1] + ( j * bitmap_size ) );
-        segments[j].update_map_s =
-            (uint64_t *)( (char *)bitmaps[2] + ( j * bitmap_size ) );
-        segments[j].alloc_map =
-            (uint64_t *)( (char *)bitmaps[3] + ( j * bitmap_size ) );
-        segments[j].alloc_map_s =
-            (uint64_t *)( (char *)bitmaps[4] + ( j * bitmap_size ) );
-    }
-#endif
 
     shard->base_segments = segments;
 
@@ -4478,8 +4436,8 @@ mcd_fth_osd_slab_set( void * context, mcd_osd_shard_t * shard,
         log_rec.deleted      = 0;
         log_rec.reserved     = 0;
         log_rec.blocks       = 0;
-        log_rec.rbucket       = 0;
-        log_rec.blk_offset   = 0xffffffffu; // marks this record
+        log_rec.rbucket      = 0;
+        log_rec.blk_offset   = 0xFFFFFFFFFFFF;	// CAS
         log_rec.old_offset   = 0;
         log_rec.cntr_id      = 0;
         log_rec.seqno        = 0;
@@ -5064,8 +5022,8 @@ mcd_fth_osd_slab_write_raw( void * context, mcd_osd_shard_t * shard,
         log_rec.deleted      = 0;
         log_rec.reserved     = 0;
         log_rec.blocks       = 0;
-        log_rec.rbucket       = 0;
-        log_rec.blk_offset   = 0xffffffffu; // marks this record
+        log_rec.rbucket      = 0;
+        log_rec.blk_offset   = 0xFFFFFFFFFFFF;	// CAS
         log_rec.old_offset   = 0;
         log_rec.cntr_id      = 0;
         log_rec.seqno        = 0;

@@ -22,7 +22,7 @@ ulong		mcd_rec2_standard_slab_segments( ulong),
 		mcd_rec2_potbitmap_size( ulong),
 		mcd_rec2_slabbitmap_size( ulong);
 bool		mcd_rec2_init( ulong),
-		mcd_rec2_potcache_init( mcd_osd_shard_t *),
+		mcd_rec2_potcache_init( mcd_osd_shard_t *, osd_state_t *),
 		mcd_rec2_potcache_save( mcd_osd_shard_t *, void *),
 		mcd_rec2_potbitmap_load( mcd_osd_shard_t *, void *),
 		mcd_rec2_potbitmap_save( mcd_osd_shard_t *, void *),
