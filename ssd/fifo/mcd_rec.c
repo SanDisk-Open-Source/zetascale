@@ -2817,10 +2817,10 @@ shard_recover( mcd_osd_shard_t * shard )
 				if (class->segments[ c_seg ]->mos_bitmap == NULL) {
 					class->segments[ c_seg ]->mos_bitmap = plat_alloc((class->slabs_per_segment + 7) / 8);
 					memset(class->segments[c_seg]->mos_bitmap, 0, (class->slabs_per_segment + 7)/ 8);
-					if (__zs_check_mode_on) {
+//					if (__zs_check_mode_on) {
 						class->segments[ c_seg ]->check_map = plat_alloc((class->slabs_per_segment + 7) / 8);
 						memset(class->segments[c_seg]->check_map, 0, (class->slabs_per_segment + 7)/ 8);
-					}
+//					}
 				}
 
                 // Note: bitmap rebuilt with hash table, initialize it here

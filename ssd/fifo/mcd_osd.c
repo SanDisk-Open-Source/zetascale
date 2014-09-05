@@ -4225,7 +4225,6 @@ compare_space_maps(mcd_osd_shard_t *shard)
 	bool res = true;
 	mcd_osd_segment_t *segment = NULL;
 	mcd_osd_slab_class_t *class = NULL;
-	uint64_t bitmap_size = (class->slabs_per_segment + 7)/ 8;
 
 	if (!__zs_check_mode_on) {
 		mcd_log_msg(160281, 
@@ -4237,6 +4236,8 @@ compare_space_maps(mcd_osd_shard_t *shard)
 	for (i = 0; i < MCD_OSD_MAX_NCLASSES; i++) {
 		class = &shard->slab_classes[i];
 		for (j = 0; j < class->num_segments; j++) {
+			uint64_t bitmap_size = (class->slabs_per_segment + 7)/ 8;
+
 			segment = class->segments[j];
 			mcd_osd_segment_lock(class, segment);
 			if (memcmp(segment->mos_bitmap, segment->check_map, bitmap_size) != 0) {
