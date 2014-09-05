@@ -3435,6 +3435,9 @@
 160277 recovered segment[%lu]: blk_offset=%lu
 160278 Invalid key argument
 160279 object size doesn't match slab size, blocks=%d, slab=%d
+160280 ZS_CHECK_MODE = %d.\n
+160281 Cannot do space check in notmal mode.\n
+160282 Failed space consistency check for segment = %d, class_size = %d blks.\n
 
 
 # rico

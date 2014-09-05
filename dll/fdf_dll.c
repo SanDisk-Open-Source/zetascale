@@ -343,6 +343,9 @@ ZS_status_t
 (*ptr_ZSCheckBtree) (struct ZS_thread_state *zs_thread_state, 
 	       ZS_cguid_t cguid);
 
+ZS_status_t
+(*ptr_ZSCheck) (struct ZS_thread_state *zs_thread_state);
+
 static ZS_status_t
 (*ptr_ZSDeleteContainerSnapshot)(
 	struct ZS_thread_state	*zs_thread_state,
@@ -483,6 +486,7 @@ static struct {
     { "ZSMPut",          	      	   &ptr_ZSMPut			},
     { "ZSRangeUpdate",		       	   &ptr_ZSRangeUpdate		},
     { "ZSCheckBtree",		       	   &ptr_ZSCheckBtree		},
+    { "ZSCheck",		       	   &ptr_ZSCheck		},
     { "ZSIoctl",		       		   &ptr_ZSIoctl       },
     { "ZSScavenger",                  &ptr_ZSScavenger                 },
     { "ZSScavengeContainer",          &ptr_ZSScavengeContainer         },
@@ -1578,6 +1582,16 @@ ZSCheckBtree(struct ZS_thread_state *zs_thread_state,
         undefined("ZSCheckBtree");
 
     return (*ptr_ZSCheckBtree) (zs_thread_state, cguid);
+}
+
+ZS_status_t
+ZSCheck(struct ZS_thread_state *zs_thread_state)
+{
+
+    if (unlikely(!ptr_ZSCheck))
+        undefined("ZSCheck");
+
+    return (*ptr_ZSCheck) (zs_thread_state);
 }
 
 ZS_status_t

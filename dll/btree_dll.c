@@ -253,6 +253,9 @@ ZS_status_t
 	       ZS_cguid_t cguid);
 
 ZS_status_t
+(*ptr_ZSCheck) (struct ZS_thread_state *zs_thread_state);
+
+ZS_status_t
 (*ptr_ZSIoctl)(struct ZS_thread_state *zs_thread_state, 
          ZS_cguid_t cguid,
          uint32_t ioctl_type,
@@ -398,6 +401,7 @@ static struct {
     { "_ZSMPut",                       &ptr_ZSMPut                      },
     { "_ZSRangeUpdate",                &ptr_ZSRangeUpdate               },
     { "_ZSCheckBtree",                 &ptr_ZSCheckBtree                },
+    { "_ZSCheck",                 	&ptr_ZSCheck	                },
     { "_ZSIoctl",                      &ptr_ZSIoctl                     },
     { "_ZSCreateContainerSnapshot",    &ptr_ZSCreateContainerSnapshot   },
     { "_ZSDeleteContainerSnapshot",    &ptr_ZSDeleteContainerSnapshot   },
@@ -1480,6 +1484,18 @@ ZSCheckBtree(struct ZS_thread_state *zs_thread_state,
     return (*ptr_ZSCheckBtree) (zs_thread_state, cguid);
 }
 
+/*
+ * ZSCheck: internal api for testing purpose.
+ */
+ZS_status_t
+ZSCheck(struct ZS_thread_state *zs_thread_state)
+{
+
+    if (unlikely(!ptr_ZSCheck))
+        undefined("ZSCheck");
+
+    return (*ptr_ZSCheck) (zs_thread_state, cguid);
+}
 
 /*
  * ZSIoctl

@@ -52,6 +52,7 @@
 
 struct cmap;
 extern int astats_done;
+extern int __zs_check_mode_on;
 //extern int bt_storm_mode;
 
 static char Create_Data[MAX_NODE_SIZE];
@@ -195,6 +196,9 @@ _ZSRangeUpdate(struct ZS_thread_state *zs_thread_state,
 ZS_status_t
 _ZSCheckBtree(struct ZS_thread_state *zs_thread_state, 
 	       ZS_cguid_t cguid);
+
+ZS_status_t
+_ZSCheck(struct ZS_thread_state *zs_thread_state);
 
 ZS_status_t _ZSScavengeContainer(struct ZS_state *zs_state, ZS_cguid_t cguid);
 ZS_status_t ZSStartAstats(struct ZS_state *zs_state, ZS_cguid_t cguid);
@@ -2201,6 +2205,14 @@ ZS_status_t _ZSWriteObject(
     struct btree     *bt;
 	int				  index;
 
+    if (__zs_check_mode_on) {
+	/*
+	 * We are in checker mode so do not allow any new
+	 * write or update in objects.
+	 */
+	return ZS_FAILURE_OPERATION_DISALLOWED;	
+    }   
+
     my_thd_state = zs_thread_state;;
 
 	if (bt_is_license_valid() == false) {
@@ -3454,6 +3466,14 @@ _ZSMPut(struct ZS_thread_state *zs_ts,
 	int		index;
         uint64_t flash_space_used;
 
+	if (__zs_check_mode_on) {
+		/*
+		 * We are in checker mode so do not allow any new
+		 * write or update in objects.
+		 */
+		return ZS_FAILURE_OPERATION_DISALLOWED;	
+	}   
+
 	my_thd_state = zs_ts;;
 
 	if (bt_is_license_valid() == false) {
@@ -3563,6 +3583,110 @@ _ZSCheckBtree(struct ZS_thread_state *zs_thread_state,
 	bt_rel_entry(index, false);
 	return ret;
 }
+
+static ZS_status_t 
+check_hash_cont(struct ZS_thread_state *thd_state, ZS_cguid_t cguid)
+{
+		
+	ZS_status_t status = ZS_SUCCESS;
+	struct ZS_iterator *iterator = NULL;
+	char *key = NULL;
+	uint32_t keylen = 0;
+	uint64_t datalen = 0;
+	char *data = NULL;
+
+	status = ZSEnumerateContainerObjects(thd_state, cguid, &iterator);
+
+	while ((status = ZSNextEnumeratedObject(thd_state, iterator, 
+				      &key, &keylen, &data, &datalen)) == ZS_SUCCESS) {
+
+		ZSFreeBuffer(key);
+		ZSFreeBuffer(data);
+	}
+	
+	return ZS_SUCCESS;
+}
+
+/*
+ * _ZSCheck: internal api for testing purpose.
+ */
+#define MAX_CONTS 65000
+ZS_status_t
+_ZSCheck(struct ZS_thread_state *zs_thread_state)
+{
+	uint32_t nconts = 0;
+	ZS_cguid_t *cguids = NULL;
+	ZS_cguid_t cguid = 0;
+	ZS_container_props_t props = {0};
+	ZS_status_t status = ZS_SUCCESS;
+	int i = 0;
+
+	if (!__zs_check_mode_on) {
+		return ZS_FAILURE_OPERATION_DISALLOWED;	
+	}
+
+	cguids = btree_malloc(sizeof(ZS_cguid_t) * MAX_CONTS);
+	assert(cguids);
+	
+	/*
+	 * Check containers 
+	 */
+	status = ZSGetContainers(zs_thread_state, cguids, &nconts);
+
+	msg("Running Data consistency checker on %d containers.\n", nconts);
+
+	for (i = 0; i < nconts; i++) {
+
+		status = ZSGetContainerProps(zs_thread_state, cguids[i], &props);
+		if (status != ZS_SUCCESS) {
+			goto out;
+		}
+
+		/*
+		 * Cont check cont to be open.
+		 */
+		status = _ZSOpenContainer(zs_thread_state, props.name, &props,
+					 ZS_CTNR_RW_MODE, &cguid);
+		if (status != ZS_SUCCESS) {
+			goto out;
+		}
+
+		if (IS_ZS_HASH_CONTAINER(props.flags) == true) {
+			/*
+			 * It is hash containers, so check all objs by enumeration.
+			 */
+			status = check_hash_cont(zs_thread_state, cguids[i]);
+			if (status != ZS_SUCCESS) {
+				goto out; 
+			}
+		} else {
+			/*
+			 * If btree container, then check btre
+			 */
+			status = _ZSCheckBtree(zs_thread_state, cguids[i]);
+			if (status != ZS_SUCCESS) {
+				goto out;
+			}
+		}
+
+		msg("Data Conssitency check PASSED for cguid %d.\n", cguids[i]);
+	}
+
+	/*
+	 * Call space check
+	 */
+	status = ZSCheckSpace(zs_thread_state);
+
+out:
+	if (cguids) {
+		btree_free(cguids);	
+	}
+	return status;
+}
+
+
+
+
 #if 0
 
 #define NUM_IN_CHUNK 500
@@ -4296,6 +4420,7 @@ seqnoalloc( struct ZS_thread_state *t)
 		unless (initialized) {
 			memset( &p, 0, sizeof p);
 			p.durability_level = ZS_DURABILITY_HW_CRASH_SAFE;
+			p.flags = 1; //hash cont
 			switch (s = ZSOpenContainer( t, SEQNO_CONTAINER, &p, 0, &c)) {
 			case ZS_SUCCESS:
 				if ((ZSReadObject( t, c, SEQNO_KEY, sizeof SEQNO_KEY, &data, &dlen) == ZS_SUCCESS)

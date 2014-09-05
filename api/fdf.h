@@ -1847,6 +1847,13 @@ FDFOperationAllowed( void );
 #endif
 
 
+ZS_status_t
+ZSCheck(struct ZS_thread_state *zs_thread_state);
+ZS_status_t
+ZSCheckSpace(struct ZS_thread_state *zs_thread_state);
+
+
+
 #if 0
 /*********************************************************
  *

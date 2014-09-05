@@ -108,6 +108,7 @@ typedef struct mcd_osd_segment {
     uint64_t                  * update_map_s;
     uint64_t                  * alloc_map;
     uint64_t                  * alloc_map_s;
+    uint64_t                  * check_map;
     uint64_t                  * refmap;
     struct mcd_osd_slab_class * class;
 } mcd_osd_segment_t;
@@ -629,6 +630,9 @@ extern uint32_t mcd_osd_get_lba_minsize( void );
 // extern void * mcd_fth_osd_iobuf_alloc( size_t size, bool is_static );
 
 extern void mcd_fth_osd_iobuf_free( void * buf );
+
+//extern void update_check_maps(mcd_osd_shard_t *shard, uint64_t blk_offset);
+extern bool mcd_osd_cmp_space_maps(struct shard *shard);
 
 struct shard;
 

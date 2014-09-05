@@ -8026,6 +8026,48 @@ void btree_dump_stats(FILE *f, btree_stats_t *stats)
 /*
  * Functions related to btree consistency check.
  */
+
+static bool
+btree_check_oflow_chain(btree_raw_t *btree, uint64_t datalen, uint64_t ptr)
+{
+	uint64_t nbytes = datalen;
+	uint64_t next = ptr;
+	uint64_t copybytes = 0;
+	btree_raw_mem_node_t *node = NULL;
+	btree_status_t ret = BTREE_SUCCESS;
+	bool res = true;
+	uint64_t ovdatasize =  get_data_in_overflownode(btree);
+
+	/*
+	 * Go through the overflow chain untill we get full objects or a break.
+	 */	
+	while(nbytes > 0 && (next != BAD_CHILD)) {
+
+		node = get_existing_overflow_node_low(&ret, btree, next, false, false, false);
+		if (!node) {
+			res = false;
+			goto exit;
+		}
+		
+		copybytes = nbytes >= ovdatasize ? ovdatasize : nbytes;
+		nbytes -= copybytes;
+
+		next = node->pnode->next;
+
+		deref_l1cache_node(btree, node);
+	}
+
+	/*
+	 * We could not read the full object and got end of chain.
+	 */
+	if (nbytes > 0 && (next == BAD_CHILD)) {
+		res = false;
+	}
+
+exit:
+	return res;
+}
+
 bool 
 btree_raw_node_check(btree_raw_t *btree, btree_raw_node_t *node,
 		  char *left_anchor_key, uint32_t left_anchor_keylen,
@@ -8039,6 +8081,7 @@ btree_raw_node_check(btree_raw_t *btree, btree_raw_node_t *node,
 	int x = 0;
 	bool leaf_node = is_leaf(btree, node);
 	uint64_t prev_key_seqno = 0;
+	bool res = true;
 
 	/*
 	 * for all keys, check keys are in order and withing the anchor keys range
@@ -8058,7 +8101,7 @@ btree_raw_node_check(btree_raw_t *btree, btree_raw_node_t *node,
 				 * Left anchor key is greater than the current key.
 				 */
 				assert(0);
-				return false;
+				res = false;
 			}
 		}
 
@@ -8071,7 +8114,8 @@ btree_raw_node_check(btree_raw_t *btree, btree_raw_node_t *node,
 				 * Right anchor key is less than the current key.
 				 */
 				assert(0);
-				return false;
+				res = false;
+				goto exit;
 			}
 		}
 		
@@ -8088,13 +8132,26 @@ btree_raw_node_check(btree_raw_t *btree, btree_raw_node_t *node,
 				 * previous key is greater than the current key.
 				 */
 				assert(0);
-				return false;
+				res = false;
+				goto exit;
 			}
 
 			if (x == 0 && prev_key_seqno < key_info.seqno) {
 				assert(0);
-				return false;
+				res = false;
+				goto exit;
 			}
+		}
+
+		/*
+		 * if it is leaf node and key has big object, then read the overflow chain.
+		 */
+		if (leaf_node && big_object_kd(btree, key_info.keylen, key_info.datalen)) {
+			res = btree_check_oflow_chain(btree, key_info.datalen, key_info.ptr);	
+			if (res == false) {
+				goto exit;
+			}
+
 		}
 
 		if (prev_keylen != 0 && leaf_node) {
@@ -8113,10 +8170,8 @@ btree_raw_node_check(btree_raw_t *btree, btree_raw_node_t *node,
 	}
 	prev_keylen = 0;
 
-	/*
-	 * Everything went fine in check.
-	 */
-	return true;
+exit:
+	return res;
 }
 
 bool

@@ -142,6 +142,7 @@ extern int 			 			 Mcd_osd_max_nclasses;
 extern SDF_cmc_t 				*theCMC;
 extern uint64_t 	 			 Mcd_num_pending_ios;
 extern struct SDF_shared_state 	 sdf_shared_state;
+extern int __zs_check_mode_on;
 
 extern int loadProperties(
 	const char *path_arg;
@@ -2168,6 +2169,12 @@ ZS_status_t ZSInitVersioned(
     mcd_log_msg( 20131, PLAT_LOG_LEVEL_TRACE,
                  "next container id %lu", Mcd_next_cntr_id );
 #endif
+
+	__zs_check_mode_on = getProperty_Int("ZS_CHECK_MODE", 0);
+
+	mcd_log_msg(160280, PLAT_LOG_LEVEL_FATAL, "ZS_CHECK_MODE = %d.\n", __zs_check_mode_on);
+
+
 	Force_async_writes  = getProperty_Int("FORCE_ASYNC_WRITES", 0);
 	Enable_async_writes = getProperty_Int("ENABLE_ASYNC_WRITES", 0);
         /* Disabling Async writes permanently for now due to the following reasons
@@ -4441,9 +4448,10 @@ zs_get_containers_int(
 	    return ZS_FAILURE;
 
 	while ( zs_cmap_next_enum( iterator, &key, &keylen, (char **) &cmap, &cmaplen ) ) {
-		if ( cmap->cguid > LAST_PHYSICAL_CGUID  && 
-             strcmp( cmap->cname,SEQNO_CONTAINER_NAME ) &&
-             strcmp( cmap->cname,PSTATS_CONTAINER_NAME ) &&
+		if (cmap->cguid > LAST_PHYSICAL_CGUID  && 
+		   ((strcmp(cmap->cname,SEQNO_CONTAINER_NAME) &&
+		     strcmp(cmap->cname,PSTATS_CONTAINER_NAME)) || 
+		     __zs_check_mode_on) &&
              strncmp( cmap->cname,BTREE_DELETE_CONTAINER_NAME, strlen(BTREE_DELETE_CONTAINER_NAME) ) &&
 			 ( cmap->state == ZS_CONTAINER_STATE_CLOSED ||
 			   cmap->state == ZS_CONTAINER_STATE_OPEN )  ) {
@@ -7900,6 +7908,14 @@ ZSCheckBtree(struct ZS_thread_state *zs_thread_state,
 }
 
 ZS_status_t
+ZSCheck(struct ZS_thread_state *zs_thread_state)
+{
+
+	fprintf(stderr, "ZS: ZSCheck without btree is not supported\n");
+	return ZS_FAILURE;
+}
+
+ZS_status_t
 ZSIoctl(struct ZS_thread_state *zs_thread_state, 
          ZS_cguid_t cguid,
          uint32_t ioctl_type,
@@ -8062,6 +8078,41 @@ void zs_signal_handler(int signum) {
 	plat_exit(1); 
     }
 } 
+
+/*
+ * Function to check the allocated slabs.
+ */
+ZS_status_t
+zs_check_slab_space(struct ZS_thread_state *zs_thread_state)
+{
+
+	ZS_status_t status = ZS_SUCCESS;
+	SDF_cache_ctnr_metadata_t *meta = NULL;
+	SDF_action_init_t *pac = NULL;
+	bool res = false;
+
+	pac = (SDF_action_init_t *) zs_thread_state;
+
+	meta = get_container_metadata(pac, VDC_CGUID);
+	if (meta == NULL) {
+		status = ZS_FAILURE_CONTAINER_NOT_FOUND;
+		goto out;
+	}
+	
+	res = mcd_osd_cmp_space_maps(meta->pshard);
+	if (res == false) {
+		status = ZS_FAILURE;
+	}
+
+out:
+	return status;
+}
+
+ZS_status_t
+ZSCheckSpace(struct ZS_thread_state *zs_thread_state)
+{
+	return zs_check_slab_space(zs_thread_state);
+}
 
 ZS_status_t ZSDeleteRawObject(
 	struct ZS_thread_state		*zs_thread_state,
@@ -8565,7 +8616,3 @@ out:
 	}
 	return status; 
 }
-
-
-
-

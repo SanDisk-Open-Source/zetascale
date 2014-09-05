@@ -2604,6 +2604,7 @@ shard_recovery_stats( mcd_osd_shard_t * shard, char ** ppos, int * lenp )
     }
 }
 
+extern int __zs_check_mode_on;
 int
 shard_recover( mcd_osd_shard_t * shard )
 {
@@ -2815,6 +2816,11 @@ shard_recover( mcd_osd_shard_t * shard )
                 class->segments[ c_seg ]->idx      = c_seg;
 				if (class->segments[ c_seg ]->mos_bitmap == NULL) {
 					class->segments[ c_seg ]->mos_bitmap = plat_alloc((class->slabs_per_segment + 7) / 8);
+					memset(class->segments[c_seg]->mos_bitmap, 0, (class->slabs_per_segment + 7)/ 8);
+					if (__zs_check_mode_on) {
+						class->segments[ c_seg ]->check_map = plat_alloc((class->slabs_per_segment + 7) / 8);
+						memset(class->segments[c_seg]->check_map, 0, (class->slabs_per_segment + 7)/ 8);
+					}
 				}
 
                 // Note: bitmap rebuilt with hash table, initialize it here

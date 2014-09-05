@@ -77,6 +77,15 @@ extern int storm_mode;
 extern SDF_shardid_t vdc_shardid;
 
 /*
+ * Variable that tesll is FDF is booted in checker mode for data consistency check.
+ */
+int __zs_check_mode_on = 0;
+
+
+#define NUM_SEG_BMAPS 6
+
+
+/*
  * Set logging category.
  */
 #define LOG_CAT PLAT_LOG_CAT_SDF_AGENT
@@ -89,6 +98,7 @@ extern SDF_shardid_t vdc_shardid;
 #define AIO_MAX_CTXTS   2000
 static osd_state_t    *Mcd_aio_states[AIO_MAX_CTXTS];
 static fthLock_t       Mcd_aio_ctxt_lock;
+
 
 /*
  * tracking aio_context usage by each module
@@ -3283,7 +3293,7 @@ mcd_osd_slab_shard_init( mcd_osd_shard_t * shard, uint64_t shard_id,
     int                    max_segments;
  //   int                    bitmap_size;
     uint64_t               total_alloc = 0;
-    uint64_t             * bitmaps[5] = {NULL, NULL, NULL, NULL, NULL};
+    uint64_t             * bitmaps[NUM_SEG_BMAPS] = {NULL, NULL, NULL, NULL, NULL};
     mcd_osd_segment_t    * segments = NULL;
     mcd_osd_slab_class_t * class;
 
@@ -3871,8 +3881,14 @@ mcd_fth_osd_grow_class(void* context, mcd_osd_shard_t * shard, mcd_osd_slab_clas
     segment->blk_offset = blk_offset;
     segment->class = class;
     segment->idx = seg_idx;
-	plat_assert(segment->mos_bitmap == NULL);
-	segment->mos_bitmap = (uint64_t *)plat_alloc((class->slabs_per_segment + 7)/ 8);
+    plat_assert(segment->mos_bitmap == NULL);
+    segment->mos_bitmap = (uint64_t *)plat_alloc((class->slabs_per_segment + 7)/ 8);
+    memset(segment->mos_bitmap, 0, (class->slabs_per_segment + 7)/ 8);
+
+    if (__zs_check_mode_on) {
+	    segment->check_map = (uint64_t *)plat_alloc((class->slabs_per_segment + 7)/ 8);
+	    memset(segment->check_map, 0, (class->slabs_per_segment + 7)/ 8);
+    }
 
     atomic_add(class->total_slabs, class->slabs_per_segment);
 
@@ -4199,6 +4215,68 @@ mcd_fth_osd_slab_alloc_low(mcd_osd_shard_t * shard, mcd_osd_segment_t* segment,
 	}
 
 	return 1;
+}
+
+bool
+compare_space_maps(mcd_osd_shard_t *shard)
+{
+	int i = 0;
+	int j = 0;
+	bool res = true;
+	mcd_osd_segment_t *segment = NULL;
+	mcd_osd_slab_class_t *class = NULL;
+	uint64_t bitmap_size = (class->slabs_per_segment + 7)/ 8;
+
+	if (!__zs_check_mode_on) {
+		mcd_log_msg(160281, 
+			    PLAT_LOG_LEVEL_ERROR,
+			    "Cannot do space check in notmal mode.\n");
+		return true;
+	}
+
+	for (i = 0; i < MCD_OSD_MAX_NCLASSES; i++) {
+		class = &shard->slab_classes[i];
+		for (j = 0; j < class->num_segments; j++) {
+			segment = class->segments[j];
+			mcd_osd_segment_lock(class, segment);
+			if (memcmp(segment->mos_bitmap, segment->check_map, bitmap_size) != 0) {
+				mcd_log_msg(160282, PLAT_LOG_LEVEL_ERROR,
+		    "Failed space consistency check for segment = %d, class_size = %d blks.\n",
+					    i, class->slab_blksize);
+
+				res = false;
+				mcd_osd_segment_unlock(segment);
+				goto out;
+			}
+
+			mcd_osd_segment_unlock(segment);
+		}
+		
+	}
+
+
+out:
+	return res;
+}
+
+bool mcd_osd_cmp_space_maps(struct shard *shard)
+{
+	return compare_space_maps((mcd_osd_shard_t *) shard);
+}
+
+void
+update_check_maps(mcd_osd_shard_t *shard, uint64_t blk_offset)
+{
+	mcd_osd_segment_t *segment = shard->segment_table[blk_offset / Mcd_osd_segment_blks];
+	mcd_osd_slab_class_t* class = segment->class;
+	int map_offset = (blk_offset - segment->blk_offset) / segment->class->slab_blksize;
+
+	plat_assert(class);
+//	mcd_osd_segment_lock(class, segment); Locking not required for bitmap change
+
+        (void) __sync_fetch_and_or( &segment->check_map[(map_offset) / 64],
+                Mcd_osd_bitmap_masks[(map_offset) % 64] );
+//	mcd_osd_segment_unlock(class, segment);
 }
 
 /*
@@ -5341,6 +5419,8 @@ override_retry:
                 rc = FLASH_EOK;
             }
 #else
+
+	
             rc = mcd_fth_aio_blk_read( context,
                     buf,
                     offset,
@@ -5351,6 +5431,14 @@ override_retry:
                 mcd_fth_osd_slab_free( data_buf );
                 return rc;
             }
+
+	    /*
+	     * Fill up the check map for segment.
+	     */
+	    if (__zs_check_mode_on) {
+		     update_check_maps(shard, blk_offset);
+	    }
+
 #endif  /* MCD_ENABLE_SLAB_CACHE */
 
             meta = (mcd_osd_meta_t *)buf;
@@ -5585,6 +5673,13 @@ mcd_fth_osd_slab_get_raw( void * context, mcd_osd_shard_t * shard, char *key,
 		mcd_fth_osd_slab_free( data_buf );
 		return rc;
 	}
+	/*
+	 * Fill up the check map for segment.
+	 */
+	if (__zs_check_mode_on) {
+	     update_check_maps(shard, blk_offset);
+	}
+
 #endif  /* MCD_ENABLE_SLAB_CACHE */
 
 	meta = (mcd_osd_meta_t *)buf;
@@ -6278,8 +6373,14 @@ mcd_osd_shard_uninit( mcd_osd_shard_t * shard )
                 total_alloc += shard->total_segments * bitmap_size;
             }
             if ( shard->base_segments[0].alloc_map_s ) {
-                plat_free_large( shard->base_segments[0].alloc_map_s );
+                plat_free_large(shard->base_segments[0].alloc_map_s );
                 shard->base_segments[0].alloc_map_s = NULL;
+                total_alloc += shard->total_segments * bitmap_size;
+            }
+
+            if ( shard->base_segments[0].check_map) {
+                plat_free_large( shard->base_segments[0].check_map);
+                shard->base_segments[0].check_map = NULL;
                 total_alloc += shard->total_segments * bitmap_size;
             }
 
