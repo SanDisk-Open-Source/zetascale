@@ -58,6 +58,7 @@
  * Flushed to disk with every write.
  */
 typedef struct {
+    uint32_t            checksum;
     uint32_t            magic;
     uint32_t            shard_off;
     uint64_t            flush_blk;
@@ -221,6 +222,8 @@ extern inline uint32_t mcd_osd_lba_to_blk( uint32_t blocks );
 // -----------------------------------------------------
 
 extern mcd_container_t          Mcd_osd_cmc_cntr;
+int pot_checksum_enabled;
+int flog_checksum_enabled;
 
 
 // -----------------------------------------------------
@@ -522,7 +525,7 @@ delete_object( mcd_rec_flash_object_t * object )
     object->osyndrome  = 0;
     object->tombstone = 0;
     object->deleted   = 0;
-    object->reserved  = 0;
+    object->checksum  = 0;
     object->blocks    = 0;
     object->obucket    = 0;
     object->cntr_id   = 0;
@@ -1456,6 +1459,9 @@ recovery_init( void )
     Mcd_rec_chicken =
         strncmp( getProperty_String( "MCD_PERSISTENT_UPDATES", "NEW" ),
                  "NEW", 3 );
+
+    pot_checksum_enabled = getProperty_Int("ZS_POT_CHECKSUM", 1);
+    flog_checksum_enabled = getProperty_Int("ZS_FLOG_CHECKSUM", 1);
 
     // Set defaults for recovery buffer sizes and such
     Mcd_rec_update_bufsize      = MCD_REC_UPDATE_BUFSIZE;
@@ -2395,8 +2401,25 @@ flog_patchup(mcd_osd_shard_t *shard, void *context, FILE *fp)
 
         flog_rec_t *frec = (flog_rec_t *)sector;
         while (fread(sector, FLUSH_LOG_SEC_SIZE, 1, fp) == 1) {
-            if (frec->magic != FLUSH_LOG_MAGIC)
-                continue;
+            if (frec->magic != FLUSH_LOG_MAGIC) {
+                if(!flog_checksum_enabled)
+                    continue;
+
+                int i = 0;
+                while(i < FLUSH_LOG_SEC_SIZE / sizeof(uint64_t) && !((uint64_t*)sector)[i])
+                    i++;
+                if(i == FLUSH_LOG_SEC_SIZE / sizeof(uint64_t))
+                    continue;
+            }
+            if(flog_checksum_enabled) {
+                uint32_t c, sum = frec->checksum;
+                frec->checksum = 0;
+                if((c = checksum((char*)frec, sizeof(flog_rec_t), 0)) != sum) {
+                    mcd_log_msg(160283, PLAT_LOG_LEVEL_FATAL,
+                            "flog checksum doesn't match expected %x, stored on disk %x, filepos=%ld", c, sum, ftell(fp));
+                    plat_abort();
+                }
+            }
             int s = fbio_write(&fbio_, frec);
             if (!s)
                 break;
@@ -4888,6 +4911,39 @@ table_chunk_op( void * context, mcd_osd_shard_t * shard, int op,
     return 0;
 }
 
+void
+pot_checksum_set(char* buf, uint32_t sum) {
+    int i = 0;
+
+#ifdef FLIP_ENABLED
+    if (flip_get("pot_checksum_mismatch")) {
+        fprintf(stderr, "%x %s checksum=%x, fault injecting=%x\n", (int)pthread_self(), __FUNCTION__, sum, sum+1);
+        sum = sum + 1;
+    }
+#endif
+
+    mcd_rec_flash_object_t *rec = (mcd_rec_flash_object_t*)buf;
+    for(i = 0; i < sizeof(uint32_t)*8/2; i++) {
+        rec[i].checksum = sum;
+        sum >>= 2;
+    }
+}
+
+uint32_t
+pot_checksum_get(char* buf) {
+    uint32_t sum = 0;
+    int i = sizeof(uint32_t)*8/2;
+
+    mcd_rec_flash_object_t *rec = (mcd_rec_flash_object_t*)buf;
+    while(i--) {
+        sum <<= 2;
+        sum |= rec[i].checksum;
+    }
+
+    return sum;
+}
+
+
 int
 read_object_table( void * context, mcd_osd_shard_t * shard,
                    mcd_rec_obj_state_t * state,
@@ -4950,6 +5006,26 @@ read_object_table( void * context, mcd_osd_shard_t * shard,
                              (s * Mcd_rec_update_segment_blks),
                              seg_blks,
                              state->segments[ s ] );
+
+        if(pot_checksum_enabled) {
+            uint32_t c, sum = pot_checksum_get(state->segments[s]);
+            pot_checksum_set(state->segments[s], 0);
+            if((c = checksum(state->segments[s], Mcd_rec_update_segment_size, 0)) != sum)
+            {
+                int i = 0;
+                if(!sum)
+                    while(i < Mcd_rec_update_segment_size / sizeof(uint64_t) && !((uint64_t*)state->segments[s])[i])
+                        i++;
+
+                if(sum || i < Mcd_rec_update_segment_size / sizeof(uint64_t)) {
+                    mcd_log_msg(160284, PLAT_LOG_LEVEL_FATAL,
+                            "POT checksum error. expected=%x, read_from_disk=%x, start_blk=%ld num_blks=%d", c, sum,
+                            state->start_blk + (s * Mcd_rec_update_segment_blks), seg_blks);
+                    plat_abort();
+                }
+            }
+        }
+
         plat_assert_rc( rc );
 
         if ( plat_log_enabled( PLAT_LOG_CAT_SDF_APP_MEMCACHED_RECOVERY,
@@ -5001,6 +5077,12 @@ write_object_table( void * context, mcd_osd_shard_t * shard,
                      state->start_blk + (s * Mcd_rec_update_segment_blks),
                      seg_blks,
                      state->segments[ s ] );
+
+        if(pot_checksum_enabled) {
+            pot_checksum_set(state->segments[s], 0);
+            uint32_t sum = checksum(state->segments[s], Mcd_rec_update_segment_size, 0);
+            pot_checksum_set(state->segments[s], sum);
+        }
 
         rc = table_chunk_op( context,
                              shard,
@@ -6450,7 +6532,7 @@ flog_persist(mcd_osd_shard_t *shard,
     ssize_t flush_seek = flush_blk * sec_size;
     flog_rec_t   *frec = (flog_rec_t *)sector;
 
-    memset(sector, 0, sec_size);
+    frec->checksum   = 0;
     frec->magic      = FLUSH_LOG_MAGIC;
     frec->flush_blk  = flush_blk;
     frec->shard_blk  = shard_blk;
@@ -6458,6 +6540,17 @@ flog_persist(mcd_osd_shard_t *shard,
 //    frec->lsn        = (slot_seqno / MCD_REC_LOG_BLK_SLOTS) + 1;
     frec->lsn        = lsn;
     frec->logrec_obj = *logrec_obj;
+
+    if(flog_checksum_enabled)
+        frec->checksum   = checksum((char*)frec, sizeof(flog_rec_t), 0);
+
+#ifdef FLIP_ENABLED
+    if (flip_get("flog_checksum_mismatch")) {
+        fprintf(stderr, "%x %s checksum=%x, fault injecting=%x\n", (int)pthread_self(), __FUNCTION__, frec->checksum, frec->checksum + 1);
+        frec->checksum++;
+    }
+#endif
+
   
 #if 0
     plat_log_msg(160181, PLAT_LOG_CAT_SDF_NAMING, PLAT_LOG_LEVEL_WARN,

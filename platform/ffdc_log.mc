@@ -3438,6 +3438,8 @@
 160280 ZS_CHECK_MODE = %d.\n
 160281 Cannot do space check in notmal mode.\n
 160282 Failed space consistency check for segment = %d, class_size = %d blks.\n
+160283 flog checksum doesn't match expected %x, stored on disk %x, filepos=%ld
+160284 POT checksum error. expected=%x, read_from_disk=%x, start_blk=%ld num_blks=%d
 
 
 # rico

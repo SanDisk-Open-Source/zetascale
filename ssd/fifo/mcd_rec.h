@@ -300,7 +300,7 @@ typedef struct mcd_rec_flash_object {
     // use some extra bits
     uint16_t        tombstone:1;       // 1=entry is a tombstone
     uint16_t        deleted:1;         // 1=marked for delete-in-future
-    uint16_t        reserved:2;        // reserved
+    uint16_t        checksum:2;        // first 16 object records contain checksum of the 64K objects (1Mb) in those bits.
     uint16_t        blocks:12;         // number of 512-byte blocks occupied
     // ------------------
     uint32_t        obucket;           // hash bucket

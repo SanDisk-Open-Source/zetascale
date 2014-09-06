@@ -1988,6 +1988,11 @@ ZS_status_t ZSInitVersioned(
         return ZS_VERSION_CHECK_FAILED;       
     }
 
+    int check_x86_sse42( void);
+    extern int sse42_present;
+
+    sse42_present = check_x86_sse42( );
+
     if (verify_datastruct_consistency() != ZS_SUCCESS ) {
         return ZS_FAILURE;
     }
@@ -2188,9 +2193,8 @@ ZS_status_t ZSInitVersioned(
 	Force_async_writes  = 0;
 	Enable_async_writes = 0;
 
-	int check_x86_sse42( void);
 	if ((agent_state.flash_settings.chksum_object)
-	&& (check_x86_sse42( ) == 0)) {
+	&& (sse42_present == 0)) {
 		agent_state.flash_settings.chksum_object = 0;
 		mcd_log_msg( 170040, PLAT_LOG_LEVEL_ERROR, "No x86 SSE4.2 support, ZS_OBJECT_CHECKSUM disabled");
 	}

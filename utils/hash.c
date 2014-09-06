@@ -168,3 +168,10 @@ register ub8  level;    /* the previous hash, or an arbitrary value */
   /*-------------------------------------------- report the result */
   return c;
 }
+
+int sse42_present = 0;
+
+uint32_t checksum(char* buf, uint64_t length, uint64_t seed)
+{
+	return sse42_present ? fastcrc32((unsigned char*)buf, length, seed) : (uint32_t)hashb((unsigned char*)buf, length, seed);
+}
