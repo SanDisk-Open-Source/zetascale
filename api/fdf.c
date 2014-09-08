@@ -8252,23 +8252,11 @@ ZS_status_t ZSRenameContainer(
 		status = ZS_FAILURE;
 		goto out;
 	}
-#if 0
-	plat_log_msg( 160113, LOG_CAT, LOG_DBG,
-			"Renaming container %s to %s\n",meta.cname,name );
-	status = name_service_remove_cguid_map(pai,meta.cname);
-	if ( status != ZS_SUCCESS ) {
-		plat_log_msg( 160114,LOG_CAT, LOG_ERR,
-				"Unable to remove cguid map for container %lu."
-				" Can not rename",meta.cguid);
-		status = ZS_FAILURE;
-		goto out;
-	}
 
 	if (!closeParentContainer(cmap->sdf_container)) {
 		status = ZS_FAILURE;
 		goto out;
 	}
-#endif
 	/*
 	 * Delete entry from hashmap. We cannot update the entry for cname since
 	 * cname acts as the key and now we have a new key (i.e. the new cname).
@@ -8292,17 +8280,6 @@ ZS_status_t ZSRenameContainer(
 				cguid );
 		goto out;
 	}
-#if 0
-	/* Create New container Map with new name */
-	status = name_service_create_cguid_map(zs_thread_state,
-			meta.cname,meta.cguid);
-	if ( status != ZS_SUCCESS ) {
-		plat_log_msg( 160116,LOG_CAT, LOG_ERR,
-				"Unable to create cguid map for container %lu."
-				"Can not rename",meta.cguid);
-		goto out;
-	}
-#endif
 
 	if ((status = name_service_lock_meta( pai, meta.cname )) != ZS_SUCCESS ) {
 		plat_log_msg(21532, LOG_CAT, LOG_ERR, "failed to lock %s", meta.cname);

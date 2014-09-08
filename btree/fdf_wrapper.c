@@ -1015,10 +1015,6 @@ ZS_status_t _ZSShutdown(
     (void)__sync_fetch_and_or(&bt_shutdown, true);
 	pthread_rwlock_unlock(&ctnrmap_rwlock);
 
-	scavenger_stop();
-	astats_stop();
-
-	sched_yield();
 
     /*
      * Try to release global per thread state
@@ -1079,6 +1075,15 @@ restart:
 			pthread_rwlock_unlock(&(Container_Map[i].bt_cm_rwlock));
 		}
 	}
+
+	/*
+	 * Async Delete of container wants scavenger to be running. Thus, lets kill scavenger 
+	 * after the requests are handled.
+	 */
+	scavenger_stop();
+	astats_stop();
+
+	sched_yield();
 
     pstats_prepare_to_flush(thd_state);
     assert (ZS_SUCCESS == ZSFlushContainer(thd_state, stats_ctnr_cguid));
@@ -1709,7 +1714,7 @@ restart:
 		goto restart;
 	}
 
-	if (0 && bt_storm_mode) {
+	if (bt_storm_mode) {
 		Scavenge_Arg_t			s;
 		ZS_container_props_t	pprops;
 

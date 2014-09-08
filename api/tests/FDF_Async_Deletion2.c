@@ -30,7 +30,7 @@ void* worker(void *arg)
     t(zs_init_thread(), ZS_SUCCESS);
 
     sprintf(cname, "%s-%x", base, (int)pthread_self());
-    t(zs_create_container(cname, size, &cguid), ZS_SUCCESS);
+    t(zs_create_container_dur(cname, size, ZS_DURABILITY_SW_CRASH_SAFE, &cguid), ZS_SUCCESS);
 
     for(i = 0; i < iterations; i++)
     {
@@ -86,7 +86,7 @@ void writer() {
     t(zs_init_thread(), ZS_SUCCESS);
 
     sprintf(cname, "%s-%x", base, (int)pthread_self());
-    t(zs_create_container(cname, size, &cguid), ZS_SUCCESS);
+    t(zs_create_container_dur(cname, size, ZS_DURABILITY_SW_CRASH_SAFE, &cguid), ZS_SUCCESS);
 
     for(i = 0; i < iterations; i++)
     {

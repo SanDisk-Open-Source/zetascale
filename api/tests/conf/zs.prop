@@ -4,9 +4,9 @@ ZS_FLASH_FILENAME=/schooner/data/schooner0
 #ZS_FLASH_FILENAME=/dev/shm/schooner0
 #ZS_LOG_FLUSH_DIR=/dev/shm
 #ZS_O_DIRECT=0
-ZS_REFORMAT=0
-#ZS_TEST_MODE=1
-ZS_STORM_MODE=0
+ZS_REFORMAT=1
+ZS_TEST_MODE=1
+ZS_STORM_MODE=1
 #ZS_BLOCK_SIZE=8192
 ASYNC_DELETE_CONTAINERS=0
 #The followind reduces amount of junk in the stacktraces
