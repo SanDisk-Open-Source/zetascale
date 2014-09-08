@@ -2494,8 +2494,7 @@ flog_recover(mcd_osd_shard_t *shard, void *context)
 int
 flog_check(mcd_osd_shard_t *shard, void *context)
 {
-	return 0;
-//	return flog_recover_low(shard, context, 1);
+	return flog_recover_low(shard, context, 1);
 }
 
 
@@ -4969,12 +4968,12 @@ pot_checksum_get(char* buf) {
 int
 check_object_table(void * context, mcd_osd_shard_t * shard)
 {
-    int                         rc, chunk, pct_complete = 0;
+    int                         rc = 0, chunk, pct_complete = 0;
     int                         seg_blks = Mcd_rec_update_segment_blks;
 
-    return 0;
-
-    char *buf = plat_alloc(Mcd_rec_update_segment_size);
+    char *_buf = plat_alloc(Mcd_rec_update_segment_size + MCD_OSD_META_BLK_SIZE);
+    char *buf = (char *)( ( (uint64_t)_buf + MCD_OSD_META_BLK_SIZE - 1 ) &
+                    MCD_OSD_META_BLK_MASK);
     if(!buf)
         return 1;
 
@@ -5004,8 +5003,7 @@ check_object_table(void * context, mcd_osd_shard_t * shard)
                 seg_blks,
                 buf);
 
-        if(rc)
-            return 1;
+        if(rc) break;
 
         if(pot_checksum_enabled) {
             uint32_t c, sum = pot_checksum_get(buf);
@@ -5021,13 +5019,16 @@ check_object_table(void * context, mcd_osd_shard_t * shard)
                     mcd_log_msg(160284, PLAT_LOG_LEVEL_FATAL,
                             "POT checksum error. expected=%x, read_from_disk=%x, start_blk=%ld num_blks=%d", c, sum,
                             chunk * Mcd_rec_update_segment_blks, seg_blks);
-                    return 1;
+                    rc = 1;
+                    break;
                 }
             }
         }
     } // for ( chunk = 0
 
-    return 0;
+	free(_buf);
+
+    return rc;
 }
 
 
