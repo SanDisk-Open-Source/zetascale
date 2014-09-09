@@ -127,8 +127,10 @@ static mcd_osd_shard_t	*vdc_shard;
 // default copies of superblock to write on RAID device
 #define MCD_REC_SB_RAID_DEFAULT 3
 
+#if 0
 // number of blocks to reserve for volume label
 #define MCD_REC_LABEL_BLKS      8
+#endif
 
 /*
  * Operations per transaction tuned for a smaller log
@@ -2494,6 +2496,7 @@ flog_recover(mcd_osd_shard_t *shard, void *context)
 int
 flog_check(mcd_osd_shard_t *shard, void *context)
 {
+    mcd_log_msg(PLAT_LOG_ID_INITIAL, PLAT_LOG_LEVEL_INFO, "Check logs for shard=%lu", shard->pshard->shard_id);
 	return flog_recover_low(shard, context, 1);
 }
 
@@ -7570,7 +7573,7 @@ shard_format( uint64_t shard_id, int flags, uint64_t quota, uint64_t max_objs,
     uint64_t			buf_offset, offset, len;
     uint64_t			total_segs;
 
-    mcd_log_msg( 20065, PLAT_LOG_LEVEL_TRACE,
+    mcd_log_msg( 20065, PLAT_LOG_LEVEL_DEBUG,
                  "ENTERING, shardID=%lu", shard_id );
 
     // format properties for non-persistent shards

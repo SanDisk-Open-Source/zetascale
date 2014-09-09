@@ -256,6 +256,12 @@ ZS_status_t
 (*ptr_ZSCheck) (struct ZS_thread_state *zs_thread_state);
 
 ZS_status_t
+(*ptr_ZSCheckMeta) ();
+
+ZS_status_t
+(*ptr_ZSCheckInit) (char *logfile);
+
+ZS_status_t
 (*ptr_ZSIoctl)(struct ZS_thread_state *zs_thread_state, 
          ZS_cguid_t cguid,
          uint32_t ioctl_type,
@@ -401,7 +407,9 @@ static struct {
     { "_ZSMPut",                       &ptr_ZSMPut                      },
     { "_ZSRangeUpdate",                &ptr_ZSRangeUpdate               },
     { "_ZSCheckBtree",                 &ptr_ZSCheckBtree                },
-    { "_ZSCheck",                 	&ptr_ZSCheck	                },
+    { "_ZSCheck",                 	   &ptr_ZSCheck	                    },
+    { "_ZSCheckMeta",             	   &ptr_ZSCheckMeta                 },
+    { "_ZSCheckInit",             	   &ptr_ZSCheckInit                 },
     { "_ZSIoctl",                      &ptr_ZSIoctl                     },
     { "_ZSCreateContainerSnapshot",    &ptr_ZSCreateContainerSnapshot   },
     { "_ZSDeleteContainerSnapshot",    &ptr_ZSDeleteContainerSnapshot   },
@@ -1495,6 +1503,32 @@ ZSCheck(struct ZS_thread_state *zs_thread_state)
         undefined("ZSCheck");
 
     return (*ptr_ZSCheck) (zs_thread_state, cguid);
+}
+
+/* 
+ * ZSCheckMeta: for use in zsck.
+ */
+ZS_status_t
+ZSCheckMeta()
+{
+    
+    if (unlikely(!ptr_ZSCheckMeta))
+        undefined("ZSCheckMeta");
+    
+    return (*ptr_ZSCheckMeta) ();
+}
+
+/*
+ * ZSCheckMeta: for use in zsck.
+ */
+ZS_status_t
+ZSCheckInit(char *logfile)
+{
+
+    if (unlikely(!ptr_ZSCheckMetaInit))
+        undefined("ZSCheckMetaInit");
+
+    return (*ptr_ZSCheckMetaInit) (logfile);
 }
 
 /*

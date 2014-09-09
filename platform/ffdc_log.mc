@@ -3179,6 +3179,8 @@
 150117 Failed to create cname hash entry for %s - %lu
 150118 Failed to update %s - %lu
 150119 %lu - not found
+150120 failed to read superblock data, blks=%d, blk_offset=%d, rc=%d
+150121 Failed to initialize zscheck log
 
 
 # root

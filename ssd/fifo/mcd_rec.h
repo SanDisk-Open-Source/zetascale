@@ -79,6 +79,9 @@
 
 #define MCD_REC_LIST_ITEMS_PER_BLK ((MCD_OSD_BLK_SIZE_MAX/ sizeof(uint64_t)) - 1)
 
+// number of blocks to reserve for volume label                         
+#define MCD_REC_LABEL_BLKS      8                                       
+
 // -----------------------------------------------------
 //    Persistent recovery structures
 // -----------------------------------------------------
@@ -678,5 +681,6 @@ inline uint64_t log_get_buffer_seqno( mcd_osd_shard_t * shard );
 inline uint64_t relative_log_offset( mcd_rec_shard_t * pshard, int log );
 int  table_chunk_op( void * context, mcd_osd_shard_t * shard, int op,
                      uint64_t start_blk, uint64_t num_blks, char * buf );
-
+int
+flog_check(mcd_osd_shard_t *shard, void *context);
 #endif

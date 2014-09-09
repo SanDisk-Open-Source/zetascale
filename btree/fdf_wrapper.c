@@ -33,6 +33,8 @@
 #include "flip/flip.h"
 #include "btree_scavenger.h"
 #include "btree_sync_th.h"
+#include "utils/checklog.h"
+
 
 #define MAX_NODE_SIZE   128*1024
 
@@ -199,6 +201,15 @@ _ZSCheckBtree(struct ZS_thread_state *zs_thread_state,
 
 ZS_status_t
 _ZSCheck(struct ZS_thread_state *zs_thread_state);
+
+ZS_status_t
+_ZSCheckInit(char *logfile); 
+
+ZS_status_t
+_ZSCheckMeta(); 
+
+ZS_status_t
+_ZSCheckFlog(); 
 
 ZS_status_t _ZSScavengeContainer(struct ZS_state *zs_state, ZS_cguid_t cguid);
 ZS_status_t ZSStartAstats(struct ZS_state *zs_state, ZS_cguid_t cguid);
@@ -3687,6 +3698,24 @@ out:
 		btree_free(cguids);	
 	}
 	return status;
+}
+
+ZS_status_t
+_ZSCheckInit(char *logfile)
+{
+    return ZSCheckInit(logfile);
+}
+
+ZS_status_t
+_ZSCheckMeta()
+{
+    return ZSCheckMeta();
+}
+
+ZS_status_t
+_ZSCheckFlog()
+{
+    return ZSCheckFlog();
 }
 
 

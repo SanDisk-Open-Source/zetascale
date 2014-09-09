@@ -1956,6 +1956,19 @@ FDFGetIndexMeta(struct FDF_thread_state *ts,       //  client thread FDF context
 
 
 #endif /* If 0 */
+
+#ifdef BTREE_MODE
+FDF_status_t _FDFCheckMeta();
+#else
+FDF_status_t FDFCheckMeta();
+#endif
+
+#ifdef BTREE_MODE
+FDF_status_t _FDFCheckInit(char *logfile);
+#else
+FDF_status_t FDFCheckInit(char *logfile);
+#endif
+
 #ifdef __cplusplus
 }
 #endif

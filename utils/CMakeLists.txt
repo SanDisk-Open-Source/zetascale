@@ -9,5 +9,6 @@ add_library(utils OBJECT linkedlist.c
 	stats2.c 
 	caller.c 
 	sdfkey.c 
+	checklog.c
 	platform_check.c)
 add_dependencies(utils ffdc)

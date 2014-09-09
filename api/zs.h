@@ -1708,6 +1708,36 @@ ZS_status_t
 ZSCheck(struct ZS_thread_state *zs_thread_state);
 #endif 
 
+// For ZS metadata checker
+#ifdef BTREE_MODE
+ZS_status_t 
+_ZSCheckMeta();
+#define ZSCheckMeta     _ZSCheckMeta
+#else
+ZS_status_t 
+ZSCheckMeta();
+#endif
+
+// For ZS metadata checker
+#ifdef BTREE_MODE
+ZS_status_t
+_ZSCheckFlog();
+#define ZSCheckFlog     _ZSCheckFlog
+#else
+ZS_status_t
+ZSCheckFlog();
+#endif
+
+// For ZS metadata checker
+#ifdef BTREE_MODE
+ZS_status_t
+_ZSCheckInit(char *logfile);
+#define ZSCheckInit     _ZSCheckInit
+#else
+ZS_status_t
+ZSCheckInit(char *logfile);
+#endif
+
 #ifdef BTREE_MODE
 ZS_status_t
 _ZSIoctl(struct ZS_thread_state *zs_thread_state, 
@@ -1976,6 +2006,7 @@ ZSGetIndexMeta(struct ZS_thread_state *ts,       //  client thread ZS context
 
 
 #endif /* If 0 */
+
 #ifdef __cplusplus
 }
 #endif

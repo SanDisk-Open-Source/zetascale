@@ -346,6 +346,12 @@ ZS_status_t
 ZS_status_t
 (*ptr_ZSCheck) (struct ZS_thread_state *zs_thread_state);
 
+ZS_status_t
+(*ptr_ZSCheckMeta) ();
+
+ZS_status_t
+(*ptr_ZSCheckInit) (char *logfile);
+
 static ZS_status_t
 (*ptr_ZSDeleteContainerSnapshot)(
 	struct ZS_thread_state	*zs_thread_state,
@@ -483,14 +489,16 @@ static struct {
     { "ZSCreateContainerSnapshot",    &ptr_ZSCreateContainerSnapshot   },
     { "ZSDeleteContainerSnapshot",    &ptr_ZSDeleteContainerSnapshot   },
     { "ZSGetContainerSnapshots",      &ptr_ZSGetContainerSnapshots     },
-    { "ZSMPut",          	      	   &ptr_ZSMPut			},
-    { "ZSRangeUpdate",		       	   &ptr_ZSRangeUpdate		},
-    { "ZSCheckBtree",		       	   &ptr_ZSCheckBtree		},
-    { "ZSCheck",		       	   &ptr_ZSCheck		},
-    { "ZSIoctl",		       		   &ptr_ZSIoctl       },
+    { "ZSMPut",          	      	  &ptr_ZSMPut			           },
+    { "ZSRangeUpdate",		       	  &ptr_ZSRangeUpdate		       },
+    { "ZSCheckBtree",		       	  &ptr_ZSCheckBtree		           },
+    { "ZSCheck",		       	      &ptr_ZSCheck		               },
+    { "ZSCheckMeta",     	          &ptr_ZSCheckMeta                 },
+    { "ZSCheckInit",     	          &ptr_ZSCheckInit                 },
+    { "ZSIoctl",		       		  &ptr_ZSIoctl                     },
     { "ZSScavenger",                  &ptr_ZSScavenger                 },
     { "ZSScavengeContainer",          &ptr_ZSScavengeContainer         },
-    { "ZSScavengeSnapshot",          &ptr_ZSScavengeSnapshot         },
+    { "ZSScavengeSnapshot",           &ptr_ZSScavengeSnapshot          },
 	{ "ZSCreateRawObject",            &ptr_ZSCreateRawObject           },
 	{ "ZSDeleteRawObject",            &ptr_ZSDeleteRawObject           },
 	{ "ZSReadRawObject",              &ptr_ZSReadRawObject             },
@@ -1592,6 +1600,24 @@ ZSCheck(struct ZS_thread_state *zs_thread_state)
         undefined("ZSCheck");
 
     return (*ptr_ZSCheck) (zs_thread_state);
+}
+
+ZS_status_t
+ZSCheckMeta()
+{
+    if (unlikely(!ptr_ZSCheckMeta))
+        undefined("ZSCheckMeta");
+
+    return (*ptr_ZSCheckMeta) ();
+}
+
+ZS_status_t
+ZSCheckInit(char *logfile)
+{
+    if (unlikely(!ptr_ZSCheckInit))
+        undefined("ZSCheckInit");
+
+    return (*ptr_ZSCheckInit) (logfile);
 }
 
 ZS_status_t

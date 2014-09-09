@@ -49,6 +49,7 @@
 #include "utils/properties.h"
 #include "ssd/ssd_aio.h"
 #include "ssd/fifo/slab_gc.h"
+#include "utils/checklog.h"
 #include <execinfo.h>
 #include <signal.h>
 #include <sys/mman.h>
@@ -95,6 +96,9 @@ ZS_status_t get_btree_num_objs(ZS_cguid_t cguid, uint64_t *num_objs);
 void update_container_stats(SDF_action_init_t *pai, int reqtype, SDF_cache_ctnr_metadata_t *meta, int count) {
     atomic_add(pai->pcs->stats_new_per_sched[curSchedNum].ctnr_stats[meta->n].appreq_counts[reqtype], count);
 }
+
+extern int mcd_check_meta();
+extern int mcd_check_flog();
 
 /*
  * maximum number of containers supported by one instance of memcached
@@ -2008,6 +2012,9 @@ ZS_status_t ZSInitVersioned(
     if (prop_file)
         loadProperties(prop_file);
 
+    // Set operational mode (normal API run or check). Default to run.
+    __zs_check_mode_on = getProperty_Int("ZS_CHECK_MODE", 0);
+	mcd_log_msg(160280, PLAT_LOG_LEVEL_INFO, "ZS_CHECK_MODE = %d.\n", __zs_check_mode_on);
 
     //  Initialize a crap-load of settings
     zs_load_settings( &(agent_state.flash_settings) );
@@ -2174,11 +2181,6 @@ ZS_status_t ZSInitVersioned(
     mcd_log_msg( 20131, PLAT_LOG_LEVEL_TRACE,
                  "next container id %lu", Mcd_next_cntr_id );
 #endif
-
-	__zs_check_mode_on = getProperty_Int("ZS_CHECK_MODE", 0);
-
-	mcd_log_msg(160280, PLAT_LOG_LEVEL_FATAL, "ZS_CHECK_MODE = %d.\n", __zs_check_mode_on);
-
 
 	Force_async_writes  = getProperty_Int("FORCE_ASYNC_WRITES", 0);
 	Enable_async_writes = getProperty_Int("ENABLE_ASYNC_WRITES", 0);
@@ -7909,6 +7911,33 @@ ZSCheckBtree(struct ZS_thread_state *zs_thread_state,
 
 	fprintf(stderr, "ZS: ZSCheckBtree without btree is not supported\n");
 	return ZS_FAILURE;
+}
+
+ZS_status_t
+ZSCheckFlog()
+{
+    if (0 == mcd_check_flog())
+        return ZS_SUCCESS;
+    else
+        return ZS_FAILURE;
+}
+
+ZS_status_t 
+ZSCheckMeta()
+{
+    if (0 == mcd_check_meta())
+        return ZS_SUCCESS;
+    else
+        return ZS_FAILURE;
+}
+
+ZS_status_t 
+ZSCheckInit(char *logfile)
+{
+    if (0 == zscheck_init_log(logfile))
+        return ZS_SUCCESS;
+    else
+        return ZS_FAILURE;
 }
 
 ZS_status_t
