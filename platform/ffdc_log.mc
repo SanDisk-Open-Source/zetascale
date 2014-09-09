@@ -3443,6 +3443,8 @@
 160283 flog checksum doesn't match expected %x, stored on disk %x, filepos=%ld
 160284 POT checksum error. expected=%x, read_from_disk=%x, start_blk=%ld num_blks=%d
 160285 Checking object table, shardID=%lu, %d percent complete
+160286 Space consistency check got %"PRIu64" leaked blocks.\n
+160287 Check logs for shard=%lu
 
 
 # rico

@@ -122,6 +122,8 @@ typedef struct __zs_cont_iterator {
 } __zs_cont_iterator_t;
 
 
+bool
+seqnoread(struct ZS_thread_state *t);
 ZS_status_t BtreeErr_to_ZSErr(btree_status_t b_status);
 btree_status_t ZSErr_to_BtreeErr(ZS_status_t f_status);
 static int mput_default_cmp_cb(void *data, char *key, uint32_t keylen,
@@ -3641,6 +3643,11 @@ _ZSCheck(struct ZS_thread_state *zs_thread_state)
 		return ZS_FAILURE_OPERATION_DISALLOWED;	
 	}
 
+
+	if (seqnoread(zs_thread_state) != true) {
+		return ZS_FAILURE;
+	}
+
 	cguids = btree_malloc(sizeof(ZS_cguid_t) * MAX_CONTS);
 	assert(cguids);
 	
@@ -4432,17 +4439,44 @@ typedef uint64_t	seq_t;
 /*
  * return next seqno, or -1 on error
  */
+static char		SEQNO_CONTAINER[]	= "__SanDisk_seqno_container";
+static char		SEQNO_KEY[]		= "__SanDisk_seqno_key";
+bool
+seqnoread(struct ZS_thread_state *t)
+{
+	ZS_container_props_t	p;
+	ZS_status_t		s;
+	ZS_cguid_t		c;
+	char *data = NULL;
+	uint64_t dlen = 0;
+
+
+	memset(&p, 0, sizeof p);
+	p.durability_level = ZS_DURABILITY_HW_CRASH_SAFE;
+	p.flags = 1; //hash cont
+	s = ZSOpenContainer( t, SEQNO_CONTAINER, &p, 0, &c);
+	if (s != ZS_SUCCESS) {
+		return false;
+	}
+	if (ZSReadObject(t, c, SEQNO_KEY, sizeof SEQNO_KEY, &data, &dlen) != ZS_SUCCESS) {
+		return false;
+	}
+
+	ZSFreeBuffer( data);
+	ZSCloseContainer( t, c);
+
+	return true;
+}
+
 seq_t
 seqnoalloc( struct ZS_thread_state *t)
 {
-	static bool		initialized;
+static bool		initialized;
 	static pthread_mutex_t	seqnolock		= PTHREAD_MUTEX_INITIALIZER;
 	static seq_t		seqnolimit,
 				seqno;
 	static __thread seq_t	iseqno,
 				iseqnolimit;
-	static char		SEQNO_CONTAINER[]	= "__SanDisk_seqno_container";
-	static char		SEQNO_KEY[]		= "__SanDisk_seqno_key";
 	ZS_container_props_t	p;
 	ZS_status_t		s;
 	ZS_cguid_t		c;

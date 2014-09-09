@@ -73,6 +73,7 @@ extern int zs_uncompress_data(char *data, size_t datalen,size_t memsz, size_t *u
 #endif
 extern uint64_t get_regobj_storm_mode();
 
+
 extern int storm_mode;
 extern SDF_shardid_t vdc_shardid;
 
@@ -3699,6 +3700,14 @@ static int mcd_osd_slab_init()
     return 0;   /* SUCCESS */
 }
 
+static void
+update_check_maps_low(mcd_osd_segment_t *segment, int map_offset)
+{
+	plat_assert(segment);
+        (void) __sync_fetch_and_or( &segment->check_map[(map_offset) / 64],
+                Mcd_osd_bitmap_masks[(map_offset) % 64] );
+}
+
 static inline
 uint8_t
 mcd_osd_slab_slot_alloc(mcd_osd_shard_t* shard, mcd_osd_segment_t* segment, int offs, uint64_t* blk_offset)
@@ -3714,7 +3723,10 @@ mcd_osd_slab_slot_alloc(mcd_osd_shard_t* shard, mcd_osd_segment_t* segment, int 
   atomic_inc(segment->class->used_slabs);
   atomic_inc(segment->used_slabs);
 
-  if(blk_offset) *blk_offset = segment->blk_offset + offs * segment->class->slab_blksize;
+  if(blk_offset) {
+	*blk_offset = segment->blk_offset + offs * segment->class->slab_blksize;
+
+  }
 
   return 1;
 }
@@ -4217,14 +4229,40 @@ mcd_fth_osd_slab_alloc_low(mcd_osd_shard_t * shard, mcd_osd_segment_t* segment,
 	return 1;
 }
 
+static uint64_t
+get_bmap_mismatch_count(uint64_t *bmap, uint64_t *check_map, uint64_t bmap_size)
+{
+	int j = 0;
+	int i = 0;
+	uint64_t count = 0;
+
+	for (i = 0; i < bmap_size; i++) {
+		
+		if (bmap[i] != check_map[i]) {
+			int b1 = bmap[i];
+			int b2 = check_map[i];
+
+			int diff = b1 ^ b2;
+
+			for (j = 0; j < 64 && diff ; j++) {
+				if (diff & 0x01) {
+					count++;
+				}
+				diff = diff >> 1;
+			}				
+		}
+	}
+	return count;
+}
+
 bool
 compare_space_maps(mcd_osd_shard_t *shard)
 {
 	int i = 0;
 	int j = 0;
-	bool res = true;
 	mcd_osd_segment_t *segment = NULL;
 	mcd_osd_slab_class_t *class = NULL;
+	uint64_t leaked_space = 0;
 
 	if (!__zs_check_mode_on) {
 		mcd_log_msg(160281, 
@@ -4237,6 +4275,7 @@ compare_space_maps(mcd_osd_shard_t *shard)
 		class = &shard->slab_classes[i];
 		for (j = 0; j < class->num_segments; j++) {
 			uint64_t bitmap_size = (class->slabs_per_segment + 7)/ 8;
+			uint64_t count = 0;
 
 			segment = class->segments[j];
 			mcd_osd_segment_lock(class, segment);
@@ -4245,7 +4284,11 @@ compare_space_maps(mcd_osd_shard_t *shard)
 		    "Failed space consistency check for segment = %d, class_size = %d blks.\n",
 					    i, class->slab_blksize);
 
-				res = false;
+				/*
+				 * Account for leaked slabs space.
+				 */
+				count = get_bmap_mismatch_count(segment->mos_bitmap, segment->check_map, bitmap_size/sizeof(uint64_t));	
+				leaked_space += count * class->slab_blksize;
 				mcd_osd_segment_unlock(segment);
 				goto out;
 			}
@@ -4255,9 +4298,13 @@ compare_space_maps(mcd_osd_shard_t *shard)
 		
 	}
 
-
 out:
-	return res;
+	if (leaked_space != 0) {
+		mcd_log_msg(160286, PLAT_LOG_LEVEL_ERROR,
+		    "Space consistency check got %"PRIu64" leaked blocks.\n", leaked_space);
+		return false;
+	}
+	return true;
 }
 
 bool mcd_osd_cmp_space_maps(struct shard *shard)
@@ -4273,11 +4320,8 @@ update_check_maps(mcd_osd_shard_t *shard, uint64_t blk_offset)
 	int map_offset = (blk_offset - segment->blk_offset) / segment->class->slab_blksize;
 
 	plat_assert(class);
-//	mcd_osd_segment_lock(class, segment); Locking not required for bitmap change
 
-        (void) __sync_fetch_and_or( &segment->check_map[(map_offset) / 64],
-                Mcd_osd_bitmap_masks[(map_offset) % 64] );
-//	mcd_osd_segment_unlock(class, segment);
+	update_check_maps_low(segment, map_offset);
 }
 
 /*
@@ -4321,6 +4365,13 @@ mcd_fth_osd_slab_alloc( void * context, mcd_osd_shard_t * shard, int blocks,
 
             int res = class->slabs_per_segment >= segment->next_slab + count && // segment not full
                     mcd_fth_osd_slab_alloc_low(shard, segment, count, blk_offset);
+	    /*
+	     * Fill up the check map for segment.
+	     */
+	    if (__zs_check_mode_on) {
+		     update_check_maps(shard, *blk_offset);
+	    }
+
 
             mcd_osd_segment_unlock(segment);
 

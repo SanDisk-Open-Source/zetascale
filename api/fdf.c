@@ -1997,6 +1997,7 @@ ZS_status_t ZSInitVersioned(
 
     sse42_present = check_x86_sse42( );
 
+
     if (verify_datastruct_consistency() != ZS_SUCCESS ) {
         return ZS_FAILURE;
     }
@@ -2021,6 +2022,9 @@ ZS_status_t ZSInitVersioned(
     if (zs_check_settings(&(agent_state.flash_settings)) == false) {
         return ZS_FAILURE;
     } 
+
+    __zs_check_mode_on = getProperty_Int("ZS_CHECK_MODE", 0);
+    mcd_log_msg(160280, PLAT_LOG_LEVEL_FATAL, "ZS_CHECK_MODE = %d.\n", __zs_check_mode_on);
 
     // Initialize the container metadata map
     if ( ZS_SUCCESS != zs_cmap_init() )

@@ -2496,7 +2496,7 @@ flog_recover(mcd_osd_shard_t *shard, void *context)
 int
 flog_check(mcd_osd_shard_t *shard, void *context)
 {
-    mcd_log_msg(PLAT_LOG_ID_INITIAL, PLAT_LOG_LEVEL_INFO, "Check logs for shard=%lu", shard->pshard->shard_id);
+    mcd_log_msg(160287, PLAT_LOG_LEVEL_INFO, "Check logs for shard=%lu", shard->pshard->shard_id);
 	return flog_recover_low(shard, context, 1);
 }
 
@@ -2862,19 +2862,19 @@ shard_recover( mcd_osd_shard_t * shard )
                 class->segments[ c_seg ]->blk_offset = ~(seg_list->data[ s ]);
                 class->segments[ c_seg ]->class      = class;
                 class->segments[ c_seg ]->idx      = c_seg;
-				if (class->segments[ c_seg ]->mos_bitmap == NULL) {
-					class->segments[ c_seg ]->mos_bitmap = plat_alloc((class->slabs_per_segment + 7) / 8);
-					memset(class->segments[c_seg]->mos_bitmap, 0, (class->slabs_per_segment + 7)/ 8);
-//					if (__zs_check_mode_on) {
-						class->segments[ c_seg ]->check_map = plat_alloc((class->slabs_per_segment + 7) / 8);
-						memset(class->segments[c_seg]->check_map, 0, (class->slabs_per_segment + 7)/ 8);
-//					}
-				}
+		if (class->segments[ c_seg ]->mos_bitmap == NULL) {
+			class->segments[ c_seg ]->mos_bitmap = plat_alloc((class->slabs_per_segment + 7) / 8);
+			// Note: bitmap rebuilt with hash table, initialize it here
+			memset( class->segments[ c_seg ]->mos_bitmap,
+				0,
+				class->slabs_per_segment / 8 );
 
-                // Note: bitmap rebuilt with hash table, initialize it here
-                memset( class->segments[ c_seg ]->mos_bitmap,
-                        0,
-                        class->slabs_per_segment / 8 );
+			if (__zs_check_mode_on) {
+				class->segments[ c_seg ]->check_map = plat_alloc((class->slabs_per_segment + 7) / 8);
+				memset(class->segments[c_seg]->check_map, 0, (class->slabs_per_segment + 7)/ 8);
+			}
+		}
+
 
                 class->num_segments   = c_seg + 1;
                 class->total_slabs   += class->slabs_per_segment;
