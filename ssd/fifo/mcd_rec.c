@@ -2508,14 +2508,6 @@ flog_recover(mcd_osd_shard_t *shard, void *context)
 }
 #endif
 
-int
-flog_check(mcd_osd_shard_t *shard, void *context)
-{
-    mcd_log_msg(160287, PLAT_LOG_LEVEL_INFO, "Check logs for shard=%lu", shard->pshard->shard_id);
-	return flog_recover_low(shard, context, 1);
-}
-
-
 /*
  * Set parameters relevant to flushing and syncing of logs.
  */
@@ -2561,6 +2553,14 @@ flog_prepare(mcd_osd_shard_t *shard)
 
 }
 
+int
+flog_check(mcd_osd_shard_t *shard, void *context)
+{
+    mcd_log_msg(160287, PLAT_LOG_LEVEL_INFO, "Check logs for shard=%lu", shard->pshard->shard_id);
+	flog_recover_low(shard, context, 1);
+	flog_prepare(shard);
+    return 0;
+}
 
 /*
  * Initialise log flushing.
@@ -2703,12 +2703,8 @@ shard_recover( mcd_osd_shard_t * shard )
 
     // initialize log flushing
     // ignore this if in zsck mode...will hopefully do it later
-#if 0
     if ( !mcd_check_is_enabled() )
 	    flog_init(shard, context, 0);
-#else
-	flog_init(shard, context, 0);
-#endif
 
     // get aligned buffer
     buf = (char *)( ( (uint64_t)context->osd_buf + Mcd_osd_blk_size - 1 ) &
