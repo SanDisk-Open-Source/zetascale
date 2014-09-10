@@ -5321,10 +5321,13 @@ mcd_fth_osd_slab_write_raw( void * context, mcd_osd_shard_t * shard,
 		 * FIXME: pad the object if size < 128KB
 		 */
 		if ((blocks * Mcd_osd_blk_size) < (128 * 1024)) {
-			rc = mcd_fth_aio_blk_write_low(
-					context, buf, offset,
-					(1 << shard->class_table[blocks]) * Mcd_osd_blk_size,
-					shard->durability_level > SDF_RELAXED_DURABILITY);
+			if (flash_settings.storm_test & 0x0001)
+				rc = FLASH_EOK;
+			else
+				rc = mcd_fth_aio_blk_write_low(
+						context, buf, offset,
+						(1 << shard->class_table[blocks]) * Mcd_osd_blk_size,
+						shard->durability_level > SDF_RELAXED_DURABILITY);
 		} else {
         rc = mcd_fth_aio_blk_write_low(
                 context, buf, offset,
