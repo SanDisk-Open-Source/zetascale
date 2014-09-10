@@ -54,6 +54,7 @@
 #include "mcd_rep.h"
 #include "mcd_hash.h"
 #include "mcd_rec.h"
+#include "mcd_check.h"
 #include "hash.h"
 #include "slab_gc.h"
 #include <snappy-c.h>
@@ -64,6 +65,7 @@
 #include "api/sdf_internal.h"
 #include "api/fdf_internal.h"
 #include "shared/name_service.h"
+#include "utils/checklog.h"
 
 extern uint32_t
 init_get_my_node_id();
@@ -5603,19 +5605,37 @@ override_retry:
             meta->blk1_chksum = 0;
             if ((flash_settings.chksum_metadata)
             && (hashb( (uint8_t *)buf, MCD_OSD_META_BLK_SIZE, 0) != blk1_chksum)) {
+                if ( mcd_check_is_enabled() ) {
+                    zscheck_log_msg(ZSCHECK_SLAB_METADATA, shard->pshard->shard_id, 
+                                    ZSCHECK_CHECKSUM_ERROR, "slab metadata checksum invalid");
+                } else {
                     mcd_log_msg(170036, PLAT_LOG_LEVEL_FATAL,
                             "Metadata inconsistency found in cguid = %d, byte offset = %"PRIu64".\n",
                             cntr_id, offset);
                     mcd_fth_osd_slab_free(data_buf);
                     return FLASH_EINCONS;
+                }
+            }
+            if ( mcd_check_is_enabled() ) {
+                zscheck_log_msg(ZSCHECK_SLAB_METADATA, shard->pshard->shard_id, 
+                                ZSCHECK_SUCCESS, "slab metadata checksum valid");
             }
             if ((flash_settings.chksum_data)
             && (hashb( (uint8_t *)buf+sizeof( mcd_osd_meta_t), key_len+meta->data_len, 0) != meta->data_chksum)) {
+                if ( mcd_check_is_enabled() ) {
+                    zscheck_log_msg(ZSCHECK_SLAB_DATA, shard->pshard->shard_id, 
+                                    ZSCHECK_CHECKSUM_ERROR, "slab data checksum invalid");
+                } else {
                     mcd_log_msg(170037, PLAT_LOG_LEVEL_FATAL,
                             "Data inconsistency found in cguid = %d, byte offset = %"PRIu64".\n",
                             cntr_id, offset);
                     mcd_fth_osd_slab_free(data_buf);
                     return FLASH_EINCONS;
+                }
+            }
+            if ( mcd_check_is_enabled() ) {
+                zscheck_log_msg(ZSCHECK_SLAB_DATA, shard->pshard->shard_id, 
+                                ZSCHECK_SUCCESS, "slab data checksum valid");
             }
 
             /*
@@ -5820,20 +5840,38 @@ mcd_fth_osd_slab_get_raw( void * context, mcd_osd_shard_t * shard, char *key,
 	meta->blk1_chksum = 0;
 	if ((flash_settings.chksum_metadata)
 	&& (hashb( (uint8_t *)buf, MCD_OSD_META_BLK_SIZE, 0) != blk1_chksum)) {
+        if ( mcd_check_is_enabled() ) { 
+            zscheck_log_msg(ZSCHECK_SLAB_METADATA, shard->pshard->shard_id, 
+                            ZSCHECK_CHECKSUM_ERROR, "slab metadata checksum invalid"); 
+        } else {
 			mcd_log_msg(170036, PLAT_LOG_LEVEL_FATAL,
 					"Metadata inconsistency found in cguid = %d, byte offset = %"PRIu64".\n",
 					cntr_id, offset);
 			mcd_fth_osd_slab_free(data_buf);
 			return FLASH_EINCONS;
-	}
+        }
+	} 
+    if ( mcd_check_is_enabled() ) { 
+        zscheck_log_msg(ZSCHECK_SLAB_METADATA, shard->pshard->shard_id, 
+                        ZSCHECK_SUCCESS, "slab metadata checksum valid"); 
+    }
 	if ((flash_settings.chksum_data)
 	&& (hashb( (uint8_t *)buf+sizeof( mcd_osd_meta_t), key_len+meta->data_len, 0) != meta->data_chksum)) {
+        if ( mcd_check_is_enabled() ) { 
+            zscheck_log_msg(ZSCHECK_SLAB_DATA, shard->pshard->shard_id, 
+                            ZSCHECK_CHECKSUM_ERROR, "slab data checksum invalid"); 
+        } else {
 			mcd_log_msg(170037, PLAT_LOG_LEVEL_FATAL,
 					"Data inconsistency found in cguid = %d, byte offset = %"PRIu64".\n",
 					cntr_id, offset);
 			mcd_fth_osd_slab_free(data_buf);
 			return FLASH_EINCONS;
+        }
 	}
+    if ( mcd_check_is_enabled() ) { 
+        zscheck_log_msg(ZSCHECK_SLAB_DATA, shard->pshard->shard_id, 
+                        ZSCHECK_SUCCESS, "slab data checksum valid"); 
+    }
 
 	/*
 	 * meta can no longer be accessed after this

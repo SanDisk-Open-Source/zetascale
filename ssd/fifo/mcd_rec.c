@@ -31,6 +31,7 @@
 #include "mcd_rec2.h"
 #include "mcd_rep.h"
 #include "mcd_bak.h"
+#include "mcd_check.h"
 #include "hash.h"
 #include "fdf_internal.h"
 #include "container_meta_blob.h"

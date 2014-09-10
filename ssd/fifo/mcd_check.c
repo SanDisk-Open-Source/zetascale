@@ -29,6 +29,7 @@
 #include "mcd_rec.h"
 #include "mcd_rep.h"
 #include "mcd_bak.h"
+#include "mcd_check.h"
 #include "hash.h"
 #include "fdf_internal.h"
 #include "container_meta_blob.h"
@@ -626,10 +627,6 @@ mcd_check_meta()
         fprintf(stderr,">>>mcd_check_ckpt_descriptors failed. non-fatal error\n");
     }
 
-#if 0
-    mcd_check_log_page( NULL, NULL, 1, 0);
-#endif
-
 out:
     close(fd);
     return status;
@@ -637,7 +634,7 @@ out:
 
 extern mcd_osd_shard_t * Mcd_osd_slab_shards[];
 
-static mcd_osd_shard_t *
+mcd_osd_shard_t *
 mcd_check_get_osd_shard( uint64_t shard_id )
 {
     int i = 0;

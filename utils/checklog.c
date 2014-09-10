@@ -39,7 +39,9 @@ int zscheck_close_log()
 {
     if (fp) {
       fflush(fp);
-      return fclose(fp);
+      fclose(fp);
+      fp = NULL;
+      return 0;
     }
     else
       return -1;
