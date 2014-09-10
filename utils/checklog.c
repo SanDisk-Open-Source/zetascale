@@ -58,6 +58,8 @@ void zscheck_log_msg(
     gettimeofday(&now, NULL);
     time_str = plat_log_timeval_to_string(&now);
 
-    if (fp)
+    if (fp) {
         fprintf(fp, "%s %u, %lu, %u, %s\n", time_str, entity, id, error, msg);
+        fflush(fp);
+    }
 }

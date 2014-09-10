@@ -2113,14 +2113,14 @@ ZS_status_t ZSInitVersioned(
     } while (rc == -1 && errno == EINTR);
 
     plat_assert( 0 == rc );
-    if(getProperty_String("ZS_STATS_FILE","")[0])
+    if( !__zs_check_mode_on && getProperty_String("ZS_STATS_FILE","")[0])
     {
         zs_start_stats_thread( *zs_state );
     }
-    if ( getProperty_Int( "ZS_ADMIN_ENABLED", 1 ) == 1 ) {
+    if ( !__zs_check_mode_on && getProperty_Int( "ZS_ADMIN_ENABLED", 1 ) == 1 ) {
         zs_start_admin_thread(*zs_state );
     }
-    if ( getProperty_Int( "ASYNC_DELETE_CONTAINERS",0) == 1 ) {
+    if ( !__zs_check_mode_on && getProperty_Int( "ASYNC_DELETE_CONTAINERS",0) == 1 ) {
         time((time_t *)&delete_prefix);
         init_async_cmd_handler(getProperty_Int("ASYNC_DELETE_CONTAINERS_THREADS",5),*zs_state);
     }

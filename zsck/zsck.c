@@ -160,7 +160,7 @@ int main(int argc, char *argv[])
         return -1;
     }
 
-    if (flog_opt) {
+    if (1 || flog_opt) {
         if (ZS_SUCCESS != (status = check_flog())) {
             fprintf(stderr, "flog check failed: %s\n", ZSStrError(status));
         } else {
