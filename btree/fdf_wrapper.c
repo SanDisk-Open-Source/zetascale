@@ -1733,7 +1733,7 @@ restart:
 		goto restart;
 	}
 
-	if (bt_storm_mode) {
+	if (bt_storm_mode && (IS_ZS_HASH_CONTAINER(Container_Map[index].flags) == 0)) {
 		Scavenge_Arg_t			s;
 		ZS_container_props_t	pprops;
 
@@ -1825,16 +1825,14 @@ restart:
 		(void) __sync_sub_and_fetch(&N_Open_Containers, 1);
 		pthread_rwlock_unlock(&(Container_Map[index].bt_cm_rwlock));
 
-		if (0 == IS_ZS_HASH_CONTAINER(Container_Map[index].flags)) {
+		if (btree) {
 			trxdeletecontainer( zs_thread_state, cguid);
 		}
 
 		status = ZSDeleteContainer(zs_thread_state, cguid);
 
-		if (0 == IS_ZS_HASH_CONTAINER(Container_Map[index].flags)) {
-			if (btree) {
-				btree_destroy(btree);
-			}
+		if (btree) {
+			btree_destroy(btree);
 		}
 	}
     return(status);

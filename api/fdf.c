@@ -1083,7 +1083,7 @@ static void zs_load_settings(flash_settings_t *osd_settings)
     osd_settings->is_node_independent = 1;
     osd_settings->ips_per_cntr	    = 1;
     osd_settings->rec_log_size_factor = 0;
-    osd_settings->os_blk_size = getProperty_Int("ZS_BLOCK_SIZE", 2048);
+    osd_settings->os_blk_size = getProperty_Int("ZS_BLOCK_SIZE", 8192);
 }
 
 /*
@@ -1946,7 +1946,7 @@ void print_configuration(int log_level) {
         getProperty_uLongLong("ZS_CACHE_SIZE", 100000000ULL),
         getProperty_uLongLong("SDF_MAX_OBJ_SIZE", SDF_MAX_OBJ_SIZE));
 	plat_log_msg(160171, LOG_CAT, log_level,"Block size = %llu",
-		getProperty_uLongLong("ZS_BLOCK_SIZE", 2048));
+		getProperty_uLongLong("ZS_BLOCK_SIZE", 8192));
     if (getProperty_Int("ZS_TEST_MODE", 0)) {
          plat_log_msg(80031, LOG_CAT, log_level,"ZS Testmode enabled");
     }
