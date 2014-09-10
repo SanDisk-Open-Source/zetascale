@@ -50,6 +50,7 @@ typedef enum {
     ZSCHECK_SLAB_DATA,
     ZSCHECK_POT_BITMAP,
     ZSCHECK_SLAB_BITMAP,
+    ZSCHECK_BTREE_NODE,
 } ZS_check_entity_t;
 
 typedef enum {
@@ -59,6 +60,7 @@ typedef enum {
     ZSCHECK_LABEL_ERROR,
     ZSCHECK_MAGIC_ERROR,
     ZSCHECK_CHECKSUM_ERROR,
+    ZSCHECK_BTREE_ERROR,
 } ZS_check_error_t;
 
 typedef struct {
