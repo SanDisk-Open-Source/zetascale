@@ -18,7 +18,6 @@ static __thread struct ZS_thread_state *_zs_thd_state;
 static struct option long_options[] = { 
     {"verbose", no_argument,       &verbose_flag, 1}, 
     {"btree",   no_argument,       0, 'b'}, 
-//  {"flog",    no_argument,       0, 'f'}, 
     {"pot",     no_argument,       0, 'p'}, 
     {"help",    no_argument,       0, 'h'}, 
     {"logfile", required_argument, 0, 'l'}, 
@@ -128,18 +127,23 @@ ZS_status_t check_pot()
     return ZSCheckPOT( );
 }
 
+void set_props()
+{
+    ZSLoadProperties(getenv("ZS_PROPERTY_FILE"));
+    ZSSetProperty("ZS_CHECK_MODE", "1");
+    ZSSetProperty("ZS_REFORMAT", "0");
+    unsetenv("ZS_PROPERTY_FILE");
+}
+
 int main(int argc, char *argv[])
 {
     ZS_status_t status = ZS_FAILURE;
-    char *prop_file = NULL;
 
     if ( get_options( argc, argv) ) {
         return -1;
     }
 
-    prop_file = getenv("ZS_PROPERTY_FILE");
-    if (prop_file)
-        ZSLoadProperties(prop_file);
+    set_props();
 
     ZSCheckInit(logfile);
 
