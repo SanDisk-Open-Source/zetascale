@@ -4251,13 +4251,14 @@ get_bmap_mismatch_count(uint64_t *bmap, uint64_t *check_map, uint64_t bmap_size)
 					account--;
 				}
 
+                int level = PLAT_LOG_LEVEL_INFO;
+
 				if (account > 0) {
-					mcd_log_msg(PLAT_LOG_ID_INITIAL, PLAT_LOG_LEVEL_DEBUG, 
-	"ZSCheck: Leak of space map entry %d:%d.\n", i, j);
-				} else if (account < 0) {
-					mcd_log_msg(PLAT_LOG_ID_INITIAL, PLAT_LOG_LEVEL_INFO, 
-	"ZSCheck: Lost space map entry %d:%d.\n", i, j);
-				}
+                    level = PLAT_LOG_LEVEL_DEBUG;
+				} 
+
+                mcd_log_msg(150122, level, 
+                            "ZSCheck: Lost space map entry %d:%d.\n", i, j);
 				b1 = b1 >> 1;
 				b2 = b2 >> 1;
 
@@ -4326,7 +4327,7 @@ compare_space_maps(mcd_osd_shard_t *shard)
 
 out:
 	if (leaked_space != 0) {
-		mcd_log_msg(160286, PLAT_LOG_LEVEL_ERROR,
+		mcd_log_msg(150123, PLAT_LOG_LEVEL_ERROR,
 		    "Space consistency check got %"PRId64" leaked blocks.\n", leaked_space);
 		return false;
 	}

@@ -36,6 +36,7 @@
 #include "container_meta_blob.h"
 #include "protocol/action/recovery.h"
 #include "ssd/fifo/slab_gc.h"
+#include "utils/checklog.h"
 
 
 /*
@@ -218,6 +219,7 @@ extern void mcd_fth_osd_slab_dealloc( mcd_osd_shard_t * shard,
                                       uint64_t address, bool async );
 extern inline uint32_t mcd_osd_lba_to_blk( uint32_t blocks );
 
+extern int mcd_check_is_enabled();
 
 // -----------------------------------------------------
 //    External Globals
@@ -2404,6 +2406,9 @@ flog_patchup(mcd_osd_shard_t *shard, void *context, FILE *fp, int check_only)
         flog_rec_t *frec = (flog_rec_t *)sector;
         while (fread(sector, FLUSH_LOG_SEC_SIZE, 1, fp) == 1) {
             if (frec->magic != FLUSH_LOG_MAGIC) {
+                if (check_only)
+                    zscheck_log_msg(ZSCHECK_FLOG_RECORD, shard->pshard->shard_id, 
+                                    ZSCHECK_MAGIC_ERROR, "flog magic number invalid");
                 if(!flog_checksum_enabled)
                     continue;
 
@@ -2412,18 +2417,26 @@ flog_patchup(mcd_osd_shard_t *shard, void *context, FILE *fp, int check_only)
                     i++;
                 if(i == FLUSH_LOG_SEC_SIZE / sizeof(uint64_t))
                     continue;
-            }
+            } else if (check_only)
+                zscheck_log_msg(ZSCHECK_FLOG_RECORD, shard->pshard->shard_id, 
+                                ZSCHECK_SUCCESS, "flog magic number valid");
+
             if(flog_checksum_enabled) {
                 uint32_t c, sum = frec->checksum;
                 frec->checksum = 0;
                 if((c = checksum((char*)frec, sizeof(flog_rec_t), 0)) != sum) {
                     mcd_log_msg(160283, PLAT_LOG_LEVEL_FATAL,
                             "flog checksum doesn't match expected %x, stored on disk %x, filepos=%ld", c, sum, ftell(fp));
-                    if(check_only)
+                    if(check_only) {
+                        zscheck_log_msg(ZSCHECK_FLOG_RECORD, shard->pshard->shard_id, 
+                                        ZSCHECK_CHECKSUM_ERROR, "flog checksum invalid");
                         return 1;
+                    }
                     else
                         plat_abort();
-                }
+                } else if (check_only)
+                    zscheck_log_msg(ZSCHECK_FLOG_RECORD, shard->pshard->shard_id, 
+                                    ZSCHECK_SUCCESS, "flog checksum valid");
             }
             if(!check_only) {
                 int s = fbio_write(&fbio_, frec);
@@ -2487,11 +2500,13 @@ flog_recover_low(mcd_osd_shard_t *shard, void *context, int check_only)
 	return rc;
 }
 
+#if 0
 static void
 flog_recover(mcd_osd_shard_t *shard, void *context)
 {
 	(void)flog_recover_low(shard, context, 0);
 }
+#endif
 
 int
 flog_check(mcd_osd_shard_t *shard, void *context)
@@ -2551,11 +2566,11 @@ flog_prepare(mcd_osd_shard_t *shard)
  * Initialise log flushing.
  */
 static void
-flog_init(mcd_osd_shard_t *shard, void *context)
+flog_init(mcd_osd_shard_t *shard, void *context, int check_only)
 {
 	if(shard->durability_level > SDF_NO_DURABILITY)
 	{
-	    flog_recover(shard, context);
+	    flog_recover_low(shard, context, check_only);
 	    flog_prepare(shard);
 	}
 	else
@@ -2687,7 +2702,13 @@ shard_recover( mcd_osd_shard_t * shard )
                  VAR_BLKS_TO_META_BLKS(pshard->rec_log_blks) * MCD_REC_LOG_BLK_RECS );
 
     // initialize log flushing
-	flog_init(shard, context);
+    // ignore this if in zsck mode...will hopefully do it later
+#if 0
+    if ( !mcd_check_is_enabled() )
+	    flog_init(shard, context, 0);
+#else
+	flog_init(shard, context, 0);
+#endif
 
     // get aligned buffer
     buf = (char *)( ( (uint64_t)context->osd_buf + Mcd_osd_blk_size - 1 ) &
@@ -4958,8 +4979,8 @@ uint32_t
 pot_checksum_get(char* buf) {
     uint32_t sum = 0;
     int i = sizeof(uint32_t)*8/2;
-
     mcd_rec_flash_object_t *rec = (mcd_rec_flash_object_t*)buf;
+
     while(i--) {
         sum <<= 2;
         sum |= rec[i].checksum;

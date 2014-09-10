@@ -61,6 +61,8 @@ int                   cmc_properties_ok = 0;
 int                   vmc_properties_ok = 0;
 int                   vdc_properties_ok = 0;
 
+extern int __zs_check_mode_on;
+
 int
 mcd_check_label(int fd)
 {
@@ -569,49 +571,6 @@ mcd_check_all_ckpt_descriptors(int fd)
         return 0;
 }
 
-#if 0
-static uint64_t
-mcd_check_relative_log_offset( mcd_rec_shard_t * pshard, int log )
-{
-    return ( pshard->rec_md_blks +
-             pshard->rec_table_blks +
-             pshard->rec_table_pad +
-             (log * (pshard->rec_log_blks + pshard->rec_log_pad)) );
-}
-
-static uint64_t
-mcd_check_log_page( osd_state_t * context, mcd_osd_shard_t * shard, int log,
-               uint64_t rel_offset )
-{
-    int                         rc;
-    uint64_t                    log_offset;
-    uint64_t			tmp_offset;
-    uint64_t                    offset;
-    char                      * buf;
-    uint64_t			seg;
-
-    // get aligned buffer
-    buf = (char *)( ( (uint64_t)context->osd_buf + Mcd_osd_blk_size - 1 ) &
-                    Mcd_osd_blk_mask );
-
-    // calculate block offset
-    log_offset = mcd_check_relative_log_offset( shard->pshard, log );
-    log_offset = log_offset * Mcd_osd_blk_size;
-    tmp_offset = rel_offset * MCD_OSD_META_BLK_SIZE;
-    seg = (log_offset + tmp_offset) / Mcd_osd_segment_size;
-    offset = shard->segments[ seg ] * Mcd_osd_blk_size +
-		((log_offset + tmp_offset) % Mcd_osd_segment_size);
-
-    // read last page of first log
-    rc = mcd_fth_aio_blk_read( context,
-                               buf,
-                               offset,
-                               MCD_OSD_META_BLK_SIZE);
-
-    return ((mcd_rec_logpage_hdr_t *)buf)->LSN;
-}
-#endif
-
 int
 mcd_check_meta()
 {
@@ -736,4 +695,52 @@ mcd_check_flog()
     }
 
     return ( errors == 0 ) ? 0 : -1;
+}
+
+int
+mcd_check_pot()
+{
+    int status = -1;
+    int errors = 0;
+    osd_state_t * context = mcd_fth_init_aio_ctxt( SSD_AIO_CTXT_MCD_REC_RCVR );
+    mcd_rec_shard_t * shard = NULL;
+    mcd_osd_shard_t * osd_shard = NULL;
+
+    // check cmc
+    shard = (mcd_rec_shard_t *)buf[CMC_DESC_BUF];
+    osd_shard = mcd_check_get_osd_shard( shard->shard_id );
+    status = check_object_table( context, osd_shard );
+    if ( status ) {
+        fprintf(stderr,">>>mcd_check_pot failed for cmc.\n");
+        ++errors;
+    }
+
+    // check vmc
+    shard = (mcd_rec_shard_t *)buf[VMC_DESC_BUF];
+    osd_shard = mcd_check_get_osd_shard( shard->shard_id );
+    status = check_object_table( context, osd_shard );
+    if ( status ) {
+        fprintf(stderr,">>>mcd_check_pot failed for vmc.\n");
+        ++errors;
+    }
+
+    // check vdc
+    shard = (mcd_rec_shard_t *)buf[VDC_DESC_BUF];
+    osd_shard = mcd_check_get_osd_shard( shard->shard_id );
+    status = check_object_table( context, osd_shard );
+    if ( status ) {
+        fprintf(stderr,">>>mcd_check_pot failed for vdc.\n");
+        ++errors;
+    }
+
+    return ( errors == 0 ) ? 0 : -1;
+}
+
+// Is check mode turned on?
+// 0 - disabled
+// 1 - enabled
+int 
+mcd_check_is_enabled()
+{
+    return __zs_check_mode_on;
 }

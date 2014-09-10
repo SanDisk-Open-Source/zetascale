@@ -262,6 +262,12 @@ ZS_status_t
 (*ptr_ZSCheckFlog) ();
 
 ZS_status_t
+(*ptr_ZSCheckPOT) ();
+
+ZS_status_t
+(*ptr_ZSCheckClose) ();
+
+ZS_status_t
 (*ptr_ZSCheckInit) ();
 
 ZS_status_t
@@ -413,7 +419,9 @@ static struct {
     { "_ZSCheck",                      &ptr_ZSCheck                     },
     { "_ZSCheckMeta",                  &ptr_ZSCheckMeta                 },
     { "_ZSCheckFlog",                  &ptr_ZSCheckFlog                 },
+    { "_ZSCheckPOT",                   &ptr_ZSCheckPOT                  },
     { "_ZSCheckInit",                  &ptr_ZSCheckInit                 },
+    { "_ZSCheckClose",                 &ptr_ZSCheckClose                },
     { "_ZSIoctl",                      &ptr_ZSIoctl                     },
     { "_ZSCreateContainerSnapshot",    &ptr_ZSCreateContainerSnapshot   },
     { "_ZSDeleteContainerSnapshot",    &ptr_ZSDeleteContainerSnapshot   },
@@ -1488,7 +1496,6 @@ ZS_status_t
 ZSCheckBtree(struct ZS_thread_state *zs_thread_state, 
 	       ZS_cguid_t cguid)
 {
-
     if (unlikely(!ptr_ZSCheckBtree))
         undefined("ZSCheckBtree");
 
@@ -1501,7 +1508,6 @@ ZSCheckBtree(struct ZS_thread_state *zs_thread_state,
 ZS_status_t
 ZSCheck(struct ZS_thread_state *zs_thread_state)
 {
-
     if (unlikely(!ptr_ZSCheck))
         undefined("ZSCheck");
 
@@ -1527,7 +1533,6 @@ ZSCheckMeta()
 ZS_status_t
 ZSCheckFlog()
 {
-
     if (unlikely(!ptr_ZSCheckFlog))
         undefined("ZSCheckFlog");
 
@@ -1535,12 +1540,35 @@ ZSCheckFlog()
 }
 
 /*
- * ZSCheckMeta: for use in zsck..
+ * ZSCheckPOT: for use in zsck..
+ */
+ZS_status_t
+ZSCheckPOT()
+{
+    if (unlikely(!ptr_ZSCheckPOT))
+        undefined("ZSCheckPOT");
+
+    return (*ptr_ZSCheckPOT) ();
+}
+
+/*
+ * ZSCheckClose: for use in zsck..
+ */
+ZS_status_t
+ZSCheckClose()
+{
+    if (unlikely(!ptr_ZSCheckClose))
+        undefined("ZSCheckClose");
+
+    return (*ptr_ZSCheckClose) ();
+}
+
+/*
+ * ZSCheckInit: for use in zsck..
  */
 ZS_status_t
 ZSCheckInit(char *logfile)
 {
-
     if (unlikely(!ptr_ZSCheckInit))
         undefined("ZSCheckInit");
 
@@ -1556,7 +1584,6 @@ ZSIoctl(struct ZS_thread_state *zs_thread_state,
          uint32_t ioctl_type,
          void *data)
 {
-
     if (unlikely(!ptr_ZSIoctl))
         undefined("ZSIoctl");
 

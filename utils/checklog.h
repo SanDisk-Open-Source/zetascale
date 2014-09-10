@@ -20,7 +20,7 @@ extern "C" {
 #include "common/zstypes.h"
 
 // zscheck logfile default
-#define  ZSCHECK_LOG_DEFAULT "/tmp/zscheck.log"
+#define  ZSCHECK_LOG_DEFAULT "/tmp/zsck.log"
 
 // zscheck tests
 #define ZSCHECK_TEST_LABEL          0x1
@@ -36,20 +36,6 @@ extern "C" {
 #define ZSCHECK_TEST_POT_BM         0x400
 #define ZSCHECK_TEST_SLAB_BM        0x800
 
-// zscheck test property
-#define ZS_META_FAILURE "ZS_META_FAILURE"
-
-// Operational modes
-#define ZS_OP_MODE "ZS_OP_MODE"   // property
-#define ZSRUN "ZSRUN"             // normal run
-#define ZSCHECK "ZSCHECK"         // check
-#define ZSTEST "ZSTEST"           // test
-
-typedef enum {
-    ZS_RUN_MODE = 0,
-    ZS_CHECK_MODE = 1,
-} ZS_operational_mode_t;
-
 typedef enum {
     ZSCHECK_LABEL = 0,
     ZSCHECK_SUPERBLOCK,
@@ -58,6 +44,7 @@ typedef enum {
     ZSCHECK_SEGMENT_LIST,
     ZSCHECK_CLASS_DESCRIPTOR,
     ZSCHECK_CKPT_DESCRIPTOR,
+    ZSCHECK_FLOG_RECORD,
     ZSCHECK_LOG_PAGE_HEADER,
     ZSCHECK_SLAB_METADATA,
     ZSCHECK_SLAB_DATA,

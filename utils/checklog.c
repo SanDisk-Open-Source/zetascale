@@ -37,8 +37,10 @@ int zscheck_init_log(char *file)
     
 int zscheck_close_log()
 {
-    if (fp)
+    if (fp) {
+      fflush(fp);
       return fclose(fp);
+    }
     else
       return -1;
 }

@@ -3181,6 +3181,8 @@
 150119 %lu - not found
 150120 failed to read superblock data, blks=%d, blk_offset=%d, rc=%d
 150121 Failed to initialize zscheck log
+150122 ZSCheck: Lost space map entry %d:%d.\n
+150123 Space consistency check got %"PRId64" leaked blocks.\n
 
 
 # root

@@ -208,10 +208,16 @@ ZS_status_t
 _ZSCheckInit(char *logfile); 
 
 ZS_status_t
+_ZSCheckClose();
+
+ZS_status_t
 _ZSCheckMeta(); 
 
 ZS_status_t
 _ZSCheckFlog(); 
+
+ZS_status_t
+_ZSCheckPOT(); 
 
 ZS_status_t _ZSScavengeContainer(struct ZS_state *zs_state, ZS_cguid_t cguid);
 ZS_status_t ZSStartAstats(struct ZS_state *zs_state, ZS_cguid_t cguid);
@@ -3708,6 +3714,12 @@ out:
 }
 
 ZS_status_t
+_ZSCheckClose()            
+{
+    return ZSCheckClose();
+}
+
+ZS_status_t
 _ZSCheckInit(char *logfile)
 {
     return ZSCheckInit(logfile);
@@ -3725,7 +3737,11 @@ _ZSCheckFlog()
     return ZSCheckFlog();
 }
 
-
+ZS_status_t
+_ZSCheckPOT()
+{
+    return ZSCheckPOT();
+}
 
 
 #if 0

@@ -9,6 +9,7 @@
 static int verbose_flag = 0;
 static int btree_opt = 0;    
 static int flog_opt = 0;    
+static int pot_opt = 0;    
 static char *logfile = NULL;
 
 static struct ZS_state* zs_state;
@@ -18,6 +19,7 @@ static struct option long_options[] = {
     {"verbose", no_argument,       &verbose_flag, 1}, 
     {"btree",   no_argument,       0, 'b'}, 
     {"flog",    no_argument,       0, 'f'}, 
+    {"pot",     no_argument,       0, 'p'}, 
     {"help",    no_argument,       0, 'h'}, 
     {"logfile", required_argument, 0, 'l'}, 
     {0, 0, 0, 0} 
@@ -26,7 +28,7 @@ static struct option long_options[] = {
 void print_help(char *pname) 
 {
     fprintf(stderr, "\nExecute validation of ZetaScale persistent metadata, btree strucutres and recovery logs.\n\n");
-    fprintf(stderr, "%s --btree --flog --logfile=file --help\n\n", pname);
+    fprintf(stderr, "%s --btree --flog --pot --logfile=file --help\n\n", pname);
 }
 
 int get_options(int argc, char *argv[])
@@ -35,7 +37,7 @@ int get_options(int argc, char *argv[])
     int c;
 
     while (1) { 
-        c = getopt_long (argc, argv, "bfl:t:vh", long_options, &option_index); 
+        c = getopt_long (argc, argv, "bfl:pt:vh", long_options, &option_index); 
 
         if (c == -1) 
             break;
@@ -52,6 +54,10 @@ int get_options(int argc, char *argv[])
 
         case 'f': 
             flog_opt = 1; 
+            break;
+
+        case 'p': 
+            pot_opt = 1; 
             break;
 
         case 'v': 
@@ -91,8 +97,10 @@ int close_zs()
 {
     ZS_status_t status = ZS_FAILURE;
 
+    ZSCheckClose();
+
     if ( ZS_SUCCESS != ( status = ZSReleasePerThreadState(&_zs_thd_state ) ) ) {
-        fprintf(stderr, "Failed to uninitialize ZS API!\n");
+        fprintf(stderr, "Failed to release ZS thread state!\n");
         return status;
     }
 
@@ -117,6 +125,11 @@ ZS_status_t check_btree()
 ZS_status_t check_flog()
 {
     return ZSCheckFlog( );
+}
+
+ZS_status_t check_pot()
+{
+    return ZSCheckPOT( );
 }
 
 int main(int argc, char *argv[])
@@ -147,19 +160,27 @@ int main(int argc, char *argv[])
         return -1;
     }
 
-    if (btree_opt) {
-        if (ZS_SUCCESS != (status = check_btree())) {
-            fprintf(stderr, "btree check failed: %s\n", ZSStrError(status));
-        } else {
-            fprintf(stderr, "btree check succeeded\n");
-        }
-    }
-
     if (flog_opt) {
         if (ZS_SUCCESS != (status = check_flog())) {
             fprintf(stderr, "flog check failed: %s\n", ZSStrError(status));
         } else {
             fprintf(stderr, "flog check succeeded\n");
+        }
+    }
+
+    if (pot_opt) {
+        if (ZS_SUCCESS != (status = check_pot())) {
+            fprintf(stderr, "pot check failed: %s\n", ZSStrError(status));
+        } else {
+            fprintf(stderr, "pot check succeeded\n");
+        }
+    }
+
+    if (btree_opt) {
+        if (ZS_SUCCESS != (status = check_btree())) {
+            fprintf(stderr, "btree check failed: %s\n", ZSStrError(status));
+        } else {
+            fprintf(stderr, "btree check succeeded\n");
         }
     }
 

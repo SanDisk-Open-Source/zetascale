@@ -1731,11 +1731,31 @@ ZSCheckFlog();
 // For ZS metadata checker
 #ifdef BTREE_MODE
 ZS_status_t
+_ZSCheckPOT();
+#define ZSCheckPOT     _ZSCheckPOT
+#else
+ZS_status_t
+ZSCheckPOT();
+#endif
+
+// For ZS metadata checker
+#ifdef BTREE_MODE
+ZS_status_t
 _ZSCheckInit(char *logfile);
 #define ZSCheckInit     _ZSCheckInit
 #else
 ZS_status_t
 ZSCheckInit(char *logfile);
+#endif
+
+// For ZS metadata checker
+#ifdef BTREE_MODE
+ZS_status_t
+_ZSCheckClose();
+#define ZSCheckClose    _ZSCheckClose
+#else
+ZS_status_t
+ZSCheckClose();
 #endif
 
 #ifdef BTREE_MODE
