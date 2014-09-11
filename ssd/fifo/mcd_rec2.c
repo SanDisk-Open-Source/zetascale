@@ -1299,7 +1299,7 @@ apply_log_record_mp_storm( mcd_rec_obj_state_t *state, mcd_logrec_object_t *rec)
 	mcd_osd_shard_t *s = state->shard;
 	if (rec->raw) {
 		if (rec->blocks) {
-			slab_bitmap_set( s, rec->blocks);
+			slab_bitmap_set( s, rec->blk_offset);
 			if (rec->old_offset)
 				slab_bitmap_clear( s, ~ rec->old_offset);
 		}
@@ -1353,7 +1353,7 @@ mcd_fth_osd_slab_load_slabbm( osd_state_t *context, mcd_osd_shard_t *shard, ucha
 		const uint bPERB = 8;
 		if (bits[i/bPERB] & 1<<i%bPERB) {
 			mcd_osd_segment_t *segment = shard->segment_table[blk_offset/Mcd_osd_segment_blks];
-			uint64_t blks = shard->slab_classes[shard->class_table[blk_offset]].slab_blksize;
+			uint64_t blks = shard->slab_classes[shard->class_table[device_blocks_per_storm_object]].slab_blksize;
 			shard->blk_consumed += blks;
 			shard->num_objects += 1;
 			shard->total_objects += 1;
