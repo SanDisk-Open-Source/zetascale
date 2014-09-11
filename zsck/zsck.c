@@ -15,6 +15,7 @@ static struct ZS_state* zs_state;
 static __thread struct ZS_thread_state *_zs_thd_state;
 
 static struct option long_options[] = { 
+    {"btree",   no_argument,       0, 'b'}, 
     {"help",    no_argument,       0, 'h'}, 
     {"logfile", required_argument, 0, 'l'}, 
     {0, 0, 0, 0} 
@@ -87,11 +88,9 @@ int close_zs()
         return status;
     }
 
-    if (btree_opt) {
-        if ( ZS_SUCCESS != (status = ZSShutdown( zs_state ) ) ) {
-            fprintf(stderr, "Failed to shutdown ZS API!\n");
-            return status;
-        }
+    if ( ZS_SUCCESS != (status = ZSShutdown( zs_state ) ) ) {
+        fprintf(stderr, "Failed to shutdown ZS API!\n");
+        return status;
     }
 
     return status;

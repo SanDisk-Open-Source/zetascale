@@ -2539,7 +2539,7 @@ flog_prepare(mcd_osd_shard_t *shard)
     char path[FLUSH_LOG_MAX_PATH];
     char *log_flush_dir = (char *)getProperty_String("ZS_LOG_FLUSH_DIR", NULL);
 
-    if (mcd_check_is_enabled() || log_flush_dir == NULL)
+    if (log_flush_dir == NULL)
         return;
 
 	if(zs_instance_id)
@@ -2555,7 +2555,13 @@ flog_prepare(mcd_osd_shard_t *shard)
              log_flush_dir, FLUSH_LOG_PREFIX, shard->id);
     mcd_log_msg(70080, PLAT_LOG_LEVEL_DEBUG, "Flushing logs to %s", path);
 
-    int flags = O_CREAT|O_TRUNC|O_WRONLY;
+    int flags = 0;
+
+    if (mcd_check_is_enabled())
+        flags = O_WRONLY;
+    else
+        flags = O_CREAT|O_TRUNC|O_WRONLY;
+
     if(getProperty_Int("ZS_LOG_O_DIRECT", 0)) {
         flags |= O_DIRECT;
         mcd_log_msg(180019, PLAT_LOG_LEVEL_DEBUG,
