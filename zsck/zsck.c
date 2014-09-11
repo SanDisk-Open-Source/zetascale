@@ -6,19 +6,15 @@
 #include <getopt.h>
 #include <zs.h>
 
-static int verbose_flag = 0;
 static int btree_opt = 0;    
 static int flog_opt = 1;    // must always be run
-static int pot_opt = 0;    
+static int pot_opt = 1;    
 static char *logfile = NULL;
 
 static struct ZS_state* zs_state;
 static __thread struct ZS_thread_state *_zs_thd_state;
 
 static struct option long_options[] = { 
-    {"verbose", no_argument,       &verbose_flag, 1}, 
-    {"btree",   no_argument,       0, 'b'}, 
-    {"pot",     no_argument,       0, 'p'}, 
     {"help",    no_argument,       0, 'h'}, 
     {"logfile", required_argument, 0, 'l'}, 
     {0, 0, 0, 0} 
@@ -27,7 +23,7 @@ static struct option long_options[] = {
 void print_help(char *pname) 
 {
     fprintf(stderr, "\nExecute validation of ZetaScale persistent metadata, btree strucutres and recovery logs.\n\n");
-    fprintf(stderr, "%s --btree --pot --logfile=file --help\n\n", pname);
+    fprintf(stderr, "%s --btree --logfile=file --help\n\n", pname);
 }
 
 int get_options(int argc, char *argv[])
@@ -36,29 +32,21 @@ int get_options(int argc, char *argv[])
     int c;
 
     while (1) { 
-        c = getopt_long (argc, argv, "bl:pt:vh", long_options, &option_index); 
+        c = getopt_long (argc, argv, "bl:h", long_options, &option_index); 
 
         if (c == -1) 
             break;
      
         switch (c) { 
      
+        case 'b': 
+            btree_opt = 1; 
+            break;
+     
         case 'l': 
             logfile = optarg; 
             break;
      
-        case 'b': 
-            btree_opt = 1; 
-            break;
-
-        case 'p': 
-            pot_opt = 1; 
-            break;
-
-        case 'v': 
-            verbose_flag = 1;
-            break;
-
         case 'h': 
             print_help(argv[0]); 
             return -1;
@@ -99,9 +87,11 @@ int close_zs()
         return status;
     }
 
-    if ( ZS_SUCCESS != (status = ZSShutdown( zs_state ) ) ) {
-        fprintf(stderr, "Failed to shutdown ZS API!\n");
-        return status;
+    if (btree_opt) {
+        if ( ZS_SUCCESS != (status = ZSShutdown( zs_state ) ) ) {
+            fprintf(stderr, "Failed to shutdown ZS API!\n");
+            return status;
+        }
     }
 
     return status;

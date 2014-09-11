@@ -2539,7 +2539,7 @@ flog_prepare(mcd_osd_shard_t *shard)
     char path[FLUSH_LOG_MAX_PATH];
     char *log_flush_dir = (char *)getProperty_String("ZS_LOG_FLUSH_DIR", NULL);
 
-    if (log_flush_dir == NULL)
+    if (mcd_check_is_enabled() || log_flush_dir == NULL)
         return;
 
 	if(zs_instance_id)
@@ -2613,7 +2613,7 @@ flog_clean(uint64_t shard_id)
     char path[FLUSH_LOG_MAX_PATH];
     char *log_flush_dir = (char *)getProperty_String("ZS_LOG_FLUSH_DIR", NULL);
 
-    if (log_flush_dir == NULL)
+    if ( mcd_check_is_enabled() || log_flush_dir == NULL)
         return;
 
 	if(zs_instance_id)

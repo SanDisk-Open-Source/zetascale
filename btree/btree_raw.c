@@ -7991,7 +7991,7 @@ btree_raw_init_stats(struct btree_raw *btree, btree_stats_t *stats, zs_pstats_t 
     btree->stats.stat[BTSTAT_NUM_OBJS]    = pstats->obj_count;
     btree->stats.stat[BTSTAT_NUM_SNAP_OBJS]    = pstats->num_snap_objs;
     btree->stats.stat[BTSTAT_SNAP_DATA_SIZE]    = pstats->snap_data_size;
-    fprintf(stderr, "btree_raw_init_stats:BTSTAT_NUM_OBJS= %ld\n",  pstats->obj_count);
+    //fprintf(stderr, "btree_raw_init_stats:BTSTAT_NUM_OBJS= %ld\n",  pstats->obj_count);
     //btree->stats.stat[BTSTAT_TOTAL_BYTES] = pstats->cntr_sz;
 //  btree->stats.stat[BTSTAT_SPCOPT_BYTES_SAVED] = 0;
 }
