@@ -196,7 +196,7 @@ scavenger_del_stale_ent(Scavenge_Arg_t *s)
 			meta.flags = FORCE_DELETE | READ_SEQNO_EQ;
 			btree_ret = btree_delete(s->bt, key[j].key, key[j].keylen, &meta);
 			bt_cntr_unlock_scavenger(s, false);
-			while (!scavenger_killed) {
+			if (!scavenger_killed) {
 				usleep(1000*(s->throttle_value));
 			}
 			zs_ret = bt_cntr_lock_scavenger(s);
