@@ -604,12 +604,14 @@ mcd_check_meta()
 
     status = mcd_check_all_shard_properties(fd);
     if ( 0 != status ) {
-        fprintf(stderr,">>>mcd_check_shard_properties failed. non-fatal error\n");
+        fprintf(stderr,">>>mcd_check_shard_properties failed. fatal error\n");
+        goto out;
     }
 
     status = mcd_check_all_shard_descriptors(fd);
     if ( 0 != status ) {
-        fprintf(stderr,">>>mcd_check_shard_descriptors failed. non-fatal error\n");
+        fprintf(stderr,">>>mcd_check_shard_descriptors failed. fatal error\n");
+        goto out;
     }
 
     status = mcd_check_all_segment_lists(fd);
