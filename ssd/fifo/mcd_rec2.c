@@ -63,6 +63,8 @@
 #define	bitbase( a)	((a) / bits_per_byte)
 #define	bitmask( a)	(1 << (a)%bits_per_byte)
 
+int pot_checksum_enabled;
+
 enum {
 	MCD_REC_POTBM_EYE_CATCHER = 0x42544F50,		// "POTB"
 	MCD_REC_SLABBM_EYE_CATCHER = 0x42424C53		// "SLBB"
@@ -174,6 +176,8 @@ static void	pot_cache_shutdown( mcd_osd_shard_t *),
 		dump_params( );
 static char	*prettynumber( ulong);
 
+void pot_checksum_set(char* buf, uint32_t sum);
+uint32_t pot_checksum_get(char* buf);
 
 uint8_t
 check_storm_mode( )
@@ -276,6 +280,26 @@ mcd_rec2_potcache_init( mcd_osd_shard_t *s, osd_state_t *context)
 				int rc = mcd_fth_aio_blk_read( context, (char *)e, o, bytes_per_page);
 				if (rc)
 					readerror( rc);
+
+				if(pot_checksum_enabled) {
+					uint32_t c, sum = pot_checksum_get((char*)e);
+					pot_checksum_set((char*)e, 0);
+					if((c = checksum((char*)e, bytes_per_page, 0)) != sum)
+					{
+						int i = 0;
+						if(!sum)
+							while(i < bytes_per_page / sizeof(uint64_t) && !((uint64_t*)e)[i])
+								i++;
+
+						if(sum || i < bytes_per_page / sizeof(uint64_t)) {
+							mcd_log_msg(PLAT_LOG_ID_INITIAL, PLAT_LOG_LEVEL_FATAL,
+									"POT checksum error. expected=%x, read_from_disk=%x, start_blk=%ld num_blks=%d offset=%d", c, sum,
+									page, 1, i);
+							return FALSE;
+						}
+					}
+				}
+
 				c[page] = e;
 			}
 	}
@@ -300,6 +324,9 @@ mcd_rec2_potcache_save( mcd_osd_shard_t *s, void *context)
 				mcd_rec_shard_t *p = s->pshard;
 				ulong o = pot_base( p);
 				o += i * bytes_per_page;
+				pot_checksum_set((char*)c[i], 0);
+				uint32_t sum = checksum((char*)c[i], bytes_per_page, 0);
+				pot_checksum_set((char*)c[i], sum);
 				int rc = mcd_fth_aio_blk_write( context, (char *)c[i], o, bytes_per_page);
 				if (rc)
 					writeerror( rc);

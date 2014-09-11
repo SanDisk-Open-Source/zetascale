@@ -5007,17 +5007,21 @@ pot_checksum_get(char* buf) {
     return sum;
 }
 
+#define bytes_per_page 65536
+
 int
 check_object_table(void * context, mcd_osd_shard_t * shard)
 {
     int                         rc = 0, chunk, pct_complete = 0;
-    int                         seg_blks = Mcd_rec_update_segment_blks;
 
     char *_buf = plat_alloc(Mcd_rec_update_segment_size + MCD_OSD_META_BLK_SIZE);
     char *buf = (char *)( ( (uint64_t)_buf + MCD_OSD_META_BLK_SIZE - 1 ) &
                     MCD_OSD_META_BLK_MASK);
     if(!buf)
         return 1;
+
+    uint32_t block_size = flash_settings.storm_mode ? bytes_per_page : Mcd_rec_update_segment_size;
+    uint32_t seg_blks = flash_settings.storm_mode ? 1 : Mcd_rec_update_segment_blks;
 
     uint64_t num_blks    = VAR_BLKS_TO_META_BLKS(shard->pshard->rec_table_blks);
     uint64_t num_chunks  = (num_blks + seg_blks - 1) / seg_blks;
@@ -5050,17 +5054,17 @@ check_object_table(void * context, mcd_osd_shard_t * shard)
         if(pot_checksum_enabled) {
             uint32_t c, sum = pot_checksum_get(buf);
             pot_checksum_set(buf, 0);
-            if((c = checksum(buf, Mcd_rec_update_segment_size, 0)) != sum)
+            if((c = checksum(buf, block_size, 0)) != sum)
             {
                 int i = 0;
                 if(!sum)
-                    while(i < Mcd_rec_update_segment_size / sizeof(uint64_t) && !((uint64_t*)buf)[i])
+                    while(i < block_size / sizeof(uint64_t) && !((uint64_t*)buf)[i])
                         i++;
 
-                if(sum || i < Mcd_rec_update_segment_size / sizeof(uint64_t)) {
-                    mcd_log_msg(160284, PLAT_LOG_LEVEL_FATAL,
-                            "POT checksum error. expected=%x, read_from_disk=%x, start_blk=%ld num_blks=%d", c, sum,
-                            chunk * Mcd_rec_update_segment_blks, seg_blks);
+                if(sum || i < block_size / sizeof(uint64_t)) {
+                    mcd_log_msg(PLAT_LOG_ID_INITIAL, PLAT_LOG_LEVEL_FATAL,
+                            "POT checksum error. expected=%x, read_from_disk=%x, start_blk=%d num_blks=%d offset=%d", c, sum,
+                            chunk * seg_blks, seg_blks, i);
                     rc = 1;
                     break;
                 }
