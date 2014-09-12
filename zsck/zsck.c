@@ -8,7 +8,7 @@
 
 static int btree_opt = 0;    
 static int flog_opt = 1;    // must always be run
-static int pot_opt = 1;    
+static int pot_opt = 0;    
 static char *logfile = NULL;
 
 static struct ZS_state* zs_state;
@@ -161,6 +161,7 @@ int main(int argc, char *argv[])
         }
     }
 
+    // Only used for non-storm mode
     if (pot_opt) {
         if (ZS_SUCCESS != (status = check_pot())) {
             fprintf(stderr, "pot check failed: %s\n", ZSStrError(status));
