@@ -22,19 +22,11 @@ extern "C" {
 // zscheck logfile default
 #define  ZSCHECK_LOG_DEFAULT "/tmp/zsck.log"
 
-// zscheck tests
-#define ZSCHECK_TEST_LABEL          0x1
-#define ZSCHECK_TEST_SUPERBLOCK     0x2
-#define ZSCHECK_TEST_SHARD_DESC     0x4
-#define ZSCHECK_TEST_SHARD_PROP     0x8
-#define ZSCHECK_TEST_SEG_LIST       0x10
-#define ZSCHECK_TEST_CLASS_DESC     0x20
-#define ZSCHECK_TEST_CKPT_DESC      0x40
-#define ZSCHECK_TEST_PAGE_HDR       0x80
-#define ZSCHECK_TEST_SLAB_META      0x100
-#define ZSCHECK_TEST_SLAB_DATA      0x200
-#define ZSCHECK_TEST_POT_BM         0x400
-#define ZSCHECK_TEST_SLAB_BM        0x800
+typedef enum {
+    ZSCHECK_NO_CHECK = 0,
+    ZSCHECK_NO_INIT,
+    ZSCHECK_INIT,
+} ZS_check_mode_t;
 
 typedef enum {
     ZSCHECK_LABEL = 0,

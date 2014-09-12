@@ -220,8 +220,6 @@ extern void mcd_fth_osd_slab_dealloc( mcd_osd_shard_t * shard,
                                       uint64_t address, bool async );
 extern inline uint32_t mcd_osd_lba_to_blk( uint32_t blocks );
 
-extern int mcd_check_is_enabled();
-
 // -----------------------------------------------------
 //    External Globals
 // -----------------------------------------------------
@@ -2557,7 +2555,7 @@ flog_prepare(mcd_osd_shard_t *shard)
 
     int flags = 0;
 
-    if (mcd_check_is_enabled())
+    if (mcd_check_level() == ZSCHECK_NO_INIT)
         flags = O_WRONLY;
     else
         flags = O_CREAT|O_TRUNC|O_WRONLY;
@@ -2619,7 +2617,7 @@ flog_clean(uint64_t shard_id)
     char path[FLUSH_LOG_MAX_PATH];
     char *log_flush_dir = (char *)getProperty_String("ZS_LOG_FLUSH_DIR", NULL);
 
-    if ( mcd_check_is_enabled() || log_flush_dir == NULL)
+    if ( mcd_check_level() == ZSCHECK_NO_INIT || log_flush_dir == NULL)
         return;
 
 	if(zs_instance_id)
@@ -2731,7 +2729,7 @@ shard_recover( mcd_osd_shard_t * shard )
 
     // initialize log flushing
     // ignore this if in zsck mode...will hopefully do it later
-    if ( !mcd_check_is_enabled() )
+    if ( mcd_check_level() != ZSCHECK_NO_INIT )
 	    flog_init(shard, context, 0);
 
     // get aligned buffer

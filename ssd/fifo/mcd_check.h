@@ -50,5 +50,5 @@ int
 mcd_check_pot();
 
 int 
-mcd_check_is_enabled();
+mcd_check_level();
 

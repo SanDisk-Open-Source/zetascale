@@ -756,9 +756,10 @@ mcd_check_pot()
 
 // Is check mode turned on?
 // 0 - disabled
-// 1 - enabled
+// 1 - enabled, no init zs
+// 2 - enabled, init zs
 int 
-mcd_check_is_enabled()
+mcd_check_level()
 {
     return __zs_check_mode_on;
 }

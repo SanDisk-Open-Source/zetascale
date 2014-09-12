@@ -5605,7 +5605,7 @@ override_retry:
             meta->blk1_chksum = 0;
             if ((flash_settings.chksum_metadata)
             && (hashb( (uint8_t *)buf, MCD_OSD_META_BLK_SIZE, 0) != blk1_chksum)) {
-                if ( mcd_check_is_enabled() ) {
+                if ( mcd_check_level() ) {
                     zscheck_log_msg(ZSCHECK_SLAB_METADATA, shard->pshard->shard_id, 
                                     ZSCHECK_CHECKSUM_ERROR, "slab metadata checksum invalid");
                 } else {
@@ -5616,13 +5616,13 @@ override_retry:
                     return FLASH_EINCONS;
                 }
             }
-            if ( mcd_check_is_enabled() ) {
+            if ( mcd_check_level() ) {
                 zscheck_log_msg(ZSCHECK_SLAB_METADATA, shard->pshard->shard_id, 
                                 ZSCHECK_SUCCESS, "slab metadata checksum valid");
             }
             if ((flash_settings.chksum_data)
             && (hashb( (uint8_t *)buf+sizeof( mcd_osd_meta_t), key_len+meta->data_len, 0) != meta->data_chksum)) {
-                if ( mcd_check_is_enabled() ) {
+                if ( mcd_check_level() ) {
                     zscheck_log_msg(ZSCHECK_SLAB_DATA, shard->pshard->shard_id, 
                                     ZSCHECK_CHECKSUM_ERROR, "slab data checksum invalid");
                 } else {
@@ -5633,7 +5633,7 @@ override_retry:
                     return FLASH_EINCONS;
                 }
             }
-            if ( mcd_check_is_enabled() ) {
+            if ( mcd_check_level() ) {
                 zscheck_log_msg(ZSCHECK_SLAB_DATA, shard->pshard->shard_id, 
                                 ZSCHECK_SUCCESS, "slab data checksum valid");
             }
@@ -5840,7 +5840,7 @@ mcd_fth_osd_slab_get_raw( void * context, mcd_osd_shard_t * shard, char *key,
 	meta->blk1_chksum = 0;
 	if ((flash_settings.chksum_metadata)
 	&& (hashb( (uint8_t *)buf, MCD_OSD_META_BLK_SIZE, 0) != blk1_chksum)) {
-        if ( mcd_check_is_enabled() ) { 
+        if ( mcd_check_level() ) { 
             zscheck_log_msg(ZSCHECK_SLAB_METADATA, shard->pshard->shard_id, 
                             ZSCHECK_CHECKSUM_ERROR, "slab metadata checksum invalid"); 
         } else {
@@ -5851,13 +5851,13 @@ mcd_fth_osd_slab_get_raw( void * context, mcd_osd_shard_t * shard, char *key,
 			return FLASH_EINCONS;
         }
 	} 
-    if ( mcd_check_is_enabled() ) { 
+    if ( mcd_check_level() ) { 
         zscheck_log_msg(ZSCHECK_SLAB_METADATA, shard->pshard->shard_id, 
                         ZSCHECK_SUCCESS, "slab metadata checksum valid"); 
     }
 	if ((flash_settings.chksum_data)
 	&& (hashb( (uint8_t *)buf+sizeof( mcd_osd_meta_t), key_len+meta->data_len, 0) != meta->data_chksum)) {
-        if ( mcd_check_is_enabled() ) { 
+        if ( mcd_check_level() ) { 
             zscheck_log_msg(ZSCHECK_SLAB_DATA, shard->pshard->shard_id, 
                             ZSCHECK_CHECKSUM_ERROR, "slab data checksum invalid"); 
         } else {
@@ -5868,7 +5868,7 @@ mcd_fth_osd_slab_get_raw( void * context, mcd_osd_shard_t * shard, char *key,
 			return FLASH_EINCONS;
         }
 	}
-    if ( mcd_check_is_enabled() ) { 
+    if ( mcd_check_level() ) { 
         zscheck_log_msg(ZSCHECK_SLAB_DATA, shard->pshard->shard_id, 
                         ZSCHECK_SUCCESS, "slab data checksum valid"); 
     }

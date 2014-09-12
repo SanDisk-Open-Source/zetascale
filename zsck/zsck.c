@@ -88,7 +88,7 @@ int close_zs()
         return status;
     }
 
-    if ( ZS_SUCCESS != (status = ZSShutdown( zs_state ) ) ) {
+    if ( btree_opt && ZS_SUCCESS != (status = ZSShutdown( zs_state ) ) ) {
         fprintf(stderr, "Failed to shutdown ZS API!\n");
         return status;
     }
@@ -119,7 +119,10 @@ ZS_status_t check_pot()
 void set_props()
 {
     ZSLoadProperties(getenv("ZS_PROPERTY_FILE"));
-    ZSSetProperty("ZS_CHECK_MODE", "1");
+    if (btree_opt)
+        ZSSetProperty("ZS_CHECK_MODE", "2");
+    else
+        ZSSetProperty("ZS_CHECK_MODE", "1");
     ZSSetProperty("ZS_REFORMAT", "0");
     unsetenv("ZS_PROPERTY_FILE");
 }

@@ -46,6 +46,7 @@
 #include "ssd/fifo/mcd_rec2.h"
 #include "ssd/fifo/mcd_bak.h"
 #include "ssd/fifo/mcd_trx.h"
+#include "ssd/fifo/mcd_check.h"
 #include "utils/properties.h"
 #include "ssd/ssd_aio.h"
 #include "ssd/fifo/slab_gc.h"
@@ -2015,7 +2016,7 @@ ZS_status_t ZSInitVersioned(
         loadProperties(prop_file);
 
     // Set operational mode (normal API run or check). Default to run.
-    __zs_check_mode_on = getProperty_Int("ZS_CHECK_MODE", 0);
+    __zs_check_mode_on = getProperty_Int("ZS_CHECK_MODE", ZSCHECK_NO_CHECK);
 	mcd_log_msg(160280, PLAT_LOG_LEVEL_INFO, "ZS_CHECK_MODE = %d.\n", __zs_check_mode_on);
 
     //  Initialize a crap-load of settings
@@ -2113,16 +2114,18 @@ ZS_status_t ZSInitVersioned(
     } while (rc == -1 && errno == EINTR);
 
     plat_assert( 0 == rc );
-    if( !__zs_check_mode_on && getProperty_String("ZS_STATS_FILE","")[0])
-    {
-        zs_start_stats_thread( *zs_state );
-    }
-    if ( !__zs_check_mode_on && getProperty_Int( "ZS_ADMIN_ENABLED", 1 ) == 1 ) {
-        zs_start_admin_thread(*zs_state );
-    }
-    if ( !__zs_check_mode_on && getProperty_Int( "ASYNC_DELETE_CONTAINERS",0) == 1 ) {
-        time((time_t *)&delete_prefix);
-        init_async_cmd_handler(getProperty_Int("ASYNC_DELETE_CONTAINERS_THREADS",5),*zs_state);
+    if ( ZSCHECK_NO_INIT != mcd_check_level() ) {
+        if ( getProperty_String("ZS_STATS_FILE","")[0] )
+        {
+            zs_start_stats_thread( *zs_state );
+        }
+        if ( getProperty_Int( "ZS_ADMIN_ENABLED", 1 ) == 1 ) {
+            zs_start_admin_thread(*zs_state );
+        }
+        if ( getProperty_Int( "ASYNC_DELETE_CONTAINERS",0) == 1 ) {
+            time((time_t *)&delete_prefix);
+            init_async_cmd_handler(getProperty_Int("ASYNC_DELETE_CONTAINERS_THREADS",5),*zs_state);
+        }
     }
 
 	zs_start_vc_thread ( *zs_state );
@@ -4459,7 +4462,7 @@ zs_get_containers_int(
 		if (cmap->cguid > LAST_PHYSICAL_CGUID  && 
 		   ((strcmp(cmap->cname,SEQNO_CONTAINER_NAME) &&
 		     strcmp(cmap->cname,PSTATS_CONTAINER_NAME)) || 
-		     __zs_check_mode_on) &&
+		     mcd_check_level() != ZSCHECK_NO_CHECK) &&
              strncmp( cmap->cname,BTREE_DELETE_CONTAINER_NAME, strlen(BTREE_DELETE_CONTAINER_NAME) ) &&
 			 ( cmap->state == ZS_CONTAINER_STATE_CLOSED ||
 			   cmap->state == ZS_CONTAINER_STATE_OPEN )  ) {
