@@ -685,4 +685,6 @@ int
 flog_check(mcd_osd_shard_t *shard, void *context);
 int
 check_object_table(void *context, mcd_osd_shard_t *shard);
+/* Fault injection function to corrupt POT */
+int mcd_corrupt_object_table(void *context, mcd_osd_shard_t * shard);
 #endif

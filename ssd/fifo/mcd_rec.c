@@ -5014,6 +5014,22 @@ pot_checksum_get(char* buf) {
 }
 
 #define bytes_per_page 65536
+/* Fault injection function to corrupt POT */
+int mcd_corrupt_object_table(void * context, mcd_osd_shard_t * shard)
+{
+    int  rc = 0;
+    int  seg_blks = Mcd_rec_update_segment_blks;
+    char *_buf = plat_alloc(Mcd_rec_update_segment_size + MCD_OSD_META_BLK_SIZE);
+    char *buf = (char *)( ( (uint64_t)_buf + MCD_OSD_META_BLK_SIZE - 1 ) &
+                    MCD_OSD_META_BLK_MASK);
+    if(!buf)
+        return 1;
+    /* Corrupt first 1MB segment */
+    memset(_buf,0x34,Mcd_rec_update_segment_size + MCD_OSD_META_BLK_SIZE);
+    rc = table_chunk_op( context, shard, TABLE_WRITE, 0, seg_blks, buf);
+    plat_free(_buf);
+    return rc;
+}
 
 int
 check_object_table(void * context, mcd_osd_shard_t * shard)

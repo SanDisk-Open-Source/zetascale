@@ -55,14 +55,20 @@
 #define VDC_SHARD_IDX 2
 
 #define SHARD_DESC_BLK_SIZE   ( MCD_OSD_SEG0_BLK_SIZE * 16 )
+#define dprintf fprintf
 
 // global
 char                  buf[NUM_META_BLOCKS][SHARD_DESC_BLK_SIZE];
 int                   cmc_properties_ok = 0;
 int                   vmc_properties_ok = 0;
 int                   vdc_properties_ok = 0;
+char                  tmp_buf[SHARD_DESC_BLK_SIZE];
 
 extern int __zs_check_mode_on;
+
+mcd_osd_shard_t * mcd_check_get_osd_shard( uint64_t shard_id );
+int mcd_corrupt_meta();
+int mcd_corrupt_pot();
 
 int
 mcd_check_label(int fd)
@@ -72,6 +78,7 @@ mcd_check_label(int fd)
     char                        label[MCD_OSD_SEG0_BLK_SIZE];
 
     // read label
+    dprintf(stderr,"%s Reading label at offset:%d\n",__FUNCTION__,0);
     bytes = pread( fd, label, MCD_OSD_SEG0_BLK_SIZE, 0);
     if ( MCD_OSD_SEG0_BLK_SIZE != bytes ) {
         zscheck_log_msg(ZSCHECK_LABEL, 0, ZSCHECK_READ_ERROR, "failed to read flash label");
@@ -86,7 +93,6 @@ mcd_check_label(int fd)
         zscheck_log_msg(ZSCHECK_LABEL, 0, ZSCHECK_LABEL_ERROR, "flash label invalid");
         return -1;
     } 
-
     zscheck_log_msg(ZSCHECK_LABEL, 0, ZSCHECK_SUCCESS, "flash label valid");
 
     return 0;
@@ -100,6 +106,7 @@ mcd_check_superblock(int fd)
     mcd_rec_flash_t    *superblock = NULL;
 
     // read superblock 
+    dprintf(stderr,"%s Reading at offset:%d\n",__FUNCTION__,MCD_REC_LABEL_BLKS * MCD_OSD_SEG0_BLK_SIZE);
     bytes = pread( fd, buf[SUPER_BUF], MCD_OSD_SEG0_BLK_SIZE, MCD_REC_LABEL_BLKS * MCD_OSD_SEG0_BLK_SIZE);
     if ( MCD_OSD_SEG0_BLK_SIZE != bytes ) {
         zscheck_log_msg(ZSCHECK_SUPERBLOCK, 0, ZSCHECK_READ_ERROR, "failed to read superblock");
@@ -159,6 +166,7 @@ mcd_check_shard_properties(int fd, int shard_idx)
     }
 
     // read shard properties
+    dprintf(stderr,"%s Reading at offset:%lu\n",__FUNCTION__,(uint64_t)((shard_idx + 2 + MCD_REC_LABEL_BLKS) * MCD_OSD_SEG0_BLK_SIZE));
     bytes = pread( fd, buf[buf_idx], MCD_OSD_SEG0_BLK_SIZE, ((shard_idx + 2 + MCD_REC_LABEL_BLKS) * MCD_OSD_SEG0_BLK_SIZE));
 
     if ( MCD_OSD_SEG0_BLK_SIZE == bytes ) {
@@ -229,6 +237,7 @@ mcd_check_shard_descriptor(int fd, int shard_idx)
     properties = (mcd_rec_properties_t *)buf[prop_buf_idx];
 
     // read descriptor
+    dprintf(stderr,"%s Reading at offset:%lu\n",__FUNCTION__,(properties->blk_offset * SHARD_DESC_BLK_SIZE));
     bytes = pread( fd, buf[buf_idx], SHARD_DESC_BLK_SIZE, (properties->blk_offset * SHARD_DESC_BLK_SIZE));
 
     if ( SHARD_DESC_BLK_SIZE == bytes ) {
@@ -327,6 +336,7 @@ mcd_check_segment_list(int fd, mcd_rec_shard_t *shard)
     buf = (char *) malloc( shard->map_blks * SHARD_DESC_BLK_SIZE );
 
     // read the segment table for this shard
+    dprintf(stderr,"%s Reading at offset:%lu\n",__FUNCTION__,( shard->blk_offset + shard->seg_list_offset) * SHARD_DESC_BLK_SIZE);
     bytes = pread( fd,
                    buf,
                    ( shard->map_blks * SHARD_DESC_BLK_SIZE ),
@@ -413,6 +423,7 @@ mcd_check_class_descriptor(int fd, mcd_rec_shard_t *shard)
     for ( c = 0; c < MCD_OSD_MAX_NCLASSES; c++ ) {
 
         // read class desc + segment table for each class
+        dprintf(stderr,"%s Reading at offset:%lu\n",__FUNCTION__,(shard->blk_offset + shard->class_offset[ c ] ) * blk_size );
         bytes = pread( fd, 
                        desc,
                        blk_size,
@@ -506,6 +517,7 @@ mcd_check_ckpt_descriptor(int fd, mcd_rec_shard_t *shard)
     blk_size = superblock->blk_size;
 
     // read descriptor
+    dprintf(stderr,"%s Reading at offset:%lu\n",__FUNCTION__,(shard->blk_offset + shard->rec_md_blks - 1) * blk_size);
     bytes = pread( fd, ckpt_buf, blk_size, (shard->blk_offset + shard->rec_md_blks - 1) * blk_size);
 
     if ( blk_size == bytes ) {
@@ -631,6 +643,9 @@ mcd_check_meta()
 
 out:
     close(fd);
+    if( atoi(getProperty_String("ZS_META_FAULT_INJECTION", "0"))!=0) {
+        return mcd_corrupt_meta();        
+    }
     return status;
 }
 
@@ -705,6 +720,10 @@ mcd_check_pot()
     mcd_rec_shard_t * shard = NULL;
     mcd_osd_shard_t * osd_shard = NULL;
 
+    if( atoi(getProperty_String("ZS_META_FAULT_INJECTION", "0"))!=0) {
+        return mcd_corrupt_pot();
+    }
+
     // check cmc
     shard = (mcd_rec_shard_t *)buf[CMC_DESC_BUF];
     osd_shard = mcd_check_get_osd_shard( shard->shard_id );
@@ -743,3 +762,316 @@ mcd_check_is_enabled()
 {
     return __zs_check_mode_on;
 }
+
+int
+mcd_corrupt_pot()
+{
+    int status = -1;
+    int errors = 0;
+    osd_state_t * context = mcd_fth_init_aio_ctxt( SSD_AIO_CTXT_MCD_REC_RCVR );
+    mcd_rec_shard_t * shard = NULL;
+    mcd_osd_shard_t * osd_shard = NULL;
+
+    if( atoi(getProperty_String("ZS_FAULT_POT_CORRUPTION", "0")) == 0) {
+        return 0;
+    }
+
+    if( atoi(getProperty_String("ZS_FAULT_CONTAINER_CMC", "0")) == 1) {
+        // check cmc
+        shard = (mcd_rec_shard_t *)buf[CMC_DESC_BUF];
+        osd_shard = mcd_check_get_osd_shard( shard->shard_id );
+        status = mcd_corrupt_object_table( context, osd_shard );
+        if ( status ) {
+            fprintf(stderr,"Corrupt object table for cmc failed\n");
+            ++errors;
+        }
+    }
+
+    // check vmc
+    if( atoi(getProperty_String("ZS_FAULT_CONTAINER_VMC", "0")) == 1) {
+        shard = (mcd_rec_shard_t *)buf[VMC_DESC_BUF];
+        osd_shard = mcd_check_get_osd_shard( shard->shard_id );
+        status = mcd_corrupt_object_table( context, osd_shard );
+        if ( status ) {
+            fprintf(stderr,"Corrupt object table for vmc failed\n");
+            ++errors;
+        }
+    }
+
+    // check vdc
+    if( atoi(getProperty_String("ZS_FAULT_CONTAINER_VDC", "0")) == 1) {
+        shard = (mcd_rec_shard_t *)buf[VDC_DESC_BUF];
+        osd_shard = mcd_check_get_osd_shard( shard->shard_id );
+        status = mcd_corrupt_object_table( context, osd_shard );
+        if ( status ) {
+            fprintf(stderr,"Corrupt object table for vdc failed\n");
+            ++errors;
+        }
+    }
+
+    return ( errors == 0 ) ? 0 : -1;
+}
+
+
+
+
+int mcd_corrupt_label(int fd) {
+    char  label[MCD_OSD_SEG0_BLK_SIZE];
+    /* Corrupt some bytes of label */
+    fprintf(stderr,"Corrupting label at offset :%lu\n",(uint64_t)MCD_OSD_SEG0_BLK_SIZE/2);
+    if( pwrite(fd,label,MCD_OSD_SEG0_BLK_SIZE/2, 0) < 0 ) {
+        zscheck_log_msg(ZSCHECK_LABEL, 0, ZSCHECK_LABEL_ERROR,"Unable to write label field");
+        return -1;
+    }
+    return -1;
+}
+
+int mcd_corrupt_superblock(int fd) {
+    /* Corrupt half of the bytes superblock */
+    fprintf(stderr,"Corrupting superblock at offset :%lu\n",(uint64_t)(MCD_REC_LABEL_BLKS * MCD_OSD_SEG0_BLK_SIZE));
+    memset(tmp_buf,0x3F,SUPER_BUF);
+    if( pwrite(fd,tmp_buf,MCD_OSD_SEG0_BLK_SIZE/2, MCD_REC_LABEL_BLKS * MCD_OSD_SEG0_BLK_SIZE) < 0 ) {
+        zscheck_log_msg(ZSCHECK_LABEL, 0, ZSCHECK_LABEL_ERROR,"Unable to write in to super block");
+        return -1;
+    } 
+    return 0;
+}
+
+int mcd_corrupt_shard_properties (int fd, int shard_idx) {
+    int                   buf_idx = -1;
+    uint64_t              shard_id = 0;
+    char tmp_buf[MCD_OSD_SEG0_BLK_SIZE];
+
+    switch ( shard_idx ) {
+
+    case CMC_SHARD_IDX:
+        buf_idx = CMC_PROP_BUF;
+        shard_id = CMC_SHARD_ID;
+        break;
+
+    case VMC_SHARD_IDX:
+        buf_idx = VMC_PROP_BUF;
+        shard_id = VMC_SHARD_ID;
+        break;
+
+    case VDC_SHARD_IDX:
+        buf_idx = VDC_PROP_BUF;
+        shard_id = VDC_SHARD_ID;
+        break;
+    }
+    fprintf(stderr,"Corrupting shard properties at offset :%lu for phy container:%lu\n",(uint64_t)((shard_idx + 2 + MCD_REC_LABEL_BLKS) * MCD_OSD_SEG0_BLK_SIZE),shard_id);
+    memset(tmp_buf,0x3F,MCD_OSD_SEG0_BLK_SIZE/2); 
+    /* Write half of the properties with junk value */
+    if( pwrite(fd,tmp_buf,MCD_OSD_SEG0_BLK_SIZE/2, ((shard_idx + 2 + MCD_REC_LABEL_BLKS) * MCD_OSD_SEG0_BLK_SIZE)) < 0 ) {
+        zscheck_log_msg(ZSCHECK_LABEL, 0, ZSCHECK_LABEL_ERROR,"Unable to write in to shard properties");
+        return -1;
+    }
+    return 0;
+}
+
+int
+mcd_corrupt_shard_descriptor(int fd, int shard_idx)
+{
+    int                   prop_buf_idx = -1;
+    int                   buf_idx = -1;
+    uint64_t              shard_id = 0;
+    mcd_rec_properties_t *properties = NULL;
+
+    switch ( shard_idx ) {
+
+    case CMC_SHARD_IDX:
+        prop_buf_idx = CMC_PROP_BUF;
+        buf_idx = CMC_DESC_BUF;
+        shard_id = CMC_SHARD_ID;
+        break;
+
+    case VMC_SHARD_IDX:
+        prop_buf_idx = VMC_PROP_BUF;
+        buf_idx = VMC_DESC_BUF;
+        shard_id = VMC_SHARD_ID;
+        break;
+
+    case VDC_SHARD_IDX:
+        prop_buf_idx = VDC_PROP_BUF;
+        buf_idx = VDC_DESC_BUF;
+        shard_id = VDC_SHARD_ID;
+        break;
+    }
+
+
+    // shard properties point to shard descriptor block offset
+    properties = (mcd_rec_properties_t *)buf[prop_buf_idx];
+    fprintf(stderr,"Corrupting shard descripters at offset :%lu for phy container:%lu\n",(properties->blk_offset * SHARD_DESC_BLK_SIZE),shard_id);
+    memset(tmp_buf,0x3f,SHARD_DESC_BLK_SIZE/2);
+    /* Write half of the properties with junk value */
+    if( pwrite(fd,tmp_buf,SHARD_DESC_BLK_SIZE/2, (properties->blk_offset * SHARD_DESC_BLK_SIZE)) < 0 ) {
+        zscheck_log_msg(ZSCHECK_LABEL, 0, ZSCHECK_LABEL_ERROR,"Unable to write in to shard descriptor");
+        return -1;
+    }
+    return 0;
+}
+
+int mcd_corrupt_segment_list(int fd, mcd_rec_shard_t *shard) {
+    char *buf = NULL;
+
+    // allocate a buffer
+    buf = (char *) malloc( shard->map_blks * SHARD_DESC_BLK_SIZE );
+    memset(buf,0x3F,shard->map_blks * SHARD_DESC_BLK_SIZE); 
+    fprintf(stderr,"Corrupting segment list at offset :%lu\n",( shard->blk_offset + shard->seg_list_offset) * SHARD_DESC_BLK_SIZE );
+    /* Write half of the properties with junk value */
+    if( pwrite(fd,buf,( shard->map_blks * SHARD_DESC_BLK_SIZE ), ( shard->blk_offset + shard->seg_list_offset) * SHARD_DESC_BLK_SIZE ) < 0 ) {
+        zscheck_log_msg(ZSCHECK_LABEL, 0, ZSCHECK_LABEL_ERROR,"Unable to write in to segment list");
+        return -1;
+    }
+    free(buf);
+    return 0;
+}
+
+int
+mcd_corrupt_class_descriptor(int fd, mcd_rec_shard_t *shard)
+{
+    int c = 0;
+    uint32_t blk_size = 0;
+    mcd_rec_flash_t *superblock = NULL;
+
+    superblock = (mcd_rec_flash_t *)buf[SUPER_BUF];
+    blk_size = superblock->blk_size;
+
+    memset(tmp_buf,0x3F,SHARD_DESC_BLK_SIZE); 
+    for ( c = 0; c < MCD_OSD_MAX_NCLASSES; c++ ) {
+        // read class desc + segment table for each class
+        fprintf(stderr,"Corrupting class desc at offset :%lu\n",(shard->blk_offset + shard->class_offset[ c ] ) * blk_size) ;
+        if( pwrite(fd,tmp_buf, blk_size, (shard->blk_offset + shard->class_offset[ c ] ) * blk_size ) < 0 ) {
+            zscheck_log_msg(ZSCHECK_LABEL, 0, ZSCHECK_LABEL_ERROR,"Unable to write in to class descriptor");
+            return -1;
+        }
+    }
+    return 0;
+}
+
+
+int
+mcd_corrupt_ckpt_descriptor(int fd, mcd_rec_shard_t *shard)
+{
+    uint64_t              shard_id = 0;
+    uint32_t              blk_size = 0;
+    mcd_rec_flash_t      *superblock = NULL;
+
+    shard_id = shard->shard_id;
+
+    superblock = (mcd_rec_flash_t *)buf[SUPER_BUF];
+    blk_size = superblock->blk_size;
+    fprintf(stderr,"Corrupting check point record :%lu\n",(shard->blk_offset + shard->rec_md_blks - 1) * blk_size) ;
+
+    memset(tmp_buf,0x3f,SHARD_DESC_BLK_SIZE);
+    if( pwrite(fd,tmp_buf, blk_size, (shard->blk_offset + shard->rec_md_blks - 1) * blk_size ) < 0 )     {
+        zscheck_log_msg(ZSCHECK_LABEL, 0, ZSCHECK_LABEL_ERROR,"Unable to write in to check point record");
+        return -1;
+    }
+    return 0;
+}
+
+
+
+int mcd_corrupt_meta() {
+    /* Faults:
+     * ZS_FAULT_LABEL_CORRUPTION
+     * ZS_FAULT_SBLOCK_CORRUPTION
+     * ZS_FAULT_SHARD_PROP_CORRUPTION
+     * ZS_FAULT_SHARD_DESC_CORRUPTION
+     * ZS_FAULT_SEGLIST_CORRUPTION
+     * ZS_FAULT_CLASS_DESC_CORRUPTION
+     * ZS_FAULT_CHKPOINT_CORRUPTION
+     * ZS_FAULT_FLOG_CORRUPTION
+     * ZS_FAULT_POT_CORRUPTION
+     * ZS_FAULT_SEG_BITMAP_CORRUPTION
+     * ZS_FAULT_POT_CORRUPTION
+     * ZS_FAULT_CONTAINER_CMC
+     * ZS_FAULT_CONTAINER_VMC
+     * ZS_FAULT_CONTAINER_VDC
+     */
+    int open_flags = O_RDWR, rc,fd,i;
+    char fname[PATH_MAX + 1];
+    mcd_rec_shard_t *shard = NULL;
+    mcd_osd_shard_t * osd_shard = NULL;
+
+    fprintf(stderr,"Injecting faults\n");
+
+    strcpy(fname, getProperty_String("ZS_FLASH_FILENAME", "/tmp/schooner0"));
+    fd = open( fname, open_flags, 00600 );
+    if (fd < 0) {
+        perror(fname);
+        return -1;
+    }
+
+    if( atoi(getProperty_String("ZS_FAULT_LABEL_CORRUPTION", "0")) != 0 ) {
+        rc = mcd_corrupt_label(fd);
+    }
+    if( atoi(getProperty_String("ZS_FAULT_SBLOCK_CORRUPTION", "0")) != 0 ) {
+        rc = mcd_corrupt_superblock(fd);
+    }
+    for( i = CMC_SHARD_IDX; i <= VDC_SHARD_IDX; i++ ) {
+        if( i == CMC_SHARD_IDX ) {
+            if( atoi(getProperty_String("ZS_FAULT_CONTAINER_CMC","0")) == 0 ) {
+                continue;
+            }
+            shard = (mcd_rec_shard_t *)buf[CMC_DESC_BUF];
+            osd_shard = mcd_check_get_osd_shard( shard->shard_id );
+        }
+        else if( i == VMC_SHARD_IDX ) {
+            if( atoi(getProperty_String("ZS_FAULT_CONTAINER_VMC","0")) == 0 ) {
+                continue;
+            }
+            shard = (mcd_rec_shard_t *)buf[VMC_DESC_BUF];
+            osd_shard = mcd_check_get_osd_shard( shard->shard_id );
+        }
+        else if( i == VDC_SHARD_IDX ) {
+            if( atoi(getProperty_String("ZS_FAULT_CONTAINER_VDC","0")) == 0 ) {
+                continue;
+            }
+            shard = (mcd_rec_shard_t *)buf[VDC_DESC_BUF];
+            osd_shard = mcd_check_get_osd_shard( shard->shard_id );
+        }
+        if( atoi(getProperty_String("ZS_FAULT_SHARD_PROP_CORRUPTION", "0"))!=0) {
+            rc = mcd_corrupt_shard_properties(fd,i);
+            if( rc < 0 ) {
+                return -1;
+            }
+        }
+        if( atoi(getProperty_String("ZS_FAULT_SHARD_DESC_CORRUPTION", "0"))!=0) {
+            rc = mcd_corrupt_shard_descriptor(fd,i);
+            if( rc < 0 ) {
+                return -1;
+            }
+        }
+        if( atoi(getProperty_String("ZS_FAULT_SEGLIST_CORRUPTION", "0"))!=0) {
+            rc = mcd_corrupt_segment_list(fd,shard);
+            if( rc < 0 ) {
+                return -1;
+            }
+        }
+        if( atoi(getProperty_String("ZS_FAULT_CLASS_DESC_CORRUPTION", "0"))!=0) {
+            rc = mcd_corrupt_class_descriptor(fd,shard);
+            if( rc < 0 ) {
+                return -1;
+            }
+        }
+        if( atoi(getProperty_String("ZS_FAULT_CHKPOINT_CORRUPTION", "0"))!=0) {
+            rc = mcd_corrupt_ckpt_descriptor(fd,shard);
+            if( rc < 0 ) {
+                return -1;
+            }
+        }
+        if( atoi(getProperty_String("ZS_FAULT_FLOG_CORRUPTION", "0"))!=0) {
+#if 0
+            rc = flog_corrupt(osd_shard);
+            if( rc < 0 ) {
+                return -1;
+            }
+#endif
+        }
+    }
+    return 0;
+}
+
+
