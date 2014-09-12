@@ -3447,6 +3447,7 @@
 160285 Checking object table, shardID=%lu, %d percent complete
 160286 Space consistency check got %"PRIu64" leaked blocks.\n
 160287 Check logs for shard=%lu
+160290 POT checksum error. expected=%x, read_from_disk=%x, start_blk=%d num_blks=%d
 
 
 # rico

@@ -36,6 +36,7 @@
 #include "utils/checklog.h"
 #include "protocol/action/recovery.h"
 #include "ssd/fifo/slab_gc.h"
+#include "malloc.h"
 
 #define SUPER_BUF 0
 #define CMC_PROP_BUF 1
@@ -56,6 +57,15 @@
 
 #define SHARD_DESC_BLK_SIZE   ( MCD_OSD_SEG0_BLK_SIZE * 16 )
 #define dprintf fprintf
+
+#include "utils/rico.h"
+#include "ssd/fifo/mcd_rec2.h"
+#define	bytes_per_device_block		(1uL << 13)
+bool match_potbm_checksum( potbm_t *potbm, uint n);
+bool match_slabbm_checksum( slabbm_t *, uint);
+bool empty( void *, uint);
+ulong potbm_base( mcd_rec_shard_t *);
+ulong slabbm_base( mcd_rec_shard_t *p);
 
 // global
 char                  buf[NUM_META_BLOCKS][SHARD_DESC_BLK_SIZE];
@@ -270,6 +280,95 @@ mcd_check_shard_descriptor(int fd, int shard_idx)
 
     return status;
 }
+
+int
+mcd_check_potbm(int fd, int buf_idx, uint64_t shard_id)
+{
+    int                   status = 0;
+    ssize_t               bytes;
+
+	mcd_rec_shard_t *p = (mcd_rec_shard_t *)buf[buf_idx];
+
+	size_t n = p->rec_potbm_blks * bytes_per_device_block;
+	potbm_t* potbm = (potbm_t*)memalign( MCD_OSD_META_BLK_SIZE, n);
+	if(!potbm)
+		return -1;
+
+	bytes = pread(fd, potbm, n, potbm_base(p));
+
+	if (bytes !=n || ((potbm->eye_catcher || empty(potbm, n)) &&
+			match_potbm_checksum( potbm, n) &&
+			potbm->eye_catcher != MCD_REC_POTBM_EYE_CATCHER)) {
+		zscheck_log_msg(ZSCHECK_POT_BITMAP, shard_id, ZSCHECK_CHECKSUM_ERROR, "POT bitmap checksum invalid");
+		status = -1;
+	}
+
+	free(potbm);
+
+    return status;
+}
+
+int
+mcd_check_slabbm(int fd, int buf_idx, uint64_t shard_id)
+{
+    int                   status = 0;
+    ssize_t               bytes;
+
+	mcd_rec_shard_t *p = (mcd_rec_shard_t *)buf[buf_idx];
+
+	size_t n = p->rec_slabbm_blks * bytes_per_device_block;
+	slabbm_t* slabbm = (slabbm_t*)memalign( MCD_OSD_META_BLK_SIZE, n);
+	if(!slabbm)
+		return -1;
+
+	bytes = pread(fd, slabbm, n, slabbm_base(p));
+
+	if (bytes != n || ((slabbm->eye_catcher || empty(slabbm, n)) &&
+			match_slabbm_checksum( slabbm, n) &&
+			slabbm->eye_catcher != MCD_REC_SLABBM_EYE_CATCHER)) {
+		zscheck_log_msg(ZSCHECK_SLAB_BITMAP, shard_id, ZSCHECK_CHECKSUM_ERROR, "SLAB bitmap checksum invalid");
+		status = -1;
+	}
+
+	free(slabbm);
+
+    return status;
+}
+
+int
+mcd_check_all_potbm(int fd)
+{
+    int count = 0;
+
+    if ( cmc_properties_ok && !mcd_check_potbm(fd, CMC_DESC_BUF, CMC_SHARD_ID) )
+        ++count;
+
+    if ( vmc_properties_ok && !mcd_check_potbm(fd, VMC_DESC_BUF, VMC_SHARD_ID) )
+        ++count;
+
+    if ( vdc_properties_ok && !mcd_check_potbm(fd, VDC_DESC_BUF, VDC_SHARD_ID) )
+        ++count;
+
+    return count < 3 ? -1 : 0;
+}
+
+int
+mcd_check_all_slabbm(int fd)
+{
+    int count = 0;
+
+    if ( cmc_properties_ok && !mcd_check_slabbm(fd, CMC_DESC_BUF, CMC_SHARD_ID) )
+        ++count;
+
+    if ( vmc_properties_ok && !mcd_check_slabbm(fd, VMC_DESC_BUF, VMC_SHARD_ID) )
+        ++count;
+
+    if ( vdc_properties_ok && !mcd_check_slabbm(fd, VDC_DESC_BUF, VDC_SHARD_ID) )
+        ++count;
+
+    return count < 3 ? -1 : 0;
+}
+
 
 int
 mcd_check_all_shard_properties(int fd)
@@ -640,6 +739,14 @@ mcd_check_meta()
     if ( 0 != status ) {
         fprintf(stderr,">>>mcd_check_ckpt_descriptors failed. non-fatal error\n");
     }
+
+    fprintf(stderr,"potbm check: ");
+    status = mcd_check_all_potbm(fd);
+    fprintf(stderr,"%s\n", status ? "failed" : "succeeded");
+
+    fprintf(stderr,"slabbm check: ");
+    status = mcd_check_all_slabbm(fd);
+    fprintf(stderr,"%s\n", status ? "failed" : "succeeded");
 
 out:
     close(fd);

@@ -2289,6 +2289,7 @@ tombstone_prune( mcd_osd_shard_t * shard )
  ************************************************************************/
 
 #include	"utils/rico.h"
+bool empty( void *p, uint n);
 
 /*
  * Show a buffer.  Used for debugging.
@@ -2429,13 +2430,7 @@ flog_patchup(mcd_osd_shard_t *shard, void *context, FILE *fp, int check_only)
                 if (check_only)
                     zscheck_log_msg(ZSCHECK_FLOG_RECORD, shard->pshard->shard_id, 
                                     ZSCHECK_MAGIC_ERROR, "flog magic number invalid");
-                if(!flog_checksum_enabled)
-                    continue;
-
-                int i = 0;
-                while(i < FLUSH_LOG_SEC_SIZE / sizeof(uint64_t) && !((uint64_t*)sector)[i])
-                    i++;
-                if(i == FLUSH_LOG_SEC_SIZE / sizeof(uint64_t))
+                if(!flog_checksum_enabled || empty(sector, FLUSH_LOG_SEC_SIZE))
                     continue;
             } else if (check_only)
                 zscheck_log_msg(ZSCHECK_FLOG_RECORD, shard->pshard->shard_id, 
@@ -5076,15 +5071,10 @@ check_object_table(void * context, mcd_osd_shard_t * shard)
             pot_checksum_set(buf, 0);
             if((c = checksum(buf, block_size, 0)) != sum)
             {
-                int i = 0;
-                if(!sum)
-                    while(i < block_size / sizeof(uint64_t) && !((uint64_t*)buf)[i])
-                        i++;
-
-                if(sum || i < block_size / sizeof(uint64_t)) {
-                    mcd_log_msg(PLAT_LOG_ID_INITIAL, PLAT_LOG_LEVEL_FATAL,
-                            "POT checksum error. expected=%x, read_from_disk=%x, start_blk=%d num_blks=%d offset=%d", c, sum,
-                            chunk * seg_blks, seg_blks, i);
+                if(sum || !empty(buf, block_size)) {
+                    mcd_log_msg(160290, PLAT_LOG_LEVEL_FATAL,
+                            "POT checksum error. expected=%x, read_from_disk=%x, start_blk=%d num_blks=%d", c, sum,
+                            chunk * seg_blks, seg_blks);
                     rc = 1;
                     break;
                 }

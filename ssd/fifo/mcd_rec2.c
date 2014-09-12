@@ -65,42 +65,9 @@
 
 int pot_checksum_enabled;
 
-enum {
-	MCD_REC_POTBM_EYE_CATCHER = 0x42544F50,		// "POTB"
-	MCD_REC_SLABBM_EYE_CATCHER = 0x42424C53		// "SLBB"
-};
-
 typedef struct mcdstructure		mcd_t;
 typedef struct potstructure		pot_t;
-typedef struct mcdpotbitmapstructure	potbm_t;
-typedef struct mcdslabbitmapstructure	slabbm_t;
 typedef void				packet_t;
-
-/*
- * POT bitmap on flash
- *
- * Also serves as the in-memory live structure.  Aligned for direct
- * flash I/O.
- */
-struct mcdpotbitmapstructure {
-	uint	eye_catcher;
-	ulong	checksum,
-		nbit;
-	uchar	bits[];
-};
-
-/*
- * slab bitmap on flash
- *
- * Also serves as the in-memory live structure.  Aligned for direct
- * flash I/O.
- */
-struct mcdslabbitmapstructure {
-	uint	eye_catcher;
-	ulong	checksum,
-		nbit;
-	uchar	bits[];
-};
 
 struct mcdstructure {
 	ulong	bytes_per_flash_array,
@@ -155,15 +122,15 @@ int		filter_cs_apply_logrec( mcd_rec_obj_state_t *, mcd_logrec_object_t *),
 		read_log_segment( void *, int, mcd_osd_shard_t *, mcd_rec_log_state_t *, char *);
 uint64_t	read_log_page( osd_state_t *, mcd_osd_shard_t *, int, uint64_t),
 		blk_to_use( mcd_osd_shard_t *, uint64_t);
-static bool	match_potbm_checksum( potbm_t *, uint),
+bool	match_potbm_checksum( potbm_t *, uint),
 		match_slabbm_checksum( slabbm_t *, uint),
-		empty( void *, uint),
-		nomem( ),
+		empty( void *, uint);
+static bool	nomem( ),
 		corruptpotbm( ),
 		corruptslabbm( ),
 		complain( char *, ...);
-static ulong	pot_base( mcd_rec_shard_t *),
-		potbm_base( mcd_rec_shard_t *),
+static ulong	pot_base( mcd_rec_shard_t *);
+ulong	potbm_base( mcd_rec_shard_t *),
 		slabbm_base( mcd_rec_shard_t *);
 static void	pot_cache_shutdown( mcd_osd_shard_t *),
 		pot_bitmap_shutdown( mcd_osd_shard_t *),
@@ -286,15 +253,10 @@ mcd_rec2_potcache_init( mcd_osd_shard_t *s, osd_state_t *context)
 					pot_checksum_set((char*)e, 0);
 					if((c = checksum((char*)e, bytes_per_page, 0)) != sum)
 					{
-						int i = 0;
-						if(!sum)
-							while(i < bytes_per_page / sizeof(uint64_t) && !((uint64_t*)e)[i])
-								i++;
-
-						if(sum || i < bytes_per_page / sizeof(uint64_t)) {
-							mcd_log_msg(PLAT_LOG_ID_INITIAL, PLAT_LOG_LEVEL_FATAL,
-									"POT checksum error. expected=%x, read_from_disk=%x, start_blk=%ld num_blks=%d offset=%d", c, sum,
-									page, 1, i);
+						if(sum || !empty(e, bytes_per_page)) {
+							mcd_log_msg(160284, PLAT_LOG_LEVEL_FATAL,
+									"POT checksum error. expected=%x, read_from_disk=%x, start_blk=%ld num_blks=%d", c, sum,
+									page, 1);
 							return FALSE;
 						}
 					}
@@ -617,7 +579,7 @@ assign_potbm_checksum( potbm_t *potbm, uint n)
 /*
  * check that potbm checksum is valid
  */
-static bool
+bool
 match_potbm_checksum( potbm_t *potbm, uint n)
 {
 
@@ -646,7 +608,7 @@ pot_base( mcd_rec_shard_t *p)
 /*
  * return byte address on flash of shard's POT bitmap
  */
-static ulong
+ulong
 potbm_base( mcd_rec_shard_t *p)
 {
 
@@ -675,7 +637,7 @@ assign_slabbm_checksum( slabbm_t *slabbm, uint n)
 /*
  * check that potbm checksum is valid
  */
-static bool
+bool
 match_slabbm_checksum( slabbm_t *slabbm, uint n)
 {
 
@@ -690,7 +652,7 @@ match_slabbm_checksum( slabbm_t *slabbm, uint n)
 /*
  * return byte address on flash of shard's slab bitmap
  */
-static ulong
+ulong
 slabbm_base( mcd_rec_shard_t *p)
 {
 
@@ -708,12 +670,12 @@ slabbm_base( mcd_rec_shard_t *p)
 /*
  * return TRUE if memory block is null
  */
-static bool
+bool
 empty( void *p, uint n)
 {
 
 	uint c = 0;
-	for (uint i=0; i<n; ++i)
+	for (uint i=0; i<n and not c; ++i)
 		c |= ((char *)p)[i];
 	return (not c);
 }

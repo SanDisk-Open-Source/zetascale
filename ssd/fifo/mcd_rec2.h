@@ -1,5 +1,4 @@
 
-
 /*
  * POT element
  *
@@ -14,6 +13,40 @@ struct mcdpotelemstructure {
 	uint32_t	obucket;	// hash bucket
 	uint64_t	cntr_id:16,	// container id
 			seqno:48;	// sequence number
+};
+
+/*
+ * POT bitmap on flash
+ *
+ * Also serves as the in-memory live structure.  Aligned for direct
+ * flash I/O.
+ */
+struct mcdpotbitmapstructure {
+	uint32_t	eye_catcher;
+	uint64_t	checksum,
+		nbit;
+	uint8_t	bits[];
+};
+
+/*
+ * slab bitmap on flash
+ *
+ * Also serves as the in-memory live structure.  Aligned for direct
+ * flash I/O.
+ */
+struct mcdslabbitmapstructure {
+	uint32_t	eye_catcher;
+	uint64_t	checksum,
+		nbit;
+	uint8_t	bits[];
+};
+
+typedef struct mcdpotbitmapstructure	potbm_t;
+typedef struct mcdslabbitmapstructure	slabbm_t;
+
+enum {
+	MCD_REC_POTBM_EYE_CATCHER = 0x42544F50,		// "POTB"
+	MCD_REC_SLABBM_EYE_CATCHER = 0x42424C53		// "SLBB"
 };
 
 
