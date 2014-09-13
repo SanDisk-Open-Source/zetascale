@@ -56,7 +56,11 @@
 #define VDC_SHARD_IDX 2
 
 #define SHARD_DESC_BLK_SIZE   ( MCD_OSD_SEG0_BLK_SIZE * 16 )
-#define dprintf fprintf
+#ifdef DEBUG
+    #define dprintf fprintf
+#else
+    #define dprintf(...) 
+#endif
 
 #include "utils/rico.h"
 #include "ssd/fifo/mcd_rec2.h"
@@ -281,6 +285,7 @@ mcd_check_shard_descriptor(int fd, int shard_idx)
     return status;
 }
 
+
 int
 mcd_check_potbm(int fd, int buf_idx, uint64_t shard_id)
 {
@@ -293,7 +298,7 @@ mcd_check_potbm(int fd, int buf_idx, uint64_t shard_id)
 	potbm_t* potbm = (potbm_t*)memalign( MCD_OSD_META_BLK_SIZE, n);
 	if(!potbm)
 		return -1;
-
+        dprintf(stderr,"%s Reading POT bitmap at offset:%lu\n",__FUNCTION__,(uint64_t)potbm_base(p));
 	bytes = pread(fd, potbm, n, potbm_base(p));
 
 	if (bytes !=n || ((potbm->eye_catcher || empty(potbm, n)) &&
@@ -308,6 +313,7 @@ mcd_check_potbm(int fd, int buf_idx, uint64_t shard_id)
     return status;
 }
 
+
 int
 mcd_check_slabbm(int fd, int buf_idx, uint64_t shard_id)
 {
@@ -320,7 +326,7 @@ mcd_check_slabbm(int fd, int buf_idx, uint64_t shard_id)
 	slabbm_t* slabbm = (slabbm_t*)memalign( MCD_OSD_META_BLK_SIZE, n);
 	if(!slabbm)
 		return -1;
-
+        dprintf(stderr,"%s Reading slab bitmap at offset:%lu\n",__FUNCTION__,(uint64_t)slabbm_base(p));
 	bytes = pread(fd, slabbm, n, slabbm_base(p));
 
 	if (bytes != n || ((slabbm->eye_catcher || empty(slabbm, n)) &&
@@ -703,7 +709,8 @@ mcd_check_meta()
     // Check the flash label - non-fatal if corrupt
     status = mcd_check_label(fd);
     if ( 0 != status ) {
-        fprintf(stderr,">>>mcd_check_label failed. non-fatal error\n");
+        fprintf(stderr,">>>mcd_check_label failed. fatal error\n");
+        goto out;
     }
  
     // Check the superblock - fatal if corrupt
@@ -740,13 +747,15 @@ mcd_check_meta()
         fprintf(stderr,">>>mcd_check_ckpt_descriptors failed. non-fatal error\n");
     }
 
-    fprintf(stderr,"potbm check: ");
     status = mcd_check_all_potbm(fd);
-    fprintf(stderr,"%s\n", status ? "failed" : "succeeded");
+    if( status != 0 ) {
+        fprintf(stderr,">>>POT bitmap check failed\n");
+    }
 
-    fprintf(stderr,"slabbm check: ");
     status = mcd_check_all_slabbm(fd);
-    fprintf(stderr,"%s\n", status ? "failed" : "succeeded");
+    if( status != 0 ) {
+        fprintf(stderr,">>>Slab bitmap check failed\n");
+    }
 
 out:
     close(fd);
@@ -931,13 +940,13 @@ int mcd_corrupt_label(int fd) {
         zscheck_log_msg(ZSCHECK_LABEL, 0, ZSCHECK_LABEL_ERROR,"Unable to write label field");
         return -1;
     }
-    return -1;
+    return 0;
 }
 
 int mcd_corrupt_superblock(int fd) {
     /* Corrupt half of the bytes superblock */
     fprintf(stderr,"Corrupting superblock at offset :%lu\n",(uint64_t)(MCD_REC_LABEL_BLKS * MCD_OSD_SEG0_BLK_SIZE));
-    memset(tmp_buf,0x3F,SUPER_BUF);
+    memset(tmp_buf,0x3F,SHARD_DESC_BLK_SIZE);
     if( pwrite(fd,tmp_buf,MCD_OSD_SEG0_BLK_SIZE/2, MCD_REC_LABEL_BLKS * MCD_OSD_SEG0_BLK_SIZE) < 0 ) {
         zscheck_log_msg(ZSCHECK_LABEL, 0, ZSCHECK_LABEL_ERROR,"Unable to write in to super block");
         return -1;
@@ -1079,6 +1088,29 @@ mcd_corrupt_ckpt_descriptor(int fd, mcd_rec_shard_t *shard)
     return 0;
 }
 
+int
+mcd_corrupt_potbm(int fd, int buf_idx){
+    mcd_rec_shard_t *p = (mcd_rec_shard_t *)buf[buf_idx];
+    memset(tmp_buf,0x3F,SHARD_DESC_BLK_SIZE);
+    fprintf(stderr,"Corrupting POT bitmap at offset :%lu\n",(uint64_t)potbm_base(p));
+    if( pwrite(fd,tmp_buf,SHARD_DESC_BLK_SIZE, potbm_base(p)) < 0 ) {
+        zscheck_log_msg(ZSCHECK_LABEL, 0, ZSCHECK_LABEL_ERROR,"Unable to write in to pot bitmap");
+        return -1;
+    }
+    return 0;
+}
+
+int
+mcd_corrupt_slabbm(int fd, int buf_idx) {
+    mcd_rec_shard_t *p = (mcd_rec_shard_t *)buf[buf_idx];
+    memset(tmp_buf,0x3F,SHARD_DESC_BLK_SIZE);
+    fprintf(stderr,"Corrupting SLAB bitmap at offset :%lu\n",(uint64_t)slabbm_base(p));
+    if( pwrite(fd,tmp_buf,SHARD_DESC_BLK_SIZE, slabbm_base(p)) < 0 ) {
+        zscheck_log_msg(ZSCHECK_LABEL, 0, ZSCHECK_LABEL_ERROR,"Unable to write in to slab bitmap");
+        return -1;
+    }
+    return 0;
+}
 
 
 int mcd_corrupt_meta() {
@@ -1092,13 +1124,13 @@ int mcd_corrupt_meta() {
      * ZS_FAULT_CHKPOINT_CORRUPTION
      * ZS_FAULT_FLOG_CORRUPTION
      * ZS_FAULT_POT_CORRUPTION
-     * ZS_FAULT_SEG_BITMAP_CORRUPTION
      * ZS_FAULT_POT_CORRUPTION
+     * ZS_FAULT_SEG_BITMAP_CORRUPTION
      * ZS_FAULT_CONTAINER_CMC
      * ZS_FAULT_CONTAINER_VMC
      * ZS_FAULT_CONTAINER_VDC
      */
-    int open_flags = O_RDWR, rc,fd,i;
+    int open_flags = O_RDWR, rc = 0,fd,i,buf_idx=0;
     char fname[PATH_MAX + 1];
     mcd_rec_shard_t *shard = NULL;
     mcd_osd_shard_t * osd_shard = NULL;
@@ -1125,6 +1157,7 @@ int mcd_corrupt_meta() {
             }
             shard = (mcd_rec_shard_t *)buf[CMC_DESC_BUF];
             osd_shard = mcd_check_get_osd_shard( shard->shard_id );
+            buf_idx = CMC_DESC_BUF;
         }
         else if( i == VMC_SHARD_IDX ) {
             if( atoi(getProperty_String("ZS_FAULT_CONTAINER_VMC","0")) == 0 ) {
@@ -1132,6 +1165,7 @@ int mcd_corrupt_meta() {
             }
             shard = (mcd_rec_shard_t *)buf[VMC_DESC_BUF];
             osd_shard = mcd_check_get_osd_shard( shard->shard_id );
+            buf_idx = VMC_DESC_BUF;
         }
         else if( i == VDC_SHARD_IDX ) {
             if( atoi(getProperty_String("ZS_FAULT_CONTAINER_VDC","0")) == 0 ) {
@@ -1139,47 +1173,55 @@ int mcd_corrupt_meta() {
             }
             shard = (mcd_rec_shard_t *)buf[VDC_DESC_BUF];
             osd_shard = mcd_check_get_osd_shard( shard->shard_id );
+            buf_idx = VDC_DESC_BUF;
         }
         if( atoi(getProperty_String("ZS_FAULT_SHARD_PROP_CORRUPTION", "0"))!=0) {
             rc = mcd_corrupt_shard_properties(fd,i);
-            if( rc < 0 ) {
-                return -1;
+            if( rc != 0 ) {
+                break;
             }
         }
         if( atoi(getProperty_String("ZS_FAULT_SHARD_DESC_CORRUPTION", "0"))!=0) {
             rc = mcd_corrupt_shard_descriptor(fd,i);
-            if( rc < 0 ) {
-                return -1;
+            if( rc != 0 ) {
+                break;
             }
         }
         if( atoi(getProperty_String("ZS_FAULT_SEGLIST_CORRUPTION", "0"))!=0) {
             rc = mcd_corrupt_segment_list(fd,shard);
-            if( rc < 0 ) {
-                return -1;
+            if( rc != 0 ) {
+                 break;
             }
         }
         if( atoi(getProperty_String("ZS_FAULT_CLASS_DESC_CORRUPTION", "0"))!=0) {
             rc = mcd_corrupt_class_descriptor(fd,shard);
-            if( rc < 0 ) {
-                return -1;
+            if( rc != 0 ) {
+                break;
             }
         }
         if( atoi(getProperty_String("ZS_FAULT_CHKPOINT_CORRUPTION", "0"))!=0) {
             rc = mcd_corrupt_ckpt_descriptor(fd,shard);
-            if( rc < 0 ) {
-                return -1;
+            if( rc != 0 ) {
+                break;
             }
         }
-        if( atoi(getProperty_String("ZS_FAULT_FLOG_CORRUPTION", "0"))!=0) {
-#if 0
-            rc = flog_corrupt(osd_shard);
-            if( rc < 0 ) {
-                return -1;
+        if( atoi(getProperty_String("ZS_FAULT_POTBITMAP_CORRUPTION", "0"))!=0) {
+            rc = mcd_corrupt_potbm(fd,buf_idx);
+            if( rc != 0 ) {
+                break; 
             }
-#endif
+        }
+        if( atoi(getProperty_String("ZS_FAULT_SLABBITMAP_CORRUPTION", "0"))!=0) {
+            rc = mcd_corrupt_slabbm(fd,buf_idx);
+            if( rc != 0 ) {
+                break;
+            }
+        }  
+        if( atoi(getProperty_String("ZS_FAULT_FLOG_CORRUPTION", "0"))!=0) {
         }
     }
-    return 0;
+    close(fd);
+    return rc;
 }
 
 

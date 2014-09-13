@@ -5018,6 +5018,7 @@ int mcd_corrupt_object_table(void * context, mcd_osd_shard_t * shard)
     if(!buf)
         return 1;
     /* Corrupt first 1MB segment */
+    fprintf(stderr,"Corrupting Persistent Object Table\n");
     memset(_buf,0x34,Mcd_rec_update_segment_size + MCD_OSD_META_BLK_SIZE);
     rc = table_chunk_op( context, shard, TABLE_WRITE, 0, seg_blks, buf);
     plat_free(_buf);
