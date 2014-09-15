@@ -689,12 +689,14 @@ mcd_check_all_ckpt_descriptors(int fd)
         return 0;
 }
 
+// Returns 0 on success, error count otherwise.
 int
 mcd_check_meta()
 {
     int fd = -1;
     int open_flags = O_RDWR;
     int status = -1;
+    int errors = 0;
     char fname[PATH_MAX + 1];
 
     // Open the flash device
@@ -703,58 +705,67 @@ mcd_check_meta()
     fd = open( fname, open_flags, 00600 );
     if (fd < 0) {
         perror(fname);
-        return -1;
+        return 1;
     }
 
     // Check the flash label - non-fatal if corrupt
     status = mcd_check_label(fd);
     if ( 0 != status ) {
-        fprintf(stderr,">>>mcd_check_label failed. fatal error\n");
+        fprintf(stderr,"mcd_check_label failed. aborting checks\n");
+        ++errors;
         goto out;
     }
  
     // Check the superblock - fatal if corrupt
     status = mcd_check_superblock(fd);
     if ( 0 != status ) {
-        fprintf(stderr,">>>mcd_check_superblock failed. fatal error\n");
+        fprintf(stderr,"mcd_check_superblock failed. aborting checks\n");
+        ++errors;
         goto out;
     }
 
     status = mcd_check_all_shard_properties(fd);
     if ( 0 != status ) {
-        fprintf(stderr,">>>mcd_check_shard_properties failed. fatal error\n");
+        fprintf(stderr,"mcd_check_shard_properties failed. aborting checks\n");
+        ++errors;
         goto out;
     }
 
     status = mcd_check_all_shard_descriptors(fd);
     if ( 0 != status ) {
-        fprintf(stderr,">>>mcd_check_shard_descriptors failed. fatal error\n");
+        fprintf(stderr,"mcd_check_shard_descriptors failed. aborting checks\n");
+        ++errors;
         goto out;
     }
 
     status = mcd_check_all_segment_lists(fd);
     if ( 0 != status ) {
-        fprintf(stderr,">>>mcd_check_segment_lists failed. non-fatal error\n");
+        fprintf(stderr,"mcd_check_segment_lists failed. continuing checks\n");
+        ++errors;
     }
 
     status = mcd_check_all_class_descriptors(fd);
     if ( 0 != status ) {
-        fprintf(stderr,">>>mcd_check_class_descriptors failed. non-fatal error\n");
+        fprintf(stderr,"mcd_check_class_descriptors failed. continuing checks\n");
+        ++errors;
     }
 
     status = mcd_check_all_ckpt_descriptors(fd);
     if ( 0 != status ) {
-        fprintf(stderr,">>>mcd_check_ckpt_descriptors failed. non-fatal error\n");
+        fprintf(stderr,"mcd_check_ckpt_descriptors failed. continuing checks\n");
+        ++errors;
     }
 
     status = mcd_check_all_potbm(fd);
     if( status != 0 ) {
-        fprintf(stderr,">>>POT bitmap check failed\n");
+        fprintf(stderr,"POT bitmap check failed. continuing checks\n");
+        ++errors;
     }
 
     status = mcd_check_all_slabbm(fd);
     if( status != 0 ) {
-        fprintf(stderr,">>>Slab bitmap check failed\n");
+        fprintf(stderr,"Slab bitmap check failed. continuing checks\n");
+        ++errors;
     }
 
 out:
@@ -762,7 +773,7 @@ out:
     if( atoi(getProperty_String("ZS_META_FAULT_INJECTION", "0"))!=0) {
         return mcd_corrupt_meta();        
     }
-    return status;
+    return errors;
 }
 
 extern mcd_osd_shard_t * Mcd_osd_slab_shards[];
@@ -802,7 +813,7 @@ mcd_check_flog()
     osd_shard = mcd_check_get_osd_shard( shard->shard_id );
     status = flog_check( osd_shard, context );
     if ( status ) {
-        fprintf(stderr,">>>mcd_check_flog failed for cmc.\n");
+        fprintf(stderr,"mcd_check_flog failed for cmc.\n");
         ++errors;
     }
 
@@ -811,7 +822,7 @@ mcd_check_flog()
     osd_shard = mcd_check_get_osd_shard( shard->shard_id );
     status = flog_check( osd_shard, context );
     if ( status ) {
-        fprintf(stderr,">>>mcd_check_flog failed for vmc.\n");
+        fprintf(stderr,"mcd_check_flog failed for vmc.\n");
         ++errors;
     }
 
@@ -820,7 +831,7 @@ mcd_check_flog()
     osd_shard = mcd_check_get_osd_shard( shard->shard_id );
     status = flog_check( osd_shard, context );
     if ( status ) {
-        fprintf(stderr,">>>mcd_check_flog failed for vdc.\n");
+        fprintf(stderr,"mcd_check_flog failed for vdc.\n");
         ++errors;
     }
 
@@ -845,7 +856,7 @@ mcd_check_pot()
     osd_shard = mcd_check_get_osd_shard( shard->shard_id );
     status = check_object_table( context, osd_shard );
     if ( status ) {
-        fprintf(stderr,">>>mcd_check_pot failed for cmc.\n");
+        fprintf(stderr,"mcd_check_pot failed for cmc.\n");
         ++errors;
     }
 
@@ -854,7 +865,7 @@ mcd_check_pot()
     osd_shard = mcd_check_get_osd_shard( shard->shard_id );
     status = check_object_table( context, osd_shard );
     if ( status ) {
-        fprintf(stderr,">>>mcd_check_pot failed for vmc.\n");
+        fprintf(stderr,"mcd_check_pot failed for vmc.\n");
         ++errors;
     }
 
@@ -863,7 +874,7 @@ mcd_check_pot()
     osd_shard = mcd_check_get_osd_shard( shard->shard_id );
     status = check_object_table( context, osd_shard );
     if ( status ) {
-        fprintf(stderr,">>>mcd_check_pot failed for vdc.\n");
+        fprintf(stderr,"mcd_check_pot failed for vdc.\n");
         ++errors;
     }
 
@@ -945,9 +956,12 @@ int mcd_corrupt_label(int fd) {
 
 int mcd_corrupt_superblock(int fd) {
     /* Corrupt half of the bytes superblock */
-    fprintf(stderr,"Corrupting superblock at offset :%lu\n",(uint64_t)(MCD_REC_LABEL_BLKS * MCD_OSD_SEG0_BLK_SIZE));
+    fprintf(stderr,"Corrupting superblock at offset :%lu\n",(uint64_t)(MCD_REC_LABEL_BLKS * MCD_OSD_SEG0_BLK_SIZE)+
+                    (MCD_OSD_SEG0_BLK_SIZE/2));
+
     memset(tmp_buf,0x3F,SHARD_DESC_BLK_SIZE);
-    if( pwrite(fd,tmp_buf,MCD_OSD_SEG0_BLK_SIZE/2, MCD_REC_LABEL_BLKS * MCD_OSD_SEG0_BLK_SIZE) < 0 ) {
+    if( pwrite(fd,tmp_buf,MCD_OSD_SEG0_BLK_SIZE/2, 
+                  (MCD_REC_LABEL_BLKS * MCD_OSD_SEG0_BLK_SIZE) + (MCD_OSD_SEG0_BLK_SIZE/2)) < 0 ) {
         zscheck_log_msg(ZSCHECK_LABEL, 0, ZSCHECK_LABEL_ERROR,"Unable to write in to super block");
         return -1;
     } 

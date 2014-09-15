@@ -3183,6 +3183,8 @@
 150121 Failed to initialize zscheck log
 150122 ZSCheck: Lost space map entry %d:%d.\n
 150123 Space consistency check got %"PRId64" leaked blocks.\n
+150124 POT checksum error. expected=%x, read_from_disk=%x, start_blk=%ld num_blks=%d offset=%d
+150125 POT checksum error. expected=%x, read_from_disk=%x, start_blk=%d num_blks=%d offset=%d
 
 
 # root

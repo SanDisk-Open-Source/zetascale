@@ -1,7 +1,7 @@
 add_definitions(-std=gnu99 -fgnu89-inline)
 #add parameter here as SET(testname_param arg1 arg2 ...)
 SET(default_param 1 8 10000)
-SET(zs_multi_test_param 1 8 1000)
+SET(zs_multi_test_param -s 1 -t 8 -i 1000)
 SET(zs_mput_param 1000 100 10)
 
 file( GLOB TEST_SOURCES *.c )

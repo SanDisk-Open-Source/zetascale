@@ -3,6 +3,7 @@
 #include <unistd.h>
 #include <pthread.h>
 #include <string.h>
+#include <getopt.h>
 #include "zs.h"
 #include "test.h"
 
@@ -10,6 +11,69 @@ static char *base = "container";
 static int iterations = 1000;
 static int threads = 1;
 static long size = 1024 * 1024 * 1024;
+static int recover = 0;
+static int delete_container = 0;
+
+static struct option long_options[] = {
+    {"delete_container",     no_argument,       0, 'd'},
+    {"recover",              no_argument,       0, 'r'},
+    {"help",                 no_argument,       0, 'h'},
+    {"size",                 required_argument, 0, 's'},
+    {"iterations",           required_argument, 0, 'i'},
+    {"threads",              required_argument, 0, 't'},
+    {0, 0, 0, 0}
+};
+
+void print_help(char *pname)
+{
+    fprintf(stderr, "%s --size=<size gb> --iterations=<iterations> --threads=<threads> --delete_container --recover --help\n\n", pname);
+}
+
+int get_options(int argc, char *argv[])
+{
+    int option_index = 0;
+    int c;
+
+    while (1) {
+        c = getopt_long (argc, argv, "ds:i:t:rh", long_options, &option_index);
+
+        if (c == -1)
+            break;
+
+        switch (c) {
+
+        case 's':
+            size = atoi(optarg) * 1024 * 1024 * 1024;
+            break;
+
+        case 'i':
+            iterations = atoi(optarg);
+            break;
+
+        case 't':
+            threads = atoi(optarg);
+            break;
+
+        case 'd':
+            delete_container = 1;
+            break;
+
+        case 'r':
+            recover = 1;
+            break;
+
+        case 'h':
+            print_help(argv[0]);
+            return -1;
+
+        default:
+            print_help(argv[0]);
+            return -1;
+        }
+    }
+
+    return 0;
+}
 
 void* worker(void *arg)
 {
@@ -23,17 +87,22 @@ void* worker(void *arg)
     uint64_t     				 datalen;
     char        				*key;
     uint32_t     				 keylen;
-    char 						 key_str[24] 		= "key00";
+    uint32_t                     self               = (uint32_t) pthread_self();
+    char 						 key_str[64] 		= "key00";
     char 						 key_data[24] 		= "key00_data";
 
     t(zs_init_thread(), ZS_SUCCESS);
 
-    sprintf(cname, "%s-%x", base, (int)pthread_self());
-    t(zs_create_container(cname, size, &cguid), ZS_SUCCESS);
+    sprintf(cname, "%s-%lu", base, (long) arg);
+
+    if (recover) 
+        t(zs_open_container(cname, size, &cguid), ZS_SUCCESS);
+    else 
+        t(zs_create_container(cname, size, &cguid), ZS_SUCCESS);
 
     for(i = 0; i < iterations; i++)
     {
-		sprintf(key_str, "key%04d-%08d", 0, i);
+		sprintf(key_str, "key%08d-%08u", i, self);
 		sprintf(key_data, "key%04ld-%08d_data", (long) arg, i);
 
 		t(zs_set(cguid, key_str, strlen(key_str) + 1, key_data, strlen(key_data) + 1), ZS_SUCCESS);
@@ -43,7 +112,7 @@ void* worker(void *arg)
 
     for(i = 0; i < iterations; i++)
     {
-		sprintf(key_str, "key%04d-%08d", 0, i);
+		sprintf(key_str, "key%08d-%08u", i, self);
 		sprintf(key_data, "key%04ld-%08d_data", (long) arg, i);
 
     	t(zs_get(cguid, key_str, strlen(key_str) + 1, &data, &datalen), ZS_SUCCESS);
@@ -63,13 +132,22 @@ void* worker(void *arg)
 
     t(zs_finish_enumeration(cguid, _zs_iterator), ZS_SUCCESS);
 
-    t(zs_delete_container(cguid), ZS_SUCCESS);
+    if (delete_container)
+        t(zs_delete_container(cguid), ZS_SUCCESS);
 
     t(zs_release_thread(), ZS_SUCCESS);
 
-	sleep(1);
-
     return 0;
+}
+
+void set_prop(int recover)
+{
+    ZSLoadProperties(getenv("ZS_PROPERTY_FILE"));
+    if (recover)
+        ZSSetProperty("ZS_REFORMAT", "0");
+    else
+        ZSSetProperty("ZS_REFORMAT", "1");
+    unsetenv("ZS_PROPERTY_FILE");
 }
 
 int main(int argc, char *argv[])
@@ -77,17 +155,12 @@ int main(int argc, char *argv[])
     int i;
     char 						 name[32];
 
-	if ( argc < 4 ) {
-		fprintf( stderr, "Usage: %s <size in gb> <threads> <iterations>\n", argv[0] );
-		return 0;
-	} else {
-		size = atol( argv[1] ) * 1024 * 1024 * 1024;
-		threads = atoi( argv[2] );
-		iterations = atoi( argv[3] );
-		fprintf(stderr, "size=%lu, threads=%d, iterations=%d\n", size, threads, iterations);
-	}
+    if (get_options(argc, argv) == -1)
+        return(-1);
 
     sprintf(name, "%s-foo", base);
+
+    set_prop(recover);
 
     t(zs_init(),  ZS_SUCCESS);
 
