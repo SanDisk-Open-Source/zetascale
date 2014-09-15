@@ -7963,6 +7963,26 @@ ZSCheckClose()
         return ZS_FAILURE;
 }
 
+int 
+ZSCheckLevel()
+{
+    return mcd_check_level();
+}
+
+void
+ZSCheckMsg(ZS_check_entity_t entity,
+           uint64_t id,
+           ZS_check_error_t error,
+           char *msg
+           )
+{
+    zscheck_log_msg(entity,
+                    id,
+                    error,
+                    msg
+                   );
+}
+
 ZS_status_t
 ZSCheck(struct ZS_thread_state *zs_thread_state)
 {
@@ -8146,19 +8166,25 @@ zs_check_slab_space(struct ZS_thread_state *zs_thread_state)
 	SDF_cache_ctnr_metadata_t *meta = NULL;
 	SDF_action_init_t *pac = NULL;
 	bool res = false;
+    char err_msg[1024];
 
 	pac = (SDF_action_init_t *) zs_thread_state;
 
 	meta = get_container_metadata(pac, VDC_CGUID);
 	if (meta == NULL) {
 		status = ZS_FAILURE_CONTAINER_NOT_FOUND;
+        ZSCheckMsg(ZSCHECK_CONTAINER_META, VDC_CGUID, ZSCHECK_CONTAINER_META_ERROR, "Failed to find VDC");
 		goto out;
 	}
 	
 	res = mcd_osd_cmp_space_maps(meta->pshard);
 	if (res == false) {
 		status = ZS_FAILURE;
+        sprintf(err_msg, "Space map comparison failed for shard %lu", meta->pshard->shardID);
+        ZSCheckMsg(ZSCHECK_SHARD_SPACE_MAP, meta->pshard->shardID, ZSCHECK_SHARD_SPACE_MAP_ERROR, err_msg);
 	}
+    sprintf(err_msg, "Space map comparison succeeded for shard %lu", meta->pshard->shardID);
+    ZSCheckMsg(ZSCHECK_SHARD_SPACE_MAP, meta->pshard->shardID, ZSCHECK_SUCCESS, err_msg);
 
 out:
 	return status;

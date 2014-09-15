@@ -29,6 +29,7 @@
 #include "platform/unistd.h"
 #include "utils/hash.h"
 #include "utils/properties.h"
+#include "utils/checklog.h"
 #include "fth/fthMbox.h"
 
 #include "protocol/protocol_common.h"
@@ -4292,11 +4293,12 @@ compare_space_maps(mcd_osd_shard_t *shard)
 	mcd_osd_segment_t *segment = NULL;
 	mcd_osd_slab_class_t *class = NULL;
 	int64_t leaked_space = 0;
+    char err_msg[1024];
 
 	if (!__zs_check_mode_on) {
-		mcd_log_msg(160281, 
+		mcd_log_msg(PLAT_LOG_ID_INITIAL, 
 			    PLAT_LOG_LEVEL_ERROR,
-			    "Cannot do space check in notmal mode.\n");
+			    "Cannot do space check in normal mode.\n");
 		return true;
 	}
 
@@ -4312,6 +4314,13 @@ compare_space_maps(mcd_osd_shard_t *shard)
 				mcd_log_msg(160282, PLAT_LOG_LEVEL_ERROR,
 		    "Failed space consistency check for segment = %d, class_size = %d blks.\n",
 					    i, class->slab_blksize);
+
+                if (__zs_check_mode_on == ZSCHECK_BTREE_CHECK) {
+                    sprintf(err_msg, "Failed space consistency check for segment = %d, class_size = %d blks",
+					        i, class->slab_blksize);
+                    zscheck_log_msg(ZSCHECK_SHARD_SPACE_MAP, shard->pshard->shard_id, 
+                                    ZSCHECK_SHARD_SPACE_MAP_ERROR, err_msg);
+                }
 
 				/*
 				 * Account for leaked slabs space.
@@ -4331,8 +4340,12 @@ out:
 	if (leaked_space != 0) {
 		mcd_log_msg(150123, PLAT_LOG_LEVEL_ERROR,
 		    "Space consistency check got %"PRId64" leaked blocks.\n", leaked_space);
+        sprintf(err_msg, "Space consistency check found %"PRId64" leaked blocks", leaked_space);
+        zscheck_log_msg(ZSCHECK_SHARD_SPACE_MAP, shard->pshard->shard_id, 
+                        ZSCHECK_SHARD_SPACE_MAP_ERROR, err_msg);
 		return false;
 	}
+    zscheck_log_msg(ZSCHECK_SHARD_SPACE_MAP, shard->pshard->shard_id, ZSCHECK_SUCCESS, "Space consistency verified");
 	return true;
 }
 

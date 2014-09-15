@@ -8082,6 +8082,8 @@ btree_raw_node_check(btree_raw_t *btree, btree_raw_node_t *node,
 	bool leaf_node = is_leaf(btree, node);
 	uint64_t prev_key_seqno = 0;
 	bool res = true;
+    int check_level = ZSCheckLevel();
+    char err_msg[1024];
 
 	/*
 	 * for all keys, check keys are in order and withing the anchor keys range
@@ -8102,6 +8104,8 @@ btree_raw_node_check(btree_raw_t *btree, btree_raw_node_t *node,
 				 */
 				assert(0);
 				res = false;
+                snprintf(err_msg, left_anchor_keylen, "btree left anchor key %s > current key", left_anchor_key);
+                ZSCheckMsg(ZSCHECK_BTREE_NODE, 0, ZSCHECK_BTREE_ERROR, err_msg);
 			}
 		}
 
@@ -8115,6 +8119,8 @@ btree_raw_node_check(btree_raw_t *btree, btree_raw_node_t *node,
 				 */
 				assert(0);
 				res = false;
+                snprintf(err_msg, right_anchor_keylen, "btree right anchor key %s > current key", right_anchor_key);
+                ZSCheckMsg(ZSCHECK_BTREE_NODE, 0, ZSCHECK_BTREE_ERROR, err_msg);
 				goto exit;
 			}
 		}
@@ -8133,12 +8139,16 @@ btree_raw_node_check(btree_raw_t *btree, btree_raw_node_t *node,
 				 */
 				assert(0);
 				res = false;
+                snprintf(err_msg, prev_keylen, "btree right anchor key %s > current key", prev_key);
+                ZSCheckMsg(ZSCHECK_BTREE_NODE, 0, ZSCHECK_BTREE_ERROR, err_msg);
 				goto exit;
 			}
 
 			if (x == 0 && prev_key_seqno < key_info.seqno) {
 				assert(0);
 				res = false;
+                sprintf(err_msg, "btree previous key seqno %lu < current key seqno %lu", prev_key_seqno, key_info.seqno);
+                ZSCheckMsg(ZSCHECK_BTREE_NODE, 0, ZSCHECK_BTREE_ERROR, err_msg);
 				goto exit;
 			}
 		}
@@ -8149,6 +8159,8 @@ btree_raw_node_check(btree_raw_t *btree, btree_raw_node_t *node,
 		if (leaf_node && big_object_kd(btree, key_info.keylen, key_info.datalen)) {
 			res = btree_check_oflow_chain(btree, key_info.datalen, key_info.ptr);	
 			if (res == false) {
+                snprintf(err_msg, key_info.keylen, "btree failed to read overflow chain for %s", key_info.key);
+                ZSCheckMsg(ZSCHECK_BTREE_NODE, 0, ZSCHECK_BTREE_ERROR, err_msg);
 				goto exit;
 			}
 
@@ -8171,6 +8183,7 @@ btree_raw_node_check(btree_raw_t *btree, btree_raw_node_t *node,
 	prev_keylen = 0;
 
 exit:
+
 	return res;
 }
 

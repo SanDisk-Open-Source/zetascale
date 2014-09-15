@@ -210,6 +210,16 @@ _ZSCheckInit(char *logfile);
 ZS_status_t
 _ZSCheckClose();
 
+void
+_ZSCheckMsg(ZS_check_entity_t entity, 
+            uint64_t id, 
+            ZS_check_error_t error, 
+            char *msg
+            );
+
+int
+_ZSCheckLevel();
+
 ZS_status_t
 _ZSCheckMeta(); 
 
@@ -3642,6 +3652,7 @@ _ZSCheck(struct ZS_thread_state *zs_thread_state)
 	ZS_container_props_t props = {0};
 	ZS_status_t status = ZS_SUCCESS;
 	int i = 0;
+    char err_msg[1024];
 
 	if (!__zs_check_mode_on) {
 		return ZS_FAILURE_OPERATION_DISALLOWED;	
@@ -3692,8 +3703,12 @@ _ZSCheck(struct ZS_thread_state *zs_thread_state)
 			 */
 			status = _ZSCheckBtree(zs_thread_state, cguids[i]);
 			if (status != ZS_SUCCESS) {
+                sprintf(err_msg, "Btree check failed for container %lu: %s", cguids[i], ZSStrError(status));
+                ZSCheckMsg(ZSCHECK_BTREE_NODE, 0, ZSCHECK_SUCCESS, err_msg);
 				goto out;
 			}
+            sprintf(err_msg, "Btree check successful for container %lu", cguids[i]);
+            ZSCheckMsg(ZSCHECK_BTREE_NODE, 0, ZSCHECK_SUCCESS, err_msg);
 		}
 
 		msg("Data Conssitency check PASSED for cguid %d.\n", cguids[i]);
@@ -3715,6 +3730,26 @@ ZS_status_t
 _ZSCheckClose()            
 {
     return ZSCheckClose();
+}
+
+void
+_ZSCheckMsg(ZS_check_entity_t entity, 
+            uint64_t id, 
+            ZS_check_error_t error, 
+            char *msg
+            )
+{
+    return ZSCheckMsg(entity,
+                      id,
+                      error,
+                      msg
+                      );
+}
+
+int
+_ZSCheckLevel()            
+{
+    return ZSCheckLevel();
 }
 
 ZS_status_t

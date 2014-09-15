@@ -267,6 +267,12 @@ ZS_status_t
 ZS_status_t
 (*ptr_ZSCheckClose) ();
 
+int
+(*ptr_ZSCheckLevel) ();
+
+void
+(*ptr_ZSCheckMsg) ();
+
 ZS_status_t
 (*ptr_ZSCheckInit) ();
 
@@ -422,6 +428,8 @@ static struct {
     { "_ZSCheckPOT",                   &ptr_ZSCheckPOT                  },
     { "_ZSCheckInit",                  &ptr_ZSCheckInit                 },
     { "_ZSCheckClose",                 &ptr_ZSCheckClose                },
+    { "_ZSCheckLevel",                 &ptr_ZSCheckLevel                },
+    { "_ZSCheckMsg",                   &ptr_ZSCheckMsg                  },
     { "_ZSIoctl",                      &ptr_ZSIoctl                     },
     { "_ZSCreateContainerSnapshot",    &ptr_ZSCreateContainerSnapshot   },
     { "_ZSDeleteContainerSnapshot",    &ptr_ZSDeleteContainerSnapshot   },
@@ -1561,6 +1569,34 @@ ZSCheckClose()
         undefined("ZSCheckClose");
 
     return (*ptr_ZSCheckClose) ();
+}
+
+/*
+ * ZSCheckLevel: for use in zsck..
+ */
+int
+ZSCheckLevel()
+{
+    if (unlikely(!ptr_ZSCheckLevel))
+        undefined("ZSCheckLevel");
+
+    return (*ptr_ZSCheckLevel) ();
+}
+
+/*
+ * ZSCheckMsg: for use in zsck..
+ */
+void
+ZSCheckMsg(ZS_check_entity_t entity,
+           uint64_t id,
+           ZS_check_error_t error,
+           char *msg
+           )
+{
+    if (unlikely(!ptr_ZSCheckMsg))
+        undefined("ZSCheckMsg");
+
+    return (*ptr_ZSCheckMsg) ();
 }
 
 /*

@@ -22,6 +22,7 @@ extern "C" {
 #include <pthread.h>
 #include <stdbool.h>
 
+#include "utils/checklog.h"
 #include "common/zstypes.h"
 
 #define zs_cntr_drain_io( v )  while ( unlikely( v > 0 ) ) fthYield(0)
@@ -1756,6 +1757,34 @@ _ZSCheckClose();
 #else
 ZS_status_t
 ZSCheckClose();
+#endif
+
+// For ZS metadata checker
+#ifdef BTREE_MODE
+int
+_ZSCheckLevel();
+#define ZSCheckLevel    _ZSCheckLevel
+#else
+int
+ZSCheckLevel();
+#endif
+
+// For ZS metadata checker
+#ifdef BTREE_MODE
+void
+_ZSCheckMsg(ZS_check_entity_t entity,
+            uint64_t id,
+            ZS_check_error_t error,
+            char *msg
+            );
+#define ZSCheckMsg    _ZSCheckMsg
+#else
+void
+ZSCheckMsg(ZS_check_entity_t entity,
+           uint64_t id,
+           ZS_check_error_t error,
+           char *msg
+           );
 #endif
 
 #ifdef BTREE_MODE

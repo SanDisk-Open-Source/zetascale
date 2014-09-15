@@ -25,7 +25,7 @@ extern "C" {
 typedef enum {
     ZSCHECK_NO_CHECK = 0,
     ZSCHECK_NO_INIT,
-    ZSCHECK_INIT,
+    ZSCHECK_BTREE_CHECK,
 } ZS_check_mode_t;
 
 typedef enum {
@@ -43,6 +43,8 @@ typedef enum {
     ZSCHECK_POT_BITMAP,
     ZSCHECK_SLAB_BITMAP,
     ZSCHECK_BTREE_NODE,
+    ZSCHECK_CONTAINER_META,
+    ZSCHECK_SHARD_SPACE_MAP,
 } ZS_check_entity_t;
 
 typedef enum {
@@ -53,6 +55,8 @@ typedef enum {
     ZSCHECK_MAGIC_ERROR,
     ZSCHECK_CHECKSUM_ERROR,
     ZSCHECK_BTREE_ERROR,
+    ZSCHECK_CONTAINER_META_ERROR,
+    ZSCHECK_SHARD_SPACE_MAP_ERROR,
 } ZS_check_error_t;
 
 typedef struct {
