@@ -33,7 +33,6 @@
 #include "flip/flip.h"
 #include "btree_scavenger.h"
 #include "btree_sync_th.h"
-#include "utils/checklog.h"
 
 
 #define MAX_NODE_SIZE   128*1024

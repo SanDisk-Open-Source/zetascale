@@ -33,7 +33,6 @@
 #include "hash.h"
 #include "fdf_internal.h"
 #include "container_meta_blob.h"
-#include "utils/checklog.h"
 #include "protocol/action/recovery.h"
 #include "ssd/fifo/slab_gc.h"
 #include "malloc.h"

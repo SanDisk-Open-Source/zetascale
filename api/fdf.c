@@ -50,7 +50,6 @@
 #include "utils/properties.h"
 #include "ssd/ssd_aio.h"
 #include "ssd/fifo/slab_gc.h"
-#include "utils/checklog.h"
 #include <execinfo.h>
 #include <signal.h>
 #include <sys/mman.h>

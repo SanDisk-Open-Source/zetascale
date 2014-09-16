@@ -13,7 +13,7 @@
 #include <sys/time.h>
 #include "platform/logging.h"
 #include "properties.h"
-#include "checklog.h"
+#include "common/zstypes.h"
 
 static char *logfile = NULL;
 static FILE *fp = NULL;

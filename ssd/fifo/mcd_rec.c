@@ -37,7 +37,6 @@
 #include "container_meta_blob.h"
 #include "protocol/action/recovery.h"
 #include "ssd/fifo/slab_gc.h"
-#include "utils/checklog.h"
 
 
 /*

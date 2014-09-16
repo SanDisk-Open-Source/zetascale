@@ -1,5 +1,6 @@
 #include "mcd_rec.h"
 #include "mcd_osd.h"
+#include "common/zstypes.h"
 
 int
 mcd_check_label(int fd);

@@ -29,7 +29,6 @@
 #include "platform/unistd.h"
 #include "utils/hash.h"
 #include "utils/properties.h"
-#include "utils/checklog.h"
 #include "fth/fthMbox.h"
 
 #include "protocol/protocol_common.h"
@@ -66,7 +65,6 @@
 #include "api/sdf_internal.h"
 #include "api/fdf_internal.h"
 #include "shared/name_service.h"
-#include "utils/checklog.h"
 
 extern uint32_t
 init_get_my_node_id();
@@ -4296,7 +4294,7 @@ compare_space_maps(mcd_osd_shard_t *shard)
     char err_msg[1024];
 
 	if (!__zs_check_mode_on) {
-		mcd_log_msg(PLAT_LOG_ID_INITIAL, 
+		mcd_log_msg(150126, 
 			    PLAT_LOG_LEVEL_ERROR,
 			    "Cannot do space check in normal mode.\n");
 		return true;

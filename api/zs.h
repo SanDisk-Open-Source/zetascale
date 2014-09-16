@@ -22,7 +22,6 @@ extern "C" {
 #include <pthread.h>
 #include <stdbool.h>
 
-#include "utils/checklog.h"
 #include "common/zstypes.h"
 
 #define zs_cntr_drain_io( v )  while ( unlikely( v > 0 ) ) fthYield(0)
