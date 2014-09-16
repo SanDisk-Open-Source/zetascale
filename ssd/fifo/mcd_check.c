@@ -794,7 +794,7 @@ check_object_table(int fd, mcd_rec_shard_t * pshard, uint64_t* mos_segments)
         return 1;
 
     uint32_t block_size = getProperty_Int("ZS_STORM_MODE", 1) ? bytes_per_page : MCD_REC_UPDATE_SEGMENT_SIZE;
-    uint32_t seg_blks = getProperty_Int("ZS_STORM_MODE", 1) ? 1 : MCD_REC_UPDATE_SEGMENT_BLKS;
+    uint32_t seg_blks = getProperty_Int("ZS_STORM_MODE", 1) ? bytes_per_page / MCD_OSD_META_BLK_SIZE : MCD_REC_UPDATE_SEGMENT_BLKS;
 
     uint64_t num_blks    = VAR_BLKS_TO_META_BLKS(pshard->rec_table_blks);
     uint64_t num_chunks  = (num_blks + seg_blks - 1) / seg_blks;
