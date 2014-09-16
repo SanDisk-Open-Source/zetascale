@@ -21,9 +21,6 @@ int
 mcd_check_all_shard_descriptors(int fd);
 
 int
-mcd_check_segment_list(int fd, mcd_rec_shard_t *shard);
-
-int
 mcd_check_all_segment_lists(int fd);
 
 int 

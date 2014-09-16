@@ -76,6 +76,7 @@ int                   cmc_properties_ok = 0;
 int                   vmc_properties_ok = 0;
 int                   vdc_properties_ok = 0;
 char                  tmp_buf[SHARD_DESC_BLK_SIZE];
+uint64_t *cmc_mos_segments = NULL, *vmc_mos_segments = NULL, *vdc_mos_segments = NULL;
 
 extern int __zs_check_mode_on;
 
@@ -426,18 +427,26 @@ mcd_check_all_shard_descriptors(int fd)
 }           
 
 int
-mcd_check_segment_list(int fd, mcd_rec_shard_t *shard)
+mcd_check_segment_list(int fd, mcd_rec_shard_t *shard, uint64_t** mos_segments)
 {   
     int status = -1;
-    int i = 0;
+    int i = 0, j, seg_count = 0;;
     ssize_t bytes = 0;
     uint64_t checksum = 0;
     char *buf = NULL;
     mcd_rec_list_block_t *seg_list = NULL;
     char msg[1024];
 
+	uint64_t actual_segs = shard->total_blks / Mcd_osd_segment_blks;
+	uint64_t seg_list_size = actual_segs * sizeof( uint64_t );
+	if(!*mos_segments)
+		*mos_segments = malloc(seg_list_size);
+
+	plat_assert(*mos_segments);
+
     // allocate a buffer
     buf = (char *) malloc( shard->map_blks * SHARD_DESC_BLK_SIZE );
+	plat_assert(buf);
 
     // read the segment table for this shard
     dprintf(stderr,"%s Reading at offset:%lu\n",__FUNCTION__,( shard->blk_offset + shard->seg_list_offset) * SHARD_DESC_BLK_SIZE);
@@ -464,6 +473,11 @@ mcd_check_segment_list(int fd, mcd_rec_shard_t *shard)
                 sprintf( msg, "segment list %d checksum valid", i );
                 zscheck_log_msg( ZSCHECK_SHARD_DESCRIPTOR, shard->shard_id, ZSCHECK_SUCCESS, msg );
                 status = 0;
+
+				for ( j = 0;
+						j < Mcd_rec_list_items_per_blk && seg_count < actual_segs;
+						j++ )
+					(*mos_segments)[ seg_count++ ] = seg_list->data[ j ];
             }
         }
     } else {
@@ -484,21 +498,21 @@ mcd_check_all_segment_lists(int fd)
     // validate cmc shard segment lists
     shard = (mcd_rec_shard_t *)buf[CMC_DESC_BUF];
 
-    if ( cmc_properties_ok && 0 == mcd_check_segment_list(fd, shard) ) {
+    if ( cmc_properties_ok && 0 == mcd_check_segment_list(fd, shard, &cmc_mos_segments) ) {
         ++count;
     }    
 
     // validate vmc shard properties
     shard = (mcd_rec_shard_t *)buf[VMC_DESC_BUF];
 
-    if ( vmc_properties_ok && 0 == mcd_check_segment_list(fd, shard) ) {
+    if ( vmc_properties_ok && 0 == mcd_check_segment_list(fd, shard, &vmc_mos_segments) ) {
         ++count;;
     }
             
     // validate vdc shard properties
     shard = (mcd_rec_shard_t *)buf[VDC_DESC_BUF];
 
-    if ( vdc_properties_ok && 0 == mcd_check_segment_list(fd, shard) ) {
+    if ( vdc_properties_ok && 0 == mcd_check_segment_list(fd, shard, &vdc_mos_segments) ) {
         ++count;;
     }
             
@@ -688,7 +702,176 @@ mcd_check_all_ckpt_descriptors(int fd)
         return 0;
 }
 
-// Returns 0 on success, error count otherwise.
+static int
+read_log_segment(int fd, mcd_rec_shard_t * pshard, uint64_t* mos_segments, int log, int segment, char * buf )
+{
+    int                         rc, bytes;
+    uint64_t                    io_blks = 0;
+    uint64_t                    start_seg;
+    uint64_t                    offset = 0;
+    uint64_t                    rel_offset;
+
+    rel_offset = relative_log_offset( pshard, log );
+    rel_offset = VAR_BLKS_TO_META_BLKS(rel_offset);
+    rel_offset = rel_offset + segment * MCD_REC_LOG_SEGMENT_BLKS;
+
+    start_seg = ( rel_offset / MCD_OSD_META_SEGMENT_BLKS);
+
+    offset = mos_segments[ start_seg ] * Mcd_osd_blk_size +
+        ( rel_offset % MCD_OSD_META_SEGMENT_BLKS) * MCD_OSD_META_BLK_SIZE;
+
+    fprintf(stderr, "reading log buffer off=%lu, blks=%u, buf=%p",
+            offset, MCD_REC_LOG_SEGMENT_BLKS, buf);
+
+	bytes = pread(fd, buf, MCD_REC_LOG_SEGMENT_SIZE, offset);
+    if ( bytes != MCD_REC_LOG_SEGMENT_SIZE ) {
+		fprintf(stderr, 
+                "failed to read log, "
+                "offset=%lu, blks=%lu, rc=%d",
+                offset, io_blks, rc );
+        return -1;
+    }
+
+    return 0;
+}
+
+int
+mcd_check_storm_log(int fd, mcd_rec_shard_t * pshard, int log, uint64_t* mos_segments)
+{
+	bool		end_of_log	= false;
+	int		s, p, status = 0;
+	char		*buf;
+	uint64_t	blk_count	= 0;
+	uint64_t	page_offset;
+	uint64_t	prev_LSN	= 0;
+	uint64_t	checksum;
+
+	buf = memalign(MCD_OSD_META_BLK_SIZE, MCD_REC_LOG_SEGMENT_BLKS);
+	if(!buf)
+		return -1;
+
+	ulong reclogblks = VAR_BLKS_TO_META_BLKS(pshard->rec_log_blks);
+	uint seg_count = divideup( reclogblks, MCD_REC_LOG_SEGMENT_BLKS);
+
+	for ( s = 0; s < seg_count && !end_of_log; s++, blk_count += MCD_REC_LOG_SEGMENT_BLKS ) {
+
+		if(read_log_segment(fd, pshard, mos_segments, log, s, buf )) {
+			status = -1;
+			break;
+		}
+
+		for ( p = 0; p < MCD_REC_LOG_SEGMENT_BLKS; p++ ) {
+			page_offset = p * MCD_OSD_META_BLK_SIZE;
+			mcd_rec_logpage_hdr_t *page_hdr = (mcd_rec_logpage_hdr_t *)( buf + page_offset );
+			// verify page header
+			checksum = page_hdr->checksum;
+			if ( checksum == 0 ) {
+				if(page_hdr->LSN == 0 || page_hdr->eye_catcher || page_hdr->version) {
+					status = -1;
+					end_of_log = true;
+					break;
+				}
+			} else {
+				// verify checksum
+				page_hdr->checksum = 0;
+				page_hdr->checksum = hashb((unsigned char *)(buf+page_offset), MCD_OSD_META_BLK_SIZE, page_hdr->LSN);
+				if ( page_hdr->checksum != checksum ) {
+					fprintf(stderr, "Invalid log page checksum, found=%lu, calc=%lu, boff=%lu, poff=%d", checksum, page_hdr->checksum, blk_count, p );
+					end_of_log = true;
+					status = -1;
+					break;
+				}
+				// verify header
+				if ( page_hdr->eye_catcher != MCD_REC_LOGHDR_EYE_CATCHER ||
+					 page_hdr->version != MCD_REC_LOGHDR_VERSION ) {
+					fprintf(stderr, "Invalid log page header, " "magic=0x%x, version=%d, boff=%lu, poff=%d", page_hdr->eye_catcher, page_hdr->version, blk_count, p);
+					status = -1;
+					end_of_log = true;
+					break;
+				}
+			}
+			// end of log?
+			if ( page_hdr->LSN < prev_LSN ) {
+				end_of_log = true;
+				break;
+			}
+			// LSN must advance by one
+			else if ( page_hdr->LSN != prev_LSN + 1 && prev_LSN > 0 ) {
+							 fprintf(stderr, "Unexpected LSN, LSN=%lu, "
+							 "prev_LSN=%lu; seg=%d, page=%d",
+							 page_hdr->LSN, prev_LSN, s, p );
+				status = -1;
+				end_of_log = true;
+				break;
+			}
+			prev_LSN = page_hdr->LSN;
+#if 0
+			// Note: the following condition is hit during the first log
+			// read, before the high and low LSNs have been established.
+			// If we change the log to start writing immediately after the
+			// checkpoint page following a recovery, then we can't do this
+			// (or the same check at the top of this function).
+			// log records in this page already applied?
+			if ( page_hdr->LSN <= shard->ckpt->LSN ) {
+				end_of_log = true;
+				break;
+			}
+#endif
+		}
+
+	}
+
+	free(buf);
+
+	return status;
+}
+
+int
+mcd_check_all_storm_log(int fd)
+{
+    int status = -1;
+    int errors = 0;
+    //osd_state_t * context = mcd_fth_init_aio_ctxt( SSD_AIO_CTXT_MCD_REC_RCVR );
+    mcd_rec_shard_t * shard = NULL;
+    //mcd_osd_shard_t * osd_shard = NULL;
+
+    // check cmc 
+    shard = (mcd_rec_shard_t *)buf[CMC_DESC_BUF];
+//    osd_shard = mcd_check_get_osd_shard( shard->shard_id );
+
+    fprintf(stderr,"cmc log check: ");
+    status = mcd_check_storm_log(fd, shard, 0, cmc_mos_segments);
+    status |= mcd_check_storm_log(fd, shard, 1, cmc_mos_segments);
+    fprintf(stderr,"%s\n", status ? "failed" : "succeeded");
+
+    if ( status ) ++errors;
+
+    // check vmc 
+    shard = (mcd_rec_shard_t *)buf[VMC_DESC_BUF];
+//    osd_shard = mcd_check_get_osd_shard( shard->shard_id );
+
+    fprintf(stderr,"vmc log check: ");
+    status = mcd_check_storm_log(fd, shard, 0, vmc_mos_segments);
+    status |= mcd_check_storm_log(fd, shard, 1, vmc_mos_segments);
+    fprintf(stderr,"%s\n", status ? "failed" : "succeeded");
+
+    if ( status ) ++errors;
+
+    // check vdc 
+    shard = (mcd_rec_shard_t *)buf[VDC_DESC_BUF];
+//    osd_shard = mcd_check_get_osd_shard( shard->shard_id );
+
+    fprintf(stderr,"vdc log check: ");
+    status = mcd_check_storm_log(fd, shard, 0, vdc_mos_segments);
+    status |= mcd_check_storm_log(fd, shard, 1, vdc_mos_segments);
+    fprintf(stderr,"%s\n", status ? "failed" : "succeeded");
+
+    if ( status ) ++errors;
+
+    return ( errors == 0 ) ? 0 : -1;
+}
+
+
 int
 mcd_check_meta()
 {
@@ -767,6 +950,8 @@ mcd_check_meta()
         ++errors;
     }
 
+    status = mcd_check_all_storm_log(fd);
+
 out:
     close(fd);
     if( atoi(getProperty_String("ZS_META_FAULT_INJECTION", "0"))!=0) {
@@ -836,6 +1021,7 @@ mcd_check_flog()
 
     return ( errors == 0 ) ? 0 : -1;
 }
+
 
 int
 mcd_check_pot()
