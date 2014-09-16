@@ -683,8 +683,4 @@ int  table_chunk_op( void * context, mcd_osd_shard_t * shard, int op,
                      uint64_t start_blk, uint64_t num_blks, char * buf );
 int
 flog_check(uint64_t shard_id);
-int
-check_object_table(void *context, mcd_osd_shard_t *shard);
-/* Fault injection function to corrupt POT */
-int mcd_corrupt_object_table(void *context, mcd_osd_shard_t * shard);
 #endif

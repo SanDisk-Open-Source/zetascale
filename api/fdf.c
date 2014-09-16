@@ -7929,10 +7929,10 @@ ZSCheckFlog()
 ZS_status_t
 ZSCheckPOT()
 {
-    if (0 == mcd_check_pot())
+    //if (0 == mcd_check_pot())
         return ZS_SUCCESS;
-    else
-        return ZS_FAILURE;
+    //else
+    //    return ZS_FAILURE;
 }
 
 ZS_status_t 

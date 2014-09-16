@@ -2419,7 +2419,7 @@ fbio_write(flog_bio_t *fbio, flog_rec_t *frec)
 static int
 flog_patchup(uint64_t shard_id, FILE *fp, int check_only)
 {
-    int           patched = 0;
+    int           i = 0, patched = 0;
     unsigned char *sector = NULL;
     flog_bio_t      fbio_ = {0};
 
@@ -2436,6 +2436,7 @@ flog_patchup(uint64_t shard_id, FILE *fp, int check_only)
 
         flog_rec_t *frec = (flog_rec_t *)sector;
         while (fread(sector, FLUSH_LOG_SEC_SIZE, 1, fp) == 1) {
+            i++;
             if (frec->magic != FLUSH_LOG_MAGIC) {
                 if (check_only)
                     zscheck_log_msg(ZSCHECK_FLOG_RECORD, shard_id, 
@@ -2485,6 +2486,11 @@ flog_patchup(uint64_t shard_id, FILE *fp, int check_only)
     if (fbio_.buf)
         plat_free(fbio_.buf);
 
+    if(check_only && !i) {
+        fseek(fp, 0, SEEK_END);
+        return ftell(fp);
+    }
+
     return 0;
 }
 
@@ -2502,7 +2508,6 @@ flog_recover_low(uint64_t shard_id, int check_only)
 
     if (log_flush_dir == NULL)
         return 1;
-
 	if(zs_instance_id)
 		snprintf(path, sizeof(path), "%s/zs_%d/%s%lu",
 			log_flush_dir, zs_instance_id, FLUSH_LOG_PREFIX, shard_id);
@@ -5013,88 +5018,6 @@ pot_checksum_get(char* buf) {
     return sum;
 }
 
-#define bytes_per_page 65536
-/* Fault injection function to corrupt POT */
-int mcd_corrupt_object_table(void * context, mcd_osd_shard_t * shard)
-{
-    int  rc = 0;
-    int  seg_blks = Mcd_rec_update_segment_blks;
-    char *_buf = plat_alloc(Mcd_rec_update_segment_size + MCD_OSD_META_BLK_SIZE);
-    char *buf = (char *)( ( (uint64_t)_buf + MCD_OSD_META_BLK_SIZE - 1 ) &
-                    MCD_OSD_META_BLK_MASK);
-    if(!buf)
-        return 1;
-    /* Corrupt first 1MB segment */
-    fprintf(stderr,"Corrupting Persistent Object Table\n");
-    memset(_buf,0x34,Mcd_rec_update_segment_size + MCD_OSD_META_BLK_SIZE);
-    rc = table_chunk_op( context, shard, TABLE_WRITE, 0, seg_blks, buf);
-    plat_free(_buf);
-    return rc;
-}
-
-int
-check_object_table(void * context, mcd_osd_shard_t * shard)
-{
-    int                         rc = 0, chunk, pct_complete = 0;
-
-    char *_buf = plat_alloc(Mcd_rec_update_segment_size + MCD_OSD_META_BLK_SIZE);
-    char *buf = (char *)( ( (uint64_t)_buf + MCD_OSD_META_BLK_SIZE - 1 ) &
-                    MCD_OSD_META_BLK_MASK);
-    if(!buf)
-        return 1;
-
-    uint32_t block_size = flash_settings.storm_mode ? bytes_per_page : Mcd_rec_update_segment_size;
-    uint32_t seg_blks = flash_settings.storm_mode ? 1 : Mcd_rec_update_segment_blks;
-
-    uint64_t num_blks    = VAR_BLKS_TO_META_BLKS(shard->pshard->rec_table_blks);
-    uint64_t num_chunks  = (num_blks + seg_blks - 1) / seg_blks;
-
-    for (chunk = 0; chunk < num_chunks; chunk++ ) {
-        if ( num_chunks < 10 ||
-                chunk % ((num_chunks + 9) / 10) == 0 ) {
-            if ( chunk > 0 ) {
-                mcd_log_msg(160285, PLAT_LOG_LEVEL_DEBUG,
-                        "Checking object table, shardID=%lu, %d percent complete",
-                        shard->id, pct_complete );
-            }
-            pct_complete += 10;
-        }
-
-        if ( seg_blks > num_blks - chunk * seg_blks ) {
-            seg_blks = num_blks - chunk * seg_blks;
-            plat_assert(chunk + 1 == num_chunks);
-        }
-
-        rc = table_chunk_op( context,
-                shard,
-                TABLE_READ,
-                (chunk * seg_blks),
-                seg_blks,
-                buf);
-
-        if(rc) break;
-
-        if(pot_checksum_enabled) {
-            uint32_t c, sum = pot_checksum_get(buf);
-            pot_checksum_set(buf, 0);
-            if((c = checksum(buf, block_size, 0)) != sum)
-            {
-                if(sum || !empty(buf, block_size)) {
-                    mcd_log_msg(160290, PLAT_LOG_LEVEL_FATAL,
-                            "POT checksum error. expected=%x, read_from_disk=%x, start_blk=%d num_blks=%d", c, sum,
-                            chunk * seg_blks, seg_blks);
-                    rc = 1;
-                    break;
-                }
-            }
-        }
-    } // for ( chunk = 0
-
-	free(_buf);
-
-    return rc;
-}
-
 
 int
 read_object_table( void * context, mcd_osd_shard_t * shard,
@@ -5164,12 +5087,7 @@ read_object_table( void * context, mcd_osd_shard_t * shard,
             pot_checksum_set(state->segments[s], 0);
             if((c = checksum(state->segments[s], Mcd_rec_update_segment_size, 0)) != sum)
             {
-                int i = 0;
-                if(!sum)
-                    while(i < Mcd_rec_update_segment_size / sizeof(uint64_t) && !((uint64_t*)state->segments[s])[i])
-                        i++;
-
-                if(sum || i < Mcd_rec_update_segment_size / sizeof(uint64_t)) {
+                if(sum || !empty(state->segments[s], Mcd_rec_update_segment_size)) {
                     mcd_log_msg(160284, PLAT_LOG_LEVEL_FATAL,
                             "POT checksum error. expected=%x, read_from_disk=%x, start_blk=%ld num_blks=%d", c, sum,
                             state->start_blk + (s * Mcd_rec_update_segment_blks), seg_blks);

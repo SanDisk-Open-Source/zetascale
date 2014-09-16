@@ -82,7 +82,7 @@ extern int __zs_check_mode_on;
 
 mcd_osd_shard_t * mcd_check_get_osd_shard( uint64_t shard_id );
 int mcd_corrupt_meta();
-int mcd_corrupt_pot();
+int mcd_corrupt_pot(int fd);
 
 int
 mcd_check_label(int fd)
@@ -705,6 +705,184 @@ mcd_check_all_ckpt_descriptors(int fd)
         return 0;
 }
 
+extern int pot_checksum_enabled;
+#define bytes_per_page 65536
+void pot_checksum_set(char* buf, uint32_t sum);
+uint32_t pot_checksum_get(char* buf);
+
+/* Fault injection function to corrupt POT */
+int mcd_corrupt_object_table(int fd, mcd_rec_shard_t * pshard, uint64_t*mos_segments)
+{
+    int  bytes;
+    int  seg_blks = MCD_REC_UPDATE_SEGMENT_BLKS;
+    uint64_t                    offset;
+    uint64_t                    rel_offset;
+    uint64_t                    start_seg;
+    char *_buf = plat_alloc(MCD_REC_UPDATE_SEGMENT_SIZE + MCD_OSD_META_BLK_SIZE);
+    char *buf = (char *)( ( (uint64_t)_buf + MCD_OSD_META_BLK_SIZE - 1 ) &
+                    MCD_OSD_META_BLK_MASK);
+    if(!buf)
+        return 1;
+    /* Corrupt first 1MB segment */
+    fprintf(stderr,"Corrupting Persistent Object Table\n");
+    memset(_buf,0x34,MCD_REC_UPDATE_SEGMENT_SIZE + MCD_OSD_META_BLK_SIZE);
+    rel_offset = VAR_BLKS_TO_META_BLKS(pshard->rec_md_blks);
+    start_seg  = rel_offset / MCD_OSD_META_SEGMENT_BLKS;
+
+    offset = mos_segments[ start_seg ] * Mcd_osd_blk_size+
+        ( rel_offset % MCD_OSD_META_SEGMENT_BLKS) * MCD_OSD_META_BLK_SIZE;
+
+    bytes = pwrite(fd, buf, seg_blks * MCD_OSD_META_BLK_SIZE, offset);
+
+    plat_free(_buf);
+
+    return bytes != seg_blks * MCD_OSD_META_BLK_SIZE;
+}
+
+static int
+pot_read(int fd, mcd_rec_shard_t * pshard, uint64_t* mos_segments,
+                uint64_t start_blk, uint64_t num_blks, char * buf )
+{
+    int                         bytes;
+    uint64_t                    io_blks;
+    uint64_t                    blk_count;
+    uint64_t                    start_seg;
+    uint64_t                    offset;
+    uint64_t                    rel_offset;
+
+    // iterate by number of blocks per I/O operation
+    for ( blk_count = 0; blk_count < num_blks; blk_count += io_blks ) {
+
+        // compute number of blocks to read in a single I/O
+        io_blks = MCD_REC_UPDATE_IOSIZE / MCD_OSD_META_BLK_SIZE;
+        if ( io_blks > num_blks - blk_count ) {
+            io_blks = num_blks - blk_count;
+        }
+
+        // calculate starting logical segment number
+        rel_offset = VAR_BLKS_TO_META_BLKS(pshard->rec_md_blks) 
+					+ start_blk + blk_count;
+        start_seg  = rel_offset / MCD_OSD_META_SEGMENT_BLKS;
+
+        // get logical block offset to starting block
+        offset = mos_segments[ start_seg ] * Mcd_osd_blk_size+
+            ( rel_offset % MCD_OSD_META_SEGMENT_BLKS) * MCD_OSD_META_BLK_SIZE;
+
+        bytes = pread(fd, buf + (blk_count * MCD_OSD_META_BLK_SIZE),
+                             io_blks * MCD_OSD_META_BLK_SIZE, offset);
+        if (bytes != io_blks * MCD_OSD_META_BLK_SIZE ) {
+                         fprintf(stderr, "failed to %s table, start=%lu, count=%lu, "
+                         "offset=%lu, count=%lu, bytes=%d",
+                         "read",
+                         start_blk, blk_count, offset, io_blks, bytes );
+            return -1;
+        }
+    }
+
+    return 0;
+}
+
+int
+check_object_table(int fd, mcd_rec_shard_t * pshard, uint64_t* mos_segments)
+{
+    int rc = 0, chunk, pct_complete = 0;
+
+    char *_buf = plat_alloc(MCD_REC_UPDATE_SEGMENT_SIZE + MCD_OSD_META_BLK_SIZE);
+    char *buf = (char *)( ( (uint64_t)_buf + MCD_OSD_META_BLK_SIZE - 1 ) &
+                    MCD_OSD_META_BLK_MASK);
+    if(!buf)
+        return 1;
+
+    uint32_t block_size = getProperty_Int("ZS_STORM_MODE", 1) ? bytes_per_page : MCD_REC_UPDATE_SEGMENT_SIZE;
+    uint32_t seg_blks = getProperty_Int("ZS_STORM_MODE", 1) ? 1 : MCD_REC_UPDATE_SEGMENT_BLKS;
+
+    uint64_t num_blks    = VAR_BLKS_TO_META_BLKS(pshard->rec_table_blks);
+    uint64_t num_chunks  = (num_blks + seg_blks - 1) / seg_blks;
+
+    for (chunk = 0; chunk < num_chunks; chunk++ ) {
+        if ( num_chunks < 10 ||
+                chunk % ((num_chunks + 9) / 10) == 0 ) {
+            if ( chunk > 0 ) {
+                mcd_log_msg(160285, PLAT_LOG_LEVEL_DEBUG,
+                        "Checking object table, shardID=%lu, %d percent complete",
+                        pshard->shard_id, pct_complete );
+            }
+            pct_complete += 10;
+        }
+
+        if ( seg_blks > num_blks - chunk * seg_blks ) {
+            seg_blks = num_blks - chunk * seg_blks;
+            plat_assert(chunk + 1 == num_chunks);
+        }
+
+        rc = pot_read(fd,
+                pshard, mos_segments,
+                (chunk * seg_blks),
+                seg_blks,
+                buf);
+
+        if(rc) break;
+
+        if(pot_checksum_enabled) {
+            uint32_t c, sum = pot_checksum_get(buf);
+            pot_checksum_set(buf, 0);
+            if((c = checksum(buf, block_size, 0)) != sum)
+            {
+                if(sum || !empty(buf, block_size)) {
+                    mcd_log_msg(160290, PLAT_LOG_LEVEL_FATAL,
+                            "POT checksum error. expected=%x, read_from_disk=%x, start_blk=%d num_blks=%d", c, sum,
+                            chunk * seg_blks, seg_blks);
+                    rc = 1;
+                    break;
+                }
+            }
+        }
+    } // for ( chunk = 0
+
+	free(_buf);
+
+    return rc;
+}
+
+int
+mcd_check_all_pot(int fd)
+{
+    int status = -1;
+    int errors = 0;
+    mcd_rec_shard_t * shard = NULL;
+
+    pot_checksum_enabled = 1;
+
+    if( atoi(getProperty_String("ZS_META_FAULT_INJECTION", "0"))!=0) {
+        return mcd_corrupt_pot(fd);
+    }
+
+    // check cmc
+    shard = (mcd_rec_shard_t *)buf[CMC_DESC_BUF];
+    status = check_object_table(fd, shard, cmc_mos_segments);
+    if ( status ) {
+        fprintf(stderr,"mcd_check_pot failed for cmc.\n");
+        ++errors;
+    }
+
+    // check vmc
+    shard = (mcd_rec_shard_t *)buf[VMC_DESC_BUF];
+    status = check_object_table(fd, shard, vmc_mos_segments);
+    if ( status ) {
+        fprintf(stderr,"mcd_check_pot failed for vmc.\n");
+        ++errors;
+    }
+
+    // check vdc
+    shard = (mcd_rec_shard_t *)buf[VDC_DESC_BUF];
+    status = check_object_table(fd, shard, vdc_mos_segments);
+    if ( status ) {
+        fprintf(stderr,"mcd_check_pot failed for vdc.\n");
+        ++errors;
+    }
+
+    return ( errors == 0 ) ? 0 : -1;
+}
 static int
 read_log_segment(int fd, mcd_rec_shard_t * pshard, uint64_t* mos_segments, int log, int segment, char * buf )
 {
@@ -949,6 +1127,13 @@ mcd_check_meta()
 
     mcd_check_flog();
 
+    status = mcd_check_all_pot(fd);
+    if( status != 0 ) {
+        fprintf(stderr,"POT check failed. continuing checks\n");
+        ++errors;
+    }
+
+
 out:
     close(fd);
     if( atoi(getProperty_String("ZS_META_FAULT_INJECTION", "0"))!=0) {
@@ -1022,49 +1207,6 @@ mcd_check_flog()
 }
 
 
-int
-mcd_check_pot()
-{
-    int status = -1;
-    int errors = 0;
-    osd_state_t * context = mcd_fth_init_aio_ctxt( SSD_AIO_CTXT_MCD_REC_RCVR );
-    mcd_rec_shard_t * shard = NULL;
-    mcd_osd_shard_t * osd_shard = NULL;
-
-    if( atoi(getProperty_String("ZS_META_FAULT_INJECTION", "0"))!=0) {
-        return mcd_corrupt_pot();
-    }
-
-    // check cmc
-    shard = (mcd_rec_shard_t *)buf[CMC_DESC_BUF];
-    osd_shard = mcd_check_get_osd_shard( shard->shard_id );
-    status = check_object_table( context, osd_shard );
-    if ( status ) {
-        fprintf(stderr,"mcd_check_pot failed for cmc.\n");
-        ++errors;
-    }
-
-    // check vmc
-    shard = (mcd_rec_shard_t *)buf[VMC_DESC_BUF];
-    osd_shard = mcd_check_get_osd_shard( shard->shard_id );
-    status = check_object_table( context, osd_shard );
-    if ( status ) {
-        fprintf(stderr,"mcd_check_pot failed for vmc.\n");
-        ++errors;
-    }
-
-    // check vdc
-    shard = (mcd_rec_shard_t *)buf[VDC_DESC_BUF];
-    osd_shard = mcd_check_get_osd_shard( shard->shard_id );
-    status = check_object_table( context, osd_shard );
-    if ( status ) {
-        fprintf(stderr,"mcd_check_pot failed for vdc.\n");
-        ++errors;
-    }
-
-    return ( errors == 0 ) ? 0 : -1;
-}
-
 // Is check mode turned on?
 // 0 - disabled
 // 1 - enabled, no init zs
@@ -1076,13 +1218,11 @@ mcd_check_level()
 }
 
 int
-mcd_corrupt_pot()
+mcd_corrupt_pot(int fd)
 {
     int status = -1;
     int errors = 0;
-    osd_state_t * context = mcd_fth_init_aio_ctxt( SSD_AIO_CTXT_MCD_REC_RCVR );
     mcd_rec_shard_t * shard = NULL;
-    mcd_osd_shard_t * osd_shard = NULL;
 
     if( atoi(getProperty_String("ZS_FAULT_POT_CORRUPTION", "0")) == 0) {
         return 0;
@@ -1091,8 +1231,7 @@ mcd_corrupt_pot()
     if( atoi(getProperty_String("ZS_FAULT_CONTAINER_CMC", "0")) == 1) {
         // check cmc
         shard = (mcd_rec_shard_t *)buf[CMC_DESC_BUF];
-        osd_shard = mcd_check_get_osd_shard( shard->shard_id );
-        status = mcd_corrupt_object_table( context, osd_shard );
+        status = mcd_corrupt_object_table(fd, shard, cmc_mos_segments);
         if ( status ) {
             fprintf(stderr,"Corrupt object table for cmc failed\n");
             ++errors;
@@ -1102,8 +1241,7 @@ mcd_corrupt_pot()
     // check vmc
     if( atoi(getProperty_String("ZS_FAULT_CONTAINER_VMC", "0")) == 1) {
         shard = (mcd_rec_shard_t *)buf[VMC_DESC_BUF];
-        osd_shard = mcd_check_get_osd_shard( shard->shard_id );
-        status = mcd_corrupt_object_table( context, osd_shard );
+        status = mcd_corrupt_object_table(fd, shard, vmc_mos_segments);
         if ( status ) {
             fprintf(stderr,"Corrupt object table for vmc failed\n");
             ++errors;
@@ -1113,8 +1251,7 @@ mcd_corrupt_pot()
     // check vdc
     if( atoi(getProperty_String("ZS_FAULT_CONTAINER_VDC", "0")) == 1) {
         shard = (mcd_rec_shard_t *)buf[VDC_DESC_BUF];
-        osd_shard = mcd_check_get_osd_shard( shard->shard_id );
-        status = mcd_corrupt_object_table( context, osd_shard );
+        status = mcd_corrupt_object_table(fd, shard, vdc_mos_segments);
         if ( status ) {
             fprintf(stderr,"Corrupt object table for vdc failed\n");
             ++errors;

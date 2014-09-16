@@ -7,7 +7,6 @@
 #include <zs.h>
 
 static int btree_opt = 0;    
-static int pot_opt = 1;    
 static char *logfile = NULL;
 
 static struct ZS_state* zs_state;
@@ -105,11 +104,6 @@ ZS_status_t check_btree()
     return ZSCheck( _zs_thd_state );
 }
 
-ZS_status_t check_pot()
-{
-    return ZSCheckPOT( );
-}
-
 void set_props()
 {
     ZSLoadProperties(getenv("ZS_PROPERTY_FILE"));
@@ -144,14 +138,6 @@ int main(int argc, char *argv[])
     if (init_zs() < 0) {
         fprintf(stderr, "ZS init failed\n");
         return -1;
-    }
-
-    if (pot_opt) {
-        if (ZS_SUCCESS != (status = check_pot())) {
-            fprintf(stderr, "pot check failed: %s\n", ZSStrError(status));
-        } else {
-            fprintf(stderr, "pot check succeeded\n");
-        }
     }
 
     if (btree_opt) {
