@@ -682,7 +682,7 @@ inline uint64_t relative_log_offset( mcd_rec_shard_t * pshard, int log );
 int  table_chunk_op( void * context, mcd_osd_shard_t * shard, int op,
                      uint64_t start_blk, uint64_t num_blks, char * buf );
 int
-flog_check(mcd_osd_shard_t *shard, void *context);
+flog_check(uint64_t shard_id);
 int
 check_object_table(void *context, mcd_osd_shard_t *shard);
 /* Fault injection function to corrupt POT */

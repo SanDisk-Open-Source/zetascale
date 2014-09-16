@@ -147,6 +147,9 @@ mcd_check_superblock(int fd)
         return -1;
     }
 
+	Mcd_osd_blk_size = superblock->blk_size;
+	Mcd_rec_list_items_per_blk = ((Mcd_osd_blk_size/ sizeof(uint64_t)) - 1);
+
     zscheck_log_msg(ZSCHECK_SUPERBLOCK, 0, ZSCHECK_SUCCESS, "superblock checksum valid");
     return 0;
 }
@@ -433,11 +436,13 @@ mcd_check_segment_list(int fd, mcd_rec_shard_t *shard, uint64_t** mos_segments)
     int i = 0, j, seg_count = 0;;
     ssize_t bytes = 0;
     uint64_t checksum = 0;
-    char *buf = NULL;
+    char *buffer = NULL;
     mcd_rec_list_block_t *seg_list = NULL;
     char msg[1024];
+ 
+	mcd_rec_flash_t* superblock = (mcd_rec_flash_t *)buf[SUPER_BUF];
 
-	uint64_t actual_segs = shard->total_blks / Mcd_osd_segment_blks;
+	uint64_t actual_segs = shard->total_blks * superblock->blk_size / Mcd_osd_segment_size;
 	uint64_t seg_list_size = actual_segs * sizeof( uint64_t );
 	if(!*mos_segments)
 		*mos_segments = malloc(seg_list_size);
@@ -445,13 +450,13 @@ mcd_check_segment_list(int fd, mcd_rec_shard_t *shard, uint64_t** mos_segments)
 	plat_assert(*mos_segments);
 
     // allocate a buffer
-    buf = (char *) malloc( shard->map_blks * SHARD_DESC_BLK_SIZE );
-	plat_assert(buf);
+    buffer = (char *) malloc( shard->map_blks * SHARD_DESC_BLK_SIZE );
+	plat_assert(buffer);
 
     // read the segment table for this shard
     dprintf(stderr,"%s Reading at offset:%lu\n",__FUNCTION__,( shard->blk_offset + shard->seg_list_offset) * SHARD_DESC_BLK_SIZE);
     bytes = pread( fd,
-                   buf,
+                   buffer,
                    ( shard->map_blks * SHARD_DESC_BLK_SIZE ),
                    ( shard->blk_offset + shard->seg_list_offset) * SHARD_DESC_BLK_SIZE );
         
@@ -459,7 +464,7 @@ mcd_check_segment_list(int fd, mcd_rec_shard_t *shard, uint64_t** mos_segments)
 
         for ( i = 0; i < shard->map_blks; i++ ) {
     
-            seg_list = (mcd_rec_list_block_t *)(buf + (i * SHARD_DESC_BLK_SIZE));
+            seg_list = (mcd_rec_list_block_t *)(buffer + (i * SHARD_DESC_BLK_SIZE));
     
             // verify class segment block checksum
             checksum = seg_list->checksum;
@@ -474,9 +479,7 @@ mcd_check_segment_list(int fd, mcd_rec_shard_t *shard, uint64_t** mos_segments)
                 zscheck_log_msg( ZSCHECK_SHARD_DESCRIPTOR, shard->shard_id, ZSCHECK_SUCCESS, msg );
                 status = 0;
 
-				for ( j = 0;
-						j < Mcd_rec_list_items_per_blk && seg_count < actual_segs;
-						j++ )
+				for ( j = 0; j < Mcd_rec_list_items_per_blk && seg_count < actual_segs; j++ )
 					(*mos_segments)[ seg_count++ ] = seg_list->data[ j ];
             }
         }
@@ -484,7 +487,7 @@ mcd_check_segment_list(int fd, mcd_rec_shard_t *shard, uint64_t** mos_segments)
         zscheck_log_msg( ZSCHECK_SEGMENT_LIST, shard->shard_id, ZSCHECK_READ_ERROR, "failed to read segment list" );
     }
 
-    free(buf);
+    free(buffer);
 
     return status;
 }
@@ -705,8 +708,7 @@ mcd_check_all_ckpt_descriptors(int fd)
 static int
 read_log_segment(int fd, mcd_rec_shard_t * pshard, uint64_t* mos_segments, int log, int segment, char * buf )
 {
-    int                         rc, bytes;
-    uint64_t                    io_blks = 0;
+    int                         bytes;
     uint64_t                    start_seg;
     uint64_t                    offset = 0;
     uint64_t                    rel_offset;
@@ -720,15 +722,14 @@ read_log_segment(int fd, mcd_rec_shard_t * pshard, uint64_t* mos_segments, int l
     offset = mos_segments[ start_seg ] * Mcd_osd_blk_size +
         ( rel_offset % MCD_OSD_META_SEGMENT_BLKS) * MCD_OSD_META_BLK_SIZE;
 
-    fprintf(stderr, "reading log buffer off=%lu, blks=%u, buf=%p",
-            offset, MCD_REC_LOG_SEGMENT_BLKS, buf);
+//    fprintf(stderr, "reading log buffer off=%lu, blks=%u, buf=%p %d %ld %ld %ld\n",
+//            offset, MCD_REC_LOG_SEGMENT_BLKS, buf, segment, rel_offset, start_seg, mos_segments[start_seg]);
 
 	bytes = pread(fd, buf, MCD_REC_LOG_SEGMENT_SIZE, offset);
     if ( bytes != MCD_REC_LOG_SEGMENT_SIZE ) {
-		fprintf(stderr, 
-                "failed to read log, "
-                "offset=%lu, blks=%lu, rc=%d",
-                offset, io_blks, rc );
+		fprintf(stderr, "failed to read log, "
+                "offset=%lu, bytes=%d %s\n",
+                offset, bytes, plat_strerror(errno));
         return -1;
     }
 
@@ -741,19 +742,18 @@ mcd_check_storm_log(int fd, mcd_rec_shard_t * pshard, int log, uint64_t* mos_seg
 	bool		end_of_log	= false;
 	int		s, p, status = 0;
 	char		*buf;
-	uint64_t	blk_count	= 0;
 	uint64_t	page_offset;
 	uint64_t	prev_LSN	= 0;
 	uint64_t	checksum;
 
-	buf = memalign(MCD_OSD_META_BLK_SIZE, MCD_REC_LOG_SEGMENT_BLKS);
+	buf = memalign(MCD_OSD_META_BLK_SIZE, MCD_REC_LOG_SEGMENT_SIZE);
 	if(!buf)
 		return -1;
 
 	ulong reclogblks = VAR_BLKS_TO_META_BLKS(pshard->rec_log_blks);
 	uint seg_count = divideup( reclogblks, MCD_REC_LOG_SEGMENT_BLKS);
 
-	for ( s = 0; s < seg_count && !end_of_log; s++, blk_count += MCD_REC_LOG_SEGMENT_BLKS ) {
+	for ( s = 0; s < seg_count && !end_of_log; s++) {
 
 		if(read_log_segment(fd, pshard, mos_segments, log, s, buf )) {
 			status = -1;
@@ -766,7 +766,7 @@ mcd_check_storm_log(int fd, mcd_rec_shard_t * pshard, int log, uint64_t* mos_seg
 			// verify page header
 			checksum = page_hdr->checksum;
 			if ( checksum == 0 ) {
-				if(page_hdr->LSN == 0 || page_hdr->eye_catcher || page_hdr->version) {
+				if(page_hdr->LSN || page_hdr->eye_catcher || page_hdr->version) {
 					status = -1;
 					end_of_log = true;
 					break;
@@ -776,7 +776,7 @@ mcd_check_storm_log(int fd, mcd_rec_shard_t * pshard, int log, uint64_t* mos_seg
 				page_hdr->checksum = 0;
 				page_hdr->checksum = hashb((unsigned char *)(buf+page_offset), MCD_OSD_META_BLK_SIZE, page_hdr->LSN);
 				if ( page_hdr->checksum != checksum ) {
-					fprintf(stderr, "Invalid log page checksum, found=%lu, calc=%lu, boff=%lu, poff=%d", checksum, page_hdr->checksum, blk_count, p );
+					fprintf(stderr, "Invalid log page checksum, found=%lu, calc=%lu, poff=%d", checksum, page_hdr->checksum, p );
 					end_of_log = true;
 					status = -1;
 					break;
@@ -784,7 +784,7 @@ mcd_check_storm_log(int fd, mcd_rec_shard_t * pshard, int log, uint64_t* mos_seg
 				// verify header
 				if ( page_hdr->eye_catcher != MCD_REC_LOGHDR_EYE_CATCHER ||
 					 page_hdr->version != MCD_REC_LOGHDR_VERSION ) {
-					fprintf(stderr, "Invalid log page header, " "magic=0x%x, version=%d, boff=%lu, poff=%d", page_hdr->eye_catcher, page_hdr->version, blk_count, p);
+					fprintf(stderr, "Invalid log page header, " "magic=0x%x, version=%d, poff=%d", page_hdr->eye_catcher, page_hdr->version, p);
 					status = -1;
 					end_of_log = true;
 					break;
@@ -831,13 +831,10 @@ mcd_check_all_storm_log(int fd)
 {
     int status = -1;
     int errors = 0;
-    //osd_state_t * context = mcd_fth_init_aio_ctxt( SSD_AIO_CTXT_MCD_REC_RCVR );
     mcd_rec_shard_t * shard = NULL;
-    //mcd_osd_shard_t * osd_shard = NULL;
 
     // check cmc 
     shard = (mcd_rec_shard_t *)buf[CMC_DESC_BUF];
-//    osd_shard = mcd_check_get_osd_shard( shard->shard_id );
 
     fprintf(stderr,"cmc log check: ");
     status = mcd_check_storm_log(fd, shard, 0, cmc_mos_segments);
@@ -848,7 +845,6 @@ mcd_check_all_storm_log(int fd)
 
     // check vmc 
     shard = (mcd_rec_shard_t *)buf[VMC_DESC_BUF];
-//    osd_shard = mcd_check_get_osd_shard( shard->shard_id );
 
     fprintf(stderr,"vmc log check: ");
     status = mcd_check_storm_log(fd, shard, 0, vmc_mos_segments);
@@ -859,7 +855,6 @@ mcd_check_all_storm_log(int fd)
 
     // check vdc 
     shard = (mcd_rec_shard_t *)buf[VDC_DESC_BUF];
-//    osd_shard = mcd_check_get_osd_shard( shard->shard_id );
 
     fprintf(stderr,"vdc log check: ");
     status = mcd_check_storm_log(fd, shard, 0, vdc_mos_segments);
@@ -952,6 +947,8 @@ mcd_check_meta()
 
     status = mcd_check_all_storm_log(fd);
 
+    mcd_check_flog();
+
 out:
     close(fd);
     if( atoi(getProperty_String("ZS_META_FAULT_INJECTION", "0"))!=0) {
@@ -983,41 +980,43 @@ mcd_check_get_osd_shard( uint64_t shard_id )
     return osd_shard;
 }
 
+extern int flog_checksum_enabled;
+
 int
 mcd_check_flog()
 {
     int status = -1;
     int errors = 0;
-    osd_state_t * context = mcd_fth_init_aio_ctxt( SSD_AIO_CTXT_MCD_REC_RCVR );
     mcd_rec_shard_t * shard = NULL;
-    mcd_osd_shard_t * osd_shard = NULL;
+
+    int check_x86_sse42( void);
+    extern int sse42_present;
+
+    sse42_present = check_x86_sse42( );
+
+	insertProperty("ZS_LOG_FLUSH_DIR", "/tmp");
+	flog_checksum_enabled = 1;
 
     // check cmc 
     shard = (mcd_rec_shard_t *)buf[CMC_DESC_BUF];
-    osd_shard = mcd_check_get_osd_shard( shard->shard_id );
-    status = flog_check( osd_shard, context );
-    if ( status ) {
-        fprintf(stderr,"mcd_check_flog failed for cmc.\n");
-        ++errors;
-    }
+    fprintf(stderr, "cmc flog_check: ");
+    status = flog_check( shard->shard_id);
+    fprintf(stderr,"%s\n", status ? "failed" : "succeeded");
+    if ( status ) ++errors;
 
     // check vmc 
     shard = (mcd_rec_shard_t *)buf[VMC_DESC_BUF];
-    osd_shard = mcd_check_get_osd_shard( shard->shard_id );
-    status = flog_check( osd_shard, context );
-    if ( status ) {
-        fprintf(stderr,"mcd_check_flog failed for vmc.\n");
-        ++errors;
-    }
+    fprintf(stderr, "vmc flog_check: ");
+    status = flog_check( shard->shard_id );
+    fprintf(stderr,"%s\n", status ? "failed" : "succeeded");
+    if ( status ) ++errors;
 
     // check vdc 
     shard = (mcd_rec_shard_t *)buf[VDC_DESC_BUF];
-    osd_shard = mcd_check_get_osd_shard( shard->shard_id );
-    status = flog_check( osd_shard, context );
-    if ( status ) {
-        fprintf(stderr,"mcd_check_flog failed for vdc.\n");
-        ++errors;
-    }
+    fprintf(stderr, "vdc flog_check: ");
+    status = flog_check( shard->shard_id );
+    fprintf(stderr,"%s\n", status ? "failed" : "succeeded");
+    if ( status ) ++errors;
 
     return ( errors == 0 ) ? 0 : -1;
 }

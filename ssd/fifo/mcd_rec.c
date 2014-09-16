@@ -76,7 +76,6 @@ typedef struct {
     int              dirty;
     uint64_t         blkno;
     uint64_t         lsn;
-    struct osd_state *context;
     unsigned char   *buf;
     unsigned char   *abuf;
 } flog_bio_t;
@@ -2361,10 +2360,10 @@ fbio_flush(flog_bio_t *fbio)
     hdr->checksum    = 0;
     hdr->checksum    = hashb(fbio->abuf, MCD_OSD_META_BLK_SIZE, hdr->LSN);
 
-    int s = mcd_fth_aio_blk_write(fbio->context, (char *)fbio->abuf,
-                                  fbio->blkno * MCD_OSD_META_BLK_SIZE,
-                                  MCD_OSD_META_BLK_SIZE);
-    if (s != FLASH_EOK) {
+    int fd = mcd_aio_get_fd(fbio->blkno * MCD_OSD_META_BLK_SIZE, MCD_OSD_META_BLK_SIZE);
+    int s = pwrite(fd, (char *)fbio->abuf,MCD_OSD_META_BLK_SIZE,
+                                  fbio->blkno * MCD_OSD_META_BLK_SIZE);
+    if (s != MCD_OSD_META_BLK_SIZE) {
         mcd_log_msg(70104, PLAT_LOG_LEVEL_ERROR,
                     "Flush log sync: write failed: blk=%ld err=%d",
                     fbio->blkno, s);
@@ -2386,10 +2385,11 @@ fbio_write(flog_bio_t *fbio, flog_rec_t *frec)
         if (fbio->dirty)
             if (!fbio_flush(fbio))
                 return 0;
-        int s = mcd_fth_aio_blk_read(fbio->context, (char *)fbio->abuf,
-                                     frec->shard_blk * MCD_OSD_META_BLK_SIZE,
-                                     MCD_OSD_META_BLK_SIZE);
-        if (s != FLASH_EOK) {
+
+        int fd = mcd_aio_get_fd(frec->shard_blk * MCD_OSD_META_BLK_SIZE, MCD_OSD_META_BLK_SIZE);
+        int s = pread(fd, (char *)fbio->abuf, MCD_OSD_META_BLK_SIZE,
+                                     frec->shard_blk * MCD_OSD_META_BLK_SIZE);
+        if (s != MCD_OSD_META_BLK_SIZE) {
             mcd_log_msg(70105, PLAT_LOG_LEVEL_ERROR,
                         "Flush log sync: read failed: blk=%ld err=%d",
                         frec->shard_blk, s);
@@ -2417,7 +2417,7 @@ fbio_write(flog_bio_t *fbio, flog_rec_t *frec)
  * Patch up the log pages of a shard.
  */
 static int
-flog_patchup(mcd_osd_shard_t *shard, void *context, FILE *fp, int check_only)
+flog_patchup(uint64_t shard_id, FILE *fp, int check_only)
 {
     int           patched = 0;
     unsigned char *sector = NULL;
@@ -2433,18 +2433,17 @@ flog_patchup(mcd_osd_shard_t *shard, void *context, FILE *fp, int check_only)
                         "Flush log sync: failed to allocate sector");
             break;
         }
-        fbio_.context = context;
 
         flog_rec_t *frec = (flog_rec_t *)sector;
         while (fread(sector, FLUSH_LOG_SEC_SIZE, 1, fp) == 1) {
             if (frec->magic != FLUSH_LOG_MAGIC) {
                 if (check_only)
-                    zscheck_log_msg(ZSCHECK_FLOG_RECORD, shard->pshard->shard_id, 
+                    zscheck_log_msg(ZSCHECK_FLOG_RECORD, shard_id, 
                                     ZSCHECK_MAGIC_ERROR, "flog magic number invalid");
                 if(!flog_checksum_enabled || empty(sector, FLUSH_LOG_SEC_SIZE))
                     continue;
             } else if (check_only)
-                zscheck_log_msg(ZSCHECK_FLOG_RECORD, shard->pshard->shard_id, 
+                zscheck_log_msg(ZSCHECK_FLOG_RECORD, shard_id, 
                                 ZSCHECK_SUCCESS, "flog magic number valid");
 
             if(flog_checksum_enabled) {
@@ -2454,14 +2453,14 @@ flog_patchup(mcd_osd_shard_t *shard, void *context, FILE *fp, int check_only)
                     mcd_log_msg(160283, PLAT_LOG_LEVEL_FATAL,
                             "flog checksum doesn't match expected %x, stored on disk %x, filepos=%ld", c, sum, ftell(fp));
                     if(check_only) {
-                        zscheck_log_msg(ZSCHECK_FLOG_RECORD, shard->pshard->shard_id, 
+                        zscheck_log_msg(ZSCHECK_FLOG_RECORD, shard_id, 
                                         ZSCHECK_CHECKSUM_ERROR, "flog checksum invalid");
                         return 1;
                     }
                     else
                         plat_abort();
                 } else if (check_only)
-                    zscheck_log_msg(ZSCHECK_FLOG_RECORD, shard->pshard->shard_id, 
+                    zscheck_log_msg(ZSCHECK_FLOG_RECORD, shard_id, 
                                     ZSCHECK_SUCCESS, "flog checksum valid");
             }
             if(!check_only) {
@@ -2478,7 +2477,7 @@ flog_patchup(mcd_osd_shard_t *shard, void *context, FILE *fp, int check_only)
     if (patched && !check_only) {
         mcd_log_msg(70107, PLAT_LOG_LEVEL_DEBUG,
                     "Flush log sync: patched %d log records for shard %lu",
-                    patched, shard->id);
+                    patched, shard_id);
     }
 
     if (sector)
@@ -2494,7 +2493,7 @@ flog_patchup(mcd_osd_shard_t *shard, void *context, FILE *fp, int check_only)
  * Recover the flushed pages of a shard.
  */
 static int
-flog_recover_low(mcd_osd_shard_t *shard, void *context, int check_only)
+flog_recover_low(uint64_t shard_id, int check_only)
 {
     char path[FLUSH_LOG_MAX_PATH];
     FILE            *fp = NULL;
@@ -2506,19 +2505,19 @@ flog_recover_low(mcd_osd_shard_t *shard, void *context, int check_only)
 
 	if(zs_instance_id)
 		snprintf(path, sizeof(path), "%s/zs_%d/%s%lu",
-			log_flush_dir, zs_instance_id, FLUSH_LOG_PREFIX, shard->id);
+			log_flush_dir, zs_instance_id, FLUSH_LOG_PREFIX, shard_id);
 	else
 		snprintf(path, sizeof(path), "%s/%s%lu",
-             log_flush_dir, FLUSH_LOG_PREFIX, shard->id);
+             log_flush_dir, FLUSH_LOG_PREFIX, shard_id);
     fp = fopen(path, "r");
     if (!fp)
-        return 1;
+        return access( path, F_OK ) == -1 ? 0 : 1;
 
     fast = plat_alloc(FLUSH_LOG_BUFFERED);
     if (fast)
         setbuffer(fp, fast, FLUSH_LOG_BUFFERED);
 
-    int rc = flog_patchup(shard, context, fp, check_only);
+    int rc = flog_patchup(shard_id, fp, check_only);
     fclose(fp);
     if (fast)
         plat_free(fast);
@@ -2586,23 +2585,20 @@ flog_prepare(mcd_osd_shard_t *shard)
 }
 
 int
-flog_check(mcd_osd_shard_t *shard, void *context)
+flog_check(uint64_t shard_id)
 {
-    mcd_log_msg(160287, PLAT_LOG_LEVEL_INFO, "Check logs for shard=%lu", shard->pshard->shard_id);
-	flog_recover_low(shard, context, 1);
-	flog_prepare(shard);
-    return 0;
+	return flog_recover_low(shard_id, 1);
 }
 
 /*
  * Initialise log flushing.
  */
 static void
-flog_init(mcd_osd_shard_t *shard, void *context, int check_only)
+flog_init(mcd_osd_shard_t *shard, int check_only)
 {
 	if(shard->durability_level > SDF_NO_DURABILITY)
 	{
-	    flog_recover_low(shard, context, check_only);
+	    flog_recover_low(shard->id, 0);
 	    flog_prepare(shard);
 	}
 	else
@@ -2736,7 +2732,7 @@ shard_recover( mcd_osd_shard_t * shard )
     // initialize log flushing
     // ignore this if in zsck mode...will hopefully do it later
     if ( mcd_check_level() != ZSCHECK_NO_INIT )
-	    flog_init(shard, context, 0);
+	    flog_init(shard, 0);
 
     // get aligned buffer
     buf = (char *)( ( (uint64_t)context->osd_buf + Mcd_osd_blk_size - 1 ) &
