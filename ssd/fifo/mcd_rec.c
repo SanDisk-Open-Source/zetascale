@@ -1817,7 +1817,7 @@ update_class( mcd_osd_shard_t * shard, mcd_osd_slab_class_t * class, mcd_osd_seg
 	pclass_offset = pshard->blk_offset + pshard->class_offset[ class_index ]; 
 
 	// get aligned buffer
-	pclass_data_buf = plat_alloc( pshard->seg_list_offset * Mcd_osd_blk_size + Mcd_osd_blk_size );
+	pclass_data_buf = plat_alloc( pshard->seg_list_offset * Mcd_osd_blk_size + Mcd_osd_blk_size + buf_size);
 	if ( pclass_data_buf == NULL ) {
 		mcd_log_msg( 20561, PLAT_LOG_LEVEL_ERROR, "failed to allocate buffer" );
 		rc = FLASH_ENOMEM;
@@ -1826,6 +1826,7 @@ update_class( mcd_osd_shard_t * shard, mcd_osd_slab_class_t * class, mcd_osd_seg
 	pclass_buf = (char *)( ( (uint64_t)pclass_data_buf + Mcd_osd_blk_size - 1 ) & 
 			Mcd_osd_blk_mask );
 
+#if 0
 	data_buf = plat_alloc( buf_size + Mcd_osd_blk_size );
 	if ( data_buf == NULL ) {
 		mcd_log_msg( 20561, PLAT_LOG_LEVEL_ERROR, "failed to allocate buffer" );
@@ -1834,6 +1835,8 @@ update_class( mcd_osd_shard_t * shard, mcd_osd_slab_class_t * class, mcd_osd_seg
 	}
 	buf = (char *)( ( (uint64_t)data_buf + Mcd_osd_blk_size - 1 ) & 
 			Mcd_osd_blk_mask );
+#endif
+	buf = (char *)(  (uint64_t)pclass_buf + pshard->seg_list_offset * Mcd_osd_blk_size);
 
 	// calculate where the new segment goes
 	seg_blk_offset = segment->idx / Mcd_rec_list_items_per_blk;
@@ -1842,7 +1845,9 @@ update_class( mcd_osd_shard_t * shard, mcd_osd_slab_class_t * class, mcd_osd_seg
 	pclass_offset = pshard->class_offset[ class_index ];
 	offset = pclass_offset % Mcd_osd_segment_blks;
 	seg = pclass_offset / Mcd_osd_segment_blks;
-	len = pshard->seg_list_offset;
+	len = (pshard->seg_list_offset + pshard->map_blks) > (Mcd_osd_segment_blks - offset) ?
+				(Mcd_osd_segment_blks - offset):
+				(pshard->seg_list_offset + pshard->map_blks);
 	buf_offset = 0;
 
 	// read persistent class desc and segment array for this class
@@ -1883,26 +1888,33 @@ update_class( mcd_osd_shard_t * shard, mcd_osd_slab_class_t * class, mcd_osd_seg
 	seg_list_blks = pshard->map_blks;
 
 
-	memset( buf, 0, Mcd_osd_segment_blks * Mcd_osd_blk_size);
-	offset = (pclass_offset + seg_list_offset)
-		% Mcd_osd_segment_blks;
-	seg = (pclass_offset + seg_list_offset) / Mcd_osd_segment_blks;
-	len = (seg_list_blks > (Mcd_osd_segment_blks - offset)) ?
-		(Mcd_osd_segment_blks - offset) : seg_list_blks;
-	buf_offset = 0;
+	/*
+	 * This would have huge performance impact. Better avoid this.
+	 */
+	if (len != 1) {
+		buf_offset = 0;
+		len--;
+	} else {
+		memset( buf, 0, Mcd_osd_segment_blks * Mcd_osd_blk_size);
+		offset = (pclass_offset + seg_list_offset)
+			% Mcd_osd_segment_blks;
+		seg = (pclass_offset + seg_list_offset) / Mcd_osd_segment_blks;
+		len = (seg_list_blks > (Mcd_osd_segment_blks - offset)) ?
+			(Mcd_osd_segment_blks - offset) : seg_list_blks;
+		buf_offset = 0;
+		rc = mcd_fth_aio_blk_read( context,
+				buf,
+				Mcd_osd_blk_size *
+				(shard->mos_segments[seg] + offset),
+				len * Mcd_osd_blk_size );
 
-	rc = mcd_fth_aio_blk_read( context,
-			buf,
-			Mcd_osd_blk_size *
-			(shard->mos_segments[seg] + offset),
-			len * Mcd_osd_blk_size );
-
-	if ( FLASH_EOK != rc ) {
-		mcd_log_msg( 20564, PLAT_LOG_LEVEL_ERROR,
-				"failed to format shard metadata, shardID=%lu, "
-				"blk_offset=%lu, count=%lu, rc=%d",
-				shard->id, (shard->mos_segments[seg] + offset), len, rc ); 
-		goto end;
+		if ( FLASH_EOK != rc ) {
+			mcd_log_msg( 20564, PLAT_LOG_LEVEL_ERROR,
+					"failed to format shard metadata, shardID=%lu, "
+					"blk_offset=%lu, count=%lu, rc=%d",
+					shard->id, (shard->mos_segments[seg] + offset), len, rc ); 
+			goto end;
+		}
 	}
 
 	for ( int b = 0; b < pshard->map_blks; b++, buf_offset++) {
