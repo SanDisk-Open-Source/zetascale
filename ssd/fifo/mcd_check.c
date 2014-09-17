@@ -309,7 +309,9 @@ mcd_check_potbm(int fd, int buf_idx, uint64_t shard_id)
 			potbm->eye_catcher != MCD_REC_POTBM_EYE_CATCHER)) {
 		zscheck_log_msg(ZSCHECK_POT_BITMAP, shard_id, ZSCHECK_CHECKSUM_ERROR, "POT bitmap checksum invalid");
 		status = -1;
-	}
+    } else { 
+        zscheck_log_msg(ZSCHECK_POT_BITMAP, shard_id, ZSCHECK_SUCCESS, "POT bitmap checksum valid");
+    }
 
 	free(potbm);
 
@@ -337,7 +339,9 @@ mcd_check_slabbm(int fd, int buf_idx, uint64_t shard_id)
 			slabbm->eye_catcher != MCD_REC_SLABBM_EYE_CATCHER)) {
 		zscheck_log_msg(ZSCHECK_SLAB_BITMAP, shard_id, ZSCHECK_CHECKSUM_ERROR, "SLAB bitmap checksum invalid");
 		status = -1;
-	}
+    } else {
+        zscheck_log_msg(ZSCHECK_SLAB_BITMAP, shard_id, ZSCHECK_SUCCESS, "SLAB bitmap checksum valid");
+    }
 
 	free(slabbm);
 
@@ -749,6 +753,7 @@ pot_read(int fd, mcd_rec_shard_t * pshard, uint64_t* mos_segments,
     uint64_t                    start_seg;
     uint64_t                    offset;
     uint64_t                    rel_offset;
+    char                        msg[512];
 
     // iterate by number of blocks per I/O operation
     for ( blk_count = 0; blk_count < num_blks; blk_count += io_blks ) {
@@ -771,10 +776,10 @@ pot_read(int fd, mcd_rec_shard_t * pshard, uint64_t* mos_segments,
         bytes = pread(fd, buf + (blk_count * MCD_OSD_META_BLK_SIZE),
                              io_blks * MCD_OSD_META_BLK_SIZE, offset);
         if (bytes != io_blks * MCD_OSD_META_BLK_SIZE ) {
-                         fprintf(stderr, "failed to %s table, start=%lu, count=%lu, "
+            sprintf(msg, "Failed to read POT, start=%lu, count=%lu, "
                          "offset=%lu, count=%lu, bytes=%d",
-                         "read",
                          start_blk, blk_count, offset, io_blks, bytes );
+            zscheck_log_msg(ZSCHECK_POT, pshard->shard_id, ZSCHECK_READ_ERROR, msg);
             return -1;
         }
     }
@@ -786,7 +791,7 @@ int
 check_object_table(int fd, mcd_rec_shard_t * pshard, uint64_t* mos_segments)
 {
     int rc = 0, chunk, pct_complete = 0;
-
+    char msg[512];
     char *_buf = plat_alloc(MCD_REC_UPDATE_SEGMENT_SIZE + MCD_OSD_META_BLK_SIZE);
     char *buf = (char *)( ( (uint64_t)_buf + MCD_OSD_META_BLK_SIZE - 1 ) &
                     MCD_OSD_META_BLK_MASK);
@@ -803,9 +808,8 @@ check_object_table(int fd, mcd_rec_shard_t * pshard, uint64_t* mos_segments)
         if ( num_chunks < 10 ||
                 chunk % ((num_chunks + 9) / 10) == 0 ) {
             if ( chunk > 0 ) {
-                mcd_log_msg(160285, PLAT_LOG_LEVEL_DEBUG,
-                        "Checking object table, shardID=%lu, %d percent complete",
-                        pshard->shard_id, pct_complete );
+                sprintf(msg, "Checking object table - %d percent complete", pct_complete );
+                zscheck_log_msg(ZSCHECK_OBJECT_TABLE, pshard->shard_id, ZSCHECK_INFO, msg);
             }
             pct_complete += 10;
         }
@@ -829,9 +833,10 @@ check_object_table(int fd, mcd_rec_shard_t * pshard, uint64_t* mos_segments)
             if((c = checksum(buf, block_size, 0)) != sum)
             {
                 if(sum || !empty(buf, block_size)) {
-                    mcd_log_msg(160290, PLAT_LOG_LEVEL_FATAL,
-                            "POT checksum error. expected=%x, read_from_disk=%x, start_blk=%d num_blks=%d", c, sum,
-                            chunk * seg_blks, seg_blks);
+                    sprintf(msg,
+                            "POT checksum failed. expected=%x, read_from_disk=%x, start_blk=%d num_blks=%d", 
+                            c, sum, chunk * seg_blks, seg_blks);
+                    zscheck_log_msg(ZSCHECK_OBJECT_TABLE, pshard->shard_id, ZSCHECK_CHECKSUM_ERROR, msg);
                     rc = 1;
                     break;
                 }
@@ -890,6 +895,7 @@ read_log_segment(int fd, mcd_rec_shard_t * pshard, uint64_t* mos_segments, int l
     uint64_t                    start_seg;
     uint64_t                    offset = 0;
     uint64_t                    rel_offset;
+    char                        msg[512];
 
     rel_offset = relative_log_offset( pshard, log );
     rel_offset = VAR_BLKS_TO_META_BLKS(rel_offset);
@@ -905,9 +911,10 @@ read_log_segment(int fd, mcd_rec_shard_t * pshard, uint64_t* mos_segments, int l
 
 	bytes = pread(fd, buf, MCD_REC_LOG_SEGMENT_SIZE, offset);
     if ( bytes != MCD_REC_LOG_SEGMENT_SIZE ) {
-		fprintf(stderr, "failed to read log, "
-                "offset=%lu, bytes=%d %s\n",
+		sprintf(msg, "Failed to read storm log, "
+                "offset=%lu, bytes=%d %s",
                 offset, bytes, plat_strerror(errno));
+        zscheck_log_msg(ZSCHECK_STORM_LOG, pshard->shard_id, ZSCHECK_READ_ERROR, msg);
         return -1;
     }
 
@@ -923,6 +930,7 @@ mcd_check_storm_log(int fd, mcd_rec_shard_t * pshard, int log, uint64_t* mos_seg
 	uint64_t	page_offset;
 	uint64_t	prev_LSN	= 0;
 	uint64_t	checksum;
+    char        msg[512];
 
 	buf = memalign(MCD_OSD_META_BLK_SIZE, MCD_REC_LOG_SEGMENT_SIZE);
 	if(!buf)
@@ -954,7 +962,9 @@ mcd_check_storm_log(int fd, mcd_rec_shard_t * pshard, int log, uint64_t* mos_seg
 				page_hdr->checksum = 0;
 				page_hdr->checksum = hashb((unsigned char *)(buf+page_offset), MCD_OSD_META_BLK_SIZE, page_hdr->LSN);
 				if ( page_hdr->checksum != checksum ) {
-					fprintf(stderr, "Invalid log page checksum, found=%lu, calc=%lu, poff=%d", checksum, page_hdr->checksum, p );
+					sprintf( msg, "Log page checksum invalid, found=%lu, calc=%lu, poff=%d", 
+                            checksum, page_hdr->checksum, p );
+                    zscheck_log_msg(ZSCHECK_STORM_LOG, pshard->shard_id, ZSCHECK_CHECKSUM_ERROR, msg);
 					end_of_log = true;
 					status = -1;
 					break;
@@ -962,7 +972,9 @@ mcd_check_storm_log(int fd, mcd_rec_shard_t * pshard, int log, uint64_t* mos_seg
 				// verify header
 				if ( page_hdr->eye_catcher != MCD_REC_LOGHDR_EYE_CATCHER ||
 					 page_hdr->version != MCD_REC_LOGHDR_VERSION ) {
-					fprintf(stderr, "Invalid log page header, " "magic=0x%x, version=%d, poff=%d", page_hdr->eye_catcher, page_hdr->version, p);
+					 sprintf(msg, "Log page header invalid, " "magic=0x%x, version=%d, poff=%d", 
+                             page_hdr->eye_catcher, page_hdr->version, p);
+                    zscheck_log_msg(ZSCHECK_STORM_LOG, pshard->shard_id, ZSCHECK_MAGIC_ERROR, msg);
 					status = -1;
 					end_of_log = true;
 					break;
@@ -975,9 +987,10 @@ mcd_check_storm_log(int fd, mcd_rec_shard_t * pshard, int log, uint64_t* mos_seg
 			}
 			// LSN must advance by one
 			else if ( page_hdr->LSN != prev_LSN + 1 && prev_LSN > 0 ) {
-							 fprintf(stderr, "Unexpected LSN, LSN=%lu, "
+                sprintf(msg, "Unexpected LSN, LSN=%lu, "
 							 "prev_LSN=%lu; seg=%d, page=%d",
-							 page_hdr->LSN, prev_LSN, s, p );
+							  page_hdr->LSN, prev_LSN, s, p );
+                zscheck_log_msg(ZSCHECK_STORM_LOG, pshard->shard_id, ZSCHECK_LSN_ERROR, msg);
 				status = -1;
 				end_of_log = true;
 				break;
@@ -1043,7 +1056,6 @@ mcd_check_all_storm_log(int fd)
 
     return ( errors == 0 ) ? 0 : -1;
 }
-
 
 int
 mcd_check_meta()
@@ -1124,8 +1136,16 @@ mcd_check_meta()
     }
 
     status = mcd_check_all_storm_log(fd);
+    if( status != 0 ) {
+        fprintf(stderr,"Storm log check failed. continuing checks\n");
+        ++errors;
+    }
 
-    mcd_check_flog();
+    status = mcd_check_flog();
+    if( status != 0 ) {
+        fprintf(stderr,"Flog check failed. continuing checks\n");
+        ++errors;
+    }
 
     status = mcd_check_all_pot(fd);
     if( status != 0 ) {
@@ -1133,12 +1153,12 @@ mcd_check_meta()
         ++errors;
     }
 
-
 out:
     close(fd);
     if( atoi(getProperty_String("ZS_META_FAULT_INJECTION", "0"))!=0) {
         return mcd_corrupt_meta();        
     }
+
     return errors;
 }
 
@@ -1260,9 +1280,6 @@ mcd_corrupt_pot(int fd)
 
     return ( errors == 0 ) ? 0 : -1;
 }
-
-
-
 
 int mcd_corrupt_label(int fd) {
     char  label[MCD_OSD_SEG0_BLK_SIZE];

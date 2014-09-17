@@ -2425,6 +2425,27 @@ fbio_write(flog_bio_t *fbio, flog_rec_t *frec)
     return 1;
 }
 
+/*  
+ * Log must be empty or >= FLUSH_LOG_SEC_SIZE.
+ * Return 1 if smaller, 0 otherwise.
+*/      
+static int
+flog_check_min_size(FILE *fp)
+{       
+    long size = 0;
+ 
+    if (!fp)    
+        return -1;
+                
+    fseek(fp, 0L, SEEK_END);
+    size = ftell(fp);       
+    fseek(fp, 0L, SEEK_SET);
+                    
+    if (size > 0 && size < FLUSH_LOG_SEC_SIZE)
+        return 1;                       
+    else                
+        return 0;   
+}                  
 
 /*
  * Patch up the log pages of a shard.
@@ -2435,6 +2456,12 @@ flog_patchup(uint64_t shard_id, FILE *fp, int check_only)
     int           i = 0, patched = 0;
     unsigned char *sector = NULL;
     flog_bio_t      fbio_ = {0};
+
+    if (flog_check_min_size(fp)) {
+        zscheck_log_msg(ZSCHECK_FLOG_RECORD, shard_id, ZSCHECK_READ_ERROR,
+                        "Flog check failed: log file is less than the minimum size");
+        return 1;
+    }
 
     do {
         if (!fbio_alloc(&fbio_))
