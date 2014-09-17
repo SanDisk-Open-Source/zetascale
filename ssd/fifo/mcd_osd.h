@@ -104,12 +104,14 @@ typedef struct mcd_osd_segment {
     uint32_t                    next_slab;
     uint64_t                    blk_offset;
     uint64_t                  * mos_bitmap;
+#if 0
     uint64_t                  * update_map;
     uint64_t                  * update_map_s;
     uint64_t                  * alloc_map;
     uint64_t                  * alloc_map_s;
-    uint64_t                  * check_map;
     uint64_t                  * refmap;
+#endif
+    uint64_t                  * check_map;
     struct mcd_osd_slab_class * class;
 } mcd_osd_segment_t;
 

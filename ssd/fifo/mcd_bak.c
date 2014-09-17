@@ -118,6 +118,7 @@ void
 backup_maintain_bitmaps( mcd_osd_shard_t * shard, uint32_t blk_offset,
                          int delete )
 {
+#if 0
     int                         map_offset;
     mcd_osd_segment_t         * segment;
 
@@ -145,6 +146,7 @@ backup_maintain_bitmaps( mcd_osd_shard_t * shard, uint32_t blk_offset,
         (void) __sync_fetch_and_or( &segment->alloc_map[map_offset / 64],
                                     Mcd_osd_bitmap_masks[map_offset % 64] );
     }
+#endif
 
     return;
 }
@@ -153,6 +155,7 @@ backup_maintain_bitmaps( mcd_osd_shard_t * shard, uint32_t blk_offset,
 void
 backup_merge_bitmaps( mcd_osd_shard_t * shard )
 {
+#if 0
     int                         i, j, k;
     int                         blksize;
     int                         bitmap_size;
@@ -174,7 +177,7 @@ backup_merge_bitmaps( mcd_osd_shard_t * shard )
             }
         }
     }
-
+#endif
     return;
 }
 
@@ -182,6 +185,7 @@ backup_merge_bitmaps( mcd_osd_shard_t * shard )
 void
 backup_snapshot_bitmaps( mcd_osd_shard_t * shard )
 {
+#if 0
     int                         i, j;
     int                         blksize;
     int                         bitmap_size;
@@ -205,6 +209,7 @@ backup_snapshot_bitmaps( mcd_osd_shard_t * shard )
             memset( seg->update_map, 0, bitmap_size );
         }
     }
+#endif
 
     return;
 }

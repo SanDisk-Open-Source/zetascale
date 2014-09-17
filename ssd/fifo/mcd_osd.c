@@ -6498,6 +6498,7 @@ mcd_osd_shard_uninit( mcd_osd_shard_t * shard )
                 shard->base_segments[0].mos_bitmap = NULL;
                 total_alloc += shard->total_segments * bitmap_size;
             }
+#if 0
             if ( shard->base_segments[0].update_map ) {
                 plat_free_large( shard->base_segments[0].update_map );
                 shard->base_segments[0].update_map = NULL;
@@ -6519,6 +6520,7 @@ mcd_osd_shard_uninit( mcd_osd_shard_t * shard )
                 total_alloc += shard->total_segments * bitmap_size;
             }
 
+#endif
             if ( shard->base_segments[0].check_map) {
                 plat_free_large( shard->base_segments[0].check_map);
                 shard->base_segments[0].check_map = NULL;
@@ -8500,13 +8502,14 @@ repeat:
         / class->slab_blksize;
 
     while ( map_offset < Mcd_osd_segment_blks / class->slab_blksize ) {
-
+#if 0
         if ( 0 == prev_seq ) {
             map_value = ~segment->alloc_map_s[map_offset / 64];
         }
         else {
             map_value = ~segment->update_map_s[map_offset / 64];
         }
+#endif
 
         if ( 0 != map_offset % 64 ) {
             map_value |= Mcd_osd_scan_masks[(map_offset % 64) - 1];
@@ -8546,8 +8549,10 @@ repeat:
 
             // object deleted since last backup
             if ( 0 != prev_seq ) {
+#if 0
                 a_map_value = segment->alloc_map_s[tmp_offset / 64] &
                     Mcd_osd_bitmap_masks[tmp_offset % 64];
+#endif
 
                 if ( 0 == a_map_value ) {
                     mcd_bak_msg( 20422, MCD_OSD_LOG_LVL_DEBUG,
