@@ -8364,12 +8364,12 @@ mcd_osd_raw_get( osd_state_t     *osd_state,
 		 uint64_t curr_seq, 
 		 int num_sessions )
 {
+#if 0
     int                         i =0;
    	int		rc;
     int                         map_offset;
     uint64_t                    tmp_offset;
     uint64_t                    map_value;
-    uint64_t                    a_map_value;
     uint64_t                    temp;
     uint64_t                    blk_offset;
     uint64_t                    offset;
@@ -8547,12 +8547,11 @@ repeat:
                 return SDF_FLASH_EINVAL;
             }
 
+#if 0
             // object deleted since last backup
             if ( 0 != prev_seq ) {
-#if 0
                 a_map_value = segment->alloc_map_s[tmp_offset / 64] &
                     Mcd_osd_bitmap_masks[tmp_offset % 64];
-#endif
 
                 if ( 0 == a_map_value ) {
                     mcd_bak_msg( 20422, MCD_OSD_LOG_LVL_DEBUG,
@@ -8571,6 +8570,7 @@ repeat:
                     return SDF_OBJECT_DELETED;
                 }
             }
+#endif
 
             mcd_bak_msg( 20423, MCD_OSD_LOG_LVL_DEBUG, "object found, "
                          "blk_offset=%lu map_offset=%lu key_len=%d seqno=%lu",
@@ -8634,6 +8634,7 @@ repeat:
     if ( next_addr < shard->blk_allocated && !multiKey ) {
         goto repeat;
     }
+#endif
     return SDF_OBJECT_UNKNOWN;
 }
 
