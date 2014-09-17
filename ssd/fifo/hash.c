@@ -299,6 +299,7 @@ hash_table_init ( uint64_t total_size, uint64_t max_nobjs, int mode, int key_cac
             "hash table initialized" );
 
     hdl->total_alloc += curr_alloc_sz;
+    hdl->alloc_count = 0;
 
     //reset index
     hdl->hash_table_idx = 0;
@@ -567,6 +568,7 @@ found:
     plat_assert(hbi != 0);
     //	delete_bucket_idx = (((uint64_t)he - (uint64_t)hdl->hash_table) / sizeof(bucket_entry_t)) + 1;
 
+    __sync_sub_and_fetch( &hdl->alloc_count, 1);
     lock_idx = ( hash_idx ) / hdl->lock_bktsize;
     lock_free_list = hdl->bucket_locks_free_list + lock_idx;
 	
@@ -654,6 +656,7 @@ found:
     plat_assert(hbi != 0);
     //	delete_bucket_idx = (((uint64_t)he - (uint64_t)hdl->hash_table) / sizeof(bucket_entry_t)) + 1;
 
+    __sync_sub_and_fetch( &hdl->alloc_count, 1);
     lock_idx = ( hash_idx ) / hdl->lock_bktsize;
 	plat_assert(lock_idx == ((bucket_idx * OSD_HASH_BUCKET_SIZE) / hdl->lock_bktsize));
     lock_free_list = hdl->bucket_locks_free_list + lock_idx;
@@ -742,6 +745,7 @@ found:
     plat_assert(hbi != 0);
     //	delete_bucket_idx = (((uint64_t)he - (uint64_t)hdl->hash_table) / sizeof(bucket_entry_t)) + 1;
 
+    __sync_sub_and_fetch( &hdl->alloc_count, 1);
     lock_idx = ( bucket_idx * OSD_HASH_BUCKET_SIZE) / (hdl->lock_bktsize);
     lock_free_list = hdl->bucket_locks_free_list + lock_idx;
 	
@@ -832,6 +836,7 @@ hash_entry_insert_by_key(hash_handle_t *hdl, uint64_t syndrome)
         bucket_entry = hdl->hash_table + ((*bucket_index) - 1);
         for(i=0;i<OSD_HASH_ENTRY_PER_BUCKET_ENTRY;i++){
             if (bucket_entry->hash_entry[i].used == 0){
+                __sync_add_and_fetch( &hdl->alloc_count, 1);
                 return &bucket_entry->hash_entry[i];
             }
         }
@@ -848,7 +853,7 @@ hash_entry_insert_by_key(hash_handle_t *hdl, uint64_t syndrome)
             // insert to bucket
             bucket_entry->next = *bucket_index;
             *bucket_index = pop_idx;
-
+            __sync_add_and_fetch( &hdl->alloc_count, 1);
             return &bucket_entry->hash_entry[0];	
         }
     }
@@ -859,6 +864,7 @@ hash_entry_insert_by_key(hash_handle_t *hdl, uint64_t syndrome)
         be = hdl->hash_table + pop_idx;
         be->next = *bucket_index;
         *bucket_index = (pop_idx + 1);
+        __sync_add_and_fetch( &hdl->alloc_count, 1);
         return &be->hash_entry[0];
     }
 
@@ -876,6 +882,7 @@ hash_entry_insert_by_key(hash_handle_t *hdl, uint64_t syndrome)
                 bucket_entry->next = *bucket_index;
                 *bucket_index = pop_idx;
                 //unlock new lock
+                __sync_add_and_fetch( &hdl->alloc_count, 1);
                 return &bucket_entry->hash_entry[0];
             }
         }
@@ -898,7 +905,7 @@ hash_entry_insert_by_key(hash_handle_t *hdl, uint64_t syndrome)
 
     // time to do some diskclenup or add more space.
     log_msg( PLAT_LOG_ID_INITIAL, PLAT_LOG_LEVEL_FATAL,
-            "NO MORE HASH ENTRY AVAILABLE");
+            "NO MORE HASH ENTRIES AVAILABLE (%lu/%lu)", hdl->alloc_count, hdl->hash_size);
     return NULL;
 }
 
@@ -1004,6 +1011,7 @@ found:
 
     plat_assert( hash_entry->used == 0 );
 
+    __sync_add_and_fetch( &hdl->alloc_count, 1);
     // update hash entry
     hash_entry->used       = 1;
     hash_entry->referenced = 1;

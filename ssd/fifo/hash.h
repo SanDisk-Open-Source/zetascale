@@ -115,6 +115,7 @@ typedef struct hash_handle {
     uint64_t                * bucket_locks_free_map;
     uint64_t                  total_alloc;
     uint64_t                ** key_cache;
+    uint64_t                  alloc_count;
 } hash_handle_t;
 
 extern int storm_mode;

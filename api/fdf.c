@@ -43,6 +43,7 @@
 #include "shared/open_container_mgr.h"
 #include "shared/internal_blk_obj_api.h"
 #include "ssd/fifo/mcd_osd.h"
+#include "ssd/fifo/hash.h"
 #include "ssd/fifo/mcd_rec2.h"
 #include "ssd/fifo/mcd_bak.h"
 #include "ssd/fifo/mcd_trx.h"
@@ -2141,6 +2142,7 @@ ZS_status_t ZSInitVersioned(
         if ( is_btree_loaded() ) {
             ext_cbs->flash_stats_buf_cb( &(mcd_shard->blk_allocated), 
                  &(mcd_shard->free_segments_count), &(mcd_shard->blk_consumed), 
+                 &mcd_shard->hash_handle->hash_size, &mcd_shard->hash_handle->alloc_count, 
                  Mcd_osd_blk_size, Mcd_osd_segment_size);
            ext_cbs->zs_funcs_cb((void *)plat_log_msg_helper);
         }

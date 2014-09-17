@@ -39,7 +39,7 @@ typedef ZS_status_t (ext_cb_stats_t)(ZS_cguid_t cguid,ZS_ext_stat_t **stats, uin
 typedef ZS_status_t (ext_cb_admin_t)(struct ZS_thread_state *thd_state,
                                       FILE *fp, struct cmd_token *tokens, size_t ntokens);
 typedef ZS_status_t (ext_cb_flash_stats_t)(uint64_t *alloc_blks, uint64_t *free_segs, uint64_t *consumed_blks, 
-                                            uint64_t blk_size, uint64_t seg_size);
+                                            uint64_t *, uint64_t *, uint64_t blk_size, uint64_t seg_size);
 typedef ZS_status_t (ext_cb_functions_t)(void *log_func);
 typedef ZS_status_t (ext_cb_licvalid_t)(int state);
 typedef ZS_status_t (ext_cb_raw_t)(int mode, uint64_t rawobjsz );

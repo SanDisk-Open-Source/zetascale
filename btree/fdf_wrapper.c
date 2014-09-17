@@ -92,12 +92,14 @@ struct ZS_state *ZSState;
 uint64_t *flash_blks_allocated;
 uint64_t *flash_segs_free;
 uint64_t *flash_blks_consumed;
+uint64_t *flash_hash_size;
+uint64_t *flash_hash_alloc;
 uint64_t flash_segment_size;
 uint64_t flash_block_size;
 uint64_t flash_space;
 uint64_t flash_space_soft_limit;
 bool flash_space_soft_limit_check = true;
-bool flash_space_limit_log_flag = false;
+uint64_t flash_space_limit_failure_count;
 int btree_ld_valid = true;
 
 bool bt_shutdown = false;
@@ -127,6 +129,7 @@ typedef struct __zs_cont_iterator {
 
 bool
 seqnoread(struct ZS_thread_state *t);
+static bool storage_space_exhausted( const char *);
 ZS_status_t BtreeErr_to_ZSErr(btree_status_t b_status);
 btree_status_t ZSErr_to_BtreeErr(ZS_status_t f_status);
 static int mput_default_cmp_cb(void *data, char *key, uint32_t keylen,
@@ -153,7 +156,7 @@ void ZSInitPstats(struct ZS_thread_state *my_thd_state, char *key, zs_pstats_t *
 void ZSLoadPstats(struct ZS_state *zs_state);
 static bool pstats_prepare_to_flush(struct ZS_thread_state *thd_state);
 static void pstats_prepare_to_flush_single(struct ZS_thread_state *thd_state, struct cmap *cmap_entry);
-ZS_status_t set_flash_stats_buffer(uint64_t *alloc_blks, uint64_t *free_segs, uint64_t *consumed_blks, uint64_t blk_size, uint64_t seg_size);
+ZS_status_t set_flash_stats_buffer(uint64_t *alloc_blks, uint64_t *free_segs, uint64_t *consumed_blks, uint64_t *, uint64_t *, uint64_t blk_size, uint64_t seg_size);
 ZS_status_t set_zs_function_ptrs( void *log_func);
 ZS_status_t btree_check_license_ptr(int lic_state);
 ZS_status_t btree_get_rawobj_mode(int storm_mode, uint64_t rawobjsz);
@@ -2222,6 +2225,7 @@ ZS_status_t _ZSFreeBuffer(
 	return ZS_SUCCESS;
 }
 
+
 /**
  *  @brief Write entire object, creating it if necessary.  
  *
@@ -2258,7 +2262,6 @@ ZS_status_t _ZSWriteObject(
     ZS_status_t      ret = ZS_FAILURE;
     btree_status_t    btree_ret = BTREE_FAILURE;
     btree_metadata_t  meta;
-    uint64_t flash_space_used;
     struct btree     *bt;
 	int				  index;
 
@@ -2316,19 +2319,11 @@ ZS_status_t _ZSWriteObject(
         return (ZS_OBJECT_TOO_BIG);
     }
 
-    flash_space_used = ((uint64_t)(ZS_DEFAULT_CONTAINER_SIZE_KB * 1024) * 2) + 
-                                         (*flash_blks_consumed * flash_block_size);
-    if ( flash_space_soft_limit_check && 
-         (  flash_space_used > flash_space_soft_limit ) ){
-        if ( __sync_fetch_and_add(&flash_space_limit_log_flag,1) == 0 ) {
-            fprintf( stderr,"Write failed: out of storage(flash space used:%lu flash space limit:%lu)\n",
-                                       flash_space_used, flash_space_soft_limit);
-        }
-        bt_rel_entry(index, true);
-        return ZS_OUT_OF_STORAGE_SPACE;
+    if (storage_space_exhausted( "ZSWriteObject")) {
+	bt_rel_entry( index, true);
+	return (ZS_OUT_OF_STORAGE_SPACE);
     }
 
-    flash_space_limit_log_flag = 0;
     meta.flags = 0;
     __sync_add_and_fetch(&(bt->partitions[0]->stats.stat[BTSTAT_WRITE_CNT]),1);
     trxenter( cguid);
@@ -3089,6 +3084,7 @@ _ZSGetRangeFinish(struct ZS_thread_state *zs_thread_state,
 	return(ret);
 }
 
+
 /*****************************************************************
  *
  *  B-Tree Callback Functions
@@ -3408,10 +3404,12 @@ ZS_ext_stat_t btree_to_zs_stats_map[] = {
     {BTSTAT_WRITE_CNT, ZS_ACCESS_TYPES_WRITE,         ZS_STATS_TYPE_APP_REQ, 0},
 };
 
-ZS_status_t set_flash_stats_buffer(uint64_t *alloc_blks, uint64_t *free_segs, uint64_t *consumed_blks, uint64_t blk_size, uint64_t seg_size) {
+ZS_status_t set_flash_stats_buffer(uint64_t *alloc_blks, uint64_t *free_segs, uint64_t *consumed_blks, uint64_t *hash_size, uint64_t *hash_alloc, uint64_t blk_size, uint64_t seg_size) {
     flash_blks_allocated = alloc_blks;
     flash_segs_free      = free_segs;
     flash_blks_consumed  = consumed_blks;
+    flash_hash_size      = hash_size;
+    flash_hash_alloc     = hash_alloc;
     flash_block_size     = blk_size;
     flash_segment_size   = seg_size;
 
@@ -3573,7 +3571,6 @@ _ZSMPut(struct ZS_thread_state *zs_ts,
 	btree_metadata_t meta;
 	struct btree *bt = NULL;
 	int		index;
-        uint64_t flash_space_used;
 
 	if (__zs_check_mode_on) {
 		/*
@@ -3607,17 +3604,10 @@ _ZSMPut(struct ZS_thread_state *zs_ts,
 	if (bt == NULL) {
 		return ret;
 	}
-        flash_space_used = ((uint64_t)(ZS_DEFAULT_CONTAINER_SIZE_KB * 1024) * 2) + 
-                                         (*flash_blks_consumed * flash_block_size);
-        if ( flash_space_soft_limit_check && 
-             (  flash_space_used > flash_space_soft_limit ) ){ 
-            if ( __sync_fetch_and_add(&flash_space_limit_log_flag,1) == 0 ) {
-                fprintf( stderr,"Mput failed: out of storage(flash space used:%lu flash space limit:%lu)\n",
-                                       flash_space_used, flash_space_soft_limit);
-            }    
-            bt_rel_entry(index, true);
-            return ZS_OUT_OF_STORAGE_SPACE;
-        }   
+	if (storage_space_exhausted( "ZSMPut")) {
+		bt_rel_entry( index, true);
+		return (ZS_OUT_OF_STORAGE_SPACE);
+	}
 
 	for (i = 0; i < num_objs; i++) {
 #if 0
@@ -4148,7 +4138,6 @@ _ZSRangeUpdate(struct ZS_thread_state *zs_ts,
 	int index = -1;
 	ZS_status_t error = ZS_SUCCESS;
 	btree_range_cmp_cb_t bt_range_cmp_cb = range_cmp_cb;
-        uint64_t flash_space_used;
 
 	(*objs_updated) = 0;
 
@@ -4170,18 +4159,10 @@ _ZSRangeUpdate(struct ZS_thread_state *zs_ts,
 	if (bt == NULL) {
 		return ZS_FAILURE;
 	}
-        flash_space_used = ((uint64_t)(ZS_DEFAULT_CONTAINER_SIZE_KB * 1024) * 2) +
-                                         (*flash_blks_consumed * flash_block_size);
-        if ( flash_space_soft_limit_check &&
-             (  flash_space_used > flash_space_soft_limit ) ){
-            if ( __sync_fetch_and_add(&flash_space_limit_log_flag,1) == 0 ) {
-                fprintf( stderr,"RangeUpdate failed: out of storage(flash space used:%lu flash space limit:%lu)\n",
-                                       flash_space_used, flash_space_soft_limit);
-            }
-            bt_rel_entry(index, true);
-            return ZS_OUT_OF_STORAGE_SPACE;
-        }
-
+	if (storage_space_exhausted( "ZSRangeUpdate")) {
+		bt_rel_entry( index, true);
+		return (ZS_OUT_OF_STORAGE_SPACE);
+	}
 	if (Container_Map[index].read_only == true) {
 		ret = ZS_FAILURE;
 		goto out;
@@ -4269,7 +4250,6 @@ _ZSCreateContainerSnapshot(struct ZS_thread_state *zs_thread_state, //  client t
 	int				index, i;
 	struct btree	*bt;
 	btree_status_t  btree_ret = BTREE_FAILURE;
-        uint64_t flash_space_used;
 
 	assert(snap_seq);
 
@@ -4292,17 +4272,10 @@ _ZSCreateContainerSnapshot(struct ZS_thread_state *zs_thread_state, //  client t
 	if (bt == NULL) {
 		return status;
 	}
-        flash_space_used = ((uint64_t)(ZS_DEFAULT_CONTAINER_SIZE_KB * 1024) * 2) +
-                                         (*flash_blks_consumed * flash_block_size);
-        if ( flash_space_soft_limit_check &&
-             (  flash_space_used > flash_space_soft_limit ) ){
-            if ( __sync_fetch_and_add(&flash_space_limit_log_flag,1) == 0 ) {
-                fprintf( stderr,"Create snapshot failed: out of storage(flash space used:%lu flash space limit:%lu)\n",
-                                       flash_space_used, flash_space_soft_limit);
-            }
-            bt_rel_entry(index, false);
-            return ZS_OUT_OF_STORAGE_SPACE;
-        }
+	if (storage_space_exhausted( "ZSCreateContainerSnapshot")) {
+		bt_rel_entry( index, false);
+		return (ZS_OUT_OF_STORAGE_SPACE);
+	}
 
 	pthread_rwlock_wrlock(&(bt->snapop_rwlock));
 	pthread_mutex_lock(&(Container_Map[index].bt_snap_mutex));
@@ -4599,11 +4572,42 @@ _ZSRescueContainer(struct ZS_thread_state *zs_ts, ZS_cguid_t cguid, void **pp_co
 }
 
 /*
+ * check for flash capacity exceeded
+ *
+ * Protect btree from hard-error conditions returned from the core
+ * when writing objects.  The two resources checked are free slabs and
+ * available hash table entries.  Either can change instantaneously, so
+ * a slop factor is built into the calculations.  Return TRUE if a core
+ * resource is exceeded.
+ */
+static bool
+storage_space_exhausted( const char *op)
+{
+
+	if (flash_space_soft_limit_check) {
+		uint64_t flash_space_used = ZS_DEFAULT_CONTAINER_SIZE_KB*1024L*2 + *flash_blks_consumed*flash_block_size;
+		if (flash_space_used > flash_space_soft_limit) {
+			if (__sync_fetch_and_add( &flash_space_limit_failure_count, 1) == 0)
+				fprintf( stderr, "%s failed: out of storage (flash space used:%lu flash space limit:%lu)",
+				op, flash_space_used, flash_space_soft_limit);
+			return (true);
+		}
+		if (*flash_hash_alloc*105/100 > *flash_hash_size) {
+			if (__sync_fetch_and_add( &flash_space_limit_failure_count, 1) == 0)
+				fprintf( stderr, "%s failed: nearly out of hash entries (%lu/%lu)", op, *flash_hash_alloc, *flash_hash_size);
+			return (true);
+		}
+	}
+	return (false);
+}
+
+
+/*
  * persistent seqno facility
  *
  * This sequence number generator is shared by all btrees.  It offers
  * crashproof persistence, high performance, and thread safety.  The counter
- * is only reset by an ZS reformat, and has 64 bits of resolution.
+ * has 64 bits of resolution, and is only reset by a flash reformat.
  *
  * Counter is maintained in its own high-durability container (non btree),
  * and is synchronized to flash after SEQNO_SYNC_INTERVAL increments.
@@ -4668,7 +4672,7 @@ seqnoread(struct ZS_thread_state *t)
 seq_t
 seqnoalloc( struct ZS_thread_state *t)
 {
-static bool		initialized;
+	static bool		initialized;
 	static pthread_mutex_t	seqnolock		= PTHREAD_MUTEX_INITIALIZER;
 	static seq_t		seqnolimit,
 				seqno;
@@ -4735,6 +4739,7 @@ static bool		initialized;
 	}
 	return (iseqno++);
 }
+
 
 ZS_status_t BtreeErr_to_ZSErr(btree_status_t b_status)
 {

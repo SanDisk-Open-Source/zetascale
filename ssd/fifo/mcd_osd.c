@@ -3496,43 +3496,34 @@ mcd_osd_slab_shard_init( mcd_osd_shard_t * shard, uint64_t shard_id,
                  (shard->total_blks / Mcd_osd_rand_blksize) *
                  sizeof(uint32_t) );
 
-	/*
-	 * initialize hash tables.
-	 */
-	if ((shard_id == vdc_shardid) && storm_mode) {
-		uint64_t		reg_objs = get_regobj_storm_mode();
-		int				scale = getProperty_Int("ZS_HASH_PCT", 100);
-
-		if (scale) {
-			uint64_t objs;
-			objs = (max_nobjs * scale) / 100;
-			if (reg_objs < objs) {
-				reg_objs = objs;
-			}
-		}
-		shard->hash_handle = hash_table_init(shard->total_size, reg_objs, SLAB,
-							getProperty_Int("ZS_KEY_CACHE", 0));
-	} else {
-		int                             scale = getProperty_Int("ZS_HASH_PCT", 100);
-		if ((flash_settings.storm_test & 0x0004) && scale) {
-			uint64_t objs;
-			objs = (max_nobjs * scale) / 100;
-			shard->hash_handle = hash_table_init( shard->total_size,
-						objs, SLAB,
-						getProperty_Int("ZS_KEY_CACHE", 0));
-		} else {
-			shard->hash_handle = hash_table_init( shard->total_size,
-                                            max_nobjs, SLAB,
-                                            getProperty_Int("ZS_KEY_CACHE", 0));
-		}
-	}
+    /*
+     * initialize hash tables.
+     */
+    int hashscale = getProperty_Int( "ZS_HASH_PCT", 100);
+    int hashkeycache = getProperty_Int( "ZS_KEY_CACHE", 0);
+    if (shard_id==vdc_shardid && storm_mode) {
+        uint64_t reg_objs = get_regobj_storm_mode( );
+        if (hashscale) {
+            uint64_t objs = max_nobjs * hashscale/100;
+            if (reg_objs < objs)
+                reg_objs = objs;
+        }
+        shard->hash_handle = hash_table_init( shard->total_size, reg_objs, SLAB, hashkeycache);
+    }
+    else {
+        if ((flash_settings.storm_test & 0x0004) && hashscale) {
+            uint64_t objs = max_nobjs * hashscale/100;
+            shard->hash_handle = hash_table_init( shard->total_size, objs, SLAB, hashkeycache);
+        }
+	else
+            shard->hash_handle = hash_table_init( shard->total_size, max_nobjs, SLAB, hashkeycache);
+    }
     if ( !shard->hash_handle ) {
-        mcd_log_msg( 160204, PLAT_LOG_LEVEL_ERROR,
-                "failed to allocate hash tables");
+        mcd_log_msg( 160204, PLAT_LOG_LEVEL_ERROR, "failed to allocate hash tables");
         goto out_failed;
     }
-	shard->hash_handle->shard = shard;
-	total_alloc += shard->hash_handle->total_alloc;
+    shard->hash_handle->shard = shard;
+    total_alloc += shard->hash_handle->total_alloc;
 
     /*
      * initialize the class table
@@ -3564,8 +3555,8 @@ mcd_osd_slab_shard_init( mcd_osd_shard_t * shard, uint64_t shard_id,
     mcd_log_msg( 20309, PLAT_LOG_LEVEL_DEBUG,
                  "shard initialized, total allocated bytes=%lu", total_alloc );
 
-	plat_assert(getProperty_Int("ZS_KEY_CACHE", 0) && shard->hash_handle->key_cache ||
-			!getProperty_Int("ZS_KEY_CACHE", 0) && !shard->hash_handle->key_cache);
+    plat_assert(hashkeycache && shard->hash_handle->key_cache ||
+	!hashkeycache && !shard->hash_handle->key_cache);
 
 
     shard->group_commit_enabled = getProperty_Int("ZS_GROUP_COMMIT", 1);
