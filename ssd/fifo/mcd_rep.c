@@ -875,6 +875,7 @@ static int obj_read(struct shard * shard, uint64_t blk_offset, uint64_t nbytes, 
                               offset,
                               nbytes);
     if (rc != FLASH_EOK) {
+        abort_on_io_error(rc);
         mcd_log_msg(20574,PLAT_LOG_LEVEL_FATAL,
                     "failed to read buffer, rc=%d", rc);
     }

@@ -30,7 +30,10 @@ SUCH DAMAGE.
 #include <string.h>
 #include <stdlib.h>
 #include <assert.h>
+#include <pthread.h>
 #include "flip.h"
+
+extern pthread_rwlock_t flip_lock;
 
 static void parse_token_option_value(char *str, char delim, char **popt, char **pvalue)
 {
@@ -48,22 +51,70 @@ static void parse_token_option_value(char *str, char delim, char **popt, char **
 static void flip_cmd_set(FILE *fp, cmd_token_t *tokens, size_t ntokens, bool is_modify)
 {
 	flip_info_t *f;
+	flip_cond_t *fc;
 	size_t t = 0;
 	int flip_cnt = 1; /* Default one flip */
 	char *option;
 	char *value = NULL;
+	uint32_t i;
+	uint32_t pr;
+	flip_param_t *p;
+
+	if(is_modify) {
+		fprintf(fp, "Flip modify is not supported yet\n");
+		return;
+	}
+
+	pthread_rwlock_wrlock(&flip_lock);
 
 	f = lookup_flip_instance(tokens[t++].value);
 	if (f == NULL) {
 		fprintf(fp, "Error: No such flip '%s' defined\n", tokens[0].value);
+		pthread_rwlock_unlock(&flip_lock);
 		return;
 	}
 
+	for (i = 0; i < f->cond_cnt; i++) {
+		fc = &f->conditions[i];
+		if (!fc->is_set) {
+			break;
+		}
+	}
+
+	if (i == f->cond_cnt) {
+		assert(i < MAX_COND_PER_FLIP);
+
+		fc = &f->conditions[i];
+		f->cond_cnt++; // TODO: Sync fetch and add
+	}
+
+	/* Only for first condition add would have initialized.
+	 * Anything else have to be initialized again */
+	if (i != 0) {
+		flip_cond_t *fc0 = &f->conditions[0];
+
+		/* Set the default return parameter */
+		fc->return_param.data_type = fc0->return_param.data_type;
+		fc->return_param.name =  "return";
+		fc->return_param.data = (void *)(int64_t)true;
+		fc->return_param.any_data = 0;
+
+		/* Set all the params */
+		for (pr = 0; pr < f->num_params; pr++) {
+			p = &fc->param_list[pr];
+
+			p->data_type = fc0->param_list[pr].data_type;
+			p->name = fc0->param_list[pr].name;
+			p->any_data = true;
+		}
+	}
+#if 0
 	if (!is_modify && f->is_set) {
 		fprintf(fp, "Warning: Flip '%s' already set for a condition. "
 		            "Multiple conditions for same flip is not supported yet\n"
 		            "Hence trying to overriding the condition\n", f->name);
 	}
+#endif
 
 	while (t < ntokens) {
 		parse_token_option_value(tokens[t].value, '=', &option, &value);
@@ -72,23 +123,26 @@ static void flip_cmd_set(FILE *fp, cmd_token_t *tokens, size_t ntokens, bool is_
 		} else if (strcmp(option, "--set") == 0) {
 			continue;
 		} else {
-			flip_set_param(f, option, value);
+			flip_set_param(f, fc, option, value);
 		}
 		t++;
 	}
-	f->count = flip_cnt;
-	f->is_set = true;
+	fc->count = flip_cnt;
+	fc->is_set = true;
 
 	fprintf(fp, "Flip '%s' is %s\n", tokens[0].value, 
 	           is_modify ? "modified" : "set");
 
+	pthread_rwlock_unlock(&flip_lock);
+
 	/* TODO: Modularize the flip file variable */
-	flip_dump_file(FLIP_FILE);
+//	flip_dump_file(FLIP_FILE);
 }
 
 static void flip_cmd_add(FILE *fp, cmd_token_t *tokens, size_t ntokens)
 {
 	flip_info_t *f;
+	flip_cond_t *fc;
 	size_t t = 0;
 	int flip_cnt = 1; /* Default one flip */
 	char *option;
@@ -97,24 +151,29 @@ static void flip_cmd_add(FILE *fp, cmd_token_t *tokens, size_t ntokens)
 	flip_type_t type;
 	flip_param_t *p;
 
+	pthread_rwlock_wrlock(&flip_lock);
 	f = lookup_flip_instance(tokens[t].value);
 	if (f != NULL) {
 		fprintf(fp, "Warning: flip '%s' already defined. Setting value\n", tokens[0].value);
+		pthread_rwlock_unlock(&flip_lock);
 		flip_cmd_set(fp, tokens, ntokens, true);
 		return;
 	} else {
 		f = get_new_flip_instance();
+		f->cond_cnt = 1;
+		fc = &f->conditions[0];
 	}
 
 	strcpy(f->name, tokens[t++].value);
 	f->num_params = 0;
-	f->is_set = false;
+
+	fc->is_set = false;
 
 	/* Set the default return parameter */
-	f->return_param.data_type = FLIP_BOOL;
-	f->return_param.name = "return";
-	f->return_param.data = (void *)(int64_t)true;
-	f->return_param.any_data = 0;
+	fc->return_param.data_type = FLIP_BOOL;
+	fc->return_param.name = "return";
+	fc->return_param.data = (void *)(int64_t)true;
+	fc->return_param.any_data = 0;
 
 	while (t < ntokens) {
 		/* Get the data type if present */
@@ -130,14 +189,14 @@ static void flip_cmd_add(FILE *fp, cmd_token_t *tokens, size_t ntokens)
 			flip_cnt = atoi(value);
 		} else if (strcmp(option, "--set") == 0) {
 			if (strcmp(value, "true") == 0) {
-				f->is_set = true;
+				fc->is_set = true;
 			}
 		} else {
 			/* Set the new parameter */
 			if (strcmp(option, "return") == 0) {
-				p = &f->return_param;
+				p = &fc->return_param;
 			} else {
-				p = &f->param_list[f->num_params++];
+				p = &fc->param_list[f->num_params++];
 			}
 			p->data_type = type;
 			p->name = malloc(strlen(option)+1);
@@ -147,11 +206,14 @@ static void flip_cmd_add(FILE *fp, cmd_token_t *tokens, size_t ntokens)
 			if (value && strlen(value) != 0) {
 				valid_params++;
 				flip_set_param_ptr(p, value);
+			} else {
+				p->any_data = true;
 			}
 		}
 		t++;
 	}
-	f->count = flip_cnt;
+	fc->count = flip_cnt;
+	pthread_rwlock_unlock(&flip_lock);
 
 	fprintf(fp, "Flip '%s' is added\n", f->name);
 }
@@ -159,7 +221,9 @@ static void flip_cmd_add(FILE *fp, cmd_token_t *tokens, size_t ntokens)
 static void flip_cmd_list(FILE *fp, cmd_token_t *tokens, size_t ntokens)
 {
 	flip_info_t *f = NULL;
+	flip_cond_t *fc = NULL;
 	int i = 0;
+	uint32_t c;
 	int j;
 	bool list_set_only = false;
 	flip_param_t *p = NULL;
@@ -173,22 +237,26 @@ static void flip_cmd_list(FILE *fp, cmd_token_t *tokens, size_t ntokens)
 
 	while ((f = get_flip_instance(i++)) != NULL) {
 
-		if (list_set_only && !f->is_set) {
-			continue;
-		}
+		for (c = 0; c < f->cond_cnt; c++) {
+			fc = &f->conditions[c];
 
-		fprintf(fp, "%s ", f->name);
+			if (list_set_only && !fc->is_set) {
+				continue;
+			}
 
-		for (j = 0; j < f->num_params; j++) {
-			p = &f->param_list[j];
-			flip_print_param(fp, f, p->name);
-		}
-		flip_print_param(fp, f, "return");
+			fprintf(fp, "%s ", f->name);
 
-		if (f->is_set) {
-			fprintf(fp, "--count=%d --set=true\n", f->count);
-		} else {
-			fprintf(fp, "--set=false\n");
+			for (j = 0; j < f->num_params; j++) {
+				p = &fc->param_list[j];
+				flip_print_param(fp, f, fc, p->name);
+			}
+			flip_print_param(fp, f, fc, "return");
+
+			if (fc->is_set) {
+				fprintf(fp, "--count=%d --set=true\n", fc->count);
+			} else {
+				fprintf(fp, "--set=false\n");
+			}
 		}
 	}
 }
@@ -233,7 +301,6 @@ static size_t tokenize_flip_cmd(char *command, cmd_token_t *tokens,
     return ntokens;
 }
 
-
 /* Handle all the flip commands */
 void process_flip_cmd(FILE *fp, cmd_token_t *tokens, size_t ntokens)
 {
@@ -256,6 +323,15 @@ void process_flip_cmd(FILE *fp, cmd_token_t *tokens, size_t ntokens)
 	}
 }
 
+void process_flip_cmd_str(FILE *fp, char *cmd)
+{
+	cmd_token_t tokens[MAX_FLIP_CMD_WORDS];
+	size_t ntokens;
+
+	ntokens = tokenize_flip_cmd(cmd, tokens, MAX_FLIP_CMD_WORDS);
+	process_flip_cmd(fp, tokens, ntokens);
+}
+
 void flip_parse_file(char *filename)
 {
 	FILE *fp;
@@ -271,14 +347,16 @@ void flip_parse_file(char *filename)
 	}
 
 	while (fgets(line, MAX_FLIP_LINE_LEN, fp)) {
-		if (line[0] == '#') 
+		if (line[0] == '#') {
 			continue;
-
-		printf("Line read: %s\n", line);
+		}
 
 		/* Add the flip into the database */
 		ntokens = tokenize_flip_cmd(line, tokens, MAX_FLIP_CMD_WORDS);
-		printf("ntokens = %u\n", (uint32_t)ntokens);
+		if (ntokens == 0) {
+			continue;
+		}
+//		printf("ntokens = %u\n", (uint32_t)ntokens);
 		flip_cmd_add(stderr, tokens, ntokens);
 	}
 	fclose(fp);

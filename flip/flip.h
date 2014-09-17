@@ -12,7 +12,7 @@
 #define MAX_FLIP_CMD_WORDS  100
 #define MAX_FLIP_NAME_LEN   256
 #define MAX_PARAMS          10
-#define FLIP_FILE  "/var/lib/zs/btree.flip"
+#define FLIP_FILE  "/var/lib/zs/zs.flip"
 
 
 typedef enum {
@@ -30,13 +30,20 @@ typedef struct {
 	bool        any_data;
 } flip_param_t;
 
-typedef struct flip_info {
-	char           name[MAX_FLIP_NAME_LEN];
+typedef struct {
 	flip_param_t   return_param;
-	uint32_t       num_params;
 	bool           is_set;
 	flip_param_t   param_list[MAX_PARAMS];
 	uint32_t       count;
+} flip_cond_t;
+
+#define MAX_COND_PER_FLIP            200
+
+typedef struct flip_info {
+	char           name[MAX_FLIP_NAME_LEN];
+	uint32_t       cond_cnt;
+	flip_cond_t    conditions[MAX_COND_PER_FLIP];
+	uint32_t       num_params;
 } flip_info_t;
 
 typedef enum {
@@ -56,10 +63,10 @@ enum {
 };
 
 /* Internal functions */
-bool flip_is_valid_param(flip_info_t *f, char *param_str);
-bool flip_set_param(flip_info_t *f, char *param_str, char *val_str);
+bool flip_is_valid_param(flip_info_t *f, flip_cond_t *fc, char *param_str);
+bool flip_set_param(flip_info_t *f, flip_cond_t *fc, char *param_str, char *val_str);
 bool flip_set_param_ptr(flip_param_t *p, char *val_str);
-void flip_print_param(FILE *fp, flip_info_t *f, char *param_str);
+void flip_print_param(FILE *fp, flip_info_t *f, flip_cond_t *fc, char *param_str);
 flip_info_t *lookup_flip_instance(char *name);
 flip_info_t *get_flip_instance(int index);
 flip_info_t *get_new_flip_instance(void);
@@ -69,6 +76,7 @@ flip_type_t flip_str_to_type(char *str_type);
 
 /* Flip external functions */
 void process_flip_cmd(FILE *fp, cmd_token_t *tokens, size_t ntokens);
+void process_flip_cmd_str(FILE *fp, char *cmd);
 
 void flip_handle_ioctl(void *opaque);
 void flip_init(void);

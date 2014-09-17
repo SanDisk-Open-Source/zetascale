@@ -245,8 +245,10 @@ mcd_rec2_potcache_init( mcd_osd_shard_t *s, osd_state_t *context)
 				unless (e)
 					return ((void *)nomem( ));
 				int rc = mcd_fth_aio_blk_read( context, (char *)e, o, bytes_per_page);
-				if (rc)
+				if (rc) {
+					abort_on_io_error(rc);
 					readerror( rc);
+				}
 
 				if(pot_checksum_enabled) {
 					uint32_t c, sum = pot_checksum_get((char*)e);
@@ -290,8 +292,10 @@ mcd_rec2_potcache_save( mcd_osd_shard_t *s, void *context)
 				uint32_t sum = checksum((char*)c[i], bytes_per_page, 0);
 				pot_checksum_set((char*)c[i], sum);
 				int rc = mcd_fth_aio_blk_write( context, (char *)c[i], o, bytes_per_page);
-				if (rc)
+				if (rc) {
+					abort_on_io_error(rc);
 					writeerror( rc);
+				}
 			}
 	return (TRUE);
 }
@@ -358,8 +362,10 @@ mcd_rec2_potbitmap_load( mcd_osd_shard_t *s, void *context)
 		unless (l->potbm = memalign( MCD_OSD_META_BLK_SIZE, n))
 			return (nomem( ));
 		int rc = mcd_fth_aio_blk_read( context, (char *)l->potbm, potbm_base( p), n);
-		unless (rc == FLASH_EOK)
+		unless (rc == FLASH_EOK) {
+			abort_on_io_error(rc);
 			readerror( rc);
+		}
 		potbm_t *potbm = l->potbm;
 		if (potbm->eye_catcher == 0) {
 			unless (empty( potbm, n))
@@ -392,8 +398,10 @@ mcd_rec2_potbitmap_save( mcd_osd_shard_t *s, void *context)
 		potbm->eye_catcher = MCD_REC_POTBM_EYE_CATCHER;
 		assign_potbm_checksum( potbm, n);
 		int rc = mcd_fth_aio_blk_write( context, (char *)potbm, potbm_base( p), n);
-		unless (rc == FLASH_EOK)
+		unless (rc == FLASH_EOK) {
+			abort_on_io_error(rc);
 			writeerror( rc);
+		}
 	}
 	return (TRUE);
 }
@@ -466,8 +474,10 @@ mcd_rec2_slabbitmap_load( mcd_osd_shard_t *s, void *context)
 	unless (l->slabbm = memalign( MCD_OSD_META_BLK_SIZE, n))
 		return (nomem( ));
 	int rc = mcd_fth_aio_blk_read( context, (char *)l->slabbm, slabbm_base( p), n);
-	unless (rc == FLASH_EOK)
+	unless (rc == FLASH_EOK) {
+		abort_on_io_error(rc);
 		readerror( rc);
+	}
 	slabbm_t *slabbm = l->slabbm;
 	if (slabbm->eye_catcher == 0) {
 		unless (empty( slabbm, n))
@@ -498,8 +508,10 @@ mcd_rec2_slabbitmap_save( mcd_osd_shard_t *s, void *context)
 		slabbm_t *slabbm = l->slabbm;
 		assign_slabbm_checksum( slabbm, n);
 		int rc = mcd_fth_aio_blk_write( context, (char *)slabbm, slabbm_base( p), n);
-		unless (rc == FLASH_EOK)
+		unless (rc == FLASH_EOK) {
+			abort_on_io_error(rc);
 			writeerror( rc);
+		}
 	}
 	return (TRUE);
 }

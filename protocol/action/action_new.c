@@ -4544,6 +4544,7 @@ SDF_status_t get_status(int retcode)
         case FLASH_EOK:       status = SDF_SUCCESS;               break;
         case FLASH_EPERM:     status = SDF_FLASH_EPERM;           break;
         case FLASH_ENOENT:    status = SDF_OBJECT_UNKNOWN;        break;
+        case FLASH_EIO:       status = SDF_FLASH_EIO;             break;
         case FLASH_EDATASIZE: status = SDF_FLASH_EDATASIZE;       break;
         case FLASH_EAGAIN:    status = SDF_FLASH_EAGAIN;          break;
         case FLASH_ENOMEM:    status = SDF_FLASH_ENOMEM;          break;
@@ -4575,6 +4576,7 @@ int get_retcode(SDF_status_t status)
         case SDF_SUCCESS:           ret = FLASH_EOK;       break;       
         case SDF_FLASH_EPERM:       ret = FLASH_EPERM;     break;     
         case SDF_OBJECT_UNKNOWN:    ret = FLASH_ENOENT;    break;    
+        case SDF_FLASH_EIO:         ret = FLASH_EIO;       break;
         case SDF_FLASH_EDATASIZE:   ret = FLASH_EDATASIZE; break; 
         case SDF_FLASH_EAGAIN:      ret = FLASH_EAGAIN;    break;    
         case SDF_FLASH_ENOMEM:      ret = FLASH_ENOMEM;    break;    

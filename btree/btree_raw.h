@@ -111,6 +111,7 @@ typedef enum btree_status {
 	BTREE_FLASH_DELETE_FAILED,
 	BTREE_FLASH_EPERM,
 	BTREE_FLASH_ENOENT,
+	BTREE_FLASH_EIO,
 	BTREE_FLASH_EAGAIN,
 	BTREE_FLASH_ENOMEM,
 	BTREE_FLASH_EDATASIZE,
@@ -193,13 +194,15 @@ typedef enum btree_status {
 	BTREE_UNKNOWN_STATUS,
 	BTREE_SKIPPED,                    /* Generic skip return */
 	BTREE_TOO_MANY_SNAPSHOTS,         /* Too many snapshots, cannot create more */
-	BTREE_PARENT_FULL_FOR_SPLIT,	 /* Parent is full and need split before next split of leaf */
-	BTREE_NO_NODE_REFS,		/* No more reference availabed for modified nodes. */
-
+	BTREE_PARENT_FULL_FOR_SPLIT,	  /* Parent is full and need split before next split of leaf */
+	BTREE_NO_NODE_REFS,		  /* No more reference availabed for modified nodes. */
+	BTREE_RESCUE_INVALID_REQUEST,     /* Context provided for rescue is invalid */
+	BTREE_RESCUE_NOT_NEEDED,          /* Btree rescued either by other request or naturally */
+	BTREE_RESCUE_IO_ERROR,            /* Rescue faced a media error or storage error */
 } btree_status_t;
 
 typedef enum node_flags {
-	UNKNOWN_NODE	= 1,
+    UNKNOWN_NODE	= 1,
     LEAF_NODE		= 2,
     OVERFLOW_NODE	= 4, 
 } node_flags_t;
@@ -231,6 +234,7 @@ typedef enum btree_meta_flags {
     INPLACE_POINTERS     = 1<<18,
     INSERT_TOMBSTONE     = 1<<19,
     FORCE_DELETE         = 1<<20,
+    DELETE_INTERIOR_ENTRY = 1<<21,
 } btree_meta_flags_t;
 
 typedef struct btree_metadata {
@@ -241,6 +245,8 @@ typedef struct btree_metadata {
     uint64_t     start_seqno;
     uint64_t     end_seqno;
     uint64_t     checksum;
+    uint64_t     logical_id;
+    int          index;
 } btree_metadata_t;
 
 #define BTREE_MAX_DATA_SIZE_SUPPORTED           (25 * 1024 * 1024)   // 25 MB
@@ -517,6 +523,9 @@ btree_raw_rupdate(
 		void *range_cmp_cb_args,
 	        uint32_t *objs_updated,
 	        btree_rupdate_marker_t **marker);
+
+btree_status_t btree_raw_move_lasterror(struct btree_raw *btree, void **err_out, uint32_t *err_size);
+btree_status_t btree_raw_rescue(struct btree_raw *btree, void *p_err_context);
 
 #define DEFAULT_N_L1CACHE_BUCKETS 5000
 #define DEFAULT_N_L1CACHE_PARTITIONS 256

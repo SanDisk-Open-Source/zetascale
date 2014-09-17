@@ -201,8 +201,10 @@ found:
 
 	plat_assert(hash_entry->blkaddress == dst_blk_offset);
 out:
-	if(rc)
+	if(rc) {
+		abort_on_io_error(rc);
 		stat_inc(shard, RELOCATE_ERRORS);
+	}
 
 	fthUnlock(wait);
 

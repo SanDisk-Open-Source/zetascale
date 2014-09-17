@@ -72,7 +72,7 @@ typedef struct mcd_aio_meta {
 #endif
 
 
-#define FLASH_EIO       FLASH_EAGAIN            /* FIXME */
+//#define FLASH_EIO       FLASH_EAGAIN            /* FIXME */
 
 
 /*
@@ -220,7 +220,7 @@ mcd_fth_aio_blk_read( osd_state_t * context, char * buf, uint64_t offset, int nb
 	if (pread(aio_fd, buf+submitted, aio_nbytes, aio_offset) != aio_nbytes) {
             mcd_log_msg(150031, PLAT_LOG_LEVEL_ERROR, "pread failed - %s",
 			plat_strerror(errno));
-	    plat_exit(1);
+            return FLASH_EIO;
 	}
 
         // io_prep_pread( &acb->iocb, aio_fd, buf + submitted, aio_nbytes, aio_offset );
@@ -433,7 +433,7 @@ mcd_fth_aio_blk_write_low( osd_state_t * context, char * buf, uint64_t offset,
 #endif
 	if (pwrite(aio_fd, buf+submitted, aio_nbytes, aio_offset) != aio_nbytes) {
             mcd_log_msg(180002, PLAT_LOG_LEVEL_ERROR, "pwrite failed!(%s)", plat_strerror(errno));
-	    plat_exit(1);
+            return FLASH_EIO;
 	}
 
         // io_prep_pwrite( &acb->iocb, aio_fd, buf + submitted, aio_nbytes, aio_offset );

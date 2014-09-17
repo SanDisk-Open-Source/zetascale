@@ -136,6 +136,7 @@ typedef uint64_t baddr_t;
     item(FDF_FLASH_DELETE_FAILED, /* default */) \
     item(FDF_FLASH_EPERM, /* default */) \
     item(FDF_FLASH_ENOENT, /* default */) \
+    item(FDF_FLASH_EIO, /* default */) \
     item(FDF_FLASH_EAGAIN, /* default */) \
     item(FDF_FLASH_ENOMEM, /* default */) \
     item(FDF_FLASH_EDATASIZE, /* default */) \
@@ -214,6 +215,9 @@ typedef uint64_t baddr_t;
     item(FDF_SNAPSHOT_NOT_FOUND, /* Snapshot not found */) \
     item(FDF_TOO_MANY_SNAPSHOTS, /* No room for additional snapshots */) \
     item(FDF_SCAN_DONE, /*Scavenger scan done flag */) \
+    item(FDF_RESCUE_INVALID_REQUEST, /* Invalid context to rescue */) \
+    item(FDF_RESCUE_NOT_NEEDED, /* This error is already rescued */) \
+    item(FDF_RESCUE_IO_ERROR, /* Rescue hit IO error */) \
 
 typedef enum {
 #define item(caps, value) \

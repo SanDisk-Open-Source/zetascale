@@ -30,6 +30,8 @@
 #define MCD_AIO_MAX_NFILES      8
 #define MCD_AIO_MAX_NSUBFILES   16
 
+#define abort_on_io_error(r) if (r == FLASH_EIO) plat_abort()
+
 /*
  * aio related
  */

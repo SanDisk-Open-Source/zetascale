@@ -134,16 +134,25 @@ scavenger_del_stale_ent(Scavenge_Arg_t *s)
 
 	assert(my_thd_state);
 	open_container(my_thd_state, s->cguid);
-	node = root_get_and_lock(s->btree, write_lock);
-	assert(node);
+	node = root_get_and_lock(s->btree, write_lock, &ret);
+	if (node == NULL) {
+		goto cleanup;
+	}
 
 	while(!is_leaf(s->btree, (node)->pnode)) {
  
 		(void) get_key_stuff(s->btree, node->pnode, 0, &ks_current_1);
 		child_id = ks_current_1.ptr;
 		parent = node;
-		node = get_existing_node_low(&ret, s->btree, child_id, 0, false, true);
-		plat_rwlock_rdlock(&node->lock);
+
+		node = get_existing_node(&ret, s->btree, child_id, NODE_CACHE_DEREF_DELETE,
+		                         LOCKTYPE_READ);
+		if (node == NULL) {
+			plat_rwlock_unlock(&parent->lock);
+			deref_l1cache_node(s->btree, parent);
+			goto cleanup;
+		}
+
 		plat_rwlock_unlock(&parent->lock);
 		deref_l1cache_node(s->btree, parent);
 
@@ -156,7 +165,7 @@ scavenger_del_stale_ent(Scavenge_Arg_t *s)
 	while (!scavenger_killed) {
 		key = (key_stuff_info_t *)malloc(16*sizeof(key_stuff_info_t));
 		int temp = 0;
-		assert(node);
+
 		if (start_key_in_node < node->pnode->nkeys) {
 			i = scavenge_node(s->btree, node, &ks_prev, &key);
 		} else {
@@ -170,14 +179,16 @@ scavenger_del_stale_ent(Scavenge_Arg_t *s)
 				deref_l1cache_node(s->btree, parent);
 				break;
 			}
-			node =  get_existing_node_low(&ret, s->btree, child_id, 0, false, true);
+
+			node = get_existing_node(&ret, s->btree, child_id,
+			                        NODE_CACHE_DEREF_DELETE, LOCKTYPE_READ);
 			if (node == NULL) {
 				// Need to replace this with assert(0) once the broken leaf node chain in btree is fixed
 				plat_rwlock_unlock(&parent->lock);
 				deref_l1cache_node(s->btree, parent);
 				break;
 			}
-			plat_rwlock_rdlock(&node->lock);
+
 			plat_rwlock_unlock(&parent->lock);
 			deref_l1cache_node(s->btree, parent);
 			start_key_in_node = 0;
@@ -223,8 +234,14 @@ scavenger_del_stale_ent(Scavenge_Arg_t *s)
 		
 		meta.flags = READ_SEQNO_LE;
 		meta.end_seqno = ks_current.seqno - 1;
-		start_key_in_node = btree_raw_find(s->btree, ks_current.key, ks_current.keylen, syndrome, &meta, &node, write_lock, &pathcnt, &key_exists);
+		start_key_in_node = btree_raw_find(&ret, s->btree, ks_current.key, ks_current.keylen, syndrome, &meta, &node, write_lock, &pathcnt, &key_exists);
+
+		if (node == NULL) {
+			break;
+		}
 	}
+
+cleanup:
 	fprintf(stderr,"Total number of objects scavenged %d \n\n\n",deletedobjects);
 	close_container(my_thd_state, s);
 }
@@ -269,20 +286,26 @@ scavenger_del_overflw_n_cont(Scavenge_Arg_t *s)
 	assert(my_thd_state);
 
 	open_container(my_thd_state, s->cguid);
-	node = root_get_and_lock(s->btree, write_lock);
-	assert(node);
+	node = root_get_and_lock(s->btree, write_lock, &ret);
+	if (node == NULL) {
+		goto cleanup;
+	}
 
 	while(!is_leaf(s->btree, (node)->pnode)) {
  
 		(void) get_key_stuff(s->btree, node->pnode, 0, &ks_current_1);
 		child_id = ks_current_1.ptr;
+
 		parent = node;
-		node = get_existing_node_low(&ret, s->btree, child_id, 0, false, true);
-		if (is_leaf(s->btree, (node)->pnode)) {
-			node_lock(node, true);
-		} else {
-			node_lock(node, false);
+
+		node = get_existing_node(&ret, s->btree, child_id, NODE_CACHE_DEREF_DELETE,
+		                         LOCKTYPE_LEAF_WRITE_REST_READ);
+		if (node == NULL) {
+			node_unlock(parent);
+			deref_l1cache_node(s->btree, parent);
+			goto cleanup;
 		}
+
 		node_unlock(parent);
 		deref_l1cache_node(s->btree, parent);
 
@@ -336,18 +359,19 @@ scavenger_del_overflw_n_cont(Scavenge_Arg_t *s)
 			deref_l1cache_node(s->btree, parent);
 			break;
 		} else {
-			node =  get_existing_node_low(&ret, s->btree, child_id, 0, false, true);
+			node = get_existing_node(&ret, s->btree, child_id,
+			                         NODE_CACHE_DEREF_DELETE, LOCKTYPE_WRITE);
 			if (node == NULL) {
 				node_unlock(parent);
 				deref_l1cache_node(s->btree, parent);
 				break;
-			} else {
-				node_lock(node, true);
-				node_unlock(parent);
-				deref_l1cache_node(s->btree, parent);
 			}
+			node_unlock(parent);
+			deref_l1cache_node(s->btree, parent);
 		}
 	}
+
+cleanup:
 	bt_cntr_unlock_scavenger(s, true);
 
 	return;
@@ -660,8 +684,9 @@ update_leaf_bytes_count(btree_raw_t *btree, btree_raw_mem_node_t *node)
         if (big_object1(btree, (&key_info))) {
             z_next = key_info.ptr;
 
+            uint32_t nflags = NODE_CACHE_DEREF_DELETE | (ref ? NODE_REF: 0);
             while(z_next) {
-                btree_raw_mem_node_t *node1 = get_existing_overflow_node_low(&ret2, btree, z_next, ref, false, true);
+                btree_raw_mem_node_t *node1 = get_existing_overflow_node(&ret2, btree, z_next, nflags);
 
                 if(!node1) {
                     break;
@@ -723,16 +748,23 @@ astats_worker(uint64_t arg)
         /*
          * Acquire read lock on root
          */
-        node = root_get_and_lock(s->btree, write_lock);
-        assert(node);
+        node = root_get_and_lock(s->btree, write_lock, &ret);
+        if (node == NULL) {
+            goto out;
+        }
 
         while(!is_leaf(s->btree, (node)->pnode)) {
             (void) get_key_stuff(s->btree, node->pnode, 0, &ks_current_1);
             child_id = ks_current_1.ptr;
             parent = node;
-            node = get_existing_node_low(&ret, s->btree, child_id, 0, false, false);
 
-            plat_rwlock_rdlock(&node->lock);
+            node = get_existing_node(&ret, s->btree, child_id, NODE_CACHE_DEREF_DELETE, LOCKTYPE_READ);
+            if (node == NULL) {
+                plat_rwlock_unlock(&parent->lock);
+                deref_l1cache_node(s->btree, parent);
+                goto out;
+            }
+
             plat_rwlock_unlock(&parent->lock);
             deref_l1cache_node(s->btree, parent);
         }
@@ -765,7 +797,7 @@ astats_worker(uint64_t arg)
                 break;
             }
 
-            node =  get_existing_node_low(&ret, s->btree, child_id, 0, false, true);
+            node = get_existing_node(&ret, s->btree, child_id, NODE_CACHE_DEREF_DELETE, LOCKTYPE_READ);
             if (NULL == node) { 
                 fprintf(stderr, "Async stats: error null node total leaves= %ld\n", s->btree->stats.stat[BTSTAT_LEAF_NODES]);
                 break;
@@ -786,9 +818,11 @@ astats_worker(uint64_t arg)
 
                 uint64_t pre_sleep_child_id = parent->pnode->logical_id;
 
-                deref_l1cache_node(s->btree, node);
                 plat_rwlock_unlock(&parent->lock);
                 deref_l1cache_node(s->btree, parent);
+
+                plat_rwlock_unlock(&node->lock);
+                deref_l1cache_node(s->btree, node);
 
                 parent = node = NULL;
 
@@ -817,7 +851,7 @@ astats_worker(uint64_t arg)
                 bool key_exists = false;
                 meta.flags = 0;
 
-                int start_key_in_node = btree_raw_find(s->btree, ks_info.key, ks_info.keylen,
+                int start_key_in_node = btree_raw_find(&ret, s->btree, ks_info.key, ks_info.keylen,
                         syndrome, &meta, &node, write_lock, &pathcnt, &key_exists);
                 if (NULL == node) {
                     fprintf(stderr, "astats_worker: btree_raw_find failed \n");
@@ -834,7 +868,6 @@ astats_worker(uint64_t arg)
                 continue;
             }
 
-            plat_rwlock_rdlock(&node->lock);
             plat_rwlock_unlock(&parent->lock);
             deref_l1cache_node(s->btree, parent);
         }
@@ -844,6 +877,7 @@ astats_worker(uint64_t arg)
             deref_l1cache_node(s->btree, parent);
         }
 
+out:
         astats_deref_container(s);
 
 astats_worker_exit:

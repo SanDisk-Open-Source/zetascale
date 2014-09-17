@@ -136,6 +136,7 @@ typedef uint64_t ZS_cguid_t;
     item(ZS_FLASH_DELETE_FAILED, /* default */) \
     item(ZS_FLASH_EPERM, /* default */) \
     item(ZS_FLASH_ENOENT, /* default */) \
+    item(ZS_FLASH_EIO, /* default */) \
     item(ZS_FLASH_EAGAIN, /* default */) \
     item(ZS_FLASH_ENOMEM, /* default */) \
     item(ZS_FLASH_EDATASIZE, /* default */) \
@@ -214,6 +215,9 @@ typedef uint64_t ZS_cguid_t;
     item(ZS_SNAPSHOT_NOT_FOUND, /* Snapshot not found */) \
     item(ZS_TOO_MANY_SNAPSHOTS, /* No room for additional snapshots */) \
     item(ZS_SCAN_DONE, /*Scavenger scan done flag */) \
+    item(ZS_RESCUE_INVALID_REQUEST, /* Invalid context to rescue */) \
+    item(ZS_RESCUE_NOT_NEEDED, /* This error is already rescued */) \
+    item(ZS_RESCUE_IO_ERROR, /* Rescue hit IO error */) \
 
 typedef enum {
 #define item(caps, value) \

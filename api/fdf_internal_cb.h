@@ -43,6 +43,10 @@ typedef ZS_status_t (ext_cb_flash_stats_t)(uint64_t *alloc_blks, uint64_t *free_
 typedef ZS_status_t (ext_cb_functions_t)(void *log_func);
 typedef ZS_status_t (ext_cb_licvalid_t)(int state);
 typedef ZS_status_t (ext_cb_raw_t)(int mode, uint64_t rawobjsz );
+#ifdef FLIP_ENABLED
+typedef ZS_status_t (ext_cb_nodetype_t)(ZS_cguid_t cguid, char *data, uint64_t datalen,
+                                        uint32_t *nodetype, bool *isroot, uint64_t *logical_id);
+#endif
 
 typedef enum {
     ZS_EXT_MODULE_BTREE,
@@ -67,6 +71,10 @@ typedef struct ZS_ext_cb {
 
    /* Call back function to check raw object supported */
    ext_cb_raw_t *zs_raw_cb;
+
+#ifdef FLIP_ENABLED
+   ext_cb_nodetype_t *zs_node_cb;
+#endif
 }ZS_ext_cb_t;
 
 ZS_status_t ZSRegisterCallbacks(struct ZS_state *zs_state, ZS_ext_cb_t *cb);

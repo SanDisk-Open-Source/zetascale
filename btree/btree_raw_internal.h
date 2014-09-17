@@ -3,6 +3,7 @@
 
 #include "btree_raw.h"
 #include "platform/rwlock.h"
+#include "btree_range.h"
 #include <assert.h>
 #include <api/zs.h>
 
@@ -44,11 +45,14 @@ typedef struct cmap {
 #define BTREE_VERSION   0
 
 typedef struct node_vkey {
-    uint32_t    keylen;
+    uint32_t    keylen:31;
+    uint32_t    invalid:1;
     uint32_t    keypos;
     uint64_t    ptr;
     uint64_t    seqno;
-} node_vkey_t;
+} 
+__attribute__ ((__packed__))
+node_vkey_t;
 
 #ifdef BIG_NODES
 typedef uint32_t keylen_t;
@@ -144,11 +148,12 @@ typedef struct btree_raw_node {
 #define	NODE_DIRTY		0x1
 #define NODE_DELETED	0x2
 
-#define	mark_node_dirty(n)		((n)->flag |= (char)NODE_DIRTY)
-#define mark_node_clean(n)		((n)->flag &= (char)(~((char)NODE_DIRTY)))
-#define is_node_dirty(n)		((n)->flag & NODE_DIRTY)
+#define	mark_node_dirty(n)	((n)->flag |= (char)NODE_DIRTY)
+#define mark_node_clean(n)	((n)->flag &= (char)(~((char)NODE_DIRTY)))
+#define is_node_dirty(n)	((n)->flag & NODE_DIRTY)
 #define	mark_node_deleted(n)	((n)->flag |= (char)NODE_DELETED)
-#define	is_node_deleted(n)		((n)->flag & NODE_DELETED)
+#define mark_node_undeleted(n)  ((n)->flag &= (char)(~((char)NODE_DELETED)))          
+#define	is_node_deleted(n)	((n)->flag & NODE_DELETED)
 
 
 typedef struct btree_raw_mem_node btree_raw_mem_node_t;
@@ -164,6 +169,7 @@ struct btree_raw_mem_node {
 #endif
 	bool pinned;
 	bool deref_delete_cache;
+	bool cache_valid;
 	plat_rwlock_t lock;
 	btree_raw_mem_node_t *dirty_next; // dirty list
 	btree_raw_node_t *pnode;
@@ -356,13 +362,27 @@ int get_key_stuff(btree_raw_t *bt, btree_raw_node_t *n, uint32_t nkey, key_stuff
 int 
 get_key_stuff_info2(btree_raw_t *bt, btree_raw_node_t *n, uint32_t nkey, key_stuff_info_t *key_info);
 
+/* NODE Flags */
+typedef enum {
+	NODE_REF                = 1<<0,
+	NODE_PIN                = 1<<1,
+	NODE_CACHE_VALIDATE     = 1<<2,
+	NODE_CACHE_DEREF_DELETE = 1<<3,
+	NODE_RAW_OBJ            = 1<<4,
+} getnode_flags_t;
+
+typedef enum {
+	LOCKTYPE_NOLOCK,
+	LOCKTYPE_WRITE,
+	LOCKTYPE_READ,
+	LOCKTYPE_LEAF_WRITE_REST_READ
+} bt_locktype_t;
+
 btree_status_t get_leaf_data_index(btree_raw_t *bt, btree_raw_node_t *n, int index, char **data, uint64_t *datalen, uint32_t meta_flags, int ref, bool deref_delete_cache);
 btree_status_t get_leaf_key_index(btree_raw_t *bt, btree_raw_node_t *n, int index, char **key, uint32_t *keylen, uint32_t meta_flags, key_stuff_info_t *pks);
-btree_raw_mem_node_t *get_existing_node_low(btree_status_t *ret, btree_raw_t *btree, uint64_t logical_id, int ref, bool pinned, bool delete_after_deref);
-btree_raw_mem_node_t *get_existing_overflow_node_low(btree_status_t *ret, btree_raw_t *btree, uint64_t logical_id, int ref, bool pinned, bool delete_after_deref);
-btree_raw_mem_node_t *get_existing_node(btree_status_t *ret, btree_raw_t *btree, uint64_t logical_id);
-btree_raw_mem_node_t *get_existing_overflow_node(btree_status_t *ret, btree_raw_t *btree, uint64_t logical_id);
-btree_raw_mem_node_t *get_existing_node_internal(btree_status_t *ret, btree_raw_t *btree, uint64_t logical_id, int rawobj, int ref, bool pinned, bool delete_after_deref);
+btree_raw_mem_node_t *get_existing_node_low(btree_status_t *ret, btree_raw_t *btree, uint64_t logical_id, getnode_flags_t flags);
+btree_raw_mem_node_t *get_existing_node(btree_status_t *ret, btree_raw_t *btree, uint64_t logical_id, getnode_flags_t flags, bt_locktype_t locktype_in);
+btree_raw_mem_node_t *get_existing_overflow_node(btree_status_t *ret, btree_raw_t *btree, uint64_t logical_id, getnode_flags_t flags);
 int is_leaf(btree_raw_t *btree, btree_raw_node_t *node);
 int is_overflow(btree_raw_t *btree, btree_raw_node_t *node);
 void delete_key_by_index_non_leaf(btree_status_t* ret, btree_raw_t *btree, btree_raw_mem_node_t *node, int index);
@@ -376,16 +396,16 @@ btree_status_t btree_recovery_process_minipkt(btree_raw_t *bt,
 
 void deref_l1cache_node(btree_raw_t* btree, btree_raw_mem_node_t *node);
 void deref_l1cache_node_all(btree_raw_t* btree, btree_raw_mem_node_t *node);
-btree_raw_mem_node_t* root_get_and_lock(btree_raw_t* btree, int write_lock);
+btree_raw_mem_node_t* root_get_and_lock(btree_raw_t* btree, int write_lock, btree_status_t *ret);
 void free_buffer(btree_raw_t *btree, void* buf);
 char *get_buffer(btree_raw_t *btree, uint64_t nbytes);
 
 btree_status_t deref_l1cache(btree_raw_t *btree);
 
 int
-btree_raw_find(struct btree_raw *btree, char *key, uint32_t keylen, uint64_t syndrome,
-	       btree_metadata_t *meta, btree_raw_mem_node_t** node, int write_lock,
-	       int* pathcnt, bool *found);
+btree_raw_find(btree_status_t *ret, struct btree_raw *btree, char *key, uint32_t keylen,
+               uint64_t syndrome, btree_metadata_t *meta, btree_raw_mem_node_t** node,
+               int write_lock, int* pathcnt, bool *found);
 
 int seqno_cmp_range(btree_metadata_t *smeta, uint64_t key_seqno,
                  bool *exact_match, bool *range_match);
@@ -396,6 +416,69 @@ void ref_l1cache(btree_raw_t *btree, btree_raw_mem_node_t *n);
 void unlock_and_unreference();
 #define unlock_and_unreference_all_but_last(b) unlock_and_unreference(b, 1)
 #define unlock_and_unreference_all(b) unlock_and_unreference(b, 0)
+
+/* Info about any storage error happened */
+typedef struct {
+	btree_raw_t          *btree;
+	uint64_t             cguid;
+	uint64_t             logical_id;
+	uint32_t             size;
+	uint32_t             op_type;
+
+	union {
+		struct {
+			char             *key;
+			uint32_t         keylen;
+			btree_metadata_t meta;
+		} single;
+
+		struct {
+			char               *key_start;
+			uint32_t           keylen_start;
+			char               *key_end;
+			uint32_t           keylen_end;
+			btree_range_meta_t rmeta;
+		} rquery;
+
+		struct {
+			char             *key;
+			uint32_t         keylen;
+			btree_metadata_t meta;
+		} rupdate;
+	} u;
+} btree_op_err_t;
+
+typedef struct {
+	btree_op_err_t       *err;            // Current error info getting rescue'd
+	uint64_t             err_logical_id;  // Logical id which failed
+
+	btree_raw_node_t     *node;           // Info on parent key to rescue
+	char                 *key;
+	uint32_t             keylen;
+	uint64_t             seqno;
+	int                  idx;
+} btree_op_err_rescue_t;
+
+enum {
+	ERR_OPTYPE_UNKNOWN,
+	ERR_OPTYPE_SINGLE,
+	ERR_OPTYPE_RQUERY,
+	ERR_OPTYPE_RUPDATE
+};
+
+void set_lasterror(btree_raw_t *btree, uint64_t err_logical_id);
+void set_lasterror_single(btree_raw_t *btree, char *key, uint32_t keylen, btree_metadata_t *meta);
+void set_lasterror_rquery(btree_raw_t *btree, btree_range_meta_t *rmeta);
+void set_lasterror_rupdate(btree_raw_t *btree, char *key, uint32_t keylen, btree_metadata_t *meta);
+void reset_lasterror(btree_raw_t *btree);
+
+btree_op_err_rescue_t *btree_raw_get_cur_rescue(btree_raw_t *btree);
+void btree_raw_exit_rescue(btree_raw_t *btree);
+bool btree_in_rescue_mode(btree_raw_t *btree);
+void add_to_rescue(btree_raw_t *btree, btree_raw_node_t *parent, uint64_t err_logical_id,
+                   char *key, uint32_t keylen, uint32_t seqno, int index);
+ZS_cguid_t btree_raw_get_cguid_from_op_err(void *context);
+btree_status_t btree_raw_rescue(btree_raw_t *btree, void *context);
 
 #ifdef BTREE_UNDO_TEST
 enum {
@@ -493,6 +576,7 @@ extern __thread uint64_t dbg_referenced;
 #define assert(a)
 #endif
 
+#define storage_error(r) ((r == BTREE_FLASH_EINCONS) || (r == BTREE_FLASH_EIO))
 #if 0
 bool 
 btree_raw_node_check(struct btree_raw *btree, btree_raw_node_t *node,

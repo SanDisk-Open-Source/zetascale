@@ -142,6 +142,16 @@ ZS_status_t ZSDeletePhysicalContainer(
  */
 ZS_status_t is_zs_operation_allowed(void);
 
+ZS_status_t ZSWriteObjects(
+	struct ZS_thread_state  *zs_thread_state,
+	ZS_cguid_t          cguid,
+	char                **key,
+	uint32_t             keylen,
+	char                **data,
+	uint64_t             datalen,
+	uint32_t             count,
+	uint32_t             flags
+	);
 
 void zs_get_flash_map(struct ZS_thread_state *thd_state, ZS_cguid_t cguid,
                        char *buf, int *size);

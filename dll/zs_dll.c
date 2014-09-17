@@ -302,6 +302,12 @@ ZS_status_t (*ptr_ZSScavenger) (struct ZS_state *zs_state);
 ZS_status_t (*ptr_ZSScavengeContainer) (struct ZS_state *zs_state, ZS_cguid_t cguid);
 ZS_status_t (*ptr_ZSScavengeSnapshot) (struct ZS_state *zs_state, ZS_cguid_t cguid, uint64_t snap_seq);
 
+static ZS_status_t
+(*ptr_ZSGetLastError)(ZS_cguid_t cguid, void **pp_err_context, uint32_t *p_err_size);
+
+static ZS_status_t
+(*ptr_ZSRescueContainer)(struct ZS_thread_state *zs_state, ZS_cguid_t cguid, void **pp_err_context);
+
 static void 
 (*ptr_ZSTLMapDestroy)(struct ZSTLMap *pm);
 
@@ -436,7 +442,9 @@ static struct {
     { "_ZSGetContainerSnapshots",      &ptr_ZSGetContainerSnapshots     },
     { "_ZSScavenger",                  &ptr_ZSScavenger                 },
     { "_ZSScavengeContainer",          &ptr_ZSScavengeContainer         },
-    { "_ZSScavengeSnapshot",          &ptr_ZSScavengeSnapshot         },
+    { "_ZSScavengeSnapshot",           &ptr_ZSScavengeSnapshot           },
+    { "_ZSGetLastError",               &ptr_ZSGetLastError              },
+    { "_ZSRescueContainer",            &ptr_ZSRescueContainer           },
     { "ZSTLMapDestroy",               &ptr_ZSTLMapDestroy              },
     { "ZSTLMapClear",                 &ptr_ZSTLMapClear                },
     { "ZSTLMapCreate",                &ptr_ZSTLMapCreate               },
@@ -1644,4 +1652,22 @@ ZS_status_t ZSScavengeSnapshot(struct ZS_state *zs_state, ZS_cguid_t cguid, uint
                 undefined("ZSScavengeSnapshot");
         }
         return (*ptr_ZSScavengeSnapshot) (zs_state, cguid, snap_seq);
+}
+
+ZS_status_t ZSGetLastError(ZS_cguid_t cguid, void **pp_err_context, uint32_t *p_err_size)
+{
+	if (unlikely(!ptr_ZSGetLastError)) {
+		undefined("ZSGetLastError");
+	}
+
+	return (*ptr_ZSGetLastError) (cguid, pp_err_context, p_err_size);
+}
+
+ZS_status_t ZSRescueContainer(struct ZS_thread_state *zs_thread_state, ZS_cguid_t cguid, void *p_err_context)
+{
+	if (unlikely(!ptr_ZSRescueContainer)) {
+		undefined("ZSRescueContainer");
+	}
+
+	return (*ptr_ZSRescueContainer) (zs_thread_state, cguid, p_err_context);
 }

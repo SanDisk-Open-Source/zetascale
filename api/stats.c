@@ -69,7 +69,7 @@ typedef struct {
 static stats_dump_cfg_t dump_thd_cfg;
 
 
-#define MAX_CMD_TOKENS 8
+#define MAX_CMD_TOKENS    20
 #define STATS_BUFFER_SIZE 1024 
 
 #define LOG_ID PLAT_LOG_ID_INITIAL

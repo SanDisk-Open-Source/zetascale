@@ -97,16 +97,18 @@ typedef struct {
 	bool prior_version_tombstoned; // Used to maintain if leader is a tombstone
 } btree_range_cursor_t;
 
+#define btree_range_query_start(b, i, c, m) btree_raw_range_query_start(b->partitions[0], i, c, m)
+
 /* Start an index query.
  * 
  * Returns: ZS_SUCCESS if successful
  *          ZS_FAILURE if unsuccessful
  */
 btree_status_t
-btree_range_query_start(btree_t                 *btree,    //  Btree to query for
-                        btree_indexid_t         indexid,   //  handle for index to use (use PRIMARY_INDEX for primary)
-                        btree_range_cursor_t    **cursor,  //  returns opaque cursor for this query
-                        btree_range_meta_t      *meta);
+btree_raw_range_query_start(struct btree_raw       *btree,    //  Btree to query for
+                            btree_indexid_t         indexid,   //  handle for index to use (use PRIMARY_INDEX for primary)
+                            btree_range_cursor_t    **cursor,  //  returns opaque cursor for this query
+                            btree_range_meta_t      *meta);
 
 typedef struct btree_range_data {
 	int           status;           // status

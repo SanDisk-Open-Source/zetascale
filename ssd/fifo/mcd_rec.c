@@ -37,6 +37,7 @@
 #include "container_meta_blob.h"
 #include "protocol/action/recovery.h"
 #include "ssd/fifo/slab_gc.h"
+#include "flip/flip.h"
 
 
 /*
@@ -409,6 +410,7 @@ write_label( char * buf, int blks, uint64_t blk_offset )
                          "failed to write label, blks=%d, "
                          "blk_offset=%lu, ssd=%d, rc=%d",
                          blks, blk_offset, ssd, rc );
+            abort_on_io_error(rc);
             return rc;
         }
     }
@@ -441,6 +443,7 @@ write_superblock( char * buf, int blks, uint64_t blk_offset )
                          "failed to write superblock data, blks=%d, "
                          "blk_offset=%lu, ssd=%d, rc=%d",
                          blks, blk_offset, ssd, rc );
+            abort_on_io_error(rc);
             return rc;
         }
     }
@@ -820,6 +823,7 @@ validate_superblock_data( char * dest, int good_count, int good_copy[],
         }
     }
 
+    abort_on_io_error(rc);
     return rc;
 }
 
@@ -1115,6 +1119,7 @@ recovery_init( void )
                              "failed to read shard props, offset=%ld, "
                              "ssd=%lu, rc=%d",
                              blk_offset, ssd, rc );
+                abort_on_io_error(rc);
                 continue;
             }
 
@@ -1255,6 +1260,7 @@ recovery_init( void )
         if ( FLASH_EOK != rc ) {
             mcd_log_msg( 20458, PLAT_LOG_LEVEL_ERROR,
                          "failed to read shard desc, rc=%d", rc );
+            abort_on_io_error(rc);
             return rc;
         }
 
@@ -1334,59 +1340,62 @@ recovery_init( void )
         shard->data_blk_offset = metadata_segs * Mcd_osd_segment_blks;
 
         // install the segment mapping table
-		buf_offset = 0; len = 0;
-		offset = pshard->seg_list_offset;
-		plat_assert_always(offset < Mcd_osd_segment_blks);
-		seg = 0;
-		len = (pshard->map_blks > (Mcd_osd_segment_blks - offset)) ?
-				(Mcd_osd_segment_blks - offset) : pshard->map_blks;
+        buf_offset = 0; len = 0;
+        offset = pshard->seg_list_offset;
+        plat_assert_always(offset < Mcd_osd_segment_blks);
+        seg = 0;
+        len = (pshard->map_blks > (Mcd_osd_segment_blks - offset)) ?
+                  (Mcd_osd_segment_blks - offset) : pshard->map_blks;
 
-		// read class segment table for each class
-		rc = mcd_fth_aio_blk_read( context,
-				   mmsbuf,
-				   Mcd_osd_blk_size *
-				   (pshard->blk_offset + offset),
-				   len * Mcd_osd_blk_size);
-		if ( FLASH_EOK != rc ) {
-			mcd_log_msg( 160174, PLAT_LOG_LEVEL_ERROR,
-				 "failed to read seg list, shardID=%lu, blk_offset=%lu, "
-				 "blks=%lu, rc=%d", shard->id, (shard->mos_segments[seg] + offset),
-				 len, rc );
+        // read class segment table for each class
+        rc = mcd_fth_aio_blk_read( context,
+                                   mmsbuf,
+                                   Mcd_osd_blk_size *
+                                   (pshard->blk_offset + offset),
+                                   len * Mcd_osd_blk_size);
+        if ( FLASH_EOK != rc ) {
+            mcd_log_msg( 160174, PLAT_LOG_LEVEL_ERROR,
+                            "failed to read seg list, shardID=%lu, blk_offset=%lu, "
+                            "blks=%lu, rc=%d", shard->id, (shard->mos_segments[seg] + offset),
+                            len, rc );
+            abort_on_io_error(rc);
             plat_free( pshard );
             plat_free( shard );
-			plat_free(mmsdata_buf);
-			return rc;
-		}
+            plat_free(mmsdata_buf);
+            return rc;
+        }
 
         seg_count = 0;
         for ( i = 0;
               i < pshard->map_blks && seg_count < actual_segs;
               i++, buf_offset++) {
-			if (buf_offset == len) {
-				memset(mmsbuf, 0, len * Mcd_osd_blk_size);
-				len = ((pshard->map_blks - i) > Mcd_osd_segment_blks) ?
-						Mcd_osd_segment_blks :
-						(pshard->map_blks - i);
-				seg++;
-				offset = 0; buf_offset = 0;
-				plat_assert_always(shard->mos_segments[seg]);
-				// read class segment table for each class
-				rc = mcd_fth_aio_blk_read( context,
-							mmsbuf,
-							Mcd_osd_blk_size *
-							(shard->mos_segments[seg] + offset),
-							len * Mcd_osd_blk_size);
-				if ( FLASH_EOK != rc ) {
-					mcd_log_msg( 160174, PLAT_LOG_LEVEL_ERROR,
-						 "failed to read seg list, shardID=%lu, blk_offset=%lu, "
-						 "blks=%lu, rc=%d", shard->id, (shard->mos_segments[seg] + offset),
-						 len, rc );
-					plat_free( pshard );
-					plat_free( shard );
-					plat_free(mmsdata_buf);
-					return rc;
-				}
-			}
+            if (buf_offset == len) {
+                memset(mmsbuf, 0, len * Mcd_osd_blk_size);
+                len = ((pshard->map_blks - i) > Mcd_osd_segment_blks) ?
+                                        Mcd_osd_segment_blks :
+                                        (pshard->map_blks - i);
+                seg++;
+                offset = 0; buf_offset = 0;
+                plat_assert_always(shard->mos_segments[seg]);
+
+                // read class segment table for each class
+                rc = mcd_fth_aio_blk_read( context,
+                                            mmsbuf,
+                                            Mcd_osd_blk_size *
+                                            (shard->mos_segments[seg] + offset),
+                                            len * Mcd_osd_blk_size);
+                if ( FLASH_EOK != rc ) {
+                    mcd_log_msg( 160174, PLAT_LOG_LEVEL_ERROR,
+                            "failed to read seg list, shardID=%lu, blk_offset=%lu, "
+                            "blks=%lu, rc=%d", shard->id, (shard->mos_segments[seg] + offset),
+                            len, rc );
+                    abort_on_io_error(rc);
+                    plat_free( pshard );
+                    plat_free( shard );
+                    plat_free(mmsdata_buf);
+                    return rc;
+                }
+         }
 
 			seg_list = (mcd_rec_list_block_t *)
 						(mmsbuf + buf_offset * Mcd_osd_blk_size);
@@ -2023,6 +2032,8 @@ end:
 	if (pclass_data_buf) {
 		plat_free(pclass_data_buf);
 	}
+
+	abort_on_io_error(rc);
 	return rc;
 
 }
@@ -2367,6 +2378,7 @@ fbio_flush(flog_bio_t *fbio)
         mcd_log_msg(70104, PLAT_LOG_LEVEL_ERROR,
                     "Flush log sync: write failed: blk=%ld err=%d",
                     fbio->blkno, s);
+        abort_on_io_error(s);
         return 0;
     }
 
@@ -2393,6 +2405,7 @@ fbio_write(flog_bio_t *fbio, flog_rec_t *frec)
             mcd_log_msg(70105, PLAT_LOG_LEVEL_ERROR,
                         "Flush log sync: read failed: blk=%ld err=%d",
                         frec->shard_blk, s);
+            abort_on_io_error(s);
             return 0;
         }
         fbio->lsn   = 0;
@@ -2783,6 +2796,7 @@ shard_recover( mcd_osd_shard_t * shard )
                          shard->id, class_offset, (1 + pshard->map_blks), rc );
 			plat_free(data_buf);
 			shard->ps_alloc -= buf_size + Mcd_osd_blk_size;
+            abort_on_io_error(rc);
             return rc;
         }
 
@@ -2848,6 +2862,7 @@ shard_recover( mcd_osd_shard_t * shard )
                          shard->id, class_offset, (1 + pshard->map_blks), rc );
 			plat_free(data_buf);
 			shard->ps_alloc -= buf_size + Mcd_osd_blk_size;
+            abort_on_io_error(rc);
             return rc;
         }
 
@@ -2874,6 +2889,7 @@ shard_recover( mcd_osd_shard_t * shard )
 					 shard->id, class_offset, (1 + pshard->map_blks), rc );
 					plat_free(data_buf);
 					shard->ps_alloc -= buf_size + Mcd_osd_blk_size;
+                                        abort_on_io_error(rc);
 					return rc;
 				}
 			}
@@ -2973,10 +2989,11 @@ shard_recover( mcd_osd_shard_t * shard )
                      "failed to read ckpt, shardID=%lu, blk_offset=%lu, rc=%d",
                      shard->id, pshard->blk_offset + pshard->rec_md_blks - 1, 
                      rc );
-		if (data_buf) {
-			plat_free(data_buf);
-			shard->ps_alloc -= buf_size + Mcd_osd_blk_size;
-		}
+        abort_on_io_error(rc);
+        if (data_buf) {
+            plat_free(data_buf);
+            shard->ps_alloc -= buf_size + Mcd_osd_blk_size;
+        }
         return rc;
     }
 
@@ -4979,6 +4996,7 @@ table_chunk_op( void * context, mcd_osd_shard_t * shard, int op,
                          "offset=%lu, count=%lu, rc=%d",
                          (op == TABLE_READ ? "read" : "write"),
                          start_blk, blk_count, offset, io_blks, rc );
+            abort_on_io_error(rc);
             return rc;
         }
     }
@@ -7629,6 +7647,7 @@ shard_format( uint64_t shard_id, int flags, uint64_t quota, uint64_t max_objs,
 				unless (rc == FLASH_EOK) {
 					mcd_log_msg( 20563, PLAT_LOG_LEVEL_ERROR, "failed to format shard, shardID=%lu, blk_offset=%lu, b=%d, count=%d, rc=%d", shard_id, blk_offset, 0, 0, rc);
 					plat_free( data_buf);
+					abort_on_io_error(rc);
 					return (rc);
 				}
 			}
@@ -7709,6 +7728,7 @@ shard_format( uint64_t shard_id, int flags, uint64_t quota, uint64_t max_objs,
 				"blk_offset=%lu, count=%lu, rc=%d",
 				shard_id, pshard->blk_offset, max_md_blks, rc );
 		plat_free( data_buf );
+		abort_on_io_error(rc);
 		return rc;
 	}
 
@@ -7736,6 +7756,7 @@ shard_format( uint64_t shard_id, int flags, uint64_t quota, uint64_t max_objs,
 						"blk_offset=%lu, count=%lu, rc=%d",
 						shard_id, pshard->blk_offset, max_md_blks, rc );
 				plat_free( data_buf );
+				abort_on_io_error(rc);
 				return rc;
 			}
 			// clear the buffer
@@ -7778,6 +7799,7 @@ shard_format( uint64_t shard_id, int flags, uint64_t quota, uint64_t max_objs,
 				"blk_offset=%lu, count=%lu, rc=%d",
 				shard_id, pshard->blk_offset, max_md_blks, rc );
 		plat_free( data_buf );
+		abort_on_io_error(rc);
 		return rc;
 	}
 	// clear the buffer
@@ -7813,6 +7835,7 @@ shard_format( uint64_t shard_id, int flags, uint64_t quota, uint64_t max_objs,
 					"blk_offset=%lu, count=%lu, rc=%d",
 					shard_id, pshard->blk_offset, max_md_blks, rc );
 			plat_free( data_buf );
+                        abort_on_io_error(rc);
 			return rc;
 		}
 
@@ -7838,6 +7861,7 @@ shard_format( uint64_t shard_id, int flags, uint64_t quota, uint64_t max_objs,
 							"blk_offset=%lu, count=%lu, rc=%d",
 							shard_id, pshard->blk_offset, max_md_blks, rc );
 					plat_free( data_buf );
+					abort_on_io_error(rc);
 					return rc;
 				}
 				// clear the buffer
@@ -7869,6 +7893,7 @@ shard_format( uint64_t shard_id, int flags, uint64_t quota, uint64_t max_objs,
 					"blk_offset=%lu, count=%lu, rc=%d",
 					shard_id, pshard->blk_offset, max_md_blks, rc );
 			plat_free( data_buf );
+			abort_on_io_error(rc);
 			return rc;
 		}
 		// clear the buffer
@@ -7900,6 +7925,7 @@ shard_format( uint64_t shard_id, int flags, uint64_t quota, uint64_t max_objs,
 				"blk_offset=%lu, count=%lu, rc=%d",
 				shard_id, pshard->blk_offset, max_md_blks, rc );
 		plat_free( data_buf );
+                abort_on_io_error(rc);
 		return rc;
 	}
 	plat_free( data_buf );

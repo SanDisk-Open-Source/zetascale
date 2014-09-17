@@ -65,6 +65,9 @@
 #include "api/sdf_internal.h"
 #include "api/fdf_internal.h"
 #include "shared/name_service.h"
+#ifdef FLIP_ENABLED
+#include "flip/flip.h"
+#endif
 
 extern uint32_t
 init_get_my_node_id();
@@ -361,6 +364,10 @@ flash_to_sdf_status(int code) {
     case FLASH_EOK:
 	status = SDF_SUCCESS;
 	break;
+
+    case FLASH_EIO:
+        status = SDF_FLASH_EIO;
+        break;
 
     case FLASH_ENOENT:
 	status = SDF_OBJECT_UNKNOWN;
@@ -2327,6 +2334,8 @@ mcd_fth_osd_fifo_get( void * context, mcd_osd_shard_t * shard, char * key,
         if ( FLASH_EOK != rc ) {
             mcd_log_msg( 20003, PLAT_LOG_LEVEL_ERROR,
                          "failed to read blocks, rc=%d", rc );
+            abort_on_io_error(rc);
+
             mcd_fth_osd_slab_free( data_buf );
             return rc;
         }
@@ -2765,6 +2774,7 @@ mcd_fth_osd_fifo_set( void * context, mcd_osd_shard_t * shard, char * key,
         if ( FLASH_EOK != rc ) {
             mcd_log_msg( 20003, PLAT_LOG_LEVEL_ERROR,
                          "failed to read blocks, rc=%d", rc );
+            abort_on_io_error(rc);
             goto out;
         }
 
@@ -4818,10 +4828,10 @@ mcd_fth_osd_slab_set( void * context, mcd_osd_shard_t * shard,
 					(1 << shard->class_table[blocks]) * Mcd_osd_blk_size,
 					shard->durability_level > SDF_RELAXED_DURABILITY);
 		} else {
-        rc = mcd_fth_aio_blk_write_low(
-                context, buf, offset,
-                blocks * Mcd_osd_blk_size,
-                shard->durability_level > SDF_RELAXED_DURABILITY);
+			rc = mcd_fth_aio_blk_write_low(
+			                context, buf, offset,
+			                blocks * Mcd_osd_blk_size,
+			                shard->durability_level > SDF_RELAXED_DURABILITY);
 		}
 		if ( FLASH_EOK != rc ) {
 			/*
@@ -5342,10 +5352,10 @@ mcd_fth_osd_slab_write_raw( void * context, mcd_osd_shard_t * shard,
 						(1 << shard->class_table[blocks]) * Mcd_osd_blk_size,
 						shard->durability_level > SDF_RELAXED_DURABILITY);
 		} else {
-        rc = mcd_fth_aio_blk_write_low(
-                context, buf, offset,
-                blocks * Mcd_osd_blk_size,
-                shard->durability_level > SDF_RELAXED_DURABILITY);
+			rc = mcd_fth_aio_blk_write_low(
+			                context, buf, offset,
+			                blocks * Mcd_osd_blk_size,
+			                shard->durability_level > SDF_RELAXED_DURABILITY);
 		}
 		if ( FLASH_EOK != rc ) {
 			/*
@@ -6835,6 +6845,25 @@ mcd_osd_flash_get( struct ssdaio_ctxt * pctxt, struct shard * shard,
                                     syndrome );
     }
 
+#ifdef FLIP_ENABLED
+    uint32_t node_type;
+    bool is_root;
+    uint64_t logical_id;
+
+    if (ret == FLASH_EOK) {
+        (void)ext_cbs->zs_node_cb(metaData->cguid, *dataPtr, actual_size,
+                                  &node_type, &is_root, &logical_id);
+        if (flip_get("set_zs_read_node_error", node_type, is_root, logical_id, (uint32_t *)&ret)) {
+            char flip_cmd[1024];
+            /* For storage errors, set the failed logical id to return same error consistently */
+            if ((ret == FLASH_EIO) || (ret == FLASH_EINCONS)) {
+                sprintf(flip_cmd, "flip set set_zs_read_node_error node_type=* is_root=* "
+                                  "logical_id=%lu return=%u --count=1", logical_id, ret);
+		process_flip_cmd_str(stderr, flip_cmd);
+            }
+        }
+    }
+#endif
 	if (!(flags & FLASH_GET_RAW_OBJECT)) {
 		fthUnlock( osd_state->osd_wait );
 	}
@@ -6958,7 +6987,44 @@ mcd_osd_flash_put_v( struct ssdaio_ctxt * pctxt, struct shard * shard,
 
 			//            mcd_osd_meta_t* m = (mcd_osd_meta_t *)(data_buf + i * slab_blksize * Mcd_osd_blk_size);
 			//            plat_assert(MCD_OSD_MAGIC_NUMBER == m->magic);
+#ifdef FLIP_ENABLED
+			uint32_t node_type;
+			bool is_root;
+			uint64_t logical_id;
+			uint32_t multi_write_type;
 
+			if (count == 1) {
+				multi_write_type = 0; /* Just one write */
+			} else if (i == 0) {
+				multi_write_type = 1; /* Start write */
+			} else if (i == (count-1)) {
+				multi_write_type = 3; /* Last write */
+			} else {
+				multi_write_type = 2; /* Middle write */
+			}
+
+			(void)ext_cbs->zs_node_cb(metaData->cguid, data[i], metaData->dataLen,
+			                          &node_type, &is_root, &logical_id);
+			if (flip_get("set_zs_write_node_error", multi_write_type, node_type, is_root,
+			               logical_id, (uint32_t *)&ret)) {
+				fprintf(stderr, "set_zs_write_node_error hit for data[%d] = %p "
+				                "node_type = %d logical_id = %lu is_root = %d\n",
+			                i, data[i], node_type, logical_id, is_root);
+
+				/* For media errors, set the failed logical id to return 
+				 * read media error consistently */
+				char flip_cmd[1024];
+				if (ret == FLASH_EIO) {
+					sprintf(flip_cmd, "flip set set_zs_read_node_error "
+					                  "node_type=* is_root=* "
+					                  "logical_id=%lu return=%u --count=1",
+					                  logical_id, ret);
+					process_flip_cmd_str(stderr, flip_cmd);
+				}
+
+				goto write_done;
+			}
+#endif
 			ret = mcd_fth_osd_slab_set( (void *)pctxt,
 					mcd_shard,
 					key[i], metaData->keyLen,
@@ -6969,6 +7035,9 @@ mcd_osd_flash_put_v( struct ssdaio_ctxt * pctxt, struct shard * shard,
 					blk_offset + i * slab_blksize,
 					slab_blksize);
 
+#ifdef FLIP_ENABLED
+write_done:
+#endif
 			if (osd_state->osd_wait)
 				fthUnlock(osd_state->osd_wait);
 		}
@@ -7019,6 +7088,32 @@ mcd_osd_flash_put( struct ssdaio_ctxt * pctxt, struct shard * shard,
 		plat_assert(osd_state->osd_lock == osd_state->osd_wait);
 	}
 
+#ifdef FLIP_ENABLED
+	uint32_t node_type;
+	bool is_root;
+	uint64_t logical_id;
+
+	(void)ext_cbs->zs_node_cb(metaData->cguid, data, metaData->dataLen,
+	                          &node_type, &is_root, &logical_id);
+	if (flip_get("set_zs_write_node_error", 0, node_type, is_root,
+			               logical_id, (uint32_t *)&ret)) {
+		fprintf(stderr, "set_zs_write_node_error hit for data = %p node_type = %d logical_id = %lu is_root = %d\n",
+	                data, node_type, logical_id, is_root);
+
+                /* For media errors, set the failed logical id to return 
+                 * read media error consistently */
+                char flip_cmd[1024];
+                if (ret == FLASH_EIO) {
+                    sprintf(flip_cmd, "flip set set_zs_read_node_error "
+                                       "node_type=* is_root=* "
+                                       "logical_id=%lu return=%u --count=1",
+                                       logical_id, ret);
+                    process_flip_cmd_str(stderr, flip_cmd);
+                }
+		goto write_done;
+	}
+#endif
+
     if ( mcd_shard->use_fifo ) {
         ret = mcd_fth_osd_fifo_set( (void *)pctxt,
                                     mcd_shard,
@@ -7062,6 +7157,10 @@ mcd_osd_flash_put( struct ssdaio_ctxt * pctxt, struct shard * shard,
         }
     }
 
+
+#ifdef FLIP_ENABLED
+write_done:
+#endif
 
 	if (!(flags & FLASH_CREATE_RAW_OBJECT)) {
 		if (osd_state->osd_wait)

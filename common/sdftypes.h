@@ -303,6 +303,7 @@ typedef struct {
     item(SDF_FLASH_DELETE_FAILED, /* default */) \
     item(SDF_FLASH_EPERM, /* default */) \
     item(SDF_FLASH_ENOENT, /* default */) \
+    item(SDF_FLASH_EIO, /* default */) \
     item(SDF_FLASH_EAGAIN, /* default */) \
     item(SDF_FLASH_ENOMEM, /* default */) \
     item(SDF_FLASH_EDATASIZE, /* default */) \
@@ -381,6 +382,9 @@ typedef struct {
     item(SDF_SNAPSHOT_NOT_FOUND, /* Snapshot not found */) \
     item(SDF_TOO_MANY_SNAPSHOTS, /* No room for additional snapshots */) \
     item(SDF_SCAN_DONE, /*Scavenger scan done flag */) \
+    item(SDF_RESCUE_INVALID_REQUEST, /* Invalid context to rescue */) \
+    item(SDF_RESCUE_NOT_NEEDED, /* This error is already rescued */) \
+    item(SDF_RESCUE_IO_ERROR, /* Rescue hit IO error */) \
 
 typedef enum {
 #define item(caps, value) \

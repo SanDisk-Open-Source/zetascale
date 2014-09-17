@@ -140,6 +140,7 @@ const enum {
     FLASH_EOK = 0,                  // Call succeeded
     FLASH_EPERM = 1,                // Operation not permitted
     FLASH_ENOENT = 2,               // No entry
+    FLASH_EIO    = 5,               // Flash I/O error
     FLASH_EDATASIZE = 7,            // User-supplied data buffer too small
     FLASH_ESTOPPED = 8,             // Container is stopped
     FLASH_EBADCTNR = 9,             // Container does not exist

@@ -513,12 +513,7 @@ typedef int (* ZS_range_cmp_cb_t)(void     *data, 	//  opaque user data
 /*
  * Get a ZS property.
  */
-#ifdef BTREE_MODE
-const char *_ZSGetProperty(const char *key, const char *def);
-#define ZSGetProperty           _ZSGetProperty
-#else
 const char *ZSGetProperty(const char *key, const char *def);
-#endif
 
 
 /**
@@ -529,18 +524,10 @@ const char *ZSGetProperty(const char *key, const char *def);
  * @return ZS_SUCCESS on success
  * 
  */
-#ifdef BTREE_MODE
-ZS_status_t _ZSSetProperty(
-	const char* property,
-	const char* value
-	);
-#define ZSSetProperty           _ZSSetProperty
-#else
 ZS_status_t ZSSetProperty(
 	const char* property,
 	const char* value
 	);
-#endif
 
 /**
  * @brief Load properties from specified file
@@ -549,16 +536,9 @@ ZS_status_t ZSSetProperty(
  * @return ZS_SUCCESS on success
  * 
  */
-#ifdef BTREE_MODE
-ZS_status_t _ZSLoadProperties(
-	const char *prop_file
-	);
-#define ZSLoadProperties        _ZSLoadProperties
-#else
 ZS_status_t ZSLoadProperties(
 	const char *prop_file
 	);
-#endif
 
 /**
  * @brief ZS initialization
@@ -567,20 +547,11 @@ ZS_status_t ZSLoadProperties(
  * @param api_version <IN> ZS API version
  * @return ZS_SUCCESS on success
  */
-#ifdef BTREE_MODE
-ZS_status_t _ZSInitVersioned(
-	struct ZS_state	**zs_state,
-	uint32_t                api_version
-	);
-#define ZSInitVersioned         _ZSInitVersioned
-#define ZSInit(state)           _ZSInitVersioned(state, ZS_API_VERSION)
-#else
 ZS_status_t ZSInitVersioned(
 	struct ZS_state	**zs_state,
 	uint32_t                api_version
 	);
 #define ZSInit(state)           ZSInitVersioned(state, ZS_API_VERSION)
-#endif
 
 /**
  * @brief ZS per thread state initialization
@@ -589,18 +560,10 @@ ZS_status_t ZSInitVersioned(
  * @param thd_state <OUT> ZS per thread state variable
  * @return ZS_SUCCESS on success
  */
-#ifdef BTREE_MODE
-ZS_status_t _ZSInitPerThreadState(
-	struct ZS_state		 *zs_state,
-	struct ZS_thread_state	**thd_state
-	);
-#define ZSInitPerThreadState   _ZSInitPerThreadState
-#else
 ZS_status_t ZSInitPerThreadState(
 	struct ZS_state		 *zs_state,
 	struct ZS_thread_state	**thd_state
 	);
-#endif
 
 /**
  * @brief ZS release per thread state initialization
@@ -608,16 +571,9 @@ ZS_status_t ZSInitPerThreadState(
  * @param zs_thread_state <IN> The ZS context for which this operation applies
  * @return ZS_SUCCESS on success
  */
-#ifdef BTREE_MODE
-ZS_status_t _ZSReleasePerThreadState(
-	struct ZS_thread_state	**thd_state
-	);
-#define ZSReleasePerThreadState  _ZSReleasePerThreadState
-#else
 ZS_status_t ZSReleasePerThreadState(
 	struct ZS_thread_state	**thd_state
 	);
-#endif
 
 /**
  * @brief ZS shutdown
@@ -625,16 +581,9 @@ ZS_status_t ZSReleasePerThreadState(
  * @param zs_state <IN> ZS state variable
  * @return ZS_SUCCESS on success
  */
-#ifdef BTREE_MODE
-ZS_status_t _ZSShutdown(
-	struct ZS_state	*zs_state
-	);
-#define ZSShutdown              _ZSShutdown
-#else
 ZS_status_t ZSShutdown(
 	struct ZS_state	*zs_state
 	);
-#endif
 
 /**
  * @brief ZS load default container properties
@@ -642,16 +591,9 @@ ZS_status_t ZSShutdown(
  * @param props <IN> ZS container properties pointer
  * @return ZS_SUCCESS on success
  */
-#ifdef BTREE_MODE
-ZS_status_t _ZSLoadCntrPropDefaults(
-	ZS_container_props_t *props
-	);
-#define ZSLoadCntrPropDefaults _ZSLoadCntrPropDefaults
-#else
 ZS_status_t ZSLoadCntrPropDefaults(
 	ZS_container_props_t *props
 	);
-#endif
 
  /**
  * @brief Create and open a virtual container.
@@ -663,16 +605,6 @@ ZS_status_t ZSLoadCntrPropDefaults(
  * @param cguid <OUT> container GUID
  * @return ZS_SUCCESS on success
  */
-#ifdef BTREE_MODE
-ZS_status_t _ZSOpenContainer(
-	struct ZS_thread_state	*zs_thread_state, 
-	char					*cname, 
-	ZS_container_props_t 	*properties, 
-	uint32_t			 	 flags,
-	ZS_cguid_t				*cguid
-	);
-#define ZSOpenContainer    _ZSOpenContainer
-#else
 ZS_status_t ZSOpenContainer(
 	struct ZS_thread_state	*zs_thread_state, 
 	char					*cname, 
@@ -680,7 +612,6 @@ ZS_status_t ZSOpenContainer(
 	uint32_t			 	 flags,
 	ZS_cguid_t				*cguid
 	);
-#endif
 
  /**
  * @brief Create and open a virtual container.
@@ -692,17 +623,6 @@ ZS_status_t ZSOpenContainer(
  * @param cguid <OUT> container GUID
  * @return ZS_SUCCESS on success
  */
-#ifdef BTREE_MODE
-ZS_status_t _ZSOpenContainerSpecial(
-	struct ZS_thread_state	  *zs_thread_state, 
-	char                      *cname, 
-	ZS_container_props_t     *properties, 
-	uint32_t                  flags,
-	ZS_container_meta_t      *cmeta,
-	ZS_cguid_t               *cguid
-	);
-#define ZSOpenContainerSpecial    _ZSOpenContainerSpecial
-#else
 ZS_status_t ZSOpenContainerSpecial(
 	struct ZS_thread_state	  *zs_thread_state, 
 	char                      *cname, 
@@ -711,7 +631,6 @@ ZS_status_t ZSOpenContainerSpecial(
 	ZS_container_meta_t      *cmeta,
 	ZS_cguid_t               *cguid
 	);
-#endif
 
 /**
  * @brief Close a virtual container.
@@ -720,18 +639,10 @@ ZS_status_t ZSOpenContainerSpecial(
  * @param cguid <IN> container CGUID
  * @return ZS_SUCCESS on success
  */
-#ifdef BTREE_MODE
-ZS_status_t _ZSCloseContainer(
-	struct ZS_thread_state *zs_thread_state,
-	ZS_cguid_t				 cguid
-	);
-#define ZSCloseContainer   _ZSCloseContainer
-#else
 ZS_status_t ZSCloseContainer(
 	struct ZS_thread_state *zs_thread_state,
 	ZS_cguid_t				 cguid
 	);
-#endif
 
 /**
  * @brief Delete a virtual container
@@ -740,18 +651,10 @@ ZS_status_t ZSCloseContainer(
  * @param cguid <IN> container CGUID
  * @return ZS_SUCCESS on success
  */
-#ifdef BTREE_MODE
-ZS_status_t _ZSDeleteContainer(
-	struct ZS_thread_state *zs_thread_state,
-	ZS_cguid_t				 cguid
-	);
-#define ZSDeleteContainer   _ZSDeleteContainer
-#else
 ZS_status_t ZSDeleteContainer(
 	struct ZS_thread_state *zs_thread_state,
 	ZS_cguid_t				 cguid
 	);
-#endif
 
 /**
  * @brief Get container list
@@ -761,20 +664,11 @@ ZS_status_t ZSDeleteContainer(
  * @param n_cguids <OUT> pointer to container GUID count
  * @return ZS_SUCCESS on success
  */
-#ifdef BTREE_MODE
-ZS_status_t _ZSGetContainers(
-	struct ZS_thread_state	*zs_thread_state,
-	ZS_cguid_t             *cguids,
-	uint32_t                *n_cguids
-	);
-#define ZSGetContainers   _ZSGetContainers
-#else
 ZS_status_t ZSGetContainers(
 	struct ZS_thread_state	*zs_thread_state,
 	ZS_cguid_t             *cguids,
 	uint32_t                *n_cguids
 	);
-#endif
 
 /**
  * @brief Get container properties
@@ -784,20 +678,11 @@ ZS_status_t ZSGetContainers(
  * @param pprops <IN> pointer to structure into which to copy properties
  * @return ZS_SUCCESS on success
  */
-#ifdef BTREE_MODE
-ZS_status_t _ZSGetContainerProps(
-	struct ZS_thread_state	*zs_thread_state,
-	ZS_cguid_t            	 cguid,
-	ZS_container_props_t	*pprops
-	);
-#define ZSGetContainerProps  _ZSGetContainerProps
-#else
 ZS_status_t ZSGetContainerProps(
 	struct ZS_thread_state	*zs_thread_state,
 	ZS_cguid_t            	 cguid,
 	ZS_container_props_t	*pprops
 	);
-#endif
 
 /**
  * @brief Set container properties
@@ -807,20 +692,11 @@ ZS_status_t ZSGetContainerProps(
  * @param pprops <IN> pointer to structure into which to copy properties
  * @return ZS_SUCCESS on success
  */
-#ifdef BTREE_MODE
-ZS_status_t _ZSSetContainerProps(
-	struct ZS_thread_state 	*zs_thread_state,
-	ZS_cguid_t              	 cguid,
-	ZS_container_props_t   	*pprops
-	);
-#define ZSSetContainerProps   _ZSSetContainerProps
-#else
 ZS_status_t ZSSetContainerProps(
 	struct ZS_thread_state 	*zs_thread_state,
 	ZS_cguid_t              	 cguid,
 	ZS_container_props_t   	*pprops
 	);
-#endif
 
 /**
  *  @brief Get a copy of an object for read-only  access. Return its current expiry time.
@@ -845,17 +721,6 @@ ZS_status_t ZSSetContainerProps(
  *          ZS_IN_TRANS: this operation cannot be done inside a transaction.
  *          ZS_FAILURE: operation failed.
  */
-#ifdef BTREE_MODE
-ZS_status_t _ZSReadObject(
-	struct ZS_thread_state  *zs_thread_state,
-	ZS_cguid_t               cguid,
-	char                     *key,
-	uint32_t                  keylen,
-	char                     **data,
-	uint64_t                 *datalen
-	);
-#define ZSReadObject   _ZSReadObject
-#else
 ZS_status_t ZSReadObject(
 	struct ZS_thread_state  *zs_thread_state,
 	ZS_cguid_t               cguid,
@@ -864,19 +729,7 @@ ZS_status_t ZSReadObject(
 	char                     **data,
 	uint64_t                 *datalen
 	);
-#endif
 
-#ifdef BTREE_MODE
-ZS_status_t _ZSReadObject2(
-	struct ZS_thread_state  *zs_thread_state,
-	ZS_cguid_t               cguid,
-	char                     *key,
-	uint32_t                  keylen,
-	char                     **data,
-	uint64_t                 *datalen
-	);
-#define ZSReadObject2   _ZSReadObject2
-#else
 ZS_status_t ZSReadObject2(
 	struct ZS_thread_state  *zs_thread_state,
 	ZS_cguid_t               cguid,
@@ -885,7 +738,6 @@ ZS_status_t ZSReadObject2(
 	char                     **data,
 	uint64_t                 *datalen
 	);
-#endif
 
 /**
  *  @brief Get a copy of an object for read-only  access. Return its current expiry time.
@@ -904,20 +756,11 @@ ZS_status_t ZSReadObject2(
  *          ZS_IN_TRANS: this operation cannot be done inside a transaction.
  *          ZS_FAILURE: operation failed.
  */
-#ifdef BTREE_MODE
-ZS_status_t _ZSReadObjectExpiry(
-    struct ZS_thread_state  *zs_thread_state,
-    ZS_cguid_t               cguid,
-    ZS_readobject_t         *robj
-    );
-#define ZSReadObjectExpiry   _ZSReadObjectExpiry
-#else
 ZS_status_t ZSReadObjectExpiry(
     struct ZS_thread_state  *zs_thread_state,
     ZS_cguid_t               cguid,
     ZS_readobject_t         *robj
     );
-#endif
 
 /**
  * @brief Free an object buffer
@@ -925,16 +768,9 @@ ZS_status_t ZSReadObjectExpiry(
  * @param buf <IN> object buffer
  * @return ZS_SUCCESS on success
  */
-#ifdef BTREE_MODE
-ZS_status_t _ZSFreeBuffer(
-	char *buf
-	);
-#define ZSFreeBuffer   _ZSFreeBuffer
-#else
 ZS_status_t ZSFreeBuffer(
 	char *buf
 	);
-#endif
 
 /**
  *  @brief Write entire object, creating it if necessary.  
@@ -959,18 +795,6 @@ ZS_status_t ZSFreeBuffer(
  *          ZS_IN_TRANS: this operation cannot be done inside a transaction.
  *          ZS_FAILURE: operation failed.
  */
-#ifdef BTREE_MODE
-ZS_status_t _ZSWriteObject(
-	struct ZS_thread_state  *sdf_thread_state,
-	ZS_cguid_t          cguid,
-	char                *key,
-	uint32_t             keylen,
-	char                *data,
-	uint64_t             datalen,
-	uint32_t			 flags
-	);
-#define ZSWriteObject     _ZSWriteObject
-#else
 ZS_status_t ZSWriteObject(
 	struct ZS_thread_state  *sdf_thread_state,
 	ZS_cguid_t          cguid,
@@ -980,7 +804,6 @@ ZS_status_t ZSWriteObject(
 	uint64_t             datalen,
 	uint32_t			 flags
 	);
-#endif
 
 /**
  *  @brief Write entire object, creating it if necessary.  
@@ -1002,22 +825,12 @@ ZS_status_t ZSWriteObject(
  *          ZS_IN_TRANS: this operation cannot be done inside a transaction.
  *          ZS_FAILURE: operation failed.
  */
-#ifdef BTREE_MODE
-ZS_status_t _ZSWriteObjectExpiry(
-    struct ZS_thread_state  *zs_thread_state,
-    ZS_cguid_t               cguid,
-    ZS_writeobject_t        *wobj,
-    uint32_t                  flags
-    );
-#define ZSWriteObjectExpiry   _ZSWriteObjectExpiry
-#else
 ZS_status_t ZSWriteObjectExpiry(
     struct ZS_thread_state  *zs_thread_state,
     ZS_cguid_t               cguid,
     ZS_writeobject_t        *wobj,
     uint32_t                  flags
     );
-#endif
 
 /**
  *  @brief Delete an object, but check for expiry first.
@@ -1035,22 +848,12 @@ ZS_status_t ZSWriteObjectExpiry(
  *          ZS_OBJECT_UNKNOWN: the object does not exist.
  *          ZS_FAILURE: operation failed.
  */
-#ifdef BTREE_MODE
-ZS_status_t _ZSDeleteObject(
-	struct ZS_thread_state  *zs_thread_state,
-	ZS_cguid_t               cguid,
-	char                     *key,
-	uint32_t                  keylen
-	);
-#define ZSDeleteObject    _ZSDeleteObject
-#else
 ZS_status_t ZSDeleteObject(
 	struct ZS_thread_state  *zs_thread_state,
 	ZS_cguid_t               cguid,
 	char                     *key,
 	uint32_t                  keylen
 	);
-#endif
 
 /**
  * @brief Enumerate container objects
@@ -1060,20 +863,11 @@ ZS_status_t ZSDeleteObject(
  * @param iterator <IN> enumeration iterator
  * @return ZS_SUCCESS on success
  */
-#ifdef BTREE_MODE
-ZS_status_t _ZSEnumerateContainerObjects(
-	struct ZS_thread_state *zs_thread_state,
-	ZS_cguid_t              cguid,
-	struct ZS_iterator    **iterator
-	);
-#define ZSEnumerateContainerObjects   _ZSEnumerateContainerObjects
-#else
 ZS_status_t ZSEnumerateContainerObjects(
 	struct ZS_thread_state *zs_thread_state,
 	ZS_cguid_t              cguid,
 	struct ZS_iterator    **iterator
 	);
-#endif
 
 /**
  * @brief Container object enumration iterator
@@ -1087,17 +881,6 @@ ZS_status_t ZSEnumerateContainerObjects(
  * @param datalen <OUT> pointer to data length variable
  * @return ZS_SUCCESS on success
  */
-#ifdef BTREE_MODE
-ZS_status_t _ZSNextEnumeratedObject(
-	struct ZS_thread_state *zs_thread_state,
-	struct ZS_iterator     *iterator,
-	char                    **key,
-	uint32_t                *keylen,
-	char                    **data,
-	uint64_t                *datalen
-	);
-#define ZSNextEnumeratedObject     _ZSNextEnumeratedObject
-#else
 ZS_status_t ZSNextEnumeratedObject(
 	struct ZS_thread_state *zs_thread_state,
 	struct ZS_iterator     *iterator,
@@ -1106,7 +889,6 @@ ZS_status_t ZSNextEnumeratedObject(
 	char                    **data,
 	uint64_t                *datalen
 	);
-#endif
 
 /**
  * @brief Terminate enumeration
@@ -1115,18 +897,10 @@ ZS_status_t ZSNextEnumeratedObject(
  * @param iterator <IN> enumeration iterator
  * @return ZS_SUCCESS on success
  */
-#ifdef BTREE_MODE
-ZS_status_t _ZSFinishEnumeration(
-	struct ZS_thread_state *zs_thread_state,
-	struct ZS_iterator     *iterator
-	);
-#define ZSFinishEnumeration    _ZSFinishEnumeration
-#else
 ZS_status_t ZSFinishEnumeration(
 	struct ZS_thread_state *zs_thread_state,
 	struct ZS_iterator     *iterator
 	);
-#endif
 
 /**
  *  @brief Force modifications of an object to primary storage.
@@ -1149,22 +923,12 @@ ZS_status_t ZSFinishEnumeration(
  *          ZS_IN_TRANS: this operation cannot be done inside a transaction.
  *          ZS_FAILURE: operation failed.
  */
-#ifdef BTREE_MODE
-ZS_status_t _ZSFlushObject(
-	struct ZS_thread_state  *zs_thread_state,
-	ZS_cguid_t               cguid,
-	char                     *key,
-	uint32_t                  keylen
-	);
-#define ZSFlushObject  _ZSFlushObject
-#else
 ZS_status_t ZSFlushObject(
 	struct ZS_thread_state  *zs_thread_state,
 	ZS_cguid_t               cguid,
 	char                     *key,
 	uint32_t                  keylen
 	);
-#endif
 
 /**
  * @brief Flush container
@@ -1173,18 +937,10 @@ ZS_status_t ZSFlushObject(
  * @param cguid  <IN> container global identifier
  * @return ZS_SUCCESS on success
  */
-#ifdef BTREE_MODE
-ZS_status_t _ZSFlushContainer(
-	struct ZS_thread_state  *zs_thread_state,
-	ZS_cguid_t               cguid
-	);
-#define ZSFlushContainer   _ZSFlushContainer
-#else
 ZS_status_t ZSFlushContainer(
 	struct ZS_thread_state  *zs_thread_state,
 	ZS_cguid_t               cguid
 	);
-#endif
 
 /**
  * @brief Flush the cache
@@ -1192,16 +948,9 @@ ZS_status_t ZSFlushContainer(
  * @param zs_thread_state <IN> The ZS context for which this operation applies.
  * @return ZS_SUCCESS on success
  */
-#ifdef BTREE_MODE
-ZS_status_t _ZSFlushCache(
-	struct ZS_thread_state  *zs_thread_state
-	);
-#define ZSFlushCache  _ZSFlushCache
-#else
 ZS_status_t ZSFlushCache(
 	struct ZS_thread_state  *zs_thread_state
 	);
-#endif
 
 /**
  * @brief Get ZS statistics
@@ -1210,18 +959,10 @@ ZS_status_t ZSFlushCache(
  * @param stats <OUT> pointer to statistics return structure
  * @return ZS_SUCCESS on success
  */
-#ifdef BTREE_MODE
-ZS_status_t _ZSGetStats(
-	struct ZS_thread_state *zs_thread_state,
-	ZS_stats_t             *stats
-	);
-#define ZSGetStats  _ZSGetStats
-#else
 ZS_status_t ZSGetStats(
 	struct ZS_thread_state *zs_thread_state,
 	ZS_stats_t             *stats
 	);
-#endif
 
 /**
  * @brief Get per container statistics
@@ -1231,20 +972,11 @@ ZS_status_t ZSGetStats(
  * @param stats <OUT> pointer to statistics return structure
  * @return ZS_SUCCESS on success
  */
-#ifdef BTREE_MODE
-ZS_status_t _ZSGetContainerStats(
-	struct ZS_thread_state	*zs_thread_state,
-	ZS_cguid_t				 cguid,
-	ZS_stats_t     		*stats
-	);
-#define ZSGetContainerStats _ZSGetContainerStats
-#else
 ZS_status_t ZSGetContainerStats(
 	struct ZS_thread_state	*zs_thread_state,
 	ZS_cguid_t				 cguid,
 	ZS_stats_t     		*stats
 	);
-#endif
 
 /**
  * @brief Get error string for given error code
@@ -1252,12 +984,7 @@ ZS_status_t ZSGetContainerStats(
  * @param errno ZS error number
  * @return  error string
  */
-#ifdef BTREE_MODE
-char *_ZSStrError(ZS_status_t zs_errno);
-#define ZSStrError       _ZSStrError 
-#else
 char *ZSStrError(ZS_status_t zs_errno);
-#endif
 
 /**
  * @brief Start transaction
@@ -1268,16 +995,9 @@ char *ZSStrError(ZS_status_t zs_errno);
  *         ZS_OUT_OF_MEM if memory exhausted
  *         ZS_FAILURE for error unspecified
  */
-#ifdef BTREE_MODE
-ZS_status_t _ZSTransactionStart(
-	struct ZS_thread_state	*zs_thread_state
-	);
-#define ZSTransactionStart  _ZSTransactionStart
-#else
 ZS_status_t ZSTransactionStart(
 	struct ZS_thread_state	*zs_thread_state
 	);
-#endif
 
 /**
  * @brief Commit transaction
@@ -1287,16 +1007,9 @@ ZS_status_t ZSTransactionStart(
  *         ZS_FAILURE_NO_TRANS if there is no active transaction in the current thread
  *         ZS_TRANS_ABORTED if transaction aborted due to excessive size or internal error
  */
-#ifdef BTREE_MODE
-ZS_status_t _ZSTransactionCommit(
-	struct ZS_thread_state	*zs_thread_state
-	);
-#define ZSTransactionCommit  _ZSTransactionCommit
-#else
 ZS_status_t ZSTransactionCommit(
 	struct ZS_thread_state	*zs_thread_state
 	);
-#endif
 
 /**
  * @brief Roll back transaction
@@ -1306,16 +1019,9 @@ ZS_status_t ZSTransactionCommit(
  *         ZS_FAILURE_NO_TRANS if there is no active transaction in the current thread
  *         ZS_TRANS_ABORTED if transaction aborted due to excessive size or internal error
  */
-#ifdef BTREE_MODE
-ZS_status_t _ZSTransactionRollback(
-	struct ZS_thread_state	*zs_thread_state
-	);
-#define ZSTransactionRollback   _ZSTransactionRollback
-#else
 ZS_status_t ZSTransactionRollback(
 	struct ZS_thread_state	*zs_thread_state
 	);
-#endif
 
 /**
  * @brief Quit a transaction
@@ -1324,16 +1030,9 @@ ZS_status_t ZSTransactionRollback(
  * @return ZS_SUCCESS on success
  *         ZS_FAILURE_NO_TRANS if there is no active transaction in the current thread
  */
-#ifdef BTREE_MODE
-ZS_status_t _ZSTransactionQuit(
-	struct ZS_thread_state	*zs_thread_state
-	);
-#define ZSTransactionQuit  _ZSTransactionQuit
-#else
 ZS_status_t ZSTransactionQuit(
 	struct ZS_thread_state	*zs_thread_state
 	);
-#endif
 
 /**
  * @brief ID of current transaction
@@ -1342,16 +1041,9 @@ ZS_status_t ZSTransactionQuit(
  * @return Non-zero transaction ID on success
  *         Zero if there is no active transaction in the current thread
  */
-#ifdef BTREE_MODE
-uint64_t _ZSTransactionID(
-	struct ZS_thread_state	*zs_thread_state
-	);
-#define ZSTransactionID   _ZSTransactionID
-#else
 uint64_t ZSTransactionID(
 	struct ZS_thread_state	*zs_thread_state
 	);
-#endif
 
 /**
  * @brief Perform internal transaction service
@@ -1360,20 +1052,11 @@ uint64_t ZSTransactionID(
  * @return ZS_SUCCESS on success
  *         ZS_FAILURE for error unspecified
  */
-#ifdef BTREE_MODE
-ZS_status_t _ZSTransactionService(
-	struct ZS_thread_state	*zs_thread_state,
-	int			cmd,
-	void			*arg
-	);
-#define ZSTransactionService  _ZSTransactionService
-#else
 ZS_status_t ZSTransactionService(
 	struct ZS_thread_state	*zs_thread_state,
 	int			cmd,
 	void			*arg
 	);
-#endif
 
 
 
@@ -1384,16 +1067,9 @@ ZS_status_t ZSTransactionService(
  * @return String having the versions
  *         NULL if failed internally
  */
-#ifdef BTREE_MODE
-ZS_status_t _ZSGetVersion(
-	char **str
-	);
-#define ZSGetVersion   _ZSGetVersion
-#else
 ZS_status_t ZSGetVersion(
 	char **str
 	);
-#endif
 
 #define N_ENTRIES_TO_MALLOC    100
 #define N_ITERATORS_TO_MALLOC  100
@@ -1539,20 +1215,11 @@ typedef bool (* ZS_range_update_cb_t) (char *key, uint32_t keylen, char *data, u
  * Returns: ZS_SUCCESS if successful
  *          ZS_FAILURE if unsuccessful
  */
-#ifdef BTREE_MODE
-ZS_status_t _ZSGetRange(struct ZS_thread_state *thrd_state, //  client thread ZS context
-                         ZS_cguid_t              cguid,      //  container
-                         ZS_indexid_t            indexid,    //  handle for index to use (use PRIMARY_INDEX for primary)
-                         struct ZS_cursor      **cursor,     //  returns opaque cursor for this query
-                         ZS_range_meta_t        *meta);      //  query attributes (see above)
-#define ZSGetRange  _ZSGetRange
-#else
 ZS_status_t ZSGetRange(struct ZS_thread_state *thrd_state, //  client thread ZS context
                          ZS_cguid_t              cguid,      //  container
                          ZS_indexid_t            indexid,    //  handle for index to use (use PRIMARY_INDEX for primary)
                          struct ZS_cursor      **cursor,     //  returns opaque cursor for this query
                          ZS_range_meta_t        *meta);      //  query attributes (see above)
-#endif
 
 typedef enum {
 	ZS_RANGE_STATUS_NONE       = 0,
@@ -1607,49 +1274,22 @@ typedef struct ZS_range_data {
  * statuses[i] returns: ZS_SUCCESS if the i'th data item was retrieved successfully
  *                      ZS_BUFFER_TOO_SMALL  if the i'th buffer was too small to retrieve the object
  */
-#ifdef BTREE_MODE
-ZS_status_t
-_ZSGetNextRange(struct ZS_thread_state *thrd_state,  //  client thread ZS context
-                struct ZS_cursor       *cursor,      //  cursor for this indexed search
-                int                      n_in,        //  size of 'values' array
-                int                     *n_out,       //  number of items returned
-                ZS_range_data_t        *values);     //  array of returned key/data values
-#define ZSGetNextRange  _ZSGetNextRange
-#else
 ZS_status_t
 ZSGetNextRange(struct ZS_thread_state *thrd_state,  //  client thread ZS context
                 struct ZS_cursor       *cursor,      //  cursor for this indexed search
                 int                      n_in,        //  size of 'values' array
                 int                     *n_out,       //  number of items returned
                 ZS_range_data_t        *values);     //  array of returned key/data values
-#endif
 
 /* End an index query.
  * 
  * Returns: ZS_SUCCESS if successful
  *          ZS_UNKNOWN_CURSOR if the cursor is invalid
  */
-#ifdef BTREE_MODE
-ZS_status_t 
-_ZSGetRangeFinish(struct ZS_thread_state *thrd_state, 
-                  struct ZS_cursor *cursor);
-#define ZSGetRangeFinish  _ZSGetRangeFinish
-#else
 ZS_status_t 
 ZSGetRangeFinish(struct ZS_thread_state *thrd_state, 
                   struct ZS_cursor *cursor);
-#endif
 
-#ifdef BTREE_MODE
-ZS_status_t
-_ZSMPut(struct ZS_thread_state *zs_ts,
-        ZS_cguid_t cguid,
-        uint32_t num_objs,
-        ZS_obj_t *objs,
-	uint32_t flags,
-	uint32_t *objs_written);
-#define ZSMPut    _ZSMPut
-#else
 ZS_status_t
 ZSMPut(struct ZS_thread_state *zs_ts,
         ZS_cguid_t cguid,
@@ -1657,21 +1297,7 @@ ZSMPut(struct ZS_thread_state *zs_ts,
         ZS_obj_t *objs,
 	uint32_t flags,
 	uint32_t *objs_written);
-#endif
 
-#ifdef BTREE_MODE
-ZS_status_t
-_ZSRangeUpdate(struct ZS_thread_state *zs_thread_state, 
-	       ZS_cguid_t cguid,
-	       char *range_key,
-	       uint32_t range_key_len,
-	       ZS_range_update_cb_t callback_func,
-	       void * callback_args,	
-	       ZS_range_cmp_cb_t range_cmp_callback,
-	       void *range_cmp_cb_args,
-	       uint32_t *objs_updated);
-#define ZSRangeUpdate   _ZSRangeUpdate
-#else
 ZS_status_t
 ZSRangeUpdate(struct ZS_thread_state *zs_thread_state, 
 	       ZS_cguid_t cguid,
@@ -1682,137 +1308,48 @@ ZSRangeUpdate(struct ZS_thread_state *zs_thread_state,
 	       ZS_range_cmp_cb_t range_cmp_callback,
 	       void *range_cmp_cb_args,
 	       uint32_t *objs_updated);
-#endif
 
-#ifdef BTREE_MODE
-ZS_status_t
-_ZSCheckBtree(struct ZS_thread_state *zs_thread_state, 
-	       ZS_cguid_t cguid);
-#define ZSCheckBtree     _ZSCheckBtree
-#else
 ZS_status_t
 ZSCheckBtree(struct ZS_thread_state *zs_thread_state, 
 	       ZS_cguid_t cguid);
-#endif
 
-
-#ifdef BTREE_MODE
-
-#define ZSCheck _ZSCheck 
-
-ZS_status_t
-_ZSCheck(struct ZS_thread_state *zs_thread_state);
-
-#else
 ZS_status_t
 ZSCheck(struct ZS_thread_state *zs_thread_state);
-#endif 
 
-// For ZS metadata checker
-#ifdef BTREE_MODE
-ZS_status_t 
-_ZSCheckMeta();
-#define ZSCheckMeta     _ZSCheckMeta
-#else
 ZS_status_t 
 ZSCheckMeta();
-#endif
 
-// For ZS metadata checker
-#ifdef BTREE_MODE
-ZS_status_t
-_ZSCheckFlog();
-#define ZSCheckFlog     _ZSCheckFlog
-#else
 ZS_status_t
 ZSCheckFlog();
-#endif
 
-// For ZS metadata checker
-#ifdef BTREE_MODE
-ZS_status_t
-_ZSCheckPOT();
-#define ZSCheckPOT     _ZSCheckPOT
-#else
 ZS_status_t
 ZSCheckPOT();
-#endif
 
 // For ZS metadata checker
-#ifdef BTREE_MODE
-ZS_status_t
-_ZSCheckInit(char *logfile);
-#define ZSCheckInit     _ZSCheckInit
-#else
 ZS_status_t
 ZSCheckInit(char *logfile);
-#endif
 
 // For ZS metadata checker
-#ifdef BTREE_MODE
-ZS_status_t
-_ZSCheckClose();
-#define ZSCheckClose    _ZSCheckClose
-#else
 ZS_status_t
 ZSCheckClose();
-#endif
 
 // For ZS metadata checker
-#ifdef BTREE_MODE
-int
-_ZSCheckLevel();
-#define ZSCheckLevel    _ZSCheckLevel
-#else
 int
 ZSCheckLevel();
-#endif
 
 // For ZS metadata checker
-#ifdef BTREE_MODE
-void
-_ZSCheckMsg(ZS_check_entity_t entity,
-            uint64_t id,
-            ZS_check_error_t error,
-            char *msg
-            );
-#define ZSCheckMsg    _ZSCheckMsg
-#else
 void
 ZSCheckMsg(ZS_check_entity_t entity,
            uint64_t id,
            ZS_check_error_t error,
            char *msg
            );
-#endif
 
-#ifdef BTREE_MODE
-ZS_status_t
-_ZSIoctl(struct ZS_thread_state *zs_thread_state, 
-         ZS_cguid_t cguid,
-         uint32_t ioctl_type,
-         void *data);
-#define ZSIoctl  _ZSIoctl
-#else
 ZS_status_t
 ZSIoctl(struct ZS_thread_state *zs_thread_state, 
          ZS_cguid_t cguid,
          uint32_t ioctl_type,
          void *data);
-#endif
-
-#ifndef BTREE_MODE
-ZS_status_t ZSWriteObjects(
-	struct ZS_thread_state  *sdf_thread_state,
-	ZS_cguid_t          cguid,
-	char                **key,
-	uint32_t             keylen,
-	char                **data,
-	uint64_t             datalen,
-	uint32_t             count,
-	uint32_t             flags
-	);
-#endif
 
 /*
  * @brief Create a snapshot for a container  
@@ -1823,22 +1360,12 @@ ZS_status_t ZSWriteObjects(
  * @return ZS_SUCCESS if successful
  *         ZS_TOO_MANY_SNAPSHOTS if snapshot limit is reached
  */
-#ifdef BTREE_MODE
-ZS_status_t
-_ZSCreateContainerSnapshot(
-	struct ZS_thread_state	*zs_thread_state,
-	ZS_cguid_t		cguid,
-	uint64_t		*snap_seq
-	);
-#define ZSCreateContainerSnapshot   _ZSCreateContainerSnapshot
-#else
 ZS_status_t
 ZSCreateContainerSnapshot(
 	struct ZS_thread_state	*zs_thread_state,
 	ZS_cguid_t		cguid,
 	uint64_t		*snap_seq
 	);
-#endif
 
 /*
  * @brief Delete a snapshot
@@ -1849,22 +1376,12 @@ ZSCreateContainerSnapshot(
  * @return ZS_SUCCESS if successful
  *         ZS_SNAPSHOT_NOT_FOUND if no snapshot for snap_seq is found
  */
-#ifdef BTREE_MODE
-ZS_status_t
-_ZSDeleteContainerSnapshot(
-	struct ZS_thread_state	*zs_thread_state,
-	ZS_cguid_t		cguid,
-	uint64_t		snap_seq
-	);
-#define ZSDeleteContainerSnapshot   _ZSDeleteContainerSnapshot
-#else
 ZS_status_t
 ZSDeleteContainerSnapshot(
 	struct ZS_thread_state	*zs_thread_state,
 	ZS_cguid_t		cguid,
 	uint64_t		snap_seq
 	);
-#endif
 
 /*
  * @brief Get a list of all current snapshots
@@ -1879,25 +1396,6 @@ ZSDeleteContainerSnapshot(
  * @return ZS_SUCCESS if successful
  *         ZS_xxxzzz if snap_seqs cannot be allocated
  */
-#ifdef BTREE_MODE
-ZS_status_t
-_ZSGetContainerSnapshots(
-	struct ZS_thread_state	*zs_thread_state,
-	ZS_cguid_t		cguid,
-	uint32_t		*n_snapshots,
-	ZS_container_snapshots_t	**snap_seqs
-	);
-#define ZSGetContainerSnapshots _ZSGetContainerSnapshots
-
-ZS_status_t _ZSScavenger(struct ZS_state *zs_state);
-#define ZSScavenger  _ZSScavenger
-
-ZS_status_t _ZSScavengeContainer(struct ZS_state *zs_state, ZS_cguid_t cguid);
-#define ZSScavengeContainer  _ZSScavengeContainer
-
-ZS_status_t _ZSScavengeSnapshot(struct ZS_state *zs_state, ZS_cguid_t cguid, uint64_t snap_seq);
-#define ZSScavengeSnapshot  _ZSScavengeSnapshot
-#else
 ZS_status_t
 ZSGetContainerSnapshots(
 	struct ZS_thread_state	*zs_thread_state,
@@ -1909,45 +1407,36 @@ ZSGetContainerSnapshots(
 ZS_status_t ZSScavenger(struct ZS_state *zs_state);
 ZS_status_t ZSScavengeContainer(struct ZS_state *zs_state, ZS_cguid_t cguid);
 ZS_status_t ZSScavengeSnapshot(struct ZS_state *zs_state, ZS_cguid_t cguid, uint64_t snap_seq);
-#endif
 
 /*
  * @brief Check that ZS operations are allowed (e.g., not in shutdown).
  *
  * @return ZS_SUCCESS if operations are allowed.
 */
-#ifdef BTREE_MODE
-ZS_status_t
-_ZSOperationAllowed( void );
-#define ZSOperationAllowed   _ZSOperationAllowed
-#else
 ZS_status_t
 ZSOperationAllowed( void );
-#endif
-
-#ifdef BTREE_MODE
-#define ZSTransactionGetMode _ZSTransactionGetMode
-ZS_status_t
-_ZSTransactionGetMode(struct ZS_thread_state *zs_thread_state, int *mode);
-
-#else 
 
 ZS_status_t
 ZSTransactionGetMode(struct ZS_thread_state *zs_thread_state, int *mode);
-#endif 
-
-#ifdef BTREE_MODE 
-
-ZS_status_t
-_ZSTransactionSetMode(struct ZS_thread_state *zs_thread_state, int mode);
-#define ZSTransactionSetMode _ZSTransactionSetMode
-
-#else 
 
 ZS_status_t
 ZSTransactionSetMode(struct ZS_thread_state *zs_thread_state, int mode);
 
-#endif 
+/*
+ * @brief Get the context of last error reported by ZS
+ *
+ * The context returned by the ZS will have to be freed by the application
+ * 
+ * @param cguid <IN> container global identifier
+ * @param pp_err_context <OUT> The opaque error context allocated
+ * @return ZS_SUCCESS if successful
+ *         ZS_xxxzzz if snap_seqs cannot be allocated
+ */
+ZS_status_t
+ZSGetLastError(ZS_cguid_t cguid, void **pp_err_context, uint32_t *p_err_size);
+
+ZS_status_t
+ZSRescueContainer(struct ZS_thread_state *zs_thread_state, ZS_cguid_t cguid, void *p_err_context);
 
 
 ZS_status_t

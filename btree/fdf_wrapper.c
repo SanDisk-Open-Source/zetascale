@@ -51,6 +51,10 @@
 #define ASYNC_STATS_SUSPEND_NODE_COUNT 10
 #define ASYNC_STATS_SUSPEND_DURATION 5
 
+#define READ 0
+#define WRITE 1
+#define NOLOCK 2
+
 struct cmap;
 extern int astats_done;
 extern int __zs_check_mode_on;
@@ -153,6 +157,7 @@ ZS_status_t set_flash_stats_buffer(uint64_t *alloc_blks, uint64_t *free_segs, ui
 ZS_status_t set_zs_function_ptrs( void *log_func);
 ZS_status_t btree_check_license_ptr(int lic_state);
 ZS_status_t btree_get_rawobj_mode(int storm_mode, uint64_t rawobjsz);
+ZS_status_t btree_get_node_info(ZS_cguid_t cguid, char *data, uint64_t datalen, uint32_t *node_type, bool *is_root, uint64_t *logical_id);
 
 ZS_status_t btree_process_admin_cmd(struct ZS_thread_state *thd_state, 
                                      FILE *fp, cmd_token_t *tokens, size_t ntokens);
@@ -334,6 +339,20 @@ bt_get_ctnr_from_cguid(
     return i_ctnr;
 }
 
+static inline void cm_lock(int idx, int type)
+{
+	if (type == READ) {
+		pthread_rwlock_rdlock(&(Container_Map[idx].bt_cm_rwlock));
+	} else {
+		pthread_rwlock_wrlock(&(Container_Map[idx].bt_cm_rwlock));
+	}
+}
+
+static inline void cm_unlock(int idx)
+{
+	pthread_rwlock_unlock(&(Container_Map[idx].bt_cm_rwlock));
+}
+
 /*
  * I M P O R T A N T:
  * This routine returns the index and btree with READ LOCK of the entry
@@ -359,15 +378,15 @@ bt_get_btree_from_cguid(ZS_cguid_t cguid, int *index, ZS_status_t *error,
 		return NULL;
 	}
 
-	pthread_rwlock_rdlock(&(Container_Map[i].bt_cm_rwlock));
+	cm_lock(i, READ);
 	if (bt_shutdown == true) {
-		pthread_rwlock_unlock(&(Container_Map[i].bt_cm_rwlock));
+		cm_unlock(i);
 		*error = ZS_FAILURE_OPERATION_DISALLOWED;
 		return NULL;
 	}
 
     if (Container_Map[i].flags & (1 << 0)) {
-		pthread_rwlock_unlock(&(Container_Map[i].bt_cm_rwlock));
+		cm_unlock(i);
 		*error = ZS_FAILURE_INVALID_CONTAINER_TYPE;
 		return NULL;
     }
@@ -398,7 +417,7 @@ bt_get_btree_from_cguid(ZS_cguid_t cguid, int *index, ZS_status_t *error,
 		} else {
 			err = ZS_FAILURE_CONTAINER_NOT_OPEN;
 		}
-		pthread_rwlock_unlock(&(Container_Map[i].bt_cm_rwlock));
+		cm_unlock(i);
 	}
 	*error = err;
 	return bt;
@@ -426,7 +445,7 @@ bt_rel_entry(int i, bool write)
 		assert(Container_Map[i].bt_rd_count >= 0);
 	}
 
-	pthread_rwlock_unlock(&(Container_Map[i].bt_cm_rwlock));
+	cm_unlock(i);
 	return;
 }
 
@@ -659,10 +678,10 @@ ZS_status_t _ZSInitVersioned(
     for (i=0; i<MAX_OPEN_CONTAINERS; i++) {
         Container_Map[i].cguid = ZS_NULL_CGUID;
         Container_Map[i].btree = NULL;
-		Container_Map[i].snap_initiated= 0;
-		pthread_mutex_init(&(Container_Map[i].bt_snap_mutex), NULL);
-		pthread_cond_init(&(Container_Map[i].bt_snap_cv), NULL);
-		pthread_rwlock_init(&(Container_Map[i].bt_cm_rwlock), NULL);
+        Container_Map[i].snap_initiated= 0;
+        pthread_mutex_init(&(Container_Map[i].bt_snap_mutex), NULL);
+        pthread_cond_init(&(Container_Map[i].bt_snap_cv), NULL);
+        pthread_rwlock_init(&(Container_Map[i].bt_cm_rwlock), NULL);
     }
 
 
@@ -670,7 +689,7 @@ ZS_status_t _ZSInitVersioned(
     sprintf(buf, "%u", ZS_ASYNC_STATS_THREADS);
     int num_astats_threads = atoi(_ZSGetProperty("ZS_ASYNC_STATS_THREADS", buf));
 
-	astats_init(num_astats_threads);
+    astats_init(num_astats_threads);
 
     cbs = malloc(sizeof(ZS_ext_cb_t));
     if( cbs == NULL ) {
@@ -682,7 +701,10 @@ ZS_status_t _ZSInitVersioned(
     cbs->flash_stats_buf_cb = set_flash_stats_buffer;
     cbs->zs_funcs_cb = set_zs_function_ptrs;
     cbs->zs_lic_cb = btree_check_license_ptr;
-	cbs->zs_raw_cb = btree_get_rawobj_mode;
+    cbs->zs_raw_cb = btree_get_rawobj_mode;
+#ifdef FLIP_ENABLED
+    cbs->zs_node_cb = btree_get_node_info;
+#endif
     ret = ZSRegisterCallbacks(*zs_state, cbs);
     assert(ZS_SUCCESS == ret);
 
@@ -850,15 +872,16 @@ pstats_prepare_to_flush(struct ZS_thread_state *thd_state)
     uint64_t idx = 0;
     int i = 0;
     bool skip_flush = false;
+
     /* 
      * For each container in container map
      */
     for (idx = 0; idx < MAX_OPEN_CONTAINERS; idx++) {
-        (void) pthread_rwlock_rdlock(&(Container_Map[idx].bt_cm_rwlock));
+        (void) cm_lock(idx, READ);
 
         if ( !Container_Map[idx].btree || (Container_Map[idx].cguid == stats_ctnr_cguid)
               || (IS_ZS_HASH_CONTAINER(Container_Map[idx].flags)) ) {
-            (void) pthread_rwlock_unlock(&(Container_Map[idx].bt_cm_rwlock));
+            (void) cm_unlock(idx);
             continue;
         }
 
@@ -894,12 +917,12 @@ pstats_prepare_to_flush(struct ZS_thread_state *thd_state)
 #ifdef PSTATS_1
             fprintf(stderr, "zs_commit_stats:cguid: successfully skipped flushing pstats\n");
 #endif
-            pthread_rwlock_unlock( &(Container_Map[idx].bt_cm_rwlock) );
+            cm_unlock(idx);
             continue;
         }
 
         char *cname = Container_Map[idx].cname;
-        pthread_rwlock_unlock( &(Container_Map[idx].bt_cm_rwlock) );
+        cm_unlock(idx);
 
         ret = zs_commit_stats_int(thd_state, &pstats, cname);
 
@@ -1059,7 +1082,7 @@ ZS_status_t _ZSShutdown(
 
 	for (i=0; i < MAX_OPEN_CONTAINERS; i++) {
 restart:
-		pthread_rwlock_wrlock(&(Container_Map[i].bt_cm_rwlock));
+		cm_lock(i, WRITE);
 		if (Container_Map[i].bt_state == BT_CNTR_OPEN) {
 			pstats_prepare_to_flush_single(thd_state, &Container_Map[i]);
 			(void) ZSCloseContainer(thd_state, Container_Map[i].cguid);
@@ -1067,7 +1090,7 @@ restart:
 			Container_Map[i].cguid = ZS_NULL_CGUID;
 			btree = Container_Map[i].btree;
 			Container_Map[i].btree = NULL;
-			pthread_rwlock_unlock(&(Container_Map[i].bt_cm_rwlock));
+			cm_unlock(i);
 			if (btree) {
 				btree_destroy(btree);
 			}
@@ -1077,14 +1100,14 @@ restart:
 			Container_Map[i].cguid = ZS_NULL_CGUID;
 			btree = Container_Map[i].btree;
 			Container_Map[i].btree = NULL;
-			pthread_rwlock_unlock(&(Container_Map[i].bt_cm_rwlock));
+			cm_unlock(i);
 			if (btree) {
 				btree_destroy(btree);
 			}
 			(void) __sync_sub_and_fetch(&N_Open_Containers, 1);
 		} else if (bt_storm_mode && (Container_Map[i].bt_state == BT_CNTR_DELETING)) {
 			if (Container_Map[i].bt_rd_count || Container_Map[i].bt_wr_count) {
-				pthread_rwlock_unlock(&(Container_Map[i].bt_cm_rwlock));
+				cm_unlock(i);
 				sched_yield();
 				goto restart;
 			}
@@ -1092,7 +1115,7 @@ restart:
 			Container_Map[i].cguid = ZS_NULL_CGUID;
 			btree = Container_Map[i].btree;
 			Container_Map[i].btree = NULL;
-			pthread_rwlock_unlock(&(Container_Map[i].bt_cm_rwlock));
+			cm_unlock(i);
 			if (btree) {
 				btree_destroy(btree);
 			}
@@ -1100,7 +1123,7 @@ restart:
 
 		} else {
 			assert(Container_Map[i].bt_state == BT_CNTR_UNUSED);
-			pthread_rwlock_unlock(&(Container_Map[i].bt_cm_rwlock));
+			cm_unlock(i);
 		}
 	}
 
@@ -1259,17 +1282,17 @@ restart:
 		return ZS_FAILURE_OPERATION_DISALLOWED;
 	}
 
-	pthread_rwlock_wrlock(&(Container_Map[index].bt_cm_rwlock));
+	cm_lock(index, WRITE);
 
 	if (bt_shutdown == true) {
-		pthread_rwlock_unlock(&(Container_Map[index].bt_cm_rwlock));
+		cm_unlock(index);
 		ZSCloseContainer(zs_thread_state, *cguid);
 		return ZS_FAILURE_OPERATION_DISALLOWED;
 	}
 
 	/* Some one deleted the container which we were re-opening */
 	if (Container_Map[index].cguid != *cguid) {
-		pthread_rwlock_unlock(&(Container_Map[index].bt_cm_rwlock));
+		cm_unlock(index);
 		goto restart;
 	}
 
@@ -1285,7 +1308,7 @@ restart:
         Container_Map[index].flags |= (1 << 0);
         Container_Map[index].btree = NULL;
         Container_Map[index].bt_state = BT_CNTR_OPEN;
-        pthread_rwlock_unlock(&(Container_Map[index].bt_cm_rwlock));
+        cm_unlock(index);
         fprintf(stderr, "Creating/opening a HASH container\n");
         return ZS_SUCCESS;
     } else {
@@ -1295,7 +1318,7 @@ restart:
     // Metadata exists, just return if btree is not empty
     if (Container_Map[index].btree) {	
 		Container_Map[index].bt_state = BT_CNTR_OPEN;
-		pthread_rwlock_unlock(&(Container_Map[index].bt_cm_rwlock));
+		cm_unlock(index);
     	return(ZS_SUCCESS);
 	}
     
@@ -1483,13 +1506,13 @@ restart:
 		//btSyncMboxPost(&mbox_scavenger, (uint64_t)s);
 
 		Container_Map[index].scavenger_state = 1;
-		pthread_rwlock_unlock(&(Container_Map[index].bt_cm_rwlock));
+		cm_unlock(index);
 
 		fprintf(stderr,"Before the restart delete container was terminated ungracefully,  restarting the deletion of this container\n");
 		return(ZS_FAILURE_CONTAINER_DELETED);
 	} else {
 		Container_Map[index].bt_state = BT_CNTR_OPEN;
-		pthread_rwlock_unlock(&(Container_Map[index].bt_cm_rwlock));
+		cm_unlock(index);
 	}
 
 	//Flush root node, so that it exists irrespective of durability level
@@ -1526,7 +1549,7 @@ fail:
 	if (Container_Map[index].bt_state == BT_CNTR_INIT) {
 		Container_Map[index].bt_state = BT_CNTR_CLOSED;
 	}
-	pthread_rwlock_unlock(&(Container_Map[index].bt_cm_rwlock));
+	cm_unlock(index);
 	return(ret);
 }
 
@@ -1605,6 +1628,7 @@ ZS_status_t _ZSCloseContainer(
     dump_btree_stats(stderr, cguid);
 #endif
 
+
 restart:
     if ((status = bt_is_valid_cguid(cguid)) != ZS_SUCCESS) {
         return status;
@@ -1615,28 +1639,28 @@ restart:
     } else if (index == -2) {
 		fprintf(stderr, "Shutdown in progress, CloseContainer failed\n");
 		return ZS_FAILURE_OPERATION_DISALLOWED;
-	}
+    }
 
-    pthread_rwlock_wrlock(&(Container_Map[index].bt_cm_rwlock));
+    cm_lock(index, WRITE);
 
-	if (bt_shutdown == true) {
-		pthread_rwlock_unlock(&(Container_Map[index].bt_cm_rwlock));
-		fprintf(stderr, "Shutdown in progress, CloseContainer failed\n");
-		return ZS_FAILURE_OPERATION_DISALLOWED;
-	}
+    if (bt_shutdown == true) {
+        cm_unlock(index);
+        fprintf(stderr, "Shutdown in progress, CloseContainer failed\n");
+        return ZS_FAILURE_OPERATION_DISALLOWED;
+    }
 
     /* Some one might have deleted it, while we were trying to acquire lock */
     if (Container_Map[index].cguid != cguid) {
-        pthread_rwlock_unlock(&(Container_Map[index].bt_cm_rwlock));
+        cm_unlock(index);
         return ZS_FAILURE_CONTAINER_NOT_FOUND;
     } else if (Container_Map[index].bt_state == BT_CNTR_DELETING) {
-        pthread_rwlock_unlock(&(Container_Map[index].bt_cm_rwlock));
+        cm_unlock(index);
         return ZS_FAILURE_CONTAINER_NOT_FOUND;
 	}
 
 
     if (Container_Map[index].bt_state != BT_CNTR_OPEN) {
-        pthread_rwlock_unlock(&(Container_Map[index].bt_cm_rwlock));
+        cm_unlock(index);
         return ZS_FAILURE_CONTAINER_NOT_OPEN;
     }
 
@@ -1645,7 +1669,7 @@ restart:
     assert(Container_Map[index].bt_wr_count == 0);
     if (Container_Map[index].bt_rd_count ||
             Container_Map[index].bt_wr_count) {
-        pthread_rwlock_unlock(&(Container_Map[index].bt_cm_rwlock));
+        cm_unlock(index);
         while (Container_Map[index].bt_rd_count ||
                 Container_Map[index].bt_wr_count) {
             sched_yield();
@@ -1674,7 +1698,7 @@ restart:
     status = ZSCloseContainer(zs_thread_state, cguid);
 
     Container_Map[index].bt_state = BT_CNTR_CLOSED;
-    pthread_rwlock_unlock(&(Container_Map[index].bt_cm_rwlock));
+    cm_unlock(index);
     return status;
 }
 
@@ -1704,27 +1728,27 @@ restart:
         return status;
     }
 
-    if ((index = bt_get_ctnr_from_cguid(cguid)) == -1) {
-        return ZS_FAILURE_CONTAINER_NOT_FOUND;
-    } else if (index == -2) {
+	if ((index = bt_get_ctnr_from_cguid(cguid)) == -1) {
+		return ZS_FAILURE_CONTAINER_NOT_FOUND;
+	} else if (index == -2) {
 		fprintf(stderr, "Shutdown in progress, DeleteContainer failed\n");
 		return ZS_FAILURE_OPERATION_DISALLOWED;
 	}
 
-    pthread_rwlock_wrlock(&(Container_Map[index].bt_cm_rwlock));
+	cm_lock(index, WRITE);
 
 	if (bt_shutdown == true) {
-		pthread_rwlock_unlock(&(Container_Map[index].bt_cm_rwlock));
+		cm_unlock(index);
 		fprintf(stderr, "Shutdown in progress, DeleteContainer failed\n");
 		return ZS_FAILURE_OPERATION_DISALLOWED;
 	}
 
 	/* Some one might have deleted it, while we were trying to acquire lock */
 	if (Container_Map[index].cguid != cguid) {
-		pthread_rwlock_unlock(&(Container_Map[index].bt_cm_rwlock));
+		cm_unlock(index);
 		return ZS_FAILURE_CONTAINER_NOT_FOUND;
 	} else if (Container_Map[index].bt_state == BT_CNTR_DELETING) {
-		pthread_rwlock_unlock(&(Container_Map[index].bt_cm_rwlock));
+		cm_unlock(index);
 		return ZS_FAILURE_CONTAINER_NOT_FOUND;
 	}
 
@@ -1734,7 +1758,7 @@ restart:
 	assert(Container_Map[index].bt_wr_count == 0);
 	if (Container_Map[index].bt_rd_count ||
 	    Container_Map[index].bt_wr_count) {
-		pthread_rwlock_unlock(&(Container_Map[index].bt_cm_rwlock));
+		cm_unlock(index);
 		while (Container_Map[index].bt_rd_count ||
 		        Container_Map[index].bt_wr_count) {
 			pthread_yield();
@@ -1752,7 +1776,7 @@ restart:
 		if (status != ZS_SUCCESS) {
 			fprintf(stderr,"ZSGetContainerProps failed with error %s\n",
 					ZSStrError(status));
-			pthread_rwlock_unlock(&(Container_Map[index].bt_cm_rwlock));
+			cm_unlock(index);
 			return status;
 		}
 
@@ -1763,7 +1787,7 @@ restart:
 			if (status != ZS_SUCCESS) {
 				fprintf(stderr,"ZSOpenContainer failed with error %s\n",
 						ZSStrError(status));
-				pthread_rwlock_unlock(&(Container_Map[index].bt_cm_rwlock));
+				cm_unlock(index);
 				return status;
 			}
 		}
@@ -1772,7 +1796,7 @@ restart:
 				random(), pprops.name);
 		if ((status = ZSRenameContainer(zs_thread_state, Container_Map[index].cguid, cname)) != ZS_SUCCESS) {
 			fprintf(stderr,"ZSRenameContainer failed with error %s\n",  ZSStrError(status));
-			pthread_rwlock_unlock(&(Container_Map[index].bt_cm_rwlock));
+			cm_unlock(index);
 			return status;
 		}
 
@@ -1806,10 +1830,10 @@ restart:
 			s.throttle_value = 0;
 			btree_scavenge(my_global_zs_state, s);
 			//btSyncMboxPost(&mbox_scavenger, (uint64_t)s);
-			pthread_rwlock_unlock(&(Container_Map[index].bt_cm_rwlock));
+			cm_unlock(index);
 		} else {
 			btree->partitions[0]->snap_meta->sc_status &= ~SC_OVERFLW_DELCONT;
-			pthread_rwlock_unlock(&(Container_Map[index].bt_cm_rwlock));
+			cm_unlock(index);
 			/* Remove this on handling deleting closed container */
 			status = ZS_FAILURE;
 		}
@@ -1832,7 +1856,7 @@ restart:
 		Container_Map[index].bt_state = BT_CNTR_UNUSED;
 		//Container_Map[index].flags |= ~0;
 		(void) __sync_sub_and_fetch(&N_Open_Containers, 1);
-		pthread_rwlock_unlock(&(Container_Map[index].bt_cm_rwlock));
+		cm_unlock(index);
 
 		if (btree) {
 			trxdeletecontainer( zs_thread_state, cguid);
@@ -1910,22 +1934,22 @@ ZS_status_t _ZSGetContainerProps(
 				return ret;
 			}
 		} else {
-			pthread_rwlock_wrlock(&(Container_Map[index].bt_cm_rwlock));
+			cm_lock(index, WRITE);
 			if (bt_shutdown == true) {
-				pthread_rwlock_unlock(&(Container_Map[index].bt_cm_rwlock));
+				cm_unlock(index);
 				fprintf(stderr, "Shutdown in progress, DeleteContainer failed\n");
 				return ZS_FAILURE_OPERATION_DISALLOWED;
 			}
 
 			/* Some one might have deleted it, while we were trying to acquire lock */
 			if (Container_Map[index].cguid != cguid) {
-				pthread_rwlock_unlock(&(Container_Map[index].bt_cm_rwlock));
+				cm_unlock(index);
 				return ZS_FAILURE_CONTAINER_NOT_FOUND;
 			} else if (Container_Map[index].bt_state == BT_CNTR_DELETING) {
-				pthread_rwlock_unlock(&(Container_Map[index].bt_cm_rwlock));
+				cm_unlock(index);
 				return ZS_FAILURE_CONTAINER_NOT_FOUND;
 			}
-			pthread_rwlock_unlock(&(Container_Map[index].bt_cm_rwlock));
+			cm_unlock(index);
 		}
 	}
     return(ZSGetContainerProps(zs_thread_state, cguid, pprops));
@@ -1972,22 +1996,22 @@ ZS_status_t _ZSSetContainerProps(
 				return ret;
 			}
 		} else {
-			pthread_rwlock_wrlock(&(Container_Map[index].bt_cm_rwlock));
+			cm_lock(index, WRITE);
 			if (bt_shutdown == true) {
-				pthread_rwlock_unlock(&(Container_Map[index].bt_cm_rwlock));
+				cm_unlock(index);
 				fprintf(stderr, "Shutdown in progress, DeleteContainer failed\n");
 				return ZS_FAILURE_OPERATION_DISALLOWED;
 			}
 			/* Some one might have deleted it, while we were trying to acquire lock */
 			if (Container_Map[index].cguid != cguid) {
-				pthread_rwlock_unlock(&(Container_Map[index].bt_cm_rwlock));
+				cm_unlock(index);
 				return ZS_FAILURE_CONTAINER_NOT_FOUND;
 			} else if (Container_Map[index].bt_state == BT_CNTR_DELETING) {
-				pthread_rwlock_unlock(&(Container_Map[index].bt_cm_rwlock));
+				cm_unlock(index);
 				return ZS_FAILURE_CONTAINER_NOT_FOUND;
 			}
 			
-			pthread_rwlock_unlock(&(Container_Map[index].bt_cm_rwlock));
+			cm_unlock(index);
 		}
 	}
 
@@ -2040,6 +2064,7 @@ ZS_status_t _ZSReadObject(
     btree_range_data_t   values[1];
     int n_out;
 
+
 	if (bt_is_license_valid() == false) {
 		return (ZS_LICENSE_CHK_FAILED);
 	}
@@ -2066,16 +2091,16 @@ ZS_status_t _ZSReadObject(
         return ZS_FAILURE_CONTAINER_NOT_FOUND;
     }
 
-    pthread_rwlock_rdlock(&(Container_Map[cguid].bt_cm_rwlock));
+    cm_lock(cguid, READ);
     if (true == IS_ZS_HASH_CONTAINER(Container_Map[cguid].flags) ) {
         ret = ZSReadObject(zs_thread_state, cguid, key, keylen, data, datalen);
-        pthread_rwlock_unlock(&(Container_Map[cguid].bt_cm_rwlock));
+        cm_unlock(cguid);
 #ifdef UNIFIED_CNTR_DEBUG
         fprintf(stderr, "Reading objectfrom a HASH container\n");
 #endif
         return ret;
     }
-    pthread_rwlock_unlock(&(Container_Map[cguid].bt_cm_rwlock));
+    cm_unlock(cguid);
 
     bt = bt_get_btree_from_cguid(cguid, &index, &ret, false);
     if (bt == NULL) {
@@ -2085,7 +2110,7 @@ ZS_status_t _ZSReadObject(
     if (keylen > bt->max_key_size) {
         msg("btree_insert/update keylen(%d) more than max_key_size(%d)\n",
                  keylen, bt->max_key_size);
-		bt_rel_entry(index, false);
+        bt_rel_entry(index, false);
         return (ZS_KEY_TOO_LONG);
     }
 
@@ -2099,7 +2124,8 @@ ZS_status_t _ZSReadObject(
         rmeta.flags        = RANGE_START_GE | RANGE_END_LE;
 
 	trxenter( cguid);
-        btree_ret = btree_range_query_start(bt, BTREE_RANGE_PRIMARY_INDEX,
+        btree_ret = btree_raw_range_query_start(bt->partitions[0], 
+                                            BTREE_RANGE_PRIMARY_INDEX,
                                             &cursor, &rmeta);
 		if (btree_ret != BTREE_SUCCESS) {
 				msg("Could not create start range query in ZSReadObject!");
@@ -2125,8 +2151,8 @@ ZS_status_t _ZSReadObject(
 
 done:
     trxleave( cguid);
-	ret = BtreeErr_to_ZSErr(btree_ret);
-	bt_rel_entry(index, false);
+    ret = BtreeErr_to_ZSErr(btree_ret);
+    bt_rel_entry(index, false);
     return(ret);
 }
 
@@ -2246,33 +2272,34 @@ ZS_status_t _ZSWriteObject(
 
     my_thd_state = zs_thread_state;;
 
-	if (bt_is_license_valid() == false) {
-		return (ZS_LICENSE_CHK_FAILED);
-	}
-	if ((ret= bt_is_valid_cguid(cguid)) != ZS_SUCCESS) {
-		return ret;
-	}
+    if (bt_is_license_valid() == false) {
+        return (ZS_LICENSE_CHK_FAILED);
+    }
 
-    pthread_rwlock_rdlock(&(Container_Map[cguid].bt_cm_rwlock));
+    if ((ret= bt_is_valid_cguid(cguid)) != ZS_SUCCESS) {
+        return ret;
+    }
+
+    cm_lock(cguid, READ);
     if (true == IS_ZS_HASH_CONTAINER(Container_Map[cguid].flags) ) {
         ret = ZSWriteObject(my_thd_state, cguid, key, keylen, data, datalen, flags);
 #ifdef UNIFIED_CONTAINER_DEBUG
         fprintf(stderr, "Writing object to a HASH container\n");
 #endif
-        pthread_rwlock_unlock(&(Container_Map[cguid].bt_cm_rwlock));
+        cm_unlock(cguid);
         return ret;
     }
-    pthread_rwlock_unlock(&(Container_Map[cguid].bt_cm_rwlock));
+    cm_unlock(cguid);
 
     bt = bt_get_btree_from_cguid(cguid, &index, &ret, true);
     if (bt == NULL) {
         return (ret);
     }
 
-	if (Container_Map[index].read_only == true) {
-		bt_rel_entry(index, true);
-		return ZS_FAILURE;
-	}
+    if (Container_Map[index].read_only == true) {
+        bt_rel_entry(index, true);
+        return ZS_FAILURE;
+    }
 
     if (keylen > bt->max_key_size) {
         msg("btree_insert/update keylen(%d) more than max_key_size(%d)\n",
@@ -2314,19 +2341,19 @@ ZS_status_t _ZSWriteObject(
     }
     trxleave( cguid);
 
-	ret = BtreeErr_to_ZSErr(btree_ret);
-	if ((ret == ZS_OBJECT_UNKNOWN) && (flags & ZS_WRITE_MUST_NOT_EXIST))
-	{
-		ret = ZS_OBJECT_EXISTS;
-	}
-	if (ret != ZS_SUCCESS)
-	{
-		char key1[256];
-		strncpy(key1,key,255);
-		key1[255] = '\0';
-		msg("btree_insert/update failed for key '%s' with ret=%s!\n", key1, ZSStrError(ret));
-	}
-	bt_rel_entry(index, true);
+    ret = BtreeErr_to_ZSErr(btree_ret);
+    if ((ret == ZS_OBJECT_UNKNOWN) && (flags & ZS_WRITE_MUST_NOT_EXIST))
+    {
+        ret = ZS_OBJECT_EXISTS;
+    }
+    if (ret != ZS_SUCCESS)
+    {
+        char key1[256];
+        strncpy(key1,key,255);
+        key1[255] = '\0';
+        msg("btree_insert/update failed for key '%s' with ret=%s!\n", key1, ZSStrError(ret));
+    }
+    bt_rel_entry(index, true);
     return(ret);
 }
 
@@ -2358,27 +2385,28 @@ ZS_status_t _ZSWriteObjectExpiry(
     )
 {
     my_thd_state = zs_thread_state;;
-	ZS_status_t	ret;
-	int				index;
-	struct btree	*bt;
+    ZS_status_t	ret;
+    int				index;
+    struct btree	*bt;
 
-	if (bt_is_license_valid() == false) {
-		return (ZS_LICENSE_CHK_FAILED);
-	}
-	if ((ret= bt_is_valid_cguid(cguid)) != ZS_SUCCESS) {
-		return ret;
-	}
+    if (bt_is_license_valid() == false) {
+        return (ZS_LICENSE_CHK_FAILED);
+    }
 
-	bt = bt_get_btree_from_cguid(cguid, &index, &ret, true);
-	if (bt == NULL) {
-		return ret;
-	}
+    if ((ret= bt_is_valid_cguid(cguid)) != ZS_SUCCESS) {
+        return ret;
+    }
+
+    bt = bt_get_btree_from_cguid(cguid, &index, &ret, true);
+    if (bt == NULL) {
+        return ret;
+    }
 
     //msg("ZSWriteObjectExpiry is not currently supported!");
     ret = ZSWriteObjectExpiry(zs_thread_state, cguid, wobj, flags);
 
-	bt_rel_entry(index, true);
-	return(ret);
+    bt_rel_entry(index, true);
+    return(ret);
 }
 
 /**
@@ -2418,24 +2446,24 @@ ZS_status_t _ZSDeleteObject(
 		return ret;
 	}
 
-    pthread_rwlock_rdlock(&(Container_Map[cguid].bt_cm_rwlock));
+    cm_lock(cguid, READ);
     if (true == IS_ZS_HASH_CONTAINER(Container_Map[cguid].flags)) {
         ret = ZSDeleteObject(my_thd_state, cguid, key, keylen);
         // fprintf(stderr, "Deleting object from a HASH container\n");
-        pthread_rwlock_unlock(&(Container_Map[cguid].bt_cm_rwlock));
+        cm_unlock(cguid);
         return ret;
     }
-    pthread_rwlock_unlock(&(Container_Map[cguid].bt_cm_rwlock));
+    cm_unlock(cguid);
 
     bt = bt_get_btree_from_cguid(cguid, &index, &ret, true);
     if (bt == NULL) {
         return (ret);
     }
 
-	if (Container_Map[index].read_only == true) {
-		bt_rel_entry(index, true);
-		return ZS_FAILURE;
-	}
+    if (Container_Map[index].read_only == true) {
+       bt_rel_entry(index, true);
+       return ZS_FAILURE;
+    }
 
     bt = Container_Map[index].btree;
 
@@ -2445,8 +2473,8 @@ ZS_status_t _ZSDeleteObject(
     trxenter( cguid);
     btree_ret = btree_delete(bt, key, keylen, &meta);
     trxleave( cguid);
-	ret = BtreeErr_to_ZSErr(btree_ret);
-	bt_rel_entry(index, true);
+    ret = BtreeErr_to_ZSErr(btree_ret);
+    bt_rel_entry(index, true);
     return(ret);
 }
 
@@ -2481,16 +2509,16 @@ ZS_status_t _ZSEnumerateContainerObjects(
 	/*
 	 * Handle hashed container case
 	 */
-	pthread_rwlock_rdlock(&(Container_Map[cguid].bt_cm_rwlock));
+	cm_lock(cguid, READ);
 	if (true == IS_ZS_HASH_CONTAINER(Container_Map[cguid].flags)) {
 		ret = ZSEnumerateContainerObjects(zs_thread_state, cguid, &itr_int);
 		itr->iterator = itr_int;
 
 		*iterator = (void *) itr;
-		pthread_rwlock_unlock(&(Container_Map[cguid].bt_cm_rwlock));
+		cm_unlock(cguid);
 		return ret;
 	}
-	pthread_rwlock_unlock(&(Container_Map[cguid].bt_cm_rwlock));
+	cm_unlock(cguid);
 
 	bt = bt_get_btree_from_cguid(cguid, &index, &ret, false);
 	if (bt == NULL) {
@@ -2542,13 +2570,13 @@ ZS_status_t _ZSNextEnumeratedObject(
 	/*
 	 * Handle hashed container case
 	 */
-	pthread_rwlock_rdlock(&((Container_Map[cguid]).bt_cm_rwlock));
+	cm_lock(cguid, READ);
 	if (true == IS_ZS_HASH_CONTAINER(Container_Map[cguid].flags)) {
 		status = ZSNextEnumeratedObject(zs_thread_state, itr->iterator, key, keylen, data, datalen);
-		pthread_rwlock_unlock(&(Container_Map[cguid].bt_cm_rwlock));
+		cm_unlock(cguid);
 		return status;
 	}
-	pthread_rwlock_unlock(&(Container_Map[cguid].bt_cm_rwlock));
+	cm_unlock(cguid);
 
 	values.key = NULL;
 	values.data = NULL;
@@ -2608,13 +2636,13 @@ ZS_status_t _ZSFinishEnumeration(
     /*
 	* Handle hashed container case
 	*/
-	pthread_rwlock_rdlock(&((Container_Map[cguid]).bt_cm_rwlock));
+	cm_lock(cguid, READ);
 	if (true == IS_ZS_HASH_CONTAINER(Container_Map[cguid].flags)) {
 		ret = (ZSFinishEnumeration(zs_thread_state, itr->iterator));
 	} else {
 		ret = (_ZSGetRangeFinish(zs_thread_state, (struct ZS_cursor *) itr->iterator));
 	}
-	pthread_rwlock_unlock(&(Container_Map[cguid].bt_cm_rwlock));
+	cm_unlock(cguid);
 
 	btree_free(itr);
 
@@ -2663,14 +2691,14 @@ ZS_status_t _ZSFlushObject(
     /*
      * Handle hashed container case
      */
-    pthread_rwlock_rdlock(&(Container_Map[cguid].bt_cm_rwlock));
+    cm_lock(cguid, READ);
     if (true == IS_ZS_HASH_CONTAINER(Container_Map[cguid].flags)) {
         ret = ZSFlushObject(my_thd_state, cguid, key, keylen);
         //fprintf(stderr, "Flushing object to a HASH container\n");
-        pthread_rwlock_unlock(&(Container_Map[cguid].bt_cm_rwlock));
+        cm_unlock(cguid);
         return ret;
     }
-    pthread_rwlock_unlock(&(Container_Map[cguid].bt_cm_rwlock));
+    cm_unlock(cguid);
 
     bt = bt_get_btree_from_cguid(cguid, &index, &ret, false);
     if (bt == NULL) {
@@ -2944,20 +2972,20 @@ _ZSGetRange(struct ZS_thread_state *zs_thread_state,
 		return ret;
 	}
 
-    pthread_rwlock_rdlock(&(Container_Map[cguid].bt_cm_rwlock));
+    cm_lock(cguid, READ);
     if (true == IS_ZS_HASH_CONTAINER(Container_Map[cguid].flags) ) {
-        pthread_rwlock_unlock(&(Container_Map[cguid].bt_cm_rwlock));
+        cm_unlock(cguid);
         msg("ZSGetRange is not supported on a HASH container\n");
         return ZS_FAILURE_INVALID_CONTAINER_TYPE;
     }
-    pthread_rwlock_unlock(&(Container_Map[cguid].bt_cm_rwlock));
+    cm_unlock(cguid);
 
     bt = bt_get_btree_from_cguid(cguid, &index, &ret, false);
     if (bt == NULL) {
         return (ret);
 	}
 
-	status = btree_range_query_start(bt, 
+	status = btree_raw_range_query_start(bt->partitions[0],
 	                                (btree_indexid_t) indexid, 
 	                                (btree_range_cursor_t **)cursor,
 	                                (btree_range_meta_t *)rmeta);
@@ -2994,13 +3022,13 @@ _ZSGetNextRange(struct ZS_thread_state *zs_thread_state,
 		return ret;
 	}
 
-    pthread_rwlock_rdlock(&(Container_Map[cguid].bt_cm_rwlock));
+    cm_lock(cguid, READ);
     if (true == IS_ZS_HASH_CONTAINER(Container_Map[cguid].flags) ) {
-        pthread_rwlock_unlock(&(Container_Map[cguid].bt_cm_rwlock));
+        cm_unlock(cguid);
         msg("ZSGetNextRange is not supported on a HASH container\n");
         return ZS_FAILURE_INVALID_CONTAINER_TYPE;
     }
-    pthread_rwlock_unlock(&(Container_Map[cguid].bt_cm_rwlock));
+    cm_unlock(cguid);
 
 	bt = bt_get_btree_from_cguid(cguid, &index, &ret, false);
 	if (bt == NULL) {
@@ -3034,7 +3062,7 @@ _ZSGetNextRange(struct ZS_thread_state *zs_thread_state,
 
 	ret = BtreeErr_to_ZSErr(status);
 out:
-    bt_rel_entry(index, false);
+	bt_rel_entry(index, false);
 	return(ret);
 }
 
@@ -3046,13 +3074,13 @@ _ZSGetRangeFinish(struct ZS_thread_state *zs_thread_state,
 	btree_status_t    status;
 
 	const ZS_cguid_t cguid = ((btree_range_cursor_t *)cursor)->cguid;
-    pthread_rwlock_rdlock(&(Container_Map[cguid].bt_cm_rwlock));
+    cm_lock(cguid, READ);
     if (true == IS_ZS_HASH_CONTAINER(Container_Map[cguid].flags) ) {
-        pthread_rwlock_unlock(&(Container_Map[cguid].bt_cm_rwlock));
+        cm_unlock(cguid);
         msg("ZSGetRangeFinish is not supported on a HASH container\n");
         return ZS_FAILURE_INVALID_CONTAINER_TYPE;
     }
-    pthread_rwlock_unlock(&(Container_Map[cguid].bt_cm_rwlock));
+    cm_unlock(cguid);
 
 	my_thd_state = zs_thread_state;
         __sync_add_and_fetch(&(((btree_range_cursor_t *)cursor)->btree->stats.stat[BTSTAT_RANGE_FINISH_CNT]), 1);
@@ -3081,26 +3109,26 @@ read_node_cb(btree_status_t *ret, void *data, void *pnode, uint64_t lnodeid, int
     assert(data);
     assert(pnode);
 
-	if (rawobj) {
-		datalen = overflow_node_sz;
-		status = ZSReadRawObject(my_thd_state, prn->cguid, lnodeid, (char **) &pnode, &datalen, true);
-	} else {
-		datalen = prn->nodesize;
-		status = ZSReadObject2(my_thd_state, prn->cguid, (char *) &lnodeid, sizeof(uint64_t), (char **) &pnode, &datalen);
-	}
+    if (rawobj) {
+        datalen = overflow_node_sz;
+        status = ZSReadRawObject(my_thd_state, prn->cguid, lnodeid, (char **) &pnode, &datalen, true);
+    } else {
+        datalen = prn->nodesize;
+        status = ZSReadObject2(my_thd_state, prn->cguid, (char *) &lnodeid, sizeof(uint64_t), (char **) &pnode, &datalen);
+    }
 
     trxtrackread( prn->cguid, lnodeid);
 
     if (status == ZS_SUCCESS) {
-	    assert((rawobj && (datalen == overflow_node_sz)) || 
-			   (!rawobj && (datalen == prn->nodesize)));
+        assert((rawobj && (datalen == overflow_node_sz)) || 
+               (!rawobj && (datalen == prn->nodesize)));
         *ret = BTREE_SUCCESS;
-	    // xxxzzz SEGFAULT
-	    // fprintf(stderr, "SEGFAULT read_node_cb: %p [tid=%d]\n", n, tid);
+        // xxxzzz SEGFAULT
+        // fprintf(stderr, "SEGFAULT read_node_cb: %p [tid=%d]\n", n, tid);
     } else {
-		fprintf(stderr, "ZZZZZZZZ   read_node_cb %lu - %lu failed with ret=%s   ZZZZZZZZZ\n", lnodeid, datalen, ZSStrError(status));
-			//*ret = BTREE_FAILURE;
-		*ret = ZSErr_to_BtreeErr(status);
+        fprintf(stderr, "ZZZZZZZZ   read_node_cb %lu - %lu failed with ret=%s   ZZZZZZZZZ\n", lnodeid, datalen, ZSStrError(status));
+        //*ret = BTREE_FAILURE;
+        *ret = ZSErr_to_BtreeErr(status);
     }
 }
 
@@ -3464,6 +3492,56 @@ ZS_status_t btree_get_rawobj_mode(int storm_mode, uint64_t rawobjsz) {
 	return ZS_SUCCESS;
 }
 
+#ifdef FLIP_ENABLED
+/* NOTE: This is used for debugging purpose and hence is_root is not guaranteed under
+ * all conditions be correct, since it does not any lock */
+ZS_status_t btree_get_node_info(ZS_cguid_t cguid, char *data, uint64_t datalen, 
+                                uint32_t *node_type, bool *is_root, uint64_t *logical_id)
+{
+	btree_raw_node_t *node;
+	btree_raw_t *btree;
+	btree_t *pbtree;
+	int i;
+
+	*node_type = 0;
+	*is_root = false;
+
+	if (data == NULL) {
+		return ZS_SUCCESS;
+	}
+
+	/* Get index from cguid */
+	i = bt_get_ctnr_from_cguid(cguid);
+	if (i < 0) {
+		return ZS_SUCCESS;
+	}
+
+	if ((Container_Map[i].cguid != cguid) ||
+	    (Container_Map[i].bt_state != BT_CNTR_OPEN)) {
+		return ZS_SUCCESS;
+	}
+
+	pbtree = Container_Map[i].btree;
+	if (pbtree == NULL) {
+		return ZS_SUCCESS;
+	}
+	btree = pbtree->partitions[0];
+
+	if ((datalen != DEFAULT_NODE_SIZE) &&
+	    (bt_storm_mode && (datalen != overflow_node_sz))) {
+		/* Not a btree node */
+		return ZS_SUCCESS;
+	}
+
+	node = (btree_raw_node_t *)data;
+	*logical_id = node->logical_id;
+	*node_type  = (node->logical_id & META_LOGICAL_ID) ? 0 : node->flags;
+	*is_root    = (btree->rootid == node->logical_id);
+
+	return ZS_SUCCESS;
+}
+#endif
+
 static void dump_btree_stats(FILE *f, ZS_cguid_t cguid)
 {
     struct btree     *bt;
@@ -3517,13 +3595,13 @@ _ZSMPut(struct ZS_thread_state *zs_ts,
 		return ZS_SUCCESS;
 	}
 
-    pthread_rwlock_rdlock(&(Container_Map[cguid].bt_cm_rwlock));
+    cm_lock(cguid, READ);
     if (true == IS_ZS_HASH_CONTAINER(Container_Map[cguid].flags) ) {
-        pthread_rwlock_unlock(&(Container_Map[cguid].bt_cm_rwlock));
+        cm_unlock(cguid);
         msg("_ZSMPut is not supported on a HASH container\n");
         return ZS_FAILURE_INVALID_CONTAINER_TYPE;
     }
-    pthread_rwlock_unlock(&(Container_Map[cguid].bt_cm_rwlock));
+    cm_unlock(cguid);
 
 	bt = bt_get_btree_from_cguid(cguid, &index, &ret, true);
 	if (bt == NULL) {
@@ -3573,7 +3651,7 @@ _ZSMPut(struct ZS_thread_state *zs_ts,
 	btree_ret = btree_mput(bt, (btree_mput_obj_t *)objs,
 			num_objs, flags, &meta, objs_done);
 	ZSTransactionService( zs_ts, 1, 0);
-	assert(*objs_done == num_objs);
+	assert((ret != BTREE_SUCCESS) || (*objs_done == num_objs));
 
 	if( btree_ret == BTREE_SUCCESS ) {
 		__sync_add_and_fetch(&(bt->partitions[0]->stats.stat[BTSTAT_NUM_MPUT_OBJS]),num_objs);
@@ -4080,13 +4158,13 @@ _ZSRangeUpdate(struct ZS_thread_state *zs_ts,
 		return (ZS_LICENSE_CHK_FAILED);
     }
 
-    pthread_rwlock_rdlock(&(Container_Map[cguid].bt_cm_rwlock));
+    cm_lock(cguid, READ);
     if (true == IS_ZS_HASH_CONTAINER(Container_Map[cguid].flags) ) {
-        pthread_rwlock_unlock(&(Container_Map[cguid].bt_cm_rwlock));
+        cm_unlock(cguid);
         msg("ZSRangeUpdate is not supported on a HASH container\n");
         return ZS_FAILURE_INVALID_CONTAINER_TYPE;
     }
-    pthread_rwlock_unlock(&(Container_Map[cguid].bt_cm_rwlock));
+    cm_unlock(cguid);
 
 	bt = bt_get_btree_from_cguid(cguid, &index, &error, true);
 	if (bt == NULL) {
@@ -4202,13 +4280,13 @@ _ZSCreateContainerSnapshot(struct ZS_thread_state *zs_thread_state, //  client t
 		return status;
 	}
 
-    pthread_rwlock_rdlock(&(Container_Map[cguid].bt_cm_rwlock));
+    cm_lock(cguid, READ);
     if (true == IS_ZS_HASH_CONTAINER(Container_Map[cguid].flags) ) {
-        pthread_rwlock_unlock(&(Container_Map[cguid].bt_cm_rwlock));
+        cm_unlock(cguid);
         msg("ZSCreateContainerSnapshot is not supported on a HASH container\n");
         return ZS_FAILURE_INVALID_CONTAINER_TYPE;
     }
-    pthread_rwlock_unlock(&(Container_Map[cguid].bt_cm_rwlock));
+    cm_unlock(cguid);
 
 	bt = bt_get_btree_from_cguid(cguid, &index, &status, false);
 	if (bt == NULL) {
@@ -4300,13 +4378,13 @@ _ZSDeleteContainerSnapshot(struct ZS_thread_state *zs_thread_state, //  client t
 		return status;
 	}
 
-    pthread_rwlock_rdlock(&(Container_Map[cguid].bt_cm_rwlock));
+    cm_lock(cguid, READ);
     if (true == IS_ZS_HASH_CONTAINER(Container_Map[cguid].flags) ) {
-        pthread_rwlock_unlock(&(Container_Map[cguid].bt_cm_rwlock));
+        cm_unlock(cguid);
         msg("ZSDeleteContainerSnapshot is not supported on a HASH container\n");
         return ZS_FAILURE_INVALID_CONTAINER_TYPE;
     }
-    pthread_rwlock_unlock(&(Container_Map[cguid].bt_cm_rwlock));
+    cm_unlock(cguid);
 
 	bt = bt_get_btree_from_cguid(cguid, &index, &status, false);
 	if (bt == NULL) {
@@ -4366,13 +4444,13 @@ _ZSGetContainerSnapshots(struct ZS_thread_state *ts, //  client thread ZS contex
 		return status;
 	}
 
-    pthread_rwlock_rdlock(&(Container_Map[cguid].bt_cm_rwlock));
+    cm_lock(cguid, READ);
     if (true == IS_ZS_HASH_CONTAINER(Container_Map[cguid].flags) ) {
         msg("ZSGetContainerSnapshots is not supported on a hash container\n");
-        pthread_rwlock_unlock(&(Container_Map[cguid].bt_cm_rwlock));
+        cm_unlock(cguid);
         return ZS_FAILURE_INVALID_CONTAINER_TYPE;
     }
-    pthread_rwlock_unlock(&(Container_Map[cguid].bt_cm_rwlock));
+    cm_unlock(cguid);
 	bt = bt_get_btree_from_cguid(cguid, &index, &status, false);
 	if (bt == NULL) {
 		return status;
@@ -4420,13 +4498,13 @@ _ZSIoctl(struct ZS_thread_state *zs_ts,
 
     my_thd_state = zs_ts;
 
-    pthread_rwlock_rdlock(&(Container_Map[cguid].bt_cm_rwlock));
+    cm_lock(cguid, READ);
     if (true == IS_ZS_HASH_CONTAINER(Container_Map[cguid].flags) ) {
         ret = ZSIoctl(zs_ts, cguid, ioctl_type, data);
-        pthread_rwlock_unlock(&(Container_Map[cguid].bt_cm_rwlock));
+        cm_unlock(cguid);
         return ret;
     }
-    pthread_rwlock_unlock(&(Container_Map[cguid].bt_cm_rwlock));
+    cm_unlock(cguid);
 
 	bt = bt_get_btree_from_cguid(cguid, &index, &ret, false);
 	if (bt == NULL) {
@@ -4448,6 +4526,77 @@ _ZSIoctl(struct ZS_thread_state *zs_ts,
 	return (ret);
 }
 
+ZS_status_t
+_ZSGetLastError(ZS_cguid_t cguid, void **pp_context, uint32_t *p_err_size)
+{
+	ZS_status_t    status = ZS_FAILURE;
+	btree_status_t btree_status;
+	btree_t        *btree;
+	int            index;
+
+	if (bt_is_license_valid() == false) {
+		return (ZS_LICENSE_CHK_FAILED);
+	}
+
+	if ((status = bt_is_valid_cguid(cguid)) != ZS_SUCCESS) {
+		return status;
+	}
+
+	cm_lock(cguid, READ);
+	if (IS_ZS_HASH_CONTAINER(Container_Map[cguid].flags) == true) {
+		msg("ZSGetLastError is not supported on a hash container\n");
+		cm_unlock(cguid);
+		return ZS_FAILURE_INVALID_CONTAINER_TYPE;
+	}
+
+	btree = bt_get_btree_from_cguid(cguid, &index, &status, false);
+	if (btree == NULL) {
+		bt_rel_entry(index, false);
+		return status;
+	}
+
+	btree_status = btree_move_lasterror(btree, pp_context, p_err_size);
+
+	bt_rel_entry(index, false);
+	return (BtreeErr_to_ZSErr(btree_status));
+}
+
+ZS_status_t
+_ZSRescueContainer(struct ZS_thread_state *zs_ts, ZS_cguid_t cguid, void **pp_context)
+{
+	ZS_status_t    status = ZS_FAILURE;
+	btree_status_t btree_status;
+	btree_t        *btree;
+	int            index;
+
+	if (bt_is_license_valid() == false) {
+		return (ZS_LICENSE_CHK_FAILED);
+	}
+
+	if ((status = bt_is_valid_cguid(cguid)) != ZS_SUCCESS) {
+		return status;
+	}
+
+	my_thd_state = zs_ts;
+
+	cm_lock(cguid, READ);
+	if (IS_ZS_HASH_CONTAINER(Container_Map[cguid].flags) == true) {
+		msg("ZSRescueContainer is not supported on a hash container\n");
+		cm_unlock(cguid);
+		return ZS_FAILURE_INVALID_CONTAINER_TYPE;
+	}
+
+	btree = bt_get_btree_from_cguid(cguid, &index, &status, true);
+	if (btree == NULL) {
+		bt_rel_entry(index, false);
+		return status;
+	}
+
+	btree_status = btree_rescue(btree, pp_context);
+
+	bt_rel_entry(index, true);
+	return (BtreeErr_to_ZSErr(btree_status));
+}
 
 /*
  * persistent seqno facility
@@ -4845,6 +4994,9 @@ ZS_status_t BtreeErr_to_ZSErr(btree_status_t b_status)
 		case BTREE_FLASH_ENOENT:
 			f_status = ZS_FLASH_ENOENT;
 			break;
+		case BTREE_FLASH_EIO:
+			f_status = ZS_FLASH_EIO;
+			break;
 		case BTREE_FLASH_EAGAIN:
 			f_status = ZS_FLASH_EAGAIN;
 			break;
@@ -5058,6 +5210,15 @@ ZS_status_t BtreeErr_to_ZSErr(btree_status_t b_status)
 			break;
 		case BTREE_QUERY_PAUSED:
 			f_status = ZS_QUERY_PAUSED;
+			break;
+		case BTREE_RESCUE_INVALID_REQUEST:
+			f_status = ZS_RESCUE_INVALID_REQUEST;
+			break;
+		case BTREE_RESCUE_NOT_NEEDED:
+			f_status = ZS_RESCUE_NOT_NEEDED;
+			break;
+		case BTREE_RESCUE_IO_ERROR:
+			f_status = ZS_RESCUE_IO_ERROR;
 			break;
 		case BTREE_FAIL_TXN_START:
 		case BTREE_FAIL_TXN_COMMIT:
@@ -5332,6 +5493,9 @@ btree_status_t ZSErr_to_BtreeErr(ZS_status_t f_status)
 		case ZS_FLASH_ENOENT:
 			b_status = BTREE_FLASH_ENOENT;
 			break;
+		case ZS_FLASH_EIO:
+			b_status = BTREE_FLASH_EIO;
+			break;
 		case ZS_FLASH_EAGAIN:
 			b_status = BTREE_FLASH_EAGAIN;
 			break;
@@ -5544,6 +5708,15 @@ btree_status_t ZSErr_to_BtreeErr(ZS_status_t f_status)
 			break;
 		case ZS_QUERY_PAUSED:
 			b_status = BTREE_QUERY_PAUSED;
+			break;
+		case ZS_RESCUE_INVALID_REQUEST:
+			b_status = BTREE_RESCUE_INVALID_REQUEST;
+			break;
+		case ZS_RESCUE_NOT_NEEDED:
+			b_status = BTREE_RESCUE_NOT_NEEDED;
+			break;
+		case ZS_RESCUE_IO_ERROR:
+			b_status = BTREE_RESCUE_IO_ERROR;
 			break;
 		case N_ZS_STATUS_STRINGS:
 		default:
@@ -5861,13 +6034,13 @@ ZS_status_t _ZSScavengeContainer(struct ZS_state *zs_state, ZS_cguid_t cguid)
         return ret;
     }
 
-    pthread_rwlock_rdlock(&(Container_Map[cguid].bt_cm_rwlock));
+    cm_lock(cguid, READ);
     if (true == IS_ZS_HASH_CONTAINER(Container_Map[cguid].flags) ) {
         fprintf(stderr, "Scavenger is unavailable on a hash container\n");
-        pthread_rwlock_unlock(&(Container_Map[cguid].bt_cm_rwlock));
+        cm_unlock(cguid);
         return ZS_FAILURE_INVALID_CONTAINER_TYPE;
     }
-    pthread_rwlock_unlock(&(Container_Map[cguid].bt_cm_rwlock));
+    cm_unlock(cguid);
 
     bt = bt_get_btree_from_cguid(cguid, &index, &ret, false);
     if (bt == NULL) {
@@ -5907,13 +6080,13 @@ ZS_status_t _ZSScavengeSnapshot(struct ZS_state *zs_state, ZS_cguid_t cguid, uin
     ZS_status_t    ret = ZS_FAILURE;
     Scavenge_Arg_t s;
 
-    pthread_rwlock_rdlock(&(Container_Map[cguid].bt_cm_rwlock));
+    cm_lock(cguid, READ);
     if (true == IS_ZS_HASH_CONTAINER(Container_Map[cguid].flags) ) {
         fprintf(stderr, "Scavenger is unavailable on a hash container\n");
-        pthread_rwlock_unlock(&(Container_Map[cguid].bt_cm_rwlock));
+        cm_unlock(cguid);
         return ZS_FAILURE_INVALID_CONTAINER_TYPE;
     }
-    pthread_rwlock_unlock(&(Container_Map[cguid].bt_cm_rwlock));
+    cm_unlock(cguid);
 
     //Check for shutdown is not handled
     s.type = SC_STALE_ENT;

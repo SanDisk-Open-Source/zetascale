@@ -14,6 +14,8 @@
  *		Start trx.  Nesting and roll back is not supported.
  *	TRX_COMMIT
  *		Commit trx.
+ *	TRX_ROLLBACK
+ *		Rollback trx.
  *	TRX_START_MULTI
  *		Start a multiple put.  Multiple trx can subsequently be
  *		started and committed.	Must be balanced by a concluding
@@ -48,6 +50,7 @@ enum trx_cmd {
 	TRX_ENABLED,
 	TRX_START,
 	TRX_COMMIT,
+	TRX_ROLLBACK,
 	TRX_START_MULTI,
 	TRX_COMMIT_MULTI,
 	TRX_SEQNOALLOC,

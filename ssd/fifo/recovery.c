@@ -2257,6 +2257,7 @@ read_disk(mshard_t *shard, aioctx_t *aioctx,
         if (s != FLASH_EOK) {
             zs_loge(70024, "mcd_fth_aio_blk_read failed: "
                      "st=%d blkno=%ld mapblk=%ld nb=%ld", s, blkno, mapblk, n);
+            abort_on_io_error(s);
             return 0;
         }
         blkno += n;
@@ -2718,6 +2719,7 @@ fth_req_big(freq_big_t *freq, aioctx_t  *aioctx)
             atomic_inc(RV.stats.num_m_writes);
         else {
             atomic_inc(RV.stats.num_m_errors);
+            abort_on_io_error(s);
             zs_loge(70019, "write failed bo=%ld nb=%ld", mapblk, n);
         }
 

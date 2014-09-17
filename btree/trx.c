@@ -1115,6 +1115,9 @@ trx_cmd_cb( int cmd, ...)
 	case TRX_COMMIT:
 		ZSTransactionCommit( my_thd_state);
 		return (1);
+	case TRX_ROLLBACK:
+		ZSTransactionRollback(my_thd_state);
+		return (1);
 	case TRX_SEQNOALLOC:
 		va_start( va, cmd);
 		uint64_t *n = va_arg( va, uint64_t *);

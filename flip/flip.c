@@ -6,8 +6,11 @@
 #include <stdarg.h>
 #include <assert.h>
 #include <string.h>
+#include <pthread.h>
 #include "flip.h"
 //#include "flip_defs.h"
+
+pthread_rwlock_t flip_lock;
 
 #if 0
 static flip_info_t defined_flips[] = 
@@ -63,19 +66,19 @@ static bool flip_check_param_va_list(flip_param_t *p, va_list arg_list)
 
 	if (p->data_type == FLIP_INT) {
 		ival = va_arg(arg_list, int);
-		return (p->data == (void *)(int64_t)ival);
+		return (p->any_data || (p->data == (void *)(int64_t)ival));
 	} else if (p->data_type == FLIP_UINT32) {
 		u32_val = va_arg(arg_list, uint32_t);
-		return (p->data == (void *)(uint64_t)u32_val);
+		return (p->any_data || (p->data == (void *)(uint64_t)u32_val));
 	} else if (p->data_type == FLIP_UINT64) {
 		u64_val = va_arg(arg_list, uint64_t);
-		return (p->data == (void *)(uint64_t)u64_val);
+		return (p->any_data || (p->data == (void *)(uint64_t)u64_val));
 	} else if (p->data_type == FLIP_BOOL) {
 		bval = va_arg(arg_list, int);
-		return (p->data == (void *)(int64_t)bval);
+		return (p->any_data || (p->data == (void *)(int64_t)bval));
 	} else if (p->data_type == FLIP_STR) {
 		str_val = va_arg(arg_list, char *);
-		return (strcmp((char *)p->data, str_val) != 0);
+		return (p->any_data || (strcmp((char *)p->data, str_val) != 0));
 	}
 
 	return (false);
@@ -119,7 +122,7 @@ bool flip_set_param_ptr(flip_param_t *p, char *val_str)
 	int bval;
 
 	p->any_data = 0;
-	if (val_str[0] == '*') {
+	if ((val_str == NULL) || (strlen(val_str) == 0) || (val_str[0] == '*')) {
 		p->any_data = 1;
 	} else if (p->data_type == FLIP_INT) {
 		sscanf(val_str, "%d", &ival);
@@ -168,17 +171,17 @@ static void flip_get_param_va_list(flip_param_t *p, va_list arg_list)
 }
 
 /* Exported functions, but used only within the internals of flip */
-flip_param_t *lookup_flip_param(flip_info_t *f, char *param_str)
+flip_param_t *lookup_flip_param(flip_info_t *f, flip_cond_t *fc, char *param_str)
 {
 	flip_param_t *p;
 	uint32_t i;
 
 	if (strcmp(param_str, "return") == 0) {
-		return (&f->return_param);
+		return (&fc->return_param);
 	}
 
 	for (i = 0; i < f->num_params; i++) {
-		p = &f->param_list[i];
+		p = &fc->param_list[i];
 		if (strcmp(p->name, param_str) == 0) {
 			return p;
 		}
@@ -192,6 +195,7 @@ flip_info_t *get_new_flip_instance(void)
 	return (&defined_flips[cur_flip_cnt++]);
 }
 
+#ifdef FLIP_USE_IOCTL
 flip_info_t *get_flip_instance(int index)
 {
 	flip_ioctl_data_t d;
@@ -202,6 +206,17 @@ flip_info_t *get_flip_instance(int index)
 	(void) ZSIoctl(NULL, 0, ZS_IOCTL_FLIP, &d);
 	return (d.flip_instance);
 }
+#else
+flip_info_t *get_flip_instance(int index)
+{
+	if (index >= cur_flip_cnt) {
+		return NULL;
+	} else {
+		return (&defined_flips[index]);
+	}
+}
+#endif
+
 
 flip_info_t *lookup_flip_instance(char *name)
 {
@@ -270,15 +285,15 @@ flip_type_t flip_str_to_type(char *str_type)
 	}
 }
 
-bool flip_is_valid_param(flip_info_t *f, char *param_str)
+bool flip_is_valid_param(flip_info_t *f, flip_cond_t *fc, char *param_str)
 {
-	return (lookup_flip_param(f, param_str) != NULL);
+	return (lookup_flip_param(f, fc, param_str) != NULL);
 }
 
-bool flip_set_param(flip_info_t *f, char *param_str, char *val_str)
+bool flip_set_param(flip_info_t *f, flip_cond_t *fc, char *param_str, char *val_str)
 {
 	/* Search for the param name in the list */
-	flip_param_t *p = lookup_flip_param(f, param_str);
+	flip_param_t *p = lookup_flip_param(f, fc, param_str);
 	if (p == NULL) {
 		return false;
 	}
@@ -286,11 +301,11 @@ bool flip_set_param(flip_info_t *f, char *param_str, char *val_str)
 	return (flip_set_param_ptr(p, val_str));
 }
 
-void flip_print_param(FILE *fp, flip_info_t *f, char *param_str)
+void flip_print_param(FILE *fp, flip_info_t *f, flip_cond_t *fc, char *param_str)
 {
 	char *type;
 
-	flip_param_t *p = lookup_flip_param(f, param_str);
+	flip_param_t *p = lookup_flip_param(f, fc, param_str);
 	if ((p == NULL) || (p->data_type == 0)) {
 		return;
 	}
@@ -302,7 +317,7 @@ void flip_print_param(FILE *fp, flip_info_t *f, char *param_str)
 
 	type = flip_type_to_str(p);
 
-	if (!f->is_set) {
+	if (!fc->is_set) {
 		fprintf(fp, "%s %s ", type, param_str);
 		return;
 	}
@@ -368,53 +383,70 @@ bool flip_get_param(flip_info_t *f, char *param_str, char **ptype, char **pdata)
 /* Exported functions used by outside modules */
 void flip_init()
 {
+	pthread_rwlock_init(&flip_lock, NULL);
 	flip_parse_file(FLIP_FILE);
 }
 
 bool flip_get(char *fname, ...)
 {
 	uint32_t j;
+	uint32_t c;
 	va_list arg_list;
 	flip_info_t *f = NULL;
+	flip_cond_t *fc = NULL;
 	flip_param_t *p = NULL;
-	bool is_on = true;
+	bool is_on = false;
+	bool match_cond[MAX_COND_PER_FLIP];
+
+	pthread_rwlock_rdlock(&flip_lock);
 
 	f = lookup_flip_instance(fname);
 	if (f == NULL) {
-		return 0;
+		pthread_rwlock_unlock(&flip_lock);
+		return false;
 	}
 
-	if (!f->is_set) 
-		return 0;
+	for (c = 0; c < f->cond_cnt; c++) {
+		fc = &f->conditions[c];
 
-	/* Get the parameters based on its type. */
-	va_start(arg_list, fname);
+		if (!fc->is_set) {
+			continue;
+		}
 
-	for (j = 0; j < f->num_params; j++) {
-		p = &f->param_list[j];
+		is_on = true;
 
-		/* Check each parameter values defined earlier 
-		 * matches input in this flip */
-		if (!flip_check_param_va_list(p, arg_list)) {
-			is_on = false;
+		/* Get the parameters based on its type. */
+		va_start(arg_list, fname);
+
+		for (j = 0; j < f->num_params; j++) {
+			p = &fc->param_list[j];
+
+			/* Check each parameter values defined earlier 
+			 * matches input in this flip */
+			if (!flip_check_param_va_list(p, arg_list)) {
+				is_on = false;
+				break;
+			}
+		}
+
+		if (is_on) {
+			if (fc->return_param.data_type != FLIP_BOOL) {
+				flip_get_param_va_list(&fc->return_param, arg_list);
+			}
+			fc->count--;
+			if (fc->count == 0) {
+				fc->is_set = false;
+//				flip_dump_file(FLIP_FILE);
+			}
+
+			fprintf(stderr, "flip '%s' is hit\n", fname);
 			break;
 		}
+
+		va_end(arg_list);
 	}
 
-	if (is_on) {
-		if (f->return_param.data_type != FLIP_BOOL) {
-			flip_get_param_va_list(&f->return_param, arg_list);
-		}
-		f->count--;
-		if (f->count == 0) {
-			f->is_set = false;
-			flip_dump_file(FLIP_FILE);
-		}
-
-		printf("flip '%s' is hit\n", fname);
-	}
-
-	va_end(arg_list);
+	pthread_rwlock_unlock(&flip_lock);
 	return (is_on);
 }
 

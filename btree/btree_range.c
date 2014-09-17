@@ -218,7 +218,7 @@ fill_key_range(btree_range_cursor_t *c,
 		case BTREE_FAILURE:
 		default:
 			value->status |= BTREE_FAILURE;
-			return (BTREE_FAILURE);
+			return (status);
 		}
 		value->datalen = databuf_size;
 	}
@@ -277,8 +277,7 @@ int bsearch_start(btree_range_cursor_t *c, btree_raw_mem_node_t *node)
 	}
 }
 
-static
-void
+static btree_status_t
 btree_range_find_diversion(btree_range_cursor_t* c)
 {
 	int x;
@@ -289,8 +288,10 @@ btree_range_find_diversion(btree_range_cursor_t* c)
 	btree_status_t ret = BTREE_SUCCESS;
 	uint64_t child_id;
 
-	node = root_get_and_lock(c->btree, 0);
-	assert(node);
+	node = root_get_and_lock(c->btree, 0, &ret);
+	if (node == NULL) {
+		return ret;
+	}
 
 	ks.key = tmp_key_buf;
 
@@ -326,17 +327,22 @@ btree_range_find_diversion(btree_range_cursor_t* c)
 				c->end_idx = bsearch_end(c, node);
 				c->end_idx += c->dir;
 				c->node = node;
-				return;
+				return ret;
 			}
 		}
 
 		parent = node;
 
-		node = get_existing_node_low(&ret, c->btree, child_id, 0, false, 
-		                             is_snapshot_query(meta));
-		assert(BTREE_SUCCESS == ret && node); //FIXME add correct error checking here
-
-		plat_rwlock_rdlock(&node->lock);
+		getnode_flags_t nflags = NODE_CACHE_VALIDATE;
+		if (is_snapshot_query(meta)) {
+			nflags |= NODE_CACHE_DEREF_DELETE;
+		}
+		node = get_existing_node(&ret, c->btree, child_id, nflags, LOCKTYPE_READ);
+		if (node == NULL) {
+			plat_rwlock_unlock(&parent->lock);
+			deref_l1cache_node(c->btree, parent);
+			return ret;
+		}
 
 		plat_rwlock_unlock(&parent->lock);
 		deref_l1cache_node(c->btree, parent);
@@ -351,6 +357,8 @@ btree_range_find_diversion(btree_range_cursor_t* c)
 	}
 
 	c->node = node;
+
+	return ret;
 }
 
 static void
@@ -380,7 +388,7 @@ populate_output_array(btree_range_cursor_t *c,
 		if(ret != BTREE_SUCCESS)
 			*status = ret;
 
-		if(ret != BTREE_FAILURE) {
+		if ((ret != BTREE_FAILURE) && !storage_error(ret)) {
 			(*n_out)++;
 			if(ret != BTREE_QUERY_PAUSED)
 				(*cur_idx) += c->dir;
@@ -431,9 +439,14 @@ btree_range_get_next_fast(btree_range_cursor_t *c,
 	 * across two chunks of range queries */
 	c->prior_version_tombstoned = false;
 
-	plat_rwlock_rdlock(&c->btree->lock);
+	if (!btree_in_rescue_mode(c->btree)) {
+		plat_rwlock_rdlock(&c->btree->lock);
+	}
 
-	btree_range_find_diversion(c);
+	ret = btree_range_find_diversion(c);
+	if (ret != BTREE_SUCCESS) {
+		goto cleanup;
+	}
 
 	stack[0].node = c->node;
 	stack[0].cur_idx = c->start_idx;
@@ -463,15 +476,23 @@ btree_range_get_next_fast(btree_range_cursor_t *c,
 				ks.key = tmp_key_buf;
 				get_key_stuff_info2(c->btree, cur->node->pnode, cur->cur_idx, &ks);
 				logical_id = ks.ptr;
-				ks.key = NULL;
-				ks.keylen = 0;
 			}
 
-			child->node = get_existing_node_low(&r, c->btree, logical_id, 0, false, 
-			                                    is_snapshot_query(meta));
-			assert(child->node);
+			getnode_flags_t nflags = NODE_CACHE_VALIDATE;
+			if (is_snapshot_query(meta)) nflags |= NODE_CACHE_DEREF_DELETE;
 
-			plat_rwlock_rdlock(&child->node->lock);
+			child->node = get_existing_node(&r, c->btree, logical_id, nflags, LOCKTYPE_READ);
+			if (child->node == NULL) {
+				if (storage_error(r) && btree_in_rescue_mode(c->btree)) {
+					add_to_rescue(c->btree, cur->node->pnode, logical_id, 
+					             ks.key, ks.keylen, ks.seqno, cur->cur_idx);
+				}
+				ret = r;
+				goto cleanup;
+			}
+
+			ks.key = NULL;
+			ks.keylen = 0;
 
 			child->cur_idx = child->start_idx = c->dir > 0 ? 0 : child->node->pnode->nkeys;
 			if(cur->cur_idx == cur->start_idx && (cur->edge & START_EDGE)) {
@@ -503,12 +524,19 @@ btree_range_get_next_fast(btree_range_cursor_t *c,
 			cur->cur_idx += c->dir;
 	}
 
-	plat_rwlock_unlock(&c->btree->lock);
+cleanup:
+	if (!btree_in_rescue_mode(c->btree)) {
+		plat_rwlock_unlock(&c->btree->lock);
+
+		if (storage_error(ret)) {
+			set_lasterror_rquery(c->btree, meta);
+		}
+	}
 
 	if(!fatal(ret) && !*n_out)
 		ret = BTREE_QUERY_DONE;
 
-	if(ret != BTREE_FAILURE && ret != BTREE_QUERY_DONE) {
+	if(ret != BTREE_FAILURE && ret != BTREE_QUERY_DONE && !storage_error(ret)) {
 		assert(*n_out);
 		store_key(&meta->key_start, &meta->keylen_start, values[*n_out - 1].key, values[*n_out - 1].keylen);
 		dbg_print_key(values[*n_out - 1].key, values[*n_out - 1].keylen, "last_key");
@@ -531,10 +559,10 @@ btree_range_get_next_fast(btree_range_cursor_t *c,
 }
 
 btree_status_t
-btree_range_query_start_fast(btree_t            *btree,
-                        btree_indexid_t         indexid,
-                        btree_range_cursor_t    *c,
-                        btree_range_meta_t      *rmeta)
+btree_range_query_start_fast(btree_raw_t            *btree,
+                             btree_indexid_t         indexid,
+                             btree_range_cursor_t    *c,
+                             btree_range_meta_t      *rmeta)
 {
 	int pathcnt;
 	btree_raw_mem_node_t node;
@@ -617,10 +645,10 @@ int find_end_idx(btree_raw_t* bt, btree_range_cursor_t *c, btree_range_meta_t* r
 }
 
 btree_status_t
-btree_range_query_start_inplace(btree_t                 *btree, 
-                        btree_indexid_t         indexid,
-                        btree_range_cursor_t    *c,
-                        btree_range_meta_t      *rmeta)
+btree_range_query_start_inplace(btree_raw_t                 *btree, 
+                                btree_indexid_t         indexid,
+                                btree_range_cursor_t    *c,
+                                btree_range_meta_t      *rmeta)
 {
 #if 0
 	/*
@@ -674,13 +702,12 @@ btree_range_get_next_inplace_low(btree_range_cursor_t *c,
 	if(*n_out >= n_in || *status == BTREE_QUERY_DONE)
 		return 0;
 
-	node = get_existing_node(&ret, c->btree, c->node->pnode->next);
+	node = get_existing_node(&ret, c->btree, c->node->pnode->next,
+	                         NODE_CACHE_VALIDATE, LOCKTYPE_READ);
 	if(!node) {
-		*status = BTREE_FAILURE;
+		*status = ret;
 		return 0;
 	}
-
-	plat_rwlock_rdlock(&node->lock);
 
 	c->node = node;
 	c->cur_idx = 0;
@@ -731,10 +758,10 @@ btree_range_query_end_inplace(btree_range_cursor_t *c)
  *          BTREE_FAILURE if unsuccessful
  */
 btree_status_t
-btree_range_query_start(btree_t                 *btree, 
-                        btree_indexid_t         indexid,
-                        btree_range_cursor_t    **cursor,
-                        btree_range_meta_t      *rmeta)
+btree_raw_range_query_start(btree_raw_t             *btree, 
+                            btree_indexid_t         indexid,
+                            btree_range_cursor_t    **cursor,
+                            btree_range_meta_t      *rmeta)
 {
 	btree_metadata_t  meta;
 	btree_status_t       status;
@@ -771,8 +798,7 @@ btree_range_query_start(btree_t                 *btree,
 	c = &__thread_cursor[i];
 
 	/* Initialize the cursor, to accomplish further queries */
-	int n_partition = 0;
-	c->btree = btree->partitions[n_partition];
+	c->btree = btree;
 	c->cguid = c->btree->cguid;
 
 	memcpy(&c->query_meta, rmeta, sizeof(btree_range_meta_t));

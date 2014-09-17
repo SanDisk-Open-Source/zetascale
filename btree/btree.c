@@ -291,6 +291,16 @@ btree_status_t btree_delete(struct btree *btree, char *key, uint32_t keylen, btr
     return btree_raw_delete(btree->partitions[n_partition], key, keylen, meta);
 }
 
+btree_status_t btree_move_lasterror(struct btree *btree, void **pp_err_context, uint32_t *p_err_size)
+{
+	return btree_raw_move_lasterror(btree->partitions[0], pp_err_context, p_err_size);
+}
+
+btree_status_t btree_rescue(struct btree *btree, void *p_err_context)
+{
+	return btree_raw_rescue(btree->partitions[0], p_err_context);
+}
+
 /* Like btree_get, but gets next n_in keys after a specified key.
  * Use key=NULL and keylen=0 for first call in enumeration.
  */

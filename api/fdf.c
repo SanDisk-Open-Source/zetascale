@@ -343,6 +343,7 @@ static ZS_status_t zs_delete_container_1(
 	ZS_container_mode_t	 mode
 	);
 
+extern SDF_status_t get_status(int retcode);
 
 /*
 ** Types
@@ -4800,7 +4801,6 @@ out:
 	return status;
 }
 
-
 static ZS_status_t
 zs_read_object(
 	struct ZS_thread_state	*zs_thread_state,
@@ -4816,11 +4816,16 @@ zs_read_object(
 	SDF_appreq_t        ar;
 	SDF_action_init_t  *pac;
 	ZS_status_t        status  = ZS_SUCCESS;
+	ZS_status_t        read_ret= ZS_SUCCESS;
 	char *app_buf_data_ptr = NULL;
 	cntr_map_t *cmap = NULL;
 
 	if ( !cguid || !key ) {
 		return ZS_INVALID_PARAMETER;
+	}
+
+	if (data == NULL) {
+		return ZS_BAD_PBUF_POINTER;
 	}
 
 	cmap = get_cntr_map(cguid);
@@ -4857,7 +4862,7 @@ zs_read_object(
 			flag |= FLASH_GET_RAW_OBJECT;
 		}
 
-		status = ssd_flashGet(pac->paio_ctxt, meta->pshard, &metaData, key, &tdata, flag | FLASH_GET_NO_TEST);
+		read_ret = ssd_flashGet(pac->paio_ctxt, meta->pshard, &metaData, key, &tdata, flag | FLASH_GET_NO_TEST);
 
 		/* If app buf, copied len should be min of datalen and metaData.dataLen */
 		if (app_buf) {
@@ -4866,20 +4871,25 @@ zs_read_object(
 			*datalen = metaData.dataLen;
 		}
 
-		if (status == FLASH_EOK) {
-
+		if (read_ret == FLASH_EOK) {
 			status = ZS_SUCCESS;
 			if (!app_buf) {
 				*data = malloc(*datalen);
+				if (*data == NULL) {
+					status = ZS_OUT_OF_MEM;
+					goto out;
+				}
+			} else {
+				if(*data == NULL) {
+					status = ZS_BAD_PBUF_POINTER;
+					goto out;
+				}
 			}
-			if(!data)
-				status = ZS_FAILURE;
-			else
-				memcpy(*data, tdata, *datalen);
-
+				
+			memcpy(*data, tdata, *datalen);
 			ssd_flashFreeBuf(tdata);
 		} else {
-			status = ZS_FAILURE;
+			status = get_status(read_ret);
 		}
 		goto out;
 
@@ -4895,10 +4905,6 @@ zs_read_object(
 
 		if ((status=SDFObjnameToKey(&(ar.key), (char *) key, keylen)) != ZS_SUCCESS) {
 			goto out;
-		}
-		if (data == NULL) {
-			status = ZS_BAD_PBUF_POINTER;
-			goto out; 
 		}
 
 		if (app_buf) {
@@ -5228,6 +5234,7 @@ zs_write_object(
 	SDF_appreq_t        ar;
 	SDF_action_init_t  *pac		= NULL;
 	ZS_status_t        status	= ZS_FAILURE;
+	ZS_status_t        write_ret    = ZS_FAILURE;
 	cntr_map_t *cmap = NULL;
 
 	if ( !cguid || !key )
@@ -5277,12 +5284,8 @@ zs_write_object(
 
 		update_container_stats(pac, APSOE, meta, 1);
 
-		status = ssd_flashPut(pac->paio_ctxt, meta->pshard, &metaData, key, data, FLASH_PUT_NO_TEST|flags);
-		if (status == FLASH_EOK) {
-			status = ZS_SUCCESS;
-		} else {
-			status = ZS_FAILURE;
-		}
+		write_ret = ssd_flashPut(pac->paio_ctxt, meta->pshard, &metaData, key, data, FLASH_PUT_NO_TEST|flags);
+		status = get_status(write_ret);
 		goto out;
 	} else {
 		if ( xflags & ZS_WRITE_MUST_EXIST ) {
@@ -5333,8 +5336,9 @@ zs_write_objects(
 	)
 {
 	int i;
-    SDF_action_init_t  *pac		= NULL;
-    ZS_status_t        status	= ZS_FAILURE;
+	SDF_action_init_t  *pac		= NULL;
+	ZS_status_t        status	= ZS_FAILURE;
+	ZS_status_t        write_ret    = ZS_FAILURE;
 	cntr_map_t *cmap = NULL;
 
  	plat_assert(cguid && key);
@@ -5344,12 +5348,12 @@ zs_write_objects(
 		return(ZS_CONTAINER_UNKNOWN);
 	}
 
-    if ( (status = zs_get_ctnr_status_cmap(cmap, cguid, 0)) != ZS_CONTAINER_OPEN ) {
-    	plat_log_msg( 160040, LOG_CAT, LOG_DIAG, "Container must be open to execute a write object" );
-        goto out;     
-    }
+	if ( (status = zs_get_ctnr_status_cmap(cmap, cguid, 0)) != ZS_CONTAINER_OPEN ) {
+		plat_log_msg( 160040, LOG_CAT, LOG_DIAG, "Container must be open to execute a write object" );
+		goto out;     
+	}
 
-    pac = (SDF_action_init_t *) zs_thread_state;
+	pac = (SDF_action_init_t *) zs_thread_state;
 
 	SDF_cache_ctnr_metadata_t *meta;
 	meta = get_container_metadata(pac, cguid);
@@ -5376,13 +5380,14 @@ zs_write_objects(
 
 		update_container_stats(pac, APSOE, meta, count);
 
-		status = ssd_flashPutV(pac->paio_ctxt, meta->pshard, &metaData, key, data, count, FLASH_PUT_NO_TEST | flags);
-		status = status == FLASH_EOK ? ZS_SUCCESS : ZS_FAILURE;
+		write_ret = ssd_flashPutV(pac->paio_ctxt, meta->pshard, &metaData, key, data, count, FLASH_PUT_NO_TEST | flags);
+		status = get_status(write_ret);
+//		status = status == FLASH_EOK ? ZS_SUCCESS : ZS_FAILURE;
 	}
 
 out:
 	rel_cntr_map(cmap);
-    return status;
+	return status;
 }
 
 ZS_status_t ZSWriteObject(
