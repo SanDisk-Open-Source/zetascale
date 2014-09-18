@@ -840,6 +840,10 @@ check_object_table(int fd, mcd_rec_shard_t * pshard, uint64_t* mos_segments)
                     rc = 1;
                     break;
                 }
+            } else {
+                sprintf(msg,
+                        "POT checksum valid, start_blk=%d num_blks=%d", chunk * seg_blks, seg_blks);
+                zscheck_log_msg(ZSCHECK_OBJECT_TABLE, pshard->shard_id, ZSCHECK_SUCCESS, msg);
             }
         }
     } // for ( chunk = 0
@@ -969,7 +973,6 @@ mcd_check_storm_log(int fd, mcd_rec_shard_t * pshard, int log, uint64_t* mos_seg
 					status = -1;
 					break;
 				}
-                zscheck_log_msg(ZSCHECK_STORM_LOG, pshard->shard_id, ZSCHECK_SUCCESS, "Storm log checksum valid");
 				// verify header
 				if ( page_hdr->eye_catcher != MCD_REC_LOGHDR_EYE_CATCHER ||
 					 page_hdr->version != MCD_REC_LOGHDR_VERSION ) {
@@ -980,7 +983,6 @@ mcd_check_storm_log(int fd, mcd_rec_shard_t * pshard, int log, uint64_t* mos_seg
 					end_of_log = true;
 					break;
 				}
-                zscheck_log_msg(ZSCHECK_STORM_LOG, pshard->shard_id, ZSCHECK_SUCCESS, "Storm log magic number valid");
 			}
 			// end of log?
 			if ( page_hdr->LSN < prev_LSN ) {
@@ -1015,6 +1017,11 @@ mcd_check_storm_log(int fd, mcd_rec_shard_t * pshard, int log, uint64_t* mos_seg
 	}
 
 	free(buf);
+
+    if (!status) { 
+        zscheck_log_msg(ZSCHECK_STORM_LOG, pshard->shard_id, ZSCHECK_SUCCESS, "storm log magic number valid"); 
+        zscheck_log_msg(ZSCHECK_STORM_LOG, pshard->shard_id, ZSCHECK_SUCCESS, "storm log checksum valid");
+    }
 
 	return status;
 }
