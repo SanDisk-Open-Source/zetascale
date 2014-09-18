@@ -2478,7 +2478,7 @@ flog_patchup(uint64_t shard_id, FILE *fp, int check_only)
         while (fread(sector, FLUSH_LOG_SEC_SIZE, 1, fp) == 1) {
             i++;
             if (frec->magic != FLUSH_LOG_MAGIC) {
-                if (check_only)
+                if (check_only && !empty(sector, FLUSH_LOG_SEC_SIZE))
                     zscheck_log_msg(ZSCHECK_FLOG_RECORD, shard_id, 
                                     ZSCHECK_MAGIC_ERROR, "flog magic number invalid");
                 if(!flog_checksum_enabled || empty(sector, FLUSH_LOG_SEC_SIZE))

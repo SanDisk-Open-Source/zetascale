@@ -969,6 +969,7 @@ mcd_check_storm_log(int fd, mcd_rec_shard_t * pshard, int log, uint64_t* mos_seg
 					status = -1;
 					break;
 				}
+                zscheck_log_msg(ZSCHECK_STORM_LOG, pshard->shard_id, ZSCHECK_SUCCESS, "Storm log checksum valid");
 				// verify header
 				if ( page_hdr->eye_catcher != MCD_REC_LOGHDR_EYE_CATCHER ||
 					 page_hdr->version != MCD_REC_LOGHDR_VERSION ) {
@@ -979,6 +980,7 @@ mcd_check_storm_log(int fd, mcd_rec_shard_t * pshard, int log, uint64_t* mos_seg
 					end_of_log = true;
 					break;
 				}
+                zscheck_log_msg(ZSCHECK_STORM_LOG, pshard->shard_id, ZSCHECK_SUCCESS, "Storm log magic number valid");
 			}
 			// end of log?
 			if ( page_hdr->LSN < prev_LSN ) {
