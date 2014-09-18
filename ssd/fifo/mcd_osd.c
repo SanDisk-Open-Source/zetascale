@@ -8255,7 +8255,7 @@ mcd_osd_raw_set( osd_state_t     *osd_state,
     return flash_to_sdf_status( rc );
 }
 
-
+#if 0
 static int
 mcd_osd_read_bad_segment( osd_state_t * ctxt, mcd_osd_shard_t * shard,
                           mcd_osd_segment_t * segment, char * buf,
@@ -8339,7 +8339,7 @@ mcd_osd_read_bad_segment( osd_state_t * ctxt, mcd_osd_shard_t * shard,
 
     return 0;
 }
-
+#endif
 
 SDF_status_t
 mcd_osd_raw_get( osd_state_t     *osd_state, 
