@@ -5401,22 +5401,18 @@ attach_buffer_segments( mcd_osd_shard_t * shard, int in_recovery,
     // last resort
     *seg_count = 1;
 
-    // recovery is done one shard at a time; use full update buffer in non-storm mode
-    if ((not flash_settings.storm_mode)
-    and (in_recovery)) {
-        *seg_count = (obj_table_size < Mcd_rec_update_bufsize
-                      ? obj_table_size / Mcd_rec_update_segment_size
-                      : Mcd_rec_update_bufsize / Mcd_rec_update_segment_size);
+    unless (flash_settings.storm_mode) {
+    	// recovery is done one shard at a time; use full update buffer in non-storm mode
+    	if (in_recovery)
+    	    *seg_count = (obj_table_size < Mcd_rec_update_bufsize
+    	                  ? obj_table_size / Mcd_rec_update_segment_size
+    	                  : Mcd_rec_update_bufsize / Mcd_rec_update_segment_size);
+    	// online update, limit update buffer size
+    	else if (obj_table_size / Mcd_rec_update_segment_size > Mcd_rec_update_max_chunks)
+    	    *seg_count = (((obj_table_size / Mcd_rec_update_segment_size) +
+    	                   Mcd_rec_update_max_chunks - 1) /
+    	                  Mcd_rec_update_max_chunks);
     }
-
-    // online update, limit update buffer size
-    else if ( obj_table_size / Mcd_rec_update_segment_size >
-              Mcd_rec_update_max_chunks ) {
-        *seg_count = (((obj_table_size / Mcd_rec_update_segment_size) +
-                       Mcd_rec_update_max_chunks - 1) /
-                      Mcd_rec_update_max_chunks);
-    }
-
     if ((*seg_count) > (Mcd_rec_update_bufsize/Mcd_rec_update_segment_size)) {
         mcd_log_msg( 160019, PLAT_LOG_LEVEL_FATAL, 
             "Segment count (%d) exceeded number of recovery "
