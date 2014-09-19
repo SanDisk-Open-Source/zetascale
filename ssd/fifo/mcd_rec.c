@@ -1483,6 +1483,10 @@ recovery_init( void )
     Mcd_rec_log_segment_size = MCD_REC_LOG_SEGMENT_SIZE;
     Mcd_rec_log_segment_blks = MCD_REC_LOG_SEGMENT_BLKS;
 
+    /* in Storm mode, allocate just one of these per physical container
+     */
+    if (storm_mode)
+	Mcd_rec_update_bufsize = LAST_PHYSICAL_CGUID * MCD_REC_UPDATE_SEGMENT_SIZE;
     mcd_rec2_init( Mcd_aio_total_size);
 
     // Override defaults with command line settings
@@ -1526,10 +1530,8 @@ recovery_init( void )
         seg_count    =
             (Mcd_aio_total_size / GIGABYTE * 4) / // max log size (MB)
             (Mcd_rec_log_segment_size / MEGABYTE);   // divided by segment MB
-#if 1//Rico - lm
 	if (storm_mode)
 		seg_count = 3;	// just one segment per shard
-#endif
         seg_buf_size = ( (seg_count * Mcd_rec_log_segment_size) +
                          Mcd_osd_blk_size );
 
@@ -4855,23 +4857,12 @@ process_log( void * context, mcd_osd_shard_t * shard,
                 page_hdr->checksum = hashb((unsigned char *)(buf+page_offset),
                                            MCD_OSD_META_BLK_SIZE, page_hdr->LSN);
                 if ( page_hdr->checksum != checksum ) {
-#if 0//Rico - official h/w recovery
-                    mcd_log_msg( 40036, PLAT_LOG_LEVEL_FATAL,
-                                 "Invalid log page checksum, shardID=%lu, "
-                                 "found=%lu, calc=%lu, boff=%lu, poff=%d",
-                                 shard->id, checksum, page_hdr->checksum,
-                                 blk_count, p );
-                    page_hdr->checksum = checksum; // restore original contents
-                    snap_dump( (char *)page_hdr, MCD_OSD_META_BLK_SIZE);
-                    plat_abort();
-#else
                     mcd_log_msg( 40036, PLAT_LOG_LEVEL_ERROR, "Invalid log page checksum, shardID=%lu, "
 			"found=%lu, calc=%lu, boff=%lu, poff=%d", shard->id, checksum, page_hdr->checksum, blk_count, p );
 		    memset( buf+page_offset, 0, MCD_OSD_META_BLK_SIZE);
 		    end_of_log = true;
 		    p = Mcd_rec_log_segment_blks;
 		    break;
-#endif
                 }
 
                 // verify header
@@ -5410,8 +5401,9 @@ attach_buffer_segments( mcd_osd_shard_t * shard, int in_recovery,
     // last resort
     *seg_count = 1;
 
-    // recovery is done one shard at a time; use full update buffer
-    if ( in_recovery ) {
+    // recovery is done one shard at a time; use full update buffer in non-storm mode
+    if ((not flash_settings.storm_mode)
+    and (in_recovery)) {
         *seg_count = (obj_table_size < Mcd_rec_update_bufsize
                       ? obj_table_size / Mcd_rec_update_segment_size
                       : Mcd_rec_update_bufsize / Mcd_rec_update_segment_size);
