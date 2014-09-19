@@ -552,6 +552,36 @@ static void process_scavenger_cmd(struct ZS_thread_state *thd_state,
     }
 }
 
+ZS_status_t zs_start_defrag_thread(struct ZS_state *zs_state );
+ZS_status_t zs_stop_defrag_thread();
+
+static void process_defrag_cmd(struct ZS_thread_state *thd_state,
+                        FILE *fp, cmd_token_t *tokens, size_t ntokens)
+{
+    if ( ntokens < 2 ) {
+        fprintf(fp,"Invalid argument! Type help for more info\n");
+        return;
+    }
+
+    if ( 0 == getProperty_uLongInt("ZS_DEFRAG_ENABLE", 0)) {
+        fprintf(fp,"defragmenter not enabled, use ZS_DEFRAG_ENABLE\n");
+        return;
+    }
+
+    if ( strcmp(tokens[1].value,"start" ) == 0 ){
+        if(ZS_SUCCESS == zs_start_defrag_thread(
+                    (struct ZS_state *)0xdeadbeef)){
+            fprintf(fp,"defragmenter started\n");
+        } else {
+            fprintf(fp,"defragmenter start failed\n");
+        }
+    } else if (strcmp(tokens[1].value,"stop" ) == 0 ){
+        if(ZS_SUCCESS == zs_stop_defrag_thread()){
+            fprintf(fp,"defragmenter stopped\n");
+        }
+    }
+}
+
 static void process_container_cmd(struct ZS_thread_state *thd_state, 
                        FILE *fp, cmd_token_t *tokens, size_t ntokens){
     int rc,i;
@@ -782,6 +812,9 @@ static ZS_status_t process_admin_cmd( struct ZS_thread_state *thd_state,
     }
     else if( strcmp(tokens[0].value,"scavenger") == 0 ) {
         process_scavenger_cmd(thd_state, fp, tokens, ntokens);
+    } 
+    else if( strcmp(tokens[0].value,"defrag") == 0 ) {
+        process_defrag_cmd(thd_state, fp, tokens, ntokens);
     }
     else {
         fprintf(fp,"Invalid command:(%s)." 

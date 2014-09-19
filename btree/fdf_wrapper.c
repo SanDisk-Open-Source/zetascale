@@ -33,7 +33,8 @@
 #include "flip/flip.h"
 #include "btree_scavenger.h"
 #include "btree_sync_th.h"
-
+#include "btree_var_leaf.h"
+#include <lz4.h>
 
 #define MAX_NODE_SIZE   128*1024
 
@@ -6397,3 +6398,413 @@ out:
 	_ZSReleasePerThreadState(&thd_state);
 	return NULL;
 }
+
+//========================== btree defragmenter =======================
+// TO BE USED WITH STORM in TESSELLATION and COMPRESSION mode
+
+#define DATA_SEPARATOR "\1\1" // change this whenever data key format changes.
+                  // currently <key><DATA_SEPARATOR><start offset><end offset>
+static int maxosz = 16; //max offset size
+static uint64_t mcsz = 64000; //max overflow node usage
+static uint64_t ofminusage = 32000; // min overflow node usage
+static __thread struct ZS_thread_state *defrag_ts;
+static pthread_t defrag_thd = (pthread_t)NULL;
+static bool stop_defrag = false;
+
+pthread_cond_t defrag_cv = PTHREAD_COND_INITIALIZER;
+pthread_mutex_t defrag_mutex = PTHREAD_MUTEX_INITIALIZER;
+
+extern unsigned long int getProperty_uLongInt(const char *key,
+                            const unsigned long int defaultVal);
+extern btree_status_t get_leaf_data_nth_key(btree_raw_t *bt, btree_raw_node_t *n, int index,
+                        btree_metadata_t *meta, uint64_t syndrome,
+                        char **data, uint64_t *datalen, int ref);
+
+/* _ZSMerge - merges two keys and associated data. */
+static ZS_status_t  
+_ZSMerge(struct ZS_thread_state *zs_thread_state,
+         ZS_cguid_t cguid,
+         char *skey, // merged key
+         uint32_t skeylen, //merged key length
+         char *sdata, //merged data
+         uint64_t sdatalen, //merged data length
+         char *dkey1, //first key
+         char *dkey2) //second key
+{
+    ZS_status_t ret = ZS_FAILURE;
+    btree_status_t btree_ret = BTREE_FAILURE;
+    btree_metadata_t meta;
+    uint64_t flash_space_used;
+    struct btree *bt;
+    int index;
+
+    if (__zs_check_mode_on) {
+        /*
+         * We are in checker mode so do not allow any new
+         * write or update in objects.
+         */
+        return ZS_FAILURE_OPERATION_DISALLOWED;
+    }
+
+    my_thd_state = zs_thread_state;;
+
+    if (bt_is_license_valid() == false) {
+        return (ZS_LICENSE_CHK_FAILED);
+    }
+    if ((ret= bt_is_valid_cguid(cguid)) != ZS_SUCCESS) {
+        return ret;
+    }
+
+    pthread_rwlock_rdlock(&(Container_Map[cguid].bt_cm_rwlock));
+    if (true == IS_ZS_HASH_CONTAINER(Container_Map[cguid].flags) ) {
+        pthread_rwlock_unlock(&(Container_Map[cguid].bt_cm_rwlock));
+        return ret;
+    }
+    pthread_rwlock_unlock(&(Container_Map[cguid].bt_cm_rwlock));
+
+    bt = bt_get_btree_from_cguid(cguid, &index, &ret, true);
+    if (bt == NULL) {
+        return (ret);
+    }
+
+    if (Container_Map[index].read_only == true) {
+        bt_rel_entry(index, true);
+        return ZS_FAILURE;
+    }
+    if (skeylen > bt->max_key_size) {
+        bt_rel_entry(index, true);
+        return (ZS_KEY_TOO_LONG);
+    }
+
+    if (sdatalen > BTREE_MAX_DATA_SIZE_SUPPORTED) {
+        bt_rel_entry(index, true);
+        return (ZS_OBJECT_TOO_BIG);
+    }
+
+    if (storage_space_exhausted( "ZSMerge")) {
+        bt_rel_entry(index, true);
+        return ZS_OUT_OF_STORAGE_SPACE;
+    }
+
+    meta.flags = 0;
+    __sync_add_and_fetch(&(bt->partitions[0]->stats.stat[BTSTAT_WRITE_CNT]),1);
+    trxenter( cguid);
+    btree_ret = btree_set(bt, skey, skeylen, sdata, sdatalen, &meta);
+    ret = BtreeErr_to_ZSErr(btree_ret);
+    if (ZS_SUCCESS != ret){
+        trxleave( cguid);
+        bt_rel_entry(index, true);
+        return(ret);
+    }
+    meta.flags = FORCE_DELETE;
+    btree_ret = btree_delete(bt, dkey1, skeylen, &meta);
+    ret = BtreeErr_to_ZSErr(btree_ret);
+    if (ZS_SUCCESS != ret){
+        trxleave( cguid);
+        bt_rel_entry(index, true);
+        return(ret);
+    }
+
+    meta.flags = FORCE_DELETE;
+    btree_ret = btree_delete(bt, dkey2, skeylen, &meta);
+    trxleave( cguid);
+
+    ret = BtreeErr_to_ZSErr(btree_ret);
+    bt_rel_entry(index, true);
+    return(ret);
+}
+
+static ZS_status_t
+_ZSDefragContainer(struct ZS_thread_state *ts,
+                   ZS_cguid_t cid )
+{
+    ZS_status_t ret = ZS_FAILURE;
+    struct btree *bt;
+    int index;
+    uint64_t i;
+    int write_lock = 0;
+    struct btree_raw_mem_node *node;
+    btree_raw_t *btree;
+    uint64_t child_id;
+    btree_raw_mem_node_t *parent;
+    key_stuff_t ks_current_1;
+    btree_status_t bret = BTREE_SUCCESS;
+    key_meta_t key_meta;
+    key_info_t key_info1, key_info2;
+    char *tmp=NULL, orig_key[256];
+
+    if ((ret= bt_is_valid_cguid(cid)) != ZS_SUCCESS) {
+        return ret;
+    }
+
+    pthread_rwlock_rdlock(&(Container_Map[cid].bt_cm_rwlock));
+    if (true == IS_ZS_HASH_CONTAINER(Container_Map[cid].flags)) {
+        pthread_rwlock_unlock(&(Container_Map[cid].bt_cm_rwlock));
+        return ZS_SUCCESS;
+    }
+    pthread_rwlock_unlock(&(Container_Map[cid].bt_cm_rwlock));
+
+    bt = bt_get_btree_from_cguid(cid, &index, &ret, false);
+    if (bt == NULL) {
+        return ret;
+    }
+
+    assert(bt->n_partitions == 1); //assuming only one partition per container
+
+    btree = bt->partitions[0];
+    assert(btree);
+    open_container(ts, cid);
+    node = root_get_and_lock(btree, write_lock, &bret);
+
+    while(!is_leaf(btree, (node)->pnode)) {      
+        (void) get_key_stuff(btree, (node)->pnode, 0, &ks_current_1);
+        child_id = ks_current_1.ptr;  
+        parent = node;
+        node = get_existing_node_low(&bret, btree, child_id, NODE_CACHE_DEREF_DELETE); 
+        assert(node);
+        if (is_leaf(btree, (node)->pnode)) {
+            node_lock(node, true);  
+        } else {
+            node_lock(node, false);   
+        }
+        node_unlock(parent);
+        deref_l1cache_node(btree, parent);
+    }
+
+    while (1) { //traverse all leaf node
+        for (i = 0; i <( node->pnode->nkeys ? (node->pnode->nkeys-1) : 0); i++) {
+            key_info1.keylen = 0;
+            key_info1.datalen = 0;
+            key_info1.key = NULL;
+            assert(true == btree_leaf_get_nth_key_info(btree, node->pnode, i, &key_info1));
+
+            if((key_info1.keylen + key_info1.datalen) < btree->big_object_size) {
+                if(key_info1.key) free(key_info1.key);
+                continue;
+            }
+            if(key_info1.datalen > ofminusage) {
+                if(key_info1.key) free(key_info1.key);
+                continue;
+            }
+            memset(orig_key, 0, 256);
+            assert(key_info1.keylen < 256);
+            strncpy(orig_key, key_info1.key, key_info1.keylen);
+            if(strstr(orig_key, DATA_SEPARATOR) == NULL) {
+                if(key_info1.key) free(key_info1.key);
+                continue;
+            }
+            
+            key_info2.keylen = 0;
+            key_info2.datalen = 0;
+            key_info2.key = NULL;
+            assert(true == btree_leaf_get_nth_key_info(btree, node->pnode, i+1, &key_info2));
+            if((key_info2.keylen + key_info2.datalen) < btree->big_object_size) {
+                if(key_info1.key) free(key_info1.key);
+                if(key_info2.key) free(key_info2.key);
+                i++;
+                continue;
+            }
+            if(key_info2.datalen > ofminusage) {
+                if(key_info1.key) free(key_info1.key);
+                if(key_info2.key) free(key_info2.key);
+                i++;
+                continue;
+            }
+            memset(orig_key, 0, 256);
+            assert(key_info2.keylen < 256);
+            strncpy(orig_key, key_info2.key, key_info2.keylen);
+            if(strstr(orig_key, DATA_SEPARATOR) == NULL) {
+                if(key_info1.key) free(key_info1.key);
+                if(key_info2.key) free(key_info2.key);
+                i++;
+                continue;
+            }
+
+            if (memcmp(key_info1.key, key_info2.key, (key_info1.keylen - (2*maxosz))) != 0) {
+                if(key_info1.key) free(key_info1.key);
+                if(key_info2.key) free(key_info2.key);
+                i++;
+                continue;
+            }
+
+            uint64_t so1,so2,eo1,eo2;
+            char *chk = (char *) malloc((maxosz+1)*sizeof(char));  
+            assert(chk != NULL);
+            memset(chk, 0, maxosz+1);
+            memcpy(chk, key_info1.key + (key_info1.keylen-(2*maxosz)), maxosz);
+            so1 = atoll(chk);
+            memset(chk, 0, maxosz+1);
+            memcpy(chk, (key_info1.key + (key_info1.keylen-maxosz)), maxosz);
+            eo1 = atoll(chk);
+            memset(chk, 0, maxosz+1);
+            memcpy(chk, (key_info2.key + (key_info2.keylen-(2*maxosz))), maxosz);
+            so2 = atoll(chk);
+            memset(chk, 0, maxosz+1);
+            memcpy(chk, (key_info2.key + (key_info2.keylen-maxosz)), maxosz);
+            eo2 = atoll(chk);
+            if(chk) free(chk); 
+
+            char *mdata = (char *) malloc ((eo2 - so1 + 1) * sizeof(char));
+            memset(mdata, 0, (eo2 - so1 + 1));
+
+            char *tmp_data1 = NULL;
+            uint64_t tmp_datalen1 = 0;
+            btree_metadata_t meta;
+            meta.flags = 0;
+            assert(BTREE_SUCCESS == get_leaf_data_nth_key(btree, node->pnode, i, &meta, 0,
+                        &tmp_data1, &tmp_datalen1, 0));
+            int dclen = eo1 - so1 + 1;
+            char *uc = (char *) calloc(dclen, sizeof(char));
+            assert(uc != NULL);
+            int ucsz = LZ4_decompress_safe(tmp_data1, uc, tmp_datalen1, dclen);
+            assert(0 != ucsz);
+            assert(ucsz == dclen);
+            memcpy(mdata, uc, dclen);  
+            if(uc) free(uc);
+            if(tmp_data1) free(tmp_data1);
+
+            char *tmp_data2 = NULL;
+            uint64_t tmp_datalen2 = 0;
+            assert(BTREE_SUCCESS == get_leaf_data_nth_key(btree, node->pnode, i+1, &meta, 0,
+                        &tmp_data2, &tmp_datalen2, 0));
+            dclen = eo2 - so2 + 1;  
+            uc = (char *) calloc(dclen, sizeof(char));
+            assert(uc != NULL);
+            ucsz = LZ4_decompress_safe(tmp_data2, uc, tmp_datalen2, dclen); 
+            assert(0 != ucsz);
+            assert(ucsz == dclen);
+            memcpy(mdata + so2 - so1,uc, dclen);  
+            if(uc) free(uc);
+            if(tmp_data2) free(tmp_data2);
+
+            //try write
+            uint64_t bound = LZ4_compressBound(mcsz);    
+            char *out = (char *) calloc(bound, sizeof(char));
+            assert(out != NULL);
+            uint64_t mdatalen = eo2 - so1 + 1;     
+            uint64_t olen = LZ4_compress( mdata, out, mdatalen);
+            if(olen == 0) {
+                if(key_info1.key) free(key_info1.key);
+                if(key_info2.key) free(key_info2.key);
+                if(mdata) free(mdata);
+                if(out) free(out); 
+                continue;
+            }
+            char *ton = (char *) malloc((key_info1.keylen + 1) * sizeof(char));
+            memset(ton, 0, key_info1.keylen + 1);
+            memcpy(ton, key_info1.key, key_info1.keylen);
+            sprintf(ton+key_info1.keylen-(2*maxosz), "%016lu%016lu", so1, eo2);
+
+            node_unlock(node);
+            deref_l1cache_node(btree, node);
+            bt_rel_entry(index, false);
+            assert(ZS_SUCCESS == _ZSMerge(ts, cid, ton, key_info1.keylen, 
+                        out, olen, key_info1.key, key_info2.key));
+            if(key_info1.key) free(key_info1.key);
+            if(key_info2.key) free(key_info2.key);
+            if(mdata) free(mdata);
+            if(out) free(out);
+            if(ton) free(ton);
+            return ZS_SUCCESS;
+        }
+
+        child_id = node->pnode->next;
+        parent = node;
+
+        if (child_id == 0) {
+            node_unlock(parent);
+            deref_l1cache_node(btree, parent);
+            break;
+        } else {
+            node =  get_existing_node_low(&bret, btree, child_id, NODE_CACHE_DEREF_DELETE);
+            if (node == NULL) {
+                node_unlock(parent);
+                deref_l1cache_node(btree, parent);
+                break;
+            } else {
+                node_lock(node, true);
+                node_unlock(parent);
+                deref_l1cache_node(btree, parent);
+            }
+        }
+    }
+    bt_rel_entry(index, false);
+    return ZS_SUCCESS;
+}
+
+static void *defrag_thd_hdlr(void *arg)
+{
+    struct timespec abstime;
+    void *retval = NULL;
+
+    uint64_t defrag_sleep_sec = getProperty_uLongInt(
+            "ZS_DEFRAG_INTERVAL", 60); // 1 minute
+    ofminusage = getProperty_uLongInt("ZS_DEFRAG_OFMINSZ", 32000);
+
+    if(ZS_SUCCESS != _ZSInitPerThreadState(( struct ZS_state * ) arg,
+                ( struct ZS_thread_state ** )&defrag_ts)) {
+        pthread_exit(retval);
+    }
+
+    ZS_cguid_t cguids[MAX_OPEN_CONTAINERS];
+    uint32_t ncguids = 0;
+    int i;
+    while(1){
+        if ( stop_defrag == true){
+            pthread_mutex_lock(&defrag_mutex);
+            clock_gettime(CLOCK_REALTIME, &abstime);
+            abstime.tv_sec += 31536000; //yield for an year
+            pthread_cond_timedwait(&defrag_cv, &defrag_mutex, &abstime);
+            pthread_mutex_unlock(&defrag_mutex);
+        }
+
+        if (ZS_SUCCESS == _ZSGetContainers(defrag_ts, cguids, &ncguids)){
+            for(i = 0; i < ncguids;i++){
+                _ZSDefragContainer(defrag_ts, cguids[i]);
+                pthread_mutex_lock(&defrag_mutex);
+                clock_gettime(CLOCK_REALTIME, &abstime);
+                abstime.tv_sec += defrag_sleep_sec;
+                pthread_cond_timedwait(&defrag_cv, &defrag_mutex, &abstime);
+                pthread_mutex_unlock(&defrag_mutex);
+
+            }
+        }
+        pthread_mutex_lock(&defrag_mutex);
+        clock_gettime(CLOCK_REALTIME, &abstime);
+        abstime.tv_sec += defrag_sleep_sec;
+        pthread_cond_timedwait(&defrag_cv, &defrag_mutex, &abstime);
+        pthread_mutex_unlock(&defrag_mutex);
+    }
+}
+
+ZS_status_t 
+zs_start_defrag_thread(struct ZS_state *zs_state )
+{
+    stop_defrag = false;
+
+    if( zs_state == NULL ) {
+        return ZS_FAILURE;
+    }
+
+    if((pthread_t)NULL == defrag_thd) {
+        if( 0 == pthread_create(&defrag_thd,NULL,
+                    defrag_thd_hdlr,(void *)zs_state)){
+            return ZS_SUCCESS;
+        }
+        return ZS_FAILURE;
+    } else {
+        if(0 == pthread_cond_broadcast(&defrag_cv)) {
+            return ZS_SUCCESS;
+        } else {
+            return ZS_FAILURE;
+        }
+    }
+}
+
+ZS_status_t 
+zs_stop_defrag_thread()
+{
+    stop_defrag = true;
+    return ZS_SUCCESS;
+}
+

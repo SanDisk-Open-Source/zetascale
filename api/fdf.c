@@ -2156,6 +2156,13 @@ ZS_status_t ZSInitVersioned(
                 "expired object scavenging disabled.");
     }
 
+    ZS_status_t zs_start_defrag_thread(struct ZS_state *);
+    if ( getProperty_Int( "ZS_DEFRAG_ENABLE", 0) == 1 ) {
+        mcd_log_msg(PLAT_LOG_ID_INITIAL, PLAT_LOG_LEVEL_DEBUG,
+                    "defragmenter enabled.\n");
+        zs_start_defrag_thread(*zs_state );
+    }
+
 #if 0
     /*
      * automatically add MCD_MAX_NUM_CNTRS to the maximum recovered
@@ -2724,6 +2731,8 @@ zs_get_open_containers_int(
     return ZS_SUCCESS;
 }
 
+ZS_status_t zs_stop_defrag_thread();
+
 /*
  * The ZS shutdown process. This function should get called once.
  * @param [in] Pointer to ZS state object
@@ -2748,6 +2757,7 @@ ZS_status_t ZSShutdown(struct ZS_state *zs_state)
          * stop scavenger thread.
          */
         zs_stop_scavenger_thread();
+        zs_stop_defrag_thread();
 
 		/*
 		 * Mark shutdown in progress
