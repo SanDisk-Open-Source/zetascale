@@ -50,6 +50,11 @@ enum {
 };
 
 
+#define	bytes_per_device_block		(1uL << 13)
+#define	bits_per_byte			8uL
+#define	bitbase( a)	((a) / bits_per_byte)
+#define	bitmask( a)	(1 << (a)%bits_per_byte)
+
 ulong		mcd_rec2_standard_slab_segments( ulong),
 		mcd_rec2_log_size( ulong),
 		mcd_rec2_potbitmap_size( ulong),

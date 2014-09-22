@@ -43,7 +43,6 @@
 #define	device_blocks_per_segment	(bytes_per_segment / bytes_per_device_block)
 #define	pot_elements_per_page		device_blocks_per_segment
 #define	bytes_per_page			(pot_elements_per_page * bytes_per_pot_element)
-#define	bits_per_byte			8uL
 #define leaf_occupancy_pct		75
 #define	regobj_scale_pct		120
 
@@ -59,9 +58,6 @@
 #define	FATAL			PLAT_LOG_LEVEL_FATAL
 #define	INITIAL			PLAT_LOG_ID_INITIAL
 #define	msg( id, lev, ...)	plat_log_msg( id, PLAT_LOG_CAT_SDF_APP_MEMCACHED_RECOVERY, lev, __VA_ARGS__)
-
-#define	bitbase( a)	((a) / bits_per_byte)
-#define	bitmask( a)	(1 << (a)%bits_per_byte)
 
 int pot_checksum_enabled;
 

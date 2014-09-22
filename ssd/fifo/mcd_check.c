@@ -63,7 +63,6 @@
 
 #include "utils/rico.h"
 #include "ssd/fifo/mcd_rec2.h"
-#define	bytes_per_device_block		(1uL << 13)
 bool match_potbm_checksum( potbm_t *potbm, uint n);
 bool match_slabbm_checksum( slabbm_t *, uint);
 bool empty( void *, uint);
@@ -289,10 +288,59 @@ mcd_check_shard_descriptor(int fd, int shard_idx)
 }
 
 
-int
-mcd_check_potbm(int fd, int buf_idx, uint64_t shard_id)
+extern int pot_checksum_enabled;
+#define bytes_per_page 65536
+void pot_checksum_set(char* buf, uint32_t sum);
+uint32_t pot_checksum_get(char* buf);
+
+static int
+pot_read(int fd, mcd_rec_shard_t * pshard, uint64_t* mos_segments,
+                uint64_t start_blk, uint64_t num_blks, char * buf )
 {
-    int                   status = 0;
+    int                         bytes;
+    uint64_t                    io_blks;
+    uint64_t                    blk_count;
+    uint64_t                    start_seg;
+    uint64_t                    offset;
+    uint64_t                    rel_offset;
+    char                        msg[512];
+
+    // iterate by number of blocks per I/O operation
+    for ( blk_count = 0; blk_count < num_blks; blk_count += io_blks ) {
+
+        // compute number of blocks to read in a single I/O
+        io_blks = MCD_REC_UPDATE_IOSIZE / MCD_OSD_META_BLK_SIZE;
+        if ( io_blks > num_blks - blk_count ) {
+            io_blks = num_blks - blk_count;
+        }
+
+        // calculate starting logical segment number
+        rel_offset = VAR_BLKS_TO_META_BLKS(pshard->rec_md_blks) 
+					+ start_blk + blk_count;
+        start_seg  = rel_offset / MCD_OSD_META_SEGMENT_BLKS;
+
+        // get logical block offset to starting block
+        offset = mos_segments[ start_seg ] * Mcd_osd_blk_size+
+            ( rel_offset % MCD_OSD_META_SEGMENT_BLKS) * MCD_OSD_META_BLK_SIZE;
+
+        bytes = pread(fd, buf + (blk_count * MCD_OSD_META_BLK_SIZE),
+                             io_blks * MCD_OSD_META_BLK_SIZE, offset);
+        if (bytes != io_blks * MCD_OSD_META_BLK_SIZE ) {
+            sprintf(msg, "Failed to read POT, start=%lu, count=%lu, "
+                         "offset=%lu, count=%lu, bytes=%d",
+                         start_blk, blk_count, offset, io_blks, bytes );
+            zscheck_log_msg(ZSCHECK_POT, pshard->shard_id, ZSCHECK_READ_ERROR, msg);
+            return -1;
+        }
+    }
+
+    return 0;
+}
+
+int
+mcd_check_potbm(int fd, int buf_idx, uint64_t shard_id, uint64_t* mos_segments)
+{
+    int                   i, status = 0;
     ssize_t               bytes;
 
 	mcd_rec_shard_t *p = (mcd_rec_shard_t *)buf[buf_idx];
@@ -312,6 +360,36 @@ mcd_check_potbm(int fd, int buf_idx, uint64_t shard_id)
     } else { 
         zscheck_log_msg(ZSCHECK_POT_BITMAP, shard_id, ZSCHECK_SUCCESS, "POT bitmap checksum valid");
     }
+
+	char* buf = memalign( MCD_OSD_META_BLK_SIZE, bytes_per_page);
+	for(i = 0; i < potbm->nbit; i++)
+	{
+        if(potbm->bits[bitbase( n)] & bitmask( n))
+        {
+            int rc = pot_read(fd,
+                    p, mos_segments,
+                    i * bytes_per_page,
+                    bytes_per_page,
+                    buf);
+
+            if(rc) break;
+
+            if(pot_checksum_enabled) {
+                uint32_t c, sum = pot_checksum_get(buf);
+                pot_checksum_set(buf, 0);
+                if((c = checksum(buf, bytes_per_page, 0)) != sum)
+                {
+                    if(sum || !empty(buf, bytes_per_page)) {
+                        mcd_log_msg(160290, PLAT_LOG_LEVEL_FATAL,
+                                "POT checksum error. expected=%x, read_from_disk=%x, start_blk=%d num_blks=%d", c, sum,
+                                i * bytes_per_page, bytes_per_page);
+                        rc = 1;
+                        break;
+                    }
+                }
+            }
+        }
+	}
 
 	free(potbm);
 
@@ -351,16 +429,23 @@ mcd_check_slabbm(int fd, int buf_idx, uint64_t shard_id)
 int
 mcd_check_all_potbm(int fd)
 {
+    int status = 0;
     int count = 0;
 
-    if ( cmc_properties_ok && !mcd_check_potbm(fd, CMC_DESC_BUF, CMC_SHARD_ID) )
+    fprintf(stderr, "cmc potbm: ");
+    if ( cmc_properties_ok && ! (status = mcd_check_potbm(fd, CMC_DESC_BUF, CMC_SHARD_ID, cmc_mos_segments)) )
         ++count;
+    fprintf(stderr,"%s\n", status ? "failed" : "succeeded");
 
-    if ( vmc_properties_ok && !mcd_check_potbm(fd, VMC_DESC_BUF, VMC_SHARD_ID) )
+    fprintf(stderr, "vmc potbm: ");
+    if ( vmc_properties_ok && !(status = mcd_check_potbm(fd, VMC_DESC_BUF, VMC_SHARD_ID, vmc_mos_segments)) )
         ++count;
+    fprintf(stderr,"%s\n", status ? "failed" : "succeeded");
 
-    if ( vdc_properties_ok && !mcd_check_potbm(fd, VDC_DESC_BUF, VDC_SHARD_ID) )
+    fprintf(stderr, "vdc potbm: ");
+    if ( vdc_properties_ok && !(status = mcd_check_potbm(fd, VDC_DESC_BUF, VDC_SHARD_ID, vdc_mos_segments)) )
         ++count;
+    fprintf(stderr,"%s\n", status ? "failed" : "succeeded");
 
     return count < 3 ? -1 : 0;
 }
@@ -709,11 +794,6 @@ mcd_check_all_ckpt_descriptors(int fd)
         return 0;
 }
 
-extern int pot_checksum_enabled;
-#define bytes_per_page 65536
-void pot_checksum_set(char* buf, uint32_t sum);
-uint32_t pot_checksum_get(char* buf);
-
 /* Fault injection function to corrupt POT */
 int mcd_corrupt_object_table(int fd, mcd_rec_shard_t * pshard, uint64_t*mos_segments)
 {
@@ -741,50 +821,6 @@ int mcd_corrupt_object_table(int fd, mcd_rec_shard_t * pshard, uint64_t*mos_segm
     plat_free(_buf);
 
     return bytes != seg_blks * MCD_OSD_META_BLK_SIZE;
-}
-
-static int
-pot_read(int fd, mcd_rec_shard_t * pshard, uint64_t* mos_segments,
-                uint64_t start_blk, uint64_t num_blks, char * buf )
-{
-    int                         bytes;
-    uint64_t                    io_blks;
-    uint64_t                    blk_count;
-    uint64_t                    start_seg;
-    uint64_t                    offset;
-    uint64_t                    rel_offset;
-    char                        msg[512];
-
-    // iterate by number of blocks per I/O operation
-    for ( blk_count = 0; blk_count < num_blks; blk_count += io_blks ) {
-
-        // compute number of blocks to read in a single I/O
-        io_blks = MCD_REC_UPDATE_IOSIZE / MCD_OSD_META_BLK_SIZE;
-        if ( io_blks > num_blks - blk_count ) {
-            io_blks = num_blks - blk_count;
-        }
-
-        // calculate starting logical segment number
-        rel_offset = VAR_BLKS_TO_META_BLKS(pshard->rec_md_blks) 
-					+ start_blk + blk_count;
-        start_seg  = rel_offset / MCD_OSD_META_SEGMENT_BLKS;
-
-        // get logical block offset to starting block
-        offset = mos_segments[ start_seg ] * Mcd_osd_blk_size+
-            ( rel_offset % MCD_OSD_META_SEGMENT_BLKS) * MCD_OSD_META_BLK_SIZE;
-
-        bytes = pread(fd, buf + (blk_count * MCD_OSD_META_BLK_SIZE),
-                             io_blks * MCD_OSD_META_BLK_SIZE, offset);
-        if (bytes != io_blks * MCD_OSD_META_BLK_SIZE ) {
-            sprintf(msg, "Failed to read POT, start=%lu, count=%lu, "
-                         "offset=%lu, count=%lu, bytes=%d",
-                         start_blk, blk_count, offset, io_blks, bytes );
-            zscheck_log_msg(ZSCHECK_POT, pshard->shard_id, ZSCHECK_READ_ERROR, msg);
-            return -1;
-        }
-    }
-
-    return 0;
 }
 
 int
@@ -1132,16 +1168,32 @@ mcd_check_meta()
         ++errors;
     }
 
-    status = mcd_check_all_potbm(fd);
-    if( status != 0 ) {
-        fprintf(stderr,"POT bitmap check failed. continuing checks\n");
-        ++errors;
-    }
+    int check_x86_sse42( void);
+    extern int sse42_present;
 
-    status = mcd_check_all_slabbm(fd);
-    if( status != 0 ) {
-        fprintf(stderr,"Slab bitmap check failed. continuing checks\n");
-        ++errors;
+    sse42_present = check_x86_sse42( );
+
+    if(getProperty_Int("ZS_STORM_MODE", 1))
+    {
+        status = mcd_check_all_potbm(fd);
+        if( status != 0 ) {
+            fprintf(stderr,"POT bitmap check failed. continuing checks\n");
+            ++errors;
+        }
+
+        status = mcd_check_all_slabbm(fd);
+        if( status != 0 ) {
+            fprintf(stderr,"Slab bitmap check failed. continuing checks\n");
+            ++errors;
+        }
+    }
+    else
+    {
+        status = mcd_check_all_pot(fd);
+        if( status != 0 ) {
+            fprintf(stderr,"POT check failed. continuing checks\n");
+            ++errors;
+        }
     }
 
     status = mcd_check_all_storm_log(fd);
@@ -1153,12 +1205,6 @@ mcd_check_meta()
     status = mcd_check_flog();
     if( status != 0 ) {
         fprintf(stderr,"Flog check failed. continuing checks\n");
-        ++errors;
-    }
-
-    status = mcd_check_all_pot(fd);
-    if( status != 0 ) {
-        fprintf(stderr,"POT check failed. continuing checks\n");
         ++errors;
     }
 
@@ -1202,11 +1248,6 @@ mcd_check_flog()
     int status = -1;
     int errors = 0;
     mcd_rec_shard_t * shard = NULL;
-
-    int check_x86_sse42( void);
-    extern int sse42_present;
-
-    sse42_present = check_x86_sse42( );
 
 	insertProperty("ZS_LOG_FLUSH_DIR", "/tmp");
 	flog_checksum_enabled = 1;
