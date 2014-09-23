@@ -3186,6 +3186,7 @@
 150124 POT checksum error. expected=%x, read_from_disk=%x, start_blk=%ld num_blks=%d offset=%d
 150125 POT checksum error. expected=%x, read_from_disk=%x, start_blk=%d num_blks=%d offset=%d
 150126 Cannot do space check in normal mode.\n
+150127 defragmenter enabled.\n
 
 
 # root

@@ -2458,6 +2458,7 @@ flog_patchup(uint64_t shard_id, FILE *fp, int check_only)
     int           i = 0, patched = 0;
     unsigned char *sector = NULL;
     flog_bio_t      fbio_ = {0};
+    int           check_errors = 0;
 
     if (flog_check_min_size(fp)) {
         zscheck_log_msg(ZSCHECK_FLOG_RECORD, shard_id, ZSCHECK_READ_ERROR,
@@ -2480,14 +2481,14 @@ flog_patchup(uint64_t shard_id, FILE *fp, int check_only)
         while (fread(sector, FLUSH_LOG_SEC_SIZE, 1, fp) == 1) {
             i++;
             if (frec->magic != FLUSH_LOG_MAGIC) {
-                if (check_only && !empty(sector, FLUSH_LOG_SEC_SIZE))
+                if (check_only && !empty(sector, FLUSH_LOG_SEC_SIZE)) {
                     zscheck_log_msg(ZSCHECK_FLOG_RECORD, shard_id, 
                                     ZSCHECK_MAGIC_ERROR, "flog magic number invalid");
+                    ++check_errors;
+                }
                 if(!flog_checksum_enabled || empty(sector, FLUSH_LOG_SEC_SIZE))
                     continue;
-            } else if (check_only)
-                zscheck_log_msg(ZSCHECK_FLOG_RECORD, shard_id, 
-                                ZSCHECK_SUCCESS, "flog magic number valid");
+            }
 
             if(flog_checksum_enabled) {
                 uint32_t c, sum = frec->checksum;
@@ -2498,13 +2499,12 @@ flog_patchup(uint64_t shard_id, FILE *fp, int check_only)
                     if(check_only) {
                         zscheck_log_msg(ZSCHECK_FLOG_RECORD, shard_id, 
                                         ZSCHECK_CHECKSUM_ERROR, "flog checksum invalid");
+                        ++check_errors;
                         return 1;
                     }
                     else
                         plat_abort();
-                } else if (check_only)
-                    zscheck_log_msg(ZSCHECK_FLOG_RECORD, shard_id, 
-                                    ZSCHECK_SUCCESS, "flog checksum valid");
+                } 
             }
             if(!check_only) {
                 int s = fbio_write(&fbio_, frec);
@@ -2516,6 +2516,11 @@ flog_patchup(uint64_t shard_id, FILE *fp, int check_only)
         if(!check_only)
             fbio_flush(&fbio_);
     } while (0);
+
+    if (!check_errors && check_only) { 
+        zscheck_log_msg(ZSCHECK_FLOG_RECORD, shard_id, ZSCHECK_SUCCESS, "flog magic number valid");
+        zscheck_log_msg(ZSCHECK_FLOG_RECORD, shard_id, ZSCHECK_SUCCESS, "flog checksum valid");
+    }
 
     if (patched && !check_only) {
         mcd_log_msg(70107, PLAT_LOG_LEVEL_DEBUG,
@@ -2607,7 +2612,7 @@ flog_prepare(mcd_osd_shard_t *shard)
 
     int flags = 0;
 
-    if (mcd_check_level() == ZSCHECK_NO_INIT)
+    if (mcd_check_get_level() == ZSCHECK_NO_INIT)
         flags = O_WRONLY;
     else
         flags = O_CREAT|O_TRUNC|O_WRONLY;
@@ -2666,7 +2671,7 @@ flog_clean(uint64_t shard_id)
     char path[FLUSH_LOG_MAX_PATH];
     char *log_flush_dir = (char *)getProperty_String("ZS_LOG_FLUSH_DIR", NULL);
 
-    if ( mcd_check_level() == ZSCHECK_NO_INIT || log_flush_dir == NULL)
+    if ( mcd_check_get_level() == ZSCHECK_NO_INIT || log_flush_dir == NULL)
         return;
 
 	if(zs_instance_id)
@@ -2778,7 +2783,7 @@ shard_recover( mcd_osd_shard_t * shard )
 
     // initialize log flushing
     // ignore this if in zsck mode...will hopefully do it later
-    if ( mcd_check_level() != ZSCHECK_NO_INIT )
+    if ( mcd_check_get_level() != ZSCHECK_NO_INIT )
 	    flog_init(shard, 0);
 
     // get aligned buffer

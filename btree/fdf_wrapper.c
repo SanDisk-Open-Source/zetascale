@@ -225,8 +225,11 @@ _ZSCheckMsg(ZS_check_entity_t entity,
             char *msg
             );
 
+void
+_ZSCheckSetLevel(int level);
+
 int
-_ZSCheckLevel();
+_ZSCheckGetLevel();
 
 ZS_status_t
 _ZSCheckMeta(); 
@@ -3779,7 +3782,7 @@ _ZSCheck(struct ZS_thread_state *zs_thread_state)
             ZSCheckMsg(ZSCHECK_BTREE_NODE, 0, ZSCHECK_SUCCESS, err_msg);
 		}
 
-		msg("Data Conssitency check PASSED for cguid %d.\n", cguids[i]);
+		msg("Data Consistency check PASSED for cguid %d.\n", cguids[i]);
 	}
 
 	/*
@@ -3814,10 +3817,16 @@ _ZSCheckMsg(ZS_check_entity_t entity,
                       );
 }
 
-int
-_ZSCheckLevel()            
+void
+_ZSCheckSetLevel(int level)            
 {
-    return ZSCheckLevel();
+    ZSCheckSetLevel(level);
+}
+
+int
+_ZSCheckGetLevel()            
+{
+    return ZSCheckGetLevel();
 }
 
 ZS_status_t

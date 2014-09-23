@@ -1277,12 +1277,18 @@ mcd_check_flog()
 }
 
 
-// Is check mode turned on?
 // 0 - disabled
 // 1 - enabled, no init zs
 // 2 - enabled, init zs
+void
+mcd_check_set_level(int level)
+{
+    __zs_check_mode_on = level;
+}
+
+// Is check mode turned on?
 int 
-mcd_check_level()
+mcd_check_get_level()
 {
     return __zs_check_mode_on;
 }

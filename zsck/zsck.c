@@ -140,6 +140,8 @@ int main(int argc, char *argv[])
         return -1;
     }
 
+    set_props();
+
     if (btree_opt) {
         if (ZS_SUCCESS != (status = check_btree())) {
             fprintf(stderr, "btree check failed: %s\n", ZSStrError(status));

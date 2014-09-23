@@ -2115,7 +2115,7 @@ ZS_status_t ZSInitVersioned(
     } while (rc == -1 && errno == EINTR);
 
     plat_assert( 0 == rc );
-    if ( ZSCHECK_NO_INIT != mcd_check_level() ) {
+    if ( ZSCHECK_NO_INIT != mcd_check_get_level() ) {
         if ( getProperty_String("ZS_STATS_FILE","")[0] )
         {
             zs_start_stats_thread( *zs_state );
@@ -2158,7 +2158,7 @@ ZS_status_t ZSInitVersioned(
 
     ZS_status_t zs_start_defrag_thread(struct ZS_state *);
     if ( getProperty_Int( "ZS_DEFRAG_ENABLE", 0) == 1 ) {
-        mcd_log_msg(PLAT_LOG_ID_INITIAL, PLAT_LOG_LEVEL_DEBUG,
+        mcd_log_msg(150127, PLAT_LOG_LEVEL_DEBUG,
                     "defragmenter enabled.\n");
         zs_start_defrag_thread(*zs_state );
     }
@@ -4474,7 +4474,7 @@ zs_get_containers_int(
 		if (cmap->cguid > LAST_PHYSICAL_CGUID  && 
 		   ((strcmp(cmap->cname,SEQNO_CONTAINER_NAME) &&
 		     strcmp(cmap->cname,PSTATS_CONTAINER_NAME)) || 
-		     mcd_check_level() != ZSCHECK_NO_CHECK) &&
+		     mcd_check_get_level() != ZSCHECK_NO_CHECK) &&
              strncmp( cmap->cname,BTREE_DELETE_CONTAINER_NAME, strlen(BTREE_DELETE_CONTAINER_NAME) ) &&
 			 ( cmap->state == ZS_CONTAINER_STATE_CLOSED ||
 			   cmap->state == ZS_CONTAINER_STATE_OPEN )  ) {
@@ -7979,10 +7979,16 @@ ZSCheckClose()
         return ZS_FAILURE;
 }
 
-int 
-ZSCheckLevel()
+void
+ZSCheckSetLevel(int level)
 {
-    return mcd_check_level();
+    mcd_check_set_level(level);
+}
+
+int 
+ZSCheckGetLevel()
+{
+    return mcd_check_get_level();
 }
 
 void

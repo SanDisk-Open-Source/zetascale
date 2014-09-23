@@ -8803,7 +8803,7 @@ btree_raw_node_check(btree_raw_t *btree, btree_raw_node_t *node,
 	bool leaf_node = is_leaf(btree, node);
 	uint64_t prev_key_seqno = 0;
 	bool res = true;
-    int check_level = ZSCheckLevel();
+    int check_level = ZSCheckGetLevel();
     char err_msg[1024];
 
 	/*

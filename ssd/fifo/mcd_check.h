@@ -47,6 +47,9 @@ mcd_check_flog();
 int
 mcd_check_pot();
 
-int 
-mcd_check_level();
+void
+mcd_check_set_level(int level);
+
+int
+mcd_check_get_level();
 

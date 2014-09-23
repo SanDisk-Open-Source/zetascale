@@ -1316,6 +1316,7 @@ ZSCheckBtree(struct ZS_thread_state *zs_thread_state,
 ZS_status_t
 ZSCheck(struct ZS_thread_state *zs_thread_state);
 
+// For ZS metadata checker
 ZS_status_t 
 ZSCheckMeta();
 
@@ -1325,19 +1326,18 @@ ZSCheckFlog();
 ZS_status_t
 ZSCheckPOT();
 
-// For ZS metadata checker
 ZS_status_t
 ZSCheckInit(char *logfile);
 
-// For ZS metadata checker
 ZS_status_t
 ZSCheckClose();
 
-// For ZS metadata checker
-int
-ZSCheckLevel();
+void
+ZSCheckSetLevel(int level);
 
-// For ZS metadata checker
+int
+ZSCheckGetLevel();
+
 void
 ZSCheckMsg(ZS_check_entity_t entity,
            uint64_t id,

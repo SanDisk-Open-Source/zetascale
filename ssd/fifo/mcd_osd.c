@@ -4344,7 +4344,7 @@ out:
                         ZSCHECK_SHARD_SPACE_MAP_ERROR, err_msg);
 		return false;
 	}
-    zscheck_log_msg(ZSCHECK_SHARD_SPACE_MAP, shard->pshard->shard_id, ZSCHECK_SUCCESS, "Space consistency verified");
+    //zscheck_log_msg(ZSCHECK_SHARD_SPACE_MAP, shard->pshard->shard_id, ZSCHECK_SUCCESS, "Space consistency verified");
 	return true;
 }
 
@@ -5422,6 +5422,7 @@ mcd_fth_osd_slab_get( void * context, mcd_osd_shard_t * shard, char *key,
     hash_entry_t              * hash_entry = NULL;
     bucket_entry_t            * bucket_entry;
     hash_handle_t             * hdl = shard->hash_handle;
+    int                         check_errors = 0;
 
 	if (flags & FLASH_GET_RAW_OBJECT) {
 		return mcd_fth_osd_slab_get_raw(context, shard, key, key_len, ppdata, pactual_size,
@@ -5617,9 +5618,10 @@ override_retry:
             meta->blk1_chksum = 0;
             if ((flash_settings.chksum_metadata)
             && (hashb( (uint8_t *)buf, MCD_OSD_META_BLK_SIZE, 0) != blk1_chksum)) {
-                if ( mcd_check_level() ) {
+                if ( mcd_check_get_level() ) {
                     zscheck_log_msg(ZSCHECK_SLAB_METADATA, shard->pshard->shard_id, 
                                     ZSCHECK_CHECKSUM_ERROR, "slab metadata checksum invalid");
+                    ++check_errors;
                 } else {
                     mcd_log_msg(170036, PLAT_LOG_LEVEL_FATAL,
                             "Metadata inconsistency found in cguid = %d, byte offset = %"PRIu64".\n",
@@ -5628,15 +5630,12 @@ override_retry:
                     return FLASH_EINCONS;
                 }
             }
-            if ( mcd_check_level() ) {
-                zscheck_log_msg(ZSCHECK_SLAB_METADATA, shard->pshard->shard_id, 
-                                ZSCHECK_SUCCESS, "slab metadata checksum valid");
-            }
             if ((flash_settings.chksum_data)
             && (hashb( (uint8_t *)buf+sizeof( mcd_osd_meta_t), key_len+meta->data_len, 0) != meta->data_chksum)) {
-                if ( mcd_check_level() ) {
+                if ( mcd_check_get_level() ) {
                     zscheck_log_msg(ZSCHECK_SLAB_DATA, shard->pshard->shard_id, 
                                     ZSCHECK_CHECKSUM_ERROR, "slab data checksum invalid");
+                    ++check_errors;
                 } else {
                     mcd_log_msg(170037, PLAT_LOG_LEVEL_FATAL,
                             "Data inconsistency found in cguid = %d, byte offset = %"PRIu64".\n",
@@ -5644,10 +5643,6 @@ override_retry:
                     mcd_fth_osd_slab_free(data_buf);
                     return FLASH_EINCONS;
                 }
-            }
-            if ( mcd_check_level() ) {
-                zscheck_log_msg(ZSCHECK_SLAB_DATA, shard->pshard->shard_id, 
-                                ZSCHECK_SUCCESS, "slab data checksum valid");
             }
 
             /*
@@ -5697,6 +5692,7 @@ override_retry:
             }
 
             meta_data->blockaddr = hash_entry->blkaddress;
+
             return FLASH_EOK;
         }
     }
@@ -5718,6 +5714,7 @@ mcd_fth_osd_slab_get_raw( void * context, mcd_osd_shard_t * shard, char *key,
     mcd_osd_meta_t            * meta;
     cntr_id_t                   cntr_id = meta_data->cguid;
 	mcd_osd_segment_t 			* segment;
+    int                         check_errors = 0;
 
     mcd_log_msg( 20000, PLAT_LOG_LEVEL_TRACE, "ENTERING" );
     (void) __sync_fetch_and_add( &shard->num_gets, 1 );
@@ -5852,9 +5849,10 @@ mcd_fth_osd_slab_get_raw( void * context, mcd_osd_shard_t * shard, char *key,
 	meta->blk1_chksum = 0;
 	if ((flash_settings.chksum_metadata)
 	&& (hashb( (uint8_t *)buf, MCD_OSD_META_BLK_SIZE, 0) != blk1_chksum)) {
-        if ( mcd_check_level() ) { 
+        if ( mcd_check_get_level() ) { 
             zscheck_log_msg(ZSCHECK_SLAB_METADATA, shard->pshard->shard_id, 
                             ZSCHECK_CHECKSUM_ERROR, "slab metadata checksum invalid"); 
+            ++check_errors;
         } else {
 			mcd_log_msg(170036, PLAT_LOG_LEVEL_FATAL,
 					"Metadata inconsistency found in cguid = %d, byte offset = %"PRIu64".\n",
@@ -5863,13 +5861,9 @@ mcd_fth_osd_slab_get_raw( void * context, mcd_osd_shard_t * shard, char *key,
 			return FLASH_EINCONS;
         }
 	} 
-    if ( mcd_check_level() ) { 
-        zscheck_log_msg(ZSCHECK_SLAB_METADATA, shard->pshard->shard_id, 
-                        ZSCHECK_SUCCESS, "slab metadata checksum valid"); 
-    }
 	if ((flash_settings.chksum_data)
 	&& (hashb( (uint8_t *)buf+sizeof( mcd_osd_meta_t), key_len+meta->data_len, 0) != meta->data_chksum)) {
-        if ( mcd_check_level() ) { 
+        if ( mcd_check_get_level() ) { 
             zscheck_log_msg(ZSCHECK_SLAB_DATA, shard->pshard->shard_id, 
                             ZSCHECK_CHECKSUM_ERROR, "slab data checksum invalid"); 
         } else {
@@ -5880,10 +5874,6 @@ mcd_fth_osd_slab_get_raw( void * context, mcd_osd_shard_t * shard, char *key,
 			return FLASH_EINCONS;
         }
 	}
-    if ( mcd_check_level() ) { 
-        zscheck_log_msg(ZSCHECK_SLAB_DATA, shard->pshard->shard_id, 
-                        ZSCHECK_SUCCESS, "slab data checksum valid"); 
-    }
 
 	/*
 	 * meta can no longer be accessed after this
@@ -5892,6 +5882,7 @@ mcd_fth_osd_slab_get_raw( void * context, mcd_osd_shard_t * shard, char *key,
 			meta->data_len );
 
 	meta_data->blockaddr = *(baddr_t *)key;
+
 	return FLASH_EOK;
 }
 
