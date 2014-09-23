@@ -43,7 +43,7 @@ int get_options(int argc, char *argv[])
         switch (c) {
 
         case 's':
-            size = atoi(optarg) * 1024 * 1024 * 1024;
+            size = atol(optarg) * 1024 * 1024 * 1024;
             break;
 
         case 'i':
