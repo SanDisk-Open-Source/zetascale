@@ -309,7 +309,7 @@ static ZS_status_t
 (*ptr_ZSGetLastError)(ZS_cguid_t cguid, void **pp_err_context, uint32_t *p_err_size);
 
 static ZS_status_t
-(*ptr_ZSRescueContainer)(struct ZS_thread_state *zs_state, ZS_cguid_t cguid, void **pp_err_context);
+(*ptr_ZSRescueContainer)(struct ZS_thread_state *zs_state, ZS_cguid_t cguid, void *pcontext);
 
 static void 
 (*ptr_ZSTLMapDestroy)(struct ZSTLMap *pm);
@@ -1679,11 +1679,11 @@ ZS_status_t ZSGetLastError(ZS_cguid_t cguid, void **pp_err_context, uint32_t *p_
 	return (*ptr_ZSGetLastError) (cguid, pp_err_context, p_err_size);
 }
 
-ZS_status_t ZSRescueContainer(struct ZS_thread_state *zs_thread_state, ZS_cguid_t cguid, void *p_err_context)
+ZS_status_t ZSRescueContainer(struct ZS_thread_state *zs_thread_state, ZS_cguid_t cguid, void *pcontext)
 {
 	if (unlikely(!ptr_ZSRescueContainer)) {
 		undefined("ZSRescueContainer");
 	}
 
-	return (*ptr_ZSRescueContainer) (zs_thread_state, cguid, p_err_context);
+	return (*ptr_ZSRescueContainer) (zs_thread_state, cguid, pcontext);
 }

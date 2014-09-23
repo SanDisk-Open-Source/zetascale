@@ -92,7 +92,7 @@ btree_snap_create_meta(btree_raw_t *bt, uint64_t seqno)
 	__sync_add_and_fetch(&(bt->stats.stat[BTSTAT_NUM_SNAPS]), 1);
 	pthread_rwlock_unlock(&bt->snap_lock);
 
-	return (flushpersistent(bt));
+	return (savepersistent(bt, FLUSH_SNAPSHOT, true));
 }
 
 static btree_status_t
@@ -148,7 +148,7 @@ btree_snap_delete_meta(btree_raw_t *bt, uint64_t seqno)
 	bt->snap_meta->total_snapshots--;
 	__sync_sub_and_fetch(&(bt->stats.stat[BTSTAT_NUM_SNAPS]), 1);
 	pthread_rwlock_unlock(&bt->snap_lock);
-	return (flushpersistent(bt));
+	return (savepersistent(bt, FLUSH_SNAPSHOT, true));
 }
 
 /* 

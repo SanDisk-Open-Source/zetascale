@@ -629,7 +629,7 @@ int CMapDelete(struct CMap *pm, char *key, uint32_t keylen)
 
     do_lock_write(pm);
 
-	dbg_print("pm=%p, key=0x%lx, keylen=%d\n", pm, *((uint64_t *) key), keylen);
+    dbg_print("pm=%p, key=0x%lx, keylen=%d\n", pm, *((uint64_t *) key), keylen);
 
     h = cmap_hash((const unsigned char *) key, sizeof(uint64_t), 0) % pm->nbuckets;
     pb = &(pm->buckets[h]);

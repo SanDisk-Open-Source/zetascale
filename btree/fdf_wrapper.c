@@ -1731,9 +1731,10 @@ restart:
 	if (bt_is_license_valid() == false) {
 		return (ZS_LICENSE_CHK_FAILED);
 	}
-    if ((status = bt_is_valid_cguid(cguid)) != ZS_SUCCESS) {
-        return status;
-    }
+
+	if ((status = bt_is_valid_cguid(cguid)) != ZS_SUCCESS) {
+		return status;
+	}
 
 	if ((index = bt_get_ctnr_from_cguid(cguid)) == -1) {
 		return ZS_FAILURE_CONTAINER_NOT_FOUND;
@@ -1810,7 +1811,7 @@ restart:
 		strncpy(Container_Map[index].cname, cname, CONTAINER_NAME_MAXLEN);
 		btree = Container_Map[index].btree;
 		btree->partitions[0]->snap_meta->sc_status |= SC_OVERFLW_DELCONT;
-		if ((status = flushpersistent(btree->partitions[0])) == BTREE_SUCCESS) {
+		if ((status = savepersistent(btree->partitions[0], FLUSH_SNAPSHOT, true)) == BTREE_SUCCESS) {
 			/*
 			 * Increment IO count so that shutdown doesnt go through. This thread
 			 * sends message to scavenger and releases the lock. By the time scavenger
@@ -1875,7 +1876,7 @@ restart:
 			btree_destroy(btree);
 		}
 	}
-    return(status);
+	return(status);
 }
 
 /**
@@ -3145,7 +3146,7 @@ static void write_node_cb(struct ZS_thread_state *thd_state, btree_status_t *ret
     trxtrackwrite( prn->cguid, lnodeid);
     assert(((flags & ZS_WRITE_RAW) && (datalen == overflow_node_sz)) ||
 		   (!(flags & ZS_WRITE_RAW) && (prn->nodesize == datalen)));
-	*ret_out = ZSErr_to_BtreeErr(ret);
+    *ret_out = ZSErr_to_BtreeErr(ret);
 }
 
 static void flush_node_cb(btree_status_t *ret_out, void *cb_data, uint64_t lnodeid)
@@ -3537,7 +3538,7 @@ ZS_status_t btree_get_node_info(ZS_cguid_t cguid, char *data, uint64_t datalen,
 
 	node = (btree_raw_node_t *)data;
 	*logical_id = node->logical_id;
-	*node_type  = (node->logical_id & META_LOGICAL_ID) ? 0 : node->flags;
+	*node_type  = (node->logical_id & META_LOGICAL_ID_MASK) ? 0 : node->flags;
 	*is_root    = (btree->rootid == node->logical_id);
 
 	return ZS_SUCCESS;
@@ -4531,6 +4532,7 @@ _ZSGetLastError(ZS_cguid_t cguid, void **pp_context, uint32_t *p_err_size)
 		cm_unlock(cguid);
 		return ZS_FAILURE_INVALID_CONTAINER_TYPE;
 	}
+	cm_unlock(cguid);
 
 	btree = bt_get_btree_from_cguid(cguid, &index, &status, false);
 	if (btree == NULL) {
@@ -4545,7 +4547,7 @@ _ZSGetLastError(ZS_cguid_t cguid, void **pp_context, uint32_t *p_err_size)
 }
 
 ZS_status_t
-_ZSRescueContainer(struct ZS_thread_state *zs_ts, ZS_cguid_t cguid, void **pp_context)
+_ZSRescueContainer(struct ZS_thread_state *zs_ts, ZS_cguid_t cguid, void *pcontext)
 {
 	ZS_status_t    status = ZS_FAILURE;
 	btree_status_t btree_status;
@@ -4568,6 +4570,7 @@ _ZSRescueContainer(struct ZS_thread_state *zs_ts, ZS_cguid_t cguid, void **pp_co
 		cm_unlock(cguid);
 		return ZS_FAILURE_INVALID_CONTAINER_TYPE;
 	}
+	cm_unlock(cguid);
 
 	btree = bt_get_btree_from_cguid(cguid, &index, &status, true);
 	if (btree == NULL) {
@@ -4575,7 +4578,7 @@ _ZSRescueContainer(struct ZS_thread_state *zs_ts, ZS_cguid_t cguid, void **pp_co
 		return status;
 	}
 
-	btree_status = btree_rescue(btree, pp_context);
+	btree_status = btree_rescue(btree, pcontext);
 
 	bt_rel_entry(index, true);
 	return (BtreeErr_to_ZSErr(btree_status));
@@ -6083,7 +6086,7 @@ ZS_status_t _ZSScavengeContainer(struct ZS_state *zs_state, ZS_cguid_t cguid)
     }
     pthread_rwlock_unlock(&ctnrmap_rwlock);
 
-    flushpersistent(s.btree);
+    savepersistent(s.btree, FLUSH_SNAPSHOT, true);
     if (deref_l1cache(s.btree) != BTREE_SUCCESS) {
         fprintf(stderr," deref_l1_cache failed\n");
     }
@@ -6261,7 +6264,7 @@ close_container(struct ZS_thread_state *zs_thread_state, Scavenge_Arg_t *S)
 
     assert(S);
     (S->bt->partitions[0])->snap_meta->sc_status &= ~(S->type);
-    flushpersistent(S->btree);
+    savepersistent(S->btree, FLUSH_SNAPSHOT, true);
     if (deref_l1cache(S->btree) != BTREE_SUCCESS) {
         fprintf(stderr,"deref_l1_cache failed\n");
     }
@@ -6333,7 +6336,7 @@ bt_restart_delcont(void *parm)
 	ZS_cguid_t					*cguids = NULL, cguid;
 	char 						*node;
 	uint64_t					node_size;
-	uint64_t 					nodeid = META_LOGICAL_ID;
+	uint64_t 					nodeid = META_SNAPSHOT_LOGICAL_ID;
 	btree_raw_persist_t 		*r;
 	ZS_status_t				status;
 

@@ -41,8 +41,13 @@ typedef struct cmap {
 } ctrmap_t;
 
 #define BAD_CHILD       0
-#define META_LOGICAL_ID 0x8000000000000000L
 #define BTREE_VERSION   0
+
+#define META_LOGICAL_ID_MASK          0x8000000000000000L
+#define META_ROOT_LOGICAL_ID          (META_LOGICAL_ID_MASK | (1 << 0))
+#define META_COUNTER_LOGICAL_ID       (META_LOGICAL_ID_MASK | (1 << 1))
+#define META_SNAPSHOT_LOGICAL_ID      (META_LOGICAL_ID_MASK | (1 << 2))
+#define META_TOTAL_NODES              3
 
 typedef struct node_vkey {
     uint32_t    keylen:31;
@@ -347,6 +352,15 @@ typedef struct btree_raw_persist {
     btree_snap_meta_t     snap_details;
 } btree_raw_persist_t;
 
+typedef enum {
+	FLUSH_NOT_NEEDED,
+	FLUSH_ROOT_CHANGED,
+	FLUSH_COUNTER_INTERVAL,
+	FLUSH_SNAPSHOT,
+	FLUSH_PSTATS,
+	FLUSH_FORCE,
+} flush_persist_type_t;
+
 void btree_snap_init_meta(btree_raw_t *bt, size_t size);
 btree_status_t btree_snap_create_meta(btree_raw_t *bt, uint64_t seqno);
 btree_status_t btree_snap_delete_meta(btree_raw_t *bt, uint64_t seqno);
@@ -355,8 +369,7 @@ btree_status_t btree_snap_get_meta_list(btree_raw_t *bt, uint32_t *n_snapshots,
  		                             ZS_container_snapshots_t **snap_seqs);
 bool btree_snap_seqno_in_snap(btree_raw_t *bt, uint64_t seqno);
  
-btree_status_t savepersistent( btree_raw_t *bt, bool create);
-btree_status_t flushpersistent( btree_raw_t *bt);
+btree_status_t savepersistent(btree_raw_t *bt, flush_persist_type_t flush_type, bool flush_now);
 
 int get_key_stuff(btree_raw_t *bt, btree_raw_node_t *n, uint32_t nkey, key_stuff_t *pks);
 int 
@@ -456,6 +469,7 @@ typedef struct {
 	char                 *key;
 	uint32_t             keylen;
 	uint64_t             seqno;
+	bool                 rightmost;
 	int                  idx;
 } btree_op_err_rescue_t;
 
@@ -467,6 +481,7 @@ enum {
 };
 
 void set_lasterror(btree_raw_t *btree, uint64_t err_logical_id);
+uint64_t get_lasterror(btree_raw_t *btree);
 void set_lasterror_single(btree_raw_t *btree, char *key, uint32_t keylen, btree_metadata_t *meta);
 void set_lasterror_rquery(btree_raw_t *btree, btree_range_meta_t *rmeta);
 void set_lasterror_rupdate(btree_raw_t *btree, char *key, uint32_t keylen, btree_metadata_t *meta);
@@ -475,8 +490,7 @@ void reset_lasterror(btree_raw_t *btree);
 btree_op_err_rescue_t *btree_raw_get_cur_rescue(btree_raw_t *btree);
 void btree_raw_exit_rescue(btree_raw_t *btree);
 bool btree_in_rescue_mode(btree_raw_t *btree);
-void add_to_rescue(btree_raw_t *btree, btree_raw_node_t *parent, uint64_t err_logical_id,
-                   char *key, uint32_t keylen, uint32_t seqno, int index);
+void add_to_rescue(btree_raw_t *btree, btree_raw_node_t *parent, uint64_t err_logical_id, int idx);
 ZS_cguid_t btree_raw_get_cguid_from_op_err(void *context);
 btree_status_t btree_raw_rescue(btree_raw_t *btree, void *context);
 

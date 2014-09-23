@@ -261,6 +261,32 @@ static void flip_cmd_list(FILE *fp, cmd_token_t *tokens, size_t ntokens)
 	}
 }
 
+static void flip_cmd_reset(FILE *fp, cmd_token_t *tokens, size_t ntokens)
+{
+	flip_info_t *f = NULL;
+	flip_cond_t *fc = NULL;
+	int i = 0;
+	uint32_t c;
+	int j;
+	bool list_set_only = false;
+	flip_param_t *p = NULL;
+	size_t t = 0;
+
+	while ((f = get_flip_instance(i++)) != NULL) {
+		for (c = 0; c < f->cond_cnt; c++) {
+			fc = &f->conditions[c];
+
+			if (!fc->is_set) {
+				continue;
+			}
+
+			fc->is_set = false;
+			fprintf(fp, "%s condition %u is reset", f->name, c);
+		}
+	}
+}
+
+
 static size_t tokenize_flip_cmd(char *command, cmd_token_t *tokens, 
                                 const size_t max_tokens) 
 {
@@ -316,6 +342,8 @@ void process_flip_cmd(FILE *fp, cmd_token_t *tokens, size_t ntokens)
 		flip_cmd_set(fp, &tokens[2], ntokens - 2, false /* is_modify */);
 	} else if (strcmp(tokens[1].value, "list") == 0) {
 		flip_cmd_list(fp, &tokens[2], ntokens - 2);
+	} else if (strcmp(tokens[1].value, "reset") == 0) {
+		flip_cmd_reset(fp, &tokens[2], ntokens - 2);
 	} else if (strcmp(tokens[1].value, "modify") == 0) {
 		flip_cmd_set(fp, &tokens[2], ntokens - 2, true /* is_modify */);
 	} else {

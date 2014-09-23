@@ -146,10 +146,13 @@ __thread btree_raw_mem_node_t **modified_nodes = NULL;
 __thread btree_raw_mem_node_t **referenced_nodes = NULL;
 __thread btree_raw_mem_node_t **deleted_nodes = NULL;
 __thread btree_raw_mem_node_t **overflow_nodes = NULL;
+__thread btree_raw_mem_node_t **modified_metanodes = NULL;
 __thread int *modified_written = NULL;
 __thread int *deleted_written = NULL;
 __thread int *overflow_written = NULL;
 __thread uint64_t modified_nodes_count=0, referenced_nodes_count=0, deleted_nodes_count=0, overflow_nodes_count = 0;
+__thread uint64_t modified_metanodes_count = 0;
+__thread uint64_t saverootid = BAD_CHILD;
 
 static __thread char tmp_key_buf[8100] = {0};
 __thread uint64_t dbg_referenced = 0;
@@ -258,6 +261,7 @@ find_key(btree_raw_t *bt, btree_raw_node_t *n, char *key_in, uint32_t keylen_in,
          uint64_t *child_id, uint64_t *child_id_before, uint64_t *child_id_after,
          int32_t *index);
 static btree_status_t loadpersistent( btree_raw_t *);
+static btree_status_t createpersistent(btree_raw_t *bt);
 static void free_node(btree_status_t *ret, btree_raw_t *btree, btree_raw_mem_node_t *n);
 
 static inline btree_raw_mem_node_t *get_new_node(btree_status_t *ret, btree_raw_t *btree, uint32_t leaf_flags, uint16_t level);
@@ -281,6 +285,7 @@ btree_status_t deref_l1cache(btree_raw_t *btree);
 static void btree_sync_flush_entry(btree_raw_t *btree, struct ZS_thread_state *thd_state, btSyncRequest_t *list);
 static void btree_sync_remove_entry(btree_raw_t *btree, btSyncRequest_t *list);
 static void modify_l1cache_node(btree_raw_t *btree, btree_raw_mem_node_t *n);
+static void set_metanode_modified(btree_raw_t *btree, btree_raw_mem_node_t *meta_mnode);
 
 static void lock_modified_nodes_func(btree_raw_t *btree, int lock);
 #define lock_modified_nodes(btree) lock_modified_nodes_func(btree, 1)
@@ -564,7 +569,7 @@ btree_raw_init(uint32_t flags, uint32_t n_partition, uint32_t n_partitions, uint
         }
     } else {
         bt->rootid = bt->logical_id_counter * bt->n_partitions + bt->n_partition;
-        if (BTREE_SUCCESS != savepersistent( bt, true /* create */)) {
+        if (BTREE_SUCCESS != createpersistent(bt)) {
             free( bt);
             return (NULL);
         }
@@ -739,142 +744,203 @@ node_unlock(btree_raw_mem_node_t* node)
 	dbg_print("node_id=%ld locked=%lld\n", node->pnode->logical_id, locked);
 }
 
+#define offsetof(st, m) ((size_t)(&((st *)0)->m))
+
+static btree_status_t create_meta_node(btree_raw_t *bt, uint64_t meta_logical_id, bool pinned,
+                                         btree_raw_mem_node_t **meta_node)
+{
+	btree_raw_persist_t *r;
+	btree_status_t ret;
+
+	*meta_node = create_new_node(bt, meta_logical_id, UNKNOWN_NODE, false, pinned);
+	if (*meta_node == NULL) {
+		return BTREE_FAILURE;
+	}
+
+	r = (btree_raw_persist_t*)(*meta_node)->pnode;
+	r->meta_version = META_VERSION;
+
+	if (meta_logical_id == META_ROOT_LOGICAL_ID) {
+		r->rootid  = bt->rootid;
+	} else if (meta_logical_id == META_COUNTER_LOGICAL_ID) {
+		r->logical_id_counter = bt->logical_id_counter;
+	} else if (meta_logical_id == META_SNAPSHOT_LOGICAL_ID) {
+		bt->snap_meta = &(r->snap_details); /* Keep the pinned snap details node info in btree */
+		(void)btree_snap_init_meta(bt, bt->nodesize - offsetof(btree_raw_persist_t, snap_details));
+	} else {
+		assert(0);
+		return BTREE_FAILURE;
+	}
+
+	uint64_t* logical_id = &((*meta_node)->pnode->logical_id);
+	bt->write_node_cb(my_thd_state, &ret, bt->write_node_cb_data,
+	                  &logical_id, (char**)&((*meta_node)->pnode),
+	                  bt->nodesize, 1, 0);
+
+	return ret;
+}
+
+static btree_status_t createpersistent(btree_raw_t *bt)
+{
+	btree_raw_mem_node_t *meta_root = NULL;
+	btree_raw_mem_node_t *meta_counter = NULL;
+	btree_raw_mem_node_t *meta_snapshot = NULL;
+	btree_status_t ret;
+
+	ret = create_meta_node(bt, META_ROOT_LOGICAL_ID, false, &meta_root);
+	if (ret != BTREE_SUCCESS) {
+		goto error;
+	}
+
+	ret = create_meta_node(bt, META_COUNTER_LOGICAL_ID, false, &meta_counter);
+	if (ret != BTREE_SUCCESS) {
+		goto error;
+	}
+
+	ret = create_meta_node(bt, META_SNAPSHOT_LOGICAL_ID, true, &meta_snapshot);
+	if (ret != BTREE_SUCCESS) {
+		goto error;
+	}
+
+	deref_l1cache_node(bt, meta_root);
+	deref_l1cache_node(bt, meta_counter);
+	deref_l1cache_node(bt, meta_snapshot);
+
+	return ret;
+
+error:
+	if (meta_root) delete_node_l1cache(bt, meta_root->pnode);
+	if (meta_counter) delete_node_l1cache(bt, meta_counter->pnode);
+	if (meta_snapshot) delete_node_l1cache(bt, meta_snapshot->pnode);
+
+	return ret;
+}
+	
 /*
  * save persistent btree metadata
  *
  * Info is stored as a btree node with special logical ID. 
  */
-#define offsetof(st, m) ((size_t)(&((st *)0)->m))
-
 btree_status_t
-savepersistent(btree_raw_t *bt, bool create)
+savepersistent(btree_raw_t *bt, flush_persist_type_t flush_type, bool flush_now)
 {
-	return writepersistent( bt, create, false);
-}
+	btree_raw_mem_node_t* mem_node;
+	btree_status_t ret = BTREE_SUCCESS;
+	bool flush_needed = false;
+	btree_raw_persist_t *r;
 
-btree_status_t
-flushpersistent(btree_raw_t *bt)
-{
-	return writepersistent( bt, false , true);
-}
+	/* Hopefully there is a reason/type defined for each flush. Need to
+	 * use only force only for misc reasons, which we don't have today */
+	assert(flush_type != FLUSH_FORCE);
 
+	if (flush_type == FLUSH_ROOT_CHANGED) {
+		mem_node = get_existing_node(&ret, bt, META_ROOT_LOGICAL_ID,
+		                             NODE_REF, LOCKTYPE_READ);
+		if (mem_node == NULL) goto read_error;
 
-static btree_status_t
-writepersistent( btree_raw_t *bt, bool create, bool force_write)
-{
-    btree_raw_mem_node_t* mem_node;
-    btree_status_t ret = BTREE_SUCCESS;
-    bool tb_flushed = false;
-
-    if(create) {
-        mem_node = create_new_node(bt,
-								   META_LOGICAL_ID+bt->n_partition,
-								   UNKNOWN_NODE, true /* ref */, true /* pinned */);
-        if (mem_node == NULL) {
-            ret = BTREE_FAILURE;
-			bt_warn( "New node!");
-            goto done;
-        }
-
-        btree_raw_persist_t *r = (btree_raw_persist_t*)mem_node->pnode;
-
-        dbg_print("ret=%d nodeid=%lx r->lic %ld r->rootid %ld bt->logical_id_counter %ld\n",
-                  ret, META_LOGICAL_ID + bt->n_partition, r->logical_id_counter,
-                  r->rootid, r->logical_id_counter + META_COUNTER_SAVE_INTERVAL);
-        r->meta_version = META_VERSION;
-        bt->snap_meta = &(r->snap_details); /* Keep the pinned snap details node info in btree */
-        (void)btree_snap_init_meta(bt, bt->nodesize - offsetof(btree_raw_persist_t, snap_details));
-
-    } else {
-        mem_node = get_existing_node(&ret, bt, META_LOGICAL_ID+bt->n_partition,
-                                     NODE_REF | NODE_PIN, LOCKTYPE_NOLOCK);
-    }
-
-    if (mem_node == NULL) {
-        ret = BTREE_FAILURE;
-		bt_warn( "Existing node!");
-        goto done;
-    }
-
-    /*
-     * Lock the node to change it.
-     */
-    btree_raw_persist_t *r = (btree_raw_persist_t*)mem_node->pnode;
-
-    tb_flushed = force_write ||
-                 ((bt->logical_id_counter - r->logical_id_counter) >= META_COUNTER_SAVE_INTERVAL) ||
-                 r->rootid != bt->rootid;
-
-    if(!tb_flushed)
-        goto done;
-
-    node_lock(mem_node, WRITE);
-
-    r = (btree_raw_persist_t*)mem_node->pnode;
-
-    tb_flushed = force_write ||
-                 ((bt->logical_id_counter - r->logical_id_counter) >= META_COUNTER_SAVE_INTERVAL) ||
-                 r->rootid != bt->rootid;
-
-    dbg_print("ret=%d create=%d nodeid=%lx lic=%ld rootid=%ld save=%d\n",
-              ret, create, META_LOGICAL_ID+bt->n_partition, bt->logical_id_counter,
-              bt->rootid,
-              tb_flushed);
-
-
-    bt->stats.stat[BTSTAT_NUM_SNAPS] = bt->snap_meta->total_snapshots;
-    r->logical_id_counter = bt->logical_id_counter;
-    r->rootid = bt->rootid;
-
-    if (tb_flushed) {
-        ret = BTREE_SUCCESS;
-
-
-        if (ret != BTREE_SUCCESS) {
-            /* TODO: Handle this by rollingback the logical node cache */
-            bt_err("Btree Logical node cannot be persisted. Error=%u\n", ret);
-            exit(ret);
-        }
-
-        if (bt->trxenabled) {
-            (*bt->trx_cmd_cb)( TRX_START);
-        }
-
-        uint64_t* logical_id = &mem_node->pnode->logical_id;
-        bt->write_node_cb(my_thd_state, &ret, bt->write_node_cb_data,
-                          &logical_id, (char**)&mem_node->pnode,
-                          bt->nodesize, 1, 0);
-
-		if (ret != BTREE_SUCCESS) {
-			bt_warn("write_node_cb");
+		r = (btree_raw_persist_t*)mem_node->pnode;
+		if (r->rootid != bt->rootid) {
+			flush_needed = true;
+			node_unlock(mem_node);
+			node_lock(mem_node, WRITE);  /* Unlock and relock */
+		} else {
+			node_unlock(mem_node);
 		}
-        if (bt->trxenabled) {
-            (*bt->trx_cmd_cb)( TRX_COMMIT);
-        }
-    }
-    node_unlock(mem_node);
+	} else if (flush_type == FLUSH_COUNTER_INTERVAL) {
+		mem_node = get_existing_node(&ret, bt, META_COUNTER_LOGICAL_ID,
+		                             NODE_REF, LOCKTYPE_READ);
+		if (mem_node == NULL) goto read_error;
 
-done:
-    if (mem_node) {
-        deref_l1cache_node(bt, mem_node);
-	if (create) {
-            deref_l1cache_node(bt, mem_node);
-        }
-        if ((modified_nodes_count) && 
-            (modified_nodes[modified_nodes_count-1] == mem_node)) {
-            modified_nodes_count--;
-        }
-        if ((referenced_nodes_count) && 
-             (referenced_nodes[referenced_nodes_count-1] == mem_node)) {
-            referenced_nodes_count--;
-        }
-    }
+		r = (btree_raw_persist_t*)mem_node->pnode;
+		if ((bt->logical_id_counter - r->logical_id_counter) 
+		          >= META_COUNTER_SAVE_INTERVAL) {
+			flush_needed = true;
+			node_unlock(mem_node);
+			node_lock(mem_node, WRITE);  /* Unlock and relock */
+		} else {
+			node_unlock(mem_node);
+		}
 
-    if (BTREE_SUCCESS != ret) {
-        bt_warn( "Could not persist btree!");
-     }
+	} else if (flush_type == FLUSH_SNAPSHOT) {
+		mem_node = get_existing_node(&ret, bt, META_SNAPSHOT_LOGICAL_ID,
+		                             NODE_REF | NODE_PIN, LOCKTYPE_WRITE);
+		if (mem_node == NULL) goto read_error;
 
-    return ret;
+		r = (btree_raw_persist_t*)mem_node->pnode;
+		bt->stats.stat[BTSTAT_NUM_SNAPS] = bt->snap_meta->total_snapshots;
+
+		flush_needed = true;
+	}
+
+	/* All locks released and we don't need to save anything */
+	if (!flush_needed) {
+		return BTREE_SUCCESS;
+	}
+
+	/* Now that we have write lock, verify if someone else not written
+ 	 * the changes to commit already */
+	r = (btree_raw_persist_t*)mem_node->pnode;
+
+	if (flush_type == FLUSH_ROOT_CHANGED) {
+		r->rootid = bt->rootid;
+	} else if (flush_type == FLUSH_COUNTER_INTERVAL) {
+		if ((bt->logical_id_counter - r->logical_id_counter) 
+		          >= META_COUNTER_SAVE_INTERVAL) {
+			r->logical_id_counter = bt->logical_id_counter;
+		}
+	}
+
+	if (!flush_now) {
+		/* Set the node to be flushed later. Caller should be
+ 		 * responsible for calling deref_l1cache or other ways to flush
+ 		 * this modified node.
+ 		 * NOTE: The node is still write locked */
+		set_metanode_modified(bt, mem_node);
+		node_unlock(mem_node);
+		return BTREE_SUCCESS;
+	}
+
+	if (bt->trxenabled) {
+		(*bt->trx_cmd_cb)( TRX_START);
+	}
+
+	uint64_t* logical_id = &mem_node->pnode->logical_id;
+	bt->write_node_cb(my_thd_state, &ret, bt->write_node_cb_data,
+	                  &logical_id, (char**)&mem_node->pnode,
+	                  bt->nodesize, 1, 0);
+
+	/* TODO: We need to handle the write of metadata gracefully */
+	if (ret != BTREE_SUCCESS) {
+		bt_warn("write_node_cb");
+		abort();
+	}
+
+	if (bt->trxenabled) {
+		(*bt->trx_cmd_cb)( TRX_COMMIT);
+	}
+
+	node_unlock(mem_node);
+
+	if (mem_node) {
+		deref_l1cache_node(bt, mem_node);
+
+		if ((modified_nodes_count) && 
+		    (modified_nodes[modified_nodes_count-1] == mem_node)) {
+			modified_nodes_count--;
+		}
+
+		if ((referenced_nodes_count) && 
+		    (referenced_nodes[referenced_nodes_count-1] == mem_node)) {
+			referenced_nodes_count--;
+		}
+	}
+
+	return ret;
+
+read_error:
+	/* TODO: In future any meta node error should not abort. For now we do that */
+	bt_warn("Failure to read metadata. Exiting\n");
+	abort();
 }
 
 /*
@@ -885,26 +951,42 @@ done:
 static btree_status_t
 loadpersistent( btree_raw_t *bt)
 {
-    btree_raw_mem_node_t *mem_node;
-    btree_status_t ret = BTREE_SUCCESS;
+	btree_raw_mem_node_t *meta_root = NULL;
+	btree_raw_mem_node_t *meta_counter = NULL;
+	btree_raw_mem_node_t *meta_snapshot = NULL;
+	btree_raw_persist_t *r;
+	btree_status_t ret = BTREE_SUCCESS;
 
-    mem_node = get_existing_node(&ret, bt,
-                                 META_LOGICAL_ID + bt->n_partition,
-                                 NODE_REF | NODE_PIN,
-                                 LOCKTYPE_NOLOCK);
+	meta_root = get_existing_node(&ret, bt, META_ROOT_LOGICAL_ID,
+	                              0, LOCKTYPE_NOLOCK);
+	if (BTREE_SUCCESS != ret) goto exit;
+	r = (btree_raw_persist_t*)meta_root->pnode;
+	bt->rootid = r->rootid;
 
-    if (BTREE_SUCCESS != ret)
+	meta_counter = get_existing_node(&ret, bt, META_COUNTER_LOGICAL_ID,
+	                                 0, LOCKTYPE_NOLOCK);
+	if (BTREE_SUCCESS != ret) goto exit;
+	r = (btree_raw_persist_t*)meta_counter->pnode;
+	bt->logical_id_counter = r->logical_id_counter + META_COUNTER_SAVE_INTERVAL;
+
+	meta_snapshot = get_existing_node(&ret, bt, META_SNAPSHOT_LOGICAL_ID,
+	                                  NODE_PIN, LOCKTYPE_NOLOCK);
+	if (BTREE_SUCCESS != ret) goto exit;
+	r = (btree_raw_persist_t*)meta_counter->pnode;
+	bt->snap_meta = &r->snap_details; /* Keep the pinned snap details node info in btree */
+
+	/* We have modified the bt counter interval, flush it persistently */
+    	ret = savepersistent(bt, FLUSH_COUNTER_INTERVAL, true);
+
+exit:
+	if (meta_root) deref_l1cache_node(bt, meta_root);
+	if (meta_counter) deref_l1cache_node(bt, meta_counter);
+	if (meta_snapshot) deref_l1cache_node(bt, meta_snapshot);
+
         return (ret);
 
-    btree_raw_persist_t *r = (btree_raw_persist_t*)mem_node->pnode;
+//    dbg_print("ret=%d nodeid=%lx r->lic %ld r->rootid %ld bt->logical_id_counter %ld\n", ret, META_LOGICAL_ID + bt->n_partition, r->logical_id_counter, r->rootid, r->logical_id_counter + META_COUNTER_SAVE_INTERVAL);
 
-    dbg_print("ret=%d nodeid=%lx r->lic %ld r->rootid %ld bt->logical_id_counter %ld\n", ret, META_LOGICAL_ID + bt->n_partition, r->logical_id_counter, r->rootid, r->logical_id_counter + META_COUNTER_SAVE_INTERVAL);
-
-    bt->logical_id_counter = r->logical_id_counter + META_COUNTER_SAVE_INTERVAL;
-    bt->rootid = r->rootid;
-    bt->snap_meta = &r->snap_details; /* Keep the pinned snap details node info in btree */
-
-    return flushpersistent(bt);
 }
 
 int btree_raw_free_buffer(btree_raw_t *btree, char *buf)
@@ -947,6 +1029,11 @@ void set_lasterror(btree_raw_t *btree, uint64_t err_logical_id)
 	__lasterr_logical_id = err_logical_id;
 }
 
+uint64_t get_lasterror(btree_raw_t *btree)
+{
+	return (__lasterr_logical_id);
+}
+
 void set_lasterror_single(btree_raw_t *btree, char *key, uint32_t keylen, btree_metadata_t *meta)
 {
 	btree_op_err_t *lerr;
@@ -957,7 +1044,7 @@ void set_lasterror_single(btree_raw_t *btree, char *key, uint32_t keylen, btree_
 		return;
 	}
 
-	lerr->u.single.key = (char *)((char *)lerr + sizeof(btree_op_err_t));
+	lerr->u.single.key = (char *)(((char *)lerr) + sizeof(btree_op_err_t));
 	memcpy(lerr->u.single.key, key, keylen);
 	lerr->u.single.keylen = keylen;
 	memcpy(&lerr->u.single.meta, meta, sizeof(btree_metadata_t));
@@ -1012,7 +1099,23 @@ move_lasterror(btree_raw_t *btree, btree_op_err_t **err_out, uint32_t *err_size)
 		return BTREE_OUT_OF_MEM;
 	}
 
+#ifdef DEBUG
+	/* TODO: Remove this debug message */
+	fprintf(stderr, "Last Error Info: logical_id=%lu type=%d this=%p key=%p key=%s keylen=%u\n",
+	        __last_err->logical_id, __last_err->op_type, __last_err, __last_err->u.single.key,
+	        __last_err->u.single.key, __last_err->u.single.keylen);
+#endif
+
 	memcpy(*err_out, __last_err, __last_err->size);
+	if (__last_err->op_type == ERR_OPTYPE_SINGLE) {
+		(*err_out)->u.single.key = (char *)((char *)(*err_out) + sizeof(btree_op_err_t));
+	} else if (__last_err->op_type == ERR_OPTYPE_RQUERY) {
+		(*err_out)->u.rquery.key_start = (char *)((char *)(*err_out) + sizeof(btree_op_err_t));
+		(*err_out)->u.rquery.key_end = (char *)((char *)(*err_out)->u.rquery.key_start + __last_err->u.rquery.rmeta.keylen_start);
+	} else if (__last_err->op_type == ERR_OPTYPE_RUPDATE) {
+		(*err_out)->u.rupdate.key = (char *)((char *)(*err_out) + sizeof(btree_op_err_t));
+	}
+
 	*err_size = __last_err->size;
 
 	/* Reset the last error to free up space */
@@ -1685,8 +1788,7 @@ get_leaf_data_index(btree_raw_t *bt, btree_raw_node_t *n, int index, char **data
 				btree_raw_mem_node_t *node = get_existing_overflow_node(&ret2, bt, z_next, nflags);
 				if(!node) {
 					if (storage_error(ret2) && btree_in_rescue_mode(bt)) {
-						add_to_rescue(bt, n, z_next, key_info.key,
-						              key_info.keylen, key_info.seqno, index);
+						add_to_rescue(bt, n, z_next, index);
 					}
 					break;
 				}
@@ -1701,7 +1803,7 @@ get_leaf_data_index(btree_raw_t *bt, btree_raw_node_t *n, int index, char **data
 				}
 			}
 			if (nbytes) {
-				bt_err("Failed to get overflow node (logical_id=%lld)(nbytes=%ld) in get_leaf_data!", z_next, nbytes);
+				fprintf(stderr, "Failed to get overflow node (logical_id=%ld)(nbytes=%ld) in get_leaf_data!", z_next, nbytes);
 				if (buf_alloced) {
 					free_buffer(bt, buf);
 				}
@@ -1793,8 +1895,7 @@ get_leaf_data_nth_key(btree_raw_t *bt, btree_raw_node_t *n, int index,
 				btree_raw_mem_node_t *node = get_existing_overflow_node(&ret, bt, z_next, ref ? NODE_REF: 0);
 				if(!node) {
 					if (storage_error(ret) && btree_in_rescue_mode(bt)) {
-						add_to_rescue(bt, n, z_next, key_info.key,
-						              key_info.keylen, key_info.seqno, index);
+						add_to_rescue(bt, n, z_next, index);
 					}
 					break;
 				}
@@ -1810,7 +1911,7 @@ get_leaf_data_nth_key(btree_raw_t *bt, btree_raw_node_t *n, int index,
 				}
 			}
 			if (nbytes) {
-				bt_err("Failed to get overflow node (logical_id=%lld)(nbytes=%ld) in get_leaf_data!", z_next, nbytes);
+				fprintf(stderr, "Failed to get overflow node (logical_id=%ld)(nbytes=%ld) in get_leaf_data!", z_next, nbytes);
 				if (buf_alloced) {
 					free_buffer(bt, buf);
 				}
@@ -1912,7 +2013,7 @@ delete_overflow_data(btree_status_t *ret, btree_raw_t *bt, uint64_t ptr_in, uint
     for (ptr = ptr_in; ptr != 0; ptr = ptr_next) {
         n = get_existing_overflow_node(ret, bt, ptr, NODE_REF);
         if (BTREE_SUCCESS != *ret) {
-            bt_err("Failed to find an existing overflow node in delete_overflow_data!");
+            fprintf(stderr, "Failed to find an existing overflow node in delete_overflow_data!");
             return;
         }
 
@@ -1920,7 +2021,7 @@ delete_overflow_data(btree_status_t *ret, btree_raw_t *bt, uint64_t ptr_in, uint
         free_node(ret, bt, n);
         // current free_node doesn't change value of ret...
         if (BTREE_SUCCESS != *ret) {
-            bt_err("Failed to free an existing overflow node in delete_overflow_data!");
+            fprintf(stderr, "Failed to free an existing overflow node in delete_overflow_data!");
         }
     }
     //fprintf(stderr, "delete_overflow_data called: cur=%ld len=%ld\n", (bt->stats.stat[BTSTAT_OVERFLOW_BYTES]), datalen);
@@ -2019,6 +2120,12 @@ root_get_and_lock(btree_raw_t* btree, int write_lock, btree_status_t *ret)
 		node = get_existing_node(ret, btree, child_id, NODE_CACHE_VALIDATE,
 		                   write_lock ? LOCKTYPE_LEAF_WRITE_REST_READ: LOCKTYPE_READ);
 		if(!node) {
+			/* Some thread has reverted the rootid, while we are looking for
+			 * Retry the get root */
+			if ((*ret == BTREE_OBJECT_UNKNOWN) && 
+			    (child_id != btree->rootid)) {
+				continue;
+			}
 			return NULL;
 		}
 
@@ -2254,7 +2361,8 @@ delete_l1cache(btree_raw_t *btree, int robj, uint64_t logical_id)
     (void) PMapDelete(BT_GET_L1CACHE(robj), (char *) &logical_id, sizeof(uint64_t), btree->cguid, robj, (void *)btree);
     dbg_referenced--;
 
-    btree->stats.stat[BTSTAT_L1ENTRIES] = PMapNEntries(btree->l1cache);
+//    TODO: Remove this comment
+//    btree->stats.stat[BTSTAT_L1ENTRIES] = PMapNEntries(btree->l1cache);
 }
 
 void
@@ -2458,7 +2566,7 @@ static void btree_parallel_flush_write(btree_raw_t* btree, btree_raw_node_t** no
 	deleted_nodes_count = 0;
 }
 
-static inline void
+static void
 btree_io_error_cleanup(btree_raw_t *btree)
 {
 	uint64_t i, j;
@@ -2488,6 +2596,23 @@ btree_io_error_cleanup(btree_raw_t *btree)
         	mark_node_clean(n);
 		mark_node_undeleted(n);
 		reset_node_pstats(n->pnode);
+	}
+
+	for (i = 0; i < modified_metanodes_count; i++) {
+		n = modified_metanodes[i];
+
+		if (n->pnode->logical_id == META_ROOT_LOGICAL_ID) {
+			assert(saverootid != BAD_CHILD);
+			assert(saverootid != btree->rootid);
+
+			/* We need to set the btree rootid back */
+			btree_raw_persist_t *r = (btree_raw_persist_t *)n->pnode;
+			r->rootid = saverootid;
+			btree->rootid = saverootid;
+			saverootid = BAD_CHILD;
+		}
+		/* Since these nodes was not locked, safe to deref here itself */
+		deref_l1cache_node(btree, n);
 	}
 
 	/* Step 2: Unlock all modified and deleted nodes */
@@ -2528,7 +2653,7 @@ btree_io_error_cleanup(btree_raw_t *btree)
 	 * to get rid of it to help cache not polluted with
 	 * incorrect entries.
 	 * NOTE: This relies on the behavior that delete will
-	 * actually delete if no one is at present referring it 
+	 * actually delete only if no one is at present referring it 
 	 */
 	for (i = 0; i < modified_nodes_count; i++) {
 		n = modified_nodes[i];
@@ -2549,6 +2674,7 @@ btree_io_error_cleanup(btree_raw_t *btree)
         referenced_nodes_count = 0;
         deleted_nodes_count = 0;
         overflow_nodes_count = 0;
+	modified_metanodes_count = 0;
 }
 
 /*
@@ -2574,6 +2700,13 @@ btree_status_t deref_l1cache(btree_raw_t *btree)
 
     if (btree->trxenabled) {
         (*btree->trx_cmd_cb)( TRX_START);
+    }
+
+    /* Add the meta node to the top of the multi write list */
+    for (i = 0; i < modified_metanodes_count; i++) {
+        nodes[count] = (void *)modified_metanodes[i]->pnode;
+        ids[count] = &modified_metanodes[i]->pnode->logical_id;
+        count++;
     }
 
     for ( i = 0; i < modified_nodes_count; i++ ) {
@@ -2618,7 +2751,13 @@ btree_status_t deref_l1cache(btree_raw_t *btree)
                 btree_parallel_flush_write(btree, (btree_raw_node_t**)nodes, count);
             else
                 btree->write_node_cb(my_thd_state, &ret, btree->write_node_cb_data, ids, (char**)nodes, btree->nodesize, count, 0);
+
             count = 0;
+            if (ret != BTREE_SUCCESS) {
+                fprintf(stderr, "ERROR: Write a btree node to flash failed with error %d "
+                                  "for container cguid %lu\n", ret, btree->cguid);
+                goto cleanup;          
+            }
         }
     }
 
@@ -2629,11 +2768,12 @@ btree_status_t deref_l1cache(btree_raw_t *btree)
         else
             btree->write_node_cb(my_thd_state, &ret, btree->write_node_cb_data,
                                  ids, nodes, btree->nodesize, count, 0);
-            if (ret != BTREE_SUCCESS) {
-                fprintf(stderr, "ERROR: Write a btree node to flash failed with error %d "
-                                  "for container cguid %lu\n", ret, btree->cguid);
-                goto cleanup;          
-            }
+
+        if (ret != BTREE_SUCCESS) {
+            fprintf(stderr, "ERROR: Write a btree node to flash failed with error %d "
+                              "for container cguid %lu\n", ret, btree->cguid);
+            goto cleanup;          
+        }
     }
 
     if (bt_storm_mode) {
@@ -2714,6 +2854,10 @@ cleanup:
 
     	unlock_modified_nodes(btree);
 
+        for (i = 0; i < modified_metanodes_count; i++) {
+            deref_l1cache_node(btree, modified_metanodes[i]);
+        }
+
         //  clear reference bits
         for(i = 0; i < referenced_nodes_count; i++)
         {
@@ -2731,7 +2875,13 @@ cleanup:
         referenced_nodes_count = 0;
         deleted_nodes_count = 0;
         overflow_nodes_count = 0;
+        modified_metanodes_count = 0;
     } else {
+        /* Write failures on media, will be fixed by rollingback
+	 * and seperate rescue is not required. */
+        if (storage_error(ret)) {
+            set_lasterror(btree, 0);
+        }
         btree_io_error_cleanup(btree);
     }
 
@@ -3002,6 +3152,22 @@ static void modify_l1cache_node(btree_raw_t *btree, btree_raw_mem_node_t *node)
 	}
 }
 
+static void set_metanode_modified(btree_raw_t *btree, btree_raw_mem_node_t *meta_mnode)
+{
+	assert(meta_mnode->pnode->flags == UNKNOWN_NODE); // Ensure its meta logical node
+	assert(meta_mnode->pnode->logical_id & META_LOGICAL_ID_MASK);
+
+	meta_mnode->modified++;
+	modified_metanodes[modified_metanodes_count++] = meta_mnode;
+
+	PMapIncrRefcnt(BT_GET_L1CACHE_NODE(meta_mnode->pnode),
+	               (char *) &(meta_mnode->pnode->logical_id),
+	               sizeof(uint64_t), btree->cguid, 
+	               BT_USE_RAWOBJ(meta_mnode->pnode->flags));
+	dbg_referenced++;
+	
+}
+
 inline static
 void lock_nodes_list(btree_raw_t *btree, int lock,
 		btree_raw_mem_node_t** list, int count,
@@ -3035,7 +3201,7 @@ void lock_nodes_list(btree_raw_t *btree, int lock,
 		dbg_print("list[%d]->logical_id=%ld lock=%p lock=%d locked=%lld\n", i, list[i]->pnode->logical_id, &node->lock, lock, locked);
 #endif
 
-		if(is_overflow(btree, node->pnode) || node->pnode->logical_id == META_LOGICAL_ID+btree->n_partition)
+		if(is_overflow(btree, node->pnode) || node->pnode->logical_id & META_LOGICAL_ID_MASK)
 			continue;
 
 		if(lock)
@@ -3151,7 +3317,7 @@ btree_raw_mem_node_t *get_existing_node_low(btree_status_t *ret, btree_raw_t *bt
 
 retry:
 	//  check l1cache first
-	n = get_l1cache(btree, logical_id, flags & NODE_RAW_OBJ ? 1 : 0);
+	n = get_l1cache(btree, logical_id, (flags & NODE_RAW_OBJ) ? 1 : 0);
 	if (n != NULL) {
 		//Got a deleted node?? Parent referring to deleted child??
 		//Check the locking of btree/nodes
@@ -3189,7 +3355,7 @@ retry:
 		}
 	} else {
 		// already in the cache retry get
-		n = add_l1cache(btree, logical_id, flags & NODE_RAW_OBJ ? 1 : 0, flags & NODE_PIN);
+		n = add_l1cache(btree, logical_id, ((flags & NODE_RAW_OBJ) ? 1 : 0), flags & NODE_PIN);
 		if(!n)
 			goto retry;
 	}
@@ -3197,14 +3363,14 @@ retry:
 	if (flash_read_needed) {
 		//  look for the node the hard way
 		btree->read_node_cb(ret, btree->read_node_cb_data, (void *)n->pnode,
-		                    logical_id, flags & NODE_RAW_OBJ ? 1 : 0);
+		                    logical_id, (flags & NODE_RAW_OBJ) ? 1 : 0);
 		if (*ret != BTREE_SUCCESS) {
 			if (storage_error(*ret)) {
 				set_lasterror(btree, logical_id); 
 			}
 			n->cache_valid = false;
 			node_unlock(n);
-			delete_l1cache(btree, flags & NODE_RAW_OBJ ? 1: 0, logical_id);
+			delete_l1cache(btree, (flags & NODE_RAW_OBJ) ? 1: 0, logical_id);
 			return(NULL);
 		}
 		assert(logical_id == n->pnode->logical_id);
@@ -3251,6 +3417,7 @@ btree_raw_mem_node_t *create_new_node(btree_raw_t *btree, uint64_t logical_id,
         assert(logical_id % 8 == 0);
     }
     n = add_l1cache(btree, logical_id, BT_USE_RAWOBJ(leaf_flag), pinned);
+    assert(n);
 
     n->deref_delete_cache = false; /* New node should be in l1cache. Its for writes */
     n->pnode->logical_id = logical_id;
@@ -3289,7 +3456,7 @@ get_new_node_low(btree_status_t *ret, btree_raw_t *btree, node_flags_t leaf_flag
 		assert(logical_id % 8 == 0);
 	} else {
 		logical_id = __sync_fetch_and_add(&btree->logical_id_counter, 1)*btree->n_partitions + btree->n_partition;
-		if (BTREE_SUCCESS != savepersistent( btree, false)) {
+		if (BTREE_SUCCESS != savepersistent(btree, FLUSH_COUNTER_INTERVAL, false /* only mark to flush */)) {
 			*ret = BTREE_FAILURE;
 			return (NULL);
 		}
@@ -3832,8 +3999,6 @@ static void delete_key_by_pkrec(btree_status_t* ret, btree_raw_t *btree, btree_r
 	dbg_print("node_id=%ld pk_delete=%p\n", node->pnode->logical_id, pk_delete);
 
     assert(pk_delete);
-
-    assert(!is_leaf(btree, node->pnode));
 
     assert(!is_leaf(btree, node->pnode));
 
@@ -5069,9 +5234,10 @@ int split_root(btree_raw_t* btree, btree_raw_mem_node_t** parent_out, int* paren
 	parent->pnode->rightmost = btree->rootid;
 	*parent_nkey_child = parent->pnode->nkeys;
 
-	uint64_t saverootid = btree->rootid;
+	saverootid = btree->rootid;
+
 	btree->rootid = parent->pnode->logical_id;
-	if (BTREE_SUCCESS != savepersistent( btree, 0)) {
+	if (BTREE_SUCCESS != savepersistent( btree, FLUSH_ROOT_CHANGED, false)) {
 		assert(0);
 		btree->rootid = saverootid;
 		return 0;
@@ -5505,6 +5671,7 @@ btree_raw_mwrite_low(btree_raw_t *btree, btree_mput_obj_t **objs_in_out, uint32_
 	*written = 0;
 
 	assert(!locked);
+	saverootid = BAD_CHILD;
 
 
 #ifdef DEBUG_BUILD
@@ -5540,6 +5707,12 @@ retry_get_node:
 		if(!(mem_node = get_existing_node_low(&ret, btree, child_id, nflags))) {
 			if (parent) {
 				node_unlock(parent);
+			} else if ((ret == BTREE_OBJECT_UNKNOWN) && 
+			           (child_id != btree->rootid)) {
+				/* Some thread has reverted the rootid, because of an 
+				 * error and hence the object does not exist in flash.
+				 * Simply retry the root */
+				goto restart;
 			}
 			goto err_exit;
 		}
@@ -5554,7 +5727,11 @@ mini_restart:
 		if (!mem_node->cache_valid) {
 			node_unlock(mem_node);
 			deref_last_node(btree, mem_node);
-			goto retry_get_node;
+			if (parent == NULL) {
+				goto restart;
+			} else {
+				goto retry_get_node;
+			}
 		}
 
 		if(!parent && child_id != btree->rootid) {
@@ -7108,12 +7285,28 @@ find_rebalance(btree_status_t *ret, btree_raw_t *btree,
 	           (meta->logical_id == this_node->logical_id)) {
 
 		/* We are asked to fix this interior node, by removing its entry */
-		if ((!found) || (nkey_child != meta->index)) {
+		if (!found && (nkey_child != meta->index) && (nkey_child != this_node->nkeys)) {
+			/* If its not the exact index asked for, chances that add_to_rescue
+			 * would have added last but one index. So allow that */
 			assert(0);
 			/* Something is wrong, we are not able to see exact key */
 			*ret = BTREE_KEY_NOT_FOUND;
 		}
-		delete_key_by_index(ret, btree, this_mem_node, nkey_child);
+
+		/* delete_key_by_index does not handle deleting rightmost keys, so
+		 * delete the previous entry and mark the previous as rightmost */
+		if (meta->index == this_node->nkeys) {
+			assert(meta->index > 0);
+
+			key_stuff_t del_ks;
+			get_key_stuff(btree, this_node, meta->index-1, &del_ks);
+			del_ks.pkey_val = NULL;
+
+			delete_key_by_index(ret, btree, this_mem_node, meta->index-1);
+			this_node->rightmost = del_ks.ptr;
+		} else {
+			delete_key_by_index(ret, btree, this_mem_node, meta->index);
+		}
 
 		/* Get the left and right keylen to determine minimal of this node
  		 * (in case we need to replace the rightmost with either left or
@@ -7230,7 +7423,7 @@ static void collapse_root(btree_status_t *ret, btree_raw_t *btree, btree_raw_mem
 	assert(old_root_node->nkeys == 0);
 	assert(old_root_node->rightmost != BAD_CHILD);
 	btree->rootid = old_root_node->rightmost;
-        if (BTREE_SUCCESS != savepersistent( btree, false))
+        if (BTREE_SUCCESS != savepersistent( btree, FLUSH_ROOT_CHANGED, false))
                 assert( 0);
 	free_node(ret, btree, old_root_mem_node);
     }
@@ -8507,25 +8700,47 @@ ZS_cguid_t btree_raw_get_cguid_from_op_err(void *context)
 	return (lerr->cguid);
 }
 
-void add_to_rescue(btree_raw_t *btree, btree_raw_node_t *parent, uint64_t err_logical_id,
-                   char *key, uint32_t keylen, uint32_t seqno, int idx)
+void add_to_rescue(btree_raw_t *btree, btree_raw_node_t *parent, uint64_t err_logical_id, int idx)
 {
 	btree_op_err_rescue_t *rsc;
+	key_stuff_info_t ks;
 
 	rsc = btree_raw_get_cur_rescue(btree);
 	assert(rsc);
 
-	rsc->key     = malloc(keylen);
+	rsc->rightmost = false;
+	rsc->err_logical_id = err_logical_id;
+	if (rsc->err_logical_id == btree->rootid) {
+		assert(parent == NULL);
+		rsc->key = NULL;
+		rsc->keylen = 0;
+		rsc->idx = 0;
+		rsc->node = NULL;
+		return;
+	}
+
+	rsc->idx     = idx;
+	if (!is_leaf(btree, parent) && (idx == parent->nkeys)) {
+		/* We got the rightmost key, hence store the previous key
+		 * in the node and mark it so */
+		idx = idx - 1;
+		assert(idx >= 0);
+		rsc->rightmost = true;
+	}
+
+	ks.key = tmp_key_buf;
+	get_key_stuff_info2(btree, parent, idx, &ks);
+
+	rsc->key     = malloc(ks.keylen);
 	if (rsc->key == NULL) {
 		assert(0);
 		return;
 	}
-	rsc->keylen  = keylen;
-	rsc->seqno   = seqno;
-	rsc->idx     = idx;
-	rsc->node    = parent;
+	memcpy(rsc->key, ks.key, ks.keylen);
 
-	rsc->err_logical_id = err_logical_id;
+	rsc->keylen  = ks.keylen;
+	rsc->seqno   = ks.seqno;
+	rsc->node    = parent;
 }
 
 btree_op_err_rescue_t *btree_raw_init_rescue(btree_raw_t *btree, btree_op_err_t *lerr)
@@ -8571,11 +8786,24 @@ static btree_status_t btree_raw_rescue_validate(btree_raw_t *btree,
 	int n_out;
 	int i;
 
+#ifdef DEBUG
+	fprintf(stderr, "%x: Info about err: logical_id=%lu type=%d key=%p key=%s keylen=%u\n",
+	         (int)pthread_self(), lerr->logical_id, lerr->op_type, lerr->u.single.key, lerr->u.single.key, lerr->u.single.keylen); 
+#endif
+
+	/* This must have been reported during write path. No need to
+	 * handle this error (at least for now) */
+	if (lerr->logical_id == 0) {
+		fprintf(stderr, "%x: Only a write error. So returning BTREE_RESCUE_NOT_NEEDED\n", (int)pthread_self());
+		ret = BTREE_RESCUE_NOT_NEEDED;
+		goto exit;
+	}
+
 	/* Start a range query based on original error */
 	rmeta.flags = 0;
 	if (lerr->op_type == ERR_OPTYPE_UNKNOWN) {
 		ret = BTREE_FAILURE; /* TODO: Set it to some invalid input */
-		goto cleanup;
+		goto exit;
 	} else if (lerr->op_type == ERR_OPTYPE_SINGLE) {
 		rmeta.key_start    = lerr->u.single.key;
 		rmeta.keylen_start = lerr->u.single.keylen;
@@ -8586,11 +8814,32 @@ static btree_status_t btree_raw_rescue_validate(btree_raw_t *btree,
 		if (lerr->u.single.meta.flags & READ_SEQNO_GT_LE) rmeta.flags |= RANGE_SEQNO_GT_LE;
 		rmeta.flags        |= RANGE_START_GE | RANGE_END_LE;
 	} else if (lerr->op_type == ERR_OPTYPE_RQUERY) {
-		rmeta.key_start    = lerr->u.rquery.key_start;
-		rmeta.keylen_start = lerr->u.rquery.keylen_start;
-		rmeta.key_end      = lerr->u.rquery.key_end;
-		rmeta.keylen_end   = lerr->u.rquery.keylen_end;
-		rmeta.flags        = lerr->u.rquery.rmeta.flags;
+		if ((lerr->u.rquery.rmeta.flags & RANGE_START_GT) ||
+		    (lerr->u.rquery.rmeta.flags & RANGE_START_GE)) {
+			rmeta.key_start    = lerr->u.rquery.key_start;
+			rmeta.keylen_start = lerr->u.rquery.keylen_start;
+			rmeta.key_end      = lerr->u.rquery.key_end;
+			rmeta.keylen_end   = lerr->u.rquery.keylen_end;
+			rmeta.flags        = lerr->u.rquery.rmeta.flags;
+		} else {
+			rmeta.key_start    = lerr->u.rquery.key_end;
+			rmeta.keylen_start = lerr->u.rquery.keylen_end;
+			rmeta.key_end      = lerr->u.rquery.key_start;
+			rmeta.keylen_end   = lerr->u.rquery.keylen_start;
+			rmeta.flags        = 0;
+			if (lerr->u.rquery.rmeta.flags & RANGE_START_LE) {
+				rmeta.flags |= RANGE_END_LE;
+			}
+			if (lerr->u.rquery.rmeta.flags & RANGE_START_LT) {
+				rmeta.flags |= RANGE_END_LT;
+			}
+			if (lerr->u.rquery.rmeta.flags & RANGE_END_GT) {
+				rmeta.flags |= RANGE_START_GT;
+			}
+			if (lerr->u.rquery.rmeta.flags & RANGE_END_GE) {
+				rmeta.flags |= RANGE_START_GE;
+			}
+		}
 		rmeta.flags       &= ~(RANGE_BUFFER_PROVIDED | RANGE_ALLOC_IF_TOO_SMALL | 
 		                       RANGE_INPLACE_POINTERS);
 	} else if (lerr->op_type == ERR_OPTYPE_RUPDATE) {
@@ -8602,7 +8851,7 @@ static btree_status_t btree_raw_rescue_validate(btree_raw_t *btree,
 	} else {
 		assert(0);
 		ret = BTREE_RESCUE_INVALID_REQUEST; /* TODO: Set it to some invalid input */
-		goto cleanup;
+		goto exit;
 	}
 
 	rmeta.class_cmp_fn = NULL;
@@ -8613,19 +8862,16 @@ static btree_status_t btree_raw_rescue_validate(btree_raw_t *btree,
 	if (status != BTREE_SUCCESS) {
 		fprintf(stderr, "start range query failed with status = %d\n", status);
 		ret = BTREE_FAILURE;
-		goto cleanup;
-	}
-
-	if (status != BTREE_SUCCESS) {
-		fprintf(stderr, "Could not create start range query in btree_raw_rescue\n");
-		ret = BTREE_FAILURE;
-		goto cleanup;
+		goto exit;
 	}
 
 	do {
 	        status = btree_range_get_next(cursor, RESCUE_RQUERY_CHUNK_SIZE, &n_out, &values[0]);
 		if (status == BTREE_QUERY_DONE) {
 			/* We expected to error out, but it seems btree is already rescue'd */
+#ifdef DEBUG
+			fprintf(stderr, "%x: No error encountered during rquery. So returning BTREE_RESCUE_NOT_NEEDED\n", (int)pthread_self());
+#endif
 			ret = BTREE_RESCUE_NOT_NEEDED;
 			assert(n_out == 0);
 			goto cleanup;
@@ -8642,6 +8888,9 @@ static btree_status_t btree_raw_rescue_validate(btree_raw_t *btree,
 
 		if (storage_error(status)) {
 			if (rsc->err_logical_id != lerr->logical_id) {
+#ifdef DEBUG
+				fprintf(stderr, "%x: We hit a error in logical_id %lu. So returning BTREE_RESCUE_IO_ERROR\n", (int)pthread_self(), rsc->err_logical_id);
+#endif
 				/* We encountered storage error elsewhere */
 				ret = BTREE_RESCUE_IO_ERROR;
 				goto cleanup;
@@ -8649,6 +8898,9 @@ static btree_status_t btree_raw_rescue_validate(btree_raw_t *btree,
 			ret = BTREE_SUCCESS;
 			break;
 		} else if (status != BTREE_SUCCESS) {
+#ifdef DEBUG
+			fprintf(stderr, "%x: Range Query got status %u. So returning BTREE_FAILURE\n", (int)pthread_self(), status);
+#endif
 			ret = BTREE_FAILURE;
 			break;
 		}
@@ -8672,6 +8924,7 @@ btree_status_t btree_raw_rescue(btree_raw_t *btree, void *context)
 	btree_raw_mem_node_t *root_node;
 	uint64_t syndrome;
 
+	assert(!locked);
 	lerr = (btree_op_err_t *)context;
 	if (lerr == NULL) {
 		ret = BTREE_FAILURE;
@@ -8687,32 +8940,49 @@ btree_status_t btree_raw_rescue(btree_raw_t *btree, void *context)
 	plat_rwlock_wrlock(&btree->lock);
 	ret = btree_raw_rescue_validate(btree, rsc, lerr);
 	if (ret != BTREE_SUCCESS) {
-		goto exit;	
+		goto done;	
 	}
 
+	/* TODO: After rescue we need to reset the stats */
+
 	if (rsc->err_logical_id == btree->rootid) {
+#ifdef DEBUG
+		fprintf(stderr, "%x: Root node has failed, so rebuilding the root\n", (int)pthread_self());
+#endif
+
 		/* If are recovering root, its time to recreate a new root and persist
 		 * the root id to meta logical node of the btree. */
-		btree->rootid = (btree->logical_id_counter * btree->n_partitions) + btree->n_partition;
-		if (savepersistent( btree, true /* create */) != BTREE_SUCCESS) {
-			btree->rootid = rsc->err_logical_id;
-			ret = BTREE_RESCUE_IO_ERROR;
-			goto done;
-		}
-
 		root_node = get_new_node(&ret, btree, LEAF_NODE, 0);
 		if (ret != BTREE_SUCCESS) {
-			btree->rootid = rsc->err_logical_id;
+#ifdef DEBUG
+			fprintf(stderr, "%x: New node creation failed\n", (int)pthread_self());
+#endif
 			ret = BTREE_RESCUE_IO_ERROR;
 			goto done;
         	}
 
-	        assert(root_node->pnode->logical_id == btree->rootid);
+		/* Backup the rootid and store the new root id persistently */
+		saverootid = btree->rootid;
+		btree->rootid = root_node->pnode->logical_id;
+		if (savepersistent(btree, FLUSH_ROOT_CHANGED, false) != BTREE_SUCCESS) {
+			btree->rootid = saverootid;
+			fprintf(stderr, "%x: Save persistent failed\n", (int)pthread_self());
+			ret = BTREE_RESCUE_IO_ERROR;
+			goto done;
+		}
+
+		lock_modified_nodes(btree);
 		ret = deref_l1cache(btree);
-		if ((ret != BTREE_SUCCESS) && storage_error(ret)) {
+		if (storage_error(ret)) {
+#ifdef DEBUG
+			fprintf(stderr, "%x: Unable to persist rescue changes. Probably hit error in logical_id %lu. Returning BTREE_RESCUE_IO_ERROR\n", (int)pthread_self(), get_lasterror(btree));
+#endif
 			ret = BTREE_RESCUE_IO_ERROR;
 		}
 	} else {
+#ifdef DEBUG
+		fprintf(stderr, "%x: Some Interior entry has failed. Fix it by find_rebalance\n", (int)pthread_self());
+#endif
 		/* We got what we want. Hopefully the previous validate
 		 * filled enough data to rescue structure to go ahead
 		 * and attempt a rescue */
@@ -8725,10 +8995,28 @@ btree_status_t btree_raw_rescue(btree_raw_t *btree, void *context)
 		(void) find_rebalance(&ret, btree, btree->rootid, BAD_CHILD, BAD_CHILD,
 		                      BAD_CHILD, NULL, BAD_CHILD, NULL, 0, 0,
 		                      rsc->key, rsc->keylen, &meta, syndrome);
-		if (storage_error(ret)) {
-			ret = BTREE_RESCUE_IO_ERROR;
-		} else if (ret != BTREE_SUCCESS) {
-			ret = BTREE_FAILURE;
+
+		lock_modified_nodes(btree);
+
+		if (ret == BTREE_SUCCESS) {
+			ret = deref_l1cache(btree);
+		}
+
+		if (ret == BTREE_SUCCESS) {
+			fprintf(stderr, "%x: Successfully rescued btree from error\n", (int)pthread_self());
+		} else {
+			if (storage_error(ret)) {
+#ifdef DEBUG
+				fprintf(stderr, "%x: Find rebalance returned storage error. Probably hit error in logical_id %lu. Returning BTREE_RESCUE_IO_ERROR\n", (int)pthread_self(), get_lasterror(btree));
+#endif
+				ret = BTREE_RESCUE_IO_ERROR;
+			} else {
+#ifdef DEBUG
+				fprintf(stderr, "%x: Find rebalance failed with status %d. Returning BTREE_FAILURE\n", (int)pthread_self(), ret);
+#endif
+				ret = BTREE_FAILURE;
+			}
+			btree_io_error_cleanup(btree);
 		}
 	}
 	
@@ -8741,6 +9029,8 @@ exit:
 	}
 
 	btree_raw_exit_rescue(btree);
+	assert(!dbg_referenced);
+	assert(!locked);
 	return ret;
 }
 
@@ -9138,6 +9428,7 @@ btree_raw_alloc_thread_bufs(void)
 	thread_buf_alloc_helper(overflow_nodes, btree_raw_mem_node_t **, sizeof(btree_raw_mem_node_t *) * MAX_PER_THREAD_NODES);
 	thread_buf_alloc_helper(referenced_nodes, btree_raw_mem_node_t **, sizeof(btree_raw_mem_node_t *) * MAX_PER_THREAD_NODES_REF);
 	thread_buf_alloc_helper(deleted_nodes, btree_raw_mem_node_t **, sizeof(btree_raw_mem_node_t *) * MAX_PER_THREAD_NODES);
+	thread_buf_alloc_helper(modified_metanodes, btree_raw_mem_node_t **, sizeof(btree_raw_mem_node_t *) * META_TOTAL_NODES);
 	thread_buf_alloc_helper(modified_written, int *, sizeof(int) * MAX_PER_THREAD_NODES);
 	thread_buf_alloc_helper(deleted_written, int *, sizeof(int) * MAX_PER_THREAD_NODES);
 }
@@ -9151,6 +9442,7 @@ btree_raw_free_thread_bufs(void)
 	thread_buf_free_helper(deleted_nodes);
 	thread_buf_free_helper(modified_written);
 	thread_buf_free_helper(deleted_written);
+	thread_buf_free_helper(modified_metanodes);
 }
 
 uint64_t

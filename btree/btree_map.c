@@ -29,7 +29,11 @@
 #include "btree_hash.h"
 #include <assert.h>
 
-#define META_LOGICAL_ID 0x8000000000000000L
+#define META_LOGICAL_ID_MASK          0x8000000000000000L
+#define META_ROOT_LOGICAL_ID          (META_LOGICAL_ID_MASK | (1 << 0))
+#define META_INTERVAL_LOGICAL_ID      (META_LOGICAL_ID_MASK | (1 << 1))
+#define META_SNAPSHOT_LOGICAL_ID      (META_LOGICAL_ID_MASK | (1 << 2))
+#define META_TOTAL_NODES              3
 
 //disable messages in debug trace by default
 #ifdef DBG_PRINT
@@ -472,7 +476,7 @@ struct MapEntry *MapGet(struct Map *pm, char *key, uint32_t keylen, char **pdata
 	 * of columns are 40 and size of column is 64k and size of btreenode is 8k, then in worstcase refcount of this special node will
 	 * be 50 * 40 * (64k/8k) = 16000. In above example 64k/8k denotes overflow data nodes for a key.
 	 */
-	if (!((*((uint64_t *) key)) & META_LOGICAL_ID)) {
+	if (!((*((uint64_t *) key)) & META_LOGICAL_ID_MASK)) {
 		assert(pme->refcnt < 10000);
 	}
 	atomic_inc(pme->refcnt);

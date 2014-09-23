@@ -290,6 +290,9 @@ btree_range_find_diversion(btree_range_cursor_t* c)
 
 	node = root_get_and_lock(c->btree, 0, &ret);
 	if (node == NULL) {
+		if (storage_error(ret) && btree_in_rescue_mode(c->btree)) {
+			add_to_rescue(c->btree, NULL, c->btree->rootid, 0);
+		}
 		return ret;
 	}
 
@@ -339,6 +342,9 @@ btree_range_find_diversion(btree_range_cursor_t* c)
 		}
 		node = get_existing_node(&ret, c->btree, child_id, nflags, LOCKTYPE_READ);
 		if (node == NULL) {
+			if (storage_error(ret) && btree_in_rescue_mode(c->btree)) {
+				add_to_rescue(c->btree, parent->pnode, child_id, c->start_idx);
+			}
 			plat_rwlock_unlock(&parent->lock);
 			deref_l1cache_node(c->btree, parent);
 			return ret;
@@ -445,6 +451,7 @@ btree_range_get_next_fast(btree_range_cursor_t *c,
 
 	ret = btree_range_find_diversion(c);
 	if (ret != BTREE_SUCCESS) {
+		sp = -1;
 		goto cleanup;
 	}
 
@@ -484,8 +491,7 @@ btree_range_get_next_fast(btree_range_cursor_t *c,
 			child->node = get_existing_node(&r, c->btree, logical_id, nflags, LOCKTYPE_READ);
 			if (child->node == NULL) {
 				if (storage_error(r) && btree_in_rescue_mode(c->btree)) {
-					add_to_rescue(c->btree, cur->node->pnode, logical_id, 
-					             ks.key, ks.keylen, ks.seqno, cur->cur_idx);
+					add_to_rescue(c->btree, cur->node->pnode, logical_id, cur->cur_idx);
 				}
 				ret = r;
 				goto cleanup;
