@@ -395,61 +395,27 @@ l1cache_replace(void *callback_data, char *key, uint32_t keylen, char *pdata, ui
 static void
 btree_raw_crash_stats( btree_raw_t* bt, void *data, uint32_t datalen )
 {
-    assert( bt );
-    assert( data );
-    assert( datalen > 0 );
 
-    zs_pstats_delta_t *pstats_new = (zs_pstats_delta_t*) data;
-#ifdef PSTATS_1
-    fprintf(stderr, "btree_raw_crash_stats: Last seq num = %ld\n", bt->pstats.seq_num);
-    fprintf(stderr, "btree_raw_crash_stats: record: seq num=%ld d_obj_cnt=%ld is_positive_d=0x%x d_num_snap_objs=%ld d_snap_data_size=%ld unique=%ld\n",
-                 pstats_new->seq_num, pstats_new->delta[PSTAT_OBJ_COUNT], pstats_new->is_pos_delta, pstats_new->delta[PSTAT_NUM_SNAP_OBJS], pstats_new->delta[PSTAT_SNAP_DATA_SIZE], pstats_new->seq); 
-#endif
-
-    if ( pstats_new->seq_num >= bt->pstats.seq_num) {
-#ifdef PSTATS_1
-		static uint64_t count = 0;
-		int flag =0;
-#endif
-		if (pstats_new->delta[PSTAT_OBJ_COUNT] > 0 ) {
-#ifdef PSTATS_1
-			fprintf(stderr, "btree_raw_crash_stats: Valid object found: count=%ld\n", count++);
-			flag =1;
-#endif
-			if ((pstats_new->is_pos_delta | (0x1 << PSTAT_OBJ_COUNT)) != 0) {
-				bt->pstats.obj_count += pstats_new->delta[PSTAT_OBJ_COUNT];
-			} else {
-				bt->pstats.obj_count -= pstats_new->delta[PSTAT_OBJ_COUNT];
-			}
-		} 
-		if (pstats_new->delta[PSTAT_NUM_SNAP_OBJS] > 0) {
-#ifdef PSTATS_1
-			if (flag ==0) {
-				fprintf(stderr, "btree_raw_crash_stats: Valid object found: count=%ld\n", count++);
-				flag =1;
-			}
-#endif
-			if ((pstats_new->is_pos_delta | (0x1 << PSTAT_NUM_SNAP_OBJS)) != 0) {
-				bt->pstats.num_snap_objs += pstats_new->delta[PSTAT_NUM_SNAP_OBJS];
-			} else {
-				bt->pstats.num_snap_objs -= pstats_new->delta[PSTAT_NUM_SNAP_OBJS];
-			}
-		}
-		if (pstats_new->delta[PSTAT_SNAP_DATA_SIZE] > 0) {
-#ifdef PSTATS_1
-			if (flag ==0) {
-				fprintf(stderr, "btree_raw_crash_stats: Valid object found: count=%ld\n", count++);
-				flag =1;
-			}
-#endif
-			if ((pstats_new->is_pos_delta | (0x1 << PSTAT_SNAP_DATA_SIZE)) != 0 ) {
-				bt->pstats.snap_data_size += pstats_new->delta[PSTAT_SNAP_DATA_SIZE];
-			} else {
-				bt->pstats.snap_data_size -= pstats_new->delta[PSTAT_SNAP_DATA_SIZE];
-			}
-		}
-
-    }
+	zs_pstats_delta_t *pstats_new = (zs_pstats_delta_t *) data;
+	if (datalen != sizeof *pstats_new) {
+		fprintf( stderr, "btree_raw_crash_stats: invalid size of stats packet");
+		abort( );
+	}
+	if (pstats_new->seq_num >= bt->pstats.seq_num) {
+		uint ipd = pstats_new->is_pos_delta;
+		if (ipd & 1<<PSTAT_OBJ_COUNT)
+			bt->pstats.obj_count += pstats_new->delta[PSTAT_OBJ_COUNT];
+		else
+			bt->pstats.obj_count -= pstats_new->delta[PSTAT_OBJ_COUNT];
+		if (ipd & 1<<PSTAT_NUM_SNAP_OBJS)
+			bt->pstats.num_snap_objs += pstats_new->delta[PSTAT_NUM_SNAP_OBJS];
+		else
+			bt->pstats.num_snap_objs -= pstats_new->delta[PSTAT_NUM_SNAP_OBJS];
+		if (ipd & 1<<PSTAT_SNAP_DATA_SIZE)
+			bt->pstats.snap_data_size += pstats_new->delta[PSTAT_SNAP_DATA_SIZE];
+		else
+			bt->pstats.snap_data_size -= pstats_new->delta[PSTAT_SNAP_DATA_SIZE];
+	}
 }
 
 
@@ -5252,7 +5218,7 @@ int split_root(btree_raw_t* btree, btree_raw_mem_node_t** parent_out, int* paren
 btree_status_t
 btree_raw_bulk_insert(struct btree_raw *btree, btree_mput_obj_t **objs_in_out, uint32_t count,
 		uint32_t write_type, btree_metadata_t *meta, btree_raw_mem_node_t* parent,
-		btree_raw_mem_node_t* left, int parent_nkey_child, uint32_t* not_written)
+		btree_raw_mem_node_t* left, int parent_nkey_child, uint32_t* not_written, uint32_t *new_inserts)
 {
 	btree_status_t ret = BTREE_SUCCESS;
 	bool free_key = false;
@@ -5265,7 +5231,7 @@ btree_raw_bulk_insert(struct btree_raw *btree, btree_mput_obj_t **objs_in_out, u
 	btree_mput_obj_t* objs = *objs_in_out;
 	btree_raw_mem_node_t *right, *node, *prev;
 	key_stuff_info_t ksi;
-        uint32_t new_inserts;
+        uint32_t ni;
 	btree_status_t leaf_ret;
 	uint64_t ref_start_index;
 	uint64_t mod_start_index;
@@ -5281,6 +5247,7 @@ btree_raw_bulk_insert(struct btree_raw *btree, btree_mput_obj_t **objs_in_out, u
 	dbg_print_key(objs[0].key, objs[0].key_len, "bulk_insert count=%d parent_id=%ld left=%ld split_key=%d locked=%lld\n", count, parent->pnode->logical_id, left->pnode->logical_id, split_key, locked);
 
 	*not_written = count;
+	*new_inserts = 0;
 
 	/* Btree split needs 3 nodes */
 	if (!is_nodes_available(3)) {
@@ -5296,7 +5263,7 @@ btree_raw_bulk_insert(struct btree_raw *btree, btree_mput_obj_t **objs_in_out, u
 
 	/* Fill right node */
 	leaf_ret = btree_insert_keys_leaf(btree, meta, 0, right, write_type | W_DESC,
-				objs, count, -1, false, false, &written, NULL, &new_inserts);
+				objs, count, -1, false, false, &written, NULL, &ni);
 	if ((leaf_ret != BTREE_SUCCESS) && (leaf_ret != BTREE_OBJECT_TOO_BIG)) {
 #ifdef PSTATS_1
         fprintf(stderr, "btree_raw_bulk_insert:right : new_inserts=%d\n", new_inserts);
@@ -5305,6 +5272,7 @@ btree_raw_bulk_insert(struct btree_raw *btree, btree_mput_obj_t **objs_in_out, u
         }
 
 	count -= written;
+	*new_inserts += ni;
 
         if(count && (leaf_ret != BTREE_OBJECT_TOO_BIG)) {
 		/* Check if last key from the remaning batch should still
@@ -5317,7 +5285,7 @@ btree_raw_bulk_insert(struct btree_raw *btree, btree_mput_obj_t **objs_in_out, u
 		if(x < 0) {
 			/* Fill left node */
 			leaf_ret = btree_insert_keys_leaf(btree, meta, 0, left, W_CREATE | W_ASC | W_APPEND,
-			                objs, count, -1, false, false, &written, NULL, &new_inserts);
+			                objs, count, -1, false, false, &written, NULL, &ni);
 			if ((leaf_ret != BTREE_SUCCESS) && (leaf_ret != BTREE_OBJECT_TOO_BIG)) {
 #ifdef PSTATS_1
 				fprintf(stderr, "btree_raw_bulk_insert:left : new_inserts=%d\n", new_inserts);
@@ -5327,6 +5295,7 @@ btree_raw_bulk_insert(struct btree_raw *btree, btree_mput_obj_t **objs_in_out, u
 
 			objs += written;
 			count -= written;
+			*new_inserts += ni;
 		}
         }
 
@@ -5373,7 +5342,7 @@ btree_raw_bulk_insert(struct btree_raw *btree, btree_mput_obj_t **objs_in_out, u
 		mod_start_index = modified_nodes_count - 1;
 
 		leaf_ret = btree_insert_keys_leaf(btree, meta, 0, node, W_CREATE | W_ASC | W_APPEND,
-				objs, count, -1, false, false, &written, &r_seqno, &new_inserts);
+				objs, count, -1, false, false, &written, &r_seqno, &ni);
 		if (leaf_ret != BTREE_SUCCESS) {
 #ifdef PSTATS_1
                     fprintf(stderr, "btree_raw_bulk_insert:anchor : new_inserts=%d\n", new_inserts);
@@ -5399,6 +5368,7 @@ btree_raw_bulk_insert(struct btree_raw *btree, btree_mput_obj_t **objs_in_out, u
 		prev = node;
 
 		count -= written;
+		*new_inserts += ni;
 		objs++;
 
 		stats_inc(btree, BTSTAT_BULK_INSERT_FULL_NODES_CNT, 1);
@@ -5912,20 +5882,17 @@ mini_restart:
         objs += *written;
         count -= *written;
 
-#ifdef PSTATS_1
-        fprintf(stderr, "btree_raw_mwrite_low: delta obj = %d\n", new_inserts);
-#endif
-        set_node_pstats(btree, mem_node->pnode, new_inserts, true);
-
         if(!storage_error(ret) && (ret != BTREE_OBJECT_TOO_BIG) && (count > 1) && parent && *written) {
-            uint32_t not_written;
+            uint32_t not_written, ni;
             assert(parent->pnode->logical_id != mem_node->pnode->logical_id);
             ret = btree_raw_bulk_insert(btree, &objs, count, write_type,
-                    meta, parent, mem_node, parent_nkey_child, &not_written);
+                    meta, parent, mem_node, parent_nkey_child, &not_written, &ni);
 		*written += count - not_written;
+		new_inserts += ni;
 		count = not_written;
 		dbg_print("bulk_insert returned error: %d written=%d not_written=%d num_objs=%d count=%d\n", ret, *written, not_written, *num_objs, count);
 	}
+        set_node_pstats(btree, mem_node->pnode, new_inserts, true);
 
 	if (ret == BTREE_OBJECT_TOO_BIG) {
 		ret = BTREE_SUCCESS;

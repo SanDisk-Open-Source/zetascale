@@ -5699,7 +5699,8 @@ stats_packet_save( mcd_rec_obj_state_t *state, void *context, mcd_osd_shard_t *s
 		state->statbuftail = (state->statbuftail+1) % state->statbufsiz;
 		if (lr->blocks) {
 			fprintf( f, "%u ", lr->cntr_id);
-			recovery_packet_dump( f, lr->blk_offset, lr->blocks, 32, context, shard, (uint64_t)lr->seqno);
+			const size_t N = 88;	/* sizeof( zs_pstats_delta_t), checked at btree level */
+			recovery_packet_dump( f, lr->blk_offset, lr->blocks, N, context, shard, (uint64_t)lr->seqno);
 		}
 	}
 	fclose( f);
