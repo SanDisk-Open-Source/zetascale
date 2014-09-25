@@ -1840,6 +1840,7 @@ restart:
 			//btSyncMboxPost(&mbox_scavenger, (uint64_t)s);
 			cm_unlock(index);
 		} else {
+			fprintf(stderr, "savepersistent SC_OVERFLW_DELCONT failed %s\n", ZSStrError(status));
 			btree->partitions[0]->snap_meta->sc_status &= ~SC_OVERFLW_DELCONT;
 			cm_unlock(index);
 			/* Remove this on handling deleting closed container */
@@ -6358,47 +6359,25 @@ bt_restart_delcont(void *parm)
 		if ((status = ZSGetContainerProps(thd_state, cguids[i], &props)) != ZS_SUCCESS) {
 			continue;
 		}
-		if (true) {
 
-			if (ZSOpenContainer(thd_state, props.name, &props, 
-						ZS_CTNR_RW_MODE, &cguid) == ZS_SUCCESS) {
+		if (ZSOpenContainer(thd_state, props.name, &props, 
+					ZS_CTNR_RW_MODE, &cguid) == ZS_SUCCESS) {
 
-				if (cguids[i] == cguid) {
-					status = ZSReadObject(thd_state, cguid, (char *)&nodeid,
-										sizeof(uint64_t), &node, &node_size);
-					fprintf(stderr, "Restarting deletion of container: %s\n", props.name);
-					if (status == ZS_SUCCESS) {
-						r = (btree_raw_persist_t *)node;
-						if (r->snap_details.sc_status == SC_OVERFLW_DELCONT) {
-							ZSCloseContainer(thd_state, cguid);
-							status = _ZSOpenContainer(thd_state, props.name,
-												&props, ZS_CTNR_RW_MODE, &cguid);
-							assert(status == ZS_FAILURE_CONTAINER_DELETED);
-						}
+			if (cguids[i] == cguid) {
+				status = ZSReadObject(thd_state, cguid, (char *)&nodeid,
+						sizeof(uint64_t), &node, &node_size);
+				if (status == ZS_SUCCESS) {
+					r = (btree_raw_persist_t *)node;
+					if (r->snap_details.sc_status == SC_OVERFLW_DELCONT) {
+						ZSCloseContainer(thd_state, cguid);
+						fprintf(stderr, "Restarting deletion of container: %s\n", props.name);
+						status = _ZSOpenContainer(thd_state, props.name,
+								&props, ZS_CTNR_RW_MODE, &cguid);
+						fprintf(stderr, "Restarting deletion of container: %s %s\n", props.name, ZSStrError(status));
+						assert(status == ZS_FAILURE_CONTAINER_DELETED);
 					}
 				}
-				/*
-				 * Application would have opened the container while we were checking
-				 * the delete status. Close only if container has not opened.
-				 */
-				pthread_rwlock_rdlock(&ctnrmap_rwlock);
-				flag = 0;
-				if (bt_shutdown == true) {
-					pthread_rwlock_unlock(&ctnrmap_rwlock);
-					return NULL;
-				}
-				for ( j = 0; j < MAX_OPEN_CONTAINERS; j++ ) {
-					if ( Container_Map[i].cguid == cguid ) {
-						flag = 1;
-						break;
-					}
-				}
-				if (flag == 0) {
-					ZSCloseContainer(thd_state, cguid);
-				}
-				pthread_rwlock_unlock(&ctnrmap_rwlock);
 			}
-
 		}
 
 	}
