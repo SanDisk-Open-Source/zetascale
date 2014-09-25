@@ -7927,7 +7927,7 @@ ZSRangeUpdate(struct ZS_thread_state *zs_thread_state,
 
 ZS_status_t
 ZSCheckBtree(struct ZS_thread_state *zs_thread_state, 
-	       ZS_cguid_t cguid)
+	       ZS_cguid_t cguid, uint64_t flags)
 {
 
 	fprintf(stderr, "ZS: ZSCheckBtree without btree is not supported\n");
@@ -8006,7 +8006,7 @@ ZSCheckMsg(ZS_check_entity_t entity,
 }
 
 ZS_status_t
-ZSCheck(struct ZS_thread_state *zs_thread_state)
+ZSCheck(struct ZS_thread_state *zs_thread_state, uint64_t flags)
 {
 
 	fprintf(stderr, "ZS: ZSCheck without btree is not supported\n");

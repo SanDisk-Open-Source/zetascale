@@ -114,7 +114,7 @@ btree_free_rupdate_marker(struct btree *btree, btree_rupdate_marker_t *marker);
 
 btree_status_t btree_ioctl(struct btree *btree, uint32_t ioctl_type, void *data);
 bool
-btree_check(struct btree *btree);
+btree_check(struct btree *btree, uint64_t *num_objs);
 
 btree_status_t btree_move_lasterror(struct btree *btree, void **pp_err_context, uint32_t *p_err_size);
 btree_status_t btree_rescue(struct btree *btree, void *p_err_context);

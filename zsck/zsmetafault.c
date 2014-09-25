@@ -203,7 +203,7 @@ ZS_status_t check_meta()
 
 ZS_status_t check_btree()
 {
-    return ZSCheck( _zs_thd_state );
+    return ZSCheck( _zs_thd_state, 0 );
 }
 
 ZS_status_t check_flog()

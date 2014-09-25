@@ -128,6 +128,10 @@ typedef struct __zs_cont_iterator {
 } __zs_cont_iterator_t;
 
 
+ZS_status_t 
+zs_fix_objs_cnt_stats(struct ZS_thread_state *thd_state, uint64_t obj_count, char *cont_name);
+
+
 bool
 seqnoread(struct ZS_thread_state *t);
 static bool storage_space_exhausted( const char *);
@@ -207,10 +211,10 @@ _ZSRangeUpdate(struct ZS_thread_state *zs_thread_state,
 
 ZS_status_t
 _ZSCheckBtree(struct ZS_thread_state *zs_thread_state, 
-	       ZS_cguid_t cguid);
+	       ZS_cguid_t cguid, uint64_t flags);
 
 ZS_status_t
-_ZSCheck(struct ZS_thread_state *zs_thread_state);
+_ZSCheck(struct ZS_thread_state *zs_thread_state, uint64_t flags);
 
 ZS_status_t
 _ZSCheckInit(char *logfile); 
@@ -3662,8 +3666,8 @@ _ZSMPut(struct ZS_thread_state *zs_ts,
  * ZSCheckBtree: internal api for testing purpose.
  */
 ZS_status_t
-_ZSCheckBtree(struct ZS_thread_state *zs_thread_state, 
-	       ZS_cguid_t cguid)
+zs_check_btree(struct ZS_thread_state *zs_thread_state, 
+	       ZS_cguid_t cguid, uint64_t flags, uint64_t *num_objs)
 {
 	ZS_status_t ret = ZS_SUCCESS;
 	my_thd_state = zs_thread_state;;
@@ -3679,14 +3683,25 @@ _ZSCheckBtree(struct ZS_thread_state *zs_thread_state,
 		return ret;
 	}
 
-	if (btree_check(bt) == false) {
+	if (btree_check(bt, num_objs) == false) {
 		ret = ZS_FAILURE;
 	} else {
 		ret = ZS_SUCCESS;
 	}
 
+
+	msg("Got %"PRId64" objects in cont id = %d.\n", num_objs, cguid);
+
 	bt_rel_entry(index, false);
 	return ret;
+}
+
+ZS_status_t
+_ZSCheckBtree(struct ZS_thread_state *zs_thread_state, 
+	       ZS_cguid_t cguid, uint64_t flags)
+{
+	uint64_t num_objs = 0;
+	return zs_check_btree(zs_thread_state, cguid, flags, &num_objs);
 }
 
 static ZS_status_t 
@@ -3717,7 +3732,7 @@ check_hash_cont(struct ZS_thread_state *thd_state, ZS_cguid_t cguid)
  */
 #define MAX_CONTS 65000
 ZS_status_t
-_ZSCheck(struct ZS_thread_state *zs_thread_state)
+_ZSCheck(struct ZS_thread_state *zs_thread_state, uint64_t flags)
 {
 	uint32_t nconts = 0;
 	ZS_cguid_t *cguids = NULL;
@@ -3725,12 +3740,12 @@ _ZSCheck(struct ZS_thread_state *zs_thread_state)
 	ZS_container_props_t props = {0};
 	ZS_status_t status = ZS_SUCCESS;
 	int i = 0;
-    char err_msg[1024];
+	uint64_t *num_objs = NULL;
+	char err_msg[1024];
 
 	if (!__zs_check_mode_on) {
 		return ZS_FAILURE_OPERATION_DISALLOWED;	
 	}
-
 
 	if (seqnoread(zs_thread_state) != true) {
 		return ZS_FAILURE;
@@ -3745,6 +3760,8 @@ _ZSCheck(struct ZS_thread_state *zs_thread_state)
 	status = ZSGetContainers(zs_thread_state, cguids, &nconts);
 
 	msg("Running Data consistency checker on %d containers.\n", nconts);
+
+	num_objs = (uint64_t *) btree_malloc(nconts * sizeof(uint64_t));
 
 	for (i = 0; i < nconts; i++) {
 
@@ -3774,7 +3791,7 @@ _ZSCheck(struct ZS_thread_state *zs_thread_state)
 			/*
 			 * If btree container, then check btre
 			 */
-			status = _ZSCheckBtree(zs_thread_state, cguids[i]);
+			status = zs_check_btree(zs_thread_state, cguids[i], flags, &num_objs[i]);
 			if (status != ZS_SUCCESS) {
                 sprintf(err_msg, "Btree check failed for container %lu: %s", cguids[i], ZSStrError(status));
                 ZSCheckMsg(ZSCHECK_BTREE_NODE, 0, ZSCHECK_SUCCESS, err_msg);
@@ -3792,9 +3809,41 @@ _ZSCheck(struct ZS_thread_state *zs_thread_state)
 	 */
 	status = ZSCheckSpace(zs_thread_state);
 
+	if (!(flags & ZS_CHECK_FIX_BOJ_CNT)) {
+		goto out;
+	}
+	/*
+	 * If required, fix the number of objects.
+	 */
+	for (i = 0; i < nconts; i++) {
+
+		status = ZSGetContainerProps(zs_thread_state, cguids[i], &props);
+		if (status != ZS_SUCCESS) {
+			goto out;
+		}
+
+
+		/*
+		 * Fix the number of objects in pstats for btree containers.
+		 */
+		if (IS_ZS_HASH_CONTAINER(props.flags) == false) {
+			status = zs_fix_objs_cnt_stats(zs_thread_state, num_objs[i], props.name);
+			if (status == ZS_SUCCESS) {
+				msg("Fixed object count for cont name %s.\n", props.name);
+			} else {
+				msg("Failed fixing object count for cont name %s.\n", props.name);
+			}
+		}
+
+	}
+
 out:
 	if (cguids) {
 		btree_free(cguids);	
+	}
+
+	if (num_objs) {
+		btree_free(num_objs);
 	}
 	return status;
 }
@@ -4678,7 +4727,7 @@ seqnoread(struct ZS_thread_state *t)
 	}
 
 	ZSFreeBuffer( data);
-	ZSCloseContainer( t, c);
+//	ZSCloseContainer( t, c);
 
 	return true;
 }
@@ -5817,6 +5866,39 @@ ZSInitPstats(struct ZS_thread_state *my_thd_state, char *key, zs_pstats_t *pstat
     ZSFreeBuffer(data);
 }
 
+
+ZS_status_t 
+zs_fix_objs_cnt_stats(struct ZS_thread_state *thd_state, uint64_t obj_count, char *cont_name)
+{
+
+    ZS_status_t ret = ZS_SUCCESS;
+    zs_pstats_t *pstats = NULL;
+    uint64_t datalen = 0;
+
+
+    /*
+     * Read the cont stats
+     */
+    ret = ZSReadObject(thd_state, stats_ctnr_cguid, cont_name, 
+			strlen(cont_name) + 1, (char **) &pstats, &datalen);
+
+    if (ret != ZS_SUCCESS) {
+	return ret;
+    }
+    assert(datalen == sizeof(zs_pstats_t));
+
+
+    pstats->obj_count = obj_count;
+    
+    /*   
+     * Write stats to ZS physical container
+     */
+    ret = ZSWriteObject(thd_state, stats_ctnr_cguid, cont_name, 
+			strlen(cont_name) + 1, (char *)pstats, sizeof(zs_pstats_t), 0);
+
+    ZSFreeBuffer((char *) pstats);
+    return ret;
+}
 
 static ZS_status_t 
 zs_commit_stats_int(struct ZS_thread_state *thd_state, zs_pstats_t *s, char *key)

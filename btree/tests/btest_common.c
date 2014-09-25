@@ -426,6 +426,7 @@ btest_rand_data_gen(btest_cfg_t *cfg)
 	btree_metadata_t meta;
 	int              ret;
 	btree_stats_t    bt_stats;
+	uint64_t num_objs = 0;
 
 	//  Initialize array of characters used 
 	//  to generate random keys and data
@@ -501,7 +502,7 @@ btest_rand_data_gen(btest_cfg_t *cfg)
 		}
 	}
 
-	btree_check(cfg->bt);
+	btree_check(cfg->bt, &num_objs);
 	msg("%d data items loaded into b-tree)", cfg->n_test_keys);
 
 	btree_get_stats(cfg->bt, &bt_stats);
@@ -520,12 +521,13 @@ btest_life_cycle(btest_cfg_t *cfg)
 	btree_stats_t     bt_stats;
 	int               ret;
 	uint32_t          nkey;
+	uint64_t num_objs = 0;
 
 	/* do a bunch of gets and updates, checking data as we go */
 	keytmp = (char *) malloc(cfg->max_key_size + 1);
 	assert(keytmp);
 
-	btree_check(cfg->bt);
+	btree_check(cfg->bt, &num_objs);
 	for (i=0; i<cfg->n_test_iters; i++) {
 
         	// xxxzzz
@@ -618,7 +620,7 @@ btest_life_cycle(btest_cfg_t *cfg)
 
 	/* do a bunch of scans, checking data as we go */
 
-	btree_check(cfg->bt);
+	btree_check(cfg->bt, &num_objs);
 
 	// xxxzzz TBD
 
@@ -646,7 +648,7 @@ btest_life_cycle(btest_cfg_t *cfg)
 	btree_get_stats(cfg->bt, &bt_stats);
 	btree_dump_stats(stderr, &bt_stats);
 
-	btree_check(cfg->bt);
+	btree_check(cfg->bt, &num_objs);
 	/* delete the btree */
 	btree_destroy(cfg->bt);
 	btree_raw_free_thread_bufs();

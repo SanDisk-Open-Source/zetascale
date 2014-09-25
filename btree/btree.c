@@ -392,14 +392,16 @@ void btree_get_stats(struct btree *bt, btree_stats_t *stats_all)
  * Functions related to btree consistency check.
  */
 bool
-btree_check(struct btree *btree)
+btree_check(struct btree *btree, uint64_t *num_objs)
 {
 
 	bool final_res = true;
 	bool res = true;	
 	int i = 0 ;
+	*num_objs = 0;
+
 	for (i = 0; i < btree->n_partitions; i++) {
-		res = btree_raw_check(btree->partitions[i]);
+		res = btree_raw_check(btree->partitions[i], num_objs);
 		if (res == false) {
 			final_res = false;
 			break;

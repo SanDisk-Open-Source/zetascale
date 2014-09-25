@@ -111,7 +111,7 @@ end
 define btree_get_nth_key
 set $num = $arg0
 set $node = $arg1
- if ($node->flags & 1) 
+ if ($node->flags & 2) 
    bt_leaf_print_nth_key $node $num
  else 
    get_nonleaf_nth_key $num $node
@@ -128,7 +128,7 @@ end
 define btree_print_node 
 set $node = $arg0
 printf " ======= Node Details =======\n"
-if ($node->flags & 1) 
+if ($node->flags & 2) 
 	printf "LEAF. \n"
 else 
 	printf "NON-LEAF.\n"

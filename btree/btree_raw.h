@@ -542,7 +542,7 @@ btree_raw_check_node_subtree(struct btree_raw *btree, btree_raw_node_t *node,
 
 #endif 
 bool
-btree_raw_check(struct btree_raw *btree);
+btree_raw_check(struct btree_raw *btree, uint64_t *num_objs);
 
 
 

@@ -250,10 +250,10 @@ ZS_status_t
  */
 ZS_status_t
 (*ptr_ZSCheckBtree) (struct ZS_thread_state *zs_thread_state, 
-	       ZS_cguid_t cguid);
+	       ZS_cguid_t cguid, uint64_t flags);
 
 ZS_status_t
-(*ptr_ZSCheck) (struct ZS_thread_state *zs_thread_state);
+(*ptr_ZSCheck) (struct ZS_thread_state *zs_thread_state, uint64_t flags);
 
 ZS_status_t
 (*ptr_ZSCheckMeta) ();
@@ -1514,24 +1514,24 @@ ZSRangeUpdate(struct ZS_thread_state *zs_thread_state,
  */
 ZS_status_t
 ZSCheckBtree(struct ZS_thread_state *zs_thread_state, 
-	       ZS_cguid_t cguid)
+	       ZS_cguid_t cguid, uint64_t flags)
 {
     if (unlikely(!ptr_ZSCheckBtree))
         undefined("ZSCheckBtree");
 
-    return (*ptr_ZSCheckBtree) (zs_thread_state, cguid);
+    return (*ptr_ZSCheckBtree) (zs_thread_state, cguid, flags);
 }
 
 /*
  * ZSCheck: internal api for testing purpose.
  */
 ZS_status_t
-ZSCheck(struct ZS_thread_state *zs_thread_state)
+ZSCheck(struct ZS_thread_state *zs_thread_state, uint64_t flags)
 {
     if (unlikely(!ptr_ZSCheck))
         undefined("ZSCheck");
 
-    return (*ptr_ZSCheck) (zs_thread_state);
+    return (*ptr_ZSCheck) (zs_thread_state, flags);
 }
 
 /*

@@ -32,6 +32,10 @@ extern "C" {
 #define ZS_DEFAULT_CONTAINER_SIZE_KB	(1024 * 1024)	//1GB
 #define ZS_MIN_FLASH_SIZE		3		//3GB
 
+typedef enum {
+	ZS_CHECK_FIX_BOJ_CNT = 1,
+} ZS_check_flags_t;
+
 typedef struct {
 	uint64_t		n;
 	uint64_t		min;
@@ -1311,10 +1315,10 @@ ZSRangeUpdate(struct ZS_thread_state *zs_thread_state,
 
 ZS_status_t
 ZSCheckBtree(struct ZS_thread_state *zs_thread_state, 
-	       ZS_cguid_t cguid);
+	       ZS_cguid_t cguid, uint64_t flags);
 
 ZS_status_t
-ZSCheck(struct ZS_thread_state *zs_thread_state);
+ZSCheck(struct ZS_thread_state *zs_thread_state, uint64_t flags);
 
 // For ZS metadata checker
 ZS_status_t 
