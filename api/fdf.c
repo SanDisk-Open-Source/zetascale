@@ -89,7 +89,7 @@ static sem_t Mcd_fsched_sem;
 static sem_t Mcd_initer_sem;
 
 extern HashMap cmap_cname_hash;           // cname -> cguid
-extern __thread uint32_t *trx_bracket_slabs;
+extern __thread uint64_t *trx_bracket_slabs;
 extern int storm_mode;
 
 ZS_status_t get_btree_num_objs(ZS_cguid_t cguid, uint64_t *num_objs);
@@ -2158,7 +2158,7 @@ ZS_status_t ZSInitVersioned(
 
     ZS_status_t zs_start_defrag_thread(struct ZS_state *);
     if ( getProperty_Int( "ZS_DEFRAG_ENABLE", 0) == 1 ) {
-        mcd_log_msg(150127, PLAT_LOG_LEVEL_DEBUG,
+        mcd_log_msg(160291, PLAT_LOG_LEVEL_DEBUG,
                     "defragmenter enabled.\n");
         zs_start_defrag_thread(*zs_state );
     }
@@ -2432,7 +2432,7 @@ ZS_status_t ZSInitPerThreadState(
     zs_init_per_thd_comp_buf(0);
 
     if (trx_bracket_slabs == NULL) {
-        trx_bracket_slabs = plat_alloc(MAX_TRX_BRACKET_SLAB_CNT * sizeof(uint32_t));
+        trx_bracket_slabs = plat_alloc(MAX_TRX_BRACKET_SLAB_CNT * sizeof(uint64_t));
 
         if (trx_bracket_slabs == NULL) {
             mcd_log_msg(20001, PLAT_LOG_LEVEL_FATAL, "failed to allocate memory");

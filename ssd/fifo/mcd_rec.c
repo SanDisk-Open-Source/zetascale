@@ -3913,7 +3913,7 @@ apply_log_record_mp( mcd_rec_obj_state_t *state, mcd_logrec_object_t *rec)
 	and (rec->rbucket == 0)
 	and (rec->seqno == 0)
 	and (rec->old_offset == 0)) {
-		if ((rec->blk_offset == 0xffffffffu)
+		if ((rec->blk_offset == 0xffffffffffffu)
 		and (shard->cntr->cas_id < rec->target_seqno))	// special cas_id record
 			shard->cntr->cas_id = rec->target_seqno;
 		return 0;
@@ -3926,10 +3926,14 @@ apply_log_record_mp( mcd_rec_obj_state_t *state, mcd_logrec_object_t *rec)
 	if (rec->blk_offset < state->low_obj_offset)
 		state->low_obj_offset = rec->blk_offset;
 	if (rec->old_offset) {
-		if (~(rec->old_offset) > state->high_obj_offset)
+		if (~(rec->old_offset) > state->high_obj_offset) {
 			state->high_obj_offset = ~(rec->old_offset);
-		if (~(rec->old_offset) < state->low_obj_offset)
+			state->high_obj_offset &= 0x0000ffffffffffff;
+}
+		if (~(rec->old_offset) < state->low_obj_offset) {
 			state->low_obj_offset = ~(rec->old_offset);
+			state->low_obj_offset &= 0x0000ffffffffffff;
+}
 	}
 reapply:
 	// check that record applies to this table range
@@ -6850,7 +6854,7 @@ static __thread uint	trx_bracket_id,
 			trx_bracket_level,
 			trx_bracket_nslab;
 
-__thread uint32_t *trx_bracket_slabs = NULL;
+__thread uint64_t *trx_bracket_slabs = NULL;
 
 static
 uint64_t
@@ -6860,7 +6864,7 @@ log_write_internal( mcd_osd_shard_t *s, mcd_logrec_object_t *lr)
 	uint64_t	slot_seqno;
 
 	if (trx_bracket_slabs == NULL) {
-		trx_bracket_slabs = plat_alloc(MAX_TRX_BRACKET_SLAB_CNT * sizeof(uint32_t));
+		trx_bracket_slabs = plat_alloc(MAX_TRX_BRACKET_SLAB_CNT * sizeof(uint64_t));
 		if (trx_bracket_slabs == NULL) {
 			mcd_log_msg(20001, PLAT_LOG_LEVEL_FATAL, "failed to allocate memory");
 			plat_abort( );
@@ -6871,7 +6875,7 @@ log_write_internal( mcd_osd_shard_t *s, mcd_logrec_object_t *lr)
 	and (lr->bracket_id = trx_bracket_id)
 	and (lr->old_offset)
 	and (trx_bracket_nslab < MAX_TRX_BRACKET_SLAB_CNT)) {
-		trx_bracket_slabs[trx_bracket_nslab++] = ~ lr->old_offset;
+		trx_bracket_slabs[trx_bracket_nslab++] = (~ lr->old_offset) & 0x0000ffffffffffff;
 		if (trx_bracket_nslab == MAX_TRX_BRACKET_SLAB_CNT) {
 			if (s->log->errors_fatal) {
 				mcd_log_msg( 170024, PLAT_LOG_LEVEL_FATAL, "Slab deferral exceeded");
@@ -7085,7 +7089,7 @@ log_write_postprocess( mcd_osd_shard_t * shard, mcd_rec_logbuf_t * logbuf,
         if ( rec->syndrome == 0 && rec->blocks == 0 &&
              rec->rbucket == 0 && rec->seqno == 0 &&
              rec->old_offset == 0 ) {
-            if ( rec->blk_offset == 0xffffffffu ) {
+            if ( rec->blk_offset == 0xffffffffffffu ) {
                 continue;
             }
             break;
@@ -7640,7 +7644,9 @@ shard_format( uint64_t shard_id, int flags, uint64_t quota, uint64_t max_objs,
 	if (storm_mode)
 		max_log_blks = mcd_rec2_log_size( total_blks*Mcd_osd_blk_size) / Mcd_osd_blk_size;
 	else
-		max_log_blks = max_table_blks >> 3;
+		max_log_blks = max_table_blks >> 2; /* In 3.0 log recored struture changed from 32 to 64 bytes
+                                                             The reduces total log slots by 2 in logging. 
+                                                             multiplying by 2 to accomdate this */
 	max_log_blks = roundup( max_log_blks, align_blks);
 	potbm_blks = mcd_rec2_potbitmap_size( total_blks*Mcd_osd_blk_size) / Mcd_osd_blk_size;
 	slabbm_blks = mcd_rec2_slabbitmap_size( total_blks*Mcd_osd_blk_size) / Mcd_osd_blk_size;
@@ -8608,7 +8614,7 @@ mcd_trx_service( void *pai, int cmd, void *arg)
 			mcd_rec_log_t *l = vdc_shard->log;
 			mcd_logrec_object_t z;
 			memset( &z, 0, sizeof z);
-			z.blk_offset = 0xffffffffu;	/* CAS type */
+			z.blk_offset = 0xffffffffffffu;	/* CAS type */
 			trx_bracket_id = - trx_bracket_id;
 			log_write( vdc_shard, &z);
 			trx_bracket_id = - trx_bracket_id;

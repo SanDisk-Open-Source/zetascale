@@ -106,13 +106,12 @@ hash_table_init ( uint64_t total_size, uint64_t max_nobjs, int mode, int key_cac
      * update number of maximum supported objects.
      */
     hdl->hash_size = total_size / Mcd_osd_blk_size;
-    //TODO: make a neat calculation
-    hdl->hash_size += hdl->hash_size/4;
-
     if ( 0 < max_nobjs && max_nobjs < hdl->hash_size ) {
         hdl->hash_size = ( max_nobjs + Mcd_osd_segment_blks  - 1 )
             / Mcd_osd_segment_blks  * Mcd_osd_segment_blks ;
     }
+    //TODO: make a neat calculation
+    hdl->hash_size += hdl->hash_size/4;
 
     /*
      * Calculate the number of bits of the syndrome 

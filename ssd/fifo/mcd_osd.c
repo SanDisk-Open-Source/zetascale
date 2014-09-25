@@ -3504,9 +3504,10 @@ mcd_osd_slab_shard_init( mcd_osd_shard_t * shard, uint64_t shard_id,
     if (shard_id==vdc_shardid && storm_mode) {
         uint64_t reg_objs = get_regobj_storm_mode( );
         if (hashscale) {
-            uint64_t objs = max_nobjs * hashscale/100;
-            if (reg_objs < objs)
+            uint64_t objs = (max_nobjs * hashscale)/100;
+            if (reg_objs < objs) {
                 reg_objs = objs;
+	    }
         }
         shard->hash_handle = hash_table_init( shard->total_size, reg_objs, SLAB, hashkeycache);
     }

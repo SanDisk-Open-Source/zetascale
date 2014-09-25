@@ -2280,7 +2280,7 @@ init_l1cache()
 
 	// Allocate extra 1% for boundary conditions.
 	if (bt_storm_mode) {
-		buffer_count = (l1raw_size / overflow_node_sz + (n + 1)) * 1.01;
+		buffer_count = (l1raw_size / overflow_node_sz + (n + 1)) * 1.01 + n * 16;
 		free_raw_node_list = btree_node_list_init(buffer_count, sizeof(btree_raw_mem_node_t) + overflow_node_sz);
 		global_raw_l1cache = PMapInit(n, l1raw_buckets / n + 1, 16 * (l1raw_buckets / n + 1), 1, l1cache_replace);
 		if (global_raw_l1cache == NULL) {
@@ -2290,7 +2290,7 @@ init_l1cache()
 		free_raw_node_list = NULL;
 	}
 
-	buffer_count = ((l1reg_size / get_btree_node_size()) + (n + 1)) * 1.01;
+	buffer_count = ((l1reg_size / get_btree_node_size()) + (n + 1)) * 1.01 + n *16;
 	free_node_list = btree_node_list_init(buffer_count, MEM_NODE_SIZE);
 
 	l1cache_partitions = n;

@@ -542,7 +542,7 @@ typedef struct mcd_rec_log {
 
     fthLock_t               slablock;         // access deferred slab info
     uint                    nslab;            // # deferred slab deallocs
-    uint32_t                slabtab[10000000]; // deferred-dealloc slabs
+    uint64_t                slabtab[10000000]; // deferred-dealloc slabs
     mlog_t                  mlog;
 
 	// lean memory extension
