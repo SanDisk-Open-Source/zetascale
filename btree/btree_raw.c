@@ -938,7 +938,7 @@ loadpersistent( btree_raw_t *bt)
 	meta_snapshot = get_existing_node(&ret, bt, META_SNAPSHOT_LOGICAL_ID,
 	                                  NODE_PIN, LOCKTYPE_NOLOCK);
 	if (BTREE_SUCCESS != ret) goto exit;
-	r = (btree_raw_persist_t*)meta_counter->pnode;
+	r = (btree_raw_persist_t*)meta_snapshot->pnode;
 	bt->snap_meta = &r->snap_details; /* Keep the pinned snap details node info in btree */
 
 	/* We have modified the bt counter interval, flush it persistently */
