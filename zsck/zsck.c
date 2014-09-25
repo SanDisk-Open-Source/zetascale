@@ -21,7 +21,7 @@ static struct option long_options[] = {
 
 void print_help(char *pname) 
 {
-    fprintf(stderr, "\nExecute validation of ZetaScale persistent metadata, btree strucutres and recovery logs.\n\n");
+    fprintf(stderr, "\nExecute validation of ZetaScale persistent metadata, btree structures and recovery logs.\n\n");
     fprintf(stderr, "%s --btree --logfile=file --help\n\n", pname);
 }
 
