@@ -254,6 +254,7 @@ typedef enum {
 
 typedef enum {
     ZSCHECK_SUCCESS = 0,
+    ZSCHECK_FAILURE,
     ZSCHECK_INFO,
     ZSCHECK_READ_ERROR,
     ZSCHECK_WRITE_ERROR,

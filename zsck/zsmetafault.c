@@ -221,6 +221,7 @@ int main(int argc, char *argv[])
     char *prop_file = NULL;
     int rc;
 
+
     if ( get_options( argc, argv) ) {
         return -1;
     }
@@ -294,11 +295,10 @@ int main(int argc, char *argv[])
     if (prop_file) {
         ZSLoadProperties(prop_file);
     }
+
     unsetenv("ZS_PROPERTY_FILE");
     ZSSetProperty("ZS_META_FAULT_INJECTION", "1");
     ZSSetProperty("ZS_REFORMAT", "0");
-
-
 
     ZSCheckInit(logfile);
     if (ZS_SUCCESS != check_meta()) {
@@ -318,6 +318,7 @@ int main(int argc, char *argv[])
                         "label,superblock,shard_prop,shard_desc,seg_list,class_desc,chkpoint\n");
         exit(0);
     }
+if (0) {
     /* Corrupt POT */
     if (init_zs() < 0) {
         fprintf(stderr, "ZS init failed\n");
@@ -335,5 +336,6 @@ int main(int argc, char *argv[])
        }
     }
     close_zs();  
+}
     return 0;
 }

@@ -20,10 +20,13 @@
 #include "platform/unistd.h"
 #include "utils/properties.h"
 #include "utils/hash.h"
+#include "utils/rico.h"
 #include "fth/fthSem.h"
 #include "ssd/ssd_local.h"
 #include "ssd/fifo/fifo.h"
 #include "ssd/ssd_aio.h"
+#include "ssd/fifo/slab_gc.h"
+#include "ssd/fifo/mcd_rec2.h"
 #include "mcd_aio.h"
 #include "mcd_osd.h"
 #include "mcd_rec.h"
@@ -33,8 +36,7 @@
 #include "hash.h"
 #include "fdf_internal.h"
 #include "container_meta_blob.h"
-#include "protocol/action/recovery.h"
-#include "ssd/fifo/slab_gc.h"
+//#include "protocol/action/recovery.h"
 #include "malloc.h"
 
 #define SUPER_BUF 0
@@ -54,15 +56,12 @@
 #define VMC_SHARD_IDX 1
 #define VDC_SHARD_IDX 2
 
-#define SHARD_DESC_BLK_SIZE   ( MCD_OSD_SEG0_BLK_SIZE * 16 )
 #ifdef DEBUG
     #define dprintf fprintf
 #else
     #define dprintf(...) 
 #endif
 
-#include "utils/rico.h"
-#include "ssd/fifo/mcd_rec2.h"
 bool match_potbm_checksum( potbm_t *potbm, uint n);
 bool match_slabbm_checksum( slabbm_t *, uint);
 bool empty( void *, uint);
@@ -70,12 +69,12 @@ ulong potbm_base( mcd_rec_shard_t *);
 ulong slabbm_base( mcd_rec_shard_t *p);
 
 // global
-char                  buf[NUM_META_BLOCKS][SHARD_DESC_BLK_SIZE];
-int                   cmc_properties_ok = 0;
-int                   vmc_properties_ok = 0;
-int                   vdc_properties_ok = 0;
-char                  tmp_buf[SHARD_DESC_BLK_SIZE];
-uint64_t *cmc_mos_segments = NULL, *vmc_mos_segments = NULL, *vdc_mos_segments = NULL;
+static char                  buf[NUM_META_BLOCKS][MCD_OSD_BLK_SIZE_MAX];
+static int                   cmc_properties_ok = 0;
+static int                   vmc_properties_ok = 0;
+static int                   vdc_properties_ok = 0;
+static char                  tmp_buf[MCD_OSD_BLK_SIZE_MAX];
+static uint64_t             *cmc_mos_segments = NULL, *vmc_mos_segments = NULL, *vdc_mos_segments = NULL;
 
 extern int __zs_check_mode_on;
 
@@ -253,10 +252,11 @@ mcd_check_shard_descriptor(int fd, int shard_idx)
     properties = (mcd_rec_properties_t *)buf[prop_buf_idx];
 
     // read descriptor
-    dprintf(stderr,"%s Reading at offset:%lu\n",__FUNCTION__,(properties->blk_offset * SHARD_DESC_BLK_SIZE));
-    bytes = pread( fd, buf[buf_idx], SHARD_DESC_BLK_SIZE, (properties->blk_offset * SHARD_DESC_BLK_SIZE));
+    dprintf(stderr,"%s Reading at offset:%lu\n",__FUNCTION__,(properties->blk_offset * Mcd_osd_blk_size));
+    fprintf(stderr,"%s Reading at offset:%lu\n",__FUNCTION__,(properties->blk_offset * Mcd_osd_blk_size));
+    bytes = pread( fd, buf[buf_idx], Mcd_osd_blk_size, (properties->blk_offset * Mcd_osd_blk_size));
 
-    if ( SHARD_DESC_BLK_SIZE == bytes ) {
+    if ( Mcd_osd_blk_size == bytes ) {
 
         shard = (mcd_rec_shard_t *)buf[buf_idx];
 
@@ -270,7 +270,7 @@ mcd_check_shard_descriptor(int fd, int shard_idx)
             checksum = shard->checksum;
             shard->checksum = 0;
             shard->checksum = hashb((unsigned char *)shard,
-                                    SHARD_DESC_BLK_SIZE,
+                                    Mcd_osd_blk_size,
                                     MCD_REC_SHARD_EYE_CATCHER);
 
             if ( shard->checksum != checksum ) {
@@ -342,26 +342,42 @@ mcd_check_potbm(int fd, int buf_idx, uint64_t shard_id, uint64_t* mos_segments)
 {
     int                   i, status = 0;
     ssize_t               bytes;
+    char                  msg[512];
+	mcd_rec_shard_t      *p = (mcd_rec_shard_t *)buf[buf_idx];
+	size_t                n = p->rec_potbm_blks * bytes_per_device_block;
+	potbm_t              *potbm = NULL;
+	char                 *buf = NULL;
 
-	mcd_rec_shard_t *p = (mcd_rec_shard_t *)buf[buf_idx];
-
-	size_t n = p->rec_potbm_blks * bytes_per_device_block;
-	potbm_t* potbm = (potbm_t*)memalign( MCD_OSD_META_BLK_SIZE, n);
+	potbm = (potbm_t*)memalign( MCD_OSD_META_BLK_SIZE, n);
 	if(!potbm)
 		return -1;
         dprintf(stderr,"%s Reading POT bitmap at offset:%lu\n",__FUNCTION__,(uint64_t)potbm_base(p));
 	bytes = pread(fd, potbm, n, potbm_base(p));
 
-	if (bytes !=n || ((potbm->eye_catcher || empty(potbm, n)) &&
-			match_potbm_checksum( potbm, n) &&
-			potbm->eye_catcher != MCD_REC_POTBM_EYE_CATCHER)) {
-		zscheck_log_msg(ZSCHECK_POT_BITMAP, shard_id, ZSCHECK_CHECKSUM_ERROR, "POT bitmap checksum invalid");
-		status = -1;
-    } else { 
-        zscheck_log_msg(ZSCHECK_POT_BITMAP, shard_id, ZSCHECK_SUCCESS, "POT bitmap checksum valid");
+    if (bytes != n ) {
+        sprintf(msg, "failed to read pot bitmap @ %lu", (uint64_t)potbm_base(p));
+        zscheck_log_msg(ZSCHECK_POT_BITMAP, shard_id, ZSCHECK_READ_ERROR, msg);
+        status = -1;
+    } else if (!potbm->eye_catcher || empty(potbm, n)) {
+        sprintf(msg, "empty pot bitmap @ %lu", (uint64_t)potbm_base(p));
+        zscheck_log_msg(ZSCHECK_POT_BITMAP, shard_id, ZSCHECK_INFO, msg);
+        status = 0;
+    } else if (potbm->eye_catcher != MCD_REC_POTBM_EYE_CATCHER) {
+        sprintf(msg, "pot bitmap magic number invalid @ %lu", (uint64_t)potbm_base(p));
+        zscheck_log_msg(ZSCHECK_POT_BITMAP, shard_id, ZSCHECK_READ_ERROR, msg);
+        status = -1;
+    } else if (!match_potbm_checksum( potbm, n)) { 
+        sprintf(msg, "pot bitmap checksum invalid @ %lu", (uint64_t)potbm_base(p));
+        zscheck_log_msg(ZSCHECK_POT_BITMAP, shard_id, ZSCHECK_READ_ERROR, msg);
+        status = -1;
+    } else {
+        zscheck_log_msg(ZSCHECK_POT_BITMAP, shard_id, ZSCHECK_SUCCESS, "pot bitmap checksum valid");
     }
 
-	char* buf = memalign( MCD_OSD_META_BLK_SIZE, bytes_per_page);
+    if (status) 
+        goto out;
+
+	 buf = memalign( MCD_OSD_META_BLK_SIZE, bytes_per_page);
 	for(i = 0; i < potbm->nbit; i++)
 	{
         if(potbm->bits[bitbase( n)] & bitmask( n))
@@ -372,7 +388,10 @@ mcd_check_potbm(int fd, int buf_idx, uint64_t shard_id, uint64_t* mos_segments)
                     bytes_per_page,
                     buf);
 
-            if(rc) break;
+            if(rc) {
+                status = -1;
+                break;
+            }
 
             if(pot_checksum_enabled) {
                 uint32_t c, sum = pot_checksum_get(buf);
@@ -391,17 +410,22 @@ mcd_check_potbm(int fd, int buf_idx, uint64_t shard_id, uint64_t* mos_segments)
         }
 	}
 
-	free(potbm);
+out:
+    if (buf)
+        free(buf);
+
+    if (potbm)
+	    free(potbm);
 
     return status;
 }
-
 
 int
 mcd_check_slabbm(int fd, int buf_idx, uint64_t shard_id)
 {
     int                   status = 0;
     ssize_t               bytes;
+    char                  msg[512];
 
 	mcd_rec_shard_t *p = (mcd_rec_shard_t *)buf[buf_idx];
 
@@ -412,13 +436,24 @@ mcd_check_slabbm(int fd, int buf_idx, uint64_t shard_id)
         dprintf(stderr,"%s Reading slab bitmap at offset:%lu\n",__FUNCTION__,(uint64_t)slabbm_base(p));
 	bytes = pread(fd, slabbm, n, slabbm_base(p));
 
-	if (bytes != n || ((slabbm->eye_catcher || empty(slabbm, n)) &&
-			match_slabbm_checksum( slabbm, n) &&
-			slabbm->eye_catcher != MCD_REC_SLABBM_EYE_CATCHER)) {
-		zscheck_log_msg(ZSCHECK_SLAB_BITMAP, shard_id, ZSCHECK_CHECKSUM_ERROR, "SLAB bitmap checksum invalid");
-		status = -1;
+    if (bytes != n ) {
+        sprintf(msg, "Failed to read slab bitmap @ %lu", (uint64_t)slabbm_base(p));
+        zscheck_log_msg(ZSCHECK_SLAB_BITMAP, shard_id, ZSCHECK_READ_ERROR, msg);
+        status = -1;
+    } else if (!slabbm->eye_catcher || empty(slabbm, n)) {
+        sprintf(msg, "Empty slab bitmap @ %lu", (uint64_t)slabbm_base(p));
+        zscheck_log_msg(ZSCHECK_SLAB_BITMAP, shard_id, ZSCHECK_INFO, msg);
+        status = 0;
+    } else if (slabbm->eye_catcher != MCD_REC_SLABBM_EYE_CATCHER) {
+        sprintf(msg, "slab bitmap magic number invalid @ %lu", (uint64_t)slabbm_base(p));
+        zscheck_log_msg(ZSCHECK_SLAB_BITMAP, shard_id, ZSCHECK_MAGIC_ERROR, msg);
+        status = -1;
+    } else if (!match_slabbm_checksum( slabbm, n)) {
+        sprintf(msg, "slab bitmap checksum invalid @ %lu", (uint64_t)slabbm_base(p));
+        zscheck_log_msg(ZSCHECK_SLAB_BITMAP, shard_id, ZSCHECK_CHECKSUM_ERROR, msg);
+        status = -1;
     } else {
-        zscheck_log_msg(ZSCHECK_SLAB_BITMAP, shard_id, ZSCHECK_SUCCESS, "SLAB bitmap checksum valid");
+        zscheck_log_msg(ZSCHECK_SLAB_BITMAP, shard_id, ZSCHECK_SUCCESS, "slab bitmap checksum valid");
     }
 
 	free(slabbm);
@@ -539,26 +574,27 @@ mcd_check_segment_list(int fd, mcd_rec_shard_t *shard, uint64_t** mos_segments)
 	plat_assert(*mos_segments);
 
     // allocate a buffer
-    buffer = (char *) malloc( shard->map_blks * SHARD_DESC_BLK_SIZE );
+    buffer = (char *) malloc( shard->map_blks * Mcd_osd_blk_size );
 	plat_assert(buffer);
 
     // read the segment table for this shard
-    dprintf(stderr,"%s Reading at offset:%lu\n",__FUNCTION__,( shard->blk_offset + shard->seg_list_offset) * SHARD_DESC_BLK_SIZE);
+    dprintf(stderr,"%s Reading at offset:%lu\n",__FUNCTION__,
+            ( shard->blk_offset + shard->seg_list_offset) * Mcd_osd_blk_size);
     bytes = pread( fd,
                    buffer,
-                   ( shard->map_blks * SHARD_DESC_BLK_SIZE ),
-                   ( shard->blk_offset + shard->seg_list_offset) * SHARD_DESC_BLK_SIZE );
+                   ( shard->map_blks * Mcd_osd_blk_size ),   
+                   ( shard->blk_offset + shard->seg_list_offset) * Mcd_osd_blk_size );
         
-    if ( ( shard->map_blks * SHARD_DESC_BLK_SIZE ) == bytes ) {
+    if ( ( shard->map_blks * Mcd_osd_blk_size ) == bytes ) {
 
         for ( i = 0; i < shard->map_blks; i++ ) {
     
-            seg_list = (mcd_rec_list_block_t *)(buffer + (i * SHARD_DESC_BLK_SIZE));
+            seg_list = (mcd_rec_list_block_t *)(buffer + (i * Mcd_osd_blk_size));
     
             // verify class segment block checksum
             checksum = seg_list->checksum;
             seg_list->checksum = 0; 
-            seg_list->checksum = hashb((unsigned char *)seg_list, SHARD_DESC_BLK_SIZE, 0);
+            seg_list->checksum = hashb((unsigned char *)seg_list, Mcd_osd_blk_size, 0);
     
             if ( seg_list->checksum != checksum ) {
                 sprintf( msg, "segment list %d checksum invalid", i );
@@ -623,7 +659,7 @@ mcd_check_class_descriptor(int fd, mcd_rec_shard_t *shard)
     ssize_t bytes = 0;
     uint32_t blk_size = 0;
     mcd_rec_class_t *pclass = NULL;
-    char desc[SHARD_DESC_BLK_SIZE];
+    char desc[MCD_OSD_BLK_SIZE_MAX];
     char msg[1024];
     mcd_rec_flash_t *superblock = NULL;
 
@@ -719,7 +755,7 @@ mcd_check_ckpt_descriptor(int fd, mcd_rec_shard_t *shard)
     uint32_t              blk_size = 0;
     mcd_rec_ckpt_t       *ckpt = NULL;
     mcd_rec_flash_t      *superblock = NULL;
-    char                  ckpt_buf[SHARD_DESC_BLK_SIZE];
+    char                  ckpt_buf[MCD_OSD_BLK_SIZE_MAX];
 
     shard_id = shard->shard_id;
 
@@ -876,15 +912,14 @@ check_object_table(int fd, mcd_rec_shard_t * pshard, uint64_t* mos_segments)
                     rc = 1;
                     break;
                 }
-            } else {
-                sprintf(msg,
-                        "POT checksum valid, start_blk=%d num_blks=%d", chunk * seg_blks, seg_blks);
-                zscheck_log_msg(ZSCHECK_OBJECT_TABLE, pshard->shard_id, ZSCHECK_SUCCESS, msg);
             }
         }
     } // for ( chunk = 0
 
 	free(_buf);
+
+    if (!rc) 
+        zscheck_log_msg(ZSCHECK_OBJECT_TABLE, pshard->shard_id, ZSCHECK_SUCCESS, "POT checksum valid");
 
     return rc;
 }
@@ -1196,10 +1231,13 @@ mcd_check_meta()
         }
     }
 
-    status = mcd_check_all_storm_log(fd);
-    if( status != 0 ) {
-        fprintf(stderr,"Storm log check failed. continuing checks\n");
-        ++errors;
+    if(getProperty_Int("ZS_STORM_MODE", 1))
+    {
+        status = mcd_check_all_storm_log(fd);
+        if( status != 0 ) {
+            fprintf(stderr,"Storm log check failed. continuing checks\n");
+            ++errors;
+        }
     }
 
     status = mcd_check_flog();
@@ -1353,7 +1391,7 @@ int mcd_corrupt_superblock(int fd) {
     fprintf(stderr,"Corrupting superblock at offset :%lu\n",(uint64_t)(MCD_REC_LABEL_BLKS * MCD_OSD_SEG0_BLK_SIZE)+
                     (MCD_OSD_SEG0_BLK_SIZE/2));
 
-    memset(tmp_buf,0x3F,SHARD_DESC_BLK_SIZE);
+    memset(tmp_buf,0x3F,Mcd_osd_blk_size);   
     if( pwrite(fd,tmp_buf,MCD_OSD_SEG0_BLK_SIZE/2, 
                   (MCD_REC_LABEL_BLKS * MCD_OSD_SEG0_BLK_SIZE) + (MCD_OSD_SEG0_BLK_SIZE/2)) < 0 ) {
         zscheck_log_msg(ZSCHECK_LABEL, 0, ZSCHECK_LABEL_ERROR,"Unable to write in to super block");
@@ -1426,10 +1464,11 @@ mcd_corrupt_shard_descriptor(int fd, int shard_idx)
 
     // shard properties point to shard descriptor block offset
     properties = (mcd_rec_properties_t *)buf[prop_buf_idx];
-    fprintf(stderr,"Corrupting shard descripters at offset :%lu for phy container:%lu\n",(properties->blk_offset * SHARD_DESC_BLK_SIZE),shard_id);
-    memset(tmp_buf,0x3f,SHARD_DESC_BLK_SIZE/2);
+    fprintf(stderr,"Corrupting shard descripters at offset :%lu for phy container:%lu\n",
+            (properties->blk_offset * Mcd_osd_blk_size),shard_id);
+    memset(tmp_buf,0x3f,Mcd_osd_blk_size/2);
     /* Write half of the properties with junk value */
-    if( pwrite(fd,tmp_buf,SHARD_DESC_BLK_SIZE/2, (properties->blk_offset * SHARD_DESC_BLK_SIZE)) < 0 ) {
+    if( pwrite(fd,tmp_buf,Mcd_osd_blk_size/2, (properties->blk_offset * Mcd_osd_blk_size)) < 0 ) {
         zscheck_log_msg(ZSCHECK_LABEL, 0, ZSCHECK_LABEL_ERROR,"Unable to write in to shard descriptor");
         return -1;
     }
@@ -1440,11 +1479,13 @@ int mcd_corrupt_segment_list(int fd, mcd_rec_shard_t *shard) {
     char *buf = NULL;
 
     // allocate a buffer
-    buf = (char *) malloc( shard->map_blks * SHARD_DESC_BLK_SIZE );
-    memset(buf,0x3F,shard->map_blks * SHARD_DESC_BLK_SIZE); 
-    fprintf(stderr,"Corrupting segment list at offset :%lu\n",( shard->blk_offset + shard->seg_list_offset) * SHARD_DESC_BLK_SIZE );
+    buf = (char *) malloc( shard->map_blks * Mcd_osd_blk_size );
+    memset( buf, 0x3F, shard->map_blks * Mcd_osd_blk_size ); 
+    fprintf(stderr,"Corrupting segment list at offset :%lu\n",
+            ( shard->blk_offset + shard->seg_list_offset) * Mcd_osd_blk_size );
     /* Write half of the properties with junk value */
-    if( pwrite(fd,buf,( shard->map_blks * SHARD_DESC_BLK_SIZE ), ( shard->blk_offset + shard->seg_list_offset) * SHARD_DESC_BLK_SIZE ) < 0 ) {
+    if( pwrite(fd,buf,( shard->map_blks * Mcd_osd_blk_size ), 
+               ( shard->blk_offset + shard->seg_list_offset) * Mcd_osd_blk_size ) < 0 ) {
         zscheck_log_msg(ZSCHECK_LABEL, 0, ZSCHECK_LABEL_ERROR,"Unable to write in to segment list");
         return -1;
     }
@@ -1462,7 +1503,7 @@ mcd_corrupt_class_descriptor(int fd, mcd_rec_shard_t *shard)
     superblock = (mcd_rec_flash_t *)buf[SUPER_BUF];
     blk_size = superblock->blk_size;
 
-    memset(tmp_buf,0x3F,SHARD_DESC_BLK_SIZE); 
+    memset(tmp_buf,0x3F,Mcd_osd_blk_size); 
     for ( c = 0; c < MCD_OSD_MAX_NCLASSES; c++ ) {
         // read class desc + segment table for each class
         fprintf(stderr,"Corrupting class desc at offset :%lu\n",(shard->blk_offset + shard->class_offset[ c ] ) * blk_size) ;
@@ -1488,7 +1529,7 @@ mcd_corrupt_ckpt_descriptor(int fd, mcd_rec_shard_t *shard)
     blk_size = superblock->blk_size;
     fprintf(stderr,"Corrupting check point record :%lu\n",(shard->blk_offset + shard->rec_md_blks - 1) * blk_size) ;
 
-    memset(tmp_buf,0x3f,SHARD_DESC_BLK_SIZE);
+    memset(tmp_buf,0x3f,Mcd_osd_blk_size);
     if( pwrite(fd,tmp_buf, blk_size, (shard->blk_offset + shard->rec_md_blks - 1) * blk_size ) < 0 )     {
         zscheck_log_msg(ZSCHECK_LABEL, 0, ZSCHECK_LABEL_ERROR,"Unable to write in to check point record");
         return -1;
@@ -1499,9 +1540,9 @@ mcd_corrupt_ckpt_descriptor(int fd, mcd_rec_shard_t *shard)
 int
 mcd_corrupt_potbm(int fd, int buf_idx){
     mcd_rec_shard_t *p = (mcd_rec_shard_t *)buf[buf_idx];
-    memset(tmp_buf,0x3F,SHARD_DESC_BLK_SIZE);
+    memset(tmp_buf,0x3F,Mcd_osd_blk_size);
     fprintf(stderr,"Corrupting POT bitmap at offset :%lu\n",(uint64_t)potbm_base(p));
-    if( pwrite(fd,tmp_buf,SHARD_DESC_BLK_SIZE, potbm_base(p)) < 0 ) {
+    if( pwrite(fd,tmp_buf,Mcd_osd_blk_size, potbm_base(p)) < 0 ) {
         zscheck_log_msg(ZSCHECK_LABEL, 0, ZSCHECK_LABEL_ERROR,"Unable to write in to pot bitmap");
         return -1;
     }
@@ -1511,9 +1552,9 @@ mcd_corrupt_potbm(int fd, int buf_idx){
 int
 mcd_corrupt_slabbm(int fd, int buf_idx) {
     mcd_rec_shard_t *p = (mcd_rec_shard_t *)buf[buf_idx];
-    memset(tmp_buf,0x3F,SHARD_DESC_BLK_SIZE);
+    memset(tmp_buf,0x3F,Mcd_osd_blk_size);
     fprintf(stderr,"Corrupting SLAB bitmap at offset :%lu\n",(uint64_t)slabbm_base(p));
-    if( pwrite(fd,tmp_buf,SHARD_DESC_BLK_SIZE, slabbm_base(p)) < 0 ) {
+    if( pwrite(fd,tmp_buf,Mcd_osd_blk_size, slabbm_base(p)) < 0 ) {
         zscheck_log_msg(ZSCHECK_LABEL, 0, ZSCHECK_LABEL_ERROR,"Unable to write in to slab bitmap");
         return -1;
     }
