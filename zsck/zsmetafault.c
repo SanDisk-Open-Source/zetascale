@@ -48,12 +48,12 @@ void print_usage(char *pname) {
     printf("--shard_prop :Corrupts the shard properties of the specified container in the ZetaScale storage\n");
     printf("--shard_desc :Corrupts the shard descriptor of the specified container in the ZetaScale storage\n");
     printf("--seg_list   :Corrupts the segment mapping of the specified container in the ZetaScale storage\n");
-    printf("--class_desc :Corrupts the class decription of the specified container in the ZetaScale storage\n");
+    printf("--class_desc :Corrupts the class description of the specified container in the ZetaScale storage\n");
     printf("--chkpoint   :Corrupts the check point records of the specified container in the ZetaScale storage\n");
     printf("--flog       :Corrupts the flog of the specified container in the ZetaScale storage\n");
     printf("--pot        :Corrupts the persistent object table of the specified container in the ZetaScale storage\n");
-    printf("--potbitmap  :Corrupts the persistent object table bitmap of the specified container in the ZetaScale storage\n");
-    printf("--slabbitmap  :Corrupts the segment bitmap table of the specified container in the ZetaScale storage\n");
+    printf("--potbitmap  :Corrupts the persistent object table bitmap of the specified container in the ZetaScale storage (Storm only)\n");
+    printf("--slabbitmap  :Corrupts the segment bitmap table of the specified container in the ZetaScale storage (Storm only)\n");
             
 }
 #define FLUSH_LOG_MAX_PATH 1024
@@ -150,11 +150,11 @@ int get_options(int argc, char *argv[])
             break;
 
         case 'h': 
-            print_usage("zsmetacorrupt");
+            print_usage(argv[0]);
             return -1;
 
         default:
-            print_usage("zsmetacorrupt");
+            print_usage(argv[0]);
             return -1;
         }
     }
@@ -219,8 +219,6 @@ ZS_status_t check_pot()
 int main(int argc, char *argv[])
 {
     char *prop_file = NULL;
-    int rc;
-
 
     if ( get_options( argc, argv) ) {
         return -1;
@@ -300,6 +298,12 @@ int main(int argc, char *argv[])
     ZSSetProperty("ZS_META_FAULT_INJECTION", "1");
     ZSSetProperty("ZS_REFORMAT", "0");
 
+    if ((potbitmap == 1 || slabbitmap == 1) && !atoi(ZSGetProperty("ZS_STORM_MODE",  "1"))) {
+        fprintf(stderr, "POT/SLAB bitmap check only allowed in Storm mode\n");
+        print_usage(argv[0]);
+        return -1;
+    }
+
     ZSCheckInit(logfile);
     if (ZS_SUCCESS != check_meta()) {
         fprintf(stderr, "meta check failed, unable to continue\n");
@@ -307,7 +311,7 @@ int main(int argc, char *argv[])
     } else {
         fprintf(stderr, "meta corruption succeeded\n");
     }
-
+if (0) {
     if( pot != 1 ) {
          exit(0);
     }
@@ -318,24 +322,7 @@ int main(int argc, char *argv[])
                         "label,superblock,shard_prop,shard_desc,seg_list,class_desc,chkpoint\n");
         exit(0);
     }
-if (0) {
-    /* Corrupt POT */
-    if (init_zs() < 0) {
-        fprintf(stderr, "ZS init failed\n");
-        return -1;
-    }
-
-    if( pot == 1 ) {
-       rc = check_pot();
-       /* This function injects faults in error injection mode */
-       if( rc != ZS_SUCCESS) {
-           fprintf(stderr, "meta corruption failed\n");
-       }
-       else {
-           fprintf(stderr, "meta corruption succeeded\n");
-       }
-    }
-    close_zs();  
 }
+
     return 0;
 }
