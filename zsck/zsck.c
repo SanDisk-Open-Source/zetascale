@@ -7,22 +7,29 @@
 #include <zs.h>
 
 static int btree_opt = 0;    
+static int fixbtree_opt = 0;    
 static char *logfile = NULL;
 
 static struct ZS_state* zs_state;
 static __thread struct ZS_thread_state *_zs_thd_state;
 
 static struct option long_options[] = { 
-    {"btree",   no_argument,       0, 'b'}, 
-    {"help",    no_argument,       0, 'h'}, 
-    {"logfile", required_argument, 0, 'l'}, 
+    {"btree",      no_argument,       0, 'b'}, 
+    {"fixbtree",   no_argument,       0, 'f'}, 
+    {"help",       no_argument,       0, 'h'}, 
+    {"logfile",    required_argument, 0, 'l'}, 
     {0, 0, 0, 0} 
 };
 
 void print_help(char *pname) 
 {
     fprintf(stderr, "\nExecute validation of ZetaScale persistent metadata, btree structures and recovery logs.\n\n");
-    fprintf(stderr, "%s --btree --logfile=file --help\n\n", pname);
+    fprintf(stderr, "%s --btree --fixbtree --logfile=file --help\n", pname);
+    fprintf(stderr, "     --btree           run btree validation without fixup\n");
+    fprintf(stderr, "     --fixbtree        run btree validation with fixup\n"); 
+    fprintf(stderr, "     --logfile         logfile path\n"); 
+    fprintf(stderr, "     --help            show help\n");
+
 }
 
 int get_options(int argc, char *argv[])
@@ -31,7 +38,7 @@ int get_options(int argc, char *argv[])
     int c;
 
     while (1) { 
-        c = getopt_long (argc, argv, "bl:h", long_options, &option_index); 
+        c = getopt_long (argc, argv, "bfl:h", long_options, &option_index); 
 
         if (c == -1) 
             break;
@@ -40,6 +47,10 @@ int get_options(int argc, char *argv[])
      
         case 'b': 
             btree_opt = 1; 
+            break;
+     
+        case 'f': 
+            fixbtree_opt = 1; 
             break;
      
         case 'l': 
@@ -86,7 +97,7 @@ int close_zs()
         return status;
     }
 
-    if ( btree_opt && ZS_SUCCESS != (status = ZSShutdown( zs_state ) ) ) {
+    if ( ( btree_opt || fixbtree_opt ) && ZS_SUCCESS != (status = ZSShutdown( zs_state ) ) ) {
         fprintf(stderr, "Failed to shutdown ZS API!\n");
         return status;
     }
@@ -101,13 +112,18 @@ ZS_status_t check_meta()
 
 ZS_status_t check_btree()
 {
-    return ZSCheck( _zs_thd_state , 0);
+    int flags = 0;
+
+    if ( fixbtree_opt )
+        flags = ZS_CHECK_FIX_BOJ_CNT;
+
+    return ZSCheck( _zs_thd_state , flags );
 }
 
 void set_props()
 {
     ZSLoadProperties(getenv("ZS_PROPERTY_FILE"));
-    if (btree_opt)
+    if (btree_opt || fixbtree_opt)
         ZSSetProperty("ZS_CHECK_MODE", "2");
     else
         ZSSetProperty("ZS_CHECK_MODE", "1");
@@ -140,7 +156,7 @@ int main(int argc, char *argv[])
         return -1;
     }
 
-    if (btree_opt) {
+    if (btree_opt || fixbtree_opt) {
         if (ZS_SUCCESS != (status = check_btree())) {
             fprintf(stderr, "btree check failed: %s\n", ZSStrError(status));
         } else {
