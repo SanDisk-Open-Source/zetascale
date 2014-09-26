@@ -9393,7 +9393,9 @@ btree_raw_check_leaves_chain(btree_raw_t *btree, uint64_t num_leaves)
 		res = false;
 	}
 
-	deref_l1cache_node(btree, last_ref);
+	if (last_ref) {
+		deref_l1cache_node(btree, last_ref);
+	}
 exit:
 
 //	deref_l1cache(btree);
