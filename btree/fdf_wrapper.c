@@ -45,7 +45,7 @@
 #define assert(a)
 #endif
 
-#define BTREE_DELETE_CONTAINER_NAME "B#^++$c#@@n**"
+#define BTREE_DELETE_CONTAINER_NAME "B#^++$(h@@n+^"
 
 #define PERSISTENT_STATS_FLUSH_INTERVAL 100000
 #define ZS_ASYNC_STATS_THREADS 8
@@ -660,6 +660,7 @@ int getZSVersion()
  * @param prop_file <IN> ZS property file or NULL
  * @return ZS_SUCCESS on success
  */
+static uint64_t delete_prefix;
 ZS_status_t _ZSInitVersioned(
 	struct ZS_state	**zs_state,
 	uint32_t                api_version
@@ -813,6 +814,7 @@ ZS_status_t _ZSInitVersioned(
         btree_parallel_flush_minbufs = 3;
     }
     print_zs_btree_configuration();
+	delete_prefix = time((time_t *)&delete_prefix);
     return(ret);
 }
 
@@ -1803,11 +1805,12 @@ restart:
 				return status;
 			}
 		}
+
 		char        cname[CONTAINER_NAME_MAXLEN] = {0};
-		snprintf(cname,CONTAINER_NAME_MAXLEN,"%s_%lx_%s",BTREE_DELETE_CONTAINER_NAME,
-				random(), pprops.name);
+		(void)__sync_fetch_and_add(&delete_prefix, 1);
+		snprintf(cname,CONTAINER_NAME_MAXLEN,"%s_%lx%lx_%s",BTREE_DELETE_CONTAINER_NAME, delete_prefix, random(), pprops.name);
 		if ((status = ZSRenameContainer(zs_thread_state, Container_Map[index].cguid, cname)) != ZS_SUCCESS) {
-			fprintf(stderr,"ZSRenameContainer failed with error %s\n",  ZSStrError(status));
+			fprintf(stderr,"ZSRenameContainer failed with error %s %d\n",  ZSStrError(status), (int)Container_Map[index].cguid);
 			cm_unlock(index);
 			return status;
 		}
@@ -6446,18 +6449,29 @@ bt_restart_delcont(void *parm)
 					ZS_CTNR_RW_MODE, &cguid) == ZS_SUCCESS) {
 
 			if (cguids[i] == cguid) {
+restart:
 				status = ZSReadObject(thd_state, cguid, (char *)&nodeid,
 						sizeof(uint64_t), &node, &node_size);
 				if (status == ZS_SUCCESS) {
 					r = (btree_raw_persist_t *)node;
 					if (r->snap_details.sc_status == SC_OVERFLW_DELCONT) {
+						ZSFreeBuffer(node);
 						ZSCloseContainer(thd_state, cguid);
 						fprintf(stderr, "Restarting deletion of container: %s\n", props.name);
 						status = _ZSOpenContainer(thd_state, props.name,
 								&props, ZS_CTNR_RW_MODE, &cguid);
 						fprintf(stderr, "Restarting deletion of container: %s %s\n", props.name, ZSStrError(status));
 						assert(status == ZS_FAILURE_CONTAINER_DELETED);
+					} else {
+						r->snap_details.sc_status = SC_OVERFLW_DELCONT;
+						status = ZSWriteObject(thd_state, cguid, (char *)&nodeid,
+											sizeof(uint64_t), (char *)node, node_size, 0);
+						ZSFreeBuffer(node);
+						if (status == ZS_SUCCESS) {
+							goto restart;
+						}
 					}
+
 				}
 			}
 		}

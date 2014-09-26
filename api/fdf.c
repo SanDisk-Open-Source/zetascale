@@ -4448,7 +4448,7 @@ char *ZSGetNextContainerName(struct ZS_thread_state *zs_thread_state, struct ZSC
 /*
  * Internal version of zs_get_containers_int
  */ 
-#define BTREE_DELETE_CONTAINER_NAME "B#^++$c#@@n**"
+#define BTREE_DELETE_CONTAINER_NAME "B#^++$(h@@n+^"
 static ZS_status_t
 zs_get_containers_int(
 		struct ZS_thread_state	*zs_thread_state,
@@ -7499,7 +7499,7 @@ static void *zs_vc_thread(
 	                            );
 
 	    if ( ZS_SUCCESS != status )
-	        break;
+	        continue; 
 
 		for ( j = 0; j < MCD_MAX_NUM_CNTRS; j++ ) {
 			if (Mcd_containers[j].cguid == 0) {
@@ -8297,6 +8297,7 @@ ZS_status_t ZSRenameContainer(
 	cntr_map_t *cmap = NULL;
 	SDF_CONTAINER_PARENT parent = containerParentNull;
 	local_SDF_CONTAINER_PARENT lparent = NULL;
+	SDF_CONTAINER            container      = containerNull;
 
 	/*
 	 * Check if operation can begin
@@ -8319,9 +8320,9 @@ ZS_status_t ZSRenameContainer(
 
 	status = zs_validate_container(cguid);
 	if (ZS_SUCCESS != status) {
-		plat_log_msg(160125, LOG_CAT,
-				LOG_ERR, "Failed due to an illegal container ID:%s",
-				ZS_Status_Strings[status]);
+		plat_log_msg(160292, LOG_CAT,
+				LOG_ERR, "Failed due to an illegal container ID:%s %d",
+				ZS_Status_Strings[status], (int)cguid);
 		return status;
 	}
 
@@ -8352,16 +8353,44 @@ ZS_status_t ZSRenameContainer(
 		status = ZS_FAILURE;
 		goto out;
 	}
+	// Allow any outstanding IO to drain
+	zs_cntr_drain_io( cmap->io_count );
 
+	container = cmap->sdf_container;
+	// Delete the container if there are no outstanding opens and a delete is pending
+	local_SDF_CONTAINER lcontainer = getLocalContainer(&lcontainer, container);
+	parent = lcontainer->parent;
+	lparent = getLocalContainerParent(&lparent, parent);
+	char path[MAX_OBJECT_ID_SIZE] = "";
+
+	if (lparent->name) {
+		memcpy(&path, lparent->name, strlen(lparent->name));
+	}
+
+	// copy these from lparent before I nuke it!
+	releaseLocalContainerParent(&lparent);
+
+	if (closeParentContainer(container)) {
+		status = ZS_SUCCESS;
+	}
+
+#if 0
 	if (!closeParentContainer(cmap->sdf_container)) {
 		status = ZS_FAILURE;
 		goto out;
 	}
+#endif
 	/*
 	 * Delete entry from hashmap. We cannot update the entry for cname since
 	 * cname acts as the key and now we have a new key (i.e. the new cname).
 	 */
-	HashMap_remove( cmap_cname_hash, meta.cname );
+
+	if (HashMap_get(cmap_cname_hash, name) == ZS_NULL_CGUID) {
+		HashMap_remove( cmap_cname_hash, meta.cname );
+	} else {
+		status = ZS_FAILURE;
+		goto out;
+	}
 
 	snprintf(meta.cname,CONTAINER_NAME_MAXLEN,"%s",name);
 	snprintf(cmap->cname,CONTAINER_NAME_MAXLEN,"%s",name);

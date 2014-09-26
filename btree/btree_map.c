@@ -231,10 +231,11 @@ void MapDestroy(struct Map *pm)
 
 void MapClean(struct Map *pm, uint64_t cguid, void *replacement_callback_data)
 {
-#if 0
 	MapEntryBlock_t *b, *bnext;
 	MapEntry_t      *e;
 	int             i;
+
+	do_lock_write(pm);
 
 	b = pm->EntryBlocks;
 	while (b != NULL) {
@@ -245,10 +246,22 @@ void MapClean(struct Map *pm, uint64_t cguid, void *replacement_callback_data)
 				(pm->replacement_callback)(replacement_callback_data,
 						e[i].key, e[i].keylen, e[i].contents,
 						e[i].datalen);
+				MapBucket_t* pb = e[i].bucket;
+				if(pb->entry == &e[i])
+					pb->entry = pb->entry->next;
+				else {
+					MapEntry_t* n = pb->entry;
+					while(n && n->next != &e[i])
+						n = n->next;
+					assert(n);
+					n->next = e[i].next;
+				}
+				free_entry(pm, &e[i]);
 			}
 		}
+		b = bnext;
 	}
-#endif
+	do_unlock(pm);
 }
 
 void MapClear(struct Map *pm)

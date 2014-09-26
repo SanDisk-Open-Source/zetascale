@@ -2312,7 +2312,10 @@ destroy_l1cache()
 void
 clean_l1cache(btree_raw_t* btree)
 {
-	PMapClean(&(btree->l1cache), btree->cguid, (void *)btree);
+	PMapClean(&global_l1cache, btree->cguid, (void *)btree);
+	if (bt_storm_mode) {
+		PMapClean(&global_raw_l1cache, btree->cguid, (void *)btree);
+	}
 }
 
 void
