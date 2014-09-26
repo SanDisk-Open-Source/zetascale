@@ -134,6 +134,8 @@ scavenger_del_stale_ent(Scavenge_Arg_t *s)
 
 	assert(my_thd_state);
 	open_container(my_thd_state, s->cguid);
+
+	plat_rwlock_rdlock(&s->btree->lock);
 	node = root_get_and_lock(s->btree, write_lock, &ret);
 	if (node == NULL) {
 		goto cleanup;
@@ -200,6 +202,9 @@ scavenger_del_stale_ent(Scavenge_Arg_t *s)
 		plat_rwlock_unlock(&node->lock);
 		deref_l1cache_node(s->btree, node);
 
+		/* Unlock for delete to proceed */
+		plat_rwlock_unlock(&s->btree->lock);
+
 		j=0;
 		meta.flags = 0;
 		for (j = 0;j < key_loc;j++) {
@@ -224,6 +229,9 @@ scavenger_del_stale_ent(Scavenge_Arg_t *s)
 		}
 		memcpy(&ks_current, &ks_prev, sizeof(key_stuff_t));
 		free(key);
+
+		/* Relock before proceeding to walk down the tree */
+		plat_rwlock_rdlock(&s->btree->lock);
 		if (last_node) {
 			break;
 		}
@@ -242,6 +250,8 @@ scavenger_del_stale_ent(Scavenge_Arg_t *s)
 	}
 
 cleanup:
+	plat_rwlock_unlock(&s->btree->lock);
+
 	fprintf(stderr,"Total number of objects scavenged %d \n\n\n",deletedobjects);
 	close_container(my_thd_state, s);
 }

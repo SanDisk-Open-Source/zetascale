@@ -38,6 +38,7 @@ typedef enum {
 	TEST_TYPE_RQUERY   = 1<<2,
 	TEST_TYPE_MPUT     = 1<<3,
 	TEST_TYPE_RESCUE   = 1<<4,
+	TEST_TYPE_DELETE   = 1<<5,
 	MAX_TEST_TYPES
 } test_type_t;
 
@@ -106,66 +107,6 @@ gen_data(char *data, uint64_t datalen, int seed)
 	data[datalen - 1] = '\0';
 }
 
-#if 0
-void *do_read_verify(void *arg)
-{
-	blk_write_param_t *p = (blk_write_param_t *)arg;
-	ZS_status_t status;
-	struct ZS_thread_state *thd_state;
-	int i, c;
-	char key[ZS_MAX_KEY_LEN];
-	char *data;
-	uint64_t datalen;
-	uint32_t keylen;
-	uint32_t errors = 0;
-
-	ZSInitPerThreadState(zs_state, &thd_state);	
-
-	for (i = p->start_row; i < p->start_row + p->nrows; i++) {
-		for (c = 0; c < p->ncols; c++) { 
-			if (key == NULL) {
-				printf("Cannot allocate memory.\n");
-				fflush(stdout);
-				exit(0);
-			}
-
-			memset(key, 0, 50);
-			sprintf(key, "%04d:%04d", i, c);
-		//	keylen = strlen(key) + 1;
-			keylen = 50;
-
-			status = ZSReadObject(thd_state, cguid, key, keylen,
-			                       &data, &datalen);
-			if (status != ZS_SUCCESS) {
-				fprintf(stderr, "Error: Read object for key '%s'"
-				        "returned error '%d'\n", key, status);
-				errors++;
-				continue;
-			}
-			
-			if ((datalen != p->data_size) && 
-			    (datalen != SMALL_OBJECT_SIZE)) {
-				fprintf(stderr, "Error: Object for key '%s' returned"
-				        " wrong datalen '%"PRIu64"'\n", key, datalen);
-				errors++;
-				continue;
-			}
-		}
-	}
-
-	if (errors == 0) {
-		fprintf(stderr, "Read from %d to %d rows completed successfully\n", p->start_row, 
-		                p->start_row + p->nrows);
-	} else {
-		fprintf(stderr, "ERROR: Read from %d to %d rows failed\n", p->start_row,
-		                p->start_row + p->nrows);
-	}
-
-	ZSReleasePerThreadState(&thd_state);
-	return NULL;
-}
-#endif
-
 static void 
 open_stuff(struct ZS_thread_state *thd_state, char *cntr_name)
 {
@@ -224,47 +165,100 @@ void *do_read_thr(void *arg)
 	thread_param_t *p = (thread_param_t *)arg;
 	ZS_status_t status;
 	struct ZS_thread_state *thd_state;
+	ZS_range_meta_t  rmeta;
+	ZS_range_data_t *values;
+	struct ZS_cursor *cursor;       // opaque cursor handle
 	int i;
 	char key[ZS_MAX_KEY_LEN];
+	char end_key[ZS_MAX_KEY_LEN];
 	char *data;
 	uint64_t datalen;
 	uint32_t keylen;
 	uint32_t iter = 0;
+	int n_out;
 
 	ZSInitPerThreadState(zs_state, &thd_state);	
 
 	while (iter++ < p->repeats) {
-	for (i = p->start_elem; i < p->end_elem; i++) {
+		if (p->batch_size > 1) {
+			bzero(&rmeta, sizeof(ZS_range_meta_t));
+			rmeta.flags = ZS_RANGE_START_GE | ZS_RANGE_END_LT;
 
-		/* TODO: Put range query in here itself */
-		memset(key, 0, ZS_MAX_KEY_LEN);
-		sprintf(key, "%08d", i);
-		keylen = strlen(key)+1;
+			memset(key, 0, ZS_MAX_KEY_LEN);
+			sprintf(key, "%08d", p->start_elem);
+			rmeta.key_start = key;
+			rmeta.keylen_start = strlen(key)+1;
 
-		status = ZSReadObject(thd_state, cguid, key, keylen,
-		                       &data, &datalen);
-		if (status != ZS_SUCCESS) {
-			fprintf(stderr, "Error: Read object for key '%s'"
-			        "returned error '%d'\n", key, status);
+			memset(end_key, 0, ZS_MAX_KEY_LEN);
+			sprintf(end_key, "%08d", p->end_elem);
+			rmeta.key_end = end_key;
+			rmeta.keylen_end = strlen(end_key)+1;
+
+			status = ZSGetRange(thd_state, 
+			                    cguid,
+			                    ZS_RANGE_PRIMARY_INDEX,
+			                    &cursor, 
+			                    &rmeta);
 			p->status = status;
+			if (status != ZS_SUCCESS) {
+				fprintf(stderr, "Error in starting range query\n");
+				goto exit;
+			} 
 
-#if 0
-			if ((status == ZS_FLASH_EINCONS) || (status == ZS_FLASH_EIO)) {
-				do_fix_read_error();
+			while (status == ZS_SUCCESS) {
+				/* Allocate for sufficient values */
+				values = (ZS_range_data_t *)
+				           malloc(sizeof(ZS_range_data_t) * p->batch_size);
+				assert(values);
+
+				status = ZSGetNextRange(thd_state,
+				                        cursor,
+				                        p->batch_size,
+				                        &n_out,
+				                        values);
+				if ((status == ZS_FLASH_EINCONS) || (status == ZS_FLASH_EIO)) {
+					get_last_error();
+					p->status = status;
+				}
+
+				for (i = 0; i < n_out; i++) {
+					free(values[i].key);
+					free(values[i].data);
+				}
+				free(values);
 			}
-#endif
+
+			(void)ZSGetRangeFinish(thd_state, cursor);
 		} else {
-			free(data);
-		}
+			for (i = p->start_elem; i < p->end_elem; i++) {
 
-		if (((i - p->start_elem) % (p->nelems/10)) == 0) {
-			fprintf(stderr, "Read from (%u-%u) completed %d%%\n", p->start_elem, p->end_elem,
-				                 (i-p->start_elem)*100/p->nelems);
+				memset(key, 0, ZS_MAX_KEY_LEN);
+				sprintf(key, "%08d", i);
+				keylen = strlen(key)+1;
+
+				status = ZSReadObject(thd_state, cguid, key, keylen,
+				                       &data, &datalen);
+				if (status != ZS_SUCCESS) {
+					fprintf(stderr, "Error: Read object for key '%s'"
+					        "returned error '%d'\n", key, status);
+					p->status = status;
+
+					if ((status == ZS_FLASH_EINCONS) || (status == ZS_FLASH_EIO)) {
+						get_last_error();
+					}
+				} else {
+					free(data);
+				}
+			}
+
+			if (((i - p->start_elem) % (p->nelems/10)) == 0) {
+				fprintf(stderr, "Read from (%u-%u) completed %d%%\n", p->start_elem, p->end_elem,
+					                 (i-p->start_elem)*100/p->nelems);
+			}
 		}
 	}
-	}
 
-//exit:
+exit:
 	ZSReleasePerThreadState(&thd_state);
 #ifdef WITH_MUTEX
 	pthread_mutex_lock(&cond_mutex);
@@ -429,7 +423,7 @@ void *do_write_thr(void *arg)
 			free(objs);
 			free(large_cols);
 	
-			if (((i - p->start_elem) % (p->nelems/10)) == 0) {
+			if ((p->nelems >= 10) && ((i - p->start_elem) % (p->nelems/10)) == 0) {
 				fprintf(stderr, "Write from (%u-%u) completed %d%%\n", p->start_elem, p->end_elem,
 				                 (i-p->start_elem)*100/p->nelems);
 			}
@@ -484,6 +478,58 @@ void *do_rescue_thr(void *arg)
 	return NULL;
 }
 
+void *do_delete_thr(void *arg)
+{
+	ZS_status_t status = ZS_SUCCESS;
+	struct ZS_thread_state *thd_state;
+	int i;
+	uint32_t iter = 0;
+	char key[ZS_MAX_KEY_LEN];
+	uint32_t keylen;
+
+	thread_param_t *p = (thread_param_t *)arg;
+
+	ZSInitPerThreadState(zs_state, &thd_state);	
+
+	p->status = ZS_SUCCESS;
+	p->thr_state = THR_RUNNING;
+
+	while (iter++ < p->repeats) {
+		for (i = p->start_elem; i < p->end_elem; i++) {
+			memset(key, 0, ZS_MAX_KEY_LEN);
+			sprintf(key, "%08d", i);
+			keylen = strlen(key)+1;
+
+			status = ZSDeleteObject(thd_state, cguid, key, keylen);
+			if (status != ZS_SUCCESS) {
+				fprintf(stderr, "Error: Delete object for key '%s'"
+				        "returned error '%d'\n", key, status);
+				p->status = status;
+
+				if ((status == ZS_FLASH_EINCONS) || (status == ZS_FLASH_EIO)) {
+					get_last_error();
+				}
+			}
+
+			if (((i - p->start_elem) % (p->nelems/10)) == 0) {
+				fprintf(stderr, "Delete from (%u-%u) completed %d%%\n", p->start_elem, p->end_elem,
+					                 (i-p->start_elem)*100/p->nelems);
+			}
+		}
+	}
+
+	ZSReleasePerThreadState(&thd_state);
+#ifdef WITH_MUTEX
+	pthread_mutex_lock(&cond_mutex);
+	p->thr_state = THR_DONE;
+	pthread_cond_signal(&cond_complete);
+	pthread_mutex_unlock(&cond_mutex);
+#else
+	p->thr_state = THR_DONE;
+#endif
+	return NULL;
+}
+
 void *do_multiple_thr(void *arg)
 {
 	uint32_t t;
@@ -500,7 +546,7 @@ void *do_multiple_thr(void *arg)
 	}
 
 	/* Randomly pick from one of the test and call approp. threads */
-	t = rand() % (test_cnt-1);
+	t = (test_cnt > 1) ? rand() % (test_cnt-1): 0;
 
 	if (tests[t] == TEST_TYPE_READ) {
 		p->batch_size = 1;
@@ -516,6 +562,10 @@ void *do_multiple_thr(void *arg)
 		p->batch_size = 10;
 		p->repeats = 1;
 		do_write_thr(arg);
+	} else if (tests[t] == TEST_TYPE_DELETE) {
+		p->batch_size = 1;
+		p->repeats = 1;
+		do_delete_thr(arg);
 	}
 
 	return NULL;
@@ -630,68 +680,6 @@ ZS_status_t wait_for_threads(uint32_t nthreads)
 	return overall_status;
 }
 
-#if 0
-void do_read_test(uint32_t nelems, uint32_t node_type, char is_root,
-                  uint64_t logical_id, bool io_error, uint32_t count)
-{
-	struct ZS_thread_state *thd_state;
-	int nthreads;
-	ZS_status_t status;
-
-	ZSInitPerThreadState(zs_state, &thd_state);	
-
-	open_stuff(thd_state, "cntr_1");
-
-#ifdef WITH_MUTEX
-	pthread_cond_init(&cond_complete, NULL);
-	pthread_mutex_init(&cond_mutex, NULL);
-#endif
-
-	step = 0;
-
-	/* Insert data in a single thread and wait for its completion */
-	fprintf(stderr, "============ Read Test ==========\n");
-
-	fprintf(stderr, "#### Step %d.0: Insert multiple objects\n", ++step);
-	nthreads = 10;
-	launch_threads(nelems, 100, nthreads, 1, NULL, do_write_thr);
-	status = wait_for_threads(nthreads);
-
-	if (status != ZS_SUCCESS) {
-		fprintf(stderr, "Write threads reported error: write_status=%d\n", 
-		            status);
-		return;
-	}
-
-	/* Read individual data in 10 threads for 15 times */
-	fprintf(stderr, "#### Step %d.0: Issue read for 15 times\n", ++step);
-	nthreads = 10;
-	launch_threads(nelems, 1, nthreads, 15, NULL, do_read_thr);
-
-#ifdef FLIP_ENABLED
-	uint64_t rand_usecs = (rand() % MAX_SLEEP_USECS) + MIN_SLEEP_USECS;
-	fprintf(stderr, "#### Step %d.0: Sleep for random (%lu usecs) before inserting error\n", ++step, rand_usecs);
-	usleep(rand_usecs);
-
-	fprintf(stderr, "#### Step %d.0: Inserting the error\n", ++step);
-	inject_flip(false, node_type, is_root, logical_id, io_error, count);
-#else
-	sleep(10);
-#endif
-
-	fprintf(stderr, "#### Step %d.0: Waiting for all reads to complete\n", ++step);
-	status = wait_for_threads(nthreads);
-
-#ifdef WITH_MUTEX
-	pthread_cond_destroy(&cond_complete);
-	pthread_mutex_destroy(&cond_mutex);
-#endif
-
-	free_stuff(thd_state);
-	ZSReleasePerThreadState(&thd_state);
-}
-#endif
-
 static inline char *node_type_str(uint32_t node_type)
 {
 	switch (node_type) {
@@ -731,7 +719,7 @@ void rescue_container(void)
 	}
 
 	nthreads = 10;
-	if (nthreads < err_ctxt_cnt) {
+	if (nthreads > err_ctxt_cnt) {
 		nthreads = err_ctxt_cnt;
 	}
 
@@ -741,6 +729,17 @@ void rescue_container(void)
 	sleep(10);
 
 	status = wait_for_threads(nthreads);
+}
+
+void init_scavenger(struct ZS_thread_state *thd_state)
+{
+	ZS_status_t status;
+
+	status = ZSScavengeContainer(zs_state, cguid);
+	if (status != ZS_SUCCESS) {
+		fprintf(stderr, "Error: ZSScavengeContainer failed with error '%s'\n",
+		        ZSStrError(status));
+	}
 }
 
 static int my_cmp_cb(const void *p1, const void *p2)
@@ -780,6 +779,100 @@ void insert_objects(uint32_t *key_arr, uint32_t nelems)
 	sleep(10);
 
 	status = wait_for_threads(nthreads);
+}
+
+void perform_delete_test(uint32_t nelems, err_inj_t *einj, uint32_t einj_count)
+{
+	struct ZS_thread_state *thd_state;
+	int nthreads;
+	ZS_status_t status;
+#ifdef FLIP_ENABLED
+	uint32_t i;
+#endif
+
+	step = 0;
+	ZSInitPerThreadState(zs_state, &thd_state);	
+
+	open_stuff(thd_state, "cntr_1");
+
+#ifdef WITH_MUTEX
+	pthread_cond_init(&cond_complete, NULL);
+	pthread_mutex_init(&cond_mutex, NULL);
+#endif
+
+	/* Insert data in a single thread and wait for its completion */
+#if 0
+	fprintf(stderr, "============ Delete Test, fail a %s of a %s node (is_root = %s, logical_id = %lu) ==========\n",
+	        einj->write_fail ? "write" : "read", node_type_str(einj->node_type), 
+	        (einj->is_root == '1') ? "true" : "false", einj->logical_id);
+#endif
+
+	fprintf(stderr, "============= Delete Test start ==============\n");
+
+	reset_flip();
+	err_ctxt_cnt = 0;
+	missing_cnt = 0;
+
+	fprintf(stderr, "#### Step %d.0: Insert multiple objects\n", ++step);
+	nthreads = 10;
+	launch_threads(nelems, 100, nthreads, 1, NULL, TEST_TYPE_MPUT, do_write_thr);
+
+	fprintf(stderr, "#### Step %d.0: Waiting for all inserts to complete\n", ++step);
+	status = wait_for_threads(nthreads);
+
+	fprintf(stderr, "#### Step %d.0: Do delete of objects\n", ++step);
+	nthreads = 10;
+	launch_threads(nelems, 100, nthreads, 1, NULL, 
+	               TEST_TYPE_DELETE, do_multiple_thr);
+
+#ifdef FLIP_ENABLED
+	uint64_t rand_usecs = (rand() % MAX_SLEEP_USECS) + MIN_SLEEP_USECS;
+	fprintf(stderr, "#### Step %d.0: Sleep for random (%lu usecs) before inserting error\n", ++step, rand_usecs);
+	usleep(rand_usecs);
+
+	fprintf(stderr, "#### Step %d.0: Inserting the errors\n", ++step);
+	for (i = 0; i < einj_count; i++) {
+		err_inj_t *e = &einj[i];
+		fprintf(stderr, "\t#### Step %d:%d: Injecting %s failure of %s node "
+		                 "(is_root=%s, logical_id = %lu)\n", 
+		                 step, (i+1),
+		                 e->write_fail ? "write" : "read",
+		                 node_type_str(e->node_type), 
+		                 (e->is_root == '1') ? "true" : "false",
+		                 e->logical_id);
+		inject_flip(e);
+	}
+#else
+	sleep(10);
+#endif
+
+
+	fprintf(stderr, "#### Step %d.0: Waiting for all operations to complete\n", ++step);
+	status = wait_for_threads(nthreads);
+
+	fprintf(stderr, "#### Step %d.0: Identify all the missing objects\n", ++step);
+	find_missing_keys(nelems);
+
+	fprintf(stderr, "#### Step %d.0: Initialize a scavenger, in case its not started\n", ++step);
+	init_scavenger(thd_state);
+
+	fprintf(stderr, "#### Step %d.0: Rescue Btree in parallel to scavenger\n", ++step);
+	rescue_container();
+
+	fprintf(stderr, "#### Step %d.0: Sleep for %u seconds, for scavenger to proceed\n", ++step, 60);
+	sleep(60);
+
+	fprintf(stderr, "#### Step %d.0: Find missing objects again\n", ++step);
+	reset_flip();
+	find_missing_keys(nelems);
+
+#ifdef WITH_MUTEX
+	pthread_cond_destroy(&cond_complete);
+	pthread_mutex_destroy(&cond_mutex);
+#endif
+
+	free_stuff(thd_state);
+	ZSReleasePerThreadState(&thd_state);
 }
 
 void perform_rw_test(uint32_t nelems, err_inj_t *einj, uint32_t einj_count)
@@ -834,7 +927,7 @@ void perform_rw_test(uint32_t nelems, err_inj_t *einj, uint32_t einj_count)
 	for (i = 0; i < einj_count; i++) {
 		err_inj_t *e = &einj[i];
 		fprintf(stderr, "\t#### Step %d:%d: Injecting %s failure of %s node "
-		                 "(is_root=%s, logical_id = %lu\n", 
+		                 "(is_root=%s, logical_id = %lu)\n", 
 		                 step, (i+1),
 		                 e->write_fail ? "write" : "read",
 		                 node_type_str(e->node_type), 
@@ -877,7 +970,6 @@ void perform_rw_test(uint32_t nelems, err_inj_t *einj, uint32_t einj_count)
 	free_stuff(thd_state);
 	ZSReleasePerThreadState(&thd_state);
 }
-
 
 int 
 main(int argc, char *argv[])
@@ -942,6 +1034,23 @@ main(int argc, char *argv[])
 	einj[2].io_error   = false;
 	einj[2].count      = 3;
 	perform_rw_test(nelems, einj, 3);
+
+	/* Test 4: Two errors injected at same time for delete */
+	/* Error 1. Media error on read of leaf nodes */
+	einj[0].write_fail = false;
+	einj[0].node_type  = 2;
+	einj[0].is_root    = '0';
+	einj[0].logical_id = 0;
+	einj[0].io_error   = true;
+	einj[0].count      = 2;
+	/* Error 2. Checksum errors of read of interior nodes */
+	einj[1].write_fail = false;
+	einj[1].node_type  = 1;
+	einj[1].is_root    = '0';
+	einj[1].logical_id = 0;
+	einj[1].io_error   = false;
+	einj[1].count      = 3;
+	perform_delete_test(nelems, einj, 2);
 
 	ZSShutdown(zs_state);
 

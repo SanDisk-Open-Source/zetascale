@@ -7060,7 +7060,7 @@ btree_status_t btree_raw_delete(struct btree_raw *btree, char *key, uint32_t key
 	                       1 /* EX */, &pathcnt, &key_exists);
 	if (node == NULL) {
 		plat_rwlock_unlock(&btree->lock);
-		return ret;
+		goto exit;
 	}
 
 	if (key_exists) {
