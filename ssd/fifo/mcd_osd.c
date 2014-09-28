@@ -78,7 +78,7 @@ extern int zs_uncompress_data(char *data, size_t datalen,size_t memsz, size_t *u
 extern uint64_t get_regobj_storm_mode();
 
 
-extern int storm_mode;
+extern int storm_mode, rawobjratio;
 extern SDF_shardid_t vdc_shardid;
 
 /*
@@ -5036,7 +5036,7 @@ mcd_fth_osd_slab_create_raw( void * context, mcd_osd_shard_t * shard,
         uint64_t raw_len = sizeof(mcd_osd_meta_t) + key_len + data_len;
         blocks = ( raw_len + ( Mcd_osd_blk_size - 1 ) ) / Mcd_osd_blk_size;
 
-		plat_assert(blocks == 8);
+		plat_assert(blocks == rawobjratio);
 
         if (blocks > MCD_OSD_OBJ_MAX_BLKS) {
             mcd_log_msg( 20330, PLAT_LOG_LEVEL_ERROR,
@@ -5087,7 +5087,7 @@ mcd_fth_osd_slab_create_raw( void * context, mcd_osd_shard_t * shard,
                                  mcd_osd_lba_to_blk( mcd_osd_blk_to_lba( blocks )) );
     meta_data->blockaddr = blk_offset;
 	*((baddr_t *)key) = blk_offset;
-	plat_assert(blk_offset % 8 == 0);
+	plat_assert(blk_offset % rawobjratio== 0);
 
 xout:
 
@@ -5183,7 +5183,7 @@ mcd_fth_osd_slab_write_raw( void * context, mcd_osd_shard_t * shard,
     }
 
 	blk_offset = *(baddr_t *)key;
-	plat_assert(blk_offset % 8 == 0);
+	plat_assert(blk_offset % rawobjratio == 0);
 
     num_puts = __sync_add_and_fetch( &shard->num_puts, 1 );
 
@@ -5266,7 +5266,7 @@ mcd_fth_osd_slab_write_raw( void * context, mcd_osd_shard_t * shard,
         blocks = ( raw_len + ( Mcd_osd_blk_size - 1 ) ) / Mcd_osd_blk_size;
 
 
-		plat_assert(blocks == 8);
+		plat_assert(blocks == rawobjratio);
 
         if (blocks > MCD_OSD_OBJ_MAX_BLKS) {
             mcd_log_msg( 20330, PLAT_LOG_LEVEL_ERROR,
@@ -5733,7 +5733,7 @@ mcd_fth_osd_slab_get_raw( void * context, mcd_osd_shard_t * shard, char *key,
     }
 
 	blk_offset = *(baddr_t *)key;
-	plat_assert(blk_offset % 8 == 0);
+	plat_assert(blk_offset % rawobjratio== 0);
 
 	segment = shard->segment_table[blk_offset / Mcd_osd_segment_blks];
 
@@ -5840,7 +5840,7 @@ mcd_fth_osd_slab_get_raw( void * context, mcd_osd_shard_t * shard, char *key,
 	*ppdata = data_buf;
 	*pactual_size = meta->data_len;
 	uint64_t raw_len = sizeof(mcd_osd_meta_t) + meta->key_len + meta->data_len;
-	plat_assert( ( raw_len + ( Mcd_osd_blk_size - 1 ) ) / Mcd_osd_blk_size == 8);
+	plat_assert( ( raw_len + ( Mcd_osd_blk_size - 1 ) ) / Mcd_osd_blk_size == rawobjratio);
 
 	/*
 	 * verify applicable checksums

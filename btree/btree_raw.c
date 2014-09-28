@@ -178,6 +178,7 @@ btree_node_list_t *free_raw_node_list;
 int bt_storm_mode;
 uint64_t overflow_node_sz;
 uint64_t datasz_in_overflow;
+int overflow_node_ratio;
 
 #ifdef FLIP_ENABLED
 bool recovery_write = false;
@@ -2025,7 +2026,7 @@ static uint64_t allocate_overflow_data(btree_raw_t *bt, uint64_t datalen, char *
 
     n_first = n = get_new_node(&ret, bt, OVERFLOW_NODE, 0);
 	if (bt_storm_mode) {
-		assert(n->pnode->logical_id % 8 == 0);
+		assert(n->pnode->logical_id % overflow_node_ratio == 0);
 	}
     while(nbytes > 0 && !ret) {
 		n->dirty_next = NULL;
@@ -2048,7 +2049,7 @@ static uint64_t allocate_overflow_data(btree_raw_t *bt, uint64_t datalen, char *
         if(nbytes) {
             n = get_new_node(&ret, bt, OVERFLOW_NODE, 0);
 			if (bt_storm_mode) {
-				assert(n->pnode->logical_id % 8 == 0);
+				assert(n->pnode->logical_id % overflow_node_ratio == 0);
 			}
 		}
 
@@ -3383,7 +3384,7 @@ btree_raw_mem_node_t *create_new_node(btree_raw_t *btree, uint64_t logical_id,
     //  Just malloc the node here.  It will be written
     //  out at the end of the request by deref_l1cache().
     if (BT_USE_RAWOBJ(leaf_flag)) {
-        assert(logical_id % 8 == 0);
+        assert(logical_id % overflow_node_ratio == 0);
     }
     n = add_l1cache(btree, logical_id, BT_USE_RAWOBJ(leaf_flag), pinned);
     assert(n);
@@ -3422,7 +3423,7 @@ get_new_node_low(btree_status_t *ret, btree_raw_t *btree, node_flags_t leaf_flag
 		if (*ret != BTREE_SUCCESS) { 
 			return (NULL);
 		}
-		assert(logical_id % 8 == 0);
+		assert(logical_id % overflow_node_ratio == 0);
 	} else {
 		logical_id = __sync_fetch_and_add(&btree->logical_id_counter, 1)*btree->n_partitions + btree->n_partition;
 		if (BTREE_SUCCESS != savepersistent(btree, FLUSH_COUNTER_INTERVAL, false /* only mark to flush */)) {

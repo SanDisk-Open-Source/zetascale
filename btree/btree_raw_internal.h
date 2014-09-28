@@ -513,7 +513,7 @@ void btree_rcvry_test_recover(btree_raw_t *bt);
 #ifdef FLIP_ENABLED
 extern bool recovery_write;
 #endif
-extern int bt_storm_mode;
+extern int bt_storm_mode, overflow_node_ratio;
 extern uint64_t overflow_node_sz;
 extern uint64_t datasz_in_overflow;
 

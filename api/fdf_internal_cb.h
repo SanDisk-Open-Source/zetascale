@@ -42,7 +42,7 @@ typedef ZS_status_t (ext_cb_flash_stats_t)(uint64_t *alloc_blks, uint64_t *free_
                                             uint64_t *, uint64_t *, uint64_t blk_size, uint64_t seg_size);
 typedef ZS_status_t (ext_cb_functions_t)(void *log_func);
 typedef ZS_status_t (ext_cb_licvalid_t)(int state);
-typedef ZS_status_t (ext_cb_raw_t)(int mode, uint64_t rawobjsz );
+typedef ZS_status_t (ext_cb_raw_t)(int mode, uint64_t rawobjsz, int ratio );
 #ifdef FLIP_ENABLED
 typedef ZS_status_t (ext_cb_nodetype_t)(ZS_cguid_t cguid, char *data, uint64_t datalen,
                                         uint32_t *nodetype, bool *isroot, uint64_t *logical_id);

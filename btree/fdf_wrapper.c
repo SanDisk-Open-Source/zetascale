@@ -164,7 +164,7 @@ static void pstats_prepare_to_flush_single(struct ZS_thread_state *thd_state, st
 ZS_status_t set_flash_stats_buffer(uint64_t *alloc_blks, uint64_t *free_segs, uint64_t *consumed_blks, uint64_t *, uint64_t *, uint64_t blk_size, uint64_t seg_size);
 ZS_status_t set_zs_function_ptrs( void *log_func);
 ZS_status_t btree_check_license_ptr(int lic_state);
-ZS_status_t btree_get_rawobj_mode(int storm_mode, uint64_t rawobjsz);
+ZS_status_t btree_get_rawobj_mode(int storm_mode, uint64_t rawobjsz, int ratio);
 ZS_status_t btree_get_node_info(ZS_cguid_t cguid, char *data, uint64_t datalen, uint32_t *node_type, bool *is_root, uint64_t *logical_id);
 
 ZS_status_t btree_process_admin_cmd(struct ZS_thread_state *thd_state, 
@@ -3493,12 +3493,13 @@ ZS_status_t btree_get_all_stats(ZS_cguid_t cguid,
 }
 
 
-ZS_status_t btree_get_rawobj_mode(int storm_mode, uint64_t rawobjsz) {
+ZS_status_t btree_get_rawobj_mode(int storm_mode, uint64_t rawobjsz, int ratio) {
 	bt_storm_mode = storm_mode;
 	overflow_node_sz = rawobjsz;
 
 	if (bt_storm_mode) {
 		datasz_in_overflow = overflow_node_sz - sizeof(btree_raw_node_t);
+		overflow_node_ratio = ratio;
 	}
 	return ZS_SUCCESS;
 }

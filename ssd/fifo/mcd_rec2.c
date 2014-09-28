@@ -32,7 +32,7 @@
 
 
 #define	bytes_per_device_block		(1uL << 13)
-#define	bytes_per_storm_object		(1uL << 16)
+#define	bytes_per_storm_object		(1uL << 17)
 #define	bytes_per_leaf			(1uL << 13)
 #define	bytes_per_storm_key		(1uL << 8)
 #define	bytes_per_second		(1uL << 31)
@@ -60,6 +60,8 @@
 #define	msg( id, lev, ...)	plat_log_msg( id, PLAT_LOG_CAT_SDF_APP_MEMCACHED_RECOVERY, lev, __VA_ARGS__)
 
 int pot_checksum_enabled;
+int rawobjratio;
+uint64_t rawobjsz;
 
 typedef struct mcdstructure		mcd_t;
 typedef struct potstructure		pot_t;
@@ -148,7 +150,7 @@ check_storm_mode( )
 
 	if (flash_settings.storm_mode) {
 		unless (flash_settings.os_blk_size == bytes_per_device_block) {
-			complain( "FDF_BLOCK_SIZE is not %lu--Storm Mode disabled", bytes_per_device_block);
+			complain( "ZS_BLOCK_SIZE is not %lu--Storm Mode disabled", bytes_per_device_block);
 			flash_settings.storm_mode = 0;
 		}
 	}
@@ -169,7 +171,7 @@ mcd_rec2_init( ulong bytes_per_flash_array)
 	msg( INITIAL, INFO, "Storm Mode = %d   Storm Test = 0x%04X", flash_settings.storm_mode, flash_settings.storm_test);
 	if (flash_settings.storm_mode) {
 		unless (Mcd_osd_blk_size == bytes_per_device_block) {
-			complain( "FDF_BLOCK_SIZE is not %lu--Storm Mode disabled", bytes_per_device_block);
+			complain( "ZS_BLOCK_SIZE is not %lu--Storm Mode disabled", bytes_per_device_block);
 			flash_settings.storm_mode = 0;
 			storm_mode = 0;
 			return (TRUE);
@@ -864,6 +866,15 @@ get_rawobjsz()
 	}
 }
 
+int
+get_rawobjratio()
+{
+	if (storm_mode) {
+		return (int)(bytes_per_storm_object / Mcd_osd_blk_size);
+	} else {
+		return 0;
+	}
+}
 
 void
 process_log_storm( void * context, mcd_osd_shard_t * shard, mcd_rec_obj_state_t * state, mcd_rec_log_state_t * log_state )

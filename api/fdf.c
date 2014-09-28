@@ -2216,7 +2216,9 @@ ZS_status_t ZSInitVersioned(
 	}
 
 	if (is_btree_loaded()) {
-		ext_cbs->zs_raw_cb(storm_mode, get_rawobjsz());
+		rawobjsz = get_rawobjsz();
+		rawobjratio = get_rawobjratio();
+		ext_cbs->zs_raw_cb(storm_mode, rawobjsz, rawobjratio);
 	}
 
     return ZS_SUCCESS;
