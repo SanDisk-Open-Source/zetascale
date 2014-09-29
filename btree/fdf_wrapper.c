@@ -1878,11 +1878,12 @@ restart:
 			trxdeletecontainer( zs_thread_state, cguid);
 		}
 
-		status = ZSDeleteContainer(zs_thread_state, cguid);
-
 		if (btree) {
 			btree_destroy(btree);
 		}
+
+		status = ZSDeleteContainer(zs_thread_state, cguid);
+
 	}
 	return(status);
 }

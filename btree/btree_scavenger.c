@@ -350,8 +350,6 @@ scavenger_del_overflw_n_cont(Scavenge_Arg_t *s)
 			zs_ret = ZSCloseContainer(my_thd_state, s->cguid);
 			assert((zs_ret == ZS_SUCCESS) || (bt_shutdown==true && zs_ret==ZS_FAILURE_OPERATION_DISALLOWED));
 			trxdeletecontainer( my_thd_state, s->cguid);
-			zs_ret = ZSDeleteContainer(my_thd_state, s->cguid);
-			assert((zs_ret == ZS_SUCCESS) || (bt_shutdown==true && zs_ret==ZS_FAILURE_OPERATION_DISALLOWED));
 
 			Container_Map[s->btree_index].cguid = ZS_NULL_CGUID;
 			Container_Map[s->btree_index].btree = NULL;
@@ -362,6 +360,9 @@ scavenger_del_overflw_n_cont(Scavenge_Arg_t *s)
 			bt_cntr_unlock_scavenger(s, true);
 
 			btree_destroy(s->bt);
+
+			zs_ret = ZSDeleteContainer(my_thd_state, s->cguid);
+			assert((zs_ret == ZS_SUCCESS) || (bt_shutdown==true && zs_ret==ZS_FAILURE_OPERATION_DISALLOWED));
 
 			return;
 		} else if (bt_shutdown == true) {
