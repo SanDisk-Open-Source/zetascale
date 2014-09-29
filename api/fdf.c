@@ -2115,7 +2115,8 @@ ZS_status_t ZSInitVersioned(
     } while (rc == -1 && errno == EINTR);
 
     plat_assert( 0 == rc );
-    if ( ZSCHECK_NO_INIT != mcd_check_get_level() ) {
+    // Only run stats thread for normal run mode (not zsck)
+    if ( ZSCHECK_NO_CHECK == mcd_check_get_level() ) {
         if ( getProperty_String("ZS_STATS_FILE","")[0] )
         {
             zs_start_stats_thread( *zs_state );

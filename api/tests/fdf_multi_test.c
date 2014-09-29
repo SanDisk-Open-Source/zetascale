@@ -103,7 +103,7 @@ void* worker(void *arg)
     for(i = 0; i < iterations; i++)
     {
 		sprintf(key_str, "key%08d-%08u", i, self);
-		sprintf(key_data, "key%04ld-%0992d", (long) arg, i);
+		sprintf(key_data, "key%04ld-%01015d", (long) arg, i);
 
 		t(zs_set(cguid, key_str, strlen(key_str) + 1, key_data, strlen(key_data) + 1), ZS_SUCCESS);
 
@@ -113,7 +113,7 @@ void* worker(void *arg)
     for(i = 0; i < iterations; i++)
     {
 		sprintf(key_str, "key%08d-%08u", i, self);
-		sprintf(key_data, "key%04ld-%0992d", (long) arg, i);
+		sprintf(key_data, "key%04ld-%01015d", (long) arg, i);
 
     	t(zs_get(cguid, key_str, strlen(key_str) + 1, &data, &datalen), ZS_SUCCESS);
 

@@ -3799,7 +3799,7 @@ _ZSCheck(struct ZS_thread_state *zs_thread_state, uint64_t flags)
 			status = zs_check_btree(zs_thread_state, cguids[i], flags, &num_objs[i]);
 			if (status != ZS_SUCCESS) {
                 sprintf(err_msg, "Btree check failed for container %lu: %s", cguids[i], ZSStrError(status));
-                ZSCheckMsg(ZSCHECK_BTREE_NODE, 0, ZSCHECK_SUCCESS, err_msg);
+                ZSCheckMsg(ZSCHECK_BTREE_NODE, 0, ZSCHECK_FAILURE, err_msg);
 				goto out;
 			}
             sprintf(err_msg, "Btree check successful for container %lu", cguids[i]);
