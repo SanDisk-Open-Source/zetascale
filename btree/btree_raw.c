@@ -9175,6 +9175,14 @@ exit:
 	return res;
 }
 
+void
+btree_check_deref_unlock(btree_raw_t *btree, btree_raw_mem_node_t *node)
+{
+	node_unlock(node);
+	deref_l1cache_node(btree, node);
+	referenced_nodes_count--;
+}
+
 bool
 btree_raw_check_node_subtree(btree_raw_t *btree, btree_raw_node_t *node,
 			  char *prev_anchor_key, uint32_t prev_anchor_keylen,
@@ -9212,7 +9220,8 @@ btree_raw_check_node_subtree(btree_raw_t *btree, btree_raw_node_t *node,
 		n_anchor_keylen = key_info.keylen;
 
 		child_node = get_existing_node(&ret, btree, key_info.ptr, NODE_REF,
-		                               LOCKTYPE_NOLOCK);	
+		                               //LOCKTYPE_NOLOCK);	
+		                               LOCKTYPE_READ);	
 		if (child_node == NULL) {
 			res = false;
 			goto exit;
@@ -9220,7 +9229,10 @@ btree_raw_check_node_subtree(btree_raw_t *btree, btree_raw_node_t *node,
 
 		res = btree_raw_check_node_subtree(btree, child_node->pnode, p_anchor, p_anchor_keylen,
 						   n_anchor, n_anchor_keylen, num_leaves, num_objs);
-		deref_l1cache_node(btree, child_node);
+
+		btree_check_deref_unlock(btree, child_node);
+		//deref_l1cache_node(btree, child_node);
+		//node_unlock(child_node);
 		if (res == false) {
 			goto exit;
 		}
@@ -9239,7 +9251,8 @@ btree_raw_check_node_subtree(btree_raw_t *btree, btree_raw_node_t *node,
 	n_anchor = NULL;
 	n_anchor_keylen = 0;
 
-	child_node = get_existing_node(&ret, btree, node->rightmost, NODE_REF, LOCKTYPE_NOLOCK);	
+	//child_node = get_existing_node(&ret, btree, node->rightmost, NODE_REF, LOCKTYPE_NOLOCK);	
+	child_node = get_existing_node(&ret, btree, node->rightmost, NODE_REF, LOCKTYPE_READ);	
 	if (child_node == NULL) {
 		res = false;
 		goto exit;
@@ -9247,7 +9260,10 @@ btree_raw_check_node_subtree(btree_raw_t *btree, btree_raw_node_t *node,
 
 	res = btree_raw_check_node_subtree(btree, child_node->pnode, p_anchor, p_anchor_keylen,
 					   n_anchor, n_anchor_keylen, num_leaves, num_objs);
-	deref_l1cache_node(btree, child_node);
+
+	btree_check_deref_unlock(btree, child_node);
+//	node_unlock(child_node);
+//	deref_l1cache_node(btree, child_node);
 	if (res == false) {
 		goto exit;
 	}
@@ -9285,7 +9301,8 @@ btree_raw_check_leaves_chain(btree_raw_t *btree, uint64_t num_leaves)
 	 */
 	nodeid = btree->rootid;
 	mnode = get_existing_node(&ret, btree, nodeid, NODE_REF,
-	                          LOCKTYPE_NOLOCK);
+	                          //LOCKTYPE_NOLOCK);
+	                          LOCKTYPE_READ);
 	last_ref = mnode;
 	if (mnode == NULL) {
 		res = false;
@@ -9299,11 +9316,14 @@ btree_raw_check_leaves_chain(btree_raw_t *btree, uint64_t num_leaves)
 		nodeid = key_info.ptr;
 
 		if (last_ref) {
-			deref_l1cache_node(btree, last_ref);
+			btree_check_deref_unlock(btree, last_ref);
+		//	node_unlock(last_ref);
+		//	deref_l1cache_node(btree, last_ref);
 		}
 
 		mnode = get_existing_node(&ret, btree, nodeid, NODE_REF,
-		                          LOCKTYPE_NOLOCK);	
+		                          //LOCKTYPE_NOLOCK);	
+					  LOCKTYPE_READ);
 		if (mnode == NULL) {
 			res = false;
 			goto exit;
@@ -9320,7 +9340,8 @@ btree_raw_check_leaves_chain(btree_raw_t *btree, uint64_t num_leaves)
 	last_ref = NULL;
 
 	nodeid = btree->rootid;
-	mnode = get_existing_node(&ret, btree, nodeid, NODE_REF, LOCKTYPE_NOLOCK);	
+	//mnode = get_existing_node(&ret, btree, nodeid, NODE_REF, LOCKTYPE_NOLOCK);	
+	mnode = get_existing_node(&ret, btree, nodeid, NODE_REF, LOCKTYPE_READ);	
 	if (mnode == NULL) {
 		res = false;
 		goto exit;
@@ -9331,14 +9352,18 @@ btree_raw_check_leaves_chain(btree_raw_t *btree, uint64_t num_leaves)
 		
 		rightmost_ptr = mnode->pnode->rightmost;	
 		if (last_ref) {
-			deref_l1cache_node(btree, last_ref);
+			btree_check_deref_unlock(btree, last_ref);
+		//	deref_l1cache_node(btree, last_ref);
 		}
 
 		mnode = get_existing_node(&ret, btree, rightmost_ptr,
-		                          NODE_REF, LOCKTYPE_NOLOCK);	
+		                          //NODE_REF, LOCKTYPE_NOLOCK);	
+		                          NODE_REF, LOCKTYPE_READ);	
 		if (mnode == NULL) {
 			if (last_ref) {
-				deref_l1cache_node(btree, last_ref);
+				btree_check_deref_unlock(btree, last_ref);
+				//node_unlock(last_ref);
+				//deref_l1cache_node(btree, last_ref);
 			}
 			res = false;
 			goto exit;
@@ -9360,8 +9385,14 @@ btree_raw_check_leaves_chain(btree_raw_t *btree, uint64_t num_leaves)
 		num_leaves_found = 1;
 	}
 
+	btree_check_deref_unlock(btree, left_node);
+	btree_check_deref_unlock(btree, right_node);
+#if 0
+	node_unlock(left_node);
+	node_unlock(right_node);
 	deref_l1cache_node(btree, left_node);
 	deref_l1cache_node(btree, right_node);
+#endif 
 
 	last_ref = NULL;
 
@@ -9369,14 +9400,18 @@ btree_raw_check_leaves_chain(btree_raw_t *btree, uint64_t num_leaves)
 		nodeid = mnode->pnode->next;
 
 		if (last_ref) {
-			deref_l1cache_node(btree, last_ref);
+			btree_check_deref_unlock(btree, last_ref);
+			//node_unlock(last_ref);
+			// deref_l1cache_node(btree, last_ref);
 		}
 
 		mnode = get_existing_node(&ret, btree, nodeid,
 					  NODE_REF, LOCKTYPE_NOLOCK);	
 		if (mnode == NULL) {
 			if (last_ref) {
-				deref_l1cache_node(btree, last_ref);
+				btree_check_deref_unlock(btree, last_ref);
+				//node_unlock(last_ref);
+				//deref_l1cache_node(btree, last_ref);
 			}
 			res = false;
 			goto exit;
@@ -9398,7 +9433,9 @@ btree_raw_check_leaves_chain(btree_raw_t *btree, uint64_t num_leaves)
 	}
 
 	if (last_ref) {
-		deref_l1cache_node(btree, last_ref);
+		btree_check_deref_unlock(btree, last_ref);
+		//node_unlock(last_ref);
+		//deref_l1cache_node(btree, last_ref);
 	}
 exit:
 
@@ -9421,7 +9458,8 @@ btree_raw_check(btree_raw_t *btree, uint64_t *num_objs)
 	/*
 	 * Get root node 
 	 */
-	root_node = get_existing_node(&ret, btree, btree->rootid, NODE_REF, LOCKTYPE_NOLOCK);
+	//root_node = get_existing_node(&ret, btree, btree->rootid, NODE_REF, LOCKTYPE_NOLOCK);
+	root_node = get_existing_node(&ret, btree, btree->rootid, NODE_REF, LOCKTYPE_READ);
 	if (root_node == NULL) {
 		res = false;
 		goto out;
@@ -9430,7 +9468,9 @@ btree_raw_check(btree_raw_t *btree, uint64_t *num_objs)
 	res = btree_raw_check_node_subtree(btree, root_node->pnode, NULL, 0, NULL,
 					   0, &num_leaves, num_objs);
 
-	deref_l1cache_node(btree, root_node);
+	btree_check_deref_unlock(btree, root_node);
+//	node_unlock(root_node);
+//	deref_l1cache_node(btree, root_node);
 //	deref_l1cache(btree);
 
 	/*
