@@ -243,6 +243,8 @@ void MapClean(struct Map *pm, uint64_t cguid, void *replacement_callback_data)
 		e = b->e;
 		for (i=0; i<N_ENTRIES_TO_MALLOC; i++) {
 			if (e[i].contents && (e[i].cguid == cguid)){
+				remove_lru(pm, &e[i]);
+				pm->n_entries--;
 				(pm->replacement_callback)(replacement_callback_data,
 						e[i].key, e[i].keylen, e[i].contents,
 						e[i].datalen);
