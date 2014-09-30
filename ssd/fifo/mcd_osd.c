@@ -4254,14 +4254,14 @@ get_bmap_mismatch_count(uint64_t *bmap, uint64_t *check_map, uint64_t bmap_size)
 					account--;
 				}
 
-                int level = PLAT_LOG_LEVEL_INFO;
-
 				if (account > 0) {
-                    level = PLAT_LOG_LEVEL_DEBUG;
-				} 
+					mcd_log_msg(150122, PLAT_LOG_LEVEL_DEBUG, 
+						    "ZSCheck: Leak space map entry map[%d]:bit[%d].\n", i, j);
+				} else if (account < 0) {
+					mcd_log_msg(PLAT_LOG_ID_INITIAL, PLAT_LOG_LEVEL_DEBUG, 
+						    "ZSCheck: Lost space map entry map[%d]:bit[%d].\n", i, j);
+				}
 
-                mcd_log_msg(150122, level, 
-                            "ZSCheck: Lost space map entry %d:%d.\n", i, j);
 				b1 = b1 >> 1;
 				b2 = b2 >> 1;
 
@@ -4270,16 +4270,6 @@ get_bmap_mismatch_count(uint64_t *bmap, uint64_t *check_map, uint64_t bmap_size)
 				
 			}
 			
-#if 0
-			int diff = b1 ^ b2;
-
-			for (j = 0; j < 64 && diff ; j++) {
-				if (diff & 0x01) {
-					count++;
-				}
-				diff = diff >> 1;
-			}				
-#endif 
 		}
 	}
 	return need_account;
@@ -4293,7 +4283,7 @@ compare_space_maps(mcd_osd_shard_t *shard)
 	mcd_osd_segment_t *segment = NULL;
 	mcd_osd_slab_class_t *class = NULL;
 	int64_t leaked_space = 0;
-    char err_msg[1024];
+	char err_msg[1024];
 
 	if (!__zs_check_mode_on) {
 		mcd_log_msg(150126, 
