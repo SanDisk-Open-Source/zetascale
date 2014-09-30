@@ -180,10 +180,10 @@ found:
 	log_rec.blocks     = hash_entry->blocks;
 	//log_rec.rbucket     = (syndrome % hdl->hash_size) / Mcd_osd_bucket_size;
 	log_rec.rbucket     = (syndrome % hdl->hash_size);
-	log_rec.blk_offset = dst_blk_offset;
+	log_rec.mlo_blk_offset = dst_blk_offset;
 	log_rec.cntr_id    = hash_entry->cntr_id;
 	log_rec.seqno      = seqno;
-	log_rec.old_offset   = ~(hash_entry->blkaddress);
+	log_rec.mlo_old_offset   = ~(hash_entry->blkaddress) & 0x0000ffffffffffffull;
 	log_rec.target_seqno = target_seqno;
 	log_rec.raw        = FALSE;
 

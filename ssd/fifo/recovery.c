@@ -4657,7 +4657,7 @@ delete_object(mshard_t *shard, mhash_t *hash, uint64_t bkt_i)
         .deleted    = 1,
         .bucket     = bkt_i * Mcd_osd_bucket_size,
         .blk_offset = baddr,
-        .old_offset = ~(hash->address),
+        .mlo_old_offset = ~(hash->address),
         .cntr_id    = hash->cntr_id,
         .raw        = FALSE;
     };
@@ -4794,8 +4794,8 @@ delete_all_objects( pai_t *pai, shard_t *sshard, cguid_t cguid)
 						} else {
 							log.rbucket = i;
 						}
-						log.blk_offset = baddr;
-						log.old_offset = ~ baddr;
+						log.mlo_blk_offset = baddr;
+						log.mlo_old_offset = (~ baddr) & 0x0000ffffffffffffull;
 						log.cntr_id = hash_entry->cntr_id;
 						log.raw = FALSE;
 						if (1 == shard->replicated)

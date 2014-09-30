@@ -3912,8 +3912,8 @@ apply_log_record_mp( mcd_rec_obj_state_t *state, mcd_logrec_object_t *rec)
 	and (rec->blocks == 0)
 	and (rec->rbucket == 0)
 	and (rec->seqno == 0)
-	and (rec->old_offset == 0)) {
-		if ((rec->blk_offset == 0xffffffffffffu)
+	and (rec->mlo_old_offset == 0)) {
+		if ((rec->mlo_blk_offset == 0x0000ffffffffffffull)
 		and (shard->cntr->cas_id < rec->target_seqno))	// special cas_id record
 			shard->cntr->cas_id = rec->target_seqno;
 		return 0;
@@ -3921,41 +3921,41 @@ apply_log_record_mp( mcd_rec_obj_state_t *state, mcd_logrec_object_t *rec)
 	if (flash_settings.storm_mode)
 		return (apply_log_record_mp_storm( state, rec));
 	// return log record address (record offset)
-	if (rec->blk_offset > state->high_obj_offset)
-		state->high_obj_offset = rec->blk_offset;
-	if (rec->blk_offset < state->low_obj_offset)
-		state->low_obj_offset = rec->blk_offset;
-	if (rec->old_offset) {
-		if (~(rec->old_offset) > state->high_obj_offset) {
-			state->high_obj_offset = ~(rec->old_offset);
-			state->high_obj_offset &= 0x0000ffffffffffff;
-}
-		if (~(rec->old_offset) < state->low_obj_offset) {
-			state->low_obj_offset = ~(rec->old_offset);
-			state->low_obj_offset &= 0x0000ffffffffffff;
-}
+	if (rec->mlo_blk_offset > state->high_obj_offset)
+		state->high_obj_offset = rec->mlo_blk_offset;
+	if (rec->mlo_blk_offset < state->low_obj_offset)
+		state->low_obj_offset = rec->mlo_blk_offset;
+	if (rec->mlo_old_offset) {
+		if ((~(rec->mlo_old_offset) & 0x0000ffffffffffffull) > state->high_obj_offset) {
+			state->high_obj_offset = ~(rec->mlo_old_offset);
+			state->high_obj_offset &= 0x0000ffffffffffffull;
+		}
+		if ((~(rec->mlo_old_offset) & 0x0000ffffffffffffull) < state->low_obj_offset) {
+			state->low_obj_offset = ~(rec->mlo_old_offset);
+			state->low_obj_offset &= 0x0000ffffffffffffull;
+		}
 	}
 reapply:
 	// check that record applies to this table range
-	if ((rec->blk_offset < state->start_obj)
-	or (rec->blk_offset > state->start_obj + state->num_objs - 1)) {
-		// special delete/create record has an "old_offset"
-		if (rec->old_offset) {
+	if ((rec->mlo_blk_offset < state->start_obj)
+	or (rec->mlo_blk_offset > state->start_obj + state->num_objs - 1)) {
+		// special delete/create record has an "mlo_old_offset"
+		if (rec->mlo_old_offset) {
 			// copy original record
 			mod_rec = *rec;
 			rec	= &mod_rec;
 			// make it into a delete record and reapply it
-			rec->blk_offset = ~(rec->old_offset);
-			rec->old_offset = 0;
+			rec->mlo_blk_offset = ~(rec->mlo_old_offset) & 0x0000ffffffffffffull;
+			rec->mlo_old_offset = 0;
 			rec->blocks	= 0;
 			goto reapply;
 		}
 		// record is out of this table range
-		mcd_log_msg( 160270, PLAT_LOG_LEVEL_DEVEL, "<<<< skipping offset=%lu, start=%lu, end=%lu", (uint64_t) rec->blk_offset, state->start_obj, state->start_obj + state->num_objs - 1);
+		mcd_log_msg( 160270, PLAT_LOG_LEVEL_DEVEL, "<<<< skipping offset=%lu, start=%lu, end=%lu", (uint64_t) rec->mlo_blk_offset, state->start_obj, state->start_obj + state->num_objs - 1);
 		return applied;
 	}
 	// calculate offset to the object, in the proper segment
-	obj_offset = rec->blk_offset - state->start_obj;
+	obj_offset = rec->mlo_blk_offset - state->start_obj;
 	object	= (mcd_rec_flash_object_t *) state->segments[ obj_offset / state->seg_objects ] + (obj_offset % state->seg_objects);
 	plat_assert( obj_offset / state->seg_objects < state->seg_count);
 	// apply the record
@@ -3967,9 +3967,9 @@ reapply:
                  object->seqno==rec->target_seqno ||
                  shard->evict_to_free))
             {
-				mcd_log_msg( 160271, PLAT_LOG_LEVEL_FATAL, "rec: syn=%u, blocks=%u, del=%u, bucket=%u, " "boff=%lu, ooff=%lu, seq=%lu, tseq=%lu, obj: " "syn=%u, ts=%u, blocks=%u, del=%u, bucket=%u, " "toff=%lu, seq=%lu, hwm_seqno=%lu", rec->syndrome, mcd_osd_lba_to_blk( rec->blocks), rec->deleted, rec->rbucket, (uint64_t) rec->blk_offset, (uint64_t) rec->old_offset, (uint64_t) rec->seqno, (ulong)rec->target_seqno, object->osyndrome, object->tombstone, mcd_osd_lba_to_blk( object->blocks), object->deleted, object->obucket, (uint64_t) obj_offset, (uint64_t) object->seqno, 0uL);
+				mcd_log_msg( 160271, PLAT_LOG_LEVEL_FATAL, "rec: syn=%u, blocks=%u, del=%u, bucket=%u, " "boff=%lu, ooff=%lu, seq=%lu, tseq=%lu, obj: " "syn=%u, ts=%u, blocks=%u, del=%u, bucket=%u, " "toff=%lu, seq=%lu, hwm_seqno=%lu", rec->syndrome, mcd_osd_lba_to_blk( rec->blocks), rec->deleted, rec->rbucket, (uint64_t) rec->mlo_blk_offset, (uint64_t) rec->mlo_old_offset, (uint64_t) rec->seqno, (ulong)rec->target_seqno, object->osyndrome, object->tombstone, mcd_osd_lba_to_blk( object->blocks), object->deleted, object->obucket, (uint64_t) obj_offset, (uint64_t) object->seqno, 0uL);
 				if (rec != orig_rec)
-					mcd_log_msg( 160272, PLAT_LOG_LEVEL_FATAL, "orig_rec: syn=%u, blocks=%u, del=%u, " "bucket=%u, boff=%lu, ooff=%lu, seq=%lu, " "tseq=%lu", orig_rec->syndrome, mcd_osd_lba_to_blk( orig_rec->blocks), orig_rec->deleted, orig_rec->rbucket, (uint64_t) orig_rec->blk_offset, (uint64_t) orig_rec->old_offset, (uint64_t) orig_rec->seqno, (ulong)orig_rec->target_seqno);
+					mcd_log_msg( 160272, PLAT_LOG_LEVEL_FATAL, "orig_rec: syn=%u, blocks=%u, del=%u, " "bucket=%u, boff=%lu, ooff=%lu, seq=%lu, " "tseq=%lu", orig_rec->syndrome, mcd_osd_lba_to_blk( orig_rec->blocks), orig_rec->deleted, orig_rec->rbucket, (uint64_t) orig_rec->mlo_blk_offset, (uint64_t) orig_rec->mlo_old_offset, (uint64_t) orig_rec->seqno, (ulong)orig_rec->target_seqno);
 				plat_abort();
 			}
 		}
@@ -3984,9 +3984,9 @@ reapply:
 			and (object->osyndrome == 0)
 			and (object->tombstone == 0)
 			and (object->seqno == 0)) {
-				mcd_log_msg( 160271, PLAT_LOG_LEVEL_FATAL, "rec: syn=%u, blocks=%u, del=%u, bucket=%u, " "boff=%lu, ooff=%lu, seq=%lu, tseq=%lu, obj: " "syn=%u, ts=%u, blocks=%u, del=%u, bucket=%u, " "toff=%lu, seq=%lu, hwm_seqno=%lu", rec->syndrome, mcd_osd_lba_to_blk( rec->blocks), rec->deleted, rec->rbucket, (uint64_t) rec->blk_offset, (uint64_t) rec->old_offset, (uint64_t) rec->seqno, (ulong)rec->target_seqno, object->osyndrome, object->tombstone, mcd_osd_lba_to_blk( object->blocks), object->deleted, object->obucket, obj_offset, (uint64_t) object->seqno, 0uL);
+				mcd_log_msg( 160271, PLAT_LOG_LEVEL_FATAL, "rec: syn=%u, blocks=%u, del=%u, bucket=%u, " "boff=%lu, ooff=%lu, seq=%lu, tseq=%lu, obj: " "syn=%u, ts=%u, blocks=%u, del=%u, bucket=%u, " "toff=%lu, seq=%lu, hwm_seqno=%lu", rec->syndrome, mcd_osd_lba_to_blk( rec->blocks), rec->deleted, rec->rbucket, (uint64_t) rec->mlo_blk_offset, (uint64_t) rec->mlo_old_offset, (uint64_t) rec->seqno, (ulong)rec->target_seqno, object->osyndrome, object->tombstone, mcd_osd_lba_to_blk( object->blocks), object->deleted, object->obucket, obj_offset, (uint64_t) object->seqno, 0uL);
 				if (rec != orig_rec)
-					mcd_log_msg( 160272, PLAT_LOG_LEVEL_FATAL, "orig_rec: syn=%u, blocks=%u, del=%u, " "bucket=%u, boff=%lu, ooff=%lu, seq=%lu, " "tseq=%lu", orig_rec->syndrome, mcd_osd_lba_to_blk( orig_rec->blocks), orig_rec->deleted, orig_rec->rbucket, (uint64_t) orig_rec->blk_offset, (uint64_t) orig_rec->old_offset, (uint64_t) orig_rec->seqno, (ulong)orig_rec->target_seqno);
+					mcd_log_msg( 160272, PLAT_LOG_LEVEL_FATAL, "orig_rec: syn=%u, blocks=%u, del=%u, " "bucket=%u, boff=%lu, ooff=%lu, seq=%lu, " "tseq=%lu", orig_rec->syndrome, mcd_osd_lba_to_blk( orig_rec->blocks), orig_rec->deleted, orig_rec->rbucket, (uint64_t) orig_rec->mlo_blk_offset, (uint64_t) orig_rec->mlo_old_offset, (uint64_t) orig_rec->seqno, (ulong)orig_rec->target_seqno);
 				plat_abort();
 			}
 		}
@@ -3998,14 +3998,14 @@ reapply:
 		object->seqno	 = rec->seqno;
 		object->tombstone = 0;
 		applied++;
-		// special delete/create record has an "old_offset"
-		if (rec->old_offset) {
+		// special delete/create record has an "mlo_old_offset"
+		if (rec->mlo_old_offset) {
 			// copy original record
 			mod_rec = *rec;
 			rec	= &mod_rec;
 			// make it into a delete record and reapply it
-			rec->blk_offset = ~(rec->old_offset);
-			rec->old_offset = 0;
+			rec->mlo_blk_offset = ~(rec->mlo_old_offset) & 0x0000ffffffffffffull;
+			rec->mlo_old_offset = 0;
 			rec->blocks	= 0;
 			goto reapply;
 		}
@@ -4053,8 +4053,8 @@ filter_ot_apply_logrec( mcd_rec_obj_state_t *state, mcd_logrec_object_t *rec)
 					mcd_log_msg( 170043, PLAT_LOG_LEVEL_ERROR, "Outer trx is unrecoverable (too long)");
 				}
 				l->cguid = rec->cntr_id;
-				l->blkno = rec->blk_offset;
-				l->oldblkno = rec->old_offset;
+				l->blkno = rec->mlo_blk_offset;
+				l->oldblkno = rec->mlo_old_offset;
 				l->nblock = rec->blocks;
 				l->trxid = trxid;
 				l->trx = rec->trx;
@@ -4388,9 +4388,9 @@ lrringcompar1( const void *v0, const void *v1)
 
 	const lrring_t *r0 = v0;
 	const lrring_t *r1 = v1;
-	if (r0->rec->blk_offset < r1->rec->blk_offset)
+	if (r0->rec->mlo_blk_offset < r1->rec->mlo_blk_offset)
 		return (-1);
-	if (r0->rec->blk_offset > r1->rec->blk_offset)
+	if (r0->rec->mlo_blk_offset > r1->rec->mlo_blk_offset)
 		return (1);
 	if (r0->rec->blocks)
 		if (r1->rec->blocks) {
@@ -4538,7 +4538,7 @@ filter_cs_rewind_log( mcd_rec_obj_state_t *state)
 		qsort( r, n, sizeof *r, lrringcompar1);
 		unless (n < 2)
 			for (uint i=0; i<n-1; ++i)
-				if (r[i].rec->blk_offset == r[i+1].rec->blk_offset)
+				if (r[i].rec->mlo_blk_offset == r[i+1].rec->mlo_blk_offset)
 					r[i].check = FALSE;
 		qsort( r, n, sizeof *r, lrringcompar2);
 		i = 0;
@@ -4557,7 +4557,7 @@ filter_cs_rewind_log( mcd_rec_obj_state_t *state)
 					plat_abort( );
 				}
 				char *buf = (char *) roundup( (size_t)buffer, Mcd_osd_blk_size);
-				uint64_t offset = mcd_osd_rand_address( state->shard, rec->blk_offset);
+				uint64_t offset = mcd_osd_rand_address( state->shard, rec->mlo_blk_offset);
 				int rc = mcd_fth_aio_blk_read( state->context, buf, offset, nblock*Mcd_osd_blk_size);
 				unless (rc == FLASH_EOK) {
 					mcd_log_msg( 20003, PLAT_LOG_LEVEL_FATAL, "failed to read blocks, rc=%d", rc);
@@ -5704,7 +5704,7 @@ stats_packet_save( mcd_rec_obj_state_t *state, void *context, mcd_osd_shard_t *s
 		if (lr->blocks) {
 			fprintf( f, "%u ", lr->cntr_id);
 			const size_t N = 88;	/* sizeof( zs_pstats_delta_t), checked at btree level */
-			recovery_packet_dump( f, lr->blk_offset, lr->blocks, N, context, shard, (uint64_t)lr->seqno);
+			recovery_packet_dump( f, lr->mlo_blk_offset, lr->blocks, N, context, shard, (uint64_t)lr->seqno);
 		}
 	}
 	fclose( f);
@@ -6461,7 +6461,7 @@ log_init( mcd_osd_shard_t * shard )
                              MCD_REC_LOGBUF_RECS );
 
     // allocate memory for sync postprocessing
-    size = sizeof( uint32_t ) * (log->pp_max_updates + MCD_REC_LOGBUF_RECS);
+    size = sizeof( uint64_t ) * (log->pp_max_updates + MCD_REC_LOGBUF_RECS);
     log->pp_state.dealloc_list = plat_alloc( size );
     if ( log->pp_state.dealloc_list == NULL ) {
         mcd_rlg_msg( 20538, PLAT_LOG_LEVEL_ERROR,
@@ -6873,9 +6873,9 @@ log_write_internal( mcd_osd_shard_t *s, mcd_logrec_object_t *lr)
 	lr->bracket_id = 0;
 	if ((s == vdc_shard)
 	and (lr->bracket_id = trx_bracket_id)
-	and (lr->old_offset)
+	and (lr->mlo_old_offset)
 	and (trx_bracket_nslab < MAX_TRX_BRACKET_SLAB_CNT)) {
-		trx_bracket_slabs[trx_bracket_nslab++] = (~ lr->old_offset) & 0x0000ffffffffffff;
+		trx_bracket_slabs[trx_bracket_nslab++] = (~ lr->mlo_old_offset) & 0x0000ffffffffffffull;
 		if (trx_bracket_nslab == MAX_TRX_BRACKET_SLAB_CNT) {
 			if (s->log->errors_fatal) {
 				mcd_log_msg( 170024, PLAT_LOG_LEVEL_FATAL, "Slab deferral exceeded");
@@ -7029,7 +7029,7 @@ log_sync_postprocess( mcd_osd_shard_t *shard, mcd_rec_pp_state_t *pp_state)
 				mcd_fth_osd_slab_dealloc( shard, o, true);
 			}
 		} else {
-			uint o = pp_state->dealloc_list[d];
+			uint64_t o = pp_state->dealloc_list[d] & 0x0000ffffffffffffull;
 			uint i = mcd_osd_lba_to_blk( slabsize( shard, o));
 			shard->blk_delayed -= i;
 			__sync_fetch_and_sub( &shard->blk_consumed, i);
@@ -7088,8 +7088,8 @@ log_write_postprocess( mcd_osd_shard_t * shard, mcd_rec_logbuf_t * logbuf,
         // no log record - done for now
         if ( rec->syndrome == 0 && rec->blocks == 0 &&
              rec->rbucket == 0 && rec->seqno == 0 &&
-             rec->old_offset == 0 ) {
-            if ( rec->blk_offset == 0xffffffffffffu ) {
+             rec->mlo_old_offset == 0 ) {
+            if ( rec->mlo_blk_offset == 0x0000ffffffffffffull ) {
                 continue;
             }
             break;
@@ -7107,10 +7107,10 @@ log_write_postprocess( mcd_osd_shard_t * shard, mcd_rec_logbuf_t * logbuf,
              shard->restore_running ) {
 
             // update the alloc/update bitmaps
-            backup_maintain_bitmaps( shard, rec->blk_offset,
+            backup_maintain_bitmaps( shard, rec->mlo_blk_offset,
                                      (rec->blocks == 0) );
-            if ( rec->old_offset != 0 && rec->blocks > 0 ) {
-                backup_maintain_bitmaps( shard, ~(rec->old_offset), 1 );
+            if ( rec->mlo_old_offset != 0 && rec->blocks > 0 ) {
+                backup_maintain_bitmaps( shard, ~(rec->mlo_old_offset) & 0x0000ffffffffffffull, 1 );
             }
         }
         else if ( rec->seqno > bk->backup_curr_seqno ) {
@@ -7137,25 +7137,25 @@ log_write_postprocess( mcd_osd_shard_t * shard, mcd_rec_logbuf_t * logbuf,
             if ( rec->blocks == 0 ) {
                 // dealloc space when sequence number has been synced
                 if ( rec->seqno < tombstone_get_lcss( shard ) ) {
-                    pp->dealloc_list[ pp->dealloc_count++ ] = rec->blk_offset;
+                    pp->dealloc_list[ pp->dealloc_count++ ] = rec->mlo_blk_offset;
                 }
                 // add tombstone to list
                 else {
-                    tombstone_add( shard, rec->syndrome, rec->blk_offset,
+                    tombstone_add( shard, rec->syndrome, rec->mlo_blk_offset,
                                    rec->seqno );
                 }
             }
 
             // process overwrite record
-            else if ( rec->old_offset != 0 ) {
+            else if ( rec->mlo_old_offset != 0 ) {
                 // dealloc space when sequence number has been synced
                 if ( rec->seqno < tombstone_get_lcss( shard ) ) {
                     pp->dealloc_list[ pp->dealloc_count++ ] =
-                        ~(rec->old_offset);
+                        ~(rec->mlo_old_offset) & 0x0000ffffffffffffull;
                 }
                 // add tombstone to list
                 else {
-                    tombstone_add( shard, rec->syndrome, ~(rec->old_offset),
+                    tombstone_add( shard, rec->syndrome, ~(rec->mlo_old_offset) & 0x0000ffffffffffffull,
                                    rec->seqno );
                 }
             }
@@ -7163,15 +7163,15 @@ log_write_postprocess( mcd_osd_shard_t * shard, mcd_rec_logbuf_t * logbuf,
         }
 
         // no replication, process overwrite record
-        else if ((rec->old_offset)
+        else if ((rec->mlo_old_offset)
 	and (rec->bracket_id == 0)) {
-	    uint o = ~ rec->old_offset;
+	    uint64_t o = ~ (rec->mlo_old_offset) & 0x0000ffffffffffffull;
 	    pp->dealloc_list[pp->dealloc_count++] = o;
 	    uint i = mcd_osd_lba_to_blk( slabsize( shard, o));
 	    shard->blk_delayed += i;
 	    __sync_fetch_and_add( &shard->blk_consumed, i);
-            mcd_rlg_msg( 40124, PLAT_LOG_LEVEL_TRACE,
-                         "Pending dealloc[%d]: %d",
+            mcd_rlg_msg( PLAT_LOG_ID_INITIAL, PLAT_LOG_LEVEL_TRACE,
+                         "Pending dealloc[%d]: %ld",
                          pp->dealloc_count - 1,
                          pp->dealloc_list[ pp->dealloc_count - 1 ] );
         }
@@ -7208,12 +7208,12 @@ log_write_postprocess( mcd_osd_shard_t * shard, mcd_rec_logbuf_t * logbuf,
             }
 
             // update the alloc/update bitmaps
-            backup_maintain_bitmaps( shard, entry->rec.blk_offset,
+            backup_maintain_bitmaps( shard, entry->rec.mlo_blk_offset,
                                      (entry->rec.blocks == 0) );
-            if ( entry->rec.old_offset != 0 &&
+            if ( entry->rec.mlo_old_offset != 0 &&
                  entry->rec.blocks > 0 ) {
                 backup_maintain_bitmaps( shard,
-                                         ~(entry->rec.old_offset), 1 );
+                                         ~(entry->rec.mlo_old_offset) & 0x0000ffffffffffffull, 1 );
             }
         }
     }
@@ -8614,7 +8614,7 @@ mcd_trx_service( void *pai, int cmd, void *arg)
 			mcd_rec_log_t *l = vdc_shard->log;
 			mcd_logrec_object_t z;
 			memset( &z, 0, sizeof z);
-			z.blk_offset = 0xffffffffffffu;	/* CAS type */
+			z.mlo_blk_offset = 0x0000ffffffffffffull;	/* CAS type */
 			trx_bracket_id = - trx_bracket_id;
 			log_write( vdc_shard, &z);
 			trx_bracket_id = - trx_bracket_id;
@@ -8696,7 +8696,7 @@ mcd_trx_commit_internal( mcd_trx_state_t *t, int op_last)
 			if (n < t->n*MCD_REC_LOGBUF_SLOTS/MCD_REC_LOGBUF_RECS) {
 				mcd_logrec_object_t z;
 				memset( &z, 0, sizeof z);
-				z.blk_offset = 0xFFFFFFFFFFFF;	// CAS
+				z.mlo_blk_offset = 0x0000FFFFFFFFFFFFull;	// CAS
 				for (i=0; i<n; ++i)
 					(void)log_write_internal( t->s, &z);
 			}
@@ -8734,7 +8734,7 @@ mcd_trx_rollback_internal( void *pai, mcd_trx_state_t *t)
 		if (r->lr.blocks) {
 			mcd_osd_trx_revert( t->s, &r->lr, r->syn, &r->e);
 			uint64_t bi = r->syn%t->s->hash_handle->hash_size / OSD_HASH_BUCKET_SIZE;
-			cache_inval_by_mhash( pai, &t->s->mos_shard, r->lr.blk_offset, bi, r->syn>>OSD_HASH_SYN_SHIFT);
+			cache_inval_by_mhash( pai, &t->s->mos_shard, r->lr.mlo_blk_offset, bi, r->syn>>OSD_HASH_SYN_SHIFT);
 		}
 		else unless (mcd_osd_trx_insert( t->s, r->syn, &r->e))
 			t->status = MCD_TRX_HASHTABLE_FULL;

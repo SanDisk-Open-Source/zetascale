@@ -1307,15 +1307,15 @@ apply_log_record_mp_storm( mcd_rec_obj_state_t *state, mcd_logrec_object_t *rec)
 	mcd_osd_shard_t *s = state->shard;
 	if (rec->raw) {
 		if (rec->blocks) {
-			slab_bitmap_set( s, rec->blk_offset);
-			if (rec->old_offset)
-				slab_bitmap_clear( s, ~ rec->old_offset);
+			slab_bitmap_set( s, rec->mlo_blk_offset);
+			if (rec->mlo_old_offset)
+				slab_bitmap_clear( s, ~( rec->mlo_old_offset) & 0x0000ffffffffffffull);
 		}
 		else
-			slab_bitmap_clear( s, rec->blk_offset);
+			slab_bitmap_clear( s, rec->mlo_blk_offset);
 		return (1);
 	}
-	mcd_rec_flash_object_t *e = mcd_rec2_potcache_access( s, state->context, rec->blk_offset);
+	mcd_rec_flash_object_t *e = mcd_rec2_potcache_access( s, state->context, rec->mlo_blk_offset);
 	if (rec->blocks) {
 		unless (state->in_recovery) {
 			unless ((e->blocks == 0)
@@ -1323,7 +1323,7 @@ apply_log_record_mp_storm( mcd_rec_obj_state_t *state, mcd_logrec_object_t *rec)
 			and (e->osyndrome == 0)
 			and (e->tombstone == 0)
 			and (e->seqno == 0)) {
-				msg( 160271, FATAL, "rec: syn=%u, blocks=%u, del=%u, bucket=%u, boff=%lu, ooff=%lu, seq=%lu, tseq=%lu, obj: syn=%u, ts=%u, blocks=%u, del=%u, bucket=%u, toff=%lu, seq=%lu, hwm_seqno=%lu", rec->syndrome, rec->blocks, rec->deleted, rec->rbucket, (ulong)rec->blk_offset, (ulong)rec->old_offset, (uint64_t) rec->seqno, (ulong)rec->target_seqno, e->osyndrome, e->tombstone, e->blocks, e->deleted, e->obucket, 0L, (uint64_t) e->seqno, 0uL);
+				msg( 160271, FATAL, "rec: syn=%u, blocks=%u, del=%u, bucket=%u, boff=%lu, ooff=%lu, seq=%lu, tseq=%lu, obj: syn=%u, ts=%u, blocks=%u, del=%u, bucket=%u, toff=%lu, seq=%lu, hwm_seqno=%lu", rec->syndrome, rec->blocks, rec->deleted, rec->rbucket, (ulong)rec->mlo_blk_offset, (ulong)rec->mlo_old_offset, (uint64_t) rec->seqno, (ulong)rec->target_seqno, e->osyndrome, e->tombstone, e->blocks, e->deleted, e->obucket, 0L, (uint64_t) e->seqno, 0uL);
 				plat_abort();
 			}
 		}
@@ -1334,15 +1334,15 @@ apply_log_record_mp_storm( mcd_rec_obj_state_t *state, mcd_logrec_object_t *rec)
 		e->cntr_id = rec->cntr_id;
 		e->seqno = rec->seqno;
 		e->tombstone = 0;
-		if (rec->old_offset)
-			delete_object( mcd_rec2_potcache_access( s, state->context, ~ rec->old_offset));
+		if (rec->mlo_old_offset)
+			delete_object( mcd_rec2_potcache_access( s, state->context, (~ rec->mlo_old_offset) & 0x0000ffffffffffffull));
 	}
 	else {
 		unless (state->in_recovery) {
 			unless ((e->obucket/Mcd_osd_bucket_size == rec->rbucket/Mcd_osd_bucket_size)
 			and (e->osyndrome == rec->syndrome)
 			and (rec->target_seqno==0 || rec->target_seqno==e->seqno || s->evict_to_free)) {
-				msg( 160271, FATAL, "rec: syn=%u, blocks=%u, del=%u, bucket=%u, " "boff=%lu, ooff=%lu, seq=%lu, tseq=%lu, obj: " "syn=%u, ts=%u, blocks=%u, del=%u, bucket=%u, " "toff=%lu, seq=%lu, hwm_seqno=%lu", rec->syndrome, rec->blocks, rec->deleted, rec->rbucket, (ulong)rec->blk_offset, (ulong)rec->old_offset, (uint64_t) rec->seqno, (ulong)rec->target_seqno, e->osyndrome, e->tombstone, e->blocks, e->deleted, e->obucket, 0L, (uint64_t) e->seqno, 0uL);
+				msg( 160271, FATAL, "rec: syn=%u, blocks=%u, del=%u, bucket=%u, " "boff=%lu, ooff=%lu, seq=%lu, tseq=%lu, obj: " "syn=%u, ts=%u, blocks=%u, del=%u, bucket=%u, " "toff=%lu, seq=%lu, hwm_seqno=%lu", rec->syndrome, rec->blocks, rec->deleted, rec->rbucket, (ulong)rec->mlo_blk_offset, (ulong)rec->mlo_old_offset, (uint64_t) rec->seqno, (ulong)rec->target_seqno, e->osyndrome, e->tombstone, e->blocks, e->deleted, e->obucket, 0L, (uint64_t) e->seqno, 0uL);
 				plat_abort();
 			}
 		}

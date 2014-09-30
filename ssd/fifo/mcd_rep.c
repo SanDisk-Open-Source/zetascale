@@ -310,7 +310,7 @@ static int logs_iterate(struct shard *shard, resume_cursor_t * resume_cursor,
                     if (!rec->blocks) {
                         cursors[num_cursors].tombstone = 1;
                     }
-                    cursors[num_cursors].blk_offset = rec->blk_offset;
+                    cursors[num_cursors].blk_offset = rec->mlo_blk_offset;
                     num_cursors++;
 
                     // We have enough. Time to get out of here

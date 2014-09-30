@@ -453,10 +453,10 @@ typedef struct mcd_rec_pp_state {
     int                     fill_count;    // recs in logbuf added to pp list
     int                     slot_count;    // slots in logbuf already pp'd
     int                     dealloc_count; // number of dealloc block addresses
-    uint32_t              * dealloc_list;  // list of dealloc block addresses
+    uint64_t              * dealloc_list;  // list of dealloc block addresses
     uint                    dealloc_head,  // ring buffer to delay slab reuse
                             dealloc_tail;  //          by a guaranteed amount
-    uint32_t                dealloc_ring[80000];
+    uint64_t                dealloc_ring[80000];
 	bool                    dealloc_ring_enabled;
 } mcd_rec_pp_state_t;
 

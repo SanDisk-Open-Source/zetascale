@@ -402,8 +402,8 @@ typedef struct mcd_logrec_object {
     uint16_t    trx:2;                 // reserved
     uint16_t    blocks:12;             // number of 512-byte blocks occupied
     uint32_t    rbucket;               // hash bucket
-    uint64_t    blk_offset:48;         // logical block offset within shard
-    uint64_t    old_offset:48;         // old offset within shard (overwrite)
+    uint64_t    mlo_blk_offset:48;         // logical block offset within shard
+    uint64_t    mlo_old_offset:48;         // old offset within shard (overwrite)
     uint64_t    cntr_id:16;            // seqno of superceded (target) object
     uint64_t    seqno:48;              // sequence number for this record
     uint64_t    target_seqno:48;       // seqno of superceded (target) object

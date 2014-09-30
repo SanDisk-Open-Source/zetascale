@@ -4599,8 +4599,8 @@ mcd_fth_osd_slab_set( void * context, mcd_osd_shard_t * shard,
         log_rec.reserved     = 0;
         log_rec.blocks       = 0;
         log_rec.rbucket      = 0;
-        log_rec.blk_offset   = 0xFFFFFFFFFFFF;	// CAS
-        log_rec.old_offset   = 0;
+        log_rec.mlo_blk_offset   = 0x0000FFFFFFFFFFFFULL;	// CAS
+        log_rec.mlo_old_offset   = 0;
         log_rec.cntr_id      = 0;
         log_rec.seqno        = 0;
         log_rec.target_seqno = shard->cntr->cas_id;
@@ -4720,17 +4720,17 @@ mcd_fth_osd_slab_set( void * context, mcd_osd_shard_t * shard,
 				} else {
 					log_rec.rbucket       = (syndrome % hdl->hash_size);
 				}
-                log_rec.blk_offset   = hash_entry->blkaddress;
+                log_rec.mlo_blk_offset   = hash_entry->blkaddress;
                 log_rec.cntr_id      = cntr_id;
                 log_rec.seqno        = meta_data->sequence;
                 log_rec.target_seqno = target_seqno;
                 log_rec.raw = FALSE;
                 if ( 0 == shard->evict_to_free ) {
                     // store mode: delay flash space dealloc
-                    log_rec.old_offset = ~(hash_entry->blkaddress);
+                    log_rec.mlo_old_offset = ~(hash_entry->blkaddress) & 0x0000ffffffffffffull;
                     log_write_trx( shard, &log_rec, syndrome, hash_entry);
                 } else {
-                    log_rec.old_offset = 0;
+                    log_rec.mlo_old_offset = 0;
                     log_write( shard, &log_rec );
                 }
             }
@@ -4903,17 +4903,17 @@ mcd_fth_osd_slab_set( void * context, mcd_osd_shard_t * shard,
 		} else {
 			log_rec.rbucket     = (syndrome % hdl->hash_size);
 		}
-        log_rec.blk_offset = new_entry.blkaddress;
+        log_rec.mlo_blk_offset = new_entry.blkaddress;
         log_rec.cntr_id    = cntr_id;
         log_rec.seqno      = meta_data->sequence;
         log_rec.raw = FALSE;
         if ( true == obj_exists && 0 == shard->evict_to_free ) {
             // overwrite case in store mode
-            log_rec.old_offset   = ~(hash_entry->blkaddress);
+            log_rec.mlo_old_offset   = ~(hash_entry->blkaddress) & 0x0000ffffffffffffull;
             log_rec.target_seqno = target_seqno;
             log_write_trx( shard, &log_rec, syndrome, hash_entry);
         } else {
-            log_rec.old_offset   = 0;
+            log_rec.mlo_old_offset   = 0;
             log_rec.target_seqno = 0;
             log_write_trx( shard, &log_rec, syndrome, 0);
         }
@@ -5185,8 +5185,8 @@ mcd_fth_osd_slab_write_raw( void * context, mcd_osd_shard_t * shard,
         log_rec.reserved     = 0;
         log_rec.blocks       = 0;
         log_rec.rbucket      = 0;
-        log_rec.blk_offset   = 0xFFFFFFFFFFFF;	// CAS
-        log_rec.old_offset   = 0;
+        log_rec.mlo_blk_offset   = 0x0000FFFFFFFFFFFFULL;	// CAS
+        log_rec.mlo_old_offset   = 0;
         log_rec.cntr_id      = 0;
         log_rec.seqno        = 0;
         log_rec.target_seqno = shard->cntr->cas_id;
@@ -5228,11 +5228,11 @@ mcd_fth_osd_slab_write_raw( void * context, mcd_osd_shard_t * shard,
 			log_rec.deleted      = 1;
 			log_rec.reserved     = 0;
 			log_rec.blocks       = 0;  // distinguishes a delete record
-			log_rec.blk_offset   = blk_offset;
+			log_rec.mlo_blk_offset   = blk_offset;
 			log_rec.cntr_id      = cntr_id;
 			log_rec.seqno        = meta_data->sequence;
 			log_rec.target_seqno = 0;
-			log_rec.old_offset   = 0;
+			log_rec.mlo_old_offset   = 0;
 			log_rec.raw          = TRUE;
 			if (0 == shard->evict_to_free ) {
 				log_write_trx( shard, &log_rec, 0, 0);
@@ -5366,11 +5366,11 @@ mcd_fth_osd_slab_write_raw( void * context, mcd_osd_shard_t * shard,
 		log_rec.deleted    = 0;
 		log_rec.reserved   = 0;
 		log_rec.blocks     = mcd_osd_blk_to_lba( blocks );
-		log_rec.blk_offset = blk_offset;
+		log_rec.mlo_blk_offset = blk_offset;
 		log_rec.cntr_id    = cntr_id;
 		log_rec.seqno      = meta_data->sequence;
 		log_rec.raw        = TRUE;
-		log_rec.old_offset   = 0;
+		log_rec.mlo_old_offset   = 0;
 		log_rec.target_seqno = 0;
 
 		if (0 == shard->evict_to_free ) {
@@ -9486,8 +9486,8 @@ mcd_osd_trx_revert( mcd_osd_shard_t *s, mcd_logrec_object_t *lr,
                 continue;
             }
 
-            if ( hash_entry->blkaddress == lr->blk_offset) {
-                if (lr->old_offset) {
+            if ( hash_entry->blkaddress == lr->mlo_blk_offset) {
+                if (lr->mlo_old_offset) {
                     hash_entry_copy(hash_entry, orig);
 					if (hdl->addr_table) {
 						hdl->addr_table[hash_entry->blkaddress] = 
@@ -9497,7 +9497,7 @@ mcd_osd_trx_revert( mcd_osd_shard_t *s, mcd_logrec_object_t *lr,
                     hash_entry_delete(hdl, hash_entry, 
                                         syn % hdl->hash_size);
                 }
-                mcd_fth_osd_slab_dealloc( s, lr->blk_offset, false);
+                mcd_fth_osd_slab_dealloc( s, lr->mlo_blk_offset, false);
                 goto out;
             }
         }

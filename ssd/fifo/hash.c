@@ -1157,7 +1157,7 @@ uint64_t
 keycache_get(hash_handle_t *hdl, uint64_t blkaddr)
 {
 	uint64_t seg = blkaddr / Mcd_osd_segment_blks;
-	uint64_t blkoff = blkaddr % Mcd_osd_segment_blks;
+	uint64_t blkoff = blkaddr  % Mcd_osd_segment_blks;
 
 	if (hdl->key_cache[seg]) {
 		uint64_t	*segent = hdl->key_cache[seg];
