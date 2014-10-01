@@ -458,7 +458,7 @@ btree_raw_init(uint32_t flags, uint32_t n_partition, uint32_t n_partitions, uint
     bt->max_key_size         = max_key_size;
     bt->min_keys_per_node    = min_keys_per_node;;
     bt->nodesize             = nodesize;
-    bt->nodesize_less_hdr    = nodesize - sizeof(btree_raw_node_t);
+	bt->nodesize_less_hdr    = nodesize - sizeof(btree_raw_node_t);
 
     /* We need be able to fit in the data with max nodes per object
      * Updates need twice as many, so multiply by 2 */
@@ -5025,6 +5025,8 @@ btree_insert_keys_leaf(btree_raw_t *btree, btree_metadata_t *meta, uint64_t synd
 	uint32_t written = 0, idx = (flags & W_DESC) ? count - 1 : 0;
 	uint64_t seqno = -1;
 	bool res = false;
+	uint64_t ovdatasize = get_data_in_overflownode(btree);
+
         *new_inserts = 0;
 
 #ifdef PSTATS_1
@@ -5113,11 +5115,11 @@ btree_insert_keys_leaf(btree_raw_t *btree, btree_metadata_t *meta, uint64_t synd
 				
 			int required_nodes = 1;
 			if ((objs[idx].key_len + objs[idx].data_len) >= btree->big_object_size) {
-				required_nodes += objs[idx].data_len / btree->nodesize_less_hdr + 1;
+				required_nodes += objs[idx].data_len / ovdatasize + 1;
 			}
 			if (key_exists) {
 				if ((key_meta.keylen + key_meta.datalen) >= btree->big_object_size) {
-					required_nodes += key_meta.datalen / btree->nodesize_less_hdr + 1;
+					required_nodes += key_meta.datalen / ovdatasize + 1;
 				}
 			}
 
@@ -6291,6 +6293,7 @@ btree_rupdate_raw_leaf(
 	bool in_snap = false;
 	int	index;
 	key_meta_t key_meta;
+	uint64_t ovdatasize = get_data_in_overflownode(btree);
 
 	assert(is_leaf(btree, node->pnode));
 
@@ -6357,11 +6360,11 @@ btree_rupdate_raw_leaf(
 
 		int required_nodes = 0;
 		if ((key_out_len + datalen) >= btree->big_object_size) {
-			required_nodes += datalen / btree->nodesize_less_hdr + 1;
+			required_nodes += datalen / ovdatasize + 1;
 		}
 
 		if ((key_out_len + new_data_len) >= btree->big_object_size) {
-			required_nodes += new_data_len / btree->nodesize_less_hdr + 1;
+			required_nodes += new_data_len / ovdatasize + 1;
 		}
 
 		if (new_data_len != 0) {

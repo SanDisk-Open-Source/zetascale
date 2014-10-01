@@ -221,6 +221,7 @@ get_robj_data(btree_raw_t *bt, btree_robj_info_t *obj)
 	char     *p;
 	uint64_t nbytes;
 	uint64_t copybytes;
+	uint64_t ovdatasize = get_data_in_overflownode(bt);
 
 	if (obj->data_node_cnt == 0) {
 		/* Data resides in node */
@@ -242,8 +243,8 @@ get_robj_data(btree_raw_t *bt, btree_robj_info_t *obj)
 		while((nbytes > 0) && (ncnt < obj->data_node_cnt)) {
 			assert(next_lid == nodes[ncnt]->logical_id);
 
-			copybytes = (nbytes >= bt->nodesize_less_hdr) ? 
-			                bt->nodesize_less_hdr : nbytes;
+			copybytes = (nbytes >= ovdatasize) ? 
+			                ovdatasize : nbytes;
 			memcpy(p, ((char *) nodes[ncnt] + sizeof(btree_raw_node_t)), copybytes);
 
 			nbytes -= copybytes;
