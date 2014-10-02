@@ -3732,10 +3732,11 @@ check_hash_cont(struct ZS_thread_state *thd_state, ZS_cguid_t cguid)
 	return ZS_SUCCESS;
 }
 
+#define MCD_MAX_NUM_CNTRS UINT16_MAX - 1 - 9
+
 /*
  * _ZSCheck: internal api for testing purpose.
  */
-#define MAX_CONTS 65000
 ZS_status_t
 _ZSCheck(struct ZS_thread_state *zs_thread_state, uint64_t flags)
 {
@@ -3756,7 +3757,7 @@ _ZSCheck(struct ZS_thread_state *zs_thread_state, uint64_t flags)
 		return ZS_FAILURE;
 	}
 
-	cguids = btree_malloc(sizeof(ZS_cguid_t) * MAX_CONTS);
+	cguids = btree_malloc(sizeof(ZS_cguid_t) * MCD_MAX_NUM_CNTRS);
 	assert(cguids);
 	
 	/*
