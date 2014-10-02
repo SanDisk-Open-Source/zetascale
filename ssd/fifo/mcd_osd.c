@@ -4255,10 +4255,10 @@ get_bmap_mismatch_count(uint64_t *bmap, uint64_t *check_map, uint64_t bmap_size)
 				}
 
 				if (account > 0) {
-					mcd_log_msg(150122, PLAT_LOG_LEVEL_DEBUG, 
+					mcd_log_msg(150127, PLAT_LOG_LEVEL_DEBUG, 
 						    "ZSCheck: Leak space map entry map[%d]:bit[%d].\n", i, j);
 				} else if (account < 0) {
-					mcd_log_msg(PLAT_LOG_ID_INITIAL, PLAT_LOG_LEVEL_DEBUG, 
+					mcd_log_msg(150128, PLAT_LOG_LEVEL_DEBUG, 
 						    "ZSCheck: Lost space map entry map[%d]:bit[%d].\n", i, j);
 				}
 

@@ -7170,7 +7170,7 @@ log_write_postprocess( mcd_osd_shard_t * shard, mcd_rec_logbuf_t * logbuf,
 	    uint i = mcd_osd_lba_to_blk( slabsize( shard, o));
 	    shard->blk_delayed += i;
 	    __sync_fetch_and_add( &shard->blk_consumed, i);
-            mcd_rlg_msg( PLAT_LOG_ID_INITIAL, PLAT_LOG_LEVEL_TRACE,
+            mcd_rlg_msg( 150129, PLAT_LOG_LEVEL_TRACE,
                          "Pending dealloc[%d]: %ld",
                          pp->dealloc_count - 1,
                          pp->dealloc_list[ pp->dealloc_count - 1 ] );
