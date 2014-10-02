@@ -8207,9 +8207,10 @@ zs_check_slab_space(struct ZS_thread_state *zs_thread_state)
 		status = ZS_FAILURE;
         sprintf(err_msg, "Space map comparison failed for shard %lu", meta->pshard->shardID);
         ZSCheckMsg(ZSCHECK_SHARD_SPACE_MAP, meta->pshard->shardID, ZSCHECK_SHARD_SPACE_MAP_ERROR, err_msg);
-	}
-    sprintf(err_msg, "Space map comparison succeeded for shard %lu", meta->pshard->shardID);
-    ZSCheckMsg(ZSCHECK_SHARD_SPACE_MAP, meta->pshard->shardID, ZSCHECK_SUCCESS, err_msg);
+	} else {
+        sprintf(err_msg, "Space map comparison succeeded for shard %lu", meta->pshard->shardID);
+        ZSCheckMsg(ZSCHECK_SHARD_SPACE_MAP, meta->pshard->shardID, ZSCHECK_SUCCESS, err_msg);
+    }
 
 out:
 	return status;

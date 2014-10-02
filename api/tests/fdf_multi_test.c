@@ -12,10 +12,12 @@ static int iterations = 1000;
 static int threads = 1;
 static long size = 1024 * 1024 * 1024;
 static int recover = 0;
+static int print = 0;
 static int delete_container = 0;
 
 static struct option long_options[] = {
     {"delete_container",     no_argument,       0, 'd'},
+    {"print",                no_argument,       0, 'p'},
     {"recover",              no_argument,       0, 'r'},
     {"help",                 no_argument,       0, 'h'},
     {"size",                 required_argument, 0, 's'},
@@ -26,7 +28,7 @@ static struct option long_options[] = {
 
 void print_help(char *pname)
 {
-    fprintf(stderr, "%s --size=<size gb> --iterations=<iterations> --threads=<threads> --delete_container --recover --help\n\n", pname);
+    fprintf(stderr, "%s --size=<size gb> --iterations=<iterations> --threads=<threads> --delete_container --print --recover --help\n\n", pname);
 }
 
 int get_options(int argc, char *argv[])
@@ -35,7 +37,7 @@ int get_options(int argc, char *argv[])
     int c;
 
     while (1) {
-        c = getopt_long (argc, argv, "ds:i:t:rh", long_options, &option_index);
+        c = getopt_long (argc, argv, "ds:i:t:prh", long_options, &option_index);
 
         if (c == -1)
             break;
@@ -52,6 +54,10 @@ int get_options(int argc, char *argv[])
 
         case 't':
             threads = atoi(optarg);
+            break;
+
+        case 'p':
+            print = 1;
             break;
 
         case 'd':
@@ -124,13 +130,15 @@ void* worker(void *arg)
     t(zs_enumerate(cguid, &_zs_iterator), ZS_SUCCESS);
 
     while (zs_next_enumeration(cguid, _zs_iterator, &key, &keylen, &data, &datalen) == ZS_SUCCESS) {
-		fprintf(stderr, "%x zs_enum: key=%s, keylen=%d, data=%s, datalen=%lu\n", (int)pthread_self(), key, keylen, data, datalen);
+        if (print)
+		    fprintf(stderr, "%x zs_enum: key=%s, keylen=%d, data=%s, datalen=%lu\n", 
+                             (int)pthread_self(), key, keylen, data, datalen);
 		//advance_spinner();
     }
 
-    fprintf(stderr, "\n");
-
     t(zs_finish_enumeration(cguid, _zs_iterator), ZS_SUCCESS);
+
+    t(zs_close_container(cguid), ZS_SUCCESS);
 
     if (delete_container)
         t(zs_delete_container(cguid), ZS_SUCCESS);

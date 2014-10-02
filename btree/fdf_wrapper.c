@@ -3695,7 +3695,7 @@ zs_check_btree(struct ZS_thread_state *zs_thread_state,
 	}
 
 
-	msg("Got %"PRId64" objects in cont id = %d.\n", num_objs, cguid);
+	msg("Got %"PRId64" objects in cont id = %d.\n", *num_objs, cguid);
 
 	bt_rel_entry(index, false);
 	return ret;
