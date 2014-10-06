@@ -137,7 +137,7 @@ seqnoread(struct ZS_thread_state *t);
 static bool storage_space_exhausted( const char *);
 ZS_status_t BtreeErr_to_ZSErr(btree_status_t b_status);
 btree_status_t ZSErr_to_BtreeErr(ZS_status_t f_status);
-static int mput_default_cmp_cb(void *data, char *key, uint32_t keylen,
+int mput_default_cmp_cb(void *data, char *key, uint32_t keylen,
 			    char *old_data, uint64_t old_datalen,
 			    char *new_data, uint64_t new_datalen);
 
@@ -1263,6 +1263,7 @@ restart:
             }
         }
         //fprintf(stderr, "ZS cache %s for container: %s\n", properties->flash_only ? "disabled" : "enabled", cname);
+		properties->flash_only == ZS_TRUE;
 
         if (properties->flash_only == ZS_FALSE) {
             fprintf(stderr, "WARNING: Container '%s' is enabled with ZS cache "

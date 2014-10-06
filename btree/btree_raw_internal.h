@@ -396,6 +396,7 @@ btree_status_t get_leaf_key_index(btree_raw_t *bt, btree_raw_node_t *n, int inde
 btree_raw_mem_node_t *get_existing_node_low(btree_status_t *ret, btree_raw_t *btree, uint64_t logical_id, getnode_flags_t flags);
 btree_raw_mem_node_t *get_existing_node(btree_status_t *ret, btree_raw_t *btree, uint64_t logical_id, getnode_flags_t flags, bt_locktype_t locktype_in);
 btree_raw_mem_node_t *get_existing_overflow_node(btree_status_t *ret, btree_raw_t *btree, uint64_t logical_id, getnode_flags_t flags);
+btree_raw_mem_node_t *get_existing_overflow_node_for_delete(btree_status_t *ret, btree_raw_t *btree, uint64_t logical_id, getnode_flags_t flags);
 int is_leaf(btree_raw_t *btree, btree_raw_node_t *node);
 int is_overflow(btree_raw_t *btree, btree_raw_node_t *node);
 void delete_key_by_index_non_leaf(btree_status_t* ret, btree_raw_t *btree, btree_raw_mem_node_t *node, int index);

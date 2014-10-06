@@ -140,6 +140,8 @@ __thread uint32_t   _keybuf_size = 0;
 extern ZS_status_t _ZSInitPerThreadState(struct ZS_state  *zs_state, struct ZS_thread_state **thd_state);
 extern ZS_status_t _ZSReleasePerThreadState(struct ZS_thread_state **thd_state);
 extern btree_status_t ZSErr_to_BtreeErr(ZS_status_t f_status);
+extern int mput_default_cmp_cb(void *data, char *key, uint32_t keylen, char *old_data, uint64_t old_datalen,
+						                char *new_data, uint64_t new_datalen);
 
 extern __thread struct ZS_thread_state *my_thd_state;
 __thread btree_raw_mem_node_t **modified_nodes = NULL;
@@ -147,10 +149,11 @@ __thread btree_raw_mem_node_t **referenced_nodes = NULL;
 __thread btree_raw_mem_node_t **deleted_nodes = NULL;
 __thread btree_raw_mem_node_t **overflow_nodes = NULL;
 __thread btree_raw_mem_node_t **modified_metanodes = NULL;
+__thread uint64_t *deleted_ovnodes_id = NULL;
 __thread int *modified_written = NULL;
 __thread int *deleted_written = NULL;
 __thread int *overflow_written = NULL;
-__thread uint64_t modified_nodes_count=0, referenced_nodes_count=0, deleted_nodes_count=0, overflow_nodes_count = 0;
+__thread uint64_t modified_nodes_count=0, referenced_nodes_count=0, deleted_nodes_count=0, overflow_nodes_count = 0, deleted_ovnodes_count = 0;
 __thread uint64_t modified_metanodes_count = 0;
 __thread uint64_t saverootid = BAD_CHILD;
 
@@ -1974,23 +1977,41 @@ delete_overflow_data(btree_status_t *ret, btree_raw_t *bt, uint64_t ptr_in, uint
     uint64_t            ptr;
     uint64_t            ptr_next;
     btree_raw_mem_node_t   *n;
+	uint64_t            ovdatasize;
+
+	ovdatasize = get_data_in_overflownode(bt);
 
     if (*ret) { return; }
 
-    for (ptr = ptr_in; ptr != 0; ptr = ptr_next) {
-        n = get_existing_overflow_node(ret, bt, ptr, NODE_REF);
-        if (BTREE_SUCCESS != *ret) {
-            fprintf(stderr, "Failed to find an existing overflow node in delete_overflow_data!");
-            return;
-        }
+	if (datalen <= ovdatasize) {
+		n = get_existing_overflow_node_for_delete(ret, bt, ptr_in, NODE_REF);
+		if (n) {
+			free_node(ret, bt, n);
+			if (BTREE_SUCCESS != *ret) {
+				fprintf(stderr, "Failed to free an existing overflow node in delete_overflow_data!");
+			}
+		} else {
+			deleted_ovnodes_id[deleted_ovnodes_count++] = 0;
+		}
 
-        ptr_next = n->pnode->next;
-        free_node(ret, bt, n);
-        // current free_node doesn't change value of ret...
-        if (BTREE_SUCCESS != *ret) {
-            fprintf(stderr, "Failed to free an existing overflow node in delete_overflow_data!");
-        }
-    }
+
+	} else { 
+
+		for (ptr = ptr_in; ptr != 0; ptr = ptr_next) {
+			n = get_existing_overflow_node(ret, bt, ptr, NODE_REF);
+			if (BTREE_SUCCESS != *ret) {
+				fprintf(stderr, "Failed to find an existing overflow node in delete_overflow_data!");
+				return;
+			}
+
+			ptr_next = n->pnode->next;
+			free_node(ret, bt, n);
+			// current free_node doesn't change value of ret...
+			if (BTREE_SUCCESS != *ret) {
+				fprintf(stderr, "Failed to free an existing overflow node in delete_overflow_data!");
+			}
+		}
+	}
     //fprintf(stderr, "delete_overflow_data called: cur=%ld len=%ld\n", (bt->stats.stat[BTSTAT_OVERFLOW_BYTES]), datalen);
     __sync_sub_and_fetch(&(bt->stats.stat[BTSTAT_OVERFLOW_BYTES]), datalen);
 }
@@ -2806,7 +2827,7 @@ btree_status_t deref_l1cache(btree_raw_t *btree)
              */
             pstats_flush(btree, n);
 
-            ret = btree->delete_node_cb(btree->create_node_cb_data, n->pnode->logical_id, BT_USE_RAWOBJ(n->pnode->flags));
+            ret = btree->delete_node_cb(btree->delete_node_cb_data, n->pnode->logical_id, BT_USE_RAWOBJ(n->pnode->flags));
 #ifdef BTREE_UNDO_TEST
             btree_rcvry_test_delete(btree, n->pnode);
 #endif
@@ -2814,6 +2835,10 @@ btree_status_t deref_l1cache(btree_raw_t *btree)
             reset_node_pstats(n->pnode);
         }
     }
+
+	for (i = 0; i < deleted_ovnodes_count; i++) {
+		ret = btree->delete_node_cb(btree->delete_node_cb_data, deleted_ovnodes_id[i], BT_USE_RAWOBJ(OVERFLOW_NODE));
+	}
 
 cleanup:
     if (btree->trxenabled) {
@@ -2846,6 +2871,7 @@ cleanup:
         deleted_nodes_count = 0;
         overflow_nodes_count = 0;
         modified_metanodes_count = 0;
+		deleted_ovnodes_count = 0;
     } else {
         /* Write failures on media, will be fixed by rollingback
 	 * and seperate rescue is not required. */
@@ -3203,12 +3229,12 @@ static void deref_last_node(btree_raw_t *btree, btree_raw_mem_node_t *mnode)
 	referenced_nodes_count--;
 }
 
-/*
- * IMPORTANT: For overflow nodes use, get_existing_overflow_node()
- */
 
 /* This function get the existing node, take a required lock if instructed and check
  * if cache is valid. It checks until cache is valid */
+/*
+ * IMPORTANT: For overflow nodes use, get_existing_overflow_node()
+ */
 btree_raw_mem_node_t *
 get_existing_node(btree_status_t *ret, btree_raw_t *btree, uint64_t logical_id,
                   getnode_flags_t flags, bt_locktype_t lock_type_in)
@@ -3271,6 +3297,56 @@ get_existing_overflow_node(btree_status_t *ret, btree_raw_t *btree, uint64_t log
 	n = get_existing_node_low(ret, btree, logical_id, flags);
 	if (n) {
 		assert(n->pnode->flags == OVERFLOW_NODE);
+	}
+	return n;
+}
+btree_raw_mem_node_t *
+get_existing_overflow_node_for_delete(btree_status_t *ret, btree_raw_t *btree, uint64_t logical_id,
+                           getnode_flags_t flags)
+{
+	btree_raw_mem_node_t	*n;
+
+	/* We don't need to validate the cache for overflow nodes, as
+	 * two threads will not access the same overflow node at same time */
+	assert(!(flags & NODE_CACHE_VALIDATE));
+	if (BT_USE_RAWOBJ(OVERFLOW_NODE)) {
+		flags |= NODE_RAW_OBJ;
+	}
+
+	*ret = BTREE_SUCCESS;
+
+	n = get_l1cache(btree, logical_id, (flags & NODE_RAW_OBJ) ? 1 : 0);
+	if (n != NULL) {
+		//Got a deleted node?? Parent referring to deleted child??
+		//Check the locking of btree/nodes
+		if (is_node_deleted(n)) {
+			assert(0);
+		}
+
+#ifndef _OPTIMIZED
+		if ((flags & NODE_PIN) && !n->pinned) {
+			assert(0);
+		}
+#endif
+
+		/* IO Context has read this node, lets not delete the cache
+		 * once we are done using the node. Also not count into hits
+		 * stats if we are going to delete after the deref */
+		if (flags & NODE_CACHE_DEREF_DELETE) {
+			__sync_add_and_fetch(&(btree->stats.stat[BTSTAT_BACKUP_L1HITS]), 1);
+		} else {
+			n->deref_delete_cache = false;
+			add_node_stats(btree, n->pnode, L1HITS, 1);
+		}
+
+	}
+
+
+	if (n) {
+		assert(n->pnode->flags == OVERFLOW_NODE);
+		if(flags & NODE_REF) {
+			ref_l1cache(btree, n);
+		}
 	}
 	return n;
 }
@@ -3956,114 +4032,114 @@ static void insert_key(btree_status_t *ret, btree_raw_t *btree, btree_raw_mem_no
 
 static void delete_key_by_pkrec(btree_status_t* ret, btree_raw_t *btree, btree_raw_mem_node_t *node, node_key_t *pk_delete)
 {
-    btree_raw_node_t* x = node->pnode;
-    uint32_t       nkeys_to, nkeys_from;
-    uint32_t       fixed_bytes;
-    uint64_t       datalen = 0;
-    uint64_t       keylen = 0;
-    uint64_t       nbytes_stats = 0;
-    node_vkey_t   *pvk_delete = NULL;
-    node_vlkey_t  *pvlk_delete = NULL;
-    key_stuff_t    ks;
+	btree_raw_node_t* x = node->pnode;
+	uint32_t       nkeys_to, nkeys_from;
+	uint32_t       fixed_bytes;
+	uint64_t       datalen = 0;
+	uint64_t       keylen = 0;
+	uint64_t       nbytes_stats = 0;
+	node_vkey_t   *pvk_delete = NULL;
+	node_vlkey_t  *pvlk_delete = NULL;
+	key_stuff_t    ks;
 
 	dbg_print("node_id=%ld pk_delete=%p\n", node->pnode->logical_id, pk_delete);
 
-    assert(pk_delete);
+	assert(pk_delete);
 
-    assert(!is_leaf(btree, node->pnode));
+	assert(!is_leaf(btree, node->pnode));
 
-    if(*ret) return;
+	if(*ret) return;
 
-    (void) get_key_stuff(btree, x, 0, &ks);
+	(void) get_key_stuff(btree, x, 0, &ks);
 
-    modify_l1cache_node(btree, node);
+	modify_l1cache_node(btree, node);
 
-    if (!ks.fixed) {
-        if (x->flags & LEAF_NODE) {
-	    pvlk_delete = (node_vlkey_t *) pk_delete;
+	if (!ks.fixed) {
+		if (x->flags & LEAF_NODE) {
+			pvlk_delete = (node_vlkey_t *) pk_delete;
 
-	    keylen = pvlk_delete->keylen;
-	    if (big_object(btree, pvlk_delete)) {
-	        // data NOT stored in the node
-		datalen = 0;
-                delete_overflow_data(ret, btree, pvlk_delete->ptr, pvlk_delete->datalen);
-	    } else {
-	        // data IS stored in the node
-		datalen = pvlk_delete->datalen;
-	    }
-            nbytes_stats = sizeof(node_vlkey_t) + datalen;
+			keylen = pvlk_delete->keylen;
+			if (big_object(btree, pvlk_delete)) {
+				// data NOT stored in the node
+				datalen = 0;
+				delete_overflow_data(ret, btree, pvlk_delete->ptr, pvlk_delete->datalen);
+			} else {
+				// data IS stored in the node
+				datalen = pvlk_delete->datalen;
+			}
+			nbytes_stats = sizeof(node_vlkey_t) + datalen;
+		} else {
+			pvk_delete = (node_vkey_t *) pk_delete;
+			keylen = pvk_delete->keylen;
+			nbytes_stats = sizeof(node_vkey_t);
+		}
+		nbytes_stats += keylen;
+	} else
+		nbytes_stats = sizeof(node_fkey_t);
+
+	fixed_bytes = ks.offset;
+	nkeys_to = (((char *) pk_delete) - ((char *) x->keys))/ks.offset;
+
+	if (x->flags & LEAF_NODE) {
+		assert(0);
+		__sync_sub_and_fetch(&(btree->stats.stat[BTSTAT_NUM_OBJS]), 1);
+		__sync_sub_and_fetch(&(btree->stats.stat[BTSTAT_LEAF_BYTES]), nbytes_stats);
 	} else {
-	    pvk_delete = (node_vkey_t *) pk_delete;
-	    keylen = pvk_delete->keylen;
-            nbytes_stats = sizeof(node_vkey_t);
+		__sync_sub_and_fetch(&(btree->stats.stat[BTSTAT_NONLEAF_BYTES]), nbytes_stats);
 	}
-        nbytes_stats += keylen;
-    } else
-        nbytes_stats = sizeof(node_fkey_t);
 
-    fixed_bytes = ks.offset;
-    nkeys_to = (((char *) pk_delete) - ((char *) x->keys))/ks.offset;
+	nkeys_from = x->nkeys - nkeys_to - 1;
 
-    if (x->flags & LEAF_NODE) {
-	assert(0);
-        __sync_sub_and_fetch(&(btree->stats.stat[BTSTAT_NUM_OBJS]), 1);
-	__sync_sub_and_fetch(&(btree->stats.stat[BTSTAT_LEAF_BYTES]), nbytes_stats);
-    } else {
-	__sync_sub_and_fetch(&(btree->stats.stat[BTSTAT_NONLEAF_BYTES]), nbytes_stats);
-    }
+	if (!ks.fixed) {
+		assert(keylen);
+		//  remove variable portion of key
+		if (x->flags & LEAF_NODE) {
+			memmove((char *) x + x->insert_ptr + keylen + datalen, 
+					(char *) x + x->insert_ptr, 
+					pvlk_delete->keypos - x->insert_ptr);
+			x->insert_ptr += (keylen + datalen);
+		} else {
+			memmove((char *) x + x->insert_ptr + keylen, 
+					(char *) x + x->insert_ptr, 
+					pvk_delete->keypos - x->insert_ptr);
+			x->insert_ptr += keylen;
+		}
+	}
 
-    nkeys_from = x->nkeys - nkeys_to - 1;
+	//  Remove fixed portion of deleted key.
+	// 
+	//  NOTE: This MUST be done after deleting the variable part
+	//        because the variable part uses key data in its old location!
+	//
 
-    if (!ks.fixed) {
-	assert(keylen);
-	//  remove variable portion of key
-        if (x->flags & LEAF_NODE) {
-	    memmove((char *) x + x->insert_ptr + keylen + datalen, 
-		    (char *) x + x->insert_ptr, 
-		    pvlk_delete->keypos - x->insert_ptr);
-	    x->insert_ptr += (keylen + datalen);
+	memmove((char *) (x->keys) + nkeys_to*fixed_bytes, (char *) (x->keys) + (nkeys_to+1)*fixed_bytes, nkeys_from*fixed_bytes);
+
+	//  Do this here because update_keypos() requires it!
+	x->nkeys -= 1;
+
+	//  delete fixed portion of new key
+	if (!ks.fixed) {
+		//  update all of the 'keypos' fields in the fixed portion
+		update_keypos(btree, x, 0);
 	} else {
-	    memmove((char *) x + x->insert_ptr + keylen, 
-		    (char *) x + x->insert_ptr, 
-		    pvk_delete->keypos - x->insert_ptr);
-	    x->insert_ptr += keylen;
+		x->insert_ptr = 0; // xxxzzz this should be redundant!
 	}
-    }
 
-    //  Remove fixed portion of deleted key.
-    // 
-    //  NOTE: This MUST be done after deleting the variable part
-    //        because the variable part uses key data in its old location!
-    //
-
-    memmove((char *) (x->keys) + nkeys_to*fixed_bytes, (char *) (x->keys) + (nkeys_to+1)*fixed_bytes, nkeys_from*fixed_bytes);
-
-    //  Do this here because update_keypos() requires it!
-    x->nkeys -= 1;
-
-    //  delete fixed portion of new key
-    if (!ks.fixed) {
-	//  update all of the 'keypos' fields in the fixed portion
-	update_keypos(btree, x, 0);
-    } else {
-	x->insert_ptr = 0; // xxxzzz this should be redundant!
-    }
-
-    #if 0 //def DEBUG_STUFF
+#if 0 //def DEBUG_STUFF
 	if (Verbose) {
-	    char stmp[10000];
-	    int  len;
-	    if (btree->flags & SYNDROME_INDEX) {
-	        sprintf(stmp, "%p", pvlk_delete->key);
-		len = strlen(stmp);
-	    } else {
-		strncpy(stmp, pvlk_delete->key, pvlk_delete->keylen);
-		len = pvlk_delete->keylen;
-	    }
-	    fprintf(stderr, "********  After delete_key '%s' [syn %lu]:  *******\n", dump_key(stmp, len), syndrome);
-	    btree_raw_dump(stderr, btree);
+		char stmp[10000];
+		int  len;
+		if (btree->flags & SYNDROME_INDEX) {
+			sprintf(stmp, "%p", pvlk_delete->key);
+			len = strlen(stmp);
+		} else {
+			strncpy(stmp, pvlk_delete->key, pvlk_delete->keylen);
+			len = pvlk_delete->keylen;
+		}
+		fprintf(stderr, "********  After delete_key '%s' [syn %lu]:  *******\n", dump_key(stmp, len), syndrome);
+		btree_raw_dump(stderr, btree);
 	}
-    #endif
+#endif
 }
 
 static void update_ptr(btree_raw_t *btree, btree_raw_node_t *n, uint32_t nkey, uint64_t ptr)
@@ -4842,6 +4918,11 @@ mput_update_allowed(btree_raw_t *bt, btree_raw_mem_node_t *mem_node,
 	uint64_t old_datalen = 0;
 	key_info_t key_info = {0};
 	bool free_data = false;
+
+	//If application has not registered any, we allow update by default.
+	if (bt->mput_cmp_cb == mput_default_cmp_cb) {
+		return true;
+	}
 
 
 	if (key_exists) {
@@ -9513,6 +9594,7 @@ btree_raw_alloc_thread_bufs(void)
 	thread_buf_alloc_helper(modified_metanodes, btree_raw_mem_node_t **, sizeof(btree_raw_mem_node_t *) * META_TOTAL_NODES);
 	thread_buf_alloc_helper(modified_written, int *, sizeof(int) * MAX_PER_THREAD_NODES);
 	thread_buf_alloc_helper(deleted_written, int *, sizeof(int) * MAX_PER_THREAD_NODES);
+	thread_buf_alloc_helper(deleted_ovnodes_id, uint64_t *, sizeof(uint64_t) * MAX_PER_THREAD_NODES);
 }
 
 void
@@ -9525,6 +9607,7 @@ btree_raw_free_thread_bufs(void)
 	thread_buf_free_helper(modified_written);
 	thread_buf_free_helper(deleted_written);
 	thread_buf_free_helper(modified_metanodes);
+	thread_buf_free_helper(deleted_ovnodes_id);
 }
 
 uint64_t
