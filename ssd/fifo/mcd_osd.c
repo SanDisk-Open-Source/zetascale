@@ -85,6 +85,7 @@ extern SDF_shardid_t vdc_shardid;
  * Variable that tesll is FDF is booted in checker mode for data consistency check.
  */
 int __zs_check_mode_on = 0;
+void update_check_maps(mcd_osd_shard_t *shard, uint64_t blk_offset);
 
 
 #define NUM_SEG_BMAPS 6
@@ -3728,7 +3729,12 @@ mcd_osd_slab_slot_alloc(mcd_osd_shard_t* shard, mcd_osd_segment_t* segment, int 
 
   if(blk_offset) {
 	*blk_offset = segment->blk_offset + offs * segment->class->slab_blksize;
-
+	/*
+ 	 * Since it is a new allocation in restart mode, update the check maps.
+ 	 */
+	if (__zs_check_mode_on) {
+		update_check_maps(shard, *blk_offset);
+	}
   }
 
   return 1;
@@ -4232,8 +4238,28 @@ mcd_fth_osd_slab_alloc_low(mcd_osd_shard_t * shard, mcd_osd_segment_t* segment,
 	return 1;
 }
 
+extern void * context_alloc( int category );
+
+#if 0
+void
+read_slab(mcd_osd_shard_t *shard, mcd_osd_segment_t *segment, uint64_t slab_num)
+{
+	//uint64_t blk_offset = segment->blk_offset + shard->pshard->blk_offset * 
+	uint64_t blk_offset = segment->blk_offset + (slab_num * segment->class->slab_blksize);
+	uint64_t data_len = segment->class->slab_blksize * Mcd_osd_blk_size;
+	char *data = malloc(data_len);
+	mcd_osd_meta_t *meta = NULL;
+	osd_state_t *context = context_alloc( SSD_AIO_CTXT_MCD_REC_LGWR);
+
+	mcd_fth_aio_blk_read(context, data, mcd_osd_rand_address(shard, blk_offset) , data_len);
+	meta = (mcd_osd_meta_t *) data;
+}
+#endif 
+
+
 static int64_t
-get_bmap_mismatch_count(uint64_t *bmap, uint64_t *check_map, uint64_t bmap_size)
+get_bmap_mismatch_count(uint64_t *bmap, uint64_t *check_map, uint64_t bmap_size,
+			mcd_osd_shard_t *shard, mcd_osd_segment_t *segment)
 {
 	int j = 0;
 	int i = 0;
@@ -4257,6 +4283,7 @@ get_bmap_mismatch_count(uint64_t *bmap, uint64_t *check_map, uint64_t bmap_size)
 				if (account > 0) {
 					mcd_log_msg(150127, PLAT_LOG_LEVEL_DEBUG, 
 						    "ZSCheck: Leak space map entry map[%d]:bit[%d].\n", i, j);
+
 				} else if (account < 0) {
 					mcd_log_msg(150128, PLAT_LOG_LEVEL_DEBUG, 
 						    "ZSCheck: Lost space map entry map[%d]:bit[%d].\n", i, j);
@@ -4315,7 +4342,7 @@ compare_space_maps(mcd_osd_shard_t *shard)
 				/*
 				 * Account for leaked slabs space.
 				 */
-				count = get_bmap_mismatch_count(segment->mos_bitmap, segment->check_map, bitmap_size/sizeof(uint64_t));	
+				count = get_bmap_mismatch_count(segment->mos_bitmap, segment->check_map, bitmap_size/sizeof(uint64_t), shard, segment);	
 				leaked_space += count * class->slab_blksize;
 				mcd_osd_segment_unlock(segment);
 				goto out;
