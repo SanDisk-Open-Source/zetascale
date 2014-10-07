@@ -1931,6 +1931,8 @@ ZS_status_t _ZSGetContainerProps(
 	int index;
 	ZS_container_props_t contprop;
 
+	assert(pprops);
+
 	if (bt_is_license_valid() == false) {
 		return (ZS_LICENSE_CHK_FAILED);
 	}
@@ -1947,10 +1949,12 @@ ZS_status_t _ZSGetContainerProps(
 			if (ret == ZS_SUCCESS) {
 				if (!strncmp(contprop.name, BTREE_DELETE_CONTAINER_NAME,
 								 strlen(BTREE_DELETE_CONTAINER_NAME))) {
-					return ZS_FAILURE_CONTAINER_NOT_FOUND;
+					ret = ZS_FAILURE_CONTAINER_NOT_FOUND;
+				} else {
+					memcpy(pprops, &contprop, sizeof(ZS_container_props_t));
 				}
-				return ret;
-			}
+			} 
+			return ret;
 		} else {
 			cm_lock(index, WRITE);
 			if (bt_shutdown == true) {
@@ -1970,7 +1974,7 @@ ZS_status_t _ZSGetContainerProps(
 			cm_unlock(index);
 		}
 	}
-    return(ZSGetContainerProps(zs_thread_state, cguid, pprops));
+	return(ZSGetContainerProps(zs_thread_state, cguid, pprops));
 }
 
 /**
