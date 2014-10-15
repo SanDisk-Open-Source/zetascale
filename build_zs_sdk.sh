@@ -49,13 +49,15 @@ cd $WD
 
 SDK_DIR=$WD/zs-build/$PKG_NAME
 rm -fr $SDK_DIR
-mkdir -p $SDK_DIR/{config,lib,include,samples}
+mkdir -p $SDK_DIR/{config,lib,include,samples,utils}
 
 echo "Building DEBUG=$DBG shared lib"
 rm -f CMakeCache.txt
 cmake $WD -DNCPU=$NCPU -DDEBUG=$DBG -DZS_REVISION="$VERSION" -DTRACE=$TRACE
 make -j $NCPU
 
+#Copy zsck utils
+cp $WD/zsck/zsck $WD/zsck/zsformat -t $SDK_DIR/utils
 #Packaging
 #scp -r lab67:/schooner/backup/fdf_extra/lib/* $SDK_DIR/lib
 wget http://lab67.schoonerinfotech.net/zs/lib/libpthread.so.0 -O $SDK_DIR/lib/libpthread.so.0
