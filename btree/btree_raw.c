@@ -401,11 +401,8 @@ btree_raw_crash_stats( btree_raw_t* bt, void *data, uint32_t datalen )
 {
 
 	zs_pstats_delta_t *pstats_new = (zs_pstats_delta_t *) data;
-	if (datalen != sizeof *pstats_new) {
-		fprintf( stderr, "btree_raw_crash_stats: invalid size of stats packet");
-		abort( );
-	}
-	if (pstats_new->seq_num >= bt->pstats.seq_num) {
+	if ((datalen >= sizeof *pstats_new)
+	&& (pstats_new->seq_num >= bt->pstats.seq_num)) {
 		uint ipd = pstats_new->is_pos_delta;
 		if (ipd & 1<<PSTAT_OBJ_COUNT)
 			bt->pstats.obj_count += pstats_new->delta[PSTAT_OBJ_COUNT];

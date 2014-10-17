@@ -5543,7 +5543,7 @@ slabsize( mcd_osd_shard_t *shard, uint blk_offset)
 
 
 static void
-recovery_packet_dump( FILE *f, uint32_t blkno, uint32_t nblock, size_t ocount, void *context, mcd_osd_shard_t *shard, uint64_t seqno)
+recovery_packet_dump( FILE *f, uint32_t blkno, uint32_t nblock, size_t ocount, void *context, mcd_osd_shard_t *shard, uint64_t seqno, char *header)
 {
 
 	char *buffer = malloc( nblock*Mcd_osd_blk_size+MCD_OSD_META_BLK_SIZE);
@@ -5574,6 +5574,8 @@ recovery_packet_dump( FILE *f, uint32_t blkno, uint32_t nblock, size_t ocount, v
 		}
 		dlen = meta->uncomp_datalen;
 	}
+	if (header)
+		fprintf( f, header);
 	unless (ocount)
 		ocount = dlen;
 	else if (dlen < ocount)
@@ -5656,15 +5658,15 @@ recovery_packet_save( packet_t *r, void *context, mcd_osd_shard_t *shard)
 				uint32_t b = l->blkno;
 				if (l->nblock) {
 					fprintf( f, "%u %u %u %u 0 ", l->cguid, i, l->trxid, l->lineno);
-					recovery_packet_dump( f, b, l->nblock, 0, context, shard, (uint64_t)-1);
+					recovery_packet_dump( f, b, l->nblock, 0, context, shard, (uint64_t)-1, 0);
 					if (b = l->oldblkno) {
 						fprintf( f, "%u %u %u %u 1 ", l->cguid, i, l->trxid, l->lineno);
-						recovery_packet_dump( f, ~b, slabsize( shard, ~b), 0, context, shard, (uint64_t)-1);
+						recovery_packet_dump( f, ~b, slabsize( shard, ~b), 0, context, shard, (uint64_t)-1, 0);
 					}
 				}
 				else {
 					fprintf( f, "%u %u %u %u 1 ", l->cguid, i, l->trxid, l->lineno);
-					recovery_packet_dump( f, b, slabsize( shard, b), 0, context, shard, (uint64_t)-1);
+					recovery_packet_dump( f, b, slabsize( shard, b), 0, context, shard, (uint64_t)-1, 0);
 				}
 			}
 	fclose( f);
@@ -5702,9 +5704,10 @@ stats_packet_save( mcd_rec_obj_state_t *state, void *context, mcd_osd_shard_t *s
 		mcd_logrec_object_t *lr = &state->statbuf[state->statbuftail];
 		state->statbuftail = (state->statbuftail+1) % state->statbufsiz;
 		if (lr->blocks) {
-			fprintf( f, "%u ", lr->cntr_id);
+			char h[100];
+			sprintf( h, "%u ", lr->cntr_id);
 			const size_t N = 88;	/* sizeof( zs_pstats_delta_t), checked at btree level */
-			recovery_packet_dump( f, lr->mlo_blk_offset, lr->blocks, N, context, shard, (uint64_t)lr->seqno);
+			recovery_packet_dump( f, lr->mlo_blk_offset, lr->blocks, N, context, shard, (uint64_t)lr->seqno, h);
 		}
 	}
 	fclose( f);
