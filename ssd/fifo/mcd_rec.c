@@ -1234,6 +1234,16 @@ recovery_init( void )
         goto revalidate_props;
     }
 
+    // Set defaults for recovery buffer sizes and such
+    Mcd_rec_update_bufsize      = MCD_REC_UPDATE_BUFSIZE;
+    Mcd_rec_update_segment_size = MCD_REC_UPDATE_SEGMENT_SIZE;
+    Mcd_rec_update_segment_blks = MCD_REC_UPDATE_SEGMENT_BLKS;
+    Mcd_rec_update_max_chunks   = MCD_REC_UPDATE_MAX_CHUNKS;
+    Mcd_rec_update_yield        = MCD_REC_UPDATE_YIELD;
+
+    Mcd_rec_log_segment_size = MCD_REC_LOG_SEGMENT_SIZE;
+    Mcd_rec_log_segment_blks = MCD_REC_LOG_SEGMENT_BLKS;
+
     // --------------------------------------------
     // Get and validate all persistent shards
     // --------------------------------------------
@@ -1473,15 +1483,6 @@ recovery_init( void )
     pot_checksum_enabled = getProperty_Int("ZS_POT_CHECKSUM", 1);
     flog_checksum_enabled = getProperty_Int("ZS_FLOG_CHECKSUM", 1);
 
-    // Set defaults for recovery buffer sizes and such
-    Mcd_rec_update_bufsize      = MCD_REC_UPDATE_BUFSIZE;
-    Mcd_rec_update_segment_size = MCD_REC_UPDATE_SEGMENT_SIZE;
-    Mcd_rec_update_segment_blks = MCD_REC_UPDATE_SEGMENT_BLKS;
-    Mcd_rec_update_max_chunks   = MCD_REC_UPDATE_MAX_CHUNKS;
-    Mcd_rec_update_yield        = MCD_REC_UPDATE_YIELD;
-
-    Mcd_rec_log_segment_size = MCD_REC_LOG_SEGMENT_SIZE;
-    Mcd_rec_log_segment_blks = MCD_REC_LOG_SEGMENT_BLKS;
 
     /* in Storm mode, allocate just one of these per physical container
      */
@@ -1523,91 +1524,94 @@ recovery_init( void )
         Mcd_rec_update_verify_log = flash_settings.rec_log_verify;
     }
 
-    // allocate recovery buffers for object table and log
-    if ( !Mcd_rec_chicken ) {
-        // alloc a massive chunk of memory to carve up into aligned segments
-        // (in MB) used to read persistent logs during object table updates
-        seg_count    =
-            (Mcd_aio_total_size / GIGABYTE * 4) / // max log size (MB)
-            (Mcd_rec_log_segment_size / MEGABYTE);   // divided by segment MB
-	if (storm_mode)
-		seg_count = 3;	// just one segment per shard
-        seg_buf_size = ( (seg_count * Mcd_rec_log_segment_size) +
-                         Mcd_osd_blk_size );
+	// allocate recovery buffers for object table and log
+	if ( !Mcd_rec_chicken ) {
+		// alloc a massive chunk of memory to carve up into aligned segments
+		// (in MB) used to read persistent logs during object table updates
+		seg_count    =
+			(Mcd_aio_total_size / GIGABYTE * 8) / // max log size (MB)
+			(Mcd_rec_log_segment_size / MEGABYTE);   // divided by segment MB
 
-        data_buf = plat_alloc_large( seg_buf_size );
-        if ( data_buf == NULL ) {
-            mcd_log_msg( 40092, PLAT_LOG_LEVEL_ERROR,
-                         "failed to allocate %lu byte buffer for %lu log "
-                         "segments", seg_buf_size, seg_count );
-            return FLASH_ENOMEM;
-        }
-        // xxxzzz
-        memset( data_buf, 0, seg_buf_size );
-        Mcd_rec_log_segments_anchor = data_buf;
-        mcd_log_msg( 40062, PLAT_LOG_LEVEL_DEBUG,
-                     "allocated %lu byte buffer for %lu log segments",
-                     seg_buf_size, seg_count );
+		if (storm_mode) {
+			seg_count = 3;	// just one segment per shard
+		}
 
-        // align to 1-block boundary
-        buf = (char *)
-            ( ((uint64_t)data_buf + Mcd_osd_blk_size - 1) & Mcd_osd_blk_mask );
+		seg_buf_size = ( (seg_count * Mcd_rec_log_segment_size) +
+				Mcd_osd_blk_size );
 
-        // alloc an array to hold unused log segments
-        Mcd_rec_free_log_segments = plat_alloc( seg_count * sizeof( char * ) );
-        if ( Mcd_rec_free_log_segments == NULL ) {
-            mcd_log_msg( 40093, PLAT_LOG_LEVEL_ERROR,
-                         "failed to allocate segment array, size=%lu",
-                         seg_count * sizeof( char * ) );
-            return FLASH_ENOMEM;
-        }
+		data_buf = plat_alloc_large( seg_buf_size );
+		if ( data_buf == NULL ) {
+			mcd_log_msg( 40092, PLAT_LOG_LEVEL_ERROR,
+					"failed to allocate %lu byte buffer for %lu log "
+					"segments", seg_buf_size, seg_count );
+			return FLASH_ENOMEM;
+		}
+		// xxxzzz
+		memset( data_buf, 0, seg_buf_size );
+		Mcd_rec_log_segments_anchor = data_buf;
+		mcd_log_msg( 40062, PLAT_LOG_LEVEL_DEBUG,
+				"allocated %lu byte buffer for %lu log segments",
+				seg_buf_size, seg_count );
 
-        // carve the big chunk of memory into aligned segments
-        for ( s = 0; s < seg_count; s++ ) {
-            Mcd_rec_free_log_segments[ Mcd_rec_free_log_seg_curr++ ] =
-                buf + (s * Mcd_rec_log_segment_size);
-        }
+		// align to 1-block boundary
+		buf = (char *)
+			( ((uint64_t)data_buf + Mcd_osd_blk_size - 1) & Mcd_osd_blk_mask );
 
-        // alloc another chunk of memory to carve up into aligned segments
-        // (in MB) used to read the object table during object table updates
-        seg_count    = Mcd_rec_update_bufsize / Mcd_rec_update_segment_size;
-        seg_buf_size = ( (seg_count * Mcd_rec_update_segment_size) +
-                         Mcd_osd_blk_size );
+		// alloc an array to hold unused log segments
+		Mcd_rec_free_log_segments = plat_alloc( seg_count * sizeof( char * ) );
+		if ( Mcd_rec_free_log_segments == NULL ) {
+			mcd_log_msg( 40093, PLAT_LOG_LEVEL_ERROR,
+					"failed to allocate segment array, size=%lu",
+					seg_count * sizeof( char * ) );
+			return FLASH_ENOMEM;
+		}
 
-        data_buf = plat_alloc_large( seg_buf_size );
-        if ( data_buf == NULL ) {
-            mcd_log_msg( 40094, PLAT_LOG_LEVEL_ERROR,
-                         "failed to allocate %lu byte buffer for %lu update "
-                         "segments", seg_buf_size, seg_count );
-            return FLASH_ENOMEM;
-        }
-        Mcd_rec_upd_segments_anchor = data_buf;
-        mcd_log_msg( 40095, PLAT_LOG_LEVEL_DEBUG,
-                     "allocated %lu byte buffer for %lu update segments",
-                     seg_buf_size, seg_count );
+		// carve the big chunk of memory into aligned segments
+		for ( s = 0; s < seg_count; s++ ) {
+			Mcd_rec_free_log_segments[ Mcd_rec_free_log_seg_curr++ ] =
+				buf + (s * Mcd_rec_log_segment_size);
+		}
 
-        // align to 1-block boundary
-        buf = (char *)
-            ( ((uint64_t)data_buf + Mcd_osd_blk_size - 1) & Mcd_osd_blk_mask );
+		// alloc another chunk of memory to carve up into aligned segments
+		// (in MB) used to read the object table during object table updates
+		seg_count    = Mcd_rec_update_bufsize / Mcd_rec_update_segment_size;
+		seg_buf_size = ( (seg_count * Mcd_rec_update_segment_size) +
+				Mcd_osd_blk_size );
 
-        // alloc an array to hold unused buffer segments
-        Mcd_rec_free_upd_segments = plat_alloc( seg_count * sizeof( char * ) );
-        if ( Mcd_rec_free_upd_segments == NULL ) {
-            mcd_log_msg( 40093, PLAT_LOG_LEVEL_ERROR,
-                         "failed to allocate segment array, size=%lu",
-                         seg_count * sizeof( char * ) );
-            return FLASH_ENOMEM;
-        }
+		data_buf = plat_alloc_large( seg_buf_size );
+		if ( data_buf == NULL ) {
+			mcd_log_msg( 40094, PLAT_LOG_LEVEL_ERROR,
+					"failed to allocate %lu byte buffer for %lu update "
+					"segments", seg_buf_size, seg_count );
+			return FLASH_ENOMEM;
+		}
+		Mcd_rec_upd_segments_anchor = data_buf;
+		mcd_log_msg( 40095, PLAT_LOG_LEVEL_DEBUG,
+				"allocated %lu byte buffer for %lu update segments",
+				seg_buf_size, seg_count );
 
-        // carve the big chunk of memory into aligned segments
-        for ( s = 0; s < seg_count; s++ ) {
-            Mcd_rec_free_upd_segments[ Mcd_rec_free_upd_seg_curr++ ] =
-                buf + (s * Mcd_rec_update_segment_size);
-            fthSemUp( &Mcd_rec_upd_seg_sem, 1 );
-        }
-    }
+		// align to 1-block boundary
+		buf = (char *)
+			( ((uint64_t)data_buf + Mcd_osd_blk_size - 1) & Mcd_osd_blk_mask );
 
-    // Init log writer mbox - used to sync thread start and processing
+		// alloc an array to hold unused buffer segments
+		Mcd_rec_free_upd_segments = plat_alloc( seg_count * sizeof( char * ) );
+		if ( Mcd_rec_free_upd_segments == NULL ) {
+			mcd_log_msg( 40093, PLAT_LOG_LEVEL_ERROR,
+					"failed to allocate segment array, size=%lu",
+					seg_count * sizeof( char * ) );
+			return FLASH_ENOMEM;
+		}
+
+		// carve the big chunk of memory into aligned segments
+		for ( s = 0; s < seg_count; s++ ) {
+			Mcd_rec_free_upd_segments[ Mcd_rec_free_upd_seg_curr++ ] =
+				buf + (s * Mcd_rec_update_segment_size);
+			fthSemUp( &Mcd_rec_upd_seg_sem, 1 );
+		}
+	}
+
+	// Init log writer mbox - used to sync thread start and processing
     fthMboxInit( &Mcd_rec_log_writer_mbox );
 
     return 0;
@@ -6437,97 +6441,97 @@ log_init( mcd_osd_shard_t * shard )
     shard->ps_alloc += ( (MCD_REC_LOGBUF_SIZE * MCD_REC_NUM_LOGBUFS) +
                          MCD_OSD_META_BLK_SIZE);
 
-    log->logbuf_base = (char *)( ( (uint64_t)(log->logbuf) +
-			   MCD_OSD_META_BLK_SIZE - 1 ) & MCD_OSD_META_BLK_MASK);
+	log->logbuf_base = (char *)( ( (uint64_t)(log->logbuf) +
+				MCD_OSD_META_BLK_SIZE - 1 ) & MCD_OSD_META_BLK_MASK);
 
-    // initialize log buffers
-    for ( i = 0; i < MCD_REC_NUM_LOGBUFS; i++ ) {
-        fthSemInit( &log->logbufs[i].real_write_sem, 0 );
-        log->logbufs[i].id         = i;
-        log->logbufs[i].seqno      = ( log->write_buffer_seqno +
-                                       (i * MCD_REC_LOGBUF_SLOTS) );
-        log->logbufs[i].fill_count = 0;
-        log->logbufs[i].sync_blks  = 0;
-        log->logbufs[i].write_sem  = &log->logbufs[i].real_write_sem; // FIXME
-        log->logbufs[i].sync_sem   = NULL;
-        log->logbufs[i].buf        = ( log->logbuf_base +
-                                       (i * MCD_REC_LOGBUF_SIZE) );
-        log->logbufs[i].entries = (mcd_logrec_object_t *)log->logbufs[i].buf;
-        memset( log->logbufs[i].buf, 0, MCD_REC_LOGBUF_SIZE );
-    }
-
-    // find max log records in default 1MB buffer or in the persistent log
-    log->pp_max_updates  = (MEGABYTE > reclogblks * MCD_OSD_META_BLK_SIZE
-                            ? reclogblks * MCD_OSD_META_BLK_SIZE
-                            : MEGABYTE);
-    log->pp_max_updates  = ( ( log->pp_max_updates / MCD_REC_LOGBUF_SIZE ) *
-                             MCD_REC_LOGBUF_RECS );
-
-    // allocate memory for sync postprocessing
-    size = sizeof( uint64_t ) * (log->pp_max_updates + MCD_REC_LOGBUF_RECS);
-    log->pp_state.dealloc_list = plat_alloc( size );
-    if ( log->pp_state.dealloc_list == NULL ) {
-        mcd_rlg_msg( 20538, PLAT_LOG_LEVEL_ERROR,
-                     "failed to allocate PP logbuf" );
-        return FLASH_ENOMEM;
-    }
-    memset( log->pp_state.dealloc_list, 0, size );
-    shard->ps_alloc += size;
-
-    if ( !Mcd_rec_chicken ) {
-        log->segment_count = storm_mode? 1: divideup( reclogblks, Mcd_rec_log_segment_blks);
-
-	if (log->segment_count > Mcd_rec_free_log_seg_curr ) {
-
-	    mcd_log_msg( 30655, PLAT_LOG_LEVEL_ERROR,
-			 "Ran out of free log segments, shardID=%lu",
-			 shard->id );
-
-	    // Free memory alloc'ed in this function
-	    if ( log->pp_state.dealloc_list ) {
-		plat_free( log->pp_state.dealloc_list );
-		shard->ps_alloc -= ( sizeof( uint32_t ) *
-				     (log->pp_max_updates + MCD_REC_LOGBUF_RECS) );
-	    }
-
-	    if ( log->logbuf ) {
-		plat_free( log->logbuf );
-		shard->ps_alloc -= (MCD_REC_LOGBUF_SIZE * MCD_REC_NUM_LOGBUFS) +
-				    MCD_OSD_META_BLK_SIZE;
-	    }
-
-	    plat_free( log );
-	    shard->ps_alloc -= sizeof( mcd_rec_log_t );
-
-	    return FLASH_ENOMEM;
+	// initialize log buffers
+	for ( i = 0; i < MCD_REC_NUM_LOGBUFS; i++ ) {
+		fthSemInit( &log->logbufs[i].real_write_sem, 0 );
+		log->logbufs[i].id         = i;
+		log->logbufs[i].seqno      = ( log->write_buffer_seqno +
+				(i * MCD_REC_LOGBUF_SLOTS) );
+		log->logbufs[i].fill_count = 0;
+		log->logbufs[i].sync_blks  = 0;
+		log->logbufs[i].write_sem  = &log->logbufs[i].real_write_sem; // FIXME
+		log->logbufs[i].sync_sem   = NULL;
+		log->logbufs[i].buf        = ( log->logbuf_base +
+				(i * MCD_REC_LOGBUF_SIZE) );
+		log->logbufs[i].entries = (mcd_logrec_object_t *)log->logbufs[i].buf;
+		memset( log->logbufs[i].buf, 0, MCD_REC_LOGBUF_SIZE );
 	}
 
-        log->segments = plat_alloc( log->segment_count * sizeof( void * ) );
-        if ( log->segments == NULL ) {
-            mcd_log_msg( 40033, PLAT_LOG_LEVEL_ERROR,
-                         "failed to alloc shard log segments, shardID=%lu",
-                         shard->id );
-            return FLASH_ENOMEM;
-        }
-        shard->ps_alloc += (log->segment_count * sizeof( void * ));
+	// find max log records in default 1MB buffer or in the persistent log
+	log->pp_max_updates  = (MEGABYTE > reclogblks * MCD_OSD_META_BLK_SIZE
+			? reclogblks * MCD_OSD_META_BLK_SIZE
+			: MEGABYTE);
+	log->pp_max_updates  = ( ( log->pp_max_updates / MCD_REC_LOGBUF_SIZE ) *
+			MCD_REC_LOGBUF_RECS );
 
-        // attach log segments to shard
-        fthWaitEl_t * wait = fthLock( &Mcd_rec_log_segment_lock, 1, NULL );
-        for ( int s = 0; s < log->segment_count; s++ ) {
-            log->segments[ s ] =
-                Mcd_rec_free_log_segments[ --Mcd_rec_free_log_seg_curr ];
-        }
-        mcd_log_msg( 160018, PLAT_LOG_LEVEL_DEBUG,
-                     "allocated %d log segments to shardID=%lu, remaining=%lu",
-                     log->segment_count, shard->id,
-                     Mcd_rec_free_log_seg_curr );
-        fthUnlock( wait );
-    }
+	// allocate memory for sync postprocessing
+	size = sizeof( uint64_t ) * (log->pp_max_updates + MCD_REC_LOGBUF_RECS);
+	log->pp_state.dealloc_list = plat_alloc( size );
+	if ( log->pp_state.dealloc_list == NULL ) {
+		mcd_rlg_msg( 20538, PLAT_LOG_LEVEL_ERROR,
+				"failed to allocate PP logbuf" );
+		return FLASH_ENOMEM;
+	}
+	memset( log->pp_state.dealloc_list, 0, size );
+	shard->ps_alloc += size;
 
-    // set the log state pointer
-    shard->log = log;
+	if ( !Mcd_rec_chicken ) {
+		log->segment_count = storm_mode? 1: divideup( reclogblks, Mcd_rec_log_segment_blks);
 
-    mlog_init(shard);
+		if (log->segment_count > Mcd_rec_free_log_seg_curr ) {
+
+			mcd_log_msg( 30655, PLAT_LOG_LEVEL_ERROR,
+					"Ran out of free log segments, shardID=%lu",
+					shard->id );
+
+			// Free memory alloc'ed in this function
+			if ( log->pp_state.dealloc_list ) {
+				plat_free( log->pp_state.dealloc_list );
+				shard->ps_alloc -= ( sizeof( uint32_t ) *
+						(log->pp_max_updates + MCD_REC_LOGBUF_RECS) );
+			}
+
+			if ( log->logbuf ) {
+				plat_free( log->logbuf );
+				shard->ps_alloc -= (MCD_REC_LOGBUF_SIZE * MCD_REC_NUM_LOGBUFS) +
+					MCD_OSD_META_BLK_SIZE;
+			}
+
+			plat_free( log );
+			shard->ps_alloc -= sizeof( mcd_rec_log_t );
+
+			return FLASH_ENOMEM;
+		}
+
+		log->segments = plat_alloc( log->segment_count * sizeof( void * ) );
+		if ( log->segments == NULL ) {
+			mcd_log_msg( 40033, PLAT_LOG_LEVEL_ERROR,
+					"failed to alloc shard log segments, shardID=%lu",
+					shard->id );
+			return FLASH_ENOMEM;
+		}
+		shard->ps_alloc += (log->segment_count * sizeof( void * ));
+
+		// attach log segments to shard
+		fthWaitEl_t * wait = fthLock( &Mcd_rec_log_segment_lock, 1, NULL );
+		for ( int s = 0; s < log->segment_count; s++ ) {
+			log->segments[ s ] =
+				Mcd_rec_free_log_segments[ --Mcd_rec_free_log_seg_curr ];
+		}
+		mcd_log_msg( 160018, PLAT_LOG_LEVEL_DEBUG,
+				"allocated %d log segments to shardID=%lu, remaining=%lu",
+				log->segment_count, shard->id,
+				Mcd_rec_free_log_seg_curr );
+		fthUnlock( wait );
+	}
+
+	// set the log state pointer
+	shard->log = log;
+
+	mlog_init(shard);
 
     return 0;
 }
@@ -7648,8 +7652,9 @@ shard_format( uint64_t shard_id, int flags, uint64_t quota, uint64_t max_objs,
 		max_log_blks = mcd_rec2_log_size( total_blks*Mcd_osd_blk_size) / Mcd_osd_blk_size;
 	else
 		max_log_blks = max_table_blks >> 2; /* In 3.0 log recored struture changed from 32 to 64 bytes
-                                                             The reduces total log slots by 2 in logging. 
-                                                             multiplying by 2 to accomdate this */
+											   This reduces total log slots by 2 in logging. 
+											   multiplying by 2 to accomdate this */
+
 	max_log_blks = roundup( max_log_blks, align_blks);
 	potbm_blks = mcd_rec2_potbitmap_size( total_blks*Mcd_osd_blk_size) / Mcd_osd_blk_size;
 	slabbm_blks = mcd_rec2_slabbitmap_size( total_blks*Mcd_osd_blk_size) / Mcd_osd_blk_size;
@@ -7667,8 +7672,8 @@ shard_format( uint64_t shard_id, int flags, uint64_t quota, uint64_t max_objs,
 
 	/* zero reserved segments, but skip POT ones in Storm Mode
 	 */
-	unless (flash_settings.storm_test & 0x0002)
-		for (uint s=0; s<reserved_segs; ++s)
+	unless (flash_settings.storm_test & 0x0002) {
+		for (uint s=0; s<reserved_segs; ++s) {
 			unless ((storm_mode)
 					and (max_md_blks <= s*Mcd_osd_segment_blks)
 					and ((s+1)*Mcd_osd_segment_blks <= max_md_blks+max_table_blks)) {
@@ -7681,6 +7686,8 @@ shard_format( uint64_t shard_id, int flags, uint64_t quota, uint64_t max_objs,
 					return (rc);
 				}
 			}
+		}
+	}
 
 	// install shard descriptor in buffer
 	pshard                  = (mcd_rec_shard_t *)buf;
