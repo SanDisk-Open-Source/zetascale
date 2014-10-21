@@ -97,7 +97,7 @@ int close_zs()
         return status;
     }
 
-    if ( ( btree_opt || fixbtree_opt ) && ZS_SUCCESS != (status = ZSShutdown( zs_state ) ) ) {
+    if ( ZS_SUCCESS != (status = ZSShutdown( zs_state ) ) ) {
         fprintf(stderr, "Failed to shutdown ZS API!\n");
         return status;
     }
@@ -151,22 +151,22 @@ int main(int argc, char *argv[])
         fprintf(stderr, "meta check succeeded\n");
     }
 
-    if (init_zs() < 0) {
-        fprintf(stderr, "ZS init failed\n");
-        return -1;
-    }
-
     if (btree_opt || fixbtree_opt) {
+        if (init_zs() < 0) {
+            fprintf(stderr, "ZS init failed\n");
+            return -1;
+        }
+
         if (ZS_SUCCESS != (status = check_btree())) {
             fprintf(stderr, "btree check failed: %s\n", ZSStrError(status));
         } else {
             fprintf(stderr, "btree check succeeded\n");
         }
-    }
 
-    if (close_zs() < 0) {
-        fprintf(stderr, "ZS close failed\n");
-        return -1;
+        if (close_zs() < 0) {
+            fprintf(stderr, "ZS close failed\n");
+            return -1;
+        }
     }
 
     return 0;
