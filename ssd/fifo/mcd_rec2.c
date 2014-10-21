@@ -31,7 +31,6 @@
 #include	"mcd_rec2.h"
 
 
-#define	bytes_per_device_block		(1uL << 13)
 #define	bytes_per_storm_object		(1uL << 16)
 #define	bytes_per_leaf			(1uL << 13)
 #define	bytes_per_storm_key		(1uL << 8)
