@@ -81,6 +81,8 @@ ZS_status_t ZSRegisterCallbacks(struct ZS_state *zs_state, ZS_ext_cb_t *cb);
 ZS_status_t ZSLicenseCheck(int *state);
 ZS_status_t ZSCreateRawObject(struct ZS_thread_state *sdf_thread_state, ZS_cguid_t cguid,
 								baddr_t *key, uint64_t datalen, uint32_t flags);
+ZS_status_t ZSWriteRawObject(struct ZS_thread_state  *zs_thread_state, ZS_cguid_t cguid,
+							 char *key, uint32_t keylen, char *data, uint64_t datalen, uint32_t flags);
 ZS_status_t ZSDeleteRawObject(struct ZS_thread_state *sdf_thread_state, ZS_cguid_t cguid,
 								baddr_t key, uint32_t keylen, uint32_t flags);
 ZS_status_t ZSReadRawObject(struct ZS_thread_state *ZS_thread_state, ZS_cguid_t cguid, baddr_t key,

@@ -2772,7 +2772,7 @@ btree_status_t deref_l1cache(btree_raw_t *btree)
             uint64_t *logical_id = &n->pnode->logical_id;
 
             btree->write_node_cb(my_thd_state, &ret, btree->write_node_cb_data, 
-                                 &logical_id, (char **)&n->pnode, overflow_node_sz, 1, ZS_WRITE_RAW);
+                                 &logical_id, (char **)&n->pnode, overflow_node_sz, 1, 1);
             if (ret != BTREE_SUCCESS) {
                 fprintf(stderr, "ERROR: Write a btree overflow node to flash failed with error %d."
                                   "for container cguid %lu\n", ret, btree->cguid);

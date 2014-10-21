@@ -3149,17 +3149,22 @@ read_node_cb(btree_status_t *ret, void *data, void *pnode, uint64_t lnodeid, int
 
 static void write_node_cb(struct ZS_thread_state *thd_state, btree_status_t *ret_out,
 		void *cb_data, uint64_t** lnodeid, char **data, uint64_t datalen,
-		int count, uint32_t flags)
+		int count, uint32_t rawobj)
 {
     ZS_status_t    ret;
     read_node_t     *prn = (read_node_t *) cb_data;
 
     N_write_node++;
 
-    ret = ZSWriteObjects(thd_state, prn->cguid, (char **) lnodeid, sizeof(uint64_t), data, datalen, count, flags);
+	if (rawobj) {
+		assert(count == 1);
+		ret = ZSWriteRawObject(thd_state, prn->cguid, (char *) *lnodeid, sizeof(uint64_t), (char *)*data, datalen, 0);
+	} else {
+		ret = ZSWriteObjects(thd_state, prn->cguid, (char **) lnodeid, sizeof(uint64_t), data, datalen, count, 0);
+	}
     trxtrackwrite( prn->cguid, lnodeid);
-    assert(((flags & ZS_WRITE_RAW) && (datalen == overflow_node_sz)) ||
-		   (!(flags & ZS_WRITE_RAW) && (prn->nodesize == datalen)));
+    assert((rawobj && (datalen == overflow_node_sz)) ||
+		   (!rawobj && (prn->nodesize == datalen)));
     *ret_out = ZSErr_to_BtreeErr(ret);
 }
 

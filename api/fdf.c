@@ -5273,8 +5273,7 @@ zs_write_object(
 		goto out;
 	}
 
-	if ((xflags & ZS_WRITE_RAW) ||
-			(meta->meta.properties.flash_only == ZS_TRUE)) {
+	if (meta->meta.properties.flash_only == ZS_TRUE) {
 		int flags = 0;
 		plat_log_msg(160192, LOG_CAT,
 			LOG_TRACE, "ZSWriteObject flash_only.");
@@ -5282,12 +5281,8 @@ zs_write_object(
 		metaData.keyLen = keylen;
 		metaData.cguid  = cguid;
 		metaData.dataLen = datalen;
-		if (xflags & ZS_WRITE_RAW) {
-			flags |= FLASH_PUT_RAW_OBJECT;
-		} else {
-			if (meta->meta.properties.compression) {
-				flags |= FLASH_PUT_COMPRESS;
-			}
+		if (meta->meta.properties.compression) {
+			flags |= FLASH_PUT_COMPRESS;
 		}
 
 		if (meta->meta.properties.durability_level == SDF_RELAXED_DURABILITY) {
@@ -5338,6 +5333,66 @@ out:
 	return status;
 }
 
+static ZS_status_t
+zs_write_raw_object(
+	struct ZS_thread_state  *zs_thread_state,
+	ZS_cguid_t          cguid,
+	char                *key,
+	uint32_t             keylen,
+	char                *data,
+	uint64_t             datalen,
+	uint32_t             xflags
+	)
+{
+	SDF_action_init_t	*pac = NULL;
+	ZS_status_t			 status	= ZS_FAILURE;
+	ZS_status_t			 write_ret = ZS_FAILURE;
+	int					 flags = 0;
+	struct objMetaData	 metaData;
+	cntr_map_t			*cmap = NULL;
+
+	if ( !cguid || !key )
+		return ZS_INVALID_PARAMETER;
+ 
+	cmap = get_cntr_map(cguid);
+	if (!cmap) {
+		return(ZS_CONTAINER_UNKNOWN);
+	}
+
+	if ( (status = zs_get_ctnr_status_cmap(cmap, cguid, 0)) != ZS_CONTAINER_OPEN ) {
+		plat_log_msg( 160040, LOG_CAT, LOG_DIAG, "Container must be open to execute a write object" );
+		goto out;     
+	}
+
+	pac = (SDF_action_init_t *) zs_thread_state;
+
+	SDF_cache_ctnr_metadata_t *meta;
+	meta = get_container_metadata(pac, cguid);
+	if (meta == NULL) {
+		goto out;
+	}
+	metaData.keyLen = keylen;
+	metaData.cguid  = cguid;
+	metaData.dataLen = datalen;
+
+	flags |= FLASH_PUT_RAW_OBJECT;
+
+	if (meta->meta.properties.durability_level == SDF_RELAXED_DURABILITY) {
+		flags |= FLASH_PUT_DURA_SW_CRASH;
+	} else if (meta->meta.properties.durability_level == SDF_FULL_DURABILITY) {
+		flags |= FLASH_PUT_DURA_HW_CRASH;
+	}
+
+
+	update_container_stats(pac, APSOE, meta, 1);
+
+	write_ret = ssd_flashPut(pac->paio_ctxt, meta->pshard, &metaData, key, data, FLASH_PUT_NO_TEST|flags);
+	status = get_status(write_ret);
+out:
+	rel_cntr_map(cmap);
+
+	return status;
+}
 static ZS_status_t
 zs_write_objects(
 	struct ZS_thread_state  *zs_thread_state,
@@ -8729,4 +8784,81 @@ out:
 		zs_unlock_thd_ctxt(zs_thread_state);
 	}
 	return status; 
+}
+
+ZS_status_t ZSWriteRawObject(
+	struct ZS_thread_state  *zs_thread_state,
+	ZS_cguid_t          cguid,
+	char                *key,
+	uint32_t             keylen,
+	char                *data,
+	uint64_t             datalen,
+	uint32_t             flags
+	)
+{
+	ZS_status_t status = ZS_SUCCESS;
+	bool thd_ctx_locked = false;
+
+	status = zs_validate_container(cguid);
+	if (ZS_SUCCESS != status) {
+		plat_log_msg(160125, LOG_CAT,
+				LOG_ERR, "Failed due to an illegal container ID:%s",
+				ZS_Status_Strings[status]);
+		goto out;
+	}
+	/*
+	 * Check if operation can begin
+	 */
+	if (ZS_SUCCESS != (status = is_zs_operation_allowed())) {
+        plat_log_msg(80022, LOG_CAT,
+               LOG_WARN, "Shutdown in Progress. Operation not allowed ");
+		goto out;
+	}
+	if (is_license_valid(is_btree_loaded()) == false) {
+		plat_log_msg(160145, LOG_CAT, LOG_WARN, "License check failed.");
+		status = ZS_LICENSE_CHK_FAILED;
+		goto out;
+	}
+	if ( !zs_thread_state || !cguid || !keylen || !data || !datalen  ) {
+		if ( !zs_thread_state ) {
+			plat_log_msg(80049,LOG_CAT,LOG_DBG,
+						 "ZS Thread state is NULL");
+		}
+		if ( !cguid ) {
+			plat_log_msg(80050,LOG_CAT,LOG_DBG,
+						 "Invalid container cguid:%lu",cguid);
+		}
+		if ( !keylen ) {
+			plat_log_msg(80056,LOG_CAT,LOG_DBG,
+						 "Invalid key length");
+		}
+		if ( !data ) {
+			plat_log_msg(80058,LOG_CAT,LOG_DBG,
+						 "Invalid data(NULL)");
+		}
+		if ( !datalen ) {
+			plat_log_msg(80059,LOG_CAT,LOG_DBG,
+						 "Invalid data length");
+		}
+		return ZS_INVALID_PARAMETER;
+	}
+
+	thd_ctx_locked = zs_lock_thd_ctxt(zs_thread_state);
+	if (false == thd_ctx_locked) {
+		/*
+		 * Could not get thread context lock, error out.
+		 */
+		status = ZS_THREAD_CONTEXT_BUSY;
+		plat_log_msg(160161, LOG_CAT,
+		       	     LOG_DBG, "Could not get thread context lock");
+		goto out;
+	}
+
+	status = zs_write_raw_object(zs_thread_state, cguid, key, keylen, data, datalen, flags);
+
+out:
+	if (thd_ctx_locked) {
+		zs_unlock_thd_ctxt(zs_thread_state);
+	}
+	return status;
 }
