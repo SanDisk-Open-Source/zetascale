@@ -38,6 +38,7 @@ typedef struct {
 } flip_cond_t;
 
 #define MAX_COND_PER_FLIP            200
+#define MAX_FLIP_POINTS              100
 
 typedef struct flip_info {
 	char           name[MAX_FLIP_NAME_LEN];
@@ -46,11 +47,13 @@ typedef struct flip_info {
 	uint32_t       num_params;
 } flip_info_t;
 
+#if 0
 typedef enum {
 	SW_CRASH_ON_MPUT,
 	HW_CRASH_ON_MPUT,
 	MAX_FLIP_POINTS
 } flip_names_t;
+#endif
 
 typedef struct {
 	uint32_t flip_ioctl_type;

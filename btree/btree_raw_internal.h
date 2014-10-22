@@ -591,7 +591,7 @@ extern __thread uint64_t dbg_referenced;
 #define assert(a)
 #endif
 
-#define storage_error(r) ((r == BTREE_FLASH_EINCONS) || (r == BTREE_FLASH_EIO))
+#define storage_error(r) (((r) == BTREE_FLASH_EINCONS) || ((r) == BTREE_FLASH_EIO))
 #if 0
 bool 
 btree_raw_node_check(struct btree_raw *btree, btree_raw_node_t *node,

@@ -1,0 +1,73 @@
+# Flip List
+#--------------
+# NOTE: For all the parameters when the value=*, then it accepts any value for that condition:
+#
+# set_zs_read_node_error: Sets the user configured error on zs read call at core layer, for the
+# following criteria. These criteria are btree specific:
+# Parameters are: 
+#	uint32 node_type: Type of node to fail: Valid values 
+#		= 0 for meta logical node
+#		= 1 for interior nodes
+#		= 2 for leaf nodes
+#		= 3 for overflow nodes
+#		= * for don't care
+#	bool is_root: Is being a root node is criteria for fault injection
+#		= 0 for false
+#		= 1 for true
+#		= * for don't care
+#	uint64 logical_id: Fail on specific logical_id
+#		= <logical_id> to fail
+#		= * for don't care
+#	uint32 return: What should the error returned by core layer to btree layer.
+#		= refer to FLASH_E* errors and set that value.
+#
+# Examples:
+# Return a leaf node read whose logical_id=100 with error FLASH_EINCONS(14) to the btree layer.
+# Need to set this error twice.
+# zs> flip set set_zs_read_node_error node_type=2 is_root=* logical_id=100 return=14 --count=2
+#
+set_zs_read_node_error uint32 node_type bool is_root uint64 logical_id uint32 return 
+#
+# set_zs_write_node_error: Sets the user configured error on zs write call at core layer, for the
+# following criteria. These criteria are btree specific:
+# Parameters are: 
+#       uint32 multi_write_type: Should the failure be when we are writing multiple nodes at
+#                                once or single write
+#               = 0 for single writes
+#               = 1 for inject fault on first of multi writes
+#               = 2 for inject fault on middle of multi writes
+#               = 3 for inject fault on last of multi writes
+#		= * for don't care
+#	uint32 node_type: Type of node to fail: Valid values 
+#		= 0 for meta logical node
+#		= 1 for interior nodes
+#		= 2 for leaf nodes
+#		= 3 for overflow nodes
+#		= * for don't care
+#	bool is_root: Is being a root node is criteria for fault injection
+#		= 0 for false
+#		= 1 for true
+#		= * for don't care
+#	uint64 logical_id: Fail on specific logical_id
+#		= <logical_id> to fail
+#		= * for don't care
+#	uint32 return: What should the error returned by core layer to btree layer.
+#		= refer to FLASH_E* errors and set that value.
+#
+# Examples:
+# Return a interior node write when its part of multiple writes with error FLASH_EIO(5) 
+# to the btree layer. Need to set this only once.
+# zs> flip set set_zs_write_node_error multi_write_type=1 node_type=1 is_root=* logical_id=* return=5 --count=1
+#
+set_zs_write_node_error uint32 multi_write_type uint32 node_type bool is_root uint64 logical_id uint32 return
+# Corrupt a interior node write data block
+# zs> flip set corrupt_zs_data_write multi_write_type=* node_type=1 is_root=* logical_id=* --count=1
+corrupt_zs_data_write uint32 multi_write_type uint32 node_type bool is_root uint64 logical_id
+#
+# pot_checksum_mismatch: Introduces mismatch to the POT
+# zs> flip set pot_checksum_mismatch
+pot_checksum_mismatch
+#
+# flog_checksum_mismatch: Introduces mismatch to the flog
+# zs> flip set flog_checksum_mismatch
+flog_checksum_mismatch

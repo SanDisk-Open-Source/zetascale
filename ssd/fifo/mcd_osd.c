@@ -306,6 +306,10 @@ static int                      thread_id = 0;
  */
 static __thread uint32_t        Mcd_pthread_id = 0;
 
+#ifdef FLIP_ENABLED
+static __thread bool            corrupt_data = false;
+#endif
+
 void mcd_osd_assign_pthread_id()
 {
     Mcd_pthread_id = __sync_fetch_and_add( &thread_id, 1 );
@@ -4552,6 +4556,10 @@ mcd_fth_osd_slab_set( void * context, mcd_osd_shard_t * shard,
     hash_handle_t             * hdl = shard->hash_handle;
     uint32_t uncomp_datalen = 0; /* Uncompressed data length */
 	cntr_map_t					*cmap = NULL;
+#ifdef FLIP_ENABLED
+    char *tmp_ptr;
+    uint64_t pos;
+#endif
     
 	mcd_osd_meta_t                     *meta = NULL;
 
@@ -4827,6 +4835,14 @@ mcd_fth_osd_slab_set( void * context, mcd_osd_shard_t * shard,
 
 		offset = mcd_osd_rand_address(shard, blk_offset);
 
+#ifdef FLIP_ENABLED
+		if (corrupt_data) {
+			pos = rand() % data_len;
+			tmp_ptr = (char *)buf;
+			tmp_ptr[pos] = ~tmp_ptr[pos];
+		}
+#endif
+
 #ifndef MCD_ENABLE_SLAB_CACHE_NOSSD
 		/*
 		 * FIXME: pad the object if size < 128KB
@@ -4849,6 +4865,13 @@ mcd_fth_osd_slab_set( void * context, mcd_osd_shard_t * shard,
 			mcd_log_msg( 20008, PLAT_LOG_LEVEL_ERROR,
 						 "failed to write blocks, rc=%d", rc );
 			goto out;
+		}
+#endif
+
+#ifdef FLIP_ENABLED
+		if (corrupt_data) {
+			tmp_ptr[pos] = ~tmp_ptr[pos];
+			corrupt_data = false;
 		}
 #endif
 
@@ -7026,6 +7049,18 @@ mcd_osd_flash_put_v( struct ssdaio_ctxt * pctxt, struct shard * shard,
 
 				goto write_done;
 			}
+
+			corrupt_data = false;
+			uint64_t pos;
+			if (flip_get("corrupt_zs_data_write", multi_write_type, node_type, is_root,
+			               logical_id)) {
+				pos = rand() % metaData->dataLen;
+				fprintf(stderr, "corrupt_zs_data hit for data[%d] = %p "
+				                "node_type = %d logical_id = %lu is_root = %d\n",
+			                i, data[i], node_type, logical_id, is_root);
+				data[i][pos] = ~data[i][pos];
+				corrupt_data = true;
+			}
 #endif
 			ret = mcd_fth_osd_slab_set( (void *)pctxt,
 					mcd_shard,
@@ -7038,6 +7073,11 @@ mcd_osd_flash_put_v( struct ssdaio_ctxt * pctxt, struct shard * shard,
 					slab_blksize);
 
 #ifdef FLIP_ENABLED
+			if (corrupt_data) {
+				/* Set it back as we need to corrupt only persistent data */
+				data[i][pos] = ~data[i][pos];
+				corrupt_data = false;
+			}
 write_done:
 #endif
 			if (osd_state->osd_wait)
@@ -7113,6 +7153,14 @@ mcd_osd_flash_put( struct ssdaio_ctxt * pctxt, struct shard * shard,
                     process_flip_cmd_str(stderr, flip_cmd);
                 }
 		goto write_done;
+	}
+
+	corrupt_data = false;
+	if (flip_get("corrupt_zs_data_write", 0, node_type, is_root, logical_id)) {
+		fprintf(stderr, "corrupt_zs_data hit for data = %p "
+		                "node_type = %d logical_id = %lu is_root = %d\n",
+	                data, node_type, logical_id, is_root);
+		corrupt_data = true;
 	}
 #endif
 
