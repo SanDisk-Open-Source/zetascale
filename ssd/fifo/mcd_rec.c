@@ -8175,7 +8175,7 @@ flash_format ( uint64_t total_size )
     fd->prop_offset   = prop_offset;
     fd->blk_offset    = fd_offset;
     fd->total_blks    = total_size / fd->blk_size;
-	fd->storm_mode	  = check_storm_mode();
+    fd->storm_mode    = check_storm_mode();
     fd->checksum      = 0;
     fd->checksum      = hashb((unsigned char *)buf,
                               MCD_OSD_SEG0_BLK_SIZE,

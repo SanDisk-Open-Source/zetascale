@@ -69,10 +69,9 @@ bool		mcd_rec2_init( ulong),
 		mcd_rec2_slabbitmap_save( mcd_osd_shard_t *, void *);
 void		mcd_rec2_potbitmap_set( mcd_osd_shard_t *, uint),
 		mcd_rec2_shutdown( mcd_osd_shard_t *);
-uint8_t check_storm_mode();
-uint64_t get_rawobjsz();
-int get_rawobjratio();
-uint64_t get_regobj_storm_mode();
+bool		check_storm_mode( ),
+		get_rawobjsz( uint64_t *);
+int		get_rawobjratio( );
+uint64_t	get_regobj_storm_mode( );
 
 extern int rawobjratio;
-extern uint64_t rawobjsz;

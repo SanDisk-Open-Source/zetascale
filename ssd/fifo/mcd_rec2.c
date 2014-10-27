@@ -31,8 +31,6 @@
 #include	"mcd_rec2.h"
 
 
-#define	bytes_per_storm_object		(1uL << 16)
-#define	bytes_per_leaf			(1uL << 13)
 #define	bytes_per_storm_key		(1uL << 8)
 #define	bytes_per_second		(1uL << 31)
 #define	bytes_per_segment		(1uL << 25)
@@ -60,7 +58,6 @@
 
 int pot_checksum_enabled;
 int rawobjratio;
-uint64_t rawobjsz;
 
 typedef struct mcdstructure		mcd_t;
 typedef struct potstructure		pot_t;
@@ -99,6 +96,8 @@ extern uint64_t			Mcd_rec_update_bufsize,
 				Mcd_rec_update_segment_blks,
 				Mcd_rec_log_segment_blks;
 static struct mcdstructure	mcd;
+static ulong			bytes_per_storm_object;
+static ulong			bytes_per_leaf;
 static uint			segments_per_flash_array;
 
 
@@ -119,15 +118,16 @@ int		filter_cs_apply_logrec( mcd_rec_obj_state_t *, mcd_logrec_object_t *),
 		read_log_segment( void *, int, mcd_osd_shard_t *, mcd_rec_log_state_t *, char *);
 uint64_t	read_log_page( osd_state_t *, mcd_osd_shard_t *, int, uint64_t),
 		blk_to_use( mcd_osd_shard_t *, uint64_t);
-bool	match_potbm_checksum( potbm_t *, uint),
+bool		match_potbm_checksum( potbm_t *, uint),
 		match_slabbm_checksum( slabbm_t *, uint),
 		empty( void *, uint);
 static bool	nomem( ),
 		corruptpotbm( ),
 		corruptslabbm( ),
 		complain( char *, ...);
-static ulong	pot_base( mcd_rec_shard_t *);
-ulong	potbm_base( mcd_rec_shard_t *),
+static ulong	power_of_two_roundup( ulong),
+		pot_base( mcd_rec_shard_t *);
+ulong		potbm_base( mcd_rec_shard_t *),
 		slabbm_base( mcd_rec_shard_t *);
 static void	pot_cache_shutdown( mcd_osd_shard_t *),
 		pot_bitmap_shutdown( mcd_osd_shard_t *),
@@ -143,7 +143,7 @@ static char	*prettynumber( ulong);
 void pot_checksum_set(char* buf, uint32_t sum);
 uint32_t pot_checksum_get(char* buf);
 
-uint8_t
+bool
 check_storm_mode( )
 {
 
@@ -162,6 +162,18 @@ check_storm_mode( )
  * initialize Storm extension
  *
  * Storm Mode must be enabled to activate services.
+ *
+ * Node size (in bytes) as used at btree level is given by property
+ * ZS_BTREE_NODE_SIZE, default value 8100.  With overhead included, this
+ * default allows the node to be stored in an 8KB slab: bear that overhead
+ * in mind when assigning a different size.
+ *
+ * The size in bytes of a raw object is given by property ZS_RAW_OBJECT_SIZE,
+ * default 64KiB: note that the initial value is immediately rounded to the
+ * next power-of-two for slab-allocation purposes.  The net available space
+ * for a raw object is less due to overhead.  The property is updated to
+ * reflect these calculations with a string of the form S:N, where S is the
+ * slab size and N is the net size.
  */
 bool
 mcd_rec2_init( ulong bytes_per_flash_array)
@@ -169,6 +181,8 @@ mcd_rec2_init( ulong bytes_per_flash_array)
 
 	msg( INITIAL, INFO, "Storm Mode = %d   Storm Test = 0x%04X", flash_settings.storm_mode, flash_settings.storm_test);
 	if (flash_settings.storm_mode) {
+		bytes_per_storm_object = 1uL << power_of_two_roundup( getProperty_Int( "ZS_RAW_OBJECT_SIZE", 65000));
+		bytes_per_leaf = 1uL << power_of_two_roundup( getProperty_Int( "ZS_BTREE_NODE_SIZE", 8100));
 		unless (Mcd_osd_blk_size == bytes_per_device_block) {
 			complain( "ZS_BLOCK_SIZE is not %lu--Storm Mode disabled", bytes_per_device_block);
 			flash_settings.storm_mode = 0;
@@ -855,14 +869,32 @@ prettynumber( ulong n)
 }
 
 
-uint64_t
-get_rawobjsz()
+/*
+ * net raw object size
+ *
+ * Calculate net size in bytes of a raw object after internal overhead is
+ * subtracted, and relay the value into the supplied uint64.  Return FALSE if
+ * the value would be too small, otherwise true.  If true, the value is also
+ * accessible to higher levels by referring to property ZS_RAW_OBJECT_SIZE,
+ * second field (first field is the raw-object slab size).
+ */
+bool
+get_rawobjsz( uint64_t *nbyte)
 {
+
+	*nbyte = 0;
 	if (storm_mode) {
-		return (uint64_t)(bytes_per_storm_object - sizeof(mcd_osd_meta_t) - sizeof(baddr_t));
-	} else {
-		return 0;
+		long n = bytes_per_storm_object - sizeof( mcd_osd_meta_t) - sizeof( baddr_t);
+		if (n < 0) {
+			msg( INITIAL, FATAL, "bytes_per_storm_object (property ZS_RAW_OBJECT_SIZE) is too small");
+			return (FALSE);
+		}
+		*nbyte = n;
+		char *s;
+		asprintf( &s, "%lu:%lu", bytes_per_storm_object, n);
+		setProperty( "ZS_RAW_OBJECT_SIZE", s);
 	}
+	return (TRUE);
 }
 
 int
