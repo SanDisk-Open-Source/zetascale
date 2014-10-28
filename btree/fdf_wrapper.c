@@ -45,7 +45,7 @@
 #define assert(a)
 #endif
 
-#define BTREE_DELETE_CONTAINER_NAME "B#^++$(h@@n+^"
+#define BTREE_DELETE_CONTAINER_NAME "B#^++$(h@@n+^\0"
 
 #define PERSISTENT_STATS_FLUSH_INTERVAL 100000
 #define ZS_ASYNC_STATS_THREADS 8
@@ -1251,7 +1251,6 @@ restart:
 	}
 
     if ( 0 == (IS_ZS_HASH_CONTAINER(properties->flags)) ) {
-        /* Always bypass cache for btree by default */
         zs_prop = (char *)ZSGetProperty("ZS_CACHE_FORCE_ENABLE",NULL);
         if( zs_prop != NULL ) {
             if( atoi(zs_prop) == 1 ) {
@@ -1263,19 +1262,18 @@ restart:
             }
         }
         //fprintf(stderr, "ZS cache %s for container: %s\n", properties->flash_only ? "disabled" : "enabled", cname);
-		properties->flash_only == ZS_TRUE;
 
         if (properties->flash_only == ZS_FALSE) {
             fprintf(stderr, "WARNING: Container '%s' is enabled with ZS cache "
                     "(not flash_only) with libbtree. This could impact "
                     "the performance\n", cname);
-        }
-    } else {
-	/*
-	 * Flash only cont with fdf core is not supported.
-	 */
-	properties->flash_only = false;
-    }
+		}
+	} else {
+		/*
+		 * Flash only cont with fdf core is not supported.
+		 */
+		properties->flash_only = false;
+	}
 
     ret = ZSOpenContainer(zs_thread_state, cname, properties, flags_in, cguid);
     if (ret != ZS_SUCCESS)
@@ -1285,8 +1283,6 @@ restart:
     cg1 = *cguid;
     index = bt_add_cguid(*cguid);
 
-   assert(index == cg1);
-
 	/* This shouldnt happen, how ZS could create container but we exhausted map */
 	if (index == -1) {
 		ZSCloseContainer(zs_thread_state, *cguid);
@@ -1295,6 +1291,8 @@ restart:
 		ZSCloseContainer(zs_thread_state, *cguid);
 		return ZS_FAILURE_OPERATION_DISALLOWED;
 	}
+
+	assert(index == cg1);
 
 	cm_lock(index, WRITE);
 
@@ -1847,6 +1845,7 @@ restart:
 			btree_scavenge(my_global_zs_state, s);
 			//btSyncMboxPost(&mbox_scavenger, (uint64_t)s);
 			cm_unlock(index);
+			ZSDeleteObject(zs_thread_state, stats_ctnr_cguid, pprops.name, strlen(pprops.name)+1);
 		} else {
 			fprintf(stderr, "savepersistent SC_OVERFLW_DELCONT failed %s\n", ZSStrError(status));
 			btree->partitions[0]->snap_meta->sc_status &= ~SC_OVERFLW_DELCONT;
@@ -1855,6 +1854,8 @@ restart:
 			status = ZS_FAILURE;
 		}
 	} else {
+		ZS_container_props_t	pprops;
+
 		/* Lets block further IOs */
 		Container_Map[index].bt_state = BT_CNTR_DELETING;
 
@@ -1864,6 +1865,17 @@ restart:
 
 		if (0 == IS_ZS_HASH_CONTAINER(Container_Map[index].flags)) {
 			btree = Container_Map[index].btree;
+
+			ZSLoadCntrPropDefaults(&pprops);
+			status = ZSGetContainerProps(zs_thread_state, Container_Map[index].cguid,
+					&pprops);
+			if (status != ZS_SUCCESS) {
+				fprintf(stderr,"ZSGetContainerProps failed with error %s\n",
+						ZSStrError(status));
+				cm_unlock(index);
+				return status;
+			}
+			ZSDeleteObject(zs_thread_state, stats_ctnr_cguid, pprops.name, strlen(pprops.name)+1);
 		} else {
 			btree = NULL;
 		}
@@ -1877,9 +1889,6 @@ restart:
 
 		if (btree) {
 			trxdeletecontainer( zs_thread_state, cguid);
-		}
-
-		if (btree) {
 			btree_destroy(btree);
 		}
 
