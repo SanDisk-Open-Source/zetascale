@@ -3599,17 +3599,17 @@ ZS_status_t ZSCloseContainer(
 		goto out;
 	}
 
-        status = zs_flush_container(zs_thread_state,cguid);
-        if( status != ZS_SUCCESS ) {
-            plat_log_msg(150109,LOG_CAT,LOG_ERR,
+    status = zs_flush_container(zs_thread_state,cguid);
+    if( status != ZS_SUCCESS ) {
+        plat_log_msg(150109,LOG_CAT,LOG_WARN,
                      "Failed to flush before closing the container %lu - %s",cguid, ZSStrError(status));
-        }
-
-	status = zs_close_container(zs_thread_state,
-					cguid,
-					ZS_VIRTUAL_CNTR,
-					ZS_TRUE,
-					ZS_TRUE);
+    } else {
+	    status = zs_close_container(zs_thread_state,
+					    cguid,
+					    ZS_VIRTUAL_CNTR,
+					    ZS_TRUE,
+					    ZS_TRUE);
+    }
 
 
 out:

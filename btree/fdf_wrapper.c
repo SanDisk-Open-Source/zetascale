@@ -35,6 +35,7 @@
 #include "btree_sync_th.h"
 #include "btree_var_leaf.h"
 #include <lz4.h>
+#include <pthread.h>
 
 #define MAX_NODE_SIZE   128*1024
 
@@ -62,6 +63,13 @@ extern int __zs_check_mode_on;
 //extern int bt_storm_mode;
 
 static char Create_Data[MAX_NODE_SIZE];
+
+// For ZSCheck workers
+static uint32_t cguid_idx = 0;
+static pthread_mutex_t cguid_idx_lock;
+static uint32_t ncguids = 0;
+static ZS_cguid_t *cguids = NULL;
+void * zscheck_worker(void *arg);
 
 uint64_t n_global_l1cache_buckets = 0;
 uint64_t l1reg_buckets, l1raw_buckets;
@@ -1097,7 +1105,8 @@ ZS_status_t _ZSShutdown(
 restart:
 		cm_lock(i, WRITE);
 		if (Container_Map[i].bt_state == BT_CNTR_OPEN) {
-			pstats_prepare_to_flush_single(thd_state, &Container_Map[i]);
+            if ( ZSCHECK_NO_CHECK == ZSCheckGetLevel() ) 
+			    pstats_prepare_to_flush_single(thd_state, &Container_Map[i]);
 			(void) ZSCloseContainer(thd_state, Container_Map[i].cguid);
 			Container_Map[i].bt_state = BT_CNTR_UNUSED;
 			Container_Map[i].cguid = ZS_NULL_CGUID;
@@ -1149,8 +1158,12 @@ restart:
 
 	sched_yield();
 
-    pstats_prepare_to_flush(thd_state);
-    assert (ZS_SUCCESS == ZSFlushContainer(thd_state, stats_ctnr_cguid));
+    if ( ZSCHECK_NO_CHECK == ZSCheckGetLevel() ) {
+ 
+        pstats_prepare_to_flush(thd_state);
+        assert (ZS_SUCCESS == ZSFlushContainer(thd_state, stats_ctnr_cguid));
+
+    }
 
     ret = ZSReleasePerThreadState(&thd_state);
     assert (ZS_SUCCESS == ret);
@@ -3759,118 +3772,93 @@ check_hash_cont(struct ZS_thread_state *thd_state, ZS_cguid_t cguid)
 ZS_status_t
 _ZSCheck(struct ZS_thread_state *zs_thread_state, uint64_t flags)
 {
-	uint32_t nconts = 0;
-	ZS_cguid_t *cguids = NULL;
 	ZS_cguid_t cguid = 0;
 	ZS_container_props_t props = {0};
 	ZS_status_t status = ZS_SUCCESS;
 	int i = 0;
 	uint64_t *num_objs = NULL;
 	char err_msg[1024];
+    int threads = atoi(_ZSGetProperty("ZSCHECK_THREADS", "1"));
+    pthread_t thread_id[threads];
+    pthread_attr_t attr;
+
 
 	if (!__zs_check_mode_on) {
 		return ZS_FAILURE_OPERATION_DISALLOWED;	
 	}
 
-	if (seqnoread(zs_thread_state) != true) {
+	if (0 && seqnoread(zs_thread_state) != true) {
 		return ZS_FAILURE;
 	}
 
 	cguids = btree_malloc(sizeof(ZS_cguid_t) * MCD_MAX_NUM_CNTRS);
 	assert(cguids);
 	
-	/*
-	 * Check containers 
-	 */
-	status = ZSGetContainers(zs_thread_state, cguids, &nconts);
+    /*
+     * Check containers
+     */
+    status = ZSGetContainers(zs_thread_state, cguids, &ncguids);
+    if (ZS_SUCCESS != status)
+        return status;
 
-	msg("Running Data consistency checker on %d containers.\n", nconts);
+    msg("Running Data consistency checker on %d containers.\n", ncguids);
 
-	num_objs = (uint64_t *) btree_malloc(nconts * sizeof(uint64_t));
+    num_objs = (uint64_t *) btree_malloc(ncguids * sizeof(uint64_t));
 
-	for (i = 0; i < nconts; i++) {
+    // Init thread sync
+    pthread_mutex_init(&cguid_idx_lock, NULL);
+    cguid_idx = 0;
 
-		status = ZSGetContainerProps(zs_thread_state, cguids[i], &props);
-		if (status != ZS_SUCCESS) {
-			goto out;
-		}
+    // Call the workers
+    pthread_attr_init( &attr );
+    pthread_attr_setdetachstate( &attr, PTHREAD_CREATE_JOINABLE );
 
-		/*
-		 * Cont check cont to be open.
-		 */
-		status = _ZSOpenContainer(zs_thread_state, props.name, &props,
-					 ZS_CTNR_RW_MODE, &cguid);
-		if (status != ZS_SUCCESS) {
-			goto out;
-		}
+    for (i = 0; i < threads; i++)
+        pthread_create(&thread_id[i], &attr, zscheck_worker, (void*)(long)i);
 
-		if (IS_ZS_HASH_CONTAINER(props.flags) == true) {
-			/*
-			 * It is hash containers, so check all objs by enumeration.
-			 */
-			status = check_hash_cont(zs_thread_state, cguids[i]);
-			if (status != ZS_SUCCESS) {
-				goto out; 
-			}
-		} else {
-			/*
-			 * If btree container, then check btre
-			 */
-			status = zs_check_btree(zs_thread_state, cguids[i], flags, &num_objs[i]);
-			if (status != ZS_SUCCESS) {
-                sprintf(err_msg, "Btree check failed for container %lu: %s", cguids[i], ZSStrError(status));
-                ZSCheckMsg(ZSCHECK_BTREE_NODE, 0, ZSCHECK_FAILURE, err_msg);
-				goto out;
-			}
-            sprintf(err_msg, "Btree check successful for container %lu", cguids[i]);
-            ZSCheckMsg(ZSCHECK_BTREE_NODE, 0, ZSCHECK_SUCCESS, err_msg);
-		}
+    for (i = 0; i < threads; i++)
+        pthread_join(thread_id[i], NULL);
 
-		msg("Data Consistency check PASSED for cguid %d.\n", cguids[i]);
-	}
+    // Call space check
+    status = ZSCheckSpace(zs_thread_state);
 
-	/*
-	 * Call space check
-	 */
-	status = ZSCheckSpace(zs_thread_state);
+    if (!(flags & ZS_CHECK_FIX_BOJ_CNT)) {
+        goto out;
+    }
+    /*
+     * If required, fix the number of objects.
+     */
+    for (i = 0; i < ncguids; i++) {
 
-	if (!(flags & ZS_CHECK_FIX_BOJ_CNT)) {
-		goto out;
-	}
-	/*
-	 * If required, fix the number of objects.
-	 */
-	for (i = 0; i < nconts; i++) {
-
-		status = ZSGetContainerProps(zs_thread_state, cguids[i], &props);
-		if (status != ZS_SUCCESS) {
-			goto out;
-		}
+        status = ZSGetContainerProps(zs_thread_state, cguids[i], &props);
+        if (status != ZS_SUCCESS) {
+            goto out;
+        }
 
 
-		/*
-		 * Fix the number of objects in pstats for btree containers.
-		 */
-		if (IS_ZS_HASH_CONTAINER(props.flags) == false) {
-			status = zs_fix_objs_cnt_stats(zs_thread_state, num_objs[i], props.name);
-			if (status == ZS_SUCCESS) {
-				msg("Fixed object count for cont name %s.\n", props.name);
-			} else {
-				msg("Failed fixing object count for cont name %s.\n", props.name);
-			}
-		}
+        /*
+         * Fix the number of objects in pstats for btree containers.
+         */
+        if (IS_ZS_HASH_CONTAINER(props.flags) == false) {
+            status = zs_fix_objs_cnt_stats(zs_thread_state, num_objs[i], props.name);
+            if (status == ZS_SUCCESS) {
+                msg("Fixed object count for cont name %s.\n", props.name);
+            } else {
+                msg("Failed fixing object count for cont name %s.\n", props.name);
+            }
+        }
 
-	}
+    }
 
 out:
-	if (cguids) {
-		btree_free(cguids);	
-	}
+    if (cguids) {
+        btree_free(cguids);
+    }
 
-	if (num_objs) {
-		btree_free(num_objs);
-	}
-	return status;
+    if (num_objs) {
+        btree_free(num_objs);
+    }
+    return status;
 }
 
 ZS_status_t
@@ -6627,6 +6615,7 @@ static ZS_status_t
 _ZSDefragContainer(struct ZS_thread_state *ts,
                    ZS_cguid_t cid )
 {
+#if 0
     ZS_status_t ret = ZS_FAILURE;
     struct btree *bt;
     int index;
@@ -6838,6 +6827,7 @@ _ZSDefragContainer(struct ZS_thread_state *ts,
         }
     }
     bt_rel_entry(index, false);
+#endif
     return ZS_SUCCESS;
 }
 
@@ -6916,4 +6906,87 @@ zs_stop_defrag_thread()
     stop_defrag = true;
     return ZS_SUCCESS;
 }
+
+void *
+zscheck_worker(void *arg)
+{
+    ZS_cguid_t cguid = 0;
+    ZS_container_props_t props = {0};
+    ZS_status_t status = ZS_FAILURE;
+    int i = 0;
+    char err_msg[1024];
+    struct ZS_thread_state *my_thread_state = NULL;
+
+fprintf(stderr,">>>zscheck_worker: %ld\n", (long) arg);
+
+    status = _ZSInitPerThreadState(ZSState, &my_thread_state);
+    if (ZS_SUCCESS != status) {
+        ZSCheckMsg(ZSCHECK_BTREE_NODE, 0, ZSCHECK_FAILURE, "Failed to init ZS btree check worker");
+        return 0;
+    }
+
+    if (seqnoread(my_thread_state) != true) {
+        ZSCheckMsg(ZSCHECK_BTREE_NODE, 0, ZSCHECK_FAILURE, "Failed to init seqno for ZS btree check worker");
+        return 0;
+    }
+
+    while (cguid_idx < ncguids) {
+
+        pthread_mutex_lock(&cguid_idx_lock);
+        i = cguid_idx;
+        ++cguid_idx;
+        pthread_mutex_unlock(&cguid_idx_lock);
+
+        status = ZSGetContainerProps(my_thread_state, cguids[i], &props);
+        if (status != ZS_SUCCESS) {
+            sprintf(err_msg, "Btree check failed to get properties for container %lu: %s",
+                    cguids[i], ZSStrError(status));
+            ZSCheckMsg(ZSCHECK_BTREE_NODE, cguids[i], ZSCHECK_FAILURE, err_msg);
+            continue;
+        }
+
+        // Open the container
+        status = _ZSOpenContainer(my_thread_state, props.name, &props,
+                     ZS_CTNR_RW_MODE, &cguid);
+        if (status != ZS_SUCCESS) {
+            sprintf(err_msg, "Btree check failed to open container %s: %s",
+                    props.name, ZSStrError(status));
+            ZSCheckMsg(ZSCHECK_BTREE_NODE, cguids[i], ZSCHECK_FAILURE, err_msg);
+            continue;
+        }
+
+        if (IS_ZS_HASH_CONTAINER(props.flags) == true) {
+            /*
+             * It is hash containers, so check all objs by enumeration.
+             */
+            status = check_hash_cont(my_thread_state, cguids[i]);
+            if (status != ZS_SUCCESS) {
+                sprintf(err_msg, "Btree check failed for container %s: %s",
+                        props.name, ZSStrError(status));
+                ZSCheckMsg(ZSCHECK_BTREE_NODE, cguids[i], ZSCHECK_FAILURE, err_msg);
+                continue;
+            }
+        } else {
+            /*
+             * If btree container, then check btre
+             */
+            status = _ZSCheckBtree(my_thread_state, cguids[i], 0);
+            if (status != ZS_SUCCESS) {
+                sprintf(err_msg, "Btree check failed for container %s: %s", props.name, ZSStrError(status));
+                ZSCheckMsg(ZSCHECK_BTREE_NODE, cguids[i], ZSCHECK_FAILURE, err_msg);
+                continue;
+            }
+            sprintf(err_msg, "Btree check successful for container %s", props.name);
+            ZSCheckMsg(ZSCHECK_BTREE_NODE, cguids[i], ZSCHECK_SUCCESS, err_msg);
+        }
+
+        msg("Data consistency check passed for cguid %s.\n", props.name);
+    }
+
+    ZSReleasePerThreadState(&my_thread_state);
+
+    return 0;
+}
+
+
 
