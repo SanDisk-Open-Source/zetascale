@@ -9511,7 +9511,7 @@ btree_raw_check_leaves_chain(btree_raw_t *btree, uint64_t num_leaves)
 	}
 
 	if (num_leaves != num_leaves_found) {
-		assert(0);
+		//assert(0);
 		res = false;
 	}
 

@@ -6924,8 +6924,6 @@ zscheck_worker(void *arg)
     char err_msg[1024];
     struct ZS_thread_state *my_thread_state = NULL;
 
-fprintf(stderr,">>>zscheck_worker: %ld\n", (long) arg);
-
     status = _ZSInitPerThreadState(ZSState, &my_thread_state);
     if (ZS_SUCCESS != status) {
         ZSCheckMsg(ZSCHECK_BTREE_NODE, 0, ZSCHECK_FAILURE, "Failed to init ZS btree check worker");
