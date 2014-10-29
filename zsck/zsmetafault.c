@@ -224,6 +224,11 @@ int main(int argc, char *argv[])
         return -1;
     }
 
+    prop_file = getenv("ZS_PROPERTY_FILE");
+    if (prop_file) {
+        ZSLoadProperties(prop_file);
+    }
+
     if( label == 1 ) {
         ZSSetProperty("ZS_FAULT_LABEL_CORRUPTION","1");
     }
@@ -288,10 +293,6 @@ int main(int argc, char *argv[])
         if( atoi(ZSGetProperty("ZS_FAULT_CONTAINER_VDC", "0")) == 1 ) {
             flog_corrupt(VDC_SHARD_ID);
         }
-    }
-    prop_file = getenv("ZS_PROPERTY_FILE");
-    if (prop_file) {
-        ZSLoadProperties(prop_file);
     }
 
     unsetenv("ZS_PROPERTY_FILE");
