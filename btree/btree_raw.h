@@ -462,7 +462,7 @@ struct btree_raw* btree_raw_init(uint32_t flags, uint32_t n_partition, uint32_t 
         seqno_alloc_cb_t *ptr_seqno_alloc_cb
 	);
 
-void btree_raw_destroy(struct btree_raw **);
+void btree_raw_destroy(struct btree_raw **, bool clean_l1cache);
 
 extern btree_status_t btree_raw_get(struct btree_raw *btree, char *key, uint32_t keylen, char **data, uint64_t *datalen, btree_metadata_t *meta);
 

@@ -649,10 +649,12 @@ btree_raw_init(uint32_t flags, uint32_t n_partition, uint32_t n_partitions, uint
 
 
 void
-btree_raw_destroy (struct btree_raw **bt)
+btree_raw_destroy (struct btree_raw **bt, bool cln_l1cache)
 {
 	int i, syncthreads = (*bt)->no_sync_threads;
-	clean_l1cache(*bt);
+	if (cln_l1cache) {
+		clean_l1cache(*bt);
+	}
 	(*bt)->deleting = 1;
 
 	if (!btree_parallel_flush_disabled) {

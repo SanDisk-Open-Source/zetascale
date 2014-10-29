@@ -151,13 +151,13 @@ btree_t *btree_init(uint32_t n_partitions, uint32_t flags, uint32_t max_key_size
     return(bt);
 }
 
-btree_status_t btree_destroy(struct btree *bt)
+btree_status_t btree_destroy(struct btree *bt, bool clean_l1cache)
 {
 	int			i;
 
 	for (i = 0; i < bt->n_partitions; i++) {
 		if (bt->partitions[i]) {
-			btree_raw_destroy(&(bt->partitions[i]));
+			btree_raw_destroy(&(bt->partitions[i]), clean_l1cache);
 		}
 	}
 	free(bt->partitions);

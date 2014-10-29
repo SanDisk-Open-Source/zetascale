@@ -53,7 +53,7 @@ extern struct btree *btree_init(uint32_t n_partitions, uint32_t flags, uint32_t 
 				void *log_cb_data, msg_cb_t *msg_cb, void *msg_cb_data, cmp_cb_t *cmp_cb, void * cmp_cb_data, bt_mput_cmp_cb_t mput_cmp_cb, 
 				void *mput_cmp_cb_data, trx_cmd_cb_t *trx_cmd_cb, uint64_t cguid, zs_pstats_t *pstats, seqno_alloc_cb_t *ptr_seqno_alloc_cb);
 
-extern btree_status_t btree_destroy(struct btree *btree);
+extern btree_status_t btree_destroy(struct btree *btree, bool clean_l1cache);
 
 extern btree_status_t btree_get(struct btree *btree, char *key, uint32_t keylen, char **data, uint64_t *datalen, btree_metadata_t *meta);
 

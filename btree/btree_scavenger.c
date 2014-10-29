@@ -164,7 +164,7 @@ scavenger_del_stale_ent(Scavenge_Arg_t *s)
 	start_key_in_node = 0;
 	nkey_prev_tombstone = 0;
 	bzero(&ks_prev,sizeof(key_stuff_t));
-	while (!scavenger_killed) {
+	while (!bt_shutdown) {
 		key = (key_stuff_info_t *)malloc(16*sizeof(key_stuff_info_t));
 		int temp = 0;
 
@@ -212,7 +212,7 @@ scavenger_del_stale_ent(Scavenge_Arg_t *s)
 			meta.flags = FORCE_DELETE | READ_SEQNO_EQ;
 			btree_ret = btree_delete(s->bt, key[j].key, key[j].keylen, &meta);
 			bt_cntr_unlock_scavenger(s, false);
-			if (!scavenger_killed) {
+			if (!bt_shutdown) {
 				usleep(1000*(s->throttle_value));
 			}
 			zs_ret = bt_cntr_lock_scavenger(s);
@@ -359,7 +359,7 @@ scavenger_del_overflw_n_cont(Scavenge_Arg_t *s)
 
 			bt_cntr_unlock_scavenger(s, true);
 
-			btree_destroy(s->bt);
+			btree_destroy(s->bt, true);
 
 			zs_ret = ZSDeleteContainer(my_thd_state, s->cguid);
 			assert((zs_ret == ZS_SUCCESS) || (bt_shutdown==true && zs_ret==ZS_FAILURE_OPERATION_DISALLOWED));

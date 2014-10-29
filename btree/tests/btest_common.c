@@ -650,7 +650,7 @@ btest_life_cycle(btest_cfg_t *cfg)
 
 	btree_check(cfg->bt, &num_objs);
 	/* delete the btree */
-	btree_destroy(cfg->bt);
+	btree_destroy(cfg->bt, true);
 	btree_raw_free_thread_bufs();
 
 	msg("Ending btree test...  TEST PASSED!");

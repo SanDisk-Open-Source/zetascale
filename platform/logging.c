@@ -92,6 +92,9 @@ struct categories {
 
     /** @brief maximum depth for redirections */
     int redirect_limit;
+
+	/** @free in progress */
+	int cat_freeing;
 };
 
 /*
@@ -102,7 +105,9 @@ static struct categories categories = {
     .lock = PLAT_RWLOCK_INITIALIZER,
     .category = {},
     .ncategory = 0,
-    .redirect_limit = 0
+    .redirect_limit = 0,
+	.cat_freeing = 0
+	
 };
 
 enum plat_log_level plat_log_level_immediate_cache[PLAT_LOG_MAX_CATEGORY];
@@ -577,6 +582,10 @@ plat_log_msg_helper(const char *file, unsigned line, const char *function,
 
     plat_rwlock_rdlock(&categories.lock);
 
+	if (categories.cat_freeing) {
+		goto end;
+	}
+
     sys_assert(categories.category[category].name);
     sys_assert(0 <= level && level < nlevels);
     sys_assert(0 <= category && category < categories.ncategory);
@@ -607,6 +616,7 @@ plat_log_msg_helper(const char *file, unsigned line, const char *function,
 
     va_end(ap);
 
+end:
     plat_rwlock_unlock(&categories.lock);
 }
 
@@ -918,13 +928,19 @@ static void
 destroy_categories() {
     int i;
 
+	plat_rwlock_wrlock(&categories.lock);
     if (categories.ncategory) {
+		categories.cat_freeing = 1;
+		plat_rwlock_unlock(&categories.lock);
         for (i = 0; i < categories.ncategory; ++i) {
             sys_free((void *)categories.category[i].name);
             categories.category[i].name = NULL;
         }
         categories.ncategory = 0;
-    }
+    } else {
+		plat_rwlock_unlock(&categories.lock);
+	}
+
 }
 
 /**
@@ -952,6 +968,7 @@ init_categories() {
     /* Must initialize deprecated categories with NULL */
     ret = 0;
     categories.ncategory = max + 1;
+	categories.cat_freeing = 0;
 #define item(caps, quoted, value)                                              \
     /* Sanity check that the number isn't already in use */                    \
     sys_assert(!categories.category[value].name);                              \

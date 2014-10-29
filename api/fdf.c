@@ -1703,6 +1703,9 @@ static void *zs_stats_thread(void *arg) {
              continue;
         }
         for ( i = 0; i < n_cguids; i++ ) {
+			if (agent_state.op_access.is_shutdown_in_progress) {
+				break;
+			}
 			// Skip containers that are not open
 			if ( ZS_FAILURE_CONTAINER_NOT_OPEN == zs_get_ctnr_status( cguids[i], 0 ) ) 
 				continue;
@@ -2873,21 +2876,21 @@ ZS_status_t ZSOpenContainer(
 		status = ZS_LICENSE_CHK_FAILED;
 		goto out;
 	}
-        if ( !zs_thread_state || !cguid || ISEMPTY(cname)) {
-            if ( !zs_thread_state ) {
-                plat_log_msg(80049,LOG_CAT,LOG_DBG,
-                             "ZS Thread state is NULL");
-            }
-            if ( ISEMPTY(cname) ) {
-                plat_log_msg(80053,LOG_CAT,LOG_DBG,
-                             "Invalid container name");
-            }
-            return ZS_INVALID_PARAMETER;
-        }
-        if( properties ) {
-             plat_log_msg(160199,LOG_CAT, LOG_DBG, "Compression %s for Container %s",
-                               properties->compression?"enabled":"disabled",cname);
-        }
+	if ( !zs_thread_state || !cguid || ISEMPTY(cname)) {
+		if ( !zs_thread_state ) {
+			plat_log_msg(80049,LOG_CAT,LOG_DBG,
+					"ZS Thread state is NULL");
+		}
+		if ( ISEMPTY(cname) ) {
+			plat_log_msg(80053,LOG_CAT,LOG_DBG,
+					"Invalid container name");
+		}
+		return ZS_INVALID_PARAMETER;
+	}
+	if( properties ) {
+		plat_log_msg(160199,LOG_CAT, LOG_DBG, "Compression %s for Container %s",
+				properties->compression?"enabled":"disabled",cname);
+	}
 
 	thd_ctx_locked = zs_lock_thd_ctxt(zs_thread_state);
 	if (false == thd_ctx_locked) {
@@ -3399,12 +3402,12 @@ static ZS_status_t zs_open_container(
 		goto out;
 	}
 
-    plat_log_msg( 20819, LOG_CAT, LOG_DBG, "%s", cname);
-    if ( props != NULL ) {
-    plat_log_msg( 160200, LOG_CAT, LOG_DBG, "compression enabled %d", props->compression);
-    }
+	plat_log_msg( 20819, LOG_CAT, LOG_DBG, "%s", cname);
+	if ( props != NULL ) {
+		plat_log_msg( 160200, LOG_CAT, LOG_DBG, "compression enabled %d", props->compression);
+	}
 
-    if ( strcmp( cname, CMC_PATH ) != 0 ) {
+	if ( strcmp( cname, CMC_PATH ) != 0 ) {
 	    if ( NULL == ( cmap = zs_cmap_get_by_cname( cname ) ) ) {
 	        status = ZS_INVALID_PARAMETER;
 	        *cguid = ZS_NULL_CGUID;
@@ -3557,6 +3560,8 @@ ZS_status_t ZSCloseContainer(
 
 	ZS_status_t status = ZS_SUCCESS;
 	bool thd_ctx_locked = false;
+	SDF_action_init_t  *pac     = NULL;
+	SDF_cache_ctnr_metadata_t *meta;
 
 	status = zs_validate_container(cguid);
 	if (ZS_SUCCESS != status) {
@@ -3576,17 +3581,17 @@ ZS_status_t ZSCloseContainer(
 
 		goto out;
 	}
-        if ( !zs_thread_state || !cguid ) {
-            if ( !zs_thread_state ) {
-                plat_log_msg(80049,LOG_CAT,LOG_DBG,
-                             "ZS Thread state is NULL");
-            }
-            if ( !cguid ) {
-                plat_log_msg(80050,LOG_CAT,LOG_DBG,
-                             "Invalid container cguid:%lu",cguid);
-            }
-            return ZS_INVALID_PARAMETER;
-        }
+	if ( !zs_thread_state || !cguid ) {
+		if ( !zs_thread_state ) {
+			plat_log_msg(80049,LOG_CAT,LOG_DBG,
+					"ZS Thread state is NULL");
+		}
+		if ( !cguid ) {
+			plat_log_msg(80050,LOG_CAT,LOG_DBG,
+					"Invalid container cguid:%lu",cguid);
+		}
+		return ZS_INVALID_PARAMETER;
+	}
 
 	thd_ctx_locked = zs_lock_thd_ctxt(zs_thread_state);
 	if (false == thd_ctx_locked) {
@@ -3595,14 +3600,24 @@ ZS_status_t ZSCloseContainer(
 		 */
 		status = ZS_THREAD_CONTEXT_BUSY;
 		plat_log_msg(160161, LOG_CAT,
-		       	     LOG_DBG, "Could not get thread context lock");
+				LOG_DBG, "Could not get thread context lock");
 		goto out;
 	}
 
-    status = zs_flush_container(zs_thread_state,cguid);
-    if( status != ZS_SUCCESS ) {
-        plat_log_msg(150109,LOG_CAT,LOG_WARN,
+	pac = (SDF_action_init_t *) zs_thread_state;
+
+	meta = get_container_metadata(pac, cguid);
+	if (meta == NULL) {
+		status = ZS_FAILURE;
+		goto out;
+	}
+
+	if (meta->meta.properties.flash_only == ZS_FALSE) {
+        status = zs_flush_container(zs_thread_state,cguid);
+        if( status != ZS_SUCCESS ) {
+            plat_log_msg(150109,LOG_CAT,LOG_ERR,
                      "Failed to flush before closing the container %lu - %s",cguid, ZSStrError(status));
+		}
     } else {
 	    status = zs_close_container(zs_thread_state,
 					    cguid,
@@ -4453,7 +4468,7 @@ char *ZSGetNextContainerName(struct ZS_thread_state *zs_thread_state, struct ZSC
 /*
  * Internal version of zs_get_containers_int
  */ 
-#define BTREE_DELETE_CONTAINER_NAME "B#^++$(h@@n+^"
+#define BTREE_DELETE_CONTAINER_NAME "B#^++$(h@@n+^\0"
 static ZS_status_t
 zs_get_containers_int(
 		struct ZS_thread_state	*zs_thread_state,

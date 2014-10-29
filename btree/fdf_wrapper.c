@@ -1107,14 +1107,15 @@ restart:
 		if (Container_Map[i].bt_state == BT_CNTR_OPEN) {
             if ( ZSCHECK_NO_CHECK == ZSCheckGetLevel() ) 
 			    pstats_prepare_to_flush_single(thd_state, &Container_Map[i]);
-			(void) ZSCloseContainer(thd_state, Container_Map[i].cguid);
+			//No need to close container here, as shutdown in core will do the same.
+			//(void) ZSCloseContainer(thd_state, Container_Map[i].cguid);
 			Container_Map[i].bt_state = BT_CNTR_UNUSED;
 			Container_Map[i].cguid = ZS_NULL_CGUID;
 			btree = Container_Map[i].btree;
 			Container_Map[i].btree = NULL;
 			cm_unlock(i);
 			if (btree) {
-				btree_destroy(btree);
+				btree_destroy(btree, false);
 			}
 			(void) __sync_sub_and_fetch(&N_Open_Containers, 1);
 		} else if (Container_Map[i].bt_state == BT_CNTR_CLOSED) {
@@ -1124,7 +1125,7 @@ restart:
 			Container_Map[i].btree = NULL;
 			cm_unlock(i);
 			if (btree) {
-				btree_destroy(btree);
+				btree_destroy(btree, false);
 			}
 			(void) __sync_sub_and_fetch(&N_Open_Containers, 1);
 		} else if (bt_storm_mode && (Container_Map[i].bt_state == BT_CNTR_DELETING)) {
@@ -1139,7 +1140,7 @@ restart:
 			Container_Map[i].btree = NULL;
 			cm_unlock(i);
 			if (btree) {
-				btree_destroy(btree);
+				btree_destroy(btree, false);
 			}
 			(void) __sync_sub_and_fetch(&N_Open_Containers, 1);
 
@@ -1236,8 +1237,12 @@ ZS_status_t _ZSOpenContainerSpecial(
 
     my_thd_state = zs_thread_state;;
 
-    if (!cname)
+    if (!cname) {
         return(ZS_INVALID_PARAMETER);
+	} else if (!strncmp(cname,BTREE_DELETE_CONTAINER_NAME, strlen(BTREE_DELETE_CONTAINER_NAME))) {
+		return(ZS_INVALID_PARAMETER);
+	}
+
 
      if (getZSVersion() < 2 && (1 == IS_ZS_HASH_CONTAINER(properties->flags))) {
          msg("Hash containers are supported on Version 2 and higher\n");
@@ -1902,7 +1907,7 @@ restart:
 
 		if (btree) {
 			trxdeletecontainer( zs_thread_state, cguid);
-			btree_destroy(btree);
+			btree_destroy(btree, true);
 		}
 
 		status = ZSDeleteContainer(zs_thread_state, cguid);
