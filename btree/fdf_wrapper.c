@@ -1273,7 +1273,9 @@ restart:
         if( zs_prop != NULL ) {
             if( atoi(zs_prop) == 1 ) {
                 properties->flash_only = ZS_FALSE;
-            }
+            } else {
+                properties->flash_only = ZS_TRUE;
+			}
         } else {
             if(getenv("ZS_CACHE_FORCE_ENABLE")) {
                 properties->flash_only = ZS_FALSE;
