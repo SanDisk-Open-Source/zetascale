@@ -4509,7 +4509,6 @@ filter_cs_apply_logrec( mcd_rec_obj_state_t *state, mcd_logrec_object_t *rec)
 	return (a);
 }
 
-
 int
 filter_cs_rewind_log( mcd_rec_obj_state_t *state)
 {
@@ -4565,7 +4564,11 @@ filter_cs_rewind_log( mcd_rec_obj_state_t *state)
 				int rc = mcd_fth_aio_blk_read( state->context, buf, offset, nblock*Mcd_osd_blk_size);
 				unless (rc == FLASH_EOK) {
 					mcd_log_msg( 20003, PLAT_LOG_LEVEL_FATAL, "failed to read blocks, rc=%d", rc);
-					plat_abort( );
+                    if ( ZSCHECK_NO_CHECK != mcd_check_get_level() ) {
+                        return 0;
+                    } else {
+					    plat_abort( );
+                    }
 				}
 				mcd_osd_meta_t *meta = (typeof( meta))buf;
 				uint64_t cs = meta->checksum;
