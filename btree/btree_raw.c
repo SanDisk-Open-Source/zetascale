@@ -5352,7 +5352,7 @@ btree_raw_bulk_insert(struct btree_raw *btree, btree_mput_obj_t **objs_in_out, u
 				objs, count, -1, false, false, &written, NULL, &ni);
 	if ((leaf_ret != BTREE_SUCCESS) && (leaf_ret != BTREE_OBJECT_TOO_BIG)) {
 #ifdef PSTATS_1
-        fprintf(stderr, "btree_raw_bulk_insert:right : new_inserts=%d\n", new_inserts);
+        fprintf(stderr, "btree_raw_bulk_insert:right : new_inserts=%d\n", (int)*new_inserts);
 #endif
 		return leaf_ret;
         }
@@ -5374,7 +5374,7 @@ btree_raw_bulk_insert(struct btree_raw *btree, btree_mput_obj_t **objs_in_out, u
 			                objs, count, -1, false, false, &written, NULL, &ni);
 			if ((leaf_ret != BTREE_SUCCESS) && (leaf_ret != BTREE_OBJECT_TOO_BIG)) {
 #ifdef PSTATS_1
-				fprintf(stderr, "btree_raw_bulk_insert:left : new_inserts=%d\n", new_inserts);
+				fprintf(stderr, "btree_raw_bulk_insert:left : new_inserts=%d\n", (int)*new_inserts);
 #endif
 				return leaf_ret;
 			}
@@ -5431,7 +5431,7 @@ btree_raw_bulk_insert(struct btree_raw *btree, btree_mput_obj_t **objs_in_out, u
 				objs, count, -1, false, false, &written, &r_seqno, &ni);
 		if (leaf_ret != BTREE_SUCCESS) {
 #ifdef PSTATS_1
-                    fprintf(stderr, "btree_raw_bulk_insert:anchor : new_inserts=%d\n", new_inserts);
+                    fprintf(stderr, "btree_raw_bulk_insert:anchor : new_inserts=%d\n", (int)*new_inserts);
 #endif
 			break;
                 }

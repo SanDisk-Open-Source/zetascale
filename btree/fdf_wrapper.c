@@ -834,7 +834,7 @@ pstats_prepare_to_flush_single(struct ZS_thread_state *thd_state, struct cmap *c
     ZS_status_t ret = ZS_SUCCESS;
     uint64_t idx = 0;
     int i = 0;
-    bool skip_flush = false;
+    bool skip_flush = true;
 
     if ( !cmap_entry->btree || (cmap_entry->cguid == stats_ctnr_cguid) ) {
         return;
@@ -857,8 +857,6 @@ pstats_prepare_to_flush_single(struct ZS_thread_state *thd_state, struct cmap *c
 #ifdef PSTATS_1
             fprintf(stderr, "pstats_prepare_to_flush_single: last_flushed_seq_num= %ld\n", pstats.seq_num);
 #endif
-        } else {
-            skip_flush = true;
         }
     }
     (void) pthread_mutex_unlock( &pstats_mutex );
@@ -892,7 +890,7 @@ pstats_prepare_to_flush(struct ZS_thread_state *thd_state)
     ZS_status_t ret = ZS_SUCCESS;
     uint64_t idx = 0;
     int i = 0;
-    bool skip_flush = false;
+    bool skip_flush = true;
 
     /* 
      * For each container in container map
@@ -910,6 +908,8 @@ pstats_prepare_to_flush(struct ZS_thread_state *thd_state)
         zs_pstats_t pstats = { 0, 0 };
         pstats.seq_num   = seqnoalloc(thd_state);
 
+		skip_flush = true;
+
         for ( i = 0; i < Container_Map[idx].btree->n_partitions; i++ ) {
             if ( true == Container_Map[idx].btree->partitions[i]->pstats_modified ) {
                 pstats.obj_count += Container_Map[idx].btree->partitions[i]->stats.stat[BTSTAT_NUM_OBJS];
@@ -924,11 +924,6 @@ pstats_prepare_to_flush(struct ZS_thread_state *thd_state)
                 skip_flush = false;
 #ifdef PSTATS_1
                 fprintf(stderr, "pstats_prepare_to_flush: last_flushed_seq_num= %ld\n", pstats.seq_num);
-#endif
-            } else {
-                skip_flush = true;
-#ifdef PSTATS_1
-                fprintf(stderr, "pstats_prepare_to_flush: let's skip flushing pstats\n");
 #endif
             }
         }
@@ -996,7 +991,6 @@ pstats_fn(void *parm)
         (void) pthread_cond_timedwait( &pstats_cond_var, &pstats_mutex, &time_to_wait );
 
         pthread_mutex_unlock( &pstats_mutex );
-		continue;
 
         r = pstats_prepare_to_flush(thd_state);
     }
@@ -5880,7 +5874,7 @@ ZSInitPstats(struct ZS_thread_state *my_thd_state, char *key, zs_pstats_t *pstat
         pstats->obj_count = 0;
 		pstats->num_snap_objs = 0;
 		pstats->snap_data_size = 0;
-        //fprintf(stderr, "Error: ZSInitPstats failed to read stats for cname %s\n", key);
+        fprintf(stderr, "Error: ZSInitPstats failed to read stats for cname %s\n", key);
         //pstats->cntr_sz = 0;
     }
     ZSFreeBuffer(data);
