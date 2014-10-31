@@ -81,7 +81,7 @@ int flog_corrupt(uint64_t shard_id) {
         fprintf(stderr,"Unable to open flog:%s\n",path);
         return -1;
     }
-    rc = fprintf(fp,"corrupting flog\n");
+    rc = fprintf(fp,"%1024s\n", "corrupting flog");
     fclose(fp);
     return rc;
 
