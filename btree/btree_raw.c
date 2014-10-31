@@ -1401,6 +1401,7 @@ get_latest_seqno(btree_raw_t *bt, btree_raw_node_t *n, char *key_in, uint32_t ke
 		x = seqno_cmp_range(smeta, ks->seqno, &exact_match, &range_match);
 		if (exact_match) {
 			*found = true;
+			i_ret = i_cur;
 			return (i_ret);
 		} else if (range_match) {
 			*found = true;
@@ -7206,6 +7207,7 @@ btree_status_t btree_raw_delete(struct btree_raw *btree, char *key, uint32_t key
 
 	if (del_type == OPTIMISTIC) {
 		btree_leaf_get_meta(node->pnode, index, &key_meta);
+		assert(key_meta.seqno == meta->seqno);
 		if (btree_snap_seqno_in_snap(btree, key_meta.seqno) == true) {
 			 __sync_sub_and_fetch(&(btree->stats.stat[BTSTAT_NUM_SNAP_OBJS]), 1);
 			 __sync_sub_and_fetch(&(btree->stats.stat[BTSTAT_SNAP_DATA_SIZE]), key_meta.datalen);
