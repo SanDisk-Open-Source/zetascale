@@ -3278,7 +3278,7 @@ static ZS_status_t zs_create_container(
                 // Copy the FDF properties into the old SDF properties
                 memcpy(&meta->zs_properties, properties, sizeof(ZS_container_props_t));
 
-				if ( create_put_meta( pai, cname, meta, (SDF_cguid_t) *cguid ) == SDF_SUCCESS ) {
+				if ( (status = create_put_meta( pai, cname, meta, (SDF_cguid_t) *cguid )) == SDF_SUCCESS ) {
 
 					if ( !isCMC && (status = name_service_lock_meta( pai, cname )) != ZS_SUCCESS ) {
 						plat_log_msg(21532, LOG_CAT, LOG_ERR, "failed to lock %s", cname);

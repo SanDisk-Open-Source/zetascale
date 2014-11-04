@@ -1362,7 +1362,7 @@ create_put_meta(SDF_internal_ctxt_t *pai, const char *path, SDF_container_meta_t
     plat_log_msg(21559, LOG_CAT, LOG_TRACE, "create_put_meta: %s - %lu", path, cguid);
     if (strcmp(path, CMC_PATH) != 0) {
 
-        if (name_service_create_meta(pai, path, cguid, meta) != SDF_SUCCESS) {
+        if ((status = name_service_create_meta(pai, path, cguid, meta)) != SDF_SUCCESS) {
             plat_log_msg(21560, LOG_CAT, LOG_ERR, "FAILURE: create_put_meta - create %s", path);
         } else {
             status = SDF_SUCCESS;
