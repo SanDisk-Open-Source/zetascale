@@ -1991,7 +1991,7 @@ delete_overflow_data(btree_status_t *ret, btree_raw_t *bt, uint64_t ptr_in, uint
 				fprintf(stderr, "Failed to free an existing overflow node in delete_overflow_data!");
 			}
 		} else {
-			deleted_ovnodes_id[deleted_ovnodes_count++] = 0;
+			deleted_ovnodes_id[deleted_ovnodes_count++] = ptr_in;
 		}
 
 
