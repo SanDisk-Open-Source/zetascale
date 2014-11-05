@@ -5539,7 +5539,7 @@ makecrashdir( )
  * return size of slab at 'blk_offset'
  */
 static uint
-slabsize( mcd_osd_shard_t *shard, uint blk_offset)
+slabsize( mcd_osd_shard_t *shard, uint64_t blk_offset)
 {
 	mcd_osd_segment_t * segment;
 
@@ -7031,7 +7031,7 @@ log_sync_postprocess( mcd_osd_shard_t *shard, mcd_rec_pp_state_t *pp_state)
 			pp_state->dealloc_ring[pp_state->dealloc_head] = pp_state->dealloc_list[d];
 			pp_state->dealloc_head = (pp_state->dealloc_head+1) % nel( pp_state->dealloc_ring);
 			if (pp_state->dealloc_head == pp_state->dealloc_tail) {
-				uint o = pp_state->dealloc_ring[pp_state->dealloc_tail];
+				uint64_t o = pp_state->dealloc_ring[pp_state->dealloc_tail];
 				pp_state->dealloc_tail = (pp_state->dealloc_tail+1) % nel( pp_state->dealloc_ring);
 				uint i = mcd_osd_lba_to_blk( slabsize( shard, o));
 				shard->blk_delayed -= i;
@@ -7389,29 +7389,29 @@ log_writer_thread( uint64_t arg )
             fprintf(stderr, "start_seg=%ld end_seg=%ld start_blk=%ld"
                             " end_blk=%ld blk_count=%ld\n",
                     start_seg, end_seg, start_blk, end_blk, blk_count);
-        }
-        plat_assert( start_seg == end_seg );
+		}
+		plat_assert( start_seg == end_seg );
 
-        // look up physical block offset of start
-        offset = shard->mos_segments[ start_seg ] * Mcd_osd_blk_size +
-		    (start_blk % MCD_OSD_META_SEGMENT_BLKS) * MCD_OSD_META_BLK_SIZE;
+		// look up physical block offset of start
+		offset = shard->mos_segments[ start_seg ] * Mcd_osd_blk_size +
+			(start_blk % MCD_OSD_META_SEGMENT_BLKS) * MCD_OSD_META_BLK_SIZE;
 
-        // write the (perhaps partially-filled) logbuf buffer
+		// write the (perhaps partially-filled) logbuf buffer
 
-	if (shard->id == cmc_shardid)		// suppress logging for CMC
-		rc = FLASH_EOK;
-	else
-		rc = mcd_fth_aio_blk_write_low( context, logbuf->buf, offset, blk_count * MCD_OSD_META_BLK_SIZE,
-				shard->durability_level == SDF_FULL_DURABILITY);
-        if ( FLASH_EOK != rc ) {
-            mcd_rlg_msg( 20552, PLAT_LOG_LEVEL_FATAL,
-                         "failed to commit log buffer, shardID=%lu, "
-                         "blk_offset=%lu, count=%lu, rc=%d",
-                         shard->id, offset, blk_count, rc );
-            plat_abort();
-        }
+		if (shard->id == cmc_shardid)		// suppress logging for CMC
+			rc = FLASH_EOK;
+		else
+			rc = mcd_fth_aio_blk_write_low( context, logbuf->buf, offset, blk_count * MCD_OSD_META_BLK_SIZE,
+					shard->durability_level == SDF_FULL_DURABILITY);
+		if ( FLASH_EOK != rc ) {
+			mcd_rlg_msg( 20552, PLAT_LOG_LEVEL_FATAL,
+					"failed to commit log buffer, shardID=%lu, "
+					"blk_offset=%lu, count=%lu, rc=%d",
+					shard->id, offset, blk_count, rc );
+			plat_abort();
+		}
 
-        /* ---- end of write magic ----- */
+		/* ---- end of write magic ----- */
 
         /* sync_sem is grabbed before the buffer may be reused */
         sync_sem = logbuf->sync_sem;

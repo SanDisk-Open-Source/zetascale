@@ -5224,6 +5224,7 @@ mcd_fth_osd_slab_write_raw( void * context, mcd_osd_shard_t * shard,
 
 	blk_offset = *(baddr_t *)key;
 	plat_assert(blk_offset % rawobjratio == 0);
+	plat_assert(blk_offset != 0);
 
     num_puts = __sync_add_and_fetch( &shard->num_puts, 1 );
 
@@ -5247,6 +5248,8 @@ mcd_fth_osd_slab_write_raw( void * context, mcd_osd_shard_t * shard,
 	if ( NULL == data ) {
 		mcd_osd_slab_class_t* class;
 		bool delayed = 1 == shard->replicated || (1 == shard->persistent && 0 == shard->evict_to_free);
+
+		blocks = rawobjratio;
 
 		plus_objs--;
 		plus_blks -= lba_to_use(shard, blocks);
@@ -5282,11 +5285,12 @@ mcd_fth_osd_slab_write_raw( void * context, mcd_osd_shard_t * shard,
 			log_rec.cntr_id      = cntr_id;
 			log_rec.seqno        = meta_data->sequence;
 			log_rec.target_seqno = 0;
-			log_rec.mlo_old_offset   = 0;
 			log_rec.raw          = TRUE;
 			if (0 == shard->evict_to_free ) {
+				log_rec.mlo_old_offset = ~(blk_offset) & 0x0000ffffffffffffull;
 				log_write_trx( shard, &log_rec, 0, 0);
 			} else {
+				log_rec.mlo_old_offset   = 0;
 				log_write( shard, &log_rec );
 			}
 		}
