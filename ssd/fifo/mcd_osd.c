@@ -5296,6 +5296,7 @@ mcd_fth_osd_slab_write_raw( void * context, mcd_osd_shard_t * shard,
 		}
 
 		atomic_sub(shard->blk_consumed, mcd_osd_lba_to_blk(blocks));
+		inc_cntr_map_by_map(cmap, cntr_id, plus_objs, plus_blks, 0);
 
 		(void) __sync_fetch_and_sub( &shard->num_objects, 1 );
 		(void) __sync_fetch_and_add( &shard->num_deletes, 1 );
