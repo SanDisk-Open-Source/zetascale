@@ -5840,31 +5840,31 @@ updater_thread( uint64_t arg )
             break;
         }
 
-        // mail has out-of-band log, no-op
-        if ( mail->log == -1 ) {
-            mcd_log_msg( 20516, MCD_REC_LOG_LVL_TRACE,
-                         "Object table updater no-op for shardID=%lu",
-                         shard->id );
+		// mail has out-of-band log, no-op
+		if ( mail->log == -1 ) {
+			mcd_log_msg( 20516, MCD_REC_LOG_LVL_TRACE,
+					"Object table updater no-op for shardID=%lu",
+					shard->id );
 
-            // signal this shard update is done
-            if ( mail->updated_mbox != NULL ) {
-                fthMboxPost( mail->updated_mbox, 0 );
-            }
-            continue;
-        }
-	unless (mail->in_recovery) {
-		if (real_log < 0)
-			real_log = mail->log;
-		else {
-			unless (mail->log == real_log)
-				mcd_log_msg( 170042, PLAT_LOG_LEVEL_DIAGNOSTIC, "Bogus log # from log_writer");
-			mail->log = real_log;			// always ignore incoming log #
+			// signal this shard update is done
+			if ( mail->updated_mbox != NULL ) {
+				fthMboxPost( mail->updated_mbox, 0 );
+			}
+			continue;
 		}
-		real_log = (real_log+1) % MCD_REC_NUM_LOGS;
-	}
+		unless (mail->in_recovery) {
+			if (real_log < 0)
+				real_log = mail->log;
+			else {
+				unless (mail->log == real_log)
+					mcd_log_msg( 170042, PLAT_LOG_LEVEL_DIAGNOSTIC, "Bogus log # from log_writer");
+				mail->log = real_log;			// always ignore incoming log #
+			}
+			real_log = (real_log+1) % MCD_REC_NUM_LOGS;
+		}
 
-        plat_assert( mail->log >= 0 );
-        plat_assert( mail->log < MCD_REC_NUM_LOGS );
+		plat_assert( mail->log >= 0 );
+		plat_assert( mail->log < MCD_REC_NUM_LOGS );
 
         shard->rec_num_updates  += 1;
         shard->rec_upd_running   = 1;
@@ -5982,10 +5982,7 @@ updater_thread( uint64_t arg )
                 else {
                     old_merged = false; // new_merged = false;
                 }
-            }
-
-            // checkpoint exists
-            else {
+            } else { // checkpoint exists
                 ckpt_log      = ( ((ckpt->LSN - 1) / reclogblks) % MCD_REC_NUM_LOGS );
                 ckpt_page     = (ckpt->LSN - 1) % reclogblks;
                 ckpt_page_LSN = read_log_page( context, shard,
@@ -6021,13 +6018,13 @@ updater_thread( uint64_t arg )
                 // case 6: ckpt in new log, new log records since ckpt
                 else {
                     old_merged = false; // new_merged = false;
-                }
-		/*
-		 * #11425 - scan 1st log regardless so the "st" filter works
-		 */
-		ckpt->LSN = 0;
-		old_merged = false;
-            }
+				}
+				/*
+				 * #11425 - scan 1st log regardless so the "st" filter works
+				 */
+				ckpt->LSN = 0;
+				old_merged = false;
+			}
 
             mcd_log_msg( 40088, PLAT_LOG_LEVEL_DEBUG,
                          "Old log %d merge %s, shardID=%lu, "
@@ -6037,30 +6034,30 @@ updater_thread( uint64_t arg )
                          old_merged ? "not needed" : "required",
                          shard->id, ckpt->LSN, reclogblks,
                          ckpt_log, ckpt_page, ckpt_page_LSN );
-        }
-        mcd_log_msg( 40089, PLAT_LOG_LEVEL_DEBUG,
-                     "%s object table, shardID=%lu, pass %d of %d",
-                     state.in_recovery ? "Recovering" : "Merging",
-                     shard->id, state.pass, state.passes );
+		}
+		mcd_log_msg( 40089, PLAT_LOG_LEVEL_DEBUG,
+				"%s object table, shardID=%lu, pass %d of %d",
+				state.in_recovery ? "Recovering" : "Merging",
+				shard->id, state.pass, state.passes );
 
-	if ((state.in_recovery)
-	and (shard->cntr->cguid == VDC_CGUID))
-		filter_cs_initialize( &state);
-	state.context = context;
-	state.shard = shard;
-        state.high_obj_offset = 0;
-        state.low_obj_offset  = ~0uL;
+		if ((state.in_recovery)
+				and (shard->cntr->cguid == VDC_CGUID))
+			filter_cs_initialize( &state);
+		state.context = context;
+		state.shard = shard;
+		state.high_obj_offset = 0;
+		state.low_obj_offset  = ~0uL;
 
-        // read the object table
-        for ( state.chunk = 0;
-              state.chunk < state.num_chunks && !old_merged;
-              state.chunk++ ) {
+		// read the object table
+		for ( state.chunk = 0;
+				state.chunk < state.num_chunks && !old_merged;
+				state.chunk++ ) {
 
-            if ( state.num_chunks < 10 ||
-                 state.chunk % ((state.num_chunks + 9) / 10) == 0 ) {
-                if ( state.chunk > 0 ) {
-                    mcd_log_msg( 40090, PLAT_LOG_LEVEL_DEBUG,
-                                 "%s object table, shardID=%lu, "
+			if ( state.num_chunks < 10 ||
+					state.chunk % ((state.num_chunks + 9) / 10) == 0 ) {
+				if ( state.chunk > 0 ) {
+					mcd_log_msg( 40090, PLAT_LOG_LEVEL_DEBUG,
+							"%s object table, shardID=%lu, "
                                  "pass %d of %d: %d percent complete",
                                  state.in_recovery ? "Recovering" : "Merging",
                                  shard->id, state.pass, state.passes,
@@ -6116,41 +6113,41 @@ updater_thread( uint64_t arg )
             }
         }
 
-        mcd_log_msg( 40091, PLAT_LOG_LEVEL_DEBUG,
-                     "%s object table, shardID=%lu, "
-                     "pass %d of %d: complete, highLSN=%lu, ckptLSN=%lu",
-                     state.in_recovery ? "Recovering" : "Merging",
-                     shard->id, state.pass, state.passes,
-                     curr_log_state.high_LSN, ckpt->LSN );
+		mcd_log_msg( 40091, PLAT_LOG_LEVEL_DEBUG,
+				"%s object table, shardID=%lu, "
+				"pass %d of %d: complete, highLSN=%lu, ckptLSN=%lu",
+				state.in_recovery ? "Recovering" : "Merging",
+				shard->id, state.pass, state.passes,
+				curr_log_state.high_LSN, ckpt->LSN );
 
-	/*
-	 * unless recovering, set checkpoint LSN to highest LSN found
-	 */
-	unless ((state.in_recovery)
-	or (old_log_state.high_LSN <= ckpt->LSN))
-	    recovery_checkpoint( context, shard, old_log_state.high_LSN);
+		/*
+		 * unless recovering, set checkpoint LSN to highest LSN found
+		 */
+		unless ((state.in_recovery)
+				or (old_log_state.high_LSN <= ckpt->LSN))
+			recovery_checkpoint( context, shard, old_log_state.high_LSN);
 
-        // -----------------------------------------------------
-        // Merge "current" log when in recovery
-        // -----------------------------------------------------
+		// -----------------------------------------------------
+		// Merge "current" log when in recovery
+		// -----------------------------------------------------
 
-        if ( state.in_recovery ) {
-            pct_complete = 0;
-            state.pass = 2;
+		if ( state.in_recovery ) {
+			pct_complete = 0;
+			state.pass = 2;
 
-            curr_log_state.log             = 1 - old_log_state.log;
-            curr_log_state.start_blk       = 0;
-            curr_log_state.num_blks        = reclogblks;
-            curr_log_state.high_LSN        = 0;
-            curr_log_state.seg_cached      = 0;
-            curr_log_state.seg_count       = log->segment_count;
-            curr_log_state.segments        = log->segments;
-	    state.high_obj_offset = 0;
-	    state.low_obj_offset  = ~0uL;
+			curr_log_state.log             = 1 - old_log_state.log;
+			curr_log_state.start_blk       = 0;
+			curr_log_state.num_blks        = reclogblks;
+			curr_log_state.high_LSN        = 0;
+			curr_log_state.seg_cached      = 0;
+			curr_log_state.seg_count       = log->segment_count;
+			curr_log_state.segments        = log->segments;
+			state.high_obj_offset = 0;
+			state.low_obj_offset  = ~0uL;
 
-	    filter_cs_swap_log( &state);
+			filter_cs_swap_log( &state);
 
-            mcd_log_msg( 40045, PLAT_LOG_LEVEL_DEBUG,
+			mcd_log_msg( 40045, PLAT_LOG_LEVEL_DEBUG,
                          "Recovering object table, shardID=%lu, pass %d of %d",
                          shard->id, state.pass, state.passes );
 
@@ -6224,31 +6221,31 @@ updater_thread( uint64_t arg )
                              "Recovered shardID=%lu, chunk %d of %d, "
                              "obj=%lu, seq=%lu",
                              shard->id, state.chunk, state.num_chunks,
-                             recovered_objs, shard->sequence );
-            }
-	    filter_cs_flush( &state);
-	    /*
-	     * generate packets for btree container and stats recovery
-	     */
-	    if (shard->cntr->cguid == VDC_CGUID) {
-		recovery_packet_save( state.otpacket, context, shard);
-		stats_packet_save( &state, context, shard);
-		plat_free( state.statbuf);
-		plat_free( state.otpacket);
-	    }
-            mcd_log_msg( 40083, PLAT_LOG_LEVEL_DEBUG,
-                         "Recovering object table, shardID=%lu, "
-                         "pass %d of %d: complete, highLSN=%lu, ckptLSN=%lu",
-                         shard->id, state.pass, state.passes,
-                         curr_log_state.high_LSN, ckpt->LSN );
+							 recovered_objs, shard->sequence );
+			}
+			filter_cs_flush( &state);
+			/*
+			 * generate packets for btree container and stats recovery
+			 */
+			if (shard->cntr->cguid == VDC_CGUID) {
+				recovery_packet_save( state.otpacket, context, shard);
+				stats_packet_save( &state, context, shard);
+				plat_free( state.statbuf);
+				plat_free( state.otpacket);
+			}
+			mcd_log_msg( 40083, PLAT_LOG_LEVEL_DEBUG,
+					"Recovering object table, shardID=%lu, "
+					"pass %d of %d: complete, highLSN=%lu, ckptLSN=%lu",
+					shard->id, state.pass, state.passes,
+					curr_log_state.high_LSN, ckpt->LSN );
 
-            // set checkpoint LSN to highest LSN found
-            if ( curr_log_state.high_LSN > ckpt->LSN ) {
-                plat_assert( curr_log_state.high_LSN >=
-                             old_log_state.high_LSN );
-                recovery_checkpoint( context, shard, curr_log_state.high_LSN );
-            }
-        }
+			// set checkpoint LSN to highest LSN found
+			if ( curr_log_state.high_LSN > ckpt->LSN ) {
+				plat_assert( curr_log_state.high_LSN >=
+						old_log_state.high_LSN );
+				recovery_checkpoint( context, shard, curr_log_state.high_LSN );
+			}
+		}
 
         // -----------------------------------------------------
         // Object table update complete
@@ -6298,16 +6295,16 @@ updater_thread( uint64_t arg )
             }
         }
 
-        updater_reply:
+updater_reply:
 
         // -----------------------------------------------------
         // Reply to requestor
-        // -----------------------------------------------------
+		// -----------------------------------------------------
 
-	// 101712: reversed the order of fthSemUp and fthMboxPost to fix 10108
-        // make persistent log available for writing
-        if ( mail->updated_sem != NULL ) {
-            fthSemUp( mail->updated_sem, 1 );
+		// 101712: reversed the order of fthSemUp and fthMboxPost to fix 10108
+		// make persistent log available for writing
+		if ( mail->updated_sem != NULL ) {
+			fthSemUp( mail->updated_sem, 1 );
         }
 
         // signal this shard update is done

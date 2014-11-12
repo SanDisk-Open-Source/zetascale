@@ -398,6 +398,7 @@ typedef struct zs_pstats_ {
     uint64_t obj_count;
 	uint64_t num_snap_objs;
 	uint64_t snap_data_size;
+	uint64_t num_overflw_nodes;
 } zs_pstats_t;
 
 uint64_t total_sys_writes;

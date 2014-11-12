@@ -336,6 +336,7 @@ void btree_sync_thread(uint64_t arg);
 static void reset_node_pstats(btree_raw_node_t *pnode);
 static void pstats_flush(struct btree_raw *btree, btree_raw_mem_node_t *n);
 static void set_node_pstats(btree_raw_t *btree, btree_raw_node_t *pnode, uint64_t num_obj, bool is_delta_positive);
+static void set_overflow_pstats(btree_raw_t *btree, btree_raw_node_t *pnode, uint64_t num_obj, bool is_delta_positive);
 
 static void default_msg_cb(int level, void *msg_data, char *filename, int lineno, char *msg, ...)
 {
@@ -408,14 +409,21 @@ btree_raw_crash_stats( btree_raw_t* bt, void *data, uint32_t datalen )
 			bt->pstats.obj_count += pstats_new->delta[PSTAT_OBJ_COUNT];
 		else
 			bt->pstats.obj_count -= pstats_new->delta[PSTAT_OBJ_COUNT];
+
 		if (ipd & 1<<PSTAT_NUM_SNAP_OBJS)
 			bt->pstats.num_snap_objs += pstats_new->delta[PSTAT_NUM_SNAP_OBJS];
 		else
 			bt->pstats.num_snap_objs -= pstats_new->delta[PSTAT_NUM_SNAP_OBJS];
+
 		if (ipd & 1<<PSTAT_SNAP_DATA_SIZE)
 			bt->pstats.snap_data_size += pstats_new->delta[PSTAT_SNAP_DATA_SIZE];
 		else
 			bt->pstats.snap_data_size -= pstats_new->delta[PSTAT_SNAP_DATA_SIZE];
+
+		if (ipd & 1<<PSTAT_OVERFLW_NODES)
+			bt->pstats.num_overflw_nodes += pstats_new->delta[PSTAT_OVERFLW_NODES];
+		else
+			bt->pstats.num_overflw_nodes -= pstats_new->delta[PSTAT_OVERFLW_NODES];
 	}
 }
 
@@ -1972,7 +1980,7 @@ get_leaf_key_index(btree_raw_t *bt, btree_raw_node_t *n, int index, char **key,
 }
 
 void 
-delete_overflow_data(btree_status_t *ret, btree_raw_t *bt, uint64_t ptr_in, uint64_t datalen)
+delete_overflow_data(btree_status_t *ret, btree_raw_t *bt, btree_raw_node_t *leaf, uint64_t ptr_in, uint64_t datalen)
 {
     uint64_t            ptr;
     uint64_t            ptr_next;
@@ -1993,11 +2001,10 @@ delete_overflow_data(btree_status_t *ret, btree_raw_t *bt, uint64_t ptr_in, uint
 		} else {
 			deleted_ovnodes_id[deleted_ovnodes_count++] = ptr_in;
 		}
-
-
+		set_overflow_pstats(bt, leaf, 1, 0);
 	} else { 
-
-		for (ptr = ptr_in; ptr != 0; ptr = ptr_next) {
+		uint64_t num_nodes = 0;
+		for (ptr = ptr_in; ptr != 0; ptr = ptr_next, num_nodes++) {
 			n = get_existing_overflow_node(ret, bt, ptr, NODE_REF);
 			if (BTREE_SUCCESS != *ret) {
 				fprintf(stderr, "Failed to find an existing overflow node in delete_overflow_data!");
@@ -2011,6 +2018,7 @@ delete_overflow_data(btree_status_t *ret, btree_raw_t *bt, uint64_t ptr_in, uint
 				fprintf(stderr, "Failed to free an existing overflow node in delete_overflow_data!");
 			}
 		}
+		set_overflow_pstats(bt, leaf, num_nodes, 0);
 	}
     //fprintf(stderr, "delete_overflow_data called: cur=%ld len=%ld\n", (bt->stats.stat[BTSTAT_OVERFLOW_BYTES]), datalen);
     __sync_sub_and_fetch(&(bt->stats.stat[BTSTAT_OVERFLOW_BYTES]), datalen);
@@ -2027,7 +2035,7 @@ static void undo_allocate_overflow_data(btree_raw_t *bt, btree_raw_mem_node_t *n
 	}
 }
 
-static uint64_t allocate_overflow_data(btree_raw_t *bt, uint64_t datalen, char *data)
+static uint64_t allocate_overflow_data(btree_raw_t *bt, btree_raw_node_t *leaf, uint64_t datalen, char *data)
 {
     uint64_t            n_nodes;
     btree_raw_mem_node_t   *n, *n_first = NULL, *n_last = NULL;
@@ -2076,8 +2084,10 @@ static uint64_t allocate_overflow_data(btree_raw_t *bt, uint64_t datalen, char *
 
     }
 
-    if(BTREE_SUCCESS == ret) 
+    if(BTREE_SUCCESS == ret) {
+		set_overflow_pstats(bt, leaf, n_nodes, 1);
         return n_first->pnode->logical_id;
+	}
 
 
     if(n_first) {
@@ -2403,6 +2413,7 @@ reset_node_pstats(btree_raw_node_t *n)
     n->pstats.delta[PSTAT_OBJ_COUNT] = 0;
 	n->pstats.delta[PSTAT_NUM_SNAP_OBJS] = 0;
 	n->pstats.delta[PSTAT_SNAP_DATA_SIZE] = 0;
+	n->pstats.delta[PSTAT_OVERFLW_NODES] = 0;
 
     n->pstats.seq = 0;
 #ifdef PSTATS_2
@@ -2447,6 +2458,7 @@ set_node_pstats(btree_raw_t *btree, btree_raw_node_t *x, uint64_t num_obj, bool 
 static void
 set_node_snapobjs_pstats(btree_raw_t *btree, btree_raw_node_t *x, uint64_t num_obj, uint64_t data_size, bool is_delta_positive)
 {
+    pthread_mutex_lock(&btree->pstat_lock);
     //btree_raw_node_t* x = n->pnode;
     x->pstats.seq_num = btree->last_flushed_seq_num;
     x->pstats.delta[PSTAT_NUM_SNAP_OBJS] += num_obj;
@@ -2459,6 +2471,60 @@ set_node_snapobjs_pstats(btree_raw_t *btree, btree_raw_node_t *x, uint64_t num_o
 #ifdef PSTATS_2
     fprintf(stderr, "delta_num_obj=%ld delta_snap_data_size=%ld seq_num=%ld is_delta_positive=%d unique=%ld\n",
            x->pstats.delta[PSTAT_NUM_SNAP_OBJS], x->pstats.delta[PSTAT_SNAP_DATA_SIZE], x->pstats.seq_num, is_delta_positive, x->pstats.seq);
+#endif
+    pthread_mutex_unlock(&btree->pstat_lock);
+}
+
+/*
+ * Set per node stats. This information is used to recover nodes
+ * involved in a crashed session.
+ */
+static void
+set_overflow_pstats(btree_raw_t *btree, btree_raw_node_t *x, uint64_t num_objs, bool is_delta_positive)
+{
+    pthread_mutex_lock(&btree->pstat_lock);
+    x->pstats.seq_num = btree->last_flushed_seq_num;
+	if (is_delta_positive) {
+		if (x->pstats.is_pos_delta & (1 << PSTAT_OVERFLW_NODES)) {
+			x->pstats.delta[PSTAT_OVERFLW_NODES] += num_objs;
+		} else {
+			if (x->pstats.delta[PSTAT_OVERFLW_NODES] >= num_objs) {
+				x->pstats.delta[PSTAT_OVERFLW_NODES] -= num_objs;
+			} else {
+				x->pstats.delta[PSTAT_OVERFLW_NODES] = num_objs - x->pstats.delta[PSTAT_OVERFLW_NODES];
+				x->pstats.is_pos_delta |= 1 << PSTAT_OVERFLW_NODES;
+			}
+		}
+	} else {
+		if (x->pstats.is_pos_delta & (1 << PSTAT_OVERFLW_NODES)) {
+			if (x->pstats.delta[PSTAT_OVERFLW_NODES] >= num_objs) {
+				x->pstats.delta[PSTAT_OVERFLW_NODES] -= num_objs;
+			} else {
+				x->pstats.delta[PSTAT_OVERFLW_NODES] = num_objs - x->pstats.delta[PSTAT_OVERFLW_NODES];
+				x->pstats.is_pos_delta &= ~((char)1 << PSTAT_OVERFLW_NODES);
+			}
+		} else {
+			x->pstats.delta[PSTAT_OVERFLW_NODES] += num_objs;
+		}
+	}
+    /*
+     * Unique temporary sequence number exists for debugging purposes
+     */
+    x->pstats.seq = __sync_fetch_and_add( &unique, 1 );
+    btree->pstats_modified = true;
+
+    _pstats_ckpt_index = btree->current_active_write_idx;
+
+    /*
+     * This write is active now.
+     */
+    __sync_add_and_fetch(&btree->active_writes[_pstats_ckpt_index], 1);
+
+    pthread_mutex_unlock(&btree->pstat_lock);
+
+#ifdef PSTATS_1
+    fprintf(stderr, "set_overflow_pstats: d_obcount=%ld seq_num=%ld positive=%d unique=%ld\n",
+            x->pstats.delta[PSTAT_OVERFLW_NODES], x->pstats.seq_num, is_delta_positive, x->pstats.seq);
 #endif
 }
 
@@ -3827,12 +3893,11 @@ static void insert_key_low(btree_status_t *ret, btree_raw_t *btree, btree_raw_me
 
     if ((!ks.fixed) && 
         (x->flags & LEAF_NODE) && 
-	big_object_kd(btree, keylen, datalen)) // xxxzzz check this!
-    { 
-	//  Allocate nodes for overflowed objects first, in case
-	//  something goes wrong.
+		big_object_kd(btree, keylen, datalen)) { // xxxzzz check this!
+		//  Allocate nodes for overflowed objects first, in case
+		//  something goes wrong.
         
-		ptr_overflow = allocate_overflow_data(btree, datalen, data);
+		ptr_overflow = allocate_overflow_data(btree, x, datalen, data);
 		if ((ptr_overflow == 0) && (datalen != 0)) {
 			// something went wrong with the allocation
 			*ret = BTREE_FAILURE;
@@ -3957,14 +4022,14 @@ static void insert_key_low(btree_status_t *ret, btree_raw_t *btree, btree_raw_me
      */
     //set_node_pstats(btree, x, 1, true);
 
-    if (x->flags & LEAF_NODE) {
-	assert(0);
-        /* A new object has been inserted. increment the count */
-	__sync_add_and_fetch(&(btree->stats.stat[BTSTAT_NUM_OBJS]), 1);
-	__sync_add_and_fetch(&(btree->stats.stat[BTSTAT_LEAF_BYTES]), nbytes_stats);
-    } else {
-	__sync_add_and_fetch(&(btree->stats.stat[BTSTAT_NONLEAF_BYTES]), nbytes_stats);
-    }
+	if (x->flags & LEAF_NODE) {
+		assert(0);
+		/* A new object has been inserted. increment the count */
+		__sync_add_and_fetch(&(btree->stats.stat[BTSTAT_NUM_OBJS]), 1);
+		__sync_add_and_fetch(&(btree->stats.stat[BTSTAT_LEAF_BYTES]), nbytes_stats);
+	} else {
+		__sync_add_and_fetch(&(btree->stats.stat[BTSTAT_NONLEAF_BYTES]), nbytes_stats);
+	}
 
 #if 0
     /*
@@ -4062,7 +4127,7 @@ static void delete_key_by_pkrec(btree_status_t* ret, btree_raw_t *btree, btree_r
 			if (big_object(btree, pvlk_delete)) {
 				// data NOT stored in the node
 				datalen = 0;
-				delete_overflow_data(ret, btree, pvlk_delete->ptr, pvlk_delete->datalen);
+				delete_overflow_data(ret, btree, x, pvlk_delete->ptr, pvlk_delete->datalen);
 			} else {
 				// data IS stored in the node
 				datalen = pvlk_delete->datalen;
@@ -4193,7 +4258,7 @@ delete_key_by_index_leaf(btree_status_t* ret, btree_raw_t *btree, btree_raw_mem_
     if ((key_info.keylen + key_info.datalen) >=
             btree->big_object_size) {
         datalen = 0;
-        delete_overflow_data(ret, btree, key_info.ptr, key_info.datalen);
+        delete_overflow_data(ret, btree, node->pnode, key_info.ptr, key_info.datalen);
     } else {
         datalen = key_info.datalen;
     }
@@ -5028,7 +5093,7 @@ btree_leaf_insert_low(btree_status_t *pret, btree_raw_t *bt, btree_raw_mem_node_
 		if ((key_info.keylen + key_info.datalen) 
 				>= bt->big_object_size) {
 			old_datalen = 0;
-			delete_overflow_data(pret, bt, key_info.ptr, key_info.datalen);
+			delete_overflow_data(pret, bt, n->pnode, key_info.ptr, key_info.datalen);
 			if (*pret != BTREE_SUCCESS) {
 				return false;
 			}
@@ -5042,7 +5107,7 @@ btree_leaf_insert_low(btree_status_t *pret, btree_raw_t *bt, btree_raw_mem_node_
 	 */
 	if ((keylen + datalen) >= bt->big_object_size) {
 		assert(datalen > 0);
-		new_overflow_ptr = allocate_overflow_data(bt, datalen, data);
+		new_overflow_ptr = allocate_overflow_data(bt, n->pnode, datalen, data);
 	}
 
 	/*
@@ -5962,24 +6027,24 @@ mini_restart:
 
 	assert(is_leaf(btree, node));
 
-        new_inserts = 0;
-        ret = btree_insert_keys_leaf(btree, meta, syndrome, mem_node, write_type | W_ASC, objs,
-				     count, nkey_child, key_found, is_update, written, NULL, &new_inserts);
+	new_inserts = 0;
+	ret = btree_insert_keys_leaf(btree, meta, syndrome, mem_node, write_type | W_ASC, objs,
+			count, nkey_child, key_found, is_update, written, NULL, &new_inserts);
 
-        objs += *written;
-        count -= *written;
+	objs += *written;
+	count -= *written;
 
-        if(!storage_error(ret) && (ret != BTREE_OBJECT_TOO_BIG) && (count > 1) && parent && *written) {
-            uint32_t not_written, ni;
-            assert(parent->pnode->logical_id != mem_node->pnode->logical_id);
-            ret = btree_raw_bulk_insert(btree, &objs, count, write_type,
-                    meta, parent, mem_node, parent_nkey_child, &not_written, &ni);
+	if(!storage_error(ret) && (ret != BTREE_OBJECT_TOO_BIG) && (count > 1) && parent && *written) {
+		uint32_t not_written, ni;
+		assert(parent->pnode->logical_id != mem_node->pnode->logical_id);
+		ret = btree_raw_bulk_insert(btree, &objs, count, write_type,
+				meta, parent, mem_node, parent_nkey_child, &not_written, &ni);
 		*written += count - not_written;
 		new_inserts += ni;
 		count = not_written;
 		dbg_print("bulk_insert returned error: %d written=%d not_written=%d num_objs=%d count=%d\n", ret, *written, not_written, *num_objs, count);
 	}
-        set_node_pstats(btree, mem_node->pnode, new_inserts, true);
+	set_node_pstats(btree, mem_node->pnode, new_inserts, true);
 
 	if (ret == BTREE_OBJECT_TOO_BIG) {
 		ret = BTREE_SUCCESS;
@@ -8710,6 +8775,7 @@ btree_raw_init_stats(struct btree_raw *btree, btree_stats_t *stats, zs_pstats_t 
     btree->stats.stat[BTSTAT_NUM_OBJS]    = pstats->obj_count;
     btree->stats.stat[BTSTAT_NUM_SNAP_OBJS]    = pstats->num_snap_objs;
     btree->stats.stat[BTSTAT_SNAP_DATA_SIZE]    = pstats->snap_data_size;
+	btree->stats.stat[BTSTAT_OVERFLOW_NODES] = pstats->num_overflw_nodes;
     //fprintf(stderr, "btree_raw_init_stats:BTSTAT_NUM_OBJS= %ld\n",  pstats->obj_count);
     //btree->stats.stat[BTSTAT_TOTAL_BYTES] = pstats->cntr_sz;
 //  btree->stats.stat[BTSTAT_SPCOPT_BYTES_SAVED] = 0;

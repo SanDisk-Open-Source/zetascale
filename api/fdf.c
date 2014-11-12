@@ -92,7 +92,7 @@ extern HashMap cmap_cname_hash;           // cname -> cguid
 extern __thread uint64_t *trx_bracket_slabs;
 extern int storm_mode;
 
-ZS_status_t get_btree_num_objs(ZS_cguid_t cguid, uint64_t *num_objs);
+ZS_status_t get_btree_num_objs(ZS_cguid_t cguid, uint64_t *num_objs, uint64_t *ov_objs);
 
 void update_container_stats(SDF_action_init_t *pai, int reqtype, SDF_cache_ctnr_metadata_t *meta, int count) {
     atomic_add(pai->pcs->stats_new_per_sched[curSchedNum].ctnr_stats[meta->n].appreq_counts[reqtype], count);
@@ -1274,8 +1274,14 @@ get_cntr_info(cntr_id_t cntr_id,
 
     rel_cntr_map(cmap);
     /* Get num objs from btree if it is btree container */
-    if(objs) 
-        get_btree_num_objs(cntr_id,objs);
+    if(objs) {
+		uint64_t ov_objs = 0;
+		if (get_btree_num_objs(cntr_id,objs, &ov_objs) == ZS_SUCCESS) {
+			if (storm_mode) {
+				*used += ov_objs * rawobjratio * Mcd_osd_blk_size;
+			}
+		}
+	}
     return 1;
 }
 
@@ -7199,10 +7205,11 @@ ZS_status_t update_btree_stats(ZS_cguid_t cguid,ZS_stats_t *stats) {
     return ZS_SUCCESS;
 }
 
-ZS_status_t get_btree_num_objs(ZS_cguid_t cguid, uint64_t *num_objs) {
+ZS_status_t get_btree_num_objs(ZS_cguid_t cguid, uint64_t *num_objs, uint64_t *ov_objs) {
     ZS_ext_stat_t *estats;
     uint32_t n_stats, i;
     ZS_status_t rc;
+	int j = 0;
 
     if( ext_cbs == NULL ) {
         /* Non btree container, return */
@@ -7212,10 +7219,13 @@ ZS_status_t get_btree_num_objs(ZS_cguid_t cguid, uint64_t *num_objs) {
     if( rc != ZS_SUCCESS ) {
         return rc;
     }
-    for ( i = 0; i < n_stats; i++ ) {
+    for ( i = 0; (i < n_stats) && j < 2; i++ ) {
        if( estats[i].fstat == ZS_BTREE_NUM_OBJS ) {
            *num_objs = estats[i].value;
-           break; 
+		   j++;
+       } else if( estats[i].fstat == ZS_BTREE_OVERFLOW_NODES) {
+           *ov_objs = estats[i].value;
+		   j++;
        }
     }
     plat_free(estats);

@@ -311,53 +311,53 @@ void MapCheckRefcnts(struct Map *pm)
 //  Return non-NULL if success, NULL if object exists
 struct MapEntry *MapCreate(struct Map *pm, char *pkey, uint32_t keylen, char *pdata, uint64_t datalen, uint64_t cguid, int raw_object, void *replacement_callback_data)
 {
-    MapEntry_t   *pme;
-    MapBucket_t  *pb;
+	MapEntry_t   *pme;
+	MapBucket_t  *pb;
 
-    do_lock_write(pm);
+	do_lock_write(pm);
 
 	dbg_print("MapCreate: pm=%p, key=0x%lx, keylen=%d, pdata=%p, datalen=%ld, ", pm, *((uint64_t *) pkey), keylen, pdata, datalen);
 
-    pme = find_pme(pm, pkey, keylen, &pb, raw_object,cguid);
+	pme = find_pme(pm, pkey, keylen, &pb, raw_object,cguid);
 
-    if (pme != NULL) {
-	    dbg_print("pme=%p\n", pme);
+	if (pme != NULL) {
+		dbg_print("pme=%p\n", pme);
 
-	do_unlock(pm);
-        return(NULL);
-    }
+		do_unlock(pm);
+		return(NULL);
+	}
 
-    /* Create a new entry. */
+	/* Create a new entry. */
 
-    pme = create_pme(pm, pkey, keylen, pdata, datalen, raw_object, cguid);
+	pme = create_pme(pm, pkey, keylen, pdata, datalen, raw_object, cguid);
 
-    /* put myself on the bucket list */
-    pme->refcnt = 1;
-    pme->bucket = pb;
-    pme->next = pb->entry;
-    pb->entry = pme;
-    #ifdef LISTCHECK
-        check_list(pb, pme);
-    #endif
+	/* put myself on the bucket list */
+	pme->refcnt = 1;
+	pme->bucket = pb;
+	pme->next = pb->entry;
+	pb->entry = pme;
+#ifdef LISTCHECK
+	check_list(pb, pme);
+#endif
 
-    pm->n_entries++;
+	pm->n_entries++;
 
-    /* put myself on the lru list */
-    {
-        insert_lru(pm, pme);
+	/* put myself on the lru list */
+	{
+		insert_lru(pm, pme);
 
 		if ((pm->max_entries > 0) && (pm->n_entries > pm->max_entries)) {
 			dbg_print("pm %p max_entries %ld n_entries %ld\n", pm, pm->max_entries, pm->n_entries);
-	    	// do an LRU replacement
-	    	replace_lru(pm, pme, replacement_callback_data);
+			// do an LRU replacement
+			replace_lru(pm, pme, replacement_callback_data);
 		}
-    }
+	}
 
-    do_unlock(pm);
+	do_unlock(pm);
 
 	dbg_print("pme=%p\n", pme);
 
-    return(pme);
+	return(pme);
 }
 
 //  Return non-NULL if success, NULL if object does not exist
@@ -468,71 +468,71 @@ MapSet(struct Map *pm, char *pkey, uint32_t keylen, char *pdata, uint64_t datale
 //  Returns non-NULL if successful, NULL otherwise
 struct MapEntry *MapGet(struct Map *pm, char *key, uint32_t keylen, char **pdata, uint64_t *pdatalen, uint64_t cguid, int raw_object)
 {
-    uint64_t           datalen;
-    MapEntry_t   *pme;
-    char              *data;
+	uint64_t           datalen;
+	MapEntry_t   *pme;
+	char              *data;
 
-    do_lock_read(pm);
+	do_lock_read(pm);
 
-    pme = find_pme(pm, key, keylen, NULL, raw_object, cguid);
+	pme = find_pme(pm, key, keylen, NULL, raw_object, cguid);
 
-    if (pme != NULL) {
-        data    = pme->contents;
-	datalen = pme->datalen;
+	if (pme != NULL) {
+		data    = pme->contents;
+		datalen = pme->datalen;
 
-	/*
-	 * META_LOGICAL_ID is constant which is used to assign a logical id to a special btree node in which btree metadata is stored.
-	 * This Special node is used during recovery. During creation of each btree node, we refer (take a refcount) this special node
-	 * and compare if any metadata has changed or not. Whenever there is a change in btree root or some btree related (refer
-	 * "savepersistent()" funtion for more details), this special node is updated. Irrespective of change in btree metadata related
-	 * information, we refer this special node during a btree node creation. In cassandra if total number of columns are 'c', each
-	 * column size is 's' and total number of threads are 't'. Then in worst case at max t * c * (s/(sizeofbtreenode)) times refcount
-	 * will be taken on this special node at a particular point of time. For example if total number of threads are 50, total number
-	 * of columns are 40 and size of column is 64k and size of btreenode is 8k, then in worstcase refcount of this special node will
-	 * be 50 * 40 * (64k/8k) = 16000. In above example 64k/8k denotes overflow data nodes for a key.
-	 */
-	if (!((*((uint64_t *) key)) & META_LOGICAL_ID_MASK)) {
-		assert(pme->refcnt < 10000);
-	}
-	atomic_inc(pme->refcnt);
+		/*
+		 * META_LOGICAL_ID is constant which is used to assign a logical id to a special btree node in which btree metadata is stored.
+		 * This Special node is used during recovery. During creation of each btree node, we refer (take a refcount) this special node
+		 * and compare if any metadata has changed or not. Whenever there is a change in btree root or some btree related (refer
+		 * "savepersistent()" funtion for more details), this special node is updated. Irrespective of change in btree metadata related
+		 * information, we refer this special node during a btree node creation. In cassandra if total number of columns are 'c', each
+		 * column size is 's' and total number of threads are 't'. Then in worst case at max t * c * (s/(sizeofbtreenode)) times refcount
+		 * will be taken on this special node at a particular point of time. For example if total number of threads are 50, total number
+		 * of columns are 40 and size of column is 64k and size of btreenode is 8k, then in worstcase refcount of this special node will
+		 * be 50 * 40 * (64k/8k) = 16000. In above example 64k/8k denotes overflow data nodes for a key.
+		 */
+		if (!((*((uint64_t *) key)) & META_LOGICAL_ID_MASK)) {
+			assert(pme->refcnt < 10000);
+		}
+		atomic_inc(pme->refcnt);
 
-	// update the LRU list if necessary
-	if (pm->max_entries != 0) {
-	    update_lru(pm, pme);
-	}
+		// update the LRU list if necessary
+		if (pm->max_entries != 0) {
+			update_lru(pm, pme);
+		}
 
-    } else {
-        data    = NULL;
-	datalen = 0;
-    }
-
-        if (pme != NULL) {
-	    dbg_print("MapGet: pm=%p, key=0x%lx, keylen=%d, pdata=%p, datalen=%ld, refcnt=%d, pme=%p\n", pm, *((uint64_t *) key), keylen, data, datalen, pme->refcnt, pme);
 	} else {
-	    dbg_print("MapGet: pm=%p, key=0x%lx, keylen=%d, pdata=%p, datalen=%ld, pme=%p\n", pm, *((uint64_t *) key), keylen, data, datalen, pme);
+		data    = NULL;
+		datalen = 0;
 	}
 
-	#ifdef notdef
-	    void* tracePtrs[100];
-	    int count = backtrace( tracePtrs, 100 );
+	if (pme != NULL) {
+		dbg_print("MapGet: pm=%p, key=0x%lx, keylen=%d, pdata=%p, datalen=%ld, refcnt=%d, pme=%p\n", pm, *((uint64_t *) key), keylen, data, datalen, pme->refcnt, pme);
+	} else {
+		dbg_print("MapGet: pm=%p, key=0x%lx, keylen=%d, pdata=%p, datalen=%ld, pme=%p\n", pm, *((uint64_t *) key), keylen, data, datalen, pme);
+	}
 
-	    char** funcNames = backtrace_symbols( tracePtrs, count );
+#ifdef notdef
+	void* tracePtrs[100];
+	int count = backtrace( tracePtrs, 100 );
 
-	    // Print the stack trace
-	    printf("---------------------------------------------------------------------------\n");
-	    for( int ii = 0; ii < count; ii++ ) {
+	char** funcNames = backtrace_symbols( tracePtrs, count );
+
+	// Print the stack trace
+	printf("---------------------------------------------------------------------------\n");
+	for( int ii = 0; ii < count; ii++ ) {
 		printf( "%s\n", funcNames[ii] );
-	    }
-	    printf("---------------------------------------------------------------------------\n");
+	}
+	printf("---------------------------------------------------------------------------\n");
 
-	    // Free the string pointers
-	    free( funcNames );
-	#endif
+	// Free the string pointers
+	free( funcNames );
+#endif
 
-    do_unlock(pm);
-    *pdatalen = datalen;
-    *pdata    = data;
-    return(pme);
+	do_unlock(pm);
+	*pdatalen = datalen;
+	*pdata    = data;
+	return(pme);
 }
 
 //  Increment the reference count for this entry
@@ -978,44 +978,44 @@ static void update_lru(struct Map *pm, MapEntry_t *pme)
 
 static void replace_lru(struct Map *pm, MapEntry_t *pme_in, void *replacement_callback_data)
 {
-    MapEntry_t **ppme;
-    MapEntry_t  *pme;
-    int               found_it;
+	MapEntry_t **ppme;
+	MapEntry_t  *pme;
+	int               found_it;
 
-    pme = pm->clock_hand;
-    if(!pme)
-	pme = pm->lru_head;
-
-    while(pme->ref || pme->refcnt) {
-	pme->ref = 0;
-	pme = pme->next_lru;
+	pme = pm->clock_hand;
 	if(!pme)
-	    pme = pm->lru_head;
-    }
+		pme = pm->lru_head;
 
-    pm->clock_hand = pme->next_lru;
+	while(pme->ref || pme->refcnt) {
+		pme->ref = 0;
+		pme = pme->next_lru;
+		if(!pme)
+			pme = pm->lru_head;
+	}
 
-    if (pme == NULL) {
+	pm->clock_hand = pme->next_lru;
+
+	if (pme == NULL) {
 		dbg_print("replace_lru could not find a victim!!!!\n");
 		map_assert(0);
-    }
+	}
 	dbg_print("replace_lru found a victim: %p\n", pme);
 
-    //  Remove from bucket list
-    found_it = 0;
-    for (ppme = &(pme->bucket->entry); (*ppme) != NULL; ppme = &((*ppme)->next)) {
+	//  Remove from bucket list
+	found_it = 0;
+	for (ppme = &(pme->bucket->entry); (*ppme) != NULL; ppme = &((*ppme)->next)) {
 		if (pme == (*ppme)) {
 			*ppme = pme->next;
 			found_it = 1;
 			break;
 		}
-    }
-    map_assert(found_it);
+	}
+	map_assert(found_it);
 
-    remove_lru(pm, pme);
-    pm->n_entries--;
-    (pm->replacement_callback)(replacement_callback_data, pme->key, pme->keylen, pme->contents, pme->datalen);
-    free_pme(pm, pme);
+	remove_lru(pm, pme);
+	pm->n_entries--;
+	(pm->replacement_callback)(replacement_callback_data, pme->key, pme->keylen, pme->contents, pme->datalen);
+	free_pme(pm, pme);
 
 }
 

@@ -847,6 +847,7 @@ pstats_prepare_to_flush_single(struct ZS_thread_state *thd_state, struct cmap *c
     for ( i = 0; i < cmap_entry->btree->n_partitions; i++ ) {
         if ( true == cmap_entry->btree->partitions[i]->pstats_modified ) {
             pstats.obj_count += cmap_entry->btree->partitions[i]->stats.stat[BTSTAT_NUM_OBJS];
+			pstats.num_overflw_nodes += cmap_entry->btree->partitions[i]->stats.stat[BTSTAT_OVERFLOW_NODES];
 
             /*
              * All Btree partitions have same sequence number
@@ -915,6 +916,7 @@ pstats_prepare_to_flush(struct ZS_thread_state *thd_state)
                 pstats.obj_count += Container_Map[idx].btree->partitions[i]->stats.stat[BTSTAT_NUM_OBJS];
 				pstats.num_snap_objs += Container_Map[idx].btree->partitions[i]->stats.stat[BTSTAT_NUM_SNAP_OBJS];
 				pstats.snap_data_size += Container_Map[idx].btree->partitions[i]->stats.stat[BTSTAT_SNAP_DATA_SIZE];
+				pstats.num_overflw_nodes += Container_Map[idx].btree->partitions[i]->stats.stat[BTSTAT_OVERFLOW_NODES];
 
                 /*
                  * All Btree partitions have same sequence number
@@ -5867,6 +5869,7 @@ ZSInitPstats(struct ZS_thread_state *my_thd_state, char *key, zs_pstats_t *pstat
         pstats->obj_count = ((zs_pstats_t*)data)->obj_count;
 		pstats->num_snap_objs = ((zs_pstats_t*)data)->num_snap_objs;
 		pstats->snap_data_size = ((zs_pstats_t*)data)->snap_data_size;
+		pstats->num_overflw_nodes = ((zs_pstats_t*)data)->num_overflw_nodes;
         //pstats->cntr_sz   = ((zs_pstats_t*)data)->cntr_sz;
         fprintf(stderr, "ZSInitPstats: seq = %ld obcount=%ld\n", pstats->seq_num, pstats->obj_count);
     } else {

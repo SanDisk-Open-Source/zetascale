@@ -117,7 +117,7 @@ typedef struct key_stuff {
 /*
  * Per node persistent stats
  */
-enum delta_indx {PSTAT_OBJ_COUNT, PSTAT_NUM_SNAP_OBJS, PSTAT_SNAP_DATA_SIZE, PSTAT_MAX_STATS=8};
+enum delta_indx {PSTAT_OBJ_COUNT, PSTAT_NUM_SNAP_OBJS, PSTAT_SNAP_DATA_SIZE, PSTAT_OVERFLW_NODES, PSTAT_MAX_STATS=8};
 typedef struct zs_pstats_delta_ {
     uint64_t		seq_num;
     //uint64_t		delta_obj_count;
@@ -608,6 +608,6 @@ btree_raw_check(struct btree_raw *btree);
 #endif 
 void node_lock(btree_raw_mem_node_t* node, int write_lock);
 void node_unlock(btree_raw_mem_node_t* node);
-void delete_overflow_data(btree_status_t *ret, btree_raw_t *bt, uint64_t ptr_in, uint64_t datalen);
+void delete_overflow_data(btree_status_t *ret, btree_raw_t *bt, btree_raw_node_t *leaf, uint64_t ptr_in, uint64_t datalen);
 uint64_t get_data_in_overflownode(btree_raw_t *bt);
 #endif // __BTREE_RAW_INTERNAL_H

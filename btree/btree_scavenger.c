@@ -328,7 +328,7 @@ scavenger_del_overflw_n_cont(Scavenge_Arg_t *s)
 			if ((key_meta.keylen + key_meta.datalen) >=
 								s->btree->big_object_size) {
 				flag = 1;
-				delete_overflow_data(&ret, s->btree, key_meta.ptr, key_meta.datalen);
+				delete_overflow_data(&ret, s->btree, node->pnode, key_meta.ptr, key_meta.datalen);
 				btree_leaf_unset_dataptr(node->pnode, i);
 			}
 		}
