@@ -5033,7 +5033,6 @@ mcd_fth_osd_slab_create_raw( void * context, mcd_osd_shard_t * shard,
 	cntr_id_t                   cntr_id = meta_data->cguid;
 	ZS_boolean_t				vc_evict = ZS_FALSE;
 	cntr_map_t					*cmap = NULL;
-    int room = 1;
     
 
     mcd_log_msg( 20000, PLAT_LOG_LEVEL_TRACE, "ENTERING" );
@@ -5086,17 +5085,6 @@ mcd_fth_osd_slab_create_raw( void * context, mcd_osd_shard_t * shard,
         }
     }
 
-	/*
-	 * See if there is enough space.
-	 */
-	if (!vc_evict && !is_btree_loaded()) {
-		uint64_t rsvd_blks = blk_to_use(shard, blocks);
-		if (cmap && !inc_cntr_map_by_map(cmap, cntr_id, 0, rsvd_blks, 1)) {
-			rc = FLASH_ENOSPC;
-			goto xout;
-		}
-		plus_blks -= rsvd_blks;
-    }
 
 	if(!(flags & FLASH_PUT_SKIP_IO)) {
 
@@ -5131,33 +5119,6 @@ mcd_fth_osd_slab_create_raw( void * context, mcd_osd_shard_t * shard,
 
 xout:
 
-
-	if (cmap) {
-		room = inc_cntr_map_by_map(cmap, cntr_id, plus_objs, plus_blks, 0);
-	}
-
-    if (vc_evict && (!room || rc == FLASH_ENOSPC)) {
-        osd_state_t *osd_state = (osd_state_t *) context;
-        fthUnlock(osd_state->osd_wait);
-        osd_state->osd_wait = NULL;
-
-        int i;
-        for (i = 0; i < 2; i++) {
-            if (evict_object(shard, cntr_id, blocks)) {
-                uint64_t used = blk_to_use(shard, blocks);
-                (void) __sync_fetch_and_sub( &shard->num_objects, 1 );
-				if (cmap) {
-					if (inc_cntr_map_by_map(cmap, cntr_id, -1, -used, 0))
-						break;
-				} else {
-					break;
-				}
-            }
-        }
-        if (rc == FLASH_ENOSPC)
-            rc = FLASH_EOK;
-
-    }
 
 	if (cmap) {
 		rel_cntr_map(cmap);
@@ -5296,7 +5257,6 @@ mcd_fth_osd_slab_write_raw( void * context, mcd_osd_shard_t * shard,
 		}
 
 		atomic_sub(shard->blk_consumed, mcd_osd_lba_to_blk(blocks));
-		inc_cntr_map_by_map(cmap, cntr_id, plus_objs, plus_blks, 0);
 
 		(void) __sync_fetch_and_sub( &shard->num_objects, 1 );
 		(void) __sync_fetch_and_add( &shard->num_deletes, 1 );
@@ -5336,18 +5296,6 @@ mcd_fth_osd_slab_write_raw( void * context, mcd_osd_shard_t * shard,
     data_buf = ((osd_state_t *)context)->osd_buf;
     buf = (char *)( ( (uint64_t)data_buf + Mcd_osd_blk_size - 1 )
                     & Mcd_osd_blk_mask );
-
-    /*
-     * See if there is enough space.
-     */
-    if (!vc_evict && !is_btree_loaded()) {
-        uint64_t rsvd_blks = blk_to_use(shard, blocks);
-        if (cmap && !inc_cntr_map_by_map(cmap, cntr_id, 0, rsvd_blks, 1)) {
-            rc = FLASH_ENOSPC;
-            goto out;
-        }
-        plus_blks -= rsvd_blks;
-    }
 
     if(!(flags & FLASH_PUT_SKIP_IO)) {
 		/*

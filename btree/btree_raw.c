@@ -2000,6 +2000,7 @@ delete_overflow_data(btree_status_t *ret, btree_raw_t *bt, btree_raw_node_t *lea
 			}
 		} else {
 			deleted_ovnodes_id[deleted_ovnodes_count++] = ptr_in;
+			__sync_sub_and_fetch(&(bt->stats.stat[BTSTAT_OVERFLOW_NODES]), 1);
 		}
 		set_overflow_pstats(bt, leaf, 1, 0);
 	} else { 
