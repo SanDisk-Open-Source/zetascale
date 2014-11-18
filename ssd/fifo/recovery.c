@@ -4480,6 +4480,9 @@ e_hash_fill(pai_t *pai, e_state_t *es, int bkt_i, int flag)
     fthUnlock(wait);
 }
 
+extern int __zs_check_mode_on;
+void update_check_maps(mcd_osd_shard_t *shard, uint64_t blk_offset);
+
 
 /*
  * Return the next enumerated object in a container.
@@ -4527,6 +4530,13 @@ enumerate_next(pai_t *pai, e_state_t *es, char **key, uint64_t *keylen,
                       es->data_buf_align, hash->blkaddress, nb);
         if (!s)
             return ZS_FLASH_EINVAL;
+
+	/*
+	 * Fill up the check map for segment.
+	 */
+	if (__zs_check_mode_on) {
+	     update_check_maps(shard, hash->blkaddress);
+	}
 
         s = e_extr_obj(es, now, key, keylen, data, datalen);
         if (s == ZS_OBJECT_UNKNOWN)

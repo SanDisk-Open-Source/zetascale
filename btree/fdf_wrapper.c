@@ -3754,6 +3754,7 @@ check_hash_cont(struct ZS_thread_state *thd_state, ZS_cguid_t cguid)
 	uint32_t keylen = 0;
 	uint64_t datalen = 0;
 	char *data = NULL;
+	uint64_t count = 0;
 
 	status = ZSEnumerateContainerObjects(thd_state, cguid, &iterator);
 
@@ -3762,7 +3763,9 @@ check_hash_cont(struct ZS_thread_state *thd_state, ZS_cguid_t cguid)
 
 		ZSFreeBuffer(key);
 		ZSFreeBuffer(data);
+		count++;
 	}
+	msg("Got %"PRId64" objects in cont id = %d.\n", count, cguid);
 	
 	return ZS_SUCCESS;
 }
@@ -4739,6 +4742,7 @@ seqnoread(struct ZS_thread_state *t)
 		return false;
 	}
 	if (ZSReadObject(t, c, SEQNO_KEY, sizeof SEQNO_KEY, &data, &dlen) != ZS_SUCCESS) {
+		//assert(0);
 		return false;
 	}
 
@@ -6929,7 +6933,7 @@ zscheck_worker(void *arg)
 
     if (seqnoread(my_thread_state) != true) {
         ZSCheckMsg(ZSCHECK_BTREE_NODE, 0, ZSCHECK_FAILURE, "Failed to init seqno for ZS btree check worker");
-        return 0;
+        //return 0;
     }
 
     while (cguid_idx < ncguids) {
