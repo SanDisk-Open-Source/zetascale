@@ -1221,12 +1221,13 @@ mcd_check_meta()
             fprintf(stderr,"Slab bitmap check failed. continuing checks\n");
             ++errors;
         }
-    } 
+    } else {
 
-    status = mcd_check_all_pot(fd); 
-    if( status != 0 ) { 
-        fprintf(stderr,"POT check failed. continuing checks\n"); 
-        ++errors; 
+        status = mcd_check_all_pot(fd); 
+        if( status != 0 ) { 
+            fprintf(stderr,"POT check failed. continuing checks\n"); 
+            ++errors; 
+        }
     }
 
     status = mcd_check_all_storm_log(fd); 
