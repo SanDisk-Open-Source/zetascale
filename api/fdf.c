@@ -2322,11 +2322,6 @@ char *zs_compress_data(char *src, size_t src_len,
          plat_log_msg(160195,LOG_CAT,LOG_ERR,"Snappy compression failed(%d)\n",rc);
          return NULL;
      }
-#if 0
-	 if (*comp_len > src_len) {
-		 plat_log_msg(160217,LOG_CAT,LOG_DBG, "Niranjan(compression) compl_len:%d src_len:%d", (int)*comp_len, (int)src_len);
-	 }
-#endif
      return cbuf; 
 }
 

@@ -5261,6 +5261,9 @@ btree_insert_keys_leaf(btree_raw_t *btree, btree_metadata_t *meta, uint64_t synd
 					key_exists, &ret) == true) {
 				
 			int required_nodes = 1;
+			bool in_snap = false;
+			key_meta_t km = { 0 };
+
 			if ((objs[idx].key_len + objs[idx].data_len) >= btree->big_object_size) {
 				required_nodes += objs[idx].data_len / ovdatasize + 1;
 			}
@@ -5285,26 +5288,34 @@ btree_insert_keys_leaf(btree_raw_t *btree, btree_metadata_t *meta, uint64_t synd
 				ret = BTREE_FAILURE;
 				break;
 			}
-			
+
+
+			if (key_exists) {
+				btree_leaf_get_meta(mem_node->pnode, index, &km);
+				in_snap = btree_snap_seqno_in_snap(btree, km.seqno);
+			}
+
 			res = btree_leaf_insert_low(&ret, btree, mem_node, objs[idx].key,
 						    objs[idx].key_len, objs[idx].data,
 						    objs[idx].data_len, seqno,
 						    meta, syndrome, index, is_update);
 
-                        if (!key_exists) {
-                            __sync_add_and_fetch(&(btree->stats.stat[BTSTAT_NUM_OBJS]), 1);
-                            /*
-                             * If it is new inserts, adjust the counter.
-                             */
-                            (*new_inserts)++;
+			if (!key_exists) {
+				__sync_add_and_fetch(&(btree->stats.stat[BTSTAT_NUM_OBJS]), 1);
+				/*
+				 * If it is new inserts, adjust the counter.
+				 */
+				(*new_inserts)++;
 #ifdef PSTATS_1
-                            fprintf(stderr, "total=%ld BTSTAT_NUM_OBJS=%ld, new_inserts=%d\n", total_count++, btree->stats.stat[BTSTAT_NUM_OBJS], *new_inserts);
+				fprintf(stderr, "total=%ld BTSTAT_NUM_OBJS=%ld, new_inserts=%d\n", total_count++, btree->stats.stat[BTSTAT_NUM_OBJS], *new_inserts);
 #endif
-                        } else if (!is_update) {
-				/* Key_exists, but we cannot update, because of snapshots */
-				__sync_add_and_fetch(&(btree->stats.stat[BTSTAT_NUM_SNAP_OBJS]), 1);
-				__sync_add_and_fetch(&(btree->stats.stat[BTSTAT_SNAP_DATA_SIZE]), key_meta.datalen);
-				set_node_snapobjs_pstats(btree, mem_node->pnode, 1, key_meta.datalen, true);
+			} else if (!is_update) {
+				if (in_snap) {
+					/* Key_exists, but we cannot update, because of snapshots */
+					__sync_add_and_fetch(&(btree->stats.stat[BTSTAT_NUM_SNAP_OBJS]), 1);
+					__sync_add_and_fetch(&(btree->stats.stat[BTSTAT_SNAP_DATA_SIZE]), key_meta.datalen);
+					set_node_snapobjs_pstats(btree, mem_node->pnode, 1, key_meta.datalen, true);
+				}
 
 				if (meta->flags & INSERT_TOMBSTONE) {
 					__sync_sub_and_fetch(&(btree->stats.stat[BTSTAT_NUM_OBJS]), 1);
@@ -5424,8 +5435,8 @@ btree_raw_bulk_insert(struct btree_raw *btree, btree_mput_obj_t **objs_in_out, u
 		return leaf_ret;
         }
 
-	count -= written;
-	*new_inserts += ni;
+		count -= written;
+		*new_inserts += ni;
 
         if(count && (leaf_ret != BTREE_OBJECT_TOO_BIG)) {
 		/* Check if last key from the remaning batch should still

@@ -5881,6 +5881,7 @@ ZSInitPstats(struct ZS_thread_state *my_thd_state, char *key, zs_pstats_t *pstat
         pstats->obj_count = 0;
 		pstats->num_snap_objs = 0;
 		pstats->snap_data_size = 0;
+		pstats->num_overflw_nodes = 0;
         //fprintf(stderr, "Error: ZSInitPstats failed to read stats for cname %s\n", key);
         //pstats->cntr_sz = 0;
     }
