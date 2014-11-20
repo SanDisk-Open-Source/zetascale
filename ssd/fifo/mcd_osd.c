@@ -4557,8 +4557,8 @@ mcd_fth_osd_slab_set( void * context, mcd_osd_shard_t * shard,
     uint32_t uncomp_datalen = 0; /* Uncompressed data length */
 	cntr_map_t					*cmap = NULL;
 #ifdef FLIP_ENABLED
-    char *tmp_ptr;
-    uint64_t pos;
+    char *tmp_ptr = NULL;
+    uint64_t pos = 0;
 #endif
     
 	mcd_osd_meta_t                     *meta = NULL;
@@ -7004,7 +7004,7 @@ mcd_osd_flash_put_v( struct ssdaio_ctxt * pctxt, struct shard * shard,
 			}
 
 			corrupt_data = false;
-			uint64_t pos;
+			uint64_t pos = 0;
 			if (flip_get("corrupt_zs_data_write", multi_write_type, node_type, is_root,
 			               logical_id)) {
 				pos = rand() % metaData->dataLen;

@@ -380,12 +380,12 @@ mcd_check_potbm(int fd, int buf_idx, uint64_t shard_id, uint64_t* mos_segments)
 	 buf = memalign( MCD_OSD_META_BLK_SIZE, bytes_per_page);
 	for(i = 0; i < potbm->nbit; i++)
 	{
-        if(potbm->bits[bitbase( n)] & bitmask( n))
+        if(potbm->bits[bitbase( i)] & bitmask( i))
         {
             int rc = pot_read(fd,
                     p, mos_segments,
                     i * bytes_per_page,
-                    bytes_per_page,
+                    bytes_per_page / MCD_OSD_META_BLK_SIZE,
                     buf);
 
             if(rc) {
@@ -399,10 +399,8 @@ mcd_check_potbm(int fd, int buf_idx, uint64_t shard_id, uint64_t* mos_segments)
                 if((c = checksum(buf, bytes_per_page, 0)) != sum)
                 {
                     if(sum || !empty(buf, bytes_per_page)) {
-                        mcd_log_msg(160290, PLAT_LOG_LEVEL_FATAL,
-                                "POT checksum error. expected=%x, read_from_disk=%x, start_blk=%d num_blks=%d", c, sum,
-                                i * bytes_per_page, bytes_per_page);
-                        rc = 1;
+                        zscheck_log_msg(ZSCHECK_POT, shard_id, ZSCHECK_CHECKSUM_ERROR, "pot checksum invalid");
+                        status = -1;
                         break;
                     }
                 }
@@ -466,6 +464,8 @@ mcd_check_all_potbm(int fd)
 {
     int status = 0;
     int count = 0;
+
+    pot_checksum_enabled = 1;
 
     fprintf(stderr, "cmc potbm: ");
     if ( cmc_properties_ok && ! (status = mcd_check_potbm(fd, CMC_DESC_BUF, CMC_SHARD_ID, cmc_mos_segments)) )
