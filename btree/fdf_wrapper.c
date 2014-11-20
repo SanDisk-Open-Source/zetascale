@@ -773,7 +773,9 @@ ZS_status_t _ZSInitVersioned(
 	/*
 	 * Restart delete of containers
 	 */
-	if (bt_storm_mode && (atoi(ZSGetProperty("ZS_REFORMAT", "0")) == 0)) {
+	if (!__zs_check_mode_on && 
+	    bt_storm_mode && 
+	   (atoi(ZSGetProperty("ZS_REFORMAT", "0")) == 0)) {
 		iret = pthread_create(&thr1, NULL, bt_restart_delcont, (void *)*zs_state);
 		if (iret < 0) {
 			fprintf(stderr,"_FDFInit: failed to spawn persistent stats flusher\n");
@@ -1235,9 +1237,7 @@ ZS_status_t _ZSOpenContainerSpecial(
 
     if (!cname) {
         return(ZS_INVALID_PARAMETER);
-	} else if (!strncmp(cname,BTREE_DELETE_CONTAINER_NAME, strlen(BTREE_DELETE_CONTAINER_NAME))) {
-		return(ZS_INVALID_PARAMETER);
-	}
+    }
 
 
      if (getZSVersion() < 2 && (1 == IS_ZS_HASH_CONTAINER(properties->flags))) {
@@ -1517,7 +1517,7 @@ restart:
     // xxxzzz for now, for performance testing, just use a hank
 
 	Container_Map[index].btree = bt;
-	if ((bt->partitions[0])->snap_meta->sc_status & SC_OVERFLW_DELCONT) {
+	if ((bt->partitions[0])->snap_meta->sc_status & SC_OVERFLW_DELCONT && !__zs_check_mode_on) {
 		Scavenge_Arg_t s;
 
 		__sync_add_and_fetch(&(Container_Map[index].bt_wr_count), 1);
@@ -3784,6 +3784,8 @@ _ZSCheck(struct ZS_thread_state *zs_thread_state, uint64_t flags)
 	int i = 0;
 	uint64_t *num_objs = NULL;
 	char err_msg[1024];
+	uint32_t ndelcguids = 0;
+
     int threads = atoi(_ZSGetProperty("ZSCHECK_THREADS", "1"));
     pthread_t thread_id[threads];
     pthread_attr_t attr;
@@ -3807,7 +3809,16 @@ _ZSCheck(struct ZS_thread_state *zs_thread_state, uint64_t flags)
     if (ZS_SUCCESS != status)
         return status;
 
-    msg("Running Data consistency checker on %d containers.\n", ncguids);
+    msg("Running Data consistency checker on %d normal containers.\n", ncguids);
+
+	if ((status = ZSGetBtDelContainers(zs_thread_state, &cguids[ncguids], &ndelcguids)) != ZS_SUCCESS) {
+		goto out;
+	}
+
+    ncguids += ndelcguids;
+    msg("Running Data consistency checker on %d deleted containers.\n", ndelcguids);
+
+    msg("Running Data consistency checker on %d total containers.\n", ncguids);
 
     num_objs = (uint64_t *) btree_malloc(ncguids * sizeof(uint64_t));
 
