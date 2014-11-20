@@ -28,6 +28,7 @@
 #include "btree_map_internal.h"
 #include "btree_hash.h"
 #include <assert.h>
+#include <stdbool.h>
 
 #define META_LOGICAL_ID_MASK          0x8000000000000000L
 #define META_ROOT_LOGICAL_ID          (META_LOGICAL_ID_MASK | (1 << 0))
@@ -184,7 +185,8 @@ struct Map *MapInit(uint64_t nbuckets, uint64_t max_entries, char use_locks, voi
     pm->NIterators     = 0;
     pm->NUsedIterators = 0;
     pm->FreeIterators  = NULL;
-	pm->EntryBlocks		= NULL;
+    pm->EntryBlocks		= NULL;
+    pm->extra_pme = 0;
 
     pm->buckets       = (MapBucket_t *) malloc(nbuckets*(sizeof(MapBucket_t)));
     map_assert(pm->buckets);
@@ -976,21 +978,28 @@ static void update_lru(struct Map *pm, MapEntry_t *pme)
     //insert_lru(pm, pme);
 }
 
-static void replace_lru(struct Map *pm, MapEntry_t *pme_in, void *replacement_callback_data)
+static bool try_replace_lru(struct Map *pm, void *replacement_callback_data)
 {
 	MapEntry_t **ppme;
 	MapEntry_t  *pme;
-	int               found_it;
+	MapEntry_t  *start_pme;
+	int         found_it;
 
 	pme = pm->clock_hand;
 	if(!pme)
 		pme = pm->lru_head;
 
+	start_pme = pme;
 	while(pme->ref || pme->refcnt) {
 		pme->ref = 0;
 		pme = pme->next_lru;
 		if(!pme)
 			pme = pm->lru_head;
+
+		/* If we have come one full circle, don't replace the lru */
+		if (pme == start_pme) {
+			return false;
+		}
 	}
 
 	pm->clock_hand = pme->next_lru;
@@ -1017,6 +1026,29 @@ static void replace_lru(struct Map *pm, MapEntry_t *pme_in, void *replacement_ca
 	(pm->replacement_callback)(replacement_callback_data, pme->key, pme->keylen, pme->contents, pme->datalen);
 	free_pme(pm, pme);
 
+	return true;
+}
+
+static void replace_lru(struct Map *pm, MapEntry_t *pme_in, void *replacement_callback_data)
+{
+	bool replaced;
+
+	replaced = try_replace_lru(pm, replacement_callback_data);
+	if (!replaced) {
+		pm->extra_pme++;
+		dbg_print("Unable to replace lru, Allocating extra pme. Current extra_pme=%u\n", pm->extra_pme);
+		return;
+	}
+
+	/* Check if we need to replace additional pmes */
+	while (pm->extra_pme) {
+		replaced = try_replace_lru(pm, replacement_callback_data);
+		if (!replaced) {
+			break;
+		}
+		pm->extra_pme--;
+		dbg_print("Releasing extra pme. Current extra_pme=%u\n", pm->extra_pme);
+	}
 }
 
 static MapEntry_t *find_pme(struct Map *pm, char *pkey, uint32_t keylen, MapBucket_t **pb_out, int raw_object, uint64_t cguid)

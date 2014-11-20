@@ -223,6 +223,8 @@ typedef enum sc_status {
 	SC_OVERFLW_DELCONT	= 0x02,	//Purge Overflow nodes and delete container
 } scs_t;
 typedef struct __attribute__((__packed__)) btree_snap_meta {
+	btree_raw_node_t                n_hdr; // this must be first member
+
 	uint32_t			snap_version;
 	uint32_t			max_snapshots;
 	uint32_t			total_snapshots;
@@ -230,7 +232,7 @@ typedef struct __attribute__((__packed__)) btree_snap_meta {
 	union {
 		btree_snap_meta_v1_t	v1_meta;
 	} meta;
-}btree_snap_meta_t;
+} btree_snap_meta_t;
 
 #define BTREE_RAW_L1CACHE_LIST_MAX 10000
 #define BT_SYNC_THREADS				32
@@ -337,8 +339,9 @@ typedef struct btree_raw {
 
 
     /* Snapshot related variables */
-    pthread_rwlock_t   snap_lock;
-    btree_snap_meta_t  *snap_meta;
+    pthread_rwlock_t     snap_lock;
+    btree_raw_mem_node_t *snap_mnode;
+    btree_snap_meta_t    *snap_meta;
 } btree_raw_t;
 
 #define META_VERSION1	0x88880001
@@ -349,7 +352,6 @@ typedef struct btree_raw_persist {
     uint32_t              meta_version;
     uint64_t              rootid;
     uint64_t              logical_id_counter;
-    btree_snap_meta_t     snap_details;
 } btree_raw_persist_t;
 
 typedef enum {
@@ -361,7 +363,7 @@ typedef enum {
 	FLUSH_FORCE,
 } flush_persist_type_t;
 
-void btree_snap_init_meta(btree_raw_t *bt, size_t size);
+btree_status_t btree_snap_init(btree_raw_t *bt, bool create);
 btree_status_t btree_snap_create_meta(btree_raw_t *bt, uint64_t seqno);
 btree_status_t btree_snap_delete_meta(btree_raw_t *bt, uint64_t seqno);
 int btree_snap_find_meta_index(btree_raw_t *bt, uint64_t seqno);

@@ -6453,7 +6453,7 @@ bt_restart_delcont(void *parm)
 	char 						*node;
 	uint64_t					node_size;
 	uint64_t 					nodeid = META_SNAPSHOT_LOGICAL_ID;
-	btree_raw_persist_t 		*r;
+	btree_snap_meta_t                       *snap_meta;
 	ZS_status_t				status;
 
     if (_ZSInitPerThreadState(zs_state, &thd_state) != ZS_SUCCESS) {
@@ -6483,8 +6483,8 @@ restart:
 				status = ZSReadObject(thd_state, cguid, (char *)&nodeid,
 						sizeof(uint64_t), &node, &node_size);
 				if (status == ZS_SUCCESS) {
-					r = (btree_raw_persist_t *)node;
-					if (r->snap_details.sc_status == SC_OVERFLW_DELCONT) {
+					snap_meta = (btree_snap_meta_t *)node;
+					if (snap_meta->sc_status == SC_OVERFLW_DELCONT) {
 						ZSFreeBuffer(node);
 						ZSCloseContainer(thd_state, cguid);
 						fprintf(stderr, "Restarting deletion of container: %s\n", props.name);
@@ -6493,9 +6493,9 @@ restart:
 						fprintf(stderr, "Restarting deletion of container: %s %s\n", props.name, ZSStrError(status));
 						assert(status == ZS_FAILURE_CONTAINER_DELETED);
 					} else {
-						r->snap_details.sc_status = SC_OVERFLW_DELCONT;
+						snap_meta->sc_status = SC_OVERFLW_DELCONT;
 						status = ZSWriteObject(thd_state, cguid, (char *)&nodeid,
-											sizeof(uint64_t), (char *)node, node_size, 0);
+									sizeof(uint64_t), (char *)node, node_size, 0);
 						ZSFreeBuffer(node);
 						if (status == ZS_SUCCESS) {
 							goto restart;

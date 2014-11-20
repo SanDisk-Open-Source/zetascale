@@ -70,6 +70,7 @@ typedef struct Map {
     uint32_t          NUsedIterators;
 	MapEntryBlock_t		*EntryBlocks;
     struct Iterator *FreeIterators;
+    int               extra_pme;
 } Map_t;
 
 #endif /* _BTREE_MAP_INTERNAL_H */

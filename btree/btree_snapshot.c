@@ -22,6 +22,8 @@
 #include "zs.h"
 
 static int btree_snap_find_meta_index_low(btree_raw_t *bt, uint64_t seqno);
+extern __thread struct ZS_thread_state *my_thd_state;
+extern btree_node_list_t *free_node_list;
 
 #define offsetof(st, m) ((size_t)(&((st *)0)->m))
 
@@ -36,17 +38,68 @@ btree_snap_get_max_snapshot(btree_snap_meta_t *snap_meta, size_t size)
         return 0;
 }
 
-void
-btree_snap_init_meta(btree_raw_t *bt, size_t size)
+btree_status_t
+btree_snap_rw_metanode(btree_raw_t *bt, bool write)
 {
-	btree_snap_meta_t	*snap_meta = bt->snap_meta;
+	btree_status_t ret;
 
-	bzero(snap_meta, size);
-	snap_meta->snap_version = SNAP_VERSION;
-	snap_meta->total_snapshots = 0;
-	snap_meta->max_snapshots = btree_snap_get_max_snapshot(snap_meta, size - offsetof(btree_snap_meta_t, meta));
-	snap_meta->sc_status = 0;
+	if (write) {
+		uint64_t *plogical_id = &(bt->snap_meta->n_hdr.logical_id);
+		bt->write_node_cb(my_thd_state, &ret, bt->write_node_cb_data,
+		                  &plogical_id, (char**)&(bt->snap_meta),
+		                  bt->nodesize, 1, 0);
+	} else {
+		uint64_t logical_id = META_SNAPSHOT_LOGICAL_ID;
+		bt->read_node_cb(&ret, bt->read_node_cb_data, (void *)bt->snap_meta,
+		                 logical_id, 0 /* its not a raw obj */);
+		if (ret == BTREE_SUCCESS) {
+			assert(logical_id == bt->snap_meta->n_hdr.logical_id);
+			bt->snap_mnode->cache_valid = true;
+		}
+	}
 
+	if ((ret != BTREE_SUCCESS) && (storage_error(ret))) {
+		abort(); /* We cannot handle storage error for meta nodes yet */
+	}
+
+	return (ret);
+}
+
+btree_status_t
+btree_snap_init(btree_raw_t *bt, bool create)
+{
+	btree_raw_mem_node_t *mnode;
+	uint32_t snap_data_size;
+	btree_status_t ret;
+
+	bt->snap_mnode = btree_node_alloc(free_node_list);
+	if (bt->snap_mnode == NULL) {
+		fprintf(stderr, "Error: Unable to allocate a snapshot metadata node\n");
+		return BTREE_FAILURE;
+	}
+
+	bt->snap_mnode->pnode = (btree_raw_node_t*)(((void *)bt->snap_mnode) + 
+	                                              sizeof(btree_raw_mem_node_t));
+	bt->snap_meta = (btree_snap_meta_t *)bt->snap_mnode->pnode;
+	bzero(bt->snap_meta, bt->nodesize);
+
+	pthread_rwlock_init(&bt->snap_lock, NULL);
+
+	if (create) {
+		snap_data_size = bt->nodesize - offsetof(btree_snap_meta_t, meta);
+
+		bt->snap_meta->n_hdr.logical_id = META_SNAPSHOT_LOGICAL_ID;
+		bt->snap_meta->snap_version = SNAP_VERSION;
+		bt->snap_meta->total_snapshots = 0;
+		bt->snap_meta->max_snapshots = btree_snap_get_max_snapshot(bt->snap_meta, snap_data_size);
+		bt->snap_meta->sc_status = 0;
+
+		ret = btree_snap_rw_metanode(bt, true /* write */);
+	} else {
+		ret = btree_snap_rw_metanode(bt, false /* its a read */);
+	}
+
+	return ret;
 }
 
 static btree_status_t
@@ -90,9 +143,11 @@ btree_snap_create_meta(btree_raw_t *bt, uint64_t seqno)
 	}
 	bt->snap_meta->total_snapshots++;
 	__sync_add_and_fetch(&(bt->stats.stat[BTSTAT_NUM_SNAPS]), 1);
+
+	ret = btree_snap_rw_metanode(bt, true /* write */);
 	pthread_rwlock_unlock(&bt->snap_lock);
 
-	return (savepersistent(bt, FLUSH_SNAPSHOT, true));
+	return (ret);
 }
 
 static btree_status_t
@@ -147,8 +202,10 @@ btree_snap_delete_meta(btree_raw_t *bt, uint64_t seqno)
 
 	bt->snap_meta->total_snapshots--;
 	__sync_sub_and_fetch(&(bt->stats.stat[BTSTAT_NUM_SNAPS]), 1);
+	ret = btree_snap_rw_metanode(bt, true /* write */);
+
 	pthread_rwlock_unlock(&bt->snap_lock);
-	return (savepersistent(bt, FLUSH_SNAPSHOT, true));
+	return (ret);
 }
 
 /* 

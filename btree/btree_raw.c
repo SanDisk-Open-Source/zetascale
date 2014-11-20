@@ -534,8 +534,6 @@ btree_raw_init(uint32_t flags, uint32_t n_partition, uint32_t n_partitions, uint
         return(NULL);
     }
 
-    pthread_rwlock_init(&bt->snap_lock, NULL);
-
     if (flags & RELOAD) {
         if (BTREE_SUCCESS != loadpersistent( bt)) {
 			bad_container = 1;
@@ -741,9 +739,6 @@ static btree_status_t create_meta_node(btree_raw_t *bt, uint64_t meta_logical_id
 		r->rootid  = bt->rootid;
 	} else if (meta_logical_id == META_COUNTER_LOGICAL_ID) {
 		r->logical_id_counter = bt->logical_id_counter;
-	} else if (meta_logical_id == META_SNAPSHOT_LOGICAL_ID) {
-		bt->snap_meta = &(r->snap_details); /* Keep the pinned snap details node info in btree */
-		(void)btree_snap_init_meta(bt, bt->nodesize - offsetof(btree_raw_persist_t, snap_details));
 	} else {
 		assert(0);
 		return BTREE_FAILURE;
@@ -761,7 +756,6 @@ static btree_status_t createpersistent(btree_raw_t *bt)
 {
 	btree_raw_mem_node_t *meta_root = NULL;
 	btree_raw_mem_node_t *meta_counter = NULL;
-	btree_raw_mem_node_t *meta_snapshot = NULL;
 	btree_status_t ret;
 
 	ret = create_meta_node(bt, META_ROOT_LOGICAL_ID, false, &meta_root);
@@ -774,21 +768,18 @@ static btree_status_t createpersistent(btree_raw_t *bt)
 		goto error;
 	}
 
-	ret = create_meta_node(bt, META_SNAPSHOT_LOGICAL_ID, true, &meta_snapshot);
+	deref_l1cache_node(bt, meta_root);
+	deref_l1cache_node(bt, meta_counter);
+
+	ret = btree_snap_init(bt, true /* create */);
 	if (ret != BTREE_SUCCESS) {
 		goto error;
 	}
-
-	deref_l1cache_node(bt, meta_root);
-	deref_l1cache_node(bt, meta_counter);
-	deref_l1cache_node(bt, meta_snapshot);
-
 	return ret;
 
 error:
 	if (meta_root) delete_node_l1cache(bt, meta_root->pnode);
 	if (meta_counter) delete_node_l1cache(bt, meta_counter->pnode);
-	if (meta_snapshot) delete_node_l1cache(bt, meta_snapshot->pnode);
 
 	return ret;
 }
@@ -930,7 +921,6 @@ loadpersistent( btree_raw_t *bt)
 {
 	btree_raw_mem_node_t *meta_root = NULL;
 	btree_raw_mem_node_t *meta_counter = NULL;
-	btree_raw_mem_node_t *meta_snapshot = NULL;
 	btree_raw_persist_t *r;
 	btree_status_t ret = BTREE_SUCCESS;
 
@@ -946,11 +936,8 @@ loadpersistent( btree_raw_t *bt)
 	r = (btree_raw_persist_t*)meta_counter->pnode;
 	bt->logical_id_counter = r->logical_id_counter + META_COUNTER_SAVE_INTERVAL;
 
-	meta_snapshot = get_existing_node(&ret, bt, META_SNAPSHOT_LOGICAL_ID,
-	                                  NODE_PIN, LOCKTYPE_NOLOCK);
+	ret = btree_snap_init(bt, false /* create */);
 	if (BTREE_SUCCESS != ret) goto exit;
-	r = (btree_raw_persist_t*)meta_snapshot->pnode;
-	bt->snap_meta = &r->snap_details; /* Keep the pinned snap details node info in btree */
 
 	/* We have modified the bt counter interval, flush it persistently */
     	ret = savepersistent(bt, FLUSH_COUNTER_INTERVAL, true);
@@ -958,7 +945,6 @@ loadpersistent( btree_raw_t *bt)
 exit:
 	if (meta_root) deref_l1cache_node(bt, meta_root);
 	if (meta_counter) deref_l1cache_node(bt, meta_counter);
-	if (meta_snapshot) deref_l1cache_node(bt, meta_snapshot);
 
         return (ret);
 
