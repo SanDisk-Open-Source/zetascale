@@ -384,7 +384,7 @@ mcd_check_potbm(int fd, int buf_idx, uint64_t shard_id, uint64_t* mos_segments)
         {
             int rc = pot_read(fd,
                     p, mos_segments,
-                    i * bytes_per_page,
+                    i * bytes_per_page / MCD_OSD_META_BLK_SIZE,
                     bytes_per_page / MCD_OSD_META_BLK_SIZE,
                     buf);
 
@@ -467,6 +467,7 @@ mcd_check_all_potbm(int fd)
 
     pot_checksum_enabled = 1;
 
+#ifdef notdef
     fprintf(stderr, "cmc potbm: ");
     if ( cmc_properties_ok && ! (status = mcd_check_potbm(fd, CMC_DESC_BUF, CMC_SHARD_ID, cmc_mos_segments)) )
         ++count;
@@ -476,13 +477,14 @@ mcd_check_all_potbm(int fd)
     if ( vmc_properties_ok && !(status = mcd_check_potbm(fd, VMC_DESC_BUF, VMC_SHARD_ID, vmc_mos_segments)) )
         ++count;
     fprintf(stderr,"%s\n", status ? "failed" : "succeeded");
+#endif
 
     fprintf(stderr, "vdc potbm: ");
     if ( vdc_properties_ok && !(status = mcd_check_potbm(fd, VDC_DESC_BUF, VDC_SHARD_ID, vdc_mos_segments)) )
         ++count;
     fprintf(stderr,"%s\n", status ? "failed" : "succeeded");
 
-    return count < 3 ? -1 : 0;
+    return count < 1 ? -1 : 0;
 }
 
 int
@@ -943,6 +945,8 @@ mcd_check_all_pot(int fd)
     if ( status ) {
         fprintf(stderr,"mcd_check_pot failed for cmc.\n");
         ++errors;
+    } else {
+        fprintf(stderr,"mcd_check_pot succeeded for cmc.\n");
     }
 
     // check vmc
@@ -951,14 +955,20 @@ mcd_check_all_pot(int fd)
     if ( status ) {
         fprintf(stderr,"mcd_check_pot failed for vmc.\n");
         ++errors;
+    } else {
+        fprintf(stderr,"mcd_check_pot succeeded for vmc.\n");
     }
 
-    // check vdc
-    shard = (mcd_rec_shard_t *)buf[VDC_DESC_BUF];
-    status = check_object_table(fd, shard, vdc_mos_segments);
-    if ( status ) {
-        fprintf(stderr,"mcd_check_pot failed for vdc.\n");
-        ++errors;
+    // check vdc (for non-storm only)
+    if(!getProperty_Int("ZS_STORM_MODE", 1)) {
+        shard = (mcd_rec_shard_t *)buf[VDC_DESC_BUF];
+        status = check_object_table(fd, shard, vdc_mos_segments);
+        if ( status ) {
+            fprintf(stderr,"mcd_check_pot failed for vdc.\n");
+            ++errors;
+        } else {
+            fprintf(stderr,"mcd_check_pot succeeded for vdc.\n");
+        }
     }
 
     return ( errors == 0 ) ? 0 : -1;
@@ -1221,13 +1231,12 @@ mcd_check_meta()
             fprintf(stderr,"Slab bitmap check failed. continuing checks\n");
             ++errors;
         }
-    } else {
+    } 
 
-        status = mcd_check_all_pot(fd); 
-        if( status != 0 ) { 
-            fprintf(stderr,"POT check failed. continuing checks\n"); 
-            ++errors; 
-        }
+    status = mcd_check_all_pot(fd); 
+    if( status != 0 ) { 
+        fprintf(stderr,"POT check failed. continuing checks\n"); 
+        ++errors; 
     }
 
     status = mcd_check_all_storm_log(fd); 
