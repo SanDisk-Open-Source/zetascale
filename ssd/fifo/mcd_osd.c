@@ -5145,6 +5145,11 @@ mcd_fth_osd_slab_write_raw( void * context, mcd_osd_shard_t * shard,
 	cntr_map_t					*cmap = NULL;
 	mcd_osd_segment_t 			* segment;
 	mcd_logrec_object_t         log_rec;
+#ifdef FLIP_ENABLED
+    char *tmp_ptr = NULL;
+    uint64_t pos = 0;
+#endif
+    
     
 
     mcd_log_msg( 20000, PLAT_LOG_LEVEL_TRACE, "ENTERING" );
@@ -5324,6 +5329,18 @@ mcd_fth_osd_slab_write_raw( void * context, mcd_osd_shard_t * shard,
 
 		offset = mcd_osd_rand_address(shard, blk_offset);
 
+#ifdef FLIP_ENABLED
+		if (corrupt_data) {
+			if ((blocks * Mcd_osd_blk_size) < (128 * 1024)) {
+				pos = rand() % ((1 << shard->class_table[blocks]) * Mcd_osd_blk_size);
+			} else {
+				pos = rand() % (blocks * Mcd_osd_blk_size);
+			}
+			tmp_ptr = (char *)buf;
+			tmp_ptr[pos] = ~tmp_ptr[pos];
+		}
+#endif
+
 #ifndef MCD_ENABLE_SLAB_CACHE_NOSSD
 		/*
 		 * FIXME: pad the object if size < 128KB
@@ -5358,6 +5375,13 @@ mcd_fth_osd_slab_write_raw( void * context, mcd_osd_shard_t * shard,
 		 */
 		memcpy( shard->slab_cache + offset, buf, blocks * Mcd_osd_blk_size );
 		rc = FLASH_EOK;
+#endif
+
+#ifdef FLIP_ENABLED
+		if (corrupt_data) {
+			tmp_ptr[pos] = ~tmp_ptr[pos];
+			corrupt_data = false;
+		}
 #endif
     } /* !(flags & FLASH_PUT_SKIP_IO) */
 
