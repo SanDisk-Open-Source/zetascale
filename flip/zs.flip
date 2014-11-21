@@ -9,7 +9,7 @@
 #		= 0 for meta logical node
 #		= 1 for interior nodes
 #		= 2 for leaf nodes
-#		= 3 for overflow nodes
+#		= 4 for overflow nodes
 #		= * for don't care
 #	bool is_root: Is being a root node is criteria for fault injection
 #		= 0 for false
@@ -42,7 +42,7 @@ set_zs_read_node_error uint32 node_type bool is_root uint64 logical_id uint32 re
 #		= 0 for meta logical node
 #		= 1 for interior nodes
 #		= 2 for leaf nodes
-#		= 3 for overflow nodes
+#		= 4 for overflow nodes
 #		= * for don't care
 #	bool is_root: Is being a root node is criteria for fault injection
 #		= 0 for false
