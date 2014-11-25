@@ -4014,6 +4014,11 @@ static void clear_all_sched_ctnr_stats(SDF_action_state_t *pas, int ctnr_index)
     }
 }
 
+inline void init_ctnr_stats(SDF_cache_ctnr_stats_t *ps)
+{
+    memset((void *) ps, 0, sizeof(SDF_cache_ctnr_stats_t));
+}
+
 static void init_stats(SDF_action_stats_new_t *ps)
 {
     memset((void *) ps, 0, sizeof(SDF_action_stats_new_t));
@@ -4087,8 +4092,8 @@ static void sum_sched_stats(SDF_action_state_t *pas)
     int                       i, j, n;
 	int							*used_ctnr;
 
-    init_stats(&(pas->stats_new));
-    init_stats(&(pas->stats_per_ctnr));
+    // init just the container stats records we need for the used containers
+    init_ctnr_stats(&(pas->stats_new.ctnr_stats[0]));   // only need 1 of these
 
 	used_ctnr = (int *)plat_malloc(sizeof(int) * (SDF_MAX_CONTAINERS + 1));
 	if (used_ctnr == NULL) {
@@ -4101,6 +4106,7 @@ static void sum_sched_stats(SDF_action_state_t *pas)
     for (i=0; i<SDF_MAX_CONTAINERS; i++) {
         if (pas->ctnr_meta[i].valid) {
             used_ctnr[n] = i;
+            init_ctnr_stats(&(pas->stats_per_ctnr.ctnr_stats[i]));
             n++;
         }
     }
