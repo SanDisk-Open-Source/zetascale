@@ -479,6 +479,8 @@ mcd_check_all_potbm(int fd)
     fprintf(stderr,"%s\n", status ? "failed" : "succeeded");
 #endif
 
+    fprintf(stderr, "cmc potbm: n/a (non-storm mode only)\n");
+    fprintf(stderr, "vmc potbm: n/a (non-storm mode only)\n");
     fprintf(stderr, "vdc potbm: ");
     if ( vdc_properties_ok && !(status = mcd_check_potbm(fd, VDC_DESC_BUF, VDC_SHARD_ID, vdc_mos_segments)) )
         ++count;
@@ -907,10 +909,7 @@ check_object_table(int fd, mcd_rec_shard_t * pshard, uint64_t* mos_segments)
             if((c = checksum(buf, block_size, 0)) != sum)
             {
                 if(sum || !empty(buf, block_size)) {
-                    sprintf(msg,
-                            "POT checksum failed. expected=%x, read_from_disk=%x, start_blk=%d num_blks=%d", 
-                            c, sum, chunk * seg_blks, seg_blks);
-                    zscheck_log_msg(ZSCHECK_OBJECT_TABLE, pshard->shard_id, ZSCHECK_CHECKSUM_ERROR, msg);
+                    zscheck_log_msg(ZSCHECK_POT, pshard->shard_id, ZSCHECK_CHECKSUM_ERROR, "pot checksum invalid");
                     rc = 1;
                     break;
                 }
@@ -921,7 +920,7 @@ check_object_table(int fd, mcd_rec_shard_t * pshard, uint64_t* mos_segments)
 	free(_buf);
 
     if (!rc) 
-        zscheck_log_msg(ZSCHECK_OBJECT_TABLE, pshard->shard_id, ZSCHECK_SUCCESS, "POT checksum valid");
+        zscheck_log_msg(ZSCHECK_OBJECT_TABLE, pshard->shard_id, ZSCHECK_SUCCESS, "pot checksum valid");
 
     return rc;
 }
