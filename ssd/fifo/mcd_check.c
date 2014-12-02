@@ -479,8 +479,8 @@ mcd_check_all_potbm(int fd)
     fprintf(stderr,"%s\n", status ? "failed" : "succeeded");
 #endif
 
-    fprintf(stderr, "cmc potbm: n/a (non-storm mode only)\n");
-    fprintf(stderr, "vmc potbm: n/a (non-storm mode only)\n");
+    fprintf(stderr, "cmc potbm: n/a (vdc only)\n");
+    fprintf(stderr, "vmc potbm: n/a (vdc only)\n");
     fprintf(stderr, "vdc potbm: ");
     if ( vdc_properties_ok && !(status = mcd_check_potbm(fd, VDC_DESC_BUF, VDC_SHARD_ID, vdc_mos_segments)) )
         ++count;
