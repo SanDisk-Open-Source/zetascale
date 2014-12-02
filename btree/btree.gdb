@@ -163,27 +163,33 @@ set $nbuckets = $map->nbuckets
 #p $nbuckets
 
 while ($nbuckets > 0)
-	set $bucket = $map->buckets[$nbuckets - 1]
-	set $entry = $bucket->entry
+	set $bucket = &$map->buckets[$nbuckets - 1]
+#	p $bucket
+	if ($bucket != 0) 
 
-	printf "Searching in bucket no = %ld.\n", $nbuckets
-#	if ($bucket != 0)
-		while ($entry != 0)
-	#		p/u $entry->key
-	#		p $entry->cguid
-			if $key == $entry->key && $cguid == $entry->cguid 
-				printf "==== Found the key ====\n"
-				printf "Logical Id  = %lu, Cguid = %d.\n",  $entry->key, $entry->cguid
-	#			p/u $entry->key
-	#			p $entry->cguid
-			
-				p (btree_raw_mem_node_t *) $entry->contents
+#		printf "Got buckets"
+		set $entry = $bucket->entry
+
+#		printf "Searching in bucket no = %ld.\n", $nbuckets
+	#	if ($bucket != 0)
+			while ($entry != 0)
+		#		p/u $entry->key
+		#		p $entry->cguid
+				if $key == $entry->key && $cguid == $entry->cguid 
+					printf "==== Found the key ====\n"
+					printf "Logical Id  = %lu, Cguid = %d.\n",  $entry->key, $entry->cguid
+		#			p/u $entry->key
+		#			p $entry->cguid
+				
+					p (btree_raw_mem_node_t *) $entry->contents
 				set $found_node = 1
 				loop_break
 				
-			end 
-			set $entry = $entry->next
-		end
+				end 
+				set $entry = $entry->next
+			end
+	end 
+
 	if ($found_node == 1)
 		loop_break;
 	end 
@@ -206,6 +212,7 @@ while ($nparts > 0)
 	    set $part = $pmap->parts[$nparts - 1]
 	    printf "Searching in btree cache part %d.\n", $nparts
 	    btree_get_node_pmap_part $part $cguid $key
+	    printf "Done "
 	    if ($found_node == 1)
 		loop_break
 	    end 
