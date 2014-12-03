@@ -7024,7 +7024,8 @@ log_sync_postprocess( mcd_osd_shard_t *shard, mcd_rec_pp_state_t *pp_state)
 		high_water_mark = c * 2;
 	}
 	for (uint d=0; d<pp_state->dealloc_count; ++d) {
-		if (pp_state->dealloc_ring_enabled) {
+		if ((pp_state->dealloc_ring_enabled)
+		and (shard == vdc_shard)) {
 			pp_state->dealloc_ring[pp_state->dealloc_head] = pp_state->dealloc_list[d];
 			pp_state->dealloc_head = (pp_state->dealloc_head+1) % nel( pp_state->dealloc_ring);
 			if (pp_state->dealloc_head == pp_state->dealloc_tail) {
