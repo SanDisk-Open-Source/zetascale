@@ -5095,6 +5095,11 @@ btree_leaf_insert_low(btree_status_t *pret, btree_raw_t *bt, btree_raw_mem_node_
 	if ((keylen + datalen) >= bt->big_object_size) {
 		assert(datalen > 0);
 		new_overflow_ptr = allocate_overflow_data(bt, n->pnode, datalen, data);
+		if (new_overflow_ptr == 0) {
+			fprintf(stderr, "Got invalid node id allocated for overflow node.\n");
+			assert(0);
+			abort();
+		}
 	}
 
 	/*

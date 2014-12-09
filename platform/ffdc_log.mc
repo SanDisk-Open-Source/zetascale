@@ -3456,6 +3456,7 @@
 160290 POT checksum error. expected=%x, read_from_disk=%x, start_blk=%d num_blks=%d
 160291 defragmenter enabled.\n
 160292 Failed due to an illegal container ID:%s %d
+160293 Got allocated 0th offset, ignoring it and moving ahead.\n
 
 
 # rico

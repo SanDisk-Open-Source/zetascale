@@ -2506,6 +2506,18 @@ mcd_fth_osd_slab_dealloc_low( mcd_osd_segment_t *segment, uint64_t blk_offset, i
     atomic_sub(segment->used_slabs, count);
 }
 
+void
+mcd_fth_osd_slab_dealloc_low_special(mcd_osd_shard_t *shard, uint64_t blk_offset, int count)
+{
+	mcd_osd_segment_t *segment = NULL;
+
+	plat_assert(blk_offset == 0);
+
+	segment = shard->segment_table[blk_offset / Mcd_osd_segment_blks];
+
+	mcd_fth_osd_slab_dealloc_low(segment, blk_offset, count);
+}
+
 #if 0
 void print_bitmap(char* title, mcd_osd_segment_t* segment)
 {
@@ -4227,6 +4239,9 @@ mcd_fth_osd_slab_alloc_low(mcd_osd_shard_t * shard, mcd_osd_segment_t* segment,
 	   *blk_offset = segment->blk_offset + next_slab * class->slab_blksize;
 	}
 
+
+	//plat_assert(*blk_offset);
+
 	uint32_t map_offset = (*blk_offset - segment->blk_offset) / class->slab_blksize;
 
 	int i = 0;
@@ -4438,7 +4453,10 @@ mcd_fth_osd_slab_alloc( void * context, mcd_osd_shard_t * shard, int blocks,
 
             mcd_osd_segment_unlock(segment);
 
-            if(res) return count;
+            if(res) {
+		//	plat_assert(*blk_offset);
+			return count;
+	    }
 
             if ( class->segments[class->num_segments - 1] != segment )
                 continue;
@@ -4460,6 +4478,7 @@ mcd_fth_osd_slab_alloc( void * context, mcd_osd_shard_t * shard, int blocks,
 		{
 			if(!mcd_fth_osd_get_slab( context, shard, class, blocks, blk_offset))
 				return 1;
+			plat_assert(0);
 			return 0;
 		}
     } while ( 1 );
@@ -5088,11 +5107,22 @@ mcd_fth_osd_slab_create_raw( void * context, mcd_osd_shard_t * shard,
 
 	if(!(flags & FLASH_PUT_SKIP_IO)) {
 
-		if ( 1 != mcd_fth_osd_slab_alloc( context, shard, blocks, 1, &blk_offset ) ) {
+retry_alloc:
+		if ( 1 != mcd_fth_osd_slab_alloc(context, shard, blocks, 1, &blk_offset ) ) {
 			mcd_log_msg( 20367, PLAT_LOG_LEVEL_TRACE, "failed to allocate slab" );
 			rc = FLASH_ENOSPC;
 			goto xout;
 		}       
+		if (blk_offset == 0) {
+			/*
+			 * Btree overflow node logical node id 0 is invalid. So from here we cannot
+			 * return blk_offset 0 to Btree overflow node allocation. 
+			 */
+			mcd_fth_osd_slab_dealloc_low_special(shard, blk_offset, 1);
+			mcd_log_msg(160293, PLAT_LOG_LEVEL_INFO, "Got allocated 0th offset, ignoring it and moving ahead.\n");
+			goto retry_alloc;
+		}
+
 		mcd_log_msg( 20368, PLAT_LOG_LEVEL_TRACE,
 					 "blocks allocated, key_len=%d data_len=%lu "
 					 "blk_offset=%lu blocks=%d",
@@ -5115,6 +5145,8 @@ mcd_fth_osd_slab_create_raw( void * context, mcd_osd_shard_t * shard,
                                  mcd_osd_lba_to_blk( mcd_osd_blk_to_lba( blocks )) );
     meta_data->blockaddr = blk_offset;
 	*((baddr_t *)key) = blk_offset;
+        plat_assert(blk_offset);
+
 	plat_assert(blk_offset % rawobjratio== 0);
 
 xout:
