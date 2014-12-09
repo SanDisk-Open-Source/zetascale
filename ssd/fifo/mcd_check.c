@@ -1037,6 +1037,7 @@ mcd_check_storm_log(int fd, mcd_rec_shard_t * pshard, int log, uint64_t* mos_seg
 			checksum = page_hdr->checksum;
 			if ( checksum == 0 ) {
 				if(page_hdr->LSN || page_hdr->eye_catcher || page_hdr->version) {
+                                    zscheck_log_msg(ZSCHECK_STORM_LOG, pshard->shard_id, ZSCHECK_MAGIC_ERROR, "page header invalid");
 					status = -1;
 					end_of_log = true;
 					break;
