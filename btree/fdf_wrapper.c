@@ -294,8 +294,10 @@ static uint64_t N_log         = 0;
 static uint64_t N_cmp         = 0;
 
 
-#define MAX_OPEN_CONTAINERS   (UINT16_MAX - 1 - 9)
-#define FIRST_VALID_CGUID		3
+#define FIRST_VALID_CGUID              3
+#define LAST_VALID_CGUID               UINT16_MAX
+#define MAX_OPEN_CONTAINERS            LAST_VALID_CGUID + 1
+
 ctrmap_t 	Container_Map[MAX_OPEN_CONTAINERS];
 int 			N_Open_Containers = 0;
 pthread_rwlock_t	ctnrmap_rwlock = PTHREAD_RWLOCK_INITIALIZER;
