@@ -75,12 +75,53 @@ static int                   vmc_properties_ok = 0;
 static int                   vdc_properties_ok = 0;
 static char                  tmp_buf[MCD_OSD_BLK_SIZE_MAX];
 static uint64_t             *cmc_mos_segments = NULL, *vmc_mos_segments = NULL, *vdc_mos_segments = NULL;
+static int                   cmc_seg_list_ok = 1;
+static int                   vmc_seg_list_ok = 1;
+static int                   vdc_seg_list_ok = 1;
 
 extern int __zs_check_mode_on;
 
 mcd_osd_shard_t * mcd_check_get_osd_shard( uint64_t shard_id );
 int mcd_corrupt_meta();
 int mcd_corrupt_pot(int fd);
+
+void mcd_set_seg_list_error(uint64_t shard_id) 
+{
+    switch(shard_id) {
+        case CMC_SHARD_ID:
+            cmc_seg_list_ok = 0;
+            break;
+        case VMC_SHARD_ID:
+            vmc_seg_list_ok = 0;
+            break;
+        case VDC_SHARD_ID:
+            vdc_seg_list_ok = 0;
+            break;
+        default:
+            break;
+    }
+}
+
+int mcd_check_seg_list_ok(uint64_t shard_id)
+{
+    int ret = -1;
+
+    switch(shard_id) {
+        case CMC_SHARD_ID:
+            ret = cmc_seg_list_ok;
+            break;
+        case VMC_SHARD_ID:
+            ret = vmc_seg_list_ok;
+            break;
+        case VDC_SHARD_ID:
+            ret = vdc_seg_list_ok;
+            break;
+        default:
+            break;
+    }
+
+    return ret;
+}
 
 int
 mcd_check_label(int fd)
@@ -377,7 +418,13 @@ mcd_check_potbm(int fd, int buf_idx, uint64_t shard_id, uint64_t* mos_segments)
     if (status) 
         goto out;
 
-	 buf = memalign( MCD_OSD_META_BLK_SIZE, bytes_per_page);
+        if (mcd_check_seg_list_ok(shard_id) != 1) {
+            zscheck_log_msg(ZSCHECK_POT, shard_id, ZSCHECK_FAILURE,
+                            "cannot verify POT due to segment list error");
+            return -1;
+        }
+
+	buf = memalign( MCD_OSD_META_BLK_SIZE, bytes_per_page);
 	for(i = 0; i < potbm->nbit; i++)
 	{
         if(potbm->bits[bitbase( i)] & bitmask( i))
@@ -617,6 +664,9 @@ mcd_check_segment_list(int fd, mcd_rec_shard_t *shard, uint64_t** mos_segments)
     }
 
     free(buffer);
+
+    if (status)
+        mcd_set_seg_list_error(shard->shard_id);
 
     return status;
 }
@@ -874,6 +924,12 @@ check_object_table(int fd, mcd_rec_shard_t * pshard, uint64_t* mos_segments)
     if(!buf)
         return 1;
 
+    if (mcd_check_seg_list_ok(pshard->shard_id) != 1) { 
+        zscheck_log_msg(ZSCHECK_POT, pshard->shard_id, ZSCHECK_FAILURE, 
+                        "cannot verify POT due to segment list error");
+        return 1;
+    }
+
     uint32_t block_size = getProperty_Int("ZS_STORM_MODE", 1) ? bytes_per_page : MCD_REC_UPDATE_SEGMENT_SIZE;
     uint32_t seg_blks = getProperty_Int("ZS_STORM_MODE", 1) ? bytes_per_page / MCD_OSD_META_BLK_SIZE : MCD_REC_UPDATE_SEGMENT_BLKS;
 
@@ -939,13 +995,17 @@ mcd_check_all_pot(int fd)
     }
 
     // check cmc
-    shard = (mcd_rec_shard_t *)buf[CMC_DESC_BUF];
-    status = check_object_table(fd, shard, cmc_mos_segments);
-    if ( status ) {
-        fprintf(stderr,"mcd_check_pot failed for cmc.\n");
-        ++errors;
+    if (mcd_check_seg_list_ok(CMC_SHARD_ID) == 0) {
+        fprintf(stderr,"mcd_check_pot cannot check cmc due to segment list error.\n");
     } else {
-        fprintf(stderr,"mcd_check_pot succeeded for cmc.\n");
+        shard = (mcd_rec_shard_t *)buf[CMC_DESC_BUF];
+        status = check_object_table(fd, shard, cmc_mos_segments);
+        if ( status ) {
+            fprintf(stderr,"mcd_check_pot failed for cmc.\n");
+            ++errors;
+        } else {
+            fprintf(stderr,"mcd_check_pot succeeded for cmc.\n");
+        }
     }
 
     // check vmc
@@ -1008,13 +1068,19 @@ read_log_segment(int fd, mcd_rec_shard_t * pshard, uint64_t* mos_segments, int l
 int
 mcd_check_storm_log(int fd, mcd_rec_shard_t * pshard, int log, uint64_t* mos_segments)
 {
-	bool		end_of_log	= false;
+    bool		end_of_log	= false;
 	int		s, p, status = 0;
 	char		*buf;
 	uint64_t	page_offset;
 	uint64_t	prev_LSN	= 0;
 	uint64_t	checksum;
     char        msg[512];
+
+    if (mcd_check_seg_list_ok(pshard->shard_id) != 1) { 
+        zscheck_log_msg(ZSCHECK_STORM_LOG, pshard->shard_id, ZSCHECK_FAILURE, 
+                        "cannot verify storm log due to segment list error");
+        return 1;
+    }
 
 	buf = memalign(MCD_OSD_META_BLK_SIZE, MCD_REC_LOG_SEGMENT_SIZE);
 	if(!buf)
