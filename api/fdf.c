@@ -1597,6 +1597,7 @@ out:
 
 #define STAT_BUFFER_SIZE 16384
 
+#ifdef notdef
 static void print_zs_stats(FILE *log, ZS_stats_t *stats, char *disp_str) {
     int i;
     char buf[BUF_LEN];
@@ -1622,6 +1623,7 @@ static void print_zs_stats(FILE *log, ZS_stats_t *stats, char *disp_str) {
     fputs("---------\n",log); 
     fflush(log);
 }
+#endif /* notdef */
 
 void set_stats_autodump_interval(int interval) {
     dump_interval = interval;
@@ -1642,102 +1644,89 @@ int is_auto_dump_enabled() {
 }
 
 static void *zs_stats_thread(void *arg) {
-    ZS_cguid_t *cguids = NULL;
-    uint32_t n_cguids;
-    char stats_str[STAT_BUFFER_SIZE];
     FILE *stats_log = NULL;
-    int i;
     struct ZS_thread_state *thd_state;
-    ZS_stats_t stats;
     time_t st,et;
     int time_elapsed,cur_dump_int;
+    int stats_level = getProperty_Int("ZS_STATS_LEVEL", ZS_STATS_LEVEL_SUMMARY);
 
 
-    cguids = (ZS_cguid_t *) plat_alloc(sizeof(*cguids) * MCD_MAX_NUM_CNTRS);
-    if (cguids == NULL) {
-		fprintf(stderr, "Could not allocate memory for CGUIDs.\n");
-		return NULL;	
+    if (stats_level <= ZS_STATS_LEVEL_NO_STATS) {
+        return NULL;
     }
 
     if ( ZS_SUCCESS != ZSInitPerThreadState( ( struct ZS_state * ) arg, ( struct ZS_thread_state ** ) &thd_state )) {
-        fprintf(stderr,"Stats Thread:Unable to open the log file /tmp/zs_stats.log. Exiting\n");
-        plat_free(cguids);
+        fprintf(stderr,"Unable to init the stats thread, exiting.\n");
+        return NULL;
+    }
+
+    stats_log = open_stats_dump_file();
+    if (!stats_log) {
+        fprintf(stderr,"Unable to open the stats log file. Exiting stats thread.\n");
         return NULL;
     }
 
     stats_dump = 1;
-    dump_interval = getProperty_Int( "ZS_STATS_DUMP_INTERVAL", 10 ); 
+    dump_interval = getProperty_Int( "ZS_STATS_DUMP_INTERVAL", 60 ); 
     while(1) {
-		if (agent_state.op_access.is_shutdown_in_progress) {
-			break;
-		}
+        if (agent_state.op_access.is_shutdown_in_progress) { 
+            break; 
+        }
 
         if( (stats_dump == 0) || ( dump_interval <= 0) ) {
             /* Auto dump has been disabled. sleep 5 secs and check again */
             sleep(5);
             continue;
         }
-        if(getProperty_Int( "ZS_STATS_NEW", 1 ) == 1 ) {
-            time(&st);
-            dump_all_container_stats(thd_state,STATS_PRINT_TYPE_DETAILED);
-            time(&et);
-            /* calculate the time elapsed for getting and printing above stats */
-            cur_dump_int = dump_interval;
-            time_elapsed = (uint32_t)et - (uint32_t)st;
-            if ( time_elapsed >= 0 ) {
-                if (time_elapsed < cur_dump_int) {
-                    sleep(cur_dump_int - time_elapsed);
-                }
-            }
-            else {
-                /* System time changed backwords, just sleep for default interval */                    
-                sleep(dump_interval);
-            }
+
+        time(&st);
+
+        // Always print summary stats 
+        if (ZS_SUCCESS != log_summary_stats(thd_state, stats_log))
             continue;
-        }
-        stats_log = fopen(getProperty_String("ZS_STATS_FILE","/tmp/zsstats.log"),"a+");
-        if( stats_log == NULL ) {
-            fprintf(stderr,"Stats Thread:Unable to open the log file /tmp/zs_stats.log. Exiting\n");
-	    	plat_free(cguids);
-            return NULL;
+
+        switch(stats_level) {
+            case ZS_STATS_LEVEL_CNTR_LIST:
+                log_container_props(thd_state, stats_log);
+                break;
+
+            case ZS_STATS_LEVEL_CNTR_STATS:
+                log_container_stats(thd_state, stats_log);
+                break;
+        
+            case ZS_STATS_LEVEL_FLASH_STATS:
+                log_flash_stats(thd_state, stats_log);
+                break;
+        
+            case ZS_STATS_LEVEL_ALL_STATS:
+                log_all_container_stats(thd_state, stats_log, STATS_PRINT_TYPE_DETAILED);
+                break;
+        
+            default:
+                break; // do nothing
         }
 
-        zs_get_containers(thd_state,cguids,&n_cguids);
-        if( n_cguids <= 0 ) {
-             fprintf(stderr,"Stats Thread:No container exists\n");    
-             sleep(10);
-             continue;
-        }
-        for ( i = 0; i < n_cguids; i++ ) {
-			if (agent_state.op_access.is_shutdown_in_progress) {
-				break;
-			}
-			// Skip containers that are not open
-			if ( ZS_FAILURE_CONTAINER_NOT_OPEN == zs_get_ctnr_status( cguids[i], 0 ) ) 
-				continue;
-           	memset(stats_str,0,STAT_BUFFER_SIZE);
-            ZSGetStatsStr(thd_state,cguids[i],stats_str,NULL);
-            fputs(stats_str,stats_log);
-            if ( getProperty_Int( "ZS_STATS_API_DEBUG", 0 ) == 1 ) {
-                ZSGetContainerStats(thd_state,cguids[i],&stats);
-                print_zs_stats(stats_log,&stats,"Container\n");
-                ZSGetStats(thd_state,&stats);
-                print_zs_stats(stats_log,&stats,"Flash\n");
+        fprintf(stats_log, "--------\n");
+        fflush(stats_log);
+
+        time(&et);
+        /* calculate the time elapsed for getting and printing above stats */
+        cur_dump_int = dump_interval;
+        time_elapsed = (uint32_t)et - (uint32_t)st;
+        if ( time_elapsed >= 0 ) {
+            if (time_elapsed < cur_dump_int) {
+                sleep(cur_dump_int - time_elapsed);
             }
         }
-
-		mcd_trx_print_stats(stats_log);
-
-        //slab_gc_print_stats(stats_log);
-
-        sleep(dump_interval);
+        else {
+            /* System time changed backwords, just sleep for default interval */                    
+            sleep(dump_interval);
+        }
     }
 
-	if (stats_log) {
-		fclose(stats_log);
-	}
-	plat_free(cguids);
-	return NULL;
+    if (stats_log)  
+        fclose(stats_log);
+    return NULL;
 }
 
 static void *zs_scheduler_thread(void *arg)

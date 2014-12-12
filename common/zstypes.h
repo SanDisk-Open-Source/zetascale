@@ -293,6 +293,14 @@ typedef enum {
 // zscheck logfile default
 #define  ZSCHECK_LOG_DEFAULT "/tmp/zsck.log"
 
+// zs stats logging levels
+#define ZS_STATS_LEVEL_NO_STATS          0
+#define ZS_STATS_LEVEL_SUMMARY           1
+#define ZS_STATS_LEVEL_CNTR_LIST         2
+#define ZS_STATS_LEVEL_CNTR_STATS        3
+#define ZS_STATS_LEVEL_FLASH_STATS       4
+#define ZS_STATS_LEVEL_ALL_STATS         5
+
 #ifdef __cplusplus
 }
 #endif

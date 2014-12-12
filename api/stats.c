@@ -68,7 +68,7 @@ typedef struct {
 }stats_dump_cfg_t;
 static stats_dump_cfg_t dump_thd_cfg;
 
-
+#define IS_ZS_HASH_CONTAINER(FLAGS) (FLAGS & (1 << 0))
 #define MAX_CMD_TOKENS    20
 #define STATS_BUFFER_SIZE 1024 
 
@@ -356,6 +356,321 @@ out:
     return ret;
 }
 
+ZS_status_t log_summary_stats(struct ZS_thread_state *thd_state, FILE *fp) {
+    int i = 0;
+    time_t st;
+    uint32_t n_cguids = 0;
+    ZS_cguid_t *cguids = NULL;
+    ZS_status_t ret = ZS_SUCCESS;
+    ZS_container_props_t props;
+    uint64_t total_hash_num_objs = 0;
+    uint64_t total_btree_num_objs = 0;
+    uint64_t total_num_objs = 0;
+    uint64_t total_hash_used_space = 0;
+    uint64_t total_btree_used_space = 0;
+    uint64_t total_used_space = 0;
+    int total_num_btree_containers = 0;
+    int total_num_hash_containers = 0;
+        
+    cguids = (ZS_cguid_t *) plat_alloc(sizeof(*cguids) * MCD_MAX_NUM_CNTRS);
+    if (cguids == NULL) { 
+        return ZS_FAILURE;
+    }
+
+    ret = ZSGetContainers(thd_state,cguids,&n_cguids); 
+    if ( ZS_SUCCESS != ret ) 
+        goto out;
+
+    if( n_cguids <= 0 ) {
+        plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, LOG_DBG, "No container exists");
+        ret = ZS_FAILURE; 
+        goto out;
+    }
+
+    for ( i = 0; i < n_cguids; i++ ) {
+        ZS_cguid_t cguid = cguids[i];
+        uint64_t num_objs = 0;
+        uint64_t used_space = 0;
+
+        /* Get container properties and print */
+        ret = ZSGetContainerProps(thd_state, cguid, &props);
+        if ( ret != ZS_SUCCESS ) { 
+            if ( ZS_FAILURE_OPERATION_DISALLOWED != ret && ZS_FAILURE_CONTAINER_NOT_FOUND != ret ) 
+                fprintf(fp,"Unable to get container properties for cguid %lu (error: %s)\n",cguid,ZSStrError(ret)); 
+            goto out;
+        }
+
+        get_cntr_info(cguid, NULL, 0, &num_objs, &used_space, NULL, NULL);
+
+        if (IS_ZS_HASH_CONTAINER(props.flags)) {
+            ++total_num_hash_containers;
+            total_hash_num_objs += num_objs;
+            total_hash_used_space += used_space;
+        } else {
+            ++total_num_btree_containers;
+            total_btree_num_objs += num_objs;
+            total_btree_used_space += used_space;
+        }
+
+        total_num_objs += num_objs;
+        total_used_space += used_space;
+    }
+
+    time(&st);
+    fprintf(fp,"Timestamp:%sSummary Statistics\n", ctime(&st));
+    fprintf(fp,"  num_btree_containers = %d\n", total_num_btree_containers);
+    fprintf(fp,"  num_btree_container_objs = %lu\n", total_btree_num_objs);
+    fprintf(fp,"  total_btree_container_used_space = %lu\n", total_btree_used_space);
+    fprintf(fp,"  num_hash_containers = %d\n", total_num_hash_containers);
+    fprintf(fp,"  num_hash_container_objs = %lu\n", total_hash_num_objs);
+    fprintf(fp,"  total_hash_container_used_space = %lu\n", total_hash_used_space);
+    fprintf(fp,"  total_num_objs = %lu\n", total_num_objs);
+    fprintf(fp,"  total_used_space = %lu\n", total_used_space);
+    fflush(fp);
+
+out:
+    plat_free(cguids);
+    return ret;
+}
+
+ZS_status_t log_container_props(struct ZS_thread_state *thd_state, FILE *fp) {
+    int i = 0;
+    time_t st;
+    uint32_t n_cguids = 0;
+    ZS_cguid_t *cguids = NULL;
+    ZS_status_t ret = ZS_SUCCESS;
+    ZS_container_props_t props;
+    char *cname = NULL;
+    char *type = NULL;
+    uint64_t num_objs = 0;
+    uint64_t used_space = 0;
+
+        
+    cguids = (ZS_cguid_t *) plat_alloc(sizeof(*cguids) * MCD_MAX_NUM_CNTRS);
+    if (cguids == NULL) { 
+        return ZS_FAILURE;
+    }
+
+    ret = ZSGetContainers(thd_state,cguids,&n_cguids);
+        if ( ZS_SUCCESS != ret )
+            goto out;
+
+    if( n_cguids <= 0 ) {
+        plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, LOG_DBG, "No container exists");
+        ret = ZS_FAILURE;
+        goto out;
+    }
+
+    for ( i = 0; i < n_cguids; i++ ) {
+        ZS_cguid_t cguid = cguids[i];
+
+        /* Get container name */
+        cname = ZSGetContainerName(cguid);
+        if( cname == NULL ) {
+             fprintf(fp,"Unable to container name for cguid %lu", cguid);
+             cname = "unknown";
+        }
+
+        /* Get container properties and print */
+        ret = ZSGetContainerProps(thd_state, cguid, &props);
+        if ( ret != ZS_SUCCESS ) {
+            if ( ZS_FAILURE_OPERATION_DISALLOWED != ret && ZS_FAILURE_CONTAINER_NOT_FOUND != ret )
+                fprintf(fp,"Unable to get container properties for cguid %lu (error: %s)\n",cguid,ZSStrError(ret));
+            goto out;
+        }
+    
+        get_cntr_info(cguid, NULL, 0, &num_objs, &used_space, NULL, NULL);
+    
+        if (IS_ZS_HASH_CONTAINER(props.flags)) {
+            type = "hash";
+        } else {
+            type = "btree";
+        }
+
+        time(&st);
+        fprintf(fp,"Container Properties:\n"
+                   "    name             = %s\n"
+                   "    cguid            = %lu\n"
+                   "    Size             = %lu kbytes\n"
+                   "    persistence      = %s\n"
+                   "    eviction         = %s\n"
+                   "    writethrough     = %s\n"
+                   "    fifo             = %s\n"
+                   "    async_writes     = %s\n"
+                   "    durability       = %s\n"
+                   "    compression      = %s\n"
+                   "    bypass_zs_cache = %s\n"
+                   "    num_objs         = %lu\n"
+                   "    used_space       = %lu\n"
+                   "    type             = %s\n",
+            cname, cguid, props.size_kb, get_bool_str(props.persistent),
+            get_bool_str(props.evicting),get_bool_str(props.writethru),
+            get_bool_str(props.fifo_mode),get_bool_str(props.async_writes),
+            get_durability_str(props.durability_level),
+            get_bool_str(props.compression), get_bool_str(props.flash_only),
+            num_objs, used_space, type);
+            fflush(fp);
+    }
+
+out:
+    plat_free(cguids);
+    return ret;
+}
+
+ZS_status_t log_container_stats(struct ZS_thread_state *thd_state, FILE *fp) {
+    int i = 0;
+    uint32_t n_cguids = 0;
+    ZS_cguid_t *cguids = NULL;
+    ZS_status_t ret = ZS_SUCCESS;
+    char *cname = NULL;
+    ZS_stats_t stats;
+    cntr_map_t *cmap = NULL;
+                   
+                   
+    cguids = (ZS_cguid_t *) plat_alloc(sizeof(*cguids) * MCD_MAX_NUM_CNTRS);
+    if (cguids == NULL) { 
+        return ZS_FAILURE;
+    }              
+                   
+    ret = ZSGetContainers(thd_state,cguids,&n_cguids); 
+    if ( ZS_SUCCESS != ret ) 
+        goto out;   
+                   
+    if( n_cguids <= 0 ) {
+        plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, LOG_DBG, "No container exists");
+        ret = ZS_FAILURE; 
+        goto out;
+    }       
+            
+    for ( i = 0; i < n_cguids; i++ ) {
+        ZS_cguid_t cguid = cguids[i];
+    
+        /* Get container name */
+        cname = ZSGetContainerName(cguid);
+        if( cname == NULL ) {
+             fprintf(fp,"Unable to container name for cguid %lu", cguid);
+             cname = "unknown";
+        }
+
+        /* Get Per container stats */
+        memset(&stats, 0, sizeof(ZS_stats_t));
+        ret = ZSGetContainerStats(thd_state, cguid, &stats);
+        if ( ret != ZS_SUCCESS ) { 
+            goto out;
+        }
+
+        fprintf(fp,"Container Stats:\n"
+                   "    name             = %s\n"
+                   "    cguid            = %lu\n",
+                   cname, cguid);
+
+        print_stats(fp, &stats, 1);
+
+        // Output per container evictions
+        cmap = zs_cmap_get_by_cguid( cguid );
+        if ( cmap && cmap->container_stats.num_evictions > 0 ) { 
+            fprintf(fp,"  %s:\n", get_stats_catogory_desc_str(ZS_STATS_TYPE_CONTAINER_FLASH)); 
+            fprintf(fp,"    %s = %lu\n", "num_evictions", cmap->container_stats.num_evictions);
+        }
+        fflush(fp);
+    }
+
+out:
+    plat_free(cguids);
+    return ret;
+}
+
+ZS_status_t log_flash_stats(struct ZS_thread_state *thd_state, FILE *fp) {
+    int i = 0;
+    int len = 0;
+    uint32_t n_cguids = 0;
+    ZS_cguid_t *cguids = NULL;
+    ZS_status_t ret = ZS_SUCCESS;
+    ZS_stats_t stats;
+    char stats_buffer[STATS_BUFFER_SIZE];
+                   
+
+    cguids = (ZS_cguid_t *) plat_alloc(sizeof(*cguids) * MCD_MAX_NUM_CNTRS);
+    if (cguids == NULL) { 
+        return ZS_FAILURE;
+    }              
+     
+    ret = ZSGetContainers(thd_state,cguids,&n_cguids);
+    if ( ZS_SUCCESS != ret )
+        goto out;
+
+    if( n_cguids <= 0 ) {
+        plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, LOG_DBG, "No container exists");
+        ret = ZS_FAILURE;
+        goto out;
+    }
+
+    for ( i = 0; i < n_cguids; i++ ) {
+        int j;
+        ZS_cguid_t cguid = cguids[i];
+
+        /* Print Flash layer statistics */
+        fprintf(fp, "Overall ZS Statistics\n");
+        fprintf(fp,"  %s:\n", get_stats_catogory_desc_str(ZS_STATS_TYPE_FLASH));
+        for (j = 0; j < ZS_N_FLASH_STATS; j++ ) {
+            if ( stats.flash_stats[j] == 0 ) {
+                continue;
+            }
+            fprintf(fp,"    %s = %lu\n",get_flash_type_stats_desc(j), stats.flash_stats[j]);
+        }
+        zs_get_flash_map(thd_state, cguid, stats_buffer, &len);
+        fprintf(fp,"  Flash layout:\n%s", stats_buffer);
+
+        /* Get the Total Flash stats */
+        memset(&stats, 0, sizeof(ZS_stats_t));
+        ret = ZSGetStats(thd_state,&stats);
+        if ( ret != ZS_SUCCESS ) {
+            goto out;
+        }
+        print_stats(fp, &stats, 0);
+        fflush(fp);
+        break; // Only need 1 set of stats
+    }
+
+out:
+    plat_free(cguids);
+    return ret;
+}
+
+ZS_status_t log_all_container_stats(struct ZS_thread_state *thd_state, FILE *fp, int stats_type) {
+    int i;
+    uint32_t n_cguids;
+    ZS_cguid_t *cguids = NULL;
+    ZS_status_t ret = ZS_SUCCESS;
+
+
+    cguids = (ZS_cguid_t *) plat_alloc(sizeof(*cguids) * MCD_MAX_NUM_CNTRS);
+    if (cguids == NULL) {
+        return ZS_FAILURE;
+    }
+
+    ret = ZSGetContainers(thd_state,cguids,&n_cguids);
+    if ( ZS_SUCCESS != ret )
+        goto out;
+
+    if( n_cguids <= 0 ) {
+        plat_log_msg(160055, LOG_CAT, LOG_DBG,
+                           "No container exists");
+        ret = ZS_FAILURE;
+        goto out;
+    }
+
+    for ( i = 0; i < n_cguids; i++ ) {
+        print_container_stats_by_cguid(thd_state,fp,cguids[i],stats_type);
+        fflush(fp);
+    }
+    fflush(fp);
+
+out:
+    plat_free(cguids);
+    return ret;
+}
+
 ZS_status_t print_container_stats_by_name(struct ZS_thread_state *thd_state,
                               FILE *fp, char *cname, int stats_type) {
     ZS_cguid_t cguid;
@@ -393,7 +708,6 @@ char *get_durability_str(ZS_durability_level_t dura) {
     }
 }
 
-#define IS_ZS_HASH_CONTAINER(FLAGS) (FLAGS & (1 << 0))
 ZS_status_t print_container_stats_by_cguid( struct ZS_thread_state *thd_state,
                                    FILE *fp, ZS_cguid_t cguid, int stats_type) {
     int len,i;
@@ -404,7 +718,7 @@ ZS_status_t print_container_stats_by_cguid( struct ZS_thread_state *thd_state,
     ZS_container_props_t props;
     uint64_t num_objs = 0;
     uint64_t used_space = 0;   
-	cntr_map_t *cmap = NULL;
+    cntr_map_t *cmap = NULL;
     char *type = NULL;
 
     /* Get container name */

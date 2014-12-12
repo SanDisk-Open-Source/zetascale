@@ -89,6 +89,13 @@ ZS_status_t dump_container_stats_by_name(struct ZS_thread_state *thd_state,
                                                  char *cname, int stats_type);
 ZS_status_t dump_all_container_stats(struct ZS_thread_state *thd_state,
                                                                int stats_type);
+
+ZS_status_t log_summary_stats(struct ZS_thread_state *thd_state, FILE *fp);
+ZS_status_t log_container_props(struct ZS_thread_state *thd_state, FILE *fp);
+ZS_status_t log_container_stats(struct ZS_thread_state *thd_state, FILE *fp);
+ZS_status_t log_flash_stats(struct ZS_thread_state *thd_state, FILE *fp);
+ZS_status_t log_all_container_stats(struct ZS_thread_state *thd_state, FILE *fp, int stats_type);
+
 ZS_status_t zs_start_admin_thread( struct ZS_state *zs_state );
 
 /* ZS internal functions */
@@ -167,6 +174,8 @@ void disable_stats_auto_dump() ;
 int is_auto_dump_enabled() ;
 void set_stats_autodump_interval(int interval);
 int get_autodump_interval();
+FILE *open_stats_dump_file();
+
 bool is_btree_loaded();
 char *ZSGetNextContainerName(struct ZS_thread_state *zs_thread_state, struct ZSCMapIterator **iterator, ZS_cguid_t *pcguid);
 ZS_status_t async_command_delete_container(ZS_cguid_t cguid);
