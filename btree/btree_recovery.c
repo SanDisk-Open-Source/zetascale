@@ -91,7 +91,6 @@ add_overflow_robj(btree_raw_t *bt, btree_robj_info_t *r,
 
 	if (ind == node_cnt) {
 		/* No overflow node found */
-		assert(0);
 		return;
 	}
 
@@ -175,7 +174,6 @@ gen_robj_list(btree_raw_t *bt, btree_raw_node_t **nodes,
 			r->tombstone = btree_leaf_is_key_tombstoned(bt, nodes[i], j);
 			assert(!r->tombstone || !r->datalen);
 
-			/* TODO: Handle Overflow nodes case */
 			r->data_node_cnt   = 0;
 			if ((r->keylen + r->datalen) < bt->big_object_size) {
 				r->data = memcpy( malloc( r->datalen), data, r->datalen);
@@ -224,6 +222,12 @@ get_robj_data(btree_raw_t *bt, btree_robj_info_t *obj)
 	uint64_t ovdatasize = get_data_in_overflownode(bt);
 
 	if (obj->data_node_cnt == 0) {
+		if ((obj->keylen + obj->datalen) > bt->big_object_size) {
+			fprintf(stderr, "ERROR: Recovery expecting big object (keylen=%u datalen=%lu),"
+			                "but packet missing overflow node\n", obj->keylen, obj->datalen);
+			abort();
+		}
+
 		/* Data resides in node */
 		char *tmp_data = obj->data;
 		obj->data = malloc(obj->datalen);
