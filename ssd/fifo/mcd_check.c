@@ -1009,24 +1009,32 @@ mcd_check_all_pot(int fd)
     }
 
     // check vmc
-    shard = (mcd_rec_shard_t *)buf[VMC_DESC_BUF];
-    status = check_object_table(fd, shard, vmc_mos_segments);
-    if ( status ) {
-        fprintf(stderr,"mcd_check_pot failed for vmc.\n");
-        ++errors;
+    if (mcd_check_seg_list_ok(VMC_SHARD_ID) == 0) { 
+        fprintf(stderr,"mcd_check_pot cannot check vmc due to segment list error.\n");
     } else {
-        fprintf(stderr,"mcd_check_pot succeeded for vmc.\n");
+        shard = (mcd_rec_shard_t *)buf[VMC_DESC_BUF];
+        status = check_object_table(fd, shard, vmc_mos_segments);
+        if ( status ) {
+            fprintf(stderr,"mcd_check_pot failed for vmc.\n");
+            ++errors;
+        } else {
+            fprintf(stderr,"mcd_check_pot succeeded for vmc.\n");
+        }
     }
 
     // check vdc (for non-storm only)
     if(!getProperty_Int("ZS_STORM_MODE", 1)) {
-        shard = (mcd_rec_shard_t *)buf[VDC_DESC_BUF];
-        status = check_object_table(fd, shard, vdc_mos_segments);
-        if ( status ) {
-            fprintf(stderr,"mcd_check_pot failed for vdc.\n");
-            ++errors;
+        if (mcd_check_seg_list_ok(VDC_SHARD_ID) == 0) { 
+            fprintf(stderr,"mcd_check_pot cannot check vdc due to segment list error.\n");
         } else {
-            fprintf(stderr,"mcd_check_pot succeeded for vdc.\n");
+            shard = (mcd_rec_shard_t *)buf[VDC_DESC_BUF];
+            status = check_object_table(fd, shard, vdc_mos_segments);
+            if ( status ) {
+                fprintf(stderr,"mcd_check_pot failed for vdc.\n");
+                ++errors;
+            } else {
+                fprintf(stderr,"mcd_check_pot succeeded for vdc.\n");
+            }
         }
     }
 
