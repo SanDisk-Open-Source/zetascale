@@ -1066,7 +1066,9 @@ struct cr_shard {
      * replicas so we don't return values that are not yet persisted accross
      * all replicas.
      */
+#ifdef KEY_LOCK_CONTAINER
     struct replicator_key_lock_container *lock_container;
+#endif /* KEY_LOCK_CONTAINER */
 
 /* lock end */
     unsigned notification_running : 1;
@@ -2824,12 +2826,14 @@ cr_get_or_alloc_shard(struct copy_replicator *cr, SDF_shardid_t sguid,
         shard->local_replica = CR_SHARD_INVALID_LOCAL_REPLICA;
         shard->after_restart = 1;
         TAILQ_INIT(&shard->op_list);
+#ifdef KEY_LOCK_CONTAINER
         shard->lock_container =
             replicator_key_lock_container_alloc(cr->config.my_node,
                                                 shard->sguid,
                                                 shard->vip_group_id,
                                                 shard->replication_type);
         plat_assert_always(shard->lock_container);
+#endif /* KEY_LOCK_CONTAINER */
         TAILQ_INIT(&shard->pending_notification_list);
 
         shard->ref_count = 1;
@@ -5583,10 +5587,11 @@ cr_shard_ref_count_dec(struct cr_shard *shard) {
         if (shard->local_vip_meta) {
             cr_vip_meta_free(shard->local_vip_meta);
         }
-
+#ifdef KEY_LOCK_CONTAINER
         if (shard->lock_container) {
             rklc_free(shard->lock_container);
         }
+#endif /* KEY_LOCK_CONTAINER */
 
         plat_free(shard->delay_lease_acquisition_event_name);
         plat_free(shard->lease_renewal_event_name);
@@ -7698,8 +7703,10 @@ cr_replica_undo_op(struct cr_replica *replica,
     lock_cb =
         rkl_cb_create(cr->callbacks.single_scheduler,
                       &cr_replica_undo_op_lock_cb, op);
+#ifdef KEY_LOCK_CONTAINER
     rklc_lock(shard->lock_container, &op->data.pm->key, RKL_MODE_EXCLUSIVE,
               lock_cb);
+#endif /* KEY_LOCK_CONTAINER */
 }
 
 /**
@@ -8324,8 +8331,10 @@ cr_op_start(struct cr_op *op, struct plat_closure_scheduler *context) {
     lock_cb = rkl_cb_create(cr->callbacks.single_scheduler, &cr_op_lock_cb, op);
     if (lock_mode != RKL_MODE_NONE) {
         plat_assert(op->shard);
+#ifdef KEY_LOCK_CONTAINER
         rklc_lock(op->shard->lock_container, &op->request_pm->key, lock_mode,
                   lock_cb);
+#endif /* KEY_LOCK_CONTAINER */
     } else {
         cr_op_lock_cb(context, op, SDF_SUCCESS, NULL /* lock */);
     }

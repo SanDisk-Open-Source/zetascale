@@ -2545,10 +2545,12 @@ SDF_status_t SDFPreloadContainerMetaData(SDF_action_init_t *pai, SDF_cguid_t cgu
              * containers.  For no replication this will be unused nd
              * other replication types go through copy_replicator.c
              */
+#ifdef KEY_LOCK_CONTAINER
             pas->ctnr_meta[i].lock_container =
                 replicator_key_lock_container_alloc(pas->mynode, shard,
                                                     VIP_GROUP_ID_INVALID,
                                                     SDF_REPLICATION_V1_2_WAY);
+#endif /* KEY_LOCK_CONTAINER */
 
             #ifdef INCLUDE_TRACE_CODE
                     plat_log_msg(30638, PLAT_LOG_CAT_SDF_PROT, PLAT_LOG_LEVEL_TRACE,
@@ -2619,10 +2621,12 @@ SDF_status_t SDFUnPreloadContainerMetaData(SDF_action_init_t *pai, SDF_cguid_t c
             ret = SDF_UNPRELOAD_CONTAINER_FAILED;
         } else {
             clear_all_sched_ctnr_stats(pas, i);
+#ifdef KEY_LOCK_CONTAINER
             if (pctnr_md->lock_container) {
                 rklc_free(pctnr_md->lock_container);
                 pctnr_md->lock_container = NULL;
             }
+#endif /* KEY_LOCK_CONAINER */
             asm __volatile__("mfence":::"memory"); // Make sure all is seen
             pctnr_md->valid = 0;
         }
@@ -4882,7 +4886,9 @@ static SDF_status_t delete_remote_object(ZS_async_rqst_t *pap)
     SDF_protocol_msg_t      *pm_new = NULL;
     int                      ret = SDF_SUCCESS;
     qrep_state_t            *ps;
+#ifdef KEY_LOCK_CONTAINER
     SDF_status_t             status;
+#endif /* KEY_LOCK_CONTAINER */
     struct replicator_key_lock *key_lock;
     SDF_cache_ctnr_metadata_t *cache_ctnr_meta;
         
@@ -4927,11 +4933,13 @@ static SDF_status_t delete_remote_object(ZS_async_rqst_t *pap)
 
         cache_ctnr_meta = get_container_metadata(pap->pai, pap->ctnr);
         plat_assert(cache_ctnr_meta);
+#ifdef KEY_LOCK_CONTAINER
         plat_assert(cache_ctnr_meta->lock_container);
         status = rklc_lock_sync(cache_ctnr_meta->lock_container,
                                 pap->pkey_simple, RKL_MODE_EXCLUSIVE,
                                 &key_lock);
         plat_assert(status == SDF_SUCCESS);
+#endif /* KEY_LOCK_CONTAINER */
         
         if (sdf_msg_send(send_msg,
                          msize,
@@ -5237,7 +5245,9 @@ int do_put(ZS_async_rqst_t *pap, SDF_boolean_t unlock_slab)
     service_t                to_service;
     SDF_status_t             msg_error;
     SDF_status_t             status_cleanup;
+#ifdef KEY_LOCK_CONTAINER
     SDF_status_t             status;
+#endif /* KEY_LOCK_CONTAINER */
     struct replicator_key_lock *key_lock;
     SDF_cache_ctnr_metadata_t *cache_ctnr_meta;
 
@@ -5395,11 +5405,13 @@ int do_put(ZS_async_rqst_t *pap, SDF_boolean_t unlock_slab)
         if (hf_mtype == HZSF) {
             cache_ctnr_meta = get_container_metadata(pai, pap->ctnr);
             plat_assert(cache_ctnr_meta);
+#ifdef KEY_LOCK_CONTAINER
             plat_assert(cache_ctnr_meta->lock_container);
             status = rklc_lock_sync(cache_ctnr_meta->lock_container,
                                     pap->pkey_simple, RKL_MODE_EXCLUSIVE,
                                     &key_lock);
             plat_assert(status == SDF_SUCCESS);
+#endif /* KEY_LOCK_CONTAINER */
         }
 
         if (sdf_msg_send(send_msg,

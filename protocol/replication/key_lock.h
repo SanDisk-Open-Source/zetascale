@@ -97,10 +97,12 @@ __BEGIN_DECLS
  * @return New container, NULL on allocation failure.  Free with
  * #rklc_free.
  */
+#ifdef KEY_LOCK_CONTAINER
 struct replicator_key_lock_container *
 replicator_key_lock_container_alloc(vnode_t my_node, SDF_shardid_t sguid,
                                     int vip_group_id,
                                     SDF_replication_t replication_type);
+#endif /* KEY_LOCK_CONTAINER */
 
 
 /**

@@ -3077,7 +3077,9 @@ static void sync_container_thread(uint64_t arg) {
     int index;
     int key_len = 0;
     int mynode;
+#ifdef KEY_LOCK_CONTAINER
     struct replicator_key_lock *key_lock;
+#endif /* KEY_LOCK_CONTAINER */
     SDF_simple_key_t lock_key;
 
     int rc = 0;
@@ -3154,9 +3156,11 @@ static void sync_container_thread(uint64_t arg) {
         memcpy(&lock_key.key, key, key_len);
         lock_key.len = key_len;
 
+#ifdef KEY_LOCK_CONTAINER
         key_lock = NULL;
         rc = rklc_lock_sync(cursor_data->lock_container,
                             &lock_key, RKL_MODE_RECOVERY, &key_lock);
+#endif /* KEY_LOCK_CONTAINER */
         if (rc == SDF_LOCK_RESERVED) {
             rc = SDF_SUCCESS;
         } else if (rc == SDF_SUCCESS) {
@@ -3173,9 +3177,11 @@ static void sync_container_thread(uint64_t arg) {
             }
         }
         
+#ifdef KEY_LOCK_CONTAINER
         if (key_lock) {
             rkl_unlock(key_lock);
         }
+#endif /* KEY_LOCK_CONTAINER */
 
         plat_free(key);
         plat_free(data);
@@ -3715,7 +3721,9 @@ static SDF_status_t simple_replicator_sync_remote_container(SDF_action_init_t * 
     int mynode;
     int i;
     int rc;
+#ifdef KEY_LOCK_CONTAINER
     struct replicator_key_lock_container *lock_container;
+#endif /* KEY_LOCK_CONTAINER */
     struct rklc_get *get_lock;
     
     /* Only one caller at a time */
@@ -3729,8 +3737,10 @@ static SDF_status_t simple_replicator_sync_remote_container(SDF_action_init_t * 
 
     mynode = sdf_msg_myrank();
     shard = pas->ctnr_meta[container_index].meta.shard;
+#ifdef KEY_LOCK_CONTAINER
     lock_container = pas->ctnr_meta[container_index].lock_container;
     plat_assert(lock_container);
+#endif /* KEY_LOCK_CONTAINER */
 
     /* Use clock skew if we have it, otherwise figure it out */
     if (pns->clock_skew) {
@@ -3760,8 +3770,10 @@ static SDF_status_t simple_replicator_sync_remote_container(SDF_action_init_t * 
     do {
         plat_assert(cursor_data_count == ps->nctnr_sync_threads);
 
+#ifdef KEY_LOCK_CONTAINER 
         get_lock = rklc_start_get(lock_container);
         plat_assert(get_lock);
+#endif /* KEY_LOCK_CONTAINER */
 
         rc = rpc_get_iteration_cursors(pas, pas->next_ctxt,
                                        mynode, dest_node,
@@ -3830,7 +3842,9 @@ static SDF_status_t simple_replicator_sync_remote_container(SDF_action_init_t * 
             cursor_data->cursor_len = it_cursor->cursor_len;
             cursor_data->cguid = cguid;
             cursor_data->clock_skew = clock_skew;
+#ifdef KEY_LOCK_CONTAINER 
             cursor_data->lock_container = lock_container;
+#endif /* KEY_LOCK_CONTAINER */
 
             fthMboxPost(&cursor_datas[index].mbox, (uint64_t) index);
             
