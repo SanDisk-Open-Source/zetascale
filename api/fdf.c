@@ -5319,7 +5319,7 @@ zs_write_object(
 		ar.internal_request = SDF_TRUE;
 		ar.internal_thread = fthSelf();
 		if ((status=SDFObjnameToKey(&(ar.key), (char *) key, keylen)) != ZS_SUCCESS) {
-			return(status);
+			goto out;
 		}
 		ar.sze = datalen;
 		ar.pbuf_out = (void *) data;
