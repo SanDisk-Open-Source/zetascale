@@ -214,6 +214,8 @@ typedef struct mcd_osd_shard {
     uint64_t                    id;
     int                         opened;
     int                         flog_fd;
+    int                         flog_block_size;
+    uint64_t                    flog_seqno;
     int                         persistent;
     int                         durability_level;
     int                         replicated;

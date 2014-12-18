@@ -3457,6 +3457,13 @@
 160291 defragmenter enabled.\n
 160292 Failed due to an illegal container ID:%s %d
 160293 Got allocated 0th offset, ignoring it and moving ahead.\n
+160294 Flush log sync: failed to allocate sector/fbio
+160295 shard_id=%ld skipping empty non header block. filepos=%ld
+160296 shard_id=%ld corrupted log block header
+160297 shard_id=%ld flog checksum doesn't match expected %x, stored on disk %x, filepos=%ld
+160298 FLOG: shard_id=%ld discarded %u records from the end of the log(from filepos=%ld to filepos=%ld)
+160299 Flush log sync: patched %d log records for shard %lu. From seqno=%ld to seqno=%ld
+160300 flog block size is set to %d
 
 
 # rico

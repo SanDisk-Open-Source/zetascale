@@ -382,7 +382,7 @@ ZS_status_t log_summary_stats(struct ZS_thread_state *thd_state, FILE *fp) {
         goto out;
 
     if( n_cguids <= 0 ) {
-        plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, LOG_DBG, "No container exists");
+        plat_log_msg(160055, LOG_CAT, LOG_DBG, "No container exists");
         ret = ZS_FAILURE; 
         goto out;
     }
@@ -456,7 +456,7 @@ ZS_status_t log_container_props(struct ZS_thread_state *thd_state, FILE *fp) {
             goto out;
 
     if( n_cguids <= 0 ) {
-        plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, LOG_DBG, "No container exists");
+        plat_log_msg(160055, LOG_CAT, LOG_DBG, "No container exists");
         ret = ZS_FAILURE;
         goto out;
     }
@@ -537,7 +537,7 @@ ZS_status_t log_container_stats(struct ZS_thread_state *thd_state, FILE *fp) {
         goto out;   
                    
     if( n_cguids <= 0 ) {
-        plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, LOG_DBG, "No container exists");
+        plat_log_msg(160055, LOG_CAT, LOG_DBG, "No container exists");
         ret = ZS_FAILURE; 
         goto out;
     }       
@@ -600,7 +600,7 @@ ZS_status_t log_flash_stats(struct ZS_thread_state *thd_state, FILE *fp) {
         goto out;
 
     if( n_cguids <= 0 ) {
-        plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, LOG_DBG, "No container exists");
+        plat_log_msg(160055, LOG_CAT, LOG_DBG, "No container exists");
         ret = ZS_FAILURE;
         goto out;
     }

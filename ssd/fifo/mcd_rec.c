@@ -47,9 +47,10 @@
 #define FLUSH_LOG_PREFIX    "mbfl_"
 #define FLUSH_LOG_MAX_PATH  256
 #define FLUSH_LOG_BUFFERED  (1024*1024)
-#define FLUSH_LOG_SEC_SIZE  512
-#define FLUSH_LOG_SEC_ALIGN 512
+#define FLUSH_LOG_SEC_SIZE  shard->flog_block_size
+#define FLUSH_LOG_SEC_ALIGN shard->flog_block_size
 #define FLUSH_LOG_FILE_MODE 0755
+#define FLUSH_LOG_MAX_RECS 1024
 
 /*
  * For boundary alignment.  n must be a power of 2.
@@ -66,6 +67,8 @@ typedef struct {
     uint64_t            flush_blk;
     uint64_t            shard_blk;
     uint64_t            lsn;
+    uint64_t            seqno;
+    uint64_t            filepos;
     mcd_logrec_object_t logrec_obj;
 } flog_rec_t;
 
@@ -2340,6 +2343,23 @@ show_buf(unsigned char *buf, char *msg)
 }
 #endif
 
+int get_flog_block_size(int fd)
+{
+    int block_size = getProperty_Int("ZS_LOG_BLOCK_SIZE", 0);
+    if(!block_size)
+    {
+        struct stat s;
+        int ret = fstat(fd, &s);
+        if(ret >= 0)
+            block_size = s.st_blksize;
+
+        if(!block_size)
+            block_size = 4096;
+    }
+
+    return block_size;
+}
+
 /*
  * Allocate the fbio buffers.
  */
@@ -2436,7 +2456,7 @@ fbio_write(flog_bio_t *fbio, flog_rec_t *frec)
  * Return 1 if smaller, 0 otherwise.
 */      
 static int
-flog_check_min_size(FILE *fp)
+flog_check_min_size(FILE *fp, int min_size)
 {       
     long size = 0;
  
@@ -2447,7 +2467,7 @@ flog_check_min_size(FILE *fp)
     size = ftell(fp);       
     fseek(fp, 0L, SEEK_SET);
                     
-    if (size > 0 && size < FLUSH_LOG_SEC_SIZE)
+    if (size > 0 && size < min_size)
         return 1;                       
     else                
         return 0;   
@@ -2459,77 +2479,135 @@ flog_check_min_size(FILE *fp)
 static int
 flog_patchup(uint64_t shard_id, FILE *fp, int check_only)
 {
-    int           i = 0, patched = 0;
-    unsigned char *sector = NULL;
-    flog_bio_t      fbio_ = {0};
-    int           check_errors = 0;
+    int flog_rec_cmp(const void* a, const void* b) { return ((flog_rec_t*)a)->seqno - ((flog_rec_t*)b)->seqno; }
 
-    if (flog_check_min_size(fp)) {
+    int           max_i = 0, i = 0;
+    unsigned char *sector = NULL;
+    flog_bio_t    fbio_ = {0};
+    int           check_errors = 0;
+    uint64_t seqno, corrupted_lsn = 0, prev_lsn = (uint64_t)-1;
+    int block_size = get_flog_block_size(fileno(fp));
+    int count = 0;
+    flog_rec_t recs[FLUSH_LOG_MAX_RECS];
+
+    int abort_on_corruption = getProperty_Int("ZS_LOG_ABORT_ON_CORRUPTION", 0);
+
+    if (flog_check_min_size(fp, block_size)) {
         zscheck_log_msg(ZSCHECK_FLOG_RECORD, shard_id, ZSCHECK_READ_ERROR,
                         "Flog check failed: log file is less than the minimum size");
         return 1;
     }
 
-    do {
-        if (!fbio_alloc(&fbio_))
-            break;
+    sector = plat_alloc(block_size);
+    if (!sector || !fbio_alloc(&fbio_)) {
+        mcd_log_msg(160294, PLAT_LOG_LEVEL_ERROR,
+                "Flush log sync: failed to allocate sector/fbio");
 
-        sector = plat_alloc(FLUSH_LOG_SEC_SIZE);
-        if (!sector) {
-            mcd_log_msg(70106, PLAT_LOG_LEVEL_ERROR,
-                        "Flush log sync: failed to allocate sector");
-            break;
-        }
+        if (sector)
+            plat_free(sector);
 
-        flog_rec_t *frec = (flog_rec_t *)sector;
-        while (fread(sector, FLUSH_LOG_SEC_SIZE, 1, fp) == 1) {
-            i++;
-            if (frec->magic != FLUSH_LOG_MAGIC) {
-                if (check_only && !empty(sector, FLUSH_LOG_SEC_SIZE)) {
-                    zscheck_log_msg(ZSCHECK_FLOG_RECORD, shard_id, 
-                                    ZSCHECK_MAGIC_ERROR, "flog magic number invalid");
-                    ++check_errors;
-                }
-                if(!flog_checksum_enabled || empty(sector, FLUSH_LOG_SEC_SIZE))
-                    continue;
+        return 1;
+    }
+
+    flog_rec_t *frec = (flog_rec_t *)sector;
+    while (fread(sector, block_size, 1, fp) == 1) {
+        if (frec->magic != FLUSH_LOG_MAGIC) {
+            if (check_only && !empty(sector, block_size)) {
+                zscheck_log_msg(ZSCHECK_FLOG_RECORD, shard_id, 
+                        ZSCHECK_MAGIC_ERROR, "flog magic number invalid");
+                ++check_errors;
             }
 
-            if(flog_checksum_enabled) {
-                uint32_t c, sum = frec->checksum;
-                frec->checksum = 0;
-                if((c = checksum((char*)frec, sizeof(flog_rec_t), 0)) != sum) {
-                    mcd_log_msg(160283, PLAT_LOG_LEVEL_FATAL,
-                            "flog checksum doesn't match expected %x, stored on disk %x, filepos=%ld", c, sum, ftell(fp));
+            if(!flog_checksum_enabled)
+                continue;
+
+            if(empty(sector, block_size)) {
+                if((((ftell(fp) - block_size) / block_size) % MCD_REC_LOG_BLK_SLOTS)) {
+                    mcd_log_msg(160295, PLAT_LOG_LEVEL_WARN,
+                            "shard_id=%ld skipping empty non header block. filepos=%ld", shard_id, ftell(fp) - block_size);
+                }
+                continue;
+            }
+
+            if(!(((ftell(fp) - block_size) / block_size) % MCD_REC_LOG_BLK_SLOTS)) {
+                mcd_log_msg(160296, corrupted_lsn ? PLAT_LOG_LEVEL_FATAL : PLAT_LOG_LEVEL_WARN,
+                        "shard_id=%ld corrupted log block header", shard_id);
+                if(corrupted_lsn && abort_on_corruption == 2)
+                    plat_abort();
+                continue;
+            }
+        }
+
+        if(flog_checksum_enabled) {
+            uint32_t c, sum = frec->checksum;
+            frec->checksum = 0;
+            if((c = checksum((char*)frec, sizeof(flog_rec_t), 0)) != sum) {
+                mcd_log_msg(160297, corrupted_lsn ? PLAT_LOG_LEVEL_FATAL : PLAT_LOG_LEVEL_WARN,
+                        "shard_id=%ld flog checksum doesn't match expected %x, stored on disk %x, filepos=%ld", shard_id, c, sum, ftell(fp) - block_size);
+
+                if(corrupted_lsn) {
                     if(check_only) {
                         zscheck_log_msg(ZSCHECK_FLOG_RECORD, shard_id, 
-                                        ZSCHECK_CHECKSUM_ERROR, "flog checksum invalid");
+                                ZSCHECK_CHECKSUM_ERROR, "flog checksum invalid");
                         ++check_errors;
                         return 1;
                     }
-                    else
+                    else if(abort_on_corruption == 2)
                         plat_abort();
-                } 
+                }
+
+                if(abort_on_corruption == 1)
+                    plat_abort();
+
+                corrupted_lsn = prev_lsn;
+                continue;
             }
-            if(!check_only) {
-                int s = fbio_write(&fbio_, frec);
-                if (!s)
-                    break;
-            }
-            patched++;
+            else
+                prev_lsn = frec->lsn;
         }
-        if(!check_only)
-            fbio_flush(&fbio_);
-    } while (0);
+
+        frec->filepos = ftell(fp) - block_size;
+        plat_assert(count < FLUSH_LOG_MAX_RECS);
+        recs[count++] = *frec;
+    }
+
+    if(!check_only && count) {
+        /* Find maximum seqno */
+        for(i = 0; i < count; i++)
+            if(recs[i].seqno > recs[max_i].seqno)
+                max_i = i;
+
+        /* Find minimum VALID seqno. Its next to maximum */
+        seqno = recs[(max_i < count - 1) ? max_i + 1 : 0].seqno;
+
+        qsort(recs, count, sizeof(flog_rec_t), flog_rec_cmp);
+
+        /* Skip all the records with seqno older then first valid seqno */
+        for(i = 0; recs[i].seqno < seqno; i++);
+
+        /* Apply the rest of the records. Stop at first hole or write error */
+        seqno = recs[i].seqno - 1;
+        while(i < count && recs[i].seqno == seqno + 1 && fbio_write(&fbio_, &recs[i])) {
+            i++; seqno++;
+        }
+
+        fbio_flush(&fbio_);
+
+        if(i < count)
+            mcd_log_msg(160298, PLAT_LOG_LEVEL_WARN,
+                    "FLOG: shard_id=%ld discarded %u records from the end of the log(from filepos=%ld to filepos=%ld)",
+                    shard_id, count - i, recs[i].filepos, recs[count-1].filepos);
+
+        if (i) {
+            mcd_log_msg(160299, PLAT_LOG_LEVEL_DEBUG,
+                    "Flush log sync: patched %d log records for shard %lu. From seqno=%ld to seqno=%ld",
+                    i, shard_id, recs[0].seqno, recs[count-1].seqno);
+        }
+    }
 
     if (!check_errors && check_only) { 
         zscheck_log_msg(ZSCHECK_FLOG_RECORD, shard_id, ZSCHECK_SUCCESS, "flog magic number valid");
         zscheck_log_msg(ZSCHECK_FLOG_RECORD, shard_id, ZSCHECK_SUCCESS, "flog checksum valid");
-    }
-
-    if (patched && !check_only) {
-        mcd_log_msg(70107, PLAT_LOG_LEVEL_DEBUG,
-                    "Flush log sync: patched %d log records for shard %lu",
-                    patched, shard_id);
     }
 
     if (sector)
@@ -2537,7 +2615,7 @@ flog_patchup(uint64_t shard_id, FILE *fp, int check_only)
     if (fbio_.buf)
         plat_free(fbio_.buf);
 
-    if(check_only && !i) {
+    if(check_only && !count) {
         fseek(fp, 0, SEEK_END);
         return ftell(fp);
     }
@@ -2635,6 +2713,12 @@ flog_prepare(mcd_osd_shard_t *shard)
                     path, flags, errno);
         return;
     }
+
+    shard->flog_block_size = get_flog_block_size(fd);
+
+    mcd_log_msg(160300, PLAT_LOG_LEVEL_INFO,
+                    "flog block size is set to %d", shard->flog_block_size);
+
 
     shard->flog_fd = fd;
 
@@ -6660,6 +6744,7 @@ flog_persist(mcd_osd_shard_t *shard,
 //    frec->lsn        = (slot_seqno / MCD_REC_LOG_BLK_SLOTS) + 1;
     frec->lsn        = lsn;
     frec->logrec_obj = *logrec_obj;
+    frec->seqno      = ++shard->flog_seqno;
 
     if(flog_checksum_enabled)
         frec->checksum   = checksum((char*)frec, sizeof(flog_rec_t), 0);
