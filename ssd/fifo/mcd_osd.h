@@ -398,22 +398,23 @@ enum {
 // page header structure. Code is dependent on the sizes of these structs
 // being the same, and an even divisor of a log page (512-byte block).
 typedef struct mcd_logrec_object {
-    uint16_t    syndrome;              // 16-bit syndrome
-    uint16_t    deleted:1;             // 1=marked for delete-in-future
-    uint16_t    reserved:1;            // reserved
-    uint16_t    trx:2;                 // reserved
-    uint16_t    blocks:12;             // number of 512-byte blocks occupied
-    uint32_t    rbucket;               // hash bucket
-    uint64_t    mlo_blk_offset:48;         // logical block offset within shard
-    uint64_t    mlo_old_offset:48;         // old offset within shard (overwrite)
-    uint64_t    cntr_id:16;            // seqno of superceded (target) object
-    uint64_t    seqno:48;              // sequence number for this record
-    uint64_t    target_seqno:48;       // seqno of superceded (target) object
-                                       //   used when deleting or overwriting,
-                                       //   but not during eviction
-    int16_t     bracket_id;            // active btree mput if nonzero
-	bool		raw;				   // raw object (not in hash table)
-	char pad1[23];
+    uint16_t    syndrome;				// 16-bit syndrome
+    uint16_t    deleted:1;				// 1=marked for delete-in-future
+    uint16_t    reserved:1;				// reserved
+    uint16_t    trx:2;					// reserved
+    uint16_t    blocks:12;				// number of 512-byte blocks occupied
+    uint32_t    rbucket;				// hash bucket
+    uint64_t    mlo_blk_offset:48;		// logical block offset within shard
+    uint64_t    mlo_old_offset:48;		// old offset within shard (overwrite)
+    uint64_t    cntr_id:16;				// seqno of superceded (target) object
+    uint64_t    seqno:48;				// sequence number for this record
+    uint64_t    target_seqno:48;		// seqno of superceded (target) object
+										//   used when deleting or overwriting,
+										//   but not during eviction
+    int16_t     bracket_id;				// active btree mput if nonzero
+	bool		raw;					// raw object (not in hash table)
+	char		mlo_dl;					// durability level of cguid
+	char		pad1[22];
 } mcd_logrec_object_t;
 
 #define MCD_FTH_OSD_BUF_SIZE    (1024 * 1024)

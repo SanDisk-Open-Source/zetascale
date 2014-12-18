@@ -4768,11 +4768,12 @@ delete_all_objects( pai_t *pai, shard_t *sshard, cguid_t cguid)
 {
 
 	mshard_t *shard = (mshard_t *) sshard;
+	SDF_durability_level_t durlevel = SDF_FULL_DURABILITY;
 	if (cguid > 3) {
 		SDF_container_meta_t meta;
 		if (name_service_get_meta( pai, cguid, &meta ) != ZS_SUCCESS)
 			return;
-		shard->durability_level = meta.properties.durability_level;
+		durlevel = meta.properties.durability_level;
 	}
 	hash_handle_t *hdl = shard->hash_handle;
 	const ulong num_bkts = hdl->hash_size / OSD_HASH_BUCKET_SIZE;
@@ -4808,6 +4809,7 @@ delete_all_objects( pai_t *pai, shard_t *sshard, cguid_t cguid)
 						log.mlo_old_offset = (~ baddr) & 0x0000ffffffffffffull;
 						log.cntr_id = hash_entry->cntr_id;
 						log.raw = FALSE;
+						log.mlo_dl = durlevel;
 						if (1 == shard->replicated)
 							log.seqno = rep_seqno_get((struct shard *)shard);
 						else

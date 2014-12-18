@@ -4575,6 +4575,7 @@ mcd_fth_osd_slab_set( void * context, mcd_osd_shard_t * shard,
     hash_handle_t             * hdl = shard->hash_handle;
     uint32_t uncomp_datalen = 0; /* Uncompressed data length */
 	cntr_map_t					*cmap = NULL;
+	SDF_durability_level_t		durlevel;
 #ifdef FLIP_ENABLED
     char *tmp_ptr = NULL;
     uint64_t pos = 0;
@@ -4592,16 +4593,11 @@ mcd_fth_osd_slab_set( void * context, mcd_osd_shard_t * shard,
 										meta_data, syndrome, blk_offset, blocks );
 	}
 
-    /*
-     * FIXME: Shard durability is incorrectly used for a shared shard.
-     * It assumes durability of the given contaner here, risking durability
-     * setting of other logical containers.
-     */
-    shard->durability_level = SDF_NO_DURABILITY;
+    durlevel = SDF_NO_DURABILITY;
     if (flags & FLASH_PUT_DURA_SW_CRASH)
-        shard->durability_level = SDF_RELAXED_DURABILITY;
+        durlevel = SDF_RELAXED_DURABILITY;
     else if (flags & FLASH_PUT_DURA_HW_CRASH)
-        shard->durability_level = SDF_FULL_DURABILITY;
+        durlevel = SDF_FULL_DURABILITY;
 
     // don't allow normal flash puts during restore
     if ( 1 == shard->restore_running &&
@@ -4659,6 +4655,7 @@ mcd_fth_osd_slab_set( void * context, mcd_osd_shard_t * shard,
         log_rec.seqno        = 0;
         log_rec.target_seqno = shard->cntr->cas_id;
         log_rec.raw = FALSE;
+		log_rec.mlo_dl = durlevel;
         log_write( shard, &log_rec );
     }
 
@@ -4779,6 +4776,7 @@ mcd_fth_osd_slab_set( void * context, mcd_osd_shard_t * shard,
                 log_rec.seqno        = meta_data->sequence;
                 log_rec.target_seqno = target_seqno;
                 log_rec.raw = FALSE;
+				log_rec.mlo_dl = durlevel;
                 if ( 0 == shard->evict_to_free ) {
                     // store mode: delay flash space dealloc
                     log_rec.mlo_old_offset = ~(hash_entry->blkaddress) & 0x0000ffffffffffffull;
@@ -4870,12 +4868,12 @@ mcd_fth_osd_slab_set( void * context, mcd_osd_shard_t * shard,
 			rc = mcd_fth_aio_blk_write_low(
 					context, buf, offset,
 					(1 << shard->class_table[blocks]) * Mcd_osd_blk_size,
-					shard->durability_level > SDF_RELAXED_DURABILITY);
+					durlevel > SDF_RELAXED_DURABILITY);
 		} else {
 			rc = mcd_fth_aio_blk_write_low(
 			                context, buf, offset,
 			                blocks * Mcd_osd_blk_size,
-			                shard->durability_level > SDF_RELAXED_DURABILITY);
+			                durlevel > SDF_RELAXED_DURABILITY);
 		}
 		if ( FLASH_EOK != rc ) {
 			/*
@@ -4976,6 +4974,7 @@ mcd_fth_osd_slab_set( void * context, mcd_osd_shard_t * shard,
         log_rec.cntr_id    = cntr_id;
         log_rec.seqno      = meta_data->sequence;
         log_rec.raw = FALSE;
+		log_rec.mlo_dl = durlevel;
         if ( true == obj_exists && 0 == shard->evict_to_free ) {
             // overwrite case in store mode
             log_rec.mlo_old_offset   = ~(hash_entry->blkaddress) & 0x0000ffffffffffffull;
@@ -5177,6 +5176,7 @@ mcd_fth_osd_slab_write_raw( void * context, mcd_osd_shard_t * shard,
 	cntr_map_t					*cmap = NULL;
 	mcd_osd_segment_t 			* segment;
 	mcd_logrec_object_t         log_rec;
+	SDF_durability_level_t		durlevel;
 #ifdef FLIP_ENABLED
     char *tmp_ptr = NULL;
     uint64_t pos = 0;
@@ -5191,11 +5191,11 @@ mcd_fth_osd_slab_write_raw( void * context, mcd_osd_shard_t * shard,
      * It assumes durability of the given contaner here, risking durability
      * setting of other logical containers.
      */
-    shard->durability_level = SDF_NO_DURABILITY;
+    durlevel = SDF_NO_DURABILITY;
     if (flags & FLASH_PUT_DURA_SW_CRASH)
-        shard->durability_level = SDF_RELAXED_DURABILITY;
+        durlevel = SDF_RELAXED_DURABILITY;
     else if (flags & FLASH_PUT_DURA_HW_CRASH)
-        shard->durability_level = SDF_FULL_DURABILITY;
+        durlevel = SDF_FULL_DURABILITY;
 
     // don't allow normal flash puts during restore
     if ( 1 == shard->restore_running &&
@@ -5284,6 +5284,7 @@ mcd_fth_osd_slab_write_raw( void * context, mcd_osd_shard_t * shard,
 			log_rec.seqno        = meta_data->sequence;
 			log_rec.target_seqno = 0;
 			log_rec.raw          = TRUE;
+			log_rec.mlo_dl 		 = durlevel;
 			if (0 == shard->evict_to_free ) {
 				log_rec.mlo_old_offset = ~(blk_offset) & 0x0000ffffffffffffull;
 				log_write_trx( shard, &log_rec, 0, 0);
@@ -5384,12 +5385,12 @@ mcd_fth_osd_slab_write_raw( void * context, mcd_osd_shard_t * shard,
 				rc = mcd_fth_aio_blk_write_low(
 						context, buf, offset,
 						(1 << shard->class_table[blocks]) * Mcd_osd_blk_size,
-						shard->durability_level > SDF_RELAXED_DURABILITY);
+						durlevel > SDF_RELAXED_DURABILITY);
 		} else {
 			rc = mcd_fth_aio_blk_write_low(
 			                context, buf, offset,
 			                blocks * Mcd_osd_blk_size,
-			                shard->durability_level > SDF_RELAXED_DURABILITY);
+			                durlevel > SDF_RELAXED_DURABILITY);
 		}
 		if ( FLASH_EOK != rc ) {
 			/*
@@ -5431,6 +5432,7 @@ mcd_fth_osd_slab_write_raw( void * context, mcd_osd_shard_t * shard,
 		log_rec.raw        = TRUE;
 		log_rec.mlo_old_offset   = 0;
 		log_rec.target_seqno = 0;
+		log_rec.mlo_dl = durlevel;
 
 		if (0 == shard->evict_to_free ) {
 			log_write_trx( shard, &log_rec, 0, 0);
@@ -6931,6 +6933,7 @@ mcd_osd_flash_put_v( struct ssdaio_ctxt * pctxt, struct shard * shard,
 			snappy_max_compressed_length(metaData->dataLen));
 	uint64_t slab_blksize = mcd_osd_slab_size_get((mcd_osd_shard_t*)shard, raw_len);
 	uint64_t slab_size = slab_blksize * Mcd_osd_blk_size;
+	SDF_durability_level_t durlevel;
 
     plat_assert ( !mcd_shard->use_fifo );
 
@@ -6990,6 +6993,13 @@ mcd_osd_flash_put_v( struct ssdaio_ctxt * pctxt, struct shard * shard,
 	//alloc_slabs();
 
 	int rest_slabs = count;
+
+    durlevel = SDF_NO_DURABILITY;
+    if (flags & FLASH_PUT_DURA_SW_CRASH)
+        durlevel = SDF_RELAXED_DURABILITY;
+    else if (flags & FLASH_PUT_DURA_HW_CRASH)
+        durlevel = SDF_FULL_DURABILITY;
+
 	while(rest_slabs && ret == FLASH_EOK) {
 		int num_slabs = mcd_fth_osd_slab_alloc(osd_state, mcd_shard, slab_blksize, rest_slabs, &blk_offset);
 		if(!num_slabs) {
@@ -7002,7 +7012,7 @@ mcd_osd_flash_put_v( struct ssdaio_ctxt * pctxt, struct shard * shard,
 		ret = mcd_fth_aio_blk_write_low(
 				osd_state, data_buf + (count - rest_slabs) * slab_size , offset,
 				num_slabs * slab_size,
-				mcd_shard->durability_level > SDF_RELAXED_DURABILITY);
+				durlevel > SDF_RELAXED_DURABILITY);
 		rest_slabs -= num_slabs;
 
 		//slab_set();

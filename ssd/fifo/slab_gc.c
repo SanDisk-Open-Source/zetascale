@@ -165,6 +165,7 @@ found:
 	target_seqno = meta->seqno;
 	meta->seqno = seqno;
 
+	plat_assert(0); //Dont use shard->durability_level. Set sync alwa=ys.
 	if((rc = mcd_fth_aio_blk_write_low(context,
 				buf,
 				dst_offset,
