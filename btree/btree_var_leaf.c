@@ -56,6 +56,8 @@ uint64_t bt_leaf_split_memcpy_time = 0;
 uint64_t bt_leaf_memcpy_time = 0;
 uint64_t bt_leaf_is_full = 0;
 
+int space_op_disabled = 0;
+
 char global_tmp_data[4096] = {0};
 static __thread char tmp_leaf_node[8200] = {0};
 static __thread char tmp_key_buf[8100] = {0};
@@ -77,17 +79,22 @@ btree_leaf_get_nth_key_info2(btree_raw_t *btree, btree_raw_node_t *n, int index,
  *
  * returns length that is common.
  */
-#define MIN_COMMON_LENGTH 10
+extern int min_common_length;
+
 static int
 get_common_part(char *key1, uint32_t keylen1, char *key2, uint32_t keylen2)
 {
         int i = 0;
 
+	if (space_op_disabled)	{
+		return  0;
+	}
+
         while (i < keylen1 && i < keylen2 && key1[i] == key2[i]) {
                 i++;
         }
 
-	if (i < MIN_COMMON_LENGTH) {
+	if (i < min_common_length) {
 		return 0;
 	}
         return i;
@@ -576,7 +583,9 @@ build_key_prefix_int(char *prev_key, uint32_t prev_keylen,
 		 * to not make it compact to allow prefix saving for this
 		 * node.
 		 */
-		key_meta->compact_meta = true;
+		if (space_op_disabled == 0) {
+			key_meta->compact_meta = true;
+		}
 	}	
 
 }

@@ -60,6 +60,11 @@
 struct cmap;
 extern int astats_done;
 extern int __zs_check_mode_on;
+extern int space_op_disabled;
+#define MIN_COMMON_LENGTH 10
+#define MAX_COMMON_LENGTH 200
+int min_common_length  = MIN_COMMON_LENGTH;
+
 //extern int bt_storm_mode;
 
 static char Create_Data[MAX_NODE_SIZE];
@@ -1416,6 +1421,28 @@ restart:
 		node_meta =  sizeof(node_vlkey_t);
 	}
 	max_key_size = ((nodesize - sizeof(btree_raw_node_t))/min_keys_per_node) - node_meta;
+    }
+
+
+    env = getenv("BTREE_SPACE_OPT_DISABLED");
+    if (env) {
+	    space_op_disabled = atoi(env);
+    }
+
+    if (space_op_disabled > 0) {
+		space_op_disabled = 1;
+		
+    } else {
+		space_op_disabled = 0;
+		env = getenv("BTREE_SPACE_OPT_MIN_PREFIX");
+		if (env) {
+			min_common_length = atoi(env);
+			if (min_common_length < MIN_COMMON_LENGTH) {
+				min_common_length = MIN_COMMON_LENGTH;
+			} if (min_common_length > MAX_COMMON_LENGTH) {
+				min_common_length = MAX_COMMON_LENGTH;
+			}
+		}
     }
 
     prn->cguid            = *cguid;
