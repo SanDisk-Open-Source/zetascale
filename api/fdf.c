@@ -3076,7 +3076,7 @@ static ZS_status_t zs_create_container(
 		if ( i == MCD_MAX_NUM_CNTRS ) {
 			plat_log_msg( 150033, 
 					LOG_CAT,LOG_ERR, 
-					"ZSCreateContainer failed for container %s because 128 containers have already been created.", 
+					"ZSCreateContainer failed for container %s because max containers have already been created.", 
 					cname );
 			status = ZS_TOO_MANY_CONTAINERS;
 			goto out;
@@ -3494,6 +3494,7 @@ static ZS_status_t zs_open_container(
 
             status = SDFActionOpenContainer( pai, lc->cguid );
             if ( status != ZS_SUCCESS ) {
+	//	plat_assert(0);
                 plat_log_msg( 21554, LOG_CAT,LOG_ERR, "SDFActionOpenContainer failed for container %s", cname );
             }
 
@@ -7701,9 +7702,13 @@ static ZS_status_t zs_generate_cguid(
 	// We allow the counter to rollover as we check for duplicates
 	for ( i = start + 1; i != start; i++ ) {
 		state->config.cguid_counter += 1; 
-		if ( state->config.cguid_counter == 0 )
-			state->config.cguid_counter += 1; 
-        if ( !zs_cmap_get_by_cguid( state->config.cguid_counter ) ) {
+		/*
+ * 		 * Skip cguids 0 and max  */	
+		if (state->config.cguid_counter == SDF_MAX_CONTAINERS ||
+		    state->config.cguid_counter == 0) {
+			state->config.cguid_counter = 1; 
+		}
+		if ( !zs_cmap_get_by_cguid( state->config.cguid_counter ) ) {
 			*cguid = state->config.cguid_counter;
 			status = ZS_SUCCESS;
 			break;
@@ -7711,6 +7716,10 @@ static ZS_status_t zs_generate_cguid(
 	}
 
 	plat_log_msg( 150083, LOG_CAT, LOG_DBG, "%lu - %s\n", *cguid, ZSStrError( status ) );
+
+	if (*cguid == 0) {
+		plat_assert(status != ZS_SUCCESS);
+	}
 
 	return status;
 }
