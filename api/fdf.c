@@ -3074,7 +3074,7 @@ static ZS_status_t zs_create_container(
 		}
 
 		if ( i == MCD_MAX_NUM_CNTRS ) {
-			plat_log_msg(PLAT_LOG_ID_INITIAL, 
+			plat_log_msg(160301, 
 					LOG_CAT,LOG_ERR, 
 					"ZSCreateContainer failed for container %s because max containers have already been created.", 
 					cname );

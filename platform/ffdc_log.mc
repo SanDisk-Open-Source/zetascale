@@ -3464,6 +3464,7 @@
 160298 FLOG: shard_id=%ld discarded %u records from the end of the log(from filepos=%ld to filepos=%ld)
 160299 Flush log sync: patched %d log records for shard %lu. From seqno=%ld to seqno=%ld
 160300 flog block size is set to %d
+160301 ZSCreateContainer failed for container %s because max containers have already been created.
 
 
 # rico

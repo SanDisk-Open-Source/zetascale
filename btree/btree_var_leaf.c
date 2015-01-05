@@ -37,6 +37,7 @@
 #include <assert.h>
 #include <string.h>
 #include <stdio.h>
+#include <stdlib.h>
 
 #include "btree_malloc.h"
 #include "btree_var_leaf.h"
@@ -965,7 +966,6 @@ append_entry_to_tmp_buf(btree_raw_t *bt, btree_raw_node_t *n, key_meta_t *key_me
 	buf_ptr += (key_meta->keylen - key_meta->prefix_len);
 
 	if (key_meta->ptr == 0) {
-//		dbg_assert(datalen < bt->big_object_size);
 		dbg_assert(!big_object_kd(bt, key_meta->keylen, datalen));
 		btree_memcpy(buf_ptr, data, datalen, dry_run);
 		buf_ptr += datalen;
@@ -1797,6 +1797,21 @@ btree_leaf_find_split_idx(btree_raw_t *bt, btree_raw_node_t *n)
 			}
 		}
 	}
+
+	/*
+ 	 * In case of last key occupying large space, this could happen.
+ 	 */
+	if (middle_index >= n->nkeys - 1) {
+		middle_index = n->nkeys - 2;
+	}
+
+	/*
+ 	 * If node had at least 4 minimum keys, then this must not happen.
+ 	 */
+	if (middle_index < 0) {
+		abort();
+	}
+
 
 	return middle_index;
 }
