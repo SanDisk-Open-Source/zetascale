@@ -1682,8 +1682,7 @@ static void *zs_stats_thread(void *arg) {
         time(&st);
 
         // Always print summary stats 
-        if (ZS_SUCCESS != log_summary_stats(thd_state, stats_log))
-            continue;
+        log_summary_stats(thd_state, stats_log);
 
         switch(stats_level) {
             case ZS_STATS_LEVEL_CNTR_LIST:
@@ -1706,7 +1705,6 @@ static void *zs_stats_thread(void *arg) {
                 break; // do nothing
         }
 
-        fprintf(stats_log, "--------\n");
         fflush(stats_log);
 
         time(&et);
