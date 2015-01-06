@@ -4478,7 +4478,6 @@ mcd_fth_osd_slab_alloc( void * context, mcd_osd_shard_t * shard, int blocks,
 		{
 			if(!mcd_fth_osd_get_slab( context, shard, class, blocks, blk_offset))
 				return 1;
-			plat_assert(0);
 			return 0;
 		}
     } while ( 1 );
