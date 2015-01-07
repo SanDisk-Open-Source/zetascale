@@ -5,6 +5,9 @@
 #include <string.h>
 #include <getopt.h>
 #include <zs.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <unistd.h>
 
 static char *logfile = NULL;
 
@@ -57,9 +60,38 @@ void print_usage(char *pname) {
             
 }
 #define FLUSH_LOG_MAX_PATH 1024
+int
+getProperty_Int(const char *key, const int defaultVal);
+
+int get_flog_blk_size(int fd)
+{
+    int block_size = 0;
+    char *prop;
+    prop = (char *) ZSGetProperty("ZS_LOG_BLOCK_SIZE", NULL);
+    if( prop != NULL ) {
+        block_size = atoi(prop);
+        if( block_size < 0 ) {
+            fprintf(stderr,"Invalid flog block size configured(%d). So resetting to 0\n",block_size);
+            block_size = 0;
+        }
+    }
+    if(!block_size)
+    {
+        struct stat s;
+        int ret = fstat(fd, &s);
+        if(ret >= 0)
+            block_size = s.st_blksize;
+
+        if(!block_size)
+            block_size = 4096;
+    }
+
+    return block_size;
+}
+
 int flog_corrupt(uint64_t shard_id) {
     int rc;
-    char path[FLUSH_LOG_MAX_PATH];
+    char path[FLUSH_LOG_MAX_PATH], fmt_string[FLUSH_LOG_MAX_PATH];
     FILE *fp = NULL;
     char *log_flush_dir = (char *) ZSGetProperty("ZS_LOG_FLUSH_DIR", "/tmp");
     int zs_instance_id = atoi(ZSGetProperty("ZS_INSTANCE_ID", "0"));
@@ -81,7 +113,9 @@ int flog_corrupt(uint64_t shard_id) {
         fprintf(stderr,"Unable to open flog:%s\n",path);
         return -1;
     }
-    rc = fprintf(fp,"%1024s\n", "corrupting flog");
+    /* Corrupt atleast 3 log blocks */
+    sprintf(fmt_string,"%%%ds",get_flog_blk_size(fileno(fp)) * 3);
+    rc = fprintf(fp,fmt_string, "corrupting flog");
     fclose(fp);
     return rc;
 

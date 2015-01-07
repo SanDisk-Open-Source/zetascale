@@ -2491,6 +2491,10 @@ flog_patchup(uint64_t shard_id, FILE *fp, int check_only)
     flog_rec_t recs[FLUSH_LOG_MAX_RECS];
 
     int abort_on_corruption = getProperty_Int("ZS_LOG_ABORT_ON_CORRUPTION", 0);
+    if( check_only == 1 ) {
+        /* in ZSCK mode, we should not abort because ZSCK brings up zetascale for various checks*/
+        abort_on_corruption = 0;
+    }
 
     if (flog_check_min_size(fp, block_size)) {
         zscheck_log_msg(ZSCHECK_FLOG_RECORD, shard_id, ZSCHECK_READ_ERROR,
