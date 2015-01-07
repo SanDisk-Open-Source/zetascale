@@ -214,6 +214,7 @@ mcd_rec2_shutdown( mcd_osd_shard_t *s)
 /*
  * size of one log in bytes
  *
+ * Also try to accommodate ten full-size transaction brackets.
  * Valid for Storm Mode only.
  */
 ulong
@@ -223,7 +224,7 @@ mcd_rec2_log_size( ulong bytes_per_shard)
 	ulong pot_elements_per_pot = bytes_per_shard / bytes_per_device_block;
 	ulong bytes_per_pot = pot_elements_per_pot * bytes_per_pot_element;
 	ulong bytes_per_log = mcd.maximum_POT_utilization * mcd.log_size_factor * bytes_per_pot;
-	return (roundup( bytes_per_log, bytes_per_flash_block));
+	return (roundup( max( bytes_per_log, 67108864), bytes_per_flash_block));
 }
 
 
