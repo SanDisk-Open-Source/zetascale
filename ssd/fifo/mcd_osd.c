@@ -2418,7 +2418,7 @@ mcd_fth_osd_free_segment( mcd_osd_shard_t * shard, mcd_osd_segment_t *segment, u
     plat_assert(class);
 
     if ( 1 == shard->persistent ) {
-        int rc = update_class( shard, class, segment );
+        int rc = update_class( shard, class, segment, 1);
         if ( 0 != rc ) {
             mcd_log_msg( 160028, PLAT_LOG_LEVEL_ERROR, "error updating class(shrink)" );
             class->segments[segment->idx] = segment;
@@ -3838,7 +3838,7 @@ int mcd_osd_slab_segments_free_slot(mcd_osd_slab_class_t* class, mcd_osd_segment
  * try to allocate a new segment for this slab class
  */
 static inline int
-mcd_fth_osd_grow_class(void* context, mcd_osd_shard_t * shard, mcd_osd_slab_class_t * class )
+mcd_fth_osd_grow_class(void* context, mcd_osd_shard_t * shard, mcd_osd_slab_class_t * class, int count )
 {
     uint64_t                    blk_offset;
     uint32_t                    seg_idx;
@@ -3861,10 +3861,22 @@ mcd_fth_osd_grow_class(void* context, mcd_osd_shard_t * shard, mcd_osd_slab_clas
             mcd_osd_segment_unlock(segment);
         }
 #endif
-    }
+	}
+	/* Check again whether another thread allocated free segment to the slab */
+	if((segment = mcd_osd_segment_get_and_lock(class, class->num_segments))) {
+		int next_slab = segment->next_slab;
 
-    blk_offset =
-        __sync_fetch_and_add( &shard->blk_allocated, Mcd_osd_segment_blks );
+		if (class->slabs_per_segment < next_slab + count) {
+			mcd_osd_segment_unlock(segment);
+		} else {
+			mcd_osd_segment_unlock(segment);
+			fthUnlock( wait );
+			return (-2);
+		}
+	}
+
+	blk_offset =
+		__sync_fetch_and_add( &shard->blk_allocated, Mcd_osd_segment_blks );
 
     if ( blk_offset + Mcd_osd_segment_blks > shard->total_blks)
     {
@@ -3927,21 +3939,21 @@ mcd_fth_osd_grow_class(void* context, mcd_osd_shard_t * shard, mcd_osd_slab_clas
 	    memset(segment->check_map, 0, (class->slabs_per_segment + 7)/ 8);
     }
 
-    atomic_add(class->total_slabs, class->slabs_per_segment);
-
-    shard->segment_table[blk_offset / Mcd_osd_segment_blks] = segment;
-
-    class->segments[seg_idx] = segment;
-
     if ( 1 == shard->persistent ) {
         //int rc = update_class( shard, class, segment - shard->base_segments );
-        int rc = update_class( shard, class, segment );
+        int rc = update_class( shard, class, segment, 0);
         fthUnlock( wait );
         if ( 0 != rc ) {
             mcd_log_msg( 20356, PLAT_LOG_LEVEL_ERROR, "error updating class" );
             return -1;
         }
     }
+
+    atomic_add(class->total_slabs, class->slabs_per_segment);
+
+    shard->segment_table[blk_offset / Mcd_osd_segment_blks] = segment;
+
+    class->segments[seg_idx] = segment;
 
     mcd_log_msg( 20357, MCD_OSD_LOG_LVL_TRACE,
                  "segment %d allocated for shard %lu class %ld, "
@@ -4474,10 +4486,10 @@ mcd_fth_osd_slab_alloc( void * context, mcd_osd_shard_t * shard, int blocks,
 
         /*EF: prevent call to grow_class from GC thread, which doesn't set osd_wait */
     //    if (((!osd_state->osd_wait && count < 2) || mcd_fth_osd_grow_class(context, shard, class) == -1))
-        if (mcd_fth_osd_grow_class(context, shard, class) == -1)
-		{
-			if(!mcd_fth_osd_get_slab( context, shard, class, blocks, blk_offset))
+        if (mcd_fth_osd_grow_class(context, shard, class, count) == -1) {
+			if(!mcd_fth_osd_get_slab( context, shard, class, blocks, blk_offset)) {
 				return 1;
+			}
 			return 0;
 		}
     } while ( 1 );

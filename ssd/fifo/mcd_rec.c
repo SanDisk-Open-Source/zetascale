@@ -1797,7 +1797,7 @@ recovery_halt( flashDev_t * flashDev )
 }
 
 int
-update_class( mcd_osd_shard_t * shard, mcd_osd_slab_class_t * class, mcd_osd_segment_t* segment)
+update_class( mcd_osd_shard_t * shard, mcd_osd_slab_class_t * class, mcd_osd_segment_t* segment, int del)
 {
 	int                         bs, rc = FLASH_EOK;
 	int                         class_index;
@@ -2001,8 +2001,8 @@ update_class( mcd_osd_shard_t * shard, mcd_osd_slab_class_t * class, mcd_osd_seg
 	// Note: since block offset 0 is a valid segment address, the offset
 	// is bitwise inverted when stored so it can be found in recovery
 	seg_list->data[ seg_slot ] = 0;
-	if(class->segments[ segment->idx ])
-		seg_list->data[ seg_slot ] = ~(class->segments[ segment->idx ]->blk_offset);
+	if(!del)
+		seg_list->data[ seg_slot ] = ~(segment->blk_offset);
 
 	// install new checksum
 	seg_list->checksum = 0;
