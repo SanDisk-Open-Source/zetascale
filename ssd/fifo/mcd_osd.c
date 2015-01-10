@@ -5128,9 +5128,26 @@ retry_alloc:
 			 * Btree overflow node logical node id 0 is invalid. So from here we cannot
 			 * return blk_offset 0 to Btree overflow node allocation. 
 			 */
+
+			uint64_t blk_offset_1;
+
+			int res = mcd_fth_osd_slab_alloc(context, shard, blocks, 1, &blk_offset_1 );
+
 			mcd_fth_osd_slab_dealloc_low_special(shard, blk_offset, 1);
-			mcd_log_msg(160293, PLAT_LOG_LEVEL_INFO, "Got allocated 0th offset, ignoring it and moving ahead.\n");
-			goto retry_alloc;
+
+			if ( 1 != res ) {
+				mcd_log_msg( 20367, PLAT_LOG_LEVEL_TRACE, "failed to allocate slab" );
+				rc = FLASH_ENOSPC;
+				goto xout;
+			}
+
+			blk_offset = blk_offset_1;
+
+			if (blk_offset == 0) {
+				mcd_fth_osd_slab_dealloc_low_special(shard, blk_offset, 1);
+				mcd_log_msg(160293, PLAT_LOG_LEVEL_INFO, "Got allocated 0th offset, ignoring it and moving ahead.\n");
+				goto retry_alloc;
+			}
 		}
 
 		mcd_log_msg( 20368, PLAT_LOG_LEVEL_TRACE,
