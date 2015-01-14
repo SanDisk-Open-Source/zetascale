@@ -229,6 +229,7 @@ extern inline uint32_t mcd_osd_lba_to_blk( uint32_t blocks );
 extern mcd_container_t          Mcd_osd_cmc_cntr;
 int pot_checksum_enabled;
 int flog_checksum_enabled;
+int trx_commit_sw;
 
 
 // -----------------------------------------------------
@@ -1485,7 +1486,22 @@ recovery_init( void )
 
     pot_checksum_enabled = getProperty_Int("ZS_POT_CHECKSUM", 1);
     flog_checksum_enabled = getProperty_Int("ZS_FLOG_CHECKSUM", 1);
+	trx_commit_sw = getProperty_Int("ZS_TRX_COMMIT_SW", 2);
 
+	/*
+	 * If no value specified, make trx_commit as HW in storm mode else SW durable.
+	 */
+	if (trx_commit_sw == 2) {
+		if (storm_mode) {
+			trx_commit_sw = 0; //HW durable
+		} else {
+			trx_commit_sw = 1; //SW durable
+		}
+	} else if ((trx_commit_sw != 0) && (trx_commit_sw != 1)) { //If wrong value, make SW durable
+		trx_commit_sw = 1;
+	}
+
+	mcd_log_msg(PLAT_LOG_ID_INITIAL, PLAT_LOG_LEVEL_INFO, "Transaction commit is %s", trx_commit_sw ? "SW_DURABLE" : "HW_DURABLE");
 
     /* in Storm mode, allocate just one of these per physical container
      */
@@ -1903,7 +1919,6 @@ update_class( mcd_osd_shard_t * shard, mcd_osd_slab_class_t * class, mcd_osd_seg
 	seg_list_offset = pclass->seg_list_offset;
 	plat_assert(seg_list_offset == pshard->seg_list_offset);
 	seg_list_blks = pshard->map_blks;
-
 
 	/*
 	 * This would have huge performance impact. Better avoid this.
@@ -8717,6 +8732,11 @@ mcd_trx_service( void *pai, int cmd, void *arg)
 			mcd_logrec_object_t z;
 			memset( &z, 0, sizeof z);
 			z.mlo_blk_offset = 0x0000ffffffffffffull;	/* CAS type */
+			if (trx_commit_sw) {
+				z.mlo_dl = SDF_RELAXED_DURABILITY;
+			} else {
+				z.mlo_dl = SDF_FULL_DURABILITY;
+			}
 			trx_bracket_id = - trx_bracket_id;
 			log_write( vdc_shard, &z);
 			trx_bracket_id = - trx_bracket_id;
