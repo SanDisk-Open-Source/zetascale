@@ -3465,6 +3465,9 @@
 160299 Flush log sync: patched %d log records for shard %lu. From seqno=%ld to seqno=%ld
 160300 flog block size is set to %d
 160301 ZSCreateContainer failed for container %s because max containers have already been created.
+160302 persisting segment on recovery(slabbm), shard_id=%ld seg_offset=%lu, obj_offs=%lu, slab_size=%d
+160303 Transaction commit is %s
+160304 persisting segment on recovery, shard_id=%ld seg_offset=%lu, obj_offs=%lu, slab_size=%d
 
 
 # rico

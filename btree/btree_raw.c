@@ -5203,7 +5203,8 @@ btree_insert_keys_leaf(btree_raw_t *btree, btree_metadata_t *meta, uint64_t synd
 				is_update = true;
 				/* If we need to put a tombstone over existing key
 				 * or if we the key is part of a snapshot, need to do insert */
-				if (!is_leaf_key_active(btree, mem_node->pnode, index)) {
+				if ((meta->flags & INSERT_TOMBSTONE) ||
+				    (!(is_leaf_key_active(btree, mem_node->pnode, index)))) {
 					is_update = false;
 				}
 			} else {
@@ -5877,7 +5878,8 @@ mini_restart:
 
 		if ((is_leaf(btree, node)) && key_found) {
 			is_update = true;
-			if (!is_leaf_key_active(btree, node, nkey_child)) {
+			if ((meta->flags & INSERT_TOMBSTONE) ||
+			    (!(is_leaf_key_active(btree, node, nkey_child)))) {
 				is_update = false;
 			}
 		} else {
@@ -7144,7 +7146,7 @@ insert_tombstone_optimized(btree_raw_t *bt, btree_raw_mem_node_t *mnode,
 
 	ret = btree_insert_keys_leaf(bt, &tmp_meta, syndrome, mnode, W_SET,
 	                             &obj, 1, index, true, /* key exists */
-	                             true, /* is_update */ &objs_written, NULL, &new_inserts);
+	                             false, /* is_update */ &objs_written, NULL, &new_inserts);
 #ifdef PSTATS_1
         fprintf(stderr, "insert_tombstone_optimized: new_inserts=%d\n", new_inserts);
 #endif
