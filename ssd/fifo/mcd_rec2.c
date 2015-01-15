@@ -1022,7 +1022,14 @@ update_hash_entry( mcd_osd_shard_t *shard, void *context, ulong blk_offset, cons
 	// find the right hash entry to use
 	hash_entry_recovery_insert( shard->hash_handle, (mcd_rec_flash_object_t *)e, blk_offset);
 	unless (segment)
-		return;
+	{
+		uint64_t seg_blk_offset = (blk_offset / Mcd_osd_segment_blks) * Mcd_osd_segment_blks;
+		mcd_osd_slab_class_t* seg_class = &shard->slab_classes[shard->class_table[device_blocks_per_storm_object]];
+		segment = mcd_osd_assign_segment(shard, seg_class, seg_blk_offset);
+		mcd_log_msg(PLAT_LOG_ID_INITIAL, PLAT_LOG_LEVEL_INFO, "persisting segment on recovery(slabbm), shard_id=%ld seg_offset=%lu, obj_offs=%lu, slab_size=%d", shard->id, seg_blk_offset, blk_offset, seg_class->slab_blksize );
+		plat_assert(segment);
+	}
+
 	// housekeeping
 	shard->blk_consumed += blk_to_use( shard, e->blocks);
 	shard->num_objects += 1;
@@ -1393,6 +1400,16 @@ mcd_fth_osd_slab_load_slabbm( osd_state_t *context, mcd_osd_shard_t *shard, ucha
 		const uint bPERB = 8;
 		if (bits[i/bPERB] & 1<<i%bPERB) {
 			mcd_osd_segment_t *segment = shard->segment_table[blk_offset/Mcd_osd_segment_blks];
+
+			if(!segment)
+			{
+				uint64_t seg_blk_offset = (blk_offset / Mcd_osd_segment_blks) * Mcd_osd_segment_blks;
+				mcd_osd_slab_class_t* seg_class = &shard->slab_classes[shard->class_table[device_blocks_per_storm_object]];
+				segment = mcd_osd_assign_segment(shard, seg_class, seg_blk_offset);
+				mcd_log_msg(PLAT_LOG_ID_INITIAL, PLAT_LOG_LEVEL_INFO, "persisting segment on recovery(slabbm), shard_id=%ld seg_offset=%lu, obj_offs=%lu, slab_size=%d", shard->id, seg_blk_offset, blk_offset, seg_class->slab_blksize );
+				plat_assert(segment);
+			}
+
 			uint64_t blks = shard->slab_classes[shard->class_table[device_blocks_per_storm_object]].slab_blksize;
 			shard->blk_consumed += blks;
 			shard->num_objects += 1;

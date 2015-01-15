@@ -3819,8 +3819,11 @@ update_hash_table( void * context, mcd_osd_shard_t * shard,
 
         if(!segment)
         {
-            obj_offset += power_of_two_roundup( mcd_osd_lba_to_blk(obj->blocks) );
-            continue;
+            uint64_t seg_blk_offset = (blk_offset / Mcd_osd_segment_blks) * Mcd_osd_segment_blks;
+            mcd_osd_slab_class_t* seg_class = &shard->slab_classes[shard->class_table[mcd_osd_lba_to_blk(obj->blocks)]];
+            segment = mcd_osd_assign_segment(shard, seg_class, seg_blk_offset);
+            mcd_log_msg(PLAT_LOG_ID_INITIAL, PLAT_LOG_LEVEL_INFO, "persisting segment on recovery, shard_id=%ld seg_offset=%lu, obj_offs=%lu, slab_size=%d", shard->id, seg_blk_offset, blk_offset, seg_class->slab_blksize );
+            plat_assert(segment);
         }
 
         // housekeeping

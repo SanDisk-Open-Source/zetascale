@@ -720,4 +720,7 @@ mcd_osd_rand_address(mcd_osd_shard_t *shard, uint64_t offset);
 
 int
 mcd_onflash_key_match(void *context, mcd_osd_shard_t * shard, uint64_t addr, char *key, int key_len);
+
+mcd_osd_segment_t*
+mcd_osd_assign_segment(mcd_osd_shard_t* shard, mcd_osd_slab_class_t* class, uint64_t blk_offset);
 #endif  /* __MCD_OSD_H__ */
