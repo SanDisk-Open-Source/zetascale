@@ -7808,6 +7808,11 @@ equalize_keys_leaf(btree_raw_t *btree, btree_raw_mem_node_t *anchor_mem, btree_r
 		res = btree_leaf_shift_right(btree, from_mem->pnode, to_mem->pnode,
 					     &key_info, max_anchor_keylen);
 	}
+
+	if (res == false) {
+		return res;
+	}
+
         assert(res == true);
 
 	new_used_space = btree_leaf_used_space(btree, from_mem->pnode) +
@@ -7839,7 +7844,9 @@ equalize_keys(btree_raw_t *btree, btree_raw_mem_node_t *anchor_mem, btree_raw_me
 	if (is_leaf(btree, from_mem->pnode)) {
 		ret = equalize_keys_leaf(btree, anchor_mem, from_mem, to_mem, s_key, s_keylen, s_syndrome,
 					      s_seqno, r_key, r_keylen, r_syndrome, r_seqno, left);		
-		*free_key = true;
+
+		*free_key = ret;
+
 	} else {
 		ret = equalize_keys_non_leaf(btree, anchor_mem, from_mem, to_mem, s_key, s_keylen, s_syndrome,
 					      s_seqno, r_key, r_keylen, r_syndrome, r_seqno, left);		

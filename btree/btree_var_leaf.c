@@ -2199,6 +2199,7 @@ btree_leaf_shift_left(btree_raw_t *bt, btree_raw_node_t *from_node,
 	int32_t avg_size = 0;
 	key_info_t key_info = {0};
 	int shift_index = -1;
+	int keys_moved = 0;
 
 
 	tmp_node_from = (btree_raw_node_t *) get_buffer(bt, bt->nodesize);
@@ -2217,6 +2218,7 @@ btree_leaf_shift_left(btree_raw_t *bt, btree_raw_node_t *from_node,
 	keys_copied = btree_leaf_copy_keys(bt, from_node, 0, to_node, nkeys_to, nkeys_from, avg_size);
 
 	(void) btree_leaf_copy_keys(bt, from_node, keys_copied, tmp_node_from, 0, nkeys_from - keys_copied, 0);
+	keys_moved = keys_copied;
 
 	/*
 	 * Check if rightmost key in to node can accmodate in parent, if not 
@@ -2230,10 +2232,11 @@ btree_leaf_shift_left(btree_raw_t *bt, btree_raw_node_t *from_node,
 		 * The right most key is bigger than parent can accmodate,
 		 * Find another one.
 		 */
-		while (key_info.keylen > max_keylen) {
+		while (key_info.keylen > max_keylen && keys_moved > 0) {
 			/*
 			 * Move keys back to from node till we find smaller key.
 			 */
+			keys_moved--;
 			btree_leaf_move_key(bt, to_node, to_node->nkeys - 1,
 					    tmp_node_from, 0, key_info.key);
 			(void) btree_leaf_get_nth_key_info2(bt, to_node,
@@ -2247,9 +2250,12 @@ btree_leaf_shift_left(btree_raw_t *bt, btree_raw_node_t *from_node,
 	from_node->nkeys = tmp_node_from->nkeys;
 	from_node->insert_ptr = tmp_node_from->insert_ptr;
 
-	btree_leaf_get_nth_key_info(bt, to_node, to_node->nkeys - 1, key_info_out);
-
 	free_buffer(bt, tmp_node_from);
+	if (keys_moved == 0) {
+		return false;
+	}
+
+	btree_leaf_get_nth_key_info(bt, to_node, to_node->nkeys - 1, key_info_out);
 
 	return true;
 }
@@ -2267,6 +2273,7 @@ btree_leaf_shift_right(btree_raw_t *bt, btree_raw_node_t *from_node,
 	int copy_idx = 0;
 	uint32_t used_space = 0;
 	btree_metadata_t meta = {0};
+	int keys_moved = 0;
 
 	meta.flags = 0; //Default flags
 	
@@ -2289,6 +2296,7 @@ btree_leaf_shift_right(btree_raw_t *bt, btree_raw_node_t *from_node,
 			 */
 			break;
 		}
+		keys_moved++;
 
 		btree_leaf_move_key(bt, from_node, copy_idx, to_node, 0, tmp_key_buf);
 
@@ -2311,10 +2319,11 @@ btree_leaf_shift_right(btree_raw_t *bt, btree_raw_node_t *from_node,
 		 * The right most key is bigger than parent can accmodate,
 		 * Find another one.
 		 */
-		while (key_info.keylen > max_keylen) {
+		while (key_info.keylen > max_keylen && keys_moved > 0) {
 			/*
 			 * Move keys back to from node till we find smaller key.
 			 */
+			keys_moved--;
 			btree_leaf_move_key(bt, to_node, 0,
 					    from_node, from_node->nkeys, key_info.key);
 			(void) btree_leaf_get_nth_key_info2(bt, from_node,
@@ -2323,6 +2332,9 @@ btree_leaf_shift_right(btree_raw_t *bt, btree_raw_node_t *from_node,
 	}
 
 	btree_free(tmp_key_buf);
+	if (keys_moved == 0) {
+		return false;
+	}
 	btree_leaf_get_nth_key_info(bt, from_node, from_node->nkeys - 1, key_info_out);
 
 	return true;
