@@ -253,9 +253,9 @@ static char *dump_key(char *key, uint32_t keylen);
 #define vlnode_bytes_free(x) ((x)->insert_ptr - sizeof(btree_raw_node_t) - (x)->nkeys * sizeof(node_vlkey_t))
 #define vnode_bytes_free(x) ((x)->insert_ptr - sizeof(btree_raw_node_t) - (x)->nkeys * sizeof(node_vkey_t))
 
-#define big_object(bt, x) (((x)->keylen + (x)->datalen) >= (bt)->big_object_size)
-#define big_object_kd(bt, k, d) ((k + d) >= (bt)->big_object_size)
-#define object_inline_size(bt, ks) ((ks)->keylen + (((ks)->leaf && !big_object_kd((bt), (ks)->keylen, (ks)->datalen)) ? (ks)->datalen : 0))
+//#define big_object(bt, x) (((x)->keylen + (x)->datalen) >= (bt)->big_object_size)
+//#define big_object_kd(bt, k, d) ((k + d) >= (bt)->big_object_size)
+//#define object_inline_size(bt, ks) ((ks)->keylen + (((ks)->leaf && !big_object_kd((bt), (ks)->keylen, (ks)->datalen)) ? (ks)->datalen : 0))
 
 static uint64_t get_syndrome(btree_raw_t *bt, char *key, uint32_t keylen);
 
@@ -1743,12 +1743,22 @@ get_leaf_data_index(btree_raw_t *bt, btree_raw_node_t *n, int index, char **data
 		 */
 
 		if (key_info.datalen > 0) {
+			uint64_t ovdatasize =  get_data_in_overflownode(bt);
+			uint64_t tmp_rem;
+
 			nbytes = key_info.datalen;
 			p      = buf;
 			z_next = key_info.ptr;
 			getnode_flags_t nflags = (ref ? NODE_REF : 0) | (deref_delete_cache ? NODE_CACHE_DEREF_DELETE : 0);
+		
+			if ((tmp_rem = btree_get_bigobj_inleaf(bt, key_info.keylen, key_info.datalen)) != 0) {
+				btree_leaf_get_data_nth_key(bt, n, index, &datap, &datalen1);
+				memcpy(p, datap, tmp_rem);
+				nbytes -= tmp_rem;
+				p += tmp_rem;
+			}
+
 			while(nbytes > 0 && z_next) {
-				uint64_t ovdatasize =  get_data_in_overflownode(bt);
 				btree_raw_mem_node_t *node = get_existing_overflow_node(&ret2, bt, z_next, nflags);
 				if(!node) {
 					if (storage_error(ret2) && btree_in_rescue_mode(bt)) {
@@ -1838,7 +1848,7 @@ get_leaf_data_nth_key(btree_raw_t *bt, btree_raw_node_t *n, int index,
 		buf_alloced = 1;
     }
 
-    if ((key_info.keylen + key_info.datalen) < bt->big_object_size) {
+    if (!big_object(bt, &key_info)) {
 		/*
 		 *  key and data are in this btree node
 		 */
@@ -1851,10 +1861,19 @@ get_leaf_data_nth_key(btree_raw_t *bt, btree_raw_node_t *n, int index,
 		 */
 		if (key_info.datalen > 0) {
 			uint64_t ovdatasize =  get_data_in_overflownode(bt);
+			uint64_t tmp_rem;
 
 			nbytes = key_info.datalen;
 			p      = buf;
 			z_next = key_info.ptr;
+
+			if ((tmp_rem = btree_get_bigobj_inleaf(bt, key_info.keylen, key_info.datalen)) != 0) {
+				btree_leaf_get_data_nth_key(bt, n, index, &datap, &datalen1);
+				memcpy(p, datap, tmp_rem);
+				nbytes -= tmp_rem;
+				p += tmp_rem;
+			}
+
 			while(nbytes > 0 && z_next) {
 				btree_raw_mem_node_t *node = get_existing_overflow_node(&ret, bt, z_next, ref ? NODE_REF: 0);
 				if(!node) {
@@ -2038,7 +2057,7 @@ static uint64_t allocate_overflow_data(btree_raw_t *bt, btree_raw_node_t *leaf, 
     if (!datalen)
         return(BTREE_SUCCESS);
 
-    n_nodes = (datalen + ovdatasize - 1) / ovdatasize;
+	n_nodes = (datalen + ovdatasize - 1) / ovdatasize;
 
     n_first = n = get_new_node(&ret, bt, OVERFLOW_NODE, 0);
 	if (bt_storm_mode) {
@@ -3628,6 +3647,7 @@ static void split_copy(btree_status_t *ret, btree_raw_t *btree,
 	uint32_t       nbytes_fixed;
 	key_stuff_t    ks;
 	uint64_t       n_right     = 0;
+	uint64_t ovdatasize = get_data_in_overflownode(btree);
 
 	(void) get_key_stuff(btree, from, 0, &ks);
 
@@ -3680,8 +3700,16 @@ static void split_copy(btree_status_t *ret, btree_raw_t *btree,
 
 			nbytes_from += ks.keylen;
 
-			if (ks.leaf && !big_object_kd(btree, ks.keylen, ks.datalen))
-				nbytes_from += ks.datalen;
+			if (ks.leaf) {
+			   if (!big_object_kd(btree, ks.keylen, ks.datalen)) {//Niranjan
+					nbytes_from += ks.datalen;
+			   } else {
+				   uint64_t tmp_rem = btree_get_bigobj_inleaf(btree, ks.keylen, ks.datalen);
+				   if (tmp_rem) {
+					   nbytes_from += tmp_rem;
+				   }
+			   }
+			}
 
 			n_right = ks.ptr;
 
@@ -3767,24 +3795,31 @@ static void update_keypos_low(btree_raw_t *btree, btree_raw_node_t *n, uint32_t 
         return;
     }
 
-    if (n->flags & LEAF_NODE) {
-	for (i=n_key_start; i<n->nkeys; i++) {
-	    pvlk = (node_vlkey_t *) (((char *) n->keys) + i*sizeof(node_vlkey_t));
-	    keypos -= pvlk->keylen;
-	    if (!big_object(btree, pvlk)) {
-	        //  data is NOT overflowed!
-		keypos -= pvlk->datalen;
-	    }
-	    pvlk->keypos = keypos;
-		//dbg_print("nkey=%d keypos=%d\n", i, keypos);
+	if (n->flags & LEAF_NODE) {
+		for (i=n_key_start; i<n->nkeys; i++) {
+			pvlk = (node_vlkey_t *) (((char *) n->keys) + i*sizeof(node_vlkey_t));
+			keypos -= pvlk->keylen;
+			if (!big_object(btree, pvlk)) {  //Niranjan
+				//  data is NOT overflowed!
+				keypos -= pvlk->datalen;
+			} else {
+				uint64_t ovdatasize = get_data_in_overflownode(btree);
+				uint64_t tmp_rem = btree_get_bigobj_inleaf(btree, pvlk->keylen, pvlk->datalen);
+				if (tmp_rem) {
+					keypos -= tmp_rem;
+				}
+
+			}
+			pvlk->keypos = keypos;
+			//dbg_print("nkey=%d keypos=%d\n", i, keypos);
+		}
+	} else {
+		for (i=n_key_start; i<n->nkeys; i++) {
+			pvk = (node_vkey_t *) (((char *) n->keys) + i*sizeof(node_vkey_t));
+			keypos -= pvk->keylen;
+			pvk->keypos = keypos;
+		}
 	}
-    } else {
-	for (i=n_key_start; i<n->nkeys; i++) {
-	    pvk = (node_vkey_t *) (((char *) n->keys) + i*sizeof(node_vkey_t));
-	    keypos -= pvk->keylen;
-	    pvk->keypos = keypos;
-	}
-    }
 }
 
 static void update_keypos(btree_raw_t *btree, btree_raw_node_t *n, uint32_t n_key_start)
@@ -3816,7 +3851,7 @@ static void insert_key_low(btree_status_t *ret, btree_raw_t *btree, btree_raw_me
     uint32_t       nbytes_split = 0;
     uint32_t       nbytes_free;
     int32_t        nkey_child;
-    uint64_t       nbytes_stats;
+    uint64_t       nbytes_stats, rem_datalen;
 
 	if(!is_leaf(btree, x))
     dbg_print_key(key, keylen, "node: %p id %ld keylen: %d datalen: %ld ptr=%ld ret=%d", x, x->logical_id, keylen, datalen, *(uint64_t*)data, *ret);
@@ -3844,48 +3879,58 @@ static void insert_key_low(btree_status_t *ret, btree_raw_t *btree, btree_raw_me
 
     (void) get_key_stuff(btree, x, 0, &ks);
 
-    if (pk_insert == NULL || !x->nkeys) {
-	nkeys_to     = x->nkeys;
-	pos_split    = x->insert_ptr;
-	nbytes_split = 0;
-    }
-    else
-    {
-	nkeys_to = (((char *) pk_insert) - ((char *) x->keys)) / ks.offset;
+	if (pk_insert == NULL || !x->nkeys) {
+		nkeys_to     = x->nkeys;
+		pos_split    = x->insert_ptr;
+		nbytes_split = 0;
+	} else {
+		nkeys_to = (((char *) pk_insert) - ((char *) x->keys)) / ks.offset;
 
-	if (!ks.fixed) {
-		if (x->flags & LEAF_NODE) {
-			pvlk_insert = (node_vlkey_t *) pk_insert;
-			pos_split = pvlk_insert->keypos + pvlk_insert->keylen;
-			if(!big_object(btree, pvlk_insert))
-				pos_split += pvlk_insert->datalen;
-			nbytes_stats += sizeof(node_vlkey_t);
-			assert(pvlk_insert->keypos < btree->nodesize);
-			assert(pvlk_insert->keylen < btree->nodesize);
+		if (!ks.fixed) {
+			if (x->flags & LEAF_NODE) {
+				pvlk_insert = (node_vlkey_t *) pk_insert;
+				pos_split = pvlk_insert->keypos + pvlk_insert->keylen;
+				if(!big_object(btree, pvlk_insert)) { ///Niranjan
+					pos_split += pvlk_insert->datalen;
+				} else {
+					uint64_t ovdatasize = get_data_in_overflownode(btree);
+					uint64_t tmp_rem = btree_get_bigobj_inleaf(btree, pvlk_insert->keylen, pvlk_insert->datalen);
+
+					if (tmp_rem) {
+						pos_split += tmp_rem;
+					}
+				}
+
+				nbytes_stats += sizeof(node_vlkey_t);
+				assert(pvlk_insert->keypos < btree->nodesize);
+				assert(pvlk_insert->keylen < btree->nodesize);
+			} else {
+				pvk_insert = (node_vkey_t *) pk_insert;
+				pos_split = pvk_insert->keypos + pvk_insert->keylen;
+				nbytes_stats += sizeof(node_vkey_t);
+
+				assert(pvk_insert->keypos < btree->nodesize);
+				assert(pvk_insert->keylen < btree->nodesize);
+			}
+			nbytes_split = pos_split - x->insert_ptr;
 		} else {
-			pvk_insert = (node_vkey_t *) pk_insert;
-			pos_split = pvk_insert->keypos + pvk_insert->keylen;
-			nbytes_stats += sizeof(node_vkey_t);
-
-			assert(pvk_insert->keypos < btree->nodesize);
-			assert(pvk_insert->keylen < btree->nodesize);
+			nbytes_stats += sizeof(node_fkey_t);
 		}
-		nbytes_split = pos_split - x->insert_ptr;
-	} else
-		nbytes_stats += sizeof(node_fkey_t);
-    }
+	}
 
     fixed_bytes = ks.offset;
     nkeys_from = x->nkeys - nkeys_to;
 
+	rem_datalen = 0;
+
     if ((!ks.fixed) && 
         (x->flags & LEAF_NODE) && 
-		big_object_kd(btree, keylen, datalen)) { // xxxzzz check this!
+		big_object_kd(btree, keylen, datalen)) { //Niranjan // xxxzzz check this!
 		//  Allocate nodes for overflowed objects first, in case
 		//  something goes wrong.
-        
-		ptr_overflow = allocate_overflow_data(btree, x, datalen, data);
-		if ((ptr_overflow == 0) && (datalen != 0)) {
+       	rem_datalen = btree_get_bigobj_inleaf(btree, keylen, datalen); 
+		ptr_overflow = allocate_overflow_data(btree, x, datalen - rem_datalen, data + rem_datalen);
+		if (ptr_overflow == 0) {
 			// something went wrong with the allocation
 			*ret = BTREE_FAILURE;
 			return;
@@ -3901,12 +3946,13 @@ static void insert_key_low(btree_status_t *ret, btree_raw_t *btree, btree_raw_me
 			//  insert variable portion of new key (and possibly data) in
 			//  sorted key order at end of variable data stack in node
 
-			if (big_object_kd(btree, keylen, datalen)) { // xxxzzz check this!
+			if (big_object_kd(btree, keylen, datalen)) { // Niranjan xxxzzz check this!
 				//  put key in this node, data in overflow nodes
-				vbytes_this_node = keylen;
+				vbytes_this_node = keylen + rem_datalen;
 			} else {
 				//  put key and data in this node
 				vbytes_this_node = keylen + datalen;
+				rem_datalen = datalen;
 			}
 			// check that there is enough space!
 			nbytes_free = vlnode_bytes_free(x);
@@ -3924,8 +3970,7 @@ static void insert_key_low(btree_status_t *ret, btree_raw_t *btree, btree_raw_me
 
 			memcpy((char *) x + pos_new_key, key, keylen);
 			if (vbytes_this_node > keylen) {
-				//  insert data
-				memcpy((char *) x + pos_new_key + keylen, data, datalen);
+				memcpy((char *) x + pos_new_key + keylen, data, rem_datalen);
 			}
 		} else {
 			vbytes_this_node = keylen;
@@ -3975,7 +4020,7 @@ static void insert_key_low(btree_status_t *ret, btree_raw_t *btree, btree_raw_me
 			pvlk->keypos   = pos_new_key;
 			pvlk->datalen  = datalen;
 			pvlk->seqno    = seqno;
-			if (big_object_kd(btree, keylen, datalen)) { // xxxzzz check this!
+			if (big_object_kd(btree, keylen, datalen)) { //Niranjan // xxxzzz check this!
 				//  data is in overflow nodes
 				pvlk->ptr = ptr_overflow;
 			} else {
@@ -4093,6 +4138,7 @@ static void delete_key_by_pkrec(btree_status_t* ret, btree_raw_t *btree, btree_r
 	node_vkey_t   *pvk_delete = NULL;
 	node_vlkey_t  *pvlk_delete = NULL;
 	key_stuff_t    ks;
+	uint64_t ovdatasize = get_data_in_overflownode(btree);
 
 	dbg_print("node_id=%ld pk_delete=%p\n", node->pnode->logical_id, pk_delete);
 
@@ -4111,10 +4157,12 @@ static void delete_key_by_pkrec(btree_status_t* ret, btree_raw_t *btree, btree_r
 			pvlk_delete = (node_vlkey_t *) pk_delete;
 
 			keylen = pvlk_delete->keylen;
-			if (big_object(btree, pvlk_delete)) {
+			if (big_object(btree, pvlk_delete)) { //Niranjan
 				// data NOT stored in the node
-				datalen = 0;
-				delete_overflow_data(ret, btree, x, pvlk_delete->ptr, pvlk_delete->datalen);
+				uint64_t ovdatasize = get_data_in_overflownode(btree);
+
+				datalen = btree_get_bigobj_inleaf(btree, pvlk_delete->keylen, pvlk_delete->datalen);
+				delete_overflow_data(ret, btree, x, pvlk_delete->ptr, pvlk_delete->datalen - datalen);
 			} else {
 				// data IS stored in the node
 				datalen = pvlk_delete->datalen;
@@ -4234,6 +4282,7 @@ delete_key_by_index_leaf(btree_status_t* ret, btree_raw_t *btree, btree_raw_mem_
     bool res = false; 
     uint64_t datalen = 0;
     int32_t bytes_decreased = 0;
+	uint64_t ovdatasize = get_data_in_overflownode(btree);
 
     assert(is_leaf(btree, node->pnode));
 
@@ -4242,10 +4291,9 @@ delete_key_by_index_leaf(btree_status_t* ret, btree_raw_t *btree, btree_raw_mem_
     res = btree_leaf_get_nth_key_info(btree, node->pnode, index, &key_info);
     assert(res == true);
 
-    if ((key_info.keylen + key_info.datalen) >=
-            btree->big_object_size) {
-        datalen = 0;
-        delete_overflow_data(ret, btree, node->pnode, key_info.ptr, key_info.datalen);
+	if (big_object(btree, &key_info)) {
+		datalen = btree_get_bigobj_inleaf(btree, key_info.keylen, key_info.datalen);
+        delete_overflow_data(ret, btree, node->pnode, key_info.ptr, key_info.datalen - datalen);
     } else {
         datalen = key_info.datalen;
     }
@@ -4628,15 +4676,24 @@ static btree_status_t is_full_insert(btree_raw_t *btree, btree_raw_node_t *n, ui
 {
     btree_status_t ret = BTREE_SUCCESS;
     uint32_t   nbytes_free = 0;
+	uint64_t ovdatasize = get_data_in_overflownode(btree);
+
 
     if (n->flags & LEAF_NODE) {
         // vlkey
         nbytes_free = vlnode_bytes_free(n);
 		if (big_object_kd(btree, keylen, datalen)) { // xxxzzz check this!
+			uint64_t tmp_rem = btree_get_bigobj_inleaf(btree, keylen, datalen);
 			//  don't include datalen because object data is kept
 			//  in overflow btree nodes
-			if (nbytes_free < (sizeof(node_vlkey_t) + keylen)) {
-				ret = BTREE_FAILURE;
+			if (tmp_rem) {
+				if (nbytes_free < (sizeof(node_vlkey_t) + keylen + tmp_rem)) {
+					ret = BTREE_FAILURE;
+				}
+			} else {
+				if (nbytes_free < (sizeof(node_vlkey_t) + keylen)) {
+					ret = BTREE_FAILURE;
+				}
 			}
 		} else {
 			if (nbytes_free < (sizeof(node_vlkey_t) + keylen + datalen)) {
@@ -4666,36 +4723,43 @@ static btree_status_t is_full_insert(btree_raw_t *btree, btree_raw_node_t *n, ui
 //  an existing item.
 static btree_status_t is_full_update(btree_raw_t *btree, btree_raw_node_t *n, node_vlkey_t *pvlk, uint32_t keylen, uint64_t datalen)
 {
-    btree_status_t        ret = BTREE_SUCCESS;
-    uint32_t              nbytes_free = 0;
-    uint64_t              update_bytes = 0;
+	btree_status_t        ret = BTREE_SUCCESS;
+	uint32_t              nbytes_free = 0;
+	uint64_t              update_bytes = 0;
+	uint64_t			  ovdatasize = get_data_in_overflownode(btree);
 
-    assert(n->flags & LEAF_NODE);  //  xxxzzz remove this
+	assert(n->flags & LEAF_NODE);  //  xxxzzz remove this
 
-    if (big_object_kd(btree, keylen, datalen)) { // xxxzzz check this!
-        //  updated data will be put in overflow node(s)
-        update_bytes = keylen;
-    } else {
-        //  updated data fits in a node
-        update_bytes = keylen + datalen;
-    }
-
-    // must be vlkey!
-    nbytes_free = vlnode_bytes_free(n);
-    if (big_object(btree, pvlk)) { // xxxzzz check this!
-        //  Data to be overwritten is in overflow node(s).
-	if ((nbytes_free + pvlk->keylen) < update_bytes) {
-	    ret = BTREE_FAILURE;
+	if (big_object_kd(btree, keylen, datalen)) { //Niranjan // xxxzzz check this!
+		uint64_t tmp_rem = btree_get_bigobj_inleaf(btree, keylen, datalen);
+		//  updated data will be put in overflow node(s)
+		update_bytes = keylen;
+		if (tmp_rem) {
+			update_bytes += tmp_rem;
+		}
+	} else {
+		//  updated data fits in a node
+		update_bytes = keylen + datalen;
 	}
-    } else {
-        //  Data to be overwritten is in this node.
-	if ((nbytes_free + pvlk->keylen + pvlk->datalen) < update_bytes) {
-	    ret = BTREE_FAILURE;
-	}
-    }
-//    dbg_print("nbytes_free: %d pvlk->keylen %d pvlk->datalen %ld keylen %d datalen %ld update_bytes %ld insert_ptr %d nkeys %d ret %d\n", nbytes_free, pvlk->keylen, pvlk->datalen, keylen, datalen, update_bytes, n->insert_ptr, n->nkeys, ret);
 
-    return(ret);
+	// must be vlkey!
+	nbytes_free = vlnode_bytes_free(n);
+	if (big_object(btree, pvlk)) { // xxxzzz check this!
+		uint64_t res = btree_get_bigobj_inleaf(btree, pvlk->keylen, pvlk->datalen);
+
+		if ((nbytes_free + pvlk->keylen + res) < update_bytes) {
+			ret = BTREE_FAILURE;
+		}
+
+	} else {
+		//  Data to be overwritten is in this node.
+		if ((nbytes_free + pvlk->keylen + pvlk->datalen) < update_bytes) {
+			ret = BTREE_FAILURE;
+		}
+	}
+	//    dbg_print("nbytes_free: %d pvlk->keylen %d pvlk->datalen %ld keylen %d datalen %ld update_bytes %ld insert_ptr %d nkeys %d ret %d\n", nbytes_free, pvlk->keylen, pvlk->datalen, keylen, datalen, update_bytes, n->insert_ptr, n->nkeys, ret);
+
+	return(ret);
 }
 
 static bool 
@@ -5056,9 +5120,10 @@ btree_leaf_insert_low(btree_status_t *pret, btree_raw_t *bt, btree_raw_mem_node_
 	uint64_t new_overflow_ptr = 0;
 	key_info_t key_info = {0};
 	uint64_t old_datalen = 0;
-	uint64_t datalen_in_node = datalen;
+	uint64_t datalen_in_node = datalen, rem_datalen = 0;
 	int32_t bytes_saved = 0;
 	int32_t size_increased = 0;
+	uint64_t ovdatasize = get_data_in_overflownode(bt);
 
 	dbg_print_key(key, keylen, "node: %p id %ld keylen: %d datalen: %ld index: %ld key_exists %ld", n, n->pnode->logical_id, keylen, datalen, index, key_exists);
 
@@ -5077,10 +5142,9 @@ btree_leaf_insert_low(btree_status_t *pret, btree_raw_t *bt, btree_raw_mem_node_
 			return false;
 		}
 
-		if ((key_info.keylen + key_info.datalen) 
-				>= bt->big_object_size) {
-			old_datalen = 0;
-			delete_overflow_data(pret, bt, n->pnode, key_info.ptr, key_info.datalen);
+		if (big_object(bt, &key_info)) {
+			old_datalen = btree_get_bigobj_inleaf(bt, key_info.keylen, key_info.datalen);
+			delete_overflow_data(pret, bt, n->pnode, key_info.ptr, key_info.datalen - old_datalen);
 			if (*pret != BTREE_SUCCESS) {
 				return false;
 			}
@@ -5094,7 +5158,8 @@ btree_leaf_insert_low(btree_status_t *pret, btree_raw_t *bt, btree_raw_mem_node_
 	 */
 	if ((keylen + datalen) >= bt->big_object_size) {
 		assert(datalen > 0);
-		new_overflow_ptr = allocate_overflow_data(bt, n->pnode, datalen, data);
+		rem_datalen = btree_get_bigobj_inleaf(bt, keylen, datalen);
+		new_overflow_ptr = allocate_overflow_data(bt, n->pnode, datalen - rem_datalen, data + rem_datalen);
 		if (new_overflow_ptr == 0) {
 			fprintf(stderr, "Got invalid node id allocated for overflow node.\n");
 			assert(0);
@@ -7556,6 +7621,27 @@ static void collapse_root(btree_status_t *ret, btree_raw_t *btree, btree_raw_mem
 }
 
 static inline
+uint32_t object_inline_size(btree_raw_t* btree, key_stuff_t* ks)
+{
+	uint64_t ovdatasize = get_data_in_overflownode(btree);
+
+	if (!ks->leaf) {
+		return (ks->keylen);
+	}
+
+	if (!big_object_kd(btree, ks->keylen, ks->datalen)) {
+		return (ks->keylen + ks->datalen);
+	} else {
+		if (ks->datalen % ovdatasize < btree->big_object_size) {
+			return (ks->keylen + (ks->datalen % ovdatasize));
+		} else {
+			return (ks->keylen);
+		}
+
+	}
+}
+
+static inline
 void exclude_key(btree_raw_t* btree, btree_raw_node_t* node, uint32_t idx,
 		uint32_t* nbytes_shift, uint32_t* nkeys_shift, key_stuff_t* ks)
 {
@@ -8372,11 +8458,11 @@ static void dump_node_low(btree_raw_t *bt, FILE *f, btree_raw_node_t *n, char *k
 	//assert(n->rightmost != 0);
     }
 
-    if ((bt->flags & SYNDROME_INDEX) && !(n->flags & LEAF_NODE)) {
-	nfreebytes = bt->nodesize - sizeof(btree_raw_node_t) - n->nkeys*nkey_bytes;
-    } else {
-	nfreebytes = n->insert_ptr - sizeof(btree_raw_node_t) - n->nkeys*nkey_bytes;
-    }
+	if ((bt->flags & SYNDROME_INDEX) && !(n->flags & LEAF_NODE)) {
+		nfreebytes = bt->nodesize - sizeof(btree_raw_node_t) - n->nkeys*nkey_bytes;
+	} else {
+		nfreebytes = n->insert_ptr - sizeof(btree_raw_node_t) - n->nkeys*nkey_bytes;
+	}
     //assert(nfreebytes >= 0);
 
     fprintf(f, "%x Node [%ld][%p]: %d keys, ins_ptr=%d, %d free bytes, flags:%s%s, right=[%ld]\n", (int)pthread_self(), n->logical_id, n, n->nkeys, n->insert_ptr, nfreebytes, sflags, is_root(bt, n) ? ":ROOT" : "", n->rightmost);

@@ -325,11 +325,11 @@ scavenger_del_overflw_n_cont(Scavenge_Arg_t *s)
 		flag = 0;
 		for (i = 0; i < node->pnode->nkeys; i++) {
 			btree_leaf_get_meta(node->pnode, i, &key_meta);
-			if ((key_meta.keylen + key_meta.datalen) >=
-								s->btree->big_object_size) {
+			if (big_object(s->btree, &key_meta)) {
 				flag = 1;
 				delete_overflow_data(&ret, s->btree, node->pnode, key_meta.ptr, key_meta.datalen);
-				btree_leaf_unset_dataptr(node->pnode, i);
+				btree_leaf_unset_dataptr(node->pnode, i, 
+								btree_get_bigobj_inleaf(s->btree, key_meta.keylen, key_meta.datalen)) ;
 			}
 		}
 		if (flag == 1) {

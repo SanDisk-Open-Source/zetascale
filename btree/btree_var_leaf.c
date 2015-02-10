@@ -132,13 +132,17 @@ get_meta_type_to_size(key_meta_type_t meta_type)
 }
 
 static int32_t
-get_key_meta_space_used(key_meta_t *key_meta)
+get_key_meta_space_used(btree_raw_t *btree, key_meta_t *key_meta)
 {
 	int32_t space_used = 0;
+	uint64_t ovdatasize = get_data_in_overflownode(btree);
 
 	space_used += get_meta_type_to_size(key_meta->meta_type);
 	space_used += key_meta->keylen - key_meta->prefix_len;
-	if (key_meta->ptr == 0) {
+
+	if (big_object(btree, key_meta)) {
+		space_used += btree_get_bigobj_inleaf(btree, key_meta->keylen, key_meta->datalen);
+	} else { 
 		space_used += key_meta->datalen;
 	}
 	return space_used;
@@ -893,6 +897,7 @@ btree_leaf_adjust_offsets(btree_raw_t *bt, btree_raw_node_t *n)
 	uint32_t offset = 0;
 	uint32_t meta_size = 0;
 	uint64_t meta_offset = (uint64_t) n + n->insert_ptr;
+	uint64_t ovdatasize = get_data_in_overflownode(bt);
 
 #ifdef DEBUG_BUILD
 	uint32_t prev_prefix_len = 0;
@@ -924,8 +929,10 @@ btree_leaf_adjust_offsets(btree_raw_t *bt, btree_raw_node_t *n)
 
 		offset += meta_size + key_meta.keylen - key_meta.prefix_len;
 
-		if (key_meta.ptr == 0) {
+		if (!big_object(bt, &key_meta)) {
 			offset += key_meta.datalen;
+		} else {
+			offset += btree_get_bigobj_inleaf(bt, key_meta.keylen, key_meta.datalen);
 		}
 
 		meta_offset = ((uint64_t) n + n->insert_ptr + offset); 
@@ -947,6 +954,7 @@ append_entry_to_tmp_buf(btree_raw_t *bt, btree_raw_node_t *n, key_meta_t *key_me
 	uint32_t metalen = 0;
 	key_meta_type_t meta_type;
 	char *buf_ptr = mem_buf;
+	uint64_t ovdatasize = get_data_in_overflownode(bt);
 	
 	/*
 	 * Build meta for this entry
@@ -965,11 +973,17 @@ append_entry_to_tmp_buf(btree_raw_t *bt, btree_raw_node_t *n, key_meta_t *key_me
 
 	buf_ptr += (key_meta->keylen - key_meta->prefix_len);
 
-	if (key_meta->ptr == 0) {
-		dbg_assert(!big_object_kd(bt, key_meta->keylen, datalen));
+	if (!big_object_kd(bt, key_meta->keylen, key_meta->datalen)) {
 		btree_memcpy(buf_ptr, data, datalen, dry_run);
 		buf_ptr += datalen;
+	 } else {
+		uint64_t tmp_rem = btree_get_bigobj_inleaf(bt, key_meta->keylen, key_meta->datalen);
+		if (tmp_rem) {
+			 btree_memcpy(buf_ptr, data, tmp_rem, dry_run);
+			 buf_ptr += tmp_rem;
+		 }
 	 }
+
 	
 	 dbg_assert((buf_ptr - mem_buf) > 0); 
 	 return (buf_ptr - mem_buf);
@@ -1224,7 +1238,7 @@ btree_leaf_insert_key_index(btree_raw_t *bt, btree_raw_node_t *n, char *key, uin
 
 		btree_leaf_get_meta(n, index - 1, &tmp_key_meta);
 		length_to_copy = ent_hdr->header_offset +
-				 get_key_meta_space_used(&tmp_key_meta); 
+				 get_key_meta_space_used(bt, &tmp_key_meta); 
 				  
 	}
 
@@ -1438,7 +1452,7 @@ btree_leaf_remove_key_index_int(btree_raw_t *bt, btree_raw_node_t *n,
 
 		btree_leaf_get_meta(n, index - 1, &tmp_key_meta);
 		length_to_copy = ent_hdr->header_offset +
-				 get_key_meta_space_used(&tmp_key_meta); 
+				 get_key_meta_space_used(bt, &tmp_key_meta); 
 				  
 	}
 
@@ -2038,14 +2052,15 @@ btree_leaf_is_full_index(btree_raw_t *bt, btree_raw_node_t *n, char *key, uint32
 	int index1 = -1;
 	bool res = false;
 	int32_t used_space = 0;
+	uint64_t ovdatasize = get_data_in_overflownode(bt);
 
 	used_space = btree_leaf_used_space(bt, n);
 	bytes_free = bt->nodesize_less_hdr - used_space;
 
 	if (index >= n->nkeys) {
 		uint64_t new_datalen = datalen;
-		if (big_object_kd(bt, keylen, datalen)) {
-			new_datalen = 0;
+		if (big_object_kd(bt, keylen, datalen)) { //Niranjan
+			new_datalen = btree_get_bigobj_inleaf(bt, keylen, datalen);
 		}
 
 		max_bytes_needed = BTREE_LEAF_ENTRY_MAX_SIZE(keylen, new_datalen);
@@ -2094,12 +2109,12 @@ btree_leaf_is_full_index(btree_raw_t *bt, btree_raw_node_t *n, char *key, uint32
 		key_meta.datalen = new_datalen;
 		new_meta_type = get_key_meta_type(bt, &key_meta);
 
-		if (big_object_kd(bt, keylen, datalen)) {
-			new_datalen = 0;
+		if (big_object_kd(bt, keylen, datalen)) { //Niranjan
+			new_datalen = btree_get_bigobj_inleaf(bt, keylen, datalen);
 		}
 
-		if (big_object_kd(bt, keylen, old_datalen)) {
-			old_datalen = 0;
+		if (big_object_kd(bt, keylen, old_datalen)) { //Niranjan
+			old_datalen = btree_get_bigobj_inleaf(bt, keylen, old_datalen);
 		}
 
 		bytes_needed = new_datalen - old_datalen + get_meta_type_to_size(new_meta_type); 
@@ -2402,12 +2417,37 @@ btree_leaf_merge_right(btree_raw_t *bt, btree_raw_node_t *from_node,
 	return true;
 }
 
+uint64_t
+btree_get_bigobj_inleaf(btree_raw_t *bt, uint64_t keylen, uint64_t datalen)
+{
+	uint64_t ovdatasize = get_data_in_overflownode(bt);
+	uint64_t rem = bt->big_object_size - keylen;
+
+	assert(big_object_kd(bt, keylen, datalen));
+
+	if (datalen <= ovdatasize) { //We need 1 overflow any way
+		rem = 0;
+	} else {
+		if (datalen % ovdatasize < rem) { //If residual data can be put in leaf
+			rem = datalen % ovdatasize;
+		} else {
+			rem = 0;					 // Else no need to put in leaf
+		}
+	}
+
+	return (rem);
+}
+
+
+
+		
+
 /*
  * I M P O R T A N T:
  * Should be called only during async delete.
  */
 void inline 
-btree_leaf_unset_dataptr(btree_raw_node_t *n, int index)
+btree_leaf_unset_dataptr(btree_raw_node_t *n, int index, uint64_t datalen)
 {
 	entry_header_t *headers = NULL;
 	char *data_ptr = NULL;
@@ -2433,7 +2473,7 @@ btree_leaf_unset_dataptr(btree_raw_node_t *n, int index)
 		key_meta_type3_t *key_meta3 = 
 			(key_meta_type3_t *) (ent_hdr->header_offset + (uint64_t) data_ptr);
 		key_meta3->ptr = 0;
-		key_meta3->datalen = 0;
+		key_meta3->datalen = (uint16_t)datalen;
 		break;
 	}
 
@@ -2441,7 +2481,7 @@ btree_leaf_unset_dataptr(btree_raw_node_t *n, int index)
 		key_meta_type4_t *key_meta4 = 
 			(key_meta_type4_t *) (ent_hdr->header_offset + (uint64_t) data_ptr);
 		key_meta4->ptr = 0;
-		key_meta4->datalen = 0;
+		key_meta4->datalen = datalen;
 		break;
 	}
 

@@ -37,6 +37,9 @@ typedef enum key_meta_type {
 	BTREE_KEY_META_TYPE4 = 1 << 3,
 } key_meta_type_t;
 
+#define big_object(bt, x) (((x)->keylen + (x)->datalen) >= (bt)->big_object_size)
+#define big_object_kd(bt, k, d) ((k + d) >= (bt)->big_object_size)
+
 /*
  * This is the fixed size metadata structure for temporaray processing.
  */
@@ -222,8 +225,11 @@ build_key_prefix(btree_raw_t *bt, btree_raw_node_t *n,
 int
 btree_leaf_find_split_idx(btree_raw_t *bt, btree_raw_node_t *n);
 
+uint64_t
+btree_get_bigobj_inleaf(btree_raw_t *bt, uint64_t keylen, uint64_t datalen);
+
 void inline
-btree_leaf_unset_dataptr(btree_raw_node_t *n, int index);
+btree_leaf_unset_dataptr(btree_raw_node_t *n, int index, uint64_t datalen);
 
 #if 0
 bool 
