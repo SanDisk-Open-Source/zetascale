@@ -1273,6 +1273,10 @@ merge_log( mcd_osd_shard_t *s, osd_state_t *context, char **buf_segments, int lo
 		recovery_checkpoint( context, s, old_log_state.high_LSN);
 	detach_buffer_segments( s, state.seg_count, state.segments);
 	context->osd_buf = NULL;
+	state.trxnum = 0;
+	state.trxmax = 0;
+	free( state.trxbuf);
+	state.trxbuf = 0;
 }
 
 
