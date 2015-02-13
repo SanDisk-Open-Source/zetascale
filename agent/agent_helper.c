@@ -56,9 +56,11 @@
 #include "protocol/replication/replicator.h"
 #include "protocol/replication/replicator_adapter.h"
 #include "utils/properties.h"
+#include "api/fdf_internal.h"
 #include "agent_helper.h"
 #define PLAT_OPTS_NAME(name) name ## _sdf_agent
 #include "platform/opts.h"
+#include "ssd/fifo/mcd_osd_internal.h"
 // #include "platform/opts_c.h"
 
 #include "agent_common.h"
@@ -71,6 +73,7 @@ extern int SDFMyGroupGroupTypeFromConfig();
 #endif
 
 // #define SOCKET_PATHSRV "/tmp/shmemq-socket"
+
 
 /*  Global that holds version of the property file that is supported.
  */
@@ -116,6 +119,9 @@ init_flash(struct sdf_agent_state *state)
 {
     char *device_name;
     int flash_flags = 0;
+
+    // Allocate space for the Mcd_containers array
+    Mcd_containers = (mcd_container_t *) plat_alloc(sizeof(mcd_container_t) * max_num_containers);
 
     /*  This initializes the code that redirects
      *  flash API calls to one of several alternative
@@ -261,7 +267,7 @@ init_action_home(struct sdf_agent_state *state)
 
     initCommonProtocolStuff();
 
-    pai->pcs      = (SDF_action_state_t *) plat_alloc(sizeof(SDF_action_state_t));
+    pai->pcs      = allocate_action_state();
     plat_assert(pai->pcs);
     pai->pcs->failback = config->system_restart;
     pai->nthreads = config->numActionThreads;

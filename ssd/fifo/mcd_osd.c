@@ -249,12 +249,7 @@ uint32_t        Mcd_fth_num_nodes = 1;
  */
 uint32_t        Mcd_next_cntr_gen = 1;
 
-mcd_container_t Mcd_containers[MCD_MAX_NUM_CNTRS];
-
-/*
- * saved container properties from SSD
- */
-//static mcd_container_t Mcd_fth_saved_props[MCD_MAX_NUM_CNTRS];
+mcd_container_t *Mcd_containers = NULL;
 
 /*
  * mbox for admin container command usage
@@ -555,6 +550,7 @@ mcd_osd_release_buf( void * buf )
  *                                                                      *
  ************************************************************************/
 
+#ifdef notdef
 /*  Get container handles for all currently open containers.
  *  This is used by an application at initialization time to
  *  get the handles for all containers that were recovered from
@@ -567,7 +563,7 @@ void mcd_osd_get_containers(struct ssdaio_ctxt *pctxt, mcd_container_t **contain
     // osd_state_t   *osd_state = (osd_state_t *) pctxt;
 
     n_containers = 0;
-    for (i=0; i<MCD_MAX_NUM_CNTRS; i++) {
+    for (i=0; i<max_num_containers; i++) {
         if (Mcd_containers[i].tcp_port != 0) {
 	    containers[n_containers] = &(Mcd_containers[i]);
 	    n_containers++;
@@ -576,7 +572,9 @@ void mcd_osd_get_containers(struct ssdaio_ctxt *pctxt, mcd_container_t **contain
 
     *pn_containers = n_containers;
 }
+#endif /* notdef */
 
+#ifdef notdef
 void mcd_osd_get_containers_cguids(struct ssdaio_ctxt *pctxt, SDF_cguid_t *cguids, uint32_t *n_cguids)
 {
     int   i;
@@ -584,7 +582,7 @@ void mcd_osd_get_containers_cguids(struct ssdaio_ctxt *pctxt, SDF_cguid_t *cguid
     // osd_state_t   *osd_state = (osd_state_t *) pctxt;
 
     n_containers = 0;
-    for (i=0; i<MCD_MAX_NUM_CNTRS; i++) {
+    for (i=0; i<max_num_containers; i++) {
         if (Mcd_containers[i].tcp_port != 0) {
             cguids[n_containers] = Mcd_containers[i].cguid;
             n_containers++;
@@ -593,6 +591,8 @@ void mcd_osd_get_containers_cguids(struct ssdaio_ctxt *pctxt, SDF_cguid_t *cguid
 
     *n_cguids = n_containers;
 }
+#endif /* notdef */
+
 #if 0
 static void
 mcd_fth_get_container_properties( int index, char * cname,
@@ -1155,12 +1155,12 @@ static int mcd_fth_do_try_container_internal( void * pai, int index,
 	 	 *  Otherwise, look for an unused structure.
 	 	 */
         if (index == -1) {
-	    	for (index=0; index<MCD_MAX_NUM_CNTRS; index++) {
+	    	for (index=0; index<max_num_containers; index++) {
 				if (Mcd_containers[index].tcp_port == 0) {
 					break;
 				}
 			}
-			plat_assert(index < MCD_MAX_NUM_CNTRS);
+			plat_assert(index < max_num_containers);
 		}
 
 		*ppcontainer = &(Mcd_containers[index]);
@@ -1331,7 +1331,7 @@ static int mcd_fth_try_container( void * pai, int index, int system_recovery, in
         }
         else {
             state = -1;
-            for ( int i = 0; i < MCD_MAX_NUM_CNTRS; i++ ) {
+            for ( int i = 0; i < max_num_containers; i++ ) {
 
                 mcd_cntr = &Mcd_fth_saved_props[i];
                 if ( 0 == mcd_cntr->tcp_port ) {
@@ -1476,7 +1476,7 @@ SDF_status_t mcd_fth_container_init(void * pai,
      * save container states since recovery_reclaim_space() will
      * remove all non-persistent containers
      */
-    for ( i = 0; i < MCD_MAX_NUM_CNTRS; i++ ) {
+    for ( i = 0; i < max_num_containers; i++ ) {
         /*
          * FIXME: skip the 0th entry which is for cmc
          */
@@ -1500,7 +1500,7 @@ SDF_status_t mcd_fth_container_init(void * pai,
     /*
      * first try opening all the container
      */
-    for ( i = 0; i < MCD_MAX_NUM_CNTRS; i++ ) {
+    for ( i = 0; i < max_num_containers; i++ ) {
         mcd_fth_try_container( pai, i, system_recovery, tcp_ports[i], udp_ports[i], true, ctnr_name );
     }
 
@@ -1516,7 +1516,7 @@ SDF_status_t mcd_fth_container_init(void * pai,
     /*
      * now try create and open
      */
-    for ( i = 0; i < MCD_MAX_NUM_CNTRS; i++ ) {
+    for ( i = 0; i < max_num_containers; i++ ) {
         if ( 0 != Mcd_containers[i].sdf_container ) {
             continue;
         }
@@ -1525,7 +1525,7 @@ SDF_status_t mcd_fth_container_init(void * pai,
 
     return SDF_SUCCESS;
 }
-#endif
+#endif /* 0 */
 
 static int
 mcd_osd_fifo_shard_init( mcd_osd_shard_t * shard, uint64_t shard_id,
@@ -7881,7 +7881,7 @@ int mcd_start_container_internal( void * pai, int tcp_port )
         plat_abort();
     }
 
-    for ( int i = 0; i < MCD_MAX_NUM_CNTRS; i++ ) {
+    for ( int i = 0; i < max_num_containers; i++ ) {
         if ( tcp_port == Mcd_containers[i].tcp_port ) {
             container = &Mcd_containers[i];
         }
@@ -7929,7 +7929,7 @@ mcd_container_t *mcd_osd_container_from_cguid(
 {
     mcd_container_t * container = NULL;
 
-    for ( int i = 0; i < MCD_MAX_NUM_CNTRS; i++ ) {
+    for ( int i = 0; i < max_num_containers; i++ ) {
         if ( cguid == Mcd_containers[i].cguid ) {
             container = &Mcd_containers[i];
             break;
@@ -7948,7 +7948,7 @@ int mcd_start_container_byname_internal( void * pai, char * cname )
     mcd_log_msg( 50007, PLAT_LOG_LEVEL_DEBUG,
                  "starting container, name=%s", cname );
 
-    for ( int i = 0; i < MCD_MAX_NUM_CNTRS; i++ ) {
+    for ( int i = 0; i < max_num_containers; i++ ) {
         if ( 0 == strncmp( cname, Mcd_containers[i].cname,
                            MCD_CNTR_NAME_MAXLEN ) ) {
             container = &Mcd_containers[i];
@@ -8009,7 +8009,7 @@ int mcd_stop_container_internal( void * pai, int tcp_port )
         plat_abort();
     }
 
-    for ( int i = 0; i < MCD_MAX_NUM_CNTRS; i++ ) {
+    for ( int i = 0; i < max_num_containers; i++ ) {
         if ( tcp_port == Mcd_containers[i].tcp_port ) {
             container = &Mcd_containers[i];
         }
@@ -8072,7 +8072,7 @@ int mcd_stop_container_byname_internal( void * pai, char * cname )
     mcd_log_msg( 50008, PLAT_LOG_LEVEL_TRACE,
                  "stopping container, name=%s", cname );
 
-    for ( int i = 0; i < MCD_MAX_NUM_CNTRS; i++ ) {
+    for ( int i = 0; i < max_num_containers; i++ ) {
         if ( 0 == strncmp( cname, Mcd_containers[i].cname,
                            MCD_CNTR_NAME_MAXLEN ) ) {
             container = &Mcd_containers[i];
@@ -8124,7 +8124,7 @@ int mcd_stop_container_byname_internal( void * pai, char * cname )
     }
     return rc;
 }
-#endif
+#endif /* 0 */
 
 int
 mcd_osd_shard_stop( struct shard * shard )
@@ -8455,7 +8455,7 @@ mcd_osd_read_bad_segment( osd_state_t * ctxt, mcd_osd_shard_t * shard,
 
     return 0;
 }
-#endif
+#endif /* 0 */
 
 SDF_status_t
 mcd_osd_raw_get( osd_state_t     *osd_state, 
@@ -8804,9 +8804,9 @@ void mcd_osd_auto_delete( struct ssdaio_ctxt *pctxt)
         }
     }
 
-    for ( int i = 0; i < MCD_MAX_NUM_CNTRS; i++ ) {
+    for ( int i = 0; i < max_num_containers; i++ ) {
 
-        container = &Mcd_containers[count++ % MCD_MAX_NUM_CNTRS];
+        container = &Mcd_containers[count++ % max_num_containers];
         (void) __sync_fetch_and_add( &container->ref_count, 1 );
 
         if ( cntr_running == container->state ) {
@@ -9122,6 +9122,7 @@ out:
 }
 
 
+#ifdef notdef
 void
 mcd_osd_fifo_check( void )
 {
@@ -9134,7 +9135,7 @@ mcd_osd_fifo_check( void )
 
     mcd_log_msg( 20000, PLAT_LOG_LEVEL_TRACE, "ENTERING" );
 
-    for ( int i = 0; i < MCD_MAX_NUM_CNTRS; i++ ) {
+    for ( int i = 0; i < max_num_containers; i++ ) {
 
         container = &Mcd_containers[i];
         (void) __sync_fetch_and_add( &container->ref_count, 1 );
@@ -9149,7 +9150,6 @@ mcd_osd_fifo_check( void )
                      * check to see if there is any sleeper to wake up for
                      * this shard
                      */
-                    total = 0;
                     while ( 1 ) {
 
                         context = (osd_state_t *)fthMboxTry
@@ -9194,6 +9194,7 @@ mcd_osd_fifo_check( void )
 
     return;
 }
+#endif /* notdef */
 
 
 /*

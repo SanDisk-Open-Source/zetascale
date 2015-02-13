@@ -10,6 +10,7 @@
  */
 #include "utils/hashmap.h"
 #include "sdf_internal.h"
+#include "fdf_internal.h"
 #include "zs.h"
 #include "shared/container.h"
 #include "cmap.h"
@@ -48,7 +49,7 @@ ZS_status_t zs_cmap_init( void )
 	bzero( (void *) &cmc_map.enum_stats, sizeof( enum_stats_t ) );
 	bzero( (void *) &cmc_map.container_stats, sizeof( ZS_container_stats_t ) );
 
-	cmap_cguid_hash = CMapInit( CMAP_BUCKETS, MCD_MAX_NUM_CNTRS, 1, NULL, NULL, zs_cmap_del_cb );
+	cmap_cguid_hash = CMapInit( CMAP_BUCKETS, max_num_containers, 1, NULL, NULL, zs_cmap_del_cb );
 	cmap_cname_hash = HashMap_create( CMAP_BUCKETS, FTH_BUCKET_RW );
 
 	if ( !cmap_cguid_hash || !cmap_cname_hash ) {

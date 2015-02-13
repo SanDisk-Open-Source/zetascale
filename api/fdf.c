@@ -88,6 +88,9 @@ static struct sdf_agent_state agent_state;
 static sem_t Mcd_fsched_sem;
 static sem_t Mcd_initer_sem;
 
+// Global container limit. Override with ZS_MAX_NUM_CONTAINERS property.
+unsigned max_num_containers = MCD_MAX_NUM_CNTRS;
+
 extern HashMap cmap_cname_hash;           // cname -> cguid
 extern __thread uint64_t *trx_bracket_slabs;
 extern int storm_mode;
@@ -102,9 +105,6 @@ extern int mcd_check_meta();
 extern int mcd_check_flog();
 extern int mcd_check_pot();
 
-/*
- * maximum number of containers supported by one instance of memcached
- */
 #define MCD_MAX_NUM_SCHED       32
 #define MCD_MAX_NUM_FTHREADS    1025
 
@@ -2016,6 +2016,9 @@ ZS_status_t ZSInitVersioned(
     __zs_check_mode_on = getProperty_Int("ZS_CHECK_MODE", ZSCHECK_NO_CHECK);
 	mcd_log_msg(160280, PLAT_LOG_LEVEL_INFO, "ZS_CHECK_MODE = %d.\n", __zs_check_mode_on);
 
+    // Pick up the max number of containers property. Should only do this on reformat!!!! FIXME
+    max_num_containers = getProperty_Int("ZS_MAX_NUM_CONTAINERS", MCD_MAX_NUM_CNTRS);
+
     //  Initialize a crap-load of settings
     zs_load_settings( &(agent_state.flash_settings) );
     if (zs_check_settings(&(agent_state.flash_settings)) == false) {
@@ -2167,7 +2170,7 @@ ZS_status_t ZSInitVersioned(
      * that are partially deleted 
      */
     uint64_t cntr_id = 0; 
-    for ( i = 0; i < MCD_MAX_NUM_CNTRS; i++ ) {
+    for ( i = 0; i < max_num_containers; i++ ) {
         if (Mcd_containers[i] == NULL) {
 	        continue;
 	    }
@@ -2188,7 +2191,7 @@ ZS_status_t ZSInitVersioned(
         }
     }
     
-    Mcd_next_cntr_id = cntr_id + MCD_MAX_NUM_CNTRS + 1;
+    Mcd_next_cntr_id = cntr_id + max_num_containers + 1;
     mcd_log_msg( 20131, PLAT_LOG_LEVEL_TRACE,
                  "next container id %lu", Mcd_next_cntr_id );
 #endif
@@ -2399,18 +2402,25 @@ ZS_status_t ZSInitPerThreadState(
 
     pai = &state->ActionInitState;
 
+    // Allocate the action init state
     pai_new = (SDF_action_init_t *) plat_alloc( sizeof( SDF_action_init_t ) );
     plat_assert_always( NULL != pai_new );
 	bzero(pai_new, sizeof( SDF_action_init_t )); 
+    // Fill in the action stats structures
+    pai_new->pcs = allocate_action_state();
+    plat_assert_always(NULL != pai_new->pcs);
     memcpy( pai_new, pai, (size_t) sizeof( SDF_action_init_t ));
 
-    //==================================================
-
-
+    // Allocate the action thread state
     pts = (SDF_action_thrd_state_t *)
           plat_alloc( sizeof( SDF_action_thrd_state_t ) );
     plat_assert_always( NULL != pts );
+    // Fill in action init state from above allocation
     pts->phs = state->ActionInitState.pcs;
+    // There are two SDF_action_init_t structs in this record...
+    // doesn't appear that they are used...CHECK THIS!!!
+    bzero((void *) &pts->ai_struct, sizeof(SDF_action_init_t));
+    pts->pai = NULL;
 
     /*
      * Mark the thread context free.
@@ -2602,11 +2612,11 @@ zs_containers_cleanup(struct ZS_state *zs_state)
 				ZS_Status_Strings[status]);
 		return status;
 	}
-	cguids = (ZS_cguid_t *) plat_alloc(sizeof(*cguids) * MCD_MAX_NUM_CNTRS);
+	cguids = (ZS_cguid_t *) plat_alloc(sizeof(*cguids) * max_num_containers);
 	if (cguids == NULL) {
 		goto out;
 	}
-	memset(cguids, 0, sizeof(*cguids) * MCD_MAX_NUM_CNTRS);
+	memset(cguids, 0, sizeof(*cguids) * max_num_containers);
 
 	pai = (SDF_internal_ctxt_t *) zs_thread_state;
 	SDFStartSerializeContainerOp(pai);
@@ -3064,14 +3074,14 @@ static ZS_status_t zs_create_container(
 		*cguid = CMC_CGUID;
 		isCMC = SDF_TRUE;
 	} else {
-		for ( i = 0; i < MCD_MAX_NUM_CNTRS; i++ ) {
+		for ( i = 0; i < max_num_containers; i++ ) {
 			if ( Mcd_containers[i].cguid == 0 ) { 
 				// this is an unused map entry
 				break;
 			}
 		}
 
-		if ( i == MCD_MAX_NUM_CNTRS ) {
+		if ( i == max_num_containers ) {
 			plat_log_msg(160301, 
 					LOG_CAT,LOG_ERR, 
 					"ZSCreateContainer failed for container %s because max containers have already been created.", 
@@ -3327,7 +3337,7 @@ static ZS_status_t zs_create_container(
 #endif
 
 	if ( ZS_SUCCESS == status && CMC_CGUID != *cguid ) {
-		for ( i = 0; i < MCD_MAX_NUM_CNTRS; i++ ) {
+		for ( i = 0; i < max_num_containers; i++ ) {
 #ifdef SDFAPIONLY
 	        if ( Mcd_containers[i].cguid == ZS_NULL_CGUID ) {
 				Mcd_containers[i].cguid = *cguid;
@@ -3402,7 +3412,7 @@ static ZS_status_t zs_open_container(
 	        goto out;
 	    }
 	    *cguid = tcguid = cmap->cguid;
-		for ( i = 0; i < MCD_MAX_NUM_CNTRS; i++ ) {
+		for ( i = 0; i < max_num_containers; i++ ) {
 			if (Mcd_containers[i].cguid == tcguid) {
 				i_ctnr = i;
 				break;
@@ -4027,7 +4037,7 @@ ZS_status_t zs_delete_container_async_end(
     /*
      * Clear the map entry for cguid.
      */
-	for ( j = 0; j < MCD_MAX_NUM_CNTRS; j++ ) {
+	for ( j = 0; j < max_num_containers; j++ ) {
 		if (Mcd_containers[j].cguid == cguid) {
 			Mcd_containers[j].cguid = 0;
 			Mcd_containers[j].container_id  = 0;
@@ -4355,7 +4365,7 @@ static ZS_status_t zs_delete_container_1(
     /*
      * Clear the map entry for cguid.
      */
-	for ( j = 0; j < MCD_MAX_NUM_CNTRS; j++ ) {
+	for ( j = 0; j < max_num_containers; j++ ) {
 		if (Mcd_containers[j].cguid == cguid) {
 			Mcd_containers[j].cguid = 0;
 			Mcd_containers[j].container_id  = 0;
@@ -7538,12 +7548,12 @@ static void *zs_vc_thread(
 		return NULL;
 	}
 
-	deletes = (ZS_cguid_t *) plat_alloc(sizeof(*deletes) * MCD_MAX_NUM_CNTRS);
+	deletes = (ZS_cguid_t *) plat_alloc(sizeof(*deletes) * max_num_containers);
 	if (deletes == NULL) {
 		ZSReleasePerThreadState(&zs_thread_state);
 		return NULL;
 	}
-	memset(deletes, 0, sizeof(*deletes) * MCD_MAX_NUM_CNTRS);
+	memset(deletes, 0, sizeof(*deletes) * max_num_containers);
 
 	do {
 		status = ZSEnumerateContainerObjects(zs_thread_state, 
@@ -7569,7 +7579,7 @@ static void *zs_vc_thread(
 	    if ( ZS_SUCCESS != status )
 	        continue; 
 
-		for ( j = 0; j < MCD_MAX_NUM_CNTRS; j++ ) {
+		for ( j = 0; j < max_num_containers; j++ ) {
 			if (Mcd_containers[j].cguid == 0) {
 				Mcd_containers[j].cguid         = meta->cguid;
 				Mcd_containers[j].container_id  = meta->properties.container_id.container_id;
@@ -7587,7 +7597,7 @@ static void *zs_vc_thread(
 	status = ZSFinishEnumeration( zs_thread_state, 
 				   _zs_iterator);
 	
-	for( k = 0; k < MCD_MAX_NUM_CNTRS && deletes[k] != ZS_NULL_CGUID; k++ ) {
+	for( k = 0; k < max_num_containers && deletes[k] != ZS_NULL_CGUID; k++ ) {
 		if ( ( status = zs_delete_container( zs_thread_state, deletes[k], ZS_VIRTUAL_CNTR) ) != ZS_SUCCESS )
 			plat_log_msg( 150098,
 				  LOG_CAT, 
@@ -7702,7 +7712,7 @@ static ZS_status_t zs_generate_cguid(
 		state->config.cguid_counter += 1; 
 		/*
  * 		 * Skip cguids 0 and max  */	
-		if (state->config.cguid_counter == SDF_MAX_CONTAINERS ||
+		if (state->config.cguid_counter == max_num_containers ||
 		    state->config.cguid_counter == 0) {
 			state->config.cguid_counter = 1; 
 		}

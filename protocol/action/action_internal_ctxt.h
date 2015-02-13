@@ -28,46 +28,6 @@
 extern "C" {
 #endif
 
-//#define SDF_MAX_CONTAINERS 129   // 128 plus 1 for cmc
-#define SDF_MAX_CONTAINERS UINT16_MAX	// 65535
-
-struct SDF_action_state;
-
-typedef struct SDF_action_init {
-   struct SDF_action_state   *pcs;
-   uint32_t             nthreads;
-   uint32_t             nnode;
-   uint32_t             nnodes;
-   SDF_context_t        ctxt;
-   void                *pts;
-   void                *phs;
-   struct ssdaio_ctxt  *paio_ctxt;
-
-   /**
-    * @brief Disable fast path between action and home node code 
-    *
-    * This is mostly for debugging replication in a single node 
-    * environment.  Long term we might want to have a non-coherent 
-    * replicated case where fthHomeFunction has a fast path to 
-    * local replication.
-    */
-   int                  disable_fast_path;
-
-    /*  mbox_idx stores the mailbox index (of mbox_shmem array in the queue) that
-        this thread will wait on. */
-   int                 mbox_idx;
-
-   /* for action_new.c */
-
-#ifdef MULTIPLE_FLASH_DEV_ENABLED
-    struct flashDev        **flash_dev;
-#else
-    struct flashDev        *flash_dev;
-#endif
-    uint32_t                flash_dev_count;
-    
-} SDF_action_init_t;
-
 typedef struct {
     uint64_t              appreq_counts[N_SDF_APP_REQS];
     uint64_t              msg_out_counts[N_SDF_PROTOCOL_MSGS];
@@ -100,7 +60,7 @@ typedef struct {
 } SDF_cache_ctnr_stats_t;
 
 typedef struct SDF_action_stats_new {
-    SDF_cache_ctnr_stats_t   ctnr_stats[SDF_MAX_CONTAINERS];
+    SDF_cache_ctnr_stats_t   *ctnr_stats; // 1 per container
 } SDF_action_stats_new_t;
 
 typedef struct SDF_action_stats {
@@ -203,9 +163,9 @@ typedef struct SDF_action_state {
     uint32_t                          flash_dev_count;
     SDF_boolean_t                     trace_on;
     SDF_boolean_t                     new_allocator;
-    SDF_action_stats_new_t            stats_new_per_sched[FTH_MAX_SCHEDS];
-    SDF_action_stats_new_t            stats_new;
-    SDF_action_stats_new_t            stats_per_ctnr;
+    SDF_action_stats_new_t            *stats_new_per_sched;
+    SDF_action_stats_new_t            *stats_new;
+    SDF_action_stats_new_t            *stats_per_ctnr;
     SDF_boolean_t                     strict_wrbk;
     SDF_boolean_t                     always_miss;
     SDF_boolean_t                     enable_replication;
@@ -236,7 +196,43 @@ typedef struct SDF_action_state {
 
 } SDF_action_state_t;
 
+typedef struct SDF_action_init {
+   SDF_action_state_t  *pcs;
+   uint32_t             nthreads;
+   uint32_t             nnode;
+   uint32_t             nnodes;
+   SDF_context_t        ctxt;
+   void                *pts;
+   void                *phs;
+   struct ssdaio_ctxt  *paio_ctxt;
 
+   /**
+    * @brief Disable fast path between action and home node code
+    *
+    * This is mostly for debugging replication in a single node
+    * environment.  Long term we might want to have a non-coherent
+    * replicated case where fthHomeFunction has a fast path to
+    * local replication.
+    */
+   int                  disable_fast_path;
+
+    /*  mbox_idx stores the mailbox index (of mbox_shmem array in the queue) that
+        this thread will wait on. */
+   int                 mbox_idx;
+
+   /* for action_new.c */
+
+#ifdef MULTIPLE_FLASH_DEV_ENABLED
+    struct flashDev        **flash_dev;
+#else
+    struct flashDev        *flash_dev;
+#endif
+    uint32_t                flash_dev_count;
+
+} SDF_action_init_t;
+
+SDF_action_state_t *allocate_action_state();
+void deallocate_action_state(SDF_action_state_t *pas);
 #ifdef	__cplusplus
 }
 #endif

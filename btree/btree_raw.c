@@ -111,8 +111,8 @@ static int Verbose = 0;
 
 #define min(a, b) ((a) < (b) ? (a) : (b))
 #define is_nodes_available(node_cnt) \
-                 (node_cnt <= min(MAX_PER_THREAD_NODES_REF - referenced_nodes_count, \
-                                  MAX_PER_THREAD_NODES - modified_nodes_count))
+                 (node_cnt <= min(max_per_thread_nodes_ref - referenced_nodes_count, \
+                                  max_per_thread_nodes - modified_nodes_count))
 
 extern uint64_t n_global_l1cache_buckets;
 extern uint64_t l1reg_buckets, l1raw_buckets;
@@ -132,10 +132,16 @@ __thread int _pathcnt;
 __thread char      *_keybuf      = NULL;
 __thread uint32_t   _keybuf_size = 0;
 
-#define MAX_BTREE_HEIGHT            100
-#define MAX_NODES_PER_OBJECT        67000
-#define MAX_PER_THREAD_NODES        (MAX_BTREE_HEIGHT + MAX_NODES_PER_OBJECT)
-#define MAX_PER_THREAD_NODES_REF (MAX_PER_THREAD_NODES * 10) //btree check reference all most all nodes
+#define MAX_BTREE_HEIGHT                        100
+#define MAX_NODES_PER_OBJECT_DEF              67000
+#define MAX_NODES_PER_OBJECT_PROP_DEF        "67000"
+#define MAX_PER_THREAD_NODES_DEF              (MAX_BTREE_HEIGHT + MAX_NODES_PER_OBJECT_DEF)
+#define MAX_PER_THREAD_NODES_REF_DEF          (MAX_PER_THREAD_NODES_DEF * 10) //btree check reference all most all nodes
+
+// Set up default btree node limit. Override for STORM mode.
+int max_nodes_per_object = -1; // -1 == uninitialized
+int max_per_thread_nodes = MAX_BTREE_HEIGHT * MAX_NODES_PER_OBJECT_DEF;
+int max_per_thread_nodes_ref = MAX_PER_THREAD_NODES_DEF;
 
 extern ZS_status_t _ZSInitPerThreadState(struct ZS_state  *zs_state, struct ZS_thread_state **thd_state);
 extern ZS_status_t _ZSReleasePerThreadState(struct ZS_thread_state **thd_state);
@@ -434,8 +440,8 @@ btree_raw_init(uint32_t flags, uint32_t n_partition, uint32_t n_partitions, uint
     btree_raw_t      *bt;
     uint32_t          nbytes_meta;
     btree_status_t    ret = BTREE_SUCCESS;
-	int					i, sync_threads;
-	char				*env;
+    int					i, sync_threads;
+    char				*env;
 
     dbg_print("start dbg_referenced %ld\n", dbg_referenced);
 
@@ -470,7 +476,7 @@ btree_raw_init(uint32_t flags, uint32_t n_partition, uint32_t n_partitions, uint
 
     /* We need be able to fit in the data with max nodes per object
      * Updates need twice as many, so multiply by 2 */
-    assert(bt->nodesize_less_hdr > BTREE_MAX_DATA_SIZE_SUPPORTED/MAX_NODES_PER_OBJECT * 2);
+    assert(bt->nodesize_less_hdr > BTREE_MAX_DATA_SIZE_SUPPORTED/max_nodes_per_object * 2);
 
     // bt->big_object_size      = (nodesize - sizeof(btree_raw_mem_node_t))/2; // xxxzzz check this
     bt->big_object_size      = bt->nodesize_less_hdr / 4 - sizeof(node_vlkey_t); // xxxzzz check this
@@ -2249,6 +2255,8 @@ cleanup:
 
 //======================   INSERT/UPDATE/UPSERT  =========================================
 
+#define BTREE_OVERAGE_DEF "1.01"
+
 //  return 0 if success, 1 otherwise
 int
 init_l1cache()
@@ -2258,6 +2266,8 @@ init_l1cache()
 	int percentage = 100;
 	int ratio = overflow_node_sz / get_btree_node_size(); //overflow node size : btree noe size
 	uint64_t buffer_count;
+	char *overage_prop = (char *)ZSGetProperty("ZS_BTREE_OVERAGE", BTREE_OVERAGE_DEF);
+	float overage = atof(overage_prop);
 
 	l1cache_size = 0;
 	n_global_l1cache_buckets = 0;
@@ -2316,9 +2326,9 @@ init_l1cache()
 	if(n <=0 || n > 10000000)
 		n = DEFAULT_N_L1CACHE_PARTITIONS;
 
-	// Allocate extra 1% for boundary conditions.
+	// For Storm, decrease cache size.
 	if (bt_storm_mode) {
-		buffer_count = (l1raw_size / overflow_node_sz + (n + 1)) * 1.01 + n * 16;
+		buffer_count = (l1raw_size / overflow_node_sz + (n + 1)) * overage + n * 16;
 		free_raw_node_list = btree_node_list_init(buffer_count, sizeof(btree_raw_mem_node_t) + overflow_node_sz);
 		global_raw_l1cache = PMapInit(n, 16 * (l1raw_buckets / n + 1), 16 * (l1raw_buckets / n + 1), 1, l1cache_replace);
 		if (global_raw_l1cache == NULL) {
@@ -2328,7 +2338,7 @@ init_l1cache()
 		free_raw_node_list = NULL;
 	}
 
-	buffer_count = ((l1reg_size / get_btree_node_size()) + (n + 1)) * 1.01 + n *16;
+	buffer_count = ((l1reg_size / get_btree_node_size()) + (n + 1)) * overage + n *16;
 	free_node_list = btree_node_list_init(buffer_count, MEM_NODE_SIZE);
 
 	l1cache_partitions = n;
@@ -3176,7 +3186,7 @@ static btree_raw_mem_node_t* add_l1cache(btree_raw_t *btree, uint64_t logical_id
 
 void ref_l1cache(btree_raw_t *btree, btree_raw_mem_node_t *n)
 {
-    assert(referenced_nodes_count < MAX_PER_THREAD_NODES_REF);
+    assert(referenced_nodes_count < max_per_thread_nodes_ref);
     assert(n);
     dbg_print("%p id %ld root: %d leaf: %d over: %d dbg_referenced %lx\n", n, n->pnode->logical_id, is_root(btree, n->pnode), is_leaf(btree, n->pnode), is_overflow(btree, n->pnode), dbg_referenced);
     referenced_nodes[referenced_nodes_count++] = n;
@@ -3208,10 +3218,10 @@ static void modify_l1cache_node(btree_raw_t *btree, btree_raw_mem_node_t *node)
 		dbg_print("marked modified id=%ld modified_nodes_count=%ld\n", node->pnode->logical_id, modified_nodes_count);
 		mark_node_dirty(node);
 		if (bt_storm_mode && (node->pnode->flags == OVERFLOW_NODE)) {
-			assert(overflow_nodes_count < MAX_PER_THREAD_NODES);
+			assert(overflow_nodes_count < max_per_thread_nodes);
 			overflow_nodes[overflow_nodes_count++] = node;
 		} else {
-			assert(modified_nodes_count < MAX_PER_THREAD_NODES);
+			assert(modified_nodes_count < max_per_thread_nodes);
 			modified_nodes[modified_nodes_count++] = node;
 		}
 		PMapIncrRefcnt(BT_GET_L1CACHE_NODE(node->pnode),(char *) &(node->pnode->logical_id), sizeof(uint64_t), btree->cguid, 
@@ -3620,7 +3630,7 @@ free_node(btree_status_t *ret, btree_raw_t *btree, btree_raw_mem_node_t *n)
     sub_node_stats(btree, n->pnode, NODES, 1);
     sub_node_stats(btree, n->pnode, BYTES, sizeof(btree_raw_node_t));
 
-    assert(deleted_nodes_count < MAX_PER_THREAD_NODES);
+    assert(deleted_nodes_count < max_per_thread_nodes);
     deleted_nodes[deleted_nodes_count++] = n;
     mark_node_deleted(n);
     PMapIncrRefcnt(BT_GET_L1CACHE_NODE(n->pnode),(char *) &(n->pnode->logical_id), sizeof(uint64_t),
@@ -9749,16 +9759,30 @@ out:
 }
 
 void
+btree_set_buffer_props(void)
+{
+    char *max_nodes_per_object_prop = NULL;
+
+    if (max_nodes_per_object < 0) {
+        max_nodes_per_object_prop = (char *)ZSGetProperty("ZS_BTREE_MAX_NODES_PER_OBJECT", MAX_NODES_PER_OBJECT_PROP_DEF);
+        max_nodes_per_object = atoi(max_nodes_per_object_prop);
+        max_per_thread_nodes = MAX_BTREE_HEIGHT * max_nodes_per_object;
+        max_per_thread_nodes_ref = max_per_thread_nodes * 10;
+    }
+}
+
+void
 btree_raw_alloc_thread_bufs(void)
 {
-	thread_buf_alloc_helper(modified_nodes, btree_raw_mem_node_t **, sizeof(btree_raw_mem_node_t *) * MAX_PER_THREAD_NODES);
-	thread_buf_alloc_helper(overflow_nodes, btree_raw_mem_node_t **, sizeof(btree_raw_mem_node_t *) * MAX_PER_THREAD_NODES);
-	thread_buf_alloc_helper(referenced_nodes, btree_raw_mem_node_t **, sizeof(btree_raw_mem_node_t *) * MAX_PER_THREAD_NODES_REF);
-	thread_buf_alloc_helper(deleted_nodes, btree_raw_mem_node_t **, sizeof(btree_raw_mem_node_t *) * MAX_PER_THREAD_NODES);
-	thread_buf_alloc_helper(modified_metanodes, btree_raw_mem_node_t **, sizeof(btree_raw_mem_node_t *) * META_TOTAL_NODES);
-	thread_buf_alloc_helper(modified_written, int *, sizeof(int) * MAX_PER_THREAD_NODES);
-	thread_buf_alloc_helper(deleted_written, int *, sizeof(int) * MAX_PER_THREAD_NODES);
-	thread_buf_alloc_helper(deleted_ovnodes_id, uint64_t *, sizeof(uint64_t) * MAX_PER_THREAD_NODES);
+    btree_set_buffer_props();
+    thread_buf_alloc_helper(modified_nodes, btree_raw_mem_node_t **, sizeof(btree_raw_mem_node_t *) * max_per_thread_nodes); 
+    thread_buf_alloc_helper(overflow_nodes, btree_raw_mem_node_t **, sizeof(btree_raw_mem_node_t *) * max_per_thread_nodes); 
+    thread_buf_alloc_helper(referenced_nodes, btree_raw_mem_node_t **, sizeof(btree_raw_mem_node_t *) * max_per_thread_nodes_ref); 
+    thread_buf_alloc_helper(deleted_nodes, btree_raw_mem_node_t **, sizeof(btree_raw_mem_node_t *) * max_per_thread_nodes); 
+    thread_buf_alloc_helper(modified_metanodes, btree_raw_mem_node_t **, sizeof(btree_raw_mem_node_t *) * META_TOTAL_NODES); 
+    thread_buf_alloc_helper(modified_written, int *, sizeof(int) * max_per_thread_nodes); 
+    thread_buf_alloc_helper(deleted_written, int *, sizeof(int) * max_per_thread_nodes); 
+    thread_buf_alloc_helper(deleted_ovnodes_id, uint64_t *, sizeof(uint64_t) * max_per_thread_nodes);
 }
 
 void

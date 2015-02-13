@@ -90,6 +90,6 @@ typedef struct mcd_container {
 
 } mcd_container_t;
 
-extern mcd_container_t Mcd_containers[MCD_MAX_NUM_CNTRS];
+extern mcd_container_t *Mcd_containers;
 
 #endif  /* __MCD_OSD_INTERNAL_H__ */

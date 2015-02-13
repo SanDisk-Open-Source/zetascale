@@ -29,13 +29,13 @@
 #include "ssd/fifo/mcd_osd.h"
 #include "private.h"
 #include "api/sdf_internal.h"
+#include "api/fdf_internal.h"
 #include "cmc.h"
 
 #include <netinet/in.h>
 #include "ssd/fifo/mcd_osd_internal.h"
 #include "api/sdf_internal.h"
 #include "api/fdf_internal.h"
-extern mcd_container_t Mcd_containers[MCD_MAX_NUM_CNTRS];
 
 extern SDF_cmc_t *theCMC; // Global CMC object
 extern struct SDF_shared_state sdf_shared_state;
@@ -510,7 +510,7 @@ cmc_recover(SDF_internal_ctxt_t *pai, const char *cmc_path) {
     if ( SDF_SUCCESS != status ) 
         goto out;
         
-    for (int i=0; i<MCD_MAX_NUM_CNTRS; i++) {
+    for (int i=0; i<max_num_containers; i++) {
         if (Mcd_containers[i].cguid == ZS_NULL_CGUID) {
             // this is an unused map entry  
             Mcd_containers[i].cguid         = vmc_meta->cguid;
@@ -550,7 +550,7 @@ cmc_recover(SDF_internal_ctxt_t *pai, const char *cmc_path) {
     if ( SDF_SUCCESS != status )
         goto out;
 
-    for (int i=0; i<MCD_MAX_NUM_CNTRS; i++) {
+    for (int i=0; i<max_num_containers; i++) {
         if (Mcd_containers[i].cguid == ZS_NULL_CGUID) {
             // this is an unused map entry
             Mcd_containers[i].cguid         = vdc_meta->cguid;

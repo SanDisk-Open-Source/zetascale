@@ -39,14 +39,18 @@ SDF_status_t SDFAutoDelete(SDF_internal_ctxt_t *pai)
 #ifndef SDFAPI
 SDF_status_t SDFGetContainers(SDF_internal_ctxt_t *pai, struct mcd_container **pcontainers, int *pn_containers)
 {
+#ifdef notdef
     mcd_osd_get_containers(((SDF_action_init_t *) pai)->paio_ctxt, pcontainers, pn_containers);
-    return(SDF_SUCCESS);
+#endif /* notdef */
+    return(SDF_FAILURE);
 }
 #else
 SDF_status_t SDFGetContainersPtrs(SDF_internal_ctxt_t *pai, struct mcd_container **pcontainers, int *pn_containers)
 {
+#ifdef notdef
     mcd_osd_get_containers(((SDF_action_init_t *) pai)->paio_ctxt, pcontainers, pn_containers);
-    return(SDF_SUCCESS);
+#endif /* notdef */
+    return(SDF_FAILURE);
 }
 #endif /* SDFAPI */
 

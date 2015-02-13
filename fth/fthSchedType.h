@@ -18,7 +18,7 @@
 
 #ifndef FTH_MAX_SCHEDS
 // #define FTH_MAX_SCHEDS 16
-#define FTH_MAX_SCHEDS 32
+#define FTH_MAX_SCHEDS 1
 #endif
 
 #endif

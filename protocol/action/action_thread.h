@@ -72,8 +72,8 @@ typedef struct SDF_action_thrd_state {
     struct SDF_trans_state   *free_trans_states;
     struct SDFNewCache       *new_actiondir;
     struct SDF_appBufState   *pappbufstate;
-    SDF_action_init_t         ai_struct;
-    SDF_action_init_t        *pai;
+    SDF_action_init_t         ai_struct;            // Remove????
+    SDF_action_init_t        *pai;                  // Remove???
     int                       total_trans_state_structs;
     int                       used_trans_state_structs;
     int                       n_underway;

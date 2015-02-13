@@ -62,6 +62,7 @@
 #include <inttypes.h>
 #ifdef SDFAPI
 #include "api/sdf.h"
+#include "api/fdf_internal.h"
 #endif
 
 #include "appbuf_pool.h"
@@ -549,7 +550,7 @@ void InitActionProtocolCommonState(SDF_action_state_t *pas, SDF_action_init_t *p
     // buckets = 1;
     // nslabs  = 1; // for stress testing
 
-    init_stats(&(pas->stats_new));
+    init_stats(pas->stats_new);
     pas->threadstates = NULL;
     pas->nbuckets  = buckets;
     pas->nslabs    = nslabs;
@@ -588,16 +589,16 @@ void InitActionProtocolCommonState(SDF_action_state_t *pas, SDF_action_init_t *p
 
     init_protocol_tables(pas);
     pas->n_containers = 0;
-    pas->ctnr_meta = plat_alloc(SDF_MAX_CONTAINERS*sizeof(SDF_cache_ctnr_metadata_t));
+    pas->ctnr_meta = plat_alloc(max_num_containers*sizeof(SDF_cache_ctnr_metadata_t));
     #ifdef MALLOC_TRACE
-        UTMallocTrace("ctnr_meta", SDF_TRUE, SDF_FALSE, SDF_FALSE, (void *) pas->ctnr_meta, SDF_MAX_CONTAINERS*sizeof(SDF_cache_ctnr_metadata_t));
+        UTMallocTrace("ctnr_meta", SDF_TRUE, SDF_FALSE, SDF_FALSE, (void *) pas->ctnr_meta, max_num_containers*sizeof(SDF_cache_ctnr_metadata_t));
     #endif // MALLOC_TRACE
     if (pas->ctnr_meta == NULL) {
         plat_log_msg(21081, PLAT_LOG_CAT_SDF_PROT, PLAT_LOG_LEVEL_FATAL,
                      "plat_alloc failed!");
         plat_abort();
     }
-    for (i=0; i<SDF_MAX_CONTAINERS; i++) {
+    for (i=0; i<max_num_containers; i++) {
         pas->ctnr_meta[i].valid = 0;
     }
 
@@ -2380,63 +2381,63 @@ SDF_status_t SDFGetCacheStat(SDF_action_init_t *pai, SDF_CONTAINER container, in
             ret = SDFContainerStatInternal(pai, container, FLASH_NUM_OBJECTS, &num_curr_flash_objects);
             if (ret == SDF_SUCCESS) {
                 /* NOTE: n_only_in_cache should be zero in wt mode! */
-                *pstat = pas->stats_per_ctnr.ctnr_stats[pmeta->n].n_only_in_cache + num_curr_flash_objects;
+                *pstat = pas->stats_per_ctnr->ctnr_stats[pmeta->n].n_only_in_cache + num_curr_flash_objects;
             }
             break;
         case SDF_N_TOTAL_ITEMS:
-            *pstat = pas->stats_per_ctnr.ctnr_stats[pmeta->n].all_objects_ever_created;
+            *pstat = pas->stats_per_ctnr->ctnr_stats[pmeta->n].all_objects_ever_created;
             *pstat += (pmeta->all_objects_at_restart);
             break;
         case SDF_BYTES_CURR_ITEMS:
             ret = SDFContainerStatInternal(pai, container, FLASH_SPACE_USED, &bytes_curr_flash_objects);
             if (ret == SDF_SUCCESS) {
                 /* NOTE: pmeta->bytes_only_in_cache should be zero in wt mode! */
-                *pstat = pas->stats_per_ctnr.ctnr_stats[pmeta->n].bytes_only_in_cache + bytes_curr_flash_objects;
+                *pstat = pas->stats_per_ctnr->ctnr_stats[pmeta->n].bytes_only_in_cache + bytes_curr_flash_objects;
             }
             break;
         case SDF_BYTES_TOTAL_ITEMS:
-            *pstat = pas->stats_per_ctnr.ctnr_stats[pmeta->n].all_bytes_ever_created;
+            *pstat = pas->stats_per_ctnr->ctnr_stats[pmeta->n].all_bytes_ever_created;
             break;
         case SDF_N_ONLY_IN_CACHE:
-            *pstat = pas->stats_per_ctnr.ctnr_stats[pmeta->n].n_only_in_cache;
+            *pstat = pas->stats_per_ctnr->ctnr_stats[pmeta->n].n_only_in_cache;
             ret = SDF_SUCCESS;
             break;
         case SDF_N_TOTAL_IN_CACHE:
-            *pstat = pas->stats_per_ctnr.ctnr_stats[pmeta->n].n_total_in_cache;
+            *pstat = pas->stats_per_ctnr->ctnr_stats[pmeta->n].n_total_in_cache;
             ret = SDF_SUCCESS;
             break;
         case SDF_BYTES_ONLY_IN_CACHE:
-            *pstat = pas->stats_per_ctnr.ctnr_stats[pmeta->n].bytes_only_in_cache;
+            *pstat = pas->stats_per_ctnr->ctnr_stats[pmeta->n].bytes_only_in_cache;
             ret = SDF_SUCCESS;
             break;
         case SDF_BYTES_TOTAL_IN_CACHE:
-            *pstat = pas->stats_per_ctnr.ctnr_stats[pmeta->n].bytes_total_in_cache;
+            *pstat = pas->stats_per_ctnr->ctnr_stats[pmeta->n].bytes_total_in_cache;
             ret = SDF_SUCCESS;
             break;
         case SDF_N_OVERWRITES:
-            *pstat = (pas->stats_per_ctnr.ctnr_stats[pmeta->n].n_overwrites_s +
-                     pas->stats_per_ctnr.ctnr_stats[pmeta->n].n_overwrites_m);
+            *pstat = (pas->stats_per_ctnr->ctnr_stats[pmeta->n].n_overwrites_s +
+                     pas->stats_per_ctnr->ctnr_stats[pmeta->n].n_overwrites_m);
             ret = SDF_SUCCESS;
             break;
         case SDF_N_IN_PLACE_OVERWRITES:
-            *pstat = (pas->stats_per_ctnr.ctnr_stats[pmeta->n].n_in_place_overwrites_s +
-                      pas->stats_per_ctnr.ctnr_stats[pmeta->n].n_in_place_overwrites_m);
+            *pstat = (pas->stats_per_ctnr->ctnr_stats[pmeta->n].n_in_place_overwrites_s +
+                      pas->stats_per_ctnr->ctnr_stats[pmeta->n].n_in_place_overwrites_m);
             ret = SDF_SUCCESS;
             break;
         case SDF_N_NEW_ENTRY:
-            *pstat = pas->stats_per_ctnr.ctnr_stats[pmeta->n].n_new_entry;
+            *pstat = pas->stats_per_ctnr->ctnr_stats[pmeta->n].n_new_entry;
             ret = SDF_SUCCESS;
             break;
         case SDF_N_WRITETHRUS:
-            *pstat = pas->stats_per_ctnr.ctnr_stats[pmeta->n].n_writethrus;
+            *pstat = pas->stats_per_ctnr->ctnr_stats[pmeta->n].n_writethrus;
             ret = SDF_SUCCESS;
             break;
         case SDF_N_WRITEBACKS:
-            *pstat = pas->stats_per_ctnr.ctnr_stats[pmeta->n].n_writebacks;
+            *pstat = pas->stats_per_ctnr->ctnr_stats[pmeta->n].n_writebacks;
             ret = SDF_SUCCESS;
             break;
         case SDF_N_FLUSHES:
-            *pstat = pas->stats_per_ctnr.ctnr_stats[pmeta->n].n_flushes;
+            *pstat = pas->stats_per_ctnr->ctnr_stats[pmeta->n].n_flushes;
             ret = SDF_SUCCESS;
             break;
     }
@@ -2464,9 +2465,9 @@ SDF_status_t SDFPreloadContainerMetaData(SDF_action_init_t *pai, SDF_cguid_t cgu
     {
         i = cguid;
 
-	if (i >= SDF_MAX_CONTAINERS) {
+	if (i >= max_num_containers) {
 	    plat_log_msg(21107, PLAT_LOG_CAT_SDF_PROT, PLAT_LOG_LEVEL_DEBUG,
-			 "Exceeded max number of containers (%d).", SDF_MAX_CONTAINERS);
+			 "Exceeded max number of containers (%d).", max_num_containers);
 	    // plat_abort();
 	    fthUnlock(wait);
 	    return(SDF_TOO_MANY_CONTAINERS);
@@ -3374,12 +3375,12 @@ static void init_free_home_flash_map_entries(SDF_action_thrd_state_t *pts)
     // Initialize the array of free shard map entries
     pts->free_shard_map_entries = NULL;
     pts->free_shard_map_entries_alloc_ptr = NULL;
-    phfe = plat_alloc(SDF_MAX_CONTAINERS*sizeof(SDF_home_flash_entry_t));
+    phfe = plat_alloc(max_num_containers*sizeof(SDF_home_flash_entry_t));
     pts->free_shard_map_entries_alloc_ptr = phfe; 
     #ifdef MALLOC_TRACE
-        UTMallocTrace("init_free_home_flash_map_entries", SDF_TRUE, SDF_FALSE, SDF_FALSE, (void *) phfe, SDF_MAX_CONTAINERS*sizeof(SDF_home_flash_entry_t));
+        UTMallocTrace("init_free_home_flash_map_entries", SDF_TRUE, SDF_FALSE, SDF_FALSE, (void *) phfe, max_num_containers*sizeof(SDF_home_flash_entry_t));
     #endif // MALLOC_TRACE
-    for (i=0; i<SDF_MAX_CONTAINERS; i++) {
+    for (i=0; i<max_num_containers; i++) {
         phfe[i].next = pts->free_shard_map_entries;
         pts->free_shard_map_entries = &(phfe[i]);
     }
@@ -4025,7 +4026,7 @@ inline void init_ctnr_stats(SDF_cache_ctnr_stats_t *ps)
 
 static void init_stats(SDF_action_stats_new_t *ps)
 {
-    memset((void *) ps, 0, sizeof(SDF_action_stats_new_t));
+    memset((void *) ps->ctnr_stats, 0, sizeof(SDF_cache_ctnr_stats_t) * max_num_containers);
 }
 
 static int UsedAppReqs[] = {
@@ -4097,9 +4098,9 @@ static void sum_sched_stats(SDF_action_state_t *pas)
 	int							*used_ctnr;
 
     // init just the container stats records we need for the used containers
-    init_ctnr_stats(&(pas->stats_new.ctnr_stats[0]));   // only need 1 of these
+    init_ctnr_stats(&(pas->stats_new->ctnr_stats[0]));   // only need 1 of these
 
-	used_ctnr = (int *)plat_malloc(sizeof(int) * (SDF_MAX_CONTAINERS + 1));
+	used_ctnr = (int *)plat_malloc(sizeof(int) * (max_num_containers + 1));
 	if (used_ctnr == NULL) {
 		plat_log_msg(160189, PLAT_LOG_CAT_PRINT_ARGS, PLAT_LOG_LEVEL_DEBUG, "Memory allocation failed to collect stats\n");
 		return;
@@ -4107,10 +4108,10 @@ static void sum_sched_stats(SDF_action_state_t *pas)
 
     // determine which containers are used
     n = 0;
-    for (i=0; i<SDF_MAX_CONTAINERS; i++) {
+    for (i=0; i<max_num_containers; i++) {
         if (pas->ctnr_meta[i].valid) {
             used_ctnr[n] = i;
-            init_ctnr_stats(&(pas->stats_per_ctnr.ctnr_stats[i]));
+            init_ctnr_stats(&(pas->stats_per_ctnr->ctnr_stats[i]));
             n++;
         }
     }
@@ -4119,132 +4120,132 @@ static void sum_sched_stats(SDF_action_state_t *pas)
     for (nsched = 0; nsched < totalScheds; nsched++) {
         for (i=0; used_ctnr[i] != -1; i++) {
             for (j=0; UsedAppReqs[j] != APDUM; j++) {
-                pas->stats_per_ctnr.ctnr_stats[used_ctnr[i]].appreq_counts[UsedAppReqs[j]] += pas->stats_new_per_sched[nsched].ctnr_stats[used_ctnr[i]].appreq_counts[UsedAppReqs[j]];
-                pas->stats_new.ctnr_stats[0].appreq_counts[UsedAppReqs[j]] += pas->stats_new_per_sched[nsched].ctnr_stats[used_ctnr[i]].appreq_counts[UsedAppReqs[j]];
+                pas->stats_per_ctnr->ctnr_stats[used_ctnr[i]].appreq_counts[UsedAppReqs[j]] += pas->stats_new_per_sched[nsched].ctnr_stats[used_ctnr[i]].appreq_counts[UsedAppReqs[j]];
+                pas->stats_new->ctnr_stats[0].appreq_counts[UsedAppReqs[j]] += pas->stats_new_per_sched[nsched].ctnr_stats[used_ctnr[i]].appreq_counts[UsedAppReqs[j]];
             }
 
             for (j=0; UsedMsgs[j] != ZDUMY; j++) {
-                pas->stats_per_ctnr.ctnr_stats[used_ctnr[i]].msg_out_counts[UsedMsgs[j]] += pas->stats_new_per_sched[nsched].ctnr_stats[used_ctnr[i]].msg_out_counts[UsedMsgs[j]];
-                pas->stats_per_ctnr.ctnr_stats[used_ctnr[i]].msg_in_counts[UsedMsgs[j]] += pas->stats_new_per_sched[nsched].ctnr_stats[used_ctnr[i]].msg_in_counts[UsedMsgs[j]];
-                pas->stats_new.ctnr_stats[0].msg_out_counts[UsedMsgs[j]] += pas->stats_new_per_sched[nsched].ctnr_stats[used_ctnr[i]].msg_out_counts[UsedMsgs[j]];
-                pas->stats_new.ctnr_stats[0].msg_in_counts[UsedMsgs[j]] += pas->stats_new_per_sched[nsched].ctnr_stats[used_ctnr[i]].msg_in_counts[UsedMsgs[j]];
+                pas->stats_per_ctnr->ctnr_stats[used_ctnr[i]].msg_out_counts[UsedMsgs[j]] += pas->stats_new_per_sched[nsched].ctnr_stats[used_ctnr[i]].msg_out_counts[UsedMsgs[j]];
+                pas->stats_per_ctnr->ctnr_stats[used_ctnr[i]].msg_in_counts[UsedMsgs[j]] += pas->stats_new_per_sched[nsched].ctnr_stats[used_ctnr[i]].msg_in_counts[UsedMsgs[j]];
+                pas->stats_new->ctnr_stats[0].msg_out_counts[UsedMsgs[j]] += pas->stats_new_per_sched[nsched].ctnr_stats[used_ctnr[i]].msg_out_counts[UsedMsgs[j]];
+                pas->stats_new->ctnr_stats[0].msg_in_counts[UsedMsgs[j]] += pas->stats_new_per_sched[nsched].ctnr_stats[used_ctnr[i]].msg_in_counts[UsedMsgs[j]];
             }
 
             for (j=0; j<N_SDF_STATUS_STRINGS; j++) {
-                pas->stats_per_ctnr.ctnr_stats[used_ctnr[i]].sdf_status_counts[j] += pas->stats_new_per_sched[nsched].ctnr_stats[used_ctnr[i]].sdf_status_counts[j];
-                pas->stats_new.ctnr_stats[0].sdf_status_counts[j] += pas->stats_new_per_sched[nsched].ctnr_stats[used_ctnr[i]].sdf_status_counts[j];
+                pas->stats_per_ctnr->ctnr_stats[used_ctnr[i]].sdf_status_counts[j] += pas->stats_new_per_sched[nsched].ctnr_stats[used_ctnr[i]].sdf_status_counts[j];
+                pas->stats_new->ctnr_stats[0].sdf_status_counts[j] += pas->stats_new_per_sched[nsched].ctnr_stats[used_ctnr[i]].sdf_status_counts[j];
             }
 
             for (j=0; UsedFlashCodes[j] != FLASH_N_ERR_CODES; j++) {
-                pas->stats_per_ctnr.ctnr_stats[used_ctnr[i]].flash_retcode_counts[UsedFlashCodes[j]] += pas->stats_new_per_sched[nsched].ctnr_stats[used_ctnr[i]].flash_retcode_counts[UsedFlashCodes[j]];
-                pas->stats_new.ctnr_stats[0].flash_retcode_counts[UsedFlashCodes[j]] += pas->stats_new_per_sched[nsched].ctnr_stats[used_ctnr[i]].flash_retcode_counts[UsedFlashCodes[j]];
+                pas->stats_per_ctnr->ctnr_stats[used_ctnr[i]].flash_retcode_counts[UsedFlashCodes[j]] += pas->stats_new_per_sched[nsched].ctnr_stats[used_ctnr[i]].flash_retcode_counts[UsedFlashCodes[j]];
+                pas->stats_new->ctnr_stats[0].flash_retcode_counts[UsedFlashCodes[j]] += pas->stats_new_per_sched[nsched].ctnr_stats[used_ctnr[i]].flash_retcode_counts[UsedFlashCodes[j]];
             }
 
-            pas->stats_per_ctnr.ctnr_stats[used_ctnr[i]].n_only_in_cache += 
+            pas->stats_per_ctnr->ctnr_stats[used_ctnr[i]].n_only_in_cache += 
                 pas->stats_new_per_sched[nsched].ctnr_stats[used_ctnr[i]].n_only_in_cache;
-            pas->stats_new.ctnr_stats[0].n_only_in_cache += 
+            pas->stats_new->ctnr_stats[0].n_only_in_cache += 
                 pas->stats_new_per_sched[nsched].ctnr_stats[used_ctnr[i]].n_only_in_cache;
 
-            pas->stats_per_ctnr.ctnr_stats[used_ctnr[i]].n_total_in_cache += 
+            pas->stats_per_ctnr->ctnr_stats[used_ctnr[i]].n_total_in_cache += 
                 pas->stats_new_per_sched[nsched].ctnr_stats[used_ctnr[i]].n_total_in_cache;
-            pas->stats_new.ctnr_stats[0].n_total_in_cache += 
+            pas->stats_new->ctnr_stats[0].n_total_in_cache += 
                 pas->stats_new_per_sched[nsched].ctnr_stats[used_ctnr[i]].n_total_in_cache;
 
-            pas->stats_per_ctnr.ctnr_stats[used_ctnr[i]].bytes_only_in_cache += 
+            pas->stats_per_ctnr->ctnr_stats[used_ctnr[i]].bytes_only_in_cache += 
                 pas->stats_new_per_sched[nsched].ctnr_stats[used_ctnr[i]].bytes_only_in_cache;
-            pas->stats_new.ctnr_stats[0].bytes_only_in_cache += 
+            pas->stats_new->ctnr_stats[0].bytes_only_in_cache += 
                 pas->stats_new_per_sched[nsched].ctnr_stats[used_ctnr[i]].bytes_only_in_cache;
 
-            pas->stats_per_ctnr.ctnr_stats[used_ctnr[i]].bytes_total_in_cache += 
+            pas->stats_per_ctnr->ctnr_stats[used_ctnr[i]].bytes_total_in_cache += 
                 pas->stats_new_per_sched[nsched].ctnr_stats[used_ctnr[i]].bytes_total_in_cache;
-            pas->stats_new.ctnr_stats[0].bytes_total_in_cache += 
+            pas->stats_new->ctnr_stats[0].bytes_total_in_cache += 
                 pas->stats_new_per_sched[nsched].ctnr_stats[used_ctnr[i]].bytes_total_in_cache;
 
-            pas->stats_per_ctnr.ctnr_stats[used_ctnr[i]].all_objects_ever_created += 
+            pas->stats_per_ctnr->ctnr_stats[used_ctnr[i]].all_objects_ever_created += 
                 pas->stats_new_per_sched[nsched].ctnr_stats[used_ctnr[i]].all_objects_ever_created;
-            pas->stats_new.ctnr_stats[0].all_objects_ever_created += 
+            pas->stats_new->ctnr_stats[0].all_objects_ever_created += 
                 pas->stats_new_per_sched[nsched].ctnr_stats[used_ctnr[i]].all_objects_ever_created;
 
-            pas->stats_per_ctnr.ctnr_stats[used_ctnr[i]].all_bytes_ever_created += 
+            pas->stats_per_ctnr->ctnr_stats[used_ctnr[i]].all_bytes_ever_created += 
                 pas->stats_new_per_sched[nsched].ctnr_stats[used_ctnr[i]].all_bytes_ever_created;
-            pas->stats_new.ctnr_stats[0].all_bytes_ever_created += 
+            pas->stats_new->ctnr_stats[0].all_bytes_ever_created += 
                 pas->stats_new_per_sched[nsched].ctnr_stats[used_ctnr[i]].all_bytes_ever_created;
 
-            pas->stats_per_ctnr.ctnr_stats[used_ctnr[i]].n_overwrites_s += 
+            pas->stats_per_ctnr->ctnr_stats[used_ctnr[i]].n_overwrites_s += 
                 pas->stats_new_per_sched[nsched].ctnr_stats[used_ctnr[i]].n_overwrites_s;
-            pas->stats_per_ctnr.ctnr_stats[used_ctnr[i]].n_overwrites_m += 
+            pas->stats_per_ctnr->ctnr_stats[used_ctnr[i]].n_overwrites_m += 
                 pas->stats_new_per_sched[nsched].ctnr_stats[used_ctnr[i]].n_overwrites_m;
-            pas->stats_new.ctnr_stats[0].n_overwrites_s += 
+            pas->stats_new->ctnr_stats[0].n_overwrites_s += 
                 pas->stats_new_per_sched[nsched].ctnr_stats[used_ctnr[i]].n_overwrites_s;
-            pas->stats_new.ctnr_stats[0].n_overwrites_m += 
+            pas->stats_new->ctnr_stats[0].n_overwrites_m += 
                 pas->stats_new_per_sched[nsched].ctnr_stats[used_ctnr[i]].n_overwrites_m;
 
-            pas->stats_per_ctnr.ctnr_stats[used_ctnr[i]].n_in_place_overwrites_s += 
+            pas->stats_per_ctnr->ctnr_stats[used_ctnr[i]].n_in_place_overwrites_s += 
                 pas->stats_new_per_sched[nsched].ctnr_stats[used_ctnr[i]].n_in_place_overwrites_s;
-            pas->stats_per_ctnr.ctnr_stats[used_ctnr[i]].n_in_place_overwrites_m += 
+            pas->stats_per_ctnr->ctnr_stats[used_ctnr[i]].n_in_place_overwrites_m += 
                 pas->stats_new_per_sched[nsched].ctnr_stats[used_ctnr[i]].n_in_place_overwrites_m;
-            pas->stats_new.ctnr_stats[0].n_in_place_overwrites_s += 
+            pas->stats_new->ctnr_stats[0].n_in_place_overwrites_s += 
                 pas->stats_new_per_sched[nsched].ctnr_stats[used_ctnr[i]].n_in_place_overwrites_s;
-            pas->stats_new.ctnr_stats[0].n_in_place_overwrites_m += 
+            pas->stats_new->ctnr_stats[0].n_in_place_overwrites_m += 
                 pas->stats_new_per_sched[nsched].ctnr_stats[used_ctnr[i]].n_in_place_overwrites_m;
 
-            pas->stats_per_ctnr.ctnr_stats[used_ctnr[i]].n_new_entry += 
+            pas->stats_per_ctnr->ctnr_stats[used_ctnr[i]].n_new_entry += 
                 pas->stats_new_per_sched[nsched].ctnr_stats[used_ctnr[i]].n_new_entry;
-            pas->stats_new.ctnr_stats[0].n_new_entry += 
+            pas->stats_new->ctnr_stats[0].n_new_entry += 
                 pas->stats_new_per_sched[nsched].ctnr_stats[used_ctnr[i]].n_new_entry;
 
-            pas->stats_per_ctnr.ctnr_stats[used_ctnr[i]].n_writethrus += 
+            pas->stats_per_ctnr->ctnr_stats[used_ctnr[i]].n_writethrus += 
                 pas->stats_new_per_sched[nsched].ctnr_stats[used_ctnr[i]].n_writethrus;
-            pas->stats_new.ctnr_stats[0].n_writethrus += 
+            pas->stats_new->ctnr_stats[0].n_writethrus += 
                 pas->stats_new_per_sched[nsched].ctnr_stats[used_ctnr[i]].n_writethrus;
 
-            pas->stats_per_ctnr.ctnr_stats[used_ctnr[i]].n_writebacks += 
+            pas->stats_per_ctnr->ctnr_stats[used_ctnr[i]].n_writebacks += 
                 pas->stats_new_per_sched[nsched].ctnr_stats[used_ctnr[i]].n_writebacks;
-            pas->stats_per_ctnr.ctnr_stats[0].n_writebacks += 
+            pas->stats_per_ctnr->ctnr_stats[0].n_writebacks += 
                 pas->stats_new_per_sched[nsched].ctnr_stats[used_ctnr[i]].n_writebacks;
 
-            pas->stats_per_ctnr.ctnr_stats[used_ctnr[i]].n_flushes += 
+            pas->stats_per_ctnr->ctnr_stats[used_ctnr[i]].n_flushes += 
                 pas->stats_new_per_sched[nsched].ctnr_stats[used_ctnr[i]].n_flushes;
-            pas->stats_new.ctnr_stats[0].n_flushes += 
+            pas->stats_new->ctnr_stats[0].n_flushes += 
                 pas->stats_new_per_sched[nsched].ctnr_stats[used_ctnr[i]].n_flushes;
 
-            pas->stats_per_ctnr.ctnr_stats[used_ctnr[i]].n_async_drains += 
+            pas->stats_per_ctnr->ctnr_stats[used_ctnr[i]].n_async_drains += 
                 pas->stats_new_per_sched[nsched].ctnr_stats[used_ctnr[i]].n_async_drains;
-            pas->stats_new.ctnr_stats[0].n_async_drains += 
+            pas->stats_new->ctnr_stats[0].n_async_drains += 
                 pas->stats_new_per_sched[nsched].ctnr_stats[used_ctnr[i]].n_async_drains;
 
-            pas->stats_per_ctnr.ctnr_stats[used_ctnr[i]].n_async_puts += 
+            pas->stats_per_ctnr->ctnr_stats[used_ctnr[i]].n_async_puts += 
                 pas->stats_new_per_sched[nsched].ctnr_stats[used_ctnr[i]].n_async_puts;
-            pas->stats_new.ctnr_stats[0].n_async_puts += 
+            pas->stats_new->ctnr_stats[0].n_async_puts += 
                 pas->stats_new_per_sched[nsched].ctnr_stats[used_ctnr[i]].n_async_puts;
 
-            pas->stats_per_ctnr.ctnr_stats[used_ctnr[i]].n_async_put_fails += 
+            pas->stats_per_ctnr->ctnr_stats[used_ctnr[i]].n_async_put_fails += 
                 pas->stats_new_per_sched[nsched].ctnr_stats[used_ctnr[i]].n_async_put_fails;
-            pas->stats_new.ctnr_stats[0].n_async_put_fails += 
+            pas->stats_new->ctnr_stats[0].n_async_put_fails += 
                 pas->stats_new_per_sched[nsched].ctnr_stats[used_ctnr[i]].n_async_put_fails;
 
-            pas->stats_per_ctnr.ctnr_stats[used_ctnr[i]].n_async_flushes += 
+            pas->stats_per_ctnr->ctnr_stats[used_ctnr[i]].n_async_flushes += 
                 pas->stats_new_per_sched[nsched].ctnr_stats[used_ctnr[i]].n_async_flushes;
-            pas->stats_new.ctnr_stats[0].n_async_flushes += 
+            pas->stats_new->ctnr_stats[0].n_async_flushes += 
                 pas->stats_new_per_sched[nsched].ctnr_stats[used_ctnr[i]].n_async_flushes;
 
-            pas->stats_per_ctnr.ctnr_stats[used_ctnr[i]].n_async_flush_fails += 
+            pas->stats_per_ctnr->ctnr_stats[used_ctnr[i]].n_async_flush_fails += 
                 pas->stats_new_per_sched[nsched].ctnr_stats[used_ctnr[i]].n_async_flush_fails;
-            pas->stats_new.ctnr_stats[0].n_async_flush_fails += 
+            pas->stats_new->ctnr_stats[0].n_async_flush_fails += 
                 pas->stats_new_per_sched[nsched].ctnr_stats[used_ctnr[i]].n_async_flush_fails;
 
-            pas->stats_per_ctnr.ctnr_stats[used_ctnr[i]].n_async_wrbks += 
+            pas->stats_per_ctnr->ctnr_stats[used_ctnr[i]].n_async_wrbks += 
                 pas->stats_new_per_sched[nsched].ctnr_stats[used_ctnr[i]].n_async_wrbks;
-            pas->stats_new.ctnr_stats[0].n_async_wrbks += 
+            pas->stats_new->ctnr_stats[0].n_async_wrbks += 
                 pas->stats_new_per_sched[nsched].ctnr_stats[used_ctnr[i]].n_async_wrbks;
 
-            pas->stats_per_ctnr.ctnr_stats[used_ctnr[i]].n_async_wrbk_fails += 
+            pas->stats_per_ctnr->ctnr_stats[used_ctnr[i]].n_async_wrbk_fails += 
                 pas->stats_new_per_sched[nsched].ctnr_stats[used_ctnr[i]].n_async_wrbk_fails;
-            pas->stats_new.ctnr_stats[0].n_async_wrbk_fails += 
+            pas->stats_new->ctnr_stats[0].n_async_wrbk_fails += 
                 pas->stats_new_per_sched[nsched].ctnr_stats[used_ctnr[i]].n_async_wrbk_fails;
-			pas->stats_per_ctnr.ctnr_stats[used_ctnr[i]].n_async_commit_fails +=
+			pas->stats_per_ctnr->ctnr_stats[used_ctnr[i]].n_async_commit_fails +=
 				pas->stats_new_per_sched[nsched].ctnr_stats[used_ctnr[i]].n_async_commit_fails;
-			pas->stats_new.ctnr_stats[0].n_async_commit_fails +=
+			pas->stats_new->ctnr_stats[0].n_async_commit_fails +=
 				pas->stats_new_per_sched[nsched].ctnr_stats[used_ctnr[i]].n_async_commit_fails;
         }
     }
@@ -4314,28 +4315,28 @@ static int cache_stats(SDF_action_state_t *pas, char *str, int size)
         nappbufs, ntrans, nflashbufs, nresp);
 
     for (j=0; j<N_SDF_APP_REQS; j++) {
-        if (pas->stats_new.ctnr_stats[0].appreq_counts[j] > 0) {
-            i += snprintf(str+i, size-i, ", %s=%"PRIu64, SDF_App_Request_Info[j].shortname, pas->stats_new.ctnr_stats[0].appreq_counts[j]);
+        if (pas->stats_new->ctnr_stats[0].appreq_counts[j] > 0) {
+            i += snprintf(str+i, size-i, ", %s=%"PRIu64, SDF_App_Request_Info[j].shortname, pas->stats_new->ctnr_stats[0].appreq_counts[j]);
         }
     }
     for (j=0; j<N_SDF_PROTOCOL_MSGS; j++) {
-        if (pas->stats_new.ctnr_stats[0].msg_out_counts[j] > 0) {
-            i += snprintf(str+i, size-i, ", %s=%"PRIu64, SDF_Protocol_Msg_Info[j].shortname, pas->stats_new.ctnr_stats[0].msg_out_counts[j]);
+        if (pas->stats_new->ctnr_stats[0].msg_out_counts[j] > 0) {
+            i += snprintf(str+i, size-i, ", %s=%"PRIu64, SDF_Protocol_Msg_Info[j].shortname, pas->stats_new->ctnr_stats[0].msg_out_counts[j]);
         }
     }
     for (j=0; j<N_SDF_PROTOCOL_MSGS; j++) {
-        if (pas->stats_new.ctnr_stats[0].msg_in_counts[j] > 0) {
-            i += snprintf(str+i, size-i, ", %s=%"PRIu64, SDF_Protocol_Msg_Info[j].shortname, pas->stats_new.ctnr_stats[0].msg_in_counts[j]);
+        if (pas->stats_new->ctnr_stats[0].msg_in_counts[j] > 0) {
+            i += snprintf(str+i, size-i, ", %s=%"PRIu64, SDF_Protocol_Msg_Info[j].shortname, pas->stats_new->ctnr_stats[0].msg_in_counts[j]);
         }
     }
     for (j=0; j<N_SDF_STATUS_STRINGS; j++) {
-        if (pas->stats_new.ctnr_stats[0].sdf_status_counts[j] > 0) {
-            i += snprintf(str+i, size-i, ", %s=%"PRIu64, SDF_Status_Strings[j], pas->stats_new.ctnr_stats[0].sdf_status_counts[j]);
+        if (pas->stats_new->ctnr_stats[0].sdf_status_counts[j] > 0) {
+            i += snprintf(str+i, size-i, ", %s=%"PRIu64, SDF_Status_Strings[j], pas->stats_new->ctnr_stats[0].sdf_status_counts[j]);
         }
     }
     for (j=0; j<FLASH_N_ERR_CODES; j++) {
-        if (pas->stats_new.ctnr_stats[0].flash_retcode_counts[j] > 0) {
-            i += snprintf(str+i, size-i, ", %s=%"PRIu64, flashRetCodeName(j), pas->stats_new.ctnr_stats[0].flash_retcode_counts[j]);
+        if (pas->stats_new->ctnr_stats[0].flash_retcode_counts[j] > 0) {
+            i += snprintf(str+i, size-i, ", %s=%"PRIu64, flashRetCodeName(j), pas->stats_new->ctnr_stats[0].flash_retcode_counts[j]);
         }
     }
 
@@ -4371,47 +4372,47 @@ static int cache_stats_cguid(SDF_internal_ctxt_t *pac, SDF_action_state_t *pas, 
     i += snprintf(str+i, size-i, "<CACHE-PER-CTNR> [");
 
     for (j=0; j<N_SDF_APP_REQS; j++) {
-        if (pas->stats_per_ctnr.ctnr_stats[index].appreq_counts[j] > 0) {
-            i += snprintf(str+i, size-i, ", %s=%"PRIu64, SDF_App_Request_Info[j].shortname, pas->stats_per_ctnr.ctnr_stats[index].appreq_counts[j]);
+        if (pas->stats_per_ctnr->ctnr_stats[index].appreq_counts[j] > 0) {
+            i += snprintf(str+i, size-i, ", %s=%"PRIu64, SDF_App_Request_Info[j].shortname, pas->stats_per_ctnr->ctnr_stats[index].appreq_counts[j]);
         }
     }
     for (j=0; j<N_SDF_PROTOCOL_MSGS; j++) {
-        if (pas->stats_per_ctnr.ctnr_stats[index].msg_out_counts[j] > 0) {
-            i += snprintf(str+i, size-i, ", %s=%"PRIu64, SDF_Protocol_Msg_Info[j].shortname, pas->stats_per_ctnr.ctnr_stats[index].msg_out_counts[j]);
+        if (pas->stats_per_ctnr->ctnr_stats[index].msg_out_counts[j] > 0) {
+            i += snprintf(str+i, size-i, ", %s=%"PRIu64, SDF_Protocol_Msg_Info[j].shortname, pas->stats_per_ctnr->ctnr_stats[index].msg_out_counts[j]);
         }
     }
     for (j=0; j<N_SDF_PROTOCOL_MSGS; j++) {
-        if (pas->stats_per_ctnr.ctnr_stats[index].msg_in_counts[j] > 0) {
-            i += snprintf(str+i, size-i, ", %s=%"PRIu64, SDF_Protocol_Msg_Info[j].shortname, pas->stats_per_ctnr.ctnr_stats[index].msg_in_counts[j]);
+        if (pas->stats_per_ctnr->ctnr_stats[index].msg_in_counts[j] > 0) {
+            i += snprintf(str+i, size-i, ", %s=%"PRIu64, SDF_Protocol_Msg_Info[j].shortname, pas->stats_per_ctnr->ctnr_stats[index].msg_in_counts[j]);
         }
     }
     for (j=0; j<N_SDF_STATUS_STRINGS; j++) {
-        if (pas->stats_per_ctnr.ctnr_stats[index].sdf_status_counts[j] > 0) {
-            i += snprintf(str+i, size-i, ", %s=%"PRIu64, SDF_Status_Strings[j], pas->stats_per_ctnr.ctnr_stats[index].sdf_status_counts[j]);
+        if (pas->stats_per_ctnr->ctnr_stats[index].sdf_status_counts[j] > 0) {
+            i += snprintf(str+i, size-i, ", %s=%"PRIu64, SDF_Status_Strings[j], pas->stats_per_ctnr->ctnr_stats[index].sdf_status_counts[j]);
         }
     }
     for (j=0; j<FLASH_N_ERR_CODES; j++) {
-        if (pas->stats_per_ctnr.ctnr_stats[index].flash_retcode_counts[j] > 0) {
-            i += snprintf(str+i, size-i, ", %s=%"PRIu64, flashRetCodeName(j), pas->stats_per_ctnr.ctnr_stats[index].flash_retcode_counts[j]);
+        if (pas->stats_per_ctnr->ctnr_stats[index].flash_retcode_counts[j] > 0) {
+            i += snprintf(str+i, size-i, ", %s=%"PRIu64, flashRetCodeName(j), pas->stats_per_ctnr->ctnr_stats[index].flash_retcode_counts[j]);
         }
     }
-    i += snprintf(str+i, size-i, ", %s=%"PRIu64, "overwrites_s", pas->stats_per_ctnr.ctnr_stats[index].n_overwrites_s);
-    i += snprintf(str+i, size-i, ", %s=%"PRIu64, "overwrites_m", pas->stats_per_ctnr.ctnr_stats[index].n_overwrites_m);
-    i += snprintf(str+i, size-i, ", %s=%"PRIu64, "inplaceowr_s", pas->stats_per_ctnr.ctnr_stats[index].n_in_place_overwrites_s);
-    i += snprintf(str+i, size-i, ", %s=%"PRIu64, "inplaceowr_m", pas->stats_per_ctnr.ctnr_stats[index].n_in_place_overwrites_m);
-    i += snprintf(str+i, size-i, ", %s=%"PRIu64, "new_entries", pas->stats_per_ctnr.ctnr_stats[index].n_new_entry);
-    i += snprintf(str+i, size-i, ", %s=%"PRIu64, "writethrus", pas->stats_per_ctnr.ctnr_stats[index].n_writethrus);
-    i += snprintf(str+i, size-i, ", %s=%"PRIu64, "writebacks", pas->stats_per_ctnr.ctnr_stats[index].n_writebacks);
-    i += snprintf(str+i, size-i, ", %s=%"PRIu64, "flushes", pas->stats_per_ctnr.ctnr_stats[index].n_flushes);
+    i += snprintf(str+i, size-i, ", %s=%"PRIu64, "overwrites_s", pas->stats_per_ctnr->ctnr_stats[index].n_overwrites_s);
+    i += snprintf(str+i, size-i, ", %s=%"PRIu64, "overwrites_m", pas->stats_per_ctnr->ctnr_stats[index].n_overwrites_m);
+    i += snprintf(str+i, size-i, ", %s=%"PRIu64, "inplaceowr_s", pas->stats_per_ctnr->ctnr_stats[index].n_in_place_overwrites_s);
+    i += snprintf(str+i, size-i, ", %s=%"PRIu64, "inplaceowr_m", pas->stats_per_ctnr->ctnr_stats[index].n_in_place_overwrites_m);
+    i += snprintf(str+i, size-i, ", %s=%"PRIu64, "new_entries", pas->stats_per_ctnr->ctnr_stats[index].n_new_entry);
+    i += snprintf(str+i, size-i, ", %s=%"PRIu64, "writethrus", pas->stats_per_ctnr->ctnr_stats[index].n_writethrus);
+    i += snprintf(str+i, size-i, ", %s=%"PRIu64, "writebacks", pas->stats_per_ctnr->ctnr_stats[index].n_writebacks);
+    i += snprintf(str+i, size-i, ", %s=%"PRIu64, "flushes", pas->stats_per_ctnr->ctnr_stats[index].n_flushes);
 
-    i += snprintf(str+i, size-i, ", %s=%"PRIu64, "async_drains", pas->stats_per_ctnr.ctnr_stats[index].n_async_drains);
-    i += snprintf(str+i, size-i, ", %s=%"PRIu64, "async_puts", pas->stats_per_ctnr.ctnr_stats[index].n_async_puts);
-    i += snprintf(str+i, size-i, ", %s=%"PRIu64, "async_put_fails", pas->stats_per_ctnr.ctnr_stats[index].n_async_put_fails);
-    i += snprintf(str+i, size-i, ", %s=%"PRIu64, "async_flushes", pas->stats_per_ctnr.ctnr_stats[index].n_async_flushes);
-    i += snprintf(str+i, size-i, ", %s=%"PRIu64, "async_flush_fails", pas->stats_per_ctnr.ctnr_stats[index].n_async_flush_fails);
-    i += snprintf(str+i, size-i, ", %s=%"PRIu64, "async_wrbks", pas->stats_per_ctnr.ctnr_stats[index].n_async_wrbks);
-    i += snprintf(str+i, size-i, ", %s=%"PRIu64, "async_wrbk_fails", pas->stats_per_ctnr.ctnr_stats[index].n_async_wrbk_fails);
-	i += snprintf(str+i, size-i, ", %s=%"PRIu64, "async_commit_fails", pas->stats_per_ctnr.ctnr_stats[index].n_async_commit_fails);
+    i += snprintf(str+i, size-i, ", %s=%"PRIu64, "async_drains", pas->stats_per_ctnr->ctnr_stats[index].n_async_drains);
+    i += snprintf(str+i, size-i, ", %s=%"PRIu64, "async_puts", pas->stats_per_ctnr->ctnr_stats[index].n_async_puts);
+    i += snprintf(str+i, size-i, ", %s=%"PRIu64, "async_put_fails", pas->stats_per_ctnr->ctnr_stats[index].n_async_put_fails);
+    i += snprintf(str+i, size-i, ", %s=%"PRIu64, "async_flushes", pas->stats_per_ctnr->ctnr_stats[index].n_async_flushes);
+    i += snprintf(str+i, size-i, ", %s=%"PRIu64, "async_flush_fails", pas->stats_per_ctnr->ctnr_stats[index].n_async_flush_fails);
+    i += snprintf(str+i, size-i, ", %s=%"PRIu64, "async_wrbks", pas->stats_per_ctnr->ctnr_stats[index].n_async_wrbks);
+    i += snprintf(str+i, size-i, ", %s=%"PRIu64, "async_wrbk_fails", pas->stats_per_ctnr->ctnr_stats[index].n_async_wrbk_fails);
+	i += snprintf(str+i, size-i, ", %s=%"PRIu64, "async_commit_fails", pas->stats_per_ctnr->ctnr_stats[index].n_async_commit_fails);
 
     i += snprintf(str+i, size-i, "]\n");
     // plat_assert(i < size); xxxzzz FIX ME
@@ -6530,6 +6531,70 @@ cache_inval_by_cntr(SDF_action_init_t *pai, struct shard *shard,
 		    SDF_cguid_t cguid)
 {
     return SDFNewCacheInvalByCntr(pai->pcs->new_actiondir, shard, cguid);
+}
+
+static SDF_action_stats_new_t *allocate_action_stats()
+{
+    SDF_action_stats_new_t *stats = (SDF_action_stats_new_t *) plat_alloc(sizeof(SDF_action_stats_new_t));
+
+    if (stats) {
+        stats->ctnr_stats = (SDF_cache_ctnr_stats_t *) plat_alloc(sizeof(SDF_cache_ctnr_stats_t) * max_num_containers);
+        if (!stats->ctnr_stats) {
+            plat_free(stats);
+            stats = NULL;
+        }
+    }
+
+    return stats;
+}
+
+static void deallocate_action_stats(SDF_action_stats_new_t *stats)
+{           
+    if (stats) {
+        plat_free(stats->ctnr_stats);
+        stats->ctnr_stats = NULL;
+        plat_free(stats);
+        stats = NULL;
+    }
+}
+
+SDF_action_state_t *allocate_action_state()
+{   
+    SDF_action_state_t *state = NULL;
+    
+    state = (SDF_action_state_t *) plat_alloc(sizeof(SDF_action_state_t));
+    
+    if (state) {
+        state->stats_new_per_sched = NULL;
+        state->stats_new           = NULL;
+        state->stats_per_ctnr      = NULL;
+        state->stats_new_per_sched = allocate_action_stats();
+        state->stats_new           = allocate_action_stats();
+        state->stats_per_ctnr      = allocate_action_stats();;
+        if (!state->stats_new_per_sched || !state->stats_new || !state->stats_per_ctnr) {
+            if (state->stats_new_per_sched) plat_free(state->stats_new_per_sched);
+            if (state->stats_new) plat_free(state->stats_new);
+            if (state->stats_per_ctnr) plat_free(state->stats_per_ctnr);
+            plat_free(state);
+            state = NULL;
+        }
+    }
+    
+    return state;
+}
+
+void deallocate_action_state(SDF_action_state_t *state)
+{   
+    if (state) {
+        if (state->stats_new_per_sched) 
+            deallocate_action_stats(state->stats_new);
+        if (state->stats_per_ctnr)
+            deallocate_action_stats(state->stats_per_ctnr);
+        if (state->stats_new_per_sched)
+            deallocate_action_stats(state->stats_new_per_sched);
+        plat_free(state);
+        state = NULL;
+    }
 }
 
 #if 0

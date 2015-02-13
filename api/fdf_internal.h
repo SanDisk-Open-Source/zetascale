@@ -189,6 +189,7 @@ ZS_status_t zs_delete_container_async_start(
 void init_async_cmd_handler(int num_thds, struct ZS_state *zs_state);
 void wait_for_container_del();
 
+extern unsigned max_num_containers;
 extern int zs_instance_id;
 char *get_bool_str( int val);
 char *get_durability_str(ZS_durability_level_t dura);

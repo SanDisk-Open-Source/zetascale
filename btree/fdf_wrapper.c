@@ -23,6 +23,7 @@
 #include <sched.h>
 #include <api/zs.h>
 #include "zs.h"
+#include "api/fdf_internal.h"
 #include "fdf_internal_cb.h"
 #include "btree.h"
 #include "btree_range.h"
@@ -3828,7 +3829,7 @@ _ZSCheck(struct ZS_thread_state *zs_thread_state, uint64_t flags)
 		return ZS_FAILURE;
 	}
 
-	cguids = btree_malloc(sizeof(ZS_cguid_t) * MCD_MAX_NUM_CNTRS);
+	cguids = btree_malloc(sizeof(ZS_cguid_t) * max_num_containers);
 	assert(cguids);
 	
     /*

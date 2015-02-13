@@ -321,7 +321,7 @@ ZS_status_t dump_all_container_stats(struct ZS_thread_state *thd_state,
     ZS_status_t ret = ZS_SUCCESS;
 
 
-    cguids = (ZS_cguid_t *) plat_alloc(sizeof(*cguids) * MCD_MAX_NUM_CNTRS);
+    cguids = (ZS_cguid_t *) plat_alloc(sizeof(*cguids) * max_num_containers);
     if (cguids == NULL) {
 	    return ZS_FAILURE;	
     }
@@ -372,7 +372,7 @@ ZS_status_t log_summary_stats(struct ZS_thread_state *thd_state, FILE *fp) {
     int total_num_btree_containers = 0;
     int total_num_hash_containers = 0;
         
-    cguids = (ZS_cguid_t *) plat_alloc(sizeof(*cguids) * MCD_MAX_NUM_CNTRS);
+    cguids = (ZS_cguid_t *) plat_alloc(sizeof(*cguids) * max_num_containers);
     if (cguids == NULL) { 
         return ZS_FAILURE;
     }
@@ -446,7 +446,7 @@ ZS_status_t log_container_props(struct ZS_thread_state *thd_state, FILE *fp) {
     uint64_t used_space = 0;
 
         
-    cguids = (ZS_cguid_t *) plat_alloc(sizeof(*cguids) * MCD_MAX_NUM_CNTRS);
+    cguids = (ZS_cguid_t *) plat_alloc(sizeof(*cguids) * max_num_containers);
     if (cguids == NULL) { 
         return ZS_FAILURE;
     }
@@ -527,7 +527,7 @@ ZS_status_t log_container_stats(struct ZS_thread_state *thd_state, FILE *fp) {
     cntr_map_t *cmap = NULL;
                    
                    
-    cguids = (ZS_cguid_t *) plat_alloc(sizeof(*cguids) * MCD_MAX_NUM_CNTRS);
+    cguids = (ZS_cguid_t *) plat_alloc(sizeof(*cguids) * max_num_containers);
     if (cguids == NULL) { 
         return ZS_FAILURE;
     }              
@@ -590,7 +590,7 @@ ZS_status_t log_flash_stats(struct ZS_thread_state *thd_state, FILE *fp) {
     char stats_buffer[STATS_BUFFER_SIZE];
                    
 
-    cguids = (ZS_cguid_t *) plat_alloc(sizeof(*cguids) * MCD_MAX_NUM_CNTRS);
+    cguids = (ZS_cguid_t *) plat_alloc(sizeof(*cguids) * max_num_containers);
     if (cguids == NULL) { 
         return ZS_FAILURE;
     }              
@@ -644,7 +644,7 @@ ZS_status_t log_all_container_stats(struct ZS_thread_state *thd_state, FILE *fp,
     ZS_status_t ret = ZS_SUCCESS;
 
 
-    cguids = (ZS_cguid_t *) plat_alloc(sizeof(*cguids) * MCD_MAX_NUM_CNTRS);
+    cguids = (ZS_cguid_t *) plat_alloc(sizeof(*cguids) * max_num_containers);
     if (cguids == NULL) {
         return ZS_FAILURE;
     }
@@ -1001,12 +1001,11 @@ static void process_container_cmd(struct ZS_thread_state *thd_state,
             bool verbose = ((ntokens > 2) && 
                             (strcmp(tokens[2].value, "-v") == 0));
 
-	    for ( i = 0; i < MCD_MAX_NUM_CNTRS; i++ ) {
+	    for ( i = 0; i < max_num_containers; i++ ) {
 	        cname = ZSGetNextContainerName(thd_state, &iterator, &cguid); 
 	        if ( cname ) {     
                     if (verbose) fprintf(fp, "%"PRIu64": ", cguid);
 	            fprintf(fp,"%s\n",cname); 
-	            fprintf(stderr,"stats: %s\n",cname); 
 	            continue; 
 	        }
 	        break;
