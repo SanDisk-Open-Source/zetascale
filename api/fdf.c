@@ -4423,8 +4423,10 @@ char *ZSGetNextContainerName(struct ZS_thread_state *zs_thread_state, struct ZSC
 	// See if we are just starting the enum
 	if ( NULL == *iterator ) {
 	    *iterator = (struct ZSCMapIterator *) zs_cmap_enum();
-	    if ( NULL == *iterator )
+	    if ( NULL == *iterator ) {
+                SDFEndSerializeContainerOp( pai );
 	        return NULL;
+            }
 	}
 
 	// Get the next container name

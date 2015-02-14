@@ -78,7 +78,7 @@
 /*
  * add one for cmc shard
  */
-#define MCD_OSD_MAX_NUM_SHARDS  (MCD_MAX_NUM_CNTRS + 1)
+#define MCD_OSD_MAX_NUM_SHARDS  3   // VMC, VDC, CMC
 
 /*
  * number of updates between cas_id log records
