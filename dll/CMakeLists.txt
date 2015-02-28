@@ -1,6 +1,4 @@
 #IF(NOT DEBUG) 
-#add_library(fdfdll STATIC fdf_dll.c)
+add_library(zsdll STATIC zs_dll.c)
 #add_library(btreedll STATIC btree_dll.c)
-#target_link_libraries(fdfdll gcov)
-#target_link_libraries(btreedll gcov)
 #ENDIF(NOT DEBUG)
