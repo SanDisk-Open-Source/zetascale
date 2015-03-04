@@ -479,7 +479,7 @@ btree_raw_init(uint32_t flags, uint32_t n_partition, uint32_t n_partitions, uint
     assert(bt->nodesize_less_hdr > BTREE_MAX_DATA_SIZE_SUPPORTED/max_nodes_per_object * 2);
 
     // bt->big_object_size      = (nodesize - sizeof(btree_raw_mem_node_t))/2; // xxxzzz check this
-    bt->big_object_size      = bt->nodesize_less_hdr / 4 - sizeof(node_vlkey_t); // xxxzzz check this
+    bt->big_object_size      = bt->nodesize_less_hdr / 4 - sizeof(entry_header_t) - btree_leaf_get_max_meta();
     dbg_print("nodesize_less_hdr=%d nodezie=%d raw_node_size=%ld\n", bt->nodesize_less_hdr, nodesize, sizeof(btree_raw_node_t));
     bt->logical_id_counter   = 1;
     bt->next_logical_id	     = META_COUNTER_SAVE_INTERVAL; 

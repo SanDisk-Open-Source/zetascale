@@ -2491,6 +2491,27 @@ btree_leaf_unset_dataptr(btree_raw_node_t *n, int index, uint64_t datalen)
 
 }
 
+/*
+ * Returns the maximum size metadata takes where data will be put
+ * in leaf node
+ */
+size_t
+btree_leaf_get_max_meta(void)
+{
+	size_t a, b;
+	/*
+	 * Since we keep the residual data of huge data in leaf node, return max
+	 * of metadata types.
+	 */
+	a = (sizeof(key_meta_type1_t) > sizeof(key_meta_type2_t)) ? 
+							sizeof(key_meta_type1_t) : sizeof(key_meta_type2_t);
+	b = (sizeof(key_meta_type3_t) > sizeof(key_meta_type4_t)) ? 
+							sizeof(key_meta_type3_t) : sizeof(key_meta_type4_t);
+	return ((a > b) ? a : b);
+}
+
+
+
 #if 0
 /*
  * Function for consistency check for leaf node.

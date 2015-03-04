@@ -231,6 +231,9 @@ btree_get_bigobj_inleaf(btree_raw_t *bt, uint64_t keylen, uint64_t datalen);
 void inline
 btree_leaf_unset_dataptr(btree_raw_node_t *n, int index, uint64_t datalen);
 
+size_t
+btree_leaf_get_max_meta(void);
+
 #if 0
 bool 
 btree_leaf_node_check(btree_raw_t *btree, btree_raw_node_t *node,
