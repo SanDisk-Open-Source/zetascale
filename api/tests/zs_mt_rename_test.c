@@ -16,7 +16,7 @@ static int recover = 0;
 static int threads = 1;
 static int delay = 0;
 static int ksize = 16;
-static int dsize = 16;
+static int dsize = 1400;
 pthread_t  rename_thread_id;
 ZS_cguid_t cguid;
 
@@ -78,10 +78,8 @@ int get_options(int argc, char *argv[])
 void *rename_worker(void *arg) {
     t(zs_init_thread(), ZS_SUCCESS);
     sleep(5);
-    fprintf(stderr,"rename container: %lu\n", cguid); 
     t(zs_rename_container(cguid, rname), ZS_SUCCESS); 
     t(zs_release_thread(), ZS_SUCCESS);
-    fprintf(stderr,"%lu: renamed container\n", cguid); 
     return 0;
 }
 
@@ -94,6 +92,8 @@ void* worker(void *arg)
     uint32_t        keylen;
     char            key_str[ksize];
     char            key_data[dsize];
+    uint32_t        self = (uint32_t) pthread_self();
+
 
     t(zs_init_thread(), ZS_SUCCESS);
 
@@ -109,21 +109,21 @@ void* worker(void *arg)
     }
 
     for(i = 0; i < iterations; i++) { 
-        sprintf(key_str, "key%08d-%0*ld", i, ksize+8, (long) arg);
-        sprintf(key_data, "key%04ld-%0*d", (long) arg, dsize+4, i);
+        sprintf(key_str, "key%08d-%08u", i, self); 
+        sprintf(key_data, "key%04ld-%01015d", (long) arg, i);
         t(zs_set(cguid, key_str, strlen(key_str) + 1, key_data, strlen(key_data) + 1), ZS_SUCCESS);
     }
 
     for(i = 0; i < iterations; i++) {
-        sprintf(key_str, "key%08d-%0*ld", i, ksize+8, (long) arg);
-        sprintf(key_data, "key%04ld-%0*d", (long) arg, dsize+4, i);
+        sprintf(key_str, "key%08d-%08u", i, self); 
+        sprintf(key_data, "key%04ld-%01015d", (long) arg, i);
         t(zs_get(cguid, key_str, strlen(key_str) + 1, &data, &datalen), ZS_SUCCESS);
         assert(!memcmp(data, key_data, datalen));	
         if (0) fprintf(stderr, "%lu zs_get: key=%s, keylen=%d, data=%s, datalen=%lu\n", (long)arg, key, keylen, data, datalen);
     }
 
     for(i = 0; i < iterations; i++) {
-        sprintf(key_str, "key%08d-%0*ld", i, ksize+8, (long) arg);
+        sprintf(key_str, "key%08d-%08u", i, self); 
         //fprintf(stderr, "delete: %*s\n", ksize+8, key_str);
         t(zs_delete(cguid, key_str, strlen(key_str) + 1), ZS_SUCCESS);
     }

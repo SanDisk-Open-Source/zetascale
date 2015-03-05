@@ -708,9 +708,11 @@ ZS_status_t _ZSInitVersioned(
     int NThreads = 10;
 
     bt_max_num_containers = getProperty_Int("ZS_MAX_NUM_CONTAINERS", MAX_OPEN_CONTAINERS);
+#ifdef notdef
     //Container_Map = (ctrmap_t *) malloc(bt_max_num_containers * sizeof(ctrmap_t));
     if (!Container_Map)
         return ZS_FAILURE_MEMORY_ALLOC;
+#endif
 
     // Initialize the map
     for (i=0; i<bt_max_num_containers; i++) {
