@@ -3,6 +3,8 @@ add_definitions(-std=gnu99 -fgnu89-inline)
 SET(default_param 1 8 10000)
 SET(zs_multi_test_param -s 1 -t 8 -i 1000)
 SET(zs_mput_param 1000 100 10)
+SET(zs_rename_test_param -c foo -n bar -t 8)
+SET(zs_mt_rename_test_param -c foo -n bar)
 
 file( GLOB TEST_SOURCES *.c )
 foreach( test_src_file ${TEST_SOURCES} )

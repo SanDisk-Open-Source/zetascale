@@ -62,6 +62,8 @@ struct cmap;
 extern int astats_done;
 extern int __zs_check_mode_on;
 extern int space_op_disabled;
+extern int getProperty_Int(const char *key, const int defaultVal);
+
 #define MIN_COMMON_LENGTH 10
 #define MAX_COMMON_LENGTH 200
 int min_common_length  = MIN_COMMON_LENGTH;
@@ -304,6 +306,9 @@ static uint64_t N_cmp         = 0;
 #define LAST_VALID_CGUID               UINT16_MAX
 #define MAX_OPEN_CONTAINERS            LAST_VALID_CGUID + 1
 
+static int bt_max_num_containers = MAX_OPEN_CONTAINERS;
+
+//ctrmap_t 	*Container_Map = NULL;
 ctrmap_t 	Container_Map[MAX_OPEN_CONTAINERS];
 int 			N_Open_Containers = 0;
 pthread_rwlock_t	ctnrmap_rwlock = PTHREAD_RWLOCK_INITIALIZER;
@@ -325,7 +330,7 @@ bt_add_cguid(ZS_cguid_t cguid)
         return -2;
     }
 
-    if (N_Open_Containers < MAX_OPEN_CONTAINERS) {
+    if (N_Open_Containers < bt_max_num_containers) {
         if (0 == Container_Map[cguid].cguid) {
             Container_Map[cguid].cguid = cguid;
             Container_Map[cguid].bt_state = BT_CNTR_INIT;
@@ -357,7 +362,7 @@ bt_get_ctnr_from_cguid(
         return -2;
     }
 
-    if (cguid < MAX_OPEN_CONTAINERS) {
+    if (cguid < bt_max_num_containers) {
         if (Container_Map[cguid].cguid > 0) {
             i_ctnr = cguid;
         }
@@ -481,7 +486,7 @@ bt_is_valid_cguid(ZS_cguid_t cguid)
 {
 	if (cguid <= FIRST_VALID_CGUID ) {
 		return ZS_FAILURE_ILLEGAL_CONTAINER_ID;
-	} else if (cguid >= MAX_OPEN_CONTAINERS) {
+	} else if (cguid >= bt_max_num_containers) {
 		return ZS_FAILURE_CONTAINER_NOT_FOUND;
 	} else {
 		return ZS_SUCCESS;
@@ -702,8 +707,13 @@ ZS_status_t _ZSInitVersioned(
     const char *ZS_SCAVENGE_PER_OBJECTS = "10000";
     int NThreads = 10;
 
+    bt_max_num_containers = getProperty_Int("ZS_MAX_NUM_CONTAINERS", MAX_OPEN_CONTAINERS);
+    //Container_Map = (ctrmap_t *) malloc(bt_max_num_containers * sizeof(ctrmap_t));
+    if (!Container_Map)
+        return ZS_FAILURE_MEMORY_ALLOC;
+
     // Initialize the map
-    for (i=0; i<MAX_OPEN_CONTAINERS; i++) {
+    for (i=0; i<bt_max_num_containers; i++) {
         Container_Map[i].cguid = ZS_NULL_CGUID;
         Container_Map[i].btree = NULL;
         Container_Map[i].snap_initiated= 0;
@@ -906,7 +916,7 @@ pstats_prepare_to_flush(struct ZS_thread_state *thd_state)
     /* 
      * For each container in container map
      */
-    for (idx = 0; idx < MAX_OPEN_CONTAINERS; idx++) {
+    for (idx = 0; idx < bt_max_num_containers; idx++) {
         (void) cm_lock(idx, READ);
 
         if ( !Container_Map[idx].btree || (Container_Map[idx].cguid == stats_ctnr_cguid)
@@ -1107,7 +1117,7 @@ ZS_status_t _ZSShutdown(
     ret = ZSInitPerThreadState(zs_state, &thd_state);
     assert (ZS_SUCCESS == ret);
 
-	for (i=0; i < MAX_OPEN_CONTAINERS; i++) {
+	for (i=0; i < bt_max_num_containers; i++) {
 restart:
 		cm_lock(i, WRITE);
 		if (Container_Map[i].bt_state == BT_CNTR_OPEN) {
@@ -1942,6 +1952,67 @@ restart:
 
 	}
 	return(status);
+}
+
+/**
+ * @brief Rename a virtual container
+ *
+ * @param zs_thread_state <IN> The ZS context for which this operation applies
+ * @param cguid <IN> container CGUID
+ * @param cname <IN> new container name
+ * @return ZS_SUCCESS on success
+ */
+
+ZS_status_t 
+_ZSRenameContainer( 
+    struct ZS_thread_state *zs_thread_state, 
+    ZS_cguid_t              cguid,
+    char                   *cname
+    )
+{
+    int index = -1;
+    ZS_status_t status = ZS_SUCCESS;
+
+    if (bt_is_license_valid() == false)  
+        return ZS_LICENSE_CHK_FAILED; 
+
+    if ((status = bt_is_valid_cguid(cguid)) != ZS_SUCCESS)  
+        return status; 
+
+    if ((index = bt_get_ctnr_from_cguid(cguid)) == -1) { 
+        return ZS_FAILURE_CONTAINER_NOT_FOUND; 
+    } else if (index == -2) { 
+        fprintf(stderr, "Shutdown in progress, RenameContainer failed\n"); 
+        return ZS_FAILURE_OPERATION_DISALLOWED; 
+    }
+
+    cm_lock(index, WRITE);
+
+    if (bt_shutdown == true) { 
+        fprintf(stderr, "Shutdown in progress, DeleteContainer failed\n"); 
+        status = ZS_FAILURE_OPERATION_DISALLOWED; 
+        goto out;
+    }
+
+    /* Some one might have deleted it, while we were trying to acquire lock */ 
+    if (Container_Map[index].cguid != cguid) { 
+        status = ZS_FAILURE_CONTAINER_NOT_FOUND; 
+        goto out;
+    } else if (Container_Map[index].bt_state == BT_CNTR_DELETING) { 
+        status = ZS_FAILURE_CONTAINER_NOT_FOUND; 
+        goto out;
+    }
+
+out:
+    cm_unlock(index);
+
+    if (ZS_SUCCESS != status)
+        return status;
+    else
+        return ZSRenameContainer( zs_thread_state, 
+                                  cguid,
+                                  cname
+                                );
 }
 
 /**
@@ -3394,7 +3465,6 @@ static void msg_cb(int level, void *msg_data, char *filename, int lineno, char *
 		     break;
     } 
 
-    fprintf(stderr, "%s: %s", prefix, stmp);
     if (quit) {
         assert(0);
         exit(1);
@@ -6436,7 +6506,7 @@ bt_get_cguid(ZS_cguid_t cguid)
 	int i_ctnr = -1;
 
 	pthread_rwlock_rdlock(&ctnrmap_rwlock);
-	for ( i = 0; i < MAX_OPEN_CONTAINERS; i++ ) {
+	for ( i = 0; i < bt_max_num_containers; i++ ) {
 		if ( Container_Map[i].cguid == cguid ) {
 			i_ctnr = i;
 			break;
@@ -6489,7 +6559,7 @@ bt_restart_delcont(void *parm)
     if (_ZSInitPerThreadState(zs_state, &thd_state) != ZS_SUCCESS) {
 		return NULL;
 	}
-	cguids = (ZS_cguid_t *) malloc(sizeof(*cguids) * MAX_OPEN_CONTAINERS);
+	cguids = (ZS_cguid_t *) malloc(sizeof(*cguids) * bt_max_num_containers);
 	if (cguids == NULL) {
 		goto out;
 	}
@@ -6895,7 +6965,7 @@ static void *defrag_thd_hdlr(void *arg)
         pthread_exit(retval);
     }
 
-    ZS_cguid_t cguids[MAX_OPEN_CONTAINERS];
+    ZS_cguid_t cguids[bt_max_num_containers];
     uint32_t ncguids = 0;
     int i;
     while(1){

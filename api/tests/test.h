@@ -40,6 +40,11 @@ ZS_status_t zs_delete_container (
 	ZS_cguid_t             cguid
 	);
 
+ZS_status_t zs_rename_container (
+	ZS_cguid_t             cguid,
+        char                  *cname
+	);
+
 ZS_status_t zs_flush_container (
     ZS_cguid_t                cguid
        );

@@ -89,6 +89,11 @@ static ZS_status_t
                           ZS_cguid_t cguid);
 
 static ZS_status_t 
+(*ptr_ZSRenameContainer)(struct ZS_thread_state *zs_thread_state,
+                         ZS_cguid_t cguid,
+                         char *cname);
+
+static ZS_status_t 
 (*ptr_ZSGetContainers)(struct ZS_thread_state *zs_thread_state,
                         ZS_cguid_t *cguids,
                         uint32_t *n_cguids);
@@ -398,6 +403,7 @@ static struct {
     { "_ZSOpenContainerSpecial",       &ptr_ZSOpenContainerSpecial      },
     { "_ZSCloseContainer",             &ptr_ZSCloseContainer            },
     { "_ZSDeleteContainer",            &ptr_ZSDeleteContainer           },
+    { "_ZSRenameContainer",            &ptr_ZSRenameContainer           },
     { "_ZSGetContainers",              &ptr_ZSGetContainers             },
     { "_ZSGetContainerProps",          &ptr_ZSGetContainerProps         },
     { "_ZSSetContainerProps",          &ptr_ZSSetContainerProps         },
@@ -764,6 +770,19 @@ ZSDeleteContainer(struct ZS_thread_state *zs_thread_state,
     return (*ptr_ZSDeleteContainer)(zs_thread_state, cguid);
 }
 
+/*
+ * ZSRenameContainer
+ */
+ZS_status_t
+ZSRenameContainer(struct ZS_thread_state *zs_thread_state,
+                  ZS_cguid_t cguid, 
+                  char *cname)
+{
+    if (unlikely(!ptr_ZSRenameContainer))
+        undefined("ZSRenameContainer");
+
+    return (*ptr_ZSRenameContainer)(zs_thread_state, cguid, cname);
+}
 
 /*
  * ZSGetContainers

@@ -318,23 +318,22 @@ zs_cmap_del_cb(void *data)
 
 ZS_status_t zs_cmap_delete(
     ZS_cguid_t  cguid,
-	char        *cname
+    char        *cname
     )
 {
-	int           status_cguid = 0;
+    int           status_cguid = 0;
 
-	if ( ZS_NULL_CGUID == cguid || !cname )
-	    return ZS_INVALID_PARAMETER;
+    if ( ZS_NULL_CGUID == cguid || !cname ) 
+        return ZS_INVALID_PARAMETER;
 
     HashMap_remove( cmap_cname_hash, cname );
 
     status_cguid = CMapDelete( cmap_cguid_hash, (char *) &cguid, sizeof( ZS_cguid_t ) );
 
-
-	if ( status_cguid == 1 )
-	    return ZS_OBJECT_UNKNOWN;
-	else
-		return ZS_SUCCESS;
+    if ( status_cguid == 1 ) 
+        return ZS_OBJECT_UNKNOWN;
+    else 
+        return ZS_SUCCESS;
 }
 
 void zs_cntr_map_destroy_map(

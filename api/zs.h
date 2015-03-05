@@ -659,6 +659,20 @@ ZS_status_t ZSDeleteContainer(
 	ZS_cguid_t				 cguid
 	);
 
+ /**
+ * @brief Rename a container.
+ *
+ * @param zs_thread_state <IN> The ZS context for which this operation applies
+ * @param cguid <IN> container GUID
+ * @param new_cname <IN> new container name
+ * @return ZS_SUCCESS on success
+ */
+ZS_status_t ZSRenameContainer(
+	struct ZS_thread_state	*zs_thread_state, 
+	ZS_cguid_t		 cguid,
+	char			*new_cname 
+	);
+
 /**
  * @brief Get container list
  *

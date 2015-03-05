@@ -34,7 +34,7 @@ typedef struct {
 } ZS_container_stats_t;
 
 typedef enum {
-    ZS_CONTAINER_STATE_UNINIT,  	  /* Container is uninitialized */
+    ZS_CONTAINER_STATE_UNINIT = 0,   /* Container is uninitialized */
     ZS_CONTAINER_STATE_CLOSED,       /* Container is closed */
     ZS_CONTAINER_STATE_OPEN,         /* Container is Open */
     ZS_CONTAINER_STATE_DELETE_PROG,  /* Container submitted for async delete */
@@ -123,6 +123,14 @@ ZS_status_t zs_cmap_create(
 ZS_status_t zs_cmap_update(
     cntr_map_t *cmap
     );
+
+ZS_status_t zs_cmap_replace(
+    char                    *cname,
+    ZS_cguid_t              cguid,
+    uint64_t                 size_kb,
+	ZS_CONTAINER_STATE      state,
+    ZS_boolean_t            evicting
+	);
 
 cntr_map_t *zs_cmap_get_by_cguid(
     ZS_cguid_t cguid

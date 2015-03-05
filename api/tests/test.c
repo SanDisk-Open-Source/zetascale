@@ -139,6 +139,22 @@ ZS_status_t zs_delete_container (
     return(ret);
 }
 
+ZS_status_t zs_rename_container (
+    ZS_cguid_t                cguid,
+    char                     *cname
+       )
+{
+    ZS_status_t  ret;
+
+    ret = ZSRenameContainer(
+            _zs_thd_state,
+            cguid,
+            cname
+           );
+
+    return(ret);
+}
+
 ZS_status_t zs_flush_container (
     ZS_cguid_t                cguid
        )
@@ -254,7 +270,7 @@ ZS_status_t zs_set (
 	)
 {
     ZS_status_t  	ret;
-	uint32_t		flags	= 1;
+    uint32_t		flags	= 1;
 
     //fprintf(stderr, "%x sdf_set before: key=%s, keylen=%d, data=%s, datalen=%ld\n", (int)pthread_self(), key, keylen, data, datalen);
 

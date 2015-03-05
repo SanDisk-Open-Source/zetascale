@@ -1492,57 +1492,58 @@ zs_cntr_set_readwrite(
 }
 
 ZS_status_t zs_ctnr_set_state(
-	cntr_map_t          *cmap,
+    cntr_map_t          *cmap,
     ZS_CONTAINER_STATE	new_state
     )
 {
-	ZS_status_t status = ZS_FAILURE_INVALID_CONTAINER_STATE;
-	ZS_CONTAINER_STATE	current_state;
+    ZS_status_t status = ZS_FAILURE_INVALID_CONTAINER_STATE; 
+    ZS_CONTAINER_STATE	current_state;
 
-	if ( !cmap )
-		return status;
+    if ( !cmap ) 
+        return status;
 
-	if ( cmap->cguid <= LAST_PHYSICAL_CGUID ) {
-		status = ZS_SUCCESS;
-		goto out;
-	}
+    if ( cmap->cguid <= LAST_PHYSICAL_CGUID ) { 
+        status = ZS_SUCCESS; 
+        goto out; 
+    }
 
-	current_state = cmap->state;
-	switch ( new_state ) {
-		case ZS_CONTAINER_STATE_UNINIT:
-			if ( ZS_CONTAINER_STATE_DELETE_CLOSED != current_state ) 
-				goto err;
-			break;
+    current_state = cmap->state;
 
-		case ZS_CONTAINER_STATE_OPEN:
-			if ( ZS_CONTAINER_STATE_CLOSED != current_state ) 
-				goto err;
-			break;
+    switch ( new_state ) { 
+        case ZS_CONTAINER_STATE_UNINIT: 
+            if ( ZS_CONTAINER_STATE_DELETE_CLOSED != current_state ) 
+                goto err; 
+                break;
 
-		case ZS_CONTAINER_STATE_CLOSED:
-			if ( ZS_CONTAINER_STATE_OPEN != current_state &&
-			     ZS_CONTAINER_STATE_UNINIT != current_state ) 
-				goto err;
-			break;
+        case ZS_CONTAINER_STATE_OPEN: 
+            if ( ZS_CONTAINER_STATE_CLOSED != current_state ) 
+                goto err; 
+                break;
 
-		case ZS_CONTAINER_STATE_DELETE_PROG:
-			if ( ZS_CONTAINER_STATE_CLOSED != current_state )
-				goto err;
-			break;
+        case ZS_CONTAINER_STATE_CLOSED: 
+            if ( ZS_CONTAINER_STATE_OPEN != current_state && 
+                 ZS_CONTAINER_STATE_UNINIT != current_state ) 
+                 goto err; 
+                 break;
 
-		case ZS_CONTAINER_STATE_DELETE_OPEN:
-			if ( ZS_CONTAINER_STATE_DELETE_PROG != current_state ) 
-				goto err;
-			break;
+        case ZS_CONTAINER_STATE_DELETE_PROG: 
+            if ( ZS_CONTAINER_STATE_CLOSED != current_state ) 
+                 goto err; 
+                 break;
 
-		case ZS_CONTAINER_STATE_DELETE_CLOSED:
-			if ( ZS_CONTAINER_STATE_DELETE_OPEN != current_state ) 
-				goto err;
-			break;
+        case ZS_CONTAINER_STATE_DELETE_OPEN: 
+            if ( ZS_CONTAINER_STATE_DELETE_PROG != current_state ) 
+                 goto err; 
+                 break;
 
-		default: 
-			goto err; 
-			break;
+        case ZS_CONTAINER_STATE_DELETE_CLOSED: 
+            if ( ZS_CONTAINER_STATE_DELETE_OPEN != current_state ) 
+                 goto err; 
+                 break;
+
+         default: 
+            goto err; 
+            break;
     }
 
 out:
@@ -3749,18 +3750,18 @@ static ZS_status_t zs_close_container(
 	}
 
     if ( ( ZS_CONTAINER_STATE_OPEN != cmap->state && 
-		   ZS_CONTAINER_STATE_DELETE_OPEN != cmap->state ) || 	
-		 isContainerNull(container) ) {
+	   ZS_CONTAINER_STATE_DELETE_OPEN != cmap->state ) || 	
+        isContainerNull(container) ) {
         status = ZS_FAILURE_CONTAINER_NOT_OPEN;
     } else {
 
     	if ( ZS_CONTAINER_STATE_DELETE_OPEN == cmap->state ) {
-   			if ( ZS_SUCCESS != ( status = zs_ctnr_set_state( cmap, ZS_CONTAINER_STATE_DELETE_CLOSED ) ) )
-				goto out;
-		} else {
-   			if ( ZS_SUCCESS != ( status = zs_ctnr_set_state( cmap, ZS_CONTAINER_STATE_CLOSED ) ) )
-				goto out;
-		}
+   	    if ( ZS_SUCCESS != ( status = zs_ctnr_set_state( cmap, ZS_CONTAINER_STATE_DELETE_CLOSED ) ) )
+		goto out;
+	} else {
+   	    if ( ZS_SUCCESS != ( status = zs_ctnr_set_state( cmap, ZS_CONTAINER_STATE_CLOSED ) ) )
+		goto out;
+	}
 
      	// Allow any outstanding IO to drain
     	zs_cntr_drain_io( cmap->io_count );
@@ -4006,6 +4007,7 @@ ZS_status_t zs_delete_container_async_end(
 				SDF_FALSE,  (mode == ZS_PHYSICAL_CNTR ? SDF_TRUE:SDF_FALSE), 
 													&ok_to_delete );
 	if ( ZS_SUCCESS == status && ok_to_delete) {
+            zs_ctnr_set_state( cmap, ZS_CONTAINER_STATE_UNINIT);
 	    zs_cmap_delete( cguid, cmap->cname );
 		cmap = NULL;
 		if ( ZS_VIRTUAL_CNTR == mode ) {
@@ -4133,13 +4135,11 @@ ZS_status_t zs_delete_container_async_start(
     ZS_status_t status;
     SDF_container_meta_t meta;
     SDF_internal_ctxt_t *pai;
-	cntr_map_t *cmap = NULL;
+    cntr_map_t *cmap = NULL;
 
-    plat_log_msg(160091,LOG_CAT, LOG_DBG,
-                                     "Deleting container %lu",cguid);
+    plat_log_msg(160091,LOG_CAT, LOG_DBG, "Deleting container %lu",cguid);
     if ( !cguid ) {
-        plat_log_msg(160081,LOG_CAT, LOG_DBG,
-                      "Null container Id. Delete can not proceed.");
+        plat_log_msg(160081,LOG_CAT, LOG_DBG, "Null container Id. Delete can not proceed.");
         return ZS_INVALID_PARAMETER;
     }
 
@@ -4149,7 +4149,7 @@ ZS_status_t zs_delete_container_async_start(
     cmap = zs_cmap_get_by_cguid( cguid );
     if ( !cmap ) {
         plat_log_msg(160210, LOG_CAT, LOG_WARN,
-                        "Container cguid=%lu does not exist. Delete can not proceed\n", cguid );
+                     "Container cguid=%lu does not exist. Delete can not proceed\n", cguid );
         SDFEndSerializeContainerOp(pai);
         return ZS_FAILURE;
     }
@@ -4166,10 +4166,10 @@ ZS_status_t zs_delete_container_async_start(
         /* Check if we have initiated the async command. While doing 
            Recovery, we have to make sure we are sending the command */
         if ( ZS_CONTAINER_STATE_DELETE_PROG == cmap->state ||
-        	 ZS_CONTAINER_STATE_DELETE_OPEN == cmap->state ||
-        	 ZS_CONTAINER_STATE_DELETE_CLOSED == cmap->state ) {
+             ZS_CONTAINER_STATE_DELETE_OPEN == cmap->state ||
+       	     ZS_CONTAINER_STATE_DELETE_CLOSED == cmap->state ) {
             plat_log_msg(160211, LOG_CAT, LOG_DIAG,
-                      "Delete already under progress for container %lu with state=%d",cguid, cmap->state);
+                         "Delete already under progress for container %lu with state=%d",cguid, cmap->state);
             SDFEndSerializeContainerOp(pai);
             return ZS_FAILURE_CONTAINER_DELETED; 
         }
@@ -8373,159 +8373,173 @@ out:
 	}
 	return status;
 }
-ZS_status_t ZSRenameContainer(
-	struct ZS_thread_state	*zs_thread_state,
-	ZS_cguid_t				cguid,
-	char					*name
-	)
+
+ZS_status_t ZSRenameContainer( 
+    struct ZS_thread_state *zs_thread_state, 
+    ZS_cguid_t              cguid, 
+    char                    *name
+    )
 {
+    ZS_status_t status = ZS_SUCCESS; 
+    SDF_container_meta_t meta; 
+    SDF_internal_ctxt_t *pai; 
+    cntr_map_t *cmap = NULL; 
+    SDF_CONTAINER_PARENT parent = containerParentNull; 
+    local_SDF_CONTAINER_PARENT lparent = NULL; 
+    SDF_CONTAINER container = containerNull;
+    int reopen = 0;
 
-	ZS_status_t status = ZS_SUCCESS;
-	SDF_container_meta_t meta;
-	SDF_internal_ctxt_t *pai;
-	cntr_map_t *cmap = NULL;
-	SDF_CONTAINER_PARENT parent = containerParentNull;
-	local_SDF_CONTAINER_PARENT lparent = NULL;
-	SDF_CONTAINER            container      = containerNull;
-
-	/*
-	 * Check if operation can begin
-	 */
-	if (ZS_SUCCESS != (status = is_zs_operation_allowed())) {
-		plat_log_msg(160187, LOG_CAT,
-			LOG_WARN, "Operation not allowed");
-		return status;
-	}
+    /* 
+     * Check if operation can begin 
+     */ 
+    if (ZS_SUCCESS != (status = is_zs_operation_allowed())) { 
+        plat_log_msg(160187, LOG_CAT, LOG_WARN, "Operation not allowed"); 
+        return status; 
+    }
 
     if ( !zs_thread_state ) {
         plat_log_msg(80049,LOG_CAT,LOG_DBG, "ZS Thread state is NULL");
         return ZS_INVALID_PARAMETER;
     }
 
-	if (is_license_valid(is_btree_loaded()) == false) {
-		plat_log_msg(160145, LOG_CAT, LOG_WARN, "License check failed.");
-		return ZS_LICENSE_CHK_FAILED;
-	}
+    if (is_license_valid(is_btree_loaded()) == false) { 
+        plat_log_msg(160145, LOG_CAT, LOG_WARN, "License check failed."); 
+        return ZS_LICENSE_CHK_FAILED; 
+    }
 
-	status = zs_validate_container(cguid);
-	if (ZS_SUCCESS != status) {
-		plat_log_msg(160292, LOG_CAT,
-				LOG_ERR, "Failed due to an illegal container ID:%s %d",
-				ZS_Status_Strings[status], (int)cguid);
-		return status;
-	}
+    status = zs_validate_container(cguid); 
+    if (ZS_SUCCESS != status) { 
+        plat_log_msg(160292, LOG_CAT, LOG_ERR, 
+                     "Failed due to an illegal container ID:%s %d", 
+                     ZS_Status_Strings[status], (int)cguid); 
+        return status; 
+    }
 
-	if (false == zs_lock_thd_ctxt(zs_thread_state)) {
-		/*
-		 * Could not get thread context lock, error out.
-		 */
-		plat_log_msg(160161, LOG_CAT,
-				LOG_DBG, "Could not get thread context lock");
-		return ZS_THREAD_CONTEXT_BUSY;
-	}
+    if (false == zs_lock_thd_ctxt(zs_thread_state)) { 
+        /* 
+         * Could not get thread context lock, error out.  
+         */ 
+        plat_log_msg(160161, LOG_CAT, LOG_DBG, "Could not get thread context lock"); 
+        return ZS_THREAD_CONTEXT_BUSY; 
+    }
 
-	pai = (SDF_internal_ctxt_t *) zs_thread_state;
+    pai = (SDF_internal_ctxt_t *) zs_thread_state;
 
-	SDFStartSerializeContainerOp(pai);
-	cmap = zs_cmap_get_by_cguid( cguid );
-	if ( !cmap ) {
-		plat_log_msg(160210, LOG_CAT, LOG_WARN,
-				"Container cguid=%lu does not exist. Delete can not proceed\n", cguid );
-		status = ZS_FAILURE;
-		goto out;
-	}
+    SDFStartSerializeContainerOp(pai); 
+    cmap = zs_cmap_get_by_cguid( cguid ); 
+    if ( !cmap ) { 
+        plat_log_msg(160210, LOG_CAT, LOG_WARN, 
+                     "Container cguid=%lu does not exist. Delete can not proceed\n", cguid ); 
+        status = ZS_FAILURE; 
+        goto out; 
+    }
 
-	status = name_service_get_meta( pai, cguid, &meta );
-	if ( status != ZS_SUCCESS ) {
-		plat_log_msg( 160078, LOG_CAT, LOG_ERR,
-				"Could not read metadata for %lu. Delete can not proceed\n", cguid );
-		status = ZS_FAILURE;
-		goto out;
-	}
-	// Allow any outstanding IO to drain
-	zs_cntr_drain_io( cmap->io_count );
+    status = name_service_get_meta( pai, cguid, &meta ); 
+    if ( status != ZS_SUCCESS ) { 
+        plat_log_msg( 160078, LOG_CAT, LOG_ERR, 
+                      "Could not read metadata for %lu. Delete can not proceed\n", cguid );
+        status = ZS_FAILURE; 
+        goto out; 
+    } 
 
-	container = cmap->sdf_container;
-	// Delete the container if there are no outstanding opens and a delete is pending
-	local_SDF_CONTAINER lcontainer = getLocalContainer(&lcontainer, container);
-	parent = lcontainer->parent;
-	lparent = getLocalContainerParent(&lparent, parent);
-	char path[MAX_OBJECT_ID_SIZE] = "";
+    if (meta.delete_in_progress == ZS_TRUE) {
+        plat_log_msg(150130, LOG_CAT, LOG_WARN, 
+                     "Container cguid=%lu cannot be renamed as it is being deleted.\n", cguid ); 
+        status = ZS_FAILURE; 
+        goto out;
+    }
 
-	if (lparent->name) {
-		memcpy(&path, lparent->name, strlen(lparent->name));
-	}
+    // Allow any outstanding IO to drain 
+    zs_cntr_drain_io( cmap->io_count );
 
-	// copy these from lparent before I nuke it!
-	releaseLocalContainerParent(&lparent);
+    container = cmap->sdf_container;
+    local_SDF_CONTAINER lcontainer = getLocalContainer(&lcontainer, container);
+    if (lcontainer) { 
+        parent = lcontainer->parent; 
+        lparent = getLocalContainerParent(&lparent, parent); 
+        char path[MAX_OBJECT_ID_SIZE] = "";
 
-	if (closeParentContainer(container)) {
-		status = ZS_SUCCESS;
-	}
+        if (lparent && lparent->name) { 
+            memcpy(&path, lparent->name, strlen(lparent->name)); 
+            // copy these from lparent before I nuke it!  
+            releaseLocalContainerParent(&lparent); 
+        }
 
-#if 0
-	if (!closeParentContainer(cmap->sdf_container)) {
-		status = ZS_FAILURE;
-		goto out;
-	}
+        if (closeParentContainer(container)) { 
+            status = ZS_SUCCESS; 
+        }
+      
+        reopen = 1;
+    }
+
+    /*
+     * Delete entry from hashmap. We cannot update the entry for cname since
+     * cname acts as the key and now we have a new key (i.e. the new cname).
+     */
+    if (HashMap_get(cmap_cname_hash, name) == ZS_NULL_CGUID) { 
+        HashMap_remove( cmap_cname_hash, meta.cname ); 
+    } else { 
+        status = ZS_FAILURE; 
+        goto out; 
+    }
+
+    snprintf(meta.cname,CONTAINER_NAME_MAXLEN,"%s",name); 
+    snprintf(cmap->cname,CONTAINER_NAME_MAXLEN,"%s",name);
+
+    status = zs_cmap_update(cmap);
+
+    if (ZS_SUCCESS != status) { 
+        plat_log_msg( 150115, LOG_CAT, LOG_ERR, 
+                      "Unable to create metadata cache for %lu. Cannot rename", cguid ); 
+        goto out; 
+    }
+
+#ifdef FLIP_ENABLED
+    if (flip_get("rename_pre_meta_error")) {
+        plat_log_msg( 150131, LOG_CAT, LOG_ERR,
+                      "flip rename_pre_meta_error\n");
+        plat_abort();
+    }
 #endif
-	/*
-	 * Delete entry from hashmap. We cannot update the entry for cname since
-	 * cname acts as the key and now we have a new key (i.e. the new cname).
-	 */
 
-	if (HashMap_get(cmap_cname_hash, name) == ZS_NULL_CGUID) {
-		HashMap_remove( cmap_cname_hash, meta.cname );
-	} else {
-		status = ZS_FAILURE;
-		goto out;
-	}
+    status = name_service_put_meta( pai, cguid, &meta ); 
+    if ( status != ZS_SUCCESS ) { 
+        plat_log_msg( 160115, LOG_CAT, LOG_ERR, 
+                      "Unable to write metadata for %lu. Can not rename ", 
+                      cguid );
+        goto out; 
+    }
 
-	snprintf(meta.cname,CONTAINER_NAME_MAXLEN,"%s",name);
-	snprintf(cmap->cname,CONTAINER_NAME_MAXLEN,"%s",name);
-
-	status = zs_cmap_update(cmap);
-
-	if (ZS_SUCCESS != status) {
-		plat_log_msg( 150115, LOG_CAT, LOG_ERR, "Unable to create metadata cache for %lu. Cannot rename", cguid );
-		goto out;
-	}
-
-	status = name_service_put_meta( pai, cguid, &meta );
-	if ( status != ZS_SUCCESS ) {
-		plat_log_msg( 160115, LOG_CAT, LOG_ERR,
-				"Unable to write metadata for %lu. Can not rename ",
-				cguid );
-		goto out;
-	}
-
-	if ((status = name_service_lock_meta( pai, meta.cname )) != ZS_SUCCESS ) {
-		plat_log_msg(21532, LOG_CAT, LOG_ERR, "failed to lock %s", meta.cname);
-	} else if ( !isContainerParentNull(parent = createParentContainer( pai, meta.cname, &meta )) ) {
-		lparent = getLocalContainerParent( &lparent, parent ); // TODO C++ please!
-#ifdef notdef
-		lparent->container_type = sdf_properties->container_type.type;
-		if ( lparent->container_type == SDF_BLOCK_CONTAINER ) {
-			lparent->blockSize = sdf_properties->specific.block_props.blockSize;
-		}
+#ifdef FLIP_ENABLED
+    if (flip_get("rename_post_meta_error")) {
+        plat_log_msg( 150132, LOG_CAT, LOG_ERR,
+                      "flip rename_post_meta_error\n");
+        plat_abort();
+    }
 #endif
-		releaseLocalContainerParent(&lparent); // TODO C++ please!
 
-		status = ZS_SUCCESS;
-		cmap->sdf_container = openParentContainer(pai, meta.cname);
+    // At this point the rename is crash safe
+    if (reopen) {
+        if ((status = name_service_lock_meta( pai, meta.cname )) != ZS_SUCCESS ) { 
+            plat_log_msg(21532, LOG_CAT, LOG_ERR, "failed to lock %s", meta.cname); 
+        } else if ( !isContainerParentNull(parent = createParentContainer( pai, meta.cname, &meta )) ) { 
+            lparent = getLocalContainerParent( &lparent, parent ); // TODO C++ please!
+            releaseLocalContainerParent(&lparent); // TODO C++ please!
 
-		if ((status = name_service_unlock_meta( pai, meta.cname )) != ZS_SUCCESS ) {
-			plat_log_msg( 21533, LOG_CAT, LOG_ERR, "failed to unlock %s", meta.cname );
-		}
-	}
+            status = ZS_SUCCESS;
+            cmap->sdf_container = openParentContainer(pai, meta.cname);
 
+            if ((status = name_service_unlock_meta( pai, meta.cname )) != ZS_SUCCESS ) {
+                plat_log_msg( 21533, LOG_CAT, LOG_ERR, "failed to unlock %s", meta.cname ); 
+            }
+        }
+    }
 
 out:
-	SDFEndSerializeContainerOp(pai);
-	zs_unlock_thd_ctxt(zs_thread_state);
-	return(status);
+    SDFEndSerializeContainerOp(pai); 
+    zs_unlock_thd_ctxt(zs_thread_state); 
+    return(status);
 }
-
 
 ZS_status_t
 ZSGetBtDelContainers(struct ZS_thread_state *zs_thread_state, 

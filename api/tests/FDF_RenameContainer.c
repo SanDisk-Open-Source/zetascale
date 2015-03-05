@@ -1,0 +1,467 @@
+/****************************
+#function : ZSRenameContainer
+#author   : Darryl Ouye
+#date     : 2014.02.17
+*****************************/
+
+#include <stdlib.h>
+#include <assert.h>
+#include <unistd.h>
+#include "zs.h"
+
+FILE *fp;
+static struct ZS_state        *zs_state;
+static struct ZS_thread_state *zs_thrd_state;
+//ZS_config_t                   *fdf.config;
+ZS_cguid_t                    cguid;
+char *testname[10] = {NULL};
+int result[2][10][3] = {{{0,0,0}}};
+//uint32_t mode[6][4] = {{0,0,0,1},{0,1,0,1},{0,1,1,0},{0,1,1,1},{1,0,1,0},{1,0,1,1}};
+
+
+ZS_status_t pre_env()
+{
+    ZS_status_t ret = ZS_FAILURE;
+    
+    //(void)ZSLoadConfigDefaults(fdf.config, NULL);
+    //  if (ZSInit(&zs_state, fdf.config) != ZS_SUCCESS) {
+    
+    ret = ZSInit(&zs_state);
+    if (ZS_SUCCESS != ret) 
+    {
+        fprintf(fp, "ZS initialization failed!\n");
+    }else {
+        fprintf(fp, "ZS initialization succeed!\n");
+        ret = ZSInitPerThreadState(zs_state, &zs_thrd_state);
+        if( ZS_SUCCESS == ret)
+        {
+            fprintf(fp, "ZS thread initialization succeed!\n");
+         }
+    }
+    return ret;
+}
+
+void clear_env()
+{
+    (void)ZSReleasePerThreadState(&zs_thrd_state);
+    (void)ZSShutdown(zs_state);
+    fprintf(fp, "clear env\n");
+}
+
+ZS_status_t OpenContainer(char *cname, uint32_t flag, uint32_t asyncwrite, uint32_t dura)
+{
+    ZS_status_t          ret;
+    ZS_container_props_t p;
+
+    (void)ZSLoadCntrPropDefaults(&p);
+    p.durability_level = dura;
+    p.fifo_mode = 0;
+    p.persistent = 1;
+    p.writethru = 1;
+    p.size_kb = 1024*1024;
+    p.num_shards = 1;
+    p.evicting = 0;
+    p.async_writes = asyncwrite;
+
+    ret = ZSOpenContainer(
+                        zs_thrd_state,
+                        cname,
+                        &p,
+                        flag,
+                        &cguid
+                        );
+    fprintf(fp,"ZSOpenContainer : ");
+    fprintf(fp,"durability type: %d\n",dura);
+    fprintf(fp,"open result: %s\n",ZSStrError(ret));
+    return ret;
+}
+
+ZS_status_t CloseContainer(ZS_cguid_t cid)
+{
+    ZS_status_t ret;
+    ret = ZSCloseContainer(zs_thrd_state, cid);
+    fprintf(fp,"ZSCloseContainer : ");
+    fprintf(fp,"%s\n",ZSStrError(ret));
+    return ret;
+}
+
+ZS_status_t RenameContainer(ZS_cguid_t cid, char *new_name)
+{
+    ZS_status_t ret;
+    ret = ZSRenameContainer(zs_thrd_state, cid, new_name);
+    fprintf(fp,"ZSRenameContainer : ");
+    fprintf(fp,"%s\n",ZSStrError(ret));
+    return ret;
+}
+
+ZS_status_t DeleteContainer(ZS_cguid_t cid)
+{
+    ZS_status_t ret;
+    ret = ZSDeleteContainer(zs_thrd_state, cid);
+    fprintf(fp,"ZSDeleteContainer : ");
+    fprintf(fp,"%s\n",ZSStrError(ret));
+    return ret;
+}
+
+ZS_status_t WriteObject(ZS_cguid_t cid,char *key,uint32_t keylen,char *data,uint64_t datalen,uint32_t flags)
+{
+    ZS_status_t ret;
+    ret = ZSWriteObject(zs_thrd_state, cid, key, keylen, data, datalen, flags);
+    fprintf(fp,"ZSWriteObject : ");
+    fprintf(fp,"%s\n",ZSStrError(ret));
+    return ret;
+}
+
+ZS_status_t ReadObject(ZS_cguid_t cid,char *key,uint32_t keylen,char **data,uint64_t *datalen)
+{
+    ZS_status_t ret;
+    ret = ZSReadObject(zs_thrd_state,cid,key,keylen,data,datalen);
+    fprintf(fp,"ZSReadObject : ");
+    fprintf(fp,"%s\n",ZSStrError(ret));
+    return ret;
+}
+
+ZS_status_t DeleteObject(ZS_cguid_t cid,char *key,uint32_t keylen)
+{
+    ZS_status_t ret;
+    ret = ZSDeleteObject(zs_thrd_state,cid,key,keylen);
+    fprintf(fp,"ZSDeleteObject : ");
+    fprintf(fp,"%s\n",ZSStrError(ret));
+    return ret;
+}
+
+ZS_status_t GetContainers(ZS_cguid_t *cid, uint32_t *n_cguids)
+{
+    ZS_status_t ret;
+    ret = ZSGetContainers(zs_thrd_state, cid, n_cguids);
+    fprintf(fp,"GetContainers : ");
+    fprintf(fp,"%s\n",ZSStrError(ret));
+    return ret;
+}
+
+/***************** test ******************/
+
+int test_rename_with_opencontainer(uint32_t aw)
+{
+    ZS_status_t   ret = ZS_FAILURE;
+    int tag = 0;
+    testname[0] = "#test0 : rename with opencontainer";
+    fprintf(fp,"****** async write = %d ******\n", aw);
+    fprintf(fp,"%s\n",testname[0]);
+    
+    for(int i = 0; i < 3; i++)
+    {
+        if(ZS_SUCCESS == OpenContainer("c1a", 1, aw, i))
+         {
+            ret = RenameContainer(cguid, "c1b");
+            if(ZS_SUCCESS == ret)
+            {
+                tag += 1;
+                result[aw][0][i] = 1;
+            }
+            (void)CloseContainer(cguid);
+            (void)DeleteContainer(cguid);
+         }
+    }
+   return (3 == tag);
+}
+
+int test_rename_invalid_cguid(uint32_t aw)
+{
+    ZS_status_t  ret = ZS_FAILURE;
+    int tag = 0;
+    testname[1] = "#test1 : delete with invalid cguid";
+    fprintf(fp,"****i* async write = %d ******\n", aw);
+    fprintf(fp,"%s\n",testname[1]);
+
+    ret = RenameContainer(2, "c2a");
+    if (ZS_FAILURE_ILLEGAL_CONTAINER_ID == ret)
+    {
+        tag += 1;
+        result[aw][1][0] = 1;
+    }
+    ret = RenameContainer(-1, "c2a");
+    if (ZS_FAILURE_CONTAINER_NOT_FOUND == ret)
+    {
+        tag += 1;
+        result[aw][1][1] = 1;
+    }
+    ret = RenameContainer(0, "c2a");
+    if (ZS_FAILURE_ILLEGAL_CONTAINER_ID == ret)
+    {
+        tag += 1;
+        result[aw][1][2] = 1;
+    }
+    return (3 == tag);
+}
+
+int  test_rename_basiccheck_1(uint32_t aw)
+{
+    ZS_status_t ret = ZS_FAILURE;
+    int tag = 0;
+    testname[2] = "#test2 : rename with basic check1";
+    fprintf(fp,"****** async write = %d ******\n", aw);
+    fprintf(fp,"%s\n",testname[2]);
+    
+    for(int i = 0; i < 3; i++)
+    {
+        if(ZS_SUCCESS == OpenContainer("c3a", 1, aw, i))
+        {
+            if(ZS_SUCCESS == CloseContainer(cguid))
+            {
+                if(ZS_SUCCESS == RenameContainer(cguid, "c3b"))
+                {
+                    ret = DeleteContainer(cguid);
+                    if (ZS_SUCCESS == ret)
+                    {
+                        tag += 1;
+                        result[aw][2][i] = 1;
+                    }
+                }
+            }
+        }
+    }
+    return (3 == tag);
+}
+
+int test_rename_basiccheck_2(uint32_t aw)
+{
+    ZS_status_t ret = ZS_FAILURE;
+    int tag = 0;
+    testname[3] = "#test3 : rename with basic check2";
+    fprintf(fp,"****** async write = %d ******\n", aw);
+    fprintf(fp,"%s\n",testname[3]);
+    
+    for(int i = 0; i < 3; i++)
+    {
+        if(ZS_SUCCESS == OpenContainer("c4a", 1, aw, i))
+        {
+            (void)WriteObject(cguid, "kkk", 4, "ssss", 5, 1);
+            (void)DeleteObject(cguid, "kkk", 4);
+            (void)WriteObject(cguid, "qq", 3, "22222", 6, 1);
+            (void)WriteObject(cguid, "qq", 3, "22", 3, 2);
+            (void)DeleteObject(cguid, "qq", 3);
+            (void)CloseContainer(cguid);
+            (void)RenameContainer(cguid, "c4b");
+            if(ZS_SUCCESS == OpenContainer("c4b", 0, aw, i))
+            {
+                (void)CloseContainer(cguid);
+                ret = DeleteContainer(cguid);
+                if(ZS_SUCCESS == ret)
+                {
+                    tag += 1;
+                    result[aw][3][i] = 1;
+                }
+            }
+        }
+    }
+    return (3 == tag);
+}
+
+int test_double_rename(uint32_t aw)
+{
+    ZS_status_t ret = ZS_FAILURE;
+    int tag = 0;
+    testname[4] = "#test4 : double rename container";
+    fprintf(fp,"****** async write = %d ******\n", aw);
+    fprintf(fp,"%s\n",testname[4]);
+    
+    for(int i = 0; i < 3; i++)
+    {
+        if(ZS_SUCCESS == OpenContainer("c5a", 1, aw, i))
+        {
+            (void)CloseContainer(cguid);
+            if(ZS_SUCCESS == RenameContainer(cguid, "c5b"))
+            {
+                ret = RenameContainer(cguid, "c5c");
+                if(ZS_SUCCESS == ret)
+                {
+                    tag += 1;
+                    result[aw][4][i] = 1;
+                }
+                DeleteContainer(cguid);
+            }
+        }
+    }
+    return (3 == tag);
+}
+
+int test_rename_doubleopen_1(uint32_t aw)
+{
+    ZS_status_t ret = ZS_FAILURE;
+    int tag = 0;
+    testname[5] = "#test5 : rename with double open mode = 2";
+    fprintf(fp,"****** async write = %d ******\n", aw);
+    fprintf(fp,"%s\n",testname[5]);
+    
+    for(int i = 0; i < 3; i++)
+    {
+        if(ZS_SUCCESS == OpenContainer("c6a", 1, aw, i))
+        {
+            (void)CloseContainer(cguid);
+            (void)RenameContainer(cguid, "c6b");
+            (void)OpenContainer("c6b", 2, aw, i);
+            (void)CloseContainer(cguid);
+            (void)RenameContainer(cguid, "c6c");
+            ret = DeleteContainer(cguid);
+            if(ZS_SUCCESS == ret)
+            {
+                tag += 1;
+                result[aw][5][i] = 1;
+            }
+        }
+    }
+    return (3 == tag);
+}
+
+int test_rename_doubleopen_2(uint32_t aw)
+{
+    ZS_status_t ret = ZS_FAILURE;
+    int tag = 0;
+    testname[6] = "#test6 : rename with double open mode = 4";
+    fprintf(fp,"****** async write = %d ******\n", aw);
+    fprintf(fp,"%s\n",testname[6]);
+    
+    for(int i = 0; i < 3; i++)
+    {
+        if(ZS_SUCCESS == OpenContainer("c7a", 1, aw, i))
+        {
+            (void)CloseContainer(cguid);
+            (void)RenameContainer(cguid, "c7b");
+            (void)OpenContainer("c7b", 4, aw, i);
+            (void)CloseContainer(cguid);
+            (void)RenameContainer(cguid, "c7c");
+            ret = DeleteContainer(cguid);
+            if(ZS_SUCCESS == ret)
+            {
+                tag += 1;
+                result[aw][6][i] = 1;
+            }
+        }
+    }
+   return (3 == tag);
+}
+
+
+int test_rename_doubleopen_doublerename(uint32_t aw)
+{
+    int tag = 0;
+	ZS_status_t ret = ZS_SUCCESS;
+
+    testname[7] = "#test7 : double open,rename,close,rename,delete";
+    fprintf(fp,"****** async write = %d ******\n", aw);
+    fprintf(fp,"%s\n",testname[7]);
+
+    for(int i = 0; i < 3; i++)
+    {
+        if(ZS_SUCCESS == (ret = OpenContainer("c8a", 1, aw, i)))
+        {
+            (void)CloseContainer(cguid);
+            if(ZS_SUCCESS == (ret = OpenContainer("c8a", 2, aw, i)))
+            {
+                if(ZS_SUCCESS == (ret = DeleteContainer(cguid)))
+                {
+                    result[aw][7][i] += 1;
+                }
+                ret = CloseContainer(cguid);
+                if((ZS_INVALID_PARAMETER == ret) || (ZS_FAILURE_CONTAINER_NOT_FOUND == ret))
+                {
+                    result[aw][7][i] += 1;
+                }
+                if(ZS_SUCCESS != (ret = RenameContainer(cguid, "c8c")))
+                {
+                    result[aw][7][i] += 1;
+                }
+                if(3 == result[aw][7][i])
+                {
+                    tag += 1;
+                    result[aw][7][i] = 1;
+                }else{
+                    result[aw][7][i] = 0;
+                }
+            }
+        }
+    }
+    return (3 == tag);
+}  
+
+/****** main function ******/
+
+int main() 
+{
+	/*
+	 * Number of tests we plan to run
+	 */
+    int testnumber = 8;
+
+	int count      = 0;
+    
+    if((fp = fopen("ZS_RenameContainer.log", "w+")) == 0)
+    {
+        fprintf(stderr, " open log file failed!\n");
+        return -1;
+    }
+    
+    if(ZS_SUCCESS == pre_env())
+    {
+        for(uint32_t aw = 0; aw < 2; aw++)
+        {
+            /* 
+             * Make sure that that number of tests to run matches 
+             * variable "testnumber" defined a few lines before. 
+             */
+            count += test_rename_with_opencontainer(aw);
+            count += test_rename_invalid_cguid(aw);
+            count += test_rename_basiccheck_1(aw);
+            count += test_rename_basiccheck_2(aw);
+            count += test_double_rename(aw);
+            count += test_rename_doubleopen_1(aw);
+            count += test_rename_doubleopen_2(aw);
+            count += test_rename_doubleopen_doublerename(aw);
+        }
+        clear_env();
+    }  
+    fclose(fp);
+
+	fprintf(stderr, "Test Result:\n");
+	for(int aw = 0; aw < 2; aw++)
+	{
+		if(0 == aw)
+		{
+			fprintf(stderr, "***** When disable async write: *****\n");
+		}else{
+			fprintf(stderr, "***** When enable async write: *****\n");
+		}
+
+		for(int i = 0; i <= testnumber; i++)
+		{
+			if(NULL != testname[i])
+			{
+				fprintf(stderr, "%s\n", testname[i]);
+				for(int j = 0; j < 3; j++)
+				{
+					if(result[aw][i][j] == 1)
+					{
+						fprintf(stderr, "durability type = %d pass\n",j);
+					}else {
+						fprintf(stderr, "durability type = %d fail\n",j);
+					}
+				} 
+			}
+		}
+	}
+	fprintf(stderr,"count = %d\n",count);
+
+	/*
+	 * Test if we have run all tests as planned
+	 */
+	if ((testnumber * 2) == count)
+	    fprintf(stderr, "#Test of ZSRenameContainer pass!\n");
+	else
+	    fprintf(stderr, "#Test of ZSRenameContainer fail!\n");
+
+	fprintf(stderr, "#The related test script is ZS_RenameContainer.c\n");
+	fprintf(stderr, "#If you want, you can check test details in ZS_RenameContainer.log\n");
+
+	return (!(testnumber*2 == count));
+}

@@ -3189,6 +3189,9 @@
 150127 ZSCheck: Leak space map entry map[%d]:bit[%d].\n
 150128 ZSCheck: Lost space map entry map[%d]:bit[%d].\n
 150129 Pending dealloc[%d]: %ld
+150130 Container cguid=%lu cannot be renamed as it is being deleted.\n
+150131 flip rename_pre_meta_error\n
+150132 flip rename_post_meta_error\n
 
 
 # root

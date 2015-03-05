@@ -71,3 +71,11 @@ pot_checksum_mismatch
 # flog_checksum_mismatch: Introduces mismatch to the flog
 # zs> flip set flog_checksum_mismatch
 flog_checksum_mismatch
+#
+# rename_pre_meta_error: Fail before renamed container metadata is posted
+# zs> flip set rename_pre_meta_error
+rename_pre_meta_error
+#
+# rename_post_meta_error: Fail after renamed container metadata is posted
+# zs> flip set rename_post_meta_error
+rename_post_meta_error
