@@ -45,7 +45,7 @@ static int loaded;
 /*
  * ZS Library locations.
  */
-static char *zslibs[] ={
+static const char *zslibs[] ={
     "/usr/lib64/zs/libzs.so",
     "/usr/lib/zs/libzs.so",
     "/lib64/libzs.so",
@@ -65,118 +65,118 @@ static const char *
 static ZS_status_t
 (*ptr_ZSSetProperty)(const char *property, const char *value);
 
-static ZS_status_t 
+static ZS_status_t
 (*ptr_ZSLoadProperties)(const char *prop_file);
 
-static ZS_status_t 
+static ZS_status_t
 (*ptr_ZSInitVersioned)(struct ZS_state **zs_state, uint32_t api_version);
 
-static ZS_status_t 
+static ZS_status_t
 (*ptr_ZSInitPerThreadState)(struct ZS_state *zs_state,
                              struct ZS_thread_state **thd_state);
 
-static ZS_status_t 
+static ZS_status_t
 (*ptr_ZSReleasePerThreadState)(struct ZS_thread_state **thd_state);
 
-static ZS_status_t 
+static ZS_status_t
 (*ptr_ZSShutdown)(struct ZS_state *zs_state);
 
-static ZS_status_t 
+static ZS_status_t
 (*ptr_ZSLoadCntrPropDefaults)(ZS_container_props_t *props);
 
-static ZS_status_t 
+static ZS_status_t
 (*ptr_ZSOpenContainer)(struct ZS_thread_state *zs_thread_state,
-                        char *cname,
+                        const char *cname,
                         ZS_container_props_t *properties,
                         uint32_t flags,
                         ZS_cguid_t *cguid);
 
-static ZS_status_t 
+static ZS_status_t
 (*ptr_ZSOpenContainerSpecial)(struct ZS_thread_state *zs_thread_state,
-                               char *cname,
+                               const char *cname,
                                ZS_container_props_t *properties,
                                uint32_t flags,
                                ZS_container_meta_t *cmeta,
                                ZS_cguid_t *cguid);
 
-static ZS_status_t 
+static ZS_status_t
 (*ptr_ZSCloseContainer)(struct ZS_thread_state *zs_thread_state,
                          ZS_cguid_t cguid);
 
-static ZS_status_t 
+static ZS_status_t
 (*ptr_ZSDeleteContainer)(struct ZS_thread_state *zs_thread_state,
                           ZS_cguid_t cguid);
 
-static ZS_status_t 
+static ZS_status_t
 (*ptr_ZSRenameContainer)(struct ZS_thread_state *zs_thread_state,
                          ZS_cguid_t cguid,
                          char *cname);
 
-static ZS_status_t 
+static ZS_status_t
 (*ptr_ZSGetContainers)(struct ZS_thread_state *zs_thread_state,
                         ZS_cguid_t *cguids,
                         uint32_t *n_cguids);
 
-static ZS_status_t 
+static ZS_status_t
 (*ptr_ZSGetContainerProps)(struct ZS_thread_state *zs_thread_state,
                             ZS_cguid_t cguid,
                             ZS_container_props_t *pprops);
 
-static ZS_status_t 
+static ZS_status_t
 (*ptr_ZSSetContainerProps)(struct ZS_thread_state *zs_thread_state,
                             ZS_cguid_t cguid,
                             ZS_container_props_t *pprops);
 
-static ZS_status_t 
+static ZS_status_t
 (*ptr_ZSReadObject)(struct ZS_thread_state *zs_thread_state,
                      ZS_cguid_t cguid,
-                     char *key,
+                     const char *key,
                      uint32_t keylen,
                      char **data,
                      uint64_t *datalen);
 
-static ZS_status_t 
+static ZS_status_t
 (*ptr_ZSReadObjectExpiry)(struct ZS_thread_state *zs_thread_state,
                            ZS_cguid_t cguid,
                            ZS_readobject_t *robj);
 
-static ZS_status_t 
+static ZS_status_t
 (*ptr_ZSFreeBuffer)(char *buf);
 
-static ZS_status_t 
+static ZS_status_t
 (*ptr_ZSWriteObject)(struct ZS_thread_state *sdf_thread_state,
                       ZS_cguid_t cguid,
-                      char *key,
+                      const char *key,
                       uint32_t keylen,
-                      char *data,
+                      const char *data,
                       uint64_t datalen,
                       uint32_t flags);
 
-static ZS_status_t 
+static ZS_status_t
 (*ptr_ZSWriteObjectExpiry)(struct ZS_thread_state *zs_thread_state,
                             ZS_cguid_t cguid,
                             ZS_writeobject_t *wobj,
                             uint32_t flags);
 
-static ZS_status_t 
+static ZS_status_t
 (*ptr_ZSDeleteObject)(struct ZS_thread_state *zs_thread_state,
                        ZS_cguid_t cguid,
-                       char *key,
+                       const char *key,
                        uint32_t keylen);
 
-static ZS_status_t 
+static ZS_status_t
 (*ptr_ZSEnumerateContainerObjects)(struct ZS_thread_state *zs_thread_state,
                                     ZS_cguid_t cguid,
                                     struct ZS_iterator **iterator);
 
-static ZS_status_t 
+static ZS_status_t
 (*ptr_ZSEnumeratePGObjects)(struct ZS_thread_state *zs_thread_state,
                                     ZS_cguid_t cguid,
                                     struct ZS_iterator **iterator,
                                     char *key,
                                     uint32_t keylen);
 
-static ZS_status_t 
+static ZS_status_t
 (*ptr_ZSNextEnumeratedObject)(struct ZS_thread_state *zs_thread_state,
                                struct ZS_iterator *iterator,
                                char **key,
@@ -184,28 +184,28 @@ static ZS_status_t
                                char **data,
                                uint64_t *datalen);
 
-static ZS_status_t 
+static ZS_status_t
 (*ptr_ZSFinishEnumeration)(struct ZS_thread_state *zs_thread_state,
                             struct ZS_iterator *iterator);
 
-static ZS_status_t 
+static ZS_status_t
 (*ptr_ZSFlushObject)(struct ZS_thread_state *zs_thread_state,
                       ZS_cguid_t cguid,
-                      char *key,
+                      const char *key,
                       uint32_t keylen);
 
-static ZS_status_t 
+static ZS_status_t
 (*ptr_ZSFlushContainer)(struct ZS_thread_state *zs_thread_state,
                          ZS_cguid_t cguid);
 
-static ZS_status_t 
+static ZS_status_t
 (*ptr_ZSFlushCache)(struct ZS_thread_state *zs_thread_state);
 
-static ZS_status_t 
+static ZS_status_t
 (*ptr_ZSGetStats)(struct ZS_thread_state *zs_thread_state,
                    ZS_stats_t *stats);
 
-static ZS_status_t 
+static ZS_status_t
 (*ptr_ZSGetContainerStats)(struct ZS_thread_state *zs_thread_state,
                             ZS_cguid_t cguid,
                             ZS_stats_t *stats);
@@ -213,16 +213,16 @@ static ZS_status_t
 static char *
 (*ptr_ZSStrError)(ZS_status_t zs_errno);
 
-static ZS_status_t 
+static ZS_status_t
 (*ptr_ZSTransactionStart)(struct ZS_thread_state *zs_thread_state);
 
-static ZS_status_t 
+static ZS_status_t
 (*ptr_ZSTransactionCommit)(struct ZS_thread_state *zs_thread_state);
 
-static ZS_status_t 
+static ZS_status_t
 (*ptr_ZSTransactionRollback)(struct ZS_thread_state *zs_thread_state);
 
-static ZS_status_t 
+static ZS_status_t
 (*ptr_ZSTransactionQuit)(struct ZS_thread_state *zs_thread_state);
 
 static uint64_t
@@ -237,25 +237,25 @@ static ZS_status_t
 static ZS_status_t
 (*ptr_ZSTransactionSetMode)(struct ZS_thread_state *zs_thread_state, int mode);
 
-static ZS_status_t 
+static ZS_status_t
 (*ptr_ZSGetVersion)(char **str);
 
-static ZS_status_t 
+static ZS_status_t
 (*ptr_ZSGetRange)(struct ZS_thread_state *zs_thread_state,
-                  ZS_cguid_t              cguid, 
+                  ZS_cguid_t              cguid,
                   ZS_indexid_t            indexid,
                   struct ZS_cursor      **cursor,
                   ZS_range_meta_t        *rmeta);
 
 static ZS_status_t
-(*ptr_ZSGetNextRange)(struct ZS_thread_state *thrd_state,  
+(*ptr_ZSGetNextRange)(struct ZS_thread_state *thrd_state,
                        struct ZS_cursor       *cursor,
-                       int                      n_in, 
+                       int                      n_in,
                        int                     *n_out,
                        ZS_range_data_t        *values);
 
-static ZS_status_t 
-(*ptr_ZSGetRangeFinish)(struct ZS_thread_state *thrd_state, 
+static ZS_status_t
+(*ptr_ZSGetRangeFinish)(struct ZS_thread_state *thrd_state,
                          struct ZS_cursor *cursor);
 static ZS_status_t
 (*ptr_ZSMPut) (struct ZS_thread_state *zs_ts,
@@ -266,12 +266,12 @@ static ZS_status_t
 	uint32_t *objs_written);
 
 ZS_status_t
-(*ptr_ZSRangeUpdate) (struct ZS_thread_state *zs_thread_state, 
+(*ptr_ZSRangeUpdate) (struct ZS_thread_state *zs_thread_state,
 	       ZS_cguid_t cguid,
 	       char *range_key,
 	       uint32_t range_key_len,
 	       ZS_range_update_cb_t callback_func,
-	       void * callback_args,	
+	       void * callback_args,
 	       ZS_range_cmp_cb_t range_cmp_callback,
 	       void *range_cmp_callback_args,
 	       uint32_t *objs_updated);
@@ -280,7 +280,7 @@ ZS_status_t
  * ZSCheckBtree: internal api for testing purpose.
  */
 ZS_status_t
-(*ptr_ZSCheckBtree) (struct ZS_thread_state *zs_thread_state, 
+(*ptr_ZSCheckBtree) (struct ZS_thread_state *zs_thread_state,
 	       ZS_cguid_t cguid, uint64_t flags);
 
 ZS_status_t
@@ -299,7 +299,7 @@ ZS_status_t
 (*ptr_ZSCheckClose) ();
 
 void
-(*ptr_ZSCheckSetLevel) ();
+(*ptr_ZSCheckSetLevel) (int level);
 
 int
 (*ptr_ZSCheckGetLevel) ();
@@ -308,10 +308,10 @@ void
 (*ptr_ZSCheckMsg) ();
 
 ZS_status_t
-(*ptr_ZSCheckInit) ();
+(*ptr_ZSCheckInit) (const char* logfile);
 
 ZS_status_t
-(*ptr_ZSIoctl)(struct ZS_thread_state *zs_thread_state, 
+(*ptr_ZSIoctl)(struct ZS_thread_state *zs_thread_state,
          ZS_cguid_t cguid,
          uint32_t ioctl_type,
          void *data);
@@ -342,10 +342,10 @@ static ZS_status_t
 static ZS_status_t
 (*ptr_ZSRescueContainer)(struct ZS_thread_state *zs_state, ZS_cguid_t cguid, void *pcontext);
 
-static void 
+static void
 (*ptr_ZSTLMapDestroy)(struct ZSTLMap *pm);
 
-static void 
+static void
 (*ptr_ZSTLMapClear)(struct ZSTLMap *pm);
 
 static struct ZSTLMapEntry *
@@ -378,25 +378,25 @@ static struct ZSTLMapEntry *
                    char **data,
                    uint64_t *pdatalen);
 
-static int 
+static int
 (*ptr_ZSTLMapIncrRefcnt)(struct ZSTLMap *pm, char *key, uint32_t keylen);
 
-static void 
+static void
 (*ptr_ZSTLMapCheckRefcnts)(struct ZSTLMap *pm);
 
-static int 
+static int
 (*ptr_ZSTLMapRelease)(struct ZSTLMap *pm, char *key, uint32_t keylen);
 
-static int 
+static int
 (*ptr_ZSTLMapReleaseEntry)(struct ZSTLMap *pm, struct ZSTLMapEntry *pme);
 
 static struct ZSTLIterator *
 (*ptr_ZSTLMapEnum)(struct ZSTLMap *pm);
 
-static void 
+static void
 (*ptr_ZSTLFinishEnum)(struct ZSTLMap *pm, struct ZSTLIterator *iterator);
 
-static int 
+static int
 (*ptr_ZSTLMapNextEnum)(struct ZSTLMap *pm,
                         struct ZSTLIterator *iterator,
                         char **key,
@@ -404,7 +404,7 @@ static int
                         char **data,
                         uint64_t *datalen);
 
-static int 
+static int
 (*ptr_ZSTLMapDelete)(struct ZSTLMap *pm, char *key, uint32_t keylen);
 
 struct ZSTLMap*
@@ -504,7 +504,7 @@ static struct {
  * Print out an error message and exit.
  */
 static void
-panic(char *fmt, ...)
+panic(const char *fmt, ...)
 {
     va_list alist;
 
@@ -520,7 +520,7 @@ panic(char *fmt, ...)
  * An undefined symbol was found.
  */
 static void
-undefined(char *sym)
+undefined(const char *sym)
 {
     panic("ZS: undefined symbol: %s", sym);
 }
@@ -530,9 +530,9 @@ undefined(char *sym)
  * Determine if the string ends with "No such file or directory".
  */
 static int
-nsfod(char *str)
+nsfod(const char *str)
 {
-    char *err = "No such file or directory";
+    const char *err = "No such file or directory";
     int  elen = strlen(err);
     int  slen = strlen(str);
 
@@ -546,18 +546,18 @@ nsfod(char *str)
  * Given a pathname, assume it is a ZS library and load it.
  */
 static int
-load(char *path)
+load(const char *path)
 {
     int i;
     void  *dl = dlopen(path, RTLD_NOW | RTLD_DEEPBIND);
-    char *err = dlerror();
+    const char *err = dlerror();
 
     if (!dl) {
         if (nsfod(err))
             return 0;
         panic("%s", err);
     }
-    
+
     int n = nel(table);
     for (i = 0; i < n; i++) {
         const char *name = table[i].name;
@@ -611,7 +611,7 @@ parse(void)
     if (load("/usr/lib64/zs/libzs.so"))
         return;
 
-    int i;
+    unsigned long i;
     for (i = 0; i < nel(zslibs); i++)
         if (load(zslibs[i]))
             return;
@@ -650,7 +650,7 @@ ZSSetProperty(const char *property, const char *value)
 /*
  * ZSLoadProperties
  */
-ZS_status_t 
+ZS_status_t
 ZSLoadProperties(const char *prop_file)
 {
     parse();
@@ -664,7 +664,7 @@ ZSLoadProperties(const char *prop_file)
 /*
  * ZSInit
  */
-ZS_status_t 
+ZS_status_t
 ZSInitVersioned(struct ZS_state **zs_state, uint32_t api_version)
 {
     parse();
@@ -678,7 +678,7 @@ ZSInitVersioned(struct ZS_state **zs_state, uint32_t api_version)
 /*
  * ZSInitPerThreadState
  */
-ZS_status_t 
+ZS_status_t
 ZSInitPerThreadState(struct ZS_state *zs_state,
                       struct ZS_thread_state **thd_state)
 {
@@ -693,7 +693,7 @@ ZSInitPerThreadState(struct ZS_state *zs_state,
 /*
  * ZSReleasePerThreadState
  */
-ZS_status_t 
+ZS_status_t
 ZSReleasePerThreadState(struct ZS_thread_state **thd_state)
 {
     parse();
@@ -707,7 +707,7 @@ ZSReleasePerThreadState(struct ZS_thread_state **thd_state)
 /*
  * ZSShutdown
  */
-ZS_status_t 
+ZS_status_t
 ZSShutdown(struct ZS_state *zs_state)
 {
     parse();
@@ -721,7 +721,7 @@ ZSShutdown(struct ZS_state *zs_state)
 /*
  * ZSLoadCntrPropDefaults
  */
-ZS_status_t 
+ZS_status_t
 ZSLoadCntrPropDefaults(ZS_container_props_t *props)
 {
     parse();
@@ -735,9 +735,9 @@ ZSLoadCntrPropDefaults(ZS_container_props_t *props)
 /*
  * ZSOpenContainer
  */
-ZS_status_t 
+ZS_status_t
 ZSOpenContainer(struct ZS_thread_state *zs_thread_state,
-                 char *cname,
+                 const char *cname,
                  ZS_container_props_t *properties,
                  uint32_t flags,
                  ZS_cguid_t *cguid)
@@ -756,9 +756,9 @@ ZSOpenContainer(struct ZS_thread_state *zs_thread_state,
 /*
  * ZSOpenContainerSpecial
  */
-ZS_status_t 
+ZS_status_t
 ZSOpenContainerSpecial(struct ZS_thread_state *zs_thread_state,
-                        char *cname,
+                        const char *cname,
                         ZS_container_props_t *properties,
                         uint32_t flags,
                         ZS_container_meta_t *cmeta,
@@ -779,7 +779,7 @@ ZSOpenContainerSpecial(struct ZS_thread_state *zs_thread_state,
 /*
  * ZSCloseContainer
  */
-ZS_status_t 
+ZS_status_t
 ZSCloseContainer(struct ZS_thread_state *zs_thread_state,
                   ZS_cguid_t cguid)
 {
@@ -794,7 +794,7 @@ ZSCloseContainer(struct ZS_thread_state *zs_thread_state,
 /*
  * ZSDeleteContainer
  */
-ZS_status_t 
+ZS_status_t
 ZSDeleteContainer(struct ZS_thread_state *zs_thread_state,
                    ZS_cguid_t cguid)
 {
@@ -810,20 +810,20 @@ ZSDeleteContainer(struct ZS_thread_state *zs_thread_state,
  */
 ZS_status_t
 ZSRenameContainer(struct ZS_thread_state *zs_thread_state,
-                  ZS_cguid_t cguid, 
-                  char *cname)
+                  ZS_cguid_t cguid,
+                  const char *cname)
 {
     parse();
     if (unlikely(!ptr_ZSRenameContainer))
         undefined("ZSRenameContainer");
 
-    return (*ptr_ZSRenameContainer)(zs_thread_state, cguid, cname);
+    return (*ptr_ZSRenameContainer)(zs_thread_state, cguid, (char*)cname);
 }
 
 /*
  * ZSGetContainers
  */
-ZS_status_t 
+ZS_status_t
 ZSGetContainers(struct ZS_thread_state *zs_thread_state,
                  ZS_cguid_t *cguids,
                  uint32_t *n_cguids)
@@ -839,7 +839,7 @@ ZSGetContainers(struct ZS_thread_state *zs_thread_state,
 /*
  * ZSGetContainerProps
  */
-ZS_status_t 
+ZS_status_t
 ZSGetContainerProps(struct ZS_thread_state *zs_thread_state,
                      ZS_cguid_t cguid,
                      ZS_container_props_t *pprops)
@@ -855,7 +855,7 @@ ZSGetContainerProps(struct ZS_thread_state *zs_thread_state,
 /*
  * ZSSetContainerProps
  */
-ZS_status_t 
+ZS_status_t
 ZSSetContainerProps(struct ZS_thread_state *zs_thread_state,
                      ZS_cguid_t cguid,
                      ZS_container_props_t *pprops)
@@ -871,10 +871,10 @@ ZSSetContainerProps(struct ZS_thread_state *zs_thread_state,
 /*
  * ZSReadObject
  */
-ZS_status_t 
+ZS_status_t
 ZSReadObject(struct ZS_thread_state *zs_thread_state,
               ZS_cguid_t cguid,
-              char *key,
+              const char *key,
               uint32_t keylen,
               char **data,
               uint64_t *datalen)
@@ -895,7 +895,7 @@ ZSReadObject(struct ZS_thread_state *zs_thread_state,
 /*
  * ZSReadObjectExpiry
  */
-ZS_status_t 
+ZS_status_t
 ZSReadObjectExpiry(struct ZS_thread_state *zs_thread_state,
                     ZS_cguid_t cguid,
                     ZS_readobject_t *robj)
@@ -911,7 +911,7 @@ ZSReadObjectExpiry(struct ZS_thread_state *zs_thread_state,
 /*
  * ZSFreeBuffer
  */
-ZS_status_t 
+ZS_status_t
 ZSFreeBuffer(char *buf)
 {
     parse();
@@ -925,12 +925,12 @@ ZSFreeBuffer(char *buf)
 /*
  * ZSWriteObject
  */
-ZS_status_t 
+ZS_status_t
 ZSWriteObject(struct ZS_thread_state *sdf_thread_state,
                ZS_cguid_t cguid,
-               char *key,
+               const char *key,
                uint32_t keylen,
-               char *data,
+               const char *data,
                uint64_t datalen,
                uint32_t flags)
 {
@@ -951,7 +951,7 @@ ZSWriteObject(struct ZS_thread_state *sdf_thread_state,
 /*
  * ZSWriteObjectExpiry
  */
-ZS_status_t 
+ZS_status_t
 ZSWriteObjectExpiry(struct ZS_thread_state *zs_thread_state,
                      ZS_cguid_t cguid,
                      ZS_writeobject_t *wobj,
@@ -968,10 +968,10 @@ ZSWriteObjectExpiry(struct ZS_thread_state *zs_thread_state,
 /*
  * ZSDeleteObject
  */
-ZS_status_t 
+ZS_status_t
 ZSDeleteObject(struct ZS_thread_state *zs_thread_state,
                 ZS_cguid_t cguid,
-                char *key,
+                const char *key,
                 uint32_t keylen)
 {
     parse();
@@ -985,7 +985,7 @@ ZSDeleteObject(struct ZS_thread_state *zs_thread_state,
 /*
  * ZSEnumerateContainerObjects
  */
-ZS_status_t 
+ZS_status_t
 ZSEnumerateContainerObjects(struct ZS_thread_state *zs_thread_state,
                              ZS_cguid_t cguid,
                              struct ZS_iterator **iterator)
@@ -1003,7 +1003,7 @@ ZSEnumerateContainerObjects(struct ZS_thread_state *zs_thread_state,
 /*
  * ZSEnumeratePGObjects
  */
-ZS_status_t 
+ZS_status_t
 ZSEnumeratePGObjects(struct ZS_thread_state *zs_thread_state,
                              ZS_cguid_t cguid,
                              struct ZS_iterator **iterator,
@@ -1024,7 +1024,7 @@ ZSEnumeratePGObjects(struct ZS_thread_state *zs_thread_state,
 /*
  * ZSNextEnumeratedObject
  */
-ZS_status_t 
+ZS_status_t
 ZSNextEnumeratedObject(struct ZS_thread_state *zs_thread_state,
                         struct ZS_iterator *iterator,
                         char **key,
@@ -1048,7 +1048,7 @@ ZSNextEnumeratedObject(struct ZS_thread_state *zs_thread_state,
 /*
  * ZSFinishEnumeration
  */
-ZS_status_t 
+ZS_status_t
 ZSFinishEnumeration(struct ZS_thread_state *zs_thread_state,
                      struct ZS_iterator *iterator)
 {
@@ -1063,10 +1063,10 @@ ZSFinishEnumeration(struct ZS_thread_state *zs_thread_state,
 /*
  * ZSFlushObject
  */
-ZS_status_t 
+ZS_status_t
 ZSFlushObject(struct ZS_thread_state *zs_thread_state,
                ZS_cguid_t cguid,
-               char *key,
+               const char *key,
                uint32_t keylen)
 {
     parse();
@@ -1080,7 +1080,7 @@ ZSFlushObject(struct ZS_thread_state *zs_thread_state,
 /*
  * ZSFlushContainer
  */
-ZS_status_t 
+ZS_status_t
 ZSFlushContainer(struct ZS_thread_state *zs_thread_state,
                   ZS_cguid_t cguid)
 {
@@ -1095,7 +1095,7 @@ ZSFlushContainer(struct ZS_thread_state *zs_thread_state,
 /*
  * ZSFlushCache
  */
-ZS_status_t 
+ZS_status_t
 ZSFlushCache(struct ZS_thread_state *zs_thread_state)
 {
     parse();
@@ -1109,7 +1109,7 @@ ZSFlushCache(struct ZS_thread_state *zs_thread_state)
 /*
  * ZSGetStats
  */
-ZS_status_t 
+ZS_status_t
 ZSGetStats(struct ZS_thread_state *zs_thread_state, ZS_stats_t *stats)
 {
     parse();
@@ -1123,7 +1123,7 @@ ZSGetStats(struct ZS_thread_state *zs_thread_state, ZS_stats_t *stats)
 /*
  * ZSGetContainerStats
  */
-ZS_status_t 
+ZS_status_t
 ZSGetContainerStats(struct ZS_thread_state *zs_thread_state,
                      ZS_cguid_t cguid,
                      ZS_stats_t *stats)
@@ -1153,7 +1153,7 @@ ZSStrError(ZS_status_t zs_errno)
 /*
  * ZSTransactionStart
  */
-ZS_status_t 
+ZS_status_t
 ZSTransactionStart(struct ZS_thread_state *zs_thread_state)
 {
     parse();
@@ -1167,7 +1167,7 @@ ZSTransactionStart(struct ZS_thread_state *zs_thread_state)
 /*
  * ZSTransactionCommit
  */
-ZS_status_t 
+ZS_status_t
 ZSTransactionCommit(struct ZS_thread_state *zs_thread_state)
 {
     parse();
@@ -1180,7 +1180,7 @@ ZSTransactionCommit(struct ZS_thread_state *zs_thread_state)
 /*
  * ZSTransactionRollback
  */
-ZS_status_t 
+ZS_status_t
 ZSTransactionRollback(struct ZS_thread_state *zs_thread_state)
 {
     parse();
@@ -1193,7 +1193,7 @@ ZSTransactionRollback(struct ZS_thread_state *zs_thread_state)
 /*
  * ZSTransactionQuit
  */
-ZS_status_t 
+ZS_status_t
 ZSTransactionQuit(struct ZS_thread_state *zs_thread_state)
 {
     parse();
@@ -1258,7 +1258,7 @@ ZSTransactionSetMode(struct ZS_thread_state *zs_thread_state, int mode)
 /*
  * ZSGetVersion
  */
-ZS_status_t 
+ZS_status_t
 ZSGetVersion(char **str)
 {
     parse();
@@ -1273,7 +1273,7 @@ ZSGetVersion(char **str)
  */
 ZS_status_t
 ZSGetRange(struct ZS_thread_state *zs_thread_state,
-            ZS_cguid_t              cguid, 
+            ZS_cguid_t              cguid,
             ZS_indexid_t            indexid,
             struct ZS_cursor      **cursor,
             ZS_range_meta_t        *rmeta)
@@ -1289,9 +1289,9 @@ ZSGetRange(struct ZS_thread_state *zs_thread_state,
  * ZSGetNextRange
  */
 ZS_status_t
-ZSGetNextRange(struct ZS_thread_state *zs_thread_state,  
+ZSGetNextRange(struct ZS_thread_state *zs_thread_state,
                 struct ZS_cursor       *cursor,
-                int                      n_in, 
+                int                      n_in,
                 int                     *n_out,
                 ZS_range_data_t        *values)
 {
@@ -1305,8 +1305,8 @@ ZSGetNextRange(struct ZS_thread_state *zs_thread_state,
 /*
  * ZSGetRangeFinish
  */
-ZS_status_t 
-ZSGetRangeFinish(struct ZS_thread_state *zs_thread_state, 
+ZS_status_t
+ZSGetRangeFinish(struct ZS_thread_state *zs_thread_state,
                   struct ZS_cursor *cursor)
 {
     parse();
@@ -1357,7 +1357,7 @@ ZSGetContainerSnapshots(struct ZS_thread_state *ts,
 /*
  * ZSTLMapDestroy
  */
-void 
+void
 ZSTLMapDestroy(struct ZSTLMap *pm)
 {
     parse();
@@ -1370,7 +1370,7 @@ ZSTLMapDestroy(struct ZSTLMap *pm)
 /*
  * ZSTLMapClear
  */
-void 
+void
 ZSTLMapClear(struct ZSTLMap *pm)
 {
     parse();
@@ -1463,7 +1463,7 @@ ZSTLMapGet(struct ZSTLMap *pc,
 /*
  * ZSTLMapIncrRefcnt
  */
-int 
+int
 ZSTLMapIncrRefcnt(struct ZSTLMap *pm, char *key, uint32_t keylen)
 {
     parse();
@@ -1477,7 +1477,7 @@ ZSTLMapIncrRefcnt(struct ZSTLMap *pm, char *key, uint32_t keylen)
 /*
  * ZSTLMapCheckRefcnts
  */
-void 
+void
 ZSTLMapCheckRefcnts(struct ZSTLMap *pm)
 {
     parse();
@@ -1491,7 +1491,7 @@ ZSTLMapCheckRefcnts(struct ZSTLMap *pm)
 /*
  * ZSTLMapRelease
  */
-int 
+int
 ZSTLMapRelease(struct ZSTLMap *pm, char *key, uint32_t keylen)
 {
     parse();
@@ -1505,7 +1505,7 @@ ZSTLMapRelease(struct ZSTLMap *pm, char *key, uint32_t keylen)
 /*
  * ZSTLMapReleaseEntry
  */
-int 
+int
 ZSTLMapReleaseEntry(struct ZSTLMap *pm, struct ZSTLMapEntry *pme)
 {
     parse();
@@ -1533,7 +1533,7 @@ ZSTLMapEnum(struct ZSTLMap *pm)
 /*
  * ZSTLFinishEnum
  */
-void 
+void
 ZSTLFinishEnum(struct ZSTLMap *pm, struct ZSTLIterator *iterator)
 {
     parse();
@@ -1547,7 +1547,7 @@ ZSTLFinishEnum(struct ZSTLMap *pm, struct ZSTLIterator *iterator)
 /*
  * ZSTLMapNextEnum
  */
-int 
+int
 ZSTLMapNextEnum(struct ZSTLMap *pm,
                  struct ZSTLIterator *iterator,
                  char **key,
@@ -1566,7 +1566,7 @@ ZSTLMapNextEnum(struct ZSTLMap *pm,
 /*
  * ZSTLMapDelete
  */
-int 
+int
 ZSTLMapDelete(struct ZSTLMap *pm, char *key, uint32_t keylen)
 {
     parse();
@@ -1592,7 +1592,7 @@ ZSTLMapInit(uint64_t nbuckets, uint64_t max_entries, char use_locks, void (*repl
 /*
  * ZSMPut
  */
-ZS_status_t 
+ZS_status_t
 ZSMPut(struct ZS_thread_state *zs_ts,
         ZS_cguid_t cguid,
         uint32_t num_objs,
@@ -1612,12 +1612,12 @@ ZSMPut(struct ZS_thread_state *zs_ts,
  * ZSRangeUpdate.
  */
 ZS_status_t
-ZSRangeUpdate(struct ZS_thread_state *zs_thread_state, 
+ZSRangeUpdate(struct ZS_thread_state *zs_thread_state,
 	       ZS_cguid_t cguid,
 	       char *range_key,
 	       uint32_t range_key_len,
 	       ZS_range_update_cb_t callback_func,
-	       void * callback_args,	
+	       void * callback_args,
 	       ZS_range_cmp_cb_t range_cmp_callback,
 	       void *range_cmp_callback_args,
 	       uint32_t *objs_updated)
@@ -1637,7 +1637,7 @@ ZSRangeUpdate(struct ZS_thread_state *zs_thread_state,
  * ZSCheckBtree: internal api for testing purpose.
  */
 ZS_status_t
-ZSCheckBtree(struct ZS_thread_state *zs_thread_state, 
+ZSCheckBtree(struct ZS_thread_state *zs_thread_state,
 	       ZS_cguid_t cguid, uint64_t flags)
 {
     parse();
@@ -1745,9 +1745,13 @@ void
 ZSCheckMsg(ZS_check_entity_t entity,
            uint64_t id,
            ZS_check_error_t error,
-           char *msg
+           const char *msg
            )
 {
+	(void)entity;
+	(void)msg;
+	(void)error;
+	(void)id;
     parse();
     if (unlikely(!ptr_ZSCheckMsg))
         undefined("ZSCheckMsg");
@@ -1759,7 +1763,7 @@ ZSCheckMsg(ZS_check_entity_t entity,
  * ZSCheckInit: for use in zsck..
  */
 ZS_status_t
-ZSCheckInit(char *logfile)
+ZSCheckInit(const char *logfile)
 {
     parse();
     if (unlikely(!ptr_ZSCheckInit))
@@ -1772,7 +1776,7 @@ ZSCheckInit(char *logfile)
  * ZSIoctl
  */
 ZS_status_t
-ZSIoctl(struct ZS_thread_state *zs_thread_state, 
+ZSIoctl(struct ZS_thread_state *zs_thread_state,
          ZS_cguid_t cguid,
          uint32_t ioctl_type,
          void *data)
@@ -1785,45 +1789,45 @@ ZSIoctl(struct ZS_thread_state *zs_thread_state,
     return (*ptr_ZSIoctl) (zs_thread_state, cguid, ioctl_type, data);
 }
 
-ZS_status_t ZSScavenger(struct ZS_state *zs_state) 
+ZS_status_t ZSScavenger(struct ZS_state *zs_state)
 {
-    parse(); 
-    if (unlikely(!ptr_ZSScavenger)) { 
-        undefined("ZSScavenger"); 
+    parse();
+    if (unlikely(!ptr_ZSScavenger)) {
+        undefined("ZSScavenger");
     }
     return (*ptr_ZSScavenger) (zs_state);
 }
 
-ZS_status_t ZSScavengeContainer(struct ZS_state *zs_state, ZS_cguid_t cguid) 
+ZS_status_t ZSScavengeContainer(struct ZS_state *zs_state, ZS_cguid_t cguid)
 {
-    parse(); 
-    if (unlikely(!ptr_ZSScavengeContainer)) { 
+    parse();
+    if (unlikely(!ptr_ZSScavengeContainer)) {
         undefined("ZSScavengeContianer");
     }
     return (*ptr_ZSScavengeContainer) (zs_state, cguid);
 }
 
-ZS_status_t ZSScavengeSnapshot(struct ZS_state *zs_state, ZS_cguid_t cguid, uint64_t snap_seq) 
+ZS_status_t ZSScavengeSnapshot(struct ZS_state *zs_state, ZS_cguid_t cguid, uint64_t snap_seq)
 {
-    parse(); 
-    if (unlikely(!ptr_ZSScavengeSnapshot)) { 
-        undefined("ZSScavengeSnapshot"); 
-    } 
+    parse();
+    if (unlikely(!ptr_ZSScavengeSnapshot)) {
+        undefined("ZSScavengeSnapshot");
+    }
     return (*ptr_ZSScavengeSnapshot) (zs_state, cguid, snap_seq);
 }
 
 ZS_status_t ZSGetLastError(ZS_cguid_t cguid, void **pp_err_context, uint32_t *p_err_size)
 {
-    parse(); 
-    if (unlikely(!ptr_ZSGetLastError)) { 
-        undefined("ZSGetLastError"); 
+    parse();
+    if (unlikely(!ptr_ZSGetLastError)) {
+        undefined("ZSGetLastError");
     }
     return (*ptr_ZSGetLastError) (cguid, pp_err_context, p_err_size);
 }
 
 ZS_status_t ZSRescueContainer(struct ZS_thread_state *zs_thread_state, ZS_cguid_t cguid, void *pcontext)
 {
-    parse(); 
+    parse();
     if (unlikely(!ptr_ZSRescueContainer)) {
 	undefined("ZSRescueContainer");
     }

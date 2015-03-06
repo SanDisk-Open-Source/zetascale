@@ -89,7 +89,7 @@ ZS_status_t zs_cmap_destroy( void )
 
 // We assume that the cguid - cname mapping never changes!
 ZS_status_t zs_cmap_create(
-    char                    *cname,
+    const char                    *cname,
     ZS_cguid_t              cguid,
     uint64_t                 size_kb,
     ZS_CONTAINER_STATE      state,
@@ -285,7 +285,7 @@ void zs_cmap_rel_by_cguid(
 	CMapRelease( cmap_cguid_hash, (char *) &cguid, sizeof( ZS_cguid_t ) );
 }
 ZS_cguid_t zs_cmap_get_cguid(
-    char *cname
+    const char *cname
     )
 {
 	ZS_cguid_t cguid    = ZS_NULL_CGUID;
@@ -311,7 +311,7 @@ ZS_cguid_t zs_cmap_get_cguid(
 }
 
 cntr_map_t *zs_cmap_get_by_cname(
-    char *cname
+    const char *cname
 	)
 {
 	ZS_cguid_t cguid = ZS_NULL_CGUID;

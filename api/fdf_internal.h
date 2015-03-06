@@ -136,7 +136,7 @@ ZS_status_t zs_start_admin_thread( struct ZS_state *zs_state );
  */
 ZS_status_t ZSOpenPhysicalContainer(
     struct ZS_thread_state *zs_thread_state,
-    char                    *cname,
+    const char                    *cname,
     ZS_container_props_t   *properties,
     uint32_t                 flags,
     ZS_cguid_t             *cguid
@@ -176,9 +176,9 @@ ZS_status_t is_zs_operation_allowed(void);
 ZS_status_t ZSWriteObjects(
 	struct ZS_thread_state  *zs_thread_state,
 	ZS_cguid_t          cguid,
-	char                **key,
+	const char          **key,
 	uint32_t             keylen,
-	char                **data,
+	const char          **data,
 	uint64_t             datalen,
 	uint32_t             count,
 	uint32_t             flags

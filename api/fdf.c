@@ -232,7 +232,7 @@ SDF_status_t delete_container_internal_low(
 */
 static ZS_status_t zs_create_container(
     struct ZS_thread_state *zs_thread_state,
-    char                    *cname,
+    const char                    *cname,
     ZS_container_props_t   *properties,
     uint32_t                 flags,
     ZS_cguid_t             *cguid,
@@ -241,7 +241,7 @@ static ZS_status_t zs_create_container(
 
 static ZS_status_t zs_open_container(
     struct ZS_thread_state *zs_thread_state,
-    char                    *cname,
+    const char                    *cname,
     ZS_container_props_t   *props,
     uint32_t                 flags,
     ZS_cguid_t             *cguid,
@@ -312,7 +312,7 @@ static ZS_status_t zs_generate_cguid(
 static ZS_status_t zs_delete_object(
 	struct ZS_thread_state  *zs_thread_state,
 	ZS_cguid_t          	  cguid,
-	char                	 *key,
+	const char          	 *key,
 	uint32_t             	  keylen,
 	bool					  raw_object
 	);
@@ -2917,7 +2917,7 @@ char *ZSStrError(ZS_status_t zs_errno) {
 
 ZS_status_t ZSOpenContainer(
 		struct ZS_thread_state	*zs_thread_state, 
-		char					*cname,
+		const char					*cname,
 		ZS_container_props_t	*properties,
 		uint32_t				 flags,
 		ZS_cguid_t 	 	 	*cguid
@@ -3021,7 +3021,7 @@ out:
 
 ZS_status_t ZSOpenContainerSpecial(
 	struct ZS_thread_state	  *zs_thread_state, 
-	char                      *cname, 
+	const char                      *cname, 
 	ZS_container_props_t     *properties, 
 	uint32_t                  flags,
 	ZS_container_meta_t      *cmeta,
@@ -3033,7 +3033,7 @@ ZS_status_t ZSOpenContainerSpecial(
 
 ZS_status_t ZSOpenPhysicalContainer(
 		struct ZS_thread_state *zs_thread_state,
-		char                    *cname,
+		const char                    *cname,
 		ZS_container_props_t   *properties,
 		uint32_t                 flags,
 		ZS_cguid_t             *cguid
@@ -3065,7 +3065,7 @@ ZS_status_t ZSOpenPhysicalContainer(
 
 static ZS_status_t zs_create_container(
         struct ZS_thread_state    *zs_thread_state, 
-        char                    *cname,
+        const char                    *cname,
         ZS_container_props_t    *properties,
         uint32_t                 flags,
         ZS_cguid_t               *cguid,
@@ -3172,7 +3172,7 @@ static ZS_status_t zs_create_container(
 			goto out;
 		}
 
-		if ( ( status = zs_generate_cguid( zs_thread_state, cname, cguid ) ) != ZS_SUCCESS ) {
+		if ( ( status = zs_generate_cguid( zs_thread_state, (char*)cname, cguid ) ) != ZS_SUCCESS ) {
 			plat_log_msg( 150084,
 					LOG_CAT,
 					LOG_ERR,
@@ -3453,7 +3453,7 @@ out:
 
 static ZS_status_t zs_open_container(
 		struct ZS_thread_state	*zs_thread_state, 
-		char					*cname,
+		const char					*cname,
 		ZS_container_props_t	*props,
 		uint32_t				 flags,
 		ZS_cguid_t 	 	 	*cguid,
@@ -4856,7 +4856,7 @@ static ZS_status_t
 zs_read_object(
 	struct ZS_thread_state	*zs_thread_state,
 	ZS_cguid_t				cguid,
-	char					*key,
+	const char					*key,
 	uint32_t				keylen,
 	char					**data,
 	uint64_t				*datalen,
@@ -4898,7 +4898,7 @@ zs_read_object(
 	}
 
 	if (cmap->lc) {
-		status = lc_read( zs_thread_state, cguid, key, keylen, data, datalen);
+		status = lc_read( zs_thread_state, cguid, (char*)key, keylen, data, datalen);
 		goto out;
 	}
 	if (rawobject || (meta->meta.properties.flash_only == ZS_TRUE)) {
@@ -4917,7 +4917,7 @@ zs_read_object(
 			flag |= FLASH_GET_RAW_OBJECT;
 		}
 
-		read_ret = ssd_flashGet(pac->paio_ctxt, meta->pshard, &metaData, key, &tdata, flag | FLASH_GET_NO_TEST);
+		read_ret = ssd_flashGet(pac->paio_ctxt, meta->pshard, &metaData, (char*)key, &tdata, flag | FLASH_GET_NO_TEST);
 
 		/* If app buf, copied len should be min of datalen and metaData.dataLen */
 		if (app_buf) {
@@ -5003,7 +5003,7 @@ out:
 ZS_status_t ZSReadObject(
 	struct ZS_thread_state   *zs_thread_state,
 	ZS_cguid_t                cguid,
-	char                      *key,
+	const char                      *key,
 	uint32_t                   keylen,
 	char                     **data,
 	uint64_t                  *datalen
@@ -5072,7 +5072,7 @@ out:
 ZS_status_t ZSReadObject2(
 	struct ZS_thread_state   *zs_thread_state,
 	ZS_cguid_t                cguid,
-	char                      *key,
+	const char                      *key,
 	uint32_t                   keylen,
 	char                     **data,
 	uint64_t                  *datalen
@@ -5279,9 +5279,9 @@ static ZS_status_t
 zs_write_object(
 	struct ZS_thread_state  *zs_thread_state,
 	ZS_cguid_t          cguid,
-	char                *key,
+	const char          *key,
 	uint32_t             keylen,
-	char                *data,
+	const char          *data,
 	uint64_t             datalen,
 	uint32_t             xflags
 	)
@@ -5315,9 +5315,9 @@ zs_write_object(
 
 	if (cmap->lc) {
 		if (xflags & ZS_WRITE_TRIM)
-			status = lc_trim( zs_thread_state, cguid, key, keylen);
+			status = lc_trim( zs_thread_state, cguid, (char*)key, keylen);
 		else
-			status = lc_write( zs_thread_state, cguid, key, keylen, data, datalen);
+			status = lc_write( zs_thread_state, cguid, (char*)key, keylen, (char*)data, datalen);
 
 		goto out;
 	}
@@ -5343,7 +5343,7 @@ zs_write_object(
 
 		update_container_stats(pac, APSOE, meta, 1);
 
-		write_ret = ssd_flashPut(pac->paio_ctxt, meta->pshard, &metaData, key, data, FLASH_PUT_NO_TEST|flags);
+		write_ret = ssd_flashPut(pac->paio_ctxt, meta->pshard, &metaData, (char*)key, (char*)data, FLASH_PUT_NO_TEST|flags);
 		status = get_status(write_ret);
 		goto out;
 	} else {
@@ -5446,9 +5446,9 @@ static ZS_status_t
 zs_write_objects(
 	struct ZS_thread_state  *zs_thread_state,
 	ZS_cguid_t          cguid,
-	char                **key,
+	const char          **key,
 	uint32_t             keylen,
-	char                **data,
+	const char          **data,
 	uint64_t             datalen,
 	uint32_t             count,
 	uint32_t             flags
@@ -5499,7 +5499,7 @@ zs_write_objects(
 
 		update_container_stats(pac, APSOE, meta, count);
 
-		write_ret = ssd_flashPutV(pac->paio_ctxt, meta->pshard, &metaData, key, data, count, FLASH_PUT_NO_TEST | flags);
+		write_ret = ssd_flashPutV(pac->paio_ctxt, meta->pshard, &metaData, (char**)key, (char**)data, count, FLASH_PUT_NO_TEST | flags);
 		status = get_status(write_ret);
 //		status = status == FLASH_EOK ? ZS_SUCCESS : ZS_FAILURE;
 	}
@@ -5512,9 +5512,9 @@ out:
 ZS_status_t ZSWriteObject(
 	struct ZS_thread_state  *zs_thread_state,
 	ZS_cguid_t          cguid,
-	char                *key,
+	const char          *key,
 	uint32_t             keylen,
-	char                *data,
+	const char          *data,
 	uint64_t             datalen,
 	uint32_t             flags
 	)
@@ -5589,9 +5589,9 @@ out:
 ZS_status_t ZSWriteObjects(
 	struct ZS_thread_state  *zs_thread_state,
 	ZS_cguid_t          cguid,
-	char                **key,
+	const char          **key,
 	uint32_t             keylen,
-	char                **data,
+	const char          **data,
 	uint64_t             datalen,
 	uint32_t             count,
 	uint32_t             flags
@@ -5820,7 +5820,7 @@ static ZS_status_t
 zs_delete_object(
 	struct ZS_thread_state		*zs_thread_state,
 	ZS_cguid_t					cguid,
-	char						*key,
+	const char					*key,
 	uint32_t					keylen,
 	bool						raw_object
 	)
@@ -5852,7 +5852,7 @@ zs_delete_object(
 	}
 
 	if (cmap->lc) {
-		status = lc_delete( zs_thread_state, cguid, key, keylen);
+		status = lc_delete( zs_thread_state, cguid, (char*)key, keylen);
 		goto out;
 	}
 	if (raw_object || (meta->meta.properties.flash_only == ZS_TRUE)) {
@@ -5871,7 +5871,7 @@ zs_delete_object(
 		if (raw_object == true) {
 			flags |= FLASH_PUT_RAW_OBJECT;
 		}
-		status=ssd_flashPut(pac->paio_ctxt, meta->pshard, &metaData, key, NULL, FLASH_PUT_TEST_NONEXIST|flags);
+		status=ssd_flashPut(pac->paio_ctxt, meta->pshard, &metaData, (char*)key, NULL, FLASH_PUT_TEST_NONEXIST|flags);
 		if (status == FLASH_EOK) {
 			status = ZS_SUCCESS;
 		} else {
@@ -5909,7 +5909,7 @@ out:
 ZS_status_t ZSDeleteObject(
 	struct ZS_thread_state  *zs_thread_state,
 	ZS_cguid_t          	  cguid,
-	char                	 *key,
+	const char            	 *key,
 	uint32_t             	  keylen
 	)
 {
@@ -5977,7 +5977,7 @@ static ZS_status_t
 zs_flush_object(
 	struct ZS_thread_state  *zs_thread_state,
 	ZS_cguid_t          	  cguid,
-	char                	 *key,
+	const char          	 *key,
 	uint32_t             	  keylen
 	)
 {
@@ -6024,7 +6024,7 @@ out:
 ZS_status_t ZSFlushObject(
 	struct ZS_thread_state  *zs_thread_state,
 	ZS_cguid_t          	  cguid,
-	char                	 *key,
+	const char            	 *key,
 	uint32_t             	  keylen
 	)
 {
@@ -8199,9 +8199,9 @@ ZSCheckMeta()
 }
 
 ZS_status_t 
-ZSCheckInit(char *logfile)
+ZSCheckInit(const char *logfile)
 {
-    if (0 == zscheck_init_log(logfile))
+    if (0 == zscheck_init_log((char*)logfile))
         return ZS_SUCCESS;
     else
         return ZS_FAILURE;
@@ -8232,13 +8232,13 @@ void
 ZSCheckMsg(ZS_check_entity_t entity,
            uint64_t id,
            ZS_check_error_t error,
-           char *msg
+           const char *msg
            )
 {
     zscheck_log_msg(entity,
                     id,
                     error,
-                    msg
+                    (char*)msg
                    );
 }
 
@@ -8526,7 +8526,7 @@ out:
 ZS_status_t ZSRenameContainer( 
     struct ZS_thread_state *zs_thread_state, 
     ZS_cguid_t              cguid, 
-    char                    *name
+    const char              *name
     )
 {
     ZS_status_t status = ZS_SUCCESS; 

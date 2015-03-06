@@ -3365,7 +3365,7 @@ static void write_node_cb(struct ZS_thread_state *thd_state, btree_status_t *ret
 		assert(count == 1);
 		ret = ZSWriteRawObject(thd_state, prn->cguid, (char *) *lnodeid, sizeof(uint64_t), (char *)*data, datalen, 0);
 	} else {
-		ret = ZSWriteObjects(thd_state, prn->cguid, (char **) lnodeid, sizeof(uint64_t), data, datalen, count, 0);
+		ret = ZSWriteObjects(thd_state, prn->cguid, (const char **) lnodeid, sizeof(uint64_t), (const char**)data, datalen, count, 0);
 	}
     trxtrackwrite( prn->cguid, lnodeid);
     assert(rawobj ||  (!rawobj && (prn->nodesize == datalen)));

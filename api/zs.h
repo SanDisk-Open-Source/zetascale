@@ -644,7 +644,7 @@ ZS_status_t ZSLoadCntrPropDefaults(
  */
 ZS_status_t ZSOpenContainer(
 	struct ZS_thread_state	*zs_thread_state,
-	char					*cname,
+	const char					*cname,
 	ZS_container_props_t 	*properties,
 	uint32_t			 	 flags,
 	ZS_cguid_t				*cguid
@@ -662,7 +662,7 @@ ZS_status_t ZSOpenContainer(
  */
 ZS_status_t ZSOpenContainerSpecial(
 	struct ZS_thread_state	  *zs_thread_state,
-	char                      *cname,
+	const char                      *cname,
 	ZS_container_props_t     *properties,
 	uint32_t                  flags,
 	ZS_container_meta_t      *cmeta,
@@ -704,7 +704,7 @@ ZS_status_t ZSDeleteContainer(
 ZS_status_t ZSRenameContainer(
 	struct ZS_thread_state	*zs_thread_state,
 	ZS_cguid_t		 cguid,
-	char			*new_cname
+	const char			*new_cname
 	);
 
 /**
@@ -775,7 +775,7 @@ ZS_status_t ZSSetContainerProps(
 ZS_status_t ZSReadObject(
 	struct ZS_thread_state  *zs_thread_state,
 	ZS_cguid_t               cguid,
-	char                     *key,
+	const char                     *key,
 	uint32_t                  keylen,
 	char                     **data,
 	uint64_t                 *datalen
@@ -784,7 +784,7 @@ ZS_status_t ZSReadObject(
 ZS_status_t ZSReadObject2(
 	struct ZS_thread_state  *zs_thread_state,
 	ZS_cguid_t               cguid,
-	char                     *key,
+	const char                     *key,
 	uint32_t                  keylen,
 	char                     **data,
 	uint64_t                 *datalen
@@ -849,9 +849,9 @@ ZS_status_t ZSFreeBuffer(
 ZS_status_t ZSWriteObject(
 	struct ZS_thread_state  *sdf_thread_state,
 	ZS_cguid_t          cguid,
-	char                *key,
+	const char                *key,
 	uint32_t             keylen,
-	char                *data,
+	const char                *data,
 	uint64_t             datalen,
 	uint32_t			 flags
 	);
@@ -902,7 +902,7 @@ ZS_status_t ZSWriteObjectExpiry(
 ZS_status_t ZSDeleteObject(
 	struct ZS_thread_state  *zs_thread_state,
 	ZS_cguid_t               cguid,
-	char                     *key,
+	const char                     *key,
 	uint32_t                  keylen
 	);
 
@@ -995,7 +995,7 @@ ZS_status_t ZSFinishEnumeration(
 ZS_status_t ZSFlushObject(
 	struct ZS_thread_state  *zs_thread_state,
 	ZS_cguid_t               cguid,
-	char                     *key,
+	const char               *key,
 	uint32_t                  keylen
 	);
 
@@ -1396,7 +1396,7 @@ ZS_status_t
 ZSCheckPOT();
 
 ZS_status_t
-ZSCheckInit(char *logfile);
+ZSCheckInit(const char *logfile);
 
 ZS_status_t
 ZSCheckClose();
@@ -1411,7 +1411,7 @@ void
 ZSCheckMsg(ZS_check_entity_t entity,
            uint64_t id,
            ZS_check_error_t error,
-           char *msg
+           const char *msg
            );
 
 ZS_status_t

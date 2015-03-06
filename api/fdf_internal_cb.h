@@ -107,7 +107,7 @@ ZS_status_t ZSDeleteRawObject(struct ZS_thread_state *sdf_thread_state, ZS_cguid
 ZS_status_t ZSReadRawObject(struct ZS_thread_state *ZS_thread_state, ZS_cguid_t cguid, baddr_t key,
 							char **data, uint64_t *datalen, uint32_t flags);
 ZS_status_t ZSGetBtDelContainers(struct ZS_thread_state *ZS_thread_state, ZS_cguid_t *cguid, uint32_t *ncguid);
-ZS_status_t ZSRenameContainer(struct ZS_thread_state *ZS_thread_state, ZS_cguid_t cguid, char *name);
+ZS_status_t ZSRenameContainer(struct ZS_thread_state *ZS_thread_state, ZS_cguid_t cguid, const char *name);
 
 #ifdef __cplusplus
 }
