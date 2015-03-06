@@ -53,6 +53,13 @@ typedef enum {
 } ZS_durability_level_t;
 
 typedef enum {
+	ZS_HASH_CTNR	= 0x01,
+	ZS_LOG_CTNR		= 0x02,
+	ZS_UNUSED_PROP	= 0xffffffffffffffff,
+} ZS_prop_flag_t;
+
+#define ZS_BTREE_CTNR	(~(ZS_HASH_CTNR | ZS_LOG_CTNR))
+typedef enum {
     ZS_ACCESS_TYPES_APCOE, 
     ZS_ACCESS_TYPES_APCOP, 
     ZS_ACCESS_TYPES_APPAE, 
@@ -405,42 +412,24 @@ typedef struct {
 	uint64_t		timestamp;
 	uint64_t		seqno;
 } ZS_container_snapshots_t;
-#if 0
-typedef struct {
-	uint64_t				size_kb;
-	ZS_boolean_t			persistent;
-    ZS_boolean_t			evicting;
-	ZS_boolean_t			writethru;
-	ZS_durability_level_t	durability_level;
-} ZS_container_props_t;
 
 typedef struct {
-	uint64_t				current_size;
-	uint64_t				num_obj;
-	ZS_boolean_t			fifo_mode;
-    ZS_cguid_t             cguid;
-    uint32_t                num_shards;
-	ZS_boolean_t			async_writes;
-} ZS_internal_container_props_t;
-#else
-typedef struct {
-    uint64_t                size_kb;
-    char                    name[CONTAINER_NAME_MAXLEN];
-    ZS_boolean_t           fifo_mode;
-    ZS_boolean_t           persistent;
-    ZS_boolean_t           evicting;
-    ZS_boolean_t           writethru;
-    ZS_boolean_t           async_writes;
-    ZS_durability_level_t  durability_level;
-    ZS_cguid_t             cguid;
-    uint64_t                cid;
+    uint64_t				size_kb;
+    char					name[CONTAINER_NAME_MAXLEN];
+    ZS_boolean_t			fifo_mode;
+    ZS_boolean_t			persistent;
+    ZS_boolean_t			evicting;
+    ZS_boolean_t			writethru;
+    ZS_boolean_t			async_writes;
+    ZS_durability_level_t	durability_level;
+    ZS_cguid_t				cguid;
+    uint64_t				cid;
     uint32_t                num_shards;
 	ZS_boolean_t			flash_only;
 	ZS_boolean_t			cache_only;
-    ZS_boolean_t compression; /* Flag to enable/disable compression */
-    uint64_t                flags;
+    ZS_boolean_t			compression; /* Flag to enable/disable compression */
+    ZS_prop_flag_t			flags;
 } ZS_container_props_t;
-#endif
 
 	
 #define ZS_CTNR_CREATE   1
@@ -450,6 +439,7 @@ typedef struct {
 typedef enum {
     ZS_WRITE_MUST_NOT_EXIST = 1,
     ZS_WRITE_MUST_EXIST    	= 2,
+	ZS_WRITE_TRIM			= 4,
 } ZS_write_mode_t;
 
 typedef struct {

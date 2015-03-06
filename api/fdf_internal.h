@@ -30,6 +30,10 @@ extern "C" {
 #define ZS_LICENSE_PATH	"/opt/sandisk/zs/license"
 #define ZS_LICENSE_CHECK_PERIOD	0
 
+#define IS_ZS_BTREE_CONTAINER(FLAGS) 		(!((FLAGS) & (ZS_HASH_CTNR | ZS_LOG_CTNR)))
+#define IS_ZS_HASH_CONTAINER(FLAGS) 		((FLAGS) & ZS_HASH_CTNR)
+#define IS_ZS_LOG_CONTAINER(FLAGS)			((FLAGS) & ZS_LOG_CTNR)
+
 typedef struct ZS_state {
     uint64_t           cguid_cntr;
 } ZS_state_t;
