@@ -21,6 +21,7 @@
 #include "zs.h"
 #include "fdf_internal.h"
 #include "fdf_internal_cb.h"
+#include "lc.h"
 #include "protocol/protocol_utils.h"
 #include "protocol/protocol_common.h"
 #include "protocol/action/recovery.h"
@@ -2223,6 +2224,7 @@ ZS_status_t ZSInitVersioned(
 		rawobjratio = get_rawobjratio();
 		ext_cbs->zs_raw_cb(storm_mode, rawobjsz, rawobjratio);
 	}
+	lc_init( );
 
     return ZS_SUCCESS;
 }
