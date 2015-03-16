@@ -61,7 +61,7 @@ int rawobjratio;
 
 typedef struct mcdstructure		mcd_t;
 typedef struct potstructure		pot_t;
-typedef void				packet_t;
+typedef void				bracket_t;
 
 struct mcdstructure {
 	ulong	bytes_per_flash_array,
@@ -109,7 +109,7 @@ void		mcd_fth_osd_slab_load_slabbm( osd_state_t *, mcd_osd_shard_t *, uchar [], 
 		detach_buffer_segments( mcd_osd_shard_t *, int, char **),
 		recovery_checkpoint( osd_state_t *, mcd_osd_shard_t *, uint64_t),
 		stats_packet_save( mcd_rec_obj_state_t *, void *, mcd_osd_shard_t *),
-		recovery_packet_save( packet_t *, void *, mcd_osd_shard_t *),
+		recovery_packet_save( bracket_t *, void *, mcd_osd_shard_t *),
 		filter_cs_initialize( mcd_rec_obj_state_t *),
 		filter_cs_swap_log( mcd_rec_obj_state_t *),
 		filter_cs_flush( mcd_rec_obj_state_t *);
@@ -1178,10 +1178,10 @@ recover( mcd_osd_shard_t *s, osd_state_t *context, char **buf_segments)
 	 * generate packets for btree container and stats recovery
 	 */
 	if (s->cntr->cguid == VDC_CGUID) {
-		recovery_packet_save( state.otpacket, context, s);
+		recovery_packet_save( state.ottable, context, s);
 		stats_packet_save( &state, context, s);
 		plat_free( state.statbuf);
-		plat_free( state.otpacket);
+		plat_free( state.ottable);
 	}
 	mcd_rec2_potcache_save( s, context);
 	mcd_rec2_potbitmap_save( s, context);
