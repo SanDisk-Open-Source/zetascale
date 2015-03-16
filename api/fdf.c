@@ -3481,6 +3481,12 @@ static ZS_status_t zs_open_container(
 				zs_cntr_set_readwrite(cmap);
 			}
 
+			if (props && IS_ZS_LOG_CONTAINER(props->flags)) {
+				status = LC_init(&cmap->logcont, *cguid);
+			} else {
+				cmap->logcont = NULL;
+			}
+
 		}
 
 		if ( !isContainerNull( container ) ) {
@@ -5298,6 +5304,11 @@ zs_write_object(
 		goto out;
 	}
 
+	//if (meta->meta.properties.container_type.type ==2) {
+	if (cmap->logcont) {
+	   status = NVR_write(cmap->logcont, key, (int)keylen ,data, (int)datalen);
+	   goto out;
+	}
 	if (meta->meta.properties.flash_only == ZS_TRUE) {
 		int flags = 0;
 		plat_log_msg(160192, LOG_CAT,

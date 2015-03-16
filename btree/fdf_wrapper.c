@@ -1357,6 +1357,13 @@ restart:
         cm_unlock(index);
         fprintf(stderr, "Creating/opening a HASH container\n");
         return ZS_SUCCESS;
+	} else if (IS_ZS_LOG_CONTAINER(properties->flags)) {
+        Container_Map[index].flags |= ZS_LOG_CTNR;
+        Container_Map[index].btree = NULL;
+        Container_Map[index].bt_state = BT_CNTR_OPEN;
+        cm_unlock(index);
+        fprintf(stderr, "Creating/opening a LOG container\n");
+        return ZS_SUCCESS;
     } else {
         Container_Map[index].flags &= ~(ZS_HASH_CTNR | ZS_LOG_CTNR);
     }
@@ -2428,6 +2435,7 @@ ZS_status_t _ZSWriteObject(
 		}
 			
         ret = ZSWriteObject(my_thd_state, cguid, key, keylen, data, datalen, flags);
+
 #ifdef UNIFIED_CONTAINER_DEBUG
         fprintf(stderr, "Writing object to a Non-btree container\n");
 #endif
