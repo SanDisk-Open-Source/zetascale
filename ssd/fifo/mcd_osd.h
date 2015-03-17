@@ -411,10 +411,10 @@ typedef struct mcd_logrec_object {
     uint64_t    target_seqno:48;		// seqno of superceded (target) object
 										//   used when deleting or overwriting,
 										//   but not during eviction
-    int64_t     bracket_id;				// active btree mput if nonzero
+    int16_t     bracket_id;				// active btree mput if nonzero
 	bool		raw;					// raw object (not in hash table)
 	char		mlo_dl;					// durability level of cguid
-	char		pad1[14];
+	char		pad1[22];
 } mcd_logrec_object_t;
 
 #define MCD_FTH_OSD_BUF_SIZE    (1024 * 1024)

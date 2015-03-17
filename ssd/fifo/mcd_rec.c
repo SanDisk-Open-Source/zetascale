@@ -3964,9 +3964,10 @@ update_hash_table( void * context, mcd_osd_shard_t * shard,
  */
 
 
-#define	BRACKET_LIMIT	1024u		/* max # of open trx brackets */
+#define	BRACKET_LIMIT	1000		/* max # of open trx brackets */
 
 
+typedef struct packetstructure	packet_t;
 typedef struct bracketstructure	bracket_t;
 typedef struct logrecstructure	bracketlogrec_t;
 typedef struct lrringstructure	lrring_t;
@@ -3981,10 +3982,11 @@ struct logrecstructure {
 			lineno;
 };
 struct bracketstructure {
-	bracket_t	*next;
-	uint64_t	id;
 	uint		nrec;
 	bracketlogrec_t	record[TRX_LIMIT];
+};
+struct packetstructure {
+	bracket_t	btab[BRACKET_LIMIT];
 };
 
 /* used to unfold and process ring buffer badbuf
@@ -4000,8 +4002,9 @@ enum {
 	TRX_OP_LAST		= 2
 };
 
-int	zs_uncompress_data( char *, size_t, size_t, size_t *),
-	apply_log_record_mp_storm( mcd_rec_obj_state_t *, mcd_logrec_object_t *);
+extern int	zs_uncompress_data( char *, size_t, size_t, size_t *);
+extern int  apply_log_record_mp_storm( mcd_rec_obj_state_t *, mcd_logrec_object_t *);
+
 
 
 static int
@@ -4126,62 +4129,9 @@ filter_ot_initialize( mcd_rec_obj_state_t *state)
 {
 
 	state->otstate = 1;
-	state->ottable = plat_calloc( BRACKET_LIMIT, sizeof( bracket_t *));
+	state->otpacket = plat_malloc( sizeof( packet_t));
+	memset( state->otpacket, 0, sizeof( packet_t));
 	//filter_mp_initialize( state);
-}
-
-
-/*
- * look up bracket ID in ottable
- *
- * Return bracket_t that corresponds to 'bid' in ottable 't'.  If not
- * found, create and return a new bracket_t.  Return 0 on malloc failure.
- */
-static bracket_t	*
-filter_ot_lookup_bracket( bracket_t **t, uint64_t bid)
-{
-
-	bracket_t *b = t[bid%BRACKET_LIMIT];
-	while (b) {
-		if (b->id == bid)
-			return (b);
-		b = b->next;
-	}
-	if (b = malloc( sizeof *b)) {
-		b->id = bid;
-		b->nrec = 0;
-		b->next = t[bid%BRACKET_LIMIT];
-		t[bid%BRACKET_LIMIT] = b;
-	}
-	return (b);
-}
-
-
-/*
- * delete bracket from ottable
- *
- * Delete bracket_t in ottable 't' that corresponds to 'bid'.
- */
-static void
-filter_ot_delete_bracket( bracket_t **t, uint64_t bid)
-{
-	bracket_t	*b,
-			*bnext;
-
-	if (b = t[bid%BRACKET_LIMIT])
-		if (b->id == bid) {
-			t[bid%BRACKET_LIMIT] = b->next;
-			free( b);
-		}
-		else
-			while (bnext = b->next) {
-				if (bnext->id == bid) {
-					b->next = bnext->next;
-					free( bnext);
-					break;
-				}
-				b = bnext;
-			}
 }
 
 
@@ -4193,13 +4143,17 @@ filter_ot_apply_logrec( mcd_rec_obj_state_t *state, mcd_logrec_object_t *rec)
 
 	int a = 0;
 	if (state->otstate == 1) {
-		if (rec->bracket_id < 0)
-			filter_ot_delete_bracket( state->ottable, -rec->bracket_id);
+		packet_t *r = state->otpacket;
+		if (rec->bracket_id < 0) {
+			uint i = - rec->bracket_id;
+			if (i < BRACKET_LIMIT)
+				r->btab[i].nrec = 0;
+		}
 		else if ((rec->bracket_id)
-		and (rec->trx)) {
-			bracket_t *b = filter_ot_lookup_bracket( state->ottable, rec->bracket_id);
-			if ((b)
-			and (b->nrec < nel( b->record))) {
+		and (rec->trx)
+		and (rec->bracket_id < BRACKET_LIMIT)) {
+			bracket_t *b = &r->btab[rec->bracket_id];
+			if (b->nrec < nel( b->record)) {
 				bracketlogrec_t *l = &b->record[b->nrec++];
 				if (b->nrec == nel( b->record)) {
 					if (state->shard->log->errors_fatal) {
@@ -5791,29 +5745,29 @@ free_and_exit:
  * container by cguid.  Packets are compressed with gzip.
  */
 void
-recovery_packet_save( bracket_t **t, void *context, mcd_osd_shard_t *shard)
+recovery_packet_save( packet_t *r, void *context, mcd_osd_shard_t *shard)
 {
-	bracket_t	*b;
-	uint		i,
-			j;
+	uint	i,
+		j;
 
 	char *SAVE_COMMAND = "sort -k 1,1 -k 3,3nr -k 5,5 -k 4,4n |"
 		"awk '{print | \"gzip -1 >\"ENVIRON[\"ZSRECOVERYDIR\"]\"/cguid-\"$1\".gz\"}'";
 	fflush( stdout);
-	for (i=0; i<BRACKET_LIMIT; ++i)
-		for (b=t[i]; b; b=b->next)
-			while ((j = b->nrec)
-			and (b->record[j-1].trx == TRX_OP))
-				--b->nrec;	/* lop the TRX fragment if present */
+	for (i=0; i<nel( r->btab); ++i)
+		while ((j = r->btab[i].nrec)
+		and (r->btab[i].record[j-1].trx == TRX_OP))
+			--r->btab[i].nrec;	/* lop the TRX fragment if present */
 	const char *crashdir = makecrashdir( );
 	setenv( "ZSRECOVERYDIR", crashdir, TRUE);
 	FILE *f = popen( SAVE_COMMAND, "w");
-	unless (f)
+	if (!f) {
 		return;
-	for (i=0; i<BRACKET_LIMIT; ++i)
-		for (b=t[i]; b; b=b->next)
-			for (j=0; j<b->nrec; ++j) {
-				bracketlogrec_t *l = &b->record[j];
+	}
+
+	for (i=0; i<nel( r->btab); ++i)
+		if (r->btab[i].nrec)
+			for (j=0; j<r->btab[i].nrec; ++j) {
+				bracketlogrec_t *l = &r->btab[i].record[j];
 				uint32_t b = l->blkno;
 				if (l->nblock) {
 					fprintf( f, "%u %u %u %u 0 ", l->cguid, i, l->trxid, l->lineno);
@@ -5829,7 +5783,6 @@ recovery_packet_save( bracket_t **t, void *context, mcd_osd_shard_t *shard)
 				}
 			}
 	fclose( f);
-	//delete bracket contents
 }
 
 
@@ -6381,10 +6334,10 @@ updater_thread( uint64_t arg )
 			 * generate packets for btree container and stats recovery
 			 */
 			if (shard->cntr->cguid == VDC_CGUID) {
-				recovery_packet_save( state.ottable, context, shard);
+				recovery_packet_save( state.otpacket, context, shard);
 				stats_packet_save( &state, context, shard);
 				plat_free( state.statbuf);
-				plat_free( state.ottable);
+				plat_free( state.otpacket);
 			}
 			mcd_log_msg( 40083, PLAT_LOG_LEVEL_DEBUG,
 					"Recovering object table, shardID=%lu, "
@@ -7014,11 +6967,11 @@ log_sync_internal(mcd_osd_shard_t *s, uint64_t lsn, int sync)
 }
 
 
-uint64_t __thread		trx_bracket_id;
-uint64_t __thread		*trx_bracket_slabs;
-static uint __thread		trx_bracket_nslab,
-				trx_bracket_level;
+static __thread uint	trx_bracket_id,
+			trx_bracket_level,
+			trx_bracket_nslab;
 
+__thread uint64_t *trx_bracket_slabs = NULL;
 
 static
 uint64_t
@@ -8712,17 +8665,42 @@ mcd_trx_print_stats( FILE *f)
 }
 
 
+static bool	trx_bracket_active[1000];
+static mutex_t	trx_bracket_lock		= PTHREAD_MUTEX_INITIALIZER;
+
+
 /*
- * allocate fresh bracket ID
+ * allocate unused bracket ID
  *
- * Bracket IDs recycle from 1 on ZS restart. 
+ * Active IDs are nonzero, and are recyled immediately.
  */
-static uint64_t
+static uint
 trx_bracket_alloc( )
 {
-	static uint64_t	nextid;
+	uint	id;
 
-	return (__sync_add_and_fetch( &nextid, 1));
+	pthread_mutex_lock( &trx_bracket_lock);
+	for (id=1; id<nel( trx_bracket_active); ++id)
+		unless (trx_bracket_active[id]) {
+			trx_bracket_active[id] = TRUE;
+			pthread_mutex_unlock( &trx_bracket_lock);
+			return (id);
+		}
+	mcd_log_msg( 170023, PLAT_LOG_LEVEL_FATAL, "Too many active trx brackets");
+	plat_abort( );
+}
+
+
+/*
+ * retire thread's bracket ID
+ */
+static void
+trx_bracket_free( uint id)
+{
+
+	pthread_mutex_lock( &trx_bracket_lock);
+	trx_bracket_active[id] = FALSE;
+	pthread_mutex_unlock( &trx_bracket_lock);
 }
 
 
@@ -8778,6 +8756,7 @@ mcd_trx_service( void *pai, int cmd, void *arg)
 		}
 		else
 			mcd_log_msg( 170022, PLAT_LOG_LEVEL_DIAGNOSTIC, "vdc_shard unassigned");
+		trx_bracket_free( trx_bracket_id);
 		trx_bracket_id = 0;
 		return (MCD_TRX_OKAY);
 	/*
@@ -8856,6 +8835,7 @@ mcd_trx_commit_internal( mcd_trx_state_t *t, int op_last)
 			}
 		}
 		t->trtab[i].lr.trx = op_last;
+
 		uint64_t lsn = log_write_internal( t->s, &t->trtab[i].lr);
 		if (t->trtab[i].lr.mlo_dl == SDF_FULL_DURABILITY) {
 			sync = 1;

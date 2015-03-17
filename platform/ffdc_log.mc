@@ -3471,7 +3471,6 @@
 160302 persisting segment on recovery(slabbm), shard_id=%ld seg_offset=%lu, obj_offs=%lu, slab_size=%d
 160303 Transaction commit is %s
 160304 persisting segment on recovery, shard_id=%ld seg_offset=%lu, obj_offs=%lu, slab_size=%d
-160305 Failed to open NVRAM file %s: %s\n
 
 
 # rico

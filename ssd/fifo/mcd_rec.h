@@ -630,7 +630,7 @@ typedef struct mcd_rec_obj_state {
 				statbuftail;
 
 	ushort			otstate;	// state of outer trx recovery
-	void			*ottable;	// uncommitted outer trx
+	void			*otpacket;
 } mcd_rec_obj_state_t;
 
 // Log State
