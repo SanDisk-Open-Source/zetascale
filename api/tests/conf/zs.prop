@@ -1,5 +1,5 @@
 ZS_LOG_LEVEL=info
-ZS_FLASH_SIZE=16
+ZS_FLASH_SIZE=32
 ZS_FLASH_FILENAME=/schooner/data/schooner0
 #ZS_FLASH_FILENAME=/dev/shm/schooner0
 #ZS_LOG_FLUSH_DIR=/dev/shm
