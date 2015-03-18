@@ -6548,74 +6548,74 @@ bt_restart_delcont(void *parm)
     ZS_status_t ret = ZS_SUCCESS;
 
     struct ZS_thread_state		*thd_state = NULL;
-    struct ZS_state			*zs_state = (struct ZS_state*)parm;
-	ZS_container_props_t		props;
-	uint32_t					ncg, i, j, flag;
-	ZS_cguid_t					*cguids = NULL, cguid;
-	char 						*node;
-	uint64_t					node_size;
-	uint64_t 					nodeid = META_SNAPSHOT_LOGICAL_ID;
-	btree_snap_meta_t                       *snap_meta;
-	ZS_status_t				status;
+    struct ZS_state			*zs_state = (struct ZS_state*)parm; 
+    ZS_container_props_t		props; 
+    uint32_t				ncg, i, j, flag; 
+    ZS_cguid_t				*cguids = NULL, cguid;
+    char				*node;
+    uint64_t				node_size;
+    uint64_t				nodeid = META_SNAPSHOT_LOGICAL_ID;
+    btree_snap_meta_t                   *snap_meta;
+    ZS_status_t				status;
 
-    if (_ZSInitPerThreadState(zs_state, &thd_state) != ZS_SUCCESS) {
-		return NULL;
-	}
-	cguids = (ZS_cguid_t *) malloc(sizeof(*cguids) * bt_max_num_containers);
-	if (cguids == NULL) {
-		goto out;
-	}
+    if (_ZSInitPerThreadState(zs_state, &thd_state) != ZS_SUCCESS) { 
+        return NULL;
+    } 
 
-	//Get the number of containers in delete state on the device.
-	if ((status = ZSGetBtDelContainers(thd_state, cguids, &ncg)) != ZS_SUCCESS) {
-		goto out;
-	}
+    cguids = (ZS_cguid_t *) malloc(sizeof(*cguids) * bt_max_num_containers); 
 
-	for (i = 0; i < ncg; i++) {
+    if (cguids == NULL) { 
+        goto out; 
+    }
+
+    //Get the number of containers in delete state on the device.  
+    if ((status = ZSGetBtDelContainers(thd_state, cguids, &ncg)) != ZS_SUCCESS) { 
+        goto out; 
+    }
+
+    for (i = 0; i < ncg; i++) {
 		
-		if ((status = ZSGetContainerProps(thd_state, cguids[i], &props)) != ZS_SUCCESS) {
-			continue;
-		}
+        if ((status = ZSGetContainerProps(thd_state, cguids[i], &props)) != ZS_SUCCESS) { 
+            continue; 
+        }
 
-		if (ZSOpenContainer(thd_state, props.name, &props, 
-					ZS_CTNR_RW_MODE, &cguid) == ZS_SUCCESS) {
+        if (ZSOpenContainer(thd_state, props.name, &props, 
+                            ZS_CTNR_RW_MODE, &cguid) == ZS_SUCCESS) { 
 
-			if (cguids[i] == cguid) {
-restart:
-				status = ZSReadObject(thd_state, cguid, (char *)&nodeid,
-						sizeof(uint64_t), &node, &node_size);
-				if (status == ZS_SUCCESS) {
-					snap_meta = (btree_snap_meta_t *)node;
-					if (snap_meta->sc_status == SC_OVERFLW_DELCONT) {
-						ZSFreeBuffer(node);
-						ZSCloseContainer(thd_state, cguid);
-						fprintf(stderr, "Restarting deletion of container: %s\n", props.name);
-						status = _ZSOpenContainer(thd_state, props.name,
-								&props, ZS_CTNR_RW_MODE, &cguid);
-						fprintf(stderr, "Restarting deletion of container: %s %s\n", props.name, ZSStrError(status));
-						assert(status == ZS_FAILURE_CONTAINER_DELETED);
-					} else {
-						snap_meta->sc_status = SC_OVERFLW_DELCONT;
-						status = ZSWriteObject(thd_state, cguid, (char *)&nodeid,
-									sizeof(uint64_t), (char *)node, node_size, 0);
-						ZSFreeBuffer(node);
-						if (status == ZS_SUCCESS) {
-							goto restart;
-						}
-					}
-
-				}
-			}
-		}
-
-	}
+            if (cguids[i] == cguid) {
+restart: 
+                status = ZSReadObject(thd_state, cguid, (char *)&nodeid, 
+                                      sizeof(uint64_t), &node, &node_size); 
+                if (status == ZS_SUCCESS) { 
+                    snap_meta = (btree_snap_meta_t *)node; 
+                    if (snap_meta->sc_status == SC_OVERFLW_DELCONT) { 
+                        ZSFreeBuffer(node); 
+                        ZSCloseContainer(thd_state, cguid); 
+                        fprintf(stderr, "Restarting deletion of container: %s\n", props.name); 
+                        status = _ZSOpenContainer(thd_state, props.name, 
+                                                  &props, ZS_CTNR_RW_MODE, &cguid); 
+                        fprintf(stderr, "Restarting deletion of container: %s %s\n", props.name, ZSStrError(status)); 
+                        assert(status == ZS_FAILURE_CONTAINER_DELETED || status == ZS_FAILURE_OPERATION_DISALLOWED); 
+                    } else { 
+                        snap_meta->sc_status = SC_OVERFLW_DELCONT; 
+                        status = ZSWriteObject(thd_state, cguid, (char *)&nodeid, 
+                                               sizeof(uint64_t), (char *)node, node_size, 0); 
+                        ZSFreeBuffer(node); 
+                        if (status == ZS_SUCCESS) { 
+                            goto restart; 
+                        } 
+                    } 
+                } 
+            } 
+        }
+    }
 
 out:
-	if (cguids) {
-		free(cguids);
-	}
-	_ZSReleasePerThreadState(&thd_state);
-	return NULL;
+    if (cguids) { 
+        free(cguids); 
+     } 
+     _ZSReleasePerThreadState(&thd_state); 
+     return NULL;
 }
 
 //========================== btree defragmenter =======================
