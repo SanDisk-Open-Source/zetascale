@@ -68,8 +68,9 @@ typedef struct {
 }stats_dump_cfg_t;
 static stats_dump_cfg_t dump_thd_cfg;
 
-#define MAX_CMD_TOKENS						20
-#define STATS_BUFFER_SIZE					1024 
+#define IS_ZS_HASH_CONTAINER(FLAGS) (FLAGS & (1 << 0))
+#define MAX_CMD_TOKENS    20
+#define STATS_BUFFER_SIZE 1024 
 
 #define LOG_ID PLAT_LOG_ID_INITIAL
 #define LOG_CAT PLAT_LOG_CAT_SDF_NAMING
@@ -369,7 +370,6 @@ ZS_status_t log_summary_stats(struct ZS_thread_state *thd_state, FILE *fp) {
     uint64_t total_btree_used_space = 0;
     uint64_t total_used_space = 0;
     int total_num_btree_containers = 0;
-    int total_num_log_containers = 0;
     int total_num_hash_containers = 0;
         
     cguids = (ZS_cguid_t *) plat_alloc(sizeof(*cguids) * max_num_containers);
@@ -406,8 +406,6 @@ ZS_status_t log_summary_stats(struct ZS_thread_state *thd_state, FILE *fp) {
             ++total_num_hash_containers;
             total_hash_num_objs += num_objs;
             total_hash_used_space += used_space;
-		} else if (IS_ZS_HASH_CONTAINER(props.flags)) {
-            ++total_num_log_containers;
         } else {
             ++total_num_btree_containers;
             total_btree_num_objs += num_objs;
@@ -485,9 +483,7 @@ ZS_status_t log_container_props(struct ZS_thread_state *thd_state, FILE *fp) {
     
         if (IS_ZS_HASH_CONTAINER(props.flags)) {
             type = "hash";
-        } else if (IS_ZS_LOG_CONTAINER(props.flags)) {
-            type = "log";
-		} else {
+        } else {
             type = "btree";
         }
 

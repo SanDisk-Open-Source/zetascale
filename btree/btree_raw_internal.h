@@ -37,6 +37,7 @@ typedef struct cmap {
 	pthread_cond_t		bt_snap_cv;
 	pthread_rwlock_t	bt_cm_rwlock;
 	uint64_t			flags;
+	void				*iter;
 } ctrmap_t;
 
 #define BAD_CHILD       0
