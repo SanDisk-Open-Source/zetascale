@@ -3116,8 +3116,12 @@ static ZS_status_t zs_create_container(
 	                              properties->evicting
 	                            );
 
-	    if ( ZS_SUCCESS != status ) 
-			goto out;
+	    if ( ZS_SUCCESS != status ) {
+                // See if this is a duplicate entry error
+                if (status == ZS_FAILURE_CANNOT_CREATE_METADATA_CACHE)
+                    status = ZS_CONTAINER_EXISTS;
+		    goto out;
+            }
 
 		isCMC = SDF_FALSE;
 		init_get_my_node_id();
@@ -3415,7 +3419,7 @@ static ZS_status_t zs_open_container(
 
 	if ( strcmp( cname, CMC_PATH ) != 0 ) {
 	    if ( NULL == ( cmap = zs_cmap_get_by_cname( cname ) ) ) {
-	        status = ZS_INVALID_PARAMETER;
+	        status = ZS_CONTAINER_UNKNOWN;
 	        *cguid = ZS_NULL_CGUID;
 	        goto out;
 	    }

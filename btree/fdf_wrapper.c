@@ -4905,7 +4905,7 @@ seqnoalloc( struct ZS_thread_state *t)
 			default:
 				fprintf( stderr, "cannot open %s (%s)", SEQNO_CONTAINER, ZSStrError( s));
 				abort( );
-			case ZS_INVALID_PARAMETER:		/* schizo ZS/SDF return */
+			case ZS_CONTAINER_UNKNOWN:		/* schizo ZS/SDF return */
 				p.size_kb = 1 * 1024 * 1024;
 				p.fifo_mode = ZS_FALSE;
 				p.persistent = ZS_TRUE;
