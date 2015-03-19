@@ -302,9 +302,10 @@ static uint64_t N_log         = 0;
 static uint64_t N_cmp         = 0;
 
 
+// These must be kept in sync with values in sdftypes.h!!!!
 #define FIRST_VALID_CGUID              3
-#define LAST_VALID_CGUID               UINT16_MAX
-#define MAX_OPEN_CONTAINERS            LAST_VALID_CGUID + 1
+#define NUM_INTERNAL_CONTAINERS        6
+#define MAX_OPEN_CONTAINERS            64000 + NUM_INTERNAL_CONTAINERS
 
 static int bt_max_num_containers = MAX_OPEN_CONTAINERS;
 
@@ -707,7 +708,10 @@ ZS_status_t _ZSInitVersioned(
     const char *ZS_SCAVENGE_PER_OBJECTS = "10000";
     int NThreads = 10;
 
-    bt_max_num_containers = getProperty_Int("ZS_MAX_NUM_CONTAINERS", MAX_OPEN_CONTAINERS);
+    bt_max_num_containers = getProperty_Int("ZS_MAX_NUM_CONTAINERS", MAX_OPEN_CONTAINERS) + NUM_INTERNAL_CONTAINERS;
+    if (bt_max_num_containers > MAX_OPEN_CONTAINERS)
+        bt_max_num_containers = MAX_OPEN_CONTAINERS;
+
 #ifdef notdef
     //Container_Map = (ctrmap_t *) malloc(bt_max_num_containers * sizeof(ctrmap_t));
     if (!Container_Map)

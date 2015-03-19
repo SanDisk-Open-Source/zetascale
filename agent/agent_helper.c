@@ -122,6 +122,8 @@ init_flash(struct sdf_agent_state *state)
 
     // Allocate space for the Mcd_containers array
     Mcd_containers = (mcd_container_t *) plat_alloc(sizeof(mcd_container_t) * max_num_containers);
+    memset(Mcd_containers, 0, sizeof(*Mcd_containers) * max_num_containers);
+
 
     /*  This initializes the code that redirects
      *  flash API calls to one of several alternative

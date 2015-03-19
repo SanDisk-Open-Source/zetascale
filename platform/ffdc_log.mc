@@ -3192,6 +3192,7 @@
 150130 Container cguid=%lu cannot be renamed as it is being deleted.\n
 150131 flip rename_pre_meta_error\n
 150132 flip rename_post_meta_error\n
+150133 max number of containers = %d.\n
 
 
 # root

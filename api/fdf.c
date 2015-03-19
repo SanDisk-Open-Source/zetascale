@@ -76,9 +76,6 @@
 __thread char *compression_buf = NULL; 
 __thread int compression_buf_len = 0 ; 
 
-#define SEQNO_CONTAINER_NAME	"__SanDisk_seqno_container"
-#define PSTATS_CONTAINER_NAME	"__SanDisk_pstats_container"
-
 /*
 ** Globals
 */
@@ -280,7 +277,8 @@ static ZS_status_t zs_vc_init(
 
 static ZS_status_t zs_generate_cguid(
 	struct ZS_thread_state  *zs_thread_state,
-	ZS_cguid_t 			 *cguid
+        char                    *cname,
+	ZS_cguid_t              *cguid
 	);
 
 static ZS_status_t zs_delete_object(
@@ -1981,6 +1979,7 @@ ZS_status_t ZSInitVersioned(
     uint64_t             num_sched;
     struct timeval		 timer;
     const char			*prop_file;
+    struct SDF_shared_state      *state       = &sdf_shared_state; 
 
     char log_file[2048]="";
 
@@ -2018,7 +2017,12 @@ ZS_status_t ZSInitVersioned(
 	mcd_log_msg(160280, PLAT_LOG_LEVEL_INFO, "ZS_CHECK_MODE = %d.\n", __zs_check_mode_on);
 
     // Pick up the max number of containers property. Should only do this on reformat!!!! FIXME
-    max_num_containers = getProperty_Int("ZS_MAX_NUM_CONTAINERS", MCD_MAX_NUM_CNTRS);
+    // Allow for internal ZS containers, but limit to the absolute max.
+    max_num_containers = getProperty_Int("ZS_MAX_NUM_CONTAINERS", MCD_MAX_NUM_CNTRS) + MCD_NUM_INTERNAL_CNTRS;
+    if (max_num_containers > MCD_MAX_NUM_CNTRS)
+        max_num_containers = MCD_MAX_NUM_CNTRS;
+
+    mcd_log_msg(150133, PLAT_LOG_LEVEL_INFO, "max number of containers = %d.\n", max_num_containers);
 
     //  Initialize a crap-load of settings
     zs_load_settings( &(agent_state.flash_settings) );
@@ -2026,6 +2030,9 @@ ZS_status_t ZSInitVersioned(
         return ZS_FAILURE;
     } 
 
+    // Configure cguid counter to by pass ZS internal containers
+    state->config.cguid_counter = LAST_INTERNAL_CGUID + 1;
+    
     // Initialize the container metadata map
     if ( ZS_SUCCESS != zs_cmap_init() )
         return ZS_FAILURE;
@@ -3075,7 +3082,7 @@ static ZS_status_t zs_create_container(
 		*cguid = CMC_CGUID;
 		isCMC = SDF_TRUE;
 	} else {
-		for ( i = 0; i < max_num_containers; i++ ) {
+		for ( i = 1; i <= max_num_containers; i++ ) {
 			if ( Mcd_containers[i].cguid == 0 ) { 
 				// this is an unused map entry
 				break;
@@ -3091,7 +3098,7 @@ static ZS_status_t zs_create_container(
 			goto out;
 		}
 
-		if ( ( status = zs_generate_cguid( zs_thread_state, cguid ) ) != ZS_SUCCESS ) {
+		if ( ( status = zs_generate_cguid( zs_thread_state, cname, cguid ) ) != ZS_SUCCESS ) {
 			plat_log_msg( 150084,
 					LOG_CAT,
 					LOG_ERR,
@@ -7699,39 +7706,59 @@ zs_vc_init(
 // We need to change to a 16bit cguid eventually.
 static ZS_status_t zs_generate_cguid(
 	struct ZS_thread_state *zs_thread_state,
-	ZS_cguid_t				*cguid
+        char                   *cname,
+	ZS_cguid_t             *cguid
 	)
-{
-	ZS_status_t				 status	= ZS_OBJECT_EXISTS;
-    struct SDF_shared_state		*state	= &sdf_shared_state;
-	uint16_t		 			 i		= 0;
-	uint16_t		 			 start	= 0;
+{ 
+    ZS_status_t                   status      = ZS_OBJECT_EXISTS;
+    struct SDF_shared_state      *state       = &sdf_shared_state; 
+    uint16_t                      i           = 0; 
+    uint16_t                      start	      = 0;
 
-	start = state->config.cguid_counter;
+    start = state->config.cguid_counter;
 
-	// We allow the counter to rollover as we check for duplicates
-	for ( i = start + 1; i != start; i++ ) {
-		state->config.cguid_counter += 1; 
-		/*
- * 		 * Skip cguids 0 and max  */	
-		if (state->config.cguid_counter == max_num_containers ||
-		    state->config.cguid_counter == 0) {
-			state->config.cguid_counter = 1; 
-		}
-		if ( !zs_cmap_get_by_cguid( state->config.cguid_counter ) ) {
-			*cguid = state->config.cguid_counter;
-			status = ZS_SUCCESS;
-			break;
-		}
-	}
+    // Check for the ZS internal containers, these have fixed cguid.
+    if (strcmp(cname, CMC_PATH) == 0)
+        *cguid = CMC_CGUID;
+    else if (strcmp(cname, VMC_PATH) == 0)
+        *cguid = VMC_CGUID;
+    else if (strcmp(cname, VDC_PATH) == 0)
+        *cguid = VDC_CGUID;
+    else if (strcmp(cname, SEQNO_CONTAINER_NAME) == 0)
+        *cguid = SEQNO_CONTAINER_CGUID;
+    else if (strcmp(cname, PSTATS_CONTAINER_NAME) == 0)
+        *cguid = PSTATS_CONTAINER_CGUID;
 
-	plat_log_msg( 150083, LOG_CAT, LOG_DBG, "%lu - %s\n", *cguid, ZSStrError( status ) );
+    if (*cguid != ZS_NULL_CGUID) {
+        status = ZS_SUCCESS;
+        goto out;
+    }
 
-	if (*cguid == 0) {
-		plat_assert(status != ZS_SUCCESS);
-	}
+    // We allow the counter to rollover as we check for duplicates
+    for ( i = start + 1; i != start; i++ ) { 
+        state->config.cguid_counter += 1; 
+        /* 
+         * 
+         * Skip cguids 0 and max  */	
+        if (/* state->config.cguid_counter == max_num_containers || */ 
+            state->config.cguid_counter == 0) {
+            state->config.cguid_counter = 1; 
+        } 
+        if ( !zs_cmap_get_by_cguid( state->config.cguid_counter ) ) { 
+           *cguid = state->config.cguid_counter; 
+           status = ZS_SUCCESS; 
+           break; 
+        }
+    }
 
-	return status;
+out:
+    plat_log_msg( 150083, LOG_CAT, LOG_DBG, "%lu - %s\n", *cguid, ZSStrError( status ) );
+
+    if (*cguid == 0) { 
+        plat_assert(status != ZS_SUCCESS); 
+    }
+
+    return status;
 }
 
 

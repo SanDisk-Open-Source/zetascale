@@ -82,8 +82,8 @@ typedef struct {
 /*
  * maximum number of containers supported by one instance of SDF
  */
-//#define MCD_MAX_NUM_CNTRS       128
-#define MCD_MAX_NUM_CNTRS       UINT16_MAX - 1 - 9 /*EF: That seven doesn't fit in first segment */
+#define MCD_NUM_INTERNAL_CNTRS  6 // null container + physical containers + seqno + pstats
+#define MCD_MAX_NUM_CNTRS       64000 + MCD_NUM_INTERNAL_CNTRS
 
 // Not 0 so that we can differentiate uninitialized
 #define CMC_CGUID 1					// Physical container
@@ -92,6 +92,12 @@ typedef struct {
 #define LAST_PHYSICAL_CGUID 3
 #define CMC_HOME 0
 #define CMC_CGUID_INITIAL_VALUE 1
+
+#define SEQNO_CONTAINER_NAME    "__SanDisk_seqno_container"
+#define PSTATS_CONTAINER_NAME   "__SanDisk_pstats_container"
+#define SEQNO_CONTAINER_CGUID   LAST_PHYSICAL_CGUID + 1
+#define PSTATS_CONTAINER_CGUID  SEQNO_CONTAINER_CGUID + 1
+#define LAST_INTERNAL_CGUID     PSTATS_CONTAINER_CGUID
 
 #define MAX_OBJECT_ID_SIZE 256
 #define MAX_CGUID_STR_LEN  21         // Enough for 20 digits + 1 for null (2**64)

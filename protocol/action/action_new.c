@@ -2465,8 +2465,8 @@ SDF_status_t SDFPreloadContainerMetaData(SDF_action_init_t *pai, SDF_cguid_t cgu
     {
         i = cguid;
 
-	if (i >= max_num_containers) {
-	    plat_log_msg(21107, PLAT_LOG_CAT_SDF_PROT, PLAT_LOG_LEVEL_DEBUG,
+	if (i > max_num_containers) {
+	    plat_log_msg(21107, PLAT_LOG_CAT_SDF_PROT, PLAT_LOG_LEVEL_ERROR,
 			 "Exceeded max number of containers (%d).", max_num_containers);
 	    // plat_abort();
 	    fthUnlock(wait);

@@ -95,7 +95,7 @@ init_sdf_initialize_config(struct SDF_config *config,
      * Initialize the cguid counter as if we were reformatting.
      * We will recover it when SDF is up if we are in recovery mode.
      */
-    config->cguid_counter = CMC_CGUID_INITIAL_VALUE;
+    config->cguid_counter = LAST_INTERNAL_CGUID;
 }
 
 // ============================================================
