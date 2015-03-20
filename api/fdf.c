@@ -7744,9 +7744,9 @@ static ZS_status_t zs_generate_cguid(
         /* 
          * 
          * Skip cguids 0 and max  */	
-        if (/* state->config.cguid_counter == max_num_containers || */ 
+        if (state->config.cguid_counter == max_num_containers ||
             state->config.cguid_counter == 0) {
-            state->config.cguid_counter = 1; 
+            state->config.cguid_counter = LAST_INTERNAL_CGUID; 
         } 
         if ( !zs_cmap_get_by_cguid( state->config.cguid_counter ) ) { 
            *cguid = state->config.cguid_counter; 
