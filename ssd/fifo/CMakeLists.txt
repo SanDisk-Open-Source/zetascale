@@ -13,6 +13,7 @@ add_library(fifo OBJECT fifo.c
 	slab_gc.c
 	hash.c
     mcd_check.c
+    nvram.c
     scavenger.c )
 add_dependencies(fifo ffdc)
 add_definitions(-Wno-switch -Wno-parentheses)

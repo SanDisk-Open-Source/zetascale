@@ -35,7 +35,7 @@
 160000 root
 170000 rico
 180000 efirsov
-190000 always_last
+200000 always_last
 
 
 [MESSAGES]
@@ -3472,6 +3472,10 @@
 160302 persisting segment on recovery(slabbm), shard_id=%ld seg_offset=%lu, obj_offs=%lu, slab_size=%d
 160303 Transaction commit is %s
 160304 persisting segment on recovery, shard_id=%ld seg_offset=%lu, obj_offs=%lu, slab_size=%d
+160306 Cannot open nv ram file %s for flog recover.\n
+160307 Nvram dev file = %s, Start offset = %lu.\n
+160308 Failed to open nvram dev file %s.\n
+160309 Flog mode = %d, %s.\n
 
 
 # rico
@@ -3547,3 +3551,4 @@
 180214 Slab GC stopped. shardID=%ld
 180215 PROP: SDF_MAX_OBJ_SIZE=%"PRIu64" (adjusted from %"PRIu64")
 180216 PERIODIC durability is not supported, set to SW_CRASH_SAFE for %s\n
+190001 Flog mode = %d, %s, nvram_file = %s.\n

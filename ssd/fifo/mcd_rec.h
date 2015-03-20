@@ -480,6 +480,12 @@ typedef struct {
 	uint64_t lsn;
 } mlog_rec_t;
 
+
+typedef enum {
+	ZS_FLOG_FILE_MODE = 1,
+	ZS_FLOG_NVRAM_MODE,
+} zs_flog_mode_t;
+
 #define MLOG_BUF_N_RECS 1024
 typedef struct {
 	mlog_rec_t rec[MLOG_BUF_N_RECS];

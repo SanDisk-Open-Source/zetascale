@@ -38,6 +38,7 @@
 #include "protocol/action/recovery.h"
 #include "ssd/fifo/slab_gc.h"
 #include "flip/flip.h"
+#include "nvram.h"
 
 
 /*
@@ -229,13 +230,21 @@ extern inline uint32_t mcd_osd_lba_to_blk( uint32_t blocks );
 extern mcd_container_t          Mcd_osd_cmc_cntr;
 int pot_checksum_enabled;
 int flog_checksum_enabled;
+
+zs_flog_mode_t __zs_flog_mode = ZS_FLOG_FILE_MODE;
+
+
 int trx_commit_sw;
 
+static bool flog_reformated_nv = false;
 
 // -----------------------------------------------------
 //    Forward declarations
 // -----------------------------------------------------
 
+void fbio_commit(flog_rec_t *recs, int count, uint64_t shard_id);
+static void flog_init_nv(bool reformat);
+static int flog_check_min_size(int fd, FILE *fp, int min_size);
 int  read_label( int order[] );
 int  validate_superblock_data( char * dest, int good_count, int good_copy[],
                                uint64_t blk_offset, int blk_count,
@@ -2361,12 +2370,22 @@ show_buf(unsigned char *buf, char *msg)
 int get_flog_block_size(int fd)
 {
     int block_size = getProperty_Int("ZS_LOG_BLOCK_SIZE", 0);
-    if(!block_size)
-    {
-        struct stat s;
-        int ret = fstat(fd, &s);
-        if(ret >= 0)
-            block_size = s.st_blksize;
+    if(!block_size) {
+	struct stat s;
+	int ret = 0;
+
+	if (__zs_flog_mode == ZS_FLOG_NVRAM_MODE) {
+		/*
+		 * For nvram mode we want to check block size of main file.
+		 */
+		fd = nv_get_dev_fd();
+	}
+	
+	ret = fstat(fd, &s);
+	if(ret >= 0) {
+	    block_size = s.st_blksize;
+	}
+
 
         if(!block_size)
             block_size = 4096;
@@ -2471,7 +2490,7 @@ fbio_write(flog_bio_t *fbio, flog_rec_t *frec)
  * Return 1 if smaller, 0 otherwise.
 */      
 static int
-flog_check_min_size(FILE *fp, int min_size)
+flog_check_min_size_file(FILE *fp, int min_size)
 {       
     long size = 0;
  
@@ -2492,15 +2511,13 @@ flog_check_min_size(FILE *fp, int min_size)
  * Patch up the log pages of a shard.
  */
 static int
-flog_patchup(uint64_t shard_id, FILE *fp, int check_only)
+flog_patchup_file(uint64_t shard_id, FILE *fp, int check_only)
 {
     int flog_rec_cmp(const void* a, const void* b) { return ((flog_rec_t*)a)->seqno - ((flog_rec_t*)b)->seqno; }
 
-    int           max_i = 0, i = 0;
     unsigned char *sector = NULL;
-    flog_bio_t    fbio_ = {0};
     int           check_errors = 0;
-    uint64_t seqno, corrupted_lsn = 0, prev_lsn = (uint64_t)-1;
+    uint64_t corrupted_lsn = 0, prev_lsn = (uint64_t)-1;
     int block_size = get_flog_block_size(fileno(fp));
     int count = 0;
     flog_rec_t recs[FLUSH_LOG_MAX_RECS];
@@ -2511,14 +2528,14 @@ flog_patchup(uint64_t shard_id, FILE *fp, int check_only)
         abort_on_corruption = 0;
     }
 
-    if (flog_check_min_size(fp, block_size)) {
+    if (flog_check_min_size(-1, fp, block_size)) {
         zscheck_log_msg(ZSCHECK_FLOG_RECORD, shard_id, ZSCHECK_READ_ERROR,
                         "Flog check failed: log file is less than the minimum size");
         return 1;
     }
 
     sector = plat_alloc(block_size);
-    if (!sector || !fbio_alloc(&fbio_)) {
+    if (!sector) {
         mcd_log_msg(160294, PLAT_LOG_LEVEL_ERROR,
                 "Flush log sync: failed to allocate sector/fbio");
 
@@ -2591,10 +2608,57 @@ flog_patchup(uint64_t shard_id, FILE *fp, int check_only)
     }
 
     if(!check_only && count) {
+	fbio_commit(recs, count, shard_id);
+    }
+
+    if (!check_errors && check_only) { 
+        zscheck_log_msg(ZSCHECK_FLOG_RECORD, shard_id, ZSCHECK_SUCCESS, "flog magic number valid");
+        zscheck_log_msg(ZSCHECK_FLOG_RECORD, shard_id, ZSCHECK_SUCCESS, "flog checksum valid");
+    }
+
+    if (sector)
+        plat_free(sector);
+
+    if(check_only && !count) {
+        fseek(fp, 0, SEEK_END);
+        return ftell(fp);
+    }
+
+    return 0;
+}
+
+static int
+flog_check_min_size(int fd, FILE *fp, int min_size)
+{       
+	if (__zs_flog_mode == ZS_FLOG_FILE_MODE) {
+		return flog_check_min_size_file(fp, min_size);
+	} else {
+		return nv_check_min_size(fd);
+	}
+}                  
+
+/*
+ * Commit number of records to flash from log file.
+ */
+void
+fbio_commit(flog_rec_t *recs, int count, uint64_t shard_id)
+{
+	int flog_rec_cmp(const void* a, const void* b) { return ((flog_rec_t*)a)->seqno - ((flog_rec_t*)b)->seqno; }
+	int ret = 0;
+	flog_bio_t fbio_ = {0};
+	int i = 0;
+	int max_i = 0;
+	uint64_t seqno = 0;
+
+	ret = fbio_alloc(&fbio_);
+	plat_assert(ret != 0);
+	
         /* Find maximum seqno */
-        for(i = 0; i < count; i++)
-            if(recs[i].seqno > recs[max_i].seqno)
-                max_i = i;
+        for(i = 0; i < count; i++) {
+		if(recs[i].seqno > recs[max_i].seqno) {
+			max_i = i;
+		}
+	}
 
         /* Find minimum VALID seqno. Its next to maximum */
         seqno = recs[(max_i < count - 1) ? max_i + 1 : 0].seqno;
@@ -2606,8 +2670,9 @@ flog_patchup(uint64_t shard_id, FILE *fp, int check_only)
 
         /* Apply the rest of the records. Stop at first hole or write error */
         seqno = recs[i].seqno - 1;
-        while(i < count && recs[i].seqno == seqno + 1 && fbio_write(&fbio_, &recs[i])) {
-            i++; seqno++;
+        while(i < count && recs[i].seqno == seqno + 1 &&
+	     fbio_write(&fbio_, &recs[i])) {
+		i++; seqno++;
         }
 
         fbio_flush(&fbio_);
@@ -2622,6 +2687,117 @@ flog_patchup(uint64_t shard_id, FILE *fp, int check_only)
                     "Flush log sync: patched %d log records for shard %lu. From seqno=%ld to seqno=%ld",
                     i, shard_id, recs[0].seqno, recs[count-1].seqno);
         }
+
+	plat_free(fbio_.buf);
+}
+
+static int
+flog_patchup_nv(uint64_t shard_id, int fd, int check_only)
+{
+    int flog_rec_cmp(const void* a, const void* b) { return ((flog_rec_t*)a)->seqno - ((flog_rec_t*)b)->seqno; }
+
+    unsigned char *sector = NULL;
+    int           check_errors = 0;
+    uint64_t corrupted_lsn = 0, prev_lsn = (uint64_t)-1;
+    int block_size = get_flog_block_size(fd);
+    int count = 0;
+    flog_rec_t recs[FLUSH_LOG_MAX_RECS];
+
+    int abort_on_corruption = getProperty_Int("ZS_LOG_ABORT_ON_CORRUPTION", 0);
+    if( check_only == 1 ) {
+        /* in ZSCK mode, we should not abort because ZSCK brings up zetascale for various checks*/
+        abort_on_corruption = 0;
+    }
+
+    if (flog_reformated_nv) {
+	/*
+	 * We have zeroed out nvram area, no point of reading it.
+	 */
+	return 0;
+    }
+
+    if (flog_check_min_size(fd, NULL, block_size)) {
+        zscheck_log_msg(ZSCHECK_FLOG_RECORD, shard_id, ZSCHECK_READ_ERROR,
+                        "Flog check failed: log file is less than the minimum size");
+        return 1;
+    }
+
+    sector = plat_alloc(block_size);
+    //if (!sector || !fbio_alloc(&fbio_)) {
+    if (!sector) {
+        mcd_log_msg(160294, PLAT_LOG_LEVEL_ERROR,
+                "Flush log sync: failed to allocate sector/fbio");
+
+        if (sector)
+            plat_free(sector);
+
+        return 1;
+    }
+
+    flog_rec_t *frec = (flog_rec_t *)sector;
+    while (nv_read(fd, sector, block_size) > 0) {
+        if (frec->magic != FLUSH_LOG_MAGIC) {
+            if (check_only && !empty(sector, block_size)) {
+                zscheck_log_msg(ZSCHECK_FLOG_RECORD, shard_id, 
+                        ZSCHECK_MAGIC_ERROR, "flog magic number invalid");
+                ++check_errors;
+            }
+
+            if(!flog_checksum_enabled)
+                continue;
+
+            if(empty(sector, block_size)) {
+                if((((nv_ftell(fd) - block_size) / block_size) % MCD_REC_LOG_BLK_SLOTS)) {
+                    mcd_log_msg(160295, PLAT_LOG_LEVEL_WARN,
+                            "shard_id=%ld skipping empty non header block. filepos=%ld", shard_id, nv_ftell(fd) - block_size);
+                }
+                continue;
+            }
+
+            if(!(((nv_ftell(fd) - block_size) / block_size) % MCD_REC_LOG_BLK_SLOTS)) {
+                mcd_log_msg(160296, corrupted_lsn ? PLAT_LOG_LEVEL_FATAL : PLAT_LOG_LEVEL_WARN,
+                        "shard_id=%ld corrupted log block header", shard_id);
+                if(corrupted_lsn && abort_on_corruption == 2)
+                    plat_abort();
+                continue;
+            }
+        }
+
+        if(flog_checksum_enabled) {
+            uint32_t c, sum = frec->checksum;
+            frec->checksum = 0;
+            if((c = checksum((char*)frec, sizeof(flog_rec_t), 0)) != sum) {
+                mcd_log_msg(160297, corrupted_lsn ? PLAT_LOG_LEVEL_FATAL : PLAT_LOG_LEVEL_WARN,
+                        "shard_id=%ld flog checksum doesn't match expected %x, stored on disk %x, filepos=%ld", shard_id, c, sum, nv_ftell(fd) - block_size);
+
+                if(corrupted_lsn) {
+                    if(check_only) {
+                        zscheck_log_msg(ZSCHECK_FLOG_RECORD, shard_id, 
+                                ZSCHECK_CHECKSUM_ERROR, "flog checksum invalid");
+                        ++check_errors;
+                        return 1;
+                    }
+                    else if(abort_on_corruption == 2)
+                        plat_abort();
+                }
+
+                if(abort_on_corruption == 1)
+                    plat_abort();
+
+                corrupted_lsn = prev_lsn;
+                continue;
+            }
+            else
+                prev_lsn = frec->lsn;
+        }
+
+        frec->filepos = nv_ftell(fd) - block_size;
+        plat_assert(count < FLUSH_LOG_MAX_RECS);
+        recs[count++] = *frec;
+    }
+
+    if(!check_only && count) {
+	fbio_commit(recs, count, shard_id);
     }
 
     if (!check_errors && check_only) { 
@@ -2631,17 +2807,14 @@ flog_patchup(uint64_t shard_id, FILE *fp, int check_only)
 
     if (sector)
         plat_free(sector);
-    if (fbio_.buf)
-        plat_free(fbio_.buf);
 
     if(check_only && !count) {
-        fseek(fp, 0, SEEK_END);
-        return ftell(fp);
+        nv_fseek(fd, 0, SEEK_END);
+        return nv_ftell(fd);
     }
 
     return 0;
 }
-
 
 /*
  * Recover the flushed pages of a shard.
@@ -2649,31 +2822,59 @@ flog_patchup(uint64_t shard_id, FILE *fp, int check_only)
 static int
 flog_recover_low(uint64_t shard_id, int check_only)
 {
-    char path[FLUSH_LOG_MAX_PATH];
-    FILE            *fp = NULL;
-    char          *fast = NULL;
-    char *log_flush_dir = (char *) getProperty_String("ZS_LOG_FLUSH_DIR", NULL);
+	char path[FLUSH_LOG_MAX_PATH];
+	FILE            *fp = NULL;
+	char          *fast = NULL;
+	char *log_flush_dir = (char *) getProperty_String("ZS_LOG_FLUSH_DIR", NULL);
+	int fd = -1;
+	int rc = 0;
+	char *dir_path = "nvram";
 
-    if (log_flush_dir == NULL)
-        return 1;
-	if(zs_instance_id)
+	if (__zs_flog_mode == ZS_FLOG_FILE_MODE) {
+	    if (log_flush_dir == NULL)
+		return 1;
+	} else {
+		log_flush_dir = dir_path;
+	}
+
+	if(zs_instance_id) {
 		snprintf(path, sizeof(path), "%s/zs_%d/%s%lu",
 			log_flush_dir, zs_instance_id, FLUSH_LOG_PREFIX, shard_id);
-	else
+	} else {
 		snprintf(path, sizeof(path), "%s/%s%lu",
-             log_flush_dir, FLUSH_LOG_PREFIX, shard_id);
-    fp = fopen(path, "r");
-    if (!fp)
-        return access( path, F_OK ) == -1 ? 0 : 1;
+		     log_flush_dir, FLUSH_LOG_PREFIX, shard_id);
+	}
 
-    fast = plat_alloc(FLUSH_LOG_BUFFERED);
-    if (fast)
-        setbuffer(fp, fast, FLUSH_LOG_BUFFERED);
 
-    int rc = flog_patchup(shard_id, fp, check_only);
-    fclose(fp);
-    if (fast)
-        plat_free(fast);
+	if (__zs_flog_mode == ZS_FLOG_NVRAM_MODE) {
+		fd = nv_open(path, O_RDONLY, 0);
+		if (fd < 0) {
+			mcd_log_msg(160306, PLAT_LOG_LEVEL_ERROR,
+				   "Cannot open nv ram file %s for flog recover.\n",
+				   path);
+			plat_assert(0);
+			return -1;
+		}
+
+		rc = flog_patchup_nv(shard_id, fd, check_only);
+		nv_close(fd);
+	} else {
+		fp = fopen(path, "r");
+		if (!fp) {
+			return access(path, F_OK ) == -1 ? 0 : 1;
+		}
+
+		fast = plat_alloc(FLUSH_LOG_BUFFERED);
+		if (fast) {
+			setbuffer(fp, fast, FLUSH_LOG_BUFFERED);
+		}
+
+		rc = flog_patchup_file(shard_id, fp, check_only);
+		fclose(fp);
+		if (fast) {
+			plat_free(fast);
+		}
+	}
 
 	return rc;
 }
@@ -2692,14 +2893,21 @@ flog_recover(mcd_osd_shard_t *shard, void *context)
 static void
 flog_prepare(mcd_osd_shard_t *shard)
 {
-    char path[FLUSH_LOG_MAX_PATH];
-    char *log_flush_dir = (char *)getProperty_String("ZS_LOG_FLUSH_DIR", NULL);
+	char path[FLUSH_LOG_MAX_PATH];
+	char *log_flush_dir = (char *)getProperty_String("ZS_LOG_FLUSH_DIR", NULL);
+	char *dir_path = "nvram";
+	int fd = -1;
 
-    if (log_flush_dir == NULL)
-        return;
+	if (__zs_flog_mode == ZS_FLOG_FILE_MODE) {
+		if (log_flush_dir == NULL) {
+			return;
+		}
 
-	if(zs_instance_id)
-	{
+	} else {
+		log_flush_dir = dir_path;
+	}
+
+	if (zs_instance_id && (__zs_flog_mode == ZS_FLOG_FILE_MODE)) {
 		char temp[PATH_MAX + 1];
 		snprintf(temp, sizeof(temp), "%s/zs_%d", log_flush_dir, zs_instance_id);
 		if(mkdir(temp, 0770) == -1 && errno != EEXIST)
@@ -2707,40 +2915,44 @@ flog_prepare(mcd_osd_shard_t *shard)
 		log_flush_dir = temp;
 	}
 
-    snprintf(path, sizeof(path), "%s/%s%lu",
-             log_flush_dir, FLUSH_LOG_PREFIX, shard->id);
-    mcd_log_msg(70080, PLAT_LOG_LEVEL_DEBUG, "Flushing logs to %s", path);
+	snprintf(path, sizeof(path), "%s/%s%lu",
+	     log_flush_dir, FLUSH_LOG_PREFIX, shard->id);
+	mcd_log_msg(70080, PLAT_LOG_LEVEL_DEBUG, "Flushing logs to %s", path);
 
-    int flags = 0;
+	int flags = 0;
 
-    if (mcd_check_get_level() == ZSCHECK_NO_INIT)
-        flags = O_WRONLY;
-    else
-        flags = O_CREAT|O_TRUNC|O_WRONLY;
+	if (mcd_check_get_level() == ZSCHECK_NO_INIT) {
+		flags = O_WRONLY;
+	} else {
+		flags = O_CREAT|O_TRUNC|O_WRONLY;
+	}
 
-    if(getProperty_Int("ZS_LOG_O_DIRECT", 0)) {
-        flags |= O_DIRECT;
-        mcd_log_msg(180019, PLAT_LOG_LEVEL_DEBUG,
-                    "ZS_LOG_O_DIRECT is set");
-    }
+	if(getProperty_Int("ZS_LOG_O_DIRECT", 0)) {
+		flags |= O_DIRECT;
+		mcd_log_msg(180019, PLAT_LOG_LEVEL_DEBUG,
+			    "ZS_LOG_O_DIRECT is set");
+	}
 
-    int fd = open(path, flags, FLUSH_LOG_FILE_MODE);
-    if (fd < 0) {
-        mcd_log_msg(70108, PLAT_LOG_LEVEL_ERROR,
-                    "Flush log sync:"
-                    " cannot open sync log file %s flags=%x error=%d",
-                    path, flags, errno);
-        return;
-    }
+	if (__zs_flog_mode == ZS_FLOG_NVRAM_MODE) {
+		fd = nv_open(path, flags, FLUSH_LOG_FILE_MODE);
+	} else {
+		fd = open(path, flags, FLUSH_LOG_FILE_MODE);
+	}
 
-    shard->flog_block_size = get_flog_block_size(fd);
+	if (fd < 0) {
+		mcd_log_msg(70108, PLAT_LOG_LEVEL_ERROR,
+			    "Flush log sync:"
+			    " cannot open sync log file %s flags=%x error=%d",
+			    path, flags, errno);
+		return;
+	}
 
-    mcd_log_msg(160300, PLAT_LOG_LEVEL_INFO,
-                    "flog block size is set to %d", shard->flog_block_size);
+	shard->flog_block_size = get_flog_block_size(fd);
 
+	mcd_log_msg(160300, PLAT_LOG_LEVEL_INFO,
+		    "flog block size is set to %d", shard->flog_block_size);
 
-    shard->flog_fd = fd;
-
+	shard->flog_fd = fd;
 }
 
 int
@@ -2752,51 +2964,133 @@ flog_check(uint64_t shard_id)
 /*
  * Initialise log flushing.
  */
+
+static bool flog_nv_init_done = false;
+
+static void
+flog_init_nv(bool reformat)
+{
+	int dev_fd = -1;
+	char *nvram_file = (char *)getProperty_String("ZS_FLOG_NVRAM_FILE", "/tmp/nvram_file");
+	uint64_t nvram_dev_offset = getProperty_LongInt("ZS_FLOG_NVRAM_FILE_OFFSET", 0);
+
+
+	if (flog_nv_init_done) {
+		return;
+	}
+
+	mcd_log_msg(160307, PLAT_LOG_LEVEL_INFO,
+			"Nvram dev file = %s, Start offset = %lu.\n",
+			 nvram_file, nvram_dev_offset);
+
+	dev_fd = open(nvram_file, O_RDWR, S_IREAD | S_IWRITE);
+	if (dev_fd < 0) {
+		mcd_log_msg(160308, PLAT_LOG_LEVEL_FATAL,
+			"Failed to open nvram dev file %s.\n", nvram_file);
+		plat_exit(-1);
+	}
+	nv_set_dev_fd(dev_fd);
+
+	nv_init(get_flog_block_size(dev_fd), MLOG_BUF_N_RECS, 
+		    nvram_dev_offset, dev_fd);
+
+	if (reformat) {
+		nv_reformat_flog();	
+		flog_reformated_nv = true;
+	}
+
+	flog_nv_init_done = true;
+}
+
+static void
+flog_state_init(mcd_osd_shard_t *shard)
+{
+	char *log_mode = (char *)getProperty_String("ZS_FLOG_MODE", "ZS_FLOG_FILE_MODE");
+	if (log_mode && strcmp(log_mode, "ZS_FLOG_NVRAM_MODE") == 0) {
+		__zs_flog_mode = ZS_FLOG_NVRAM_MODE;
+	} else {
+		__zs_flog_mode = ZS_FLOG_FILE_MODE;	
+	}
+
+	mcd_log_msg(160309, PLAT_LOG_LEVEL_INFO,
+			"Flog mode = %d, %s.\n",
+			 __zs_flog_mode, log_mode);
+	if (__zs_flog_mode == ZS_FLOG_NVRAM_MODE) {	
+		flog_init_nv(false);
+	}
+}
+
 static void
 flog_init(mcd_osd_shard_t *shard, int check_only)
 {
+	flog_state_init(shard);
+
 	if(shard->durability_level > SDF_NO_DURABILITY)
 	{
-	    flog_recover_low(shard->id, 0);
-	    flog_prepare(shard);
-	}
-	else
+		flog_recover_low(shard->id, 0);
+		flog_prepare(shard);
+	} else {
 		shard->flog_fd = -1;
+	}
 }
 
 void
 flog_close(mcd_osd_shard_t *shard)
 {
     if (shard->flog_fd > 0) {
-        close(shard->flog_fd);
+	if (__zs_flog_mode == ZS_FLOG_NVRAM_MODE) {
+		nv_close(shard->flog_fd);
+	} else {
+		close(shard->flog_fd);
+	}
     }
 }
 
 void
 flog_clean(uint64_t shard_id)
 {
-    char path[FLUSH_LOG_MAX_PATH];
-    char *log_flush_dir = (char *)getProperty_String("ZS_LOG_FLUSH_DIR", NULL);
+	char path[FLUSH_LOG_MAX_PATH];
+	char *log_flush_dir = (char *)getProperty_String("ZS_LOG_FLUSH_DIR", NULL);
+	char *log_mode = (char *)getProperty_String("ZS_FLOG_MODE", NULL);
 
-    if ( mcd_check_get_level() == ZSCHECK_NO_INIT || log_flush_dir == NULL)
-        return;
+	if (log_mode && strcmp(log_mode, "ZS_FLOG_NVRAM_MODE") == 0) {
+		__zs_flog_mode = ZS_FLOG_NVRAM_MODE;
+	} else {
+		__zs_flog_mode = ZS_FLOG_FILE_MODE;	
+	}
 
-	if(zs_instance_id)
+	if (__zs_flog_mode == ZS_FLOG_NVRAM_MODE) {
+		/*
+		 * We do reformat nvram content only if it is REFORMAT=1 or it is clean shutdow.
+		 */
+		plat_assert(getProperty_Int("ZS_REFORMAT", 0) == 1 ||
+			    flog_nv_init_done);
+		flog_init_nv(true);
+
+		return;
+	}
+
+
+	if ( mcd_check_get_level() == ZSCHECK_NO_INIT || log_flush_dir == NULL) {
+		return;
+	}
+
+	if (zs_instance_id) {
 		snprintf(path, sizeof(path), "%s/zs_%d/%s%lu",
 			log_flush_dir, zs_instance_id, FLUSH_LOG_PREFIX, shard_id);
-	else
-        snprintf(path, sizeof(path), "%s/%s%lu",
-             log_flush_dir, FLUSH_LOG_PREFIX, shard_id);
-    mcd_log_msg(180000, PLAT_LOG_LEVEL_DEBUG, "Removing log file %s", path);
+	} else {
+		snprintf(path, sizeof(path), "%s/%s%lu",
+		     log_flush_dir, FLUSH_LOG_PREFIX, shard_id);
+		mcd_log_msg(180000, PLAT_LOG_LEVEL_DEBUG, "Removing log file %s", path);
 
-    if(unlink(path) == -1 && errno != ENOENT)
-    {
-        mcd_log_msg(180001, PLAT_LOG_LEVEL_ERROR,
-                    "Flush log sync:"
-                    " cannot unlink sync log file %s error=%d",
-                    path, errno);
-        return;
-    }
+		if(unlink(path) == -1 && errno != ENOENT) {
+			mcd_log_msg(180001, PLAT_LOG_LEVEL_ERROR,
+			    "Flush log sync:"
+			    " cannot unlink sync log file %s error=%d",
+			    path, errno);
+			return;
+		}
+	}
 }
 
 void mlog_init(mcd_osd_shard_t* shard) {
@@ -2890,8 +3184,9 @@ shard_recover( mcd_osd_shard_t * shard )
 
     // initialize log flushing
     // ignore this if in zsck mode...will hopefully do it later
-    if ( mcd_check_get_level() != ZSCHECK_NO_INIT )
-	    flog_init(shard, 0);
+ //   if ( mcd_check_get_level() != ZSCHECK_NO_INIT ) {
+    flog_init(shard, 0);
+
 
     // get aligned buffer
     buf = (char *)( ( (uint64_t)context->osd_buf + Mcd_osd_blk_size - 1 ) &
@@ -6791,7 +7086,14 @@ flog_persist(mcd_osd_shard_t *shard,
     plat_log_msg(160181, PLAT_LOG_CAT_SDF_NAMING, PLAT_LOG_LEVEL_WARN,
 		    "=========================================");
 #endif
-    size_t size = pwrite(shard->flog_fd, sector, sec_size, flush_seek);
+    size_t size = 0;
+    if (__zs_flog_mode == ZS_FLOG_NVRAM_MODE) {
+	    size = nv_write(shard->flog_fd, sector, sec_size, flush_seek);
+	    plat_assert(size == sec_size);
+    } else {
+	    size = pwrite(shard->flog_fd, sector, sec_size, flush_seek);
+    }
+
     if (size != sec_size) {
         mcd_log_msg(70109, PLAT_LOG_LEVEL_ERROR,
                     "Flush log sync:"
@@ -6841,6 +7143,8 @@ void mlog_sync(mcd_osd_shard_t* shard, uint64_t lsn, int sync)
 		}
 	}
 
+
+	// Do we need sync in case of nvram device ?
 	if (sync) {
 		log->stat_n_fsyncs++;
 		fdatasync(shard->flog_fd);
