@@ -2973,11 +2973,16 @@ flog_init_nv(bool reformat)
 	int dev_fd = -1;
 	char *nvram_file = (char *)getProperty_String("ZS_FLOG_NVRAM_FILE", "/tmp/nvram_file");
 	uint64_t nvram_dev_offset = getProperty_LongInt("ZS_FLOG_NVRAM_FILE_OFFSET", 0);
+	char *log_mode = (char *)getProperty_String("ZS_FLOG_MODE", "ZS_FLOG_FILE_MODE");
 
 
 	if (flog_nv_init_done) {
 		return;
 	}
+
+	mcd_log_msg(160309, PLAT_LOG_LEVEL_INFO,
+			"Flog mode = %d, %s.\n",
+			 __zs_flog_mode, log_mode);
 
 	mcd_log_msg(160307, PLAT_LOG_LEVEL_INFO,
 			"Nvram dev file = %s, Start offset = %lu.\n",
@@ -3012,9 +3017,6 @@ flog_state_init(mcd_osd_shard_t *shard)
 		__zs_flog_mode = ZS_FLOG_FILE_MODE;	
 	}
 
-	mcd_log_msg(160309, PLAT_LOG_LEVEL_INFO,
-			"Flog mode = %d, %s.\n",
-			 __zs_flog_mode, log_mode);
 	if (__zs_flog_mode == ZS_FLOG_NVRAM_MODE) {	
 		flog_init_nv(false);
 	}
