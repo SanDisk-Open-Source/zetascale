@@ -655,6 +655,7 @@ ZS_status_t
 ZSInitPerThreadState(struct ZS_state *zs_state,
                       struct ZS_thread_state **thd_state)
 {
+    parse();
     if (unlikely(!ptr_ZSInitPerThreadState))
         undefined("ZSInitPerThreadState");
 
@@ -668,6 +669,7 @@ ZSInitPerThreadState(struct ZS_state *zs_state,
 ZS_status_t 
 ZSReleasePerThreadState(struct ZS_thread_state **thd_state)
 {
+    parse();
     if (unlikely(!ptr_ZSReleasePerThreadState))
         undefined("ZSReleasePerThreadState");
 
@@ -681,6 +683,7 @@ ZSReleasePerThreadState(struct ZS_thread_state **thd_state)
 ZS_status_t 
 ZSShutdown(struct ZS_state *zs_state)
 {
+    parse();
     if (unlikely(!ptr_ZSShutdown))
         undefined("ZSShutdown");
 
@@ -694,6 +697,7 @@ ZSShutdown(struct ZS_state *zs_state)
 ZS_status_t 
 ZSLoadCntrPropDefaults(ZS_container_props_t *props)
 {
+    parse();
     if (unlikely(!ptr_ZSLoadCntrPropDefaults))
         undefined("ZSLoadCntrPropDefaults");
 
@@ -711,6 +715,7 @@ ZSOpenContainer(struct ZS_thread_state *zs_thread_state,
                  uint32_t flags,
                  ZS_cguid_t *cguid)
 {
+    parse();
     if (unlikely(!ptr_ZSOpenContainer))
         undefined("ZSOpenContainer");
 
@@ -732,6 +737,7 @@ ZSOpenContainerSpecial(struct ZS_thread_state *zs_thread_state,
                         ZS_container_meta_t *cmeta,
                         ZS_cguid_t *cguid)
 {
+    parse();
     if (unlikely(!ptr_ZSOpenContainerSpecial))
         undefined("ZSOpenContainerSpecial");
 
@@ -750,6 +756,7 @@ ZS_status_t
 ZSCloseContainer(struct ZS_thread_state *zs_thread_state,
                   ZS_cguid_t cguid)
 {
+    parse();
     if (unlikely(!ptr_ZSCloseContainer))
         undefined("ZSCloseContainer");
 
@@ -764,6 +771,7 @@ ZS_status_t
 ZSDeleteContainer(struct ZS_thread_state *zs_thread_state,
                    ZS_cguid_t cguid)
 {
+    parse();
     if (unlikely(!ptr_ZSDeleteContainer))
         undefined("ZSDeleteContainer");
 
@@ -778,6 +786,7 @@ ZSRenameContainer(struct ZS_thread_state *zs_thread_state,
                   ZS_cguid_t cguid, 
                   char *cname)
 {
+    parse();
     if (unlikely(!ptr_ZSRenameContainer))
         undefined("ZSRenameContainer");
 
@@ -792,6 +801,7 @@ ZSGetContainers(struct ZS_thread_state *zs_thread_state,
                  ZS_cguid_t *cguids,
                  uint32_t *n_cguids)
 {
+    parse();
     if (unlikely(!ptr_ZSGetContainers))
         undefined("ZSGetContainers");
 
@@ -807,6 +817,7 @@ ZSGetContainerProps(struct ZS_thread_state *zs_thread_state,
                      ZS_cguid_t cguid,
                      ZS_container_props_t *pprops)
 {
+    parse();
     if (unlikely(!ptr_ZSGetContainerProps))
         undefined("ZSGetContainerProps");
 
@@ -822,6 +833,7 @@ ZSSetContainerProps(struct ZS_thread_state *zs_thread_state,
                      ZS_cguid_t cguid,
                      ZS_container_props_t *pprops)
 {
+    parse();
     if (unlikely(!ptr_ZSSetContainerProps))
         undefined("ZSSetContainerProps");
 
@@ -840,6 +852,7 @@ ZSReadObject(struct ZS_thread_state *zs_thread_state,
               char **data,
               uint64_t *datalen)
 {
+    parse();
     if (unlikely(!ptr_ZSReadObject))
         undefined("ZSReadObject");
 
@@ -860,6 +873,7 @@ ZSReadObjectExpiry(struct ZS_thread_state *zs_thread_state,
                     ZS_cguid_t cguid,
                     ZS_readobject_t *robj)
 {
+    parse();
     if (unlikely(!ptr_ZSReadObjectExpiry))
         undefined("ZSReadObjectExpiry");
 
@@ -873,6 +887,7 @@ ZSReadObjectExpiry(struct ZS_thread_state *zs_thread_state,
 ZS_status_t 
 ZSFreeBuffer(char *buf)
 {
+    parse();
     if (unlikely(!ptr_ZSFreeBuffer))
         undefined("ZSFreeBuffer");
 
@@ -892,6 +907,7 @@ ZSWriteObject(struct ZS_thread_state *sdf_thread_state,
                uint64_t datalen,
                uint32_t flags)
 {
+    parse();
     if (unlikely(!ptr_ZSWriteObject))
         undefined("ZSWriteObject");
 
@@ -914,6 +930,7 @@ ZSWriteObjectExpiry(struct ZS_thread_state *zs_thread_state,
                      ZS_writeobject_t *wobj,
                      uint32_t flags)
 {
+    parse();
     if (unlikely(!ptr_ZSWriteObjectExpiry))
         undefined("ZSWriteObjectExpiry");
 
@@ -930,6 +947,7 @@ ZSDeleteObject(struct ZS_thread_state *zs_thread_state,
                 char *key,
                 uint32_t keylen)
 {
+    parse();
     if (unlikely(!ptr_ZSDeleteObject))
         undefined("ZSDeleteObject");
 
@@ -945,6 +963,7 @@ ZSEnumerateContainerObjects(struct ZS_thread_state *zs_thread_state,
                              ZS_cguid_t cguid,
                              struct ZS_iterator **iterator)
 {
+    parse();
     if (unlikely(!ptr_ZSEnumerateContainerObjects))
         undefined("ZSEnumerateContainerObjects");
 
@@ -965,6 +984,7 @@ ZSNextEnumeratedObject(struct ZS_thread_state *zs_thread_state,
                         char **data,
                         uint64_t *datalen)
 {
+    parse();
     if (unlikely(!ptr_ZSNextEnumeratedObject))
         undefined("ZSNextEnumeratedObject");
 
@@ -984,6 +1004,7 @@ ZS_status_t
 ZSFinishEnumeration(struct ZS_thread_state *zs_thread_state,
                      struct ZS_iterator *iterator)
 {
+    parse();
     if (unlikely(!ptr_ZSFinishEnumeration))
         undefined("ZSFinishEnumeration");
 
@@ -1000,6 +1021,7 @@ ZSFlushObject(struct ZS_thread_state *zs_thread_state,
                char *key,
                uint32_t keylen)
 {
+    parse();
     if (unlikely(!ptr_ZSFlushObject))
         undefined("ZSFlushObject");
 
@@ -1014,6 +1036,7 @@ ZS_status_t
 ZSFlushContainer(struct ZS_thread_state *zs_thread_state,
                   ZS_cguid_t cguid)
 {
+    parse();
     if (unlikely(!ptr_ZSFlushContainer))
         undefined("ZSFlushContainer");
 
@@ -1027,6 +1050,7 @@ ZSFlushContainer(struct ZS_thread_state *zs_thread_state,
 ZS_status_t 
 ZSFlushCache(struct ZS_thread_state *zs_thread_state)
 {
+    parse();
     if (unlikely(!ptr_ZSFlushCache))
         undefined("ZSFlushCache");
 
@@ -1040,6 +1064,7 @@ ZSFlushCache(struct ZS_thread_state *zs_thread_state)
 ZS_status_t 
 ZSGetStats(struct ZS_thread_state *zs_thread_state, ZS_stats_t *stats)
 {
+    parse();
     if (unlikely(!ptr_ZSGetStats))
         undefined("ZSGetStats");
 
@@ -1055,6 +1080,7 @@ ZSGetContainerStats(struct ZS_thread_state *zs_thread_state,
                      ZS_cguid_t cguid,
                      ZS_stats_t *stats)
 {
+    parse();
     if (unlikely(!ptr_ZSGetContainerStats))
         undefined("ZSGetContainerStats");
 
@@ -1068,6 +1094,7 @@ ZSGetContainerStats(struct ZS_thread_state *zs_thread_state,
 char *
 ZSStrError(ZS_status_t zs_errno)
 {
+    parse();
     if (unlikely(!ptr_ZSStrError))
         undefined("ZSStrError");
 
@@ -1081,6 +1108,7 @@ ZSStrError(ZS_status_t zs_errno)
 ZS_status_t 
 ZSTransactionStart(struct ZS_thread_state *zs_thread_state)
 {
+    parse();
     if (unlikely(!ptr_ZSTransactionStart))
         undefined("ZSTransactionStart");
 
@@ -1094,6 +1122,7 @@ ZSTransactionStart(struct ZS_thread_state *zs_thread_state)
 ZS_status_t 
 ZSTransactionCommit(struct ZS_thread_state *zs_thread_state)
 {
+    parse();
     if (unlikely(!ptr_ZSTransactionCommit))
         undefined("ZSTransactionCommit");
 
@@ -1106,6 +1135,7 @@ ZSTransactionCommit(struct ZS_thread_state *zs_thread_state)
 ZS_status_t 
 ZSTransactionRollback(struct ZS_thread_state *zs_thread_state)
 {
+    parse();
     if (unlikely(!ptr_ZSTransactionRollback))
         undefined("ZSTransactionRollback");
 
@@ -1118,6 +1148,7 @@ ZSTransactionRollback(struct ZS_thread_state *zs_thread_state)
 ZS_status_t 
 ZSTransactionQuit(struct ZS_thread_state *zs_thread_state)
 {
+    parse();
     if (unlikely(!ptr_ZSTransactionQuit))
         undefined("ZSTransactionQuit");
 
@@ -1130,6 +1161,7 @@ ZSTransactionQuit(struct ZS_thread_state *zs_thread_state)
 uint64_t
 ZSTransactionID(struct ZS_thread_state *zs_thread_state)
 {
+    parse();
     if (unlikely(!ptr_ZSTransactionID))
         undefined("ZSTransactionID");
 
@@ -1142,6 +1174,7 @@ ZSTransactionID(struct ZS_thread_state *zs_thread_state)
 ZS_status_t
 ZSTransactionService(struct ZS_thread_state *zs_thread_state, int cmd, void *arg)
 {
+    parse();
     if (unlikely(!ptr_ZSTransactionService))
 	undefined("ZSTransactionService");
 
@@ -1154,6 +1187,7 @@ ZSTransactionService(struct ZS_thread_state *zs_thread_state, int cmd, void *arg
 ZS_status_t
 ZSTransactionGetMode(struct ZS_thread_state *zs_thread_state, int *mode)
 {
+    parse();
     if (unlikely(!ptr_ZSTransactionGetMode))
 	undefined("ZSTransactionGetMode");
 
@@ -1166,6 +1200,7 @@ ZSTransactionGetMode(struct ZS_thread_state *zs_thread_state, int *mode)
 ZS_status_t
 ZSTransactionSetMode(struct ZS_thread_state *zs_thread_state, int mode)
 {
+    parse();
     if (unlikely(!ptr_ZSTransactionSetMode))
 	undefined("ZSTransactionSetMode");
 
@@ -1195,6 +1230,7 @@ ZSGetRange(struct ZS_thread_state *zs_thread_state,
             struct ZS_cursor      **cursor,
             ZS_range_meta_t        *rmeta)
 {
+    parse();
     if (unlikely(!ptr_ZSGetRange))
         undefined("ZSGetRange");
 
@@ -1211,6 +1247,7 @@ ZSGetNextRange(struct ZS_thread_state *zs_thread_state,
                 int                     *n_out,
                 ZS_range_data_t        *values)
 {
+    parse();
     if (unlikely(!ptr_ZSGetNextRange))
         undefined("ZSGetNextRange");
 
@@ -1224,6 +1261,7 @@ ZS_status_t
 ZSGetRangeFinish(struct ZS_thread_state *zs_thread_state, 
                   struct ZS_cursor *cursor)
 {
+    parse();
     if (unlikely(!ptr_ZSGetRangeFinish))
         undefined("ZSGetRangeFinish");
 
@@ -1235,6 +1273,7 @@ ZSCreateContainerSnapshot(struct ZS_thread_state *ts,
 							ZS_cguid_t cguid,
 							uint64_t *snap_seq)
 {
+    parse();
     if (unlikely(!ptr_ZSCreateContainerSnapshot))
         undefined("ZSCreateContainerSnapshot");
 
@@ -1246,6 +1285,7 @@ ZSDeleteContainerSnapshot(struct ZS_thread_state *ts,
                            ZS_cguid_t cguid,
                            uint64_t snap_seq)
 {
+    parse();
     if (unlikely(!ptr_ZSDeleteContainerSnapshot))
         undefined("ZSDeleteContainerSnapshot");
 
@@ -1259,6 +1299,7 @@ ZSGetContainerSnapshots(struct ZS_thread_state *ts,
 							uint32_t *n_snapshots,
 							ZS_container_snapshots_t **snap_seqs)
 {
+    parse();
     if (unlikely(!ptr_ZSGetContainerSnapshots))
         undefined("ZSGetContainerSnapshots");
 
@@ -1271,6 +1312,7 @@ ZSGetContainerSnapshots(struct ZS_thread_state *ts,
 void 
 ZSTLMapDestroy(struct ZSTLMap *pm)
 {
+    parse();
     if (unlikely(!ptr_ZSTLMapDestroy))
         undefined("ZSTLMapDestroy");
 
@@ -1283,6 +1325,7 @@ ZSTLMapDestroy(struct ZSTLMap *pm)
 void 
 ZSTLMapClear(struct ZSTLMap *pm)
 {
+    parse();
     if (unlikely(!ptr_ZSTLMapClear))
         undefined("ZSTLMapClear");
 
@@ -1299,6 +1342,7 @@ ZSTLMapCreate(struct ZSTLMap *pm,
                char *pdata,
                uint64_t datalen)
 {
+    parse();
     if (unlikely(!ptr_ZSTLMapCreate))
         undefined("ZSTLMapCreate");
 
@@ -1316,6 +1360,7 @@ ZSTLMapUpdate(struct ZSTLMap *pm,
                char *pdata,
                uint64_t datalen)
 {
+    parse();
     if (unlikely(!ptr_ZSTLMapUpdate))
         undefined("ZSTLMapUpdate");
 
@@ -1335,6 +1380,7 @@ ZSTLMapSet(struct ZSTLMap *pm,
             char **old_pdata,
             uint64_t *old_datalen)
 {
+    parse();
     if (unlikely(!ptr_ZSTLMapSet))
         undefined("ZSTLMapSet");
 
@@ -1358,6 +1404,7 @@ ZSTLMapGet(struct ZSTLMap *pc,
             char **data,
             uint64_t *pdatalen)
 {
+    parse();
     if (unlikely(!ptr_ZSTLMapGet))
         undefined("ZSTLMapGet");
 
@@ -1371,6 +1418,7 @@ ZSTLMapGet(struct ZSTLMap *pc,
 int 
 ZSTLMapIncrRefcnt(struct ZSTLMap *pm, char *key, uint32_t keylen)
 {
+    parse();
     if (unlikely(!ptr_ZSTLMapIncrRefcnt))
         undefined("ZSTLMapIncrRefcnt");
 
@@ -1384,6 +1432,7 @@ ZSTLMapIncrRefcnt(struct ZSTLMap *pm, char *key, uint32_t keylen)
 void 
 ZSTLMapCheckRefcnts(struct ZSTLMap *pm)
 {
+    parse();
     if (unlikely(!ptr_ZSTLMapCheckRefcnts))
         undefined("ZSTLMapCheckRefcnts");
 
@@ -1397,6 +1446,7 @@ ZSTLMapCheckRefcnts(struct ZSTLMap *pm)
 int 
 ZSTLMapRelease(struct ZSTLMap *pm, char *key, uint32_t keylen)
 {
+    parse();
     if (unlikely(!ptr_ZSTLMapRelease))
         undefined("ZSTLMapRelease");
 
@@ -1410,6 +1460,7 @@ ZSTLMapRelease(struct ZSTLMap *pm, char *key, uint32_t keylen)
 int 
 ZSTLMapReleaseEntry(struct ZSTLMap *pm, struct ZSTLMapEntry *pme)
 {
+    parse();
     if (unlikely(!ptr_ZSTLMapReleaseEntry))
         undefined("ZSTLMapReleaseEntry");
 
@@ -1423,6 +1474,7 @@ ZSTLMapReleaseEntry(struct ZSTLMap *pm, struct ZSTLMapEntry *pme)
 struct ZSTLIterator *
 ZSTLMapEnum(struct ZSTLMap *pm)
 {
+    parse();
     if (unlikely(!ptr_ZSTLMapEnum))
         undefined("ZSTLMapEnum");
 
@@ -1436,6 +1488,7 @@ ZSTLMapEnum(struct ZSTLMap *pm)
 void 
 ZSTLFinishEnum(struct ZSTLMap *pm, struct ZSTLIterator *iterator)
 {
+    parse();
     if (unlikely(!ptr_ZSTLFinishEnum))
         undefined("ZSTLFinishEnum");
 
@@ -1454,6 +1507,7 @@ ZSTLMapNextEnum(struct ZSTLMap *pm,
                  char **data,
                  uint64_t *datalen)
 {
+    parse();
     if (unlikely(!ptr_ZSTLMapNextEnum))
         undefined("ZSTLMapNextEnum");
 
@@ -1467,6 +1521,7 @@ ZSTLMapNextEnum(struct ZSTLMap *pm,
 int 
 ZSTLMapDelete(struct ZSTLMap *pm, char *key, uint32_t keylen)
 {
+    parse();
     if (unlikely(!ptr_ZSTLMapDelete))
         undefined("ZSTLMapDelete");
 
@@ -1479,6 +1534,7 @@ ZSTLMapDelete(struct ZSTLMap *pm, char *key, uint32_t keylen)
 struct ZSTLMap*
 ZSTLMapInit(uint64_t nbuckets, uint64_t max_entries, char use_locks, void (*replacement_callback)(void *callback_data, char *key, uint32_t keylen, char *pdata, uint64_t datalen), void *replacement_callback_data)
 {
+    parse();
     if (unlikely(!ptr_ZSTLMapInit))
         undefined("ZSTLMapInit");
 
@@ -1496,6 +1552,7 @@ ZSMPut(struct ZS_thread_state *zs_ts,
 	uint32_t flags,
 	uint32_t * objs_written)
 {
+    parse();
     if (unlikely(!ptr_ZSMPut))
         undefined("ZSMPut");
 
@@ -1517,7 +1574,7 @@ ZSRangeUpdate(struct ZS_thread_state *zs_thread_state,
 	       void *range_cmp_callback_args,
 	       uint32_t *objs_updated)
 {
-
+    parse();
     if (unlikely(!ptr_ZSRangeUpdate))
         undefined("ZSRangeUpdate");
 
@@ -1535,6 +1592,7 @@ ZS_status_t
 ZSCheckBtree(struct ZS_thread_state *zs_thread_state, 
 	       ZS_cguid_t cguid, uint64_t flags)
 {
+    parse();
     if (unlikely(!ptr_ZSCheckBtree))
         undefined("ZSCheckBtree");
 
@@ -1547,6 +1605,7 @@ ZSCheckBtree(struct ZS_thread_state *zs_thread_state,
 ZS_status_t
 ZSCheck(struct ZS_thread_state *zs_thread_state, uint64_t flags)
 {
+    parse();
     if (unlikely(!ptr_ZSCheck))
         undefined("ZSCheck");
 
@@ -1559,7 +1618,7 @@ ZSCheck(struct ZS_thread_state *zs_thread_state, uint64_t flags)
 ZS_status_t
 ZSCheckMeta()
 {
-
+    parse();
     if (unlikely(!ptr_ZSCheckMeta))
         undefined("ZSCheckMeta");
 
@@ -1572,6 +1631,7 @@ ZSCheckMeta()
 ZS_status_t
 ZSCheckFlog()
 {
+    parse();
     if (unlikely(!ptr_ZSCheckFlog))
         undefined("ZSCheckFlog");
 
@@ -1584,6 +1644,7 @@ ZSCheckFlog()
 ZS_status_t
 ZSCheckPOT()
 {
+    parse();
     if (unlikely(!ptr_ZSCheckPOT))
         undefined("ZSCheckPOT");
 
@@ -1596,6 +1657,7 @@ ZSCheckPOT()
 ZS_status_t
 ZSCheckClose()
 {
+    parse();
     if (unlikely(!ptr_ZSCheckClose))
         undefined("ZSCheckClose");
 
@@ -1608,6 +1670,7 @@ ZSCheckClose()
 void
 ZSCheckSetLevel(int level)
 {
+    parse();
     if (unlikely(!ptr_ZSCheckSetLevel))
         undefined("ZSCheckSetLevel");
 
@@ -1620,6 +1683,7 @@ ZSCheckSetLevel(int level)
 int
 ZSCheckGetLevel()
 {
+    parse();
     if (unlikely(!ptr_ZSCheckGetLevel))
         undefined("ZSCheckGetLevel");
 
@@ -1636,6 +1700,7 @@ ZSCheckMsg(ZS_check_entity_t entity,
            char *msg
            )
 {
+    parse();
     if (unlikely(!ptr_ZSCheckMsg))
         undefined("ZSCheckMsg");
 
@@ -1648,6 +1713,7 @@ ZSCheckMsg(ZS_check_entity_t entity,
 ZS_status_t
 ZSCheckInit(char *logfile)
 {
+    parse();
     if (unlikely(!ptr_ZSCheckInit))
         undefined("ZSCheckInit");
 
@@ -1663,6 +1729,7 @@ ZSIoctl(struct ZS_thread_state *zs_thread_state,
          uint32_t ioctl_type,
          void *data)
 {
+    parse();
     if (unlikely(!ptr_ZSIoctl))
         undefined("ZSIoctl");
 
@@ -1670,39 +1737,47 @@ ZSIoctl(struct ZS_thread_state *zs_thread_state,
     return (*ptr_ZSIoctl) (zs_thread_state, cguid, ioctl_type, data);
 }
 
-ZS_status_t ZSScavenger(struct ZS_state *zs_state) {
-	if (unlikely(!ptr_ZSScavenger)) {
-		undefined("ZSScavenger");
-	}
-	return (*ptr_ZSScavenger) (zs_state);
+ZS_status_t ZSScavenger(struct ZS_state *zs_state) 
+{
+    parse(); 
+    if (unlikely(!ptr_ZSScavenger)) { 
+        undefined("ZSScavenger"); 
+    }
+    return (*ptr_ZSScavenger) (zs_state);
 }
-ZS_status_t ZSScavengeContainer(struct ZS_state *zs_state, ZS_cguid_t cguid) {
-	if (unlikely(!ptr_ZSScavengeContainer)) {
-		undefined("ZSScavengeContianer");
-	}
-	return (*ptr_ZSScavengeContainer) (zs_state, cguid);
+
+ZS_status_t ZSScavengeContainer(struct ZS_state *zs_state, ZS_cguid_t cguid) 
+{
+    parse(); 
+    if (unlikely(!ptr_ZSScavengeContainer)) { 
+        undefined("ZSScavengeContianer");
+    }
+    return (*ptr_ZSScavengeContainer) (zs_state, cguid);
 }
-ZS_status_t ZSScavengeSnapshot(struct ZS_state *zs_state, ZS_cguid_t cguid, uint64_t snap_seq) {
-	if (unlikely(!ptr_ZSScavengeSnapshot)) {
-                undefined("ZSScavengeSnapshot");
-        }
-        return (*ptr_ZSScavengeSnapshot) (zs_state, cguid, snap_seq);
+
+ZS_status_t ZSScavengeSnapshot(struct ZS_state *zs_state, ZS_cguid_t cguid, uint64_t snap_seq) 
+{
+    parse(); 
+    if (unlikely(!ptr_ZSScavengeSnapshot)) { 
+        undefined("ZSScavengeSnapshot"); 
+    } 
+    return (*ptr_ZSScavengeSnapshot) (zs_state, cguid, snap_seq);
 }
 
 ZS_status_t ZSGetLastError(ZS_cguid_t cguid, void **pp_err_context, uint32_t *p_err_size)
 {
-	if (unlikely(!ptr_ZSGetLastError)) {
-		undefined("ZSGetLastError");
-	}
-
-	return (*ptr_ZSGetLastError) (cguid, pp_err_context, p_err_size);
+    parse(); 
+    if (unlikely(!ptr_ZSGetLastError)) { 
+        undefined("ZSGetLastError"); 
+    }
+    return (*ptr_ZSGetLastError) (cguid, pp_err_context, p_err_size);
 }
 
 ZS_status_t ZSRescueContainer(struct ZS_thread_state *zs_thread_state, ZS_cguid_t cguid, void *pcontext)
 {
-	if (unlikely(!ptr_ZSRescueContainer)) {
-		undefined("ZSRescueContainer");
-	}
-
-	return (*ptr_ZSRescueContainer) (zs_thread_state, cguid, pcontext);
+    parse(); 
+    if (unlikely(!ptr_ZSRescueContainer)) {
+	undefined("ZSRescueContainer");
+    }
+    return (*ptr_ZSRescueContainer) (zs_thread_state, cguid, pcontext);
 }
