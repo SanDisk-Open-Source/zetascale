@@ -158,7 +158,8 @@ int mput_default_cmp_cb(void *data, char *key, uint32_t keylen,
 			    char *new_data, uint64_t new_datalen);
 
 static void read_node_cb(btree_status_t *ret, void *data, void *pnode, uint64_t lnodeid, int rawobj);
-static void write_node_cb(struct ZS_thread_state *thd_state, btree_status_t *ret, void *cb_data, uint64_t** lnodeid, char **data, uint64_t datalen, int count, uint32_t flags);
+static void write_node_cb(struct ZS_thread_state *thd_state, btree_status_t *ret, void *cb_data, uint64_t** lnodeid, char **data, uint64_t datalen,
+		int count, uint32_t flags);
 static void flush_node_cb(btree_status_t *ret, void *cb_data, uint64_t lnodeid);
 static int freebuf_cb(void *data, char *buf);
 static void* create_node_cb(btree_status_t *ret, void *data, uint64_t lnodeid);
@@ -3267,8 +3268,7 @@ read_node_cb(btree_status_t *ret, void *data, void *pnode, uint64_t lnodeid, int
     trxtrackread( prn->cguid, lnodeid);
 
     if (status == ZS_SUCCESS) {
-        assert((rawobj && (datalen == overflow_node_sz)) || 
-               (!rawobj && (datalen == prn->nodesize)));
+        assert(rawobj ||  (!rawobj && (datalen == prn->nodesize)));
         *ret = BTREE_SUCCESS;
         // xxxzzz SEGFAULT
         // fprintf(stderr, "SEGFAULT read_node_cb: %p [tid=%d]\n", n, tid);
@@ -3295,8 +3295,7 @@ static void write_node_cb(struct ZS_thread_state *thd_state, btree_status_t *ret
 		ret = ZSWriteObjects(thd_state, prn->cguid, (char **) lnodeid, sizeof(uint64_t), data, datalen, count, 0);
 	}
     trxtrackwrite( prn->cguid, lnodeid);
-    assert((rawobj && (datalen == overflow_node_sz)) ||
-		   (!rawobj && (prn->nodesize == datalen)));
+    assert(rawobj ||  (!rawobj && (prn->nodesize == datalen)));
     *ret_out = ZSErr_to_BtreeErr(ret);
 }
 

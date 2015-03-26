@@ -165,6 +165,7 @@ typedef struct btree_raw_mem_node btree_raw_mem_node_t;
 //#define DEBUG_STUFF
 struct btree_raw_mem_node {
 	struct btree_raw_mem_node  *free_next; // free list   
+	uint16_t datalen;
 	bool     malloced;       // Is it pool alloced or malloced
 	char     flag;
 	uint64_t modified;

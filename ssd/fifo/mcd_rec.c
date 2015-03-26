@@ -4976,7 +4976,7 @@ filter_cs_rewind_log( mcd_rec_obj_state_t *state)
 				mcd_osd_meta_t *meta = (typeof( meta))buf;
 				uint64_t cs = meta->checksum;
 				meta->checksum = 0;
-				unless (cs == fastcrc32( (unsigned char *)buf, nblock*Mcd_osd_blk_size, 0)) {
+				unless (cs == fastcrc32( (unsigned char *)buf + sizeof(mcd_osd_meta_t), meta->key_len + meta->data_len, 0)) {
 					mcd_log_msg( 170029, PLAT_LOG_LEVEL_ERROR, "crash damage: %d log records discarded", n-i);
 					plat_free( buffer);
 					state->badseqno = rec->seqno;

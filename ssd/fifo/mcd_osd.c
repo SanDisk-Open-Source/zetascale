@@ -4531,7 +4531,8 @@ static int mcd_osd_prefix_delete( mcd_osd_shard_t * shard, char * key,
     return FLASH_EOK;
 }
 
-void mcd_osd_slab_checksum(void* buf, int blocks)
+
+void mcd_osd_slab_checksum(void* buf,  uint32_t object_len)
 {
     mcd_osd_meta_t* meta = (mcd_osd_meta_t *)buf;
 
@@ -4545,7 +4546,7 @@ void mcd_osd_slab_checksum(void* buf, int blocks)
     if (flash_settings.chksum_metadata)
         meta->blk1_chksum = hashb( (uint8_t *)buf, MCD_OSD_META_BLK_SIZE, 0);
     if (flash_settings.chksum_object)
-        meta->checksum = fastcrc32( (uint8_t *)buf, blocks * Mcd_osd_blk_size, 0);
+        meta->checksum = fastcrc32( (uint8_t *)buf + sizeof(mcd_osd_meta_t), object_len, 0);
 }
 
 void mcd_osd_slab_set_data(void* buf, char * key, int key_len, void * data,
@@ -4571,7 +4572,7 @@ void mcd_osd_slab_set_data(void* buf, char * key, int key_len, void * data,
 
     if(copy_data) {
         memcpy( buf + sizeof(mcd_osd_meta_t) + key_len, data, data_len );
-        mcd_osd_slab_checksum(buf, blocks);
+        mcd_osd_slab_checksum(buf, key_len + data_len);
     }
 }
 
@@ -4608,13 +4609,13 @@ mcd_fth_osd_slab_set( void * context, mcd_osd_shard_t * shard,
 
     mcd_log_msg( 20000, PLAT_LOG_LEVEL_TRACE, "ENTERING" );
 
-	if (flags & FLASH_CREATE_RAW_OBJECT) {
-		return mcd_fth_osd_slab_create_raw(context, shard, key, key_len, data, data_len, flags,
-										meta_data, syndrome, blk_offset, blocks );
-	} else if (flags & FLASH_PUT_RAW_OBJECT) {
-		return mcd_fth_osd_slab_write_raw(context, shard, key, key_len, data, data_len, flags,
-										meta_data, syndrome, blk_offset, blocks );
-	}
+    if (flags & FLASH_CREATE_RAW_OBJECT) {
+	    return mcd_fth_osd_slab_create_raw(context, shard, key, key_len, data, data_len, flags,
+			    meta_data, syndrome, blk_offset, blocks );
+    } else if (flags & FLASH_PUT_RAW_OBJECT) {
+	    return mcd_fth_osd_slab_write_raw(context, shard, key, key_len, data, data_len, flags,
+			    meta_data, syndrome, blk_offset, blocks );
+    }
 
     durlevel = SDF_NO_DURABILITY;
     if (flags & FLASH_PUT_DURA_SW_CRASH)
@@ -5198,6 +5199,7 @@ xout:
     return rc;
 }
 
+
 static int
 mcd_fth_osd_slab_write_raw( void * context, mcd_osd_shard_t * shard,
         char * key, int key_len, void * data, SDF_size_t data_len, int flags,
@@ -5221,8 +5223,9 @@ mcd_fth_osd_slab_write_raw( void * context, mcd_osd_shard_t * shard,
     char *tmp_ptr = NULL;
     uint64_t pos = 0;
 #endif
-    
-    
+    SDF_size_t uncomp_data_len = 0;
+    SDF_size_t actual_data_len   = data_len;
+    SDF_size_t write_len =0;
 
     mcd_log_msg( 20000, PLAT_LOG_LEVEL_TRACE, "ENTERING" );
 
@@ -5345,15 +5348,46 @@ mcd_fth_osd_slab_write_raw( void * context, mcd_osd_shard_t * shard,
 	}
 
     if(!(flags & FLASH_PUT_SKIP_IO)) {
-        uint64_t raw_len = sizeof(mcd_osd_meta_t) + key_len + data_len;
-        blocks = ( raw_len + ( Mcd_osd_blk_size - 1 ) ) / Mcd_osd_blk_size;
+        uint64_t header_len = sizeof(mcd_osd_meta_t) + key_len;
 
+	if( getProperty_Int("ZS_COMPRESSION", 0) && (actual_data_len > 0)) {
+	
+		uncomp_data_len = actual_data_len;
+		data = zs_compress_data(data, (size_t)actual_data_len, NULL, 0, &actual_data_len);
+		if (data == NULL ) {
+			mcd_log_msg(160201,PLAT_LOG_LEVEL_ERROR, "Compression failed");
+			rc = FLASH_ENOENT;
+			goto out;
+		}
+		/* Update stats and histogram
+		   Histogram is tracks 1k,2k ...15K and >15K*/
+		__sync_fetch_and_add(&shard->comp_bytes, actual_data_len);
+		atomic_inc(shard->comp_hist[data_len/1000 < MCD_OSD_MAX_COMP_HIST ?
+				actual_data_len/1000 : (MCD_OSD_MAX_COMP_HIST - 1)]); 
+	}
 
-		plat_assert(blocks == rawobjratio);
+	if (storm_mode) {
+		uint64_t raw_obj_size;
+
+		get_rawobjsz(&raw_obj_size);
+		if (data_len < raw_obj_size) {
+			data_len = raw_obj_size;
+		}
+	}
+
+	/*
+	 * write_len should be multiple of sector size;
+	 */
+	write_len = header_len + actual_data_len + (1 << MIN_FLASH_WRITE_SHIFT) - 1;
+	write_len = write_len & ~((1 << MIN_FLASH_WRITE_SHIFT) - 1);
+
+        blocks = (header_len + data_len + ( Mcd_osd_blk_size - 1 ) ) / Mcd_osd_blk_size;
+
+	plat_assert(blocks == rawobjratio);
 
         if (blocks > MCD_OSD_OBJ_MAX_BLKS) {
             mcd_log_msg( 20330, PLAT_LOG_LEVEL_ERROR,
-                    "object size beyond limit, raw_len=%lu", raw_len );
+                    "object size beyond limit, raw_len=%lu", header_len + data_len);
             rc = FLASH_EINVAL;
             goto out;
         }
@@ -5388,7 +5422,7 @@ mcd_fth_osd_slab_write_raw( void * context, mcd_osd_shard_t * shard,
 			dyn_buffer = true;
 		}
 
-		mcd_osd_slab_set_data(buf, key, key_len, data, data_len, 0, blocks, meta_data, true);
+		mcd_osd_slab_set_data(buf, key, key_len, data, actual_data_len, uncomp_data_len, blocks, meta_data, true);
 
 		mcd_log_msg( 20368, PLAT_LOG_LEVEL_TRACE,
 					 "blocks allocated, key_len=%d data_len=%lu "
@@ -5415,25 +5449,26 @@ mcd_fth_osd_slab_write_raw( void * context, mcd_osd_shard_t * shard,
 #endif
 
 #ifndef MCD_ENABLE_SLAB_CACHE_NOSSD
-		/*
-		 * FIXME: pad the object if size < 128KB
-		 */
-		if ((blocks * Mcd_osd_blk_size) < (128 * 1024)) {
-			if (flash_settings.storm_test & 0x0001)
-				rc = FLASH_EOK;
-			else
-				rc = mcd_fth_aio_blk_write_low(
-						context, buf, offset,
-						(1 << shard->class_table[blocks]) * Mcd_osd_blk_size,
-						durlevel > SDF_RELAXED_DURABILITY);
-		} else {
-			rc = mcd_fth_aio_blk_write_low(
-			                context, buf, offset,
-			                blocks * Mcd_osd_blk_size,
-			                durlevel > SDF_RELAXED_DURABILITY);
-		}
-		if ( FLASH_EOK != rc ) {
-			/*
+	    /*
+	     * FIXME: pad the object if size < 128KB
+	     */
+	    if ((blocks * Mcd_osd_blk_size) < (128 * 1024)) {
+		    if (flash_settings.storm_test & 0x0001)
+			    rc = FLASH_EOK;
+		    else
+			    rc = mcd_fth_aio_blk_write_low(
+					    context, buf, offset,
+					    write_len,
+					    shard->durability_level > SDF_RELAXED_DURABILITY);
+	    } else {
+		    //uint64_t my_len = blocks * Mcd_osd_blk_size;
+		    rc = mcd_fth_aio_blk_write_low(
+				    context, buf, offset,
+				    write_len,
+				    shard->durability_level > SDF_RELAXED_DURABILITY);
+	    }
+	    if ( FLASH_EOK != rc ) {
+		    /*
 			 * FIXME: free the allocated space here?
 			 */
 			mcd_log_msg( 20008, PLAT_LOG_LEVEL_ERROR,
@@ -5807,6 +5842,8 @@ mcd_fth_osd_slab_get_raw( void * context, mcd_osd_shard_t * shard, char *key,
     cntr_id_t                   cntr_id = meta_data->cguid;
 	mcd_osd_segment_t 			* segment;
     int                         check_errors = 0;
+    uint32_t                    uncomp_datalen = 0;	 
+    uint32_t                    comp_datalen = 0;	 
 
     mcd_log_msg( 20000, PLAT_LOG_LEVEL_TRACE, "ENTERING" );
     (void) __sync_fetch_and_add( &shard->num_gets, 1 );
@@ -5930,8 +5967,6 @@ mcd_fth_osd_slab_get_raw( void * context, mcd_osd_shard_t * shard, char *key,
 
 	*ppdata = data_buf;
 	*pactual_size = meta->data_len;
-	uint64_t raw_len = sizeof(mcd_osd_meta_t) + meta->key_len + meta->data_len;
-	plat_assert( ( raw_len + ( Mcd_osd_blk_size - 1 ) ) / Mcd_osd_blk_size == rawobjratio);
 
 	/*
 	 * verify applicable checksums
@@ -5967,12 +6002,27 @@ mcd_fth_osd_slab_get_raw( void * context, mcd_osd_shard_t * shard, char *key,
         }
 	}
 
+	uncomp_datalen = meta->uncomp_datalen;
+	comp_datalen   = meta->data_len;
 	/*
 	 * meta can no longer be accessed after this
 	 */
 	memmove( data_buf, buf + sizeof(mcd_osd_meta_t) + meta->key_len,
 			meta->data_len );
 
+	if (uncomp_datalen > 0) {
+		size_t uncomp_len = 0;
+		/*
+		 * Uncompresed raw object will fit within the buffer limit
+                 */
+                rc = zs_uncompress_data(data_buf, comp_datalen, nbytes, &uncomp_len);
+                if( rc < 0 ) {
+                    mcd_log_msg(160202,PLAT_LOG_LEVEL_FATAL, "Data uncompression failed:%d",rc);
+                    return FLASH_ENOENT;
+                }
+		plat_assert((uint32_t)uncomp_len == uncomp_datalen);
+		*pactual_size = uncomp_datalen;
+	}
 	meta_data->blockaddr = *(baddr_t *)key;
 
 	return FLASH_EOK;
@@ -7021,7 +7071,8 @@ mcd_osd_flash_put_v( struct ssdaio_ctxt * pctxt, struct shard * shard,
 			if(pos != i * slab_size)
 				memmove(data_buf + pos, data_buf + i * slab_size, max_comp_len + fixed_size);
 
-			mcd_osd_slab_checksum(data_buf + pos, comp_slab_blksize);
+			mcd_osd_meta_t* meta = (mcd_osd_meta_t *)(data_buf + pos);
+			mcd_osd_slab_checksum(data_buf + pos, meta->key_len + meta->data_len);
 
 			pos += comp_slab_blksize * Mcd_osd_blk_size;
 		}
