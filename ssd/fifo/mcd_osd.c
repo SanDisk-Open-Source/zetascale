@@ -87,6 +87,8 @@ extern SDF_shardid_t vdc_shardid;
 int __zs_check_mode_on = 0;
 void update_check_maps(mcd_osd_shard_t *shard, uint64_t blk_offset);
 
+bool get_rawobjsz( uint64_t *nbyte);
+
 
 #define NUM_SEG_BMAPS 6
 
