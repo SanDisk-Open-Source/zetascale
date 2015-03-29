@@ -869,6 +869,22 @@ prettynumber( ulong n)
 	return (nbuf);
 }
 
+/*
+ * net raw object size
+ *
+ * Calculate net size in bytes of a raw object after internal overhead is
+ * subtracted, and return the value as uint64.
+ */
+
+uint64_t get_rawobj_size()
+{
+	uint64_t retVal = 0;
+
+	if (storm_mode) {
+		retVal = bytes_per_storm_object - sizeof( mcd_osd_meta_t) - sizeof( baddr_t);
+	} 
+	return retVal;
+}
 
 /*
  * net raw object size

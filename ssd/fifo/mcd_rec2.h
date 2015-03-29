@@ -71,6 +71,7 @@ void		mcd_rec2_potbitmap_set( mcd_osd_shard_t *, uint),
 		mcd_rec2_shutdown( mcd_osd_shard_t *);
 bool		check_storm_mode( ),
 		get_rawobjsz( uint64_t *);
+uint64_t	get_rawobj_size();
 int		get_rawobjratio( );
 uint64_t	get_regobj_storm_mode( );
 

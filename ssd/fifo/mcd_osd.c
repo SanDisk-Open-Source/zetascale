@@ -87,7 +87,7 @@ extern SDF_shardid_t vdc_shardid;
 int __zs_check_mode_on = 0;
 void update_check_maps(mcd_osd_shard_t *shard, uint64_t blk_offset);
 
-bool get_rawobjsz( uint64_t *nbyte);
+uint64_t get_rawobj_size();
 
 
 #define NUM_SEG_BMAPS 6
@@ -5369,9 +5369,7 @@ mcd_fth_osd_slab_write_raw( void * context, mcd_osd_shard_t * shard,
 	}
 
 	if (storm_mode) {
-		uint64_t raw_obj_size;
-
-		get_rawobjsz(&raw_obj_size);
+		uint64_t raw_obj_size = get_rawobj_size();
 		if (data_len < raw_obj_size) {
 			data_len = raw_obj_size;
 		}
