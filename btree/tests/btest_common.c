@@ -25,6 +25,7 @@
 extern zs_log_func zs_log_func_ptr;
 
 extern int init_l1cache();
+extern uint32_t get_btree_node_size();
 
 static char *gendata(uint32_t max_datalen, uint64_t *pdatalen);
 
@@ -59,9 +60,6 @@ static uint32_t   n_char_array;
 // #define DEFAULT_MAX_DATA_SIZE     1000
 #define DEFAULT_MAX_DATA_SIZE     100
 // #define DEFAULT_MAX_DATA_SIZE     20000
-#define DEFAULT_NODE_SIZE         8100
-// #define DEFAULT_NODE_SIZE         2100
-// #define DEFAULT_NODE_SIZE         900
 #define DEFAULT_MIN_KEYS_PER_NODE 4
 // #define DEFAULT_N_TEST_KEYS       6000
 // #define DEFAULT_N_TEST_KEYS       20
@@ -100,7 +98,7 @@ void btest_common_usage(char *program)
 	fprintf(stderr, "             <n_partitions>        = %d\n", DEFAULT_N_PARTITIONS);
 	fprintf(stderr, "             <max_key_size_bytes>  = %d\n", DEFAULT_MAX_KEY_SIZE);
 	fprintf(stderr, "             <max_data_size_bytes  = %d\n", DEFAULT_MAX_DATA_SIZE);
-	fprintf(stderr, "             <node_size_bytes>     = %d\n", DEFAULT_NODE_SIZE);
+	fprintf(stderr, "             <node_size_bytes>     = %d\n", get_btree_node_size());
 	fprintf(stderr, "             <n_l1cache_buckets>   = %d\n", DEFAULT_N_L1CACHE_BUCKETS);
 	fprintf(stderr, "             <min_keys_per_node>   = %d\n", DEFAULT_MIN_KEYS_PER_NODE);
 	fprintf(stderr, "             <n_test_keys>         = %d\n", DEFAULT_N_TEST_KEYS);
@@ -258,7 +256,7 @@ btest_init(int argc, char **argv, char *program, btest_parse_fn parse_fn)
 	cfg->max_key_size        = DEFAULT_MAX_KEY_SIZE;
 	cfg->max_datalen         = DEFAULT_MAX_DATA_SIZE;
 	cfg->min_keys_per_node   = DEFAULT_MIN_KEYS_PER_NODE;
-	cfg->nodesize            = DEFAULT_NODE_SIZE;
+	cfg->nodesize            = get_btree_node_size();
 	cfg->n_l1cache_buckets   = DEFAULT_N_L1CACHE_BUCKETS;
 
 	cfg->n_test_keys         = DEFAULT_N_TEST_KEYS;

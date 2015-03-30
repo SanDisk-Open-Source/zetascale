@@ -84,7 +84,7 @@ uint64_t l1reg_buckets, l1raw_buckets;
 uint64_t l1cache_size = 0;
 uint64_t l1reg_size, l1raw_size;
 uint64_t l1cache_partitions = 0;
-uint32_t node_size = 8192; /* Btree node size, Default 8K */
+static uint32_t global_btree_node_size = 0;
 uint32_t btree_partitions = 1;
 
 struct PMap *global_l1cache;
@@ -158,8 +158,7 @@ int mput_default_cmp_cb(void *data, char *key, uint32_t keylen,
 			    char *new_data, uint64_t new_datalen);
 
 static void read_node_cb(btree_status_t *ret, void *data, void *pnode, uint64_t lnodeid, int rawobj);
-static void write_node_cb(struct ZS_thread_state *thd_state, btree_status_t *ret, void *cb_data, uint64_t** lnodeid, char **data, uint64_t datalen,
-		int count, uint32_t flags);
+static void write_node_cb(struct ZS_thread_state *thd_state, btree_status_t *ret, void *cb_data, uint64_t** lnodeid, char **data, uint64_t datalen, int count, uint32_t flags);
 static void flush_node_cb(btree_status_t *ret, void *cb_data, uint64_t lnodeid);
 static int freebuf_cb(void *data, char *buf);
 static void* create_node_cb(btree_status_t *ret, void *data, uint64_t lnodeid);
@@ -282,11 +281,6 @@ zs_log_func zs_log_func_ptr = NULL;
 // #define DEFAULT_N_PARTITIONS      512
 // #define DEFAULT_MAX_KEY_SIZE      10
 #define DEFAULT_MAX_KEY_SIZE      256
-// #define DEFAULT_NODE_SIZE         4000
-// #define DEFAULT_NODE_SIZE         1900
-#define DEFAULT_NODE_SIZE         8100
-// #define DEFAULT_NODE_SIZE         1990
-// #define DEFAULT_NODE_SIZE         2100
 // #define DEFAULT_N_L1CACHE_BUCKETS 1000
 // #define DEFAULT_N_L1CACHE_BUCKETS 1000
 // #define DEFAULT_N_L1CACHE_BUCKETS 9600
@@ -553,24 +547,34 @@ ZS_status_t _ZSLoadProperties(
 }
 
 
-uint32_t get_btree_node_size() {
-    char *zs_prop, *env;
-    uint32_t nodesize;
+uint32_t get_btree_node_size()
+{
+    char *zs_prop;
+    uint32_t node_size = 0;
 
-    zs_prop = (char *)ZSGetProperty("ZS_BTREE_NODE_SIZE",NULL);
-    if( zs_prop != NULL ) {
-        nodesize = (atoi(zs_prop) < 0)?0:atoi(zs_prop);
-    }
-    else {
-        env = getenv("BTREE_NODE_SIZE");
-        nodesize = env ? atoi(env) : 0;
+    if (global_btree_node_size) {
+	return global_btree_node_size;
     }
 
-    if ( !nodesize ) {
-        nodesize = DEFAULT_NODE_SIZE;
-    }    
+    zs_prop = (char *)ZSGetProperty("ZS_BTREE_NODE_SIZE", NULL);
 
-    return nodesize;
+    if(zs_prop != NULL ) {
+        node_size = (atoi(zs_prop) < 0) ? 0 : atoi(zs_prop);
+    }  else {
+        char *env = getenv("BTREE_NODE_SIZE");
+        node_size = env ? atoi(env) : 0;
+    }
+   
+    if (node_size == 0) {
+        if (bt_storm_mode) {
+	    node_size = BTREE_STORM_MODE_NODE_SIZE;
+        } else {
+	    node_size = BTREE_DEFAULT_NODE_SIZE;
+        }
+    }
+
+    global_btree_node_size = node_size;
+    return node_size;
 }
 
 uint32_t get_btree_min_keys_per_node() {
@@ -1407,19 +1411,7 @@ restart:
     if(!n_partitions)
         n_partitions = DEFAULT_N_PARTITIONS;
 
-    /* Check first the zs.prop */
-    zs_prop = (char *)ZSGetProperty("ZS_BTREE_NODE_SIZE",NULL);
-    if( zs_prop != NULL ) {
-        nodesize = (atoi(zs_prop) < 0)?0:atoi(zs_prop);
-    }
-    else {
-        env = getenv("BTREE_NODE_SIZE");
-        nodesize = env ? atoi(env) : 0;
-    }
-
-    if (!nodesize) {
-	nodesize            = DEFAULT_NODE_SIZE;
-    }
+    nodesize = get_btree_node_size();
 
     min_keys_per_node   = DEFAULT_MIN_KEYS_PER_NODE;
 
@@ -3680,7 +3672,7 @@ ZS_status_t btree_get_node_info(ZS_cguid_t cguid, char *data, uint64_t datalen,
 	}
 	btree = pbtree->partitions[0];
 
-	if ((datalen != DEFAULT_NODE_SIZE) &&
+	if ((datalen != get_btree_node_size()) &&
 	    (bt_storm_mode && (datalen != overflow_node_sz))) {
 		/* Not a btree node */
 		return ZS_SUCCESS;

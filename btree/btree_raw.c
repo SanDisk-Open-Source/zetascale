@@ -163,7 +163,7 @@ __thread uint64_t modified_nodes_count=0, referenced_nodes_count=0, deleted_node
 __thread uint64_t modified_metanodes_count = 0;
 __thread uint64_t saverootid = BAD_CHILD;
 
-static __thread char tmp_key_buf[8100] = {0};
+static __thread char tmp_key_buf[BTREE_MAX_NODE_SIZE] = {0};
 __thread uint64_t dbg_referenced = 0;
 
 static __thread uint64_t _pstats_ckpt_index = 0;
@@ -289,7 +289,7 @@ void destroy_l1cache();
 void clean_l1cache(btree_raw_t* btree);
 void delete_l1cache(btree_raw_t *btree, int robj, uint64_t logical_id);
 void delete_node_l1cache(btree_raw_t *btree, btree_raw_node_t *pnode);
-uint32_t get_btree_node_size();
+extern uint32_t get_btree_node_size();
 
 btree_status_t deref_l1cache(btree_raw_t *btree);
 static void btree_sync_flush_entry(btree_raw_t *btree, struct ZS_thread_state *thd_state, btSyncRequest_t *list);
@@ -8050,7 +8050,7 @@ merge_nodes_non_leaf(btree_raw_t *btree, btree_raw_node_t *anchor, btree_raw_nod
 	return true;
 }
 
-static __thread char _tmp_node1[8200];
+static __thread char _tmp_node1[BTREE_MAX_NODE_SIZE + 100];
 
 static bool 
 merge_nodes_leaf(btree_raw_t *btree, btree_raw_node_t *anchor, btree_raw_node_t *from,

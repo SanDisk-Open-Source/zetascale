@@ -33,7 +33,7 @@ extern struct ZS_state *ZSState;
 __thread int key_loc = 0;
 __thread int nkey_prev_tombstone = 0;
 __thread int start_key_in_node = 0;
-static __thread char tmp_key_buf[8100] = {0};
+static __thread char tmp_key_buf[BTREE_MAX_NODE_SIZE] = {0};
 
 extern ZS_status_t astats_open_container(struct ZS_thread_state *zs_thread_state, ZS_cguid_t cguid, astats_arg_t *s);
 extern ZS_status_t open_container(struct ZS_thread_state *zs_thread_state, ZS_cguid_t cguid);
@@ -51,6 +51,7 @@ extern void get_key_stuff_leaf2(btree_raw_t *bt, btree_raw_node_t *n, uint32_t n
 extern btree_status_t btree_delete(struct btree *btree, char *key, uint32_t keylen, btree_metadata_t *meta);
 
 extern  ZS_status_t BtreeErr_to_ZSErr(btree_status_t b_status);
+extern uint32_t get_btree_node_size();
 
 static void update_leaf_bytes_count(btree_raw_t *btree, btree_raw_mem_node_t *node);
 static void scavenger_del_stale_ent(Scavenge_Arg_t *s);
@@ -492,7 +493,7 @@ scavenge_node_all_keys(btree_raw_t *btree, btree_raw_mem_node_t *node)
 
 	ks_prev.key    = (char *) &tmp_key_buf;
 	ks_current.key = (char *) &tmp_key_buf + btree->max_key_size;
-	assert((btree->max_key_size * 2) < 8100);
+	assert((btree->max_key_size * 2) < get_btree_node_size());
 
 	while (i < node->pnode->nkeys) {
 		(void) get_key_stuff_leaf2(btree, node->pnode, i, &ks_current);
@@ -671,7 +672,7 @@ update_leaf_bytes_count(btree_raw_t *btree, btree_raw_mem_node_t *node)
     used_space = sizeof(btree_raw_node_t) + btree_leaf_used_space(btree, node->pnode);
     __sync_add_and_fetch(&(btree->stats.stat[BTSTAT_LEAF_BYTES]), used_space);
 
-    char buffer[8192];
+    char buffer[BTREE_MAX_NODE_SIZE];
     uint64_t            nbytes;
     uint64_t            copybytes;
     bzero(&ks_current, sizeof(key_stuff_t));

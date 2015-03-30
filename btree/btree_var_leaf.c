@@ -59,9 +59,9 @@ uint64_t bt_leaf_is_full = 0;
 
 int space_op_disabled = 0;
 
-char global_tmp_data[4096] = {0};
-static __thread char tmp_leaf_node[8200] = {0};
-static __thread char tmp_key_buf[8100] = {0};
+char global_tmp_data[BTREE_MAX_NODE_SIZE/2] = {0};
+static __thread char tmp_leaf_node[BTREE_MAX_NODE_SIZE + 100] = {0};
+static __thread char tmp_key_buf[BTREE_MAX_NODE_SIZE] = {0};
 
 #ifdef DEBUG_BUILD		
 #define dbg_assert(x) assert(x)
@@ -1584,7 +1584,7 @@ btree_leaf_remove_key_index(btree_raw_t *bt, btree_raw_node_t *n,
 }
 
 #ifdef DEBUG_BUILD
-static __thread char tmp_node1[8200];
+static __thread char tmp_node1[BTREE_MAX_NODE_SIZE + 100];
 #endif 
 
 bool

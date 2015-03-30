@@ -23,7 +23,7 @@
 
 #define N_CURSOR_MAX 3
 static __thread btree_range_cursor_t __thread_cursor[N_CURSOR_MAX];
-static __thread char tmp_key_buf[8100] = {0};
+static __thread char tmp_key_buf[BTREE_MAX_NODE_SIZE] = {0};
 
 #define IS_ASCENDING_QUERY(meta) \
              (((meta)->key_start && ((meta)->flags & (RANGE_START_GT | RANGE_START_GE))) || \

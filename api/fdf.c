@@ -59,6 +59,7 @@
 #include "flip/flip.h"
 #endif
 #include <ssd/fifo/scavenger.h>
+#include "btree/btree_raw.h"
 
 #define LOG_ID PLAT_LOG_ID_INITIAL
 #define LOG_CAT PLAT_LOG_CAT_SDF_NAMING
@@ -2244,7 +2245,13 @@ char *zs_init_per_thd_comp_buf(size_t len) {
 	if (len == 0) {
 		tmp_len = snappy_max_compressed_length(
 						getProperty_Int("ZS_COMPRESSION_MAX_OBJECT_SIZE",
-							getProperty_Int("ZS_BTREE_NODE_SIZE",8100) + 1024));
+							getProperty_Int("ZS_BTREE_NODE_SIZE", BTREE_MAX_NODE_SIZE) + 1024));
+		if (storm_mode) {
+			size_t raw_obj_len = get_rawobj_size() + 1024;
+			if (tmp_len < raw_obj_len) {
+				tmp_len = raw_obj_len;
+			}
+		}
 	} else {
 		tmp_len = snappy_max_compressed_length(len + 1024);
 	}
@@ -2285,7 +2292,7 @@ char *zs_compress_data(char *src, size_t src_len,
 	size_t len;
 	size_t btree_node_size = snappy_max_compressed_length(
 			 							getProperty_Int("ZS_COMPRESSION_MAX_OBJECT_SIZE", 
-											getProperty_Int("ZS_BTREE_NODE_SIZE",8100)));
+											getProperty_Int("ZS_BTREE_NODE_SIZE", BTREE_MAX_NODE_SIZE)));
 
 	if( getProperty_Int("ZS_COMPRESSION", 0) == 0 ) {
 		return NULL;
