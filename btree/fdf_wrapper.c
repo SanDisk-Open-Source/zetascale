@@ -558,9 +558,9 @@ uint32_t get_btree_node_size()
 
     zs_prop = (char *)ZSGetProperty("ZS_BTREE_NODE_SIZE", NULL);
 
-    if(zs_prop != NULL ) {
+    if (zs_prop != NULL ) {
         node_size = (atoi(zs_prop) < 0) ? 0 : atoi(zs_prop);
-    }  else {
+    } else {
         char *env = getenv("BTREE_NODE_SIZE");
         node_size = env ? atoi(env) : 0;
     }
@@ -709,7 +709,6 @@ ZS_status_t _ZSInitVersioned(
     }
     g_api_version = api_version;
 
-    const char *ZS_SCAVENGER_THREADS = "60";
     const char *ZS_SCAVENGE_PER_OBJECTS = "10000";
     int NThreads = 10;
 
@@ -769,7 +768,7 @@ ZS_status_t _ZSInitVersioned(
     }
     ZSState = *zs_state;
 
-    NThreads = atoi(_ZSGetProperty("ZS_SCAVENGER_THREADS", ZS_SCAVENGER_THREADS));
+    NThreads = atoi(_ZSGetProperty("ZS_SCAVENGER_THREADS", bt_storm_mode ? "16" : "60"));
 
 	scavenger_init(NThreads);
     invoke_scavenger_per_n_obj_del  = atoi(_ZSGetProperty("ZS_SCAVENGE_PER_OBJECTS",ZS_SCAVENGE_PER_OBJECTS));

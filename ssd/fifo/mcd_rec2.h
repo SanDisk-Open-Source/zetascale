@@ -50,7 +50,7 @@ enum {
 };
 
 
-#define	bytes_per_device_block		(1uL << 13)
+#define ZS_BYTES_PER_STORM_KEY 		512
 #define	bits_per_byte			8uL
 #define	bitbase( a)	((a) / bits_per_byte)
 #define	bitmask( a)	(1 << (a)%bits_per_byte)

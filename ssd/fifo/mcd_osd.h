@@ -33,6 +33,7 @@
 #define mcd_log_msg(id, args...)        plat_log_msg( id, PLAT_LOG_CAT_SDF_APP_MEMCACHED, ##args )
 #define mcd_dbg_msg(...)                plat_log_msg( PLAT_LOG_ID_INITIAL, PLAT_LOG_CAT_SDF_APP_MEMCACHED, __VA_ARGS__ )
 
+#define ZS_DEFAULT_BLOCK_SIZE 	16384
 // #define MCD_OSD_MAX_PTHREADS    16
 #define MCD_OSD_MAX_PTHREADS    128
 #define MCD_OSD_MAX_NCLASSES    16
@@ -48,7 +49,7 @@
  * minimum allocation size
  */
 #define MCD_OSD_BLK_SIZE_MIN	512
-#define MCD_OSD_BLK_SIZE_MAX	8192
+#define MCD_OSD_BLK_SIZE_MAX	16384
 #define MCD_OSD_BLK_MASK_MAX	0xffffffffffffe000ULL
 
 #define MCD_OSD_SEGMENT_SIZE    (32 * 1024 * 1024)

@@ -1022,7 +1022,7 @@ static void zs_load_settings(flash_settings_t *osd_settings)
 	insertProperty("SDF_PROP_FILE_VERSION", "1");
 	insertProperty("SHMEM_FAKE", "1");
 	insertProperty("MEMCACHED_STATIC_CONTAINERS", "1");
-	insertProperty("SDF_FLASH_PROTOCOL_THREADS", "1");
+	insertProperty("SDF_FLASH_PROTOCOL_THREADS", storm_mode ? "16" : "1");
 	insertProperty("ZS_LOG_FLUSH_DIR", "/tmp");
 //	insertProperty("ZS_CC_BUCKETS", "1000");
 //	insertProperty("ZS_CC_NSLABS", "100");
@@ -1084,7 +1084,7 @@ static void zs_load_settings(flash_settings_t *osd_settings)
     osd_settings->is_node_independent = 1;
     osd_settings->ips_per_cntr	    = 1;
     osd_settings->rec_log_size_factor = 0;
-    osd_settings->os_blk_size = getProperty_Int("ZS_BLOCK_SIZE", 8192);
+    osd_settings->os_blk_size = getProperty_Int("ZS_BLOCK_SIZE", ZS_DEFAULT_BLOCK_SIZE);
 }
 
 /*
@@ -1941,10 +1941,10 @@ void print_configuration(int log_level) {
         "Maximum object size = %llu",
         getProperty_Int("ZS_FLASH_SIZE", ZS_MIN_FLASH_SIZE),
         getProperty_Int("ZS_REFORMAT", 0 )?"yes":"no",
-        getProperty_uLongLong("ZS_CACHE_SIZE", 100000000ULL),
+        getProperty_uLongLong("ZS_CACHE_SIZE", storm_mode ? 17000000 : 100000000ULL),
         getProperty_uLongLong("SDF_MAX_OBJ_SIZE", SDF_MAX_OBJ_SIZE));
 	plat_log_msg(160171, LOG_CAT, log_level,"Block size = %llu",
-		getProperty_uLongLong("ZS_BLOCK_SIZE", 8192));
+		getProperty_uLongLong("ZS_BLOCK_SIZE", ZS_DEFAULT_BLOCK_SIZE));
     if (getProperty_Int("ZS_TEST_MODE", 0)) {
          plat_log_msg(80031, LOG_CAT, log_level,"ZS Testmode enabled");
     }

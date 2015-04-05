@@ -30,14 +30,15 @@
 #include	"utils/rico.h"
 #include	"mcd_rec2.h"
 
+int   bytes_per_device_block  = ZS_DEFAULT_BLOCK_SIZE;
 
-#define	bytes_per_storm_key		(1uL << 8)
+
 #define	bytes_per_second		(1uL << 31)
 #define	bytes_per_segment		(1uL << 25)
 #define	bytes_per_pot_element		(1uL << 4)
 #define	bytes_per_log_record		(1uL << 6)
 #define	device_blocks_per_storm_object	(bytes_per_storm_object / bytes_per_device_block)
-#define	device_blocks_per_segment	(bytes_per_segment / bytes_per_device_block)
+#define	device_blocks_per_segment	(bytes_per_segment / ZS_DEFAULT_BLOCK_SIZE)
 #define	pot_elements_per_page		device_blocks_per_segment
 #define	bytes_per_page			(pot_elements_per_page * bytes_per_pot_element)
 #define leaf_occupancy_pct		75
@@ -99,6 +100,7 @@ static struct mcdstructure	mcd;
 static ulong			bytes_per_storm_object;
 static ulong			bytes_per_leaf;
 static uint			segments_per_flash_array;
+static int  			bytes_per_storm_key;
 
 
 void		mcd_fth_osd_slab_load_slabbm( osd_state_t *, mcd_osd_shard_t *, uchar [], ulong),
@@ -784,6 +786,7 @@ complain( char *mesg, ...)
 static void
 calc_params( ulong bytes_per_flash_array, float log_size_factor)
 {
+	bytes_per_storm_key = getProperty_Int("ZS_STORM_BYTES_OVERHEAD_PER_OBJECT", ZS_BYTES_PER_STORM_KEY);
 
 	mcd.bytes_per_flash_array = bytes_per_flash_array;
 	mcd.storm_objects_per_array = mcd.bytes_per_flash_array / bytes_per_storm_object;

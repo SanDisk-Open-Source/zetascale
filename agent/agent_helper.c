@@ -92,6 +92,7 @@ static SDF_boolean_t SDFNew_Mode = SDF_FALSE;
     /* are we running with replication? */
 static SDF_boolean_t SDFEnable_Replication = SDF_FALSE;
 
+extern int storm_mode;
 /************************************************************************
  *                                                                      *
  *              Migrated over from agent_engine.c                       *
@@ -439,8 +440,8 @@ agent_config_set_properties(struct plat_opts_config_sdf_agent *config)
 	}
     }
 
-    config->numFlashProtocolThreads = getProperty_uLongInt("SDF_FLASH_PROTOCOL_THREADS", 128);
-    config->numAsyncPutThreads = getProperty_uLongInt("ZS_ASYNC_PUT_THREADS", 128);
+    config->numFlashProtocolThreads = getProperty_uLongInt("SDF_FLASH_PROTOCOL_THREADS", storm_mode ? 16 : 128);
+    config->numAsyncPutThreads = getProperty_uLongInt("ZS_ASYNC_PUT_THREADS", storm_mode ? 16: 128);
     config->numReplicationThreads = getProperty_uLongInt("SDF_REPLICATION_THREADS", 8);
     config->numAgentMboxes =  getProperty_uLongInt("SDF_NUM_AGENT_MBOXES", 10);
     config->defaultShardCount = getProperty_uLongInt("SDF_DEFAULT_SHARD_COUNT", 1);

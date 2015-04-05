@@ -3518,7 +3518,7 @@ mcd_osd_slab_shard_init( mcd_osd_shard_t * shard, uint64_t shard_id,
     /*
      * initialize hash tables.
      */
-    int hashscale = getProperty_Int( "ZS_HASH_PCT", 100);
+    int hashscale = getProperty_Int( "ZS_HASH_PCT", storm_mode ? 0 : 100);
     int hashkeycache = getProperty_Int( "ZS_KEY_CACHE", 0);
     if (shard_id==vdc_shardid && storm_mode) {
         uint64_t reg_objs = get_regobj_storm_mode( );

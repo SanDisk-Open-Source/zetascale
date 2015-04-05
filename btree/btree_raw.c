@@ -2257,6 +2257,7 @@ cleanup:
 //======================   INSERT/UPDATE/UPSERT  =========================================
 
 #define BTREE_OVERAGE_DEF "1.01"
+#define BTREE_OVERAGE_DEF_STORM "0.90"
 
 //  return 0 if success, 1 otherwise
 int
@@ -2267,7 +2268,7 @@ init_l1cache()
 	int percentage = 100;
 	int ratio = overflow_node_sz / get_btree_node_size(); //overflow node size : btree noe size
 	uint64_t buffer_count;
-	char *overage_prop = (char *)ZSGetProperty("ZS_BTREE_OVERAGE", BTREE_OVERAGE_DEF);
+	char *overage_prop = (char *)ZSGetProperty("ZS_BTREE_OVERAGE", bt_storm_mode ? BTREE_OVERAGE_DEF_STORM : BTREE_OVERAGE_DEF);
 	float overage = atof(overage_prop);
 
 	l1cache_size = 0;

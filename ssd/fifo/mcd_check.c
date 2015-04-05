@@ -78,6 +78,7 @@ static uint64_t             *cmc_mos_segments = NULL, *vmc_mos_segments = NULL, 
 static int                   cmc_seg_list_ok = 1;
 static int                   vmc_seg_list_ok = 1;
 static int                   vdc_seg_list_ok = 1;
+extern int 		     bytes_per_device_block;
 
 extern int __zs_check_mode_on;
 
