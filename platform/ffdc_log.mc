@@ -3193,6 +3193,8 @@
 150131 flip rename_pre_meta_error\n
 150132 flip rename_post_meta_error\n
 150133 max number of containers = %d.\n
+150134 Failed to create cmap for %s - %lu
+150135 Created cmap for %s - %lu
 
 
 # root

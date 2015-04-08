@@ -7596,8 +7596,12 @@ static void *zs_vc_thread(
 	                              meta->properties.container_type.caching_container
 	                            );
 
-	    if ( ZS_SUCCESS != status )
+	    if ( ZS_SUCCESS != status ) {
+           	plat_log_msg( 150134, LOG_CAT, LOG_ERR, "Failed to create cmap for %s - %lu", meta->cname, meta->cguid );
 	        continue; 
+            } else {
+           	plat_log_msg( 150135, LOG_CAT, LOG_DBG, "Created cmap for %s - %lu", meta->cname, meta->cguid );
+            }
 
 		for ( j = 0; j < max_num_containers; j++ ) {
 			if (Mcd_containers[j].cguid == 0) {
