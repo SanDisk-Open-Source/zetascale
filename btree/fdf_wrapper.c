@@ -819,8 +819,8 @@ ZS_status_t _ZSInitVersioned(
     if ( flash_space_soft_limit == 0 ) {
         /* soft limit not configured. use default */
         /* Discount the cmc and vnc size for calculating the 15% reserved space */
-        flash_space_soft_limit = (flash_space - ((uint64_t)(ZS_DEFAULT_CONTAINER_SIZE_KB * 1024) * 2))  * 0.85 +
-                                 ((uint64_t)(ZS_DEFAULT_CONTAINER_SIZE_KB * 1024) * 2);
+        flash_space_soft_limit = (flash_space - ((uint64_t)(ZS_DEFAULT_CONTAINER_SIZE_KB) * 1024 * 2))  * 0.85 +
+                                 ((uint64_t)(ZS_DEFAULT_CONTAINER_SIZE_KB) * 1024 * 2);
     }
     else {
         flash_space_soft_limit = flash_space_soft_limit * 1024 * 1024 * 1024;

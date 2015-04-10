@@ -29,8 +29,8 @@ extern "C" {
 #define ZS_API_VERSION                 2
 
 #define CONTAINER_NAME_MAXLEN		64
-#define ZS_DEFAULT_CONTAINER_SIZE_KB	(1024 * 1024)	//1GB
-#define ZS_MIN_FLASH_SIZE		3		//3GB
+#define ZS_DEFAULT_CONTAINER_SIZE_KB	(2 * 1024 * 1024)	//2GB
+#define ZS_MIN_FLASH_SIZE		6		//3GB
 
 typedef enum {
 	ZS_CHECK_FIX_BOJ_CNT = 1,
