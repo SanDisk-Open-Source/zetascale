@@ -334,6 +334,9 @@ cmc_initialize(SDF_internal_ctxt_t *pai, const char *cmc_path) {
     	ZS_cguid_t             cguid       = ZS_NULL_CGUID;
 		int						flags		= ZS_CTNR_CREATE;
 
+#if 1//Rico - lc
+    	memset( &zs_p, 0, sizeof zs_p);
+#endif
     	// Create the CMC
     	//zs_p.fifo_mode             = ZS_FALSE;
     	zs_p.persistent            = ZS_TRUE;
@@ -416,6 +419,11 @@ cmc_recover(SDF_internal_ctxt_t *pai, const char *cmc_path) {
 
     plat_log_msg(21498, LOG_CAT, LOG_TRACE, "Node: %d", init_get_my_node_id());
 
+#if 1//Rico - lc
+    memset( &cmc_fdf_props, 0, sizeof cmc_fdf_props);
+    memset( &vmc_fdf_props, 0, sizeof vmc_fdf_props);
+    memset( &vdc_fdf_props, 0, sizeof vdc_fdf_props);
+#endif
     if (ISEMPTY(cmc_path)) {
 		status = SDF_INVALID_PARAMETER;
         goto out;
@@ -505,6 +513,10 @@ cmc_recover(SDF_internal_ctxt_t *pai, const char *cmc_path) {
                              vmc_meta->properties.container_id.size,
                              ZS_CONTAINER_STATE_CLOSED,
                              vmc_meta->properties.container_type.caching_container
+#if 1//Rico - lc
+                             ,
+                             ZS_FALSE
+#endif
                              );
             
     if ( SDF_SUCCESS != status ) 
@@ -545,6 +557,10 @@ cmc_recover(SDF_internal_ctxt_t *pai, const char *cmc_path) {
                              vdc_meta->properties.container_id.size,
                              ZS_CONTAINER_STATE_CLOSED,
                              vdc_meta->properties.container_type.caching_container
+#if 1//Rico - lc
+                             ,
+                             ZS_FALSE
+#endif
                              );
 
     if ( SDF_SUCCESS != status )
@@ -1875,7 +1891,8 @@ static SDF_container_props_t *cmc_create_sdf_props(
 
         sdf_properties->flash_only                              = fdf_properties->flash_only;
         sdf_properties->cache_only                              = fdf_properties->cache_only;
-                sdf_properties->compression = fdf_properties->compression;
+        sdf_properties->compression                             = fdf_properties->compression;
+        sdf_properties->flags                                   = fdf_properties->flags;
     }
 
     return sdf_properties;

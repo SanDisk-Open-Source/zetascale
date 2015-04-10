@@ -30,6 +30,10 @@ extern "C" {
 #define ZS_LICENSE_PATH	"/opt/sandisk/zs/license"
 #define ZS_LICENSE_CHECK_PERIOD	0
 
+#define IS_ZS_BTREE_CONTAINER(FLAGS) 		(!((FLAGS) & (ZS_HASH_CTNR | ZS_LOG_CTNR)))
+#define IS_ZS_HASH_CONTAINER(FLAGS) 		((FLAGS) & ZS_HASH_CTNR)
+#define IS_ZS_LOG_CONTAINER(FLAGS)			((FLAGS) & ZS_LOG_CTNR)
+
 typedef struct ZS_state {
     uint64_t           cguid_cntr;
 } ZS_state_t;
@@ -200,6 +204,10 @@ char *get_log_level();
 bool licd_start(const char *, int, struct ZS_state *);
 void wait_for_licd_start();
 bool is_license_valid(bool);
+
+ZS_status_t zs_write_object_lc( struct ZS_thread_state *, ZS_cguid_t, char *, uint32_t, char *, uint64_t);
+ZS_status_t zs_read_object_lc( struct ZS_thread_state *, ZS_cguid_t, char *, uint32_t, char **, uint64_t *, bool);
+ZS_status_t zs_delete_object_lc( struct ZS_thread_state *, ZS_cguid_t, char *, uint32_t);
 
 /* Keep track of max bracket slab count */
 #define MAX_TRX_BRACKET_SLAB_CNT 1000000

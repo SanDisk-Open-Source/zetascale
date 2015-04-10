@@ -4572,7 +4572,7 @@ enumerate_done(pai_t *pai, e_state_t *es)
     if (es->hash_buf)
         plat_free(es->hash_buf);
     plat_free(es);
-    return 0;
+    return (ZS_SUCCESS);
 }
 
 
@@ -4637,7 +4637,7 @@ enumerate_init(pai_t *pai, shard_t *sshard, ZS_cguid_t cguid, e_state_t **esp)
         rel_cntr_map(cmap);
     }
     zs_logd(70111, "enumeration started for container %ld", es->cguid);
-    return 0;
+    return (ZS_SUCCESS);
 }
 
 /*

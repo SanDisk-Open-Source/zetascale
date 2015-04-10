@@ -4600,8 +4600,8 @@ mcd_fth_osd_slab_set( void * context, mcd_osd_shard_t * shard,
     ZS_boolean_t				vc_evict = ZS_FALSE;
     hash_handle_t             * hdl = shard->hash_handle;
     uint32_t uncomp_datalen = 0; /* Uncompressed data length */
-	cntr_map_t					*cmap = NULL;
-	SDF_durability_level_t		durlevel;
+    cntr_map_t                * cmap = NULL;
+    SDF_durability_level_t      durlevel;
 #ifdef FLIP_ENABLED
     char *tmp_ptr = NULL;
     uint64_t pos = 0;
@@ -4631,18 +4631,17 @@ mcd_fth_osd_slab_set( void * context, mcd_osd_shard_t * shard,
         return FLASH_EACCES;
     }
 
-	cmap = get_cntr_map(cntr_id);
-	if ( cntr_id > LAST_PHYSICAL_CGUID) {
-		if (!cmap) {
-			mcd_log_msg( 150108,
-						 PLAT_LOG_LEVEL_ERROR,
-						 "Could not determine eviction type for container %u\n",
-						 cntr_id );
-		} else {
-			vc_evict = cmap->evicting;
-		}
-	}
-
+    cmap = get_cntr_map(cntr_id);
+    if (cntr_id > LAST_PHYSICAL_CGUID) {
+        if (!cmap) {
+            mcd_log_msg(150108,
+                        PLAT_LOG_LEVEL_ERROR,
+                        "Could not determine eviction type for container %u\n",
+                        cntr_id);
+        } else {
+            vc_evict = cmap->evicting;
+        }
+    }
     if ( FLASH_PUT_PREFIX_DELETE == flags ) {
         rc = mcd_osd_prefix_delete( shard, key, key_len );
         goto out;
@@ -4681,7 +4680,7 @@ mcd_fth_osd_slab_set( void * context, mcd_osd_shard_t * shard,
         log_rec.seqno        = 0;
         log_rec.target_seqno = shard->cntr->cas_id;
         log_rec.raw = FALSE;
-		log_rec.mlo_dl = durlevel;
+        log_rec.mlo_dl = durlevel;
         log_write( shard, &log_rec );
     }
 
@@ -4792,17 +4791,17 @@ mcd_fth_osd_slab_set( void * context, mcd_osd_shard_t * shard,
                 log_rec.deleted      = hash_entry->deleted;
                 log_rec.reserved     = 0;
                 log_rec.blocks       = 0;  // distinguishes a delete record
-				if (!hdl->addr_table) {
-					log_rec.rbucket       = (syndrome % hdl->hash_size) / Mcd_osd_bucket_size;
-				} else {
-					log_rec.rbucket       = (syndrome % hdl->hash_size);
-				}
+                if (!hdl->addr_table) {
+                    log_rec.rbucket       = (syndrome % hdl->hash_size) / Mcd_osd_bucket_size;
+                } else {
+                    log_rec.rbucket       = (syndrome % hdl->hash_size);
+                }
                 log_rec.mlo_blk_offset   = hash_entry->blkaddress;
                 log_rec.cntr_id      = cntr_id;
                 log_rec.seqno        = meta_data->sequence;
                 log_rec.target_seqno = target_seqno;
                 log_rec.raw = FALSE;
-				log_rec.mlo_dl = durlevel;
+                log_rec.mlo_dl = durlevel;
                 if ( 0 == shard->evict_to_free ) {
                     // store mode: delay flash space dealloc
                     log_rec.mlo_old_offset = ~(hash_entry->blkaddress) & 0x0000ffffffffffffull;
@@ -5000,7 +4999,7 @@ mcd_fth_osd_slab_set( void * context, mcd_osd_shard_t * shard,
         log_rec.cntr_id    = cntr_id;
         log_rec.seqno      = meta_data->sequence;
         log_rec.raw = FALSE;
-		log_rec.mlo_dl = durlevel;
+        log_rec.mlo_dl = durlevel;
         if ( true == obj_exists && 0 == shard->evict_to_free ) {
             // overwrite case in store mode
             log_rec.mlo_old_offset   = ~(hash_entry->blkaddress) & 0x0000ffffffffffffull;

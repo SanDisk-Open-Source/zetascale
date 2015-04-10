@@ -4261,17 +4261,16 @@ update_hash_table( void * context, mcd_osd_shard_t * shard,
  */
 
 
-#define	BRACKET_LIMIT	1000		/* max # of open trx brackets */
+#define	BRACKET_LIMIT	1024u		/* max # of open trx brackets */
 
 
-typedef struct packetstructure	packet_t;
 typedef struct bracketstructure	bracket_t;
 typedef struct logrecstructure	bracketlogrec_t;
 typedef struct lrringstructure	lrring_t;
 
 struct logrecstructure {
-	uint32_t	cguid,
-			blkno,
+	uint16_t	cguid;
+	uint32_t	blkno,
 			oldblkno,
 			nblock,
 			trx:2,
@@ -4279,11 +4278,10 @@ struct logrecstructure {
 			lineno;
 };
 struct bracketstructure {
+	bracket_t	*next;
+	uint64_t	id;
 	uint		nrec;
 	bracketlogrec_t	record[TRX_LIMIT];
-};
-struct packetstructure {
-	bracket_t	btab[BRACKET_LIMIT];
 };
 
 /* used to unfold and process ring buffer badbuf
@@ -4299,9 +4297,8 @@ enum {
 	TRX_OP_LAST		= 2
 };
 
-extern int	zs_uncompress_data( char *, size_t, size_t, size_t *);
-extern int  apply_log_record_mp_storm( mcd_rec_obj_state_t *, mcd_logrec_object_t *);
-
+int	zs_uncompress_data( char *, size_t, size_t, size_t *),
+	apply_log_record_mp_storm( mcd_rec_obj_state_t *, mcd_logrec_object_t *);
 
 
 static int
@@ -4325,6 +4322,9 @@ apply_log_record_mp( mcd_rec_obj_state_t *state, mcd_logrec_object_t *rec)
 			shard->cntr->cas_id = rec->target_seqno;
 		return 0;
 	}
+#if 1//Rico - lc
+	state->bracket_id_max = max( state->bracket_id_max, labs( rec->bracket_id));
+#endif
 	if (flash_settings.storm_mode)
 		return (apply_log_record_mp_storm( state, rec));
 	// return log record address (record offset)
@@ -4426,9 +4426,62 @@ filter_ot_initialize( mcd_rec_obj_state_t *state)
 {
 
 	state->otstate = 1;
-	state->otpacket = plat_malloc( sizeof( packet_t));
-	memset( state->otpacket, 0, sizeof( packet_t));
+	state->ottable = plat_calloc( BRACKET_LIMIT, sizeof( bracket_t *));
 	//filter_mp_initialize( state);
+}
+
+
+/*
+ * look up bracket ID in ottable
+ *
+ * Return bracket_t that corresponds to 'bid' in ottable 't'.  If not
+ * found, create and return a new bracket_t.  Return 0 on malloc failure.
+ */
+static bracket_t	*
+filter_ot_lookup_bracket( bracket_t **t, uint64_t bid)
+{
+
+	bracket_t *b = t[bid%BRACKET_LIMIT];
+	while (b) {
+		if (b->id == bid)
+			return (b);
+		b = b->next;
+	}
+	if (b = malloc( sizeof *b)) {
+		b->id = bid;
+		b->nrec = 0;
+		b->next = t[bid%BRACKET_LIMIT];
+		t[bid%BRACKET_LIMIT] = b;
+	}
+	return (b);
+}
+
+
+/*
+ * delete bracket from ottable
+ *
+ * Delete bracket_t in ottable 't' that corresponds to 'bid'.
+ */
+static void
+filter_ot_delete_bracket( bracket_t **t, uint64_t bid)
+{
+	bracket_t	*b,
+			*bnext;
+
+	if (b = t[bid%BRACKET_LIMIT])
+		if (b->id == bid) {
+			t[bid%BRACKET_LIMIT] = b->next;
+			free( b);
+		}
+		else
+			while (bnext = b->next) {
+				if (bnext->id == bid) {
+					b->next = bnext->next;
+					free( bnext);
+					break;
+				}
+				b = bnext;
+			}
 }
 
 
@@ -4437,38 +4490,33 @@ filter_ot_apply_logrec( mcd_rec_obj_state_t *state, mcd_logrec_object_t *rec)
 {
 	static uint32_t	trxid,
 			lineno;
+	bracket_t	*b;
 
 	int a = 0;
 	if (state->otstate == 1) {
-		packet_t *r = state->otpacket;
-		if (rec->bracket_id < 0) {
-			uint i = - rec->bracket_id;
-			if (i < BRACKET_LIMIT)
-				r->btab[i].nrec = 0;
-		}
+		if (rec->bracket_id < 0)
+			filter_ot_delete_bracket( state->ottable, -rec->bracket_id);
 		else if ((rec->bracket_id)
 		and (rec->trx)
-		and (rec->bracket_id < BRACKET_LIMIT)) {
-			bracket_t *b = &r->btab[rec->bracket_id];
-			if (b->nrec < nel( b->record)) {
-				bracketlogrec_t *l = &b->record[b->nrec++];
-				if (b->nrec == nel( b->record)) {
-					if (state->shard->log->errors_fatal) {
-						mcd_log_msg( 170043, PLAT_LOG_LEVEL_FATAL, "Outer trx is unrecoverable (too long)");
-						plat_abort( );
-					}
-					mcd_log_msg( 170043, PLAT_LOG_LEVEL_ERROR, "Outer trx is unrecoverable (too long)");
+		and (b = filter_ot_lookup_bracket( state->ottable, rec->bracket_id))
+		and (b->nrec < nel( b->record))) {
+			bracketlogrec_t *l = &b->record[b->nrec++];
+			if (b->nrec == nel( b->record)) {
+				if (state->shard->log->errors_fatal) {
+					mcd_log_msg( 170043, PLAT_LOG_LEVEL_FATAL, "Outer trx is unrecoverable (too long)");
+					plat_abort( );
 				}
-				l->cguid = rec->cntr_id;
-				l->blkno = rec->mlo_blk_offset;
-				l->oldblkno = rec->mlo_old_offset;
-				l->nblock = rec->blocks;
-				l->trxid = trxid;
-				l->trx = rec->trx;
-				if (rec->trx == TRX_OP_LAST)
-					++trxid;
-				l->lineno = lineno++;
+				mcd_log_msg( 170043, PLAT_LOG_LEVEL_ERROR, "Outer trx is unrecoverable (too long)");
 			}
+			l->cguid = rec->cntr_id;
+			l->blkno = rec->mlo_blk_offset;
+			l->oldblkno = rec->mlo_old_offset;
+			l->nblock = rec->blocks;
+			l->trxid = trxid;
+			l->trx = rec->trx;
+			if (rec->trx == TRX_OP_LAST)
+				++trxid;
+			l->lineno = lineno++;
 		}
 	}
 	a += apply_log_record_mp( state, rec);
@@ -4500,6 +4548,26 @@ filter_ot_flush( mcd_rec_obj_state_t *state)
 {
 
 	//filter_mp_flush( state);
+}
+
+
+void
+filter_ot_free( mcd_rec_obj_state_t *state)
+{
+	uint		i;
+
+	if (state->ottable) {
+		for (i=0; i<BRACKET_LIMIT; ++i) {
+			bracket_t *b = ((bracket_t **)state->ottable)[i];
+			while (b) {
+				bracket_t *bnext = b->next;
+				free( b);
+				b = bnext;
+			}
+		}
+		free( state->ottable);
+		state->ottable = 0;
+	}
 }
 
 
@@ -5924,16 +5992,7 @@ makecrashdir( )
 {
 
 	const char *d = packet_directory( );
-	pid_t pid = fork( );
-	switch (pid) {
-	case 0:
-		execl( "/bin/mkdir", "mkdir", "-p", d, NULL);
-		_exit( 1);
-	case -1:
-		break;
-	default:
-		waitpid( pid, 0, 0);
-	}
+	mkdir( d, S_IRWXU);
 	return (d);
 }
 
@@ -6042,29 +6101,29 @@ free_and_exit:
  * container by cguid.  Packets are compressed with gzip.
  */
 void
-recovery_packet_save( packet_t *r, void *context, mcd_osd_shard_t *shard)
+recovery_packet_save( bracket_t **t, void *context, mcd_osd_shard_t *shard)
 {
-	uint	i,
-		j;
+	bracket_t	*b;
+	uint		i,
+			j;
 
 	char *SAVE_COMMAND = "sort -k 1,1 -k 3,3nr -k 5,5 -k 4,4n |"
 		"awk '{print | \"gzip -1 >\"ENVIRON[\"ZSRECOVERYDIR\"]\"/cguid-\"$1\".gz\"}'";
 	fflush( stdout);
-	for (i=0; i<nel( r->btab); ++i)
-		while ((j = r->btab[i].nrec)
-		and (r->btab[i].record[j-1].trx == TRX_OP))
-			--r->btab[i].nrec;	/* lop the TRX fragment if present */
+	for (i=0; i<BRACKET_LIMIT; ++i)
+		for (b=t[i]; b; b=b->next)
+			while ((j = b->nrec)
+			and (b->record[j-1].trx == TRX_OP))
+				--b->nrec;	/* lop the TRX fragment if present */
 	const char *crashdir = makecrashdir( );
 	setenv( "ZSRECOVERYDIR", crashdir, TRUE);
 	FILE *f = popen( SAVE_COMMAND, "w");
-	if (!f) {
+	unless (f)
 		return;
-	}
-
-	for (i=0; i<nel( r->btab); ++i)
-		if (r->btab[i].nrec)
-			for (j=0; j<r->btab[i].nrec; ++j) {
-				bracketlogrec_t *l = &r->btab[i].record[j];
+	for (i=0; i<BRACKET_LIMIT; ++i)
+		for (b=t[i]; b; b=b->next)
+			for (j=0; j<b->nrec; ++j) {
+				bracketlogrec_t *l = &b->record[j];
 				uint32_t b = l->blkno;
 				if (l->nblock) {
 					fprintf( f, "%u %u %u %u 0 ", l->cguid, i, l->trxid, l->lineno);
@@ -6080,6 +6139,46 @@ recovery_packet_save( packet_t *r, void *context, mcd_osd_shard_t *shard)
 				}
 			}
 	fclose( f);
+	//delete bracket contents
+}
+
+
+/*
+ * save logging-container packet
+ *
+ * Packet contains a list of IDs of trx brackets that have been rolled back
+ * during crash recovery.  No packet is generated if it would overwrite the
+ * existing one: the LC has not been recovered (or used) since the existing
+ * packet was generated.
+ *
+ * Packet is saved in the directory given by ZS property ZS_CRASH_DIR
+ * (default /tmp/fdf.crash-recovery) with name "lc-trx-cguid-0".
+ */
+void
+lc_packet_save( bracket_t **t)
+{
+	bracket_t	*b;
+	char		packet[200];
+	FILE		*f;
+	uint		i;
+
+	const char *crashdir = makecrashdir( );
+	unless (strlen( crashdir)+100 < sizeof packet) {
+		mcd_log_msg( 170045, PLAT_LOG_LEVEL_ERROR, "Cannot create lc packet (name too long)");
+		return;
+	}
+	sprintf( packet, "%s/lc-trx-cguid-0", crashdir);
+	if (access( packet, F_OK) < 0)
+		unless (f = fopen( packet, "w"))
+			mcd_log_msg( 170046, PLAT_LOG_LEVEL_ERROR, "Failed to create %s (%s)", crashdir, plat_strerror( errno));
+		else {
+			for (i=0; i<BRACKET_LIMIT; ++i) {
+				for (b=t[i]; b; b=b->next) {
+					fprintf( f, "%lu\n", b->id);
+				}
+			}
+			fclose( f);
+		}
 }
 
 
@@ -6135,13 +6234,16 @@ packet_clean( )
 		while (e = readdir( dirp)) {
 			if (e->d_type == DT_REG) {
 				uint i = strlen( e->d_name);
-				unless ((i < 3)
-				or (not streq( e->d_name+i-3, ".gz"))) {
-					char *fn;
-					plat_asprintf( &fn, "%s/%s", d, e->d_name);
-					unlink( fn);
-					free( fn);
-				}
+				unless (i < 3)
+					if ((streq( e->d_name+i-3, ".gz"))
+					or (strncmp( e->d_name, "lc-", 3) == 0)) {
+						char *fn;
+						plat_asprintf( &fn, "%s/%s", d, e->d_name);
+						if (fn) {
+							unlink( fn);
+							free( fn);
+						}
+					}
 			}
 		}
 		closedir( dirp);
@@ -6154,273 +6256,237 @@ packet_clean( )
 
 
 void
-updater_thread( uint64_t arg )
+updater_thread(uint64_t arg)
 {
-    bool                        old_merged;
-    int                         pct_complete;
-    uint64_t                    thread_id;
-    uint64_t                    recovered_objs;
-    uint64_t                    buf_size;
-    char                     ** buf_segments;
-    mcd_osd_shard_t           * shard;
-    mcd_rec_shard_t           * pshard;
-    mcd_rec_ckpt_t            * ckpt;
-    mcd_rec_log_t             * log;
-    mcd_rec_update_t          * mail;
-    osd_state_t               * context;
-    mcd_rec_lru_scan_t          lru_scan[ MCD_OSD_MAX_NCLASSES ];
-    mcd_rec_obj_state_t         state;
-    mcd_rec_log_state_t         old_log_state;
-    mcd_rec_log_state_t         curr_log_state;
-    struct timeval              tv;
-    uint64_t			reclogblks;
+	bool			old_merged;
+	int			pct_complete;
+	uint64_t		thread_id;
+	uint64_t		recovered_objs;
+	uint64_t		buf_size;
+	char			**buf_segments;
+	mcd_osd_shard_t		*shard;
+	mcd_rec_shard_t		*pshard;
+	mcd_rec_ckpt_t		*ckpt;
+	mcd_rec_log_t		*log;
+	mcd_rec_update_t	*mail;
+	osd_state_t		*context;
+	mcd_rec_lru_scan_t	lru_scan[MCD_OSD_MAX_NCLASSES];
+	mcd_rec_obj_state_t	state;
+	mcd_rec_log_state_t	old_log_state;
+	mcd_rec_log_state_t	curr_log_state;
+	struct timeval		tv;
+	uint64_t		reclogblks;
+	uint64_t		trx_bracket_initialize( uint64_t);
 
-    mcd_log_msg( 20000, PLAT_LOG_LEVEL_TRACE, "ENTERING" );
+	mcd_log_msg(20000, PLAT_LOG_LEVEL_TRACE, "ENTERING");
 
-    if (flash_settings.storm_mode) {
-	void updater_thread2( ulong);
-	updater_thread2( arg);
-	return;
-    }
+	if (flash_settings.storm_mode) {
+		void updater_thread2(ulong);
+		updater_thread2(arg);
+		return;
+	}
+	// get aio context and free unused buffer
+	context = context_alloc(SSD_AIO_CTXT_MCD_REC_UPDT);
+	if (context->osd_buf != NULL) {
+		mcd_fth_osd_iobuf_free(context->osd_buf);
+		context->osd_buf = NULL;
+	}
+	// recover shard pointer
+	shard = (mcd_osd_shard_t *) arg;
+	plat_assert_always(shard != NULL);
 
-    // get aio context and free unused buffer
-    context = context_alloc( SSD_AIO_CTXT_MCD_REC_UPDT );
-    if ( context->osd_buf != NULL ) {
-        mcd_fth_osd_iobuf_free( context->osd_buf );
-        context->osd_buf = NULL;
-    }
+	thread_id = __sync_add_and_fetch(&Mcd_rec_updater_threads, 1);
+	mcd_log_msg(40075, PLAT_LOG_LEVEL_DIAGNOSTIC, "Updater thread %lu assigned to shardID=%lu", thread_id, shard->id);
 
-    // recover shard pointer
-    shard = (mcd_osd_shard_t *)arg;
-    plat_assert_always( shard != NULL );
+	// get array for object table recovery buffer pointers
+	buf_size = ((Mcd_rec_update_bufsize / Mcd_rec_update_segment_size) * sizeof(char *));
+	buf_segments = plat_alloc(buf_size);
+	if (buf_segments == NULL) {
+		mcd_log_msg(40108, PLAT_LOG_LEVEL_FATAL, "failed to allocate %lu byte array for " "object table recovery, shardID=%lu", buf_size, shard->id);
+		plat_abort();
+	}
+	memset(buf_segments, 0, buf_size);
 
-    thread_id = __sync_add_and_fetch( &Mcd_rec_updater_threads, 1 );
-    mcd_log_msg( 40075, PLAT_LOG_LEVEL_DIAGNOSTIC,
-                 "Updater thread %lu assigned to shardID=%lu",
-                 thread_id, shard->id );
+	pshard = shard->pshard;
+	ckpt = shard->ckpt;
+	log = shard->log;
 
-    // get array for object table recovery buffer pointers
-    buf_size     = ( (Mcd_rec_update_bufsize / Mcd_rec_update_segment_size) *
-                     sizeof( char * ) );
-    buf_segments = plat_alloc( buf_size );
-    if ( buf_segments == NULL ) {
-        mcd_log_msg( 40108, PLAT_LOG_LEVEL_FATAL,
-                     "failed to allocate %lu byte array for "
-                     "object table recovery, shardID=%lu",
-                     buf_size, shard->id );
-        plat_abort();
-    }
-    memset( buf_segments, 0, buf_size );
+	reclogblks = VAR_BLKS_TO_META_BLKS(pshard->rec_log_blks);
 
-    pshard = shard->pshard;
-    ckpt   = shard->ckpt;
-    log    = shard->log;
+	plat_assert_always(pshard != NULL);
+	plat_assert_always(ckpt != NULL);
+	plat_assert_always(log != NULL);
 
-    reclogblks = VAR_BLKS_TO_META_BLKS(pshard->rec_log_blks);
+	// updater thread holds a reference for its lifetime
+	(void) __sync_add_and_fetch(&shard->refcount, 1);
 
-    plat_assert_always( pshard != NULL );
-    plat_assert_always( ckpt != NULL );
-    plat_assert_always( log != NULL );
+	// show that updater is running
+	log->updater_started = 1;
 
-    // updater thread holds a reference for its lifetime
-    (void) __sync_add_and_fetch( &shard->refcount, 1 );
+	// -----------------------------------------------------
+	// Main processing loop
+	// -----------------------------------------------------
 
-    // show that updater is running
-    log->updater_started = 1;
+	int real_log = -1;
+	while (1) {
 
-    // -----------------------------------------------------
-    // Main processing loop
-    // -----------------------------------------------------
+		// wait on mailbox
+		mail = (mcd_rec_update_t *) fthMboxWait(&log->update_mbox);
 
-    int real_log = -1;
-    while ( 1 ) {
-
-        // wait on mailbox
-        mail = (mcd_rec_update_t *)fthMboxWait( &log->update_mbox );
-
-        // terminate thread if halting
-        if ( mail == 0 ) {
-            break;
-        }
-
+		// terminate thread if halting
+		if (mail == 0) {
+			break;
+		}
 		// mail has out-of-band log, no-op
-		if ( mail->log == -1 ) {
-			mcd_log_msg( 20516, MCD_REC_LOG_LVL_TRACE,
-					"Object table updater no-op for shardID=%lu",
-					shard->id );
+		if (mail->log == -1) {
+			mcd_log_msg(20516, MCD_REC_LOG_LVL_TRACE, "Object table updater no-op for shardID=%lu", shard->id);
 
 			// signal this shard update is done
-			if ( mail->updated_mbox != NULL ) {
-				fthMboxPost( mail->updated_mbox, 0 );
+			if (mail->updated_mbox != NULL) {
+				fthMboxPost(mail->updated_mbox, 0);
 			}
 			continue;
 		}
-		unless (mail->in_recovery) {
+		unless(mail->in_recovery) {
 			if (real_log < 0)
 				real_log = mail->log;
 			else {
 				unless (mail->log == real_log)
-					mcd_log_msg( 170042, PLAT_LOG_LEVEL_DIAGNOSTIC, "Bogus log # from log_writer");
-				mail->log = real_log;			// always ignore incoming log #
+					mcd_log_msg(170042, PLAT_LOG_LEVEL_DIAGNOSTIC, "Bogus log # from log_writer");
+				mail->log = real_log;	// always ignore incoming log #
 			}
-			real_log = (real_log+1) % MCD_REC_NUM_LOGS;
+			real_log = (real_log + 1) % MCD_REC_NUM_LOGS;
 		}
 
-		plat_assert( mail->log >= 0 );
-		plat_assert( mail->log < MCD_REC_NUM_LOGS );
+		plat_assert(mail->log >= 0);
+		plat_assert(mail->log < MCD_REC_NUM_LOGS);
 
-        shard->rec_num_updates  += 1;
-        shard->rec_upd_running   = 1;
-        shard->rec_upd_prev_usec = shard->rec_upd_usec;
-        fthGetTimeOfDay( &tv );
-        shard->rec_upd_usec = (tv.tv_sec * PLAT_MILLION) + tv.tv_usec;
-        shard->rec_log_reads_cum    += shard->rec_log_reads;
-        shard->rec_table_reads_cum  += shard->rec_table_reads;
-        shard->rec_table_writes_cum += shard->rec_table_writes;
-        shard->rec_log_reads         = 0;
-        shard->rec_table_reads       = 0;
-        shard->rec_table_writes      = 0;
+		shard->rec_num_updates += 1;
+		shard->rec_upd_running = 1;
+		shard->rec_upd_prev_usec = shard->rec_upd_usec;
+		fthGetTimeOfDay(&tv);
+		shard->rec_upd_usec = (tv.tv_sec * PLAT_MILLION) + tv.tv_usec;
+		shard->rec_log_reads_cum += shard->rec_log_reads;
+		shard->rec_table_reads_cum += shard->rec_table_reads;
+		shard->rec_table_writes_cum += shard->rec_table_writes;
+		shard->rec_log_reads = 0;
+		shard->rec_table_reads = 0;
+		shard->rec_table_writes = 0;
 
-        mcd_log_msg( 20517, MCD_REC_LOG_LVL_DIAG,
-                     ">>>> Object table updater running, shardID=%lu, "
-                     "log=%d, in_rec=%d, update=%lu",
-                     shard->id, mail->log, mail->in_recovery,
-                     shard->rec_num_updates );
+		mcd_log_msg(20517, MCD_REC_LOG_LVL_DIAG, ">>>> Object table updater running, shardID=%lu, " "log=%d, in_rec=%d, update=%lu", shard->id, mail->log, mail->in_recovery, shard->rec_num_updates);
 
-        memset( lru_scan, 0, sizeof( lru_scan ) );
-        memset( &state, 0, sizeof( mcd_rec_obj_state_t ) );
-        memset( &old_log_state, 0, sizeof( mcd_rec_log_state_t ) );
-        memset( &curr_log_state, 0, sizeof( mcd_rec_log_state_t ) );
+		memset(lru_scan, 0, sizeof(lru_scan));
+		memset(&state, 0, sizeof(mcd_rec_obj_state_t));
+		memset(&old_log_state, 0, sizeof(mcd_rec_log_state_t));
+		memset(&curr_log_state, 0, sizeof(mcd_rec_log_state_t));
 
-        // -----------------------------------------------------
-        // Merge "old" log with the object table
-        // -----------------------------------------------------
+		// -----------------------------------------------------
+		// Merge "old" log with the object table
+		// -----------------------------------------------------
 
-        old_merged     = false;
-        recovered_objs = 0;
-        pct_complete   = 0;
+		old_merged = false;
+		recovered_objs = 0;
+		pct_complete = 0;
 
-        state.in_recovery = mail->in_recovery;
-        state.pass        = 1;
-        state.passes      = state.in_recovery ? 2 : 1;
-        state.start_blk   = 0;
-        state.num_blks    = VAR_BLKS_TO_META_BLKS(pshard->rec_table_blks);
-        state.start_obj   = 0;
-        state.num_objs    = 0;
-        state.seg_objects = (Mcd_rec_update_segment_size /
-                             sizeof( mcd_rec_flash_object_t ));
-        state.seg_count   = 0;
-        state.segments    = buf_segments;
+		state.in_recovery = mail->in_recovery;
+		state.pass = 1;
+		state.passes = state.in_recovery ? 2 : 1;
+		state.start_blk = 0;
+		state.num_blks = VAR_BLKS_TO_META_BLKS(pshard->rec_table_blks);
+		state.start_obj = 0;
+		state.num_objs = 0;
+		state.seg_objects = (Mcd_rec_update_segment_size / sizeof(mcd_rec_flash_object_t));
+		state.seg_count = 0;
+		state.segments = buf_segments;
 
-        // attach object table buffer segments for this update/recovery
-        attach_buffer_segments( shard, state.in_recovery,
-                                &state.seg_count, state.segments );
+		// attach object table buffer segments for this update/recovery
+		attach_buffer_segments(shard, state.in_recovery, &state.seg_count, state.segments);
 
-        state.chunk       = 0;
-        state.chunk_blks  = state.seg_count * Mcd_rec_update_segment_blks;
-        state.num_chunks  =
-            (state.num_blks + state.chunk_blks - 1) / state.chunk_blks;
+		state.chunk = 0;
+		state.chunk_blks = state.seg_count * Mcd_rec_update_segment_blks;
+		state.num_chunks = (state.num_blks + state.chunk_blks - 1) / state.chunk_blks;
 
-        mcd_log_msg( 40072, PLAT_LOG_LEVEL_DEBUG,
-                     "updater thread %lu allocated %lu byte buffer", thread_id,
-                     (uint64_t)state.seg_count * Mcd_rec_update_segment_size );
+		mcd_log_msg(40072, PLAT_LOG_LEVEL_DEBUG, "updater thread %lu allocated %lu byte buffer", thread_id, (uint64_t) state.seg_count * Mcd_rec_update_segment_size);
 
-        // FIXME
-        context->osd_buf = state.segments[0];
+		// FIXME
+		context->osd_buf = state.segments[0];
 
-        old_log_state.log             = mail->log;   // may be modified
-        old_log_state.start_blk       = 0;
-        old_log_state.num_blks        = reclogblks;
-        old_log_state.high_LSN        = 0;
-        old_log_state.seg_cached      = 0;
-        old_log_state.seg_count       = log->segment_count;
-        old_log_state.segments        = log->segments;
+		old_log_state.log = mail->log;	// may be modified
+		old_log_state.start_blk = 0;
+		old_log_state.num_blks = reclogblks;
+		old_log_state.high_LSN = 0;
+		old_log_state.seg_cached = 0;
+		old_log_state.seg_count = log->segment_count;
+		old_log_state.segments = log->segments;
 
-        // when recovering, skip old log if already merged into object table
-        if ( state.in_recovery ) {
-            int         ckpt_log;
-            uint64_t    ckpt_page;
-            uint64_t    ckpt_page_LSN;
-            uint64_t    next_LSN = 0;
-            uint64_t    LSN[ 2 ] = { 0, 0 };
+		// when recovering, skip old log if already merged into object table
+		if (state.in_recovery) {
+			int ckpt_log;
+			uint64_t ckpt_page;
+			uint64_t ckpt_page_LSN;
+			uint64_t next_LSN = 0;
+			uint64_t LSN[2] = { 0, 0 };
 
-            // get LSN of page 0 from both logs
-            LSN[ 0 ] = read_log_page( context, shard, 0, 0 );
-            LSN[ 1 ] = read_log_page( context, shard, 1, 0 );
+			// get LSN of page 0 from both logs
+			LSN[0] = read_log_page(context, shard, 0, 0);
+			LSN[1] = read_log_page(context, shard, 1, 0);
 
-            old_log_state.log = 1;             // Assume log 1 is older
+			old_log_state.log = 1;	// Assume log 1 is older
 
-            // compare LSNs to find older log
-            if ( LSN[ 0 ] < LSN[ 1 ] ) {
-                old_log_state.log = 0;         // Log 0 is older
-            }
+			// compare LSNs to find older log
+			if (LSN[0] < LSN[1]) {
+				old_log_state.log = 0;	// Log 0 is older
+			}
+			// no valid checkpoint (transient condition)
+			if (ckpt->LSN == 0) {
+				ckpt_log = old_log_state.log;
+				ckpt_page = 0;
+				ckpt_page_LSN = 0;
+				next_LSN = 0;
 
-            // no valid checkpoint (transient condition)
-            if ( ckpt->LSN == 0 ) {
-                ckpt_log      = old_log_state.log;
-                ckpt_page     = 0;
-                ckpt_page_LSN = 0;
-                next_LSN      = 0;
+				mcd_log_msg(40087, PLAT_LOG_LEVEL_TRACE, "ckptLSN=%lu, next_LSN=%lu, log_blks=%lu, " "LSN[0]=%lu, lastLSN[0]=%lu, " "LSN[1]=%lu, lastLSN[1]=%lu", ckpt->LSN, next_LSN, reclogblks, LSN[0], read_log_page(context, shard, 0, reclogblks - 1), LSN[1], read_log_page(context, shard, 1, reclogblks - 1));
 
-                mcd_log_msg( 40087, PLAT_LOG_LEVEL_TRACE,
-                             "ckptLSN=%lu, next_LSN=%lu, log_blks=%lu, "
-                             "LSN[0]=%lu, lastLSN[0]=%lu, "
-                             "LSN[1]=%lu, lastLSN[1]=%lu",
-                             ckpt->LSN, next_LSN, reclogblks,
-                             LSN[0],
-                             read_log_page( context, shard, 0, reclogblks - 1 ),
-                             LSN[1],
-                             read_log_page( context, shard, 1, reclogblks - 1 ));
+				// case 1: both logs empty, nothing to recover
+				if (LSN[old_log_state.log] == 0 && LSN[1 - old_log_state.log] == 0) {
+#if 1//Rico - lc
+					ckpt->trx_bracket_id = trx_bracket_initialize( ckpt->trx_bracket_id);
+					recovery_checkpoint( context, shard, ckpt->LSN);
+#endif
+					goto updater_reply;
+				}
+				// case 2: old log empty, new log not empty
+				else if (LSN[old_log_state.log] == 0) {
+					old_merged = true;	// new_merged = false;
+				}
+				// case 3: both logs not empty
+				else {
+					old_merged = false;	// new_merged = false;
+				}
+			}
+			else {	// checkpoint exists
+				ckpt_log = (((ckpt->LSN - 1) / reclogblks) % MCD_REC_NUM_LOGS);
+				ckpt_page = (ckpt->LSN - 1) % reclogblks;
+				ckpt_page_LSN = read_log_page(context, shard, ckpt_log, ckpt_page);
 
-                // case 1: both logs empty, nothing to recover
-                if ( LSN[ old_log_state.log ] == 0 &&
-                     LSN[ 1 - old_log_state.log ] == 0 ) {
-                    goto updater_reply;
-                }
-                // case 2: old log empty, new log not empty
-                else if ( LSN[ old_log_state.log ] == 0 ) {
-                    old_merged = true;  // new_merged = false;
-                }
-                // case 3: both logs not empty
-                else {
-                    old_merged = false; // new_merged = false;
-                }
-            } else { // checkpoint exists
-                ckpt_log      = ( ((ckpt->LSN - 1) / reclogblks) % MCD_REC_NUM_LOGS );
-                ckpt_page     = (ckpt->LSN - 1) % reclogblks;
-                ckpt_page_LSN = read_log_page( context, shard,
-                                               ckpt_log, ckpt_page );
+				// Read LSN of next page beyond ckpt page (for sanity)
+				if (ckpt_page != reclogblks - 1)
+					next_LSN = read_log_page(context, shard, ckpt_log, ckpt_page + 1);
+				else
+					next_LSN = read_log_page(context, shard, 1 - ckpt_log, 0);
 
-                // Read LSN of next page beyond ckpt page (for sanity)
-                if ( ckpt_page != reclogblks - 1 ) {
-                    next_LSN = read_log_page( context, shard,
-                                              ckpt_log, ckpt_page + 1 );
-                } else {
-                    next_LSN = read_log_page( context, shard,
-                                              1 - ckpt_log, 0 );
-                }
+				mcd_log_msg(40087, PLAT_LOG_LEVEL_TRACE, "ckptLSN=%lu, next_LSN=%lu, log_blks=%lu, " "LSN[0]=%lu, lastLSN[0]=%lu, " "LSN[1]=%lu, lastLSN[1]=%lu", ckpt->LSN, next_LSN, reclogblks, LSN[0], read_log_page(context, shard, 0, reclogblks - 1), LSN[1], read_log_page(context, shard, 1, reclogblks - 1));
 
-                mcd_log_msg( 40087, PLAT_LOG_LEVEL_TRACE,
-                             "ckptLSN=%lu, next_LSN=%lu, log_blks=%lu, "
-                             "LSN[0]=%lu, lastLSN[0]=%lu, "
-                             "LSN[1]=%lu, lastLSN[1]=%lu",
-                             ckpt->LSN, next_LSN, reclogblks,
-                             LSN[0],
-                             read_log_page( context, shard, 0, reclogblks - 1 ),
-                             LSN[1],
-                             read_log_page( context, shard, 1, reclogblks - 1 ));
-
-                // case 5: ckpt in old log, new log not empty
-                if ( ckpt_log == old_log_state.log ) {
-                    old_merged = true;  // new_merged = false;
-                }
-                // case 4: ckpt in new log, no new log records since ckpt
-                else if ( LSN[ ckpt_log ] <= ckpt->LSN ) {
-                    old_merged = true;  // new_merged = true;
-                }
-                // case 6: ckpt in new log, new log records since ckpt
-                else {
-                    old_merged = false; // new_merged = false;
+				// case 5: ckpt in old log, new log not empty
+				if (ckpt_log == old_log_state.log) {
+					old_merged = true;	// new_merged = false;
+				}
+				// case 4: ckpt in new log, no new log records since ckpt
+				else if (LSN[ckpt_log] <= ckpt->LSN) {
+					old_merged = true;	// new_merged = true;
+				}
+				// case 6: ckpt in new log, new log records since ckpt
+				else {
+					old_merged = false;	// new_merged = false;
 				}
 				/*
 				 * #11425 - scan 1st log regardless so the "st" filter works
@@ -6429,328 +6495,242 @@ updater_thread( uint64_t arg )
 				old_merged = false;
 			}
 
-            mcd_log_msg( 40088, PLAT_LOG_LEVEL_DEBUG,
-                         "Old log %d merge %s, shardID=%lu, "
-                         "ckpt_LSN=%lu, log_pages=%lu, ckpt_log=%d, "
-                         "ckpt_page=%lu, ckpt_page_LSN=%lu",
-                         old_log_state.log,
-                         old_merged ? "not needed" : "required",
-                         shard->id, ckpt->LSN, reclogblks,
-                         ckpt_log, ckpt_page, ckpt_page_LSN );
+			mcd_log_msg(40088, PLAT_LOG_LEVEL_DEBUG, "Old log %d merge %s, shardID=%lu, " "ckpt_LSN=%lu, log_pages=%lu, ckpt_log=%d, " "ckpt_page=%lu, ckpt_page_LSN=%lu", old_log_state.log, old_merged ? "not needed" : "required", shard->id, ckpt->LSN, reclogblks, ckpt_log, ckpt_page, ckpt_page_LSN);
 		}
-		mcd_log_msg( 40089, PLAT_LOG_LEVEL_DEBUG,
-				"%s object table, shardID=%lu, pass %d of %d",
-				state.in_recovery ? "Recovering" : "Merging",
-				shard->id, state.pass, state.passes );
+		mcd_log_msg(40089, PLAT_LOG_LEVEL_DEBUG, "%s object table, shardID=%lu, pass %d of %d", state.in_recovery ? "Recovering" : "Merging", shard->id, state.pass, state.passes);
 
 		if ((state.in_recovery)
-				and (shard->cntr->cguid == VDC_CGUID))
-			filter_cs_initialize( &state);
+		and (shard->cntr->cguid == VDC_CGUID))
+			filter_cs_initialize(&state);
 		state.context = context;
 		state.shard = shard;
 		state.high_obj_offset = 0;
-		state.low_obj_offset  = ~0uL;
+		state.low_obj_offset = ~0uL;
 
 		// read the object table
-		for ( state.chunk = 0;
-				state.chunk < state.num_chunks && !old_merged;
-				state.chunk++ ) {
+		for (state.chunk = 0; state.chunk < state.num_chunks && !old_merged; state.chunk++) {
 
-			if ( state.num_chunks < 10 ||
-					state.chunk % ((state.num_chunks + 9) / 10) == 0 ) {
-				if ( state.chunk > 0 ) {
-					mcd_log_msg( 40090, PLAT_LOG_LEVEL_DEBUG,
-							"%s object table, shardID=%lu, "
-                                 "pass %d of %d: %d percent complete",
-                                 state.in_recovery ? "Recovering" : "Merging",
-                                 shard->id, state.pass, state.passes,
-                                 pct_complete );
-                }
-                pct_complete += 10;
-            }
+			if (state.num_chunks < 10 || state.chunk % ((state.num_chunks + 9) / 10) == 0) {
+				if (state.chunk > 0) {
+					mcd_log_msg(40090, PLAT_LOG_LEVEL_DEBUG, "%s object table, shardID=%lu, " "pass %d of %d: %d percent complete", state.in_recovery ? "Recovering" : "Merging", shard->id, state.pass, state.passes, pct_complete);
+				}
+				pct_complete += 10;
+			}
+			// read part of the object table
+			if (read_object_table(context, shard, &state, &old_log_state)) {
 
-            // read part of the object table
-            if ( read_object_table( context, shard, &state,
-                                    &old_log_state ) ) {
+				// apply log records from the specified log to this section
+				if (process_log(context, shard, &state, &old_log_state)) {
 
-                // apply log records from the specified log to this section
-                if ( process_log( context, shard, &state, &old_log_state ) ) {
+					// log records applied, verify table was updated
+					verify_object_table(context, shard, &state, &old_log_state, VERIFY_ABORT_IF_CLEAN);
 
-                    // log records applied, verify table was updated
-                    verify_object_table( context, shard, &state,
-                                         &old_log_state,
-                                         VERIFY_ABORT_IF_CLEAN );
+					// write this chunk of the object table
+					write_object_table(context, shard, &state, &old_log_state);
 
-                    // write this chunk of the object table
-                    write_object_table( context, shard, &state,
-                                        &old_log_state );
+				}
+				else {
 
-                } else {
+					// verify table is still the same
+					verify_object_table(context, shard, &state, &old_log_state, VERIFY_ABORT_IF_DIRTY);
 
-                    // verify table is still the same
-                    verify_object_table( context, shard, &state,
-                                         &old_log_state,
-                                         VERIFY_ABORT_IF_DIRTY );
+					// no log records applied to this chunk
+					mcd_log_msg(40047, MCD_REC_LOG_LVL_TRACE, "Skip table write, shardID=%lu, " "pass %d of %d, chunk %d of %d,", shard->id, state.pass, state.passes, state.chunk, state.num_chunks);
+				}
 
-                    // no log records applied to this chunk
-                    mcd_log_msg( 40047, MCD_REC_LOG_LVL_TRACE,
-                                 "Skip table write, shardID=%lu, "
-                                 "pass %d of %d, chunk %d of %d,",
-                                 shard->id, state.pass, state.passes,
-                                 state.chunk, state.num_chunks );
-                }
+			}
+			else {
 
-            } else {
+				// no updates beyond this point in object table
+				if (state.high_obj_offset < state.start_obj) {
+					mcd_log_msg(40048, MCD_REC_LOG_LVL_TRACE, "Table update complete, shardID=%lu, " "pass %d of %d, chunk %d of %d", shard->id, state.pass, state.passes, state.chunk, state.num_chunks);
+					break;
+				}
+				// log updates start at higher table offset, keep going
+			}
+		}
 
-                // no updates beyond this point in object table
-                if (state.high_obj_offset < state.start_obj ) {
-                    mcd_log_msg( 40048, MCD_REC_LOG_LVL_TRACE,
-                                 "Table update complete, shardID=%lu, "
-                                 "pass %d of %d, chunk %d of %d",
-                                 shard->id, state.pass, state.passes,
-                                 state.chunk, state.num_chunks );
-                    break;
-                }
-
-                // log updates start at higher table offset, keep going
-            }
-        }
-
-		mcd_log_msg( 40091, PLAT_LOG_LEVEL_DEBUG,
-				"%s object table, shardID=%lu, "
-				"pass %d of %d: complete, highLSN=%lu, ckptLSN=%lu",
-				state.in_recovery ? "Recovering" : "Merging",
-				shard->id, state.pass, state.passes,
-				curr_log_state.high_LSN, ckpt->LSN );
+		mcd_log_msg(40091, PLAT_LOG_LEVEL_DEBUG, "%s object table, shardID=%lu, " "pass %d of %d: complete, highLSN=%lu, ckptLSN=%lu", state.in_recovery ? "Recovering" : "Merging", shard->id, state.pass, state.passes, curr_log_state.high_LSN, ckpt->LSN);
 
 		/*
 		 * unless recovering, set checkpoint LSN to highest LSN found
 		 */
 		unless ((state.in_recovery)
-				or (old_log_state.high_LSN <= ckpt->LSN))
-			recovery_checkpoint( context, shard, old_log_state.high_LSN);
+		or (old_log_state.high_LSN <= ckpt->LSN)) {
+#if 1//Rico - lc
+			ckpt->trx_bracket_id = max( state.bracket_id_max, ckpt->trx_bracket_id);
+#endif
+			recovery_checkpoint(context, shard, old_log_state.high_LSN);
+		}
 
 		// -----------------------------------------------------
 		// Merge "current" log when in recovery
 		// -----------------------------------------------------
 
-		if ( state.in_recovery ) {
+		if (state.in_recovery) {
 			pct_complete = 0;
 			state.pass = 2;
 
-			curr_log_state.log             = 1 - old_log_state.log;
-			curr_log_state.start_blk       = 0;
-			curr_log_state.num_blks        = reclogblks;
-			curr_log_state.high_LSN        = 0;
-			curr_log_state.seg_cached      = 0;
-			curr_log_state.seg_count       = log->segment_count;
-			curr_log_state.segments        = log->segments;
+			curr_log_state.log = 1 - old_log_state.log;
+			curr_log_state.start_blk = 0;
+			curr_log_state.num_blks = reclogblks;
+			curr_log_state.high_LSN = 0;
+			curr_log_state.seg_cached = 0;
+			curr_log_state.seg_count = log->segment_count;
+			curr_log_state.segments = log->segments;
 			state.high_obj_offset = 0;
-			state.low_obj_offset  = ~0uL;
+			state.low_obj_offset = ~0uL;
 
-			filter_cs_swap_log( &state);
+			filter_cs_swap_log(&state);
 
-			mcd_log_msg( 40045, PLAT_LOG_LEVEL_DEBUG,
-                         "Recovering object table, shardID=%lu, pass %d of %d",
-                         shard->id, state.pass, state.passes );
+			mcd_log_msg(40045, PLAT_LOG_LEVEL_DEBUG, "Recovering object table, shardID=%lu, pass %d of %d", shard->id, state.pass, state.passes);
 
-            // read the object table
-            for ( state.chunk = 0;
-                  state.chunk < state.num_chunks;
-                  state.chunk++ ) {
+			// read the object table
+			for (state.chunk = 0; state.chunk < state.num_chunks; state.chunk++) {
 
-                if ( state.num_chunks < 10 ||
-                     state.chunk % ((state.num_chunks + 9) / 10) == 0 ) {
-                    if ( state.chunk > 0 ) {
-                        mcd_log_msg( 40081, PLAT_LOG_LEVEL_DEBUG,
-                                     "Recovering object table, shardID=%lu, "
-                                     "pass %d of %d: %d percent complete",
-                                     shard->id, state.pass, state.passes,
-                                     pct_complete );
-                    }
-                    pct_complete += 10;
-                }
+				if (state.num_chunks < 10 || state.chunk % ((state.num_chunks + 9) / 10) == 0) {
+					if (state.chunk > 0) {
+						mcd_log_msg(40081, PLAT_LOG_LEVEL_DEBUG, "Recovering object table, shardID=%lu, " "pass %d of %d: %d percent complete", shard->id, state.pass, state.passes, pct_complete);
+					}
+					pct_complete += 10;
+				}
+				// read part of the object table
+				if (read_object_table(context, shard, &state, &curr_log_state)) {
 
-                // read part of the object table
-                if ( read_object_table( context, shard, &state,
-                                        &curr_log_state ) ) {
+					// apply log records from current log
+					if (process_log(context, shard, &state, &curr_log_state)) {
 
-                    // apply log records from current log
-                    if ( process_log( context, shard, &state,
-                                      &curr_log_state ) ) {
+						// log records applied, verify table was updated
+						verify_object_table(context, shard, &state, &old_log_state, VERIFY_ABORT_IF_CLEAN);
 
-                        // log records applied, verify table was updated
-                        verify_object_table( context, shard, &state,
-                                             &old_log_state,
-                                             VERIFY_ABORT_IF_CLEAN );
+						// update in-memory hash table with up-to-date metadata
+						update_hash_table(context, shard, &state, &recovered_objs, lru_scan);
 
-                        // update in-memory hash table with up-to-date metadata
-                        update_hash_table( context, shard, &state,
-                                           &recovered_objs, lru_scan );
+						// write this chunk of the object table
+						write_object_table(context, shard, &state, &curr_log_state);
+					}
+					else {
+						// verify table is still the same
+						verify_object_table(context, shard, &state, &curr_log_state, VERIFY_ABORT_IF_DIRTY);
 
-                        // write this chunk of the object table
-                        write_object_table( context, shard, &state,
-                                            &curr_log_state );
+						// update in-memory hash table with up-to-date metadata
+						update_hash_table(context, shard, &state, &recovered_objs, lru_scan);
 
-                    } else {
-
-                        // verify table is still the same
-                        verify_object_table( context, shard, &state,
-                                             &curr_log_state,
-                                             VERIFY_ABORT_IF_DIRTY );
-
-                        // update in-memory hash table with up-to-date metadata
-                        update_hash_table( context, shard, &state,
-                                           &recovered_objs, lru_scan );
-
-                        // no log records applied to this chunk
-                        mcd_log_msg( 40049, MCD_REC_LOG_LVL_TRACE,
-                                     "Skip table write,shardID=%lu, "
-                                     "pass %d of %d, chunk %d of %d",
-                                     shard->id, state.pass, state.passes,
-                                     state.chunk, state.num_chunks );
-                    }
-
-                } else {
-                    mcd_log_msg( 40050, PLAT_LOG_LEVEL_FATAL,
-                                 "Skipped object table read, shardID=%lu, "
-                                 "pass %d of %d; chunk %d of %d",
-                                 shard->id, state.pass, state.passes,
-                                 state.chunk, state.num_chunks );
-                    plat_abort();
-                }
-
-                mcd_log_msg( 40051, MCD_REC_LOG_LVL_TRACE,
-                             "Recovered shardID=%lu, chunk %d of %d, "
-                             "obj=%lu, seq=%lu",
-                             shard->id, state.chunk, state.num_chunks,
-							 recovered_objs, shard->sequence );
+						// no log records applied to this chunk
+						mcd_log_msg(40049, MCD_REC_LOG_LVL_TRACE, "Skip table write,shardID=%lu, " "pass %d of %d, chunk %d of %d", shard->id, state.pass, state.passes, state.chunk, state.num_chunks);
+					}
+				}
+				else {
+					mcd_log_msg(40050, PLAT_LOG_LEVEL_FATAL, "Skipped object table read, shardID=%lu, " "pass %d of %d; chunk %d of %d", shard->id, state.pass, state.passes, state.chunk, state.num_chunks);
+					plat_abort();
+				}
+				mcd_log_msg(40051, MCD_REC_LOG_LVL_TRACE, "Recovered shardID=%lu, chunk %d of %d, " "obj=%lu, seq=%lu", shard->id, state.chunk, state.num_chunks, recovered_objs, shard->sequence);
 			}
-			filter_cs_flush( &state);
+			filter_cs_flush(&state);
 			/*
 			 * generate packets for btree container and stats recovery
 			 */
 			if (shard->cntr->cguid == VDC_CGUID) {
-				recovery_packet_save( state.otpacket, context, shard);
-				stats_packet_save( &state, context, shard);
-				plat_free( state.statbuf);
-				plat_free( state.otpacket);
+				recovery_packet_save(state.ottable, context, shard);
+				lc_packet_save(state.ottable);
+				stats_packet_save(&state, context, shard);
+				plat_free(state.statbuf);
+				filter_ot_free(&state);
 			}
-			mcd_log_msg( 40083, PLAT_LOG_LEVEL_DEBUG,
-					"Recovering object table, shardID=%lu, "
-					"pass %d of %d: complete, highLSN=%lu, ckptLSN=%lu",
-					shard->id, state.pass, state.passes,
-					curr_log_state.high_LSN, ckpt->LSN );
+			mcd_log_msg(40083, PLAT_LOG_LEVEL_DEBUG, "Recovering object table, shardID=%lu, " "pass %d of %d: complete, highLSN=%lu, ckptLSN=%lu", shard->id, state.pass, state.passes, curr_log_state.high_LSN, ckpt->LSN);
 
 			// set checkpoint LSN to highest LSN found
-			if ( curr_log_state.high_LSN > ckpt->LSN ) {
-				plat_assert( curr_log_state.high_LSN >=
-						old_log_state.high_LSN );
-				recovery_checkpoint( context, shard, curr_log_state.high_LSN );
+			if (curr_log_state.high_LSN > ckpt->LSN) {
+				plat_assert(curr_log_state.high_LSN >= old_log_state.high_LSN);
+#if 1//Rico - lc
+				ckpt->trx_bracket_id = trx_bracket_initialize( max( state.bracket_id_max, ckpt->trx_bracket_id));
+#endif
+				recovery_checkpoint(context, shard, curr_log_state.high_LSN);
+			}
+		}
+		// -----------------------------------------------------
+		// Object table update complete
+		// -----------------------------------------------------
+
+		// Update per-class eviction clock hands after recovery
+		if (mail->in_recovery) {
+			int			i,
+						j;
+			uint32_t		hand;
+			uint32_t		slabs_per_pth;
+			hash_entry_t		*hash_entry;
+			mcd_osd_slab_class_t	*class;
+
+			for (i = 0; i < Mcd_osd_max_nclasses; i++) {
+
+				hash_entry = lru_scan[i].hash_entry;
+				if (NULL == hash_entry) {
+					continue;
+				}
+				class = &shard->slab_classes[i];
+				slabs_per_pth = class->slabs_per_segment / (flash_settings.num_sdf_threads * flash_settings.num_cores);
+
+				for (j = 0; j < class->num_segments; j++) {
+					if (!class->segments[j])
+						continue;
+					if (class->segments[j]->blk_offset <= hash_entry->blkaddress && class->segments[j]->blk_offset + Mcd_osd_segment_blks > hash_entry->blkaddress) {
+						break;
+					}
+				}
+				if (1 >= slabs_per_pth) {
+					hand = j * class->slabs_per_segment + (hash_entry->blkaddress % Mcd_osd_segment_blks) / class->slab_blksize + 1;
+					class->clock_hand[0] = hand;
+				}
+				else {
+					hand = j * slabs_per_pth + ((hash_entry->blkaddress % Mcd_osd_segment_blks) / class->slab_blksize) % slabs_per_pth + 1;
+					for (int n = 0; n < MCD_OSD_MAX_PTHREADS; n++)
+						class->clock_hand[n] = hand;
+				}
 			}
 		}
 
-        // -----------------------------------------------------
-        // Object table update complete
-        // -----------------------------------------------------
+	updater_reply:
 
-        // Update per-class eviction clock hands after recovery
-        if ( mail->in_recovery ) {
-            int                         i, j;
-            uint32_t                    hand;
-            uint32_t                    slabs_per_pth;
-            hash_entry_t              * hash_entry;
-            mcd_osd_slab_class_t      * class;
-
-            for ( i = 0; i < Mcd_osd_max_nclasses; i++ ) {
-
-                hash_entry = lru_scan[i].hash_entry;
-                if ( NULL == hash_entry ) {
-                    continue;
-                }
-                class = &shard->slab_classes[i];
-                slabs_per_pth = class->slabs_per_segment / (flash_settings.num_sdf_threads*flash_settings.num_cores);
-
-                for ( j = 0; j < class->num_segments; j++ ) {
-                    if(!class->segments[j])
-                        continue;
-                    if ( class->segments[j]->blk_offset <= hash_entry->blkaddress
-                         && class->segments[j]->blk_offset +
-                         Mcd_osd_segment_blks > hash_entry->blkaddress ) {
-                        break;
-                    }
-                }
-
-                if ( 1 >= slabs_per_pth ) {
-                    hand = j * class->slabs_per_segment +
-                        ( hash_entry->blkaddress % Mcd_osd_segment_blks ) /
-                        class->slab_blksize + 1;
-                    class->clock_hand[0] = hand;
-                }
-                else {
-                    hand = j * slabs_per_pth +
-                        ( ( hash_entry->blkaddress % Mcd_osd_segment_blks ) /
-                          class->slab_blksize ) % slabs_per_pth + 1;
-                    for ( int n = 0; n < MCD_OSD_MAX_PTHREADS; n++ ) {
-                        class->clock_hand[n] = hand;
-                    }
-                }
-            }
-        }
-
-updater_reply:
-
-        // -----------------------------------------------------
-        // Reply to requestor
+		// -----------------------------------------------------
+		// Reply to requestor
 		// -----------------------------------------------------
 
 		// 101712: reversed the order of fthSemUp and fthMboxPost to fix 10108
 		// make persistent log available for writing
-		if ( mail->updated_sem != NULL ) {
-			fthSemUp( mail->updated_sem, 1 );
-        }
+		if (mail->updated_sem != NULL) {
+			fthSemUp(mail->updated_sem, 1);
+		}
+		// signal this shard update is done
+		if (mail->updated_mbox != NULL) {
+			fthMboxPost(mail->updated_mbox, recovered_objs);
+		}
+		fthGetTimeOfDay(&tv);
+		shard->rec_upd_usec = ((tv.tv_sec * PLAT_MILLION) + tv.tv_usec - shard->rec_upd_usec);
+		shard->rec_upd_running = 0;
 
-        // signal this shard update is done
-        if ( mail->updated_mbox != NULL ) {
-            fthMboxPost( mail->updated_mbox, recovered_objs );
-        }
+		mcd_log_msg(20533, MCD_REC_LOG_LVL_DIAG, ">>>> Updated shard_id=%lu, ckptLSN=%lu, old_log=%d, " "in_recovery=%d, recovered_objs=%lu, high_seqno=%lu", shard->id, ckpt->LSN, mail->log, mail->in_recovery, recovered_objs, shard->sequence);
 
-        fthGetTimeOfDay( &tv );
-        shard->rec_upd_usec    = ( (tv.tv_sec * PLAT_MILLION) + tv.tv_usec -
-                                   shard->rec_upd_usec );
-        shard->rec_upd_running = 0;
+		// let go of the segmented object table buffer
+		detach_buffer_segments(shard, state.seg_count, state.segments);
+		context->osd_buf = NULL;
+	}
 
-        mcd_log_msg( 20533, MCD_REC_LOG_LVL_DIAG,
-                     ">>>> Updated shard_id=%lu, ckptLSN=%lu, old_log=%d, "
-                     "in_recovery=%d, recovered_objs=%lu, high_seqno=%lu",
-                     shard->id, ckpt->LSN, mail->log, mail->in_recovery,
-                     recovered_objs, shard->sequence );
+	mcd_log_msg(40076, PLAT_LOG_LEVEL_DIAGNOSTIC, "Updater thread %lu halting, shardID=%lu", thread_id, shard->id);
 
-        // let go of the segmented object table buffer
-        detach_buffer_segments( shard, state.seg_count, state.segments );
-        context->osd_buf = NULL;
-    }
+	(void) __sync_sub_and_fetch(&Mcd_rec_updater_threads, 1);
 
-    mcd_log_msg( 40076, PLAT_LOG_LEVEL_DIAGNOSTIC,
-                 "Updater thread %lu halting, shardID=%lu",
-                 thread_id, shard->id );
+	// decrement refcount
+	(void) __sync_sub_and_fetch(&shard->refcount, 1);
 
-    (void) __sync_sub_and_fetch( &Mcd_rec_updater_threads, 1 );
+	// show that updater has ended
+	log->updater_started = 0;
 
-    // decrement refcount
-    (void) __sync_sub_and_fetch( &shard->refcount, 1 );
+	// acknowledge halt signal
+	fthMboxPost(&log->update_stop_mbox, 0);
 
-    // show that updater has ended
-    log->updater_started = 0;
-
-    // acknowledge halt signal
-    fthMboxPost( &log->update_stop_mbox, 0 );
-
-    // return segment array and aio context
-    plat_free( buf_segments );
-    context_free( context );
-
-    return;
+	// return segment array and aio context
+	plat_free(buf_segments);
+	context_free(context);
 }
 
 
@@ -7273,11 +7253,12 @@ log_sync_internal(mcd_osd_shard_t *s, uint64_t lsn, int sync)
 }
 
 
-static __thread uint	trx_bracket_id,
-			trx_bracket_level,
-			trx_bracket_nslab;
+uint64_t __thread		trx_bracket_id;
+uint64_t __thread		*trx_bracket_slabs;
+static uint __thread		trx_bracket_nslab,
+				trx_bracket_level;
+static uint64_t			bracket_id_generator;
 
-__thread uint64_t *trx_bracket_slabs = NULL;
 
 static
 uint64_t
@@ -8971,42 +8952,29 @@ mcd_trx_print_stats( FILE *f)
 }
 
 
-static bool	trx_bracket_active[1000];
-static mutex_t	trx_bracket_lock		= PTHREAD_MUTEX_INITIALIZER;
-
-
 /*
- * allocate unused bracket ID
+ * restore bracket ID from log merge at ZS startup
  *
- * Active IDs are nonzero, and are recyled immediately.
+ * Bracket IDs are eternal, and the logging system persists the highest
+ * ID encountered.  A bracket with solely logging-container activity will
+ * not generate logrecs, so a bunch of IDs are skipped to be safe.
  */
-static uint
-trx_bracket_alloc( )
+uint64_t
+trx_bracket_initialize( uint64_t i)
 {
-	uint	id;
 
-	pthread_mutex_lock( &trx_bracket_lock);
-	for (id=1; id<nel( trx_bracket_active); ++id)
-		unless (trx_bracket_active[id]) {
-			trx_bracket_active[id] = TRUE;
-			pthread_mutex_unlock( &trx_bracket_lock);
-			return (id);
-		}
-	mcd_log_msg( 170023, PLAT_LOG_LEVEL_FATAL, "Too many active trx brackets");
-	plat_abort( );
+	return (bracket_id_generator = i + 100000000000);
 }
 
 
 /*
- * retire thread's bracket ID
+ * allocate fresh bracket ID
  */
-static void
-trx_bracket_free( uint id)
+static uint64_t
+trx_bracket_alloc( )
 {
 
-	pthread_mutex_lock( &trx_bracket_lock);
-	trx_bracket_active[id] = FALSE;
-	pthread_mutex_unlock( &trx_bracket_lock);
+	return (__sync_add_and_fetch( &bracket_id_generator, 1));
 }
 
 
@@ -9062,7 +9030,6 @@ mcd_trx_service( void *pai, int cmd, void *arg)
 		}
 		else
 			mcd_log_msg( 170022, PLAT_LOG_LEVEL_DIAGNOSTIC, "vdc_shard unassigned");
-		trx_bracket_free( trx_bracket_id);
 		trx_bracket_id = 0;
 		return (MCD_TRX_OKAY);
 	/*
@@ -9141,7 +9108,6 @@ mcd_trx_commit_internal( mcd_trx_state_t *t, int op_last)
 			}
 		}
 		t->trtab[i].lr.trx = op_last;
-
 		uint64_t lsn = log_write_internal( t->s, &t->trtab[i].lr);
 		if (t->trtab[i].lr.mlo_dl == SDF_FULL_DURABILITY) {
 			sync = 1;

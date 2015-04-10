@@ -151,6 +151,13 @@ static ZS_status_t
                                     struct ZS_iterator **iterator);
 
 static ZS_status_t 
+(*ptr_ZSEnumeratePGObjects)(struct ZS_thread_state *zs_thread_state,
+                                    ZS_cguid_t cguid,
+                                    struct ZS_iterator **iterator,
+                                    char *key,
+                                    uint32_t keylen);
+
+static ZS_status_t 
 (*ptr_ZSNextEnumeratedObject)(struct ZS_thread_state *zs_thread_state,
                                struct ZS_iterator *iterator,
                                char **key,
@@ -414,6 +421,7 @@ static struct {
     { "_ZSWriteObjectExpiry",          &ptr_ZSWriteObjectExpiry         },
     { "_ZSDeleteObject",               &ptr_ZSDeleteObject              },
     { "_ZSEnumerateContainerObjects",  &ptr_ZSEnumerateContainerObjects },
+    { "_ZSEnumeratePGObjects",         &ptr_ZSEnumeratePGObjects        },
     { "_ZSNextEnumeratedObject",       &ptr_ZSNextEnumeratedObject      },
     { "_ZSFinishEnumeration",          &ptr_ZSFinishEnumeration         },
     { "_ZSFlushObject",                &ptr_ZSFlushObject               },
@@ -970,6 +978,27 @@ ZSEnumerateContainerObjects(struct ZS_thread_state *zs_thread_state,
     return (*ptr_ZSEnumerateContainerObjects)(zs_thread_state,
                                                cguid,
                                                iterator);
+}
+
+
+/*
+ * ZSEnumeratePGObjects
+ */
+ZS_status_t 
+ZSEnumeratePGObjects(struct ZS_thread_state *zs_thread_state,
+                             ZS_cguid_t cguid,
+                             struct ZS_iterator **iterator,
+                             char *key,
+                             uint32_t keylen)
+{
+    if (unlikely(!ptr_ZSEnumeratePGObjects))
+        undefined("ZSEnumeratePGObjects");
+
+    return (*ptr_ZSEnumeratePGObjects)(zs_thread_state,
+                                               cguid,
+                                               iterator,
+                                               key,
+                                               keylen);
 }
 
 

@@ -21,6 +21,7 @@
 #include "zs.h"
 #include "fdf_internal.h"
 #include "fdf_internal_cb.h"
+#include "lc.h"
 #include "protocol/protocol_utils.h"
 #include "protocol/protocol_common.h"
 #include "protocol/action/recovery.h"
@@ -115,6 +116,7 @@ SDF_shardid_t      vmc_shardid = SDF_SHARDID_INVALID;
 SDF_shardid_t	vdc_shardid		= SDF_SHARDID_INVALID;
 static int dump_interval = 0;
 int zs_dump_core = 0;
+int lc_exists;
 
 /* Id used to uniquely differenciate 
    parallel container deletes with same name */
@@ -2231,8 +2233,7 @@ ZS_status_t ZSInitVersioned(
 		rawobjratio = get_rawobjratio();
 		ext_cbs->zs_raw_cb(storm_mode, rawobjsz, rawobjratio);
 	}
-
-    return ZS_SUCCESS;
+	return (lc_init( *zs_state, agent_state.config.system_recovery==SYS_FLASH_REFORMAT));
 }
 
 char *zs_init_per_thd_comp_buf(size_t len) {
@@ -2864,12 +2865,12 @@ ZS_status_t ZSOpenContainer(
 	ZS_status_t status		= ZS_SUCCESS;
 	bool thd_ctx_locked = false;
 
-         if( getProperty_Int("ZS_ENABLE_COMPRESSION_ALL_CONTAINERS", 1) && 
-                  getProperty_Int("ZS_COMPRESSION", 0) ) {
-             if(properties) {
-                 properties->compression = ZS_TRUE;
-             }
-         }
+	if( getProperty_Int("ZS_ENABLE_COMPRESSION_ALL_CONTAINERS", 1) && 
+			getProperty_Int("ZS_COMPRESSION", 0) ) {
+		if(properties) {
+			properties->compression = ZS_TRUE;
+		}
+	}
 
 	if (properties->durability_level == ZS_DURABILITY_PERIODIC) {
 		plat_log_msg(180216, LOG_CAT, LOG_WARN, "PERIODIC durability is not supported, set to SW_CRASH_SAFE for %s\n", cname);
@@ -2881,7 +2882,7 @@ ZS_status_t ZSOpenContainer(
 	 */
 	if (ZS_SUCCESS != (status = is_zs_operation_allowed())) {
 		plat_log_msg(160187, LOG_CAT,
-		       LOG_WARN, "Operation not allowed");
+				LOG_WARN, "Operation not allowed");
 		goto out;
 	}
 	if (is_license_valid(is_btree_loaded()) == false) {
@@ -3120,7 +3121,12 @@ static ZS_status_t zs_create_container(
 	                              *cguid, 
 	                              properties->size_kb, 
 	                              ZS_CONTAINER_STATE_CLOSED, 
+#if 0//Rico - lc
 	                              properties->evicting
+#else
+	                              properties->evicting,
+	                              properties->flags&ZS_LOG_CTNR
+#endif
 	                            );
 
 	    if ( ZS_SUCCESS != status ) {
@@ -3151,6 +3157,11 @@ static ZS_status_t zs_create_container(
 		*cguid = SDF_NULL_CGUID;
 		status = ZS_FAILURE_MEMORY_ALLOC;
 		goto out;
+	}
+#endif
+#if 0
+	if (IS_ZS_LOG_CONTAINER(properties->flags)) {
+		sdf_properties->container_type.type = SDF_LOG_CONTAINER;
 	}
 #endif
 
@@ -3413,8 +3424,8 @@ static ZS_status_t zs_open_container(
 		goto out;
 	}
 
-    if ( ISEMPTY( cname ) ) { 
-        status = ZS_INVALID_PARAMETER;
+	if ( ISEMPTY( cname ) ) { 
+		status = ZS_INVALID_PARAMETER;
 		*cguid = ZS_NULL_CGUID;
 		goto out;
 	}
@@ -3438,50 +3449,50 @@ static ZS_status_t zs_open_container(
 			}
 		}
 		plat_assert(i_ctnr != -1);
-    } else {
+	} else {
 		i_ctnr = 0;
 		*cguid = tcguid = CMC_CGUID;
-    }
-
-    if ( strcmp( cname, CMC_PATH ) != 0 ) {
-        if ( ZS_CONTAINER_STATE_OPEN == cmap->state || ZS_CONTAINER_STATE_DELETE_OPEN == cmap->state) {
-            plat_log_msg( 160032, LOG_CAT, LOG_DBG, "Already opened or error: %s - %s", cname, ZSStrError(status) );
-		    goto out;
-        }
 	}
 
-    if ( !isContainerParentNull( parent = isParentContainerOpened( cname ) ) ) {
-                
-        // Test for pending delete
-        lparent = getLocalContainerParent( &lparent, parent );
-        if ( lparent->delete_pending == SDF_TRUE ) {
-            // Need a different error?
-            status = SDF_CONTAINER_UNKNOWN;
-            plat_log_msg( 21552, LOG_CAT,LOG_DBG, "Delete pending for %s", cname );
-        } 
-        releaseLocalContainerParent( &lparent );
-    }
+	if ( strcmp( cname, CMC_PATH ) != 0 ) {
+		if ( ZS_CONTAINER_STATE_OPEN == cmap->state || ZS_CONTAINER_STATE_DELETE_OPEN == cmap->state) {
+			plat_log_msg( 160032, LOG_CAT, LOG_DBG, "Already opened or error: %s - %s", cname, ZSStrError(status) );
+			goto out;
+		}
+	}
 
-    if ( status == ZS_SUCCESS ) {
+	if ( !isContainerParentNull( parent = isParentContainerOpened( cname ) ) ) {
 
-        // Ok to open
-        container = openParentContainer( pai, cname );
+		// Test for pending delete
+		lparent = getLocalContainerParent( &lparent, parent );
+		if ( lparent->delete_pending == SDF_TRUE ) {
+			// Need a different error?
+			status = SDF_CONTAINER_UNKNOWN;
+			plat_log_msg( 21552, LOG_CAT,LOG_DBG, "Delete pending for %s", cname );
+		} 
+		releaseLocalContainerParent( &lparent );
+	}
 
-        if ( isContainerNull( container ) ) {
-	    	fprintf( stderr, "ZSOpenContainer: failed to open parent container for %s\n", cname );
+	if ( status == ZS_SUCCESS ) {
+
+		// Ok to open
+		container = openParentContainer( pai, cname );
+
+		if ( isContainerNull( container ) ) {
+			fprintf( stderr, "ZSOpenContainer: failed to open parent container for %s\n", cname );
 		}
 
-        if ( CMC_CGUID == *cguid ) {
-            theCMC->c = internal_serverToClientContainer( container );
-        } else {
-            cmap->sdf_container = container;
-        	if ( ZS_CONTAINER_STATE_DELETE_PROG == cmap->state ) {
-            	if ( ZS_SUCCESS != ( status = zs_ctnr_set_state( cmap, ZS_CONTAINER_STATE_DELETE_OPEN ) ) ) 
+		if ( CMC_CGUID == *cguid ) {
+			theCMC->c = internal_serverToClientContainer( container );
+		} else {
+			cmap->sdf_container = container;
+			if ( ZS_CONTAINER_STATE_DELETE_PROG == cmap->state ) {
+				if ( ZS_SUCCESS != ( status = zs_ctnr_set_state( cmap, ZS_CONTAINER_STATE_DELETE_OPEN ) ) ) 
 					goto out;
-        	} else {
-            	if ( ZS_SUCCESS != ( status = zs_ctnr_set_state( cmap, ZS_CONTAINER_STATE_OPEN ) ) )
+			} else {
+				if ( ZS_SUCCESS != ( status = zs_ctnr_set_state( cmap, ZS_CONTAINER_STATE_OPEN ) ) )
 					goto out;
-        	}
+			}
 
 			if (flags & ZS_CTNR_RO_MODE) {
 				//zs_cntr_set_readonly(cmap);
@@ -3492,81 +3503,85 @@ static ZS_status_t zs_open_container(
 				zs_cntr_set_readwrite(cmap);
 			}
 
+
 		}
 
-        if ( !isContainerNull( container ) ) {
-            lc = getLocalContainer( &lc, container );
-            lc->mode = SDF_READ_WRITE_MODE; // (container)->mode = mode;
-            _sdf_print_container_descriptor( container );
-            log_level = LOG_DBG;
+		if ( !isContainerNull( container ) ) {
+			lc = getLocalContainer( &lc, container );
+			lc->mode = SDF_READ_WRITE_MODE; // (container)->mode = mode;
+			_sdf_print_container_descriptor( container );
+			log_level = LOG_DBG;
 			if ( mode == ZS_PHYSICAL_CNTR ) {
 				if ( lc->cguid == VDC_CGUID ) {
-    				name_service_get_meta(pai, lc->cguid, &meta);
+					name_service_get_meta(pai, lc->cguid, &meta);
 					vdc_shardid = meta.shard;
 				} else if (lc->cguid == CMC_CGUID ) {
 					name_service_get_meta(pai, lc->cguid, &meta);
 					cmc_shardid = meta.shard;
 				}
-            	// FIXME: This is where the call to shardOpen goes.
-            	#define MAX_SHARDIDS 32 // Not sure what max is today
-            	SDF_shardid_t shardids[MAX_SHARDIDS];
-            	uint32_t shard_count;
-            	get_container_shards( pai, lc->cguid, shardids, MAX_SHARDIDS, &shard_count );
-            	for ( int i = 0; i < shard_count; i++ ) {
-                	struct SDF_shared_state *state = &sdf_shared_state;
-                	shardOpen( state->config.flash_dev, shardids[i] );
-            	}
+				// FIXME: This is where the call to shardOpen goes.
+#define MAX_SHARDIDS 32 // Not sure what max is today
+				SDF_shardid_t shardids[MAX_SHARDIDS];
+				uint32_t shard_count;
+				get_container_shards( pai, lc->cguid, shardids, MAX_SHARDIDS, &shard_count );
+				for ( int i = 0; i < shard_count; i++ ) {
+					struct SDF_shared_state *state = &sdf_shared_state;
+					shardOpen( state->config.flash_dev, shardids[i] );
+				}
 
 			}
 
-            status = SDFActionOpenContainer( pai, lc->cguid );
-            if ( status != ZS_SUCCESS ) {
-	//	plat_assert(0);
-                plat_log_msg( 21554, LOG_CAT,LOG_ERR, "SDFActionOpenContainer failed for container %s", cname );
-            }
+			status = SDFActionOpenContainer( pai, lc->cguid );
+			if ( status != ZS_SUCCESS ) {
+				//	plat_assert(0);
+				plat_log_msg( 21554, LOG_CAT,LOG_ERR, "SDFActionOpenContainer failed for container %s", cname );
+			}
 
 #ifdef SDFAPIONLY
-            if ( mode == ZS_PHYSICAL_CNTR && CMC_CGUID != *cguid ) {
-                shard = container_to_shard( pai, lc );
-                if ( NULL != shard ) {
-                    mcd_shard = (mcd_osd_shard_t *)shard;
+			if ( mode == ZS_PHYSICAL_CNTR && CMC_CGUID != *cguid ) {
+				shard = container_to_shard( pai, lc );
+				if ( NULL != shard ) {
+					mcd_shard = (mcd_osd_shard_t *)shard;
 					plat_assert(i_ctnr >= 0);
-                    mcd_shard->cntr = &Mcd_containers[i_ctnr];
-                    if( 1 == mcd_shard->persistent ) {
-                        shard_recover_phase2( mcd_shard );
-                    }
-                } else {
-                    plat_log_msg( 150026, LOG_CAT,LOG_ERR, "Failed to find shard for %s", cname );
-                }
-            }
+					mcd_shard->cntr = &Mcd_containers[i_ctnr];
+					if( 1 == mcd_shard->persistent ) {
+						shard_recover_phase2( mcd_shard );
+					}
+				} else {
+					plat_log_msg( 150026, LOG_CAT,LOG_ERR, "Failed to find shard for %s", cname );
+				}
+			}
 #endif /* SDFAPIONLY */
 
-            releaseLocalContainer( &lc );
-            plat_log_msg( 21555, LOG_CAT, LOG_TRACE, "Opened %s", cname );
-        } else {
-            status = SDF_CONTAINER_UNKNOWN;
-            plat_log_msg( 21556, LOG_CAT,LOG_ERR, "Failed to find %s", cname );
-        }
-    }
+			releaseLocalContainer( &lc );
+			plat_log_msg( 21555, LOG_CAT, LOG_TRACE, "Opened %s", cname );
+		} else {
+			status = SDF_CONTAINER_UNKNOWN;
+			plat_log_msg( 21556, LOG_CAT,LOG_ERR, "Failed to find %s", cname );
+		}
+	}
 
-    if ( cname ) {
-        if ( status != ZS_SUCCESS ) {
-            if( ZS_INVALID_PARAMETER == status ) {
-                plat_log_msg(80034,LOG_CAT,LOG_DIAG,"Container %s does not exist",cname);
-            }
-            else {
-		        plat_log_msg( 21511, LOG_CAT, LOG_DIAG, "%s - %s", cname, ZSStrError(status) );
-            }
-        }
-    } else {
+	if ( cname ) {
+		if ( status != ZS_SUCCESS ) {
+			if( ZS_INVALID_PARAMETER == status ) {
+				plat_log_msg(80034,LOG_CAT,LOG_DIAG,"Container %s does not exist",cname);
+			}
+			else {
+				plat_log_msg( 21511, LOG_CAT, LOG_DIAG, "%s - %s", cname, ZSStrError(status) );
+			}
+		}
+	} else {
 		plat_log_msg( 150024, LOG_CAT, log_level, "NULL - %s", ZSStrError(status) );
-    }
+	}
 
- out:
+out:
+	if ((status == ZS_SUCCESS)
+	&& (cmap)
+	&& (cmap->lc))
+		status = lc_open( zs_thread_state, *cguid);
 	if (serialize )
-	    SDFEndSerializeContainerOp( pai );
-
-    return status;
+		SDFEndSerializeContainerOp( pai );
+	return status;
 }
 
 ZS_status_t ZSCloseContainer(
@@ -4750,7 +4765,7 @@ zs_set_container_props(
 		// We currently support slab only with 1 shard 
     	meta.properties.container_type.caching_container      = pprops->evicting;
     	meta.properties.cache.writethru                       = pprops->writethru;
-		meta.properties.fifo_mode							  = SDF_FALSE;
+		meta.properties.fifo_mode = SDF_FALSE;
 		meta.properties.shard.num_shards 		      		  = 1;
 
 		meta.properties.durability_level = SDF_NO_DURABILITY;
@@ -4762,7 +4777,9 @@ zs_set_container_props(
  		meta.properties.flash_only = pprops->flash_only;
  		meta.properties.cache_only = pprops->cache_only;
                 meta.properties.compression = pprops->compression;
-
+#if 1//Rico - lc
+                meta.properties.flags = pprops->flags;
+#endif
         status = name_service_put_meta( pai, cguid, &meta );
 		cmap = zs_cmap_get_by_cguid( cguid );
 
@@ -4897,6 +4914,10 @@ zs_read_object(
 		goto out;
 	}
 
+	if (cmap->lc) {
+		status = lc_read( zs_thread_state, cguid, key, keylen, data, datalen);
+		goto out;
+	}
 	if (rawobject || (meta->meta.properties.flash_only == ZS_TRUE)) {
 		char	*tdata = (char *)0x1; // Make sure its not NULL
 		int		flag = 0;
@@ -5309,11 +5330,19 @@ zs_write_object(
 		goto out;
 	}
 
+	if (cmap->lc) {
+		if (xflags & ZS_WRITE_TRIM)
+			status = lc_trim( zs_thread_state, cguid, key, keylen);
+		else
+			status = lc_write( zs_thread_state, cguid, key, keylen, data, datalen);
+		goto out;
+	}
 	if (meta->meta.properties.flash_only == ZS_TRUE) {
 		int flags = 0;
 		plat_log_msg(160192, LOG_CAT,
 			LOG_TRACE, "ZSWriteObject flash_only.");
 		struct objMetaData metaData;
+		bzero(&metaData, sizeof(metaData));
 		metaData.keyLen = keylen;
 		metaData.cguid  = cguid;
 		metaData.dataLen = datalen;
@@ -5838,6 +5867,10 @@ zs_delete_object(
 		goto out;
 	}
 
+	if (cmap->lc) {
+		status = lc_delete( zs_thread_state, cguid, key, keylen);
+		goto out;
+	}
 	if (raw_object || (meta->meta.properties.flash_only == ZS_TRUE)) {
 		int flags = 0;
 		plat_log_msg(160193, LOG_CAT,
@@ -7368,7 +7401,6 @@ static SDF_container_props_t *zs_create_sdf_props(
         sdf_properties->shard.enabled                           = SDF_TRUE;
         sdf_properties->shard.num_shards                        = 1 /* zs_properties->num_shards */;
         sdf_properties->fifo_mode                               = SDF_FALSE /* zs_properties->fifo_mode */;
-
         sdf_properties->durability_level                        = SDF_NO_DURABILITY;
 
     	if ( zs_properties->durability_level == ZS_DURABILITY_HW_CRASH_SAFE )
@@ -7594,7 +7626,14 @@ static void *zs_vc_thread(
 	                              meta->properties.container_id.size,
 	                              ZS_CONTAINER_STATE_CLOSED,
 	                              meta->properties.container_type.caching_container
+#if 1//Rico - lc
+	                              ,
+	                              meta->flags&ZS_LOG_CTNR
+#endif
 	                            );
+	    if (meta->flags&ZS_LOG_CTNR) {
+		    lc_exists = 1;
+	    }
 
 	    if ( ZS_SUCCESS != status ) {
            	plat_log_msg( 150134, LOG_CAT, LOG_ERR, "Failed to create cmap for %s - %lu", meta->cname, meta->cguid );
@@ -8036,6 +8075,75 @@ ZSMPut(struct ZS_thread_state *zs_thread_state,
 	uint32_t flags,
 	uint32_t *objs_written)
 {
+	ZS_status_t status = ZS_SUCCESS;
+	bool thd_ctx_locked = false;
+	cntr_map_t *cmap = NULL;
+
+	status = zs_validate_container(cguid);
+	if (ZS_SUCCESS != status) {
+		plat_log_msg(160125, LOG_CAT,
+				LOG_ERR, "Failed due to an illegal container ID:%s",
+				ZS_Status_Strings[status]);
+		goto out;
+	}
+	/*
+	 * Check if operation can begin
+	 */
+	if (ZS_SUCCESS != (status = is_zs_operation_allowed())) {
+        plat_log_msg(80022, LOG_CAT,
+               LOG_WARN, "Shutdown in Progress. Operation not allowed ");
+		goto out;
+	}
+	if (is_license_valid(is_btree_loaded()) == false) {
+		plat_log_msg(160145, LOG_CAT, LOG_WARN, "License check failed.");
+		status = ZS_LICENSE_CHK_FAILED;
+		goto out;
+	}
+	if ( !zs_thread_state || !cguid || !objs_written) {
+		if ( !zs_thread_state ) {
+			plat_log_msg(80049,LOG_CAT,LOG_DBG,
+						 "ZS Thread state is NULL");
+		}
+		if ( !cguid ) {
+			plat_log_msg(80050,LOG_CAT,LOG_DBG,
+						 "Invalid container cguid:%lu",cguid);
+		}
+		if ( !objs_written) {
+			plat_log_msg(170047,LOG_CAT,LOG_DBG,
+						 "objs_written parameter cannot be NULL");
+		}
+		return ZS_INVALID_PARAMETER;
+	}
+
+	cmap = get_cntr_map(cguid);
+	if (!cmap)
+		return(ZS_CONTAINER_UNKNOWN);
+	if ( (status = zs_get_ctnr_status_cmap(cmap, cguid, 0)) != ZS_CONTAINER_OPEN ) {
+		plat_log_msg( 160040, LOG_CAT, LOG_DIAG, "Container must be open to execute a write object" );
+		goto out;     
+	}
+
+	thd_ctx_locked = zs_lock_thd_ctxt(zs_thread_state);
+	if (false == thd_ctx_locked) {
+		/*
+		 * Could not get thread context lock, error out.
+		 */
+		status = ZS_THREAD_CONTEXT_BUSY;
+		plat_log_msg(160161, LOG_CAT,
+		       	     LOG_DBG, "Could not get thread context lock");
+		goto out;
+	}
+
+	status = lc_mput(zs_thread_state, cguid, num_objs, objs, flags, objs_written);
+
+out:
+	if (cmap) {
+		rel_cntr_map(cmap);
+	}
+	if (thd_ctx_locked) {
+		zs_unlock_thd_ctxt(zs_thread_state);
+	}
+	return status;
 	fprintf(stderr, "ZS: ZSMPut without btree is not supported\n");
 	return ZS_UNSUPPORTED_REQUEST;
 }
@@ -8946,5 +9054,156 @@ out:
 	if (thd_ctx_locked) {
 		zs_unlock_thd_ctxt(zs_thread_state);
 	}
+	return status;
+}
+
+
+ZS_status_t
+zs_read_object_lc( struct ZS_thread_state *t, ZS_cguid_t c, char *k, uint32_t kl, char **d, uint64_t *dl, bool app_buf)
+{
+	SDF_appreq_t    ar;
+	SDF_action_init_t *pac;
+	ZS_status_t     status = ZS_SUCCESS;
+	ZS_status_t     read_ret = ZS_SUCCESS;
+	char           *app_buf_data_ptr = NULL;
+	cntr_map_t     *cmap = NULL;
+
+	if (!c || !k)
+		return ZS_INVALID_PARAMETER;
+	if (d == NULL)
+		return ZS_BAD_PBUF_POINTER;
+	cmap = get_cntr_map(c);
+	if (!cmap)
+		return (ZS_CONTAINER_UNKNOWN);
+	if ((status = zs_get_ctnr_status_cmap(cmap, c, 0)) != ZS_CONTAINER_OPEN) {
+		plat_log_msg(160039, LOG_CAT, LOG_DIAG, "Container must be open to execute a read object");
+		goto out;
+	}
+	pac = (SDF_action_init_t *) t;
+	SDF_cache_ctnr_metadata_t *meta;
+	meta = get_container_metadata(pac, c);
+	if (meta == NULL)
+		goto out;
+	char           *tdata = (char *) 0x1;	// Make sure its not NULL
+	int             flag = 0;
+	struct objMetaData metaData;
+	metaData.keyLen = kl;
+	metaData.cguid = c;
+	update_container_stats(pac, APGRX, meta, 1);
+	read_ret = ssd_flashGet(pac->paio_ctxt, meta->pshard, &metaData, k, &tdata, flag | FLASH_GET_NO_TEST);
+	/*
+	 * If app buf, copied len should be min of dl and metaData.dataLen 
+	 */
+	if (app_buf)
+		*dl = (*dl > metaData.dataLen) ? metaData.dataLen : *dl;
+	else
+		*dl = metaData.dataLen;
+	if (read_ret == FLASH_EOK) {
+		status = ZS_SUCCESS;
+		if (!app_buf) {
+			*d = malloc(*dl);
+			if (*d == NULL) {
+				status = ZS_OUT_OF_MEM;
+				goto out;
+			}
+		} else {
+			if (*d == NULL) {
+				status = ZS_BAD_PBUF_POINTER;
+				goto out;
+			}
+		}
+		memcpy(*d, tdata, *dl);
+		ssd_flashFreeBuf(tdata);
+	}
+	else
+		status = get_status(read_ret);
+out:
+	rel_cntr_map(cmap);
+	return status;
+}
+
+
+ZS_status_t
+zs_write_object_lc( struct ZS_thread_state *t, ZS_cguid_t c, char *k, uint32_t kl, char *d, uint64_t dl)
+{
+	SDF_appreq_t        ar;
+	SDF_action_init_t  *pac		= NULL;
+	ZS_status_t        status	= ZS_FAILURE;
+	ZS_status_t        write_ret    = ZS_FAILURE;
+	cntr_map_t *cmap = NULL;
+
+	if ( !c || !k )
+		return ZS_INVALID_PARAMETER;
+	cmap = get_cntr_map(c);
+	if (!cmap)
+		return(ZS_CONTAINER_UNKNOWN);
+	if ( (status = zs_get_ctnr_status_cmap(cmap, c, 0)) != ZS_CONTAINER_OPEN ) {
+		plat_log_msg( 160040, LOG_CAT, LOG_DIAG, "Container must be open to execute a write object" );
+		goto out;     
+	}
+	pac = (SDF_action_init_t *) t;
+	SDF_cache_ctnr_metadata_t *meta;
+	meta = get_container_metadata(pac, c);
+	if (meta == NULL)
+		goto out;
+	int flags = 0;
+	struct objMetaData metaData;
+	bzero(&metaData, sizeof(metaData));
+	metaData.keyLen = kl;
+	metaData.cguid  = c;
+	metaData.dataLen = dl;
+	if (meta->meta.properties.durability_level == SDF_RELAXED_DURABILITY)
+		flags |= FLASH_PUT_DURA_SW_CRASH;
+	else if (meta->meta.properties.durability_level == SDF_FULL_DURABILITY)
+		flags |= FLASH_PUT_DURA_HW_CRASH;
+	update_container_stats(pac, APSOE, meta, 1);
+	write_ret = ssd_flashPut(pac->paio_ctxt, meta->pshard, &metaData, k, d, FLASH_PUT_NO_TEST|flags);
+	status = get_status(write_ret);
+out:
+	rel_cntr_map(cmap);
+
+	return status;
+}
+
+
+ZS_status_t
+zs_delete_object_lc( struct ZS_thread_state *t, ZS_cguid_t c, char *k, uint32_t kl)
+{
+	SDF_appreq_t        ar;
+	SDF_action_init_t  *pac		= NULL;
+	ZS_status_t        status	= ZS_SUCCESS;
+	cntr_map_t *cmap = NULL;
+
+	if ( !c || !k )
+		return ZS_INVALID_PARAMETER;
+	cmap = get_cntr_map(c);
+	if (!cmap)
+		return(ZS_CONTAINER_UNKNOWN);
+	if ( (status = zs_get_ctnr_status_cmap(cmap, c, 0)) != ZS_CONTAINER_OPEN ) {
+		plat_log_msg( 160041, LOG_CAT, LOG_DIAG, "Container must be open to execute a delete object" );
+		goto out;     
+	}
+	pac = (SDF_action_init_t *) t;
+	SDF_cache_ctnr_metadata_t *meta;
+	meta = get_container_metadata(pac, c);
+	if (meta == NULL)
+		goto out;
+	int flags = 0;
+	struct objMetaData metaData;
+	bzero(&metaData, sizeof(metaData));
+	metaData.keyLen = kl;
+	metaData.cguid  = c;
+	metaData.dataLen = 0;
+	if (meta->meta.properties.durability_level == SDF_RELAXED_DURABILITY)
+		flags |= FLASH_PUT_DURA_SW_CRASH;
+	else if (meta->meta.properties.durability_level == SDF_FULL_DURABILITY)
+		flags |= FLASH_PUT_DURA_HW_CRASH;
+	status = ssd_flashPut(pac->paio_ctxt, meta->pshard, &metaData, k, NULL, FLASH_PUT_TEST_NONEXIST|flags);
+	if (status == FLASH_EOK)
+		status = ZS_SUCCESS;
+	else
+		status = ZS_FAILURE;
+out:
+	rel_cntr_map(cmap);
 	return status;
 }

@@ -62,7 +62,7 @@ int rawobjratio;
 
 typedef struct mcdstructure		mcd_t;
 typedef struct potstructure		pot_t;
-typedef void				packet_t;
+typedef void				bracket_t;
 
 struct mcdstructure {
 	ulong	bytes_per_flash_array,
@@ -110,8 +110,10 @@ void		mcd_fth_osd_slab_load_slabbm( osd_state_t *, mcd_osd_shard_t *, uchar [], 
 		attach_buffer_segments( mcd_osd_shard_t *, int, int *, char **),
 		detach_buffer_segments( mcd_osd_shard_t *, int, char **),
 		recovery_checkpoint( osd_state_t *, mcd_osd_shard_t *, uint64_t),
+		filter_ot_free( mcd_rec_obj_state_t *),
 		stats_packet_save( mcd_rec_obj_state_t *, void *, mcd_osd_shard_t *),
-		recovery_packet_save( packet_t *, void *, mcd_osd_shard_t *),
+		recovery_packet_save( bracket_t *, void *, mcd_osd_shard_t *),
+		lc_packet_save( bracket_t **),
 		filter_cs_initialize( mcd_rec_obj_state_t *),
 		filter_cs_swap_log( mcd_rec_obj_state_t *),
 		filter_cs_flush( mcd_rec_obj_state_t *);
@@ -119,7 +121,8 @@ int		filter_cs_apply_logrec( mcd_rec_obj_state_t *, mcd_logrec_object_t *),
 		filter_cs_rewind_log( mcd_rec_obj_state_t *),
 		read_log_segment( void *, int, mcd_osd_shard_t *, mcd_rec_log_state_t *, char *);
 uint64_t	read_log_page( osd_state_t *, mcd_osd_shard_t *, int, uint64_t),
-		blk_to_use( mcd_osd_shard_t *, uint64_t);
+		blk_to_use( mcd_osd_shard_t *, uint64_t),
+		trx_bracket_initialize( uint64_t);
 bool		match_potbm_checksum( potbm_t *, uint),
 		match_slabbm_checksum( slabbm_t *, uint),
 		empty( void *, uint);
@@ -1145,6 +1148,10 @@ recover( mcd_osd_shard_t *s, osd_state_t *context, char **buf_segments)
 	if (ckpt->LSN == 0) {
 		// case 1: both logs empty, nothing to recover
 		if (LSN[old_log_state.log] == 0 && LSN[1 - old_log_state.log] == 0) {
+#if 1//Rico - lc
+			ckpt->trx_bracket_id = trx_bracket_initialize( ckpt->trx_bracket_id);
+			recovery_checkpoint( context, s, ckpt->LSN);
+#endif
 			s->rec_upd_running = 0;
 			detach_buffer_segments( s, state.seg_count, state.segments);
 			context->osd_buf = 0;
@@ -1197,10 +1204,11 @@ recover( mcd_osd_shard_t *s, osd_state_t *context, char **buf_segments)
 	 * generate packets for btree container and stats recovery
 	 */
 	if (s->cntr->cguid == VDC_CGUID) {
-		recovery_packet_save( state.otpacket, context, s);
+		recovery_packet_save( state.ottable, context, s);
+		lc_packet_save( state.ottable);
 		stats_packet_save( &state, context, s);
 		plat_free( state.statbuf);
-		plat_free( state.otpacket);
+		filter_ot_free( &state);
 	}
 	mcd_rec2_potcache_save( s, context);
 	mcd_rec2_potbitmap_save( s, context);
@@ -1224,6 +1232,9 @@ recover( mcd_osd_shard_t *s, osd_state_t *context, char **buf_segments)
 					bno += 1;
 			}
 		}
+#if 1//Rico - lc
+	ckpt->trx_bracket_id = trx_bracket_initialize( max( state.bracket_id_max, ckpt->trx_bracket_id));
+#endif
 	if (curr_log_state.high_LSN > ckpt->LSN) {
 		plat_assert( curr_log_state.high_LSN >= old_log_state.high_LSN);
 		recovery_checkpoint( context, s, curr_log_state.high_LSN);
@@ -1288,6 +1299,9 @@ merge_log( mcd_osd_shard_t *s, osd_state_t *context, char **buf_segments, int lo
 	mcd_rec2_potcache_save( s, context);
 	mcd_rec2_potbitmap_save( s, context);
 	mcd_rec2_slabbitmap_save( s, context);
+#if 1//Rico - lc
+	ckpt->trx_bracket_id = max( state.bracket_id_max, ckpt->trx_bracket_id);
+#endif
 	if (old_log_state.high_LSN > ckpt->LSN)
 		recovery_checkpoint( context, s, old_log_state.high_LSN);
 	detach_buffer_segments( s, state.seg_count, state.segments);

@@ -3474,6 +3474,7 @@
 160302 persisting segment on recovery(slabbm), shard_id=%ld seg_offset=%lu, obj_offs=%lu, slab_size=%d
 160303 Transaction commit is %s
 160304 persisting segment on recovery, shard_id=%ld seg_offset=%lu, obj_offs=%lu, slab_size=%d
+160305 Failed to open NVRAM file %s: %s\n
 160306 Cannot open nv ram file %s for flog recover.\n
 160307 Nvram dev file = %s, Start offset = %lu.\n
 160308 Failed to open nvram dev file %s.\n
@@ -3518,6 +3519,9 @@
 170042 Bogus log # from log_writer
 170043 Outer trx is unrecoverable (too long)
 170044 shardID=%lu, high-water-mark blocks consumed=%lu, delayed=%lu
+170045 Cannot create lc packet (name too long)
+170046 Failed to create %s (%s)
+170047 objs_written parameter cannot be NULL
 
 
 # efirsov

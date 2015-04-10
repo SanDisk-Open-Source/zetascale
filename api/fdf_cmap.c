@@ -14,6 +14,7 @@
 #include "zs.h"
 #include "shared/container.h"
 #include "cmap.h"
+#include "lc.h"
 
 #define CMAP_BUCKETS	 1000
 
@@ -46,6 +47,9 @@ ZS_status_t zs_cmap_init( void )
 	cmc_map.num_obj = 0;
 	cmc_map.state = ZS_CONTAINER_STATE_OPEN;
 	cmc_map.evicting = ZS_FALSE;
+#if 1//Rico - lc
+	cmc_map.lc = ZS_FALSE;
+#endif
 	bzero( (void *) &cmc_map.enum_stats, sizeof( enum_stats_t ) );
 	bzero( (void *) &cmc_map.container_stats, sizeof( ZS_container_stats_t ) );
 
@@ -73,11 +77,16 @@ ZS_status_t zs_cmap_create(
     uint64_t                 size_kb,
     ZS_CONTAINER_STATE      state,
     ZS_boolean_t            evicting
+#if 1//Rico - lc
+                            ,
+    ZS_boolean_t            lc
+#endif
 	)
 {
 	char        *cname_key		= NULL;
     cntr_map_t  *cmap           = NULL;
 	int			len;
+	ZS_status_t		status;
     
     if ( !cname || ZS_NULL_CGUID == cguid )
         return ZS_INVALID_PARAMETER;
@@ -96,9 +105,22 @@ ZS_status_t zs_cmap_create(
         cmap->num_obj = 0;
         cmap->state = state;
         cmap->evicting = evicting;
-		cmap->read_only = ZS_FALSE;
+        cmap->read_only = ZS_FALSE;
+#if 1//Rico - lc
+        cmap->lc = lc;
+#endif
         bzero( (void *) &cmap->enum_stats, sizeof( enum_stats_t ) );
         bzero( (void *) &cmap->container_stats, sizeof( ZS_container_stats_t ) );
+#if 0
+	if (lc) {
+		if ((status = LC_init(&cmap->logcont, cguid)) != ZS_SUCCESS) {
+		    plat_free( cmap );
+		    return status;
+		}
+	} else {
+		cmap->logcont = NULL;
+	}
+#endif
 	}
 	
 	len = strlen( cname ) + 1;

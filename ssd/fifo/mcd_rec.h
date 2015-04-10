@@ -285,7 +285,12 @@ typedef struct mcd_rec_ckpt {
     uint64_t        LSN;               // "Log Sequence Number". LSN of the
                                        // last log page applied in its entirety
                                        // to the persistent flash object table.
+#if 1//Rico - lc
+    uint64_t        trx_bracket_id,
+                    reserved[ 7 ];     // -- reserved for future use --
+#else
     uint64_t        reserved[ 8 ];     // -- reserved for future use --
+#endif
 } mcd_rec_ckpt_t;
 
 enum {
@@ -636,7 +641,9 @@ typedef struct mcd_rec_obj_state {
 				statbuftail;
 
 	ushort			otstate;	// state of outer trx recovery
-	void			*otpacket;
+	void			*ottable;	// uncommitted outer trx
+
+	uint64_t		bracket_id_max;	// eternal life for bracket ID
 } mcd_rec_obj_state_t;
 
 // Log State

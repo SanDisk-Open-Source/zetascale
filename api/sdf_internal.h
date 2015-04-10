@@ -43,18 +43,20 @@ typedef enum {
 }ZS_CONTAINER_STATE;
 
 typedef struct cntr_map {
-    char            	 	cname[CONTAINER_NAME_MAXLEN];	/* Container name */
-	int     			 	io_count;						/* IO in flight count */
-    ZS_cguid_t     	 	cguid;							/* Container ID */
-    SDF_CONTAINER   	 	sdf_container;					/* Open container handle */
-	uint64_t			 	size_kb;						/* Container size KB */
-	uint64_t			 	current_size;					/* Current container size */
-	uint64_t			 	num_obj;						/* Current number of objects */
-    ZS_CONTAINER_STATE  	state;							/* Container state */
-	ZS_boolean_t   	 	evicting;						/* Eviction mode */
-    enum_stats_t 		 	enum_stats;						/* Enumeration stats */
-    ZS_container_stats_t 	container_stats;				/* Container stats */
-	ZS_boolean_t			read_only;						/* Set if Read-Only */
+	char			cname[CONTAINER_NAME_MAXLEN];	/* Container name */
+	int			io_count;			/* IO in flight count */
+	ZS_cguid_t		cguid;				/* Container ID */
+	SDF_CONTAINER		sdf_container;			/* Open container handle */
+	uint64_t		size_kb;			/* Container size KB */
+	uint64_t		current_size;			/* Current container size */
+	uint64_t		num_obj;			/* Current number of objects */
+	ZS_CONTAINER_STATE	state;				/* Container state */
+	ZS_boolean_t		evicting;			/* Eviction mode */
+	enum_stats_t		enum_stats;			/* Enumeration stats */
+	ZS_container_stats_t	container_stats;		/* Container stats */
+	ZS_boolean_t		read_only;			/* Set if Read-Only */
+	void			*logcont;			/* Logging container details */
+	ZS_boolean_t		lc;				/* Set if logging container */
 } cntr_map_t;
 
 typedef struct SDF_state {
@@ -90,7 +92,7 @@ get_cntr_info(cntr_id_t cntr_id,
               uint64_t *objs,
               uint64_t *used,
               uint64_t *size,
-			  ZS_boolean_t *evicting);
+              ZS_boolean_t *evicting);
 
 /*
  * Container metadata cache
@@ -118,6 +120,10 @@ ZS_status_t zs_cmap_create(
     uint64_t                 size_kb,
 	ZS_CONTAINER_STATE      state,
     ZS_boolean_t            evicting
+#if 1//Rico - lc
+                            ,
+    ZS_boolean_t            lc
+#endif
 	);
 
 ZS_status_t zs_cmap_update(

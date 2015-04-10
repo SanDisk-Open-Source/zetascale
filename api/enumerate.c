@@ -11,6 +11,7 @@
  * Copyright (c) 2013 SanDisk Corporation.  All rights reserved.
  */
 #include "zs.h"
+#include "lc.h"
 #include "shared/private.h"
 #include "shared/name_service.h"
 #include "protocol/action/recovery.h"
@@ -92,10 +93,37 @@ ZSEnumerateContainerObjects(struct ZS_thread_state *ts,
     if (s != ZS_SUCCESS)
         return s;
 
-    s = enumerate_init(pai, shard, cguid, iter);
-    if (s) 
-        return s;
-    return ZS_SUCCESS;
+    return (enumerate_init( pai, shard, cguid, iter));
+}
+
+
+/*
+ * Prepare for the enumeration of all objects in a PG.
+ */
+ZS_status_t
+ZSEnumeratePGObjects( struct ZS_thread_state *t, ZS_cguid_t c, struct ZS_iterator **iter, char *k, uint32_t kl)
+{
+	ZS_status_t     s;
+
+	if (!t || !c || !iter) {
+		if (!t)
+			plat_log_msg(80049, PLAT_LOG_CAT_SDF_NAMING, PLAT_LOG_LEVEL_DEBUG, "ZS Thread state is NULL");
+		if (!c)
+			plat_log_msg(80050, PLAT_LOG_CAT_SDF_NAMING, PLAT_LOG_LEVEL_DEBUG, "Invalid container cguid:%lu", c);
+		if (!iter)
+			plat_log_msg(80051, PLAT_LOG_CAT_SDF_NAMING, PLAT_LOG_LEVEL_DEBUG, "The argument ZS_iterator is NULL");
+		return (ZS_INVALID_PARAMETER);
+	}
+	cntr_map_t *cmap = get_cntr_map( c);
+	if (cmap == 0)
+		return (ZS_CONTAINER_UNKNOWN);
+	if (cmap->lc) {
+		s = lc_enum_start( t, c, iter, k, kl);
+		rel_cntr_map( cmap);
+		return (s);
+	}
+	rel_cntr_map( cmap);
+	return (ZS_FAILURE_INVALID_CONTAINER_TYPE);
 }
 
 
@@ -128,6 +156,15 @@ ZSNextEnumeratedObject(struct ZS_thread_state *ts,
     if ( (s = zs_get_ctnr_status(get_e_cguid(iter), 0)) != ZS_CONTAINER_OPEN ) {
         return s;
     }
+    cntr_map_t *cmap = get_cntr_map( get_e_cguid( iter));
+    if (cmap == 0)
+	return (ZS_CONTAINER_UNKNOWN);
+    if (cmap->lc) {
+	s = lc_enum_next( iter, key, keylen, data, datalen);
+	rel_cntr_map( cmap);
+	return (s);
+    }
+    rel_cntr_map( cmap);
 #ifdef CMAP
    	zs_incr_io_count( get_e_cguid(iter) );
 #endif /* CMAP */
@@ -166,8 +203,14 @@ ZSFinishEnumeration(struct ZS_thread_state *ts, struct ZS_iterator *iter)
         }
         return ZS_INVALID_PARAMETER;
     }
-    s = enumerate_done((SDF_action_init_t *)ts, iter);
-    if (s)
-        return s;
-    return ZS_SUCCESS;
+    cntr_map_t *cmap = get_cntr_map( get_e_cguid( iter));
+    if (cmap == 0)
+	return (ZS_CONTAINER_UNKNOWN);
+    if (cmap->lc) {
+	s = lc_enum_finish( iter);
+	rel_cntr_map( cmap);
+	return (s);
+    }
+    rel_cntr_map( cmap);
+    return (enumerate_done( (SDF_action_init_t *)ts, iter));
 }
