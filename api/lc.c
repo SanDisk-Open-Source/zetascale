@@ -705,6 +705,7 @@ lc_mput( ts_t *t, ZS_cguid_t cguid, uint32_t num_objs, ZS_obj_t *objs, uint32_t 
 				/* Handle if record cant be accomodated in tmpbuf */
 				ret = write_records(t, lrecs, objsinbuf, cguid, &written);
 				if (ret == ZS_SUCCESS) {
+					plat_assert(objsinbuf == written);
 					committed_keys += written;
 				} else {
 					goto out;
@@ -721,6 +722,7 @@ lc_mput( ts_t *t, ZS_cguid_t cguid, uint32_t num_objs, ZS_obj_t *objs, uint32_t 
 			/* Handle record greater than tmpbuf sz */
 			ret = write_records(t, lrecs, objsinbuf, cguid, &written);
 			if (ret == ZS_SUCCESS) {
+				plat_assert(objsinbuf == written);
 				committed_keys += written;
 			} else {
 				goto out;
@@ -740,6 +742,7 @@ lc_mput( ts_t *t, ZS_cguid_t cguid, uint32_t num_objs, ZS_obj_t *objs, uint32_t 
 	if (objsinbuf) {
 		ret = write_records(t, lrecs, objsinbuf, cguid, &written);
 		if (ret == ZS_SUCCESS) {
+			plat_assert(objsinbuf == written);
 			committed_keys += written;
 		}
 	}
@@ -934,12 +937,15 @@ write_records( ts_t *ts, lrec_t **lrecs, int num_recs, ZS_cguid_t cguid, int *wr
 			pthread_mutex_unlock(&ss->buflock);
 			r = nvr_write_buffer_partial( ss->nb, &ss->so.buffer[startoff], 
 					bufnexti - startoff);
-			ss = NULL;
-			objs_copied = 0;
-			startoff = 0;
 			if (r == ZS_SUCCESS) {
 				*written += objs_copied;
+				ss = NULL;
+				objs_copied = 0;
+				startoff = 0;
 			} else {
+				ss = NULL;
+				objs_copied = 0;
+				startoff = 0;
 				goto out;
 			}
 		} else if (ss) {
