@@ -171,7 +171,7 @@ typedef enum {
     ZS_BTREE_NUM_BULK_INSERT_FULL_NODES_CNT,
     ZS_N_BTREE_STATS
 }ZS_Btree_stat_t;
-
+#if 0
 typedef enum { 
     /* Log container stats */
     ZS_LOG_NUM_OBJS,
@@ -180,6 +180,17 @@ typedef enum {
 
     ZS_N_LOG_STATS
 }ZS_Log_stat_t;
+#endif
+
+typedef enum {
+	/* NVRAM stats */
+	ZS_NVR_WRITE_REQS,
+	ZS_NVR_WRITE_SAVED,
+	ZS_NVR_DATA_IN,
+	ZS_NVR_DATA_OUT,
+	ZS_NVR_NOSPC,
+	ZS_N_NVR_STATS
+} ZS_Nvr_stat_t;
 
 typedef enum {
     ZS_CACHE_STAT_OVERWRITES_S,
@@ -415,7 +426,8 @@ typedef struct {
 	ZS_histo_t		 key_size_histo;
 	ZS_histo_t		 data_size_histo;
 	ZS_histo_t		 access_time_histo[ZS_N_ACCESS_TYPES];
-	uint64_t		 log_stats[ZS_N_LOG_STATS];
+	//uint64_t		 log_stats[ZS_N_LOG_STATS];
+	uint64_t		 nvr_stats[ZS_N_NVR_STATS];
 } ZS_stats_t;
 
 typedef struct {

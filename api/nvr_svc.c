@@ -48,6 +48,7 @@
 #define	INFO			PLAT_LOG_LEVEL_INFO
 #define	ERROR			PLAT_LOG_LEVEL_ERROR
 #define	FATAL			PLAT_LOG_LEVEL_FATAL
+#define	TRACE			PLAT_LOG_LEVEL_TRACE
 #define	INITIAL			PLAT_LOG_ID_INITIAL
 #define	msg( id, lev, ...)	plat_log_msg( id, PLAT_LOG_CAT_SDF_APP_MEMCACHED_RECOVERY, lev, __VA_ARGS__)
 
@@ -64,6 +65,11 @@ extern int			lc_exists;
 static int			bytes_per_nvr_buffer;
 char				nvr_zero[65536];
 int				nvr_disabled = 0;
+
+/* NVRAM stats */
+uint64_t			nvr_write_reqs, nvr_write_saved;
+uint64_t			nvr_data_in, nvr_data_out;
+uint64_t			nvr_reset_req, nvr_no_space;
 /*
  * designated writer must use atomic assignment when sharing scalers
  */
@@ -96,7 +102,7 @@ pthread_mutex_t nvr_fl_mutex = PTHREAD_MUTEX_INITIALIZER;
 static ZS_status_t nvr_rebuild(struct ZS_state *zs_state);
 static bool nvr_space_available_in_obj(nvrso_t *so, int count);
 static off_t nvr_buf(nvrso_t *so, char *data, uint count, int reset);
-static int nvr_sync_buf(nvrso_t *so, off_t off);
+static int nvr_sync_buf(nvrso_t *so, off_t off, int reseet);
 static ZS_status_t nvr_write_buffer_internal( nvr_buffer_t *buf, char *data, uint count, int reset);
 
 
@@ -264,6 +270,7 @@ nvr_reset_buffer(nvr_buffer_t *buf)
 	plat_assert(obj->nso_nxtfree == NULL);
 	plat_assert(obj->nso_refcnt);
 
+	atomic_inc(nvr_reset_req);
 	if (nvr_disabled) {
 		msg(INITIAL, DEBUG, "NVRAM is disabled");
 		return ZS_FAILURE;
@@ -575,7 +582,7 @@ nvr_write_buffer_internal( nvr_buffer_t *buf, char *data, uint count, int reset)
 
 	pthread_mutex_unlock(&so->nso_mutex);
 
-	return nvr_sync_buf(so, offset);
+	return nvr_sync_buf(so, offset, reset);
 	//NVR_obj_rel(so);
 }
 
@@ -590,10 +597,19 @@ nvr_buf(nvrso_t *so, char *data, uint count, int reset)
 	char 			*tmp, *nso_data;
 	off_t			nso_off;
 
+	if (!reset) {
+		atomic_inc(nvr_write_reqs);
+	}
 
 	if (false == nvr_space_available_in_obj(so, count)) {
+		atomic_inc(nvr_no_space);
 		return -1;
 	}
+
+	if (!reset) {
+		atomic_add(nvr_data_in, count);
+	}
+
 	nso_off = so->nso_off;
 	sb = (nvrsbuf_t *)((char *)so->nso_data + nso_off / nvr_blksize * nvr_blksize);
 	nso_data = so->nso_data;
@@ -659,7 +675,7 @@ nvr_space_available_in_obj(nvrso_t *so, int count)
  * Make sure the key/value is written to NVRAM
  */
 static int
-nvr_sync_buf(nvrso_t *so, off_t off)
+nvr_sync_buf(nvrso_t *so, off_t off, int reset)
 {
 	nvrsbuf_t	*sbuf;
 	off_t			tmp_syncoff, write_off;
@@ -668,7 +684,10 @@ nvr_sync_buf(nvrso_t *so, off_t off)
 	
 
 	if (so->nso_syncoff >= off) {
-		msg(INITIAL, DEBUG, "saved io: nso_syncoff (%d) >= off (%d)", (int)so->nso_syncoff, (int)off);
+		msg(INITIAL, TRACE, "saved io: nso_syncoff (%d) >= off (%d)", (int)so->nso_syncoff, (int)off);
+		if (!reset) {
+			atomic_inc(nvr_write_saved);
+		}
 		return ZS_SUCCESS;
 	}
 
@@ -679,7 +698,10 @@ nvr_sync_buf(nvrso_t *so, off_t off)
 	}
 
 	if (so->nso_syncoff >= off) {
-		msg(INITIAL, DEBUG, "saved io: nso_syncoff (%d) >= off (%d)", (int)so->nso_syncoff, (int)off);
+		msg(INITIAL, TRACE, "saved io: nso_syncoff (%d) >= off (%d)", (int)so->nso_syncoff, (int)off);
+		if (!reset) {
+			atomic_inc(nvr_write_saved);
+		}
 		pthread_mutex_unlock(&so->nso_sync_mutex);
 		return ZS_SUCCESS;
 	}
@@ -708,6 +730,10 @@ nvr_sync_buf(nvrso_t *so, off_t off)
 
 	off_t offset_to_write = partition * partition_size + so->nso_fileoff + write_off;
 	ret = pwrite(nvr_fd, so->nso_data + write_off, write_len, offset_to_write);
+
+	if (!reset) {
+		atomic_add(nvr_data_out, write_len);
+	}
 
 	if (ret == -1 || ret < write_len) {
 		msg(INITIAL, FATAL, "Write to NVRAM failed, NVRAM disabled");
@@ -763,6 +789,17 @@ nvr_reset(void)
 	for (int i = 0; i < nvr_numobjs; i++ ) {
 		(void)nvr_free_buffer(&nvr_objs[i]);
 	}
+}
+
+
+void
+get_nvram_stats(ZS_stats_t *stat)
+{
+	stat->nvr_stats[ZS_NVR_WRITE_REQS] = nvr_write_reqs;
+	stat->nvr_stats[ZS_NVR_WRITE_SAVED] = nvr_write_saved;
+	stat->nvr_stats[ZS_NVR_DATA_IN] = nvr_data_in;
+	stat->nvr_stats[ZS_NVR_DATA_OUT] = nvr_data_out;
+	stat->nvr_stats[ZS_NVR_NOSPC] = nvr_no_space;
 }
 
 

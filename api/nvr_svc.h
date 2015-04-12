@@ -58,3 +58,4 @@ int			nvr_bytes_in_buffer(void) ;
 ZS_status_t		nvr_read_buffer( nvr_buffer_t *, char **, int *);
 uint64_t		nvr_buffer_count(void);
 void			nvr_reset(void);
+void			get_nvram_stats(ZS_stats_t *);

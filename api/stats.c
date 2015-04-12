@@ -16,6 +16,7 @@
 #include <sys/types.h>
 #include <time.h> 
 #include "zs.h"
+#include "nvr_svc.h"
 #include <stdio.h>
 #include <stdint.h>
 #include <unistd.h>
@@ -223,6 +224,17 @@ void print_stats_btree(FILE *fp, ZS_stats_t *stats) {
     }
 }
 
+void print_nvram_stats(FILE *fp, ZS_stats_t *stats) {
+    fprintf(fp,"NVRAM Statistics\n");
+    fprintf(fp,"  Write requests = %"PRId64"\n", stats->nvr_stats[ZS_NVR_WRITE_REQS]);
+    fprintf(fp,"  Write saved = %"PRId64"\n", stats->nvr_stats[ZS_NVR_WRITE_SAVED]);
+    fprintf(fp,"  Total data received = %"PRId64"\n", stats->nvr_stats[ZS_NVR_DATA_IN]);
+    fprintf(fp,"  Total data written = %"PRId64"\n", stats->nvr_stats[ZS_NVR_DATA_OUT]);
+    fprintf(fp,"  Returned insufficient space = %"PRId64"\n", stats->nvr_stats[ZS_NVR_NOSPC]);
+
+    fflush(fp);
+}
+
 void print_stats(FILE *fp, ZS_stats_t *stats, int cntr_stat) {
     int i, stats_type, category;
     char space[8] = "  ";
@@ -371,6 +383,7 @@ ZS_status_t log_summary_stats(struct ZS_thread_state *thd_state, FILE *fp) {
     int total_num_btree_containers = 0;
     int total_num_log_containers = 0;
     int total_num_hash_containers = 0;
+	ZS_stats_t stat;
         
     cguids = (ZS_cguid_t *) plat_alloc(sizeof(*cguids) * max_num_containers);
     if (cguids == NULL) { 
@@ -429,6 +442,11 @@ ZS_status_t log_summary_stats(struct ZS_thread_state *thd_state, FILE *fp) {
     fprintf(fp,"  total_hash_container_used_space = %lu\n", total_hash_used_space);
     fprintf(fp,"  total_num_objs = %lu\n", total_num_objs);
     fprintf(fp,"  total_used_space = %lu\n", total_used_space);
+
+
+	get_nvram_stats(&stat);
+	print_nvram_stats(fp, &stat);
+
     fflush(fp);
 
 out:
@@ -530,6 +548,7 @@ ZS_status_t log_container_stats(struct ZS_thread_state *thd_state, FILE *fp) {
     char *cname = NULL;
     ZS_stats_t stats;
     cntr_map_t *cmap = NULL;
+	int log_nvram = 0;
                    
                    
     cguids = (ZS_cguid_t *) plat_alloc(sizeof(*cguids) * max_num_containers);
@@ -569,7 +588,10 @@ ZS_status_t log_container_stats(struct ZS_thread_state *thd_state, FILE *fp) {
                    "    cguid            = %lu\n",
                    cname, cguid);
 
-        print_stats(fp, &stats, 1);
+		if (log_nvram) {
+			get_nvram_stats(&stats);
+		}
+		print_stats(fp, &stats, 1);
 
         // Output per container evictions
         cmap = zs_cmap_get_by_cguid( cguid );
@@ -577,8 +599,12 @@ ZS_status_t log_container_stats(struct ZS_thread_state *thd_state, FILE *fp) {
             fprintf(fp,"  %s:\n", get_stats_catogory_desc_str(ZS_STATS_TYPE_CONTAINER_FLASH)); 
             fprintf(fp,"    %s = %lu\n", "num_evictions", cmap->container_stats.num_evictions);
         }
+		if (cmap->lc) {
+			log_nvram = 1;
+		}
         fflush(fp);
     }
+
 
 out:
     plat_free(cguids);

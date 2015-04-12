@@ -22,6 +22,7 @@
 #include "fdf_internal.h"
 #include "fdf_internal_cb.h"
 #include "lc.h"
+#include "nvr_svc.h"
 #include "protocol/protocol_utils.h"
 #include "protocol/protocol_common.h"
 #include "protocol/action/recovery.h"
@@ -7216,6 +7217,7 @@ ZS_status_t ZSGetStats(
     uint32_t num_dels, dels_prog;
     uint64_t *p = stats->n_accesses;
     get_async_delete_stats(&num_dels,&dels_prog);
+	get_nvram_stats(stats);
     p[ZS_ACCESS_TYPES_NUM_CONT_DELETES_PEND] = num_dels;
     p[ZS_ACCESS_TYPES_NUM_CONT_DELETES_PROG] = dels_prog;
     return( ZS_SUCCESS );
