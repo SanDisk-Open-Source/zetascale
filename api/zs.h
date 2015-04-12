@@ -172,6 +172,15 @@ typedef enum {
     ZS_N_BTREE_STATS
 }ZS_Btree_stat_t;
 
+typedef enum { 
+    /* Log container stats */
+    ZS_LOG_NUM_OBJS,
+    ZS_LOG_MPUT_IO_SAVED,
+    ZS_LOG_NUM_MPUT_OBJS,
+
+    ZS_N_LOG_STATS
+}ZS_Log_stat_t;
+
 typedef enum {
     ZS_CACHE_STAT_OVERWRITES_S,
     ZS_CACHE_STAT_OVERWRITES_M,
@@ -402,10 +411,11 @@ typedef struct {
 	uint64_t		 flash_stats[ZS_N_FLASH_STATS];
 	uint64_t		 cache_stats[ZS_N_CACHE_STATS];
 	uint64_t		 cntr_stats[ZS_N_CNTR_STATS];
-        uint64_t                 btree_stats[ZS_N_BTREE_STATS];
+	uint64_t		 btree_stats[ZS_N_BTREE_STATS];
 	ZS_histo_t		 key_size_histo;
 	ZS_histo_t		 data_size_histo;
 	ZS_histo_t		 access_time_histo[ZS_N_ACCESS_TYPES];
+	uint64_t		 log_stats[ZS_N_LOG_STATS];
 } ZS_stats_t;
 
 typedef struct {

@@ -1277,7 +1277,9 @@ get_cntr_info(cntr_id_t cntr_id,
     /* Get num objs from btree if it is btree container */
     if(objs) {
 		uint64_t ov_objs = 0;
-		if (get_btree_num_objs(cntr_id,objs, &ov_objs) == ZS_SUCCESS) {
+		if (cmap->lc) {
+			get_lc_num_objs(cntr_id,objs);
+		} else if (get_btree_num_objs(cntr_id,objs, &ov_objs) == ZS_SUCCESS) {
 			if (storm_mode) {
 				*used += ov_objs * rawobjratio * Mcd_osd_blk_size;
 			}
@@ -5335,6 +5337,10 @@ zs_write_object(
 			status = lc_trim( zs_thread_state, cguid, key, keylen);
 		else
 			status = lc_write( zs_thread_state, cguid, key, keylen, data, datalen);
+
+		if (status == ZS_SUCCESS) {
+			inc_cntr_map_by_map(cmap, cguid, 1, 0, 0);
+		}
 		goto out;
 	}
 	if (meta->meta.properties.flash_only == ZS_TRUE) {
@@ -7251,6 +7257,10 @@ ZS_status_t update_btree_stats(ZS_cguid_t cguid,ZS_stats_t *stats) {
     return ZS_SUCCESS;
 }
 
+ZS_status_t update_log_stats(ZS_cguid_t cguid, ZS_stats_t *stats) {
+	get_log_container_stats(cguid, stats);
+	return ZS_SUCCESS;
+}
 ZS_status_t get_btree_num_objs(ZS_cguid_t cguid, uint64_t *num_objs, uint64_t *ov_objs) {
     ZS_ext_stat_t *estats;
     uint32_t n_stats, i;
@@ -7336,9 +7346,12 @@ ZS_status_t ZSGetContainerStats(
 
     ZS_container_props_t props;
     rc = ZSGetContainerProps(zs_thread_state, cguid, &props);
-    if (0 == (props.flags & (1 << 0))) {
+    if (props.flags & ZS_LOG_CTNR) {
+		update_log_stats(cguid, stats);
+    } else if (props.flags & ZS_HASH_CTNR) {
+    } else {
         update_btree_stats(cguid,stats);
-    }
+	}
     return rc;
 }
 
@@ -8123,6 +8136,12 @@ ZSMPut(struct ZS_thread_state *zs_thread_state,
 		goto out;     
 	}
 
+	if (!cmap->lc) {
+		plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, LOG_DIAG, "ZSMPut is supported only on btree and log containers\n");
+		status = ZS_UNSUPPORTED_REQUEST;
+		goto out;
+	}
+
 	thd_ctx_locked = zs_lock_thd_ctxt(zs_thread_state);
 	if (false == thd_ctx_locked) {
 		/*
@@ -8138,14 +8157,15 @@ ZSMPut(struct ZS_thread_state *zs_thread_state,
 
 out:
 	if (cmap) {
+		if (status == ZS_SUCCESS) {
+			inc_cntr_map_by_map(cmap, cguid, *objs_written, 0, 0);
+		}
 		rel_cntr_map(cmap);
 	}
 	if (thd_ctx_locked) {
 		zs_unlock_thd_ctxt(zs_thread_state);
 	}
 	return status;
-	fprintf(stderr, "ZS: ZSMPut without btree is not supported\n");
-	return ZS_UNSUPPORTED_REQUEST;
 }
 
 ZS_status_t
@@ -9089,7 +9109,7 @@ zs_read_object_lc( struct ZS_thread_state *t, ZS_cguid_t c, char *k, uint32_t kl
 	struct objMetaData metaData;
 	metaData.keyLen = kl;
 	metaData.cguid = c;
-	update_container_stats(pac, APGRX, meta, 1);
+	update_container_stats(pac, APGRD, meta, 1);
 	read_ret = ssd_flashGet(pac->paio_ctxt, meta->pshard, &metaData, k, &tdata, flag | FLASH_GET_NO_TEST);
 	/*
 	 * If app buf, copied len should be min of dl and metaData.dataLen 
@@ -9156,7 +9176,7 @@ zs_write_object_lc( struct ZS_thread_state *t, ZS_cguid_t c, char *k, uint32_t k
 		flags |= FLASH_PUT_DURA_SW_CRASH;
 	else if (meta->meta.properties.durability_level == SDF_FULL_DURABILITY)
 		flags |= FLASH_PUT_DURA_HW_CRASH;
-	update_container_stats(pac, APSOE, meta, 1);
+	update_container_stats(pac, APSOB, meta, 1);
 	write_ret = ssd_flashPut(pac->paio_ctxt, meta->pshard, &metaData, k, d, FLASH_PUT_NO_TEST|flags);
 	status = get_status(write_ret);
 out:

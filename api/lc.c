@@ -106,6 +106,16 @@
  */
 #define	atomic_assign( dst, val)	__sync_lock_test_and_set( (dst), (val))
 
+ZS_ext_stat_t log_to_zs_stats_map[] = {
+	{LOGSTAT_NUM_OBJS,		ZS_BTREE_NUM_OBJS,	ZS_STATS_TYPE_BTREE,0},
+	{LOGSTAT_DELETE_CNT,		ZS_ACCESS_TYPES_DELETE,	ZS_STATS_TYPE_APP_REQ, 0},
+	{LOGSTAT_FLUSH_CNT,		ZS_BTREE_FLUSH_CNT,	ZS_STATS_TYPE_BTREE, 0},
+	{LOGSTAT_MPUT_IO_SAVED,		ZS_BTREE_MPUT_IO_SAVED,	ZS_STATS_TYPE_BTREE, 0},
+	{LOGSTAT_MPUT_CNT,		ZS_ACCESS_TYPES_MPUT,	ZS_STATS_TYPE_APP_REQ, 0},
+	{LOGSTAT_NUM_MPUT_OBJS,		ZS_BTREE_NUM_MPUT_OBJS,	ZS_STATS_TYPE_BTREE, 0},
+	{LOGSTAT_READ_CNT,		ZS_ACCESS_TYPES_READ,	ZS_STATS_TYPE_APP_REQ, 0},
+	{LOGSTAT_WRITE_CNT,		ZS_ACCESS_TYPES_WRITE,	ZS_STATS_TYPE_APP_REQ, 0},
+};
 
 typedef struct ZS_thread_state		ts_t;
 typedef pthread_mutex_t			mutex_t;
@@ -219,6 +229,7 @@ struct containerstructure {
 			*streamhand;
 	char		*trxrevfile;
 	pg_t		*pgtable[1000];
+	log_stats_t lgstats;
 };
 struct lrecstructure {
 	ushort		type,
@@ -477,6 +488,7 @@ lc_write( ts_t *t, ZS_cguid_t cguid, char *k, uint32_t kl, char *d, uint64_t dl)
 		return (ZS_FAILURE);
 	}
 	pthread_rwlock_rdlock( &c->lock);
+	atomic_inc(c->lgstats.stat[LOGSTAT_WRITE_CNT]);
 	pg_t *pg = pglookup_readonly( c, k, n, h);
 	if (pg) {
 		stream_t *s = pg->stream;
@@ -488,6 +500,9 @@ lc_write( ts_t *t, ZS_cguid_t cguid, char *k, uint32_t kl, char *d, uint64_t dl)
 			memcpy( s->so.buffer+bufnexti, &lr, i);
 			pthread_mutex_unlock( &s->buflock);
 			r = nvr_write_buffer_partial( s->nb, &s->so.buffer[bufnexti], i);
+			if (r == ZS_SUCCESS) {
+				atomic_inc(c->lgstats.stat[LOGSTAT_NUM_OBJS]);
+			}
 			pthread_rwlock_unlock( &c->lock);
 			pthread_rwlock_unlock( &lc_lock);
 			return (r);
@@ -560,6 +575,7 @@ lc_read( ts_t *t, ZS_cguid_t cguid, char *k, uint32_t kl, char **d, uint64_t *dl
 		pthread_rwlock_unlock( &lc_lock);
 		return (ZS_FAILURE);
 	}
+	atomic_inc(c->lgstats.stat[LOGSTAT_READ_CNT]);
 	r = pgstreamscan( t, pg, k, kl, d, dl);
 	pthread_rwlock_unlock( &c->lock);
 	pthread_rwlock_unlock( &lc_lock);
@@ -684,6 +700,16 @@ lc_mput( ts_t *t, ZS_cguid_t cguid, uint32_t num_objs, ZS_obj_t *objs, uint32_t 
 	pg_t		*pg, *spg = NULL;
 	int		written;
 
+	pthread_rwlock_rdlock( &lc_lock);
+	container_t *c = clookup( cguid);
+	if (c) {
+		atomic_inc(c->lgstats.stat[LOGSTAT_MPUT_CNT]);
+		atomic_add(c->lgstats.stat[LOGSTAT_NUM_MPUT_OBJS], num_objs);
+		pthread_rwlock_unlock(&lc_lock);
+	} else {
+		pthread_rwlock_unlock( &lc_lock);
+		return ZS_CONTAINER_UNKNOWN;
+	}
 	i = 0;
 //restart:
 	objsinbuf = 0;
@@ -865,6 +891,9 @@ write_record( ts_t *t, ZS_cguid_t cguid, uint type, char *k, uint32_t kl, char *
 	}
 	if (type == LR_TRIM)
 		pg->trimposition = newest( pg->trimposition, counter);
+
+	atomic_inc(c->lgstats.stat[LOGSTAT_NUM_OBJS]);
+
 	pthread_rwlock_unlock( &c->lock);
 	pthread_rwlock_unlock( &lc_lock);
 	return (ZS_SUCCESS);
@@ -896,6 +925,7 @@ write_records( ts_t *ts, lrec_t **lrecs, int num_recs, ZS_cguid_t cguid, int *wr
 		return (ZS_FAILURE);
 	}
 	pthread_rwlock_rdlock( &c->lock);
+	atomic_add(c->lgstats.stat[LOGSTAT_MPUT_IO_SAVED], num_recs);
 	for (i = 0; i < num_recs; i++) {
 		k = (char *)(lrecs[i]->payload);
 		r = keydecode(k, lrecs[i]->klen, &n, &h, &counter);
@@ -937,6 +967,7 @@ write_records( ts_t *ts, lrec_t **lrecs, int num_recs, ZS_cguid_t cguid, int *wr
 			pthread_mutex_unlock(&ss->buflock);
 			r = nvr_write_buffer_partial( ss->nb, &ss->so.buffer[startoff], 
 					bufnexti - startoff);
+			atomic_dec(c->lgstats.stat[LOGSTAT_MPUT_IO_SAVED]);
 			if (r == ZS_SUCCESS) {
 				*written += objs_copied;
 				ss = NULL;
@@ -968,6 +999,7 @@ write_records( ts_t *ts, lrec_t **lrecs, int num_recs, ZS_cguid_t cguid, int *wr
 		pg_t *pg = pglookup( c, k, n, h);
 		if (pg) {
 			r = streamwrite( ts, pg->stream, lrecs[i]);
+			atomic_dec(c->lgstats.stat[LOGSTAT_MPUT_IO_SAVED]);
 			if (r != ZS_SUCCESS) {
 				break;
 			} else {
@@ -987,11 +1019,14 @@ write_records( ts_t *ts, lrec_t **lrecs, int num_recs, ZS_cguid_t cguid, int *wr
 		pthread_mutex_unlock(&ss->buflock);
 		r = nvr_write_buffer_partial( ss->nb, &ss->so.buffer[startoff], 
 				bufnexti - startoff);
+		atomic_dec(c->lgstats.stat[LOGSTAT_MPUT_IO_SAVED]);
 		if (r == ZS_SUCCESS) {
 			*written += objs_copied;
 		}
 	}
 out:
+	atomic_sub(c->lgstats.stat[LOGSTAT_MPUT_IO_SAVED], num_recs - *written);
+	atomic_add(c->lgstats.stat[LOGSTAT_NUM_OBJS], *written);
 	pthread_rwlock_unlock( &c->lock);
 	pthread_rwlock_unlock( &lc_lock);
 	return r;
@@ -2202,6 +2237,45 @@ newest( counter_t a, counter_t b)
 			return (max( a, b));
 }
 
+
+ZS_status_t
+get_lc_num_objs(ZS_cguid_t cguid, uint64_t *num_objs)
+{
+	pthread_rwlock_rdlock( &lc_lock);
+	container_t *c = clookup( cguid);
+	unless (c) {
+		pthread_rwlock_unlock( &lc_lock);
+		*num_objs = 0;
+		return (ZS_FAILURE);
+	}
+	*num_objs = c->lgstats.stat[LOGSTAT_NUM_OBJS];
+	pthread_rwlock_unlock( &lc_lock);
+	return ZS_SUCCESS;
+}
+
+ZS_status_t
+get_log_container_stats(ZS_cguid_t cguid, ZS_stats_t *stats)
+{
+	pthread_rwlock_rdlock( &lc_lock);
+	container_t *c = clookup( cguid);
+	unless (c) {
+		pthread_rwlock_unlock( &lc_lock);
+		return (ZS_FAILURE);
+	}
+	for (int i = 0; i < N_LOGSTATS; i++) {
+		if( log_to_zs_stats_map[i].ftype == ZS_STATS_TYPE_APP_REQ ) {
+			stats->n_accesses[log_to_zs_stats_map[i].fstat] = c->lgstats.stat[i];
+		}
+		else if(log_to_zs_stats_map[i].ftype == ZS_STATS_TYPE_BTREE ) {
+			stats->btree_stats[log_to_zs_stats_map[i].fstat] = c->lgstats.stat[i];
+		}
+		else {
+			fprintf(stderr,"Invalid zs type(%lu) for btree stats:%d\n",log_to_zs_stats_map[i].ftype,i);
+		}
+	}
+	pthread_rwlock_unlock( &lc_lock);
+	return (ZS_SUCCESS);
+}
 
 #if 0
 static counter_t

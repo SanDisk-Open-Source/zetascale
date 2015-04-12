@@ -196,7 +196,7 @@ char *get_stats_catogory_desc_str(ZS_STATS_TYPE type) {
         return "Container evictions";;
     }
     else if(type == ZS_STATS_TYPE_BTREE ) {
-        return "Btree layer statistics";
+        return "Btree/Log layer statistics";
     }
     return "Unknown type:";
 }
@@ -235,7 +235,7 @@ void print_stats(FILE *fp, ZS_stats_t *stats, int cntr_stat) {
     }
     fprintf(fp,"%s%s:\n",space,get_stats_catogory_desc_str(ZS_STATS_TYPE_APP_REQ));
     for (i = 0; i < ZS_N_ACCESS_TYPES; i++ ) {
-        if( (stats->n_accesses[i] == 0 ) || ( i >= ZS_ACCESS_TYPES_READ ) ) {
+        if( (stats->n_accesses[i] == 0 )/* || ( i >= ZS_ACCESS_TYPES_READ )*/ ) {
             continue;
         }
         fprintf(fp,"%s  %s = %lu\n",space,get_access_type_stats_desc(i), 
@@ -402,16 +402,16 @@ ZS_status_t log_summary_stats(struct ZS_thread_state *thd_state, FILE *fp) {
 
         get_cntr_info(cguid, NULL, 0, &num_objs, &used_space, NULL, NULL);
 
-        if (IS_ZS_HASH_CONTAINER(props.flags)) {
-            ++total_num_hash_containers;
-            total_hash_num_objs += num_objs;
-            total_hash_used_space += used_space;
-		} else if (IS_ZS_HASH_CONTAINER(props.flags)) {
-            ++total_num_log_containers;
-        } else {
-            ++total_num_btree_containers;
-            total_btree_num_objs += num_objs;
-            total_btree_used_space += used_space;
+	if (IS_ZS_HASH_CONTAINER(props.flags)) {
+		++total_num_hash_containers;
+		total_hash_num_objs += num_objs;
+		total_hash_used_space += used_space;
+	} else if (IS_ZS_LOG_CONTAINER(props.flags)) {
+		++total_num_log_containers;
+	} else {
+		++total_num_btree_containers;
+		total_btree_num_objs += num_objs;
+		total_btree_used_space += used_space;
         }
 
         total_num_objs += num_objs;
@@ -420,6 +420,7 @@ ZS_status_t log_summary_stats(struct ZS_thread_state *thd_state, FILE *fp) {
 
     time(&st);
     fprintf(fp,"Timestamp:%sSummary Statistics\n", ctime(&st));
+    fprintf(fp,"  num_log_containers = %d\n", total_num_log_containers);
     fprintf(fp,"  num_btree_containers = %d\n", total_num_btree_containers);
     fprintf(fp,"  num_btree_container_objs = %lu\n", total_btree_num_objs);
     fprintf(fp,"  total_btree_container_used_space = %lu\n", total_btree_used_space);
@@ -742,6 +743,8 @@ ZS_status_t print_container_stats_by_cguid( struct ZS_thread_state *thd_state,
 
     if (props.flags & (1 << 0)) {
         type = "hash";
+    } else if (props.flags & (1 << 1)) {
+	type = "log";
     } else {
         type = "btree";
     }
