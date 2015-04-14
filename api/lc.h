@@ -16,14 +16,16 @@
 		item(LOGSTAT_DELETE_CNT, /* default */) \
 		item(LOGSTAT_FLUSH_CNT, /* default */) \
 		item(LOGSTAT_MPUT_IO_SAVED, /* default */)  \
-/* 5 */		item(LOGSTAT_MPUT_CNT, /* default */)  \
-		item(LOGSTAT_NUM_MPUT_OBJS, /* default */)  \
+		item(LOGSTAT_MPUT_CNT, /* default */)  \
+/* 5 */		item(LOGSTAT_NUM_MPUT_OBJS, /* default */)  \
 		item(LOGSTAT_READ_CNT, /* default */)  \
 		item(LOGSTAT_WRITE_CNT, /* default */)  \
-
-
-
-
+		item(LOGSTAT_WRITE_SLOWPATH, /* default */)  \
+		item(LOGSTAT_MPUT_SLOWPATH_TMPBUF, /* default */)  \
+/* 10 */	item(LOGSTAT_MPUT_SLOWPATH_GTTMPBUF, /* default */)  \
+		item(LOGSTAT_MPUT_SLOWPATH_FIRSTREC, /* default */)  \
+		item(LOGSTAT_MPUT_SLOWPATH_NOSPC, /* default */)  \
+		item(LOGSTAT_MPUT_SLOWPATH_DIFFSTR, /* default */)  \
 
 typedef enum {
 #define item(caps, value) \

@@ -115,6 +115,12 @@ ZS_ext_stat_t log_to_zs_stats_map[] = {
 	{LOGSTAT_NUM_MPUT_OBJS,		ZS_BTREE_NUM_MPUT_OBJS,	ZS_STATS_TYPE_BTREE, 0},
 	{LOGSTAT_READ_CNT,		ZS_ACCESS_TYPES_READ,	ZS_STATS_TYPE_APP_REQ, 0},
 	{LOGSTAT_WRITE_CNT,		ZS_ACCESS_TYPES_WRITE,	ZS_STATS_TYPE_APP_REQ, 0},
+	{LOGSTAT_WRITE_SLOWPATH,	ZS_BTREE_LEAF_L1_MISSES, ZS_STATS_TYPE_BTREE, 0},
+	{LOGSTAT_MPUT_SLOWPATH_TMPBUF,	ZS_BTREE_NONLEAF_L1_MISSES, ZS_STATS_TYPE_BTREE, 0},
+	{LOGSTAT_MPUT_SLOWPATH_GTTMPBUF,ZS_BTREE_OVERFLOW_L1_MISSES, ZS_STATS_TYPE_BTREE, 0},
+	{LOGSTAT_MPUT_SLOWPATH_FIRSTREC,ZS_BTREE_BACKUP_L1_MISSES, ZS_STATS_TYPE_BTREE, 0},
+	{LOGSTAT_MPUT_SLOWPATH_NOSPC, 	ZS_BTREE_BACKUP_L1_HITS,ZS_STATS_TYPE_BTREE, 0},
+	{LOGSTAT_MPUT_SLOWPATH_DIFFSTR,	ZS_BTREE_LEAF_L1_WRITES,ZS_STATS_TYPE_BTREE, 0},
 };
 
 typedef struct ZS_thread_state		ts_t;
@@ -474,6 +480,8 @@ lc_write( ts_t *t, ZS_cguid_t cguid, char *k, uint32_t kl, char *d, uint64_t dl)
 	pgname_t	n;
 	lrec_t		lr;
 
+	atomic_inc(c->lgstats.stat[LOGSTAT_WRITE_CNT]);
+
 	ZS_status_t r = keydecode( k, kl, &n, &h, &counter);
 	unless (r == ZS_SUCCESS)
 		return (r);
@@ -488,7 +496,6 @@ lc_write( ts_t *t, ZS_cguid_t cguid, char *k, uint32_t kl, char *d, uint64_t dl)
 		return (ZS_FAILURE);
 	}
 	pthread_rwlock_rdlock( &c->lock);
-	atomic_inc(c->lgstats.stat[LOGSTAT_WRITE_CNT]);
 	pg_t *pg = pglookup_readonly( c, k, n, h);
 	if (pg) {
 		stream_t *s = pg->stream;
@@ -525,6 +532,7 @@ ZS_status_t
 lc_delete( ts_t *t, ZS_cguid_t cguid, char *k, uint32_t kl)
 {
 
+	atomic_inc(c->lgstats.stat[LOGSTAT_DELETE_CNT]);
 	return (write_record( t, cguid, LR_DELETE, k, kl, 0, 0));
 }
 
@@ -539,6 +547,7 @@ lc_delete( ts_t *t, ZS_cguid_t cguid, char *k, uint32_t kl)
 ZS_status_t
 lc_trim( ts_t *t, ZS_cguid_t cguid, char *k, uint32_t kl)
 {
+	atomic_inc(c->lgstats.stat[LOGSTAT_DELETE_CNT]);
 
 	return (write_record( t, cguid, LR_TRIM, k, kl, 0, 0));
 }
@@ -686,7 +695,7 @@ lc_mput( ts_t *t, ZS_cguid_t cguid, uint32_t num_objs, ZS_obj_t *objs, uint32_t 
 					        uint32_t *objs_written)
 {
 
-#define TMPBUFSZ	4096
+#define TMPBUFSZ	16000
 
 	counter_t	counter;
 	pghash_t	h;
@@ -699,6 +708,7 @@ lc_mput( ts_t *t, ZS_cguid_t cguid, uint32_t num_objs, ZS_obj_t *objs, uint32_t 
 	int		i = 0, committed_keys = 0, szintmpbuf = 0, objsinbuf;
 	pg_t		*pg, *spg = NULL;
 	int		written;
+	int		flag = 0;
 
 	pthread_rwlock_rdlock( &lc_lock);
 	container_t *c = clookup( cguid);
@@ -729,6 +739,7 @@ lc_mput( ts_t *t, ZS_cguid_t cguid, uint32_t num_objs, ZS_obj_t *objs, uint32_t 
 		if (sz <= TMPBUFSZ) {
 			if ((sz + szintmpbuf) > TMPBUFSZ) {
 				/* Handle if record cant be accomodated in tmpbuf */
+				flag = 1;
 				ret = write_records(t, lrecs, objsinbuf, cguid, &written);
 				if (ret == ZS_SUCCESS) {
 					plat_assert(objsinbuf == written);
@@ -746,6 +757,7 @@ lc_mput( ts_t *t, ZS_cguid_t cguid, uint32_t num_objs, ZS_obj_t *objs, uint32_t 
 			continue;
 		} else {
 			/* Handle record greater than tmpbuf sz */
+			atomic_inc(c->lgstats.stat[LOGSTAT_MPUT_SLOWPATH_GTTMPBUF]);
 			ret = write_records(t, lrecs, objsinbuf, cguid, &written);
 			if (ret == ZS_SUCCESS) {
 				plat_assert(objsinbuf == written);
@@ -766,6 +778,9 @@ lc_mput( ts_t *t, ZS_cguid_t cguid, uint32_t num_objs, ZS_obj_t *objs, uint32_t 
 	}
 
 	if (objsinbuf) {
+		if (flag == 1){
+			atomic_inc(c->lgstats.stat[LOGSTAT_MPUT_SLOWPATH_TMPBUF]);
+		}
 		ret = write_records(t, lrecs, objsinbuf, cguid, &written);
 		if (ret == ZS_SUCCESS) {
 			plat_assert(objsinbuf == written);
@@ -883,6 +898,7 @@ write_record( ts_t *t, ZS_cguid_t cguid, uint type, char *k, uint32_t kl, char *
 		pthread_rwlock_unlock( &lc_lock);
 		return (ZS_FAILURE);
 	}
+	atomic_inc(c->lgstats.stat[LOGSTAT_WRITE_SLOWPATH]);
 	r = streamwrite( t, pg->stream, &lr);
 	unless (r == ZS_SUCCESS) {
 		pthread_rwlock_unlock( &c->lock);
@@ -949,14 +965,22 @@ write_records( ts_t *ts, lrec_t **lrecs, int num_recs, ZS_cguid_t cguid, int *wr
 				 * the stream taking slow path.
 				 */
 				if ((ss->bufnexti != 0) &&
-					(bytes_per_so_buffer > sz + ss->bufnexti)) {
+					(bytes_per_so_buffer >= sz + ss->bufnexti)) {
 					uint bufnexti = ss->bufnexti;
 					ss->bufnexti += sz;
 					memcpy( ss->so.buffer+bufnexti, lrecs[i], sz);
 					objs_copied++;
 					continue;
-				}
+				} else if (ss->bufnexti == 0) {
+					atomic_inc(c->lgstats.stat[LOGSTAT_MPUT_SLOWPATH_FIRSTREC]);
+				} else if (bytes_per_so_buffer < (sz + ss->bufnexti)) {
+					atomic_inc(c->lgstats.stat[LOGSTAT_MPUT_SLOWPATH_NOSPC]);
+				}	
+			} else {
+				atomic_inc(c->lgstats.stat[LOGSTAT_MPUT_SLOWPATH_DIFFSTR]);
 			}
+		} else {
+			atomic_inc(c->lgstats.stat[LOGSTAT_MPUT_SLOWPATH_FIRSTREC]);
 		}
 		/*
 		 * If there are any records in the buffer, commit it before 
@@ -1250,6 +1274,7 @@ callocate( )
 			c->trxrevfile = 0;
 			pthread_rwlock_init( &c->lock, 0);
 			memset( c->pgtable, 0, sizeof c->pgtable);
+			memset( &c->lgstats, 0, sizeof(log_stats_t));
 			return (c);
 		}
 	return (0);

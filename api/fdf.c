@@ -474,13 +474,13 @@ zs_stats_info_t zs_stats_btree[] = {
     {"ZS_BTREE_NONLEAF_L1_HITS","l1_cache_nonleaf_hits",ZS_STATS_TYPE_BTREE},/* ZS_CACHE_STAT_NONLEAF_L1_HITS */
     {"ZS_BTREE_OVERFLOW_L1_HITS","l1_cache_overflow_hits",ZS_STATS_TYPE_BTREE},/* ZS_CACHE_STAT_OVERFLOW_L1_HITS */
 
-    {"ZS_BTREE_LEAF_L1_MISSES","l1_cache_leaf_misses",ZS_STATS_TYPE_BTREE},/* ZS_CACHE_STAT_LEAF_L1_MISSES */
-    {"ZS_BTREE_NONLEAF_L1_MISSES","l1_cache_nonleaf_misses",ZS_STATS_TYPE_BTREE},/* ZS_CACHE_STAT_NONLEAF_L1_MISSES */
-    {"ZS_BTREE_OVERFLOW_L1_MISSES","l1_cache_overflow_misses",ZS_STATS_TYPE_BTREE},/* ZS_CACHE_STAT_OVERFLOW_L1_MISSES */
-    {"ZS_BTREE_BACKUP_L1_MISSES","l1_cache_snapread_misses",ZS_STATS_TYPE_BTREE},/* ZS_CACHE_STAT_NONLEAF_L1_MISSES */
-    {"ZS_BTREE_BACKUP_L1_HITS","l1_cache_snapread_misses",ZS_STATS_TYPE_BTREE},/* ZS_CACHE_STAT_OVERFLOW_L1_MISSES */
+    {"ZS_BTREE_LEAF_L1_MISSES","l1_cache_leaf_misses/log:write slow path",ZS_STATS_TYPE_BTREE},/* ZS_CACHE_STAT_LEAF_L1_MISSES */
+    {"ZS_BTREE_NONLEAF_L1_MISSES","l1_cache_nonleaf_misses/log:mput slow:Temp buf space full",ZS_STATS_TYPE_BTREE},/* ZS_CACHE_STAT_NONLEAF_L1_MISSES */
+    {"ZS_BTREE_OVERFLOW_L1_MISSES","l1_cache_overflow_misses/log:mput slow:Temp buf small",ZS_STATS_TYPE_BTREE},/* ZS_CACHE_STAT_OVERFLOW_L1_MISSES */
+    {"ZS_BTREE_BACKUP_L1_MISSES","l1_cache_snapread_misses/log:mput slow:First record",ZS_STATS_TYPE_BTREE},/* ZS_CACHE_STAT_NONLEAF_L1_MISSES */
+    {"ZS_BTREE_BACKUP_L1_HITS","l1_cache_snapread_misses/log:mput slow:No space in NVRAM buffer",ZS_STATS_TYPE_BTREE},/* ZS_CACHE_STAT_OVERFLOW_L1_MISSES */
 
-    {"ZS_BTREE_LEAF_L1_WRITES","l1_cache_leaf_writes",ZS_STATS_TYPE_BTREE},/* ZS_CACHE_STAT_LEAF_L1_WRITES */
+    {"ZS_BTREE_LEAF_L1_WRITES","l1_cache_leaf_writes/log:mput slow:Different stream",ZS_STATS_TYPE_BTREE},/* ZS_CACHE_STAT_LEAF_L1_WRITES */
     {"ZS_BTREE_NONLEAF_L1_WRITES","l1_cache_nonleaf_writes",ZS_STATS_TYPE_BTREE},/* ZS_CACHE_STAT_NONLEAF_L1_WRITES */
     {"ZS_BTREE_OVERFLOW_L1_WRITES","l1_cache_overflow_writes",ZS_STATS_TYPE_BTREE},/* ZS_CACHE_STAT_OVERFLOW_L1_WRITES */
     {"ZS_BTREE_LEAF_NODES","num_leaf_nodes",ZS_STATS_TYPE_BTREE},/* ZS_CACHE_STAT_BT_LEAF_NODES */
