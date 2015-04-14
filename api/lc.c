@@ -480,7 +480,6 @@ lc_write( ts_t *t, ZS_cguid_t cguid, char *k, uint32_t kl, char *d, uint64_t dl)
 	pgname_t	n;
 	lrec_t		lr;
 
-	atomic_inc(c->lgstats.stat[LOGSTAT_WRITE_CNT]);
 
 	ZS_status_t r = keydecode( k, kl, &n, &h, &counter);
 	unless (r == ZS_SUCCESS)
@@ -496,6 +495,7 @@ lc_write( ts_t *t, ZS_cguid_t cguid, char *k, uint32_t kl, char *d, uint64_t dl)
 		return (ZS_FAILURE);
 	}
 	pthread_rwlock_rdlock( &c->lock);
+	atomic_inc(c->lgstats.stat[LOGSTAT_WRITE_CNT]);
 	pg_t *pg = pglookup_readonly( c, k, n, h);
 	if (pg) {
 		stream_t *s = pg->stream;
@@ -532,7 +532,6 @@ ZS_status_t
 lc_delete( ts_t *t, ZS_cguid_t cguid, char *k, uint32_t kl)
 {
 
-	atomic_inc(c->lgstats.stat[LOGSTAT_DELETE_CNT]);
 	return (write_record( t, cguid, LR_DELETE, k, kl, 0, 0));
 }
 
@@ -547,8 +546,6 @@ lc_delete( ts_t *t, ZS_cguid_t cguid, char *k, uint32_t kl)
 ZS_status_t
 lc_trim( ts_t *t, ZS_cguid_t cguid, char *k, uint32_t kl)
 {
-	atomic_inc(c->lgstats.stat[LOGSTAT_DELETE_CNT]);
-
 	return (write_record( t, cguid, LR_TRIM, k, kl, 0, 0));
 }
 
@@ -899,14 +896,18 @@ write_record( ts_t *t, ZS_cguid_t cguid, uint type, char *k, uint32_t kl, char *
 		return (ZS_FAILURE);
 	}
 	atomic_inc(c->lgstats.stat[LOGSTAT_WRITE_SLOWPATH]);
+	if (type == LR_TRIM || type == LR_DELETE) {
+		atomic_inc(c->lgstats.stat[LOGSTAT_DELETE_CNT]);
+	}
 	r = streamwrite( t, pg->stream, &lr);
 	unless (r == ZS_SUCCESS) {
 		pthread_rwlock_unlock( &c->lock);
 		pthread_rwlock_unlock( &lc_lock);
 		return (r);
 	}
-	if (type == LR_TRIM)
+	if (type == LR_TRIM) {
 		pg->trimposition = newest( pg->trimposition, counter);
+	}
 
 	atomic_inc(c->lgstats.stat[LOGSTAT_NUM_OBJS]);
 
