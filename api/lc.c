@@ -695,7 +695,7 @@ lc_mput( ts_t *t, ZS_cguid_t cguid, uint32_t num_objs, ZS_obj_t *objs, uint32_t 
 					        uint32_t *objs_written)
 {
 
-#define TMPBUFSZ	16000
+#define TMPBUFSZ	4072
 
 	counter_t	counter;
 	pghash_t	h;
