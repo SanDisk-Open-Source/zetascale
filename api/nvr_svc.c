@@ -30,7 +30,10 @@
 #define		NVR_DEFAULT_LENGTH			(0x1ULL << 24)
 #define		NVR_DEFAULT_STREAM_OBJ_SIZE		65536
 #define		NVR_DEFAULT_BLOCK_SIZE			4096
+#define		NVR_MAX_BLOCK_SIZE			16384
+#define		NVR_MAX_BLOCK_SIZE_MASK			0xffffffffffffc000
 #define		NVR_DEFAULT_DEVICE			"/tmp/zs_log_container"
+
 
 
 #define	logging_containers_per_array		8
@@ -95,7 +98,7 @@ typedef struct nvr_stream_object {
 } nvrso_t;
 
 nvrso_t			*nvr_objs, *nvr_flhead, *nvr_fltail;
-char			*nvr_databuf;
+char			*nvr_databuf, *nvr_databuf_ua;
 
 pthread_cond_t  nvr_fl_cv = PTHREAD_COND_INITIALIZER;
 pthread_mutex_t nvr_fl_mutex = PTHREAD_MUTEX_INITIALIZER;
@@ -144,10 +147,17 @@ prettynumber( ulong n)
 }
 #endif
 
+int odirect;
+
 ZS_status_t
 nvr_init(struct ZS_state *zs_state)
 {
 	char	*NVR_file;
+
+	if (getProperty_Int("ZS_NVR_ODIRECT", 0)) {
+		nvr_oflags |= O_DIRECT;
+		odirect = 1;
+	}
 
 	NVR_file = (char *)getProperty_String("ZS_NVR_FILENAME", NVR_DEFAULT_DEVICE);
 
@@ -191,10 +201,11 @@ nvr_init(struct ZS_state *zs_state)
 		return ZS_FAILURE;
 	} memset(nvr_objs, 0, sizeof(nvrso_t) * nvr_numobjs);
 
-	nvr_databuf = (char *)plat_malloc(nvr_objsize * nvr_numobjs);
-	if (nvr_databuf == NULL) {
+	nvr_databuf_ua = (char *)plat_malloc(nvr_objsize * nvr_numobjs + 2 * NVR_MAX_BLOCK_SIZE - 1);
+	if (nvr_databuf_ua == NULL) {
 		return ZS_FAILURE;
 	}
+	nvr_databuf =(char *) (((uint64_t)nvr_databuf_ua + NVR_MAX_BLOCK_SIZE - 1) & NVR_MAX_BLOCK_SIZE_MASK);
 	memset(nvr_databuf, 0, nvr_objsize * nvr_numobjs);
 
 	for (int i = 0; i < nvr_numobjs; i++) {
@@ -741,7 +752,7 @@ nvr_sync_buf(nvrso_t *so, off_t off, int reset)
 		return ZS_FAILURE;
 	}
 
-	if (hw_durable) {
+	if (hw_durable && !odirect) {
 		if ((ret = fdatasync(nvr_fd)) == -1) {
 			msg(INITIAL, FATAL, "fdatasync to NVRAM failed, NVRAM disabled");
 			nvr_disabled = 1;

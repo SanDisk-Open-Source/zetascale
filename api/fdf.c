@@ -8139,7 +8139,7 @@ ZSMPut(struct ZS_thread_state *zs_thread_state,
 	}
 
 	if (!cmap->lc) {
-		plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, LOG_DIAG, "ZSMPut is supported only on btree and log containers\n");
+		plat_log_msg(160310, LOG_CAT, LOG_DIAG, "ZSMPut is supported only on btree and log containers\n");
 		status = ZS_UNSUPPORTED_REQUEST;
 		goto out;
 	}
