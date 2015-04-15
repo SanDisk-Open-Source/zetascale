@@ -6332,6 +6332,8 @@ struct flashDev * mcd_osd_flash_open( char * name, flash_settings_t *flash_setti
     mcd_log_msg( 20374, PLAT_LOG_LEVEL_DEBUG,
                  "ENTERING, initializing mcd osd" );
 
+	Mcd_osd_blk_size = (uint32_t)flash_settings->os_blk_size;
+
     // format persistent structures in flash
     if ( ( (flags & FLASH_OPEN_REFORMAT_DEVICE) ||
            (flags & FLASH_OPEN_FORMAT_VIRGIN_DEVICE) ||

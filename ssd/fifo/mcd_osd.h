@@ -57,8 +57,8 @@
 /*
  * Block size for doing IO in log and object table
  */
-#define MCD_OSD_META_BLK_SIZE		512
-#define MCD_OSD_META_BLK_MASK		0xfffffffffffffe00ULL
+#define MCD_OSD_META_BLK_SIZE		4096
+#define MCD_OSD_META_BLK_MASK		~(MCD_OSD_META_BLK_SIZE-1)
 #define MCD_OSD_META_SEGMENT_BLKS	((MCD_OSD_SEGMENT_SIZE)/(MCD_OSD_META_BLK_SIZE))
 
 #define VAR_BLKS_TO_META_BLKS(blks)	(((uint64_t)((blks) * (Mcd_osd_blk_size))) / (MCD_OSD_META_BLK_SIZE))

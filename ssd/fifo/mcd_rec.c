@@ -8523,14 +8523,14 @@ flash_format ( uint64_t total_size )
     plat_assert(reserved_blks <= (MCD_OSD_SEGMENT_SIZE / MCD_OSD_SEG0_BLK_SIZE));
 
     // get aligned buffer
-    data_buf = plat_alloc( buf_size + MCD_OSD_SEG0_BLK_SIZE);
+    data_buf = plat_alloc( buf_size + Mcd_osd_blk_size);
     if ( data_buf == NULL ) {
         mcd_log_msg( 20561, PLAT_LOG_LEVEL_ERROR,
                      "failed to allocate buffer" );
         return FLASH_ENOMEM;
     }
-    buf = (char *)( ( (uint64_t)data_buf + MCD_OSD_SEG0_BLK_SIZE - 1 ) &
-			MCD_OSD_SEG0_BLK_MASK);
+    buf = (char *)( ( (uint64_t)data_buf + Mcd_osd_blk_size - 1 ) &
+			~(Mcd_osd_blk_size-1));
 
     plat_assert_always( reserved_blks * MCD_OSD_SEG0_BLK_SIZE <= buf_size );
 

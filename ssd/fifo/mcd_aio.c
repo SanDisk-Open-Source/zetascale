@@ -141,6 +141,114 @@ static void		init_write_fault_injector( ),
 			write_fault_injector( int, char *, size_t, off_t);
 static int		write_fault_sync( int, ulong);
 
+static pthread_mutex_t _meta_mutex = PTHREAD_MUTEX_INITIALIZER;
+
+static
+int mcd_aio_read_unaligned(osd_state_t * context, char * buf, uint64_t offset, int nbytes)
+{
+	static char _buf[MCD_OSD_BLK_SIZE_MAX] __attribute__ ((aligned (4096)));
+
+	int aio_fd = Mcd_aio_fds[0];
+	uint64_t b, o, n;
+
+	pthread_mutex_lock(&_meta_mutex);
+
+	if(offset % Mcd_osd_blk_size) {
+		b = (offset / Mcd_osd_blk_size) * Mcd_osd_blk_size;
+		o = offset % Mcd_osd_blk_size;
+		n = Mcd_osd_blk_size - o;
+		if(n > nbytes)
+			n = nbytes;
+
+		if (pread(aio_fd, _buf, Mcd_osd_blk_size, b) != Mcd_osd_blk_size) {
+			mcd_log_msg(150031, PLAT_LOG_LEVEL_ERROR, "pread failed - %s", plat_strerror(errno));
+			return FLASH_EIO;
+		}
+
+		memcpy(buf, _buf + o, n);
+
+		offset += n;
+		buf += n;
+		nbytes -= n;
+	}
+
+	n = (nbytes / Mcd_osd_blk_size) * Mcd_osd_blk_size;
+
+	if (n && pread(aio_fd, buf, n, offset) != n) {
+		mcd_log_msg(150031, PLAT_LOG_LEVEL_ERROR, "pread failed - %s", plat_strerror(errno));
+		return FLASH_EIO;
+	}
+
+	if(nbytes - n) {
+		plat_assert(nbytes - n < Mcd_osd_blk_size);
+		b = offset + n;
+		if (pread(aio_fd, _buf, Mcd_osd_blk_size, b) != Mcd_osd_blk_size) {
+			mcd_log_msg(150031, PLAT_LOG_LEVEL_ERROR, "pread failed - %s", plat_strerror(errno));
+			return FLASH_EIO;
+		}
+		memcpy(buf + n, _buf, nbytes - n);
+	}
+
+	pthread_mutex_unlock(&_meta_mutex);
+
+	return FLASH_EOK;   /* SUCCESS */
+}
+
+static
+int mcd_aio_write_unaligned(osd_state_t * context, char * buf, uint64_t offset, int nbytes)
+{
+	static char _buf[MCD_OSD_BLK_SIZE_MAX] __attribute__ ((aligned (4096)));
+
+	int aio_fd = Mcd_aio_fds[0];
+	uint64_t b, o, n;
+
+	pthread_mutex_lock(&_meta_mutex);
+
+	if(offset % Mcd_osd_blk_size) {
+		b = (offset / Mcd_osd_blk_size) * Mcd_osd_blk_size;
+		o = offset % Mcd_osd_blk_size;
+		n = Mcd_osd_blk_size - o;
+		if(n > nbytes)
+			n = nbytes;
+
+		if (pread(aio_fd, _buf, Mcd_osd_blk_size, b) != Mcd_osd_blk_size) {
+			mcd_log_msg(150031, PLAT_LOG_LEVEL_ERROR, "pread failed - %s", plat_strerror(errno));
+			return FLASH_EIO;
+		}
+		memcpy(_buf + o, buf, n);
+		if (pwrite(aio_fd, _buf, Mcd_osd_blk_size, b) != Mcd_osd_blk_size) {
+			mcd_log_msg(180002, PLAT_LOG_LEVEL_ERROR, "pwrite failed!(%s)", plat_strerror(errno));
+			return FLASH_EIO;
+		}
+		offset += n;
+		buf += n;
+		nbytes -= n;
+	}
+
+	n = (nbytes / Mcd_osd_blk_size) * Mcd_osd_blk_size;
+
+	if (n && pwrite(aio_fd, buf, n, offset) != n) {
+		mcd_log_msg(180002, PLAT_LOG_LEVEL_ERROR, "pwrite failed!(%s)", plat_strerror(errno));
+		return FLASH_EIO;
+	}
+
+	if(nbytes - n) {
+		plat_assert(nbytes - n < Mcd_osd_blk_size);
+		b = offset + n;
+		if (pread(aio_fd, _buf, Mcd_osd_blk_size, b) != Mcd_osd_blk_size) {
+			mcd_log_msg(150031, PLAT_LOG_LEVEL_ERROR, "pread failed - %s", plat_strerror(errno));
+			return FLASH_EIO;
+		}
+		memcpy(_buf, buf + n, nbytes - n);
+		if (pwrite(aio_fd, _buf, Mcd_osd_blk_size, b) != Mcd_osd_blk_size) {
+			mcd_log_msg(180002, PLAT_LOG_LEVEL_ERROR, "pwrite failed!(%s)", plat_strerror(errno));
+			return FLASH_EIO;
+		}
+	}
+	pthread_mutex_unlock(&_meta_mutex);
+
+	return FLASH_EOK;   /* SUCCESS */
+}
 
 int
 mcd_fth_aio_blk_read( osd_state_t * context, char * buf, uint64_t offset, int nbytes )
@@ -180,6 +288,9 @@ mcd_fth_aio_blk_read( osd_state_t * context, char * buf, uint64_t offset, int nb
                      offset, nbytes, Mcd_aio_real_size );
         return FLASH_EINVAL;
     }
+
+	if(offset < MCD_OSD_SEGMENT_SIZE && (nbytes % Mcd_osd_blk_size || offset % Mcd_osd_blk_size))
+		return mcd_aio_read_unaligned(context, buf, offset, nbytes);
 
     pending = 0;
     submitted = 0;
@@ -389,6 +500,9 @@ mcd_fth_aio_blk_write_low( osd_state_t * context, char * buf, uint64_t offset,
                      offset, nbytes, Mcd_aio_real_size );
         return FLASH_EINVAL;
     }
+
+	if(offset < MCD_OSD_SEGMENT_SIZE && (nbytes % Mcd_osd_blk_size || offset % Mcd_osd_blk_size))
+		return mcd_aio_write_unaligned(context, buf, offset, nbytes);
 
     pending = 0;
     submitted = 0;
