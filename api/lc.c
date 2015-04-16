@@ -502,12 +502,14 @@ lc_write( ts_t *t, ZS_cguid_t cguid, char *k, uint32_t kl, char *d, uint64_t dl)
 		pthread_mutex_lock( &s->buflock);
 		unless ((s->bufnexti == 0)
 		or (bytes_per_so_buffer < i + s->bufnexti)) {
+			size_t sz;
 			uint bufnexti = s->bufnexti;
 			s->bufnexti += i;
 			memcpy( s->so.buffer+bufnexti, &lr, i);
 			pthread_mutex_unlock( &s->buflock);
-			r = nvr_write_buffer_partial( s->nb, &s->so.buffer[bufnexti], i);
-			if (r == ZS_SUCCESS) {
+			if ((sz = nvr_write_buffer_partial( s->nb, &s->so.buffer[bufnexti], i, 1)) == -1) {
+				r = ZS_FAILURE;
+			} else {
 				atomic_inc(c->lgstats.stat[LOGSTAT_NUM_OBJS]);
 			}
 			pthread_rwlock_unlock( &c->lock);
@@ -988,10 +990,14 @@ write_records( ts_t *ts, lrec_t **lrecs, int num_recs, ZS_cguid_t cguid, int *wr
 		 * taking slow path.
 		 */
 		if (objs_copied) {
+			size_t sz;
 			uint bufnexti = ss->bufnexti;
 			pthread_mutex_unlock(&ss->buflock);
-			r = nvr_write_buffer_partial( ss->nb, &ss->so.buffer[startoff], 
-					bufnexti - startoff);
+
+			if ((sz = nvr_write_buffer_partial( ss->nb, &ss->so.buffer[startoff], 
+					bufnexti - startoff, 1)) == -1) {
+				r = ZS_FAILURE;
+			}
 			atomic_dec(c->lgstats.stat[LOGSTAT_MPUT_IO_SAVED]);
 			if (r == ZS_SUCCESS) {
 				*written += objs_copied;
@@ -1040,10 +1046,13 @@ write_records( ts_t *ts, lrec_t **lrecs, int num_recs, ZS_cguid_t cguid, int *wr
 	}
 
 	if (objs_copied) {
+		size_t sz;
 		uint bufnexti = ss->bufnexti;
 		pthread_mutex_unlock(&ss->buflock);
-		r = nvr_write_buffer_partial( ss->nb, &ss->so.buffer[startoff], 
-				bufnexti - startoff);
+		if ((sz = nvr_write_buffer_partial( ss->nb, &ss->so.buffer[startoff], 
+				bufnexti - startoff, 1)) == -1) {
+			r = ZS_FAILURE;
+		}
 		atomic_dec(c->lgstats.stat[LOGSTAT_MPUT_IO_SAVED]);
 		if (r == ZS_SUCCESS) {
 			*written += objs_copied;
@@ -1381,6 +1390,7 @@ streamwrite( ts_t *t, stream_t *s, lrec_t *lr)
 {
 	ZS_status_t	r;
 	char		k[100];
+	size_t		sz;
 
 	const uint i = lrecsize( lr);
 	if (bytes_per_so_buffer < i + s->bufnexti) {
@@ -1399,11 +1409,13 @@ streamwrite( ts_t *t, stream_t *s, lrec_t *lr)
 			return (r);
 	}
 	memcpy( s->so.buffer+s->bufnexti, lr, i);
-	if (s->bufnexti)
-		r = nvr_write_buffer_partial( s->nb, &s->so.buffer[s->bufnexti], i);
-	else {
+	if (s->bufnexti) {
+		sz = nvr_write_buffer_partial( s->nb, &s->so.buffer[s->bufnexti], i, 1);
+		r = (sz == -1) ? ZS_FAILURE: ZS_SUCCESS;
+	} else {
 		s->so.seqno = s->seqnext;
-		r = nvr_write_buffer_partial( s->nb, (char *)&s->so, sizeof( s->so)+i);
+		sz = nvr_write_buffer_partial( s->nb, (char *)&s->so, sizeof( s->so)+i, 1);
+		r = (sz == -1) ? ZS_FAILURE: ZS_SUCCESS;
 	}
 	if (r == ZS_SUCCESS)
 		s->bufnexti += i;

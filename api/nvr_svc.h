@@ -50,7 +50,7 @@ typedef	void		nvr_buffer_t;
 ZS_status_t		nvr_init( );
 nvr_buffer_t		*nvr_alloc_buffer( );
 void			nvr_free_buffer( nvr_buffer_t *);
-ZS_status_t		nvr_write_buffer_partial( nvr_buffer_t *, char *, uint count);
+size_t			nvr_write_buffer_partial( nvr_buffer_t *, char *, uint count, int sync);
 void			nvr_buffer_hold(nvr_buffer_t *buf);
 void			nvr_buffer_release(nvr_buffer_t *buf);
 ZS_status_t		nvr_reset_buffer(nvr_buffer_t *buf);

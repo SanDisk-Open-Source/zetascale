@@ -228,6 +228,8 @@ void print_nvram_stats(FILE *fp, ZS_stats_t *stats) {
     fprintf(fp,"NVRAM Statistics\n");
     fprintf(fp,"  Write requests = %"PRId64"\n", stats->nvr_stats[ZS_NVR_WRITE_REQS]);
     fprintf(fp,"  Write saved = %"PRId64"\n", stats->nvr_stats[ZS_NVR_WRITE_SAVED]);
+    fprintf(fp,"  Sync restarts = %"PRId64"\n", stats->nvr_stats[ZS_NVR_SYNC_RESTARTS]);
+    fprintf(fp,"  Sync spits = %"PRId64"\n", stats->nvr_stats[ZS_NVR_SYNC_SPLITS]);
     fprintf(fp,"  Total data received = %"PRId64"\n", stats->nvr_stats[ZS_NVR_DATA_IN]);
     fprintf(fp,"  Total data written = %"PRId64"\n", stats->nvr_stats[ZS_NVR_DATA_OUT]);
     fprintf(fp,"  Returned insufficient space = %"PRId64"\n", stats->nvr_stats[ZS_NVR_NOSPC]);
