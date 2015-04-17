@@ -70,7 +70,7 @@ char				nvr_zero[65536];
 int				nvr_disabled = 0;
 
 /* NVRAM stats */
-uint64_t			nvr_write_reqs, nvr_write_saved;
+uint64_t			nvr_write_reqs, nvr_write_saved, nvr_sync_reqs;
 uint64_t			nvr_data_in, nvr_data_out;
 uint64_t			nvr_reset_req, nvr_no_space, nvr_sync_splits, nvr_sync_restarts;
 /*
@@ -106,8 +106,8 @@ pthread_mutex_t nvr_fl_mutex = PTHREAD_MUTEX_INITIALIZER;
 static ZS_status_t nvr_rebuild(struct ZS_state *zs_state);
 static bool nvr_space_available_in_obj(nvrso_t *so, int count);
 static off_t nvr_buf(nvrso_t *so, char *data, uint count, int reset, size_t *sz);
-static int nvr_sync_buf(nvrso_t *so, off_t off, int reseet);
-static size_t nvr_write_buffer_internal( nvr_buffer_t *buf, char *data, uint count, int reset, int sync);
+static int nvr_sync_buf_internal(nvrso_t *so, off_t off, int reseet);
+static size_t nvr_write_buffer_internal( nvr_buffer_t *buf, char *data, uint count, int reset, int sync, off_t *off);
 
 
 static void
@@ -290,7 +290,7 @@ nvr_reset_buffer(nvr_buffer_t *buf)
 	}
 
 	obj->nso_off = obj->nso_syncoff = nvr_blksize;
-	if (nvr_write_buffer_internal(buf, nvr_zero, bytes_per_nvr_buffer, 1, 1) == -1) {
+	if (nvr_write_buffer_internal(buf, nvr_zero, bytes_per_nvr_buffer, 1, 1, NULL) == -1) {
 		ret = ZS_FAILURE;
 	}
 	obj->nso_off = obj->nso_syncoff = nvr_blksize;
@@ -571,13 +571,20 @@ nvr_rebuild(struct ZS_state *zs_state)
 }
 
 size_t
-nvr_write_buffer_partial( nvr_buffer_t *buf, char *data, uint count, int sync)
+nvr_write_buffer_partial( nvr_buffer_t *buf, char *data, uint count, int sync, off_t *off)
 {
-	return nvr_write_buffer_internal(buf, data, count, 0, sync);
+	return nvr_write_buffer_internal(buf, data, count, 0, sync, off);
+}
+
+int
+nvr_sync_buf(nvr_buffer_t *buf, off_t off)
+{
+	msg(INITIAL, DEBUG, "off: %d syncoff:%d", (int)off, (int)(((nvrso_t *)buf)->nso_syncoff));
+	return nvr_sync_buf_internal((nvrso_t *)buf, off, 0);
 }
 
 size_t
-nvr_write_buffer_internal( nvr_buffer_t *buf, char *data, uint count, int reset, int sync)
+nvr_write_buffer_internal( nvr_buffer_t *buf, char *data, uint count, int reset, int sync, off_t *off)
 {
 
 	nvrso_t			*so = (nvrso_t *)buf;
@@ -597,12 +604,15 @@ nvr_write_buffer_internal( nvr_buffer_t *buf, char *data, uint count, int reset,
 		msg(INITIAL, DEBUG, "Failed to copy contents to NVRAM buffer");
 		return -1;
 	}
+	if (off) {
+		*off = offset;
+	}
 
 	atomic_dec(so->nso_writecnt);
 	pthread_mutex_unlock(&so->nso_mutex);
 
 	if (sync) {
-		if (nvr_sync_buf(so, offset, reset) == ZS_SUCCESS) {
+		if (nvr_sync_buf_internal(so, offset, reset) == ZS_SUCCESS) {
 			return sz;
 		} else {
 			return -1;
@@ -703,7 +713,7 @@ nvr_space_available_in_obj(nvrso_t *so, int count)
  * Make sure the key/value is written to NVRAM
  */
 static int
-nvr_sync_buf(nvrso_t *so, off_t off, int reset)
+nvr_sync_buf_internal(nvrso_t *so, off_t off, int reset)
 {
 	nvrsbuf_t	*sbuf;
 	off_t		tmp_syncoff, write_off;
@@ -711,48 +721,59 @@ nvr_sync_buf(nvrso_t *so, off_t off, int reset)
 	int 		ret = ZS_SUCCESS, partition;
 	int 		cpinprog = 0, flag = 0;
 	
-restart:
-	if (so->nso_syncoff >= off) {
-		msg(INITIAL, TRACE, "saved io: nso_syncoff (%d) >= off (%d)", (int)so->nso_syncoff, (int)off);
-		if (!reset) {
-			atomic_inc(nvr_write_saved);
-		}
-		return ZS_SUCCESS;
+	if (!reset) {
+		atomic_inc(nvr_sync_reqs);
 	}
+restart:
+	if (off != -1) {
+		if (so->nso_syncoff >= off) {
+			msg(INITIAL, DEBUG, "saved io: nso_syncoff (%d) >= off (%d)", (int)so->nso_syncoff, (int)off);
+			if (!reset) {
+				atomic_inc(nvr_write_saved);
+			}
+			return ZS_SUCCESS;
+		}
+	} else {
+		if (so->nso_syncoff == off) {
+			msg(INITIAL, DEBUG, "saved io: nso_syncoff (%d) >= off (%d)", (int)so->nso_syncoff, (int)off);
+			if (!reset) {
+				atomic_inc(nvr_write_saved);
+			}
+			return ZS_SUCCESS;
+		}
+	}
+
 
 	pthread_mutex_lock(&so->nso_sync_mutex);
-	while (so->nso_insync && so->nso_syncoff < off) {
-		//msg(INITIAL, DEBUG, "sync in progress: nso_syncoff (%d) off (%d)", (int)so->nso_syncoff, (int)off);
-		pthread_cond_wait(&so->nso_sync_cond, &so->nso_sync_mutex);
-	}
-
-	if (so->nso_syncoff >= off) {
-		msg(INITIAL, TRACE, "saved io: nso_syncoff (%d) >= off (%d)", (int)so->nso_syncoff, (int)off);
-		if (!reset) {
-			atomic_inc(nvr_write_saved);
-		}
-		pthread_mutex_unlock(&so->nso_sync_mutex);
-		return ZS_SUCCESS;
-	}
-
-	tmp_syncoff = atomic_add_get(so->nso_off, 0);
-
-	/*
-	 * If copy in progress or the offset at which the new copy is with in 
-	 * same block, lets wait the flush.
-	 */
-	if (!reset) {
-		if (((cpinprog = atomic_add_get(so->nso_writecnt, 0)) > 0) &&
-			(tmp_syncoff < roundup(off, nvr_blksize))) {
-				pthread_cond_broadcast(&so->nso_sync_cond);
-				pthread_mutex_unlock(&so->nso_sync_mutex);
-				atomic_inc(nvr_sync_restarts);
-				sched_yield();
-				goto restart;
+	if (off != -1) {
+		while (so->nso_insync && so->nso_syncoff < off) {
+			//msg(INITIAL, DEBUG, "sync in progress: nso_syncoff (%d) off (%d)", (int)so->nso_syncoff, (int)off);
+			pthread_cond_wait(&so->nso_sync_cond, &so->nso_sync_mutex);
 		}
 
-
+		if (so->nso_syncoff >= off) {
+			msg(INITIAL, TRACE, "saved io: nso_syncoff (%d) >= off (%d)", (int)so->nso_syncoff, (int)off);
+			if (!reset) {
+				atomic_inc(nvr_write_saved);
+			}
+			pthread_mutex_unlock(&so->nso_sync_mutex);
+			return ZS_SUCCESS;
+		}
+	} else {
+		while (so->nso_insync) {
+			pthread_cond_wait(&so->nso_sync_cond, &so->nso_sync_mutex);
+		}
+		if (so->nso_syncoff == atomic_add_get(so->nso_off, 0)) {
+			msg(INITIAL, TRACE, "saved io: nso_syncoff (%d) >= off (%d)", (int)so->nso_syncoff, (int)off);
+			if (!reset) {
+				atomic_inc(nvr_write_saved);
+			}
+			pthread_mutex_unlock(&so->nso_sync_mutex);
+			return ZS_SUCCESS;
+		}
 	}
+
+
 	plat_assert(!so->nso_insync);
 	so->nso_insync = 1;
 
@@ -763,8 +784,25 @@ restart:
 	 * whether we can split it into two parts, one till block boundary and another
 	 * residual part we can combine with the data whose copy is in progress.
 	 */
+	/*
+	 * If the offset at which the new copy is with in same block, lets wait the flush.
+	 * lets take a chance and see whether another copy starts.
+	 */
+	tmp_syncoff = atomic_add_get(so->nso_off, 0);
+	if (!reset) {
+		while (tmp_syncoff < roundup(off, nvr_blksize)) {
+			sched_yield();
+			if ((cpinprog = atomic_add_get(so->nso_writecnt, 0)) > 0) {
+				atomic_inc(nvr_sync_restarts);
+				tmp_syncoff = atomic_add_get(so->nso_off, 0);
+			} else {
+				break;
+			}
+		}
+
+	}
 	if (!reset && !flag) {
-		if(cpinprog && (tmp_syncoff % nvr_blksize)) {
+		if((tmp_syncoff % nvr_blksize)) {
 			if (((so->nso_syncoff % nvr_blksize == 0) &&
 				(tmp_syncoff > (so->nso_syncoff + nvr_blksize))) ||
 			    (( so->nso_syncoff % nvr_blksize != 0) &&
@@ -790,6 +828,8 @@ restart:
 		sbuf->nsb_cksum = hashb((uint8_t *)sbuf, nvr_blksize, 0);
 	}
 
+	msg(INITIAL, DEBUG, "Doint pwrite off: %d write_off:%d syncoff:%d", (int)write_off, (int)(so->nso_syncoff), (int)tmp_syncoff);
+	
 	off_t offset_to_write = partition * partition_size + so->nso_fileoff + write_off;
 	ret = pwrite(nvr_fd, so->nso_data + write_off, write_len, offset_to_write);
 
@@ -877,6 +917,7 @@ get_nvram_stats(ZS_stats_t *stat)
 	stat->nvr_stats[ZS_NVR_DATA_IN] = nvr_data_in;
 	stat->nvr_stats[ZS_NVR_DATA_OUT] = nvr_data_out;
 	stat->nvr_stats[ZS_NVR_NOSPC] = nvr_no_space;
+	stat->nvr_stats[ZS_NVR_SYNC_REQS] = nvr_sync_reqs;
 	stat->nvr_stats[ZS_NVR_SYNC_RESTARTS] = nvr_sync_restarts;
 	stat->nvr_stats[ZS_NVR_SYNC_SPLITS] = nvr_sync_splits;
 
