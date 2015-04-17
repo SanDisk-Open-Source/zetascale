@@ -2369,8 +2369,15 @@ show_buf(unsigned char *buf, char *msg)
 
 int get_flog_block_size(int fd)
 {
-    int block_size = getProperty_Int("ZS_LOG_BLOCK_SIZE", 0);
-    if(!block_size) {
+	int block_size = getProperty_Int("ZS_LOG_BLOCK_SIZE", 0);
+	bool not_set = false;
+	int block_size1 = 0;
+
+	if(!block_size) {
+		not_set = true;
+	}
+
+
 	struct stat s;
 	int ret = 0;
 
@@ -2383,15 +2390,24 @@ int get_flog_block_size(int fd)
 	
 	ret = fstat(fd, &s);
 	if(ret >= 0) {
-	    block_size = s.st_blksize;
+	    block_size1 = s.st_blksize;
 	}
 
 
-        if(!block_size)
-            block_size = 4096;
-    }
+        if(!block_size) {
+            block_size1 = 4096;
+	}
 
-    return block_size;
+
+	plat_assert(not_set || block_size >= block_size1);	
+	if (not_set) {
+		block_size = block_size1;
+	}
+
+	mcd_log_msg(PLAT_LOG_ID_INITIAL, PLAT_LOG_LEVEL_INFO,
+			"FLOG block size set to %d.\n", block_size);
+
+	return block_size;
 }
 
 /*
@@ -7084,6 +7100,19 @@ flog_persist(mcd_osd_shard_t *shard,
     }
 }
 
+void
+flog_fdatasync(int fd)
+{
+
+	if (__zs_flog_mode == ZS_FLOG_NVRAM_MODE) {
+		nv_fdatasync(fd);
+	} else {
+
+		fdatasync(fd);
+	}
+
+}
+
 void mlog_sync(mcd_osd_shard_t* shard, uint64_t lsn, int sync)
 {
 	int i;
@@ -7126,10 +7155,9 @@ void mlog_sync(mcd_osd_shard_t* shard, uint64_t lsn, int sync)
 	}
 
 
-	// Do we need sync in case of nvram device ?
 	if (sync) {
 		log->stat_n_fsyncs++;
-		fdatasync(shard->flog_fd);
+		flog_fdatasync(shard->flog_fd);
 	}
 
 	pthread_mutex_lock(&log->sync_mutex);
@@ -7243,10 +7271,11 @@ static void
 log_sync_internal(mcd_osd_shard_t *s, uint64_t lsn, int sync)
 {
 	if (s->flog_fd > 0) {
-		if(s->group_commit_enabled)
+		if(s->group_commit_enabled) {
 			mlog_sync(s, lsn, sync);
-		else if (sync)
-			fdatasync(s->flog_fd);
+		} else if (sync) {
+			flog_fdatasync(s->flog_fd);
+		}
 	}
 	else if (sync)
 		log_sync_internal_legacy(s, lsn);

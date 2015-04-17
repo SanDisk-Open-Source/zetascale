@@ -60,6 +60,8 @@ long
 nv_ftell(int fd);
 int 
 nv_fseek(int fd, long offset, int whence);
+void
+nv_fdatasync(int fd);
 
 //end of file
 #endif 

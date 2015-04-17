@@ -26,8 +26,9 @@
 #include <platform/assert.h>
 
 #define NUM_FLOG_FILES 4
+#define NV_START_FD 1
 static nv_fd_t nvd_fd[NUM_FLOG_FILES];
-static int nvd_fd_count = 1;
+static int nvd_fd_count = NV_START_FD;
 static int nv_init_done = 0;
 static uint64_t nv_dev_offset = 0;
 static int nv_dev_fd = -1;
@@ -41,6 +42,16 @@ void inline
 nv_flush(char *buf, size_t len)
 {
 	//clflush_test(buf, len);
+}
+
+void
+nv_fdatasync(int fd)
+{
+	plat_assert(fd <= NUM_FLOG_FILES);
+	/*
+ 	 * fsync the main device.
+ 	 */
+	fdatasync(nv_dev_fd);
 }
 
 
@@ -179,9 +190,15 @@ nv_open(char *name, int flags, mode_t mode)
 	nvd_fd[fd].fd = fd;
 
 
-	nvd_fd[fd].offset_in_dev = nv_dev_offset + nv_flog_file_size * nvd_fd[fd].fd;
+	nvd_fd[fd].offset_in_dev = nv_dev_offset + 
+					nv_flog_file_size * (nvd_fd[fd].fd - NV_START_FD);
 	nvd_fd[fd].size = nv_flog_file_size;
 	nvd_fd[fd].offset = 0;
+
+#if 0
+	fprintf(stderr, "NVLOG file open fdf =%d, offset_in_dev = %ld, size = %ld.\n",
+		 nvd_fd[fd].fd,  nvd_fd[fd].offset_in_dev, nvd_fd[fd].size);
+#endif 
 
 	strcpy(nvd_fd[fd].name, name);
 
@@ -204,11 +221,18 @@ nv_read(int fd, void *buf, size_t nbytes)
 	int ret = 0;
 	off_t off = nvd_fd[fd].offset + nvd_fd[fd].offset_in_dev;
 
+#if 0
+	fprintf(stderr, "NV file read fd = %d, offset = %ld, length = %ld.\n",
+		fd, off, nbytes);
+#endif 
+
 	plat_assert(fd > 0 && fd < NUM_FLOG_FILES);
 	plat_assert(fd == nvd_fd[fd].fd);
 	if (off >= (nvd_fd[fd].size + nvd_fd[fd].offset_in_dev)) {
 		return 0;
 	}
+
+	plat_assert(off <= (nv_flog_file_size + nvd_fd[fd].offset_in_dev));
 
 	ret = pread(nv_dev_fd, buf, nbytes, off);
 	if (ret <= 0) {
@@ -234,7 +258,10 @@ nv_write(int fd, const void *buf, size_t nbytes, off_t off)
 	}
 
 	off += nvd_fd[fd].offset_in_dev;
-
+#if 0
+	fprintf(stderr, "NV file write fd = %d, offset = %ld, length = %ld.\n",
+		fd, off, nbytes);
+#endif 
 	ret = pwrite(nv_dev_fd, buf, nbytes, off);
 	if (ret <= 0) {
 		fprintf(stderr, "Failed write in nvram file.\n");
