@@ -237,10 +237,11 @@ struct containerstructure {
 	char		*trxrevfile;
 	pg_t		*pgtable[1000];
 	mutex_t		synclock;
-	cond_t		synccv;
-	uint		iocount, synccount;
+	cond_t		synccv, flashcv, fullcv;
+	uint		iocount, synccount, insync,buffull;
 	log_stats_t	lgstats;
 	off_t		syncoff;
+	ZS_status_t	syncstatus;
 };
 struct lrecstructure {
 	ushort		type,
@@ -304,7 +305,7 @@ static ZS_status_t	recover( ts_t *, container_t *),
 			write_record( ts_t *, ZS_cguid_t, uint, char *, uint32_t, char *, uint64_t),
 			write_records( ts_t *ts, lrec_t **lrecs, int num_recs, ZS_cguid_t cguid, int *written),
 			streaminit( uint),
-			streamwrite( ts_t *, stream_t *, lrec_t *),
+			streamwrite( ts_t *, stream_t *, lrec_t *, off_t *off),
 			streamreclaim( ts_t *, stream_t *),
 			soscan( container_t *, stream_t *, trxrev_t *, so_t *, ulong),
 			pgstreamscan( ts_t *, pg_t *, char *, uint32_t, char **, uint64_t *),
@@ -340,6 +341,7 @@ static char		*trxrevfilename( ZS_cguid_t),
 static int		compar( const void *, const void *);
 //static char		*prettynumber( ulong);
 static counter_t	newest( counter_t, counter_t);
+static int	 	lc_sync_buf( stream_t *s, off_t off);
 
 /*
  * LC entrypoint - initialize LC system
@@ -528,18 +530,7 @@ lc_write( ts_t *t, ZS_cguid_t cguid, char *k, uint32_t kl, char *d, uint64_t dl)
 			pthread_rwlock_unlock( &lc_lock);
 			if (streams_per_container == 1) {
 				sched_yield();
-				pthread_mutex_lock(&c->synclock);
-				atomic_inc(c->synccount);
-				if (atomic_dec_get(c->iocount) == 0) {
-					nvr_sync_buf(s->nb, off);
-					pthread_cond_broadcast(&c->synccv);
-					atomic_dec(c->synccount);
-					pthread_mutex_unlock(&c->synclock);
-				} else {
-					pthread_cond_wait(&c->synccv, &c->synclock);
-					atomic_dec(c->synccount);
-					pthread_mutex_unlock(&c->synclock);
-				}
+				lc_sync_buf(s, off);
 			}
 			return (r);
 		}
@@ -551,18 +542,7 @@ lc_write( ts_t *t, ZS_cguid_t cguid, char *k, uint32_t kl, char *d, uint64_t dl)
 	r = write_record( t, cguid, LR_WRITE, k, kl, d, dl);
 	if (streams_per_container == 1) {
 		sched_yield();
-		pthread_mutex_lock(&c->synclock);
-		atomic_inc(c->synccount);
-		if (atomic_dec_get(c->iocount) == 0) {
-			nvr_sync_buf(s->nb, off);
-			pthread_cond_broadcast(&c->synccv);
-			atomic_dec(c->synccount);
-			pthread_mutex_unlock(&c->synclock);
-		} else {
-			pthread_cond_wait(&c->synccv, &c->synclock);
-			atomic_dec(c->synccount);
-			pthread_mutex_unlock(&c->synclock);
-		}
+		lc_sync_buf(s, off);
 	}
 	return (r);
 }
@@ -836,6 +816,86 @@ out:
 }
 
 /*
+ * Make sure the key/value is written to NVRAM
+ */
+static int
+lc_sync_buf( stream_t *s, off_t off)
+{
+	off_t		soff;
+	container_t	*c = s->container;
+	int		cnt;
+
+	pthread_mutex_lock(&c->synclock);
+	atomic_inc(c->synccount);
+	atomic_dec(c->iocount);
+
+restart:
+
+	while (c->insync && c->syncoff < off) {
+		//msg(INITIAL, DEBUG, "sync in progress: nso_syncoff (%d) off (%d)", (int)so->nso_syncoff, (int)off);
+		pthread_cond_wait(&c->synccv, &c->synclock);
+	}
+
+	if (c->syncoff >= off) {
+		atomic_dec(c->synccount);
+		pthread_cond_broadcast(&c->flashcv);
+		pthread_cond_broadcast(&c->synccv);
+		pthread_mutex_unlock(&c->synclock);
+		return ZS_SUCCESS;
+	}
+
+	while ((cnt == atomic_add_get(c->iocount, 0)) > 0) {
+		if (c->buffull == 1) {
+			atomic_dec(c->synccount);
+			pthread_cond_broadcast(&c->flashcv);
+			pthread_cond_wait(&c->fullcv, &c->synclock);
+			pthread_mutex_unlock(&c->synclock);
+			return c->syncstatus; //Niranjan: return failure incase write to flash has failed
+		} else {
+			pthread_cond_broadcast(&c->flashcv);
+			pthread_cond_wait(&c->synccv, &c->synclock);
+			goto restart;
+		}
+	}
+
+	if (c->buffull == 1) {
+		atomic_dec(c->synccount);
+		pthread_cond_broadcast(&c->flashcv);
+		pthread_cond_broadcast(&c->synccv);
+		pthread_cond_wait(&c->fullcv, &c->synclock);
+		pthread_mutex_unlock(&c->synclock);
+		return c->syncstatus;
+	}
+
+	plat_assert(!c->insync);
+	c->insync = 1;
+
+	pthread_mutex_unlock(&c->synclock);
+	soff = nvr_sync_buf_aligned(s->nb, off);
+	pthread_mutex_lock(&c->synclock);
+	if (soff == -1) {
+		c->syncstatus = ZS_FAILURE;
+	} else {
+		c->syncoff = soff;
+	}
+	c->insync = 0;
+
+	if (soff < off) {
+		pthread_cond_broadcast(&c->synccv);
+		pthread_cond_broadcast(&c->flashcv);
+		goto restart;
+	} else {
+		atomic_dec(c->synccount);
+		pthread_cond_broadcast(&c->synccv);
+		pthread_cond_broadcast(&c->flashcv);
+	}
+
+	pthread_mutex_unlock(&c->synclock);
+
+	return soff;
+}
+
+/*
  * recover container state from flash
  *
  * The hash-mode container for this LC is enumerated: the SOs found
@@ -920,6 +980,7 @@ write_record( ts_t *t, ZS_cguid_t cguid, uint type, char *k, uint32_t kl, char *
 	pghash_t	h;
 	pgname_t	n;
 	lrec_t		lr;
+	off_t		off;
 
 	pthread_rwlock_rdlock( &lc_lock);
 	container_t *c = clookup( cguid);
@@ -945,7 +1006,7 @@ write_record( ts_t *t, ZS_cguid_t cguid, uint type, char *k, uint32_t kl, char *
 	if (type == LR_TRIM || type == LR_DELETE) {
 		atomic_inc(c->lgstats.stat[LOGSTAT_DELETE_CNT]);
 	}
-	r = streamwrite( t, pg->stream, &lr);
+	r = streamwrite( t, pg->stream, &lr, &off);
 	unless (r == ZS_SUCCESS) {
 		goto fail;
 	}
@@ -959,20 +1020,7 @@ fail:
 	pthread_rwlock_unlock( &lc_lock);
 	if (streams_per_container == 1) {
 		sched_yield();
-		pthread_mutex_lock(&c->synclock);
-		atomic_inc(c->synccount);
-		if (atomic_dec_get(c->iocount) == 0) {
-			/* Niranjan off is not set 
-			   nvr_sync_buf(pg->stream->nb, off);
-			 */
-			pthread_cond_broadcast(&c->synccv);
-			atomic_dec(c->synccount);
-			pthread_mutex_unlock(&c->synclock);
-		} else {
-			pthread_cond_wait(&c->synccv, &c->synclock);
-			atomic_dec(c->synccount);
-			pthread_mutex_unlock(&c->synclock);
-		}
+		lc_sync_buf(pg->stream, off);
 	}
 	return r;
 }
@@ -1092,7 +1140,7 @@ write_records( ts_t *ts, lrec_t **lrecs, int num_recs, ZS_cguid_t cguid, int *wr
 		pthread_rwlock_wrlock( &c->lock);
 		pg_t *pg = pglookup( c, k, n, h);
 		if (pg) {
-			r = streamwrite( ts, pg->stream, lrecs[i]);
+			r = streamwrite( ts, pg->stream, lrecs[i], &off);
 			atomic_dec(c->lgstats.stat[LOGSTAT_MPUT_IO_SAVED]);
 			if (r != ZS_SUCCESS) {
 				break;
@@ -1128,18 +1176,7 @@ out:
 	pthread_rwlock_unlock( &lc_lock);
 	if (streams_per_container == 1) {
 		sched_yield();
-		pthread_mutex_lock(&c->synclock);
-		atomic_inc(c->synccount);
-		if (atomic_dec_get(c->iocount) == 0) {
-			nvr_sync_buf(pg->stream->nb, off);
-			pthread_cond_broadcast(&c->synccv);
-			atomic_dec(c->synccount);
-			pthread_mutex_unlock(&c->synclock);
-		} else {
-			pthread_cond_wait(&c->synccv, &c->synclock);
-			atomic_dec(c->synccount);
-			pthread_mutex_unlock(&c->synclock);
-		}
+		lc_sync_buf(pg->stream, off);
 	}
 	return r;
 }
@@ -1361,9 +1398,14 @@ callocate( )
 			c->streamhand = 0;
 			c->trxrevfile = 0;
 			c->syncoff = 0;
+			c->syncstatus = ZS_SUCCESS;
+			c->insync = 0;
+			c->buffull = 0;
 			pthread_rwlock_init( &c->lock, 0);
 			pthread_mutex_init( &c->synclock, 0);
 			pthread_cond_init( &c->synccv, NULL);
+			pthread_cond_init( &c->flashcv, NULL);
+			pthread_cond_init( &c->fullcv, NULL);
 			memset( c->pgtable, 0, sizeof c->pgtable);
 			memset( &c->lgstats, 0, sizeof(log_stats_t));
 			return (c);
@@ -1467,29 +1509,46 @@ streamlookup( container_t *c, uint stream)
  * the reclamation of old SOs.
  */
 static ZS_status_t
-streamwrite( ts_t *t, stream_t *s, lrec_t *lr)
+streamwrite( ts_t *t, stream_t *s, lrec_t *lr, off_t *off)
 {
 	ZS_status_t	r;
 	char		k[100];
 	size_t		sz;
-	off_t		off;
+	container_t	*c = s->container;
 
 	const uint i = lrecsize( lr);
 	if (bytes_per_so_buffer < i + s->bufnexti) {
+		if (streams_per_container == 1) {
+			pthread_mutex_lock(&c->synclock);
+			atomic_inc(c->buffull);
+			while (c->synccount > 0) {
+				pthread_cond_broadcast(&c->synccv);
+				pthread_cond_wait(&c->flashcv, &c->synclock);
+			}
+			pthread_mutex_unlock(&c->synclock);
+		}
 		uint32_t kl = strlen( make_sokey( k, s->stream, s->seqnext));
 		r = zs_write_object_lc( t, s->container->cguid, k, kl, (char *)&s->so, sizeof( s->so)+s->bufnexti);
-		unless (r == ZS_SUCCESS)
-			return (r);
-		/*
-		while (atomic_add_get(s->container->iowait, 0)) {
+
+		if (streams_per_container == 1) {
+			pthread_mutex_lock(&c->synclock);
+			c->syncstatus = r;
+			atomic_dec(c->buffull);
+			pthread_cond_broadcast(&c->fullcv);
 			pthread_cond_broadcast(&c->synccv);
+			pthread_mutex_unlock(&c->synclock);
 		}
-		*/
+
+		unless (r == ZS_SUCCESS) {
+			return (r);
+		}
 
 		nvr_reset_buffer( s->nb);
 		if ((s->seqoldest == s->seqnext)
-		and (not sostatus( s, &s->so, s->bufnexti)))
+		and (not sostatus( s, &s->so, s->bufnexti))) {
 			return (ZS_FAILURE);
+		}
+
 		s->bufnexti = 0;
 		++s->seqnext;
 		r = streamreclaim( t, s);
@@ -1498,11 +1557,11 @@ streamwrite( ts_t *t, stream_t *s, lrec_t *lr)
 	}
 	memcpy( s->so.buffer+s->bufnexti, lr, i);
 	if (s->bufnexti) {
-		sz = nvr_write_buffer_partial( s->nb, &s->so.buffer[s->bufnexti], i, always_sync, &off );
+		sz = nvr_write_buffer_partial( s->nb, &s->so.buffer[s->bufnexti], i, always_sync, off );
 		r = (sz == -1) ? ZS_FAILURE: ZS_SUCCESS;
 	} else {
 		s->so.seqno = s->seqnext;
-		sz = nvr_write_buffer_partial( s->nb, (char *)&s->so, sizeof( s->so)+i, always_sync, &off);
+		sz = nvr_write_buffer_partial( s->nb, (char *)&s->so, sizeof( s->so)+i, always_sync, off);
 		r = (sz == -1) ? ZS_FAILURE: ZS_SUCCESS;
 	}
 	if (r == ZS_SUCCESS)

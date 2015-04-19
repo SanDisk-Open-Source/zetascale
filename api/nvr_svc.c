@@ -106,7 +106,7 @@ pthread_mutex_t nvr_fl_mutex = PTHREAD_MUTEX_INITIALIZER;
 static ZS_status_t nvr_rebuild(struct ZS_state *zs_state);
 static bool nvr_space_available_in_obj(nvrso_t *so, int count);
 static off_t nvr_buf(nvrso_t *so, char *data, uint count, int reset, size_t *sz);
-static int nvr_sync_buf_internal(nvrso_t *so, off_t off, int reseet);
+static int nvr_sync_buf_internal(nvrso_t *so, off_t off, int aligned_down, int reseet);
 static size_t nvr_write_buffer_internal( nvr_buffer_t *buf, char *data, uint count, int reset, int sync, off_t *off);
 
 
@@ -580,7 +580,22 @@ int
 nvr_sync_buf(nvr_buffer_t *buf, off_t off)
 {
 	msg(INITIAL, DEBUG, "off: %d syncoff:%d", (int)off, (int)(((nvrso_t *)buf)->nso_syncoff));
-	return nvr_sync_buf_internal((nvrso_t *)buf, off, 0);
+	if (nvr_disabled) {
+		msg(INITIAL, DEBUG, "NVRAM is disabled");
+		return -1;
+	}
+	return nvr_sync_buf_internal((nvrso_t *)buf, off, 0, 0);
+}
+
+int
+nvr_sync_buf_aligned(nvr_buffer_t *buf, off_t off)
+{
+	msg(INITIAL, DEBUG, "off: %d syncoff:%d", (int)off, (int)(((nvrso_t *)buf)->nso_syncoff));
+	if (nvr_disabled) {
+		msg(INITIAL, DEBUG, "NVRAM is disabled");
+		return -1;
+	}
+	return nvr_sync_buf_internal((nvrso_t *)buf, off, 1, 0);
 }
 
 size_t
@@ -612,7 +627,7 @@ nvr_write_buffer_internal( nvr_buffer_t *buf, char *data, uint count, int reset,
 	pthread_mutex_unlock(&so->nso_mutex);
 
 	if (sync) {
-		if (nvr_sync_buf_internal(so, offset, reset) == ZS_SUCCESS) {
+		if (nvr_sync_buf_internal(so, offset, 0, reset) != -1) {
 			return sz;
 		} else {
 			return -1;
@@ -713,12 +728,12 @@ nvr_space_available_in_obj(nvrso_t *so, int count)
  * Make sure the key/value is written to NVRAM
  */
 static int
-nvr_sync_buf_internal(nvrso_t *so, off_t off, int reset)
+nvr_sync_buf_internal(nvrso_t *so, off_t off, int aligned_down, int reset)
 {
 	nvrsbuf_t	*sbuf;
 	off_t		tmp_syncoff, write_off;
 	size_t		write_len;
-	int 		ret = ZS_SUCCESS, partition;
+	int 		ret, partition;
 	int 		cpinprog = 0, flag = 0;
 	
 	if (!reset) {
@@ -731,15 +746,15 @@ restart:
 			if (!reset) {
 				atomic_inc(nvr_write_saved);
 			}
-			return ZS_SUCCESS;
+			return so->nso_syncoff;
 		}
 	} else {
-		if (so->nso_syncoff == off) {
+		if (so->nso_syncoff == atomic_add_get(so->nso_off, 0)) {
 			msg(INITIAL, DEBUG, "saved io: nso_syncoff (%d) >= off (%d)", (int)so->nso_syncoff, (int)off);
 			if (!reset) {
 				atomic_inc(nvr_write_saved);
 			}
-			return ZS_SUCCESS;
+			return so->nso_syncoff;
 		}
 	}
 
@@ -757,7 +772,7 @@ restart:
 				atomic_inc(nvr_write_saved);
 			}
 			pthread_mutex_unlock(&so->nso_sync_mutex);
-			return ZS_SUCCESS;
+			return so->nso_syncoff;
 		}
 	} else {
 		while (so->nso_insync) {
@@ -769,7 +784,7 @@ restart:
 				atomic_inc(nvr_write_saved);
 			}
 			pthread_mutex_unlock(&so->nso_sync_mutex);
-			return ZS_SUCCESS;
+			return so->nso_syncoff;
 		}
 	}
 
@@ -779,11 +794,6 @@ restart:
 
 	pthread_mutex_unlock(&so->nso_sync_mutex);
 
-	/*
-	 * If there is a copy in progress and the flush is not block aligned, check
-	 * whether we can split it into two parts, one till block boundary and another
-	 * residual part we can combine with the data whose copy is in progress.
-	 */
 	/*
 	 * If the offset at which the new copy is with in same block, lets wait the flush.
 	 * lets take a chance and see whether another copy starts.
@@ -801,6 +811,11 @@ restart:
 		}
 
 	}
+	/*
+	 * If there is a copy in progress and the flush is not block aligned, check
+	 * whether we can split it into two parts, one till block boundary and another
+	 * residual part we can combine with the data whose copy is in progress.
+	 */
 	if (!reset && !flag) {
 		if((tmp_syncoff % nvr_blksize)) {
 			if (((so->nso_syncoff % nvr_blksize == 0) &&
@@ -840,9 +855,9 @@ restart:
 	if (ret == -1 || ret < write_len) {
 		msg(INITIAL, FATAL, "Write to NVRAM failed, NVRAM disabled");
 		nvr_disabled = 1;
-		ret = ZS_FAILURE;
+		ret = -1;
 	} else {
-		ret = ZS_SUCCESS;
+		ret = tmp_syncoff;
 	}
 
 	if (ret == ZS_SUCCESS) {
@@ -850,9 +865,9 @@ restart:
 			if ((ret = fdatasync(nvr_fd)) == -1) {
 				msg(INITIAL, FATAL, "fdatasync to NVRAM failed, NVRAM disabled");
 				nvr_disabled = 1;
-				ret = ZS_FAILURE;
+				ret = -1;
 			} else {
-				ret = ZS_SUCCESS;
+				ret = tmp_syncoff;
 			}
 		}
 	}
@@ -867,14 +882,16 @@ restart:
 	 * flag is 1, so we have split the IOs. Now lets restart sync of residual write.
 	 */
 	if ((ret == ZS_SUCCESS) && (flag == 1)) {
-		sched_yield();
-		flag = 2;
-		atomic_inc(nvr_sync_splits);
-		goto restart;
+		if (!aligned_down) {
+			sched_yield();
+			flag = 2;
+			atomic_inc(nvr_sync_splits);
+			goto restart;
+		}
 	}
 
 
-	return ret;
+	return tmp_syncoff;
 }
 
 int

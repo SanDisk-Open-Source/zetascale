@@ -60,3 +60,4 @@ uint64_t		nvr_buffer_count(void);
 void			nvr_reset(void);
 void			get_nvram_stats(ZS_stats_t *);
 int 			nvr_sync_buf(nvr_buffer_t *so, off_t off);
+int 			nvr_sync_buf_aligned(nvr_buffer_t *so, off_t off);
