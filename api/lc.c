@@ -848,11 +848,13 @@ restart:
 		if (c->buffull == 1) {
 			atomic_dec(c->synccount);
 			pthread_cond_broadcast(&c->flashcv);
+			pthread_cond_broadcast(&c->synccv);
 			pthread_cond_wait(&c->fullcv, &c->synclock);
 			pthread_mutex_unlock(&c->synclock);
 			return c->syncstatus; //Niranjan: return failure incase write to flash has failed
 		} else {
 			pthread_cond_broadcast(&c->flashcv);
+			pthread_cond_broadcast(&c->synccv);
 			pthread_cond_wait(&c->synccv, &c->synclock);
 			goto restart;
 		}
@@ -1532,6 +1534,7 @@ streamwrite( ts_t *t, stream_t *s, lrec_t *lr, off_t *off)
 
 		if (streams_per_container == 1) {
 			pthread_mutex_lock(&c->synclock);
+			msg(INITIAL, DEBUG, "Niranjan: %d %d", c->iocount, c->synccount);
 			c->syncstatus = r;
 			atomic_dec(c->buffull);
 			pthread_cond_broadcast(&c->fullcv);

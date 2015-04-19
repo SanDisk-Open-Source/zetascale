@@ -213,7 +213,7 @@ nvr_init(struct ZS_state *zs_state)
 		nvr_objs[i].nso_fileoff = nvr_off + i * nvr_objsize;
 		nvr_objs[i].nso_data = (char *)(nvr_databuf + i * nvr_objsize);
 		nvr_objs[i].nso_nxtfree = NULL;
-		nvr_objs[i].nso_off = nvr_objs[i].nso_syncoff = nvr_blksize;
+		nvr_objs[i].nso_off = nvr_objs[i].nso_syncoff = 0;
 		pthread_mutex_init(&(nvr_objs[i].nso_mutex), NULL);
 		pthread_mutex_init(&(nvr_objs[i].nso_sync_mutex), NULL);
 		pthread_cond_init(&(nvr_objs[i].nso_sync_cond), NULL);
@@ -228,8 +228,7 @@ nvr_init(struct ZS_state *zs_state)
 	nvr_blksize = (off_t)getProperty_Int("ZS_NVR_BLOCK_SIZE", NVR_DEFAULT_BLOCK_SIZE);
 	nvr_data_in_obj = nvr_objsize - sizeof( mcd_osd_meta_t) - sizeof( uint64_t);
 
-	bytes_per_nvr_buffer = nvr_data_in_obj - nvr_blksize - 
-				(nvr_objsize / nvr_blksize -1) * NSB_METASIZE;
+	bytes_per_nvr_buffer = nvr_data_in_obj - (nvr_objsize / nvr_blksize ) * NSB_METASIZE;
 	memset(&nvr_zero, 0, sizeof(nvr_zero));
 
 	dumpparams();
@@ -289,11 +288,35 @@ nvr_reset_buffer(nvr_buffer_t *buf)
 		return ZS_FAILURE;
 	}
 
-	obj->nso_off = obj->nso_syncoff = nvr_blksize;
+	obj->nso_off = obj->nso_syncoff = 0;
+	if (nvr_write_buffer_internal(buf, nvr_zero, nvr_blksize - NSB_METASIZE , 1, 1, NULL) == -1) {
+		ret = ZS_FAILURE;
+	}
+	obj->nso_off = obj->nso_syncoff = 0;
+
+	return ret;
+}
+
+ZS_status_t
+nvr_format_buffer(nvr_buffer_t *buf)
+{
+	ZS_status_t	ret;
+	nvrso_t		*obj = (nvrso_t *)buf;
+
+	plat_assert(obj->nso_nxtfree == NULL);
+	plat_assert(obj->nso_refcnt);
+
+	atomic_inc(nvr_reset_req);
+	if (nvr_disabled) {
+		msg(INITIAL, DEBUG, "NVRAM is disabled");
+		return ZS_FAILURE;
+	}
+
+	obj->nso_off = obj->nso_syncoff = 0;
 	if (nvr_write_buffer_internal(buf, nvr_zero, bytes_per_nvr_buffer, 1, 1, NULL) == -1) {
 		ret = ZS_FAILURE;
 	}
-	obj->nso_off = obj->nso_syncoff = nvr_blksize;
+	obj->nso_off = obj->nso_syncoff = 0;
 
 	return ret;
 }
@@ -543,7 +566,7 @@ nvr_rebuild(struct ZS_state *zs_state)
 
 	for (i = 0; i < nvr_numobjs; i++) {
 		nvrso_t		*so = &nvr_objs[i];
-		so->nso_off = so->nso_syncoff = nvr_blksize;
+		so->nso_off = so->nso_syncoff = 0;
 		for (int j = 1; j < numblks ; j++) {
 			nvrsbuf_t *sb = (nvrsbuf_t *)(so->nso_data + nvr_blksize * j);
 			if (sb->nsb_off) {
@@ -917,7 +940,7 @@ nvr_reset(void)
 
 	for (int i = 0; i < nvr_numobjs; i++ ) {
 		for (int j = 0; j < n_partitions; j++) {
-			(void)nvr_reset_buffer(&nvr_objs[i]);
+			(void)nvr_format_buffer(&nvr_objs[i]);
 		}
 	}
 	for (int i = 0; i < nvr_numobjs; i++ ) {
