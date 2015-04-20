@@ -8624,6 +8624,17 @@ ZS_status_t ZSRenameContainer(
     // Allow any outstanding IO to drain 
     zs_cntr_drain_io( cmap->io_count );
 
+    /*
+     * Delete entry from hashmap. We cannot update the entry for cname since
+     * cname acts as the key and now we have a new key (i.e. the new cname).
+     */
+    if (HashMap_get(cmap_cname_hash, name) == ZS_NULL_CGUID) { 
+        HashMap_remove( cmap_cname_hash, meta.cname ); 
+    } else { 
+        status = ZS_FAILURE; 
+        goto out; 
+    }
+
     container = cmap->sdf_container;
     local_SDF_CONTAINER lcontainer = getLocalContainer(&lcontainer, container);
     if (lcontainer) { 
@@ -8642,17 +8653,6 @@ ZS_status_t ZSRenameContainer(
         }
       
         reopen = 1;
-    }
-
-    /*
-     * Delete entry from hashmap. We cannot update the entry for cname since
-     * cname acts as the key and now we have a new key (i.e. the new cname).
-     */
-    if (HashMap_get(cmap_cname_hash, name) == ZS_NULL_CGUID) { 
-        HashMap_remove( cmap_cname_hash, meta.cname ); 
-    } else { 
-        status = ZS_FAILURE; 
-        goto out; 
     }
 
     snprintf(meta.cname,CONTAINER_NAME_MAXLEN,"%s",name); 
