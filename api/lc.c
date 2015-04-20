@@ -233,6 +233,7 @@ struct containerstructure {
 	lock_t		lock;
 	uint		stream;
 	stream_t	*streams,
+			*percontainerstream,
 			*streamhand;
 	char		*trxrevfile;
 	pg_t		*pgtable[1000];
@@ -341,7 +342,7 @@ static char		*trxrevfilename( ZS_cguid_t),
 static int		compar( const void *, const void *);
 //static char		*prettynumber( ulong);
 static counter_t	newest( counter_t, counter_t);
-static int	 	lc_sync_buf( stream_t *s, off_t off);
+static int	 	lc_sync_buf( container_t *c, off_t off);
 
 /*
  * LC entrypoint - initialize LC system
@@ -443,6 +444,11 @@ lc_open( ts_t *t, ZS_cguid_t cguid)
 			s->stream = ++c->stream;
 			s->next = c->streams;
 			c->streams = s;
+			if (streams_per_container == 1) {
+				c->percontainerstream = s;
+			} else {
+				c->percontainerstream = NULL;
+			}
 			s->container = c;
 			s->so.cguid = cguid;
 			s->so.stream = s->stream;
@@ -530,7 +536,7 @@ lc_write( ts_t *t, ZS_cguid_t cguid, char *k, uint32_t kl, char *d, uint64_t dl)
 			pthread_rwlock_unlock( &lc_lock);
 			if (streams_per_container == 1) {
 				sched_yield();
-				lc_sync_buf(s, off);
+				lc_sync_buf(c, off);
 			}
 			return (r);
 		}
@@ -542,7 +548,7 @@ lc_write( ts_t *t, ZS_cguid_t cguid, char *k, uint32_t kl, char *d, uint64_t dl)
 	r = write_record( t, cguid, LR_WRITE, k, kl, d, dl);
 	if (streams_per_container == 1) {
 		sched_yield();
-		lc_sync_buf(s, off);
+		lc_sync_buf(c, off);
 	}
 	return (r);
 }
@@ -819,11 +825,13 @@ out:
  * Make sure the key/value is written to NVRAM
  */
 static int
-lc_sync_buf( stream_t *s, off_t off)
+lc_sync_buf( container_t *c, off_t off)
 {
 	off_t		soff;
-	container_t	*c = s->container;
-	int		cnt;
+	int		cnt = 0;
+	stream_t	*s = c->percontainerstream;
+
+	plat_assert(streams_per_container == 1);
 
 	pthread_mutex_lock(&c->synclock);
 	atomic_inc(c->synccount);
@@ -844,7 +852,7 @@ restart:
 		return ZS_SUCCESS;
 	}
 
-	while ((cnt == atomic_add_get(c->iocount, 0)) > 0) {
+	while ((cnt = atomic_add_get(c->iocount, 0)) > 0) {
 		if (c->buffull == 1) {
 			atomic_dec(c->synccount);
 			pthread_cond_broadcast(&c->flashcv);
@@ -947,6 +955,11 @@ recover( ts_t *t, container_t *c)
 				s->next = c->streams;
 				c->streams = s;
 				s->container = c;
+				if (streams_per_container == 1) {
+					c->percontainerstream = s;
+				} else {
+					c->percontainerstream = NULL;
+				}
 				s->so.cguid = c->cguid;
 				s->so.stream = s->stream;
 			}
@@ -983,6 +996,7 @@ write_record( ts_t *t, ZS_cguid_t cguid, uint type, char *k, uint32_t kl, char *
 	pgname_t	n;
 	lrec_t		lr;
 	off_t		off;
+	pg_t		*pg = NULL;
 
 	pthread_rwlock_rdlock( &lc_lock);
 	container_t *c = clookup( cguid);
@@ -996,9 +1010,11 @@ write_record( ts_t *t, ZS_cguid_t cguid, uint type, char *k, uint32_t kl, char *
 		pthread_rwlock_unlock( &lc_lock);
 		return (r);
 	}
+
 	atomic_inc(c->iocount);
+
 	pthread_rwlock_wrlock( &c->lock);
-	pg_t *pg = pglookup( c, k, n, h);
+	pg = pglookup( c, k, n, h);
 	unless ((pg)
 	and (lrecbuild( &lr, type, k, kl, d, dl, counter))) {
 		r = ZS_FAILURE;
@@ -1022,7 +1038,7 @@ fail:
 	pthread_rwlock_unlock( &lc_lock);
 	if (streams_per_container == 1) {
 		sched_yield();
-		lc_sync_buf(pg->stream, off);
+		lc_sync_buf(c, off);
 	}
 	return r;
 }
@@ -1178,7 +1194,7 @@ out:
 	pthread_rwlock_unlock( &lc_lock);
 	if (streams_per_container == 1) {
 		sched_yield();
-		lc_sync_buf(pg->stream, off);
+		lc_sync_buf(c, off);
 	}
 	return r;
 }
@@ -1403,6 +1419,7 @@ callocate( )
 			c->syncstatus = ZS_SUCCESS;
 			c->insync = 0;
 			c->buffull = 0;
+			c->percontainerstream = NULL;
 			pthread_rwlock_init( &c->lock, 0);
 			pthread_mutex_init( &c->synclock, 0);
 			pthread_cond_init( &c->synccv, NULL);
@@ -1530,11 +1547,10 @@ streamwrite( ts_t *t, stream_t *s, lrec_t *lr, off_t *off)
 			pthread_mutex_unlock(&c->synclock);
 		}
 		uint32_t kl = strlen( make_sokey( k, s->stream, s->seqnext));
-		r = zs_write_object_lc( t, s->container->cguid, k, kl, (char *)&s->so, sizeof( s->so)+s->bufnexti);
+		r = zs_write_object_lc( t, c->cguid, k, kl, (char *)&s->so, sizeof( s->so)+s->bufnexti);
 
 		if (streams_per_container == 1) {
 			pthread_mutex_lock(&c->synclock);
-			msg(INITIAL, DEBUG, "Niranjan: %d %d", c->iocount, c->synccount);
 			c->syncstatus = r;
 			atomic_dec(c->buffull);
 			pthread_cond_broadcast(&c->fullcv);
