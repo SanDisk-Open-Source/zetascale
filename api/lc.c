@@ -1011,7 +1011,9 @@ write_record( ts_t *t, ZS_cguid_t cguid, uint type, char *k, uint32_t kl, char *
 		return (r);
 	}
 
-	atomic_inc(c->iocount);
+	if (type != LR_WRITE) {
+		atomic_inc(c->iocount);
+	}
 
 	pthread_rwlock_wrlock( &c->lock);
 	pg = pglookup( c, k, n, h);
