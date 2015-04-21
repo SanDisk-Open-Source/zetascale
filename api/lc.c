@@ -513,7 +513,10 @@ lc_write( ts_t *t, ZS_cguid_t cguid, char *k, uint32_t kl, char *d, uint64_t dl)
 		return (ZS_FAILURE);
 	}
 
-	atomic_inc(c->iocount);
+	if (streams_per_container == 1) {
+		int ioc = atomic_add_get(c->iocount, 1);
+		plat_assert(ioc > 0);
+	}
 
 	pthread_rwlock_rdlock( &c->lock);
 	atomic_inc(c->lgstats.stat[LOGSTAT_WRITE_CNT]);
@@ -546,10 +549,6 @@ lc_write( ts_t *t, ZS_cguid_t cguid, char *k, uint32_t kl, char *d, uint64_t dl)
 	pthread_rwlock_unlock( &lc_lock);
 
 	r = write_record( t, cguid, LR_WRITE, k, kl, d, dl);
-	if (streams_per_container == 1) {
-		sched_yield();
-		lc_sync_buf(c, off);
-	}
 	return (r);
 }
 
@@ -834,8 +833,10 @@ lc_sync_buf( container_t *c, off_t off)
 	plat_assert(streams_per_container == 1);
 
 	pthread_mutex_lock(&c->synclock);
-	atomic_inc(c->synccount);
-	atomic_dec(c->iocount);
+	int sc = atomic_inc_get(c->synccount);
+	plat_assert(sc > 0);
+	int ioc = atomic_dec_get(c->iocount);
+	plat_assert(ioc >= 0);
 
 restart:
 
@@ -1012,7 +1013,8 @@ write_record( ts_t *t, ZS_cguid_t cguid, uint type, char *k, uint32_t kl, char *
 	}
 
 	if (type != LR_WRITE) {
-		atomic_inc(c->iocount);
+		int ioc = atomic_inc_get(c->iocount);
+		plat_assert(ioc > 0);
 	}
 
 	pthread_rwlock_wrlock( &c->lock);
@@ -1073,7 +1075,10 @@ write_records( ts_t *ts, lrec_t **lrecs, int num_recs, ZS_cguid_t cguid, int *wr
 		return (ZS_FAILURE);
 	}
 
-	atomic_inc(c->iocount);
+	if (streams_per_container == 1){
+		int ioc = atomic_inc_get(c->iocount);
+		plat_assert(ioc > 0);
+	}
 
 	pthread_rwlock_rdlock( &c->lock);
 	atomic_add(c->lgstats.stat[LOGSTAT_MPUT_IO_SAVED], num_recs);
