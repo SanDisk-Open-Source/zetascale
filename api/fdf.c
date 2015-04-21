@@ -8561,6 +8561,11 @@ ZS_status_t ZSRenameContainer(
     SDF_CONTAINER container = containerNull;
     int reopen = 0;
 
+    if(strlen(name) + 1 > CONTAINER_NAME_MAXLEN) {
+        plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, LOG_ERR, "Too long container name: %.*s...", CONTAINER_NAME_MAXLEN, name);
+        return ZS_INVALID_PARAMETER;
+    }
+
     /* 
      * Check if operation can begin 
      */ 
