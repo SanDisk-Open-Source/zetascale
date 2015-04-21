@@ -8574,6 +8574,12 @@ ZS_status_t ZSRenameContainer(
         return ZS_INVALID_PARAMETER;
     }
 
+    if (strlen(name) > CONTAINER_NAME_MAXLEN) {
+	plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, LOG_ERR, "Name %s bigger than maxlen %d  for rename.",
+						name, CONTAINER_NAME_MAXLEN);	
+        return ZS_INVALID_PARAMETER;
+    }
+
     if (is_license_valid(is_btree_loaded()) == false) { 
         plat_log_msg(160145, LOG_CAT, LOG_WARN, "License check failed."); 
         return ZS_LICENSE_CHK_FAILED; 
@@ -8654,6 +8660,7 @@ ZS_status_t ZSRenameContainer(
       
         reopen = 1;
     }
+
 
     snprintf(meta.cname,CONTAINER_NAME_MAXLEN,"%s",name); 
     snprintf(cmap->cname,CONTAINER_NAME_MAXLEN,"%s",name);
