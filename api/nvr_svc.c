@@ -384,16 +384,15 @@ ZS_status_t
 nvr_read_buffer(nvr_buffer_t *buf, char **out, int *len)
 {
 	nvrso_t			*so = (nvrso_t *)buf;
-	off_t			off = nvr_blksize;
+	off_t			off = 0;
 	off_t			dstoff = 0;
 	uint64_t		seq = 0;
 	char			*data = NULL;
 	int			numblks = nvr_objsize / nvr_blksize;
 
-	if (so->nso_off == nvr_blksize) {
+	if (so->nso_off == 0) {
 		goto out;
 	}
-
 	data = (char *)malloc(bytes_per_nvr_buffer);
 	if (data == NULL) {
 		msg(INITIAL, DEBUG, "malloc failed");
@@ -402,7 +401,7 @@ nvr_read_buffer(nvr_buffer_t *buf, char **out, int *len)
 
 	plat_assert(so->nso_nxtfree == NULL);
 
-	for (int i = 0; i < numblks - 1; i++, off += nvr_blksize) {
+	for (int i = 0; i < numblks ; i++, off += nvr_blksize) {
 		nvrsbuf_t	*sb = (nvrsbuf_t *)(so->nso_data + off);
 
 		if (sb->nsb_off == 0) {
@@ -485,11 +484,7 @@ nvr_rebuild(struct ZS_state *zs_state)
 			b1 = (char *)(nvr_databuf + i * nvr_objsize);
 			b2 = (char *)(tmpbuf + i * nvr_objsize);
 
-			/* Handle NVR object header section */
-			b1 += nvr_blksize;
-			b2 += nvr_blksize;
-
-			for (int j = 0; j < numblks -1; j++) {
+			for (int j = 0; j < numblks; j++) {
 				nvrsbuf_t	*s1, *s2;
 				s1 = (nvrsbuf_t *)b1;
 				s2 = (nvrsbuf_t *)b2;
@@ -531,10 +526,7 @@ nvr_rebuild(struct ZS_state *zs_state)
 		for (i = 0; i < nvr_numobjs; i++) {
 			b1 = (char *)(nvr_databuf + i * nvr_objsize);
 
-			/* Handle NVR object header section */
-			b1 += nvr_blksize;
-
-			for (int j = 0; j < numblks -1; j++) {
+			for (int j = 0; j < numblks; j++) {
 				nvrsbuf_t	*s1;
 				s1 = (nvrsbuf_t *)b1;
 
@@ -562,7 +554,7 @@ nvr_rebuild(struct ZS_state *zs_state)
 	for (i = 0; i < nvr_numobjs; i++) {
 		nvrso_t		*so = &nvr_objs[i];
 		so->nso_off = so->nso_syncoff = 0;
-		for (int j = 1; j < numblks ; j++) {
+		for (int j = 0; j < numblks ; j++) {
 			nvrsbuf_t *sb = (nvrsbuf_t *)(so->nso_data + nvr_blksize * j);
 			if (sb->nsb_off) {
 				so->nso_off += sb->nsb_off;
