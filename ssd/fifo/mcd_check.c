@@ -62,6 +62,9 @@
     #define dprintf(...) 
 #endif
 
+// Storm depends in ZS_STORM_MODE and ZS_BLOCK_SIZE
+int zsck_storm_mode = 1;
+
 bool match_potbm_checksum( potbm_t *potbm, uint n);
 bool match_slabbm_checksum( slabbm_t *, uint);
 bool empty( void *, uint);
@@ -79,8 +82,8 @@ static int                   cmc_seg_list_ok = 1;
 static int                   vmc_seg_list_ok = 1;
 static int                   vdc_seg_list_ok = 1;
 extern int 		     bytes_per_device_block;
-
-extern int __zs_check_mode_on;
+extern int                   pot_checksum_enabled;
+extern int                   __zs_check_mode_on;
 
 mcd_osd_shard_t * mcd_check_get_osd_shard( uint64_t shard_id );
 int mcd_corrupt_meta();
@@ -330,8 +333,6 @@ mcd_check_shard_descriptor(int fd, int shard_idx)
 }
 
 
-extern int pot_checksum_enabled;
-#define bytes_per_page 65536
 void pot_checksum_set(char* buf, uint32_t sum);
 uint32_t pot_checksum_get(char* buf);
 
@@ -385,16 +386,16 @@ mcd_check_potbm(int fd, int buf_idx, uint64_t shard_id, uint64_t* mos_segments)
     int                   i, status = 0;
     ssize_t               bytes;
     char                  msg[512];
-	mcd_rec_shard_t      *p = (mcd_rec_shard_t *)buf[buf_idx];
-	size_t                n = p->rec_potbm_blks * bytes_per_device_block;
-	potbm_t              *potbm = NULL;
-	char                 *buf = NULL;
+    mcd_rec_shard_t      *p = (mcd_rec_shard_t *)buf[buf_idx];
+    size_t                n = p->rec_potbm_blks * bytes_per_device_block;
+    potbm_t              *potbm = NULL;
+    char                 *buf = NULL;
 
-	potbm = (potbm_t*)memalign( MCD_OSD_META_BLK_SIZE, n);
-	if(!potbm)
-		return -1;
-        dprintf(stderr,"%s Reading POT bitmap at offset:%lu\n",__FUNCTION__,(uint64_t)potbm_base(p));
-	bytes = pread(fd, potbm, n, potbm_base(p));
+    potbm = (potbm_t*)memalign( MCD_OSD_META_BLK_SIZE, n);
+    if(!potbm)
+        return -1;
+    dprintf(stderr,"%s Reading POT bitmap at offset:%lu\n",__FUNCTION__,(uint64_t)potbm_base(p));
+    bytes = pread(fd, potbm, n, potbm_base(p));
 
     if (bytes != n ) {
         sprintf(msg, "failed to read pot bitmap @ %lu", (uint64_t)potbm_base(p));

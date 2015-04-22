@@ -32,18 +32,6 @@
 
 int   bytes_per_device_block  = ZS_DEFAULT_BLOCK_SIZE;
 
-
-#define	bytes_per_second		(1uL << 31)
-#define	bytes_per_segment		(1uL << 25)
-#define	bytes_per_pot_element		(1uL << 4)
-#define	bytes_per_log_record		(1uL << 6)
-#define	device_blocks_per_storm_object	(bytes_per_storm_object / bytes_per_device_block)
-#define	device_blocks_per_segment	(bytes_per_segment / ZS_DEFAULT_BLOCK_SIZE)
-#define	pot_elements_per_page		device_blocks_per_segment
-#define	bytes_per_page			(pot_elements_per_page * bytes_per_pot_element)
-#define leaf_occupancy_pct		75
-#define	regobj_scale_pct		120
-
 /*
  * This rather arbitrary byte count is used to size and align flash
  * structures, and must equal or exceed bytes_per_device_block.
