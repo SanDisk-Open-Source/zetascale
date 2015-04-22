@@ -57,7 +57,7 @@ enum flashReqFlags {
 	FLASH_RAW_OBJECT		= 0x01,		// RAW Object
 };
 
-#define MIN_FLASH_WRITE_SHIFT 9
+#define MIN_FLASH_WRITE_SHIFT 12
 #define FLASH_ALIGNMENT_LEN 16
 #define FLASH_ALIGNMENT_ADDR 16
 
