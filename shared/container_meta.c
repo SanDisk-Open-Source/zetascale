@@ -33,6 +33,11 @@ container_meta_create(const char *name, SDF_container_props_t props, SDF_cguid_t
 
     SDF_container_meta_t *meta = NULL;
 
+    if (strlen(name) > MAX_CNAME_SIZE) { 
+        plat_log_msg(21582, PLAT_LOG_CAT_SDF_SHARED, PLAT_LOG_LEVEL_ERROR, "FAILED: container name exceeds max");
+        return NULL;
+    }
+
     if (shard <= SDF_SHARDID_LIMIT && !ISEMPTY(name)) {
         if ((meta = (SDF_container_meta_t *)
              plat_alloc(sizeof (SDF_container_meta_t))) != NULL) {
@@ -50,18 +55,13 @@ container_meta_create(const char *name, SDF_container_props_t props, SDF_cguid_t
 				meta->node = CMC_HOME;
 	    	else
 				meta->node = init_get_my_node_id();
-	    		meta->counters.sguid = 0;
-	    		meta->counters.oguid = 0;
-	    		if (meta->properties.shard.num_shards <= 0) {
-					meta->properties.shard.num_shards = SDF_SHARD_DEFAULT_SHARD_COUNT;
-	    		}
-	    		if (strlen(name) > MAX_CNAME_SIZE) {
-					plat_log_msg(21582, PLAT_LOG_CAT_SDF_SHARED, PLAT_LOG_LEVEL_ERROR, "FAILED: container name exceeds max");
-	    		} else {
-					memcpy(&meta->cname, name, strlen(name));
-
-					plat_log_msg(21583, PLAT_LOG_CAT_SDF_SHARED, PLAT_LOG_LEVEL_TRACE, "metadata created for %s", name);
-	    		}
+	    	meta->counters.sguid = 0;
+	    	meta->counters.oguid = 0;
+	    	if (meta->properties.shard.num_shards <= 0) {
+				meta->properties.shard.num_shards = SDF_SHARD_DEFAULT_SHARD_COUNT;
+	    	}
+			memcpy(&meta->cname, name, strlen(name));
+			plat_log_msg(21583, PLAT_LOG_CAT_SDF_SHARED, PLAT_LOG_LEVEL_TRACE, "metadata created for %s", name);
        	} else {
             plat_log_msg(21584, PLAT_LOG_CAT_SDF_SHARED, PLAT_LOG_LEVEL_TRACE, "could not allocate memory");
        	}

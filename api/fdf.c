@@ -3054,13 +3054,18 @@ static ZS_status_t zs_create_container(
 	ZS_internal_container_props_t    iproperties;
 #endif
 
-
 	if ( !properties || !cguid || !zs_thread_state ||
 			ISEMPTY( cname ) ) {
 		return ZS_INVALID_PARAMETER;
 	}
 
 	*cguid = 0;
+
+    if (strlen(cname) > CONTAINER_NAME_MAXLEN) {
+        plat_log_msg(150136, LOG_CAT, LOG_ERR, "Container name %s exceeds max length of %d.",
+                     cname, CONTAINER_NAME_MAXLEN);   
+        return ZS_INVALID_PARAMETER;
+    }
 
 	properties->persistent			= SDF_TRUE;
 	//properties->evicting			= SDF_FALSE;
@@ -8465,7 +8470,7 @@ ZS_status_t ZSRenameContainer(
     }
 
     if (strlen(name) > CONTAINER_NAME_MAXLEN) {
-	plat_log_msg(170048, LOG_CAT, LOG_ERR, "Name %s bigger than maxlen %d  for rename.",
+ 	plat_log_msg(170048, LOG_CAT, LOG_ERR, "Name %s bigger than maxlen %d  for rename.",
 						name, CONTAINER_NAME_MAXLEN);	
         return ZS_INVALID_PARAMETER;
     }

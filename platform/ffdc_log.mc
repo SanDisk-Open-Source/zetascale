@@ -3195,6 +3195,7 @@
 150133 max number of containers = %d.\n
 150134 Failed to create cmap for %s - %lu
 150135 Created cmap for %s - %lu
+150136 Container name %s exceeds max length of %d.
 
 
 # root
