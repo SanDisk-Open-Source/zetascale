@@ -117,7 +117,6 @@ SDF_shardid_t      vmc_shardid = SDF_SHARDID_INVALID;
 SDF_shardid_t	vdc_shardid		= SDF_SHARDID_INVALID;
 static int dump_interval = 0;
 int zs_dump_core = 0;
-int lc_exists;
 
 /* Id used to uniquely differenciate 
    parallel container deletes with same name */
@@ -1974,269 +1973,293 @@ void agent_config_set_defaults(struct plat_opts_config_sdf_agent *config);
 bool is_btree_loaded() {
     return (ext_cbs != NULL)?1:0;
 }
-ZS_status_t ZSInitVersioned(
-	struct ZS_state	**zs_state,
-	uint32_t                api_version
-	)
+
+
+ZS_status_t
+ZSInitVersioned(struct ZS_state **zs_state, uint32_t api_version)
 {
-    int                  rc;
-    pthread_t            run_sched_pthread;
-    pthread_attr_t       attr;
-    uint64_t             num_sched;
-    struct timeval		 timer;
-    const char			*prop_file;
-    struct SDF_shared_state      *state       = &sdf_shared_state; 
+	int             rc;
+	pthread_t       run_sched_pthread;
+	pthread_attr_t  attr;
+	uint64_t        num_sched;
+	struct timeval  timer;
+	const char     *prop_file;
+	struct SDF_shared_state *state = &sdf_shared_state;
 
-    char log_file[2048]="";
+	char            log_file[2048] = "";
 
-    if (api_version != ZS_API_VERSION) {
-        mcd_log_msg(160260, PLAT_LOG_LEVEL_FATAL, 
-                    "Error: Incompatibile ZS API Version. ZSInit called "
-                    "with version '%u', ZS API version is '%u'\n",
-                    api_version, ZS_API_VERSION);
-        return ZS_VERSION_CHECK_FAILED;       
-    }
+	if (api_version != ZS_API_VERSION) {
+		mcd_log_msg(160260, PLAT_LOG_LEVEL_FATAL,
+			    "Error: Incompatibile ZS API Version. ZSInit called "
+			    "with version '%u', ZS API version is '%u'\n",
+			    api_version, ZS_API_VERSION);
+		return ZS_VERSION_CHECK_FAILED;
+	}
 
-    int check_x86_sse42( void);
-    extern int sse42_present;
+	int             check_x86_sse42(void);
+	extern int      sse42_present;
 
-    sse42_present = check_x86_sse42( );
+	sse42_present = check_x86_sse42();
 
 
-    if (verify_datastruct_consistency() != ZS_SUCCESS ) {
-        return ZS_FAILURE;
-    }
-    sem_init( &Mcd_initer_sem, 0, 0 );
+	if (verify_datastruct_consistency() != ZS_SUCCESS) {
+		return ZS_FAILURE;
+	}
+	sem_init(&Mcd_initer_sem, 0, 0);
 
-    gettimeofday( &timer, NULL );
-    current_time = timer.tv_sec;
+	gettimeofday(&timer, NULL);
+	current_time = timer.tv_sec;
 
-    *zs_state = (struct ZS_state *) &agent_state;
+	*zs_state = (struct ZS_state *) &agent_state;
 
-    prop_file = getenv("ZS_PROPERTY_FILE");
-    agent_state.flash_settings.sdf_log_level = LOG_FATAL;
-    if (prop_file)
-        loadProperties(prop_file);
+	prop_file = getenv("ZS_PROPERTY_FILE");
+	agent_state.flash_settings.sdf_log_level = LOG_FATAL;
+	if (prop_file)
+		loadProperties(prop_file);
 
-    // Set operational mode (normal API run or check). Default to run.
-    __zs_check_mode_on = getProperty_Int("ZS_CHECK_MODE", ZSCHECK_NO_CHECK);
-	mcd_log_msg(160280, PLAT_LOG_LEVEL_INFO, "ZS_CHECK_MODE = %d.\n", __zs_check_mode_on);
+	// Set operational mode (normal API run or check). Default to run.
+	__zs_check_mode_on =
+	    getProperty_Int("ZS_CHECK_MODE", ZSCHECK_NO_CHECK);
+	mcd_log_msg(160280, PLAT_LOG_LEVEL_INFO, "ZS_CHECK_MODE = %d.\n",
+		    __zs_check_mode_on);
 
-    // Pick up the max number of containers property. Should only do this on reformat!!!! FIXME
-    // Allow for internal ZS containers, but limit to the absolute max.
-    max_num_containers = getProperty_Int("ZS_MAX_NUM_CONTAINERS", MCD_MAX_NUM_CNTRS) + MCD_NUM_INTERNAL_CNTRS;
-    if (max_num_containers > MCD_MAX_NUM_CNTRS)
-        max_num_containers = MCD_MAX_NUM_CNTRS;
+	// Pick up the max number of containers property. Should only do
+	// this on reformat!!!! FIXME
+	// Allow for internal ZS containers, but limit to the absolute
+	// max.
+	max_num_containers =
+	    getProperty_Int("ZS_MAX_NUM_CONTAINERS",
+			    MCD_MAX_NUM_CNTRS) + MCD_NUM_INTERNAL_CNTRS;
+	if (max_num_containers > MCD_MAX_NUM_CNTRS)
+		max_num_containers = MCD_MAX_NUM_CNTRS;
 
-    mcd_log_msg(150133, PLAT_LOG_LEVEL_INFO, "max number of containers = %d.\n", max_num_containers);
+	mcd_log_msg(150133, PLAT_LOG_LEVEL_INFO,
+		    "max number of containers = %d.\n",
+		    max_num_containers);
 
-    //  Initialize a crap-load of settings
-    zs_load_settings( &(agent_state.flash_settings) );
-    if (zs_check_settings(&(agent_state.flash_settings)) == false) {
-        return ZS_FAILURE;
-    } 
+	// Initialize a crap-load of settings
+	zs_load_settings(&(agent_state.flash_settings));
+	if (zs_check_settings(&(agent_state.flash_settings)) == false) {
+		return ZS_FAILURE;
+	}
+	// Configure cguid counter to by pass ZS internal containers
+	state->config.cguid_counter = LAST_INTERNAL_CGUID + 1;
 
-    // Configure cguid counter to by pass ZS internal containers
-    state->config.cguid_counter = LAST_INTERNAL_CGUID + 1;
-    
-    // Initialize the container metadata map
-    if ( ZS_SUCCESS != zs_cmap_init() )
-        return ZS_FAILURE;
+	// Initialize the container metadata map
+	if (ZS_SUCCESS != zs_cmap_init())
+		return ZS_FAILURE;
 
-    mcd_aio_register_ops();
-    mcd_osd_register_ops();
+	mcd_aio_register_ops();
+	mcd_osd_register_ops();
 
-    //  Set the logging level
-    set_log_level( agent_state.flash_settings.sdf_log_level );
-    agent_config_set_defaults(& (agent_state.config));
-    /* Set the log file if configured*/
-    strncpy(log_file,getProperty_String("ZS_LOG_FILE",log_file),sizeof(log_file)-1);
-    if( strcmp(log_file,"") ) { 
-        plat_log_set_file(log_file, PLAT_LOG_REDIRECT_STDERR|PLAT_LOG_REDIRECT_STDOUT);
-    } 
-
+	// Set the logging level
+	set_log_level(agent_state.flash_settings.sdf_log_level);
+	agent_config_set_defaults(&(agent_state.config));
+	/*
+	 * Set the log file if configured
+	 */
+	strncpy(log_file, getProperty_String("ZS_LOG_FILE", log_file),
+		sizeof(log_file) - 1);
+	if (strcmp(log_file, "")) {
+		plat_log_set_file(log_file,
+				  PLAT_LOG_REDIRECT_STDERR |
+				  PLAT_LOG_REDIRECT_STDOUT);
+	}
 #ifdef ZS_REVISION
-    plat_log_msg(160146, LOG_CAT, LOG_INFO,
-            "Initializing %s (Rev:%s API version:%u)", ZS_PRODUCT_NAME, ZS_REVISION, ZS_API_VERSION);
+	plat_log_msg(160146, LOG_CAT, LOG_INFO,
+		     "Initializing %s (Rev:%s API version:%u)",
+		     ZS_PRODUCT_NAME, ZS_REVISION, ZS_API_VERSION);
 #endif
-    if ( prop_file != NULL ) {
-        plat_log_msg(80032, LOG_CAT, LOG_INFO, "Property file: %s",prop_file);
-        log_properties_file(prop_file,LOG_INFO);
-    }
-    print_configuration(LOG_INFO);
-    if ( !agent_engine_pre_init( &agent_state, 0, NULL ) ) {
-        return ZS_FAILURE; 
-    }
-
+	if (prop_file != NULL) {
+		plat_log_msg(80032, LOG_CAT, LOG_INFO, "Property file: %s",
+			     prop_file);
+		log_properties_file(prop_file, LOG_INFO);
+	}
+	print_configuration(LOG_INFO);
+	if (!agent_engine_pre_init(&agent_state, 0, NULL)) {
+		return ZS_FAILURE;
+	}
 #ifdef FLIP_ENABLED
-    flip_init();
+	flip_init();
 #endif
-    if (getProperty_Int( "ZS_SIGNAL_HANDLERS", 0) == 1 ) {
-        /* Initialize signal handler */
-        signal(SIGSEGV, zs_signal_handler);  
-        signal(SIGABRT, zs_signal_handler);    
-        signal(SIGBUS, zs_signal_handler);     
-        signal(SIGFPE, zs_signal_handler); 
-    }
+	if (getProperty_Int("ZS_SIGNAL_HANDLERS", 0) == 1) {
+		/*
+		 * Initialize signal handler 
+		 */
+		signal(SIGSEGV, zs_signal_handler);
+		signal(SIGABRT, zs_signal_handler);
+		signal(SIGBUS, zs_signal_handler);
+		signal(SIGFPE, zs_signal_handler);
+	}
 
-    if (getProperty_Int( "ZS_CORE_DUMP", 1) == 1) {
-		zs_dump_core = 1;	
-    }
+	if (getProperty_Int("ZS_CORE_DUMP", 1) == 1) {
+		zs_dump_core = 1;
+	}
+	// spawn initer thread (like mcd_fth_initer)
+	fthResume(fthSpawn(&zs_fth_initer, MCD_FTH_STACKSIZE),
+		  (uint64_t) & agent_state);
+	// Start License daemon
+	if (!licd_start
+	    (getProperty_String("ZS_LICENSE_PATH", ZS_LICENSE_PATH),
+	     getProperty_Int("ZS_LICENSE_CHECK_PERIOD",
+			     ZS_LICENSE_CHECK_PERIOD), *zs_state)) {
+		mcd_log_msg(160147, PLAT_LOG_LEVEL_FATAL,
+			    "Creation of license daemon failed\n");
+		return ZS_FAILURE;
+	}
+	// ipf_set_active( 1 );
 
-    // spawn initer thread (like mcd_fth_initer)
-    fthResume( fthSpawn( &zs_fth_initer, MCD_FTH_STACKSIZE ),
-            (uint64_t) &agent_state );
-    //Start License daemon
-    if (!licd_start(getProperty_String("ZS_LICENSE_PATH", ZS_LICENSE_PATH),
-                getProperty_Int("ZS_LICENSE_CHECK_PERIOD", ZS_LICENSE_CHECK_PERIOD),
-                *zs_state)) {
-        mcd_log_msg(160147, PLAT_LOG_LEVEL_FATAL, 
-                "Creation of license daemon failed\n");
-        return ZS_FAILURE;
-    }
+	// spawn scheduler startup process
+	pthread_attr_init(&attr);
+	pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_JOINABLE);
 
-    //ipf_set_active( 1 );
-
-    // spawn scheduler startup process
-    pthread_attr_init( &attr );
-    pthread_attr_setdetachstate( &attr, PTHREAD_CREATE_JOINABLE );
-
-    num_sched = agent_state.flash_settings.num_cores;
-    rc = pthread_create( &run_sched_pthread, 
-            &attr, 
-            zs_run_schedulers,
-            (void *) num_sched );
-    if ( 0 != rc ) {
-        mcd_log_msg( 20163, 
-                PLAT_LOG_LEVEL_FATAL,
-                "pthread_create() failed, rc=%d", 
-                rc );
-        return rc;
-    }
-    mcd_log_msg( 150022, PLAT_LOG_LEVEL_TRACE, "scheduler startup process created" );
+	num_sched = agent_state.flash_settings.num_cores;
+	rc = pthread_create(&run_sched_pthread,
+			    &attr, zs_run_schedulers, (void *) num_sched);
+	if (0 != rc) {
+		mcd_log_msg(20163,
+			    PLAT_LOG_LEVEL_FATAL,
+			    "pthread_create() failed, rc=%d", rc);
+		return rc;
+	}
+	mcd_log_msg(150022, PLAT_LOG_LEVEL_TRACE,
+		    "scheduler startup process created");
 
 
-    wait_for_licd_start();
-    if (is_license_valid(false) == false) {
-        plat_log_msg(160145, LOG_CAT, LOG_WARN, "License check failed.");
-        return ZS_LICENSE_CHK_FAILED;
-    }	
+	wait_for_licd_start();
+	if (is_license_valid(false) == false) {
+		plat_log_msg(160145, LOG_CAT, LOG_WARN,
+			     "License check failed.");
+		return ZS_LICENSE_CHK_FAILED;
+	}
+	// Wait until mcd_fth_initer is done
+	do {
+		rc = sem_wait(&Mcd_initer_sem);
+	} while (rc == -1 && errno == EINTR);
+	plat_assert(0 == rc);
 
-    // Wait until mcd_fth_initer is done
-    do {
-        rc = sem_wait( &Mcd_initer_sem );
-    } while (rc == -1 && errno == EINTR);
+	ZS_status_t r = lc_init( *zs_state, agent_state.config.system_recovery==SYS_FLASH_REFORMAT);
+	if (r != ZS_SUCCESS)
+		return (r);
+	zs_start_vc_thread(*zs_state);
 
-    plat_assert( 0 == rc );
-    // Only run stats thread for normal run mode (not zsck)
-    if ( ZSCHECK_NO_CHECK == mcd_check_get_level() ) {
-        if ( getProperty_String("ZS_STATS_FILE","")[0] )
-        {
-            zs_start_stats_thread( *zs_state );
-        }
-        if ( getProperty_Int( "ZS_ADMIN_ENABLED", 1 ) == 1 ) {
-            zs_start_admin_thread(*zs_state );
-        }
-        if ( getProperty_Int( "ASYNC_DELETE_CONTAINERS",0) == 1 ) {
-            time((time_t *)&delete_prefix);
-            init_async_cmd_handler(getProperty_Int("ASYNC_DELETE_CONTAINERS_THREADS",5),*zs_state);
-        }
-    }
-
-	zs_start_vc_thread ( *zs_state );
-
-	shard_t *shard; 
-	SDF_action_init_t *pai = (SDF_action_init_t *) zs_state; 
-	int s = cguid_to_shard(pai, VDC_CGUID, &shard, 0); 
-	if (s != ZS_SUCCESS) 
-		return s; 
+	// Only run stats thread for normal run mode (not zsck)
+	if (ZSCHECK_NO_CHECK == mcd_check_get_level()) {
+		if (getProperty_String("ZS_STATS_FILE", "")[0]) {
+			zs_start_stats_thread(*zs_state);
+		}
+		if (getProperty_Int("ZS_ADMIN_ENABLED", 1) == 1) {
+			zs_start_admin_thread(*zs_state);
+		}
+		if (getProperty_Int("ASYNC_DELETE_CONTAINERS", 0) == 1) {
+			time((time_t *) & delete_prefix);
+			init_async_cmd_handler(getProperty_Int
+					       ("ASYNC_DELETE_CONTAINERS_THREADS",
+						5), *zs_state);
+		}
+	}
+	shard_t        *shard;
+	SDF_action_init_t *pai = (SDF_action_init_t *) zs_state;
+	int             s = cguid_to_shard(pai, VDC_CGUID, &shard, 0);
+	if (s != ZS_SUCCESS)
+		return s;
 	set_cntr_sizes((SDF_action_init_t *) zs_state, shard);
-        mcd_osd_shard_t *mcd_shard;
-        mcd_shard = (mcd_osd_shard_t *)shard;
-        if ( is_btree_loaded() ) {
-            ext_cbs->flash_stats_buf_cb( &(mcd_shard->blk_allocated), 
-                 &(mcd_shard->free_segments_count), &(mcd_shard->blk_consumed), 
-                 &mcd_shard->hash_handle->hash_size, &mcd_shard->hash_handle->alloc_count, 
-                 Mcd_osd_blk_size, Mcd_osd_segment_size);
-           ext_cbs->zs_funcs_cb((void *)plat_log_msg_helper);
-        }
+	mcd_osd_shard_t *mcd_shard;
+	mcd_shard = (mcd_osd_shard_t *) shard;
+	if (is_btree_loaded()) {
+		ext_cbs->flash_stats_buf_cb(&(mcd_shard->blk_allocated),
+					    &(mcd_shard->
+					      free_segments_count),
+					    &(mcd_shard->blk_consumed),
+					    &mcd_shard->hash_handle->
+					    hash_size,
+					    &mcd_shard->hash_handle->
+					    alloc_count, Mcd_osd_blk_size,
+					    Mcd_osd_segment_size);
+		ext_cbs->zs_funcs_cb((void *) plat_log_msg_helper);
+	}
 
-    if ( getProperty_Int( "ZS_EXPIRY_SCAVENGER_ENABLE", 1 ) == 1 ) {
-        mcd_log_msg(160234, PLAT_LOG_LEVEL_DEBUG, 
-                "expired object scavenging enabled.");
-        zs_start_scavenger_thread( *zs_state );
-    } else {
-        mcd_log_msg(160235, PLAT_LOG_LEVEL_DEBUG,
-                "expired object scavenging disabled.");
-    }
+	if (getProperty_Int("ZS_EXPIRY_SCAVENGER_ENABLE", 1) == 1) {
+		mcd_log_msg(160234, PLAT_LOG_LEVEL_DEBUG,
+			    "expired object scavenging enabled.");
+		zs_start_scavenger_thread(*zs_state);
+	} else {
+		mcd_log_msg(160235, PLAT_LOG_LEVEL_DEBUG,
+			    "expired object scavenging disabled.");
+	}
 
-    ZS_status_t zs_start_defrag_thread(struct ZS_state *);
-    if ( getProperty_Int( "ZS_DEFRAG_ENABLE", 0) == 1 ) {
-        mcd_log_msg(160291, PLAT_LOG_LEVEL_DEBUG,
-                    "defragmenter enabled.\n");
-        zs_start_defrag_thread(*zs_state );
-    }
-
+	ZS_status_t     zs_start_defrag_thread(struct ZS_state *);
+	if (getProperty_Int("ZS_DEFRAG_ENABLE", 0) == 1) {
+		mcd_log_msg(160291, PLAT_LOG_LEVEL_DEBUG,
+			    "defragmenter enabled.\n");
+		zs_start_defrag_thread(*zs_state);
+	}
 #if 0
-    /*
-     * automatically add MCD_MAX_NUM_CNTRS to the maximum recovered
-     * container id to avoid potential reuse of ids from containers
-     * that are partially deleted 
-     */
-    uint64_t cntr_id = 0; 
-    for ( i = 0; i < max_num_containers; i++ ) {
-        if (Mcd_containers[i] == NULL) {
-	        continue;
-	    }
-
-	    SDF_container_props_t sdf_properties;
-		SDF_status_t props_rc = ZSGetContainerProps( fth_state->pai,
-													  pMcd_containers[i]->cguid,
-	                                                  &sdf_properties );
-		if ( ZS_SUCCESS != props_rc ) {
-			mcd_log_msg( 50030, PLAT_LOG_LEVEL_ERROR,
-	                     "failed to get SDF properties, status=%s",
-	                     ZSStrError(props_rc) );
-	        plat_abort();
+	/*
+	 * automatically add MCD_MAX_NUM_CNTRS to the maximum recovered
+	 * container id to avoid potential reuse of ids from containers
+	 * that are partially deleted 
+	 */
+	uint64_t        cntr_id = 0;
+	for (i = 0; i < max_num_containers; i++) {
+		if (Mcd_containers[i] == NULL) {
+			continue;
 		}
 
-		if ( cntr_id < sdf_properties->container_id.container_id) {   
-			cntr_id = sdf_properties->container_id.container_id;
-        }
-    }
-    
-    Mcd_next_cntr_id = cntr_id + max_num_containers + 1;
-    mcd_log_msg( 20131, PLAT_LOG_LEVEL_TRACE,
-                 "next container id %lu", Mcd_next_cntr_id );
+		SDF_container_props_t sdf_properties;
+		SDF_status_t    props_rc =
+		    ZSGetContainerProps(fth_state->pai,
+					pMcd_containers[i]->cguid,
+					&sdf_properties);
+		if (ZS_SUCCESS != props_rc) {
+			mcd_log_msg(50030, PLAT_LOG_LEVEL_ERROR,
+				    "failed to get SDF properties, status=%s",
+				    ZSStrError(props_rc));
+			plat_abort();
+		}
+
+		if (cntr_id < sdf_properties->container_id.container_id) {
+			cntr_id =
+			    sdf_properties->container_id.container_id;
+		}
+	}
+
+	Mcd_next_cntr_id = cntr_id + max_num_containers + 1;
+	mcd_log_msg(20131, PLAT_LOG_LEVEL_TRACE,
+		    "next container id %lu", Mcd_next_cntr_id);
 #endif
 
-	Force_async_writes  = getProperty_Int("FORCE_ASYNC_WRITES", 0);
+	Force_async_writes = getProperty_Int("FORCE_ASYNC_WRITES", 0);
 	Enable_async_writes = getProperty_Int("ENABLE_ASYNC_WRITES", 0);
-        /* Disabling Async writes permanently for now due to the following reasons
-         * Bugs
-         * we do not need for Cassandra layer */
+	/*
+	 * Disabling Async writes permanently for now due to the following 
+	 * reasons Bugs we do not need for Cassandra layer 
+	 */
 	if (Force_async_writes)
-		mcd_log_msg( 170018, PLAT_LOG_LEVEL_INFO, "property FORCE_ASYNC_WRITES overridden to 0");
+		mcd_log_msg(170018, PLAT_LOG_LEVEL_INFO,
+			    "property FORCE_ASYNC_WRITES overridden to 0");
 	if (Enable_async_writes)
-		mcd_log_msg( 170019, PLAT_LOG_LEVEL_INFO, "property ENABLE_ASYNC_WRITES overridden to 0");
+		mcd_log_msg(170019, PLAT_LOG_LEVEL_INFO,
+			    "property ENABLE_ASYNC_WRITES overridden to 0");
 
-	Force_async_writes  = 0;
+	Force_async_writes = 0;
 	Enable_async_writes = 0;
 
 	if ((agent_state.flash_settings.chksum_object)
-	&& (sse42_present == 0)) {
+	    && (sse42_present == 0)) {
 		agent_state.flash_settings.chksum_object = 0;
-		mcd_log_msg( 170040, PLAT_LOG_LEVEL_ERROR, "No x86 SSE4.2 support, ZS_OBJECT_CHECKSUM disabled");
+		mcd_log_msg(170040, PLAT_LOG_LEVEL_ERROR,
+			    "No x86 SSE4.2 support, ZS_OBJECT_CHECKSUM disabled");
 	}
 
 	if (is_btree_loaded()) {
-		uint64_t rawobjsz;
-		if (! get_rawobjsz( &rawobjsz))
+		uint64_t        rawobjsz;
+		if (!get_rawobjsz(&rawobjsz))
 			return (ZS_FAILURE);
 		rawobjratio = get_rawobjratio();
 		ext_cbs->zs_raw_cb(storm_mode, rawobjsz, rawobjratio);
 	}
-	return (lc_init( *zs_state, agent_state.config.system_recovery==SYS_FLASH_REFORMAT));
+	return (ZS_SUCCESS);
 }
 
 char *zs_init_per_thd_comp_buf(size_t len) {
@@ -3124,12 +3147,8 @@ static ZS_status_t zs_create_container(
 	                              *cguid, 
 	                              properties->size_kb, 
 	                              ZS_CONTAINER_STATE_CLOSED, 
-#if 0//Rico - lc
-	                              properties->evicting
-#else
 	                              properties->evicting,
 	                              properties->flags&ZS_LOG_CTNR
-#endif
 	                            );
 
 	    if ( ZS_SUCCESS != status ) {
@@ -3894,19 +3913,12 @@ out:
 
 
 static ZS_status_t
-zs_delete_container(
-    struct ZS_thread_state *zs_thread_state,
-    ZS_cguid_t              cguid,
-	ZS_container_mode_t	 mode
-    )
+zs_delete_container(struct ZS_thread_state *zs_thread_state, ZS_cguid_t cguid, ZS_container_mode_t mode)
 {
-    if ( getProperty_Int("ASYNC_DELETE_CONTAINERS",0) == 1 ) {
-        return zs_delete_container_async_start(zs_thread_state,cguid,
-                                                        ZS_VIRTUAL_CNTR);
-    }
-    else {
-	    return zs_delete_container_1(zs_thread_state, cguid, ZS_VIRTUAL_CNTR);
-    }
+
+	if (getProperty_Int("ASYNC_DELETE_CONTAINERS", 0) == 1)
+		return (zs_delete_container_async_start(zs_thread_state, cguid, ZS_VIRTUAL_CNTR));
+	return (zs_delete_container_1(zs_thread_state, cguid, ZS_VIRTUAL_CNTR));
 }
 
 
@@ -3987,107 +3999,94 @@ ZS_status_t ZSDeletePhysicalContainer(
 							   );
 }
 
-ZS_status_t zs_delete_container_async_end(
-                                struct ZS_thread_state *zs_thread_state,
-                                                         ZS_cguid_t cguid){
-    ZS_status_t status;
-    int ok_to_delete;
-    ZS_cguid_t mycguid;
-    SDF_container_meta_t meta;
-    SDF_internal_ctxt_t *pai;
-    ZS_container_mode_t mode;
-	cntr_map_t *cmap = NULL;
-    int j = 0;
+ZS_status_t
+zs_delete_container_async_end(struct ZS_thread_state *zs_thread_state, ZS_cguid_t cguid)
+{
+	SDF_container_meta_t	meta;
+	ZS_cguid_t		mycguid;
+	int			ok_to_delete,
+				j;
 
-    pai = (SDF_internal_ctxt_t *) zs_thread_state;
-    /* Serializing container operation not required here. Because 
-       it is protected by flag delete under progress */
-    cmap = zs_cmap_get_by_cguid( cguid );  
-    if ( !cmap ) {
-        plat_log_msg( 160074, LOG_CAT, LOG_DBG,
-                        "Container does not exist. Delete can not proceed" );
-        return ZS_FAILURE;
-    }      
-
-    mode = ZS_VIRTUAL_CNTR;
-    if( cguid <= 2 ) { 
-        mode = ZS_PHYSICAL_CNTR;
-    }
-    //sleep(15);
-
-    /* Open container and delete */
-    status = zs_open_container( zs_thread_state,cmap->cname,
-                                  NULL,0,&mycguid,mode,ZS_TRUE);
-    if( status != ZS_SUCCESS ) {
-        plat_log_msg(160209, LOG_CAT,LOG_ERR,
-                    "Unable to open container %lu for deleting err=%s",cguid, ZSStrError(status));
-        return ZS_FAILURE;
-    }
-    status = zs_delete_objects( zs_thread_state, cguid );
-    if( status != ZS_SUCCESS ) {
-        plat_log_msg(160076,LOG_CAT,LOG_ERR,
-                    "Deleting all objects in container %lu failed",cguid);
-        return ZS_FAILURE;
-    }
-    status = zs_close_container(zs_thread_state,cguid,mode,
-                                                       ZS_TRUE,ZS_FALSE);
-    if( status != ZS_SUCCESS ) {
-        plat_log_msg(160077,LOG_CAT,LOG_WARN,
-                 "Closing container %lu after deleting objects failed",cguid);
-        return ZS_FAILURE;
-    }
-
-    /* All objects got deleted. Just cleanup metaadata */
-    SDFStartSerializeContainerOp(pai);
-	status = delete_container_internal_low( pai, cmap->cname, 
-				SDF_FALSE,  (mode == ZS_PHYSICAL_CNTR ? SDF_TRUE:SDF_FALSE), 
-													&ok_to_delete );
-	if ( ZS_SUCCESS == status && ok_to_delete) {
-            zs_ctnr_set_state( cmap, ZS_CONTAINER_STATE_UNINIT);
-	    zs_cmap_delete( cguid, cmap->cname );
-		cmap = NULL;
-		if ( ZS_VIRTUAL_CNTR == mode ) {
-            zs_flush_container( zs_thread_state, VMC_CGUID );
-        }
-		else {
-    		zs_flush_container( zs_thread_state, CMC_CGUID );
-        }
-    } 
-    else { 
-        /* for some reason cleanup failed. Just reset delete_in_progress*/
-        status = ZS_FAILURE;
-        if (name_service_get_meta( pai, cguid, &meta ) != SDF_SUCCESS ) {
-            plat_log_msg( 160078, LOG_CAT, LOG_ERR,
-                   "Could not read metadata for %lu. Delete can not proceed\n",
-                                                                        cguid );
-            SDFEndSerializeContainerOp(pai);
-            return ZS_FAILURE;
-        }
-        meta.delete_in_progress = ZS_FALSE;
-        if ( name_service_put_meta( pai, cguid, &meta ) != SDF_SUCCESS ) { 
-            plat_log_msg( 160079, LOG_CAT, LOG_ERR, 
-                    "Could not clear Metadata for %lu after delete", cguid );
-        }
-        plat_log_msg( 160090, LOG_CAT, LOG_ERR, 
-                    "Container %lu is not cleanedup completly", cguid );
-    }
-
-    /*
-     * Clear the map entry for cguid.
-     */
-	for ( j = 0; j < max_num_containers; j++ ) {
-		if (Mcd_containers[j].cguid == cguid) {
-			Mcd_containers[j].cguid = 0;
-			Mcd_containers[j].container_id  = 0;
-			memcpy( Mcd_containers[j].cname, "none", strlen("none") );
-		    break;
+	SDF_internal_ctxt_t *pai = (SDF_internal_ctxt_t *) zs_thread_state;
+	/*
+	 * Serializing container operation not required here. Because it is protected by flag delete under progress 
+	 */
+	cntr_map_t *cmap = zs_cmap_get_by_cguid(cguid);
+	if (!cmap) {
+		plat_log_msg(160074, LOG_CAT, LOG_DBG, "Container does not exist. Delete can not proceed");
+		return ZS_FAILURE;
+	}
+	ZS_container_mode_t mode = ZS_VIRTUAL_CNTR;
+	if (cguid <= 2)
+		mode = ZS_PHYSICAL_CNTR;
+	/*
+	 * Open container and delete 
+	 */
+	ZS_status_t status = zs_open_container(zs_thread_state, cmap->cname, NULL, 0, &mycguid, mode, ZS_TRUE);
+	if (status != ZS_SUCCESS) {
+		plat_log_msg(160209, LOG_CAT, LOG_ERR, "Unable to open container %lu for deleting err=%s", cguid, ZSStrError(status));
+		return ZS_FAILURE;
+	}
+#if 1// Rico - lc
+	if (cmap->lc) {
+		status = lc_delete_container( cguid);
+		if (status != ZS_SUCCESS) {
+			plat_log_msg(160076, LOG_CAT, LOG_ERR, "Deleting all objects in container %lu failed", cguid);
+			return (status);
 		}
 	}
-    
-
-
-    SDFEndSerializeContainerOp( pai );
-    return status;
+#endif
+	status = zs_delete_objects(zs_thread_state, cguid);
+	if (status != ZS_SUCCESS) {
+		plat_log_msg(160076, LOG_CAT, LOG_ERR, "Deleting all objects in container %lu failed", cguid);
+		return ZS_FAILURE;
+	}
+	status = zs_close_container(zs_thread_state, cguid, mode, ZS_TRUE, ZS_FALSE);
+	if (status != ZS_SUCCESS) {
+		plat_log_msg(160077, LOG_CAT, LOG_WARN, "Closing container %lu after deleting objects failed", cguid);
+		return ZS_FAILURE;
+	}
+	/*
+	 * All objects got deleted. Just cleanup metaadata 
+	 */
+	SDFStartSerializeContainerOp(pai);
+	status = delete_container_internal_low(pai, cmap->cname, SDF_FALSE, (mode == ZS_PHYSICAL_CNTR ? SDF_TRUE : SDF_FALSE), &ok_to_delete);
+	if (ZS_SUCCESS == status && ok_to_delete) {
+		zs_ctnr_set_state(cmap, ZS_CONTAINER_STATE_UNINIT);
+		zs_cmap_delete(cguid, cmap->cname);
+		cmap = NULL;
+		if (ZS_VIRTUAL_CNTR == mode)
+			zs_flush_container(zs_thread_state, VMC_CGUID);
+		else
+			zs_flush_container(zs_thread_state, CMC_CGUID);
+	}
+	else {
+		/*
+		 * for some reason cleanup failed. Just reset delete_in_progress
+		 */
+		status = ZS_FAILURE;
+		if (name_service_get_meta(pai, cguid, &meta) != SDF_SUCCESS) {
+			plat_log_msg(160078, LOG_CAT, LOG_ERR, "Could not read metadata for %lu. Delete can not proceed\n", cguid);
+			SDFEndSerializeContainerOp(pai);
+			return ZS_FAILURE;
+		}
+		meta.delete_in_progress = ZS_FALSE;
+		if (name_service_put_meta(pai, cguid, &meta) != SDF_SUCCESS)
+			plat_log_msg(160079, LOG_CAT, LOG_ERR, "Could not clear Metadata for %lu after delete", cguid);
+		plat_log_msg(160090, LOG_CAT, LOG_ERR, "Container %lu is not cleanedup completly", cguid);
+	}
+	/*
+	 * Clear the map entry for cguid.
+	 */
+	for (j = 0; j < max_num_containers; j++)
+		if (Mcd_containers[j].cguid == cguid) {
+			Mcd_containers[j].cguid = 0;
+			Mcd_containers[j].container_id = 0;
+			memcpy(Mcd_containers[j].cname, "none", strlen("none"));
+			break;
+		}
+	SDFEndSerializeContainerOp(pai);
+	return status;
 }
 
 #define CONTAINER_RENAME_PREFIX "$c#@@n**"
@@ -4270,155 +4269,98 @@ ZS_status_t zs_delete_container_async_start(
 }
 
 
-static ZS_status_t zs_delete_container_1(
-	struct ZS_thread_state	*zs_thread_state,
-	ZS_cguid_t		 		 cguid,
-	ZS_container_mode_t	 mode
-	)
-{  
-    ZS_status_t 	 	 	 status 		= ZS_FAILURE;
-    ZS_status_t 	 	 	 del_status 	= ZS_FAILURE;
-	int				  	 	 ok_to_delete	= 0, j = 0;
-	SDF_container_meta_t	 meta;
-	ZS_cguid_t	 			 mycguid		= 0;
-    SDF_internal_ctxt_t 	*pai 			= (SDF_internal_ctxt_t *) zs_thread_state;
-	cntr_map_t              *cmap           = NULL;
-    plat_log_msg( 21630, 
-				  LOG_CAT, 
-				  LOG_DBG, 
-				  "%lu", 
-				  cguid );
+static ZS_status_t
+zs_delete_container_1(struct ZS_thread_state *zs_thread_state, ZS_cguid_t cguid, ZS_container_mode_t mode)
+{
+	SDF_container_meta_t	meta;
+	SDF_internal_ctxt_t	*pai		= (SDF_internal_ctxt_t *) zs_thread_state;
+	ZS_cguid_t		mycguid;
+	cntr_map_t		*cmap;
+	int			ok_to_delete;
+	ZS_status_t		status,
+				del_status;
 
-
-	if ( !cguid )
+	plat_log_msg(21630, LOG_CAT, LOG_DBG, "%lu", cguid);
+	if (!cguid)
 		return ZS_INVALID_PARAMETER;
-
-    SDFStartSerializeContainerOp(pai);
-
-    cmap = zs_cmap_get_by_cguid( cguid );
-
-	if ( !cmap ) {
-		plat_log_msg( 150099,
-					  LOG_CAT,
-					  LOG_DIAG,
-					  "Container does not exist" );
+	SDFStartSerializeContainerOp(pai);
+	cmap = zs_cmap_get_by_cguid(cguid);
+	if (!cmap) {
+		plat_log_msg(150099, LOG_CAT, LOG_DIAG, "Container does not exist");
 		status = ZS_FAILURE_CONTAINER_NOT_FOUND;
 		goto out;
 	}
-
-	if ( zs_is_ctnr_open( cguid ) ) {
-		if ( ( status = zs_close_container( zs_thread_state, cguid, mode, ZS_FALSE, ZS_TRUE ) ) != ZS_SUCCESS ) {
-			plat_log_msg( 150097,
-						  LOG_CAT,
-						  LOG_DIAG,
-						  "Failed to close container during delete - attempting delete" );
+	if (zs_is_ctnr_open(cguid)) {
+		if ((status = zs_close_container(zs_thread_state, cguid, mode, ZS_FALSE, ZS_TRUE)) != ZS_SUCCESS) {
+			plat_log_msg(150097, LOG_CAT, LOG_DIAG, "Failed to close container during delete - attempting delete");
 		}
 	}
-
-	if ( ( status = name_service_get_meta( pai, cguid, &meta ) ) != ZS_SUCCESS ) {
-		plat_log_msg( 150085, LOG_CAT, LOG_ERR, "Could not read metadata for %lu\n", cguid );
-    	SDFEndSerializeContainerOp(pai);
+	if ((status = name_service_get_meta(pai, cguid, &meta)) != ZS_SUCCESS) {
+		plat_log_msg(150085, LOG_CAT, LOG_ERR, "Could not read metadata for %lu\n", cguid);
+		SDFEndSerializeContainerOp(pai);
 		return ZS_FAILURE;
-	} 
-
+	}
 	meta.delete_in_progress = ZS_TRUE;
-
-	if ( name_service_put_meta( pai, cguid, &meta ) != SDF_SUCCESS ) {
-		plat_log_msg( 150086, LOG_CAT, LOG_DIAG, "Could not mark delete in progress for container %lu\n", cguid );
-	} 
-
-	if ( ( status = zs_open_container( zs_thread_state,  
-	                                    cmap->cname, 
-	                                    NULL, 
-	                                    0, 
-	                                    &mycguid, 
-	                                    mode, 
-	                                    ZS_FALSE ) ) != ZS_SUCCESS ) {
-		plat_log_msg( 150091,
-					  LOG_CAT,
-					  LOG_ERR,
-					  "Cannot open container %lu to delete it",
-					  cguid );
+	if (name_service_put_meta(pai, cguid, &meta) != SDF_SUCCESS)
+		plat_log_msg(150086, LOG_CAT, LOG_DIAG, "Could not mark delete in progress for container %lu\n", cguid);
+	if ((status = zs_open_container(zs_thread_state, cmap->cname, NULL, 0, &mycguid, mode, ZS_FALSE)) != ZS_SUCCESS) {
+		plat_log_msg(150091, LOG_CAT, LOG_ERR, "Cannot open container %lu to delete it", cguid);
 		goto out;
 	}
-	if ( ( del_status = zs_delete_objects( zs_thread_state, cguid ) ) != ZS_SUCCESS ) {
-		plat_log_msg( 150092,
-					  LOG_CAT,
-					  LOG_ERR,
-					  "Failed to delete container objects" );
-	} 
-
-	if ( ( status = zs_close_container( zs_thread_state,  
-   										 mycguid,
-										 mode,
-										 ZS_FALSE, ZS_TRUE ) ) != ZS_SUCCESS ) {
-		plat_log_msg( 150093,
-				  	  LOG_CAT,
-					  LOG_WARN,
-					  "Cannot close container %lu to delete it",
-					  cguid );
-
-		if ( ZS_SUCCESS != del_status )
+#if 1// Rico - lc
+	if (cmap->lc) {
+		del_status = lc_delete_container( cguid);
+		if (del_status == ZS_SUCCESS)
+			del_status = zs_delete_objects( zs_thread_state, cguid);
+	}
+	else
+		del_status = zs_delete_objects( zs_thread_state, cguid);
+	if (del_status != ZS_SUCCESS)
+		plat_log_msg(150092, LOG_CAT, LOG_ERR, "Failed to delete container objects");
+#else
+	if ((del_status = zs_delete_objects(zs_thread_state, cguid)) != ZS_SUCCESS)
+		plat_log_msg(150092, LOG_CAT, LOG_ERR, "Failed to delete container objects");
+#endif
+	if ((status = zs_close_container(zs_thread_state, mycguid, mode, ZS_FALSE, ZS_TRUE)) != ZS_SUCCESS) {
+		plat_log_msg(150093, LOG_CAT, LOG_WARN, "Cannot close container %lu to delete it", cguid);
+		if (ZS_SUCCESS != del_status)
 			status = del_status;
 		goto out;
-	} else {
-
-        status = delete_container_internal_low( pai, 
-												cmap->cname, 
-												SDF_FALSE,  mode == ZS_PHYSICAL_CNTR ? SDF_TRUE:SDF_FALSE, 
-												&ok_to_delete );
-
-        if ( ZS_SUCCESS == status && ok_to_delete) {
-
-	        zs_cmap_delete( cguid, cmap->cname );
+	}
+	else {
+		status = delete_container_internal_low(pai, cmap->cname, SDF_FALSE, mode == ZS_PHYSICAL_CNTR ? SDF_TRUE : SDF_FALSE, &ok_to_delete);
+		if (ZS_SUCCESS == status && ok_to_delete) {
+			zs_cmap_delete(cguid, cmap->cname);
 			cmap = NULL;
-
 			// Make sure the metadata container is in sync
-			if ( ZS_VIRTUAL_CNTR == mode )
-				zs_flush_container( zs_thread_state, VMC_CGUID );
+			if (ZS_VIRTUAL_CNTR == mode)
+				zs_flush_container(zs_thread_state, VMC_CGUID);
 			else
-				zs_flush_container( zs_thread_state, CMC_CGUID );
-
-        } else {
-	        if ( ZS_SUCCESS == status )
+				zs_flush_container(zs_thread_state, CMC_CGUID);
+		}
+		else {
+			if (ZS_SUCCESS == status)
 				status = ZS_FAILURE;
-
 			meta.delete_in_progress = ZS_FALSE;
-
-			if ( name_service_put_meta( pai, cguid, &meta ) != SDF_SUCCESS ) {
-				plat_log_msg( 150087, LOG_CAT, LOG_WARN, "Could not clear delete in progress for container %lu\n", cguid );
-			} 
-
-           plat_log_msg( 150041,
-	                     LOG_CAT, 
-	                     LOG_ERR, 
-	                     "Container is not deleted (busy or error): cguid=%lu, status=%s", 
-	                     cguid, 
-	                     ZSStrError(status) );
-        }
-    }
-
-    /*
-     * Clear the map entry for cguid.
-     */
-	for ( j = 0; j < max_num_containers; j++ ) {
-		if (Mcd_containers[j].cguid == cguid) {
-			Mcd_containers[j].cguid = 0;
-			Mcd_containers[j].container_id  = 0;
-			memcpy( Mcd_containers[j].cname, "none", strlen("none") );
-		    break;
+			if (name_service_put_meta(pai, cguid, &meta) != SDF_SUCCESS)
+				plat_log_msg(150087, LOG_CAT, LOG_WARN, "Could not clear delete in progress for container %lu\n", cguid);
+			plat_log_msg(150041, LOG_CAT, LOG_ERR, "Container is not deleted (busy or error): cguid=%lu, status=%s", cguid, ZSStrError(status));
 		}
 	}
-    
-
-    plat_log_msg( 20819, 
-				  LOG_CAT, 
-				  LOG_DBG, 
-				  "%s", 
-				  ZSStrError(status) );
- out:
-    SDFEndSerializeContainerOp(pai);
-    return status;
+	/*
+	 * Clear the map entry for cguid.
+	 */
+	for (uint j = 0; j < max_num_containers; j++)
+		if (Mcd_containers[j].cguid == cguid) {
+			Mcd_containers[j].cguid = 0;
+			Mcd_containers[j].container_id = 0;
+			memcpy(Mcd_containers[j].cname, "none", strlen("none"));
+			break;
+		}
+	plat_log_msg(20819, LOG_CAT, LOG_DBG, "%s", ZSStrError(status));
+out:
+	SDFEndSerializeContainerOp(pai);
+	return status;
 }
 
 ZS_cguid_t ZSGetCguid (char *cname ) {
@@ -4780,9 +4722,7 @@ zs_set_container_props(
  		meta.properties.flash_only = pprops->flash_only;
  		meta.properties.cache_only = pprops->cache_only;
                 meta.properties.compression = pprops->compression;
-#if 1//Rico - lc
                 meta.properties.flags = pprops->flags;
-#endif
         status = name_service_put_meta( pai, cguid, &meta );
 		cmap = zs_cmap_get_by_cguid( cguid );
 
@@ -7576,116 +7516,66 @@ out:
     return status;
 }
 
-static void *zs_vc_thread(
-	void *arg
-	) 
+static void    *
+zs_vc_thread(void *arg)
 {
-	struct ZS_thread_state *zs_thread_state		= NULL;
-	ZS_status_t             status         		= ZS_FAILURE;
-	struct ZS_iterator     *_zs_iterator  		= NULL;
-	int                      i              		= 1000;
-	int                      j              		= 0;
-	int                      k              		= 0;
-	char                    *key            		= NULL;
-	uint32_t                 keylen         		= 0;
-	uint64_t                 datalen        		= 0;
-	SDF_container_meta_t    *meta           		= NULL;
-	struct SDF_shared_state *state 	= &sdf_shared_state;
-	int	flags					= ZS_CTNR_CREATE;
-	ZS_cguid_t *deletes = NULL;
+	struct ZS_thread_state	*t;
+	struct ZS_iterator	*iter;
+	SDF_container_meta_t	*meta;
+	ZS_status_t		status;
+	char			*key;
+	uint32_t		keylen;
+	uint64_t		datalen;
+	int			j;
 
-
-	if ( ZS_SUCCESS != ZSInitPerThreadState((struct ZS_state *)arg, 
-					( struct ZS_thread_state ** ) &zs_thread_state)) {
-		plat_log_msg( 150088,
-			  LOG_CAT,
-			  LOG_ERR,
-			  "Unable to initialize ZS thread state, exiting" );
+	if (ZS_SUCCESS != ZSInitPerThreadState((struct ZS_state *) arg, (struct ZS_thread_state **) &t)) {
+		plat_log_msg(150088, LOG_CAT, LOG_ERR, "Unable to initialize ZS thread state, exiting");
 		return NULL;
 	}
-
-
-	if ( state->config.system_recovery == SYS_FLASH_RECOVERY )
-	    flags = 0;  // Just open the VMC/VDC
-	if ( ( status = zs_vc_init( zs_thread_state, flags ) ) != ZS_SUCCESS ) {
-	    plat_log_msg(150076,
-			 LOG_CAT, LOG_ERR,
-			 "Failed to open support containers: %s", ZSStrError( status ) );
-		ZSReleasePerThreadState(&zs_thread_state);
+	int flags = ZS_CTNR_CREATE;
+	if (sdf_shared_state.config.system_recovery == SYS_FLASH_RECOVERY)
+		flags = 0;	// Just open the VMC/VDC
+	if ((status = zs_vc_init(t, flags)) != ZS_SUCCESS) {
+		plat_log_msg(150076, LOG_CAT, LOG_ERR, "Failed to open support containers: %s", ZSStrError(status));
+		ZSReleasePerThreadState(&t);
 		return NULL;
 	}
-
-	deletes = (ZS_cguid_t *) plat_alloc(sizeof(*deletes) * max_num_containers);
+	ZS_cguid_t *deletes = (ZS_cguid_t *) plat_alloc(sizeof(*deletes) * max_num_containers);
 	if (deletes == NULL) {
-		ZSReleasePerThreadState(&zs_thread_state);
+		ZSReleasePerThreadState(&t);
 		return NULL;
 	}
 	memset(deletes, 0, sizeof(*deletes) * max_num_containers);
-
+	int i = 1000;
 	do {
-		status = ZSEnumerateContainerObjects(zs_thread_state, 
-						VMC_CGUID,  
-						&_zs_iterator);
+		status = ZSEnumerateContainerObjects(t, VMC_CGUID, &iter);
 	} while (status == ZS_FLASH_EBUSY && i--);
-
-	while ((status = ZSNextEnumeratedObject(zs_thread_state,
-						 _zs_iterator,
-						 &key,
-						 &keylen,
-						 (char **) &meta,
-						 &datalen
-					       )) == ZS_SUCCESS) {
-
-	    status = zs_cmap_create( meta->cname,
-	                              meta->cguid,
-	                              meta->properties.container_id.size,
-	                              ZS_CONTAINER_STATE_CLOSED,
-	                              meta->properties.container_type.caching_container
-#if 1//Rico - lc
-	                              ,
-	                              meta->flags&ZS_LOG_CTNR
-#endif
-	                            );
-	    if (meta->flags&ZS_LOG_CTNR) {
-		    lc_exists = 1;
-	    }
-
-	    if ( ZS_SUCCESS != status ) {
-           	plat_log_msg( 150134, LOG_CAT, LOG_ERR, "Failed to create cmap for %s - %lu", meta->cname, meta->cguid );
-	        continue; 
-            } else {
-           	plat_log_msg( 150135, LOG_CAT, LOG_DBG, "Created cmap for %s - %lu", meta->cname, meta->cguid );
-            }
-
-		for ( j = 0; j < max_num_containers; j++ ) {
-			if (Mcd_containers[j].cguid == 0) {
-				Mcd_containers[j].cguid         = meta->cguid;
-				Mcd_containers[j].container_id  = meta->properties.container_id.container_id;
-				memcpy( Mcd_containers[j].cname, meta->cname, strlen( meta->cname ) );
-			    break;
-	        }
+	int k = 0;
+	while ((status = ZSNextEnumeratedObject(t, iter, &key, &keylen, (char **) &meta, &datalen)) == ZS_SUCCESS) {
+		status = zs_cmap_create(meta->cname, meta->cguid, meta->properties.container_id.size, ZS_CONTAINER_STATE_CLOSED, meta->properties.container_type.caching_container, meta->flags & ZS_LOG_CTNR);
+		if (ZS_SUCCESS != status) {
+			plat_log_msg(150134, LOG_CAT, LOG_ERR, "Failed to create cmap for %s - %lu", meta->cname, meta->cguid);
+			continue;
 		}
-
-		if ( meta->delete_in_progress ) {
+		plat_log_msg(150135, LOG_CAT, LOG_DBG, "Created cmap for %s - %lu", meta->cname, meta->cguid);
+		for (j = 0; j < max_num_containers; j++)
+			if (Mcd_containers[j].cguid == 0) {
+				Mcd_containers[j].cguid = meta->cguid;
+				Mcd_containers[j].container_id = meta->properties.container_id.container_id;
+				memcpy(Mcd_containers[j].cname, meta->cname, strlen(meta->cname));
+				break;
+			}
+		if (meta->delete_in_progress) {
 			deletes[k] = meta->cguid;
 			k++;
 		}
 	}
-    
-	status = ZSFinishEnumeration( zs_thread_state, 
-				   _zs_iterator);
-	
-	for( k = 0; k < max_num_containers && deletes[k] != ZS_NULL_CGUID; k++ ) {
-		if ( ( status = zs_delete_container( zs_thread_state, deletes[k], ZS_VIRTUAL_CNTR) ) != ZS_SUCCESS )
-			plat_log_msg( 150098,
-				  LOG_CAT, 
-				  LOG_ERR, 
-				  "Failed to delete container %lu during recovery - %s", 
-				  deletes[k], 
-				  ZSStrError( status ) );
-	}
-
-	ZSReleasePerThreadState(&zs_thread_state);
+	status = ZSFinishEnumeration(t, iter);
+	if (getProperty_Int( "ASYNC_DELETE_CONTAINERS", 0) == 0)
+		for (k = 0; k < max_num_containers && deletes[k] != ZS_NULL_CGUID; k++)
+			if ((status = zs_delete_container(t, deletes[k], ZS_VIRTUAL_CNTR)) != ZS_SUCCESS)
+				plat_log_msg(150098, LOG_CAT, LOG_ERR, "Failed to delete container %lu during recovery - %s", deletes[k], ZSStrError(status));
+	ZSReleasePerThreadState(&t);
 	plat_free(deletes);
 	return NULL;
 }
@@ -8575,7 +8465,7 @@ ZS_status_t ZSRenameContainer(
     }
 
     if (strlen(name) > CONTAINER_NAME_MAXLEN) {
-	plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, LOG_ERR, "Name %s bigger than maxlen %d  for rename.",
+	plat_log_msg(170048, LOG_CAT, LOG_ERR, "Name %s bigger than maxlen %d  for rename.",
 						name, CONTAINER_NAME_MAXLEN);	
         return ZS_INVALID_PARAMETER;
     }

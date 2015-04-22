@@ -334,7 +334,9 @@ static uint		streamcount( stream_t *),
 			lrecsize( lrec_t *);
 static void		free_iterator( iter_t *),
 			cdeallocate( container_t *),
+			streamdealloc( stream_t *),
 			sostatusclear( stream_t *),
+			nvdealloc( nvr_buffer_t *),
 			dumpparams( );
 //static void		streamdump();
 static char		*trxrevfilename( ZS_cguid_t),
@@ -343,6 +345,7 @@ static int		compar( const void *, const void *);
 //static char		*prettynumber( ulong);
 static counter_t	newest( counter_t, counter_t);
 static int	 	lc_sync_buf( container_t *c, off_t off);
+
 
 /*
  * LC entrypoint - initialize LC system
@@ -473,6 +476,38 @@ lc_open( ts_t *t, ZS_cguid_t cguid)
 	pthread_rwlock_unlock( &lc_lock);
 	if (c->trxrevfile)
 		unlink( c->trxrevfile);
+	return (ZS_SUCCESS);
+}
+
+
+ZS_status_t
+lc_delete_container( ZS_cguid_t cguid)
+{
+	uint	i;
+
+	pthread_rwlock_wrlock( &lc_lock);
+	container_t *c = clookup( cguid);
+	unless (c) {
+		pthread_rwlock_unlock( &lc_lock);
+		return (ZS_CONTAINER_UNKNOWN);
+	}
+	for (i=0; i<nel( c->pgtable); ++i) {
+		pg_t *pg = c->pgtable[i];
+		while (pg) {
+			pg_t *pgnext = pg->containerlink;
+			free( pg);
+			pg = pgnext;
+		}
+	}
+	stream_t *s = c->streams;
+	while (s) {
+		nvr_reset_buffer( s->nb);
+		stream_t *snext = s->next;
+		streamdealloc( s);
+		s = snext;
+	}
+	cdeallocate( c);
+	pthread_rwlock_unlock( &lc_lock);
 	return (ZS_SUCCESS);
 }
 
@@ -1446,6 +1481,7 @@ cdeallocate( container_t *c)
 
 	if (c->trxrevfile)
 		free( c->trxrevfile);
+	pthread_rwlock_destroy( &c->lock);
 	c->cguid = 0;
 }
 
@@ -1511,6 +1547,21 @@ streamalloc( ZS_cguid_t cguid)
 		return (s);
 	}
 	return (0);
+}
+
+
+/*
+ * return stream_t to freelist
+ */
+static void
+streamdealloc( stream_t *s)
+{
+
+	s->next = streamfreelist;
+	streamfreelist = s;
+	s->stream = 0;
+	s->so.stream = s->stream;
+	nvdealloc( s->nb);
 }
 
 
@@ -2247,6 +2298,22 @@ nvalloc( ZS_cguid_t cguid)
 
 
 /*
+ * make nvr_buffer_t available
+ */
+static void
+nvdealloc( nvr_buffer_t *nb)
+{
+	uint	i;
+
+	for (i=0; i<nvtablen; ++i)
+		if (nvtab[i].nb == nb) {
+			nvtab[i].cguid = 0;
+			return;
+		}
+}
+
+
+/*
  * number of bytes in the lrec_t (a struct of dynamic size)
  */
 static uint
@@ -2487,24 +2554,6 @@ get_log_container_stats(ZS_cguid_t cguid, ZS_stats_t *stats)
 	pthread_rwlock_unlock( &lc_lock);
 	return (ZS_SUCCESS);
 }
-
-#if 0
-static counter_t
-oldest( counter_t a, counter_t b)
-{
-
-	if (a == COUNTER_UNKNOWN)
-		if (b == COUNTER_UNKNOWN)
-			return (a);
-		else
-			return (b);
-	else
-		if (b == COUNTER_UNKNOWN)
-			return (a);
-		else
-			return (min( a, b));
-}
-#endif
 
 
 static void

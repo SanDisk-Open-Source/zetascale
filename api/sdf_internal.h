@@ -55,7 +55,6 @@ typedef struct cntr_map {
 	enum_stats_t		enum_stats;			/* Enumeration stats */
 	ZS_container_stats_t	container_stats;		/* Container stats */
 	ZS_boolean_t		read_only;			/* Set if Read-Only */
-	void			*logcont;			/* Logging container details */
 	ZS_boolean_t		lc;				/* Set if logging container */
 } cntr_map_t;
 

@@ -64,7 +64,6 @@ int				nvr_blksize;
 int				nvr_numobjs;
 int				n_partitions = 1, hw_durable = 1;
 uint64_t			nvr_lsn = 1;
-extern int			lc_exists;
 static int			bytes_per_nvr_buffer;
 char				nvr_zero[65536];
 int				nvr_disabled = 0;
@@ -465,10 +464,6 @@ nvr_rebuild(struct ZS_state *zs_state)
 	ZS_container_props_t	props;
 	uint64_t 		maxkey = 0, maxseqno;
 	nvrso_t			**objects;
-
-	if (!lc_exists) {
-		return ZS_SUCCESS;
-	}
 
 	bytes = pread(nvr_fd, nvr_databuf, sz, nvr_off);
 	if (bytes < sz) {

@@ -3523,6 +3523,8 @@
 170045 Cannot create lc packet (name too long)
 170046 Failed to create %s (%s)
 170047 objs_written parameter cannot be NULL
+170048 Name %s bigger than maxlen %d  for rename.
+170049 FLOG block size set to %d.\n
 
 
 # efirsov

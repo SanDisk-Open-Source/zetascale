@@ -42,6 +42,7 @@ typedef struct log_stats {
 
 ZS_status_t	lc_init(struct ZS_state *zs_state, bool),
 		lc_open( struct ZS_thread_state *, ZS_cguid_t),
+		lc_delete_container( ZS_cguid_t),
 		lc_write( struct ZS_thread_state *, ZS_cguid_t, char *, uint32_t, char *, uint64_t),
 		lc_delete( struct ZS_thread_state *, ZS_cguid_t, char *, uint32_t),
 		lc_trim( struct ZS_thread_state *, ZS_cguid_t, char *, uint32_t),

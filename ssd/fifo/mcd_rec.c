@@ -2404,7 +2404,7 @@ int get_flog_block_size(int fd)
 		block_size = block_size1;
 	}
 
-	mcd_log_msg(PLAT_LOG_ID_INITIAL, PLAT_LOG_LEVEL_INFO,
+	mcd_log_msg(170049, PLAT_LOG_LEVEL_INFO,
 			"FLOG block size set to %d.\n", block_size);
 
 	return block_size;
