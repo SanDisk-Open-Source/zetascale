@@ -1627,6 +1627,7 @@ streamwrite( ts_t *t, stream_t *s, lrec_t *lr, off_t *off)
 		}
 
 		s->bufnexti = 0;
+		c->syncoff = 0;
 		++s->seqnext;
 		r = streamreclaim( t, s);
 		unless (r == ZS_SUCCESS)
