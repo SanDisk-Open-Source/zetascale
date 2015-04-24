@@ -51,7 +51,7 @@ nv_fdatasync(int fd)
 	/*
  	 * fsync the main device.
  	 */
-	fdatasync(nv_dev_fd);
+	fdatasync(nv_get_dev_fd());
 }
 
 
@@ -123,6 +123,9 @@ nv_reformat_flog()
 
 	uint64_t blks = nv_flog_total_size/nv_dev_block_size;
 
+
+//	fprintf(stderr, "Reformat nvram with %ld blks.\n", blks);
+
 	zbuf = (char *) malloc(nv_dev_block_size);
 	plat_assert(zbuf != NULL);
 	memset(zbuf, 0, nv_dev_block_size);
@@ -130,6 +133,8 @@ nv_reformat_flog()
 		ret = pwrite(dev_fd, zbuf, nv_dev_block_size, i * nv_dev_block_size);
 		plat_assert(ret > 0);
 	}
+
+	nv_fdatasync(2); //fd is  useless here 
 	free(zbuf);
 }
 
@@ -155,6 +160,7 @@ nv_zero_out(int fd, uint64_t length)
 			exit(-1);
 		}
 	}
+	nv_fdatasync(2); //fd is  useless here 
 	free(zbuf);
 
 }
@@ -178,6 +184,7 @@ nv_open(char *name, int flags, mode_t mode)
 				/*
 				 * open in truncate mode Clear the range of blocks
 				 */
+//				fprintf(stderr, "Truncating/new create fd = %d size = %lu.\n", nvd_fd[fd].fd, nv_flog_file_size);
 				nv_zero_out(fd, nv_flog_file_size);
 			}
 

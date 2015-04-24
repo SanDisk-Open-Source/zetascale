@@ -3077,13 +3077,28 @@ flog_clean(uint64_t shard_id)
 		__zs_flog_mode = ZS_FLOG_FILE_MODE;	
 	}
 
+
+	fprintf(stderr, "FLOG mode = %d, nv init done = %d.\n", __zs_flog_mode, flog_nv_init_done);
 	if (__zs_flog_mode == ZS_FLOG_NVRAM_MODE) {
 		/*
 		 * We do reformat nvram content only if it is REFORMAT=1 or it is clean shutdow.
 		 */
 		plat_assert(getProperty_Int("ZS_REFORMAT", 0) == 1 ||
 			    flog_nv_init_done);
-		flog_init_nv(true);
+		mcd_log_msg(160311, PLAT_LOG_LEVEL_INFO, "NVRAM flog reforamt with shutdown = %d.\n", flog_nv_init_done);
+
+		if (!flog_nv_init_done) {
+			/*
+			 * Flog cleanup called from reoftma=1 and init
+			 */
+			plat_assert(getProperty_Int("ZS_REFORMAT", 0) == 1);
+			flog_init_nv(true);
+		} else {
+			/*
+ 			 * Cleanup during shutdown.
+ 			 */
+			nv_reformat_flog();	
+		}
 
 		return;
 	}

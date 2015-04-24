@@ -3481,6 +3481,7 @@
 160308 Failed to open nvram dev file %s.\n
 160309 Flog mode = %d, %s.\n
 160310 ZSMPut is supported only on btree and log containers\n
+160311 NVRAM flog reforamt with shutdown = %d.\n
 
 
 # rico
