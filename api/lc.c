@@ -868,7 +868,7 @@ lc_sync_buf( container_t *c, off_t off)
 	plat_assert(streams_per_container == 1);
 
 	pthread_mutex_lock(&c->synclock);
-	int sc = atomic_inc_get(c->synccount);
+	int sc = ++(c->synccount);
 	plat_assert(sc > 0);
 	int ioc = atomic_dec_get(c->iocount);
 	plat_assert(ioc >= 0);
@@ -881,33 +881,39 @@ restart:
 	}
 
 	if (c->syncoff >= off) {
-		atomic_dec(c->synccount);
-		pthread_cond_broadcast(&c->flashcv);
-		pthread_cond_broadcast(&c->synccv);
+		(c->synccount)--;
+		if (c->synccount == 0) {
+			pthread_cond_broadcast(&c->flashcv);
+		}
+		//pthread_cond_broadcast(&c->synccv);
 		pthread_mutex_unlock(&c->synclock);
 		return ZS_SUCCESS;
 	}
 
 	while ((cnt = atomic_add_get(c->iocount, 0)) > 0) {
 		if (c->buffull == 1) {
-			atomic_dec(c->synccount);
-			pthread_cond_broadcast(&c->flashcv);
-			pthread_cond_broadcast(&c->synccv);
+			(c->synccount)--;
+			if (c->synccount == 0) {
+				pthread_cond_broadcast(&c->flashcv);
+			}
+			//pthread_cond_broadcast(&c->synccv);
 			pthread_cond_wait(&c->fullcv, &c->synclock);
 			pthread_mutex_unlock(&c->synclock);
 			return c->syncstatus; //Niranjan: return failure incase write to flash has failed
 		} else {
-			pthread_cond_broadcast(&c->flashcv);
-			pthread_cond_broadcast(&c->synccv);
+			//pthread_cond_broadcast(&c->flashcv);
+			//pthread_cond_broadcast(&c->synccv);
 			pthread_cond_wait(&c->synccv, &c->synclock);
 			goto restart;
 		}
 	}
 
 	if (c->buffull == 1) {
-		atomic_dec(c->synccount);
-		pthread_cond_broadcast(&c->flashcv);
-		pthread_cond_broadcast(&c->synccv);
+		(c->synccount)--;
+		if (c->synccount == 0) {
+			pthread_cond_broadcast(&c->flashcv);
+		}
+		//pthread_cond_broadcast(&c->synccv);
 		pthread_cond_wait(&c->fullcv, &c->synclock);
 		pthread_mutex_unlock(&c->synclock);
 		return c->syncstatus;
@@ -928,12 +934,19 @@ restart:
 
 	if (soff < off) {
 		pthread_cond_broadcast(&c->synccv);
-		pthread_cond_broadcast(&c->flashcv);
+		if (c->synccount) {
+			pthread_mutex_unlock(&c->synclock);
+			sched_yield();
+			pthread_mutex_lock(&c->synclock);
+		}
+		//pthread_cond_broadcast(&c->flashcv);
 		goto restart;
 	} else {
-		atomic_dec(c->synccount);
+		(c->synccount)--;
+		if (c->synccount == 0) {
+			pthread_cond_broadcast(&c->flashcv);
+		}
 		pthread_cond_broadcast(&c->synccv);
-		pthread_cond_broadcast(&c->flashcv);
 	}
 
 	pthread_mutex_unlock(&c->synclock);
@@ -1608,11 +1621,13 @@ streamwrite( ts_t *t, stream_t *s, lrec_t *lr, off_t *off)
 		r = zs_write_object_lc( t, c->cguid, k, kl, (char *)&s->so, sizeof( s->so)+s->bufnexti);
 
 		if (streams_per_container == 1) {
+			plat_assert(c->synccount == 0);
 			pthread_mutex_lock(&c->synclock);
 			c->syncstatus = r;
+			c->syncoff = 0;
 			atomic_dec(c->buffull);
 			pthread_cond_broadcast(&c->fullcv);
-			pthread_cond_broadcast(&c->synccv);
+			//pthread_cond_broadcast(&c->synccv);
 			pthread_mutex_unlock(&c->synclock);
 		}
 
@@ -1627,7 +1642,6 @@ streamwrite( ts_t *t, stream_t *s, lrec_t *lr, off_t *off)
 		}
 
 		s->bufnexti = 0;
-		c->syncoff = 0;
 		++s->seqnext;
 		r = streamreclaim( t, s);
 		unless (r == ZS_SUCCESS)
