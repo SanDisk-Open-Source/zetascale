@@ -12,6 +12,7 @@
 #include	<stdlib.h>
 #include	<stdio.h>
 #include	<pthread.h>
+#include 	<malloc.h>
 #include	"zs.h"
 #include	"nvr_svc.h"
 #include	"ssd/fifo/mcd_osd.h"
@@ -98,7 +99,7 @@ typedef struct nvr_stream_object {
 } nvrso_t;
 
 nvrso_t			*nvr_objs, *nvr_flhead, *nvr_fltail;
-char			*nvr_databuf, *nvr_databuf_ua;
+char			*nvr_databuf;
 
 pthread_cond_t  nvr_fl_cv = PTHREAD_COND_INITIALIZER;
 pthread_mutex_t nvr_fl_mutex = PTHREAD_MUTEX_INITIALIZER;
@@ -155,7 +156,7 @@ nvr_init(struct ZS_state *zs_state)
 	char	*NVR_file;
 
 	if (getProperty_Int("ZS_NVR_ODIRECT", 0)) {
-		nvr_oflags |= O_DIRECT;
+		nvr_oflags |= O_DIRECT | O_SYNC;
 		odirect = 1;
 	}
 
@@ -201,11 +202,12 @@ nvr_init(struct ZS_state *zs_state)
 		return ZS_FAILURE;
 	} memset(nvr_objs, 0, sizeof(nvrso_t) * nvr_numobjs);
 
-	nvr_databuf_ua = (char *)plat_malloc(nvr_objsize * nvr_numobjs + 2 * NVR_MAX_BLOCK_SIZE - 1);
-	if (nvr_databuf_ua == NULL) {
+	nvr_databuf = (char *)memalign(NVR_MAX_BLOCK_SIZE, nvr_objsize * nvr_numobjs);
+	if (nvr_databuf == NULL) {
+		perror("memalign");
+		msg(INITIAL, FATAL, "memalign request failed");
 		return ZS_FAILURE;
 	}
-	nvr_databuf =(char *) (((uint64_t)nvr_databuf_ua + NVR_MAX_BLOCK_SIZE - 1) & NVR_MAX_BLOCK_SIZE_MASK);
 	memset(nvr_databuf, 0, nvr_objsize * nvr_numobjs);
 
 	for (int i = 0; i < nvr_numobjs; i++) {
@@ -228,7 +230,7 @@ nvr_init(struct ZS_state *zs_state)
 	nvr_data_in_obj = nvr_objsize - sizeof( mcd_osd_meta_t) - sizeof( uint64_t);
 
 	bytes_per_nvr_buffer = nvr_data_in_obj - (nvr_objsize / nvr_blksize ) * NSB_METASIZE;
-	memset(&nvr_zero, 0, sizeof(nvr_zero));
+	memset(&nvr_zero, 0, 65536);
 
 	dumpparams();
 
@@ -472,7 +474,13 @@ nvr_rebuild(struct ZS_state *zs_state)
 	}
 
 	if (n_partitions == 2) {
-		tmpbuf = (char *)malloc(sizeof(char) * sz);
+		tmpbuf = (char *)memalign(NVR_MAX_BLOCK_SIZE, sizeof(char) * sz);
+		if (!tmpbuf) {
+			perror("memalign");
+			msg(INITIAL, FATAL, "memalign request for memory failed");
+			return ZS_FAILURE;
+		}
+
 		bytes = pread(nvr_fd, tmpbuf, sz, nvr_off + sz);
 		if (bytes < sz) {
 			perror("pread");
@@ -853,9 +861,9 @@ restart:
 		sbuf->nsb_cksum = hashb((uint8_t *)sbuf, nvr_blksize, 0);
 	}
 
-	msg(INITIAL, DEBUG, "Doint pwrite off: %d write_off:%d syncoff:%d", (int)write_off, (int)(so->nso_syncoff), (int)tmp_syncoff);
 	
 	off_t offset_to_write = partition * partition_size + so->nso_fileoff + write_off;
+	msg(INITIAL, DEBUG, "Doint pwrite off: %d write_off:%d syncoff:%d fileoff:%d", (int)write_off, (int)(so->nso_syncoff), (int)tmp_syncoff, (int)offset_to_write);
 	ret = pwrite(nvr_fd, so->nso_data + write_off, write_len, offset_to_write);
 
 	if (!reset) {
@@ -870,8 +878,8 @@ restart:
 		ret = tmp_syncoff;
 	}
 
-	if (ret == ZS_SUCCESS) {
-		if (hw_durable && !odirect) {
+	if (ret != -1) {
+		if (!hw_durable) {
 			if ((ret = fdatasync(nvr_fd)) == -1) {
 				msg(INITIAL, FATAL, "fdatasync to NVRAM failed, NVRAM disabled");
 				nvr_disabled = 1;
@@ -891,7 +899,7 @@ restart:
 	/*
 	 * flag is 1, so we have split the IOs. Now lets restart sync of residual write.
 	 */
-	if ((ret == ZS_SUCCESS) && (flag == 1)) {
+	if ((ret != -1) && (flag == 1)) {
 		if (!aligned_down) {
 			sched_yield();
 			flag = 2;
@@ -901,7 +909,7 @@ restart:
 	}
 
 
-	return tmp_syncoff;
+	return ret;
 }
 
 int
