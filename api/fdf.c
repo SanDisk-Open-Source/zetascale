@@ -1278,7 +1278,7 @@ get_cntr_info(cntr_id_t cntr_id,
     if(objs) {
 		uint64_t ov_objs = 0;
 		if (cmap->lc) {
-			get_lc_num_objs(cntr_id,objs);
+			//get_lc_num_objs(cntr_id,objs);
 		} else if (get_btree_num_objs(cntr_id,objs, &ov_objs) == ZS_SUCCESS) {
 			if (storm_mode) {
 				*used += ov_objs * rawobjratio * Mcd_osd_blk_size;
@@ -5284,9 +5284,6 @@ zs_write_object(
 		else
 			status = lc_write( zs_thread_state, cguid, key, keylen, data, datalen);
 
-		if (status == ZS_SUCCESS) {
-			inc_cntr_map_by_map(cmap, cguid, 1, 0, 0);
-		}
 		goto out;
 	}
 	if (meta->meta.properties.flash_only == ZS_TRUE) {
@@ -8054,9 +8051,6 @@ ZSMPut(struct ZS_thread_state *zs_thread_state,
 
 out:
 	if (cmap) {
-		if (status == ZS_SUCCESS) {
-			inc_cntr_map_by_map(cmap, cguid, *objs_written, 0, 0);
-		}
 		rel_cntr_map(cmap);
 	}
 	if (thd_ctx_locked) {
