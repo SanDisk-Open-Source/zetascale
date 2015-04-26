@@ -4773,21 +4773,17 @@ static int flashPut_wrapper(SDF_trans_state_t *ptrans, struct shard *pshard, str
         {
             (void) incr(ptrans->pas->stats_new_per_sched[curSchedNum].ctnr_stats[ptrans->meta->n].n_writethrus);
             (pmeta->keyLen)--; // adjust for extra NULL added by SDF
-	    if ((ptrans->par->ctnr != CMC_CGUID) &&
-	        (ptrans->par->ctnr != VMC_CGUID))
-	    {
-		if ((pdata == NULL) || (!check_flash_space(ptrans->pas, pshard))) {
-                    if (ptrans->meta->meta.properties.durability_level == SDF_RELAXED_DURABILITY)
-                        flags |= FLASH_PUT_DURA_SW_CRASH;
-                    else if (ptrans->meta->meta.properties.durability_level == SDF_FULL_DURABILITY)
-                        flags |= FLASH_PUT_DURA_HW_CRASH;
-		    ret = flashPut(pshard, pmeta, pkey, pdata, flags);
-		} else {
-		    ret = FLASH_ENOSPC;
-		}
-	    } else {
-		ret = flashPut(pshard, pmeta, pkey, pdata, flags);
-	    }
+            /* Check flash space only for VDC.*/
+            if ((pdata == NULL) || (ptrans->par->ctnr == CMC_CGUID) || (ptrans->par->ctnr == VMC_CGUID) || 
+                                                              (!check_flash_space(ptrans->pas, pshard))) {
+                if (ptrans->meta->meta.properties.durability_level == SDF_RELAXED_DURABILITY)
+                    flags |= FLASH_PUT_DURA_SW_CRASH;
+                else if (ptrans->meta->meta.properties.durability_level == SDF_FULL_DURABILITY)
+                    flags |= FLASH_PUT_DURA_HW_CRASH;
+                ret = flashPut(pshard, pmeta, pkey, pdata, flags);
+            } else {
+                ret = FLASH_ENOSPC;
+            }
             (pmeta->keyLen)++; // adjust for extra NULL added by SDF
 	    if (ret == 0) {
 		ptrans->entry->blockaddr = pmeta->blockaddr;
