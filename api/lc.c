@@ -568,7 +568,7 @@ lc_write( ts_t *t, ZS_cguid_t cguid, char *k, uint32_t kl, char *d, uint64_t dl)
 			if ((sz = nvr_write_buffer_partial( s->nb, &s->so.buffer[bufnexti], i, always_sync, &off)) == -1) {
 				r = ZS_FAILURE;
 			} else {
-				atomic_inc(c->lgstats.stat[LOGSTAT_NUM_OBJS]);
+				//atomic_inc(c->lgstats.stat[LOGSTAT_NUM_OBJS]);
 			}
 			pthread_rwlock_unlock( &c->lock);
 			pthread_rwlock_unlock( &lc_lock);
@@ -1084,7 +1084,7 @@ write_record( ts_t *t, ZS_cguid_t cguid, uint type, char *k, uint32_t kl, char *
 		pg->trimposition = newest( pg->trimposition, counter);
 	}
 
-	atomic_inc(c->lgstats.stat[LOGSTAT_NUM_OBJS]);
+	//atomic_inc(c->lgstats.stat[LOGSTAT_NUM_OBJS]);
 fail:
 	pthread_rwlock_unlock( &c->lock);
 	pthread_rwlock_unlock( &lc_lock);
@@ -1244,7 +1244,7 @@ write_records( ts_t *ts, lrec_t **lrecs, int num_recs, ZS_cguid_t cguid, int *wr
 	}
 out:
 	atomic_sub(c->lgstats.stat[LOGSTAT_MPUT_IO_SAVED], num_recs - *written);
-	atomic_add(c->lgstats.stat[LOGSTAT_NUM_OBJS], *written);
+	//atomic_add(c->lgstats.stat[LOGSTAT_NUM_OBJS], *written);
 	pthread_rwlock_unlock( &c->lock);
 	pthread_rwlock_unlock( &lc_lock);
 	if (streams_per_container == 1) {
