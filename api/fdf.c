@@ -117,6 +117,7 @@ SDF_shardid_t      vmc_shardid = SDF_SHARDID_INVALID;
 SDF_shardid_t	vdc_shardid		= SDF_SHARDID_INVALID;
 static int dump_interval = 0;
 int zs_dump_core = 0;
+static ZS_cguid_t *in_progress_deletes = NULL;
 
 /* Id used to uniquely differenciate 
    parallel container deletes with same name */
@@ -270,6 +271,10 @@ ZS_status_t ZSInitPerThreadState(
 	);
 
 static void zs_start_vc_thread( 
+	struct ZS_state *sdf_state 
+	);
+
+static void zs_start_in_progress_deletes_thread( 
 	struct ZS_state *sdf_state 
 	);
 
@@ -2138,10 +2143,13 @@ ZSInitVersioned(struct ZS_state **zs_state, uint32_t api_version)
 	} while (rc == -1 && errno == EINTR);
 	plat_assert(0 == rc);
 
+	zs_start_vc_thread(*zs_state);
+
 	ZS_status_t r = lc_init( *zs_state, agent_state.config.system_recovery==SYS_FLASH_REFORMAT);
 	if (r != ZS_SUCCESS)
-		return (r);
-	zs_start_vc_thread(*zs_state);
+	    return (r);
+
+	zs_start_in_progress_deletes_thread(*zs_state);
 
 	// Only run stats thread for normal run mode (not zsck)
 	if (ZSCHECK_NO_CHECK == mcd_check_get_level()) {
@@ -7521,89 +7529,136 @@ out:
 static void    *
 zs_vc_thread(void *arg)
 {
-	struct ZS_thread_state	*t;
-	struct ZS_iterator	*iter;
-	SDF_container_meta_t	*meta;
-	ZS_status_t		status;
-	char			*key;
-	uint32_t		keylen;
-	uint64_t		datalen;
-	int			j;
+    struct ZS_thread_state  *t; 
+    struct ZS_iterator      *iter; 
+    SDF_container_meta_t    *meta; 
+    ZS_status_t	             status; 
+    char                    *key; 
+    uint32_t                 keylen; 
+    uint64_t                 datalen; 
+    int	                     j;
+    int                      flags = ZS_CTNR_CREATE;
+    int                      i = 1000;
+    int                      k = 0;
 
-	if (ZS_SUCCESS != ZSInitPerThreadState((struct ZS_state *) arg, (struct ZS_thread_state **) &t)) {
-		plat_log_msg(150088, LOG_CAT, LOG_ERR, "Unable to initialize ZS thread state, exiting");
-		return NULL;
-	}
-	int flags = ZS_CTNR_CREATE;
-	if (sdf_shared_state.config.system_recovery == SYS_FLASH_RECOVERY)
-		flags = 0;	// Just open the VMC/VDC
-	if ((status = zs_vc_init(t, flags)) != ZS_SUCCESS) {
-		plat_log_msg(150076, LOG_CAT, LOG_ERR, "Failed to open support containers: %s", ZSStrError(status));
-		ZSReleasePerThreadState(&t);
-		return NULL;
-	}
-	ZS_cguid_t *deletes = (ZS_cguid_t *) plat_alloc(sizeof(*deletes) * max_num_containers);
-	if (deletes == NULL) {
-		ZSReleasePerThreadState(&t);
-		return NULL;
-	}
-	memset(deletes, 0, sizeof(*deletes) * max_num_containers);
-	int i = 1000;
-	do {
-		status = ZSEnumerateContainerObjects(t, VMC_CGUID, &iter);
-	} while (status == ZS_FLASH_EBUSY && i--);
-	int k = 0;
-	while ((status = ZSNextEnumeratedObject(t, iter, &key, &keylen, (char **) &meta, &datalen)) == ZS_SUCCESS) {
-		status = zs_cmap_create(meta->cname, meta->cguid, meta->properties.container_id.size, ZS_CONTAINER_STATE_CLOSED, meta->properties.container_type.caching_container, meta->flags & ZS_LOG_CTNR);
-		if (ZS_SUCCESS != status) {
-			plat_log_msg(150134, LOG_CAT, LOG_ERR, "Failed to create cmap for %s - %lu", meta->cname, meta->cguid);
-			continue;
-		}
-		plat_log_msg(150135, LOG_CAT, LOG_DBG, "Created cmap for %s - %lu", meta->cname, meta->cguid);
-		for (j = 0; j < max_num_containers; j++)
-			if (Mcd_containers[j].cguid == 0) {
-				Mcd_containers[j].cguid = meta->cguid;
-				Mcd_containers[j].container_id = meta->properties.container_id.container_id;
-				memcpy(Mcd_containers[j].cname, meta->cname, strlen(meta->cname));
-				break;
-			}
-		if (meta->delete_in_progress) {
-			deletes[k] = meta->cguid;
-			k++;
-		}
-	}
-	status = ZSFinishEnumeration(t, iter);
-	if (getProperty_Int( "ASYNC_DELETE_CONTAINERS", 0) == 0)
-		for (k = 0; k < max_num_containers && deletes[k] != ZS_NULL_CGUID; k++)
-			if ((status = zs_delete_container(t, deletes[k], ZS_VIRTUAL_CNTR)) != ZS_SUCCESS)
-				plat_log_msg(150098, LOG_CAT, LOG_ERR, "Failed to delete container %lu during recovery - %s", deletes[k], ZSStrError(status));
-	ZSReleasePerThreadState(&t);
-	plat_free(deletes);
-	return NULL;
+    if (ZS_SUCCESS != ZSInitPerThreadState((struct ZS_state *) arg, (struct ZS_thread_state **) &t)) { 
+        plat_log_msg(150088, LOG_CAT, LOG_ERR, "Unable to initialize ZS thread state, exiting"); 
+        return NULL; 
+    }
+
+    if (sdf_shared_state.config.system_recovery == SYS_FLASH_RECOVERY) 
+        flags = 0;	// Just open the VMC/VDC 
+    if ((status = zs_vc_init(t, flags)) != ZS_SUCCESS) { 
+        plat_log_msg(150076, LOG_CAT, LOG_ERR, "Failed to open support containers: %s", ZSStrError(status)); 
+        ZSReleasePerThreadState(&t); 
+        return NULL; 
+    }
+
+    in_progress_deletes = (ZS_cguid_t *) plat_alloc(sizeof(*in_progress_deletes) * max_num_containers); 
+    if (in_progress_deletes == NULL) { 
+        ZSReleasePerThreadState(&t); 
+        return NULL;
+    }
+    memset(in_progress_deletes, 0, sizeof(*in_progress_deletes) * max_num_containers);
+    do { 
+        status = ZSEnumerateContainerObjects(t, VMC_CGUID, &iter); 
+    } while (status == ZS_FLASH_EBUSY && i--);
+
+    while ((status = ZSNextEnumeratedObject(t, iter, &key, &keylen, (char **) &meta, &datalen)) == ZS_SUCCESS) { 
+        status = zs_cmap_create(meta->cname, meta->cguid, meta->properties.container_id.size, 
+                                ZS_CONTAINER_STATE_CLOSED, meta->properties.container_type.caching_container, meta->flags & ZS_LOG_CTNR); 
+
+        if (ZS_SUCCESS != status) { 
+            plat_log_msg(150134, LOG_CAT, LOG_ERR, "Failed to create cmap for %s - %lu", meta->cname, meta->cguid); 
+            continue; 
+        } 
+
+        plat_log_msg(150135, LOG_CAT, LOG_DBG, "Created cmap for %s - %lu", meta->cname, meta->cguid); 
+        for (j = 0; j < max_num_containers; j++) 
+            if (Mcd_containers[j].cguid == 0) { 
+                Mcd_containers[j].cguid = meta->cguid; 
+                Mcd_containers[j].container_id = meta->properties.container_id.container_id; 
+                memcpy(Mcd_containers[j].cname, meta->cname, strlen(meta->cname)); 
+                break; 
+            } 
+        if (meta->delete_in_progress) { 
+            in_progress_deletes[k] = meta->cguid; 
+            k++; 
+        } 
+    }
+    status = ZSFinishEnumeration(t, iter);
+    ZSReleasePerThreadState(&t);
+    return NULL;
+}
+
+static void    *
+zs_in_progress_deletes_thread(void *arg)
+{ 
+    struct ZS_thread_state  *t; 
+    int                      i = 0;
+    ZS_status_t              status = ZS_FAILURE;
+
+    if (ZS_SUCCESS != ZSInitPerThreadState((struct ZS_state *) arg, (struct ZS_thread_state **) &t)) { 
+        plat_log_msg(150088, LOG_CAT, LOG_ERR, "Unable to initialize ZS thread state, exiting"); 
+        return NULL; 
+    }
+    if (!in_progress_deletes && getProperty_Int( "ASYNC_DELETE_CONTAINERS", 0) == 0) 
+        for (i = 0; i < max_num_containers && in_progress_deletes[i] != ZS_NULL_CGUID; i++) 
+            if ((status = zs_delete_container(t, in_progress_deletes[i], ZS_VIRTUAL_CNTR)) != ZS_SUCCESS) 
+                plat_log_msg(150098, LOG_CAT, LOG_ERR, "Failed to delete container %lu during recovery - %s", in_progress_deletes[i], ZSStrError(status));
+
+    plat_free(in_progress_deletes);
+    in_progress_deletes = NULL;
+    ZSReleasePerThreadState(&t);
+    return NULL;
+}
+
+static void
+zs_start_vc_thread(
+        struct ZS_state *zs_state
+        )
+{
+    pthread_t   thd;
+    int         rc              = -1;   
+
+    rc = pthread_create( &thd, 
+                         NULL, 
+                         zs_vc_thread, 
+                         (void *) zs_state
+                       );
+
+    if ( rc != 0 ) {
+        plat_log_msg( 150089, 
+                      LOG_CAT, 
+                      LOG_ERR, 
+                      "Unable to start the virtual container initialization thread.");
+    }
+
+    pthread_join( thd, NULL );
 }
 
 static void 
-zs_start_vc_thread(
+zs_start_in_progress_deletes_thread(
 	struct ZS_state *zs_state
 	) 
 {
     pthread_t 	thd;
-    int 		rc		= -1;
+    int		rc		= -1;
 
-    rc = pthread_create( &thd,
-						 NULL,
-						 zs_vc_thread,
-						 (void *) zs_state
-						);
+    rc = pthread_create( &thd, 
+                         NULL, 
+                         zs_in_progress_deletes_thread, 
+                         (void *) zs_state
+                       );
 
     if ( rc != 0 ) {
-        plat_log_msg( 150089,
-					  LOG_CAT,
-					  LOG_ERR,
-					  "Unable to start the virtual container initialization thread.");
+        plat_log_msg( PLAT_LOG_ID_INITIAL, 
+                      LOG_CAT, 
+                      LOG_ERR, 
+                      "Unable to start the in progress container delete thread.");
     }
 
-	pthread_join( thd, NULL );
+    pthread_join( thd, NULL );
 }
 #define MAX_PHYSICAL_CONT_SIZE 2147483648
 
