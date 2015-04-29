@@ -219,7 +219,7 @@ scavenger_del_stale_ent(Scavenge_Arg_t *s)
 			meta.flags = FORCE_DELETE | READ_SEQNO_EQ;
 			btree_ret = btree_delete(s->bt, key[j].key, key[j].keylen, &meta);
 			if (key[j].key) {
-				free_buffer(s->bt, key[j].key);
+				free_buffer(s->btree, key[j].key);
 				key[j].key = NULL;
 			}
 			bt_cntr_unlock_scavenger(s, false);
@@ -265,7 +265,7 @@ scavenger_del_stale_ent(Scavenge_Arg_t *s)
 	}
 
 	if (ks_prev.key != NULL) {
-		free_buffer(s->bt, ks_prev.key);
+		free_buffer(s->btree, ks_prev.key);
 		ks_prev.key = NULL;
 	}
 
