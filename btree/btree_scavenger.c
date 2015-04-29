@@ -160,12 +160,18 @@ scavenger_del_stale_ent(Scavenge_Arg_t *s)
 		deref_l1cache_node(s->btree, parent);
 
 	}
+
 	i = 0;
 	bool found = 0,last_node=0;
 	start_key_in_node = 0;
 	nkey_prev_tombstone = 0;
 	bzero(&ks_prev,sizeof(key_stuff_t));
+
+	key = NULL;
 	while (!bt_shutdown) {
+		if (key != NULL) {
+			free(key);
+		}
 		key = (key_stuff_info_t *)malloc(16*sizeof(key_stuff_info_t));
 		int temp = 0;
 
@@ -212,6 +218,10 @@ scavenger_del_stale_ent(Scavenge_Arg_t *s)
 			meta.seqno = key[j].seqno;
 			meta.flags = FORCE_DELETE | READ_SEQNO_EQ;
 			btree_ret = btree_delete(s->bt, key[j].key, key[j].keylen, &meta);
+			if (key[j].key) {
+				free_buffer(s->bt, key[j].key);
+				key[j].key = NULL;
+			}
 			bt_cntr_unlock_scavenger(s, false);
 			if (!bt_shutdown) {
 				usleep(1000*(s->throttle_value));
@@ -230,6 +240,7 @@ scavenger_del_stale_ent(Scavenge_Arg_t *s)
 		}
 		memcpy(&ks_current, &ks_prev, sizeof(key_stuff_t));
 		free(key);
+		key = NULL;
 
 		/* Relock before proceeding to walk down the tree */
 		plat_rwlock_rdlock(&s->btree->lock);
@@ -248,6 +259,14 @@ scavenger_del_stale_ent(Scavenge_Arg_t *s)
 		if (node == NULL) {
 			break;
 		}
+	}
+	if (key != NULL) {
+		free(key);
+	}
+
+	if (ks_prev.key != NULL) {
+		free_buffer(s->bt, ks_prev.key);
+		ks_prev.key = NULL;
 	}
 
 cleanup:
@@ -579,12 +598,13 @@ scavenge_node(struct btree_raw *btree, btree_raw_mem_node_t* node, key_stuff_inf
 	}
 
 	int i = 0, temp;
-	key_stuff_info_t ks_prev,ks_current,temp1;
+	key_stuff_info_t ks_prev, ks_current, temp1;
 	int  total_keys = 0,deleting_keys = 0,nkey_prev = 0;
 	uint64_t         snap_n1,snap_n2;
 	btree_status_t	ret;
 	key_info_t key_info;
 	key_stuff_info_t *key1;
+	int ks_prev_copied = 0;
 
 		
 	if (key == NULL) {
@@ -596,10 +616,10 @@ scavenge_node(struct btree_raw *btree, btree_raw_mem_node_t* node, key_stuff_inf
 	//meta.flags = 0;
 	key1 = *key;
 	
-	bzero(&temp1,sizeof(key_stuff_info_t));
-	memcpy(&ks_prev,ks_prev_key,sizeof(key_stuff_t));
-	(void) get_key_stuff_leaf(btree, node->pnode, i, &ks_current);
-	for(;i<node->pnode->nkeys;i++)
+	bzero(&temp1, sizeof(key_stuff_info_t));
+	memcpy(&ks_prev, ks_prev_key, sizeof(key_stuff_t));
+
+	for(; i < node->pnode->nkeys;  i++)
 	{
 		(void) get_key_stuff_leaf(btree, node->pnode, i, &ks_current);
 		if (ks_current.key == NULL || ks_current.keylen == 0) {
@@ -609,22 +629,27 @@ scavenge_node(struct btree_raw *btree, btree_raw_mem_node_t* node, key_stuff_inf
 		} else {
 			temp = btree->cmp_cb(btree->cmp_cb_data, ks_current.key, ks_current.keylen, ks_prev.key, ks_prev.keylen);
 		}
-		if (!temp)
-		{
+		if (!temp) {
 			if (ks_prev.seqno != ks_current.seqno) {
 				snap_n1 = btree_snap_find_meta_index(btree, ks_prev.seqno);
 				snap_n2 = btree_snap_find_meta_index(btree, ks_current.seqno);
 				total_keys++;
-				if (snap_n1 == snap_n2)
-				{
+
+				if (snap_n1 == snap_n2) {
 					deleting_keys++;
 					if (key_loc >= 16 && ((key_loc & key_loc-1)==0)) {
-						key1 = (key_stuff_info_t *)realloc(key1,2*key_loc*sizeof(key_stuff_info_t));
+						key1 = (key_stuff_info_t *) realloc(key1, 2 * key_loc * sizeof(key_stuff_info_t));
 						*key = key1;
 					}
-					memcpy(&(key1[key_loc++]),&ks_current,sizeof(key_stuff_t));
+					memcpy(&(key1[key_loc++]), &ks_current, sizeof(key_stuff_t));
 					temp1 = ks_current;
+				} else {
+					free_buffer(btree, ks_current.key);
+					ks_current.key = NULL;
 				}
+			} else {
+				free_buffer(btree, ks_current.key);
+				ks_current.key = NULL;
 			}
 			continue;
 		} else {
@@ -635,23 +660,32 @@ scavenge_node(struct btree_raw *btree, btree_raw_mem_node_t* node, key_stuff_inf
 					temp = 1;
 				}
 
-				if (!temp && nkey_prev_tombstone == 1)
-				{
+				if (!temp && nkey_prev_tombstone == 1) {
 					if (key_loc >= 16 && ((key_loc & key_loc-1)==0)) {
-						key1 = (key_stuff_info_t *)realloc(key1,2*key_loc*sizeof(key_stuff_info_t));
+						key1 = (key_stuff_info_t *)realloc(key1, 2 * key_loc * sizeof(key_stuff_info_t));
 						*key = key1;
 					}
-					memcpy(&(key1[key_loc++]),&ks_prev,sizeof(key_stuff_t));
+					memcpy(&(key1[key_loc++]), &ks_prev, sizeof(key_stuff_t));
+					ks_prev_copied = 1;
 				}
 			}
 			total_keys = deleting_keys = 0;
 		}
 		(void) btree_leaf_get_nth_key_info(btree, node->pnode,i, &key_info);
+		if (key_info.key) {
+			free_buffer(btree, key_info.key);
+			key_info.key = NULL;
+		}
 		nkey_prev_tombstone = key_info.tombstone;
 		nkey_prev = i;
+		if (ks_prev_copied == 0 && ks_prev.key != NULL) {
+			free_buffer(btree, ks_prev.key);
+			ks_prev.key = NULL;
+		}
 		ks_prev = ks_current;
+		ks_prev_copied = 0;
 	}
-	memcpy(ks_prev_key,&ks_prev,sizeof(key_stuff_t));
+	memcpy(ks_prev_key, &ks_prev, sizeof(key_stuff_t));
 	return i;
 }
 

@@ -1737,7 +1737,6 @@ btree_leaf_copy_keys(btree_raw_t *bt, btree_raw_node_t *from_node, int from_inde
 
 	meta.flags = 0; //Default flags
 
-	key_info.key = tmp_key_buf;
 
 	for (i = 0; i < num_keys; i++) {
 		res = btree_leaf_get_nth_key_info(bt, from_node, from_index + i, &key_info);
@@ -1751,6 +1750,8 @@ btree_leaf_copy_keys(btree_raw_t *bt, btree_raw_node_t *from_node, int from_inde
 					       key_info.datalen, &meta, key_info.syndrome,
 					       false, to_index + i);
 		if (res == true) {
+			free_buffer(bt, key_info.key);
+			key_info.key = NULL;
 			break;
 		}
 
