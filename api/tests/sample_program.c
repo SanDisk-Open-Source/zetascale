@@ -22,8 +22,9 @@
 #define	ZS_PROP_FILE		"config/zs_sample.prop"	//Configuration file
 #define	THREADS			1 //Number of threads
 #define CNTR_SIZE 		1	/* GB */
-#define DATA_SIZE	128000
-#define NUM_OBJS			300
+#define DATA_SIZE	100
+#define NUM_OBJS			50000
+int keynumlen = 47;
 
 static char *base = "container";
 
@@ -98,12 +99,11 @@ main( )
 	//Set size of container to 256MB and retain other values.
 	props.size_kb = CNTR_SIZE*6*1024 *1024;
 	props.flash_only = 0;
-	//props.flags=2;
+	props.flags=2;
 
 	//Create container in read/write mode with properties specified.
 	status = ZSOpenContainer(thd_state, cname, &props, 
-ZS_CTNR_CREATE | ZS_CTNR_RW_MODE, &cguid);
-//			  ZS_CTNR_RW_MODE, &cguid);
+				  ZS_CTNR_CREATE | ZS_CTNR_RW_MODE, &cguid);
 #if 0
 	for (int i=0; i< 5000; i++) {
 		status = ZSWriteObject(thd_state, cguid, "test", 4, "test", 4, 0);
@@ -207,7 +207,7 @@ worker(void *arg)
 
 	//Create container in read/write mode with properties specified.
 	props.flash_only = 0;
-	//props.flags =2;
+	props.flags =2;
 	status = ZSOpenContainer(thd_state, cname, &props, 
 				  ZS_CTNR_RW_MODE, &cguid);
 #if 0
@@ -223,14 +223,19 @@ worker(void *arg)
 	}
 #endif
 
-	keylen = strlen("key") + 100;
+	keylen = strlen("key") + keynumlen + 1;
 	keyw = (char *)malloc(keylen);
 	dataw = (char *)malloc(DATA_SIZE+ 5);
 	bzero(keyw, keylen);
 	bzero(dataw, DATA_SIZE+5);
-	for (int i=0; i <NUM_OBJS;i++) {
+	int i;
+	for (i=0; i <NUM_OBJS;i++) {
 		//sprintf(keyw, "key%07d%x", i, (int)pthread_self());
-		sprintf(keyw, "%095d_key_", i);
+		sprintf(keyw, "NIRANJAN_key%038d", i);
+		if (strlen(keyw) != (keylen - 1)) {
+			printf("Key format mismatch\n");
+			return;
+		}
 		/*
 		if (i==500) {
 			sleep(1);
@@ -248,10 +253,14 @@ worker(void *arg)
 	}
 	printf("Write done --- \n");
 	//free(dataw);
+	return;
 	for (int i=0; i <NUM_OBJS;i++) {
 		//sprintf(keyw, "key%07d%x", i, (int)pthread_self());
-		sprintf(keyw, "%095d_key_", i);
-		//sprintf(keyw, "key%047d", i);
+		sprintf(keyw, "key%047d", i);
+		if (strlen(keyw) != (keylen - 1)) {
+			printf("Key format mismatch\n");
+			return;
+		}
 		//Create initial data.
 		status = ZSReadObject(thd_state, cguid, keyw, keylen, &dataw, &datalen);
 		if (status == ZS_SUCCESS) {
