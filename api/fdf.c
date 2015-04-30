@@ -486,8 +486,8 @@ zs_stats_info_t zs_stats_btree[] = {
     {"ZS_BTREE_BACKUP_L1_HITS","l1_cache_snapread_misses/log:mput slow:No space in NVRAM buffer",ZS_STATS_TYPE_BTREE},/* ZS_CACHE_STAT_OVERFLOW_L1_MISSES */
 
     {"ZS_BTREE_LEAF_L1_WRITES","l1_cache_leaf_writes/log:mput slow:Different stream",ZS_STATS_TYPE_BTREE},/* ZS_CACHE_STAT_LEAF_L1_WRITES */
-    {"ZS_BTREE_NONLEAF_L1_WRITES","l1_cache_nonleaf_writes",ZS_STATS_TYPE_BTREE},/* ZS_CACHE_STAT_NONLEAF_L1_WRITES */
-    {"ZS_BTREE_OVERFLOW_L1_WRITES","l1_cache_overflow_writes",ZS_STATS_TYPE_BTREE},/* ZS_CACHE_STAT_OVERFLOW_L1_WRITES */
+    {"ZS_BTREE_NONLEAF_L1_WRITES","l1_cache_nonleaf_writes/log:sync done",ZS_STATS_TYPE_BTREE},/* ZS_CACHE_STAT_NONLEAF_L1_WRITES */
+    {"ZS_BTREE_OVERFLOW_L1_WRITES","l1_cache_overflow_writes/log:sync saved",ZS_STATS_TYPE_BTREE},/* ZS_CACHE_STAT_OVERFLOW_L1_WRITES */
     {"ZS_BTREE_LEAF_NODES","num_leaf_nodes",ZS_STATS_TYPE_BTREE},/* ZS_CACHE_STAT_BT_LEAF_NODES */
     {"ZS_BTREE_NONLEAF_NODES","num_nonleaf_nodes",ZS_STATS_TYPE_BTREE},/* ZS_CACHE_STAT_BT_NONLEAF_NODES */
 
@@ -7665,7 +7665,7 @@ zs_start_in_progress_deletes_thread(
                        );
 
     if ( rc != 0 ) {
-        plat_log_msg( PLAT_LOG_ID_INITIAL, 
+        plat_log_msg( 160312, 
                       LOG_CAT, 
                       LOG_ERR, 
                       "Unable to start the in progress container delete thread.");

@@ -121,6 +121,8 @@ ZS_ext_stat_t log_to_zs_stats_map[] = {
 	{LOGSTAT_MPUT_SLOWPATH_FIRSTREC,ZS_BTREE_BACKUP_L1_MISSES, ZS_STATS_TYPE_BTREE, 0},
 	{LOGSTAT_MPUT_SLOWPATH_NOSPC, 	ZS_BTREE_BACKUP_L1_HITS,ZS_STATS_TYPE_BTREE, 0},
 	{LOGSTAT_MPUT_SLOWPATH_DIFFSTR,	ZS_BTREE_LEAF_L1_WRITES,ZS_STATS_TYPE_BTREE, 0},
+	{LOGSTAT_SYNC_DONE,		ZS_BTREE_NONLEAF_L1_WRITES,ZS_STATS_TYPE_BTREE, 0},
+	{LOGSTAT_SYNC_SAVED,		ZS_BTREE_OVERFLOW_L1_WRITES,ZS_STATS_TYPE_BTREE, 0},
 };
 
 typedef struct ZS_thread_state		ts_t;
@@ -228,6 +230,40 @@ struct pgstructure {
 			newest;
 	pgname_t	name;
 };
+
+/*=============================================================================
+ * Batch commit in logging container layer when streams_per_container = 1
+ *=============================================================================
+ *
+ * iocount - Number of IO requests in progress and pipelined for this container
+ * synccount - Number of syncs to NVRAM buffer in pipeline
+ * insync - A sync to NVRAM is in progress. Done by only one thread at a time
+ * buffull - The stream buffer is full, data needs to be written to flash.
+ *
+ * synccv - CV for threads waiting to do sync
+ * flashcv - CV for sync threads to wait for buffer getting committed to flash
+ * fullcv - CV for IO thread waiting for pipelined syncs to complete 
+ *
+ * Working:
+ * a. Each thread incr iocount as soon as they make sure container exists.
+ *    This is done even before acquiring the lock of container so that the
+ *    io in progress doesnt initiate a sync to NVRAM.
+ * b. On completing the copy to NVRAM buffer, synccount is incremented and
+ *    iocount is decremented. This is done before releasing lock of 
+ *    container, so that incase the IO starts on container and buffer is full,
+ *    the thread has to wait all syncs enqueued is complete.
+ * c. If there are no pipelined IO, a thread will set insync=1 and proceeds
+ *    with sync. Then it wakes up all othre threads waiting for sync and any
+ *    thread waiting for writing buffeer contents to flash.
+ * d. If the buffer is full, the thread wakes up any syncs pipelined and waits
+ *    till synccount becomes 0. Only streamwrite() can do this functionality.
+ *
+ * IMPORTANT:
+ * Always call lc_sync_buf() once the iocount is incremented irrespective of
+ * write succeeds or not. There could be sync thread waiting for IO to complete
+ */
+ 
+
 struct containerstructure {
 	ZS_cguid_t	cguid;
 	lock_t		lock;
@@ -304,9 +340,12 @@ static container_t	*clookup( ZS_cguid_t),
 static ZS_status_t	recover( ts_t *, container_t *),
 			sostatusrecover( ts_t *t, container_t *),
 			write_record( ts_t *, ZS_cguid_t, uint, char *, uint32_t, char *, uint64_t),
+			write_record_one_spc( ts_t *, ZS_cguid_t, uint, char *, uint32_t, char *, uint64_t),
 			write_records( ts_t *ts, lrec_t **lrecs, int num_recs, ZS_cguid_t cguid, int *written),
+			write_records_one_spc( ts_t *ts, lrec_t **lrecs, int num_recs, ZS_cguid_t cguid, int *written),
 			streaminit( uint),
 			streamwrite( ts_t *, stream_t *, lrec_t *, off_t *off),
+			streamwrite_one_spc( ts_t *, stream_t *, lrec_t *, off_t *off),
 			streamreclaim( ts_t *, stream_t *),
 			soscan( container_t *, stream_t *, trxrev_t *, so_t *, ulong),
 			pgstreamscan( ts_t *, pg_t *, char *, uint32_t, char **, uint64_t *),
@@ -345,7 +384,7 @@ static int		compar( const void *, const void *);
 //static char		*prettynumber( ulong);
 static counter_t	newest( counter_t, counter_t);
 static int	 	lc_sync_buf( container_t *c, off_t off);
-
+static ZS_status_t	lc_write_one_spc( struct ZS_thread_state *, ZS_cguid_t, char *, uint32_t, char *, uint64_t);
 
 /*
  * LC entrypoint - initialize LC system
@@ -533,6 +572,9 @@ lc_write( ts_t *t, ZS_cguid_t cguid, char *k, uint32_t kl, char *d, uint64_t dl)
 	off_t		off;
 	stream_t	*s;
 
+	if (streams_per_container == 1) {
+		return lc_write_one_spc(t, cguid, k, kl, d, dl);
+	}
 
 	ZS_status_t r = keydecode( k, kl, &n, &h, &counter);
 	unless (r == ZS_SUCCESS)
@@ -548,10 +590,71 @@ lc_write( ts_t *t, ZS_cguid_t cguid, char *k, uint32_t kl, char *d, uint64_t dl)
 		return (ZS_FAILURE);
 	}
 
-	if (streams_per_container == 1) {
-		int ioc = atomic_add_get(c->iocount, 1);
-		plat_assert(ioc > 0);
+	pthread_rwlock_rdlock( &c->lock);
+	atomic_inc(c->lgstats.stat[LOGSTAT_WRITE_CNT]);
+	pg_t *pg = pglookup_readonly( c, k, n, h);
+	if (pg) {
+		s = pg->stream;
+		pthread_mutex_lock( &s->buflock);
+		unless ((s->bufnexti == 0)
+		or (bytes_per_so_buffer < i + s->bufnexti)) {
+			uint bufnexti = s->bufnexti;
+			s->bufnexti += i;
+			memcpy( s->so.buffer+bufnexti, &lr, i);
+			pthread_mutex_unlock( &s->buflock);
+			if ((sz = nvr_write_buffer_partial( s->nb, &s->so.buffer[bufnexti], i, 1, NULL)) == -1) {
+				r = ZS_FAILURE;
+			} else {
+				//atomic_inc(c->lgstats.stat[LOGSTAT_NUM_OBJS]);
+			}
+			pthread_rwlock_unlock( &c->lock);
+			pthread_rwlock_unlock( &lc_lock);
+			return (r);
+		}
+		pthread_mutex_unlock( &s->buflock);
 	}
+	pthread_rwlock_unlock( &c->lock);
+	pthread_rwlock_unlock( &lc_lock);
+
+	r = write_record( t, cguid, LR_WRITE, k, kl, d, dl);
+	return (r);
+}
+
+ZS_status_t
+lc_write_one_spc( ts_t *t, ZS_cguid_t cguid, char *k, uint32_t kl, char *d, uint64_t dl)
+{
+	counter_t	counter;
+	pghash_t	h;
+	pgname_t	n;
+	lrec_t		lr;
+	size_t		sz;
+	off_t		off;
+	stream_t	*s;
+
+	plat_assert(streams_per_container == 1);
+
+	ZS_status_t r = keydecode( k, kl, &n, &h, &counter);
+	unless (r == ZS_SUCCESS)
+		return (r);
+	unless (lrecbuild( &lr, LR_WRITE, k, kl, d, dl, counter))
+		return (ZS_OBJECT_TOO_BIG);
+	const uint i = lrecsize( &lr);
+
+	pthread_rwlock_rdlock( &lc_lock);
+	container_t *c = clookup( cguid);
+	unless ((c)
+	and (trxtrack( ))) {
+		pthread_rwlock_unlock( &lc_lock);
+		return (ZS_FAILURE);
+	}
+
+	/* 
+	 * Increment iocount to make sync wait for this IO to complete
+	 * and do batch commit. Need to do lc_sync_buf() always now for
+	 * waking up sync threads irrespective of NVRAM API fails or succeeds.
+	 */
+	int ioc = atomic_add_get(c->iocount, 1);
+	plat_assert(ioc > 0);
 
 	pthread_rwlock_rdlock( &c->lock);
 	atomic_inc(c->lgstats.stat[LOGSTAT_WRITE_CNT]);
@@ -570,23 +673,48 @@ lc_write( ts_t *t, ZS_cguid_t cguid, char *k, uint32_t kl, char *d, uint64_t dl)
 			} else {
 				//atomic_inc(c->lgstats.stat[LOGSTAT_NUM_OBJS]);
 			}
-			pthread_rwlock_unlock( &c->lock);
-			pthread_rwlock_unlock( &lc_lock);
-			if (streams_per_container == 1) {
-				sched_yield();
-				lc_sync_buf(c, off);
-			}
-			return (r);
+					
+			goto out;
 		}
 		pthread_mutex_unlock( &s->buflock);
 	}
 	pthread_rwlock_unlock( &c->lock);
+
+	pthread_rwlock_wrlock( &c->lock);
+	pg = pglookup( c, k, n, h);
+	unless (pg) {
+		r = ZS_FAILURE;
+		goto out;
+	}
+	atomic_inc(c->lgstats.stat[LOGSTAT_WRITE_SLOWPATH]);
+	r = streamwrite_one_spc( t, pg->stream, &lr, &off);
+	//atomic_inc(c->lgstats.stat[LOGSTAT_NUM_OBJS]);
+out:
+	{
+		/*
+		 * Increment sync count before releasing the lock. If a write 
+		 * gets pipelined and buffer is full, it should wait for sync
+		 * to complete.
+		 */
+		int sc = atomic_inc_get(c->synccount);
+		plat_assert(sc > 0);
+		int ioc = atomic_dec_get(c->iocount);
+		plat_assert(ioc >= 0);
+	}
+
+	pthread_rwlock_unlock( &c->lock);
 	pthread_rwlock_unlock( &lc_lock);
 
-	r = write_record( t, cguid, LR_WRITE, k, kl, d, dl);
+	if (r != ZS_SUCCESS) {
+		off = -1;
+		lc_sync_buf(c, off);
+	} else {
+		r = lc_sync_buf(c, off);
+	}
+
+
 	return (r);
 }
-
 
 /*
  * LC entrypoint - delete a logging object
@@ -758,13 +886,13 @@ lc_mput( ts_t *t, ZS_cguid_t cguid, uint32_t num_objs, ZS_obj_t *objs, uint32_t 
 					        uint32_t *objs_written)
 {
 
-#define TMPBUFSZ	4072
+#define TMPBUFSZ	65536
 
 	counter_t	counter;
 	pghash_t	h;
 	pgname_t	n;
 	ZS_status_t	ret = ZS_SUCCESS;
-	char		k[100], tmpbuf[TMPBUFSZ];
+	char		tmpbuf[TMPBUFSZ];
 	lrec_t		lr, *lrecs[TMPBUFSZ / (sizeof(lrec_t) - bytes_per_logging_object)];
 	uint		syncoff=0, sz;
 	stream_t	*s = 0;
@@ -864,25 +992,19 @@ lc_sync_buf( container_t *c, off_t off)
 	off_t		soff;
 	int		cnt = 0;
 	stream_t	*s = c->percontainerstream;
+	ZS_status_t	status;
 
 	plat_assert(streams_per_container == 1);
 
 	pthread_mutex_lock(&c->synclock);
-	int sc = ++(c->synccount);
-	plat_assert(sc > 0);
-	int ioc = atomic_dec_get(c->iocount);
-	plat_assert(ioc >= 0);
 
-restart:
-
-	while (c->insync && c->syncoff < off) {
-		//msg(INITIAL, DEBUG, "sync in progress: nso_syncoff (%d) off (%d)", (int)so->nso_syncoff, (int)off);
-		pthread_cond_wait(&c->synccv, &c->synclock);
-	}
-
-	if (c->syncoff >= off) {
-		(c->synccount)--;
-		if (c->synccount == 0) {
+	/*
+	 * IO had failed before sync. So, just wake up the pipelined
+	 * IO thread.
+	 */
+	if (off == -1) {
+		int sc = atomic_dec_get(c->synccount);
+		if (sc == 0) {
 			pthread_cond_broadcast(&c->flashcv);
 		}
 		//pthread_cond_broadcast(&c->synccv);
@@ -890,17 +1012,51 @@ restart:
 		return ZS_SUCCESS;
 	}
 
+restart:
+
+	/*
+	 * Sync in progress. Wait for it to finish.
+	 */
+	while (c->insync && c->syncoff < off) {
+		//msg(INITIAL, DEBUG, "sync in progress: nso_syncoff (%d) off (%d)", (int)so->nso_syncoff, (int)off);
+		pthread_cond_wait(&c->synccv, &c->synclock);
+	}
+
+	/*
+	 * Data was already synced by previous sync. Return.
+	 */
+	if (c->syncoff >= off) {
+		int sc = atomic_dec_get(c->synccount);
+		if (sc == 0) {
+			pthread_cond_broadcast(&c->flashcv);
+		}
+		//pthread_cond_broadcast(&c->synccv);
+		atomic_inc(c->lgstats.stat[LOGSTAT_SYNC_SAVED]);
+		pthread_mutex_unlock(&c->synclock);
+		return ZS_SUCCESS;
+	}
+
+	/*
+	 * While there is pipelined IO, donot sync.
+	 */
 	while ((cnt = atomic_add_get(c->iocount, 0)) > 0) {
 		if (c->buffull == 1) {
-			(c->synccount)--;
-			if (c->synccount == 0) {
+			/*
+			 * Buffer is full. No use of sync, lets write to flash itself.
+			 * Wake up the IO thread waiting for sync to complete.
+			 */
+			int sc = atomic_dec_get(c->synccount);
+			if (sc == 0) {
 				pthread_cond_broadcast(&c->flashcv);
 			}
 			//pthread_cond_broadcast(&c->synccv);
 			pthread_cond_wait(&c->fullcv, &c->synclock);
+			atomic_inc(c->lgstats.stat[LOGSTAT_SYNC_SAVED]);
+			status = c->syncstatus;
 			pthread_mutex_unlock(&c->synclock);
-			return c->syncstatus; //Niranjan: return failure incase write to flash has failed
+			return status; 
 		} else {
+			//break;
 			//pthread_cond_broadcast(&c->flashcv);
 			//pthread_cond_broadcast(&c->synccv);
 			pthread_cond_wait(&c->synccv, &c->synclock);
@@ -908,50 +1064,61 @@ restart:
 		}
 	}
 
+	/*
+	 * Buffer is full. No use of sync, lets write to flash itself.
+	 * Wake up the IO thread waiting for sync to complete.
+	 */
 	if (c->buffull == 1) {
-		(c->synccount)--;
-		if (c->synccount == 0) {
+		int sc = atomic_dec_get(c->synccount);
+		if (sc == 0) {
 			pthread_cond_broadcast(&c->flashcv);
 		}
 		//pthread_cond_broadcast(&c->synccv);
 		pthread_cond_wait(&c->fullcv, &c->synclock);
+		atomic_inc(c->lgstats.stat[LOGSTAT_SYNC_SAVED]);
+		status = c->syncstatus;
 		pthread_mutex_unlock(&c->synclock);
-		return c->syncstatus;
+		return status;
 	}
 
 	plat_assert(!c->insync);
 	c->insync = 1;
 
 	pthread_mutex_unlock(&c->synclock);
+	atomic_inc(c->lgstats.stat[LOGSTAT_SYNC_DONE]);
 	soff = nvr_sync_buf_aligned(s->nb, off);
 	pthread_mutex_lock(&c->synclock);
+
 	if (soff == -1) {
 		c->syncstatus = ZS_FAILURE;
 	} else {
+		c->syncstatus = ZS_SUCCESS;
 		c->syncoff = soff;
 	}
 	c->insync = 0;
 
-	if (soff < off) {
-		pthread_cond_broadcast(&c->synccv);
-		if (c->synccount) {
-			pthread_mutex_unlock(&c->synclock);
-			sched_yield();
-			pthread_mutex_lock(&c->synclock);
+	if (soff != -1) {
+		if (soff < off) {
+			/* Aligned write was done by NVRAM, restart sync. */
+			if (atomic_add_get(c->synccount, 0) > 1) {
+				pthread_cond_broadcast(&c->synccv);
+				pthread_mutex_unlock(&c->synclock);
+				//sched_yield();
+				pthread_mutex_lock(&c->synclock);
+			}
+			//pthread_cond_broadcast(&c->flashcv);
+			goto restart;
 		}
-		//pthread_cond_broadcast(&c->flashcv);
-		goto restart;
-	} else {
-		(c->synccount)--;
-		if (c->synccount == 0) {
-			pthread_cond_broadcast(&c->flashcv);
-		}
-		pthread_cond_broadcast(&c->synccv);
 	}
-
+	int sc = atomic_dec_get(c->synccount);
+	if (sc == 0) {
+		pthread_cond_broadcast(&c->flashcv);
+	}
+	pthread_cond_broadcast(&c->synccv);
+	status = c->syncstatus;
 	pthread_mutex_unlock(&c->synclock);
 
-	return soff;
+	return status;
 }
 
 /*
@@ -1047,6 +1214,10 @@ write_record( ts_t *t, ZS_cguid_t cguid, uint type, char *k, uint32_t kl, char *
 	off_t		off;
 	pg_t		*pg = NULL;
 
+	if (streams_per_container == 1) {
+		return write_record_one_spc(t, cguid, type, k, kl, d, dl);
+	}
+
 	pthread_rwlock_rdlock( &lc_lock);
 	container_t *c = clookup( cguid);
 	unless ((c)
@@ -1059,12 +1230,6 @@ write_record( ts_t *t, ZS_cguid_t cguid, uint type, char *k, uint32_t kl, char *
 		pthread_rwlock_unlock( &lc_lock);
 		return (r);
 	}
-
-	if (type != LR_WRITE) {
-		int ioc = atomic_inc_get(c->iocount);
-		plat_assert(ioc > 0);
-	}
-
 	pthread_rwlock_wrlock( &c->lock);
 	pg = pglookup( c, k, n, h);
 	unless ((pg)
@@ -1088,9 +1253,82 @@ write_record( ts_t *t, ZS_cguid_t cguid, uint type, char *k, uint32_t kl, char *
 fail:
 	pthread_rwlock_unlock( &c->lock);
 	pthread_rwlock_unlock( &lc_lock);
-	if (streams_per_container == 1) {
-		sched_yield();
+	return r;
+}
+
+static ZS_status_t
+write_record_one_spc( ts_t *t, ZS_cguid_t cguid, uint type, char *k, uint32_t kl, char *d, uint64_t dl)
+{
+	counter_t	counter;
+	pghash_t	h;
+	pgname_t	n;
+	lrec_t		lr;
+	off_t		off;
+	pg_t		*pg = NULL;
+
+	plat_assert(streams_per_container == 1);
+
+	pthread_rwlock_rdlock( &lc_lock);
+	container_t *c = clookup( cguid);
+	unless ((c)
+	and (trxtrack( ))) {
+		pthread_rwlock_unlock( &lc_lock);
+		return (ZS_FAILURE);
+	}
+	ZS_status_t r = keydecode( k, kl, &n, &h, &counter);
+	unless (r == ZS_SUCCESS) {
+		pthread_rwlock_unlock( &lc_lock);
+		return (r);
+	}
+
+	/* 
+	 * Increment iocount to make sync wait for this IO to complete
+	 * and do batch commit. Need to do lc_sync_buf() always now for
+	 * waking up sync threads irrespective of NVRAM API fails or succeeds.
+	 */
+	int ioc = atomic_add_get(c->iocount, 1);
+	plat_assert(ioc > 0);
+
+	pthread_rwlock_wrlock( &c->lock);
+	pg = pglookup( c, k, n, h);
+	unless ((pg)
+	and (lrecbuild( &lr, type, k, kl, d, dl, counter))) {
+		r = ZS_FAILURE;
+		goto fail;
+	}
+	atomic_inc(c->lgstats.stat[LOGSTAT_WRITE_SLOWPATH]);
+	if (type == LR_TRIM || type == LR_DELETE) {
+		atomic_inc(c->lgstats.stat[LOGSTAT_DELETE_CNT]);
+	}
+	r = streamwrite_one_spc( t, pg->stream, &lr, &off);
+	unless (r == ZS_SUCCESS) {
+		goto fail;
+	}
+	if (type == LR_TRIM) {
+		pg->trimposition = newest( pg->trimposition, counter);
+	}
+
+	//atomic_inc(c->lgstats.stat[LOGSTAT_NUM_OBJS]);
+fail:
+	{
+		/*
+		 * Increment sync count before releasing the lock. If a write 
+		 * gets pipelined and buffer is full, it should wait for sync
+		 * to complete.
+		 */
+		int sc = atomic_inc_get(c->synccount);
+		plat_assert(sc > 0);
+		int ioc = atomic_dec_get(c->iocount);
+		plat_assert(ioc >= 0);
+	}
+
+	pthread_rwlock_unlock( &c->lock);
+	pthread_rwlock_unlock( &lc_lock);
+	if ( r != ZS_SUCCESS) {
+		off = -1;
 		lc_sync_buf(c, off);
+	} else {
+		r = lc_sync_buf(c, off);
 	}
 	return r;
 }
@@ -1110,6 +1348,9 @@ write_records( ts_t *ts, lrec_t **lrecs, int num_recs, ZS_cguid_t cguid, int *wr
 	size_t		sz;
 	off_t		off;
 
+	if (streams_per_container == 1) {
+		return write_records_one_spc(ts, lrecs, num_recs, cguid, written);
+	}
 
 	*written = 0;
 	objs_copied = 0;
@@ -1121,11 +1362,6 @@ write_records( ts_t *ts, lrec_t **lrecs, int num_recs, ZS_cguid_t cguid, int *wr
 		and (trxtrack( ))) {
 		pthread_rwlock_unlock( &lc_lock);
 		return (ZS_FAILURE);
-	}
-
-	if (streams_per_container == 1){
-		int ioc = atomic_inc_get(c->iocount);
-		plat_assert(ioc > 0);
 	}
 
 	pthread_rwlock_rdlock( &c->lock);
@@ -1179,7 +1415,7 @@ write_records( ts_t *ts, lrec_t **lrecs, int num_recs, ZS_cguid_t cguid, int *wr
 			pthread_mutex_unlock(&ss->buflock);
 
 			if ((sz = nvr_write_buffer_partial( ss->nb, &ss->so.buffer[startoff], 
-					bufnexti - startoff, always_sync, &off)) == -1) {
+					bufnexti - startoff, 1, NULL)) == -1) {
 				r = ZS_FAILURE;
 			}
 			atomic_dec(c->lgstats.stat[LOGSTAT_MPUT_IO_SAVED]);
@@ -1234,7 +1470,7 @@ write_records( ts_t *ts, lrec_t **lrecs, int num_recs, ZS_cguid_t cguid, int *wr
 		uint bufnexti = ss->bufnexti;
 		pthread_mutex_unlock(&ss->buflock);
 		if ((sz = nvr_write_buffer_partial( ss->nb, &ss->so.buffer[startoff], 
-				bufnexti - startoff, always_sync, &off)) == -1) {
+				bufnexti - startoff, 1, NULL)) == -1) {
 			r = ZS_FAILURE;
 		}
 		atomic_dec(c->lgstats.stat[LOGSTAT_MPUT_IO_SAVED]);
@@ -1247,13 +1483,177 @@ out:
 	//atomic_add(c->lgstats.stat[LOGSTAT_NUM_OBJS], *written);
 	pthread_rwlock_unlock( &c->lock);
 	pthread_rwlock_unlock( &lc_lock);
-	if (streams_per_container == 1) {
-		sched_yield();
-		lc_sync_buf(c, off);
-	}
 	return r;
 }
 
+static ZS_status_t
+write_records_one_spc( ts_t *ts, lrec_t **lrecs, int num_recs, ZS_cguid_t cguid, int *written)
+{
+	pg_t 		*pg;
+	pgname_t 	n;
+	pghash_t 	h;
+	counter_t 	counter;
+	stream_t 	*ss;
+	char 		*k;
+	int 		i = 0, objs_copied;
+	uint 		startoff;
+	ZS_status_t 	r = ZS_SUCCESS;
+	size_t		sz;
+	off_t		off;
+
+	plat_assert(streams_per_container == 1);
+
+	*written = 0;
+	objs_copied = 0;
+	ss = NULL;
+	startoff = 0;
+	pthread_rwlock_rdlock( &lc_lock);
+	container_t *c = clookup( cguid);
+	unless ((c)
+		and (trxtrack( ))) {
+		pthread_rwlock_unlock( &lc_lock);
+		return (ZS_FAILURE);
+	}
+
+	/* 
+	 * Increment iocount to make sync wait for this IO to complete
+	 * and do batch commit. Need to do lc_sync_buf() always now for
+	 * waking up sync threads irrespective of NVRAM API fails or succeeds.
+	 */
+	int ioc = atomic_inc_get(c->iocount);
+	plat_assert(ioc > 0);
+
+	pthread_rwlock_rdlock( &c->lock);
+	atomic_add(c->lgstats.stat[LOGSTAT_MPUT_IO_SAVED], num_recs);
+	for (i = 0; i < num_recs; i++) {
+		k = (char *)(lrecs[i]->payload);
+		r = keydecode(k, lrecs[i]->klen, &n, &h, &counter);
+		uint sz = lrecsize( lrecs[i]);
+	        unless (r == ZS_SUCCESS) {
+			break;
+		}
+		pg = pglookup_readonly( c, k, n, h);
+		if (pg) {
+			if (!ss) {
+				/* Save the stream to which first record goes */
+				ss = pg->stream;
+				pthread_mutex_lock( &ss->buflock);
+				startoff = ss->bufnexti;
+			}
+
+			if ((ss->bufnexti != 0) &&
+					(bytes_per_so_buffer >= sz + ss->bufnexti)) {
+				uint bufnexti = ss->bufnexti;
+				ss->bufnexti += sz;
+				memcpy( ss->so.buffer+bufnexti, lrecs[i], sz);
+				objs_copied++;
+				continue;
+			} else if (ss->bufnexti == 0) {
+				atomic_inc(c->lgstats.stat[LOGSTAT_MPUT_SLOWPATH_FIRSTREC]);
+			} else if (bytes_per_so_buffer < (sz + ss->bufnexti)) {
+				atomic_inc(c->lgstats.stat[LOGSTAT_MPUT_SLOWPATH_NOSPC]);
+			}	
+		} else {
+			atomic_inc(c->lgstats.stat[LOGSTAT_MPUT_SLOWPATH_FIRSTREC]);
+		}
+		/*
+		 * If there are any records in the buffer, commit it before 
+		 * taking slow path.
+		 */
+		if (objs_copied) {
+			uint bufnexti = ss->bufnexti;
+			pthread_mutex_unlock(&ss->buflock);
+
+			if ((sz = nvr_write_buffer_partial( ss->nb, &ss->so.buffer[startoff], 
+					bufnexti - startoff, always_sync, &off)) == -1) {
+				r = ZS_FAILURE;
+			}
+			atomic_dec(c->lgstats.stat[LOGSTAT_MPUT_IO_SAVED]);
+			if (r == ZS_SUCCESS) {
+				*written += objs_copied;
+				ss = NULL;
+				objs_copied = 0;
+				startoff = 0;
+			} else {
+				ss = NULL;
+				objs_copied = 0;
+				startoff = 0;
+				goto out;
+			}
+		} else if (ss) {
+			pthread_mutex_unlock(&ss->buflock);
+			ss = NULL;
+			objs_copied = 0;
+			startoff = 0;
+		}
+
+		pthread_rwlock_unlock( &c->lock);
+		/* 
+		 * Take slow path, commit only one record.
+		 *	a. Either this is the first record to stream.
+		 *	b. There is no space in stream, so need to commit stream to flash and 
+		 *	   and initialize it again.
+		 */
+
+		pthread_rwlock_wrlock( &c->lock);
+		pg_t *pg = pglookup( c, k, n, h);
+		if (pg) {
+			r = streamwrite_one_spc( ts, pg->stream, lrecs[i], &off);
+			atomic_dec(c->lgstats.stat[LOGSTAT_MPUT_IO_SAVED]);
+			if (r != ZS_SUCCESS) {
+				break;
+			} else {
+				pthread_rwlock_unlock( &c->lock);
+				*written += 1;
+				/* Switch to fast path again */
+				pthread_rwlock_rdlock( &c->lock);
+			}
+		} else {
+			break;
+		}
+
+	}
+
+	if (objs_copied) {
+		size_t sz;
+		uint bufnexti = ss->bufnexti;
+		pthread_mutex_unlock(&ss->buflock);
+		if ((sz = nvr_write_buffer_partial( ss->nb, &ss->so.buffer[startoff], 
+				bufnexti - startoff, always_sync, &off)) == -1) {
+			r = ZS_FAILURE;
+		}
+		atomic_dec(c->lgstats.stat[LOGSTAT_MPUT_IO_SAVED]);
+		if (r == ZS_SUCCESS) {
+			*written += objs_copied;
+		}
+	}
+out:
+	atomic_sub(c->lgstats.stat[LOGSTAT_MPUT_IO_SAVED], num_recs - *written);
+	//atomic_add(c->lgstats.stat[LOGSTAT_NUM_OBJS], *written);
+
+	/*
+	 * Increment sync count before releasing the lock. If a write 
+	 * gets pipelined and buffer is full, it should wait for sync
+	 * to complete.
+	 */
+
+	int sc = atomic_inc_get(c->synccount);
+	plat_assert(sc > 0);
+	ioc = atomic_dec_get(c->iocount);
+	plat_assert(ioc >= 0);
+
+	pthread_rwlock_unlock( &c->lock);
+	pthread_rwlock_unlock( &lc_lock);
+
+	if ( r != ZS_SUCCESS) {
+		off = -1;
+		lc_sync_buf(c, off);
+	} else {
+		r = lc_sync_buf(c, off);
+	}
+
+	return r;
+}
 
 /*
  * track trx brackets by client thread
@@ -1606,30 +2006,78 @@ streamwrite( ts_t *t, stream_t *s, lrec_t *lr, off_t *off)
 	size_t		sz;
 	container_t	*c = s->container;
 
+	if (streams_per_container == 1) {
+		return streamwrite_one_spc(t, s, lr, off);
+	}
+
 	const uint i = lrecsize( lr);
 	if (bytes_per_so_buffer < i + s->bufnexti) {
-		if (streams_per_container == 1) {
-			pthread_mutex_lock(&c->synclock);
-			atomic_inc(c->buffull);
-			while (c->synccount > 0) {
-				pthread_cond_broadcast(&c->synccv);
-				pthread_cond_wait(&c->flashcv, &c->synclock);
-			}
-			pthread_mutex_unlock(&c->synclock);
-		}
 		uint32_t kl = strlen( make_sokey( k, s->stream, s->seqnext));
 		r = zs_write_object_lc( t, c->cguid, k, kl, (char *)&s->so, sizeof( s->so)+s->bufnexti);
 
-		if (streams_per_container == 1) {
-			plat_assert(c->synccount == 0);
-			pthread_mutex_lock(&c->synclock);
-			c->syncstatus = r;
-			c->syncoff = 0;
-			atomic_dec(c->buffull);
-			pthread_cond_broadcast(&c->fullcv);
-			//pthread_cond_broadcast(&c->synccv);
-			pthread_mutex_unlock(&c->synclock);
+		unless (r == ZS_SUCCESS) {
+			return (r);
 		}
+
+		nvr_reset_buffer( s->nb);
+		if ((s->seqoldest == s->seqnext)
+		and (not sostatus( s, &s->so, s->bufnexti))) {
+			return (ZS_FAILURE);
+		}
+
+		s->bufnexti = 0;
+		++s->seqnext;
+		r = streamreclaim( t, s);
+		unless (r == ZS_SUCCESS)
+			return (r);
+	}
+	memcpy( s->so.buffer+s->bufnexti, lr, i);
+	if (s->bufnexti) {
+		sz = nvr_write_buffer_partial( s->nb, &s->so.buffer[s->bufnexti], i, 1, NULL);
+		r = (sz == -1) ? ZS_FAILURE: ZS_SUCCESS;
+	} else {
+		s->so.seqno = s->seqnext;
+		sz = nvr_write_buffer_partial( s->nb, (char *)&s->so, sizeof( s->so)+i, 1, NULL);
+		r = (sz == -1) ? ZS_FAILURE: ZS_SUCCESS;
+	}
+	if (r == ZS_SUCCESS)
+		s->bufnexti += i;
+	return (r);
+}
+
+static ZS_status_t
+streamwrite_one_spc( ts_t *t, stream_t *s, lrec_t *lr, off_t *off)
+{
+	ZS_status_t	r;
+	char		k[100];
+	size_t		sz;
+	container_t	*c = s->container;
+
+	plat_assert(streams_per_container == 1);
+	plat_assert(off);
+
+	const uint i = lrecsize( lr);
+	if (bytes_per_so_buffer < i + s->bufnexti) {
+
+		pthread_mutex_lock(&c->synclock);
+		atomic_inc(c->buffull);
+		while (atomic_add_get(c->synccount, 0) > 0) {
+			pthread_cond_broadcast(&c->synccv);
+			pthread_cond_wait(&c->flashcv, &c->synclock);
+		}
+		pthread_mutex_unlock(&c->synclock);
+
+		uint32_t kl = strlen( make_sokey( k, s->stream, s->seqnext));
+		r = zs_write_object_lc( t, c->cguid, k, kl, (char *)&s->so, sizeof( s->so)+s->bufnexti);
+
+		plat_assert(c->synccount == 0);
+		pthread_mutex_lock(&c->synclock);
+		c->syncstatus = r;
+		c->syncoff = 0;
+		atomic_dec(c->buffull);
+		pthread_cond_broadcast(&c->fullcv);
+		//pthread_cond_broadcast(&c->synccv);
+		pthread_mutex_unlock(&c->synclock);
 
 		unless (r == ZS_SUCCESS) {
 			return (r);
@@ -1660,7 +2108,6 @@ streamwrite( ts_t *t, stream_t *s, lrec_t *lr, off_t *off)
 		s->bufnexti += i;
 	return (r);
 }
-
 
 /*
  * reclaim flash space

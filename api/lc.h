@@ -26,6 +26,8 @@
 		item(LOGSTAT_MPUT_SLOWPATH_FIRSTREC, /* default */)  \
 		item(LOGSTAT_MPUT_SLOWPATH_NOSPC, /* default */)  \
 		item(LOGSTAT_MPUT_SLOWPATH_DIFFSTR, /* default */)  \
+		item(LOGSTAT_SYNC_DONE, /* default */)  \
+		item(LOGSTAT_SYNC_SAVED, /* default */)  \
 
 typedef enum {
 #define item(caps, value) \

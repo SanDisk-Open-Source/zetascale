@@ -3482,6 +3482,7 @@
 160309 Flog mode = %d, %s.\n
 160310 ZSMPut is supported only on btree and log containers\n
 160311 NVRAM flog reforamt with shutdown = %d.\n
+160312 Unable to start the in progress container delete thread.
 
 
 # rico

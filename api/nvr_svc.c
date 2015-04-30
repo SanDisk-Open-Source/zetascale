@@ -632,7 +632,7 @@ nvr_write_buffer_internal( nvr_buffer_t *buf, char *data, uint count, int reset,
 	atomic_inc(so->nso_writecnt);
 	pthread_mutex_lock(&so->nso_mutex);
 
-	if ((offset =nvr_buf(so, data, count, reset, &sz)) == -1) {
+	if ((offset = nvr_buf(so, data, count, reset, &sz)) == -1) {
 		atomic_dec(so->nso_writecnt);
 		msg(INITIAL, DEBUG, "Failed to copy contents to NVRAM buffer");
 		return -1;
@@ -812,14 +812,15 @@ restart:
 
 	pthread_mutex_unlock(&so->nso_sync_mutex);
 
+	tmp_syncoff = atomic_add_get(so->nso_off, 0);
+#if 0
 	/*
 	 * If the offset at which the new copy is with in same block, lets wait the flush.
 	 * lets take a chance and see whether another copy starts.
 	 */
-	tmp_syncoff = atomic_add_get(so->nso_off, 0);
 	if (!reset) {
 		while (tmp_syncoff < roundup(off, nvr_blksize)) {
-			sched_yield();
+			//sched_yield();
 			if ((cpinprog = atomic_add_get(so->nso_writecnt, 0)) > 0) {
 				atomic_inc(nvr_sync_restarts);
 				tmp_syncoff = atomic_add_get(so->nso_off, 0);
@@ -829,6 +830,7 @@ restart:
 		}
 
 	}
+#endif
 	/*
 	 * If there is a copy in progress and the flush is not block aligned, check
 	 * whether we can split it into two parts, one till block boundary and another
@@ -879,7 +881,7 @@ restart:
 	}
 
 	if (ret != -1) {
-		if (!hw_durable) {
+		if (!hw_durable && !odirect) {
 			if ((ret = fdatasync(nvr_fd)) == -1) {
 				msg(INITIAL, FATAL, "fdatasync to NVRAM failed, NVRAM disabled");
 				nvr_disabled = 1;
@@ -901,7 +903,7 @@ restart:
 	 */
 	if ((ret != -1) && (flag == 1)) {
 		if (!aligned_down) {
-			sched_yield();
+			//sched_yield();
 			flag = 2;
 			atomic_inc(nvr_sync_splits);
 			goto restart;
