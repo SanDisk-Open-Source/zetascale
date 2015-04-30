@@ -37,6 +37,7 @@ typedef struct btree_robj_info {
 	uint32_t               keylen;
 	char                   *data;
 	uint64_t               datalen;
+	uint64_t		ptr;
 	bool                   tombstone;
 	btree_raw_node_t       **data_node_start;
 	uint32_t               data_node_cnt;
@@ -82,7 +83,7 @@ add_overflow_robj(btree_raw_t *bt, btree_robj_info_t *r,
 
 	/* Get to the first overflow node */
 	while (ind < node_cnt) {
-		if (nodes[ind]->logical_id == (uint64_t)r->data) {
+		if (nodes[ind]->logical_id == (uint64_t)r->ptr) {
 			assert(is_overflow(bt, nodes[ind]));
 			break;
 		}
@@ -179,7 +180,11 @@ gen_robj_list(btree_raw_t *bt, btree_raw_node_t **nodes,
 				r->data = memcpy( malloc( r->datalen), data, r->datalen);
 				r->data_node_start = NULL;
 			} else {
-				r->data = (char *)ki.ptr;
+				r->ptr = ki.ptr;
+				uint64_t rem = btree_get_bigobj_inleaf(bt, r->keylen, r->datalen);
+				if (rem) {
+					r->data = memcpy( malloc( rem), data, rem);
+				}
 				add_overflow_robj(bt, r, nodes, node_cnt);
 			}
 			r->buf_next = NULL;
@@ -236,13 +241,20 @@ get_robj_data(btree_raw_t *bt, btree_robj_info_t *obj)
 		memcpy(obj->data, tmp_data, obj->datalen);
 	} else {
 		/* Overflow node */
-		uint64_t next_lid = (uint64_t)obj->data;
+		uint64_t next_lid = (uint64_t)obj->ptr;
+		char *tmp_data = obj->data;
 		obj->data = malloc(obj->datalen);
 		assert(obj->data);
 
+		uint64_t rem = btree_get_bigobj_inleaf(bt, obj->keylen, obj->datalen);
+		if (rem) {
+			assert(tmp_data);
+			memcpy(obj->data, tmp_data, rem);
+		}
+
 		nodes = obj->data_node_start;
-		nbytes = obj->datalen;
-		p = obj->data;
+		nbytes = obj->datalen - rem;
+		p = obj->data + rem;
 
 		while((nbytes > 0) && (ncnt < obj->data_node_cnt)) {
 			assert(next_lid == nodes[ncnt]->logical_id);

@@ -70,8 +70,8 @@ do_mput(struct ZS_thread_state *thd_state, ZS_cguid_t cguid,
 	uint64_t num_zs_reads = 0;
 	uint64_t num_zs_mputs = 0;
 	uint32_t objs_written = 0;
-	char *data;
-	uint64_t data_len;
+	//char *data;
+	//uint64_t data_len;
 	uint64_t key_num = 0;
 	uint64_t mismatch = 0;
 
@@ -87,7 +87,7 @@ do_mput(struct ZS_thread_state *thd_state, ZS_cguid_t cguid,
 			printf("Cannot allocate memory.\n");
 			exit(0);
 		}
-		objs[i].data = malloc(1024);
+		objs[i].data = malloc(4000);
 		if (objs[i].data == NULL) {
 			printf("Cannot allocate memory.\n");
 			exit(0);
@@ -100,9 +100,9 @@ do_mput(struct ZS_thread_state *thd_state, ZS_cguid_t cguid,
 
 		for (i = 0; i < num_objs; i++) {
 			memset(objs[i].key, 0, ZS_MAX_KEY_LEN);
-			sprintf(objs[i].key, "key_%d_%06"PRId64"", my_thdid, key_num);
+			sprintf(objs[i].key, "%d%094"PRId64"_key", my_thdid, key_num);
 
-			sprintf(objs[i].data, "key_%d_%06"PRId64"_%x", my_thdid, key_num, flags);
+			sprintf(objs[i].data, "key_%d_%0151"PRId64"_%x", my_thdid, key_num, flags);
 			objs[i].data_len = strlen(objs[i].data) + 1;
 		
 			if (flags == ZS_WRITE_MUST_EXIST) { 
@@ -124,7 +124,7 @@ do_mput(struct ZS_thread_state *thd_state, ZS_cguid_t cguid,
 					assert(0);
 				}
 				num_zs_writes++;
-
+#if 0
 				status = ZSReadObject(thd_state, cguid,
 						       objs[i].key, objs[i].key_len,
 						       &data, &data_len);
@@ -137,6 +137,7 @@ do_mput(struct ZS_thread_state *thd_state, ZS_cguid_t cguid,
 
 				assert(memcmp(objs[i].data, data, data_len) == 0);
 				ZSFreeBuffer(data);
+#endif
 			}
 		}
 
@@ -150,6 +151,7 @@ do_mput(struct ZS_thread_state *thd_state, ZS_cguid_t cguid,
 				return ;
 			}
 			num_zs_mputs++;
+#if 0
 			for (i = 0; i < num_objs; i++) {
 				status = ZSReadObject(thd_state, cguid,
 						       objs[i].key, objs[i].key_len,
@@ -166,6 +168,7 @@ do_mput(struct ZS_thread_state *thd_state, ZS_cguid_t cguid,
 
 
 			}
+#endif
 		}
 
 
@@ -183,8 +186,8 @@ do_mput(struct ZS_thread_state *thd_state, ZS_cguid_t cguid,
 		for (i = 0; i < num_objs; i++) {
 			memset(objs[i].key, 0, ZS_MAX_KEY_LEN);
 
-			sprintf(objs[i].key, "key_%d_%06"PRId64"", my_thdid, key_num);
-			sprintf(objs[i].data, "key_%d_%06"PRId64"_%x", my_thdid, key_num, flags);
+			sprintf(objs[i].key, "%d%094"PRId64"_key", my_thdid, key_num);
+			sprintf(objs[i].data, "key_%d_%0151"PRId64"_%x", my_thdid, key_num, flags);
 			objs[i].data_len = strlen(objs[i].data) + 1;
 		
 			if (flags == ZS_WRITE_MUST_EXIST) { 
@@ -197,7 +200,7 @@ do_mput(struct ZS_thread_state *thd_state, ZS_cguid_t cguid,
 			objs[i].key_len = strlen(objs[i].key) + 1;
 			objs[i].data_len = strlen(objs[i].data) + 1;
 			objs[i].flags = 0;
-
+#if 0
 			status = ZSReadObject(thd_state, cguid,
 					       objs[i].key, objs[i].key_len,
 						&data, &data_len);
@@ -220,6 +223,7 @@ do_mput(struct ZS_thread_state *thd_state, ZS_cguid_t cguid,
 			}
 			num_zs_reads++;
 			ZSFreeBuffer(data);
+#endif
 		}
 	}
 
@@ -347,6 +351,7 @@ do_op(uint32_t flags_in)
 	props.durability_level= 0;
 	props.fifo_mode = 0;
 	props.size_kb = (1024 * 1024 * 10);;
+	props.flags = 2;
 
 	status = ZSOpenContainer(thd_state, cnt_name, &props, ZS_CTNR_CREATE, &cguid);
 //	status = ZSOpenContainerSpecial(thd_state, cnt_name, &props,
@@ -385,8 +390,8 @@ main(int argc, char *argv[])
 	ZSInit(&zs_state);
 #if 1
 	/* Test bulk insert */
-	num_mputs = 5;
-	for(num_objs = 500; num_objs < 501; num_objs++) { 
+	num_mputs = 1;
+	for(num_objs = 5; num_objs < 6; num_objs++) { 
 		for(obj_data_len = 100; obj_data_len < 101; obj_data_len+=3) { 
 			printf("Running with mput (y/n) = %d, mputs = %d, num objs each mput = %d, num threads = %d. data_len=%d\n",
 					use_mput, num_mputs, num_objs, num_thds, obj_data_len);
@@ -436,6 +441,7 @@ main(int argc, char *argv[])
 	printf(" ******************  Done test for update  case.***********************\n");
 #endif
 
+	sleep(5);
 	ZSShutdown(zs_state);
 	return 0;
 }
