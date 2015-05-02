@@ -7448,53 +7448,63 @@ log_get_buffer_seqno( mcd_osd_shard_t * shard )
 /*
  * make idle slabs available for reuse
  *
- * After device sync, idle slabs beyond a certain point can be written
- * again.  The delay is enforced by the ring buffer, and supports btree
- * persistent stats.  In Storm mode, slabs of deleted raw objects are
- * treated identically.
+ * After device sync, freed slabs in dealloc_list can safely be rewritten on
+ * consumer-grade flash devices without fear of power-fail data corruption
+ * affecting ZS integrity.  These slabs are returned to the slab system for
+ * allocation.  VDC slabs, however, are further delayed by a ring buffer
+ * to support btree persistent stats, and to assist with outer-trx crash
+ * roll back at btree level.  In Storm mode, slabs of deleted raw objects
+ * are treated identically to slabs of regular VDC objects.
  */
 void
 log_sync_postprocess( mcd_osd_shard_t *shard, mcd_rec_pp_state_t *pp_state)
 {
 	static ulong	high_water_mark;
+	uint64_t	o;
 
+	unless (shard == vdc_shard) {
+		while (pp_state->dealloc_count)
+			mcd_fth_osd_slab_dealloc( shard, pp_state->dealloc_list[--pp_state->dealloc_count], true);
+		__sync_fetch_and_sub( &shard->blk_consumed, shard->blk_delayed);
+		shard->blk_delayed = 0;
+		return;
+	}
 	ulong c = shard->blk_consumed;
-	if ((high_water_mark < c)
-	and (shard == vdc_shard)) {
+	if (high_water_mark < c) {
 		mcd_log_msg( 170044, PLAT_LOG_LEVEL_DIAGNOSTIC, "shardID=%lu, high-water-mark blocks consumed=%lu, delayed=%lu", shard->id, shard->blk_consumed, shard->blk_delayed);
 		high_water_mark = c * 2;
 	}
-	for (uint d=0; d<pp_state->dealloc_count; ++d) {
-		if ((pp_state->dealloc_ring_enabled)
-		and (shard == vdc_shard)) {
-			pp_state->dealloc_ring[pp_state->dealloc_head] = pp_state->dealloc_list[d];
-			pp_state->dealloc_head = (pp_state->dealloc_head+1) % nel( pp_state->dealloc_ring);
-			if (pp_state->dealloc_head == pp_state->dealloc_tail) {
-				uint64_t o = pp_state->dealloc_ring[pp_state->dealloc_tail];
-				pp_state->dealloc_tail = (pp_state->dealloc_tail+1) % nel( pp_state->dealloc_ring);
-				uint i = mcd_osd_lba_to_blk( slabsize( shard, o));
-				shard->blk_delayed -= i;
-				__sync_fetch_and_sub( &shard->blk_consumed, i);
-				mcd_fth_osd_slab_dealloc( shard, o, true);
+	uint d = 0;
+	uint n = 0;
+	loop {
+		if (d < pp_state->dealloc_count)
+			o = pp_state->dealloc_list[d++];
+		else {
+			mcd_rec_log_t *l = shard->log;
+			fthWaitEl_t *w = fthLock( &l->slablock, 1, NULL);
+			if (n < l->nslab)
+				o = l->slabtab[n++];
+			else {
+				uint nslab = l->nslab;
+				l->nslab = 0;
+				fthUnlock( w);
+				mcd_log_msg( 170026, PLAT_LOG_LEVEL_DIAGNOSTIC, "freeing %u deferred slabs", nslab);
+				pp_state->dealloc_count = 0;
+				__sync_fetch_and_sub( &shard->blk_consumed, shard->blk_delayed);
+				shard->blk_delayed = 0;
+				break;
 			}
-		} else {
-			uint64_t o = pp_state->dealloc_list[d] & 0x0000ffffffffffffull;
-			uint i = mcd_osd_lba_to_blk( slabsize( shard, o));
-			shard->blk_delayed -= i;
-			__sync_fetch_and_sub( &shard->blk_consumed, i);
-			mcd_fth_osd_slab_dealloc( shard, o, true);
+			fthUnlock( w);
 		}
-	}
-	pp_state->dealloc_count = 0;
-	mcd_rec_log_t *l = shard->log;
-	if (l->nslab) {
-		__sync_synchronize( );
-		mcd_log_msg( 170026, PLAT_LOG_LEVEL_DIAGNOSTIC, "freeing %u deferred slabs", l->nslab);
-		fthWaitEl_t *w = fthLock( &l->slablock, 1, NULL);
-		for (uint i=0; i<l->nslab; ++i)
-			mcd_fth_osd_slab_dealloc( shard, l->slabtab[i], true);
-		l->nslab = 0;
-		fthUnlock( w);
+		if (pp_state->dealloc_ring_enabled) {
+			pp_state->dealloc_ring[pp_state->dealloc_head] = o;
+			pp_state->dealloc_head = (pp_state->dealloc_head+1) % nel( pp_state->dealloc_ring);
+			unless (pp_state->dealloc_head == pp_state->dealloc_tail)
+				continue;
+			o = pp_state->dealloc_ring[pp_state->dealloc_tail];
+			pp_state->dealloc_tail = (pp_state->dealloc_tail+1) % nel( pp_state->dealloc_ring);
+		}
+		mcd_fth_osd_slab_dealloc( shard, o, true);
 	}
 }
 
