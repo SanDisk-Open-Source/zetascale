@@ -1789,7 +1789,9 @@ static int mcd_osd_fifo_write( mcd_osd_shard_t * shard, char * rbuf,
         rc = mcd_fth_aio_blk_write_low( (void *) &osd_state->osd_aio_state,
                                     wbuf->buf,
                                     offset,
-                                    MCD_OSD_WBUF_SIZE, shard->durability_level > SDF_RELAXED_DURABILITY);
+                                    MCD_OSD_WBUF_SIZE,
+                                    shard->durability_level > SDF_RELAXED_DURABILITY &&
+                                    shard->data_sync);
         if ( FLASH_EOK != rc ) {
             mcd_log_msg( 20319, PLAT_LOG_LEVEL_FATAL,
                          "failed to commit buffer, rc=%d", rc );
@@ -2017,7 +2019,9 @@ void mcd_fth_osd_writer( uint64_t arg )
             rc = mcd_fth_aio_blk_write_low( (void *) &osd_state->osd_aio_state,
                                         wbuf->buf,
                                         offset,
-                                        MCD_OSD_WBUF_SIZE, shard->durability_level > SDF_RELAXED_DURABILITY );
+                                        MCD_OSD_WBUF_SIZE,
+                                        shard->durability_level > SDF_RELAXED_DURABILITY &&
+                                        shard->data_sync);
 
             if ( FLASH_EOK != rc ) {
                 mcd_log_msg( 20319, PLAT_LOG_LEVEL_FATAL,
@@ -3580,6 +3584,7 @@ mcd_osd_slab_shard_init( mcd_osd_shard_t * shard, uint64_t shard_id,
 
 
     shard->group_commit_enabled = getProperty_Int("ZS_GROUP_COMMIT", 1);
+    shard->data_sync = getProperty_Int("ZS_DATA_SYNC", 1);
 
     return 0;   /* SUCCESS */
 
@@ -4893,12 +4898,14 @@ mcd_fth_osd_slab_set( void * context, mcd_osd_shard_t * shard,
 			rc = mcd_fth_aio_blk_write_low(
 					context, buf, offset,
 					(1 << shard->class_table[blocks]) * Mcd_osd_blk_size,
-					durlevel > SDF_RELAXED_DURABILITY);
+					durlevel > SDF_RELAXED_DURABILITY &&
+					shard->data_sync);
 		} else {
 			rc = mcd_fth_aio_blk_write_low(
 			                context, buf, offset,
 			                blocks * Mcd_osd_blk_size,
-			                durlevel > SDF_RELAXED_DURABILITY);
+			                durlevel > SDF_RELAXED_DURABILITY &&
+			                shard->data_sync);
 		}
 		if ( FLASH_EOK != rc ) {
 			/*
@@ -5458,13 +5465,13 @@ mcd_fth_osd_slab_write_raw( void * context, mcd_osd_shard_t * shard,
 			    rc = mcd_fth_aio_blk_write_low(
 					    context, buf, offset,
 					    write_len,
-					    shard->durability_level > SDF_RELAXED_DURABILITY);
+					    shard->durability_level > SDF_RELAXED_DURABILITY && shard->data_sync);
 	    } else {
 		    //uint64_t my_len = blocks * Mcd_osd_blk_size;
 		    rc = mcd_fth_aio_blk_write_low(
 				    context, buf, offset,
 				    write_len,
-				    shard->durability_level > SDF_RELAXED_DURABILITY);
+				    shard->durability_level > SDF_RELAXED_DURABILITY && shard->data_sync);
 	    }
 	    if ( FLASH_EOK != rc ) {
 		    /*
@@ -7104,7 +7111,8 @@ mcd_osd_flash_put_v( struct ssdaio_ctxt * pctxt, struct shard * shard,
 		ret = mcd_fth_aio_blk_write_low(
 				osd_state, data_buf + (count - rest_slabs) * slab_size , offset,
 				num_slabs * slab_size,
-				durlevel > SDF_RELAXED_DURABILITY);
+				durlevel > SDF_RELAXED_DURABILITY &&
+				mcd_shard->data_sync);
 		rest_slabs -= num_slabs;
 
 		//slab_set();

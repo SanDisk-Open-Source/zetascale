@@ -299,6 +299,7 @@ typedef struct mcd_osd_shard {
 #endif
 
     int                         group_commit_enabled;
+    int                         data_sync;
 } mcd_osd_shard_t;
 
 typedef struct mcd_osd_meta {

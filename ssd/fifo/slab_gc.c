@@ -170,7 +170,8 @@ found:
 				buf,
 				dst_offset,
 				class->slab_blksize * Mcd_osd_blk_size,
-				shard->durability_level > SDF_RELAXED_DURABILITY)))
+				shard->durability_level > SDF_RELAXED_DURABILITY &&
+				shard->data_sync)))
 		goto out;
 
 	stat_inc(shard, SLABS_RELOCATED);

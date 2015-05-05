@@ -7869,7 +7869,7 @@ log_writer_thread( uint64_t arg )
 		if (shard->id == cmc_shardid)		// suppress logging for CMC
 			rc = FLASH_EOK;
 		else
-			rc = mcd_fth_aio_blk_write_low( context, logbuf->buf, offset, MCD_REC_LOGBUF_BLKS * MCD_OSD_META_BLK_SIZE, 1);
+			rc = mcd_fth_aio_blk_write_low( context, logbuf->buf, offset, MCD_REC_LOGBUF_BLKS * MCD_OSD_META_BLK_SIZE, shard->data_sync);
 		if ( FLASH_EOK != rc ) {
 			mcd_rlg_msg( 20552, PLAT_LOG_LEVEL_FATAL,
 					"failed to commit log buffer, shardID=%lu, "
