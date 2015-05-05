@@ -415,8 +415,9 @@ typedef struct mcd_logrec_object {
     int64_t     bracket_id;		// active btree mput if nonzero
     bool	raw,			// raw object (not in hash table)
 		_unused;		// logging container
-    char	mlo_dl;			// durability level of cguid
-    char	pad1[13];
+    char	mlo_dl,			// durability level of cguid
+		pass,			// for log processing
+		pad1[12];
 } mcd_logrec_object_t;
 
 #define MCD_FTH_OSD_BUF_SIZE    (1024 * 1024)

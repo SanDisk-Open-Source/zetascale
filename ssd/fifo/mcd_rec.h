@@ -642,6 +642,7 @@ typedef struct mcd_rec_obj_state {
 
 	ushort			otstate;	// state of outer trx recovery
 	void			*ottable;	// uncommitted outer trx
+	int			otsuppresspass;	// no processing for this pass
 
 	uint64_t		bracket_id_max;	// eternal life for bracket ID
 } mcd_rec_obj_state_t;

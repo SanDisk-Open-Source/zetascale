@@ -4463,6 +4463,21 @@ filter_ot_initialize( mcd_rec_obj_state_t *state)
 
 
 /*
+ * suppress log processing
+ *
+ * Logrecs for the given pass (usually 1) are conveyed to the next filter
+ * without OT processing.  Specifically, no trx recovery packets will
+ * be generated.
+ */
+void
+filter_ot_suppress( mcd_rec_obj_state_t *state, int pass)
+{
+
+	state->otsuppresspass = pass;
+}
+
+
+/*
  * look up bracket ID in ottable
  *
  * Return bracket_t that corresponds to 'bid' in ottable 't'.  If not
@@ -4524,7 +4539,8 @@ filter_ot_apply_logrec( mcd_rec_obj_state_t *state, mcd_logrec_object_t *rec)
 	bracket_t	*b;
 
 	int a = 0;
-	if (state->otstate == 1) {
+	if ((state->otstate == 1)
+	and (state->otsuppresspass != rec->pass)) {
 		if (rec->bracket_id < 0)
 			filter_ot_delete_bracket( state->ottable, -rec->bracket_id);
 		else if ((rec->bracket_id)
@@ -5443,7 +5459,9 @@ process_log( void * context, mcd_osd_shard_t * shard,
                 rec_offset = page_offset + (r * sizeof( mcd_logrec_object_t ));
 
                 // apply log record
-                applied += filter_cs_apply_logrec( state, (mcd_logrec_object_t *)(buf+rec_offset));
+		mcd_logrec_object_t *lr = (mcd_logrec_object_t *) (buf+rec_offset);
+		lr->pass = state->pass;
+		applied += filter_cs_apply_logrec( state, lr);
             }
         }
     }
@@ -6493,6 +6511,8 @@ updater_thread(uint64_t arg)
 				else {
 					old_merged = false;	// new_merged = false;
 				}
+				if (shard->cntr->cguid == VDC_CGUID)
+					filter_cs_initialize(&state);
 			}
 			else {	// checkpoint exists
 				ckpt_log = (((ckpt->LSN - 1) / reclogblks) % MCD_REC_NUM_LOGS);
@@ -6519,20 +6539,19 @@ updater_thread(uint64_t arg)
 				else {
 					old_merged = false;	// new_merged = false;
 				}
-				/*
-				 * #11425 - scan 1st log regardless so the "st" filter works
-				 */
-				ckpt->LSN = 0;
-				old_merged = false;
+				if (shard->cntr->cguid == VDC_CGUID) {
+					filter_cs_initialize( &state);
+					if (old_merged)
+						filter_ot_suppress( &state, state.pass);
+					/* #11425 - scan 1st log regardless so the "st" filter works */
+					ckpt->LSN = 0;
+					old_merged = false;
+				}
 			}
 
 			mcd_log_msg(40088, PLAT_LOG_LEVEL_DEBUG, "Old log %d merge %s, shardID=%lu, " "ckpt_LSN=%lu, log_pages=%lu, ckpt_log=%d, " "ckpt_page=%lu, ckpt_page_LSN=%lu", old_log_state.log, old_merged ? "not needed" : "required", shard->id, ckpt->LSN, reclogblks, ckpt_log, ckpt_page, ckpt_page_LSN);
 		}
 		mcd_log_msg(40089, PLAT_LOG_LEVEL_DEBUG, "%s object table, shardID=%lu, pass %d of %d", state.in_recovery ? "Recovering" : "Merging", shard->id, state.pass, state.passes);
-
-		if ((state.in_recovery)
-		and (shard->cntr->cguid == VDC_CGUID))
-			filter_cs_initialize(&state);
 		state.context = context;
 		state.shard = shard;
 		state.high_obj_offset = 0;

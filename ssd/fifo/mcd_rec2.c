@@ -98,6 +98,7 @@ void		mcd_fth_osd_slab_load_slabbm( osd_state_t *, mcd_osd_shard_t *, uchar [], 
 		attach_buffer_segments( mcd_osd_shard_t *, int, int *, char **),
 		detach_buffer_segments( mcd_osd_shard_t *, int, char **),
 		recovery_checkpoint( osd_state_t *, mcd_osd_shard_t *, uint64_t),
+		filter_ot_suppress( mcd_rec_obj_state_t *, int),
 		filter_ot_free( mcd_rec_obj_state_t *),
 		stats_packet_save( mcd_rec_obj_state_t *, void *, mcd_osd_shard_t *),
 		recovery_packet_save( bracket_t *, void *, mcd_osd_shard_t *),
@@ -918,7 +919,7 @@ get_rawobjratio()
 	}
 }
 
-void
+static void
 process_log_storm( void * context, mcd_osd_shard_t * shard, mcd_rec_obj_state_t * state, mcd_rec_log_state_t * log_state )
 {
 	bool		end_of_log	= false;
@@ -994,7 +995,9 @@ process_log_storm( void * context, mcd_osd_shard_t * shard, mcd_rec_obj_state_t 
 				// get record offset
 				rec_offset = page_offset + (r * sizeof( mcd_logrec_object_t ));
 				// apply log record
-				applied += filter_cs_apply_logrec( state, (mcd_logrec_object_t *)(buf+rec_offset));
+				mcd_logrec_object_t *lr = (mcd_logrec_object_t *) (buf+rec_offset);
+				lr->pass = state->pass;
+				applied += filter_cs_apply_logrec( state, lr);
 			}
 		}
 	}
@@ -1151,6 +1154,8 @@ recover( mcd_osd_shard_t *s, osd_state_t *context, char **buf_segments)
 		// case 3: both logs not empty
 		else
 			old_merged = false;	// new_merged = false;
+		if (s->cntr->cguid == VDC_CGUID)
+			filter_cs_initialize( &state);
 	}
 	// checkpoint exists
 	else {
@@ -1164,12 +1169,15 @@ recover( mcd_osd_shard_t *s, osd_state_t *context, char **buf_segments)
 		// case 6: ckpt in new log, new log records since ckpt
 		else
 			old_merged = false;	// new_merged = false;
-		/* #11425 - scan 1st log regardless so the "st" filter works */
-		ckpt->LSN = 0;
-		old_merged = false;
+		if (s->cntr->cguid == VDC_CGUID) {
+			filter_cs_initialize( &state);
+			if (old_merged)
+				filter_ot_suppress( &state, state.pass);
+			/* #11425 - scan 1st log regardless so the "st" filter works */
+			ckpt->LSN = 0;
+			old_merged = false;
+		}
 	}
-	if (s->cntr->cguid == VDC_CGUID)
-		filter_cs_initialize( &state);
 	state.context = context;
 	state.shard = s;
 	state.high_obj_offset = 0;
