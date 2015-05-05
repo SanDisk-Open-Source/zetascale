@@ -467,7 +467,7 @@ cmc_recover(SDF_internal_ctxt_t *pai, const char *cmc_path) {
         cmc_fdf_props.evicting              = ZS_FALSE;
         cmc_fdf_props.writethru             = ZS_TRUE;
         cmc_fdf_props.durability_level      = ZS_DURABILITY_HW_CRASH_SAFE;
-        cmc_fdf_props.size_kb               = 1024 * 1024; // kB
+        cmc_fdf_props.size_kb               = CMC_SIZE_KB;
         plat_log_msg(80040,LOG_CAT, LOG_INFO, "Opening Container Metadata Container"
                           " (name = %s,size = %lu kbytes,"
                           "persistence = %s,eviction = %s,writethrough = %s,fifo = %s,"
@@ -493,7 +493,7 @@ cmc_recover(SDF_internal_ctxt_t *pai, const char *cmc_path) {
     vmc_fdf_props.evicting              = ZS_FALSE;
     vmc_fdf_props.writethru             = ZS_TRUE;
     vmc_fdf_props.durability_level      = ZS_DURABILITY_HW_CRASH_SAFE;
-    vmc_fdf_props.size_kb               = 1024 * 1024; // kB
+    vmc_fdf_props.size_kb               = VMC_SIZE_KB;
 
     vmc_sdf_props = cmc_create_sdf_props(&vmc_fdf_props);
 

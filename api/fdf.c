@@ -7688,6 +7688,7 @@ zs_vc_init(
 
     // Create the VMC
     ZSLoadCntrPropDefaults(&p);
+    p.size_kb = VMC_SIZE_KB;
     p.durability_level      = ZS_DURABILITY_HW_CRASH_SAFE;
     plat_log_msg(80035,LOG_CAT, LOG_DBG, "%s Virtual Metadata Container"
                           " (name = %s,size = %lu kbytes,"
