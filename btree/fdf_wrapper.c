@@ -1639,6 +1639,10 @@ ZS_status_t _ZSOpenContainer(
 		return (ZS_LICENSE_CHK_FAILED);
 	}
 
+        if (storage_space_exhausted( "ZSOpenContainer")) {
+                return (ZS_OUT_OF_STORAGE_SPACE);
+        }
+
 	if (properties) {
 		if (properties->writethru == ZS_FALSE) {
 			properties->writethru = ZS_TRUE;
