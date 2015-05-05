@@ -54,6 +54,11 @@
 #define ASYNC_STATS_SUSPEND_NODE_COUNT 10
 #define ASYNC_STATS_SUSPEND_DURATION 5
 
+/* Reserve space for 128 Threads writing upto 192MB data in each transction at same time */
+#define FLASH_SOFTLIMIT_MAX_THRESHOLD_GB 24 
+/* Default threshold % */
+#define FLASH_SOFTLIMIT_THRESHOLD_PERCENTAGE .15f 
+
 #define READ 0
 #define WRITE 1
 #define NOLOCK 2
@@ -819,8 +824,12 @@ ZS_status_t _ZSInitVersioned(
     if ( flash_space_soft_limit == 0 ) {
         /* soft limit not configured. use default */
         /* Discount the cmc and vnc size for calculating the 15% reserved space */
-        flash_space_soft_limit = (flash_space - ((uint64_t)(ZS_DEFAULT_CONTAINER_SIZE_KB) * 1024 * 2))  * 0.85 +
-                                 ((uint64_t)(ZS_DEFAULT_CONTAINER_SIZE_KB) * 1024 * 2);
+        uint64_t slimit_reserve = (uint64_t) (flash_space - ((uint64_t)(ZS_DEFAULT_CONTAINER_SIZE_KB) * 1024 * 2)) * 
+                                                	FLASH_SOFTLIMIT_THRESHOLD_PERCENTAGE;
+        if( slimit_reserve > ((uint64_t)(FLASH_SOFTLIMIT_MAX_THRESHOLD_GB) * 1024 * 1024 * 1024)) {
+            slimit_reserve = (uint64_t)(FLASH_SOFTLIMIT_MAX_THRESHOLD_GB) * 1024 * 1024 * 1024;
+        }
+        flash_space_soft_limit = flash_space - slimit_reserve;
     }
     else {
         flash_space_soft_limit = flash_space_soft_limit * 1024 * 1024 * 1024;
