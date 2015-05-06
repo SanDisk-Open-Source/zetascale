@@ -325,7 +325,7 @@ btree_range_find_diversion(btree_range_cursor_t* c)
 			}
 
 
-			if(c->dir * x > 0 || (!x && (meta->flags & RANGE_END_LE)))
+			if(c->dir * x > 0 || (!x && (meta->flags & (RANGE_END_GE|RANGE_END_LE))))
 			{
 				c->end_idx = bsearch_end(c, node);
 				c->end_idx += c->dir;
