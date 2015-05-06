@@ -94,7 +94,14 @@ typedef struct {
 
 	char *ts_key;            // Pointer to hold tombstone key
 	uint32_t ts_keylen;
+	char *ts_data;            // Pointer to hold tombstone key
+	uint32_t ts_datalen;
 	bool prior_version_tombstoned; // Used to maintain if leader is a tombstone
+	bool key_last_seq_unknown;
+	uint64_t last_logical_id;
+	key_stuff_info_t ks;
+	btree_range_status_t status;
+	bool is_tombstone;
 } btree_range_cursor_t;
 
 #define btree_range_query_start(b, i, c, m) btree_raw_range_query_start(b->partitions[0], i, c, m)

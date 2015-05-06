@@ -100,15 +100,348 @@ validate_range_query(btree_range_meta_t *rmeta)
 	return (BTREE_SUCCESS);
 }
 
+static void
+copy_key_and_data_to_cursor(btree_range_cursor_t *c,
+        btree_raw_mem_node_t *n,
+        int index,
+        btree_range_meta_t *rmeta,
+        key_stuff_info_t *ks)
+{
+	btree_status_t status;
+	btree_status_t ret;
+	uint32_t keybuf_size;
+	uint64_t databuf_size;
+	uint32_t meta_flags;
+	key_meta_t key_meta;
+
+	meta_flags = rmeta->flags & (RANGE_BUFFER_PROVIDED | RANGE_ALLOC_IF_TOO_SMALL | RANGE_INPLACE_POINTERS);
+	if (rmeta->flags & RANGE_BUFFER_PROVIDED) {
+		keybuf_size  = rmeta->keybuf_size;
+		databuf_size = rmeta->databuf_size;
+	}
+
+	if (c->btree->cmp_cb(c->btree->cmp_cb_data, c->ts_key, c->ts_keylen, ks->key, ks->keylen) != 0) {
+		c->ks.key = tmp_key_buf;
+		get_key_stuff_info2(c->btree, n->pnode, index, &(c->ks));
+		btree_leaf_get_meta(n->pnode, index, &key_meta);
+
+		memcpy(c->ts_key, ks->key, ks->keylen);
+		c->ts_keylen = ks->keylen;
+		c->ts_data = NULL;
+		c->ts_datalen = 0;
+
+		if (key_meta.tombstone) {
+			c->is_tombstone = true;
+			c->ts_datalen = 0;
+			c->ts_data = NULL;
+		} else {
+			if (!(rmeta->flags & RANGE_KEYS_ONLY)) {
+				status = get_leaf_data_index(c->btree, n->pnode, index,
+						&c->ts_data, &databuf_size,
+						meta_flags, 0, is_snapshot_query(rmeta));
+
+				switch (status) {
+					case BTREE_SUCCESS:
+						break;
+					case BTREE_BUFFER_TOO_SMALL:
+						ret = BTREE_WARNING;
+						c->status |= BTREE_DATA_BUFFER_TOO_SMALL;
+						break;
+					case BTREE_FAILURE:
+					default:
+						c->status |= BTREE_FAILURE;
+						return;
+				}
+				if (status == BTREE_SUCCESS) {
+					c->status = BTREE_RANGE_SUCCESS;
+					c->ts_datalen = databuf_size;
+				}
+			} else {
+                                fprintf(stderr, "Error:copy_key_and_data_to_cursor\n");
+				//assert(0);
+			}
+		}
+	}
+}
+
+
+static btree_status_t
+fill_key_range_reverse(btree_range_cursor_t *c,
+        btree_raw_mem_node_t *n,
+        int index,
+        btree_range_meta_t   *rmeta,
+        int *n_out,
+        btree_range_data_t   *value,
+        btree_range_data_t   *prev_value)
+{
+	assert(c->dir < 0);
+
+	node_vlkey_t      *pvlk;
+	btree_status_t status;
+	btree_status_t ret = BTREE_SUCCESS;
+	uint32_t keybuf_size;
+	uint64_t databuf_size;
+	uint32_t meta_flags;
+	key_meta_t key_meta;
+	btree_metadata_t smeta;
+	bool query_match, range_match;
+	key_stuff_info_t ks = {0};
+	key_stuff_info_t *pks = NULL;
+	bool found = false;
+	int latest_index = 0;
+
+	if (n == NULL) {
+		goto continue_key_processing;
+	}
+
+	/*
+	 * Validate if this is in valid seqno range
+	 */
+	btree_leaf_get_meta(n->pnode, index, &key_meta);
+	smeta.flags = rmeta->flags;
+	smeta.start_seqno = rmeta->start_seq;
+	smeta.end_seqno = rmeta->end_seq;
+	(void)seqno_cmp_range(&smeta, key_meta.seqno, &query_match, &range_match);
+	if (!query_match && !range_match) {
+		if ((index == n->pnode->nkeys - 1) && c->key_last_seq_unknown) {
+			// If this is the last key of the node, check if we have a temp key;
+			// if so, add the temp key to result;
+			goto continue_key_processing;
+		} else {
+			return (BTREE_SKIPPED);
+		}
+	}
+
+	ks.key = tmp_key_buf;
+	get_key_stuff_info2(c->btree, n->pnode, index, &ks);
+	pks = &ks;
+
+	/*
+	 * case1: when we have moved to a next left node and we have
+	 * a temp key in cursor.
+	 */
+	if (true == c->key_last_seq_unknown) {
+		if(c->last_logical_id != n->pnode->logical_id) {
+			/*
+			 * search for a new version of the temp key.
+			 * If found, update the cursor.
+			 * If not found, add the temp key to result
+			 */
+
+			if (index == n->pnode->nkeys - 1) {
+				if (c->btree->cmp_cb(c->btree->cmp_cb_data, c->ts_key,
+							c->ts_keylen, ks.key, ks.keylen) == 0) {
+					found = true;
+				}
+			} else {
+				latest_index = bsearch_key_low(c->btree, n->pnode, c->ts_key,
+						c->ts_keylen, &smeta, 0, -1, n->pnode->nkeys, BSF_LATEST, &found);
+			}
+
+			if (found) {
+				/*
+				 * Discard the temp key
+				 */
+				free(c->ts_data);
+				c->ts_data = NULL;
+				//free(c->ts_key);
+				c->ts_key = NULL;
+				c->ts_keylen = 0;
+				c->ts_datalen = 0;
+				c->key_last_seq_unknown = false;
+			} else {
+				goto continue_key_processing;
+			}
+		} else {
+			return (BTREE_SKIPPED);
+		}
+	}
+
+	/*
+	 * Case 2: Inside a node, we have to check if a newer version exists
+	 * Step 1. Search in the node for the latest key, falling in mentioned
+	 * seq. number range
+	 */
+	latest_index = bsearch_key_low(c->btree, n->pnode, ks.key,
+			ks.keylen, &smeta, 0, -1, n->pnode->nkeys, BSF_LATEST, &found);
+
+	// If we find a newer version of the key
+	if (found && ((index > latest_index) || (latest_index == 0))) {
+		//fprintf(stderr, "Found key=%s new_idx=%d  old_idx=%d\n", ks.key, latest_index, index);
+
+		if (latest_index == 0 || c->key_last_seq_unknown) {
+			if(c->last_logical_id != n->pnode->logical_id) {
+				// Since we have moved to a new node, we will not skip the key. We would rather
+				// check if we have a newer version of last seen key of previous node.
+				prev_value = NULL;
+
+				copy_key_and_data_to_cursor(c, n, latest_index, rmeta, &ks);
+				c->last_logical_id = n->pnode->logical_id;
+				c->key_last_seq_unknown = true;
+			}
+			return (BTREE_SKIPPED);
+		}
+
+		// Use the newer version of key
+		index = latest_index;
+
+		/* Again validate if this version is in valid seqno range */
+		btree_leaf_get_meta(n->pnode, index, &key_meta);
+		smeta.flags = rmeta->flags;
+		smeta.start_seqno = rmeta->start_seq;
+		smeta.end_seqno = rmeta->end_seq;
+		(void)seqno_cmp_range(&smeta, key_meta.seqno, &query_match, &range_match);
+		if (!query_match && !range_match) {
+			return (BTREE_SKIPPED);
+		}
+	}
+
+	// Update key info values
+	get_key_stuff_info2(c->btree, n->pnode, index, &ks);
+
+	/* Previous key is same as current one, previous is the latest, so skip
+	 * this one */
+	if (prev_value &&
+			(c->btree->cmp_cb(c->btree->cmp_cb_data, prev_value->key,
+					  prev_value->keylen, ks.key, ks.keylen) == 0)) {
+		return (BTREE_SKIPPED);
+	}
+
+	/* If key is tombstoned, skip
+	*/
+	if (key_meta.tombstone) {
+		return BTREE_SKIPPED;
+	}
+
+continue_key_processing:
+	if (c->is_tombstone) {
+		if(c->key_last_seq_unknown == true) {
+			free(c->ts_data);
+			c->ts_data = NULL;
+			c->key_last_seq_unknown = false;
+		}
+		return BTREE_SKIPPED;
+	}
+
+	/* TODO: Later on try to combine range_meta and btree_meta
+	 * For now, set the meta_flags for get_leaf_data usage */
+	meta_flags = rmeta->flags & (RANGE_BUFFER_PROVIDED | RANGE_ALLOC_IF_TOO_SMALL | RANGE_INPLACE_POINTERS);
+	if (rmeta->flags & RANGE_BUFFER_PROVIDED) {
+		keybuf_size  = rmeta->keybuf_size;
+		databuf_size = rmeta->databuf_size;
+	}
+
+	btree_range_data_t *pvalue;
+	pvalue = (value + *n_out);
+	pvalue->status = BTREE_RANGE_STATUS_NONE;
+
+	if(c->key_last_seq_unknown == true) {
+		pvalue->key = (char*)malloc(c->ts_keylen);
+		memcpy(pvalue->key, c->ts_key, c->ts_keylen);
+		pvalue->keylen = c->ts_keylen;
+	} else {
+		status = get_leaf_key_index(c->btree, n->pnode, index,
+				&pvalue->key,
+				&keybuf_size,
+				meta_flags, pks);
+
+		dbg_print_key(pvalue->key, keybuf_size, "key");
+
+		switch (status) {
+			case BTREE_SUCCESS:
+				break;
+			case BTREE_BUFFER_TOO_SMALL:
+				ret = BTREE_WARNING;
+				pvalue->status |= BTREE_KEY_BUFFER_TOO_SMALL;
+				break;
+			case BTREE_FAILURE:
+			default:
+				pvalue->status |= BTREE_FAILURE;
+				return (BTREE_FAILURE);
+		}
+		pvalue->keylen = keybuf_size;
+	}
+
+	/* Check if we need to pause at this key */
+	if (rmeta->allowed_fn) {
+		if (!rmeta->allowed_fn(rmeta->cb_data, pvalue->key,
+					pvalue->keylen)) {
+			pvalue->status |= BTREE_RANGE_PAUSED;
+			//fprintf(stderr, "BTREE_QUERY_PAUSED: key=%s\n", pvalue->key);
+			return (BTREE_QUERY_PAUSED);
+		}
+	}
+
+	if (c->key_last_seq_unknown == true) {
+		pvalue->datalen = 0;
+
+		if (c->ts_datalen) {
+			pvalue->data = (char*)malloc(c->ts_datalen);
+			memcpy(pvalue->data, c->ts_data, c->ts_datalen);
+
+			pvalue->datalen = c->ts_datalen;
+
+			free(c->ts_data);
+			c->ts_data = NULL;
+		} else {
+			pvalue->data = (char*)malloc(1);
+			memcpy(pvalue->data, "", 1);
+			//fprintf(stderr, "XXX: Zero data len: key=%s\n", pvalue->key);
+		}
+		if (n == NULL) {
+			ret = BTREE_SUCCESS;
+		} else {
+			ret = BTREE_RETRY;
+		}
+		pvalue->status = c->status;
+		c->key_last_seq_unknown = false;
+	} else {
+		if (!(rmeta->flags & RANGE_KEYS_ONLY)) {
+			status = get_leaf_data_index(c->btree, n->pnode, index,
+					&pvalue->data, &databuf_size,
+					meta_flags, 0,
+					is_snapshot_query(rmeta));
+
+			switch (status) {
+				case BTREE_SUCCESS:
+					break;
+				case BTREE_BUFFER_TOO_SMALL:
+					ret = BTREE_WARNING;
+					pvalue->status |= BTREE_DATA_BUFFER_TOO_SMALL;
+					break;
+				case BTREE_FAILURE:
+				default:
+					pvalue->status |= BTREE_FAILURE;
+					return (status);
+			}
+			//assert(databuf_size);
+			pvalue->datalen = databuf_size;
+		}
+	}
+	//value->seqno    = pvlk->seqno;
+	//value->syndrome = 0; // Is this required
+
+	if (ret == BTREE_SUCCESS) {
+		pvalue->status = BTREE_RANGE_SUCCESS;
+	}
+
+	return ret;
+}
+
 static btree_status_t
 fill_key_range(btree_range_cursor_t *c,
                btree_raw_mem_node_t *n,
 	       int index,
                btree_range_meta_t   *rmeta,
+               int *n_out,
                btree_range_data_t   *value,
                btree_range_data_t   *prev_value)
 {
-	node_vlkey_t      *pvlk;
+    if (c->dir < 0) {
+        return fill_key_range_reverse(c, n, index, rmeta, n_out, value, prev_value);
+    }
+
+    node_vlkey_t      *pvlk;
 	btree_status_t status;
 	btree_status_t ret = BTREE_SUCCESS;
 	uint32_t keybuf_size;
@@ -144,7 +477,7 @@ fill_key_range(btree_range_cursor_t *c,
 	} else {
 		/* Previous key is same as current one, previous is the latest, so skip
 		 * this one */
-		if (prev_value && 
+		if (prev_value &&
 		     (c->btree->cmp_cb(c->btree->cmp_cb_data, prev_value->key,
 		                       prev_value->keylen, ks.key, ks.keylen) == 0)) {
 			return (BTREE_SKIPPED);
@@ -154,14 +487,18 @@ fill_key_range(btree_range_cursor_t *c,
 	/* If key is tombstoned, apart from skipping, store this key to
 	 * avoid subsequent versions to skip as well */
 	if (key_meta.tombstone) {
+		// Todo: Add assert for key length
+		//assert()
 		memcpy(c->ts_key, ks.key, ks.keylen);
 		c->ts_keylen = ks.keylen;
 		c->prior_version_tombstoned = true;
+        c->key_last_seq_unknown = false;
 		return BTREE_SKIPPED;
-	} else {
-		c->prior_version_tombstoned = false;
-	}
+    } else {
+        c->prior_version_tombstoned = false;
+    }
 
+exit_process_key_data:
 	/* TODO: Later on try to combine range_meta and btree_meta
 	 * For now, set the meta_flags for get_leaf_data usage */
 	meta_flags = rmeta->flags & (RANGE_BUFFER_PROVIDED | RANGE_ALLOC_IF_TOO_SMALL | RANGE_INPLACE_POINTERS);
@@ -169,7 +506,8 @@ fill_key_range(btree_range_cursor_t *c,
 		keybuf_size  = rmeta->keybuf_size;
 		databuf_size = rmeta->databuf_size;
 	}
- 
+
+    value = (value + *n_out); 
 	value->status = BTREE_RANGE_STATUS_NONE; 
 
 	status = get_leaf_key_index(c->btree, n->pnode, index,
@@ -226,9 +564,9 @@ fill_key_range(btree_range_cursor_t *c,
 	//value->seqno    = pvlk->seqno; 
 	//value->syndrome = 0; // Is this required 
 
-	if (ret == BTREE_SUCCESS) {
-		value->status = BTREE_RANGE_SUCCESS;
-	}
+    if (ret == BTREE_SUCCESS) {
+        value->status = BTREE_RANGE_SUCCESS;
+    }
 
 	return ret;
 }
@@ -378,16 +716,29 @@ populate_output_array(btree_range_cursor_t *c,
 
 	dbg_print("cur_idx=%d end_idx=%d n_in=%d n_out=%d\n", (int)*cur_idx, (int)end_idx, n_in, *n_out);
 
+    if (node == NULL) {
+		ret = fill_key_range_reverse(c, node, (int) *cur_idx, &c->query_meta, n_out, values, (*n_out) ? values + (*n_out) - 1: NULL);
+		if (ret == BTREE_SUCCESS || ret == BTREE_QUERY_PAUSED) {
+			(*n_out)++;
+			if(ret == BTREE_QUERY_PAUSED)
+				*status = ret;
+		}
+                return;
+	}
+
 	while (*cur_idx != end_idx && *n_out < n_in && !fatal(*status))
 	{
-//		ret = fill_key_range(c->btree, node, key_offset(c->btree,
-//						node->pnode, *cur_idx), c->query_meta, values + *n_out);
 		ret = fill_key_range(c, node, (int) *cur_idx, &c->query_meta,
-		                     values + *n_out,
+		                     n_out, values,
 		                     (*n_out) ? values + (*n_out) - 1: NULL);
 
 		if (ret == BTREE_SKIPPED) {
 			(*cur_idx) += c->dir;
+			continue;
+		}
+
+		if (ret == BTREE_RETRY) {
+			(*n_out)++;
 			continue;
 		}
 
@@ -470,8 +821,10 @@ btree_range_get_next_fast(btree_range_cursor_t *c,
 		dbg_print("sp=%d cur_idx %d start_idx %d end_idx %d is_leaf %d logical_id %ld\n", sp, cur->cur_idx, cur->start_idx, cur->end_idx, isleaf, cur->node->pnode->logical_id);
 
 		if(isleaf) {
-			if(*n_out >= n_in)
+			if(*n_out >= n_in) {
+//				fprintf(stderr, "Exit with all keys done.\n",);
 				break;
+			}
 
 			if(cur->cur_idx * c->dir > cur->end_idx * c->dir)
 				ret = BTREE_FAILURE;
@@ -539,6 +892,13 @@ cleanup:
 		}
 	}
 
+	if ((sp < 0) && (!fatal(ret)) && (c->dir < 0)) {
+		if (c->key_last_seq_unknown) {
+			int16_t idx = 0;
+			populate_output_array(c, NULL, &idx, idx, n_in, n_out, values, &ret);
+		}
+	}
+
 	if(!fatal(ret) && !*n_out)
 		ret = BTREE_QUERY_DONE;
 
@@ -552,6 +912,8 @@ cleanup:
 		else
 			meta->flags |= c->dir > 0 ? RANGE_START_GT : RANGE_START_LT;
 	}
+
+//	fprintf(stderr, "loop exit: sp=%d fatal=%d\n", sp, fatal(ret));
 
 	while(sp >= 0) {
 		plat_rwlock_unlock(&stack[sp].node->lock);
@@ -582,6 +944,11 @@ btree_range_query_start_fast(btree_raw_t            *btree,
 		return BTREE_FAILURE;
 	}
 	c->ts_keylen = 0;
+	c->ts_data = NULL;
+	c->ts_datalen = 0;
+	c->key_last_seq_unknown = false;
+	c->last_logical_id = 0;
+	c->is_tombstone = false;
 
 	if(!store_key(&c->query_meta.key_start, &c->query_meta.keylen_start,
 			rmeta->key_start, rmeta->keylen_start))
@@ -610,6 +977,9 @@ btree_range_query_end_fast(btree_range_cursor_t *c)
 		free(c->ts_key);
 		c->ts_key = NULL;
 	}
+
+
+	assert(!c->key_last_seq_unknown);
 	assert(!dbg_referenced);
 
 	return (BTREE_SUCCESS);

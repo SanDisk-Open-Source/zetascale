@@ -199,6 +199,7 @@ typedef enum btree_status {
 	BTREE_RESCUE_INVALID_REQUEST,     /* Context provided for rescue is invalid */
 	BTREE_RESCUE_NOT_NEEDED,          /* Btree rescued either by other request or naturally */
 	BTREE_RESCUE_IO_ERROR,            /* Rescue faced a media error or storage error */
+	BTREE_RETRY,
 } btree_status_t;
 
 typedef enum node_flags {
