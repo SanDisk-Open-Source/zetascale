@@ -326,6 +326,7 @@ do_recovery_op(btree_raw_t *bt, btree_robj_list_t *op_list)
 
 		switch (cur_obj->rcvry_op) {
 		case RCVR_OP_DELETE:
+#if 0
 #ifndef _OPTIMIZE
 			if (next_obj) {
 	        		x = bt->cmp_cb(bt->cmp_cb_data, 
@@ -337,6 +338,7 @@ do_recovery_op(btree_raw_t *bt, btree_robj_list_t *op_list)
 				 * there can be only one set undo operation */
 				assert(x != 0);
 			}
+#endif
 #endif
 			/* Delete the cur obj.
 			 * TODO: Handle its return status */
