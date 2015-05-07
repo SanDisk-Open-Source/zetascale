@@ -176,7 +176,7 @@ mcd_rec2_init( ulong bytes_per_flash_array)
 	msg( INITIAL, INFO, "Storm Mode = %d   Storm Test = 0x%04X", flash_settings.storm_mode, flash_settings.storm_test);
 	if (flash_settings.storm_mode) {
 		bytes_per_storm_object = 1uL << power_of_two_roundup( getProperty_Int( "ZS_RAW_OBJECT_SIZE", 65000));
-		bytes_per_leaf = 1uL << power_of_two_roundup( getProperty_Int( "ZS_BTREE_NODE_SIZE", 8100));
+		bytes_per_leaf = 1uL << power_of_two_roundup( getProperty_Int( "ZS_BTREE_NODE_SIZE", 16200));
 		unless (Mcd_osd_blk_size == bytes_per_device_block) {
 			complain( "ZS_BLOCK_SIZE is not %lu--Storm Mode disabled", bytes_per_device_block);
 			flash_settings.storm_mode = 0;

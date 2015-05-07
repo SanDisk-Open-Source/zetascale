@@ -253,7 +253,7 @@ typedef struct btree_metadata {
 #define BTREE_MAX_DATA_SIZE_SUPPORTED           (25 * 1024 * 1024)   // 25 MB
 
 #define BTREE_DEFAULT_NODE_SIZE	        8100
-#define BTREE_STORM_MODE_NODE_SIZE   	16200
+#define BTREE_STORM_MODE_NODE_SIZE   	16200 //Modify in mcd_rec2_init() too if this value is changed
 #define BTREE_MAX_NODE_SIZE             32768
 
 #define BTSTATS_ITEMS() \
