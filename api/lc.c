@@ -2429,8 +2429,6 @@ pgstreamenumerate( ts_t *t, pg_t *pg, iter_t *iter)
 	ZS_status_t ret = ZS_OBJECT_UNKNOWN;
 	stream_seqno_t seq = s->seqoldest;
 	while (so = malloc( bytes_per_streaming_object)) {
-		so->next = iter->so;
-		iter->so = so;
 		if (seq < s->seqnext) {
 			char sokey[100];
 			uint32_t sokeylen = strlen( make_sokey( sokey, s->stream, seq));
@@ -2451,6 +2449,7 @@ pgstreamenumerate( ts_t *t, pg_t *pg, iter_t *iter)
 			pthread_mutex_unlock( &s->buflock);
 		}
 		else {
+			free( so);
 			unless (iter->objects = malloc( sizeof( *iter->objects)*iter->nobject))
 				return (ZS_OUT_OF_MEM);
 			uint n = 0;
@@ -2463,6 +2462,8 @@ pgstreamenumerate( ts_t *t, pg_t *pg, iter_t *iter)
 			qsort( iter->objects, iter->nobject, sizeof *iter->objects, compar);
 			return (ZS_SUCCESS);
 		}
+		so->next = iter->so;
+		iter->so = so;
 		uint i = 0;
 		while (i < buflen) {
 			lrec_t *lr = (lrec_t *)&so->buffer[i];
