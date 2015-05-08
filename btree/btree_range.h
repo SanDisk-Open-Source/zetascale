@@ -99,7 +99,6 @@ typedef struct {
 	bool prior_version_tombstoned; // Used to maintain if leader is a tombstone
 	bool key_last_seq_unknown;
 	uint64_t last_logical_id;
-	key_stuff_info_t ks;
 	btree_range_status_t status;
 	bool is_tombstone;
 } btree_range_cursor_t;
