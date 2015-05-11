@@ -4928,77 +4928,80 @@ seqnoread(struct ZS_thread_state *t)
 	return true;
 }
 
-seq_t
+/*
+ * return next seqno, or -1 on error
+ */
+uint64_t
 seqnoalloc( struct ZS_thread_state *t)
 {
 	static bool		initialized;
 	static pthread_mutex_t	seqnolock		= PTHREAD_MUTEX_INITIALIZER;
-	static seq_t		seqnolimit,
-				seqno;
-	static __thread seq_t	iseqno,
-				iseqnolimit;
+	static ZS_cguid_t	cguid;
+	static uint64_t		seqnolimit,
+				seqno = 0;
+	static char		SEQNO_CONTAINER[]	= "__SanDisk_seqno_container";
+	static char		SEQNO_KEY[]		= "__SanDisk_seqno_key";
 	ZS_container_props_t	p;
 	ZS_status_t		s;
-	ZS_cguid_t		c;
 	char			*data;
-	uint64_t		dlen;
+	uint64_t		dlen, z;
 
-	unless (iseqno < iseqnolimit) {
-		pthread_mutex_lock( &seqnolock);
-		unless (initialized) {
-			memset( &p, 0, sizeof p);
+	z = __sync_fetch_and_add(&seqno, 1);
+
+	if(initialized && z < seqnolimit)
+		return z;
+
+	pthread_mutex_lock( &seqnolock);
+	unless (initialized) {
+		memset( &p, 0, sizeof p);
+		p.durability_level = ZS_DURABILITY_HW_CRASH_SAFE;
+		p.flags = 1; //hash cont
+		switch (s = ZSOpenContainer( t, SEQNO_CONTAINER, &p, 0, &cguid)) {
+		case ZS_SUCCESS:
+			if ((ZSReadObject( t, cguid, SEQNO_KEY, sizeof SEQNO_KEY, &data, &dlen) == ZS_SUCCESS)
+			and (dlen == sizeof seqnolimit)) {
+				seqnolimit = *(uint64_t *)data;
+				z = seqno = seqnolimit;
+				ZSFreeBuffer( data);
+				break;
+			}
+			/* flash corruption likely, but consider recovery by tree search */
+			ZSCloseContainer( t, cguid);
+		default:
+			fprintf( stderr, "seqnoalloc: cannot initialize seqnolimit - %s\n", ZSStrError(s));
+			pthread_mutex_unlock( &seqnolock);
+			return (-1);
+		case ZS_CONTAINER_UNKNOWN:	       /* schizo ZS/SDF return */
+			p.size_kb = 1 * 1024 * 1024;
+			p.fifo_mode = ZS_FALSE;
+			p.persistent = ZS_TRUE;
+			p.evicting = ZS_FALSE;
+			p.writethru = ZS_TRUE;
 			p.durability_level = ZS_DURABILITY_HW_CRASH_SAFE;
 			p.flags = 1; //hash cont
-			switch (s = ZSOpenContainer( t, SEQNO_CONTAINER, &p, 0, &c)) {
-			case ZS_SUCCESS:
-				if ((ZSReadObject( t, c, SEQNO_KEY, sizeof SEQNO_KEY, &data, &dlen) == ZS_SUCCESS)
-				and (dlen == sizeof seqnolimit)) {
-					seqnolimit = *(seq_t *)data;
-					seqno = seqnolimit;
-					ZSFreeBuffer( data);
-					break;
-				}
-				ZSCloseContainer( t, c);
-				fprintf( stderr, "missing SEQNO_KEY");
-				abort( );
-			default:
-				fprintf( stderr, "cannot open %s (%s)", SEQNO_CONTAINER, ZSStrError( s));
-				abort( );
-			case ZS_CONTAINER_UNKNOWN:		/* schizo ZS/SDF return */
-				p.size_kb = 1 * 1024 * 1024;
-				p.fifo_mode = ZS_FALSE;
-				p.persistent = ZS_TRUE;
-				p.evicting = ZS_FALSE;
-				p.writethru = ZS_TRUE;
-				s = ZSOpenContainer( t, SEQNO_CONTAINER, &p, ZS_CTNR_CREATE, &c);
-				unless (s == ZS_SUCCESS) {
-					fprintf( stderr, "cannot create %s (%s)", SEQNO_CONTAINER, ZSStrError( s));
-					abort( );
-				}
+			s = ZSOpenContainer( t, SEQNO_CONTAINER, &p, ZS_CTNR_CREATE, &cguid);
+			unless (s == ZS_SUCCESS) {
+				fprintf( stderr, "seqnoalloc: cannot create %s (%s)\n", SEQNO_CONTAINER, ZSStrError( s));
+				pthread_mutex_unlock( &seqnolock);
+				return (-1);
 			}
-			ZSCloseContainer( t, c);
-			initialized = TRUE;
 		}
-		if (seqnolimit < seqno+SEQNO_INCR) {
-			seq_t n = seqno + SEQNO_SYNC_INTERVAL;
-			memset( &p, 0, sizeof p);
-			p.durability_level = ZS_DURABILITY_HW_CRASH_SAFE;
-			unless ((ZSOpenContainer( t, SEQNO_CONTAINER, &p, 0, &c) == ZS_SUCCESS)
-			and (ZSWriteObject( t, c, SEQNO_KEY, sizeof SEQNO_KEY, (char *)&n, sizeof n, 0) == ZS_SUCCESS)) {
-				fprintf( stderr, "cannot update %s", SEQNO_KEY);
-				abort( );
-			}
-			ZSCloseContainer( t, c);
-			seqnolimit = n;
-		}
-		iseqno = seqno;
-		iseqnolimit = iseqno + SEQNO_INCR;
-		seqno += SEQNO_INCR;
-		pthread_mutex_unlock( &seqnolock);
+		initialized = TRUE;
 	}
-	return (iseqno++);
+	unless (z < seqnolimit) {
+		seqnolimit = z + SEQNO_SYNC_INTERVAL;
+		s = ZSWriteObject( t, cguid, SEQNO_KEY, sizeof SEQNO_KEY, (char *)&seqnolimit, sizeof seqnolimit, 0);
+		unless (s == ZS_SUCCESS) {
+			seqnolimit = 0;
+			fprintf( stderr, "seqnoalloc: cannot update %s (%s)\n", SEQNO_KEY, ZSStrError( s));
+			pthread_mutex_unlock( &seqnolock);
+			return (-1);
+		}
+		//fprintf( stderr, "seqnoalloc (info): new seqnolimit = %ld\n", seqnolimit);
+	}
+	pthread_mutex_unlock( &seqnolock);
+	return (z);
 }
-
 
 ZS_status_t BtreeErr_to_ZSErr(btree_status_t b_status)
 {
