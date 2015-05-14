@@ -881,7 +881,7 @@ restart:
 	}
 
 	if (ret != -1) {
-		if (!hw_durable && !odirect) {
+		if (hw_durable && !odirect) {
 			if ((ret = fdatasync(nvr_fd)) == -1) {
 				msg(INITIAL, FATAL, "fdatasync to NVRAM failed, NVRAM disabled");
 				nvr_disabled = 1;
