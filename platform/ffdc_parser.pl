@@ -850,13 +850,13 @@ sub _sitArgsToStruct
     
     # print the generated code for this message
     print FFDC_H "$struct_buf\n} __attribute__ ((aligned (64)));\n\n";
-    print FFDC_H "__inline__ $func_buf);\n\n";
+    print FFDC_H "$func_buf);\n\n";
 
     $func_body .= "    ${U_PREFIX}_END();\n";
 
     my $FF = $FFDC_C_ARR[$FFDC_LOG_CUR++];
 
-    print $FF "__inline__ $func_buf)\n{\n$func_body}\n\n";
+    print $FF "$func_buf)\n{\n$func_body}\n\n";
 
     if ($FFDC_LOG_CUR > $FFDC_LOG_N) {
         $FFDC_LOG_CUR = 1;
@@ -1430,7 +1430,7 @@ struct ffdc_info {
 
 __BEGIN_DECLS
 
-__inline__ struct ffdc_info *get_ffdc_info();
+struct ffdc_info *get_ffdc_info();
 
 int ffdc_initialize(int readonly, int bld_version, long buffer_len);
 
@@ -1438,7 +1438,7 @@ void ffdc_enable();
 void ffdc_disable();
 void ffdc_detach();
 void ffdc_set_min_log_level(int level);
-__inline__ int ffdc_get_min_log_level();
+int ffdc_get_min_log_level();
 
 #define ffdc_log_func_0(msgid, catid, level, fmt, args...);
 
@@ -1544,13 +1544,13 @@ ffdc_initialize(int readonly, int bld_version, long buffer_len)
     return 0;
 }
 
-__inline__ struct ffdc_info *
+struct ffdc_info *
 get_ffdc_info()
 {
     return _ffdc_info;
 }
 
-__inline__ int
+int
 ffdc_get_min_log_level()
 {
     return _ffdc_info->min_log_level;

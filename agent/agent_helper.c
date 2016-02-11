@@ -386,7 +386,7 @@ void
 agent_config_set_defaults(struct plat_opts_config_sdf_agent *config)
 {
     char *s;
-    memset(config, 0, sizeof (config));
+    memset(config, 0, sizeof (struct plat_opts_config_sdf_agent));
 
     plat_shmem_config_init(&config->shmem);
 #ifdef SIMPLE_REPLICATION

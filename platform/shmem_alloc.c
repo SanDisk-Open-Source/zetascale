@@ -643,20 +643,20 @@ static void sa_bucket_shrink_locked(struct shmem_alloc *shmem_alloc,
                                     struct sa_bucket *bucket,
                                     int bucket_index,
                                     size_t retain_object_count);
-static __inline__ void sa_bucket_lock(struct sa_arena *arena,
+static  void sa_bucket_lock(struct sa_arena *arena,
                                       struct sa_bucket *bucket);
-static __inline__ void sa_bucket_unlock(struct sa_arena *arena,
+static  void sa_bucket_unlock(struct sa_arena *arena,
                                         struct sa_bucket *bucket);
 
 /* Align pointer to pow2 bytes */
-static __inline__ void
+static  void
 shmem_alloc_align(plat_shmem_ptr_base_t *base, int pow2) {
         base->int_base += (1 << pow2) - 1;
         base->int_base &= ~((1 << pow2) - 1);
 }
 
 /* Get shmem alloc, returning NULL on failure */
-static __inline__ PLAT_SHMEM_PURE struct shmem_alloc *
+static  PLAT_SHMEM_PURE struct shmem_alloc *
 sa_get_shmem_alloc() {
     struct shmem_alloc *ret;
 
@@ -673,7 +673,7 @@ sa_get_shmem_alloc() {
  * values like PLAT_SHMEM_ARENA_DEFAULT
  * @param shared_out <OUT> shared pointer to arena stored here when non-null
  */
-static __inline__ struct sa_arena *
+static  struct sa_arena *
 sa_get_create_arena(struct shmem_alloc *local_alloc,
                     enum plat_shmem_arena arena_class,
                     sa_arena_sp_t *shared_out) {
@@ -717,7 +717,7 @@ sa_get_create_arena(struct shmem_alloc *local_alloc,
 }
 
 /* Assert if bucket index is bogus */
-static __inline__ PLAT_SHMEM_CONST void
+static  PLAT_SHMEM_CONST void
 sa_check_bucket_index(struct shmem_alloc *shmem_alloc, int index) {
     plat_shmem_debug_assert(index >= shmem_alloc->min_bucket_bits);
     plat_shmem_debug_assert(index <= shmem_alloc->max_bucket_bits);
@@ -754,7 +754,7 @@ sa_check_bucket_locked(struct shmem_alloc *shmem_alloc, struct sa_arena *arena,
 }
 
 /* Calculate bucket */
-static __inline__ PLAT_SHMEM_CONST int
+static  PLAT_SHMEM_CONST int
 sa_get_bucket_index(struct shmem_alloc *shmem_alloc, size_t len) {
     int limit = shmem_alloc->max_bucket_bits;
     size_t current_len;
@@ -768,7 +768,7 @@ sa_get_bucket_index(struct shmem_alloc *shmem_alloc, size_t len) {
     return (ret);
 }
 
-static __inline__ void
+static  void
 sa_mutex_init(shmem_alloc_lock_t *lock, enum sa_lock_type lock_type) {
     switch (lock_type) {
     case SA_LOCK_NONE:
@@ -786,7 +786,7 @@ sa_mutex_init(shmem_alloc_lock_t *lock, enum sa_lock_type lock_type) {
     }
 }
 
-static __inline__ void
+static  void
 sa_mutex_lock(shmem_alloc_lock_t *lock, enum sa_lock_type lock_type) {
     switch (lock_type) {
     case SA_LOCK_NONE:
@@ -806,7 +806,7 @@ sa_mutex_lock(shmem_alloc_lock_t *lock, enum sa_lock_type lock_type) {
     }
 }
 
-static __inline__ void
+static  void
 sa_mutex_unlock(shmem_alloc_lock_t *lock, enum sa_lock_type lock_type) {
     switch (lock_type) {
     case SA_LOCK_NONE:
@@ -831,7 +831,7 @@ sa_mutex_unlock(shmem_alloc_lock_t *lock, enum sa_lock_type lock_type) {
  * FIXME: Needs to be based on both payload size and flags.  May want to
  * have separate allocators instead of fixed-sized buckets.
  */
-static __inline__ PLAT_SHMEM_CONST size_t
+static  PLAT_SHMEM_CONST size_t
 sa_get_alloc_size(size_t payload) {
     return (max(sizeof (struct shmem_free_entry),
                 sizeof (struct shmem_used_entry) + payload));
@@ -1184,7 +1184,7 @@ shmem_alloc_pthread_done() {
  *
  * @return errno on failure, 0 on success
  */
-static __inline__ int
+static  int
 sa_next_segment_locked(struct shmem_alloc *shmem_alloc) {
     const struct plat_shmem_attached *attached = plat_shmem_get_attached();
     struct plat_shmem_attached_segment *segment;
@@ -1274,7 +1274,7 @@ plat_shmem_alloc_helper(const char *file, unsigned line, const char *function,
                !(shmem_alloc->flags & SA_FLAG_PHYSMEM)) {
         ret.ptr = NULL;
         plat_errno = PLAT_ENOPHYSMEM;
-    } else if (PLAT_UNLIKELY(!len >= shmem_alloc->max_object_size &&
+    } else if (PLAT_UNLIKELY(!(len >= shmem_alloc->max_object_size) &&
                              !(flags & PLAT_SHMEM_ALLOC_PHYS) &&
                              (config_flags & PLAT_SHMEM_CONFIG_ALLOC_LARGE))) {
         ret = sa_steal_from_heap(shmem_alloc, len, backtrace);
@@ -2548,12 +2548,12 @@ sa_bucket_shrink_locked(struct shmem_alloc *shmem_alloc,
     sa_arena_sp_rwrelease(&parent_arena);
 }
 
-static __inline__ void
+static  void
 sa_bucket_lock(struct sa_arena *arena, struct sa_bucket *bucket) {
     sa_mutex_lock(&bucket->lock, arena->lock_type);
 }
 
-static __inline__ void
+static  void
 sa_bucket_unlock(struct sa_arena *arena, struct sa_bucket *bucket) {
     sa_mutex_unlock(&bucket->lock, arena->lock_type);
 }

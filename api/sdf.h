@@ -251,25 +251,25 @@ typedef void * local_SDF_CACHE_OBJ;
 
 SDF_CONTAINER createContainer();
 void freeContainer(SDF_CONTAINER c);
-__inline__ local_SDF_CONTAINER getLocalContainer(local_SDF_CONTAINER *lc, SDF_CONTAINER c);
-__inline__ void releaseLocalContainer(local_SDF_CONTAINER *lc);
-__inline__ int isContainerNull(SDF_CONTAINER c);
-__inline__ int containerPtrEqual(SDF_CONTAINER c1, SDF_CONTAINER c2);
+ local_SDF_CONTAINER getLocalContainer(local_SDF_CONTAINER *lc, SDF_CONTAINER c);
+ void releaseLocalContainer(local_SDF_CONTAINER *lc);
+ int isContainerNull(SDF_CONTAINER c);
+ int containerPtrEqual(SDF_CONTAINER c1, SDF_CONTAINER c2);
 #define containerNull _SDF_container_sp_null 
  
 SDF_CONTAINER_PARENT createContainerParent();
 void freeContainerParent(SDF_CONTAINER_PARENT p);
-__inline__ local_SDF_CONTAINER_PARENT getLocalContainerParent(local_SDF_CONTAINER_PARENT *lp, SDF_CONTAINER_PARENT p);
-__inline__ void releaseLocalContainerParent(local_SDF_CONTAINER_PARENT *lp);
-__inline__ int isContainerParentNull(SDF_CONTAINER_PARENT p);
+ local_SDF_CONTAINER_PARENT getLocalContainerParent(local_SDF_CONTAINER_PARENT *lp, SDF_CONTAINER_PARENT p);
+ void releaseLocalContainerParent(local_SDF_CONTAINER_PARENT *lp);
+ int isContainerParentNull(SDF_CONTAINER_PARENT p);
 #define containerParentNull _SDF_container_parent_sp_null
     
-__inline__ SDF_CACHE_OBJ createCacheObject(size_t size);
-__inline__ void freeCacheObject(SDF_CACHE_OBJ o, size_t size);
-__inline__ local_SDF_CACHE_OBJ getLocalCacheObject(local_SDF_CACHE_OBJ *lo, SDF_CACHE_OBJ o, size_t size);
-__inline__ void releaseLocalCacheObject(local_SDF_CACHE_OBJ *lo, size_t size);
-__inline__ int isCacheObjectNull(SDF_CACHE_OBJ o);
-__inline__ int cacheObjectPtrEqual(SDF_CACHE_OBJ o1, SDF_CACHE_OBJ o2);
+ SDF_CACHE_OBJ createCacheObject(size_t size);
+ void freeCacheObject(SDF_CACHE_OBJ o, size_t size);
+ local_SDF_CACHE_OBJ getLocalCacheObject(local_SDF_CACHE_OBJ *lo, SDF_CACHE_OBJ o, size_t size);
+ void releaseLocalCacheObject(local_SDF_CACHE_OBJ *lo, size_t size);
+ int isCacheObjectNull(SDF_CACHE_OBJ o);
+ int cacheObjectPtrEqual(SDF_CACHE_OBJ o1, SDF_CACHE_OBJ o2);
 #define cacheObjectNull SDFCacheObj_sp_null
 
 #endif // SDF_APP

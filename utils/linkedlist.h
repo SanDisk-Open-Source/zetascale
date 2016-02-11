@@ -86,11 +86,11 @@ void LinkedList_destroy(LinkedList ll);
  * @param value <IN> pointer to object to PUT
  * @return SDF_TRUE on success, SDF_FALSE for duplicate keys
  */
-__inline__ SDF_boolean_t LinkedList_put(LinkedList ll, const char *key, void* value, uint16_t keyLen);
+ SDF_boolean_t LinkedList_put(LinkedList ll, const char *key, void* value, uint16_t keyLen);
 
-__inline__ void* LinkedList_replace(LinkedList ll, const char *key, void* value, uint16_t keyLen);
+ void* LinkedList_replace(LinkedList ll, const char *key, void* value, uint16_t keyLen);
 
-__inline__ void* LinkedList_remove(LinkedList ll, const char *key, uint16_t keyLen);
+ void* LinkedList_remove(LinkedList ll, const char *key, uint16_t keyLen);
 
 /**
  * @brief Get object from the linked list for the desired key.
@@ -99,10 +99,10 @@ __inline__ void* LinkedList_remove(LinkedList ll, const char *key, uint16_t keyL
  * @param key <IN> string identifier for the object to GET
  * @return <NULLABLE> null if key is not found, otherwise pointer to the object for the key
  */
-__inline__ void* LinkedList_get(LinkedList ll, const char *key, uint16_t keyLen);
+ void* LinkedList_get(LinkedList ll, const char *key, uint16_t keyLen);
 
-__inline__ uint32_t LinkedList_getSize(LinkedList ll);
-__inline__ SDF_boolean_t LinkedList_isEmpty(LinkedList ll);
+ uint32_t LinkedList_getSize(LinkedList ll);
+ SDF_boolean_t LinkedList_isEmpty(LinkedList ll);
 void LinkedList_printElements(LinkedList ll);
 
 #ifdef __cplusplus

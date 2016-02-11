@@ -217,7 +217,7 @@ void fthKill(int kill)
 /**
  * @brief return my fthThread
  */
-inline fthThread_t *fthSelf(void)
+fthThread_t *fthSelf(void)
 {
     // get my fthread value from the fth mapping table 
     return selfFthread;
@@ -480,7 +480,7 @@ uint64_t fthWait(void)
  * @parameter thread <IN> Thread to make dispatchable
  * @parameter rv <IN> Value that the thread sees as the RV from fthWait
  */
-static __inline__ void fthResumeInternal(fthThread_t *thread, uint64_t rv)
+static  void fthResumeInternal(fthThread_t *thread, uint64_t rv)
 {
     pthread_mutex_lock(&(thread->mutex));
     thread->rv_wait   = rv;
@@ -647,7 +647,7 @@ uint64_t fthGetTscTicksPerMicro(void)
 /**
  * @brief return fth structure pointer
  */
-inline fth_t *fthBase(void)
+fth_t *fthBase(void)
 {
     return fth;
 }

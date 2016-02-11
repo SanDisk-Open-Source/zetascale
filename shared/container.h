@@ -78,22 +78,22 @@ PLAT_SP(SDF_key_sp, struct _SDF_key);
 
 typedef struct _SDF_key * SDF_key_t;
 
-__inline__ SDF_key_t Key_getLocalPtr(SDF_key_t *localKey, SDF_key_sp_t key);
-__inline__ void Key_releaseLocalPtr(SDF_key_t *localKey);
-__inline__ void Key_setNull(SDF_key_sp_t key);
-__inline__ SDF_key_sp_t Key_createObjectKey(const char *src, uint16_t len);
-__inline__ void Key_freeObjectKey(SDF_key_sp_t key);
-__inline__ const char * Key_getObjectName(SDF_key_sp_t key); //;
-__inline__ void Key_setObjectName(SDF_key_sp_t object_id, const char *src, uint16_t len);
-__inline__ uint32_t Key_getObjectLen(SDF_key_sp_t key); //;
-__inline__ uint64_t Key_getBlockId(SDF_key_sp_t key);//;
-__inline__ void Key_setBlockId(SDF_key_sp_t key, uint64_t block_id);
+ SDF_key_t Key_getLocalPtr(SDF_key_t *localKey, SDF_key_sp_t key);
+ void Key_releaseLocalPtr(SDF_key_t *localKey);
+ void Key_setNull(SDF_key_sp_t key);
+ SDF_key_sp_t Key_createObjectKey(const char *src, uint16_t len);
+ void Key_freeObjectKey(SDF_key_sp_t key);
+ const char * Key_getObjectName(SDF_key_sp_t key); //;
+ void Key_setObjectName(SDF_key_sp_t object_id, const char *src, uint16_t len);
+ uint32_t Key_getObjectLen(SDF_key_sp_t key); //;
+ uint64_t Key_getBlockId(SDF_key_sp_t key);//;
+ void Key_setBlockId(SDF_key_sp_t key, uint64_t block_id);
 
-__inline__ const char *ObjectKey_getName(SDF_object_key_sp_t object_id);
-__inline__ uint32_t ObjectKey_getLen(SDF_object_key_sp_t object_id);
+ const char *ObjectKey_getName(SDF_object_key_sp_t object_id);
+ uint32_t ObjectKey_getLen(SDF_object_key_sp_t object_id);
 
-__inline__ SDF_key_sp_t Key_createBlockKey(uint64_t block_id);
-__inline__ void Key_freeBlockKey(SDF_key_sp_t key);
+ SDF_key_sp_t Key_createBlockKey(uint64_t block_id);
+ void Key_freeBlockKey(SDF_key_sp_t key);
 
 #endif
 
@@ -182,25 +182,25 @@ typedef void * local_SDF_CACHE_OBJ;
 
 SDF_CONTAINER createContainer();
 void freeContainer(SDF_CONTAINER c);
-__inline__ local_SDF_CONTAINER getLocalContainer(local_SDF_CONTAINER *lc, SDF_CONTAINER c);
-__inline__ void releaseLocalContainer(local_SDF_CONTAINER *lc);
-__inline__ int isContainerNull(SDF_CONTAINER c);
-__inline__ int containerPtrEqual(SDF_CONTAINER c1, SDF_CONTAINER c2);
+ local_SDF_CONTAINER getLocalContainer(local_SDF_CONTAINER *lc, SDF_CONTAINER c);
+ void releaseLocalContainer(local_SDF_CONTAINER *lc);
+ int isContainerNull(SDF_CONTAINER c);
+ int containerPtrEqual(SDF_CONTAINER c1, SDF_CONTAINER c2);
 #define containerNull _SDF_container_sp_null
 
 SDF_CONTAINER_PARENT createContainerParent();
 void freeContainerParent(SDF_CONTAINER_PARENT p);
-__inline__ local_SDF_CONTAINER_PARENT getLocalContainerParent(local_SDF_CONTAINER_PARENT *lp, SDF_CONTAINER_PARENT p);
-__inline__ void releaseLocalContainerParent(local_SDF_CONTAINER_PARENT *lp);
-__inline__ int isContainerParentNull(SDF_CONTAINER_PARENT p);
+ local_SDF_CONTAINER_PARENT getLocalContainerParent(local_SDF_CONTAINER_PARENT *lp, SDF_CONTAINER_PARENT p);
+ void releaseLocalContainerParent(local_SDF_CONTAINER_PARENT *lp);
+ int isContainerParentNull(SDF_CONTAINER_PARENT p);
 #define containerParentNull _SDF_container_parent_sp_null
 
-__inline__ SDF_CACHE_OBJ createCacheObject(size_t size);
-__inline__ void freeCacheObject(SDF_CACHE_OBJ o, size_t size);
-__inline__ local_SDF_CACHE_OBJ getLocalCacheObject(local_SDF_CACHE_OBJ *lo, SDF_CACHE_OBJ o, size_t size);
-__inline__ void releaseLocalCacheObject(local_SDF_CACHE_OBJ *lo, size_t size);
-__inline__ int isCacheObjectNull(SDF_CACHE_OBJ o);
-__inline__ int cacheObjectPtrEqual(SDF_CACHE_OBJ o1, SDF_CACHE_OBJ o2);
+ SDF_CACHE_OBJ createCacheObject(size_t size);
+ void freeCacheObject(SDF_CACHE_OBJ o, size_t size);
+ local_SDF_CACHE_OBJ getLocalCacheObject(local_SDF_CACHE_OBJ *lo, SDF_CACHE_OBJ o, size_t size);
+ void releaseLocalCacheObject(local_SDF_CACHE_OBJ *lo, size_t size);
+ int isCacheObjectNull(SDF_CACHE_OBJ o);
+ int cacheObjectPtrEqual(SDF_CACHE_OBJ o1, SDF_CACHE_OBJ o2);
 #define cacheObjectNull SDFCacheObj_sp_null
 
 #define descrChangesNull DescrChangesPtr_sp_null

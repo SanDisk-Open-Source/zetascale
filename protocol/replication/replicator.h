@@ -698,7 +698,7 @@ void sdf_replicator_config_init(struct sdf_replicator_config *config,
  *
  * @return 0 on success, non-zero on failure.
  */
-static __inline__ int
+static  int
 sdf_replicator_start(struct sdf_replicator *replicator) {
     return ((*replicator->start_fn)(replicator));
 }
@@ -713,7 +713,7 @@ sdf_replicator_start(struct sdf_replicator *replicator) {
  * can modify the message prior to fan-out.
  */
 
-static __inline__ void
+static  void
 sdf_replicator_receive_msg(struct sdf_replicator *replicator,
                            struct sdf_msg_wrapper *msg_wrapper) {
     plat_closure_apply(sdf_msg_recv_wrapper, &replicator->recv_closure,
@@ -726,7 +726,7 @@ sdf_replicator_receive_msg(struct sdf_replicator *replicator,
  * @param replicator <IN> replicator to shutdown
  * @param shutdown_complete <IN> invoked when there is no activity left
  */
-static __inline__ void
+static  void
 sdf_replicator_shutdown(struct sdf_replicator *replicator,
                         sdf_replicator_shutdown_cb_t shutdown_complete) {
     plat_closure_apply(sdf_replicator_shutdown,
@@ -742,7 +742,7 @@ sdf_replicator_shutdown(struct sdf_replicator *replicator,
  * @param op_meta <OUT> Output
  * @return SDF_SUCCESS on success, otherwise on failure
  */
-static __inline__ SDF_status_t
+static  SDF_status_t
 sdf_replicator_get_op_meta(struct sdf_replicator *replicator,
                            const struct SDF_container_meta *container_meta,
                            SDF_shardid_t shard,
@@ -759,7 +759,7 @@ sdf_replicator_get_op_meta(struct sdf_replicator *replicator,
  * @param expires <IN> Time node should be considered alive until
  */
 
-static __inline__ void
+static  void
 sdf_replicator_node_live(struct sdf_replicator *replicator, vnode_t pnode,
                          struct timeval last_live) {
     plat_closure_apply(sdf_replicator_node_live, &replicator->node_live_closure,
@@ -771,7 +771,7 @@ sdf_replicator_node_live(struct sdf_replicator *replicator, vnode_t pnode,
  *
  * @param pnode <IN> Node which is dead.
  */
-static __inline__ void
+static  void
 sdf_replicator_node_dead(struct sdf_replicator *replicator, vnode_t pnode) {
     plat_closure_apply(sdf_replicator_node_dead, &replicator->node_dead_closure,
                        pnode);
@@ -813,7 +813,7 @@ sdf_replicator_node_dead(struct sdf_replicator *replicator, vnode_t pnode) {
  * @return A handle which can be passed to #sdf_replicator_remove_notifier
  * on shutdown.
  */
-static __inline__ struct cr_notifier *
+static  struct cr_notifier *
 sdf_replicator_add_notifier(struct sdf_replicator *replicator,
                             sdf_replicator_notification_cb_t cb) {
     return ((*replicator->add_notifier)(replicator,  cb));
@@ -825,7 +825,7 @@ sdf_replicator_add_notifier(struct sdf_replicator *replicator,
  * @param replicator <IN> Replicator
  * @param handle <IN> Handle to release from #sdf_replicator_add_notifier
  */
-static __inline__ void
+static  void
 sdf_replicator_remove_notifier(struct sdf_replicator *replicator,
                                struct cr_notifier *handle) {
     (*replicator->remove_notifier)(replicator, handle);
@@ -837,7 +837,7 @@ sdf_replicator_remove_notifier(struct sdf_replicator *replicator,
  * @param stats <OUT> Stats stored here
  * @return SDF_SUCCESS on success, otherwise on failure
  */
-static __inline__ SDF_status_t
+static  SDF_status_t
 sdf_replicator_get_container_stats(struct sdf_replicator *replicator,
                                    struct sdf_replicator_shard_stats *stats,
                                    SDF_cguid_t cguid) {
@@ -862,7 +862,7 @@ sdf_replicator_get_container_stats(struct sdf_replicator *replicator,
  * return.
  * @param cb <IN> closure applied on completion
  */
-static __inline__ void
+static  void
 sdf_replicator_command_async(struct sdf_replicator *replicator,
                              SDF_shardid_t shard, const char *command,
                              sdf_replicator_command_cb_t cb) {

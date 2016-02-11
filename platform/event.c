@@ -167,7 +167,7 @@ static void event_fire_done(plat_closure_scheduler_t *context,
 static void event_reset_wrapper(plat_closure_scheduler_t *context, void *env);
 static void event_impl_free_wrapper(plat_closure_scheduler_t *context,
                                     void *env);
-static void __inline__
+static void 
 event_impl_free_done_enter(plat_closure_scheduler_t *context,
                            struct plat_event *event);
 static void event_impl_free_done_wrapper(plat_closure_scheduler_t *context,
@@ -459,7 +459,7 @@ event_impl_free_wrapper(plat_closure_scheduler_t *context, void *env) {
     event_ref_count_dec(context, event);
 }
 
-static void __inline__
+static void 
 event_impl_free_done_enter(plat_closure_scheduler_t *context,
                            struct plat_event *event) {
     plat_event_void_closure_t wrapper;

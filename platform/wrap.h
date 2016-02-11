@@ -151,8 +151,8 @@
 
 #ifdef PLATFORM_INTERNAL
 #define PLAT_WRAP_SYS(ret, sym, declare, call, cppthrow, attributes)           \
-    static __inline__ ret sys_ ## sym declare cppthrow attributes;             \
-    static __inline__ ret sys_ ## sym declare PLAT_WRAP_THROW_IMPL(cppthrow) { \
+    static  ret sys_ ## sym declare cppthrow attributes;             \
+    static  ret sys_ ## sym declare PLAT_WRAP_THROW_IMPL(cppthrow) { \
         ret (*fn)declare = &sym;                                               \
         return ((*fn)call);                                                    \
     }

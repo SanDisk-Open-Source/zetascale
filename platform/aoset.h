@@ -156,8 +156,8 @@ extern void aoset_diag(aoset_hdl_t);
 
 #else
 
-static __inline__ void aoset_debug(uint_t lvl) { }
-static __inline__ void aoset_diag(aoset_hdl_t sethdl) { }
+static  void aoset_debug(uint_t lvl) { }
+static  void aoset_diag(aoset_hdl_t sethdl) { }
 
 #endif
 

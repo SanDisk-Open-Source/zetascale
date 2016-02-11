@@ -1840,7 +1840,7 @@ static SDF_status_t cr_op_accum_msg(struct cr_op *op,
 static SDF_status_t cr_op_accum_status(struct cr_op *op,
                                        SDF_status_t msg_status);
 static void cr_op_ref_count_dec(struct cr_op *op);
-static __inline__ void cr_op_ref_count_zero(struct cr_op *op);
+static  void cr_op_ref_count_zero(struct cr_op *op);
 static void cr_op_synthesize_response(struct cr_op *op);
 
 static SDF_status_t
@@ -8628,7 +8628,7 @@ cr_op_ref_count_dec(struct cr_op *op) {
 /**
  * @brief Call when op ref count hits zero; send response and cleanup
  */
-static __inline__ void
+static  void
 cr_op_ref_count_zero(struct cr_op *op) {
     SDF_status_t status;
 

@@ -178,7 +178,7 @@ extern int schedNum;
 extern fth_t *fth;
 
 // Add a common routine to get the hardware time-stamp counter
-static __inline__ uint64_t rdtsc(void)
+static  uint64_t rdtsc(void)
 {
     uint32_t u, l;
     asm volatile("rdtsc" : "=a" (l), "=d" (u)); 
@@ -193,8 +193,8 @@ void fthInitMultiQ(int numArgs, ...);
 
 void fthSchedulerPthread(int prio);
 void fthKill(int kill);
-inline fth_t *fthBase(void);
-inline fthThread_t *fthSelf(void);
+fth_t *fthBase(void);
+fthThread_t *fthSelf(void);
 
 void fthReleasePthread();
 fthThread_t *fthSpawn(void (*startRoutine)(uint64_t), long minStackSize);

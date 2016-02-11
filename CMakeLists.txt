@@ -48,12 +48,14 @@ IF(ZS_REVISION)
 ENDIF(ZS_REVISION)
 
 IF(DEBUG)
-	add_definitions(-pipe -Wall -fstack-protector-all -fno-strict-aliasing -fno-omit-frame-pointer)
+	add_definitions(-pipe -Wall -fstack-protector-all -fno-strict-aliasing
+		-fno-omit-frame-pointer -Wno-unused-function)
 ELSE(DEBUG)
-	add_definitions(-O2 -pipe -Wall -fstack-protector-all -fno-strict-aliasing -fno-omit-frame-pointer)
+	add_definitions(-O2 -pipe -Wall -fstack-protector-all -fno-strict-aliasing
+		-fno-omit-frame-pointer -Wno-unused-function)
 ENDIF(DEBUG)
 
-add_definitions( -D_GNU_SOURCE -DMPI_BUILD -DFLASH_SIM_TYPE=5 -DPLAT_LOG_COMPILE_LEVEL=DEVEL -DENABLE_MULTIPLE_FLASH_SUBSYSTEMS
+add_definitions(-Wno-unused-but-set-variable -Wno-enum-compare -D_GNU_SOURCE -DMPI_BUILD -DFLASH_SIM_TYPE=5 -DPLAT_LOG_COMPILE_LEVEL=DEVEL -DENABLE_MULTIPLE_FLASH_SUBSYSTEMS
 -DBLD_VERSION=857 -DSDFAPI -DSDFAPIONLY -DSDFAPIREFORMAT -DENABLE_MULTIPLE_FLASH_SUBSYSTEMS)
 #-DBLD_VERSION=857 -DSDFAPI -DSDFAPIONLY -DSDFAPIREFORMAT -DENABLE_MULTIPLE_FLASH_SUBSYSTEMS -DFLIP_ENABLED)
 #-DBLD_VERSION=857 -DSDFAPI -DSDFAPIONLY -DSDFAPIREFORMAT -DENABLE_MULTIPLE_FLASH_SUBSYSTEMS -DDEBUG_BUILD )
@@ -113,6 +115,7 @@ $<TARGET_OBJECTS:clipper>
 $<TARGET_OBJECTS:fifo> 
 )
 add_dependencies(${LIBRARY} ffdc)
+target_link_libraries( ${LIBRARY} pthread aio event snappy lz4 rt)
 #
 IF(BUILD_SHARED)
 	SET_TARGET_PROPERTIES(${LIBRARY} PROPERTIES 

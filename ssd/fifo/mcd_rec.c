@@ -6112,7 +6112,7 @@ recovery_packet_dump( FILE *f, uint32_t blkno, uint32_t nblock, size_t ocount, v
 		dlen = meta->uncomp_datalen;
 	}
 	if (header)
-		fprintf( f, header);
+		fprintf( f, "%s", header);
 	unless (ocount)
 		ocount = dlen;
 	else if (dlen < ocount)

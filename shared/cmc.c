@@ -125,7 +125,7 @@ typedef struct {
 static cmc_map_item_t *meta_map_list = NULL;
 
 /** Thread-local meta map list utility */
-__inline__ SDF_boolean_t 
+ SDF_boolean_t 
 TL_meta_map_list_add(HashMap map) {
 
     SDF_boolean_t ret = SDF_FALSE;
@@ -159,7 +159,7 @@ TL_meta_map_list_add(HashMap map) {
 }
 
 /** Thread-local HashMap_get() */
-__inline__ void* 
+ void* 
 TL_HashMap_get(HashMap globalMap, const char *key) {
     void *ret = NULL;
     fthWaitEl_t *wait = NULL;

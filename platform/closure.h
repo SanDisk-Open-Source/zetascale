@@ -145,13 +145,13 @@ enum closure_scheduler_val {
     } name ## _args_t;                                                         \
                                                                                \
     __BEGIN_DECLS                                                              \
-    static __inline__ void                                                     \
+    static  void                                                     \
     name ## _init_args(name ## _args_t *args) {                                \
     }                                                                          \
                                                                                \
     PLAT_CLOSURE_COMMON(name);                                                 \
                                                                                \
-    static __inline__ void                                                     \
+    static  void                                                     \
     name ## _activation_do(plat_closure_scheduler_t *context,                  \
                            plat_closure_activation_base_t *base) {             \
         name ## _activation_t *activation = (name ## _activation_t *)base;     \
@@ -165,7 +165,7 @@ enum closure_scheduler_val {
         (*activation->fn)(context, base->env);                                 \
     }                                                                          \
                                                                                \
-    static __inline__ void                                                     \
+    static  void                                                     \
     name ## _apply(name ## _t *closure) {                                      \
         plat_closure_apply(name, closure);                                     \
     }                                                                          \
@@ -192,14 +192,14 @@ enum closure_scheduler_val {
     } name ## _args_t;                                                         \
                                                                                \
     __BEGIN_DECLS                                                              \
-    static __inline__ void                                                     \
+    static  void                                                     \
     name ## _init_args(name ## _args_t *args, arg1_t arg1_name) {              \
         args->arg1_name  = arg1_name;                                          \
     }                                                                          \
                                                                                \
     PLAT_CLOSURE_COMMON(name);                                                 \
                                                                                \
-    static __inline__ void                                                     \
+    static  void                                                     \
     name ## _activation_do(plat_closure_scheduler_t *context,                  \
                            plat_closure_activation_base_t *base) {             \
         name ## _activation_t *activation = (name ## _activation_t *)base;     \
@@ -213,7 +213,7 @@ enum closure_scheduler_val {
         (*activation->fn)(context, base->env, activation->args.arg1_name);     \
     }                                                                          \
                                                                                \
-    static __inline__ void                                                     \
+    static  void                                                     \
     name ## _apply(name ## _t *closure, arg1_t arg1_name) {                    \
         plat_closure_apply(name, closure, arg1_name);                          \
     }                                                                          \
@@ -245,7 +245,7 @@ enum closure_scheduler_val {
     } name ## _args_t;                                                         \
                                                                                \
     __BEGIN_DECLS                                                              \
-    static __inline__ void                                                     \
+    static  void                                                     \
     name ## _init_args(name ## _args_t *args, arg1_t arg1_name,                \
                        arg2_t arg2_name) {                                     \
         args->arg1_name = arg1_name;                                           \
@@ -254,7 +254,7 @@ enum closure_scheduler_val {
                                                                                \
     PLAT_CLOSURE_COMMON(name);                                                 \
                                                                                \
-    static __inline__ void                                                     \
+    static  void                                                     \
     name ## _activation_do(plat_closure_scheduler_t *context,                  \
                            plat_closure_activation_base_t *base) {             \
         name ## _activation_t *activation = (name ## _activation_t *)base;     \
@@ -269,7 +269,7 @@ enum closure_scheduler_val {
                           activation->args.arg2_name);                         \
     }                                                                          \
                                                                                \
-    static __inline__ void                                                     \
+    static  void                                                     \
     name ## _apply(name ## _t *closure, arg1_t arg1_name, arg2_t arg2_name) {  \
         plat_closure_apply(name, closure, arg1_name, arg2_name);               \
     }                                                                          \
@@ -304,7 +304,7 @@ enum closure_scheduler_val {
     } name ## _args_t;                                                         \
                                                                                \
     __BEGIN_DECLS                                                              \
-    static __inline__ void                                                     \
+    static  void                                                     \
     name ## _init_args(name ## _args_t *args, arg1_t arg1_name,                \
                        arg2_t arg2_name, arg3_t arg3_name) {                   \
         args->arg1_name = arg1_name;                                           \
@@ -314,7 +314,7 @@ enum closure_scheduler_val {
                                                                                \
     PLAT_CLOSURE_COMMON(name);                                                 \
                                                                                \
-    static __inline__ void                                                     \
+    static  void                                                     \
     name ## _activation_do(plat_closure_scheduler_t *context,                  \
                            plat_closure_activation_base_t *base) {             \
         name ## _activation_t *activation = (name ## _activation_t *)base;     \
@@ -330,7 +330,7 @@ enum closure_scheduler_val {
                           activation->args.arg3_name);                         \
     }                                                                          \
                                                                                \
-    static __inline__ void                                                     \
+    static  void                                                     \
     name ## _apply(name ## _t *closure, arg1_t arg1_name, arg2_t arg2_name,    \
                    arg3_t arg3_name) {                                         \
         plat_closure_apply(name, closure, arg1_name, arg2_name, arg3_name);    \
@@ -370,7 +370,7 @@ enum closure_scheduler_val {
     } name ## _args_t;                                                         \
                                                                                \
     __BEGIN_DECLS                                                              \
-    static __inline__ void                                                     \
+    static  void                                                     \
     name ## _init_args(name ## _args_t *args, arg1_t arg1_name,                \
                        arg2_t arg2_name, arg3_t arg3_name,                     \
                        arg4_t arg4_name) {                                     \
@@ -382,7 +382,7 @@ enum closure_scheduler_val {
                                                                                \
     PLAT_CLOSURE_COMMON(name);                                                 \
                                                                                \
-    static __inline__ void                                                     \
+    static  void                                                     \
     name ## _activation_do(plat_closure_scheduler_t *context,                  \
                            plat_closure_activation_base_t *base) {             \
         name ## _activation_t *activation = (name ## _activation_t *)base;     \
@@ -399,7 +399,7 @@ enum closure_scheduler_val {
                           activation->args.arg4_name);                         \
     }                                                                          \
                                                                                \
-    static __inline__ void                                                     \
+    static  void                                                     \
     name ## _apply(name ## _t *closure, arg1_t arg1_name, arg2_t arg2_name,    \
                    arg3_t arg3_name, arg4_t arg4_name) {                       \
         plat_closure_apply(name, closure, arg1_name, arg2_name, arg3_name,     \
@@ -444,7 +444,7 @@ enum closure_scheduler_val {
     } name ## _args_t;                                                         \
                                                                                \
     __BEGIN_DECLS                                                              \
-    static __inline__ void                                                     \
+    static  void                                                     \
     name ## _init_args(name ## _args_t *args, arg1_t arg1_name,                \
                        arg2_t arg2_name, arg3_t arg3_name,                     \
                        arg4_t arg4_name, arg5_t arg5_name) {                   \
@@ -457,7 +457,7 @@ enum closure_scheduler_val {
                                                                                \
     PLAT_CLOSURE_COMMON(name);                                                 \
                                                                                \
-    static __inline__ void                                                     \
+    static  void                                                     \
     name ## _activation_do(plat_closure_scheduler_t *context,                  \
                            plat_closure_activation_base_t *base) {             \
         name ## _activation_t *activation = (name ## _activation_t *)base;     \
@@ -475,7 +475,7 @@ enum closure_scheduler_val {
                           activation->args.arg5_name);                         \
     }                                                                          \
                                                                                \
-    static __inline__ void                                                     \
+    static  void                                                     \
     name ## _apply(name ## _t *closure, arg1_t arg1_name, arg2_t arg2_name,    \
                    arg3_t arg3_name, arg4_t arg4_name, arg5_t arg5_name) {     \
         plat_closure_apply(name, closure, arg1_name, arg2_name, arg3_name,     \
@@ -525,7 +525,7 @@ enum closure_scheduler_val {
     } name ## _args_t;                                                         \
                                                                                \
     __BEGIN_DECLS                                                              \
-    static __inline__ void                                                     \
+    static  void                                                     \
     name ## _init_args(name ## _args_t *args, arg1_t arg1_name,                \
                        arg2_t arg2_name, arg3_t arg3_name,                     \
                        arg4_t arg4_name, arg5_t arg5_name,                     \
@@ -540,7 +540,7 @@ enum closure_scheduler_val {
                                                                                \
     PLAT_CLOSURE_COMMON(name);                                                 \
                                                                                \
-    static __inline__ void                                                     \
+    static  void                                                     \
     name ## _activation_do(plat_closure_scheduler_t *context,                  \
                            plat_closure_activation_base_t *base) {             \
         name ## _activation_t *activation = (name ## _activation_t *)base;     \
@@ -559,7 +559,7 @@ enum closure_scheduler_val {
                           activation->args.arg6_name);                         \
     }                                                                          \
                                                                                \
-    static __inline__ void                                                     \
+    static  void                                                     \
     name ## _apply(name ## _t *closure, arg1_t arg1_name, arg2_t arg2_name,    \
                    arg3_t arg3_name, arg4_t arg4_name,                         \
                    arg5_t arg5_name, arg6_t arg6_name) {                       \
@@ -623,7 +623,7 @@ enum closure_scheduler_val {
     } name ## _args_t;                                                         \
                                                                                \
     __BEGIN_DECLS                                                              \
-    static __inline__ void                                                     \
+    static  void                                                     \
     name ## _init_args(name ## _args_t *args, arg1_t arg1_name,                \
                        arg2_t arg2_name, arg3_t arg3_name,                     \
                        arg4_t arg4_name, arg5_t arg5_name,                     \
@@ -642,7 +642,7 @@ enum closure_scheduler_val {
                                                                                \
     PLAT_CLOSURE_COMMON(name);                                                 \
                                                                                \
-    static __inline__ void                                                     \
+    static  void                                                     \
     name ## _activation_do(plat_closure_scheduler_t *context,                  \
                            plat_closure_activation_base_t *base) {             \
         name ## _activation_t *activation = (name ## _activation_t *)base;     \
@@ -664,7 +664,7 @@ enum closure_scheduler_val {
                           activation->args.arg9_name);                         \
     }                                                                          \
                                                                                \
-    static __inline__ void                                                     \
+    static  void                                                     \
     name ## _apply(name ## _t *closure, arg1_t arg1_name, arg2_t arg2_name,    \
                    arg3_t arg3_name, arg4_t arg4_name,                         \
                    arg5_t arg5_name, arg6_t arg6_name, arg7_t arg7_name,       \
@@ -676,7 +676,7 @@ enum closure_scheduler_val {
     __END_DECLS
 
 /*
- * Functions  are static not extern __inline__ since we don't care about
+ * Functions  are static not extern  since we don't care about
  * setting a break point which fires on all _apply() calls and don't want to
  * provide expanded implementations.
  */
@@ -704,7 +704,7 @@ enum closure_scheduler_val {
     static const name ## _t name ## _null = PLAT_CLOSURE_INITIALIZER;          \
                                                                                \
     __BEGIN_DECLS                                                              \
-    static __inline__ name ## _t                                               \
+    static  name ## _t                                               \
     name ## _create(plat_closure_scheduler_t *context,                         \
                     name ## _fn_t fn, void *env) {                             \
         name ## _t ret = { { context == PLAT_CLOSURE_SCHEDULER_AT_CREATE ?     \
@@ -720,18 +720,18 @@ enum closure_scheduler_val {
         return (ret);                                                          \
     }                                                                          \
                                                                                \
-    static __inline__ name ## _t                                               \
+    static  name ## _t                                               \
     name ## _create_sync(name ## _fn_t fn, void *env) {                        \
         name ##_t ret = { { PLAT_CLOSURE_SCHEDULER_SYNCHRONOUS, env }, fn };   \
         return (ret);                                                          \
     }                                                                          \
                                                                                \
-    static __inline__ int                                                      \
+    static  int                                                      \
     name ## _is_null(name ## _t *closure) {                                    \
         return (!closure->fn);                                                 \
     }                                                                          \
                                                                                \
-    static __inline__ int                                                      \
+    static  int                                                      \
     name ## _is_sync(name ## _t *closure) {                                    \
         return (closure->base.context == PLAT_CLOSURE_SCHEDULER_SYNCHRONOUS);  \
     }                                                                          \
@@ -773,15 +773,15 @@ struct plat_closure_activation_base {
 __BEGIN_DECLS
 
 /* Forward declare inlines for plat_closure_scheduler_shutdown */
-static __inline__ plat_closure_activation_base_t *
+static  plat_closure_activation_base_t *
 plat_closure_scheduler_alloc_activation(plat_closure_scheduler_t *context,
                                         size_t size);
-static __inline__ void
+static  void
 plat_closure_scheduler_add_activation_helper(plat_closure_scheduler_t *context,
                                              plat_closure_activation_base_t
                                              *base);
 
-static __inline__ plat_closure_scheduler_t *plat_closure_get_scheduler(void);
+static  plat_closure_scheduler_t *plat_closure_get_scheduler(void);
 
 /**
  * @brief Apply closure
@@ -910,7 +910,7 @@ struct plat_closure_scheduler {
  * @param closure <IN> invoked when there are no closures remaining to
  * execute, follows normal scheduling conventions.
  */
-static __inline__ void
+static  void
 plat_closure_scheduler_shutdown(plat_closure_scheduler_t *context,
                                 plat_closure_scheduler_shutdown_t
                                 shutdown) {
@@ -918,14 +918,14 @@ plat_closure_scheduler_shutdown(plat_closure_scheduler_t *context,
 }
 
 /* @brief Allocate activation record (for internal use) */
-static __inline__ plat_closure_activation_base_t *
+static  plat_closure_activation_base_t *
 plat_closure_scheduler_alloc_activation(plat_closure_scheduler_t *context,
                                         size_t size) {
     return ((*context->alloc_activation_fn)(context, size));
 }
 
 /* @brief Allocate activation record (for internal use) */
-static __inline__ void
+static  void
 plat_closure_scheduler_add_activation_helper(plat_closure_scheduler_t *context,
                                              plat_closure_activation_base_t
                                              *base) {
@@ -937,12 +937,12 @@ plat_closure_scheduler_add_activation_helper(plat_closure_scheduler_t *context,
  *
  * Table driven
  */
-static __inline__ plat_closure_scheduler_t *
+static  plat_closure_scheduler_t *
 plat_closure_get_scheduler(void) {
     return (plat_attr_closure_scheduler_get());
 }
 
-static __inline__ void
+static  void
 plat_closure_scheduler_set(plat_closure_scheduler_t *scheduler) {
     plat_attr_closure_scheduler_set(scheduler);
 }

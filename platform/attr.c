@@ -68,17 +68,17 @@ PLAT_ATTR_UTHREAD_ITEMS()
 static struct plat_attr_uthread_specific *(*get_attr_uthread_specific_fn)() =
     NULL;
 
-static __inline__ struct plat_attr_proc_specific *
+static  struct plat_attr_proc_specific *
 get_proc_specific() {
     return (&proc_specific);
 }
 
-static __inline__ struct plat_attr_kthread_specific *
+static  struct plat_attr_kthread_specific *
 get_kthread_specific() {
     return (&kthread_specific);
 }
 
-static __inline__ struct plat_attr_uthread_specific *
+static  struct plat_attr_uthread_specific *
 get_uthread_specific() {
     if (get_attr_uthread_specific_fn) {
         return ((*get_attr_uthread_specific_fn)());

@@ -224,7 +224,7 @@ void
 btree_leaf_print(btree_raw_t *btree, btree_raw_node_t *n);
 
 /// New functions 
-void inline
+void
 btree_leaf_get_meta(btree_raw_node_t *n, int index, key_meta_t *key_meta);
 
 void
@@ -247,7 +247,7 @@ btree_leaf_find_split_idx(btree_raw_t *bt, btree_raw_node_t *n);
 uint64_t
 btree_get_bigobj_inleaf(btree_raw_t *bt, uint64_t keylen, uint64_t datalen);
 
-void inline
+void
 btree_leaf_unset_dataptr(btree_raw_node_t *n, int index, uint64_t datalen);
 
 size_t

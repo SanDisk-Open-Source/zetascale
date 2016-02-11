@@ -90,14 +90,14 @@ static volatile uint64_t  rt_stamp_area[32] =  { 0 };
 #define rt_stamp rt_stamp_area[16]
 #endif
 
-static __inline__ uint64_t rt_rdtsc(void)
+static  uint64_t rt_rdtsc(void)
 {
     uint32_t u, l;
     asm volatile("rdtsc" : "=a" (l), "=d" (u));
     return (((uint64_t) u << 32) | l);
 }
 
-static __inline__ uint64_t rt_rdtsc_sync(void)
+static  uint64_t rt_rdtsc_sync(void)
 {
     uint32_t u, l;
     asm volatile("xorl %%eax, %%eax; cpuid; rdtsc" : "=a" (l), "=d" (u) : : "%ebx", "%ecx");

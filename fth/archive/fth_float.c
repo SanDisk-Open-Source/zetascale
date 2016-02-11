@@ -687,7 +687,7 @@ fthThread_t *fthMakeFloating(fthThread_t *thread) {
  * @parameter thread <IN> Thread to make dispatchable
  * @parameter rv <IN> Value that the thread sees as the RV from fthWait
  */
-static __inline__ void fthResumeInternal(fthThread_t *thread, uint64_t rv)
+static  void fthResumeInternal(fthThread_t *thread, uint64_t rv)
 {
     FTH_SPIN_LOCK(&thread->spin);
     plat_assert(thread->dispatchable == 0);

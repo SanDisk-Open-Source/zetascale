@@ -475,7 +475,7 @@ uint64_t btSyncWait(btSyncThread_t *thread)
  * @parameter thread <IN> Thread to make dispatchable
  * @parameter rv <IN> Value that the thread sees as the RV from btSyncWait
  */
-static __inline__ void btSyncResumeInternal(btSyncThread_t *thread, uint64_t rv)
+static  void btSyncResumeInternal(btSyncThread_t *thread, uint64_t rv)
 {
     pthread_mutex_lock(&(thread->mutex));
     thread->rv_wait   = rv;

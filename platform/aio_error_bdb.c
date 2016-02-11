@@ -195,7 +195,7 @@ paio_error_bdb_create(struct paio_error_control **error_control,
 
 void
 paio_error_bdb_config_init(struct paio_error_bdb_config *config) {
-    memset(config, 0, sizeof(config));
+    memset(config, 0, sizeof(struct paio_error_bdb_config));
     paio_error_control_config_init(&config->error_control_config);
 }
 

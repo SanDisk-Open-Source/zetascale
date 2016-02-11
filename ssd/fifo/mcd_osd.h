@@ -539,7 +539,7 @@ extern uint64_t tombstone_get_rtg( mcd_osd_shard_t * shard );
 extern void tombstone_register_rtg_callback(void (*callback)(uint64_t shardID,
                                                              uint64_t seqno));
 
-extern inline char * mcd_fifo_find_buffered_obj( mcd_osd_shard_t * shard,
+extern char * mcd_fifo_find_buffered_obj( mcd_osd_shard_t * shard,
                                                  char * key, int key_len,
                                                  uint64_t address,
                                                  mcd_osd_fifo_wbuf_t ** wbufp,

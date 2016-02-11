@@ -957,7 +957,7 @@ void fthVectorStart(fthThreadVector_t *vector, uint64_t arg) {
  * @parameter thread <IN> Thread to make dispatchable
  * @parameter rv <IN> Value that the thread sees as the RV from fthWait
  */
-static __inline__ void
+static  void
 fthResumeInternal (fthThread_t *thread, uint64_t rv) {
     FTH_SPIN_LOCK(&thread->spin);
     plat_assert(thread->dispatchable == 0);
@@ -1042,7 +1042,7 @@ fthPrintSwitchStats(void) {
 
 #define MAX_AFFINITY_DEPTH 10
 
-static __inline__ fthDispatchQ_t *
+static  fthDispatchQ_t *
 eligibleQAffinityScan(fthSched_t *sched) {
 
     // Search the eligible Q for a good affinity match
@@ -1118,7 +1118,7 @@ eligibleQAffinityScan(fthSched_t *sched) {
  * @param idleStartTimesStampPtr <OUT> We only consider the system idle once
  * we've polled for a regular thread and failed to find one. This causes 
  */
-static __inline__ void
+static  void
 fthFastScheduler(fthSched_t *sched, uint64_t schedStartTimeStamp,
                  uint64_t *idleStartTimeStampPtr) {
     fthThread_t *cur;

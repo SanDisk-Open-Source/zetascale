@@ -46,7 +46,7 @@
  *                                                                             \
  *     PLAT_ONCE(, foo_ ## name);                                              \
  *                                                                             \
- *     __inline__ foo_ ## name ## _log_cat(void) {                             \
+ *      foo_ ## name ## _log_cat(void) {                             \
  *         foo ## _once();                                                     \
  *         return (foo_ ## name ## _log_cat_val;                               \
  *     }                                                                       \
@@ -80,7 +80,7 @@
     scope name ## _once_t name ## _once_state;                                 \
     scope void name ## _once_init();                                           \
                                                                                \
-    static __inline__ void                                                     \
+    static  void                                                     \
     name ## _once() {                                                          \
         if (!name ## _once_state.initialized) {                                \
             name ## _once_init();                                              \
