@@ -60,7 +60,7 @@ make -j $NCPU
 cp $WD/zsck/zsck $WD/zsck/zsformat $WD/zsck/zsmetafault -t $SDK_DIR/utils
 #Packaging
 #scp -r lab67:/schooner/backup/fdf_extra/lib/* $SDK_DIR/lib
-wget http://lab67.schoonerinfotech.net/zs/lib/libpthread.so.0 -O $SDK_DIR/lib/libpthread.so.0
+#wget http://lab67.schoonerinfotech.net/zs/lib/libpthread.so.0 -O $SDK_DIR/lib/libpthread.so.0
 cp -f $WD/output/lib/* $SDK_DIR/lib
 cp -a $WD/api/zs.h $SDK_DIR/include
 cp -a $WD/api/tests/sample_program.c $SDK_DIR/samples
@@ -72,22 +72,22 @@ cp -a $WD/common/zstypes.h $SDK_DIR/include/common
 cp -a $WD/api/tests/conf/zs_sample.prop $SDK_DIR/config/
 #check withjni option
 #when withjni=true, get jni code and compiling
-if [ "is$WITHJNI" == "isON" ]
-then
-    rm -fr ZSJNI 
-    jniurl=https://10.196.60.217/svn/schooner-trunk/ht_delivery/rd/fdfjni/trunk
-    svn co $jniurl ZSJNI 
-    cd ZSJNI 
-    sed -i "/sdk$/d" bin/prepare_zssdk.sh 
-    cp -r $SDK_DIR ./zs_sdk
-
-	export ZS_LIB=$PWD/zs_sdk/lib/libzs.so
-    mvn clean && mvn install -Dmaven.test.skip=true
-    cp target/*.jar zs_sdk/lib/
-    rm -fr $SDK_DIR && mv zs_sdk $SDK_DIR
-    cd - 
-    cd ..
-fi
+#if [ "is$WITHJNI" == "isON" ]
+#then
+#    rm -fr ZSJNI 
+#    jniurl=https://10.196.60.217/svn/schooner-trunk/ht_delivery/rd/fdfjni/trunk
+#    svn co $jniurl ZSJNI 
+#    cd ZSJNI 
+#    sed -i "/sdk$/d" bin/prepare_zssdk.sh 
+#    cp -r $SDK_DIR ./zs_sdk
+#
+#   export ZS_LIB=$PWD/zs_sdk/lib/libzs.so
+#    mvn clean && mvn install -Dmaven.test.skip=true
+#    cp target/*.jar zs_sdk/lib/
+#    rm -fr $SDK_DIR && mv zs_sdk $SDK_DIR
+#    cd - 
+#    cd ..
+#fi
 #
 
 
