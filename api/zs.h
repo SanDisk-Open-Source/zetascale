@@ -79,34 +79,34 @@ typedef enum {
 
 #define ZS_BTREE_CTNR	(~(ZS_HASH_CTNR | ZS_LOG_CTNR))
 typedef enum {
-    ZS_ACCESS_TYPES_APCOE, 
-    ZS_ACCESS_TYPES_APCOP, 
-    ZS_ACCESS_TYPES_APPAE, 
-    ZS_ACCESS_TYPES_APPTA, 
-    ZS_ACCESS_TYPES_APSOE, 
-    ZS_ACCESS_TYPES_APSOB, 
-    ZS_ACCESS_TYPES_APGRX, 
-    ZS_ACCESS_TYPES_APGRD, 
-    ZS_ACCESS_TYPES_APDBE, 
-    ZS_ACCESS_TYPES_APDOB, 
-    ZS_ACCESS_TYPES_APFLS, 
-    ZS_ACCESS_TYPES_APFLI, 
-    ZS_ACCESS_TYPES_APINV, 
-    ZS_ACCESS_TYPES_APSYC, 
-    ZS_ACCESS_TYPES_APICD, 
-    ZS_ACCESS_TYPES_APGIT, 
-    ZS_ACCESS_TYPES_APFCO, 
-    ZS_ACCESS_TYPES_APFCI, 
-    ZS_ACCESS_TYPES_APICO, 
-    ZS_ACCESS_TYPES_APRIV, 
-    ZS_ACCESS_TYPES_APRUP, 
+    ZS_ACCESS_TYPES_APCOE,
+    ZS_ACCESS_TYPES_APCOP,
+    ZS_ACCESS_TYPES_APPAE,
+    ZS_ACCESS_TYPES_APPTA,
+    ZS_ACCESS_TYPES_APSOE,
+    ZS_ACCESS_TYPES_APSOB,
+    ZS_ACCESS_TYPES_APGRX,
+    ZS_ACCESS_TYPES_APGRD,
+    ZS_ACCESS_TYPES_APDBE,
+    ZS_ACCESS_TYPES_APDOB,
+    ZS_ACCESS_TYPES_APFLS,
+    ZS_ACCESS_TYPES_APFLI,
+    ZS_ACCESS_TYPES_APINV,
+    ZS_ACCESS_TYPES_APSYC,
+    ZS_ACCESS_TYPES_APICD,
+    ZS_ACCESS_TYPES_APGIT,
+    ZS_ACCESS_TYPES_APFCO,
+    ZS_ACCESS_TYPES_APFCI,
+    ZS_ACCESS_TYPES_APICO,
+    ZS_ACCESS_TYPES_APRIV,
+    ZS_ACCESS_TYPES_APRUP,
     ZS_ACCESS_TYPES_ENUM_TOTAL,
     ZS_ACCESS_TYPES_ENUM_ACTIVE,
     ZS_ACCESS_TYPES_ENUM_OBJECTS,
     ZS_ACCESS_TYPES_ENUM_CACHED_OBJECTS,
     ZS_ACCESS_TYPES_NUM_CONT_DELETES_PEND,
     ZS_ACCESS_TYPES_NUM_CONT_DELETES_PROG,
-    /* Application request at Btree layer. 
+    /* Application request at Btree layer.
        Add new zs specific stats above this line */
     ZS_ACCESS_TYPES_READ,
     ZS_ACCESS_TYPES_WRITE,
@@ -126,7 +126,7 @@ typedef enum {
     ZS_N_ACCESS_TYPES
 } ZS_access_types_t;
 
-typedef enum { 
+typedef enum {
     /* Btree L1 stats */
     ZS_BTREE_L1_ENTRIES,
     ZS_BTREE_L1_OBJECTS,
@@ -191,7 +191,7 @@ typedef enum {
     ZS_N_BTREE_STATS
 }ZS_Btree_stat_t;
 #if 0
-typedef enum { 
+typedef enum {
     /* Log container stats */
     ZS_LOG_NUM_OBJS,
     ZS_LOG_MPUT_IO_SAVED,
@@ -475,7 +475,7 @@ typedef struct {
     ZS_prop_flag_t			flags;
 } ZS_container_props_t;
 
-	
+
 #define ZS_CTNR_CREATE   1
 #define ZS_CTNR_RO_MODE  2
 #define ZS_CTNR_RW_MODE  4
@@ -519,12 +519,12 @@ typedef int (ZS_cmp_fn_t)(void     *index_data, //  opaque user data
                            uint32_t  keylen2);   //  length of second secondary key
 
 typedef int (* ZS_mput_cmp_cb_t)(void     *data, 	//  opaque user data
-                                 char     *key,       
+                                 char     *key,
                                  uint32_t  keylen,
 				 char *old_data,
 				 uint64_t old_datalen,
 				 char *new_data,
-				 uint64_t new_datalen); 
+				 uint64_t new_datalen);
 
 
 
@@ -542,10 +542,10 @@ struct ZS_iterator;
 
 typedef int (* ZS_range_cmp_cb_t)(void     *data, 	//  opaque user data
 			         void     *range_data,
-                                 char     *range_key,       
-                                 uint32_t  range_keylen,   
-                                 char     *key1,       
-                                 uint32_t  keylen1); 
+                                 char     *range_key,
+                                 uint32_t  range_keylen,
+                                 char     *key1,
+                                 uint32_t  keylen1);
 
 /*
  * Get a ZS property.
@@ -559,7 +559,7 @@ const char *ZSGetProperty(const char *key, const char *def);
  * @param propery <IN> property name
  * @param value <IN> pointer to value
  * @return ZS_SUCCESS on success
- * 
+ *
  */
 ZS_status_t ZSSetProperty(
 	const char* property,
@@ -571,7 +571,7 @@ ZS_status_t ZSSetProperty(
  *
  * @param proper_file <IN> properties file
  * @return ZS_SUCCESS on success
- * 
+ *
  */
 ZS_status_t ZSLoadProperties(
 	const char *prop_file
@@ -643,9 +643,9 @@ ZS_status_t ZSLoadCntrPropDefaults(
  * @return ZS_SUCCESS on success
  */
 ZS_status_t ZSOpenContainer(
-	struct ZS_thread_state	*zs_thread_state, 
-	char					*cname, 
-	ZS_container_props_t 	*properties, 
+	struct ZS_thread_state	*zs_thread_state,
+	char					*cname,
+	ZS_container_props_t 	*properties,
 	uint32_t			 	 flags,
 	ZS_cguid_t				*cguid
 	);
@@ -661,9 +661,9 @@ ZS_status_t ZSOpenContainer(
  * @return ZS_SUCCESS on success
  */
 ZS_status_t ZSOpenContainerSpecial(
-	struct ZS_thread_state	  *zs_thread_state, 
-	char                      *cname, 
-	ZS_container_props_t     *properties, 
+	struct ZS_thread_state	  *zs_thread_state,
+	char                      *cname,
+	ZS_container_props_t     *properties,
 	uint32_t                  flags,
 	ZS_container_meta_t      *cmeta,
 	ZS_cguid_t               *cguid
@@ -702,9 +702,9 @@ ZS_status_t ZSDeleteContainer(
  * @return ZS_SUCCESS on success
  */
 ZS_status_t ZSRenameContainer(
-	struct ZS_thread_state	*zs_thread_state, 
+	struct ZS_thread_state	*zs_thread_state,
 	ZS_cguid_t		 cguid,
-	char			*new_cname 
+	char			*new_cname
 	);
 
 /**
@@ -824,7 +824,7 @@ ZS_status_t ZSFreeBuffer(
 	);
 
 /**
- *  @brief Write entire object, creating it if necessary.  
+ *  @brief Write entire object, creating it if necessary.
  *
  *  Put an entire object, with contents copied from an application-provided
  *  buffer. This may change the size of the object. The expiry time
@@ -857,7 +857,7 @@ ZS_status_t ZSWriteObject(
 	);
 
 /**
- *  @brief Write entire object, creating it if necessary.  
+ *  @brief Write entire object, creating it if necessary.
  *
  *  Put an entire object, with contents copied from an application-provided
  *  buffer. This may change the size of the object. The expiry time
@@ -1132,7 +1132,7 @@ ZS_status_t ZSTransactionService(
 /**
  * @brief Return version of ZS
  *
- * @param  Address of pointer to hold the version string 
+ * @param  Address of pointer to hold the version string
  * @return String having the versions
  *         NULL if failed internally
  */
@@ -1226,9 +1226,9 @@ typedef enum {
 	ZS_RANGE_KEYS_ONLY            = 1<<15, // only return keys (data is not required)
 
 	ZS_RANGE_PRIMARY_KEY          = 1<<16, // return primary keys in secondary index query
-	ZS_RANGE_INDEX_USES_DATA      = 1<<17, // Indicates that secondary index key 
+	ZS_RANGE_INDEX_USES_DATA      = 1<<17, // Indicates that secondary index key
 	                                        // is derived from object data
-	ZS_RANGE_INPLACE_POINTERS      = 1<<18,  // 
+	ZS_RANGE_INPLACE_POINTERS      = 1<<18,  //
 } ZS_range_enums_t;
 
 /*
@@ -1280,7 +1280,7 @@ typedef bool (* ZS_range_update_cb_t) (char *key, uint32_t keylen, char *data, u
 				        void *callback_args, char **new_data, uint32_t *new_datalen);
 
 /* Start an index query.
- * 
+ *
  * Returns: ZS_SUCCESS if successful
  *          ZS_FAILURE if unsuccessful
  */
@@ -1317,10 +1317,10 @@ typedef struct ZS_range_data {
  * If the BUFFER_PROVIDED flag is set, the key and data fields in 'values' must be
  * pre-populated with buffers provided by the application (with sizes that were
  * specified in 'meta' when the index query was started).  If the application provided
- * buffer is too small for returned item 'i', the status for that item will 
+ * buffer is too small for returned item 'i', the status for that item will
  * be ZS_BUFFER_TOO_SMALL; if the ALLOC_IF_TOO_SMALL flag is set, ZS will allocate
  * a new buffer whenever the provided buffer is too small.
- * 
+ *
  * If the SEQNO_LE flag is set, only items whose sequence number is less than or
  * equal to 'end_seq' from ZS_range_meta_t above are returned.
  * If there are multiple versions of an item that satisfy the inequality,
@@ -1329,17 +1329,17 @@ typedef struct ZS_range_data {
  * If the SEQNO_GT_LE flag is set, only items for which start_seq < item_seqno <= end_seq
  * are returned.  If there are multiple versions of an item that satisfy the inequality,
  * always return the most recent version.
- * 
+ *
  * SEQNO_LE and SEQNO_GT_LE are mutually exclusive and must not be set together.
  * If neither SEQNO_LE or SEQNO_GT_LE are set the most recent version of each key
  * is returned.
- * 
- * 
+ *
+ *
  * Returns: ZS_SUCCESS    if all statuses are successful
  *          ZS_QUERY_DONE if query is done (n_out will be set to 0)
  *          ZS_FAILURE    if one or more of the key fetches fails (see statuses for the
  *                         status of each fetched object)
- * 
+ *
  * statuses[i] returns: ZS_SUCCESS if the i'th data item was retrieved successfully
  *                      ZS_BUFFER_TOO_SMALL  if the i'th buffer was too small to retrieve the object
  */
@@ -1351,12 +1351,12 @@ ZSGetNextRange(struct ZS_thread_state *thrd_state,  //  client thread ZS context
                 ZS_range_data_t        *values);     //  array of returned key/data values
 
 /* End an index query.
- * 
+ *
  * Returns: ZS_SUCCESS if successful
  *          ZS_UNKNOWN_CURSOR if the cursor is invalid
  */
-ZS_status_t 
-ZSGetRangeFinish(struct ZS_thread_state *thrd_state, 
+ZS_status_t
+ZSGetRangeFinish(struct ZS_thread_state *thrd_state,
                   struct ZS_cursor *cursor);
 
 ZS_status_t
@@ -1368,25 +1368,25 @@ ZSMPut(struct ZS_thread_state *zs_ts,
 	uint32_t *objs_written);
 
 ZS_status_t
-ZSRangeUpdate(struct ZS_thread_state *zs_thread_state, 
+ZSRangeUpdate(struct ZS_thread_state *zs_thread_state,
 	       ZS_cguid_t cguid,
 	       char *range_key,
 	       uint32_t range_key_len,
 	       ZS_range_update_cb_t callback_func,
-	       void * callback_args,	
+	       void * callback_args,
 	       ZS_range_cmp_cb_t range_cmp_callback,
 	       void *range_cmp_cb_args,
 	       uint32_t *objs_updated);
 
 ZS_status_t
-ZSCheckBtree(struct ZS_thread_state *zs_thread_state, 
+ZSCheckBtree(struct ZS_thread_state *zs_thread_state,
 	       ZS_cguid_t cguid, uint64_t flags);
 
 ZS_status_t
 ZSCheck(struct ZS_thread_state *zs_thread_state, uint64_t flags);
 
 // For ZS metadata checker
-ZS_status_t 
+ZS_status_t
 ZSCheckMeta();
 
 ZS_status_t
@@ -1415,14 +1415,14 @@ ZSCheckMsg(ZS_check_entity_t entity,
            );
 
 ZS_status_t
-ZSIoctl(struct ZS_thread_state *zs_thread_state, 
+ZSIoctl(struct ZS_thread_state *zs_thread_state,
          ZS_cguid_t cguid,
          uint32_t ioctl_type,
          void *data);
 
 /*
- * @brief Create a snapshot for a container  
- * 
+ * @brief Create a snapshot for a container
+ *
  * @param zs_thread_state <IN> The ZS context for which this operation applies
  * @param cguid <IN> container global identifier
  * @param snap_seq <OUT> sequence number of snapshot
@@ -1438,7 +1438,7 @@ ZSCreateContainerSnapshot(
 
 /*
  * @brief Delete a snapshot
- * 
+ *
  * @param zs_thread_state <IN> The ZS context for which this operation applies
  * @param cguid <IN> container global identifier
  * @param snap_seq <IN> snapshot to be deleted
@@ -1457,7 +1457,7 @@ ZSDeleteContainerSnapshot(
  *
  * Array returned in snap_seqs is allocated by ZS and must be freed by
  * application.
- * 
+ *
  * @param zs_thread_state <IN> The ZS context for which this operation applies
  * @param cguid <IN> container global identifier
  * @param n_snapshots <OUT> number of snapshots retrieved
@@ -1495,7 +1495,7 @@ ZSTransactionSetMode(struct ZS_thread_state *zs_thread_state, int mode);
  * @brief Get the context of last error reported by ZS
  *
  * The context returned by the ZS will have to be freed by the application
- * 
+ *
  * @param cguid <IN> container global identifier
  * @param pp_err_context <OUT> The opaque error context allocated
  * @return ZS_SUCCESS if successful
@@ -1526,7 +1526,7 @@ ZSCheckSpace(struct ZS_thread_state *zs_thread_state);
  *   Returns:  0 if successful
  *             1 if fails (eg: ZSGetSecondaryKeyBuffer() fails)
  */
-typedef int (ZS_index_fn_t)(void     *index_data,        //  opaque user data 
+typedef int (ZS_index_fn_t)(void     *index_data,        //  opaque user data
                              char     *key,               //  primary key of object
                              uint32_t  keylen,            //  length of primary key
                              char     *data,              //  object data (if required, see flags)
@@ -1537,7 +1537,7 @@ typedef int (ZS_index_fn_t)(void     *index_data,        //  opaque user data
 /*
  *  Allocate a buffer in which to place an extracted
  *  secondary key.
- * 
+ *
  *  Returns NULL if a buffer cannot be allocated.
  */
 char * ZSGetSecondaryKeyBuffer(uint32_t len);
@@ -1556,7 +1556,7 @@ typedef struct ZS_index_meta {
  * Secondary index creation in crash-safe: if ZS crashes while
  * index creation is in progress, index creation will be completed
  * when ZS restarts.
- * 
+ *
  * Returns: ZS_SUCCESS if successful
  *          ZS_xxxzzz if ZS runs out of memory
  *          ZS_xxxzzz if ZS runs out of storage
@@ -1569,13 +1569,13 @@ ZSAddSecondaryIndex(struct ZS_thread_state *thrd_state,   //  client thread ZS c
 
 /*
  * Delete a secondary index
- * 
+ *
  * Index deletion is done synchronously: the function does
  * not return until the index is fully deleted.
  * Secondary index deletion is crash-safe: if ZS crashes while
  * index deletion is in progress, index deletion will be completed
  * when ZS restarts.
- * 
+ *
  * Returns: ZS_SUCCESS if successful
  *          ZS_INVALID_INDEX if index is invalid
  */
@@ -1588,7 +1588,7 @@ ZSDeleteSecondaryIndex(struct ZS_thread_state *thrd_state, //  client thread ZS 
  * Get a list of all current secondary indices.
  * Array returned in index_ids is allocated by ZS and
  * must be freed by application.
- * 
+ *
  * Returns: ZS_SUCCESS if successful
  *          ZS_xxxzzz if index_ids cannot be allocated
  */
@@ -1600,7 +1600,7 @@ ZSGetContainerIndices(struct ZS_thread_state *ts,         //  client thread ZS c
 
 /*
  * Get attributes for a particular indexid.
- * 
+ *
  * Returns: ZS_SUCCESS if successful
  *          ZS_xxxzzz if indexid is invalid
  */

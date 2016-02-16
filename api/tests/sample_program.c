@@ -29,14 +29,14 @@
  * reads properties file and sets some of the properties of ZS. It spawns
  * worker threads, where each thread creates its own container, writes
  * <key, object> pair.
- */ 
+ */
 
 #include 	<stdio.h>
 #include 	<stdlib.h>
 #include 	<string.h>
 #include 	<unistd.h>
 #include 	<pthread.h>
-#include	<zs.h>
+#include	"zs.h"
 
 #define	ZS_PROP_FILE		"config/zs_sample.prop"	//Configuration file
 #define	THREADS			1 //Number of threads
@@ -45,7 +45,7 @@
 #define NUM_OBJS			50000
 int keynumlen = 47;
 
-static char *base = "container";
+static const char *base = "container";
 
 void worker(void *arg);
 
@@ -58,8 +58,7 @@ main( )
 	ZS_status_t			status, status2;
 	pthread_t			thread_id[THREADS];
 	char				*version;
-	int				indx;
-	uint32_t		t;
+	uint32_t		t, indx;
 	uint32_t			ncg = 0;
 	const char			*path;
 	ZS_container_props_t		props;
@@ -85,9 +84,9 @@ main( )
 			ZS_PROP_FILE);
 	} else {
 		/*
-		 * Propertie were loaded from file successfully, dont overwrite
-		 * them by reading file specified in environment variable.
-		 */
+		* Propertie were loaded from file successfully, dont overwrite
+		* them by reading file specified in environment variable.
+		*/
 		unsetenv("ZS_PROPERTY_FILE");
 	}
 #endif
@@ -105,8 +104,7 @@ main( )
 	}
 
 	//Initialize per-thread ZS state for main thread.
-	if ((status = ZSInitPerThreadState(zs_state, &thd_state)) != 
-								ZS_SUCCESS) {
+	if ((status = ZSInitPerThreadState(zs_state, &thd_state)) != ZS_SUCCESS) {
 		printf("ZSInitPerThreadState failed with error %s\n",
 							ZSStrError(status));
 		return 1;
@@ -117,12 +115,11 @@ main( )
 
 	//Set size of container to 256MB and retain other values.
 	props.size_kb = CNTR_SIZE*6*1024 *1024;
-	props.flash_only = 0;
-	props.flags=2;
+	props.flash_only = (ZS_boolean_t)0;
 
 	//Create container in read/write mode with properties specified.
-	status = ZSOpenContainer(thd_state, cname, &props, 
-				  ZS_CTNR_CREATE | ZS_CTNR_RW_MODE, &cguid);
+	status = ZSOpenContainer(thd_state, cname, &props,
+			ZS_CTNR_CREATE | ZS_CTNR_RW_MODE, &cguid);
 #if 0
 	for (int i=0; i< 5000; i++) {
 		status = ZSWriteObject(thd_state, cguid, "test", 4, "test", 4, 0);
@@ -132,19 +129,19 @@ main( )
 	return 0;
 #endif
 	if (status == ZS_SUCCESS) {
-		//If created successfully, get the container properties. 
+		//If created successfully, get the container properties.
 		props.size_kb = 0;
 		status = ZSGetContainerProps(thd_state, cguid, &props);
-		printf("Container %s (cguid: %ld) created with size: %ldKB.\n", 
+		printf("Container %s (cguid: %ld) created with size: %ldKB.\n",
 						cname, cguid, props.size_kb);
 	} else {
-		printf("ZSOpenContainer (of %s) failed with %s.\n", 
+		printf("ZSOpenContainer (of %s) failed with %s.\n",
 						cname, ZSStrError(status));
 		return 1;
 	}
 	//Spawn worker threads.
 	for (indx = 0; indx <1; indx++) {
-		pthread_create(&thread_id[indx], NULL, (void *)worker,
+		pthread_create(&thread_id[indx], NULL, (void*(*)(void*))worker,
 						(void *)zs_state);
 	}
 
@@ -155,33 +152,39 @@ main( )
 	goto out;
 	return (0);
 	sleep(2);
-	status = ZSWriteObject(thd_state, cguid, "test", 4, "test", 4, 0);
-	fprintf(stderr, "Write data status: %s <--------------\n", ZSStrError(status));
+	status = ZSWriteObject(thd_state, cguid, (char*)"test", 4, (char*)"test",
+			4, 0);
+	fprintf(stderr, "Write data status: %s <--------------\n",
+			ZSStrError(status));
 	for (indx=0; indx < 2; indx++) {
 		status2 = ZSCreateContainerSnapshot(thd_state, cguid, &seq);
 		if ((status2 == ZS_SUCCESS) && indx == 0) {
 			seq1 = seq;
-			status = ZSWriteObject(thd_state, cguid, "test", 4, "testabc", 7, ZS_WRITE_MUST_EXIST);
-			fprintf(stderr, "Update data status: %s <--------------\n", ZSStrError(status));
+			status = ZSWriteObject(thd_state, cguid, (char*)"test", 4,
+					(char*)"testabc", 7, ZS_WRITE_MUST_EXIST);
+			fprintf(stderr, "Update data status: %s <--------------\n",
+					ZSStrError(status));
 		}
 	}
 	if (status2 == ZS_SUCCESS) {
 		ZSGetContainerSnapshots(thd_state, cguid, &t, &snaps);
 		fprintf(stderr, "No of snaps: %d\n", (int)t);
 		for (indx = 0; indx < t; indx++) {
-			fprintf(stderr, "snap[%d]: timestamp:%"PRId64" seqno:%"PRId64"\n", (int)indx, snaps[indx].timestamp, snaps[indx].seqno);
+			fprintf(stderr, "snap[%d]: timestamp:%" PRId64" seqno:%" PRId64
+					"\n", (int)indx, snaps[indx].timestamp, snaps[indx].seqno);
 		}
 		ZSDeleteContainerSnapshot(thd_state, cguid, seq1);
 		ZSGetContainerSnapshots(thd_state, cguid, &t, &snaps);
 		fprintf(stderr, "No of snaps: %d\n", (int)t);
 		for (indx = 0; indx < t; indx++) {
-			fprintf(stderr, "snap[%d]: timestamp:%"PRId64" seqno:%"PRId64"\n", (int)indx, snaps[indx].timestamp, snaps[indx].seqno);
+			fprintf(stderr, "snap[%d]: timestamp:%" PRId64" seqno:%" PRId64
+					"\n", (int)indx, snaps[indx].timestamp, snaps[indx].seqno);
 		}
 	}
 
 	//Flush all the cache contents created by workers.
 	ZSFlushCache(thd_state);
-	
+
 	//Get the number of containers on the device.
 	if ((status = ZSGetContainers(thd_state, cguid_list, &ncg)) !=
 								ZS_SUCCESS) {
@@ -225,18 +228,17 @@ worker(void *arg)
 	ZSInitPerThreadState(zs_state, &thd_state);
 
 	//Create container in read/write mode with properties specified.
-	props.flash_only = 0;
-	props.flags =2;
-	status = ZSOpenContainer(thd_state, cname, &props, 
-				  ZS_CTNR_RW_MODE, &cguid);
+	props.flash_only = (ZS_boolean_t)0;
+	status = ZSOpenContainer(thd_state, cname, &props,
+			ZS_CTNR_RW_MODE, &cguid);
 #if 0
 	if (status == ZS_SUCCESS) {
-		//If created successfully, get the container properties. 
+		//If created successfully, get the container properties.
 		ZSGetContainerProps(thd_state, cguid, &props);
-		printf("Container %s (cguid: %ld) created with size: %ldKB.\n", 
+		printf("Container %s (cguid: %ld) created with size: %ldKB.\n",
 						cname, cguid, props.size_kb);
 	} else {
-		printf("ZSOpenContainer (of %s) failed with %s.\n", 
+		printf("ZSOpenContainer (of %s) failed with %s.\n",
 						cname, ZSStrError(status));
 		return;
 	}
@@ -262,11 +264,14 @@ worker(void *arg)
 		*/
 		//Create initial data.
 		sprintf(dataw, "NIRANJAN_data%071d", i);
-		status = ZSWriteObject(thd_state, cguid, keyw, keylen, dataw, DATA_SIZE, 0);
+		status = ZSWriteObject(thd_state, cguid, keyw, keylen, dataw,
+				DATA_SIZE, 0);
 		if (status == ZS_SUCCESS) {
-	//		printf("%x: Key, %s, created/modified.\n", (int)pthread_self(), keyw);
+	//		printf("%x: Key, %s, created/modified.\n", (int)pthread_self(),
+	//		keyw);
 		} else {
-			printf("%x: Key, %s, couldn't be written. %s\n", (int)pthread_self(), keyw, ZSStrError(status));
+			printf("%x: Key, %s, couldn't be written. %s\n",
+					(int)pthread_self(), keyw, ZSStrError(status));
 			return;
 		}
 	}
@@ -281,12 +286,15 @@ worker(void *arg)
 			return;
 		}
 		//Create initial data.
-		status = ZSReadObject(thd_state, cguid, keyw, keylen, &dataw, &datalen);
+		status = ZSReadObject(thd_state, cguid, keyw, keylen, &dataw,
+				&datalen);
 		if (status == ZS_SUCCESS) {
-			printf("%x: Key, %s, read %s.\n", (int)pthread_self(), keyw, dataw);
+			printf("%x: Key, %s, read %s.\n", (int)pthread_self(), keyw,
+					dataw);
 			ZSFreeBuffer(dataw);
 		} else {
-			printf("%x: Key, %s, couldn't be read.\n", (int)pthread_self(), keyw);
+			printf("%x: Key, %s, couldn't be read.\n", (int)pthread_self(),
+					keyw);
 			return;
 		}
 	}
@@ -302,7 +310,8 @@ worker(void *arg)
 		if (status == ZS_SUCCESS) {
 			printf("%x: Key, %s, deleted.\n", (int)pthread_self(), keyw);
 		} else {
-			printf("%x: Key, %s, couldn't be deleted.\n", (int)pthread_self(), keyw);
+			printf("%x: Key, %s, couldn't be deleted.\n", (int)pthread_self(),
+					keyw);
 			return;
 		}
 	}
@@ -340,7 +349,7 @@ worker(void *arg)
 	}
 #endif
 	//Flush the contents of key only.
-	ZSFlushObject(thd_state, cguid, "key2", 5);
+	ZSFlushObject(thd_state, cguid, (char*)"key2", 5);
 
 
 	//Close the Container.
