@@ -610,6 +610,9 @@ adjust_chk_prd(double secs)
 bool
 is_license_valid(bool btree_loaded)
 {
+	//disabling SanDisk License check
+	return true;
+	
 	lic_data_t	data;
 	struct timespec abstime;
 	int		flag;
