@@ -1,0 +1,396 @@
+		SANDISK END USER LICENSE AGREEMENT
+
+IMPORTANT–READ  CAREFULLY: SANDISK  CORPORATION  AND/OR AN  APPLICABLE
+SUBSIDIARY  THEREOF   (COLLECTIVELY  “SANDISK”),  OR  A   THIRD  PARTY
+AUTHORIZED BY  SANDISK (“AUTHORIZED  THIRD PARTY”), HEREBY  OFFERS THE
+LEGAL  ENTITY REPRESENTED  BY THE  INDIVIDUAL ENTERING  THIS AGREEMENT
+(“LICENSEE”)  THE  TERMS  AND  CONDITIONS  OF  THE  END  USER  LICENSE
+AGREEMENT (“EULA” OR “AGREEMENT”) SET FORTH BELOW. IF LICENSEE ACCEPTS
+THE TERMS, THIS AGREEMENT SHALL CONSTITUTE A BINDING AGREEMENT BETWEEN
+LICENSEE AND SANDISK. LICENSEE MAY ACCEPT THE OFFER TO ENTER INTO THIS
+AGREEMENT BY CLICKING “ACCEPT” OR  BY DOWNLOADING, USING OR INSTALLING
+THE SOFTWARE.  THIS AGREEMENT GOVERNS LICENSEE’S LICENSE GRANT FOR THE
+“SOFTWARE” (AS DEFINED BELOW). LICENSEE MUST ACQUIRE THE LICENSE GRANT
+SEPARATELY FROM THIS  END USER LICENSE AGREEMENT.  LICENSEE SHOULD NOT
+DOWNLOAD,  INSTALL OR  OTHERWISE USE  THE  SOFTWARE IN  ANY WAY  UNTIL
+LICENSEE HAS CAREFULLY  READ THE TERMS OF THIS  AGREEMENT. IF LICENSEE
+DOES NOT  ACCEPT THIS  AGREEMENT (AND  AGREE TO ALL  ITS TERMS)  OR IF
+LICENSEE  HAS  NOT  ACQUIRED  A  LICENSE  GRANT  FROM  SANDISK  OR  AN
+AUTHORIZED THIRD PARTY,  LICENSEE SHOULD NOT DOWNLOAD,  INSTALL OR USE
+THE SOFTWARE.
+
+1. Software.
+
+a.  The   software  programs,   device  drivers,  data   and/or  other
+information delivered to Licensee  and associated with this Agreement,
+together with any bug fixes and/or  Updates (as defined in the Support
+Services Policy  available from SanDisk  or an Authorized  Third Party
+(collectively “Software”)) is provided to  Licensee under the terms of
+this Agreement. This  Agreement incorporates the terms  of the SanDisk
+order acknowledgement.  The Software  is owned  by SanDisk  and/or its
+third  party licensors  (“Licensors”).  The Software  is protected  by
+copyright laws and international copyright  treaties, as well as other
+intellectual property laws and treaties.
+
+b. Except as  provided herein or in a separate  contract with SanDisk,
+Licensee  is responsible  for  supplying all  hardware, software,  and
+services necessary to use the  Software. Licensee is fully responsible
+for training Licensee’s  personnel to use the  Software. SanDisk shall
+have no  training obligations unless  Licensee enters into  a separate
+written  contract with  SanDisk  (or an  Authorized  Third Party)  for
+installation   and/or   training   services.  Licensee   may   request
+professional  services from  SanDisk associated  with this  Agreement,
+which shall  be offered  in SanDisk’s sole  discretion subject  to the
+terms and conditions of a separate written agreement agreed to by both
+parties.
+
+2. License Grant.
+
+a. Subject to the terms and conditions contained herein (including the
+License Grant restrictions  in Section 3 below)  and Licensee’s timely
+payment of all  Software licensing fees, SanDisk grants  to Licensee a
+limited,  non-exclusive,  non-sublicensable,  non-transferable,  right
+under SanDisk’s  intellectual property rights  to install and  use the
+Software  in  executable  form  solely  for  the  Licensee’s  business
+purpose(s) as identified  in the documentation for  the licensed grant
+purchased by Licensee (the "License  Grant"). The Software is “in use”
+when it  is either  downloaded, copied, loaded  into RAM  or installed
+into the hard disk or  other permanent memory of Licensee’s designated
+server. Only  one instance  of the  Software may  be used  per License
+Grant and  Licensee must uninstall  deactivated instances. The  use of
+simultaneous  instances requires  the purchase  of additional  License
+Grants by Licensee.
+
+b.  Notwithstanding anything  to the  contrary in  this Agreement,  if
+Licensee is using the Software under an evaluation License Grant, then
+such  Software  (“Evaluation  Deliverables”) is  provided  solely  for
+internal testing for  suitability for use in  a commercial environment
+(the “Evaluation Purpose”), solely at the site identified by Evaluator
+to  SanDisk   during  download   (“Approved  Site”).   The  Evaluation
+Deliverables  are NOT  FOR PRODUCTION  USE,  and no  implied right  is
+granted in  connection with  such evaluation. For  a period  of thirty
+(30)  days  following  the  delivery of  the  Evaluation  Deliverables
+(“Evaluation Period”), SanDisk hereby grants a limited, non-exclusive,
+non-transferable,  non-sublicenseable,  revocable  right  to  use  the
+Evaluation  Deliverables  solely for  the  Evaluation  Purpose at  the
+Approved Site. Title to all  Evaluation Deliverables shall remain with
+SanDisk at  all times and  SanDisk reserves its  intellectual property
+rights.
+
+c. Subject to  Sections 2 and 3 of this  Agreement, Licensee may allow
+its Affiliates, agents and contractors  to use the Software under this
+Agreement    solely   in    furtherance    of   Licensee’s    business
+purposes. “Affiliate”  means, with respect to  any entity Controlling,
+Controlled by,  or under  common Control with  a Party.  “Control,” as
+used  in this  definition, means  more than  50% of  the ownership  of
+voting shares,  by contract, or otherwise;  but in any such  case: (a)
+such entity shall  be deemed to be  an Affiliate only so  long as such
+Control exists, and  (b) such entities that would be  considered to be
+under Control solely  as a result of being controlled  by a government
+of any sovereign country are hereby excluded.
+
+3. License Grant Restrictions.
+
+a. If Licensee breaches a material  term in this Agreement and/or uses
+(or allows the use of) the  Software in a manner not expressly allowed
+by this Agreement, and fails to  correct the breach within thirty (30)
+days  of notice,  then Licensee  is in  default of  the Agreement  and
+SanDisk may, at its option, terminate Licensee’s License Grant.
+
+b. Licensee acknowledges and agrees  that the Software is licensed and
+not sold. Except  for the rights in the Software  expressly granted to
+Licensee, SanDisk  and its  Licensors reserve  and retain  all rights,
+title, and interest  in and to the Software,  any derivatives thereto,
+and  any   corresponding  intellectual  property   (including  without
+limitation any  images, and text  incorporated into the  Software, any
+accompanying materials, and any copies  of the Software). In addition,
+SanDisk  retains  ownership  of  the   means  and  technology  of  (i)
+installation  and  (ii)  testing  of the  Software.  Licensee  is  not
+allowed,  absent SanDisk’s  prior  written authorization,  to copy  or
+otherwise reproduce the  Software, nor to install or  use the Software
+on any server,  computer or like device except the  server at the site
+Licensee  designated  during  the   downloading  process.  No  implied
+licenses are granted to Licensee.
+
+c. The Software may incorporate third party software licensed under an
+open  source  license  (“Open  Source  Software”).  Such  Open  Source
+Software  is licensed  to Licensee  under terms  provided by  the Open
+Source Software  Licensors and  not the terms  of this  Agreement, and
+Licensee  agrees   to  the   terms  of   such  Open   Source  Software
+licenses.  Licensee  may  not   modify,  adapt,  translate  or  create
+derivative  works  (e.g. new  versions)  of  the Software,  except  as
+expressly permitted  by any  applicable licenses  with respect  to any
+Open Source Software  components of the Software.  Except as expressly
+required by  licenses of  any Open Source  Software components  of the
+Software (if any), no source code is provided under this Agreement.
+
+d. To  the extent enforceable  by law,  Licensee shall not,  nor shall
+Licensee  allow any  other  party to,  reverse engineer,  disassemble,
+decompile,  rent, lease,  or encumber  the Software,  or re-create  or
+discover the  source code of the  Software. Licensee may not  embed or
+combine  the  Software  within  any other  software  product  nor  any
+unapproved  device.  Licensee’s  exercise  of any  rights  granted  to
+Licensee under this Agreement shall be at Licensee’s sole expense.
+
+e. Licensee  may not sell,  transfer, relicense, or  otherwise provide
+the Software (or any portion  thereof), including by operation of law,
+to any  third parties  or permit  third parties to  access or  use the
+Software.  Licensee  agrees  that  the  Software  is  proprietary  and
+confidential information of SanDisk  and its Licensors, which Licensee
+shall  strictly  protect  from unauthorized  dissemination  internally
+and/or disclosure  to third parties.  Licensee shall not  separate the
+Software into component  parts for sublicense, sharing,  or other form
+of transfer to a third party, or otherwise make the Software available
+in  any manner  to any  third  party for  independent use  in a  third
+party’s business operations.
+
+f. Licensee agrees not to remove  and to retain any copyright notices,
+licensing statements or list of disclaimers included with the Software
+with regard  to each copy of  the Software Licensee receives  or makes
+subject to the terms of this Agreement.
+
+g. Licensee  shall not, nor shall  Licensee allow any other  party to,
+disclose benchmarks  or other performance comparisons  of the Software
+without SanDisk’s express prior written consent.
+
+h. Licensee acknowledges that SanDisk may be irreparably harmed in the
+event  of  Licensee’s actual  or  threatened  violation of  Licensee’s
+obligations hereunder and that in  addition to other remedies to which
+it  may be  entitled, SanDisk  shall  be entitled  to seek  injunctive
+relief  or any  appropriate  decree of  specific  performance for  any
+actual or threatened violations or breach by or on Licensee’s behalf.
+
+i. Licensee grants SanDisk and its Licensors a worldwide, irrevocable,
+perpetual,  transferable,  royalty-free   right  to  use,  sublicense,
+distribute   and   modify   any   feedback   (including   information,
+suggestions,  ideas  or  comments)  provided by  Licensee  to  SanDisk
+regarding the Software.
+
+4. Support Services.
+
+If Licensee  has purchased support  services with the  Software, these
+services  will be  provided  to Licensee  under  the Support  Services
+Policy (“Policy”) available at such  URL as SanDisk may designate. The
+Policy may be  revised from time to time by  SanDisk in SanDisk’s sole
+discretion. The Policy in effect at  the time the support services are
+delivered shall  govern the terms  of SanDisk’s support  services. The
+term  for  support services  under  this  Policy shall  commence  upon
+delivery of the Software or, if  such support services are not ordered
+with  the Software,  on the  effective  date of  the support  services
+contract as mutually agreed by  Licensee and SanDisk. Any supplemental
+or  updated materials  provided to  Licensee  as part  of the  support
+services are considered part of the  Software and subject to the terms
+and conditions of this Agreement or other agreement that is applied to
+such updates.  Payment of fees  for support services does  not entitle
+Licensee to obtain rights to use  or have access to any subsequent new
+versions  or  upgrades  to  the Software;  Licensee  is  obligated  to
+purchase such rights separately if  Licensee wishes to install and use
+such new versions.
+
+5. Delivery and Access.
+
+a. Licensee  is fully responsible  for downloading and  installing the
+Software. Delivery  may be accomplished  by SanDisk (or  an Authorized
+Third Party)  (a) by electronically transmitting  Software to Licensee
+or (b)  by making Software available  for download by Licensee  from a
+protected download  site such as an  FTP site. The method  of delivery
+will be  at SanDisk’s option, as  noted on its order  confirmation. If
+the  order confirmation  is silent  on delivery,  then subsection  (b)
+above  applies. Licensee  consents to  electronic transmission  of the
+unique device identifier (UDID) of its  host device to SanDisk for the
+purpose of  identification and authentication  of the host  device and
+for other purposes  that may be necessary to  complete the transaction
+(including  sharing  such  UDID  with an  Authorized  Third  Party  if
+applicable) and  to provide information  and services relating  to the
+transaction.   Licensee  acknowledges   that   the  availability   and
+performance of  the Software may  be subject to interruption  or delay
+due to causes beyond the reasonable control of SanDisk.
+
+b. SanDisk  will invoice upon  delivery of  the Software to  either an
+Authorized  Third   Party  or  Licensee.  Except   as  required  under
+applicable law or under Licensee’s fully signed written agreement with
+SanDisk or  an Authorized Third  Party, Licensee is  fully responsible
+for payment  of all taxes, without  reduction of any fees,  charges or
+expenses paid by  Licensee or received by SanDisk with  respect to the
+Software,  including  without  limitation  sales,  use,  value  added,
+withholding or  similar taxes,  (excluding taxes based  upon SanDisk’s
+net income).
+
+6. Records and Compliance.
+
+Audit  Rights Licensee  shall maintain  complete, clear,  and accurate
+records  of: (a)  the location  and use  of each  copy and/or  running
+instance of the  Software; and (b) any other information  which may be
+reasonably  requested  by SanDisk  to  determine  whether Licensee  is
+paying correct fees and/or complying  with the terms of this Agreement
+and  shall  provide certified  copies  of  such records  at  SanDisk’s
+request. SanDisk or its representatives shall have the right, upon ten
+(10) days’ written notice, during Licensee’s normal business hours, to
+examine and  audit Licensee’s  books, records, computing  devices, and
+operations  to  verify  Licensee’s  compliance  with  applicable  law,
+regulations,  standards  organizations  and/or  this  Agreement.  Such
+examination or audit  may be performed, in  SanDisk’s sole discretion,
+onsite at Licensee’s  premises or through remote  access to Licensee’s
+systems. If  any such  examination discloses  unpaid license  or other
+fees, Licensee shall reimburse SanDisk for the full amount of any such
+unpaid license or  other fees plus interest at the  rate of the lesser
+of twelve  percent (12%) per annum  or the maximum rate  allowed under
+applicable law. Moreover,  in the event the  inspection or examination
+reveals  a violation  of  applicable law,  regulations and/or  License
+Grant  restrictions under  this  Agreement,  Licensee shall  reimburse
+SanDisk  for the  actual  reasonable costs  and  expenses incurred  in
+connection with such onsite or remote operations audit.
+
+7. DISCLAIMER OF WARRANTIES.
+
+TO THE  MAXIMUM EXTENT  PERMITTED BY APPLICABLE  LAW, THE  SOFTWARE IS
+PROVIDED “AS  IS” AND  “AS AVAILABLE” WITH  NO WARRANTIES  AND NEITHER
+SANDISK  NOR  ITS  LICENSORS  MAKE  ANY  REPRESENTATION  OR  WARRANTY,
+STATUTORY OR OTHERWISE, IN LAW OR  FROM THE COURSE OF DEALING OR USAGE
+OF  TRADE,  EXPRESS  OR  IMPLIED, INCLUDING  WITHOUT  LIMITATION,  ANY
+WARRANTIES  OF  MERCHANTABILITY,  FITNESS FOR  A  PARTICULAR  PURPOSE,
+NON-INTERFERENCE, OR NON-INFRINGEMENT OF  ANY THIRD PARTY INTELLECTUAL
+PROPERTY   RIGHTS,   OR   EQUIVALENTS    UNDER   THE   LAWS   OF   ANY
+JURISDICTION. SANDISK  DOES NOT  WARRANT THAT  THE SOFTWARE  WILL MEET
+LICENSEE’S  REQUIREMENTS OR  THAT OPERATION  OF THE  SOFTWARE WILL  BE
+UNINTERRUPTED OR  ERROR FREE. LICENSEE  ASSUMES THE ENTIRE RISK  AS TO
+THE QUALITY AND PERFORMANCE OF THE SOFTWARE. SHOULD THE SOFTWARE PROVE
+DEFECTIVE, UNLESS LICENSEE  IS CURRENT ON SUPPORT,  THEN LICENSEE, AND
+NOT SANDISK  (NOR SANDISK’S LICENSORS  OR AUTHORIZED THIRD  PARTIES IF
+APPLICABLE), ASSUMES  THE ENTIRE COST OF  NECESSARY SERVICING, REPAIR,
+OR CORRECTION.
+
+8. LIMITATION OF LIABILITY.
+
+TO THE EXTENT NOT  PROHIBITED BY LAW, IN NO EVENT  WILL SANDISK OR ITS
+LICENSORS,  NOR  THEIR   RESPECTIVE  DIRECTORS,  OFFICERS,  EMPLOYEES,
+CONSULTANTS,  LICENSORS, LICENSEES  OR AFFILIATES,  BE LIABLE  FOR ANY
+INDIRECT,  INCIDENTAL, SPECIAL,  CONSEQUENTIAL, PUNITIVE  OR EXEMPLARY
+DAMAGES,  ARISING  OUT   OF  OR  IN  CONNECTION   WITH  THE  DOWNLOAD,
+DISTRIBUTION, USE  OR PERFORMANCE OR NON-PERFORMANCE  OF THE SOFTWARE,
+EVEN  IF  SANDISK  HAS  BEEN   ADVISED  OF  THE  POSSIBILITY  OF  SUCH
+DAMAGES. IF LICENSEE IS DISSATISFIED WITH ANY PORTION OF THE SOFTWARE,
+OR WITH ANY  OF THESE TERMS OF SERVICE, LICENSEE’S  SOLE AND EXCLUSIVE
+REMEDY IS TO DISCONTINUE USING THE SOFTWARE. THE FOREGOING LIMITATIONS
+OF LIABILITY  SHALL APPLY  NOTWITHSTANDING ANY  FAILURE OF  ANY REMEDY
+PROVIDED  FOR HEREUNDER  IN ITS  ESSENTIAL PURPOSE.  IN NO  EVENT WILL
+SANDISK’S OR  ITS LICENSORS’  TOTAL LIABILITY  TO LICENSEE  EXCEED THE
+FEES PAID BY  LICENSEE FOR THE SOFTWARE. THE ABOVE  LIMITATION MAY NOT
+APPLY IN  CERTAIN JURISDICTIONS  WHICH PROHIBIT EXCLUDING  OR LIMITING
+LIABILITY FOR CONSEQUENTIAL OR INCIDENTAL DAMAGES.
+
+9. Trade Agreement Act.
+
+SanDisk Software  consists only of commercial  software and commercial
+software documentation.  Therefore, software rights  and documentation
+license rights granted to the  U.S. Government and other public sector
+entities include only those  rights customarily provided to commercial
+end-user customers.  In particular, SanDisk provides  the licenses for
+Software and documentation under this Agreement to the U.S. Government
+pursuant to FAR 12.211 (Technical Data) and 12.212 (Computer Software)
+and for the  Department of Defense pursuant to  DFARS 227.7202 (Rights
+in Commercial  Computer Software  or Computer  Software Documentation)
+and DFARS clause 252.227-7015 (Technical Data – Commercial Items) (FEB
+2014).  Any use,  modification,  reproduction, release,  distribution,
+performance, display,  or disclosure  of the  Software, documentation,
+and related items and technology provided hereunder shall be in strict
+accordance with SanDisk’s standard commercial license and/or the terms
+and  conditions  of this  Agreement,  as  applicable. If  Licensee  is
+permitted under  this Agreement  to provide Software  or documentation
+and/or related items and technology  to any third party, including any
+agency of the  U.S, or any state and local  government, Licensee shall
+include  the legend  set forth  above in  any agreement  governing the
+provision   of   such    items.   As   used   in    FAR   and   DFARS,
+manufacturer/licensor  is  SanDisk  Corporation,  951  SanDisk  Drive,
+Milpitas CA 95135.
+
+IF LICENSEE  REQUIRES TAA-COMPLIANT  PRODUCTS, IT SHALL  DISCLOSE THIS
+REQUIREMENT TO SANDISK, IN WRITING, AT THE TIME OF THE SOLICITATION OR
+REQUEST   FOR   A   QUOTE,   AND  SHALL   OBTAIN   SEPARATE,   WRITTEN
+ACKNOWLEDGEMENT   FROM  SANDISK   OF  THE   SAME.  ALL   ORDERS  SHALL
+CONSPICUOUSLY REFERENCE ANY REQUIREMENT  FOR TAA-COMPLIANT PRODUCT. If
+Licensee fails to  comply with the preceding  sentences (including, if
+SanDisk makes  no acknowledgement of the  TAA-compliance requirement),
+SanDisk  shall  have  no  liability  for  providing  non-TAA-compliant
+software, documentation, or related services.
+
+10. Assignment.
+
+Licensee may not assign or transfer  this Agreement (by contract or by
+operation of  law) or  any licenses acquired  under this  agreement in
+part or in  whole without SanDisk’s prior consent, and  any attempt to
+do so  shall be null and  void. SanDisk may freely  assign or delegate
+this Agreement.
+
+11. Term and Termination.
+
+This Agreement  commences on the  date Licensee accepts  the Agreement
+and  remains effective  until terminated.  SanDisk may  terminate this
+Agreement per the  terms of Section 3.1 above.  Licensee may terminate
+the Agreement by stopping its use of the Software and uninstalling the
+Software.  Licensee  agrees  that  if  the  Agreement  is  terminated,
+Licensee’s License Grant is terminated and Licensee shall not continue
+to use the Software.
+
+12. High Risk Activities.
+
+The Software is not fault-tolerant and is not designed or intended for
+use in hazardous environments  requiring fail-safe performance, or any
+other  application in  which the  failure of  the Software  could lead
+directly to  death, personal  injury, or  severe physical  or property
+damage  (collectively,  “High  Risk   Activities”).  SANDISK  AND  ITS
+LICENSORS DISCLAIM ANY EXPRESS OR IMPLIED WARRANTY OF FITNESS FOR HIGH
+RISK ACTIVITIES AND SHALL NOT BE LIABLE IN ANY WAY FOR ANY LIABILITIES
+OR DAMAGES ARISING FROM SUCH USE.
+
+13. Segmentation.
+
+The purchase of any License Grant is separate from any other order for
+any other SanDisk products, support and related services that Licensee
+may receive or has received  from SanDisk.Licensee’s obligation to pay
+for the License  Grant is not contingent on performance  of support or
+any other  services or delivery of  any other SanDisk products  or (b)
+support  is not  contingent on  delivery  of any  SanDisk products  or
+performance of any additional/other services.
+
+14. General.
+
+SanDisk does  not maintain protected  health information and is  not a
+“business associate” liable under the Health Insurance Portability and
+Accountability  Act  of  1996  (“HIPAA”). Licensee  has  not  retained
+SanDisk  to  perform a  HIPAA-regulated  function  and Licensee  shall
+actively restrict SanDisk’s access to any protected health information
+in Licensee’s possession. This Agreement (together with other existing
+agreements,  if any  between Licensee  and SanDisk  (or an  Authorized
+Third  Party)  associated  with  the  Software)  contains  the  entire
+understanding between the parties  with respect to Licensee’s purchase
+of a License Grant, installation and  use of the Software. If any part
+of this Agreement is found void  and unenforceable, it will not affect
+the  validity of  the balance  of this  Agreement, which  shall remain
+valid  and  enforceable according  to  its  terms. This  Agreement  is
+governed by and  construed under the laws of the  State of California,
+USA and  controlling U.S. federal  law without regard to  conflicts of
+laws  provisions thereof.  The U.N.  Convention on  Contracts for  the
+International Sale  of Goods  shall not apply  to this  Agreement. Any
+action or proceeding arising from  or relating to this Agreement shall
+be adjudicated in  the state or federal courts of  Santa Clara County,
+California,  USA,  and  the  parties hereby  agree  to  the  exclusive
+jurisdiction and  venue of such  courts. Licensee shall not  remove or
+export from the  United States or re-export from anywhere  any part of
+the Software or any direct product thereof to any country in violation
+of  U.S. Export  Administration Regulations,  or a  successor thereto,
+except in compliance with and with all licenses and approvals required
+under  applicable  export  laws  and  regulations  including,  without
+limitation, those of  the U.S. Department of  Commerce. Licensee shall
+be responsible for compliance with applicable laws for Licensee’s (and
+Licensee’s  Affiliates’ and  agents’  and contractors’)  usage of  the
+Software and shall hold SanDisk  harmless for any breach of applicable
+law  by Licensee,  Licensee’s Affiliates,  agents or  contractors. Any
+waivers,  supplements  or  amendments   of  this  Agreement  shall  be
+effective   only   if   made   using  a   mechanism   preapproved   by
+SanDisk. Licensee agrees  that the Licensors, if any,  are third party
+beneficiaries of  this Agreement to enforce  Licensee’s performance of
+the terms and conditions of this Agreement. The provisions of Sections
+1,  3, 4,  6, 7,  8,  9, 10,  11, 12,  13,  and 14  shall survive  the
+termination or expiration of this Agreement.
+
