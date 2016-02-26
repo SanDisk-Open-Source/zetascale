@@ -1,3 +1,11 @@
+/*
+ * Copyright (c) 2009-2016, SanDisk Corporation. All rights reserved.
+ * No use, or distribution, of this source code is permitted in any form or
+ * means without a valid, written license agreement with SanDisk Corp.  Please
+ * refer to the included End User License Agreement (EULA), "License" or "License.txt" file
+ * for terms and conditions regarding the use and redistribution of this software.
+ */
+
 /*	$NetBSD: tree.h,v 1.8 2004/03/28 19:38:30 provos Exp $	*/
 /*	$OpenBSD: tree.h,v 1.7 2002/10/17 21:51:54 art Exp $	*/
 /* $FreeBSD: src/sys/sys/tree.h,v 1.7 2007/12/28 07:03:26 jasone Exp $ */
