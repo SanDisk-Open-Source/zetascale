@@ -939,6 +939,22 @@ ZS_status_t ZSEnumeratePGObjects(
 	);
 
 /**
+ * @brief Enumerate All PG objects
+ *
+ * @param zs_thread_state <IN> The ZS context for which this operation applies
+ * @param cguid  <IN> container global identifier
+ * @param iterator <IN> enumeration iterator
+ * @param key <IN> pointer to key variable
+ * @param keylen <IN> pointer to key length variable
+ * @return ZS_SUCCESS on success
+ */
+ZS_status_t ZSEnumerateAllPGObjects(
+	struct ZS_thread_state *zs_thread_state,
+	ZS_cguid_t              cguid,
+	struct ZS_iterator    **iterator
+	);
+
+/**
  * @brief Container object enumration iterator
  *
  * @param zs_thread_state <IN> The ZS context for which this operation applies

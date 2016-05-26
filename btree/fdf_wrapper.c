@@ -2759,6 +2759,45 @@ ZS_status_t _ZSEnumeratePGObjects(
 }
 
 /**
+ * @brief Enumerate All PG objects
+ *
+ * @param zs_thread_state <IN> The ZS context for which this operation applies
+ * @param cguid  <IN> container global identifier
+ * @param iterator <IN> enumeration iterator
+ * @return ZS_SUCCESS on success
+ *
+ * Only hash containers are supported.
+ */
+ZS_status_t _ZSEnumerateAllPGObjects(
+	struct ZS_thread_state *zs_thread_state,
+	ZS_cguid_t              cguid,
+	struct ZS_iterator    **iterator
+	)
+{
+
+	ZS_status_t ret = bt_is_valid_cguid( cguid);
+	if (ret != ZS_SUCCESS)
+		return (ret);
+	cm_lock( cguid, READ);
+	if (IS_ZS_BTREE_CONTAINER( Container_Map[cguid].flags)) {
+		cm_unlock( cguid);
+		return (ZS_FAILURE_INVALID_CONTAINER_TYPE);
+	}
+	__zs_cont_iterator_t *itr = btree_malloc( sizeof *itr);
+	if (itr == 0) {
+		cm_unlock( cguid);
+		return (ZS_FAILURE_MEMORY_ALLOC);
+	}
+	*iterator = (void *)itr;
+	itr->cguid = cguid;
+	ret = ZSEnumerateAllPGObjects(zs_thread_state, cguid, (struct ZS_iterator **)&itr->iterator);
+	if (ret != ZS_SUCCESS)
+		free( itr);
+	cm_unlock( cguid);
+	return (ret);
+}
+
+/**
  * @brief Container object enumration iterator
  *
  * @param zs_thread_state <IN> The SDF context for which this operation applies

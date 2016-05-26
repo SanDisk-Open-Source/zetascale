@@ -177,6 +177,11 @@ static ZS_status_t
                                     uint32_t keylen);
 
 static ZS_status_t
+(*ptr_ZSEnumerateAllPGObjects)(struct ZS_thread_state *zs_thread_state,
+                                    ZS_cguid_t cguid,
+                                    struct ZS_iterator **iterator);
+
+static ZS_status_t
 (*ptr_ZSNextEnumeratedObject)(struct ZS_thread_state *zs_thread_state,
                                struct ZS_iterator *iterator,
                                char **key,
@@ -441,6 +446,7 @@ static struct {
     { "_ZSDeleteObject",               &ptr_ZSDeleteObject              },
     { "_ZSEnumerateContainerObjects",  &ptr_ZSEnumerateContainerObjects },
     { "_ZSEnumeratePGObjects",         &ptr_ZSEnumeratePGObjects        },
+    { "_ZSEnumerateAllPGObjects",      &ptr_ZSEnumerateAllPGObjects     },
     { "_ZSNextEnumeratedObject",       &ptr_ZSNextEnumeratedObject      },
     { "_ZSFinishEnumeration",          &ptr_ZSFinishEnumeration         },
     { "_ZSFlushObject",                &ptr_ZSFlushObject               },
@@ -1018,6 +1024,20 @@ ZSEnumeratePGObjects(struct ZS_thread_state *zs_thread_state,
                                                iterator,
                                                key,
                                                keylen);
+}
+
+/*
+ * ZSEnumerateAllPGObjects
+ */
+ZS_status_t
+ZSEnumerateAllPGObjects(struct ZS_thread_state *zs_thread_state,
+                             ZS_cguid_t cguid,
+                             struct ZS_iterator **iterator)
+{
+    if (unlikely(!ptr_ZSEnumerateAllPGObjects))
+        undefined("ZSEnumerateAllPGObjects");
+
+    return (*ptr_ZSEnumerateAllPGObjects)(zs_thread_state, cguid, iterator);
 }
 
 
