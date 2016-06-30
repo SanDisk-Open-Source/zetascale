@@ -15,7 +15,7 @@ done
 [ -n "${ZS_SDK_VERSION}" ] || export ZS_SDK_VERSION=2.0
 [ -n "${BUILD_NUMBER}" ] || export BUILD_NUMBER=$(date +%s)
 #
-if test -d .git; then
+if test -e .git; then
 	BRANCH=$(git rev-parse --abbrev-ref HEAD)
 	[ -n "${SVN_REVISION}" ] || export SVN_REVISION=$(git rev-list HEAD|head -c 8)
 else
