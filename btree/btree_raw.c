@@ -2077,7 +2077,7 @@ static uint64_t allocate_overflow_data(btree_raw_t *bt, btree_raw_node_t *leaf, 
 
 	ovdatasize = get_data_in_overflownode(bt);
 
-    dbg_print("datalen %ld nodesize_less_hdr: %d bt %p\n", datalen, ovdatasize, bt);
+    dbg_print("datalen %ld nodesize_less_hdr: %ld bt %p\n", datalen, ovdatasize, bt);
 
     if (!datalen)
         return(BTREE_SUCCESS);

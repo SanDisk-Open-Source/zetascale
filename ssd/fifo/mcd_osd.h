@@ -440,7 +440,7 @@ typedef struct mcd_logrec_object {
 		pad1[12];
 } mcd_logrec_object_t;
 
-#define MCD_FTH_OSD_BUF_SIZE    (1024 * 1024)
+#define MCD_FTH_OSD_BUF_SIZE    (256 * 1024)
 
 typedef struct osd_state {
     aio_state_t       * osd_aio_state;

@@ -230,7 +230,7 @@ ZS_status_t zs_read_object_lc( struct ZS_thread_state *, ZS_cguid_t, char *, uin
 ZS_status_t zs_delete_object_lc( struct ZS_thread_state *, ZS_cguid_t, char *, uint32_t);
 
 /* Keep track of max bracket slab count */
-#define MAX_TRX_BRACKET_SLAB_CNT 1000000
+#define MAX_TRX_BRACKET_SLAB_CNT 100000
 
 #ifdef __cplusplus
 }
