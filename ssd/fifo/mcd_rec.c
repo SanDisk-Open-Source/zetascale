@@ -2418,7 +2418,7 @@ int get_flog_block_size(int fd)
 	}
 
 
-	plat_assert(not_set || block_size >= block_size1);	
+	//plat_assert(not_set || block_size >= block_size1);	
 	if (not_set) {
 		block_size = block_size1;
 	}
