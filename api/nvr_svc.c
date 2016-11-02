@@ -178,6 +178,10 @@ nvr_init(struct ZS_state *zs_state)
 		nvr_oflags |= O_DIRECT | O_SYNC;
 		odirect = 1;
 	}
+	if (!getProperty_Int("ZS_NVR_HW_DURABLE", 1)) {
+		hw_durable = 0;
+		msg(INITIAL, DEBUG, "disable sync on NVRAM");
+	}
 
 	NVR_file = (char *)getProperty_String("ZS_NVR_FILENAME", NVR_DEFAULT_DEVICE);
 
