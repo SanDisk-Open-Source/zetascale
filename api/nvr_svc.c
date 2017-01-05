@@ -216,6 +216,10 @@ nvr_init(struct ZS_state *zs_state)
 
 	nvr_objsize = (off_t)getProperty_Int("ZS_NVR_OBJECT_SIZE", NVR_DEFAULT_STREAM_OBJ_SIZE);
 	n_partitions = getProperty_Int("ZS_NVR_PARTITIONS", 1);
+	if (n_partitions > 2 || n_partitions < 1) {
+		msg(INITIAL, FATAL, "Invalid number of logging container partitions: %d\n", n_partitions);
+		plat_assert(0);
+	}
 
 	partition_size = nvr_len / n_partitions;
 
