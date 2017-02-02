@@ -76,7 +76,7 @@ uint64_t bt_leaf_split_memcpy_time = 0;
 uint64_t bt_leaf_memcpy_time = 0;
 uint64_t bt_leaf_is_full = 0;
 
-int space_op_disabled = 0;
+int space_op_disabled = 1;
 
 char global_tmp_data[BTREE_MAX_NODE_SIZE/2] = {0};
 static __thread char tmp_leaf_node[BTREE_MAX_NODE_SIZE + 100] = {0};
@@ -2099,10 +2099,10 @@ btree_leaf_is_full_index(btree_raw_t *bt, btree_raw_node_t *n, char *key, uint32
 		int32_t bytes_increased = 0;
 		int32_t bytes_decreased = 0;
 		key_meta_t key_meta = {0};
-		key_meta_t key_meta_next = {0};
 		uint64_t old_datalen = 0;
 		uint64_t new_datalen = 0;
 		key_meta_type_t new_meta_type;
+		
 
 #ifdef DEBUG_BUILD
 		res = btree_leaf_find_key2(bt, n ,key, keylen, meta, &index1);
@@ -2119,17 +2119,6 @@ btree_leaf_is_full_index(btree_raw_t *bt, btree_raw_node_t *n, char *key, uint32
 		 */
 		btree_leaf_get_meta(n, index, &key_meta);
 		key_meta.compact_meta = false;
-		if (index < n->nkeys - 1) {
-			btree_leaf_get_meta(n, index + 1, &key_meta_next);
-			if (key_meta_next.meta_type == BTREE_KEY_META_TYPE1) {
-				/*
-				 * Got next key and that has compact meta.
-				 * This meta might expand as current key meta changes.
-				 */
-				bytes_needed += get_meta_type_to_size(BTREE_KEY_META_TYPE4);
-			}
-			
-		}
 
 		new_datalen = datalen;
 		old_datalen = key_meta.datalen;
@@ -2148,7 +2137,7 @@ btree_leaf_is_full_index(btree_raw_t *bt, btree_raw_node_t *n, char *key, uint32
 			old_datalen = btree_get_bigobj_inleaf(bt, keylen, old_datalen);
 		}
 
-		bytes_needed += new_datalen - old_datalen + get_meta_type_to_size(new_meta_type); 
+		bytes_needed = new_datalen - old_datalen + get_meta_type_to_size(new_meta_type); 
 		if (bytes_needed < 0) {
 			bytes_needed = 0;
 		}
