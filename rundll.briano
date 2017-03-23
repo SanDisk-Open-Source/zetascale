@@ -1,0 +1,11 @@
+#!/bin/bash -x
+export LD_LIBRARY_PATH=./output/lib
+export ZS_PROPERTY_FILE=./briano/test1.prop
+#export ZS_LICENSE_PATH=xxxzzz
+echo $LD_LIBRARY_PATH
+echo $ZS_PROPERTY_FILE
+echo $ZS_LICENSE_PATH
+
+gcc -rdynamic -std=c99 -Iapi -I. -o sample_program sample_program.c ./output/lib/libzsdll.a -L output/lib/ -ldl -lpthread -lsnappy -laio -levent -lrt 
+
+./sample_program

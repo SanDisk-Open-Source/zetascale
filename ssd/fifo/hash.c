@@ -41,7 +41,7 @@ extern uint64_t
 hashb(const unsigned char *key, uint64_t keyLength, uint64_t level);
 
 extern int
-mcd_onflash_key_match(void *context, mcd_osd_shard_t * shard, uint64_t addr, char *key, int key_len);
+mcd_onflash_key_match(void *context, mcd_osd_shard_t * shard, uint64_t addr, char *key, int key_len, int flags);
 
 int storm_mode;
 uint32_t
@@ -193,6 +193,38 @@ hash_table_init ( uint64_t total_size, uint64_t max_nobjs, int mode, int key_cac
 		}
         log_msg ( PLAT_LOG_ID_INITIAL, PLAT_LOG_LEVEL_INFO,
             "key cache initialized, size=%lu", curr_alloc_sz);
+    }
+
+    /* Initialize write serializer key cache (B-tree 8 byte node logical id cache) */
+    hdl->ws_key_cache = NULL;
+    if(key_cache) {
+        curr_alloc_sz = (total_size / Mcd_osd_segment_size + 1) * sizeof(uint64_t *);
+
+        hdl->ws_key_cache = (uint64_t **) plat_alloc_large(curr_alloc_sz);
+
+        if (!hdl->ws_key_cache) {
+            log_msg ( PLAT_LOG_ID_INITIAL, PLAT_LOG_LEVEL_ERROR,
+                    "failed to allocate ws key cache");
+            goto bad;
+        }
+        memset( (void *) hdl->ws_key_cache, 0, curr_alloc_sz);
+
+        hdl->total_alloc += curr_alloc_sz;
+
+		if (!storm_mode) {
+			uint64_t	total_blks = total_size / Mcd_osd_blk_size;
+			uint64_t	blkno, seg, *ptr;
+
+
+			curr_alloc_sz = total_blks * sizeof(uint64_t);
+			ptr = (uint64_t *)plat_alloc_large(curr_alloc_sz);
+
+			for (blkno = 0, seg = 0; blkno < total_blks; blkno += Mcd_osd_segment_blks, seg++) {
+				hdl->ws_key_cache[seg] = &ptr[blkno];
+			}
+		}
+        log_msg ( PLAT_LOG_ID_INITIAL, PLAT_LOG_LEVEL_INFO,
+            "ws key cache initialized, size=%lu", curr_alloc_sz);
     }
 
     /*
@@ -456,7 +488,7 @@ hash_table_dump( void *context, hash_handle_t * hdl)
  * verify key with on-flash meta.
  */
 hash_entry_t *
-hash_table_get (void *context, hash_handle_t *hdl, char *key, int key_len, cntr_id_t cntr_id)
+hash_table_get (void *context, hash_handle_t *hdl, char *key, int key_len, cntr_id_t cntr_id, int flags)
 {
     uint32_t          bucket_idx;
     uint64_t          syndrome, tmpkey;
@@ -494,22 +526,22 @@ hash_table_get (void *context, hash_handle_t *hdl, char *key, int key_len, cntr_
                 continue;
             }
 
-            if(key_len == 8 && hdl->key_cache &&
-					(tmpkey = keycache_get(hdl, hash_entry->blkaddress)) != 0) {
+            if (key_len == 8 && hdl->key_cache &&
+					(tmpkey = keycache_get(hdl, hash_entry->blkaddress, flags)) != 0) {
                 if(*((uint64_t*)key) != tmpkey) {
                     continue;
                 }
             } else {
                 if (mcd_onflash_key_match(context, hdl->shard,
-                            hash_entry->blkaddress, key, key_len) != TRUE){
+                            hash_entry->blkaddress, key, key_len, flags) != TRUE){
                     continue;
                 } 
 #if 0
 				else {
 					//if this is the first read and not updated in key_cache, update it.
 					if(key_len == 8 && hdl->key_cache &&
-							(tmpkey = keycache_get(hdl, hash_entry->blkaddress)) == 0) {
-						keycache_set(hdl, hash_entry->blkaddress, *(uint64_t *)key);
+							(tmpkey = keycache_get(hdl, hash_entry->blkaddress, flags)) == 0) {
+						keycache_set(hdl, hash_entry->blkaddress, *(uint64_t *)key, flags);
 					}
 				}
 #endif
@@ -1151,7 +1183,7 @@ unlock_iret(wait_t *wait, int ret)
 }
 
 void
-keycache_set(hash_handle_t *hdl, uint64_t blkaddr, uint64_t key)
+keycache_set(hash_handle_t *hdl, uint64_t blkaddr, uint64_t key, int flags)
 {
 	uint64_t seg = blkaddr / Mcd_osd_segment_blks;
 	uint64_t blkoff = blkaddr % Mcd_osd_segment_blks;
@@ -1159,31 +1191,57 @@ keycache_set(hash_handle_t *hdl, uint64_t blkaddr, uint64_t key)
 
 	//Most of callers expect value to be set in keycache. So, mem allocation
 	//shouldnt fail.
-	while (!hdl->key_cache[seg]) { //storm mode
-		curr_alloc_sz = Mcd_osd_segment_blks * sizeof(uint64_t);
-		hdl->key_cache[seg] = (uint64_t *)plat_alloc(curr_alloc_sz);
-		memset( (void *) hdl->key_cache[seg], 0, curr_alloc_sz);
-	}
 
-	plat_assert(hdl->key_cache[seg]);
-	if (hdl->key_cache[seg]) {
-		uint64_t	*segent = hdl->key_cache[seg];
-		segent[blkoff] = key;
+        if ((flags & FLASH_GET_SERIALIZED) ||
+            (flags & FLASH_PUT_SERIALIZED))
+	{
+	    while (!hdl->ws_key_cache[seg]) { //storm mode
+		    curr_alloc_sz = Mcd_osd_segment_blks * sizeof(uint64_t);
+		    hdl->ws_key_cache[seg] = (uint64_t *)plat_alloc(curr_alloc_sz);
+		    memset( (void *) hdl->ws_key_cache[seg], 0, curr_alloc_sz);
+	    }
+
+	    plat_assert(hdl->ws_key_cache[seg]);
+	    if (hdl->ws_key_cache[seg]) {
+		    uint64_t	*segent = hdl->ws_key_cache[seg];
+		    segent[blkoff] = key;
+	    }
+	} else {
+	    while (!hdl->key_cache[seg]) { //storm mode
+		    curr_alloc_sz = Mcd_osd_segment_blks * sizeof(uint64_t);
+		    hdl->key_cache[seg] = (uint64_t *)plat_alloc(curr_alloc_sz);
+		    memset( (void *) hdl->key_cache[seg], 0, curr_alloc_sz);
+	    }
+
+	    plat_assert(hdl->key_cache[seg]);
+	    if (hdl->key_cache[seg]) {
+		    uint64_t	*segent = hdl->key_cache[seg];
+		    segent[blkoff] = key;
+	    }
 	}
 }
 
 uint64_t
-keycache_get(hash_handle_t *hdl, uint64_t blkaddr)
+keycache_get(hash_handle_t *hdl, uint64_t blkaddr, int flags)
 {
 	uint64_t seg = blkaddr / Mcd_osd_segment_blks;
 	uint64_t blkoff = blkaddr  % Mcd_osd_segment_blks;
 
-	if (hdl->key_cache[seg]) {
-		uint64_t	*segent = hdl->key_cache[seg];
+        if ((flags & FLASH_GET_SERIALIZED) ||
+            (flags & FLASH_PUT_SERIALIZED))
+	{
+	    if (hdl->ws_key_cache[seg]) {
+		uint64_t  *segent = hdl->ws_key_cache[seg];
 		return segent[blkoff];
+	    }
+	} else {
+	    if (hdl->key_cache[seg]) {
+		uint64_t  *segent = hdl->key_cache[seg];
+		return segent[blkoff];
+	    }
 	}
-	return 0;
 
+	return 0;
 }
 
 void
@@ -1192,6 +1250,8 @@ keycache_free(hash_handle_t *hdl)
 	if (!storm_mode) {
 		plat_free_large(hdl->key_cache[0]);
 		plat_free(hdl->key_cache);
+		plat_free_large(hdl->ws_key_cache[0]);
+		plat_free(hdl->ws_key_cache);
 	} else {
 	}
 }	

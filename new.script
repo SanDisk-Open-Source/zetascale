@@ -1,0 +1,8 @@
+Script started on Mon 14 Nov 2016 12:57:14 PM CST
+]0;parallels@centos-7-va:~/src/zs/sdf]7;file://centos-7-va.shared/home/parallels/src/zs/sdf[?1034h[parallels@centos-7-va sdf]$ ./run1
+bash: ./run1: No such file or directory
+]0;parallels@centos-7-va:~/src/zs/sdf]7;file://centos-7-va.shared/home/parallels/src/zs/sdf[parallels@centos-7-va sdf]$ cd ../run
+]0;parallels@centos-7-va:~/src/zs/run]7;file://centos-7-va.shared/home/parallels/src/zs/run[parallels@centos-7-va run]$ ./run1[K[K[K[K[K[Kexit
+exit
+
+Script done on Mon 14 Nov 2016 12:57:23 PM CST

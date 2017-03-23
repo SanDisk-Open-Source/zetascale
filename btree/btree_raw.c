@@ -103,8 +103,10 @@
 
 //  Define this to include detailed debugging code
 //#define BTREE_RAW_CHECK
+#define DEBUG_STUFF
 #ifdef DEBUG_STUFF
-static int Verbose = 1;
+// static int Verbose = 1;
+static int Verbose = 0;
 #else
 static int Verbose = 0;
 #endif
@@ -725,8 +727,8 @@ node_lock(btree_raw_mem_node_t* node, int write_lock)
 	else
 		plat_rwlock_rdlock(&node->lock);
 #ifdef DEBUG_STUFF
-	if(write_lock)
-		node->lock_id = pthread_self();
+	// if(write_lock)
+	// 	node->lock_id = pthread_self();
 #endif
 }
 
@@ -734,8 +736,8 @@ void
 node_unlock(btree_raw_mem_node_t* node)
 {
 #ifdef DEBUG_STUFF
-	if(no_lock) return;
-	node->lock_id = 0;
+	// if(no_lock) return;
+	// node->lock_id = 0;
 #endif
 //	assert(node->lock.__data.__writer != 0 || node->lock.__data.__nr_readers > 0);
 //	assert(node->lock.__data.__writer != 0 && 
@@ -2077,7 +2079,7 @@ static uint64_t allocate_overflow_data(btree_raw_t *bt, btree_raw_node_t *leaf, 
 
 	ovdatasize = get_data_in_overflownode(bt);
 
-    dbg_print("datalen %ld nodesize_less_hdr: %ld bt %p\n", datalen, ovdatasize, bt);
+    dbg_print("datalen %ld nodesize_less_hdr: %d bt %p\n", datalen, ovdatasize, bt);
 
     if (!datalen)
         return(BTREE_SUCCESS);
@@ -3182,7 +3184,7 @@ static btree_raw_mem_node_t* add_l1cache(btree_raw_t *btree, uint64_t logical_id
     node->modified = 0;
     node->flag = 0;
 #ifdef DEBUG_STUFF
-    node->last_dump_modified = 0;
+    // node->last_dump_modified = 0;
 #endif
     node->pinned = pinned;
     node->cache_valid = false;
@@ -3569,9 +3571,9 @@ btree_raw_mem_node_t *create_new_node(btree_raw_t *btree, uint64_t logical_id,
     assert(n);
 
     n->deref_delete_cache = false; /* New node should be in l1cache. Its for writes */
-    n->pnode->logical_id = logical_id;
-    n->pnode->flags = leaf_flag;
-    n->cache_valid = true;
+    n->pnode->logical_id        = logical_id;
+    n->pnode->flags             = leaf_flag;
+    n->cache_valid              = true;
 
     /*
      * Zero out pstats for new node
@@ -8536,7 +8538,7 @@ static void dump_node_low(btree_raw_t *bt, FILE *f, btree_raw_node_t *n, char *k
 	for (i=0; i<n->nkeys; i++) {
 	    get_key_stuff(bt, n, i, &ks);
 	    n_child = get_existing_node(&ret, bt, ks.ptr, 0, LOCKTYPE_NOLOCK); 
-            if(n_child->modified != n_child->last_dump_modified)
+            // if(n_child->modified != n_child->last_dump_modified)
             {
 	    if (bt->flags & SYNDROME_INDEX) {
 	        sprintf(stmp, "%p", ks.pkey_val);
@@ -8544,17 +8546,17 @@ static void dump_node_low(btree_raw_t *bt, FILE *f, btree_raw_node_t *n, char *k
 	    } else {
 		dump_node(bt, f, n_child->pnode, ks.pkey_val, ks.keylen);
 	    }
-            n_child->last_dump_modified = n_child->modified;
+            // n_child->last_dump_modified = n_child->modified;
             }
             deref_l1cache_node(bt, n_child);
 	}
 	assert(n->rightmost != 0);
 	if (n->rightmost != 0) {
 	    n_child = get_existing_node(&ret, bt, n->rightmost, 0, LOCKTYPE_NOLOCK); 
-            if(n_child->modified != n_child->last_dump_modified)
+            // if(n_child->modified != n_child->last_dump_modified)
             {
 	    dump_node(bt, f, n_child->pnode, "==RIGHT==", 9);
-            n_child->last_dump_modified = n_child->modified;
+            // n_child->last_dump_modified = n_child->modified;
             }
             deref_l1cache_node(bt, n_child);
 	}
@@ -8594,10 +8596,10 @@ no_lock = 1;
 	fprintf(f, "*********************************************\n");
     }
     
-    if(n->modified != n->last_dump_modified)
+    // if(n->modified != n->last_dump_modified)
     {
         dump_node_low(bt, f, n->pnode, "===ROOT===", 10);
-        n->last_dump_modified = n->modified;
+        // n->last_dump_modified = n->modified;
     }
 
     dump_line(f, NULL, 0);

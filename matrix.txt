@@ -1,0 +1,12 @@
+
+variables:
+   - object size
+   - rd/wr ratio
+   - L1 cache size
+   - log sync
+   - stripe size
+   - node size
+   - # stripe bufs
+   - md variations
+   - 
+

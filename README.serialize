@@ -1,0 +1,151 @@
+
+              ZS Write Serialization Prototype Notes
+                           11/10/16  
+               Brian O'Krafka brian.okrafka@sandisk.com
+
+Quick Start
+-----------
+
+On lab machine 10.60.194.95:
+
+      /home/ems/briano/sdf: 
+          - code base
+          - zstestz.c: performance test program
+          - to build: ./build_zs_sdk.sh --optimize
+
+      /home/ems/briano/run: 
+          - run scripts for zstestz.c performance test
+          - run.fio is main run script (with 11 parameters!)
+          - example use: ./runws
+
+
+New ZetaScale Properties
+------------------------
+
+ZS_WRITE_SERIALIZATION_DEVICE
+ZS_WRITE_SERIALIZATION_BATCH_DEVICE
+ZS_WRITE_SERIALIZATION_MB
+ZS_USE_NEW_GC
+
+    Eg:
+        ZS_WRITE_SERIALIZATION_DEVICE = /dev/fiod
+        ZS_WRITE_SERIALIZATION_BATCH_DEVICE = /dmp/zs_wsbatch
+        ZS_WRITE_SERIALIZATION_MB = 100000
+        ZS_USE_NEW_GC = 0
+
+
+Important Existing ZetaScale Properties 
+---------------------------------------
+
+- disable compression (ZS_COMPRESSION = 0)
+- must use non-storm mode (ZS_STORM_MODE = 0)
+- must reformat (ZS_REFORMAT = 1)
+- ZS_FLASH_SIZE should be slightly larger than write serialization mb
+        Eg: 
+            ZS_FLASH_SIZE = 120G
+            ZS_WRITE_SERIALIZATION_MB = 100000
+- disable soft limit check (ZS_DISABLE_SOFT_LIMIT_CHECK = 1)
+
+    Eg:
+        ZS_COMPRESSION = 0
+        ZS_STORM_MODE = 0
+        ZS_REFORMAT = 1
+        ZS_FLASH_SIZE = 120G
+        ZS_WRITE_SERIALIZATION_MB = 100000
+        ZS_DISABLE_SOFT_LIMIT_CHECK = 1
+
+
+Write Serializer Environment Variables
+--------------------------------------
+
+       WS_GC_THREADS: size of garbage collection threadpool (~1 per client thrd)
+       WS_IO_THREADS: size of I/O writer threadpool (~1 per client thrd)
+      WS_STRIPE_BUFS: number of stripe buffers in flight (~1 per client thrd)
+       WS_PERCENT_OP: over-provisioning for write serialization garbage 
+                      collection
+    WS_DEVICE_MBYTES: size of write serialization device 
+     WS_CHUNK_KBYTES: size of write serialization stripe in kilobytes
+         WS_TRACE_ON: enable detailed tracing if non-zero
+       WS_BATCH_SIZE: max size of batch commits; if zero, disable batch commit
+   WS_CHECK_INTERVAL: if non-zero, do detailed checks on an 
+                      interval basis (in units of stripe writes)
+WS_STRIPE_DUMP_USECS: interval between stripe table dumps 
+                      (128kB is dumped at a time)
+   WS_STATS_INTERVAL: dump stats at this interval (seconds)
+       WS_STATS_FILE: file in which to dump periodic stats 
+                      (in addition to stderr)
+    WS_STATS_DEVICES: list of I/O devices on which to collect stats
+WS_STEADY_STATE_SECS: time at which steady-state begins for stats collection
+
+    Eg:
+        export WS_GC_THREADS=32
+        export WS_IO_THREADS=32
+        export WS_STRIPE_BUFS=32
+        export WS_PERCENT_OP=28
+        export WS_DEVICE_MBYTES=100000 (overrides ZS_WRITE_SERIALIZATION_MB)
+        export WS_CHUNK_KBYTES=256
+        export WS_TRACE_ON=0
+        export WS_BATCH_SIZE=0  (batch commit disabled if 0)
+        export WS_CHECK_INTERVAL=0
+        export WS_STRIPE_DUMP_USECS=2000
+        export WS_STATS_INTERVAL=10
+        export WS_STATS_FILE=stats_file_name
+        export WS_STATS_DEVICES=fiod,fioc,fiob
+        export WS_STEADY_STATE_SECS=30
+
+
+Stripe Table Dumping
+--------------------
+
+How to set WS_STRIPE_DUMP_USECS?
+
+The stripe table dumper "trickles-out" the stripe
+table at a configurable rate.  Since the stripe table
+just tracks the emptiness of stripes, it does not have
+to be precise in the event of a crash.  The scrubber
+ensures that the stripe table eventually corrects itself
+after a crash recovery.
+
+The stripe table dumper dumps 128kB of table every
+WS_STRIPE_DUMP_USECS.  There 12B per table entry, 
+and 1 table entry per stripe:
+
+    stripe_tbl_size =  device_bytes/stripe_bytes * entry_bytes
+
+    Eg:  1TB/256kB *12B ~ 50MB table for 1TB of storage
+
+Rule-of-thumb: dump entire stripe table once every time 10% of storage
+capacity is written.  This means that the stripe table emptiness counts
+will be inaccurate for at most 10% of the storage.
+
+    Eg:  100GB of storage at 1GB/s write rate
+         - dump stripe table once per 10GB written (10 sec at 1GB/s)
+         - stripe table size: 100GB/256kB*12B ~ 5MB
+         - 5MB/128kB = 40 
+         - must dump 40 x 128kB chunks every 10 secs
+         - 10 sec/40 = 0.25s between dumps
+         - set WS_STRIPE_DUMP_USECS <= 250000
+
+
+Creating a Write-Serialized Container
+-------------------------------------
+
+- You must set the ZS_SERIALIZED_CTNR and ZS_DATA_IN_LEAVES_CTNR flags
+  in the container properties structure.
+- See use of ZSOpenContainer in 10.60.194.95:/home/ems/briano/sdf/zstestz.c.
+
+    Eg:
+        //Create container in read/write mode with properties specified.
+        status = ZSLoadCntrPropDefaults(&props);
+        assert(status == ZS_SUCCESS);
+        props.flash_only = 1;
+        if (Serialize) {
+            props.flags = ZS_SERIALIZED_CTNR|ZS_DATA_IN_LEAVES_CTNR;
+        } else {
+            props.flags = 0;
+        }   
+        props.size_kb    = 0;
+        status = ZSOpenContainer(thd_state, cname, &props,·
+                                  ZS_CTNR_RW_MODE|ZS_CTNR_CREATE, &cguid);
+
+

@@ -1,0 +1,90 @@
+Remember to:
+    - re-enable license checking thread!
+    - change cfg->n_stripe_bufs back to normal value in ws/ws.c
+    - change WS_MAX_STRIPE_SIZE to normal value in ws/ws.h
+
+8/25/16
+-------
+    - btree_raw.c:  delete_node_cb is called using create_node_data!
+
+8/30/16
+-------
+    - nvr_??: __sync...   fetch and replace: wrong!!!!
+
+8/31/16
+-------
+    - Assume number of btree hash partitions is 1!
+    - Stash cguid in btree raw node stats array.
+
+9/1/16
+------
+    - Sector bytes is hardcoded to 512 in WSStart() in ws/ws.c.
+    - cntr_id_t is 2B, but ZS_cguid_t is 8B, and one is 
+      assigned to the other!
+
+9/7/16
+------
+    - Get rid of one-time use per-thread state for initializing
+      write serializer in fdf.c.
+    - What about DRAM caching when data is not in leaves?
+    - Fix node size, key size and key buf settings in fdf_ws.c.
+    - Where are per-thread-states for gc and WSStart destroyed
+      at shutdown?
+    - ?Add stuff to create serialized containers from property file?
+    - mcd_osd_flash_get() calls memmove() to strip off metadata!!!
+    - How does mcd_osd check_map and __zs_check_mode_on work?
+    - Add support for mcd_osd_flash_put_v().
+
+9/12/16:
+--------
+    - sdf/btree/tests/CMakeLists.txt: must put "rt" before aio
+      in linker config line.  For some reason, src/zsbak files
+      didn't have it!
+
+9/14/16:
+--------
+    - Is cfg->gc_per_read_bytes not used in ws/ws.c?
+    - Jira for ZS log checksum bug.
+    - ws_stripe_buf buf field must be sector aligned.
+      Can I assume 512B alignment is sufficient?
+    - fdf_ws.c: "true" argument to bt_get_btree_from_cguid()?
+
+9/16/16:
+--------
+    - Fix broken code in mcd_rec.c.
+
+9/27/16:
+--------
+    - alat table must be extended to support variable sized I/O.
+
+9/28/16:
+--------
+    - Serialized containers must disable the soft limit check in fdf_wrapper.c.
+      This can be done by setting the property ZS_DISABLE_SOFT_LIMIT_CHECK=1.
+      See code for manipulating blk_consumed: it is currently nevered 
+      reduced because the slab reclamation function isn't called on the
+      write serialization path.
+
+9/29/15:
+--------
+    - addr_table and hash table size are based on legacy ZS flash device
+      size: these must be decoupled for write serialized containers.
+
+10/7/16:
+--------
+    - mbox.[ch]: mail is handled in LIFO order, not FIFO!!!!!!!
+
+10/12/16:
+---------
+    - How can I guarantee that the first write to a GC'd stripe buffer has room for even
+      one write (let alone an overflow write from the previous curbuf)?
+
+10/20/16:
+---------
+    - Some calls to asprintf (eg: ssd/fifo/mcd_rec2.c:906) don't free string created by asprintf.
+
+
+
+
+
+

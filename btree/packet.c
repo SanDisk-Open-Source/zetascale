@@ -18,7 +18,6 @@
 //----------------------------------------------------------------------------
 
 
-
 #include	<sys/types.h>
 #include	<sys/stat.h>
 #include	<fcntl.h>
@@ -65,6 +64,7 @@ rec_packet_t	*
 recovery_packet_open( uint cguid)
 {
 
+        int ret;
 	rec_packet_t *r = 0;
 	char *file = packetname( cguid);
 	unless ((access( file, F_OK) == 0)
@@ -74,7 +74,7 @@ recovery_packet_open( uint cguid)
 	else {
 		zsmessage( 'I', "loading recovery packet %s", file);
 		char *cmd;
-		asprintf( &cmd, "gunzip < '%s'", file);
+		ret = asprintf( &cmd, "gunzip < '%s'", file);
 		unless ((cmd)
 		and (r = malloc( sizeof *r)))
 			nomem( );
@@ -138,10 +138,11 @@ void
 recovery_packet_delete( uint cguid)
 {
 
+        int   ret;
 	char *file = packetname( cguid);
-	int fd = open( file, O_WRONLY|O_TRUNC);
+	int   fd = open( file, O_WRONLY|O_TRUNC);
 	unless (fd < 0) {
-		ftruncate( fd, 0);
+		ret = ftruncate( fd, 0);
 		fdatasync( fd);
 		close( fd);
 	}
@@ -154,6 +155,7 @@ stats_packet_t	*
 stats_packet_open( uint cguid)
 {
 
+        int   ret;
 	stats_packet_t *s = 0;
 	char *file = statspacketname( cguid);
 	unless ((access( file, F_OK) == 0)
@@ -163,7 +165,7 @@ stats_packet_open( uint cguid)
 	else {
 		zsmessage( 'I', "loading stats packet %s", file);
 		char *cmd;
-		asprintf( &cmd, "gunzip < '%s'", file);
+		ret = asprintf( &cmd, "gunzip < '%s'", file);
 		unless ((cmd)
 		and (s = malloc( sizeof *s)))
 			nomem( );
@@ -219,10 +221,11 @@ void
 stats_packet_delete( uint cguid)
 {
 
+        int   ret;
 	char *file = statspacketname( cguid);
-	int fd = open( file, O_WRONLY|O_TRUNC);
+	int   fd = open( file, O_WRONLY|O_TRUNC);
 	unless (fd < 0) {
-		ftruncate( fd, 0);
+		ret = ftruncate( fd, 0);
 		fdatasync( fd);
 		close( fd);
 	}
@@ -347,11 +350,12 @@ statsreadline( stats_packet_t *s)
 static char	*
 packetname( uint cguid)
 {
+        int      ret;
 	char	*crashdir,
 		*file;
 
 	ZSTransactionService( 0, 3, &crashdir);
-	asprintf( &file, "%s/cguid-%d.gz", crashdir, cguid);
+	ret = asprintf( &file, "%s/cguid-%d.gz", crashdir, cguid);
 	unless (file)
 		nomem( );
 	return (file);
@@ -361,11 +365,12 @@ packetname( uint cguid)
 static char	*
 statspacketname( uint cguid)
 {
+        int      ret;
 	char	*crashdir,
 		*file;
 
 	ZSTransactionService( 0, 3, &crashdir);
-	asprintf( &file, "%s/stats-cguid-%d.gz", crashdir, cguid);
+	ret = asprintf( &file, "%s/stats-cguid-%d.gz", crashdir, cguid);
 	unless (file)
 		nomem( );
 	return (file);
@@ -401,11 +406,12 @@ nomem( )
 static void
 zsmessage( char level, char *mesg, ...)
 {
+        int     ret;
 	va_list	va;
 	char	*s;
 
 	va_start( va, mesg);
-	vasprintf( &s, mesg, va);
+	ret = vasprintf( &s, mesg, va);
 	va_end( va);
 	if (s)
 		switch (level) {

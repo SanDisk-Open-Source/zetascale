@@ -4790,7 +4790,7 @@ delete_all_objects( pai_t *pai, shard_t *sshard, cguid_t cguid)
 	SDF_durability_level_t durlevel = SDF_FULL_DURABILITY;
 	if (cguid > 3) {
 		SDF_container_meta_t meta;
-		if (name_service_get_meta( pai, cguid, &meta ) != ZS_SUCCESS)
+		if (name_service_get_meta( pai, cguid, &meta ) != SDF_SUCCESS)
 			return;
 		durlevel = meta.properties.durability_level;
 	}
@@ -4833,7 +4833,7 @@ delete_all_objects( pai_t *pai, shard_t *sshard, cguid_t cguid)
 							log.seqno = rep_seqno_get((struct shard *)shard);
 						else
 							log.seqno = __sync_add_and_fetch( &shard->sequence, 1);
-						mcd_fth_osd_remove_entry( shard, hash_entry, TRUE, true);
+						mcd_fth_osd_remove_entry( shard, hash_entry, TRUE, true, 0 /* flags */);
 						log_write( shard, &log);
 						if (!storm_mode) {
 							plat_assert(i == hash_idx/OSD_HASH_BUCKET_SIZE);

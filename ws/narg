@@ -1,0 +1,1583 @@
+/**********************************************************************
+ *
+ *  ws.c   8/29/16   Brian O'Krafka   
+ *
+ *  Write serializer module for ZetaScale b-tree.
+ *
+ * (c) Copyright 2016  Western Digital Corporation
+ *
+ *  Notes:
+ *  - Make striping more sophisticated.
+ *  - Does GC of a stripe have to be done transactionally? NO!
+ *  - Should you use dedicated stripes for GC?  (this solves the
+ *    problem of avoiding device-to-device xcopy's)
+ *  - xxxzzz where is quota enforced? (to maintain desired OP)
+ *  - xxxzzz what about versioning stuff?
+ *  - do GC buffers have to be in nvram and replicated?
+ *  - xxxzzz make sure that pse->cnt is only updated using
+ *    __sync_fetch_and_add!
+ *  - xxxzzz zero out any unused bytes at end of stripe?
+ *
+ *
+ *  How deref_l1cache() uses the write serializer API:
+ *
+ *    - deref_... is called with a list of modified nodes
+ *      and a list of deleted nodes.
+ *    - It needs to be extended to include a pointer to the
+ *      data pointer within a leaf node corresponding to
+ *      the data item whose mapping is stored in the b-tree.
+ *      (this is only needed when ZS is used as a metadata
+ *      store for a block storage system).
+ *    - deref_... writes out the modified nodes using
+ *      write_node_cb.  This currently calls ZSWriteObjects().
+ *    - write_node_cb must be changed to: 
+ *          - call WSWrite(), which will return the LBA at 
+ *            which the data is written.
+ *          - call ZSHashMap(), which will create/update the
+ *            key-to-LBA mapping for the data key.  ZSHashMap()
+ *            will return the old addr for the mapping if this
+ *            is an update.
+ *          - If this is an update, write_node_cb must call
+ *            WSDelete() for the old data address (so that
+ *            free space is properly accounted for in the
+ *            write serializer!).
+ *
+ *   Assume a separate instance of write serializer per
+ *   storage pool.
+ *
+ *   Storage addressing scheme:
+ *     - 512B sector resolution
+ *     - "client" 64-bit addresses are byte-granularity pool addresses
+ *
+ *  Stripe buffer states (in order of transitions):
+ *  These must be persisted at transitions (via nvram) 
+ *  and are used for recovery
+ *  xxxzzz checksums to detect torn nodes/data during recovery?
+ *
+ *   Unused
+ *   Open
+ *   Closed_pending_io
+ *   Available_for_gc
+ *   Compacted_but_transient
+ *   Compacted_and_ready
+ *
+ **********************************************************************/
+
+#define WS_C
+
+#include <time.h>
+#include <stdarg.h>
+#include <sys/syscall.h>
+#include "threadpool_internal.h"
+#include "stats2.h"
+#include "mbox.h"
+#include "lat_internal.h"
+#include "ws_internal.h"
+
+static int WSReadOnly = 0;
+static int WSDoChecks = 1; // xxxzzz disable this or make configurable
+static int WSTraceOn  = 0;
+
+static void goto_readonly()
+{
+    WSReadOnly = 1;
+}
+
+__thread long WSThreadId=0;
+
+static long get_tid()
+{
+    if (WSThreadId == 0) {
+        WSThreadId = syscall(SYS_gettid);
+    }
+    return(WSThreadId);
+}
+
+#define STRIPE_KEY_SIZE  200
+
+#define TRACE(ps, fmt, args...) \
+    if ((ps)->trace_on) { \
+        tracemsg(fmt, ##args); \
+    }
+
+#define DOSTAT(ps, nstat, val) \
+    __sync_fetch_and_add(&((ps)->stats.stat[nstat]), val);
+
+static void tracemsg(char *fmt, ...);
+static void infomsg(char *fmt, ...);
+static void errmsg(char *fmt, ...);
+static void panicmsg(char *fmt, ...);
+static int stripe_tbl_adjust_count(ws_state_t *ps, uint64_t addr, uint32_t size);
+static uint64_t stripe_from_addr(ws_state_t *pst, uint64_t addr);
+static uint64_t addr_from_stripe(ws_state_t *pst, uint64_t n_stripe);
+
+static int check_config(ws_config_t *cfg);
+static int format_stripe_tbl(struct ZS_thread_state *pzst, ws_state_t *ps);
+static int recover_stripe_tbl(struct ZS_thread_state *pzst, ws_state_t *ps);
+static int check_fill_group_percents(ws_fill_groups_t *pfg);
+static int persist_stripe_tbl(struct ZS_thread_state *pzst, ws_state_t *ps);
+static int do_point_read(ws_state_t *ps, void *pdata, uint64_t addr, uint32_t size);
+static uint32_t get_group(ws_state_t *ps, uint32_t cnt);
+static int do_stripe_write(ws_state_t *ps, ws_stripe_buf_t *sbuf, int syncflag);
+static int do_gc(ws_state_t *ps, ws_stripe_buf_t *sbuf);
+
+static void *scrub_thread(threadpool_argstuff_t *as);
+static void *stripe_tbl_dumper_thread(threadpool_argstuff_t *as);
+static void *writer_thread(threadpool_argstuff_t *as);
+static void *gc_thread(threadpool_argstuff_t *as);
+
+
+  /*    Load default configuration parameters.
+   */
+void WSLoadDefaultConfig(ws_config_t *cfg)
+{
+    cfg->trace_on                  = 0;
+    cfg->n_devices                 = 0;
+
+    cfg->fd_devices[0]             = 0;
+
+    cfg->chunk_size                = 32*1024;
+    cfg->device_bytes              = 0;
+    cfg->gc_cb                     = NULL;
+    cfg->per_thread_cb             = NULL;
+    cfg->get_md_cb                 = NULL;
+    cfg->set_md_cb                 = NULL;
+
+    cfg->cb_state                  = NULL;
+
+    cfg->percent_op                = 28;
+    cfg->stripe_tbl_bytes_per_dump = 128*1024;
+    cfg->stripe_tbl_dump_usecs     = 1000;
+    cfg->scrub_usecs               = 100000;
+    // cfg->n_stripe_bufs             = 100;
+    cfg->n_stripe_bufs             = 2;
+    cfg->gc_per_read_bytes         = 128*1024;
+
+    // cfg->n_gc_threads              = 32;
+    cfg->n_gc_threads              = 1;
+    cfg->n_scrub_threads           = 1;
+    // cfg->n_io_threads              = 32;
+    cfg->n_io_threads              = 1;
+    cfg->n_stripe_tbl_threads      = 1;
+
+    cfg->n_fill_groups             = 14;
+
+    cfg->fill_group_percents[0]    = 90;
+    cfg->fill_group_percents[1]    = 80;
+    cfg->fill_group_percents[2]    = 70;
+    cfg->fill_group_percents[3]    = 60;
+    cfg->fill_group_percents[4]    = 50;
+    cfg->fill_group_percents[5]    = 40;
+    cfg->fill_group_percents[6]    = 30;
+    cfg->fill_group_percents[7]    = 25;
+    cfg->fill_group_percents[8]    = 20;
+    cfg->fill_group_percents[9]    = 15;
+    cfg->fill_group_percents[10]   = 10;
+    cfg->fill_group_percents[11]   = 5;
+    cfg->fill_group_percents[12]   = 3;
+    cfg->fill_group_percents[13]   = 0;
+}
+
+  /*    Dump configuration parameters.
+   */
+void WSDumpConfig(FILE *f, struct ws_state *ps)
+{
+    int             i;
+    ws_config_t    *cfg = &(ps->config);
+
+    fprintf(f, "                 trace_on = %d\n", cfg->trace_on);
+    fprintf(f, "                n_devices = %d\n", cfg->n_devices);
+    fprintf(f, "               chunk_size = %d\n", cfg->chunk_size);
+    fprintf(f, "             device_bytes = %"PRIu64"\n", cfg->device_bytes);
+    fprintf(f, "               percent_op = %d\n", cfg->percent_op);
+    fprintf(f, "stripe_tbl_bytes_per_dump = %"PRIu64"\n", cfg->stripe_tbl_bytes_per_dump);
+    fprintf(f, "    stripe_tbl_dump_usecs = %d\n", cfg->stripe_tbl_dump_usecs);
+    fprintf(f, "              scrub_usecs = %d\n", cfg->scrub_usecs);
+    fprintf(f, "            n_stripe_bufs = %d\n", cfg->n_stripe_bufs);
+    fprintf(f, "        gc_per_read_bytes = %"PRIu64"\n", cfg->gc_per_read_bytes);
+    fprintf(f, "             n_gc_threads = %d\n", cfg->n_gc_threads);
+    fprintf(f, "          n_scrub_threads = %d\n", cfg->n_scrub_threads);
+    fprintf(f, "             n_io_threads = %d\n", cfg->n_io_threads);
+    fprintf(f, "     n_stripe_tbl_threads = %d\n", cfg->n_stripe_tbl_threads);
+    fprintf(f, "            n_fill_groups = %d\n", cfg->n_fill_groups);
+    
+    for (i=0; i<cfg->n_fill_groups; i++) {
+	fprintf(f, "  fill_group_percents[%d] = %d\n", i, cfg->fill_group_percents[i]);
+    }
+}
+
+  /*  returns:
+   *    - pointer to serializer state is successful, NULL otherwise.
+   */
+struct ws_state *WSStart(struct ZS_state *pzs, struct ZS_thread_state *pzst, ws_config_t *config, int format)
+{
+    int               i;
+    ws_state_t       *ps;
+    ws_stripe_buf_t  *sbufs;
+    ws_stripe_buf_t  *psb;
+    char             *bufmem;
+    char             *pbuf;
+
+    if (check_config(config) != 0) {
+        return(NULL);
+    }
+
+    //  If an unrecoverable error occurs, this is set to 1.
+    WSReadOnly = 0;
+
+    ps = (ws_state_t *) malloc(sizeof(ws_state_t));
+    if (ps == NULL) {
+        return(NULL);
+    }
+    memcpy((void *) &(ps->config), (void *) config, sizeof(ws_config_t));
+    pthread_mutex_init(&(ps->mutex), NULL);
+    pthread_cond_init(&(ps->write_cv), NULL);
+    ps->nwaiters               = 0;
+    ps->is_terminating         = 0;
+    ps->failed_to_start        = 0;
+
+    ps->zs_state               = pzs;
+
+    rt_init_stats(&ps->stats.gc_compaction, "GC_Compaction");
+
+    ps->lat                    = alat_init(N_LAT_BUCKETS, sizeof(lat_data_t), N_LAT_FREE_LISTS);
+    if (ps->lat == NULL) {
+        errmsg("Could not initialize the write serialization look-aside table");
+        return(NULL);
+    }
+
+    ps->trace_on               = config->trace_on;
+    WSTraceOn                  = ps->trace_on;
+    TRACE(ps, "WSStart...");
+    ps->stripe_bytes           = ps->config.chunk_size * ps->config.n_devices;
+    ps->sector_bytes           = 512;
+    ps->stripe_sectors         = ps->stripe_bytes / ps->sector_bytes;
+    if (ps->stripe_bytes % ps->sector_bytes != 0) {
+        errmsg("stripe_bytes (%lld) must be a multiple of the sector size (%lld)", ps->stripe_bytes, ps->sector_bytes);
+        return(NULL);
+    }
+    if (ps->config.device_bytes <= 0) {
+        errmsg("device_bytes (%lld) must be non-zero", ps->config.device_bytes);
+        return(NULL);
+    }
+    ps->n_stripes    = ps->config.device_bytes/ps->config.chunk_size;
+
+    /* initialize the mailboxes before starting threadpools */
+
+    mboxInit(&(ps->mbox_free));
+    mboxInit(&(ps->mbox_write));
+    mboxInit(&(ps->mbox_gc));
+
+    /* start garbage collector threadpool */
+    /*
+     *  A garbage collector thread wakes up whenever a 
+     *  new stripe is queued for writing to flash.
+     *  The maximum number of stripes undergoing garbage
+     *  collection in parallel is determined by the size
+     *  of the GC threadpool.
+     */
+    ps->gc_threads = tp_init(config->n_gc_threads, gc_thread, ps);
+    
+    /* start scrubber threadpool */
+    /*
+     *   Scrubber verifies checksums, updates stripe sector counts, 
+     *   and restructures data if device layout changes.
+     *   Scrub rate can change if entire storage must be processed
+     *   more quickly than the default background rate.
+     */
+    ps->scrub_threads = tp_init(config->n_scrub_threads, scrub_thread, ps);
+    
+    /* start I/O threadpool */
+    /*
+     *  The I/O threadpool does parallel async I/O for writing
+     *  stripes to flash.
+     */
+    ps->io_threads = tp_init(config->n_io_threads, writer_thread, ps);
+    
+    /* Initialize the stripe table and fill groups */
+    if (format) {
+        /* reformat storage */
+	if (format_stripe_tbl(pzst, ps) != 0) {
+	    // xxxzzz free up malloc'd stuff!
+	    return(NULL);
+	}
+    } else {
+        /* load the stripe table from persistent storage */
+	if (recover_stripe_tbl(pzst, ps) != 0) {
+	    // xxxzzz free up malloc'd stuff!
+	    return(NULL);
+	}
+    }
+
+    /* start stripe table dumper thread (threadpool of 1) 
+     *
+     *!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+     *  MUST DO THIS AFTER pzst IS USED TO FORMAT/RECOVER
+     *  STRIPE TABLE ABOVE!!!!!!!!
+     *!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+     */
+    /*
+     *  The stripe table dumper "trickles-out" the stripe
+     *  table at a configurable rate.  Since the stripe table
+     *  just tracks the emptiness of stripes, it does not have
+     *  to be precise in the event of a crash.  The scrubber
+     *  ensures that the stripe table eventually corrects itself
+     *  after a crash recovery.
+     * 
+     *  Sample math:
+     *    - Stripe table entry size: 10B (2B count, 4B next, 4B prev)
+     *    - With 512kB stripes: 
+     *        - 1B entries per 512TB of flash
+     *        - 10GB of stripe table
+     *    - At 100MB/s dump rate: 100s per full dump
+     *    - At 5GB/s data write rate: 500GB per 100s
+     *    - Max error of last persisted stripe table: 500GB out of 512TB
+     *      (.1%).
+     */
+    ps->stripe_tbl_pool = tp_init(config->n_stripe_tbl_threads, stripe_tbl_dumper_thread, ps);
+    
+    /*  Create pool of free stripe buffers.
+     *  Put them on the GC queue to get stripe numbers assigned to them.
+     */
+
+    sbufs = (ws_stripe_buf_t *) malloc(ps->config.n_stripe_bufs*sizeof(ws_stripe_buf_t));
+    if (sbufs == NULL) {
+        errmsg("Could not allocate stripe buffer structures");
+	return(NULL);
+    }
+
+    bufmem = (char *) malloc(ps->config.n_stripe_bufs*ps->stripe_bytes + ps->sector_bytes);
+    if (bufmem == NULL) {
+        errmsg("Could not allocate stripe buffer bufs");
+	return(NULL);
+    }
+    // bufs must be sector-aligned
+    pbuf = bufmem + ps->sector_bytes - (((uint64_t) bufmem) % ps->sector_bytes); 
+
+    for (i=0; i<ps->config.n_stripe_bufs; i++) {
+        psb = &(sbufs[i]);
+	psb->n_stripe = WS_NULL_STRIPE_ENTRY;
+	psb->p        = 0;
+	psb->buf      = pbuf;
+	pbuf         += ps->stripe_bytes;
+	// kick off a garbage collection to allocate one of the emptiest stripes
+	mboxPost(&(ps->mbox_gc), (uint64_t) psb);
+    }
+
+    /* assign the current "open buffer" */
+    ps->curbuf = (ws_stripe_buf_t *) mboxWait(&(ps->mbox_free));
+
+    /* make sure that everything started properly */
+    if (ps->failed_to_start) {
+        WSQuit(ps);
+	return(NULL);
+    }
+
+    TRACE(ps, "...WSStart");
+    return(ps);
+}
+
+static int allocate_stripe_tbl(ws_state_t *ps)
+{
+    ws_stripe_tbl_t   *pst = &(ps->stripe_tbl);
+
+    pst->n_entries = ps->n_stripes;
+    pst->entries_per_dump = ps->config.stripe_tbl_bytes_per_dump/sizeof(ws_stripe_entry_t);
+    pst->entries = (ws_stripe_entry_t *) malloc(pst->n_entries*sizeof(ws_stripe_entry_t));
+    if (pst->entries == NULL) {
+        return(1);
+    }
+
+    return(0);
+}
+
+static int format_stripe_tbl(struct ZS_thread_state *pzst, ws_state_t *ps)
+{
+    uint64_t                  i;
+    ws_stripe_tbl_t          *pst = &(ps->stripe_tbl);
+    ws_fill_groups_t         *pfg = &(ps->fill_groups);
+    ws_config_t              *cfg = &(ps->config);
+    ws_stripe_entry_t        *pse;
+
+    allocate_stripe_tbl(ps);
+    for (i=0; i<pst->n_entries; i++) {
+        pse = &(pst->entries[i]);
+	pse->cnt = 0;
+	pse->next = i+1;
+	pse->prev = i-1;
+    }
+    pst->entries[0].prev                = WS_NULL_STRIPE_ENTRY;
+    pst->entries[pst->n_entries-1].next = WS_NULL_STRIPE_ENTRY;
+
+    pfg->free_list = 0;
+
+    pfg->n_fill_groups = cfg->n_fill_groups;
+    if (pfg->n_fill_groups > WS_MAX_FILL_GROUPS) {
+        panicmsg("Too many fill groups (%d); %d is max allowed", pfg->n_fill_groups, WS_MAX_FILL_GROUPS);
+	return(1);
+    }
+
+    for (i=0; i<pfg->n_fill_groups; i++) {
+        pfg->fill_group_percents[i] = cfg->fill_group_percents[i];
+	pthread_mutex_init(&(pfg->group_lock[i]), NULL);
+	pfg->fill_groups[i] = WS_NULL_STRIPE_ENTRY;
+    }
+
+    if (check_fill_group_percents(pfg) != 0) {
+        return(1);
+    }
+
+    // persist freshly initialized stripe table
+    if (persist_stripe_tbl(pzst, ps) != 0) {
+       return(1);
+    }
+
+    return(0);
+}
+
+static int check_fill_group_percents(ws_fill_groups_t *pfg)
+{
+    uint32_t   i;
+    uint32_t   percent, last_percent;
+
+    last_percent = 100;
+    for (i=0; i<pfg->n_fill_groups; i++) {
+        percent = pfg->fill_group_percents[i];
+	if (percent >= last_percent) {
+	    if (i == 0) {
+		errmsg("0'th fill group percentage [%d found] must be less than 100", i, percent);
+		return(1);
+	    } else {
+		errmsg("%d'th fill group percentage [%d found] must be less than the %d'th fill group percentage [%d found]", i, percent, i-1, last_percent);
+		return(1);
+	    }
+	}
+	if (percent > 99) {
+	    errmsg("%d'th fill group percentage [%d found] must be less than 100", i, percent);
+	    return(1);
+	}
+
+	last_percent = percent;
+    }
+    return(0);
+}
+
+static int build_stripe_key(char *key, uint64_t n)
+{
+    sprintf(key, "_stripe_tbl_%"PRIu64"", n);
+    return(strlen(key));
+}
+
+static int persist_stripe_tbl(struct ZS_thread_state *pzst, ws_state_t *ps)
+{
+    uint64_t                  i, total_dumps, n_dumps;
+    ws_stripe_tbl_t          *pst = &(ps->stripe_tbl);
+    ws_config_t              *cfg = &(ps->config);
+    ws_stripe_entry_t        *pse_from;
+    uint32_t                  keylen;
+    char                      key[STRIPE_KEY_SIZE];
+    uint32_t                  data_size;
+ 
+    TRACE(ps, "Persisting stripe table ...");
+
+    total_dumps = (ps->n_stripes + pst->entries_per_dump - 1)/pst->entries_per_dump;
+
+    pse_from = pst->entries;
+    n_dumps = 0;
+    for (i=0; i<ps->n_stripes; i+= pst->entries_per_dump) {
+	keylen = build_stripe_key(key, i);
+	if (n_dumps < (total_dumps - 1)) {
+	    data_size = pst->entries_per_dump*sizeof(ws_stripe_entry_t);
+	} else {
+	    data_size = (ps->n_stripes % pst->entries_per_dump)*sizeof(ws_stripe_entry_t);
+	}
+	TRACE(ps, "persist_stripe_tbl: set_md_cb(key=%s, pse_from=%p, data_size=%d", key, pse_from, data_size);
+	DOSTAT(ps, N_MD_SET, 1);
+	DOSTAT(ps, N_MD_SET_BYTES, keylen+data_size);
+	if (cfg->set_md_cb(pzst, ps->config.cb_state, key, keylen, pse_from, data_size) != 0) {
+	    panicmsg("Failure writing dump %d for persisted stripe table", n_dumps);
+	    return(1);
+	}
+	n_dumps++;
+	pse_from += pst->entries_per_dump;
+    }
+    TRACE(ps, "... Persisting stripe table");
+    return(0);
+}
+
+static int load_stripe_tbl(struct ZS_thread_state *pzst, ws_state_t *ps)
+{
+    uint64_t                  i, total_dumps, n_dumps;
+    ws_stripe_tbl_t          *pst = &(ps->stripe_tbl);
+    ws_config_t              *cfg = &(ps->config);
+    ws_stripe_entry_t        *pse_to;
+    uint32_t                  keylen;
+    char                      key[STRIPE_KEY_SIZE];
+    uint32_t                  expected_size;
+    uint32_t                  actual_size;
+
+    TRACE(ps, "Loading stripe table ...");
+    total_dumps = (ps->n_stripes + pst->entries_per_dump - 1)/pst->entries_per_dump;
+
+    pse_to = pst->entries;
+    n_dumps = 0;
+    for (i=0; i<ps->n_stripes; i+= pst->entries_per_dump) {
+	keylen = build_stripe_key(key, i);
+	if (n_dumps < (total_dumps - 1)) {
+	    expected_size = pst->entries_per_dump*sizeof(ws_stripe_entry_t);
+	} else {
+	    expected_size = (ps->n_stripes % pst->entries_per_dump)*sizeof(ws_stripe_entry_t);
+	}
+	DOSTAT(ps, N_MD_GET, 1);
+	DOSTAT(ps, N_MD_GET_BYTES, keylen+expected_size);
+	if (cfg->get_md_cb(pzst, ps->config.cb_state, key, keylen, pse_to, expected_size, &actual_size) != 0) {
+	    panicmsg("Failure retrieving dump %d for persisted stripe table", n_dumps);
+	    return(1);
+	}
+	n_dumps++;
+	pse_to += pst->entries_per_dump;
+	if (actual_size != expected_size) {
+	    panicmsg("Inconsistency in stripe table dump sizes (%d found, %d expected)", actual_size, expected_size);
+	    return(1);
+	}
+    }
+    TRACE(ps, "... Loading stripe table");
+    return(0);
+}
+
+static int recover_stripe_tbl(struct ZS_thread_state *pzst, ws_state_t *ps)
+{
+    uint64_t                  i, j;
+    ws_stripe_tbl_t          *pst = &(ps->stripe_tbl);
+    ws_fill_groups_t         *pfg = &(ps->fill_groups);
+    ws_config_t              *cfg = &(ps->config);
+    ws_stripe_entry_t        *pse, *pse2;
+    double                    percent, max_cnt;
+    uint64_t                  n_top;
+
+    TRACE(ps, "Recovering stripe table ...");
+    allocate_stripe_tbl(ps);
+
+    // restore stripe table 
+    if (load_stripe_tbl(pzst, ps) != 0) {
+       return(1);
+    }
+
+    // rebuild fill groups
+
+    pfg->free_list     = WS_NULL_STRIPE_ENTRY;
+
+    pfg->n_fill_groups = cfg->n_fill_groups;
+    if (pfg->n_fill_groups > WS_MAX_FILL_GROUPS) {
+        errmsg("Too many fill groups (%d); %d is max allowed", pfg->n_fill_groups, WS_MAX_FILL_GROUPS);
+	return(1);
+    }
+    for (i=0; i<pfg->n_fill_groups; i++) {
+        pfg->fill_group_percents[i] = cfg->fill_group_percents[i];
+	pthread_mutex_init(&(pfg->group_lock[i]), NULL);
+	pfg->fill_groups[i] = WS_NULL_STRIPE_ENTRY;
+    }
+
+    if (check_fill_group_percents(pfg) != 0) {
+        return(1);
+    }
+
+    max_cnt = ps->stripe_bytes/ps->sector_bytes;
+
+    for (i=0; i<pst->n_entries; i++) {
+        pse = &(pst->entries[i]);
+	percent = 100.0*(((double) pse->cnt)/max_cnt);
+
+	for (j=0; j<pfg->n_fill_groups; j++) {
+	    if (percent < pfg->fill_group_percents[j]) {
+	        n_top = pfg->fill_groups[j];
+		pse->next = n_top;
+		if (n_top != WS_NULL_STRIPE_ENTRY) {
+		    pse2 = &(pst->entries[n_top]);
+		    pse2->prev = i;
+		}
+		pse->prev = WS_NULL_STRIPE_ENTRY;
+	    }
+	}
+    }
+
+    TRACE(ps, "... Recovering stripe table");
+    return(0);
+}
+
+static int check_config(ws_config_t *config)
+{
+    // purposefully empty for now xxxzzz
+
+    return(WS_OK);
+}
+
+  /*  returns:
+   *    WS_OK
+   *    WS_ERROR
+   */
+int WSQuit(struct ws_state *ps)
+{
+    TRACE(ps, "WSQuit ...");
+    //  Signal termination to any clients stalled on writes
+    pthread_mutex_lock(&(ps->mutex));
+    ps->is_terminating = 1;
+    pthread_cond_broadcast(&(ps->write_cv));
+    pthread_mutex_unlock(&(ps->mutex));
+
+    tp_shutdown(ps->stripe_tbl_pool);
+    tp_shutdown(ps->gc_threads);
+    tp_shutdown(ps->scrub_threads);
+    tp_shutdown(ps->io_threads);
+
+    TRACE(ps, "... WSQuit");
+    return(WS_OK);
+}
+
+  /*  returns:
+   *    WS_OK
+   *    WS_ERROR
+   */
+int WSTraceControl(struct ws_state *ps, int on_off)
+{
+    if (on_off) {
+        ps->trace_on = 1;
+	WSTraceOn    = 1;
+	infomsg("Trace turned on");
+    } else {
+        ps->trace_on = 0;
+	WSTraceOn    = 0;
+	infomsg("Trace turned off");
+    }
+    return(WS_OK);
+}
+
+void WSStats(struct ws_state *ps, ws_stats_t *stats)
+{
+    memcpy((void *) &stats, (void *) &(ps->stats), sizeof(ws_stats_t));
+}
+
+void WSDumpStats(FILE *f, struct ws_state *ps, ws_stats_t *stats)
+{
+    int    i;
+
+    for (i=0; i<N_WS_STATS; i++) {
+        fprintf(f, "%20s = %"PRIu64"\n", WSStatString(i), stats->stat[i]);
+    }
+    
+    rt_dump_stats(f, &(ps->stats.gc_compaction), 1 /* dumpflag */);
+}
+
+  /*  returns:
+   *    WS_OK
+   *    WS_ERROR
+   */
+int WSChangeConfig(struct ws_state *ps)
+{
+    TRACE(ps, "WSChangeConfig");
+    // purposefully empty
+    return(WS_OK);
+}
+
+  /*  Read data into a caller-provided buffer.
+   *
+   *  "pdata" points to the buffer to hold data (not necessarily sector
+   *          aligned)
+   *  "addr" is byte-granularity at the pool level, but sector-aligned.
+   *  "size" is in bytes and must be a sector-multiple
+   *
+   *  Returns:
+   *    WS_OK
+   *    WS_BAD_ADDR
+   *    WS_IO_ERROR
+   *    WS_ERROR
+   */
+int WSRead(struct ws_state *ps, uint64_t addr, void *pdata, uint64_t size)
+{
+    uint64_t         n_stripe;
+    alat_entry_t     lat_entry;
+    lat_data_t      *pld;
+    void            *pfrom;
+    int              do_read_io;
+    ws_stripe_buf_t *sbuf;
+
+    /*   The "Look Aside Table" (lat) structure is used
+     *   to ensure that reads concurrent with write serialization and
+     *   GC return current data.
+     */
+
+    DOSTAT(ps, N_READS, 1);
+    DOSTAT(ps, N_READ_BYTES, size);
+    n_stripe = stripe_from_addr(ps, addr);
+    TRACE(ps, "WSRead(addr=0x%llx, n_stripe=%lld, pdata=%p, size=%lld) ...", addr, n_stripe, pdata, size);
+    lat_entry = alat_read_start(ps->lat, n_stripe);
+    if (lat_entry.lat_handle == NULL) {
+	do_read_io = 1;
+    } else {
+	pld   = (lat_data_t *) lat_entry.pdata;
+	sbuf    = pld->sbuf;
+	// copy data from sbuf
+	pfrom = sbuf->buf + (addr % ps->stripe_bytes);
+	(void) memcpy(pdata, pfrom, size);
+	do_read_io = 0;
+    }
+    if (do_read_io) {
+	do_point_read(ps, pdata, addr, size);
+    } else {
+	alat_read_end(lat_entry.lat_handle);
+    }
+
+    TRACE(ps, "... WSRead");
+    return(WS_OK);
+}
+
+  /*  Write data into a serialized stripe, and return the location.
+   *
+   *  "pdata" points to the data to be written (not necessarily sector
+   *          aligned)
+   *  "size" is in bytes and must be a sector-multiple
+   *  "addr" is returned, and is byte-granularity at the pool level.
+   *         It is a sector-multiple and sector-aligned.
+   *
+   *  Returns:
+   *    WS_OK
+   *    WS_BAD_ADDR
+   *    WS_READ_ONLY
+   *    WS_DELETE_ERROR
+   *    WS_ERROR
+   *    WS_EARLY_TERMINATION
+   */
+int WSWrite(struct ws_state *ps, void *pdata, uint64_t size, uint64_t *addr, int is_update, uint64_t old_addr, uint64_t old_size)
+{
+    uint64_t           p_old;
+    ws_stripe_buf_t   *newbuf;
+    ws_stripe_buf_t   *oldbuf;
+    int32_t            n_extra_cond_waits;
+
+    DOSTAT(ps, N_WRITES, 1);
+    DOSTAT(ps, N_WRITE_BYTES, size);
+    TRACE(ps, "WSWrite(pdata=%p, size=%lld, is_update=%d) ...", pdata, size, is_update);
+    if (WSReadOnly) {
+	TRACE(ps, "... WSWrite in read-only mode!");
+        return(WS_READ_ONLY);
+    }
+
+    if (is_update) {
+	DOSTAT(ps, N_UPDATES, 1);
+	DOSTAT(ps, N_UPDATE_BYTES, size);
+	if (WSDelete(ps, old_addr, old_size)) {
+	    panicmsg("WSDelete failed for addr=%lld, size=%lld", old_addr, old_size);
+	    panicmsg("Going into read-only mode");
+	    // go to read-only mode
+	    goto_readonly();
+	    return(WS_DELETE_ERROR);
+	}
+    }
+
+    n_extra_cond_waits = -1;
+    while (1) {
+	p_old = __sync_fetch_and_add(&(ps->curbuf->p), size);
+	if (p_old + size > ps->stripe_bytes) {
+	    // overflow
+	    pthread_mutex_lock(&(ps->mutex));
+	    if (p_old <= ps->stripe_bytes) {
+	        // only one consumer will meet this criteria
+		newbuf = (ws_stripe_buf_t *) mboxWait(&(ps->mbox_free));
+
+		// assign a new serialization buffer
+		oldbuf  = __atomic_exchange_n(&(ps->curbuf), newbuf, __ATOMIC_SEQ_CST);
+		TRACE(ps, "WSWrite: overflowed buffer--fixer; old_stripe=%lld, new_stripe=%lld", oldbuf->n_stripe, newbuf->n_stripe);
+
+		pthread_cond_signal(&(ps->write_cv));
+
+		// submit the filled buffer for writing
+		mboxPost(&(ps->mbox_write), (uint64_t) oldbuf);
+
+	    } else {
+		TRACE(ps, "WSWrite: overflowed buffer--waiter");
+	        // wait on a condition variable
+		n_extra_cond_waits++;
+		(ps->nwaiters)++;
+		pthread_cond_wait(&(ps->write_cv), &(ps->mutex));
+		(ps->nwaiters)--;
+		if (ps->is_terminating) {
+		    TRACE(ps, "WSWrite: terminating!");
+		    pthread_mutex_unlock(&(ps->mutex));
+		    return(WS_EARLY_TERMINATION);
+		}
+	    }
+	    pthread_mutex_unlock(&(ps->mutex));
+	} else {
+	    break;
+	}
+    }
+    memcpy(ps->curbuf->buf+p_old, pdata, size);
+    *addr = addr_from_stripe(ps, ps->curbuf->n_stripe) + p_old;
+
+    if (WSDoChecks) {
+	if ((*addr) >= 10ULL*1024ULL*1024ULL*1024ULL) {
+	    errmsg("OOPS!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n");
+	}
+    }
+
+    if (n_extra_cond_waits > 0) {
+        DOSTAT(ps, N_EXTRA_COND_WAITS, n_extra_cond_waits);
+    }
+
+    TRACE(ps, "... WSWrite; addr=0x%llx", *addr);
+    return(WS_OK);
+}
+
+
+// xxxzzz where are sbuf states assigned?
+
+  /*  Delete data from a serialized stripe.
+   *
+   *  "addr" is byte-granularity at the pool level, but sector-aligned.
+   *  "size" is in bytes and must be a sector-multiple
+   *
+   *  Returns:
+   *    WS_OK
+   *    WS_BAD_ADDR
+   *    WS_READ_ONLY
+   *    WS_ERROR
+   */
+int WSDelete(struct ws_state *ps, uint64_t addr, uint64_t size)
+{
+    int   ret;
+
+    /* update valid sector count for the corresponding stripe */
+
+    DOSTAT(ps, N_DELETES, 1);
+    DOSTAT(ps, N_DELETE_BYTES, size);
+    TRACE(ps, "WSDelete(addr=0x%llx, size=%lld) ...", addr, size);
+    if (WSReadOnly) {
+	TRACE(ps, "... WSDelete; Read-Only Mode!");
+        return(WS_READ_ONLY);
+    }
+
+    ret = stripe_tbl_adjust_count(ps, addr, -size);
+    TRACE(ps, "... WSDelete; ret=%d)", ret);
+    return(ret);
+}
+
+    /* 
+     *  Returns: 0 if success, 1 otherwise.
+     */
+static int stripe_tbl_adjust_count(ws_state_t *ps, uint64_t addr, uint32_t size)
+{
+    uint64_t            n_stripe;
+    uint32_t            old_cnt, new_cnt;
+    uint32_t            old_group, new_group;
+    ws_fill_groups_t   *pfg;
+    ws_stripe_entry_t  *pse, *pse2;
+    ws_stripe_tbl_t    *pst;
+
+    pfg = &(ps->fill_groups);
+    pst = &(ps->stripe_tbl);
+
+    assert(size%ps->sector_bytes == 0);
+
+    n_stripe = stripe_from_addr(ps, addr);
+    pse = &(ps->stripe_tbl.entries[n_stripe]);
+    old_cnt = __sync_fetch_and_add(&(pse->cnt), size/ps->sector_bytes);
+    new_cnt = old_cnt + size/ps->sector_bytes;
+
+    old_group = get_group(ps, old_cnt);
+    new_group = get_group(ps, new_cnt);
+
+    TRACE(ps, "stripe_tbl_adjust_count(addr=0x%llx, size=%d, n_stripe=%lld, old_cnt=%d, new_cnt=%d, old_group=%d, new_group=%d) ...", addr, size, n_stripe, old_cnt, new_cnt, old_group, new_group);
+
+    if (1 /*xxxzzz sbuf state is appropriate*/) {
+	if (new_group != old_group) {
+	    //  move stripe to a new fill group
+	    //  detach from old group
+	    
+	    pthread_mutex_lock(&pfg->group_lock[old_group]);
+	    if (pse->next != WS_NULL_STRIPE_ENTRY) {
+		pse2 = &(pst->entries[pse->next]);
+		pse2->prev = pse->prev;
+	    }
+	    if (pse->prev != WS_NULL_STRIPE_ENTRY) {
+		pse2 = &(pst->entries[pse->prev]);
+		pse2->next = pse->next;
+	    } else {
+		pfg->fill_groups[old_group] = n_stripe;
+	    }
+	    pthread_mutex_unlock(&pfg->group_lock[old_group]);
+
+	    //  insert into new group
+	    pthread_mutex_lock(&pfg->group_lock[new_group]);
+	    pse->prev = WS_NULL_STRIPE_ENTRY;
+	    pse->next = pfg->fill_groups[new_group];
+	    pfg->fill_groups[new_group] = n_stripe;
+	    if (pse->next != WS_NULL_STRIPE_ENTRY) {
+		pse2 = &(pst->entries[pse->next]);
+		pse2->prev = n_stripe;
+	    }
+	    pthread_mutex_unlock(&pfg->group_lock[new_group]);
+	}
+    }
+    return(0);
+}
+
+static uint32_t get_group(ws_state_t *ps, uint32_t cnt)
+{
+    uint32_t             percent;
+    int                  i;
+    uint32_t             n_group;
+    ws_fill_groups_t    *pfg = &(ps->fill_groups);
+
+    percent = (100*cnt)/ps->stripe_sectors;
+
+    /*  NOTE: fill group percentage i is for stripes with 
+     *  emptiness <= to that percentage.
+     */
+
+    for (i=0; i<pfg->n_fill_groups; i++) {
+        if (percent >= pfg->fill_group_percents[i]) {
+	    break;
+	}
+    }
+    n_group = i;
+
+    return(n_group);
+}
+
+static uint64_t stripe_from_addr(ws_state_t *pst, uint64_t addr)
+{
+    uint64_t   n_stripe;
+
+    n_stripe = addr / pst->stripe_bytes;
+    return(n_stripe);
+}
+
+static uint64_t addr_from_stripe(ws_state_t *pst, uint64_t n_stripe)
+{
+    uint64_t   addr;
+
+    addr = n_stripe*pst->stripe_bytes;
+    return(addr);
+}
+
+    /*  Run comprehensive consistency checks.
+     * 
+     *  Returns: WS_OK if success, WS_ERROR otherwise.
+     */
+int WSCheck(struct ws_state *ps)
+{
+    // xxxzzz
+    TRACE(ps, "WSCheck()");
+
+    /*  Check that stripe table counts are correct.
+     */
+
+    xxxzzz
+
+    /*  Check that:
+     *    - All b-tree entries point to valid nodes.
+     *    - All valid nodes have corresponding b-tree entries.
+     */
+
+    xxxzzz
+
+    /*  Check that fill groups are correct.
+     */
+
+    xxxzzz
+
+    /*  Check that alat table is in a reasonable state.
+     */
+
+    xxxzzz
+
+    /*  Check that byte counts are consistent and reasonable.
+     */
+
+    xxxzzz
+
+    return(WS_OK);
+}
+
+    /*  Dump contents of data structures.
+     * 
+     *  "level" can be 0, 1 or 2: higher levels dump more stuff.
+     * 
+     *  Returns: WS_OK if success, WS_ERROR otherwise.
+     */
+int WSDump(struct ws_state *ps, int level)
+{
+    // xxxzzz
+    TRACE(ps, "WSDump()");
+
+
+    return(WS_OK);
+}
+
+/****************************************************************
+ *
+ *   I/O Writer Threadpool
+ *
+ ****************************************************************/
+
+static void *writer_thread(threadpool_argstuff_t *as)
+{
+    ws_state_t             *ps;
+    struct threadpool      *ptp;
+    ws_stripe_buf_t        *sbf;
+
+    ps  = (ws_state_t *) as->pdata;
+    ptp = as->ptp;
+
+    TRACE(ps, "writer_thread started (id=%ld)", get_tid());
+
+    while ((sbf = (ws_stripe_buf_t *) mboxWait(&(ps->mbox_write)))) {
+
+	TRACE(ps, "writer_thread writing sbf=%p, n_stripe = %lld", sbf, sbf->n_stripe);
+
+	if (ptp->quit) {
+	    break;
+	}
+
+        if (WSReadOnly) {
+	    TRACE(ps, "writer_thread in Read-Only mode!");
+	    continue;
+	}
+
+        if (do_stripe_write(ps, sbf, 1) != 0) {
+	    /*  Error in do_stripe_write().
+	     *  There should already be an error message, so make
+	     *  sure we go into ReadOnly mode.
+	     */
+	    goto_readonly();
+	    continue;
+	}
+	// kick off a garbage collection to backfill the empty buffer
+	TRACE(ps, "writer_thread passing sbf=%p to mbox_gc");
+	mboxPost(&(ps->mbox_gc), (uint64_t) sbf);
+    }
+    TRACE(ps, "writer_thread quitting");
+    return(NULL);
+}
+
+static int do_stripe_write(ws_state_t *ps, ws_stripe_buf_t *sbuf, int syncflag)
+{
+    alat_entry_t        le;
+    ws_fill_groups_t   *pfg = &(ps->fill_groups);
+    ws_stripe_entry_t  *pse, *pse2;
+    uint32_t            n_group;
+    uint32_t            nfree;
+    ssize_t             sze;
+    uint64_t            addr;
+    ws_stripe_tbl_t    *pst = &(ps->stripe_tbl);
+
+    DOSTAT(ps, N_IO_STRIPE_WRITE, 1);
+    DOSTAT(ps, N_IO_STRIPE_WRITE_BYTES, ps->stripe_bytes);
+
+    // do RAID stuff
+    // purposefully empty for now
+
+    le = alat_write_start(ps->lat, sbuf->n_stripe);
+    if (le.lat_handle == NULL) {
+	panicmsg("Failure in do_stripe_write: inconsistency in address lookaside table for stripe %lld; Going into read-only mode", sbuf->n_stripe);
+	goto_readonly();
+	return(1);
+    }
+
+    //  write out sbuf synchronously
+
+    //  xxxzzz just do pwrite for now; change to io_submit later
+    #ifdef notdef
+    io_submit(xxxzzz);
+    if (syncflag) {
+	io_getevents(xxxzzz);
+    }
+    #endif 
+
+    addr = addr_from_stripe(ps, sbuf->n_stripe);
+
+    TRACE(ps, "do_stripe_write: n_stripe=%lld, addr=0x%llx", sbuf->n_stripe, addr);
+
+    //  xxxzzz hardcoded to 1 device for now!
+    sze = pwrite(ps->config.fd_devices[0], sbuf->buf, ps->stripe_bytes, addr);
+    // xxxzzz improve error handling
+    // xxxzzz what if fewer bytes were written?
+    if (sze != ps->stripe_bytes) {
+	panicmsg("pwrite for stripe %lld only wrote %lld of %lld bytes; Going into read-only mode", sbuf->n_stripe, sze, ps->stripe_bytes);
+	goto_readonly();
+        return(1);
+    }
+
+    alat_write_end_and_delete(le.lat_handle);
+
+    //  Put written stripe in a fill group
+
+    pse = &(pst->entries[sbuf->n_stripe]);
+    //  adjust cnt to allow for free space at end
+    nfree = ps->stripe_sectors - (sbuf->p - (uint64_t) sbuf->buf)/ps->sector_bytes;
+    __sync_fetch_and_add(&(pse->cnt), nfree);
+
+    n_group = get_group(ps, pse->cnt);
+
+    TRACE(ps, "do_stripe_write: cnt=%d, n_group=%d", pse->cnt, n_group);
+
+    pthread_mutex_lock(&pfg->group_lock[n_group]);
+    pse->prev = WS_NULL_STRIPE_ENTRY;
+    pse->next = pfg->fill_groups[n_group];
+    pfg->fill_groups[n_group] = sbuf->n_stripe;
+    if (pse->next != WS_NULL_STRIPE_ENTRY) {
+	pse2 = &(pst->entries[pse->next]);
+	pse2->prev = sbuf->n_stripe;
+    }
+    pthread_mutex_unlock(&pfg->group_lock[n_group]);
+
+    return(0);
+}
+
+static int do_stripe_read(ws_state_t *ps, uint64_t n_stripe, void *buf)
+{
+    ssize_t    sze;
+    uint64_t   addr;
+
+    DOSTAT(ps, N_IO_STRIPE_READ, 1);
+    DOSTAT(ps, N_IO_STRIPE_READ_BYTES, ps->stripe_bytes);
+
+    // do RAID stuff
+    // purposefully empty for now
+
+    //  xxxzzz Just use pread for now
+    #ifdef notdef
+    io_submit(xxxzzz);
+    io_getevents(xxxzzz);
+    #endif
+
+    // xxxzzz hardwired to 1 device for now!
+    addr = addr_from_stripe(ps, n_stripe);
+    TRACE(ps, "do_stripe_read: n_stripe=%lld, addr=0x%llx, buf=%p", n_stripe, addr, buf);
+    sze = pread(ps->config.fd_devices[0], buf, ps->stripe_bytes, addr);
+    // xxxzzz improve error handling
+    // xxxzzz what if fewer bytes were read?
+    if (sze != ps->stripe_bytes) {
+        return(1);
+    }
+
+    return(0);
+}
+
+static int do_point_read(ws_state_t *ps, void *pdata, uint64_t addr, uint32_t size)
+{
+    ssize_t    sze;
+
+    DOSTAT(ps, N_IO_POINT_READ, 1);
+    DOSTAT(ps, N_IO_POINT_READ_BYTES, size);
+    TRACE(ps, "do_point_read: addr=0x%llx, pdata=%p, size=%d", addr, pdata, size);
+    // xxxzzz hardwired to 1 device for now!
+    sze = pread(ps->config.fd_devices[0], pdata, size, addr);
+    // xxxzzz improve error handling
+    // xxxzzz what if fewer bytes were read?
+    if (sze != size) {
+        return(1);
+    }
+    return(0);
+}
+
+/****************************************************************
+ *
+ *   Stripe Table Dumper Threadpool
+ *
+ ****************************************************************/
+
+static void *stripe_tbl_dumper_thread(threadpool_argstuff_t *as)
+{
+    struct timespec           ts, ts_rem;
+    uint64_t                  i;
+    ws_stripe_entry_t        *pse_from;
+    uint64_t                  n_dumps, total_dumps;
+    struct threadpool        *ptp;
+    uint32_t                  keylen;
+    uint32_t                  data_size;
+    char                      key[STRIPE_KEY_SIZE];
+    ws_state_t               *ps;
+    ws_stripe_tbl_t          *pst;
+    ws_config_t              *cfg;
+    struct ZS_thread_state   *pzst;
+    int                       rc;
+
+    ps   = (ws_state_t *) as->pdata;
+    pst  = &(ps->stripe_tbl);
+    cfg  = &(ps->config);
+    ptp  = as->ptp;
+
+    rc = cfg->per_thread_cb(ps->zs_state, &pzst);
+    if (rc != WS_OK) {
+	panicmsg("Failure in stripe table dumper: could not allocate per-thread state ");
+	panicmsg("Going into read-only mode");
+	// go to read-only mode
+	goto_readonly();
+        return(NULL);
+    }
+
+    total_dumps = (ps->n_stripes + pst->entries_per_dump - 1)/pst->entries_per_dump;
+
+    ts.tv_sec  = 0;
+    ts.tv_nsec = cfg->stripe_tbl_dump_usecs*1000;
+
+    TRACE(ps, "stripe_tbl_dumper_thread started (id=%ld), total_dumps = %lld", get_tid(), total_dumps);
+
+    while (1) {
+
+	if (ptp->quit) {
+	    break;
+	}
+
+	pse_from = pst->entries;
+	n_dumps = 0;
+	for (i=0; i<ps->n_stripes; i+= pst->entries_per_dump) {
+
+	    if (ptp->quit) {
+		break;
+	    }
+
+            //  xxxzzz should I care about the return value here?
+	    (void) nanosleep(&ts, &ts_rem);
+
+	    if (WSReadOnly) {
+		TRACE(ps, "stripe_tbl_dumper_thread in Read-Only mode!");
+		continue;
+	    }
+
+	    keylen = build_stripe_key(key, i);
+	    if (n_dumps < (total_dumps - 1)) {
+		data_size = pst->entries_per_dump*sizeof(ws_stripe_entry_t);
+	    } else {
+		data_size = (ps->n_stripes % pst->entries_per_dump)*sizeof(ws_stripe_entry_t);
+	    }
+	    TRACE(ps, "stripe_tbl_dumper_thread: set_md_cb(key=%s, pse_from=%p, data_size=%d", key, pse_from, data_size);
+	    DOSTAT(ps, N_MD_SET, 1);
+	    DOSTAT(ps, N_MD_SET_BYTES, keylen+data_size);
+	    if (cfg->set_md_cb(pzst, ps->config.cb_state, key, keylen, pse_from, data_size) != 0) {
+		panicmsg("Failure in stripe table dumper writing dump %d for persisted stripe table", n_dumps);
+		panicmsg("Going into read-only mode");
+		// go to read-only mode
+		goto_readonly();
+	    }
+	    n_dumps++;
+	    pse_from += pst->entries_per_dump;
+	}
+	DOSTAT(ps, N_STRIPE_TBL_DUMPS, 1);
+    }
+
+    TRACE(ps, "stripe_tbl_dumper_thread quitting");
+    return(0);
+}
+
+/****************************************************************
+ *
+ *   Garbage Collection Threadpool
+ *
+ ****************************************************************/
+
+static void *gc_thread(threadpool_argstuff_t *as)
+{
+    ws_state_t               *ps;
+    ws_stripe_buf_t          *sbuf;
+    struct threadpool        *ptp;
+
+    // xxxzzz zs thread state is allocated in callback routine in fdf_ws.c!
+
+    ps  = (ws_state_t *) as->pdata;
+    ptp = as->ptp;
+
+    TRACE(ps, "gc_thread started (id=%ld)", get_tid());
+
+    while ((sbuf = (ws_stripe_buf_t *) mboxWait(&(ps->mbox_gc)))) {
+	TRACE(ps, "gc_thread received sbuf=%p, n_stripe = %lld", sbuf, sbuf->n_stripe);
+
+	if (ptp->quit) {
+	    break;
+	}
+
+        if (WSReadOnly) {
+	    TRACE(ps, "gc_thread in Read-Only mode");
+	    continue;
+	}
+        (void) do_gc(ps, sbuf);
+    }
+    TRACE(ps, "gc_thread quitting");
+    return(NULL);
+}
+
+static uint64_t get_free_stripe(ws_state_t *ps)
+{
+    ws_stripe_entry_t  *pse;
+    ws_fill_groups_t   *pfg;
+    uint64_t            n_stripe;
+
+    pfg = &(ps->fill_groups);
+
+    if (pfg->free_list == WS_NULL_STRIPE_ENTRY) {
+        return(WS_NULL_STRIPE_ENTRY);
+    } else {
+        n_stripe       = pfg->free_list;
+	pse            = &(ps->stripe_tbl.entries[n_stripe]);
+        pfg->free_list = pse->next;
+    }
+    return(n_stripe);
+}
+
+static int do_gc(ws_state_t *ps, ws_stripe_buf_t *sbuf)
+{
+    int                       i;
+    ws_stripe_tbl_t          *pst;
+    ws_fill_groups_t         *pfg;
+    ws_stripe_entry_t        *pse, *pse2;
+    ws_config_t              *cfg;
+    uint64_t                  n_stripe;
+    uint64_t                  cleaned_bytes;
+    alat_entry_t              ae;
+    lat_data_t               *pld;
+
+    DOSTAT(ps, N_GCS, 1);
+
+    pst = &(ps->stripe_tbl);
+    cfg = &(ps->config);
+    pfg = &(ps->fill_groups);
+
+    /*************************************************
+     *
+     *  Crash-safeness:
+     *      - xxxzzz
+     *
+     *  Stripe buffer states (in order of transitions):
+     *  These must be persisted at transitions (via nvram) 
+     *  and are used for recovery
+     *  xxxzzz checksums to detect torn nodes/data during recovery?
+     *
+     *   Unused
+     *   Open
+     *   Closed_pending_io
+     *   Available_for_gc
+     *   Compacted_but_transient
+     *   Compacted_and_ready
+     *
+     *   - stripes are removed from a fill group when they are
+     *     selected for gc
+     *   - they are returned to a fill group only after they
+     *     have been written out
+     *
+     *
+     *  Thread-safeness:
+     *      - xxxzzz
+     *
+     *************************************************/
+
+    // use up unused stripes until they are all in play
+    if ((n_stripe = get_free_stripe(ps)) != WS_NULL_STRIPE_ENTRY) {
+
+        TRACE(ps, "gc_thread: found free stripe %lld", n_stripe);
+
+        /*   Since free stripes are the result of a
+	 *   format, no garbage collection is needed.
+	 */
+
+	sbuf->n_stripe = n_stripe;
+	sbuf->p        = 0;
+	pse            = &(pst->entries[n_stripe]);
+	/*  Initialize as empty.  */
+	pse->cnt       = 0;
+
+	/*  allocate a data lookaside table entry so reads are handled
+	 *  correctly.
+	 */
+
+	ae = alat_create_start(ps->lat, n_stripe, 1 /* must_not_exist */);
+	if (ae.pdata == NULL) {
+	    panicmsg("Problem creating an entry in the data lookaside table; going into read-only mode");
+	    goto_readonly();
+	    return(1);
+	}
+
+	pld = (lat_data_t *) ae.pdata;
+	pld->sbuf = sbuf;
+
+	alat_create_end(ae.lat_handle);
+
+    } else {
+
+	for (i=0; i<pfg->n_fill_groups; i++) {
+	    pthread_mutex_lock(&pfg->group_lock[i]);
+	    if ((n_stripe = pfg->fill_groups[i]) != WS_NULL_STRIPE_ENTRY) {
+		pse = &(pst->entries[n_stripe]);
+		// found the most empty stripe
+		// remove from linked list
+		pfg->fill_groups[i] = pse->next;
+		if (pse->next != WS_NULL_STRIPE_ENTRY) {
+		    pse2 = &(pst->entries[pse->next]);
+		    pse2->prev = WS_NULL_STRIPE_ENTRY;
+		}
+		pthread_mutex_unlock(&pfg->group_lock[i]);
+		break;
+	    }
+	    pthread_mutex_unlock(&pfg->group_lock[i]);
+	}
+	assert(n_stripe != WS_NULL_STRIPE_ENTRY);
+
+        TRACE(ps, "gc_thread: no free stripes, so selected victim stripe %lld, cnt=%d, from fill_group[%d]", n_stripe, pse->cnt, i);
+
+	sbuf->n_stripe = n_stripe;
+	sbuf->p        = 0;
+
+	/*  Initialize as full.
+	 *  Adjust for unused sectors in do_stripe_write.
+	 *  Any deletions within this stripe will be handled
+	 *  properly by WSDelete().
+	 */
+	pse->cnt       = ps->stripe_sectors; 
+
+	/*  allocate a data lookaside table entry so reads are handled
+	 *  correctly.
+	 */
+
+	ae = alat_create_start(ps->lat, n_stripe, 1 /* must_not_exist */);
+	if (ae.pdata == NULL) {
+	    panicmsg("Problem creating an entry in the data lookaside table; going into read-only mode");
+	    goto_readonly();
+	    return(1);
+	}
+
+	pld = (lat_data_t *) ae.pdata;
+	pld->sbuf = sbuf;
+
+	alat_create_end(ae.lat_handle);
+
+	/* Compact the stripe
+	 *
+	 *  NOTE: Compaction will never cause an overflow of the stripe
+	 *        (eg: because of b-tree actions).
+	 *	      This isn't possible because gc only makes space-neutral updates
+	 *	      to leaf nodes.
+	 */
+
+	// read in entire stripe
+	if (do_stripe_read(ps, n_stripe, sbuf->buf)) {
+	    //  go into read-only mode!
+	    panicmsg("Failure in do_stripe_read");
+	    panicmsg("Going into read-only mode");
+	    goto_readonly();
+	    return(1);
+	}
+
+	//  call gc callback to do the heavy lifting
+
+        TRACE(ps, "gc_thread: gc_cb(buf=%p, n_stripe=%lld)", sbuf->buf, sbuf->n_stripe);
+	if (cfg->gc_cb(ps->config.cb_state, sbuf->buf, (void **) &(sbuf->p), ps->stripe_bytes, ps->sector_bytes, sbuf->n_stripe, &cleaned_bytes)) {
+	    //  go into read-only mode!
+	    panicmsg("Failure in gc_cb: going into read-only mode");
+	    goto_readonly();
+	    return(1);
+	}
+        TRACE(ps, "gc_thread: gc_cb successfully returned, %lld cleaned bytes", cleaned_bytes);
+	DOSTAT(ps, N_GC_BYTES, cleaned_bytes);
+	rt_record_value(cleaned_bytes, &(ps->stats.gc_compaction));
+    }
+
+    TRACE(ps, "gc_thread passing sbuf=%p to mbox_free, sbuf->p=%lld", sbuf, sbuf->p);
+    mboxPost(&(ps->mbox_free), (uint64_t) sbuf);
+    return(0);
+}
+
+/****************************************************************
+ *
+ *   Scrubber Threadpool
+ *
+ ****************************************************************/
+
+static void *scrub_thread(threadpool_argstuff_t *as)
+{
+    struct timespec           ts, ts_rem;
+    ws_state_t               *ps;
+    ws_config_t              *cfg;
+    struct threadpool        *ptp;
+
+    ps  = (ws_state_t *) as->pdata;
+    cfg = &(ps->config);
+    ptp = as->ptp;
+
+    ts.tv_sec  = 0;
+    ts.tv_nsec = cfg->scrub_usecs*1000;
+
+    TRACE(ps, "scrub_thread started (id=%ld)", get_tid());
+
+    while (1) {
+	TRACE(ps, "scrub_thread starting an iteration");
+
+	if (ptp->quit) {
+	    break;
+	}
+
+	//  xxxzzz should I care about the return value here?
+	(void) nanosleep(&ts, &ts_rem);
+
+        // xxxzzz purposefully empty for now!
+    }
+
+    TRACE(ps, "scrub_thread quitting");
+    return(0);
+}
+
+
+/****************************************************************
+ *
+ *   Miscellaneous
+ *
+ ****************************************************************/
+
+static void infomsg(char *fmt, ...)
+{
+   va_list  args;
+
+   va_start(args, fmt);
+
+   vfprintf(stderr, fmt, args);
+
+   va_end(args);
+}
+
+static void tracemsg(char *fmt, ...)
+{
+   va_list  args;
+
+   va_start(args, fmt);
+
+   fprintf(stderr, "WS_TRACE[%ld]> ", get_tid());
+   vfprintf(stderr, fmt, args);
+   fprintf(stderr, "\n");
+
+   va_end(args);
+}
+
+static void errmsg(char *fmt, ...)
+{
+   va_list  args;
+
+   va_start(args, fmt);
+
+   vfprintf(stderr, fmt, args);
+
+   va_end(args);
+}
+
+static void panicmsg(char *fmt, ...)
+{
+   va_list  args;
+
+   va_start(args, fmt);
+
+   fprintf(stderr, "[%ld]>PANIC  PANIC  PANIC  PANIC  PANIC  PANIC  PANIC  PANIC  PANIC  PANIC  PANIC\n", get_tid());
+   vfprintf(stderr, fmt, args);
+   fprintf(stderr, "\n");
+   fprintf(stderr, "PANIC  PANIC  PANIC  PANIC  PANIC  PANIC  PANIC  PANIC  PANIC  PANIC  PANIC\n");
+
+   va_end(args);
+}
+

@@ -1,0 +1,3 @@
+
+fio --filename=/dev/fiob --thread --output=fiob_randwrite_thds256_time1800000_G11231202_stock_steady_state_0op_run2_uni_rw/out.fio.txt --d    irect=1 --rw=randwrite -refill_buffers --norandommap --randrepeat=0 --random_distribution=random --ioengine=psync --bs=4k --rwmixread=0 -iodepth=1 --group_reporting --name=4ktest --thread --numjobs=256 --ru    ntime=1800000 --status-interval=10 --time_based
+

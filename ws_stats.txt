@@ -1,0 +1,2058 @@
+
+========  Stats at t=10 secs (window, steady-state, overall)  =======
+
+                 WRITE_AMP_PCT =       100.29,            0,       100.29
+                 K_CLIENT_RATE =      24.6772,            0,      24.6772
+                   K_READ_RATE =            0,            0,            0
+                  K_WRITE_RATE =      12.9896,            0,      12.9896
+                 K_UPDATE_RATE =      12.7176,            0,      12.7176
+                 K_DELETE_RATE =      12.7176,            0,      12.7176
+               STRIPE_TBL_RATE =      114.093,            0,      114.093
+
+                  CPU_UTIL_TOT =      162.738,            0,      162.738
+                  CPU_UTIL_USR =      88.4443,            0,      88.4443
+                  CPU_UTIL_SYS =      74.2932,            0,      74.2932
+               CPU_UTIL_IOWAIT =      74.2932,            0,      74.2932
+          CPU_USECS_TOT_PER_OP =      125.283,            0,      125.283
+          CPU_USECS_USR_PER_OP =      68.0885,            0,      68.0885
+          CPU_USECS_SYS_PER_OP =      57.1943,            0,      57.1943
+       CPU_USECS_IOWAIT_PER_OP =      14.5255,            0,      14.5255
+   CPU_USECS_TOT_PER_CLIENT_OP =      65.9464,            0,      65.9464
+   CPU_USECS_USR_PER_CLIENT_OP =      35.8404,            0,      35.8404
+   CPU_USECS_SYS_PER_CLIENT_OP =       30.106,            0,       30.106
+CPU_USECS_IOWAIT_PER_CLIENT_OP =      7.64596,            0,      7.64596
+
+
+                  N_CLIENT_OPS =       251113,            0,       251113
+                      N_WRITES =       132181,            0,       132181
+                 N_WRITE_BYTES =   1082826752,            0,   1082826752
+                     N_UPDATES =       129413,            0,       129413
+                N_UPDATE_BYTES =   1060151296,            0,   1060151296
+                       N_READS =            0,            0,            0
+                  N_READ_BYTES =            0,            0,            0
+                     N_DELETES =       129413,            0,       129413
+                N_DELETE_BYTES =   1060151296,            0,   1060151296
+                         N_GCS =         4151,            0,         4151
+                    N_GC_BYTES =      3137536,            0,      3137536
+            N_EXTRA_COND_WAITS =            0,            0,            0
+                      N_MD_GET =            0,            0,            0
+                N_MD_GET_BYTES =            0,            0,            0
+                      N_MD_SET =         1163,            0,         1163
+                N_MD_SET_BYTES =     55839119,            0,     55839119
+              N_IO_STRIPE_READ =          151,            0,          151
+        N_IO_STRIPE_READ_BYTES =     39583744,            0,     39583744
+               N_IO_POINT_READ =            0,            0,            0
+         N_IO_POINT_READ_BYTES =            0,            0,            0
+             N_IO_STRIPE_WRITE =         4141,            0,         4141
+       N_IO_STRIPE_WRITE_BYTES =   1085538304,            0,   1085538304
+            N_STRIPE_TBL_DUMPS =         1161,            0,         1161
+
+                   CPU_USR_CNT =          900,            0,          900
+                  CPU_NICE_CNT =            0,            0,            0
+                   CPU_SYS_CNT =          756,            0,          756
+                  CPU_IDLE_CNT =           86,            0,           86
+                CPU_IOWAIT_CNT =          192,            0,          192
+
+
+GC_Compaction Statistics (149 events)
+   Min:         0
+   Max:  2.458e+04
+   Ave:  2.106e+04
+   Geo:         0
+   Std:      7206
+   Log2 Dist:
+       0:       11        0        0        0
+       4:        0        0        0        0
+       8:        0        0        0        0
+      12:        0        6       19      113
+
+Batch_Writes Statistics (0 events)
+
+
+========  Stats at t=20 secs (window, steady-state, overall)  =======
+
+                 WRITE_AMP_PCT =       109.42,       109.42,      103.504
+                 K_CLIENT_RATE =      13.6802,      13.6802,      19.1848
+                   K_READ_RATE =            0,            0,            0
+                  K_WRITE_RATE =      7.07367,      7.07367,      10.0349
+                 K_UPDATE_RATE =      6.93973,      6.93973,      9.83184
+                 K_DELETE_RATE =      6.93973,      6.93973,      9.83184
+               STRIPE_TBL_RATE =      124.291,      124.291,      119.187
+
+                  CPU_UTIL_TOT =      103.904,      103.904,      133.353
+                  CPU_UTIL_USR =      65.1003,      65.1003,      76.7851
+                  CPU_UTIL_SYS =      38.8041,      38.8041,      56.5682
+               CPU_UTIL_IOWAIT =      38.8041,      38.8041,      56.5682
+          CPU_USECS_TOT_PER_OP =      146.889,      146.889,       132.89
+          CPU_USECS_USR_PER_OP =      92.0318,      92.0318,      76.5181
+          CPU_USECS_SYS_PER_OP =      54.8571,      54.8571,      56.3714
+       CPU_USECS_IOWAIT_PER_OP =      74.3494,      74.3494,      35.5875
+   CPU_USECS_TOT_PER_CLIENT_OP =      75.9523,      75.9523,        69.51
+   CPU_USECS_USR_PER_CLIENT_OP =      47.5872,      47.5872,       40.024
+   CPU_USECS_SYS_PER_CLIENT_OP =      28.3651,      28.3651,       29.486
+CPU_USECS_IOWAIT_PER_CLIENT_OP =      38.4441,      38.4441,      18.6146
+
+
+                  N_CLIENT_OPS =       138903,       138903,       390016
+                      N_WRITES =        71823,        71823,       204004
+                 N_WRITE_BYTES =    588374016,    588374016,   1671200768
+                     N_UPDATES =        70463,        70463,       199876
+                N_UPDATE_BYTES =    577232896,    577232896,   1637384192
+                       N_READS =            0,            0,            0
+                  N_READ_BYTES =            0,            0,            0
+                     N_DELETES =        70463,        70463,       199876
+                N_DELETE_BYTES =    577232896,    577232896,   1637384192
+                         N_GCS =         2454,         2454,         6605
+                    N_GC_BYTES =     55427072,     55427072,     58564608
+            N_EXTRA_COND_WAITS =            0,            0,            0
+                      N_MD_GET =            0,            0,            0
+                N_MD_GET_BYTES =            0,            0,            0
+                      N_MD_SET =         1262,         1262,         2425
+                N_MD_SET_BYTES =     60592406,     60592406,    116431525
+              N_IO_STRIPE_READ =         2454,         2454,         2605
+        N_IO_STRIPE_READ_BYTES =    643301376,    643301376,    682885120
+               N_IO_POINT_READ =            0,            0,            0
+         N_IO_POINT_READ_BYTES =            0,            0,            0
+             N_IO_STRIPE_WRITE =         2456,         2456,         6597
+       N_IO_STRIPE_WRITE_BYTES =    643825664,    643825664,   1729363968
+            N_STRIPE_TBL_DUMPS =         1262,         1262,         2423
+
+                   CPU_USR_CNT =          661,          661,         1561
+                  CPU_NICE_CNT =            0,            0,            0
+                   CPU_SYS_CNT =          394,          394,         1150
+                  CPU_IDLE_CNT =          222,          222,          308
+                CPU_IOWAIT_CNT =          534,          534,          726
+
+
+GC_Compaction Statistics (2599 events)
+   Min:         0
+   Max:  4.096e+04
+   Ave:  2.253e+04
+   Geo:         0
+   Std:      6049
+   Log2 Dist:
+       0:      125        0        0        0
+       4:        0        0        0        0
+       8:        0        0        0        0
+      12:        0       44      230     2199
+      16:        1
+
+Batch_Writes Statistics (0 events)
+
+
+========  Stats at t=30 secs (window, steady-state, overall)  =======
+
+                 WRITE_AMP_PCT =      109.555,      109.488,      105.078
+                 K_CLIENT_RATE =      13.7628,      13.7214,      17.3878
+                   K_READ_RATE =            0,            0,            0
+                  K_WRITE_RATE =       7.1127,      7.09311,      9.06641
+                 K_UPDATE_RATE =      6.98926,       6.9644,      8.88974
+                 K_DELETE_RATE =      6.98926,       6.9644,      8.88974
+               STRIPE_TBL_RATE =      127.211,      125.746,      121.846
+
+                  CPU_UTIL_TOT =      104.388,      104.146,      123.754
+                  CPU_UTIL_USR =      65.2924,       65.196,      72.9761
+                  CPU_UTIL_SYS =      39.0961,      38.9495,      50.7774
+               CPU_UTIL_IOWAIT =      39.0961,      38.9495,      50.7774
+          CPU_USECS_TOT_PER_OP =      146.763,      146.826,      136.497
+          CPU_USECS_USR_PER_OP =      91.7969,      91.9145,      80.4907
+          CPU_USECS_SYS_PER_OP =      54.9665,      54.9117,      56.0062
+       CPU_USECS_IOWAIT_PER_OP =      75.4743,      74.9113,      45.9584
+   CPU_USECS_TOT_PER_CLIENT_OP =      75.8482,      75.9003,      71.1727
+   CPU_USECS_USR_PER_CLIENT_OP =      47.4412,      47.5142,      41.9698
+   CPU_USECS_SYS_PER_CLIENT_OP =       28.407,      28.3861,      29.2029
+CPU_USECS_IOWAIT_PER_CLIENT_OP =      39.0056,      38.7246,      23.9638
+
+
+                  N_CLIENT_OPS =       138698,       277601,       528714
+                      N_WRITES =        71680,       143503,       275684
+                 N_WRITE_BYTES =    587202560,   1175576576,   2258403328
+                     N_UPDATES =        70436,       140899,       270312
+                N_UPDATE_BYTES =    577011712,   1154244608,   2214395904
+                       N_READS =            0,            0,            0
+                  N_READ_BYTES =            0,            0,            0
+                     N_DELETES =        70436,       140899,       270312
+                N_DELETE_BYTES =    577011712,   1154244608,   2214395904
+                         N_GCS =         2456,         4910,         9061
+                    N_GC_BYTES =     56107008,    111534080,    114671616
+            N_EXTRA_COND_WAITS =            0,            0,            0
+                      N_MD_GET =            0,            0,            0
+                N_MD_GET_BYTES =            0,            0,            0
+                      N_MD_SET =         1282,         2544,         3707
+                N_MD_SET_BYTES =     61552666,    122145072,    177984191
+              N_IO_STRIPE_READ =         2456,         4910,         5061
+        N_IO_STRIPE_READ_BYTES =    643825664,   1287127040,   1326710784
+               N_IO_POINT_READ =            0,            0,            0
+         N_IO_POINT_READ_BYTES =            0,            0,            0
+             N_IO_STRIPE_WRITE =         2454,         4910,         9051
+       N_IO_STRIPE_WRITE_BYTES =    643301376,   1287127040,   2372665344
+            N_STRIPE_TBL_DUMPS =         1282,         2544,         3705
+
+                   CPU_USR_CNT =          658,         1319,         2219
+                  CPU_NICE_CNT =            0,            0,            0
+                   CPU_SYS_CNT =          394,          788,         1544
+                  CPU_IDLE_CNT =          244,          466,          552
+                CPU_IOWAIT_CNT =          541,         1075,         1267
+
+
+GC_Compaction Statistics (5054 events)
+   Min:         0
+   Max:  4.096e+04
+   Ave:  2.269e+04
+   Geo:         0
+   Std:      5890
+   Log2 Dist:
+       0:      233        0        0        0
+       4:        0        0        0        0
+       8:        0        0        0        0
+      12:        0       72      407     4341
+      16:        1
+
+Batch_Writes Statistics (0 events)
+
+
+========  Stats at t=40 secs (window, steady-state, overall)  =======
+
+                 WRITE_AMP_PCT =      109.635,      109.538,      106.039
+                 K_CLIENT_RATE =      13.9956,       13.813,      16.5381
+                   K_READ_RATE =            0,            0,            0
+                  K_WRITE_RATE =      7.25478,      7.14716,      8.61263
+                 K_UPDATE_RATE =      7.14456,      7.02464,      8.45261
+                 K_DELETE_RATE =      7.14456,      7.02464,      8.45261
+               STRIPE_TBL_RATE =      129.606,      127.036,       123.79
+
+                  CPU_UTIL_TOT =      108.251,      105.518,       119.87
+                  CPU_UTIL_USR =      67.5092,      65.9694,      71.6068
+                  CPU_UTIL_SYS =      40.7417,      39.5487,      48.2637
+               CPU_UTIL_IOWAIT =      40.7417,      39.5487,      48.2637
+          CPU_USECS_TOT_PER_OP =      149.213,      147.636,       139.18
+          CPU_USECS_USR_PER_OP =      93.0548,      92.3015,      83.1416
+          CPU_USECS_SYS_PER_OP =      56.1584,      55.3348,      56.0383
+       CPU_USECS_IOWAIT_PER_OP =      69.9946,      73.2427,      51.0298
+   CPU_USECS_TOT_PER_CLIENT_OP =      77.3466,      76.3902,      72.4814
+   CPU_USECS_USR_PER_CLIENT_OP =      48.2361,      47.7588,       43.298
+   CPU_USECS_SYS_PER_CLIENT_OP =      29.1104,      28.6315,      29.1833
+CPU_USECS_IOWAIT_PER_CLIENT_OP =      36.2826,      37.8974,       26.575
+
+
+                  N_CLIENT_OPS =       142217,       419818,       670931
+                      N_WRITES =        73720,       217223,       349404
+                 N_WRITE_BYTES =    603914240,   1779490816,   2862317568
+                     N_UPDATES =        72600,       213499,       342912
+                N_UPDATE_BYTES =    594739200,   1748983808,   2809135104
+                       N_READS =            0,            0,            0
+                  N_READ_BYTES =            0,            0,            0
+                     N_DELETES =        72600,       213499,       342912
+                N_DELETE_BYTES =    594739200,   1748983808,   2809135104
+                         N_GCS =         2526,         7436,        11587
+                    N_GC_BYTES =     58187776,    169721856,    172859392
+            N_EXTRA_COND_WAITS =            0,            0,            0
+                      N_MD_GET =            0,            0,            0
+                N_MD_GET_BYTES =            0,            0,            0
+                      N_MD_SET =         1317,         3861,         5024
+                N_MD_SET_BYTES =     63233121,    185378193,    241217312
+              N_IO_STRIPE_READ =         2526,         7436,         7587
+        N_IO_STRIPE_READ_BYTES =    662175744,   1949302784,   1988886528
+               N_IO_POINT_READ =            0,            0,            0
+         N_IO_POINT_READ_BYTES =            0,            0,            0
+             N_IO_STRIPE_WRITE =         2526,         7436,        11577
+       N_IO_STRIPE_WRITE_BYTES =    662175744,   1949302784,   3034841088
+            N_STRIPE_TBL_DUMPS =         1317,         3861,         5022
+
+                   CPU_USR_CNT =          686,         2005,         2905
+                  CPU_NICE_CNT =            0,            0,            0
+                   CPU_SYS_CNT =          414,         1202,         1958
+                  CPU_IDLE_CNT =          219,          685,          771
+                CPU_IOWAIT_CNT =          516,         1591,         1783
+
+
+GC_Compaction Statistics (7586 events)
+   Min:         0
+   Max:  4.096e+04
+   Ave:  2.279e+04
+   Geo:         0
+   Std:      5770
+   Log2 Dist:
+       0:      342        0        0        0
+       4:        0        0        0        0
+       8:        0        0        0        0
+      12:        0       98      544     6601
+      16:        1
+
+Batch_Writes Statistics (0 events)
+
+
+========  Stats at t=50 secs (window, steady-state, overall)  =======
+
+                 WRITE_AMP_PCT =       109.72,      109.583,       106.66
+                 K_CLIENT_RATE =       13.518,       13.739,      15.9321
+                   K_READ_RATE =            0,            0,            0
+                  K_WRITE_RATE =      6.95944,      7.10005,      8.28091
+                 K_UPDATE_RATE =      6.85801,      6.98282,      8.13264
+                 K_DELETE_RATE =      6.85801,      6.98282,      8.13264
+               STRIPE_TBL_RATE =      125.689,      126.698,      124.171
+
+                  CPU_UTIL_TOT =      110.665,       106.81,      118.023
+                  CPU_UTIL_USR =      70.2091,      67.0335,      71.3263
+                  CPU_UTIL_SYS =      40.4562,      39.7765,      46.6971
+               CPU_UTIL_IOWAIT =      40.4562,      39.7765,      46.6971
+          CPU_USECS_TOT_PER_OP =      159.015,      150.435,      142.525
+          CPU_USECS_USR_PER_OP =      100.883,      94.4126,      86.1335
+          CPU_USECS_SYS_PER_OP =      58.1313,      56.0228,      56.3912
+       CPU_USECS_IOWAIT_PER_OP =      67.1614,      71.7467,      53.7501
+   CPU_USECS_TOT_PER_CLIENT_OP =      81.8654,      77.7423,       74.079
+   CPU_USECS_USR_PER_CLIENT_OP =      51.9377,      48.7907,       44.769
+   CPU_USECS_SYS_PER_CLIENT_OP =      29.9277,      28.9516,      29.3101
+CPU_USECS_IOWAIT_PER_CLIENT_OP =      34.5767,      37.0774,      27.9373
+
+
+                  N_CLIENT_OPS =       137665,       557483,       808596
+                      N_WRITES =        70874,       288097,       420278
+                 N_WRITE_BYTES =    580599808,   2360090624,   3442917376
+                     N_UPDATES =        69841,       283340,       412753
+                N_UPDATE_BYTES =    572137472,   2321121280,   3381272576
+                       N_READS =            0,            0,            0
+                  N_READ_BYTES =            0,            0,            0
+                     N_DELETES =        69841,       283340,       412753
+                N_DELETE_BYTES =    572137472,   2321121280,   3381272576
+                         N_GCS =         2428,         9864,        14015
+                    N_GC_BYTES =     56434688,    226156544,    229294080
+            N_EXTRA_COND_WAITS =            0,            0,            0
+                      N_MD_GET =            0,            0,            0
+                N_MD_GET_BYTES =            0,            0,            0
+                      N_MD_SET =         1280,         5141,         6304
+                N_MD_SET_BYTES =     61456640,    246834833,    302673952
+              N_IO_STRIPE_READ =         2428,         9864,        10015
+        N_IO_STRIPE_READ_BYTES =    636485632,   2585788416,   2625372160
+               N_IO_POINT_READ =            0,            0,            0
+         N_IO_POINT_READ_BYTES =            0,            0,            0
+             N_IO_STRIPE_WRITE =         2428,         9864,        14005
+       N_IO_STRIPE_WRITE_BYTES =    636485632,   2585788416,   3671326720
+            N_STRIPE_TBL_DUMPS =         1280,         5141,         6302
+
+                   CPU_USR_CNT =          715,         2720,         3620
+                  CPU_NICE_CNT =            0,            0,            0
+                   CPU_SYS_CNT =          412,         1614,         2370
+                  CPU_IDLE_CNT =          206,          891,          977
+                CPU_IOWAIT_CNT =          476,         2067,         2259
+
+
+GC_Compaction Statistics (10014 events)
+   Min:         0
+   Max:  4.096e+04
+   Ave:  2.29e+04
+   Geo:         0
+   Std:      5598
+   Log2 Dist:
+       0:      419        0        0        0
+       4:        0        0        0        0
+       8:        0        0        0        0
+      12:        0      121      695     8777
+      16:        2
+
+Batch_Writes Statistics (0 events)
+
+
+========  Stats at t=60 secs (window, steady-state, overall)  =======
+
+                 WRITE_AMP_PCT =      109.639,      109.593,      107.066
+                 K_CLIENT_RATE =      12.6949,      13.5311,      15.3954
+                   K_READ_RATE =            0,            0,            0
+                  K_WRITE_RATE =      6.56752,      6.99404,      7.99687
+                 K_UPDATE_RATE =      6.47056,      6.88084,       7.8571
+                 K_DELETE_RATE =      6.47056,      6.88084,       7.8571
+               STRIPE_TBL_RATE =      122.947,      125.951,      123.968
+
+                  CPU_UTIL_TOT =      115.014,      108.443,      117.525
+                  CPU_UTIL_USR =      71.0908,      67.8412,      71.2873
+                  CPU_UTIL_SYS =      43.9236,      40.6021,      46.2373
+               CPU_UTIL_IOWAIT =      43.9236,      40.6021,      46.2373
+          CPU_USECS_TOT_PER_OP =      175.126,      155.051,      146.963
+          CPU_USECS_USR_PER_OP =      108.246,      96.9986,       89.144
+          CPU_USECS_SYS_PER_OP =        66.88,      58.0524,      57.8193
+       CPU_USECS_IOWAIT_PER_OP =      68.3897,      71.1191,      55.7433
+   CPU_USECS_TOT_PER_CLIENT_OP =      90.5988,      80.1435,      76.3373
+   CPU_USECS_USR_PER_CLIENT_OP =      55.9994,      50.1371,      46.3042
+   CPU_USECS_SYS_PER_CLIENT_OP =      34.5994,      30.0064,      30.0331
+CPU_USECS_IOWAIT_PER_CLIENT_OP =      35.3804,      36.7604,      28.9548
+
+
+                  N_CLIENT_OPS =       128037,       685520,       936633
+                      N_WRITES =        66238,       354335,       486516
+                 N_WRITE_BYTES =    542621696,   2902712320,   3985539072
+                     N_UPDATES =        65260,       348600,       478013
+                N_UPDATE_BYTES =    534609920,   2855731200,   3915882496
+                       N_READS =            0,            0,            0
+                  N_READ_BYTES =            0,            0,            0
+                     N_DELETES =        65260,       348600,       478013
+                N_DELETE_BYTES =    534609920,   2855731200,   3915882496
+                         N_GCS =         2270,        12134,        16285
+                    N_GC_BYTES =     52305920,    278462464,    281600000
+            N_EXTRA_COND_WAITS =            0,            0,            0
+                      N_MD_GET =            0,            0,            0
+                N_MD_GET_BYTES =            0,            0,            0
+                      N_MD_SET =         1240,         6381,         7544
+                N_MD_SET_BYTES =     59536120,    306370953,    362210072
+              N_IO_STRIPE_READ =         2270,        12134,        12285
+        N_IO_STRIPE_READ_BYTES =    595066880,   3180855296,   3220439040
+               N_IO_POINT_READ =            0,            0,            0
+         N_IO_POINT_READ_BYTES =            0,            0,            0
+             N_IO_STRIPE_WRITE =         2270,        12134,        16275
+       N_IO_STRIPE_WRITE_BYTES =    595066880,   3180855296,   4266393600
+            N_STRIPE_TBL_DUMPS =         1240,         6381,         7542
+
+                   CPU_USR_CNT =          717,         3437,         4337
+                  CPU_NICE_CNT =            0,            0,            0
+                   CPU_SYS_CNT =          443,         2057,         2813
+                  CPU_IDLE_CNT =          203,         1094,         1180
+                CPU_IOWAIT_CNT =          453,         2520,         2712
+
+
+GC_Compaction Statistics (12283 events)
+   Min:         0
+   Max:  4.096e+04
+   Ave:  2.293e+04
+   Geo:         0
+   Std:      5560
+   Log2 Dist:
+       0:      509        0        0        0
+       4:        0        0        0        0
+       8:        0        0        0        0
+      12:        0      146      821    10805
+      16:        2
+
+Batch_Writes Statistics (0 events)
+
+
+========  Stats at t=70 secs (window, steady-state, overall)  =======
+
+                 WRITE_AMP_PCT =      109.698,      109.609,       107.37
+                 K_CLIENT_RATE =      12.2504,      13.3181,      14.9473
+                   K_READ_RATE =            0,            0,            0
+                  K_WRITE_RATE =      6.29255,      6.87735,      7.75403
+                 K_UPDATE_RATE =      6.20955,      6.76917,      7.62235
+                 K_DELETE_RATE =      6.20955,      6.76917,      7.62235
+               STRIPE_TBL_RATE =      112.378,      123.693,      122.316
+
+                  CPU_UTIL_TOT =      124.347,      111.089,      118.497
+                  CPU_UTIL_USR =      78.9413,      69.6876,      72.3779
+                  CPU_UTIL_SYS =      45.4061,      41.4012,      46.1189
+               CPU_UTIL_IOWAIT =      45.4061,      41.4012,      46.1189
+          CPU_USECS_TOT_PER_OP =       197.61,      161.528,       152.82
+          CPU_USECS_USR_PER_OP =      125.452,      101.329,      93.3423
+          CPU_USECS_SYS_PER_OP =      72.1585,      60.1993,      59.4773
+       CPU_USECS_IOWAIT_PER_OP =      65.3985,      70.2485,      56.8597
+   CPU_USECS_TOT_PER_CLIENT_OP =      101.504,      83.4119,      79.2762
+   CPU_USECS_USR_PER_CLIENT_OP =      64.4395,      52.3255,      48.4219
+   CPU_USECS_SYS_PER_CLIENT_OP =      37.0649,      31.0864,      30.8542
+CPU_USECS_IOWAIT_PER_CLIENT_OP =      33.5925,      36.2757,      29.4964
+
+
+                  N_CLIENT_OPS =       123837,       809357,      1060470
+                      N_WRITES =        63610,       417945,       550126
+                 N_WRITE_BYTES =    521093120,   3423805440,   4506632192
+                     N_UPDATES =        62771,       411371,       540784
+                N_UPDATE_BYTES =    514220032,   3369951232,   4430102528
+                       N_READS =            0,            0,            0
+                  N_READ_BYTES =            0,            0,            0
+                     N_DELETES =        62771,       411371,       540784
+                N_DELETE_BYTES =    514220032,   3369951232,   4430102528
+                         N_GCS =         2181,        14315,        18466
+                    N_GC_BYTES =     50536448,    328998912,    332136448
+            N_EXTRA_COND_WAITS =            0,            0,            0
+                      N_MD_GET =            0,            0,            0
+                N_MD_GET_BYTES =            0,            0,            0
+                      N_MD_SET =         1135,         7516,         8679
+                N_MD_SET_BYTES =     54494755,    360865708,    416704827
+              N_IO_STRIPE_READ =         2181,        14315,        14466
+        N_IO_STRIPE_READ_BYTES =    571736064,   3752591360,   3792175104
+               N_IO_POINT_READ =            0,            0,            0
+         N_IO_POINT_READ_BYTES =            0,            0,            0
+             N_IO_STRIPE_WRITE =         2182,        14316,        18457
+       N_IO_STRIPE_WRITE_BYTES =    571998208,   3752853504,   4838391808
+            N_STRIPE_TBL_DUMPS =         1136,         7517,         8678
+
+                   CPU_USR_CNT =          798,         4235,         5135
+                  CPU_NICE_CNT =            0,            0,            0
+                   CPU_SYS_CNT =          459,         2516,         3272
+                  CPU_IDLE_CNT =          154,         1248,         1334
+                CPU_IOWAIT_CNT =          416,         2936,         3128
+
+
+GC_Compaction Statistics (14458 events)
+   Min:         0
+   Max:  4.096e+04
+   Ave:  2.297e+04
+   Geo:         0
+   Std:      5507
+   Log2 Dist:
+       0:      592        0        0        0
+       4:        0        0        0        0
+       8:        0        0        0        0
+      12:        0      160      924    12780
+      16:        2
+
+Batch_Writes Statistics (0 events)
+
+
+========  Stats at t=81 secs (window, steady-state, overall)  =======
+
+                 WRITE_AMP_PCT =      109.715,      109.617,      107.511
+                 K_CLIENT_RATE =      6.78917,      12.3866,      13.9295
+                   K_READ_RATE =            0,            0,            0
+                  K_WRITE_RATE =      3.47062,      6.39128,       7.2196
+                 K_UPDATE_RATE =      3.42455,      6.29197,       7.0986
+                 K_DELETE_RATE =      3.42455,      6.29197,       7.0986
+               STRIPE_TBL_RATE =      65.5543,      115.398,      115.234
+
+                  CPU_UTIL_TOT =      140.205,      115.243,      121.205
+                  CPU_UTIL_USR =        80.88,      71.2845,      73.4387
+                  CPU_UTIL_SYS =      59.3252,      43.9585,      47.7666
+               CPU_UTIL_IOWAIT =      59.3252,      43.9585,      47.7666
+          CPU_USECS_TOT_PER_OP =      403.977,      180.313,      167.884
+          CPU_USECS_USR_PER_OP =      233.042,      111.534,      101.721
+          CPU_USECS_SYS_PER_OP =      170.935,      68.7789,      66.1624
+       CPU_USECS_IOWAIT_PER_OP =      107.689,      73.1493,      59.9084
+   CPU_USECS_TOT_PER_CLIENT_OP =      206.513,      93.0388,      87.0136
+   CPU_USECS_USR_PER_CLIENT_OP =      119.131,      57.5499,      52.7218
+   CPU_USECS_SYS_PER_CLIENT_OP =       87.382,      35.4889,      34.2918
+CPU_USECS_IOWAIT_PER_CLIENT_OP =      55.0507,       37.744,      31.0503
+
+
+                  N_CLIENT_OPS =        68664,       878021,      1129134
+                      N_WRITES =        35101,       453046,       585227
+                 N_WRITE_BYTES =    287547392,   3711352832,   4794179584
+                     N_UPDATES =        34635,       446006,       575419
+                N_UPDATE_BYTES =    283729920,   3653681152,   4713832448
+                       N_READS =            0,            0,            0
+                  N_READ_BYTES =            0,            0,            0
+                     N_DELETES =        34635,       446006,       575419
+                N_DELETE_BYTES =    283729920,   3653681152,   4713832448
+                         N_GCS =         1204,        15519,        19670
+                    N_GC_BYTES =     27934720,    356933632,    360071168
+            N_EXTRA_COND_WAITS =            0,            0,            0
+                      N_MD_GET =            0,            0,            0
+                N_MD_GET_BYTES =            0,            0,            0
+                      N_MD_SET =          664,         8180,         9343
+                N_MD_SET_BYTES =     31880632,    392746340,    448585459
+              N_IO_STRIPE_READ =         1204,        15519,        15670
+        N_IO_STRIPE_READ_BYTES =    315621376,   4068212736,   4107796480
+               N_IO_POINT_READ =            0,            0,            0
+         N_IO_POINT_READ_BYTES =            0,            0,            0
+             N_IO_STRIPE_WRITE =         1203,        15519,        19660
+       N_IO_STRIPE_WRITE_BYTES =    315359232,   4068212736,   5153751040
+            N_STRIPE_TBL_DUMPS =          663,         8180,         9341
+
+                   CPU_USR_CNT =          818,         5053,         5953
+                  CPU_NICE_CNT =            0,            0,            0
+                   CPU_SYS_CNT =          600,         3116,         3872
+                  CPU_IDLE_CNT =           47,         1295,         1381
+                CPU_IOWAIT_CNT =          378,         3314,         3506
+
+
+GC_Compaction Statistics (15667 events)
+   Min:         0
+   Max:  4.096e+04
+   Ave:  2.298e+04
+   Geo:         0
+   Std:      5490
+   Log2 Dist:
+       0:      640        0        0        0
+       4:        0        0        0        0
+       8:        0        0        0        0
+      12:        0      171      983    13871
+      16:        2
+
+Batch_Writes Statistics (0 events)
+
+
+========  Stats at t=91 secs (window, steady-state, overall)  =======
+
+                 WRITE_AMP_PCT =      109.382,      109.605,      107.589
+                 K_CLIENT_RATE =       4.9442,      11.4518,      12.9268
+                   K_READ_RATE =            0,            0,            0
+                  K_WRITE_RATE =      2.51968,        5.905,      6.69512
+                 K_UPDATE_RATE =      2.48845,      5.81424,      6.58414
+                 K_DELETE_RATE =      2.48845,      5.81424,      6.58414
+               STRIPE_TBL_RATE =      65.9973,      109.193,       109.74
+
+                  CPU_UTIL_TOT =      172.555,      122.442,      126.936
+                  CPU_UTIL_USR =      103.219,      75.2956,       76.762
+                  CPU_UTIL_SYS =      69.3365,      47.1461,      50.1737
+               CPU_UTIL_IOWAIT =      69.3365,      47.1461,      50.1737
+          CPU_USECS_TOT_PER_OP =       684.83,      207.352,      189.594
+          CPU_USECS_USR_PER_OP =      409.651,      127.511,      114.654
+          CPU_USECS_SYS_PER_OP =      275.179,      79.8409,      74.9407
+       CPU_USECS_IOWAIT_PER_OP =      40.5363,      71.4014,      59.0948
+   CPU_USECS_TOT_PER_CLIENT_OP =      349.006,      106.919,      98.1961
+   CPU_USECS_USR_PER_CLIENT_OP =      208.768,      65.7501,      59.3823
+   CPU_USECS_SYS_PER_CLIENT_OP =      140.238,      41.1692,      38.8138
+CPU_USECS_IOWAIT_PER_CLIENT_OP =      20.6583,      36.8175,      30.6068
+
+
+                  N_CLIENT_OPS =        50343,       928364,      1179477
+                      N_WRITES =        25656,       478702,       610883
+                 N_WRITE_BYTES =    210173952,   3921526784,   5004353536
+                     N_UPDATES =        25338,       471344,       600757
+                N_UPDATE_BYTES =    207568896,   3861250048,   4921401344
+                       N_READS =            0,            0,            0
+                  N_READ_BYTES =            0,            0,            0
+                     N_DELETES =        25338,       471344,       600757
+                N_DELETE_BYTES =    207568896,   3861250048,   4921401344
+                         N_GCS =          877,        16396,        20547
+                    N_GC_BYTES =     19718144,    376651776,    379789312
+            N_EXTRA_COND_WAITS =            0,            0,            0
+                      N_MD_GET =            0,            0,            0
+                N_MD_GET_BYTES =            0,            0,            0
+                      N_MD_SET =          672,         8852,        10015
+                N_MD_SET_BYTES =     32264736,    425011076,    480850195
+              N_IO_STRIPE_READ =          877,        16396,        16547
+        N_IO_STRIPE_READ_BYTES =    229900288,   4298113024,   4337696768
+               N_IO_POINT_READ =            0,            0,            0
+         N_IO_POINT_READ_BYTES =            0,            0,            0
+             N_IO_STRIPE_WRITE =          877,        16396,        20537
+       N_IO_STRIPE_WRITE_BYTES =    229900288,   4298113024,   5383651328
+            N_STRIPE_TBL_DUMPS =          672,         8852,        10013
+
+                   CPU_USR_CNT =         1051,         6104,         7004
+                  CPU_NICE_CNT =            0,            0,            0
+                   CPU_SYS_CNT =          706,         3822,         4578
+                  CPU_IDLE_CNT =            3,         1298,         1384
+                CPU_IOWAIT_CNT =          104,         3418,         3610
+
+
+GC_Compaction Statistics (16545 events)
+   Min:         0
+   Max:  4.096e+04
+   Ave:  2.295e+04
+   Geo:         0
+   Std:      5503
+   Log2 Dist:
+       0:      671        0        0        0
+       4:        0        0        0        0
+       8:        0        0        0        0
+      12:        0      196     1078    14598
+      16:        2
+
+Batch_Writes Statistics (0 events)
+
+
+========  Stats at t=101 secs (window, steady-state, overall)  =======
+
+                 WRITE_AMP_PCT =      109.898,      109.631,      107.755
+                 K_CLIENT_RATE =      9.00637,      11.1794,      12.5339
+                   K_READ_RATE =            0,            0,            0
+                  K_WRITE_RATE =      4.65139,      5.76537,      6.49032
+                 K_UPDATE_RATE =      4.59845,      5.67882,      6.38516
+                 K_DELETE_RATE =      4.59845,      5.67882,      6.38516
+               STRIPE_TBL_RATE =      101.464,      108.332,      108.911
+
+                  CPU_UTIL_TOT =      129.905,      123.273,      127.233
+                  CPU_UTIL_USR =      78.9272,      75.7001,      76.9789
+                  CPU_UTIL_SYS =      50.9779,      47.5729,      50.2543
+               CPU_UTIL_IOWAIT =      50.9779,      47.5729,      50.2543
+          CPU_USECS_TOT_PER_OP =      279.282,      213.816,      196.035
+          CPU_USECS_USR_PER_OP =      169.685,      131.301,      118.606
+          CPU_USECS_SYS_PER_OP =      109.597,      82.5148,      77.4295
+       CPU_USECS_IOWAIT_PER_OP =      88.2278,      72.9135,      61.1869
+   CPU_USECS_TOT_PER_CLIENT_OP =      144.237,      110.268,      101.511
+   CPU_USECS_USR_PER_CLIENT_OP =      87.6349,      67.7138,      61.4165
+   CPU_USECS_SYS_PER_CLIENT_OP =      56.6021,       42.554,      40.0946
+CPU_USECS_IOWAIT_PER_CLIENT_OP =      45.5658,      37.6025,      31.6839
+
+
+                  N_CLIENT_OPS =        91516,      1019880,      1270993
+                      N_WRITES =        47264,       525966,       658147
+                 N_WRITE_BYTES =    387186688,   4308713472,   5391540224
+                     N_UPDATES =        46726,       518070,       647483
+                N_UPDATE_BYTES =    382779392,   4244029440,   5304180736
+                       N_READS =            0,            0,            0
+                  N_READ_BYTES =            0,            0,            0
+                     N_DELETES =        46726,       518070,       647483
+                N_DELETE_BYTES =    382779392,   4244029440,   5304180736
+                         N_GCS =         1621,        18017,        22168
+                    N_GC_BYTES =     38322176,    414973952,    418111488
+            N_EXTRA_COND_WAITS =            0,            0,            0
+                      N_MD_GET =            0,            0,            0
+                N_MD_GET_BYTES =            0,            0,            0
+                      N_MD_SET =         1031,         9883,        11046
+                N_MD_SET_BYTES =     49501403,    474512479,    530351598
+              N_IO_STRIPE_READ =         1621,        18017,        18168
+        N_IO_STRIPE_READ_BYTES =    424935424,   4723048448,   4762632192
+               N_IO_POINT_READ =            0,            0,            0
+         N_IO_POINT_READ_BYTES =            0,            0,            0
+             N_IO_STRIPE_WRITE =         1621,        18017,        22158
+       N_IO_STRIPE_WRITE_BYTES =    424935424,   4723048448,   5808586752
+            N_STRIPE_TBL_DUMPS =         1031,         9883,        11044
+
+                   CPU_USR_CNT =          802,         6906,         7806
+                  CPU_NICE_CNT =            0,            0,            0
+                   CPU_SYS_CNT =          518,         4340,         5096
+                  CPU_IDLE_CNT =          109,         1407,         1493
+                CPU_IOWAIT_CNT =          417,         3835,         4027
+
+
+GC_Compaction Statistics (18167 events)
+   Min:         0
+   Max:  4.096e+04
+   Ave:  2.301e+04
+   Geo:         0
+   Std:      5384
+   Log2 Dist:
+       0:      691        0        0        0
+       4:        0        0        0        0
+       8:        0        0        0        0
+      12:        0      216     1188    16070
+      16:        2
+
+Batch_Writes Statistics (0 events)
+
+
+========  Stats at t=111 secs (window, steady-state, overall)  =======
+
+                 WRITE_AMP_PCT =      109.726,      109.642,      107.942
+                 K_CLIENT_RATE =      13.3398,      11.3955,      12.6072
+                   K_READ_RATE =            0,            0,            0
+                  K_WRITE_RATE =      6.79238,       5.8681,      6.51778
+                 K_UPDATE_RATE =      6.70855,      5.78182,      6.41456
+                 K_DELETE_RATE =      6.70855,      5.78182,      6.41456
+               STRIPE_TBL_RATE =      126.736,      110.173,      110.531
+
+                  CPU_UTIL_TOT =      119.438,      122.889,      126.525
+                  CPU_UTIL_USR =      74.3652,      75.5665,      76.7414
+                  CPU_UTIL_SYS =      45.0728,      47.3228,      49.7833
+               CPU_UTIL_IOWAIT =      45.0728,      47.3228,      49.7833
+          CPU_USECS_TOT_PER_OP =      175.841,      209.419,      194.122
+          CPU_USECS_USR_PER_OP =      109.483,      128.775,      117.742
+          CPU_USECS_SYS_PER_OP =      66.3579,      80.6442,      76.3807
+       CPU_USECS_IOWAIT_PER_OP =      62.4374,      71.7006,      61.3054
+   CPU_USECS_TOT_PER_CLIENT_OP =      89.5352,       107.84,      100.359
+   CPU_USECS_USR_PER_CLIENT_OP =       55.747,      66.3127,      60.8712
+   CPU_USECS_SYS_PER_CLIENT_OP =      33.7883,      41.5276,      39.4881
+CPU_USECS_IOWAIT_PER_CLIENT_OP =       31.792,      36.9221,      31.6943
+
+
+                  N_CLIENT_OPS =       135254,      1155134,      1406247
+                      N_WRITES =        68869,       594835,       727016
+                 N_WRITE_BYTES =    564174848,   4872888320,   5955715072
+                     N_UPDATES =        68019,       586089,       715502
+                N_UPDATE_BYTES =    557211648,   4801241088,   5861392384
+                       N_READS =            0,            0,            0
+                  N_READ_BYTES =            0,            0,            0
+                     N_DELETES =        68019,       586089,       715502
+                N_DELETE_BYTES =    557211648,   4801241088,   5861392384
+                         N_GCS =         2362,        20379,        24530
+                    N_GC_BYTES =     54870016,    469843968,    472981504
+            N_EXTRA_COND_WAITS =            0,            0,            0
+                      N_MD_GET =            0,            0,            0
+                N_MD_GET_BYTES =            0,            0,            0
+                      N_MD_SET =         1284,        11167,        12330
+                N_MD_SET_BYTES =     61648692,    536161171,    592000290
+              N_IO_STRIPE_READ =         2362,        20379,        20530
+        N_IO_STRIPE_READ_BYTES =    619184128,   5342232576,   5381816320
+               N_IO_POINT_READ =            0,            0,            0
+         N_IO_POINT_READ_BYTES =            0,            0,            0
+             N_IO_STRIPE_WRITE =         2365,        20382,        24523
+       N_IO_STRIPE_WRITE_BYTES =    619970560,   5343019008,   6428557312
+            N_STRIPE_TBL_DUMPS =         1285,        11168,        12329
+
+                   CPU_USR_CNT =          754,         7660,         8560
+                  CPU_NICE_CNT =            0,            0,            0
+                   CPU_SYS_CNT =          457,         4797,         5553
+                  CPU_IDLE_CNT =          184,         1591,         1677
+                CPU_IOWAIT_CNT =          430,         4265,         4457
+
+
+GC_Compaction Statistics (20524 events)
+   Min:         0
+   Max:  4.096e+04
+   Ave:  2.305e+04
+   Geo:         0
+   Std:      5331
+   Log2 Dist:
+       0:      766        0        0        0
+       4:        0        0        0        0
+       8:        0        0        0        0
+      12:        0      243     1294    18219
+      16:        2
+
+Batch_Writes Statistics (0 events)
+
+
+========  Stats at t=121 secs (window, steady-state, overall)  =======
+
+                 WRITE_AMP_PCT =      108.966,      109.583,      108.016
+                 K_CLIENT_RATE =       11.108,      11.3694,      12.4825
+                   K_READ_RATE =            0,            0,            0
+                  K_WRITE_RATE =      5.65586,      5.84884,      6.44611
+                 K_UPDATE_RATE =      5.54258,      5.76011,      6.34205
+                 K_DELETE_RATE =      5.54258,      5.76011,      6.34205
+               STRIPE_TBL_RATE =      153.013,      114.061,      114.064
+
+                  CPU_UTIL_TOT =      134.134,       123.91,      127.157
+                  CPU_UTIL_USR =      65.8313,      74.6831,      75.8341
+                  CPU_UTIL_SYS =      68.3024,      49.2266,      51.3232
+               CPU_UTIL_IOWAIT =      68.3024,      49.2266,      51.3232
+          CPU_USECS_TOT_PER_OP =      237.159,      211.854,      197.262
+          CPU_USECS_USR_PER_OP =      116.395,      127.689,      117.643
+          CPU_USECS_SYS_PER_OP =      120.764,      84.1648,       79.619
+       CPU_USECS_IOWAIT_PER_OP =      60.6442,      70.7303,      61.2571
+   CPU_USECS_TOT_PER_CLIENT_OP =      120.754,      108.985,      101.869
+   CPU_USECS_USR_PER_CLIENT_OP =      59.2648,      65.6878,      60.7524
+   CPU_USECS_SYS_PER_CLIENT_OP =      61.4895,      43.2975,      41.1162
+CPU_USECS_IOWAIT_PER_CLIENT_OP =      30.8782,      36.3863,      31.6339
+
+
+                  N_CLIENT_OPS =       112377,      1267511,      1518624
+                      N_WRITES =        57219,       652054,       784235
+                 N_WRITE_BYTES =    468738048,   5341626368,   6424453120
+                     N_UPDATES =        56073,       642162,       771575
+                N_UPDATE_BYTES =    459350016,   5260591104,   6320742400
+                       N_READS =            0,            0,            0
+                  N_READ_BYTES =            0,            0,            0
+                     N_DELETES =        56073,       642162,       771575
+                N_DELETE_BYTES =    459350016,   5260591104,   6320742400
+                         N_GCS =         1950,        22329,        26480
+                    N_GC_BYTES =     42024960,    511868928,    515006464
+            N_EXTRA_COND_WAITS =            0,            0,            0
+                      N_MD_GET =            0,            0,            0
+                N_MD_GET_BYTES =            0,            0,            0
+                      N_MD_SET =         1549,        12716,        13879
+                N_MD_SET_BYTES =     74372137,    610533308,    666372427
+              N_IO_STRIPE_READ =         1950,        22329,        22480
+        N_IO_STRIPE_READ_BYTES =    511180800,   5853413376,   5892997120
+               N_IO_POINT_READ =            0,            0,            0
+         N_IO_POINT_READ_BYTES =            0,            0,            0
+             N_IO_STRIPE_WRITE =         1948,        22330,        26471
+       N_IO_STRIPE_WRITE_BYTES =    510656512,   5853675520,   6939213824
+            N_STRIPE_TBL_DUMPS =         1548,        12716,        13877
+
+                   CPU_USR_CNT =          666,         8326,         9226
+                  CPU_NICE_CNT =            0,            0,            0
+                   CPU_SYS_CNT =          691,         5488,         6244
+                  CPU_IDLE_CNT =          126,         1717,         1803
+                CPU_IOWAIT_CNT =          347,         4612,         4804
+
+
+GC_Compaction Statistics (22476 events)
+   Min:         0
+   Max:  4.096e+04
+   Ave:  2.291e+04
+   Geo:         0
+   Std:      5522
+   Log2 Dist:
+       0:      909        0        0        0
+       4:        0        0        0        0
+       8:        0        0        0        0
+      12:        0      310     1464    19791
+      16:        2
+
+Batch_Writes Statistics (0 events)
+
+
+========  Stats at t=131 secs (window, steady-state, overall)  =======
+
+                 WRITE_AMP_PCT =      108.616,      109.528,      108.045
+                 K_CLIENT_RATE =      7.62946,      11.0594,      12.1113
+                   K_READ_RATE =            0,            0,            0
+                  K_WRITE_RATE =      3.89595,      5.68694,      6.25102
+                 K_UPDATE_RATE =      3.80109,       5.5977,      6.14767
+                 K_DELETE_RATE =      3.80109,       5.5977,      6.14767
+               STRIPE_TBL_RATE =      151.226,      117.142,      116.906
+
+                  CPU_UTIL_TOT =      149.241,       126.01,      128.847
+                  CPU_UTIL_USR =      62.7131,      73.6908,      74.8304
+                  CPU_UTIL_SYS =      86.5281,       52.319,      54.0163
+               CPU_UTIL_IOWAIT =      86.5281,       52.319,      54.0163
+          CPU_USECS_TOT_PER_OP =      383.068,      221.577,      206.121
+          CPU_USECS_USR_PER_OP =       160.97,      129.579,      119.709
+          CPU_USECS_SYS_PER_OP =      222.098,      91.9984,       86.412
+       CPU_USECS_IOWAIT_PER_OP =      53.2321,      69.7366,      60.8745
+   CPU_USECS_TOT_PER_CLIENT_OP =      195.612,      113.939,      106.386
+   CPU_USECS_USR_PER_CLIENT_OP =      82.1986,      66.6321,      61.7858
+   CPU_USECS_SYS_PER_CLIENT_OP =      113.413,      47.3074,      44.6001
+CPU_USECS_IOWAIT_PER_CLIENT_OP =      27.1827,      35.8599,      31.4194
+
+
+                  N_CLIENT_OPS =        76887,      1344398,      1595511
+                      N_WRITES =        39262,       691316,       823497
+                 N_WRITE_BYTES =    321634304,   5663260672,   6746087424
+                     N_UPDATES =        38306,       680468,       809881
+                N_UPDATE_BYTES =    313802752,   5574393856,   6634545152
+                       N_READS =            0,            0,            0
+                  N_READ_BYTES =            0,            0,            0
+                     N_DELETES =        38306,       680468,       809881
+                N_DELETE_BYTES =    313802752,   5574393856,   6634545152
+                         N_GCS =         1333,        23662,        27813
+                    N_GC_BYTES =     27713536,    539582464,    542720000
+            N_EXTRA_COND_WAITS =            0,            0,            0
+                      N_MD_GET =            0,            0,            0
+                N_MD_GET_BYTES =            0,            0,            0
+                      N_MD_SET =         1524,        14240,        15403
+                N_MD_SET_BYTES =     73171812,    683705120,    739544239
+              N_IO_STRIPE_READ =         1333,        23662,        23813
+        N_IO_STRIPE_READ_BYTES =    349437952,   6202851328,   6242435072
+               N_IO_POINT_READ =            0,            0,            0
+         N_IO_POINT_READ_BYTES =            0,            0,            0
+             N_IO_STRIPE_WRITE =         1332,        23662,        27803
+       N_IO_STRIPE_WRITE_BYTES =    349175808,   6202851328,   7288389632
+            N_STRIPE_TBL_DUMPS =         1524,        14240,        15401
+
+                   CPU_USR_CNT =          632,         8958,         9858
+                  CPU_NICE_CNT =            0,            0,            0
+                   CPU_SYS_CNT =          872,         6360,         7116
+                  CPU_IDLE_CNT =           70,         1787,         1873
+                CPU_IOWAIT_CNT =          209,         4821,         5013
+
+
+GC_Compaction Statistics (23812 events)
+   Min:         0
+   Max:  4.096e+04
+   Ave:  2.279e+04
+   Geo:         0
+   Std:      5682
+   Log2 Dist:
+       0:     1016        0        0        0
+       4:        0        0        0        0
+       8:        0        0        0        0
+      12:        0      396     1600    20798
+      16:        2
+
+Batch_Writes Statistics (0 events)
+
+
+========  Stats at t=141 secs (window, steady-state, overall)  =======
+
+                 WRITE_AMP_PCT =      109.162,      109.504,      108.106
+                 K_CLIENT_RATE =      9.16322,      10.9134,      11.9006
+                   K_READ_RATE =            0,            0,            0
+                  K_WRITE_RATE =      4.66993,      5.60864,      6.13803
+                 K_UPDATE_RATE =      4.60395,       5.5212,      6.03735
+                 K_DELETE_RATE =      4.60395,       5.5212,      6.03735
+               STRIPE_TBL_RATE =      150.013,      119.672,      119.272
+
+                  CPU_UTIL_TOT =       132.26,      126.491,      129.091
+                  CPU_UTIL_USR =      57.5987,      72.4519,      73.5989
+                  CPU_UTIL_SYS =      74.6613,       54.039,      55.4917
+               CPU_UTIL_IOWAIT =      74.6613,       54.039,      55.4917
+          CPU_USECS_TOT_PER_OP =      283.216,      225.528,      210.313
+          CPU_USECS_USR_PER_OP =      123.339,      129.179,      119.906
+          CPU_USECS_SYS_PER_OP =      159.877,      96.3495,      90.4063
+       CPU_USECS_IOWAIT_PER_OP =      81.9447,      70.5191,      62.0202
+   CPU_USECS_TOT_PER_CLIENT_OP =      144.338,      115.904,      108.474
+   CPU_USECS_USR_PER_CLIENT_OP =      62.8586,      66.3881,      61.8449
+   CPU_USECS_SYS_PER_CLIENT_OP =      81.4793,      49.5163,      46.6294
+CPU_USECS_IOWAIT_PER_CLIENT_OP =      41.7622,      36.2414,      31.9885
+
+
+                  N_CLIENT_OPS =        92907,      1437305,      1688418
+                      N_WRITES =        47349,       738665,       870846
+                 N_WRITE_BYTES =    387883008,   6051143680,   7133970432
+                     N_UPDATES =        46680,       727148,       856561
+                N_UPDATE_BYTES =    382402560,   5956796416,   7016947712
+                       N_READS =            0,            0,            0
+                  N_READ_BYTES =            0,            0,            0
+                     N_DELETES =        46680,       727148,       856561
+                N_DELETE_BYTES =    382402560,   5956796416,   7016947712
+                         N_GCS =         1615,        25277,        29428
+                    N_GC_BYTES =     35536896,    575119360,    578256896
+            N_EXTRA_COND_WAITS =            0,            0,            0
+                      N_MD_GET =            0,            0,            0
+                N_MD_GET_BYTES =            0,            0,            0
+                      N_MD_SET =         1521,        15761,        16924
+                N_MD_SET_BYTES =     73027773,    756732893,    812572012
+              N_IO_STRIPE_READ =         1615,        25277,        25428
+        N_IO_STRIPE_READ_BYTES =    423362560,   6626213888,   6665797632
+               N_IO_POINT_READ =            0,            0,            0
+         N_IO_POINT_READ_BYTES =            0,            0,            0
+             N_IO_STRIPE_WRITE =         1615,        25277,        29418
+       N_IO_STRIPE_WRITE_BYTES =    423362560,   6626213888,   7711752192
+            N_STRIPE_TBL_DUMPS =         1521,        15761,        16922
+
+                   CPU_USR_CNT =          584,         9542,        10442
+                  CPU_NICE_CNT =            0,            0,            0
+                   CPU_SYS_CNT =          757,         7117,         7873
+                  CPU_IDLE_CNT =          112,         1899,         1985
+                CPU_IOWAIT_CNT =          388,         5209,         5401
+
+
+GC_Compaction Statistics (25427 events)
+   Min:         0
+   Max:  4.096e+04
+   Ave:  2.274e+04
+   Geo:         0
+   Std:      5755
+   Log2 Dist:
+       0:     1111        0        0        0
+       4:        0        0        0        0
+       8:        0        0        0        0
+      12:        0      464     1697    22153
+      16:        2
+
+Batch_Writes Statistics (0 events)
+
+
+========  Stats at t=151 secs (window, steady-state, overall)  =======
+
+                 WRITE_AMP_PCT =      109.832,      109.525,      108.199
+                 K_CLIENT_RATE =      9.64074,      10.8229,      11.7507
+                   K_READ_RATE =            0,            0,            0
+                  K_WRITE_RATE =      4.92297,      5.55991,      6.05745
+                 K_UPDATE_RATE =      4.87852,      5.47551,      5.96049
+                 K_DELETE_RATE =      4.87852,      5.47551,      5.96049
+               STRIPE_TBL_RATE =      143.083,      121.337,      120.851
+
+                  CPU_UTIL_TOT =      134.252,      127.043,      129.433
+                  CPU_UTIL_USR =      60.2298,      71.5831,      72.7123
+                  CPU_UTIL_SYS =      74.0222,      55.4595,      56.7207
+               CPU_UTIL_IOWAIT =      74.0222,      55.4595,      56.7207
+          CPU_USECS_TOT_PER_OP =      272.705,      228.498,      213.676
+          CPU_USECS_USR_PER_OP =      122.344,      128.749,      120.038
+          CPU_USECS_SYS_PER_OP =      150.361,      99.7489,       93.638
+       CPU_USECS_IOWAIT_PER_OP =      76.9944,      70.9267,      62.8273
+   CPU_USECS_TOT_PER_CLIENT_OP =      139.255,      117.383,      110.149
+   CPU_USECS_USR_PER_CLIENT_OP =      62.4743,      66.1403,      61.8791
+   CPU_USECS_SYS_PER_CLIENT_OP =      76.7806,      51.2426,      48.2701
+CPU_USECS_IOWAIT_PER_CLIENT_OP =      39.3166,      36.4362,      32.3873
+
+
+                  N_CLIENT_OPS =        97160,      1534465,      1785578
+                      N_WRITES =        49614,       788279,       920460
+                 N_WRITE_BYTES =    406437888,   6457581568,   7540408320
+                     N_UPDATES =        49166,       776314,       905727
+                N_UPDATE_BYTES =    402767872,   6359564288,   7419715584
+                       N_READS =            0,            0,            0
+                  N_READ_BYTES =            0,            0,            0
+                     N_DELETES =        49166,       776314,       905727
+                N_DELETE_BYTES =    402767872,   6359564288,   7419715584
+                         N_GCS =         1701,        26978,        31129
+                    N_GC_BYTES =     39960576,    615079936,    618217472
+            N_EXTRA_COND_WAITS =            0,            0,            0
+                      N_MD_GET =            0,            0,            0
+                N_MD_GET_BYTES =            0,            0,            0
+                      N_MD_SET =         1442,        17203,        18366
+                N_MD_SET_BYTES =     69234746,    825967639,    881806758
+              N_IO_STRIPE_READ =         1701,        26978,        27129
+        N_IO_STRIPE_READ_BYTES =    445906944,   7072120832,   7111704576
+               N_IO_POINT_READ =            0,            0,            0
+         N_IO_POINT_READ_BYTES =            0,            0,            0
+             N_IO_STRIPE_WRITE =         1703,        26980,        31121
+       N_IO_STRIPE_WRITE_BYTES =    446431232,   7072645120,   8158183424
+            N_STRIPE_TBL_DUMPS =         1442,        17203,        18364
+
+                   CPU_USR_CNT =          607,        10149,        11049
+                  CPU_NICE_CNT =            0,            0,            0
+                   CPU_SYS_CNT =          746,         7863,         8619
+                  CPU_IDLE_CNT =          116,         2015,         2101
+                CPU_IOWAIT_CNT =          382,         5591,         5783
+
+
+GC_Compaction Statistics (27128 events)
+   Min:         0
+   Max:  4.096e+04
+   Ave:  2.279e+04
+   Geo:         0
+   Std:      5685
+   Log2 Dist:
+       0:     1153        0        0        0
+       4:        0        0        0        0
+       8:        0        0        0        0
+      12:        0      480     1776    23717
+      16:        2
+
+Batch_Writes Statistics (0 events)
+
+
+========  Stats at t=162 secs (window, steady-state, overall)  =======
+
+                 WRITE_AMP_PCT =      109.917,      109.548,      108.286
+                 K_CLIENT_RATE =      9.54445,      10.7372,      11.6121
+                   K_READ_RATE =            0,            0,            0
+                  K_WRITE_RATE =      4.84915,      5.51227,      5.98154
+                 K_UPDATE_RATE =      4.80683,       5.4307,      5.88802
+                 K_DELETE_RATE =      4.80683,       5.4307,      5.88802
+               STRIPE_TBL_RATE =      144.522,      122.891,      122.338
+
+                  CPU_UTIL_TOT =      131.955,      127.372,      129.591
+                  CPU_UTIL_USR =      61.5594,      70.9113,      72.0117
+                  CPU_UTIL_SYS =      70.3956,      56.4606,      57.5797
+               CPU_UTIL_IOWAIT =      70.3956,      56.4606,      57.5797
+          CPU_USECS_TOT_PER_OP =       272.12,       231.07,      216.652
+          CPU_USECS_USR_PER_OP =      126.949,      128.643,       120.39
+          CPU_USECS_SYS_PER_OP =      145.171,      102.427,      96.2623
+       CPU_USECS_IOWAIT_PER_OP =      80.1782,      71.4721,      63.7109
+   CPU_USECS_TOT_PER_CLIENT_OP =      138.253,      118.626,        111.6
+   CPU_USECS_USR_PER_CLIENT_OP =      64.4975,      66.0424,      62.0143
+   CPU_USECS_SYS_PER_CLIENT_OP =      73.7556,      52.5839,       49.586
+CPU_USECS_IOWAIT_PER_CLIENT_OP =      40.7353,      36.6923,      32.8183
+
+
+                  N_CLIENT_OPS =        97213,      1631678,      1882791
+                      N_WRITES =        49390,       837669,       969850
+                 N_WRITE_BYTES =    404602880,   6862184448,   7945011200
+                     N_UPDATES =        48959,       825273,       954686
+                N_UPDATE_BYTES =    401072128,   6760636416,   7820787712
+                       N_READS =            0,            0,            0
+                  N_READ_BYTES =            0,            0,            0
+                     N_DELETES =        48959,       825273,       954686
+                N_DELETE_BYTES =    401072128,   6760636416,   7820787712
+                         N_GCS =         1697,        28675,        32826
+                    N_GC_BYTES =     40124416,    655204352,    658341888
+            N_EXTRA_COND_WAITS =            0,            0,            0
+                      N_MD_GET =            0,            0,            0
+                N_MD_GET_BYTES =            0,            0,            0
+                      N_MD_SET =         1472,        18675,        19838
+                N_MD_SET_BYTES =     70675136,    896642775,    952481894
+              N_IO_STRIPE_READ =         1697,        28675,        28826
+        N_IO_STRIPE_READ_BYTES =    444858368,   7516979200,   7556562944
+               N_IO_POINT_READ =            0,            0,            0
+         N_IO_POINT_READ_BYTES =            0,            0,            0
+             N_IO_STRIPE_WRITE =         1695,        28675,        32816
+       N_IO_STRIPE_WRITE_BYTES =    444334080,   7516979200,   8602517504
+            N_STRIPE_TBL_DUMPS =         1472,        18675,        19836
+
+                   CPU_USR_CNT =          627,        10776,        11676
+                  CPU_NICE_CNT =            0,            0,            0
+                   CPU_SYS_CNT =          717,         8580,         9336
+                  CPU_IDLE_CNT =          125,         2140,         2226
+                CPU_IOWAIT_CNT =          396,         5987,         6179
+
+
+GC_Compaction Statistics (28827 events)
+   Min:         0
+   Max:  4.096e+04
+   Ave:  2.284e+04
+   Geo:         0
+   Std:      5616
+   Log2 Dist:
+       0:     1194        0        0        0
+       4:        0        0        0        0
+       8:        0        0        0        0
+      12:        0      494     1832    25305
+      16:        2
+
+Batch_Writes Statistics (0 events)
+
+
+========  Stats at t=172 secs (window, steady-state, overall)  =======
+
+                 WRITE_AMP_PCT =      109.962,       109.57,      108.365
+                 K_CLIENT_RATE =      9.16266,      10.6379,      11.4668
+                   K_READ_RATE =            0,            0,            0
+                  K_WRITE_RATE =      4.65691,      5.45833,      5.90294
+                 K_UPDATE_RATE =      4.62171,      5.37968,      5.81288
+                 K_DELETE_RATE =      4.62171,      5.37968,      5.81288
+               STRIPE_TBL_RATE =      141.672,      124.075,      123.486
+
+                  CPU_UTIL_TOT =      133.362,       127.75,      129.815
+                  CPU_UTIL_USR =      60.5212,      70.2561,      71.3299
+                  CPU_UTIL_SYS =      72.8406,      57.4935,      58.4853
+               CPU_UTIL_IOWAIT =      72.8406,      57.4935,      58.4853
+          CPU_USECS_TOT_PER_OP =      286.374,      234.045,      219.916
+          CPU_USECS_USR_PER_OP =       129.96,      128.714,      120.838
+          CPU_USECS_SYS_PER_OP =      156.414,      105.332,      99.0781
+       CPU_USECS_IOWAIT_PER_OP =      81.2513,      71.9983,       64.532
+   CPU_USECS_TOT_PER_CLIENT_OP =      145.549,      120.089,       113.21
+   CPU_USECS_USR_PER_CLIENT_OP =       66.052,       66.043,      62.2058
+   CPU_USECS_SYS_PER_CLIENT_OP =      79.4972,      54.0457,      51.0042
+CPU_USECS_IOWAIT_PER_CLIENT_OP =      41.2959,      36.9423,      33.2203
+
+
+                  N_CLIENT_OPS =        93714,      1725392,      1976505
+                      N_WRITES =        47630,       885299,      1017480
+                 N_WRITE_BYTES =    390184960,   7252369408,   8335196160
+                     N_UPDATES =        47270,       872543,      1001956
+                N_UPDATE_BYTES =    387235840,   7147872256,   8208023552
+                       N_READS =            0,            0,            0
+                  N_READ_BYTES =            0,            0,            0
+                     N_DELETES =        47270,       872543,      1001956
+                N_DELETE_BYTES =    387235840,   7147872256,   8208023552
+                         N_GCS =         1637,        30312,        34463
+                    N_GC_BYTES =     38871040,    694075392,    697212928
+            N_EXTRA_COND_WAITS =            0,            0,            0
+                      N_MD_GET =            0,            0,            0
+                N_MD_GET_BYTES =            0,            0,            0
+                      N_MD_SET =         1449,        20124,        21287
+                N_MD_SET_BYTES =     69570837,    966213612,   1022052731
+              N_IO_STRIPE_READ =         1637,        30312,        30463
+        N_IO_STRIPE_READ_BYTES =    429129728,   7946108928,   7985692672
+               N_IO_POINT_READ =            0,            0,            0
+         N_IO_POINT_READ_BYTES =            0,            0,            0
+             N_IO_STRIPE_WRITE =         1638,        30313,        34454
+       N_IO_STRIPE_WRITE_BYTES =    429391872,   7946371072,   9031909376
+            N_STRIPE_TBL_DUMPS =         1449,        20124,        21285
+
+                   CPU_USR_CNT =          619,        11395,        12295
+                  CPU_NICE_CNT =            0,            0,            0
+                   CPU_SYS_CNT =          745,         9325,        10081
+                  CPU_IDLE_CNT =          120,         2260,         2346
+                CPU_IOWAIT_CNT =          387,         6374,         6566
+
+
+GC_Compaction Statistics (30463 events)
+   Min:         0
+   Max:  4.096e+04
+   Ave:  2.289e+04
+   Geo:         0
+   Std:      5548
+   Log2 Dist:
+       0:     1231        0        0        0
+       4:        0        0        0        0
+       8:        0        0        0        0
+      12:        0      499     1887    26844
+      16:        2
+
+Batch_Writes Statistics (0 events)
+
+
+========  Stats at t=182 secs (window, steady-state, overall)  =======
+
+                 WRITE_AMP_PCT =      109.919,      109.589,      108.436
+                 K_CLIENT_RATE =      9.47289,      10.5691,      11.3556
+                   K_READ_RATE =            0,            0,            0
+                  K_WRITE_RATE =      4.81109,       5.4201,      5.84205
+                 K_UPDATE_RATE =      4.77485,      5.34396,      5.75499
+                 K_DELETE_RATE =      4.77485,      5.34396,      5.75499
+               STRIPE_TBL_RATE =      135.832,      124.769,      124.174
+
+                  CPU_UTIL_TOT =      124.243,      127.542,      129.504
+                  CPU_UTIL_USR =      58.1436,      69.5406,      70.5944
+                  CPU_UTIL_SYS =      66.0991,      58.0018,      58.9099
+               CPU_UTIL_IOWAIT =      66.0991,      58.0018,      58.9099
+          CPU_USECS_TOT_PER_OP =      258.242,      235.314,      221.676
+          CPU_USECS_USR_PER_OP =      120.853,      128.301,      120.838
+          CPU_USECS_SYS_PER_OP =      137.389,      107.012,      100.838
+       CPU_USECS_IOWAIT_PER_OP =      94.3146,      73.1683,         65.9
+   CPU_USECS_TOT_PER_CLIENT_OP =      131.156,      120.675,      114.045
+   CPU_USECS_USR_PER_CLIENT_OP =       61.379,       65.796,      62.1673
+   CPU_USECS_SYS_PER_CLIENT_OP =      69.7771,      54.8785,      51.8776
+CPU_USECS_IOWAIT_PER_CLIENT_OP =      47.9005,      37.5225,      33.9033
+
+
+                  N_CLIENT_OPS =        96450,      1821842,      2072955
+                      N_WRITES =        48985,       934284,      1066465
+                 N_WRITE_BYTES =    401285120,   7653654528,   8736481280
+                     N_UPDATES =        48616,       921159,      1050572
+                N_UPDATE_BYTES =    398262272,   7546134528,   8606285824
+                       N_READS =            0,            0,            0
+                  N_READ_BYTES =            0,            0,            0
+                     N_DELETES =        48616,       921159,      1050572
+                N_DELETE_BYTES =    398262272,   7546134528,   8606285824
+                         N_GCS =         1683,        31995,        36146
+                    N_GC_BYTES =     39804928,    733880320,    737017856
+            N_EXTRA_COND_WAITS =            0,            0,            0
+                      N_MD_GET =            0,            0,            0
+                N_MD_GET_BYTES =            0,            0,            0
+                      N_MD_SET =         1383,        21507,        22670
+                N_MD_SET_BYTES =     66401979,   1032615591,   1088454710
+              N_IO_STRIPE_READ =         1683,        31995,        32146
+        N_IO_STRIPE_READ_BYTES =    441188352,   8387297280,   8426881024
+               N_IO_POINT_READ =            0,            0,            0
+         N_IO_POINT_READ_BYTES =            0,            0,            0
+             N_IO_STRIPE_WRITE =         1683,        31996,        36137
+       N_IO_STRIPE_WRITE_BYTES =    441188352,   8387559424,   9473097728
+            N_STRIPE_TBL_DUMPS =         1383,        21507,        22668
+
+                   CPU_USR_CNT =          592,        11987,        12887
+                  CPU_NICE_CNT =            0,            0,            0
+                   CPU_SYS_CNT =          673,         9998,        10754
+                  CPU_IDLE_CNT =          135,         2395,         2481
+                CPU_IOWAIT_CNT =          462,         6836,         7028
+
+
+GC_Compaction Statistics (32142 events)
+   Min:         0
+   Max:  4.096e+04
+   Ave:  2.293e+04
+   Geo:         0
+   Std:      5479
+   Log2 Dist:
+       0:     1262        0        0        0
+       4:        0        0        0        0
+       8:        0        0        0        0
+      12:        0      514     1950    28414
+      16:        2
+
+Batch_Writes Statistics (0 events)
+
+
+========  Stats at t=192 secs (window, steady-state, overall)  =======
+
+                 WRITE_AMP_PCT =      109.982,      109.606,      108.495
+                 K_CLIENT_RATE =      8.23957,      10.4393,       11.191
+                   K_READ_RATE =            0,            0,            0
+                  K_WRITE_RATE =      4.17674,       5.3508,      5.75413
+                 K_UPDATE_RATE =      4.14676,      5.27723,      5.67008
+                 K_DELETE_RATE =      4.14676,      5.27723,      5.67008
+               STRIPE_TBL_RATE =      113.419,      124.137,      123.606
+
+                  CPU_UTIL_TOT =      106.736,      126.383,      128.302
+                  CPU_UTIL_USR =      49.9278,      68.4475,      69.5033
+                  CPU_UTIL_SYS =      56.8077,      57.9352,      58.7989
+               CPU_UTIL_IOWAIT =      56.8077,      57.9352,      58.7989
+          CPU_USECS_TOT_PER_OP =      255.547,      236.194,      222.974
+          CPU_USECS_USR_PER_OP =      119.538,       127.92,      120.789
+          CPU_USECS_SYS_PER_OP =       136.01,      108.274,      102.186
+       CPU_USECS_IOWAIT_PER_OP =      143.304,      76.2197,      68.8662
+   CPU_USECS_TOT_PER_CLIENT_OP =       129.54,      121.065,      114.647
+   CPU_USECS_USR_PER_CLIENT_OP =      60.5952,      65.5672,      62.1062
+   CPU_USECS_SYS_PER_CLIENT_OP =       68.945,      55.4973,       52.541
+CPU_USECS_IOWAIT_PER_CLIENT_OP =      72.6427,      39.0675,      35.4091
+
+
+                  N_CLIENT_OPS =        83835,      1905677,      2156790
+                      N_WRITES =        42497,       976781,      1108962
+                 N_WRITE_BYTES =    348135424,   8001789952,   9084616704
+                     N_UPDATES =        42192,       963351,      1092764
+                N_UPDATE_BYTES =    345636864,   7891771392,   8951922688
+                       N_READS =            0,            0,            0
+                  N_READ_BYTES =            0,            0,            0
+                     N_DELETES =        42192,       963351,      1092764
+                N_DELETE_BYTES =    345636864,   7891771392,   8951922688
+                         N_GCS =         1461,        33456,        37607
+                    N_GC_BYTES =     34750464,    768630784,    771768320
+            N_EXTRA_COND_WAITS =            0,            0,            0
+                      N_MD_GET =            0,            0,            0
+                N_MD_GET_BYTES =            0,            0,            0
+                      N_MD_SET =         1154,        22661,        23824
+                N_MD_SET_BYTES =     55407002,   1088022593,   1143861712
+              N_IO_STRIPE_READ =         1461,        33456,        33607
+        N_IO_STRIPE_READ_BYTES =    382992384,   8770289664,   8809873408
+               N_IO_POINT_READ =            0,            0,            0
+         N_IO_POINT_READ_BYTES =            0,            0,            0
+             N_IO_STRIPE_WRITE =         1460,        33456,        37597
+       N_IO_STRIPE_WRITE_BYTES =    382730240,   8770289664,   9855827968
+            N_STRIPE_TBL_DUMPS =         1154,        22661,        23822
+
+                   CPU_USR_CNT =          508,        12495,        13395
+                  CPU_NICE_CNT =            0,            0,            0
+                   CPU_SYS_CNT =          578,        10576,        11332
+                  CPU_IDLE_CNT =          177,         2572,         2658
+                CPU_IOWAIT_CNT =          609,         7445,         7637
+
+
+GC_Compaction Statistics (33606 events)
+   Min:         0
+   Max:  4.096e+04
+   Ave:  2.297e+04
+   Geo:         0
+   Std:      5424
+   Log2 Dist:
+       0:     1289        0        0        0
+       4:        0        0        0        0
+       8:        0        0        0        0
+      12:        0      527     2002    29786
+      16:        2
+
+Batch_Writes Statistics (0 events)
+
+
+========  Stats at t=202 secs (window, steady-state, overall)  =======
+
+                 WRITE_AMP_PCT =      109.967,      109.622,      108.553
+                 K_CLIENT_RATE =      8.83228,      10.3548,      11.0732
+                   K_READ_RATE =            0,            0,            0
+                  K_WRITE_RATE =      4.47777,      5.30489,      5.69038
+                 K_UPDATE_RATE =      4.44915,      5.23368,       5.6091
+                 K_DELETE_RATE =      4.44915,      5.23368,       5.6091
+               STRIPE_TBL_RATE =      127.807,       124.33,      123.816
+
+                  CPU_UTIL_TOT =      125.241,      126.323,      128.149
+                  CPU_UTIL_USR =      57.6363,       67.879,      68.9106
+                  CPU_UTIL_SYS =      67.6043,      58.4437,      59.2388
+               CPU_UTIL_IOWAIT =      67.6043,      58.4437,      59.2388
+          CPU_USECS_TOT_PER_OP =      279.694,      238.125,      225.204
+          CPU_USECS_USR_PER_OP =      128.717,      127.956,        121.1
+          CPU_USECS_SYS_PER_OP =      150.977,       110.17,      104.103
+       CPU_USECS_IOWAIT_PER_OP =      101.827,      77.3564,      70.1617
+   CPU_USECS_TOT_PER_CLIENT_OP =      141.799,      121.995,      115.729
+   CPU_USECS_USR_PER_CLIENT_OP =      65.2565,      65.5533,      62.2317
+   CPU_USECS_SYS_PER_CLIENT_OP =      76.5423,      56.4413,      53.4973
+CPU_USECS_IOWAIT_PER_CLIENT_OP =      51.6241,      39.6307,      36.0551
+
+
+                  N_CLIENT_OPS =        89493,      1995170,      2246283
+                      N_WRITES =        45371,      1022152,      1154333
+                 N_WRITE_BYTES =    371679232,   8373469184,   9456295936
+                     N_UPDATES =        45081,      1008432,      1137845
+                N_UPDATE_BYTES =    369303552,   8261074944,   9321226240
+                       N_READS =            0,            0,            0
+                  N_READ_BYTES =            0,            0,            0
+                     N_DELETES =        45081,      1008432,      1137845
+                N_DELETE_BYTES =    369303552,   8261074944,   9321226240
+                         N_GCS =         1560,        35016,        39167
+                    N_GC_BYTES =     37044224,    805675008,    808812544
+            N_EXTRA_COND_WAITS =            0,            0,            0
+                      N_MD_GET =            0,            0,            0
+                N_MD_GET_BYTES =            0,            0,            0
+                      N_MD_SET =         1295,        23956,        25119
+                N_MD_SET_BYTES =     62176835,   1150199428,   1206038547
+              N_IO_STRIPE_READ =         1560,        35016,        35167
+        N_IO_STRIPE_READ_BYTES =    408944640,   9179234304,   9218818048
+               N_IO_POINT_READ =            0,            0,            0
+         N_IO_POINT_READ_BYTES =            0,            0,            0
+             N_IO_STRIPE_WRITE =         1560,        35016,        39157
+       N_IO_STRIPE_WRITE_BYTES =    408944640,   9179234304,  10264772608
+            N_STRIPE_TBL_DUMPS =         1295,        23956,        25117
+
+                   CPU_USR_CNT =          584,        13079,        13979
+                  CPU_NICE_CNT =            0,            0,            0
+                   CPU_SYS_CNT =          685,        11261,        12017
+                  CPU_IDLE_CNT =          123,         2695,         2781
+                CPU_IOWAIT_CNT =          462,         7907,         8099
+
+
+GC_Compaction Statistics (35159 events)
+   Min:         0
+   Max:  4.096e+04
+   Ave:   2.3e+04
+   Geo:         0
+   Std:      5362
+   Log2 Dist:
+       0:     1311        0        0        0
+       4:        0        0        0        0
+       8:        0        0        0        0
+      12:        0      543     2054    31249
+      16:        2
+
+Batch_Writes Statistics (0 events)
+
+
+========  Stats at t=212 secs (window, steady-state, overall)  =======
+
+                 WRITE_AMP_PCT =      109.863,       109.63,      108.594
+                 K_CLIENT_RATE =      7.18974,      10.1972,      10.8891
+                   K_READ_RATE =            0,            0,            0
+                  K_WRITE_RATE =      3.63954,      5.22197,      5.59315
+                 K_UPDATE_RATE =      3.61597,      5.15314,       5.5146
+                 K_DELETE_RATE =      3.61597,      5.15314,       5.5146
+               STRIPE_TBL_RATE =       120.74,      124.151,       123.67
+
+                  CPU_UTIL_TOT =      134.805,      126.745,      128.465
+                  CPU_UTIL_USR =       61.113,      67.5421,      68.5409
+                  CPU_UTIL_SYS =      73.6921,      59.2029,       59.924
+               CPU_UTIL_IOWAIT =      73.6921,      59.2029,       59.924
+          CPU_USECS_TOT_PER_OP =      370.391,      242.715,      229.683
+          CPU_USECS_USR_PER_OP =      167.914,      129.342,      122.544
+          CPU_USECS_SYS_PER_OP =      202.477,      113.373,      107.138
+       CPU_USECS_IOWAIT_PER_OP =      91.1689,      77.8357,      70.8098
+   CPU_USECS_TOT_PER_CLIENT_OP =      187.497,      124.294,      117.976
+   CPU_USECS_USR_PER_CLIENT_OP =      85.0003,       66.236,      62.9444
+   CPU_USECS_SYS_PER_CLIENT_OP =      102.496,      58.0581,      55.0311
+CPU_USECS_IOWAIT_PER_CLIENT_OP =      46.1509,      39.8596,      36.3711
+
+
+                  N_CLIENT_OPS =        72588,      2067758,      2318871
+                      N_WRITES =        36745,      1058897,      1191078
+                 N_WRITE_BYTES =    301015040,   8674484224,   9757310976
+                     N_UPDATES =        36507,      1044939,      1174352
+                N_UPDATE_BYTES =    299065344,   8560140288,   9620291584
+                       N_READS =            0,            0,            0
+                  N_READ_BYTES =            0,            0,            0
+                     N_DELETES =        36507,      1044939,      1174352
+                N_DELETE_BYTES =    299065344,   8560140288,   9620291584
+                         N_GCS =         1260,        36276,        40427
+                    N_GC_BYTES =     29687808,    835362816,    838500352
+            N_EXTRA_COND_WAITS =            0,            0,            0
+                      N_MD_GET =            0,            0,            0
+                N_MD_GET_BYTES =            0,            0,            0
+                      N_MD_SET =         1219,        25175,        26338
+                N_MD_SET_BYTES =     58527847,   1208727275,   1264566394
+              N_IO_STRIPE_READ =         1260,        36276,        36427
+        N_IO_STRIPE_READ_BYTES =    330301440,   9509535744,   9549119488
+               N_IO_POINT_READ =            0,            0,            0
+         N_IO_POINT_READ_BYTES =            0,            0,            0
+             N_IO_STRIPE_WRITE =         1260,        36276,        40417
+       N_IO_STRIPE_WRITE_BYTES =    330301440,   9509535744,  10595074048
+            N_STRIPE_TBL_DUMPS =         1219,        25175,        26336
+
+                   CPU_USR_CNT =          617,        13696,        14596
+                  CPU_NICE_CNT =            0,            0,            0
+                   CPU_SYS_CNT =          744,        12005,        12761
+                  CPU_IDLE_CNT =           93,         2788,         2874
+                CPU_IOWAIT_CNT =          335,         8242,         8434
+
+
+GC_Compaction Statistics (36426 events)
+   Min:         0
+   Max:  4.096e+04
+   Ave:  2.302e+04
+   Geo:         0
+   Std:      5336
+   Log2 Dist:
+       0:     1343        0        0        0
+       4:        0        0        0        0
+       8:        0        0        0        0
+      12:        0      560     2107    32414
+      16:        2
+
+Batch_Writes Statistics (0 events)
+
+
+========  Stats at t=223 secs (window, steady-state, overall)  =======
+
+                 WRITE_AMP_PCT =      110.039,      109.645,       108.64
+                 K_CLIENT_RATE =       7.6318,      10.0753,      10.7414
+                   K_READ_RATE =            0,            0,            0
+                  K_WRITE_RATE =      3.87711,      5.15809,      5.51535
+                 K_UPDATE_RATE =      3.85189,      5.09132,      5.43922
+                 K_DELETE_RATE =      3.85189,      5.09132,      5.43922
+               STRIPE_TBL_RATE =      112.232,      123.585,      123.152
+
+                  CPU_UTIL_TOT =      123.703,        126.6,      128.249
+                  CPU_UTIL_USR =      57.3522,       67.058,      68.0337
+                  CPU_UTIL_SYS =      66.3506,      59.5424,      60.2153
+               CPU_UTIL_IOWAIT =      66.3506,      59.5424,      60.2153
+          CPU_USECS_TOT_PER_OP =      319.059,      245.441,      232.531
+          CPU_USECS_USR_PER_OP =      147.925,      130.006,      123.353
+          CPU_USECS_SYS_PER_OP =      171.134,      115.435,      109.178
+       CPU_USECS_IOWAIT_PER_OP =      123.441,      79.4641,      72.4872
+   CPU_USECS_TOT_PER_CLIENT_OP =      162.089,      125.654,      119.396
+   CPU_USECS_USR_PER_CLIENT_OP =       75.149,      66.5567,      63.3375
+   CPU_USECS_SYS_PER_CLIENT_OP =      86.9396,      59.0973,      56.0589
+CPU_USECS_IOWAIT_PER_CLIENT_OP =      62.7105,      40.6818,      37.2196
+
+
+                  N_CLIENT_OPS =        77180,      2144938,      2396051
+                      N_WRITES =        39209,      1098106,      1230287
+                 N_WRITE_BYTES =    321200128,   8995684352,  10078511104
+                     N_UPDATES =        38954,      1083893,      1213306
+                N_UPDATE_BYTES =    319111168,   8879251456,   9939402752
+                       N_READS =            0,            0,            0
+                  N_READ_BYTES =            0,            0,            0
+                     N_DELETES =        38954,      1083893,      1213306
+                N_DELETE_BYTES =    319111168,   8879251456,   9939402752
+                         N_GCS =         1348,        37624,        41775
+                    N_GC_BYTES =     32243712,    867606528,    870744064
+            N_EXTRA_COND_WAITS =            0,            0,            0
+                      N_MD_GET =            0,            0,            0
+                N_MD_GET_BYTES =            0,            0,            0
+                      N_MD_SET =         1134,        26309,        27472
+                N_MD_SET_BYTES =     54446742,   1263174017,   1319013136
+              N_IO_STRIPE_READ =         1348,        37624,        37775
+        N_IO_STRIPE_READ_BYTES =    353370112,   9862905856,   9902489600
+               N_IO_POINT_READ =            0,            0,            0
+         N_IO_POINT_READ_BYTES =            0,            0,            0
+             N_IO_STRIPE_WRITE =         1349,        37625,        41766
+       N_IO_STRIPE_WRITE_BYTES =    353632256,   9863168000,  10948706304
+            N_STRIPE_TBL_DUMPS =         1135,        26310,        27471
+
+                   CPU_USR_CNT =          580,        14276,        15176
+                  CPU_NICE_CNT =            0,            0,            0
+                   CPU_SYS_CNT =          671,        12676,        13432
+                  CPU_IDLE_CNT =          119,         2907,         2993
+                CPU_IOWAIT_CNT =          484,         8726,         8918
+
+
+GC_Compaction Statistics (37775 events)
+   Min:         0
+   Max:  4.096e+04
+   Ave:  2.305e+04
+   Geo:         0
+   Std:      5279
+   Log2 Dist:
+       0:     1355        0        0        0
+       4:        0        0        0        0
+       8:        0        0        0        0
+      12:        0      573     2163    33682
+      16:        2
+
+Batch_Writes Statistics (0 events)
+
+
+========  Stats at t=233 secs (window, steady-state, overall)  =======
+
+                 WRITE_AMP_PCT =      109.986,      109.657,      108.682
+                 K_CLIENT_RATE =      7.85593,      9.97441,       10.616
+                   K_READ_RATE =            0,            0,            0
+                  K_WRITE_RATE =       3.9754,      5.10431,      5.44838
+                 K_UPDATE_RATE =      3.94858,      5.03936,       5.3744
+                 K_DELETE_RATE =      3.94858,      5.03936,       5.3744
+               STRIPE_TBL_RATE =      106.103,       122.79,       122.41
+
+                  CPU_UTIL_TOT =      106.892,      125.704,       127.32
+                  CPU_UTIL_USR =      48.3181,      66.2059,      67.1763
+                  CPU_UTIL_SYS =      58.5734,      59.4984,      60.1439
+               CPU_UTIL_IOWAIT =      58.5734,      59.4984,      60.1439
+          CPU_USECS_TOT_PER_OP =      268.883,      246.271,      233.685
+          CPU_USECS_USR_PER_OP =      121.543,      129.706,      123.296
+          CPU_USECS_SYS_PER_OP =       147.34,      116.565,      110.389
+       CPU_USECS_IOWAIT_PER_OP =      158.502,      82.2631,      75.2163
+   CPU_USECS_TOT_PER_CLIENT_OP =      136.065,      126.027,      119.933
+   CPU_USECS_USR_PER_CLIENT_OP =      61.5052,      66.3758,      63.2786
+   CPU_USECS_SYS_PER_CLIENT_OP =      74.5594,       59.651,      56.6542
+CPU_USECS_IOWAIT_PER_CLIENT_OP =      80.2079,      42.0973,      38.6029
+
+
+                  N_CLIENT_OPS =        79668,      2224606,      2475719
+                      N_WRITES =        40315,      1138421,      1270602
+                 N_WRITE_BYTES =    330260480,   9325944832,  10408771584
+                     N_UPDATES =        40043,      1123936,      1253349
+                N_UPDATE_BYTES =    328032256,   9207283712,  10267435008
+                       N_READS =            0,            0,            0
+                  N_READ_BYTES =            0,            0,            0
+                     N_DELETES =        40043,      1123936,      1253349
+                N_DELETE_BYTES =    328032256,   9207283712,  10267435008
+                         N_GCS =         1385,        39009,        43160
+                    N_GC_BYTES =     32980992,    900587520,    903725056
+            N_EXTRA_COND_WAITS =            0,            0,            0
+                      N_MD_GET =            0,            0,            0
+                N_MD_GET_BYTES =            0,            0,            0
+                      N_MD_SET =         1077,        27386,        28549
+                N_MD_SET_BYTES =     51710001,   1314884018,   1370723137
+              N_IO_STRIPE_READ =         1385,        39009,        39160
+        N_IO_STRIPE_READ_BYTES =    363069440,  10225975296,  10265559040
+               N_IO_POINT_READ =            0,            0,            0
+         N_IO_POINT_READ_BYTES =            0,            0,            0
+             N_IO_STRIPE_WRITE =         1385,        39010,        43151
+       N_IO_STRIPE_WRITE_BYTES =    363069440,  10226237440,  11311775744
+            N_STRIPE_TBL_DUMPS =         1076,        27386,        28547
+
+                   CPU_USR_CNT =          490,        14766,        15666
+                  CPU_NICE_CNT =            0,            0,            0
+                   CPU_SYS_CNT =          594,        13270,        14026
+                  CPU_IDLE_CNT =          156,         3063,         3149
+                CPU_IOWAIT_CNT =          639,         9365,         9557
+
+
+GC_Compaction Statistics (39157 events)
+   Min:         0
+   Max:  4.096e+04
+   Ave:  2.308e+04
+   Geo:         0
+   Std:      5234
+   Log2 Dist:
+       0:     1379        0        0        0
+       4:        0        0        0        0
+       8:        0        0        0        0
+      12:        0      580     2206    34990
+      16:        2
+
+Batch_Writes Statistics (0 events)
+
+
+========  Stats at t=243 secs (window, steady-state, overall)  =======
+
+                 WRITE_AMP_PCT =       109.95,      109.668,      108.726
+                 K_CLIENT_RATE =      8.74292,       9.9207,      10.5377
+                   K_READ_RATE =            0,            0,            0
+                  K_WRITE_RATE =      4.42735,      5.07478,      5.40571
+                 K_UPDATE_RATE =      4.39776,      5.01138,      5.33358
+                 K_DELETE_RATE =      4.39776,      5.01138,      5.33358
+               STRIPE_TBL_RATE =      110.308,      122.246,      121.905
+
+                  CPU_UTIL_TOT =      108.341,      124.947,      126.527
+                  CPU_UTIL_USR =      50.5331,      65.5224,      66.4807
+                  CPU_UTIL_SYS =      57.8083,      59.4247,      60.0463
+               CPU_UTIL_IOWAIT =      57.8083,      59.4247,      60.0463
+          CPU_USECS_TOT_PER_OP =      244.709,      246.212,      234.062
+          CPU_USECS_USR_PER_OP =      114.139,      129.114,      122.982
+          CPU_USECS_SYS_PER_OP =      130.571,      117.098,      111.079
+       CPU_USECS_IOWAIT_PER_OP =      136.789,      84.3379,      77.3239
+   CPU_USECS_TOT_PER_CLIENT_OP =      123.919,      125.946,      120.071
+   CPU_USECS_USR_PER_CLIENT_OP =      57.7989,      66.0461,      63.0886
+   CPU_USECS_SYS_PER_CLIENT_OP =      66.1202,      59.8997,      56.9825
+CPU_USECS_IOWAIT_PER_CLIENT_OP =      69.2687,      43.1418,      39.6663
+
+
+                  N_CLIENT_OPS =        88929,      2313535,      2564648
+                      N_WRITES =        45033,      1183454,      1315635
+                 N_WRITE_BYTES =    368910336,   9694855168,  10777681920
+                     N_UPDATES =        44732,      1168668,      1298081
+                N_UPDATE_BYTES =    366444544,   9573728256,  10633879552
+                       N_READS =            0,            0,            0
+                  N_READ_BYTES =            0,            0,            0
+                     N_DELETES =        44732,      1168668,      1298081
+                N_DELETE_BYTES =    366444544,   9573728256,  10633879552
+                         N_GCS =         1549,        40558,        44709
+                    N_GC_BYTES =     36708352,    937295872,    940433408
+            N_EXTRA_COND_WAITS =            0,            0,            0
+                      N_MD_GET =            0,            0,            0
+                N_MD_GET_BYTES =            0,            0,            0
+                      N_MD_SET =         1122,        28508,        29671
+                N_MD_SET_BYTES =     53870586,   1368754604,   1424593723
+              N_IO_STRIPE_READ =         1549,        40558,        40709
+        N_IO_STRIPE_READ_BYTES =    406061056,  10632036352,  10671620096
+               N_IO_POINT_READ =            0,            0,            0
+         N_IO_POINT_READ_BYTES =            0,            0,            0
+             N_IO_STRIPE_WRITE =         1548,        40558,        44699
+       N_IO_STRIPE_WRITE_BYTES =    405798912,  10632036352,  11717574656
+            N_STRIPE_TBL_DUMPS =         1122,        28508,        29669
+
+                   CPU_USR_CNT =          514,        15280,        16180
+                  CPU_NICE_CNT =            0,            0,            0
+                   CPU_SYS_CNT =          588,        13858,        14614
+                  CPU_IDLE_CNT =          143,         3206,         3292
+                CPU_IOWAIT_CNT =          616,         9981,        10173
+
+
+GC_Compaction Statistics (40706 events)
+   Min:         0
+   Max:  4.096e+04
+   Ave:  2.31e+04
+   Geo:         0
+   Std:      5199
+   Log2 Dist:
+       0:     1415        0        0        0
+       4:        0        0        0        0
+       8:        0        0        0        0
+      12:        0      588     2260    36441
+      16:        2
+
+Batch_Writes Statistics (0 events)
+
+
+========  Stats at t=253 secs (window, steady-state, overall)  =======
+
+                 WRITE_AMP_PCT =       110.04,      109.681,      108.768
+                 K_CLIENT_RATE =      8.64554,      9.86773,      10.4622
+                   K_READ_RATE =            0,            0,            0
+                  K_WRITE_RATE =      4.35977,      5.04508,      5.36401
+                 K_UPDATE_RATE =      4.33454,      4.98326,      5.29375
+                 K_DELETE_RATE =      4.33454,      4.98326,      5.29375
+               STRIPE_TBL_RATE =      115.267,      121.956,       121.64
+
+                  CPU_UTIL_TOT =      113.981,      124.491,      126.027
+                  CPU_UTIL_USR =       56.199,      65.1351,      66.0708
+                  CPU_UTIL_SYS =       57.782,      59.3564,       59.956
+               CPU_UTIL_IOWAIT =       57.782,      59.3564,       59.956
+          CPU_USECS_TOT_PER_OP =      261.438,      246.758,      234.949
+          CPU_USECS_USR_PER_OP =      128.903,      129.106,      123.174
+          CPU_USECS_SYS_PER_OP =      132.534,      117.652,      111.775
+       CPU_USECS_IOWAIT_PER_OP =      129.357,      85.9539,      79.0101
+   CPU_USECS_TOT_PER_CLIENT_OP =      131.838,       126.16,      120.459
+   CPU_USECS_USR_PER_CLIENT_OP =      65.0034,      66.0082,      63.1517
+   CPU_USECS_SYS_PER_CLIENT_OP =      66.8345,      60.1521,      57.3071
+CPU_USECS_IOWAIT_PER_CLIENT_OP =      65.2323,      43.9457,      40.5086
+
+
+                  N_CLIENT_OPS =        87380,      2400915,      2652028
+                      N_WRITES =        44064,      1227518,      1359699
+                 N_WRITE_BYTES =    360972288,  10055827456,  11138654208
+                     N_UPDATES =        43809,      1212477,      1341890
+                N_UPDATE_BYTES =    358883328,   9932611584,  10992762880
+                       N_READS =            0,            0,            0
+                  N_READ_BYTES =            0,            0,            0
+                     N_DELETES =        43809,      1212477,      1341890
+                N_DELETE_BYTES =    358883328,   9932611584,  10992762880
+                         N_GCS =         1515,        42073,        46224
+                    N_GC_BYTES =     36241408,    973537280,    976674816
+            N_EXTRA_COND_WAITS =            0,            0,            0
+                      N_MD_GET =            0,            0,            0
+                N_MD_GET_BYTES =            0,            0,            0
+                      N_MD_SET =         1164,        29672,        30835
+                N_MD_SET_BYTES =     55887132,   1424641736,   1480480855
+              N_IO_STRIPE_READ =         1515,        42073,        42224
+        N_IO_STRIPE_READ_BYTES =    397148160,  11029184512,  11068768256
+               N_IO_POINT_READ =            0,            0,            0
+         N_IO_POINT_READ_BYTES =            0,            0,            0
+             N_IO_STRIPE_WRITE =         1515,        42073,        46214
+       N_IO_STRIPE_WRITE_BYTES =    397148160,  11029184512,  12114722816
+            N_STRIPE_TBL_DUMPS =         1165,        29673,        30834
+
+                   CPU_USR_CNT =          568,        15848,        16748
+                  CPU_NICE_CNT =            0,            0,            0
+                   CPU_SYS_CNT =          584,        14442,        15198
+                  CPU_IDLE_CNT =          139,         3345,         3431
+                CPU_IOWAIT_CNT =          570,        10551,        10743
+
+
+GC_Compaction Statistics (42224 events)
+   Min:         0
+   Max:  4.096e+04
+   Ave:  2.313e+04
+   Geo:         0
+   Std:      5146
+   Log2 Dist:
+       0:     1429        0        0        0
+       4:        0        0        0        0
+       8:        0        0        0        0
+      12:        0      601     2334    37858
+      16:        2
+
+Batch_Writes Statistics (0 events)
+
+
+========  Stats at t=263 secs (window, steady-state, overall)  =======
+
+                 WRITE_AMP_PCT =       109.79,      109.685,      108.799
+                 K_CLIENT_RATE =      8.28577,       9.8045,      10.3786
+                   K_READ_RATE =            0,            0,            0
+                  K_WRITE_RATE =      4.21106,      5.01175,      5.31971
+                 K_UPDATE_RATE =      4.18766,      4.95147,      5.25125
+                 K_DELETE_RATE =      4.18766,      4.95147,      5.25125
+               STRIPE_TBL_RATE =      107.019,      121.359,      121.078
+
+                  CPU_UTIL_TOT =      118.372,      124.247,      125.733
+                  CPU_UTIL_USR =      57.4585,      64.8283,      65.7399
+                  CPU_UTIL_SYS =      60.9139,      59.4187,      59.9929
+               CPU_UTIL_IOWAIT =      60.9139,      59.4187,      59.9929
+          CPU_USECS_TOT_PER_OP =      281.099,      247.911,      236.353
+          CPU_USECS_USR_PER_OP =      136.447,      129.353,      123.578
+          CPU_USECS_SYS_PER_OP =      144.652,      118.559,      112.775
+       CPU_USECS_IOWAIT_PER_OP =      127.069,      87.3346,      80.4719
+   CPU_USECS_TOT_PER_CLIENT_OP =      142.862,      126.724,      121.146
+   CPU_USECS_USR_PER_CLIENT_OP =       69.346,      66.1209,      63.3417
+   CPU_USECS_SYS_PER_CLIENT_OP =      73.5163,      60.6035,      57.8043
+CPU_USECS_IOWAIT_PER_CLIENT_OP =      64.5799,      44.6427,       41.247
+
+
+                  N_CLIENT_OPS =        83927,      2484842,      2735955
+                      N_WRITES =        42654,      1270172,      1402353
+                 N_WRITE_BYTES =    349421568,  10405249024,  11488075776
+                     N_UPDATES =        42417,      1254894,      1384307
+                N_UPDATE_BYTES =    347480064,  10280091648,  11340242944
+                       N_READS =            0,            0,            0
+                  N_READ_BYTES =            0,            0,            0
+                     N_DELETES =        42417,      1254894,      1384307
+                N_DELETE_BYTES =    347480064,  10280091648,  11340242944
+                         N_GCS =         1464,        43537,        47688
+                    N_GC_BYTES =     34209792,   1007747072,   1010884608
+            N_EXTRA_COND_WAITS =            0,            0,            0
+                      N_MD_GET =            0,            0,            0
+                N_MD_GET_BYTES =            0,            0,            0
+                      N_MD_SET =         1085,        30757,        31920
+                N_MD_SET_BYTES =     52094105,   1476735841,   1532574960
+              N_IO_STRIPE_READ =         1464,        43537,        43688
+        N_IO_STRIPE_READ_BYTES =    383778816,  11412963328,  11452547072
+               N_IO_POINT_READ =            0,            0,            0
+         N_IO_POINT_READ_BYTES =            0,            0,            0
+             N_IO_STRIPE_WRITE =         1464,        43537,        47678
+       N_IO_STRIPE_WRITE_BYTES =    383778816,  11412963328,  12498501632
+            N_STRIPE_TBL_DUMPS =         1084,        30757,        31918
+
+                   CPU_USR_CNT =          582,        16430,        17330
+                  CPU_NICE_CNT =            0,            0,            0
+                   CPU_SYS_CNT =          617,        15059,        15815
+                  CPU_IDLE_CNT =          133,         3478,         3564
+                CPU_IOWAIT_CNT =          542,        11093,        11285
+
+
+GC_Compaction Statistics (43685 events)
+   Min:         0
+   Max:  4.096e+04
+   Ave:  2.314e+04
+   Geo:         0
+   Std:      5138
+   Log2 Dist:
+       0:     1481        0        0        0
+       4:        0        0        0        0
+       8:        0        0        0        0
+      12:        0      609     2377    39216
+      16:        2
+
+Batch_Writes Statistics (0 events)
+
+
+========  Stats at t=273 secs (window, steady-state, overall)  =======
+
+                 WRITE_AMP_PCT =      110.049,      109.697,      108.836
+                 K_CLIENT_RATE =      8.26234,       9.7447,      10.2996
+                   K_READ_RATE =            0,            0,            0
+                  K_WRITE_RATE =      4.17777,      4.97941,      5.27707
+                 K_UPDATE_RATE =      4.15381,      4.92053,      5.21027
+                 K_DELETE_RATE =      4.15381,      4.92053,      5.21027
+               STRIPE_TBL_RATE =      112.955,      121.033,      120.775
+
+                  CPU_UTIL_TOT =      112.173,      123.779,      125.226
+                  CPU_UTIL_USR =      51.2454,      64.3015,      65.1986
+                  CPU_UTIL_SYS =      60.9272,      59.4772,      60.0277
+               CPU_UTIL_IOWAIT =      60.9272,      59.4772,      60.0277
+          CPU_USECS_TOT_PER_OP =      268.499,      248.581,      237.303
+          CPU_USECS_USR_PER_OP =      122.662,      129.135,      123.551
+          CPU_USECS_SYS_PER_OP =      145.837,      119.446,      113.752
+       CPU_USECS_IOWAIT_PER_OP =      134.835,      88.8802,       82.079
+   CPU_USECS_TOT_PER_CLIENT_OP =      135.764,      127.022,      121.584
+   CPU_USECS_USR_PER_CLIENT_OP =      62.0228,      65.9862,      63.3022
+   CPU_USECS_SYS_PER_CLIENT_OP =      73.7409,      61.0354,      58.2817
+CPU_USECS_IOWAIT_PER_CLIENT_OP =      68.1778,      45.4166,      42.0537
+
+
+                  N_CLIENT_OPS =        84485,      2569327,      2820440
+                      N_WRITES =        42719,      1312891,      1445072
+                 N_WRITE_BYTES =    349954048,  10755203072,  11838029824
+                     N_UPDATES =        42474,      1297368,      1426781
+                N_UPDATE_BYTES =    347947008,  10628038656,  11688189952
+                       N_READS =            0,            0,            0
+                  N_READ_BYTES =            0,            0,            0
+                     N_DELETES =        42474,      1297368,      1426781
+                N_DELETE_BYTES =    347947008,  10628038656,  11688189952
+                         N_GCS =         1469,        45006,        49157
+                    N_GC_BYTES =     35168256,   1042915328,   1046052864
+            N_EXTRA_COND_WAITS =            0,            0,            0
+                      N_MD_GET =            0,            0,            0
+                N_MD_GET_BYTES =            0,            0,            0
+                      N_MD_SET =         1155,        31912,        33075
+                N_MD_SET_BYTES =     55455015,   1532190856,   1588029975
+              N_IO_STRIPE_READ =         1469,        45006,        45157
+        N_IO_STRIPE_READ_BYTES =    385089536,  11798052864,  11837636608
+               N_IO_POINT_READ =            0,            0,            0
+         N_IO_POINT_READ_BYTES =            0,            0,            0
+             N_IO_STRIPE_WRITE =         1469,        45006,        49147
+       N_IO_STRIPE_WRITE_BYTES =    385089536,  11798052864,  12883591168
+            N_STRIPE_TBL_DUMPS =         1155,        31912,        33073
+
+                   CPU_USR_CNT =          524,        16954,        17854
+                  CPU_NICE_CNT =            0,            0,            0
+                   CPU_SYS_CNT =          623,        15682,        16438
+                  CPU_IDLE_CNT =          145,         3623,         3709
+                CPU_IOWAIT_CNT =          576,        11669,        11861
+
+
+GC_Compaction Statistics (45154 events)
+   Min:         0
+   Max:  4.096e+04
+   Ave:  2.317e+04
+   Geo:         0
+   Std:      5088
+   Log2 Dist:
+       0:     1491        0        0        0
+       4:        0        0        0        0
+       8:        0        0        0        0
+      12:        0      626     2435    40600
+      16:        2
+
+Batch_Writes Statistics (0 events)
+
+
+========  Stats at t=283 secs (window, steady-state, overall)  =======
+
+                 WRITE_AMP_PCT =      109.882,      109.702,      108.865
+                 K_CLIENT_RATE =      7.91186,      9.67689,      10.2144
+                   K_READ_RATE =            0,            0,            0
+                  K_WRITE_RATE =      3.99394,      4.94295,       5.2313
+                 K_UPDATE_RATE =       3.9735,       4.8855,      5.16616
+                 K_DELETE_RATE =       3.9735,       4.8855,      5.16616
+               STRIPE_TBL_RATE =       106.72,      120.503,      120.274
+
+                  CPU_UTIL_TOT =      115.407,      123.469,      124.876
+                  CPU_UTIL_USR =      54.0015,      63.9204,      64.7992
+                  CPU_UTIL_SYS =      61.4057,      59.5485,      60.0769
+               CPU_UTIL_IOWAIT =      61.4057,      59.5485,      60.0769
+          CPU_USECS_TOT_PER_OP =      288.956,      249.788,       238.71
+          CPU_USECS_USR_PER_OP =      135.209,      129.316,      123.868
+          CPU_USECS_SYS_PER_OP =      153.747,      120.472,      114.841
+       CPU_USECS_IOWAIT_PER_OP =      136.197,      90.2947,      83.5528
+   CPU_USECS_TOT_PER_CLIENT_OP =      145.866,      127.592,      122.255
+   CPU_USECS_USR_PER_CLIENT_OP =      68.2538,      66.0547,       63.439
+   CPU_USECS_SYS_PER_CLIENT_OP =      77.6122,      61.5369,      58.8158
+CPU_USECS_IOWAIT_PER_CLIENT_OP =       68.753,      46.1224,      42.7914
+
+
+                  N_CLIENT_OPS =        80142,      2649469,      2900582
+                      N_WRITES =        40456,      1353347,      1485528
+                 N_WRITE_BYTES =    331415552,  11086618624,  12169445376
+                     N_UPDATES =        40249,      1337617,      1467030
+                N_UPDATE_BYTES =    329719808,  10957758464,  12017909760
+                       N_READS =            0,            0,            0
+                  N_READ_BYTES =            0,            0,            0
+                     N_DELETES =        40249,      1337617,      1467030
+                N_DELETE_BYTES =    329719808,  10957758464,  12017909760
+                         N_GCS =         1388,        46394,        50545
+                    N_GC_BYTES =     32751616,   1075666944,   1078804480
+            N_EXTRA_COND_WAITS =            0,            0,            0
+                      N_MD_GET =            0,            0,            0
+                N_MD_GET_BYTES =            0,            0,            0
+                      N_MD_SET =         1081,        32993,        34156
+                N_MD_SET_BYTES =     51902053,   1584092909,   1639932028
+              N_IO_STRIPE_READ =         1388,        46394,        46545
+        N_IO_STRIPE_READ_BYTES =    363855872,  12161908736,  12201492480
+               N_IO_POINT_READ =            0,            0,            0
+         N_IO_POINT_READ_BYTES =            0,            0,            0
+             N_IO_STRIPE_WRITE =         1388,        46394,        50535
+       N_IO_STRIPE_WRITE_BYTES =    363855872,  12161908736,  13247447040
+            N_STRIPE_TBL_DUMPS =         1081,        32993,        34154
+
+                   CPU_USR_CNT =          547,        17501,        18401
+                  CPU_NICE_CNT =            0,            0,            0
+                   CPU_SYS_CNT =          622,        16304,        17060
+                  CPU_IDLE_CNT =          140,         3763,         3849
+                CPU_IOWAIT_CNT =          551,        12220,        12412
+
+
+GC_Compaction Statistics (46543 events)
+   Min:         0
+   Max:  4.096e+04
+   Ave:  2.318e+04
+   Geo:         0
+   Std:      5069
+   Log2 Dist:
+       0:     1524        0        0        0
+       4:        0        0        0        0
+       8:        0        0        0        0
+      12:        0      642     2488    41887
+      16:        2
+
+Batch_Writes Statistics (0 events)
+
+
+========  Stats at t=294 secs (window, steady-state, overall)  =======
+
+                 WRITE_AMP_PCT =      106.189,      109.586,      108.784
+                 K_CLIENT_RATE =      9.07416,      9.65546,      10.1753
+                   K_READ_RATE =            0,            0,            0
+                  K_WRITE_RATE =      4.60753,      4.93102,      5.20989
+                 K_UPDATE_RATE =      4.58564,      4.87484,      5.14623
+                 K_DELETE_RATE =      4.58564,      4.87484,      5.14623
+               STRIPE_TBL_RATE =      102.359,      119.858,      119.659
+
+                  CPU_UTIL_TOT =      116.925,      123.236,      124.603
+                  CPU_UTIL_USR =      62.6242,      63.8744,      64.7246
+                  CPU_UTIL_SYS =      54.3007,       59.362,      59.8787
+               CPU_UTIL_IOWAIT =      54.3007,       59.362,      59.8787
+          CPU_USECS_TOT_PER_OP =      253.769,       249.92,      239.167
+          CPU_USECS_USR_PER_OP =      135.917,      129.536,      124.234
+          CPU_USECS_SYS_PER_OP =      117.852,      120.385,      114.933
+       CPU_USECS_IOWAIT_PER_OP =      122.583,      91.3672,      84.7374
+   CPU_USECS_TOT_PER_CLIENT_OP =      128.855,      127.634,      122.457
+   CPU_USECS_USR_PER_CLIENT_OP =      69.0137,      66.1536,      63.6096
+   CPU_USECS_SYS_PER_CLIENT_OP =       59.841,      61.4802,      58.8472
+CPU_USECS_IOWAIT_PER_CLIENT_OP =      62.2434,       46.661,      43.3867
+
+
+                  N_CLIENT_OPS =        91576,      2741045,      2992158
+                      N_WRITES =        46499,      1399846,      1532027
+                 N_WRITE_BYTES =    380919808,  11467538432,  12550365184
+                     N_UPDATES =        46278,      1383895,      1513308
+                N_UPDATE_BYTES =    379109376,  11336867840,  12397019136
+                       N_READS =            0,            0,            0
+                  N_READ_BYTES =            0,            0,            0
+                     N_DELETES =        46278,      1383895,      1513308
+                N_DELETE_BYTES =    379109376,  11336867840,  12397019136
+                         N_GCS =         1541,        47935,        52086
+                    N_GC_BYTES =     23576576,   1099243520,   1102381056
+            N_EXTRA_COND_WAITS =            0,            0,            0
+                      N_MD_GET =            0,            0,            0
+                N_MD_GET_BYTES =            0,            0,            0
+                      N_MD_SET =         1033,        34026,        35189
+                N_MD_SET_BYTES =     49597429,   1633690338,   1689529457
+              N_IO_STRIPE_READ =         1541,        47935,        48086
+        N_IO_STRIPE_READ_BYTES =    403963904,  12565872640,  12605456384
+               N_IO_POINT_READ =            0,            0,            0
+         N_IO_POINT_READ_BYTES =            0,            0,            0
+             N_IO_STRIPE_WRITE =         1545,        47939,        52080
+       N_IO_STRIPE_WRITE_BYTES =    405012480,  12566921216,  13652459520
+            N_STRIPE_TBL_DUMPS =         1033,        34026,        35187
+
+                   CPU_USR_CNT =          632,        18133,        19033
+                  CPU_NICE_CNT =            0,            0,            0
+                   CPU_SYS_CNT =          548,        16852,        17608
+                  CPU_IDLE_CNT =          123,         3886,         3972
+                CPU_IOWAIT_CNT =          570,        12790,        12982
+
+
+GC_Compaction Statistics (48084 events)
+   Min:         0
+   Max:  4.096e+04
+   Ave:  2.293e+04
+   Geo:         0
+   Std:      5596
+   Log2 Dist:
+       0:     2100        0        0        0
+       4:        0        0        0        0
+       8:        0        0        0        0
+      12:        0      642     2509    42831
+      16:        2
+
+Batch_Writes Statistics (0 events)
+

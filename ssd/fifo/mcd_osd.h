@@ -440,7 +440,7 @@ typedef struct mcd_logrec_object {
 		pad1[12];
 } mcd_logrec_object_t;
 
-#define MCD_FTH_OSD_BUF_SIZE    (256 * 1024)
+#define MCD_FTH_OSD_BUF_SIZE    (1024 * 1024)
 
 typedef struct osd_state {
     aio_state_t       * osd_aio_state;
@@ -539,7 +539,7 @@ extern uint64_t tombstone_get_rtg( mcd_osd_shard_t * shard );
 extern void tombstone_register_rtg_callback(void (*callback)(uint64_t shardID,
                                                              uint64_t seqno));
 
-extern char * mcd_fifo_find_buffered_obj( mcd_osd_shard_t * shard,
+extern inline char * mcd_fifo_find_buffered_obj( mcd_osd_shard_t * shard,
                                                  char * key, int key_len,
                                                  uint64_t address,
                                                  mcd_osd_fifo_wbuf_t ** wbufp,
@@ -719,7 +719,8 @@ int
 mcd_fth_osd_remove_entry( mcd_osd_shard_t * shard,
     struct hash_entry* hash_entry,
     bool delayed,
-    bool remove_entry);
+    bool remove_entry,
+    int  flags);
 
 uint64_t
 mcd_fth_osd_shrink_class(mcd_osd_shard_t * shard, mcd_osd_segment_t *segment, bool gc);
@@ -742,7 +743,7 @@ uint64_t
 mcd_osd_rand_address(mcd_osd_shard_t *shard, uint64_t offset);
 
 int
-mcd_onflash_key_match(void *context, mcd_osd_shard_t * shard, uint64_t addr, char *key, int key_len);
+mcd_onflash_key_match(void *context, mcd_osd_shard_t * shard, uint64_t addr, char *key, int key_len, int flags);
 
 mcd_osd_segment_t*
 mcd_osd_assign_segment(mcd_osd_shard_t* shard, mcd_osd_slab_class_t* class, uint64_t blk_offset);
