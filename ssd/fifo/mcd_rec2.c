@@ -922,7 +922,11 @@ get_rawobjsz( uint64_t *nbyte)
 		}
 		*nbyte = n;
 		char *s;
-		asprintf( &s, "%lu:%lu", bytes_per_storm_object, n);
+                int   ret;
+		ret = asprintf( &s, "%lu:%lu", bytes_per_storm_object, n);
+                if (ret == -1) {
+                    msg( INITIAL, ERROR, "asprintf failed!");
+                }
 		setProperty( "ZS_RAW_OBJECT_SIZE", s);
 	}
 	return (TRUE);

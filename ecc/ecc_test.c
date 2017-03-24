@@ -56,7 +56,7 @@
 
 #define MAX_TEST_SIZE 8192
 
-static  uint_t
+static __inline__ uint_t
 flip_bit(unsigned char *buf, uint_t loc, uint_t mask)
 {
     uint_t old_c, new_c;

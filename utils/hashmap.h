@@ -91,7 +91,7 @@ struct HashMapInstance {
     /** buckets of pointers to Lists */
     ListPtr *buckets;
 #ifdef SDF_UTILS_STATS_ON
-    uint64_t stats[NUM_STATS];
+    volatile uint64_t stats[NUM_STATS];
 #endif
 };
 
@@ -125,7 +125,7 @@ HashMap HashMap_create1(uint32_t numBuckets, SDF_utils_hashmap_locktype_t lockTy
  * Create HashMap with compare type as HASH_JENKINS.
  * @see HashMap_create1
  */
- HashMap HashMap_create(uint32_t numBuckets, SDF_utils_hashmap_locktype_t lockType);
+__inline__ HashMap HashMap_create(uint32_t numBuckets, SDF_utils_hashmap_locktype_t lockType);
 
 /**
  * @brief Destroy a HashMap instance.
@@ -139,8 +139,8 @@ void HashMap_destroy(HashMap map);
  * Will not insert if existing key not found
  * @param map <IN> instance of HashMap
  */
- void* HashMap_replace(HashMap map, const char *key, void* value);
- void* HashMap_replace1(HashMap map, const char *key, void* value, uint16_t keyLen);
+__inline__ void* HashMap_replace(HashMap map, const char *key, void* value);
+__inline__ void* HashMap_replace1(HashMap map, const char *key, void* value, uint16_t keyLen);
 
 /**
  * returns SDF_TRUE is operation was a success, returns SDF_FALSE for duplicate keys
@@ -150,22 +150,22 @@ void HashMap_destroy(HashMap map);
  * plat_alloc.  
  * @parma 
  */
- SDF_boolean_t HashMap_put(HashMap map, const char *key, void* value);
- SDF_boolean_t HashMap_put1(HashMap map, const char *key, void* value, uint16_t keyLen);
+__inline__ SDF_boolean_t HashMap_put(HashMap map, const char *key, void* value);
+__inline__ SDF_boolean_t HashMap_put1(HashMap map, const char *key, void* value, uint16_t keyLen);
 /**
  * returns the stored value, or NULL if key was non-existent
  * @param map <IN> instance of HashMap
  */
- void* HashMap_remove(HashMap map, const char *key);
- void* HashMap_remove1(HashMap map, const char *key, uint16_t keyLen);
+__inline__ void* HashMap_remove(HashMap map, const char *key);
+__inline__ void* HashMap_remove1(HashMap map, const char *key, uint16_t keyLen);
 /**
  * return the stored value, or NULL if key was non-existent
  * @param map <IN> instance of HashMap
  */
- void* HashMap_get(HashMap map, const char *key);
- void* HashMap_get1(HashMap map, const char *key, uint16_t keyLen);
+__inline__ void* HashMap_get(HashMap map, const char *key);
+__inline__ void* HashMap_get1(HashMap map, const char *key, uint16_t keyLen);
 
- unsigned long HashMap_getSize(HashMap map);
+__inline__ unsigned long HashMap_getSize(HashMap map);
 // Iterator* iterator();
 /** Not implemented */
 void HashMap_printStats(HashMap map);

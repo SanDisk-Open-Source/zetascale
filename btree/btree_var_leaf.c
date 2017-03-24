@@ -76,7 +76,7 @@ uint64_t bt_leaf_split_memcpy_time = 0;
 uint64_t bt_leaf_memcpy_time = 0;
 uint64_t bt_leaf_is_full = 0;
 
-int space_op_disabled = 1;
+int space_op_disabled = 0;
 
 char global_tmp_data[BTREE_MAX_NODE_SIZE/2] = {0};
 static __thread char tmp_leaf_node[BTREE_MAX_NODE_SIZE + 100] = {0};

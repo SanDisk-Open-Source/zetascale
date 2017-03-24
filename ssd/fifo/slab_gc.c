@@ -208,7 +208,7 @@ found:
 	log_rec.target_seqno = target_seqno;
 	log_rec.raw        = FALSE;
 
-	mcd_fth_osd_remove_entry(shard, hash_entry, true, false);
+	mcd_fth_osd_remove_entry(shard, hash_entry, true, false, 0 /* flags */);
 
 	log_write(shard, &log_rec);
 

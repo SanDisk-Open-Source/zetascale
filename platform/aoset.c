@@ -64,13 +64,13 @@
 #define SYNC_INCR(ptr) __sync_fetch_and_add(ptr, 1)
 #define SYNC_DECR(ptr) __sync_fetch_and_sub(ptr, 1)
 
-static  uint32_t
+static __inline__ uint32_t
 uint32_is_power_of_2(uint32_t n)
 {
     return ((n & (n - 1)) == 0);
 }
 
-static  uint64_t
+static __inline__ uint64_t
 uint64_is_power_of_2(uint64_t n)
 {
     return ((n & (n - 1)) == 0);

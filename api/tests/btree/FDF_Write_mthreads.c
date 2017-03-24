@@ -91,8 +91,6 @@ void *worker(void *arg) {
     char key[MAX_KEY_LEN], value[MAX_DATA_LEN];
     ZS_status_t ret;
     thd_cfg_t *cfg = (thd_cfg_t*)arg;
-    char *outval;
-    uint64_t outlen;
     int data_len, j, key_len;
 
     fprintf(stderr,"Starting thread: %d  key_len:%d datalen:%d\n",cfg->id, cfg->key_len,cfg->data_len);
@@ -154,8 +152,6 @@ void *worker(void *arg) {
         }
 #endif
 
-        outval = NULL;
-        outlen = 0; 
         fprintf(stderr,"DELETE %d objects\n",num_objs/2);
         for ( i = 0; i < num_objs/2; i++ ) {
             ret = ZSDeleteObject(zs_thd_state, cguid, keys[i].key, keys[i].key_len);

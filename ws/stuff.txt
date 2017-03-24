@@ -1,0 +1,185 @@
+#define WS_LINE_SIZE   1023
+
+    uint64_t     stats_steady_state_cnt;
+    uint32_t     n_sdevs;
+    char        *sdevs[WS_MAX_SDEVS];
+
+    ws_stats_t   stats0;
+    ws_stats_t   stats_ss0;
+    int          in_steady_state;
+
+static void get_hz_and_sector_bytes(ws_state_t *ps)
+{
+    ps->user_hz = sysconf(_SC_CLK_TCK); // clock ticks per second (usually 100?)
+    ps->sector_bytes = sysconf(_SC_CLK_TCK); // clock ticks per second (usually 100?)
+}
+
+static int get_raw_system_stats(ws_state_t *ps, ws_stats_t *pstats)
+{
+    FILE      *fcpu, *fio;
+    char       line[WS_LINE_SIZE+1];
+    char       sdev[WS_LINE_SIZE+1];
+    uint64_t   tusr, tnice, tsys, tidle, tiowait, tirq;
+    uint64_t   tsoftirq, tsteal, tguest, tguest_nice;
+    uint64_t   nrd,  nrdm, srd, msrd, nwr, nwrm, swr;
+    uint64_t   mswr, ioip, msio, wmsio;
+
+    fcpu = fopen("/proc/stat", "r");
+    if (fcpu == NULL) {
+        errmsg("Could not open /proc/stat to get cpu utilization");
+	return(1);
+    }
+
+    fio = fopen("/proc/diskstats", "r");
+    if (fio == NULL) {
+        errmsg("Could not open /proc/diskstats to get disk statistics");
+	return(1);
+    }
+
+    /*   CPU stats
+     */
+
+    if (getline(&line, WS_LINE_SIZE, fcpu) == -1) {
+        errmsg("Could not read /proc/stat");
+	return(1);
+    } else if (sscanf(line, "cpu %lld %lld %lld %lld %lld %lld %lld %lld %lld %lld", &tusr, &tnice, &tsys, &tidle, &tiowait, &tirq, &tsoftirq, &tsteal, &tguest, &tguest_nice) != 10) {
+        errmsg("Could not parse /proc/stat");
+	return(1);
+    } else {
+          pstats->cpu_raw_stat[CPU_USR_CNT]  = tusr;
+          pstats->cpu_raw_stat[CPU_NICE_CNT] = tnice;
+          pstats->cpu_raw_stat[CPU_SYS_CNT]  = tsys;
+          pstats->cpu_raw_stat[CPU_IDLE_CNT] = tidle;
+    }
+
+    nline = 0;
+    while (getline(&line, WS_LINE_SIZE, fio) != -1) {
+        nline++;
+        if (sscanf(line, "%d %d %s %lld %lld %lld %lld %lld %lld %lld %lld %lld %lld %lld", &major, &minor, sdev, &nrd,  &nrdm, &srd, &msrd, &nwr, &nwrm, &swr, &mswr, &ioip, &msio, &wmsio) != 14) {
+	    errmsg("Could not parse line %d of /proc/diskstats", nline);
+	}
+	for (i=0; i<ps->config.n_stat_devices; i++) {
+	    if (strcmp(ps->config.stat_device_names[i], sdev) == 0) {
+
+		pstats->io_raw_stat[i][IOP_RD_CNT]           = nrd;
+		pstats->io_raw_stat[i][IOP_WR_CNT]           = nwr;
+		pstats->io_raw_stat[i][IOP_RD_MERGE_CNT]     = nrdm;
+		pstats->io_raw_stat[i][IOP_WR_MERGE_CNT]     = nwrm;
+		pstats->io_raw_stat[i][BYTES_RD_CNT]         = srd*sector_bytes;
+		pstats->io_raw_stat[i][BYTES_WR_CNT]         = swr*sector_bytes;
+		pstats->io_raw_stat[i][MSEC_RD_CNT]          = msrd;
+		pstats->io_raw_stat[i][MSEC_WR_CNT]          = mswr;
+		pstats->io_raw_stat[i][MSEC_IO_CNT]          = msio;
+		pstats->io_raw_stat[i][MSEC_IO_WEIGHTED_CNT] = wmsio;
+		pstats->io_raw_stat[i][IOPS_IN_PROGRESS]     = ioip;
+
+		break;
+	    }
+	}
+    }
+
+    if (fclose(fcpu) != 0) {
+        errmsg("Could not close /proc/stat");
+    }
+    if (fclose(fio) != 0) {
+        errmsg("Could not close /proc/diskstats");
+    }
+
+    return(0);
+}
+
+static void diff_raw(uint64_t *xto, uint64_t *xa, uint64_t *xb, uint32_t n)
+{
+    int   i;
+
+    for (i=0; i<n; i++) {
+        xto[i] = xa[i] - xb[i];
+    }
+}
+
+
+
+    ws_stats_t     stats;         //  current sample
+    ws_stats_t     stats_t0;      //  initial sample (at t=0)
+    ws_stats_t     stats_ss0;     //  sample at beginning of steady-state
+    ws_stats_t     stats_last;    //  previous sample
+    ws_stats_t     stats_overall; //  since start of run
+    ws_stats_t     stats_ss;      //  since start of steady-state
+    ws_stats_t     stats_window;  //  since last report
+
+add to ws_state_t:
+    uint64_t   n_steady_state;
+    int        in_steady_state;
+
+    usecs_t0 = ;
+    usecs_overall = ;
+    usecs_ss = ;
+    ps->usecs_ss      = usecs_overall - usecs_ss;
+    ps->usecs_window  = usecs_overall - usecs_last;
+    usecs_last = usecs;
+
+    //  Overall
+    compute_derived_stats(ps, ps->stats_t0, ps->stats, ps->stats_overall, usecs_overall); 
+
+    if (ps->in_steady_state) {
+	//  Steady-state
+	compute_derived_stats(ps, ps->stats_ss0, ps->stats, ps->stats_ss, usecs_ss);
+    }
+
+    //  This Reporting Interval
+    compute_derived_stats(ps, ps->stats_last, ps->stats, ps->stats_last, usecs_window); 
+
+    memcpy((void *) ps->stats_last, (void *) ps->stats, sizeof(ws_stats_t));
+
+
+static void compute_derived_stats(ws_state_t *ps, ws_stats_t *pstats_ref, ws_stats_t *pstats_now, ws_stats_t *pstats_out, uint64_t usecs)
+{
+    int         i;
+    uint64_t   *x;
+
+    diff_raw(pstats_out->ws_raw_stat, pstats_now->ws_raw_stat, pstats_ref->ws_raw_stat, N_WS_RAW_STATS);
+    diff_raw(pstats_out->cpu_raw_stat, pstats_now->cpu_raw_stat, pstats_ref->cpu_raw_stat, N_CPU_RAW_STATS);
+
+    for (i=0; i<ps->config.n_stat_devices; i++) {
+	diff_raw(pstats_out->io_raw_stat, pstats_now->io_raw_stat, pstats_ref->io_raw_stat, N_IO_RAW_STATS);
+    }
+
+    x = pstats_out->ws_raw_stat;
+
+    pstats_out->ws_stat[WRITE_AMP_PCT]   =
+    pstats_out->ws_stat[READ_RATE]       =
+    pstats_out->ws_stat[WRITE_RATE]      =
+    pstats_out->ws_stat[UPDATE_RATE]     =
+    pstats_out->ws_stat[DELETE_RATE]     =
+    pstats_out->ws_stat[STRIPE_TBL_RATE] =
+
+    x = pstats_out->cpu_raw_stat;
+
+    pstats_out->cpu_stat[CPU_UTIL_TOT]      =
+    pstats_out->cpu_stat[CPU_UTIL_USR]      =
+    pstats_out->cpu_stat[CPU_UTIL_SYS]      =
+    pstats_out->cpu_stat[CPU_UTIL_IOWAIT]   =
+    pstats_out->cpu_stat[CPU_TOT_PER_OP]    =
+    pstats_out->cpu_stat[CPU_USR_PER_OP]    =
+    pstats_out->cpu_stat[CPU_SYS_PER_OP]    =
+    pstats_out->cpu_stat[CPU_IOWAIT_PER_OP] =
+
+    for (i=0; i<ps->config.n_stat_devices; i++) {
+
+	x = pstats_out->io_raw_stat[i];
+
+	pstats_out->io_stat[i][IOP_RD_PER_OP]         =
+	pstats_out->io_stat[i][IOP_WR_PER_OP]         =
+	pstats_out->io_stat[i][IOBYTES_RD_PER_OP]     =
+	pstats_out->io_stat[i][IOBYTES_WR_PER_OP]     =
+	pstats_out->io_stat[i][BYTES_PER_RD_IOP]      =
+	pstats_out->io_stat[i][BYTES_PER_WR_IOP]      =
+	pstats_out->io_stat[i][IOPS_RD_PER_SEC]       =
+	pstats_out->io_stat[i][IOPS_WR_PER_SEC]       =
+	pstats_out->io_stat[i][IOPS_RD_MERGE_PER_SEC] =
+	pstats_out->io_stat[i][IOPS_WR_MERGE_PER_SEC] =
+	pstats_out->io_stat[i][BYTES_RD_PER_SEC]      =
+	pstats_out->io_stat[i][BYTES_WR_PER_SEC]      =
+    }
+}
+

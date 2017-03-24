@@ -56,7 +56,7 @@ struct replication_test_meta {
     struct timeval exptime_val;
 };
 
-static void 
+static void __inline__
 replication_test_meta_init(struct replication_test_meta *meta) {
     memset(meta, 0, sizeof (*meta));
 }

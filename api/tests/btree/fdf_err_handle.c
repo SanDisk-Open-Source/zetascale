@@ -592,6 +592,7 @@ void *do_multiple_thr(void *arg)
 
 void inject_flip(err_inj_t *e) 
 {
+        int  ret;
 	char cmd[1024];
 	char lstr[16];
 
@@ -609,16 +610,23 @@ void inject_flip(err_inj_t *e)
 	             e->io_error ? 5 : 14, e->count, ADMIN_PORT);
 
 	fprintf(stderr, "Command to execute: %s\n", cmd);
-	system(cmd);
+	ret = system(cmd);
+        if (ret == -1) {
+            fprintf(stderr, "system() returned -1 in inject_flip()");
+        }
 }
 
 void reset_flip()
 {
+        int  ret;
 	char cmd[1024];
 
 	sprintf(cmd, "echo \"flip reset\" | nc localhost %d", ADMIN_PORT);
 	fprintf(stderr, "Command to execute: %s\n", cmd);
-	system(cmd);
+	ret = system(cmd);
+        if (ret == -1) {
+            fprintf(stderr, "system() returned -1 in reset_flip()");
+        }
 }
 
 void launch_threads(uint32_t nelems, uint32_t batch_size, uint32_t nthreads, 
@@ -713,8 +721,6 @@ static inline char *node_type_str(uint32_t node_type)
 
 void find_missing_keys(uint32_t nelems)
 {
-	ZS_status_t status;
-
 	uint32_t nthreads      = 10;
 	uint32_t batch_size    = 100;
 	missing_cnt = 0;
@@ -722,14 +728,13 @@ void find_missing_keys(uint32_t nelems)
 	launch_threads(nelems, batch_size, nthreads, 1, NULL, TEST_TYPE_READ, do_misskeys_thr);
 	sleep(10);
 
-	status = wait_for_threads(nthreads);
+	(void) wait_for_threads(nthreads);
 
 	fprintf(stderr, "==== There are total %u missing keys identified =====\n", missing_cnt);
 }
 
 void rescue_container(void)
 {
-	ZS_status_t status;
 	uint32_t nthreads;
 
 	if (err_ctxt_cnt == 0) {
@@ -747,7 +752,7 @@ void rescue_container(void)
 	launch_threads(err_ctxt_cnt, 1, nthreads, 1, NULL, TEST_TYPE_RESCUE, do_rescue_thr);
 	sleep(10);
 
-	status = wait_for_threads(nthreads);
+	(void) wait_for_threads(nthreads);
 }
 
 void init_scavenger(struct ZS_thread_state *thd_state)
@@ -773,8 +778,6 @@ static int my_cmp_cb(const void *p1, const void *p2)
 
 void insert_objects(uint32_t *key_arr, uint32_t nelems)
 {
-	ZS_status_t status;
-
 	uint32_t nthreads      = 10;
 	uint32_t batch_size    = 100;
 
@@ -797,14 +800,13 @@ void insert_objects(uint32_t *key_arr, uint32_t nelems)
 	launch_threads(nelems, batch_size, nthreads, 1, key_arr, TEST_TYPE_MPUT, do_write_thr);
 	sleep(10);
 
-	status = wait_for_threads(nthreads);
+	(void) wait_for_threads(nthreads);
 }
 
 void perform_delete_test(uint32_t nelems, err_inj_t *einj, uint32_t einj_count)
 {
 	struct ZS_thread_state *thd_state;
 	int nthreads;
-	ZS_status_t status;
 #ifdef FLIP_ENABLED
 	uint32_t i;
 #endif
@@ -837,7 +839,7 @@ void perform_delete_test(uint32_t nelems, err_inj_t *einj, uint32_t einj_count)
 	launch_threads(nelems, 100, nthreads, 1, NULL, TEST_TYPE_MPUT, do_write_thr);
 
 	fprintf(stderr, "#### Step %d.0: Waiting for all inserts to complete\n", ++step);
-	status = wait_for_threads(nthreads);
+	(void) wait_for_threads(nthreads);
 
 	fprintf(stderr, "#### Step %d.0: Do delete of objects\n", ++step);
 	nthreads = 10;
@@ -867,7 +869,7 @@ void perform_delete_test(uint32_t nelems, err_inj_t *einj, uint32_t einj_count)
 
 
 	fprintf(stderr, "#### Step %d.0: Waiting for all operations to complete\n", ++step);
-	status = wait_for_threads(nthreads);
+	(void) wait_for_threads(nthreads);
 
 	fprintf(stderr, "#### Step %d.0: Identify all the missing objects\n", ++step);
 	find_missing_keys(nelems);
@@ -898,7 +900,6 @@ void perform_rw_test(uint32_t nelems, err_inj_t *einj, uint32_t einj_count)
 {
 	struct ZS_thread_state *thd_state;
 	int nthreads;
-	ZS_status_t status;
 #ifdef FLIP_ENABLED
 	uint32_t i;
 #endif
@@ -930,7 +931,7 @@ void perform_rw_test(uint32_t nelems, err_inj_t *einj, uint32_t einj_count)
 	launch_threads(nelems, 100, nthreads, 1, NULL, TEST_TYPE_MPUT, do_write_thr);
 
 	fprintf(stderr, "#### Step %d.0: Waiting for all inserts to complete\n", ++step);
-	status = wait_for_threads(nthreads);
+	(void) wait_for_threads(nthreads);
 
 	fprintf(stderr, "#### Step %d.0: Do rangequery, reads, writes, mputs in parallel\n", ++step);
 	nthreads = 10;
@@ -959,7 +960,7 @@ void perform_rw_test(uint32_t nelems, err_inj_t *einj, uint32_t einj_count)
 #endif
 
 	fprintf(stderr, "#### Step %d.0: Waiting for all operations to complete\n", ++step);
-	status = wait_for_threads(nthreads);
+	(void) wait_for_threads(nthreads);
 
 	fprintf(stderr, "#### Step %d.0: Identify all the missing objects\n", ++step);
 	find_missing_keys(nelems);

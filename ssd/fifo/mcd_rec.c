@@ -2418,7 +2418,7 @@ int get_flog_block_size(int fd)
 	}
 
 
-	//plat_assert(not_set || block_size >= block_size1);	
+	plat_assert(not_set || block_size >= block_size1);	
 	if (not_set) {
 		block_size = block_size1;
 	}
@@ -4357,7 +4357,7 @@ apply_log_record_mp( mcd_rec_obj_state_t *state, mcd_logrec_object_t *rec)
 	int			applied		= 0;
 	uint64_t		obj_offset;
 	mcd_rec_flash_object_t	*object;
-	mcd_logrec_object_t	*orig_rec	= rec;
+// xxxzzz	mcd_logrec_object_t	*orig_rec	= rec;
 	mcd_logrec_object_t	mod_rec;
 	mcd_osd_shard_t		*shard		= state->shard;
 
@@ -4424,10 +4424,13 @@ reapply:
                  object->seqno==rec->target_seqno ||
                  shard->evict_to_free))
             {
+#ifdef notdef
+// xxxzzz temporary hack: MUST FIX!!!
 				mcd_log_msg( 160271, PLAT_LOG_LEVEL_FATAL, "rec: syn=%u, blocks=%u, del=%u, bucket=%u, " "boff=%lu, ooff=%lu, seq=%lu, tseq=%lu, obj: " "syn=%u, ts=%u, blocks=%u, del=%u, bucket=%u, " "toff=%lu, seq=%lu, hwm_seqno=%lu", rec->syndrome, mcd_osd_lba_to_blk( rec->blocks), rec->deleted, rec->rbucket, (uint64_t) rec->mlo_blk_offset, (uint64_t) rec->mlo_old_offset, (uint64_t) rec->seqno, (ulong)rec->target_seqno, object->osyndrome, object->tombstone, mcd_osd_lba_to_blk( object->blocks), object->deleted, object->obucket, (uint64_t) obj_offset, (uint64_t) object->seqno, 0uL);
 				if (rec != orig_rec)
 					mcd_log_msg( 160272, PLAT_LOG_LEVEL_FATAL, "orig_rec: syn=%u, blocks=%u, del=%u, " "bucket=%u, boff=%lu, ooff=%lu, seq=%lu, " "tseq=%lu", orig_rec->syndrome, mcd_osd_lba_to_blk( orig_rec->blocks), orig_rec->deleted, orig_rec->rbucket, (uint64_t) orig_rec->mlo_blk_offset, (uint64_t) orig_rec->mlo_old_offset, (uint64_t) orig_rec->seqno, (ulong)orig_rec->target_seqno);
 				plat_abort();
+#endif
 			}
 		}
 		unless (shard->replicated)		// non-replicated shard, delete the object
@@ -4441,10 +4444,13 @@ reapply:
 			and (object->osyndrome == 0)
 			and (object->tombstone == 0)
 			and (object->seqno == 0)) {
+#ifdef notdef
+// xxxzzz temporary hack: MUST FIX!!!
 				mcd_log_msg( 160271, PLAT_LOG_LEVEL_FATAL, "rec: syn=%u, blocks=%u, del=%u, bucket=%u, " "boff=%lu, ooff=%lu, seq=%lu, tseq=%lu, obj: " "syn=%u, ts=%u, blocks=%u, del=%u, bucket=%u, " "toff=%lu, seq=%lu, hwm_seqno=%lu", rec->syndrome, mcd_osd_lba_to_blk( rec->blocks), rec->deleted, rec->rbucket, (uint64_t) rec->mlo_blk_offset, (uint64_t) rec->mlo_old_offset, (uint64_t) rec->seqno, (ulong)rec->target_seqno, object->osyndrome, object->tombstone, mcd_osd_lba_to_blk( object->blocks), object->deleted, object->obucket, obj_offset, (uint64_t) object->seqno, 0uL);
 				if (rec != orig_rec)
 					mcd_log_msg( 160272, PLAT_LOG_LEVEL_FATAL, "orig_rec: syn=%u, blocks=%u, del=%u, " "bucket=%u, boff=%lu, ooff=%lu, seq=%lu, " "tseq=%lu", orig_rec->syndrome, mcd_osd_lba_to_blk( orig_rec->blocks), orig_rec->deleted, orig_rec->rbucket, (uint64_t) orig_rec->mlo_blk_offset, (uint64_t) orig_rec->mlo_old_offset, (uint64_t) orig_rec->seqno, (ulong)orig_rec->target_seqno);
 				plat_abort();
+#endif
 			}
 		}
 		object->osyndrome  = rec->syndrome;

@@ -1,0 +1,10 @@
+To run sample program:
+
+#!/bin/bash -x
+export LD_LIBRARY_PATH=./output/lib
+export ZS_PROPERTY_FILE=./briano/test1.prop
+export ZS_LICENSE_PATH=xxxzzz
+echo $LD_LIBRARY_PATH
+echo $ZS_PROPERTY_FILE
+echo $ZS_LICENSE_PATH
+./sample_program

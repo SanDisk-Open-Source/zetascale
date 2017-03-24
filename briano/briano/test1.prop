@@ -1,0 +1,4 @@
+ZS_FLASH_SIZE      = 12G
+ZS_FLASH_FILENAME  = /tmp/zs_disk%d
+ZS_REFORMAT = 1
+ZS_STORM_MODE = 0

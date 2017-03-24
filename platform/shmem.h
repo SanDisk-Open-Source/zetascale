@@ -745,12 +745,12 @@ typedef size_t plat_shmem_paddr_t;
 
 
 /*
- * Provide inline and out-of-line definitions for extern  parts
+ * Provide inline and out-of-line definitions for extern __inline__ parts
  * of PLAT_SP_IMPL.  Not for user use.
  *
  * @param name <IN> name of shared memory pointer.
  * @param type <IN>_name type pointed to
- * @param inline <IN>_decl prefix which is usually 'extern ' or
+ * @param inline <IN>_decl prefix which is usually 'extern __inline__' or
  * ''
  */
 #define PLAT_SP_EXTERN_INLINE_IMPL(name, type_name, inline_decl)               \
@@ -815,7 +815,7 @@ typedef size_t plat_shmem_paddr_t;
                                                                                \
     PLAT_ONCE(/* extern */, name)                                              \
                                                                                \
-    static  int                                                      \
+    static __inline__ int                                                      \
     name ## _get_log_cat(void) {                                               \
         name ## _once();                                                       \
         return (name ## _log_cat);                                             \
@@ -824,22 +824,22 @@ typedef size_t plat_shmem_paddr_t;
     static const name ## _t name ## _null __attribute__((unused)) =            \
         PLAT_SP_INITIALIZER;                                                   \
                                                                                \
-    static  int                                                      \
+    static __inline__ int                                                      \
     name ## _is_null(name ## _t ptr) {                                         \
         return (plat_shmem_ptr_base_is_null(ptr.base));                        \
     }                                                                          \
                                                                                \
-    static  int                                                      \
+    static __inline__ int                                                      \
     name ## _eq(name ## _t lhs, name ## _t rhs) {                              \
         return (plat_shmem_ptr_base_eq(lhs.base, rhs.base));                   \
     }                                                                          \
                                                                                \
-    static  int                                                      \
+    static __inline__ int                                                      \
     name ## _cmp(name ##_t lhs, name ## _t rhs) {                              \
         return (plat_shmem_ptr_base_cmp(lhs.base, rhs.base));                  \
     }                                                                          \
                                                                                \
-    static  int                                                      \
+    static __inline__ int                                                      \
     name ## _parse(name ##_t *outptr, const char *string,                      \
                    const char **endptr) {                                      \
         return (plat_shmem_ptr_base_parse(&outptr->base, string, endptr));     \
@@ -1007,12 +1007,12 @@ typedef size_t plat_shmem_paddr_t;
 
 
 /*
- * Provide inline and out-of-line definitions for extern  parts
+ * Provide inline and out-of-line definitions for extern __inline__ parts
  * of PLAT_SP_VAR_OPAQUE_IMPL.  Not for user use.
  *
  * @param name <IN> name of shared memory pointer.
  * @param type <IN>_name type pointed to
- * @param inline <IN>_decl prefix which is usually 'extern ' or
+ * @param inline <IN>_decl prefix which is usually 'extern __inline__' or
  * ''
  */
 #define PLAT_SP_VAR_OPAQUE_EXTERN_INLINE_IMPL(name, type_name, inline_decl)    \
@@ -1122,17 +1122,17 @@ enum plat_shmem_user_class {
     PLAT_SHMEM_USER_INVALID = -1
 };
 
-static  int
+static __inline__ int
 plat_shmem_ptr_base_is_null(plat_shmem_ptr_base_t base) {
     return (!base.int_base);
 }
 
-static  int
+static __inline__ int
 plat_shmem_ptr_base_eq(plat_shmem_ptr_base_t lhs, plat_shmem_ptr_base_t rhs) {
     return (lhs.int_base == rhs.int_base);
 }
 
-static  int
+static __inline__ int
 plat_shmem_ptr_base_cmp(plat_shmem_ptr_base_t lhs, plat_shmem_ptr_base_t rhs) {
     int ret;
 

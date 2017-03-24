@@ -136,7 +136,7 @@ ZS_status_t zs_start_admin_thread( struct ZS_state *zs_state );
  */
 ZS_status_t ZSOpenPhysicalContainer(
     struct ZS_thread_state *zs_thread_state,
-    const char                    *cname,
+    char                    *cname,
     ZS_container_props_t   *properties,
     uint32_t                 flags,
     ZS_cguid_t             *cguid
@@ -176,9 +176,9 @@ ZS_status_t is_zs_operation_allowed(void);
 ZS_status_t ZSWriteObjects(
 	struct ZS_thread_state  *zs_thread_state,
 	ZS_cguid_t          cguid,
-	const char          **key,
+	char                **key,
 	uint32_t             keylen,
-	const char          **data,
+	char                **data,
 	uint64_t             datalen,
 	uint32_t             count,
 	uint32_t             flags
@@ -230,7 +230,7 @@ ZS_status_t zs_read_object_lc( struct ZS_thread_state *, ZS_cguid_t, char *, uin
 ZS_status_t zs_delete_object_lc( struct ZS_thread_state *, ZS_cguid_t, char *, uint32_t);
 
 /* Keep track of max bracket slab count */
-#define MAX_TRX_BRACKET_SLAB_CNT 100000
+#define MAX_TRX_BRACKET_SLAB_CNT 1000000
 
 #ifdef __cplusplus
 }

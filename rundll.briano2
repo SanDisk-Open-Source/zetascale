@@ -1,0 +1,79 @@
+#!/bin/bash -x
+export LD_LIBRARY_PATH=./output/lib
+export ZS_PROPERTY_FILE=./briano/test1.prop
+#export ZS_LICENSE_PATH=xxxzzz
+echo $LD_LIBRARY_PATH
+echo $ZS_PROPERTY_FILE
+echo $ZS_LICENSE_PATH
+
+#gcc -rdynamic -std=c99 -Iapi -I. -o stats2.o stats2.c -L output/lib/ -ldl -lpthread -lsnappy -laio -levent -lrt 
+#gcc -rdynamic -std=c99 -Iapi -I. -o zstest zstest.c stats2.o ./output/lib/libzsdll.a -L output/lib/ -ldl -lpthread -lsnappy -laio -levent -lrt 
+
+gcc -c -g  -o stats2.o stats2.c 
+gcc -rdynamic -Iapi -I. -o zstest zstest.c stats2.o ./output/lib/libzsdll.a -L output/lib/ -ldl -lm -lpthread -lsnappy -laio -levent -lrt 
+
+
+#==================================================
+#
+#  This script configures zstest to measure
+#  peak read IOPs for random read/write block accesses
+#  with a fixed block size.  
+#  
+#  'ZS_TEST_NTHREADS' threads, in parallel, randomly select a block
+#  between 0 and 'ZS_TEST_NBLOCKS'-1 and read it
+#  from a randomly selected file.
+#  Setting 'ZS_TEST_NBLOCKS' to zero uses the entire file.
+#  This is repeated until a total (across all threads)
+#  of 'ZS_TEST_ITERATIONS' accesses are done.
+#  'ZS_TEST_ITERATIONS' should typically be set to 
+#  3 times the number of blocks in all files.
+#  If 'ZS_TEST_ITERATIONS' is set to zero, ssdtest
+#  will be automatically set to 3*ZS_TEST_NBLOCKS*ZS_N_SSDS.
+#
+#  'ZS_TEST_WRITE_PERCENT' specifies the fraction of
+#  accesses that are writes.
+#
+#  'ZS_DATA_FILE' specifies the location of the
+#  'ZS_N_SSDS' data file(s).
+#
+#  For more detailed documentation on all parameters,
+#  see the README.
+#
+#==================================================
+
+ZS_CPU_MHZ=2800
+ZS_SEED=1
+ZS_O_DIRECT=1
+ZS_USE_P_CALLS=1
+ZS_ALIGN_FLAG=1
+ZS_N_SSDS=1
+ZS_DATA_FILE=/mnt/ssd/schooner
+ZS_RAND_DATA=1
+ZS_DATA_BLOCKS=1048576
+ZS_TEST_NTHREADS=64
+ZS_TEST_BLOCKSIZE=16384
+ZS_TEST_NBLOCKS=0
+ZS_TEST_WRITE_PERCENT=50
+ZS_TEST_SHUFFLEFLAG=0
+ZS_TEST_RANDOMFLAG=1
+#ZS_TEST_ITERATIONS=0
+ZS_TEST_ITERATIONS=10000000
+
+export ZS_CPU_MHZ
+export ZS_SEED
+export ZS_O_DIRECT
+export ZS_USE_P_CALLS
+export ZS_ALIGN_FLAG
+export ZS_N_SSDS
+export ZS_DATA_FILE
+export ZS_RAND_DATA
+export ZS_DATA_BLOCKS
+export ZS_TEST_NTHREADS
+export ZS_TEST_BLOCKSIZE
+export ZS_TEST_NBLOCKS
+export ZS_TEST_WRITE_PERCENT
+export ZS_TEST_SHUFFLEFLAG
+export ZS_TEST_RANDOMFLAG
+export ZS_TEST_ITERATIONS
+
+./zstest

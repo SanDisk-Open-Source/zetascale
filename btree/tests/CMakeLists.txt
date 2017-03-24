@@ -12,10 +12,10 @@ add_executable(query_perf_comp ${test_src_file}
 		query_perf_comp.c)
 #set_property(TARGET query_perf_comp PROPERTY COMPILE_DEFINITIONS BTREE_MODE)
 
-target_link_libraries( btest_life_cycle zs zsdll dl pthread aio event snappy
+target_link_libraries( btest_life_cycle zs zsdll dl pthread rt aio event snappy
 lz4)
-target_link_libraries( btest_range zs zsdll dl pthread aio event snappy lz4)
-target_link_libraries( query_perf_comp zs zsdll dl pthread aio event snappy
+target_link_libraries( btest_range zs zsdll dl pthread rt aio event snappy lz4)
+target_link_libraries( query_perf_comp zs zsdll dl pthread rt aio event snappy
 lz4)
 
 add_test(btree_self_test btest_life_cycle)

@@ -80,10 +80,9 @@ void
 do_mput(struct ZS_thread_state *thd_state, ZS_cguid_t cguid,
 	uint32_t flags, int key_seed)
 {
-	int i, j, k;
+	int i, k;
 	ZS_status_t status;
 	ZS_obj_t *objs = NULL; 
-	uint64_t start_time;
 	uint64_t num_zs_writes = 0;
 	uint64_t num_zs_reads = 0;
 	uint64_t num_zs_mputs = 0;
@@ -113,7 +112,6 @@ do_mput(struct ZS_thread_state *thd_state, ZS_cguid_t cguid,
 	}
 
 	//printf("Doing Mput in threads %d.\n", my_thdid);
-	start_time = get_time_usecs();
 	for (k = 1; k <= num_mputs; k++) {
 
 		for (i = 0; i < num_objs; i++) {
@@ -177,7 +175,6 @@ do_mput(struct ZS_thread_state *thd_state, ZS_cguid_t cguid,
 
 	num_zs_reads = 0;
 	
-	j = 0;
 	printf("Reading all objects put in thread = %d.\n", my_thdid);
 	key_num = 0;
 	for (k = 1; k <= num_mputs; k++) {

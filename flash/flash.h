@@ -61,15 +61,16 @@ enum flashPutFlags {
     FLASH_PUT_DURA_HW_CRASH   = 0x400, // Request maximum durability
     FLASH_PUT_COMPRESS        = 0x800, // Compress data portion before writing to flash
     FLASH_PUT_SKIP_IO         = 0x1000,// Vectored write does IO before call to slab_set
-    FLASH_CREATE_RAW_OBJECT	  = 0x2000,// Create RAW object
-    FLASH_PUT_RAW_OBJECT	  = 0x4000,// Write RAW object
+    FLASH_CREATE_RAW_OBJECT   = 0x2000,// Create RAW object
+    FLASH_PUT_RAW_OBJECT      = 0x4000,// Write RAW object
+    FLASH_PUT_SERIALIZED      = 0x8000,// Serialize the put
 };
 
 enum flashGetFlags {
     FLASH_GET_NO_TEST         = 0x00,  // Get according to metadata flags (no overrides)
     FLASH_GET_OVERRIDE_HIDDEN = 0x08,  // Causes hidden flag to be ignored
-	FLASH_GET_RAW_OBJECT	  = 0x10,  // Read RAW object
-
+    FLASH_GET_RAW_OBJECT      = 0x10,  // Read RAW object
+    FLASH_GET_SERIALIZED      = 0x20,  // Get from serialized write stream
 };
 
 enum flashReqFlags {

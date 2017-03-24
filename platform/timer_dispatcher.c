@@ -131,20 +131,20 @@ static void heap_remove_pre_locked(struct plat_timer_dispatcher *dispatcher,
                                    struct plat_timer_event *event);
 static int heap_insert_pre_locked(struct plat_timer_dispatcher *dispatcher,
                                   struct plat_timer_event *event);
-static  struct plat_timer_event *
+static __inline__ struct plat_timer_event *
 heap_top_pre_locked(struct plat_timer_dispatcher *dispatcher);
 static int heap_sift_down(struct plat_timer_dispatcher *dispatcher,
                           int index);
 static int heap_sift_up(struct plat_timer_dispatcher *dispatcher, int index);
 static void heap_swap(struct plat_timer_dispatcher *dispatcher, int first,
                       int second);
-static  int heap_parent(struct plat_timer_dispatcher *dispatcher,
+static __inline__ int heap_parent(struct plat_timer_dispatcher *dispatcher,
                                   int index);
-static  int heap_left(struct plat_timer_dispatcher *dispatcher,
+static __inline__ int heap_left(struct plat_timer_dispatcher *dispatcher,
                                 int index);
-static  int heap_right(struct plat_timer_dispatcher *dispatcher,
+static __inline__ int heap_right(struct plat_timer_dispatcher *dispatcher,
                                  int index);
-static  int heap_is_leaf(struct plat_timer_dispatcher *dispatcher,
+static __inline__ int heap_is_leaf(struct plat_timer_dispatcher *dispatcher,
                                    int index);
 
 struct plat_timer_dispatcher *
@@ -543,7 +543,7 @@ heap_insert_pre_locked(struct plat_timer_dispatcher *dispatcher,
 /**
  * @brief top element.
  */
-static  struct plat_timer_event *
+static __inline__ struct plat_timer_event *
 heap_top_pre_locked(struct plat_timer_dispatcher *dispatcher) {
     return (dispatcher->heap.count > 0 ? dispatcher->heap.data[0] : NULL);
 }
@@ -614,28 +614,28 @@ heap_swap(struct plat_timer_dispatcher *dispatcher, int first, int second) {
 }
 
 /** @brief Return parent of index, assert on root (no parent) */
-static  int
+static __inline__ int
 heap_parent(struct plat_timer_dispatcher *dispatcher, int index) {
     plat_assert(index >= 0);
     return ((index + 1) / 2 - 1);
 }
 
 /** @brief Return left child of index, assert on leaf (no child) */
-static  int
+static __inline__ int
 heap_left(struct plat_timer_dispatcher *dispatcher, int index) {
     plat_assert(!heap_is_leaf(dispatcher, index));
     return ((index + 1) * 2 - 1);
 }
 
 /** @brief Return right child of index, assert on leaf (no child) */
-static  int
+static __inline__ int
 heap_right(struct plat_timer_dispatcher *dispatcher, int index) {
     plat_assert(!heap_is_leaf(dispatcher, index));
     return ((index + 1) * 2 + 1 - 1);
 }
 
 /** @brief Return true if index is a leaf, assert on out of bounds */
-static  int
+static __inline__ int
 heap_is_leaf(struct plat_timer_dispatcher *dispatcher, int index) {
     plat_assert(index >= 0);
     plat_assert(index < dispatcher->heap.count);

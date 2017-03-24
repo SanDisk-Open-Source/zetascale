@@ -1,0 +1,8 @@
+Checkout source:
+	https://10.196.60.217/svn/schooner-products/branches/fdf-3.1/sdf
+
+Build ZS:
+	build_zs_sdk.sh
+
+Compile sample program:
+	gcc -std=c99 -Iapi -I. -o sample_program sample_program.c -L output/lib/ -l zs -lpthread -lsnappy -laio -levent -lrt

@@ -62,6 +62,8 @@
 #include "ssd/ssd_aio.h"
 #include "ssd/ssd_aio_local.h"
 
+#include "ws/ws.h"
+
 //#include "memcached.h"
 //#include "command.h"
 //#include "mcd_sdf.h"
@@ -87,6 +89,15 @@
 #ifdef FLIP_ENABLED
 #include "flip/flip.h"
 #endif
+
+// xxxzzz remove this:
+// #define  BRIAN_DEBUG_STUFF
+#ifdef BRIAN_DEBUG_STUFF
+extern __thread long WSThreadId;
+#endif
+
+// xxxzzz Added for write serializer
+struct ws_state *pWriteSerializer = NULL;
 
 extern uint32_t
 init_get_my_node_id();
@@ -2635,7 +2646,7 @@ int
 mcd_fth_osd_remove_entry( mcd_osd_shard_t * shard,
     hash_entry_t * hash_entry,
 	bool delayed,
-	bool remove_entry)
+	bool remove_entry, int flags)
 {
 	mcd_osd_slab_class_t* class;
 
@@ -2665,7 +2676,19 @@ mcd_fth_osd_remove_entry( mcd_osd_shard_t * shard,
 
     atomic_sub(shard->blk_consumed, mcd_osd_lba_to_blk(hash_entry->blocks));
 	if(shard->hash_handle->key_cache) {
-		keycache_set(shard->hash_handle, hash_entry->blkaddress, 0);
+	    // we should never get here for a serialized container!
+	    plat_assert(!((flags & FLASH_GET_SERIALIZED) || (flags & FLASH_PUT_SERIALIZED))); 
+	    keycache_set(shard->hash_handle, hash_entry->blkaddress, 0, flags); 
+#ifdef BRIAN_DEBUG_STUFF
+// xxxzzz remove this:
+{
+    uint64_t   addr, stripe, blkaddr;
+    addr = hash_entry->blkaddress*Mcd_osd_blk_size;
+    stripe = addr/256/1024;
+    blkaddr = hash_entry->blkaddress;
+    fprintf(stderr, "XXXZZZ [%ld]: keycache_set to 0 (remove_entry)! blkaddr=%"PRIu64", addr=%"PRIu64", stripe=%"PRIu64"\n", WSThreadId, blkaddr, addr, stripe);
+}
+#endif
 	}
 
 #if 0
@@ -4626,6 +4649,9 @@ mcd_fth_osd_slab_set( void * context, mcd_osd_shard_t * shard,
     uint32_t uncomp_datalen = 0; /* Uncompressed data length */
     cntr_map_t                * cmap = NULL;
     SDF_durability_level_t      durlevel;
+    int                         is_update;
+    uint64_t                    old_addr;
+    uint64_t                    old_size;
 #ifdef FLIP_ENABLED
     char *tmp_ptr = NULL;
     uint64_t pos = 0;
@@ -4747,7 +4773,7 @@ mcd_fth_osd_slab_set( void * context, mcd_osd_shard_t * shard,
 	 * lookup hash
 	 */
 	hash_entry = hash_table_get( context, shard->hash_handle, 
-                                    key, key_len, cntr_id);
+                                    key, key_len, cntr_id, flags);
 
     if ( hash_entry == NULL ) { // new key
         if ( NULL == data ) {
@@ -4807,7 +4833,34 @@ mcd_fth_osd_slab_set( void * context, mcd_osd_shard_t * shard,
 
             plus_objs--;
             plus_blks -= lba_to_use(shard, hash_entry->blocks);
-            mcd_fth_osd_remove_entry(shard, hash_entry, delayed, true);
+            if (flags & FLASH_PUT_SERIALIZED) {
+	        if (WSDelete(pWriteSerializer, context, key, key_len, hash_entry->blkaddress*Mcd_osd_blk_size, hash_entry->blocks*Mcd_osd_blk_size)) {
+		    rc = FLASH_EDELFAIL;
+		    goto out;
+		}
+		/*   This part of mcd_fth_osd_remove_entry() 
+		 *   must still be done with write serialization:
+		 */
+		if (shard->hash_handle->key_cache) {
+		    keycache_set(shard->hash_handle, hash_entry->blkaddress, 0, flags);
+#ifdef BRIAN_DEBUG_STUFF
+// xxxzzz remove this:
+{
+    uint64_t   addr, stripe, keyz, blkaddr;
+    keyz = *((uint64_t *) key);
+    addr = hash_entry->blkaddress*Mcd_osd_blk_size;
+    stripe = addr/256/1024;
+    blkaddr = hash_entry->blkaddress;
+    fprintf(stderr, "XXXZZZ [%ld]: keycache_set to 0 (slab_set_delete)! key=%"PRIu64", blkaddr=%"PRIu64", addr=%"PRIu64", stripe=%"PRIu64"\n", WSThreadId, keyz, blkaddr, addr, stripe);
+}
+#endif
+		}
+	    } else {
+#ifdef BRIAN_DEBUG_STUFF
+fprintf(stderr, "XXXZZZ [%ld]: (1) calling osd_remove_entry!\n", WSThreadId);
+#endif
+		mcd_fth_osd_remove_entry(shard, hash_entry, delayed, true, flags);
+	    }
 
             // explicit delete case
             if ( 1 == shard->persistent ) {
@@ -4828,7 +4881,12 @@ mcd_fth_osd_slab_set( void * context, mcd_osd_shard_t * shard,
                 log_rec.mlo_dl = durlevel;
                 if ( 0 == shard->evict_to_free ) {
                     // store mode: delay flash space dealloc
-                    log_rec.mlo_old_offset = ~(hash_entry->blkaddress) & 0x0000ffffffffffffull;
+		    if (flags & FLASH_PUT_SERIALIZED) {
+		        // xxxzzz this suppresses slab reclamation in log_write_postprocess()
+			log_rec.mlo_old_offset = 0;
+		    } else {
+			log_rec.mlo_old_offset = ~(hash_entry->blkaddress) & 0x0000ffffffffffffull;
+		    }
                     log_write_trx( shard, &log_rec, syndrome, hash_entry);
                 } else {
                     log_rec.mlo_old_offset = 0;
@@ -4870,20 +4928,35 @@ mcd_fth_osd_slab_set( void * context, mcd_osd_shard_t * shard,
     }
 
     if(!(flags & FLASH_PUT_SKIP_IO)) {
-		/*
-		 * re-alloc the buffer for large objects
-		 */     
-		if ( (MCD_FTH_OSD_BUF_SIZE / Mcd_osd_blk_size) < blocks ) {
-			buf = mcd_fth_osd_iobuf_alloc(context, blocks * Mcd_osd_blk_size, false );
-			if ( NULL == buf ) {
-				rc = FLASH_ENOMEM;
-				goto out;
-			}
-			dyn_buffer = true;
+	    /*
+	     * re-alloc the buffer for large objects
+	     */     
+	    if ( (MCD_FTH_OSD_BUF_SIZE / Mcd_osd_blk_size) < blocks ) {
+		    buf = mcd_fth_osd_iobuf_alloc(context, blocks * Mcd_osd_blk_size, false );
+		    if ( NULL == buf ) {
+			    rc = FLASH_ENOMEM;
+			    goto out;
+		    }
+		    dyn_buffer = true;
+	    }
+
+	    mcd_osd_slab_set_data(buf, key, key_len, data, data_len, uncomp_datalen, blocks, meta_data, true);
+
+            if (flags & FLASH_PUT_SERIALIZED) {
+	        is_update = obj_exists;
+		if (obj_exists) {
+		    old_addr  = hash_entry->blkaddress*Mcd_osd_blk_size;
+		    old_size  = hash_entry->blocks*Mcd_osd_blk_size;
+		} else {
+		    old_addr  = 0;
+		    old_size  = 0;
 		}
-
-		mcd_osd_slab_set_data(buf, key, key_len, data, data_len, uncomp_datalen, blocks, meta_data, true);
-
+	        rc = WSWriteComplete(pWriteSerializer, context, key, key_len, buf, blocks*Mcd_osd_blk_size, &blk_offset, is_update, old_addr, old_size);
+		offset = blk_offset;
+                blk_offset /= Mcd_osd_blk_size;
+                plat_assert((offset % Mcd_osd_blk_size) == 0); // xxxzzz fix this!
+	    } else {
+	        
 		if ( 1 != mcd_fth_osd_slab_alloc( context, shard, blocks, 1, &blk_offset ) ) {
 			mcd_log_msg( 20367, PLAT_LOG_LEVEL_TRACE, "failed to allocate slab" );
 			rc = FLASH_ENOSPC;
@@ -4896,7 +4969,7 @@ mcd_fth_osd_slab_set( void * context, mcd_osd_shard_t * shard,
 					
 		plat_assert 
 			( shard->segment_table[ blk_offset /
-									Mcd_osd_segment_blks ]->class->slab_blksize >=
+			  Mcd_osd_segment_blks ]->class->slab_blksize >=
 			  mcd_osd_lba_to_blk( mcd_osd_blk_to_lba( blocks ) ) );
 
 		offset = mcd_osd_rand_address(shard, blk_offset);
@@ -4921,42 +4994,43 @@ mcd_fth_osd_slab_set( void * context, mcd_osd_shard_t * shard,
 					shard->data_sync);
 		} else {
 			rc = mcd_fth_aio_blk_write_low(
-			                context, buf, offset,
-			                blocks * Mcd_osd_blk_size,
-			                durlevel > SDF_RELAXED_DURABILITY &&
-			                shard->data_sync);
+					context, buf, offset,
+					blocks * Mcd_osd_blk_size,
+					durlevel > SDF_RELAXED_DURABILITY &&
+					shard->data_sync);
 		}
-		if ( FLASH_EOK != rc ) {
-			/*
-			 * FIXME: free the allocated space here?
-			 */
-			mcd_log_msg( 20008, PLAT_LOG_LEVEL_ERROR,
-						 "failed to write blocks, rc=%d", rc );
-			goto out;
-		}
+	    }
+	    if ( FLASH_EOK != rc ) {
+		    /*
+		     * FIXME: free the allocated space here?
+		     */
+		    mcd_log_msg( 20008, PLAT_LOG_LEVEL_ERROR,
+					     "failed to write blocks, rc=%d", rc );
+		    goto out;
+	    }
 #endif
 
 #ifdef FLIP_ENABLED
-		if (corrupt_data) {
-			tmp_ptr[pos] = ~tmp_ptr[pos];
-			corrupt_data = false;
-		}
+	    if (corrupt_data) {
+		    tmp_ptr[pos] = ~tmp_ptr[pos];
+		    corrupt_data = false;
+	    }
 #endif
 
 #ifdef  MCD_ENABLE_SLAB_CACHE
-		/*
-		 * copy the data into the slab cache (for testing only)
-		 */
-		memcpy( shard->slab_cache + offset, buf, blocks * Mcd_osd_blk_size );
-		rc = FLASH_EOK;
+	    /*
+	     * copy the data into the slab cache (for testing only)
+	     */
+	    memcpy( shard->slab_cache + offset, buf, blocks * Mcd_osd_blk_size );
+	    rc = FLASH_EOK;
 #endif
     } /* !(flags & FLASH_PUT_SKIP_IO) */
 
     plat_log_msg( 20369, PLAT_LOG_CAT_SDF_SIMPLE_REPLICATION,
-                  PLAT_LOG_LEVEL_TRACE,
-                  "store object [%ld][%d]: syndrome: %lx",
-                  ( syndrome % hdl->hash_size ) / OSD_HASH_BUCKET_SIZE, i,
-                  syndrome );
+		  PLAT_LOG_LEVEL_TRACE,
+		  "store object [%ld][%d]: syndrome: %lx",
+		  ( syndrome % hdl->hash_size ) / OSD_HASH_BUCKET_SIZE, i,
+		  syndrome );
 
     /*
      * update the hash table entry
@@ -4969,7 +5043,7 @@ mcd_fth_osd_slab_set( void * context, mcd_osd_shard_t * shard,
     new_entry.cntr_id    = cntr_id;
 
     if(key_len == 8 && hdl->key_cache) {
-		keycache_set(hdl, new_entry.blkaddress, *(uint64_t*)key);
+		keycache_set(hdl, new_entry.blkaddress, *(uint64_t*)key, flags);
 	}
 
     new_entry.deleted    = 0;
@@ -4992,7 +5066,30 @@ mcd_fth_osd_slab_set( void * context, mcd_osd_shard_t * shard,
          */
         plus_objs--;
         plus_blks -= lba_to_use(shard, hash_entry->blocks);
-        mcd_fth_osd_remove_entry(shard, hash_entry, shard->persistent, false);
+	if (!(flags & FLASH_PUT_SERIALIZED)) {
+#ifdef BRIAN_DEBUG_STUFF
+fprintf(stderr, "XXXZZZ [%ld]: (2) calling osd_remove_entry!\n", WSThreadId);
+#endif
+	    mcd_fth_osd_remove_entry(shard, hash_entry, shard->persistent, false, flags);
+	} else {
+	    /*   This part of mcd_fth_osd_remove_entry() 
+	     *   must still be done with write serialization:
+	     */
+	    if (shard->hash_handle->key_cache) {
+		keycache_set(shard->hash_handle, hash_entry->blkaddress, 0, flags);
+#ifdef BRIAN_DEBUG_STUFF
+// xxxzzz remove this:
+{
+    uint64_t   addr, stripe, keyz, blkaddr;
+    keyz = *((uint64_t *) key);
+    addr = hash_entry->blkaddress*Mcd_osd_blk_size;
+    stripe = addr/256/1024;
+    blkaddr = hash_entry->blkaddress;
+    fprintf(stderr, "XXXZZZ [%ld]: keycache_set to 0 (slab_set_update)! key=%"PRIu64", blkaddr=%"PRIu64", addr=%"PRIu64", stripe=%"PRIu64"\n", WSThreadId, keyz, blkaddr, addr, stripe);
+}
+#endif
+	    }
+	}
 
         (void) __sync_fetch_and_add( &shard->num_overwrites, 1 );
     } else {
@@ -5002,7 +5099,10 @@ mcd_fth_osd_slab_set( void * context, mcd_osd_shard_t * shard,
 		if( hash_entry == NULL) {
 			(void) __sync_fetch_and_add( &shard->blk_consumed,
 							new_entry.blocks );
-			mcd_fth_osd_remove_entry( shard, &new_entry, false, true);
+#ifdef BRIAN_DEBUG_STUFF
+fprintf(stderr, "XXXZZZ [%ld]: (3) calling osd_remove_entry!\n", WSThreadId);
+#endif
+			mcd_fth_osd_remove_entry( shard, &new_entry, false, true, flags);
 			hash_entry_copy(&new_entry, NULL);
 			rc = FLASH_ENOSPC;
 			goto out;
@@ -5028,7 +5128,12 @@ mcd_fth_osd_slab_set( void * context, mcd_osd_shard_t * shard,
         log_rec.mlo_dl = durlevel;
         if ( true == obj_exists && 0 == shard->evict_to_free ) {
             // overwrite case in store mode
-            log_rec.mlo_old_offset   = ~(hash_entry->blkaddress) & 0x0000ffffffffffffull;
+	    if (flags & FLASH_PUT_SERIALIZED) {
+		// xxxzzz this suppresses slab reclamation in log_write_postprocess()
+		log_rec.mlo_old_offset = 0;
+	    } else {
+		log_rec.mlo_old_offset = ~(hash_entry->blkaddress) & 0x0000ffffffffffffull;
+	    }
             log_rec.target_seqno = target_seqno;
             log_write_trx( shard, &log_rec, syndrome, hash_entry);
         } else {
@@ -5046,8 +5151,13 @@ mcd_fth_osd_slab_set( void * context, mcd_osd_shard_t * shard,
 		hdl->addr_table[blk_offset] = (syndrome % hdl->hash_size);
 	}
 
-    (void) __sync_fetch_and_add( &shard->blk_consumed,
-                                 mcd_osd_lba_to_blk( new_entry.blocks ) );
+    /*  Because storage for write-serialized containers is managed
+     *  external to ZS.
+     */
+    if (!(flags & FLASH_PUT_SERIALIZED)) {
+	(void) __sync_fetch_and_add( &shard->blk_consumed,
+				     mcd_osd_lba_to_blk( new_entry.blocks ) );
+    }
     meta_data->blockaddr = new_entry.blkaddress;
 
 out:
@@ -5100,7 +5210,6 @@ mcd_fth_osd_slab_create_raw( void * context, mcd_osd_shard_t * shard,
 	int64_t                     plus_objs = 0;
 	int64_t                     plus_blks = 0;
 	cntr_id_t                   cntr_id = meta_data->cguid;
-	ZS_boolean_t				vc_evict = ZS_FALSE;
 	cntr_map_t					*cmap = NULL;
     
 
@@ -5120,7 +5229,7 @@ mcd_fth_osd_slab_create_raw( void * context, mcd_osd_shard_t * shard,
 						 "Could not determine eviction type for container %u\n",
 						 cntr_id );
 		} else {
-			vc_evict = cmap->evicting;
+			/* vc_evict = cmap->evicting; */
 		}
 	}
 
@@ -5233,7 +5342,6 @@ mcd_fth_osd_slab_write_raw( void * context, mcd_osd_shard_t * shard,
                       struct objMetaData * meta_data, uint64_t syndrome, uint64_t blk_offset, int blocks )
 {
     int                         rc = FLASH_EOK;
-    bool                        dyn_buffer = false;
     char                      * buf;
     char                      * data_buf = NULL;
     uint64_t                    offset;
@@ -5241,7 +5349,6 @@ mcd_fth_osd_slab_write_raw( void * context, mcd_osd_shard_t * shard,
     int64_t                     plus_objs = 0;
     int64_t                     plus_blks = 0;
     cntr_id_t                   cntr_id = meta_data->cguid;
-    ZS_boolean_t				vc_evict = ZS_FALSE;
 	cntr_map_t					*cmap = NULL;
 	mcd_osd_segment_t 			* segment;
 	mcd_logrec_object_t         log_rec;
@@ -5281,7 +5388,7 @@ mcd_fth_osd_slab_write_raw( void * context, mcd_osd_shard_t * shard,
 						 "Could not determine eviction type for container %u\n",
 						 cntr_id );
 		} else {
-			vc_evict = cmap->evicting;
+			/* vc_evict = cmap->evicting; */
 		}
 	}
 
@@ -5444,7 +5551,6 @@ mcd_fth_osd_slab_write_raw( void * context, mcd_osd_shard_t * shard,
 				rc = FLASH_ENOMEM;
 				goto out;
 			}
-			dyn_buffer = true;
 		}
 
 		mcd_osd_slab_set_data(buf, key, key_len, data, actual_data_len, uncomp_data_len, blocks, meta_data, true);
@@ -5621,7 +5727,11 @@ mcd_fth_osd_slab_get( void * context, mcd_osd_shard_t * shard, char *key,
 
             blk_offset = hash_entry->blkaddress;
 
-            offset = mcd_osd_rand_address(shard, blk_offset);
+            if (flags & FLASH_GET_SERIALIZED) {
+		offset = blk_offset;
+	    } else {
+		offset = mcd_osd_rand_address(shard, blk_offset);
+	    }
 
 override_retry:
             if ( NULL == ppdata ) {
@@ -5670,10 +5780,14 @@ override_retry:
 #else
 
 	
-            rc = mcd_fth_aio_blk_read( context,
-                    buf,
-                    offset,
-                    nbytes );
+            if (flags & FLASH_GET_SERIALIZED) {
+	        rc = WSRead(pWriteSerializer, context, key, key_len, offset*Mcd_osd_blk_size, buf, nbytes);
+	    } else {
+		rc = mcd_fth_aio_blk_read( context,
+			buf,
+			offset,
+			nbytes );
+	    }
             if ( FLASH_EOK != rc ) {
                 mcd_log_msg( 20003, PLAT_LOG_LEVEL_ERROR,
                         "failed to read blocks, rc=%d", rc );
@@ -5705,6 +5819,16 @@ override_retry:
                         key_len, meta->key_len );
                 (void) __sync_fetch_and_add( &shard->get_hash_collisions, 1 );
                 mcd_fth_osd_slab_free( data_buf );
+#ifdef BRIAN_DEBUG_STUFF
+// xxxzzz remove this:
+{
+    uint64_t   addr, stripe, key;
+    key = *((uint64_t *) key);
+    addr = offset*Mcd_osd_blk_size;
+    stripe = addr/256*1024;
+    fprintf(stderr, "XXXZZZ [%ld]: key length missmatch! (%d found, %d expected) key=%"PRIu64", addr=%"PRIu64", stripe=%"PRIu64"\n", WSThreadId, meta->key_len, key_len, key, addr, stripe);
+}
+#endif
                 continue;
             }
 
@@ -5713,6 +5837,17 @@ override_retry:
                         "key mismatch, req %s", key );
                 (void) __sync_fetch_and_add( &shard->get_hash_collisions, 1 );
                 mcd_fth_osd_slab_free( data_buf );
+#ifdef BRIAN_DEBUG_STUFF
+// xxxzzz remove this:
+{
+    uint64_t   addr, stripe, key_found, key_expected;
+    key_expected = *((uint64_t *) key);
+    key_found = *((uint64_t *) (buf + sizeof(mcd_osd_meta_t)));
+    addr = offset*Mcd_osd_blk_size;
+    stripe = addr/256/1024;
+    fprintf(stderr, "XXXZZZ [%ld]: key missmatch! expected_key=%"PRIu64", found_key=%"PRIu64", addr=%"PRIu64", stripe=%"PRIu64"\n", WSThreadId, key_expected, key_found, addr, stripe);
+}
+#endif
                 continue;
             }
 
@@ -5838,6 +5973,7 @@ override_retry:
                 rc = zs_uncompress_data(data_buf, *pactual_size, tmp_len, &uncomp_len);
                 if( rc < 0 ) {
                     mcd_log_msg(160202,PLAT_LOG_LEVEL_FATAL, "Data uncompression failed:%d",rc);
+
                     return FLASH_ENOENT;
                 }
                 *pactual_size = uncomp_len;
@@ -7249,24 +7385,30 @@ mcd_osd_flash_put( struct ssdaio_ctxt * pctxt, struct shard * shard,
     int                         ret;
     int                         window = 0;
     uint64_t                    syndrome = 0;
+    uint64_t                    datasize;
     osd_state_t               * osd_state = (osd_state_t *)pctxt;
     mcd_osd_shard_t           * mcd_shard = (mcd_osd_shard_t *)shard;
 
     mcd_log_msg( 20406, PLAT_LOG_LEVEL_TRACE, "ENTERING, context=%p shardID=%lu",
                  (void *)pctxt, shard->shardID );
 
-	if (!(flags & FLASH_CREATE_RAW_OBJECT)) {
-		syndrome = hashck((unsigned char *)key,
-						  metaData->keyLen, 0, metaData->cguid);
+    if (!(flags & FLASH_CREATE_RAW_OBJECT)) {
+	if ((flags & FLASH_PUT_SERIALIZED) &&
+	    (data != NULL))  //  not a pure delete
+	{
+	    datasize = metaData->dataLen + sizeof(mcd_osd_meta_t) + metaData->keyLen;
+	    datasize = ((datasize + Mcd_osd_blk_size - 1)/Mcd_osd_blk_size)*Mcd_osd_blk_size;
 
-		osd_state->osd_lock = 
-					(void *) hash_table_find_lock(mcd_shard->hash_handle, 
-													syndrome, SYN);
-		osd_state->osd_wait = fthLock((fthLock_t *)osd_state->osd_lock, 
-										1, NULL );
-
-		plat_assert(osd_state->osd_lock == osd_state->osd_wait);
+	    ret = WSWriteAllocate(pWriteSerializer, (void *) pctxt, key, metaData->keyLen, datasize);
+	    if (ret != 0) {
+	        return(FLASH_EIO);
+	    }
 	}
+	syndrome = hashck((unsigned char *)key, metaData->keyLen, 0, metaData->cguid);
+	osd_state->osd_lock = (void *) hash_table_find_lock(mcd_shard->hash_handle, syndrome, SYN);
+	osd_state->osd_wait = fthLock((fthLock_t *)osd_state->osd_lock, 1, NULL );
+	plat_assert(osd_state->osd_lock == osd_state->osd_wait);
+    }
 
 #ifdef FLIP_ENABLED
 	uint32_t node_type;
@@ -9755,14 +9897,12 @@ mcd_osd_trx_insert( mcd_osd_shard_t *s, uint64_t syn, hash_entry_t *orig)
  */
 int
 mcd_onflash_key_match(void *context, mcd_osd_shard_t * shard, 
-                        uint64_t addr, char *key, int key_len)
+                        uint64_t addr, char *key, int key_len, int flags)
 {
     int               nbytes, rc;
     char            * data_buf, *buf;
     uint64_t          offset;
     mcd_osd_meta_t  * meta;
-
-    offset = mcd_osd_rand_address(shard, addr );
 
     nbytes = Mcd_osd_blk_size;;
 
@@ -9771,10 +9911,18 @@ mcd_onflash_key_match(void *context, mcd_osd_shard_t * shard,
     buf = (char *)( ( (uint64_t)data_buf + Mcd_osd_blk_size - 1 )
             & Mcd_osd_blk_mask );
 
-    rc = mcd_fth_aio_blk_read( context,
-                               buf,
-                               offset,
-                               nbytes );
+    if ((flags & FLASH_GET_SERIALIZED) ||
+        (flags & FLASH_PUT_SERIALIZED))
+    {
+        offset = addr;
+	rc = WSRead(pWriteSerializer, context, key, key_len, offset*Mcd_osd_blk_size, buf, nbytes);
+    } else {
+        offset = mcd_osd_rand_address(shard, addr );
+	rc = mcd_fth_aio_blk_read( context,
+				   buf,
+				   offset,
+				   nbytes );
+    }
 
     if ( FLASH_EOK != rc ) {
         mcd_log_msg ( PLAT_LOG_ID_INITIAL, PLAT_LOG_LEVEL_ERROR,

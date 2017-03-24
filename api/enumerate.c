@@ -145,32 +145,6 @@ ZSEnumeratePGObjects( struct ZS_thread_state *t, ZS_cguid_t c, struct ZS_iterato
 	return (ZS_FAILURE_INVALID_CONTAINER_TYPE);
 }
 
-ZS_status_t
-ZSEnumerateAllPGObjects( struct ZS_thread_state *t, ZS_cguid_t c, struct ZS_iterator **iter)
-{
-	ZS_status_t     s;
-
-	if (!t || !c || !iter) {
-		if (!t)
-			plat_log_msg(80049, PLAT_LOG_CAT_SDF_NAMING, PLAT_LOG_LEVEL_DEBUG, "ZS Thread state is NULL");
-		if (!c)
-			plat_log_msg(80050, PLAT_LOG_CAT_SDF_NAMING, PLAT_LOG_LEVEL_DEBUG, "Invalid container cguid:%lu", c);
-		if (!iter)
-			plat_log_msg(80051, PLAT_LOG_CAT_SDF_NAMING, PLAT_LOG_LEVEL_DEBUG, "The argument ZS_iterator is NULL");
-		return (ZS_INVALID_PARAMETER);
-	}
-	cntr_map_t *cmap = get_cntr_map( c);
-	if (cmap == 0)
-		return (ZS_CONTAINER_UNKNOWN);
-	if (cmap->lc) {
-		s = lc_enum_start( t, c, iter, NULL, 0);
-		rel_cntr_map( cmap);
-		return (s);
-	}
-	rel_cntr_map( cmap);
-	return (ZS_FAILURE_INVALID_CONTAINER_TYPE);
-}
-
 
 /*
  * Return the next enumerated object in a container.
@@ -205,7 +179,7 @@ ZSNextEnumeratedObject(struct ZS_thread_state *ts,
     if (cmap == 0)
 	return (ZS_CONTAINER_UNKNOWN);
     if (cmap->lc) {
-	s = lc_enum_next( ts, iter, key, keylen, data, datalen);
+	s = lc_enum_next( iter, key, keylen, data, datalen);
 	rel_cntr_map( cmap);
 	return (s);
     }

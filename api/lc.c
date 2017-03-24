@@ -315,8 +315,6 @@ struct iterstructure {
 	uint		objecti,
 			nobject;
 	lrec_t		**objects;
-	ulong		cur_pg_bucket;
-	pg_t*		cur_pg;
 };
 struct lostructure {
 	lo_t		*next;
@@ -812,8 +810,6 @@ lc_read( ts_t *t, ZS_cguid_t cguid, char *k, uint32_t kl, char **d, uint64_t *dl
 ZS_status_t
 lc_enum_start( ts_t *t, ZS_cguid_t cguid, void *iterator, char *k, uint32_t kl)
 {
-	ZS_status_t r;
-	pg_t* pg;
 	pghash_t	h;
 	pgname_t	n;
 
@@ -824,44 +820,23 @@ lc_enum_start( ts_t *t, ZS_cguid_t cguid, void *iterator, char *k, uint32_t kl)
 		pthread_rwlock_unlock( &lc_lock);
 		return (ZS_FAILURE);
 	}
+	ZS_status_t r = keydecode( k, kl, &n, &h, 0);
+	unless (r == ZS_SUCCESS) {
+		pthread_rwlock_unlock( &lc_lock);
+		return (r);
+	}
 	pthread_rwlock_rdlock( &c->lock);
-	iter_t *iter = (iter_t*)calloc( sizeof *iter, 1);
+	pg_t *pg = pglookup( c, k, n, h);
+	unless (pg) {
+		pthread_rwlock_unlock( &c->lock);
+		pthread_rwlock_unlock( &lc_lock);
+		return (ZS_FAILURE);
+	}
+	iter_t *iter = calloc( sizeof *iter, 1);
 	unless (iter) {
 		pthread_rwlock_unlock( &c->lock);
 		pthread_rwlock_unlock( &lc_lock);
 		return (ZS_OUT_OF_MEM);
-	}
-	if(k)
-	{
-		r = keydecode( k, kl, &n, &h, 0);
-		unless (r == ZS_SUCCESS) {
-			free(iter);
-			pthread_rwlock_unlock( &c->lock);
-			pthread_rwlock_unlock( &lc_lock);
-			return (r);
-		}
-		pg = pglookup( c, k, n, h);
-		unless (pg) {
-			free(iter);
-			pthread_rwlock_unlock( &c->lock);
-			pthread_rwlock_unlock( &lc_lock);
-			return (ZS_FAILURE);
-		}
-	}
-	else
-	{
-		ulong i = 0;
-		while(i < nel( c->pgtable) && !c->pgtable[i])
-			i++;
-		if(i >= nel( c->pgtable)) {
-			free(iter);
-			pthread_rwlock_unlock( &c->lock);
-			pthread_rwlock_unlock( &lc_lock);
-			return (ZS_FAILURE);
-		}
-		pg = c->pgtable[i];
-		iter->cur_pg_bucket = i;
-		iter->cur_pg = pg;
 	}
 	r = pgstreamenumerate( t, pg, iter);
 	unless (r == ZS_SUCCESS) {
@@ -879,47 +854,18 @@ lc_enum_start( ts_t *t, ZS_cguid_t cguid, void *iterator, char *k, uint32_t kl)
 }
 
 
-static void free_iterator_low( iter_t *iter);
-
 /*
  * LC entrypoint - continue enumeration of a PG
  *
  * The next LO is returned, otherwise ZS_OBJECT_UNKNOWN.
  */
 ZS_status_t
-lc_enum_next( ts_t* t, void *iterator, char **key, uint32_t *keylen, char **data, uint64_t *datalen)
+lc_enum_next( void *iterator, char **key, uint32_t *keylen, char **data, uint64_t *datalen)
 {
+
 	iter_t *iter = (iter_t *)iterator;
 	unless (iter->magic == LC_MAGIC)
 		return (ZS_FAILURE);
-
-	if (iter->objecti >= iter->nobject && iter->cur_pg) {
-		pthread_rwlock_rdlock( &lc_lock);
-		container_t *c = clookup( iter->cguid);
-		pthread_rwlock_rdlock( &c->lock);
-		pg_t* pg = iter->cur_pg->containerlink;
-		if(!pg) {
-			ulong i = ++iter->cur_pg_bucket;
-			while(i < nel( c->pgtable) && !c->pgtable[i])
-				i++;
-			if(i >= nel( c->pgtable)) {
-				pthread_rwlock_unlock( &c->lock);
-				pthread_rwlock_unlock( &lc_lock);
-				return (ZS_FAILURE);
-			}
-			iter->cur_pg = pg = c->pgtable[i];
-		}
-		free_iterator_low(iter);
-		iter->objecti = 0;
-		iter->nobject = 0;
-		ZS_status_t r = pgstreamenumerate( t, pg, iter);
-		pthread_rwlock_unlock( &c->lock);
-		pthread_rwlock_unlock( &lc_lock);
-		unless (r == ZS_SUCCESS) {
-			return (r);
-		}
-	}
-
 	if (iter->objecti < iter->nobject) {
 		lrec_t *lr = iter->objects[iter->objecti++];
 		unless (*key = malloc( lr->klen))
@@ -934,7 +880,6 @@ lc_enum_next( ts_t* t, void *iterator, char **key, uint32_t *keylen, char **data
 		*datalen = lr->dlen;
 		return (ZS_SUCCESS);
 	}
-
 	return (ZS_OBJECT_UNKNOWN);
 }
 
@@ -2604,7 +2549,7 @@ pgstreamenumerate( ts_t *t, pg_t *pg, iter_t *iter)
  * free iterator memory
  */
 static void
-free_iterator_low( iter_t *iter)
+free_iterator( iter_t *iter)
 {
 	uint	i;
 
@@ -2622,20 +2567,10 @@ free_iterator_low( iter_t *iter)
 			lo = lo2;
 		}
 	}
-	iter->so = NULL;
-	for(int i = 0; i < LOTABLESIZE; i++)
-		iter->lo[i] = NULL;
-	if(iter->objects)
-		free( iter->objects);
-	iter->objects = NULL;
-}
-
-static void
-free_iterator( iter_t *iter)
-{
-	free_iterator_low(iter);
+	free( iter->objects);
 	free( iter);
 }
+
 
 /*
  * compare PG name fields of two pgnames

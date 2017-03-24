@@ -1,0 +1,1681 @@
+
+Thread 219 (Thread 0x7fde875de700 (LWP 32676)):
+#0  read_node_cb (ret=0x7fde875dd504, data=0x7ffff5178bb0 <Container_Map+2384>, pnode=0x7fdfe8f37984, lnodeid=895, rawobj=0) at /home/parallels/src/zs/sdf/btree/fdf_wrapper.c:3332
+#1  0x00007ffff0635788 in get_existing_node_low (ret=0x7fde875dd504, btree=0x7fff377e1080, logical_id=895, flags=NODE_REF) at /home/parallels/src/zs/sdf/btree/btree_raw.c:3497
+#2  0x00007ffff063c532 in btree_raw_mwrite_low (btree=0x7fff377e1080, objs_in_out=0x7fde875dd5b0, num_objs=0x7fde875dd5ac, meta=0x7fde875dd7d0, syndrome=0, write_type=4, pathcnt=0x7fde875dd634, written=0x7fde875dd5c4) at /home/parallels/src/zs/sdf/btree/btree_raw.c:5911
+#3  0x00007ffff063f01c in btree_raw_mput_recursive (btree=0x7fff377e1080, objs=0x7fde875dd6b0, num_objs=1, write_type=4, meta=0x7fde875dd7d0, objs_written=0x7fde875dd6ac, pathcnt=0x7fde875dd634) at /home/parallels/src/zs/sdf/btree/btree_raw.c:6960
+#4  0x00007ffff063f26d in btree_raw_mput (btree=0x7fff377e1080, objs=0x7fde875dd6b0, num_objs=1, flags=0, meta=0x7fde875dd7d0, objs_written=0x7fde875dd6ac) at /home/parallels/src/zs/sdf/btree/btree_raw.c:7005
+#5  0x00007ffff063f518 in btree_raw_write (btree=0x7fff377e1080, key=0x7fde875ddaf0 "key0_410233", keylen=11, data=0x20f7c00 "", datalen=100, meta=0x7fde875dd7d0, flags=0) at /home/parallels/src/zs/sdf/btree/btree_raw.c:7056
+#6  0x00007ffff0648234 in btree_set (btree=0x7fff377ccdb0, key=0x7fde875ddaf0 "key0_410233", keylen=11, data=0x20f7c00 "", datalen=100, meta=0x7fde875dd7d0) at /home/parallels/src/zs/sdf/btree/btree.c:199
+#7  0x00007ffff065f2c6 in _ZSWriteObject (zs_thread_state=0x7fff36da85a0, cguid=7, key=0x7fde875ddaf0 "key0_410233", keylen=11, data=0x20f7c00 "", datalen=100, flags=0) at /home/parallels/src/zs/sdf/btree/fdf_wrapper.c:2498
+#8  0x000000000040440c in ZSWriteObject (sdf_thread_state=0x7fff36da85a0, cguid=7, key=0x7fde875ddaf0 "key0_410233", keylen=11, data=0x20f7c00 "", datalen=100, flags=0) at /home/parallels/src/zs/sdf/dll/zs_dll.c:923
+#9  0x0000000000402c53 in test_routine (arg=<optimized out>) at zstestz.c:706
+#10 0x00007ffff7bc6dc5 in start_thread () from /lib64/libpthread.so.0
+#11 0x00007ffff6b95ced in clone () from /lib64/libc.so.6
+
+Thread 218 (Thread 0x7fdf22810700 (LWP 32675)):
+#0  0x00007ffff7bcaa82 in pthread_cond_timedwait@@GLIBC_2.3.2 () from /lib64/libpthread.so.0
+#1  0x00007ffff065a73a in pstats_fn (parm=0x7ffff0ed0020 <agent_state>) at /home/parallels/src/zs/sdf/btree/fdf_wrapper.c:1029
+#2  0x00007ffff7bc6dc5 in start_thread () from /lib64/libpthread.so.0
+#3  0x00007ffff6b95ced in clone () from /lib64/libc.so.6
+
+Thread 217 (Thread 0x7fe065bb2700 (LWP 32671)):
+#0  0x00007ffff7bca6d5 in pthread_cond_wait@@GLIBC_2.3.2 () from /lib64/libpthread.so.0
+#1  0x00007ffff066ceab in btSyncMboxWait (mb=0x7ffff0ed40a0 <mbox_scavenger>) at /home/parallels/src/zs/sdf/btree/btree_sync_mbox.c:168
+#2  0x00007ffff0648c82 in scavenger_worker (arg=0) at /home/parallels/src/zs/sdf/btree/btree_scavenger.c:91
+#3  0x00007ffff0657898 in pthread_func_wrapper (arg=0x20dc6d0) at /home/parallels/src/zs/sdf/btree/btree_sync_th.c:258
+#4  0x00007ffff7bc6dc5 in start_thread () from /lib64/libpthread.so.0
+#5  0x00007ffff6b95ced in clone () from /lib64/libc.so.6
+
+Thread 216 (Thread 0x7fe0e0de3700 (LWP 32670)):
+#0  0x00007ffff7bca6d5 in pthread_cond_wait@@GLIBC_2.3.2 () from /lib64/libpthread.so.0
+#1  0x00007ffff066ceab in btSyncMboxWait (mb=0x7ffff0ed40a0 <mbox_scavenger>) at /home/parallels/src/zs/sdf/btree/btree_sync_mbox.c:168
+#2  0x00007ffff0648c82 in scavenger_worker (arg=0) at /home/parallels/src/zs/sdf/btree/btree_scavenger.c:91
+#3  0x00007ffff0657898 in pthread_func_wrapper (arg=0x20dc3d0) at /home/parallels/src/zs/sdf/btree/btree_sync_th.c:258
+#4  0x00007ffff7bc6dc5 in start_thread () from /lib64/libpthread.so.0
+#5  0x00007ffff6b95ced in clone () from /lib64/libc.so.6
+
+Thread 215 (Thread 0x7fe15c014700 (LWP 32669)):
+#0  0x00007ffff7bca6d5 in pthread_cond_wait@@GLIBC_2.3.2 () from /lib64/libpthread.so.0
+#1  0x00007ffff066ceab in btSyncMboxWait (mb=0x7ffff0ed40a0 <mbox_scavenger>) at /home/parallels/src/zs/sdf/btree/btree_sync_mbox.c:168
+#2  0x00007ffff0648c82 in scavenger_worker (arg=0) at /home/parallels/src/zs/sdf/btree/btree_scavenger.c:91
+#3  0x00007ffff0657898 in pthread_func_wrapper (arg=0x20dc0d0) at /home/parallels/src/zs/sdf/btree/btree_sync_th.c:258
+#4  0x00007ffff7bc6dc5 in start_thread () from /lib64/libpthread.so.0
+#5  0x00007ffff6b95ced in clone () from /lib64/libc.so.6
+
+Thread 214 (Thread 0x7fe1d7245700 (LWP 32668)):
+#0  0x00007ffff7bca6d5 in pthread_cond_wait@@GLIBC_2.3.2 () from /lib64/libpthread.so.0
+#1  0x00007ffff066ceab in btSyncMboxWait (mb=0x7ffff0ed40a0 <mbox_scavenger>) at /home/parallels/src/zs/sdf/btree/btree_sync_mbox.c:168
+#2  0x00007ffff0648c82 in scavenger_worker (arg=0) at /home/parallels/src/zs/sdf/btree/btree_scavenger.c:91
+#3  0x00007ffff0657898 in pthread_func_wrapper (arg=0x20dbdd0) at /home/parallels/src/zs/sdf/btree/btree_sync_th.c:258
+#4  0x00007ffff7bc6dc5 in start_thread () from /lib64/libpthread.so.0
+#5  0x00007ffff6b95ced in clone () from /lib64/libc.so.6
+
+Thread 213 (Thread 0x7fe252476700 (LWP 32667)):
+#0  0x00007ffff7bca6d5 in pthread_cond_wait@@GLIBC_2.3.2 () from /lib64/libpthread.so.0
+#1  0x00007ffff066ceab in btSyncMboxWait (mb=0x7ffff0ed40a0 <mbox_scavenger>) at /home/parallels/src/zs/sdf/btree/btree_sync_mbox.c:168
+#2  0x00007ffff0648c82 in scavenger_worker (arg=0) at /home/parallels/src/zs/sdf/btree/btree_scavenger.c:91
+#3  0x00007ffff0657898 in pthread_func_wrapper (arg=0x20dbad0) at /home/parallels/src/zs/sdf/btree/btree_sync_th.c:258
+#4  0x00007ffff7bc6dc5 in start_thread () from /lib64/libpthread.so.0
+#5  0x00007ffff6b95ced in clone () from /lib64/libc.so.6
+
+Thread 212 (Thread 0x7fe2cd6a7700 (LWP 32666)):
+#0  0x00007ffff7bca6d5 in pthread_cond_wait@@GLIBC_2.3.2 () from /lib64/libpthread.so.0
+#1  0x00007ffff066ceab in btSyncMboxWait (mb=0x7ffff0ed40a0 <mbox_scavenger>) at /home/parallels/src/zs/sdf/btree/btree_sync_mbox.c:168
+#2  0x00007ffff0648c82 in scavenger_worker (arg=0) at /home/parallels/src/zs/sdf/btree/btree_scavenger.c:91
+#3  0x00007ffff0657898 in pthread_func_wrapper (arg=0x20db7d0) at /home/parallels/src/zs/sdf/btree/btree_sync_th.c:258
+#4  0x00007ffff7bc6dc5 in start_thread () from /lib64/libpthread.so.0
+#5  0x00007ffff6b95ced in clone () from /lib64/libc.so.6
+
+Thread 211 (Thread 0x7fe3488d8700 (LWP 32665)):
+#0  0x00007ffff7bca6d5 in pthread_cond_wait@@GLIBC_2.3.2 () from /lib64/libpthread.so.0
+#1  0x00007ffff066ceab in btSyncMboxWait (mb=0x7ffff0ed40a0 <mbox_scavenger>) at /home/parallels/src/zs/sdf/btree/btree_sync_mbox.c:168
+#2  0x00007ffff0648c82 in scavenger_worker (arg=0) at /home/parallels/src/zs/sdf/btree/btree_scavenger.c:91
+#3  0x00007ffff0657898 in pthread_func_wrapper (arg=0x20db4d0) at /home/parallels/src/zs/sdf/btree/btree_sync_th.c:258
+#4  0x00007ffff7bc6dc5 in start_thread () from /lib64/libpthread.so.0
+#5  0x00007ffff6b95ced in clone () from /lib64/libc.so.6
+
+Thread 210 (Thread 0x7fe3c3b09700 (LWP 32664)):
+#0  0x00007ffff7bca6d5 in pthread_cond_wait@@GLIBC_2.3.2 () from /lib64/libpthread.so.0
+#1  0x00007ffff066ceab in btSyncMboxWait (mb=0x7ffff0ed40a0 <mbox_scavenger>) at /home/parallels/src/zs/sdf/btree/btree_sync_mbox.c:168
+#2  0x00007ffff0648c82 in scavenger_worker (arg=0) at /home/parallels/src/zs/sdf/btree/btree_scavenger.c:91
+#3  0x00007ffff0657898 in pthread_func_wrapper (arg=0x20db1d0) at /home/parallels/src/zs/sdf/btree/btree_sync_th.c:258
+#4  0x00007ffff7bc6dc5 in start_thread () from /lib64/libpthread.so.0
+#5  0x00007ffff6b95ced in clone () from /lib64/libc.so.6
+
+Thread 209 (Thread 0x7fe43ed3a700 (LWP 32663)):
+#0  0x00007ffff7bca6d5 in pthread_cond_wait@@GLIBC_2.3.2 () from /lib64/libpthread.so.0
+#1  0x00007ffff066ceab in btSyncMboxWait (mb=0x7ffff0ed40a0 <mbox_scavenger>) at /home/parallels/src/zs/sdf/btree/btree_sync_mbox.c:168
+#2  0x00007ffff0648c82 in scavenger_worker (arg=0) at /home/parallels/src/zs/sdf/btree/btree_scavenger.c:91
+#3  0x00007ffff0657898 in pthread_func_wrapper (arg=0x20daed0) at /home/parallels/src/zs/sdf/btree/btree_sync_th.c:258
+#4  0x00007ffff7bc6dc5 in start_thread () from /lib64/libpthread.so.0
+#5  0x00007ffff6b95ced in clone () from /lib64/libc.so.6
+
+Thread 208 (Thread 0x7fe4b9f6b700 (LWP 32662)):
+#0  0x00007ffff7bca6d5 in pthread_cond_wait@@GLIBC_2.3.2 () from /lib64/libpthread.so.0
+#1  0x00007ffff066ceab in btSyncMboxWait (mb=0x7ffff0ed40a0 <mbox_scavenger>) at /home/parallels/src/zs/sdf/btree/btree_sync_mbox.c:168
+#2  0x00007ffff0648c82 in scavenger_worker (arg=0) at /home/parallels/src/zs/sdf/btree/btree_scavenger.c:91
+#3  0x00007ffff0657898 in pthread_func_wrapper (arg=0x1f9db60) at /home/parallels/src/zs/sdf/btree/btree_sync_th.c:258
+#4  0x00007ffff7bc6dc5 in start_thread () from /lib64/libpthread.so.0
+#5  0x00007ffff6b95ced in clone () from /lib64/libc.so.6
+
+Thread 207 (Thread 0x7fe53519c700 (LWP 32661)):
+#0  0x00007ffff7bca6d5 in pthread_cond_wait@@GLIBC_2.3.2 () from /lib64/libpthread.so.0
+#1  0x00007ffff066ceab in btSyncMboxWait (mb=0x7ffff0ed40a0 <mbox_scavenger>) at /home/parallels/src/zs/sdf/btree/btree_sync_mbox.c:168
+#2  0x00007ffff0648c82 in scavenger_worker (arg=0) at /home/parallels/src/zs/sdf/btree/btree_scavenger.c:91
+#3  0x00007ffff0657898 in pthread_func_wrapper (arg=0x1f9d860) at /home/parallels/src/zs/sdf/btree/btree_sync_th.c:258
+#4  0x00007ffff7bc6dc5 in start_thread () from /lib64/libpthread.so.0
+#5  0x00007ffff6b95ced in clone () from /lib64/libc.so.6
+
+Thread 206 (Thread 0x7fe5b03cd700 (LWP 32660)):
+#0  0x00007ffff7bca6d5 in pthread_cond_wait@@GLIBC_2.3.2 () from /lib64/libpthread.so.0
+#1  0x00007ffff066ceab in btSyncMboxWait (mb=0x7ffff0ed40a0 <mbox_scavenger>) at /home/parallels/src/zs/sdf/btree/btree_sync_mbox.c:168
+#2  0x00007ffff0648c82 in scavenger_worker (arg=0) at /home/parallels/src/zs/sdf/btree/btree_scavenger.c:91
+#3  0x00007ffff0657898 in pthread_func_wrapper (arg=0x1f9d560) at /home/parallels/src/zs/sdf/btree/btree_sync_th.c:258
+#4  0x00007ffff7bc6dc5 in start_thread () from /lib64/libpthread.so.0
+#5  0x00007ffff6b95ced in clone () from /lib64/libc.so.6
+
+Thread 205 (Thread 0x7fe62b5fe700 (LWP 32659)):
+#0  0x00007ffff7bca6d5 in pthread_cond_wait@@GLIBC_2.3.2 () from /lib64/libpthread.so.0
+#1  0x00007ffff066ceab in btSyncMboxWait (mb=0x7ffff0ed40a0 <mbox_scavenger>) at /home/parallels/src/zs/sdf/btree/btree_sync_mbox.c:168
+#2  0x00007ffff0648c82 in scavenger_worker (arg=0) at /home/parallels/src/zs/sdf/btree/btree_scavenger.c:91
+#3  0x00007ffff0657898 in pthread_func_wrapper (arg=0x1f9d260) at /home/parallels/src/zs/sdf/btree/btree_sync_th.c:258
+#4  0x00007ffff7bc6dc5 in start_thread () from /lib64/libpthread.so.0
+#5  0x00007ffff6b95ced in clone () from /lib64/libc.so.6
+
+Thread 204 (Thread 0x7fe6a682f700 (LWP 32658)):
+#0  0x00007ffff7bca6d5 in pthread_cond_wait@@GLIBC_2.3.2 () from /lib64/libpthread.so.0
+#1  0x00007ffff066ceab in btSyncMboxWait (mb=0x7ffff0ed40a0 <mbox_scavenger>) at /home/parallels/src/zs/sdf/btree/btree_sync_mbox.c:168
+#2  0x00007ffff0648c82 in scavenger_worker (arg=0) at /home/parallels/src/zs/sdf/btree/btree_scavenger.c:91
+#3  0x00007ffff0657898 in pthread_func_wrapper (arg=0x1f9cf60) at /home/parallels/src/zs/sdf/btree/btree_sync_th.c:258
+#4  0x00007ffff7bc6dc5 in start_thread () from /lib64/libpthread.so.0
+#5  0x00007ffff6b95ced in clone () from /lib64/libc.so.6
+
+Thread 203 (Thread 0x7fe721a60700 (LWP 32657)):
+#0  0x00007ffff7bca6d5 in pthread_cond_wait@@GLIBC_2.3.2 () from /lib64/libpthread.so.0
+#1  0x00007ffff066ceab in btSyncMboxWait (mb=0x7ffff0ed40a0 <mbox_scavenger>) at /home/parallels/src/zs/sdf/btree/btree_sync_mbox.c:168
+#2  0x00007ffff0648c82 in scavenger_worker (arg=0) at /home/parallels/src/zs/sdf/btree/btree_scavenger.c:91
+#3  0x00007ffff0657898 in pthread_func_wrapper (arg=0x1f9cc60) at /home/parallels/src/zs/sdf/btree/btree_sync_th.c:258
+#4  0x00007ffff7bc6dc5 in start_thread () from /lib64/libpthread.so.0
+#5  0x00007ffff6b95ced in clone () from /lib64/libc.so.6
+
+Thread 202 (Thread 0x7fe79cc91700 (LWP 32656)):
+#0  0x00007ffff7bca6d5 in pthread_cond_wait@@GLIBC_2.3.2 () from /lib64/libpthread.so.0
+#1  0x00007ffff066ceab in btSyncMboxWait (mb=0x7ffff0ed40a0 <mbox_scavenger>) at /home/parallels/src/zs/sdf/btree/btree_sync_mbox.c:168
+#2  0x00007ffff0648c82 in scavenger_worker (arg=0) at /home/parallels/src/zs/sdf/btree/btree_scavenger.c:91
+#3  0x00007ffff0657898 in pthread_func_wrapper (arg=0x1f9c960) at /home/parallels/src/zs/sdf/btree/btree_sync_th.c:258
+#4  0x00007ffff7bc6dc5 in start_thread () from /lib64/libpthread.so.0
+#5  0x00007ffff6b95ced in clone () from /lib64/libc.so.6
+
+Thread 201 (Thread 0x7fe81cb6f700 (LWP 32655)):
+#0  0x00007ffff7bca6d5 in pthread_cond_wait@@GLIBC_2.3.2 () from /lib64/libpthread.so.0
+#1  0x00007ffff066ceab in btSyncMboxWait (mb=0x7ffff0ed40a0 <mbox_scavenger>) at /home/parallels/src/zs/sdf/btree/btree_sync_mbox.c:168
+#2  0x00007ffff0648c82 in scavenger_worker (arg=0) at /home/parallels/src/zs/sdf/btree/btree_scavenger.c:91
+#3  0x00007ffff0657898 in pthread_func_wrapper (arg=0x1f9c660) at /home/parallels/src/zs/sdf/btree/btree_sync_th.c:258
+#4  0x00007ffff7bc6dc5 in start_thread () from /lib64/libpthread.so.0
+#5  0x00007ffff6b95ced in clone () from /lib64/libc.so.6
+
+Thread 200 (Thread 0x7fe8c7c62700 (LWP 32654)):
+#0  0x00007ffff7bca6d5 in pthread_cond_wait@@GLIBC_2.3.2 () from /lib64/libpthread.so.0
+#1  0x00007ffff066ceab in btSyncMboxWait (mb=0x7ffff0ed40a0 <mbox_scavenger>) at /home/parallels/src/zs/sdf/btree/btree_sync_mbox.c:168
+#2  0x00007ffff0648c82 in scavenger_worker (arg=0) at /home/parallels/src/zs/sdf/btree/btree_scavenger.c:91
+#3  0x00007ffff0657898 in pthread_func_wrapper (arg=0x1f9c360) at /home/parallels/src/zs/sdf/btree/btree_sync_th.c:258
+#4  0x00007ffff7bc6dc5 in start_thread () from /lib64/libpthread.so.0
+#5  0x00007ffff6b95ced in clone () from /lib64/libc.so.6
+
+Thread 199 (Thread 0x7fe9b8c16700 (LWP 32653)):
+#0  0x00007ffff7bca6d5 in pthread_cond_wait@@GLIBC_2.3.2 () from /lib64/libpthread.so.0
+#1  0x00007ffff066ceab in btSyncMboxWait (mb=0x7ffff0ed40a0 <mbox_scavenger>) at /home/parallels/src/zs/sdf/btree/btree_sync_mbox.c:168
+#2  0x00007ffff0648c82 in scavenger_worker (arg=0) at /home/parallels/src/zs/sdf/btree/btree_scavenger.c:91
+#3  0x00007ffff0657898 in pthread_func_wrapper (arg=0x1f9c060) at /home/parallels/src/zs/sdf/btree/btree_sync_th.c:258
+#4  0x00007ffff7bc6dc5 in start_thread () from /lib64/libpthread.so.0
+#5  0x00007ffff6b95ced in clone () from /lib64/libc.so.6
+
+Thread 198 (Thread 0x7fea03f85700 (LWP 32652)):
+#0  0x00007ffff7bca6d5 in pthread_cond_wait@@GLIBC_2.3.2 () from /lib64/libpthread.so.0
+#1  0x00007ffff066ceab in btSyncMboxWait (mb=0x7ffff0ed40a0 <mbox_scavenger>) at /home/parallels/src/zs/sdf/btree/btree_sync_mbox.c:168
+#2  0x00007ffff0648c82 in scavenger_worker (arg=0) at /home/parallels/src/zs/sdf/btree/btree_scavenger.c:91
+#3  0x00007ffff0657898 in pthread_func_wrapper (arg=0x1f9bd60) at /home/parallels/src/zs/sdf/btree/btree_sync_th.c:258
+#4  0x00007ffff7bc6dc5 in start_thread () from /lib64/libpthread.so.0
+#5  0x00007ffff6b95ced in clone () from /lib64/libc.so.6
+
+Thread 197 (Thread 0x7fea04786700 (LWP 32651)):
+#0  0x00007ffff7bca6d5 in pthread_cond_wait@@GLIBC_2.3.2 () from /lib64/libpthread.so.0
+#1  0x00007ffff066ceab in btSyncMboxWait (mb=0x7ffff0ed40a0 <mbox_scavenger>) at /home/parallels/src/zs/sdf/btree/btree_sync_mbox.c:168
+#2  0x00007ffff0648c82 in scavenger_worker (arg=0) at /home/parallels/src/zs/sdf/btree/btree_scavenger.c:91
+#3  0x00007ffff0657898 in pthread_func_wrapper (arg=0x1f9ba60) at /home/parallels/src/zs/sdf/btree/btree_sync_th.c:258
+#4  0x00007ffff7bc6dc5 in start_thread () from /lib64/libpthread.so.0
+#5  0x00007ffff6b95ced in clone () from /lib64/libc.so.6
+
+Thread 196 (Thread 0x7fea7f9b7700 (LWP 32650)):
+#0  0x00007ffff7bca6d5 in pthread_cond_wait@@GLIBC_2.3.2 () from /lib64/libpthread.so.0
+#1  0x00007ffff066ceab in btSyncMboxWait (mb=0x7ffff0ed40a0 <mbox_scavenger>) at /home/parallels/src/zs/sdf/btree/btree_sync_mbox.c:168
+#2  0x00007ffff0648c82 in scavenger_worker (arg=0) at /home/parallels/src/zs/sdf/btree/btree_scavenger.c:91
+#3  0x00007ffff0657898 in pthread_func_wrapper (arg=0x1f9b760) at /home/parallels/src/zs/sdf/btree/btree_sync_th.c:258
+#4  0x00007ffff7bc6dc5 in start_thread () from /lib64/libpthread.so.0
+#5  0x00007ffff6b95ced in clone () from /lib64/libc.so.6
+
+Thread 195 (Thread 0x7feafabe8700 (LWP 32649)):
+#0  0x00007ffff7bca6d5 in pthread_cond_wait@@GLIBC_2.3.2 () from /lib64/libpthread.so.0
+#1  0x00007ffff066ceab in btSyncMboxWait (mb=0x7ffff0ed40a0 <mbox_scavenger>) at /home/parallels/src/zs/sdf/btree/btree_sync_mbox.c:168
+#2  0x00007ffff0648c82 in scavenger_worker (arg=0) at /home/parallels/src/zs/sdf/btree/btree_scavenger.c:91
+#3  0x00007ffff0657898 in pthread_func_wrapper (arg=0x1f9b460) at /home/parallels/src/zs/sdf/btree/btree_sync_th.c:258
+#4  0x00007ffff7bc6dc5 in start_thread () from /lib64/libpthread.so.0
+#5  0x00007ffff6b95ced in clone () from /lib64/libc.so.6
+
+Thread 194 (Thread 0x7fec07891700 (LWP 32648)):
+#0  0x00007ffff7bca6d5 in pthread_cond_wait@@GLIBC_2.3.2 () from /lib64/libpthread.so.0
+#1  0x00007ffff066ceab in btSyncMboxWait (mb=0x7ffff0ed40a0 <mbox_scavenger>) at /home/parallels/src/zs/sdf/btree/btree_sync_mbox.c:168
+#2  0x00007ffff0648c82 in scavenger_worker (arg=0) at /home/parallels/src/zs/sdf/btree/btree_scavenger.c:91
+#3  0x00007ffff0657898 in pthread_func_wrapper (arg=0x1f9b160) at /home/parallels/src/zs/sdf/btree/btree_sync_th.c:258
+#4  0x00007ffff7bc6dc5 in start_thread () from /lib64/libpthread.so.0
+#5  0x00007ffff6b95ced in clone () from /lib64/libc.so.6
+
+Thread 193 (Thread 0x7fec4dab0700 (LWP 32647)):
+#0  0x00007ffff7bca6d5 in pthread_cond_wait@@GLIBC_2.3.2 () from /lib64/libpthread.so.0
+#1  0x00007ffff066ceab in btSyncMboxWait (mb=0x7ffff0ed40a0 <mbox_scavenger>) at /home/parallels/src/zs/sdf/btree/btree_sync_mbox.c:168
+#2  0x00007ffff0648c82 in scavenger_worker (arg=0) at /home/parallels/src/zs/sdf/btree/btree_scavenger.c:91
+#3  0x00007ffff0657898 in pthread_func_wrapper (arg=0x1f9ae60) at /home/parallels/src/zs/sdf/btree/btree_sync_th.c:258
+#4  0x00007ffff7bc6dc5 in start_thread () from /lib64/libpthread.so.0
+#5  0x00007ffff6b95ced in clone () from /lib64/libc.so.6
+
+Thread 192 (Thread 0x7feccbfff700 (LWP 32646)):
+#0  0x00007ffff7bca6d5 in pthread_cond_wait@@GLIBC_2.3.2 () from /lib64/libpthread.so.0
+#1  0x00007ffff066ceab in btSyncMboxWait (mb=0x7ffff0ed40a0 <mbox_scavenger>) at /home/parallels/src/zs/sdf/btree/btree_sync_mbox.c:168
+#2  0x00007ffff0648c82 in scavenger_worker (arg=0) at /home/parallels/src/zs/sdf/btree/btree_scavenger.c:91
+#3  0x00007ffff0657898 in pthread_func_wrapper (arg=0x1ce6a50) at /home/parallels/src/zs/sdf/btree/btree_sync_th.c:258
+#4  0x00007ffff7bc6dc5 in start_thread () from /lib64/libpthread.so.0
+#5  0x00007ffff6b95ced in clone () from /lib64/libc.so.6
+
+Thread 191 (Thread 0x7fed1b748700 (LWP 32645)):
+#0  0x00007ffff7bca6d5 in pthread_cond_wait@@GLIBC_2.3.2 () from /lib64/libpthread.so.0
+#1  0x00007ffff066ceab in btSyncMboxWait (mb=0x7ffff0ed40a0 <mbox_scavenger>) at /home/parallels/src/zs/sdf/btree/btree_sync_mbox.c:168
+#2  0x00007ffff0648c82 in scavenger_worker (arg=0) at /home/parallels/src/zs/sdf/btree/btree_scavenger.c:91
+#3  0x00007ffff0657898 in pthread_func_wrapper (arg=0x1ce6750) at /home/parallels/src/zs/sdf/btree/btree_sync_th.c:258
+#4  0x00007ffff7bc6dc5 in start_thread () from /lib64/libpthread.so.0
+#5  0x00007ffff6b95ced in clone () from /lib64/libc.so.6
+
+Thread 190 (Thread 0x7fedeae41700 (LWP 32644)):
+#0  0x00007ffff7bca6d5 in pthread_cond_wait@@GLIBC_2.3.2 () from /lib64/libpthread.so.0
+#1  0x00007ffff066ceab in btSyncMboxWait (mb=0x7ffff0ed40a0 <mbox_scavenger>) at /home/parallels/src/zs/sdf/btree/btree_sync_mbox.c:168
+#2  0x00007ffff0648c82 in scavenger_worker (arg=0) at /home/parallels/src/zs/sdf/btree/btree_scavenger.c:91
+#3  0x00007ffff0657898 in pthread_func_wrapper (arg=0x1ce6450) at /home/parallels/src/zs/sdf/btree/btree_sync_th.c:258
+#4  0x00007ffff7bc6dc5 in start_thread () from /lib64/libpthread.so.0
+#5  0x00007ffff6b95ced in clone () from /lib64/libc.so.6
+
+Thread 189 (Thread 0x7fee8a7a8700 (LWP 32643)):
+#0  0x00007ffff7bca6d5 in pthread_cond_wait@@GLIBC_2.3.2 () from /lib64/libpthread.so.0
+#1  0x00007ffff066ceab in btSyncMboxWait (mb=0x7ffff0ed40a0 <mbox_scavenger>) at /home/parallels/src/zs/sdf/btree/btree_sync_mbox.c:168
+#2  0x00007ffff0648c82 in scavenger_worker (arg=0) at /home/parallels/src/zs/sdf/btree/btree_scavenger.c:91
+#3  0x00007ffff0657898 in pthread_func_wrapper (arg=0x1ce6150) at /home/parallels/src/zs/sdf/btree/btree_sync_th.c:258
+#4  0x00007ffff7bc6dc5 in start_thread () from /lib64/libpthread.so.0
+#5  0x00007ffff6b95ced in clone () from /lib64/libc.so.6
+
+Thread 188 (Thread 0x7feebcc9d700 (LWP 32642)):
+#0  0x00007ffff7bca6d5 in pthread_cond_wait@@GLIBC_2.3.2 () from /lib64/libpthread.so.0
+#1  0x00007ffff066ceab in btSyncMboxWait (mb=0x7ffff0ed40a0 <mbox_scavenger>) at /home/parallels/src/zs/sdf/btree/btree_sync_mbox.c:168
+#2  0x00007ffff0648c82 in scavenger_worker (arg=0) at /home/parallels/src/zs/sdf/btree/btree_scavenger.c:91
+#3  0x00007ffff0657898 in pthread_func_wrapper (arg=0x1ce5e50) at /home/parallels/src/zs/sdf/btree/btree_sync_th.c:258
+#4  0x00007ffff7bc6dc5 in start_thread () from /lib64/libpthread.so.0
+#5  0x00007ffff6b95ced in clone () from /lib64/libc.so.6
+
+Thread 187 (Thread 0x7fef0800c700 (LWP 32641)):
+#0  0x00007ffff7bca6d5 in pthread_cond_wait@@GLIBC_2.3.2 () from /lib64/libpthread.so.0
+#1  0x00007ffff066ceab in btSyncMboxWait (mb=0x7ffff0ed40a0 <mbox_scavenger>) at /home/parallels/src/zs/sdf/btree/btree_sync_mbox.c:168
+#2  0x00007ffff0648c82 in scavenger_worker (arg=0) at /home/parallels/src/zs/sdf/btree/btree_scavenger.c:91
+#3  0x00007ffff0657898 in pthread_func_wrapper (arg=0x1ce5b50) at /home/parallels/src/zs/sdf/btree/btree_sync_th.c:258
+#4  0x00007ffff7bc6dc5 in start_thread () from /lib64/libpthread.so.0
+#5  0x00007ffff6b95ced in clone () from /lib64/libc.so.6
+
+Thread 186 (Thread 0x7fef5337b700 (LWP 32640)):
+#0  0x00007ffff7bca6d5 in pthread_cond_wait@@GLIBC_2.3.2 () from /lib64/libpthread.so.0
+#1  0x00007ffff066ceab in btSyncMboxWait (mb=0x7ffff0ed40a0 <mbox_scavenger>) at /home/parallels/src/zs/sdf/btree/btree_sync_mbox.c:168
+#2  0x00007ffff0648c82 in scavenger_worker (arg=0) at /home/parallels/src/zs/sdf/btree/btree_scavenger.c:91
+#3  0x00007ffff0657898 in pthread_func_wrapper (arg=0x1ce5850) at /home/parallels/src/zs/sdf/btree/btree_sync_th.c:258
+#4  0x00007ffff7bc6dc5 in start_thread () from /lib64/libpthread.so.0
+#5  0x00007ffff6b95ced in clone () from /lib64/libc.so.6
+
+Thread 185 (Thread 0x7fefce5ac700 (LWP 32639)):
+#0  0x00007ffff7bca6d5 in pthread_cond_wait@@GLIBC_2.3.2 () from /lib64/libpthread.so.0
+#1  0x00007ffff066ceab in btSyncMboxWait (mb=0x7ffff0ed40a0 <mbox_scavenger>) at /home/parallels/src/zs/sdf/btree/btree_sync_mbox.c:168
+#2  0x00007ffff0648c82 in scavenger_worker (arg=0) at /home/parallels/src/zs/sdf/btree/btree_scavenger.c:91
+#3  0x00007ffff0657898 in pthread_func_wrapper (arg=0x1ce5550) at /home/parallels/src/zs/sdf/btree/btree_sync_th.c:258
+#4  0x00007ffff7bc6dc5 in start_thread () from /lib64/libpthread.so.0
+#5  0x00007ffff6b95ced in clone () from /lib64/libc.so.6
+
+Thread 184 (Thread 0x7ff0497dd700 (LWP 32638)):
+#0  0x00007ffff7bca6d5 in pthread_cond_wait@@GLIBC_2.3.2 () from /lib64/libpthread.so.0
+#1  0x00007ffff066ceab in btSyncMboxWait (mb=0x7ffff0ed40a0 <mbox_scavenger>) at /home/parallels/src/zs/sdf/btree/btree_sync_mbox.c:168
+#2  0x00007ffff0648c82 in scavenger_worker (arg=0) at /home/parallels/src/zs/sdf/btree/btree_scavenger.c:91
+#3  0x00007ffff0657898 in pthread_func_wrapper (arg=0x1ce5250) at /home/parallels/src/zs/sdf/btree/btree_sync_th.c:258
+#4  0x00007ffff7bc6dc5 in start_thread () from /lib64/libpthread.so.0
+#5  0x00007ffff6b95ced in clone () from /lib64/libc.so.6
+
+Thread 183 (Thread 0x7ff0c4a0e700 (LWP 32637)):
+#0  0x00007ffff7bca6d5 in pthread_cond_wait@@GLIBC_2.3.2 () from /lib64/libpthread.so.0
+#1  0x00007ffff066ceab in btSyncMboxWait (mb=0x7ffff0ed40a0 <mbox_scavenger>) at /home/parallels/src/zs/sdf/btree/btree_sync_mbox.c:168
+#2  0x00007ffff0648c82 in scavenger_worker (arg=0) at /home/parallels/src/zs/sdf/btree/btree_scavenger.c:91
+#3  0x00007ffff0657898 in pthread_func_wrapper (arg=0x1ce4f50) at /home/parallels/src/zs/sdf/btree/btree_sync_th.c:258
+#4  0x00007ffff7bc6dc5 in start_thread () from /lib64/libpthread.so.0
+#5  0x00007ffff6b95ced in clone () from /lib64/libc.so.6
+
+Thread 182 (Thread 0x7ff13fc3f700 (LWP 32636)):
+#0  0x00007ffff7bca6d5 in pthread_cond_wait@@GLIBC_2.3.2 () from /lib64/libpthread.so.0
+#1  0x00007ffff066ceab in btSyncMboxWait (mb=0x7ffff0ed40a0 <mbox_scavenger>) at /home/parallels/src/zs/sdf/btree/btree_sync_mbox.c:168
+#2  0x00007ffff0648c82 in scavenger_worker (arg=0) at /home/parallels/src/zs/sdf/btree/btree_scavenger.c:91
+#3  0x00007ffff0657898 in pthread_func_wrapper (arg=0x1ce4c50) at /home/parallels/src/zs/sdf/btree/btree_sync_th.c:258
+#4  0x00007ffff7bc6dc5 in start_thread () from /lib64/libpthread.so.0
+#5  0x00007ffff6b95ced in clone () from /lib64/libc.so.6
+
+Thread 181 (Thread 0x7ff1bae70700 (LWP 32635)):
+#0  0x00007ffff7bca6d5 in pthread_cond_wait@@GLIBC_2.3.2 () from /lib64/libpthread.so.0
+#1  0x00007ffff066ceab in btSyncMboxWait (mb=0x7ffff0ed40a0 <mbox_scavenger>) at /home/parallels/src/zs/sdf/btree/btree_sync_mbox.c:168
+#2  0x00007ffff0648c82 in scavenger_worker (arg=0) at /home/parallels/src/zs/sdf/btree/btree_scavenger.c:91
+#3  0x00007ffff0657898 in pthread_func_wrapper (arg=0x1ce4950) at /home/parallels/src/zs/sdf/btree/btree_sync_th.c:258
+#4  0x00007ffff7bc6dc5 in start_thread () from /lib64/libpthread.so.0
+#5  0x00007ffff6b95ced in clone () from /lib64/libc.so.6
+
+Thread 180 (Thread 0x7ff2360a1700 (LWP 32634)):
+#0  0x00007ffff7bca6d5 in pthread_cond_wait@@GLIBC_2.3.2 () from /lib64/libpthread.so.0
+#1  0x00007ffff066ceab in btSyncMboxWait (mb=0x7ffff0ed40a0 <mbox_scavenger>) at /home/parallels/src/zs/sdf/btree/btree_sync_mbox.c:168
+#2  0x00007ffff0648c82 in scavenger_worker (arg=0) at /home/parallels/src/zs/sdf/btree/btree_scavenger.c:91
+#3  0x00007ffff0657898 in pthread_func_wrapper (arg=0x1ce4650) at /home/parallels/src/zs/sdf/btree/btree_sync_th.c:258
+#4  0x00007ffff7bc6dc5 in start_thread () from /lib64/libpthread.so.0
+#5  0x00007ffff6b95ced in clone () from /lib64/libc.so.6
+
+Thread 179 (Thread 0x7ff2b12d2700 (LWP 32633)):
+#0  0x00007ffff7bca6d5 in pthread_cond_wait@@GLIBC_2.3.2 () from /lib64/libpthread.so.0
+#1  0x00007ffff066ceab in btSyncMboxWait (mb=0x7ffff0ed40a0 <mbox_scavenger>) at /home/parallels/src/zs/sdf/btree/btree_sync_mbox.c:168
+#2  0x00007ffff0648c82 in scavenger_worker (arg=0) at /home/parallels/src/zs/sdf/btree/btree_scavenger.c:91
+#3  0x00007ffff0657898 in pthread_func_wrapper (arg=0x1ce4350) at /home/parallels/src/zs/sdf/btree/btree_sync_th.c:258
+#4  0x00007ffff7bc6dc5 in start_thread () from /lib64/libpthread.so.0
+#5  0x00007ffff6b95ced in clone () from /lib64/libc.so.6
+
+Thread 178 (Thread 0x7ff32c503700 (LWP 32632)):
+#0  0x00007ffff7bca6d5 in pthread_cond_wait@@GLIBC_2.3.2 () from /lib64/libpthread.so.0
+#1  0x00007ffff066ceab in btSyncMboxWait (mb=0x7ffff0ed40a0 <mbox_scavenger>) at /home/parallels/src/zs/sdf/btree/btree_sync_mbox.c:168
+#2  0x00007ffff0648c82 in scavenger_worker (arg=0) at /home/parallels/src/zs/sdf/btree/btree_scavenger.c:91
+#3  0x00007ffff0657898 in pthread_func_wrapper (arg=0x1ce4050) at /home/parallels/src/zs/sdf/btree/btree_sync_th.c:258
+#4  0x00007ffff7bc6dc5 in start_thread () from /lib64/libpthread.so.0
+#5  0x00007ffff6b95ced in clone () from /lib64/libc.so.6
+
+Thread 177 (Thread 0x7ff3a7734700 (LWP 32631)):
+#0  0x00007ffff7bca6d5 in pthread_cond_wait@@GLIBC_2.3.2 () from /lib64/libpthread.so.0
+#1  0x00007ffff066ceab in btSyncMboxWait (mb=0x7ffff0ed40a0 <mbox_scavenger>) at /home/parallels/src/zs/sdf/btree/btree_sync_mbox.c:168
+#2  0x00007ffff0648c82 in scavenger_worker (arg=0) at /home/parallels/src/zs/sdf/btree/btree_scavenger.c:91
+#3  0x00007ffff0657898 in pthread_func_wrapper (arg=0x1ce3d50) at /home/parallels/src/zs/sdf/btree/btree_sync_th.c:258
+#4  0x00007ffff7bc6dc5 in start_thread () from /lib64/libpthread.so.0
+#5  0x00007ffff6b95ced in clone () from /lib64/libc.so.6
+
+Thread 176 (Thread 0x7ff44f509700 (LWP 32630)):
+#0  0x00007ffff7bca6d5 in pthread_cond_wait@@GLIBC_2.3.2 () from /lib64/libpthread.so.0
+#1  0x00007ffff066ceab in btSyncMboxWait (mb=0x7ffff0ed40a0 <mbox_scavenger>) at /home/parallels/src/zs/sdf/btree/btree_sync_mbox.c:168
+#2  0x00007ffff0648c82 in scavenger_worker (arg=0) at /home/parallels/src/zs/sdf/btree/btree_scavenger.c:91
+#3  0x00007ffff0657898 in pthread_func_wrapper (arg=0x1a2f940) at /home/parallels/src/zs/sdf/btree/btree_sync_th.c:258
+#4  0x00007ffff7bc6dc5 in start_thread () from /lib64/libpthread.so.0
+#5  0x00007ffff6b95ced in clone () from /lib64/libc.so.6
+
+Thread 175 (Thread 0x7ff4e68d2700 (LWP 32629)):
+#0  0x00007ffff7bca6d5 in pthread_cond_wait@@GLIBC_2.3.2 () from /lib64/libpthread.so.0
+#1  0x00007ffff066ceab in btSyncMboxWait (mb=0x7ffff0ed40a0 <mbox_scavenger>) at /home/parallels/src/zs/sdf/btree/btree_sync_mbox.c:168
+#2  0x00007ffff0648c82 in scavenger_worker (arg=0) at /home/parallels/src/zs/sdf/btree/btree_scavenger.c:91
+#3  0x00007ffff0657898 in pthread_func_wrapper (arg=0x1a2f640) at /home/parallels/src/zs/sdf/btree/btree_sync_th.c:258
+#4  0x00007ffff7bc6dc5 in start_thread () from /lib64/libpthread.so.0
+#5  0x00007ffff6b95ced in clone () from /lib64/libc.so.6
+
+Thread 174 (Thread 0x7ff548c89700 (LWP 32628)):
+#0  0x00007ffff7bca6d5 in pthread_cond_wait@@GLIBC_2.3.2 () from /lib64/libpthread.so.0
+#1  0x00007ffff066ceab in btSyncMboxWait (mb=0x7ffff0ed40a0 <mbox_scavenger>) at /home/parallels/src/zs/sdf/btree/btree_sync_mbox.c:168
+#2  0x00007ffff0648c82 in scavenger_worker (arg=0) at /home/parallels/src/zs/sdf/btree/btree_scavenger.c:91
+#3  0x00007ffff0657898 in pthread_func_wrapper (arg=0x1a2f340) at /home/parallels/src/zs/sdf/btree/btree_sync_th.c:258
+#4  0x00007ffff7bc6dc5 in start_thread () from /lib64/libpthread.so.0
+#5  0x00007ffff6b95ced in clone () from /lib64/libc.so.6
+
+Thread 173 (Thread 0x7ff593ff8700 (LWP 32627)):
+#0  0x00007ffff7bca6d5 in pthread_cond_wait@@GLIBC_2.3.2 () from /lib64/libpthread.so.0
+#1  0x00007ffff066ceab in btSyncMboxWait (mb=0x7ffff0ed40a0 <mbox_scavenger>) at /home/parallels/src/zs/sdf/btree/btree_sync_mbox.c:168
+#2  0x00007ffff0648c82 in scavenger_worker (arg=0) at /home/parallels/src/zs/sdf/btree/btree_scavenger.c:91
+#3  0x00007ffff0657898 in pthread_func_wrapper (arg=0x1a2f040) at /home/parallels/src/zs/sdf/btree/btree_sync_th.c:258
+#4  0x00007ffff7bc6dc5 in start_thread () from /lib64/libpthread.so.0
+#5  0x00007ffff6b95ced in clone () from /lib64/libc.so.6
+
+Thread 172 (Thread 0x7ff60f229700 (LWP 32626)):
+#0  0x00007ffff7bca6d5 in pthread_cond_wait@@GLIBC_2.3.2 () from /lib64/libpthread.so.0
+#1  0x00007ffff066ceab in btSyncMboxWait (mb=0x7ffff0ed40a0 <mbox_scavenger>) at /home/parallels/src/zs/sdf/btree/btree_sync_mbox.c:168
+#2  0x00007ffff0648c82 in scavenger_worker (arg=0) at /home/parallels/src/zs/sdf/btree/btree_scavenger.c:91
+#3  0x00007ffff0657898 in pthread_func_wrapper (arg=0x1a2ed40) at /home/parallels/src/zs/sdf/btree/btree_sync_th.c:258
+#4  0x00007ffff7bc6dc5 in start_thread () from /lib64/libpthread.so.0
+#5  0x00007ffff6b95ced in clone () from /lib64/libc.so.6
+
+Thread 171 (Thread 0x7ff68a45a700 (LWP 32625)):
+#0  0x00007ffff7bca6d5 in pthread_cond_wait@@GLIBC_2.3.2 () from /lib64/libpthread.so.0
+#1  0x00007ffff066ceab in btSyncMboxWait (mb=0x7ffff0ed40a0 <mbox_scavenger>) at /home/parallels/src/zs/sdf/btree/btree_sync_mbox.c:168
+#2  0x00007ffff0648c82 in scavenger_worker (arg=0) at /home/parallels/src/zs/sdf/btree/btree_scavenger.c:91
+#3  0x00007ffff0657898 in pthread_func_wrapper (arg=0x1a2ea40) at /home/parallels/src/zs/sdf/btree/btree_sync_th.c:258
+#4  0x00007ffff7bc6dc5 in start_thread () from /lib64/libpthread.so.0
+#5  0x00007ffff6b95ced in clone () from /lib64/libc.so.6
+
+Thread 170 (Thread 0x7ff70568b700 (LWP 32624)):
+#0  0x00007ffff7bca6d5 in pthread_cond_wait@@GLIBC_2.3.2 () from /lib64/libpthread.so.0
+#1  0x00007ffff066ceab in btSyncMboxWait (mb=0x7ffff0ed40a0 <mbox_scavenger>) at /home/parallels/src/zs/sdf/btree/btree_sync_mbox.c:168
+#2  0x00007ffff0648c82 in scavenger_worker (arg=0) at /home/parallels/src/zs/sdf/btree/btree_scavenger.c:91
+#3  0x00007ffff0657898 in pthread_func_wrapper (arg=0x1a2e740) at /home/parallels/src/zs/sdf/btree/btree_sync_th.c:258
+#4  0x00007ffff7bc6dc5 in start_thread () from /lib64/libpthread.so.0
+#5  0x00007ffff6b95ced in clone () from /lib64/libc.so.6
+
+Thread 169 (Thread 0x7ff7808bc700 (LWP 32623)):
+#0  0x00007ffff7bca6d5 in pthread_cond_wait@@GLIBC_2.3.2 () from /lib64/libpthread.so.0
+#1  0x00007ffff066ceab in btSyncMboxWait (mb=0x7ffff0ed40a0 <mbox_scavenger>) at /home/parallels/src/zs/sdf/btree/btree_sync_mbox.c:168
+#2  0x00007ffff0648c82 in scavenger_worker (arg=0) at /home/parallels/src/zs/sdf/btree/btree_scavenger.c:91
+#3  0x00007ffff0657898 in pthread_func_wrapper (arg=0x1a2e440) at /home/parallels/src/zs/sdf/btree/btree_sync_th.c:258
+#4  0x00007ffff7bc6dc5 in start_thread () from /lib64/libpthread.so.0
+#5  0x00007ffff6b95ced in clone () from /lib64/libc.so.6
+
+Thread 168 (Thread 0x7ff7fbaed700 (LWP 32622)):
+#0  0x00007ffff7bca6d5 in pthread_cond_wait@@GLIBC_2.3.2 () from /lib64/libpthread.so.0
+#1  0x00007ffff066ceab in btSyncMboxWait (mb=0x7ffff0ed40a0 <mbox_scavenger>) at /home/parallels/src/zs/sdf/btree/btree_sync_mbox.c:168
+#2  0x00007ffff0648c82 in scavenger_worker (arg=0) at /home/parallels/src/zs/sdf/btree/btree_scavenger.c:91
+#3  0x00007ffff0657898 in pthread_func_wrapper (arg=0x1a2e140) at /home/parallels/src/zs/sdf/btree/btree_sync_th.c:258
+#4  0x00007ffff7bc6dc5 in start_thread () from /lib64/libpthread.so.0
+#5  0x00007ffff6b95ced in clone () from /lib64/libc.so.6
+
+Thread 167 (Thread 0x7ff876d1e700 (LWP 32621)):
+#0  0x00007ffff7bca6d5 in pthread_cond_wait@@GLIBC_2.3.2 () from /lib64/libpthread.so.0
+#1  0x00007ffff066ceab in btSyncMboxWait (mb=0x7ffff0ed40a0 <mbox_scavenger>) at /home/parallels/src/zs/sdf/btree/btree_sync_mbox.c:168
+#2  0x00007ffff0648c82 in scavenger_worker (arg=0) at /home/parallels/src/zs/sdf/btree/btree_scavenger.c:91
+#3  0x00007ffff0657898 in pthread_func_wrapper (arg=0x1a2de40) at /home/parallels/src/zs/sdf/btree/btree_sync_th.c:258
+#4  0x00007ffff7bc6dc5 in start_thread () from /lib64/libpthread.so.0
+#5  0x00007ffff6b95ced in clone () from /lib64/libc.so.6
+
+Thread 166 (Thread 0x7ff8f1f4f700 (LWP 32620)):
+#0  0x00007ffff7bca6d5 in pthread_cond_wait@@GLIBC_2.3.2 () from /lib64/libpthread.so.0
+#1  0x00007ffff066ceab in btSyncMboxWait (mb=0x7ffff0ed40a0 <mbox_scavenger>) at /home/parallels/src/zs/sdf/btree/btree_sync_mbox.c:168
+#2  0x00007ffff0648c82 in scavenger_worker (arg=0) at /home/parallels/src/zs/sdf/btree/btree_scavenger.c:91
+#3  0x00007ffff0657898 in pthread_func_wrapper (arg=0x1a2db40) at /home/parallels/src/zs/sdf/btree/btree_sync_th.c:258
+#4  0x00007ffff7bc6dc5 in start_thread () from /lib64/libpthread.so.0
+#5  0x00007ffff6b95ced in clone () from /lib64/libc.so.6
+
+Thread 165 (Thread 0x7ff96d180700 (LWP 32619)):
+#0  0x00007ffff7bca6d5 in pthread_cond_wait@@GLIBC_2.3.2 () from /lib64/libpthread.so.0
+#1  0x00007ffff066ceab in btSyncMboxWait (mb=0x7ffff0ed40a0 <mbox_scavenger>) at /home/parallels/src/zs/sdf/btree/btree_sync_mbox.c:168
+#2  0x00007ffff0648c82 in scavenger_worker (arg=0) at /home/parallels/src/zs/sdf/btree/btree_scavenger.c:91
+#3  0x00007ffff0657898 in pthread_func_wrapper (arg=0x1a2d840) at /home/parallels/src/zs/sdf/btree/btree_sync_th.c:258
+#4  0x00007ffff7bc6dc5 in start_thread () from /lib64/libpthread.so.0
+#5  0x00007ffff6b95ced in clone () from /lib64/libc.so.6
+
+Thread 164 (Thread 0x7ff9e83b1700 (LWP 32618)):
+#0  0x00007ffff7bca6d5 in pthread_cond_wait@@GLIBC_2.3.2 () from /lib64/libpthread.so.0
+#1  0x00007ffff066ceab in btSyncMboxWait (mb=0x7ffff0ed40a0 <mbox_scavenger>) at /home/parallels/src/zs/sdf/btree/btree_sync_mbox.c:168
+#2  0x00007ffff0648c82 in scavenger_worker (arg=0) at /home/parallels/src/zs/sdf/btree/btree_scavenger.c:91
+#3  0x00007ffff0657898 in pthread_func_wrapper (arg=0x1a2d540) at /home/parallels/src/zs/sdf/btree/btree_sync_th.c:258
+#4  0x00007ffff7bc6dc5 in start_thread () from /lib64/libpthread.so.0
+#5  0x00007ffff6b95ced in clone () from /lib64/libc.so.6
+
+Thread 163 (Thread 0x7ffa635e2700 (LWP 32617)):
+#0  0x00007ffff7bca6d5 in pthread_cond_wait@@GLIBC_2.3.2 () from /lib64/libpthread.so.0
+#1  0x00007ffff066ceab in btSyncMboxWait (mb=0x7ffff0ed40a0 <mbox_scavenger>) at /home/parallels/src/zs/sdf/btree/btree_sync_mbox.c:168
+#2  0x00007ffff0648c82 in scavenger_worker (arg=0) at /home/parallels/src/zs/sdf/btree/btree_scavenger.c:91
+#3  0x00007ffff0657898 in pthread_func_wrapper (arg=0x1a2d240) at /home/parallels/src/zs/sdf/btree/btree_sync_th.c:258
+#4  0x00007ffff7bc6dc5 in start_thread () from /lib64/libpthread.so.0
+#5  0x00007ffff6b95ced in clone () from /lib64/libc.so.6
+
+Thread 162 (Thread 0x7ffade813700 (LWP 32616)):
+#0  0x00007ffff7bca6d5 in pthread_cond_wait@@GLIBC_2.3.2 () from /lib64/libpthread.so.0
+#1  0x00007ffff066ceab in btSyncMboxWait (mb=0x7ffff0ed40a0 <mbox_scavenger>) at /home/parallels/src/zs/sdf/btree/btree_sync_mbox.c:168
+#2  0x00007ffff0648c82 in scavenger_worker (arg=0) at /home/parallels/src/zs/sdf/btree/btree_scavenger.c:91
+#3  0x00007ffff0657898 in pthread_func_wrapper (arg=0x1a2cf40) at /home/parallels/src/zs/sdf/btree/btree_sync_th.c:258
+#4  0x00007ffff7bc6dc5 in start_thread () from /lib64/libpthread.so.0
+#5  0x00007ffff6b95ced in clone () from /lib64/libc.so.6
+
+Thread 161 (Thread 0x7ffb59a44700 (LWP 32615)):
+#0  0x00007ffff7bca6d5 in pthread_cond_wait@@GLIBC_2.3.2 () from /lib64/libpthread.so.0
+#1  0x00007ffff066ceab in btSyncMboxWait (mb=0x7ffff0ed40a0 <mbox_scavenger>) at /home/parallels/src/zs/sdf/btree/btree_sync_mbox.c:168
+#2  0x00007ffff0648c82 in scavenger_worker (arg=0) at /home/parallels/src/zs/sdf/btree/btree_scavenger.c:91
+#3  0x00007ffff0657898 in pthread_func_wrapper (arg=0x1a2cc40) at /home/parallels/src/zs/sdf/btree/btree_sync_th.c:258
+#4  0x00007ffff7bc6dc5 in start_thread () from /lib64/libpthread.so.0
+#5  0x00007ffff6b95ced in clone () from /lib64/libc.so.6
+
+Thread 160 (Thread 0x7ffce4d82700 (LWP 32614)):
+#0  0x00007ffff7bca6d5 in pthread_cond_wait@@GLIBC_2.3.2 () from /lib64/libpthread.so.0
+#1  0x00007ffff066ceab in btSyncMboxWait (mb=0x7ffff0ed40a0 <mbox_scavenger>) at /home/parallels/src/zs/sdf/btree/btree_sync_mbox.c:168
+#2  0x00007ffff0648c82 in scavenger_worker (arg=0) at /home/parallels/src/zs/sdf/btree/btree_scavenger.c:91
+#3  0x00007ffff0657898 in pthread_func_wrapper (arg=0x1778970) at /home/parallels/src/zs/sdf/btree/btree_sync_th.c:258
+#4  0x00007ffff7bc6dc5 in start_thread () from /lib64/libpthread.so.0
+#5  0x00007ffff6b95ced in clone () from /lib64/libc.so.6
+
+Thread 159 (Thread 0x7ffce5583700 (LWP 32613)):
+#0  0x00007ffff7bca6d5 in pthread_cond_wait@@GLIBC_2.3.2 () from /lib64/libpthread.so.0
+#1  0x00007ffff066ceab in btSyncMboxWait (mb=0x7ffff0ed40a0 <mbox_scavenger>) at /home/parallels/src/zs/sdf/btree/btree_sync_mbox.c:168
+#2  0x00007ffff0648c82 in scavenger_worker (arg=0) at /home/parallels/src/zs/sdf/btree/btree_scavenger.c:91
+#3  0x00007ffff0657898 in pthread_func_wrapper (arg=0x219bf10) at /home/parallels/src/zs/sdf/btree/btree_sync_th.c:258
+#4  0x00007ffff7bc6dc5 in start_thread () from /lib64/libpthread.so.0
+#5  0x00007ffff6b95ced in clone () from /lib64/libc.so.6
+
+Thread 158 (Thread 0x7ffce5d84700 (LWP 32612)):
+#0  0x00007ffff7bca6d5 in pthread_cond_wait@@GLIBC_2.3.2 () from /lib64/libpthread.so.0
+#1  0x00007ffff066ceab in btSyncMboxWait (mb=0x7ffff0ed40a0 <mbox_scavenger>) at /home/parallels/src/zs/sdf/btree/btree_sync_mbox.c:168
+#2  0x00007ffff0648c82 in scavenger_worker (arg=0) at /home/parallels/src/zs/sdf/btree/btree_scavenger.c:91
+#3  0x00007ffff0657898 in pthread_func_wrapper (arg=0x1776ff0) at /home/parallels/src/zs/sdf/btree/btree_sync_th.c:258
+#4  0x00007ffff7bc6dc5 in start_thread () from /lib64/libpthread.so.0
+#5  0x00007ffff6b95ced in clone () from /lib64/libc.so.6
+
+Thread 157 (Thread 0x7ffce6585700 (LWP 32611)):
+#0  0x00007ffff6b85cc3 in pread64 () from /lib64/libc.so.6
+#1  0x00007ffff0af74ac in mcd_fth_aio_blk_read (context=0x7fffdc067200, buf=0x7fffdc06e000 "META\001", offset=3593011200, nbytes=8192) at /home/parallels/src/zs/sdf/ssd/fifo/mcd_aio.c:331
+#2  0x00007ffff0b51c4c in mcd_onflash_key_match (context=0x7fffdc067200, shard=0x7fff14564620, addr=37192, key=0x7ffce65849f8 "_stripe_tbl_0", key_len=13) at /home/parallels/src/zs/sdf/ssd/fifo/mcd_osd.c:9813
+#3  0x00007ffff0b67e6f in hash_table_get (context=0x7fffdc067200, hdl=0x7fff14580e50, key=0x7ffce65849f8 "_stripe_tbl_0", key_len=13, cntr_id=6) at /home/parallels/src/zs/sdf/ssd/fifo/hash.c:484
+#4  0x00007ffff0b42618 in mcd_fth_osd_slab_set (context=0x7fffdc067200, shard=0x7fff14564620, key=0x7ffce65849f8 "_stripe_tbl_0", key_len=13, data=0x21ae820, data_len=48000, flags=512, meta_data=0x7fffdca889a8, syndrome=2765385536699725744, blk_offset=0, blocks=6) at /home/parallels/src/zs/sdf/ssd/fifo/mcd_osd.c:4738
+#5  0x00007ffff0b4bdbd in mcd_osd_flash_put (pctxt=0x7fffdc067200, shard=0x7fff14564620, metaData=0x7fffdca889a8, key=0x7ffce65849f8 "_stripe_tbl_0", data=0x21ae820 " ", flags=512) at /home/parallels/src/zs/sdf/ssd/fifo/mcd_osd.c:7361
+#6  0x00007ffff0af5005 in fifo_flashPut (pctxt=0x7fffdc067200, shard=0x7fff14564620, metaData=0x7fffdca889a8, key=0x7ffce65849f8 "_stripe_tbl_0", data=0x21ae820 " ", flags=512) at /home/parallels/src/zs/sdf/ssd/fifo/fifo.c:217
+#7  0x00007ffff0ac9528 in ssd_flashPut (pctxt=0x7fffdc067200, shard=0x7fff14564620, metaData=0x7fffdca889a8, key=0x7ffce65849f8 "_stripe_tbl_0", data=0x21ae820 " ", flags=512) at /home/parallels/src/zs/sdf/ssd/ssd.c:145
+#8  0x00007ffff0a17f1b in flashPut_wrapper (ptrans=0x7fffdca88980, pshard=0x7fff14564620, pmeta=0x7fffdca889a8, pkey=0x7ffce65849f8 "_stripe_tbl_0", pdata=0x21ae820 " ", flags=512, skip_for_writeback=SDF_TRUE) at /home/parallels/src/zs/sdf/protocol/action/action_new.c:4783
+#9  0x00007ffff0a08690 in set_to_flash (ptrans=0x7fffdca88980, skip_for_writeback=SDF_TRUE) at /home/parallels/src/zs/sdf/protocol/action/action_new.c:902
+#10 0x00007ffff0a0ab4c in flash_set_wt_s (ptrans=0x7fffdca88980) at /home/parallels/src/zs/sdf/protocol/action/action_new.c:1470
+#11 0x00007ffff0a0fc8c in process_object_operation (ptrans=0x7fffdca88980, try_flag=SDF_FALSE) at /home/parallels/src/zs/sdf/protocol/action/action_new.c:3154
+#12 0x00007ffff0a0efa9 in ActionProtocolAgentNew (pai=0x7fffdc0642e0, par=0x7ffce65849e0) at /home/parallels/src/zs/sdf/protocol/action/action_new.c:2846
+#13 0x00007ffff05faa27 in zs_write_object (zs_thread_state=0x7fffdc0642e0, cguid=6, key=0x7ffce6584e30 "_stripe_tbl_0", keylen=13, data=0x21ae820 " ", datalen=48000, xflags=0) at /home/parallels/src/zs/sdf/api/fdf.c:5425
+#14 0x00007ffff05fb595 in ZSWriteObject (zs_thread_state=0x7fffdc0642e0, cguid=6, key=0x7ffce6584e30 "_stripe_tbl_0", keylen=13, data=0x21ae820 " ", datalen=48000, flags=0) at /home/parallels/src/zs/sdf/api/fdf.c:5634
+#15 0x00007ffff0628a4a in ws_set_metadata_cb (pzs=0x7fffdc0642e0, state=0x219b840, key=0x7ffce6584e30, key_size=13, data=0x21ae820, data_size=48000) at /home/parallels/src/zs/sdf/api/fdf_ws.c:528
+#16 0x00007ffff05e3beb in stripe_tbl_dumper_thread (as=0x21ba428) at /home/parallels/src/zs/sdf/ws/ws.c:2863
+#17 0x00007ffff7bc6dc5 in start_thread () from /lib64/libpthread.so.0
+#18 0x00007ffff6b95ced in clone () from /lib64/libc.so.6
+
+Thread 156 (Thread 0x7ffd318f4700 (LWP 32610)):
+#0  0x00007ffff6b5cefd in nanosleep () from /lib64/libc.so.6
+#1  0x00007ffff05e48e2 in stats_thread (as=0x21ae568) at /home/parallels/src/zs/sdf/ws/ws.c:3214
+#2  0x00007ffff7bc6dc5 in start_thread () from /lib64/libpthread.so.0
+#3  0x00007ffff6b95ced in clone () from /lib64/libc.so.6
+
+Thread 155 (Thread 0x7ffd320f5700 (LWP 32609)):
+#0  0x00007ffff7bca6d5 in pthread_cond_wait@@GLIBC_2.3.2 () from /lib64/libpthread.so.0
+#1  0x00007ffff05e7e2d in mboxWait (mb=0x21a42b0) at /home/parallels/src/zs/sdf/ws/mbox.c:165
+#2  0x00007ffff05e3270 in writer_thread (as=0x21ae288) at /home/parallels/src/zs/sdf/ws/ws.c:2619
+#3  0x00007ffff7bc6dc5 in start_thread () from /lib64/libpthread.so.0
+#4  0x00007ffff6b95ced in clone () from /lib64/libc.so.6
+
+Thread 154 (Thread 0x7ffd328f6700 (LWP 32608)):
+#0  0x00007ffff7bca6d5 in pthread_cond_wait@@GLIBC_2.3.2 () from /lib64/libpthread.so.0
+#1  0x00007ffff05e7e2d in mboxWait (mb=0x21a43c0) at /home/parallels/src/zs/sdf/ws/mbox.c:165
+#2  0x00007ffff05e2b89 in batch_thread (as=0x21adfa8) at /home/parallels/src/zs/sdf/ws/ws.c:2534
+#3  0x00007ffff7bc6dc5 in start_thread () from /lib64/libpthread.so.0
+#4  0x00007ffff6b95ced in clone () from /lib64/libc.so.6
+
+Thread 153 (Thread 0x7ffd330f7700 (LWP 32607)):
+#0  0x00007ffff6b5cefd in nanosleep () from /lib64/libc.so.6
+#1  0x00007ffff05e4742 in scrub_thread (as=0x21adcc8) at /home/parallels/src/zs/sdf/ws/ws.c:3157
+#2  0x00007ffff7bc6dc5 in start_thread () from /lib64/libpthread.so.0
+#3  0x00007ffff6b95ced in clone () from /lib64/libc.so.6
+
+Thread 152 (Thread 0x7ffd338f8700 (LWP 32606)):
+#0  0x00007ffff6b8d64d in fdatasync () from /lib64/libc.so.6
+#1  0x00007ffff0b2083d in flog_fdatasync (fd=10) at /home/parallels/src/zs/sdf/ssd/fifo/mcd_rec.c:7151
+#2  0x00007ffff0b20ac9 in mlog_sync (shard=0x7fff14564620, lsn=194565, sync=1) at /home/parallels/src/zs/sdf/ssd/fifo/mcd_rec.c:7200
+#3  0x00007ffff0b21003 in log_sync_internal (s=0x7fff14564620, lsn=194565, sync=1) at /home/parallels/src/zs/sdf/ssd/fifo/mcd_rec.c:7315
+#4  0x00007ffff0b21785 in log_write (s=0x7fff14564620, lr=0x7ffd338f7be0) at /home/parallels/src/zs/sdf/ssd/fifo/mcd_rec.c:7406
+#5  0x00007ffff0b217f4 in log_write_trx (s=0x7fff14564620, lr=0x7ffd338f7be0, syn=7774388279396757197, he=0x7ffe1a85eea8) at /home/parallels/src/zs/sdf/ssd/fifo/mcd_rec.c:7415
+#6  0x00007ffff0628165 in ht_change_ptr_and_unlock (ph=0x7ffd338f7d10, new_addr=123616) at /home/parallels/src/zs/sdf/api/fdf_ws.c:373
+#7  0x00007ffff06286b1 in decode_btree_node_data_in_leaves (pzs=0x7fff3a9f4730, accounted=0x7fff3a9e6560, sector_bytes=512, stripe_addr=1012662272, pbuf=0x22fb000, p_from=0x2303000, pp_to=0x7ffd338f7de0, pmax_from=0x233b000) at /home/parallels/src/zs/sdf/api/fdf_ws.c:446
+#8  0x00007ffff0627c18 in ws_gc_cb (state=0x219b840, pbuf=0x22fb000, p_out=0x21ba838, stripe_bytes=262144, sector_bytes=512, stripe_addr=1012662272, compacted_bytes=0x7ffd338f7e60) at /home/parallels/src/zs/sdf/api/fdf_ws.c:272
+#9  0x00007ffff05e4492 in do_gc (ps=0x219c3b0, sbuf=0x21ba820) at /home/parallels/src/zs/sdf/ws/ws.c:3102
+#10 0x00007ffff05e3da8 in gc_thread (as=0x21ad9e8) at /home/parallels/src/zs/sdf/ws/ws.c:2909
+#11 0x00007ffff7bc6dc5 in start_thread () from /lib64/libpthread.so.0
+#12 0x00007ffff6b95ced in clone () from /lib64/libc.so.6
+
+Thread 151 (Thread 0x7ffe74109700 (LWP 32605)):
+#0  0x00007ffff6b9699d in accept () from /lib64/libc.so.6
+#1  0x00007ffff060ea1a in ZSAdminThread (arg=0x7ffff0ed3570 <admin_config>) at /home/parallels/src/zs/sdf/api/stats.c:1247
+#2  0x00007ffff7bc6dc5 in start_thread () from /lib64/libpthread.so.0
+#3  0x00007ffff6b95ced in clone () from /lib64/libc.so.6
+
+Thread 149 (Thread 0x7ffe1a855700 (LWP 32600)):
+#0  0x00007ffff7bca6d5 in pthread_cond_wait@@GLIBC_2.3.2 () from /lib64/libpthread.so.0
+#1  0x00007ffff06701d5 in fthMboxWait (mb=0x7ffe13b431a0) at /home/parallels/src/zs/sdf/fth/fthMbox.c:161
+#2  0x00007ffff06705ba in fthSemDown (sem=0x7ffe13b431a0, count=1) at /home/parallels/src/zs/sdf/fth/fthSem.c:40
+#3  0x00007ffff0b23067 in log_writer_thread (arg=140733534586400) at /home/parallels/src/zs/sdf/ssd/fifo/mcd_rec.c:7796
+#4  0x00007ffff066e6a4 in pthread_func_wrapper (arg=0x7fff14705ba0) at /home/parallels/src/zs/sdf/fth/fth.c:248
+#5  0x00007ffff7bc6dc5 in start_thread () from /lib64/libpthread.so.0
+#6  0x00007ffff6b95ced in clone () from /lib64/libc.so.6
+
+Thread 148 (Thread 0x7ffe21da6700 (LWP 32599)):
+#0  0x00007ffff7bca6d5 in pthread_cond_wait@@GLIBC_2.3.2 () from /lib64/libpthread.so.0
+#1  0x00007ffff06701d5 in fthMboxWait (mb=0x7ffe13b43358) at /home/parallels/src/zs/sdf/fth/fthMbox.c:161
+#2  0x00007ffff0b1c030 in updater_thread (arg=140733534586400) at /home/parallels/src/zs/sdf/ssd/fifo/mcd_rec.c:6389
+#3  0x00007ffff066e6a4 in pthread_func_wrapper (arg=0x7fff14580f10) at /home/parallels/src/zs/sdf/fth/fth.c:248
+#4  0x00007ffff7bc6dc5 in start_thread () from /lib64/libpthread.so.0
+#5  0x00007ffff6b95ced in clone () from /lib64/libc.so.6
+
+Thread 147 (Thread 0x7ffe23191700 (LWP 32598)):
+#0  0x00007ffff7bca6d5 in pthread_cond_wait@@GLIBC_2.3.2 () from /lib64/libpthread.so.0
+#1  0x00007ffff06701d5 in fthMboxWait (mb=0x7ffe1c47f1a0) at /home/parallels/src/zs/sdf/fth/fthMbox.c:161
+#2  0x00007ffff06705ba in fthSemDown (sem=0x7ffe1c47f1a0, count=1) at /home/parallels/src/zs/sdf/fth/fthSem.c:40
+#3  0x00007ffff0b23067 in log_writer_thread (arg=140733531163120) at /home/parallels/src/zs/sdf/ssd/fifo/mcd_rec.c:7796
+#4  0x00007ffff066e6a4 in pthread_func_wrapper (arg=0x7fff14564150) at /home/parallels/src/zs/sdf/fth/fth.c:248
+#5  0x00007ffff7bc6dc5 in start_thread () from /lib64/libpthread.so.0
+#6  0x00007ffff6b95ced in clone () from /lib64/libc.so.6
+
+Thread 146 (Thread 0x7ffe1c47e700 (LWP 32597)):
+#0  0x00007ffff7bca6d5 in pthread_cond_wait@@GLIBC_2.3.2 () from /lib64/libpthread.so.0
+#1  0x00007ffff06701d5 in fthMboxWait (mb=0x7ffe1c47f358) at /home/parallels/src/zs/sdf/fth/fthMbox.c:161
+#2  0x00007ffff0b1c030 in updater_thread (arg=140733531163120) at /home/parallels/src/zs/sdf/ssd/fifo/mcd_rec.c:6389
+#3  0x00007ffff066e6a4 in pthread_func_wrapper (arg=0x7fff1423c0e0) at /home/parallels/src/zs/sdf/fth/fth.c:248
+#4  0x00007ffff7bc6dc5 in start_thread () from /lib64/libpthread.so.0
+#5  0x00007ffff6b95ced in clone () from /lib64/libc.so.6
+
+Thread 144 (Thread 0x7ffe75f2d700 (LWP 32595)):
+#0  0x00007ffff7bca6d5 in pthread_cond_wait@@GLIBC_2.3.2 () from /lib64/libpthread.so.0
+#1  0x00007ffff06701d5 in fthMboxWait (mb=0x7ffff512a8e0 <Mcd_osd_writer_mbox>) at /home/parallels/src/zs/sdf/fth/fthMbox.c:161
+#2  0x00007ffff0b3a4d0 in mcd_fth_osd_writer (arg=140737018923568) at /home/parallels/src/zs/sdf/ssd/fifo/mcd_osd.c:1970
+#3  0x00007ffff066e6a4 in pthread_func_wrapper (arg=0x7fffe69bdce0) at /home/parallels/src/zs/sdf/fth/fth.c:248
+#4  0x00007ffff7bc6dc5 in start_thread () from /lib64/libpthread.so.0
+#5  0x00007ffff6b95ced in clone () from /lib64/libc.so.6
+
+Thread 143 (Thread 0x7ffe7672e700 (LWP 32594)):
+#0  0x00007ffff7bca6d5 in pthread_cond_wait@@GLIBC_2.3.2 () from /lib64/libpthread.so.0
+#1  0x00007ffff06701d5 in fthMboxWait (mb=0x7ffe6e3f91a0) at /home/parallels/src/zs/sdf/fth/fthMbox.c:161
+#2  0x00007ffff06705ba in fthSemDown (sem=0x7ffe6e3f91a0, count=1) at /home/parallels/src/zs/sdf/fth/fthSem.c:40
+#3  0x00007ffff0b23067 in log_writer_thread (arg=140737061111024) at /home/parallels/src/zs/sdf/ssd/fifo/mcd_rec.c:7796
+#4  0x00007ffff066e6a4 in pthread_func_wrapper (arg=0x7fffe69bc910) at /home/parallels/src/zs/sdf/fth/fth.c:248
+#5  0x00007ffff7bc6dc5 in start_thread () from /lib64/libpthread.so.0
+#6  0x00007ffff6b95ced in clone () from /lib64/libc.so.6
+
+Thread 142 (Thread 0x7ffe76f60700 (LWP 32593)):
+#0  0x00007ffff7bca6d5 in pthread_cond_wait@@GLIBC_2.3.2 () from /lib64/libpthread.so.0
+#1  0x00007ffff06701d5 in fthMboxWait (mb=0x7ffe6e3f9358) at /home/parallels/src/zs/sdf/fth/fthMbox.c:161
+#2  0x00007ffff0b1c030 in updater_thread (arg=140737061111024) at /home/parallels/src/zs/sdf/ssd/fifo/mcd_rec.c:6389
+#3  0x00007ffff066e6a4 in pthread_func_wrapper (arg=0x7fffe69bc610) at /home/parallels/src/zs/sdf/fth/fth.c:248
+#4  0x00007ffff7bc6dc5 in start_thread () from /lib64/libpthread.so.0
+#5  0x00007ffff6b95ced in clone () from /lib64/libc.so.6
+
+Thread 141 (Thread 0x7ffe77db0700 (LWP 32592)):
+#0  0x00007ffff7bccf4d in __lll_lock_wait () from /lib64/libpthread.so.0
+#1  0x00007ffff7bc8d02 in _L_lock_791 () from /lib64/libpthread.so.0
+#2  0x00007ffff7bc8c08 in pthread_mutex_lock () from /lib64/libpthread.so.0
+#3  0x00007ffff066fa3a in fthLock (lock=0x7fff44610e98, write=1, waitEl=0x0) at /home/parallels/src/zs/sdf/fth/fthLock.c:80
+#4  0x00007ffff09fffac in SDFNewCacheFlushCache (pc=0x7fffe6769940, cguid=0, flush_flag=SDF_TRUE, inval_flag=SDF_FALSE, flush_progress_fn=0x7ffff09ffd1a <background_flush_progress_fn>, flush_arg=0x7fff0c033b60, background_flush=SDF_TRUE, pdirty_found=0x7ffe77dafeb8, inval_prefix=0x0, len_prefix=0) at /home/parallels/src/zs/sdf/protocol/action/fastcc_new.c:1317
+#5  0x00007ffff09ffcef in background_flusher (arg=140737059920192) at /home/parallels/src/zs/sdf/protocol/action/fastcc_new.c:1235
+#6  0x00007ffff066e6a4 in pthread_func_wrapper (arg=0x7fffe6862c80) at /home/parallels/src/zs/sdf/fth/fth.c:248
+#7  0x00007ffff7bc6dc5 in start_thread () from /lib64/libpthread.so.0
+#8  0x00007ffff6b95ced in clone () from /lib64/libc.so.6
+
+Thread 140 (Thread 0x7ffe78b17700 (LWP 32591)):
+#0  0x00007ffff7bca6d5 in pthread_cond_wait@@GLIBC_2.3.2 () from /lib64/libpthread.so.0
+#1  0x00007ffff0a350a3 in async_qget (aps=0x7fffe676dbe0, thr_id=127) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:257
+#2  0x00007ffff0a35da4 in async_main (arg=140737060933184) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:475
+#3  0x00007ffff066e6a4 in pthread_func_wrapper (arg=0x7fffe6862960) at /home/parallels/src/zs/sdf/fth/fth.c:248
+#4  0x00007ffff7bc6dc5 in start_thread () from /lib64/libpthread.so.0
+#5  0x00007ffff6b95ced in clone () from /lib64/libc.so.6
+
+Thread 139 (Thread 0x7ffe79dcc700 (LWP 32590)):
+#0  0x00007ffff7bca6d5 in pthread_cond_wait@@GLIBC_2.3.2 () from /lib64/libpthread.so.0
+#1  0x00007ffff0a350a3 in async_qget (aps=0x7fffe676dbe0, thr_id=126) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:257
+#2  0x00007ffff0a35da4 in async_main (arg=140737060925440) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:475
+#3  0x00007ffff066e6a4 in pthread_func_wrapper (arg=0x7fffe6860b20) at /home/parallels/src/zs/sdf/fth/fth.c:248
+#4  0x00007ffff7bc6dc5 in start_thread () from /lib64/libpthread.so.0
+#5  0x00007ffff6b95ced in clone () from /lib64/libc.so.6
+
+Thread 138 (Thread 0x7ffe7b081700 (LWP 32589)):
+#0  0x00007ffff7bca6d5 in pthread_cond_wait@@GLIBC_2.3.2 () from /lib64/libpthread.so.0
+#1  0x00007ffff0a350a3 in async_qget (aps=0x7fffe676dbe0, thr_id=125) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:257
+#2  0x00007ffff0a35da4 in async_main (arg=140737060916448) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:475
+#3  0x00007ffff066e6a4 in pthread_func_wrapper (arg=0x7fffe685e800) at /home/parallels/src/zs/sdf/fth/fth.c:248
+#4  0x00007ffff7bc6dc5 in start_thread () from /lib64/libpthread.so.0
+#5  0x00007ffff6b95ced in clone () from /lib64/libc.so.6
+
+Thread 137 (Thread 0x7ffe7c336700 (LWP 32588)):
+#0  0x00007ffff7bca6d5 in pthread_cond_wait@@GLIBC_2.3.2 () from /lib64/libpthread.so.0
+#1  0x00007ffff0a350a3 in async_qget (aps=0x7fffe676dbe0, thr_id=124) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:257
+#2  0x00007ffff0a35da4 in async_main (arg=140737060908704) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:475
+#3  0x00007ffff066e6a4 in pthread_func_wrapper (arg=0x7fffe685c9c0) at /home/parallels/src/zs/sdf/fth/fth.c:248
+#4  0x00007ffff7bc6dc5 in start_thread () from /lib64/libpthread.so.0
+#5  0x00007ffff6b95ced in clone () from /lib64/libc.so.6
+
+Thread 136 (Thread 0x7ffe7d5eb700 (LWP 32585)):
+#0  0x00007ffff7bca6d5 in pthread_cond_wait@@GLIBC_2.3.2 () from /lib64/libpthread.so.0
+#1  0x00007ffff0a350a3 in async_qget (aps=0x7fffe676dbe0, thr_id=123) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:257
+#2  0x00007ffff0a35da4 in async_main (arg=140737060900960) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:475
+#3  0x00007ffff066e6a4 in pthread_func_wrapper (arg=0x7fffe685ab80) at /home/parallels/src/zs/sdf/fth/fth.c:248
+#4  0x00007ffff7bc6dc5 in start_thread () from /lib64/libpthread.so.0
+#5  0x00007ffff6b95ced in clone () from /lib64/libc.so.6
+
+Thread 135 (Thread 0x7ffe7e8a0700 (LWP 32583)):
+#0  0x00007ffff7bca6d5 in pthread_cond_wait@@GLIBC_2.3.2 () from /lib64/libpthread.so.0
+#1  0x00007ffff0a350a3 in async_qget (aps=0x7fffe676dbe0, thr_id=122) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:257
+#2  0x00007ffff0a35da4 in async_main (arg=140737060893216) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:475
+#3  0x00007ffff066e6a4 in pthread_func_wrapper (arg=0x7fffe6858d40) at /home/parallels/src/zs/sdf/fth/fth.c:248
+#4  0x00007ffff7bc6dc5 in start_thread () from /lib64/libpthread.so.0
+#5  0x00007ffff6b95ced in clone () from /lib64/libc.so.6
+
+Thread 134 (Thread 0x7ffe7fb55700 (LWP 32582)):
+#0  0x00007ffff7bca6d5 in pthread_cond_wait@@GLIBC_2.3.2 () from /lib64/libpthread.so.0
+#1  0x00007ffff0a350a3 in async_qget (aps=0x7fffe676dbe0, thr_id=121) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:257
+#2  0x00007ffff0a35da4 in async_main (arg=140737060885472) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:475
+#3  0x00007ffff066e6a4 in pthread_func_wrapper (arg=0x7fffe6856f00) at /home/parallels/src/zs/sdf/fth/fth.c:248
+#4  0x00007ffff7bc6dc5 in start_thread () from /lib64/libpthread.so.0
+#5  0x00007ffff6b95ced in clone () from /lib64/libc.so.6
+
+Thread 133 (Thread 0x7ffe80e0a700 (LWP 32581)):
+#0  0x00007ffff7bca6d5 in pthread_cond_wait@@GLIBC_2.3.2 () from /lib64/libpthread.so.0
+#1  0x00007ffff0a350a3 in async_qget (aps=0x7fffe676dbe0, thr_id=120) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:257
+#2  0x00007ffff0a35da4 in async_main (arg=140737060877728) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:475
+#3  0x00007ffff066e6a4 in pthread_func_wrapper (arg=0x7fffe68550c0) at /home/parallels/src/zs/sdf/fth/fth.c:248
+#4  0x00007ffff7bc6dc5 in start_thread () from /lib64/libpthread.so.0
+#5  0x00007ffff6b95ced in clone () from /lib64/libc.so.6
+
+Thread 132 (Thread 0x7ffe820bf700 (LWP 32580)):
+#0  0x00007ffff7bca6d5 in pthread_cond_wait@@GLIBC_2.3.2 () from /lib64/libpthread.so.0
+#1  0x00007ffff0a350a3 in async_qget (aps=0x7fffe676dbe0, thr_id=119) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:257
+#2  0x00007ffff0a35da4 in async_main (arg=140737060869984) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:475
+#3  0x00007ffff066e6a4 in pthread_func_wrapper (arg=0x7fffe6853280) at /home/parallels/src/zs/sdf/fth/fth.c:248
+#4  0x00007ffff7bc6dc5 in start_thread () from /lib64/libpthread.so.0
+#5  0x00007ffff6b95ced in clone () from /lib64/libc.so.6
+
+Thread 131 (Thread 0x7ffe83374700 (LWP 32579)):
+#0  0x00007ffff7bca6d5 in pthread_cond_wait@@GLIBC_2.3.2 () from /lib64/libpthread.so.0
+#1  0x00007ffff0a350a3 in async_qget (aps=0x7fffe676dbe0, thr_id=118) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:257
+#2  0x00007ffff0a35da4 in async_main (arg=140737060862240) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:475
+#3  0x00007ffff066e6a4 in pthread_func_wrapper (arg=0x7fffe6851440) at /home/parallels/src/zs/sdf/fth/fth.c:248
+#4  0x00007ffff7bc6dc5 in start_thread () from /lib64/libpthread.so.0
+#5  0x00007ffff6b95ced in clone () from /lib64/libc.so.6
+
+Thread 130 (Thread 0x7ffe84629700 (LWP 32578)):
+#0  0x00007ffff7bca6d5 in pthread_cond_wait@@GLIBC_2.3.2 () from /lib64/libpthread.so.0
+#1  0x00007ffff0a350a3 in async_qget (aps=0x7fffe676dbe0, thr_id=117) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:257
+#2  0x00007ffff0a35da4 in async_main (arg=140737060854496) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:475
+#3  0x00007ffff066e6a4 in pthread_func_wrapper (arg=0x7fffe684f600) at /home/parallels/src/zs/sdf/fth/fth.c:248
+#4  0x00007ffff7bc6dc5 in start_thread () from /lib64/libpthread.so.0
+#5  0x00007ffff6b95ced in clone () from /lib64/libc.so.6
+
+Thread 129 (Thread 0x7ffe858de700 (LWP 32577)):
+#0  0x00007ffff7bca6d5 in pthread_cond_wait@@GLIBC_2.3.2 () from /lib64/libpthread.so.0
+#1  0x00007ffff0a350a3 in async_qget (aps=0x7fffe676dbe0, thr_id=116) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:257
+#2  0x00007ffff0a35da4 in async_main (arg=140737060846752) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:475
+#3  0x00007ffff066e6a4 in pthread_func_wrapper (arg=0x7fffe684d7c0) at /home/parallels/src/zs/sdf/fth/fth.c:248
+#4  0x00007ffff7bc6dc5 in start_thread () from /lib64/libpthread.so.0
+#5  0x00007ffff6b95ced in clone () from /lib64/libc.so.6
+
+Thread 128 (Thread 0x7ffe86b93700 (LWP 32576)):
+#0  0x00007ffff7bca6d5 in pthread_cond_wait@@GLIBC_2.3.2 () from /lib64/libpthread.so.0
+#1  0x00007ffff0a350a3 in async_qget (aps=0x7fffe676dbe0, thr_id=115) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:257
+#2  0x00007ffff0a35da4 in async_main (arg=140737060839008) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:475
+#3  0x00007ffff066e6a4 in pthread_func_wrapper (arg=0x7fffe684b980) at /home/parallels/src/zs/sdf/fth/fth.c:248
+#4  0x00007ffff7bc6dc5 in start_thread () from /lib64/libpthread.so.0
+#5  0x00007ffff6b95ced in clone () from /lib64/libc.so.6
+
+Thread 127 (Thread 0x7ffe87e48700 (LWP 32575)):
+#0  0x00007ffff7bca6d5 in pthread_cond_wait@@GLIBC_2.3.2 () from /lib64/libpthread.so.0
+#1  0x00007ffff0a350a3 in async_qget (aps=0x7fffe676dbe0, thr_id=114) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:257
+#2  0x00007ffff0a35da4 in async_main (arg=140737060831264) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:475
+#3  0x00007ffff066e6a4 in pthread_func_wrapper (arg=0x7fffe6849b40) at /home/parallels/src/zs/sdf/fth/fth.c:248
+#4  0x00007ffff7bc6dc5 in start_thread () from /lib64/libpthread.so.0
+#5  0x00007ffff6b95ced in clone () from /lib64/libc.so.6
+
+Thread 126 (Thread 0x7ffe890fd700 (LWP 32574)):
+#0  0x00007ffff7bca6d5 in pthread_cond_wait@@GLIBC_2.3.2 () from /lib64/libpthread.so.0
+#1  0x00007ffff0a350a3 in async_qget (aps=0x7fffe676dbe0, thr_id=113) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:257
+#2  0x00007ffff0a35da4 in async_main (arg=140737060823520) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:475
+#3  0x00007ffff066e6a4 in pthread_func_wrapper (arg=0x7fffe6847d00) at /home/parallels/src/zs/sdf/fth/fth.c:248
+#4  0x00007ffff7bc6dc5 in start_thread () from /lib64/libpthread.so.0
+#5  0x00007ffff6b95ced in clone () from /lib64/libc.so.6
+
+Thread 125 (Thread 0x7ffe8a3b2700 (LWP 32573)):
+#0  0x00007ffff7bca6d5 in pthread_cond_wait@@GLIBC_2.3.2 () from /lib64/libpthread.so.0
+#1  0x00007ffff0a350a3 in async_qget (aps=0x7fffe676dbe0, thr_id=112) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:257
+#2  0x00007ffff0a35da4 in async_main (arg=140737060815776) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:475
+#3  0x00007ffff066e6a4 in pthread_func_wrapper (arg=0x7fffe6845ec0) at /home/parallels/src/zs/sdf/fth/fth.c:248
+#4  0x00007ffff7bc6dc5 in start_thread () from /lib64/libpthread.so.0
+#5  0x00007ffff6b95ced in clone () from /lib64/libc.so.6
+
+Thread 124 (Thread 0x7ffe8b667700 (LWP 32572)):
+#0  0x00007ffff7bca6d5 in pthread_cond_wait@@GLIBC_2.3.2 () from /lib64/libpthread.so.0
+#1  0x00007ffff0a350a3 in async_qget (aps=0x7fffe676dbe0, thr_id=111) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:257
+#2  0x00007ffff0a35da4 in async_main (arg=140737060808032) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:475
+#3  0x00007ffff066e6a4 in pthread_func_wrapper (arg=0x7fffe6844080) at /home/parallels/src/zs/sdf/fth/fth.c:248
+#4  0x00007ffff7bc6dc5 in start_thread () from /lib64/libpthread.so.0
+#5  0x00007ffff6b95ced in clone () from /lib64/libc.so.6
+
+Thread 123 (Thread 0x7ffe8c91c700 (LWP 32571)):
+#0  0x00007ffff7bca6d5 in pthread_cond_wait@@GLIBC_2.3.2 () from /lib64/libpthread.so.0
+#1  0x00007ffff0a350a3 in async_qget (aps=0x7fffe676dbe0, thr_id=110) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:257
+#2  0x00007ffff0a35da4 in async_main (arg=140737060800288) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:475
+#3  0x00007ffff066e6a4 in pthread_func_wrapper (arg=0x7fffe6842240) at /home/parallels/src/zs/sdf/fth/fth.c:248
+#4  0x00007ffff7bc6dc5 in start_thread () from /lib64/libpthread.so.0
+#5  0x00007ffff6b95ced in clone () from /lib64/libc.so.6
+
+Thread 122 (Thread 0x7ffe8dbd1700 (LWP 32570)):
+#0  0x00007ffff7bca6d5 in pthread_cond_wait@@GLIBC_2.3.2 () from /lib64/libpthread.so.0
+#1  0x00007ffff0a350a3 in async_qget (aps=0x7fffe676dbe0, thr_id=109) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:257
+#2  0x00007ffff0a35da4 in async_main (arg=140737060791296) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:475
+#3  0x00007ffff066e6a4 in pthread_func_wrapper (arg=0x7fffe683ff20) at /home/parallels/src/zs/sdf/fth/fth.c:248
+#4  0x00007ffff7bc6dc5 in start_thread () from /lib64/libpthread.so.0
+#5  0x00007ffff6b95ced in clone () from /lib64/libc.so.6
+
+Thread 121 (Thread 0x7ffe8ee86700 (LWP 32569)):
+#0  0x00007ffff7bca6d5 in pthread_cond_wait@@GLIBC_2.3.2 () from /lib64/libpthread.so.0
+#1  0x00007ffff0a350a3 in async_qget (aps=0x7fffe676dbe0, thr_id=108) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:257
+#2  0x00007ffff0a35da4 in async_main (arg=140737060783552) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:475
+#3  0x00007ffff066e6a4 in pthread_func_wrapper (arg=0x7fffe683e0e0) at /home/parallels/src/zs/sdf/fth/fth.c:248
+#4  0x00007ffff7bc6dc5 in start_thread () from /lib64/libpthread.so.0
+#5  0x00007ffff6b95ced in clone () from /lib64/libc.so.6
+
+Thread 120 (Thread 0x7ffe9013b700 (LWP 32568)):
+#0  0x00007ffff7bca6d5 in pthread_cond_wait@@GLIBC_2.3.2 () from /lib64/libpthread.so.0
+#1  0x00007ffff0a350a3 in async_qget (aps=0x7fffe676dbe0, thr_id=107) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:257
+#2  0x00007ffff0a35da4 in async_main (arg=140737060775808) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:475
+#3  0x00007ffff066e6a4 in pthread_func_wrapper (arg=0x7fffe683c2a0) at /home/parallels/src/zs/sdf/fth/fth.c:248
+#4  0x00007ffff7bc6dc5 in start_thread () from /lib64/libpthread.so.0
+#5  0x00007ffff6b95ced in clone () from /lib64/libc.so.6
+
+Thread 119 (Thread 0x7ffe913f0700 (LWP 32567)):
+#0  0x00007ffff7bca6d5 in pthread_cond_wait@@GLIBC_2.3.2 () from /lib64/libpthread.so.0
+#1  0x00007ffff0a350a3 in async_qget (aps=0x7fffe676dbe0, thr_id=106) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:257
+#2  0x00007ffff0a35da4 in async_main (arg=140737060768064) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:475
+#3  0x00007ffff066e6a4 in pthread_func_wrapper (arg=0x7fffe683a460) at /home/parallels/src/zs/sdf/fth/fth.c:248
+#4  0x00007ffff7bc6dc5 in start_thread () from /lib64/libpthread.so.0
+#5  0x00007ffff6b95ced in clone () from /lib64/libc.so.6
+
+Thread 118 (Thread 0x7ffe926a5700 (LWP 32566)):
+#0  0x00007ffff7bca6d5 in pthread_cond_wait@@GLIBC_2.3.2 () from /lib64/libpthread.so.0
+#1  0x00007ffff0a350a3 in async_qget (aps=0x7fffe676dbe0, thr_id=105) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:257
+#2  0x00007ffff0a35da4 in async_main (arg=140737060760320) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:475
+#3  0x00007ffff066e6a4 in pthread_func_wrapper (arg=0x7fffe6838620) at /home/parallels/src/zs/sdf/fth/fth.c:248
+#4  0x00007ffff7bc6dc5 in start_thread () from /lib64/libpthread.so.0
+#5  0x00007ffff6b95ced in clone () from /lib64/libc.so.6
+
+Thread 117 (Thread 0x7ffe9395a700 (LWP 32565)):
+#0  0x00007ffff7bca6d5 in pthread_cond_wait@@GLIBC_2.3.2 () from /lib64/libpthread.so.0
+#1  0x00007ffff0a350a3 in async_qget (aps=0x7fffe676dbe0, thr_id=104) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:257
+#2  0x00007ffff0a35da4 in async_main (arg=140737060752576) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:475
+#3  0x00007ffff066e6a4 in pthread_func_wrapper (arg=0x7fffe68367e0) at /home/parallels/src/zs/sdf/fth/fth.c:248
+#4  0x00007ffff7bc6dc5 in start_thread () from /lib64/libpthread.so.0
+#5  0x00007ffff6b95ced in clone () from /lib64/libc.so.6
+
+Thread 116 (Thread 0x7ffe94c0f700 (LWP 32564)):
+#0  0x00007ffff7bca6d5 in pthread_cond_wait@@GLIBC_2.3.2 () from /lib64/libpthread.so.0
+#1  0x00007ffff0a350a3 in async_qget (aps=0x7fffe676dbe0, thr_id=103) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:257
+#2  0x00007ffff0a35da4 in async_main (arg=140737060744832) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:475
+#3  0x00007ffff066e6a4 in pthread_func_wrapper (arg=0x7fffe68349a0) at /home/parallels/src/zs/sdf/fth/fth.c:248
+#4  0x00007ffff7bc6dc5 in start_thread () from /lib64/libpthread.so.0
+#5  0x00007ffff6b95ced in clone () from /lib64/libc.so.6
+
+Thread 115 (Thread 0x7ffe95ec4700 (LWP 32563)):
+#0  0x00007ffff7bca6d5 in pthread_cond_wait@@GLIBC_2.3.2 () from /lib64/libpthread.so.0
+#1  0x00007ffff0a350a3 in async_qget (aps=0x7fffe676dbe0, thr_id=102) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:257
+#2  0x00007ffff0a35da4 in async_main (arg=140737060737088) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:475
+#3  0x00007ffff066e6a4 in pthread_func_wrapper (arg=0x7fffe6832b60) at /home/parallels/src/zs/sdf/fth/fth.c:248
+#4  0x00007ffff7bc6dc5 in start_thread () from /lib64/libpthread.so.0
+#5  0x00007ffff6b95ced in clone () from /lib64/libc.so.6
+
+Thread 114 (Thread 0x7ffe97179700 (LWP 32562)):
+#0  0x00007ffff7bca6d5 in pthread_cond_wait@@GLIBC_2.3.2 () from /lib64/libpthread.so.0
+#1  0x00007ffff0a350a3 in async_qget (aps=0x7fffe676dbe0, thr_id=101) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:257
+#2  0x00007ffff0a35da4 in async_main (arg=140737060729344) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:475
+#3  0x00007ffff066e6a4 in pthread_func_wrapper (arg=0x7fffe6830d20) at /home/parallels/src/zs/sdf/fth/fth.c:248
+#4  0x00007ffff7bc6dc5 in start_thread () from /lib64/libpthread.so.0
+#5  0x00007ffff6b95ced in clone () from /lib64/libc.so.6
+
+Thread 113 (Thread 0x7ffe9842e700 (LWP 32561)):
+#0  0x00007ffff7bca6d5 in pthread_cond_wait@@GLIBC_2.3.2 () from /lib64/libpthread.so.0
+#1  0x00007ffff0a350a3 in async_qget (aps=0x7fffe676dbe0, thr_id=100) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:257
+#2  0x00007ffff0a35da4 in async_main (arg=140737060721600) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:475
+#3  0x00007ffff066e6a4 in pthread_func_wrapper (arg=0x7fffe682eee0) at /home/parallels/src/zs/sdf/fth/fth.c:248
+#4  0x00007ffff7bc6dc5 in start_thread () from /lib64/libpthread.so.0
+#5  0x00007ffff6b95ced in clone () from /lib64/libc.so.6
+
+Thread 112 (Thread 0x7ffe996e3700 (LWP 32560)):
+#0  0x00007ffff7bca6d5 in pthread_cond_wait@@GLIBC_2.3.2 () from /lib64/libpthread.so.0
+#1  0x00007ffff0a350a3 in async_qget (aps=0x7fffe676dbe0, thr_id=99) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:257
+#2  0x00007ffff0a35da4 in async_main (arg=140737060713856) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:475
+#3  0x00007ffff066e6a4 in pthread_func_wrapper (arg=0x7fffe682d0a0) at /home/parallels/src/zs/sdf/fth/fth.c:248
+#4  0x00007ffff7bc6dc5 in start_thread () from /lib64/libpthread.so.0
+#5  0x00007ffff6b95ced in clone () from /lib64/libc.so.6
+
+Thread 111 (Thread 0x7ffe9a998700 (LWP 32559)):
+#0  0x00007ffff7bca6d5 in pthread_cond_wait@@GLIBC_2.3.2 () from /lib64/libpthread.so.0
+#1  0x00007ffff0a350a3 in async_qget (aps=0x7fffe676dbe0, thr_id=98) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:257
+#2  0x00007ffff0a35da4 in async_main (arg=140737060706112) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:475
+#3  0x00007ffff066e6a4 in pthread_func_wrapper (arg=0x7fffe682b260) at /home/parallels/src/zs/sdf/fth/fth.c:248
+#4  0x00007ffff7bc6dc5 in start_thread () from /lib64/libpthread.so.0
+#5  0x00007ffff6b95ced in clone () from /lib64/libc.so.6
+
+Thread 110 (Thread 0x7ffe9becf700 (LWP 32558)):
+#0  0x00007ffff7bca6d5 in pthread_cond_wait@@GLIBC_2.3.2 () from /lib64/libpthread.so.0
+#1  0x00007ffff0a350a3 in async_qget (aps=0x7fffe676dbe0, thr_id=97) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:257
+#2  0x00007ffff0a35da4 in async_main (arg=140737060698368) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:475
+#3  0x00007ffff066e6a4 in pthread_func_wrapper (arg=0x7fffe6829420) at /home/parallels/src/zs/sdf/fth/fth.c:248
+#4  0x00007ffff7bc6dc5 in start_thread () from /lib64/libpthread.so.0
+#5  0x00007ffff6b95ced in clone () from /lib64/libc.so.6
+
+Thread 109 (Thread 0x7ffe9cf02700 (LWP 32557)):
+#0  0x00007ffff7bca6d5 in pthread_cond_wait@@GLIBC_2.3.2 () from /lib64/libpthread.so.0
+#1  0x00007ffff0a350a3 in async_qget (aps=0x7fffe676dbe0, thr_id=96) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:257
+#2  0x00007ffff0a35da4 in async_main (arg=140737060690624) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:475
+#3  0x00007ffff066e6a4 in pthread_func_wrapper (arg=0x7fffe68275e0) at /home/parallels/src/zs/sdf/fth/fth.c:248
+#4  0x00007ffff7bc6dc5 in start_thread () from /lib64/libpthread.so.0
+#5  0x00007ffff6b95ced in clone () from /lib64/libc.so.6
+
+Thread 108 (Thread 0x7ffe9e1b7700 (LWP 32556)):
+#0  0x00007ffff7bca6d5 in pthread_cond_wait@@GLIBC_2.3.2 () from /lib64/libpthread.so.0
+#1  0x00007ffff0a350a3 in async_qget (aps=0x7fffe676dbe0, thr_id=95) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:257
+#2  0x00007ffff0a35da4 in async_main (arg=140737060682880) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:475
+#3  0x00007ffff066e6a4 in pthread_func_wrapper (arg=0x7fffe68257a0) at /home/parallels/src/zs/sdf/fth/fth.c:248
+#4  0x00007ffff7bc6dc5 in start_thread () from /lib64/libpthread.so.0
+#5  0x00007ffff6b95ced in clone () from /lib64/libc.so.6
+
+Thread 107 (Thread 0x7ffe9f46c700 (LWP 32555)):
+#0  0x00007ffff7bca6d5 in pthread_cond_wait@@GLIBC_2.3.2 () from /lib64/libpthread.so.0
+#1  0x00007ffff0a350a3 in async_qget (aps=0x7fffe676dbe0, thr_id=94) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:257
+#2  0x00007ffff0a35da4 in async_main (arg=140737060675136) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:475
+#3  0x00007ffff066e6a4 in pthread_func_wrapper (arg=0x7fffe6823960) at /home/parallels/src/zs/sdf/fth/fth.c:248
+#4  0x00007ffff7bc6dc5 in start_thread () from /lib64/libpthread.so.0
+#5  0x00007ffff6b95ced in clone () from /lib64/libc.so.6
+
+Thread 106 (Thread 0x7ffea0721700 (LWP 32554)):
+#0  0x00007ffff7bca6d5 in pthread_cond_wait@@GLIBC_2.3.2 () from /lib64/libpthread.so.0
+#1  0x00007ffff0a350a3 in async_qget (aps=0x7fffe676dbe0, thr_id=93) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:257
+#2  0x00007ffff0a35da4 in async_main (arg=140737060666144) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:475
+#3  0x00007ffff066e6a4 in pthread_func_wrapper (arg=0x7fffe6821640) at /home/parallels/src/zs/sdf/fth/fth.c:248
+#4  0x00007ffff7bc6dc5 in start_thread () from /lib64/libpthread.so.0
+#5  0x00007ffff6b95ced in clone () from /lib64/libc.so.6
+
+Thread 105 (Thread 0x7ffea19d6700 (LWP 32553)):
+#0  0x00007ffff7bca6d5 in pthread_cond_wait@@GLIBC_2.3.2 () from /lib64/libpthread.so.0
+#1  0x00007ffff0a350a3 in async_qget (aps=0x7fffe676dbe0, thr_id=92) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:257
+#2  0x00007ffff0a35da4 in async_main (arg=140737060658400) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:475
+#3  0x00007ffff066e6a4 in pthread_func_wrapper (arg=0x7fffe681f800) at /home/parallels/src/zs/sdf/fth/fth.c:248
+#4  0x00007ffff7bc6dc5 in start_thread () from /lib64/libpthread.so.0
+#5  0x00007ffff6b95ced in clone () from /lib64/libc.so.6
+
+Thread 104 (Thread 0x7ffea2c5a700 (LWP 32552)):
+#0  0x00007ffff7bca6d5 in pthread_cond_wait@@GLIBC_2.3.2 () from /lib64/libpthread.so.0
+#1  0x00007ffff0a350a3 in async_qget (aps=0x7fffe676dbe0, thr_id=91) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:257
+#2  0x00007ffff0a35da4 in async_main (arg=140737060650656) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:475
+#3  0x00007ffff066e6a4 in pthread_func_wrapper (arg=0x7fffe681d9c0) at /home/parallels/src/zs/sdf/fth/fth.c:248
+#4  0x00007ffff7bc6dc5 in start_thread () from /lib64/libpthread.so.0
+#5  0x00007ffff6b95ced in clone () from /lib64/libc.so.6
+
+Thread 103 (Thread 0x7ffea3f40700 (LWP 32551)):
+#0  0x00007ffff7bca6d5 in pthread_cond_wait@@GLIBC_2.3.2 () from /lib64/libpthread.so.0
+#1  0x00007ffff0a350a3 in async_qget (aps=0x7fffe676dbe0, thr_id=90) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:257
+#2  0x00007ffff0a35da4 in async_main (arg=140737060642912) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:475
+#3  0x00007ffff066e6a4 in pthread_func_wrapper (arg=0x7fffe681bb80) at /home/parallels/src/zs/sdf/fth/fth.c:248
+#4  0x00007ffff7bc6dc5 in start_thread () from /lib64/libpthread.so.0
+#5  0x00007ffff6b95ced in clone () from /lib64/libc.so.6
+
+Thread 102 (Thread 0x7ffea51c4700 (LWP 32550)):
+#0  0x00007ffff7bca6d5 in pthread_cond_wait@@GLIBC_2.3.2 () from /lib64/libpthread.so.0
+#1  0x00007ffff0a350a3 in async_qget (aps=0x7fffe676dbe0, thr_id=89) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:257
+#2  0x00007ffff0a35da4 in async_main (arg=140737060635168) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:475
+#3  0x00007ffff066e6a4 in pthread_func_wrapper (arg=0x7fffe6819d40) at /home/parallels/src/zs/sdf/fth/fth.c:248
+#4  0x00007ffff7bc6dc5 in start_thread () from /lib64/libpthread.so.0
+#5  0x00007ffff6b95ced in clone () from /lib64/libc.so.6
+
+Thread 101 (Thread 0x7ffea675d700 (LWP 32549)):
+#0  0x00007ffff7bca6d5 in pthread_cond_wait@@GLIBC_2.3.2 () from /lib64/libpthread.so.0
+#1  0x00007ffff0a350a3 in async_qget (aps=0x7fffe676dbe0, thr_id=88) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:257
+#2  0x00007ffff0a35da4 in async_main (arg=140737060627424) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:475
+#3  0x00007ffff066e6a4 in pthread_func_wrapper (arg=0x7fffe6817f00) at /home/parallels/src/zs/sdf/fth/fth.c:248
+#4  0x00007ffff7bc6dc5 in start_thread () from /lib64/libpthread.so.0
+#5  0x00007ffff6b95ced in clone () from /lib64/libc.so.6
+
+Thread 100 (Thread 0x7ffea775f700 (LWP 32548)):
+#0  0x00007ffff7bca6d5 in pthread_cond_wait@@GLIBC_2.3.2 () from /lib64/libpthread.so.0
+#1  0x00007ffff0a350a3 in async_qget (aps=0x7fffe676dbe0, thr_id=87) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:257
+#2  0x00007ffff0a35da4 in async_main (arg=140737060619680) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:475
+#3  0x00007ffff066e6a4 in pthread_func_wrapper (arg=0x7fffe68160c0) at /home/parallels/src/zs/sdf/fth/fth.c:248
+#4  0x00007ffff7bc6dc5 in start_thread () from /lib64/libpthread.so.0
+#5  0x00007ffff6b95ced in clone () from /lib64/libc.so.6
+
+Thread 99 (Thread 0x7ffea8a14700 (LWP 32547)):
+#0  0x00007ffff7bca6d5 in pthread_cond_wait@@GLIBC_2.3.2 () from /lib64/libpthread.so.0
+#1  0x00007ffff0a350a3 in async_qget (aps=0x7fffe676dbe0, thr_id=86) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:257
+#2  0x00007ffff0a35da4 in async_main (arg=140737060611936) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:475
+#3  0x00007ffff066e6a4 in pthread_func_wrapper (arg=0x7fffe6814280) at /home/parallels/src/zs/sdf/fth/fth.c:248
+#4  0x00007ffff7bc6dc5 in start_thread () from /lib64/libpthread.so.0
+#5  0x00007ffff6b95ced in clone () from /lib64/libc.so.6
+
+Thread 98 (Thread 0x7ffea9cc9700 (LWP 32546)):
+#0  0x00007ffff7bca6d5 in pthread_cond_wait@@GLIBC_2.3.2 () from /lib64/libpthread.so.0
+#1  0x00007ffff0a350a3 in async_qget (aps=0x7fffe676dbe0, thr_id=85) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:257
+#2  0x00007ffff0a35da4 in async_main (arg=140737060604192) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:475
+#3  0x00007ffff066e6a4 in pthread_func_wrapper (arg=0x7fffe6812440) at /home/parallels/src/zs/sdf/fth/fth.c:248
+#4  0x00007ffff7bc6dc5 in start_thread () from /lib64/libpthread.so.0
+#5  0x00007ffff6b95ced in clone () from /lib64/libc.so.6
+
+Thread 97 (Thread 0x7ffeaaf7e700 (LWP 32545)):
+#0  0x00007ffff7bca6d5 in pthread_cond_wait@@GLIBC_2.3.2 () from /lib64/libpthread.so.0
+#1  0x00007ffff0a350a3 in async_qget (aps=0x7fffe676dbe0, thr_id=84) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:257
+#2  0x00007ffff0a35da4 in async_main (arg=140737060596448) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:475
+#3  0x00007ffff066e6a4 in pthread_func_wrapper (arg=0x7fffe6810600) at /home/parallels/src/zs/sdf/fth/fth.c:248
+#4  0x00007ffff7bc6dc5 in start_thread () from /lib64/libpthread.so.0
+#5  0x00007ffff6b95ced in clone () from /lib64/libc.so.6
+
+Thread 96 (Thread 0x7ffeac233700 (LWP 32544)):
+#0  0x00007ffff7bca6d5 in pthread_cond_wait@@GLIBC_2.3.2 () from /lib64/libpthread.so.0
+#1  0x00007ffff0a350a3 in async_qget (aps=0x7fffe676dbe0, thr_id=83) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:257
+#2  0x00007ffff0a35da4 in async_main (arg=140737060588704) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:475
+#3  0x00007ffff066e6a4 in pthread_func_wrapper (arg=0x7fffe680e7c0) at /home/parallels/src/zs/sdf/fth/fth.c:248
+#4  0x00007ffff7bc6dc5 in start_thread () from /lib64/libpthread.so.0
+#5  0x00007ffff6b95ced in clone () from /lib64/libc.so.6
+
+Thread 95 (Thread 0x7ffead79b700 (LWP 32543)):
+#0  0x00007ffff7bca6d5 in pthread_cond_wait@@GLIBC_2.3.2 () from /lib64/libpthread.so.0
+#1  0x00007ffff0a350a3 in async_qget (aps=0x7fffe676dbe0, thr_id=82) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:257
+#2  0x00007ffff0a35da4 in async_main (arg=140737060580960) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:475
+#3  0x00007ffff066e6a4 in pthread_func_wrapper (arg=0x7fffe680c980) at /home/parallels/src/zs/sdf/fth/fth.c:248
+#4  0x00007ffff7bc6dc5 in start_thread () from /lib64/libpthread.so.0
+#5  0x00007ffff6b95ced in clone () from /lib64/libc.so.6
+
+Thread 94 (Thread 0x7ffeae79d700 (LWP 32542)):
+#0  0x00007ffff7bca6d5 in pthread_cond_wait@@GLIBC_2.3.2 () from /lib64/libpthread.so.0
+#1  0x00007ffff0a350a3 in async_qget (aps=0x7fffe676dbe0, thr_id=81) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:257
+#2  0x00007ffff0a35da4 in async_main (arg=140737060573216) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:475
+#3  0x00007ffff066e6a4 in pthread_func_wrapper (arg=0x7fffe680ab40) at /home/parallels/src/zs/sdf/fth/fth.c:248
+#4  0x00007ffff7bc6dc5 in start_thread () from /lib64/libpthread.so.0
+#5  0x00007ffff6b95ced in clone () from /lib64/libc.so.6
+
+Thread 93 (Thread 0x7ffeafa52700 (LWP 32541)):
+#0  0x00007ffff7bca6d5 in pthread_cond_wait@@GLIBC_2.3.2 () from /lib64/libpthread.so.0
+#1  0x00007ffff0a350a3 in async_qget (aps=0x7fffe676dbe0, thr_id=80) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:257
+#2  0x00007ffff0a35da4 in async_main (arg=140737060565472) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:475
+#3  0x00007ffff066e6a4 in pthread_func_wrapper (arg=0x7fffe6808d00) at /home/parallels/src/zs/sdf/fth/fth.c:248
+#4  0x00007ffff7bc6dc5 in start_thread () from /lib64/libpthread.so.0
+#5  0x00007ffff6b95ced in clone () from /lib64/libc.so.6
+
+Thread 92 (Thread 0x7ffeb0d07700 (LWP 32540)):
+#0  0x00007ffff7bca6d5 in pthread_cond_wait@@GLIBC_2.3.2 () from /lib64/libpthread.so.0
+#1  0x00007ffff0a350a3 in async_qget (aps=0x7fffe676dbe0, thr_id=79) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:257
+#2  0x00007ffff0a35da4 in async_main (arg=140737060557728) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:475
+#3  0x00007ffff066e6a4 in pthread_func_wrapper (arg=0x7fffe6806ec0) at /home/parallels/src/zs/sdf/fth/fth.c:248
+#4  0x00007ffff7bc6dc5 in start_thread () from /lib64/libpthread.so.0
+#5  0x00007ffff6b95ced in clone () from /lib64/libc.so.6
+
+Thread 91 (Thread 0x7ffeb1e81700 (LWP 32539)):
+#0  0x00007ffff7bca6d5 in pthread_cond_wait@@GLIBC_2.3.2 () from /lib64/libpthread.so.0
+#1  0x00007ffff0a350a3 in async_qget (aps=0x7fffe676dbe0, thr_id=78) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:257
+#2  0x00007ffff0a35da4 in async_main (arg=140737060549984) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:475
+#3  0x00007ffff066e6a4 in pthread_func_wrapper (arg=0x7fffe6805080) at /home/parallels/src/zs/sdf/fth/fth.c:248
+#4  0x00007ffff7bc6dc5 in start_thread () from /lib64/libpthread.so.0
+#5  0x00007ffff6b95ced in clone () from /lib64/libc.so.6
+
+Thread 90 (Thread 0x7ffeb2ffb700 (LWP 32538)):
+#0  0x00007ffff7bca6d5 in pthread_cond_wait@@GLIBC_2.3.2 () from /lib64/libpthread.so.0
+#1  0x00007ffff0a350a3 in async_qget (aps=0x7fffe676dbe0, thr_id=77) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:257
+#2  0x00007ffff0a35da4 in async_main (arg=140737060540992) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:475
+#3  0x00007ffff066e6a4 in pthread_func_wrapper (arg=0x7fffe6802d60) at /home/parallels/src/zs/sdf/fth/fth.c:248
+#4  0x00007ffff7bc6dc5 in start_thread () from /lib64/libpthread.so.0
+#5  0x00007ffff6b95ced in clone () from /lib64/libc.so.6
+
+Thread 89 (Thread 0x7ffeb3ffd700 (LWP 32537)):
+#0  0x00007ffff7bca6d5 in pthread_cond_wait@@GLIBC_2.3.2 () from /lib64/libpthread.so.0
+#1  0x00007ffff0a350a3 in async_qget (aps=0x7fffe676dbe0, thr_id=76) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:257
+#2  0x00007ffff0a35da4 in async_main (arg=140737060533248) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:475
+#3  0x00007ffff066e6a4 in pthread_func_wrapper (arg=0x7fffe6800f20) at /home/parallels/src/zs/sdf/fth/fth.c:248
+#4  0x00007ffff7bc6dc5 in start_thread () from /lib64/libpthread.so.0
+#5  0x00007ffff6b95ced in clone () from /lib64/libc.so.6
+
+Thread 88 (Thread 0x7ffeb4fff700 (LWP 32536)):
+#0  0x00007ffff7bca6d5 in pthread_cond_wait@@GLIBC_2.3.2 () from /lib64/libpthread.so.0
+#1  0x00007ffff0a350a3 in async_qget (aps=0x7fffe676dbe0, thr_id=75) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:257
+#2  0x00007ffff0a35da4 in async_main (arg=140737060525504) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:475
+#3  0x00007ffff066e6a4 in pthread_func_wrapper (arg=0x7fffe67ff0e0) at /home/parallels/src/zs/sdf/fth/fth.c:248
+#4  0x00007ffff7bc6dc5 in start_thread () from /lib64/libpthread.so.0
+#5  0x00007ffff6b95ced in clone () from /lib64/libc.so.6
+
+Thread 87 (Thread 0x7ffeb7a9c700 (LWP 32535)):
+#0  0x00007ffff7bca6d5 in pthread_cond_wait@@GLIBC_2.3.2 () from /lib64/libpthread.so.0
+#1  0x00007ffff0a350a3 in async_qget (aps=0x7fffe676dbe0, thr_id=74) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:257
+#2  0x00007ffff0a35da4 in async_main (arg=140737060517760) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:475
+#3  0x00007ffff066e6a4 in pthread_func_wrapper (arg=0x7fffe67fd2a0) at /home/parallels/src/zs/sdf/fth/fth.c:248
+#4  0x00007ffff7bc6dc5 in start_thread () from /lib64/libpthread.so.0
+#5  0x00007ffff6b95ced in clone () from /lib64/libc.so.6
+
+Thread 86 (Thread 0x7ffeb8d51700 (LWP 32534)):
+#0  0x00007ffff7bca6d5 in pthread_cond_wait@@GLIBC_2.3.2 () from /lib64/libpthread.so.0
+#1  0x00007ffff0a350a3 in async_qget (aps=0x7fffe676dbe0, thr_id=73) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:257
+#2  0x00007ffff0a35da4 in async_main (arg=140737060510016) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:475
+#3  0x00007ffff066e6a4 in pthread_func_wrapper (arg=0x7fffe67fb460) at /home/parallels/src/zs/sdf/fth/fth.c:248
+#4  0x00007ffff7bc6dc5 in start_thread () from /lib64/libpthread.so.0
+#5  0x00007ffff6b95ced in clone () from /lib64/libc.so.6
+
+Thread 85 (Thread 0x7ffeba288700 (LWP 32533)):
+#0  0x00007ffff7bca6d5 in pthread_cond_wait@@GLIBC_2.3.2 () from /lib64/libpthread.so.0
+#1  0x00007ffff0a350a3 in async_qget (aps=0x7fffe676dbe0, thr_id=72) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:257
+#2  0x00007ffff0a35da4 in async_main (arg=140737060502272) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:475
+#3  0x00007ffff066e6a4 in pthread_func_wrapper (arg=0x7fffe67f9620) at /home/parallels/src/zs/sdf/fth/fth.c:248
+#4  0x00007ffff7bc6dc5 in start_thread () from /lib64/libpthread.so.0
+#5  0x00007ffff6b95ced in clone () from /lib64/libc.so.6
+
+Thread 84 (Thread 0x7ffebb2bb700 (LWP 32532)):
+#0  0x00007ffff7bca6d5 in pthread_cond_wait@@GLIBC_2.3.2 () from /lib64/libpthread.so.0
+#1  0x00007ffff0a350a3 in async_qget (aps=0x7fffe676dbe0, thr_id=71) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:257
+#2  0x00007ffff0a35da4 in async_main (arg=140737060494528) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:475
+#3  0x00007ffff066e6a4 in pthread_func_wrapper (arg=0x7fffe67f77e0) at /home/parallels/src/zs/sdf/fth/fth.c:248
+#4  0x00007ffff7bc6dc5 in start_thread () from /lib64/libpthread.so.0
+#5  0x00007ffff6b95ced in clone () from /lib64/libc.so.6
+
+Thread 83 (Thread 0x7ffebc570700 (LWP 32531)):
+#0  0x00007ffff7bca6d5 in pthread_cond_wait@@GLIBC_2.3.2 () from /lib64/libpthread.so.0
+#1  0x00007ffff0a350a3 in async_qget (aps=0x7fffe676dbe0, thr_id=70) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:257
+#2  0x00007ffff0a35da4 in async_main (arg=140737060486784) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:475
+#3  0x00007ffff066e6a4 in pthread_func_wrapper (arg=0x7fffe67f59a0) at /home/parallels/src/zs/sdf/fth/fth.c:248
+#4  0x00007ffff7bc6dc5 in start_thread () from /lib64/libpthread.so.0
+#5  0x00007ffff6b95ced in clone () from /lib64/libc.so.6
+
+Thread 82 (Thread 0x7ffebd825700 (LWP 32530)):
+#0  0x00007ffff7bca6d5 in pthread_cond_wait@@GLIBC_2.3.2 () from /lib64/libpthread.so.0
+#1  0x00007ffff0a350a3 in async_qget (aps=0x7fffe676dbe0, thr_id=69) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:257
+#2  0x00007ffff0a35da4 in async_main (arg=140737060479040) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:475
+#3  0x00007ffff066e6a4 in pthread_func_wrapper (arg=0x7fffe67f3b60) at /home/parallels/src/zs/sdf/fth/fth.c:248
+#4  0x00007ffff7bc6dc5 in start_thread () from /lib64/libpthread.so.0
+#5  0x00007ffff6b95ced in clone () from /lib64/libc.so.6
+
+Thread 81 (Thread 0x7ffebeada700 (LWP 32529)):
+#0  0x00007ffff7bca6d5 in pthread_cond_wait@@GLIBC_2.3.2 () from /lib64/libpthread.so.0
+#1  0x00007ffff0a350a3 in async_qget (aps=0x7fffe676dbe0, thr_id=68) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:257
+#2  0x00007ffff0a35da4 in async_main (arg=140737060471296) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:475
+#3  0x00007ffff066e6a4 in pthread_func_wrapper (arg=0x7fffe67f1d20) at /home/parallels/src/zs/sdf/fth/fth.c:248
+#4  0x00007ffff7bc6dc5 in start_thread () from /lib64/libpthread.so.0
+#5  0x00007ffff6b95ced in clone () from /lib64/libc.so.6
+
+Thread 80 (Thread 0x7ffebfd8f700 (LWP 32528)):
+#0  0x00007ffff7bca6d5 in pthread_cond_wait@@GLIBC_2.3.2 () from /lib64/libpthread.so.0
+#1  0x00007ffff0a350a3 in async_qget (aps=0x7fffe676dbe0, thr_id=67) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:257
+#2  0x00007ffff0a35da4 in async_main (arg=140737060463552) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:475
+#3  0x00007ffff066e6a4 in pthread_func_wrapper (arg=0x7fffe67efee0) at /home/parallels/src/zs/sdf/fth/fth.c:248
+#4  0x00007ffff7bc6dc5 in start_thread () from /lib64/libpthread.so.0
+#5  0x00007ffff6b95ced in clone () from /lib64/libc.so.6
+
+Thread 79 (Thread 0x7ffec1044700 (LWP 32527)):
+#0  0x00007ffff7bca6d5 in pthread_cond_wait@@GLIBC_2.3.2 () from /lib64/libpthread.so.0
+#1  0x00007ffff0a350a3 in async_qget (aps=0x7fffe676dbe0, thr_id=66) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:257
+#2  0x00007ffff0a35da4 in async_main (arg=140737060455808) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:475
+#3  0x00007ffff066e6a4 in pthread_func_wrapper (arg=0x7fffe67ee0a0) at /home/parallels/src/zs/sdf/fth/fth.c:248
+#4  0x00007ffff7bc6dc5 in start_thread () from /lib64/libpthread.so.0
+#5  0x00007ffff6b95ced in clone () from /lib64/libc.so.6
+
+Thread 78 (Thread 0x7ffec22f9700 (LWP 32526)):
+#0  0x00007ffff7bca6d5 in pthread_cond_wait@@GLIBC_2.3.2 () from /lib64/libpthread.so.0
+#1  0x00007ffff0a350a3 in async_qget (aps=0x7fffe676dbe0, thr_id=65) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:257
+#2  0x00007ffff0a35da4 in async_main (arg=140737060448064) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:475
+#3  0x00007ffff066e6a4 in pthread_func_wrapper (arg=0x7fffe67ec260) at /home/parallels/src/zs/sdf/fth/fth.c:248
+#4  0x00007ffff7bc6dc5 in start_thread () from /lib64/libpthread.so.0
+#5  0x00007ffff6b95ced in clone () from /lib64/libc.so.6
+
+Thread 77 (Thread 0x7ffec35ae700 (LWP 32525)):
+#0  0x00007ffff7bca6d5 in pthread_cond_wait@@GLIBC_2.3.2 () from /lib64/libpthread.so.0
+#1  0x00007ffff0a350a3 in async_qget (aps=0x7fffe676dbe0, thr_id=64) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:257
+#2  0x00007ffff0a35da4 in async_main (arg=140737060440320) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:475
+#3  0x00007ffff066e6a4 in pthread_func_wrapper (arg=0x7fffe67ea420) at /home/parallels/src/zs/sdf/fth/fth.c:248
+#4  0x00007ffff7bc6dc5 in start_thread () from /lib64/libpthread.so.0
+#5  0x00007ffff6b95ced in clone () from /lib64/libc.so.6
+
+Thread 76 (Thread 0x7ffec4863700 (LWP 32524)):
+#0  0x00007ffff7bca6d5 in pthread_cond_wait@@GLIBC_2.3.2 () from /lib64/libpthread.so.0
+#1  0x00007ffff0a350a3 in async_qget (aps=0x7fffe676dbe0, thr_id=63) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:257
+#2  0x00007ffff0a35da4 in async_main (arg=140737060432576) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:475
+#3  0x00007ffff066e6a4 in pthread_func_wrapper (arg=0x7fffe67e85e0) at /home/parallels/src/zs/sdf/fth/fth.c:248
+#4  0x00007ffff7bc6dc5 in start_thread () from /lib64/libpthread.so.0
+#5  0x00007ffff6b95ced in clone () from /lib64/libc.so.6
+
+Thread 75 (Thread 0x7ffec5b18700 (LWP 32523)):
+#0  0x00007ffff7bca6d5 in pthread_cond_wait@@GLIBC_2.3.2 () from /lib64/libpthread.so.0
+#1  0x00007ffff0a350a3 in async_qget (aps=0x7fffe676dbe0, thr_id=62) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:257
+#2  0x00007ffff0a35da4 in async_main (arg=140737060424832) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:475
+#3  0x00007ffff066e6a4 in pthread_func_wrapper (arg=0x7fffe67e67a0) at /home/parallels/src/zs/sdf/fth/fth.c:248
+#4  0x00007ffff7bc6dc5 in start_thread () from /lib64/libpthread.so.0
+#5  0x00007ffff6b95ced in clone () from /lib64/libc.so.6
+
+Thread 74 (Thread 0x7ffec6dcd700 (LWP 32522)):
+#0  0x00007ffff7bca6d5 in pthread_cond_wait@@GLIBC_2.3.2 () from /lib64/libpthread.so.0
+#1  0x00007ffff0a350a3 in async_qget (aps=0x7fffe676dbe0, thr_id=61) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:257
+#2  0x00007ffff0a35da4 in async_main (arg=140737060415840) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:475
+#3  0x00007ffff066e6a4 in pthread_func_wrapper (arg=0x7fffe67e4480) at /home/parallels/src/zs/sdf/fth/fth.c:248
+#4  0x00007ffff7bc6dc5 in start_thread () from /lib64/libpthread.so.0
+#5  0x00007ffff6b95ced in clone () from /lib64/libc.so.6
+
+Thread 73 (Thread 0x7ffec8082700 (LWP 32521)):
+#0  0x00007ffff7bca6d5 in pthread_cond_wait@@GLIBC_2.3.2 () from /lib64/libpthread.so.0
+#1  0x00007ffff0a350a3 in async_qget (aps=0x7fffe676dbe0, thr_id=60) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:257
+#2  0x00007ffff0a35da4 in async_main (arg=140737060408096) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:475
+#3  0x00007ffff066e6a4 in pthread_func_wrapper (arg=0x7fffe67e2640) at /home/parallels/src/zs/sdf/fth/fth.c:248
+#4  0x00007ffff7bc6dc5 in start_thread () from /lib64/libpthread.so.0
+#5  0x00007ffff6b95ced in clone () from /lib64/libc.so.6
+
+Thread 72 (Thread 0x7ffec9337700 (LWP 32520)):
+#0  0x00007ffff7bca6d5 in pthread_cond_wait@@GLIBC_2.3.2 () from /lib64/libpthread.so.0
+#1  0x00007ffff0a350a3 in async_qget (aps=0x7fffe676dbe0, thr_id=59) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:257
+#2  0x00007ffff0a35da4 in async_main (arg=140737060400352) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:475
+#3  0x00007ffff066e6a4 in pthread_func_wrapper (arg=0x7fffe67e0800) at /home/parallels/src/zs/sdf/fth/fth.c:248
+#4  0x00007ffff7bc6dc5 in start_thread () from /lib64/libpthread.so.0
+#5  0x00007ffff6b95ced in clone () from /lib64/libc.so.6
+
+Thread 71 (Thread 0x7ffeca5ec700 (LWP 32519)):
+#0  0x00007ffff7bca6d5 in pthread_cond_wait@@GLIBC_2.3.2 () from /lib64/libpthread.so.0
+#1  0x00007ffff0a350a3 in async_qget (aps=0x7fffe676dbe0, thr_id=58) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:257
+#2  0x00007ffff0a35da4 in async_main (arg=140737060392608) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:475
+#3  0x00007ffff066e6a4 in pthread_func_wrapper (arg=0x7fffe67de9c0) at /home/parallels/src/zs/sdf/fth/fth.c:248
+#4  0x00007ffff7bc6dc5 in start_thread () from /lib64/libpthread.so.0
+#5  0x00007ffff6b95ced in clone () from /lib64/libc.so.6
+
+Thread 70 (Thread 0x7ffecb8a1700 (LWP 32518)):
+#0  0x00007ffff7bca6d5 in pthread_cond_wait@@GLIBC_2.3.2 () from /lib64/libpthread.so.0
+#1  0x00007ffff0a350a3 in async_qget (aps=0x7fffe676dbe0, thr_id=57) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:257
+#2  0x00007ffff0a35da4 in async_main (arg=140737060384864) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:475
+#3  0x00007ffff066e6a4 in pthread_func_wrapper (arg=0x7fffe67dcb80) at /home/parallels/src/zs/sdf/fth/fth.c:248
+#4  0x00007ffff7bc6dc5 in start_thread () from /lib64/libpthread.so.0
+#5  0x00007ffff6b95ced in clone () from /lib64/libc.so.6
+
+Thread 69 (Thread 0x7ffeccb56700 (LWP 32517)):
+#0  0x00007ffff7bca6d5 in pthread_cond_wait@@GLIBC_2.3.2 () from /lib64/libpthread.so.0
+#1  0x00007ffff0a350a3 in async_qget (aps=0x7fffe676dbe0, thr_id=56) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:257
+#2  0x00007ffff0a35da4 in async_main (arg=140737060377120) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:475
+#3  0x00007ffff066e6a4 in pthread_func_wrapper (arg=0x7fffe67dad40) at /home/parallels/src/zs/sdf/fth/fth.c:248
+#4  0x00007ffff7bc6dc5 in start_thread () from /lib64/libpthread.so.0
+#5  0x00007ffff6b95ced in clone () from /lib64/libc.so.6
+
+Thread 68 (Thread 0x7ffecde0b700 (LWP 32516)):
+#0  0x00007ffff7bca6d5 in pthread_cond_wait@@GLIBC_2.3.2 () from /lib64/libpthread.so.0
+#1  0x00007ffff0a350a3 in async_qget (aps=0x7fffe676dbe0, thr_id=55) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:257
+#2  0x00007ffff0a35da4 in async_main (arg=140737060369376) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:475
+#3  0x00007ffff066e6a4 in pthread_func_wrapper (arg=0x7fffe67d8f00) at /home/parallels/src/zs/sdf/fth/fth.c:248
+#4  0x00007ffff7bc6dc5 in start_thread () from /lib64/libpthread.so.0
+#5  0x00007ffff6b95ced in clone () from /lib64/libc.so.6
+
+Thread 67 (Thread 0x7ffecf0c0700 (LWP 32515)):
+#0  0x00007ffff7bca6d5 in pthread_cond_wait@@GLIBC_2.3.2 () from /lib64/libpthread.so.0
+#1  0x00007ffff0a350a3 in async_qget (aps=0x7fffe676dbe0, thr_id=54) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:257
+#2  0x00007ffff0a35da4 in async_main (arg=140737060361632) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:475
+#3  0x00007ffff066e6a4 in pthread_func_wrapper (arg=0x7fffe67d70c0) at /home/parallels/src/zs/sdf/fth/fth.c:248
+#4  0x00007ffff7bc6dc5 in start_thread () from /lib64/libpthread.so.0
+#5  0x00007ffff6b95ced in clone () from /lib64/libc.so.6
+
+Thread 66 (Thread 0x7ffed0375700 (LWP 32514)):
+#0  0x00007ffff7bca6d5 in pthread_cond_wait@@GLIBC_2.3.2 () from /lib64/libpthread.so.0
+#1  0x00007ffff0a350a3 in async_qget (aps=0x7fffe676dbe0, thr_id=53) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:257
+#2  0x00007ffff0a35da4 in async_main (arg=140737060353888) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:475
+#3  0x00007ffff066e6a4 in pthread_func_wrapper (arg=0x7fffe67d5280) at /home/parallels/src/zs/sdf/fth/fth.c:248
+#4  0x00007ffff7bc6dc5 in start_thread () from /lib64/libpthread.so.0
+#5  0x00007ffff6b95ced in clone () from /lib64/libc.so.6
+
+Thread 65 (Thread 0x7ffed162a700 (LWP 32513)):
+#0  0x00007ffff7bca6d5 in pthread_cond_wait@@GLIBC_2.3.2 () from /lib64/libpthread.so.0
+#1  0x00007ffff0a350a3 in async_qget (aps=0x7fffe676dbe0, thr_id=52) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:257
+#2  0x00007ffff0a35da4 in async_main (arg=140737060346144) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:475
+#3  0x00007ffff066e6a4 in pthread_func_wrapper (arg=0x7fffe67d3440) at /home/parallels/src/zs/sdf/fth/fth.c:248
+#4  0x00007ffff7bc6dc5 in start_thread () from /lib64/libpthread.so.0
+#5  0x00007ffff6b95ced in clone () from /lib64/libc.so.6
+
+Thread 64 (Thread 0x7ffed28df700 (LWP 32512)):
+#0  0x00007ffff7bca6d5 in pthread_cond_wait@@GLIBC_2.3.2 () from /lib64/libpthread.so.0
+#1  0x00007ffff0a350a3 in async_qget (aps=0x7fffe676dbe0, thr_id=51) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:257
+#2  0x00007ffff0a35da4 in async_main (arg=140737060338400) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:475
+#3  0x00007ffff066e6a4 in pthread_func_wrapper (arg=0x7fffe67d1600) at /home/parallels/src/zs/sdf/fth/fth.c:248
+#4  0x00007ffff7bc6dc5 in start_thread () from /lib64/libpthread.so.0
+#5  0x00007ffff6b95ced in clone () from /lib64/libc.so.6
+
+Thread 63 (Thread 0x7ffed3b94700 (LWP 32511)):
+#0  0x00007ffff7bca6d5 in pthread_cond_wait@@GLIBC_2.3.2 () from /lib64/libpthread.so.0
+#1  0x00007ffff0a350a3 in async_qget (aps=0x7fffe676dbe0, thr_id=50) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:257
+#2  0x00007ffff0a35da4 in async_main (arg=140737060330656) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:475
+#3  0x00007ffff066e6a4 in pthread_func_wrapper (arg=0x7fffe67cf7c0) at /home/parallels/src/zs/sdf/fth/fth.c:248
+#4  0x00007ffff7bc6dc5 in start_thread () from /lib64/libpthread.so.0
+#5  0x00007ffff6b95ced in clone () from /lib64/libc.so.6
+
+Thread 62 (Thread 0x7ffed4e49700 (LWP 32510)):
+#0  0x00007ffff7bca6d5 in pthread_cond_wait@@GLIBC_2.3.2 () from /lib64/libpthread.so.0
+#1  0x00007ffff0a350a3 in async_qget (aps=0x7fffe676dbe0, thr_id=49) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:257
+#2  0x00007ffff0a35da4 in async_main (arg=140737060322912) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:475
+#3  0x00007ffff066e6a4 in pthread_func_wrapper (arg=0x7fffe67cd980) at /home/parallels/src/zs/sdf/fth/fth.c:248
+#4  0x00007ffff7bc6dc5 in start_thread () from /lib64/libpthread.so.0
+#5  0x00007ffff6b95ced in clone () from /lib64/libc.so.6
+
+Thread 61 (Thread 0x7ffed60fe700 (LWP 32509)):
+#0  0x00007ffff7bca6d5 in pthread_cond_wait@@GLIBC_2.3.2 () from /lib64/libpthread.so.0
+#1  0x00007ffff0a350a3 in async_qget (aps=0x7fffe676dbe0, thr_id=48) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:257
+#2  0x00007ffff0a35da4 in async_main (arg=140737060315168) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:475
+#3  0x00007ffff066e6a4 in pthread_func_wrapper (arg=0x7fffe67cbb40) at /home/parallels/src/zs/sdf/fth/fth.c:248
+#4  0x00007ffff7bc6dc5 in start_thread () from /lib64/libpthread.so.0
+#5  0x00007ffff6b95ced in clone () from /lib64/libc.so.6
+
+Thread 60 (Thread 0x7ffed73b3700 (LWP 32508)):
+#0  0x00007ffff7bca6d5 in pthread_cond_wait@@GLIBC_2.3.2 () from /lib64/libpthread.so.0
+#1  0x00007ffff0a350a3 in async_qget (aps=0x7fffe676dbe0, thr_id=47) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:257
+#2  0x00007ffff0a35da4 in async_main (arg=140737060307424) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:475
+#3  0x00007ffff066e6a4 in pthread_func_wrapper (arg=0x7fffe67c9d00) at /home/parallels/src/zs/sdf/fth/fth.c:248
+#4  0x00007ffff7bc6dc5 in start_thread () from /lib64/libpthread.so.0
+#5  0x00007ffff6b95ced in clone () from /lib64/libc.so.6
+
+Thread 59 (Thread 0x7ffed8668700 (LWP 32507)):
+#0  0x00007ffff7bca6d5 in pthread_cond_wait@@GLIBC_2.3.2 () from /lib64/libpthread.so.0
+#1  0x00007ffff0a350a3 in async_qget (aps=0x7fffe676dbe0, thr_id=46) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:257
+#2  0x00007ffff0a35da4 in async_main (arg=140737060299680) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:475
+#3  0x00007ffff066e6a4 in pthread_func_wrapper (arg=0x7fffe67c7ec0) at /home/parallels/src/zs/sdf/fth/fth.c:248
+#4  0x00007ffff7bc6dc5 in start_thread () from /lib64/libpthread.so.0
+#5  0x00007ffff6b95ced in clone () from /lib64/libc.so.6
+
+Thread 58 (Thread 0x7ffed991d700 (LWP 32506)):
+#0  0x00007ffff7bca6d5 in pthread_cond_wait@@GLIBC_2.3.2 () from /lib64/libpthread.so.0
+#1  0x00007ffff0a350a3 in async_qget (aps=0x7fffe676dbe0, thr_id=45) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:257
+#2  0x00007ffff0a35da4 in async_main (arg=140737060290688) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:475
+#3  0x00007ffff066e6a4 in pthread_func_wrapper (arg=0x7fffe67c5ba0) at /home/parallels/src/zs/sdf/fth/fth.c:248
+#4  0x00007ffff7bc6dc5 in start_thread () from /lib64/libpthread.so.0
+#5  0x00007ffff6b95ced in clone () from /lib64/libc.so.6
+
+Thread 57 (Thread 0x7ffedabd2700 (LWP 32505)):
+#0  0x00007ffff7bca6d5 in pthread_cond_wait@@GLIBC_2.3.2 () from /lib64/libpthread.so.0
+#1  0x00007ffff0a350a3 in async_qget (aps=0x7fffe676dbe0, thr_id=44) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:257
+#2  0x00007ffff0a35da4 in async_main (arg=140737060282944) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:475
+#3  0x00007ffff066e6a4 in pthread_func_wrapper (arg=0x7fffe67c3d60) at /home/parallels/src/zs/sdf/fth/fth.c:248
+#4  0x00007ffff7bc6dc5 in start_thread () from /lib64/libpthread.so.0
+#5  0x00007ffff6b95ced in clone () from /lib64/libc.so.6
+
+Thread 56 (Thread 0x7ffedbe87700 (LWP 32504)):
+#0  0x00007ffff7bca6d5 in pthread_cond_wait@@GLIBC_2.3.2 () from /lib64/libpthread.so.0
+#1  0x00007ffff0a350a3 in async_qget (aps=0x7fffe676dbe0, thr_id=43) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:257
+#2  0x00007ffff0a35da4 in async_main (arg=140737060275200) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:475
+#3  0x00007ffff066e6a4 in pthread_func_wrapper (arg=0x7fffe67c1f20) at /home/parallels/src/zs/sdf/fth/fth.c:248
+#4  0x00007ffff7bc6dc5 in start_thread () from /lib64/libpthread.so.0
+#5  0x00007ffff6b95ced in clone () from /lib64/libc.so.6
+
+Thread 55 (Thread 0x7ffedd13c700 (LWP 32503)):
+#0  0x00007ffff7bca6d5 in pthread_cond_wait@@GLIBC_2.3.2 () from /lib64/libpthread.so.0
+#1  0x00007ffff0a350a3 in async_qget (aps=0x7fffe676dbe0, thr_id=42) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:257
+#2  0x00007ffff0a35da4 in async_main (arg=140737060267456) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:475
+#3  0x00007ffff066e6a4 in pthread_func_wrapper (arg=0x7fffe67c00e0) at /home/parallels/src/zs/sdf/fth/fth.c:248
+#4  0x00007ffff7bc6dc5 in start_thread () from /lib64/libpthread.so.0
+#5  0x00007ffff6b95ced in clone () from /lib64/libc.so.6
+
+Thread 54 (Thread 0x7ffede3f1700 (LWP 32502)):
+#0  0x00007ffff7bca6d5 in pthread_cond_wait@@GLIBC_2.3.2 () from /lib64/libpthread.so.0
+#1  0x00007ffff0a350a3 in async_qget (aps=0x7fffe676dbe0, thr_id=41) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:257
+#2  0x00007ffff0a35da4 in async_main (arg=140737060259712) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:475
+#3  0x00007ffff066e6a4 in pthread_func_wrapper (arg=0x7fffe67be2a0) at /home/parallels/src/zs/sdf/fth/fth.c:248
+#4  0x00007ffff7bc6dc5 in start_thread () from /lib64/libpthread.so.0
+#5  0x00007ffff6b95ced in clone () from /lib64/libc.so.6
+
+Thread 53 (Thread 0x7ffedf6a6700 (LWP 32501)):
+#0  0x00007ffff7bca6d5 in pthread_cond_wait@@GLIBC_2.3.2 () from /lib64/libpthread.so.0
+#1  0x00007ffff0a350a3 in async_qget (aps=0x7fffe676dbe0, thr_id=40) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:257
+#2  0x00007ffff0a35da4 in async_main (arg=140737060251968) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:475
+#3  0x00007ffff066e6a4 in pthread_func_wrapper (arg=0x7fffe67bc460) at /home/parallels/src/zs/sdf/fth/fth.c:248
+#4  0x00007ffff7bc6dc5 in start_thread () from /lib64/libpthread.so.0
+#5  0x00007ffff6b95ced in clone () from /lib64/libc.so.6
+
+Thread 52 (Thread 0x7ffee095b700 (LWP 32500)):
+#0  0x00007ffff7bca6d5 in pthread_cond_wait@@GLIBC_2.3.2 () from /lib64/libpthread.so.0
+#1  0x00007ffff0a350a3 in async_qget (aps=0x7fffe676dbe0, thr_id=39) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:257
+#2  0x00007ffff0a35da4 in async_main (arg=140737060244224) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:475
+#3  0x00007ffff066e6a4 in pthread_func_wrapper (arg=0x7fffe67ba620) at /home/parallels/src/zs/sdf/fth/fth.c:248
+#4  0x00007ffff7bc6dc5 in start_thread () from /lib64/libpthread.so.0
+#5  0x00007ffff6b95ced in clone () from /lib64/libc.so.6
+
+Thread 51 (Thread 0x7ffee1c10700 (LWP 32499)):
+#0  0x00007ffff7bca6d5 in pthread_cond_wait@@GLIBC_2.3.2 () from /lib64/libpthread.so.0
+#1  0x00007ffff0a350a3 in async_qget (aps=0x7fffe676dbe0, thr_id=38) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:257
+#2  0x00007ffff0a35da4 in async_main (arg=140737060236480) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:475
+#3  0x00007ffff066e6a4 in pthread_func_wrapper (arg=0x7fffe67b87e0) at /home/parallels/src/zs/sdf/fth/fth.c:248
+#4  0x00007ffff7bc6dc5 in start_thread () from /lib64/libpthread.so.0
+#5  0x00007ffff6b95ced in clone () from /lib64/libc.so.6
+
+Thread 50 (Thread 0x7ffee2ec5700 (LWP 32498)):
+#0  0x00007ffff7bca6d5 in pthread_cond_wait@@GLIBC_2.3.2 () from /lib64/libpthread.so.0
+#1  0x00007ffff0a350a3 in async_qget (aps=0x7fffe676dbe0, thr_id=37) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:257
+#2  0x00007ffff0a35da4 in async_main (arg=140737060228736) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:475
+#3  0x00007ffff066e6a4 in pthread_func_wrapper (arg=0x7fffe67b69a0) at /home/parallels/src/zs/sdf/fth/fth.c:248
+#4  0x00007ffff7bc6dc5 in start_thread () from /lib64/libpthread.so.0
+#5  0x00007ffff6b95ced in clone () from /lib64/libc.so.6
+
+Thread 49 (Thread 0x7ffee417a700 (LWP 32497)):
+#0  0x00007ffff7bca6d5 in pthread_cond_wait@@GLIBC_2.3.2 () from /lib64/libpthread.so.0
+#1  0x00007ffff0a350a3 in async_qget (aps=0x7fffe676dbe0, thr_id=36) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:257
+#2  0x00007ffff0a35da4 in async_main (arg=140737060220992) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:475
+#3  0x00007ffff066e6a4 in pthread_func_wrapper (arg=0x7fffe67b4b60) at /home/parallels/src/zs/sdf/fth/fth.c:248
+#4  0x00007ffff7bc6dc5 in start_thread () from /lib64/libpthread.so.0
+#5  0x00007ffff6b95ced in clone () from /lib64/libc.so.6
+
+Thread 48 (Thread 0x7ffee542f700 (LWP 32496)):
+#0  0x00007ffff7bca6d5 in pthread_cond_wait@@GLIBC_2.3.2 () from /lib64/libpthread.so.0
+#1  0x00007ffff0a350a3 in async_qget (aps=0x7fffe676dbe0, thr_id=35) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:257
+#2  0x00007ffff0a35da4 in async_main (arg=140737060213248) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:475
+#3  0x00007ffff066e6a4 in pthread_func_wrapper (arg=0x7fffe67b2d20) at /home/parallels/src/zs/sdf/fth/fth.c:248
+#4  0x00007ffff7bc6dc5 in start_thread () from /lib64/libpthread.so.0
+#5  0x00007ffff6b95ced in clone () from /lib64/libc.so.6
+
+Thread 47 (Thread 0x7ffee66e4700 (LWP 32495)):
+#0  0x00007ffff7bca6d5 in pthread_cond_wait@@GLIBC_2.3.2 () from /lib64/libpthread.so.0
+#1  0x00007ffff0a350a3 in async_qget (aps=0x7fffe676dbe0, thr_id=34) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:257
+#2  0x00007ffff0a35da4 in async_main (arg=140737060205504) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:475
+#3  0x00007ffff066e6a4 in pthread_func_wrapper (arg=0x7fffe67b0ee0) at /home/parallels/src/zs/sdf/fth/fth.c:248
+#4  0x00007ffff7bc6dc5 in start_thread () from /lib64/libpthread.so.0
+#5  0x00007ffff6b95ced in clone () from /lib64/libc.so.6
+
+Thread 46 (Thread 0x7ffee7999700 (LWP 32494)):
+#0  0x00007ffff7bca6d5 in pthread_cond_wait@@GLIBC_2.3.2 () from /lib64/libpthread.so.0
+#1  0x00007ffff0a350a3 in async_qget (aps=0x7fffe676dbe0, thr_id=33) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:257
+#2  0x00007ffff0a35da4 in async_main (arg=140737060197760) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:475
+#3  0x00007ffff066e6a4 in pthread_func_wrapper (arg=0x7fffe67af0a0) at /home/parallels/src/zs/sdf/fth/fth.c:248
+#4  0x00007ffff7bc6dc5 in start_thread () from /lib64/libpthread.so.0
+#5  0x00007ffff6b95ced in clone () from /lib64/libc.so.6
+
+Thread 45 (Thread 0x7ffee8c4e700 (LWP 32493)):
+#0  0x00007ffff7bca6d5 in pthread_cond_wait@@GLIBC_2.3.2 () from /lib64/libpthread.so.0
+#1  0x00007ffff0a350a3 in async_qget (aps=0x7fffe676dbe0, thr_id=32) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:257
+#2  0x00007ffff0a35da4 in async_main (arg=140737060190016) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:475
+#3  0x00007ffff066e6a4 in pthread_func_wrapper (arg=0x7fffe67ad260) at /home/parallels/src/zs/sdf/fth/fth.c:248
+#4  0x00007ffff7bc6dc5 in start_thread () from /lib64/libpthread.so.0
+#5  0x00007ffff6b95ced in clone () from /lib64/libc.so.6
+
+Thread 44 (Thread 0x7ffee9ed2700 (LWP 32492)):
+#0  0x00007ffff7bca6d5 in pthread_cond_wait@@GLIBC_2.3.2 () from /lib64/libpthread.so.0
+#1  0x00007ffff0a350a3 in async_qget (aps=0x7fffe676dbe0, thr_id=31) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:257
+#2  0x00007ffff0a35da4 in async_main (arg=140737060182272) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:475
+#3  0x00007ffff066e6a4 in pthread_func_wrapper (arg=0x7fffe67ab420) at /home/parallels/src/zs/sdf/fth/fth.c:248
+#4  0x00007ffff7bc6dc5 in start_thread () from /lib64/libpthread.so.0
+#5  0x00007ffff6b95ced in clone () from /lib64/libc.so.6
+
+Thread 43 (Thread 0x7ffeeb156700 (LWP 32491)):
+#0  0x00007ffff7bca6d5 in pthread_cond_wait@@GLIBC_2.3.2 () from /lib64/libpthread.so.0
+#1  0x00007ffff0a350a3 in async_qget (aps=0x7fffe676dbe0, thr_id=30) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:257
+#2  0x00007ffff0a35da4 in async_main (arg=140737060174528) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:475
+#3  0x00007ffff066e6a4 in pthread_func_wrapper (arg=0x7fffe67a95e0) at /home/parallels/src/zs/sdf/fth/fth.c:248
+#4  0x00007ffff7bc6dc5 in start_thread () from /lib64/libpthread.so.0
+#5  0x00007ffff6b95ced in clone () from /lib64/libc.so.6
+
+Thread 42 (Thread 0x7ffeec3da700 (LWP 32490)):
+#0  0x00007ffff7bca6d5 in pthread_cond_wait@@GLIBC_2.3.2 () from /lib64/libpthread.so.0
+#1  0x00007ffff0a350a3 in async_qget (aps=0x7fffe676dbe0, thr_id=29) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:257
+#2  0x00007ffff0a35da4 in async_main (arg=140737060165536) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:475
+#3  0x00007ffff066e6a4 in pthread_func_wrapper (arg=0x7fffe67a72c0) at /home/parallels/src/zs/sdf/fth/fth.c:248
+#4  0x00007ffff7bc6dc5 in start_thread () from /lib64/libpthread.so.0
+#5  0x00007ffff6b95ced in clone () from /lib64/libc.so.6
+
+Thread 41 (Thread 0x7ffeed65e700 (LWP 32489)):
+#0  0x00007ffff7bca6d5 in pthread_cond_wait@@GLIBC_2.3.2 () from /lib64/libpthread.so.0
+#1  0x00007ffff0a350a3 in async_qget (aps=0x7fffe676dbe0, thr_id=28) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:257
+#2  0x00007ffff0a35da4 in async_main (arg=140737060157792) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:475
+#3  0x00007ffff066e6a4 in pthread_func_wrapper (arg=0x7fffe67a5480) at /home/parallels/src/zs/sdf/fth/fth.c:248
+#4  0x00007ffff7bc6dc5 in start_thread () from /lib64/libpthread.so.0
+#5  0x00007ffff6b95ced in clone () from /lib64/libc.so.6
+
+Thread 40 (Thread 0x7ffeeeb64700 (LWP 32488)):
+#0  0x00007ffff7bca6d5 in pthread_cond_wait@@GLIBC_2.3.2 () from /lib64/libpthread.so.0
+#1  0x00007ffff0a350a3 in async_qget (aps=0x7fffe676dbe0, thr_id=27) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:257
+#2  0x00007ffff0a35da4 in async_main (arg=140737060150048) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:475
+#3  0x00007ffff066e6a4 in pthread_func_wrapper (arg=0x7fffe67a3640) at /home/parallels/src/zs/sdf/fth/fth.c:248
+#4  0x00007ffff7bc6dc5 in start_thread () from /lib64/libpthread.so.0
+#5  0x00007ffff6b95ced in clone () from /lib64/libc.so.6
+
+Thread 39 (Thread 0x7ffeefb66700 (LWP 32487)):
+#0  0x00007ffff7bca6d5 in pthread_cond_wait@@GLIBC_2.3.2 () from /lib64/libpthread.so.0
+#1  0x00007ffff0a350a3 in async_qget (aps=0x7fffe676dbe0, thr_id=26) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:257
+#2  0x00007ffff0a35da4 in async_main (arg=140737060142304) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:475
+#3  0x00007ffff066e6a4 in pthread_func_wrapper (arg=0x7fffe67a1800) at /home/parallels/src/zs/sdf/fth/fth.c:248
+#4  0x00007ffff7bc6dc5 in start_thread () from /lib64/libpthread.so.0
+#5  0x00007ffff6b95ced in clone () from /lib64/libc.so.6
+
+Thread 38 (Thread 0x7ffef0dea700 (LWP 32486)):
+#0  0x00007ffff7bca6d5 in pthread_cond_wait@@GLIBC_2.3.2 () from /lib64/libpthread.so.0
+#1  0x00007ffff0a350a3 in async_qget (aps=0x7fffe676dbe0, thr_id=25) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:257
+#2  0x00007ffff0a35da4 in async_main (arg=140737060134560) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:475
+#3  0x00007ffff066e6a4 in pthread_func_wrapper (arg=0x7fffe679f9c0) at /home/parallels/src/zs/sdf/fth/fth.c:248
+#4  0x00007ffff7bc6dc5 in start_thread () from /lib64/libpthread.so.0
+#5  0x00007ffff6b95ced in clone () from /lib64/libc.so.6
+
+Thread 37 (Thread 0x7ffef206e700 (LWP 32485)):
+#0  0x00007ffff7bca6d5 in pthread_cond_wait@@GLIBC_2.3.2 () from /lib64/libpthread.so.0
+#1  0x00007ffff0a350a3 in async_qget (aps=0x7fffe676dbe0, thr_id=24) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:257
+#2  0x00007ffff0a35da4 in async_main (arg=140737060126816) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:475
+#3  0x00007ffff066e6a4 in pthread_func_wrapper (arg=0x7fffe679db80) at /home/parallels/src/zs/sdf/fth/fth.c:248
+#4  0x00007ffff7bc6dc5 in start_thread () from /lib64/libpthread.so.0
+#5  0x00007ffff6b95ced in clone () from /lib64/libc.so.6
+
+Thread 36 (Thread 0x7ffef32f2700 (LWP 32484)):
+#0  0x00007ffff7bca6d5 in pthread_cond_wait@@GLIBC_2.3.2 () from /lib64/libpthread.so.0
+#1  0x00007ffff0a350a3 in async_qget (aps=0x7fffe676dbe0, thr_id=23) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:257
+#2  0x00007ffff0a35da4 in async_main (arg=140737060119072) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:475
+#3  0x00007ffff066e6a4 in pthread_func_wrapper (arg=0x7fffe679bd40) at /home/parallels/src/zs/sdf/fth/fth.c:248
+#4  0x00007ffff7bc6dc5 in start_thread () from /lib64/libpthread.so.0
+#5  0x00007ffff6b95ced in clone () from /lib64/libc.so.6
+
+Thread 35 (Thread 0x7ffef4576700 (LWP 32483)):
+#0  0x00007ffff7bca6d5 in pthread_cond_wait@@GLIBC_2.3.2 () from /lib64/libpthread.so.0
+#1  0x00007ffff0a350a3 in async_qget (aps=0x7fffe676dbe0, thr_id=22) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:257
+#2  0x00007ffff0a35da4 in async_main (arg=140737060111328) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:475
+#3  0x00007ffff066e6a4 in pthread_func_wrapper (arg=0x7fffe6799f00) at /home/parallels/src/zs/sdf/fth/fth.c:248
+#4  0x00007ffff7bc6dc5 in start_thread () from /lib64/libpthread.so.0
+#5  0x00007ffff6b95ced in clone () from /lib64/libc.so.6
+
+Thread 34 (Thread 0x7ffef57fa700 (LWP 32482)):
+#0  0x00007ffff7bca6d5 in pthread_cond_wait@@GLIBC_2.3.2 () from /lib64/libpthread.so.0
+#1  0x00007ffff0a350a3 in async_qget (aps=0x7fffe676dbe0, thr_id=21) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:257
+#2  0x00007ffff0a35da4 in async_main (arg=140737060103584) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:475
+#3  0x00007ffff066e6a4 in pthread_func_wrapper (arg=0x7fffe67980c0) at /home/parallels/src/zs/sdf/fth/fth.c:248
+#4  0x00007ffff7bc6dc5 in start_thread () from /lib64/libpthread.so.0
+#5  0x00007ffff6b95ced in clone () from /lib64/libc.so.6
+
+Thread 33 (Thread 0x7ffef67fc700 (LWP 32481)):
+#0  0x00007ffff7bca6d5 in pthread_cond_wait@@GLIBC_2.3.2 () from /lib64/libpthread.so.0
+#1  0x00007ffff0a350a3 in async_qget (aps=0x7fffe676dbe0, thr_id=20) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:257
+#2  0x00007ffff0a35da4 in async_main (arg=140737060095840) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:475
+#3  0x00007ffff066e6a4 in pthread_func_wrapper (arg=0x7fffe6796280) at /home/parallels/src/zs/sdf/fth/fth.c:248
+#4  0x00007ffff7bc6dc5 in start_thread () from /lib64/libpthread.so.0
+#5  0x00007ffff6b95ced in clone () from /lib64/libc.so.6
+
+Thread 32 (Thread 0x7ffef77fe700 (LWP 32480)):
+#0  0x00007ffff7bca6d5 in pthread_cond_wait@@GLIBC_2.3.2 () from /lib64/libpthread.so.0
+#1  0x00007ffff0a350a3 in async_qget (aps=0x7fffe676dbe0, thr_id=19) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:257
+#2  0x00007ffff0a35da4 in async_main (arg=140737060088096) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:475
+#3  0x00007ffff066e6a4 in pthread_func_wrapper (arg=0x7fffe6794440) at /home/parallels/src/zs/sdf/fth/fth.c:248
+#4  0x00007ffff7bc6dc5 in start_thread () from /lib64/libpthread.so.0
+#5  0x00007ffff6b95ced in clone () from /lib64/libc.so.6
+
+Thread 31 (Thread 0x7ffefd074700 (LWP 32479)):
+#0  0x00007ffff7bca6d5 in pthread_cond_wait@@GLIBC_2.3.2 () from /lib64/libpthread.so.0
+#1  0x00007ffff0a350a3 in async_qget (aps=0x7fffe676dbe0, thr_id=18) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:257
+#2  0x00007ffff0a35da4 in async_main (arg=140737060080352) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:475
+#3  0x00007ffff066e6a4 in pthread_func_wrapper (arg=0x7fffe6792600) at /home/parallels/src/zs/sdf/fth/fth.c:248
+#4  0x00007ffff7bc6dc5 in start_thread () from /lib64/libpthread.so.0
+#5  0x00007ffff6b95ced in clone () from /lib64/libc.so.6
+
+Thread 30 (Thread 0x7ffefe2f8700 (LWP 32478)):
+#0  0x00007ffff7bca6d5 in pthread_cond_wait@@GLIBC_2.3.2 () from /lib64/libpthread.so.0
+#1  0x00007ffff0a350a3 in async_qget (aps=0x7fffe676dbe0, thr_id=17) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:257
+#2  0x00007ffff0a35da4 in async_main (arg=140737060072608) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:475
+#3  0x00007ffff066e6a4 in pthread_func_wrapper (arg=0x7fffe67907c0) at /home/parallels/src/zs/sdf/fth/fth.c:248
+#4  0x00007ffff7bc6dc5 in start_thread () from /lib64/libpthread.so.0
+#5  0x00007ffff6b95ced in clone () from /lib64/libc.so.6
+
+Thread 29 (Thread 0x7ffeff57c700 (LWP 32477)):
+#0  0x00007ffff7bca6d5 in pthread_cond_wait@@GLIBC_2.3.2 () from /lib64/libpthread.so.0
+#1  0x00007ffff0a350a3 in async_qget (aps=0x7fffe676dbe0, thr_id=16) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:257
+#2  0x00007ffff0a35da4 in async_main (arg=140737060064864) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:475
+#3  0x00007ffff066e6a4 in pthread_func_wrapper (arg=0x7fffe678e980) at /home/parallels/src/zs/sdf/fth/fth.c:248
+#4  0x00007ffff7bc6dc5 in start_thread () from /lib64/libpthread.so.0
+#5  0x00007ffff6b95ced in clone () from /lib64/libc.so.6
+
+Thread 28 (Thread 0x7fff04873700 (LWP 32476)):
+#0  0x00007ffff7bca6d5 in pthread_cond_wait@@GLIBC_2.3.2 () from /lib64/libpthread.so.0
+#1  0x00007ffff0a350a3 in async_qget (aps=0x7fffe676dbe0, thr_id=15) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:257
+#2  0x00007ffff0a35da4 in async_main (arg=140737060057120) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:475
+#3  0x00007ffff066e6a4 in pthread_func_wrapper (arg=0x7fffe678cb40) at /home/parallels/src/zs/sdf/fth/fth.c:248
+#4  0x00007ffff7bc6dc5 in start_thread () from /lib64/libpthread.so.0
+#5  0x00007ffff6b95ced in clone () from /lib64/libc.so.6
+
+Thread 27 (Thread 0x7fff05af7700 (LWP 32475)):
+#0  0x00007ffff7bca6d5 in pthread_cond_wait@@GLIBC_2.3.2 () from /lib64/libpthread.so.0
+#1  0x00007ffff0a350a3 in async_qget (aps=0x7fffe676dbe0, thr_id=14) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:257
+#2  0x00007ffff0a35da4 in async_main (arg=140737060049376) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:475
+#3  0x00007ffff066e6a4 in pthread_func_wrapper (arg=0x7fffe678ad00) at /home/parallels/src/zs/sdf/fth/fth.c:248
+#4  0x00007ffff7bc6dc5 in start_thread () from /lib64/libpthread.so.0
+#5  0x00007ffff6b95ced in clone () from /lib64/libc.so.6
+
+Thread 26 (Thread 0x7fff06d7b700 (LWP 32474)):
+#0  0x00007ffff7bca6d5 in pthread_cond_wait@@GLIBC_2.3.2 () from /lib64/libpthread.so.0
+#1  0x00007ffff0a350a3 in async_qget (aps=0x7fffe676dbe0, thr_id=13) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:257
+#2  0x00007ffff0a35da4 in async_main (arg=140737060041632) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:475
+#3  0x00007ffff066e6a4 in pthread_func_wrapper (arg=0x7fffe6788ec0) at /home/parallels/src/zs/sdf/fth/fth.c:248
+#4  0x00007ffff7bc6dc5 in start_thread () from /lib64/libpthread.so.0
+#5  0x00007ffff6b95ced in clone () from /lib64/libc.so.6
+
+Thread 25 (Thread 0x7fff07fff700 (LWP 32473)):
+#0  0x00007ffff7bca6d5 in pthread_cond_wait@@GLIBC_2.3.2 () from /lib64/libpthread.so.0
+#1  0x00007ffff0a350a3 in async_qget (aps=0x7fffe676dbe0, thr_id=12) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:257
+#2  0x00007ffff0a35da4 in async_main (arg=140737060033888) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:475
+#3  0x00007ffff066e6a4 in pthread_func_wrapper (arg=0x7fffe6787080) at /home/parallels/src/zs/sdf/fth/fth.c:248
+#4  0x00007ffff7bc6dc5 in start_thread () from /lib64/libpthread.so.0
+#5  0x00007ffff6b95ced in clone () from /lib64/libc.so.6
+
+Thread 24 (Thread 0x7fff192f6700 (LWP 32472)):
+#0  0x00007ffff7bca6d5 in pthread_cond_wait@@GLIBC_2.3.2 () from /lib64/libpthread.so.0
+#1  0x00007ffff0a350a3 in async_qget (aps=0x7fffe676dbe0, thr_id=11) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:257
+#2  0x00007ffff0a35da4 in async_main (arg=140737060026144) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:475
+#3  0x00007ffff066e6a4 in pthread_func_wrapper (arg=0x7fffe6785240) at /home/parallels/src/zs/sdf/fth/fth.c:248
+#4  0x00007ffff7bc6dc5 in start_thread () from /lib64/libpthread.so.0
+#5  0x00007ffff6b95ced in clone () from /lib64/libc.so.6
+
+Thread 23 (Thread 0x7fff1a57a700 (LWP 32471)):
+#0  0x00007ffff7bca6d5 in pthread_cond_wait@@GLIBC_2.3.2 () from /lib64/libpthread.so.0
+#1  0x00007ffff0a350a3 in async_qget (aps=0x7fffe676dbe0, thr_id=10) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:257
+#2  0x00007ffff0a35da4 in async_main (arg=140737060018400) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:475
+#3  0x00007ffff066e6a4 in pthread_func_wrapper (arg=0x7fffe6783400) at /home/parallels/src/zs/sdf/fth/fth.c:248
+#4  0x00007ffff7bc6dc5 in start_thread () from /lib64/libpthread.so.0
+#5  0x00007ffff6b95ced in clone () from /lib64/libc.so.6
+
+Thread 22 (Thread 0x7fff1b7fe700 (LWP 32470)):
+#0  0x00007ffff7bca6d5 in pthread_cond_wait@@GLIBC_2.3.2 () from /lib64/libpthread.so.0
+#1  0x00007ffff0a350a3 in async_qget (aps=0x7fffe676dbe0, thr_id=9) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:257
+#2  0x00007ffff0a35da4 in async_main (arg=140737060010656) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:475
+#3  0x00007ffff066e6a4 in pthread_func_wrapper (arg=0x7fffe67815c0) at /home/parallels/src/zs/sdf/fth/fth.c:248
+#4  0x00007ffff7bc6dc5 in start_thread () from /lib64/libpthread.so.0
+#5  0x00007ffff6b95ced in clone () from /lib64/libc.so.6
+
+Thread 21 (Thread 0x7fff2cd77700 (LWP 32469)):
+#0  0x00007ffff7bca6d5 in pthread_cond_wait@@GLIBC_2.3.2 () from /lib64/libpthread.so.0
+#1  0x00007ffff0a350a3 in async_qget (aps=0x7fffe676dbe0, thr_id=8) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:257
+#2  0x00007ffff0a35da4 in async_main (arg=140737060002912) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:475
+#3  0x00007ffff066e6a4 in pthread_func_wrapper (arg=0x7fffe677f780) at /home/parallels/src/zs/sdf/fth/fth.c:248
+#4  0x00007ffff7bc6dc5 in start_thread () from /lib64/libpthread.so.0
+#5  0x00007ffff6b95ced in clone () from /lib64/libc.so.6
+
+Thread 20 (Thread 0x7fff2dd79700 (LWP 32468)):
+#0  0x00007ffff7bca6d5 in pthread_cond_wait@@GLIBC_2.3.2 () from /lib64/libpthread.so.0
+#1  0x00007ffff0a350a3 in async_qget (aps=0x7fffe676dbe0, thr_id=7) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:257
+#2  0x00007ffff0a35da4 in async_main (arg=140737059995168) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:475
+#3  0x00007ffff066e6a4 in pthread_func_wrapper (arg=0x7fffe677d940) at /home/parallels/src/zs/sdf/fth/fth.c:248
+#4  0x00007ffff7bc6dc5 in start_thread () from /lib64/libpthread.so.0
+#5  0x00007ffff6b95ced in clone () from /lib64/libc.so.6
+
+Thread 19 (Thread 0x7fff2effd700 (LWP 32467)):
+#0  0x00007ffff7bca6d5 in pthread_cond_wait@@GLIBC_2.3.2 () from /lib64/libpthread.so.0
+#1  0x00007ffff0a350a3 in async_qget (aps=0x7fffe676dbe0, thr_id=6) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:257
+#2  0x00007ffff0a35da4 in async_main (arg=140737059987424) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:475
+#3  0x00007ffff066e6a4 in pthread_func_wrapper (arg=0x7fffe677bb00) at /home/parallels/src/zs/sdf/fth/fth.c:248
+#4  0x00007ffff7bc6dc5 in start_thread () from /lib64/libpthread.so.0
+#5  0x00007ffff6b95ced in clone () from /lib64/libc.so.6
+
+Thread 18 (Thread 0x7fff2ffff700 (LWP 32466)):
+#0  0x00007ffff7bca6d5 in pthread_cond_wait@@GLIBC_2.3.2 () from /lib64/libpthread.so.0
+#1  0x00007ffff0a350a3 in async_qget (aps=0x7fffe676dbe0, thr_id=5) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:257
+#2  0x00007ffff0a35da4 in async_main (arg=140737059979680) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:475
+#3  0x00007ffff066e6a4 in pthread_func_wrapper (arg=0x7fffe6779cc0) at /home/parallels/src/zs/sdf/fth/fth.c:248
+#4  0x00007ffff7bc6dc5 in start_thread () from /lib64/libpthread.so.0
+#5  0x00007ffff6b95ced in clone () from /lib64/libc.so.6
+
+Thread 17 (Thread 0x7fff3d4fa700 (LWP 32465)):
+#0  0x00007ffff7bca6d5 in pthread_cond_wait@@GLIBC_2.3.2 () from /lib64/libpthread.so.0
+#1  0x00007ffff0a350a3 in async_qget (aps=0x7fffe676dbe0, thr_id=4) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:257
+#2  0x00007ffff0a35da4 in async_main (arg=140737059971936) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:475
+#3  0x00007ffff066e6a4 in pthread_func_wrapper (arg=0x7fffe6777e80) at /home/parallels/src/zs/sdf/fth/fth.c:248
+#4  0x00007ffff7bc6dc5 in start_thread () from /lib64/libpthread.so.0
+#5  0x00007ffff6b95ced in clone () from /lib64/libc.so.6
+
+Thread 16 (Thread 0x7fff3e4fc700 (LWP 32464)):
+#0  0x00007ffff7bca6d5 in pthread_cond_wait@@GLIBC_2.3.2 () from /lib64/libpthread.so.0
+#1  0x00007ffff0a350a3 in async_qget (aps=0x7fffe676dbe0, thr_id=3) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:257
+#2  0x00007ffff0a35da4 in async_main (arg=140737059964192) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:475
+#3  0x00007ffff066e6a4 in pthread_func_wrapper (arg=0x7fffe6776040) at /home/parallels/src/zs/sdf/fth/fth.c:248
+#4  0x00007ffff7bc6dc5 in start_thread () from /lib64/libpthread.so.0
+#5  0x00007ffff6b95ced in clone () from /lib64/libc.so.6
+
+Thread 15 (Thread 0x7fff3f4fe700 (LWP 32463)):
+#0  0x00007ffff7bca6d5 in pthread_cond_wait@@GLIBC_2.3.2 () from /lib64/libpthread.so.0
+#1  0x00007ffff0a350a3 in async_qget (aps=0x7fffe676dbe0, thr_id=2) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:257
+#2  0x00007ffff0a35da4 in async_main (arg=140737059956448) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:475
+#3  0x00007ffff066e6a4 in pthread_func_wrapper (arg=0x7fffe6774200) at /home/parallels/src/zs/sdf/fth/fth.c:248
+#4  0x00007ffff7bc6dc5 in start_thread () from /lib64/libpthread.so.0
+#5  0x00007ffff6b95ced in clone () from /lib64/libc.so.6
+
+Thread 14 (Thread 0x7fff40500700 (LWP 32462)):
+#0  0x00007ffff7bca6d5 in pthread_cond_wait@@GLIBC_2.3.2 () from /lib64/libpthread.so.0
+#1  0x00007ffff0a350a3 in async_qget (aps=0x7fffe676dbe0, thr_id=1) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:257
+#2  0x00007ffff0a35da4 in async_main (arg=140737059948704) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:475
+#3  0x00007ffff066e6a4 in pthread_func_wrapper (arg=0x7fffe67723c0) at /home/parallels/src/zs/sdf/fth/fth.c:248
+#4  0x00007ffff7bc6dc5 in start_thread () from /lib64/libpthread.so.0
+#5  0x00007ffff6b95ced in clone () from /lib64/libc.so.6
+
+Thread 13 (Thread 0x7fff41502700 (LWP 32461)):
+#0  0x00007ffff7bca6d5 in pthread_cond_wait@@GLIBC_2.3.2 () from /lib64/libpthread.so.0
+#1  0x00007ffff0a350a3 in async_qget (aps=0x7fffe676dbe0, thr_id=0) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:257
+#2  0x00007ffff0a35da4 in async_main (arg=140737059940960) at /home/parallels/src/zs/sdf/protocol/action/async_puts.c:475
+#3  0x00007ffff066e6a4 in pthread_func_wrapper (arg=0x7fffe6770580) at /home/parallels/src/zs/sdf/fth/fth.c:248
+#4  0x00007ffff7bc6dc5 in start_thread () from /lib64/libpthread.so.0
+#5  0x00007ffff6b95ced in clone () from /lib64/libc.so.6
+
+Thread 12 (Thread 0x7fffe0ff9700 (LWP 32460)):
+#0  0x00007ffff7bca6d5 in pthread_cond_wait@@GLIBC_2.3.2 () from /lib64/libpthread.so.0
+#1  0x00007ffff066e347 in fthSchedulerPthread (prio=0) at /home/parallels/src/zs/sdf/fth/fth.c:165
+#2  0x00007ffff05ebe26 in zs_run_schedulers (arg=0x1) at /home/parallels/src/zs/sdf/api/fdf.c:1818
+#3  0x00007ffff7bc6dc5 in start_thread () from /lib64/libpthread.so.0
+#4  0x00007ffff6b95ced in clone () from /lib64/libc.so.6
+
+Thread 11 (Thread 0x7fffe17fa700 (LWP 32459)):
+#0  0x00007ffff7bcaa82 in pthread_cond_timedwait@@GLIBC_2.3.2 () from /lib64/libpthread.so.0
+#1  0x00007ffff06127b3 in licd_handler_thread (arg=140737231982010) at /home/parallels/src/zs/sdf/api/licensed.c:248
+#2  0x00007ffff066e6a4 in pthread_func_wrapper (arg=0x746f60) at /home/parallels/src/zs/sdf/fth/fth.c:248
+#3  0x00007ffff7bc6dc5 in start_thread () from /lib64/libpthread.so.0
+#4  0x00007ffff6b95ced in clone () from /lib64/libc.so.6
+
+Thread 1 (Thread 0x7ffff7fdd740 (LWP 32443)):
+#0  0x00007ffff7bc7ef7 in pthread_join () from /lib64/libpthread.so.0
+#1  0x0000000000401654 in do_ssd_perftest () at zstestz.c:537
+#2  main (argc=<optimized out>, argv=<optimized out>) at zstestz.c:173

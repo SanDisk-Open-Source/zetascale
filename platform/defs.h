@@ -82,10 +82,10 @@
  * @brief Provide extern inline correct for newer and older gcc
  */
 #ifdef __GNUC_GNU_INLINE__
-#define PLAT_EXTERN_INLINE extern  __attribute__((__gnu_inline__))   \
+#define PLAT_EXTERN_INLINE extern __inline__ __attribute__((__gnu_inline__))   \
     PLAT_FLATTEN
 #else
-#define PLAT_EXTERN_INLINE extern  PLAT_FLATTEN
+#define PLAT_EXTERN_INLINE extern __inline__ PLAT_FLATTEN
 #endif
 
 /*
@@ -127,7 +127,7 @@
 #else
 #define PLAT_OUT_OF_LINE(x)
 #undef PLAT_NEED_OUT_OF_LINE
-#define PLAT_INLINE static  __attribute__((unused))
+#define PLAT_INLINE static __inline__ __attribute__((unused))
 #endif
 
 /* May be missing from old cdefs */

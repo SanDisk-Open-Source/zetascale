@@ -35,7 +35,8 @@
 160000 root
 170000 rico
 180000 efirsov
-200000 always_last
+200000 parallels
+210000 always_last
 
 
 [MESSAGES]
@@ -3483,6 +3484,23 @@
 160310 ZSMPut is supported only on btree and log containers\n
 160311 NVRAM flog reforamt with shutdown = %d.\n
 160312 Unable to start the in progress container delete thread.
+160313 Property 'ZS_WRITE_SERIALIZATION_MB' must be a positive non-zero value.
+160314 Could not release per-thread state when initializing the write serializer subsystem.
+160315 Could not allocate callback state
+160316 Could not open write serialization device '%s' (errno = '%s')
+160317 Could not open write serialization batch device '%s' (errno = '%s')
+160318 Could not allocate 'accounted' bit vector in ws_gc_cb
+160319 Could not allocate dataptrs in ws_gc_cb
+160320 Could not allocate dataptrs2 in ws_gc_cb
+160321 ZSInitPerThreadState failed with error %s\n
+160322 bt_get_btree_from_cguid failed with error '%s'
+160323 get_container_metadata failed
+160324 In ws_per_thread_state_cb, ZSInitPerThreadState failed with error %s\n
+160325 In ws_set_metadata_cb, ZSWriteObject failed with error %s\n
+160326 In ws_get_metadata_cb, ZSWriteObject failed with error %s\n
+160327 In ws_get_metadata_cb, ZSWriteObject failed with max_size (%d) less than datalen_zs (%"PRIu64")\n
+160328 ZSGetContainers failed with status=%d (%s)!
+160329 traverse_node: hash table entry not found for an existing B-tree node id=%"PRIu64" (ptr=%p)!
 
 
 # rico
@@ -3564,3 +3582,10 @@
 180215 PROP: SDF_MAX_OBJ_SIZE=%"PRIu64" (adjusted from %"PRIu64")
 180216 PERIODIC durability is not supported, set to SW_CRASH_SAFE for %s\n
 190001 Flog mode = %d, %s, nvram_file = %s.\n
+
+
+# parallels
+200000 Disabling write serializer since a write serialization device was not set via the WRITE_SERIALIZATION_DEVICE property
+200001 Could not allocate per-thread state for initializing the write serializer subsystem.
+200002 Could not create the metadata container for the write serializer subsystem.
+200003 system() returned -1!

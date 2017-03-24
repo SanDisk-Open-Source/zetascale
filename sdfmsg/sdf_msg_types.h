@@ -197,7 +197,7 @@ typedef enum SDF_msg_SACK {
 
 
 /* Helper functions to make sense of enumeration */
-static  enum SDF_msg_SACK_how
+static __inline__ enum SDF_msg_SACK_how
 sdf_msg_sack_resp(SDF_msg_SACK sack) {
     switch (sack) {
 #define item(caps, val, ack, resp, rel, modern) \
@@ -209,7 +209,7 @@ sdf_msg_sack_resp(SDF_msg_SACK sack) {
     }
 }
 
-static  enum SDF_msg_SACK_how
+static __inline__ enum SDF_msg_SACK_how
 sdf_msg_sack_ack(SDF_msg_SACK sack) {
     switch (sack) {
 #define item(caps, val, ack, resp, rel, modern) \
@@ -221,7 +221,7 @@ sdf_msg_sack_ack(SDF_msg_SACK sack) {
     }
 }
 
-static  enum SDF_msg_SACK_rel
+static __inline__ enum SDF_msg_SACK_rel
 sdf_msg_sack_rel(SDF_msg_SACK sack) {
     switch (sack) {
 #define item(caps, val, ack, resp, rel, modern) \

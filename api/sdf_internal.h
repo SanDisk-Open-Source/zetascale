@@ -133,7 +133,7 @@ ZS_status_t zs_cmap_destroy( void );
  *		   ZS_FAILURE on failure
  */
 ZS_status_t zs_cmap_create(
-    const char                    *cname,
+    char                    *cname,
     ZS_cguid_t              cguid,
     uint64_t                 size_kb,
 	ZS_CONTAINER_STATE      state,
@@ -165,7 +165,7 @@ void zs_cmap_rel(
     );
 
 cntr_map_t *zs_cmap_get_by_cname(
-    const char *cname
+    char *cname
     );
 
 char *zs_cmap_get_cname(

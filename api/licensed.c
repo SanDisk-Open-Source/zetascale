@@ -198,8 +198,6 @@ licd_handler_thread(uint64_t arg)
 	struct timespec abstime;
 	lic_data_t	data;
 
-	license_path = (char *)arg;
-
 	plat_log_msg(80065, LOG_INFO, LOG_DBG,
 			"LIC: Starting Licensing Daemon (license path: %s)...",
 			license_path);
@@ -444,6 +442,8 @@ print:
 			}
 		}
 	} else {
+// xxxzzz remove these
+#ifdef notdef
 		//All other cases, license is invalid.
 		if (daemon) {
 			plat_log_msg(80070, LOG_CAT, LOG_WARN, 
@@ -453,6 +453,7 @@ print:
 		//Print warning and find period we need to make next check.
 		check_time_left(abstime.tv_sec - ld_vtime, ZS_INVAL_GPRD,
 				daemon);
+#endif
 
 	}
 	if (is_btree_loaded()) {
@@ -610,12 +611,11 @@ adjust_chk_prd(double secs)
 bool
 is_license_valid(bool btree_loaded)
 {
-	//disabling SanDisk License check
-	return true;
-	
 	lic_data_t	data;
 	struct timespec abstime;
 	int		flag;
+
+        return(true); // xxxzzz bok this is temporary!
 
 	// If license start had failed, we shall based on when last check made.
 	flag = 0;

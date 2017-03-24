@@ -4755,7 +4755,7 @@ static int flashPut_wrapper(SDF_trans_state_t *ptrans, struct shard *pshard, str
        Set flag to enable compression so that low level function will compress data 
        Before writing to flash*/
     if( getProperty_Int("ZS_COMPRESSION", 0) && (ptrans->par->ctnr > LAST_PHYSICAL_CGUID ) &&
-                ptrans->meta->meta.properties.compression == ZS_TRUE ) {
+                ptrans->meta->meta.properties.compression == SDF_TRUE ) {
         flags = flags|FLASH_PUT_COMPRESS;     
     } 
 

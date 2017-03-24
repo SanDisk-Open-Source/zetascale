@@ -212,7 +212,7 @@ void HashMap_destroy(HashMap map) {
     plat_free(map);
 }
 
- uint32_t HashMap_getBucket1(uint32_t numBuckets, unsigned cmpType, const char *key,
+__inline__ uint32_t HashMap_getBucket1(uint32_t numBuckets, unsigned cmpType, const char *key,
         uint16_t keyLen, uint64_t *key_hashcode)
 {
     if (0 == *key_hashcode) {
@@ -247,7 +247,7 @@ uint32_t HashMap_getBucket(uint32_t numBuckets, const char *key)
  * 
  * @see SDF_utils_hashmap_locktype_t
  */
- void
+__inline__ void
 HashMap_Lock(HashMap map, unsigned bucketNum, fthWaitEl_t **fthWait, SDF_boolean_t writeLock)
 {
     if (!map->lockType) { // NONE
@@ -296,7 +296,7 @@ HashMap_Lock(HashMap map, unsigned bucketNum, fthWaitEl_t **fthWait, SDF_boolean
  * 
  * @see SDF_utils_hashmap_locktype_t
  */
- void
+__inline__ void
 HashMap_Unlock(HashMap map, unsigned bucketNum, fthWaitEl_t *fthWait)
 {
     if (!map->lockType) { // NONE

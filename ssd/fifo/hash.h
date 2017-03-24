@@ -134,6 +134,7 @@ typedef struct hash_handle {
     uint64_t                * bucket_locks_free_map;
     uint64_t                  total_alloc;
     uint64_t                ** key_cache;
+    uint64_t                ** ws_key_cache;
     uint64_t                  alloc_count;
 } hash_handle_t;
 
@@ -142,12 +143,16 @@ extern int storm_mode;
 hash_handle_t *
 hash_table_init ( uint64_t total_size, uint64_t max_nobjs, int mode, int key_cache);
 
+
+uint64_t hashck(const unsigned char *key, uint64_t key_len,
+       uint64_t level, cntr_id_t cntr_id);
+
 void
 hash_table_cleanup ( hash_handle_t *hdl);
 
 hash_entry_t *
 hash_table_get (void *context, hash_handle_t *hdl, char *key, 
-                    int key_len, cntr_id_t cntr_id);
+                    int key_len, cntr_id_t cntr_id, int flags);
 
 void
 hash_entry_copy ( hash_entry_t *dst, hash_entry_t *src);
@@ -183,9 +188,9 @@ int
 obj_valid( hash_handle_t *hdl, struct mcd_osd_meta *meta, uint64_t addr);
 
 void
-keycache_set(hash_handle_t *hdl, uint64_t blkaddr, uint64_t key);
+keycache_set(hash_handle_t *hdl, uint64_t blkaddr, uint64_t key, int flags);
 uint64_t
-keycache_get(hash_handle_t *hdl, uint64_t blkaddr);
+keycache_get(hash_handle_t *hdl, uint64_t blkaddr, int flags);
 void
 keycache_free(hash_handle_t *hdl);
 

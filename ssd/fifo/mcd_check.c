@@ -1501,24 +1501,20 @@ int mcd_corrupt_superblock(int fd) {
 }
 
 int mcd_corrupt_shard_properties (int fd, int shard_idx) {
-    int                   buf_idx = -1;
     uint64_t              shard_id = 0;
     char tmp_buf[MCD_OSD_SEG0_BLK_SIZE];
 
     switch ( shard_idx ) {
 
     case CMC_SHARD_IDX:
-        buf_idx = CMC_PROP_BUF;
         shard_id = CMC_SHARD_ID;
         break;
 
     case VMC_SHARD_IDX:
-        buf_idx = VMC_PROP_BUF;
         shard_id = VMC_SHARD_ID;
         break;
 
     case VDC_SHARD_IDX:
-        buf_idx = VDC_PROP_BUF;
         shard_id = VDC_SHARD_ID;
         break;
     }
@@ -1536,7 +1532,6 @@ int
 mcd_corrupt_shard_descriptor(int fd, int shard_idx)
 {
     int                   prop_buf_idx = -1;
-    int                   buf_idx = -1;
     uint64_t              shard_id = 0;
     mcd_rec_properties_t *properties = NULL;
 
@@ -1544,19 +1539,16 @@ mcd_corrupt_shard_descriptor(int fd, int shard_idx)
 
     case CMC_SHARD_IDX:
         prop_buf_idx = CMC_PROP_BUF;
-        buf_idx = CMC_DESC_BUF;
         shard_id = CMC_SHARD_ID;
         break;
 
     case VMC_SHARD_IDX:
         prop_buf_idx = VMC_PROP_BUF;
-        buf_idx = VMC_DESC_BUF;
         shard_id = VMC_SHARD_ID;
         break;
 
     case VDC_SHARD_IDX:
         prop_buf_idx = VDC_PROP_BUF;
-        buf_idx = VDC_DESC_BUF;
         shard_id = VDC_SHARD_ID;
         break;
     }
@@ -1619,11 +1611,8 @@ mcd_corrupt_class_descriptor(int fd, mcd_rec_shard_t *shard)
 int
 mcd_corrupt_ckpt_descriptor(int fd, mcd_rec_shard_t *shard)
 {
-    uint64_t              shard_id = 0;
     uint32_t              blk_size = 0;
     mcd_rec_flash_t      *superblock = NULL;
-
-    shard_id = shard->shard_id;
 
     superblock = (mcd_rec_flash_t *)buf[SUPER_BUF];
     blk_size = superblock->blk_size;
@@ -1682,7 +1671,6 @@ int mcd_corrupt_meta() {
     int open_flags = O_RDWR, rc = 0,fd,i,buf_idx=0;
     char fname[PATH_MAX + 1];
     mcd_rec_shard_t *shard = NULL;
-    mcd_osd_shard_t * osd_shard = NULL;
 
     fprintf(stderr,"Injecting faults\n");
 
@@ -1705,7 +1693,6 @@ int mcd_corrupt_meta() {
                 continue;
             }
             shard = (mcd_rec_shard_t *)buf[CMC_DESC_BUF];
-            osd_shard = mcd_check_get_osd_shard( shard->shard_id );
             buf_idx = CMC_DESC_BUF;
         }
         else if( i == VMC_SHARD_IDX ) {
@@ -1713,7 +1700,6 @@ int mcd_corrupt_meta() {
                 continue;
             }
             shard = (mcd_rec_shard_t *)buf[VMC_DESC_BUF];
-            osd_shard = mcd_check_get_osd_shard( shard->shard_id );
             buf_idx = VMC_DESC_BUF;
         }
         else if( i == VDC_SHARD_IDX ) {
@@ -1721,7 +1707,6 @@ int mcd_corrupt_meta() {
                 continue;
             }
             shard = (mcd_rec_shard_t *)buf[VDC_DESC_BUF];
-            osd_shard = mcd_check_get_osd_shard( shard->shard_id );
             buf_idx = VDC_DESC_BUF;
         }
         if( atoi(getProperty_String("ZS_FAULT_SHARD_PROP_CORRUPTION", "0"))!=0) {

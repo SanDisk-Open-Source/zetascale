@@ -81,7 +81,7 @@ void sum_stats(statistics_t *sum, statistics_t *addend);
 void dump_stats(statistics_t *statistics);
 #endif//RECORD_STATS
 
-static  uint64_t rdtsc(void)
+static __inline__ uint64_t rdtsc(void)
 {
     uint32_t u, l;
     asm volatile("rdtsc" : "=a" (l), "=d" (u));

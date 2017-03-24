@@ -62,7 +62,7 @@
 #define rt_time_t           uint64_t
 
 
-static  uint64_t rt_rdtsc(void)
+static __inline__ uint64_t rt_rdtsc(void)
 {
     uint32_t u, l;
     asm volatile("rdtsc" : "=a" (l), "=d" (u));

@@ -229,7 +229,7 @@ struct SDF_flash_thrd_state {
 /**
  * @brief Increment in-progress home flash IO ref count
  */
-static  void increment_io_ref_count(struct SDF_flash_state *pfs) {
+static __inline__ void increment_io_ref_count(struct SDF_flash_state *pfs) {
 
     FTH_SPIN_LOCK(&pfs->pfs_spin);
     ++pfs->io_ref_count;
@@ -239,7 +239,7 @@ static  void increment_io_ref_count(struct SDF_flash_state *pfs) {
 /**
  * @brief Decrement in-progress home flash IO ref count
  */
-static  void decrement_io_ref_count(struct SDF_flash_state *pfs) {
+static __inline__ void decrement_io_ref_count(struct SDF_flash_state *pfs) {
     FTH_SPIN_LOCK(&pfs->pfs_spin);
     --pfs->io_ref_count;
     FTH_SPIN_UNLOCK(&pfs->pfs_spin);
@@ -552,7 +552,6 @@ pts_main(uint64_t arg) {
 
             /* For fast recovery */
             if (sdf_rec_funcs) {
-                //typedef SDF_protocol_msg_t sp_msg_t;
                 typedef SDF_protocol_msg_tiny_t sp_msg_tiny_t;
                 int recv_len = recv_msg->msg_len - sizeof(sdf_msg_t);
 

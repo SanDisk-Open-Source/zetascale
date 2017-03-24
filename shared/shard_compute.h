@@ -67,7 +67,7 @@ shard_compute_get_shard(SDF_cguid_t cguid, const char *objkey,
                         SDF_shardid_t first_shard, uint32_t shard_count);
 
 /* Work around a lack of flashDev_t definition in flash.h */
-flashDev_t *
+inline flashDev_t *
 get_flashdev_from_shardid(flashDev_t *flash_dev[], 
                           SDF_shardid_t shardid,
                           uint32_t flash_dev_count);

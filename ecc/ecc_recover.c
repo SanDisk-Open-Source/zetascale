@@ -64,7 +64,7 @@
 
 #ifdef USE_GCC_ASM
 
-static  uint_t
+static __inline__ uint_t
 byte_parity(uint_t word)
 {
     uint_t p;

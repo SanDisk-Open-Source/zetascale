@@ -68,7 +68,8 @@
  *   The new value of MCD_REC_UPDATE_BUFSIZE (1GB) supports up to 2TB of flash.
  * 
  *********************************************************************/
-#define MCD_REC_UPDATE_BUFSIZE      (256 * MEGABYTE)
+// #define MCD_REC_UPDATE_BUFSIZE      (256 * MEGABYTE)
+#define MCD_REC_UPDATE_BUFSIZE      (1024 * MEGABYTE)
 #define MCD_REC_UPDATE_SEGMENT_SIZE (1 * MEGABYTE)
 #define MCD_REC_UPDATE_SEGMENT_BLKS (MCD_REC_UPDATE_SEGMENT_SIZE /      \
                                      MCD_OSD_META_BLK_SIZE)

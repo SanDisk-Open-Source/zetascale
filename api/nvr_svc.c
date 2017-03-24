@@ -178,10 +178,6 @@ nvr_init(struct ZS_state *zs_state)
 		nvr_oflags |= O_DIRECT | O_SYNC;
 		odirect = 1;
 	}
-	if (!getProperty_Int("ZS_NVR_HW_DURABLE", 1)) {
-		hw_durable = 0;
-		msg(INITIAL, DEBUG, "disable sync on NVRAM");
-	}
 
 	NVR_file = (char *)getProperty_String("ZS_NVR_FILENAME", NVR_DEFAULT_DEVICE);
 
@@ -216,10 +212,6 @@ nvr_init(struct ZS_state *zs_state)
 
 	nvr_objsize = (off_t)getProperty_Int("ZS_NVR_OBJECT_SIZE", NVR_DEFAULT_STREAM_OBJ_SIZE);
 	n_partitions = getProperty_Int("ZS_NVR_PARTITIONS", 1);
-	if (n_partitions > 2 || n_partitions < 1) {
-		msg(INITIAL, FATAL, "Invalid number of logging container partitions: %d\n", n_partitions);
-		plat_assert(0);
-	}
 
 	partition_size = nvr_len / n_partitions;
 

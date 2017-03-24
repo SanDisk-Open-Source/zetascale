@@ -1,0 +1,94 @@
+
+
+
+
+typedef struct write_mail {
+    mbox_t         *mbox_return;
+    stripe_buf_t   *sbuf;
+    uint64_t        p;
+    uint64_t        size;
+} write_mail_t;
+
+static xxxzzz batch_write_thread(xxxzzz)
+{
+    ws_state_t      *ps = (ws_state_t *) xxxzzz;
+    write_mail_t    *todo[MAX_WRITE_BATCH];
+    struct iovec     iov[MAX_WRITE_BATCH];
+    ssize_t          ssize;
+    int              fd;
+    stripe_buf_t    *sbuf;
+    off_t            offset;
+    uint64_t        *offsets;
+    uint64_t         total_size;
+
+    fd     = open(batch_file, O_RDWR|O_DIRECT);
+    if (fd == -1) {
+        xxxzzz
+    }
+
+    offsets = (uint64_t *) malloc(ps->config.n_stripe_bufs*sizeof(uint64_t));
+    for (i=0; i<ps->config.n_stripe_bufs; i++) {
+        offsets[i] = 0;
+    }
+
+    while (1) {
+        n = 0;
+	total_size = 0;
+	while ((todo[n] = (write_mail_t *) mboxTry(mbox_batch)) != NULL) {
+	    if (n == 0) {
+	        sbuf = todo[n].sbuf;
+	    } else {
+	        if (sbuf != todo[n].sbuf) {
+		    xxxzzz
+		    goto_readonly();
+		}
+	    }
+	    total_size += todo[n].size;
+	    iov[n].iov_base = (void *) (sbuf->buf + todo[n].p);
+	    iov[n].iov_len  = (size_t) todo[n].size;
+
+	    n++;
+	    if (n >= ps->max_batch_size) {
+	        break;
+	    }
+	}
+	n_sbuf = todo[n].sbuf->n;
+	offset = offsets[n_sbuf] + n_sbuf*ps->stripe_bytes;
+
+	offsets[n_sbuf] += total_size;
+	if (offsets[n_sbuf] >= ps->stripe_bytes) {
+	    offsets[n_sbuf] = 0;
+	}
+
+        ssize = pwritev(fd, iov, n, offset);
+	if (ssize != total_size) {
+	    xxxzzz
+	    goto_readonly();
+	}
+    }
+    return(xxxzzz);
+}
+
+
+/************************************************************************/
+
+
+    mbox_t         *mbox_return;
+    stripe_buf_t   *sbuf;
+    uint64_t        p;
+    uint64_t        size;
+    
+
+    if (ps->do_batch_writes) {
+	ml.mbox_return = &WSBatchReturnMbox;
+	ml.sbuf        = ps->curbuf;
+	ml.p           = ps->curbuf->p;
+	ml.size        = size;
+
+	mboxPost(&(ps->mbox_batch), (uint64_t) &ml);
+	(void) mboxWait(&WSBatchReturnMbox);
+    }
+
+
+
+

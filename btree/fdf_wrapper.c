@@ -34,28 +34,29 @@
 #include <unistd.h>
 #include <sys/syscall.h>
 #include <sys/types.h>
+#include <sys/time.h>
 #include <inttypes.h>
 #include <stdint.h>
 #include <string.h>
 #include <stdarg.h>
 #include <assert.h>
 #include <sched.h>
-#include <api/zs.h>
-#include "zs.h"
+#include <lz4.h>
+#include <pthread.h>
+
+#include "api/zs.h"
 #include "api/fdf_internal.h"
 #include "fdf_internal_cb.h"
 #include "btree.h"
 #include "btree_range.h"
 #include "trx.h"
 #include "btree_raw_internal.h"
-#include <sys/time.h>
 #include "btree_malloc.h"
 #include "flip/flip.h"
 #include "btree_scavenger.h"
 #include "btree_sync_th.h"
 #include "btree_var_leaf.h"
-#include <lz4.h>
-#include <pthread.h>
+#include "ws/destage.h"
 
 #define MAX_NODE_SIZE   128*1024
 
@@ -475,8 +476,7 @@ bt_get_btree_from_cguid(ZS_cguid_t cguid, int *index, ZS_status_t *error,
 	return bt;
 }
 
-static void
-bt_rel_entry(int i, bool write)
+void bt_rel_entry(int i, bool write)
 {
 	int cnt;
 	if (write) {
@@ -1814,6 +1814,7 @@ ZS_status_t _ZSDeleteContainer(
 {
     int				index;
     ZS_status_t 	status = ZS_FAILURE;
+    enum btree_status 	btstatus;
     my_thd_state 	= zs_thread_state;;
     struct btree	*btree = NULL;
 
@@ -1902,7 +1903,7 @@ restart:
 		strncpy(Container_Map[index].cname, cname, CONTAINER_NAME_MAXLEN);
 		btree = Container_Map[index].btree;
 		btree->partitions[0]->snap_meta->sc_status |= SC_OVERFLW_DELCONT;
-		if ((status = savepersistent(btree->partitions[0], FLUSH_SNAPSHOT, true)) == BTREE_SUCCESS) {
+		if ((btstatus = savepersistent(btree->partitions[0], FLUSH_SNAPSHOT, true)) == BTREE_SUCCESS) {
 			/*
 			 * Increment IO count so that shutdown doesnt go through. This thread
 			 * sends message to scavenger and releases the lock. By the time scavenger
@@ -1932,7 +1933,7 @@ restart:
 			cm_unlock(index);
 			ZSDeleteObject(zs_thread_state, stats_ctnr_cguid, pprops.name, strlen(pprops.name)+1);
 		} else {
-			fprintf(stderr, "savepersistent SC_OVERFLW_DELCONT failed %s\n", ZSStrError(status));
+			fprintf(stderr, "savepersistent SC_OVERFLW_DELCONT failed %d\n", btstatus);
 			btree->partitions[0]->snap_meta->sc_status &= ~SC_OVERFLW_DELCONT;
 			cm_unlock(index);
 			/* Remove this on handling deleting closed container */
@@ -2322,8 +2323,14 @@ ZS_status_t _ZSReadObject(
 
         (void)btree_range_query_end(cursor);
     } else {
-	trxenter( cguid);
-        btree_ret = btree_get(bt, key, keylen, data, datalen, &meta);
+	trxenter(cguid);
+	if (pDestager) {
+	    if (destage_read(pDestager, zs_thread_state, cguid, bt, key, keylen, data, datalen, 0)) {
+		btree_ret = btree_get(bt, key, keylen, data, datalen, &meta);
+	    }
+	} else {
+	    btree_ret = btree_get(bt, key, keylen, data, datalen, &meta);
+	}
     }
 
 done:
@@ -2506,17 +2513,26 @@ ZS_status_t _ZSWriteObject(
 
     meta.flags = 0;
     __sync_add_and_fetch(&(bt->partitions[0]->stats.stat[BTSTAT_WRITE_CNT]),1);
-    trxenter( cguid);
-    if (flags & ZS_WRITE_MUST_NOT_EXIST) {
-		btree_ret = btree_insert(bt, key, keylen, data, datalen, &meta);
-    } else if (flags & ZS_WRITE_MUST_EXIST) {
-		btree_ret = btree_update(bt, key, keylen, data, datalen, &meta);
-    } else if (flags & ZS_WRITE_TRIM) {
-		btree_ret = ZS_FAILURE_OPERATION_DISALLOWED;
+
+    {
+	if (pDestager) {
+	    int   rc;
+	    rc = destage_write(pDestager, zs_thread_state, cguid, bt, key, keylen, data, datalen, flags);
+	    btree_ret = BTREE_SUCCESS;  // xxxzzz what about subsequent write errors?
 	} else {
-		btree_ret = btree_set(bt, key, keylen, data, datalen, &meta);
+	    trxenter( cguid);
+	    if (flags & ZS_WRITE_MUST_NOT_EXIST) {
+		    btree_ret = btree_insert(bt, key, keylen, data, datalen, &meta);
+	    } else if (flags & ZS_WRITE_MUST_EXIST) {
+		    btree_ret = btree_update(bt, key, keylen, data, datalen, &meta);
+	    } else if (flags & ZS_WRITE_TRIM) {
+		    btree_ret = ZS_FAILURE_OPERATION_DISALLOWED;
+	    } else {
+		    btree_ret = btree_set(bt, key, keylen, data, datalen, &meta);
+	    }
+	    trxleave( cguid);
+	}
     }
-    trxleave( cguid);
 
     ret = BtreeErr_to_ZSErr(btree_ret);
     if ((ret == ZS_OBJECT_UNKNOWN) && (flags & ZS_WRITE_MUST_NOT_EXIST))
@@ -2647,9 +2663,17 @@ ZS_status_t _ZSDeleteObject(
     my_thrd_cguid = cguid;
     meta.flags = 0;
 
-    trxenter( cguid);
-    btree_ret = btree_delete(bt, key, keylen, &meta);
-    trxleave( cguid);
+    {
+	if (pDestager) {
+	    int   rc;
+	    rc = destage_delete(pDestager, zs_thread_state, cguid, bt, key, keylen, 0);
+	    ret = ZS_SUCCESS;  // xxxzzz what about subsequent delete errors?
+	} else {
+	    trxenter( cguid);
+	    btree_ret = btree_delete(bt, key, keylen, &meta);
+	    trxleave( cguid);
+	}
+    }
     ret = BtreeErr_to_ZSErr(btree_ret);
     bt_rel_entry(index, true);
     return(ret);
@@ -2752,45 +2776,6 @@ ZS_status_t _ZSEnumeratePGObjects(
 	*iterator = (void *)itr;
 	itr->cguid = cguid;
 	ret = ZSEnumeratePGObjects( zs_thread_state, cguid, (struct ZS_iterator **)&itr->iterator, key, keylen);
-	if (ret != ZS_SUCCESS)
-		free( itr);
-	cm_unlock( cguid);
-	return (ret);
-}
-
-/**
- * @brief Enumerate All PG objects
- *
- * @param zs_thread_state <IN> The ZS context for which this operation applies
- * @param cguid  <IN> container global identifier
- * @param iterator <IN> enumeration iterator
- * @return ZS_SUCCESS on success
- *
- * Only hash containers are supported.
- */
-ZS_status_t _ZSEnumerateAllPGObjects(
-	struct ZS_thread_state *zs_thread_state,
-	ZS_cguid_t              cguid,
-	struct ZS_iterator    **iterator
-	)
-{
-
-	ZS_status_t ret = bt_is_valid_cguid( cguid);
-	if (ret != ZS_SUCCESS)
-		return (ret);
-	cm_lock( cguid, READ);
-	if (IS_ZS_BTREE_CONTAINER( Container_Map[cguid].flags)) {
-		cm_unlock( cguid);
-		return (ZS_FAILURE_INVALID_CONTAINER_TYPE);
-	}
-	__zs_cont_iterator_t *itr = btree_malloc( sizeof *itr);
-	if (itr == 0) {
-		cm_unlock( cguid);
-		return (ZS_FAILURE_MEMORY_ALLOC);
-	}
-	*iterator = (void *)itr;
-	itr->cguid = cguid;
-	ret = ZSEnumerateAllPGObjects(zs_thread_state, cguid, (struct ZS_iterator **)&itr->iterator);
 	if (ret != ZS_SUCCESS)
 		free( itr);
 	cm_unlock( cguid);
@@ -3080,18 +3065,26 @@ char *_ZSStrError(ZS_status_t zs_errno)
 ZS_status_t 
 _ZSTransactionStart(struct ZS_thread_state *zs_thread_state)
 {
+    ZS_status_t   ret;
 
-	if (bt_is_license_valid() == false) {
-		return (ZS_LICENSE_CHK_FAILED);
-	}
+    if (bt_is_license_valid() == false) {
+	return (ZS_LICENSE_CHK_FAILED);
+    }
 
-	__fdf_txn_mode_state = (__fdf_txn_mode_state == FDF_TXN_NONE_MODE)? __fdf_txn_mode_state_global: __fdf_txn_mode_state;
+    __fdf_txn_mode_state = (__fdf_txn_mode_state == FDF_TXN_NONE_MODE)? __fdf_txn_mode_state_global: __fdf_txn_mode_state;
 
-	if (__fdf_txn_mode_state == FDF_TXN_BTREE_MODE) {
-		return (ZSTransactionService(zs_thread_state, 0, 0));
+    if (__fdf_txn_mode_state == FDF_TXN_BTREE_MODE) {
+	if (pDestager != NULL) {
+	    int   rc;
+	    rc = destage_txn_start(pDestager, zs_thread_state, 0);
+	    ret = ZS_SUCCESS;  // xxxzzz what about subsequent errors?
 	} else {
-		return ZSTransactionStart(zs_thread_state);
+	    ret = ZSTransactionService(zs_thread_state, 0, 0);
 	}
+    } else {
+	ret = ZSTransactionStart(zs_thread_state);
+    }
+    return(ret);
 }
 
 
@@ -3101,17 +3094,25 @@ _ZSTransactionStart(struct ZS_thread_state *zs_thread_state)
 ZS_status_t 
 _ZSTransactionCommit(struct ZS_thread_state *zs_thread_state)
 {
+    ZS_status_t   ret;
 
-	if (bt_is_license_valid() == false) {
-		return (ZS_LICENSE_CHK_FAILED);
-	}
+    if (bt_is_license_valid() == false) {
+	return (ZS_LICENSE_CHK_FAILED);
+    }
 
-	__fdf_txn_mode_state = (__fdf_txn_mode_state == FDF_TXN_NONE_MODE)? __fdf_txn_mode_state_global: __fdf_txn_mode_state;
-	if (__fdf_txn_mode_state == FDF_TXN_BTREE_MODE) {
-		return (ZSTransactionService( zs_thread_state, 1, 0));
+    __fdf_txn_mode_state = (__fdf_txn_mode_state == FDF_TXN_NONE_MODE)? __fdf_txn_mode_state_global: __fdf_txn_mode_state;
+    if (__fdf_txn_mode_state == FDF_TXN_BTREE_MODE) {
+	if (pDestager != NULL) {
+	    int   rc;
+	    rc = destage_txn_commit(pDestager, zs_thread_state, 0);
+	    ret = ZS_SUCCESS;  // xxxzzz what about subsequent errors?
 	} else {
-		return  ZSTransactionCommit(zs_thread_state);
+	    ret = ZSTransactionService(zs_thread_state, 1, 0);
 	}
+    } else {
+        ret = ZSTransactionCommit(zs_thread_state);
+    }
+    return(ret);
 }
 
 /*
@@ -3404,7 +3405,7 @@ static void write_node_cb(struct ZS_thread_state *thd_state, btree_status_t *ret
 		assert(count == 1);
 		ret = ZSWriteRawObject(thd_state, prn->cguid, (char *) *lnodeid, sizeof(uint64_t), (char *)*data, datalen, 0);
 	} else {
-		ret = ZSWriteObjects(thd_state, prn->cguid, (const char **) lnodeid, sizeof(uint64_t), (const char**)data, datalen, count, 0);
+		ret = ZSWriteObjects(thd_state, prn->cguid, (char **) lnodeid, sizeof(uint64_t), data, datalen, count, 0);
 	}
     trxtrackwrite( prn->cguid, lnodeid);
     assert(rawobj ||  (!rawobj && (prn->nodesize == datalen)));
@@ -3914,7 +3915,7 @@ _ZSMPut(struct ZS_thread_state *zs_ts,
 	btree_ret = btree_mput(bt, (btree_mput_obj_t *)objs,
 			num_objs, flags, &meta, objs_done);
 	ZSTransactionService( zs_ts, 1, 0);
-	assert((ret != BTREE_SUCCESS) || (*objs_done == num_objs));
+	assert((btree_ret != BTREE_SUCCESS) || (*objs_done == num_objs));
 
 	if( btree_ret == BTREE_SUCCESS ) {
 		__sync_add_and_fetch(&(bt->partitions[0]->stats.stat[BTSTAT_NUM_MPUT_OBJS]),num_objs);

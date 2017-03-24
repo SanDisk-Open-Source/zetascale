@@ -1736,8 +1736,10 @@ static void cr_shard_notify_ref_count_dec(struct cr_shard_notify_state *state);
 static enum sdf_replicator_access cr_shard_get_access(struct cr_shard *shard);
 static SDF_status_t cr_shard_get_stats(struct cr_shard *shard,
                                        struct sdf_replicator_shard_stats *stats);
+#ifdef KEY_LOCK_CONTAINER
 static SDF_status_t cr_shard_get_op_meta(struct cr_shard *shard,
                                          struct sdf_replication_op_meta *op_meta);
+#endif /* KEY_LOCK_CONTAINER */
 static SDF_status_t cr_shard_get_preference(struct cr_shard *shard,
                                             vnode_t node,
                                             enum cr_shard_get_preference_type,
@@ -1794,6 +1796,7 @@ static void cr_replica_redo_response(struct plat_closure_scheduler *context,
                                      struct sdf_msg_wrapper *response);
 static void cr_replica_undo_op(struct cr_replica *replica,
                                struct sdf_msg_wrapper *wrapper);
+#ifdef KEY_LOCK_CONTAINER
 static void cr_replica_undo_op_lock_cb(struct plat_closure_scheduler *context,
                                        void *env, SDF_status_t status_arg,
                                        struct replicator_key_lock *key_lock);
@@ -1806,6 +1809,7 @@ static void cr_replica_undo_op_put_cb(struct plat_closure_scheduler *context,
                                       struct sdf_msg_wrapper *put_response);
 static void cr_replica_undo_op_complete(struct cr_recovery_op *op,
                                         SDF_status_t status);
+#endif /* KEY_LOCK_CONTAINER */
 static void cr_replica_ref_count_dec(struct cr_replica *replica);
 static int cr_replica_is_writeable(const struct cr_replica *replica);
 static const char *cr_replica_state_to_string(enum cr_replica_state state)
@@ -1840,7 +1844,7 @@ static SDF_status_t cr_op_accum_msg(struct cr_op *op,
 static SDF_status_t cr_op_accum_status(struct cr_op *op,
                                        SDF_status_t msg_status);
 static void cr_op_ref_count_dec(struct cr_op *op);
-static  void cr_op_ref_count_zero(struct cr_op *op);
+static __inline__ void cr_op_ref_count_zero(struct cr_op *op);
 static void cr_op_synthesize_response(struct cr_op *op);
 
 static SDF_status_t
@@ -5870,6 +5874,7 @@ cr_shard_get_stats(struct cr_shard *shard,
  * #SDF_protocol_msg op_meta field.
  * @return SDF_SUCCESS on success, otherwise on failure
  */
+#ifdef KEY_LOCK_CONTAINER
 static SDF_status_t
 cr_shard_get_op_meta(struct cr_shard *shard,
                      struct sdf_replication_op_meta *op_meta) {
@@ -5921,6 +5926,7 @@ cr_shard_get_op_meta(struct cr_shard *shard,
 
     return (ret);
 }
+#endif /* KEY_LOCK_CONTAINER */
 
 /**
  * @brief Get local node's preference for a given shard
@@ -7666,10 +7672,11 @@ static void
 cr_replica_undo_op(struct cr_replica *replica,
                    struct sdf_msg_wrapper *get_response) {
     struct cr_shard *shard = replica->shard;
-    struct copy_replicator *cr = shard->cr;
-    int failed;
     struct cr_recovery_op *op;
+    int failed;
+#ifdef KEY_LOCK_CONTAINER
     rkl_cb_t lock_cb;
+#endif
 
     plat_assert(replica->state == CR_REPLICA_STATE_UNDO);
 
@@ -7719,10 +7726,10 @@ cr_replica_undo_op(struct cr_replica *replica,
                  op->data.pm->key.len, op->data.pm->key.len,
                  op->data.pm->key.key, (unsigned)op->data.pm->data_size);
 
+#ifdef KEY_LOCK_CONTAINER
     lock_cb =
         rkl_cb_create(cr->callbacks.single_scheduler,
                       &cr_replica_undo_op_lock_cb, op);
-#ifdef KEY_LOCK_CONTAINER
     rklc_lock(shard->lock_container, &op->data.pm->key, RKL_MODE_EXCLUSIVE,
               lock_cb);
 #endif /* KEY_LOCK_CONTAINER */
@@ -7743,6 +7750,7 @@ cr_replica_undo_op(struct cr_replica *replica,
  *
  * @param env <IN> operation
  */
+#ifdef KEY_LOCK_CONTAINER
 static void
 cr_replica_undo_op_lock_cb(struct plat_closure_scheduler *context, void *env,
                            SDF_status_t status_arg,
@@ -7826,6 +7834,7 @@ cr_replica_undo_op_lock_cb(struct plat_closure_scheduler *context, void *env,
         cr_replica_undo_op_complete(op, status);
     }
 }
+#endif /* KEY_LOCK_CONTAINER */
 
 /**
  * @brief #cr_replica_undo_op authoritative get callback
@@ -7839,6 +7848,7 @@ cr_replica_undo_op_lock_cb(struct plat_closure_scheduler *context, void *env,
  *
  * @param env <IN> operation
  */
+#ifdef KEY_LOCK_CONTAINER
 static void
 cr_replica_undo_op_authoritative_get_cb(struct plat_closure_scheduler *context,
                                         void *env,
@@ -7949,6 +7959,7 @@ cr_replica_undo_op_authoritative_get_cb(struct plat_closure_scheduler *context,
         plat_fatal("Recovery code is defective");
     }
 }
+#endif /* KEY_LOCK_CONTAINER */
 
 /*
  * @brief Perform compensatory operation for undo
@@ -7962,6 +7973,7 @@ cr_replica_undo_op_authoritative_get_cb(struct plat_closure_scheduler *context,
  * or HFSET)
  * @param get_response_msg <IN> response authoritative replica
  */
+#ifdef KEY_LOCK_CONTAINER
 static void
 cr_replica_undo_op_put(struct cr_recovery_op *op) {
     struct cr_replica *replica = op->dest_replica;
@@ -8021,6 +8033,7 @@ cr_replica_undo_op_put(struct cr_recovery_op *op) {
                            op->mbx, NULL);
     }
 }
+#endif /* KEY_LOCK_CONTAINER */
 
 /**
  * @brief #cr_replica_undo_op put callback
@@ -8033,6 +8046,7 @@ cr_replica_undo_op_put(struct cr_recovery_op *op) {
  *
  * @param env <IN> operation
  */
+#ifdef KEY_LOCK_CONTAINER
 static void
 cr_replica_undo_op_put_cb(struct plat_closure_scheduler *context, void *env,
                           struct sdf_msg_wrapper *put_response) {
@@ -8090,6 +8104,7 @@ cr_replica_undo_op_put_cb(struct plat_closure_scheduler *context, void *env,
 
     cr_replica_undo_op_complete(op, status);
 }
+#endif /* KEY_LOCK_CONTAINER */
 
 /**
  * @brief Completes undo operation
@@ -8101,6 +8116,7 @@ cr_replica_undo_op_put_cb(struct plat_closure_scheduler *context, void *env,
  * @param op <IN> operation
  * @param status <IN> status of entire operation
  */
+#ifdef KEY_LOCK_CONTAINER
 static void
 cr_replica_undo_op_complete(struct cr_recovery_op *op, SDF_status_t status) {
     struct cr_replica *dest_replica = op->dest_replica;
@@ -8164,6 +8180,7 @@ cr_replica_undo_op_complete(struct cr_recovery_op *op, SDF_status_t status) {
     cr_replica_ref_count_dec(src_replica);
     cr_replica_ref_count_dec(dest_replica);
 }
+#endif /* KEY_LOCK_CONTAINER */
 
 /** @brief Decrement #cr_replica reference count, free on zero */
 static void
@@ -8305,9 +8322,10 @@ cr_op_alloc(struct copy_replicator *cr,
 /** @brief Start the given operation */
 static void
 cr_op_start(struct cr_op *op, struct plat_closure_scheduler *context) {
-    struct copy_replicator *cr = op->cr;
-    rkl_cb_t lock_cb;
     enum rkl_mode lock_mode;
+#ifdef KEY_LOCK_CONTAINER
+    rkl_cb_t lock_cb;
+#endif
 
     /* Hold a reference count until a lock is acquired */
     (void) __sync_add_and_fetch(&op->ref_count, 1);
@@ -8347,7 +8365,9 @@ cr_op_start(struct cr_op *op, struct plat_closure_scheduler *context) {
         lock_mode = RKL_MODE_NONE;
     }
 
+#ifdef KEY_LOCK_CONTAINER
     lock_cb = rkl_cb_create(cr->callbacks.single_scheduler, &cr_op_lock_cb, op);
+#endif
     if (lock_mode != RKL_MODE_NONE) {
         plat_assert(op->shard);
 #ifdef KEY_LOCK_CONTAINER
@@ -8628,7 +8648,7 @@ cr_op_ref_count_dec(struct cr_op *op) {
 /**
  * @brief Call when op ref count hits zero; send response and cleanup
  */
-static  void
+static __inline__ void
 cr_op_ref_count_zero(struct cr_op *op) {
     SDF_status_t status;
 
