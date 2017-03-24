@@ -256,7 +256,7 @@ static int gc_init(void *state, uint32_t stripe_bytes, uint32_t sector_bytes)
 	    return(1); // error!
 	}
         if (alloc_keybufs(pgc, max_key_bufs, max_key_size, &dataptrs) == NULL) {
-	    plat_log_msg(160319, LOG_CAT, LOG_ERR, "Could not allocate dataptrs in gc_init");
+	    plat_log_msg(PLAT_LOG_ID_INITIAL, LOG_CAT, LOG_ERR, "Could not allocate dataptrs in gc_init");
 	    return(1); // error!
 	}
         if (alloc_keybufs(pgc, max_key_bufs, max_key_size, &dataptrs2) == NULL) {
