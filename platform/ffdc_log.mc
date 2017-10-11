@@ -35,7 +35,8 @@
 160000 root
 170000 rico
 180000 efirsov
-200000 always_last
+190000 vishal
+210000 always_last
 
 
 [MESSAGES]
@@ -3563,4 +3564,15 @@
 180214 Slab GC stopped. shardID=%ld
 180215 PROP: SDF_MAX_OBJ_SIZE=%"PRIu64" (adjusted from %"PRIu64")
 180216 PERIODIC durability is not supported, set to SW_CRASH_SAFE for %s\n
+
+
+# vishal
 190001 Flog mode = %d, %s, nvram_file = %s.\n
+190002 Init NVLOG for flog dev offset=%ld, fd=%d.\n
+190003 NVLOG failed to truncate file fd=%d.\n
+190004 Truncating/new create fd=%d size=%lu.\n
+190005 NVLOG file open fdf =%d, offset_in_dev=%ld, size=%ld.\n
+190006 NVLOG file read fd=%d, offset=%ld, length=%ld.\n
+190007 NVLOG file read failed on fd=%d, offset=%ld, length=%ld.\n
+190008 NVLOG file write fd=%d, offset=%ld, length=%ld.\n
+190009 NVLOG file write failed on fd=%d, offset=%ld, length=%ld.\n

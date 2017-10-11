@@ -25,10 +25,7 @@ The system level optimizations in ZetaScale include:
 
 ### Install lz4
 ```sh
-#cd /opt
-#git clone https://github.com/Cyan4973/lz4.git
-#cd lz4/lib
-#make install
+#apt-get install liblz4-*
 ```
 ### debug build
 ```sh
